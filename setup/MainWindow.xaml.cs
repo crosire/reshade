@@ -143,7 +143,7 @@ namespace ReShade.Setup
 
 		void AddSearchPath(List<string> searchPaths, string newPath)
 		{
-			string basePath = Path.GetDirectoryName(ApiVulkan.IsChecked.Value ? commonPath : targetPath);
+			string basePath = Path.GetDirectoryName(configPath);
 			Directory.SetCurrentDirectory(basePath);
 
 			bool pathExists = false;
@@ -420,36 +420,40 @@ namespace ReShade.Setup
 			UpdateStatus("Working on " + targetName + " ...", "Installing ReShade ...");
 
 			string targetDir = Path.GetDirectoryName(targetPath);
+			// Check if there is a "bin" directory next to the executable, which is e.g. the case with Source Engine games, and install there
+			string targetBinDir = Path.Combine(targetDir, "bin");
+			if (Directory.Exists(targetBinDir) && ApiVulkan.IsChecked != true)
+			{
+				targetDir = targetBinDir;
+			}
+
 			configPath = Path.Combine(targetDir, "ReShade.ini");
 
 			if (ApiVulkan.IsChecked != true)
 			{
-				modulePath = null;
 				if (ApiD3D9.IsChecked == true)
 				{
 					modulePath = "d3d9.dll";
 				}
-				if (ApiDXGI.IsChecked == true)
+				else if (ApiDXGI.IsChecked == true)
 				{
 					modulePath = "dxgi.dll";
 				}
-				if (ApiOpenGL.IsChecked == true)
+				else if (ApiOpenGL.IsChecked == true)
 				{
 					modulePath = "opengl32.dll";
 				}
-
-				if (modulePath == null)
+				else // No API selected, abort immediately
 				{
-					// No API selected, abort immediately
 					return;
 				}
 
 				modulePath = Path.Combine(targetDir, modulePath);
 
-				var alternativeConfigPath = Path.ChangeExtension(modulePath, ".ini");
-				if (File.Exists(alternativeConfigPath))
+				var configPathAlt = Path.ChangeExtension(modulePath, ".ini");
+				if (File.Exists(configPathAlt))
 				{
-					configPath = alternativeConfigPath;
+					configPath = configPathAlt;
 				}
 
 				if (ReShadeExists(modulePath, out bool isReShade) && !isHeadless)
@@ -587,7 +591,9 @@ In that event here are some steps you can try to resolve this:
 				{
 					string renderApi = compatibilityIni.GetString(targetName, "RenderApi").ToUpper();
 					if (string.IsNullOrEmpty(renderApi) || renderApi == "DXGI")
+					{
 						renderApi = "D3D11"; // Default to D3D11
+					}
 
 					config.SetValue(renderApi, "DepthCopyBeforeClears", compatibilityIni.GetString(targetName, "DepthCopyBeforeClears", "0"));
 					config.SetValue(renderApi, "UseAspectRatioHeuristics", compatibilityIni.GetString(targetName, "UseAspectRatioHeuristics", "1"));
@@ -623,16 +629,16 @@ In that event here are some steps you can try to resolve this:
 
 				config.SetValue("D3D9", "DisableINTZ", config.GetString("DX9_BUFFER_DETECTION", "DisableINTZ"));
 				config.SetValue("D3D9", "DepthCopyBeforeClears", config.GetString("DX9_BUFFER_DETECTION", "PreserveDepthBuffer"));
-				config.SetValue("D3D9", "DepthCopyBeforeClearsIndex", config.GetString("DX9_BUFFER_DETECTION", "PreserveDepthBufferIndex"));
+				config.SetValue("D3D9", "DepthCopyAtClearIndex", config.GetString("DX9_BUFFER_DETECTION", "PreserveDepthBufferIndex"));
 				config.SetValue("D3D9", "UseAspectRatioHeuristics", config.GetString("DX9_BUFFER_DETECTION", "UseAspectRatioHeuristics"));
 				config.SetValue("D3D10", "DepthCopyBeforeClears", config.GetString("DX10_BUFFER_DETECTION", "DepthBufferRetrievalMode"));
-				config.SetValue("D3D10", "DepthCopyBeforeClearsIndex", config.GetString("DX10_BUFFER_DETECTION", "DepthBufferClearingNumber"));
+				config.SetValue("D3D10", "DepthCopyAtClearIndex", config.GetString("DX10_BUFFER_DETECTION", "DepthBufferClearingNumber"));
 				config.SetValue("D3D10", "UseAspectRatioHeuristics", config.GetString("DX10_BUFFER_DETECTION", "UseAspectRatioHeuristics"));
 				config.SetValue("D3D11", "DepthCopyBeforeClears", config.GetString("DX11_BUFFER_DETECTION", "DepthBufferRetrievalMode"));
-				config.SetValue("D3D11", "DepthCopyBeforeClearsIndex", config.GetString("DX11_BUFFER_DETECTION", "DepthBufferClearingNumber"));
+				config.SetValue("D3D11", "DepthCopyAtClearIndex", config.GetString("DX11_BUFFER_DETECTION", "DepthBufferClearingNumber"));
 				config.SetValue("D3D11", "UseAspectRatioHeuristics", config.GetString("DX11_BUFFER_DETECTION", "UseAspectRatioHeuristics"));
 				config.SetValue("D3D12", "DepthCopyBeforeClears", config.GetString("DX12_BUFFER_DETECTION", "DepthBufferRetrievalMode"));
-				config.SetValue("D3D12", "DepthCopyBeforeClearsIndex", config.GetString("DX12_BUFFER_DETECTION", "DepthBufferClearingNumber"));
+				config.SetValue("D3D12", "DepthCopyAtClearIndex", config.GetString("DX12_BUFFER_DETECTION", "DepthBufferClearingNumber"));
 				config.SetValue("D3D12", "UseAspectRatioHeuristics", config.GetString("DX12_BUFFER_DETECTION", "UseAspectRatioHeuristics"));
 				config.SetValue("VULKAN", "UseAspectRatioHeuristics", config.GetString("VULKAN_BUFFER_DETECTION", "UseAspectRatioHeuristics"));
 
@@ -743,10 +749,11 @@ In that event here are some steps you can try to resolve this:
 				ZipFile.ExtractToDirectory(downloadPath, tempPath);
 
 				// First check for a standard directory name
+				string basePath = Path.GetDirectoryName(configPath);
 				string tempPathShaders = Directory.GetDirectories(tempPath, "Shaders", SearchOption.AllDirectories).FirstOrDefault();
 				string tempPathTextures = Directory.GetDirectories(tempPath, "Textures", SearchOption.AllDirectories).FirstOrDefault();
-				string targetPathShaders = Path.Combine(Path.GetDirectoryName(targetPath), package.InstallPath);
-				string targetPathTextures = Path.Combine(Path.GetDirectoryName(targetPath), package.TextureInstallPath);
+				string targetPathShaders = Path.Combine(basePath, package.InstallPath);
+				string targetPathTextures = Path.Combine(basePath, package.TextureInstallPath);
 
 				// If that does not exist, look for the first directory that contains shaders/textures
 				string[] effects = Directory.GetFiles(tempPath, "*.fx", SearchOption.AllDirectories);
@@ -830,7 +837,7 @@ In that event here are some steps you can try to resolve this:
 			}
 			else
 			{
-				description = "You may now close this setup tool or click this button to edit additional settings.";
+				description = "You may now close this setup tool or click this button to edit additional settings.\nTo uninstall ReShade, launch this tool and select the game again. An option to uninstall will pop up then.";
 			}
 
 			UpdateStatusAndFinish(true, "Edit ReShade settings", description);
@@ -998,7 +1005,7 @@ In that event here are some steps you can try to resolve this:
 
 			try
 			{
-				string targetDir = Path.GetDirectoryName(targetPath);
+				string basePath = Path.GetDirectoryName(configPath);
 
 				File.Delete(modulePath);
 
@@ -1012,9 +1019,9 @@ In that event here are some steps you can try to resolve this:
 					File.Delete(Path.ChangeExtension(modulePath, ".log"));
 				}
 
-				if (Directory.Exists(Path.Combine(targetDir, "reshade-shaders")))
+				if (Directory.Exists(Path.Combine(basePath, "reshade-shaders")))
 				{
-					Directory.Delete(Path.Combine(targetDir, "reshade-shaders"), true);
+					Directory.Delete(Path.Combine(basePath, "reshade-shaders"), true);
 				}
 
 				UpdateStatusAndFinish(true, "Successfully uninstalled.");

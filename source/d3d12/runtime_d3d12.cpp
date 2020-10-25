@@ -109,7 +109,7 @@ reshade::d3d12::runtime_d3d12::runtime_d3d12(ID3D12Device *device, ID3D12Command
 #if RESHADE_DEPTH
 	subscribe_to_load_config([this](const ini_file &config) {
 		config.get("D3D12", "DepthCopyBeforeClears", _buffer_detection->preserve_depth_buffers);
-		config.get("D3D12", "DepthCopyBeforeClearsIndex", _buffer_detection->depthstencil_clear_index.second);
+		config.get("D3D12", "DepthCopyAtClearIndex", _buffer_detection->depthstencil_clear_index.second);
 		config.get("D3D12", "UseAspectRatioHeuristics", _filter_aspect_ratio);
 
 		if (_buffer_detection->depthstencil_clear_index.second == std::numeric_limits<UINT>::max())
@@ -117,7 +117,7 @@ reshade::d3d12::runtime_d3d12::runtime_d3d12(ID3D12Device *device, ID3D12Command
 	});
 	subscribe_to_save_config([this](ini_file &config) {
 		config.set("D3D12", "DepthCopyBeforeClears", _buffer_detection->preserve_depth_buffers);
-		config.set("D3D12", "DepthCopyBeforeClearsIndex", _buffer_detection->depthstencil_clear_index.second);
+		config.set("D3D12", "DepthCopyAtClearIndex", _buffer_detection->depthstencil_clear_index.second);
 		config.set("D3D12", "UseAspectRatioHeuristics", _filter_aspect_ratio);
 	});
 #endif

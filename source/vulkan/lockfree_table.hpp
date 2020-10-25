@@ -222,6 +222,7 @@ public:
 	}
 
 private:
-	mutable TValue _default = {};
+	// Make default value thread local, so no data races occur after multiple threads failed to access a value
+	static inline thread_local TValue _default = {};
 	std::pair<std::atomic<TKey>, TValue *> _data[MAX_ENTRIES];
 };

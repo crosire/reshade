@@ -3,8 +3,8 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "dll_log.hpp"
 #include "version.h"
+#include "dll_log.hpp"
 #include "runtime.hpp"
 #include "runtime_config.hpp"
 #include "runtime_objects.hpp"
@@ -22,8 +22,6 @@
 #include <stb_image_dds.h>
 #include <stb_image_write.h>
 #include <stb_image_resize.h>
-
-extern volatile long g_network_traffic;
 
 bool resolve_path(std::filesystem::path &path)
 {
@@ -93,8 +91,14 @@ reshade::runtime::runtime() :
 	// Default shortcut PrtScrn
 	_screenshot_key_data[0] = 0x2C;
 
+	// Fall back to alternative configuration file name if it exists
+	std::error_code ec;
+	if (std::filesystem::path configuraton_path_alt = g_reshade_base_path / g_reshade_dll_path.filename().replace_extension(L".ini");
+		std::filesystem::exists(configuraton_path_alt, ec) && !std::filesystem::exists(_configuration_path, ec))
+		_configuration_path = std::move(configuraton_path_alt);
+
 #if RESHADE_GUI
-	init_ui();
+	init_gui();
 #endif
 	load_config();
 }
@@ -104,7 +108,7 @@ reshade::runtime::~runtime()
 	assert(!_is_initialized && _techniques.empty());
 
 #if RESHADE_GUI
-	deinit_ui();
+	deinit_gui();
 #endif
 }
 
@@ -168,7 +172,7 @@ void reshade::runtime::on_present()
 
 #if RESHADE_GUI
 	// Draw overlay
-	draw_ui();
+	draw_gui();
 
 	if (_should_save_screenshot && _screenshot_save_ui && _show_overlay)
 		save_screenshot(L" ui");
@@ -260,7 +264,7 @@ size_t reshade::runtime::load_effect(reshade::ini_file &preset, std::filesystem:
 
 	std::map<std::string, std::string> macros;
 
-	macros.emplace("__RESHADE__", std::to_string(RESHADE_VERSION));
+	macros.emplace("__RESHADE__", std::to_string(VERSION_MAJOR * 10000 + VERSION_MINOR * 100 + VERSION_REVISION));
 	macros.emplace("__RESHADE_PERFORMANCE_MODE__", _performance_mode ? "1" : "0");
 	macros.emplace("__VENDOR__", std::to_string(_vendor_id));
 	macros.emplace("__DEVICE__", std::to_string(_device_id));
@@ -372,16 +376,14 @@ size_t reshade::runtime::load_effect(reshade::ini_file &preset, std::filesystem:
 
 			// Add some conversion macros for compatibility with older versions of ReShade
 			pp.append_string(
+				"#define tex2Doffset(s, coords, offset) tex2D(s, coords, offset)\n"
+				"#define tex2Dlodoffset(s, coords, offset) tex2Dlod(s, coords, offset)\n"
 				"#define tex2Dgather(s, t, c) tex2Dgather##c(s, t)\n"
+				"#define tex2Dgatheroffset(s, t, o, c) tex2Dgather##c(s, t, o)\n"
 				"#define tex2Dgather0 tex2DgatherR\n"
 				"#define tex2Dgather1 tex2DgatherG\n"
 				"#define tex2Dgather2 tex2DgatherB\n"
-				"#define tex2Dgather3 tex2DgatherA\n"
-				"#define tex2Dgatheroffset(s, t, o, c) tex2Dgather##c##offset(s, t, o)\n"
-				"#define tex2Dgather0offset tex2DgatherRoffset\n"
-				"#define tex2Dgather1offset tex2DgatherGoffset\n"
-				"#define tex2Dgather2offset tex2DgatherBoffset\n"
-				"#define tex2Dgather3offset tex2DgatherAoffset\n");
+				"#define tex2Dgather3 tex2DgatherA\n");
 
 			for (const auto &include : includes)
 				pp.add_include_path(include);
@@ -501,6 +503,10 @@ size_t reshade::runtime::load_effect(reshade::ini_file &preset, std::filesystem:
 					var.special = special_uniform::freepie;
 				else if (special == "overlay_open")
 					var.special = special_uniform::overlay_open;
+				else if (special == "overlay_active")
+					var.special = special_uniform::overlay_active;
+				else if (special == "overlay_hovered")
+					var.special = special_uniform::overlay_hovered;
 				else if (special == "bufready_depth")
 					var.special = special_uniform::bufready_depth;
 			}
@@ -550,14 +556,15 @@ size_t reshade::runtime::load_effect(reshade::ini_file &preset, std::filesystem:
 				// Cannot share texture if this is a normal one, but the existing one is a reference and vice versa
 				if (texture.semantic.empty() != (existing_texture->impl_reference == texture_reference::none))
 				{
-					effect.errors += "error: " + texture.unique_name + ": another effect (";
+					effect.errors += "error: " + texture.unique_name + ": another shader (";
 					effect.errors += _effects[existing_texture->effect_index].source_file.filename().u8string();
 					effect.errors += ") already created a texture with the same name but different usage; rename the variable to fix this error\n";
 					effect.compiled = false;
+					break;
 				}
 				if (texture.semantic.empty() && !existing_texture->matches_description(texture))
 				{
-					effect.errors += "warning: " + texture.unique_name + ": another effect (";
+					effect.errors += "warning: " + texture.unique_name + ": another shader (";
 					effect.errors += _effects[existing_texture->effect_index].source_file.filename().u8string();
 					effect.errors += ") already created a texture with the same name but different dimensions; textures are shared across all effects, so either rename the variable or adjust the dimensions so they match\n";
 				}
@@ -569,7 +576,7 @@ size_t reshade::runtime::load_effect(reshade::ini_file &preset, std::filesystem:
 					effect.errors += ") already created a texture with another image file; textures are shared across all effects, so either rename the variable or adjust the path so they match\n";
 				}
 
-				if (_color_bit_depth != 8)
+				if (existing_texture->impl_reference == texture_reference::back_buffer && _color_bit_depth != 8)
 				{
 					for (const auto &sampler_info : effect.module.samplers)
 					{
@@ -626,6 +633,9 @@ size_t reshade::runtime::load_effect(reshade::ini_file &preset, std::filesystem:
 			else if (!texture.semantic.empty())
 				effect.errors += "warning: " + texture.unique_name + ": unknown semantic '" + texture.semantic + "'\n";
 
+			// This is the first effect using this texture
+			texture.shared.push_back(effect_index);
+
 			_textures.emplace_back(std::move(texture));
 		}
 
@@ -659,7 +669,7 @@ size_t reshade::runtime::load_effect(reshade::ini_file &preset, std::filesystem:
 		LOG(WARN) << "Successfully loaded " << source_file << " with warnings:\n" << effect.errors;
 
 	_reload_remaining_effects--;
-	_last_shader_reload_successful &= !effect.restored && effect.compiled;
+	_last_shader_reload_successfull &= !effect.restored && effect.compiled;
 
 	return effect_index;
 }
@@ -672,7 +682,7 @@ void reshade::runtime::load_effects()
 	_show_splash = true; // Always show splash bar when reloading everything
 	_reload_count++;
 #endif
-	_last_shader_reload_successful = true;
+	_last_shader_reload_successfull = true;
 
 	ini_file &preset = ini_file::load_cache(_current_preset_path);
 
@@ -721,7 +731,7 @@ void reshade::runtime::load_effects()
 }
 void reshade::runtime::load_textures()
 {
-	_last_texture_reload_successful = true;
+	_last_texture_reload_successfull = true;
 
 	LOG(INFO) << "Loading image files for textures ...";
 
@@ -740,7 +750,7 @@ void reshade::runtime::load_textures()
 		if (!find_file(_texture_search_paths, source_path))
 		{
 			LOG(ERROR) << "Source " << source_path << " for texture '" << texture.unique_name << "' could not be found in any of the texture search paths.";
-			_last_texture_reload_successful = false;
+			_last_texture_reload_successfull = false;
 			continue;
 		}
 
@@ -763,7 +773,7 @@ void reshade::runtime::load_textures()
 		if (filedata == nullptr)
 		{
 			LOG(ERROR) << "Source " << source_path << " for texture '" << texture.unique_name << "' could not be loaded! Make sure it is of a compatible file format.";
-			_last_texture_reload_successful = false;
+			_last_texture_reload_successfull = false;
 			continue;
 		}
 
@@ -810,7 +820,6 @@ void reshade::runtime::unload_effect(size_t effect_index)
 			}
 			return false;
 		}), _textures.end());
-
 	// Clean up techniques belonging to this effect
 	_techniques.erase(std::remove_if(_techniques.begin(), _techniques.end(),
 		[effect_index](const technique &tech) {
@@ -950,53 +959,63 @@ void reshade::runtime::update_and_render_effects()
 	}
 	else if (!_reload_compile_queue.empty())
 	{
-		bool success = true;
-
 		// Pop an effect from the queue
 		const size_t effect_index = _reload_compile_queue.back();
 		_reload_compile_queue.pop_back();
 		effect &effect = _effects[effect_index];
 
 		// Create textures now, since they are referenced when building samplers in the 'init_effect' call below
-		for (texture &texture : _textures)
+		for (texture &tex : _textures)
 		{
-			// Always create shared textures, since they may be in use by this effect already
-			if (texture.impl == nullptr && (texture.effect_index == effect_index || texture.shared.size() > 1))
+			if (tex.impl != nullptr || (
+				// Always create shared textures, since they may be in use by this effect already
+				tex.effect_index != effect_index && tex.shared.size() <= 1))
+				continue;
+
+			if (!init_texture(tex))
 			{
-				if (!init_texture(texture))
-				{
-					success = false;
-					effect.errors += "Failed to create texture " + texture.unique_name;
-					break;
-				}
+				effect.errors += "Failed to create texture " + tex.unique_name;
+				effect.compiled = false;
+				break;
 			}
 		}
 
-		// Compile the effect with the back-end implementation
-		if (success && (success = init_effect(effect_index)) == false)
-		{
-			// De-duplicate error lines (D3DCompiler sometimes repeats the same error multiple times)
-			for (size_t cur_line_offset = 0, next_line_offset, end_offset;
-				(next_line_offset = effect.errors.find('\n', cur_line_offset)) != std::string::npos && (end_offset = effect.errors.find('\n', next_line_offset + 1)) != std::string::npos; cur_line_offset = next_line_offset + 1)
-			{
-				const std::string_view cur_line(effect.errors.c_str() + cur_line_offset, next_line_offset - cur_line_offset);
-				const std::string_view next_line(effect.errors.c_str() + next_line_offset + 1, end_offset - next_line_offset - 1);
+		// Compile the effect with the back-end implementation (unless texture creation failed)
+		if (effect.compiled)
+			effect.compiled = init_effect(effect_index);
 
+		// De-duplicate error lines (D3DCompiler sometimes repeats the same error multiple times)
+		for (size_t line_offset = 0, next_line_offset;
+			(next_line_offset = effect.errors.find('\n', line_offset)) != std::string::npos; line_offset = next_line_offset + 1)
+		{
+			const std::string_view cur_line(effect.errors.c_str() + line_offset, next_line_offset - line_offset);
+
+			if (const size_t end_offset = effect.errors.find('\n', next_line_offset + 1);
+				end_offset != std::string::npos)
+			{
+				const std::string_view next_line(effect.errors.c_str() + next_line_offset + 1, end_offset - next_line_offset - 1);
 				if (cur_line == next_line)
 				{
 					effect.errors.erase(next_line_offset, end_offset - next_line_offset);
-					next_line_offset = cur_line_offset - 1;
+					next_line_offset = line_offset - 1;
 				}
 			}
 
+			// Also remove D3DCompiler warnings about 'groupshared' specifier used in VS/PS modules
+			if (cur_line.find("X3579") != std::string_view::npos)
+			{
+				effect.errors.erase(line_offset, next_line_offset + 1 - line_offset);
+				next_line_offset = line_offset - 1;
+			}
+		}
+
+		if (!effect.compiled) // Something went wrong, do clean up
+		{
 			if (effect.errors.empty())
 				LOG(ERROR) << "Failed initializing " << effect.source_file << '.';
 			else
 				LOG(ERROR) << "Failed initializing " << effect.source_file << ":\n" << effect.errors;
-		}
 
-		if (success == false) // Something went wrong, do clean up
-		{
 			// Destroy all textures belonging to this effect
 			for (texture &tex : _textures)
 				if (tex.effect_index == effect_index && tex.shared.size() <= 1)
@@ -1006,8 +1025,7 @@ void reshade::runtime::update_and_render_effects()
 				if (tech.effect_index == effect_index)
 					disable_technique(tech);
 
-			effect.compiled = false;
-			_last_shader_reload_successful = false;
+			_last_shader_reload_successfull = false;
 		}
 
 		// An effect has changed, need to reload textures
@@ -1015,7 +1033,7 @@ void reshade::runtime::update_and_render_effects()
 
 #if RESHADE_GUI
 		// Update assembly in viewer after a reload
-		if (_show_code_viewer && !_viewer_entry_point.empty() && success)
+		if (_show_code_viewer && !_viewer_entry_point.empty() && effect.compiled)
 		{
 			if (const auto assembly_it = effect.assembly.find(_viewer_entry_point);
 				assembly_it != effect.assembly.end())
@@ -1218,20 +1236,21 @@ void reshade::runtime::update_and_render_effects()
 				{
 					if (freepie_io_data data;
 						freepie_io_read(variable.annotation_as_int("index"), &data))
-					{
-						// Assign as float4 array, since float3 arrays are padded to float4 anyway
-						const float array_values[] = {
-							data.yaw, data.pitch, data.roll, 0.0f,
-							data.x, data.y, data.z, 0.0f
-						};
-						set_uniform_value(variable, array_values, 4 * 2);
-					}
+						set_uniform_value(variable, &data.yaw, 3 * 2);
 					break;
 				}
 #if RESHADE_GUI
 				case special_uniform::overlay_open:
 				{
 					set_uniform_value(variable, _show_overlay);
+					break;
+				}
+				case special_uniform::overlay_active:
+				case special_uniform::overlay_hovered:
+				{
+					// These are set in 'draw_variable_editor' when overlay is open
+					if (!_show_overlay)
+						set_uniform_value(variable, 0);
 					break;
 				}
 #endif
@@ -1329,30 +1348,29 @@ void reshade::runtime::load_config()
 {
 	const ini_file &config = ini_file::load_cache(_configuration_path);
 
-	config.get("INPUT", "KeyReload", _reload_key_data);
+	config.get("INPUT", "ForceShortcutModifiers", _force_shortcut_modifiers);
 	config.get("INPUT", "KeyEffects", _effects_key_data);
-	config.get("INPUT", "KeyScreenshot", _screenshot_key_data);
-	config.get("INPUT", "KeyPreviousPreset", _prev_preset_key_data);
 	config.get("INPUT", "KeyNextPreset", _next_preset_key_data);
 	config.get("INPUT", "KeyPerformanceMode", _performance_mode_key_data);
-	config.get("INPUT", "ForceShortcutModifiers", _force_shortcut_modifiers);
+	config.get("INPUT", "KeyPreviousPreset", _prev_preset_key_data);
+	config.get("INPUT", "KeyReload", _reload_key_data);
+	config.get("INPUT", "KeyScreenshot", _screenshot_key_data);
 
 	config.get("GENERAL", "NoDebugInfo", _no_debug_info);
 	config.get("GENERAL", "NoReloadOnInit", _no_reload_on_init);
 
-	config.get("GENERAL", "PerformanceMode", _performance_mode);
 	config.get("GENERAL", "EffectSearchPaths", _effect_search_paths);
+	config.get("GENERAL", "PerformanceMode", _performance_mode);
+	config.get("GENERAL", "PreprocessorDefinitions", _global_preprocessor_definitions);
+	config.get("GENERAL", "SkipLoadingDisabledEffects", _effect_load_skipping);
 	config.get("GENERAL", "TextureSearchPaths", _texture_search_paths);
 	config.get("GENERAL", "IntermediateCachePath", _intermediate_cache_path);
-	config.get("GENERAL", "PreprocessorDefinitions", _global_preprocessor_definitions);
-	config.get("GENERAL", "EffectLoadSkipping", _effect_load_skipping);
 
 	config.get("GENERAL", "PresetPath", _current_preset_path);
 	config.get("GENERAL", "PresetTransitionDelay", _preset_transition_delay);
-
 	// Use default if the preset file does not exist yet
 	if (!resolve_preset_path(_current_preset_path))
-		_current_preset_path = g_reshade_base_path / L"DefaultPreset.ini";
+		_current_preset_path = g_reshade_base_path / L"ReShadePreset.ini";
 
 	config.get("SCREENSHOTS", "ClearAlpha", _screenshot_clear_alpha);
 	config.get("SCREENSHOTS", "FileFormat", _screenshot_format);
@@ -1370,25 +1388,27 @@ void reshade::runtime::save_config() const
 {
 	ini_file &config = ini_file::load_cache(_configuration_path);
 
-	config.set("INPUT", "KeyReload", _reload_key_data);
+	config.set("INPUT", "ForceShortcutModifiers", _force_shortcut_modifiers);
 	config.set("INPUT", "KeyEffects", _effects_key_data);
-	config.set("INPUT", "KeyScreenshot", _screenshot_key_data);
-	config.set("INPUT", "KeyPreviousPreset", _prev_preset_key_data);
 	config.set("INPUT", "KeyNextPreset", _next_preset_key_data);
 	config.set("INPUT", "KeyPerformanceMode", _performance_mode_key_data);
-	config.set("INPUT", "ForceShortcutModifiers", _force_shortcut_modifiers);
+	config.set("INPUT", "KeyPreviousPreset", _prev_preset_key_data);
+	config.set("INPUT", "KeyReload", _reload_key_data);
+	config.set("INPUT", "KeyScreenshot", _screenshot_key_data);
 
-	config.set("GENERAL", "PerformanceMode", _performance_mode);
 	config.set("GENERAL", "EffectSearchPaths", _effect_search_paths);
+	config.set("GENERAL", "PerformanceMode", _performance_mode);
+	config.set("GENERAL", "PreprocessorDefinitions", _global_preprocessor_definitions);
+	config.set("GENERAL", "SkipLoadingDisabledEffects", _effect_load_skipping);
 	config.set("GENERAL", "TextureSearchPaths", _texture_search_paths);
 	config.set("GENERAL", "IntermediateCachePath", _intermediate_cache_path);
-	config.set("GENERAL", "PreprocessorDefinitions", _global_preprocessor_definitions);
-	config.set("GENERAL", "EffectLoadSkipping", _effect_load_skipping);
 
 	// Use ReShade DLL directory as base for relative preset paths (see 'resolve_preset_path')
 	std::filesystem::path relative_preset_path = _current_preset_path.lexically_proximate(g_reshade_base_path);
 	if (relative_preset_path.wstring().rfind(L"..", 0) != std::wstring::npos)
 		relative_preset_path = _current_preset_path; // Do not use relative path if preset is in a parent directory
+	if (relative_preset_path.is_relative()) // Prefix preset path with dot character to better indicate it being a relative path
+		relative_preset_path = L"." / relative_preset_path;
 	config.set("GENERAL", "PresetPath", relative_preset_path);
 	config.set("GENERAL", "PresetTransitionDelay", _preset_transition_delay);
 

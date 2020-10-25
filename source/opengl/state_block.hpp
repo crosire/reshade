@@ -14,8 +14,8 @@ namespace reshade::opengl
 	public:
 		state_block();
 
-		void capture();
-		void apply() const;
+		void capture(bool compatibility);
+		void apply(bool compatibility) const;
 
 #ifndef NDEBUG
 		mutable bool has_state = false;
@@ -35,6 +35,7 @@ namespace reshade::opengl
 		GLint _blend;
 		GLint _blend_src, _blend_dest;
 		GLint _blend_eq_color, _blend_eq_alpha;
+		GLint _alpha_test;
 		GLint _depth_test;
 		GLboolean _depth_mask;
 		GLint _depth_func;

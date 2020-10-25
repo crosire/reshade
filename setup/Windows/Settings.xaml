@@ -7,12 +7,12 @@
       <TextBox Margin="10,0" Name="Preset" />
     </DockPanel>
     <DockPanel DockPanel.Dock="Top" LastChildFill="True" Margin="10,5">
-      <Label Margin="0,0,5,0" Padding="0" VerticalAlignment="Center" Content="Effects Path" />
+      <Label Margin="0,0,5,0" Padding="0" VerticalAlignment="Center" Content="Effect Paths" />
       <Button DockPanel.Dock="Right" Padding="5,0" Name="BtnEffects" Content="..." Click="OnChooseFolderDialog" />
       <TextBox Margin="10,0" Name="EffectsPath" Text="{Binding Tag, ElementName=BtnEffects, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
     </DockPanel>
     <DockPanel DockPanel.Dock="Top" LastChildFill="True" Margin="10,5">
-      <Label Margin="0,0,5,0" Padding="0" VerticalAlignment="Center" Content="Textures Path" />
+      <Label Margin="0,0,5,0" Padding="0" VerticalAlignment="Center" Content="Texture Paths" />
       <Button DockPanel.Dock="Right" Padding="5,0" Name="BtnTextures" Content="..." Click="OnChooseFolderDialog" />
       <TextBox Margin="10,0" Name="TexturesPath" Text="{Binding Tag, ElementName=BtnTextures, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
     </DockPanel>

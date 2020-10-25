@@ -3,8 +3,8 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "dll_log.hpp"
 #include "input.hpp"
+#include "dll_log.hpp"
 #include "hook_manager.hpp"
 #include <mutex>
 #include <cassert>

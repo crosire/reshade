@@ -142,7 +142,10 @@ bool reshadefx::preprocessor::append_string(const std::string &source_code)
 
 	_success = true; // Clear success flag before parsing a new string
 
-	push(source_code);
+	// Give this push a name, so that lexer location starts at a new line
+	// This is necessary in case this string starts with a preprocessor directive, since the lexer only reports those as such if they appear at the beginning of a new line
+	// But without a name, the lexer location is set to the last token location, which most likely will not be at the start of the line
+	push(source_code, "unknown");
 	parse();
 
 	return _success;
@@ -1078,24 +1081,33 @@ bool reshadefx::preprocessor::evaluate_identifier_as_macro()
 
 			while (true)
 			{
+				// Consume all tokens here, so spaces are added to the output too
 				consume();
-
+				if (_token == tokenid::comma && parentheses_level == 0)
+					break; // Comma marks end of an argument
 				if (_token == tokenid::parenthesis_open)
 					parentheses_level++;
-				else if (
-					(_token == tokenid::parenthesis_close && --parentheses_level < 0) ||
-					(_token == tokenid::comma && parentheses_level == 0))
+				if (_token == tokenid::parenthesis_close && --parentheses_level < 0)
 					break;
 
-				argument += _current_token_raw_data;
+				// Collapse all whitespace down to a single space
+				if (_token == tokenid::space)
+					argument += ' ';
+				else
+					argument += _current_token_raw_data;
 			}
 
 			// Trim whitespace from argument
-			if (!argument.empty() && argument.back() == ' ')
-				argument.pop_back();
-			if (!argument.empty() && argument.front() == ' ')
-				argument.erase(0, 1);
-
+			const size_t first = argument.find_first_not_of(" \t");
+			if (first == std::string::npos)
+			{
+				argument.clear();
+			}
+			else
+			{
+				const size_t last = argument.find_last_not_of(" \t");
+				argument = argument.substr(first, last - first + 1);
+			}
 			arguments.push_back(std::move(argument));
 
 			if (parentheses_level < 0)
@@ -1118,20 +1130,29 @@ bool reshadefx::preprocessor::evaluate_identifier_as_macro()
 
 void reshadefx::preprocessor::expand_macro(const std::string &name, const macro &macro, const std::vector<std::string> &arguments, std::string &out)
 {
-	for (auto it = macro.replacement_list.begin(); it != macro.replacement_list.end(); ++it)
+	for (size_t offset = 0; offset < macro.replacement_list.size(); ++offset)
 	{
-		if (*it != macro_replacement_start)
+		if (macro.replacement_list[offset] != macro_replacement_start)
 		{
-			out += *it;
+			out += macro.replacement_list[offset];
 			continue;
 		}
 
 		// This is a special replacement sequence
-		const auto type = *++it;
+		const auto type = macro.replacement_list[++offset];
 		if (type == macro_replacement_concat)
+		{
+			// Remove any whitespace preceeding or following the concatenation operator (so "a ## b" becomes "ab")
+			if (const size_t last = out.find_last_not_of(" \t");
+				last != std::string::npos && last + 1 < out.size())
+				out.erase(last + 1);
+			while (offset + 1 != macro.replacement_list.size() &&
+				(macro.replacement_list[offset + 1] == ' ' || macro.replacement_list[offset + 1] == '\t'))
+				++offset;
 			continue;
+		}
 
-		const auto index = *++it;
+		const auto index = macro.replacement_list[++offset];
 		if (static_cast<size_t>(index) >= arguments.size())
 		{
 			warning(_token.location, "not enough arguments for function-like macro invocation '" + name + "'");
@@ -1141,15 +1162,25 @@ void reshadefx::preprocessor::expand_macro(const std::string &name, const macro 
 		switch (type)
 		{
 		case macro_replacement_stringize:
+			out.reserve(out.size() + 2 + arguments[index].size());
 			out += '"';
-			out += arguments[index];
+			for (const char c : arguments[index])
+			{
+				// Adds backslashes to escape quotes
+				if (c == '"')
+					out += '\\';
+				out += c;
+			}
 			out += '"';
 			break;
 		case macro_replacement_argument:
 			push(arguments[index] + static_cast<char>(macro_replacement_argument));
-			while (!accept(tokenid::unknown))
+			while (true)
 			{
+				// Consume all tokens here, so spaces are added to the output too
 				consume();
+				if (_token == tokenid::unknown) // 'macro_replacement_argument' is 'tokenid::unknown'
+					break;
 				if (_token == tokenid::identifier && evaluate_identifier_as_macro())
 					continue;
 				out += _current_token_raw_data;
@@ -1168,7 +1199,6 @@ void reshadefx::preprocessor::create_macro_replacement_list(macro &macro)
 	while (!peek(tokenid::end_of_file) && !peek(tokenid::end_of_line))
 	{
 		consume();
-
 		switch (_token)
 		{
 		case tokenid::hash:

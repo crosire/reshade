@@ -81,6 +81,19 @@ reshade::opengl::runtime_gl::runtime_gl()
 		}
 	}
 
+	// Check for special extension to detect whether this is a compatibility context (https://www.khronos.org/opengl/wiki/OpenGL_Context#OpenGL_3.1_and_ARB_compatibility)
+	GLint num_extensions = 0;
+	glGetIntegerv(GL_NUM_EXTENSIONS, &num_extensions);
+	for (GLint i = 0; i < num_extensions; ++i)
+	{
+		const GLubyte *const extension = glGetStringi(GL_EXTENSIONS, i);
+		if (std::strcmp(reinterpret_cast<const char *>(extension), "GL_ARB_compatibility") == 0)
+		{
+			_compatibility_context = true;
+			break;
+		}
+	}
+
 #if RESHADE_GUI
 	subscribe_to_ui("OpenGL", [this]() {
 		// Add some information about the device and driver to the UI
@@ -93,9 +106,8 @@ reshade::opengl::runtime_gl::runtime_gl()
 	});
 #endif
 	subscribe_to_load_config([this](const ini_file &config) {
-		// Reserve a fixed amount of texture names by default to work around issues in old OpenGL games
-		// This hopefully should not affect performance much in other games
-		auto num_reserve_texture_names = 512u;
+		// Reserve a fixed amount of texture names by default to work around issues in old OpenGL games (which will use a compatibility context)
+		auto num_reserve_texture_names = _compatibility_context ? 512u : 0u;
 		config.get("OPENGL", "ReserveTextureNames", num_reserve_texture_names);
 		_reserved_texture_names.resize(num_reserve_texture_names);
 
@@ -154,11 +166,12 @@ bool reshade::opengl::runtime_gl::on_init(HWND hwnd, unsigned int width, unsigne
 	_buffer_detection.reset(_width, _height, _default_depth_format);
 
 	// Capture and later restore so that the resource creation code below does not affect the application state
-	_app_state.capture();
+	_app_state.capture(_compatibility_context);
 
 	// Some games (like Hot Wheels Velocity X) use fixed texture names, which can clash with the ones ReShade generates below, since most implementations will return values linearly
 	// Reserve a configurable range of names for those games to work around this
-	glGenTextures(GLsizei(_reserved_texture_names.size()), _reserved_texture_names.data());
+	if (!_reserved_texture_names.empty())
+		glGenTextures(static_cast<GLsizei>(_reserved_texture_names.size()), _reserved_texture_names.data());
 
 	glGenBuffers(NUM_BUF, _buf);
 	glGenTextures(NUM_TEX, _tex);
@@ -207,7 +220,7 @@ bool reshade::opengl::runtime_gl::on_init(HWND hwnd, unsigned int width, unsigne
 	init_imgui_resources();
 #endif
 
-	_app_state.apply();
+	_app_state.apply(_compatibility_context);
 
 	return runtime::on_init(hwnd);
 }
@@ -217,7 +230,7 @@ void reshade::opengl::runtime_gl::on_reset()
 
 	glDeleteBuffers(NUM_BUF, _buf);
 	glDeleteTextures(NUM_TEX, _tex);
-	glDeleteTextures(GLsizei(_reserved_texture_names.size()), _reserved_texture_names.data());
+	glDeleteTextures(static_cast<GLsizei>(_reserved_texture_names.size()), _reserved_texture_names.data());
 	glDeleteVertexArrays(NUM_VAO, _vao);
 	glDeleteFramebuffers(NUM_FBO, _fbo);
 	glDeleteRenderbuffers(NUM_RBO, _rbo);
@@ -252,7 +265,7 @@ void reshade::opengl::runtime_gl::on_present()
 	_vertices = _buffer_detection.total_vertices();
 	_drawcalls = _buffer_detection.total_drawcalls();
 
-	_app_state.capture();
+	_app_state.capture(_compatibility_context);
 
 #if RESHADE_DEPTH
 	update_depth_texture_bindings(_has_high_network_activity ? buffer_detection::depthstencil_info { 0 } :
@@ -300,7 +313,7 @@ void reshade::opengl::runtime_gl::on_present()
 	_buffer_detection.reset(_width, _height, _default_depth_format);
 
 	// Apply previous state from application
-	_app_state.apply();
+	_app_state.apply(_compatibility_context);
 }
 
 bool reshade::opengl::runtime_gl::capture_screenshot(uint8_t *buffer) const
@@ -1001,11 +1014,14 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 	glDisable(GL_CULL_FACE);
 	glDisable(GL_DEPTH_TEST);
 	glDisable(GL_SCISSOR_TEST);
+	if (_compatibility_context)
+		glDisable(GL_ALPHA_TEST);
 	glFrontFace(GL_CCW);
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	glDepthMask(GL_FALSE); // No need to write to the depth buffer
 
-	glBindVertexArray(_vao[VAO_FX]); // This is an empty vertex array object
+	// Bind an empty vertex array object
+	glBindVertexArray(_vao[VAO_FX]);
 
 	// Set up shader constants
 	if (_effect_ubos[technique.effect_index] != 0)
@@ -1227,6 +1243,8 @@ void reshade::opengl::runtime_gl::render_imgui_draw_data(ImDrawData *draw_data)
 
 	glDisable(GL_CULL_FACE);
 	glDisable(GL_DEPTH_TEST);
+	if (_compatibility_context)
+		glDisable(GL_ALPHA_TEST);
 	glFrontFace(GL_CCW);
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	glEnable(GL_BLEND);

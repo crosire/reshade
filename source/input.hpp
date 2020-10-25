@@ -15,7 +15,7 @@ namespace reshade
 	{
 	public:
 		/// <summary>
-		/// Abstraction of a window handle.
+		/// A window handle (HWND).
 		/// </summary>
 		using window_handle = void *;
 
@@ -58,7 +58,7 @@ namespace reshade
 		unsigned int mouse_position_y() const { return _mouse_position[1]; }
 
 		/// <summary>
-		/// Character input as captured by 'WM_CHAR' for the current frame.
+		/// Returns the character input as captured by 'WM_CHAR' for the current frame.
 		/// </summary>
 		const std::wstring &text_input() const { return _text_input; }
 
@@ -113,7 +113,7 @@ namespace reshade
 		short _mouse_wheel_delta = 0;
 		unsigned int _mouse_position[2] = {};
 		unsigned int _last_mouse_position[2] = {};
-		uint64_t _frame_count = 0;
+		uint64_t _frame_count = 0; // Keep track of frame count to identify windows with a lot of rendering
 		std::wstring _text_input;
 	};
 }

@@ -83,7 +83,7 @@ reshade::d3d9::runtime_d3d9::runtime_d3d9(IDirect3DDevice9 *device, IDirect3DSwa
 	subscribe_to_load_config([this](const ini_file &config) {
 		config.get("D3D9", "DisableINTZ", _disable_intz);
 		config.get("D3D9", "DepthCopyBeforeClears", _buffer_detection->preserve_depth_buffers);
-		config.get("D3D9", "DepthCopyBeforeClearsIndex", _buffer_detection->depthstencil_clear_index);
+		config.get("D3D9", "DepthCopyAtClearIndex", _buffer_detection->depthstencil_clear_index);
 		config.get("D3D9", "UseAspectRatioHeuristics", _filter_aspect_ratio);
 
 		if (_buffer_detection->depthstencil_clear_index == std::numeric_limits<UINT>::max())
@@ -92,7 +92,7 @@ reshade::d3d9::runtime_d3d9::runtime_d3d9(IDirect3DDevice9 *device, IDirect3DSwa
 	subscribe_to_save_config([this](ini_file &config) {
 		config.set("D3D9", "DisableINTZ", _disable_intz);
 		config.set("D3D9", "DepthCopyBeforeClears", _buffer_detection->preserve_depth_buffers);
-		config.set("D3D9", "DepthCopyBeforeClearsIndex", _buffer_detection->depthstencil_clear_index);
+		config.set("D3D9", "DepthCopyAtClearIndex", _buffer_detection->depthstencil_clear_index);
 		config.set("D3D9", "UseAspectRatioHeuristics", _filter_aspect_ratio);
 	});
 #endif

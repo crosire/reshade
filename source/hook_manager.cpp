@@ -13,19 +13,22 @@
 #include <vector>
 #include <Windows.h>
 
-enum class hook_method
+namespace
 {
-	export_hook,
-	function_hook,
-	vtable_hook
-};
+	enum class hook_method
+	{
+		export_hook,
+		function_hook,
+		vtable_hook
+	};
 
-struct module_export
-{
-	reshade::hook::address address;
-	const char *name;
-	unsigned short ordinal;
-};
+	struct module_export
+	{
+		reshade::hook::address address;
+		const char *name;
+		unsigned short ordinal;
+	};
+}
 
 extern HMODULE g_module_handle;
 static HMODULE s_export_module_handle = nullptr;
@@ -33,8 +36,8 @@ extern std::filesystem::path g_reshade_dll_path;
 static std::filesystem::path s_export_hook_path;
 static std::vector<std::filesystem::path> s_delayed_hook_paths;
 static std::vector<std::tuple<const char *, reshade::hook, hook_method>> s_hooks;
-static std::mutex s_mutex_hooks;
-static std::mutex s_mutex_delayed_hook_paths;
+static std::mutex s_hooks_mutex;
+static std::mutex s_delayed_hook_paths_mutex;
 
 std::vector<module_export> enumerate_module_exports(HMODULE handle)
 {
@@ -59,7 +62,8 @@ std::vector<module_export> enumerate_module_exports(HMODULE handle)
 	for (size_t i = 0; i < exports.capacity(); i++)
 	{
 		module_export &symbol = exports.emplace_back();
-		symbol.ordinal = reinterpret_cast<const WORD *>(image_base + export_dir->AddressOfNameOrdinals)[i] + export_base;
+		symbol.ordinal = export_base +
+			reinterpret_cast<const  WORD *>(image_base + export_dir->AddressOfNameOrdinals)[i];
 		symbol.name = reinterpret_cast<const char *>(image_base +
 			reinterpret_cast<const DWORD *>(image_base + export_dir->AddressOfNames)[i]);
 		symbol.address = const_cast<void *>(reinterpret_cast<const void *>(image_base +
@@ -83,17 +87,18 @@ static bool install_internal(const char *name, reshade::hook &hook, hook_method 
 	switch (method)
 	{
 	case hook_method::export_hook:
+		// Export functions are always called directly
 		status = reshade::hook::status::success;
 		break;
 	case hook_method::function_hook:
 		status = hook.install();
 		break;
 	case hook_method::vtable_hook:
-		// Make vtable memory writable before modifying it
+		// Make virtual function table memory writable before modifying it
 		if (DWORD protection = PAGE_READWRITE;
 			VirtualProtect(hook.target, sizeof(reshade::hook::address), protection, &protection))
 		{
-			// Replace entry in vtable with the replacement function
+			// Replace entry in virtual function table with the replacement function
 			*reinterpret_cast<reshade::hook::address *>(hook.target) = hook.replacement;
 
 			VirtualProtect(hook.target, sizeof(reshade::hook::address), protection, &protection);
@@ -113,7 +118,8 @@ static bool install_internal(const char *name, reshade::hook &hook, hook_method 
 		return false;
 	}
 
-	{ const std::lock_guard<std::mutex> lock(s_mutex_hooks);
+	// Protect access to hook list with a mutex
+	{ const std::lock_guard<std::mutex> lock(s_hooks_mutex);
 		s_hooks.push_back(std::make_tuple(name, hook, method));
 	}
 
@@ -127,17 +133,17 @@ static bool install_internal(HMODULE target_module, HMODULE replacement_module, 
 {
 	assert(target_module != nullptr && replacement_module != nullptr && target_module != replacement_module);
 
-	// Load export tables
+	// Load export tables from both modules
 	const auto target_exports = enumerate_module_exports(target_module);
 	const auto replacement_exports = enumerate_module_exports(replacement_module);
 
 	if (target_exports.empty())
 	{
-		LOG(INFO) << "> Empty export table! Skipped.";
+		LOG(WARN) << "> Empty export table! Skipped.";
 		return false;
 	}
 
-	size_t install_count = 0;
+	size_t num_installed_hooks = 0;
 	std::vector<std::tuple<const char *, reshade::hook::address, reshade::hook::address>> matches;
 	matches.reserve(replacement_exports.size());
 
@@ -148,7 +154,7 @@ static bool install_internal(HMODULE target_module, HMODULE replacement_module, 
 	LOG(DEBUG) << "  +--------------------+---------+----------------------------------------------------+";
 #endif
 
-	// Analyze export table
+	// Analyze export tables and find entries that exist in both modules
 	for (const auto &symbol : target_exports)
 	{
 		if (symbol.name == nullptr || symbol.address == nullptr)
@@ -177,12 +183,12 @@ static bool install_internal(HMODULE target_module, HMODULE replacement_module, 
 #endif
 	LOG(INFO) << "> Found " << matches.size() << " match(es). Installing ...";
 
-	// Hook matching exports
+	// Hook all matching exports
 	for (const auto &match : matches)
 	{
 		reshade::hook hook;
 #ifdef RESHADE_TEST_APPLICATION
-		// RenderDoc hooks the IAT, so get an updated function pointer via its GetProcAddress hook
+		// RenderDoc hooks the IAT, so get an updated function pointer via its 'GetProcAddress' hook
 		hook.target = GetProcAddress(target_module, std::get<0>(match));
 #else
 		hook.target = std::get<1>(match);
@@ -191,10 +197,11 @@ static bool install_internal(HMODULE target_module, HMODULE replacement_module, 
 		hook.replacement = std::get<2>(match);
 
 		if (install_internal(std::get<0>(match), hook, method))
-			install_count++;
+			num_installed_hooks++;
 	}
 
-	return install_count != 0;
+	// Status is successfull if at least one match was found and hooked
+	return num_installed_hooks != 0;
 }
 static bool uninstall_internal(const char *name, reshade::hook &hook, hook_method method)
 {
@@ -220,11 +227,11 @@ static bool uninstall_internal(const char *name, reshade::hook &hook, hook_metho
 		status = hook.uninstall();
 		break;
 	case hook_method::vtable_hook:
-		// Make vtable memory writable before modifying it
+		// Make virtual function table memory writable before modifying it
 		if (DWORD protection = PAGE_READWRITE;
 			VirtualProtect(hook.target, sizeof(reshade::hook::address), protection, &protection))
 		{
-			// Replace entry in vtable with the original function
+			// Replace entry in virtual function table with the original function
 			*reinterpret_cast<reshade::hook::address *>(hook.target) = hook.trampoline;
 
 			VirtualProtect(hook.target, sizeof(reshade::hook::address), protection, &protection);
@@ -255,13 +262,13 @@ static bool uninstall_internal(const char *name, reshade::hook &hook, hook_metho
 static void install_delayed_hooks(const std::filesystem::path &loaded_path)
 {
 	// Ignore this call if unable to acquire the mutex to avoid possible deadlock
-	if (std::unique_lock<std::mutex> lock(s_mutex_delayed_hook_paths, std::try_to_lock); lock.owns_lock())
+	if (std::unique_lock<std::mutex> lock(s_delayed_hook_paths_mutex, std::try_to_lock); lock.owns_lock())
 	{
 		const auto remove = std::remove_if(s_delayed_hook_paths.begin(), s_delayed_hook_paths.end(),
-			[&loaded_path](const auto &path) {
+			[&loaded_path](const std::filesystem::path &path) {
 				// Pin the module so it cannot be unloaded by the application and cause problems when ReShade tries to call into it afterwards
 				HMODULE delayed_handle = nullptr;
-				if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN, path.wstring().c_str(), &delayed_handle))
+				if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN, path.c_str(), &delayed_handle))
 					return false;
 
 				LOG(INFO) << "Installing delayed hooks for " << path << " (Just loaded via LoadLibrary(" << loaded_path << ")) ...";
@@ -279,7 +286,8 @@ static void install_delayed_hooks(const std::filesystem::path &loaded_path)
 
 static reshade::hook find_internal(reshade::hook::address target, reshade::hook::address replacement)
 {
-	const std::lock_guard<std::mutex> lock(s_mutex_hooks);
+	// Protect access to hook list with a mutex
+	const std::lock_guard<std::mutex> lock(s_hooks_mutex);
 
 	// Enumerate list of installed hooks and find matching one
 	const auto it = std::find_if(s_hooks.cbegin(), s_hooks.cend(),
@@ -313,7 +321,7 @@ HMODULE WINAPI HookLoadLibraryExA(LPCSTR lpFileName, HANDLE hFile, DWORD dwFlags
 	static const auto trampoline = call_unchecked(&HookLoadLibraryExA);
 
 	const HMODULE handle = trampoline(lpFileName, hFile, dwFlags);
-	if (dwFlags == 0 && handle != nullptr && handle != g_module_handle)
+	if (handle != nullptr && handle != g_module_handle && (dwFlags & (LOAD_LIBRARY_AS_DATAFILE | LOAD_LIBRARY_AS_DATAFILE_EXCLUSIVE | LOAD_LIBRARY_AS_IMAGE_RESOURCE)) == 0)
 		install_delayed_hooks(lpFileName);
 
 	return handle;
@@ -333,7 +341,7 @@ HMODULE WINAPI HookLoadLibraryExW(LPCWSTR lpFileName, HANDLE hFile, DWORD dwFlag
 	static const auto trampoline = call_unchecked(&HookLoadLibraryExW);
 
 	const HMODULE handle = trampoline(lpFileName, hFile, dwFlags);
-	if (dwFlags == 0 && handle != nullptr && handle != g_module_handle)
+	if (handle != nullptr && handle != g_module_handle && (dwFlags & (LOAD_LIBRARY_AS_DATAFILE | LOAD_LIBRARY_AS_DATAFILE_EXCLUSIVE | LOAD_LIBRARY_AS_IMAGE_RESOURCE)) == 0)
 		install_delayed_hooks(lpFileName);
 
 	return handle;
@@ -341,8 +349,7 @@ HMODULE WINAPI HookLoadLibraryExW(LPCWSTR lpFileName, HANDLE hFile, DWORD dwFlag
 
 bool reshade::hooks::install(const char *name, hook::address target, hook::address replacement, bool queue_enable)
 {
-	assert(target != nullptr);
-	assert(replacement != nullptr);
+	assert(target != nullptr && replacement != nullptr);
 
 	hook hook = find_internal(nullptr, replacement);
 	// If the hook was already installed, make sure it was installed for the same target function
@@ -358,15 +365,14 @@ bool reshade::hooks::install(const char *name, hook::address target, hook::addre
 }
 bool reshade::hooks::install(const char *name, hook::address vtable[], unsigned int offset, hook::address replacement)
 {
-	assert(vtable != nullptr);
-	assert(replacement != nullptr);
+	assert(vtable != nullptr && replacement != nullptr);
 
 	hook hook = find_internal(nullptr, replacement);
-	// Check if the hook was already installed to this vtable
+	// Check if the hook was already installed to this virtual function table
 	if (hook.installed() && vtable[offset] == hook.replacement)
 		return true;
 
-	hook.target = &vtable[offset]; // Target is the address of the vtable entry
+	hook.target = &vtable[offset]; // Target is the address of the virtual function table entry
 	hook.trampoline = vtable[offset]; // The current function in that entry is the original function to call
 	hook.replacement = replacement;
 
@@ -391,8 +397,8 @@ void reshade::hooks::uninstall()
 
 	s_hooks.clear();
 
-	// Free reference to the module loaded for export hooks (this is necessary for Alan Wake to work)
-	// The reason being that otherwise a subsequent call to "LoadLibrary" may return handle to the still loaded export module, instead of loading the ReShade module again
+	// Free reference to the module loaded for export hooks
+	// Otherwise a subsequent call to 'LoadLibrary' could return the handle to the still loaded export module, instead of loading the ReShade module again
 	if (s_export_module_handle)
 		FreeLibrary(s_export_module_handle);
 	s_export_module_handle = nullptr;
@@ -413,10 +419,10 @@ void reshade::hooks::register_module(const std::filesystem::path &target_path)
 
 	LOG(INFO) << "Registering hooks for " << target_path << " ...";
 
-	// Compare module names and delay export hooks for later installation since we cannot call "LoadLibrary" from this function (it is called from "DLLMain", which does not allow this)
+	// Compare module names and delay export hooks for later installation since we cannot call 'LoadLibrary' from this function (it is called from 'DLLMain', which does not allow this)
+	// Do a case insensitive comparison here to catch cases like "OPENGL32" refering to the same module as "opengl32.dll"
 	const std::filesystem::path target_name = target_path.stem();
 	const std::filesystem::path replacement_name = g_reshade_dll_path.stem();
-
 	if (_wcsicmp(target_name.c_str(), replacement_name.c_str()) == 0)
 	{
 		assert(target_path != g_reshade_dll_path);
@@ -425,7 +431,7 @@ void reshade::hooks::register_module(const std::filesystem::path &target_path)
 
 		s_export_hook_path = target_path;
 	}
-	// Similarly, if the target module was not loaded yet, wait for it to get loaded in the "LoadLibrary" hooks and install it then
+	// Similarly, if the target module was not loaded yet, wait for it to get loaded in one of the 'LoadLibrary' hooks and install it then
 	// Pin the module so it cannot be unloaded by the application and cause problems when ReShade tries to call into it afterwards
 	else if (HMODULE handle; !GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN, target_path.wstring().c_str(), &handle))
 	{
@@ -446,7 +452,6 @@ void reshade::hooks::register_module(const std::filesystem::path &target_path)
 reshade::hook::address reshade::hooks::call(hook::address replacement, hook::address target)
 {
 	const hook hook = find_internal(target, replacement);
-
 	if (hook.valid())
 		return hook.call();
 

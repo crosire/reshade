@@ -7,6 +7,14 @@
 #include <cassert>
 #include <MinHook.h>
 
+// Verify status codes match the ones from MinHook
+static_assert(static_cast<int>(reshade::hook::status::unknown) == MH_UNKNOWN);
+static_assert(static_cast<int>(reshade::hook::status::success) == MH_OK);
+static_assert(static_cast<int>(reshade::hook::status::not_executable) == MH_ERROR_NOT_EXECUTABLE);
+static_assert(static_cast<int>(reshade::hook::status::unsupported_function) == MH_ERROR_UNSUPPORTED_FUNCTION);
+static_assert(static_cast<int>(reshade::hook::status::allocation_failure) == MH_ERROR_MEMORY_ALLOC);
+static_assert(static_cast<int>(reshade::hook::status::memory_protection_failure) == MH_ERROR_MEMORY_PROTECT);
+
 static unsigned long s_reference_count = 0;
 
 void reshade::hook::enable(bool enable) const

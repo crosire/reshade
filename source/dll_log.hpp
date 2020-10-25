@@ -9,7 +9,12 @@
 #include <sstream>
 #include <filesystem>
 #include <utf8/unchecked.h>
-#include <combaseapi.h> // Included for REFIID and HRESULT
+#include <combaseapi.h> // REFIID, HRESULT
+
+#undef INFO
+#undef ERROR // This is defined in the Windows SDK headers
+#undef WARN
+#undef DEBUG
 
 #define LOG(LEVEL) LOG_##LEVEL()
 #define LOG_INFO() reshade::log::message(reshade::log::level::info)

@@ -44,7 +44,4 @@ $official = Test-Path ($path + "\..\sign.pfx")
 
 #define VERSION_STRING_FILE "$([string]::Join('.', $version))"
 #define VERSION_STRING_PRODUCT "$($version[0]).$($version[1]).$($version[2])$(if (-not $official) { " UNOFFICIAL" })"
-
-#define VERSION(major,minor,revision) ((major) * 10000 + (minor) * 100 + (revision))
-#define RESHADE_VERSION VERSION(VERSION_MAJOR,VERSION_MINOR,VERSION_REVISION)
 "@ | Out-File -FilePath $path
