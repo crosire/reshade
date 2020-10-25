@@ -513,13 +513,13 @@ bool reshade::d3d11::runtime_d3d11::init_effect(size_t index)
 		switch (entry_point.type)
 		{
 		case reshadefx::shader_type::vs:
-			hr = _device->CreateVertexShader(reinterpret_cast<const DWORD *>(cso.data()), cso.size(), nullptr, reinterpret_cast<ID3D11VertexShader **>(&entry_points[entry_point.name]));
+			hr = _device->CreateVertexShader(cso.data(), cso.size(), nullptr, reinterpret_cast<ID3D11VertexShader **>(&entry_points[entry_point.name]));
 			break;
 		case reshadefx::shader_type::ps:
-			hr = _device->CreatePixelShader(reinterpret_cast<const DWORD *>(cso.data()), cso.size(), nullptr, reinterpret_cast<ID3D11PixelShader **>(&entry_points[entry_point.name]));
+			hr = _device->CreatePixelShader(cso.data(), cso.size(), nullptr, reinterpret_cast<ID3D11PixelShader **>(&entry_points[entry_point.name]));
 			break;
 		case reshadefx::shader_type::cs:
-			hr = _device->CreateComputeShader(reinterpret_cast<const DWORD *>(cso.data()), cso.size(), nullptr, reinterpret_cast<ID3D11ComputeShader **>(&entry_points[entry_point.name]));
+			hr = _device->CreateComputeShader(cso.data(), cso.size(), nullptr, reinterpret_cast<ID3D11ComputeShader **>(&entry_points[entry_point.name]));
 			break;
 		}
 

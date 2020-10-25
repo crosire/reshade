@@ -477,10 +477,10 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 		switch (entry_point.type)
 		{
 		case reshadefx::shader_type::vs:
-			hr = _device->CreateVertexShader(reinterpret_cast<const DWORD *>(cso.data()), cso.size(), reinterpret_cast<ID3D10VertexShader **>(&entry_points[entry_point.name]));
+			hr = _device->CreateVertexShader(cso.data(), cso.size(), reinterpret_cast<ID3D10VertexShader **>(&entry_points[entry_point.name]));
 			break;
 		case reshadefx::shader_type::ps:
-			hr = _device->CreatePixelShader(reinterpret_cast<const DWORD *>(cso.data()), cso.size(), reinterpret_cast<ID3D10PixelShader **>(&entry_points[entry_point.name]));
+			hr = _device->CreatePixelShader(cso.data(), cso.size(), reinterpret_cast<ID3D10PixelShader **>(&entry_points[entry_point.name]));
 			break;
 		}
 
