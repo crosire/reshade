@@ -554,7 +554,7 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 		attributes += "entrypoint=" + entry_point.name + ';';
 		attributes += "profile=" + std::string(profile) + ';';
 		attributes += "compile=" + std::to_string(D3DCOMPILE_ENABLE_STRICTNESS | (_performance_mode ? D3DCOMPILE_OPTIMIZATION_LEVEL3 : D3DCOMPILE_OPTIMIZATION_LEVEL1)) + ';';
-		attributes += "effect=0;)";
+		attributes += "effect=0;";
 
 		const size_t hash = std::hash<std::string_view>()(attributes) ^ std::hash<std::string_view>()(hlsl);
 		std::vector<char> &cso = entry_points[entry_point.name];
