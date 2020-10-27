@@ -511,8 +511,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t eff
 					{
 						if (sampler_info.srgb && sampler_info.texture_name == texture.unique_name)
 						{
-							effect.errors += "error: " + sampler_info.unique_name + ": texture does not support sRGB sampling (back buffer format is not RGBA8)";
-							effect.compiled = false;
+							effect.errors += "warning: " + sampler_info.unique_name + ": texture does not support sRGB sampling (back buffer format is not RGBA8)";
 						}
 					}
 				}
