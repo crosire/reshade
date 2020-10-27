@@ -2167,18 +2167,28 @@ void reshade::runtime::draw_variable_editor()
 
 			if (ImGui::Button("Yes", ImVec2(ImGui::GetContentRegionAvail().x, 0)))
 			{
+				_variable_editor_modified = effect_index;
+				_variable_editor_condition = variable_editor_condition::variable;
+
 				// Reset all uniform variables
 				for (uniform &variable_it : effect.uniforms)
+				{
 					reset_uniform_value(variable_it);
+
+					if (!variable_it.annotation_as_string("bind").empty())
+						if (variable_it.annotation_as_string("bind_in") == "global")
+							_variable_editor_condition = variable_editor_condition::global;
+						else if (_variable_editor_condition != variable_editor_condition::global)
+							_variable_editor_condition = variable_editor_condition::preset;
+							
+				}
 
 				// Reset all preprocessor definitions
 				for (const std::pair<std::string, std::string> &definition : effect.definitions)
 					if (const auto preset_it = find_definition_value(_preset_preprocessor_definitions, definition.first);
 						preset_it != _preset_preprocessor_definitions.end())
-						reload_effect = true, // Need to reload after changing preprocessor defines so to get accurate defaults again
+						_variable_editor_condition = variable_editor_condition::preset, // Need to reload after changing preprocessor defines so to get accurate defaults again
 						_preset_preprocessor_definitions.erase(preset_it);
-
-				save_current_preset();
 
 				ImGui::CloseCurrentPopup();
 			}
@@ -2210,6 +2220,9 @@ void reshade::runtime::draw_variable_editor()
 				continue;
 			}
 
+			std::string elements;
+			bool modified = false;
+
 			if (const std::string_view category = variable.annotation_as_string("ui_category");
 				category != current_category)
 			{
@@ -2235,11 +2248,24 @@ void reshade::runtime::draw_variable_editor()
 
 						if (ImGui::Button(reset_button_label.c_str(), ImVec2(ImGui::GetContentRegionAvail().x, 0)))
 						{
+							_variable_editor_modified = effect_index;
+							_variable_editor_condition = variable_editor_condition::variable;
+
 							for (uniform &variable_it : effect.uniforms)
+							{
 								if (variable_it.annotation_as_string("ui_category") == category)
 									reset_uniform_value(variable_it);
 
-							save_current_preset();
+								if (const std::string_view name = variable_it.annotation_as_string("bind"); !name.empty() && variable_it.annotation_as_string("bind_in") != "global")
+								{
+									if (auto it = std::remove_if(_preset_preprocessor_definitions.begin(), _preset_preprocessor_definitions.end(), [&name](std::string &pair) { return pair.find(name) < pair.find('='); });
+										it != _preset_preprocessor_definitions.end())
+									{
+										_preset_preprocessor_definitions.erase(it, _preset_preprocessor_definitions.end());
+										_variable_editor_condition = variable_editor_condition::preset;
+									}
+								}
+							}
 
 							ImGui::CloseCurrentPopup();
 						}
@@ -2270,7 +2296,6 @@ void reshade::runtime::draw_variable_editor()
 				ImGui::PopTextWrapPos();
 			}
 
-			bool modified = false;
 			std::string_view label = variable.annotation_as_string("ui_label");
 			if (label.empty())
 				label = variable.name;
@@ -2291,7 +2316,10 @@ void reshade::runtime::draw_variable_editor()
 					modified = ImGui::Checkbox(label.data(), &data);
 
 				if (modified)
+				{
 					set_uniform_value(variable, &data, 1);
+					elements = ini_file::element_string(data);
+				}
 				break;
 			}
 			case reshadefx::type::t_int:
@@ -2300,9 +2328,12 @@ void reshade::runtime::draw_variable_editor()
 				int data[16];
 				get_uniform_value(variable, data, 16);
 
-				const auto ui_min_val = variable.annotation_as_int("ui_min", 0, std::numeric_limits<int>::lowest());
-				const auto ui_max_val = variable.annotation_as_int("ui_max", 0, std::numeric_limits<int>::max());
-				const auto ui_stp_val = std::max(1, variable.annotation_as_int("ui_step"));
+				auto ui_min_val = variable.annotation_as_int("ui_min", 0, std::numeric_limits<int>::lowest());
+				auto ui_max_val = variable.annotation_as_int("ui_max", 0, std::numeric_limits<int>::max());
+				auto ui_stp_val = std::max(1, variable.annotation_as_int("ui_step"));
+
+				if (ui_min_val == std::numeric_limits<int>::lowest() && ui_max_val == std::numeric_limits<int>::max())
+					ui_min_val = 0;
 
 				if (ui_type == "slider")
 					modified = widgets::slider_with_buttons(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val);
@@ -2323,7 +2354,12 @@ void reshade::runtime::draw_variable_editor()
 					modified = ImGui::InputScalarN(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, data, variable.type.rows);
 
 				if (modified)
+				{
 					set_uniform_value(variable, data, 16);
+					for (size_t i = 0; i < variable.type.components(); ++i)
+						elements += ini_file::element_string(variable.type.is_signed() ? data[i] : reinterpret_cast<unsigned int *>(data)[i]) + ',';
+					elements = elements.substr(0, elements.size() - 1);
+				}
 				break;
 			}
 			case reshadefx::type::t_float:
@@ -2331,9 +2367,12 @@ void reshade::runtime::draw_variable_editor()
 				float data[16];
 				get_uniform_value(variable, data, 16);
 
-				const auto ui_min_val = variable.annotation_as_float("ui_min", 0, std::numeric_limits<float>::lowest());
-				const auto ui_max_val = variable.annotation_as_float("ui_max", 0, std::numeric_limits<float>::max());
-				const auto ui_stp_val = std::max(0.001f, variable.annotation_as_float("ui_step"));
+				auto ui_min_val = variable.annotation_as_float("ui_min", 0, std::numeric_limits<float>::lowest());
+				auto ui_max_val = variable.annotation_as_float("ui_max", 0, std::numeric_limits<float>::max());
+				auto ui_stp_val = std::max(0.001f, variable.annotation_as_float("ui_step"));
+
+				if (ui_min_val == std::numeric_limits<float>::lowest() && ui_max_val == std::numeric_limits<float>::max())
+					ui_min_val = 0.0, ui_max_val = 1.0;
 
 				// Calculate display precision based on step value
 				char precision_format[] = "%.0f";
@@ -2359,7 +2398,12 @@ void reshade::runtime::draw_variable_editor()
 					modified = ImGui::InputScalarN(label.data(), ImGuiDataType_Float, data, variable.type.rows);
 
 				if (modified)
+				{
 					set_uniform_value(variable, data, 16);
+					for (size_t i = 0; i < variable.type.components(); ++i)
+						elements += ini_file::element_string(data[i]) + ',';
+					elements = elements.substr(0, elements.size() - 1);
+				}
 				break;
 			}
 			}
@@ -2374,6 +2418,7 @@ void reshade::runtime::draw_variable_editor()
 				!tooltip.empty() && ImGui::IsItemHovered())
 				ImGui::SetTooltip("%s", tooltip.data());
 
+			bool erasing = false;
 			// Create context menu
 			if (ImGui::BeginPopupContextItem("##context"))
 			{
@@ -2385,12 +2430,50 @@ void reshade::runtime::draw_variable_editor()
 
 				if (ImGui::Button(ICON_RESET " Reset to default", ImVec2(button_width, 0)))
 				{
-					modified = true;
-					reset_uniform_value(variable);
+					erasing = true, modified = true;
 					ImGui::CloseCurrentPopup();
 				}
-
 				ImGui::EndPopup();
+			}
+
+			if (modified)
+			{
+				if (std::string name; modified && (name = variable.annotation_as_string("bind"), !name.empty()))
+				{
+					auto update_preprocessor_definitions = [this, erasing, &variable, &name, &elements](std::vector<std::string> &definitions)
+					{
+						if (auto definition = std::find_if(definitions.begin(), definitions.end(), [&name](std::string &pair) { return pair.find(name) < pair.find('='); }); erasing)
+						{
+							if (reset_uniform_value(variable); definition != definitions.end())
+								definitions.erase(definition);
+						}
+						else
+						{
+							if (definition != definitions.end())
+								*definition = name + '=' + elements;
+							else
+								definitions.emplace_back(name + '=' + elements);
+						}
+					};
+
+					if (std::string_view scope = variable.annotation_as_string("bind_in"); scope == "global")
+					{
+						_variable_editor_condition = variable_editor_condition::global;
+						update_preprocessor_definitions(_global_preprocessor_definitions);
+					}
+					else
+					{
+						_variable_editor_condition = variable_editor_condition::preset;
+						update_preprocessor_definitions(_preset_preprocessor_definitions);
+					}
+				}
+				else
+				{
+					_variable_editor_condition = variable_editor_condition::variable;
+
+					if (erasing)
+						reset_uniform_value(variable);
+				}
 			}
 
 			if (variable.toggle_key_data[0] != 0)
@@ -2399,11 +2482,14 @@ void reshade::runtime::draw_variable_editor()
 				ImGui::TextDisabled("%s", reshade::input::key_name(variable.toggle_key_data).c_str());
 			}
 
-			ImGui::PopID();
-
 			// A value has changed, so save the current preset
 			if (modified)
-				save_current_preset();
+			{
+				_variable_editor_modified = effect_index;
+				_variable_editor_edited = ImGui::GetActiveID();
+			}
+
+			ImGui::PopID();
 		}
 
 		if (active_variable_index < effect.uniforms.size())
@@ -2489,9 +2575,19 @@ void reshade::runtime::draw_variable_editor()
 			ImGui::TreePop();
 		}
 
-		if (reload_effect)
+		const bool is_edited = _variable_editor_modified != std::numeric_limits<size_t>::max() && !ImGui::IsAnyMouseDown();
+
+		// Apply changes to effects when edited or/and unfocused
+		if (_variable_editor_condition != variable_editor_condition::variable
+			&& ((ImGui::IsAnyItemActive() && _variable_editor_edited != 0) ? (_variable_editor_edited != ImGui::GetActiveID()) : is_edited))
 		{
-			save_current_preset();
+			assert(_variable_editor_condition != variable_editor_condition::pass);
+
+			// Apply changes to config / preset
+			if (_variable_editor_condition == variable_editor_condition::global)
+				save_config();
+			else
+				save_current_preset();
 
 			const bool reload_successful_before = _last_shader_reload_successfull;
 
@@ -2530,6 +2626,10 @@ void reshade::runtime::draw_variable_editor()
 
 			// Reloading an effect file invalidates all textures, but the statistics window may already have drawn references to those, so need to reset it
 			ImGui::FindWindowByName("Statistics")->DrawList->CmdBuffer.clear();
+
+			_variable_editor_modified = std::numeric_limits<decltype(_variable_editor_modified)>::max();
+			_variable_editor_edited = 0;
+			_variable_editor_condition = variable_editor_condition::pass;
 		}
 	}
 

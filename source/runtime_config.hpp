@@ -96,6 +96,18 @@ namespace reshade
 				values[i] = convert<T>(it2->second, i);
 			return true;
 		}
+		template <typename T>
+		bool get(const std::string &section, const std::string &key, std::vector<std::string> &values) const
+		{
+			const auto it1 = _sections.find(section);
+			if (it1 == _sections.end())
+				return false;
+			const auto it2 = it1->second.find(key);
+			if (it2 == it1->second.end())
+				return false;
+			values = it2->second;
+			return true;
+		}
 
 		/// <summary>
 		/// Returns <c>true</c> only if the specified <paramref name="section"/> and <paramref name="key"/> exists and is not zero.
@@ -114,12 +126,12 @@ namespace reshade
 		template <typename T>
 		void set(const std::string &section, const std::string &key, const T &value)
 		{
-			set(section, key, std::to_string(value));
+			set(section, key, element_string(value));
 		}
 		template <>
 		void set(const std::string &section, const std::string &key, const bool &value)
 		{
-			set<std::string>(section, key, value ? "1" : "0");
+			set<std::string>(section, key, element_string(value));
 		}
 		template <>
 		void set(const std::string &section, const std::string &key, const std::string &value)
@@ -140,7 +152,7 @@ namespace reshade
 		template <>
 		void set(const std::string &section, const std::string &key, const std::filesystem::path &value)
 		{
-			set(section, key, value.u8string());
+			set(section, key, element_string(value));
 		}
 		template <typename T, size_t SIZE>
 		void set(const std::string &section, const std::string &key, const T(&values)[SIZE], const size_t size = SIZE)
@@ -148,7 +160,7 @@ namespace reshade
 			auto &v = _sections[section][key];
 			v.resize(size);
 			for (size_t i = 0; i < size; ++i)
-				v[i] = std::to_string(values[i]);
+				v[i] = element_string(values[i]);
 			_modified = true;
 			_modified_at = std::filesystem::file_time_type::clock::now();
 		}
@@ -173,9 +185,55 @@ namespace reshade
 			auto &v = _sections[section][key];
 			v.resize(values.size());
 			for (size_t i = 0; i < values.size(); ++i)
-				v[i] = values[i].u8string();
+				v[i] = element_string(values[i]);
 			_modified = true;
 			_modified_at = std::filesystem::file_time_type::clock::now();
+		}
+
+		template <typename T>
+		static std::string element_string(const T &value)
+		{
+			return std::to_string(value);
+		}
+		template <>
+		static std::string element_string(const bool &value)
+		{
+			return value ? "1" : "0";
+		}
+		template <>
+		static std::string element_string(const std::filesystem::path &value)
+		{
+			return value.u8string();
+		}
+		template <>
+		static std::string element_string(const std::string &value)
+		{
+			return value;
+		}
+		template <typename T>
+		static void convert_to_elements(const std::string &elements, std::vector<T> &results)
+		{
+			std::vector<std::string> values;
+			size_t i = 0;
+			for (size_t s = 0; (s = elements.find_first_of(',', i)) != std::string::npos; i += s + 1)
+				values.emplace_back(elements, i, s);
+			if (i != elements.size())
+				values.emplace_back(elements, i);
+			results.resize(values.size());
+			for (size_t s = 0; s < values.size(); ++s)
+				results[s] = convert<T>(values, s);
+		}
+		template <typename T, size_t SIZE>
+		static void convert_to_elements(const std::string &elements, T(&results)[SIZE])
+		{
+			std::vector<std::string> values;
+			size_t i = 0;
+			for (size_t s = 0; (s = elements.find_first_of(',', i)) != std::string::npos; i += s + 1)
+				values.emplace_back(elements, i, s);
+			if (i != elements.size())
+				values.emplace_back(elements, i);
+			for (size_t s = 0; s < values.size() && s < SIZE; ++s)
+				results[s] = convert<T>(values, s);
 		}
 
 		/// <summary>

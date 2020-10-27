@@ -14,6 +14,7 @@
 
 #if RESHADE_GUI
 #include "imgui_editor.hpp"
+#include <imgui.h>
 
 struct ImDrawData;
 struct ImGuiContext;
@@ -394,6 +395,13 @@ namespace reshade
 		unsigned int _tutorial_index = 0;
 		unsigned int _effects_expanded_state = 2;
 		float _variable_editor_height = 0.0f;
+
+		// === User Interface - Variable Editor ===
+		size_t _variable_editor_modified = std::numeric_limits<size_t>::max();
+		ImGuiID _variable_editor_edited = 0;
+
+		enum class variable_editor_condition { pass, variable, preset, global };
+		variable_editor_condition _variable_editor_condition = variable_editor_condition::pass;
 
 		// === User Interface - Settings ===
 		int _font_size = 13;

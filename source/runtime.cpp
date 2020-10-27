@@ -361,7 +361,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t eff
 			if (definition.first.size() <= 10 || definition.first[0] == '_' || !definition.first.compare(0, 8, "RESHADE_") || !definition.first.compare(0, 7, "BUFFER_"))
 				continue;
 
-			effect.definitions.push_back({ definition.first, trim(definition.second) });
+			effect.definitions.emplace_back(definition.first, trim(definition.second));
 		}
 
 		// Keep track of included files
@@ -470,7 +470,48 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t eff
 		else if (special == "bufready_depth")
 			var.special = special_uniform::bufready_depth;
 
-		effect.uniforms.push_back(std::move(var));
+		if (std::string_view name = var.annotation_as_string("bind"); !name.empty() && var.annotation_as_string("bind_in") != "global")
+		{
+			if (std::find_if(effect.definitions.begin(), effect.definitions.end(), [&name](std::pair<std::string, std::string> &pair) {return pair.first == name; }) == effect.definitions.end())
+			{
+				std::string elements;
+				if (var.has_initializer_value)
+				{
+					switch (var.type.base)
+					{
+					case reshadefx::type::t_bool:
+					{
+						bool data[16];
+						get_uniform_value(var, data, var.type.components());
+						for (size_t i = 0; i < var.type.components(); ++i)
+							elements += ini_file::element_string(data[i]) + ',';
+						break;
+					}
+					case reshadefx::type::t_int:
+					case reshadefx::type::t_uint:
+					{
+						int data[16];
+						get_uniform_value(var, data, var.type.components());
+						for (size_t i = 0; i < var.type.components(); ++i)
+							elements += ini_file::element_string(var.type.is_signed() ? data[i] : reinterpret_cast<unsigned int *>(data)[i]) + ',';
+						break;
+					}
+					case reshadefx::type::t_float:
+					{
+						float data[16];
+						get_uniform_value(var, data, var.type.components());
+						for (size_t i = 0; i < var.type.components(); ++i)
+							elements += ini_file::element_string(data[i]) + ',';
+						break;
+					}
+					}
+				}
+				elements = elements.substr(0, elements.size() - 1);
+				effect.definitions.emplace_back(name, elements);
+			}
+		}
+
+		effect.uniforms.emplace_back(std::move(var));
 	}
 
 	std::vector<texture> new_textures;
@@ -1363,24 +1404,43 @@ void reshade::runtime::load_current_preset()
 				// Reset values to defaults before loading from a new preset
 				reset_uniform_value(variable);
 
+			std::string elements;
+			if (std::string_view name = variable.annotation_as_string("bind"); !name.empty())
+				if (variable.annotation_as_string("bind_in") == "global")
+					if (auto it = std::find_if(_global_preprocessor_definitions.begin(), _global_preprocessor_definitions.end(), [&name](std::string &pair) { return pair.find(name) < pair.find('='); }); it != _global_preprocessor_definitions.end())
+						elements = (*it).substr((*it).find('=') + 1);
+					else {}
+				else
+					if (auto it = std::find_if(_preset_preprocessor_definitions.begin(), _preset_preprocessor_definitions.end(), [&name](std::string &pair) { return pair.find(name) < pair.find('='); }); it != _preset_preprocessor_definitions.end())
+						elements = (*it).substr((*it).find('=') + 1);
+
 			reshadefx::constant values, values_old;
 			switch (variable.type.base)
 			{
 			case reshadefx::type::t_int:
 				get_uniform_value(variable, values.as_int, variable.type.components());
-				preset.get(section, variable.name, values.as_int);
+				if (!elements.empty())
+					ini_file::convert_to_elements(elements, values.as_int);
+				else
+					preset.get(section, variable.name, values.as_int);
 				set_uniform_value(variable, values.as_int, variable.type.components());
 				break;
 			case reshadefx::type::t_bool:
 			case reshadefx::type::t_uint:
 				get_uniform_value(variable, values.as_uint, variable.type.components());
-				preset.get(section, variable.name, values.as_uint);
+				if (!elements.empty())
+					ini_file::convert_to_elements(elements, values.as_uint);
+				else
+					preset.get(section, variable.name, values.as_uint);
 				set_uniform_value(variable, values.as_uint, variable.type.components());
 				break;
 			case reshadefx::type::t_float:
 				get_uniform_value(variable, values.as_float, variable.type.components());
 				values_old = values;
-				preset.get(section, variable.name, values.as_float);
+				if (!elements.empty())
+					ini_file::convert_to_elements(elements, values.as_float);
+				else
+					preset.get(section, variable.name, values.as_float);
 				if (_is_in_between_presets_transition)
 				{
 					// Perform smooth transition on floating point values
