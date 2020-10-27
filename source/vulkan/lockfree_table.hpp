@@ -55,7 +55,7 @@ public:
 		}
 
 		assert(false);
-		return _default; // Fall back if table is key does not exist
+		return default_value(); // Fall back if table is key does not exist
 	}
 
 	/// <summary>
@@ -93,7 +93,7 @@ public:
 		delete new_value;
 
 		assert(false);
-		return _default; // Fall back if table is full
+		return default_value(); // Fall back if table is full
 	}
 	/// <summary>
 	/// Adds the specified key-value pair to the table.
@@ -129,7 +129,7 @@ public:
 		delete new_value;
 
 		assert(false);
-		return _default; // Fall back if table is full
+		return default_value(); // Fall back if table is full
 	}
 
 	/// <summary>
@@ -222,7 +222,11 @@ public:
 	}
 
 private:
-	// Make default value thread local, so no data races occur after multiple threads failed to access a value
-	static inline thread_local TValue _default = {};
+	static inline TValue &default_value()
+	{
+		// Make default value thread local, so no data races occur after multiple threads failed to access a value
+		static thread_local TValue _ = {}; return _;
+	}
+
 	std::pair<std::atomic<TKey>, TValue *> _data[MAX_ENTRIES];
 };
