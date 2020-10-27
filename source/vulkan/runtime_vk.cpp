@@ -1899,6 +1899,9 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 
 		if (!pass_info.cs_entry_point.empty())
 		{
+			// Compute shaders do not write to the back buffer, so no update necessary
+			needs_implicit_backbuffer_copy = false;
+
 			for (const vulkan_tex_data *storage_resource : pass_data.modified_resources)
 				transition_layout(vk, cmd_list, storage_resource->image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
 

@@ -1363,6 +1363,9 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 
 		if (!pass_info.cs_entry_point.empty())
 		{
+			// Compute shaders do not write to the back buffer, so no update necessary
+			needs_implicit_backbuffer_copy = false;
+
 			_cmd_list->Dispatch(pass_info.viewport_width, pass_info.viewport_height, pass_info.viewport_dispatch_z);
 		}
 		else

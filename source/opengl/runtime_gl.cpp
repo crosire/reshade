@@ -1154,9 +1154,9 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 
 			_vertices += pass_info.num_vertices;
 			_drawcalls += 1;
-
-			needs_implicit_backbuffer_copy = false;
 		}
+
+		needs_implicit_backbuffer_copy = false;
 
 		// Generate mipmaps for modified resources
 		for (GLuint texture_id : pass_data.draw_textures)
