@@ -2609,6 +2609,10 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 	}
 	else
 	{
+		// Static does not really have meaning on local variables
+		if (type.has(type::q_static))
+			type.qualifiers &= ~type::q_static;
+
 		if (type.has(type::q_extern))
 			return error(location, 3006, '\'' + name + "': local variables cannot be declared 'extern'"), false;
 		if (type.has(type::q_uniform))
@@ -2660,8 +2664,6 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 			// TODO: This could be resolved by initializing these at the beginning of the entry point
 			if (global && !initializer.is_constant)
 				return error(initializer.location, 3011, '\'' + name + "': initial value must be a literal expression"), false;
-			if (type.has(type::q_static) && !initializer.is_constant)
-				return error(initializer.location, 3691, '\'' + name + "': static variable initial value must be a literal expression"), false;
 
 			// Check type compatibility
 			if ((type.array_length >= 0 && initializer.type.array_length != type.array_length) || !type::rank(initializer.type, type))

@@ -102,6 +102,7 @@ private:
 	{
 		if constexpr (is_decl)
 		{
+			// Global variables are implicitly 'static' in GLSL, so the keyword does not exist
 			if (type.has(type::q_precise))
 				s += "precise ";
 			if (type.has(type::q_groupshared))
