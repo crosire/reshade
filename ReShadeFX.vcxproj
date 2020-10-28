@@ -144,7 +144,8 @@
     <ClCompile Include="source\effect_codegen_spirv.cpp" />
     <ClCompile Include="source\effect_expression.cpp" />
     <ClCompile Include="source\effect_lexer.cpp" />
-    <ClCompile Include="source\effect_parser.cpp" />
+    <ClCompile Include="source\effect_parser_exp.cpp" />
+    <ClCompile Include="source\effect_parser_stmt.cpp" />
     <ClCompile Include="source\effect_preprocessor.cpp" />
     <ClCompile Include="source\effect_symbol_table.cpp" />
   </ItemGroup>

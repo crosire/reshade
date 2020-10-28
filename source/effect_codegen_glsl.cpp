@@ -590,6 +590,7 @@ private:
 	{
 		return define_function(loc, info, false);
 	}
+
 	id   define_function(const location &loc, function_info &info, bool is_entry_point)
 	{
 		info.definition = make_id();

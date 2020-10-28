@@ -199,7 +199,7 @@ private:
 		}
 		else
 		{
-			add_instruction(spv::OpString, _debug_a, file)
+			add_instruction(spv::OpString, 0, _debug_a, file)
 				.add_string(loc.source.c_str());
 			_string_lookup.emplace(loc.source, file);
 		}
@@ -222,9 +222,10 @@ private:
 		instruction.result = make_id();
 		return instruction;
 	}
-	inline spirv_instruction &add_instruction(spv::Op op, spirv_basic_block &block, spv::Id &result)
+	inline spirv_instruction &add_instruction(spv::Op op, spv::Id type, spirv_basic_block &block, spv::Id &result)
 	{
 		spirv_instruction &instruction = add_instruction_without_result(op, block);
+		instruction.type = type;
 		instruction.result = result = make_id();
 		return instruction;
 	}
@@ -362,7 +363,7 @@ private:
 		{
 			elem_type = convert_type(info, false, storage, array_stride);
 
-			add_instruction(spv::OpTypePointer, _types_and_constants, type)
+			add_instruction(spv::OpTypePointer, 0, _types_and_constants, type)
 				.add(storage)
 				.add(elem_type);
 		}
@@ -377,7 +378,7 @@ private:
 			elem_type = convert_type(elem_info, false, storage);
 			const spv::Id array_length = emit_constant(info.array_length);
 
-			add_instruction(spv::OpTypeArray, _types_and_constants, type)
+			add_instruction(spv::OpTypeArray, 0, _types_and_constants, type)
 				.add(elem_type)
 				.add(array_length);
 
@@ -397,7 +398,7 @@ private:
 			if (info.rows == 1)
 				return elem_type;
 
-			add_instruction(spv::OpTypeMatrix, _types_and_constants, type)
+			add_instruction(spv::OpTypeMatrix, 0, _types_and_constants, type)
 				.add(elem_type)
 				.add(info.rows);
 		}
@@ -409,7 +410,7 @@ private:
 
 			elem_type = convert_type(elem_info, false, storage);
 
-			add_instruction(spv::OpTypeVector, _types_and_constants, type)
+			add_instruction(spv::OpTypeVector, 0, _types_and_constants, type)
 				.add(elem_type)
 				.add(info.rows);
 		}
@@ -419,24 +420,24 @@ private:
 			{
 			case type::t_void:
 				assert(info.rows == 0 && info.cols == 0);
-				add_instruction(spv::OpTypeVoid, _types_and_constants, type);
+				add_instruction(spv::OpTypeVoid, 0, _types_and_constants, type);
 				break;
 			case type::t_bool:
 				assert(info.rows == 1 && info.cols == 1);
-				add_instruction(spv::OpTypeBool, _types_and_constants, type);
+				add_instruction(spv::OpTypeBool, 0, _types_and_constants, type);
 				break;
 			case type::t_min16int:
 				assert(_enable_16bit_types && info.rows == 1 && info.cols == 1);
 				add_capability(spv::CapabilityInt16);
 				if (storage == spv::StorageClassInput || storage == spv::StorageClassOutput)
 					add_capability(spv::CapabilityStorageInputOutput16);
-				add_instruction(spv::OpTypeInt, _types_and_constants, type)
+				add_instruction(spv::OpTypeInt, 0, _types_and_constants, type)
 					.add(16) // Width
 					.add(1); // Signedness
 				break;
 			case type::t_int:
 				assert(info.rows == 1 && info.cols == 1);
-				add_instruction(spv::OpTypeInt, _types_and_constants, type)
+				add_instruction(spv::OpTypeInt, 0, _types_and_constants, type)
 					.add(32) // Width
 					.add(1); // Signedness
 				break;
@@ -445,13 +446,13 @@ private:
 				add_capability(spv::CapabilityInt16);
 				if (storage == spv::StorageClassInput || storage == spv::StorageClassOutput)
 					add_capability(spv::CapabilityStorageInputOutput16);
-				add_instruction(spv::OpTypeInt, _types_and_constants, type)
+				add_instruction(spv::OpTypeInt, 0, _types_and_constants, type)
 					.add(16) // Width
 					.add(0); // Signedness
 				break;
 			case type::t_uint:
 				assert(info.rows == 1 && info.cols == 1);
-				add_instruction(spv::OpTypeInt, _types_and_constants, type)
+				add_instruction(spv::OpTypeInt, 0, _types_and_constants, type)
 					.add(32) // Width
 					.add(0); // Signedness
 				break;
@@ -460,12 +461,12 @@ private:
 				add_capability(spv::CapabilityFloat16);
 				if (storage == spv::StorageClassInput || storage == spv::StorageClassOutput)
 					add_capability(spv::CapabilityStorageInputOutput16);
-				add_instruction(spv::OpTypeFloat, _types_and_constants, type)
+				add_instruction(spv::OpTypeFloat, 0, _types_and_constants, type)
 					.add(16); // Width
 				break;
 			case type::t_float:
 				assert(info.rows == 1 && info.cols == 1);
-				add_instruction(spv::OpTypeFloat, _types_and_constants, type)
+				add_instruction(spv::OpTypeFloat, 0, _types_and_constants, type)
 					.add(32); // Width
 				break;
 			case type::t_struct:
@@ -475,7 +476,7 @@ private:
 			case type::t_sampler:
 				assert(info.rows == 0 && info.cols == 0);
 				elem_type = convert_type({ type::t_texture, 0, 0, type::q_uniform });
-				add_instruction(spv::OpTypeSampledImage, _types_and_constants, type)
+				add_instruction(spv::OpTypeSampledImage, 0, _types_and_constants, type)
 					.add(elem_type);
 				break;
 			case type::t_storage:
@@ -484,15 +485,14 @@ private:
 			case type::t_texture:
 				assert(info.rows == 0 && info.cols == 0);
 				elem_type = convert_type({ type::t_float, 1, 1 });
-				add_instruction(spv::OpTypeImage, _types_and_constants, type)
+				add_instruction(spv::OpTypeImage, 0, _types_and_constants, type)
 					.add(elem_type) // Sampled Type
 					.add(spv::Dim2D)
 					.add(0) // Not a depth image
 					.add(0) // Not an array
 					.add(0) // Not multi-sampled
 					.add(info.is_texture() ? 1 : 2) // Used with a sampler or as storage
-					.add(spv::ImageFormatUnknown)
-					.result;
+					.add(spv::ImageFormatUnknown);
 				break;
 			default:
 				return assert(false), 0;
@@ -648,8 +648,8 @@ private:
 		// Afterwards define the actual struct type
 		add_location(loc, _types_and_constants);
 
-		info.definition = add_instruction(spv::OpTypeStruct, 0, _types_and_constants)
-			.add(member_types.begin(), member_types.end()).result;
+		add_instruction(spv::OpTypeStruct, 0, _types_and_constants, info.definition)
+			.add(member_types.begin(), member_types.end());
 
 		if (!info.unique_name.empty())
 			add_name(info.definition, info.unique_name.c_str());
@@ -865,12 +865,10 @@ private:
 
 		add_location(loc, block);
 
-		// https://www.khronos.org/registry/spir-v/specs/unified1/SPIRV.html#OpVariable
 		spv::Id res;
-		spirv_instruction &inst = add_instruction(spv::OpVariable, block, res);
-		inst.type = convert_type(type, true, storage);
-
-		inst.add(storage);
+		// https://www.khronos.org/registry/spir-v/specs/unified1/SPIRV.html#OpVariable
+		spirv_instruction &inst = add_instruction(spv::OpVariable, convert_type(type, true, storage), block, res)
+			.add(storage);
 
 		if (initializer_value != 0)
 		{
@@ -912,9 +910,10 @@ private:
 
 		add_location(loc, function.declaration);
 
-		info.definition = add_instruction(spv::OpFunction, convert_type(info.return_type), function.declaration)
+		// https://www.khronos.org/registry/spir-v/specs/unified1/SPIRV.html#OpFunction
+		add_instruction(spv::OpFunction, convert_type(info.return_type), function.declaration, info.definition)
 			.add(spv::FunctionControlMaskNone)
-			.add(convert_type(function)).result;
+			.add(convert_type(function));
 
 		if (!info.name.empty())
 			add_name(info.definition, info.name.c_str());
