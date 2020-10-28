@@ -1672,10 +1672,18 @@ bool reshade::vulkan::runtime_vk::init_texture(texture &texture)
 	}
 #endif
 
-	// Transition to shader read image layout
 	if (begin_command_buffer())
 	{
-		transition_layout(vk, _cmd_buffers[_cmd_index].first, impl->image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		transition_layout(vk, _cmd_buffers[_cmd_index].first, impl->image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+		// Clear texture to zero since by default its contents are undefined
+		const VkClearColorValue clear_value = {};
+		const VkImageSubresourceRange range = { VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
+		vk.CmdClearColorImage(_cmd_buffers[_cmd_index].first, impl->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear_value, 1, &range);
+
+		// Transition to shader read image layout
+		transition_layout(vk, _cmd_buffers[_cmd_index].first, impl->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
 		execute_command_buffer();
 	}
 

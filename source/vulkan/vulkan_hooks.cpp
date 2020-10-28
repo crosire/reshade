@@ -455,6 +455,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DEVICE_PROC(CmdCopyBufferToImage);
 	INIT_DEVICE_PROC(CmdCopyImageToBuffer);
 	INIT_DEVICE_PROC(CmdUpdateBuffer);
+	INIT_DEVICE_PROC(CmdClearColorImage);
 	INIT_DEVICE_PROC(CmdClearDepthStencilImage);
 	INIT_DEVICE_PROC(CmdClearAttachments);
 	INIT_DEVICE_PROC(CmdPipelineBarrier);
