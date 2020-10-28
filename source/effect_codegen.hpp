@@ -295,6 +295,16 @@ namespace reshadefx
 			return *std::find_if(_module.textures.begin(), _module.textures.end(),
 				[id](const auto &it) { return it.id == id; });
 		}
+		sampler_info &find_sampler(id id)
+		{
+			return *std::find_if(_module.samplers.begin(), _module.samplers.end(),
+				[id](const auto &it) { return it.id == id; });
+		}
+		storage_info &find_storage(id id)
+		{
+			return *std::find_if(_module.storages.begin(), _module.storages.end(),
+				[id](const auto &it) { return it.id == id; });
+		}
 		/// <summary>
 		/// Look up an existing function definition.
 		/// </summary>

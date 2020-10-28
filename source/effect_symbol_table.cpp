@@ -228,12 +228,12 @@ bool reshadefx::symbol_table::insert_symbol(const std::string &name, const symbo
 	return true;
 }
 
-reshadefx::symbol reshadefx::symbol_table::find_symbol(const std::string &name) const
+reshadefx::scoped_symbol reshadefx::symbol_table::find_symbol(const std::string &name) const
 {
 	// Default to start search with current scope and walk back the scope chain
 	return find_symbol(name, _current_scope, false);
 }
-reshadefx::symbol reshadefx::symbol_table::find_symbol(const std::string &name, const scope &scope, bool exclusive) const
+reshadefx::scoped_symbol reshadefx::symbol_table::find_symbol(const std::string &name, const scope &scope, bool exclusive) const
 {
 	const auto stack_it = _symbol_stack.find(name);
 
@@ -242,7 +242,7 @@ reshadefx::symbol reshadefx::symbol_table::find_symbol(const std::string &name, 
 		return {};
 
 	// Walk up the scope chain starting at the requested scope level and find a matching symbol
-	symbol result = {};
+	scoped_symbol result = {};
 
 	for (auto it = stack_it->second.rbegin(), end = stack_it->second.rend(); it != end; ++it)
 	{

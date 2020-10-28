@@ -77,7 +77,7 @@ bool reshadefx::parser::expect(tokenid tokid)
 	return true;
 }
 
-bool reshadefx::parser::accept_symbol(std::string &identifier, scope &scope, symbol &symbol)
+bool reshadefx::parser::accept_symbol(std::string &identifier, scoped_symbol &symbol)
 {
 	// Starting an identifier with '::' restricts the symbol search to the global namespace level
 	const bool exclusive = accept(tokenid::colon_colon);
@@ -101,7 +101,7 @@ bool reshadefx::parser::accept_symbol(std::string &identifier, scope &scope, sym
 	}
 
 	// Figure out which scope to start searching in
-	scope = { "::", 0, 0 };
+	struct scope scope = { "::", 0, 0 };
 	if (!exclusive) scope = current_scope();
 
 	// Lookup name in the symbol table
@@ -119,8 +119,9 @@ bool reshadefx::parser::accept_type_class(type &type)
 
 		backup(); // Need to restore if this identifier does not turn out to be a structure
 
-		scope scope; symbol symbol;
-		if (std::string identifier; accept_symbol(identifier, scope, symbol))
+		std::string identifier;
+		scoped_symbol symbol;
+		if (accept_symbol(identifier, symbol))
 		{
 			if (symbol.id && symbol.op == symbol_type::structure)
 			{
@@ -759,10 +760,9 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 	// At this point only identifiers are left to check and resolve
 	else
 	{
-		scope scope;
-		symbol symbol;
 		std::string identifier;
-		if (!accept_symbol(identifier, scope, symbol))
+		scoped_symbol symbol;
+		if (!accept_symbol(identifier, symbol))
 			return false;
 
 		// Check if this is a function call or variable reference
@@ -797,7 +797,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			// Try to resolve the call by searching through both function symbols and intrinsics
 			bool undeclared = !symbol.id, ambiguous = false;
 
-			if (!resolve_function_call(identifier, arguments, scope, symbol, ambiguous))
+			if (!resolve_function_call(identifier, arguments, symbol.scope, symbol, ambiguous))
 			{
 				if (undeclared)
 					error(location, 3004, "undeclared identifier or no matching intrinsic overload for '" + identifier + '\'');
@@ -889,6 +889,13 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 					_codegen->emit_store(arguments[i], _codegen->emit_load(arg));
 				}
 			}
+
+			if (_current_function != nullptr)
+			{
+				// Calling a function makes the caller inherit all sampler and storage object references from the callee
+				_current_function->referenced_samplers.insert(_current_function->referenced_samplers.end(), symbol.function->referenced_samplers.begin(), symbol.function->referenced_samplers.end());
+				_current_function->referenced_storages.insert(_current_function->referenced_storages.end(), symbol.function->referenced_storages.begin(), symbol.function->referenced_storages.end());
+			}
 		}
 		else if (symbol.op == symbol_type::invalid)
 		{
@@ -900,6 +907,15 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			assert(symbol.id != 0);
 			// Simply return the pointer to the variable, dereferencing is done on site where necessary
 			exp.reset_to_lvalue(location, symbol.id, symbol.type);
+
+			if (_current_function != nullptr && symbol.scope.level == symbol.scope.namespace_level)
+			{
+				// Keep track of any global sampler or storage objects referenced in the current function
+				if (symbol.type.is_sampler())
+					_current_function->referenced_samplers.push_back(symbol.id);
+				if (symbol.type.is_storage())
+					_current_function->referenced_storages.push_back(symbol.id);
+			}
 		}
 		else if (symbol.op == symbol_type::constant)
 		{

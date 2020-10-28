@@ -254,6 +254,8 @@ namespace reshadefx
 		reshadefx::type return_type;
 		std::string return_semantic;
 		std::vector<struct_member_info> parameter_list;
+		std::vector<uint32_t> referenced_samplers;
+		std::vector<uint32_t> referenced_storages;
 	};
 
 	/// <summary>
@@ -289,6 +291,8 @@ namespace reshadefx
 		uint32_t viewport_width = 0;
 		uint32_t viewport_height = 0;
 		uint32_t viewport_dispatch_z = 1;
+		std::vector<sampler_info> samplers;
+		std::vector<storage_info> storages;
 	};
 
 	/// <summary>

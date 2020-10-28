@@ -15,6 +15,14 @@ namespace reshade::opengl
 	{
 		GLuint id[2] = {};
 		GLenum internal_format = GL_NONE;
+		bool has_mipmaps = false;
+	};
+
+	struct opengl_sampler_data
+	{
+		GLuint id;
+		opengl_tex_data *texture;
+		bool is_srgb_format;
 	};
 
 	struct opengl_pass_data
@@ -32,20 +40,8 @@ namespace reshade::opengl
 		GLenum stencil_op_z_fail = GL_NONE;
 		GLenum stencil_op_z_pass = GL_NONE;
 		GLenum draw_targets[8] = {};
-		GLuint draw_textures[8] = {};
-	};
-
-	struct opengl_sampler_data
-	{
-		GLuint id;
-		opengl_tex_data *texture;
-		bool is_srgb;
-		bool has_mipmaps;
-	};
-
-	struct opengl_storage_data
-	{
-		opengl_tex_data *texture;
+		std::vector<opengl_tex_data *> storages;
+		std::vector<opengl_sampler_data> samplers;
 	};
 
 	struct opengl_technique_data
@@ -53,8 +49,6 @@ namespace reshade::opengl
 		GLuint query = 0;
 		bool query_in_flight = false;
 		std::vector<opengl_pass_data> passes;
-		std::vector<opengl_sampler_data> samplers;
-		std::vector<opengl_storage_data> storages;
 	};
 }
 
@@ -462,110 +456,7 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 	}
 
 	bool success = true;
-
-	opengl_technique_data technique_init;
-	assert(effect.module.num_texture_bindings == 0);
-	technique_init.samplers.resize(effect.module.num_sampler_bindings);
-	technique_init.storages.resize(effect.module.num_storage_bindings);
-
-	for (const reshadefx::sampler_info &info : effect.module.samplers)
-	{
-		const texture &texture = look_up_texture_by_name(info.texture_name);
-
-		// Hash sampler state to avoid duplicated sampler objects
-		size_t hash = 2166136261;
-		hash = (hash * 16777619) ^ static_cast<uint32_t>(info.address_u);
-		hash = (hash * 16777619) ^ static_cast<uint32_t>(info.address_v);
-		hash = (hash * 16777619) ^ static_cast<uint32_t>(info.address_w);
-		hash = (hash * 16777619) ^ static_cast<uint32_t>(info.filter);
-		hash = (hash * 16777619) ^ reinterpret_cast<const uint32_t &>(info.lod_bias);
-		hash = (hash * 16777619) ^ reinterpret_cast<const uint32_t &>(info.min_lod);
-		hash = (hash * 16777619) ^ reinterpret_cast<const uint32_t &>(info.max_lod);
-
-		std::unordered_map<size_t, GLuint>::iterator it = _effect_sampler_states.find(hash);
-		if (it == _effect_sampler_states.end())
-		{
-			GLenum min_filter = GL_NONE, mag_filter = GL_NONE;
-			switch (info.filter)
-			{
-			case reshadefx::texture_filter::min_mag_mip_point:
-				min_filter = GL_NEAREST_MIPMAP_NEAREST;
-				mag_filter = GL_NEAREST;
-				break;
-			case reshadefx::texture_filter::min_mag_point_mip_linear:
-				min_filter = GL_NEAREST_MIPMAP_LINEAR;
-				mag_filter = GL_NEAREST;
-				break;
-			case reshadefx::texture_filter::min_point_mag_linear_mip_point:
-				min_filter = GL_NEAREST_MIPMAP_NEAREST;
-				mag_filter = GL_LINEAR;
-				break;
-			case reshadefx::texture_filter::min_point_mag_mip_linear:
-				min_filter = GL_NEAREST_MIPMAP_LINEAR;
-				mag_filter = GL_LINEAR;
-				break;
-			case reshadefx::texture_filter::min_linear_mag_mip_point:
-				min_filter = GL_LINEAR_MIPMAP_NEAREST;
-				mag_filter = GL_NEAREST;
-				break;
-			case reshadefx::texture_filter::min_linear_mag_point_mip_linear:
-				min_filter = GL_LINEAR_MIPMAP_LINEAR;
-				mag_filter = GL_NEAREST;
-				break;
-			case reshadefx::texture_filter::min_mag_linear_mip_point:
-				min_filter = GL_LINEAR_MIPMAP_NEAREST;
-				mag_filter = GL_LINEAR;
-				break;
-			case reshadefx::texture_filter::min_mag_mip_linear:
-				min_filter = GL_LINEAR_MIPMAP_LINEAR;
-				mag_filter = GL_LINEAR;
-				break;
-			}
-
-			const auto convert_address_mode = [](reshadefx::texture_address_mode value) {
-				switch (value)
-				{
-				case reshadefx::texture_address_mode::wrap:
-					return GL_REPEAT;
-				case reshadefx::texture_address_mode::mirror:
-					return GL_MIRRORED_REPEAT;
-				case reshadefx::texture_address_mode::clamp:
-					return GL_CLAMP_TO_EDGE;
-				case reshadefx::texture_address_mode::border:
-					return GL_CLAMP_TO_BORDER;
-				default:
-					return GL_NONE;
-				}
-			};
-
-			GLuint sampler_id = 0;
-			glGenSamplers(1, &sampler_id);
-			glSamplerParameteri(sampler_id, GL_TEXTURE_WRAP_S, convert_address_mode(info.address_u));
-			glSamplerParameteri(sampler_id, GL_TEXTURE_WRAP_T, convert_address_mode(info.address_v));
-			glSamplerParameteri(sampler_id, GL_TEXTURE_WRAP_R, convert_address_mode(info.address_w));
-			glSamplerParameteri(sampler_id, GL_TEXTURE_MAG_FILTER, mag_filter);
-			glSamplerParameteri(sampler_id, GL_TEXTURE_MIN_FILTER, min_filter);
-			glSamplerParameterf(sampler_id, GL_TEXTURE_LOD_BIAS, info.lod_bias);
-			glSamplerParameterf(sampler_id, GL_TEXTURE_MIN_LOD, info.min_lod);
-			glSamplerParameterf(sampler_id, GL_TEXTURE_MAX_LOD, info.max_lod);
-
-			it = _effect_sampler_states.emplace(hash, sampler_id).first;
-		}
-
-		opengl_sampler_data &sampler_data = technique_init.samplers[info.binding];
-		sampler_data.id = it->second;
-		sampler_data.texture = static_cast<opengl_tex_data *>(texture.impl);
-		sampler_data.is_srgb = info.srgb;
-		sampler_data.has_mipmaps = texture.levels > 1;
-	}
-
-	for (const reshadefx::storage_info &info : effect.module.storages)
-	{
-		const texture &texture = look_up_texture_by_name(info.texture_name);
-
-		opengl_storage_data &storage_data = technique_init.storages[info.binding];
-		storage_data.texture = static_cast<opengl_tex_data *>(texture.impl);
-	}
+	assert(effect.module.num_texture_bindings == 0); // Use combined texture samplers
 
 	for (technique &technique : _techniques)
 	{
@@ -573,7 +464,7 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 			continue;
 
 		// Copy construct new technique implementation instead of move because effect may contain multiple techniques
-		auto impl = new opengl_technique_data(technique_init);
+		auto impl = new opengl_technique_data();
 		technique.impl = impl;
 
 		glGenQueries(1, &impl->query);
@@ -676,13 +567,12 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 
 				if (pass_info.render_target_names[0].empty())
 				{
+					pass_info.viewport_width = _width;
+					pass_info.viewport_height = _height;
+
 					glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, _rbo[RBO_COLOR]);
 
 					pass_data.draw_targets[0] = GL_COLOR_ATTACHMENT0;
-					pass_data.draw_textures[0] = _tex[TEX_BACK_SRGB];
-
-					pass_info.viewport_width = _width;
-					pass_info.viewport_height = _height;
 				}
 				else
 				{
@@ -692,9 +582,11 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 							look_up_texture_by_name(pass_info.render_target_names[k]).impl);
 
 						pass_data.draw_targets[k] = GL_COLOR_ATTACHMENT0 + k;
-						pass_data.draw_textures[k] = tex_impl->id[pass_info.srgb_write_enable];
 
-						glFramebufferTexture(GL_FRAMEBUFFER, pass_data.draw_targets[k], pass_data.draw_textures[k], 0);
+						glFramebufferTexture(GL_FRAMEBUFFER, pass_data.draw_targets[k], tex_impl->id[pass_info.srgb_write_enable], 0);
+
+						// Add texture to list of modified resources so mipmaps are generated at end of pass
+						pass_data.storages.push_back(tex_impl);
 					}
 
 					assert(pass_info.viewport_width != 0 && pass_info.viewport_height != 0);
@@ -725,6 +617,105 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 				LOG(ERROR) << "Failed to link program for pass " << pass_index << " in technique '" << technique.name << "'.";
 				success = false;
 				break;
+			}
+
+			pass_data.samplers.resize(effect.module.num_sampler_bindings);
+			for (const reshadefx::sampler_info &info : pass_info.samplers)
+			{
+				const texture &texture = look_up_texture_by_name(info.texture_name);
+
+				// Hash sampler state to avoid duplicated sampler objects
+				size_t hash = 2166136261;
+				hash = (hash * 16777619) ^ static_cast<uint32_t>(info.address_u);
+				hash = (hash * 16777619) ^ static_cast<uint32_t>(info.address_v);
+				hash = (hash * 16777619) ^ static_cast<uint32_t>(info.address_w);
+				hash = (hash * 16777619) ^ static_cast<uint32_t>(info.filter);
+				hash = (hash * 16777619) ^ reinterpret_cast<const uint32_t &>(info.lod_bias);
+				hash = (hash * 16777619) ^ reinterpret_cast<const uint32_t &>(info.min_lod);
+				hash = (hash * 16777619) ^ reinterpret_cast<const uint32_t &>(info.max_lod);
+
+				std::unordered_map<size_t, GLuint>::iterator it = _effect_sampler_states.find(hash);
+				if (it == _effect_sampler_states.end())
+				{
+					GLenum min_filter = GL_NONE, mag_filter = GL_NONE;
+					switch (info.filter)
+					{
+					case reshadefx::texture_filter::min_mag_mip_point:
+						min_filter = GL_NEAREST_MIPMAP_NEAREST;
+						mag_filter = GL_NEAREST;
+						break;
+					case reshadefx::texture_filter::min_mag_point_mip_linear:
+						min_filter = GL_NEAREST_MIPMAP_LINEAR;
+						mag_filter = GL_NEAREST;
+						break;
+					case reshadefx::texture_filter::min_point_mag_linear_mip_point:
+						min_filter = GL_NEAREST_MIPMAP_NEAREST;
+						mag_filter = GL_LINEAR;
+						break;
+					case reshadefx::texture_filter::min_point_mag_mip_linear:
+						min_filter = GL_NEAREST_MIPMAP_LINEAR;
+						mag_filter = GL_LINEAR;
+						break;
+					case reshadefx::texture_filter::min_linear_mag_mip_point:
+						min_filter = GL_LINEAR_MIPMAP_NEAREST;
+						mag_filter = GL_NEAREST;
+						break;
+					case reshadefx::texture_filter::min_linear_mag_point_mip_linear:
+						min_filter = GL_LINEAR_MIPMAP_LINEAR;
+						mag_filter = GL_NEAREST;
+						break;
+					case reshadefx::texture_filter::min_mag_linear_mip_point:
+						min_filter = GL_LINEAR_MIPMAP_NEAREST;
+						mag_filter = GL_LINEAR;
+						break;
+					case reshadefx::texture_filter::min_mag_mip_linear:
+						min_filter = GL_LINEAR_MIPMAP_LINEAR;
+						mag_filter = GL_LINEAR;
+						break;
+					}
+
+					const auto convert_address_mode = [](reshadefx::texture_address_mode value) {
+						switch (value)
+						{
+						case reshadefx::texture_address_mode::wrap:
+							return GL_REPEAT;
+						case reshadefx::texture_address_mode::mirror:
+							return GL_MIRRORED_REPEAT;
+						case reshadefx::texture_address_mode::clamp:
+							return GL_CLAMP_TO_EDGE;
+						case reshadefx::texture_address_mode::border:
+							return GL_CLAMP_TO_BORDER;
+						default:
+							return GL_NONE;
+						}
+					};
+
+					GLuint sampler_id = 0;
+					glGenSamplers(1, &sampler_id);
+					glSamplerParameteri(sampler_id, GL_TEXTURE_WRAP_S, convert_address_mode(info.address_u));
+					glSamplerParameteri(sampler_id, GL_TEXTURE_WRAP_T, convert_address_mode(info.address_v));
+					glSamplerParameteri(sampler_id, GL_TEXTURE_WRAP_R, convert_address_mode(info.address_w));
+					glSamplerParameteri(sampler_id, GL_TEXTURE_MAG_FILTER, mag_filter);
+					glSamplerParameteri(sampler_id, GL_TEXTURE_MIN_FILTER, min_filter);
+					glSamplerParameterf(sampler_id, GL_TEXTURE_LOD_BIAS, info.lod_bias);
+					glSamplerParameterf(sampler_id, GL_TEXTURE_MIN_LOD, info.min_lod);
+					glSamplerParameterf(sampler_id, GL_TEXTURE_MAX_LOD, info.max_lod);
+
+					it = _effect_sampler_states.emplace(hash, sampler_id).first;
+				}
+
+				opengl_sampler_data &sampler_data = pass_data.samplers[info.binding];
+				sampler_data.id = it->second;
+				sampler_data.texture = static_cast<opengl_tex_data *>(texture.impl);
+				sampler_data.is_srgb_format = info.srgb;
+			}
+
+			pass_data.storages.resize(effect.module.num_storage_bindings);
+			for (const reshadefx::storage_info &info : pass_info.storages)
+			{
+				const texture &texture = look_up_texture_by_name(info.texture_name);
+
+				pass_data.storages[info.binding] = static_cast<opengl_tex_data *>(texture.impl);
 			}
 		}
 	}
@@ -859,6 +850,7 @@ bool reshade::opengl::runtime_gl::init_texture(texture &texture)
 		break;
 	}
 
+	impl->has_mipmaps = texture.levels > 1;
 	impl->internal_format = internal_format;
 
 	// Get current state
@@ -1030,22 +1022,6 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 		glBufferSubData(GL_UNIFORM_BUFFER, 0, _effects[technique.effect_index].uniform_data_storage.size(), _effects[technique.effect_index].uniform_data_storage.data());
 	}
 
-	// Set up shader resources
-	for (GLuint binding = 0; binding < impl->storages.size(); ++binding)
-	{
-		const opengl_storage_data &storage_data = impl->storages[binding];
-
-		glBindImageTexture(binding, storage_data.texture->id[0], 0, GL_FALSE, 0, GL_READ_WRITE, storage_data.texture->internal_format);
-	}
-	for (GLuint binding = 0; binding < impl->samplers.size(); ++binding)
-	{
-		const opengl_sampler_data &sampler_data = impl->samplers[binding];
-
-		glBindSampler(binding, sampler_data.id);
-		glActiveTexture(GL_TEXTURE0 + binding);
-		glBindTexture(GL_TEXTURE_2D, sampler_data.texture->id[sampler_data.is_srgb]);
-	}
-
 	bool is_effect_stencil_cleared = false;
 	bool needs_implicit_backbuffer_copy = true; // First pass always needs the back buffer updated
 
@@ -1067,8 +1043,33 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 
 		glUseProgram(pass_data.program);
 
+		// Set up shader resources
+		for (GLuint binding = 0; binding < pass_data.storages.size(); ++binding)
+		{
+			opengl_tex_data *const tex_impl = pass_data.storages[binding];
+			if (tex_impl != nullptr)
+			{
+				glBindImageTexture(binding, tex_impl->id[0], 0, GL_FALSE, 0, GL_READ_WRITE, tex_impl->internal_format);
+			}
+			else
+			{
+				glBindImageTexture(binding, 0, 0, GL_FALSE, 0, GL_READ_ONLY, GL_R8);
+			}
+		}
+		for (GLuint binding = 0; binding < pass_data.samplers.size(); ++binding)
+		{
+			const opengl_sampler_data &sampler_data = pass_data.samplers[binding];
+
+			glBindSampler(binding, sampler_data.id);
+			glActiveTexture(GL_TEXTURE0 + binding);
+			glBindTexture(GL_TEXTURE_2D, sampler_data.texture != nullptr ? sampler_data.texture->id[sampler_data.is_srgb_format] : 0);
+		}
+
 		if (!pass_info.cs_entry_point.empty())
 		{
+			// Compute shaders do not write to the back buffer, so no update necessary
+			needs_implicit_backbuffer_copy = false;
+
 			glDispatchCompute(pass_info.viewport_width, pass_info.viewport_height, pass_info.viewport_dispatch_z);
 		}
 		else
@@ -1154,31 +1155,18 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 
 			_vertices += pass_info.num_vertices;
 			_drawcalls += 1;
+
+			needs_implicit_backbuffer_copy = pass_info.render_target_names[0].empty();
 		}
 
-		needs_implicit_backbuffer_copy = false;
-
 		// Generate mipmaps for modified resources
-		for (GLuint texture_id : pass_data.draw_textures)
+		glActiveTexture(GL_TEXTURE0);
+		for (opengl_tex_data *const tex_impl : pass_data.storages)
 		{
-			if (texture_id == 0)
-				break;
-
-			if (texture_id == _tex[TEX_BACK_SRGB])
+			if (tex_impl != nullptr && tex_impl->has_mipmaps)
 			{
-				needs_implicit_backbuffer_copy = true;
-				break;
-			}
-
-			for (GLuint binding = 0; binding < impl->samplers.size(); ++binding)
-			{
-				const opengl_sampler_data &sampler_data = impl->samplers[binding];
-
-				if (sampler_data.has_mipmaps && (sampler_data.texture->id[0] == texture_id || sampler_data.texture->id[1] == texture_id))
-				{
-					glActiveTexture(GL_TEXTURE0 + binding);
-					glGenerateMipmap(GL_TEXTURE_2D);
-				}
+				glBindTexture(GL_TEXTURE_2D, tex_impl->id[0]);
+				glGenerateMipmap(GL_TEXTURE_2D);
 			}
 		}
 	}

@@ -44,7 +44,6 @@ namespace reshade::d3d10
 		com_ptr<ID3D10Query> timestamp_query_beg;
 		com_ptr<ID3D10Query> timestamp_query_end;
 		std::vector<com_ptr<ID3D10SamplerState>> sampler_states;
-		std::vector<com_ptr<ID3D10ShaderResourceView>> srv_bindings;
 		std::vector<d3d10_pass_data> passes;
 	};
 }
@@ -489,10 +488,7 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 	}
 
 	d3d10_technique_data technique_init;
-	assert(effect.module.num_storage_bindings == 0);
-	technique_init.srv_bindings.resize(effect.module.num_texture_bindings);
 	technique_init.sampler_states.resize(effect.module.num_sampler_bindings);
-
 	for (const reshadefx::sampler_info &info : effect.module.samplers)
 	{
 		if (info.binding >= D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT)
@@ -500,16 +496,6 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 			LOG(ERROR) << "Cannot bind sampler '" << info.unique_name << "' since it exceeds the maximum number of allowed sampler slots in " << "D3D10" << " (" << info.binding << ", allowed are up to " << D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT << ").";
 			return false;
 		}
-		if (info.texture_binding >= D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT)
-		{
-			LOG(ERROR) << "Cannot bind texture '" << info.texture_name << "' since it exceeds the maximum number of allowed resource slots in " << "D3D10" << " (" << info.texture_binding << ", allowed are up to " << D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT << ").";
-			return false;
-		}
-
-		const texture &texture = look_up_texture_by_name(info.texture_name);
-
-		technique_init.srv_bindings[info.texture_binding] =
-			static_cast<d3d10_tex_data *>(texture.impl)->srv[info.srgb ? 1 : 0];
 
 		if (technique_init.sampler_states[info.binding] == nullptr)
 		{
@@ -573,7 +559,7 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 			entry_points.at(pass_info.ps_entry_point)->QueryInterface(&pass_data.pixel_shader);
 			entry_points.at(pass_info.vs_entry_point)->QueryInterface(&pass_data.vertex_shader);
 
-			const int target_index = pass_info.srgb_write_enable ? 1 : 0;
+			const int srgb_index = pass_info.srgb_write_enable ? 1 : 0;
 
 			for (UINT k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k)
 			{
@@ -590,9 +576,9 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 				rtv_desc.ViewDimension = desc.SampleDesc.Count > 1 ? D3D10_RTV_DIMENSION_TEXTURE2DMS : D3D10_RTV_DIMENSION_TEXTURE2D;
 
 				// Create render target view for texture on demand when it is first used
-				if (tex_impl->rtv[target_index] == nullptr)
+				if (tex_impl->rtv[srgb_index] == nullptr)
 				{
-					if (HRESULT hr = _device->CreateRenderTargetView(tex_impl->texture.get(), &rtv_desc, &tex_impl->rtv[target_index]); FAILED(hr))
+					if (HRESULT hr = _device->CreateRenderTargetView(tex_impl->texture.get(), &rtv_desc, &tex_impl->rtv[srgb_index]); FAILED(hr))
 					{
 						LOG(ERROR) << "Failed to create render target view for texture '" << pass_info.render_target_names[k] << "'! HRESULT is " << hr << '.';
 						LOG(DEBUG) << "> Details: Format = " << rtv_desc.Format << ", ViewDimension = " << rtv_desc.ViewDimension;
@@ -600,17 +586,16 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 					}
 				}
 
-				pass_data.render_targets[k] = tex_impl->rtv[target_index];
-				pass_data.modified_resources.push_back(tex_impl->srv[target_index]);
+				pass_data.render_targets[k] = tex_impl->rtv[srgb_index];
+				pass_data.modified_resources.push_back(tex_impl->srv[srgb_index]);
 			}
 
 			if (pass_info.render_target_names[0].empty())
 			{
-				pass_data.render_targets[0] = _backbuffer_rtv[target_index];
-				pass_data.modified_resources.push_back(_backbuffer_texture_srv[target_index]);
-
 				pass_info.viewport_width = _width;
 				pass_info.viewport_height = _height;
+				pass_data.render_targets[0] = _backbuffer_rtv[srgb_index];
+				pass_data.modified_resources.push_back(_backbuffer_texture_srv[srgb_index]);
 			}
 
 			{   D3D10_BLEND_DESC desc;
@@ -717,28 +702,19 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 				}
 			}
 
-			// Unbind any shader resources that are also bound as render target
-			pass_data.srvs = impl->srv_bindings;
-			for (com_ptr<ID3D10ShaderResourceView> &srv : pass_data.srvs)
+			pass_data.srvs.resize(effect.module.num_texture_bindings);
+			for (const reshadefx::sampler_info &info : pass_info.samplers)
 			{
-				if (srv == nullptr)
-					continue;
-				com_ptr<ID3D10Resource> srv_res;
-				srv->GetResource(&srv_res);
-
-				for (const com_ptr<ID3D10RenderTargetView> &rtv : pass_data.render_targets)
+				if (info.texture_binding >= D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT)
 				{
-					if (rtv == nullptr)
-						continue;
-					com_ptr<ID3D10Resource> rtv_res;
-					rtv->GetResource(&rtv_res);
-
-					if (srv_res == rtv_res)
-					{
-						srv.reset();
-						break;
-					}
+					LOG(ERROR) << "Cannot bind texture '" << info.texture_name << "' since it exceeds the maximum number of allowed resource slots in " << "D3D10" << " (" << info.texture_binding << ", allowed are up to " << D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT << ").";
+					return false;
 				}
+
+				d3d10_tex_data *const tex_impl = static_cast<d3d10_tex_data *>(
+					look_up_texture_by_name(info.texture_name).impl);
+
+				pass_data.srvs[info.texture_binding] = tex_impl->srv[info.srgb ? 1 : 0];
 			}
 		}
 	}

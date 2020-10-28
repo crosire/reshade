@@ -192,6 +192,8 @@ bool reshadefx::parser::parse_statement(bool scoped)
 	// Most statements with the exception of declarations are only valid inside functions
 	if (_codegen->is_in_function())
 	{
+		assert(_current_function != nullptr);
+
 		const auto location = _token_next.location;
 
 		#pragma region If
@@ -633,7 +635,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 		#pragma region Return
 		if (accept(tokenid::return_))
 		{
-			const type &ret_type = _current_return_type;
+			const type &ret_type = _current_function->return_type;
 
 			if (!peek(';'))
 			{
@@ -976,13 +978,18 @@ bool reshadefx::parser::parse_function(type type, std::string name)
 	std::replace(info.unique_name.begin(), info.unique_name.end(), ':', '_');
 
 	info.return_type = type;
-	_current_return_type = info.return_type;
+	_current_function = &info;
 
 	bool parse_success = true;
 	bool expect_parenthesis = true;
 
-	// Enter function scope
-	enter_scope(); on_scope_exit _([this]() { leave_scope(); _codegen->leave_function(); });
+	// Enter function scope (and leave it again when finished parsing this function)
+	enter_scope();
+	on_scope_exit _([this]() {
+		leave_scope();
+		_codegen->leave_function();
+		_current_function = nullptr;
+	});
 
 	while (!peek(')'))
 	{
@@ -1107,9 +1114,9 @@ bool reshadefx::parser::parse_function(type type, std::string name)
 	// Define the function now that information about the declaration was gathered
 	const auto id = _codegen->define_function(location, info);
 
-	// Insert the function and parameter symbols into the symbol table
+	// Insert the function and parameter symbols into the symbol table and update current function pointer to the permanent one
 	symbol symbol = { symbol_type::function, id, { type::t_function } };
-	symbol.function = &_codegen->find_function(id);
+	symbol.function = _current_function = &_codegen->find_function(id);
 
 	if (!insert_symbol(name, symbol, true))
 		return error(location, 3003, "redefinition of '" + name + '\''), false;
@@ -1535,10 +1542,9 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 		// Shader and render target assignment looks up values in the symbol table, so handle those separately from the other states
 		if (is_shader_state || is_texture_state)
 		{
-			scope scope;
-			symbol symbol;
 			std::string identifier;
-			if (!accept_symbol(identifier, scope, symbol))
+			scoped_symbol symbol;
+			if (!accept_symbol(identifier, symbol))
 				return consume_until('}'), false;
 
 			location = std::move(_token.location);
@@ -1784,6 +1790,11 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 				warning(pass_location, 3089, "pass is specifying both 'VertexShader' and 'ComputeShader' which cannot be used together");
 			if (!info.ps_entry_point.empty())
 				warning(pass_location, 3089,  "pass is specifying both 'PixelShader' and 'ComputeShader' which cannot be used together");
+
+			for (codegen::id id : cs_info.referenced_samplers)
+				info.samplers.push_back(_codegen->find_sampler(id));
+			for (codegen::id id : cs_info.referenced_storages)
+				info.storages.push_back(_codegen->find_storage(id));
 		}
 		else if (info.vs_entry_point.empty() || info.ps_entry_point.empty())
 		{
@@ -1861,6 +1872,16 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 						parse_success = false,
 						error(  pass_location, 4568, '\'' + ps_info.name + "': input parameter '" + param.name + "' interpolation qualifiers do not match vertex shader ones");
 				}
+			}
+
+			for (codegen::id id : vs_info.referenced_samplers)
+				info.samplers.push_back(_codegen->find_sampler(id));
+			for (codegen::id id : ps_info.referenced_samplers)
+				info.samplers.push_back(_codegen->find_sampler(id));
+			if (!vs_info.referenced_storages.empty() || !ps_info.referenced_storages.empty())
+			{
+				parse_success = false;
+				error(pass_location, 3667, "storage writes are only valid in compute shaders");
 			}
 		}
 
