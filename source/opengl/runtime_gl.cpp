@@ -266,40 +266,40 @@ void reshade::opengl::runtime_gl::on_present()
 		_buffer_detection.find_best_depth_texture(_use_aspect_ratio_heuristics ? _width : 0, _height, _depth_source_override));
 #endif
 
-	// Copy back buffer to RBO
+	// Set clip space to something consistent
+	if (gl3wProcs.gl.ClipControl != nullptr)
+		glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
+
+	// Copy back buffer to RBO (and flip it vertically)
 	glDisable(GL_SCISSOR_TEST);
 	glDisable(GL_FRAMEBUFFER_SRGB);
 	glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
 	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _fbo[FBO_BACK]);
 	glReadBuffer(GL_BACK);
 	glDrawBuffer(GL_COLOR_ATTACHMENT0);
-	glBlitFramebuffer(0, 0, _width, _height, 0, 0, _width, _height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+	glBlitFramebuffer(0, 0, _width, _height, 0, _height, _width, 0, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 	_current_fbo = _fbo[FBO_BACK];
 
 #if RESHADE_DEPTH
-	// Copy depth from FBO to depth texture
+	// Copy depth from FBO to depth texture (and flip it vertically)
 	if (_copy_depth_source)
 	{
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, _depth_source == 0 ? 0 : _fbo[FBO_DEPTH_SRC]);
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _fbo[FBO_DEPTH_DEST]);
-		glBlitFramebuffer(0, 0, _depth_source_width, _depth_source_height, 0, 0, _depth_source_width, _depth_source_height, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+		glBlitFramebuffer(0, 0, _depth_source_width, _depth_source_height, 0, _depth_source_height, _depth_source_width, 0, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
 	}
 #endif
 
-	// Set clip space to something consistent
-	if (gl3wProcs.gl.ClipControl != nullptr)
-		glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
-
 	update_and_render_effects();
 
-	// Copy results from RBO to back buffer
+	// Copy results from RBO to back buffer (and flip it back vertically)
 	glDisable(GL_SCISSOR_TEST);
 	glDisable(GL_FRAMEBUFFER_SRGB);
 	glBindFramebuffer(GL_READ_FRAMEBUFFER, _fbo[FBO_BACK]);
 	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 	glReadBuffer(GL_COLOR_ATTACHMENT0);
 	glDrawBuffer(GL_BACK);
-	glBlitFramebuffer(0, 0, _width, _height, 0, 0, _width, _height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+	glBlitFramebuffer(0, 0, _width, _height, 0, _height, _width, 0, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 	_current_fbo = 0;
 
 	runtime::on_present();
@@ -318,18 +318,21 @@ bool reshade::opengl::runtime_gl::capture_screenshot(uint8_t *buffer) const
 	glReadBuffer(_current_fbo == 0 ? GL_BACK : GL_COLOR_ATTACHMENT0);
 	glReadPixels(0, 0, GLsizei(_width), GLsizei(_height), GL_RGBA, GL_UNSIGNED_BYTE, buffer);
 
-	// Flip image horizontally
-	for (unsigned int y = 0, pitch = _width * 4; y * 2 < _height; ++y)
+	// Flip image vertically (unless it came from the RBO, which is already upside down)
+	if (_current_fbo == 0)
 	{
-		const auto i1 = y * pitch;
-		const auto i2 = (_height - 1 - y) * pitch;
-
-		for (unsigned int x = 0; x < pitch; x += 4)
+		for (unsigned int y = 0, pitch = _width * 4; y * 2 < _height; ++y)
 		{
-			std::swap(buffer[i1 + x + 0], buffer[i2 + x + 0]);
-			std::swap(buffer[i1 + x + 1], buffer[i2 + x + 1]);
-			std::swap(buffer[i1 + x + 2], buffer[i2 + x + 2]);
-			std::swap(buffer[i1 + x + 3], buffer[i2 + x + 3]);
+			const auto i1 = y * pitch;
+			const auto i2 = (_height - 1 - y) * pitch;
+
+			for (unsigned int x = 0; x < pitch; x += 4)
+			{
+				std::swap(buffer[i1 + x + 0], buffer[i2 + x + 0]);
+				std::swap(buffer[i1 + x + 1], buffer[i2 + x + 1]);
+				std::swap(buffer[i1 + x + 2], buffer[i2 + x + 2]);
+				std::swap(buffer[i1 + x + 3], buffer[i2 + x + 3]);
+			}
 		}
 	}
 
@@ -896,23 +899,6 @@ void reshade::opengl::runtime_gl::upload_texture(const texture &texture, const u
 	auto impl = static_cast<opengl_tex_data *>(texture.impl);
 	assert(impl != nullptr && pixels != nullptr && texture.impl_reference == texture_reference::none);
 
-	unsigned int upload_pitch = texture.width * 4;
-	std::vector<uint8_t> upload_data(pixels, pixels + upload_pitch * texture.height);
-
-	// Flip image data horizontally
-	std::vector<uint8_t> temp_image_line(upload_pitch);
-	for (uint32_t y = 0; 2 * y < texture.height; y++)
-	{
-		const auto temp  = temp_image_line.data();
-		const auto line1 = upload_data.data() + upload_pitch * (y);
-		const auto line2 = upload_data.data() + upload_pitch * (texture.height - 1 - y);
-
-		std::memcpy(temp,  line1, upload_pitch);
-		std::memcpy(line1, line2, upload_pitch);
-		std::memcpy(line2, temp,  upload_pitch);
-	}
-	temp_image_line.clear(); // Free up temporary memory now
-
 	// Get current state
 	GLint previous_tex = 0;
 	GLint previous_unpack = 0;
@@ -950,7 +936,7 @@ void reshade::opengl::runtime_gl::upload_texture(const texture &texture, const u
 
 	// Bind and upload texture data
 	glBindTexture(GL_TEXTURE_2D, impl->id[0]);
-	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, texture.width, texture.height, GL_RGBA, GL_UNSIGNED_BYTE, upload_data.data());
+	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, texture.width, texture.height, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
 
 	if (texture.levels > 1)
 		glGenerateMipmap(GL_TEXTURE_2D);
@@ -1194,7 +1180,7 @@ void reshade::opengl::runtime_gl::init_imgui_resources()
 		"void main()\n"
 		"{\n"
 		"	frag_col = col;\n"
-		"	frag_tex = tex * vec2(1.0, -1.0) + vec2(0.0, 1.0);\n" // Texture coordinates were flipped in 'update_texture'
+		"	frag_tex = tex;\n"
 		"	gl_Position = proj * vec4(pos.xy, 0, 1);\n"
 		"}\n"
 	};

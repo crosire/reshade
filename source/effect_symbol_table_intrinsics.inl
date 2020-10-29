@@ -1448,15 +1448,10 @@ IMPLEMENT_INTRINSIC_SPIRV(isnan, 0, {
 DEFINE_INTRINSIC(tex2D, 0, float4, sampler, float2)
 DEFINE_INTRINSIC(tex2D, 1, float4, sampler, float2, int2)
 IMPLEMENT_INTRINSIC_GLSL(tex2D, 0, {
-	// Flip texture coordinates vertically
-	//   coords * vec2(1, -1) + vec2(0, 1)
-	code += "texture(" + id_to_name(args[0].base) + ", " +
-		id_to_name(args[1].base) + " * vec2(1.0, -1.0) + vec2(0.0, 1.0))";
+	code += "texture(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_GLSL(tex2D, 1, {
-	code += "textureOffset(" + id_to_name(args[0].base) + ", " +
-		id_to_name(args[1].base) + " * vec2(1.0, -1.0) + vec2(0.0, 1.0), " +
-		id_to_name(args[2].base) + " * ivec2(1, -1))";
+	code += "textureOffset(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2D, 0, {
 	if (_shader_model >= 40u) // SM4 and higher use a more object-oriented programming model for textures
@@ -1495,16 +1490,10 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2D, 1, {
 DEFINE_INTRINSIC(tex2Dlod, 0, float4, sampler, float4)
 DEFINE_INTRINSIC(tex2Dlod, 1, float4, sampler, float4, int2)
 IMPLEMENT_INTRINSIC_GLSL(tex2Dlod, 0, {
-	code += "textureLod(" + id_to_name(args[0].base) + ", " +
-		id_to_name(args[1].base) + ".xy * vec2(1.0, -1.0) + vec2(0.0, 1.0), " +
-		id_to_name(args[1].base) + ".w)";
+	code += "textureLod(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ".xy, " + id_to_name(args[1].base) + ".w)";
 	})
 IMPLEMENT_INTRINSIC_GLSL(tex2Dlod, 1, {
-	// Flip texture coordinates and offset vertically
-	code += "textureLodOffset(" + id_to_name(args[0].base) + ", " +
-		id_to_name(args[1].base) + ".xy * vec2(1.0, -1.0) + vec2(0.0, 1.0), " +
-		id_to_name(args[1].base) + ".w, " +
-		id_to_name(args[2].base) + " * ivec2(1, -1))";
+	code += "textureLodOffset(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ".xy, " + id_to_name(args[1].base) + ".w, " + id_to_name(args[2].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2Dlod, 0, {
 	if (_shader_model >= 40u)
@@ -1566,15 +1555,10 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2Dlod, 1, {
 DEFINE_INTRINSIC(tex2Dfetch, 0, float4, sampler, int2)
 DEFINE_INTRINSIC(tex2Dfetch, 1, float4, sampler, int2, int)
 IMPLEMENT_INTRINSIC_GLSL(tex2Dfetch, 0, {
-	// Flip texture coordinates vertically
-	//   coords * ivec2(1, -1) + ivec2(0, size.y - 1)
-	code += "texelFetch(" + id_to_name(args[0].base) + ", " +
-		id_to_name(args[1].base) + ".xy * ivec2(1, -1) + ivec2(0, textureSize(" + id_to_name(args[0].base) + ", 0).y - 1), 0)";
+	code += "texelFetch(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", 0)";
 	})
 IMPLEMENT_INTRINSIC_GLSL(tex2Dfetch, 1, {
-	code += "texelFetch(" + id_to_name(args[0].base) + ", " +
-		id_to_name(args[1].base) + " * ivec2(1, -1) + ivec2(0, textureSize(" + id_to_name(args[0].base) + ", " + id_to_name(args[2].base) + ").y - 1), " +
-		id_to_name(args[2].base) + ")";
+	code += "texelFetch(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2Dfetch, 0, {
 	if (_shader_model >= 40u)
@@ -1621,14 +1605,12 @@ DEFINE_INTRINSIC(tex2DgatherR, 0, float4, sampler, float2)
 DEFINE_INTRINSIC(tex2DgatherR, 1, float4, sampler, float2, int2)
 IMPLEMENT_INTRINSIC_GLSL(tex2DgatherR, 0, {
 	code += "textureGather(" + id_to_name(args[0].base) + ", " +
-		id_to_name(args[1].base) + " * vec2(1.0, -1.0) + vec2(0.0, 1.0), " +
-		"0)";
+		id_to_name(args[1].base) + ", 0)";
 	})
 IMPLEMENT_INTRINSIC_GLSL(tex2DgatherR, 1, {
 	code += "textureGatherOffset(" + id_to_name(args[0].base) + ", " +
-		id_to_name(args[1].base) + " * vec2(1.0, -1.0) + vec2(0.0, 1.0), " +
-		id_to_name(args[2].base) + " * ivec2(1, -1), " +
-		"0)";
+		id_to_name(args[1].base) + ", " +
+		id_to_name(args[2].base) + ", 0)";
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2DgatherR, 0, {
 	const std::string s = id_to_name(args[0].base);
@@ -1694,14 +1676,12 @@ DEFINE_INTRINSIC(tex2DgatherG, 0, float4, sampler, float2)
 DEFINE_INTRINSIC(tex2DgatherG, 1, float4, sampler, float2, int2)
 IMPLEMENT_INTRINSIC_GLSL(tex2DgatherG, 0, {
 	code += "textureGather(" + id_to_name(args[0].base) + ", " +
-		id_to_name(args[1].base) + " * vec2(1.0, -1.0) + vec2(0.0, 1.0), " +
-		"1)";
+		id_to_name(args[1].base) + ", 1)";
 	})
 IMPLEMENT_INTRINSIC_GLSL(tex2DgatherG, 1, {
 	code += "textureGatherOffset(" + id_to_name(args[0].base) + ", " +
-		id_to_name(args[1].base) + " * vec2(1.0, -1.0) + vec2(0.0, 1.0), " +
-		id_to_name(args[2].base) + " * ivec2(1, -1), " +
-		"1)";
+		id_to_name(args[1].base) + ", " +
+		id_to_name(args[2].base) + ", 1)";
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2DgatherG, 0, {
 	const std::string s = id_to_name(args[0].base);
@@ -1767,14 +1747,12 @@ DEFINE_INTRINSIC(tex2DgatherB, 0, float4, sampler, float2)
 DEFINE_INTRINSIC(tex2DgatherB, 1, float4, sampler, float2, int2)
 IMPLEMENT_INTRINSIC_GLSL(tex2DgatherB, 0, {
 	code += "textureGather(" + id_to_name(args[0].base) + ", " +
-		id_to_name(args[1].base) + " * vec2(1.0, -1.0) + vec2(0.0, 1.0), " +
-		"2)";
+		id_to_name(args[1].base) + ", 2)";
 	})
 IMPLEMENT_INTRINSIC_GLSL(tex2DgatherB, 1, {
 	code += "textureGatherOffset(" + id_to_name(args[0].base) + ", " +
-		id_to_name(args[1].base) + " * vec2(1.0, -1.0) + vec2(0.0, 1.0), " +
-		id_to_name(args[2].base) + " * ivec2(1, -1), " +
-		"2)";
+		id_to_name(args[1].base) + ", " +
+		id_to_name(args[2].base) + ", 2)";
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2DgatherB, 0, {
 	const std::string s = id_to_name(args[0].base);
@@ -1840,14 +1818,12 @@ DEFINE_INTRINSIC(tex2DgatherA, 0, float4, sampler, float2)
 DEFINE_INTRINSIC(tex2DgatherA, 1, float4, sampler, float2, int2)
 IMPLEMENT_INTRINSIC_GLSL(tex2DgatherA, 0, {
 	code += "textureGather(" + id_to_name(args[0].base) + ", " +
-		id_to_name(args[1].base) + " * vec2(1.0, -1.0) + vec2(0.0, 1.0), " +
-		"3)";
+		id_to_name(args[1].base) + ", 3)";
 	})
 IMPLEMENT_INTRINSIC_GLSL(tex2DgatherA, 1, {
 	code += "textureGatherOffset(" + id_to_name(args[0].base) + ", " +
-		id_to_name(args[1].base) + " * vec2(1.0, -1.0) + vec2(0.0, 1.0), " +
-		id_to_name(args[2].base) + " * ivec2(1, -1), " +
-		"3)";
+		id_to_name(args[1].base) + ", " +
+		id_to_name(args[2].base) + ", 3)";
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2DgatherA, 0, {
 	const std::string s = id_to_name(args[0].base);
@@ -1912,7 +1888,7 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherA, 1, {
 DEFINE_INTRINSIC(tex2Dstore, 0, void, storage, int2, float4)
 IMPLEMENT_INTRINSIC_GLSL(tex2Dstore, 0, {
 	code += "imageStore(" + id_to_name(args[0].base) + ", " +
-		id_to_name(args[1].base) + " * ivec2(1, -1) + ivec2(0, imageSize(" + id_to_name(args[0].base) + ").y - 1), " +
+		id_to_name(args[1].base) + ", " +
 		id_to_name(args[2].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2Dstore, 0, {
