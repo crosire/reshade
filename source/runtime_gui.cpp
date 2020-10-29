@@ -1627,7 +1627,7 @@ void reshade::runtime::draw_gui_statistics()
 				memory_size_unit = "KiB";
 			}
 
-			ImGui::TextColored(ImVec4(1, 1, 1, 1), "%s%s", texture.unique_name.c_str(), texture.shared.size() > 1 ? " (Shared)" : "");
+			ImGui::TextColored(ImVec4(1, 1, 1, 1), "%s%s", texture.unique_name.c_str(), texture.shared.size() > 1 ? " (Pooled)" : "");
 			ImGui::Text("%ux%u | %u mipmap(s) | %s | %ld.%03ld %s",
 				texture.width,
 				texture.height,
@@ -1635,7 +1635,7 @@ void reshade::runtime::draw_gui_statistics()
 				texture_formats[static_cast<unsigned int>(texture.format)],
 				memory_view.quot, memory_view.rem, memory_size_unit);
 
-			size_t num_target_passes = 0;
+			size_t num_referenced_passes = 0;
 			std::vector<std::pair<size_t, std::vector<std::string>>> references;
 			for (const auto &technique : _techniques)
 			{
@@ -1647,27 +1647,54 @@ void reshade::runtime::draw_gui_statistics()
 
 				for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
 				{
-					for (const std::string &target : technique.passes[pass_index].render_target_names)
-					{
-						if (target != texture.unique_name)
-							continue;
+					std::string pass_name = technique.passes[pass_index].name;
+					if (pass_name.empty())
+						pass_name = "pass " + std::to_string(pass_index);
+					pass_name = technique.name + ' ' + pass_name;
 
-						num_target_passes++;
-						if (technique.passes[pass_index].name.empty())
-							reference.second.emplace_back(technique.name + " pass " + std::to_string(pass_index));
-						else
-							reference.second.emplace_back(technique.name + ' ' + technique.passes[pass_index].name);
+					bool referenced = false;
+					for (const reshadefx::sampler_info &sampler : technique.passes[pass_index].samplers)
+					{
+						if (sampler.texture_name == texture.unique_name)
+						{
+							referenced = true;
+							reference.second.emplace_back(pass_name + " (sampler)");
+							break;
+						}
 					}
+
+					for (const reshadefx::storage_info &storage : technique.passes[pass_index].storages)
+					{
+						if (storage.texture_name == texture.unique_name)
+						{
+							referenced = true;
+							reference.second.emplace_back(pass_name + " (storage)");
+							break;
+						}
+					}
+
+					for (const std::string &render_target : technique.passes[pass_index].render_target_names)
+					{
+						if (render_target == texture.unique_name)
+						{
+							referenced = true;
+							reference.second.emplace_back(pass_name + " (render target)");
+							break;
+						}
+					}
+
+					if (referenced)
+						num_referenced_passes++;
 				}
 			}
 
 			ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
-			if (const std::string label = "Referenced " + (num_target_passes != 0 ? "by " + std::to_string(num_target_passes) + " pass(es) " : "read-only ") + "in " + std::to_string(texture.shared.size()) + " effect(s) ...";
+			if (const std::string label = "Referenced by " + std::to_string(num_referenced_passes) + " pass(es) in " + std::to_string(texture.shared.size()) + " effect(s) ...";
 				ImGui::ButtonEx(label.c_str(), ImVec2(single_image_width, 0)))
 				ImGui::OpenPopup("##references");
 			ImGui::PopStyleVar();
 
-			if (ImGui::BeginPopup("##references"))
+			if (!references.empty() && ImGui::BeginPopup("##references"))
 			{
 				bool is_open = false;
 				size_t effect_index = std::numeric_limits<size_t>::max();
