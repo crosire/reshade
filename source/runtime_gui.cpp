@@ -1004,7 +1004,7 @@ void reshade::runtime::draw_gui_home()
 	{
 		std::string texture_list;
 		for (const texture &texture : _textures)
-			if (!texture.loaded && !texture.annotation_as_string("source").empty())
+			if (texture.impl != nullptr && !texture.loaded && !texture.annotation_as_string("source").empty())
 				texture_list += ' ' + texture.unique_name + ',';
 
 		if (texture_list.empty())
