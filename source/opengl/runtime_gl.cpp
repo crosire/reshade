@@ -14,8 +14,8 @@ namespace reshade::opengl
 	struct opengl_tex_data
 	{
 		GLuint id[2] = {};
+		GLuint levels = 0;
 		GLenum internal_format = GL_NONE;
-		bool has_mipmaps = false;
 	};
 
 	struct opengl_sampler_data
@@ -192,6 +192,28 @@ bool reshade::opengl::runtime_gl::on_init(HWND hwnd, unsigned int width, unsigne
 	glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, _tex[TEX_BACK_SRGB], 0);
 	assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 
+	const GLchar *mipmap_shader[] = {
+		"#version 430\n"
+		"layout(binding = 0) uniform sampler2D src;\n"
+		"layout(binding = 1) uniform writeonly image2D dest;\n"
+		"layout(location = 0) uniform vec3 info;\n"
+		"layout(local_size_x = 8, local_size_y = 8) in;\n"
+		"void main()\n"
+		"{\n"
+		"	vec2 uv = info.xy * (vec2(gl_GlobalInvocationID.xy) + vec2(0.5));\n"
+		"	imageStore(dest, ivec2(gl_GlobalInvocationID.xy), textureLod(src, uv, int(info.z)));\n"
+		"}\n"
+	};
+
+	const GLuint mipmap_cs = glCreateShader(GL_COMPUTE_SHADER);
+	glShaderSource(mipmap_cs, 1, mipmap_shader, 0);
+	glCompileShader(mipmap_cs);
+
+	_mipmap_program = glCreateProgram();
+	glAttachShader(_mipmap_program, mipmap_cs);
+	glLinkProgram(_mipmap_program);
+	glDeleteShader(mipmap_cs);
+
 #if RESHADE_DEPTH
 	// Initialize depth texture and FBO by assuming they refer to the default frame buffer
 	_has_depth_texture = _default_depth_format != GL_NONE;
@@ -235,10 +257,8 @@ void reshade::opengl::runtime_gl::on_reset()
 	std::memset(_fbo, 0, sizeof(_fbo));
 	std::memset(_rbo, 0, sizeof(_rbo));
 
-#if RESHADE_GUI
-	glDeleteProgram(_imgui.program);
-	_imgui.program = 0;
-#endif
+	glDeleteProgram(_mipmap_program);
+	_mipmap_program = 0;
 
 #if RESHADE_DEPTH
 	_depth_source = 0;
@@ -248,6 +268,11 @@ void reshade::opengl::runtime_gl::on_reset()
 	_depth_source_override = std::numeric_limits<GLuint>::max();
 	_has_depth_texture = false;
 	_copy_depth_source = false;
+#endif
+
+#if RESHADE_GUI
+	glDeleteProgram(_imgui.program);
+	_imgui.program = 0;
 #endif
 }
 
@@ -853,7 +878,7 @@ bool reshade::opengl::runtime_gl::init_texture(texture &texture)
 		break;
 	}
 
-	impl->has_mipmaps = texture.levels > 1;
+	impl->levels = texture.levels;
 	impl->internal_format = internal_format;
 
 	// Get current state
@@ -876,6 +901,9 @@ bool reshade::opengl::runtime_gl::init_texture(texture &texture)
 	else {
 		impl->id[1] = impl->id[0];
 	}
+
+	// Set default minification filter to linear (used during mipmap generation)
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 
 	// Clear texture to zero since by default its contents are undefined
 	// Use a separate FBO here to make sure there is no mismatch with the dimensions of others
@@ -938,8 +966,7 @@ void reshade::opengl::runtime_gl::upload_texture(const texture &texture, const u
 	glBindTexture(GL_TEXTURE_2D, impl->id[0]);
 	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, texture.width, texture.height, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
 
-	if (texture.levels > 1)
-		glGenerateMipmap(GL_TEXTURE_2D);
+	generate_mipmaps(impl);
 
 	// Restore previous state from application
 	glBindTexture(GL_TEXTURE_2D, previous_tex);
@@ -965,6 +992,37 @@ void reshade::opengl::runtime_gl::destroy_texture(texture &texture)
 
 	delete impl;
 	texture.impl = nullptr;
+}
+void reshade::opengl::runtime_gl::generate_mipmaps(const opengl_tex_data *impl)
+{
+	if (impl == nullptr || impl->levels <= 1)
+		return;
+
+	glBindSampler(0, 0);
+	glActiveTexture(GL_TEXTURE0); // src
+	glBindTexture(GL_TEXTURE_2D, impl->id[0]);
+#if 0
+	glGenerateMipmap(GL_TEXTURE_2D);
+#else
+	// Use custom mipmap generation implementation because 'glGenerateMipmap' generates shifted results
+	glUseProgram(_mipmap_program);
+
+	GLuint base_width = 0;
+	GLuint base_height = 0;
+	glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, reinterpret_cast<GLint *>(&base_width));
+	glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, reinterpret_cast<GLint *>(&base_height));
+
+	for (GLuint level = 1; level < impl->levels; ++level)
+	{
+		const GLuint width = std::max(1u, base_width >> level);
+		const GLuint height = std::max(1u, base_height >> level);
+
+		glUniform3f(0 /* info */, 1.0f / width, 1.0f / height, static_cast<float>(level - 1));
+		glBindImageTexture(1 /* dest */, impl->id[0], level, GL_FALSE, 0, GL_WRITE_ONLY, impl->internal_format);
+
+		glDispatchCompute(std::max(1u, (width + 7) / 8), std::max(1u, (height + 7) / 8), 1);
+	}
+#endif
 }
 
 void reshade::opengl::runtime_gl::render_technique(technique &technique)
@@ -1035,7 +1093,7 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 			opengl_tex_data *const tex_impl = pass_data.storages[binding];
 			if (tex_impl != nullptr)
 			{
-				glBindImageTexture(binding, tex_impl->id[0], 0, GL_FALSE, 0, GL_READ_WRITE, tex_impl->internal_format);
+				glBindImageTexture(binding, tex_impl->id[0], 0, GL_FALSE, 0, GL_WRITE_ONLY, tex_impl->internal_format);
 			}
 			else
 			{
@@ -1146,15 +1204,8 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 		}
 
 		// Generate mipmaps for modified resources (graphics passes add their render targets to the 'storages' list)
-		glActiveTexture(GL_TEXTURE0);
 		for (opengl_tex_data *const tex_impl : pass_data.storages)
-		{
-			if (tex_impl != nullptr && tex_impl->has_mipmaps)
-			{
-				glBindTexture(GL_TEXTURE_2D, tex_impl->id[0]);
-				glGenerateMipmap(GL_TEXTURE_2D);
-			}
-		}
+			generate_mipmaps(tex_impl);
 	}
 
 	if (!impl->query_in_flight) {
@@ -1186,7 +1237,7 @@ void reshade::opengl::runtime_gl::init_imgui_resources()
 	};
 	const GLchar *fragment_shader[] = {
 		"#version 430\n"
-		"layout(location = 0) uniform sampler2D s0;\n"
+		"layout(binding = 0) uniform sampler2D s0;\n"
 		"in vec4 frag_col;\n"
 		"in vec2 frag_tex;\n"
 		"out vec4 col;\n"
@@ -1229,11 +1280,11 @@ void reshade::opengl::runtime_gl::render_imgui_draw_data(ImDrawData *draw_data)
 	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 	glDepthMask(GL_FALSE);
 
-	glUseProgram(_imgui.program);
-	glActiveTexture(GL_TEXTURE0); // Bind texture at location zero below
-	glBindSampler(0, 0); // Do not use separate sampler object, since state is already set in texture
-
 	glViewport(0, 0, GLsizei(draw_data->DisplaySize.x), GLsizei(draw_data->DisplaySize.y));
+
+	glUseProgram(_imgui.program);
+	glBindSampler(0, 0); // Do not use separate sampler object, since state is already set in texture
+	glActiveTexture(GL_TEXTURE0); // s0
 
 	const float ortho_projection[16] = {
 		2.0f / draw_data->DisplaySize.x, 0.0f,   0.0f, 0.0f,
@@ -1242,8 +1293,6 @@ void reshade::opengl::runtime_gl::render_imgui_draw_data(ImDrawData *draw_data)
 		-(2 * draw_data->DisplayPos.x + draw_data->DisplaySize.x) / draw_data->DisplaySize.x,
 		+(2 * draw_data->DisplayPos.y + draw_data->DisplaySize.y) / draw_data->DisplaySize.y, 0.0f, 1.0f,
 	};
-
-	glUniform1i(0 /* s0 */, 0); // Set to GL_TEXTURE0
 	glUniformMatrix4fv(1 /* proj */, 1, GL_FALSE, ortho_projection);
 
 	glBindVertexArray(_vao[VAO_IMGUI]);

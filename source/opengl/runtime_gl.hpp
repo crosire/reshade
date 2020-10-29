@@ -34,6 +34,7 @@ namespace reshade::opengl
 		bool init_texture(texture &texture) override;
 		void upload_texture(const texture &texture, const uint8_t *data) override;
 		void destroy_texture(texture &texture) override;
+		void generate_mipmaps(const struct opengl_tex_data *impl);
 
 		void render_technique(technique &technique) override;
 
@@ -86,6 +87,7 @@ namespace reshade::opengl
 		GLuint _vao[NUM_VAO] = {};
 		GLuint _fbo[NUM_FBO] = {}, _current_fbo = 0;
 		GLuint _rbo[NUM_RBO] = {};
+		GLuint _mipmap_program = 0;
 		GLenum _default_depth_format = GL_NONE;
 		std::vector<GLuint> _effect_ubos;
 		std::vector<GLuint> _reserved_texture_names;
