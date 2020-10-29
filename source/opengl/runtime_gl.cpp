@@ -483,6 +483,14 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 				glAttachShader(pass_data.program, cs_shader_id);
 				glLinkProgram(pass_data.program);
 				glDetachShader(pass_data.program, cs_shader_id);
+
+				pass_data.storages.resize(effect.module.num_storage_bindings);
+				for (const reshadefx::storage_info &info : pass_info.storages)
+				{
+					const texture &texture = look_up_texture_by_name(info.texture_name);
+
+					pass_data.storages[info.binding] = static_cast<opengl_tex_data *>(texture.impl);
+				}
 			}
 			else
 			{
@@ -708,14 +716,6 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 				sampler_data.id = it->second;
 				sampler_data.texture = static_cast<opengl_tex_data *>(texture.impl);
 				sampler_data.is_srgb_format = info.srgb;
-			}
-
-			pass_data.storages.resize(effect.module.num_storage_bindings);
-			for (const reshadefx::storage_info &info : pass_info.storages)
-			{
-				const texture &texture = look_up_texture_by_name(info.texture_name);
-
-				pass_data.storages[info.binding] = static_cast<opengl_tex_data *>(texture.impl);
 			}
 		}
 	}
@@ -1159,7 +1159,7 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 			needs_implicit_backbuffer_copy = pass_info.render_target_names[0].empty();
 		}
 
-		// Generate mipmaps for modified resources
+		// Generate mipmaps for modified resources (graphics passes add their render targets to the 'storages' list)
 		glActiveTexture(GL_TEXTURE0);
 		for (opengl_tex_data *const tex_impl : pass_data.storages)
 		{
