@@ -583,7 +583,7 @@ void reshade::vulkan::runtime_vk::on_reset()
 	_allocations.clear();
 }
 
-void reshade::vulkan::runtime_vk::on_present(VkQueue queue, uint32_t swapchain_image_index, const std::vector<VkSemaphore> &wait, VkSemaphore &signal)
+void reshade::vulkan::runtime_vk::on_present(VkQueue queue, uint32_t swapchain_image_index, std::vector<VkSemaphore> &wait)
 {
 	if (!_is_initialized)
 		return;
@@ -610,13 +610,28 @@ void reshade::vulkan::runtime_vk::on_present(VkQueue queue, uint32_t swapchain_i
 	update_and_render_effects();
 	runtime::on_present();
 
+#ifndef NDEBUG
+	// Some operations force a wait for idle in ReShade, which invalidates the wait semaphores, so signal them again (keeps the validation layers happy)
+	if (_wait_for_idle_happened)
+	{
+		VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
+		std::vector<VkPipelineStageFlags> wait_stages(wait.size(), VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
+		submit_info.waitSemaphoreCount = static_cast<uint32_t>(wait.size());
+		submit_info.pWaitSemaphores = wait.data();
+		submit_info.pWaitDstStageMask = wait_stages.data();
+		submit_info.signalSemaphoreCount = static_cast<uint32_t>(wait.size());
+		submit_info.pSignalSemaphores = wait.data();
+		vk.QueueSubmit(queue, 1, &submit_info, VK_NULL_HANDLE);
+
+		_wait_for_idle_happened = false;
+	}
+#endif
+
 	// Submit all asynchronous commands in one batch to the current queue
 	if (auto &cmd_info = _cmd_buffers[_cmd_index];
 		cmd_info.second)
 	{
 		check_result(vk.EndCommandBuffer(cmd_info.first));
-
-		signal = _cmd_semaphores[_cmd_index];
 
 		VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
 		std::vector<VkSemaphore> wait_semaphores(wait.begin(), wait.end());
@@ -643,21 +658,23 @@ void reshade::vulkan::runtime_vk::on_present(VkQueue queue, uint32_t swapchain_i
 		submit_info.commandBufferCount = 1;
 		submit_info.pCommandBuffers = &cmd_info.first;
 		submit_info.signalSemaphoreCount = 1;
-		submit_info.pSignalSemaphores = &signal;
+		submit_info.pSignalSemaphores = &_cmd_semaphores[_cmd_index];
 
 		// Only reset fence before an actual submit which can signal it again
 		vk.ResetFences(_device, 1, &fence);
 
 		// Always submit to the graphics queue
-		if (vk.QueueSubmit(_queue, 1, &submit_info, fence) != VK_SUCCESS)
-			// Semaphore is not signaled if queue submission fails
-			signal = VK_NULL_HANDLE;
+		if (vk.QueueSubmit(_queue, 1, &submit_info, fence) == VK_SUCCESS)
+		{
+			// This queue submit now waits on the requested wait semaphores
+			// The next queue submit should therefore wait on the semaphore that was signaled by this submit
+			wait.clear();
+			wait.push_back(_cmd_semaphores[_cmd_index]);
+		}
 
 		// Command buffer is now in invalid state and ready for a reset
 		cmd_info.second = false;
 	}
-
-	// TODO: Some operations force a wait for idle in ReShade, which invalidates the wait semaphores and those should be removed from the queue submit
 }
 
 bool reshade::vulkan::runtime_vk::capture_screenshot(uint8_t *buffer) const
@@ -700,6 +717,7 @@ bool reshade::vulkan::runtime_vk::capture_screenshot(uint8_t *buffer) const
 		// Wait for any rendering by the application finish before submitting
 		// It may have submitted that to a different queue, so simply wait for all to idle here
 		vk.DeviceWaitIdle(_device);
+		_wait_for_idle_happened = true;
 
 		// Execute and wait for completion
 		execute_command_buffer();
@@ -2040,6 +2058,7 @@ void reshade::vulkan::runtime_vk::wait_for_command_buffers()
 {
 	// Wait for all queues to finish to ensure no command buffers are in flight after this call
 	vk.DeviceWaitIdle(_device);
+	_wait_for_idle_happened = true;
 
 	if (_cmd_index < NUM_COMMAND_FRAMES &&
 		_cmd_buffers[_cmd_index].second)
