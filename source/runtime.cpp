@@ -539,11 +539,26 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t eff
 				for (auto &sampler_info : effect.module.samplers)
 					if (sampler_info.texture_name == texture.unique_name)
 						sampler_info.texture_name  = existing_texture->unique_name;
+				// Overwrite referenced texture in storages with the pooled one
+				for (auto &storage_info : effect.module.storages)
+					if (storage_info.texture_name == texture.unique_name)
+						storage_info.texture_name  = existing_texture->unique_name;
 				// Overwrite referenced texture in render targets with the pooled one
 				for (auto &technique_info : effect.module.techniques)
+				{
 					for (auto &pass_info : technique_info.passes)
+					{
 						std::replace(std::begin(pass_info.render_target_names), std::end(pass_info.render_target_names),
 							texture.unique_name, existing_texture->unique_name);
+
+						for (auto &sampler_info : pass_info.samplers)
+							if (sampler_info.texture_name == texture.unique_name)
+								sampler_info.texture_name  = existing_texture->unique_name;
+						for (auto &storage_info : pass_info.storages)
+							if (storage_info.texture_name == texture.unique_name)
+								storage_info.texture_name  = existing_texture->unique_name;
+					}
+				}
 
 				if (std::find(existing_texture->shared.begin(), existing_texture->shared.end(), effect_index) == existing_texture->shared.end())
 					existing_texture->shared.push_back(effect_index);
