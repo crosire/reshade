@@ -80,7 +80,7 @@ reshade::runtime::runtime() :
 	_screenshot_key_data(),
 	_prev_preset_key_data(),
 	_next_preset_key_data(),
-	_configuration_path(g_reshade_base_path / L"ReShade.ini"),
+	_config_path(g_reshade_base_path / L"ReShade.ini"),
 	_screenshot_path(g_reshade_base_path)
 {
 	_needs_update = check_for_update(_latest_version);
@@ -90,9 +90,9 @@ reshade::runtime::runtime() :
 
 	// Fall back to alternative configuration file name if it exists
 	std::error_code ec;
-	if (std::filesystem::path configuraton_path_alt = g_reshade_base_path / g_reshade_dll_path.filename().replace_extension(L".ini");
-		std::filesystem::exists(configuraton_path_alt, ec) && !std::filesystem::exists(_configuration_path, ec))
-		_configuration_path = std::move(configuraton_path_alt);
+	if (std::filesystem::path config_path_alt = g_reshade_base_path / g_reshade_dll_path.filename().replace_extension(L".ini");
+		std::filesystem::exists(config_path_alt, ec) && !std::filesystem::exists(_config_path, ec))
+		_config_path = std::move(config_path_alt);
 
 #if RESHADE_GUI
 	init_gui();
@@ -1192,18 +1192,18 @@ void reshade::runtime::subscribe_to_load_config(std::function<void(const ini_fil
 {
 	_load_config_callables.push_back(function);
 
-	function(ini_file::load_cache(_configuration_path));
+	function(ini_file::load_cache(_config_path));
 }
 void reshade::runtime::subscribe_to_save_config(std::function<void(ini_file &)> function)
 {
 	_save_config_callables.push_back(function);
 
-	function(ini_file::load_cache(_configuration_path));
+	function(ini_file::load_cache(_config_path));
 }
 
 void reshade::runtime::load_config()
 {
-	const ini_file &config = ini_file::load_cache(_configuration_path);
+	const ini_file &config = ini_file::load_cache(_config_path);
 
 	config.get("INPUT", "ForceShortcutModifiers", _force_shortcut_modifiers);
 	config.get("INPUT", "KeyEffects", _effects_key_data);
@@ -1242,7 +1242,7 @@ void reshade::runtime::load_config()
 }
 void reshade::runtime::save_config() const
 {
-	ini_file &config = ini_file::load_cache(_configuration_path);
+	ini_file &config = ini_file::load_cache(_config_path);
 
 	config.set("INPUT", "ForceShortcutModifiers", _force_shortcut_modifiers);
 	config.set("INPUT", "KeyEffects", _effects_key_data);
@@ -1284,7 +1284,7 @@ void reshade::runtime::load_current_preset()
 {
 	_preset_save_success = true;
 
-	ini_file config = ini_file::load_cache(_configuration_path); // Copy config, because reference becomes invalid in the next line
+	ini_file config = ini_file::load_cache(_config_path); // Copy config, because reference becomes invalid in the next line
 	const ini_file &preset = ini_file::load_cache(_current_preset_path);
 
 	std::vector<std::string> technique_list;

@@ -59,21 +59,26 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &desc)
 	LOG(INFO) << "  | Flags                                   | " << std::setw(39) << std::hex << desc.Flags << std::dec << " |";
 	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 
-	{ const reshade::ini_file config(g_reshade_base_path / L"ReShade.ini");
+	if (reshade::global_config().get("APP", "ForceWindowed"))
+	{
+		desc.Windowed = TRUE;
+	}
+	if (reshade::global_config().get("APP", "ForceFullscreen"))
+	{
+		desc.Windowed = FALSE;
+	}
 
-		if (config.get("DXGI", "ForceWindowed"))
-			desc.Windowed = TRUE;
-		if (config.get("DXGI", "ForceFullscreen"))
-			desc.Windowed = FALSE;
+	if (unsigned int force_resolution[2] = {};
+		reshade::global_config().get("APP", "ForceResolution", force_resolution) &&
+		force_resolution[0] != 0 && force_resolution[1] != 0)
+	{
+		desc.BufferDesc.Width = force_resolution[0];
+		desc.BufferDesc.Height = force_resolution[1];
+	}
 
-		if (unsigned int force_resolution[2] = {};
-			config.get("DXGI", "ForceResolution", force_resolution) &&
-			force_resolution[0] != 0 && force_resolution[1] != 0)
-			desc.BufferDesc.Width = force_resolution[0],
-			desc.BufferDesc.Height = force_resolution[1];
-
-		if (config.get("DXGI", "Force10BitFormat"))
-			desc.BufferDesc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
+	if (reshade::global_config().get("APP", "Force10BitFormat"))
+	{
+		desc.BufferDesc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
 	}
 }
 static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, DXGI_SWAP_CHAIN_FULLSCREEN_DESC &fullscreen_desc)
@@ -98,21 +103,26 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, DXGI_SWA
 	LOG(INFO) << "  | Flags                                   | " << std::setw(39) << std::hex << desc.Flags << std::dec << " |";
 	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 
-	{ const reshade::ini_file config(g_reshade_base_path / L"ReShade.ini");
+	if (reshade::global_config().get("DXGI", "ForceWindowed"))
+	{
+		fullscreen_desc.Windowed = TRUE;
+	}
+	if (reshade::global_config().get("DXGI", "ForceFullscreen"))
+	{
+		fullscreen_desc.Windowed = FALSE;
+	}
 
-		if (config.get("DXGI", "ForceWindowed"))
-			fullscreen_desc.Windowed = TRUE;
-		if (config.get("DXGI", "ForceFullscreen"))
-			fullscreen_desc.Windowed = FALSE;
+	if (unsigned int force_resolution[2] = {};
+		reshade::global_config().get("DXGI", "ForceResolution", force_resolution) &&
+		force_resolution[0] != 0 && force_resolution[1] != 0)
+	{
+		desc.Width = force_resolution[0];
+		desc.Height = force_resolution[1];
+	}
 
-		if (unsigned int force_resolution[2] = {};
-			config.get("DXGI", "ForceResolution", force_resolution) &&
-			force_resolution[0] != 0 && force_resolution[1] != 0)
-			desc.Width = force_resolution[0],
-			desc.Height = force_resolution[1];
-
-		if (config.get("DXGI", "Force10BitFormat"))
-			desc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
+	if (reshade::global_config().get("DXGI", "Force10BitFormat"))
+	{
+		desc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
 	}
 }
 
@@ -202,12 +212,9 @@ static void init_reshade_runtime_d3d(T *&swapchain, UINT direct3d_version, const
 
 	if (swapchain_proxy != nullptr)
 	{
-		{ const reshade::ini_file config(g_reshade_base_path / L"ReShade.ini");
-
-			config.get("DXGI", "ForceVSync", swapchain_proxy->_force_vsync);
-			config.get("DXGI", "ForceResolution", swapchain_proxy->_force_resolution);
-			config.get("DXGI", "Force10BitFormat", swapchain_proxy->_force_10_bit_format);
-		}
+		reshade::global_config().get("DXGI", "ForceVSync", swapchain_proxy->_force_vsync);
+		reshade::global_config().get("DXGI", "ForceResolution", swapchain_proxy->_force_resolution);
+		reshade::global_config().get("DXGI", "Force10BitFormat", swapchain_proxy->_force_10_bit_format);
 
 #if RESHADE_VERBOSE_LOG
 		LOG(INFO) << "Returning IDXGISwapChain" << swapchain_proxy->_interface_version << " object " << swapchain_proxy << '.';

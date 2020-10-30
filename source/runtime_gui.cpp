@@ -264,7 +264,7 @@ void reshade::runtime::build_font_atlas()
 
 void reshade::runtime::load_custom_style()
 {
-	const ini_file &config = ini_file::load_cache(_configuration_path);
+	const ini_file &config = ini_file::load_cache(_config_path);
 
 	ImVec4 *const colors = _imgui_context->Style.Colors;
 	switch (_style_index)
@@ -471,7 +471,7 @@ void reshade::runtime::load_custom_style()
 }
 void reshade::runtime::save_custom_style()
 {
-	ini_file &config = ini_file::load_cache(_configuration_path);
+	ini_file &config = ini_file::load_cache(_config_path);
 
 	if (_style_index == 3 || _style_index == 4) // Custom Simple, Custom Advanced
 	{

@@ -216,3 +216,11 @@ bool reshade::ini_file::flush_cache(const std::filesystem::path &path)
 	const auto it = g_ini_cache.find(path);
 	return it != g_ini_cache.end() && it->second.save();
 }
+
+reshade::ini_file &reshade::global_config()
+{
+	std::filesystem::path config_path = g_reshade_dll_path;
+	config_path.replace_extension(L".ini");
+	static reshade::ini_file config(config_path); // Load once on first use
+	return config;
+}

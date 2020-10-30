@@ -42,43 +42,28 @@ static bool resolve_env_path(std::filesystem::path &path, const std::filesystem:
 }
 
 /// <summary>
-/// Loads global configuration file and reads base path from it.
+/// Returns the path that should be used as base for relative paths.
 /// </summary>
-static void load_global_config()
+std::filesystem::path get_base_path()
 {
+	std::filesystem::path result;
+
+	if (reshade::global_config().get("INSTALL", "BasePath", result) && resolve_env_path(result))
+		return result;
+
+	WCHAR buf[4096] = L"";
+	if (GetEnvironmentVariableW(L"RESHADE_BASE_PATH_OVERRIDE", buf, ARRAYSIZE(buf)) && resolve_env_path(result = buf))
+		return result;
+
 	std::error_code ec;
-	std::filesystem::path config_path = g_reshade_dll_path;
-	config_path.replace_extension(L".ini");
-
-	if (std::filesystem::exists(config_path, ec))
+	if (std::filesystem::exists(reshade::global_config().path(), ec) || !std::filesystem::exists(g_target_executable_path.parent_path() / L"ReShade.ini", ec))
 	{
-		const reshade::ini_file &config = reshade::ini_file::load_cache(config_path);
-
-		if (std::filesystem::path base_path;
-			config.get("INSTALL", "BasePath", base_path) && resolve_env_path(base_path))
-			g_reshade_base_path = std::move(base_path);
+		return g_reshade_dll_path.parent_path();
 	}
-
-	if (g_reshade_base_path.empty())
+	else
 	{
-		WCHAR buf[4096] = L"";
-		if (std::filesystem::path env_path;
-			GetEnvironmentVariableW(L"RESHADE_BASE_PATH_OVERRIDE", buf, ARRAYSIZE(buf)) && resolve_env_path(env_path = buf))
-		{
-			g_reshade_base_path = std::move(env_path);
-		}
-		else
-		{
-			if (std::filesystem::exists(config_path, ec) || !std::filesystem::exists(g_target_executable_path.parent_path() / L"ReShade.ini", ec))
-			{
-				g_reshade_base_path = g_reshade_dll_path.parent_path();
-			}
-			else
-			{
-				// Use target executable directory when a unique configuration already exists
-				g_reshade_base_path = g_target_executable_path.parent_path();
-			}
-		}
+		// Use target executable directory when a unique configuration already exists
+		return g_target_executable_path.parent_path();
 	}
 }
 
@@ -87,40 +72,20 @@ static void load_global_config()
 /// </summary>
 std::filesystem::path get_system_path()
 {
-	static std::filesystem::path system_path;
-	if (!system_path.empty())
-		return system_path; // Return the cached system path
+	static std::filesystem::path result;
+	if (!result.empty())
+		return result; // Return the cached path if it exists
 
-	std::error_code ec;
-	std::filesystem::path config_path = g_reshade_dll_path;
-	config_path.replace_extension(L".ini");
+	if (reshade::global_config().get("INSTALL", "ModulePath", result) && resolve_env_path(result))
+		return result;
 
-	if (std::filesystem::exists(config_path, ec))
-	{
-		const reshade::ini_file &config = reshade::ini_file::load_cache(config_path);
+	WCHAR buf[4096] = L"";
+	if (GetEnvironmentVariableW(L"RESHADE_MODULE_PATH_OVERRIDE", buf, ARRAYSIZE(buf)) && resolve_env_path(result = buf))
+		return result;
 
-		if (std::filesystem::path module_path;
-			config.get("INSTALL", "ModulePath", module_path) && resolve_env_path(module_path))
-			system_path = std::move(module_path);
-	}
-
-	if (system_path.empty())
-	{
-		WCHAR buf[4096] = L"";
-		if (std::filesystem::path env_path;
-			GetEnvironmentVariableW(L"RESHADE_MODULE_PATH_OVERRIDE", buf, ARRAYSIZE(buf)) && resolve_env_path(env_path = buf))
-		{
-			system_path = std::move(env_path);
-		}
-		else
-		{
-			// First try environment variable, use system directory if it does not exist or is empty
-			GetSystemDirectoryW(buf, ARRAYSIZE(buf));
-			system_path = buf;
-		}
-	}
-
-	return system_path;
+	// First try environment variable, use system directory if it does not exist or is empty
+	GetSystemDirectoryW(buf, ARRAYSIZE(buf));
+	return result = buf;
 }
 
 /// <summary>
@@ -157,8 +122,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 	g_module_handle = hInstance;
 	g_reshade_dll_path = get_module_path(hInstance);
 	g_target_executable_path = get_module_path(hInstance);
+	g_reshade_base_path = get_base_path();
 
-	load_global_config();
 	log::open(g_reshade_base_path / g_reshade_dll_path.filename().replace_extension(L".log"));
 
 	hooks::register_module("user32.dll");
@@ -845,8 +810,8 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		g_module_handle = hModule;
 		g_reshade_dll_path = get_module_path(hModule);
 		g_target_executable_path = get_module_path(nullptr);
+		g_reshade_base_path = get_base_path(); // Needs to happen after DLL and executable path are set (since those are referenced in 'get_base_path')
 
-		load_global_config();
 		log::open(g_reshade_base_path / g_reshade_dll_path.filename().replace_extension(L".log"));
 
 #  ifdef WIN64
