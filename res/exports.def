@@ -1,9 +1,9 @@
 EXPORTS
-	; d2d1.dll
+	; d2d1.dll (Uses ordinals in d2d1.lib for all exports)
 	D2D1CreateDevice @7
 	D2D1CreateFactory @1
 
-	; d3d9.dll
+	; d3d9.dll (Uses ordinals in d3d9.lib for 'Direct3DCreate9on12' and 'Direct3DCreate9on12Ex')
 	Direct3DCreate9
 	Direct3DCreate9Ex
 	Direct3DCreate9on12 @20
@@ -37,7 +37,7 @@ EXPORTS
 	D3D11CreateDevice
 	D3D11CreateDeviceAndSwapChain
 
-	; d3d12.dll
+	; d3d12.dll (Uses ordinals in d3d12.lib for 'D3D12CreateDevice' and 'D3D12GetDebugInterface')
 	D3D12CreateDevice @101
 	D3D12GetDebugInterface @102
 	D3D12CreateRootSignatureDeserializer @107
@@ -446,7 +446,7 @@ EXPORTS
 	GetCursorPos = HookGetCursorPosition
 	SetCursorPos = HookSetCursorPosition
 
-	; ws2_32.dll
+	; ws2_32.dll (Uses ordinals in ws2_32.lib for most exports)
 	send = HookSend
 	sendto = HookSendTo
 	recv = HookRecv
