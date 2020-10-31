@@ -461,11 +461,11 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t eff
 			var.special = special_uniform::mouse_wheel;
 		else if (special == "freepie")
 			var.special = special_uniform::freepie;
-		else if (special == "overlay_open")
+		else if (special == "ui_open" || special == "overlay_open")
 			var.special = special_uniform::overlay_open;
-		else if (special == "overlay_active")
+		else if (special == "ui_active" || special == "overlay_active")
 			var.special = special_uniform::overlay_active;
-		else if (special == "overlay_hovered")
+		else if (special == "ui_hovered" || special == "overlay_hovered")
 			var.special = special_uniform::overlay_hovered;
 		else if (special == "bufready_depth")
 			var.special = special_uniform::bufready_depth;
