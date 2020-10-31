@@ -51,7 +51,9 @@ namespace reshade::d3d12
 		D3D12_GPU_DESCRIPTOR_HANDLE uav_gpu_base;
 		D3D12_CPU_DESCRIPTOR_HANDLE sampler_cpu_base;
 		D3D12_GPU_DESCRIPTOR_HANDLE sampler_gpu_base;
+#if RESHADE_DEPTH
 		D3D12_CPU_DESCRIPTOR_HANDLE depth_texture_binding = {};
+#endif
 	};
 
 	struct d3d12_technique_data
@@ -939,23 +941,19 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 				D3D12_CPU_DESCRIPTOR_HANDLE srv_handle = srv_cpu_base;
 				srv_handle.ptr += info.texture_binding * _srv_handle_size;
 
-				com_ptr<ID3D12Resource> resource;
-				switch (texture.impl_reference)
+				com_ptr<ID3D12Resource> resource = static_cast<d3d12_tex_data *>(texture.impl)->resource;
+				if (texture.semantic == "COLOR")
 				{
-				case texture_reference::back_buffer:
 					resource = _backbuffer_texture;
-					break;
-				case texture_reference::depth_buffer:
+				}
 #if RESHADE_DEPTH
+				if (texture.semantic == "DEPTH")
+				{
 					resource = _depth_texture; // Note: This can be a "nullptr"
-#endif
 					// Keep track of the depth buffer texture descriptor to simplify updating it
 					effect_data.depth_texture_binding = srv_handle;
-					break;
-				default:
-					resource = static_cast<d3d12_tex_data *>(texture.impl)->resource;
-					break;
 				}
+#endif
 
 				if (resource != nullptr)
 				{
@@ -987,17 +985,8 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 				D3D12_CPU_DESCRIPTOR_HANDLE uav_handle = uav_cpu_base;
 				uav_handle.ptr += info.binding * _srv_handle_size;
 
-				com_ptr<ID3D12Resource> resource;
-				switch (texture.impl_reference)
-				{
-				case texture_reference::back_buffer:
-				case texture_reference::depth_buffer:
-					break;
-				default:
-					resource = static_cast<d3d12_tex_data *>(texture.impl)->resource;
-					break;
-				}
-
+				const com_ptr<ID3D12Resource> resource =
+					static_cast<d3d12_tex_data *>(texture.impl)->resource;
 				if (resource != nullptr)
 				{
 					D3D12_UNORDERED_ACCESS_VIEW_DESC desc = {};
@@ -1041,7 +1030,9 @@ void reshade::d3d12::runtime_d3d12::unload_effect(size_t index)
 		effect_data.rtv_heap.reset();
 		effect_data.srv_uav_heap.reset();
 		effect_data.sampler_heap.reset();
+#if RESHADE_DEPTH
 		effect_data.depth_texture_binding = { 0 };
+#endif
 	}
 }
 void reshade::d3d12::runtime_d3d12::unload_effects()
@@ -1065,8 +1056,8 @@ bool reshade::d3d12::runtime_d3d12::init_texture(texture &texture)
 	auto impl = new d3d12_tex_data();
 	texture.impl = impl;
 
-	// Do not create resource if it is a reference, it is set in 'render_technique'
-	if (texture.impl_reference != texture_reference::none)
+	// Do not create resource if it is a special reference, those are set in 'render_technique' and 'init_effect'/'update_depth_texture_bindings'
+	if (texture.semantic == "COLOR" || texture.semantic == "DEPTH")
 		return true;
 
 	D3D12_RESOURCE_DESC desc = { D3D12_RESOURCE_DIMENSION_TEXTURE2D };
@@ -1184,7 +1175,7 @@ bool reshade::d3d12::runtime_d3d12::init_texture(texture &texture)
 void reshade::d3d12::runtime_d3d12::upload_texture(const texture &texture, const uint8_t *pixels)
 {
 	auto impl = static_cast<d3d12_tex_data *>(texture.impl);
-	assert(impl != nullptr && texture.impl_reference == texture_reference::none && pixels != nullptr);
+	assert(impl != nullptr && texture.semantic.empty() && pixels != nullptr);
 
 	const uint32_t data_pitch = texture.width * 4;
 	const uint32_t upload_pitch = (data_pitch + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u);

@@ -490,22 +490,23 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t eff
 				existing_texture != _textures.end())
 			{
 				// Cannot share texture if this is a normal one, but the existing one is a reference and vice versa
-				if (texture.semantic.empty() != (existing_texture->impl_reference == texture_reference::none))
+				if (texture.semantic != existing_texture->semantic)
 				{
 					effect.errors += "error: " + texture.unique_name + ": another shader (";
 					effect.errors += _effects[existing_texture->effect_index].source_file.filename().u8string();
-					effect.errors += ") already created a texture with the same name but different usage; rename the variable to fix this error\n";
+					effect.errors += ") already created a texture with the same name but different semantic\n";
 					effect.compiled = false;
 					break;
 				}
+
 				if (texture.semantic.empty() && !existing_texture->matches_description(texture))
 				{
 					effect.errors += "warning: " + texture.unique_name + ": another shader (";
 					effect.errors += _effects[existing_texture->effect_index].source_file.filename().u8string();
-					effect.errors += ") already created a texture with the same name but different dimensions; textures are shared across all effects, so either rename the variable or adjust the dimensions so they match\n";
+					effect.errors += ") already created a texture with the same name but different dimensions\n";
 				}
 
-				if (existing_texture->impl_reference == texture_reference::back_buffer && _color_bit_depth != 8)
+				if (existing_texture->semantic == "COLOR" && _color_bit_depth != 8)
 				{
 					for (const auto &sampler_info : effect.module.samplers)
 					{
@@ -526,7 +527,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t eff
 			}
 		}
 
-		if (texture.annotation_as_int("pooled"))
+		if (texture.annotation_as_int("pooled") && texture.semantic.empty())
 		{
 			const std::lock_guard<std::mutex> lock(_reload_mutex);
 
@@ -569,11 +570,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, size_t eff
 			}
 		}
 
-		if (texture.semantic == "COLOR")
-			texture.impl_reference = texture_reference::back_buffer;
-		else if (texture.semantic == "DEPTH")
-			texture.impl_reference = texture_reference::depth_buffer;
-		else if (!texture.semantic.empty())
+		if (!texture.semantic.empty() && (texture.semantic != "COLOR" && texture.semantic != "DEPTH"))
 			effect.errors += "warning: " + texture.unique_name + ": unknown semantic '" + texture.semantic + "'\n";
 
 		// This is the first effect using this texture
@@ -664,7 +661,7 @@ void reshade::runtime::load_textures()
 
 	for (texture &texture : _textures)
 	{
-		if (texture.impl == nullptr || texture.impl_reference != texture_reference::none)
+		if (texture.impl == nullptr || !texture.semantic.empty())
 			continue; // Ignore textures that are not created yet and those that are handled in the runtime implementation
 
 		std::filesystem::path source_path = std::filesystem::u8path(

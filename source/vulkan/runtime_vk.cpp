@@ -48,9 +48,11 @@ namespace reshade::vulkan
 		VkBuffer ubo = VK_NULL_HANDLE;
 		VmaAllocation ubo_mem = VK_NULL_HANDLE;
 		VkDescriptorSet ubo_set = VK_NULL_HANDLE;
+#if RESHADE_DEPTH
 		uint32_t depth_image_binding = std::numeric_limits<uint32_t>::max();
 		std::vector<VkDescriptorSet> depth_image_sets;
 		std::vector<VkDescriptorImageInfo> image_bindings;
+#endif
 	};
 
 	struct vulkan_technique_data
@@ -938,26 +940,23 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 		const texture &texture = look_up_texture_by_name(info.texture_name);
 
 		VkDescriptorImageInfo &image_binding = sampler_bindings[info.binding];
+		image_binding.imageView = static_cast<vulkan_tex_data *>(texture.impl)->view[info.srgb];
 		image_binding.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-		switch (texture.impl_reference)
+		if (texture.semantic == "COLOR")
 		{
-		case texture_reference::back_buffer:
 			image_binding.imageView = _backbuffer_image_view[info.srgb];
-			break;
-		case texture_reference::depth_buffer:
+		}
+		if (texture.semantic == "DEPTH")
+		{
 			// Set to a default view to avoid crash because of this being null
 			image_binding.imageView = _empty_depth_image_view;
 #if RESHADE_DEPTH
 			if (_depth_image_view != VK_NULL_HANDLE)
 				image_binding.imageView = _depth_image_view;
-#endif
 			// Keep track of the depth buffer texture descriptor to simplify updating it
 			effect_data.depth_image_binding = info.binding;
-			break;
-		default:
-			image_binding.imageView = static_cast<vulkan_tex_data *>(texture.impl)->view[info.srgb];
-			break;
+#endif
 		}
 
 		// Unset bindings are not allowed, so fail initialization for the entire effect in that case
@@ -1041,17 +1040,8 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 		const texture &texture = look_up_texture_by_name(info.texture_name);
 
 		VkDescriptorImageInfo &image_binding = storage_bindings[info.binding];
+		image_binding.imageView = static_cast<vulkan_tex_data *>(texture.impl)->view[0];
 		image_binding.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-
-		switch (texture.impl_reference)
-		{
-		case texture_reference::back_buffer:
-		case texture_reference::depth_buffer:
-			break;
-		default:
-			image_binding.imageView = static_cast<vulkan_tex_data *>(texture.impl)->view[0];
-			break;
-		}
 
 		// Unset bindings are not allowed, so fail initialization for the entire effect in that case
 		if (image_binding.imageView == VK_NULL_HANDLE)
@@ -1444,8 +1434,10 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 				write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 				write.pImageInfo = &sampler_bindings[info.binding];
 
+#if RESHADE_DEPTH
 				if (info.binding == effect_data.depth_image_binding)
 					effect_data.depth_image_sets.push_back(pass_data.set[0]);
+#endif
 			}
 			pass_data.set[1] = sets[1 + num_passes + total_pass_index];
 			for (const reshadefx::storage_info &info : pass_info.storages)
@@ -1468,7 +1460,9 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 
 	vk.UpdateDescriptorSets(_device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
 
+#if RESHADE_DEPTH
 	effect_data.image_bindings = std::move(sampler_bindings);
+#endif
 
 	return true;
 }
@@ -1572,8 +1566,8 @@ bool reshade::vulkan::runtime_vk::init_texture(texture &texture)
 	auto impl = new vulkan_tex_data();
 	texture.impl = impl;
 
-	// Do not create resource if it is a reference, it is set in 'render_technique'
-	if (texture.impl_reference != texture_reference::none)
+	// Do not create resource if it is a special reference, those are set in 'render_technique' and 'init_effect'/'update_depth_image_bindings'
+	if (texture.semantic == "COLOR" || texture.semantic == "DEPTH")
 		return true;
 
 	impl->width = texture.width;
@@ -1724,7 +1718,7 @@ bool reshade::vulkan::runtime_vk::init_texture(texture &texture)
 void reshade::vulkan::runtime_vk::upload_texture(const texture &texture, const uint8_t *pixels)
 {
 	auto impl = static_cast<vulkan_tex_data *>(texture.impl);
-	assert(impl != nullptr && pixels != nullptr && texture.impl_reference == texture_reference::none);
+	assert(impl != nullptr && texture.semantic.empty() && pixels != nullptr);
 
 	// Allocate host memory for upload
 	vk_handle<VK_OBJECT_TYPE_BUFFER> intermediate(_device, vk);

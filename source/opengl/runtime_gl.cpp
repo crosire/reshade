@@ -821,13 +821,14 @@ bool reshade::opengl::runtime_gl::init_texture(texture &texture)
 	auto impl = new opengl_tex_data();
 	texture.impl = impl;
 
-	switch (texture.impl_reference)
+	if (texture.semantic == "COLOR")
 	{
-	case texture_reference::back_buffer:
 		impl->id[0] = _tex[TEX_BACK];
 		impl->id[1] = _tex[TEX_BACK_SRGB];
 		return true;
-	case texture_reference::depth_buffer:
+	}
+	if (texture.semantic == "DEPTH")
+	{
 #if RESHADE_DEPTH
 		impl->id[0] = impl->id[1] =
 			_copy_depth_source ? _tex[TEX_DEPTH] : _depth_source;
@@ -925,7 +926,7 @@ bool reshade::opengl::runtime_gl::init_texture(texture &texture)
 void reshade::opengl::runtime_gl::upload_texture(const texture &texture, const uint8_t *pixels)
 {
 	auto impl = static_cast<opengl_tex_data *>(texture.impl);
-	assert(impl != nullptr && pixels != nullptr && texture.impl_reference == texture_reference::none);
+	assert(impl != nullptr && texture.semantic.empty() && pixels != nullptr);
 
 	// Get current state
 	GLint previous_tex = 0;
@@ -986,7 +987,7 @@ void reshade::opengl::runtime_gl::destroy_texture(texture &texture)
 		return;
 	auto impl = static_cast<opengl_tex_data *>(texture.impl);
 
-	if (texture.impl_reference == texture_reference::none) {
+	if (texture.semantic != "COLOR" && texture.semantic != "DEPTH") {
 		glDeleteTextures(impl->id[0] != impl->id[1] ? 2 : 1, impl->id);
 	}
 
@@ -1406,10 +1407,9 @@ void reshade::opengl::runtime_gl::update_depth_texture_bindings(buffer_detection
 			glDeleteTextures(1, &_tex[TEX_DEPTH]);
 			_tex[TEX_DEPTH] = 0;
 
-			for (const auto &tex : _textures)
+			for (const texture &tex : _textures)
 			{
-				if (tex.impl == nullptr ||
-					tex.impl_reference != texture_reference::depth_buffer)
+				if (tex.impl == nullptr || tex.semantic != "DEPTH")
 					continue;
 				const auto tex_impl = static_cast<opengl_tex_data *>(tex.impl);
 
@@ -1503,8 +1503,7 @@ void reshade::opengl::runtime_gl::update_depth_texture_bindings(buffer_detection
 	// Update all references to the new texture
 	for (const texture &tex : _textures)
 	{
-		if (tex.impl == nullptr ||
-			tex.impl_reference != texture_reference::depth_buffer)
+		if (tex.impl == nullptr || tex.semantic != "DEPTH")
 			continue;
 		const auto tex_impl = static_cast<opengl_tex_data *>(tex.impl);
 

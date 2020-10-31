@@ -756,13 +756,14 @@ bool reshade::d3d10::runtime_d3d10::init_texture(texture &texture)
 	auto impl = new d3d10_tex_data();
 	texture.impl = impl;
 
-	switch (texture.impl_reference)
+	if (texture.semantic == "COLOR")
 	{
-	case texture_reference::back_buffer:
 		impl->srv[0] = _backbuffer_texture_srv[0];
 		impl->srv[1] = _backbuffer_texture_srv[1];
 		return true;
-	case texture_reference::depth_buffer:
+	}
+	if (texture.semantic == "DEPTH")
+	{
 #if RESHADE_DEPTH
 		impl->srv[0] = _depth_texture_srv;
 		impl->srv[1] = _depth_texture_srv;
@@ -873,7 +874,7 @@ bool reshade::d3d10::runtime_d3d10::init_texture(texture &texture)
 void reshade::d3d10::runtime_d3d10::upload_texture(const texture &texture, const uint8_t *pixels)
 {
 	auto impl = static_cast<d3d10_tex_data *>(texture.impl);
-	assert(impl != nullptr && texture.impl_reference == texture_reference::none && pixels != nullptr);
+	assert(impl != nullptr && !texture.semantic.empty() && pixels != nullptr);
 
 	unsigned int upload_pitch;
 	std::vector<uint8_t> upload_data;
@@ -1416,8 +1417,7 @@ void reshade::d3d10::runtime_d3d10::update_depth_texture_bindings(com_ptr<ID3D10
 	// Update all references to the new texture
 	for (const texture &tex : _textures)
 	{
-		if (tex.impl == nullptr ||
-			tex.impl_reference != texture_reference::depth_buffer)
+		if (tex.impl == nullptr || tex.semantic != "DEPTH")
 			continue;
 		const auto tex_impl = static_cast<d3d10_tex_data *>(tex.impl);
 
