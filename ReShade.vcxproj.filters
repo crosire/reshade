@@ -102,6 +102,9 @@
     <ClCompile Include="source\d3d9\d3d9_device.cpp">
       <Filter>hooks\d3d9</Filter>
     </ClCompile>
+    <ClCompile Include="source\d3d9\d3d9_internal.cpp">
+      <Filter>hooks\d3d9</Filter>
+    </ClCompile>
     <ClCompile Include="source\d3d9\d3d9_profiling.cpp">
       <Filter>hooks\d3d9</Filter>
     </ClCompile>

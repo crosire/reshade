@@ -31,7 +31,7 @@ namespace
 }
 
 extern HMODULE g_module_handle;
-static HMODULE s_export_module_handle = nullptr;
+HMODULE s_export_module_handle = nullptr;
 extern std::filesystem::path g_reshade_dll_path;
 static std::filesystem::path s_export_hook_path;
 static std::vector<std::filesystem::path> s_delayed_hook_paths;
@@ -169,7 +169,8 @@ static bool install_internal(HMODULE target_module, HMODULE replacement_module, 
 		// Filter out uninteresting functions
 		if (it != replacement_exports.cend() &&
 			std::strcmp(symbol.name, "DXGIDumpJournal") != 0 &&
-			std::strcmp(symbol.name, "DXGIReportAdapterConfiguration") != 0)
+			std::strcmp(symbol.name, "DXGIReportAdapterConfiguration") != 0 &&
+			std::strcmp(symbol.name, "Direct3D9EnableMaximizedWindowedModeShim") != 0)
 		{
 #if RESHADE_VERBOSE_LOG
 			LOG(DEBUG) << "  | 0x" << std::setw(16) << symbol.address << " | " << std::setw(7) << symbol.ordinal << " | " << std::setw(50) << symbol.name << " |";

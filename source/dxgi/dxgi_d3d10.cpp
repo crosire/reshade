@@ -19,6 +19,9 @@ HOOK_EXPORT HRESULT WINAPI DXGIReportAdapterConfiguration()
 	return E_NOTIMPL;
 }
 
+// When the 'DXGICompat' compatibility fix is active (by AcGenral.dll shim), the shim will look for a 'SetAppCompatStringPointer' export in dxgi.dll and call that
+// It does ignore the case where that export does not exist though, so do not need to export it here
+
 // These are actually called internally by the Direct3D driver on some versions of Windows, so just pass them through
 HOOK_EXPORT HRESULT WINAPI DXGID3D10CreateDevice(HMODULE hModule, IDXGIFactory *pFactory, IDXGIAdapter *pAdapter, UINT Flags, void *pUnknown, void **ppDevice)
 {
