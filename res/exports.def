@@ -6,6 +6,8 @@ EXPORTS
 	; d3d9.dll
 	Direct3DCreate9
 	Direct3DCreate9Ex
+	Direct3DCreate9on12 @20
+	Direct3DCreate9on12Ex @21
 
 	D3DPERF_BeginEvent
 	D3DPERF_EndEvent
@@ -55,6 +57,7 @@ EXPORTS
 	DXGID3D10RegisterLayers
 
 	DXGIDumpJournal
+	DXGIDeclareAdapterRemovalSupport
 	DXGIGetDebugInterface1
 	DXGIReportAdapterConfiguration
 

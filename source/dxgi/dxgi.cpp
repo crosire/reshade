@@ -458,3 +458,14 @@ HOOK_EXPORT HRESULT WINAPI DXGIGetDebugInterface1(UINT Flags, REFIID riid, void 
 
 	return trampoline(Flags, riid, pDebug);
 }
+
+HOOK_EXPORT HRESULT WINAPI DXGIDeclareAdapterRemovalSupport()
+{
+	static const auto trampoline = reshade::hooks::call(DXGIDeclareAdapterRemovalSupport);
+
+	// DXGIDeclareAdapterRemovalSupport is supported on Windows 10 version 1803 and up, silently ignore on older systems
+	if (trampoline == nullptr)
+		return S_OK;
+
+	return trampoline();
+}
