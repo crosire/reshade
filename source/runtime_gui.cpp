@@ -592,11 +592,10 @@ void reshade::runtime::draw_gui()
 
 			ImGui::Spacing();
 
-			ImGui::ProgressBar(1.0f - _reload_remaining_effects / float(_reload_total_effects), ImVec2(-1, 0), "");
-			ImGui::SameLine(15);
-
 			if (_reload_remaining_effects != 0 && _reload_remaining_effects != std::numeric_limits<size_t>::max())
 			{
+				ImGui::ProgressBar((_effects.size() - _reload_remaining_effects) / float(_effects.size()), ImVec2(-1, 0), "");
+				ImGui::SameLine(15);
 				ImGui::Text(
 					"Loading (%zu effects remaining) ... "
 					"This might take a while. The application could become unresponsive for some time.",
@@ -604,6 +603,8 @@ void reshade::runtime::draw_gui()
 			}
 			else if (!_reload_compile_queue.empty())
 			{
+				ImGui::ProgressBar((_effects.size() - _reload_compile_queue.size()) / float(_effects.size()), ImVec2(-1, 0), "");
+				ImGui::SameLine(15);
 				ImGui::Text(
 					"Compiling (%zu effects remaining) ... "
 					"This might take a while. The application could become unresponsive for some time.",
@@ -611,6 +612,8 @@ void reshade::runtime::draw_gui()
 			}
 			else if (_tutorial_index == 0)
 			{
+				ImGui::ProgressBar(0.0f, ImVec2(-1, 0), "");
+				ImGui::SameLine(15);
 				ImGui::TextUnformatted("ReShade is now installed successfully! Press '");
 				ImGui::SameLine(0.0f, 0.0f);
 				ImGui::TextColored(ImVec4(1, 1, 1, 1), "%s", input::key_name(_overlay_key_data).c_str());
@@ -619,6 +622,8 @@ void reshade::runtime::draw_gui()
 			}
 			else
 			{
+				ImGui::ProgressBar(0.0f, ImVec2(-1, 0), "");
+				ImGui::SameLine(15);
 				ImGui::TextUnformatted("Press '");
 				ImGui::SameLine(0.0f, 0.0f);
 				ImGui::TextColored(ImVec4(1, 1, 1, 1), "%s", input::key_name(_overlay_key_data).c_str());
@@ -1953,11 +1958,8 @@ void reshade::runtime::draw_code_editor()
 			_show_splash = false;
 
 			// Reload effect file
-			_reload_total_effects = 1;
-			_reload_remaining_effects = 1;
 			unload_effect(_selected_effect);
 			load_effect(source_file, ini_file::load_cache(_current_preset_path), _selected_effect);
-			assert(_reload_remaining_effects == 0);
 
 			// Re-open current file so that errors are updated
 			open_file_in_code_editor(_selected_effect, _editor_file);
@@ -2535,8 +2537,6 @@ void reshade::runtime::draw_variable_editor()
 			const std::filesystem::path source_file = effect.source_file;
 
 			// Reload current effect file
-			_reload_total_effects = 1;
-			_reload_remaining_effects = 1;
 			unload_effect(effect_index);
 			if (load_effect(source_file, ini_file::load_cache(_current_preset_path), effect_index, true) &&
 				modified_definition != _preset_preprocessor_definitions.end())
@@ -2544,8 +2544,6 @@ void reshade::runtime::draw_variable_editor()
 				// The preprocessor definition that was just modified caused the shader to not compile, so reset to default and try again
 				_preset_preprocessor_definitions.erase(modified_definition);
 
-				_reload_total_effects = 1;
-				_reload_remaining_effects = 1;
 				unload_effect(effect_index);
 				if (load_effect(source_file, ini_file::load_cache(_current_preset_path), effect_index, true))
 				{
@@ -2561,8 +2559,6 @@ void reshade::runtime::draw_variable_editor()
 				if (_selected_effect == effect_index)
 					open_file_in_code_editor(_selected_effect, _editor_file);
 			}
-
-			assert(_reload_remaining_effects == 0);
 
 			// Reloading an effect file invalidates all textures, but the statistics window may already have drawn references to those, so need to reset it
 			ImGui::FindWindowByName("Statistics")->DrawList->CmdBuffer.clear();

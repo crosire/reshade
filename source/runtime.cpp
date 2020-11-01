@@ -312,7 +312,8 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 
 			if (effect.skipped)
 			{
-				_reload_remaining_effects--;
+				if (_reload_remaining_effects != std::numeric_limits<size_t>::max())
+					_reload_remaining_effects--;
 				return false;
 			}
 		}
@@ -649,7 +650,10 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		}
 	}
 
-	_reload_remaining_effects--;
+	if (_reload_remaining_effects != std::numeric_limits<size_t>::max())
+		_reload_remaining_effects--;
+	else
+		_reload_remaining_effects = 0; // Force effect initialization in 'update_and_render_effects'
 
 	if ( effect.compiled && (effect.preprocessed || source_cached))
 	{
@@ -690,14 +694,12 @@ void reshade::runtime::load_effects()
 	const std::vector<std::filesystem::path> effect_files =
 		find_files(_effect_search_paths, { L".fx" });
 
-	_reload_total_effects = effect_files.size();
-	_reload_remaining_effects = _reload_total_effects;
-
-	if (_reload_total_effects == 0)
+	if (effect_files.empty())
 		return; // No effect files found, so nothing more to do
 
 	// Allocate space for effects which are placed in this array during the 'load_effect' call
-	_effects.resize(_reload_total_effects);
+	_effects.resize(effect_files.size());
+	_reload_remaining_effects = effect_files.size();
 
 	// Now that we have a list of files, load them in parallel
 	// Split workload into batches instead of launching a thread for every file to avoid launch overhead and stutters due to too many threads being in flight
@@ -943,7 +945,6 @@ void reshade::runtime::update_and_render_effects()
 		load_current_preset();
 
 		_last_reload_time = std::chrono::high_resolution_clock::now();
-		_reload_total_effects = 0;
 		_reload_remaining_effects = std::numeric_limits<size_t>::max();
 
 		// Reset all effect loading options
@@ -1315,10 +1316,7 @@ void reshade::runtime::enable_technique(technique &technique)
 	// Queue effect file for compilation if it was not fully loaded yet
 	if (technique.impl == nullptr && // Avoid adding the same effect multiple times to the queue if it contains multiple techniques that were enabled simultaneously
 		std::find(_reload_compile_queue.begin(), _reload_compile_queue.end(), technique.effect_index) == _reload_compile_queue.end())
-	{
-		_reload_total_effects++;
 		_reload_compile_queue.push_back(technique.effect_index);
-	}
 
 	if (status_changed) // Increase rendering reference count
 		_effects[technique.effect_index].rendering++;
