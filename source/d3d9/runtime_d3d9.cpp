@@ -343,7 +343,7 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 	{
 		HRESULT hr = E_FAIL;
 
-		std::string_view hlsl, profile;
+		std::string_view profile, hlsl;
 		com_ptr<ID3DBlob> compiled, d3d_errors;
 
 		switch (entry_point.type)

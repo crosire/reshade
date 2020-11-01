@@ -532,9 +532,7 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 	{
 		HRESULT hr = E_FAIL;
 
-		std::string_view profile;
-		com_ptr<ID3DBlob> d3d_compiled, d3d_errors;
-
+		std::string profile;
 		switch (entry_point.type)
 		{
 		case reshadefx::shader_type::vs:
@@ -552,7 +550,7 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 		attributes += "func=D3DCompile;";
 		attributes += "name=(null);defines=(null);include=(null);";
 		attributes += "entrypoint=" + entry_point.name + ';';
-		attributes += "profile=" + std::string(profile) + ';';
+		attributes += "profile=" + profile + ';';
 		attributes += "compile=" + std::to_string(D3DCOMPILE_ENABLE_STRICTNESS | (_performance_mode ? D3DCOMPILE_OPTIMIZATION_LEVEL3 : D3DCOMPILE_OPTIMIZATION_LEVEL1)) + ';';
 		attributes += "effect=0;";
 
@@ -560,11 +558,12 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 		std::vector<char> &cso = entry_points[entry_point.name];
 		if (!load_shader_cache(effect.source_file, entry_point.name, hash, cso))
 		{
+			com_ptr<ID3DBlob> d3d_compiled, d3d_errors;
 			hr = D3DCompile(
 				hlsl.data(), hlsl.size(),
 				nullptr, nullptr, nullptr,
 				entry_point.name.c_str(),
-				profile.data(),
+				profile.c_str(),
 				D3DCOMPILE_ENABLE_STRICTNESS | (_performance_mode ? D3DCOMPILE_OPTIMIZATION_LEVEL3 : D3DCOMPILE_OPTIMIZATION_LEVEL1), 0,
 				&d3d_compiled, &d3d_errors);
 

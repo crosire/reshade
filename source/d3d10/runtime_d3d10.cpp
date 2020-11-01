@@ -402,8 +402,6 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 		HRESULT hr = E_FAIL;
 
 		std::string profile;
-		com_ptr<ID3DBlob> d3d_compiled, d3d_errors;
-
 		switch (entry_point.type)
 		{
 		case reshadefx::shader_type::vs:
@@ -449,11 +447,12 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 		std::vector<char> cso;
 		if (!load_shader_cache(effect.source_file, entry_point.name, hash, cso))
 		{
+			com_ptr<ID3DBlob> d3d_compiled, d3d_errors;
 			hr = D3DCompile(
 				hlsl.data(), hlsl.size(),
 				nullptr, nullptr, nullptr,
 				entry_point.name.c_str(),
-				profile.data(),
+				profile.c_str(),
 				D3DCOMPILE_ENABLE_STRICTNESS | (_performance_mode ? D3DCOMPILE_OPTIMIZATION_LEVEL3 : D3DCOMPILE_OPTIMIZATION_LEVEL1), 0,
 				&d3d_compiled, &d3d_errors);
 
