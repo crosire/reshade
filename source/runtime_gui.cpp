@@ -985,7 +985,7 @@ void reshade::runtime::draw_gui_home()
 	{
 		std::string shader_list;
 		for (const effect &effect : _effects)
-			if (!effect.compiled || effect.restored)
+			if (!effect.compiled)
 				shader_list += ' ' + effect.source_file.filename().u8string() + ',';
 
 		// Make sure there are actually effects that failed to compile, since the last reload flag may not have been reset
@@ -1919,7 +1919,7 @@ void reshade::runtime::draw_code_editor()
 
 		if (!is_loading() && _selected_effect < _effects.size())
 		{
-			// Save effect members before unloading
+			// Backup effect file path before unloading
 			const std::filesystem::path source_file = _effects[_selected_effect].source_file;
 
 			// Hide splash bar when reloading a single effect file
@@ -1929,7 +1929,7 @@ void reshade::runtime::draw_code_editor()
 			_reload_total_effects = 1;
 			_reload_remaining_effects = 1;
 			unload_effect(_selected_effect);
-			load_effect(ini_file::load_cache(_current_preset_path), source_file, _selected_effect);
+			load_effect(source_file, ini_file::load_cache(_current_preset_path), _selected_effect);
 			assert(_reload_remaining_effects == 0);
 
 			// Re-open current file so that errors are updated
@@ -2129,7 +2129,7 @@ void reshade::runtime::draw_variable_editor()
 
 		// Hide variables that are not currently used in any of the active effects
 		// Also skip showing this effect in the variable list if it doesn't have any uniform variables to show
-		if ((!effect.rendering && !effect.restored) || (effect.uniforms.empty() && effect.definitions.empty()))
+		if (!effect.rendering || (effect.uniforms.empty() && effect.definitions.empty() && effect.preprocessed))
 			continue;
 		assert(effect.compiled);
 
@@ -2504,15 +2504,14 @@ void reshade::runtime::draw_variable_editor()
 
 			const bool reload_successful_before = _last_shader_reload_successfull;
 
-			// Save effect members before unloading
+			// Backup effect file path before unloading
 			const std::filesystem::path source_file = effect.source_file;
 
 			// Reload current effect file
 			_reload_total_effects = 1;
 			_reload_remaining_effects = 1;
 			unload_effect(effect_index);
-			if (load_effect(ini_file::load_cache(_current_preset_path), source_file);
-				effect.restored &&
+			if (load_effect(source_file, ini_file::load_cache(_current_preset_path), effect_index) &&
 				modified_definition != _preset_preprocessor_definitions.end())
 			{
 				// The preprocessor definition that was just modified caused the shader to not compile, so reset to default and try again
@@ -2521,8 +2520,7 @@ void reshade::runtime::draw_variable_editor()
 				_reload_total_effects = 1;
 				_reload_remaining_effects = 1;
 				unload_effect(effect_index);
-				if (load_effect(ini_file::load_cache(_current_preset_path), source_file);
-					effect.restored)
+				if (load_effect(source_file, ini_file::load_cache(_current_preset_path), effect_index))
 				{
 					_last_shader_reload_successfull = reload_successful_before;
 					ImGui::OpenPopup("##pperror"); // Notify the user about this
@@ -2590,24 +2588,23 @@ void reshade::runtime::draw_technique_editor()
 			ImGui::Separator();
 
 		const bool clicked = _imgui_context->IO.MouseClicked[0];
-		const bool compiled = effect.compiled && !effect.restored;
-		assert(compiled || !technique.enabled);
+		assert(effect.compiled || !technique.enabled);
 
 		// Prevent user from enabling the technique when the effect failed to compile
 		// Also prevent disabling it for when the technique is set to always be enabled via annotation
-		ImGui::PushItemFlag(ImGuiItemFlags_Disabled, !compiled || technique.annotation_as_int("enabled"));
+		ImGui::PushItemFlag(ImGuiItemFlags_Disabled, !effect.compiled || technique.annotation_as_int("enabled"));
 		// Gray out disabled techniques and mark techniques which failed to compile red
 		ImGui::PushStyleColor(ImGuiCol_Text,
-			compiled ?
+			effect.compiled ?
 				effect.errors.empty() || technique.enabled ?
 					_imgui_context->Style.Colors[technique.enabled ? ImGuiCol_Text : ImGuiCol_TextDisabled] :
 					COLOR_YELLOW :
 				COLOR_RED);
 
 		std::string label(technique.annotation_as_string("ui_label"));
-		if (label.empty() || !compiled)
+		if (label.empty() || !effect.compiled)
 			label = technique.name;
-		label += " [" + effect.source_file.filename().u8string() + ']' + (!compiled ? " failed to compile" : "");
+		label += " [" + effect.source_file.filename().u8string() + ']' + (!effect.compiled ? " failed to compile" : "");
 
 		if (bool status = technique.enabled;
 			ImGui::Checkbox(label.data(), &status))
@@ -2640,7 +2637,7 @@ void reshade::runtime::draw_technique_editor()
 			}
 			if (!effect.errors.empty())
 			{
-				ImGui::PushStyleColor(ImGuiCol_Text, compiled ? COLOR_YELLOW : COLOR_RED);
+				ImGui::PushStyleColor(ImGuiCol_Text, effect.compiled ? COLOR_YELLOW : COLOR_RED);
 				ImGui::TextUnformatted(effect.errors.c_str());
 				ImGui::PopStyleColor();
 			}
