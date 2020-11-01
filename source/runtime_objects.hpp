@@ -180,9 +180,11 @@ namespace reshade
 		unsigned int rendering = 0;
 		bool skipped = false;
 		bool compiled = false;
+		bool preprocessed = false;
 		std::string errors;
 		std::string preamble;
 		reshadefx::module module;
+		size_t source_hash = 0;
 		std::filesystem::path source_file;
 		std::vector<std::filesystem::path> included_files;
 		std::vector<std::pair<std::string, std::string>> definitions;

@@ -398,9 +398,9 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 	// Compile the generated HLSL source code to DX byte code
 	for (const reshadefx::entry_point &entry_point : effect.module.entry_points)
 	{
-		std::string profile;
-		com_ptr<ID3DBlob> d3d_compiled, d3d_errors;
+		HRESULT hr = E_FAIL;
 
+		std::string profile;
 		switch (entry_point.type)
 		{
 		case reshadefx::shader_type::vs:
@@ -434,32 +434,51 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 			break;
 		}
 
-		HRESULT hr = D3DCompile(
-			hlsl.c_str(), hlsl.size(),
-			nullptr, nullptr, nullptr,
-			entry_point.name.c_str(),
-			profile.c_str(),
-			D3DCOMPILE_ENABLE_STRICTNESS | (_performance_mode ? D3DCOMPILE_OPTIMIZATION_LEVEL3 : D3DCOMPILE_OPTIMIZATION_LEVEL1), 0,
-			&d3d_compiled, &d3d_errors);
+		std::string attributes;
+		attributes += "func=D3DCompile;";
+		attributes += "name=(null);defines=(null);include=(null);";
+		attributes += "entrypoint=" + entry_point.name + ';';
+		attributes += "profile=" + profile + ';';
+		attributes += "compile=" + std::to_string(D3DCOMPILE_ENABLE_STRICTNESS | (_performance_mode ? D3DCOMPILE_OPTIMIZATION_LEVEL3 : D3DCOMPILE_OPTIMIZATION_LEVEL1)) + ';';
+		attributes += "effect=0;";
 
-		if (d3d_errors != nullptr) // Append warnings to the output error string as well
-			effect.errors.append(static_cast<const char *>(d3d_errors->GetBufferPointer()), d3d_errors->GetBufferSize() - 1); // Subtracting one to not append the null-terminator as well
+		const size_t hash = std::hash<std::string_view>()(attributes) ^ std::hash<std::string_view>()(hlsl);
+		std::vector<char> cso;
+		if (!load_shader_cache(effect.source_file, entry_point.name, hash, cso, effect.assembly[entry_point.name]))
+		{
+			com_ptr<ID3DBlob> d3d_compiled, d3d_errors;
+			hr = D3DCompile(
+				hlsl.data(), hlsl.size(),
+				nullptr, nullptr, nullptr,
+				entry_point.name.c_str(),
+				profile.c_str(),
+				D3DCOMPILE_ENABLE_STRICTNESS | (_performance_mode ? D3DCOMPILE_OPTIMIZATION_LEVEL3 : D3DCOMPILE_OPTIMIZATION_LEVEL1), 0,
+				&d3d_compiled, &d3d_errors);
 
-		// No need to setup resources if any of the shaders failed to compile
-		if (FAILED(hr))
-			return false;
+			if (d3d_errors != nullptr) // Append warnings to the output error string as well
+				effect.errors.append(static_cast<const char *>(d3d_errors->GetBufferPointer()), d3d_errors->GetBufferSize() - 1); // Subtracting one to not append the null-terminator as well
 
-		if (com_ptr<ID3DBlob> d3d_disassembled; SUCCEEDED(D3DDisassemble(d3d_compiled->GetBufferPointer(), d3d_compiled->GetBufferSize(), 0, nullptr, &d3d_disassembled)))
-			effect.assembly[entry_point.name] = std::string(static_cast<const char *>(d3d_disassembled->GetBufferPointer()));
+			// No need to setup resources if any of the shaders failed to compile
+			if (FAILED(hr))
+				return false;
+
+			cso.resize(d3d_compiled->GetBufferSize());
+			std::memcpy(cso.data(), d3d_compiled->GetBufferPointer(), cso.size());
+
+			if (com_ptr<ID3DBlob> d3d_disassembled; SUCCEEDED(D3DDisassemble(cso.data(), cso.size(), 0, nullptr, &d3d_disassembled)))
+				effect.assembly[entry_point.name].assign(static_cast<const char *>(d3d_disassembled->GetBufferPointer()), d3d_disassembled->GetBufferSize() - 1);
+
+			save_shader_cache(effect.source_file, entry_point.name, hash, cso, effect.assembly[entry_point.name]);
+		}
 
 		// Create runtime shader objects from the compiled DX byte code
 		switch (entry_point.type)
 		{
 		case reshadefx::shader_type::vs:
-			hr = _device->CreateVertexShader(d3d_compiled->GetBufferPointer(), d3d_compiled->GetBufferSize(), reinterpret_cast<ID3D10VertexShader **>(&entry_points[entry_point.name]));
+			hr = _device->CreateVertexShader(cso.data(), cso.size(), reinterpret_cast<ID3D10VertexShader **>(&entry_points[entry_point.name]));
 			break;
 		case reshadefx::shader_type::ps:
-			hr = _device->CreatePixelShader(d3d_compiled->GetBufferPointer(), d3d_compiled->GetBufferSize(), reinterpret_cast<ID3D10PixelShader **>(&entry_points[entry_point.name]));
+			hr = _device->CreatePixelShader(cso.data(), cso.size(), reinterpret_cast<ID3D10PixelShader **>(&entry_points[entry_point.name]));
 			break;
 		}
 

@@ -156,9 +156,10 @@ namespace reshade
 		/// <summary>
 		/// Compile effect from the specified source file and initialize textures, uniforms and techniques.
 		/// </summary>
-		/// <param name="path">The path to an effect source code file.</param>
+		/// <param name="source_file">The path to an effect source code file.</param>
+		/// <param name="preset">The preset to be used to fill specialization constants or check whether loading can be skipped.</param>
 		/// <param name="effect_index">The ID of the effect.</param>
-		bool load_effect(const std::filesystem::path &path, size_t effect_index);
+		bool load_effect(const std::filesystem::path &source_file, const reshade::ini_file &preset, size_t &effect_index, bool preprocess_required = false);
 		/// <summary>
 		/// Load all effects found in the effect search paths.
 		/// </summary>
@@ -177,6 +178,17 @@ namespace reshade
 		/// Unload all effects currently loaded.
 		/// </summary>
 		virtual void unload_effects();
+
+		/// <summary>
+		/// Load compiled shader data from the cache.
+		/// </summary>
+		bool load_source_cache(const std::filesystem::path &source_file, const size_t hash, std::string &source) const;
+		bool load_shader_cache(const std::filesystem::path &source_file, const std::string &entry_point, const size_t hash, std::vector<char> &cso, std::string &dasm) const;
+		/// <summary>
+		/// Save compiled shader data to the cache.
+		/// </summary>
+		bool save_source_cache(const std::filesystem::path &source_file, const size_t hash, const std::string &source) const;
+		bool save_shader_cache(const std::filesystem::path &source_file, const std::string &entry_point, const size_t hash, const std::vector<char> &cso, const std::string &dasm) const;
 
 		/// <summary>
 		/// Load image files and update textures with image data.
@@ -301,7 +313,7 @@ namespace reshade
 		bool _no_reload_on_init = false;
 		bool _effect_load_skipping = false;
 		bool _load_option_disable_skipping = false;
-		bool _last_shader_reload_successfull = true;
+		std::atomic<int> _last_shader_reload_successfull = true;
 		bool _last_texture_reload_successfull = true;
 		bool _textures_loaded = false;
 		unsigned int _reload_key_data[4];
@@ -315,6 +327,7 @@ namespace reshade
 		std::vector<std::string> _preset_preprocessor_definitions;
 		std::vector<std::filesystem::path> _effect_search_paths;
 		std::vector<std::filesystem::path> _texture_search_paths;
+		std::filesystem::path _intermediate_cache_path;
 		std::chrono::high_resolution_clock::time_point _last_reload_time;
 
 		// === Screenshots ===

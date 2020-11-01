@@ -1946,7 +1946,7 @@ void reshade::runtime::draw_code_editor()
 
 		if (!is_loading() && _selected_effect < _effects.size())
 		{
-			// Save effect members before unloading
+			// Backup effect file path before unloading
 			const std::filesystem::path source_file = _effects[_selected_effect].source_file;
 
 			// Hide splash bar when reloading a single effect file
@@ -1956,7 +1956,7 @@ void reshade::runtime::draw_code_editor()
 			_reload_total_effects = 1;
 			_reload_remaining_effects = 1;
 			unload_effect(_selected_effect);
-			load_effect(source_file, _selected_effect);
+			load_effect(source_file, ini_file::load_cache(_current_preset_path), _selected_effect);
 			assert(_reload_remaining_effects == 0);
 
 			// Re-open current file so that errors are updated
@@ -2156,7 +2156,7 @@ void reshade::runtime::draw_variable_editor()
 
 		// Hide variables that are not currently used in any of the active effects
 		// Also skip showing this effect in the variable list if it doesn't have any uniform variables to show
-		if (!effect.rendering || (effect.uniforms.empty() && effect.definitions.empty()))
+		if (!effect.rendering || (effect.uniforms.empty() && effect.definitions.empty() && effect.preprocessed))
 			continue;
 		assert(effect.compiled);
 
@@ -2439,69 +2439,78 @@ void reshade::runtime::draw_variable_editor()
 			set_uniform_value(effect.uniforms[hovered_variable_index], static_cast<uint32_t>(hovered_variable));
 
 		// Draw preprocessor definition list after all uniforms of an effect file
-		std::string category_label = "Preprocessor definitions";
-		if (!_variable_editor_tabs)
-			for (float x = 0, space_x = ImGui::CalcTextSize(" ").x, width = (ImGui::CalcItemWidth() - ImGui::CalcTextSize(category_label.data()).x - 45) / 2; x < width; x += space_x)
-				category_label.insert(0, " ");
-
-		if (!effect.definitions.empty() &&
-			ImGui::TreeNodeEx(category_label.c_str(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_NoTreePushOnOpen))
+		if (!effect.definitions.empty() || !effect.preprocessed)
 		{
-			for (const std::pair<std::string, std::string> &definition : effect.definitions)
+			std::string category_label = "Preprocessor definitions";
+			if (!_variable_editor_tabs)
+				for (float x = 0, space_x = ImGui::CalcTextSize(" ").x, width = (ImGui::CalcItemWidth() - ImGui::CalcTextSize(category_label.c_str()).x - 45) / 2; x < width; x += space_x)
+					category_label.insert(0, " ");
+
+			ImGuiTreeNodeFlags tree_flags = ImGuiTreeNodeFlags_NoTreePushOnOpen;
+			if (effect.preprocessed) // Do not open tree by default is not yet pre-processed, since that would case an immediate recompile
+				tree_flags |= ImGuiTreeNodeFlags_DefaultOpen;
+
+			if (ImGui::TreeNodeEx(category_label.c_str(), tree_flags))
 			{
-				char value[128] = "";
-				const auto global_it = find_definition_value(_global_preprocessor_definitions, definition.first, value);
-				const auto preset_it = find_definition_value(_preset_preprocessor_definitions, definition.first, value);
+				if (!effect.preprocessed)
+					reload_effect = true;
 
-				if (global_it == _global_preprocessor_definitions.end() &&
-					preset_it == _preset_preprocessor_definitions.end())
-					definition.second.copy(value, sizeof(value) - 1); // Fill with default value
-
-				if (ImGui::InputText(definition.first.c_str(), value, sizeof(value),
-					global_it != _global_preprocessor_definitions.end() ? ImGuiInputTextFlags_ReadOnly : ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_EnterReturnsTrue))
+				for (const std::pair<std::string, std::string> &definition : effect.definitions)
 				{
-					if (value[0] == '\0') // An empty value removes the definition
-					{
-						if (preset_it != _preset_preprocessor_definitions.end())
-						{
-							reload_effect = true;
-							_preset_preprocessor_definitions.erase(preset_it);
-						}
-					}
-					else
-					{
-						reload_effect = true;
+					char value[128] = "";
+					const auto global_it = find_definition_value(_global_preprocessor_definitions, definition.first, value);
+					const auto preset_it = find_definition_value(_preset_preprocessor_definitions, definition.first, value);
 
-						if (preset_it != _preset_preprocessor_definitions.end())
+					if (global_it == _global_preprocessor_definitions.end() &&
+						preset_it == _preset_preprocessor_definitions.end())
+						definition.second.copy(value, sizeof(value) - 1); // Fill with default value
+
+					if (ImGui::InputText(definition.first.c_str(), value, sizeof(value),
+						global_it != _global_preprocessor_definitions.end() ? ImGuiInputTextFlags_ReadOnly : ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_EnterReturnsTrue))
+					{
+						if (value[0] == '\0') // An empty value removes the definition
 						{
-							*preset_it = definition.first + '=' + value;
-							modified_definition = preset_it;
+							if (preset_it != _preset_preprocessor_definitions.end())
+							{
+								reload_effect = true;
+								_preset_preprocessor_definitions.erase(preset_it);
+							}
 						}
 						else
 						{
-							_preset_preprocessor_definitions.push_back(definition.first + '=' + value);
-							modified_definition = _preset_preprocessor_definitions.end() - 1;
-						}
-					}
-				}
-
-				if (!reload_effect && // Cannot compare iterators if definitions were just modified above
-					ImGui::BeginPopupContextItem())
-				{
-					const float button_width = ImGui::CalcItemWidth();
-
-					if (ImGui::Button(ICON_RESET " Reset to default", ImVec2(button_width, 0)))
-					{
-						if (preset_it != _preset_preprocessor_definitions.end())
-						{
 							reload_effect = true;
-							_preset_preprocessor_definitions.erase(preset_it);
-						}
 
-						ImGui::CloseCurrentPopup();
+							if (preset_it != _preset_preprocessor_definitions.end())
+							{
+								*preset_it = definition.first + '=' + value;
+								modified_definition = preset_it;
+							}
+							else
+							{
+								_preset_preprocessor_definitions.push_back(definition.first + '=' + value);
+								modified_definition = _preset_preprocessor_definitions.end() - 1;
+							}
+						}
 					}
 
-					ImGui::EndPopup();
+					if (!reload_effect && // Cannot compare iterators if definitions were just modified above
+						ImGui::BeginPopupContextItem())
+					{
+						const float button_width = ImGui::CalcItemWidth();
+
+						if (ImGui::Button(ICON_RESET " Reset to default", ImVec2(button_width, 0)))
+						{
+							if (preset_it != _preset_preprocessor_definitions.end())
+							{
+								reload_effect = true;
+								_preset_preprocessor_definitions.erase(preset_it);
+							}
+
+							ImGui::CloseCurrentPopup();
+						}
+
+						ImGui::EndPopup();
+					}
 				}
 			}
 		}
@@ -2522,14 +2531,14 @@ void reshade::runtime::draw_variable_editor()
 
 			const bool reload_successful_before = _last_shader_reload_successfull;
 
-			// Save effect members before unloading
+			// Backup effect file path before unloading
 			const std::filesystem::path source_file = effect.source_file;
 
 			// Reload current effect file
 			_reload_total_effects = 1;
 			_reload_remaining_effects = 1;
 			unload_effect(effect_index);
-			if (!load_effect(source_file, effect_index) &&
+			if (load_effect(source_file, ini_file::load_cache(_current_preset_path), effect_index, true) &&
 				modified_definition != _preset_preprocessor_definitions.end())
 			{
 				// The preprocessor definition that was just modified caused the shader to not compile, so reset to default and try again
@@ -2538,7 +2547,7 @@ void reshade::runtime::draw_variable_editor()
 				_reload_total_effects = 1;
 				_reload_remaining_effects = 1;
 				unload_effect(effect_index);
-				if (load_effect(source_file, effect_index))
+				if (load_effect(source_file, ini_file::load_cache(_current_preset_path), effect_index, true))
 				{
 					_last_shader_reload_successfull = reload_successful_before;
 					ImGui::OpenPopup("##pperror"); // Notify the user about this
