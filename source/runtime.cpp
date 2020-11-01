@@ -296,11 +296,9 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	const std::string effect_name = source_file.filename().u8string();
 	if (source_file != effect.source_file || source_hash != effect.source_hash)
 	{
-		effect.errors.clear();
+		effect = {};
 		effect.source_file = source_file;
 		effect.source_hash = source_hash;
-		effect.compiled = false;
-		effect.preprocessed = false;
 	}
 
 	if (_effect_load_skipping && !_load_option_disable_skipping && !_worker_threads.empty()) // Only skip during 'load_effects'
@@ -320,8 +318,8 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		}
 	}
 
-	std::string source;
-	if (!effect.preprocessed && (preprocess_required || (effect.cached = load_source_cache(source_file, source_hash, source)) == false))
+	bool source_cached = false; std::string source;
+	if (!effect.preprocessed && (preprocess_required || (source_cached = load_source_cache(source_file, source_hash, source)) == false))
 	{
 		reshadefx::preprocessor pp;
 		pp.add_macro_definition("__RESHADE__", std::to_string(VERSION_MAJOR * 10000 + VERSION_MINOR * 100 + VERSION_REVISION));
@@ -374,7 +372,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		if (effect.preprocessed)
 		{
 			source = std::move(pp.output());
-			effect.cached = effect.cached || save_source_cache(source_file, source_hash, source);
+			source_cached = save_source_cache(source_file, source_hash, source);
 
 			// Keep track of used preprocessor definitions (so they can be displayed in the overlay)
 			effect.definitions.clear();
@@ -532,7 +530,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		}
 	}
 
-	if ( effect.compiled && (effect.preprocessed || effect.cached))
+	if ( effect.compiled && (effect.preprocessed || source_cached))
 	{
 		const std::lock_guard<std::mutex> lock(_reload_mutex);
 
@@ -653,7 +651,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 
 	_reload_remaining_effects--;
 
-	if ( effect.compiled && (effect.preprocessed || effect.cached))
+	if ( effect.compiled && (effect.preprocessed || source_cached))
 	{
 		if (effect.errors.empty())
 			LOG(INFO) << "Successfully loaded " << source_file << '.';
@@ -811,8 +809,7 @@ void reshade::runtime::unload_effect(size_t effect_index)
 			return tech.effect_index == effect_index;
 		}), _techniques.end());
 
-	// Clear all effect fields
-	_effects[effect_index] = {};
+	// Do not clear effect here, since it is common to be re-used immediately
 }
 void reshade::runtime::unload_effects()
 {

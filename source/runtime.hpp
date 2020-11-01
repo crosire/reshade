@@ -313,7 +313,7 @@ namespace reshade
 		bool _no_reload_on_init = false;
 		bool _effect_load_skipping = false;
 		bool _load_option_disable_skipping = false;
-		std::atomic<size_t> _last_shader_reload_successfull = true;
+		std::atomic<int> _last_shader_reload_successfull = true;
 		bool _last_texture_reload_successfull = true;
 		bool _textures_loaded = false;
 		unsigned int _reload_key_data[4];

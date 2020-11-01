@@ -2538,7 +2538,7 @@ void reshade::runtime::draw_variable_editor()
 			_reload_total_effects = 1;
 			_reload_remaining_effects = 1;
 			unload_effect(effect_index);
-			if (load_effect(source_file, ini_file::load_cache(_current_preset_path), effect_index) &&
+			if (load_effect(source_file, ini_file::load_cache(_current_preset_path), effect_index, true) &&
 				modified_definition != _preset_preprocessor_definitions.end())
 			{
 				// The preprocessor definition that was just modified caused the shader to not compile, so reset to default and try again
@@ -2547,7 +2547,7 @@ void reshade::runtime::draw_variable_editor()
 				_reload_total_effects = 1;
 				_reload_remaining_effects = 1;
 				unload_effect(effect_index);
-				if (load_effect(source_file, ini_file::load_cache(_current_preset_path), effect_index))
+				if (load_effect(source_file, ini_file::load_cache(_current_preset_path), effect_index, true))
 				{
 					_last_shader_reload_successfull = reload_successful_before;
 					ImGui::OpenPopup("##pperror"); // Notify the user about this
