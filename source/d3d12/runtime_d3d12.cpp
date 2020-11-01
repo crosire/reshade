@@ -29,6 +29,8 @@ namespace reshade::d3d12
 	{
 		com_ptr<ID3D12PipelineState> pipeline;
 		UINT num_render_targets;
+		D3D12_GPU_DESCRIPTOR_HANDLE srv_handle;
+		D3D12_GPU_DESCRIPTOR_HANDLE uav_handle;
 		D3D12_CPU_DESCRIPTOR_HANDLE render_targets;
 		std::vector<const d3d12_tex_data *> modified_resources;
 	};
@@ -49,7 +51,9 @@ namespace reshade::d3d12
 		D3D12_GPU_DESCRIPTOR_HANDLE uav_gpu_base;
 		D3D12_CPU_DESCRIPTOR_HANDLE sampler_cpu_base;
 		D3D12_GPU_DESCRIPTOR_HANDLE sampler_gpu_base;
+#if RESHADE_DEPTH
 		D3D12_CPU_DESCRIPTOR_HANDLE depth_texture_binding = {};
+#endif
 	};
 
 	struct d3d12_technique_data
@@ -667,8 +671,12 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 		effect_data.rtv_cpu_base = effect_data.rtv_heap->GetCPUDescriptorHandleForHeapStart();
 	}
 
+	UINT num_passes = 0;
+	for (const reshadefx::technique_info &info : effect.module.techniques)
+		num_passes += static_cast<UINT>(info.passes.size());
+
 	{   D3D12_DESCRIPTOR_HEAP_DESC desc = { D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV };
-		desc.NumDescriptors = effect.module.num_texture_bindings + effect.module.num_storage_bindings;
+		desc.NumDescriptors = (effect.module.num_texture_bindings + effect.module.num_storage_bindings) * num_passes;
 		desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 
 		if (FAILED(_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&effect_data.srv_uav_heap))))
@@ -681,9 +689,9 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 		effect_data.srv_gpu_base = effect_data.srv_uav_heap->GetGPUDescriptorHandleForHeapStart();
 
 		effect_data.uav_cpu_base = effect_data.srv_cpu_base;
-		effect_data.uav_cpu_base.ptr += effect.module.num_texture_bindings * _srv_handle_size;
+		effect_data.uav_cpu_base.ptr += effect.module.num_texture_bindings * num_passes * _srv_handle_size;
 		effect_data.uav_gpu_base = effect_data.srv_gpu_base;
-		effect_data.uav_gpu_base.ptr += effect.module.num_texture_bindings * _srv_handle_size;
+		effect_data.uav_gpu_base.ptr += effect.module.num_texture_bindings * num_passes * _srv_handle_size;
 	}
 
 	{   D3D12_DESCRIPTOR_HEAP_DESC desc = { D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER };
@@ -707,47 +715,6 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 		{
 			LOG(ERROR) << "Cannot bind sampler '" << info.unique_name << "' since it exceeds the maximum number of allowed sampler slots in " << "D3D12" << " (" << info.binding << ", allowed are up to " << D3D12_COMMONSHADER_SAMPLER_SLOT_COUNT << ").";
 			return false;
-		}
-		if (info.texture_binding >= D3D12_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT)
-		{
-			LOG(ERROR) << "Cannot bind texture '" << info.texture_name << "' since it exceeds the maximum number of allowed resource slots in " << "D3D12" << " (" << info.texture_binding << ", allowed are up to " << D3D12_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT << ").";
-			return false;
-		}
-
-		const texture &texture = look_up_texture_by_name(info.texture_name);
-
-		D3D12_CPU_DESCRIPTOR_HANDLE srv_handle = effect_data.srv_cpu_base;
-		srv_handle.ptr += info.texture_binding * _srv_handle_size;
-
-		com_ptr<ID3D12Resource> resource;
-		switch (texture.impl_reference)
-		{
-		case texture_reference::back_buffer:
-			resource = _backbuffer_texture;
-			break;
-		case texture_reference::depth_buffer:
-#if RESHADE_DEPTH
-			resource = _depth_texture; // Note: This can be a "nullptr"
-#endif
-			// Keep track of the depth buffer texture descriptor to simplify updating it
-			effect_data.depth_texture_binding = srv_handle;
-			break;
-		default:
-			resource = static_cast<d3d12_tex_data *>(texture.impl)->resource;
-			break;
-		}
-
-		if (resource != nullptr)
-		{
-			D3D12_SHADER_RESOURCE_VIEW_DESC desc = {};
-			desc.Format = info.srgb ?
-				make_dxgi_format_srgb(resource->GetDesc().Format) :
-				make_dxgi_format_normal(resource->GetDesc().Format);
-			desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-			desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-			desc.Texture2D.MipLevels = texture.levels;
-
-			_device->CreateShaderResourceView(resource.get(), &desc, srv_handle);
 		}
 
 		// Only initialize sampler if it has not been created before
@@ -774,43 +741,12 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 		}
 	}
 
-	for (const reshadefx::storage_info &info : effect.module.storages)
-	{
-		if (info.binding >= D3D12_UAV_SLOT_COUNT)
-		{
-			LOG(ERROR) << "Cannot bind storage '" << info.unique_name << "' since it exceeds the maximum number of allowed resource slots in " << "D3D12" << " (" << info.binding << ", allowed are up to " << D3D12_UAV_SLOT_COUNT << ").";
-			return false;
-		}
-
-		const texture &texture = look_up_texture_by_name(info.texture_name);
-
-		D3D12_CPU_DESCRIPTOR_HANDLE uav_handle = effect_data.uav_cpu_base;
-		uav_handle.ptr += info.binding * _srv_handle_size;
-
-		com_ptr<ID3D12Resource> resource;
-		switch (texture.impl_reference)
-		{
-		case texture_reference::back_buffer:
-		case texture_reference::depth_buffer:
-			break;
-		default:
-			resource = static_cast<d3d12_tex_data *>(texture.impl)->resource;
-			break;
-		}
-
-		if (resource != nullptr)
-		{
-			D3D12_UNORDERED_ACCESS_VIEW_DESC desc = {};
-			desc.Format = make_dxgi_format_normal(resource->GetDesc().Format);
-			desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
-			desc.Texture2D.MipSlice = 0;
-
-			_device->CreateUnorderedAccessView(resource.get(), nullptr, &desc, uav_handle);
-		}
-	}
-
 	// The render target descriptor table is shared across all techniques in the effect
-	D3D12_CPU_DESCRIPTOR_HANDLE rtv_base_handle = effect_data.rtv_cpu_base;
+	D3D12_GPU_DESCRIPTOR_HANDLE srv_gpu_base = effect_data.srv_gpu_base;
+	D3D12_CPU_DESCRIPTOR_HANDLE srv_cpu_base = effect_data.srv_cpu_base;
+	D3D12_GPU_DESCRIPTOR_HANDLE uav_gpu_base = effect_data.uav_gpu_base;
+	D3D12_CPU_DESCRIPTOR_HANDLE uav_cpu_base = effect_data.uav_cpu_base;
+	D3D12_CPU_DESCRIPTOR_HANDLE rtv_cpu_base = effect_data.rtv_cpu_base;
 
 	for (technique &technique : _techniques)
 	{
@@ -836,13 +772,6 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 				const auto &CS = entry_points.at(pass_info.cs_entry_point);
 				pso_desc.CS = { CS.data(), CS.size() };
 
-				for (const reshadefx::storage_info &info : effect.module.storages)
-				{
-					const texture &texture = look_up_texture_by_name(info.texture_name);
-
-					pass_data.modified_resources.push_back(static_cast<d3d12_tex_data *>(texture.impl));
-				}
-
 				pso_desc.NodeMask = 1;
 
 				if (HRESULT hr = _device->CreateComputePipelineState(&pso_desc, IID_PPV_ARGS(&pass_data.pipeline)); FAILED(hr))
@@ -861,11 +790,9 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 				const auto &PS = entry_points.at(pass_info.ps_entry_point);
 				pso_desc.PS = { PS.data(), PS.size() };
 
-				D3D12_CPU_DESCRIPTOR_HANDLE rtv_handle = rtv_base_handle;
-				rtv_base_handle.ptr += 8 * _rtv_handle_size;
-
 				// Keep track of the base handle, which is followed by a contiguous range of render target descriptors
-				pass_data.render_targets = rtv_handle;
+				pass_data.render_targets = rtv_cpu_base;
+				rtv_cpu_base.ptr += 8 * _rtv_handle_size;
 
 				for (UINT k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k)
 				{
@@ -875,6 +802,9 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 					pass_data.modified_resources.push_back(tex_impl);
 
 					const D3D12_RESOURCE_DESC desc = tex_impl->resource->GetDesc();
+
+					D3D12_CPU_DESCRIPTOR_HANDLE rtv_handle = pass_data.render_targets;
+					rtv_handle.ptr += k * _rtv_handle_size;
 
 					D3D12_RENDER_TARGET_VIEW_DESC rtv_desc = {};
 					rtv_desc.Format = pass_info.srgb_write_enable ?
@@ -886,9 +816,6 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 
 					pso_desc.NumRenderTargets = pass_data.num_render_targets = k + 1;
 					pso_desc.RTVFormats[k] = rtv_desc.Format;
-
-					// Increment handle to next descriptor position
-					rtv_handle.ptr += _rtv_handle_size;
 				}
 
 				if (pass_info.render_target_names[0].empty())
@@ -1018,6 +945,81 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 					return false;
 				}
 			}
+
+			pass_data.srv_handle = srv_gpu_base;
+			for (const reshadefx::sampler_info &info : pass_info.samplers)
+			{
+				if (info.texture_binding >= D3D12_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT)
+				{
+					LOG(ERROR) << "Cannot bind texture '" << info.texture_name << "' since it exceeds the maximum number of allowed resource slots in " << "D3D12" << " (" << info.texture_binding << ", allowed are up to " << D3D12_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT << ").";
+					return false;
+				}
+
+				const texture &texture = look_up_texture_by_name(info.texture_name);
+
+				D3D12_CPU_DESCRIPTOR_HANDLE srv_handle = srv_cpu_base;
+				srv_handle.ptr += info.texture_binding * _srv_handle_size;
+
+				com_ptr<ID3D12Resource> resource = static_cast<d3d12_tex_data *>(texture.impl)->resource;
+				if (texture.semantic == "COLOR")
+				{
+					resource = _backbuffer_texture;
+				}
+#if RESHADE_DEPTH
+				if (texture.semantic == "DEPTH")
+				{
+					resource = _depth_texture; // Note: This can be a "nullptr"
+					// Keep track of the depth buffer texture descriptor to simplify updating it
+					effect_data.depth_texture_binding = srv_handle;
+				}
+#endif
+
+				if (resource != nullptr)
+				{
+					D3D12_SHADER_RESOURCE_VIEW_DESC desc = {};
+					desc.Format = info.srgb ?
+						make_dxgi_format_srgb(resource->GetDesc().Format) :
+						make_dxgi_format_normal(resource->GetDesc().Format);
+					desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+					desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+					desc.Texture2D.MipLevels = texture.levels;
+
+					_device->CreateShaderResourceView(resource.get(), &desc, srv_handle);
+				}
+			}
+			srv_cpu_base.ptr += effect.module.num_texture_bindings * _srv_handle_size;
+			srv_gpu_base.ptr += effect.module.num_texture_bindings * _srv_handle_size;
+
+			pass_data.uav_handle = uav_gpu_base;
+			for (const reshadefx::storage_info &info : pass_info.storages)
+			{
+				if (info.binding >= D3D12_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT)
+				{
+					LOG(ERROR) << "Cannot bind storage '" << info.unique_name << "' since it exceeds the maximum number of allowed resource slots in " << "D3D12" << " (" << info.binding << ", allowed are up to " << D3D12_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT << ").";
+					return false;
+				}
+
+				const texture &texture = look_up_texture_by_name(info.texture_name);
+
+				D3D12_CPU_DESCRIPTOR_HANDLE uav_handle = uav_cpu_base;
+				uav_handle.ptr += info.binding * _srv_handle_size;
+
+				const com_ptr<ID3D12Resource> resource =
+					static_cast<d3d12_tex_data *>(texture.impl)->resource;
+				if (resource != nullptr)
+				{
+					D3D12_UNORDERED_ACCESS_VIEW_DESC desc = {};
+					desc.Format = make_dxgi_format_normal(resource->GetDesc().Format);
+					desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+					desc.Texture2D.MipSlice = 0;
+
+					_device->CreateUnorderedAccessView(resource.get(), nullptr, &desc, uav_handle);
+
+					pass_data.modified_resources.push_back(static_cast<d3d12_tex_data *>(texture.impl));
+				}
+			}
+			uav_cpu_base.ptr += effect.module.num_storage_bindings * _srv_handle_size;
+			uav_gpu_base.ptr += effect.module.num_storage_bindings * _srv_handle_size;
 		}
 	}
 
@@ -1047,7 +1049,9 @@ void reshade::d3d12::runtime_d3d12::unload_effect(size_t index)
 		effect_data.rtv_heap.reset();
 		effect_data.srv_uav_heap.reset();
 		effect_data.sampler_heap.reset();
+#if RESHADE_DEPTH
 		effect_data.depth_texture_binding = { 0 };
+#endif
 	}
 }
 void reshade::d3d12::runtime_d3d12::unload_effects()
@@ -1071,8 +1075,8 @@ bool reshade::d3d12::runtime_d3d12::init_texture(texture &texture)
 	auto impl = new d3d12_tex_data();
 	texture.impl = impl;
 
-	// Do not create resource if it is a reference, it is set in 'render_technique'
-	if (texture.impl_reference != texture_reference::none)
+	// Do not create resource if it is a special reference, those are set in 'render_technique' and 'init_effect'/'update_depth_texture_bindings'
+	if (texture.semantic == "COLOR" || texture.semantic == "DEPTH")
 		return true;
 
 	D3D12_RESOURCE_DESC desc = { D3D12_RESOURCE_DIMENSION_TEXTURE2D };
@@ -1190,7 +1194,7 @@ bool reshade::d3d12::runtime_d3d12::init_texture(texture &texture)
 void reshade::d3d12::runtime_d3d12::upload_texture(const texture &texture, const uint8_t *pixels)
 {
 	auto impl = static_cast<d3d12_tex_data *>(texture.impl);
-	assert(impl != nullptr && texture.impl_reference == texture_reference::none && pixels != nullptr);
+	assert(impl != nullptr && texture.semantic.empty() && pixels != nullptr);
 
 	const uint32_t data_pitch = texture.width * 4;
 	const uint32_t upload_pitch = (data_pitch + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u);
@@ -1329,6 +1333,8 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 	ID3D12DescriptorHeap *const descriptor_heaps[] = { effect_data.srv_uav_heap.get(), effect_data.sampler_heap.get() };
 	_cmd_list->SetDescriptorHeaps(ARRAYSIZE(descriptor_heaps), descriptor_heaps);
 	_cmd_list->SetGraphicsRootSignature(effect_data.signature.get());
+	if (impl->has_compute_passes)
+		_cmd_list->SetComputeRootSignature(effect_data.signature.get());
 
 	// Setup shader constants
 	if (effect_data.cb != nullptr)
@@ -1341,21 +1347,14 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 		}
 
 		_cmd_list->SetGraphicsRootConstantBufferView(0, effect_data.cbv_gpu_address);
-	}
-
-	// Setup shader resources and samplers
-	_cmd_list->SetGraphicsRootDescriptorTable(1, effect_data.srv_gpu_base);
-	_cmd_list->SetGraphicsRootDescriptorTable(2, effect_data.sampler_gpu_base);
-
-	if (impl->has_compute_passes)
-	{
-		_cmd_list->SetComputeRootSignature(effect_data.signature.get());
-		if (effect_data.cb != nullptr)
+		if (impl->has_compute_passes)
 			_cmd_list->SetComputeRootConstantBufferView(0, effect_data.cbv_gpu_address);
-		_cmd_list->SetComputeRootDescriptorTable(1, effect_data.srv_gpu_base);
-		_cmd_list->SetComputeRootDescriptorTable(2, effect_data.sampler_gpu_base);
-		_cmd_list->SetComputeRootDescriptorTable(3, effect_data.uav_gpu_base);
 	}
+
+	// Setup samplers
+	_cmd_list->SetGraphicsRootDescriptorTable(2, effect_data.sampler_gpu_base);
+	if (impl->has_compute_passes)
+		_cmd_list->SetComputeRootDescriptorTable(2, effect_data.sampler_gpu_base);
 
 	// TODO: Technically need to transition the depth texture here as well
 
@@ -1375,6 +1374,12 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 			transition_state(_cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 		}
 
+		if (pass_index > 0)
+		{
+			// Set descriptor heaps again, since they may have been changed by 'generate_mipmaps' of previous pass
+			_cmd_list->SetDescriptorHeaps(ARRAYSIZE(descriptor_heaps), descriptor_heaps);
+		}
+
 		const d3d12_pass_data &pass_data = impl->passes[pass_index];
 		const reshadefx::pass_info &pass_info = technique.passes[pass_index];
 
@@ -1382,10 +1387,18 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 
 		if (!pass_info.cs_entry_point.empty())
 		{
+			// Compute shaders do not write to the back buffer, so no update necessary
+			needs_implicit_backbuffer_copy = false;
+
+			_cmd_list->SetComputeRootDescriptorTable(1, pass_data.srv_handle);
+			_cmd_list->SetComputeRootDescriptorTable(3, pass_data.uav_handle);
+
 			_cmd_list->Dispatch(pass_info.viewport_width, pass_info.viewport_height, pass_info.viewport_dispatch_z);
 		}
 		else
 		{
+			_cmd_list->SetGraphicsRootDescriptorTable(1, pass_data.srv_handle);
+
 			// Transition resource state for render targets
 			for (const d3d12_tex_data *render_target_texture : pass_data.modified_resources)
 				transition_state(_cmd_list, render_target_texture->resource, D3D12_RESOURCE_STATE_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);

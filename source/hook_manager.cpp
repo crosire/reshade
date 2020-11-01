@@ -31,7 +31,7 @@ namespace
 }
 
 extern HMODULE g_module_handle;
-static HMODULE s_export_module_handle = nullptr;
+HMODULE g_export_module_handle = nullptr;
 extern std::filesystem::path g_reshade_dll_path;
 static std::filesystem::path s_export_hook_path;
 static std::vector<std::filesystem::path> s_delayed_hook_paths;
@@ -169,7 +169,13 @@ static bool install_internal(HMODULE target_module, HMODULE replacement_module, 
 		// Filter out uninteresting functions
 		if (it != replacement_exports.cend() &&
 			std::strcmp(symbol.name, "DXGIDumpJournal") != 0 &&
-			std::strcmp(symbol.name, "DXGIReportAdapterConfiguration") != 0)
+			std::strcmp(symbol.name, "DXGIReportAdapterConfiguration") != 0 &&
+			std::strcmp(symbol.name, "DXGID3D10CreateDevice") != 0 &&
+			std::strcmp(symbol.name, "DXGID3D10CreateLayeredDevice") != 0 &&
+			std::strcmp(symbol.name, "DXGID3D10ETWRundown") != 0 &&
+			std::strcmp(symbol.name, "DXGID3D10GetLayeredDeviceSize") != 0 &&
+			std::strcmp(symbol.name, "DXGID3D10RegisterLayers") != 0 &&
+			std::strcmp(symbol.name, "Direct3D9EnableMaximizedWindowedModeShim") != 0)
 		{
 #if RESHADE_VERBOSE_LOG
 			LOG(DEBUG) << "  | 0x" << std::setw(16) << symbol.address << " | " << std::setw(7) << symbol.ordinal << " | " << std::setw(50) << symbol.name << " |";
@@ -399,9 +405,9 @@ void reshade::hooks::uninstall()
 
 	// Free reference to the module loaded for export hooks
 	// Otherwise a subsequent call to 'LoadLibrary' could return the handle to the still loaded export module, instead of loading the ReShade module again
-	if (s_export_module_handle)
-		FreeLibrary(s_export_module_handle);
-	s_export_module_handle = nullptr;
+	if (g_export_module_handle)
+		FreeLibrary(g_export_module_handle);
+	g_export_module_handle = nullptr;
 }
 
 void reshade::hooks::register_module(const std::filesystem::path &target_path)
@@ -456,7 +462,7 @@ reshade::hook::address reshade::hooks::call(hook::address replacement, hook::add
 		return hook.call();
 
 	// If the hook does not exist yet, delay-load export hooks and try again
-	if (!s_export_module_handle && !s_export_hook_path.empty())
+	if (!g_export_module_handle && !s_export_hook_path.empty())
 	{
 		assert(s_export_hook_path.is_absolute());
 
@@ -471,7 +477,7 @@ reshade::hook::address reshade::hooks::call(hook::address replacement, hook::add
 			install_internal(handle, g_module_handle, hook_method::export_hook);
 
 			s_export_hook_path.clear();
-			s_export_module_handle = handle;
+			g_export_module_handle = handle;
 
 			return call(replacement, target);
 		}

@@ -706,13 +706,14 @@ bool reshade::d3d9::runtime_d3d9::init_texture(texture &texture)
 	auto impl = new d3d9_tex_data();
 	texture.impl = impl;
 
-	switch (texture.impl_reference)
+	if (texture.semantic == "COLOR")
 	{
-	case texture_reference::back_buffer:
 		impl->texture = _backbuffer_texture;
 		impl->surface = _backbuffer_texture_surface;
 		return true;
-	case texture_reference::depth_buffer:
+	}
+	if (texture.semantic == "DEPTH")
+	{
 #if RESHADE_DEPTH
 		impl->texture = _depth_texture;
 		impl->surface = _depth_surface;
@@ -813,7 +814,7 @@ bool reshade::d3d9::runtime_d3d9::init_texture(texture &texture)
 void reshade::d3d9::runtime_d3d9::upload_texture(const texture &texture, const uint8_t *pixels)
 {
 	auto impl = static_cast<d3d9_tex_data *>(texture.impl);
-	assert(impl != nullptr && texture.impl_reference == texture_reference::none && pixels != nullptr);
+	assert(impl != nullptr && texture.semantic.empty() && pixels != nullptr);
 
 	D3DSURFACE_DESC desc; impl->texture->GetLevelDesc(0, &desc); // Get D3D texture format
 	com_ptr<IDirect3DTexture9> intermediate;
@@ -1307,8 +1308,7 @@ void reshade::d3d9::runtime_d3d9::update_depth_texture_bindings(com_ptr<IDirect3
 	// Update all references to the new texture
 	for (const texture &tex : _textures)
 	{
-		if (tex.impl == nullptr ||
-			tex.impl_reference != texture_reference::depth_buffer)
+		if (tex.impl == nullptr || tex.semantic != "DEPTH")
 			continue;
 		const auto tex_impl = static_cast<d3d9_tex_data *>(tex.impl);
 

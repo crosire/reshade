@@ -304,7 +304,7 @@ namespace reshade
 		// == Configuration ===
 		bool _needs_update = false;
 		unsigned long _latest_version[3] = {};
-		std::filesystem::path _configuration_path;
+		std::filesystem::path _config_path;
 		std::vector<std::function<void(ini_file &)>> _save_config_callables;
 		std::vector<std::function<void(const ini_file &)>> _load_config_callables;
 

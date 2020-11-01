@@ -295,6 +295,16 @@ namespace reshadefx
 			return *std::find_if(_module.textures.begin(), _module.textures.end(),
 				[id](const auto &it) { return it.id == id; });
 		}
+		sampler_info &find_sampler(id id)
+		{
+			return *std::find_if(_module.samplers.begin(), _module.samplers.end(),
+				[id](const auto &it) { return it.id == id; });
+		}
+		storage_info &find_storage(id id)
+		{
+			return *std::find_if(_module.storages.begin(), _module.storages.end(),
+				[id](const auto &it) { return it.id == id; });
+		}
 		/// <summary>
 		/// Look up an existing function definition.
 		/// </summary>
@@ -333,7 +343,8 @@ namespace reshadefx
 	/// <param name="debug_info">Whether to append debug information like line directives to the generated code.</param>
 	/// <param name="uniforms_to_spec_constants">Whether to convert uniform variables to specialization constants.</param>
 	/// <param name="enable_16bit_types">Use real 16-bit types for the minimum precision types "min16int", "min16uint" and "min16float".</param>
-	codegen *create_codegen_glsl(bool debug_info, bool uniforms_to_spec_constants, bool enable_16bit_types = false);
+	/// <param name="flip_vert_y">Insert code to flip the Y component of the output position in vertex shaders.</param>
+	codegen *create_codegen_glsl(bool debug_info, bool uniforms_to_spec_constants, bool enable_16bit_types = false, bool flip_vert_y = false);
 	/// <summary>
 	/// Create a back-end implementation for HLSL code generation.
 	/// </summary>
@@ -347,7 +358,7 @@ namespace reshadefx
 	/// <param name="vulkan_semantics">Generate SPIR-V for OpenGL or for Vulkan.</param>
 	/// <param name="debug_info">Whether to append debug information like line directives to the generated code.</param>
 	/// <param name="uniforms_to_spec_constants">Whether to convert uniform variables to specialization constants.</param>
-	/// <param name="invert_y">Insert code to invert the Y component of the output position in vertex shaders.</param>
 	/// <param name="enable_16bit_types">Use real 16-bit types for the minimum precision types "min16int", "min16uint" and "min16float".</param>
-	codegen *create_codegen_spirv(bool vulkan_semantics, bool debug_info, bool uniforms_to_spec_constants, bool enable_16bit_types = false, bool invert_y = false);
+	/// <param name="flip_vert_y">Insert code to flip the Y component of the output position in vertex shaders.</param>
+	codegen *create_codegen_spirv(bool vulkan_semantics, bool debug_info, bool uniforms_to_spec_constants, bool enable_16bit_types = false, bool flip_vert_y = false);
 }

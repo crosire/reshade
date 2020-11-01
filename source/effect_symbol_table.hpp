@@ -43,6 +43,10 @@ namespace reshadefx
 		reshadefx::constant constant = {};
 		const reshadefx::function_info *function = nullptr;
 	};
+	struct scoped_symbol : symbol
+	{
+		struct scope scope; // Store scope with symbol data
+	};
 
 	/// <summary>
 	/// A symbol table managing a list of scopes and symbols
@@ -83,8 +87,8 @@ namespace reshadefx
 		/// <summary>
 		/// Look for an existing symbol with the specified <paramref name="name"/>.
 		/// </summary>
-		symbol find_symbol(const std::string &name) const;
-		symbol find_symbol(const std::string &name, const scope &scope, bool exclusive) const;
+		scoped_symbol find_symbol(const std::string &name) const;
+		scoped_symbol find_symbol(const std::string &name, const scope &scope, bool exclusive) const;
 
 		/// <summary>
 		/// Search for the best function or intrinsic overload matching the argument list.
@@ -92,10 +96,6 @@ namespace reshadefx
 		bool resolve_function_call(const std::string &name, const std::vector<expression> &args, const scope &scope, symbol &data, bool &ambiguous) const;
 
 	private:
-		struct scoped_symbol : symbol {
-			struct scope scope; // Store scope with symbol data
-		};
-
 		scope _current_scope;
 		std::unordered_map<std::string, // Lookup table from name to matching symbols
 			std::vector<scoped_symbol>> _symbol_stack;

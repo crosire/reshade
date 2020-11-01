@@ -30,13 +30,6 @@ namespace reshade
 		bufready_depth,
 	};
 
-	enum class texture_reference
-	{
-		none,
-		back_buffer,
-		depth_buffer
-	};
-
 	template <typename T, size_t SAMPLES>
 	class moving_average
 	{
@@ -101,7 +94,6 @@ namespace reshade
 
 		void *impl = nullptr;
 		size_t effect_index = std::numeric_limits<size_t>::max();
-		texture_reference impl_reference = texture_reference::none;
 		std::vector<size_t> shared;
 		bool loaded = false;
 	};

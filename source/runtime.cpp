@@ -80,7 +80,7 @@ reshade::runtime::runtime() :
 	_screenshot_key_data(),
 	_prev_preset_key_data(),
 	_next_preset_key_data(),
-	_configuration_path(g_reshade_base_path / L"ReShade.ini"),
+	_config_path(g_reshade_base_path / L"ReShade.ini"),
 	_screenshot_path(g_reshade_base_path)
 {
 	_needs_update = check_for_update(_latest_version);
@@ -90,9 +90,9 @@ reshade::runtime::runtime() :
 
 	// Fall back to alternative configuration file name if it exists
 	std::error_code ec;
-	if (std::filesystem::path configuraton_path_alt = g_reshade_base_path / g_reshade_dll_path.filename().replace_extension(L".ini");
-		std::filesystem::exists(configuraton_path_alt, ec) && !std::filesystem::exists(_configuration_path, ec))
-		_configuration_path = std::move(configuraton_path_alt);
+	if (std::filesystem::path config_path_alt = g_reshade_base_path / g_reshade_dll_path.filename().replace_extension(L".ini");
+		std::filesystem::exists(config_path_alt, ec) && !std::filesystem::exists(_config_path, ec))
+		_config_path = std::move(config_path_alt);
 
 	WCHAR temp_path[MAX_PATH] = L"";
 	GetTempPathW(MAX_PATH, temp_path);
@@ -175,7 +175,7 @@ void reshade::runtime::on_present()
 	// Draw overlay
 	draw_gui();
 
-	if (_should_save_screenshot && _screenshot_save_ui && _show_overlay)
+	if (_should_save_screenshot && _screenshot_save_ui && (_show_overlay || (_preview_texture != nullptr && _effects_enabled)))
 		save_screenshot(L" ui");
 #endif
 
@@ -410,7 +410,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, const resh
 		if ((_renderer_id & 0xF0000) == 0)
 			codegen.reset(reshadefx::create_codegen_hlsl(shader_model, !_no_debug_info, _performance_mode));
 		else if (_renderer_id < 0x20000)
-			codegen.reset(reshadefx::create_codegen_glsl(!_no_debug_info, _performance_mode, false));
+			codegen.reset(reshadefx::create_codegen_glsl(!_no_debug_info, _performance_mode, false, true));
 		else // Vulkan uses SPIR-V input
 			codegen.reset(reshadefx::create_codegen_spirv(true, !_no_debug_info, _performance_mode, false, true));
 
@@ -465,11 +465,11 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, const resh
 					variable.special = special_uniform::mouse_wheel;
 				else if (special == "freepie")
 					variable.special = special_uniform::freepie;
-				else if (special == "overlay_open")
+				else if (special == "ui_open" ||special == "overlay_open")
 					variable.special = special_uniform::overlay_open;
-				else if (special == "overlay_active")
+				else if (special == "ui_active" || special == "overlay_active")
 					variable.special = special_uniform::overlay_active;
-				else if (special == "overlay_hovered")
+				else if (special == "ui_hovered" || special == "overlay_hovered")
 					variable.special = special_uniform::overlay_hovered;
 				else if (special == "bufready_depth")
 					variable.special = special_uniform::bufready_depth;
@@ -544,35 +544,35 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, const resh
 				existing_texture != _textures.end())
 			{
 				// Cannot share texture if this is a normal one, but the existing one is a reference and vice versa
-				if (texture.semantic.empty() != (existing_texture->impl_reference == texture_reference::none))
+				if (texture.semantic != existing_texture->semantic)
 				{
 					effect.errors += "error: " + texture.unique_name + ": another shader (";
 					effect.errors += _effects[existing_texture->effect_index].source_file.filename().u8string();
-					effect.errors += ") already created a texture with the same name but different usage; rename the variable to fix this error\n";
+					effect.errors += ") already created a texture with the same name but different semantic\n";
 					effect.compiled = false;
 					break;
 				}
+
 				if (texture.semantic.empty() && !existing_texture->matches_description(texture))
 				{
 					effect.errors += "warning: " + texture.unique_name + ": another shader (";
 					effect.errors += _effects[existing_texture->effect_index].source_file.filename().u8string();
-					effect.errors += ") already created a texture with the same name but different dimensions; textures are shared across all effects, so either rename the variable or adjust the dimensions so they match\n";
+					effect.errors += ") already created a texture with the same name but different dimensions\n";
 				}
 				if (texture.semantic.empty() && (existing_texture->annotation_as_string("source") != texture.annotation_as_string("source")))
 				{
 					effect.errors += "warning: " + texture.unique_name + ": another effect (";
 					effect.errors += _effects[existing_texture->effect_index].source_file.filename().u8string();
-					effect.errors += ") already created a texture with another image file; textures are shared across all effects, so either rename the variable or adjust the path so they match\n";
+					effect.errors += ") already created a texture with another image file\n";
 				}
 
-				if (existing_texture->impl_reference == texture_reference::back_buffer && _color_bit_depth != 8)
+				if (existing_texture->semantic == "COLOR" && _color_bit_depth != 8)
 				{
 					for (const auto &sampler_info : effect.module.samplers)
 					{
 						if (sampler_info.srgb && sampler_info.texture_name == texture.unique_name)
 						{
-							effect.errors += "error: " + sampler_info.unique_name + ": texture does not support sRGB sampling (back buffer format is not RGBA8)";
-							effect.compiled = false;
+							effect.errors += "warning: " + sampler_info.unique_name + ": texture does not support sRGB sampling (back buffer format is not RGBA8)";
 						}
 					}
 				}
@@ -586,7 +586,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, const resh
 				continue;
 			}
 
-			if (texture.annotation_as_int("pooled"))
+			if (texture.annotation_as_int("pooled") && texture.semantic.empty())
 			{
 				// Try to find another pooled texture to share with
 				if (const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
@@ -597,11 +597,26 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, const resh
 					for (auto &sampler_info : effect.module.samplers)
 						if (sampler_info.texture_name == texture.unique_name)
 							sampler_info.texture_name  = existing_texture->unique_name;
+					// Overwrite referenced texture in storages with the pooled one
+					for (auto &storage_info : effect.module.storages)
+						if (storage_info.texture_name == texture.unique_name)
+							storage_info.texture_name  = existing_texture->unique_name;
 					// Overwrite referenced texture in render targets with the pooled one
 					for (auto &technique_info : effect.module.techniques)
+					{
 						for (auto &pass_info : technique_info.passes)
+						{
 							std::replace(std::begin(pass_info.render_target_names), std::end(pass_info.render_target_names),
 								texture.unique_name, existing_texture->unique_name);
+
+							for (auto &sampler_info : pass_info.samplers)
+								if (sampler_info.texture_name == texture.unique_name)
+									sampler_info.texture_name  = existing_texture->unique_name;
+							for (auto &storage_info : pass_info.storages)
+								if (storage_info.texture_name == texture.unique_name)
+									storage_info.texture_name  = existing_texture->unique_name;
+						}
+					}
 
 					if (std::find(existing_texture->shared.begin(), existing_texture->shared.end(), effect_index) == existing_texture->shared.end())
 						existing_texture->shared.push_back(effect_index);
@@ -612,11 +627,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, const resh
 				}
 			}
 
-			if (texture.semantic == "COLOR")
-				texture.impl_reference = texture_reference::back_buffer;
-			else if (texture.semantic == "DEPTH")
-				texture.impl_reference = texture_reference::depth_buffer;
-			else if (!texture.semantic.empty())
+			if (!texture.semantic.empty() && (texture.semantic != "COLOR" && texture.semantic != "DEPTH"))
 				effect.errors += "warning: " + texture.unique_name + ": unknown semantic '" + texture.semantic + "'\n";
 
 			// This is the first effect using this texture
@@ -713,7 +724,7 @@ void reshade::runtime::load_textures()
 
 	for (texture &texture : _textures)
 	{
-		if (texture.impl == nullptr || texture.impl_reference != texture_reference::none)
+		if (texture.impl == nullptr || !texture.semantic.empty())
 			continue; // Ignore textures that are not created yet and those that are handled in the runtime implementation
 
 		std::filesystem::path source_path = std::filesystem::u8path(
@@ -1312,18 +1323,18 @@ void reshade::runtime::subscribe_to_load_config(std::function<void(const ini_fil
 {
 	_load_config_callables.push_back(function);
 
-	function(ini_file::load_cache(_configuration_path));
+	function(ini_file::load_cache(_config_path));
 }
 void reshade::runtime::subscribe_to_save_config(std::function<void(ini_file &)> function)
 {
 	_save_config_callables.push_back(function);
 
-	function(ini_file::load_cache(_configuration_path));
+	function(ini_file::load_cache(_config_path));
 }
 
 void reshade::runtime::load_config()
 {
-	const ini_file &config = ini_file::load_cache(_configuration_path);
+	const ini_file &config = ini_file::load_cache(_config_path);
 
 	config.get("INPUT", "ForceShortcutModifiers", _force_shortcut_modifiers);
 	config.get("INPUT", "KeyEffects", _effects_key_data);
@@ -1363,7 +1374,7 @@ void reshade::runtime::load_config()
 }
 void reshade::runtime::save_config() const
 {
-	ini_file &config = ini_file::load_cache(_configuration_path);
+	ini_file &config = ini_file::load_cache(_config_path);
 
 	config.set("INPUT", "ForceShortcutModifiers", _force_shortcut_modifiers);
 	config.set("INPUT", "KeyEffects", _effects_key_data);
@@ -1406,7 +1417,7 @@ void reshade::runtime::load_current_preset()
 {
 	_preset_save_success = true;
 
-	ini_file config = ini_file::load_cache(_configuration_path); // Copy config, because reference becomes invalid in the next line
+	ini_file config = ini_file::load_cache(_config_path); // Copy config, because reference becomes invalid in the next line
 	const ini_file &preset = ini_file::load_cache(_current_preset_path);
 
 	std::vector<std::string> technique_list;

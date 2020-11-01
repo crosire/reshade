@@ -39,6 +39,11 @@ namespace reshade
 		~ini_file();
 
 		/// <summary>
+		/// Gets the path to this INI file.
+		/// </summary>
+		const std::filesystem::path &path() const { return _path; }
+
+		/// <summary>
 		/// Checks whether the specified <paramref name="section"/> and <paramref name="key"/> currently exist in the INI.
 		/// </summary>
 		bool has(const std::string &section, const std::string &key) const
@@ -265,4 +270,9 @@ namespace reshade
 		std::filesystem::file_time_type _modified_at;
 		std::unordered_map<std::string, section> _sections;
 	};
+
+	/// <summary>
+	/// Global configuration that can be used for general settings that are not specific to a runtime instance.
+	/// </summary>
+	ini_file &global_config();
 }

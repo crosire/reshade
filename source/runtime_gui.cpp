@@ -264,7 +264,7 @@ void reshade::runtime::build_font_atlas()
 
 void reshade::runtime::load_custom_style()
 {
-	const ini_file &config = ini_file::load_cache(_configuration_path);
+	const ini_file &config = ini_file::load_cache(_config_path);
 
 	ImVec4 *const colors = _imgui_context->Style.Colors;
 	switch (_style_index)
@@ -471,7 +471,7 @@ void reshade::runtime::load_custom_style()
 }
 void reshade::runtime::save_custom_style()
 {
-	ini_file &config = ini_file::load_cache(_configuration_path);
+	ini_file &config = ini_file::load_cache(_config_path);
 
 	if (_style_index == 3 || _style_index == 4) // Custom Simple, Custom Advanced
 	{
@@ -1003,9 +1003,9 @@ void reshade::runtime::draw_gui_home()
 	if (!_last_texture_reload_successfull)
 	{
 		std::string texture_list;
-		for (const texture &texture : _textures)
-			if (!texture.loaded && !texture.annotation_as_string("source").empty())
-				texture_list += ' ' + texture.unique_name + ',';
+		for (const texture &tex : _textures)
+			if (tex.impl != nullptr && !tex.loaded && !tex.annotation_as_string("source").empty())
+				texture_list += ' ' + tex.unique_name + ',';
 
 		if (texture_list.empty())
 		{
@@ -1603,17 +1603,17 @@ void reshade::runtime::draw_gui_statistics()
 		const char *memory_size_unit;
 		uint32_t post_processing_memory_size = 0;
 
-		for (const auto &texture : _textures)
+		for (const texture &tex : _textures)
 		{
-			if (texture.impl == nullptr || texture.impl_reference != texture_reference::none || (texture.shared.size() <= 1 && !_effects[texture.effect_index].rendering))
+			if (tex.impl == nullptr || !tex.semantic.empty() || (tex.shared.size() <= 1 && !_effects[tex.effect_index].rendering))
 				continue;
 
 			ImGui::PushID(texture_index);
 			ImGui::BeginGroup();
 
 			uint32_t memory_size = 0;
-			for (uint32_t level = 0, width = texture.width, height = texture.height; level < texture.levels; ++level, width /= 2, height /= 2)
-				memory_size += width * height * pixel_sizes[static_cast<unsigned int>(texture.format)];
+			for (uint32_t level = 0, width = tex.width, height = tex.height; level < tex.levels; ++level, width /= 2, height /= 2)
+				memory_size += width * height * pixel_sizes[static_cast<unsigned int>(tex.format)];
 
 			post_processing_memory_size += memory_size;
 
@@ -1627,47 +1627,74 @@ void reshade::runtime::draw_gui_statistics()
 				memory_size_unit = "KiB";
 			}
 
-			ImGui::TextColored(ImVec4(1, 1, 1, 1), "%s%s", texture.unique_name.c_str(), texture.shared.size() > 1 ? " (Shared)" : "");
+			ImGui::TextColored(ImVec4(1, 1, 1, 1), "%s%s", tex.unique_name.c_str(), tex.shared.size() > 1 ? " (Pooled)" : "");
 			ImGui::Text("%ux%u | %u mipmap(s) | %s | %ld.%03ld %s",
-				texture.width,
-				texture.height,
-				texture.levels - 1,
-				texture_formats[static_cast<unsigned int>(texture.format)],
+				tex.width,
+				tex.height,
+				tex.levels - 1,
+				texture_formats[static_cast<unsigned int>(tex.format)],
 				memory_view.quot, memory_view.rem, memory_size_unit);
 
-			size_t num_target_passes = 0;
+			size_t num_referenced_passes = 0;
 			std::vector<std::pair<size_t, std::vector<std::string>>> references;
-			for (const auto &technique : _techniques)
+			for (const technique &tech : _techniques)
 			{
-				if (std::find(texture.shared.begin(), texture.shared.end(), technique.effect_index) == texture.shared.end())
+				if (std::find(tex.shared.begin(), tex.shared.end(), tech.effect_index) == tex.shared.end())
 					continue;
 
 				auto &reference = references.emplace_back();
-				reference.first = technique.effect_index;
+				reference.first = tech.effect_index;
 
-				for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
+				for (size_t pass_index = 0; pass_index < tech.passes.size(); ++pass_index)
 				{
-					for (const std::string &target : technique.passes[pass_index].render_target_names)
-					{
-						if (target != texture.unique_name)
-							continue;
+					std::string pass_name = tech.passes[pass_index].name;
+					if (pass_name.empty())
+						pass_name = "pass " + std::to_string(pass_index);
+					pass_name = tech.name + ' ' + pass_name;
 
-						num_target_passes++;
-						if (technique.passes[pass_index].name.empty())
-							reference.second.emplace_back(technique.name + " pass " + std::to_string(pass_index));
-						else
-							reference.second.emplace_back(technique.name + ' ' + technique.passes[pass_index].name);
+					bool referenced = false;
+					for (const reshadefx::sampler_info &sampler : tech.passes[pass_index].samplers)
+					{
+						if (sampler.texture_name == tex.unique_name)
+						{
+							referenced = true;
+							reference.second.emplace_back(pass_name + " (sampler)");
+							break;
+						}
 					}
+
+					for (const reshadefx::storage_info &storage : tech.passes[pass_index].storages)
+					{
+						if (storage.texture_name == tex.unique_name)
+						{
+							referenced = true;
+							reference.second.emplace_back(pass_name + " (storage)");
+							break;
+						}
+					}
+
+					for (const std::string &render_target : tech.passes[pass_index].render_target_names)
+					{
+						if (render_target == tex.unique_name)
+						{
+							referenced = true;
+							reference.second.emplace_back(pass_name + " (render target)");
+							break;
+						}
+					}
+
+					if (referenced)
+						num_referenced_passes++;
 				}
 			}
 
 			ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
-			if (const std::string label = "Referenced " + (num_target_passes != 0 ? "by " + std::to_string(num_target_passes) + " pass(es) " : "read-only ") + "in " + std::to_string(texture.shared.size()) + " effect(s) ...";
+			if (const std::string label = "Referenced by " + std::to_string(num_referenced_passes) + " pass(es) in " + std::to_string(tex.shared.size()) + " effect(s) ...";
 				ImGui::ButtonEx(label.c_str(), ImVec2(single_image_width, 0)))
 				ImGui::OpenPopup("##references");
 			ImGui::PopStyleVar();
 
-			if (ImGui::BeginPopup("##references"))
+			if (!references.empty() && ImGui::BeginPopup("##references"))
 			{
 				bool is_open = false;
 				size_t effect_index = std::numeric_limits<size_t>::max();
@@ -1693,16 +1720,16 @@ void reshade::runtime::draw_gui_statistics()
 				ImGui::EndPopup();
 			}
 
-			if (bool check = _preview_texture == texture.impl && _preview_size[0] == 0; ImGui::RadioButton("Preview scaled", check)) {
+			if (bool check = _preview_texture == tex.impl && _preview_size[0] == 0; ImGui::RadioButton("Preview scaled", check)) {
 				_preview_size[0] = 0;
 				_preview_size[1] = 0;
-				_preview_texture = !check ? texture.impl : nullptr;
+				_preview_texture = !check ? tex.impl : nullptr;
 			}
 			ImGui::SameLine();
-			if (bool check = _preview_texture == texture.impl && _preview_size[0] != 0; ImGui::RadioButton("Preview original", check)) {
-				_preview_size[0] = texture.width;
-				_preview_size[1] = texture.height;
-				_preview_texture = !check ? texture.impl : nullptr;
+			if (bool check = _preview_texture == tex.impl && _preview_size[0] != 0; ImGui::RadioButton("Preview original", check)) {
+				_preview_size[0] = tex.width;
+				_preview_size[1] = tex.height;
+				_preview_texture = !check ? tex.impl : nullptr;
 			}
 
 			bool r = (_preview_size[2] & 0x000000FF) != 0;
@@ -1712,13 +1739,13 @@ void reshade::runtime::draw_gui_statistics()
 			ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(1, 0, 0, 1));
 			widgets::toggle_button("R", r);
 			ImGui::PopStyleColor();
-			if (texture.format >= reshadefx::texture_format::rg8)
+			if (tex.format >= reshadefx::texture_format::rg8)
 			{
 				ImGui::SameLine(0, 1);
 				ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0, 1, 0, 1));
 				widgets::toggle_button("G", g);
 				ImGui::PopStyleColor();
-				if (texture.format >= reshadefx::texture_format::rgba8)
+				if (tex.format >= reshadefx::texture_format::rgba8)
 				{
 					ImGui::SameLine(0, 1);
 					ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0, 0, 1, 1));
@@ -1728,8 +1755,8 @@ void reshade::runtime::draw_gui_statistics()
 			}
 			_preview_size[2] = (r ? 0x000000FF : 0) | (g ? 0x0000FF00 : 0) | (b ? 0x00FF0000 : 0) | 0xFF000000;
 
-			const float aspect_ratio = static_cast<float>(texture.width) / static_cast<float>(texture.height);
-			widgets::image_with_checkerboard_background(texture.impl, ImVec2(single_image_width, single_image_width / aspect_ratio), _preview_size[2]);
+			const float aspect_ratio = static_cast<float>(tex.width) / static_cast<float>(tex.height);
+			widgets::image_with_checkerboard_background(tex.impl, ImVec2(single_image_width, single_image_width / aspect_ratio), _preview_size[2]);
 
 			ImGui::EndGroup();
 			ImGui::PopID();

@@ -170,6 +170,7 @@ private:
 
 		if (type.is_struct())
 		{
+			// The can only be zero initializer struct constants
 			assert(data.as_uint[0] == 0);
 
 			s += '(' + id_to_name(type.definition) + ")0";
@@ -568,6 +569,7 @@ private:
 	id   define_function(const location &loc, function_info &info) override
 	{
 		info.definition = make_id();
+
 		define_name<naming::unique>(info.definition, info.unique_name);
 
 		std::string &code = _blocks.at(_current_block);

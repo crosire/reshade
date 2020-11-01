@@ -1,19 +1,29 @@
 EXPORTS
-	; d2d1.dll
+	; d2d1.dll (Uses ordinals in d2d1.lib for all exports)
 	D2D1CreateDevice @7
 	D2D1CreateFactory @1
 
-	; d3d9.dll
-	Direct3DCreate9 @37
-	Direct3DCreate9Ex @38
+	; d3d9.dll (Uses ordinals in d3d9.lib for 'Direct3DCreate9on12' and 'Direct3DCreate9on12Ex')
+	Direct3DCreate9
+	Direct3DCreate9Ex
+	Direct3DCreate9on12 @20
+	Direct3DCreate9on12Ex @21
 
-	D3DPERF_BeginEvent @27
-	D3DPERF_EndEvent @28
-	D3DPERF_GetStatus @29
-	D3DPERF_QueryRepeatFrame @30
-	D3DPERF_SetMarker @31
-	D3DPERF_SetOptions @32
-	D3DPERF_SetRegion @33
+	D3DPERF_BeginEvent
+	D3DPERF_EndEvent
+	D3DPERF_GetStatus
+	D3DPERF_QueryRepeatFrame
+	D3DPERF_SetMarker
+	D3DPERF_SetOptions
+	D3DPERF_SetRegion
+
+	Direct3D9ForceHybridEnumeration @16 NONAME
+	Direct3D9SetMaximizedWindowedModeShim @17 NONAME
+	Direct3D9SetSwapEffectUpgradeShim @18 NONAME
+	Direct3D9Force9on12 @19 NONAME
+	Direct3D9SetMaximizedWindowHwndOverride @22 NONAME
+	Direct3D9SetVendorIDLieFor9on12 @23 NONAME
+	Direct3D9EnableMaximizedWindowedModeShim
 
 	; d3d10.dll
 	D3D10CreateDevice @4
@@ -24,10 +34,10 @@ EXPORTS
 	D3D10CreateDeviceAndSwapChain1
 
 	; d3d11.dll
-	D3D11CreateDevice @22
-	D3D11CreateDeviceAndSwapChain @23
+	D3D11CreateDevice
+	D3D11CreateDeviceAndSwapChain
 
-	; d3d12.dll
+	; d3d12.dll (Uses ordinals in d3d12.lib for 'D3D12CreateDevice' and 'D3D12GetDebugInterface')
 	D3D12CreateDevice @101
 	D3D12GetDebugInterface @102
 	D3D12CreateRootSignatureDeserializer @107
@@ -37,16 +47,18 @@ EXPORTS
 	D3D12SerializeVersionedRootSignature @116
 
 	; dxgi.dll
-	CreateDXGIFactory @10
-	CreateDXGIFactory1 @11
-	CreateDXGIFactory2 @12
+	CreateDXGIFactory
+	CreateDXGIFactory1
+	CreateDXGIFactory2
 
 	DXGID3D10CreateDevice
 	DXGID3D10CreateLayeredDevice
+	DXGID3D10ETWRundown
 	DXGID3D10GetLayeredDeviceSize
 	DXGID3D10RegisterLayers
 
 	DXGIDumpJournal
+	DXGIDeclareAdapterRemovalSupport
 	DXGIGetDebugInterface1
 	DXGIReportAdapterConfiguration
 
@@ -435,11 +447,11 @@ EXPORTS
 	GetCursorPos = HookGetCursorPosition
 	SetCursorPos = HookSetCursorPosition
 
-	; ws2_32.dll
-	send = HookSend @19
-	sendto = HookSendTo @20
-	recv = HookRecv @16
-	recvfrom = HookRecvFrom @17
+	; ws2_32.dll (Uses ordinals in ws2_32.lib for most exports)
+	send = HookSend
+	sendto = HookSendTo
+	recv = HookRecv
+	recvfrom = HookRecvFrom
 	WSASend = HookWSASend @96
 	WSASendTo = HookWSASendTo @99
 	WSARecv = HookWSARecv @91

@@ -33,6 +33,7 @@ namespace reshade::vulkan
 	struct vulkan_pass_data
 	{
 		VkPipeline pipeline = VK_NULL_HANDLE;
+		VkDescriptorSet set[2] = {};
 		VkClearValue clear_values[8] = {};
 		VkRenderPassBeginInfo begin_info = { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
 		std::vector<const vulkan_tex_data *> modified_resources;
@@ -41,14 +42,17 @@ namespace reshade::vulkan
 	struct vulkan_effect_data
 	{
 		VkQueryPool query_pool = VK_NULL_HANDLE;
-		VkDescriptorSet set[3] = {};
 		VkPipelineLayout pipeline_layout = VK_NULL_HANDLE;
 		VkDescriptorSetLayout sampler_layout = VK_NULL_HANDLE;
 		VkDescriptorSetLayout storage_layout = VK_NULL_HANDLE;
 		VkBuffer ubo = VK_NULL_HANDLE;
 		VmaAllocation ubo_mem = VK_NULL_HANDLE;
-		std::vector<VkDescriptorImageInfo> image_bindings;
+		VkDescriptorSet ubo_set = VK_NULL_HANDLE;
+#if RESHADE_DEPTH
 		uint32_t depth_image_binding = std::numeric_limits<uint32_t>::max();
+		std::vector<VkDescriptorSet> depth_image_sets;
+		std::vector<VkDescriptorImageInfo> image_bindings;
+#endif
 	};
 
 	struct vulkan_technique_data
@@ -59,7 +63,7 @@ namespace reshade::vulkan
 	};
 
 	const uint32_t MAX_IMAGE_DESCRIPTOR_SETS = 128; // TODO: Check if these limits are enough
-	const uint32_t MAX_EFFECT_DESCRIPTOR_SETS = 50 * 2;
+	const uint32_t MAX_EFFECT_DESCRIPTOR_SETS = 50 * 2 * 4; // 50 resources, 4 passes
 
 	void transition_layout(const VkLayerDispatchTable &vk, VkCommandBuffer cmd_list, VkImage image, VkImageLayout old_layout, VkImageLayout new_layout,
 		const VkImageSubresourceRange &subresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS })
@@ -67,10 +71,15 @@ namespace reshade::vulkan
 		const auto layout_to_access = [](VkImageLayout layout) -> VkAccessFlags {
 			switch (layout)
 			{
+			default:
+			case VK_IMAGE_LAYOUT_UNDEFINED:
+				return 0; // No prending writes to flush
 			case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
 				return VK_ACCESS_TRANSFER_READ_BIT;
 			case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
 				return VK_ACCESS_TRANSFER_WRITE_BIT;
+			case VK_IMAGE_LAYOUT_GENERAL:
+				return VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
 			case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
 				return VK_ACCESS_SHADER_READ_BIT;
 			case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
@@ -83,16 +92,20 @@ namespace reshade::vulkan
 			case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
 				return VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 			}
-			return 0;
 		};
 		const auto layout_to_stage = [](VkImageLayout layout) -> VkPipelineStageFlags {
 			switch (layout)
 			{
+			default:
+			case VK_IMAGE_LAYOUT_UNDEFINED:
+				return VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT; // Do not wait on any previous stage
 			case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
 			case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
 				return VK_PIPELINE_STAGE_TRANSFER_BIT;
+			case VK_IMAGE_LAYOUT_GENERAL:
+				return VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
 			case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-				return VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+				return VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
 			case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
 			case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
 			case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL:
@@ -102,7 +115,6 @@ namespace reshade::vulkan
 			case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
 				return VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 			}
-			return VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
 		};
 
 		VkImageMemoryBarrier transition { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
@@ -573,7 +585,7 @@ void reshade::vulkan::runtime_vk::on_reset()
 	_allocations.clear();
 }
 
-void reshade::vulkan::runtime_vk::on_present(VkQueue queue, uint32_t swapchain_image_index, const std::vector<VkSemaphore> &wait, VkSemaphore &signal)
+void reshade::vulkan::runtime_vk::on_present(VkQueue queue, uint32_t swapchain_image_index, std::vector<VkSemaphore> &wait)
 {
 	if (!_is_initialized)
 		return;
@@ -600,13 +612,28 @@ void reshade::vulkan::runtime_vk::on_present(VkQueue queue, uint32_t swapchain_i
 	update_and_render_effects();
 	runtime::on_present();
 
+#ifndef NDEBUG
+	// Some operations force a wait for idle in ReShade, which invalidates the wait semaphores, so signal them again (keeps the validation layers happy)
+	if (_wait_for_idle_happened)
+	{
+		VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
+		std::vector<VkPipelineStageFlags> wait_stages(wait.size(), VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
+		submit_info.waitSemaphoreCount = static_cast<uint32_t>(wait.size());
+		submit_info.pWaitSemaphores = wait.data();
+		submit_info.pWaitDstStageMask = wait_stages.data();
+		submit_info.signalSemaphoreCount = static_cast<uint32_t>(wait.size());
+		submit_info.pSignalSemaphores = wait.data();
+		vk.QueueSubmit(queue, 1, &submit_info, VK_NULL_HANDLE);
+
+		_wait_for_idle_happened = false;
+	}
+#endif
+
 	// Submit all asynchronous commands in one batch to the current queue
 	if (auto &cmd_info = _cmd_buffers[_cmd_index];
 		cmd_info.second)
 	{
 		check_result(vk.EndCommandBuffer(cmd_info.first));
-
-		signal = _cmd_semaphores[_cmd_index];
 
 		VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
 		std::vector<VkSemaphore> wait_semaphores(wait.begin(), wait.end());
@@ -633,21 +660,23 @@ void reshade::vulkan::runtime_vk::on_present(VkQueue queue, uint32_t swapchain_i
 		submit_info.commandBufferCount = 1;
 		submit_info.pCommandBuffers = &cmd_info.first;
 		submit_info.signalSemaphoreCount = 1;
-		submit_info.pSignalSemaphores = &signal;
+		submit_info.pSignalSemaphores = &_cmd_semaphores[_cmd_index];
 
 		// Only reset fence before an actual submit which can signal it again
 		vk.ResetFences(_device, 1, &fence);
 
 		// Always submit to the graphics queue
-		if (vk.QueueSubmit(_queue, 1, &submit_info, fence) != VK_SUCCESS)
-			// Semaphore is not signaled if queue submission fails
-			signal = VK_NULL_HANDLE;
+		if (vk.QueueSubmit(_queue, 1, &submit_info, fence) == VK_SUCCESS)
+		{
+			// This queue submit now waits on the requested wait semaphores
+			// The next queue submit should therefore wait on the semaphore that was signaled by this submit
+			wait.clear();
+			wait.push_back(_cmd_semaphores[_cmd_index]);
+		}
 
 		// Command buffer is now in invalid state and ready for a reset
 		cmd_info.second = false;
 	}
-
-	// TODO: Some operations force a wait for idle in ReShade, which invalidates the wait semaphores and those should be removed from the queue submit
 }
 
 bool reshade::vulkan::runtime_vk::capture_screenshot(uint8_t *buffer) const
@@ -690,6 +719,7 @@ bool reshade::vulkan::runtime_vk::capture_screenshot(uint8_t *buffer) const
 		// Wait for any rendering by the application finish before submitting
 		// It may have submitted that to a different queue, so simply wait for all to idle here
 		vk.DeviceWaitIdle(_device);
+		_wait_for_idle_happened = true;
 
 		// Execute and wait for completion
 		execute_command_buffer();
@@ -744,105 +774,92 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 {
 	effect &effect = _effects[index];
 
-	// Load shader module
+	// Load shader modules
 	std::unordered_map<std::string, VkShaderModule> entry_points;
 	std::vector<vk_handle<VK_OBJECT_TYPE_SHADER_MODULE>> shader_modules;
 
 	{   VkResult res = VK_SUCCESS;
 
-		// The AMD driver has a really hard time with SPIR-V modules that have multiple entry points.
-		// Trying to create a graphics pipeline using a shader module created from such a SPIR-V module tends to just fail with a generic VK_ERROR_OUT_OF_HOST_MEMORY.
-		// This is a pretty unpleasant driver bug, but until fixed, create a separate shader module for every entry point and rewrite the SPIR-V module for each to removes all but a single entry point (and associated functions/variables).
-		bool has_driver_bug = (_device_props.vendorID == 0x1002 /* AMD */);
-		if (!has_driver_bug)
-		{
-			VkShaderModuleCreateInfo create_info { VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
-			create_info.codeSize = effect.module.spirv.size() * sizeof(uint32_t);
-			create_info.pCode = effect.module.spirv.data();
-
-			res = vk.CreateShaderModule(_device, &create_info, nullptr, &shader_modules.emplace_back(_device, vk));
-		}
-
+		// There are various issues with SPIR-V modules that have multiple entry points on all major GPU vendors.
+		// On AMD for instance creating a graphics pipeline just fails with a generic VK_ERROR_OUT_OF_HOST_MEMORY. On NVIDIA artifacts occur on some driver versions.
+		// To work around these problems, create a separate shader module for every entry point and rewrite the SPIR-V module for each to removes all but a single entry point (and associated functions/variables).
 		for (size_t i = 0; i < effect.module.entry_points.size() && res == VK_SUCCESS; ++i)
 		{
 			const reshadefx::entry_point &entry_point = effect.module.entry_points[i];
 
-			if (has_driver_bug)
+			uint32_t current_function = 0, current_function_offset = 0;
+			std::vector<uint32_t> spirv = effect.module.spirv;
+			std::vector<uint32_t> functions_to_remove, variables_to_remove;
+
+			for (uint32_t inst = 5 /* Skip SPIR-V header information */; inst < spirv.size();)
 			{
-				uint32_t current_function = 0, current_function_offset = 0;
-				std::vector<uint32_t> spirv = effect.module.spirv;
-				std::vector<uint32_t> functions_to_remove, variables_to_remove;
+				const uint32_t op = spirv[inst] & 0xFFFF;
+				const uint32_t len = (spirv[inst] >> 16) & 0xFFFF;
+				assert(len != 0);
 
-				for (uint32_t inst = 5 /* Skip SPIR-V header information */; inst < spirv.size();)
+				switch (op)
 				{
-					const uint32_t op = spirv[inst] & 0xFFFF;
-					const uint32_t len = (spirv[inst] >> 16) & 0xFFFF;
-					assert(len != 0);
-
-					switch (op)
+				case 15: // OpEntryPoint
+					// Look for any non-matching entry points
+					if (entry_point.name != reinterpret_cast<const char *>(&spirv[inst + 3]))
 					{
-					case 15: // OpEntryPoint
-						// Look for any non-matching entry points
-						if (entry_point.name != reinterpret_cast<const char *>(&spirv[inst + 3]))
-						{
-							functions_to_remove.push_back(spirv[inst + 2]);
+						functions_to_remove.push_back(spirv[inst + 2]);
 
-							// Get interface variables
-							for (size_t k = inst + 3 + ((strlen(reinterpret_cast<const char *>(&spirv[inst + 3])) + 4) / 4); k < inst + len; ++k)
-								variables_to_remove.push_back(spirv[k]);
+						// Get interface variables
+						for (size_t k = inst + 3 + ((strlen(reinterpret_cast<const char *>(&spirv[inst + 3])) + 4) / 4); k < inst + len; ++k)
+							variables_to_remove.push_back(spirv[k]);
 
-							// Remove this entry point from the module
-							spirv.erase(spirv.begin() + inst, spirv.begin() + inst + len);
-							continue;
-						}
-						break;
-					case 16: // OpExecutionMode
-						if (std::find(functions_to_remove.begin(), functions_to_remove.end(), spirv[inst + 1]) != functions_to_remove.end())
-						{
-							spirv.erase(spirv.begin() + inst, spirv.begin() + inst + len);
-							continue;
-						}
-						break;
-					case 59: // OpVariable
-						// Remove all declarations of the interface variables for non-matching entry points
-						if (std::find(variables_to_remove.begin(), variables_to_remove.end(), spirv[inst + 2]) != variables_to_remove.end())
-						{
-							spirv.erase(spirv.begin() + inst, spirv.begin() + inst + len);
-							continue;
-						}
-						break;
-					case 71: // OpDecorate
-						// Remove all decorations targeting any of the interface variables for non-matching entry points
-						if (std::find(variables_to_remove.begin(), variables_to_remove.end(), spirv[inst + 1]) != variables_to_remove.end())
-						{
-							spirv.erase(spirv.begin() + inst, spirv.begin() + inst + len);
-							continue;
-						}
-						break;
-					case 54: // OpFunction
-						current_function = spirv[inst + 2];
-						current_function_offset = inst;
-						break;
-					case 56: // OpFunctionEnd
-						// Remove all function definitions for non-matching entry points
-						if (std::find(functions_to_remove.begin(), functions_to_remove.end(), current_function) != functions_to_remove.end())
-						{
-							spirv.erase(spirv.begin() + current_function_offset, spirv.begin() + inst + len);
-							inst = current_function_offset;
-							continue;
-						}
-						break;
+						// Remove this entry point from the module
+						spirv.erase(spirv.begin() + inst, spirv.begin() + inst + len);
+						continue;
 					}
-
-					inst += len;
+					break;
+				case 16: // OpExecutionMode
+					if (std::find(functions_to_remove.begin(), functions_to_remove.end(), spirv[inst + 1]) != functions_to_remove.end())
+					{
+						spirv.erase(spirv.begin() + inst, spirv.begin() + inst + len);
+						continue;
+					}
+					break;
+				case 59: // OpVariable
+					// Remove all declarations of the interface variables for non-matching entry points
+					if (std::find(variables_to_remove.begin(), variables_to_remove.end(), spirv[inst + 2]) != variables_to_remove.end())
+					{
+						spirv.erase(spirv.begin() + inst, spirv.begin() + inst + len);
+						continue;
+					}
+					break;
+				case 71: // OpDecorate
+					// Remove all decorations targeting any of the interface variables for non-matching entry points
+					if (std::find(variables_to_remove.begin(), variables_to_remove.end(), spirv[inst + 1]) != variables_to_remove.end())
+					{
+						spirv.erase(spirv.begin() + inst, spirv.begin() + inst + len);
+						continue;
+					}
+					break;
+				case 54: // OpFunction
+					current_function = spirv[inst + 2];
+					current_function_offset = inst;
+					break;
+				case 56: // OpFunctionEnd
+					// Remove all function definitions for non-matching entry points
+					if (std::find(functions_to_remove.begin(), functions_to_remove.end(), current_function) != functions_to_remove.end())
+					{
+						spirv.erase(spirv.begin() + current_function_offset, spirv.begin() + inst + len);
+						inst = current_function_offset;
+						continue;
+					}
+					break;
 				}
 
-				VkShaderModuleCreateInfo create_info { VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
-				create_info.codeSize = spirv.size() * sizeof(uint32_t);
-				create_info.pCode = spirv.data();
-
-				res = vk.CreateShaderModule(_device, &create_info, nullptr, &shader_modules.emplace_back(_device, vk));
+				inst += len;
 			}
+
+			VkShaderModuleCreateInfo create_info { VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
+			create_info.codeSize = spirv.size() * sizeof(uint32_t);
+			create_info.pCode = spirv.data();
+
+			res = vk.CreateShaderModule(_device, &create_info, nullptr, &shader_modules.emplace_back(_device, vk));
 
 			entry_points[entry_point.name] = shader_modules.back();
 		}
@@ -914,7 +931,7 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 	}
 
 	// Initialize image and sampler bindings
-	assert(effect.module.num_texture_bindings == 0);
+	assert(effect.module.num_texture_bindings == 0); // Use combined image samplers
 	std::vector<VkDescriptorImageInfo> sampler_bindings(effect.module.num_sampler_bindings);
 	std::vector<VkDescriptorImageInfo> storage_bindings(effect.module.num_storage_bindings);
 
@@ -923,26 +940,23 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 		const texture &texture = look_up_texture_by_name(info.texture_name);
 
 		VkDescriptorImageInfo &image_binding = sampler_bindings[info.binding];
+		image_binding.imageView = static_cast<vulkan_tex_data *>(texture.impl)->view[info.srgb];
 		image_binding.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-		switch (texture.impl_reference)
+		if (texture.semantic == "COLOR")
 		{
-		case texture_reference::back_buffer:
 			image_binding.imageView = _backbuffer_image_view[info.srgb];
-			break;
-		case texture_reference::depth_buffer:
+		}
+		if (texture.semantic == "DEPTH")
+		{
 			// Set to a default view to avoid crash because of this being null
 			image_binding.imageView = _empty_depth_image_view;
 #if RESHADE_DEPTH
 			if (_depth_image_view != VK_NULL_HANDLE)
 				image_binding.imageView = _depth_image_view;
-#endif
 			// Keep track of the depth buffer texture descriptor to simplify updating it
 			effect_data.depth_image_binding = info.binding;
-			break;
-		default:
-			image_binding.imageView = static_cast<vulkan_tex_data *>(texture.impl)->view[info.srgb];
-			break;
+#endif
 		}
 
 		// Unset bindings are not allowed, so fail initialization for the entire effect in that case
@@ -1026,75 +1040,54 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 		const texture &texture = look_up_texture_by_name(info.texture_name);
 
 		VkDescriptorImageInfo &image_binding = storage_bindings[info.binding];
+		image_binding.imageView = static_cast<vulkan_tex_data *>(texture.impl)->view[0];
 		image_binding.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-
-		switch (texture.impl_reference)
-		{
-		case texture_reference::back_buffer:
-		case texture_reference::depth_buffer:
-			break;
-		default:
-			image_binding.imageView = static_cast<vulkan_tex_data *>(texture.impl)->view[0];
-			break;
-		}
 
 		// Unset bindings are not allowed, so fail initialization for the entire effect in that case
 		if (image_binding.imageView == VK_NULL_HANDLE)
 			return false;
 	}
 
+	uint32_t num_passes = 0;
+	for (const reshadefx::technique_info &info : effect.module.techniques)
+		num_passes += static_cast<uint32_t>(info.passes.size());
+
+	std::vector<VkDescriptorSet> sets(1 + 2 * num_passes);
+	std::vector<VkWriteDescriptorSet> writes;
+	writes.reserve(sets.size());
+
 	{   VkDescriptorSetAllocateInfo alloc_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
 		alloc_info.descriptorPool = _effect_descriptor_pool;
-		alloc_info.descriptorSetCount = effect.module.num_storage_bindings == 0 ? 2 : 3;
-		alloc_info.pSetLayouts = set_layouts;
+		alloc_info.descriptorSetCount = 1 + (effect.module.num_storage_bindings == 0 ? 1 : 2) * num_passes;
 
-		if (vk.AllocateDescriptorSets(_device, &alloc_info, effect_data.set) != VK_SUCCESS)
+		std::vector<VkDescriptorSetLayout> alloc_set_layouts(sets.size());
+		alloc_set_layouts[0] = _effect_descriptor_layout;
+		for (size_t i = 0; i < num_passes; ++i)
+		{
+			alloc_set_layouts[1 + i] = effect_data.sampler_layout;
+			alloc_set_layouts[1 + num_passes + i] = effect_data.storage_layout;
+		}
+		alloc_info.pSetLayouts = alloc_set_layouts.data();
+
+		if (vk.AllocateDescriptorSets(_device, &alloc_info, sets.data()) != VK_SUCCESS)
 		{
 			LOG(ERROR) << "Too many effects loaded. Only " << (MAX_EFFECT_DESCRIPTOR_SETS / 2) << " effects can be active simultaneously in Vulkan.";
 			return false;
 		}
-
-		uint32_t num_writes = 0;
-		VkWriteDescriptorSet writes[3];
-		const VkDescriptorBufferInfo ubo_info = { effect_data.ubo, 0, VK_WHOLE_SIZE };
-
-		if (effect_data.ubo != VK_NULL_HANDLE)
-		{
-			writes[num_writes] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-			writes[num_writes].dstSet = effect_data.set[0];
-			writes[num_writes].dstBinding = 0;
-			writes[num_writes].descriptorCount = 1;
-			writes[num_writes].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-			writes[num_writes].pBufferInfo = &ubo_info;
-			++num_writes;
-		}
-
-		if (effect.module.num_sampler_bindings != 0)
-		{
-			writes[num_writes] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-			writes[num_writes].dstSet = effect_data.set[1];
-			writes[num_writes].dstBinding = 0;
-			writes[num_writes].descriptorCount = uint32_t(sampler_bindings.size());
-			writes[num_writes].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-			writes[num_writes].pImageInfo = sampler_bindings.data();
-			++num_writes;
-		}
-
-		if (effect.module.num_storage_bindings != 0)
-		{
-			writes[num_writes] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-			writes[num_writes].dstSet = effect_data.set[2];
-			writes[num_writes].dstBinding = 0;
-			writes[num_writes].descriptorCount = uint32_t(storage_bindings.size());
-			writes[num_writes].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-			writes[num_writes].pImageInfo = storage_bindings.data();
-			++num_writes;
-		}
-
-		vk.UpdateDescriptorSets(_device, num_writes, writes, 0, nullptr);
 	}
 
-	effect_data.image_bindings = std::move(sampler_bindings);
+	effect_data.ubo_set = sets[0];
+	const VkDescriptorBufferInfo ubo_info = { effect_data.ubo, 0, VK_WHOLE_SIZE };
+	if (effect_data.ubo != VK_NULL_HANDLE)
+	{
+		VkWriteDescriptorSet &write = writes.emplace_back();
+		write = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+		write.dstSet = effect_data.ubo_set;
+		write.dstBinding = 0;
+		write.descriptorCount = 1;
+		write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		write.pBufferInfo = &ubo_info;
+	}
 
 	std::vector<uint8_t> spec_data;
 	std::vector<VkSpecializationMapEntry> spec_constants;
@@ -1113,6 +1106,7 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 	};
 
 	uint32_t technique_index = 0;
+	uint32_t total_pass_index = 0;
 	for (technique &technique : _techniques)
 	{
 		if (technique.impl != nullptr || technique.effect_index != index)
@@ -1125,7 +1119,7 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 		impl->query_base_index = technique_index++ * 2 * NUM_COMMAND_FRAMES;
 
 		impl->passes.resize(technique.passes.size());
-		for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
+		for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index, ++total_pass_index)
 		{
 			vulkan_pass_data &pass_data = impl->passes[pass_index];
 			const reshadefx::pass_info &pass_info = technique.passes[pass_index];
@@ -1133,13 +1127,6 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 			if (!pass_info.cs_entry_point.empty())
 			{
 				impl->has_compute_passes = true;
-
-				for (const reshadefx::storage_info &info : effect.module.storages)
-				{
-					const texture &texture = look_up_texture_by_name(info.texture_name);
-
-					pass_data.modified_resources.push_back(static_cast<vulkan_tex_data *>(texture.impl));
-				}
 
 				VkComputePipelineCreateInfo create_info { VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO };
 				create_info.stage = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
@@ -1435,8 +1422,47 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 					return false;
 				}
 			}
+
+			pass_data.set[0] = sets[1 + total_pass_index];
+			for (const reshadefx::sampler_info &info : pass_info.samplers)
+			{
+				VkWriteDescriptorSet &write = writes.emplace_back();
+				write = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+				write.dstSet = pass_data.set[0];
+				write.dstBinding = info.binding;
+				write.descriptorCount = 1;
+				write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+				write.pImageInfo = &sampler_bindings[info.binding];
+
+#if RESHADE_DEPTH
+				if (info.binding == effect_data.depth_image_binding)
+					effect_data.depth_image_sets.push_back(pass_data.set[0]);
+#endif
+			}
+			pass_data.set[1] = sets[1 + num_passes + total_pass_index];
+			for (const reshadefx::storage_info &info : pass_info.storages)
+			{
+				VkWriteDescriptorSet &write = writes.emplace_back();
+				write = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+				write.dstSet = pass_data.set[1];
+				write.dstBinding = info.binding;
+				write.descriptorCount = 1;
+				write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+				write.pImageInfo = &storage_bindings[info.binding];
+
+				vulkan_tex_data *const tex_impl = static_cast<vulkan_tex_data *>(
+					look_up_texture_by_name(info.texture_name).impl);
+
+				pass_data.modified_resources.push_back(tex_impl);
+			}
 		}
 	}
+
+	vk.UpdateDescriptorSets(_device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
+
+#if RESHADE_DEPTH
+	effect_data.image_bindings = std::move(sampler_bindings);
+#endif
 
 	return true;
 }
@@ -1540,8 +1566,8 @@ bool reshade::vulkan::runtime_vk::init_texture(texture &texture)
 	auto impl = new vulkan_tex_data();
 	texture.impl = impl;
 
-	// Do not create resource if it is a reference, it is set in 'render_technique'
-	if (texture.impl_reference != texture_reference::none)
+	// Do not create resource if it is a special reference, those are set in 'render_technique' and 'init_effect'/'update_depth_image_bindings'
+	if (texture.semantic == "COLOR" || texture.semantic == "DEPTH")
 		return true;
 
 	impl->width = texture.width;
@@ -1672,10 +1698,18 @@ bool reshade::vulkan::runtime_vk::init_texture(texture &texture)
 	}
 #endif
 
-	// Transition to shader read image layout
 	if (begin_command_buffer())
 	{
-		transition_layout(vk, _cmd_buffers[_cmd_index].first, impl->image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		transition_layout(vk, _cmd_buffers[_cmd_index].first, impl->image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+		// Clear texture to zero since by default its contents are undefined
+		const VkClearColorValue clear_value = {};
+		const VkImageSubresourceRange range = { VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
+		vk.CmdClearColorImage(_cmd_buffers[_cmd_index].first, impl->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear_value, 1, &range);
+
+		// Transition to shader read image layout
+		transition_layout(vk, _cmd_buffers[_cmd_index].first, impl->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
 		execute_command_buffer();
 	}
 
@@ -1684,7 +1718,7 @@ bool reshade::vulkan::runtime_vk::init_texture(texture &texture)
 void reshade::vulkan::runtime_vk::upload_texture(const texture &texture, const uint8_t *pixels)
 {
 	auto impl = static_cast<vulkan_tex_data *>(texture.impl);
-	assert(impl != nullptr && pixels != nullptr && texture.impl_reference == texture_reference::none);
+	assert(impl != nullptr && texture.semantic.empty() && pixels != nullptr);
 
 	// Allocate host memory for upload
 	vk_handle<VK_OBJECT_TYPE_BUFFER> intermediate(_device, vk);
@@ -1843,9 +1877,9 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 	vk.CmdResetQueryPool(cmd_list, effect_data.query_pool, impl->query_base_index + _cmd_index * 2, 2);
 	vk.CmdWriteTimestamp(cmd_list, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, effect_data.query_pool, impl->query_base_index + _cmd_index * 2);
 
-	vk.CmdBindDescriptorSets(cmd_list, VK_PIPELINE_BIND_POINT_GRAPHICS, effect_data.pipeline_layout, 0, 2, effect_data.set, 0, nullptr);
+	vk.CmdBindDescriptorSets(cmd_list, VK_PIPELINE_BIND_POINT_GRAPHICS, effect_data.pipeline_layout, 0, 1, &effect_data.ubo_set, 0, nullptr);
 	if (impl->has_compute_passes)
-		vk.CmdBindDescriptorSets(cmd_list, VK_PIPELINE_BIND_POINT_COMPUTE, effect_data.pipeline_layout, 0, effect_data.storage_layout ? 3 : 2, effect_data.set, 0, nullptr);
+		vk.CmdBindDescriptorSets(cmd_list, VK_PIPELINE_BIND_POINT_COMPUTE, effect_data.pipeline_layout, 0, 1, &effect_data.ubo_set, 0, nullptr);
 
 	// Setup shader constants
 	if (effect_data.ubo != VK_NULL_HANDLE)
@@ -1899,14 +1933,18 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 
 		if (!pass_info.cs_entry_point.empty())
 		{
+			// Compute shaders do not write to the back buffer, so no update necessary
+			needs_implicit_backbuffer_copy = false;
+
 			for (const vulkan_tex_data *storage_resource : pass_data.modified_resources)
-				transition_layout(vk, cmd_list, storage_resource->image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+				transition_layout(vk, cmd_list, storage_resource->image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
 
 			vk.CmdBindPipeline(cmd_list, VK_PIPELINE_BIND_POINT_COMPUTE, pass_data.pipeline);
+			vk.CmdBindDescriptorSets(cmd_list, VK_PIPELINE_BIND_POINT_COMPUTE, effect_data.pipeline_layout, 1, 2, pass_data.set, 0, nullptr);
 			vk.CmdDispatch(cmd_list, pass_info.viewport_width, pass_info.viewport_height, pass_info.viewport_dispatch_z);
 
 			for (const vulkan_tex_data *storage_resource : pass_data.modified_resources)
-				transition_layout(vk, cmd_list, storage_resource->image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+				transition_layout(vk, cmd_list, storage_resource->image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 		}
 		else
 		{
@@ -1934,8 +1972,8 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 
 			vk.CmdBeginRenderPass(cmd_list, &begin_info, VK_SUBPASS_CONTENTS_INLINE);
 
-			// Draw primitives
 			vk.CmdBindPipeline(cmd_list, VK_PIPELINE_BIND_POINT_GRAPHICS, pass_data.pipeline);
+			vk.CmdBindDescriptorSets(cmd_list, VK_PIPELINE_BIND_POINT_GRAPHICS, effect_data.pipeline_layout, 1, 1, pass_data.set, 0, nullptr);
 			vk.CmdDraw(cmd_list, pass_info.num_vertices, 1, 0, 0);
 
 			_vertices += pass_info.num_vertices;
@@ -2014,6 +2052,7 @@ void reshade::vulkan::runtime_vk::wait_for_command_buffers()
 {
 	// Wait for all queues to finish to ensure no command buffers are in flight after this call
 	vk.DeviceWaitIdle(_device);
+	_wait_for_idle_happened = true;
 
 	if (_cmd_index < NUM_COMMAND_FRAMES &&
 		_cmd_buffers[_cmd_index].second)
@@ -2541,25 +2580,25 @@ void reshade::vulkan::runtime_vk::update_depth_image_bindings(buffer_detection::
 
 	for (vulkan_effect_data &effect_data : _effect_data)
 	{
-		if (effect_data.set[1] == VK_NULL_HANDLE)
-			continue; // Skip effects without image bindings
 		if (effect_data.depth_image_binding == std::numeric_limits<uint32_t>::max())
 			continue; // Skip effects that do not have a depth buffer binding
 
-		// Set sampler handle, which should be the same for all writes
-		assert(image_binding.sampler == VK_NULL_HANDLE || image_binding.sampler == effect_data.image_bindings[effect_data.depth_image_binding].sampler);
-		image_binding.sampler = effect_data.image_bindings[effect_data.depth_image_binding].sampler;
+		for (VkDescriptorSet set : effect_data.depth_image_sets)
+		{
+			// Set sampler handle, which should be the same for all writes
+			assert(image_binding.sampler == VK_NULL_HANDLE || image_binding.sampler == effect_data.image_bindings[effect_data.depth_image_binding].sampler);
+			image_binding.sampler = effect_data.image_bindings[effect_data.depth_image_binding].sampler;
 
-		VkWriteDescriptorSet write{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-		write.dstSet = effect_data.set[1];
-		write.dstBinding = effect_data.depth_image_binding;
-		write.descriptorCount = 1;
-		write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		write.pImageInfo = &image_binding;
-
-		writes.push_back(std::move(write));
+			VkWriteDescriptorSet &write = writes.emplace_back();
+			write = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+			write.dstSet = set;
+			write.dstBinding = effect_data.depth_image_binding;
+			write.descriptorCount = 1;
+			write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+			write.pImageInfo = &image_binding;
+		}
 	}
 
-	vk.UpdateDescriptorSets(_device, uint32_t(writes.size()), writes.data(), 0, nullptr);
+	vk.UpdateDescriptorSets(_device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
 }
 #endif
