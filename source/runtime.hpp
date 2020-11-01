@@ -57,7 +57,7 @@ namespace reshade
 		/// <param name="buffer">The 32bpp RGBA buffer to save the screenshot to.</param>
 		virtual bool capture_screenshot(uint8_t *buffer) const = 0;
 
-		bool load_shader_cache(const std::filesystem::path &effect, const std::string &entry_point, const size_t hash, std::vector<char> &cso) const;
+		bool load_shader_cache(const std::filesystem::path &effect, const std::string &entry_point, const size_t hash, std::vector<char> &cso, std::string &dasm) const;
 		bool save_shader_cache(const std::filesystem::path &effect, const std::string &entry_point, const size_t hash, const std::string_view &hlsl, const std::vector<char> &cso, const std::string &dasm) const;
 
 		/// <summary>

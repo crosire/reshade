@@ -883,12 +883,17 @@ bool reshade::runtime::save_source_cache(const std::filesystem::path &source_fil
 	return true;
 }
 
-bool reshade::runtime::load_shader_cache(const std::filesystem::path &effect, const std::string &entry_point, const size_t hash, std::vector<char> &cso) const
+bool reshade::runtime::load_shader_cache(const std::filesystem::path &effect, const std::string &entry_point, const size_t hash, std::vector<char> &cso, std::string &dasm) const
 {
 	std::filesystem::path path = g_reshade_base_path / _intermediate_cache_path;
-	path /= std::to_string(_renderer_id) + '-' + effect.stem().u8string() + '-' + entry_point + '-' + std::to_string(hash) + ".cso";
+	path /= std::to_string(_renderer_id) + '-' + effect.stem().u8string() + '-' + entry_point + '-' + std::to_string(hash);
 
-	if (const HANDLE file = CreateFileW(path.c_str(), FILE_GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL); file == INVALID_HANDLE_VALUE)
+	if (const HANDLE file = CreateFileW((path.native() + L".cso").c_str(), FILE_GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL); file == INVALID_HANDLE_VALUE)
+		return false;
+	else if (DWORD size = GetFileSize(file, NULL); cso.resize(size), ReadFile(file, cso.data(), size, &size, NULL), CloseHandle(file) == FALSE)
+		return false;
+
+	if (const HANDLE file = CreateFileW((path.native() + L".asm").c_str(), FILE_GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL); file == INVALID_HANDLE_VALUE)
 		return false;
 	else if (DWORD size = GetFileSize(file, NULL); cso.resize(size), ReadFile(file, cso.data(), size, &size, NULL), CloseHandle(file) == FALSE)
 		return false;

@@ -556,7 +556,7 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 
 		const size_t hash = std::hash<std::string_view>()(attributes) ^ std::hash<std::string_view>()(hlsl);
 		std::vector<char> &cso = entry_points[entry_point.name];
-		if (!load_shader_cache(effect.source_file, entry_point.name, hash, cso))
+		if (!load_shader_cache(effect.source_file, entry_point.name, hash, cso, effect.assembly[entry_point.name]))
 		{
 			com_ptr<ID3DBlob> d3d_compiled, d3d_errors;
 			hr = D3DCompile(
@@ -576,12 +576,12 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 
 			cso.resize(d3d_compiled->GetBufferSize());
 			std::memcpy(cso.data(), d3d_compiled->GetBufferPointer(), cso.size());
+
+			if (com_ptr<ID3DBlob> d3d_disassembled; SUCCEEDED(D3DDisassemble(cso.data(), cso.size(), 0, nullptr, &d3d_disassembled)))
+				effect.assembly[entry_point.name].assign(static_cast<const char *>(d3d_disassembled->GetBufferPointer()), d3d_disassembled->GetBufferSize() - 1);
+
+			save_shader_cache(effect.source_file, entry_point.name, hash, hlsl, cso, effect.assembly[entry_point.name]);
 		}
-
-		if (com_ptr<ID3DBlob> d3d_disassembled; SUCCEEDED(D3DDisassemble(cso.data(), cso.size(), 0, nullptr, &d3d_disassembled)))
-			effect.assembly[entry_point.name].assign(static_cast<const char *>(d3d_disassembled->GetBufferPointer()), d3d_disassembled->GetBufferSize() - 1);
-
-		save_shader_cache(effect.source_file, entry_point.name, hash, hlsl, cso, effect.assembly[entry_point.name]);
 	}
 
 	if (index >= _effect_data.size())
