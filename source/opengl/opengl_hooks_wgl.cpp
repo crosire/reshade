@@ -17,6 +17,7 @@ DECLARE_HANDLE(HPBUFFERARB);
 
 static std::mutex s_mutex;
 static std::unordered_set<HDC> s_pbuffer_device_contexts;
+static std::unordered_set<HGLRC> s_legacy_contexts;
 static std::unordered_map<HGLRC, HGLRC> s_shared_contexts;
 static std::unordered_map<HGLRC, reshade::opengl::runtime_gl *> s_opengl_runtimes;
 thread_local reshade::opengl::runtime_gl *g_current_runtime = nullptr;
@@ -335,7 +336,18 @@ HOOK_EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 	LOG(INFO) << "Redirecting " << "wglCreateContext" << '(' << "hdc = " << hdc << ')' << " ...";
 	LOG(INFO) << "> Passing on to " << "wglCreateLayerContext" << ':';
 
-	return wglCreateLayerContext(hdc, 0);
+	const HGLRC hglrc = wglCreateLayerContext(hdc, 0);
+	if (hglrc == nullptr)
+	{
+		return nullptr;
+	}
+
+	// Keep track of legacy contexts here instead of in 'wglCreateLayerContext' because some drivers call the latter from within their 'wglCreateContextAttribsARB' implementation
+	{ const std::lock_guard<std::mutex> lock(s_mutex);
+		s_legacy_contexts.emplace(hglrc);
+	}
+
+	return hglrc;
 }
 			HGLRC WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext, const int *piAttribList)
 {
@@ -543,6 +555,8 @@ HOOK_EXPORT BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 	}
 
 	{ const std::lock_guard<std::mutex> lock(s_mutex);
+		s_legacy_contexts.erase(hglrc);
+
 		for (auto it = s_shared_contexts.begin(); it != s_shared_contexts.end();)
 		{
 			if (it->first == hglrc)
@@ -673,6 +687,11 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		{
 			const auto runtime = new reshade::opengl::runtime_gl();
 			runtime->_hdcs.insert(hdc);
+
+			// Always set compatibility context flag on contexts that were created with 'wglCreateContext' instead of 'wglCreateContextAttribsARB'
+			// This is necessary because with some pixel formats the 'GL_ARB_compatibility' extension is not exposed even though the context was not created with the core profile
+			if (s_legacy_contexts.find(hglrc) != s_legacy_contexts.end())
+				runtime->_compatibility_context = true;
 
 			g_current_runtime = s_opengl_runtimes[hglrc] = runtime;
 

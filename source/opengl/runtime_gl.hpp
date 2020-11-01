@@ -23,6 +23,7 @@ namespace reshade::opengl
 
 		bool capture_screenshot(uint8_t *buffer) const override;
 
+		bool _compatibility_context = false;
 		std::unordered_set<HDC> _hdcs;
 		buffer_detection _buffer_detection;
 
@@ -79,7 +80,6 @@ namespace reshade::opengl
 				NUM_RBO
 		};
 
-		bool _compatibility_context = false;
 		state_block _app_state;
 
 		GLuint _buf[NUM_BUF] = {};
