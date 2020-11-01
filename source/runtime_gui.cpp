@@ -2412,72 +2412,78 @@ void reshade::runtime::draw_variable_editor()
 			set_uniform_value(effect.uniforms[hovered_variable_index], static_cast<uint32_t>(hovered_variable));
 
 		// Draw preprocessor definition list after all uniforms of an effect file
-		std::string category_label = "Preprocessor definitions";
-		if (!_variable_editor_tabs)
-			for (float x = 0, space_x = ImGui::CalcTextSize(" ").x, width = (ImGui::CalcItemWidth() - ImGui::CalcTextSize(category_label.c_str()).x - 45) / 2; x < width; x += space_x)
-				category_label.insert(0, " ");
-
-		if ((!effect.definitions.empty() || !effect.preprocessed) &&
-			ImGui::TreeNodeEx(category_label.c_str(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_NoTreePushOnOpen))
+		if (!effect.definitions.empty() || !effect.preprocessed)
 		{
-			if (!effect.preprocessed)
-				reload_effect = true;
+			std::string category_label = "Preprocessor definitions";
+			if (!_variable_editor_tabs)
+				for (float x = 0, space_x = ImGui::CalcTextSize(" ").x, width = (ImGui::CalcItemWidth() - ImGui::CalcTextSize(category_label.c_str()).x - 45) / 2; x < width; x += space_x)
+					category_label.insert(0, " ");
 
-			for (const std::pair<std::string, std::string> &definition : effect.definitions)
+			ImGuiTreeNodeFlags tree_flags = ImGuiTreeNodeFlags_NoTreePushOnOpen;
+			if (effect.preprocessed) // Do not open tree by default is not yet pre-processed, since that would case an immediate recompile
+				tree_flags |= ImGuiTreeNodeFlags_DefaultOpen;
+
+			if (ImGui::TreeNodeEx(category_label.c_str(), tree_flags))
 			{
-				char value[128] = "";
-				const auto global_it = find_definition_value(_global_preprocessor_definitions, definition.first, value);
-				const auto preset_it = find_definition_value(_preset_preprocessor_definitions, definition.first, value);
+				if (!effect.preprocessed)
+					reload_effect = true;
 
-				if (global_it == _global_preprocessor_definitions.end() &&
-					preset_it == _preset_preprocessor_definitions.end())
-					definition.second.copy(value, sizeof(value) - 1); // Fill with default value
-
-				if (ImGui::InputText(definition.first.c_str(), value, sizeof(value),
-					global_it != _global_preprocessor_definitions.end() ? ImGuiInputTextFlags_ReadOnly : ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_EnterReturnsTrue))
+				for (const std::pair<std::string, std::string> &definition : effect.definitions)
 				{
-					if (value[0] == '\0') // An empty value removes the definition
-					{
-						if (preset_it != _preset_preprocessor_definitions.end())
-						{
-							reload_effect = true;
-							_preset_preprocessor_definitions.erase(preset_it);
-						}
-					}
-					else
-					{
-						reload_effect = true;
+					char value[128] = "";
+					const auto global_it = find_definition_value(_global_preprocessor_definitions, definition.first, value);
+					const auto preset_it = find_definition_value(_preset_preprocessor_definitions, definition.first, value);
 
-						if (preset_it != _preset_preprocessor_definitions.end())
+					if (global_it == _global_preprocessor_definitions.end() &&
+						preset_it == _preset_preprocessor_definitions.end())
+						definition.second.copy(value, sizeof(value) - 1); // Fill with default value
+
+					if (ImGui::InputText(definition.first.c_str(), value, sizeof(value),
+						global_it != _global_preprocessor_definitions.end() ? ImGuiInputTextFlags_ReadOnly : ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_EnterReturnsTrue))
+					{
+						if (value[0] == '\0') // An empty value removes the definition
 						{
-							*preset_it = definition.first + '=' + value;
-							modified_definition = preset_it;
+							if (preset_it != _preset_preprocessor_definitions.end())
+							{
+								reload_effect = true;
+								_preset_preprocessor_definitions.erase(preset_it);
+							}
 						}
 						else
 						{
-							_preset_preprocessor_definitions.push_back(definition.first + '=' + value);
-							modified_definition = _preset_preprocessor_definitions.end() - 1;
-						}
-					}
-				}
-
-				if (!reload_effect && // Cannot compare iterators if definitions were just modified above
-					ImGui::BeginPopupContextItem())
-				{
-					const float button_width = ImGui::CalcItemWidth();
-
-					if (ImGui::Button(ICON_RESET " Reset to default", ImVec2(button_width, 0)))
-					{
-						if (preset_it != _preset_preprocessor_definitions.end())
-						{
 							reload_effect = true;
-							_preset_preprocessor_definitions.erase(preset_it);
-						}
 
-						ImGui::CloseCurrentPopup();
+							if (preset_it != _preset_preprocessor_definitions.end())
+							{
+								*preset_it = definition.first + '=' + value;
+								modified_definition = preset_it;
+							}
+							else
+							{
+								_preset_preprocessor_definitions.push_back(definition.first + '=' + value);
+								modified_definition = _preset_preprocessor_definitions.end() - 1;
+							}
+						}
 					}
 
-					ImGui::EndPopup();
+					if (!reload_effect && // Cannot compare iterators if definitions were just modified above
+						ImGui::BeginPopupContextItem())
+					{
+						const float button_width = ImGui::CalcItemWidth();
+
+						if (ImGui::Button(ICON_RESET " Reset to default", ImVec2(button_width, 0)))
+						{
+							if (preset_it != _preset_preprocessor_definitions.end())
+							{
+								reload_effect = true;
+								_preset_preprocessor_definitions.erase(preset_it);
+							}
+
+							ImGui::CloseCurrentPopup();
+						}
+
+						ImGui::EndPopup();
+					}
 				}
 			}
 		}
