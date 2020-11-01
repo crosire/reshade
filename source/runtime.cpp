@@ -74,9 +74,8 @@ reshade::runtime::runtime() :
 	_start_time(std::chrono::high_resolution_clock::now()),
 	_last_present_time(std::chrono::high_resolution_clock::now()),
 	_last_frame_duration(std::chrono::milliseconds(1)),
-	_effect_search_paths({ L"reshade-shaders\\Shaders" }),
-	_texture_search_paths({ L"reshade-shaders\\Textures" }),
-	_intermediate_cache_path(L"reshade-shaders\\Intermediate"),
+	_effect_search_paths({ L".\\" }),
+	_texture_search_paths({ L".\\" }),
 	_reload_key_data(),
 	_performance_mode_key_data(),
 	_effects_key_data(),
@@ -96,6 +95,10 @@ reshade::runtime::runtime() :
 	if (std::filesystem::path configuraton_path_alt = g_reshade_base_path / g_reshade_dll_path.filename().replace_extension(L".ini");
 		std::filesystem::exists(configuraton_path_alt, ec) && !std::filesystem::exists(_configuration_path, ec))
 		_configuration_path = std::move(configuraton_path_alt);
+
+	WCHAR temp_path[MAX_PATH] = L"";
+	GetTempPathW(MAX_PATH, temp_path);
+	_intermediate_cache_path = temp_path;
 
 #if RESHADE_GUI
 	init_gui();
@@ -883,10 +886,10 @@ bool reshade::runtime::save_source_cache(const std::filesystem::path &source_fil
 	return true;
 }
 
-bool reshade::runtime::load_shader_cache(const std::filesystem::path &effect, const std::string &entry_point, const size_t hash, std::vector<char> &cso, std::string &dasm) const
+bool reshade::runtime::load_shader_cache(const std::filesystem::path &source_file, const std::string &entry_point, const size_t hash, std::vector<char> &cso, std::string &dasm) const
 {
 	std::filesystem::path path = g_reshade_base_path / _intermediate_cache_path;
-	path /= std::to_string(_renderer_id) + '-' + effect.stem().u8string() + '-' + entry_point + '-' + std::to_string(hash);
+	path /= std::to_string(_renderer_id) + '-' + source_file.stem().u8string() + '-' + entry_point + '-' + std::to_string(hash);
 
 	if (const HANDLE file = CreateFileW((path.native() + L".cso").c_str(), FILE_GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL); file == INVALID_HANDLE_VALUE)
 		return false;
@@ -900,10 +903,10 @@ bool reshade::runtime::load_shader_cache(const std::filesystem::path &effect, co
 
 	return true;
 }
-bool reshade::runtime::save_shader_cache(const std::filesystem::path &effect, const std::string &entry_point, const size_t hash, const std::string_view &hlsl, const std::vector<char> &cso, const std::string &dasm) const
+bool reshade::runtime::save_shader_cache(const std::filesystem::path &source_file, const std::string &entry_point, const size_t hash, const std::string_view &hlsl, const std::vector<char> &cso, const std::string &dasm) const
 {
 	std::filesystem::path path = g_reshade_base_path / _intermediate_cache_path;
-	path /= std::to_string(_renderer_id) + '-' + effect.stem().u8string() + '-' + entry_point + '-' + std::to_string(hash);
+	path /= std::to_string(_renderer_id) + '-' + source_file.stem().u8string() + '-' + entry_point + '-' + std::to_string(hash);
 
 	if (const HANDLE file = CreateFileW((path.native() + L".hlsl").c_str(), FILE_GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_NEW, FILE_FLAG_SEQUENTIAL_SCAN, NULL); file == INVALID_HANDLE_VALUE)
 		return false;
