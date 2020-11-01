@@ -361,7 +361,7 @@ HOOK_EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 	};
 
 	int i = 0, major = 1, minor = 0, flags = 0;
-	bool core = true, compatibility = false;
+	bool compatibility = false;
 	attribute attribs[8] = {};
 
 	for (const int *attrib = piAttribList; attrib != nullptr && *attrib != 0 && i < 5; attrib += 2, ++i)
@@ -381,14 +381,13 @@ HOOK_EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 			flags = attrib[1];
 			break;
 		case attribute::WGL_CONTEXT_PROFILE_MASK_ARB:
-			core = (attrib[1] & attribute::WGL_CONTEXT_CORE_PROFILE_BIT_ARB) != 0;
 			compatibility = (attrib[1] & attribute::WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB) != 0;
 			break;
 		}
 	}
 
-	if (major < 3 || minor < 2)
-		core = compatibility = false;
+	if (major < 3 || (major == 3 && minor < 2))
+		compatibility = true;
 
 #ifndef NDEBUG
 	flags |= attribute::WGL_CONTEXT_DEBUG_BIT_ARB;
@@ -400,12 +399,12 @@ HOOK_EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 	attribs[i].name = attribute::WGL_CONTEXT_PROFILE_MASK_ARB;
 	attribs[i++].value = compatibility ? attribute::WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB : attribute::WGL_CONTEXT_CORE_PROFILE_BIT_ARB;
 
-	LOG(INFO) << "> Requesting " << (core ? "core " : compatibility ? "compatibility " : "") << "OpenGL context for version " << major << '.' << minor << " ...";
+	LOG(INFO) << "> Requesting " << (compatibility ? "compatibility" : "core") << " OpenGL context for version " << major << '.' << minor << " ...";
 
-	if (major < 4 || minor < 3)
+	if (major < 4 || (major == 4 && minor < 3))
 	{
 		LOG(INFO) << "> Replacing requested version with 4.3 ...";
-
+	
 		for (int k = 0; k < i; ++k)
 		{
 			switch (attribs[k].name)
