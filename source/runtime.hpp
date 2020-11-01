@@ -156,10 +156,10 @@ namespace reshade
 		/// <summary>
 		/// Compile effect from the specified source file and initialize textures, uniforms and techniques.
 		/// </summary>
-		/// <param name="path">The path to an effect source code file.</param>
+		/// <param name="source_file">The path to an effect source code file.</param>
 		/// <param name="preset">The preset to be used to fill specialization constants or check whether loading can be skipped.</param>
 		/// <param name="effect_index">The ID of the effect.</param>
-		bool load_effect(const std::filesystem::path &path, const reshade::ini_file &preset, size_t &effect_index, bool preprocess_required = false);
+		bool load_effect(const std::filesystem::path &source_file, const reshade::ini_file &preset, size_t &effect_index, bool preprocess_required = false);
 		/// <summary>
 		/// Load all effects found in the effect search paths.
 		/// </summary>
@@ -182,13 +182,13 @@ namespace reshade
 		/// <summary>
 		/// Load compiled shader data from the cache.
 		/// </summary>
-		bool load_source_cache(const std::filesystem::path &effect, const size_t hash, std::string &source) const;
-		bool load_shader_cache(const std::filesystem::path &effect, const std::string &entry_point, const size_t hash, std::vector<char> &cso, std::string &dasm) const;
+		bool load_source_cache(const std::filesystem::path &source_file, const size_t hash, std::string &source) const;
+		bool load_shader_cache(const std::filesystem::path &source_file, const std::string &entry_point, const size_t hash, std::vector<char> &cso, std::string &dasm) const;
 		/// <summary>
 		/// Save compiled shader data to the cache.
 		/// </summary>
-		bool save_source_cache(const std::filesystem::path &effect, const size_t hash, const std::string &source) const;
-		bool save_shader_cache(const std::filesystem::path &effect, const std::string &entry_point, const size_t hash, const std::string_view &hlsl, const std::vector<char> &cso, const std::string &dasm) const;
+		bool save_source_cache(const std::filesystem::path &source_file, const size_t hash, const std::string &source) const;
+		bool save_shader_cache(const std::filesystem::path &source_file, const std::string &entry_point, const size_t hash, const std::vector<char> &cso, const std::string &dasm) const;
 
 		/// <summary>
 		/// Load image files and update textures with image data.
@@ -321,7 +321,7 @@ namespace reshade
 		size_t _reload_total_effects = 1;
 		std::vector<size_t> _reload_compile_queue;
 		std::atomic<size_t> _reload_remaining_effects = 0;
-		std::mutex _reload_mutex, _worker_mutex;
+		std::mutex _reload_mutex;
 		std::vector<std::thread> _worker_threads;
 		std::vector<std::string> _global_preprocessor_definitions;
 		std::vector<std::string> _preset_preprocessor_definitions;

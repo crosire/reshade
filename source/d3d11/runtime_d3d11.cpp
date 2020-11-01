@@ -503,7 +503,7 @@ bool reshade::d3d11::runtime_d3d11::init_effect(size_t index)
 			if (com_ptr<ID3DBlob> d3d_disassembled; SUCCEEDED(D3DDisassemble(cso.data(), cso.size(), 0, nullptr, &d3d_disassembled)))
 				effect.assembly[entry_point.name].assign(static_cast<const char *>(d3d_disassembled->GetBufferPointer()), d3d_disassembled->GetBufferSize() - 1);
 
-			save_shader_cache(effect.source_file, entry_point.name, hash, hlsl, cso, effect.assembly[entry_point.name]);
+			save_shader_cache(effect.source_file, entry_point.name, hash, cso, effect.assembly[entry_point.name]);
 		}
 
 		// Create runtime shader objects from the compiled DX byte code

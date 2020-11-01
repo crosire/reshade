@@ -13,6 +13,7 @@
 #include "effect_preprocessor.hpp"
 #include "input.hpp"
 #include "input_freepie.hpp"
+#include <set>
 #include <thread>
 #include <cassert>
 #include <algorithm>
@@ -247,45 +248,42 @@ void reshade::runtime::on_present()
 	_drawcalls = _vertices = 0;
 }
 
-bool reshade::runtime::load_effect(const std::filesystem::path &path, const reshade::ini_file &preset, size_t &effect_index, bool preprocess_required)
+bool reshade::runtime::load_effect(const std::filesystem::path &source_file, const reshade::ini_file &preset, size_t &effect_index, bool preprocess_required)
 {
 	std::string attributes;
-	const std::string effect_name = path.filename().u8string();
+	attributes += "app=" + g_target_executable_path.stem().u8string() + ';';
+	attributes += "width=" + std::to_string(_width) + ';';
+	attributes += "height=" + std::to_string(_height) + ';';
+	attributes += "color_bit_depth=" + std::to_string(_color_bit_depth) + ';';
+	attributes += "version=" + std::to_string(VERSION_MAJOR * 10000 + VERSION_MINOR * 100 + VERSION_REVISION) + ';';
+	attributes += "performance_mode=" + std::string(_performance_mode ? "1" : "0") + ';';
+	attributes += "vendor=" + std::to_string(_vendor_id) + ';';
+	attributes += "device=" + std::to_string(_device_id) + ';';
 
-	std::vector<std::filesystem::path> include_paths;
-	if (path.is_absolute())
-		include_paths.push_back(path.parent_path());
+	std::set<std::filesystem::path> include_paths;
+	if (source_file.is_absolute())
+		include_paths.emplace(source_file.parent_path());
 	for (std::filesystem::path include_path : _effect_search_paths)
 		if (resolve_path(include_path))
-			include_paths.push_back(std::move(include_path));
+			include_paths.emplace(std::move(include_path));
 
-	std::error_code ec;
 	for (const std::filesystem::path &include_path : include_paths)
 	{
+		std::error_code ec;
 		attributes += include_path.u8string();
 		for (const auto &entry : std::filesystem::directory_iterator(include_path, std::filesystem::directory_options::skip_permission_denied, ec))
 		{
-			const std::wstring_view filename(entry.path().c_str() + include_path.native().size() + 1, entry.path().native().size() - include_path.native().size() - 1);
-			if (filename == std::filesystem::u8path(effect_name) || (filename.size() >= 4 && filename.compare(filename.size() - 4, 4, L".fxh") == 0))
+			const std::filesystem::path filename = entry.path().filename();
+			if (filename == source_file.filename() || filename.extension() == L".fxh")
 			{
 				attributes += ',';
-				utf8::unchecked::utf16to8(filename.cbegin(), filename.cend(), std::back_inserter(attributes));
+				attributes += filename.u8string();
 				attributes += '?';
 				attributes += std::to_string(entry.last_write_time(ec).time_since_epoch().count());
 			}
 		}
 		attributes += ';';
 	}
-
-	attributes += "__RESHADE__" + '=' + std::to_string(VERSION_MAJOR * 10000 + VERSION_MINOR * 100 + VERSION_REVISION) + ';';
-	attributes += "__RESHADE_PERFORMANCE_MODE__" + '=' + std::string(_performance_mode ? "1" : "0") + ';';
-	attributes += "__VENDOR__" + '=' + std::to_string(_vendor_id) + ';';
-	attributes += "__DEVICE__" + '=' + std::to_string(_device_id) + ';';
-	attributes += "__RENDERER__" + '=' + std::to_string(_renderer_id) + ';';
-	attributes += "__APPLICATION__" + '=' + std::to_string(std::hash<std::string>()(g_target_executable_path.stem().u8string()) & 0xFFFFFFFF) + ';';
-	attributes += "BUFFER_WIDTH" + '=' + std::to_string(_width) + ';';
-	attributes += "BUFFER_HEIGHT" + '=' + std::to_string(_height) + ';';
-	attributes += "BUFFER_COLOR_BIT_DEPTH" + '=' + std::to_string(_color_bit_depth) + ';';
 
 	std::vector<std::string> preprocessor_definitions = _global_preprocessor_definitions;
 	preprocessor_definitions.insert(preprocessor_definitions.end(), _preset_preprocessor_definitions.begin(), _preset_preprocessor_definitions.end());
@@ -295,12 +293,14 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, const resh
 	const size_t source_hash = std::hash<std::string>()(attributes);
 
 	effect &effect = _effects[effect_index];
-	if (effect.source_file != path || effect.source_hash != source_hash)
+	const std::string effect_name = source_file.filename().u8string();
+	if (source_file != effect.source_file || source_hash != effect.source_hash)
 	{
 		effect.errors.clear();
-		effect.compiled = false;
-		effect.source_file = path;
+		effect.source_file = source_file;
 		effect.source_hash = source_hash;
+		effect.compiled = false;
+		effect.preprocessed = false;
 	}
 
 	if (_effect_load_skipping && !_load_option_disable_skipping && !_worker_threads.empty()) // Only skip during 'load_effects'
@@ -321,7 +321,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, const resh
 	}
 
 	std::string source;
-	if (!effect.preprocessed && (preprocess_required || (effect.cached = load_source_cache(path, source_hash, source)) == false))
+	if (!effect.preprocessed && (preprocess_required || (effect.cached = load_source_cache(source_file, source_hash, source)) == false))
 	{
 		reshadefx::preprocessor pp;
 		pp.add_macro_definition("__RESHADE__", std::to_string(VERSION_MAJOR * 10000 + VERSION_MINOR * 100 + VERSION_REVISION));
@@ -365,14 +365,16 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, const resh
 			"#define tex2Dgather2 tex2DgatherB\n"
 			"#define tex2Dgather3 tex2DgatherA\n");
 
-		// Load and pre-process the source file
-		effect.preprocessed = pp.append_file(path);
-		effect.errors = pp.errors();
+		// Load and preprocess the source file
+		effect.preprocessed = pp.append_file(source_file);
+
+		// Append preprocessor errors to the error list
+		effect.errors      += pp.errors();
 
 		if (effect.preprocessed)
 		{
 			source = std::move(pp.output());
-			effect.cached = effect.cached || save_source_cache(path, source_hash, source);
+			effect.cached = effect.cached || save_source_cache(source_file, source_hash, source);
 
 			// Keep track of used preprocessor definitions (so they can be displayed in the overlay)
 			effect.definitions.clear();
@@ -417,10 +419,10 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, const resh
 		reshadefx::parser parser;
 
 		// Compile the pre-processed source code (try the compile even if the preprocessor step failed to get additional error information)
-		effect.compiled = parser.parse(source, codegen.get());
+		effect.compiled = parser.parse(std::move(source), codegen.get());
 
 		// Append parser errors to the error list
-		effect.errors += parser.errors();
+		effect.errors  += parser.errors();
 
 		// Write result to effect module
 		codegen->write_result(effect.module);
@@ -530,7 +532,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, const resh
 		}
 	}
 
-	if ( effect.compiled)
+	if ( effect.compiled && (effect.preprocessed || effect.cached))
 	{
 		const std::lock_guard<std::mutex> lock(_reload_mutex);
 
@@ -546,7 +548,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, const resh
 				// Cannot share texture if this is a normal one, but the existing one is a reference and vice versa
 				if (texture.semantic != existing_texture->semantic)
 				{
-					effect.errors += "error: " + texture.unique_name + ": another shader (";
+					effect.errors += "error: " + texture.unique_name + ": another effect (";
 					effect.errors += _effects[existing_texture->effect_index].source_file.filename().u8string();
 					effect.errors += ") already created a texture with the same name but different semantic\n";
 					effect.compiled = false;
@@ -555,7 +557,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, const resh
 
 				if (texture.semantic.empty() && !existing_texture->matches_description(texture))
 				{
-					effect.errors += "warning: " + texture.unique_name + ": another shader (";
+					effect.errors += "warning: " + texture.unique_name + ": another effect (";
 					effect.errors += _effects[existing_texture->effect_index].source_file.filename().u8string();
 					effect.errors += ") already created a texture with the same name but different dimensions\n";
 				}
@@ -641,11 +643,6 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, const resh
 			technique.effect_index = effect_index;
 
 			technique.hidden = technique.annotation_as_int("hidden") != 0;
-			technique.time_left = technique.annotation_as_int("timeout");
-			technique.toggle_key_data[0] = technique.annotation_as_int("toggle");
-			technique.toggle_key_data[1] = technique.annotation_as_int("togglectrl");
-			technique.toggle_key_data[2] = technique.annotation_as_int("toggleshift");
-			technique.toggle_key_data[3] = technique.annotation_as_int("togglealt");
 
 			if (technique.annotation_as_int("enabled"))
 				enable_technique(technique);
@@ -654,25 +651,26 @@ bool reshade::runtime::load_effect(const std::filesystem::path &path, const resh
 		}
 	}
 
-	if (!effect.compiled)
+	_reload_remaining_effects--;
+
+	if ( effect.compiled && (effect.preprocessed || effect.cached))
 	{
 		if (effect.errors.empty())
-			LOG(ERROR) << "Failed to load " << path << '.';
+			LOG(INFO) << "Successfully loaded " << source_file << '.';
 		else
-			LOG(ERROR) << "Failed to load " << path << ":\n" << effect.errors;
+			LOG(WARN) << "Successfully loaded " << source_file << " with warnings:\n" << effect.errors;
+		return true;
 	}
 	else
 	{
+		_last_shader_reload_successfull = false;
+
 		if (effect.errors.empty())
-			LOG(INFO) << "Successfully loaded " << path << '.';
+			LOG(ERROR) << "Failed to load " << source_file << '.';
 		else
-			LOG(WARN) << "Successfully loaded " << path << " with warnings:\n" << effect.errors;
+			LOG(ERROR) << "Failed to load " << source_file << ":\n" << effect.errors;
+		return false;
 	}
-
-	_reload_remaining_effects--;
-	_last_shader_reload_successfull &= effect.compiled;
-
-	return effect.compiled;
 }
 void reshade::runtime::load_effects()
 {
@@ -847,27 +845,43 @@ bool reshade::runtime::load_source_cache(const std::filesystem::path &source_fil
 	std::filesystem::path path = g_reshade_base_path / _intermediate_cache_path;
 	path /= std::to_string(_renderer_id) + '-' + source_file.stem().u8string() + '-' + std::to_string(hash) + ".fx";
 
-	if (const HANDLE file = CreateFileW(path.c_str(), FILE_GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL); file == INVALID_HANDLE_VALUE)
+	const HANDLE file = CreateFileW(path.c_str(), FILE_GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
+	if (file == INVALID_HANDLE_VALUE)
 		return false;
-	else if (DWORD size = GetFileSize(file, NULL); source.resize(size), (void)ReadFile(file, source.data(), size, &size, NULL), CloseHandle(file) == FALSE)
-		return false;
-
-	return true;
+	DWORD size = GetFileSize(file, nullptr);
+	source.resize(size);
+	const BOOL result = ReadFile(file, source.data(), size, &size, nullptr);
+	CloseHandle(file);
+	return result != FALSE;
 }
 bool reshade::runtime::load_shader_cache(const std::filesystem::path &source_file, const std::string &entry_point, const size_t hash, std::vector<char> &cso, std::string &dasm) const
 {
 	std::filesystem::path path = g_reshade_base_path / _intermediate_cache_path;
-	path /= std::to_string(_renderer_id) + '-' + source_file.stem().u8string() + '-' + entry_point + '-' + std::to_string(hash);
+	path /= std::to_string(_renderer_id) + '-' + source_file.stem().u8string() + '-' + entry_point + '-' + std::to_string(hash) + ".cso";
 
-	if (const HANDLE file = CreateFileW((path.native() + L".cso").c_str(), FILE_GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL); file == INVALID_HANDLE_VALUE)
-		return false;
-	else if (DWORD size = GetFileSize(file, NULL); cso.resize(size), ReadFile(file, cso.data(), size, &size, NULL), CloseHandle(file) == FALSE)
-		return false;
+	{	const HANDLE file = CreateFileW(path.c_str(), FILE_GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
+		if (file == INVALID_HANDLE_VALUE)
+			return false;
+		DWORD size = GetFileSize(file, nullptr);
+		cso.resize(size);
+		const BOOL result = ReadFile(file, cso.data(), size, &size, nullptr);
+		CloseHandle(file);
+		if (result == FALSE)
+			return false;
+	}
 
-	if (const HANDLE file = CreateFileW((path.native() + L".asm").c_str(), FILE_GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL); file == INVALID_HANDLE_VALUE)
-		return false;
-	else if (DWORD size = GetFileSize(file, NULL); dasm.resize(size), ReadFile(file, dasm.data(), size, &size, NULL), CloseHandle(file) == FALSE)
-		return false;
+	path.replace_extension(L".asm");
+
+	{	const HANDLE file = CreateFileW(path.c_str(), FILE_GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
+		if (file == INVALID_HANDLE_VALUE)
+			return false;
+		DWORD size = GetFileSize(file, nullptr);
+		dasm.resize(size);
+		const BOOL result = ReadFile(file, dasm.data(), size, &size, nullptr);
+		CloseHandle(file);
+		if (result == FALSE)
+			return false;
+	}
 
 	return true;
 }
@@ -876,33 +890,40 @@ bool reshade::runtime::save_source_cache(const std::filesystem::path &source_fil
 	std::filesystem::path path = g_reshade_base_path / _intermediate_cache_path;
 	path /= std::to_string(_renderer_id) + '-' + source_file.stem().u8string() + '-' + std::to_string(hash) + ".fx";
 
-	if (const HANDLE file = CreateFileW(path.c_str(), FILE_GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_NEW, FILE_ATTRIBUTE_ARCHIVE | FILE_FLAG_SEQUENTIAL_SCAN, NULL); file == INVALID_HANDLE_VALUE)
+	const HANDLE file = CreateFileW(path.c_str(), FILE_GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_NEW, FILE_ATTRIBUTE_ARCHIVE | FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
+	if (file == INVALID_HANDLE_VALUE)
 		return false;
-	else if (DWORD _; WriteFile(file, source.data(), static_cast<DWORD>(source.size()), &_, NULL), CloseHandle(file) == FALSE)
-		return false;
-
-	return true;
+	DWORD size = static_cast<DWORD>(source.size());
+	const BOOL result = WriteFile(file, source.data(), size, &size, nullptr);
+	CloseHandle(file);
+	return result != FALSE;
 }
-bool reshade::runtime::save_shader_cache(const std::filesystem::path &source_file, const std::string &entry_point, const size_t hash, const std::string_view &hlsl, const std::vector<char> &cso, const std::string &dasm) const
+bool reshade::runtime::save_shader_cache(const std::filesystem::path &source_file, const std::string &entry_point, const size_t hash, const std::vector<char> &cso, const std::string &dasm) const
 {
 	std::filesystem::path path = g_reshade_base_path / _intermediate_cache_path;
-	path /= std::to_string(_renderer_id) + '-' + source_file.stem().u8string() + '-' + entry_point + '-' + std::to_string(hash);
+	path /= std::to_string(_renderer_id) + '-' + source_file.stem().u8string() + '-' + entry_point + '-' + std::to_string(hash) + ".cso";
 
-	if (const HANDLE file = CreateFileW((path.native() + L".hlsl").c_str(), FILE_GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_NEW, FILE_FLAG_SEQUENTIAL_SCAN, NULL); file == INVALID_HANDLE_VALUE)
-		return false;
-	else if (DWORD _; WriteFile(file, hlsl.data(), static_cast<DWORD>(hlsl.size()), &_, NULL), CloseHandle(file) == FALSE)
-		return false;
-
-	if (const HANDLE file = CreateFileW((path.native() + L".cso").c_str(), FILE_GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_NEW, FILE_FLAG_SEQUENTIAL_SCAN, NULL); file == INVALID_HANDLE_VALUE)
-		return false;
-	else if (DWORD _; WriteFile(file, cso.data(), static_cast<DWORD>(cso.size()), &_, NULL), CloseHandle(file) == FALSE)
-		return false;
-
-	if (!dasm.empty())
-		if (const HANDLE file = CreateFileW((path.native() + L".asm").c_str(), FILE_GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_NEW, FILE_ATTRIBUTE_ARCHIVE | FILE_FLAG_SEQUENTIAL_SCAN, NULL); file == INVALID_HANDLE_VALUE)
+	{	const HANDLE file = CreateFileW(path.c_str(), FILE_GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_NEW, FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
+		if (file == INVALID_HANDLE_VALUE)
 			return false;
-		else if (DWORD _; WriteFile(file, dasm.c_str(), static_cast<DWORD>(dasm.size()), &_, NULL), CloseHandle(file) == FALSE)
+		DWORD size = static_cast<DWORD>(cso.size());
+		const BOOL result = WriteFile(file, cso.data(), size, &size, nullptr);
+		CloseHandle(file);
+		if (result == FALSE)
 			return false;
+	}
+
+	path.replace_extension(L".asm");
+
+	{	const HANDLE file = CreateFileW(path.c_str(), FILE_GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_NEW, FILE_ATTRIBUTE_ARCHIVE | FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
+		if (file == INVALID_HANDLE_VALUE)
+			return false;
+		DWORD size = static_cast<DWORD>(dasm.size());
+		const BOOL result = WriteFile(file, dasm.c_str(), size, &size, NULL);
+		CloseHandle(file);
+		if (result == FALSE)
+			return false;
+	}
 
 	return true;
 }

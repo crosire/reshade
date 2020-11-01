@@ -178,7 +178,6 @@ namespace reshade
 	struct effect final
 	{
 		unsigned int rendering = 0;
-		size_t source_hash = 0;
 		bool cached = false;
 		bool skipped = false;
 		bool compiled = false;
@@ -186,6 +185,7 @@ namespace reshade
 		std::string errors;
 		std::string preamble;
 		reshadefx::module module;
+		size_t source_hash = 0;
 		std::filesystem::path source_file;
 		std::vector<std::filesystem::path> included_files;
 		std::vector<std::pair<std::string, std::string>> definitions;
