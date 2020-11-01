@@ -97,26 +97,6 @@ namespace reshade
 			return true;
 		}
 
-		void get(std::vector<std::string> &sections) const
-		{
-			sections.clear();
-			sections.reserve(_sections.size());
-
-			for (const auto &section : _sections)
-				sections.push_back(section.first);
-		}
-		void get(const std::string &section, std::vector<std::pair<std::string, std::vector<std::string>>> &pairs) const
-		{
-			pairs.clear();
-
-			const auto it1 = _sections.find(section);
-			if (it1 == _sections.end())
-				return;
-			pairs.reserve(it1->second.size());
-			for (const auto &it2 : it1->second)
-				pairs.push_back(std::make_pair(it2.first, it2.second));
-		}
-
 		/// <summary>
 		/// Returns <c>true</c> only if the specified <paramref name="section"/> and <paramref name="key"/> exists and is not zero.
 		/// </summary>

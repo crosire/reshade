@@ -696,9 +696,6 @@ void reshade::runtime::load_effects()
 	// Build a list of effect files by walking through the effect search paths
 	assert(_remaining_queued_effects.empty());
 
-	std::vector<std::string> sections;
-	preset.get(sections);
-
 	for (std::filesystem::path &effect_file : find_files(_effect_search_paths, { L".fx" }))
 		_remaining_queued_effects.emplace(std::make_pair(effect_file, std::string()));
 
