@@ -681,6 +681,12 @@ void reshade::vulkan::runtime_vk::on_present(VkQueue queue, uint32_t swapchain_i
 
 bool reshade::vulkan::runtime_vk::capture_screenshot(uint8_t *buffer) const
 {
+	if (_color_bit_depth != 8 && _color_bit_depth != 10)
+	{
+		LOG(ERROR) << "Screenshots are not supported for back buffer format " << _backbuffer_format << '.';
+		return false;
+	}
+
 	const size_t data_pitch = _width * 4;
 
 	vk_handle<VK_OBJECT_TYPE_BUFFER> intermediate(_device, vk);

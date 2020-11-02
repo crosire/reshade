@@ -424,6 +424,12 @@ void reshade::d3d12::runtime_d3d12::on_present()
 
 bool reshade::d3d12::runtime_d3d12::capture_screenshot(uint8_t *buffer) const
 {
+	if (_color_bit_depth != 8 && _color_bit_depth != 10)
+	{
+		LOG(ERROR) << "Screenshots are not supported for back buffer format " << _backbuffer_format << '.';
+		return false;
+	}
+
 	const uint32_t data_pitch = _width * 4;
 	const uint32_t download_pitch = (data_pitch + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u);
 

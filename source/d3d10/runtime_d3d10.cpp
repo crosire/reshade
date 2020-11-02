@@ -315,6 +315,12 @@ void reshade::d3d10::runtime_d3d10::on_present()
 
 bool reshade::d3d10::runtime_d3d10::capture_screenshot(uint8_t *buffer) const
 {
+	if (_color_bit_depth != 8 && _color_bit_depth != 10)
+	{
+		LOG(ERROR) << "Screenshots are not supported for back buffer format " << _backbuffer_format << '.';
+		return false;
+	}
+
 	// Create a texture in system memory, copy back buffer data into it and map it for reading
 	D3D10_TEXTURE2D_DESC desc = {};
 	desc.Width = _width;

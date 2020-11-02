@@ -112,8 +112,30 @@ bool reshade::d3d9::runtime_d3d9::on_init(const D3DPRESENT_PARAMETERS &pp)
 	_height = pp.BackBufferHeight;
 	_window_width = window_rect.right;
 	_window_height = window_rect.bottom;
-	_color_bit_depth = pp.BackBufferFormat == D3DFMT_A2B10G10R10 || pp.BackBufferFormat == D3DFMT_A2R10G10B10 ? 10 : 8;
 	_backbuffer_format = pp.BackBufferFormat;
+
+	switch (_backbuffer_format)
+	{
+	default:
+		_color_bit_depth = 0;
+		break;
+	case D3DFMT_R5G6B5:
+	case D3DFMT_X1R5G5B5:
+	case D3DFMT_A1R5G5B5:
+		_color_bit_depth = 5;
+		break;
+	case D3DFMT_A8R8G8B8:
+	case D3DFMT_X8R8G8B8:
+	case D3DFMT_A8B8G8R8:
+	case D3DFMT_X8B8G8R8:
+		_color_bit_depth = 8;
+		break;
+	case D3DFMT_A2B10G10R10:
+	case D3DFMT_A2R10G10B10:
+	case D3DFMT_A2B10G10R10_XR_BIAS:
+		_color_bit_depth = 10;
+		break;
+	}
 
 	// Get back buffer surface
 	HRESULT hr = _swapchain->GetBackBuffer(0, D3DBACKBUFFER_TYPE_MONO, &_backbuffer);
@@ -256,6 +278,12 @@ void reshade::d3d9::runtime_d3d9::on_present()
 
 bool reshade::d3d9::runtime_d3d9::capture_screenshot(uint8_t *buffer) const
 {
+	if (_color_bit_depth != 8 && _color_bit_depth != 10)
+	{
+		LOG(ERROR) << "Screenshots are not supported for back buffer format " << _backbuffer_format << '.';
+		return false;
+	}
+
 	// Create a surface in system memory, copy back buffer data into it and lock it for reading
 	com_ptr<IDirect3DSurface9> intermediate;
 	if (HRESULT hr = _device->CreateOffscreenPlainSurface(_width, _height, _backbuffer_format, D3DPOOL_SYSTEMMEM, &intermediate, nullptr); FAILED(hr))
