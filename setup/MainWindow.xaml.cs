@@ -419,12 +419,11 @@ namespace ReShade.Setup
 
 			UpdateStatus("Working on " + targetName + " ...", "Installing ReShade ...");
 
-			string targetDir = Path.GetDirectoryName(targetPath);
-			// Check if there is a "bin" directory next to the executable, which is e.g. the case with Source Engine games, and install there
-			// Only do this for a case sensitive match though, since 'Vampire: The Masquerade - Bloodlines' has a "Bin" folder next to the executable that should not be used
-			if (Directory.GetDirectories(targetDir).Any(x => x.EndsWith("bin")) && ApiVulkan.IsChecked != true)
+			var targetDir = Path.GetDirectoryName(targetPath);
+			var executableName = Path.GetFileName(targetPath);
+			if (compatibilityIni != null && compatibilityIni.HasValue(executableName, "InstallTarget"))
 			{
-				targetDir = Path.Combine(targetDir, "bin");
+				targetDir = Path.Combine(targetDir, compatibilityIni.GetString(executableName, "InstallTarget"));
 			}
 
 			configPath = Path.Combine(targetDir, "ReShade.ini");
