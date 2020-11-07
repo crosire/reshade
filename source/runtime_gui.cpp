@@ -828,6 +828,12 @@ void reshade::runtime::draw_gui()
 	_input->block_mouse_input(_input_processing_mode != 0 && _show_overlay && (imgui_io.WantCaptureMouse || _input_processing_mode == 2));
 	_input->block_keyboard_input(_input_processing_mode != 0 && _show_overlay && (imgui_io.WantCaptureKeyboard || _input_processing_mode == 2));
 
+	if (_input->is_blocking_mouse_input())
+	{
+		// Some games setup ClipCursor with a tiny area which could make the cursor stay in that area instead of the whole window
+		ClipCursor(nullptr);
+	}
+	
 	if (ImDrawData *const draw_data = ImGui::GetDrawData();
 		draw_data != nullptr && draw_data->CmdListsCount != 0 && draw_data->TotalVtxCount != 0)
 		render_imgui_draw_data(draw_data);
