@@ -2680,6 +2680,7 @@ void reshade::runtime::draw_technique_editor()
 			if (!tooltip.empty())
 			{
 				ImGui::TextUnformatted(tooltip.data());
+				ImGui::Spacing();
 			}
 			if (!effect.errors.empty())
 			{
