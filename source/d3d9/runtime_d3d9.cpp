@@ -401,7 +401,7 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 
 		const size_t hash = std::hash<std::string_view>()(attributes) ^ std::hash<std::string_view>()(hlsl);
 		std::vector<char> cso;
-		if (!load_shader_cache(effect.source_file, entry_point.name, hash, cso, effect.assembly[entry_point.name]))
+		if (!load_effect_cache(effect.source_file, entry_point.name, hash, cso, effect.assembly[entry_point.name]))
 		{
 			hr = D3DCompile(
 				hlsl.data(), hlsl.size(),
@@ -424,7 +424,7 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 			if (com_ptr<ID3DBlob> disassembled; SUCCEEDED(D3DDisassemble(cso.data(), cso.size(), 0, nullptr, &disassembled)))
 				effect.assembly[entry_point.name].assign(static_cast<const char *>(disassembled->GetBufferPointer()), disassembled->GetBufferSize() - 1);
 
-			save_shader_cache(effect.source_file, entry_point.name, hash, cso, effect.assembly[entry_point.name]);
+			save_effect_cache(effect.source_file, entry_point.name, hash, cso, effect.assembly[entry_point.name]);
 		}
 
 		// Create runtime shader objects from the compiled DX byte code

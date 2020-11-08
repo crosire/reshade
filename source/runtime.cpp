@@ -320,7 +320,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	}
 
 	bool source_cached = false; std::string source;
-	if (!effect.preprocessed && (preprocess_required || (source_cached = load_source_cache(source_file, source_hash, source)) == false))
+	if (!effect.preprocessed && (preprocess_required || (source_cached = load_effect_cache(source_file, source_hash, source)) == false))
 	{
 		reshadefx::preprocessor pp;
 		pp.add_macro_definition("__RESHADE__", std::to_string(VERSION_MAJOR * 10000 + VERSION_MINOR * 100 + VERSION_REVISION));
@@ -373,7 +373,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		if (effect.preprocessed)
 		{
 			source = std::move(pp.output());
-			source_cached = save_source_cache(source_file, source_hash, source);
+			source_cached = save_effect_cache(source_file, source_hash, source);
 
 			// Keep track of used preprocessor definitions (so they can be displayed in the overlay)
 			effect.definitions.clear();
@@ -839,10 +839,10 @@ void reshade::runtime::unload_effects()
 	_effects.clear();
 }
 
-bool reshade::runtime::load_source_cache(const std::filesystem::path &source_file, const size_t hash, std::string &source) const
+bool reshade::runtime::load_effect_cache(const std::filesystem::path &source_file, const size_t hash, std::string &source) const
 {
 	std::filesystem::path path = g_reshade_base_path / _intermediate_cache_path;
-	path /= std::to_string(_renderer_id) + '-' + source_file.stem().u8string() + '-' + std::to_string(hash) + ".fx";
+	path /= "reshade-" + source_file.stem().u8string() + '-' + std::to_string(_renderer_id) + '-' + std::to_string(hash) + ".i";
 
 	const HANDLE file = CreateFileW(path.c_str(), FILE_GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
 	if (file == INVALID_HANDLE_VALUE)
@@ -853,10 +853,10 @@ bool reshade::runtime::load_source_cache(const std::filesystem::path &source_fil
 	CloseHandle(file);
 	return result != FALSE;
 }
-bool reshade::runtime::load_shader_cache(const std::filesystem::path &source_file, const std::string &entry_point, const size_t hash, std::vector<char> &cso, std::string &dasm) const
+bool reshade::runtime::load_effect_cache(const std::filesystem::path &source_file, const std::string &entry_point, const size_t hash, std::vector<char> &cso, std::string &dasm) const
 {
 	std::filesystem::path path = g_reshade_base_path / _intermediate_cache_path;
-	path /= std::to_string(_renderer_id) + '-' + source_file.stem().u8string() + '-' + entry_point + '-' + std::to_string(hash) + ".cso";
+	path /= "reshade-" + source_file.stem().u8string() + '-' + entry_point + '-' + std::to_string(_renderer_id) + '-' + std::to_string(hash) + ".cso";
 
 	{	const HANDLE file = CreateFileW(path.c_str(), FILE_GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
 		if (file == INVALID_HANDLE_VALUE)
@@ -884,10 +884,10 @@ bool reshade::runtime::load_shader_cache(const std::filesystem::path &source_fil
 
 	return true;
 }
-bool reshade::runtime::save_source_cache(const std::filesystem::path &source_file, const size_t hash, const std::string &source) const
+bool reshade::runtime::save_effect_cache(const std::filesystem::path &source_file, const size_t hash, const std::string &source) const
 {
 	std::filesystem::path path = g_reshade_base_path / _intermediate_cache_path;
-	path /= std::to_string(_renderer_id) + '-' + source_file.stem().u8string() + '-' + std::to_string(hash) + ".fx";
+	path /= "reshade-" + source_file.stem().u8string() + '-' + std::to_string(_renderer_id) + '-' + std::to_string(hash) + ".i";
 
 	const HANDLE file = CreateFileW(path.c_str(), FILE_GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_NEW, FILE_ATTRIBUTE_ARCHIVE | FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
 	if (file == INVALID_HANDLE_VALUE)
@@ -897,10 +897,10 @@ bool reshade::runtime::save_source_cache(const std::filesystem::path &source_fil
 	CloseHandle(file);
 	return result != FALSE;
 }
-bool reshade::runtime::save_shader_cache(const std::filesystem::path &source_file, const std::string &entry_point, const size_t hash, const std::vector<char> &cso, const std::string &dasm) const
+bool reshade::runtime::save_effect_cache(const std::filesystem::path &source_file, const std::string &entry_point, const size_t hash, const std::vector<char> &cso, const std::string &dasm) const
 {
 	std::filesystem::path path = g_reshade_base_path / _intermediate_cache_path;
-	path /= std::to_string(_renderer_id) + '-' + source_file.stem().u8string() + '-' + entry_point + '-' + std::to_string(hash) + ".cso";
+	path /= "reshade-" + source_file.stem().u8string() + '-' + entry_point + '-' + std::to_string(_renderer_id) + '-' + std::to_string(hash) + ".cso";
 
 	{	const HANDLE file = CreateFileW(path.c_str(), FILE_GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_NEW, FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
 		if (file == INVALID_HANDLE_VALUE)

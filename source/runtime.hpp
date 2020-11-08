@@ -182,13 +182,13 @@ namespace reshade
 		/// <summary>
 		/// Load compiled shader data from the cache.
 		/// </summary>
-		bool load_source_cache(const std::filesystem::path &source_file, const size_t hash, std::string &source) const;
-		bool load_shader_cache(const std::filesystem::path &source_file, const std::string &entry_point, const size_t hash, std::vector<char> &cso, std::string &dasm) const;
+		bool load_effect_cache(const std::filesystem::path &source_file, const size_t hash, std::string &source) const;
+		bool load_effect_cache(const std::filesystem::path &source_file, const std::string &entry_point, const size_t hash, std::vector<char> &cso, std::string &dasm) const;
 		/// <summary>
 		/// Save compiled shader data to the cache.
 		/// </summary>
-		bool save_source_cache(const std::filesystem::path &source_file, const size_t hash, const std::string &source) const;
-		bool save_shader_cache(const std::filesystem::path &source_file, const std::string &entry_point, const size_t hash, const std::vector<char> &cso, const std::string &dasm) const;
+		bool save_effect_cache(const std::filesystem::path &source_file, const size_t hash, const std::string &source) const;
+		bool save_effect_cache(const std::filesystem::path &source_file, const std::string &entry_point, const size_t hash, const std::vector<char> &cso, const std::string &dasm) const;
 
 		/// <summary>
 		/// Load image files and update textures with image data.
@@ -405,7 +405,7 @@ namespace reshade
 		size_t _selected_technique = std::numeric_limits<size_t>::max();
 		unsigned int _tutorial_index = 0;
 		unsigned int _effects_expanded_state = 2;
-		float _variable_editor_height = 0.0f;
+		float _variable_editor_height = 300.0f;
 
 		// === User Interface - Settings ===
 		int _font_size = 13;

@@ -38,7 +38,6 @@ void reshade::runtime::init_gui()
 
 	_editor.set_readonly(true);
 	_viewer.set_readonly(true); // Viewer is always read-only
-	_variable_editor_height = 300;
 
 	_imgui_context = ImGui::CreateContext();
 	auto &imgui_io = _imgui_context->IO;
@@ -1265,8 +1264,23 @@ void reshade::runtime::draw_gui_settings()
 
 		modified |= ImGui::Checkbox("Load only enabled effects", &_effect_load_skipping);
 
-		if (ImGui::Button("Restart tutorial", ImVec2(ImGui::CalcItemWidth(), 0)))
-			_tutorial_index = 0;
+		if (ImGui::Button("Clear effect cache", ImVec2(ImGui::CalcItemWidth(), 0)))
+		{
+			// Find all cached effect files and delete them
+			std::error_code ec;
+			for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(g_reshade_base_path / _intermediate_cache_path, std::filesystem::directory_options::skip_permission_denied, ec))
+			{
+				if (entry.is_directory(ec))
+					continue;
+
+				const std::filesystem::path filename = entry.path().filename();
+				const std::filesystem::path extension = entry.path().extension();
+				if (filename.native().compare(0, 8, L"reshade-") != 0 || (extension != ".i" && extension != ".cso" && extension != ".asm"))
+					continue;
+
+				DeleteFileW(entry.path().c_str());
+			}
+		}
 	}
 
 	if (ImGui::CollapsingHeader("Screenshots", ImGuiTreeNodeFlags_DefaultOpen))
@@ -1300,6 +1314,9 @@ void reshade::runtime::draw_gui_settings()
 
 	if (ImGui::CollapsingHeader("Overlay & Styling", ImGuiTreeNodeFlags_DefaultOpen))
 	{
+		if (ImGui::Button("Restart tutorial", ImVec2(ImGui::CalcItemWidth(), 0)))
+			_tutorial_index = 0;
+
 		modified |= ImGui::Checkbox("Show screenshot message", &_show_screenshot_message);
 
 		if (_effect_load_skipping)
