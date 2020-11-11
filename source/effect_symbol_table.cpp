@@ -5,6 +5,7 @@
 
 #include "effect_symbol_table.hpp"
 #include <cassert>
+#include <malloc.h> // alloca
 #include <algorithm> // std::upper_bound, std::sort
 
 #pragma region Import intrinsic functions
