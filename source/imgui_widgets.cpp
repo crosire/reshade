@@ -51,7 +51,7 @@ bool reshade::gui::widgets::path_list(const char *label, std::vector<std::filesy
 		if (ImGui::Button("+", ImVec2(button_size, 0)))
 		{
 			// Do not show directory dialog when Alt key is pressed
-			if (ImGui::IsKeyDown(0x12))
+			if (ImGui::GetIO().KeyAlt)
 			{
 				res = true;
 
@@ -216,10 +216,9 @@ bool reshade::gui::widgets::key_input_box(const char *name, unsigned int key[4],
 	if (ImGui::IsItemActive())
 	{
 		const unsigned int last_key_pressed = input.last_key_pressed();
-
 		if (last_key_pressed != 0)
 		{
-			if (last_key_pressed == 0x08) // Backspace
+			if (last_key_pressed == ImGui::GetKeyIndex(ImGuiKey_Backspace))
 			{
 				key[0] = 0;
 				key[1] = 0;
