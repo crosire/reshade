@@ -2820,12 +2820,39 @@ void reshade::runtime::draw_technique_editor()
 	{
 		if (hovered_technique_index < _techniques.size() && hovered_technique_index != _selected_technique)
 		{
-			if (hovered_technique_index < _selected_technique) // Up
-				for (size_t i = _selected_technique; hovered_technique_index < i; --i)
-					std::swap(_techniques[i - 1], _techniques[i]);
-			else // Down
-				for (size_t i = _selected_technique; i < hovered_technique_index; i++)
-					std::swap(_techniques[i], _techniques[i + 1]);
+			const auto move_technique = [this](size_t from_index, size_t to_index) {
+				if (to_index < from_index) // Up
+					for (size_t i = from_index; to_index < i; --i)
+						std::swap(_techniques[i - 1], _techniques[i]);
+				else // Down
+					for (size_t i = from_index; i < to_index; ++i)
+						std::swap(_techniques[i], _techniques[i + 1]);
+			};
+
+			move_technique(_selected_technique, hovered_technique_index);
+
+			// Pressing shift moves all techniques from the same effect file to the new location as well
+			if (ImGui::GetIO().KeyShift)
+			{
+				for (size_t i = hovered_technique_index + 1, offset = 1; i < _techniques.size(); ++i)
+				{
+					if (_techniques[i].effect_index == _focused_effect)
+					{
+						if ((i - hovered_technique_index) > offset)
+							move_technique(i, hovered_technique_index + offset);
+						offset++;
+					}
+				}
+				for (size_t i = hovered_technique_index - 1, offset = 0; i >= 0 && i != std::numeric_limits<size_t>::max(); --i)
+				{
+					if (_techniques[i].effect_index == _focused_effect)
+					{
+						offset++;
+						if ((hovered_technique_index - i) > offset)
+							move_technique(i, hovered_technique_index - offset);
+					}
+				}
+			}
 
 			_selected_technique = hovered_technique_index;
 			save_current_preset();
