@@ -23,7 +23,7 @@
       <TextBlock HorizontalAlignment="Left" VerticalAlignment="Center" Text="Can't find the desired game in the list?" />
       <Button HorizontalAlignment="Right" VerticalAlignment="Center" Width="100" Content="_Browse..." Click="OnBrowse" />
     </Grid>
-    <TextBox x:Name="PathBox" DockPanel.Dock="Bottom" Margin="10,0,10,5" HorizontalAlignment="Stretch" TextChanged="OnPathChanged" />
+    <TextBox x:Name="PathBox" DockPanel.Dock="Bottom" Margin="10,0,10,5" HorizontalAlignment="Stretch" GotFocus="OnPathGotFocus" TextChanged="OnPathChanged" Text="Search" />
     <ProgressBar x:Name="ProgramListProgress" DockPanel.Dock="Bottom" Margin="10,0,10,5" Height="20" IsIndeterminate="True" />
     <ListBox x:Name="ProgramList" Margin="10,5" HorizontalContentAlignment="Stretch" SelectionChanged="OnSelectionChanged">
       <ListBox.ItemTemplate>

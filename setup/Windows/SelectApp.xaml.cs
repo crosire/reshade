@@ -221,11 +221,6 @@ namespace ReShade.Setup.Dialogs
 				Dispatcher.BeginInvoke(new Action(() =>
 				{
 					ProgramListProgress.Visibility = Visibility.Collapsed;
-
-					if (PathBox.Text.Length == 0)
-					{
-						ProgramList.SelectedIndex = 0;
-					}
 				}));
 			});
 
@@ -324,17 +319,32 @@ namespace ReShade.Setup.Dialogs
 
 		void OnPathChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
 		{
+			OnSortByChanged(sender, null);
+
 			if (PathBox.IsFocused)
 			{
 				ProgramList.UnselectAll();
 			}
 		}
+		void OnPathGotFocus(object sender, RoutedEventArgs e)
+		{
+			Dispatcher.BeginInvoke(new Action(() => PathBox.SelectAll()));
+		}
 
 		void OnSortByChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
 		{
 			var view = CollectionViewSource.GetDefaultView(ProgramListItems);
-			view.SortDescriptions.Clear();
 
+			if (PathBox != null && PathBox.Text != "Search" && !Path.IsPathRooted(PathBox.Text))
+			{
+				view.Filter = item => ((ProgramItem)item).Path.ContainsIgnoreCase(PathBox.Text) || ((ProgramItem)item).Name.ContainsIgnoreCase(PathBox.Text);
+			}
+			else
+			{
+				view.Filter = null;
+			}
+
+			view.SortDescriptions.Clear();
 			switch (SortBy.SelectedIndex)
 			{
 				case 0:
@@ -350,7 +360,10 @@ namespace ReShade.Setup.Dialogs
 		}
 		void OnSelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
 		{
-			FileName = (ProgramList.SelectedItem as ProgramItem)?.Path;
+			if (ProgramList.SelectedItem is ProgramItem item)
+			{
+				FileName = item.Path;
+			}
 		}
 	}
 }
