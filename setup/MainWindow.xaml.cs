@@ -767,7 +767,10 @@ In that event here are some steps you can try to resolve this:
 					foreach (string extension in tempTextureExtensions)
 					{
 						string path = Directory.GetFiles(tempPath, extension, SearchOption.AllDirectories).Select(x => Path.GetDirectoryName(x)).OrderBy(x => x.Length).FirstOrDefault();
-						tempPathTextures = tempPathTextures != null ? tempPathTextures.Union(path).ToString() : path;
+						if (!string.IsNullOrEmpty(path))
+						{
+							tempPathTextures = tempPathTextures != null ? tempPathTextures.Union(path).ToString() : path;
+						}
 					}
 				}
 
