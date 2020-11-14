@@ -2192,7 +2192,11 @@ void reshade::runtime::draw_variable_editor()
 		// Create separate tab for every effect file
 		if (_variable_editor_tabs)
 		{
-			if (!ImGui::BeginTabItem(effect_name.c_str()))
+			ImGuiTabItemFlags flags = 0;
+			if (is_focused)
+				flags |= ImGuiTabItemFlags_SetSelected;
+
+			if (!ImGui::BeginTabItem(effect_name.c_str(), nullptr, flags))
 				continue;
 			// Begin a new child here so scrolling through variables does not move the tab itself too
 			ImGui::BeginChild("##tab");
