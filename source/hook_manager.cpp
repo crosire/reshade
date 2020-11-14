@@ -390,7 +390,7 @@ void reshade::hooks::uninstall()
 
 	// Disable all hooks in a single batch job
 	for (auto &hook_info : s_hooks)
-		std::get<1>(hook_info).enable(false);
+		std::get<1>(hook_info).disable();
 
 	hook::apply_queued_actions();
 

@@ -17,12 +17,13 @@ static_assert(static_cast<int>(reshade::hook::status::memory_protection_failure)
 
 static unsigned long s_reference_count = 0;
 
-void reshade::hook::enable(bool enable) const
+void reshade::hook::enable() const
 {
-	if (enable)
-		MH_QueueEnableHook(target);
-	else
-		MH_QueueDisableHook(target);
+	MH_QueueEnableHook(target);
+}
+void reshade::hook::disable() const
+{
+	MH_QueueDisableHook(target);
 }
 
 reshade::hook::status reshade::hook::install()
@@ -38,7 +39,7 @@ reshade::hook::status reshade::hook::install()
 	if (status_code == MH_OK || status_code == MH_ERROR_ALREADY_CREATED)
 	{
 		// Installation was successful, so enable the hook and return
-		enable(true);
+		enable();
 
 		return hook::status::success;
 	}
