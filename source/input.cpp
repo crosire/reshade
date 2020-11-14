@@ -466,22 +466,58 @@ static inline bool is_blocking_keyboard_input()
 
 HOOK_EXPORT BOOL WINAPI HookGetMessageA(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMin, UINT wMsgFilterMax)
 {
+#if 1
 	// Implement 'GetMessage' with a timeout (see also DLL_PROCESS_DETACH in dllmain.cpp for more explanation)
 	while (!PeekMessageA(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax, PM_REMOVE) && g_module_handle != nullptr)
 		MsgWaitForMultipleObjects(0, nullptr, FALSE, 1000, QS_ALLINPUT);
 
 	if (g_module_handle == nullptr)
 		std::memset(lpMsg, 0, sizeof(MSG)); // Clear message structure, so application does not process it
+#else
+	static const auto trampoline = reshade::hooks::call(HookGetMessageA);
+	const BOOL result = trampoline(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax);
+	if (result < 0) // If there is an error, the return value is negative (https://docs.microsoft.com/windows/win32/api/winuser/nf-winuser-getmessage)
+		return result;
+
+	assert(lpMsg != nullptr);
+
+	if (lpMsg->hwnd != nullptr && reshade::input::handle_window_message(lpMsg))
+	{
+		// We still want 'WM_CHAR' messages, so translate message
+		TranslateMessage(lpMsg);
+
+		// Change message so it is ignored by the recipient window
+		lpMsg->message = WM_NULL;
+	}
+#endif
 
 	return lpMsg->message != WM_QUIT;
 }
 HOOK_EXPORT BOOL WINAPI HookGetMessageW(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMin, UINT wMsgFilterMax)
 {
+#if 1
 	while (!PeekMessageW(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax, PM_REMOVE) && g_module_handle != nullptr)
 		MsgWaitForMultipleObjects(0, nullptr, FALSE, 1000, QS_ALLINPUT);
 
 	if (g_module_handle == nullptr)
 		std::memset(lpMsg, 0, sizeof(MSG));
+#else
+	static const auto trampoline = reshade::hooks::call(HookGetMessageW);
+	const BOOL result = trampoline(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax);
+	if (result < 0)
+		return result;
+
+	assert(lpMsg != nullptr);
+
+	if (lpMsg->hwnd != nullptr && reshade::input::handle_window_message(lpMsg))
+	{
+		// We still want 'WM_CHAR' messages, so translate message
+		TranslateMessage(lpMsg);
+
+		// Change message so it is ignored by the recipient window
+		lpMsg->message = WM_NULL;
+	}
+#endif
 
 	return lpMsg->message != WM_QUIT;
 }
