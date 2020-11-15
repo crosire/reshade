@@ -312,7 +312,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 
 			if (effect.skipped)
 			{
-				if (_reload_remaining_effects != std::numeric_limits<size_t>::max())
+				if (_reload_remaining_effects != 0 && _reload_remaining_effects != std::numeric_limits<size_t>::max())
 					_reload_remaining_effects--;
 				return false;
 			}
@@ -650,7 +650,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		}
 	}
 
-	if (_reload_remaining_effects != std::numeric_limits<size_t>::max())
+	if (_reload_remaining_effects != 0 && _reload_remaining_effects != std::numeric_limits<size_t>::max())
 		_reload_remaining_effects--;
 	else
 		_reload_remaining_effects = 0; // Force effect initialization in 'update_and_render_effects'

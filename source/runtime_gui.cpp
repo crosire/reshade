@@ -2565,7 +2565,7 @@ void reshade::runtime::draw_variable_editor()
 
 			// Reload current effect file
 			unload_effect(effect_index);
-			if (load_effect(source_file, ini_file::load_cache(_current_preset_path), effect_index, true) &&
+			if (!load_effect(source_file, ini_file::load_cache(_current_preset_path), effect_index, true) &&
 				modified_definition != _preset_preprocessor_definitions.end())
 			{
 				// The preprocessor definition that was just modified caused the shader to not compile, so reset to default and try again
