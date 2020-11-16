@@ -21,6 +21,30 @@
 // Use this to filter out internal device created by the DXGI runtime in the D3D device creation hooks 
 extern thread_local bool g_in_dxgi_runtime;
 
+static void dump_format(DXGI_FORMAT format)
+{
+	switch (format)
+	{
+	case DXGI_FORMAT_R8G8B8A8_UNORM:
+		LOG(INFO) << "  | Format                                  | DXGI_FORMAT_R8G8B8A8_UNORM              |";
+		break;
+	case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+		LOG(INFO) << "  | Format                                  | DXGI_FORMAT_R8G8B8A8_UNORM_SRGB         |";
+		break;
+	case DXGI_FORMAT_B8G8R8A8_UNORM:
+		LOG(INFO) << "  | Format                                  | DXGI_FORMAT_B8G8R8A8_UNORM              |";
+		break;
+	case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
+		LOG(INFO) << "  | Format                                  | DXGI_FORMAT_B8G8R8A8_UNORM_SRGB         |";
+		break;
+	case DXGI_FORMAT_R10G10B10A2_UNORM:
+		LOG(INFO) << "  | Format                                  | DXGI_FORMAT_R10G10B10A2_UNORM           |";
+		break;
+	default:
+		LOG(INFO) << "  | Format                                  | " << std::setw(39) << format << " |";
+		break;
+	}
+}
 static void dump_sample_desc(const DXGI_SAMPLE_DESC &desc)
 {
 	LOG(INFO) <<     "  | SampleCount                             | " << std::setw(39) << desc.Count   << " |";
@@ -47,11 +71,11 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &desc)
 	LOG(INFO) << "  | Width                                   | " << std::setw(39) << desc.BufferDesc.Width   << " |";
 	LOG(INFO) << "  | Height                                  | " << std::setw(39) << desc.BufferDesc.Height  << " |";
 	LOG(INFO) << "  | RefreshRate                             | " << std::setw(19) << desc.BufferDesc.RefreshRate.Numerator << ' ' << std::setw(19) << desc.BufferDesc.RefreshRate.Denominator << " |";
-	LOG(INFO) << "  | Format                                  | " << std::setw(39) << desc.BufferDesc.Format  << " |";
+	dump_format(desc.BufferDesc.Format);
 	LOG(INFO) << "  | ScanlineOrdering                        | " << std::setw(39) << desc.BufferDesc.ScanlineOrdering   << " |";
 	LOG(INFO) << "  | Scaling                                 | " << std::setw(39) << desc.BufferDesc.Scaling << " |";
 	dump_sample_desc(desc.SampleDesc);
-	LOG(INFO) << "  | BufferUsage                             | " << std::setw(39) << desc.BufferUsage  << " |";
+	LOG(INFO) << "  | BufferUsage                             | " << std::setw(39) << std::hex << desc.BufferUsage << std::dec << " |";
 	LOG(INFO) << "  | BufferCount                             | " << std::setw(39) << desc.BufferCount  << " |";
 	LOG(INFO) << "  | OutputWindow                            | " << std::setw(39) << desc.OutputWindow << " |";
 	LOG(INFO) << "  | Windowed                                | " << std::setw(39) << (desc.Windowed ? "TRUE" : "FALSE") << " |";
@@ -90,12 +114,12 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, DXGI_SWA
 	LOG(INFO) << "  | Width                                   | " << std::setw(39) << desc.Width   << " |";
 	LOG(INFO) << "  | Height                                  | " << std::setw(39) << desc.Height  << " |";
 	LOG(INFO) << "  | RefreshRate                             | " << std::setw(19) << fullscreen_desc.RefreshRate.Numerator << ' ' << std::setw(19) << fullscreen_desc.RefreshRate.Denominator << " |";
-	LOG(INFO) << "  | Format                                  | " << std::setw(39) << desc.Format  << " |";
+	dump_format(desc.Format);
 	LOG(INFO) << "  | Stereo                                  | " << std::setw(39) << (desc.Stereo ? "TRUE" : "FALSE") << " |";
 	LOG(INFO) << "  | ScanlineOrdering                        | " << std::setw(39) << fullscreen_desc.ScanlineOrdering << " |";
 	LOG(INFO) << "  | Scaling                                 | " << std::setw(39) << fullscreen_desc.Scaling << " |";
 	dump_sample_desc(desc.SampleDesc);
-	LOG(INFO) << "  | BufferUsage                             | " << std::setw(39) << desc.BufferUsage << " |";
+	LOG(INFO) << "  | BufferUsage                             | " << std::setw(39) << std::hex << desc.BufferUsage << std::dec << " |";
 	LOG(INFO) << "  | BufferCount                             | " << std::setw(39) << desc.BufferCount << " |";
 	LOG(INFO) << "  | Windowed                                | " << std::setw(39) << (fullscreen_desc.Windowed ? "TRUE" : "FALSE") << " |";
 	LOG(INFO) << "  | SwapEffect                              | " << std::setw(39) << desc.SwapEffect  << " |";
