@@ -1267,30 +1267,24 @@ private:
 		std::string &loop_data = _blocks.at(loop_block);
 		std::string &continue_data = _blocks.at(continue_block);
 
-		// Condition value can be missing in infinite loop constructs like "for (;;)"
-		const std::string condition_name = condition_value != 0 ? id_to_name(condition_value) : "true";
-
 		increase_indentation_level(loop_data);
 		increase_indentation_level(loop_data);
 		increase_indentation_level(continue_data);
 
 		code += _blocks.at(prev_block);
 
-		if (condition_block == 0)
-			code += "\tbool " + condition_name + ";\n";
-		else
-			code += _blocks.at(condition_block);
+		std::string attributes;
+		if (flags & 0x1)
+			attributes += "[unroll] ";
+		if (flags & 0x2)
+			attributes += "[loop] ";
 
-		write_location(code, loc);
-
-		code += '\t';
-
-		if (flags & 0x1) code += "[unroll] ";
-		if (flags & 0x2) code +=   "[loop] ";
+		// Condition value can be missing in infinite loop constructs like "for (;;)"
+		std::string condition_name = condition_value != 0 ? id_to_name(condition_value) : "true";
 
 		if (condition_block == 0)
 		{
-			// Convert variable initializer to assignment statement
+			// Convert the last SSA variable initializer to an assignment statement
 			auto pos_assign = continue_data.rfind(condition_name);
 			auto pos_prev_assign = continue_data.rfind('\t', pos_assign);
 			continue_data.erase(pos_prev_assign + 1, pos_assign - pos_prev_assign - 1);
@@ -1300,6 +1294,11 @@ private:
 			for (size_t offset = 0; (offset = loop_data.find(continue_id, offset)) != std::string::npos; offset += continue_data.size())
 				loop_data.replace(offset, continue_id.size(), continue_data);
 
+			code += "\tbool " + condition_name + ";\n";
+
+			write_location(code, loc);
+
+			code += '\t' + attributes;
 			code += "do\n\t{\n\t\t{\n";
 			code += loop_data; // Encapsulate loop body into another scope, so not to confuse any local variables with the current iteration variable accessed in the continue block below
 			code += "\t\t}\n";
@@ -1310,27 +1309,49 @@ private:
 		{
 			std::string &condition_data = _blocks.at(condition_block);
 
-			increase_indentation_level(condition_data);
+			// Work around D3DCompiler putting uniform variables that are used as the loop count register into integer registers (only in SM3)
+			// Only applies to dynamic loops with uniform variables in the condition, where it generates a loop instruction like "rep i0", but then expects the "i0" register to be set externally
+			// Moving the loop condition into the loop body forces it to move the uniform variable into a constant register instead and geneates a fixed number of loop iterations with "defi i0, 255, ..."
+			// Check 'condition_name' instead of 'condition_value' here to also catch cases where a constant boolean expression was passed in as loop condition
+			bool use_break_statement_for_condition = (_shader_model < 40 && condition_name != "true") &&
+				std::find_if(_module.uniforms.begin(), _module.uniforms.end(),
+					[&](const uniform_info &info) { return condition_data.find(info.name) != std::string::npos || condition_name.find(info.name) != std::string::npos; }) != _module.uniforms.end();
 
-			// Convert variable initializer to assignment statement
-			auto pos_assign = condition_data.rfind(condition_name);
-			auto pos_prev_assign = condition_data.rfind('\t', pos_assign);
-			condition_data.erase(pos_prev_assign + 1, pos_assign - pos_prev_assign - 1);
+			// If the condition data is just a single line, then it is a simple expression, which we can just put into the loop condition as-is
+			if (!use_break_statement_for_condition && std::count(condition_data.begin(), condition_data.end(), '\n') == 1)
+			{
+				// Convert SSA variable initializer back to a condition expression
+				auto pos_assign = condition_data.find('=');
+				condition_data.erase(0, pos_assign + 2);
+				auto pos_semicolon = condition_data.rfind(';');
+				condition_data.erase(pos_semicolon);
+
+				condition_name = std::move(condition_data);
+				assert(condition_data.empty());
+			}
+			else
+			{
+				code += condition_data;
+
+				increase_indentation_level(condition_data);
+
+				// Convert the last SSA variable initializer to an assignment statement
+				auto pos_assign = condition_data.rfind(condition_name);
+				auto pos_prev_assign = condition_data.rfind('\t', pos_assign);
+				condition_data.erase(pos_prev_assign + 1, pos_assign - pos_prev_assign - 1);
+			}
 
 			const std::string continue_id = "__CONTINUE__" + std::to_string(continue_block);
 			for (size_t offset = 0; (offset = loop_data.find(continue_id, offset)) != std::string::npos; offset += continue_data.size())
 				loop_data.replace(offset, continue_id.size(), continue_data + condition_data);
 
-			code += "while (" + condition_name + ")\n\t{\n\t\t";
+			write_location(code, loc);
 
-			// Work around D3DCompiler putting uniform variables that are used as the loop count register into integer registers (only in SM3)
-			// Only applies to dynamic loops with uniform variables in the condition, where it generates a loop instruction like "rep i0", but then expects the "i0" register to be set externally
-			// Moving the loop condition into the loop body forces it to move the uniform variable into a constant register instead and geneates a fixed number of loop iterations with "defi i0, 255, ..."
-			// Check 'condition_name' instead of 'condition_value' here to also catch cases where a constant boolean expression was passed in as loop condition
-			if (_shader_model < 40 && condition_name != "true")
-				code += "if (!" + condition_name + ") break;\n\t\t";
-
-			code += "{\n";
+			code += '\t' + attributes;
+			if (use_break_statement_for_condition)
+				code += "while (true)\n\t{\n\t\tif (!" + condition_name + ") break;\n\t\t{\n";
+			else
+				code += "while (" + condition_name + ")\n\t{\n\t\t{\n";
 			code += loop_data;
 			code += "\t\t}\n";
 			code += continue_data;

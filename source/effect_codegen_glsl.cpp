@@ -993,7 +993,7 @@ private:
 
 		// Add code to flip the output vertically
 		if (_flip_vert_y && stype == shader_type::vs)
-			code += "gl_Position.y = -gl_Position.y;\n";
+			code += "\tgl_Position.y = -gl_Position.y;\n";
 
 		leave_block_and_return(0);
 		leave_function();
@@ -1583,27 +1583,18 @@ private:
 		std::string &loop_data = _blocks.at(loop_block);
 		std::string &continue_data = _blocks.at(continue_block);
 
-		// Condition value can be missing in infinite loop constructs like "for (;;)"
-		const std::string condition_name = condition_value != 0 ? id_to_name(condition_value) : "true";
-
 		increase_indentation_level(loop_data);
 		increase_indentation_level(loop_data);
 		increase_indentation_level(continue_data);
 
 		code += _blocks.at(prev_block);
 
-		if (condition_block == 0)
-			code += "\tbool " + condition_name + ";\n";
-		else
-			code += _blocks.at(condition_block);
-
-		write_location(code, loc);
-
-		code += '\t';
+		// Condition value can be missing in infinite loop constructs like "for (;;)"
+		std::string condition_name = condition_value != 0 ? id_to_name(condition_value) : "true";
 
 		if (condition_block == 0)
 		{
-			// Convert variable initializer to assignment statement
+			// Convert the last SSA variable initializer to an assignment statement
 			auto pos_assign = continue_data.rfind(condition_name);
 			auto pos_prev_assign = continue_data.rfind('\t', pos_assign);
 			continue_data.erase(pos_prev_assign + 1, pos_assign - pos_prev_assign - 1);
@@ -1613,6 +1604,11 @@ private:
 			for (size_t offset = 0; (offset = loop_data.find(continue_id, offset)) != std::string::npos; offset += continue_data.size())
 				loop_data.replace(offset, continue_id.size(), continue_data);
 
+			code += "\tbool " + condition_name + ";\n";
+
+			write_location(code, loc);
+
+			code += '\t';
 			code += "do\n\t{\n\t\t{\n";
 			code += loop_data; // Encapsulate loop body into another scope, so not to confuse any local variables with the current iteration variable accessed in the continue block below
 			code += "\t\t}\n";
@@ -1623,17 +1619,35 @@ private:
 		{
 			std::string &condition_data = _blocks.at(condition_block);
 
-			increase_indentation_level(condition_data);
+			// If the condition data is just a single line, then it is a simple expression, which we can just put into the loop condition as-is
+			if (std::count(condition_data.begin(), condition_data.end(), '\n') == 1)
+			{
+				// Convert SSA variable initializer back to a condition expression
+				auto pos_assign = condition_data.find('=');
+				condition_data.erase(0, pos_assign + 2);
+				auto pos_semicolon = condition_data.rfind(';');
+				condition_data.erase(pos_semicolon);
 
-			// Convert variable initializer to assignment statement
-			auto pos_assign = condition_data.rfind(condition_name);
-			auto pos_prev_assign = condition_data.rfind('\t', pos_assign);
-			condition_data.erase(pos_prev_assign + 1, pos_assign - pos_prev_assign - 1);
+				condition_name = std::move(condition_data);
+				assert(condition_data.empty());
+			}
+			else
+			{
+				code += condition_data;
+
+				increase_indentation_level(condition_data);
+
+				// Convert the last SSA variable initializer to an assignment statement
+				auto pos_assign = condition_data.rfind(condition_name);
+				auto pos_prev_assign = condition_data.rfind('\t', pos_assign);
+				condition_data.erase(pos_prev_assign + 1, pos_assign - pos_prev_assign - 1);
+			}
 
 			const std::string continue_id = "__CONTINUE__" + std::to_string(continue_block);
 			for (size_t offset = 0; (offset = loop_data.find(continue_id, offset)) != std::string::npos; offset += continue_data.size())
 				loop_data.replace(offset, continue_id.size(), continue_data + condition_data);
 
+			code += '\t';
 			code += "while (" + condition_name + ")\n\t{\n\t\t{\n";
 			code += loop_data;
 			code += "\t\t}\n";
