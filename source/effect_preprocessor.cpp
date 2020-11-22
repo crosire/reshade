@@ -1062,9 +1062,10 @@ bool reshadefx::preprocessor::evaluate_identifier_as_macro()
 	if (hidden_macros.find(_token.literal_as_string) != hidden_macros.end())
 		return false;
 
+	const auto macro_location = _token.location;
 	if (_recursion_count++ >= 256)
 	{
-		error(_token.location, "macro recursion too high");
+		error(macro_location, "macro recursion too high");
 		return false;
 	}
 
@@ -1082,7 +1083,12 @@ bool reshadefx::preprocessor::evaluate_identifier_as_macro()
 			while (true)
 			{
 				// Consume all tokens here, so spaces are added to the output too
-				consume();
+				if (!consume())
+				{
+					error(macro_location, "unexpected end of file in macro expansion");
+					return false;
+				}
+
 				if (_token == tokenid::comma && parentheses_level == 0)
 					break; // Comma marks end of an argument
 				if (_token == tokenid::parenthesis_open)
