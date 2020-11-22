@@ -154,3 +154,26 @@ inline DXGI_FORMAT make_dxgi_format_typeless(DXGI_FORMAT format)
 		return format;
 	}
 }
+
+inline const char *format_to_string(DXGI_FORMAT format)
+{
+	switch (format)
+	{
+	case DXGI_FORMAT_UNKNOWN:
+		return "DXGI_FORMAT_UNKNOWN";
+	case DXGI_FORMAT_R8G8B8A8_UNORM:
+		return "DXGI_FORMAT_R8G8B8A8_UNORM";
+	case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+		return "DXGI_FORMAT_R8G8B8A8_UNORM_SRGB";
+	case DXGI_FORMAT_B8G8R8A8_UNORM:
+		return "DXGI_FORMAT_B8G8R8A8_UNORM";
+	case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
+		return "DXGI_FORMAT_B8G8R8A8_UNORM_SRGB";
+	case DXGI_FORMAT_R10G10B10A2_UNORM:
+		return "DXGI_FORMAT_R10G10B10A2_UNORM";
+	case DXGI_FORMAT_R16G16B16A16_FLOAT:
+		return "DXGI_FORMAT_R16G16B16A16_FLOAT";
+	default:
+		return nullptr;
+	}
+}

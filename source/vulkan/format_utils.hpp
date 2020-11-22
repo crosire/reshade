@@ -77,3 +77,26 @@ inline VkImageAspectFlags aspect_flags_from_format(VkFormat format)
 		return VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
 	return VK_IMAGE_ASPECT_COLOR_BIT;
 }
+
+inline const char *format_to_string(VkFormat format)
+{
+	switch (format)
+	{
+	case VK_FORMAT_UNDEFINED:
+		return "VK_FORMAT_UNDEFINED";
+	case VK_FORMAT_R8G8B8A8_UNORM:
+		return "VK_FORMAT_R8G8B8A8_UNORM";
+	case VK_FORMAT_R8G8B8A8_SRGB:
+		return "VK_FORMAT_R8G8B8A8_SRGB";
+	case VK_FORMAT_B8G8R8A8_UNORM:
+		return "VK_FORMAT_B8G8R8A8_UNORM";
+	case VK_FORMAT_B8G8R8A8_SRGB:
+		return "VK_FORMAT_B8G8R8A8_SRGB";
+	case VK_FORMAT_A2R10G10B10_UNORM_PACK32:
+		return "VK_FORMAT_A2R10G10B10_UNORM_PACK32";
+	case VK_FORMAT_R16G16B16A16_SFLOAT:
+		return "VK_FORMAT_R16G16B16A16_SFLOAT";
+	default:
+		return nullptr;
+	}
+}

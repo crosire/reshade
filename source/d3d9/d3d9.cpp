@@ -14,6 +14,33 @@
 #undef IDirect3D9_CreateDevice
 #undef IDirect3D9Ex_CreateDeviceEx
 
+static void dump_format(D3DFORMAT format)
+{
+	const char *format_string = nullptr;
+	switch (format)
+	{
+	case D3DFMT_UNKNOWN:
+		format_string = "D3DFMT_UNKNOWN";
+		break;
+	case D3DFMT_A8R8G8B8:
+		format_string = "D3DFMT_A8R8G8B8";
+		break;
+	case D3DFMT_X8R8G8B8:
+		format_string = "D3DFMT_X8R8G8B8";
+		break;
+	case D3DFMT_R5G6B5:
+		format_string = "D3DFMT_R5G6B5";
+		break;
+	case D3DFMT_X1R5G5B5:
+		format_string = "D3DFMT_X1R5G5B5";
+		break;
+	}
+
+	if (format_string != nullptr)
+		LOG(INFO) << "  | BackBufferFormat                        | " << std::setw(39) << format_string << " |";
+	else
+		LOG(INFO) << "  | BackBufferFormat                        | " << std::setw(39) << format << " |";
+}
 void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d3d, UINT adapter_index)
 {
 	LOG(INFO) << "> Dumping presentation parameters:";
@@ -22,7 +49,7 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d
 	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 	LOG(INFO) << "  | BackBufferWidth                         | " << std::setw(39) << pp.BackBufferWidth << " |";
 	LOG(INFO) << "  | BackBufferHeight                        | " << std::setw(39) << pp.BackBufferHeight << " |";
-	LOG(INFO) << "  | BackBufferFormat                        | " << std::setw(39) << pp.BackBufferFormat << " |";
+	dump_format(pp.BackBufferFormat);
 	LOG(INFO) << "  | BackBufferCount                         | " << std::setw(39) << pp.BackBufferCount << " |";
 	LOG(INFO) << "  | MultiSampleType                         | " << std::setw(39) << pp.MultiSampleType << " |";
 	LOG(INFO) << "  | MultiSampleQuality                      | " << std::setw(39) << pp.MultiSampleQuality << " |";

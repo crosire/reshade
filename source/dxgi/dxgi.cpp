@@ -15,6 +15,7 @@
 #include "d3d12/d3d12_device.hpp"
 #include "d3d12/d3d12_command_queue.hpp"
 #include "d3d12/runtime_d3d12.hpp"
+#include "format_utils.hpp"
 #include "runtime_config.hpp"
 #include <CoreWindow.h>
 
@@ -23,27 +24,10 @@ extern thread_local bool g_in_dxgi_runtime;
 
 static void dump_format(DXGI_FORMAT format)
 {
-	switch (format)
-	{
-	case DXGI_FORMAT_R8G8B8A8_UNORM:
-		LOG(INFO) << "  | Format                                  | DXGI_FORMAT_R8G8B8A8_UNORM              |";
-		break;
-	case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
-		LOG(INFO) << "  | Format                                  | DXGI_FORMAT_R8G8B8A8_UNORM_SRGB         |";
-		break;
-	case DXGI_FORMAT_B8G8R8A8_UNORM:
-		LOG(INFO) << "  | Format                                  | DXGI_FORMAT_B8G8R8A8_UNORM              |";
-		break;
-	case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
-		LOG(INFO) << "  | Format                                  | DXGI_FORMAT_B8G8R8A8_UNORM_SRGB         |";
-		break;
-	case DXGI_FORMAT_R10G10B10A2_UNORM:
-		LOG(INFO) << "  | Format                                  | DXGI_FORMAT_R10G10B10A2_UNORM           |";
-		break;
-	default:
+	if (const char *format_string = format_to_string(format); format_string != nullptr)
+		LOG(INFO) << "  | Format                                  | " << std::setw(39) << format_string << " |";
+	else
 		LOG(INFO) << "  | Format                                  | " << std::setw(39) << format << " |";
-		break;
-	}
 }
 static void dump_sample_desc(const DXGI_SAMPLE_DESC &desc)
 {
