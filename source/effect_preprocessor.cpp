@@ -6,6 +6,7 @@
 #include "effect_lexer.hpp"
 #include "effect_preprocessor.hpp"
 #include <cassert>
+#include <algorithm> // std::find_if
 
 #ifndef _WIN32
 	// On Linux systems the native path encoding is UTF-8 already, so no conversion necessary

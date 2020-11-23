@@ -9,7 +9,7 @@
 #include <cstdio> // snprintf
 #include <cassert>
 #include <cstring> // stricmp
-#include <algorithm> // std::max
+#include <algorithm> // std::find_if, std::max
 
 using namespace reshadefx;
 

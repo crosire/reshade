@@ -1038,7 +1038,7 @@ bool reshadefx::parser::parse_function(type type, std::string name)
 			error(param.location, 3047, '\'' + param.name + "': function parameters cannot be declared 'uniform', consider placing in global scope instead");
 		if (param.type.has(type::q_groupshared))
 			parse_success = false,
-			error(param.location, 3010, '\'' + param.name + "': function parameters cannot be declared 'groupshared'"), false;
+			error(param.location, 3010, '\'' + param.name + "': function parameters cannot be declared 'groupshared'");
 
 		if (param.type.has(type::q_out) && param.type.has(type::q_const))
 			parse_success = false,

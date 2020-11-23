@@ -8,7 +8,7 @@
 #include <cmath> // signbit, isinf, isnan
 #include <cstdio> // snprintf
 #include <cassert>
-#include <algorithm> // std::max
+#include <algorithm> // std::find_if, std::max
 #include <unordered_set>
 
 using namespace reshadefx;
