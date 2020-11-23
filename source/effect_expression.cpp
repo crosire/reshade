@@ -81,6 +81,9 @@ std::string reshadefx::type::description() const
 	case reshadefx::type::t_sampler:
 		result = "sampler";
 		break;
+	case reshadefx::type::t_storage:
+		result = "storage";
+		break;
 	case reshadefx::type::t_texture:
 		result = "texture";
 		break;

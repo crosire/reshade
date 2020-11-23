@@ -105,6 +105,7 @@
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <TreatWarningAsError>true</TreatWarningAsError>
+      <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
