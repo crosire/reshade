@@ -6,6 +6,7 @@
 #pragma once
 
 #include "effect_expression.hpp"
+#include <unordered_set>
 
 namespace reshadefx
 {
@@ -254,8 +255,8 @@ namespace reshadefx
 		reshadefx::type return_type;
 		std::string return_semantic;
 		std::vector<struct_member_info> parameter_list;
-		std::vector<uint32_t> referenced_samplers;
-		std::vector<uint32_t> referenced_storages;
+		std::unordered_set<uint32_t> referenced_samplers;
+		std::unordered_set<uint32_t> referenced_storages;
 	};
 
 	/// <summary>

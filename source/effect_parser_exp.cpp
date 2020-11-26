@@ -893,8 +893,8 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			if (_current_function != nullptr)
 			{
 				// Calling a function makes the caller inherit all sampler and storage object references from the callee
-				_current_function->referenced_samplers.insert(_current_function->referenced_samplers.end(), symbol.function->referenced_samplers.begin(), symbol.function->referenced_samplers.end());
-				_current_function->referenced_storages.insert(_current_function->referenced_storages.end(), symbol.function->referenced_storages.begin(), symbol.function->referenced_storages.end());
+				_current_function->referenced_samplers.insert(symbol.function->referenced_samplers.begin(), symbol.function->referenced_samplers.end());
+				_current_function->referenced_storages.insert(symbol.function->referenced_storages.begin(), symbol.function->referenced_storages.end());
 			}
 		}
 		else if (symbol.op == symbol_type::invalid)
@@ -912,9 +912,9 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			{
 				// Keep track of any global sampler or storage objects referenced in the current function
 				if (symbol.type.is_sampler())
-					_current_function->referenced_samplers.push_back(symbol.id);
+					_current_function->referenced_samplers.insert(symbol.id);
 				if (symbol.type.is_storage())
-					_current_function->referenced_storages.push_back(symbol.id);
+					_current_function->referenced_storages.insert(symbol.id);
 			}
 		}
 		else if (symbol.op == symbol_type::constant)
