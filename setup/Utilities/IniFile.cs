@@ -131,9 +131,18 @@ namespace ReShade.Setup.Utilities
 			sectionData[key] = value ?? new string[] { };
 		}
 
-		public string GetString(string section, string key, string def = default)
+		public void RenameValue(string section, string key, string newKey)
 		{
-			return GetValue(section, key, out var value) ? string.Join(",", value) : def;
+			SetValue(section, newKey, GetString(section, newKey));
+		}
+		public void RenameValue(string section, string key, string newSection, string newKey)
+		{
+			SetValue(newSection, newKey, GetString(section, newKey));
+		}
+
+		public string GetString(string section, string key, string defaultValue = default)
+		{
+			return GetValue(section, key, out var value) ? string.Join(",", value) : defaultValue;
 		}
 
 		public string[] GetSections()

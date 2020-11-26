@@ -1376,14 +1376,14 @@ void reshade::runtime::load_config()
 	if (!resolve_preset_path(_current_preset_path))
 		_current_preset_path = g_reshade_base_path / L"ReShadePreset.ini";
 
-	config.get("SCREENSHOTS", "ClearAlpha", _screenshot_clear_alpha);
-	config.get("SCREENSHOTS", "FileFormat", _screenshot_format);
-	config.get("SCREENSHOTS", "FileNamingFormat", _screenshot_naming);
-	config.get("SCREENSHOTS", "JPEGQuality", _screenshot_jpeg_quality);
-	config.get("SCREENSHOTS", "SaveBeforeShot", _screenshot_save_before);
-	config.get("SCREENSHOTS", "SaveOverlayShot", _screenshot_save_ui);
-	config.get("SCREENSHOTS", "SavePath", _screenshot_path);
-	config.get("SCREENSHOTS", "SavePresetFile", _screenshot_include_preset);
+	config.get("SCREENSHOT", "ClearAlpha", _screenshot_clear_alpha);
+	config.get("SCREENSHOT", "FileFormat", _screenshot_format);
+	config.get("SCREENSHOT", "FileNamingFormat", _screenshot_naming);
+	config.get("SCREENSHOT", "JPEGQuality", _screenshot_jpeg_quality);
+	config.get("SCREENSHOT", "SaveBeforeShot", _screenshot_save_before);
+	config.get("SCREENSHOT", "SaveOverlayShot", _screenshot_save_ui);
+	config.get("SCREENSHOT", "SavePath", _screenshot_path);
+	config.get("SCREENSHOT", "SavePresetFile", _screenshot_include_preset);
 
 	for (const auto &callback : _load_config_callables)
 		callback(config);
@@ -1416,14 +1416,14 @@ void reshade::runtime::save_config() const
 	config.set("GENERAL", "PresetPath", relative_preset_path);
 	config.set("GENERAL", "PresetTransitionDelay", _preset_transition_delay);
 
-	config.set("SCREENSHOTS", "ClearAlpha", _screenshot_clear_alpha);
-	config.set("SCREENSHOTS", "FileFormat", _screenshot_format);
-	config.set("SCREENSHOTS", "FileNamingFormat", _screenshot_naming);
-	config.set("SCREENSHOTS", "JPEGQuality", _screenshot_jpeg_quality);
-	config.set("SCREENSHOTS", "SaveBeforeShot", _screenshot_save_before);
-	config.set("SCREENSHOTS", "SaveOverlayShot", _screenshot_save_ui);
-	config.set("SCREENSHOTS", "SavePath", _screenshot_path);
-	config.set("SCREENSHOTS", "SavePresetFile", _screenshot_include_preset);
+	config.set("SCREENSHOT", "ClearAlpha", _screenshot_clear_alpha);
+	config.set("SCREENSHOT", "FileFormat", _screenshot_format);
+	config.set("SCREENSHOT", "FileNamingFormat", _screenshot_naming);
+	config.set("SCREENSHOT", "JPEGQuality", _screenshot_jpeg_quality);
+	config.set("SCREENSHOT", "SaveBeforeShot", _screenshot_save_before);
+	config.set("SCREENSHOT", "SaveOverlayShot", _screenshot_save_ui);
+	config.set("SCREENSHOT", "SavePath", _screenshot_path);
+	config.set("SCREENSHOT", "SavePresetFile", _screenshot_include_preset);
 
 	for (const auto &callback : _save_config_callables)
 		callback(config);

@@ -604,42 +604,42 @@ In that event here are some steps you can try to resolve this:
 			// Update old configurations to new format
 			if (config.HasValue("INPUT", "KeyMenu") && !config.HasValue("INPUT", "KeyOverlay"))
 			{
-				config.SetValue("INPUT", "KeyOverlay", config.GetString("INPUT", "KeyMenu"));
+				config.RenameValue("INPUT", "KeyMenu", "KeyOverlay");
 
-				config.SetValue("GENERAL", "PresetPath", config.GetString("GENERAL", "CurrentPresetPath"));
+				config.RenameValue("GENERAL", "CurrentPresetPath", "PresetPath");
 
-				config.SetValue("OVERLAY", "ShowFPS", config.GetString("GENERAL", "ShowFPS"));
-				config.SetValue("OVERLAY", "ShowClock", config.GetString("GENERAL", "ShowClock"));
-				config.SetValue("OVERLAY", "ShowFrameTime", config.GetString("GENERAL", "ShowFrameTime"));
-				config.SetValue("OVERLAY", "ShowScreenshotMessage", config.GetString("GENERAL", "ShowScreenshotMessage"));
-				config.SetValue("OVERLAY", "FPSPosition", config.GetString("GENERAL", "FPSPosition"));
-				config.SetValue("OVERLAY", "ClockFormat", config.GetString("GENERAL", "ClockFormat"));
-				config.SetValue("OVERLAY", "NoFontScaling", config.GetString("GENERAL", "NoFontScaling"));
-				config.SetValue("OVERLAY", "SaveWindowState", config.GetString("GENERAL", "SaveWindowState"));
-				config.SetValue("OVERLAY", "TutorialProgress", config.GetString("GENERAL", "TutorialProgress"));
-				config.SetValue("OVERLAY", "VariableListHeight", config.GetString("GENERAL", "VariableUIHeight"));
-				config.SetValue("OVERLAY", "VariableListUseTabs", config.GetString("GENERAL", "NewVariableUI"));
+				config.RenameValue("GENERAL", "ShowFPS", "OVERLAY", "ShowFPS");
+				config.RenameValue("GENERAL", "ShowClock", "OVERLAY", "ShowClock");
+				config.RenameValue("GENERAL", "ShowFrameTime", "OVERLAY", "ShowFrameTime");
+				config.RenameValue("GENERAL", "ShowScreenshotMessage", "OVERLAY", "ShowScreenshotMessage");
+				config.RenameValue("GENERAL", "FPSPosition", "OVERLAY", "FPSPosition");
+				config.RenameValue("GENERAL", "ClockFormat", "OVERLAY", "ClockFormat");
+				config.RenameValue("GENERAL", "NoFontScaling", "OVERLAY", "NoFontScaling");
+				config.RenameValue("GENERAL", "SaveWindowState", "OVERLAY", "SaveWindowState");
+				config.RenameValue("GENERAL", "TutorialProgress", "OVERLAY", "TutorialProgress");
+				config.RenameValue("GENERAL", "VariableUIHeight", "OVERLAY", "VariableListHeight");
+				config.RenameValue("GENERAL", "NewVariableUI", "OVERLAY", "VariableListUseTabs");
 
-				config.SetValue("SCREENSHOTS", "FileFormat", config.GetString("GENERAL", "ScreenshotFormat"));
-				config.SetValue("SCREENSHOTS", "SaveBeforeShot", config.GetString("GENERAL", "ScreenshotSaveBefore"));
-				config.SetValue("SCREENSHOTS", "SaveOverlayShot", config.GetString("GENERAL", "ScreenshotSaveUI"));
-				config.SetValue("SCREENSHOTS", "SavePath", config.GetString("GENERAL", "ScreenshotPath"));
-				config.SetValue("SCREENSHOTS", "SavePresetFile", config.GetString("GENERAL", "ScreenshotIncludePreset"));
+				config.RenameValue("GENERAL", "ScreenshotFormat", "SCREENSHOT", "FileFormat");
+				config.RenameValue("GENERAL", "ScreenshotSaveBefore", "SCREENSHOT", "SaveBeforeShot");
+				config.RenameValue("GENERAL", "ScreenshotSaveUI", "SCREENSHOT", "SaveOverlayShot");
+				config.RenameValue("GENERAL", "ScreenshotPath", "SCREENSHOT", "SavePath");
+				config.RenameValue("GENERAL", "ScreenshotIncludePreset", "SCREENSHOT", "SavePresetFile");
 
-				config.SetValue("D3D9", "DisableINTZ", config.GetString("DX9_BUFFER_DETECTION", "DisableINTZ"));
-				config.SetValue("D3D9", "DepthCopyBeforeClears", config.GetString("DX9_BUFFER_DETECTION", "PreserveDepthBuffer"));
-				config.SetValue("D3D9", "DepthCopyAtClearIndex", config.GetString("DX9_BUFFER_DETECTION", "PreserveDepthBufferIndex"));
-				config.SetValue("D3D9", "UseAspectRatioHeuristics", config.GetString("DX9_BUFFER_DETECTION", "UseAspectRatioHeuristics"));
-				config.SetValue("D3D10", "DepthCopyBeforeClears", config.GetString("DX10_BUFFER_DETECTION", "DepthBufferRetrievalMode"));
-				config.SetValue("D3D10", "DepthCopyAtClearIndex", config.GetString("DX10_BUFFER_DETECTION", "DepthBufferClearingNumber"));
-				config.SetValue("D3D10", "UseAspectRatioHeuristics", config.GetString("DX10_BUFFER_DETECTION", "UseAspectRatioHeuristics"));
-				config.SetValue("D3D11", "DepthCopyBeforeClears", config.GetString("DX11_BUFFER_DETECTION", "DepthBufferRetrievalMode"));
-				config.SetValue("D3D11", "DepthCopyAtClearIndex", config.GetString("DX11_BUFFER_DETECTION", "DepthBufferClearingNumber"));
-				config.SetValue("D3D11", "UseAspectRatioHeuristics", config.GetString("DX11_BUFFER_DETECTION", "UseAspectRatioHeuristics"));
-				config.SetValue("D3D12", "DepthCopyBeforeClears", config.GetString("DX12_BUFFER_DETECTION", "DepthBufferRetrievalMode"));
-				config.SetValue("D3D12", "DepthCopyAtClearIndex", config.GetString("DX12_BUFFER_DETECTION", "DepthBufferClearingNumber"));
-				config.SetValue("D3D12", "UseAspectRatioHeuristics", config.GetString("DX12_BUFFER_DETECTION", "UseAspectRatioHeuristics"));
-				config.SetValue("VULKAN", "UseAspectRatioHeuristics", config.GetString("VULKAN_BUFFER_DETECTION", "UseAspectRatioHeuristics"));
+				config.RenameValue("DX9_BUFFER_DETECTION", "DisableINTZ", "D3D9", "DisableINTZ");
+				config.RenameValue("DX9_BUFFER_DETECTION", "PreserveDepthBuffer", "D3D9", "DepthCopyBeforeClears");
+				config.RenameValue("DX9_BUFFER_DETECTION", "PreserveDepthBufferIndex", "D3D9", "DepthCopyAtClearIndex");
+				config.RenameValue("DX9_BUFFER_DETECTION", "UseAspectRatioHeuristics", "D3D9", "UseAspectRatioHeuristics");
+				config.RenameValue("DX10_BUFFER_DETECTION", "DepthBufferRetrievalMode", "D3D10", "DepthCopyBeforeClears");
+				config.RenameValue("DX10_BUFFER_DETECTION", "DepthBufferClearingNumber", "D3D10", "DepthCopyAtClearIndex");
+				config.RenameValue("DX10_BUFFER_DETECTION", "UseAspectRatioHeuristics", "D3D10", "UseAspectRatioHeuristics");
+				config.RenameValue("DX11_BUFFER_DETECTION", "DepthBufferRetrievalMode", "D3D11", "DepthCopyBeforeClears");
+				config.RenameValue("DX11_BUFFER_DETECTION", "DepthBufferClearingNumber", "D3D11", "DepthCopyAtClearIndex");
+				config.RenameValue("DX11_BUFFER_DETECTION", "UseAspectRatioHeuristics", "D3D11", "UseAspectRatioHeuristics");
+				config.RenameValue("DX12_BUFFER_DETECTION", "DepthBufferRetrievalMode", "D3D12", "DepthCopyBeforeClears");
+				config.RenameValue("DX12_BUFFER_DETECTION", "DepthBufferClearingNumber", "D3D12", "DepthCopyAtClearIndex");
+				config.RenameValue("DX12_BUFFER_DETECTION", "UseAspectRatioHeuristics", "D3D12", "UseAspectRatioHeuristics");
+				config.RenameValue("VULKAN_BUFFER_DETECTION", "UseAspectRatioHeuristics", "VULKAN", "UseAspectRatioHeuristics");
 
 				config.SaveFile();
 			}
