@@ -908,7 +908,8 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			// Simply return the pointer to the variable, dereferencing is done on site where necessary
 			exp.reset_to_lvalue(location, symbol.id, symbol.type);
 
-			if (_current_function != nullptr && symbol.scope.level == symbol.scope.namespace_level)
+			if (_current_function != nullptr &&
+				symbol.scope.level == symbol.scope.namespace_level && symbol.id != 0xFFFFFFFF) // Ignore invalid symbols that were added during error recovery
 			{
 				// Keep track of any global sampler or storage objects referenced in the current function
 				if (symbol.type.is_sampler())
