@@ -111,24 +111,24 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, DXGI_SWA
 	LOG(INFO) << "  | Flags                                   | " << std::setw(39) << std::hex << desc.Flags << std::dec << " |";
 	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 
-	if (reshade::global_config().get("DXGI", "ForceWindowed"))
+	if (reshade::global_config().get("APP", "ForceWindowed"))
 	{
 		fullscreen_desc.Windowed = TRUE;
 	}
-	if (reshade::global_config().get("DXGI", "ForceFullscreen"))
+	if (reshade::global_config().get("APP", "ForceFullscreen"))
 	{
 		fullscreen_desc.Windowed = FALSE;
 	}
 
 	if (unsigned int force_resolution[2] = {};
-		reshade::global_config().get("DXGI", "ForceResolution", force_resolution) &&
+		reshade::global_config().get("APP", "ForceResolution", force_resolution) &&
 		force_resolution[0] != 0 && force_resolution[1] != 0)
 	{
 		desc.Width = force_resolution[0];
 		desc.Height = force_resolution[1];
 	}
 
-	if (reshade::global_config().get("DXGI", "Force10BitFormat"))
+	if (reshade::global_config().get("APP", "Force10BitFormat"))
 	{
 		desc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
 	}
@@ -220,9 +220,9 @@ static void init_reshade_runtime_d3d(T *&swapchain, UINT direct3d_version, const
 
 	if (swapchain_proxy != nullptr)
 	{
-		reshade::global_config().get("DXGI", "ForceVSync", swapchain_proxy->_force_vsync);
-		reshade::global_config().get("DXGI", "ForceResolution", swapchain_proxy->_force_resolution);
-		reshade::global_config().get("DXGI", "Force10BitFormat", swapchain_proxy->_force_10_bit_format);
+		reshade::global_config().get("APP", "ForceVSync", swapchain_proxy->_force_vsync);
+		reshade::global_config().get("APP", "ForceResolution", swapchain_proxy->_force_resolution);
+		reshade::global_config().get("APP", "Force10BitFormat", swapchain_proxy->_force_10_bit_format);
 
 #if RESHADE_VERBOSE_LOG
 		LOG(INFO) << "Returning IDXGISwapChain" << swapchain_proxy->_interface_version << " object " << swapchain_proxy << '.';
