@@ -1117,7 +1117,9 @@ void reshade::runtime::draw_gui_home()
 
 		ImGui::Spacing();
 
-		const float bottom_height = _performance_mode ? ImGui::GetFrameHeightWithSpacing() + _imgui_context->Style.ItemSpacing.y : (_variable_editor_height + (_tutorial_index == 3 ? 175 : 0));
+		float bottom_height = ImGui::GetFrameHeightWithSpacing() + _imgui_context->Style.ItemSpacing.y;
+		if (!_performance_mode)
+			bottom_height += 17 /* splitter */ + (_variable_editor_height + (_tutorial_index == 3 ? 175 : 0));
 
 		if (ImGui::BeginChild("##techniques", ImVec2(0, -bottom_height), true))
 			draw_technique_editor();
@@ -1137,7 +1139,7 @@ void reshade::runtime::draw_gui_home()
 			ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
 		if (ImGui::IsItemActive())
 		{
-			_variable_editor_height -= _imgui_context->IO.MouseDelta.y;
+			_variable_editor_height = std::max(_variable_editor_height - _imgui_context->IO.MouseDelta.y, 0.0f);
 			save_config();
 		}
 
