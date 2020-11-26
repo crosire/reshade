@@ -586,7 +586,7 @@ void reshade::runtime::draw_gui()
 			}
 			else
 			{
-				ImGui::TextUnformatted("Visit https://reshade.me for news, updates, shaders and discussion.");
+				ImGui::TextUnformatted("Visit https://reshade.me for news, updates, effects and discussion.");
 			}
 
 			ImGui::Spacing();
@@ -630,11 +630,11 @@ void reshade::runtime::draw_gui()
 				ImGui::TextUnformatted("' to open the configuration overlay.");
 			}
 
-			if (!_last_shader_reload_successfull)
+			if (!_last_reload_successfull)
 			{
 				ImGui::Spacing();
 				ImGui::TextColored(COLOR_RED,
-					"There were errors compiling some shaders. Check the log for more details.");
+					"There were errors compiling some effects. Check the log for more details.");
 			}
 		}
 
@@ -991,22 +991,22 @@ void reshade::runtime::draw_gui_home()
 	if (!_effects_enabled)
 		ImGui::Text("Effects are disabled. Press '%s' to enable them again.", input::key_name(_effects_key_data).c_str());
 
-	if (!_last_shader_reload_successfull)
+	if (!_last_reload_successfull)
 	{
-		std::string shader_list;
+		std::string filename_list;
 		for (const effect &effect : _effects)
 			if (!effect.compiled)
-				shader_list += ' ' + effect.source_file.filename().u8string() + ',';
+				filename_list += ' ' + effect.source_file.filename().u8string() + ',';
 
 		// Make sure there are actually effects that failed to compile, since the last reload flag may not have been reset
-		if (shader_list.empty())
+		if (filename_list.empty())
 		{
-			_last_shader_reload_successfull = true;
+			_last_reload_successfull = true;
 		}
 		else
 		{
-			shader_list.pop_back();
-			ImGui::TextColored(COLOR_RED, "Some shaders failed to compile:%s", shader_list.c_str());
+			filename_list.pop_back();
+			ImGui::TextColored(COLOR_RED, "Some effects failed to compile:%s", filename_list.c_str());
 			ImGui::Spacing();
 		}
 	}
@@ -1151,7 +1151,7 @@ void reshade::runtime::draw_gui_home()
 				"Press 'Ctrl' and click on a widget to manually edit the value.\n"
 				"Use the right mouse button and click on an item to open the context menu with additional options.\n\n"
 				"Once you have finished tweaking your preset, be sure to enable the 'Performance Mode' check box. "
-				"This will recompile all shaders into a more optimal representation that can give a performance boost, but will disable variable tweaking and this list.";
+				"This will recompile all effects into a more optimal representation that can give a performance boost, but will disable variable tweaking and this list.";
 
 			ImGui::PushStyleColor(ImGuiCol_Border, COLOR_RED);
 		}
@@ -1252,7 +1252,7 @@ void reshade::runtime::draw_gui_settings()
 
 		modified |= ImGui::SliderInt("Preset transition delay", reinterpret_cast<int *>(&_preset_transition_delay), 0, 10 * 1000);
 		if (ImGui::IsItemHovered())
-			ImGui::SetTooltip("Makes a smooth transition, but only for floating point values.\nRecommended for multiple presets that contain the same shaders, otherwise set this to zero.\nValues are in milliseconds.");
+			ImGui::SetTooltip("Makes a smooth transition, but only for floating point values.\nRecommended for multiple presets that contain the same effects, otherwise set this to zero.\nValues are in milliseconds.");
 
 		modified |= ImGui::Combo("Input processing", &_input_processing_mode,
 			"Pass on all input\0"
@@ -1884,7 +1884,7 @@ void reshade::runtime::draw_gui_about()
 	ImGui::PushTextWrapPos();
 
 	ImGui::TextUnformatted("Developed and maintained by crosire.");
-	ImGui::TextUnformatted("Special thanks to CeeJay.dk and Marty McFly for their continued support!");
+	ImGui::TextUnformatted("Shout-out to CeeJay.dk and Marty McFly for their involvement!");
 	ImGui::TextUnformatted("This project makes use of several open source libraries, licenses of which are listed below:");
 
 	if (ImGui::CollapsingHeader("ReShade", ImGuiTreeNodeFlags_DefaultOpen))
@@ -2560,7 +2560,7 @@ void reshade::runtime::draw_variable_editor()
 		{
 			save_current_preset();
 
-			const bool reload_successful_before = _last_shader_reload_successfull;
+			const bool reload_successful_before = _last_reload_successfull;
 
 			// Backup effect file path before unloading
 			const std::filesystem::path source_file = effect.source_file;
@@ -2570,13 +2570,13 @@ void reshade::runtime::draw_variable_editor()
 			if (!load_effect(source_file, ini_file::load_cache(_current_preset_path), effect_index, true) &&
 				modified_definition != _preset_preprocessor_definitions.end())
 			{
-				// The preprocessor definition that was just modified caused the shader to not compile, so reset to default and try again
+				// The preprocessor definition that was just modified caused the effect to not compile, so reset to default and try again
 				_preset_preprocessor_definitions.erase(modified_definition);
 
 				unload_effect(effect_index);
 				if (load_effect(source_file, ini_file::load_cache(_current_preset_path), effect_index, true))
 				{
-					_last_shader_reload_successfull = reload_successful_before;
+					_last_reload_successfull = reload_successful_before;
 					ImGui::OpenPopup("##pperror"); // Notify the user about this
 
 					// Update preset again now, so that the removed preprocessor definition does not reappear on a reload
@@ -2596,7 +2596,7 @@ void reshade::runtime::draw_variable_editor()
 
 	if (ImGui::BeginPopup("##pperror"))
 	{
-		ImGui::TextColored(COLOR_RED, "The shader failed to compile after this change, so it was reverted back to the default.");
+		ImGui::TextColored(COLOR_RED, "The effect failed to compile after this change, so it was reverted back to the default.");
 		ImGui::EndPopup();
 	}
 
@@ -2703,12 +2703,16 @@ void reshade::runtime::draw_technique_editor()
 			ImGui::TextUnformatted(technique.name.c_str());
 			ImGui::Separator();
 
+			ImGui::PushItemWidth(230.0f);
+
 			if (widgets::key_input_box("##toggle_key", technique.toggle_key_data, *_input))
 				save_current_preset();
 
 			const bool is_not_top = index > 0;
 			const bool is_not_bottom = index < _techniques.size() - 1;
 			const float button_width = ImGui::CalcItemWidth();
+
+			ImGui::PopItemWidth();
 
 			if (is_not_top && ImGui::Button("Move to top", ImVec2(button_width, 0)))
 			{

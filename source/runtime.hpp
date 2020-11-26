@@ -180,12 +180,12 @@ namespace reshade
 		virtual void unload_effects();
 
 		/// <summary>
-		/// Load compiled shader data from the cache.
+		/// Load compiled effect data from the disk cache.
 		/// </summary>
 		bool load_effect_cache(const std::filesystem::path &source_file, const size_t hash, std::string &source) const;
 		bool load_effect_cache(const std::filesystem::path &source_file, const std::string &entry_point, const size_t hash, std::vector<char> &cso, std::string &dasm) const;
 		/// <summary>
-		/// Save compiled shader data to the cache.
+		/// Save compiled effect data to the disk cache.
 		/// </summary>
 		bool save_effect_cache(const std::filesystem::path &source_file, const size_t hash, const std::string &source) const;
 		bool save_effect_cache(const std::filesystem::path &source_file, const std::string &entry_point, const size_t hash, const std::vector<char> &cso, const std::string &dasm) const;
@@ -313,7 +313,7 @@ namespace reshade
 		bool _no_reload_on_init = false;
 		bool _effect_load_skipping = false;
 		bool _load_option_disable_skipping = false;
-		std::atomic<int> _last_shader_reload_successfull = true;
+		std::atomic<int> _last_reload_successfull = true;
 		bool _last_texture_reload_successfull = true;
 		bool _textures_loaded = false;
 		unsigned int _reload_key_data[4];

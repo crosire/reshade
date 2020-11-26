@@ -129,7 +129,7 @@ namespace reshadefx
 	};
 
 	/// <summary>
-	/// A struct type defined in the shader code.
+	/// A struct type defined in the effect code.
 	/// </summary>
 	struct struct_info
 	{
@@ -140,7 +140,7 @@ namespace reshadefx
 	};
 
 	/// <summary>
-	/// A struct field defined in the shader code.
+	/// A struct field defined in the effect code.
 	/// </summary>
 	struct struct_member_info
 	{
@@ -162,7 +162,7 @@ namespace reshadefx
 	};
 
 	/// <summary>
-	/// A texture defined in the shader code.
+	/// A texture defined in the effect code.
 	/// </summary>
 	struct texture_info
 	{
@@ -180,7 +180,7 @@ namespace reshadefx
 	};
 
 	/// <summary>
-	/// A texture sampler defined in the shader code.
+	/// A texture sampler defined in the effect code.
 	/// </summary>
 	struct sampler_info
 	{
@@ -201,7 +201,7 @@ namespace reshadefx
 	};
 
 	/// <summary>
-	/// A texture storage object defined in the shader code.
+	/// A texture storage object defined in the effect code.
 	/// </summary>
 	struct storage_info
 	{
@@ -212,7 +212,7 @@ namespace reshadefx
 	};
 
 	/// <summary>
-	/// An uniform variable defined in the shader code.
+	/// An uniform variable defined in the effect code.
 	/// </summary>
 	struct uniform_info
 	{
@@ -226,7 +226,7 @@ namespace reshadefx
 	};
 
 	/// <summary>
-	/// Type of a shader.
+	/// Type of a shader entry point.
 	/// </summary>
 	enum class shader_type
 	{
@@ -245,7 +245,7 @@ namespace reshadefx
 	};
 
 	/// <summary>
-	/// A function defined in the shader code.
+	/// A function defined in the effect code.
 	/// </summary>
 	struct function_info
 	{

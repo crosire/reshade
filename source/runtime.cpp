@@ -665,7 +665,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	}
 	else
 	{
-		_last_shader_reload_successfull = false;
+		_last_reload_successfull = false;
 
 		if (effect.errors.empty())
 			LOG(ERROR) << "Failed to load " << source_file << '.';
@@ -683,7 +683,7 @@ void reshade::runtime::load_effects()
 	_show_splash = true; // Always show splash bar when reloading everything
 	_reload_count++;
 #endif
-	_last_shader_reload_successfull = true;
+	_last_reload_successfull = true;
 
 	// Reload preprocessor definitions from current preset before compiling
 	_preset_preprocessor_definitions.clear();
@@ -1032,7 +1032,7 @@ void reshade::runtime::update_and_render_effects()
 				if (tech.effect_index == effect_index)
 					disable_technique(tech);
 
-			_last_shader_reload_successfull = false;
+			_last_reload_successfull = false;
 		}
 
 		// An effect has changed, need to reload textures

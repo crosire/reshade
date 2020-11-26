@@ -162,13 +162,13 @@ namespace ReShade.Setup
 				searchPaths.Add(newPath);
 			}
 		}
-		void WriteSearchPaths(string targetPathShaders, string targetPathTextures)
+		void WriteSearchPaths(string targetPathEffects, string targetPathTextures)
 		{
-			// Vulkan uses a common ReShade DLL for all applications, which is not in the location the shaders and textures are installed to, so make paths absolute
+			// Vulkan uses a common ReShade DLL for all applications, which is not in the location the effects and textures are installed to, so make paths absolute
 			if (ApiVulkan.IsChecked.Value)
 			{
 				string targetDir = Path.GetDirectoryName(targetPath);
-				targetPathShaders = Path.GetFullPath(Path.Combine(targetDir, targetPathShaders));
+				targetPathEffects = Path.GetFullPath(Path.Combine(targetDir, targetPathEffects));
 				targetPathTextures = Path.GetFullPath(Path.Combine(targetDir, targetPathTextures));
 			}
 
@@ -180,7 +180,7 @@ namespace ReShade.Setup
 			paths = new List<string>(effectSearchPaths ?? new string[0]);
 			paths.RemoveAll(string.IsNullOrWhiteSpace);
 			{
-				AddSearchPath(paths, targetPathShaders);
+				AddSearchPath(paths, targetPathEffects);
 				iniFile.SetValue("GENERAL", "EffectSearchPaths", paths.ToArray());
 			}
 
@@ -749,16 +749,16 @@ In that event here are some steps you can try to resolve this:
 
 				// First check for a standard directory name
 				string basePath = Path.GetDirectoryName(configPath);
-				string tempPathShaders = Directory.GetDirectories(tempPath, "Shaders", SearchOption.AllDirectories).FirstOrDefault();
+				string tempPathEffects = Directory.GetDirectories(tempPath, "Shaders", SearchOption.AllDirectories).FirstOrDefault();
 				string tempPathTextures = Directory.GetDirectories(tempPath, "Textures", SearchOption.AllDirectories).FirstOrDefault();
-				string targetPathShaders = Path.Combine(basePath, package.InstallPath);
+				string targetPathEffects = Path.Combine(basePath, package.InstallPath);
 				string targetPathTextures = Path.Combine(basePath, package.TextureInstallPath);
 
 				// If that does not exist, look for the first directory that contains shaders/textures
 				string[] effects = Directory.GetFiles(tempPath, "*.fx", SearchOption.AllDirectories);
-				if (tempPathShaders == null)
+				if (tempPathEffects == null)
 				{
-					tempPathShaders = effects.Select(x => Path.GetDirectoryName(x)).OrderBy(x => x.Length).FirstOrDefault();
+					tempPathEffects = effects.Select(x => Path.GetDirectoryName(x)).OrderBy(x => x.Length).FirstOrDefault();
 				}
 				if (tempPathTextures == null)
 				{
@@ -777,7 +777,7 @@ In that event here are some steps you can try to resolve this:
 				// Show file selection dialog
 				if (!isHeadless && package.Enabled == null)
 				{
-					effects = effects.Select(x => targetPathShaders + x.Remove(0, tempPathShaders.Length)).ToArray();
+					effects = effects.Select(x => targetPathEffects + x.Remove(0, tempPathEffects.Length)).ToArray();
 
 					var dlg = new SelectEffectsDialog(package.PackageName, effects);
 					dlg.Owner = this;
@@ -787,15 +787,15 @@ In that event here are some steps you can try to resolve this:
 						// Delete all unselected effect files before moving
 						foreach (string filePath in effects.Except(dlg.EnabledItems.Select(x => x.FilePath)))
 						{
-							File.Delete(tempPathShaders + filePath.Remove(0, targetPathShaders.Length));
+							File.Delete(tempPathEffects + filePath.Remove(0, targetPathEffects.Length));
 						}
 					}
 				}
 
 				// Move only the relevant files to the target
-				if (tempPathShaders != null)
+				if (tempPathEffects != null)
 				{
-					MoveFiles(tempPathShaders, targetPathShaders);
+					MoveFiles(tempPathEffects, targetPathEffects);
 				}
 				if (tempPathTextures != null)
 				{

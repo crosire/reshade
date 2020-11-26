@@ -207,7 +207,7 @@ bool reshade::gui::widgets::file_dialog(const char *name, std::filesystem::path 
 
 bool reshade::gui::widgets::key_input_box(const char *name, unsigned int key[4], const reshade::input &input)
 {
-	char buf[48] = "Click to set key shortcut";
+	char buf[48] = "Click to set keyboard shortcut";
 	if (key[0] || key[1] || key[2] || key[3])
 		buf[reshade::input::key_name(key).copy(buf, sizeof(buf) - 1)] = '\0';
 
