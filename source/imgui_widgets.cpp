@@ -218,7 +218,7 @@ bool reshade::gui::widgets::key_input_box(const char *name, unsigned int key[4],
 		const unsigned int last_key_pressed = input.last_key_pressed();
 		if (last_key_pressed != 0)
 		{
-			if (last_key_pressed == ImGui::GetKeyIndex(ImGuiKey_Backspace))
+			if (last_key_pressed == static_cast<unsigned int>(ImGui::GetKeyIndex(ImGuiKey_Backspace)))
 			{
 				key[0] = 0;
 				key[1] = 0;
