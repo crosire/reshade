@@ -244,6 +244,8 @@ void reshade::opengl::runtime_gl::on_reset()
 {
 	runtime::on_reset();
 
+	_buffer_detection.release();
+
 	glDeleteBuffers(NUM_BUF, _buf);
 	glDeleteTextures(NUM_TEX, _tex);
 	glDeleteTextures(static_cast<GLsizei>(_reserved_texture_names.size()), _reserved_texture_names.data());
@@ -1358,8 +1360,9 @@ void reshade::opengl::runtime_gl::draw_depth_debug_menu()
 		return;
 	}
 
-	if (ImGui::Checkbox("Use aspect ratio heuristics", &_use_aspect_ratio_heuristics))
-		runtime::save_config();
+	bool modified = false;
+	modified |= ImGui::Checkbox("Use aspect ratio heuristics", &_use_aspect_ratio_heuristics);
+	modified |= ImGui::Checkbox("Copy depth buffer before clear operations", &_buffer_detection.preserve_depth_buffers);
 
 	ImGui::Spacing();
 	ImGui::Separator();
@@ -1377,7 +1380,7 @@ void reshade::opengl::runtime_gl::draw_depth_debug_menu()
 			continue; // Skip invalid entries
 
 		char label[512] = "";
-		sprintf_s(label, "%s0x%08x", (depth_source == _depth_source && !_has_high_network_activity ? "> " : "  "), depth_source);
+		sprintf_s(label, "%s0x%08x", (depth_source == _buffer_detection.depthstencil_clear_index.first && !_has_high_network_activity ? "> " : "  "), depth_source);
 
 		if (bool value = _depth_source_override == depth_source;
 			ImGui::Checkbox(label, &value))
@@ -1385,13 +1388,35 @@ void reshade::opengl::runtime_gl::draw_depth_debug_menu()
 
 		ImGui::SameLine();
 		ImGui::Text("| %4ux%-4u | %5u draw calls ==> %8u vertices |%s",
-			snapshot.width, snapshot.height, snapshot.stats.drawcalls, snapshot.stats.vertices,
+			snapshot.width, snapshot.height, snapshot.total_stats.drawcalls, snapshot.total_stats.vertices,
 			(depth_source & 0x80000000) != 0 ? " RBO" : depth_source != 0 ? " FBO" : "");
+
+		if (_buffer_detection.preserve_depth_buffers && depth_source == _buffer_detection.depthstencil_clear_index.first)
+		{
+			for (UINT clear_index = 1; clear_index <= snapshot.clears.size(); ++clear_index)
+			{
+				sprintf_s(label, "%s  CLEAR %2u", (clear_index == _buffer_detection.depthstencil_clear_index.second ? "> " : "  "), clear_index);
+
+				if (bool value = (_buffer_detection.depthstencil_clear_index.second == clear_index);
+					ImGui::Checkbox(label, &value))
+				{
+					_buffer_detection.depthstencil_clear_index.second = value ? clear_index : 0;
+					modified = true;
+				}
+
+				ImGui::SameLine();
+				ImGui::Text("|           | %5u draw calls ==> %8u vertices |",
+					snapshot.clears[clear_index - 1].drawcalls, snapshot.clears[clear_index - 1].vertices);
+			}
+		}
 	}
 
 	ImGui::Spacing();
 	ImGui::Separator();
 	ImGui::Spacing();
+
+	if (modified)
+		runtime::save_config();
 }
 
 void reshade::opengl::runtime_gl::update_depth_texture_bindings(buffer_detection::depthstencil_info info)

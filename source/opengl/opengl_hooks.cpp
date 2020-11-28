@@ -72,6 +72,8 @@ HOOK_EXPORT void WINAPI glCallLists(GLsizei n, GLenum type, const GLvoid *lists)
 
 HOOK_EXPORT void WINAPI glClear(GLbitfield mask)
 {
+	if (g_current_runtime) g_current_runtime->_buffer_detection.on_clear(mask);
+
 	static const auto trampoline = reshade::hooks::call(glClear);
 	trampoline(mask);
 }

@@ -14,18 +14,48 @@ void reshade::opengl::buffer_detection::reset(GLuint default_width, GLuint defau
 	_stats.drawcalls = 0;
 
 #if RESHADE_DEPTH
+	_best_copy_stats = { 0, 0 };
+
 	// Initialize information for the default depth buffer
 	_depth_source_table[0] = { 0, 0, default_width, default_height, 0, default_format };
 
 	// Do not clear depth source table, since FBO attachments are usually only created during startup
 	for (auto &source : _depth_source_table)
+	{
 		// Instead only reset the draw call statistics
-		source.second.stats = { 0, 0 };
+		source.second.total_stats = { 0, 0 };
+		source.second.current_stats = { 0, 0 };
+		source.second.clears.clear();
+	}
 #else
 	UNREFERENCED_PARAMETER(default_width);
 	UNREFERENCED_PARAMETER(default_height);
 	UNREFERENCED_PARAMETER(default_format);
 #endif
+}
+void reshade::opengl::buffer_detection::release()
+{
+#if RESHADE_DEPTH
+	glDeleteTextures(1, &_clear_texture);
+	_clear_texture = 0;
+	glDeleteFramebuffers(1, &_copy_fbo);
+	_copy_fbo = 0;
+#endif
+}
+
+static GLuint current_depth_source()
+{
+	GLint object = 0;
+	GLint target = GL_NONE;
+	glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &object);
+	if (object != 0) { // Zero is valid too, in which case the default depth buffer is referenced, instead of a FBO
+		glGetFramebufferAttachmentParameteriv(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE, &target);
+		if (target == GL_NONE)
+			return std::numeric_limits<GLuint>::max(); // FBO does not have a depth attachment
+		glGetFramebufferAttachmentParameteriv(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, &object);
+	}
+
+	return object | (target == GL_RENDERBUFFER ? 0x80000000 : 0);
 }
 
 void reshade::opengl::buffer_detection::on_draw(GLsizei vertices)
@@ -37,26 +67,67 @@ void reshade::opengl::buffer_detection::on_draw(GLsizei vertices)
 	_stats.drawcalls += 1;
 
 #if RESHADE_DEPTH
-	GLint object = 0;
-	GLint target = GL_NONE;
-	glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &object);
-	if (object != 0) { // Zero is valid too, in which case the default depth buffer is referenced, instead of a FBO
-		glGetFramebufferAttachmentParameteriv(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE, &target);
-		if (target == GL_NONE)
-			return; // FBO does not have a depth attachment
-		glGetFramebufferAttachmentParameteriv(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, &object);
-	}
-
-	if (const auto it = _depth_source_table.find(object | (target == GL_RENDERBUFFER ? 0x80000000 : 0));
-		it != _depth_source_table.end())
-	{
-		it->second.stats.vertices += vertices;
-		it->second.stats.drawcalls += 1;
-	}
+	auto &counters = _depth_source_table[current_depth_source()];
+	counters.total_stats.vertices += vertices;
+	counters.total_stats.drawcalls += 1;
+	counters.current_stats.vertices += vertices;
+	counters.current_stats.drawcalls += 1;
 #endif
 }
 
 #if RESHADE_DEPTH
+void reshade::opengl::buffer_detection::on_clear(GLbitfield mask)
+{
+	if ((mask & GL_DEPTH_BUFFER_BIT) == 0)
+		return;
+
+	const GLuint id = current_depth_source();
+	if (id != depthstencil_clear_index.first)
+		return;
+
+	auto &counters = _depth_source_table[id];
+	counters.clears.push_back(counters.current_stats);
+
+	// Make a backup copy of the depth texture before it is cleared
+	if (depthstencil_clear_index.second == 0 ?
+		// If clear index override is set to zero, always copy any suitable buffers
+		counters.current_stats.vertices > _best_copy_stats.vertices :
+		counters.clears.size() == depthstencil_clear_index.second)
+	{
+		_best_copy_stats = counters.current_stats;
+
+		GLint read_fbo = 0;
+		GLint draw_fbo = 0;
+		glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &read_fbo);
+		glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &draw_fbo);
+
+		if (_copy_fbo == 0)
+		{
+			glGenFramebuffers(1, &_copy_fbo);
+		}
+		if (_clear_texture == 0)
+		{
+			glGenTextures(1, &_clear_texture);
+			glBindTexture(GL_TEXTURE_2D, _clear_texture);
+			glTexStorage2D(GL_TEXTURE_2D, 1, counters.format, counters.width, counters.height);
+
+			glBindFramebuffer(GL_FRAMEBUFFER, _copy_fbo);
+			glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, _clear_texture, 0);
+			assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+		}
+
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, draw_fbo);
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _copy_fbo);
+		glBlitFramebuffer(0, 0, counters.width, counters.height, 0, 0, counters.width, counters.height, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, read_fbo);
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, draw_fbo);
+	}
+
+	// Reset draw call stats for clears
+	counters.current_stats = { 0, 0 };
+}
+
 void reshade::opengl::buffer_detection::on_fbo_attachment(GLenum attachment, GLenum target, GLuint object, GLint level)
 {
 	if (object == 0 || (attachment != GL_DEPTH_ATTACHMENT && attachment != GL_DEPTH_STENCIL_ATTACHMENT))
@@ -157,7 +228,7 @@ void reshade::opengl::buffer_detection::on_delete_fbo_attachment(GLenum target, 
 	_depth_source_table.erase(id);
 }
 
-reshade::opengl::buffer_detection::depthstencil_info reshade::opengl::buffer_detection::find_best_depth_texture(GLuint width, GLuint height, GLuint override) const
+reshade::opengl::buffer_detection::depthstencil_info reshade::opengl::buffer_detection::find_best_depth_texture(GLuint width, GLuint height, GLuint override)
 {
 	depthstencil_info best_snapshot = _depth_source_table.at(0); // Always fall back to default depth buffer if no better match is found
 
@@ -172,7 +243,7 @@ reshade::opengl::buffer_detection::depthstencil_info reshade::opengl::buffer_det
 
 	for (const auto &[image, snapshot] : _depth_source_table)
 	{
-		if (snapshot.stats.drawcalls == 0 || snapshot.stats.vertices == 0)
+		if (snapshot.total_stats.drawcalls == 0)
 			continue; // Skip unused
 
 		if (width != 0 && height != 0)
@@ -187,12 +258,25 @@ reshade::opengl::buffer_detection::depthstencil_info reshade::opengl::buffer_det
 				continue; // Not a good fit
 		}
 
-		const auto curr_weight = snapshot.stats.vertices * (1.2f - static_cast<float>(snapshot.stats.drawcalls) / _stats.drawcalls);
-		const auto best_weight = best_snapshot.stats.vertices * (1.2f - static_cast<float>(best_snapshot.stats.drawcalls) / _stats.vertices);
+		const auto curr_weight = snapshot.total_stats.vertices * (1.2f - static_cast<float>(snapshot.total_stats.drawcalls) / _stats.drawcalls);
+		const auto best_weight = best_snapshot.total_stats.vertices * (1.2f - static_cast<float>(best_snapshot.total_stats.drawcalls) / _stats.vertices);
 		if (curr_weight >= best_weight)
 		{
 			best_snapshot = snapshot;
 		}
+	}
+
+
+	const GLuint id = best_snapshot.obj | (best_snapshot.target == GL_RENDERBUFFER ? 0x80000000 : 0);
+	if (depthstencil_clear_index.first != id)
+		release();
+	depthstencil_clear_index.first = id;
+
+	if (preserve_depth_buffers && _clear_texture != 0)
+	{
+		best_snapshot.obj = _clear_texture;
+		best_snapshot.level = 0;
+		best_snapshot.target = GL_TEXTURE_2D;
 	}
 
 	return best_snapshot;
