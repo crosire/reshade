@@ -70,19 +70,6 @@ namespace ReShade.Setup
 				packagesIni = new IniFile(assembly.GetManifestResourceStream("ReShade.Setup.Config.EffectPackages.ini"));
 				compatibilityIni = new IniFile(assembly.GetManifestResourceStream("ReShade.Setup.Config.Compatibility.ini"));
 
-				// Validate archive contains the ReShade DLLs
-				if (zip.GetEntry("ReShade32.dll") == null || zip.GetEntry("ReShade64.dll") == null)
-				{
-					throw new InvalidDataException();
-				}
-			}
-			catch
-			{
-				MessageBox.Show("This setup archive is corrupted! Please download from https://reshade.me again.");
-				Environment.Exit(1);
-				return;
-			}
-
 			ApiVulkanGlobal.IsChecked = IsVulkanLayerEnabled(Registry.LocalMachine);
 
 			if (isElevated)
