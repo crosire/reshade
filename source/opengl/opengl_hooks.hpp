@@ -7,6 +7,8 @@
 
 #undef glBindTexture
 extern "C" void WINAPI glBindTexture(GLenum target, GLuint texture);
+#undef glBindFramebuffer
+extern "C" void WINAPI glBindFramebuffer(GLenum target, GLuint framebuffer);
 #undef glBlendFunc
 extern "C" void WINAPI glBlendFunc(GLenum sfactor, GLenum dfactor);
 #undef glClear
@@ -29,8 +31,6 @@ extern "C" void WINAPI glCopyTexSubImage1D(GLenum target, GLint level, GLint xof
 extern "C" void WINAPI glCopyTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint x, GLint y, GLsizei width, GLsizei height);
 #undef glCullFace
 extern "C" void WINAPI glCullFace(GLenum mode);
-#undef glDeleteRenderbuffers
-extern "C" void WINAPI glDeleteRenderbuffers(GLsizei n, const GLuint *renderbuffers);
 #undef glDeleteTextures
 extern "C" void WINAPI glDeleteTextures(GLsizei n, const GLuint *textures);
 #undef glDepthFunc
@@ -83,28 +83,6 @@ extern "C" void WINAPI glEnable(GLenum cap);
 extern "C" void WINAPI glFinish();
 #undef glFlush
 extern "C" void WINAPI glFlush();
-#undef glFramebufferRenderbuffer
-extern "C" void WINAPI glFramebufferRenderbuffer(GLenum target, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer);
-extern "C" void WINAPI glFramebufferRenderbufferEXT(GLenum target, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer);
-#undef glFramebufferTexture
-extern "C" void WINAPI glFramebufferTexture(GLenum target, GLenum attachment, GLuint texture, GLint level);
-#undef glFramebufferTexture1D
-extern "C" void WINAPI glFramebufferTexture1D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level);
-extern "C" void WINAPI glFramebufferTexture1DEXT(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level);
-#undef glFramebufferTexture2D
-extern "C" void WINAPI glFramebufferTexture2D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level);
-extern "C" void WINAPI glFramebufferTexture2DEXT(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level);
-#undef glFramebufferTexture3D
-extern "C" void WINAPI glFramebufferTexture3D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level, GLint zoffset);
-extern "C" void WINAPI glFramebufferTexture3DEXT(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level, GLint zoffset);
-#undef glFramebufferTextureARB
-extern "C" void WINAPI glFramebufferTextureARB(GLenum target, GLenum attachment, GLuint texture, GLint level);
-extern "C" void WINAPI glFramebufferTextureEXT(GLenum target, GLenum attachment, GLuint texture, GLint level);
-#undef glFramebufferTextureLayer
-extern "C" void WINAPI glFramebufferTextureLayer(GLenum target, GLenum attachment, GLuint texture, GLint level, GLint layer);
-#undef glFramebufferTextureLayerARB
-extern "C" void WINAPI glFramebufferTextureLayerARB(GLenum target, GLenum attachment, GLuint texture, GLint level, GLint layer);
-extern "C" void WINAPI glFramebufferTextureLayerEXT(GLenum target, GLenum attachment, GLuint texture, GLint level, GLint layer);
 #undef glFrontFace
 extern "C" void WINAPI glFrontFace(GLenum mode);
 #undef glGenTextures

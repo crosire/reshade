@@ -15,18 +15,10 @@ void reshade::opengl::buffer_detection::reset(GLuint default_width, GLuint defau
 
 #if RESHADE_DEPTH
 	_best_copy_stats = { 0, 0 };
+	_depth_source_table.clear();
 
 	// Initialize information for the default depth buffer
-	_depth_source_table[0] = { 0, 0, default_width, default_height, 0, default_format };
-
-	// Do not clear depth source table, since FBO attachments are usually only created during startup
-	for (auto &source : _depth_source_table)
-	{
-		// Instead only reset the draw call statistics
-		source.second.total_stats = { 0, 0 };
-		source.second.current_stats = { 0, 0 };
-		source.second.clears.clear();
-	}
+	_depth_source_table[0] = { 0, default_width, default_height, 0, 0, GL_FRAMEBUFFER_DEFAULT, default_format };
 #else
 	UNREFERENCED_PARAMETER(default_width);
 	UNREFERENCED_PARAMETER(default_height);
@@ -43,20 +35,24 @@ void reshade::opengl::buffer_detection::release()
 #endif
 }
 
-static GLuint current_depth_source()
+#if RESHADE_DEPTH
+static bool current_depth_source(GLint &object, GLint &target)
 {
-	GLint object = 0;
-	GLint target = GL_NONE;
+	target = GL_FRAMEBUFFER_DEFAULT;
 	glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &object);
-	if (object != 0) { // Zero is valid too, in which case the default depth buffer is referenced, instead of a FBO
+
+	// Zero is valid too, in which case the default depth buffer is referenced, instead of a FBO
+	if (object != 0)
+	{
 		glGetFramebufferAttachmentParameteriv(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE, &target);
 		if (target == GL_NONE)
-			return std::numeric_limits<GLuint>::max(); // FBO does not have a depth attachment
+			return false; // FBO does not have a depth attachment
 		glGetFramebufferAttachmentParameteriv(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, &object);
 	}
 
-	return object | (target == GL_RENDERBUFFER ? 0x80000000 : 0);
+	return true;
 }
+#endif
 
 void reshade::opengl::buffer_detection::on_draw(GLsizei vertices)
 {
@@ -67,25 +63,113 @@ void reshade::opengl::buffer_detection::on_draw(GLsizei vertices)
 	_stats.drawcalls += 1;
 
 #if RESHADE_DEPTH
-	auto &counters = _depth_source_table[current_depth_source()];
-	counters.total_stats.vertices += vertices;
-	counters.total_stats.drawcalls += 1;
-	counters.current_stats.vertices += vertices;
-	counters.current_stats.drawcalls += 1;
+	if (GLint object = 0, target;
+		current_depth_source(object, target))
+	{
+		auto &counters = _depth_source_table[object | (target == GL_RENDERBUFFER ? 0x80000000 : 0)];
+		counters.total_stats.vertices += vertices;
+		counters.total_stats.drawcalls += 1;
+		counters.current_stats.vertices += vertices;
+		counters.current_stats.drawcalls += 1;
+	}
 #endif
 }
 
 #if RESHADE_DEPTH
-void reshade::opengl::buffer_detection::on_clear(GLbitfield mask)
+static void get_rbo_param(GLuint id, GLenum param, GLuint &value)
+{
+	if (gl3wProcs.gl.GetNamedRenderbufferParameteriv != nullptr)
+	{
+		glGetNamedRenderbufferParameteriv(id, param, reinterpret_cast<GLint *>(&value));
+	}
+	else
+	{
+		GLint prev_binding = 0;
+		glGetIntegerv(GL_RENDERBUFFER_BINDING, &prev_binding);
+		glBindRenderbuffer(GL_RENDERBUFFER, id);
+		glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_WIDTH, reinterpret_cast<GLint *>(&value));
+		glBindRenderbuffer(GL_RENDERBUFFER, prev_binding);
+	}
+}
+static void get_tex_param(GLuint id, GLenum param, GLuint &value)
+{
+	if (gl3wProcs.gl.GetTextureParameteriv != nullptr)
+	{
+		glGetTextureParameteriv(id, param, reinterpret_cast<GLint *>(&value));
+	}
+	else
+	{
+		GLint prev_binding = 0;
+		glGetIntegerv(GL_TEXTURE_BINDING_2D, &prev_binding);
+		glBindTexture(GL_TEXTURE_2D, id);
+		glGetTexParameteriv(GL_TEXTURE_2D, param, reinterpret_cast<GLint *>(&value));
+		glBindTexture(GL_TEXTURE_2D, prev_binding);
+	}
+}
+static void get_tex_level_param(GLuint id, GLuint level, GLenum param, GLuint &value)
+{
+	if (gl3wProcs.gl.GetTextureLevelParameteriv != nullptr)
+	{
+		glGetTextureLevelParameteriv(id, level, param, reinterpret_cast<GLint *>(&value));
+	}
+	else
+	{
+		GLint prev_binding = 0;
+		glGetIntegerv(GL_TEXTURE_BINDING_2D, &prev_binding);
+		glBindTexture(GL_TEXTURE_2D, id);
+		glGetTexLevelParameteriv(GL_TEXTURE_2D, level, param, reinterpret_cast<GLint *>(&value));
+		glBindTexture(GL_TEXTURE_2D, prev_binding);
+	}
+}
+
+void reshade::opengl::buffer_detection::on_bind_draw_fbo()
+{
+	GLint object = 0, target;
+	if (!current_depth_source(object, target))
+		return;
+
+	depthstencil_info &info = _depth_source_table[object | (target == GL_RENDERBUFFER ? 0x80000000 : 0)];
+	info.obj = object;
+	info.target = target;
+
+	switch (target)
+	{
+	case GL_TEXTURE:
+		glGetFramebufferAttachmentParameteriv(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LEVEL, reinterpret_cast<GLint *>(&info.level));
+		glGetFramebufferAttachmentParameteriv(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LEVEL, reinterpret_cast<GLint *>(&info.layer));
+		get_tex_param(object, GL_TEXTURE_TARGET, info.target);
+		get_tex_level_param(object, info.level, GL_TEXTURE_WIDTH, info.width);
+		get_tex_level_param(object, info.level, GL_TEXTURE_HEIGHT, info.height);
+		get_tex_level_param(object, info.level, GL_TEXTURE_INTERNAL_FORMAT, info.format);
+		break;
+	case GL_RENDERBUFFER:
+		get_rbo_param(object, GL_RENDERBUFFER_WIDTH, info.width);
+		get_rbo_param(object, GL_RENDERBUFFER_HEIGHT, info.height);
+		get_rbo_param(object, GL_RENDERBUFFER_INTERNAL_FORMAT, info.format);
+		break;
+	case GL_FRAMEBUFFER_DEFAULT:
+		break;
+	}
+}
+void reshade::opengl::buffer_detection::on_clear_attachments(GLbitfield mask)
 {
 	if ((mask & GL_DEPTH_BUFFER_BIT) == 0)
 		return;
 
-	const GLuint id = current_depth_source();
+	GLint object = 0, target;
+	if (!current_depth_source(object, target))
+		return;
+
+	const GLuint id = object | (target == GL_RENDERBUFFER ? 0x80000000 : 0);
 	if (id != depthstencil_clear_index.first)
 		return;
 
 	auto &counters = _depth_source_table[id];
+
+	// Ignore clears when there was no meaningful workload
+	if (counters.current_stats.drawcalls == 0)
+		return;
+
 	counters.clears.push_back(counters.current_stats);
 
 	// Make a backup copy of the depth texture before it is cleared
@@ -126,106 +210,6 @@ void reshade::opengl::buffer_detection::on_clear(GLbitfield mask)
 
 	// Reset draw call stats for clears
 	counters.current_stats = { 0, 0 };
-}
-
-void reshade::opengl::buffer_detection::on_fbo_attachment(GLenum attachment, GLenum target, GLuint object, GLint level)
-{
-	if (object == 0 || (attachment != GL_DEPTH_ATTACHMENT && attachment != GL_DEPTH_STENCIL_ATTACHMENT))
-		return;
-
-	const GLuint id = object | (target == GL_RENDERBUFFER ? 0x80000000 : 0);
-	if (_depth_source_table.find(id) != _depth_source_table.end())
-		return;
-
-	depthstencil_info info = { object, static_cast<GLuint>(level), 0, 0, target, GL_NONE };
-
-	if (target == GL_RENDERBUFFER)
-	{
-		GLint previous_rbo = 0;
-		glGetIntegerv(GL_RENDERBUFFER_BINDING, &previous_rbo);
-
-		// Get depth-stencil parameters from RBO
-		glBindRenderbuffer(GL_RENDERBUFFER, object);
-
-		if (GLenum err = glGetError(); err == GL_NO_ERROR)
-		{
-			glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_WIDTH, reinterpret_cast<GLint *>(&info.width));
-			glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_HEIGHT, reinterpret_cast<GLint *>(&info.height));
-			glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_INTERNAL_FORMAT, reinterpret_cast<GLint *>(&info.format));
-		}
-		else
-		{
-			// Something went wrong during binding, cannot get valid information from this RBO
-			return;
-		}
-
-		glBindRenderbuffer(GL_RENDERBUFFER, previous_rbo);
-	}
-	else
-	{
-		const auto target_to_binding = [](GLenum target) -> GLenum {
-			switch (target)
-			{
-			default:
-			case GL_TEXTURE_2D:
-				return GL_TEXTURE_BINDING_2D;
-			case GL_TEXTURE_2D_ARRAY:
-				return GL_TEXTURE_BINDING_2D_ARRAY;
-			case GL_TEXTURE_2D_MULTISAMPLE:
-				return GL_TEXTURE_BINDING_2D_MULTISAMPLE;
-			case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
-				return GL_TEXTURE_BINDING_2D_MULTISAMPLE_ARRAY;
-			case GL_TEXTURE_3D:
-				return GL_TEXTURE_BINDING_3D;
-			case GL_TEXTURE_CUBE_MAP:
-			case GL_TEXTURE_CUBE_MAP_NEGATIVE_X:
-			case GL_TEXTURE_CUBE_MAP_NEGATIVE_Y:
-			case GL_TEXTURE_CUBE_MAP_NEGATIVE_Z:
-			case GL_TEXTURE_CUBE_MAP_POSITIVE_X:
-			case GL_TEXTURE_CUBE_MAP_POSITIVE_Y:
-			case GL_TEXTURE_CUBE_MAP_POSITIVE_Z:
-				return GL_TEXTURE_BINDING_CUBE_MAP;
-			case GL_TEXTURE_CUBE_MAP_ARRAY:
-				return GL_TEXTURE_BINDING_CUBE_MAP_ARRAY;
-			}
-		};
-
-		const GLenum binding = target_to_binding(target);
-		if (binding == GL_TEXTURE_BINDING_3D ||
-			binding == GL_TEXTURE_BINDING_CUBE_MAP ||
-			binding == GL_TEXTURE_BINDING_CUBE_MAP_ARRAY)
-			return; // Ignore attachments that are not two-dimensional
-
-		GLint previous_tex = 0;
-		glGetIntegerv(binding, &previous_tex);
-
-		// Get depth-stencil parameters from texture
-		glBindTexture(target, object);
-
-		if (GLenum err = glGetError(); err == GL_NO_ERROR)
-		{
-			glGetTexLevelParameteriv(target, level, GL_TEXTURE_WIDTH, reinterpret_cast<GLint *>(&info.width));
-			glGetTexLevelParameteriv(target, level, GL_TEXTURE_HEIGHT, reinterpret_cast<GLint *>(&info.height));
-			glGetTexLevelParameteriv(target, level, GL_TEXTURE_INTERNAL_FORMAT, reinterpret_cast<GLint *>(&info.format));
-		}
-		else
-		{
-			// Something went wrong during binding, cannot get valid information from this texture
-			return;
-		}
-
-		glBindTexture(target, previous_tex);
-	}
-
-	_depth_source_table.emplace(id, info);
-}
-void reshade::opengl::buffer_detection::on_delete_fbo_attachment(GLenum target, GLuint object)
-{
-	if (object == 0)
-		return;
-
-	const GLuint id = object | (target == GL_RENDERBUFFER ? 0x80000000 : 0);
-	_depth_source_table.erase(id);
 }
 
 reshade::opengl::buffer_detection::depthstencil_info reshade::opengl::buffer_detection::find_best_depth_texture(GLuint width, GLuint height, GLuint override)

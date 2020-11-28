@@ -15,6 +15,7 @@
 
 DECLARE_HANDLE(HPBUFFERARB);
 
+static bool s_hooks_installed = false;
 static std::mutex s_mutex;
 static std::unordered_set<HDC> s_pbuffer_device_contexts;
 static std::unordered_set<HGLRC> s_legacy_contexts;
@@ -685,6 +686,12 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 		if (gl3wIsSupported(4, 3))
 		{
+			// Get trampoline pointers to any hooked functions, so that runtime always calls into original OpenGL functions
+			if (s_hooks_installed)
+			{
+				gl3wProcs.gl.BindFramebuffer = reshade::hooks::call(glBindFramebuffer);
+			}
+
 			const auto runtime = new reshade::opengl::runtime_gl();
 			runtime->_hdcs.insert(hdc);
 
@@ -1060,12 +1067,12 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		return reinterpret_cast<PROC>(glTexSubImage2D);
 	else if (0 == strcmp(lpszProc, "glViewport"))
 		return reinterpret_cast<PROC>(glViewport);
-	else if (static bool s_hooks_not_installed = true; s_hooks_not_installed)
+	else if (!s_hooks_installed)
 	{
 #define INSTALL_HOOK(name) \
 	reshade::hooks::install(#name, reinterpret_cast<reshade::hook::address>(trampoline(#name)), reinterpret_cast<reshade::hook::address>(name), true)
 		// Install all OpenGL hooks in a single batch job
-		INSTALL_HOOK(glDeleteRenderbuffers);
+		INSTALL_HOOK(glBindFramebuffer);
 		INSTALL_HOOK(glDrawArraysIndirect);
 		INSTALL_HOOK(glDrawArraysInstanced);
 		INSTALL_HOOK(glDrawArraysInstancedARB);
@@ -1081,20 +1088,6 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		INSTALL_HOOK(glDrawElementsInstancedBaseVertexBaseInstance);
 		INSTALL_HOOK(glDrawRangeElements);
 		INSTALL_HOOK(glDrawRangeElementsBaseVertex);
-		INSTALL_HOOK(glFramebufferRenderbuffer);
-		INSTALL_HOOK(glFramebufferRenderbufferEXT);
-		INSTALL_HOOK(glFramebufferTexture);
-		INSTALL_HOOK(glFramebufferTextureARB);
-		INSTALL_HOOK(glFramebufferTextureEXT);
-		INSTALL_HOOK(glFramebufferTexture1D);
-		INSTALL_HOOK(glFramebufferTexture1DEXT);
-		INSTALL_HOOK(glFramebufferTexture2D);
-		INSTALL_HOOK(glFramebufferTexture2DEXT);
-		INSTALL_HOOK(glFramebufferTexture3D);
-		INSTALL_HOOK(glFramebufferTexture3DEXT);
-		INSTALL_HOOK(glFramebufferTextureLayer);
-		INSTALL_HOOK(glFramebufferTextureLayerARB);
-		INSTALL_HOOK(glFramebufferTextureLayerEXT);
 		INSTALL_HOOK(glMultiDrawArrays);
 		INSTALL_HOOK(glMultiDrawArraysIndirect);
 		INSTALL_HOOK(glMultiDrawElements);
@@ -1116,7 +1109,9 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 
 		reshade::hook::apply_queued_actions();
 
-		s_hooks_not_installed = false;
+		gl3wProcs.gl.BindFramebuffer = reshade::hooks::call(glBindFramebuffer);
+
+		s_hooks_installed = false;
 	}
 
 	return address;

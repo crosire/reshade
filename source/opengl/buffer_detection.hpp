@@ -20,8 +20,8 @@ namespace reshade::opengl
 		};
 		struct depthstencil_info
 		{
-			GLuint obj, level;
-			GLuint width, height;
+			GLuint obj;
+			GLuint width, height, level, layer;
 			GLenum target, format;
 			draw_stats total_stats;
 			draw_stats current_stats;
@@ -36,15 +36,13 @@ namespace reshade::opengl
 
 		void on_draw(GLsizei vertices);
 		void on_draw_vertex(GLsizei vertices) { _current_vertex_count += vertices; }
-		void on_clear(GLbitfield mask);
-
 #if RESHADE_DEPTH
+		void on_bind_draw_fbo();
+		void on_clear_attachments(GLbitfield mask);
+
 		// Detection Settings
 		bool preserve_depth_buffers = false;
 		std::pair<GLuint, GLuint> depthstencil_clear_index = { 0, 0 };
-
-		void on_fbo_attachment(GLenum attachment, GLenum target, GLuint object, GLint level);
-		void on_delete_fbo_attachment(GLenum target, GLuint object);
 
 		const auto &depth_buffer_counters() const { return _depth_source_table; }
 
