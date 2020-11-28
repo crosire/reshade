@@ -475,12 +475,9 @@ bool reshade::d3d11::runtime_d3d11::init_effect(size_t index)
 		}
 
 		std::string attributes;
-		attributes += "func=D3DCompile;";
-		attributes += "name=(null);defines=(null);include=(null);";
 		attributes += "entrypoint=" + entry_point.name + ';';
 		attributes += "profile=" + profile + ';';
-		attributes += "compile=" + std::to_string(D3DCOMPILE_ENABLE_STRICTNESS | (_performance_mode ? D3DCOMPILE_OPTIMIZATION_LEVEL3 : D3DCOMPILE_OPTIMIZATION_LEVEL1)) + ';';
-		attributes += "effect=0;";
+		attributes += "flags=" + std::to_string(D3DCOMPILE_ENABLE_STRICTNESS | (_performance_mode ? D3DCOMPILE_OPTIMIZATION_LEVEL3 : D3DCOMPILE_OPTIMIZATION_LEVEL1)) + ';';
 
 		const size_t hash = std::hash<std::string_view>()(attributes) ^ std::hash<std::string_view>()(hlsl);
 		std::vector<char> cso;

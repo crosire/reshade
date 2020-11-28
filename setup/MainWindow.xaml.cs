@@ -657,30 +657,6 @@ In that event here are some steps you can try to resolve this:
 
 					if (packages.Count != 0)
 					{
-						// Change default cache path
-						if (!config.HasValue("GENERAL", "IntermediateCachePath"))
-						{
-							string cachePath = Path.GetFullPath(Path.Combine(packages.First().InstallPath, ".."));
-							if (!isElevated && IsWritable(cachePath))
-							{
-								cachePath = Path.Combine(cachePath, "Cache");
-								try
-								{
-									Directory.CreateDirectory(cachePath);
-								}
-								catch
-								{
-									cachePath = null;
-								}
-
-								if (cachePath != null)
-								{
-									config.SetValue("GENERAL", "IntermediateCachePath", cachePath);
-									config.SaveFile();
-								}
-							}
-						}
-
 						InstallationStep4(packages);
 						return;
 					}
