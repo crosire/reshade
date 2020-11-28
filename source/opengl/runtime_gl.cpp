@@ -108,6 +108,8 @@ reshade::opengl::runtime_gl::runtime_gl()
 #if RESHADE_DEPTH
 		auto force_default_depth_override = false;
 		config.get("OPENGL", "ForceMainDepthBuffer", force_default_depth_override);
+		config.get("OPENGL", "DepthCopyBeforeClears", _state_tracking.preserve_depth_buffers);
+		config.get("OPENGL", "DepthCopyAtClearIndex", _state_tracking.depthstencil_clear_index.second);
 		config.get("OPENGL", "UseAspectRatioHeuristics", _use_aspect_ratio_heuristics);
 
 		if (force_default_depth_override)
@@ -115,6 +117,8 @@ reshade::opengl::runtime_gl::runtime_gl()
 	});
 	subscribe_to_save_config([this](ini_file &config) {
 		config.set("OPENGL", "ForceMainDepthBuffer", _depth_source_override == 0);
+		config.set("OPENGL", "DepthCopyBeforeClears", _state_tracking.preserve_depth_buffers);
+		config.set("OPENGL", "DepthCopyAtClearIndex", _state_tracking.depthstencil_clear_index.second);
 		config.set("OPENGL", "UseAspectRatioHeuristics", _use_aspect_ratio_heuristics);
 #endif
 	});
