@@ -338,7 +338,10 @@ bool reshade::d3d11::runtime_d3d11::capture_screenshot(uint8_t *buffer) const
 {
 	if (_color_bit_depth != 8 && _color_bit_depth != 10)
 	{
-		LOG(ERROR) << "Screenshots are not supported for back buffer format " << _backbuffer_format << '.';
+		if (const char *format_string = format_to_string(_backbuffer_format); format_string != nullptr)
+			LOG(ERROR) << "Screenshots are not supported for back buffer format " << format_string << '.';
+		else
+			LOG(ERROR) << "Screenshots are not supported for back buffer format " << _backbuffer_format << '.';
 		return false;
 	}
 
