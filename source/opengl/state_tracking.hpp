@@ -42,6 +42,7 @@ namespace reshade::opengl
 
 		// Detection Settings
 		bool preserve_depth_buffers = false;
+		bool use_aspect_ratio_heuristics = true;
 		std::pair<GLuint, GLuint> depthstencil_clear_index = { 0, 0 };
 
 		const auto &depth_buffer_counters() const { return _depth_source_table; }

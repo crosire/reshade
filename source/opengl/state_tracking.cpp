@@ -10,8 +10,7 @@
 void reshade::opengl::state_tracking::reset(GLuint default_width, GLuint default_height, GLenum default_format)
 {
 	// Reset statistics for next frame
-	_stats.vertices = 0;
-	_stats.drawcalls = 0;
+	_stats = { 0, 0 };
 
 #if RESHADE_DEPTH
 	_best_copy_stats = { 0, 0 };
@@ -230,8 +229,9 @@ reshade::opengl::state_tracking::depthstencil_info reshade::opengl::state_tracki
 		if (snapshot.total_stats.drawcalls == 0)
 			continue; // Skip unused
 
-		if (width != 0 && height != 0)
+		if (use_aspect_ratio_heuristics)
 		{
+			assert(width != 0 && height != 0);
 			const float w = static_cast<float>(width);
 			const float w_ratio = w / snapshot.width;
 			const float h = static_cast<float>(height);

@@ -110,7 +110,7 @@ reshade::opengl::runtime_gl::runtime_gl()
 		config.get("OPENGL", "ForceMainDepthBuffer", force_default_depth_override);
 		config.get("OPENGL", "DepthCopyBeforeClears", _state_tracking.preserve_depth_buffers);
 		config.get("OPENGL", "DepthCopyAtClearIndex", _state_tracking.depthstencil_clear_index.second);
-		config.get("OPENGL", "UseAspectRatioHeuristics", _use_aspect_ratio_heuristics);
+		config.get("OPENGL", "UseAspectRatioHeuristics", _state_tracking.use_aspect_ratio_heuristics);
 
 		if (force_default_depth_override)
 			_depth_source_override = 0; // Zero has a special meaning and corresponds to the default depth buffer
@@ -119,7 +119,7 @@ reshade::opengl::runtime_gl::runtime_gl()
 		config.set("OPENGL", "ForceMainDepthBuffer", _depth_source_override == 0);
 		config.set("OPENGL", "DepthCopyBeforeClears", _state_tracking.preserve_depth_buffers);
 		config.set("OPENGL", "DepthCopyAtClearIndex", _state_tracking.depthstencil_clear_index.second);
-		config.set("OPENGL", "UseAspectRatioHeuristics", _use_aspect_ratio_heuristics);
+		config.set("OPENGL", "UseAspectRatioHeuristics", _state_tracking.use_aspect_ratio_heuristics);
 #endif
 	});
 
@@ -294,7 +294,7 @@ void reshade::opengl::runtime_gl::on_present()
 
 #if RESHADE_DEPTH
 	update_depth_texture_bindings(_has_high_network_activity ? state_tracking::depthstencil_info { 0 } :
-		_state_tracking.find_best_depth_texture(_use_aspect_ratio_heuristics ? _width : 0, _height, _depth_source_override));
+		_state_tracking.find_best_depth_texture(_width, _height, _depth_source_override));
 #endif
 
 	// Set clip space to something consistent
@@ -1365,7 +1365,7 @@ void reshade::opengl::runtime_gl::draw_depth_debug_menu()
 	}
 
 	bool modified = false;
-	modified |= ImGui::Checkbox("Use aspect ratio heuristics", &_use_aspect_ratio_heuristics);
+	modified |= ImGui::Checkbox("Use aspect ratio heuristics", &_state_tracking.use_aspect_ratio_heuristics);
 	modified |= ImGui::Checkbox("Copy depth buffer before clear operations", &_state_tracking.preserve_depth_buffers);
 
 	ImGui::Spacing();

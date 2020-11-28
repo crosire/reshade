@@ -85,8 +85,6 @@ namespace reshade::d3d11
 
 		com_ptr<ID3D11Texture2D> _depth_texture;
 		com_ptr<ID3D11ShaderResourceView> _depth_texture_srv;
-
-		bool _filter_aspect_ratio = true;
 		ID3D11Texture2D *_depth_texture_override = nullptr;
 #endif
 	};

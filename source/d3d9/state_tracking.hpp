@@ -47,6 +47,7 @@ namespace reshade::d3d9
 		// Detection Settings
 		bool disable_intz = false;
 		bool preserve_depth_buffers = false;
+		bool use_aspect_ratio_heuristics = true;
 		UINT depthstencil_clear_index = 0;
 
 		const auto &depth_buffer_counters() const { return _counters_per_used_depth_surface; }

@@ -41,6 +41,7 @@ namespace reshade::d3d10
 
 		// Detection Settings
 		bool preserve_depth_buffers = false;
+		bool use_aspect_ratio_heuristics = true;
 		std::pair<ID3D10Texture2D *, UINT> depthstencil_clear_index = { nullptr, 0 };
 
 		const auto &depth_buffer_counters() const { return _counters_per_used_depth_texture; }

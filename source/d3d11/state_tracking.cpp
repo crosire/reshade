@@ -232,8 +232,9 @@ com_ptr<ID3D11Texture2D> reshade::d3d11::state_tracking_context::find_best_depth
 
 			assert((desc.BindFlags & D3D11_BIND_SHADER_RESOURCE) != 0);
 
-			if (width != 0 && height != 0)
+			if (use_aspect_ratio_heuristics)
 			{
+				assert(width != 0 && height != 0);
 				const float w = static_cast<float>(width);
 				const float w_ratio = w / desc.Width;
 				const float h = static_cast<float>(height);

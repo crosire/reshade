@@ -84,8 +84,6 @@ namespace reshade::d3d10
 
 		com_ptr<ID3D10Texture2D> _depth_texture;
 		com_ptr<ID3D10ShaderResourceView> _depth_texture_srv;
-
-		bool _filter_aspect_ratio = true;
 		ID3D10Texture2D *_depth_texture_override = nullptr;
 #endif
 	};

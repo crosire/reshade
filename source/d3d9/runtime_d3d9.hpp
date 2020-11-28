@@ -80,7 +80,6 @@ namespace reshade::d3d9
 
 		bool _disable_intz = false;
 		bool _reset_buffer_detection = false;
-		bool _filter_aspect_ratio = true;
 		IDirect3DSurface9 *_depth_surface_override = nullptr;
 #endif
 	};

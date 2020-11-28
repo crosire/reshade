@@ -33,6 +33,9 @@ namespace reshade::vulkan
 
 #if RESHADE_DEPTH
 		void on_set_depthstencil(VkImage depthstencil, VkImageLayout layout, const VkImageCreateInfo &create_info);
+
+		// Detection settings
+		bool use_aspect_ratio_heuristics = true;
 #endif
 
 	protected:

@@ -108,7 +108,6 @@ namespace reshade::opengl
 		void update_depth_texture_bindings(state_tracking::depthstencil_info info);
 
 		bool _copy_depth_source = true;
-		bool _use_aspect_ratio_heuristics = true;
 		GLuint _depth_source = 0;
 		GLuint _depth_source_width = 0, _depth_source_height = 0;
 		GLenum _depth_source_format = 0;

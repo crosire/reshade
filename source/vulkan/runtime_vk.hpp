@@ -119,7 +119,6 @@ namespace reshade::vulkan
 		void draw_depth_debug_menu();
 		void update_depth_image_bindings(state_tracking::depthstencil_info info);
 
-		bool _use_aspect_ratio_heuristics = true;
 		VkImage _depth_image = VK_NULL_HANDLE;
 		VkImage _depth_image_override = VK_NULL_HANDLE;
 		VkImageView _depth_image_view = VK_NULL_HANDLE;

@@ -10,8 +10,7 @@
 
 void reshade::vulkan::state_tracking::reset()
 {
-	_stats.vertices = 0;
-	_stats.drawcalls = 0;
+	_stats = { 0, 0 };
 #if RESHADE_DEPTH
 	_counters_per_used_depth_image.clear();
 #endif
@@ -94,8 +93,9 @@ reshade::vulkan::state_tracking::depthstencil_info reshade::vulkan::state_tracki
 		if (snapshot.image_info.samples != VK_SAMPLE_COUNT_1_BIT)
 			continue; // Ignore MSAA textures, since they would need to be resolved first
 
-		if (dimensions.width != 0 && dimensions.height != 0)
+		if (use_aspect_ratio_heuristics)
 		{
+			assert(dimensions.width != 0 && dimensions.height != 0);
 			const float w = static_cast<float>(dimensions.width);
 			const float w_ratio = w / snapshot.image_info.extent.width;
 			const float h = static_cast<float>(dimensions.height);

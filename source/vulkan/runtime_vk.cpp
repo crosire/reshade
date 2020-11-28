@@ -227,10 +227,10 @@ reshade::vulkan::runtime_vk::runtime_vk(VkDevice device, VkPhysicalDevice physic
 #endif
 #if RESHADE_DEPTH
 	subscribe_to_load_config([this](const ini_file &config) {
-		config.get("VULKAN", "UseAspectRatioHeuristics", _use_aspect_ratio_heuristics);
+		config.get("VULKAN", "UseAspectRatioHeuristics", _state_tracking.use_aspect_ratio_heuristics);
 	});
 	subscribe_to_save_config([this](ini_file &config) {
-		config.set("VULKAN", "UseAspectRatioHeuristics", _use_aspect_ratio_heuristics);
+		config.set("VULKAN", "UseAspectRatioHeuristics", _state_tracking.use_aspect_ratio_heuristics);
 	});
 #endif
 }
@@ -603,7 +603,7 @@ void reshade::vulkan::runtime_vk::on_present(VkQueue queue, uint32_t swapchain_i
 
 #if RESHADE_DEPTH
 	update_depth_image_bindings(_has_high_network_activity ? state_tracking::depthstencil_info {} :
-		_state_tracking.find_best_depth_texture(_use_aspect_ratio_heuristics ? VkExtent2D { _width, _height } : VkExtent2D { 0, 0 }, _depth_image_override));
+		_state_tracking.find_best_depth_texture(VkExtent2D { _width, _height }, _depth_image_override));
 #endif
 
 	update_and_render_effects();
@@ -2497,7 +2497,7 @@ void reshade::vulkan::runtime_vk::draw_depth_debug_menu()
 		return;
 	}
 
-	if (ImGui::Checkbox("Use aspect ratio heuristics", &_use_aspect_ratio_heuristics))
+	if (ImGui::Checkbox("Use aspect ratio heuristics", &_state_tracking.use_aspect_ratio_heuristics))
 		runtime::save_config();
 
 	ImGui::Spacing();

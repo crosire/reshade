@@ -112,7 +112,7 @@ reshade::d3d12::runtime_d3d12::runtime_d3d12(ID3D12Device *device, ID3D12Command
 	subscribe_to_load_config([this](const ini_file &config) {
 		config.get("D3D12", "DepthCopyBeforeClears", _state_tracking.preserve_depth_buffers);
 		config.get("D3D12", "DepthCopyAtClearIndex", _state_tracking.depthstencil_clear_index.second);
-		config.get("D3D12", "UseAspectRatioHeuristics", _filter_aspect_ratio);
+		config.get("D3D12", "UseAspectRatioHeuristics", _state_tracking.use_aspect_ratio_heuristics);
 
 		if (_state_tracking.depthstencil_clear_index.second == std::numeric_limits<UINT>::max())
 			_state_tracking.depthstencil_clear_index.second  = 0;
@@ -120,7 +120,7 @@ reshade::d3d12::runtime_d3d12::runtime_d3d12(ID3D12Device *device, ID3D12Command
 	subscribe_to_save_config([this](ini_file &config) {
 		config.set("D3D12", "DepthCopyBeforeClears", _state_tracking.preserve_depth_buffers);
 		config.set("D3D12", "DepthCopyAtClearIndex", _state_tracking.depthstencil_clear_index.second);
-		config.set("D3D12", "UseAspectRatioHeuristics", _filter_aspect_ratio);
+		config.set("D3D12", "UseAspectRatioHeuristics", _state_tracking.use_aspect_ratio_heuristics);
 	});
 #endif
 }
@@ -397,8 +397,7 @@ void reshade::d3d12::runtime_d3d12::on_present()
 		return;
 
 #if RESHADE_DEPTH
-	update_depth_texture_bindings(_state_tracking.update_depth_texture(
-		_commandqueue.get(), _cmd_list.get(), _filter_aspect_ratio ? _width : 0, _height, _depth_texture_override));
+	update_depth_texture_bindings(_state_tracking.update_depth_texture(_commandqueue.get(), _cmd_list.get(), _width, _height, _depth_texture_override));
 #endif
 
 	transition_state(_cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -1775,7 +1774,7 @@ void reshade::d3d12::runtime_d3d12::draw_depth_debug_menu()
 	}
 
 	bool modified = false;
-	modified |= ImGui::Checkbox("Use aspect ratio heuristics", &_filter_aspect_ratio);
+	modified |= ImGui::Checkbox("Use aspect ratio heuristics", &_state_tracking.use_aspect_ratio_heuristics);
 	modified |= ImGui::Checkbox("Copy depth buffer before clear operations", &_state_tracking.preserve_depth_buffers);
 
 	if (modified) // Detection settings have changed, reset heuristic

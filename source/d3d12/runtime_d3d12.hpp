@@ -98,8 +98,6 @@ namespace reshade::d3d12
 		void update_depth_texture_bindings(com_ptr<ID3D12Resource> texture);
 
 		com_ptr<ID3D12Resource> _depth_texture;
-
-		bool _filter_aspect_ratio = true;
 		ID3D12Resource *_depth_texture_override = nullptr;
 #endif
 	};

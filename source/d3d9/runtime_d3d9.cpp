@@ -81,7 +81,7 @@ reshade::d3d9::runtime_d3d9::runtime_d3d9(IDirect3DDevice9 *device, IDirect3DSwa
 		config.get("D3D9", "DisableINTZ", _disable_intz);
 		config.get("D3D9", "DepthCopyBeforeClears", _state_tracking.preserve_depth_buffers);
 		config.get("D3D9", "DepthCopyAtClearIndex", _state_tracking.depthstencil_clear_index);
-		config.get("D3D9", "UseAspectRatioHeuristics", _filter_aspect_ratio);
+		config.get("D3D9", "UseAspectRatioHeuristics", _state_tracking.use_aspect_ratio_heuristics);
 
 		if (_state_tracking.depthstencil_clear_index == std::numeric_limits<UINT>::max())
 			_state_tracking.depthstencil_clear_index  = 0;
@@ -90,7 +90,7 @@ reshade::d3d9::runtime_d3d9::runtime_d3d9(IDirect3DDevice9 *device, IDirect3DSwa
 		config.set("D3D9", "DisableINTZ", _disable_intz);
 		config.set("D3D9", "DepthCopyBeforeClears", _state_tracking.preserve_depth_buffers);
 		config.set("D3D9", "DepthCopyAtClearIndex", _state_tracking.depthstencil_clear_index);
-		config.set("D3D9", "UseAspectRatioHeuristics", _filter_aspect_ratio);
+		config.set("D3D9", "UseAspectRatioHeuristics", _state_tracking.use_aspect_ratio_heuristics);
 	});
 #endif
 }
@@ -235,7 +235,7 @@ void reshade::d3d9::runtime_d3d9::on_present()
 	_state_tracking.disable_intz = _disable_intz || _has_high_network_activity;
 
 	update_depth_texture_bindings(_has_high_network_activity ? nullptr :
-		_state_tracking.find_best_depth_surface(_filter_aspect_ratio ? _width : 0, _height, _depth_surface_override));
+		_state_tracking.find_best_depth_surface(_width, _height, _depth_surface_override));
 #endif
 
 	_app_state.capture();
@@ -1231,7 +1231,7 @@ void reshade::d3d9::runtime_d3d9::draw_depth_debug_menu()
 	// Do NOT reset tracker within state block capture scope, since the state block may otherwise bind the replacement depth-stencil after it has been destroyed during that reset
 	_reset_buffer_detection |= ImGui::Checkbox("Disable replacement with INTZ format", &_disable_intz);
 
-	_reset_buffer_detection |= ImGui::Checkbox("Use aspect ratio heuristics", &_filter_aspect_ratio);
+	_reset_buffer_detection |= ImGui::Checkbox("Use aspect ratio heuristics", &_state_tracking.use_aspect_ratio_heuristics);
 	_reset_buffer_detection |= ImGui::Checkbox("Copy depth buffer before clear operations", &_state_tracking.preserve_depth_buffers);
 
 	ImGui::Spacing();

@@ -177,8 +177,9 @@ com_ptr<ID3D10Texture2D> reshade::d3d10::state_tracking::find_best_depth_texture
 
 			assert((desc.BindFlags & D3D10_BIND_SHADER_RESOURCE) != 0);
 
-			if (width != 0 && height != 0)
+			if (use_aspect_ratio_heuristics)
 			{
+				assert(width != 0 && height != 0);
 				const float w = static_cast<float>(width);
 				const float w_ratio = w / desc.Width;
 				const float h = static_cast<float>(height);

@@ -240,8 +240,9 @@ com_ptr<ID3D12Resource> reshade::d3d12::state_tracking_context::update_depth_tex
 			if (desc.SampleDesc.Count > 1)
 				continue; // Ignore MSAA textures, since they would need to be resolved first
 
-			if (width != 0 && height != 0)
+			if (use_aspect_ratio_heuristics)
 			{
+				assert(width != 0 && height != 0);
 				const float w = static_cast<float>(width);
 				const float w_ratio = w / desc.Width;
 				const float h = static_cast<float>(height);

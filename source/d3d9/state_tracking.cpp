@@ -245,6 +245,7 @@ bool reshade::d3d9::state_tracking::update_depthstencil_replacement(com_ptr<IDir
 
 bool reshade::d3d9::state_tracking::check_aspect_ratio(UINT width_to_check, UINT height_to_check, UINT width, UINT height)
 {
+	assert(width != 0 && height != 0);
 	return (width_to_check >= std::floor(width * 0.95f) && width_to_check <= std::ceil(width * 1.05f))
 		&& (height_to_check >= std::floor(height * 0.95f) && height_to_check <= std::ceil(height * 1.05f));
 }
@@ -283,7 +284,7 @@ com_ptr<IDirect3DSurface9> reshade::d3d9::state_tracking::find_best_depth_surfac
 			if (desc.MultiSampleType != D3DMULTISAMPLE_NONE)
 				continue; // MSAA depth buffers are not supported since they would have to be moved into a plain surface before attaching to a shader slot
 
-			if (width != 0 && height != 0 && !check_aspect_ratio(desc.Width, desc.Height, width, height))
+			if (use_aspect_ratio_heuristics && !check_aspect_ratio(desc.Width, desc.Height, width, height))
 				continue; // Not a good fit
 
 			const auto curr_weight = snapshot.total_stats.vertices * (1.2f - static_cast<float>(snapshot.total_stats.drawcalls) / _stats.drawcalls);
