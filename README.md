@@ -1,9 +1,12 @@
-ReShade
-=======
+   I have edited 2 files to disable that annoying depth buffer lock when you are online. You do have to be wary though, I personally have not been banned from any game because of my use of this, but I know one thing for sure, you CAN NOT use reshade or any .dll modification on battle eye anticheat game. You will get banned almost right away if it does not disable it.
 
-This is a generic post-processing injector for games and video software. It exposes an automated way to access both frame color and depth information and a custom shader language called ReShade FX to write effects like ambient occlusion, depth of field, color correction and more which work everywhere.
+   Anyways, I'm keeping all of the text below available if anyone would like to view it to do whatever.
+The 2 files I have changed are ~
 
-The ReShade FX shader compiler contained in this repository is standalone, so can be integrated into other projects as well. Simply add all `source/effect_*.*` files to your project and use it similar to the [fxc example](tools/fxc.cpp).
+setup \ MainWindow.xaml.cs
+and
+source \ runtime.cpp
+
 
 ## Building
 
