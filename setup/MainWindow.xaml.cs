@@ -143,24 +143,12 @@ namespace ReShade.Setup
 
 		void AddSearchPath(List<string> searchPaths, string newPath)
 		{
-			string basePath = Path.GetDirectoryName(configPath);
-			Directory.SetCurrentDirectory(basePath);
-
-			bool pathExists = false;
-
-			foreach (var searchPath in searchPaths)
+			if (searchPaths.Any(searchPath => Path.GetFullPath(searchPath) == Path.GetFullPath(newPath)))
 			{
-				if (Path.GetFullPath(searchPath) == Path.GetFullPath(newPath))
-				{
-					pathExists = true;
-					break;
-				}
+				return;
 			}
 
-			if (!pathExists)
-			{
-				searchPaths.Add(newPath);
-			}
+			searchPaths.Add(newPath);
 		}
 		void WriteSearchPaths(string targetPathEffects, string targetPathTextures)
 		{
@@ -503,6 +491,10 @@ namespace ReShade.Setup
 
 			UpdateStatus("Working on " + targetName + " ...", "Installing ReShade ...");
 
+			// Change current directory so that "Path.GetFullPath" resolves correctly
+			string basePath = Path.GetDirectoryName(configPath);
+			Directory.SetCurrentDirectory(basePath);
+
 			if (ApiVulkan.IsChecked != true)
 			{
 				try
@@ -665,6 +657,30 @@ In that event here are some steps you can try to resolve this:
 
 					if (packages.Count != 0)
 					{
+						// Change default cache path
+						if (!config.HasValue("GENERAL", "IntermediateCachePath"))
+						{
+							string cachePath = Path.GetFullPath(Path.Combine(packages.First().InstallPath, ".."));
+							if (!isElevated && IsWritable(cachePath))
+							{
+								cachePath = Path.Combine(cachePath, "Cache");
+								try
+								{
+									Directory.CreateDirectory(cachePath);
+								}
+								catch
+								{
+									cachePath = null;
+								}
+
+								if (cachePath != null)
+								{
+									config.SetValue("GENERAL", "IntermediateCachePath", cachePath);
+									config.SaveFile();
+								}
+							}
+						}
+
 						InstallationStep4(packages);
 						return;
 					}

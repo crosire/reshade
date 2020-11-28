@@ -95,10 +95,6 @@ reshade::runtime::runtime() :
 		std::filesystem::exists(config_path_alt, ec) && !std::filesystem::exists(_config_path, ec))
 		_config_path = std::move(config_path_alt);
 
-	WCHAR temp_path[MAX_PATH] = L"";
-	GetTempPathW(MAX_PATH, temp_path);
-	_intermediate_cache_path = temp_path;
-
 #if RESHADE_GUI
 	init_gui();
 #endif
@@ -1372,6 +1368,15 @@ void reshade::runtime::load_config()
 
 	config.get("GENERAL", "PresetPath", _current_preset_path);
 	config.get("GENERAL", "PresetTransitionDelay", _preset_transition_delay);
+
+	// Fall back to temp directory if cache path does not exist
+	if (_intermediate_cache_path.empty() || !resolve_path(_intermediate_cache_path))
+	{
+		WCHAR temp_path[MAX_PATH] = L"";
+		GetTempPathW(MAX_PATH, temp_path);
+		_intermediate_cache_path = temp_path;
+	}
+
 	// Use default if the preset file does not exist yet
 	if (!resolve_preset_path(_current_preset_path))
 		_current_preset_path = g_reshade_base_path / L"ReShadePreset.ini";
