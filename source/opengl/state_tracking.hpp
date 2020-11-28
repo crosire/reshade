@@ -10,7 +10,7 @@
 
 namespace reshade::opengl
 {
-	class buffer_detection
+	class state_tracking
 	{
 	public:
 		struct draw_stats

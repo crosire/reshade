@@ -3,11 +3,11 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "buffer_detection.hpp"
+#include "state_tracking.hpp"
 #include <cmath>
 #include <cassert>
 
-void reshade::opengl::buffer_detection::reset(GLuint default_width, GLuint default_height, GLenum default_format)
+void reshade::opengl::state_tracking::reset(GLuint default_width, GLuint default_height, GLenum default_format)
 {
 	// Reset statistics for next frame
 	_stats.vertices = 0;
@@ -25,7 +25,7 @@ void reshade::opengl::buffer_detection::reset(GLuint default_width, GLuint defau
 	UNREFERENCED_PARAMETER(default_format);
 #endif
 }
-void reshade::opengl::buffer_detection::release()
+void reshade::opengl::state_tracking::release()
 {
 #if RESHADE_DEPTH
 	glDeleteTextures(1, &_clear_texture);
@@ -54,7 +54,7 @@ static bool current_depth_source(GLint &object, GLint &target)
 }
 #endif
 
-void reshade::opengl::buffer_detection::on_draw(GLsizei vertices)
+void reshade::opengl::state_tracking::on_draw(GLsizei vertices)
 {
 	vertices += _current_vertex_count;
 	_current_vertex_count = 0;
@@ -122,7 +122,7 @@ static void get_tex_level_param(GLuint id, GLuint level, GLenum param, GLuint &v
 	}
 }
 
-void reshade::opengl::buffer_detection::on_bind_draw_fbo()
+void reshade::opengl::state_tracking::on_bind_draw_fbo()
 {
 	GLint object = 0, target;
 	if (!current_depth_source(object, target))
@@ -151,7 +151,7 @@ void reshade::opengl::buffer_detection::on_bind_draw_fbo()
 		break;
 	}
 }
-void reshade::opengl::buffer_detection::on_clear_attachments(GLbitfield mask)
+void reshade::opengl::state_tracking::on_clear_attachments(GLbitfield mask)
 {
 	if ((mask & GL_DEPTH_BUFFER_BIT) == 0)
 		return;
@@ -212,7 +212,7 @@ void reshade::opengl::buffer_detection::on_clear_attachments(GLbitfield mask)
 	counters.current_stats = { 0, 0 };
 }
 
-reshade::opengl::buffer_detection::depthstencil_info reshade::opengl::buffer_detection::find_best_depth_texture(GLuint width, GLuint height, GLuint override)
+reshade::opengl::state_tracking::depthstencil_info reshade::opengl::state_tracking::find_best_depth_texture(GLuint width, GLuint height, GLuint override)
 {
 	depthstencil_info best_snapshot = _depth_source_table.at(0); // Always fall back to default depth buffer if no better match is found
 

@@ -48,7 +48,7 @@ HOOK_EXPORT void WINAPI glBegin(GLenum mode)
 
 #if RESHADE_DEPTH
 	if (g_current_runtime && (target == GL_FRAMEBUFFER || target == GL_DRAW_FRAMEBUFFER))
-		g_current_runtime->_buffer_detection.on_bind_draw_fbo();
+		g_current_runtime->_state_tracking.on_bind_draw_fbo();
 #endif
 }
 
@@ -85,7 +85,7 @@ HOOK_EXPORT void WINAPI glClear(GLbitfield mask)
 {
 #if RESHADE_DEPTH
 	if (g_current_runtime)
-		g_current_runtime->_buffer_detection.on_clear_attachments(mask);
+		g_current_runtime->_state_tracking.on_clear_attachments(mask);
 #endif
 
 	static const auto trampoline = reshade::hooks::call(glClear);
@@ -377,7 +377,7 @@ HOOK_EXPORT void WINAPI glDisableClientState(GLenum array)
 HOOK_EXPORT void WINAPI glDrawArrays(GLenum mode, GLint first, GLsizei count)
 {
 	if (g_current_runtime)
-		g_current_runtime->_buffer_detection.on_draw(count);
+		g_current_runtime->_state_tracking.on_draw(count);
 
 	static const auto trampoline = reshade::hooks::call(glDrawArrays);
 	trampoline(mode, first, count);
@@ -385,7 +385,7 @@ HOOK_EXPORT void WINAPI glDrawArrays(GLenum mode, GLint first, GLsizei count)
 			void WINAPI glDrawArraysIndirect(GLenum mode, const GLvoid *indirect)
 {
 	if (g_current_runtime)
-		g_current_runtime->_buffer_detection.on_draw(0);
+		g_current_runtime->_state_tracking.on_draw(0);
 
 	static const auto trampoline = reshade::hooks::call(glDrawArraysIndirect);
 	trampoline(mode, indirect);
@@ -393,7 +393,7 @@ HOOK_EXPORT void WINAPI glDrawArrays(GLenum mode, GLint first, GLsizei count)
 			void WINAPI glDrawArraysInstanced(GLenum mode, GLint first, GLsizei count, GLsizei primcount)
 {
 	if (g_current_runtime)
-		g_current_runtime->_buffer_detection.on_draw(primcount * count);
+		g_current_runtime->_state_tracking.on_draw(primcount * count);
 
 	static const auto trampoline = reshade::hooks::call(glDrawArraysInstanced);
 	trampoline(mode, first, count, primcount);
@@ -401,7 +401,7 @@ HOOK_EXPORT void WINAPI glDrawArrays(GLenum mode, GLint first, GLsizei count)
 			void WINAPI glDrawArraysInstancedARB(GLenum mode, GLint first, GLsizei count, GLsizei primcount)
 {
 	if (g_current_runtime)
-		g_current_runtime->_buffer_detection.on_draw(primcount * count);
+		g_current_runtime->_state_tracking.on_draw(primcount * count);
 
 	static const auto trampoline = reshade::hooks::call(glDrawArraysInstancedARB);
 	trampoline(mode, first, count, primcount);
@@ -409,7 +409,7 @@ HOOK_EXPORT void WINAPI glDrawArrays(GLenum mode, GLint first, GLsizei count)
 			void WINAPI glDrawArraysInstancedEXT(GLenum mode, GLint first, GLsizei count, GLsizei primcount)
 {
 	if (g_current_runtime)
-		g_current_runtime->_buffer_detection.on_draw(primcount * count);
+		g_current_runtime->_state_tracking.on_draw(primcount * count);
 
 	static const auto trampoline = reshade::hooks::call(glDrawArraysInstancedEXT);
 	trampoline(mode, first, count, primcount);
@@ -417,7 +417,7 @@ HOOK_EXPORT void WINAPI glDrawArrays(GLenum mode, GLint first, GLsizei count)
 			void WINAPI glDrawArraysInstancedBaseInstance(GLenum mode, GLint first, GLsizei count, GLsizei primcount, GLuint baseinstance)
 {
 	if (g_current_runtime)
-		g_current_runtime->_buffer_detection.on_draw(primcount * count);
+		g_current_runtime->_state_tracking.on_draw(primcount * count);
 
 	static const auto trampoline = reshade::hooks::call(glDrawArraysInstancedBaseInstance);
 	trampoline(mode, first, count, primcount, baseinstance);
@@ -432,7 +432,7 @@ HOOK_EXPORT void WINAPI glDrawBuffer(GLenum mode)
 HOOK_EXPORT void WINAPI glDrawElements(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices)
 {
 	if (g_current_runtime)
-		g_current_runtime->_buffer_detection.on_draw(count);
+		g_current_runtime->_state_tracking.on_draw(count);
 
 	static const auto trampoline = reshade::hooks::call(glDrawElements);
 	trampoline(mode, count, type, indices);
@@ -440,7 +440,7 @@ HOOK_EXPORT void WINAPI glDrawElements(GLenum mode, GLsizei count, GLenum type, 
 			void WINAPI glDrawElementsBaseVertex(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLint basevertex)
 {
 	if (g_current_runtime)
-		g_current_runtime->_buffer_detection.on_draw(count);
+		g_current_runtime->_state_tracking.on_draw(count);
 
 	static const auto trampoline = reshade::hooks::call(glDrawElementsBaseVertex);
 	trampoline(mode, count, type, indices, basevertex);
@@ -448,7 +448,7 @@ HOOK_EXPORT void WINAPI glDrawElements(GLenum mode, GLsizei count, GLenum type, 
 			void WINAPI glDrawElementsIndirect(GLenum mode, GLenum type, const GLvoid *indirect)
 {
 	if (g_current_runtime)
-		g_current_runtime->_buffer_detection.on_draw(0);
+		g_current_runtime->_state_tracking.on_draw(0);
 
 	static const auto trampoline = reshade::hooks::call(glDrawElementsIndirect);
 	trampoline(mode, type, indirect);
@@ -456,7 +456,7 @@ HOOK_EXPORT void WINAPI glDrawElements(GLenum mode, GLsizei count, GLenum type, 
 			void WINAPI glDrawElementsInstanced(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount)
 {
 	if (g_current_runtime)
-		g_current_runtime->_buffer_detection.on_draw(primcount * count);
+		g_current_runtime->_state_tracking.on_draw(primcount * count);
 
 	static const auto trampoline = reshade::hooks::call(glDrawElementsInstanced);
 	trampoline(mode, count, type, indices, primcount);
@@ -464,7 +464,7 @@ HOOK_EXPORT void WINAPI glDrawElements(GLenum mode, GLsizei count, GLenum type, 
 			void WINAPI glDrawElementsInstancedARB(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount)
 {
 	if (g_current_runtime)
-		g_current_runtime->_buffer_detection.on_draw(primcount * count);
+		g_current_runtime->_state_tracking.on_draw(primcount * count);
 
 	static const auto trampoline = reshade::hooks::call(glDrawElementsInstancedARB);
 	trampoline(mode, count, type, indices, primcount);
@@ -472,7 +472,7 @@ HOOK_EXPORT void WINAPI glDrawElements(GLenum mode, GLsizei count, GLenum type, 
 			void WINAPI glDrawElementsInstancedEXT(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount)
 {
 	if (g_current_runtime)
-		g_current_runtime->_buffer_detection.on_draw(primcount * count);
+		g_current_runtime->_state_tracking.on_draw(primcount * count);
 
 	static const auto trampoline = reshade::hooks::call(glDrawElementsInstancedEXT);
 	trampoline(mode, count, type, indices, primcount);
@@ -480,7 +480,7 @@ HOOK_EXPORT void WINAPI glDrawElements(GLenum mode, GLsizei count, GLenum type, 
 			void WINAPI glDrawElementsInstancedBaseVertex(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount, GLint basevertex)
 {
 	if (g_current_runtime)
-		g_current_runtime->_buffer_detection.on_draw(primcount * count);
+		g_current_runtime->_state_tracking.on_draw(primcount * count);
 
 	static const auto trampoline = reshade::hooks::call(glDrawElementsInstancedBaseVertex);
 	trampoline(mode, count, type, indices, primcount, basevertex);
@@ -488,7 +488,7 @@ HOOK_EXPORT void WINAPI glDrawElements(GLenum mode, GLsizei count, GLenum type, 
 			void WINAPI glDrawElementsInstancedBaseInstance(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount, GLuint baseinstance)
 {
 	if (g_current_runtime)
-		g_current_runtime->_buffer_detection.on_draw(primcount * count);
+		g_current_runtime->_state_tracking.on_draw(primcount * count);
 
 	static const auto trampoline = reshade::hooks::call(glDrawElementsInstancedBaseInstance);
 	trampoline(mode, count, type, indices, primcount, baseinstance);
@@ -496,7 +496,7 @@ HOOK_EXPORT void WINAPI glDrawElements(GLenum mode, GLsizei count, GLenum type, 
 			void WINAPI glDrawElementsInstancedBaseVertexBaseInstance(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount, GLint basevertex, GLuint baseinstance)
 {
 	if (g_current_runtime)
-		g_current_runtime->_buffer_detection.on_draw(primcount * count);
+		g_current_runtime->_state_tracking.on_draw(primcount * count);
 
 	static const auto trampoline = reshade::hooks::call(glDrawElementsInstancedBaseVertexBaseInstance);
 	trampoline(mode, count, type, indices, primcount, basevertex, baseinstance);
@@ -511,7 +511,7 @@ HOOK_EXPORT void WINAPI glDrawPixels(GLsizei width, GLsizei height, GLenum forma
 			void WINAPI glDrawRangeElements(GLenum mode, GLuint start, GLuint end, GLsizei count, GLenum type, const GLvoid *indices)
 {
 	if (g_current_runtime)
-		g_current_runtime->_buffer_detection.on_draw(count);
+		g_current_runtime->_state_tracking.on_draw(count);
 
 	static const auto trampoline = reshade::hooks::call(glDrawRangeElements);
 	trampoline(mode, start, end, count, type, indices);
@@ -519,7 +519,7 @@ HOOK_EXPORT void WINAPI glDrawPixels(GLsizei width, GLsizei height, GLenum forma
 			void WINAPI glDrawRangeElementsBaseVertex(GLenum mode, GLuint start, GLuint end, GLsizei count, GLenum type, const GLvoid *indices, GLint basevertex)
 {
 	if (g_current_runtime)
-		g_current_runtime->_buffer_detection.on_draw(count);
+		g_current_runtime->_state_tracking.on_draw(count);
 
 	static const auto trampoline = reshade::hooks::call(glDrawRangeElementsBaseVertex);
 	trampoline(mode, start, end, count, type, indices, basevertex);
@@ -558,7 +558,7 @@ HOOK_EXPORT void WINAPI glEnd()
 	trampoline();
 
 	if (g_current_runtime)
-		g_current_runtime->_buffer_detection.on_draw(0);
+		g_current_runtime->_state_tracking.on_draw(0);
 }
 
 HOOK_EXPORT void WINAPI glEndList()
@@ -1119,7 +1119,7 @@ HOOK_EXPORT void WINAPI glMultMatrixf(const GLfloat *m)
 			void WINAPI glMultiDrawArrays(GLenum mode, const GLint *first, const GLsizei *count, GLsizei drawcount)
 {
 	if (g_current_runtime)
-		g_current_runtime->_buffer_detection.on_draw(std::accumulate(count, count + drawcount, 0));
+		g_current_runtime->_state_tracking.on_draw(std::accumulate(count, count + drawcount, 0));
 
 	static const auto trampoline = reshade::hooks::call(glMultiDrawArrays);
 	trampoline(mode, first, count, drawcount);
@@ -1127,7 +1127,7 @@ HOOK_EXPORT void WINAPI glMultMatrixf(const GLfloat *m)
 			void WINAPI glMultiDrawArraysIndirect(GLenum mode, const void *indirect, GLsizei drawcount, GLsizei stride)
 {
 	if (g_current_runtime)
-		g_current_runtime->_buffer_detection.on_draw(0);
+		g_current_runtime->_state_tracking.on_draw(0);
 
 	static const auto trampoline = reshade::hooks::call(glMultiDrawArraysIndirect);
 	trampoline(mode, indirect, drawcount, stride);
@@ -1135,7 +1135,7 @@ HOOK_EXPORT void WINAPI glMultMatrixf(const GLfloat *m)
 			void WINAPI glMultiDrawElements(GLenum mode, const GLsizei *count, GLenum type, const GLvoid *const *indices, GLsizei drawcount)
 {
 	if (g_current_runtime)
-		g_current_runtime->_buffer_detection.on_draw(std::accumulate(count, count + drawcount, 0));
+		g_current_runtime->_state_tracking.on_draw(std::accumulate(count, count + drawcount, 0));
 
 	static const auto trampoline = reshade::hooks::call(glMultiDrawElements);
 	trampoline(mode, count, type, indices, drawcount);
@@ -1143,7 +1143,7 @@ HOOK_EXPORT void WINAPI glMultMatrixf(const GLfloat *m)
 			void WINAPI glMultiDrawElementsBaseVertex(GLenum mode, const GLsizei *count, GLenum type, const GLvoid *const *indices, GLsizei drawcount, const GLint *basevertex)
 {
 	if (g_current_runtime)
-		g_current_runtime->_buffer_detection.on_draw(std::accumulate(count, count + drawcount, 0));
+		g_current_runtime->_state_tracking.on_draw(std::accumulate(count, count + drawcount, 0));
 
 	static const auto trampoline = reshade::hooks::call(glMultiDrawElementsBaseVertex);
 	trampoline(mode, count, type, indices, drawcount, basevertex);
@@ -1151,7 +1151,7 @@ HOOK_EXPORT void WINAPI glMultMatrixf(const GLfloat *m)
 			void WINAPI glMultiDrawElementsIndirect(GLenum mode, GLenum type, const void *indirect, GLsizei drawcount, GLsizei stride)
 {
 	if (g_current_runtime)
-		g_current_runtime->_buffer_detection.on_draw(0);
+		g_current_runtime->_state_tracking.on_draw(0);
 
 	static const auto trampoline = reshade::hooks::call(glMultiDrawElementsIndirect);
 	trampoline(mode, type, indirect, drawcount, stride);
@@ -1930,7 +1930,7 @@ HOOK_EXPORT void WINAPI glTranslatef(GLfloat x, GLfloat y, GLfloat z)
 HOOK_EXPORT void WINAPI glVertex2d(GLdouble x, GLdouble y)
 {
 	if (g_current_runtime)
-		g_current_runtime->_buffer_detection.on_draw_vertex(2);
+		g_current_runtime->_state_tracking.on_draw_vertex(2);
 
 	static const auto trampoline = reshade::hooks::call(glVertex2d);
 	trampoline(x, y);
@@ -1938,7 +1938,7 @@ HOOK_EXPORT void WINAPI glVertex2d(GLdouble x, GLdouble y)
 HOOK_EXPORT void WINAPI glVertex2dv(const GLdouble *v)
 {
 	if (g_current_runtime)
-		g_current_runtime->_buffer_detection.on_draw_vertex(2);
+		g_current_runtime->_state_tracking.on_draw_vertex(2);
 
 	static const auto trampoline = reshade::hooks::call(glVertex2dv);
 	trampoline(v);
@@ -1946,7 +1946,7 @@ HOOK_EXPORT void WINAPI glVertex2dv(const GLdouble *v)
 HOOK_EXPORT void WINAPI glVertex2f(GLfloat x, GLfloat y)
 {
 	if (g_current_runtime)
-		g_current_runtime->_buffer_detection.on_draw_vertex(2);
+		g_current_runtime->_state_tracking.on_draw_vertex(2);
 
 	static const auto trampoline = reshade::hooks::call(glVertex2f);
 	trampoline(x, y);
@@ -1954,7 +1954,7 @@ HOOK_EXPORT void WINAPI glVertex2f(GLfloat x, GLfloat y)
 HOOK_EXPORT void WINAPI glVertex2fv(const GLfloat *v)
 {
 	if (g_current_runtime)
-		g_current_runtime->_buffer_detection.on_draw_vertex(2);
+		g_current_runtime->_state_tracking.on_draw_vertex(2);
 
 	static const auto trampoline = reshade::hooks::call(glVertex2fv);
 	trampoline(v);
@@ -1962,7 +1962,7 @@ HOOK_EXPORT void WINAPI glVertex2fv(const GLfloat *v)
 HOOK_EXPORT void WINAPI glVertex2i(GLint x, GLint y)
 {
 	if (g_current_runtime)
-		g_current_runtime->_buffer_detection.on_draw_vertex(2);
+		g_current_runtime->_state_tracking.on_draw_vertex(2);
 
 	static const auto trampoline = reshade::hooks::call(glVertex2i);
 	trampoline(x, y);
@@ -1970,7 +1970,7 @@ HOOK_EXPORT void WINAPI glVertex2i(GLint x, GLint y)
 HOOK_EXPORT void WINAPI glVertex2iv(const GLint *v)
 {
 	if (g_current_runtime)
-		g_current_runtime->_buffer_detection.on_draw_vertex(2);
+		g_current_runtime->_state_tracking.on_draw_vertex(2);
 
 	static const auto trampoline = reshade::hooks::call(glVertex2iv);
 	trampoline(v);
@@ -1978,7 +1978,7 @@ HOOK_EXPORT void WINAPI glVertex2iv(const GLint *v)
 HOOK_EXPORT void WINAPI glVertex2s(GLshort x, GLshort y)
 {
 	if (g_current_runtime)
-		g_current_runtime->_buffer_detection.on_draw_vertex(2);
+		g_current_runtime->_state_tracking.on_draw_vertex(2);
 
 	static const auto trampoline = reshade::hooks::call(glVertex2s);
 	trampoline(x, y);
@@ -1986,7 +1986,7 @@ HOOK_EXPORT void WINAPI glVertex2s(GLshort x, GLshort y)
 HOOK_EXPORT void WINAPI glVertex2sv(const GLshort *v)
 {
 	if (g_current_runtime)
-		g_current_runtime->_buffer_detection.on_draw_vertex(2);
+		g_current_runtime->_state_tracking.on_draw_vertex(2);
 
 	static const auto trampoline = reshade::hooks::call(glVertex2sv);
 	trampoline(v);
@@ -1994,7 +1994,7 @@ HOOK_EXPORT void WINAPI glVertex2sv(const GLshort *v)
 HOOK_EXPORT void WINAPI glVertex3d(GLdouble x, GLdouble y, GLdouble z)
 {
 	if (g_current_runtime)
-		g_current_runtime->_buffer_detection.on_draw_vertex(3);
+		g_current_runtime->_state_tracking.on_draw_vertex(3);
 
 	static const auto trampoline = reshade::hooks::call(glVertex3d);
 	trampoline(x, y, z);
@@ -2002,7 +2002,7 @@ HOOK_EXPORT void WINAPI glVertex3d(GLdouble x, GLdouble y, GLdouble z)
 HOOK_EXPORT void WINAPI glVertex3dv(const GLdouble *v)
 {
 	if (g_current_runtime)
-		g_current_runtime->_buffer_detection.on_draw_vertex(3);
+		g_current_runtime->_state_tracking.on_draw_vertex(3);
 
 	static const auto trampoline = reshade::hooks::call(glVertex3dv);
 	trampoline(v);
@@ -2010,7 +2010,7 @@ HOOK_EXPORT void WINAPI glVertex3dv(const GLdouble *v)
 HOOK_EXPORT void WINAPI glVertex3f(GLfloat x, GLfloat y, GLfloat z)
 {
 	if (g_current_runtime)
-		g_current_runtime->_buffer_detection.on_draw_vertex(3);
+		g_current_runtime->_state_tracking.on_draw_vertex(3);
 
 	static const auto trampoline = reshade::hooks::call(glVertex3f);
 	trampoline(x, y, z);
@@ -2018,7 +2018,7 @@ HOOK_EXPORT void WINAPI glVertex3f(GLfloat x, GLfloat y, GLfloat z)
 HOOK_EXPORT void WINAPI glVertex3fv(const GLfloat *v)
 {
 	if (g_current_runtime)
-		g_current_runtime->_buffer_detection.on_draw_vertex(3);
+		g_current_runtime->_state_tracking.on_draw_vertex(3);
 
 	static const auto trampoline = reshade::hooks::call(glVertex3fv);
 	trampoline(v);
@@ -2026,7 +2026,7 @@ HOOK_EXPORT void WINAPI glVertex3fv(const GLfloat *v)
 HOOK_EXPORT void WINAPI glVertex3i(GLint x, GLint y, GLint z)
 {
 	if (g_current_runtime)
-		g_current_runtime->_buffer_detection.on_draw_vertex(3);
+		g_current_runtime->_state_tracking.on_draw_vertex(3);
 
 	static const auto trampoline = reshade::hooks::call(glVertex3i);
 	trampoline(x, y, z);
@@ -2034,7 +2034,7 @@ HOOK_EXPORT void WINAPI glVertex3i(GLint x, GLint y, GLint z)
 HOOK_EXPORT void WINAPI glVertex3iv(const GLint *v)
 {
 	if (g_current_runtime)
-		g_current_runtime->_buffer_detection.on_draw_vertex(3);
+		g_current_runtime->_state_tracking.on_draw_vertex(3);
 
 	static const auto trampoline = reshade::hooks::call(glVertex3iv);
 	trampoline(v);
@@ -2042,7 +2042,7 @@ HOOK_EXPORT void WINAPI glVertex3iv(const GLint *v)
 HOOK_EXPORT void WINAPI glVertex3s(GLshort x, GLshort y, GLshort z)
 {
 	if (g_current_runtime)
-		g_current_runtime->_buffer_detection.on_draw_vertex(3);
+		g_current_runtime->_state_tracking.on_draw_vertex(3);
 
 	static const auto trampoline = reshade::hooks::call(glVertex3s);
 	trampoline(x, y, z);
@@ -2050,7 +2050,7 @@ HOOK_EXPORT void WINAPI glVertex3s(GLshort x, GLshort y, GLshort z)
 HOOK_EXPORT void WINAPI glVertex3sv(const GLshort *v)
 {
 	if (g_current_runtime)
-		g_current_runtime->_buffer_detection.on_draw_vertex(3);
+		g_current_runtime->_state_tracking.on_draw_vertex(3);
 
 	static const auto trampoline = reshade::hooks::call(glVertex3sv);
 	trampoline(v);
@@ -2058,7 +2058,7 @@ HOOK_EXPORT void WINAPI glVertex3sv(const GLshort *v)
 HOOK_EXPORT void WINAPI glVertex4d(GLdouble x, GLdouble y, GLdouble z, GLdouble w)
 {
 	if (g_current_runtime)
-		g_current_runtime->_buffer_detection.on_draw_vertex(4);
+		g_current_runtime->_state_tracking.on_draw_vertex(4);
 
 	static const auto trampoline = reshade::hooks::call(glVertex4d);
 	trampoline(x, y, z, w);
@@ -2066,7 +2066,7 @@ HOOK_EXPORT void WINAPI glVertex4d(GLdouble x, GLdouble y, GLdouble z, GLdouble 
 HOOK_EXPORT void WINAPI glVertex4dv(const GLdouble *v)
 {
 	if (g_current_runtime)
-		g_current_runtime->_buffer_detection.on_draw_vertex(4);
+		g_current_runtime->_state_tracking.on_draw_vertex(4);
 
 	static const auto trampoline = reshade::hooks::call(glVertex4dv);
 	trampoline(v);
@@ -2074,7 +2074,7 @@ HOOK_EXPORT void WINAPI glVertex4dv(const GLdouble *v)
 HOOK_EXPORT void WINAPI glVertex4f(GLfloat x, GLfloat y, GLfloat z, GLfloat w)
 {
 	if (g_current_runtime)
-		g_current_runtime->_buffer_detection.on_draw_vertex(4);
+		g_current_runtime->_state_tracking.on_draw_vertex(4);
 
 	static const auto trampoline = reshade::hooks::call(glVertex4f);
 	trampoline(x, y, z, w);
@@ -2082,7 +2082,7 @@ HOOK_EXPORT void WINAPI glVertex4f(GLfloat x, GLfloat y, GLfloat z, GLfloat w)
 HOOK_EXPORT void WINAPI glVertex4fv(const GLfloat *v)
 {
 	if (g_current_runtime)
-		g_current_runtime->_buffer_detection.on_draw_vertex(4);
+		g_current_runtime->_state_tracking.on_draw_vertex(4);
 
 	static const auto trampoline = reshade::hooks::call(glVertex4fv);
 	trampoline(v);
@@ -2090,7 +2090,7 @@ HOOK_EXPORT void WINAPI glVertex4fv(const GLfloat *v)
 HOOK_EXPORT void WINAPI glVertex4i(GLint x, GLint y, GLint z, GLint w)
 {
 	if (g_current_runtime)
-		g_current_runtime->_buffer_detection.on_draw_vertex(4);
+		g_current_runtime->_state_tracking.on_draw_vertex(4);
 
 	static const auto trampoline = reshade::hooks::call(glVertex4i);
 	trampoline(x, y, z, w);
@@ -2098,7 +2098,7 @@ HOOK_EXPORT void WINAPI glVertex4i(GLint x, GLint y, GLint z, GLint w)
 HOOK_EXPORT void WINAPI glVertex4iv(const GLint *v)
 {
 	if (g_current_runtime)
-		g_current_runtime->_buffer_detection.on_draw_vertex(4);
+		g_current_runtime->_state_tracking.on_draw_vertex(4);
 
 	static const auto trampoline = reshade::hooks::call(glVertex4iv);
 	trampoline(v);
@@ -2106,7 +2106,7 @@ HOOK_EXPORT void WINAPI glVertex4iv(const GLint *v)
 HOOK_EXPORT void WINAPI glVertex4s(GLshort x, GLshort y, GLshort z, GLshort w)
 {
 	if (g_current_runtime)
-		g_current_runtime->_buffer_detection.on_draw_vertex(4);
+		g_current_runtime->_state_tracking.on_draw_vertex(4);
 
 	static const auto trampoline = reshade::hooks::call(glVertex4s);
 	trampoline(x, y, z, w);
@@ -2114,7 +2114,7 @@ HOOK_EXPORT void WINAPI glVertex4s(GLshort x, GLshort y, GLshort z, GLshort w)
 HOOK_EXPORT void WINAPI glVertex4sv(const GLshort *v)
 {
 	if (g_current_runtime)
-		g_current_runtime->_buffer_detection.on_draw_vertex(4);
+		g_current_runtime->_state_tracking.on_draw_vertex(4);
 
 	static const auto trampoline = reshade::hooks::call(glVertex4sv);
 	trampoline(v);

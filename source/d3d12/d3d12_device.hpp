@@ -5,8 +5,7 @@
 
 #pragma once
 
-#include <d3d12.h>
-#include "buffer_detection.hpp"
+#include "state_tracking.hpp"
 
 namespace reshade::d3d12 { class runtime_d3d12; }
 
@@ -106,5 +105,5 @@ struct __declspec(uuid("2523AFF4-978B-4939-BA16-8EE876A4CB2A")) D3D12Device : ID
 	LONG _ref = 1;
 	ID3D12Device *_orig;
 	unsigned int _interface_version;
-	reshade::d3d12::buffer_detection_context _buffer_detection;
+	reshade::d3d12::state_tracking_context _state;
 };

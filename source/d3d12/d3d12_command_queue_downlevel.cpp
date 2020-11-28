@@ -17,7 +17,7 @@ D3D12CommandQueueDownlevel::D3D12CommandQueueDownlevel(D3D12CommandQueue *queue,
 	_device(queue->_device) {
 	assert(_orig != nullptr);
 	_runtime = std::make_unique<reshade::d3d12::runtime_d3d12>(
-		_device->_orig, queue->_orig, nullptr, &_device->_buffer_detection);
+		_device->_orig, queue->_orig, nullptr, &_device->_state);
 }
 
 HRESULT STDMETHODCALLTYPE D3D12CommandQueueDownlevel::QueryInterface(REFIID riid, void **ppvObj)
@@ -50,7 +50,7 @@ ULONG   STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Release()
 	_runtime->on_reset();
 
 	// Release any live references to depth buffers etc.
-	_device->_buffer_detection.reset(true);
+	_device->_state.reset(true);
 
 	const ULONG ref_orig = _orig->Release();
 	if (ref_orig != 0)
@@ -90,7 +90,7 @@ HRESULT STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Present(ID3D12GraphicsComm
 	_runtime->on_present();
 
 	// Clear current frame stats
-	_device->_buffer_detection.reset(false);
+	_device->_state.reset(false);
 
 	// Get original command list pointer from proxy object
 	if (com_ptr<D3D12GraphicsCommandList> command_list_proxy;

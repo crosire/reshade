@@ -131,10 +131,10 @@ namespace reshade::vulkan
 	}
 }
 
-reshade::vulkan::runtime_vk::runtime_vk(VkDevice device, VkPhysicalDevice physical_device, uint32_t queue_family_index, const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table, buffer_detection_context *bdc) :
-	vk(device_table), _device(device), _queue_family_index(queue_family_index), _buffer_detection(bdc)
+reshade::vulkan::runtime_vk::runtime_vk(VkDevice device, VkPhysicalDevice physical_device, uint32_t queue_family_index, const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table, state_tracking_context *state_tracking) :
+	vk(device_table), _device(device), _queue_family_index(queue_family_index), _state_tracking(*state_tracking)
 {
-	assert(bdc != nullptr);
+	assert(state_tracking != nullptr);
 
 	instance_table.GetPhysicalDeviceProperties(physical_device, &_device_props);
 	instance_table.GetPhysicalDeviceMemoryProperties(physical_device, &_memory_props);
@@ -221,9 +221,7 @@ reshade::vulkan::runtime_vk::runtime_vk(VkDevice device, VkPhysicalDevice physic
 
 #if RESHADE_DEPTH
 		ImGui::Spacing();
-
-		assert(_buffer_detection != nullptr);
-		draw_depth_debug_menu(*_buffer_detection);
+		draw_depth_debug_menu();
 #endif
 	});
 #endif
@@ -590,9 +588,8 @@ void reshade::vulkan::runtime_vk::on_present(VkQueue queue, uint32_t swapchain_i
 	if (!_is_initialized)
 		return;
 
-	assert(_buffer_detection != nullptr);
-	_vertices = _buffer_detection->total_vertices();
-	_drawcalls = _buffer_detection->total_drawcalls();
+	_vertices = _state_tracking.total_vertices();
+	_drawcalls = _state_tracking.total_drawcalls();
 
 	_cmd_index = _framecount % NUM_COMMAND_FRAMES;
 	_swap_index = swapchain_image_index;
@@ -605,8 +602,8 @@ void reshade::vulkan::runtime_vk::on_present(VkQueue queue, uint32_t swapchain_i
 	}
 
 #if RESHADE_DEPTH
-	update_depth_image_bindings(_has_high_network_activity ? buffer_detection::depthstencil_info {} :
-		_buffer_detection->find_best_depth_texture(_use_aspect_ratio_heuristics ? VkExtent2D { _width, _height } : VkExtent2D { 0, 0 }, _depth_image_override));
+	update_depth_image_bindings(_has_high_network_activity ? state_tracking::depthstencil_info {} :
+		_state_tracking.find_best_depth_texture(_use_aspect_ratio_heuristics ? VkExtent2D { _width, _height } : VkExtent2D { 0, 0 }, _depth_image_override));
 #endif
 
 	update_and_render_effects();
@@ -2489,7 +2486,7 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 #endif
 
 #if RESHADE_DEPTH
-void reshade::vulkan::runtime_vk::draw_depth_debug_menu(buffer_detection_context &tracker)
+void reshade::vulkan::runtime_vk::draw_depth_debug_menu()
 {
 	if (!ImGui::CollapsingHeader("Depth Buffers", ImGuiTreeNodeFlags_DefaultOpen))
 		return;
@@ -2508,9 +2505,9 @@ void reshade::vulkan::runtime_vk::draw_depth_debug_menu(buffer_detection_context
 	ImGui::Spacing();
 
 	// Sort pointer list so that added/removed items do not change the UI much
-	std::vector<std::pair<VkImage, buffer_detection::depthstencil_info>> sorted_buffers;
-	sorted_buffers.reserve(tracker.depth_buffer_counters().size());
-	for (const auto &[depth_image, snapshot] : tracker.depth_buffer_counters())
+	std::vector<std::pair<VkImage, state_tracking::depthstencil_info>> sorted_buffers;
+	sorted_buffers.reserve(_state_tracking.depth_buffer_counters().size());
+	for (const auto &[depth_image, snapshot] : _state_tracking.depth_buffer_counters())
 		sorted_buffers.push_back({ depth_image, snapshot });
 	std::sort(sorted_buffers.begin(), sorted_buffers.end(), [](const auto &a, const auto &b) { return a.first < b.first; });
 	for (const auto &[depth_image, snapshot] : sorted_buffers)
@@ -2545,10 +2542,10 @@ void reshade::vulkan::runtime_vk::draw_depth_debug_menu(buffer_detection_context
 	ImGui::Spacing();
 }
 
-void reshade::vulkan::runtime_vk::update_depth_image_bindings(buffer_detection::depthstencil_info info)
+void reshade::vulkan::runtime_vk::update_depth_image_bindings(state_tracking::depthstencil_info info)
 {
 	if (_has_high_network_activity)
-		info = buffer_detection::depthstencil_info {};
+		info = state_tracking::depthstencil_info {};
 
 	if (info.image == _depth_image)
 		return;

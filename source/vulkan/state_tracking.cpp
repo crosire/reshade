@@ -4,11 +4,11 @@
  */
 
 #include "dll_log.hpp"
-#include "buffer_detection.hpp"
+#include "state_tracking.hpp"
 #include <cmath>
 #include <cassert>
 
-void reshade::vulkan::buffer_detection::reset()
+void reshade::vulkan::state_tracking::reset()
 {
 	_stats.vertices = 0;
 	_stats.drawcalls = 0;
@@ -17,7 +17,7 @@ void reshade::vulkan::buffer_detection::reset()
 #endif
 }
 
-void reshade::vulkan::buffer_detection::merge(const buffer_detection &source)
+void reshade::vulkan::state_tracking::merge(const state_tracking &source)
 {
 	_stats.vertices += source._stats.vertices;
 	_stats.drawcalls += source._stats.drawcalls;
@@ -35,7 +35,7 @@ void reshade::vulkan::buffer_detection::merge(const buffer_detection &source)
 #endif
 }
 
-void reshade::vulkan::buffer_detection::on_draw(uint32_t vertices)
+void reshade::vulkan::state_tracking::on_draw(uint32_t vertices)
 {
 	_stats.vertices += vertices;
 	_stats.drawcalls += 1;
@@ -52,7 +52,7 @@ void reshade::vulkan::buffer_detection::on_draw(uint32_t vertices)
 }
 
 #if RESHADE_DEPTH
-void reshade::vulkan::buffer_detection::on_set_depthstencil(VkImage depthstencil, VkImageLayout layout, const VkImageCreateInfo &create_info)
+void reshade::vulkan::state_tracking::on_set_depthstencil(VkImage depthstencil, VkImageLayout layout, const VkImageCreateInfo &create_info)
 {
 	_current_depthstencil = depthstencil;
 
@@ -74,7 +74,7 @@ void reshade::vulkan::buffer_detection::on_set_depthstencil(VkImage depthstencil
 	}
 }
 
-reshade::vulkan::buffer_detection::depthstencil_info reshade::vulkan::buffer_detection_context::find_best_depth_texture(VkExtent2D dimensions, VkImage override) const
+reshade::vulkan::state_tracking::depthstencil_info reshade::vulkan::state_tracking_context::find_best_depth_texture(VkExtent2D dimensions, VkImage override) const
 {
 	if (override != VK_NULL_HANDLE)
 	{

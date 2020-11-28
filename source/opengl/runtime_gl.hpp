@@ -7,7 +7,7 @@
 
 #include "runtime.hpp"
 #include "state_block.hpp"
-#include "buffer_detection.hpp"
+#include "state_tracking.hpp"
 #include <unordered_set>
 
 namespace reshade::opengl
@@ -23,9 +23,9 @@ namespace reshade::opengl
 
 		bool capture_screenshot(uint8_t *buffer) const override;
 
+		state_tracking _state_tracking;
 		bool _compatibility_context = false;
 		std::unordered_set<HDC> _hdcs;
-		buffer_detection _buffer_detection;
 
 	private:
 		bool init_effect(size_t index) override;
@@ -105,7 +105,7 @@ namespace reshade::opengl
 
 #if RESHADE_DEPTH
 		void draw_depth_debug_menu();
-		void update_depth_texture_bindings(buffer_detection::depthstencil_info info);
+		void update_depth_texture_bindings(state_tracking::depthstencil_info info);
 
 		bool _copy_depth_source = true;
 		bool _use_aspect_ratio_heuristics = true;

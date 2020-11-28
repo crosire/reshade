@@ -5,8 +5,7 @@
 
 #pragma once
 
-#include <d3d10_1.h>
-#include "buffer_detection.hpp"
+#include "state_tracking.hpp"
 
 struct DXGIDevice;
 namespace reshade::d3d10 { class runtime_d3d10; }
@@ -130,5 +129,5 @@ struct DECLSPEC_UUID("88399375-734F-4892-A95F-70DD42CE7CDD") D3D10Device : ID3D1
 	LONG _ref = 1;
 	ID3D10Device1 *_orig;
 	DXGIDevice *const _dxgi_device;
-	reshade::d3d10::buffer_detection _buffer_detection;
+	reshade::d3d10::state_tracking _state;
 };

@@ -15,14 +15,14 @@ Direct3DDevice9::Direct3DDevice9(IDirect3DDevice9   *original, bool use_software
 	_orig(original),
 	_extended_interface(0),
 	_use_software_rendering(use_software_rendering),
-	_buffer_detection(original) {
+	_state(original) {
 	assert(_orig != nullptr);
 }
 Direct3DDevice9::Direct3DDevice9(IDirect3DDevice9Ex *original, bool use_software_rendering) :
 	_orig(original),
 	_extended_interface(1),
 	_use_software_rendering(use_software_rendering),
-	_buffer_detection(original) {
+	_state(original) {
 	assert(_orig != nullptr);
 }
 
@@ -77,7 +77,7 @@ ULONG   STDMETHODCALLTYPE Direct3DDevice9::Release()
 		return _orig->Release(), ref;
 
 	// Release remaining references to this device
-	_buffer_detection.reset(true);
+	_state.reset(true);
 	_auto_depthstencil.reset();
 	_implicit_swapchain->Release();
 
@@ -176,7 +176,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateAdditionalSwapChain(D3DPRESENT_
 	// They may otherwise still be set to zero (which is valid for creation)
 	swapchain->GetPresentParameters(&pp);
 
-	const auto runtime = std::make_shared<reshade::d3d9::runtime_d3d9>(device, swapchain, &_buffer_detection);
+	const auto runtime = std::make_shared<reshade::d3d9::runtime_d3d9>(device, swapchain, &_state);
 	if (!runtime->on_init(pp))
 		LOG(ERROR) << "Failed to initialize Direct3D 9 runtime environment on runtime " << runtime.get() << '.';
 
@@ -231,7 +231,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 	const auto runtime = _implicit_swapchain->_runtime;
 	runtime->on_reset();
 
-	_buffer_detection.reset(true);
+	_state.reset(true);
 	_auto_depthstencil.reset();
 
 	const HRESULT hr = _orig->Reset(&pp);
@@ -266,7 +266,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Present(const RECT *pSourceRect, cons
 	// Only call into runtime if the entire surface is presented, to avoid partial updates messing up effects and the GUI
 	if (Direct3DSwapChain9::is_presenting_entire_surface(pSourceRect, hDestWindowOverride))
 		_implicit_swapchain->_runtime->on_present();
-	_buffer_detection.reset(false);
+	_state.reset(false);
 
 	return _orig->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
 }
@@ -394,7 +394,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetRenderTarget(DWORD RenderTargetInd
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetDepthStencilSurface(IDirect3DSurface9 *pNewZStencil)
 {
 #if RESHADE_DEPTH
-	_buffer_detection.on_set_depthstencil(pNewZStencil);
+	_state.on_set_depthstencil(pNewZStencil);
 #endif
 	return _orig->SetDepthStencilSurface(pNewZStencil);
 }
@@ -406,7 +406,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetDepthStencilSurface(IDirect3DSurfa
 	{
 		assert(ppZStencilSurface != nullptr);
 
-		_buffer_detection.on_get_depthstencil(*ppZStencilSurface);
+		_state.on_get_depthstencil(*ppZStencilSurface);
 	}
 #endif
 	return hr;
@@ -424,7 +424,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Clear(DWORD Count, const D3DRECT *pRe
 #if RESHADE_DEPTH
 	// Skip partial clears, since buffer detection logic replaces entire depth-stencil surface and therefore may otherwise break rendering after those
 	if (Flags != D3DCLEAR_TARGET && (Count == 0 || (pRects->x1 == 0 && pRects->y1 == 0)))
-		_buffer_detection.on_clear_depthstencil(Flags);
+		_state.on_clear_depthstencil(Flags);
 #endif
 	return _orig->Clear(Count, pRects, Flags, Color, Z, Stencil);
 }
@@ -578,25 +578,25 @@ float   STDMETHODCALLTYPE Direct3DDevice9::GetNPatchMode()
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawPrimitive(D3DPRIMITIVETYPE PrimitiveType, UINT StartVertex, UINT PrimitiveCount)
 {
-	_buffer_detection.on_draw(PrimitiveType, PrimitiveCount);
+	_state.on_draw(PrimitiveType, PrimitiveCount);
 
 	return _orig->DrawPrimitive(PrimitiveType, StartVertex, PrimitiveCount);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawIndexedPrimitive(D3DPRIMITIVETYPE PrimitiveType, INT BaseVertexIndex, UINT MinVertexIndex, UINT NumVertices, UINT StartIndex, UINT PrimitiveCount)
 {
-	_buffer_detection.on_draw(PrimitiveType, PrimitiveCount);
+	_state.on_draw(PrimitiveType, PrimitiveCount);
 
 	return _orig->DrawIndexedPrimitive(PrimitiveType, BaseVertexIndex, MinVertexIndex, NumVertices, StartIndex, PrimitiveCount);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawPrimitiveUP(D3DPRIMITIVETYPE PrimitiveType, UINT PrimitiveCount, const void *pVertexStreamZeroData, UINT VertexStreamZeroStride)
 {
-	_buffer_detection.on_draw(PrimitiveType, PrimitiveCount);
+	_state.on_draw(PrimitiveType, PrimitiveCount);
 
 	return _orig->DrawPrimitiveUP(PrimitiveType, PrimitiveCount, pVertexStreamZeroData, VertexStreamZeroStride);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawIndexedPrimitiveUP(D3DPRIMITIVETYPE PrimitiveType, UINT MinVertexIndex, UINT NumVertices, UINT PrimitiveCount, const void *pIndexData, D3DFORMAT IndexDataFormat, const void *pVertexStreamZeroData, UINT VertexStreamZeroStride)
 {
-	_buffer_detection.on_draw(PrimitiveType, PrimitiveCount);
+	_state.on_draw(PrimitiveType, PrimitiveCount);
 
 	return _orig->DrawIndexedPrimitiveUP(PrimitiveType, MinVertexIndex, NumVertices, PrimitiveCount, pIndexData, IndexDataFormat, pVertexStreamZeroData, VertexStreamZeroStride);
 }
@@ -751,7 +751,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::PresentEx(const RECT *pSourceRect, co
 {
 	if (Direct3DSwapChain9::is_presenting_entire_surface(pSourceRect, hDestWindowOverride))
 		_implicit_swapchain->_runtime->on_present();
-	_buffer_detection.reset(false);
+	_state.reset(false);
 
 	assert(_extended_interface);
 	return static_cast<IDirect3DDevice9Ex *>(_orig)->PresentEx(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
@@ -837,7 +837,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 	const auto runtime = _implicit_swapchain->_runtime;
 	runtime->on_reset();
 
-	_buffer_detection.reset(true);
+	_state.reset(true);
 	_auto_depthstencil.reset();
 
 	assert(_extended_interface);

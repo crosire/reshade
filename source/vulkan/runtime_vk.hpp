@@ -7,7 +7,7 @@
 
 #include "runtime.hpp"
 #include "vk_handle.hpp"
-#include "buffer_detection.hpp"
+#include "state_tracking.hpp"
 
 #pragma warning(push)
 #pragma warning(disable: 4100 4127 4324 4703) // Disable a bunch of warnings thrown by VMA code
@@ -22,7 +22,7 @@ namespace reshade::vulkan
 		static const uint32_t NUM_COMMAND_FRAMES = 5;
 
 	public:
-		runtime_vk(VkDevice device, VkPhysicalDevice physical_device, uint32_t queue_family_index, const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table, buffer_detection_context *bdc);
+		runtime_vk(VkDevice device, VkPhysicalDevice physical_device, uint32_t queue_family_index, const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table, state_tracking_context *state_tracking);
 		~runtime_vk();
 
 		bool on_init(VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &desc, HWND hwnd);
@@ -63,7 +63,7 @@ namespace reshade::vulkan
 		const uint32_t _queue_family_index;
 		VkPhysicalDeviceProperties _device_props = {};
 		VkPhysicalDeviceMemoryProperties _memory_props = {};
-		buffer_detection_context *const _buffer_detection;
+		state_tracking_context &_state_tracking;
 
 		VkFence _cmd_fences[NUM_COMMAND_FRAMES + 1] = {};
 		VkSemaphore _cmd_semaphores[NUM_COMMAND_FRAMES * 2] = {};
@@ -116,8 +116,8 @@ namespace reshade::vulkan
 #endif
 
 #if RESHADE_DEPTH
-		void draw_depth_debug_menu(buffer_detection_context &tracker);
-		void update_depth_image_bindings(buffer_detection::depthstencil_info info);
+		void draw_depth_debug_menu();
+		void update_depth_image_bindings(state_tracking::depthstencil_info info);
 
 		bool _use_aspect_ratio_heuristics = true;
 		VkImage _depth_image = VK_NULL_HANDLE;

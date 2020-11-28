@@ -7,14 +7,14 @@
 
 #include "runtime.hpp"
 #include "state_block.hpp"
-#include "buffer_detection.hpp"
+#include "state_tracking.hpp"
 
 namespace reshade::d3d10
 {
 	class runtime_d3d10 : public runtime
 	{
 	public:
-		runtime_d3d10(ID3D10Device1 *device, IDXGISwapChain *swapchain, buffer_detection *bdc);
+		runtime_d3d10(ID3D10Device1 *device, IDXGISwapChain *swapchain, state_tracking *state_tracking);
 		~runtime_d3d10();
 
 		bool on_init(const DXGI_SWAP_CHAIN_DESC &desc);
@@ -35,9 +35,9 @@ namespace reshade::d3d10
 		void render_technique(technique &technique) override;
 
 		state_block _app_state;
+		state_tracking &_state_tracking;
 		const com_ptr<ID3D10Device1> _device;
 		const com_ptr<IDXGISwapChain> _swapchain;
-		buffer_detection *const _buffer_detection;
 
 		DXGI_FORMAT _backbuffer_format = DXGI_FORMAT_UNKNOWN;
 		com_ptr<ID3D10Texture2D> _backbuffer;
@@ -79,7 +79,7 @@ namespace reshade::d3d10
 #endif
 
 #if RESHADE_DEPTH
-		void draw_depth_debug_menu(buffer_detection &tracker);
+		void draw_depth_debug_menu();
 		void update_depth_texture_bindings(com_ptr<ID3D10Texture2D> texture);
 
 		com_ptr<ID3D10Texture2D> _depth_texture;

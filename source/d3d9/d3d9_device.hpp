@@ -5,8 +5,7 @@
 
 #pragma once
 
-#include <d3d9.h>
-#include "buffer_detection.hpp"
+#include "state_tracking.hpp"
 
 struct Direct3DSwapChain9;
 namespace reshade::d3d9 { class runtime_d3d9; }
@@ -168,5 +167,5 @@ struct DECLSPEC_UUID("F1006E9A-1C51-4AF4-ACEF-3605D2D4C8EE") Direct3DDevice9 : I
 	Direct3DSwapChain9 *_implicit_swapchain = nullptr;
 	std::vector<Direct3DSwapChain9 *> _additional_swapchains;
 	com_ptr<IDirect3DSurface9> _auto_depthstencil;
-	reshade::d3d9::buffer_detection _buffer_detection;
+	reshade::d3d9::state_tracking _state;
 };

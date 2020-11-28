@@ -6,7 +6,7 @@
 #pragma once
 
 #include "runtime.hpp"
-#include "buffer_detection.hpp"
+#include "state_tracking.hpp"
 #include <dxgi1_5.h>
 
 namespace reshade::d3d12
@@ -16,7 +16,7 @@ namespace reshade::d3d12
 		static const uint32_t NUM_IMGUI_BUFFERS = 5;
 
 	public:
-		runtime_d3d12(ID3D12Device *device, ID3D12CommandQueue *queue, IDXGISwapChain3 *swapchain, buffer_detection_context *bdc);
+		runtime_d3d12(ID3D12Device *device, ID3D12CommandQueue *queue, IDXGISwapChain3 *swapchain, state_tracking_context *state_tracking);
 		~runtime_d3d12();
 
 		bool on_init(const DXGI_SWAP_CHAIN_DESC &desc
@@ -47,10 +47,10 @@ namespace reshade::d3d12
 
 		com_ptr<ID3D12RootSignature> create_root_signature(const D3D12_ROOT_SIGNATURE_DESC &desc) const;
 
+		state_tracking_context &_state_tracking;
 		const com_ptr<ID3D12Device> _device;
-		const com_ptr<ID3D12CommandQueue> _commandqueue;
 		const com_ptr<IDXGISwapChain3> _swapchain;
-		buffer_detection_context *const _buffer_detection;
+		const com_ptr<ID3D12CommandQueue> _commandqueue;
 		UINT _srv_handle_size = 0;
 		UINT _rtv_handle_size = 0;
 		UINT _dsv_handle_size = 0;
@@ -94,7 +94,7 @@ namespace reshade::d3d12
 #endif
 
 #if RESHADE_DEPTH
-		void draw_depth_debug_menu(buffer_detection_context &tracker);
+		void draw_depth_debug_menu();
 		void update_depth_texture_bindings(com_ptr<ID3D12Resource> texture);
 
 		com_ptr<ID3D12Resource> _depth_texture;

@@ -77,12 +77,10 @@ namespace reshade::d3d12
 	}
 }
 
-reshade::d3d12::runtime_d3d12::runtime_d3d12(ID3D12Device *device, ID3D12CommandQueue *queue, IDXGISwapChain3 *swapchain, buffer_detection_context *bdc) :
-	_device(device), _commandqueue(queue), _swapchain(swapchain), _buffer_detection(bdc)
+reshade::d3d12::runtime_d3d12::runtime_d3d12(ID3D12Device *device, ID3D12CommandQueue *queue, IDXGISwapChain3 *swapchain, state_tracking_context *state_tracking) :
+	_state_tracking(*state_tracking), _device(device), _swapchain(swapchain), _commandqueue(queue)
 {
-	assert(bdc != nullptr);
-	assert(queue != nullptr);
-	assert(device != nullptr);
+	assert(device != nullptr && queue != nullptr && state_tracking != nullptr);
 
 	_renderer_id = D3D_FEATURE_LEVEL_12_0;
 
@@ -106,22 +104,22 @@ reshade::d3d12::runtime_d3d12::runtime_d3d12(ID3D12Device *device, ID3D12Command
 #if RESHADE_GUI
 	subscribe_to_ui("D3D12", [this]() {
 #if RESHADE_DEPTH
-		draw_depth_debug_menu(*_buffer_detection);
+		draw_depth_debug_menu();
 #endif
 	});
 #endif
 #if RESHADE_DEPTH
 	subscribe_to_load_config([this](const ini_file &config) {
-		config.get("D3D12", "DepthCopyBeforeClears", _buffer_detection->preserve_depth_buffers);
-		config.get("D3D12", "DepthCopyAtClearIndex", _buffer_detection->depthstencil_clear_index.second);
+		config.get("D3D12", "DepthCopyBeforeClears", _state_tracking.preserve_depth_buffers);
+		config.get("D3D12", "DepthCopyAtClearIndex", _state_tracking.depthstencil_clear_index.second);
 		config.get("D3D12", "UseAspectRatioHeuristics", _filter_aspect_ratio);
 
-		if (_buffer_detection->depthstencil_clear_index.second == std::numeric_limits<UINT>::max())
-			_buffer_detection->depthstencil_clear_index.second  = 0;
+		if (_state_tracking.depthstencil_clear_index.second == std::numeric_limits<UINT>::max())
+			_state_tracking.depthstencil_clear_index.second  = 0;
 	});
 	subscribe_to_save_config([this](ini_file &config) {
-		config.set("D3D12", "DepthCopyBeforeClears", _buffer_detection->preserve_depth_buffers);
-		config.set("D3D12", "DepthCopyAtClearIndex", _buffer_detection->depthstencil_clear_index.second);
+		config.set("D3D12", "DepthCopyBeforeClears", _state_tracking.preserve_depth_buffers);
+		config.set("D3D12", "DepthCopyAtClearIndex", _state_tracking.depthstencil_clear_index.second);
 		config.set("D3D12", "UseAspectRatioHeuristics", _filter_aspect_ratio);
 	});
 #endif
@@ -378,9 +376,8 @@ void reshade::d3d12::runtime_d3d12::on_present()
 	if (!_is_initialized)
 		return;
 
-	assert(_buffer_detection != nullptr);
-	_vertices = _buffer_detection->total_vertices();
-	_drawcalls = _buffer_detection->total_drawcalls();
+	_vertices = _state_tracking.total_vertices();
+	_drawcalls = _state_tracking.total_drawcalls();
 
 	// There is no swap chain for d3d12on7
 	if (_swapchain != nullptr)
@@ -400,7 +397,7 @@ void reshade::d3d12::runtime_d3d12::on_present()
 		return;
 
 #if RESHADE_DEPTH
-	update_depth_texture_bindings(_buffer_detection->update_depth_texture(
+	update_depth_texture_bindings(_state_tracking.update_depth_texture(
 		_commandqueue.get(), _cmd_list.get(), _filter_aspect_ratio ? _width : 0, _height, _depth_texture_override));
 #endif
 
@@ -1763,7 +1760,7 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 #endif
 
 #if RESHADE_DEPTH
-void reshade::d3d12::runtime_d3d12::draw_depth_debug_menu(buffer_detection_context &tracker)
+void reshade::d3d12::runtime_d3d12::draw_depth_debug_menu()
 {
 	if (!ImGui::CollapsingHeader("Depth Buffers", ImGuiTreeNodeFlags_DefaultOpen))
 		return;
@@ -1776,27 +1773,27 @@ void reshade::d3d12::runtime_d3d12::draw_depth_debug_menu(buffer_detection_conte
 
 	bool modified = false;
 	modified |= ImGui::Checkbox("Use aspect ratio heuristics", &_filter_aspect_ratio);
-	modified |= ImGui::Checkbox("Copy depth buffer before clear operations", &tracker.preserve_depth_buffers);
+	modified |= ImGui::Checkbox("Copy depth buffer before clear operations", &_state_tracking.preserve_depth_buffers);
 
 	if (modified) // Detection settings have changed, reset heuristic
 		// Do not release resources here, as they may still be in use on the device
-		tracker.reset(false);
+		_state_tracking.reset(false);
 
 	ImGui::Spacing();
 	ImGui::Separator();
 	ImGui::Spacing();
 
 	// Sort pointer list so that added/removed items do not change the UI much
-	std::vector<std::pair<ID3D12Resource *, buffer_detection::depthstencil_info>> sorted_buffers;
-	sorted_buffers.reserve(tracker.depth_buffer_counters().size());
-	for (const auto &[dsv_texture, snapshot] : tracker.depth_buffer_counters())
+	std::vector<std::pair<ID3D12Resource *, state_tracking::depthstencil_info>> sorted_buffers;
+	sorted_buffers.reserve(_state_tracking.depth_buffer_counters().size());
+	for (const auto &[dsv_texture, snapshot] : _state_tracking.depth_buffer_counters())
 		sorted_buffers.push_back({ dsv_texture.get(), snapshot });
 	std::sort(sorted_buffers.begin(), sorted_buffers.end(), [](const auto &a, const auto &b) { return a.first < b.first; });
 	for (const auto &[dsv_texture, snapshot] : sorted_buffers)
 	{
 		// TODO: Display current resource when not preserving depth buffers
 		char label[512] = "";
-		sprintf_s(label, "%s0x%p", (dsv_texture == tracker.depthstencil_clear_index.first ? "> " : "  "), dsv_texture);
+		sprintf_s(label, "%s0x%p", (dsv_texture == _state_tracking.depthstencil_clear_index.first ? "> " : "  "), dsv_texture);
 
 		const D3D12_RESOURCE_DESC desc = dsv_texture->GetDesc();
 
@@ -1815,16 +1812,16 @@ void reshade::d3d12::runtime_d3d12::draw_depth_debug_menu(buffer_detection_conte
 		ImGui::Text("| %4ux%-4u | %5u draw calls ==> %8u vertices |%s",
 			desc.Width, desc.Height, snapshot.total_stats.drawcalls, snapshot.total_stats.vertices, (msaa ? " MSAA" : ""));
 
-		if (tracker.preserve_depth_buffers && dsv_texture == tracker.depthstencil_clear_index.first)
+		if (_state_tracking.preserve_depth_buffers && dsv_texture == _state_tracking.depthstencil_clear_index.first)
 		{
 			for (UINT clear_index = 1; clear_index <= snapshot.clears.size(); ++clear_index)
 			{
-				sprintf_s(label, "%s  CLEAR %2u", (clear_index == tracker.depthstencil_clear_index.second ? "> " : "  "), clear_index);
+				sprintf_s(label, "%s  CLEAR %2u", (clear_index == _state_tracking.depthstencil_clear_index.second ? "> " : "  "), clear_index);
 
-				if (bool value = (tracker.depthstencil_clear_index.second == clear_index);
+				if (bool value = (_state_tracking.depthstencil_clear_index.second == clear_index);
 					ImGui::Checkbox(label, &value))
 				{
-					tracker.depthstencil_clear_index.second = value ? clear_index : 0;
+					_state_tracking.depthstencil_clear_index.second = value ? clear_index : 0;
 					modified = true;
 				}
 

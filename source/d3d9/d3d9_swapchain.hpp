@@ -6,7 +6,7 @@
 #pragma once
 
 #include <d3d9.h>
-#include <memory>
+#include <memory> // std::shared_ptr
 
 struct Direct3DDevice9;
 namespace reshade::d3d9 { class runtime_d3d9; }

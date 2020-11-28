@@ -4,21 +4,21 @@
  */
 
 #include "dll_log.hpp"
-#include "buffer_detection.hpp"
+#include "state_tracking.hpp"
 #include "dxgi/format_utils.hpp"
 #include <mutex>
 #include <cmath>
 
 static std::mutex s_global_mutex;
 
-void reshade::d3d12::buffer_detection::init(ID3D12Device *device, ID3D12GraphicsCommandList *cmd_list, const buffer_detection_context *context)
+void reshade::d3d12::state_tracking::init(ID3D12Device *device, ID3D12GraphicsCommandList *cmd_list, const state_tracking_context *context)
 {
 	_device = device;
 	_context = context;
 	_cmd_list = cmd_list;
 }
 
-void reshade::d3d12::buffer_detection::reset()
+void reshade::d3d12::state_tracking::reset()
 {
 	_stats = { 0, 0 };
 #if RESHADE_DEPTH
@@ -29,9 +29,9 @@ void reshade::d3d12::buffer_detection::reset()
 	_counters_per_used_depth_texture.clear();
 #endif
 }
-void reshade::d3d12::buffer_detection_context::reset(bool release_resources)
+void reshade::d3d12::state_tracking_context::reset(bool release_resources)
 {
-	buffer_detection::reset();
+	state_tracking::reset();
 
 #if RESHADE_DEPTH
 	assert(_depthstencil_clear_texture == nullptr || _context == this);
@@ -51,7 +51,7 @@ void reshade::d3d12::buffer_detection_context::reset(bool release_resources)
 #endif
 }
 
-void reshade::d3d12::buffer_detection::merge(const buffer_detection &source)
+void reshade::d3d12::state_tracking::merge(const state_tracking &source)
 {
 	_stats.vertices += source._stats.vertices;
 	_stats.drawcalls += source._stats.drawcalls;
@@ -80,7 +80,7 @@ void reshade::d3d12::buffer_detection::merge(const buffer_detection &source)
 #endif
 }
 
-void reshade::d3d12::buffer_detection::on_draw(UINT vertices)
+void reshade::d3d12::state_tracking::on_draw(UINT vertices)
 {
 	_stats.vertices += vertices;
 	_stats.drawcalls += 1;
@@ -101,11 +101,11 @@ void reshade::d3d12::buffer_detection::on_draw(UINT vertices)
 }
 
 #if RESHADE_DEPTH
-void reshade::d3d12::buffer_detection::on_set_depthstencil(D3D12_CPU_DESCRIPTOR_HANDLE dsv)
+void reshade::d3d12::state_tracking::on_set_depthstencil(D3D12_CPU_DESCRIPTOR_HANDLE dsv)
 {
 	_current_depthstencil = _context->resource_from_handle(dsv);
 }
-void reshade::d3d12::buffer_detection::on_clear_depthstencil(D3D12_CLEAR_FLAGS clear_flags, D3D12_CPU_DESCRIPTOR_HANDLE dsv)
+void reshade::d3d12::state_tracking::on_clear_depthstencil(D3D12_CLEAR_FLAGS clear_flags, D3D12_CPU_DESCRIPTOR_HANDLE dsv)
 {
 	assert(_context != nullptr);
 
@@ -158,13 +158,13 @@ void reshade::d3d12::buffer_detection::on_clear_depthstencil(D3D12_CLEAR_FLAGS c
 	counters.current_stats = { 0, 0 };
 }
 
-void reshade::d3d12::buffer_detection_context::on_create_dsv(ID3D12Resource *dsv_texture, D3D12_CPU_DESCRIPTOR_HANDLE handle)
+void reshade::d3d12::state_tracking_context::on_create_dsv(ID3D12Resource *dsv_texture, D3D12_CPU_DESCRIPTOR_HANDLE handle)
 {
 	const std::lock_guard<std::mutex> lock(s_global_mutex);
 	_depthstencil_resources_by_handle[handle.ptr] = dsv_texture;
 }
 
-com_ptr<ID3D12Resource> reshade::d3d12::buffer_detection_context::resource_from_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle) const
+com_ptr<ID3D12Resource> reshade::d3d12::state_tracking_context::resource_from_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle) const
 {
 	if (handle.ptr == 0)
 		return nullptr;
@@ -176,7 +176,7 @@ com_ptr<ID3D12Resource> reshade::d3d12::buffer_detection_context::resource_from_
 	return nullptr;
 }
 
-bool reshade::d3d12::buffer_detection_context::update_depthstencil_clear_texture(ID3D12CommandQueue *queue, D3D12_RESOURCE_DESC desc)
+bool reshade::d3d12::state_tracking_context::update_depthstencil_clear_texture(ID3D12CommandQueue *queue, D3D12_RESOURCE_DESC desc)
 {
 	assert(_device != nullptr);
 
@@ -219,7 +219,7 @@ bool reshade::d3d12::buffer_detection_context::update_depthstencil_clear_texture
 	return true;
 }
 
-com_ptr<ID3D12Resource> reshade::d3d12::buffer_detection_context::update_depth_texture(ID3D12CommandQueue *queue, ID3D12GraphicsCommandList *list, UINT width, UINT height, ID3D12Resource *override)
+com_ptr<ID3D12Resource> reshade::d3d12::state_tracking_context::update_depth_texture(ID3D12CommandQueue *queue, ID3D12GraphicsCommandList *list, UINT width, UINT height, ID3D12Resource *override)
 {
 	depthstencil_info best_snapshot;
 	com_ptr<ID3D12Resource> best_match = override;

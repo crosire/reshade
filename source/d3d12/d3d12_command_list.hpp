@@ -5,8 +5,7 @@
 
 #pragma once
 
-#include <d3d12.h>
-#include "buffer_detection.hpp"
+#include "state_tracking.hpp"
 
 struct DECLSPEC_UUID("479B29E3-9A2C-11D0-B696-00A0C903487A") D3D12GraphicsCommandList : ID3D12GraphicsCommandList4
 {
@@ -116,5 +115,5 @@ struct DECLSPEC_UUID("479B29E3-9A2C-11D0-B696-00A0C903487A") D3D12GraphicsComman
 	ID3D12GraphicsCommandList *_orig;
 	unsigned int _interface_version;
 	D3D12Device *const _device;
-	reshade::d3d12::buffer_detection _buffer_detection;
+	reshade::d3d12::state_tracking _state;
 };

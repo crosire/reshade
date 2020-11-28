@@ -12,7 +12,7 @@
 
 namespace reshade::d3d10
 {
-	class buffer_detection
+	class state_tracking
 	{
 	public:
 		struct draw_stats
@@ -28,7 +28,7 @@ namespace reshade::d3d10
 			std::vector<draw_stats> clears;
 		};
 
-		explicit buffer_detection(ID3D10Device *device) : _device(device) {}
+		explicit state_tracking(ID3D10Device *device) : _device(device) {}
 
 		UINT total_vertices() const { return _stats.vertices; }
 		UINT total_drawcalls() const { return _stats.drawcalls; }

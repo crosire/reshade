@@ -4,7 +4,7 @@
  */
 
 #include "dll_log.hpp"
-#include "buffer_detection.hpp"
+#include "state_tracking.hpp"
 #include "dxgi/format_utils.hpp"
 #include <cmath>
 
@@ -22,7 +22,7 @@ static inline com_ptr<ID3D10Texture2D> texture_from_dsv(ID3D10DepthStencilView *
 }
 #endif
 
-void reshade::d3d10::buffer_detection::reset(bool release_resources)
+void reshade::d3d10::state_tracking::reset(bool release_resources)
 {
 	_stats = { 0, 0 };
 #if RESHADE_DEPTH
@@ -40,7 +40,7 @@ void reshade::d3d10::buffer_detection::reset(bool release_resources)
 #endif
 }
 
-void reshade::d3d10::buffer_detection::on_draw(UINT vertices)
+void reshade::d3d10::state_tracking::on_draw(UINT vertices)
 {
 	_stats.vertices += vertices;
 	_stats.drawcalls += 1;
@@ -84,7 +84,7 @@ void reshade::d3d10::buffer_detection::on_draw(UINT vertices)
 }
 
 #if RESHADE_DEPTH
-void reshade::d3d10::buffer_detection::on_clear_depthstencil(UINT clear_flags, ID3D10DepthStencilView *dsv, bool fullscreen_draw_call)
+void reshade::d3d10::state_tracking::on_clear_depthstencil(UINT clear_flags, ID3D10DepthStencilView *dsv, bool fullscreen_draw_call)
 {
 	if ((clear_flags & D3D10_CLEAR_DEPTH) == 0 || !preserve_depth_buffers)
 		return;
@@ -128,7 +128,7 @@ void reshade::d3d10::buffer_detection::on_clear_depthstencil(UINT clear_flags, I
 	counters.current_stats = { 0, 0 };
 }
 
-bool reshade::d3d10::buffer_detection::update_depthstencil_clear_texture(D3D10_TEXTURE2D_DESC desc)
+bool reshade::d3d10::state_tracking::update_depthstencil_clear_texture(D3D10_TEXTURE2D_DESC desc)
 {
 	if (_depthstencil_clear_texture != nullptr)
 	{
@@ -153,7 +153,7 @@ bool reshade::d3d10::buffer_detection::update_depthstencil_clear_texture(D3D10_T
 	return true;
 }
 
-com_ptr<ID3D10Texture2D> reshade::d3d10::buffer_detection::find_best_depth_texture(UINT width, UINT height, com_ptr<ID3D10Texture2D> override)
+com_ptr<ID3D10Texture2D> reshade::d3d10::state_tracking::find_best_depth_texture(UINT width, UINT height, com_ptr<ID3D10Texture2D> override)
 {
 	depthstencil_info best_snapshot;
 	com_ptr<ID3D10Texture2D> best_match = std::move(override);

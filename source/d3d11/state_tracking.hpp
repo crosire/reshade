@@ -7,12 +7,12 @@
 
 #include <vector>
 #include <unordered_map>
-#include <d3d11.h>
+#include <d3d11_4.h>
 #include "com_ptr.hpp"
 
 namespace reshade::d3d11
 {
-	class buffer_detection
+	class state_tracking
 	{
 	public:
 		struct draw_stats
@@ -28,10 +28,10 @@ namespace reshade::d3d11
 			std::vector<draw_stats> clears;
 		};
 
-		void init(ID3D11DeviceContext *device_context, const class buffer_detection_context *context);
+		void init(ID3D11DeviceContext *device_context, const class state_tracking_context *context);
 		void reset();
 
-		void merge(const buffer_detection &source);
+		void merge(const state_tracking &source);
 
 		void on_draw(UINT vertices);
 #if RESHADE_DEPTH
@@ -42,7 +42,7 @@ namespace reshade::d3d11
 	protected:
 		draw_stats _stats;
 		ID3D11DeviceContext *_device_context = nullptr;
-		const buffer_detection_context *_context = nullptr;
+		const state_tracking_context *_context = nullptr;
 #if RESHADE_DEPTH
 		draw_stats _best_copy_stats;
 		bool _first_empty_stats = true;
@@ -51,12 +51,12 @@ namespace reshade::d3d11
 #endif
 	};
 
-	class buffer_detection_context : public buffer_detection
+	class state_tracking_context : public state_tracking
 	{
-		friend class buffer_detection;
+		friend class state_tracking;
 
 	public:
-		explicit buffer_detection_context(ID3D11DeviceContext *context) { init(context, nullptr); }
+		explicit state_tracking_context(ID3D11DeviceContext *context) { init(context, nullptr); }
 
 		UINT total_vertices() const { return _stats.vertices; }
 		UINT total_drawcalls() const { return _stats.drawcalls; }

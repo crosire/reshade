@@ -4,7 +4,7 @@
  */
 
 #include "dll_log.hpp"
-#include "buffer_detection.hpp"
+#include "state_tracking.hpp"
 #include "dxgi/format_utils.hpp"
 #include <cmath>
 
@@ -22,13 +22,13 @@ static inline com_ptr<ID3D11Texture2D> texture_from_dsv(ID3D11DepthStencilView *
 }
 #endif
 
-void reshade::d3d11::buffer_detection::init(ID3D11DeviceContext *device_context, const buffer_detection_context *context)
+void reshade::d3d11::state_tracking::init(ID3D11DeviceContext *device_context, const state_tracking_context *context)
 {
 	_device_context = device_context;
 	_context = context;
 }
 
-void reshade::d3d11::buffer_detection::reset()
+void reshade::d3d11::state_tracking::reset()
 {
 	_stats = { 0, 0 };
 #if RESHADE_DEPTH
@@ -38,9 +38,9 @@ void reshade::d3d11::buffer_detection::reset()
 	_counters_per_used_depth_texture.clear();
 #endif
 }
-void reshade::d3d11::buffer_detection_context::reset(bool release_resources)
+void reshade::d3d11::state_tracking_context::reset(bool release_resources)
 {
-	buffer_detection::reset();
+	state_tracking::reset();
 
 #if RESHADE_DEPTH
 	assert(_depthstencil_clear_texture == nullptr || _context == this);
@@ -57,7 +57,7 @@ void reshade::d3d11::buffer_detection_context::reset(bool release_resources)
 #endif
 }
 
-void reshade::d3d11::buffer_detection::merge(const buffer_detection &source)
+void reshade::d3d11::state_tracking::merge(const state_tracking &source)
 {
 	_stats.vertices += source._stats.vertices;
 	_stats.drawcalls += source._stats.drawcalls;
@@ -83,7 +83,7 @@ void reshade::d3d11::buffer_detection::merge(const buffer_detection &source)
 #endif
 }
 
-void reshade::d3d11::buffer_detection::on_draw(UINT vertices)
+void reshade::d3d11::state_tracking::on_draw(UINT vertices)
 {
 	_stats.vertices += vertices;
 	_stats.drawcalls += 1;
@@ -131,7 +131,7 @@ void reshade::d3d11::buffer_detection::on_draw(UINT vertices)
 }
 
 #if RESHADE_DEPTH
-void reshade::d3d11::buffer_detection::on_clear_depthstencil(UINT clear_flags, ID3D11DepthStencilView *dsv, bool fullscreen_draw_call)
+void reshade::d3d11::state_tracking::on_clear_depthstencil(UINT clear_flags, ID3D11DepthStencilView *dsv, bool fullscreen_draw_call)
 {
 	assert(_context != nullptr);
 
@@ -178,7 +178,7 @@ void reshade::d3d11::buffer_detection::on_clear_depthstencil(UINT clear_flags, I
 	counters.current_stats = { 0, 0 };
 }
 
-bool reshade::d3d11::buffer_detection_context::update_depthstencil_clear_texture(D3D11_TEXTURE2D_DESC desc)
+bool reshade::d3d11::state_tracking_context::update_depthstencil_clear_texture(D3D11_TEXTURE2D_DESC desc)
 {
 	if (_depthstencil_clear_texture != nullptr)
 	{
@@ -208,7 +208,7 @@ bool reshade::d3d11::buffer_detection_context::update_depthstencil_clear_texture
 	return true;
 }
 
-com_ptr<ID3D11Texture2D> reshade::d3d11::buffer_detection_context::find_best_depth_texture(UINT width, UINT height, com_ptr<ID3D11Texture2D> override)
+com_ptr<ID3D11Texture2D> reshade::d3d11::state_tracking_context::find_best_depth_texture(UINT width, UINT height, com_ptr<ID3D11Texture2D> override)
 {
 	depthstencil_info best_snapshot;
 	com_ptr<ID3D11Texture2D> best_match = std::move(override);

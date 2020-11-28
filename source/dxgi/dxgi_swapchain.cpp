@@ -119,17 +119,17 @@ void DXGISwapChain::runtime_present(UINT flags)
 	case 10: {
 		const auto device = static_cast<D3D10Device *>(_direct3d_device.get());
 		std::static_pointer_cast<reshade::d3d10::runtime_d3d10>(_runtime)->on_present();
-		device->_buffer_detection.reset(false);
+		device->_state.reset(false);
 		break; }
 	case 11: {
 		const auto device = static_cast<D3D11Device *>(_direct3d_device.get());
 		std::static_pointer_cast<reshade::d3d11::runtime_d3d11>(_runtime)->on_present();
-		device->_immediate_context->_buffer_detection.reset(false);
+		device->_immediate_context->_state.reset(false);
 		break; }
 	case 12: {
 		const auto device = static_cast<D3D12Device *>(_direct3d_device.get());
 		std::static_pointer_cast<reshade::d3d12::runtime_d3d12>(_runtime)->on_present();
-		device->_buffer_detection.reset(false);
+		device->_state.reset(false);
 		break; }
 	}
 }
@@ -236,15 +236,15 @@ ULONG   STDMETHODCALLTYPE DXGISwapChain::Release()
 	{
 	case 10:
 		std::static_pointer_cast<reshade::d3d10::runtime_d3d10>(_runtime)->on_reset();
-		static_cast<D3D10Device *>(_direct3d_device.get())->_buffer_detection.reset(true);
+		static_cast<D3D10Device *>(_direct3d_device.get())->_state.reset(true);
 		break; 
 	case 11:
 		std::static_pointer_cast<reshade::d3d11::runtime_d3d11>(_runtime)->on_reset();
-		static_cast<D3D11Device *>(_direct3d_device.get())->_immediate_context->_buffer_detection.reset(true);
+		static_cast<D3D11Device *>(_direct3d_device.get())->_immediate_context->_state.reset(true);
 		break;
 	case 12:
 		std::static_pointer_cast<reshade::d3d12::runtime_d3d12>(_runtime)->on_reset();
-		static_cast<D3D12Device *>(_direct3d_device.get())->_buffer_detection.reset(true); // Release any live references to depth buffers etc.
+		static_cast<D3D12Device *>(_direct3d_device.get())->_state.reset(true); // Release any live references to depth buffers etc.
 		break;
 	}
 

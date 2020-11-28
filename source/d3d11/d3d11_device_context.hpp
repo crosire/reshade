@@ -5,8 +5,7 @@
 
 #pragma once
 
-#include <d3d11_4.h>
-#include "buffer_detection.hpp"
+#include "state_tracking.hpp"
 
 struct DECLSPEC_UUID("27B0246B-2152-4D42-AD11-32489472238F") D3D11DeviceContext : ID3D11DeviceContext4
 {
@@ -187,5 +186,5 @@ struct DECLSPEC_UUID("27B0246B-2152-4D42-AD11-32489472238F") D3D11DeviceContext 
 	ID3D11DeviceContext *_orig;
 	unsigned int _interface_version;
 	D3D11Device *const _device;
-	reshade::d3d11::buffer_detection_context _buffer_detection;
+	reshade::d3d11::state_tracking_context _state;
 };

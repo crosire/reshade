@@ -15,7 +15,7 @@ D3D11Device::D3D11Device(IDXGIDevice1 *dxgi_device, ID3D11Device *original, ID3D
 	_dxgi_device(new DXGIDevice(dxgi_device, this)),
 	_immediate_context(new D3D11DeviceContext(this, immediate_context)) {
 	assert(_orig != nullptr);
-	_immediate_context->_buffer_detection.init(immediate_context, &_immediate_context->_buffer_detection);
+	_immediate_context->_state.init(immediate_context, &_immediate_context->_state);
 }
 
 bool D3D11Device::check_and_upgrade_interface(REFIID riid)
@@ -354,7 +354,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext(UINT ContextFlags, 
 	}
 
 	const auto device_context_proxy = new D3D11DeviceContext(this, *ppDeferredContext);
-	device_context_proxy->_buffer_detection.init(*ppDeferredContext, &_immediate_context->_buffer_detection);
+	device_context_proxy->_state.init(*ppDeferredContext, &_immediate_context->_state);
 
 	*ppDeferredContext = device_context_proxy;
 
@@ -455,7 +455,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext1(UINT ContextFlags,
 	}
 
 	const auto device_context_proxy = new D3D11DeviceContext(this, *ppDeferredContext);
-	device_context_proxy->_buffer_detection.init(*ppDeferredContext, &_immediate_context->_buffer_detection);
+	device_context_proxy->_state.init(*ppDeferredContext, &_immediate_context->_state);
 
 	*ppDeferredContext = device_context_proxy;
 
@@ -518,7 +518,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext2(UINT ContextFlags,
 	}
 
 	const auto device_context_proxy = new D3D11DeviceContext(this, *ppDeferredContext);
-	device_context_proxy->_buffer_detection.init(*ppDeferredContext, &_immediate_context->_buffer_detection);
+	device_context_proxy->_state.init(*ppDeferredContext, &_immediate_context->_state);
 
 	*ppDeferredContext = device_context_proxy;
 
@@ -686,7 +686,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext3(UINT ContextFlags,
 	}
 
 	const auto device_context_proxy = new D3D11DeviceContext(this, *ppDeferredContext);
-	device_context_proxy->_buffer_detection.init(*ppDeferredContext, &_immediate_context->_buffer_detection);
+	device_context_proxy->_state.init(*ppDeferredContext, &_immediate_context->_state);
 
 	*ppDeferredContext = device_context_proxy;
 

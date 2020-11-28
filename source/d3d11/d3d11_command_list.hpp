@@ -5,8 +5,7 @@
 
 #pragma once
 
-#include <d3d11_4.h>
-#include "buffer_detection.hpp"
+#include "state_tracking.hpp"
 
 struct DECLSPEC_UUID("592F5E83-A17B-4EEB-A2BF-7568DA2A3728") D3D11CommandList : ID3D11CommandList
 {
@@ -34,5 +33,5 @@ struct DECLSPEC_UUID("592F5E83-A17B-4EEB-A2BF-7568DA2A3728") D3D11CommandList : 
 	ULONG _ref = 1;
 	ID3D11CommandList *_orig;
 	D3D11Device *const _device;
-	reshade::d3d11::buffer_detection _buffer_detection;
+	reshade::d3d11::state_tracking _state;
 };

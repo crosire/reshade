@@ -11,9 +11,9 @@
 D3D12Device::D3D12Device(ID3D12Device *original) :
 	_orig(original),
 	_interface_version(0),
-	_buffer_detection(original) {
+	_state(original) {
 	assert(_orig != nullptr);
-	_buffer_detection.init(_orig, nullptr, &_buffer_detection);
+	_state.init(_orig, nullptr, &_state);
 }
 
 bool D3D12Device::check_and_upgrade_interface(REFIID riid)
@@ -82,7 +82,7 @@ ULONG   STDMETHODCALLTYPE D3D12Device::Release()
 	if (ref != 0)
 		return _orig->Release(), ref;
 
-	_buffer_detection.reset(true);
+	_state.reset(true);
 
 	const ULONG ref_orig = _orig->Release();
 	if (ref_orig != 0) // Verify internal reference count
@@ -184,7 +184,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandList(UINT nodeMask, D3D12_CO
 	// Upgrade to the actual interface version requested here (and only hook graphics command lists)
 	if (command_list_proxy->check_and_upgrade_interface(riid))
 	{
-		command_list_proxy->_buffer_detection.init(_orig, command_list_proxy->_orig, &_buffer_detection);
+		command_list_proxy->_state.init(_orig, command_list_proxy->_orig, &_state);
 
 		*ppCommandList = command_list_proxy;
 	}
@@ -232,7 +232,7 @@ void    STDMETHODCALLTYPE D3D12Device::CreateDepthStencilView(ID3D12Resource *pR
 	_orig->CreateDepthStencilView(pResource, pDesc, DestDescriptor);
 #if RESHADE_DEPTH
 	if (pResource != nullptr)
-		_buffer_detection.on_create_dsv(pResource, DestDescriptor);
+		_state.on_create_dsv(pResource, DestDescriptor);
 #endif
 }
 void    STDMETHODCALLTYPE D3D12Device::CreateSampler(const D3D12_SAMPLER_DESC *pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
@@ -377,7 +377,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandList1(UINT NodeMask, D3D12_C
 	// Upgrade to the actual interface version requested here (and only hook graphics command lists)
 	if (command_list_proxy->check_and_upgrade_interface(riid))
 	{
-		command_list_proxy->_buffer_detection.init(_orig, command_list_proxy->_orig, &_buffer_detection);
+		command_list_proxy->_state.init(_orig, command_list_proxy->_orig, &_state);
 
 		*ppCommandList = command_list_proxy;
 	}

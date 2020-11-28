@@ -15,7 +15,7 @@ struct device_data
 {
 	VkPhysicalDevice physical_device;
 	VkLayerDispatchTable dispatch_table;
-	reshade::vulkan::buffer_detection_context buffer_detection;
+	reshade::vulkan::state_tracking_context state;
 	uint32_t graphics_queue_family_index = std::numeric_limits<uint32_t>::max();
 };
 
@@ -31,7 +31,7 @@ struct command_buffer_data
 	uint32_t current_subpass = std::numeric_limits<uint32_t>::max();
 	VkRenderPass current_renderpass = VK_NULL_HANDLE;
 	VkFramebuffer current_framebuffer = VK_NULL_HANDLE;
-	reshade::vulkan::buffer_detection buffer_detection;
+	reshade::vulkan::state_tracking state;
 };
 
 static lockfree_table<void *, device_data, 16> s_device_dispatch;
@@ -622,7 +622,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 			runtime = new reshade::vulkan::runtime_vk(
 				device, device_data.physical_device, device_data.graphics_queue_family_index,
 				s_instance_dispatch.at(dispatch_key_from_handle(device_data.physical_device)), device_data.dispatch_table,
-				&device_data.buffer_detection);
+				&device_data.state);
 		}
 
 		// Look up window handle from surface
@@ -676,7 +676,7 @@ VkResult VKAPI_CALL vkQueueSubmit(VkQueue queue, uint32_t submitCount, const VkS
 			auto &command_buffer_data = s_command_buffer_data.at(cmd);
 
 			// Merge command list trackers into device one
-			device_data.buffer_detection.merge(command_buffer_data.buffer_detection);
+			device_data.state.merge(command_buffer_data.state);
 		}
 	}
 
@@ -699,7 +699,7 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 			runtime->on_present(queue, pPresentInfo->pImageIndices[i], wait_semaphores);
 	}
 
-	device_data.buffer_detection.reset();
+	device_data.state.reset();
 
 	// Override wait semaphores based on the last queue submit from above
 	VkPresentInfoKHR present_info = *pPresentInfo;
@@ -894,7 +894,7 @@ VkResult VKAPI_CALL vkBeginCommandBuffer(VkCommandBuffer commandBuffer, const Vk
 {
 	// Begin does perform an implicit reset if command pool was created with VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT
 	auto &data = s_command_buffer_data.at(commandBuffer);
-	data.buffer_detection.reset();
+	data.state.reset();
 
 	GET_DEVICE_DISPATCH_PTR(BeginCommandBuffer, commandBuffer);
 	return trampoline(commandBuffer, pBeginInfo);
@@ -916,14 +916,14 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 		const VkImage depthstencil = framebuffer_data[renderpass_data.depthstencil_attachment_index];
 		VkImageLayout depthstencil_layout = renderpass_data.final_depthstencil_layout;
 
-		data.buffer_detection.on_set_depthstencil(
+		data.state.on_set_depthstencil(
 			depthstencil,
 			depthstencil_layout,
 			s_image_data.at(depthstencil));
 	}
 	else
 	{
-		data.buffer_detection.on_set_depthstencil(VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED, {});
+		data.state.on_set_depthstencil(VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED, {});
 	}
 #endif
 
@@ -948,14 +948,14 @@ void     VKAPI_CALL vkCmdNextSubpass(VkCommandBuffer commandBuffer, VkSubpassCon
 		const VkImage depthstencil = framebuffer_data[renderpass_data.depthstencil_attachment_index];
 		VkImageLayout depthstencil_layout = renderpass_data.final_depthstencil_layout;
 
-		data.buffer_detection.on_set_depthstencil(
+		data.state.on_set_depthstencil(
 			depthstencil,
 			depthstencil_layout,
 			s_image_data.at(depthstencil));
 	}
 	else
 	{
-		data.buffer_detection.on_set_depthstencil(VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED, {});
+		data.state.on_set_depthstencil(VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED, {});
 	}
 #endif
 }
@@ -970,7 +970,7 @@ void     VKAPI_CALL vkCmdEndRenderPass(VkCommandBuffer commandBuffer)
 	data.current_renderpass = VK_NULL_HANDLE;
 	data.current_framebuffer = VK_NULL_HANDLE;
 
-	data.buffer_detection.on_set_depthstencil(VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED, {});
+	data.state.on_set_depthstencil(VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED, {});
 #endif
 }
 
@@ -983,7 +983,7 @@ void     VKAPI_CALL vkCmdExecuteCommands(VkCommandBuffer commandBuffer, uint32_t
 		const auto &secondary_data = s_command_buffer_data.at(pCommandBuffers[i]);
 
 		// Merge secondary command list trackers into the current primary one
-		data.buffer_detection.merge(secondary_data.buffer_detection);
+		data.state.merge(secondary_data.state);
 	}
 
 	GET_DEVICE_DISPATCH_PTR(CmdExecuteCommands, commandBuffer);
@@ -996,7 +996,7 @@ void     VKAPI_CALL vkCmdDraw(VkCommandBuffer commandBuffer, uint32_t vertexCoun
 	trampoline(commandBuffer, vertexCount, instanceCount, firstVertex, firstInstance);
 
 	auto &data = s_command_buffer_data.at(commandBuffer);
-	data.buffer_detection.on_draw(vertexCount * instanceCount);
+	data.state.on_draw(vertexCount * instanceCount);
 }
 void     VKAPI_CALL vkCmdDrawIndexed(VkCommandBuffer commandBuffer, uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance)
 {
@@ -1004,7 +1004,7 @@ void     VKAPI_CALL vkCmdDrawIndexed(VkCommandBuffer commandBuffer, uint32_t ind
 	trampoline(commandBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
 
 	auto &data = s_command_buffer_data.at(commandBuffer);
-	data.buffer_detection.on_draw(indexCount * instanceCount);
+	data.state.on_draw(indexCount * instanceCount);
 }
 
 

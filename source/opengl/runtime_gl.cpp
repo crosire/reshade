@@ -157,7 +157,7 @@ bool reshade::opengl::runtime_gl::on_init(HWND hwnd, unsigned int width, unsigne
 	}
 
 	// Initialize default frame buffer information
-	_buffer_detection.reset(_width, _height, _default_depth_format);
+	_state_tracking.reset(_width, _height, _default_depth_format);
 
 	// Capture and later restore so that the resource creation code below does not affect the application state
 	_app_state.capture(_compatibility_context);
@@ -244,7 +244,7 @@ void reshade::opengl::runtime_gl::on_reset()
 {
 	runtime::on_reset();
 
-	_buffer_detection.release();
+	_state_tracking.release();
 
 	glDeleteBuffers(NUM_BUF, _buf);
 	glDeleteTextures(NUM_TEX, _tex);
@@ -283,14 +283,14 @@ void reshade::opengl::runtime_gl::on_present()
 	if (!_is_initialized)
 		return;
 
-	_vertices = _buffer_detection.total_vertices();
-	_drawcalls = _buffer_detection.total_drawcalls();
+	_vertices = _state_tracking.total_vertices();
+	_drawcalls = _state_tracking.total_drawcalls();
 
 	_app_state.capture(_compatibility_context);
 
 #if RESHADE_DEPTH
-	update_depth_texture_bindings(_has_high_network_activity ? buffer_detection::depthstencil_info { 0 } :
-		_buffer_detection.find_best_depth_texture(_use_aspect_ratio_heuristics ? _width : 0, _height, _depth_source_override));
+	update_depth_texture_bindings(_has_high_network_activity ? state_tracking::depthstencil_info { 0 } :
+		_state_tracking.find_best_depth_texture(_use_aspect_ratio_heuristics ? _width : 0, _height, _depth_source_override));
 #endif
 
 	// Set clip space to something consistent
@@ -331,7 +331,7 @@ void reshade::opengl::runtime_gl::on_present()
 
 	runtime::on_present();
 
-	_buffer_detection.reset(_width, _height, _default_depth_format);
+	_state_tracking.reset(_width, _height, _default_depth_format);
 
 	// Apply previous state from application
 	_app_state.apply(_compatibility_context);
@@ -1362,16 +1362,16 @@ void reshade::opengl::runtime_gl::draw_depth_debug_menu()
 
 	bool modified = false;
 	modified |= ImGui::Checkbox("Use aspect ratio heuristics", &_use_aspect_ratio_heuristics);
-	modified |= ImGui::Checkbox("Copy depth buffer before clear operations", &_buffer_detection.preserve_depth_buffers);
+	modified |= ImGui::Checkbox("Copy depth buffer before clear operations", &_state_tracking.preserve_depth_buffers);
 
 	ImGui::Spacing();
 	ImGui::Separator();
 	ImGui::Spacing();
 
 	// Sort object list so that added/removed items do not change the UI much
-	std::vector<std::pair<GLuint, buffer_detection::depthstencil_info>> sorted_buffers;
-	sorted_buffers.reserve(_buffer_detection.depth_buffer_counters().size());
-	for (const auto &[depth_source, snapshot] : _buffer_detection.depth_buffer_counters())
+	std::vector<std::pair<GLuint, state_tracking::depthstencil_info>> sorted_buffers;
+	sorted_buffers.reserve(_state_tracking.depth_buffer_counters().size());
+	for (const auto &[depth_source, snapshot] : _state_tracking.depth_buffer_counters())
 		sorted_buffers.push_back({ depth_source, snapshot });
 	std::sort(sorted_buffers.begin(), sorted_buffers.end(), [](const auto &a, const auto &b) { return a.first < b.first; });
 	for (const auto &[depth_source, snapshot] : sorted_buffers)
@@ -1380,7 +1380,7 @@ void reshade::opengl::runtime_gl::draw_depth_debug_menu()
 			continue; // Skip invalid entries
 
 		char label[512] = "";
-		sprintf_s(label, "%s0x%08x", (depth_source == _buffer_detection.depthstencil_clear_index.first && !_has_high_network_activity ? "> " : "  "), depth_source);
+		sprintf_s(label, "%s0x%08x", (depth_source == _state_tracking.depthstencil_clear_index.first && !_has_high_network_activity ? "> " : "  "), depth_source);
 
 		if (bool value = _depth_source_override == depth_source;
 			ImGui::Checkbox(label, &value))
@@ -1391,16 +1391,16 @@ void reshade::opengl::runtime_gl::draw_depth_debug_menu()
 			snapshot.width, snapshot.height, snapshot.total_stats.drawcalls, snapshot.total_stats.vertices,
 			(depth_source & 0x80000000) != 0 ? " RBO" : depth_source != 0 ? " FBO" : "");
 
-		if (_buffer_detection.preserve_depth_buffers && depth_source == _buffer_detection.depthstencil_clear_index.first)
+		if (_state_tracking.preserve_depth_buffers && depth_source == _state_tracking.depthstencil_clear_index.first)
 		{
 			for (UINT clear_index = 1; clear_index <= snapshot.clears.size(); ++clear_index)
 			{
-				sprintf_s(label, "%s  CLEAR %2u", (clear_index == _buffer_detection.depthstencil_clear_index.second ? "> " : "  "), clear_index);
+				sprintf_s(label, "%s  CLEAR %2u", (clear_index == _state_tracking.depthstencil_clear_index.second ? "> " : "  "), clear_index);
 
-				if (bool value = (_buffer_detection.depthstencil_clear_index.second == clear_index);
+				if (bool value = (_state_tracking.depthstencil_clear_index.second == clear_index);
 					ImGui::Checkbox(label, &value))
 				{
-					_buffer_detection.depthstencil_clear_index.second = value ? clear_index : 0;
+					_state_tracking.depthstencil_clear_index.second = value ? clear_index : 0;
 					modified = true;
 				}
 
@@ -1419,7 +1419,7 @@ void reshade::opengl::runtime_gl::draw_depth_debug_menu()
 		runtime::save_config();
 }
 
-void reshade::opengl::runtime_gl::update_depth_texture_bindings(buffer_detection::depthstencil_info info)
+void reshade::opengl::runtime_gl::update_depth_texture_bindings(state_tracking::depthstencil_info info)
 {
 	if (_has_high_network_activity)
 	{
