@@ -54,7 +54,7 @@ namespace reshade::d3d10
 		com_ptr<ID3D10RasterizerState> _effect_rasterizer;
 		std::unordered_map<size_t, com_ptr<ID3D10SamplerState>> _effect_sampler_states;
 		com_ptr<ID3D10DepthStencilView> _effect_stencil;
-		std::vector<struct d3d10_effect_data> _effect_data;
+		std::vector<struct effect_data> _effect_data;
 
 #if RESHADE_GUI
 		bool init_imgui_resources();

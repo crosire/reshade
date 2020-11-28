@@ -13,13 +13,13 @@
 
 namespace reshade::d3d9
 {
-	struct d3d9_tex_data
+	struct tex_data
 	{
 		com_ptr<IDirect3DTexture9> texture;
 		com_ptr<IDirect3DSurface9> surface;
 	};
 
-	struct d3d9_pass_data
+	struct pass_data
 	{
 		com_ptr<IDirect3DStateBlock9> stateblock;
 		com_ptr<IDirect3DPixelShader9> pixel_shader;
@@ -28,13 +28,13 @@ namespace reshade::d3d9
 		IDirect3DTexture9 *sampler_textures[16] = {};
 	};
 
-	struct d3d9_technique_data
+	struct technique_data
 	{
 		DWORD num_samplers = 0;
 		DWORD sampler_states[16][12] = {};
 		IDirect3DTexture9 *sampler_textures[16] = {};
 		DWORD constant_register_count = 0;
-		std::vector<d3d9_pass_data> passes;
+		std::vector<pass_data> passes;
 	};
 }
 
@@ -441,7 +441,7 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 		}
 	}
 
-	d3d9_technique_data technique_init;
+	technique_data technique_init;
 	assert(effect.module.num_texture_bindings == 0);
 	assert(effect.module.num_storage_bindings == 0);
 	technique_init.num_samplers = effect.module.num_sampler_bindings;
@@ -457,7 +457,7 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 
 		const texture &texture = look_up_texture_by_name(info.texture_name);
 
-		technique_init.sampler_textures[info.binding] = static_cast<d3d9_tex_data *>(texture.impl)->texture.get();
+		technique_init.sampler_textures[info.binding] = static_cast<tex_data *>(texture.impl)->texture.get();
 
 		// Since textures with auto-generated mipmap levels do not have a mipmap maximum, limit the bias here so this is not as obvious
 		assert(texture.levels > 0);
@@ -484,13 +484,13 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 			continue;
 
 		// Copy construct new technique implementation instead of move because effect may contain multiple techniques
-		auto impl = new d3d9_technique_data(technique_init);
+		auto impl = new technique_data(technique_init);
 		technique.impl = impl;
 
 		impl->passes.resize(technique.passes.size());
 		for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
 		{
-			d3d9_pass_data &pass_data = impl->passes[pass_index];
+			pass_data &pass_data = impl->passes[pass_index];
 			const reshadefx::pass_info &pass_info = technique.passes[pass_index];
 
 			max_vertices = std::max(max_vertices, pass_info.num_vertices);
@@ -511,7 +511,7 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 					break;
 				}
 
-				d3d9_tex_data *const tex_impl = static_cast<d3d9_tex_data *>(
+				tex_data *const tex_impl = static_cast<tex_data *>(
 					look_up_texture_by_name(pass_info.render_target_names[k]).impl);
 
 				// Unset textures that are used as render target
@@ -708,7 +708,7 @@ void reshade::d3d9::runtime_d3d9::unload_effect(size_t index)
 		if (tech.effect_index != index)
 			continue;
 
-		delete static_cast<d3d9_technique_data *>(tech.impl);
+		delete static_cast<technique_data *>(tech.impl);
 		tech.impl = nullptr;
 	}
 
@@ -718,7 +718,7 @@ void reshade::d3d9::runtime_d3d9::unload_effects()
 {
 	for (technique &tech : _techniques)
 	{
-		delete static_cast<d3d9_technique_data *>(tech.impl);
+		delete static_cast<technique_data *>(tech.impl);
 		tech.impl = nullptr;
 	}
 
@@ -727,7 +727,7 @@ void reshade::d3d9::runtime_d3d9::unload_effects()
 
 bool reshade::d3d9::runtime_d3d9::init_texture(texture &texture)
 {
-	auto impl = new d3d9_tex_data();
+	auto impl = new tex_data();
 	texture.impl = impl;
 
 	if (texture.semantic == "COLOR")
@@ -837,7 +837,7 @@ bool reshade::d3d9::runtime_d3d9::init_texture(texture &texture)
 }
 void reshade::d3d9::runtime_d3d9::upload_texture(const texture &texture, const uint8_t *pixels)
 {
-	auto impl = static_cast<d3d9_tex_data *>(texture.impl);
+	auto impl = static_cast<tex_data *>(texture.impl);
 	assert(impl != nullptr && texture.semantic.empty() && pixels != nullptr);
 
 	D3DSURFACE_DESC desc; impl->texture->GetLevelDesc(0, &desc); // Get D3D texture format
@@ -895,13 +895,13 @@ void reshade::d3d9::runtime_d3d9::upload_texture(const texture &texture, const u
 }
 void reshade::d3d9::runtime_d3d9::destroy_texture(texture &texture)
 {
-	delete static_cast<d3d9_tex_data *>(texture.impl);
+	delete static_cast<tex_data *>(texture.impl);
 	texture.impl = nullptr;
 }
 
 void reshade::d3d9::runtime_d3d9::render_technique(technique &technique)
 {
-	const auto impl = static_cast<d3d9_technique_data *>(technique.impl);
+	const auto impl = static_cast<technique_data *>(technique.impl);
 
 	// Setup vertex input (used to have a vertex ID as vertex shader input)
 	_device->SetStreamSource(0, _effect_vertex_buffer.get(), 0, sizeof(float));
@@ -926,7 +926,7 @@ void reshade::d3d9::runtime_d3d9::render_technique(technique &technique)
 			_device->StretchRect(_backbuffer_resolved.get(), nullptr, _backbuffer_texture_surface.get(), nullptr, D3DTEXF_NONE);
 		}
 
-		const d3d9_pass_data &pass_data = impl->passes[pass_index];
+		const pass_data &pass_data = impl->passes[pass_index];
 		const reshadefx::pass_info &pass_info = technique.passes[pass_index];
 
 		// Setup state
@@ -1202,7 +1202,7 @@ void reshade::d3d9::runtime_d3d9::render_imgui_draw_data(ImDrawData *draw_data)
 			};
 			_device->SetScissorRect(&scissor_rect);
 
-			_device->SetTexture(0, static_cast<const d3d9_tex_data *>(cmd.TextureId)->texture.get());
+			_device->SetTexture(0, static_cast<const tex_data *>(cmd.TextureId)->texture.get());
 
 			_device->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, cmd.VtxOffset + vtx_offset, 0, draw_list->VtxBuffer.Size, cmd.IdxOffset + idx_offset, cmd.ElemCount / 3);
 
@@ -1334,16 +1334,16 @@ void reshade::d3d9::runtime_d3d9::update_depth_texture_bindings(com_ptr<IDirect3
 	{
 		if (tex.impl == nullptr || tex.semantic != "DEPTH")
 			continue;
-		const auto tex_impl = static_cast<d3d9_tex_data *>(tex.impl);
+		const auto tex_impl = static_cast<tex_data *>(tex.impl);
 
 		// Update references in technique list
 		for (const technique &tech : _techniques)
 		{
-			const auto tech_impl = static_cast<d3d9_technique_data *>(tech.impl);
+			const auto tech_impl = static_cast<technique_data *>(tech.impl);
 			if (tech_impl == nullptr)
 				continue;
 
-			for (d3d9_pass_data &pass_data : tech_impl->passes)
+			for (pass_data &pass_data : tech_impl->passes)
 				// Replace all occurances of the old texture with the new one
 				for (IDirect3DTexture9 *&sampler_tex : pass_data.sampler_textures)
 					if (tex_impl->texture == sampler_tex)

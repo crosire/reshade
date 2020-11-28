@@ -19,23 +19,23 @@
 
 namespace reshade::d3d12
 {
-	struct d3d12_tex_data
+	struct tex_data
 	{
 		com_ptr<ID3D12Resource> resource;
 		com_ptr<ID3D12DescriptorHeap> descriptors;
 	};
 
-	struct d3d12_pass_data
+	struct pass_data
 	{
 		com_ptr<ID3D12PipelineState> pipeline;
 		UINT num_render_targets;
 		D3D12_GPU_DESCRIPTOR_HANDLE srv_handle;
 		D3D12_GPU_DESCRIPTOR_HANDLE uav_handle;
 		D3D12_CPU_DESCRIPTOR_HANDLE render_targets;
-		std::vector<const d3d12_tex_data *> modified_resources;
+		std::vector<const tex_data *> modified_resources;
 	};
 
-	struct d3d12_effect_data
+	struct effect_data
 	{
 		com_ptr<ID3D12Resource> cb;
 		com_ptr<ID3D12RootSignature> signature;
@@ -56,10 +56,10 @@ namespace reshade::d3d12
 #endif
 	};
 
-	struct d3d12_technique_data
+	struct technique_data
 	{
 		bool has_compute_passes = false;
-		std::vector<d3d12_pass_data> passes;
+		std::vector<pass_data> passes;
 	};
 
 	static void transition_state(
@@ -593,7 +593,7 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 
 	if (index >= _effect_data.size())
 		_effect_data.resize(index + 1);
-	d3d12_effect_data &effect_data = _effect_data[index];
+	effect_data &effect_data = _effect_data[index];
 
 	{   D3D12_DESCRIPTOR_RANGE srv_range = {};
 		srv_range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
@@ -756,13 +756,13 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 		if (technique.impl != nullptr || technique.effect_index != index)
 			continue;
 
-		auto impl = new d3d12_technique_data();
+		auto impl = new technique_data();
 		technique.impl = impl;
 
 		impl->passes.resize(technique.passes.size());
 		for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
 		{
-			d3d12_pass_data &pass_data = impl->passes[pass_index];
+			pass_data &pass_data = impl->passes[pass_index];
 			reshadefx::pass_info &pass_info = technique.passes[pass_index];
 
 			if (!pass_info.cs_entry_point.empty())
@@ -799,7 +799,7 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 
 				for (UINT k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k)
 				{
-					d3d12_tex_data *const tex_impl = static_cast<d3d12_tex_data *>(
+					tex_data *const tex_impl = static_cast<tex_data *>(
 						look_up_texture_by_name(pass_info.render_target_names[k]).impl);
 
 					pass_data.modified_resources.push_back(tex_impl);
@@ -963,7 +963,7 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 				D3D12_CPU_DESCRIPTOR_HANDLE srv_handle = srv_cpu_base;
 				srv_handle.ptr += info.texture_binding * _srv_handle_size;
 
-				com_ptr<ID3D12Resource> resource = static_cast<d3d12_tex_data *>(texture.impl)->resource;
+				com_ptr<ID3D12Resource> resource = static_cast<tex_data *>(texture.impl)->resource;
 				if (texture.semantic == "COLOR")
 				{
 					resource = _backbuffer_texture;
@@ -1008,7 +1008,7 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 				uav_handle.ptr += info.binding * _srv_handle_size;
 
 				const com_ptr<ID3D12Resource> resource =
-					static_cast<d3d12_tex_data *>(texture.impl)->resource;
+					static_cast<tex_data *>(texture.impl)->resource;
 				if (resource != nullptr)
 				{
 					D3D12_UNORDERED_ACCESS_VIEW_DESC desc = {};
@@ -1018,7 +1018,7 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 
 					_device->CreateUnorderedAccessView(resource.get(), nullptr, &desc, uav_handle);
 
-					pass_data.modified_resources.push_back(static_cast<d3d12_tex_data *>(texture.impl));
+					pass_data.modified_resources.push_back(static_cast<tex_data *>(texture.impl));
 				}
 			}
 			uav_cpu_base.ptr += effect.module.num_storage_bindings * _srv_handle_size;
@@ -1038,7 +1038,7 @@ void reshade::d3d12::runtime_d3d12::unload_effect(size_t index)
 		if (tech.effect_index != index)
 			continue;
 
-		delete static_cast<d3d12_technique_data *>(tech.impl);
+		delete static_cast<technique_data *>(tech.impl);
 		tech.impl = nullptr;
 	}
 
@@ -1046,7 +1046,7 @@ void reshade::d3d12::runtime_d3d12::unload_effect(size_t index)
 
 	if (index < _effect_data.size())
 	{
-		d3d12_effect_data &effect_data = _effect_data[index];
+		effect_data &effect_data = _effect_data[index];
 		effect_data.cb.reset();
 		effect_data.signature.reset();
 		effect_data.rtv_heap.reset();
@@ -1064,7 +1064,7 @@ void reshade::d3d12::runtime_d3d12::unload_effects()
 
 	for (technique &tech : _techniques)
 	{
-		delete static_cast<d3d12_technique_data *>(tech.impl);
+		delete static_cast<technique_data *>(tech.impl);
 		tech.impl = nullptr;
 	}
 
@@ -1075,7 +1075,7 @@ void reshade::d3d12::runtime_d3d12::unload_effects()
 
 bool reshade::d3d12::runtime_d3d12::init_texture(texture &texture)
 {
-	auto impl = new d3d12_tex_data();
+	auto impl = new tex_data();
 	texture.impl = impl;
 
 	// Do not create resource if it is a special reference, those are set in 'render_technique' and 'init_effect'/'update_depth_texture_bindings'
@@ -1196,7 +1196,7 @@ bool reshade::d3d12::runtime_d3d12::init_texture(texture &texture)
 }
 void reshade::d3d12::runtime_d3d12::upload_texture(const texture &texture, const uint8_t *pixels)
 {
-	auto impl = static_cast<d3d12_tex_data *>(texture.impl);
+	auto impl = static_cast<tex_data *>(texture.impl);
 	assert(impl != nullptr && texture.semantic.empty() && pixels != nullptr);
 
 	const uint32_t data_pitch = texture.width * 4;
@@ -1285,10 +1285,10 @@ void reshade::d3d12::runtime_d3d12::destroy_texture(texture &texture)
 	// Make sure texture is not still in use before destroying it
 	wait_for_command_queue();
 
-	delete static_cast<d3d12_tex_data *>(texture.impl);
+	delete static_cast<tex_data *>(texture.impl);
 	texture.impl = nullptr;
 }
-void reshade::d3d12::runtime_d3d12::generate_mipmaps(const d3d12_tex_data *impl)
+void reshade::d3d12::runtime_d3d12::generate_mipmaps(const tex_data *impl)
 {
 	assert(impl != nullptr);
 
@@ -1327,8 +1327,8 @@ void reshade::d3d12::runtime_d3d12::generate_mipmaps(const d3d12_tex_data *impl)
 
 void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 {
-	const auto impl = static_cast<d3d12_technique_data *>(technique.impl);
-	d3d12_effect_data &effect_data = _effect_data[technique.effect_index];
+	const auto impl = static_cast<technique_data *>(technique.impl);
+	effect_data &effect_data = _effect_data[technique.effect_index];
 
 	if (!begin_command_list())
 		return;
@@ -1383,7 +1383,7 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 			_cmd_list->SetDescriptorHeaps(ARRAYSIZE(descriptor_heaps), descriptor_heaps);
 		}
 
-		const d3d12_pass_data &pass_data = impl->passes[pass_index];
+		const pass_data &pass_data = impl->passes[pass_index];
 		const reshadefx::pass_info &pass_info = technique.passes[pass_index];
 
 		_cmd_list->SetPipelineState(pass_data.pipeline.get());
@@ -1403,7 +1403,7 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 			_cmd_list->SetGraphicsRootDescriptorTable(1, pass_data.srv_handle);
 
 			// Transition resource state for render targets
-			for (const d3d12_tex_data *render_target_texture : pass_data.modified_resources)
+			for (const tex_data *render_target_texture : pass_data.modified_resources)
 				transition_state(_cmd_list, render_target_texture->resource, D3D12_RESOURCE_STATE_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
 			_cmd_list->OMSetStencilRef(pass_info.stencil_reference_value);
@@ -1473,12 +1473,12 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 			_drawcalls += 1;
 
 			// Transition resource state back to shader access
-			for (const d3d12_tex_data *render_target_texture : pass_data.modified_resources)
+			for (const tex_data *render_target_texture : pass_data.modified_resources)
 				transition_state(_cmd_list, render_target_texture->resource, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_SHADER_RESOURCE);
 		}
 
 		// Generate mipmaps for modified resources
-		for (const d3d12_tex_data *modified_texture : pass_data.modified_resources)
+		for (const tex_data *modified_texture : pass_data.modified_resources)
 			generate_mipmaps(modified_texture);
 	}
 }
@@ -1744,7 +1744,7 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 
 			// First descriptor in resource-specific descriptor heap is SRV to top-most mipmap level
 			// Can assume that the resource state is D3D12_RESOURCE_STATE_SHADER_RESOURCE at this point
-			ID3D12DescriptorHeap *const descriptor_heap = { static_cast<d3d12_tex_data *>(cmd.TextureId)->descriptors.get() };
+			ID3D12DescriptorHeap *const descriptor_heap = { static_cast<tex_data *>(cmd.TextureId)->descriptors.get() };
 			assert(descriptor_heap != nullptr);
 			_cmd_list->SetDescriptorHeaps(1, &descriptor_heap);
 			_cmd_list->SetGraphicsRootDescriptorTable(1, descriptor_heap->GetGPUDescriptorHandleForHeapStart());
@@ -1887,7 +1887,7 @@ void reshade::d3d12::runtime_d3d12::update_depth_texture_bindings(com_ptr<ID3D12
 	// Descriptors may be currently in use, so make sure all previous frames have finished before updating them
 	wait_for_command_queue();
 
-	for (d3d12_effect_data &effect_data : _effect_data)
+	for (effect_data &effect_data : _effect_data)
 	{
 		if (effect_data.depth_texture_binding.ptr == 0)
 			continue; // Skip effects that do not have a depth buffer binding

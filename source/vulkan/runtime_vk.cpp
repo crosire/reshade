@@ -18,7 +18,7 @@
 
 namespace reshade::vulkan
 {
-	struct vulkan_tex_data
+	struct tex_data
 	{
 		VkImage image = VK_NULL_HANDLE;
 		VkImageView view[4] = {};
@@ -30,16 +30,16 @@ namespace reshade::vulkan
 		uint32_t width = 0, height = 0, levels = 0;
 	};
 
-	struct vulkan_pass_data
+	struct pass_data
 	{
 		VkPipeline pipeline = VK_NULL_HANDLE;
 		VkDescriptorSet set[2] = {};
 		VkClearValue clear_values[8] = {};
 		VkRenderPassBeginInfo begin_info = { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
-		std::vector<const vulkan_tex_data *> modified_resources;
+		std::vector<const tex_data *> modified_resources;
 	};
 
-	struct vulkan_effect_data
+	struct effect_data
 	{
 		VkQueryPool query_pool = VK_NULL_HANDLE;
 		VkPipelineLayout pipeline_layout = VK_NULL_HANDLE;
@@ -55,11 +55,11 @@ namespace reshade::vulkan
 #endif
 	};
 
-	struct vulkan_technique_data
+	struct technique_data
 	{
 		bool has_compute_passes = false;
 		uint32_t query_base_index = 0;
-		std::vector<vulkan_pass_data> passes;
+		std::vector<pass_data> passes;
 	};
 
 	const uint32_t MAX_IMAGE_DESCRIPTOR_SETS = 128; // TODO: Check if these limits are enough
@@ -876,7 +876,7 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 
 	if (_effect_data.size() <= index)
 		_effect_data.resize(index + 1);
-	vulkan_effect_data &effect_data = _effect_data[index];
+	effect_data &effect_data = _effect_data[index];
 
 	// Create query pool for time measurements
 	{   VkQueryPoolCreateInfo create_info { VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO };
@@ -943,7 +943,7 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 		const texture &texture = look_up_texture_by_name(info.texture_name);
 
 		VkDescriptorImageInfo &image_binding = sampler_bindings[info.binding];
-		image_binding.imageView = static_cast<vulkan_tex_data *>(texture.impl)->view[info.srgb];
+		image_binding.imageView = static_cast<tex_data *>(texture.impl)->view[info.srgb];
 		image_binding.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
 		if (texture.semantic == "COLOR")
@@ -1043,7 +1043,7 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 		const texture &texture = look_up_texture_by_name(info.texture_name);
 
 		VkDescriptorImageInfo &image_binding = storage_bindings[info.binding];
-		image_binding.imageView = static_cast<vulkan_tex_data *>(texture.impl)->view[0];
+		image_binding.imageView = static_cast<tex_data *>(texture.impl)->view[0];
 		image_binding.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
 
 		// Unset bindings are not allowed, so fail initialization for the entire effect in that case
@@ -1115,7 +1115,7 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 		if (technique.impl != nullptr || technique.effect_index != index)
 			continue;
 
-		auto impl = new vulkan_technique_data();
+		auto impl = new technique_data();
 		technique.impl = impl;
 
 		// Offset index so that a query exists for each command frame and two subsequent ones are used for before/after stamps
@@ -1124,7 +1124,7 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 		impl->passes.resize(technique.passes.size());
 		for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index, ++total_pass_index)
 		{
-			vulkan_pass_data &pass_data = impl->passes[pass_index];
+			pass_data &pass_data = impl->passes[pass_index];
 			const reshadefx::pass_info &pass_info = technique.passes[pass_index];
 
 			if (!pass_info.cs_entry_point.empty())
@@ -1233,7 +1233,7 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 
 				for (uint32_t k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k, ++num_color_attachments)
 				{
-					vulkan_tex_data *const tex_impl = static_cast<vulkan_tex_data *>(
+					tex_data *const tex_impl = static_cast<tex_data *>(
 						look_up_texture_by_name(pass_info.render_target_names[k]).impl);
 
 					pass_data.modified_resources.push_back(tex_impl);
@@ -1453,7 +1453,7 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 				write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
 				write.pImageInfo = &storage_bindings[info.binding];
 
-				vulkan_tex_data *const tex_impl = static_cast<vulkan_tex_data *>(
+				tex_data *const tex_impl = static_cast<tex_data *>(
 					look_up_texture_by_name(info.texture_name).impl);
 
 				pass_data.modified_resources.push_back(tex_impl);
@@ -1479,11 +1479,11 @@ void reshade::vulkan::runtime_vk::unload_effect(size_t index)
 		if (tech.effect_index != index)
 			continue;
 
-		const auto impl = static_cast<vulkan_technique_data *>(tech.impl);
+		const auto impl = static_cast<technique_data *>(tech.impl);
 		if (impl == nullptr)
 			continue;
 
-		for (vulkan_pass_data &pass_data : impl->passes)
+		for (pass_data &pass_data : impl->passes)
 		{
 			if (pass_data.begin_info.renderPass != _default_render_pass[0] &&
 				pass_data.begin_info.renderPass != _default_render_pass[1])
@@ -1500,7 +1500,7 @@ void reshade::vulkan::runtime_vk::unload_effect(size_t index)
 
 	if (index < _effect_data.size())
 	{
-		vulkan_effect_data &effect_data = _effect_data[index];
+		effect_data &effect_data = _effect_data[index];
 
 		vk.DestroyQueryPool(_device, effect_data.query_pool, nullptr);
 		effect_data.query_pool = VK_NULL_HANDLE;
@@ -1522,11 +1522,11 @@ void reshade::vulkan::runtime_vk::unload_effects()
 
 	for (technique &tech : _techniques)
 	{
-		const auto impl = static_cast<vulkan_technique_data *>(tech.impl);
+		const auto impl = static_cast<technique_data *>(tech.impl);
 		if (impl == nullptr)
 			continue;
 
-		for (vulkan_pass_data &pass_data : impl->passes)
+		for (pass_data &pass_data : impl->passes)
 		{
 			if (pass_data.begin_info.renderPass != _default_render_pass[0] &&
 				pass_data.begin_info.renderPass != _default_render_pass[1])
@@ -1546,7 +1546,7 @@ void reshade::vulkan::runtime_vk::unload_effects()
 		vk.ResetDescriptorPool(_device, _effect_descriptor_pool, 0);
 	}
 
-	for (const vulkan_effect_data &data : _effect_data)
+	for (const effect_data &data : _effect_data)
 	{
 		vk.DestroyQueryPool(_device, data.query_pool, nullptr);
 		vk.DestroyPipelineLayout(_device, data.pipeline_layout, nullptr);
@@ -1566,7 +1566,7 @@ void reshade::vulkan::runtime_vk::unload_effects()
 
 bool reshade::vulkan::runtime_vk::init_texture(texture &texture)
 {
-	auto impl = new vulkan_tex_data();
+	auto impl = new tex_data();
 	texture.impl = impl;
 
 	// Do not create resource if it is a special reference, those are set in 'render_technique' and 'init_effect'/'update_depth_image_bindings'
@@ -1720,7 +1720,7 @@ bool reshade::vulkan::runtime_vk::init_texture(texture &texture)
 }
 void reshade::vulkan::runtime_vk::upload_texture(const texture &texture, const uint8_t *pixels)
 {
-	auto impl = static_cast<vulkan_tex_data *>(texture.impl);
+	auto impl = static_cast<tex_data *>(texture.impl);
 	assert(impl != nullptr && texture.semantic.empty() && pixels != nullptr);
 
 	// Allocate host memory for upload
@@ -1792,7 +1792,7 @@ void reshade::vulkan::runtime_vk::destroy_texture(texture &texture)
 {
 	if (texture.impl == nullptr)
 		return;
-	auto impl = static_cast<vulkan_tex_data *>(texture.impl);
+	auto impl = static_cast<tex_data *>(texture.impl);
 
 	// Make sure texture is not still in use before destroying it
 	wait_for_command_buffers();
@@ -1814,7 +1814,7 @@ void reshade::vulkan::runtime_vk::destroy_texture(texture &texture)
 	delete impl;
 	texture.impl = nullptr;
 }
-void reshade::vulkan::runtime_vk::generate_mipmaps(const vulkan_tex_data *impl)
+void reshade::vulkan::runtime_vk::generate_mipmaps(const tex_data *impl)
 {
 	assert(impl != nullptr);
 
@@ -1845,8 +1845,8 @@ void reshade::vulkan::runtime_vk::generate_mipmaps(const vulkan_tex_data *impl)
 
 void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 {
-	const auto impl = static_cast<vulkan_technique_data *>(technique.impl);
-	vulkan_effect_data &effect_data = _effect_data[technique.effect_index];
+	const auto impl = static_cast<technique_data *>(technique.impl);
+	effect_data &effect_data = _effect_data[technique.effect_index];
 
 	// Evaluate queries from oldest frame in queue
 	if (uint64_t timestamps[2];
@@ -1915,7 +1915,7 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 			transition_layout(vk, cmd_list, _swapchain_images[_swap_index], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 		}
 
-		const vulkan_pass_data &pass_data = impl->passes[pass_index];
+		const pass_data &pass_data = impl->passes[pass_index];
 		const reshadefx::pass_info &pass_info = technique.passes[pass_index];
 
 #ifndef NDEBUG
@@ -1939,14 +1939,14 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 			// Compute shaders do not write to the back buffer, so no update necessary
 			needs_implicit_backbuffer_copy = false;
 
-			for (const vulkan_tex_data *storage_resource : pass_data.modified_resources)
+			for (const tex_data *storage_resource : pass_data.modified_resources)
 				transition_layout(vk, cmd_list, storage_resource->image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
 
 			vk.CmdBindPipeline(cmd_list, VK_PIPELINE_BIND_POINT_COMPUTE, pass_data.pipeline);
 			vk.CmdBindDescriptorSets(cmd_list, VK_PIPELINE_BIND_POINT_COMPUTE, effect_data.pipeline_layout, 1, 2, pass_data.set, 0, nullptr);
 			vk.CmdDispatch(cmd_list, pass_info.viewport_width, pass_info.viewport_height, pass_info.viewport_dispatch_z);
 
-			for (const vulkan_tex_data *storage_resource : pass_data.modified_resources)
+			for (const tex_data *storage_resource : pass_data.modified_resources)
 				transition_layout(vk, cmd_list, storage_resource->image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 		}
 		else
@@ -1986,7 +1986,7 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 		}
 
 		// Generate mipmaps for modified resources
-		for (const vulkan_tex_data *texture : pass_data.modified_resources)
+		for (const tex_data *texture : pass_data.modified_resources)
 			generate_mipmaps(texture);
 
 #ifndef NDEBUG
@@ -2454,7 +2454,7 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 			};
 			vk.CmdSetScissor(cmd_list, 0, 1, &scissor_rect);
 
-			auto tex_data = static_cast<const vulkan_tex_data *>(cmd.TextureId);
+			const auto tex_impl = static_cast<const tex_data *>(cmd.TextureId);
 
 			// Use push descriptor extension when available
 			if (vk.CmdPushDescriptorSetKHR != nullptr)
@@ -2463,14 +2463,14 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 				write.dstBinding = 0;
 				write.descriptorCount = 1;
 				write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-				const VkDescriptorImageInfo image_info { _imgui.sampler, tex_data->view[0], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
+				const VkDescriptorImageInfo image_info { _imgui.sampler, tex_impl->view[0], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
 				write.pImageInfo = &image_info;
 				vk.CmdPushDescriptorSetKHR(cmd_list, VK_PIPELINE_BIND_POINT_GRAPHICS, _imgui.pipeline_layout, 0, 1, &write);
 			}
 			else
 			{
-				assert(tex_data->descriptor_set != VK_NULL_HANDLE);
-				vk.CmdBindDescriptorSets(cmd_list, VK_PIPELINE_BIND_POINT_GRAPHICS, _imgui.pipeline_layout, 0, 1, &tex_data->descriptor_set, 0, nullptr);
+				assert(tex_impl->descriptor_set != VK_NULL_HANDLE);
+				vk.CmdBindDescriptorSets(cmd_list, VK_PIPELINE_BIND_POINT_GRAPHICS, _imgui.pipeline_layout, 0, 1, &tex_impl->descriptor_set, 0, nullptr);
 			}
 
 			vk.CmdDrawIndexed(cmd_list, cmd.ElemCount, 1, cmd.IdxOffset + idx_offset, cmd.VtxOffset + vtx_offset, 0);
@@ -2581,7 +2581,7 @@ void reshade::vulkan::runtime_vk::update_depth_image_bindings(state_tracking::de
 	// Update image bindings
 	std::vector<VkWriteDescriptorSet> writes;
 
-	for (vulkan_effect_data &effect_data : _effect_data)
+	for (effect_data &effect_data : _effect_data)
 	{
 		if (effect_data.depth_image_binding == std::numeric_limits<uint32_t>::max())
 			continue; // Skip effects that do not have a depth buffer binding

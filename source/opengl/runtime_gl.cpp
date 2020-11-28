@@ -11,21 +11,21 @@
 
 namespace reshade::opengl
 {
-	struct opengl_tex_data
+	struct tex_data
 	{
 		GLuint id[2] = {};
 		GLuint levels = 0;
 		GLenum internal_format = GL_NONE;
 	};
 
-	struct opengl_sampler_data
+	struct sampler_data
 	{
 		GLuint id;
-		opengl_tex_data *texture;
+		tex_data *texture;
 		bool is_srgb_format;
 	};
 
-	struct opengl_pass_data
+	struct pass_data
 	{
 		GLuint fbo = 0;
 		GLuint program = 0;
@@ -40,15 +40,15 @@ namespace reshade::opengl
 		GLenum stencil_op_z_fail = GL_NONE;
 		GLenum stencil_op_z_pass = GL_NONE;
 		GLenum draw_targets[8] = {};
-		std::vector<opengl_tex_data *> storages;
-		std::vector<opengl_sampler_data> samplers;
+		std::vector<tex_data *> storages;
+		std::vector<sampler_data> samplers;
 	};
 
-	struct opengl_technique_data
+	struct technique_data
 	{
 		GLuint query = 0;
 		bool query_in_flight = false;
-		std::vector<opengl_pass_data> passes;
+		std::vector<pass_data> passes;
 	};
 }
 
@@ -494,7 +494,7 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 			continue;
 
 		// Copy construct new technique implementation instead of move because effect may contain multiple techniques
-		auto impl = new opengl_technique_data();
+		auto impl = new technique_data();
 		technique.impl = impl;
 
 		glGenQueries(1, &impl->query);
@@ -502,7 +502,7 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 		impl->passes.resize(technique.passes.size());
 		for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
 		{
-			opengl_pass_data &pass_data = impl->passes[pass_index];
+			pass_data &pass_data = impl->passes[pass_index];
 			reshadefx::pass_info &pass_info = technique.passes[pass_index];
 
 			pass_data.program = glCreateProgram();
@@ -519,7 +519,7 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 				{
 					const texture &texture = look_up_texture_by_name(info.texture_name);
 
-					pass_data.storages[info.binding] = static_cast<opengl_tex_data *>(texture.impl);
+					pass_data.storages[info.binding] = static_cast<tex_data *>(texture.impl);
 				}
 			}
 			else
@@ -616,7 +616,7 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 				{
 					for (uint32_t k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k)
 					{
-						opengl_tex_data *const tex_impl = static_cast<opengl_tex_data *>(
+						tex_data *const tex_impl = static_cast<tex_data *>(
 							look_up_texture_by_name(pass_info.render_target_names[k]).impl);
 
 						pass_data.draw_targets[k] = GL_COLOR_ATTACHMENT0 + k;
@@ -742,9 +742,9 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 					it = _effect_sampler_states.emplace(hash, sampler_id).first;
 				}
 
-				opengl_sampler_data &sampler_data = pass_data.samplers[info.binding];
+				sampler_data &sampler_data = pass_data.samplers[info.binding];
 				sampler_data.id = it->second;
-				sampler_data.texture = static_cast<opengl_tex_data *>(texture.impl);
+				sampler_data.texture = static_cast<tex_data *>(texture.impl);
 				sampler_data.is_srgb_format = info.srgb;
 			}
 		}
@@ -762,13 +762,13 @@ void reshade::opengl::runtime_gl::unload_effect(size_t index)
 		if (tech.effect_index != index)
 			continue;
 
-		const auto impl = static_cast<opengl_technique_data *>(tech.impl);
+		const auto impl = static_cast<technique_data *>(tech.impl);
 		if (impl == nullptr)
 			continue;
 
 		glDeleteQueries(1, &impl->query);
 
-		for (opengl_pass_data &pass_data : impl->passes)
+		for (pass_data &pass_data : impl->passes)
 		{
 			if (pass_data.program)
 				glDeleteProgram(pass_data.program);
@@ -791,13 +791,13 @@ void reshade::opengl::runtime_gl::unload_effects()
 {
 	for (technique &tech : _techniques)
 	{
-		const auto impl = static_cast<opengl_technique_data *>(tech.impl);
+		const auto impl = static_cast<technique_data *>(tech.impl);
 		if (impl == nullptr)
 			continue;
 
 		glDeleteQueries(1, &impl->query);
 
-		for (opengl_pass_data &pass_data : impl->passes)
+		for (pass_data &pass_data : impl->passes)
 		{
 			if (pass_data.program)
 				glDeleteProgram(pass_data.program);
@@ -820,7 +820,7 @@ void reshade::opengl::runtime_gl::unload_effects()
 
 bool reshade::opengl::runtime_gl::init_texture(texture &texture)
 {
-	auto impl = new opengl_tex_data();
+	auto impl = new tex_data();
 	texture.impl = impl;
 
 	if (texture.semantic == "COLOR")
@@ -927,7 +927,7 @@ bool reshade::opengl::runtime_gl::init_texture(texture &texture)
 }
 void reshade::opengl::runtime_gl::upload_texture(const texture &texture, const uint8_t *pixels)
 {
-	auto impl = static_cast<opengl_tex_data *>(texture.impl);
+	auto impl = static_cast<tex_data *>(texture.impl);
 	assert(impl != nullptr && texture.semantic.empty() && pixels != nullptr);
 
 	// Get current state
@@ -987,7 +987,7 @@ void reshade::opengl::runtime_gl::destroy_texture(texture &texture)
 {
 	if (texture.impl == nullptr)
 		return;
-	auto impl = static_cast<opengl_tex_data *>(texture.impl);
+	auto impl = static_cast<tex_data *>(texture.impl);
 
 	if (texture.semantic != "COLOR" && texture.semantic != "DEPTH") {
 		glDeleteTextures(impl->id[0] != impl->id[1] ? 2 : 1, impl->id);
@@ -996,7 +996,7 @@ void reshade::opengl::runtime_gl::destroy_texture(texture &texture)
 	delete impl;
 	texture.impl = nullptr;
 }
-void reshade::opengl::runtime_gl::generate_mipmaps(const opengl_tex_data *impl)
+void reshade::opengl::runtime_gl::generate_mipmaps(const tex_data *impl)
 {
 	if (impl == nullptr || impl->levels <= 1)
 		return;
@@ -1032,7 +1032,7 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 {
 	assert(_app_state.has_state);
 
-	const auto impl = static_cast<opengl_technique_data *>(technique.impl);
+	const auto impl = static_cast<technique_data *>(technique.impl);
 
 	if (GLuint available = 0; impl->query_in_flight)
 	{
@@ -1085,7 +1085,7 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 			glBlitFramebuffer(0, 0, _width, _height, 0, 0, _width, _height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 		}
 
-		const opengl_pass_data &pass_data = impl->passes[pass_index];
+		const pass_data &pass_data = impl->passes[pass_index];
 		const reshadefx::pass_info &pass_info = technique.passes[pass_index];
 
 		glUseProgram(pass_data.program);
@@ -1093,7 +1093,7 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 		// Set up shader resources
 		for (GLuint binding = 0; binding < pass_data.storages.size(); ++binding)
 		{
-			opengl_tex_data *const tex_impl = pass_data.storages[binding];
+			tex_data *const tex_impl = pass_data.storages[binding];
 			if (tex_impl != nullptr)
 			{
 				glBindImageTexture(binding, tex_impl->id[0], 0, GL_FALSE, 0, GL_WRITE_ONLY, tex_impl->internal_format);
@@ -1105,7 +1105,7 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 		}
 		for (GLuint binding = 0; binding < pass_data.samplers.size(); ++binding)
 		{
-			const opengl_sampler_data &sampler_data = pass_data.samplers[binding];
+			const sampler_data &sampler_data = pass_data.samplers[binding];
 
 			glBindSampler(binding, sampler_data.id);
 			glActiveTexture(GL_TEXTURE0 + binding);
@@ -1207,7 +1207,7 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 		}
 
 		// Generate mipmaps for modified resources (graphics passes add their render targets to the 'storages' list)
-		for (opengl_tex_data *const tex_impl : pass_data.storages)
+		for (tex_data *const tex_impl : pass_data.storages)
 			generate_mipmaps(tex_impl);
 	}
 
@@ -1339,7 +1339,7 @@ void reshade::opengl::runtime_gl::render_imgui_draw_data(ImDrawData *draw_data)
 				static_cast<GLint>(scissor_rect.w - scissor_rect.y));
 
 			glBindTexture(GL_TEXTURE_2D,
-				static_cast<const opengl_tex_data *>(cmd.TextureId)->id[0]);
+				static_cast<const tex_data *>(cmd.TextureId)->id[0]);
 
 			glDrawElementsBaseVertex(GL_TRIANGLES, cmd.ElemCount, sizeof(ImDrawIdx) == 2 ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT,
 				reinterpret_cast<const void *>(static_cast<uintptr_t>(cmd.IdxOffset * sizeof(ImDrawIdx))), cmd.VtxOffset);
@@ -1436,7 +1436,7 @@ void reshade::opengl::runtime_gl::update_depth_texture_bindings(state_tracking::
 			{
 				if (tex.impl == nullptr || tex.semantic != "DEPTH")
 					continue;
-				const auto tex_impl = static_cast<opengl_tex_data *>(tex.impl);
+				const auto tex_impl = static_cast<tex_data *>(tex.impl);
 
 				tex_impl->id[0] = tex_impl->id[1] = 0;
 			}
@@ -1530,7 +1530,7 @@ void reshade::opengl::runtime_gl::update_depth_texture_bindings(state_tracking::
 	{
 		if (tex.impl == nullptr || tex.semantic != "DEPTH")
 			continue;
-		const auto tex_impl = static_cast<opengl_tex_data *>(tex.impl);
+		const auto tex_impl = static_cast<tex_data *>(tex.impl);
 
 		tex_impl->id[0] = tex_impl->id[1] = info.obj;
 	}

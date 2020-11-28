@@ -41,7 +41,7 @@ namespace reshade::vulkan
 		bool init_texture(texture &texture) override;
 		void upload_texture(const texture &texture, const uint8_t *pixels) override;
 		void destroy_texture(texture &texture) override;
-		void generate_mipmaps(const struct vulkan_tex_data *impl);
+		void generate_mipmaps(const struct tex_data *impl);
 
 		void render_technique(technique &technique) override;
 
@@ -89,7 +89,7 @@ namespace reshade::vulkan
 		VkImage _effect_stencil = VK_NULL_HANDLE;
 		VkFormat _effect_stencil_format = VK_FORMAT_UNDEFINED;
 		VkImageView _effect_stencil_view = VK_NULL_HANDLE;
-		std::vector<struct vulkan_effect_data> _effect_data;
+		std::vector<struct effect_data> _effect_data;
 		VkDescriptorPool _effect_descriptor_pool = VK_NULL_HANDLE;
 		VkDescriptorSetLayout _effect_descriptor_layout = VK_NULL_HANDLE;
 		std::unordered_map<size_t, VkSampler> _effect_sampler_states;

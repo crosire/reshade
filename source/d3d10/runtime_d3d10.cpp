@@ -15,14 +15,14 @@
 
 namespace reshade::d3d10
 {
-	struct d3d10_tex_data
+	struct tex_data
 	{
 		com_ptr<ID3D10Texture2D> texture;
 		com_ptr<ID3D10RenderTargetView> rtv[2];
 		com_ptr<ID3D10ShaderResourceView> srv[2];
 	};
 
-	struct d3d10_pass_data
+	struct pass_data
 	{
 		com_ptr<ID3D10BlendState> blend_state;
 		com_ptr<ID3D10DepthStencilState> depth_stencil_state;
@@ -32,19 +32,19 @@ namespace reshade::d3d10
 		std::vector<com_ptr<ID3D10ShaderResourceView>> srvs, modified_resources;
 	};
 
-	struct d3d10_effect_data
+	struct effect_data
 	{
 		com_ptr<ID3D10Buffer> cb;
 	};
 
-	struct d3d10_technique_data
+	struct technique_data
 	{
 		bool query_in_flight = false;
 		com_ptr<ID3D10Query> timestamp_disjoint;
 		com_ptr<ID3D10Query> timestamp_query_beg;
 		com_ptr<ID3D10Query> timestamp_query_end;
 		std::vector<com_ptr<ID3D10SamplerState>> sampler_states;
-		std::vector<d3d10_pass_data> passes;
+		std::vector<pass_data> passes;
 	};
 }
 
@@ -493,7 +493,7 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 
 	if (index >= _effect_data.size())
 		_effect_data.resize(index + 1);
-	d3d10_effect_data &effect_data = _effect_data[index];
+	effect_data &effect_data = _effect_data[index];
 
 	if (!effect.uniform_data_storage.empty())
 	{
@@ -508,7 +508,7 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 		}
 	}
 
-	d3d10_technique_data technique_init;
+	technique_data technique_init;
 	technique_init.sampler_states.resize(effect.module.num_sampler_bindings);
 	for (const reshadefx::sampler_info &info : effect.module.samplers)
 	{
@@ -561,7 +561,7 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 			continue;
 
 		// Copy construct new technique implementation instead of move because effect may contain multiple techniques
-		auto impl = new d3d10_technique_data(technique_init);
+		auto impl = new technique_data(technique_init);
 		technique.impl = impl;
 
 		D3D10_QUERY_DESC query_desc = {};
@@ -574,7 +574,7 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 		impl->passes.resize(technique.passes.size());
 		for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
 		{
-			d3d10_pass_data &pass_data = impl->passes[pass_index];
+			pass_data &pass_data = impl->passes[pass_index];
 			reshadefx::pass_info &pass_info = technique.passes[pass_index];
 
 			entry_points.at(pass_info.ps_entry_point)->QueryInterface(&pass_data.pixel_shader);
@@ -584,7 +584,7 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 
 			for (UINT k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k)
 			{
-				d3d10_tex_data *const tex_impl = static_cast<d3d10_tex_data *>(
+				tex_data *const tex_impl = static_cast<tex_data *>(
 					look_up_texture_by_name(pass_info.render_target_names[k]).impl);
 
 				D3D10_TEXTURE2D_DESC desc;
@@ -732,7 +732,7 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 					return false;
 				}
 
-				d3d10_tex_data *const tex_impl = static_cast<d3d10_tex_data *>(
+				tex_data *const tex_impl = static_cast<tex_data *>(
 					look_up_texture_by_name(info.texture_name).impl);
 
 				pass_data.srvs[info.texture_binding] = tex_impl->srv[info.srgb ? 1 : 0];
@@ -749,7 +749,7 @@ void reshade::d3d10::runtime_d3d10::unload_effect(size_t index)
 		if (tech.effect_index != index)
 			continue;
 
-		delete static_cast<d3d10_technique_data *>(tech.impl);
+		delete static_cast<technique_data *>(tech.impl);
 		tech.impl = nullptr;
 	}
 
@@ -762,7 +762,7 @@ void reshade::d3d10::runtime_d3d10::unload_effects()
 {
 	for (technique &tech : _techniques)
 	{
-		delete static_cast<d3d10_technique_data *>(tech.impl);
+		delete static_cast<technique_data *>(tech.impl);
 		tech.impl = nullptr;
 	}
 
@@ -774,7 +774,7 @@ void reshade::d3d10::runtime_d3d10::unload_effects()
 
 bool reshade::d3d10::runtime_d3d10::init_texture(texture &texture)
 {
-	auto impl = new d3d10_tex_data();
+	auto impl = new tex_data();
 	texture.impl = impl;
 
 	if (texture.semantic == "COLOR")
@@ -894,7 +894,7 @@ bool reshade::d3d10::runtime_d3d10::init_texture(texture &texture)
 }
 void reshade::d3d10::runtime_d3d10::upload_texture(const texture &texture, const uint8_t *pixels)
 {
-	auto impl = static_cast<d3d10_tex_data *>(texture.impl);
+	auto impl = static_cast<tex_data *>(texture.impl);
 	assert(impl != nullptr && !texture.semantic.empty() && pixels != nullptr);
 
 	unsigned int upload_pitch;
@@ -932,14 +932,14 @@ void reshade::d3d10::runtime_d3d10::upload_texture(const texture &texture, const
 }
 void reshade::d3d10::runtime_d3d10::destroy_texture(texture &texture)
 {
-	delete static_cast<d3d10_tex_data *>(texture.impl);
+	delete static_cast<tex_data *>(texture.impl);
 	texture.impl = nullptr;
 }
 
 void reshade::d3d10::runtime_d3d10::render_technique(technique &technique)
 {
-	const auto impl = static_cast<d3d10_technique_data *>(technique.impl);
-	d3d10_effect_data &effect_data = _effect_data[technique.effect_index];
+	const auto impl = static_cast<technique_data *>(technique.impl);
+	effect_data &effect_data = _effect_data[technique.effect_index];
 
 	// Evaluate queries
 	if (impl->query_in_flight)
@@ -1002,7 +1002,7 @@ void reshade::d3d10::runtime_d3d10::render_technique(technique &technique)
 			_device->CopyResource(_backbuffer_texture.get(), _backbuffer_resolved.get());
 		}
 
-		const d3d10_pass_data &pass_data = impl->passes[pass_index];
+		const pass_data &pass_data = impl->passes[pass_index];
 		const reshadefx::pass_info &pass_info = technique.passes[pass_index];
 
 		_device->VSSetShader(pass_data.vertex_shader.get());
@@ -1302,7 +1302,7 @@ void reshade::d3d10::runtime_d3d10::render_imgui_draw_data(ImDrawData *draw_data
 			_device->RSSetScissorRects(1, &scissor_rect);
 
 			ID3D10ShaderResourceView *const texture_view =
-				static_cast<const d3d10_tex_data *>(cmd.TextureId)->srv[0].get();
+				static_cast<const tex_data *>(cmd.TextureId)->srv[0].get();
 			_device->PSSetShaderResources(0, 1, &texture_view);
 
 			_device->DrawIndexed(cmd.ElemCount, cmd.IdxOffset + idx_offset, cmd.VtxOffset + vtx_offset);
@@ -1440,16 +1440,16 @@ void reshade::d3d10::runtime_d3d10::update_depth_texture_bindings(com_ptr<ID3D10
 	{
 		if (tex.impl == nullptr || tex.semantic != "DEPTH")
 			continue;
-		const auto tex_impl = static_cast<d3d10_tex_data *>(tex.impl);
+		const auto tex_impl = static_cast<tex_data *>(tex.impl);
 
 		// Update references in technique list
 		for (const technique &tech : _techniques)
 		{
-			const auto tech_impl = static_cast<d3d10_technique_data *>(tech.impl);
+			const auto tech_impl = static_cast<technique_data *>(tech.impl);
 			if (tech_impl == nullptr)
 				continue;
 
-			for (d3d10_pass_data &pass_data : tech_impl->passes)
+			for (pass_data &pass_data : tech_impl->passes)
 				// Replace all occurances of the old resource view with the new one
 				for (com_ptr<ID3D10ShaderResourceView> &srv : pass_data.srvs)
 					if (tex_impl->srv[0] == srv || tex_impl->srv[1] == srv)
