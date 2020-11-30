@@ -10,7 +10,7 @@ source \ runtime.cpp
 
 ## Building
 
-You'll need Visual Studio 2017 or higher to build ReShade and Python for the `gl3w` dependency.
+You'll need Visual Studio 2019 or higher to build ReShade and Python for the `gl3w` dependency.
 
 1. Clone this repository including all Git submodules
 2. Open the Visual Studio solution
