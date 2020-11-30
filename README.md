@@ -46,3 +46,10 @@ Any contributions to the project are welcomed, it's recommended to use GitHub [p
 ## License
 
 All source code in this repository is licensed under a [BSD 3-clause license](LICENSE.md).
+
+TAGS FOR SEARCHES
+depth buffer bypass
+no network detector
+reshade no network detection
+network detection removed
+reshade how to use online
