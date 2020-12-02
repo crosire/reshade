@@ -49,7 +49,9 @@ All source code in this repository is licensed under a [BSD 3-clause license](LI
 
 TAGS FOR SEARCHES
 depth buffer bypass
-no network detector
+reshade depth buffer bypass
+no network detector reshade
 reshade no network detection
 network detection removed
 reshade how to use online
+reshade online use
