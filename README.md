@@ -55,3 +55,4 @@ reshade no network detection
 network detection removed
 reshade how to use online
 reshade online use
+reshade depth buffer unlock
