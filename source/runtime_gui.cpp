@@ -1202,7 +1202,27 @@ void reshade::runtime::draw_gui_home()
 			bottom_height += 17 /* splitter */ + (_variable_editor_height + (_tutorial_index == 3 ? 175 : 0));
 
 		if (ImGui::BeginChild("##techniques", ImVec2(0, -bottom_height), true))
+		{
+			if (_effect_load_skipping && _show_force_load_effects_button)
+			{
+				if (size_t skipped_effects = std::count_if(_effects.begin(), _effects.end(),
+					[](const effect &effect) { return effect.skipped; }); skipped_effects > 0)
+				{
+					char buf[60];
+					ImFormatString(buf, ARRAYSIZE(buf), "Force load all effects (%zu remaining)", skipped_effects);
+					if (ImGui::ButtonEx(buf, ImVec2(ImGui::GetWindowContentRegionWidth(), 0)))
+					{
+						_load_option_disable_skipping = true;
+						reload_effects();
+
+						ImGui::EndChild();
+						return;
+					}
+				}
+			}
+
 			draw_technique_editor();
+		}
 		ImGui::EndChild();
 
 		if (_tutorial_index == 2)
@@ -2629,19 +2649,7 @@ void reshade::runtime::draw_variable_editor()
 }
 void reshade::runtime::draw_technique_editor()
 {
-	bool force_reload_effects = false;
-
-	if (_effect_load_skipping && _show_force_load_effects_button)
-	{
-		if (size_t skipped_effects = std::count_if(_effects.begin(), _effects.end(),
-			[](const effect &effect) { return effect.skipped; }); skipped_effects > 0)
-		{
-			char buf[60];
-			ImFormatString(buf, ARRAYSIZE(buf), "Force load all effects (%lu remaining)", skipped_effects);
-			force_reload_effects = ImGui::ButtonEx(buf, ImVec2(ImGui::GetWindowContentRegionWidth(), 0));
-		}
-	}
-
+	size_t force_reload_effect = std::numeric_limits<size_t>::max();
 	size_t hovered_technique_index = std::numeric_limits<size_t>::max();
 
 	for (size_t index = 0; index < _techniques.size(); ++index)
@@ -2720,8 +2728,6 @@ void reshade::runtime::draw_technique_editor()
 			ImGui::EndTooltip();
 		}
 
-		bool invalidated_technique = false;
-
 		// Create context menu
 		if (ImGui::BeginPopupContextItem("##context"))
 		{
@@ -2768,23 +2774,18 @@ void reshade::runtime::draw_technique_editor()
 
 			ImGui::Separator();
 
-			const size_t effect_index = technique.effect_index;
 			if (widgets::popup_button(ICON_EDIT " Edit source code", button_width))
 			{
-				if (!effect.preprocessed)
-				{
-					// Run preprocessor to update included files
-					reload_effect(effect_index, true);
-
-					invalidated_technique = true;
-					ImGui::FindWindowByName("Statistics")->DrawList->CmdBuffer.clear();
-				}
-
 				std::filesystem::path source_file;
 				if (ImGui::MenuItem(effect.source_file.filename().u8string().c_str()))
 					source_file = effect.source_file;
 
-				if (!effect.included_files.empty())
+				if (!effect.preprocessed)
+				{
+					// Force preprocessor to run to update included files
+					force_reload_effect = technique.effect_index;
+				}
+				else if (!effect.included_files.empty())
 				{
 					ImGui::Separator();
 
@@ -2797,7 +2798,7 @@ void reshade::runtime::draw_technique_editor()
 
 				if (!source_file.empty())
 				{
-					open_code_editor(effect_index, source_file);
+					open_code_editor(technique.effect_index, source_file);
 					ImGui::CloseCurrentPopup();
 				}
 			}
@@ -2823,7 +2824,7 @@ void reshade::runtime::draw_technique_editor()
 
 				if (!entry_point_name.empty())
 				{
-					open_code_editor(effect_index, entry_point_name);
+					open_code_editor(technique.effect_index, entry_point_name);
 					ImGui::CloseCurrentPopup();
 				}
 			}
@@ -2831,7 +2832,7 @@ void reshade::runtime::draw_technique_editor()
 			ImGui::EndPopup();
 		}
 
-		if (!invalidated_technique && technique.toggle_key_data[0] != 0 && effect.compiled)
+		if (technique.toggle_key_data[0] != 0 && effect.compiled)
 		{
 			ImGui::SameLine(ImGui::GetWindowContentRegionWidth() - 120);
 			ImGui::TextDisabled("%s", reshade::input::key_name(technique.toggle_key_data).c_str());
@@ -2892,10 +2893,12 @@ void reshade::runtime::draw_technique_editor()
 		_selected_technique = std::numeric_limits<size_t>::max();
 	}
 
-	if (force_reload_effects)
+	if (force_reload_effect != std::numeric_limits<size_t>::max())
 	{
-		_load_option_disable_skipping = true;
-		reload_effects();
+		reload_effect(force_reload_effect, true);
+
+		// Reloading an effect file invalidates all textures, but the statistics window may already have drawn references to those, so need to reset it
+		ImGui::FindWindowByName("Statistics")->DrawList->CmdBuffer.clear();
 	}
 }
 
