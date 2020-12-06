@@ -1777,14 +1777,26 @@ void reshade::gui::code_editor::colorize()
 		case reshadefx::tokenid::bool3:
 		case reshadefx::tokenid::bool4:
 		case reshadefx::tokenid::bool2x2:
+		case reshadefx::tokenid::bool2x3:
+		case reshadefx::tokenid::bool2x4:
+		case reshadefx::tokenid::bool3x2:
 		case reshadefx::tokenid::bool3x3:
+		case reshadefx::tokenid::bool3x4:
+		case reshadefx::tokenid::bool4x2:
+		case reshadefx::tokenid::bool4x3:
 		case reshadefx::tokenid::bool4x4:
 		case reshadefx::tokenid::int_:
 		case reshadefx::tokenid::int2:
 		case reshadefx::tokenid::int3:
 		case reshadefx::tokenid::int4:
 		case reshadefx::tokenid::int2x2:
+		case reshadefx::tokenid::int2x3:
+		case reshadefx::tokenid::int2x4:
+		case reshadefx::tokenid::int3x2:
 		case reshadefx::tokenid::int3x3:
+		case reshadefx::tokenid::int3x4:
+		case reshadefx::tokenid::int4x2:
+		case reshadefx::tokenid::int4x3:
 		case reshadefx::tokenid::int4x4:
 		case reshadefx::tokenid::min16int:
 		case reshadefx::tokenid::min16int2:
@@ -1795,7 +1807,13 @@ void reshade::gui::code_editor::colorize()
 		case reshadefx::tokenid::uint3:
 		case reshadefx::tokenid::uint4:
 		case reshadefx::tokenid::uint2x2:
+		case reshadefx::tokenid::uint2x3:
+		case reshadefx::tokenid::uint2x4:
+		case reshadefx::tokenid::uint3x2:
 		case reshadefx::tokenid::uint3x3:
+		case reshadefx::tokenid::uint3x4:
+		case reshadefx::tokenid::uint4x2:
+		case reshadefx::tokenid::uint4x3:
 		case reshadefx::tokenid::uint4x4:
 		case reshadefx::tokenid::min16uint:
 		case reshadefx::tokenid::min16uint2:
@@ -1806,7 +1824,13 @@ void reshade::gui::code_editor::colorize()
 		case reshadefx::tokenid::float3:
 		case reshadefx::tokenid::float4:
 		case reshadefx::tokenid::float2x2:
+		case reshadefx::tokenid::float2x3:
+		case reshadefx::tokenid::float2x4:
+		case reshadefx::tokenid::float3x2:
 		case reshadefx::tokenid::float3x3:
+		case reshadefx::tokenid::float3x4:
+		case reshadefx::tokenid::float4x2:
+		case reshadefx::tokenid::float4x3:
 		case reshadefx::tokenid::float4x4:
 		case reshadefx::tokenid::min16float:
 		case reshadefx::tokenid::min16float2:

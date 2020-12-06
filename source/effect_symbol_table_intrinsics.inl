@@ -1331,7 +1331,13 @@ IMPLEMENT_INTRINSIC_SPIRV(mul, 1, {
 	})
 
 DEFINE_INTRINSIC(mul, 2, float2x2, float, float2x2)
+DEFINE_INTRINSIC(mul, 2, float2x3, float, float2x3)
+DEFINE_INTRINSIC(mul, 2, float2x3, float, float2x3)
+DEFINE_INTRINSIC(mul, 2, float3x2, float, float3x2)
 DEFINE_INTRINSIC(mul, 2, float3x3, float, float3x3)
+DEFINE_INTRINSIC(mul, 2, float3x4, float, float3x4)
+DEFINE_INTRINSIC(mul, 2, float4x2, float, float4x2)
+DEFINE_INTRINSIC(mul, 2, float4x3, float, float4x3)
 DEFINE_INTRINSIC(mul, 2, float4x4, float, float4x4)
 IMPLEMENT_INTRINSIC_GLSL(mul, 2, {
 	code += '(' + id_to_name(args[0].base) + " * " + id_to_name(args[1].base) + ')';
@@ -1346,7 +1352,13 @@ IMPLEMENT_INTRINSIC_SPIRV(mul, 2, {
 		.result;
 	})
 DEFINE_INTRINSIC(mul, 3, float2x2, float2x2, float)
+DEFINE_INTRINSIC(mul, 3, float2x3, float2x3, float)
+DEFINE_INTRINSIC(mul, 3, float2x4, float2x4, float)
+DEFINE_INTRINSIC(mul, 3, float3x2, float3x2, float)
 DEFINE_INTRINSIC(mul, 3, float3x3, float3x3, float)
+DEFINE_INTRINSIC(mul, 3, float3x4, float3x4, float)
+DEFINE_INTRINSIC(mul, 3, float4x2, float4x2, float)
+DEFINE_INTRINSIC(mul, 3, float4x3, float4x3, float)
 DEFINE_INTRINSIC(mul, 3, float4x4, float4x4, float)
 IMPLEMENT_INTRINSIC_GLSL(mul, 3, {
 	code += '(' + id_to_name(args[0].base) + " * " + id_to_name(args[1].base) + ')';
@@ -1362,7 +1374,13 @@ IMPLEMENT_INTRINSIC_SPIRV(mul, 3, {
 	})
 
 DEFINE_INTRINSIC(mul, 4, float2, float2, float2x2)
+DEFINE_INTRINSIC(mul, 4, float3, float2, float2x3)
+DEFINE_INTRINSIC(mul, 4, float4, float2, float2x4)
+DEFINE_INTRINSIC(mul, 4, float2, float3, float3x2)
 DEFINE_INTRINSIC(mul, 4, float3, float3, float3x3)
+DEFINE_INTRINSIC(mul, 4, float4, float3, float3x4)
+DEFINE_INTRINSIC(mul, 4, float2, float4, float4x2)
+DEFINE_INTRINSIC(mul, 4, float3, float4, float4x3)
 DEFINE_INTRINSIC(mul, 4, float4, float4, float4x4)
 IMPLEMENT_INTRINSIC_GLSL(mul, 4, {
 	// Flip inputs because matrices are column-wise
@@ -1378,7 +1396,13 @@ IMPLEMENT_INTRINSIC_SPIRV(mul, 4, {
 		.result;
 	})
 DEFINE_INTRINSIC(mul, 5, float2, float2x2, float2)
+DEFINE_INTRINSIC(mul, 5, float2, float2x3, float3)
+DEFINE_INTRINSIC(mul, 5, float2, float2x4, float4)
+DEFINE_INTRINSIC(mul, 5, float3, float3x2, float2)
 DEFINE_INTRINSIC(mul, 5, float3, float3x3, float3)
+DEFINE_INTRINSIC(mul, 5, float3, float3x4, float4)
+DEFINE_INTRINSIC(mul, 5, float4, float4x2, float2)
+DEFINE_INTRINSIC(mul, 5, float4, float4x3, float3)
 DEFINE_INTRINSIC(mul, 5, float4, float4x4, float4)
 IMPLEMENT_INTRINSIC_GLSL(mul, 5, {
 	code += '(' + id_to_name(args[1].base) + " * " + id_to_name(args[0].base) + ')';
@@ -1394,7 +1418,31 @@ IMPLEMENT_INTRINSIC_SPIRV(mul, 5, {
 	})
 
 DEFINE_INTRINSIC(mul, 6, float2x2, float2x2, float2x2)
+DEFINE_INTRINSIC(mul, 6, float2x3, float2x2, float2x3)
+DEFINE_INTRINSIC(mul, 6, float2x4, float2x2, float2x4)
+DEFINE_INTRINSIC(mul, 6, float2x2, float2x3, float3x2)
+DEFINE_INTRINSIC(mul, 6, float2x3, float2x3, float3x3)
+DEFINE_INTRINSIC(mul, 6, float2x4, float2x3, float3x4)
+DEFINE_INTRINSIC(mul, 6, float2x2, float2x4, float4x2)
+DEFINE_INTRINSIC(mul, 6, float2x3, float2x4, float4x3)
+DEFINE_INTRINSIC(mul, 6, float2x4, float2x4, float4x4)
+DEFINE_INTRINSIC(mul, 6, float3x2, float3x2, float2x2)
+DEFINE_INTRINSIC(mul, 6, float3x3, float3x2, float2x3)
+DEFINE_INTRINSIC(mul, 6, float3x4, float3x2, float2x4)
+DEFINE_INTRINSIC(mul, 6, float3x2, float3x3, float3x2)
 DEFINE_INTRINSIC(mul, 6, float3x3, float3x3, float3x3)
+DEFINE_INTRINSIC(mul, 6, float3x4, float3x3, float3x4)
+DEFINE_INTRINSIC(mul, 6, float3x2, float3x4, float4x2)
+DEFINE_INTRINSIC(mul, 6, float3x3, float3x4, float4x3)
+DEFINE_INTRINSIC(mul, 6, float3x4, float3x4, float4x4)
+DEFINE_INTRINSIC(mul, 6, float4x2, float4x2, float2x2)
+DEFINE_INTRINSIC(mul, 6, float4x3, float4x2, float2x3)
+DEFINE_INTRINSIC(mul, 6, float4x4, float4x2, float2x4)
+DEFINE_INTRINSIC(mul, 6, float4x2, float4x3, float3x2)
+DEFINE_INTRINSIC(mul, 6, float4x3, float4x3, float3x3)
+DEFINE_INTRINSIC(mul, 6, float4x4, float4x3, float3x4)
+DEFINE_INTRINSIC(mul, 6, float4x2, float4x4, float4x2)
+DEFINE_INTRINSIC(mul, 6, float4x3, float4x4, float4x3)
 DEFINE_INTRINSIC(mul, 6, float4x4, float4x4, float4x4)
 IMPLEMENT_INTRINSIC_GLSL(mul, 6, {
 	code += '(' + id_to_name(args[1].base) + " * " + id_to_name(args[0].base) + ')';
