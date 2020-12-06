@@ -192,13 +192,13 @@ void reshade::runtime::on_present()
 		if (!is_loading() && _reload_compile_queue.empty())
 		{
 			if (_input->is_key_pressed(_reload_key_data, _force_shortcut_modifiers))
-				load_effects();
+				reload_effects();
 
 			if (_input->is_key_pressed(_performance_mode_key_data, _force_shortcut_modifiers))
 			{
 				_performance_mode = !_performance_mode;
 				save_config();
-				load_effects();
+				reload_effects();
 			}
 
 			if (const bool reversed = _input->is_key_pressed(_prev_preset_key_data, _force_shortcut_modifiers);
@@ -672,15 +672,6 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 }
 void reshade::runtime::load_effects()
 {
-	// Clear out any previous effects
-	unload_effects();
-
-#if RESHADE_GUI
-	_show_splash = true; // Always show splash bar when reloading everything
-	_reload_count++;
-#endif
-	_last_reload_successfull = true;
-
 	// Reload preprocessor definitions from current preset before compiling
 	_preset_preprocessor_definitions.clear();
 	ini_file &preset = ini_file::load_cache(_current_preset_path);
@@ -694,7 +685,8 @@ void reshade::runtime::load_effects()
 		return; // No effect files found, so nothing more to do
 
 	// Allocate space for effects which are placed in this array during the 'load_effect' call
-	_effects.resize(effect_files.size());
+	const size_t offset = _effects.size();
+	_effects.resize(offset + effect_files.size());
 	_reload_remaining_effects = effect_files.size();
 
 	// Now that we have a list of files, load them in parallel
@@ -703,11 +695,11 @@ void reshade::runtime::load_effects()
 
 	// Keep track of the spawned threads, so the runtime cannot be destroyed while they are still running
 	for (size_t n = 0; n < num_splits; ++n)
-		_worker_threads.emplace_back([this, effect_files, num_splits, n, &preset]() {
+		_worker_threads.emplace_back([this, effect_files, offset, num_splits, n, &preset]() {
 			// Abort loading when initialization state changes (indicating that 'on_reset' was called in the meantime)
 			for (size_t i = 0; i < effect_files.size() && _is_initialized; ++i)
 				if (i * num_splits / effect_files.size() == n)
-					load_effect(effect_files[i], preset, i);
+					load_effect(effect_files[i], preset, offset + i);
 		});
 }
 void reshade::runtime::load_textures()
@@ -832,6 +824,30 @@ void reshade::runtime::unload_effects()
 
 	// Reset the effect list after all resources have been destroyed
 	_effects.clear();
+}
+
+bool reshade::runtime::reload_effect(size_t effect_index, bool preprocess_required)
+{
+#if RESHADE_GUI
+	_show_splash = false; // Hide splash bar when reloading a single effect file
+#endif
+
+	const std::filesystem::path source_file = _effects[effect_index].source_file;
+	unload_effect(effect_index);
+	return load_effect(source_file, ini_file::load_cache(_current_preset_path), effect_index, preprocess_required);
+}
+void reshade::runtime::reload_effects()
+{
+	// Clear out any previous effects
+	unload_effects();
+
+#if RESHADE_GUI
+	_show_splash = true; // Always show splash bar when reloading everything
+	_reload_count++;
+#endif
+	_last_reload_successfull = true;
+
+	load_effects();
 }
 
 bool reshade::runtime::load_effect_cache(const std::filesystem::path &source_file, const size_t hash, std::string &source) const
@@ -1467,7 +1483,7 @@ void reshade::runtime::load_current_preset()
 		if (_performance_mode || preset_preprocessor_definitions != _preset_preprocessor_definitions)
 		{
 			_preset_preprocessor_definitions = std::move(preset_preprocessor_definitions);
-			load_effects();
+			reload_effects();
 			return; // Preset values are loaded in 'update_and_render_effects' during effect loading
 		}
 
@@ -1480,7 +1496,7 @@ void reshade::runtime::load_current_preset()
 				else
 					return it->skipped; }) != technique_list.end())
 		{
-			load_effects();
+			reload_effects();
 			return;
 		}
 	}

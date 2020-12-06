@@ -180,6 +180,16 @@ namespace reshade
 		virtual void unload_effects();
 
 		/// <summary>
+		/// Reload only the specified effect.
+		/// </summary>
+		/// <param name="effect_index">The ID of the effect.</param>
+		bool reload_effect(size_t effect_index, bool preprocess_required = false);
+		/// <summary>
+		/// Unload all effects and then load them again.
+		/// </summary>
+		void reload_effects();
+
+		/// <summary>
 		/// Load compiled effect data from the disk cache.
 		/// </summary>
 		bool load_effect_cache(const std::filesystem::path &source_file, const size_t hash, std::string &source) const;

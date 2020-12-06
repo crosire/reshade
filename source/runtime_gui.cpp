@@ -1252,7 +1252,7 @@ void reshade::runtime::draw_gui_home()
 
 		if (ImGui::Button(ICON_REFRESH " Reload", ImVec2(-11.5f * _font_size, 0)))
 		{
-			load_effects();
+			reload_effects();
 		}
 
 		ImGui::SameLine();
@@ -1260,7 +1260,7 @@ void reshade::runtime::draw_gui_home()
 		if (ImGui::Checkbox("Performance Mode", &_performance_mode))
 		{
 			save_config();
-			load_effects(); // Reload effects after switching
+			reload_effects(); // Reload effects after switching
 		}
 	}
 	else
@@ -2177,7 +2177,7 @@ void reshade::runtime::draw_variable_editor()
 	}
 	else if (_was_preprocessor_popup_edited)
 	{
-		load_effects();
+		reload_effects();
 		_was_preprocessor_popup_edited = false;
 	}
 
@@ -2214,7 +2214,7 @@ void reshade::runtime::draw_variable_editor()
 			continue;
 		assert(effect.compiled);
 
-		bool reload_effect = false;
+		bool force_reload_effect = false;
 		const bool is_focused = _focused_effect == effect_index;
 		const std::string effect_name = effect.source_file.filename().u8string();
 
@@ -2260,7 +2260,7 @@ void reshade::runtime::draw_variable_editor()
 				for (const std::pair<std::string, std::string> &definition : effect.definitions)
 					if (const auto preset_it = find_definition_value(_preset_preprocessor_definitions, definition.first);
 						preset_it != _preset_preprocessor_definitions.end())
-						reload_effect = true, // Need to reload after changing preprocessor defines so to get accurate defaults again
+						force_reload_effect = true, // Need to reload after changing preprocessor defines so to get accurate defaults again
 						_preset_preprocessor_definitions.erase(preset_it);
 
 				save_current_preset();
@@ -2511,7 +2511,7 @@ void reshade::runtime::draw_variable_editor()
 			if (ImGui::TreeNodeEx(category_label.c_str(), tree_flags))
 			{
 				if (!effect.preprocessed)
-					reload_effect = true;
+					force_reload_effect = true;
 
 				for (const std::pair<std::string, std::string> &definition : effect.definitions)
 				{
@@ -2530,13 +2530,13 @@ void reshade::runtime::draw_variable_editor()
 						{
 							if (preset_it != _preset_preprocessor_definitions.end())
 							{
-								reload_effect = true;
+								force_reload_effect = true;
 								_preset_preprocessor_definitions.erase(preset_it);
 							}
 						}
 						else
 						{
-							reload_effect = true;
+							force_reload_effect = true;
 
 							if (preset_it != _preset_preprocessor_definitions.end())
 							{
@@ -2551,7 +2551,7 @@ void reshade::runtime::draw_variable_editor()
 						}
 					}
 
-					if (!reload_effect && // Cannot compare iterators if definitions were just modified above
+					if (!force_reload_effect && // Cannot compare iterators if definitions were just modified above
 						ImGui::BeginPopupContextItem())
 					{
 						const float button_width = ImGui::CalcItemWidth();
@@ -2560,7 +2560,7 @@ void reshade::runtime::draw_variable_editor()
 						{
 							if (preset_it != _preset_preprocessor_definitions.end())
 							{
-								reload_effect = true;
+								force_reload_effect = true;
 								_preset_preprocessor_definitions.erase(preset_it);
 							}
 
@@ -2583,25 +2583,20 @@ void reshade::runtime::draw_variable_editor()
 			ImGui::TreePop();
 		}
 
-		if (reload_effect)
+		if (force_reload_effect)
 		{
 			save_current_preset();
 
 			const bool reload_successful_before = _last_reload_successfull;
 
-			// Backup effect file path before unloading
-			const std::filesystem::path source_file = effect.source_file;
-
 			// Reload current effect file
-			unload_effect(effect_index);
-			if (!load_effect(source_file, ini_file::load_cache(_current_preset_path), effect_index, true) &&
+			if (!reload_effect(effect_index, true) &&
 				modified_definition != _preset_preprocessor_definitions.end())
 			{
 				// The preprocessor definition that was just modified caused the effect to not compile, so reset to default and try again
 				_preset_preprocessor_definitions.erase(modified_definition);
 
-				unload_effect(effect_index);
-				if (load_effect(source_file, ini_file::load_cache(_current_preset_path), effect_index, true))
+				if (reload_effect(effect_index, true))
 				{
 					_last_reload_successfull = reload_successful_before;
 					ImGui::OpenPopup("##pperror"); // Notify the user about this
@@ -2634,7 +2629,7 @@ void reshade::runtime::draw_variable_editor()
 }
 void reshade::runtime::draw_technique_editor()
 {
-	bool reload_required = false;
+	bool force_reload_effects = false;
 
 	if (_effect_load_skipping && _show_force_load_effects_button)
 	{
@@ -2643,7 +2638,7 @@ void reshade::runtime::draw_technique_editor()
 		{
 			char buf[60];
 			ImFormatString(buf, ARRAYSIZE(buf), "Force load all effects (%lu remaining)", skipped_effects);
-			reload_required = ImGui::ButtonEx(buf, ImVec2(ImGui::GetWindowContentRegionWidth(), 0));
+			force_reload_effects = ImGui::ButtonEx(buf, ImVec2(ImGui::GetWindowContentRegionWidth(), 0));
 		}
 	}
 
@@ -2725,6 +2720,8 @@ void reshade::runtime::draw_technique_editor()
 			ImGui::EndTooltip();
 		}
 
+		bool invalidated_technique = false;
+
 		// Create context menu
 		if (ImGui::BeginPopupContextItem("##context"))
 		{
@@ -2771,8 +2768,18 @@ void reshade::runtime::draw_technique_editor()
 
 			ImGui::Separator();
 
+			const size_t effect_index = technique.effect_index;
 			if (widgets::popup_button(ICON_EDIT " Edit source code", button_width))
 			{
+				if (!effect.preprocessed)
+				{
+					// Run preprocessor to update included files
+					reload_effect(effect_index, true);
+
+					invalidated_technique = true;
+					ImGui::FindWindowByName("Statistics")->DrawList->CmdBuffer.clear();
+				}
+
 				std::filesystem::path source_file;
 				if (ImGui::MenuItem(effect.source_file.filename().u8string().c_str()))
 					source_file = effect.source_file;
@@ -2790,7 +2797,7 @@ void reshade::runtime::draw_technique_editor()
 
 				if (!source_file.empty())
 				{
-					open_code_editor(technique.effect_index, source_file);
+					open_code_editor(effect_index, source_file);
 					ImGui::CloseCurrentPopup();
 				}
 			}
@@ -2816,7 +2823,7 @@ void reshade::runtime::draw_technique_editor()
 
 				if (!entry_point_name.empty())
 				{
-					open_code_editor(technique.effect_index, entry_point_name);
+					open_code_editor(effect_index, entry_point_name);
 					ImGui::CloseCurrentPopup();
 				}
 			}
@@ -2824,7 +2831,7 @@ void reshade::runtime::draw_technique_editor()
 			ImGui::EndPopup();
 		}
 
-		if (technique.toggle_key_data[0] != 0 && effect.compiled)
+		if (!invalidated_technique && technique.toggle_key_data[0] != 0 && effect.compiled)
 		{
 			ImGui::SameLine(ImGui::GetWindowContentRegionWidth() - 120);
 			ImGui::TextDisabled("%s", reshade::input::key_name(technique.toggle_key_data).c_str());
@@ -2885,10 +2892,10 @@ void reshade::runtime::draw_technique_editor()
 		_selected_technique = std::numeric_limits<size_t>::max();
 	}
 
-	if (reload_required)
+	if (force_reload_effects)
 	{
 		_load_option_disable_skipping = true;
-		load_effects();
+		reload_effects();
 	}
 }
 
@@ -2977,15 +2984,7 @@ void reshade::runtime::draw_code_editor(editor_instance &instance)
 
 		if (!is_loading() && instance.effect_index < _effects.size())
 		{
-			// Backup effect file path before unloading
-			const std::filesystem::path source_file = _effects[instance.effect_index].source_file;
-
-			// Hide splash bar when reloading a single effect file
-			_show_splash = false;
-
-			// Reload effect file
-			unload_effect(instance.effect_index);
-			load_effect(source_file, ini_file::load_cache(_current_preset_path), instance.effect_index);
+			reload_effect(instance.effect_index);
 
 			// Update errors in this editor instance
 			instance.editor.clear_errors();
