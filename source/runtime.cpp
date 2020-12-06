@@ -244,7 +244,7 @@ void reshade::runtime::on_present()
 	_drawcalls = _vertices = 0;
 }
 
-bool reshade::runtime::load_effect(const std::filesystem::path &source_file, const reshade::ini_file &preset, size_t &effect_index, bool preprocess_required)
+bool reshade::runtime::load_effect(const std::filesystem::path &source_file, const reshade::ini_file &preset, size_t effect_index, bool preprocess_required)
 {
 	std::string attributes;
 	attributes += "app=" + g_target_executable_path.stem().u8string() + ';';
@@ -812,7 +812,6 @@ void reshade::runtime::unload_effect(size_t effect_index)
 void reshade::runtime::unload_effects()
 {
 #if RESHADE_GUI
-	_selected_effect = std::numeric_limits<size_t>::max();
 	_preview_texture = nullptr;
 	_effect_filter[0] = '\0'; // And reset filter too, since the list of techniques might have changed
 #endif
@@ -947,12 +946,19 @@ void reshade::runtime::update_and_render_effects()
 		_load_option_disable_skipping = false;
 
 #if RESHADE_GUI
-		// Re-open last file in code editor after a reload
-		if (_show_code_editor && !_editor_file.empty())
+		// Update all editors after a reload
+		for (editor_instance &instance : _editors)
 		{
 			if (const auto it = std::find_if(_effects.begin(), _effects.end(),
-				[this](const effect &fx) { return fx.source_file == _editor_file; }); it != _effects.end())
-				open_file_in_code_editor(it - _effects.begin(), _editor_file);
+				[this, &instance](const auto &effect) { return effect.source_file == instance.file_path; }); it != _effects.end())
+			{
+				instance.effect_index = std::distance(_effects.begin(), it);
+
+				if (instance.entry_point_name.empty() || instance.entry_point_name == "Generated code")
+					open_code_editor(instance);
+				else
+					instance.editor.clear_text();
+			}
 		}
 #endif
 	}
@@ -1035,12 +1041,19 @@ void reshade::runtime::update_and_render_effects()
 		_textures_loaded = false;
 
 #if RESHADE_GUI
-		// Update assembly in viewer after a reload
-		if (_show_code_viewer && !_viewer_entry_point.empty() && effect.compiled)
+		if (effect.compiled)
 		{
-			if (const auto assembly_it = effect.assembly.find(_viewer_entry_point);
-				assembly_it != effect.assembly.end())
-				_viewer.set_text(assembly_it->second);
+			// Update assembly in all editors after a reload
+			for (editor_instance &instance : _editors)
+			{
+				if (instance.entry_point_name.empty() || instance.file_path != effect.source_file)
+					continue;
+				assert(instance.effect_index == effect_index);
+
+				if (const auto assembly_it = effect.assembly.find(instance.entry_point_name);
+					assembly_it != effect.assembly.end())
+					open_code_editor(instance);
+			}
 		}
 #endif
 	}

@@ -36,9 +36,6 @@ void reshade::runtime::init_gui()
 	_overlay_key_data[2] = false;
 	_overlay_key_data[3] = false;
 
-	_editor.set_readonly(true);
-	_viewer.set_readonly(true); // Viewer is always read-only
-
 	_imgui_context = ImGui::CreateContext();
 	auto &imgui_io = _imgui_context->IO;
 	auto &imgui_style = _imgui_context->Style;
@@ -432,41 +429,103 @@ void reshade::runtime::load_custom_style()
 
 	switch (_editor_style_index)
 	{
-	case 0:
-		_editor.set_palette({ // Dark
-			0xffffffff, 0xffd69c56, 0xff00ff00, 0xff7070e0, 0xffffffff, 0xff409090, 0xffaaaaaa,
-			0xff9bc64d, 0xffc040a0, 0xff206020, 0xff406020, 0xff101010, 0xffe0e0e0, 0x80a06020,
-			0x800020ff, 0x8000ffff, 0xff707000, 0x40000000, 0x40808080, 0x40a0a0a0 });
+	case 0: // Dark
+		_editor_palette[code_editor::color_default] = 0xffffffff;
+		_editor_palette[code_editor::color_keyword] = 0xffd69c56;
+		_editor_palette[code_editor::color_number_literal] = 0xff00ff00;
+		_editor_palette[code_editor::color_string_literal] = 0xff7070e0;
+		_editor_palette[code_editor::color_punctuation] = 0xffffffff;
+		_editor_palette[code_editor::color_preprocessor] = 0xff409090;
+		_editor_palette[code_editor::color_identifier] = 0xffaaaaaa;
+		_editor_palette[code_editor::color_known_identifier] = 0xff9bc64d;
+		_editor_palette[code_editor::color_preprocessor_identifier] = 0xffc040a0;
+		_editor_palette[code_editor::color_comment] = 0xff206020;
+		_editor_palette[code_editor::color_multiline_comment] = 0xff406020;
+		_editor_palette[code_editor::color_background] = 0xff101010;
+		_editor_palette[code_editor::color_cursor] = 0xffe0e0e0;
+		_editor_palette[code_editor::color_selection] = 0x80a06020;
+		_editor_palette[code_editor::color_error_marker] = 0x800020ff;
+		_editor_palette[code_editor::color_warning_marker] = 0x8000ffff;
+		_editor_palette[code_editor::color_line_number] = 0xff707000;
+		_editor_palette[code_editor::color_current_line_fill] = 0x40000000;
+		_editor_palette[code_editor::color_current_line_fill_inactive] = 0x40808080;
+		_editor_palette[code_editor::color_current_line_edge] = 0x40a0a0a0;
 		break;
-	case 1:
-		_editor.set_palette({ // Light
-			0xff000000, 0xffff0c06, 0xff008000, 0xff2020a0, 0xff000000, 0xff409090, 0xff404040,
-			0xff606010, 0xffc040a0, 0xff205020, 0xff405020, 0xffffffff, 0xff000000, 0x80600000,
-			0xa00010ff, 0x8000ffff, 0xff505000, 0x40000000, 0x40808080, 0x40000000 });
+	case 1: // Light
+		_editor_palette[code_editor::color_default] = 0xff000000;
+		_editor_palette[code_editor::color_keyword] = 0xffff0c06;
+		_editor_palette[code_editor::color_number_literal] = 0xff008000;
+		_editor_palette[code_editor::color_string_literal] = 0xff2020a0;
+		_editor_palette[code_editor::color_punctuation] = 0xff000000;
+		_editor_palette[code_editor::color_preprocessor] = 0xff409090;
+		_editor_palette[code_editor::color_identifier] = 0xff404040;
+		_editor_palette[code_editor::color_known_identifier] = 0xff606010;
+		_editor_palette[code_editor::color_preprocessor_identifier] = 0xffc040a0;
+		_editor_palette[code_editor::color_comment] = 0xff205020;
+		_editor_palette[code_editor::color_multiline_comment] = 0xff405020;
+		_editor_palette[code_editor::color_background] = 0xffffffff;
+		_editor_palette[code_editor::color_cursor] = 0xff000000;
+		_editor_palette[code_editor::color_selection] = 0x80600000;
+		_editor_palette[code_editor::color_error_marker] = 0xa00010ff;
+		_editor_palette[code_editor::color_warning_marker] = 0x8000ffff;
+		_editor_palette[code_editor::color_line_number] = 0xff505000;
+		_editor_palette[code_editor::color_current_line_fill] = 0x40000000;
+		_editor_palette[code_editor::color_current_line_fill_inactive] = 0x40808080;
+		_editor_palette[code_editor::color_current_line_edge] = 0x40000000;
 		break;
-	case 3:
-		_editor.set_palette({ // Solarized Dark
-			0xff969483, 0xff0089b5, 0xff98a12a, 0xff98a12a, 0xff969483, 0xff164bcb, 0xff969483,
-			0xff969483, 0xffc4716c, 0xff756e58, 0xff756e58, 0xff362b00, 0xff969483, 0xA0756e58,
-			0x7f2f32dc, 0x7f0089b5, 0xff756e58, 0x7f423607, 0x7f423607, 0x7f423607 });
+	case 3: // Solarized Dark
+		_editor_palette[code_editor::color_default] = 0xff969483;
+		_editor_palette[code_editor::color_keyword] = 0xff0089b5;
+		_editor_palette[code_editor::color_number_literal] = 0xff98a12a;
+		_editor_palette[code_editor::color_string_literal] = 0xff98a12a;
+		_editor_palette[code_editor::color_punctuation] = 0xff969483;
+		_editor_palette[code_editor::color_preprocessor] = 0xff164bcb;
+		_editor_palette[code_editor::color_identifier] = 0xff969483;
+		_editor_palette[code_editor::color_known_identifier] = 0xff969483;
+		_editor_palette[code_editor::color_preprocessor_identifier] = 0xffc4716c;
+		_editor_palette[code_editor::color_comment] = 0xff756e58;
+		_editor_palette[code_editor::color_multiline_comment] = 0xff756e58;
+		_editor_palette[code_editor::color_background] = 0xff362b00;
+		_editor_palette[code_editor::color_cursor] = 0xff969483;
+		_editor_palette[code_editor::color_selection] = 0xa0756e58;
+		_editor_palette[code_editor::color_error_marker] = 0x7f2f32dc;
+		_editor_palette[code_editor::color_warning_marker] = 0x7f0089b5;
+		_editor_palette[code_editor::color_line_number] = 0xff756e58;
+		_editor_palette[code_editor::color_current_line_fill] = 0x7f423607;
+		_editor_palette[code_editor::color_current_line_fill_inactive] = 0x7f423607;
+		_editor_palette[code_editor::color_current_line_edge] = 0x7f423607;
 		break;
-	case 4:
-		_editor.set_palette({ // Solarized Light
-			0xff837b65, 0xff0089b5, 0xff98a12a, 0xff98a12a, 0xff756e58, 0xff164bcb, 0xff837b65,
-			0xff837b65, 0xffc4716c, 0xffa1a193, 0xffa1a193, 0xffe3f6fd, 0xff837b65, 0x60a1a193,
-			0x7f2f32dc, 0x7f0089b5, 0xffa1a193, 0x7fd5e8ee, 0x7fd5e8ee, 0x7fd5e8ee });
+	case 4: // Solarized Light
+		_editor_palette[code_editor::color_default] = 0xff837b65;
+		_editor_palette[code_editor::color_keyword] = 0xff0089b5;
+		_editor_palette[code_editor::color_number_literal] = 0xff98a12a;
+		_editor_palette[code_editor::color_string_literal] = 0xff98a12a;
+		_editor_palette[code_editor::color_punctuation] = 0xff756e58;
+		_editor_palette[code_editor::color_preprocessor] = 0xff164bcb;
+		_editor_palette[code_editor::color_identifier] = 0xff837b65;
+		_editor_palette[code_editor::color_known_identifier] = 0xff837b65;
+		_editor_palette[code_editor::color_preprocessor_identifier] = 0xffc4716c;
+		_editor_palette[code_editor::color_comment] = 0xffa1a193;
+		_editor_palette[code_editor::color_multiline_comment] = 0xffa1a193;
+		_editor_palette[code_editor::color_background] = 0xffe3f6fd;
+		_editor_palette[code_editor::color_cursor] = 0xff837b65;
+		_editor_palette[code_editor::color_selection] = 0x60a1a193;
+		_editor_palette[code_editor::color_error_marker] = 0x7f2f32dc;
+		_editor_palette[code_editor::color_warning_marker] = 0x7f0089b5;
+		_editor_palette[code_editor::color_line_number] = 0xffa1a193;
+		_editor_palette[code_editor::color_current_line_fill] = 0x7fd5e8ee;
+		_editor_palette[code_editor::color_current_line_fill_inactive] = 0x7fd5e8ee;
+		_editor_palette[code_editor::color_current_line_edge] = 0x7fd5e8ee;
 		break;
 	default:
 	case 2:
 		ImVec4 value;
 		for (ImGuiCol i = 0; i < code_editor::color_palette_max; i++)
-			value = ImGui::ColorConvertU32ToFloat4(_editor.get_palette_index(i)), // Get default value first
+			value = ImGui::ColorConvertU32ToFloat4(_editor_palette[i]), // Get default value first
 			config.get("STYLE", code_editor::get_palette_color_name(i), (float(&)[4])value),
-			_editor.get_palette_index(i) = ImGui::ColorConvertFloat4ToU32(value);
+			_editor_palette[i] = ImGui::ColorConvertFloat4ToU32(value);
 		break;
 	}
-
-	_viewer.set_palette(_editor.get_palette());
 }
 void reshade::runtime::save_custom_style()
 {
@@ -482,7 +541,7 @@ void reshade::runtime::save_custom_style()
 	{
 		ImVec4 value;
 		for (ImGuiCol i = 0; i < code_editor::color_palette_max; i++)
-			value = ImGui::ColorConvertU32ToFloat4(_editor.get_palette_index(i)),
+			value = ImGui::ColorConvertU32ToFloat4(_editor_palette[i]),
 			config.set("STYLE", code_editor::get_palette_color_name(i), (const float(&)[4])value);
 	}
 }
@@ -736,7 +795,6 @@ void reshade::runtime::draw_gui()
 
 			// Attach editor window to the remaining dock space
 			ImGui::DockBuilderDockWindow("###editor", right_space_id);
-			ImGui::DockBuilderDockWindow("###viewer", right_space_id);
 
 			// Commit the layout
 			ImGui::DockBuilderFinish(root_space_id);
@@ -763,17 +821,39 @@ void reshade::runtime::draw_gui()
 			ImGui::End();
 		}
 
-		if (_show_code_editor)
+		if (!_editors.empty())
 		{
-			const std::string title = "Editing " + _editor_file.filename().u8string() + " ###editor";
-			if (ImGui::Begin(title.c_str(), &_show_code_editor, _editor.is_modified() ? ImGuiWindowFlags_UnsavedDocument : 0))
-				draw_code_editor();
-			ImGui::End();
-		}
-		if (_show_code_viewer)
-		{
-			if (ImGui::Begin("Viewing generated code###viewer", &_show_code_viewer))
-				draw_code_viewer();
+			if (ImGui::Begin("Edit###editor", nullptr, ImGuiWindowFlags_NoFocusOnAppearing) &&
+				ImGui::BeginTabBar("editor_tabs"))
+			{
+				for (auto it = _editors.begin(); it != _editors.end();)
+				{
+					std::string title = it->entry_point_name.empty() ? it->file_path.filename().u8string() : it->entry_point_name;
+					title += " ###editor" + std::to_string(std::distance(_editors.begin(), it));
+
+					bool is_open = true;
+					ImGuiTabItemFlags flags = ImGuiTabItemFlags_None;
+					if (it->editor.is_modified())
+						flags |= ImGuiTabItemFlags_UnsavedDocument;
+					if (it->selected)
+						flags |= ImGuiTabItemFlags_SetSelected;
+
+					if (ImGui::BeginTabItem(title.c_str(), &is_open, flags))
+					{
+						draw_code_editor(*it);
+						ImGui::EndTabItem();
+					}
+
+					it->selected = false;
+
+					if (!is_open)
+						it = _editors.erase(it);
+					else
+						++it;
+				}
+
+				ImGui::EndTabBar();
+			}
 			ImGui::End();
 		}
 	}
@@ -1434,12 +1514,12 @@ void reshade::runtime::draw_gui_settings()
 				ImGui::PushItemWidth(-160);
 				for (ImGuiCol i = 0; i < code_editor::color_palette_max; i++)
 				{
-					ImVec4 color = ImGui::ColorConvertU32ToFloat4(_editor.get_palette_index(i));
+					ImVec4 color = ImGui::ColorConvertU32ToFloat4(_editor_palette[i]);
 					ImGui::PushID(i);
 					modified_custom_style |= ImGui::ColorEdit4("##editor_color", &color.x, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreview);
 					ImGui::SameLine(); ImGui::TextUnformatted(code_editor::get_palette_color_name(i));
 					ImGui::PopID();
-					_viewer.get_palette_index(i) = _editor.get_palette_index(i) = ImGui::ColorConvertFloat4ToU32(color);
+					_editor_palette[i] = ImGui::ColorConvertFloat4ToU32(color);
 				}
 				ImGui::PopItemWidth();
 			} ImGui::EndChild();
@@ -1964,59 +2044,6 @@ This Font Software is licensed under the SIL Open Font License, Version 1.1. (ht
 	}
 
 	ImGui::PopTextWrapPos();
-}
-
-void reshade::runtime::draw_code_editor()
-{
-	if (ImGui::Button(ICON_SAVE " Save", ImVec2(ImGui::GetContentRegionAvail().x, 0)) || _input->is_key_pressed('S', true, false, false))
-	{
-		// Write current editor text to file
-		const std::string text = _editor.get_text();
-		std::ofstream(_editor_file, std::ios::trunc).write(text.c_str(), text.size());
-
-		if (!is_loading() && _selected_effect < _effects.size())
-		{
-			// Backup effect file path before unloading
-			const std::filesystem::path source_file = _effects[_selected_effect].source_file;
-
-			// Hide splash bar when reloading a single effect file
-			_show_splash = false;
-
-			// Reload effect file
-			unload_effect(_selected_effect);
-			load_effect(source_file, ini_file::load_cache(_current_preset_path), _selected_effect);
-
-			// Re-open current file so that errors are updated
-			open_file_in_code_editor(_selected_effect, _editor_file);
-
-			// Reloading an effect file invalidates all textures, but the statistics window may already have drawn references to those, so need to reset it
-			ImGui::FindWindowByName("Statistics")->DrawList->CmdBuffer.clear();
-		}
-	}
-
-	_editor.render("##editor", false, _imgui_context->IO.Fonts->Fonts[1]);
-
-	// Disable keyboard shortcuts when the window is focused so they don't get triggered while editing text
-	const bool is_focused = ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows);
-	_ignore_shortcuts |= is_focused;
-
-	// Disable keyboard navigation starting with next frame when editor is focused so that the Alt key can be used without it switching focus to the menu bar
-	if (is_focused)
-		_imgui_context->IO.ConfigFlags &= ~ImGuiConfigFlags_NavEnableKeyboard;
-	else // Enable navigation again if focus is lost
-		_imgui_context->IO.ConfigFlags |=  ImGuiConfigFlags_NavEnableKeyboard;
-}
-void reshade::runtime::draw_code_viewer()
-{
-	_viewer.render("##viewer", false, _imgui_context->IO.Fonts->Fonts[1]);
-
-	const bool is_focused = ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows);
-	_ignore_shortcuts |= is_focused;
-
-	if (is_focused)
-		_imgui_context->IO.ConfigFlags &= ~ImGuiConfigFlags_NavEnableKeyboard;
-	else
-		_imgui_context->IO.ConfigFlags |=  ImGuiConfigFlags_NavEnableKeyboard;
 }
 
 void reshade::runtime::draw_variable_editor()
@@ -2584,9 +2611,10 @@ void reshade::runtime::draw_variable_editor()
 					ini_file::load_cache(_current_preset_path).set({}, "PreprocessorDefinitions", _preset_preprocessor_definitions);
 				}
 
-				// Re-open file in editor so that errors are updated
-				if (_selected_effect == effect_index)
-					open_file_in_code_editor(_selected_effect, _editor_file);
+				// Update errors in any editors referencing this effect
+				for (editor_instance &instance : _editors)
+					if (instance.effect_index == effect_index)
+						open_code_editor(instance);
 			}
 
 			// Reloading an effect file invalidates all textures, but the statistics window may already have drawn references to those, so need to reset it
@@ -2754,19 +2782,15 @@ void reshade::runtime::draw_technique_editor()
 					ImGui::Separator();
 
 					for (const std::filesystem::path &included_file : effect.included_files)
-					{
 						if (ImGui::MenuItem(included_file.filename().u8string().c_str()))
-						{
 							source_file = included_file;
-						}
-					}
 				}
 
 				ImGui::EndPopup();
 
 				if (!source_file.empty())
 				{
-					open_file_in_code_editor(technique.effect_index, source_file);
+					open_code_editor(technique.effect_index, source_file);
 					ImGui::CloseCurrentPopup();
 				}
 			}
@@ -2774,34 +2798,25 @@ void reshade::runtime::draw_technique_editor()
 			if (!effect.module.hlsl.empty() && // Hide if using SPIR-V, since that cannot easily be shown here
 				widgets::popup_button("Show compiled results", button_width))
 			{
-				std::string source_code;
+				std::string entry_point_name;
 				if (ImGui::MenuItem("Generated code"))
-				{
-					source_code = effect.preamble + effect.module.hlsl;
-					_viewer_entry_point.clear();
-				}
+					entry_point_name = "Generated code";
 
 				if (!effect.assembly.empty())
 				{
 					ImGui::Separator();
 
 					for (const reshadefx::entry_point &entry_point : effect.module.entry_points)
-					{
 						if (const auto assembly_it = effect.assembly.find(entry_point.name);
 							assembly_it != effect.assembly.end() && ImGui::MenuItem(entry_point.name.c_str()))
-						{
-							source_code = assembly_it->second;
-							_viewer_entry_point = entry_point.name;
-						}
-					}
+							entry_point_name = entry_point.name;
 				}
 
 				ImGui::EndPopup();
 
-				if (!source_code.empty())
+				if (!entry_point_name.empty())
 				{
-					_show_code_viewer = true;
-					_viewer.set_text(source_code);
+					open_code_editor(technique.effect_index, entry_point_name);
 					ImGui::CloseCurrentPopup();
 				}
 			}
@@ -2877,61 +2892,121 @@ void reshade::runtime::draw_technique_editor()
 	}
 }
 
-void reshade::runtime::open_file_in_code_editor(size_t effect_index, const std::filesystem::path &path)
+void reshade::runtime::open_code_editor(size_t effect_index, const std::string &entry_point)
 {
-	_selected_effect = effect_index;
+	assert(effect_index < _effects.size());
+	const std::filesystem::path path = _effects[effect_index].source_file;
 
-	if (effect_index >= _effects.size())
+	auto it = std::find_if(_editors.begin(), _editors.end(),
+		[&](const auto &instance) { return instance.effect_index == effect_index && instance.file_path == path && instance.entry_point_name == entry_point; });
+	if (it == _editors.end())
 	{
-		_editor.clear_text();
-		_editor.set_readonly(true);
-		_editor_file.clear();
-		return;
+		_editors.push_back({ effect_index, path, entry_point });
+		it = std::prev(_editors.end());
 	}
 
-	// Force code editor to become visible
-	_show_code_editor = true;
+	it->selected = true;
 
-	// Only reload text if another file is opened (to keep undo history intact)
-	if (path != _editor_file)
+	open_code_editor(*it);
+}
+void reshade::runtime::open_code_editor(size_t effect_index, const std::filesystem::path &path)
+{
+	assert(effect_index < _effects.size());
+
+	auto it = std::find_if(_editors.begin(), _editors.end(),
+		[&](const auto &instance) { return instance.effect_index == effect_index && instance.file_path == path && instance.entry_point_name.empty(); });
+	if (it == _editors.end())
 	{
-		_editor_file = path;
-
-		// Load file to string and update editor text
-		_editor.set_text(std::string(std::istreambuf_iterator<char>(std::ifstream(path).rdbuf()), std::istreambuf_iterator<char>()));
-		_editor.set_readonly(false);
+		_editors.push_back({ effect_index, path });
+		it = std::prev(_editors.end());
 	}
 
-	// Update generated code in viewer after a reload
-	if (_show_code_viewer && _viewer_entry_point.empty())
+	it->selected = true;
+
+	open_code_editor(*it);
+}
+void reshade::runtime::open_code_editor(editor_instance &instance)
+{
+	const effect &effect = _effects[instance.effect_index];
+
+	if (!instance.entry_point_name.empty())
 	{
-		_viewer.set_text(_effects[effect_index].preamble + _effects[effect_index].module.hlsl);
+		instance.editor.set_text(instance.entry_point_name == "Generated code" ?
+			effect.preamble + effect.module.hlsl : effect.assembly.at(instance.entry_point_name));
+		instance.editor.set_readonly(true);
+	}
+	else if (!instance.editor.is_modified())
+	{
+		instance.editor.set_text(
+			std::string(std::istreambuf_iterator<char>(std::ifstream(instance.file_path).rdbuf()), std::istreambuf_iterator<char>()));
+		instance.editor.set_readonly(false);
+
+		instance.editor.clear_errors();
+
+		for (size_t offset = 0, next; offset != std::string::npos; offset = next)
+		{
+			const size_t pos_error = effect.errors.find(": ", offset);
+			const size_t pos_error_line = effect.errors.rfind('(', pos_error); // Paths can contain '(', but no ": ", so search backwards from th error location to find the line info
+			if (pos_error == std::string::npos || pos_error_line == std::string::npos)
+				break;
+
+			const size_t pos_linefeed = effect.errors.find('\n', pos_error);
+
+			next = pos_linefeed != std::string::npos ? pos_linefeed + 1 : std::string::npos;
+
+			// Ignore errors that aren't in the current source file
+			if (const std::string_view error_file(effect.errors.c_str() + offset, pos_error_line - offset);
+				error_file != instance.file_path.u8string())
+				continue;
+
+			const int error_line = std::strtol(effect.errors.c_str() + pos_error_line + 1, nullptr, 10);
+			const std::string error_text = effect.errors.substr(pos_error + 2 /* skip space */, pos_linefeed - pos_error - 2);
+
+			instance.editor.add_error(error_line, error_text, error_text.find("warning") != std::string::npos);
+		}
+	}
+}
+void reshade::runtime::draw_code_editor(editor_instance &instance)
+{
+	if (instance.entry_point_name.empty() && (
+		ImGui::Button(ICON_SAVE " Save", ImVec2(ImGui::GetContentRegionAvail().x, 0)) || _input->is_key_pressed('S', true, false, false)))
+	{
+		// Write current editor text to file
+		const std::string text = instance.editor.get_text();
+		std::ofstream(instance.file_path, std::ios::trunc).write(text.c_str(), text.size());
+
+		if (!is_loading() && instance.effect_index < _effects.size())
+		{
+			// Backup effect file path before unloading
+			const std::filesystem::path source_file = _effects[instance.effect_index].source_file;
+
+			// Hide splash bar when reloading a single effect file
+			_show_splash = false;
+
+			// Reload effect file
+			unload_effect(instance.effect_index);
+			load_effect(source_file, ini_file::load_cache(_current_preset_path), instance.effect_index);
+
+			// Update errors in this editor instance
+			instance.editor.clear_errors();
+			open_code_editor(instance);
+
+			// Reloading an effect file invalidates all textures, but the statistics window may already have drawn references to those, so need to reset it
+			ImGui::FindWindowByName("Statistics")->DrawList->CmdBuffer.clear();
+		}
 	}
 
-	_editor.clear_errors();
-	const std::string &errors = _effects[effect_index].errors;
+	instance.editor.render("##editor", _editor_palette, false, _imgui_context->IO.Fonts->Fonts[1]);
 
-	for (size_t offset = 0, next; offset != std::string::npos; offset = next)
-	{
-		const size_t pos_error = errors.find(": ", offset);
-		const size_t pos_error_line = errors.rfind('(', pos_error); // Paths can contain '(', but no ": ", so search backwards from th error location to find the line info
-		if (pos_error == std::string::npos || pos_error_line == std::string::npos)
-			break;
+	// Disable keyboard shortcuts when the window is focused so they don't get triggered while editing text
+	const bool is_focused = ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows);
+	_ignore_shortcuts |= is_focused;
 
-		const size_t pos_linefeed = errors.find('\n', pos_error);
-
-		next = pos_linefeed != std::string::npos ? pos_linefeed + 1 : std::string::npos;
-
-		// Ignore errors that aren't in the current source file
-		if (const std::string_view error_file(errors.c_str() + offset, pos_error_line - offset);
-			error_file != path.u8string())
-			continue;
-
-		const int error_line = std::strtol(errors.c_str() + pos_error_line + 1, nullptr, 10);
-		const std::string error_text = errors.substr(pos_error + 2 /* skip space */, pos_linefeed - pos_error - 2);
-
-		_editor.add_error(error_line, error_text, error_text.find("warning") != std::string::npos);
-	}
+	// Disable keyboard navigation starting with next frame when editor is focused so that the Alt key can be used without it switching focus to the menu bar
+	if (is_focused)
+		_imgui_context->IO.ConfigFlags &= ~ImGuiConfigFlags_NavEnableKeyboard;
+	else // Enable navigation again if focus is lost
+		_imgui_context->IO.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 }
 
 #endif

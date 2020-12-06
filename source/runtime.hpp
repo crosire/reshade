@@ -159,7 +159,7 @@ namespace reshade
 		/// <param name="source_file">The path to an effect source code file.</param>
 		/// <param name="preset">The preset to be used to fill specialization constants or check whether loading can be skipped.</param>
 		/// <param name="effect_index">The ID of the effect.</param>
-		bool load_effect(const std::filesystem::path &source_file, const reshade::ini_file &preset, size_t &effect_index, bool preprocess_required = false);
+		bool load_effect(const std::filesystem::path &source_file, const reshade::ini_file &preset, size_t effect_index, bool preprocess_required = false);
 		/// <summary>
 		/// Load all effects found in the effect search paths.
 		/// </summary>
@@ -354,6 +354,15 @@ namespace reshade
 		std::chrono::high_resolution_clock::time_point _last_preset_switching_time;
 
 #if RESHADE_GUI
+		struct editor_instance
+		{
+			size_t effect_index;
+			std::filesystem::path file_path;
+			std::string entry_point_name;
+			gui::code_editor editor;
+			bool selected = false;
+		};
+
 		void init_gui();
 		void deinit_gui();
 		void build_font_atlas();
@@ -368,12 +377,13 @@ namespace reshade
 		void draw_gui_log();
 		void draw_gui_about();
 
-		void draw_code_editor();
-		void draw_code_viewer();
 		void draw_variable_editor();
 		void draw_technique_editor();
 
-		void open_file_in_code_editor(size_t effect_index, const std::filesystem::path &path);
+		void open_code_editor(size_t effect_index, const std::string &entry_point);
+		void open_code_editor(size_t effect_index, const std::filesystem::path &path);
+		void open_code_editor(editor_instance &instance);
+		void draw_code_editor(editor_instance &instance);
 
 		// === User Interface ===
 		ImGuiContext *_imgui_context = nullptr;
@@ -384,8 +394,6 @@ namespace reshade
 		bool _show_fps = false;
 		bool _show_clock = false;
 		bool _show_frametime = false;
-		bool _show_code_editor = false;
-		bool _show_code_viewer = false;
 		bool _show_screenshot_message = true;
 		bool _no_font_scaling = false;
 		bool _rebuild_font_atlas = true;
@@ -401,7 +409,6 @@ namespace reshade
 		bool _duplicate_current_preset = false;
 		bool _was_preprocessor_popup_edited = false;
 		size_t _focused_effect = std::numeric_limits<size_t>::max();
-		size_t _selected_effect = std::numeric_limits<size_t>::max();
 		size_t _selected_technique = std::numeric_limits<size_t>::max();
 		unsigned int _tutorial_index = 0;
 		unsigned int _effects_expanded_state = 2;
@@ -429,9 +436,8 @@ namespace reshade
 		std::vector<std::string> _log_lines;
 
 		// === User Interface - Code Editor ===
-		gui::code_editor _editor, _viewer;
-		std::filesystem::path _editor_file;
-		std::string _viewer_entry_point;
+		std::vector<editor_instance> _editors;
+		std::array<uint32_t, gui::code_editor::color_palette_max> _editor_palette;
 #endif
 	};
 }

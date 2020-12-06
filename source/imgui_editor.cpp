@@ -82,7 +82,7 @@ reshade::gui::code_editor::code_editor()
 	_lines.emplace_back();
 }
 
-void reshade::gui::code_editor::render(const char *title, bool border, ImFont *font)
+void reshade::gui::code_editor::render(const char *title, const std::array<uint32_t, color_palette_max> &palette, bool border, ImFont *font)
 {
 	// There should always at least be a single line with a new line character
 	assert(!_lines.empty());
@@ -93,7 +93,7 @@ void reshade::gui::code_editor::render(const char *title, bool border, ImFont *f
 	const float button_spacing = ImGui::GetStyle().ItemInnerSpacing.x;
 
 	ImGui::PushFont(font);
-	ImGui::PushStyleColor(ImGuiCol_ChildBg, ImGui::ColorConvertU32ToFloat4(_palette[color_background]));
+	ImGui::PushStyleColor(ImGuiCol_ChildBg, ImGui::ColorConvertU32ToFloat4(palette[color_background]));
 	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 0.0f));
 
 	ImGui::BeginChild(title, ImVec2(0, _search_window_open * -bottom_height), border, ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_AlwaysHorizontalScrollbar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoNavInputs);
@@ -322,7 +322,7 @@ void reshade::gui::code_editor::render(const char *title, bool border, ImFont *f
 			const ImVec2 beg = ImVec2(text_screen_pos.x + selection_beg, text_screen_pos.y);
 			const ImVec2 end = ImVec2(text_screen_pos.x + selection_end, text_screen_pos.y + char_advance.y);
 
-			draw_list->AddRectFilled(beg, end, _palette[color_selection]);
+			draw_list->AddRectFilled(beg, end, palette[color_selection]);
 		}
 
 		// Find any highlighted words and draw a selection rectangle below them
@@ -348,7 +348,7 @@ void reshade::gui::code_editor::render(const char *title, bool border, ImFont *f
 							const ImVec2 beg = ImVec2(text_screen_pos.x + calc_text_distance_to_line_begin(text_pos(line_no, begin_column)), text_screen_pos.y);
 							const ImVec2 end = ImVec2(text_screen_pos.x + calc_text_distance_to_line_begin(text_pos(line_no, i + 1)), text_screen_pos.y + char_advance.y);
 
-							draw_list->AddRectFilled(beg, end, _palette[color_selection]);
+							draw_list->AddRectFilled(beg, end, palette[color_selection]);
 						}
 					}
 					else
@@ -369,7 +369,7 @@ void reshade::gui::code_editor::render(const char *title, bool border, ImFont *f
 			const ImVec2 beg = ImVec2(line_screen_pos.x + ImGui::GetScrollX(), line_screen_pos.y);
 			const ImVec2 end = ImVec2(line_screen_pos.x + ImGui::GetWindowContentRegionMax().x + 2.0f * ImGui::GetScrollX(), line_screen_pos.y + char_advance.y);
 
-			draw_list->AddRectFilled(beg, end, _palette[it->second.second ? color_warning_marker : color_error_marker]);
+			draw_list->AddRectFilled(beg, end, palette[it->second.second ? color_warning_marker : color_error_marker]);
 
 			if (ImGui::IsMouseHoveringRect(beg, end))
 			{
@@ -389,8 +389,8 @@ void reshade::gui::code_editor::render(const char *title, bool border, ImFont *f
 				const ImVec2 beg = ImVec2(line_screen_pos.x + ImGui::GetScrollX(), line_screen_pos.y);
 				const ImVec2 end = ImVec2(line_screen_pos.x + ImGui::GetWindowContentRegionMax().x + 2.0f * ImGui::GetScrollX(), line_screen_pos.y + char_advance.y);
 
-				draw_list->AddRectFilled(beg, end, _palette[is_focused ? color_current_line_fill : color_current_line_fill_inactive]);
-				draw_list->AddRect(beg, end, _palette[color_current_line_edge], 1.0f);
+				draw_list->AddRectFilled(beg, end, palette[is_focused ? color_current_line_fill : color_current_line_fill_inactive]);
+				draw_list->AddRect(beg, end, palette[color_current_line_edge], 1.0f);
 			}
 
 			// Draw the cursor animation
@@ -401,14 +401,14 @@ void reshade::gui::code_editor::render(const char *title, bool border, ImFont *f
 				const ImVec2 beg = ImVec2(text_screen_pos.x + cx, line_screen_pos.y);
 				const ImVec2 end = ImVec2(text_screen_pos.x + cx + (_overwrite ? char_advance.x : 1.0f), line_screen_pos.y + char_advance.y); // Larger cursor while overwriting
 
-				draw_list->AddRectFilled(beg, end, _palette[color_cursor]);
+				draw_list->AddRectFilled(beg, end, palette[color_cursor]);
 			}
 		}
 
 		// Draw line number (right aligned)
 		snprintf(buf, 16, "%zu  ", line_no + 1);
 
-		draw_list->AddText(ImVec2(text_screen_pos.x - ImGui::CalcTextSize(buf).x, line_screen_pos.y), _palette[color_line_number], buf);
+		draw_list->AddText(ImVec2(text_screen_pos.x - ImGui::CalcTextSize(buf).x, line_screen_pos.y), palette[color_line_number], buf);
 
 		// Nothing to draw if the line is empty, so continue on
 		if (line.empty())
@@ -423,7 +423,7 @@ void reshade::gui::code_editor::render(const char *title, bool border, ImFont *f
 		{
 			if (buf != buf_end && (glyph.col != current_color || glyph.c == '\t' || buf_end - buf >= sizeof(buf)))
 			{
-				draw_list->AddText(ImVec2(text_screen_pos.x + text_offset, text_screen_pos.y), _palette[current_color], buf, buf_end);
+				draw_list->AddText(ImVec2(text_screen_pos.x + text_offset, text_screen_pos.y), palette[current_color], buf, buf_end);
 
 				text_offset += calc_text_size(buf, buf_end).x; buf_end = buf; // Reset temporary buffer
 			}
@@ -438,7 +438,7 @@ void reshade::gui::code_editor::render(const char *title, bool border, ImFont *f
 
 		// Draw any text still in the temporary buffer that was not yet committed
 		if (buf != buf_end)
-			draw_list->AddText(ImVec2(text_screen_pos.x + text_offset, text_screen_pos.y), _palette[current_color], buf, buf_end);
+			draw_list->AddText(ImVec2(text_screen_pos.x + text_offset, text_screen_pos.y), palette[current_color], buf, buf_end);
 	}
 
 	// Create dummy widget so a horizontal scrollbar appears

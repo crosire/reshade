@@ -71,15 +71,18 @@ namespace reshade::gui
 			line
 		};
 
+		static const char *get_palette_color_name(unsigned int index);
+
 		code_editor();
 
 		/// <summary>
 		/// Performs all input logic and renders this text editor to the current ImGui window.
 		/// </summary>
 		/// <param name="title">Name of the child window the editor is rendered into.</param>
+		/// <param name="palette">The color palette used for syntax highlighting.</param>
 		/// <param name="border">Set to <c>true</c> to surround the child window with a border line.</param>
 		/// <param name="font">The font used for rendering the text (<c>nullptr</c> to use the default).</param>
-		void render(const char *title, bool border = false, ImFont *font = nullptr);
+		void render(const char *title, const std::array<uint32_t, color_palette_max> &palette, bool border = false, ImFont *font = nullptr);
 
 		/// <summary>
 		/// Sets the selection to be between the specified <paramref name="beg"/>in and <paramref name="end"/> positions.
@@ -187,11 +190,6 @@ namespace reshade::gui
 		/// </summary>
 		void set_line_spacing(float spacing) { _line_spacing = spacing; }
 
-		void set_palette(const std::array<uint32_t, color_palette_max> &palette) { _palette = palette; }
-		uint32_t &get_palette_index(unsigned int index) { return _palette[index]; }
-		const std::array<uint32_t, color_palette_max> &get_palette() const { return _palette; }
-		static const char *get_palette_color_name(unsigned int index);
-
 	private:
 		struct glyph
 		{
@@ -272,6 +270,5 @@ namespace reshade::gui
 
 		size_t _colorize_line_beg = 0;
 		size_t _colorize_line_end = 0;
-		std::array<uint32_t, color_palette_max> _palette;
 	};
 }
