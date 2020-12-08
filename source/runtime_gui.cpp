@@ -213,6 +213,7 @@ void reshade::runtime::build_font_atlas()
 			ImFontConfig icon_config;
 			icon_config.MergeMode = true;
 			icon_config.PixelSnapH = true;
+			icon_config.GlyphOffset = ImVec2(0.5f, 0.15f * _font_size);
 			const ImWchar icon_ranges[] = { 0xF002, 0xF1C9, 0 };
 			atlas->AddFontFromMemoryCompressedBase85TTF(icon_font_data, cfg.SizePixels, &icon_config, icon_ranges);
 		}
@@ -958,11 +959,11 @@ void reshade::runtime::draw_gui_home()
 			ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
 		}
 
-		if (ImGui::ButtonEx("<", ImVec2(button_size, 0), button_flags))
+		if (ImGui::ArrowButtonEx("<", ImGuiDir_Left, ImVec2(button_size, button_size), button_flags))
 			if (switch_to_next_preset(_current_preset_path.parent_path(), true))
 				reload_preset = true;
 		ImGui::SameLine(0, button_spacing);
-		if (ImGui::ButtonEx(">", ImVec2(button_size, 0), button_flags))
+		if (ImGui::ArrowButtonEx(">", ImGuiDir_Right, ImVec2(button_size, button_size), button_flags))
 			if (switch_to_next_preset(_current_preset_path.parent_path(), false))
 				reload_preset = true;
 
@@ -978,7 +979,7 @@ void reshade::runtime::draw_gui_home()
 		ImGui::PopStyleVar();
 
 		ImGui::SameLine(0, button_spacing);
-		if (ImGui::ButtonEx("+", ImVec2(button_size, 0), button_flags | ImGuiButtonFlags_PressedOnClick))
+		if (ImGui::ButtonEx(ICON_ADD, ImVec2(button_size, 0), button_flags | ImGuiButtonFlags_PressedOnClick))
 		{
 			_file_selection_path = _current_preset_path.parent_path();
 			ImGui::OpenPopup("##create");
@@ -1984,7 +1985,7 @@ void reshade::runtime::draw_gui_about()
 	ImGui::PushTextWrapPos();
 
 	ImGui::TextUnformatted("Developed and maintained by crosire.");
-	ImGui::TextUnformatted("Shout-out to CeeJay.dk and Marty McFly for their involvement!");
+	ImGui::TextUnformatted("Shout-out to CeeJay.dk and Marty McFly for their involvement.");
 	ImGui::TextUnformatted("This project makes use of several open source libraries, licenses of which are listed below:");
 
 	if (ImGui::CollapsingHeader("ReShade", ImGuiTreeNodeFlags_DefaultOpen))
@@ -2112,7 +2113,7 @@ void reshade::runtime::draw_variable_editor()
 
 					ImGui::SameLine(0, button_spacing);
 
-					if (ImGui::Button("-", ImVec2(button_size, 0)))
+					if (ImGui::Button(ICON_REMOVE, ImVec2(button_size, 0)))
 					{
 						modified = true;
 						_global_preprocessor_definitions.erase(_global_preprocessor_definitions.begin() + i--);
@@ -2127,7 +2128,7 @@ void reshade::runtime::draw_variable_editor()
 
 				ImGui::Dummy(ImVec2());
 				ImGui::SameLine(0, ImGui::GetWindowContentRegionWidth() - button_size);
-				if (ImGui::Button("+", ImVec2(button_size, 0)))
+				if (ImGui::Button(ICON_ADD, ImVec2(button_size, 0)))
 					_global_preprocessor_definitions.emplace_back();
 
 				ImGui::EndTabItem();
@@ -2160,7 +2161,7 @@ void reshade::runtime::draw_variable_editor()
 
 					ImGui::SameLine(0, button_spacing);
 
-					if (ImGui::Button("-", ImVec2(button_size, 0)))
+					if (ImGui::Button(ICON_REMOVE, ImVec2(button_size, 0)))
 					{
 						modified = true;
 						_preset_preprocessor_definitions.erase(_preset_preprocessor_definitions.begin() + i--);
@@ -2175,7 +2176,7 @@ void reshade::runtime::draw_variable_editor()
 
 				ImGui::Dummy(ImVec2());
 				ImGui::SameLine(0, ImGui::GetWindowContentRegionWidth() - button_size);
-				if (ImGui::Button("+", ImVec2(button_size, 0)))
+				if (ImGui::Button(ICON_ADD, ImVec2(button_size, 0)))
 					_preset_preprocessor_definitions.emplace_back();
 
 				ImGui::EndTabItem();

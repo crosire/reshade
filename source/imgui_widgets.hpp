@@ -19,6 +19,7 @@
 #define ICON_FOLDER_OPEN u8"\uf07c"
 #define ICON_LINK u8"\uf1c9"
 #define ICON_RESET u8"\uf064"
+#define ICON_ADD u8"\uf067"
 #define ICON_REMOVE u8"\uf068"
 #define ICON_REFRESH u8"\uf021"
 #define ICON_SAVE u8"\uf0c7"

@@ -37,7 +37,7 @@ bool reshade::gui::widgets::path_list(const char *label, std::vector<std::filesy
 			ImGui::PopItemWidth();
 
 			ImGui::SameLine(0, button_spacing);
-			if (ImGui::Button("-", ImVec2(button_size, 0)))
+			if (ImGui::Button(ICON_REMOVE, ImVec2(button_size, 0)))
 			{
 				res = true;
 				paths.erase(paths.begin() + i--);
@@ -48,7 +48,7 @@ bool reshade::gui::widgets::path_list(const char *label, std::vector<std::filesy
 
 		ImGui::Dummy(ImVec2(0, 0));
 		ImGui::SameLine(0, ImGui::GetWindowContentRegionWidth() - button_size);
-		if (ImGui::Button("+", ImVec2(button_size, 0)))
+		if (ImGui::Button(ICON_ADD, ImVec2(button_size, 0)))
 		{
 			// Do not show directory dialog when Alt key is pressed
 			if (ImGui::GetIO().KeyAlt)
@@ -116,7 +116,7 @@ bool reshade::gui::widgets::file_dialog(const char *name, std::filesystem::path 
 			ImGui::SetKeyboardFocusHere(1);
 	}
 
-	ImGui::BeginChild("##files", ImVec2(width, 200), false, ImGuiWindowFlags_NavFlattened);
+	ImGui::BeginChild("##files", ImVec2(width, 200), true, ImGuiWindowFlags_NavFlattened);
 
 	if (parent_path.has_parent_path())
 	{
