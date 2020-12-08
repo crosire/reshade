@@ -9,22 +9,6 @@
 #include <imgui_internal.h>
 #include <filesystem>
 
-// See 'reshade::runtime::build_font_atlas'
-#define ICON_OK u8"\uf00c"
-#define ICON_EDIT u8"\uf040"
-#define ICON_CANCEL u8"\uf00d"
-#define ICON_FILE u8"\uf15b"
-#define ICON_FILE_PIC u8"\uf1c5"
-#define ICON_FOLDER u8"\uf07b"
-#define ICON_FOLDER_OPEN u8"\uf07c"
-#define ICON_LINK u8"\uf1c9"
-#define ICON_RESET u8"\uf064"
-#define ICON_ADD u8"\uf067"
-#define ICON_REMOVE u8"\uf068"
-#define ICON_REFRESH u8"\uf021"
-#define ICON_SAVE u8"\uf0c7"
-#define ICON_SEARCH u8"\uf002"
-
 namespace reshade::gui::widgets
 {
 	/// <summary>

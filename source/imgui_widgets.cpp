@@ -5,6 +5,7 @@
 
 #include "input.hpp" // input::key_name
 #include "imgui_widgets.hpp"
+#include "fonts/forkawesome.h"
 #include <cassert>
 
 bool reshade::gui::widgets::path_list(const char *label, std::vector<std::filesystem::path> &paths, std::filesystem::path &dialog_path, const std::filesystem::path &default_path)
@@ -37,7 +38,7 @@ bool reshade::gui::widgets::path_list(const char *label, std::vector<std::filesy
 			ImGui::PopItemWidth();
 
 			ImGui::SameLine(0, button_spacing);
-			if (ImGui::Button(ICON_REMOVE, ImVec2(button_size, 0)))
+			if (ImGui::Button(ICON_FK_MINUS, ImVec2(button_size, 0)))
 			{
 				res = true;
 				paths.erase(paths.begin() + i--);
@@ -48,7 +49,7 @@ bool reshade::gui::widgets::path_list(const char *label, std::vector<std::filesy
 
 		ImGui::Dummy(ImVec2(0, 0));
 		ImGui::SameLine(0, ImGui::GetWindowContentRegionWidth() - button_size);
-		if (ImGui::Button(ICON_ADD, ImVec2(button_size, 0)))
+		if (ImGui::Button(ICON_FK_PLUS, ImVec2(button_size, 0)))
 		{
 			// Do not show directory dialog when Alt key is pressed
 			if (ImGui::GetIO().KeyAlt)
@@ -120,7 +121,7 @@ bool reshade::gui::widgets::file_dialog(const char *name, std::filesystem::path 
 
 	if (parent_path.has_parent_path())
 	{
-		if (ImGui::Selectable(ICON_FOLDER " ..", false, ImGuiSelectableFlags_AllowDoubleClick) &&
+		if (ImGui::Selectable(ICON_FK_FOLDER " ..", false, ImGuiSelectableFlags_AllowDoubleClick) &&
 			ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
 		{
 			path = parent_path.parent_path();
@@ -135,7 +136,7 @@ bool reshade::gui::widgets::file_dialog(const char *name, std::filesystem::path 
 		if (entry.is_directory())
 		{
 			const bool is_selected = entry == path;
-			const std::string label = ICON_FOLDER " " + entry.path().filename().u8string();
+			const std::string label = ICON_FK_FOLDER " " + entry.path().filename().u8string();
 			if (ImGui::Selectable(label.c_str(), is_selected, ImGuiSelectableFlags_AllowDoubleClick))
 			{
 				path = entry;
@@ -158,8 +159,15 @@ bool reshade::gui::widgets::file_dialog(const char *name, std::filesystem::path 
 	bool has_double_clicked_file = false;
 	for (std::filesystem::path &file_path : file_entries)
 	{
+		std::string label = ICON_FK_FILE " ";
+		if (const std::filesystem::path ext = file_path.extension();
+			ext == L".fx" || ext == L".fxh")
+			label = ICON_FK_FILE_CODE " " + label;
+		else if (ext == L".bmp" || ext == L".png" || ext == L".jpg" || ext == L".jpeg" || ext == L".dds")
+			label = ICON_FK_FILE_IMAGE " " + label;
+		label += file_path.filename().u8string();
+
 		const bool is_selected = file_path == path;
-		const std::string label = ICON_FILE " " + file_path.filename().u8string();
 		if (ImGui::Selectable(label.c_str(), is_selected, ImGuiSelectableFlags_AllowDoubleClick))
 		{
 			path = std::move(file_path);
@@ -188,9 +196,9 @@ bool reshade::gui::widgets::file_dialog(const char *name, std::filesystem::path 
 	}
 
 	ImGui::SameLine();
-	const bool select = ImGui::Button(ICON_OK " Select", ImVec2(80, 0));
+	const bool select = ImGui::Button(ICON_FK_OK " Select", ImVec2(80, 0));
 	ImGui::SameLine();
-	const bool cancel = ImGui::Button(ICON_CANCEL " Cancel", ImVec2(80, 0));
+	const bool cancel = ImGui::Button(ICON_FK_CANCEL " Cancel", ImVec2(80, 0));
 
 	// Navigate into directory when clicking select button
 	if (select && path.has_stem() && std::filesystem::is_directory(path, ec))
@@ -301,7 +309,7 @@ bool reshade::gui::widgets::file_input_box(const char *name, std::filesystem::pa
 	ImGui::PopItemWidth();
 
 	ImGui::SameLine(0, button_spacing);
-	if (ImGui::Button(ICON_FOLDER_OPEN, ImVec2(button_size, 0)))
+	if (ImGui::Button(ICON_FK_FOLDER_OPEN, ImVec2(button_size, 0)))
 	{
 		dialog_path = path;
 		ImGui::OpenPopup("##select");
@@ -342,7 +350,7 @@ bool reshade::gui::widgets::directory_input_box(const char *name, std::filesyste
 	ImGui::PopItemWidth();
 
 	ImGui::SameLine(0, button_spacing);
-	if (ImGui::Button(ICON_FOLDER_OPEN, ImVec2(button_size, 0)))
+	if (ImGui::Button(ICON_FK_FOLDER_OPEN, ImVec2(button_size, 0)))
 	{
 		dialog_path = path;
 		// Add separator at end so that file dialog navigates into this directory
