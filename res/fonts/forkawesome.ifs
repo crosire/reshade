@@ -1,0 +1,38 @@
+<config>
+	<project>
+		<font name="forkawesome-webfont.ttf">
+			<glyphs>
+				<glyph orgId="61442" newId="61442" orgName="search" newName="search"/>
+				<glyph orgId="61452" newId="61452" orgName="check" newName="ok"/>
+				<glyph orgId="61453" newId="61453" orgName="times" newName="cancel"/>
+				<glyph orgId="61462" newId="61462" orgName="file-o" newName="file"/>
+				<glyph orgId="61473" newId="61473" orgName="refresh" newName="refresh"/>
+				<glyph orgId="61504" newId="61504" orgName="pencil" newName="pencil"/>
+				<glyph orgId="61543" newId="61543" orgName="plus" newName="plus"/>
+				<glyph orgId="61544" newId="61544" orgName="minus" newName="minus"/>
+				<glyph orgId="61553" newId="61553" orgName="exclamation-triangle" newName="warning"/>
+				<glyph orgId="61639" newId="61639" orgName="floppy-o" newName="floppy"/>
+				<glyph orgId="61666" newId="61666" orgName="undo" newName="undo"/>
+				<glyph orgId="61716" newId="61716" orgName="folder-o" newName="folder"/>
+				<glyph orgId="61717" newId="61717" orgName="folder-open-o" newName="folder-open"/>
+				<glyph orgId="61893" newId="61893" orgName="file-image-o" newName="file-image"/>
+				<glyph orgId="61897" newId="61897" orgName="file-code-o" newName="file-code"/>
+			</glyphs>
+			<prefix>FK</prefix>
+			<pathfilename>forkawesome-webfont.ttf</pathfilename>
+			<oversample>1</oversample>
+			<fontsize>32</fontsize>
+		</font>
+		<rangecoloring show="false" hash="10;15;35;0.5"/>
+		<previewcountglyph_x>20</previewcountglyph_x>
+		<mergedfontprefix></mergedfontprefix>
+		<curglyphtooltip>true</curglyphtooltip>
+		<srcglyphtooltip>true</srcglyphtooltip>
+		<dstglyphtooltip>true</dstglyphtooltip>
+		<glyphpreviewscale>1</glyphpreviewscale>
+		<glyphpreviewshowcontrollines>false</glyphpreviewshowcontrollines>
+		<glyphpreviewquadbeziercounsegment>5</glyphpreviewquadbeziercounsegment>
+		<genmode>653</genmode>
+		<fonttomergein>forkawesome-webfont.ttf</fonttomergein>
+	</project>
+</config>
