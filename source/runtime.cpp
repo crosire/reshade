@@ -150,14 +150,6 @@ void reshade::runtime::on_reset()
 }
 void reshade::runtime::on_present()
 {
-	// Get current time and date
-	const std::time_t t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-	tm tm; localtime_s(&tm, &t);
-	_date[0] = tm.tm_year + 1900;
-	_date[1] = tm.tm_mon + 1;
-	_date[2] = tm.tm_mday;
-	_date[3] = tm.tm_hour * 3600 + tm.tm_min * 60 + tm.tm_sec;
-
 	_framecount++;
 	const auto current_time = std::chrono::high_resolution_clock::now();
 	_last_frame_duration = current_time - _last_present_time;
@@ -1185,7 +1177,16 @@ void reshade::runtime::update_and_render_effects()
 				}
 				case special_uniform::date:
 				{
-					set_uniform_value(variable, _date, 4);
+					const std::time_t t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+					tm tm; localtime_s(&tm, &t);
+
+					const int value[4] = {
+						tm.tm_year + 1900,
+						tm.tm_mon + 1,
+						tm.tm_mday,
+						tm.tm_hour * 3600 + tm.tm_min * 60 + tm.tm_sec
+					};
+					set_uniform_value(variable, value, 4);
 					break;
 				}
 				case special_uniform::timer:
@@ -1738,12 +1739,10 @@ bool reshade::runtime::switch_to_next_preset(std::filesystem::path filter_path, 
 
 void reshade::runtime::save_screenshot(const std::wstring &postfix, const bool should_save_preset)
 {
-	const int hour = _date[3] / 3600;
-	const int minute = (_date[3] - hour * 3600) / 60;
-	const int seconds = _date[3] - hour * 3600 - minute * 60;
-
 	char timestamp[21];
-	sprintf_s(timestamp, " %.4d-%.2d-%.2d %.2d-%.2d-%.2d", _date[0], _date[1], _date[2], hour, minute, seconds);
+	const std::time_t t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+	tm tm; localtime_s(&tm, &t);
+	sprintf_s(timestamp, " %.4d-%.2d-%.2d %.2d-%.2d-%.2d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
 
 	std::wstring filename = g_target_executable_path.stem().concat(timestamp);
 	if (_screenshot_naming == 1)

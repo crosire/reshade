@@ -301,7 +301,6 @@ namespace reshade
 		void save_screenshot(const std::wstring &postfix = std::wstring(), bool should_save_preset = false);
 
 		// === Status ===
-		int _date[4] = {};
 		bool _effects_enabled = true;
 		bool _ignore_shortcuts = false;
 		bool _force_shortcut_modifiers = true;

@@ -711,11 +711,10 @@ void reshade::runtime::draw_gui()
 
 		if (_show_clock)
 		{
-			const int hour = _date[3] / 3600;
-			const int minute = (_date[3] - hour * 3600) / 60;
-			const int seconds = _date[3] - hour * 3600 - minute * 60;
+			const std::time_t t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+			tm tm; localtime_s(&tm, &t);
 
-			ImFormatString(temp, sizeof(temp), _clock_format != 0 ? "%02u:%02u:%02u" : "%02u:%02u", hour, minute, seconds);
+			ImFormatString(temp, sizeof(temp), _clock_format != 0 ? "%02u:%02u:%02u" : "%02u:%02u", tm.tm_hour, tm.tm_min, tm.tm_sec);
 			if (_fps_pos % 2) // Align text to the right of the window
 				ImGui::SetCursorPosX(ImGui::GetWindowContentRegionWidth() - ImGui::CalcTextSize(temp).x);
 			ImGui::TextUnformatted(temp);
@@ -1353,16 +1352,9 @@ void reshade::runtime::draw_gui_settings()
 		modified |= widgets::key_input_box("Screenshot key", _screenshot_key_data, *_input);
 		modified |= widgets::directory_input_box("Screenshot path", _screenshot_path, _file_selection_path);
 
-		const int hour = _date[3] / 3600;
-		const int minute = (_date[3] - hour * 3600) / 60;
-		const int seconds = _date[3] - hour * 3600 - minute * 60;
-
-		char timestamp[21];
-		sprintf_s(timestamp, " %.4d-%.2d-%.2d %.2d-%.2d-%.2d", _date[0], _date[1], _date[2], hour, minute, seconds);
-
 		std::string screenshot_naming_items;
-		screenshot_naming_items += g_target_executable_path.stem().string() + timestamp + '\0';
-		screenshot_naming_items += g_target_executable_path.stem().string() + timestamp + ' ' + _current_preset_path.stem().string() + '\0';
+		screenshot_naming_items += g_target_executable_path.stem().string() + " yyyy-MM-dd HH-mm-ss " + '\0';
+		screenshot_naming_items += g_target_executable_path.stem().string() + " yyyy-MM-dd HH-mm-ss " + _current_preset_path.stem().string() + '\0';
 		modified |= ImGui::Combo("Screenshot name", reinterpret_cast<int *>(&_screenshot_naming), screenshot_naming_items.c_str());
 
 		modified |= ImGui::Combo("Screenshot format", reinterpret_cast<int *>(&_screenshot_format), "Bitmap (*.bmp)\0Portable Network Graphics (*.png)\0JPEG (*.jpeg)\0");
@@ -1539,7 +1531,7 @@ void reshade::runtime::draw_gui_settings()
 		modified |= ImGui::Checkbox("Show clock", &_show_clock);
 		ImGui::SameLine(0, 10); modified |= ImGui::Checkbox("Show FPS", &_show_fps);
 		ImGui::SameLine(0, 10); modified |= ImGui::Checkbox("Show frame time", &_show_frametime);
-		modified |= ImGui::Combo("Clock format", &_clock_format, "HH:MM\0HH:MM:SS\0");
+		modified |= ImGui::Combo("Clock format", &_clock_format, "HH:mm\0HH:mm:ss\0");
 		modified |= ImGui::SliderFloat("FPS text size", &_fps_scale, 0.2f, 2.5f, "%.1f");
 		modified |= ImGui::ColorEdit4("FPS text color", _fps_col, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreview);
 		modified |= ImGui::Combo("Position on screen", &_fps_pos, "Top Left\0Top Right\0Bottom Left\0Bottom Right\0");
@@ -1580,6 +1572,9 @@ void reshade::runtime::draw_gui_statistics()
 			ImVec2(0, 50));
 		ImGui::PopItemWidth();
 
+		const std::time_t t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+		tm tm; localtime_s(&tm, &t);
+
 		ImGui::BeginGroup();
 
 		ImGui::TextUnformatted("Hardware:");
@@ -1599,7 +1594,7 @@ void reshade::runtime::draw_gui_statistics()
 		else
 			ImGui::TextUnformatted("Unknown");
 		ImGui::TextUnformatted(g_target_executable_path.filename().u8string().c_str());
-		ImGui::Text("%d-%d-%d %d", _date[0], _date[1], _date[2], _date[3]);
+		ImGui::Text("%d-%d-%d %d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour * 3600 + tm.tm_min * 60 + tm.tm_sec);
 		ImGui::Text("%u B", g_network_traffic);
 		ImGui::Text("%.2f fps", _imgui_context->IO.Framerate);
 		ImGui::Text("%u draw calls", _drawcalls);
