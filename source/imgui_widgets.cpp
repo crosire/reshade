@@ -285,6 +285,26 @@ bool reshade::gui::widgets::font_input_box(const char *name, std::filesystem::pa
 	return res;
 }
 
+bool reshade::gui::widgets::search_input_box(char *filter, int filter_size, float width)
+{
+	bool res = false;
+	const bool show_clear_button = filter[0] != '\0';
+
+	if (ImGui::InputTextEx("##filter", "Search " ICON_FK_SEARCH, filter, filter_size,
+		ImVec2(width - (show_clear_button ? ImGui::GetFrameHeight() + ImGui::GetStyle().ItemSpacing.x : 0.0001f), 0), ImGuiInputTextFlags_AutoSelectAll))
+		res = true;
+
+	if (show_clear_button)
+	{
+		ImGui::SameLine();
+
+		if (ImGui::Button(ICON_FK_CANCEL, ImVec2(ImGui::GetFrameHeight(), 0)))
+			res = true, filter[0] = '\0';
+	}
+
+	return res;
+}
+
 bool reshade::gui::widgets::file_input_box(const char *name, std::filesystem::path &path, std::filesystem::path &dialog_path, const std::vector<std::wstring> &exts)
 {
 	bool res = false;

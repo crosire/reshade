@@ -39,6 +39,11 @@ namespace reshade::gui::widgets
 	bool font_input_box(const char *label, std::filesystem::path &path, std::filesystem::path &dialog_path, int &size);
 
 	/// <summary>
+	/// Adds a search text box widget.
+	/// </summary>
+	bool search_input_box(char *filter, int filter_size, float width = 0.0f);
+
+	/// <summary>
 	/// Adds a file selection widget which has both a text input box for the path and a button to open a file selection dialog.
 	/// </summary>
 	bool file_input_box(const char *label, std::filesystem::path &path, std::filesystem::path &dialog_path, const std::vector<std::wstring> &exts);

@@ -1088,10 +1088,7 @@ void reshade::runtime::draw_gui_home()
 
 	if (_tutorial_index > 1)
 	{
-		const bool show_clear_button = _effect_filter[0] != '\0';
-
-		if (ImGui::InputTextEx("##filter", "Search " ICON_FK_SEARCH, _effect_filter, sizeof(_effect_filter),
-			ImVec2((_variable_editor_tabs ? -10.0f : -20.0f) * _font_size - (show_clear_button ? ImGui::GetFrameHeight() + _imgui_context->Style.ItemSpacing.x : 0), 0), ImGuiInputTextFlags_AutoSelectAll))
+		if (widgets::search_input_box(_effect_filter, sizeof(_effect_filter), (_variable_editor_tabs ? -10.0f : -20.0f) * _font_size))
 		{
 			_effects_expanded_state = 3;
 			const std::string_view filter_view = _effect_filter;
@@ -1107,17 +1104,6 @@ void reshade::runtime::draw_gui_home()
 					std::search(label.begin(), label.end(), filter_view.begin(), filter_view.end(), // Search case insensitive
 						[](const char c1, const char c2) { return (('a' <= c1 && c1 <= 'z') ? static_cast<char>(c1 - ' ') : c1) == (('a' <= c2 && c2 <= 'z') ? static_cast<char>(c2 - ' ') : c2); }) == label.end());
 			}
-		}
-
-		ImGui::SameLine();
-
-		if (show_clear_button && ImGui::Button("X", ImVec2(ImGui::GetFrameHeight(), 0)))
-		{
-			_effect_filter[0] = '\0';
-
-			// Reset visibility state of all techniques since no filter is active anymore
-			for (technique &technique : _techniques)
-				technique.hidden = technique.annotation_as_int("hidden") != 0;
 		}
 
 		ImGui::SameLine();
