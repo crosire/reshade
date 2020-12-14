@@ -49,6 +49,10 @@ namespace reshade::vulkan
 		void execute_command_buffer() const;
 		void wait_for_command_buffers();
 
+		void set_debug_name(uint64_t object, VkDebugReportObjectTypeEXT type, const char *name) const;
+		inline void set_debug_name_image(VkImage image, const char *name) const { set_debug_name((uint64_t)image, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT, name); }
+		inline void set_debug_name_buffer(VkBuffer buffer, const char *name) const { set_debug_name((uint64_t)buffer, VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT, name); }
+
 		VkImage create_image(uint32_t width, uint32_t height, uint32_t levels, VkFormat format,
 			VkImageUsageFlags usage, VmaMemoryUsage mem_usage,
 			VkImageCreateFlags flags = 0, VmaAllocationCreateFlags mem_flags = 0, VmaAllocation *out_mem = nullptr);

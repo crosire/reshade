@@ -173,18 +173,14 @@ bool reshade::d3d12::runtime_d3d12::on_init(const DXGI_SWAP_CHAIN_DESC &swap_des
 
 		if (FAILED(_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&_backbuffer_rtvs))))
 			return false;
-#ifndef NDEBUG
-		_backbuffer_rtvs->SetName(L"ReShade RTV heap");
-#endif
+		set_debug_name(_backbuffer_rtvs.get(), L"ReShade RTV heap");
 	}
 	{   D3D12_DESCRIPTOR_HEAP_DESC desc = { D3D12_DESCRIPTOR_HEAP_TYPE_DSV };
 		desc.NumDescriptors = 1;
 
 		if (FAILED(_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&_depthstencil_dsvs))))
 			return false;
-#ifndef NDEBUG
-		_depthstencil_dsvs->SetName(L"ReShade DSV heap");
-#endif
+		set_debug_name(_depthstencil_dsvs.get(), L"ReShade DSV heap");
 	}
 
 	// Get back buffer textures (skip on d3d12on7 devices, since there is no swap chain there)
@@ -197,11 +193,7 @@ bool reshade::d3d12::runtime_d3d12::on_init(const DXGI_SWAP_CHAIN_DESC &swap_des
 		{
 			if (FAILED(_swapchain->GetBuffer(i, IID_PPV_ARGS(&_backbuffers[i]))))
 				return false;
-
-			assert(_backbuffers[i] != nullptr);
-#ifndef NDEBUG
-			_backbuffers[i]->SetName(L"Back buffer");
-#endif
+			set_debug_name(_backbuffers[i].get(), L"Back buffer");
 
 			for (int srgb_write_enable = 0; srgb_write_enable < 2; ++srgb_write_enable, rtv_handle.ptr += _rtv_handle_size)
 			{
@@ -228,9 +220,7 @@ bool reshade::d3d12::runtime_d3d12::on_init(const DXGI_SWAP_CHAIN_DESC &swap_des
 
 		if (FAILED(_device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_SHADER_RESOURCE, nullptr, IID_PPV_ARGS(&_backbuffer_texture))))
 			return false;
-#ifndef NDEBUG
-		_backbuffer_texture->SetName(L"ReShade back buffer");
-#endif
+		set_debug_name(_backbuffer_texture.get(), L"ReShade back buffer");
 	}
 
 	// Create effect stencil resource
@@ -250,9 +240,8 @@ bool reshade::d3d12::runtime_d3d12::on_init(const DXGI_SWAP_CHAIN_DESC &swap_des
 
 		if (FAILED(_device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_DEPTH_WRITE, &clear_value, IID_PPV_ARGS(&_effect_stencil))))
 			return false;
-#ifndef NDEBUG
-		_effect_stencil->SetName(L"ReShade stencil buffer");
-#endif
+		set_debug_name(_effect_stencil.get(), L"ReShade stencil buffer");
+
 		_device->CreateDepthStencilView(_effect_stencil.get(), nullptr, _depthstencil_dsvs->GetCPUDescriptorHandleForHeapStart());
 	}
 
@@ -485,10 +474,7 @@ bool reshade::d3d12::runtime_d3d12::capture_screenshot(uint8_t *buffer) const
 		LOG(DEBUG) << "> Details: Width = " << desc.Width;
 		return false;
 	}
-
-#ifndef NDEBUG
-	intermediate->SetName(L"ReShade screenshot texture");
-#endif
+	set_debug_name(intermediate.get(), L"ReShade screenshot texture");
 
 	if (!begin_command_list())
 		return false;
@@ -690,10 +676,8 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 			LOG(DEBUG) << "> Details: Width = " << desc.Width;
 			return false;
 		}
+		set_debug_name(effect_data.cb.get(), L"ReShade constant buffer");
 
-#ifndef NDEBUG
-		effect_data.cb->SetName(L"ReShade constant buffer");
-#endif
 		effect_data.cbv_gpu_address = effect_data.cb->GetGPUVirtualAddress();
 	}
 
@@ -703,9 +687,7 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 
 		if (FAILED(_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&effect_data.rtv_heap))))
 			return false;
-#ifndef NDEBUG
-		effect_data.rtv_heap->SetName(L"ReShade effect RTV heap");
-#endif
+		set_debug_name(effect_data.rtv_heap.get(), L"ReShade effect RTV heap");
 
 		effect_data.rtv_cpu_base = effect_data.rtv_heap->GetCPUDescriptorHandleForHeapStart();
 	}
@@ -720,9 +702,7 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 
 		if (FAILED(_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&effect_data.srv_uav_heap))))
 			return false;
-#ifndef NDEBUG
-		effect_data.srv_uav_heap->SetName(L"ReShade effect SRV heap");
-#endif
+		set_debug_name(effect_data.srv_uav_heap.get(), L"ReShade effect SRV heap");
 
 		effect_data.srv_cpu_base = effect_data.srv_uav_heap->GetCPUDescriptorHandleForHeapStart();
 		effect_data.srv_gpu_base = effect_data.srv_uav_heap->GetGPUDescriptorHandleForHeapStart();
@@ -739,9 +719,7 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 
 		if (FAILED(_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&effect_data.sampler_heap))))
 			return false;
-#ifndef NDEBUG
-		effect_data.sampler_heap->SetName(L"ReShade effect sampler heap");
-#endif
+		set_debug_name(effect_data.sampler_heap.get(), L"ReShade effect sampler heap");
 
 		effect_data.sampler_cpu_base = effect_data.sampler_heap->GetCPUDescriptorHandleForHeapStart();
 		effect_data.sampler_gpu_base = effect_data.sampler_heap->GetGPUDescriptorHandleForHeapStart();
@@ -1184,12 +1162,10 @@ bool reshade::d3d12::runtime_d3d12::init_texture(texture &texture)
 		return false;
 	}
 
-#ifndef NDEBUG
 	std::wstring debug_name;
 	debug_name.reserve(texture.unique_name.size());
 	utf8::unchecked::utf8to16(texture.unique_name.begin(), texture.unique_name.end(), std::back_inserter(debug_name));
-	impl->resource->SetName(debug_name.c_str());
-#endif
+	set_debug_name(impl->resource.get(), debug_name.c_str());
 
 	{	D3D12_DESCRIPTOR_HEAP_DESC heap_desc = { D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV };
 		heap_desc.NumDescriptors = texture.levels /* SRV */ + texture.levels - 1 /* UAV */;
@@ -1197,10 +1173,8 @@ bool reshade::d3d12::runtime_d3d12::init_texture(texture &texture)
 
 		if (FAILED(_device->CreateDescriptorHeap(&heap_desc, IID_PPV_ARGS(&impl->descriptors))))
 			return false;
-#ifndef NDEBUG
 		debug_name += L" SRV heap";
-		impl->descriptors->SetName(debug_name.c_str());
-#endif
+		set_debug_name(impl->descriptors.get(), debug_name.c_str());
 	}
 
 	D3D12_CPU_DESCRIPTOR_HANDLE srv_cpu_handle = impl->descriptors->GetCPUDescriptorHandleForHeapStart();
@@ -1254,10 +1228,7 @@ void reshade::d3d12::runtime_d3d12::upload_texture(const texture &texture, const
 		LOG(DEBUG) << "> Details: Width = " << desc.Width << ", Height = " << desc.Height;
 		return;
 	}
-
-#ifndef NDEBUG
-	intermediate->SetName(L"ReShade upload texture");
-#endif
+	set_debug_name(intermediate.get(), L"ReShade upload texture");
 
 	// Fill upload buffer with pixel data
 	uint8_t *mapped_data;
@@ -1560,6 +1531,11 @@ bool reshade::d3d12::runtime_d3d12::wait_for_command_queue() const
 	return true;
 }
 
+void reshade::d3d12::runtime_d3d12::set_debug_name(ID3D12Object *object, LPCWSTR name) const
+{
+	object->SetName(name);
+}
+
 com_ptr<ID3D12RootSignature> reshade::d3d12::runtime_d3d12::create_root_signature(const D3D12_ROOT_SIGNATURE_DESC &desc) const
 {
 	com_ptr<ID3D12RootSignature> signature;
@@ -1677,9 +1653,8 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 
 		if (FAILED(_device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_GENERIC_READ, NULL, IID_PPV_ARGS(&_imgui.indices[buffer_index]))))
 			return;
-#ifndef NDEBUG
-		_imgui.indices[buffer_index]->SetName(L"ImGui index buffer");
-#endif
+		set_debug_name(_imgui.indices[buffer_index].get(), L"ImGui index buffer");
+
 		_imgui.num_indices[buffer_index] = new_size;
 	}
 	if (_imgui.num_vertices[buffer_index] < draw_data->TotalVtxCount)
@@ -1700,9 +1675,8 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 
 		if (FAILED(_device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_GENERIC_READ, NULL, IID_PPV_ARGS(&_imgui.vertices[buffer_index]))))
 			return;
-#ifndef NDEBUG
-		_imgui.vertices[buffer_index]->SetName(L"ImGui vertex buffer");
-#endif
+		set_debug_name(_imgui.vertices[buffer_index].get(), L"ImGui vertex buffer");
+
 		_imgui.num_vertices[buffer_index] = new_size;
 	}
 

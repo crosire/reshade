@@ -151,6 +151,7 @@ bool reshade::d3d11::runtime_d3d11::on_init(const DXGI_SWAP_CHAIN_DESC &swap_des
 	tex_desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 	if (FAILED(_device->CreateTexture2D(&tex_desc, nullptr, &_backbuffer_texture)))
 		return false;
+	set_debug_name(_backbuffer_texture.get(), L"ReShade back buffer");
 
 	D3D11_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
 	srv_desc.Format = make_dxgi_format_normal(tex_desc.Format);
@@ -205,6 +206,7 @@ bool reshade::d3d11::runtime_d3d11::on_init(const DXGI_SWAP_CHAIN_DESC &swap_des
 	com_ptr<ID3D11Texture2D> effect_depthstencil_texture;
 	if (FAILED(_device->CreateTexture2D(&tex_desc, nullptr, &effect_depthstencil_texture)))
 		return false;
+	set_debug_name(effect_depthstencil_texture.get(), L"ReShade stencil buffer");
 	if (FAILED(_device->CreateDepthStencilView(effect_depthstencil_texture.get(), nullptr, &_effect_stencil)))
 		return false;
 
@@ -361,6 +363,7 @@ bool reshade::d3d11::runtime_d3d11::capture_screenshot(uint8_t *buffer) const
 		LOG(DEBUG) << "> Details: Width = " << desc.Width << ", Height = " << desc.Height << ", Format = " << desc.Format;
 		return false;
 	}
+	set_debug_name(intermediate.get(), L"ReShade screenshot texture");
 
 	_immediate_context->CopyResource(intermediate.get(), _backbuffer_resolved.get());
 
@@ -542,6 +545,7 @@ bool reshade::d3d11::runtime_d3d11::init_effect(size_t index)
 			LOG(DEBUG) << "> Details: Width = " << desc.ByteWidth;
 			return false;
 		}
+		set_debug_name(effect_data.cb.get(), L"ReShade constant buffer");
 	}
 
 	const UINT max_uav_bindings =
@@ -923,6 +927,11 @@ bool reshade::d3d11::runtime_d3d11::init_texture(texture &texture)
 		return false;
 	}
 
+	std::wstring debug_name;
+	debug_name.reserve(texture.unique_name.size());
+	utf8::unchecked::utf8to16(texture.unique_name.begin(), texture.unique_name.end(), std::back_inserter(debug_name));
+	set_debug_name(impl->texture.get(), debug_name.c_str());
+
 	D3D11_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
 	srv_desc.Format = make_dxgi_format_normal(desc.Format);
 	srv_desc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
@@ -1208,6 +1217,13 @@ void reshade::d3d11::runtime_d3d11::render_technique(technique &technique)
 	impl->query_in_flight = true;
 }
 
+void reshade::d3d11::runtime_d3d11::set_debug_name(ID3D11DeviceChild *object, LPCWSTR name) const
+{
+	// WKPDID_D3DDebugObjectNameW
+	const GUID debug_object_name_guid = { 0x4cca5fd8, 0x921f, 0x42c8, { 0x85, 0x66, 0x70, 0xca, 0xf2, 0xa9, 0xb7, 0x41 } };
+	object->SetPrivateData(debug_object_name_guid, static_cast<UINT>(wcslen(name) * sizeof(WCHAR)), name);
+}
+
 #if RESHADE_GUI
 bool reshade::d3d11::runtime_d3d11::init_imgui_resources()
 {
@@ -1316,6 +1332,7 @@ void reshade::d3d11::runtime_d3d11::render_imgui_draw_data(ImDrawData *draw_data
 
 		if (FAILED(_device->CreateBuffer(&desc, nullptr, &_imgui.indices)))
 			return;
+		set_debug_name(_imgui.indices.get(), L"ImGui index buffer");
 	}
 	if (_imgui.num_vertices < draw_data->TotalVtxCount)
 	{
@@ -1330,6 +1347,7 @@ void reshade::d3d11::runtime_d3d11::render_imgui_draw_data(ImDrawData *draw_data
 
 		if (FAILED(_device->CreateBuffer(&desc, nullptr, &_imgui.vertices)))
 			return;
+		set_debug_name(_imgui.vertices.get(), L"ImGui vertex buffer");
 	}
 
 	if (D3D11_MAPPED_SUBRESOURCE idx_resource;

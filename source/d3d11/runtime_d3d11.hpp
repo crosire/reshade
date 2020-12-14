@@ -34,6 +34,8 @@ namespace reshade::d3d11
 
 		void render_technique(technique &technique) override;
 
+		void set_debug_name(ID3D11DeviceChild *object, LPCWSTR name) const;
+
 		state_block _app_state;
 		state_tracking_context &_state_tracking;
 		const com_ptr<ID3D11Device> _device;

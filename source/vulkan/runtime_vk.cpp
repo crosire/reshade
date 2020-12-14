@@ -262,24 +262,14 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 		VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT, VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT);
 	if (_backbuffer_image == VK_NULL_HANDLE)
 		return false;
+	set_debug_name_image(_backbuffer_image, "ReShade back buffer");
+
 	_backbuffer_image_view[0] = create_image_view(_backbuffer_image, make_format_normal(_backbuffer_format), 1, VK_IMAGE_ASPECT_COLOR_BIT);
 	if (_backbuffer_image_view[0] == VK_NULL_HANDLE)
 		return false;
 	_backbuffer_image_view[1] = create_image_view(_backbuffer_image, make_format_srgb(_backbuffer_format), 1, VK_IMAGE_ASPECT_COLOR_BIT);
 	if (_backbuffer_image_view[1] == VK_NULL_HANDLE)
 		return false;
-
-#ifndef NDEBUG
-	if (vk.DebugMarkerSetObjectNameEXT != nullptr)
-	{
-		VkDebugMarkerObjectNameInfoEXT name_info { VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT };
-		name_info.object = (uint64_t)_backbuffer_image;
-		name_info.objectType = VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT;
-		name_info.pObjectName = "ReShade back buffer";
-
-		vk.DebugMarkerSetObjectNameEXT(_device, &name_info);
-	}
-#endif
 
 	// Create effect depth-stencil resource
 	assert(_effect_stencil_format != VK_FORMAT_UNDEFINED);
@@ -288,21 +278,11 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 		VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
 	if (_effect_stencil == VK_NULL_HANDLE)
 		return false;
+	set_debug_name_image(_effect_stencil, "ReShade stencil buffer");
+
 	_effect_stencil_view = create_image_view(_effect_stencil, _effect_stencil_format, 1, VK_IMAGE_ASPECT_STENCIL_BIT);
 	if (_effect_stencil_view == VK_NULL_HANDLE)
 		return false;
-
-#ifndef NDEBUG
-	if (vk.DebugMarkerSetObjectNameEXT != nullptr)
-	{
-		VkDebugMarkerObjectNameInfoEXT name_info{ VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT };
-		name_info.object = (uint64_t)_effect_stencil;
-		name_info.objectType = VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT;
-		name_info.pObjectName = "ReShade stencil buffer";
-
-		vk.DebugMarkerSetObjectNameEXT(_device, &name_info);
-	}
-#endif
 
 	// Create default render pass
 	for (uint32_t k = 0; k < 2; ++k)
@@ -1640,18 +1620,7 @@ bool reshade::vulkan::runtime_vk::init_texture(texture &texture)
 		image_flags, 0, &impl->image_mem);
 	if (impl->image == VK_NULL_HANDLE)
 		return false;
-
-#ifndef NDEBUG
-	if (vk.DebugMarkerSetObjectNameEXT != nullptr)
-	{
-		VkDebugMarkerObjectNameInfoEXT name_info { VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT };
-		name_info.object = (uint64_t)impl->image;
-		name_info.objectType = VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT;
-		name_info.pObjectName = texture.unique_name.c_str();
-
-		vk.DebugMarkerSetObjectNameEXT(_device, &name_info);
-	}
-#endif
+	set_debug_name_image(impl->image, texture.unique_name.c_str());
 
 	// Create shader views
 	impl->view[0] = create_image_view(impl->image, impl->formats[0], VK_REMAINING_MIP_LEVELS, VK_IMAGE_ASPECT_COLOR_BIT);
@@ -2064,6 +2033,19 @@ void reshade::vulkan::runtime_vk::wait_for_command_buffers()
 		execute_command_buffer();
 }
 
+void reshade::vulkan::runtime_vk::set_debug_name(uint64_t object, VkDebugReportObjectTypeEXT type, const char *name) const
+{
+	if (vk.DebugMarkerSetObjectNameEXT != nullptr)
+	{
+		VkDebugMarkerObjectNameInfoEXT name_info { VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT };
+		name_info.object = object;
+		name_info.objectType = type;
+		name_info.pObjectName = name;
+
+		vk.DebugMarkerSetObjectNameEXT(_device, &name_info);
+	}
+}
+
 VkImage reshade::vulkan::runtime_vk::create_image(uint32_t width, uint32_t height, uint32_t levels, VkFormat format,
 	VkImageUsageFlags usage, VmaMemoryUsage mem_usage,
 	VkImageCreateFlags flags, VmaAllocationCreateFlags mem_flags, VmaAllocation *out_mem)
@@ -2358,6 +2340,7 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 			0, 0, &_imgui.indices_mem[buffer_index]);
 		if (_imgui.indices[buffer_index] == VK_NULL_HANDLE)
 			return;
+		set_debug_name_buffer(_imgui.indices[buffer_index], "ImGui index buffer");
 		_imgui.num_indices[buffer_index] = new_size;
 	}
 	if (_imgui.num_vertices[buffer_index] < draw_data->TotalVtxCount)
@@ -2372,6 +2355,7 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 			0, 0, &_imgui.vertices_mem[buffer_index]);
 		if (_imgui.vertices[buffer_index] == VK_NULL_HANDLE)
 			return;
+		set_debug_name_buffer(_imgui.vertices[buffer_index], "ImGui vertex buffer");
 		_imgui.num_vertices[buffer_index] = new_size;
 	}
 
