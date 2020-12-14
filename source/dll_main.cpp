@@ -17,6 +17,19 @@ std::filesystem::path g_reshade_base_path;
 std::filesystem::path g_target_executable_path;
 
 /// <summary>
+/// Checks whether the current operation system is Windows 7 or earlier.
+/// </summary>
+bool is_windows7()
+{
+	ULONGLONG condition = 0;
+	VER_SET_CONDITION(condition, VER_MAJORVERSION, VER_LESS_EQUAL);
+	VER_SET_CONDITION(condition, VER_MINORVERSION, VER_LESS_EQUAL);
+
+	OSVERSIONINFOEX verinfo_windows7 = { sizeof(OSVERSIONINFOEX), 6, 1 };
+	return VerifyVersionInfo(&verinfo_windows7, VER_MAJORVERSION | VER_MINORVERSION, condition) != FALSE;
+}
+
+/// <summary>
 /// Expands any environment variables in the path (like "%userprofile%") and checks whether it points towards an existing directory.
 /// </summary>
 static bool resolve_env_path(std::filesystem::path &path, const std::filesystem::path &base = g_reshade_dll_path.parent_path())
@@ -104,10 +117,7 @@ static inline std::filesystem::path get_module_path(HMODULE module)
 #  include "d3d12/runtime_d3d12.hpp"
 #  include "opengl/runtime_gl.hpp"
 #  include "vulkan/runtime_vk.hpp"
-
-#  if RESHADE_D3D12ON7
-#    include <D3D12Downlevel.h>
-#  endif
+#  include <D3D12Downlevel.h>
 
 #  ifdef NDEBUG
 	#define HCHECK(exp) exp
@@ -309,14 +319,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 
 		HCHECK(D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&device)));
 
-#  if RESHADE_D3D12ON7
 		// Check if this device was created using d3d12on7 on Windows 7
 		// See https://microsoft.github.io/DirectX-Specs/d3d/D3D12onWin7.html for more information
 		com_ptr<ID3D12DeviceDownlevel> downlevel;
 		const bool is_d3d12on7 = SUCCEEDED(device->QueryInterface(&downlevel));
-#  else
-		const bool is_d3d12on7 = false;
-#  endif
+		downlevel.reset();
 
 		{   D3D12_COMMAND_QUEUE_DESC desc = { D3D12_COMMAND_LIST_TYPE_DIRECT };
 			HCHECK(device->CreateCommandQueue(&desc, IID_PPV_ARGS(&command_queue)));
@@ -425,7 +432,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			ID3D12CommandList *const cmd_list = cmd_lists[swap_index].get();
 			command_queue->ExecuteCommandLists(1, &cmd_list);
 
-#  if RESHADE_D3D12ON7
 			if (is_d3d12on7)
 			{
 				// Create a dummy list to pass into present
@@ -439,9 +445,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 				HCHECK(queue_downlevel->Present(dummy_list.get(), backbuffers[swap_index].get(), window_handle, D3D12_DOWNLEVEL_PRESENT_FLAG_WAIT_FOR_VBLANK));
 			}
 			else
-#  endif
+			{
 				// Synchronization is handled in "runtime_d3d12::on_present"
 				HCHECK(swapchain->Present(1, 0));
+			}
 		}
 
 		reshade::hooks::uninstall();
@@ -887,17 +894,23 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 			}
 		}
 
-		hooks::register_module("user32.dll");
-		hooks::register_module("ws2_32.dll");
+		hooks::register_module(L"user32.dll");
+		hooks::register_module(L"ws2_32.dll");
 
-		hooks::register_module(get_system_path() / "d2d1.dll");
-		hooks::register_module(get_system_path() / "d3d9.dll");
-		hooks::register_module(get_system_path() / "d3d10.dll");
-		hooks::register_module(get_system_path() / "d3d10_1.dll");
-		hooks::register_module(get_system_path() / "d3d11.dll");
-		hooks::register_module(get_system_path() / "d3d12.dll");
-		hooks::register_module(get_system_path() / "dxgi.dll");
-		hooks::register_module(get_system_path() / "opengl32.dll");
+		hooks::register_module(get_system_path() / L"d2d1.dll");
+		hooks::register_module(get_system_path() / L"d3d9.dll");
+		hooks::register_module(get_system_path() / L"d3d10.dll");
+		hooks::register_module(get_system_path() / L"d3d10_1.dll");
+		hooks::register_module(get_system_path() / L"d3d11.dll");
+
+		// On Windows 7 the d3d12on7 module is not in the system path, so register to hook any d3d12.dll loaded instead
+		if (is_windows7() && _wcsicmp(g_reshade_dll_path.stem().c_str(), L"d3d12") != 0)
+			hooks::register_module(L"d3d12.dll");
+		else
+			hooks::register_module(get_system_path() / L"d3d12.dll");
+
+		hooks::register_module(get_system_path() / L"dxgi.dll");
+		hooks::register_module(get_system_path() / L"opengl32.dll");
 		// Do not register Vulkan hooks, since Vulkan layering mechanism is used instead
 
 		LOG(INFO) << "Initialized.";

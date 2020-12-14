@@ -68,7 +68,6 @@ HRESULT STDMETHODCALLTYPE D3D12CommandQueue::QueryInterface(REFIID riid, void **
 		return S_OK;
 	}
 
-#if RESHADE_D3D12ON7
 	// Special case for d3d12on7
 	if (riid == __uuidof(ID3D12CommandQueueDownlevel))
 	{
@@ -78,7 +77,6 @@ HRESULT STDMETHODCALLTYPE D3D12CommandQueue::QueryInterface(REFIID riid, void **
 		if (_downlevel != nullptr)
 			return _downlevel->QueryInterface(riid, ppvObj);
 	}
-#endif
 
 	return _orig->QueryInterface(riid, ppvObj);
 }
@@ -93,13 +91,11 @@ ULONG   STDMETHODCALLTYPE D3D12CommandQueue::Release()
 	if (ref != 0)
 		return _orig->Release(), ref;
 
-#if RESHADE_D3D12ON7
 	if (_downlevel != nullptr)
 		_downlevel->Release();
-#endif
 
 	const ULONG ref_orig = _orig->Release();
-	if (ref_orig != 0)
+	if (ref_orig != 0) // Verify internal reference count
 		LOG(WARN) << "Reference count for ID3D12CommandQueue" << _interface_version << " object " << this << " is inconsistent.";
 
 #if RESHADE_VERBOSE_LOG

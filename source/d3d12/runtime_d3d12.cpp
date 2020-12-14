@@ -84,6 +84,7 @@ reshade::d3d12::runtime_d3d12::runtime_d3d12(ID3D12Device *device, ID3D12Command
 
 	_renderer_id = D3D_FEATURE_LEVEL_12_0;
 
+	// There is no swap chain in d3d12on7
 	if (com_ptr<IDXGIFactory4> factory;
 		swapchain != nullptr && SUCCEEDED(swapchain->GetParent(IID_PPV_ARGS(&factory))))
 	{
@@ -130,11 +131,7 @@ reshade::d3d12::runtime_d3d12::~runtime_d3d12()
 		FreeLibrary(_d3d_compiler);
 }
 
-bool reshade::d3d12::runtime_d3d12::on_init(const DXGI_SWAP_CHAIN_DESC &swap_desc
-#if RESHADE_D3D12ON7
-	, ID3D12Resource *backbuffer
-#endif
-	)
+bool reshade::d3d12::runtime_d3d12::on_init(const DXGI_SWAP_CHAIN_DESC &swap_desc)
 {
 	RECT window_rect = {};
 	GetClientRect(swap_desc.OutputWindow, &window_rect);
@@ -150,15 +147,6 @@ bool reshade::d3d12::runtime_d3d12::on_init(const DXGI_SWAP_CHAIN_DESC &swap_des
 	_rtv_handle_size = _device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	_dsv_handle_size = _device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 	_sampler_handle_size = _device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
-
-#if RESHADE_D3D12ON7
-	if (backbuffer != nullptr)
-	{
-		_backbuffers.resize(1);
-		_backbuffers[0] = backbuffer;
-		assert(swap_desc.BufferCount == 1);
-	}
-#endif
 
 	// Create multiple command allocators to buffer for multiple frames
 	_cmd_alloc.resize(swap_desc.BufferCount);
@@ -199,30 +187,32 @@ bool reshade::d3d12::runtime_d3d12::on_init(const DXGI_SWAP_CHAIN_DESC &swap_des
 #endif
 	}
 
-	// Get back buffer textures
+	// Get back buffer textures (skip on d3d12on7 devices, since there is no swap chain there)
 	_backbuffers.resize(swap_desc.BufferCount);
-
-	D3D12_CPU_DESCRIPTOR_HANDLE rtv_handle = _backbuffer_rtvs->GetCPUDescriptorHandleForHeapStart();
-
-	for (unsigned int i = 0; i < swap_desc.BufferCount; ++i)
+	if (_swapchain != nullptr)
 	{
-		if (_swapchain != nullptr && FAILED(_swapchain->GetBuffer(i, IID_PPV_ARGS(&_backbuffers[i]))))
-			return false;
+		D3D12_CPU_DESCRIPTOR_HANDLE rtv_handle = _backbuffer_rtvs->GetCPUDescriptorHandleForHeapStart();
 
-		assert(_backbuffers[i] != nullptr);
+		for (unsigned int i = 0; i < swap_desc.BufferCount; ++i)
+		{
+			if (FAILED(_swapchain->GetBuffer(i, IID_PPV_ARGS(&_backbuffers[i]))))
+				return false;
+
+			assert(_backbuffers[i] != nullptr);
 #ifndef NDEBUG
-		_backbuffers[i]->SetName(L"Back buffer");
+			_backbuffers[i]->SetName(L"Back buffer");
 #endif
 
-		for (int srgb_write_enable = 0; srgb_write_enable < 2; ++srgb_write_enable, rtv_handle.ptr += _rtv_handle_size)
-		{
-			D3D12_RENDER_TARGET_VIEW_DESC rtv_desc = {};
-			rtv_desc.Format = srgb_write_enable ?
-				make_dxgi_format_srgb(_backbuffer_format) :
-				make_dxgi_format_normal(_backbuffer_format);
-			rtv_desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+			for (int srgb_write_enable = 0; srgb_write_enable < 2; ++srgb_write_enable, rtv_handle.ptr += _rtv_handle_size)
+			{
+				D3D12_RENDER_TARGET_VIEW_DESC rtv_desc = {};
+				rtv_desc.Format = srgb_write_enable ?
+					make_dxgi_format_srgb(_backbuffer_format) :
+					make_dxgi_format_normal(_backbuffer_format);
+				rtv_desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 
-			_device->CreateRenderTargetView(_backbuffers[i].get(), &rtv_desc, rtv_handle);
+				_device->CreateRenderTargetView(_backbuffers[i].get(), &rtv_desc, rtv_handle);
+			}
 		}
 	}
 
@@ -379,7 +369,7 @@ void reshade::d3d12::runtime_d3d12::on_present()
 	_vertices = _state_tracking.total_vertices();
 	_drawcalls = _state_tracking.total_drawcalls();
 
-	// There is no swap chain for d3d12on7
+	// There is no swap chain in d3d12on7
 	if (_swapchain != nullptr)
 		_swap_index = _swapchain->GetCurrentBackBufferIndex();
 
@@ -416,6 +406,53 @@ void reshade::d3d12::runtime_d3d12::on_present()
 	if (const UINT64 sync_value = _fence_value[_swap_index] + 1;
 		SUCCEEDED(_commandqueue->Signal(_fence[_swap_index].get(), sync_value)))
 		_fence_value[_swap_index] = sync_value;
+}
+void reshade::d3d12::runtime_d3d12::on_present(ID3D12Resource *source, HWND hwnd)
+{
+	// Reinitialize runtime when the source texture dimensions changes
+	const D3D12_RESOURCE_DESC source_desc = source->GetDesc();
+	if (source_desc.Width != _width || source_desc.Height != _height || source_desc.Format != _backbuffer_format)
+	{
+		on_reset();
+
+		DXGI_SWAP_CHAIN_DESC swap_desc = {};
+		swap_desc.BufferDesc.Width = static_cast<UINT>(source_desc.Width);
+		swap_desc.BufferDesc.Height = source_desc.Height;
+		swap_desc.BufferDesc.Format = source_desc.Format;
+		swap_desc.BufferCount = 3; // Cycle between three fake back buffers
+		swap_desc.OutputWindow = hwnd;
+
+		if (!on_init(swap_desc))
+		{
+			LOG(ERROR) << "Failed to initialize Direct3D 12 runtime environment on runtime " << this << '.';
+			return;
+		}
+	}
+
+	_swap_index = (_swap_index + 1) % 3;
+
+	// Update source texture render target view
+	assert(_backbuffers.size() == 3);
+	if (_backbuffers[_swap_index] != source)
+	{
+		_backbuffers[_swap_index]  = source;
+
+		D3D12_CPU_DESCRIPTOR_HANDLE rtv_handle = _backbuffer_rtvs->GetCPUDescriptorHandleForHeapStart();
+		rtv_handle.ptr += _rtv_handle_size * 2 * _swap_index;
+
+		for (int srgb_write_enable = 0; srgb_write_enable < 2; ++srgb_write_enable, rtv_handle.ptr += _rtv_handle_size)
+		{
+			D3D12_RENDER_TARGET_VIEW_DESC rtv_desc = {};
+			rtv_desc.Format = srgb_write_enable ?
+				make_dxgi_format_srgb(_backbuffer_format) :
+				make_dxgi_format_normal(_backbuffer_format);
+			rtv_desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+
+			_device->CreateRenderTargetView(source, &rtv_desc, rtv_handle);
+		}
+	}
+
+	on_present();
 }
 
 bool reshade::d3d12::runtime_d3d12::capture_screenshot(uint8_t *buffer) const

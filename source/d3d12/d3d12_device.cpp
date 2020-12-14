@@ -5,6 +5,7 @@
 
 #include "dll_log.hpp"
 #include "d3d12_device.hpp"
+#include "d3d12_device_downlevel.hpp"
 #include "d3d12_command_list.hpp"
 #include "d3d12_command_queue.hpp"
 
@@ -69,6 +70,16 @@ HRESULT STDMETHODCALLTYPE D3D12Device::QueryInterface(REFIID riid, void **ppvObj
 		return S_OK;
 	}
 
+	// Special case for d3d12on7
+	if (riid == __uuidof(ID3D12DeviceDownlevel))
+	{
+		if (ID3D12DeviceDownlevel *downlevel = nullptr; // Not a 'com_ptr' since D3D12DeviceDownlevel will take ownership
+			_downlevel == nullptr && SUCCEEDED(_orig->QueryInterface(&downlevel)))
+			_downlevel = new D3D12DeviceDownlevel(this, downlevel);
+		if (_downlevel != nullptr)
+			return _downlevel->QueryInterface(riid, ppvObj);
+	}
+
 	return _orig->QueryInterface(riid, ppvObj);
 }
 ULONG   STDMETHODCALLTYPE D3D12Device::AddRef()
@@ -83,6 +94,9 @@ ULONG   STDMETHODCALLTYPE D3D12Device::Release()
 		return _orig->Release(), ref;
 
 	_state.reset(true);
+
+	if (_downlevel != nullptr)
+		_downlevel->Release();
 
 	const ULONG ref_orig = _orig->Release();
 	if (ref_orig != 0) // Verify internal reference count

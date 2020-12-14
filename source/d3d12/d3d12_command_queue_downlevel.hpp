@@ -5,8 +5,6 @@
 
 #pragma once
 
-#if RESHADE_D3D12ON7
-
 #include <D3D12Downlevel.h>
 
 struct DECLSPEC_UUID("98CF28C0-F383-487E-A61E-3A638FEE29BD") D3D12CommandQueueDownlevel : ID3D12CommandQueueDownlevel
@@ -28,7 +26,4 @@ struct DECLSPEC_UUID("98CF28C0-F383-487E-A61E-3A638FEE29BD") D3D12CommandQueueDo
 	ID3D12CommandQueueDownlevel *_orig;
 	D3D12Device *const _device;
 	std::unique_ptr<reshade::d3d12::runtime_d3d12> _runtime;
-	ID3D12Resource *_last_source_tex = nullptr;
 };
-
-#endif

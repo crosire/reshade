@@ -48,6 +48,8 @@ namespace reshade::d3d10
 	};
 }
 
+extern bool is_windows7();
+
 reshade::d3d10::runtime_d3d10::runtime_d3d10(ID3D10Device1 *device, IDXGISwapChain *swapchain, state_tracking *state_tracking) :
 	_app_state(device), _state_tracking(*state_tracking), _device(device), _swapchain(swapchain)
 {
@@ -126,13 +128,9 @@ bool reshade::d3d10::runtime_d3d10::on_init(const DXGI_SWAP_CHAIN_DESC &swap_des
 	tex_desc.BindFlags = D3D10_BIND_RENDER_TARGET;
 
 	// Creating a render target view for the back buffer fails on Windows 8+, so use a intermediate texture there
-	OSVERSIONINFOEX verinfo_windows7 = { sizeof(OSVERSIONINFOEX), 6, 1 };
-	const bool is_windows7 = VerifyVersionInfo(&verinfo_windows7, VER_MAJORVERSION | VER_MINORVERSION,
-		VerSetConditionMask(VerSetConditionMask(0, VER_MAJORVERSION, VER_EQUAL), VER_MINORVERSION, VER_EQUAL)) != FALSE;
-
 	if (swap_desc.SampleDesc.Count > 1 ||
 		make_dxgi_format_normal(_backbuffer_format) != _backbuffer_format ||
-		!is_windows7)
+		!is_windows7())
 	{
 		if (FAILED(_device->CreateTexture2D(&tex_desc, nullptr, &_backbuffer_resolved)))
 			return false;

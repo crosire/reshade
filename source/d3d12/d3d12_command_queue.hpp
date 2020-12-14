@@ -47,7 +47,5 @@ struct DECLSPEC_UUID("2C576D2A-0C1C-4D1D-AD7C-BC4FAEC15ABC") D3D12CommandQueue :
 	ID3D12CommandQueue *_orig;
 	unsigned int _interface_version;
 	D3D12Device *const _device;
-#if RESHADE_D3D12ON7
 	struct D3D12CommandQueueDownlevel *_downlevel = nullptr;
-#endif
 };

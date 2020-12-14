@@ -19,13 +19,10 @@ namespace reshade::d3d12
 		runtime_d3d12(ID3D12Device *device, ID3D12CommandQueue *queue, IDXGISwapChain3 *swapchain, state_tracking_context *state_tracking);
 		~runtime_d3d12();
 
-		bool on_init(const DXGI_SWAP_CHAIN_DESC &desc
-#if RESHADE_D3D12ON7
-			, ID3D12Resource *backbuffer = nullptr
-#endif
-			);
+		bool on_init(const DXGI_SWAP_CHAIN_DESC &desc);
 		void on_reset();
 		void on_present();
+		void on_present(ID3D12Resource *backbuffer, HWND hwnd);
 
 		bool capture_screenshot(uint8_t *buffer) const override;
 
