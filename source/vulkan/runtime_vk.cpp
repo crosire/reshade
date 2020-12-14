@@ -1266,7 +1266,7 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 				{
 					num_color_attachments = 1;
 					pass_data.begin_info.renderPass = _default_render_pass[pass_info.srgb_write_enable];
-					pass_data.begin_info.framebuffer = VK_NULL_HANDLE; // Select the correct swapchain frame buffer during rendering
+					pass_data.begin_info.framebuffer = VK_NULL_HANDLE; // Select the correct swap chain frame buffer during rendering
 				}
 				else
 				{

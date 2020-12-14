@@ -138,7 +138,7 @@ UINT query_device(IUnknown *&device, com_ptr<IUnknown> &device_proxy)
 {
 	if (com_ptr<D3D10Device> device_d3d10; SUCCEEDED(device->QueryInterface(&device_d3d10)))
 	{
-		device = device_d3d10->_orig; // Set device pointer back to original object so that the swapchain creation functions work as expected
+		device = device_d3d10->_orig; // Set device pointer back to original object so that the swap chain creation functions work as expected
 		device_proxy = std::move(reinterpret_cast<com_ptr<IUnknown> &>(device_d3d10));
 		return 10;
 	}
@@ -180,7 +180,7 @@ static void init_reshade_runtime_d3d(T *&swapchain, UINT direct3d_version, const
 		if (!runtime->on_init(desc))
 			LOG(ERROR) << "Failed to initialize Direct3D 10 runtime environment on runtime " << runtime.get() << '.';
 
-		swapchain_proxy = new DXGISwapChain(device.get(), swapchain, std::move(runtime)); // Overwrite returned swapchain pointer with hooked object
+		swapchain_proxy = new DXGISwapChain(device.get(), swapchain, std::move(runtime)); // Overwrite returned swap chain pointer with hooked object
 	}
 	else if (direct3d_version == 11)
 	{
@@ -198,7 +198,7 @@ static void init_reshade_runtime_d3d(T *&swapchain, UINT direct3d_version, const
 		{
 			const com_ptr<D3D12CommandQueue> &command_queue = reinterpret_cast<const com_ptr<D3D12CommandQueue> &>(device_proxy);
 
-			// Update window handle in swapchain description for UWP applications
+			// Update window handle in swap chain description for UWP applications
 			if (hwnd != nullptr)
 				desc.OutputWindow = hwnd;
 

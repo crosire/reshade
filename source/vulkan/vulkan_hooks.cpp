@@ -528,7 +528,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		// Add required usage flags to create info
 		create_info.imageUsage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 
-		// Add required formats, so views with different formats can be created for the swapchain images
+		// Add required formats, so views with different formats can be created for the swap chain images
 		format_list.push_back(make_format_srgb(pCreateInfo->imageFormat));
 		format_list.push_back(make_format_normal(pCreateInfo->imageFormat));
 
@@ -609,12 +609,12 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	if (device_data.graphics_queue_family_index != std::numeric_limits<uint32_t>::max())
 	{
 		reshade::vulkan::runtime_vk *runtime;
-		// Remove old swapchain from the list so that a call to 'vkDestroySwapchainKHR' won't reset the runtime again
+		// Remove old swap chain from the list so that a call to 'vkDestroySwapchainKHR' won't reset the runtime again
 		if (s_vulkan_runtimes.erase(pCreateInfo->oldSwapchain, runtime))
 		{
 			assert(pCreateInfo->oldSwapchain != VK_NULL_HANDLE);
 
-			// Re-use the existing runtime if this swapchain was not created from scratch
+			// Re-use the existing runtime if this swap chain was not created from scratch
 			runtime->on_reset(); // But reset it before initializing again below
 		}
 		else

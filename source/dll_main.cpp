@@ -768,7 +768,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 				present_res = VK_CALL_CMD(vkQueuePresentKHR, device, queue, &present_info);
 			}
 
-			// Ignore out of date errors during presentation, since swapchain will be recreated on next minimize/maximize event anyway
+			// Ignore out of date errors during presentation, since swap chain will be recreated on next minimize/maximize event anyway
 			if (present_res != VK_SUBOPTIMAL_KHR && present_res != VK_ERROR_OUT_OF_DATE_KHR)
 				VK_CHECK(present_res);
 		}
