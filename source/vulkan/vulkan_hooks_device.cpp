@@ -328,7 +328,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DEVICE_PROC(CmdDebugMarkerEndEXT);
 
 	// Initialize per-device data
-	s_device_dispatch.emplace(dispatch_key_from_handle(device), { physicalDevice, dispatch_table, graphics_queue_family_index });
+	s_device_dispatch.emplace(dispatch_key_from_handle(device), device_data { physicalDevice, dispatch_table, graphics_queue_family_index });
 
 #if RESHADE_VERBOSE_LOG
 	LOG(INFO) << "Returning Vulkan device " << device << '.';

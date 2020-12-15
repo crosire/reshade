@@ -7,6 +7,8 @@
 
 #include "state_tracking.hpp"
 
+struct D3D12Device;
+
 struct DECLSPEC_UUID("479B29E3-9A2C-11D0-B696-00A0C903487A") D3D12GraphicsCommandList : ID3D12GraphicsCommandList4
 {
 	D3D12GraphicsCommandList(D3D12Device *device, ID3D12GraphicsCommandList *original);

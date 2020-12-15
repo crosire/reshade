@@ -9,7 +9,6 @@
 
 struct DXGIDevice;
 struct D3D11DeviceContext;
-namespace reshade::d3d11 { class runtime_d3d11; }
 
 struct DECLSPEC_UUID("72299288-2C68-4AD8-945D-2BFB5AA9C609") D3D11Device : ID3D11Device5
 {

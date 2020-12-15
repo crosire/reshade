@@ -7,7 +7,6 @@
 #include "dll_log.hpp"
 #include "hook_manager.hpp"
 #include <mutex>
-#include <cassert>
 #include <algorithm>
 #include <unordered_map>
 #include <Windows.h>

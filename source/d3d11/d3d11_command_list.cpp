@@ -7,7 +7,6 @@
 #include "d3d11_device.hpp"
 #include "d3d11_device_context.hpp"
 #include "d3d11_command_list.hpp"
-#include "runtime_d3d11.hpp"
 
 D3D11CommandList::D3D11CommandList(D3D11Device *device, ID3D11CommandList *original) :
 	_orig(original),

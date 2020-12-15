@@ -77,9 +77,10 @@ ULONG   STDMETHODCALLTYPE D3D12GraphicsCommandList::AddRef()
 ULONG   STDMETHODCALLTYPE D3D12GraphicsCommandList::Release()
 {
 	const ULONG ref = InterlockedDecrement(&_ref);
-	const ULONG ref_orig = _orig->Release();
 	if (ref != 0)
-		return ref;
+		return _orig->Release(), ref;
+
+	const ULONG ref_orig = _orig->Release();
 	if (ref_orig != 0)
 		LOG(WARN) << "Reference count for ID3D12GraphicsCommandList" << _interface_version << " object " << this << " is inconsistent.";
 

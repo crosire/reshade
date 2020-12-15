@@ -7,6 +7,8 @@
 
 #include "state_tracking.hpp"
 
+struct D3D11Device;
+
 struct DECLSPEC_UUID("27B0246B-2152-4D42-AD11-32489472238F") D3D11DeviceContext : ID3D11DeviceContext4
 {
 	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext  *original);

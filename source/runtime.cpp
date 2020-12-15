@@ -15,7 +15,6 @@
 #include "input_freepie.hpp"
 #include <set>
 #include <thread>
-#include <cassert>
 #include <algorithm>
 #include <stb_image.h>
 #include <stb_image_dds.h>

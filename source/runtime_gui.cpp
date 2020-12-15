@@ -14,7 +14,6 @@
 #include "input.hpp"
 #include "imgui_widgets.hpp"
 #include "fonts/forkawesome.inl"
-#include <cassert>
 #include <fstream>
 #include <algorithm>
 #include <shellapi.h>

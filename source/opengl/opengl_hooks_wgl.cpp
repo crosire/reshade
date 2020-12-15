@@ -9,7 +9,6 @@
 #include "opengl_hooks.hpp"
 #include <mutex>
 #include <memory>
-#include <cassert>
 #include <unordered_map>
 #include <unordered_set>
 

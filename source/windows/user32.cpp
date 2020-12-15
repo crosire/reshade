@@ -5,7 +5,6 @@
 
 #include "dll_log.hpp"
 #include "hook_manager.hpp"
-#include <cassert>
 #include <Windows.h>
 
 HOOK_EXPORT ATOM WINAPI HookRegisterClassA(const WNDCLASSA *lpWndClass)

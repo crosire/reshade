@@ -4,7 +4,6 @@
  */
 
 #include "dll_log.hpp"
-#include "d3d12_device.hpp"
 #include "d3d12_device_downlevel.hpp"
 
 D3D12DeviceDownlevel::D3D12DeviceDownlevel(D3D12Device *, ID3D12DeviceDownlevel *original) :

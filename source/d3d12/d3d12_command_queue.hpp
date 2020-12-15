@@ -7,6 +7,9 @@
 
 #include <d3d12.h>
 
+struct D3D12Device;
+struct D3D12CommandQueueDownlevel;
+
 struct DECLSPEC_UUID("2C576D2A-0C1C-4D1D-AD7C-BC4FAEC15ABC") D3D12CommandQueue : ID3D12CommandQueue
 {
 	D3D12CommandQueue(D3D12Device *device, ID3D12CommandQueue *original);
@@ -47,5 +50,5 @@ struct DECLSPEC_UUID("2C576D2A-0C1C-4D1D-AD7C-BC4FAEC15ABC") D3D12CommandQueue :
 	ID3D12CommandQueue *_orig;
 	unsigned int _interface_version;
 	D3D12Device *const _device;
-	struct D3D12CommandQueueDownlevel *_downlevel = nullptr;
+	D3D12CommandQueueDownlevel *_downlevel = nullptr;
 };

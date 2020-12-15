@@ -7,7 +7,6 @@
 #include "hook_manager.hpp"
 #include "runtime_config.hpp"
 #include "version.h"
-#include <cassert>
 #include <Psapi.h>
 #include <Windows.h>
 

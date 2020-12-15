@@ -6,7 +6,6 @@
 #include "dll_log.hpp"
 #include "hook_manager.hpp"
 #include <mutex>
-#include <cassert>
 #include <cstring>
 #include <algorithm>
 #include <tuple>

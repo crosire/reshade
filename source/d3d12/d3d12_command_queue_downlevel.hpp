@@ -7,6 +7,9 @@
 
 #include <D3D12Downlevel.h>
 
+struct D3D12CommandQueue;
+namespace reshade::d3d12 { class runtime_d3d12; }
+
 struct DECLSPEC_UUID("98CF28C0-F383-487E-A61E-3A638FEE29BD") D3D12CommandQueueDownlevel : ID3D12CommandQueueDownlevel
 {
 	D3D12CommandQueueDownlevel(D3D12CommandQueue *queue, ID3D12CommandQueueDownlevel *original);
