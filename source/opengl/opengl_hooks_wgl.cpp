@@ -1073,6 +1073,7 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 	reshade::hooks::install(#name, reinterpret_cast<reshade::hook::address>(trampoline(#name)), reinterpret_cast<reshade::hook::address>(name), true)
 		// Install all OpenGL hooks in a single batch job
 		INSTALL_HOOK(glBindFramebuffer);
+		INSTALL_HOOK(glBindFramebufferEXT);
 		INSTALL_HOOK(glDrawArraysIndirect);
 		INSTALL_HOOK(glDrawArraysInstanced);
 		INSTALL_HOOK(glDrawArraysInstancedARB);

@@ -9,6 +9,7 @@
 extern "C" void WINAPI glBindTexture(GLenum target, GLuint texture);
 #undef glBindFramebuffer
 extern "C" void WINAPI glBindFramebuffer(GLenum target, GLuint framebuffer);
+extern "C" void WINAPI glBindFramebufferEXT(GLenum target, GLuint framebuffer);
 #undef glBlendFunc
 extern "C" void WINAPI glBlendFunc(GLenum sfactor, GLenum dfactor);
 #undef glClear
@@ -47,12 +48,10 @@ extern "C" void WINAPI glDrawArrays(GLenum mode, GLint first, GLsizei count);
 extern "C" void WINAPI glDrawArraysIndirect(GLenum mode, const GLvoid *indirect);
 #undef glDrawArraysInstanced
 extern "C" void WINAPI glDrawArraysInstanced(GLenum mode, GLint first, GLsizei count, GLsizei primcount);
+extern "C" void WINAPI glDrawArraysInstancedARB(GLenum mode, GLint first, GLsizei count, GLsizei primcount);
+extern "C" void WINAPI glDrawArraysInstancedEXT(GLenum mode, GLint first, GLsizei count, GLsizei primcount);
 #undef glDrawArraysInstancedBaseInstance
 extern "C" void WINAPI glDrawArraysInstancedBaseInstance(GLenum mode, GLint first, GLsizei count, GLsizei primcount, GLuint baseinstance);
-#undef glDrawArraysInstancedARB
-extern "C" void WINAPI glDrawArraysInstancedARB(GLenum mode, GLint first, GLsizei count, GLsizei primcount);
-#undef glDrawArraysInstancedEXT
-extern "C" void WINAPI glDrawArraysInstancedEXT(GLenum mode, GLint first, GLsizei count, GLsizei primcount);
 #undef glDrawBuffer
 extern "C" void WINAPI glDrawBuffer(GLenum mode);
 #undef glDrawElements
@@ -63,16 +62,14 @@ extern "C" void WINAPI glDrawElementsBaseVertex(GLenum mode, GLsizei count, GLen
 extern "C" void WINAPI glDrawElementsIndirect(GLenum mode, GLenum type, const GLvoid *indirect);
 #undef glDrawElementsInstanced
 extern "C" void WINAPI glDrawElementsInstanced(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount);
+extern "C" void WINAPI glDrawElementsInstancedARB(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount);
+extern "C" void WINAPI glDrawElementsInstancedEXT(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount);
 #undef glDrawElementsInstancedBaseVertex
 extern "C" void WINAPI glDrawElementsInstancedBaseVertex(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount, GLint basevertex);
 #undef glDrawElementsInstancedBaseInstance
 extern "C" void WINAPI glDrawElementsInstancedBaseInstance(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount, GLuint baseinstance);
 #undef glDrawElementsInstancedBaseVertexBaseInstance
 extern "C" void WINAPI glDrawElementsInstancedBaseVertexBaseInstance(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount, GLint basevertex, GLuint baseinstance);
-#undef glDrawElementsInstancedARB
-extern "C" void WINAPI glDrawElementsInstancedARB(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount);
-#undef glDrawElementsInstancedEXT
-extern "C" void WINAPI glDrawElementsInstancedEXT(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount);
 #undef glDrawRangeElements
 extern "C" void WINAPI glDrawRangeElements(GLenum mode, GLuint start, GLuint end, GLsizei count, GLenum type, const GLvoid *indices);
 #undef glDrawRangeElementsBaseVertex

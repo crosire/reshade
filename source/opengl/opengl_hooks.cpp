@@ -51,6 +51,16 @@ HOOK_EXPORT void WINAPI glBegin(GLenum mode)
 		g_current_runtime->_state_tracking.on_bind_draw_fbo();
 #endif
 }
+			void WINAPI glBindFramebufferEXT(GLenum target, GLuint framebuffer)
+{
+	static const auto trampoline = reshade::hooks::call(glBindFramebufferEXT);
+	trampoline(target, framebuffer);
+
+#if RESHADE_DEPTH
+	if (g_current_runtime && (target == GL_FRAMEBUFFER /*_EXT*/ || target == GL_DRAW_FRAMEBUFFER /*_EXT*/))
+		g_current_runtime->_state_tracking.on_bind_draw_fbo();
+#endif
+}
 
 HOOK_EXPORT void WINAPI glBindTexture(GLenum target, GLuint texture)
 {
