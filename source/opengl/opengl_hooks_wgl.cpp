@@ -1111,7 +1111,7 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 
 		gl3wProcs.gl.BindFramebuffer = reshade::hooks::call(glBindFramebuffer);
 
-		s_hooks_installed = false;
+		s_hooks_installed = true;
 	}
 
 	return address;
