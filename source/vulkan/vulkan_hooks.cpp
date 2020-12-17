@@ -1010,59 +1010,44 @@ void     VKAPI_CALL vkCmdDrawIndexed(VkCommandBuffer commandBuffer, uint32_t ind
 
 VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice device, const char *pName)
 {
-	if (0 == strcmp(pName, "vkCreateSwapchainKHR"))
-		return reinterpret_cast<PFN_vkVoidFunction>(vkCreateSwapchainKHR);
-	if (0 == strcmp(pName, "vkDestroySwapchainKHR"))
-		return reinterpret_cast<PFN_vkVoidFunction>(vkDestroySwapchainKHR);
-	if (0 == strcmp(pName, "vkQueueSubmit"))
-		return reinterpret_cast<PFN_vkVoidFunction>(vkQueueSubmit);
-	if (0 == strcmp(pName, "vkQueuePresentKHR"))
-		return reinterpret_cast<PFN_vkVoidFunction>(vkQueuePresentKHR);
+#define CHECK_DEVICE_PROC(name) \
+	if (0 == strcmp(pName, "vk" #name)) \
+		return reinterpret_cast<PFN_vkVoidFunction>(vk##name)
 
-	if (0 == strcmp(pName, "vkCreateImage"))
-		return reinterpret_cast<PFN_vkVoidFunction>(vkCreateImage);
-	if (0 == strcmp(pName, "vkDestroyImage"))
-		return reinterpret_cast<PFN_vkVoidFunction>(vkDestroyImage);
-	if (0 == strcmp(pName, "vkCreateImageView"))
-		return reinterpret_cast<PFN_vkVoidFunction>(vkCreateImageView);
-	if (0 == strcmp(pName, "vkDestroyImageView"))
-		return reinterpret_cast<PFN_vkVoidFunction>(vkDestroyImageView);
-	if (0 == strcmp(pName, "vkCreateRenderPass"))
-		return reinterpret_cast<PFN_vkVoidFunction>(vkCreateRenderPass);
-	if (0 == strcmp(pName, "vkCreateRenderPass2") ||
-		0 == strcmp(pName, "vkCreateRenderPass2KHR"))
+	// The Vulkan loader gets the 'vkDestroyDevice' function from the device dispatch table
+	CHECK_DEVICE_PROC(DestroyDevice);
+
+	CHECK_DEVICE_PROC(CreateSwapchainKHR);
+	CHECK_DEVICE_PROC(DestroySwapchainKHR);
+	CHECK_DEVICE_PROC(QueueSubmit);
+	CHECK_DEVICE_PROC(QueuePresentKHR);
+
+	CHECK_DEVICE_PROC(CreateImage);
+	CHECK_DEVICE_PROC(DestroyImage);
+	CHECK_DEVICE_PROC(CreateImageView);
+	CHECK_DEVICE_PROC(DestroyImageView);
+	CHECK_DEVICE_PROC(CreateRenderPass);
+	CHECK_DEVICE_PROC(CreateRenderPass2);
+	if (0 == strcmp(pName, "vkCreateRenderPass2KHR"))
 		return reinterpret_cast<PFN_vkVoidFunction>(vkCreateRenderPass2);
-	if (0 == strcmp(pName, "vkDestroyRenderPass"))
-		return reinterpret_cast<PFN_vkVoidFunction>(vkDestroyRenderPass);
-	if (0 == strcmp(pName, "vkCreateFramebuffer"))
-		return reinterpret_cast<PFN_vkVoidFunction>(vkCreateFramebuffer);
-	if (0 == strcmp(pName, "vkDestroyFramebuffer"))
-		return reinterpret_cast<PFN_vkVoidFunction>(vkDestroyFramebuffer);
+	CHECK_DEVICE_PROC(DestroyRenderPass);
+	CHECK_DEVICE_PROC(CreateFramebuffer);
+	CHECK_DEVICE_PROC(DestroyFramebuffer);
 
-	if (0 == strcmp(pName, "vkAllocateCommandBuffers"))
-		return reinterpret_cast<PFN_vkVoidFunction>(vkAllocateCommandBuffers);
-	if (0 == strcmp(pName, "vkFreeCommandBuffers"))
-		return reinterpret_cast<PFN_vkVoidFunction>(vkFreeCommandBuffers);
-	if (0 == strcmp(pName, "vkBeginCommandBuffer"))
-		return reinterpret_cast<PFN_vkVoidFunction>(vkBeginCommandBuffer);
+	CHECK_DEVICE_PROC(AllocateCommandBuffers);
+	CHECK_DEVICE_PROC(FreeCommandBuffers);
+	CHECK_DEVICE_PROC(BeginCommandBuffer);
 
-	if (0 == strcmp(pName, "vkCmdBeginRenderPass"))
-		return reinterpret_cast<PFN_vkVoidFunction>(vkCmdBeginRenderPass);
-	if (0 == strcmp(pName, "vkCmdNextSubpass"))
-		return reinterpret_cast<PFN_vkVoidFunction>(vkCmdNextSubpass);
-	if (0 == strcmp(pName, "vkCmdEndRenderPass"))
-		return reinterpret_cast<PFN_vkVoidFunction>(vkCmdEndRenderPass);
-	if (0 == strcmp(pName, "vkCmdExecuteCommands"))
-		return reinterpret_cast<PFN_vkVoidFunction>(vkCmdExecuteCommands);
-	if (0 == strcmp(pName, "vkCmdDraw"))
-		return reinterpret_cast<PFN_vkVoidFunction>(vkCmdDraw);
-	if (0 == strcmp(pName, "vkCmdDrawIndexed"))
-		return reinterpret_cast<PFN_vkVoidFunction>(vkCmdDrawIndexed);
+	CHECK_DEVICE_PROC(CmdBeginRenderPass);
+	CHECK_DEVICE_PROC(CmdNextSubpass);
+	CHECK_DEVICE_PROC(CmdEndRenderPass);
+	CHECK_DEVICE_PROC(CmdExecuteCommands);
+	CHECK_DEVICE_PROC(CmdDraw);
+	CHECK_DEVICE_PROC(CmdDrawIndexed);
 
 	// Need to self-intercept as well, since some layers rely on this (e.g. Steam overlay)
 	// See https://github.com/KhronosGroup/Vulkan-Loader/blob/master/loader/LoaderAndLayerInterface.md#layer-conventions-and-rules
-	if (0 == strcmp(pName, "vkGetDeviceProcAddr"))
-		return reinterpret_cast<PFN_vkVoidFunction>(vkGetDeviceProcAddr);
+	CHECK_DEVICE_PROC(GetDeviceProcAddr);
 
 	if (device == VK_NULL_HANDLE)
 		return nullptr;
@@ -1070,24 +1055,22 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	GET_DEVICE_DISPATCH_PTR(GetDeviceProcAddr, device);
 	return trampoline(device, pName);
 }
+
 VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr(VkInstance instance, const char *pName)
 {
-	if (0 == strcmp(pName, "vkCreateInstance"))
-		return reinterpret_cast<PFN_vkVoidFunction>(vkCreateInstance);
-	if (0 == strcmp(pName, "vkDestroyInstance"))
-		return reinterpret_cast<PFN_vkVoidFunction>(vkDestroyInstance);
-	if (0 == strcmp(pName, "vkCreateDevice"))
-		return reinterpret_cast<PFN_vkVoidFunction>(vkCreateDevice);
-	if (0 == strcmp(pName, "vkDestroyDevice"))
-		return reinterpret_cast<PFN_vkVoidFunction>(vkDestroyDevice);
-	if (0 == strcmp(pName, "vkCreateWin32SurfaceKHR"))
-		return reinterpret_cast<PFN_vkVoidFunction>(vkCreateWin32SurfaceKHR);
-	if (0 == strcmp(pName, "vkDestroySurfaceKHR"))
-		return reinterpret_cast<PFN_vkVoidFunction>(vkDestroySurfaceKHR);
+#define CHECK_INSTANCE_PROC(name) \
+	if (0 == strcmp(pName, "vk" #name)) \
+		return reinterpret_cast<PFN_vkVoidFunction>(vk##name)
+
+	CHECK_INSTANCE_PROC(CreateInstance);
+	CHECK_INSTANCE_PROC(DestroyInstance);
+	CHECK_INSTANCE_PROC(CreateDevice);
+	CHECK_INSTANCE_PROC(DestroyDevice);
+	CHECK_INSTANCE_PROC(CreateWin32SurfaceKHR);
+	CHECK_INSTANCE_PROC(DestroySurfaceKHR);
 
 	// Self-intercept here as well to stay consistent with 'vkGetDeviceProcAddr' implementation
-	if (0 == strcmp(pName, "vkGetInstanceProcAddr"))
-		return reinterpret_cast<PFN_vkVoidFunction>(vkGetInstanceProcAddr);
+	CHECK_INSTANCE_PROC(GetInstanceProcAddr);
 
 	if (instance == VK_NULL_HANDLE)
 		return nullptr;
