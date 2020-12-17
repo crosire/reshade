@@ -356,8 +356,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::ExecuteCommandList(ID3D11CommandLi
 	assert(pCommandList != nullptr);
 
 	// The only way to create a command list is through 'FinishCommandList', so can always assume a proxy object here
-	D3D11CommandList *const command_list_proxy =
-		static_cast<D3D11CommandList *>(pCommandList);
+	D3D11CommandList *const command_list_proxy = static_cast<D3D11CommandList *>(pCommandList);
 
 	// Merge command list trackers into device one
 	_state.merge(command_list_proxy->_state);

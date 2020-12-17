@@ -63,7 +63,7 @@ HOOK_EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter,
 	HRESULT hr = reshade::hooks::call(D3D11CreateDeviceAndSwapChain)(pAdapter, DriverType, Software, Flags, pFeatureLevels, FeatureLevels, SDKVersion, nullptr, nullptr, ppDevice, &FeatureLevel, nullptr);
 	if (FAILED(hr))
 	{
-		LOG(WARN) << "D3D11CreateDeviceAndSwapChain" << " failed with error code " << hr << '!';
+		LOG(WARN) << "D3D11CreateDeviceAndSwapChain" << " failed with error code " << hr << '.';
 		return hr;
 	}
 

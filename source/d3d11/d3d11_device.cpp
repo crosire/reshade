@@ -139,22 +139,20 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture2D(const D3D11_TEXTURE2D_DES
 	if (FAILED(hr))
 	{
 		LOG(WARN) << "ID3D11Device::CreateTexture2D" << " failed with error code " << hr << '.';
-#if RESHADE_VERBOSE_LOG
-		LOG(DEBUG) << "> Dumping description:";
-		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
-		LOG(DEBUG) << "  | Width                                   | " << std::setw(39) << new_desc.Width << " |";
-		LOG(DEBUG) << "  | Height                                  | " << std::setw(39) << new_desc.Height << " |";
-		LOG(DEBUG) << "  | MipLevels                               | " << std::setw(39) << new_desc.MipLevels << " |";
-		LOG(DEBUG) << "  | ArraySize                               | " << std::setw(39) << new_desc.ArraySize << " |";
-		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
-		LOG(DEBUG) << "  | SampleCount                             | " << std::setw(39) << new_desc.SampleDesc.Count << " |";
-		LOG(DEBUG) << "  | SampleQuality                           | " << std::setw(39) << new_desc.SampleDesc.Quality << " |";
-		LOG(DEBUG) << "  | Usage                                   | " << std::setw(39) << new_desc.Usage << " |";
-		LOG(DEBUG) << "  | BindFlags                               | " << std::setw(39) << std::hex << new_desc.BindFlags << std::dec << " |";
-		LOG(DEBUG) << "  | CPUAccessFlags                          | " << std::setw(39) << std::hex << new_desc.CPUAccessFlags << std::dec << " |";
-		LOG(DEBUG) << "  | MiscFlags                               | " << std::setw(39) << std::hex << new_desc.MiscFlags << std::dec << " |";
-		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
-#endif
+		LOG(INFO) << "> Dumping description:";
+		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(INFO) << "  | Width                                   | " << std::setw(39) << new_desc.Width << " |";
+		LOG(INFO) << "  | Height                                  | " << std::setw(39) << new_desc.Height << " |";
+		LOG(INFO) << "  | MipLevels                               | " << std::setw(39) << new_desc.MipLevels << " |";
+		LOG(INFO) << "  | ArraySize                               | " << std::setw(39) << new_desc.ArraySize << " |";
+		LOG(INFO) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
+		LOG(INFO) << "  | SampleCount                             | " << std::setw(39) << new_desc.SampleDesc.Count << " |";
+		LOG(INFO) << "  | SampleQuality                           | " << std::setw(39) << new_desc.SampleDesc.Quality << " |";
+		LOG(INFO) << "  | Usage                                   | " << std::setw(39) << new_desc.Usage << " |";
+		LOG(INFO) << "  | BindFlags                               | " << std::setw(39) << std::hex << new_desc.BindFlags << std::dec << " |";
+		LOG(INFO) << "  | CPUAccessFlags                          | " << std::setw(39) << std::hex << new_desc.CPUAccessFlags << std::dec << " |";
+		LOG(INFO) << "  | MiscFlags                               | " << std::setw(39) << std::hex << new_desc.MiscFlags << std::dec << " |";
+		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 	}
 
 	return hr;
@@ -204,13 +202,11 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateShaderResourceView(ID3D11Resource *
 	if (FAILED(hr))
 	{
 		LOG(WARN) << "ID3D11Device::CreateShaderResourceView" << " failed with error code " << hr << '.';
-#if RESHADE_VERBOSE_LOG
-		LOG(DEBUG) << "> Dumping description:";
-		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
-		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
-		LOG(DEBUG) << "  | ViewDimension                           | " << std::setw(39) << new_desc.ViewDimension << " |";
-		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
-#endif
+		LOG(INFO) << "> Dumping description:";
+		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(INFO) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
+		LOG(INFO) << "  | ViewDimension                           | " << std::setw(39) << new_desc.ViewDimension << " |";
+		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 	}
 
 	return hr;
@@ -264,13 +260,11 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDepthStencilView(ID3D11Resource *pR
 	if (FAILED(hr))
 	{
 		LOG(WARN) << "ID3D11Device::CreateDepthStencilView" << " failed with error code " << hr << '.';
-#if RESHADE_VERBOSE_LOG
-		LOG(DEBUG) << "> Dumping description:";
-		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
-		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
-		LOG(DEBUG) << "  | ViewDimension                           | " << std::setw(39) << new_desc.ViewDimension << " |";
-		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
-#endif
+		LOG(INFO) << "> Dumping description:";
+		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(INFO) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
+		LOG(INFO) << "  | ViewDimension                           | " << std::setw(39) << new_desc.ViewDimension << " |";
+		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 	}
 
 	return hr;
@@ -349,7 +343,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext(UINT ContextFlags, 
 	const HRESULT hr = _orig->CreateDeferredContext(ContextFlags, ppDeferredContext);
 	if (FAILED(hr))
 	{
-		LOG(WARN) << "ID3D11Device::CreateDeferredContext" << " failed with error code " << hr << '!';
+		LOG(WARN) << "ID3D11Device::CreateDeferredContext" << " failed with error code " << hr << '.';
 		return hr;
 	}
 
@@ -450,7 +444,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext1(UINT ContextFlags,
 	const HRESULT hr = static_cast<ID3D11Device1 *>(_orig)->CreateDeferredContext1(ContextFlags, ppDeferredContext);
 	if (FAILED(hr))
 	{
-		LOG(WARN) << "ID3D11Device1::CreateDeferredContext1" << " failed with error code " << hr << '!';
+		LOG(WARN) << "ID3D11Device1::CreateDeferredContext1" << " failed with error code " << hr << '.';
 		return hr;
 	}
 
@@ -513,7 +507,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext2(UINT ContextFlags,
 	const HRESULT hr = static_cast<ID3D11Device2 *>(_orig)->CreateDeferredContext2(ContextFlags, ppDeferredContext);
 	if (FAILED(hr))
 	{
-		LOG(WARN) << "ID3D11Device1::CreateDeferredContext2" << " failed with error code " << hr << '!';
+		LOG(WARN) << "ID3D11Device1::CreateDeferredContext2" << " failed with error code " << hr << '.';
 		return hr;
 	}
 
@@ -556,23 +550,21 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture2D1(const D3D11_TEXTURE2D_DE
 	if (FAILED(hr))
 	{
 		LOG(WARN) << "ID3D11Device3::CreateTexture2D1" << " failed with error code " << hr << '.';
-#if RESHADE_VERBOSE_LOG
-		LOG(DEBUG) << "> Dumping description:";
-		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
-		LOG(DEBUG) << "  | Width                                   | " << std::setw(39) << new_desc.Width << " |";
-		LOG(DEBUG) << "  | Height                                  | " << std::setw(39) << new_desc.Height << " |";
-		LOG(DEBUG) << "  | MipLevels                               | " << std::setw(39) << new_desc.MipLevels << " |";
-		LOG(DEBUG) << "  | ArraySize                               | " << std::setw(39) << new_desc.ArraySize << " |";
-		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
-		LOG(DEBUG) << "  | SampleCount                             | " << std::setw(39) << new_desc.SampleDesc.Count << " |";
-		LOG(DEBUG) << "  | SampleQuality                           | " << std::setw(39) << new_desc.SampleDesc.Quality << " |";
-		LOG(DEBUG) << "  | Usage                                   | " << std::setw(39) << new_desc.Usage << " |";
-		LOG(DEBUG) << "  | BindFlags                               | " << std::setw(39) << std::hex << new_desc.BindFlags << std::dec << " |";
-		LOG(DEBUG) << "  | CPUAccessFlags                          | " << std::setw(39) << std::hex << new_desc.CPUAccessFlags << std::dec << " |";
-		LOG(DEBUG) << "  | MiscFlags                               | " << std::setw(39) << std::hex << new_desc.MiscFlags << std::dec << " |";
-		LOG(DEBUG) << "  | TextureLayout                           | " << std::setw(39) << new_desc.TextureLayout << " |";
-		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
-#endif
+		LOG(INFO) << "> Dumping description:";
+		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(INFO) << "  | Width                                   | " << std::setw(39) << new_desc.Width << " |";
+		LOG(INFO) << "  | Height                                  | " << std::setw(39) << new_desc.Height << " |";
+		LOG(INFO) << "  | MipLevels                               | " << std::setw(39) << new_desc.MipLevels << " |";
+		LOG(INFO) << "  | ArraySize                               | " << std::setw(39) << new_desc.ArraySize << " |";
+		LOG(INFO) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
+		LOG(INFO) << "  | SampleCount                             | " << std::setw(39) << new_desc.SampleDesc.Count << " |";
+		LOG(INFO) << "  | SampleQuality                           | " << std::setw(39) << new_desc.SampleDesc.Quality << " |";
+		LOG(INFO) << "  | Usage                                   | " << std::setw(39) << new_desc.Usage << " |";
+		LOG(INFO) << "  | BindFlags                               | " << std::setw(39) << std::hex << new_desc.BindFlags << std::dec << " |";
+		LOG(INFO) << "  | CPUAccessFlags                          | " << std::setw(39) << std::hex << new_desc.CPUAccessFlags << std::dec << " |";
+		LOG(INFO) << "  | MiscFlags                               | " << std::setw(39) << std::hex << new_desc.MiscFlags << std::dec << " |";
+		LOG(INFO) << "  | TextureLayout                           | " << std::setw(39) << new_desc.TextureLayout << " |";
+		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 	}
 
 	return hr;
@@ -638,13 +630,11 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateShaderResourceView1(ID3D11Resource 
 	if (FAILED(hr))
 	{
 		LOG(WARN) << "ID3D11Device3::CreateShaderResourceView1" << " failed with error code " << hr << '.';
-#if RESHADE_VERBOSE_LOG
-		LOG(DEBUG) << "> Dumping description:";
-		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
-		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
-		LOG(DEBUG) << "  | ViewDimension                           | " << std::setw(39) << new_desc.ViewDimension << " |";
-		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
-#endif
+		LOG(INFO) << "> Dumping description:";
+		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(INFO) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
+		LOG(INFO) << "  | ViewDimension                           | " << std::setw(39) << new_desc.ViewDimension << " |";
+		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 	}
 
 	return hr;
@@ -681,7 +671,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext3(UINT ContextFlags,
 	const HRESULT hr = static_cast<ID3D11Device3 *>(_orig)->CreateDeferredContext3(ContextFlags, ppDeferredContext);
 	if (FAILED(hr))
 	{
-		LOG(WARN) << "ID3D11Device1::CreateDeferredContext3" << " failed with error code " << hr << '!';
+		LOG(WARN) << "ID3D11Device1::CreateDeferredContext3" << " failed with error code " << hr << '.';
 		return hr;
 	}
 

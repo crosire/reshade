@@ -211,7 +211,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 
 	if (FAILED(hr))
 	{
-		LOG(WARN) << "IDirect3D9::CreateDevice" << " failed with error code " << hr << '!';
+		LOG(WARN) << "IDirect3D9::CreateDevice" << " failed with error code " << hr << '.';
 		return hr;
 	}
 
@@ -263,7 +263,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 
 	if (FAILED(hr))
 	{
-		LOG(WARN) << "IDirect3D9Ex::CreateDeviceEx" << " failed with error code " << hr << '!';
+		LOG(WARN) << "IDirect3D9Ex::CreateDeviceEx" << " failed with error code " << hr << '.';
 		return hr;
 	}
 
@@ -298,7 +298,7 @@ HOOK_EXPORT     HRESULT WINAPI Direct3DCreate9Ex(UINT SDKVersion, IDirect3D9Ex *
 	const HRESULT hr = reshade::hooks::call(Direct3DCreate9Ex)(SDKVersion, ppD3D);
 	if (FAILED(hr))
 	{
-		LOG(WARN) << "Direct3DCreate9Ex" << " failed with error code " << hr << '!';
+		LOG(WARN) << "Direct3DCreate9Ex" << " failed with error code " << hr << '.';
 		return hr;
 	}
 

@@ -94,7 +94,7 @@ HOOK_EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter
 	g_in_dxgi_runtime = false;
 	if (FAILED(hr))
 	{
-		LOG(WARN) << "D3D10CreateDeviceAndSwapChain1" << " failed with error code " << hr << '!';
+		LOG(WARN) << "D3D10CreateDeviceAndSwapChain1" << " failed with error code " << hr << '.';
 		return hr;
 	}
 

@@ -206,7 +206,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	const VkResult result = trampoline(physicalDevice, &create_info, pAllocator, pDevice);
 	if (result != VK_SUCCESS)
 	{
-		LOG(WARN) << "vkCreateDevice" << " failed with error code " << result << '!';
+		LOG(WARN) << "vkCreateDevice" << " failed with error code " << result << '.';
 		return result;
 	}
 
@@ -441,7 +441,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	const VkResult result = device_data.dispatch_table.CreateSwapchainKHR(device, &create_info, pAllocator, pSwapchain);
 	if (result != VK_SUCCESS)
 	{
-		LOG(WARN) << "vkCreateSwapchainKHR" << " failed with error code " << result << '!';
+		LOG(WARN) << "vkCreateSwapchainKHR" << " failed with error code " << result << '.';
 		return result;
 	}
 
@@ -562,7 +562,7 @@ VkResult VKAPI_CALL vkCreateImage(VkDevice device, const VkImageCreateInfo *pCre
 	const VkResult result = trampoline(device, &create_info, pAllocator, pImage);
 	if (result != VK_SUCCESS)
 	{
-		LOG(WARN) << "vkCreateImage" << " failed with error code " << result << '!';
+		LOG(WARN) << "vkCreateImage" << " failed with error code " << result << '.';
 		return result;
 	}
 
@@ -588,7 +588,7 @@ VkResult VKAPI_CALL vkCreateImageView(VkDevice device, const VkImageViewCreateIn
 	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pView);
 	if (result != VK_SUCCESS)
 	{
-		LOG(WARN) << "vkCreateImageView" << " failed with error code " << result << '!';
+		LOG(WARN) << "vkCreateImageView" << " failed with error code " << result << '.';
 		return result;
 	}
 
@@ -614,7 +614,7 @@ VkResult VKAPI_CALL vkCreateRenderPass(VkDevice device, const VkRenderPassCreate
 	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pRenderPass);
 	if (result != VK_SUCCESS)
 	{
-		LOG(WARN) << "vkCreateRenderPass" << " failed with error code " << result << '!';
+		LOG(WARN) << "vkCreateRenderPass" << " failed with error code " << result << '.';
 		return result;
 	}
 
@@ -644,7 +644,7 @@ VkResult VKAPI_CALL vkCreateRenderPass2(VkDevice device, const VkRenderPassCreat
 	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pRenderPass);
 	if (result != VK_SUCCESS)
 	{
-		LOG(WARN) << "vkCreateRenderPass2" << " failed with error code " << result << '!';
+		LOG(WARN) << "vkCreateRenderPass2" << " failed with error code " << result << '.';
 		return result;
 	}
 
@@ -680,7 +680,7 @@ VkResult VKAPI_CALL vkCreateFramebuffer(VkDevice device, const VkFramebufferCrea
 	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pFramebuffer);
 	if (result != VK_SUCCESS)
 	{
-		LOG(WARN) << "vkCreateFramebuffer" << " failed with error code " << result << '!';
+		LOG(WARN) << "vkCreateFramebuffer" << " failed with error code " << result << '.';
 		return result;
 	}
 
@@ -710,7 +710,7 @@ VkResult VKAPI_CALL vkAllocateCommandBuffers(VkDevice device, const VkCommandBuf
 	const VkResult result = trampoline(device, pAllocateInfo, pCommandBuffers);
 	if (result != VK_SUCCESS)
 	{
-		LOG(WARN) << "vkAllocateCommandBuffers" << " failed with error code " << result << '!';
+		LOG(WARN) << "vkAllocateCommandBuffers" << " failed with error code " << result << '.';
 		return result;
 	}
 

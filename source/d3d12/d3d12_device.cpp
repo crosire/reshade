@@ -151,7 +151,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandQueue(const D3D12_COMMAND_QU
 	const HRESULT hr = _orig->CreateCommandQueue(pDesc, riid, ppCommandQueue);
 	if (FAILED(hr))
 	{
-		LOG(WARN) << "ID3D12Device::CreateCommandQueue" << " failed with error code " << hr << '!';
+		LOG(WARN) << "ID3D12Device::CreateCommandQueue" << " failed with error code " << hr << '.';
 		return hr;
 	}
 
@@ -189,7 +189,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandList(UINT nodeMask, D3D12_CO
 	const HRESULT hr = _orig->CreateCommandList(nodeMask, type, pCommandAllocator, pInitialState, riid, ppCommandList);
 	if (FAILED(hr))
 	{
-		LOG(WARN) << "ID3D12Device::CreateCommandList" << " failed with error code " << hr << '!';
+		LOG(WARN) << "ID3D12Device::CreateCommandList" << " failed with error code " << hr << '.';
 		return hr;
 	}
 
@@ -382,7 +382,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandList1(UINT NodeMask, D3D12_C
 	const HRESULT hr = static_cast<ID3D12Device4 *>(_orig)->CreateCommandList1(NodeMask, Type, Flags, riid, ppCommandList);
 	if (FAILED(hr))
 	{
-		LOG(WARN) << "ID3D12Device4::CreateCommandList1" << " failed with error code " << hr << '!';
+		LOG(WARN) << "ID3D12Device4::CreateCommandList1" << " failed with error code " << hr << '.';
 		return hr;
 	}
 
