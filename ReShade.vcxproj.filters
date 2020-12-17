@@ -213,7 +213,10 @@
     <ClCompile Include="source\vulkan\state_tracking.cpp">
       <Filter>hooks\vulkan</Filter>
     </ClCompile>
-    <ClCompile Include="source\vulkan\vulkan_hooks.cpp">
+    <ClCompile Include="source\vulkan\vulkan_hooks_device.cpp">
+      <Filter>hooks\vulkan</Filter>
+    </ClCompile>
+    <ClCompile Include="source\vulkan\vulkan_hooks_instance.cpp">
       <Filter>hooks\vulkan</Filter>
     </ClCompile>
     <ClCompile Include="source\windows\user32.cpp">
@@ -360,6 +363,9 @@
       <Filter>hooks\vulkan</Filter>
     </ClInclude>
     <ClInclude Include="source\vulkan\vk_handle.hpp">
+      <Filter>hooks\vulkan</Filter>
+    </ClInclude>
+    <ClInclude Include="source\vulkan\vulkan_hooks.hpp">
       <Filter>hooks\vulkan</Filter>
     </ClInclude>
     <ClInclude Include="source\com_ptr.hpp">

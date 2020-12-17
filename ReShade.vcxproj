@@ -430,7 +430,8 @@
       <PreprocessorDefinitions>VMA_IMPLEMENTATION;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <ClCompile Include="source\vulkan\state_tracking.cpp" />
-    <ClCompile Include="source\vulkan\vulkan_hooks.cpp" />
+    <ClCompile Include="source\vulkan\vulkan_hooks_device.cpp" />
+    <ClCompile Include="source\vulkan\vulkan_hooks_instance.cpp" />
     <ClCompile Include="source\windows\user32.cpp" />
     <ClCompile Include="source\windows\ws2_32.cpp" />
   </ItemGroup>
@@ -485,6 +486,7 @@
     <ClInclude Include="source\vulkan\runtime_vk.hpp" />
     <ClInclude Include="source\vulkan\state_tracking.hpp" />
     <ClInclude Include="source\vulkan\vk_handle.hpp" />
+    <ClInclude Include="source\vulkan\vulkan_hooks.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="res\resource.rc" />

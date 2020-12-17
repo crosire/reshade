@@ -6,8 +6,7 @@
 #include "dll_log.hpp"
 #include "hook_manager.hpp"
 #include "runtime_vk.hpp"
-#include <vulkan/vk_layer.h>
-#include <vk_layer_dispatch_table.h>
+#include "vulkan_hooks.hpp"
 #include "format_utils.hpp"
 #include "lockfree_table.hpp"
 
@@ -15,8 +14,8 @@ struct device_data
 {
 	VkPhysicalDevice physical_device;
 	VkLayerDispatchTable dispatch_table;
-	reshade::vulkan::state_tracking_context state;
 	uint32_t graphics_queue_family_index = std::numeric_limits<uint32_t>::max();
+	reshade::vulkan::state_tracking_context state;
 };
 
 struct render_pass_data
@@ -35,8 +34,8 @@ struct command_buffer_data
 };
 
 static lockfree_table<void *, device_data, 16> s_device_dispatch;
-static lockfree_table<void *, VkLayerInstanceDispatchTable, 16> s_instance_dispatch;
-static lockfree_table<VkSurfaceKHR, HWND, 16> s_surface_windows;
+extern lockfree_table<void *, VkLayerInstanceDispatchTable, 16> s_instance_dispatch;
+extern lockfree_table<VkSurfaceKHR, HWND, 16> s_surface_windows;
 static lockfree_table<VkSwapchainKHR, reshade::vulkan::runtime_vk *, 16> s_vulkan_runtimes;
 static lockfree_table<VkImage, VkImageCreateInfo, 4096> s_image_data;
 static lockfree_table<VkImageView, VkImage, 4096> s_image_view_mapping;
@@ -44,167 +43,9 @@ static lockfree_table<VkFramebuffer, std::vector<VkImage>, 4096> s_framebuffer_d
 static lockfree_table<VkCommandBuffer, command_buffer_data, 4096> s_command_buffer_data;
 static lockfree_table<VkRenderPass, std::vector<render_pass_data>, 4096> s_renderpass_data;
 
-template <typename T>
-static T *find_layer_info(const void *structure_chain, VkStructureType type, VkLayerFunction function)
-{
-	T *next = reinterpret_cast<T *>(const_cast<void *>(structure_chain));
-	while (next != nullptr && !(next->sType == type && next->function == function))
-		next = reinterpret_cast<T *>(const_cast<void *>(next->pNext));
-	return next;
-}
-template <typename T>
-static const T *find_in_structure_chain(const void *structure_chain, VkStructureType type)
-{
-	const T *next = reinterpret_cast<const T *>(structure_chain);
-	while (next != nullptr && next->sType != type)
-		next = reinterpret_cast<const T *>(next->pNext);
-	return next;
-}
-
-static inline void *dispatch_key_from_handle(const void *dispatch_handle)
-{
-	// The Vulkan loader writes the dispatch table pointer right to the start of the object, so use that as a key for lookup
-	// This ensures that all objects of a specific level (device or instance) will use the same dispatch table
-	return *(void **)dispatch_handle;
-}
-
 #define GET_DEVICE_DISPATCH_PTR(name, object) \
 	PFN_vk##name trampoline = s_device_dispatch.at(dispatch_key_from_handle(object)).dispatch_table.name; \
 	assert(trampoline != nullptr);
-#define GET_INSTANCE_DISPATCH_PTR(name, object) \
-	PFN_vk##name trampoline = s_instance_dispatch.at(dispatch_key_from_handle(object)).name; \
-	assert(trampoline != nullptr); \
-
-VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkInstance *pInstance)
-{
-	LOG(INFO) << "Redirecting " << "vkCreateInstance" << '(' << "pCreateInfo = " << pCreateInfo << ", pAllocator = " << pAllocator << ", pInstance = " << pInstance << ')' << " ...";
-
-	assert(pCreateInfo != nullptr && pInstance != nullptr);
-
-	// Look for layer link info if installed as a layer (provided by the Vulkan loader)
-	VkLayerInstanceCreateInfo *const link_info = find_layer_info<VkLayerInstanceCreateInfo>(
-		pCreateInfo->pNext, VK_STRUCTURE_TYPE_LOADER_INSTANCE_CREATE_INFO, VK_LAYER_LINK_INFO);
-
-	// Get trampoline function pointers
-	auto gipa = static_cast<PFN_vkGetInstanceProcAddr>(nullptr);
-	PFN_vkCreateInstance trampoline = nullptr;
-
-	if (link_info != nullptr)
-	{
-		assert(link_info->u.pLayerInfo != nullptr);
-		assert(link_info->u.pLayerInfo->pfnNextGetInstanceProcAddr != nullptr);
-
-		// Look up functions in layer info
-		gipa = link_info->u.pLayerInfo->pfnNextGetInstanceProcAddr;
-		trampoline = reinterpret_cast<PFN_vkCreateInstance>(gipa(nullptr, "vkCreateInstance"));
-
-		// Advance the link info for the next element of the chain
-		link_info->u.pLayerInfo = link_info->u.pLayerInfo->pNext;
-	}
-#ifdef RESHADE_TEST_APPLICATION
-	else
-	{
-		gipa = reshade::hooks::call(vkGetInstanceProcAddr);
-		trampoline = reshade::hooks::call(vkCreateInstance);
-	}
-#endif
-
-	if (trampoline == nullptr) // Unable to resolve next 'vkCreateInstance' function in the call chain
-		return VK_ERROR_INITIALIZATION_FAILED;
-
-	LOG(INFO) << "> Dumping enabled instance extensions:";
-	for (uint32_t i = 0; i < pCreateInfo->enabledExtensionCount; ++i)
-		LOG(INFO) << "  " << pCreateInfo->ppEnabledExtensionNames[i];
-
-	VkApplicationInfo app_info { VK_STRUCTURE_TYPE_APPLICATION_INFO };
-	if (pCreateInfo->pApplicationInfo != nullptr)
-		app_info = *pCreateInfo->pApplicationInfo;
-
-	LOG(INFO) << "> Requesting new Vulkan instance for API version " << VK_VERSION_MAJOR(app_info.apiVersion) << '.' << VK_VERSION_MINOR(app_info.apiVersion) << " ...";
-
-	// ReShade requires at least Vulkan 1.1 (for SPIR-V 1.3 compatibility)
-	if (app_info.apiVersion < VK_API_VERSION_1_1)
-	{
-		LOG(INFO) << "> Replacing requested version with 1.1 ...";
-
-		app_info.apiVersion = VK_API_VERSION_1_1;
-	}
-
-	VkInstanceCreateInfo create_info = *pCreateInfo;
-	create_info.pApplicationInfo = &app_info;
-
-	// Continue call down the chain
-	const VkResult result = trampoline(&create_info, pAllocator, pInstance);
-	if (result != VK_SUCCESS)
-	{
-		LOG(WARN) << "vkCreateInstance" << " failed with error code " << result << '!';
-		return result;
-	}
-
-	VkInstance instance = *pInstance;
-	// Initialize the instance dispatch table
-	VkLayerInstanceDispatchTable &dispatch_table = s_instance_dispatch.emplace(dispatch_key_from_handle(instance));
-	dispatch_table.GetInstanceProcAddr = gipa;
-
-#define INIT_INSTANCE_PROC(name) \
-	dispatch_table.name = reinterpret_cast<PFN_vk##name>(gipa(instance, "vk" #name))
-	// ---- Core 1_0 commands
-	INIT_INSTANCE_PROC(DestroyInstance);
-	INIT_INSTANCE_PROC(EnumeratePhysicalDevices);
-	INIT_INSTANCE_PROC(GetPhysicalDeviceFormatProperties);
-	INIT_INSTANCE_PROC(GetPhysicalDeviceProperties);
-	INIT_INSTANCE_PROC(GetPhysicalDeviceMemoryProperties);
-	INIT_INSTANCE_PROC(GetPhysicalDeviceQueueFamilyProperties);
-	INIT_INSTANCE_PROC(EnumerateDeviceExtensionProperties);
-	// ---- Core 1_1 commands
-	INIT_INSTANCE_PROC(GetPhysicalDeviceMemoryProperties2);
-	// ---- VK_KHR_surface extension commands
-	INIT_INSTANCE_PROC(DestroySurfaceKHR);
-	// ---- VK_KHR_win32_surface extension commands
-	INIT_INSTANCE_PROC(CreateWin32SurfaceKHR);
-
-#if RESHADE_VERBOSE_LOG
-	LOG(INFO) << "Returning Vulkan instance " << instance << '.';
-#endif
-	return VK_SUCCESS;
-}
-void     VKAPI_CALL vkDestroyInstance(VkInstance instance, const VkAllocationCallbacks *pAllocator)
-{
-	LOG(INFO) << "Redirecting " << "vkDestroyInstance" << '(' << "instance = " << instance << ", pAllocator = " << pAllocator << ')' << " ...";
-
-	// Get function pointer before removing it next
-	GET_INSTANCE_DISPATCH_PTR(DestroyInstance, instance);
-	// Remove instance dispatch table since this instance is being destroyed
-	s_instance_dispatch.erase(dispatch_key_from_handle(instance));
-
-	trampoline(instance, pAllocator);
-}
-
-VkResult VKAPI_CALL vkCreateWin32SurfaceKHR(VkInstance instance, const VkWin32SurfaceCreateInfoKHR *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkSurfaceKHR *pSurface)
-{
-	LOG(INFO) << "Redirecting " << "vkCreateWin32SurfaceKHR" << '(' << "instance = " << instance << ", pCreateInfo = " << pCreateInfo << ", pAllocator = " << pAllocator << ", pSurface = " << pSurface << ')' << " ...";
-
-	GET_INSTANCE_DISPATCH_PTR(CreateWin32SurfaceKHR, instance);
-	const VkResult result = trampoline(instance, pCreateInfo, pAllocator, pSurface);
-	if (result != VK_SUCCESS)
-	{
-		LOG(WARN) << "vkCreateWin32SurfaceKHR" << " failed with error code " << result << '!';
-		return result;
-	}
-
-	s_surface_windows.emplace(*pSurface, pCreateInfo->hwnd);
-
-	return VK_SUCCESS;
-}
-void     VKAPI_CALL vkDestroySurfaceKHR(VkInstance instance, VkSurfaceKHR surface, const VkAllocationCallbacks *pAllocator)
-{
-	LOG(INFO) << "Redirecting " << "vkDestroySurfaceKHR" << '(' << "instance = " << instance << ", surface = " << surface << ", pAllocator = " << pAllocator << ')' << " ...";
-
-	s_surface_windows.erase(surface);
-
-	GET_INSTANCE_DISPATCH_PTR(DestroySurfaceKHR, instance);
-	trampoline(instance, surface, pAllocator);
-}
 
 VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDeviceCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkDevice *pDevice)
 {
@@ -217,9 +58,9 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		pCreateInfo->pNext, VK_STRUCTURE_TYPE_LOADER_DEVICE_CREATE_INFO, VK_LAYER_LINK_INFO);
 
 	// Get trampoline function pointers
-	auto gdpa = static_cast<PFN_vkGetDeviceProcAddr>(nullptr);
-	auto gipa = static_cast<PFN_vkGetInstanceProcAddr>(nullptr);
 	PFN_vkCreateDevice trampoline = nullptr;
+	PFN_vkGetDeviceProcAddr get_device_proc = nullptr;
+	PFN_vkGetInstanceProcAddr get_instance_proc = nullptr;
 
 	if (link_info != nullptr)
 	{
@@ -228,9 +69,9 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		assert(link_info->u.pLayerInfo->pfnNextGetInstanceProcAddr != nullptr);
 
 		// Look up functions in layer info
-		gdpa = link_info->u.pLayerInfo->pfnNextGetDeviceProcAddr;
-		gipa = link_info->u.pLayerInfo->pfnNextGetInstanceProcAddr;
-		trampoline = reinterpret_cast<PFN_vkCreateDevice>(gipa(nullptr, "vkCreateDevice"));
+		get_device_proc = link_info->u.pLayerInfo->pfnNextGetDeviceProcAddr;
+		get_instance_proc = link_info->u.pLayerInfo->pfnNextGetInstanceProcAddr;
+		trampoline = reinterpret_cast<PFN_vkCreateDevice>(get_instance_proc(nullptr, "vkCreateDevice"));
 
 		// Advance the link info for the next element on the chain
 		link_info->u.pLayerInfo = link_info->u.pLayerInfo->pNext;
@@ -238,9 +79,9 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 #ifdef RESHADE_TEST_APPLICATION
 	else
 	{
-		gdpa = reshade::hooks::call(vkGetDeviceProcAddr);
-		gipa = reshade::hooks::call(vkGetInstanceProcAddr);
 		trampoline = reshade::hooks::call(vkCreateDevice);
+		get_device_proc = reshade::hooks::call(vkGetDeviceProcAddr);
+		get_instance_proc = reshade::hooks::call(vkGetInstanceProcAddr);
 	}
 #endif
 
@@ -370,17 +211,12 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	}
 
 	VkDevice device = *pDevice;
-	// Initialize per-device data (safe to access here since nothing else can use it yet)
-	auto &device_data = s_device_dispatch.emplace(dispatch_key_from_handle(device));
-	device_data.physical_device = physicalDevice;
-	device_data.graphics_queue_family_index = graphics_queue_family_index;
-
 	// Initialize the device dispatch table
-	VkLayerDispatchTable &dispatch_table = device_data.dispatch_table;
-	dispatch_table.GetDeviceProcAddr = gdpa;
+	VkLayerDispatchTable dispatch_table = { get_device_proc };
 
 #define INIT_DEVICE_PROC(name) \
-	dispatch_table.name = reinterpret_cast<PFN_vk##name>(gdpa(device, "vk" #name))
+	dispatch_table.name = reinterpret_cast<PFN_vk##name>(get_device_proc(device, "vk" #name))
+
 	// ---- Core 1_0 commands
 	INIT_DEVICE_PROC(DestroyDevice);
 	INIT_DEVICE_PROC(GetDeviceQueue);
@@ -478,7 +314,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	// ---- Core 1_2 commands
 	INIT_DEVICE_PROC(CreateRenderPass2);
 	if (dispatch_table.CreateRenderPass2 == nullptr) // Try the KHR version if the core version does not exist
-		dispatch_table.CreateRenderPass2  = reinterpret_cast<PFN_vkCreateRenderPass2KHR>(gdpa(device, "vkCreateRenderPass2KHR"));
+		dispatch_table.CreateRenderPass2  = reinterpret_cast<PFN_vkCreateRenderPass2KHR>(get_device_proc(device, "vkCreateRenderPass2KHR"));
 	// ---- VK_KHR_swapchain extension commands
 	INIT_DEVICE_PROC(CreateSwapchainKHR);
 	INIT_DEVICE_PROC(DestroySwapchainKHR);
@@ -490,6 +326,9 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DEVICE_PROC(DebugMarkerSetObjectNameEXT);
 	INIT_DEVICE_PROC(CmdDebugMarkerBeginEXT);
 	INIT_DEVICE_PROC(CmdDebugMarkerEndEXT);
+
+	// Initialize per-device data
+	s_device_dispatch.emplace(dispatch_key_from_handle(device), { physicalDevice, dispatch_table, graphics_queue_family_index });
 
 #if RESHADE_VERBOSE_LOG
 	LOG(INFO) << "Returning Vulkan device " << device << '.';
@@ -709,7 +548,6 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 	return device_data.dispatch_table.QueuePresentKHR(queue, &present_info);
 }
 
-
 VkResult VKAPI_CALL vkCreateImage(VkDevice device, const VkImageCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkImage *pImage)
 {
 	assert(pCreateInfo != nullptr && pImage != nullptr);
@@ -900,7 +738,6 @@ VkResult VKAPI_CALL vkBeginCommandBuffer(VkCommandBuffer commandBuffer, const Vk
 	return trampoline(commandBuffer, pBeginInfo);
 }
 
-
 void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const VkRenderPassBeginInfo *pRenderPassBegin, VkSubpassContents contents)
 {
 #if RESHADE_DEPTH
@@ -1007,7 +844,6 @@ void     VKAPI_CALL vkCmdDrawIndexed(VkCommandBuffer commandBuffer, uint32_t ind
 	data.state.on_draw(indexCount * instanceCount);
 }
 
-
 VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice device, const char *pName)
 {
 #define CHECK_DEVICE_PROC(name) \
@@ -1054,27 +890,4 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 
 	GET_DEVICE_DISPATCH_PTR(GetDeviceProcAddr, device);
 	return trampoline(device, pName);
-}
-
-VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr(VkInstance instance, const char *pName)
-{
-#define CHECK_INSTANCE_PROC(name) \
-	if (0 == strcmp(pName, "vk" #name)) \
-		return reinterpret_cast<PFN_vkVoidFunction>(vk##name)
-
-	CHECK_INSTANCE_PROC(CreateInstance);
-	CHECK_INSTANCE_PROC(DestroyInstance);
-	CHECK_INSTANCE_PROC(CreateDevice);
-	CHECK_INSTANCE_PROC(DestroyDevice);
-	CHECK_INSTANCE_PROC(CreateWin32SurfaceKHR);
-	CHECK_INSTANCE_PROC(DestroySurfaceKHR);
-
-	// Self-intercept here as well to stay consistent with 'vkGetDeviceProcAddr' implementation
-	CHECK_INSTANCE_PROC(GetInstanceProcAddr);
-
-	if (instance == VK_NULL_HANDLE)
-		return nullptr;
-
-	GET_INSTANCE_DISPATCH_PTR(GetInstanceProcAddr, instance);
-	return trampoline(instance, pName);
 }

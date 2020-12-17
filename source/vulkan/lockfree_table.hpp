@@ -7,6 +7,7 @@
 
 #include <atomic>
 #include <utility>
+#include <cassert>
 
 /// <summary>
 /// A simple lock-free linear search table.
