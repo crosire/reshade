@@ -200,12 +200,12 @@ reshade::ini_file &reshade::ini_file::load_cache(const std::filesystem::path &pa
 bool reshade::ini_file::flush_cache()
 {
 	bool success = true;
-	const auto now = std::filesystem::file_time_type::clock::now();
 
 	// Save all files that were modified in one second intervals
 	for (std::pair<const std::wstring, ini_file> &file : g_ini_cache)
 	{
-		if (file.second._modified && (now - file.second._modified_at) > std::chrono::seconds(1))
+		// Check modified status before requesting file time, since the latter is costly and therefore should be avoided when not necessary
+		if (file.second._modified && (std::filesystem::file_time_type::clock::now() - file.second._modified_at) > std::chrono::seconds(1))
 			success &= file.second.save();
 	}
 

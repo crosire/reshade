@@ -131,11 +131,11 @@ bool reshade::input::handle_window_message(const void *message_data)
 	// At this point we have a shared pointer to the input object and no longer reference any memory from the windows list, so can release the lock
 	lock.unlock();
 
-	// Prevent input threads from modifying input while it is accessed elsewhere
-	const std::lock_guard<std::mutex> input_lock = input->lock();
-
 	// Calculate window client mouse position
 	ScreenToClient(static_cast<HWND>(input->_window), &details.pt);
+
+	// Prevent input threads from modifying input while it is accessed elsewhere
+	const std::lock_guard<std::mutex> input_lock = input->lock();
 
 	input->_mouse_position[0] = details.pt.x;
 	input->_mouse_position[1] = details.pt.y;
@@ -276,6 +276,9 @@ bool reshade::input::is_key_pressed(unsigned int keycode) const
 }
 bool reshade::input::is_key_pressed(unsigned int keycode, bool ctrl, bool shift, bool alt, bool force_modifiers) const
 {
+	if (keycode == 0)
+		return false;
+
 	const bool key_down = is_key_pressed(keycode), ctrl_down = is_key_down(VK_CONTROL), shift_down = is_key_down(VK_SHIFT), alt_down = is_key_down(VK_MENU);
 	if (force_modifiers) // Modifier state is required to match
 		return key_down && (ctrl == ctrl_down && shift == shift_down && alt == alt_down);

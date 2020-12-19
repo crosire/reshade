@@ -18,8 +18,8 @@ namespace reshade::vulkan
 {
 	class runtime_vk : public runtime
 	{
-		static const uint32_t NUM_IMGUI_BUFFERS = 5;
-		static const uint32_t NUM_COMMAND_FRAMES = 5;
+		static const uint32_t NUM_IMGUI_BUFFERS = 4;
+		static const uint32_t NUM_COMMAND_FRAMES = 4; // Use power of two so that modulo can be replaced with bitwise operation
 
 	public:
 		runtime_vk(VkDevice device, VkPhysicalDevice physical_device, uint32_t queue_family_index, const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table, state_tracking_context *state_tracking);

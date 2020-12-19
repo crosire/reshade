@@ -853,11 +853,11 @@ HOOK_EXPORT BOOL  WINAPI wglSwapBuffers(HDC hdc)
 	static const auto trampoline = reshade::hooks::call(wglSwapBuffers);
 
 	reshade::opengl::runtime_gl *runtime = g_current_runtime;
-	if (runtime == nullptr || 0 == runtime->_hdcs.count(hdc))
+	if (runtime == nullptr || runtime->_hdcs.find(hdc) == runtime->_hdcs.end())
 	{
 		// Find the runtime that is associated with this device context
 		const auto it = std::find_if(s_opengl_runtimes.begin(), s_opengl_runtimes.end(),
-			[hdc](const std::pair<HGLRC, reshade::opengl::runtime_gl *> &it) { return it.second->_hdcs.count(hdc); });
+			[hdc](const std::pair<HGLRC, reshade::opengl::runtime_gl *> &it) { return it.second->_hdcs.find(hdc) != it.second->_hdcs.end(); });
 		runtime = it != s_opengl_runtimes.end() ? it->second : nullptr;
 	}
 

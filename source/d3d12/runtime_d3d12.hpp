@@ -13,7 +13,7 @@ namespace reshade::d3d12
 {
 	class runtime_d3d12 : public runtime
 	{
-		static const uint32_t NUM_IMGUI_BUFFERS = 5;
+		static const uint32_t NUM_IMGUI_BUFFERS = 4;
 
 	public:
 		runtime_d3d12(ID3D12Device *device, ID3D12CommandQueue *queue, IDXGISwapChain3 *swapchain, state_tracking_context *state_tracking);

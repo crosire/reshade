@@ -526,9 +526,13 @@ void reshade::runtime::draw_gui()
 {
 	assert(_is_initialized);
 
-	const bool show_splash = _show_splash && (is_loading() || !_reload_compile_queue.empty() || (_reload_count <= 1 && (_last_present_time - _last_reload_time) < std::chrono::seconds(5)));
+	bool show_splash = _show_splash && (is_loading() || !_reload_compile_queue.empty() || (_reload_count <= 1 && (_last_present_time - _last_reload_time) < std::chrono::seconds(5)));
 	// Do not show this message in the same frame the screenshot is taken (so that it won't show up on the UI screenshot)
 	const bool show_screenshot_message = (_show_screenshot_message || !_screenshot_save_success) && !_should_save_screenshot && (_last_present_time - _last_screenshot_time) < std::chrono::seconds(_screenshot_save_success ? 3 : 5);
+
+	if (show_screenshot_message || !_preset_save_success || (!_show_overlay && _tutorial_index == 0))
+		show_splash = true;
+	const bool show_stats_window = _show_clock || _show_fps || _show_frametime;
 
 	if (_show_overlay && !_ignore_shortcuts && !_imgui_context->IO.NavVisible && _input->is_key_pressed(0x1B /* VK_ESCAPE */))
 		_show_overlay = false; // Close when pressing the escape button and not currently navigating with the keyboard
@@ -537,6 +541,13 @@ void reshade::runtime::draw_gui()
 
 	_ignore_shortcuts = false;
 	_effects_expanded_state &= 2;
+
+	if (!show_splash && !show_stats_window && !_show_overlay && _preview_texture == nullptr)
+	{
+		_input->block_mouse_input(false);
+		_input->block_keyboard_input(false);
+		return; // Early-out to avoid costly ImGui calls when no UI elements are on the screen
+	}
 
 	if (_rebuild_font_atlas)
 		build_font_atlas();
@@ -579,7 +590,7 @@ void reshade::runtime::draw_gui()
 	ImVec2 viewport_offset = ImVec2(0, 0);
 
 	// Create ImGui widgets and windows
-	if (show_splash || show_screenshot_message || !_preset_save_success || (!_show_overlay && _tutorial_index == 0))
+	if (show_splash)
 	{
 		ImGui::SetNextWindowPos(ImVec2(10, 10));
 		ImGui::SetNextWindowSize(ImVec2(imgui_io.DisplaySize.x - 20.0f, 0.0f));
@@ -679,7 +690,7 @@ void reshade::runtime::draw_gui()
 		ImGui::PopStyleColor(2);
 		ImGui::PopStyleVar();
 	}
-	else if (_show_clock || _show_fps || _show_frametime)
+	else if (show_stats_window)
 	{
 		float window_height = _imgui_context->FontBaseSize * _fps_scale + _imgui_context->Style.ItemSpacing.y;
 		window_height *= (_show_clock ? 1 : 0) + (_show_fps ? 1 : 0) + (_show_frametime ? 1 : 0);
