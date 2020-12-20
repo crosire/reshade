@@ -75,6 +75,17 @@ namespace reshade::d3d12
 		transition.Transition.StateAfter = to;
 		list->ResourceBarrier(1, &transition);
 	}
+
+	com_ptr<ID3D12Resource> glob_crostalk_resarray[crosstalk::ResNames::COUNT];
+
+	void crosstalk::set_crosstalk_resource(int ct_index, ID3D12Resource* res)
+	{
+		glob_crostalk_resarray[ct_index] = res;
+	}
+	ID3D12Resource* crosstalk::get_crosstalk_resource(int ct_index)
+	{
+		return glob_crostalk_resarray[ct_index].get();
+	}
 }
 
 reshade::d3d12::runtime_d3d12::runtime_d3d12(ID3D12Device *device, ID3D12CommandQueue *queue, IDXGISwapChain3 *swapchain, state_tracking_context *state_tracking) :
@@ -1012,6 +1023,10 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 					effect_data.depth_texture_binding = srv_handle;
 				}
 #endif
+				if (texture.unique_name == "__crosstalk_game_3d_color")
+				{
+					resource = crosstalk::get_crosstalk_resource(crosstalk::ResNames::COLOR);
+				}
 
 				if (resource != nullptr)
 				{

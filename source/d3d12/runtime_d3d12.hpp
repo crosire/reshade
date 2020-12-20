@@ -11,6 +11,43 @@
 
 namespace reshade::d3d12
 {
+	class crosstalk
+	{
+
+	public:
+		enum ResNames
+		{
+			COLOR = 0,
+			DEPTH = 1,
+			ZPREPASS = 2,
+			GBUF_0 = 3,
+			GBUF_1 = 4,
+			GBUF_2 = 5,
+			GBUF_3 = 6,
+			GBUF_4 = 7,
+			OVERLAY_0 = 8,
+			OVERLAY_1 = 9,
+			OVERLAY_2 = 10,
+			OVERLAY_3 = 11,
+			OPAQUE_GEOMETRY = 12,
+			TRANSP_GEOMETRY = 13,
+			COUNT = 14
+		};
+
+		struct entry
+		{
+			uint64_t magic;
+			uint64_t ct_idx;
+			union {
+				char* info;
+				ID3D12Resource* res;
+			};
+		};
+
+		static void set_crosstalk_resource(int ct_index, ID3D12Resource* res);
+		static ID3D12Resource* get_crosstalk_resource(int ct_index);
+	};
+
 	class runtime_d3d12 : public runtime
 	{
 		static const uint32_t NUM_IMGUI_BUFFERS = 5;
