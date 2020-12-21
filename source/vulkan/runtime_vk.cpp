@@ -702,7 +702,9 @@ bool reshade::vulkan::runtime_vk::capture_screenshot(uint8_t *buffer) const
 		// Wait for any rendering by the application finish before submitting
 		// It may have submitted that to a different queue, so simply wait for all to idle here
 		vk.DeviceWaitIdle(_device);
+#ifndef NDEBUG
 		_wait_for_idle_happened = true;
+#endif
 
 		// Execute and wait for completion
 		execute_command_buffer();
@@ -2016,6 +2018,9 @@ void reshade::vulkan::runtime_vk::execute_command_buffer() const
 	{
 		// Wait for the submitted work to finish and reset fence again for next use
 		vk.WaitForFences(_device, 1, &fence, VK_TRUE, UINT64_MAX); vk.ResetFences(_device, 1, &fence);
+#ifndef NDEBUG
+		_wait_for_idle_happened = true;
+#endif
 	}
 
 	cmd_info.second = false; // Command buffer is now in invalid state and ready for a reset
@@ -2024,7 +2029,9 @@ void reshade::vulkan::runtime_vk::wait_for_command_buffers()
 {
 	// Wait for all queues to finish to ensure no command buffers are in flight after this call
 	vk.DeviceWaitIdle(_device);
+#ifndef NDEBUG
 	_wait_for_idle_happened = true;
+#endif
 
 	if (_cmd_index < NUM_COMMAND_FRAMES &&
 		_cmd_buffers[_cmd_index].second)
