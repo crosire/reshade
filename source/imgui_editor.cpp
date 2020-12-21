@@ -25,6 +25,7 @@
 
 #include "imgui_editor.hpp"
 #include "effect_lexer.hpp"
+#include <algorithm>
 #include <imgui.h>
 #include <imgui_internal.h> // GetCurrentWindowRead
 
@@ -82,7 +83,7 @@ reshade::gui::code_editor::code_editor()
 	_lines.emplace_back();
 }
 
-void reshade::gui::code_editor::render(const char *title, const std::array<uint32_t, color_palette_max> &palette, bool border, ImFont *font)
+void reshade::gui::code_editor::render(const char *title, const uint32_t palette[color_palette_max], bool border, ImFont *font)
 {
 	// There should always at least be a single line with a new line character
 	assert(!_lines.empty());

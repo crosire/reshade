@@ -446,7 +446,7 @@ namespace reshade
 
 		// === User Interface - Code Editor ===
 		std::vector<editor_instance> _editors;
-		std::array<uint32_t, gui::code_editor::color_palette_max> _editor_palette;
+		uint32_t _editor_palette[gui::code_editor::color_palette_max];
 #endif
 	};
 }

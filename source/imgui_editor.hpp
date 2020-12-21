@@ -5,7 +5,6 @@
 
 #pragma once
 
-#include <array>
 #include <string>
 #include <vector>
 #include <unordered_map>
@@ -82,7 +81,7 @@ namespace reshade::gui
 		/// <param name="palette">The color palette used for syntax highlighting.</param>
 		/// <param name="border">Set to <c>true</c> to surround the child window with a border line.</param>
 		/// <param name="font">The font used for rendering the text (<c>nullptr</c> to use the default).</param>
-		void render(const char *title, const std::array<uint32_t, color_palette_max> &palette, bool border = false, ImFont *font = nullptr);
+		void render(const char *title, const uint32_t palette[color_palette_max], bool border = false, ImFont *font = nullptr);
 
 		/// <summary>
 		/// Sets the selection to be between the specified <paramref name="beg"/>in and <paramref name="end"/> positions.

@@ -8,7 +8,6 @@
 #include <mutex>
 #include <cstring>
 #include <algorithm>
-#include <tuple>
 #include <vector>
 #include <Windows.h>
 
@@ -19,6 +18,12 @@ namespace
 		export_hook,
 		function_hook,
 		vtable_hook
+	};
+
+	struct named_hook : public reshade::hook
+	{
+		const char *name;
+		hook_method method;
 	};
 
 	struct module_export
@@ -33,10 +38,10 @@ extern HMODULE g_module_handle;
 HMODULE g_export_module_handle = nullptr;
 extern std::filesystem::path g_reshade_dll_path;
 static std::filesystem::path s_export_hook_path;
-static std::vector<std::filesystem::path> s_delayed_hook_paths;
-static std::vector<std::tuple<const char *, reshade::hook, hook_method>> s_hooks;
 static std::mutex s_hooks_mutex;
+static std::vector<named_hook> s_hooks;
 static std::mutex s_delayed_hook_paths_mutex;
+static std::vector<std::filesystem::path> s_delayed_hook_paths;
 
 std::vector<module_export> enumerate_module_exports(HMODULE handle)
 {
@@ -119,7 +124,7 @@ static bool install_internal(const char *name, reshade::hook &hook, hook_method 
 
 	// Protect access to hook list with a mutex
 	{ const std::lock_guard<std::mutex> lock(s_hooks_mutex);
-		s_hooks.push_back(std::make_tuple(name, hook, method));
+		s_hooks.push_back({ hook, name, method });
 	}
 
 #if RESHADE_VERBOSE_LOG
@@ -296,13 +301,13 @@ static reshade::hook find_internal(reshade::hook::address target, reshade::hook:
 
 	// Enumerate list of installed hooks and find matching one
 	const auto it = std::find_if(s_hooks.cbegin(), s_hooks.cend(),
-		[target, replacement](const auto &hook) {
-			return std::get<1>(hook).replacement == replacement &&
+		[target, replacement](const named_hook &hook) {
+			return hook.replacement == replacement &&
 				// Optionally compare the target address too (do not do this if it is unknown)
-				(target == nullptr || std::get<1>(hook).target == target);
+				(target == nullptr || hook.target == target);
 		});
 
-	return it != s_hooks.cend() ? std::get<1>(*it) : reshade::hook {};
+	return it != s_hooks.cend() ? *it : reshade::hook {};
 }
 
 template <typename T>
@@ -389,16 +394,13 @@ void reshade::hooks::uninstall()
 
 	// Disable all hooks in a single batch job
 	for (auto &hook_info : s_hooks)
-		std::get<1>(hook_info).disable();
+		hook_info.disable();
 
 	hook::apply_queued_actions();
 
 	// Afterwards uninstall and remove all hooks from the list
 	for (auto &hook_info : s_hooks)
-		uninstall_internal(
-			std::get<0>(hook_info),
-			std::get<1>(hook_info),
-			std::get<2>(hook_info));
+		uninstall_internal(hook_info.name, hook_info, hook_info.method);
 
 	s_hooks.clear();
 
