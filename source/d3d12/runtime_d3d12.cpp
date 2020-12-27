@@ -1023,9 +1023,14 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 					effect_data.depth_texture_binding = srv_handle;
 				}
 #endif
-				if (texture.unique_name == "__crosstalk_game_3d_color")
+				if (texture.unique_name == "V__crosstalk_game_3d_color")
 				{
 					resource = crosstalk::get_crosstalk_resource(crosstalk::ResNames::COLOR);
+				}
+
+				if (texture.unique_name == "V__crosstalk_game_3d_depth")
+				{
+					resource = crosstalk::get_crosstalk_resource(crosstalk::ResNames::DEPTH);
 				}
 
 				if (resource != nullptr)
