@@ -520,7 +520,7 @@ HOOK_EXPORT BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 			HWND dummy_window_handle = nullptr;
 			if (!WindowFromDC(hdc))
 			{
-				dummy_window_handle = CreateWindow(TEXT("Static"), nullptr, 0, 0, 0, 0, 0, nullptr, nullptr, nullptr, 0);
+				dummy_window_handle = CreateWindow(TEXT("STATIC"), nullptr, 0, 0, 0, 0, 0, nullptr, nullptr, nullptr, 0);
 				hdc = GetDC(dummy_window_handle);
 				PIXELFORMATDESCRIPTOR pfd = { sizeof(pfd), 1 };
 				pfd.dwFlags = PFD_DOUBLEBUFFER | PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL;

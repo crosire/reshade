@@ -106,7 +106,7 @@ std::filesystem::path get_system_path()
 static inline std::filesystem::path get_module_path(HMODULE module)
 {
 	WCHAR buf[4096];
-	return GetModuleFileNameW(module, buf, ARRAYSIZE(buf)) ? buf : L"";
+	return GetModuleFileNameW(module, buf, ARRAYSIZE(buf)) ? buf : std::filesystem::path();
 }
 
 #ifdef RESHADE_TEST_APPLICATION
@@ -126,16 +126,14 @@ static inline std::filesystem::path get_module_path(HMODULE module)
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow)
 {
-	using namespace reshade;
-
 	g_module_handle = hInstance;
 	g_reshade_dll_path = get_module_path(hInstance);
 	g_target_executable_path = get_module_path(hInstance);
 	g_reshade_base_path = get_base_path();
 
-	log::open(g_reshade_base_path / g_reshade_dll_path.filename().replace_extension(L".log"));
+	reshade::log::open(g_reshade_base_path / g_reshade_dll_path.filename().replace_extension(L".log"));
 
-	hooks::register_module("user32.dll");
+	reshade::hooks::register_module(L"user32.dll");
 
 	static UINT s_resize_w = 0, s_resize_h = 0;
 
@@ -181,9 +179,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 	#pragma region D3D9 Implementation
 	if (strstr(lpCmdLine, "-d3d9"))
 	{
-		const auto d3d9_module = LoadLibrary(TEXT("d3d9.dll"));
+		const auto d3d9_module = LoadLibraryW(L"d3d9.dll");
 		assert(d3d9_module != nullptr);
-		hooks::register_module("d3d9.dll");
+		reshade::hooks::register_module(L"d3d9.dll");
 
 		D3DPRESENT_PARAMETERS pp = {};
 		pp.SwapEffect = D3DSWAPEFFECT_DISCARD;
@@ -228,12 +226,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 	#pragma region D3D11 Implementation
 	if (strstr(lpCmdLine, "-d3d11"))
 	{
-		const auto dxgi_module = LoadLibrary(TEXT("dxgi.dll"));
-		const auto d3d11_module = LoadLibrary(TEXT("d3d11.dll"));
+		const auto dxgi_module = LoadLibraryW(L"dxgi.dll");
+		const auto d3d11_module = LoadLibraryW(L"d3d11.dll");
 		assert(dxgi_module != nullptr);
 		assert(d3d11_module != nullptr);
-		hooks::register_module("dxgi.dll");
-		hooks::register_module("d3d11.dll");
+		reshade::hooks::register_module(L"dxgi.dll");
+		reshade::hooks::register_module(L"d3d11.dll");
 
 		// Initialize Direct3D 11
 		com_ptr<ID3D11Device> device;
@@ -294,12 +292,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 	#pragma region D3D12 Implementation
 	if (strstr(lpCmdLine, "-d3d12"))
 	{
-		const auto dxgi_module = LoadLibrary(TEXT("dxgi.dll"));
-		const auto d3d12_module = LoadLibrary(TEXT("d3d12.dll"));
+		const auto dxgi_module = LoadLibraryW(L"dxgi.dll");
+		const auto d3d12_module = LoadLibraryW(L"d3d12.dll");
 		assert(dxgi_module != nullptr);
 		assert(d3d12_module != nullptr);
-		hooks::register_module("dxgi.dll");
-		hooks::register_module("d3d12.dll");
+		reshade::hooks::register_module(L"dxgi.dll");
+		reshade::hooks::register_module(L"d3d12.dll");
 
 		// Enable D3D debug layer if it is available
 		{   com_ptr<ID3D12Debug> debug_iface;
@@ -462,9 +460,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 	#pragma region OpenGL Implementation
 	if (strstr(lpCmdLine, "-opengl"))
 	{
-		const auto opengl_module = LoadLibrary(TEXT("opengl32.dll"));
+		const auto opengl_module = LoadLibraryW(L"opengl32.dll");
 		assert(opengl_module != nullptr);
-		hooks::register_module("opengl32.dll");
+		reshade::hooks::register_module(L"opengl32.dll");
 
 		// Initialize OpenGL
 		const HDC hdc = GetDC(window_handle);
@@ -536,9 +534,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 
 	if (strstr(lpCmdLine, "-vulkan"))
 	{
-		const auto vulkan_module = LoadLibrary(TEXT("vulkan-1.dll"));
+		const auto vulkan_module = LoadLibraryW(L"vulkan-1.dll");
 		assert(vulkan_module != nullptr);
-		hooks::register_module("vulkan-1.dll");
+		reshade::hooks::register_module(L"vulkan-1.dll");
 
 		VkDevice device = VK_NULL_HANDLE;
 		VkInstance instance = VK_NULL_HANDLE;
@@ -808,8 +806,6 @@ extern "C" __declspec(dllexport) const char *ReShadeVersion = VERSION_STRING_PRO
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 {
-	using namespace reshade;
-
 	switch (fdwReason)
 	{
 	case DLL_PROCESS_ATTACH:
@@ -820,7 +816,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		g_target_executable_path = get_module_path(nullptr);
 		g_reshade_base_path = get_base_path(); // Needs to happen after DLL and executable path are set (since those are referenced in 'get_base_path')
 
-		log::open(g_reshade_base_path / g_reshade_dll_path.filename().replace_extension(L".log"));
+		reshade::log::open(g_reshade_base_path / g_reshade_dll_path.filename().replace_extension(L".log"));
 
 #  ifdef WIN64
 		LOG(INFO) << "Initializing crosire's ReShade version '" VERSION_STRING_FILE "' (64-bit) built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << g_reshade_dll_path << " into " << g_target_executable_path << " ...";
@@ -843,12 +839,12 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 				++dump_index < 100)
 			{
 				// Call into the original "LoadLibrary" directly, to avoid failing memory corruption checks
-				extern HMODULE WINAPI HookLoadLibraryA(LPCSTR lpFileName);
-				const auto ll = reshade::hooks::call(HookLoadLibraryA);
+				extern HMODULE WINAPI HookLoadLibraryW(LPCWSTR lpFileName);
+				const auto ll = reshade::hooks::call(HookLoadLibraryW);
 				if (ll == nullptr)
 					goto continue_search;
 
-				const auto dbghelp = ll("dbghelp.dll");
+				const auto dbghelp = ll(L"dbghelp.dll");
 				if (dbghelp == nullptr)
 					goto continue_search;
 
@@ -893,23 +889,23 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 			}
 		}
 
-		hooks::register_module(L"user32.dll");
-		hooks::register_module(L"ws2_32.dll");
+		reshade::hooks::register_module(L"user32.dll");
+		reshade::hooks::register_module(L"ws2_32.dll");
 
-		hooks::register_module(get_system_path() / L"d2d1.dll");
-		hooks::register_module(get_system_path() / L"d3d9.dll");
-		hooks::register_module(get_system_path() / L"d3d10.dll");
-		hooks::register_module(get_system_path() / L"d3d10_1.dll");
-		hooks::register_module(get_system_path() / L"d3d11.dll");
+		reshade::hooks::register_module(get_system_path() / L"d2d1.dll");
+		reshade::hooks::register_module(get_system_path() / L"d3d9.dll");
+		reshade::hooks::register_module(get_system_path() / L"d3d10.dll");
+		reshade::hooks::register_module(get_system_path() / L"d3d10_1.dll");
+		reshade::hooks::register_module(get_system_path() / L"d3d11.dll");
 
 		// On Windows 7 the d3d12on7 module is not in the system path, so register to hook any d3d12.dll loaded instead
 		if (is_windows7() && _wcsicmp(g_reshade_dll_path.stem().c_str(), L"d3d12") != 0)
-			hooks::register_module(L"d3d12.dll");
+			reshade::hooks::register_module(L"d3d12.dll");
 		else
-			hooks::register_module(get_system_path() / L"d3d12.dll");
+			reshade::hooks::register_module(get_system_path() / L"d3d12.dll");
 
-		hooks::register_module(get_system_path() / L"dxgi.dll");
-		hooks::register_module(get_system_path() / L"opengl32.dll");
+		reshade::hooks::register_module(get_system_path() / L"dxgi.dll");
+		reshade::hooks::register_module(get_system_path() / L"opengl32.dll");
 		// Do not register Vulkan hooks, since Vulkan layering mechanism is used instead
 
 		LOG(INFO) << "Initialized.";
@@ -917,7 +913,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 	case DLL_PROCESS_DETACH:
 		LOG(INFO) << "Exiting ...";
 
-		hooks::uninstall();
+		reshade::hooks::uninstall();
 
 		// Module is now invalid, so break out of any message loops that may still have it in the call stack (see 'HookGetMessage' implementation in input.cpp)
 		// This is necessary since a different thread may have called into the 'GetMessage' hook from ReShade, but not receive a message until after the module was unloaded

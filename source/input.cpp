@@ -26,7 +26,7 @@ reshade::input::input(window_handle window)
 static bool is_uwp_app()
 {
 	const auto GetCurrentPackageFullName = reinterpret_cast<LONG(WINAPI*)(UINT32*, PWSTR)>(
-		GetProcAddress(GetModuleHandle(TEXT("kernel32.dll")), "GetCurrentPackageFullName"));
+		GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "GetCurrentPackageFullName"));
 	if (GetCurrentPackageFullName == nullptr)
 		return false;
 	// This will return APPMODEL_ERROR_NO_PACKAGE if not a packaged UWP app

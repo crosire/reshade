@@ -24,7 +24,7 @@ bool reshade::runtime::check_for_update(unsigned long latest_version[3])
 	std::memset(latest_version, 0, 3 * sizeof(unsigned long));
 
 #ifdef NDEBUG
-	const scoped_handle handle = InternetOpen(L"reshade", INTERNET_OPEN_TYPE_PRECONFIG, nullptr, nullptr, 0);
+	const scoped_handle handle = InternetOpen(TEXT("reshade"), INTERNET_OPEN_TYPE_PRECONFIG, nullptr, nullptr, 0);
 	if (handle == nullptr)
 		return false;
 
