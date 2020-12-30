@@ -3,7 +3,7 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "runtime_config.hpp"
+#include "dll_config.hpp"
 #include <cassert>
 #include <fstream>
 #include <sstream>

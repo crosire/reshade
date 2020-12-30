@@ -4,6 +4,7 @@
  */
 
 #include "dll_log.hpp"
+#include "dll_config.hpp"
 #include "hook_manager.hpp"
 #include "dxgi_device.hpp"
 #include "dxgi_swapchain.hpp"
@@ -16,7 +17,6 @@
 #include "d3d12/d3d12_command_queue.hpp"
 #include "d3d12/runtime_d3d12.hpp"
 #include "format_utils.hpp"
-#include "runtime_config.hpp"
 #include <CoreWindow.h>
 
 // Use this to filter out internal device created by the DXGI runtime in the D3D device creation hooks 

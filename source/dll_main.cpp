@@ -5,8 +5,8 @@
 
 #include "version.h"
 #include "dll_log.hpp"
+#include "dll_config.hpp"
 #include "hook_manager.hpp"
-#include "runtime_config.hpp"
 #include <Psapi.h>
 #include <Windows.h>
 

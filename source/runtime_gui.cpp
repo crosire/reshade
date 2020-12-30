@@ -7,9 +7,9 @@
 
 #include "version.h"
 #include "dll_log.hpp"
+#include "dll_config.hpp"
 #include "dll_resources.hpp"
 #include "runtime.hpp"
-#include "runtime_config.hpp"
 #include "runtime_objects.hpp"
 #include "input.hpp"
 #include "imgui_widgets.hpp"

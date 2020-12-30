@@ -5,8 +5,8 @@
 
 #include "version.h"
 #include "dll_log.hpp"
+#include "dll_config.hpp"
 #include "runtime.hpp"
-#include "runtime_config.hpp"
 #include "runtime_objects.hpp"
 #include "effect_parser.hpp"
 #include "effect_codegen.hpp"

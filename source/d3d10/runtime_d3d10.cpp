@@ -4,9 +4,9 @@
  */
 
 #include "dll_log.hpp"
+#include "dll_config.hpp"
 #include "dll_resources.hpp"
 #include "runtime_d3d10.hpp"
-#include "runtime_config.hpp"
 #include "runtime_objects.hpp"
 #include "dxgi/format_utils.hpp"
 #include <imgui.h>

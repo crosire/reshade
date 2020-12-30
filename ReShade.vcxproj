@@ -404,6 +404,7 @@
     <ClCompile Include="source\d3d9\runtime_d3d9.cpp" />
     <ClCompile Include="source\d3d9\state_block.cpp" />
     <ClCompile Include="source\d3d9\state_tracking.cpp" />
+    <ClCompile Include="source\dll_config.cpp" />
     <ClCompile Include="source\dll_log.cpp" />
     <ClCompile Include="source\dll_main.cpp" />
     <ClCompile Include="source\dll_resources.cpp" />
@@ -423,7 +424,6 @@
     <ClCompile Include="source\opengl\state_block.cpp" />
     <ClCompile Include="source\opengl\state_tracking.cpp" />
     <ClCompile Include="source\runtime.cpp" />
-    <ClCompile Include="source\runtime_config.cpp" />
     <ClCompile Include="source\runtime_gui.cpp" />
     <ClCompile Include="source\runtime_update_check.cpp" />
     <ClCompile Include="source\vulkan\runtime_vk.cpp">
@@ -440,6 +440,7 @@
     <ClInclude Include="res\resource.h" />
     <ClInclude Include="res\version.h" />
     <ClInclude Include="source\com_ptr.hpp" />
+    <ClInclude Include="source\dll_config.hpp" />
     <ClInclude Include="source\d3d10\d3d10_device.hpp" />
     <ClInclude Include="source\d3d10\runtime_d3d10.hpp" />
     <ClInclude Include="source\d3d10\state_block.hpp" />
@@ -479,7 +480,6 @@
     <ClInclude Include="source\opengl\state_block.hpp" />
     <ClInclude Include="source\opengl\state_tracking.hpp" />
     <ClInclude Include="source\runtime.hpp" />
-    <ClInclude Include="source\runtime_config.hpp" />
     <ClInclude Include="source\runtime_objects.hpp" />
     <ClInclude Include="source\vulkan\format_utils.hpp" />
     <ClInclude Include="source\vulkan\lockfree_table.hpp" />

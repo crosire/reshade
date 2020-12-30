@@ -4,11 +4,11 @@
  */
 
 #include "dll_log.hpp"
+#include "dll_config.hpp"
 #include "hook_manager.hpp"
 #include "d3d9_device.hpp"
 #include "d3d9_swapchain.hpp"
 #include "runtime_d3d9.hpp"
-#include "runtime_config.hpp"
 
 // These are defined in d3d9.h, but we want to use them as function names below
 #undef IDirect3D9_CreateDevice

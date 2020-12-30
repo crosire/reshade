@@ -54,6 +54,9 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="source\dll_config.cpp">
+      <Filter>core</Filter>
+    </ClCompile>
     <ClCompile Include="source\dll_log.cpp">
       <Filter>core</Filter>
     </ClCompile>
@@ -82,9 +85,6 @@
       <Filter>core\runtime</Filter>
     </ClCompile>
     <ClCompile Include="source\runtime.cpp">
-      <Filter>core\runtime</Filter>
-    </ClCompile>
-    <ClCompile Include="source\runtime_config.cpp">
       <Filter>core\runtime</Filter>
     </ClCompile>
     <ClCompile Include="source\runtime_gui.cpp">
@@ -227,6 +227,9 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="source\dll_config.hpp">
+      <Filter>core</Filter>
+    </ClInclude>
     <ClInclude Include="source\dll_log.hpp">
       <Filter>core</Filter>
     </ClInclude>
@@ -252,9 +255,6 @@
       <Filter>core\runtime</Filter>
     </ClInclude>
     <ClInclude Include="source\runtime.hpp">
-      <Filter>core\runtime</Filter>
-    </ClInclude>
-    <ClInclude Include="source\runtime_config.hpp">
       <Filter>core\runtime</Filter>
     </ClInclude>
     <ClInclude Include="source\runtime_objects.hpp">

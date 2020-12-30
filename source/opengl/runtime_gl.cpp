@@ -4,8 +4,8 @@
  */
 
 #include "dll_log.hpp"
+#include "dll_config.hpp"
 #include "runtime_gl.hpp"
-#include "runtime_config.hpp"
 #include "runtime_objects.hpp"
 #include <imgui.h>
 
