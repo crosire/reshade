@@ -79,7 +79,7 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	const VkResult result = trampoline(&create_info, pAllocator, pInstance);
 	if (result != VK_SUCCESS)
 	{
-		LOG(WARN) << "vkCreateInstance" << " failed with error code " << result << '!';
+		LOG(WARN) << "vkCreateInstance" << " failed with error code " << result << '.';
 		return result;
 	}
 
@@ -134,7 +134,7 @@ VkResult VKAPI_CALL vkCreateWin32SurfaceKHR(VkInstance instance, const VkWin32Su
 	const VkResult result = trampoline(instance, pCreateInfo, pAllocator, pSurface);
 	if (result != VK_SUCCESS)
 	{
-		LOG(WARN) << "vkCreateWin32SurfaceKHR" << " failed with error code " << result << '!';
+		LOG(WARN) << "vkCreateWin32SurfaceKHR" << " failed with error code " << result << '.';
 		return result;
 	}
 

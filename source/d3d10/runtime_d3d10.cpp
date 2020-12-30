@@ -312,9 +312,9 @@ bool reshade::d3d10::runtime_d3d10::capture_screenshot(uint8_t *buffer) const
 	if (_color_bit_depth != 8 && _color_bit_depth != 10)
 	{
 		if (const char *format_string = format_to_string(_backbuffer_format); format_string != nullptr)
-			LOG(ERROR) << "Screenshots are not supported for back buffer format " << format_string << '.';
+			LOG(ERROR) << "Screenshots are not supported for back buffer format " << format_string << '!';
 		else
-			LOG(ERROR) << "Screenshots are not supported for back buffer format " << _backbuffer_format << '.';
+			LOG(ERROR) << "Screenshots are not supported for back buffer format " << _backbuffer_format << '!';
 		return false;
 	}
 
@@ -386,7 +386,7 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 
 	if (_d3d_compiler == nullptr)
 	{
-		LOG(ERROR) << "Unable to load HLSL compiler (\"d3dcompiler_47.dll\")." << " Make sure you have the DirectX end-user runtime (June 2010) installed or a newer version of the library in the application directory.";
+		LOG(ERROR) << "Unable to load HLSL compiler (\"d3dcompiler_47.dll\")!" << " Make sure you have the DirectX end-user runtime (June 2010) installed or a newer version of the library in the application directory.";
 		return false;
 	}
 

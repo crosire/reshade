@@ -3,10 +3,10 @@
  * License: https://github.com/crosire/reshade#license
  */
 
+#include "version.h"
 #include "dll_log.hpp"
 #include "hook_manager.hpp"
 #include "runtime_config.hpp"
-#include "version.h"
 #include <Psapi.h>
 #include <Windows.h>
 

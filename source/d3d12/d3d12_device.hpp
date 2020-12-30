@@ -9,7 +9,7 @@
 
 struct D3D12DeviceDownlevel;
 
-struct __declspec(uuid("2523AFF4-978B-4939-BA16-8EE876A4CB2A")) D3D12Device : ID3D12Device6
+struct DECLSPEC_UUID("2523AFF4-978B-4939-BA16-8EE876A4CB2A") D3D12Device : ID3D12Device6
 {
 	D3D12Device(ID3D12Device *original);
 

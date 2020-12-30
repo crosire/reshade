@@ -609,7 +609,7 @@ HOOK_EXPORT BOOL WINAPI HookRegisterRawInputDevices(PCRAWINPUTDEVICE pRawInputDe
 
 	if (!reshade::hooks::call(HookRegisterRawInputDevices)(pRawInputDevices, uiNumDevices, cbSize))
 	{
-		LOG(WARN) << "RegisterRawInputDevices" << " failed with error code " << GetLastError() << '!';
+		LOG(WARN) << "RegisterRawInputDevices" << " failed with error code " << GetLastError() << '.';
 		return FALSE;
 	}
 

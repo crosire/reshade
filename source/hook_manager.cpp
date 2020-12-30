@@ -118,7 +118,7 @@ static bool install_internal(const char *name, reshade::hook &hook, hook_method 
 
 	if (status != reshade::hook::status::success)
 	{
-		LOG(ERROR) << "Failed to install hook for " << name << " with status code " << static_cast<int>(status) << '.';
+		LOG(ERROR) << "Failed to install hook for " << name << " with status code " << static_cast<int>(status) << '!';
 		return false;
 	}
 

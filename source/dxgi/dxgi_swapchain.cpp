@@ -101,7 +101,7 @@ void DXGISwapChain::runtime_resize()
 	}
 
 	if (!initialized)
-		LOG(ERROR) << "Failed to recreate Direct3D " << _direct3d_version << " runtime environment on runtime " << _runtime.get() << '.';
+		LOG(ERROR) << "Failed to recreate Direct3D " << _direct3d_version << " runtime environment on runtime " << _runtime.get() << '!';
 }
 void DXGISwapChain::runtime_present(UINT flags)
 {
@@ -142,7 +142,7 @@ void DXGISwapChain::handle_runtime_loss(HRESULT hr)
 	// Handle scenarios where device is lost and just clean up all resources
 	if (hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET)
 	{
-		LOG(ERROR) << "Device was lost with " << hr << ". Destroying all resources and disabling ReShade.";
+		LOG(ERROR) << "Device was lost with " << hr << "! Destroying all resources and disabling ReShade.";
 
 		if (hr == DXGI_ERROR_DEVICE_REMOVED)
 		{

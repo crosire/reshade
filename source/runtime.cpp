@@ -655,7 +655,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		_last_reload_successfull = false;
 
 		if (effect.errors.empty())
-			LOG(ERROR) << "Failed to load " << source_file << '.';
+			LOG(ERROR) << "Failed to load " << source_file << '!';
 		else
 			LOG(ERROR) << "Failed to load " << source_file << ":\n" << effect.errors;
 		return false;
@@ -713,7 +713,7 @@ void reshade::runtime::load_textures()
 		// Search for image file using the provided search paths unless the path provided is already absolute
 		if (!find_file(_texture_search_paths, source_path))
 		{
-			LOG(ERROR) << "Source " << source_path << " for texture '" << texture.unique_name << "' could not be found in any of the texture search paths.";
+			LOG(ERROR) << "Source " << source_path << " for texture '" << texture.unique_name << "' could not be found in any of the texture search paths!";
 			_last_texture_reload_successfull = false;
 			continue;
 		}
@@ -1028,7 +1028,7 @@ void reshade::runtime::update_and_render_effects()
 		if (!effect.compiled) // Something went wrong, do clean up
 		{
 			if (effect.errors.empty())
-				LOG(ERROR) << "Failed initializing " << effect.source_file << '.';
+				LOG(ERROR) << "Failed initializing " << effect.source_file << '!';
 			else
 				LOG(ERROR) << "Failed initializing " << effect.source_file << ":\n" << effect.errors;
 

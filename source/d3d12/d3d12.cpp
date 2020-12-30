@@ -18,7 +18,7 @@ HOOK_EXPORT HRESULT WINAPI D3D12CreateDevice(
 	const HRESULT hr = reshade::hooks::call(D3D12CreateDevice)(pAdapter, MinimumFeatureLevel, riid, ppDevice);
 	if (FAILED(hr))
 	{
-		LOG(WARN) << "D3D12CreateDevice" << " failed with error code " << std::hex << hr << std::dec << '!';
+		LOG(WARN) << "D3D12CreateDevice" << " failed with error code " << std::hex << hr << std::dec << '.';
 		return hr;
 	}
 

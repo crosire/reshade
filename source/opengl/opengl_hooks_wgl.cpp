@@ -8,7 +8,6 @@
 #include "runtime_gl.hpp"
 #include "opengl_hooks.hpp"
 #include <mutex>
-#include <memory>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -54,7 +53,7 @@ HOOK_EXPORT int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPT
 	if (format != 0)
 		LOG(INFO) << "> Returning pixel format: " << format;
 	else
-		LOG(WARN) << "wglChoosePixelFormat" << " failed with error code " << (GetLastError() & 0xFFFF) << '!';
+		LOG(WARN) << "wglChoosePixelFormat" << " failed with error code " << (GetLastError() & 0xFFFF) << '.';
 
 	return format;
 }
@@ -228,7 +227,7 @@ HOOK_EXPORT int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPT
 
 	if (!reshade::hooks::call(wglChoosePixelFormatARB)(hdc, piAttribIList, pfAttribFList, nMaxFormats, piFormats, nNumFormats))
 	{
-		LOG(WARN) << "wglChoosePixelFormatARB" << " failed with error code " << (GetLastError() & 0xFFFF) << '!';
+		LOG(WARN) << "wglChoosePixelFormatARB" << " failed with error code " << (GetLastError() & 0xFFFF) << '.';
 		return FALSE;
 	}
 
@@ -280,7 +279,7 @@ HOOK_EXPORT BOOL  WINAPI wglSetPixelFormat(HDC hdc, int iPixelFormat, const PIXE
 
 	if (!reshade::hooks::call(wglSetPixelFormat)(hdc, iPixelFormat, ppfd))
 	{
-		LOG(WARN) << "wglSetPixelFormat" << " failed with error code " << (GetLastError() & 0xFFFF) << '!';
+		LOG(WARN) << "wglSetPixelFormat" << " failed with error code " << (GetLastError() & 0xFFFF) << '.';
 		return FALSE;
 	}
 
@@ -437,7 +436,7 @@ HOOK_EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 	const HGLRC hglrc = reshade::hooks::call(wglCreateContextAttribsARB)(hdc, hShareContext, reinterpret_cast<const int *>(attribs));
 	if (hglrc == nullptr)
 	{
-		LOG(WARN) << "wglCreateContextAttribsARB" << " failed with error code " << (GetLastError() & 0xFFFF) << '!';
+		LOG(WARN) << "wglCreateContextAttribsARB" << " failed with error code " << (GetLastError() & 0xFFFF) << '.';
 		return nullptr;
 	}
 
@@ -457,7 +456,7 @@ HOOK_EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 	}
 
 #if RESHADE_VERBOSE_LOG
-	LOG(INFO) << "> Returning OpenGL context " << hglrc << '.';
+	LOG(INFO) << "Returning OpenGL context " << hglrc << '.';
 #endif
 	return hglrc;
 }
@@ -475,7 +474,7 @@ HOOK_EXPORT HGLRC WINAPI wglCreateLayerContext(HDC hdc, int iLayerPlane)
 	const HGLRC hglrc = reshade::hooks::call(wglCreateLayerContext)(hdc, iLayerPlane);
 	if (hglrc == nullptr)
 	{
-		LOG(WARN) << "wglCreateLayerContext" << " failed with error code " << (GetLastError() & 0xFFFF) << '!';
+		LOG(WARN) << "wglCreateLayerContext" << " failed with error code " << (GetLastError() & 0xFFFF) << '.';
 		return nullptr;
 	}
 
@@ -484,7 +483,7 @@ HOOK_EXPORT HGLRC WINAPI wglCreateLayerContext(HDC hdc, int iLayerPlane)
 	}
 
 #if RESHADE_VERBOSE_LOG
-	LOG(INFO) << "> Returning OpenGL context " << hglrc << '.';
+	LOG(INFO) << "Returning OpenGL context " << hglrc << '.';
 #endif
 	return hglrc;
 }
@@ -575,7 +574,7 @@ HOOK_EXPORT BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 
 	if (!reshade::hooks::call(wglDeleteContext)(hglrc))
 	{
-		LOG(WARN) << "wglDeleteContext" << " failed with error code " << (GetLastError() & 0xFFFF) << '!';
+		LOG(WARN) << "wglDeleteContext" << " failed with error code " << (GetLastError() & 0xFFFF) << '.';
 		return FALSE;
 	}
 
@@ -588,7 +587,7 @@ HOOK_EXPORT BOOL  WINAPI wglShareLists(HGLRC hglrc1, HGLRC hglrc2)
 
 	if (!reshade::hooks::call(wglShareLists)(hglrc1, hglrc2))
 	{
-		LOG(WARN) << "wglShareLists" << " failed with error code " << (GetLastError() & 0xFFFF) << '!';
+		LOG(WARN) << "wglShareLists" << " failed with error code " << (GetLastError() & 0xFFFF) << '.';
 		return FALSE;
 	}
 
@@ -612,7 +611,7 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 	if (!trampoline(hdc, hglrc))
 	{
 #if RESHADE_VERBOSE_LOG
-		LOG(WARN) << "wglMakeCurrent" << " failed with error code " << (GetLastError() & 0xFFFF) << '!';
+		LOG(WARN) << "wglMakeCurrent" << " failed with error code " << (GetLastError() & 0xFFFF) << '.';
 #endif
 		return FALSE;
 	}
@@ -649,7 +648,7 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 			g_current_runtime = it->second;
 
 #if RESHADE_VERBOSE_LOG
-			LOG(DEBUG) << "> Switched to existing runtime " << it->second << '.';
+			LOG(DEBUG) << "Switched to existing runtime " << it->second << '.';
 #endif
 		}
 
@@ -702,7 +701,7 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 			g_current_runtime = s_opengl_runtimes[hglrc] = runtime;
 
 #if RESHADE_VERBOSE_LOG
-			LOG(DEBUG) << "> Switched to new runtime " << runtime << '.';
+			LOG(DEBUG) << "Switched to new runtime " << runtime << '.';
 #endif
 		}
 		else
@@ -775,7 +774,7 @@ HOOK_EXPORT HGLRC WINAPI wglGetCurrentContext()
 	const HPBUFFERARB hpbuffer = reshade::hooks::call(wglCreatePbufferARB)(hdc, iPixelFormat, iWidth, iHeight, piAttribList);
 	if (hpbuffer == nullptr)
 	{
-		LOG(WARN) << "wglCreatePbufferARB" << " failed with error code " << (GetLastError() & 0xFFFF) << '!';
+		LOG(WARN) << "wglCreatePbufferARB" << " failed with error code " << (GetLastError() & 0xFFFF) << '.';
 		return nullptr;
 	}
 
@@ -790,7 +789,7 @@ HOOK_EXPORT HGLRC WINAPI wglGetCurrentContext()
 
 	if (!reshade::hooks::call(wglDestroyPbufferARB)(hPbuffer))
 	{
-		LOG(WARN) << "wglDestroyPbufferARB" << " failed with error code " << (GetLastError() & 0xFFFF) << '!';
+		LOG(WARN) << "wglDestroyPbufferARB" << " failed with error code " << (GetLastError() & 0xFFFF) << '.';
 		return FALSE;
 	}
 
@@ -807,7 +806,7 @@ HOOK_EXPORT HGLRC WINAPI wglGetCurrentContext()
 	const HDC hdc = reshade::hooks::call(wglGetPbufferDCARB)(hPbuffer);
 	if (hdc == nullptr)
 	{
-		LOG(WARN) << "wglGetPbufferDCARB" << " failed with error code " << (GetLastError() & 0xFFFF) << '!';
+		LOG(WARN) << "wglGetPbufferDCARB" << " failed with error code " << (GetLastError() & 0xFFFF) << '.';
 		return nullptr;
 	}
 
@@ -826,7 +825,7 @@ HOOK_EXPORT HGLRC WINAPI wglGetCurrentContext()
 
 	if (!reshade::hooks::call(wglReleasePbufferDCARB)(hPbuffer, hdc))
 	{
-		LOG(WARN) << "wglReleasePbufferDCARB" << " failed with error code " << (GetLastError() & 0xFFFF) << '!';
+		LOG(WARN) << "wglReleasePbufferDCARB" << " failed with error code " << (GetLastError() & 0xFFFF) << '.';
 		return FALSE;
 	}
 
@@ -858,7 +857,7 @@ HOOK_EXPORT BOOL  WINAPI wglSwapBuffers(HDC hdc)
 		// Find the runtime that is associated with this device context
 		const auto it = std::find_if(s_opengl_runtimes.begin(), s_opengl_runtimes.end(),
 			[hdc](const std::pair<HGLRC, reshade::opengl::runtime_gl *> &it) { return it.second->_hdcs.find(hdc) != it.second->_hdcs.end(); });
-		runtime = it != s_opengl_runtimes.end() ? it->second : nullptr;
+		runtime = (it != s_opengl_runtimes.end()) ? it->second : nullptr;
 	}
 
 	// The window handle can be invalid if the window was already destroyed

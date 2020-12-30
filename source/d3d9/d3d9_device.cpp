@@ -178,7 +178,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateAdditionalSwapChain(D3DPRESENT_
 
 	const auto runtime = std::make_shared<reshade::d3d9::runtime_d3d9>(device, swapchain, &_state);
 	if (!runtime->on_init(pp))
-		LOG(ERROR) << "Failed to initialize Direct3D 9 runtime environment on runtime " << runtime.get() << '.';
+		LOG(ERROR) << "Failed to initialize Direct3D 9 runtime environment on runtime " << runtime.get() << '!';
 
 	AddRef(); // Add reference which is released when the swap chain is destroyed (see 'Direct3DSwapChain9::Release')
 
@@ -250,7 +250,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 	_implicit_swapchain->GetPresentParameters(&pp);
 
 	if (!runtime->on_init(pp))
-		LOG(ERROR) << "Failed to recreate Direct3D 9 runtime environment on runtime " << runtime.get() << '.';
+		LOG(ERROR) << "Failed to recreate Direct3D 9 runtime environment on runtime " << runtime.get() << '!';
 
 	// Reload auto depth-stencil surface
 	if (pp.EnableAutoDepthStencil)
@@ -856,7 +856,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 	_implicit_swapchain->GetPresentParameters(&pp);
 
 	if (!runtime->on_init(pp))
-		LOG(ERROR) << "Failed to recreate Direct3D 9 runtime environment on runtime " << runtime.get() << '.';
+		LOG(ERROR) << "Failed to recreate Direct3D 9 runtime environment on runtime " << runtime.get() << '!';
 
 	// Reload auto depth-stencil surface
 	if (pp.EnableAutoDepthStencil)

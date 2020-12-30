@@ -660,7 +660,7 @@ bool reshade::vulkan::runtime_vk::capture_screenshot(uint8_t *buffer) const
 {
 	if (_color_bit_depth != 8 && _color_bit_depth != 10)
 	{
-		LOG(ERROR) << "Screenshots are not supported for back buffer format " << _backbuffer_format << '.';
+		LOG(ERROR) << "Screenshots are not supported for back buffer format " << _backbuffer_format << '!';
 		return false;
 	}
 
@@ -1748,7 +1748,7 @@ void reshade::vulkan::runtime_vk::upload_texture(const texture &texture, const u
 			break;
 		default:
 			mapped_data = nullptr;
-			LOG(ERROR) << "Texture upload is not supported for format " << static_cast<unsigned int>(texture.format) << " of texture '" << texture.unique_name << "'.";
+			LOG(ERROR) << "Texture upload is not supported for format " << static_cast<unsigned int>(texture.format) << " of texture '" << texture.unique_name << "'!";
 			break;
 		}
 
