@@ -666,7 +666,7 @@ bool reshade::vulkan::runtime_vk::capture_screenshot(uint8_t *buffer) const
 
 	const size_t data_pitch = _width * 4;
 
-	vk_handle<VK_OBJECT_TYPE_BUFFER> intermediate(_device, vk);
+	VkBuffer intermediate = VK_NULL_HANDLE;
 	VmaAllocation intermediate_mem = VK_NULL_HANDLE;
 
 	{   VkBufferCreateInfo create_info { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
@@ -750,7 +750,7 @@ bool reshade::vulkan::runtime_vk::capture_screenshot(uint8_t *buffer) const
 		vmaUnmapMemory(_alloc, intermediate_mem);
 	}
 
-	vmaFreeMemory(_alloc, intermediate_mem);
+	vmaDestroyBuffer(_alloc, intermediate, intermediate_mem);
 
 	return mapped_data != nullptr;
 }
@@ -760,101 +760,118 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 	effect &effect = _effects[index];
 
 	// Load shader modules
-	std::unordered_map<std::string, VkShaderModule> entry_points;
-	std::vector<vk_handle<VK_OBJECT_TYPE_SHADER_MODULE>> shader_modules;
+	struct shader_modules
+	{
+		bool loaded = false;
+		runtime_vk *const runtime;
+		std::vector<VkShaderModule> list;
+		std::unordered_map<std::string, VkShaderModule> entry_points;
 
-	{   VkResult res = VK_SUCCESS;
-
-		// There are various issues with SPIR-V modules that have multiple entry points on all major GPU vendors.
-		// On AMD for instance creating a graphics pipeline just fails with a generic VK_ERROR_OUT_OF_HOST_MEMORY. On NVIDIA artifacts occur on some driver versions.
-		// To work around these problems, create a separate shader module for every entry point and rewrite the SPIR-V module for each to removes all but a single entry point (and associated functions/variables).
-		for (size_t i = 0; i < effect.module.entry_points.size() && res == VK_SUCCESS; ++i)
+		shader_modules(runtime_vk *runtime, const reshadefx::module &effect_module) : runtime(runtime)
 		{
-			const reshadefx::entry_point &entry_point = effect.module.entry_points[i];
+			VkResult res = VK_SUCCESS;
 
-			uint32_t current_function = 0, current_function_offset = 0;
-			std::vector<uint32_t> spirv = effect.module.spirv;
-			std::vector<uint32_t> functions_to_remove, variables_to_remove;
-
-			for (uint32_t inst = 5 /* Skip SPIR-V header information */; inst < spirv.size();)
+			// There are various issues with SPIR-V modules that have multiple entry points on all major GPU vendors.
+			// On AMD for instance creating a graphics pipeline just fails with a generic VK_ERROR_OUT_OF_HOST_MEMORY. On NVIDIA artifacts occur on some driver versions.
+			// To work around these problems, create a separate shader module for every entry point and rewrite the SPIR-V module for each to removes all but a single entry point (and associated functions/variables).
+			for (size_t i = 0; i < effect_module.entry_points.size() && res == VK_SUCCESS; ++i)
 			{
-				const uint32_t op = spirv[inst] & 0xFFFF;
-				const uint32_t len = (spirv[inst] >> 16) & 0xFFFF;
-				assert(len != 0);
+				const reshadefx::entry_point &entry_point = effect_module.entry_points[i];
 
-				switch (op)
+				uint32_t current_function = 0, current_function_offset = 0;
+				std::vector<uint32_t> spirv = effect_module.spirv;
+				std::vector<uint32_t> functions_to_remove, variables_to_remove;
+
+				for (uint32_t inst = 5 /* Skip SPIR-V header information */; inst < spirv.size();)
 				{
-				case 15: // OpEntryPoint
-					// Look for any non-matching entry points
-					if (entry_point.name != reinterpret_cast<const char *>(&spirv[inst + 3]))
-					{
-						functions_to_remove.push_back(spirv[inst + 2]);
+					const uint32_t op = spirv[inst] & 0xFFFF;
+					const uint32_t len = (spirv[inst] >> 16) & 0xFFFF;
+					assert(len != 0);
 
-						// Get interface variables
-						for (size_t k = inst + 3 + ((strlen(reinterpret_cast<const char *>(&spirv[inst + 3])) + 4) / 4); k < inst + len; ++k)
-							variables_to_remove.push_back(spirv[k]);
+					switch (op)
+					{
+					case 15: // OpEntryPoint
+						// Look for any non-matching entry points
+						if (entry_point.name != reinterpret_cast<const char *>(&spirv[inst + 3]))
+						{
+							functions_to_remove.push_back(spirv[inst + 2]);
 
-						// Remove this entry point from the module
-						spirv.erase(spirv.begin() + inst, spirv.begin() + inst + len);
-						continue;
+							// Get interface variables
+							for (size_t k = inst + 3 + ((strlen(reinterpret_cast<const char *>(&spirv[inst + 3])) + 4) / 4); k < inst + len; ++k)
+								variables_to_remove.push_back(spirv[k]);
+
+							// Remove this entry point from the module
+							spirv.erase(spirv.begin() + inst, spirv.begin() + inst + len);
+							continue;
+						}
+						break;
+					case 16: // OpExecutionMode
+						if (std::find(functions_to_remove.begin(), functions_to_remove.end(), spirv[inst + 1]) != functions_to_remove.end())
+						{
+							spirv.erase(spirv.begin() + inst, spirv.begin() + inst + len);
+							continue;
+						}
+						break;
+					case 59: // OpVariable
+						// Remove all declarations of the interface variables for non-matching entry points
+						if (std::find(variables_to_remove.begin(), variables_to_remove.end(), spirv[inst + 2]) != variables_to_remove.end())
+						{
+							spirv.erase(spirv.begin() + inst, spirv.begin() + inst + len);
+							continue;
+						}
+						break;
+					case 71: // OpDecorate
+						// Remove all decorations targeting any of the interface variables for non-matching entry points
+						if (std::find(variables_to_remove.begin(), variables_to_remove.end(), spirv[inst + 1]) != variables_to_remove.end())
+						{
+							spirv.erase(spirv.begin() + inst, spirv.begin() + inst + len);
+							continue;
+						}
+						break;
+					case 54: // OpFunction
+						current_function = spirv[inst + 2];
+						current_function_offset = inst;
+						break;
+					case 56: // OpFunctionEnd
+						// Remove all function definitions for non-matching entry points
+						if (std::find(functions_to_remove.begin(), functions_to_remove.end(), current_function) != functions_to_remove.end())
+						{
+							spirv.erase(spirv.begin() + current_function_offset, spirv.begin() + inst + len);
+							inst = current_function_offset;
+							continue;
+						}
+						break;
 					}
-					break;
-				case 16: // OpExecutionMode
-					if (std::find(functions_to_remove.begin(), functions_to_remove.end(), spirv[inst + 1]) != functions_to_remove.end())
-					{
-						spirv.erase(spirv.begin() + inst, spirv.begin() + inst + len);
-						continue;
-					}
-					break;
-				case 59: // OpVariable
-					// Remove all declarations of the interface variables for non-matching entry points
-					if (std::find(variables_to_remove.begin(), variables_to_remove.end(), spirv[inst + 2]) != variables_to_remove.end())
-					{
-						spirv.erase(spirv.begin() + inst, spirv.begin() + inst + len);
-						continue;
-					}
-					break;
-				case 71: // OpDecorate
-					// Remove all decorations targeting any of the interface variables for non-matching entry points
-					if (std::find(variables_to_remove.begin(), variables_to_remove.end(), spirv[inst + 1]) != variables_to_remove.end())
-					{
-						spirv.erase(spirv.begin() + inst, spirv.begin() + inst + len);
-						continue;
-					}
-					break;
-				case 54: // OpFunction
-					current_function = spirv[inst + 2];
-					current_function_offset = inst;
-					break;
-				case 56: // OpFunctionEnd
-					// Remove all function definitions for non-matching entry points
-					if (std::find(functions_to_remove.begin(), functions_to_remove.end(), current_function) != functions_to_remove.end())
-					{
-						spirv.erase(spirv.begin() + current_function_offset, spirv.begin() + inst + len);
-						inst = current_function_offset;
-						continue;
-					}
-					break;
+
+					inst += len;
 				}
 
-				inst += len;
+				VkShaderModuleCreateInfo create_info { VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
+				create_info.codeSize = spirv.size() * sizeof(uint32_t);
+				create_info.pCode = spirv.data();
+
+				res = runtime->vk.CreateShaderModule(runtime->_device, &create_info, nullptr, &list.emplace_back());
+
+				entry_points[entry_point.name] = list.back();
 			}
 
-			VkShaderModuleCreateInfo create_info { VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
-			create_info.codeSize = spirv.size() * sizeof(uint32_t);
-			create_info.pCode = spirv.data();
+			if (res != VK_SUCCESS)
+			{
+				LOG(ERROR) << "Failed to create shader module! Vulkan error code is " << res << '.';
+				return;
+			}
 
-			res = vk.CreateShaderModule(_device, &create_info, nullptr, &shader_modules.emplace_back(_device, vk));
-
-			entry_points[entry_point.name] = shader_modules.back();
+			loaded = true;
 		}
-
-		if (res != VK_SUCCESS)
+		~shader_modules()
 		{
-			LOG(ERROR) << "Failed to create shader module! Vulkan error code is " << res << '.';
-			return false;
+			for (const VkShaderModule module : list)
+				runtime->vk.DestroyShaderModule(runtime->_device, module, nullptr);
 		}
 	}
+	shader_modules(this, effect.module);
+	if (!shader_modules.loaded)
+		return false;
 
 	if (_effect_data.size() <= index)
 		_effect_data.resize(index + 1);
@@ -1116,7 +1133,7 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 				VkComputePipelineCreateInfo create_info { VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO };
 				create_info.stage = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
 				create_info.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-				create_info.stage.module = entry_points.at(pass_info.cs_entry_point);;
+				create_info.stage.module = shader_modules.entry_points.at(pass_info.cs_entry_point);;
 				create_info.stage.pName = pass_info.cs_entry_point.c_str();
 				create_info.stage.pSpecializationInfo = &spec_info;
 				create_info.layout = effect_data.pipeline_layout;
@@ -1319,12 +1336,12 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 				VkPipelineShaderStageCreateInfo stages[2];
 				stages[0] = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
 				stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
-				stages[0].module = entry_points.at(pass_info.vs_entry_point);
+				stages[0].module = shader_modules.entry_points.at(pass_info.vs_entry_point);
 				stages[0].pName = pass_info.vs_entry_point.c_str();
 				stages[0].pSpecializationInfo = &spec_info;
 				stages[1] = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
 				stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-				stages[1].module = entry_points.at(pass_info.ps_entry_point);
+				stages[1].module = shader_modules.entry_points.at(pass_info.ps_entry_point);
 				stages[1].pName = pass_info.ps_entry_point.c_str();
 				stages[1].pSpecializationInfo = &spec_info;
 
@@ -1695,7 +1712,7 @@ void reshade::vulkan::runtime_vk::upload_texture(const texture &texture, const u
 	assert(impl != nullptr && texture.semantic.empty() && pixels != nullptr);
 
 	// Allocate host memory for upload
-	vk_handle<VK_OBJECT_TYPE_BUFFER> intermediate(_device, vk);
+	VkBuffer intermediate = VK_NULL_HANDLE;
 	VmaAllocation intermediate_mem = VK_NULL_HANDLE;
 
 	{   VkBufferCreateInfo create_info { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
@@ -1757,7 +1774,7 @@ void reshade::vulkan::runtime_vk::upload_texture(const texture &texture, const u
 		execute_command_buffer();
 	}
 
-	vmaFreeMemory(_alloc, intermediate_mem);
+	vmaDestroyBuffer(_alloc, intermediate, intermediate_mem);
 }
 void reshade::vulkan::runtime_vk::destroy_texture(texture &texture)
 {
@@ -2086,8 +2103,8 @@ VkImage reshade::vulkan::runtime_vk::create_image(uint32_t width, uint32_t heigh
 	alloc_info.flags = mem_flags;
 	alloc_info.usage = mem_usage;
 
-	vk_handle<VK_OBJECT_TYPE_IMAGE> ret(_device, vk);
-	const VkResult res = vmaCreateImage(_alloc, &create_info, &alloc_info, &ret, &alloc, nullptr);
+	VkImage image = VK_NULL_HANDLE;
+	const VkResult res = vmaCreateImage(_alloc, &create_info, &alloc_info, &image, &alloc, nullptr);
 	if (res != VK_SUCCESS)
 	{
 		LOG(ERROR) << "Failed to create image! Vulkan error code is " << res << '.';
@@ -2103,7 +2120,7 @@ VkImage reshade::vulkan::runtime_vk::create_image(uint32_t width, uint32_t heigh
 	else
 		_allocations.push_back(alloc);
 
-	return ret.release();
+	return image;
 }
 VkBuffer reshade::vulkan::runtime_vk::create_buffer(VkDeviceSize size,
 	VkBufferUsageFlags usage, VmaMemoryUsage mem_usage,
@@ -2124,8 +2141,8 @@ VkBuffer reshade::vulkan::runtime_vk::create_buffer(VkDeviceSize size,
 	if (mem_usage == VMA_MEMORY_USAGE_CPU_TO_GPU)
 		alloc_info.requiredFlags |= VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
 
-	vk_handle<VK_OBJECT_TYPE_BUFFER> ret(_device, vk);
-	const VkResult res = vmaCreateBuffer(_alloc, &create_info, &alloc_info, &ret, &alloc, nullptr);
+	VkBuffer buffer = VK_NULL_HANDLE;
+	const VkResult res = vmaCreateBuffer(_alloc, &create_info, &alloc_info, &buffer, &alloc, nullptr);
 	if (res != VK_SUCCESS)
 	{
 		LOG(ERROR) << "Failed to create buffer! Vulkan error code is " << res << '.';
@@ -2141,7 +2158,7 @@ VkBuffer reshade::vulkan::runtime_vk::create_buffer(VkDeviceSize size,
 	else
 		_allocations.push_back(alloc);
 
-	return ret.release();
+	return buffer;
 }
 VkImageView reshade::vulkan::runtime_vk::create_image_view(VkImage image, VkFormat format, uint32_t levels, VkImageAspectFlags aspect)
 {
@@ -2152,41 +2169,15 @@ VkImageView reshade::vulkan::runtime_vk::create_image_view(VkImage image, VkForm
 	create_info.components = { VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY };
 	create_info.subresourceRange = { aspect, 0, levels, 0, 1 };
 
-	vk_handle<VK_OBJECT_TYPE_IMAGE_VIEW> res(_device, vk);
-	check_result(vk.CreateImageView(_device, &create_info, nullptr, &res)) VK_NULL_HANDLE;
+	VkImageView view = VK_NULL_HANDLE;
+	check_result(vk.CreateImageView(_device, &create_info, nullptr, &view)) VK_NULL_HANDLE;
 
-	return res.release();
+	return view;
 }
 
 #if RESHADE_GUI
 bool reshade::vulkan::runtime_vk::init_imgui_resources()
 {
-	vk_handle<VK_OBJECT_TYPE_SHADER_MODULE> vs_module(_device, vk);
-	vk_handle<VK_OBJECT_TYPE_SHADER_MODULE> fs_module(_device, vk);
-
-	VkPipelineShaderStageCreateInfo stages[2];
-	stages[0] = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
-	stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
-	stages[0].pName = "main";
-	stages[1] = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
-	stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-	stages[1].pName = "main";
-
-	{   VkShaderModuleCreateInfo create_info { VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
-
-		const resources::data_resource vs = resources::load_data_resource(IDR_IMGUI_VS_SPIRV);
-		create_info.codeSize = vs.data_size;
-		create_info.pCode = static_cast<const uint32_t *>(vs.data);
-		check_result(vk.CreateShaderModule(_device, &create_info, nullptr, &vs_module)) false;
-		stages[0].module = vs_module;
-
-		const resources::data_resource ps = resources::load_data_resource(IDR_IMGUI_PS_SPIRV);
-		create_info.codeSize = ps.data_size;
-		create_info.pCode = static_cast<const uint32_t *>(ps.data);
-		check_result(vk.CreateShaderModule(_device, &create_info, nullptr, &fs_module)) false;
-		stages[1].module = fs_module;
-	}
-
 	{   VkSamplerCreateInfo create_info { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
 		create_info.magFilter = VK_FILTER_LINEAR;
 		create_info.minFilter = VK_FILTER_LINEAR;
@@ -2245,6 +2236,27 @@ bool reshade::vulkan::runtime_vk::init_imgui_resources()
 		create_info.pPushConstantRanges = push_constants;
 
 		check_result(vk.CreatePipelineLayout(_device, &create_info, nullptr, &_imgui.pipeline_layout)) false;
+	}
+
+	VkPipelineShaderStageCreateInfo stages[2];
+	stages[0] = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
+	stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+	stages[0].pName = "main";
+	stages[1] = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
+	stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+	stages[1].pName = "main";
+
+	{   VkShaderModuleCreateInfo create_info { VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
+
+		const resources::data_resource vs = resources::load_data_resource(IDR_IMGUI_VS_SPIRV);
+		create_info.codeSize = vs.data_size;
+		create_info.pCode = static_cast<const uint32_t *>(vs.data);
+		check_result(vk.CreateShaderModule(_device, &create_info, nullptr, &stages[0].module)) false;
+
+		const resources::data_resource ps = resources::load_data_resource(IDR_IMGUI_PS_SPIRV);
+		create_info.codeSize = ps.data_size;
+		create_info.pCode = static_cast<const uint32_t *>(ps.data);
+		check_result(vk.CreateShaderModule(_device, &create_info, nullptr, &stages[1].module)) vk.DestroyShaderModule(_device, stages[0].module, nullptr), false;
 	}
 
 	VkVertexInputBindingDescription binding_desc[1] = {};
@@ -2324,9 +2336,12 @@ bool reshade::vulkan::runtime_vk::init_imgui_resources()
 	create_info.layout = _imgui.pipeline_layout;
 	create_info.renderPass = _default_render_pass[0];
 
-	check_result(vk.CreateGraphicsPipelines(_device, VK_NULL_HANDLE, 1, &create_info, nullptr, &_imgui.pipeline)) false;
+	const VkResult res = vk.CreateGraphicsPipelines(_device, VK_NULL_HANDLE, 1, &create_info, nullptr, &_imgui.pipeline);
 
-	return true;
+	vk.DestroyShaderModule(_device, stages[0].module, nullptr);
+	vk.DestroyShaderModule(_device, stages[1].module, nullptr);
+
+	return res == VK_SUCCESS;
 }
 
 void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)

@@ -6,6 +6,11 @@
 #pragma once
 
 #include <vulkan/vk_layer.h>
+
+// Windows SDK headers define these, which breaks the dispatch table
+#undef CreateEvent
+#undef CreateSemaphore
+
 #include <vk_layer_dispatch_table.h>
 
 template <typename T>

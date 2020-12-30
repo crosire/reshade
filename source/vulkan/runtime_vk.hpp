@@ -6,13 +6,13 @@
 #pragma once
 
 #include "runtime.hpp"
-#include "vk_handle.hpp"
 #include "state_tracking.hpp"
 
 #pragma warning(push)
 #pragma warning(disable: 4100 4127 4324 4703) // Disable a bunch of warnings thrown by VMA code
 #include <vk_mem_alloc.h>
 #pragma warning(pop)
+#include <vk_layer_dispatch_table.h>
 
 namespace reshade::vulkan
 {

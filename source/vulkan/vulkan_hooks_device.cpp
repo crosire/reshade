@@ -5,8 +5,8 @@
 
 #include "dll_log.hpp"
 #include "hook_manager.hpp"
-#include "runtime_vk.hpp"
 #include "vulkan_hooks.hpp"
+#include "runtime_vk.hpp"
 #include "format_utils.hpp"
 #include "lockfree_table.hpp"
 
