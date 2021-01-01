@@ -206,7 +206,8 @@ static void init_reshade_runtime_d3d(T *&swapchain, UINT direct3d_version, const
 			if (!runtime->on_init(desc))
 				LOG(ERROR) << "Failed to initialize Direct3D 12 runtime environment on runtime " << runtime.get() << '!';
 
-			swapchain_proxy = new DXGISwapChain(command_queue.get(), swapchain3.get(), std::move(runtime));
+			// Have to create swap chain with the device instead of the command queue, so that 'IDXGISwapChain::GetDevice' works
+			swapchain_proxy = new DXGISwapChain(command_queue->_device, swapchain3.get(), std::move(runtime));
 		}
 		else
 		{

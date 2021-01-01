@@ -12,7 +12,7 @@
 
 struct D3D10Device;
 struct D3D11Device;
-struct D3D12CommandQueue;
+struct D3D12Device;
 namespace reshade { class runtime; }
 
 struct DECLSPEC_UUID("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8") DXGISwapChain : IDXGISwapChain4
@@ -21,7 +21,7 @@ struct DECLSPEC_UUID("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8") DXGISwapChain : IDX
 	DXGISwapChain(D3D10Device *device, IDXGISwapChain1 *original, const std::shared_ptr<reshade::runtime> &runtime);
 	DXGISwapChain(D3D11Device *device, IDXGISwapChain  *original, const std::shared_ptr<reshade::runtime> &runtime);
 	DXGISwapChain(D3D11Device *device, IDXGISwapChain1 *original, const std::shared_ptr<reshade::runtime> &runtime);
-	DXGISwapChain(D3D12CommandQueue *command_queue, IDXGISwapChain3 *original, const std::shared_ptr<reshade::runtime> &runtime);
+	DXGISwapChain(D3D12Device *device, IDXGISwapChain3 *original, const std::shared_ptr<reshade::runtime> &runtime);
 
 	DXGISwapChain(const DXGISwapChain &) = delete;
 	DXGISwapChain &operator=(const DXGISwapChain &) = delete;
@@ -93,7 +93,7 @@ struct DECLSPEC_UUID("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8") DXGISwapChain : IDX
 	LONG _ref = 1;
 	IDXGISwapChain *_orig;
 	unsigned int _interface_version;
-	com_ptr<IUnknown> _direct3d_object;
+	com_ptr<IUnknown> _direct3d_device;
 	const unsigned int _direct3d_version;
 	std::mutex _runtime_mutex;
 	std::shared_ptr<reshade::runtime> _runtime;
