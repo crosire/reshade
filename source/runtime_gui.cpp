@@ -898,7 +898,7 @@ void reshade::runtime::draw_gui()
 		// Some games setup ClipCursor with a tiny area which could make the cursor stay in that area instead of the whole window
 		ClipCursor(nullptr);
 	}
-	
+
 	if (ImDrawData *const draw_data = ImGui::GetDrawData();
 		draw_data != nullptr && draw_data->CmdListsCount != 0 && draw_data->TotalVtxCount != 0)
 		render_imgui_draw_data(draw_data);
