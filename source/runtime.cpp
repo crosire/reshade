@@ -576,9 +576,9 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 
 			if (texture.annotation_as_int("pooled") && texture.semantic.empty())
 			{
-				// Try to find another pooled texture to share with
+				// Try to find another pooled texture to share with (and do not share within the same effect)
 				if (const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
-					[&texture](const auto &item) { return item.annotation_as_int("pooled") && item.matches_description(texture); });
+					[&texture](const auto &item) { return item.annotation_as_int("pooled") && item.effect_index != texture.effect_index && item.matches_description(texture); });
 					existing_texture != _textures.end())
 				{
 					// Overwrite referenced texture in samplers with the pooled one
