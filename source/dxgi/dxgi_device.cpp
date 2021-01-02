@@ -75,9 +75,10 @@ ULONG   STDMETHODCALLTYPE DXGIDevice::AddRef()
 ULONG   STDMETHODCALLTYPE DXGIDevice::Release()
 {
 	const ULONG ref = InterlockedDecrement(&_ref);
-	const ULONG ref_orig = _orig->Release();
 	if (ref != 0)
-		return ref;
+		return _orig->Release(), ref;
+
+	const ULONG ref_orig = _orig->Release();
 	if (ref_orig > 1) // Verify internal reference count against one instead of zero because D3D device still holds a reference
 		LOG(WARN) << "Reference count for IDXGIDevice" << _interface_version << " object " << this << " is inconsistent.";
 

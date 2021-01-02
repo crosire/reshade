@@ -250,7 +250,7 @@ ULONG   STDMETHODCALLTYPE DXGISwapChain::Release()
 	_runtime.reset();
 	_direct3d_device.reset();
 
-	// Only release internal reference after the runtime has been reset, so any references it held are cleaned up at this point
+	// Only release internal reference after the runtime has been destroyed, so any references it held are cleaned up at this point
 	const ULONG ref_orig = _orig->Release();
 	if (ref_orig != 0) // Verify internal reference count
 		LOG(WARN) << "Reference count for IDXGISwapChain" << _interface_version << " object " << this << " is inconsistent.";

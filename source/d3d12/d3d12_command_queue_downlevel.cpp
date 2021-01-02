@@ -46,12 +46,13 @@ ULONG   STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Release()
 		return _orig->Release(), ref;
 
 	_runtime->on_reset();
+	_runtime.reset();
 
-	// Release any live references to depth buffers etc.
 	_device->_state.reset(true);
 
+	// Only release internal reference after the runtime has been destroyed, so any references it held are cleaned up at this point
 	const ULONG ref_orig = _orig->Release();
-	if (ref_orig > 2)
+	if (ref_orig > 1) // Verify internal reference count against one instead of zero because parent queue still holds a reference
 		LOG(WARN) << "Reference count for ID3D12CommandQueueDownlevel object " << this << " is inconsistent.";
 
 #if RESHADE_VERBOSE_LOG

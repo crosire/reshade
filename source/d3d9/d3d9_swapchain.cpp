@@ -94,6 +94,7 @@ ULONG   STDMETHODCALLTYPE Direct3DSwapChain9::Release()
 		_device->Release(); // Remove the reference that was added in 'Direct3DDevice9::CreateAdditionalSwapChain'
 	}
 
+	// Only release internal reference after the runtime has been destroyed, so any references it held are cleaned up at this point
 	const ULONG ref_orig = _orig->Release();
 	if (ref_orig != 0) // Verify internal reference count
 		LOG(WARN) << "Reference count for IDirect3DSwapChain9" << (_extended_interface ? "Ex" : "") << " object " << this << " is inconsistent.";

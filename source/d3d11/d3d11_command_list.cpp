@@ -47,9 +47,10 @@ ULONG   STDMETHODCALLTYPE D3D11CommandList::AddRef()
 ULONG   STDMETHODCALLTYPE D3D11CommandList::Release()
 {
 	const ULONG ref = InterlockedDecrement(&_ref);
-	const ULONG ref_orig = _orig->Release();
 	if (ref != 0)
-		return ref;
+		return _orig->Release(), ref;
+
+	const ULONG ref_orig = _orig->Release();
 	if (ref_orig != 0)
 		LOG(WARN) << "Reference count for ID3D11CommandList object " << this << " is inconsistent.";
 

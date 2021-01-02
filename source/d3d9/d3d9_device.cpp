@@ -77,9 +77,10 @@ ULONG   STDMETHODCALLTYPE Direct3DDevice9::Release()
 		return _orig->Release(), ref;
 
 	// Release remaining references to this device
+	_implicit_swapchain->Release();
+
 	_state.reset(true);
 	_auto_depthstencil.reset();
-	_implicit_swapchain->Release();
 
 	const ULONG ref_orig = _orig->Release();
 	if (ref_orig != 0) // Verify internal reference count
