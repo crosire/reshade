@@ -1890,7 +1890,7 @@ void reshade::runtime::draw_gui_log()
 
 	if (ImGui::Button("Clear Log"))
 		// Close and open the stream again, which will clear the file too
-		log::open(log_path);
+		log::open_log_file(log_path);
 
 	ImGui::SameLine();
 	ImGui::Checkbox("Word Wrap", &_log_wordwrap);

@@ -133,7 +133,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 	g_target_executable_path = get_module_path(hInstance);
 	g_reshade_base_path = get_base_path();
 
-	reshade::log::open(g_reshade_base_path / g_reshade_dll_path.filename().replace_extension(L".log"));
+	reshade::log::open_log_file(g_reshade_base_path / g_reshade_dll_path.filename().replace_extension(L".log"));
 
 	reshade::hooks::register_module(L"user32.dll");
 
@@ -813,7 +813,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		g_target_executable_path = get_module_path(nullptr);
 		g_reshade_base_path = get_base_path(); // Needs to happen after DLL and executable path are set (since those are referenced in 'get_base_path')
 
-		reshade::log::open(g_reshade_base_path / g_reshade_dll_path.filename().replace_extension(L".log"));
+		reshade::log::open_log_file(g_reshade_base_path / g_reshade_dll_path.filename().replace_extension(L".log"));
 
 #  ifdef WIN64
 		LOG(INFO) << "Initializing crosire's ReShade version '" VERSION_STRING_FILE "' (64-bit) built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << g_reshade_dll_path << " into " << g_target_executable_path << " ...";
