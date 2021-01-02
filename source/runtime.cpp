@@ -551,7 +551,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 				{
 					effect.errors += "warning: " + texture.unique_name + ": another effect (";
 					effect.errors += _effects[existing_texture->effect_index].source_file.filename().u8string();
-					effect.errors += ") already created a texture with another image file\n";
+					effect.errors += ") already created a texture with a different image file\n";
 				}
 
 				if (existing_texture->semantic == "COLOR" && _color_bit_depth != 8)
@@ -686,7 +686,8 @@ void reshade::runtime::load_effects()
 
 	// Keep track of the spawned threads, so the runtime cannot be destroyed while they are still running
 	for (size_t n = 0; n < num_splits; ++n)
-		_worker_threads.emplace_back([this, effect_files, offset, num_splits, n, &preset]() {
+		// Create copy of preset instead of reference, so it stays valid even if 'ini_file::load_cache' is called while effects are still being loaded
+		_worker_threads.emplace_back([this, effect_files, offset, num_splits, n, preset]() {
 			// Abort loading when initialization state changes (indicating that 'on_reset' was called in the meantime)
 			for (size_t i = 0; i < effect_files.size() && _is_initialized; ++i)
 				if (i * num_splits / effect_files.size() == n)
