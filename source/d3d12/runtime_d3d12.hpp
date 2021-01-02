@@ -42,8 +42,6 @@ namespace reshade::d3d12
 		void execute_command_list() const;
 		bool wait_for_command_queue() const;
 
-		void set_debug_name(ID3D12Object *object, LPCWSTR name) const;
-
 		com_ptr<ID3D12RootSignature> create_root_signature(const D3D12_ROOT_SIGNATURE_DESC &desc) const;
 
 		state_tracking_context &_state_tracking;

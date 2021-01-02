@@ -25,6 +25,7 @@ namespace reshade::d3d12
 			draw_stats total_stats;
 			draw_stats current_stats; // Stats since last clear
 			std::vector<draw_stats> clears;
+			D3D12_RESOURCE_STATES current_state = D3D12_RESOURCE_STATE_COMMON;
 		};
 
 		void init(ID3D12Device *device, ID3D12GraphicsCommandList *cmd_list, const class state_tracking_context *context);
@@ -34,6 +35,7 @@ namespace reshade::d3d12
 
 		void on_draw(UINT vertices);
 #if RESHADE_DEPTH
+		void on_transition(const D3D12_RESOURCE_TRANSITION_BARRIER &transition);
 		void on_set_depthstencil(D3D12_CPU_DESCRIPTOR_HANDLE dsv);
 		void on_clear_depthstencil(D3D12_CLEAR_FLAGS clear_flags, D3D12_CPU_DESCRIPTOR_HANDLE dsv);
 #endif
