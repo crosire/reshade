@@ -128,7 +128,15 @@ set PATH=%PATH%;$(VC_ExecutablePath_x86)
 cl.exe /nologo /EP /C /I "$(SolutionDir)res" "$(ProjectDir)Properties\AssemblyInfo.cs.in" &gt; "$(ProjectDir)Properties\AssemblyInfo.cs"
 
 echo Compiling ReShade setup tool ...</PreBuildEvent>
-    <PostBuildEvent>echo Compressing ReShade DLLs ...
+    <PostBuildEvent Condition=" '$(Configuration)' == 'Debug' ">echo Compressing ReShade DLLs ...
+"$(SolutionDir)tools\7za.exe" a -y "$(TargetDir)ReShade Setup.zip" "$(SolutionDir)bin\Win32\Debug\ReShade32.dll" "$(SolutionDir)res\layers\ReShade32.json" "$(SolutionDir)bin\x64\Debug\ReShade64.dll" "$(SolutionDir)res\layers\ReShade64.json" &gt; nul
+
+echo Appending archive to setup executable ...
+copy /b "$(TargetPath)" + "$(TargetDir)ReShade Setup.zip" "$(TargetPath)"
+
+echo Cleaning up and deleting temporary archive ...
+del "$(TargetDir)ReShade Setup.zip"</PostBuildEvent>
+    <PostBuildEvent Condition=" '$(Configuration)' == 'Release' ">echo Compressing ReShade DLLs ...
 "$(SolutionDir)tools\7za.exe" a -y "$(TargetDir)ReShade Setup.zip" "$(SolutionDir)bin\Win32\Release\ReShade32.dll" "$(SolutionDir)res\layers\ReShade32.json" "$(SolutionDir)bin\x64\Release\ReShade64.dll" "$(SolutionDir)res\layers\ReShade64.json" &gt; nul
 
 echo Appending archive to setup executable ...
@@ -139,7 +147,7 @@ del "$(TargetDir)ReShade Setup.zip"
 
 echo Signing executable ...
 set PATH=%PATH%;$(WindowsSDK_ExecutablePath)
-if exist "$(SolutionDir)res\sign.pfx" signtool.exe sign /f "$(SolutionDir)res\sign.pfx" /t http://timestamp.verisign.com/scripts/timstamp.dll "$(TargetPath)"</PostBuildEvent>
+if exist "$(SolutionDir)res\sign.pfx" signtool.exe sign /f "$(SolutionDir)res\sign.pfx" /t http://timestamp.digicert.com "$(TargetPath)"</PostBuildEvent>
     <RunPostBuildEvent>OnBuildSuccess</RunPostBuildEvent>
   </PropertyGroup>
 </Project>
