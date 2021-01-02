@@ -1926,7 +1926,8 @@ void reshade::runtime::draw_gui_log()
 				_log_lines.push_back("Log was truncated to reduce memory footprint!");
 		}
 
-		ImGuiListClipper clipper(static_cast<int>(_log_lines.size()), ImGui::GetTextLineHeightWithSpacing());
+		ImGuiListClipper clipper;
+		clipper.Begin(static_cast<int>(_log_lines.size()), ImGui::GetTextLineHeightWithSpacing());
 		while (clipper.Step())
 		{
 			for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i)
