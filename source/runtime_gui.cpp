@@ -1336,7 +1336,14 @@ void reshade::runtime::draw_gui_settings()
 		modified |= widgets::path_list("Effect search paths", _effect_search_paths, _file_selection_path, g_reshade_base_path);
 		modified |= widgets::path_list("Texture search paths", _texture_search_paths, _file_selection_path, g_reshade_base_path);
 
-		modified |= ImGui::Checkbox("Load only enabled effects", &_effect_load_skipping);
+		if (ImGui::Checkbox("Load only enabled effects", &_effect_load_skipping))
+		{
+			modified = true;
+
+			// Force load all effects in case some where skipped after load skipping was disabled
+			_load_option_disable_skipping = !_effect_load_skipping;
+			reload_effects();
+		}
 
 		if (ImGui::Button("Clear effect cache", ImVec2(ImGui::CalcItemWidth(), 0)))
 		{
