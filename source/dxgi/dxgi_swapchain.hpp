@@ -5,10 +5,9 @@
 
 #pragma once
 
-#include <mutex>
-#include <memory>
 #include <dxgi1_5.h>
-#include "com_ptr.hpp"
+#include <mutex>
+#include <memory> // std::shared_ptr
 
 struct D3D10Device;
 struct D3D11Device;
@@ -93,7 +92,7 @@ struct DECLSPEC_UUID("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8") DXGISwapChain : IDX
 	LONG _ref = 1;
 	IDXGISwapChain *_orig;
 	unsigned int _interface_version;
-	com_ptr<IUnknown> _direct3d_device;
+	IUnknown *const _direct3d_device;
 	const unsigned int _direct3d_version;
 	std::mutex _runtime_mutex;
 	std::shared_ptr<reshade::runtime> _runtime;

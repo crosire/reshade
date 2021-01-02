@@ -6,6 +6,7 @@
 #pragma once
 
 #include <D3D12Downlevel.h>
+#include <memory> // std::shared_ptr
 
 struct D3D12CommandQueue;
 namespace reshade::d3d12 { class runtime_d3d12; }

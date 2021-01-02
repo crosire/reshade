@@ -12,7 +12,6 @@
 #include "d3d11/runtime_d3d11.hpp"
 #include "d3d12/d3d12_device.hpp"
 #include "d3d12/runtime_d3d12.hpp"
-#include <algorithm>
 
 extern UINT query_device(IUnknown *&device, com_ptr<IUnknown> &device_proxy);
 
@@ -21,42 +20,48 @@ thread_local bool g_in_dxgi_runtime = false;
 DXGISwapChain::DXGISwapChain(D3D10Device *device, IDXGISwapChain  *original, const std::shared_ptr<reshade::runtime> &runtime) :
 	_orig(original),
 	_interface_version(0),
-	_direct3d_device(device, false), // Explicitly add a reference to the device
+	_direct3d_device(device),
 	_direct3d_version(10),
 	_runtime(runtime) {
 	assert(_orig != nullptr && _direct3d_device != nullptr && _runtime != nullptr);
+	// Explicitly add a reference to the device, to ensure it stays valid for the lifetime of this swap chain object
+	_direct3d_device->AddRef();
 }
 DXGISwapChain::DXGISwapChain(D3D10Device *device, IDXGISwapChain1 *original, const std::shared_ptr<reshade::runtime> &runtime) :
 	_orig(original),
 	_interface_version(1),
-	_direct3d_device(device, false),
+	_direct3d_device(device),
 	_direct3d_version(10),
 	_runtime(runtime) {
 	assert(_orig != nullptr && _direct3d_device != nullptr && _runtime != nullptr);
+	_direct3d_device->AddRef();
 }
 DXGISwapChain::DXGISwapChain(D3D11Device *device, IDXGISwapChain  *original, const std::shared_ptr<reshade::runtime> &runtime) :
 	_orig(original),
 	_interface_version(0),
-	_direct3d_device(device, false),
+	_direct3d_device(device),
 	_direct3d_version(11),
 	_runtime(runtime) {
 	assert(_orig != nullptr && _direct3d_device != nullptr && _runtime != nullptr);
+	_direct3d_device->AddRef();
 }
 DXGISwapChain::DXGISwapChain(D3D11Device *device, IDXGISwapChain1 *original, const std::shared_ptr<reshade::runtime> &runtime) :
 	_orig(original),
 	_interface_version(1),
-	_direct3d_device(device, false),
+	_direct3d_device(device),
 	_direct3d_version(11),
 	_runtime(runtime) {
 	assert(_orig != nullptr && _direct3d_device != nullptr && _runtime != nullptr);
+	_direct3d_device->AddRef();
 }
 DXGISwapChain::DXGISwapChain(D3D12Device *device, IDXGISwapChain3 *original, const std::shared_ptr<reshade::runtime> &runtime) :
 	_orig(original),
 	_interface_version(3),
-	_direct3d_device(device, false),
+	_direct3d_device(device),
 	_direct3d_version(12),
 	_runtime(runtime) {
 	assert(_orig != nullptr && _direct3d_device != nullptr && _runtime != nullptr);
+	_direct3d_device->AddRef();
 }
 
 void DXGISwapChain::runtime_reset()
@@ -115,21 +120,18 @@ void DXGISwapChain::runtime_present(UINT flags)
 
 	switch (_direct3d_version)
 	{
-	case 10: {
-		const auto device = static_cast<D3D10Device *>(_direct3d_device.get());
+	case 10:
 		std::static_pointer_cast<reshade::d3d10::runtime_d3d10>(_runtime)->on_present();
-		device->_state.reset(false);
-		break; }
-	case 11: {
-		const auto device = static_cast<D3D11Device *>(_direct3d_device.get());
+		static_cast<D3D10Device *>(_direct3d_device)->_state.reset(false);
+		break;
+	case 11:
 		std::static_pointer_cast<reshade::d3d11::runtime_d3d11>(_runtime)->on_present();
-		device->_immediate_context->_state.reset(false);
-		break; }
-	case 12: {
-		const auto device = static_cast<D3D12Device *>(_direct3d_device.get());
+		static_cast<D3D11Device *>(_direct3d_device)->_immediate_context->_state.reset(false);
+		break;
+	case 12:
 		std::static_pointer_cast<reshade::d3d12::runtime_d3d12>(_runtime)->on_present();
-		device->_state.reset(false);
-		break; }
+		static_cast<D3D12Device *>(_direct3d_device)->_state.reset(false);
+		break;
 	}
 }
 
@@ -149,13 +151,13 @@ void DXGISwapChain::handle_runtime_loss(HRESULT hr)
 			switch (_direct3d_version)
 			{
 			case 10:
-				reason = static_cast<D3D10Device *>(_direct3d_device.get())->GetDeviceRemovedReason();
+				reason = static_cast<D3D10Device *>(_direct3d_device)->GetDeviceRemovedReason();
 				break;
 			case 11:
-				reason = static_cast<D3D11Device *>(_direct3d_device.get())->GetDeviceRemovedReason();
+				reason = static_cast<D3D11Device *>(_direct3d_device)->GetDeviceRemovedReason();
 				break;
 			case 12:
-				reason = static_cast<D3D12Device *>(_direct3d_device.get())->GetDeviceRemovedReason();
+				reason = static_cast<D3D12Device *>(_direct3d_device)->GetDeviceRemovedReason();
 				break;
 			}
 
@@ -235,20 +237,22 @@ ULONG   STDMETHODCALLTYPE DXGISwapChain::Release()
 	{
 	case 10:
 		std::static_pointer_cast<reshade::d3d10::runtime_d3d10>(_runtime)->on_reset();
-		static_cast<D3D10Device *>(_direct3d_device.get())->_state.reset(true);
+		static_cast<D3D10Device *>(_direct3d_device)->_state.reset(true);
 		break; 
 	case 11:
 		std::static_pointer_cast<reshade::d3d11::runtime_d3d11>(_runtime)->on_reset();
-		static_cast<D3D11Device *>(_direct3d_device.get())->_immediate_context->_state.reset(true);
+		static_cast<D3D11Device *>(_direct3d_device)->_immediate_context->_state.reset(true);
 		break;
 	case 12:
 		std::static_pointer_cast<reshade::d3d12::runtime_d3d12>(_runtime)->on_reset();
-		static_cast<D3D12Device *>(_direct3d_device.get())->_state.reset(true); // Release any live references to depth buffers etc.
+		static_cast<D3D12Device *>(_direct3d_device)->_state.reset(true); // Release any live references to depth buffers etc.
 		break;
 	}
 
 	_runtime.reset();
-	_direct3d_device.reset();
+
+	// Release the explicit reference to device that was added in the DXGISwapChain constructor above
+	_direct3d_device->Release();
 
 	// Only release internal reference after the runtime has been destroyed, so any references it held are cleaned up at this point
 	const ULONG ref_orig = _orig->Release();
