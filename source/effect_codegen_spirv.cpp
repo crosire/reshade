@@ -1858,16 +1858,57 @@ private:
 
 		add_location(loc, *_current_block_data);
 
-		spirv_instruction &inst = add_instruction(spv_op, convert_type(res_type));
-		inst.add(lhs); // Operand 1
-		inst.add(rhs); // Operand 2
+		// Binary operators generally only work on scalars and vectors in SPIR-V, so need to apply them to matrices component-wise
+		if (type.is_matrix() && type.rows != 1)
+		{
+			std::vector<spv::Id> ids;
+			ids.reserve(type.cols);
 
-		if (res_type.has(type::q_precise))
-			add_decoration(inst.result, spv::DecorationNoContraction);
-		if (!_enable_16bit_types && res_type.precision() < 32)
-			add_decoration(inst.result, spv::DecorationRelaxedPrecision);
+			auto vector_type = type;
+			vector_type.rows = type.cols;
+			vector_type.cols = 1;
 
-		return inst.result;
+			for (unsigned int row = 0; row < type.rows; ++row)
+			{
+				const spv::Id lhs_elem = add_instruction(spv::OpCompositeExtract, convert_type(vector_type))
+					.add(lhs)
+					.add(row)
+					.result;
+				const spv::Id rhs_elem = add_instruction(spv::OpCompositeExtract, convert_type(vector_type))
+					.add(rhs)
+					.add(row)
+					.result;
+
+				spirv_instruction &inst = add_instruction(spv_op, convert_type(vector_type));
+				inst.add(lhs_elem); // Operand 1
+				inst.add(rhs_elem); // Operand 2
+
+				if (res_type.has(type::q_precise))
+					add_decoration(inst.result, spv::DecorationNoContraction);
+				if (!_enable_16bit_types && res_type.precision() < 32)
+					add_decoration(inst.result, spv::DecorationRelaxedPrecision);
+
+				ids.push_back(inst.result);
+			}
+
+			spirv_instruction &inst = add_instruction(spv::OpCompositeConstruct, convert_type(res_type));
+			inst.add(ids.begin(), ids.end());
+
+			return inst.result;
+		}
+		else
+		{
+			spirv_instruction &inst = add_instruction(spv_op, convert_type(res_type));
+			inst.add(lhs); // Operand 1
+			inst.add(rhs); // Operand 2
+
+			if (res_type.has(type::q_precise))
+				add_decoration(inst.result, spv::DecorationNoContraction);
+			if (!_enable_16bit_types && res_type.precision() < 32)
+				add_decoration(inst.result, spv::DecorationRelaxedPrecision);
+
+			return inst.result;
+		}
 	}
 	id   emit_ternary_op(const location &loc, tokenid op, const type &type, id condition, id true_value, id false_value) override
 	{
@@ -1935,22 +1976,19 @@ private:
 		// There must be exactly one constituent for each top-level component of the result
 		if (type.is_matrix())
 		{
-			assert(type.rows == type.cols);
-
 			auto vector_type = type;
+			vector_type.rows = type.cols;
 			vector_type.cols = 1;
 
 			// Turn the list of scalar arguments into a list of column vectors
-			for (size_t arg = 0; arg < args.size(); arg += type.rows)
+			for (size_t arg = 0; arg < args.size(); arg += vector_type.rows)
 			{
 				spirv_instruction &inst = add_instruction(spv::OpCompositeConstruct, convert_type(vector_type));
-				for (unsigned row = 0; row < type.rows; ++row)
+				for (unsigned row = 0; row < vector_type.rows; ++row)
 					inst.add(args[arg + row].base);
 
 				ids.push_back(inst.result);
 			}
-
-			ids.erase(ids.begin() + type.cols, ids.end());
 		}
 		else
 		{
