@@ -8,9 +8,6 @@
 #include "d3d12_command_list.hpp"
 #include "d3d12_command_queue.hpp"
 #include "d3d12_command_queue_downlevel.hpp"
-#include <mutex>
-
-static std::mutex s_global_mutex;
 
 D3D12CommandQueue::D3D12CommandQueue(D3D12Device *device, ID3D12CommandQueue *original) :
 	_orig(original),
@@ -146,14 +143,11 @@ void    STDMETHODCALLTYPE D3D12CommandQueue::ExecuteCommandLists(UINT NumCommand
 		if (com_ptr<D3D12GraphicsCommandList> command_list_proxy;
 			SUCCEEDED(ppCommandLists[i]->QueryInterface(&command_list_proxy)))
 		{
-			// Lock here in case there are multiple command queues
-			const std::lock_guard<std::mutex> lock(s_global_mutex);
+			// Get original command list pointer from proxy object
+			command_lists[i] = command_list_proxy->_orig;
 
 			// Merge command list trackers into device one
 			_device->_state.merge(command_list_proxy->_state);
-
-			// Get original command list pointer from proxy object
-			command_lists[i] = command_list_proxy->_orig;
 		}
 		else
 		{

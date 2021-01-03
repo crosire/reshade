@@ -53,6 +53,11 @@ void reshade::d3d12::state_tracking_context::reset(bool release_resources)
 
 void reshade::d3d12::state_tracking::merge(const state_tracking &source)
 {
+	// Lock here when this was called from 'D3D12CommandQueue::ExecuteCommandLists' in case there are multiple command queues
+	std::unique_lock<std::mutex> lock(s_global_mutex, std::defer_lock);
+	if (_context == this)
+		lock.lock();
+
 	_stats.vertices += source._stats.vertices;
 	_stats.drawcalls += source._stats.drawcalls;
 
