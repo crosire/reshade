@@ -1029,6 +1029,16 @@ In that event here are some steps you can try to resolve this:
 			// Switch between installing to HKLM and HKCU based on check box value
 			if (checkbox.IsChecked.Value)
 			{
+				if (MessageBox.Show(
+					"Are you sure you want to enable ReShade in Vulkan globally?\n\n" +
+					"This will enable ReShade in ALL applications that make use of Vulkan for rendering! " +
+					"So if you later see ReShade in an application even though you did not explicitly install it there, this is why.\n" +
+					"You can disable this behavior again by running this setup tool and unchecking the checkbox you just clicked.", "Confirmation", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+				{
+					checkbox.IsChecked = false;
+					return;
+				}
+
 				DisableVulkanLayer(Registry.CurrentUser);
 				if (!EnableVulkanLayer(Registry.LocalMachine))
 				{
