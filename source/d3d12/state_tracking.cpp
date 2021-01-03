@@ -351,6 +351,7 @@ com_ptr<ID3D12Resource> reshade::d3d12::state_tracking_context::update_depth_tex
 		}
 	}
 
+	const bool has_changed = depthstencil_clear_index.first != best_match;
 	depthstencil_clear_index.first = best_match.get();
 
 	if (best_match == nullptr || !update_depthstencil_clear_texture(queue, best_match->GetDesc()))
@@ -360,30 +361,35 @@ com_ptr<ID3D12Resource> reshade::d3d12::state_tracking_context::update_depth_tex
 	{
 		_previous_stats = best_snapshot.current_stats;
 	}
-	else if (!best_snapshot.copied_due_to_aliasing)
+	else
 	{
-		const D3D12_RESOURCE_STATES state = best_snapshot.current_state != D3D12_RESOURCE_STATE_COMMON ? best_snapshot.current_state : D3D12_RESOURCE_STATE_DEPTH_WRITE;
-
-		if (state != D3D12_RESOURCE_STATE_COPY_SOURCE)
+		// Do not copy at end of frame if already copied due to aliasing, or it is not guaranteed that the resource is not aliased
+		const std::lock_guard<std::mutex> lock(s_global_mutex);
+		if (!best_snapshot.copied_due_to_aliasing && (!has_changed || _placed_depthstencil_resources.find(depthstencil_clear_index.first) == _placed_depthstencil_resources.end()))
 		{
-			D3D12_RESOURCE_BARRIER transition = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
-			transition.Transition.pResource = best_match.get();
-			transition.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-			transition.Transition.StateBefore = state;
-			transition.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
-			list->ResourceBarrier(1, &transition);
-		}
+			const D3D12_RESOURCE_STATES state = best_snapshot.current_state != D3D12_RESOURCE_STATE_COMMON ? best_snapshot.current_state : D3D12_RESOURCE_STATE_DEPTH_WRITE;
 
-		list->CopyResource(_context->_depthstencil_clear_texture.get(), best_match.get());
+			if (state != D3D12_RESOURCE_STATE_COPY_SOURCE)
+			{
+				D3D12_RESOURCE_BARRIER transition = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
+				transition.Transition.pResource = best_match.get();
+				transition.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+				transition.Transition.StateBefore = state;
+				transition.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
+				list->ResourceBarrier(1, &transition);
+			}
 
-		if (state != D3D12_RESOURCE_STATE_COPY_SOURCE)
-		{
-			D3D12_RESOURCE_BARRIER transition = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
-			transition.Transition.pResource = best_match.get();
-			transition.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-			transition.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_SOURCE;
-			transition.Transition.StateAfter = state;
-			list->ResourceBarrier(1, &transition);
+			list->CopyResource(_context->_depthstencil_clear_texture.get(), best_match.get());
+
+			if (state != D3D12_RESOURCE_STATE_COPY_SOURCE)
+			{
+				D3D12_RESOURCE_BARRIER transition = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
+				transition.Transition.pResource = best_match.get();
+				transition.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+				transition.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_SOURCE;
+				transition.Transition.StateAfter = state;
+				list->ResourceBarrier(1, &transition);
+			}
 		}
 	}
 
