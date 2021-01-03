@@ -101,10 +101,15 @@ namespace ReShade.Setup.Utilities
 			File.WriteAllText(path, text.ToString(), Encoding.UTF8);
 		}
 
+		public bool HasValue(string section)
+		{
+			return sections.ContainsKey(section);
+		}
 		public bool HasValue(string section, string key)
 		{
 			return sections.TryGetValue(section, out var sectionData) && sectionData.ContainsKey(key);
 		}
+
 		public bool GetValue(string section, string key, out string[] value)
 		{
 			if (!sections.TryGetValue(section, out var sectionData))
@@ -119,7 +124,7 @@ namespace ReShade.Setup.Utilities
 		{
 			if (!sections.TryGetValue(section, out var sectionData))
 			{
-				if (value is null)
+				if (value == null)
 				{
 					// Do not add null value if it does not exist yet
 					return;
@@ -133,14 +138,37 @@ namespace ReShade.Setup.Utilities
 
 		public void RenameValue(string section, string key, string newKey)
 		{
-			SetValue(section, newKey, GetString(section, newKey));
+			var value = GetString(section, key);
+			if (value != null)
+			{
+				SetValue(section, newKey, value);
+				RemoveValue(section, key);
+			}
 		}
 		public void RenameValue(string section, string key, string newSection, string newKey)
 		{
-			SetValue(newSection, newKey, GetString(section, newKey));
+			var value = GetString(section, key);
+			if (value != null)
+			{
+				SetValue(newSection, newKey, value);
+				RemoveValue(section, key);
+			}
 		}
 
-		public string GetString(string section, string key, string defaultValue = default)
+		public void RemoveValue(string section, string key)
+		{
+			if (sections.TryGetValue(section, out var sectionData))
+			{
+				sectionData.Remove(key);
+
+				if (sectionData.Count == 0)
+				{
+					sections.Remove(section);
+				}
+			}
+		}
+
+		public string GetString(string section, string key, string defaultValue = null)
 		{
 			return GetValue(section, key, out var value) ? string.Join(",", value) : defaultValue;
 		}

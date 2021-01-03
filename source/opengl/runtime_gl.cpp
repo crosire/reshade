@@ -102,24 +102,24 @@ reshade::opengl::runtime_gl::runtime_gl()
 	subscribe_to_load_config([this](const ini_file &config) {
 		// Reserve a fixed amount of texture names by default to work around issues in old OpenGL games (which will use a compatibility context)
 		auto num_reserve_texture_names = _compatibility_context ? 512u : 0u;
-		config.get("OPENGL", "ReserveTextureNames", num_reserve_texture_names);
+		config.get("APP", "ReserveTextureNames", num_reserve_texture_names);
 		_reserved_texture_names.resize(num_reserve_texture_names);
 
 #if RESHADE_DEPTH
 		auto force_default_depth_override = false;
-		config.get("OPENGL", "ForceMainDepthBuffer", force_default_depth_override);
-		config.get("OPENGL", "DepthCopyBeforeClears", _state_tracking.preserve_depth_buffers);
-		config.get("OPENGL", "DepthCopyAtClearIndex", _state_tracking.depthstencil_clear_index.second);
-		config.get("OPENGL", "UseAspectRatioHeuristics", _state_tracking.use_aspect_ratio_heuristics);
+		config.get("DEPTH", "ForceMainDepthBuffer", force_default_depth_override);
+		config.get("DEPTH", "DepthCopyBeforeClears", _state_tracking.preserve_depth_buffers);
+		config.get("DEPTH", "DepthCopyAtClearIndex", _state_tracking.depthstencil_clear_index.second);
+		config.get("DEPTH", "UseAspectRatioHeuristics", _state_tracking.use_aspect_ratio_heuristics);
 
 		if (force_default_depth_override)
 			_depth_source_override = 0; // Zero has a special meaning and corresponds to the default depth buffer
 	});
 	subscribe_to_save_config([this](ini_file &config) {
-		config.set("OPENGL", "ForceMainDepthBuffer", _depth_source_override == 0);
-		config.set("OPENGL", "DepthCopyBeforeClears", _state_tracking.preserve_depth_buffers);
-		config.set("OPENGL", "DepthCopyAtClearIndex", _state_tracking.depthstencil_clear_index.second);
-		config.set("OPENGL", "UseAspectRatioHeuristics", _state_tracking.use_aspect_ratio_heuristics);
+		config.set("DEPTH", "ForceMainDepthBuffer", _depth_source_override == 0);
+		config.set("DEPTH", "DepthCopyBeforeClears", _state_tracking.preserve_depth_buffers);
+		config.set("DEPTH", "DepthCopyAtClearIndex", _state_tracking.depthstencil_clear_index.second);
+		config.set("DEPTH", "UseAspectRatioHeuristics", _state_tracking.use_aspect_ratio_heuristics);
 #endif
 	});
 

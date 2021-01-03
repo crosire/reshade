@@ -78,19 +78,19 @@ reshade::d3d9::runtime_d3d9::runtime_d3d9(IDirect3DDevice9 *device, IDirect3DSwa
 #endif
 #if RESHADE_DEPTH
 	subscribe_to_load_config([this](const ini_file &config) {
-		config.get("D3D9", "DisableINTZ", _disable_intz);
-		config.get("D3D9", "DepthCopyBeforeClears", _state_tracking.preserve_depth_buffers);
-		config.get("D3D9", "DepthCopyAtClearIndex", _state_tracking.depthstencil_clear_index);
-		config.get("D3D9", "UseAspectRatioHeuristics", _state_tracking.use_aspect_ratio_heuristics);
+		config.get("DEPTH", "DisableINTZ", _disable_intz);
+		config.get("DEPTH", "DepthCopyBeforeClears", _state_tracking.preserve_depth_buffers);
+		config.get("DEPTH", "DepthCopyAtClearIndex", _state_tracking.depthstencil_clear_index);
+		config.get("DEPTH", "UseAspectRatioHeuristics", _state_tracking.use_aspect_ratio_heuristics);
 
 		if (_state_tracking.depthstencil_clear_index == std::numeric_limits<UINT>::max())
 			_state_tracking.depthstencil_clear_index  = 0;
 	});
 	subscribe_to_save_config([this](ini_file &config) {
-		config.set("D3D9", "DisableINTZ", _disable_intz);
-		config.set("D3D9", "DepthCopyBeforeClears", _state_tracking.preserve_depth_buffers);
-		config.set("D3D9", "DepthCopyAtClearIndex", _state_tracking.depthstencil_clear_index);
-		config.set("D3D9", "UseAspectRatioHeuristics", _state_tracking.use_aspect_ratio_heuristics);
+		config.set("DEPTH", "DisableINTZ", _disable_intz);
+		config.set("DEPTH", "DepthCopyBeforeClears", _state_tracking.preserve_depth_buffers);
+		config.set("DEPTH", "DepthCopyAtClearIndex", _state_tracking.depthstencil_clear_index);
+		config.set("DEPTH", "UseAspectRatioHeuristics", _state_tracking.use_aspect_ratio_heuristics);
 	});
 #endif
 }

@@ -566,7 +566,7 @@ In that event here are some steps you can try to resolve this:
 						if (match.Success && int.TryParse(match.Groups[1].Value, out int year))
 						{
 							// Modern games usually use reversed depth
-							depthReversed = year >= 2012 ? "1" : "0";
+							depthReversed = (year >= 2012) ? "1" : "0";
 						}
 					}
 				}
@@ -580,17 +580,11 @@ In that event here are some steps you can try to resolve this:
 				if (compatibilityIni.HasValue(targetName, "DepthCopyBeforeClears") ||
 					compatibilityIni.HasValue(targetName, "UseAspectRatioHeuristics"))
 				{
-					string renderApi = compatibilityIni.GetString(targetName, "RenderApi").ToUpper();
-					if (string.IsNullOrEmpty(renderApi) || renderApi == "DXGI")
-					{
-						renderApi = "D3D11"; // Default to D3D11
-					}
-
-					config.SetValue(renderApi, "DepthCopyBeforeClears", compatibilityIni.GetString(targetName, "DepthCopyBeforeClears", "0"));
-					config.SetValue(renderApi, "UseAspectRatioHeuristics", compatibilityIni.GetString(targetName, "UseAspectRatioHeuristics", "1"));
+					config.SetValue("DEPTH", "DepthCopyBeforeClears",
+						compatibilityIni.GetString(targetName, "DepthCopyBeforeClears", "0"));
+					config.SetValue("DEPTH", "UseAspectRatioHeuristics",
+						compatibilityIni.GetString(targetName, "UseAspectRatioHeuristics", "1"));
 				}
-
-				config.SaveFile();
 			}
 
 			// Update old configurations to new format
@@ -611,39 +605,104 @@ In that event here are some steps you can try to resolve this:
 				config.RenameValue("GENERAL", "TutorialProgress", "OVERLAY", "TutorialProgress");
 				config.RenameValue("GENERAL", "VariableUIHeight", "OVERLAY", "VariableListHeight");
 				config.RenameValue("GENERAL", "NewVariableUI", "OVERLAY", "VariableListUseTabs");
-
 				config.RenameValue("GENERAL", "ScreenshotFormat", "SCREENSHOT", "FileFormat");
 				config.RenameValue("GENERAL", "ScreenshotSaveBefore", "SCREENSHOT", "SaveBeforeShot");
 				config.RenameValue("GENERAL", "ScreenshotSaveUI", "SCREENSHOT", "SaveOverlayShot");
 				config.RenameValue("GENERAL", "ScreenshotPath", "SCREENSHOT", "SavePath");
 				config.RenameValue("GENERAL", "ScreenshotIncludePreset", "SCREENSHOT", "SavePresetFile");
-
-				config.RenameValue("DX9_BUFFER_DETECTION", "DisableINTZ", "D3D9", "DisableINTZ");
-				config.RenameValue("DX9_BUFFER_DETECTION", "PreserveDepthBuffer", "D3D9", "DepthCopyBeforeClears");
-				config.RenameValue("DX9_BUFFER_DETECTION", "PreserveDepthBufferIndex", "D3D9", "DepthCopyAtClearIndex");
-				config.RenameValue("DX9_BUFFER_DETECTION", "UseAspectRatioHeuristics", "D3D9", "UseAspectRatioHeuristics");
-				config.RenameValue("DX10_BUFFER_DETECTION", "DepthBufferRetrievalMode", "D3D10", "DepthCopyBeforeClears");
-				config.RenameValue("DX10_BUFFER_DETECTION", "DepthBufferClearingNumber", "D3D10", "DepthCopyAtClearIndex");
-				config.RenameValue("DX10_BUFFER_DETECTION", "UseAspectRatioHeuristics", "D3D10", "UseAspectRatioHeuristics");
-				config.RenameValue("DX11_BUFFER_DETECTION", "DepthBufferRetrievalMode", "D3D11", "DepthCopyBeforeClears");
-				config.RenameValue("DX11_BUFFER_DETECTION", "DepthBufferClearingNumber", "D3D11", "DepthCopyAtClearIndex");
-				config.RenameValue("DX11_BUFFER_DETECTION", "UseAspectRatioHeuristics", "D3D11", "UseAspectRatioHeuristics");
-				config.RenameValue("DX12_BUFFER_DETECTION", "DepthBufferRetrievalMode", "D3D12", "DepthCopyBeforeClears");
-				config.RenameValue("DX12_BUFFER_DETECTION", "DepthBufferClearingNumber", "D3D12", "DepthCopyAtClearIndex");
-				config.RenameValue("DX12_BUFFER_DETECTION", "UseAspectRatioHeuristics", "D3D12", "UseAspectRatioHeuristics");
-				config.RenameValue("VULKAN_BUFFER_DETECTION", "UseAspectRatioHeuristics", "VULKAN", "UseAspectRatioHeuristics");
-
-				config.SaveFile();
 			}
+
+			if (!config.HasValue("DEPTH"))
+			{
+				if (config.HasValue("D3D9"))
+				{
+					config.RenameValue("D3D9", "DisableINTZ", "DEPTH", "DisableINTZ");
+					config.RenameValue("D3D9", "DepthCopyBeforeClears", "DEPTH", "DepthCopyBeforeClears");
+					config.RenameValue("D3D9", "DepthCopyAtClearIndex", "DEPTH", "DepthCopyAtClearIndex");
+					config.RenameValue("D3D9", "UseAspectRatioHeuristics", "DEPTH", "UseAspectRatioHeuristics");
+				}
+				else if (config.HasValue("DX9_BUFFER_DETECTION"))
+				{
+					config.RenameValue("DX9_BUFFER_DETECTION", "DisableINTZ", "DEPTH", "DisableINTZ");
+					config.RenameValue("DX9_BUFFER_DETECTION", "PreserveDepthBuffer", "DEPTH", "DepthCopyBeforeClears");
+					config.RenameValue("DX9_BUFFER_DETECTION", "PreserveDepthBufferIndex", "DEPTH", "DepthCopyAtClearIndex");
+					config.RenameValue("DX9_BUFFER_DETECTION", "UseAspectRatioHeuristics", "DEPTH", "UseAspectRatioHeuristics");
+				}
+
+				if (config.HasValue("D3D10"))
+				{
+					config.RenameValue("D3D10", "DepthCopyBeforeClears", "DEPTH", "DepthCopyBeforeClears");
+					config.RenameValue("D3D10", "DepthCopyAtClearIndex", "DEPTH", "DepthCopyAtClearIndex");
+					config.RenameValue("D3D10", "UseAspectRatioHeuristics", "DEPTH", "UseAspectRatioHeuristics");
+				}
+				else if (config.HasValue("DX10_BUFFER_DETECTION"))
+				{
+					config.RenameValue("DX10_BUFFER_DETECTION", "DepthBufferRetrievalMode", "DEPTH", "DepthCopyBeforeClears");
+					config.RenameValue("DX10_BUFFER_DETECTION", "DepthBufferClearingNumber", "DEPTH", "DepthCopyAtClearIndex");
+					config.RenameValue("DX10_BUFFER_DETECTION", "UseAspectRatioHeuristics", "DEPTH", "UseAspectRatioHeuristics");
+				}
+
+				if (config.HasValue("D3D11"))
+				{
+					config.RenameValue("D3D11", "DepthCopyBeforeClears", "DEPTH", "DepthCopyBeforeClears");
+					config.RenameValue("D3D11", "DepthCopyAtClearIndex", "DEPTH", "DepthCopyAtClearIndex");
+					config.RenameValue("D3D11", "UseAspectRatioHeuristics", "DEPTH", "UseAspectRatioHeuristics");
+				}
+				else if (config.HasValue("DX11_BUFFER_DETECTION"))
+				{
+					config.RenameValue("DX11_BUFFER_DETECTION", "DepthBufferRetrievalMode", "DEPTH", "DepthCopyBeforeClears");
+					config.RenameValue("DX11_BUFFER_DETECTION", "DepthBufferClearingNumber", "DEPTH", "DepthCopyAtClearIndex");
+					config.RenameValue("DX11_BUFFER_DETECTION", "UseAspectRatioHeuristics", "DEPTH", "UseAspectRatioHeuristics");
+				}
+
+				if (config.HasValue("D3D12"))
+				{
+					config.RenameValue("D3D12", "DepthCopyBeforeClears", "DEPTH", "DepthCopyBeforeClears");
+					config.RenameValue("D3D12", "DepthCopyAtClearIndex", "DEPTH", "DepthCopyAtClearIndex");
+					config.RenameValue("D3D12", "UseAspectRatioHeuristics", "DEPTH", "UseAspectRatioHeuristics");
+				}
+				else if (config.HasValue("DX12_BUFFER_DETECTION"))
+				{
+					config.RenameValue("DX12_BUFFER_DETECTION", "DepthBufferRetrievalMode", "DEPTH", "DepthCopyBeforeClears");
+					config.RenameValue("DX12_BUFFER_DETECTION", "DepthBufferClearingNumber", "DEPTH", "DepthCopyAtClearIndex");
+					config.RenameValue("DX12_BUFFER_DETECTION", "UseAspectRatioHeuristics", "DEPTH", "UseAspectRatioHeuristics");
+				}
+
+				if (config.HasValue("OPENGL"))
+				{
+					config.RenameValue("OPENGL", "ReserveTextureNames", "APP", "ReserveTextureNames");
+					config.RenameValue("OPENGL", "UseAspectRatioHeuristics", "DEPTH", "UseAspectRatioHeuristics");
+				}
+
+				if (config.HasValue("VULKAN"))
+				{
+					config.RenameValue("VULKAN", "UseAspectRatioHeuristics", "DEPTH", "UseAspectRatioHeuristics");
+				}
+				else if (config.HasValue("VULKAN_BUFFER_DETECTION"))
+				{
+					config.RenameValue("VULKAN_BUFFER_DETECTION", "UseAspectRatioHeuristics", "DEPTH", "UseAspectRatioHeuristics");
+				}
+			}
+
+			if (!config.HasValue("SCREENSHOT"))
+			{
+				config.RenameValue("SCREENSHOTS", "FileFormat", "SCREENSHOT", "FileFormat");
+				config.RenameValue("SCREENSHOTS", "SaveBeforeShot", "SCREENSHOT", "SaveBeforeShot");
+				config.RenameValue("SCREENSHOTS", "SaveOverlayShot", "SCREENSHOT", "SaveOverlayShot");
+				config.RenameValue("SCREENSHOTS", "SavePath", "SCREENSHOT", "SavePath");
+				config.RenameValue("SCREENSHOTS", "SavePresetFile", "SCREENSHOT", "SavePresetFile");
+			}
+
 			if (config.HasValue("GENERAL", "CurrentPreset") && !config.HasValue("GENERAL", "PresetPath"))
 			{
 				if (config.GetValue("GENERAL", "PresetFiles", out string[] presetFiles) &&
 					int.TryParse(config.GetString("GENERAL", "CurrentPreset", "0"), out int presetIndex) && presetIndex < presetFiles.Length)
 				{
 					config.SetValue("GENERAL", "PresetPath", presetFiles[presetIndex]);
-					config.SaveFile();
 				}
 			}
+
+			config.SaveFile();
 
 			// Only show the selection dialog if there are actually packages to choose
 			if (!isHeadless && packagesIni != null && packagesIni.GetSections().Length != 0)

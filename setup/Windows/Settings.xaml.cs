@@ -38,7 +38,7 @@ namespace ReShade.Setup.Dialogs
 				(skipTut.Value ? "4" : "0") :
 				iniFile.GetString("OVERLAY", "TutorialProgress", "0"));
 
-			iniFile.SetValue("SCREENSHOTS", "SavePath", ScreenshotPath.Text);
+			iniFile.SetValue("SCREENSHOT", "SavePath", ScreenshotPath.Text);
 
 			iniFile.SaveFile();
 
@@ -60,7 +60,7 @@ namespace ReShade.Setup.Dialogs
 			Preset.Text = iniFile.GetString("GENERAL", "PresetPath");
 			EffectsPath.Text = iniFile.GetString("GENERAL", "EffectSearchPaths");
 			TexturesPath.Text = iniFile.GetString("GENERAL", "TextureSearchPaths");
-			ScreenshotPath.Text = iniFile.GetString("SCREENSHOTS", "SavePath");
+			ScreenshotPath.Text = iniFile.GetString("SCREENSHOT", "SavePath");
 
 			PerformanceMode.IsChecked = iniFile.GetString("GENERAL", "PerformanceMode") == "1";
 			ShowFps.IsChecked = iniFile.GetString("OVERLAY", "ShowFPS") == "1";

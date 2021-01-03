@@ -86,17 +86,17 @@ reshade::d3d11::runtime_d3d11::runtime_d3d11(ID3D11Device *device, IDXGISwapChai
 #endif
 #if RESHADE_DEPTH
 	subscribe_to_load_config([this](const ini_file &config) {
-		config.get("D3D11", "DepthCopyBeforeClears", _state_tracking.preserve_depth_buffers);
-		config.get("D3D11", "DepthCopyAtClearIndex", _state_tracking.depthstencil_clear_index.second);
-		config.get("D3D11", "UseAspectRatioHeuristics", _state_tracking.use_aspect_ratio_heuristics);
+		config.get("DEPTH", "DepthCopyBeforeClears", _state_tracking.preserve_depth_buffers);
+		config.get("DEPTH", "DepthCopyAtClearIndex", _state_tracking.depthstencil_clear_index.second);
+		config.get("DEPTH", "UseAspectRatioHeuristics", _state_tracking.use_aspect_ratio_heuristics);
 
 		if (_state_tracking.depthstencil_clear_index.second == std::numeric_limits<UINT>::max())
 			_state_tracking.depthstencil_clear_index.second  = 0;
 	});
 	subscribe_to_save_config([this](ini_file &config) {
-		config.set("D3D11", "DepthCopyBeforeClears", _state_tracking.preserve_depth_buffers);
-		config.set("D3D11", "DepthCopyAtClearIndex", _state_tracking.depthstencil_clear_index.second);
-		config.set("D3D11", "UseAspectRatioHeuristics", _state_tracking.use_aspect_ratio_heuristics);
+		config.set("DEPTH", "DepthCopyBeforeClears", _state_tracking.preserve_depth_buffers);
+		config.set("DEPTH", "DepthCopyAtClearIndex", _state_tracking.depthstencil_clear_index.second);
+		config.set("DEPTH", "UseAspectRatioHeuristics", _state_tracking.use_aspect_ratio_heuristics);
 	});
 #endif
 }
