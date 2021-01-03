@@ -7,6 +7,7 @@ setup \ MainWindow.xaml.cs
 and
 source \ runtime.cpp
 
+I will try to upload the newest launchers as soon as I see them.
 
 ## Building
 
