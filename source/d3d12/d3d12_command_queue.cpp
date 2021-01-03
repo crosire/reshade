@@ -135,6 +135,9 @@ void    STDMETHODCALLTYPE D3D12CommandQueue::CopyTileMappings(ID3D12Resource *pD
 }
 void    STDMETHODCALLTYPE D3D12CommandQueue::ExecuteCommandLists(UINT NumCommandLists, ID3D12CommandList *const *ppCommandLists)
 {
+	// The synchronization definition of 'ExecuteCommandLists' is equivalent to an aliasing barrier, see https://docs.microsoft.com/windows/win32/api/d3d12/nf-d3d12-id3d12device-createplacedresource#notes-on-the-aliasing-barrier
+	// TODO (need a command list for this): _device->_state.on_aliasing(D3D12_RESOURCE_ALIASING_BARRIER { nullptr, nullptr });
+
 	std::vector<ID3D12CommandList *> command_lists(NumCommandLists);
 	for (UINT i = 0; i < NumCommandLists; i++)
 	{

@@ -194,8 +194,15 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::ResourceBarrier(UINT NumBarrier
 #if RESHADE_DEPTH
 	for (UINT i = 0; i < NumBarriers; ++i)
 	{
-		if (pBarriers[i].Type == D3D12_RESOURCE_BARRIER_TYPE_TRANSITION)
+		switch (pBarriers[i].Type)
+		{
+		case D3D12_RESOURCE_BARRIER_TYPE_ALIASING:
+			_state.on_aliasing(pBarriers[i].Aliasing);
+			break;
+		case D3D12_RESOURCE_BARRIER_TYPE_TRANSITION:
 			_state.on_transition(pBarriers[i].Transition);
+			break;
+		}
 	}
 #endif
 	_orig->ResourceBarrier(NumBarriers, pBarriers);

@@ -248,7 +248,6 @@ ULONG   STDMETHODCALLTYPE DXGISwapChain::Release()
 		static_cast<D3D12Device *>(_direct3d_device)->_state.reset(true); // Release any live references to depth buffers etc.
 		break;
 	}
-
 	_runtime.reset();
 
 	// Release the explicit reference to device that was added in the DXGISwapChain constructor above
