@@ -652,7 +652,6 @@ void reshade::gui::code_editor::set_text(const std::string &text)
 	_lines.clear();
 	_lines.emplace_back();
 
-	_modified = false;
 	_undo.clear();
 	_undo_index = 0;
 	_errors.clear();
@@ -692,7 +691,6 @@ void reshade::gui::code_editor::insert_character(char c, bool auto_indent)
 {
 	if (_readonly)
 		return;
-	_modified = true;
 
 	undo_record u;
 

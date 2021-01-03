@@ -157,7 +157,7 @@ namespace reshade::gui
 		/// <summary>
 		/// Returns whether the user has modified the text since it was last set via <see cref="set_text"/>.
 		/// </summary>
-		bool is_modified() const { return _modified; }
+		bool is_modified() const { return !_undo.empty() && _undo_index != 0; }
 
 		/// <summary>
 		/// Adds an error to be displayed at the specified <paramref name="line"/>.
@@ -169,7 +169,7 @@ namespace reshade::gui
 		/// <summary>
 		/// Removes all displayed errors that were previously added via <see cref="add_error"/>.
 		/// </summary>
-		void clear_errors() { _modified = false; _errors.clear(); }
+		void clear_errors() { _errors.clear(); }
 
 		/// <summary>
 		/// Changes the read-only state of this text editor.
@@ -253,7 +253,6 @@ namespace reshade::gui
 		std::string _last_copy_string;
 		bool _last_copy_from_empty_selection = false;
 
-		bool _modified = false;
 		bool _in_undo_operation = false;
 		size_t _undo_index = 0;
 		std::vector<undo_record> _undo;
