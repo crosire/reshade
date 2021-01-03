@@ -791,6 +791,7 @@ void reshade::runtime::unload_effect(size_t effect_index)
 			return tech.effect_index == effect_index;
 		}), _techniques.end());
 
+	_effects[effect_index].rendering = 0;
 	// Do not clear effect here, since it is common to be re-used immediately
 }
 void reshade::runtime::unload_effects()
