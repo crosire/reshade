@@ -236,6 +236,8 @@ reshade::vulkan::runtime_vk::runtime_vk(VkDevice device, VkPhysicalDevice physic
 }
 reshade::vulkan::runtime_vk::~runtime_vk()
 {
+	on_reset();
+
 	vmaDestroyAllocator(_alloc);
 }
 

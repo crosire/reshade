@@ -131,6 +131,10 @@ reshade::opengl::runtime_gl::runtime_gl()
 		}, nullptr);
 #endif
 }
+reshade::opengl::runtime_gl::~runtime_gl()
+{
+	on_reset();
+}
 
 bool reshade::opengl::runtime_gl::on_init(HWND hwnd, unsigned int width, unsigned int height)
 {

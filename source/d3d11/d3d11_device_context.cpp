@@ -12,29 +12,40 @@ D3D11DeviceContext::D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext 
 	_orig(original),
 	_interface_version(0),
 	_device(device),
-	_state(original) {
+	_state(original)
+{
 	assert(_orig != nullptr && _device != nullptr);
+	if (device->_immediate_context == nullptr)
+		_state.init(_orig, &_state);
+	else
+		_state.init(_orig, &device->_immediate_context->_state);
 }
 D3D11DeviceContext::D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext1 *original) :
 	_orig(original),
 	_interface_version(1),
 	_device(device),
-	_state(original) {
+	_state(original)
+{
 	assert(_orig != nullptr && _device != nullptr);
+	_state.init(_orig, &device->_immediate_context->_state);
 }
 D3D11DeviceContext::D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext2 *original) :
 	_orig(original),
 	_interface_version(2),
 	_device(device),
-	_state(original) {
+	_state(original)
+{
 	assert(_orig != nullptr && _device != nullptr);
+	_state.init(_orig, &device->_immediate_context->_state);
 }
 D3D11DeviceContext::D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext3 *original) :
 	_orig(original),
 	_interface_version(3),
 	_device(device),
-	_state(original) {
+	_state(original)
+{
 	assert(_orig != nullptr && _device != nullptr);
+	_state.init(_orig, &device->_immediate_context->_state);
 }
 
 bool D3D11DeviceContext::check_and_upgrade_interface(REFIID riid)

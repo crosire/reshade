@@ -10,7 +10,8 @@
 D3D12GraphicsCommandList::D3D12GraphicsCommandList(D3D12Device *device, ID3D12GraphicsCommandList *original) :
 	_orig(original),
 	_interface_version(0),
-	_device(device) {
+	_device(device)
+{
 	assert(_orig != nullptr && _device != nullptr);
 }
 

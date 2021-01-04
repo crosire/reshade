@@ -6,7 +6,6 @@
 #pragma once
 
 #include <D3D12Downlevel.h>
-#include <memory> // std::shared_ptr
 
 struct D3D12CommandQueue;
 namespace reshade::d3d12 { class runtime_d3d12; }
@@ -28,6 +27,6 @@ struct DECLSPEC_UUID("98CF28C0-F383-487E-A61E-3A638FEE29BD") D3D12CommandQueueDo
 
 	ULONG _ref = 1;
 	ID3D12CommandQueueDownlevel *_orig;
-	D3D12Device *const _device;
-	std::unique_ptr<reshade::d3d12::runtime_d3d12> _runtime;
+	D3D12CommandQueue *const _queue;
+	reshade::d3d12::runtime_d3d12 *_runtime;
 };

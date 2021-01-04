@@ -93,15 +93,26 @@ reshade::d3d9::runtime_d3d9::runtime_d3d9(IDirect3DDevice9 *device, IDirect3DSwa
 		config.set("DEPTH", "UseAspectRatioHeuristics", _state_tracking.use_aspect_ratio_heuristics);
 	});
 #endif
+
+	if (!on_init())
+		LOG(ERROR) << "Failed to initialize Direct3D 9 runtime environment on runtime " << this << '!';
 }
 reshade::d3d9::runtime_d3d9::~runtime_d3d9()
 {
+	on_reset();
+
 	if (_d3d_compiler != nullptr)
 		FreeLibrary(_d3d_compiler);
 }
 
-bool reshade::d3d9::runtime_d3d9::on_init(const D3DPRESENT_PARAMETERS &pp)
+bool reshade::d3d9::runtime_d3d9::on_init()
 {
+	// Retrieve present parameters here, instead using the ones passed in during creation, to get correct values for 'BackBufferWidth' and 'BackBufferHeight'
+	// They may otherwise still be set to zero (which is valid for creation)
+	D3DPRESENT_PARAMETERS pp;
+	if (FAILED(_swapchain->GetPresentParameters(&pp)))
+		return false;
+
 	RECT window_rect = {};
 	GetClientRect(pp.hDeviceWindow, &window_rect);
 

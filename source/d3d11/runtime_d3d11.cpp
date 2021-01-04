@@ -60,7 +60,7 @@ reshade::d3d11::runtime_d3d11::runtime_d3d11(ID3D11Device *device, IDXGISwapChai
 
 	_device->GetImmediateContext(&_immediate_context);
 
-	_renderer_id = device->GetFeatureLevel();
+	_renderer_id = _device->GetFeatureLevel();
 
 	if (com_ptr<IDXGIDevice> dxgi_device;
 		SUCCEEDED(_device->QueryInterface(&dxgi_device)))
@@ -99,15 +99,24 @@ reshade::d3d11::runtime_d3d11::runtime_d3d11(ID3D11Device *device, IDXGISwapChai
 		config.set("DEPTH", "UseAspectRatioHeuristics", _state_tracking.use_aspect_ratio_heuristics);
 	});
 #endif
+
+	if (!on_init())
+		LOG(ERROR) << "Failed to initialize Direct3D 11 runtime environment on runtime " << this << '!';
 }
 reshade::d3d11::runtime_d3d11::~runtime_d3d11()
 {
+	on_reset();
+
 	if (_d3d_compiler != nullptr)
 		FreeLibrary(_d3d_compiler);
 }
 
-bool reshade::d3d11::runtime_d3d11::on_init(const DXGI_SWAP_CHAIN_DESC &swap_desc)
+bool reshade::d3d11::runtime_d3d11::on_init()
 {
+	DXGI_SWAP_CHAIN_DESC swap_desc;
+	if (FAILED(_swapchain->GetDesc(&swap_desc)))
+		return false;
+
 	RECT window_rect = {};
 	GetClientRect(swap_desc.OutputWindow, &window_rect);
 

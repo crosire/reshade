@@ -10,6 +10,7 @@
 #include "runtime_d3d12.hpp"
 #include "runtime_objects.hpp"
 #include "dxgi/format_utils.hpp"
+#include <CoreWindow.h>
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <d3dcompiler.h>
@@ -86,9 +87,9 @@ reshade::d3d12::runtime_d3d12::runtime_d3d12(ID3D12Device *device, ID3D12Command
 
 	// There is no swap chain in d3d12on7
 	if (com_ptr<IDXGIFactory4> factory;
-		swapchain != nullptr && SUCCEEDED(swapchain->GetParent(IID_PPV_ARGS(&factory))))
+		_swapchain != nullptr && SUCCEEDED(_swapchain->GetParent(IID_PPV_ARGS(&factory))))
 	{
-		const LUID luid = device->GetAdapterLuid();
+		const LUID luid = _device->GetAdapterLuid();
 
 		if (com_ptr<IDXGIAdapter> dxgi_adapter;
 			SUCCEEDED(factory->EnumAdapterByLuid(luid, IID_PPV_ARGS(&dxgi_adapter))))
@@ -124,13 +125,36 @@ reshade::d3d12::runtime_d3d12::runtime_d3d12(ID3D12Device *device, ID3D12Command
 		config.set("DEPTH", "UseAspectRatioHeuristics", _state_tracking.use_aspect_ratio_heuristics);
 	});
 #endif
+
+	if (_swapchain != nullptr && !on_init())
+		LOG(ERROR) << "Failed to initialize Direct3D 12 runtime environment on runtime " << this << '!';
 }
 reshade::d3d12::runtime_d3d12::~runtime_d3d12()
 {
+	on_reset();
+
 	if (_d3d_compiler != nullptr)
 		FreeLibrary(_d3d_compiler);
 }
 
+bool reshade::d3d12::runtime_d3d12::on_init()
+{
+	assert(_swapchain != nullptr);
+
+	DXGI_SWAP_CHAIN_DESC swap_desc;
+	// Get description from IDXGISwapChain interface, since later versions are slightly different
+	if (FAILED(_swapchain->GetDesc(&swap_desc)))
+		return false;
+
+	// Update window handle in swap chain description for UWP applications
+	if (HWND hwnd = nullptr; SUCCEEDED(_swapchain->GetHwnd(&hwnd)))
+		swap_desc.OutputWindow = hwnd;
+	else if (com_ptr<ICoreWindowInterop> window_interop; // Get window handle of the core window
+		SUCCEEDED(_swapchain->GetCoreWindow(IID_PPV_ARGS(&window_interop))) && SUCCEEDED(window_interop->get_WindowHandle(&hwnd)))
+		swap_desc.OutputWindow = hwnd;
+
+	return on_init(swap_desc);
+}
 bool reshade::d3d12::runtime_d3d12::on_init(const DXGI_SWAP_CHAIN_DESC &swap_desc)
 {
 	RECT window_rect = {};

@@ -16,6 +16,7 @@ namespace reshade::opengl
 	{
 	public:
 		runtime_gl();
+		~runtime_gl();
 
 		bool on_init(HWND hwnd, unsigned int width, unsigned int height);
 		void on_reset();

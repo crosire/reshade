@@ -17,7 +17,7 @@ namespace reshade::d3d10
 		runtime_d3d10(ID3D10Device1 *device, IDXGISwapChain *swapchain, state_tracking *state_tracking);
 		~runtime_d3d10();
 
-		bool on_init(const DXGI_SWAP_CHAIN_DESC &desc);
+		bool on_init();
 		void on_reset();
 		void on_present();
 

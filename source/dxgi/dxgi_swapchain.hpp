@@ -7,20 +7,19 @@
 
 #include <dxgi1_5.h>
 #include <mutex>
-#include <memory> // std::shared_ptr
 
 struct D3D10Device;
 struct D3D11Device;
-struct D3D12Device;
+struct D3D12CommandQueue;
 namespace reshade { class runtime; }
 
 struct DECLSPEC_UUID("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8") DXGISwapChain : IDXGISwapChain4
 {
-	DXGISwapChain(D3D10Device *device, IDXGISwapChain  *original, const std::shared_ptr<reshade::runtime> &runtime);
-	DXGISwapChain(D3D10Device *device, IDXGISwapChain1 *original, const std::shared_ptr<reshade::runtime> &runtime);
-	DXGISwapChain(D3D11Device *device, IDXGISwapChain  *original, const std::shared_ptr<reshade::runtime> &runtime);
-	DXGISwapChain(D3D11Device *device, IDXGISwapChain1 *original, const std::shared_ptr<reshade::runtime> &runtime);
-	DXGISwapChain(D3D12Device *device, IDXGISwapChain3 *original, const std::shared_ptr<reshade::runtime> &runtime);
+	DXGISwapChain(D3D10Device *device, IDXGISwapChain  *original);
+	DXGISwapChain(D3D10Device *device, IDXGISwapChain1 *original);
+	DXGISwapChain(D3D11Device *device, IDXGISwapChain  *original);
+	DXGISwapChain(D3D11Device *device, IDXGISwapChain1 *original);
+	DXGISwapChain(D3D12CommandQueue *command_queue, IDXGISwapChain3 *original);
 
 	DXGISwapChain(const DXGISwapChain &) = delete;
 	DXGISwapChain &operator=(const DXGISwapChain &) = delete;
@@ -95,7 +94,7 @@ struct DECLSPEC_UUID("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8") DXGISwapChain : IDX
 	IUnknown *const _direct3d_device;
 	const unsigned int _direct3d_version;
 	std::mutex _runtime_mutex;
-	std::shared_ptr<reshade::runtime> _runtime;
+	reshade::runtime *_runtime;
 	bool _force_vsync = false;
 	bool _force_10_bit_format = false;
 	unsigned int _force_resolution[2] = { 0, 0 };

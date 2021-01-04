@@ -11,7 +11,8 @@
 D3D10Device::D3D10Device(IDXGIDevice1 *dxgi_device, ID3D10Device1 *original) :
 	_orig(original),
 	_dxgi_device(new DXGIDevice(dxgi_device, this)),
-	_state(original) {
+	_state(original)
+{
 	assert(_orig != nullptr);
 }
 

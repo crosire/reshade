@@ -19,6 +19,7 @@ namespace reshade::d3d12
 		runtime_d3d12(ID3D12Device *device, ID3D12CommandQueue *queue, IDXGISwapChain3 *swapchain, state_tracking_context *state_tracking);
 		~runtime_d3d12();
 
+		bool on_init();
 		bool on_init(const DXGI_SWAP_CHAIN_DESC &desc);
 		void on_reset();
 		void on_present();

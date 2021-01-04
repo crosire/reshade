@@ -17,7 +17,7 @@ namespace reshade::d3d9
 		runtime_d3d9(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain, state_tracking *state_tracking);
 		~runtime_d3d9();
 
-		bool on_init(const D3DPRESENT_PARAMETERS &pp);
+		bool on_init();
 		void on_reset();
 		void on_present();
 

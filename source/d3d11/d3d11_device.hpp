@@ -12,7 +12,7 @@ struct D3D11DeviceContext;
 
 struct DECLSPEC_UUID("72299288-2C68-4AD8-945D-2BFB5AA9C609") D3D11Device : ID3D11Device5
 {
-	D3D11Device(IDXGIDevice1 *dxgi_device, ID3D11Device *original, ID3D11DeviceContext *immediate_context);
+	D3D11Device(IDXGIDevice1 *dxgi_device, ID3D11Device *original);
 
 	D3D11Device(const D3D11Device &) = delete;
 	D3D11Device &operator=(const D3D11Device &) = delete;
@@ -106,5 +106,5 @@ struct DECLSPEC_UUID("72299288-2C68-4AD8-945D-2BFB5AA9C609") D3D11Device : ID3D1
 	ID3D11Device *_orig;
 	unsigned int _interface_version;
 	DXGIDevice *const _dxgi_device;
-	D3D11DeviceContext *const _immediate_context;
+	D3D11DeviceContext *_immediate_context = nullptr;
 };

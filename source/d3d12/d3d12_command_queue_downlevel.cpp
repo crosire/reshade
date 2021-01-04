@@ -12,10 +12,10 @@
 
 D3D12CommandQueueDownlevel::D3D12CommandQueueDownlevel(D3D12CommandQueue *queue, ID3D12CommandQueueDownlevel *original) :
 	_orig(original),
-	_device(queue->_device) {
-	assert(_orig != nullptr);
-	_runtime = std::make_unique<reshade::d3d12::runtime_d3d12>(
-		_device->_orig, queue->_orig, nullptr, &_device->_state);
+	_queue(queue),
+	_runtime(new reshade::d3d12::runtime_d3d12(queue->_device->_orig, queue->_orig, nullptr, &queue->_device->_state))
+{
+	assert(_orig != nullptr && _queue != nullptr);
 }
 
 HRESULT STDMETHODCALLTYPE D3D12CommandQueueDownlevel::QueryInterface(REFIID riid, void **ppvObj)
@@ -45,10 +45,7 @@ ULONG   STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Release()
 	if (ref != 0)
 		return _orig->Release(), ref;
 
-	_runtime->on_reset();
-	_runtime.reset();
-
-	_device->_state.reset(true);
+	delete _runtime;
 
 	// Only release internal reference after the runtime has been destroyed, so any references it held are cleaned up at this point
 	const ULONG ref_orig = _orig->Release();
@@ -69,7 +66,7 @@ HRESULT STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Present(ID3D12GraphicsComm
 	_runtime->on_present(pSourceTex2D, hWindow);
 
 	// Clear current frame stats
-	_device->_state.reset(false);
+	_queue->_device->_state.reset(false);
 
 	// Get original command list pointer from proxy object
 	if (com_ptr<D3D12GraphicsCommandList> command_list_proxy;

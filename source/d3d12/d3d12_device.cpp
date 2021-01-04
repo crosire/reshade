@@ -12,7 +12,8 @@
 D3D12Device::D3D12Device(ID3D12Device *original) :
 	_orig(original),
 	_interface_version(0),
-	_state(original) {
+	_state(original)
+{
 	assert(_orig != nullptr);
 	_state.init(_orig, nullptr, &_state);
 }

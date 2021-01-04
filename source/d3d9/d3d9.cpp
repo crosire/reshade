@@ -8,7 +8,6 @@
 #include "hook_manager.hpp"
 #include "d3d9_device.hpp"
 #include "d3d9_swapchain.hpp"
-#include "runtime_d3d9.hpp"
 
 // These are defined in d3d9.h, but we want to use them as function names below
 #undef IDirect3D9_CreateDevice
@@ -115,7 +114,7 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, D3DDISPLAYMOD
 }
 
 template <typename T>
-static void init_runtime_d3d(T *&device, D3DDEVTYPE device_type, D3DPRESENT_PARAMETERS pp, bool use_software_rendering)
+static void init_device_proxy(T *&device, D3DDEVTYPE device_type, const D3DPRESENT_PARAMETERS &pp, bool use_software_rendering)
 {
 	// Enable software vertex processing if the application requested a software device
 	if (use_software_rendering)
@@ -140,17 +139,8 @@ static void init_runtime_d3d(T *&device, D3DDEVTYPE device_type, D3DPRESENT_PARA
 	device->GetSwapChain(0, &swapchain);
 	assert(swapchain != nullptr);
 
-	// Retrieve present parameters here again, to get correct values for 'BackBufferWidth' and 'BackBufferHeight'
-	// They may otherwise still be set to zero (which is valid for creation)
-	swapchain->GetPresentParameters(&pp);
-
 	const auto device_proxy = new Direct3DDevice9(device, use_software_rendering);
-
-	const auto runtime = std::make_shared<reshade::d3d9::runtime_d3d9>(device, swapchain, &device_proxy->_state);
-	if (!runtime->on_init(pp))
-		LOG(ERROR) << "Failed to initialize Direct3D 9 runtime environment on runtime " << runtime.get() << '!';
-
-	device_proxy->_implicit_swapchain = new Direct3DSwapChain9(device_proxy, swapchain, runtime);
+	device_proxy->_implicit_swapchain = new Direct3DSwapChain9(device_proxy, swapchain);
 
 	// Get and set depth-stencil surface so that the depth detection callbacks are called with the auto depth-stencil surface
 	if (pp.EnableAutoDepthStencil)
@@ -215,7 +205,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 		return hr;
 	}
 
-	init_runtime_d3d(*ppReturnedDeviceInterface, DeviceType, pp, use_software_rendering);
+	init_device_proxy(*ppReturnedDeviceInterface, DeviceType, pp, use_software_rendering);
 
 	return hr;
 }
@@ -267,7 +257,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 		return hr;
 	}
 
-	init_runtime_d3d(*ppReturnedDeviceInterface, DeviceType, pp, use_software_rendering);
+	init_device_proxy(*ppReturnedDeviceInterface, DeviceType, pp, use_software_rendering);
 
 	return hr;
 }

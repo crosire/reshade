@@ -506,8 +506,6 @@ HOOK_EXPORT BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 		const HGLRC prev_hglrc = wglGetCurrentContext();
 		if (hglrc == prev_hglrc)
 		{
-			it->second->on_reset();
-
 			delete it->second;
 		}
 		else
@@ -530,8 +528,6 @@ HOOK_EXPORT BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 
 			if (reshade::hooks::call(wglMakeCurrent)(hdc, hglrc))
 			{
-				it->second->on_reset();
-
 				delete it->second;
 
 				// Restore previous device and render context
@@ -877,7 +873,7 @@ HOOK_EXPORT BOOL  WINAPI wglSwapBuffers(HDC hdc)
 			runtime->on_reset();
 
 			if (!(width == 0 && height == 0) && !runtime->on_init(hwnd, width, height))
-				LOG(ERROR) << "Failed to recreate OpenGL runtime environment on runtime " << runtime << '.';
+				LOG(ERROR) << "Failed to recreate OpenGL runtime environment on runtime " << runtime << '!';
 		}
 
 		// Assume that the correct OpenGL context is still current here

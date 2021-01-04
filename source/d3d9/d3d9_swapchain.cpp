@@ -8,19 +8,21 @@
 #include "d3d9_swapchain.hpp"
 #include "runtime_d3d9.hpp"
 
-Direct3DSwapChain9::Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9   *original, const std::shared_ptr<reshade::d3d9::runtime_d3d9> &runtime) :
+Direct3DSwapChain9::Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9   *original) :
 	_orig(original),
 	_extended_interface(0),
 	_device(device),
-	_runtime(runtime) {
-	assert(_orig != nullptr && _device != nullptr && _runtime != nullptr);
+	_runtime(new reshade::d3d9::runtime_d3d9(device, original, &device->_state))
+{
+	assert(_orig != nullptr && _device != nullptr);
 }
-Direct3DSwapChain9::Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9Ex *original, const std::shared_ptr<reshade::d3d9::runtime_d3d9> &runtime) :
+Direct3DSwapChain9::Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9Ex *original) :
 	_orig(original),
 	_extended_interface(1),
 	_device(device),
-	_runtime(runtime) {
-	assert(_orig != nullptr && _device != nullptr && _runtime != nullptr);
+	_runtime(new reshade::d3d9::runtime_d3d9(device, original, &device->_state))
+{
+	assert(_orig != nullptr && _device != nullptr);
 }
 
 bool Direct3DSwapChain9::is_presenting_entire_surface(const RECT *source_rect, HWND hwnd)
@@ -84,8 +86,7 @@ ULONG   STDMETHODCALLTYPE Direct3DSwapChain9::Release()
 	if (ref != 0)
 		return _orig->Release(), ref;
 
-	_runtime->on_reset();
-	_runtime.reset();
+	delete _runtime;
 
 	const auto it = std::find(_device->_additional_swapchains.begin(), _device->_additional_swapchains.end(), this);
 	if (it != _device->_additional_swapchains.end())

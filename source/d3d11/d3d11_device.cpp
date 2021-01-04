@@ -9,13 +9,12 @@
 #include "dxgi/dxgi_device.hpp"
 #include "dxgi/format_utils.hpp"
 
-D3D11Device::D3D11Device(IDXGIDevice1 *dxgi_device, ID3D11Device *original, ID3D11DeviceContext *immediate_context) :
+D3D11Device::D3D11Device(IDXGIDevice1 *dxgi_device, ID3D11Device *original) :
 	_orig(original),
 	_interface_version(0),
-	_dxgi_device(new DXGIDevice(dxgi_device, this)),
-	_immediate_context(new D3D11DeviceContext(this, immediate_context)) {
+	_dxgi_device(new DXGIDevice(dxgi_device, this))
+{
 	assert(_orig != nullptr);
-	_immediate_context->_state.init(immediate_context, &_immediate_context->_state);
 }
 
 bool D3D11Device::check_and_upgrade_interface(REFIID riid)
@@ -163,7 +162,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture3D(const D3D11_TEXTURE3D_DES
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateShaderResourceView(ID3D11Resource *pResource, const D3D11_SHADER_RESOURCE_VIEW_DESC *pDesc, ID3D11ShaderResourceView **ppSRView)
 {
-	if (pResource == nullptr)
+	if (pResource == nullptr) // This can happen if the passed resource failed creation previously, but application did not do error checking to catch that
 		return E_INVALIDARG;
 
 	D3D11_SHADER_RESOURCE_VIEW_DESC new_desc =
@@ -348,12 +347,10 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext(UINT ContextFlags, 
 	}
 
 	const auto device_context_proxy = new D3D11DeviceContext(this, *ppDeferredContext);
-	device_context_proxy->_state.init(*ppDeferredContext, &_immediate_context->_state);
-
 	*ppDeferredContext = device_context_proxy;
 
 #if RESHADE_VERBOSE_LOG
-	LOG(INFO) << "> Returning ID3D11DeviceContext object " << *ppDeferredContext << '.';
+	LOG(INFO) << "> Returning ID3D11DeviceContext object " << device_context_proxy << '.';
 #endif
 	return hr;
 }
@@ -449,12 +446,10 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext1(UINT ContextFlags,
 	}
 
 	const auto device_context_proxy = new D3D11DeviceContext(this, *ppDeferredContext);
-	device_context_proxy->_state.init(*ppDeferredContext, &_immediate_context->_state);
-
 	*ppDeferredContext = device_context_proxy;
 
 #if RESHADE_VERBOSE_LOG
-	LOG(INFO) << "> Returning ID3D11DeviceContext1 object " << *ppDeferredContext << '.';
+	LOG(INFO) << "> Returning ID3D11DeviceContext1 object " << device_context_proxy << '.';
 #endif
 	return hr;
 }
@@ -512,12 +507,10 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext2(UINT ContextFlags,
 	}
 
 	const auto device_context_proxy = new D3D11DeviceContext(this, *ppDeferredContext);
-	device_context_proxy->_state.init(*ppDeferredContext, &_immediate_context->_state);
-
 	*ppDeferredContext = device_context_proxy;
 
 #if RESHADE_VERBOSE_LOG
-	LOG(INFO) << "> Returning ID3D11DeviceContext2 object " << *ppDeferredContext << '.';
+	LOG(INFO) << "> Returning ID3D11DeviceContext2 object " << device_context_proxy << '.';
 #endif
 	return hr;
 }
@@ -676,12 +669,10 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext3(UINT ContextFlags,
 	}
 
 	const auto device_context_proxy = new D3D11DeviceContext(this, *ppDeferredContext);
-	device_context_proxy->_state.init(*ppDeferredContext, &_immediate_context->_state);
-
 	*ppDeferredContext = device_context_proxy;
 
 #if RESHADE_VERBOSE_LOG
-	LOG(INFO) << "> Returning ID3D11DeviceContext3 object " << *ppDeferredContext << '.';
+	LOG(INFO) << "> Returning ID3D11DeviceContext3 object " << device_context_proxy << '.';
 #endif
 	return hr;
 }
