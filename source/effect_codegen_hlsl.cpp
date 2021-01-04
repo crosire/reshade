@@ -1349,11 +1349,13 @@ private:
 
 			code += '\t' + attributes;
 			if (use_break_statement_for_condition)
-				code += "while (true)\n\t{\n\t\tif (!" + condition_name + ") break;\n\t\t{\n";
+				code += "while (true)\n\t{\n\t\tif (" + condition_name + ")\n\t\t{\n";
 			else
 				code += "while (" + condition_name + ")\n\t{\n\t\t{\n";
 			code += loop_data;
 			code += "\t\t}\n";
+			if (use_break_statement_for_condition)
+				code += "\t\telse break;\n";
 			code += continue_data;
 			code += condition_data;
 			code += "\t}\n";
