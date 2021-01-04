@@ -13,6 +13,8 @@ namespace reshade::d3d12
 {
 	class crosstalk
 	{
+		static const GUID fake_guid;
+		static const uint64_t magic;
 
 	public:
 		enum ResNames
@@ -39,13 +41,16 @@ namespace reshade::d3d12
 			uint64_t magic;
 			uint64_t ct_idx;
 			union {
-				char* info;
+				void* ptr;
 				ID3D12Resource* res;
 			};
 		};
 
+		static bool check_call(REFGUID guid, UINT DataSize, const void* pData);
 		static void set_crosstalk_resource(int ct_index, ID3D12Resource* res);
-		static ID3D12Resource* get_crosstalk_resource(int ct_index);
+		static ID3D12Resource* get_crosstalk_resource(ResNames ct_index);
+
+		static void replace_texture(const texture& texture, com_ptr<ID3D12Resource>& resource);
 	};
 
 	class runtime_d3d12 : public runtime

@@ -94,21 +94,10 @@ HRESULT STDMETHODCALLTYPE D3D12GraphicsCommandList::GetPrivateData(REFGUID guid,
 	return _orig->GetPrivateData(guid, pDataSize, pData);
 }
 
-static const GUID crosstalk_fake_guid = { 0, 0, 0, { 0, 0, 0, 0, 0, 0, 0, 0 } };
-static const uint64_t crosstalk_magic = 0x505670b7c18ff478;
-
 HRESULT STDMETHODCALLTYPE D3D12GraphicsCommandList::SetPrivateData(REFGUID guid, UINT DataSize, const void *pData)
 {
-	if (!memcmp(&guid, &crosstalk_fake_guid, sizeof(GUID)) && (DataSize == sizeof(reshade::d3d12::crosstalk::entry)))
-	{
-		auto entry = (reshade::d3d12::crosstalk::entry*)pData;
-
-		if (entry->magic == crosstalk_magic)
-		{
-			reshade::d3d12::crosstalk::set_crosstalk_resource(entry->ct_idx, entry->res);
-		}
+	if (reshade::d3d12::crosstalk::check_call(guid, DataSize, pData))
 		return S_OK;
-	}
 
 	return _orig->SetPrivateData(guid, DataSize, pData);
 }

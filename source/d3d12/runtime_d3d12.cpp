@@ -75,16 +75,70 @@ namespace reshade::d3d12
 		transition.Transition.StateAfter = to;
 		list->ResourceBarrier(1, &transition);
 	}
+}
 
-	com_ptr<ID3D12Resource> glob_crostalk_resarray[crosstalk::ResNames::COUNT];
+//crosstalk feature impl
+namespace reshade::d3d12
+{
+	com_ptr<ID3D12Resource> glob_crosstalk_resarray[crosstalk::ResNames::COUNT] = {};
+	const GUID crosstalk::fake_guid = { 0, 0, 0, { 0, 0, 0, 0, 0, 0, 0, 0 } };
+	const uint64_t crosstalk::magic = 0x505670b7c18ff478;
+
+	bool crosstalk::check_call(REFGUID guid, UINT DataSize, const void* pData)
+	{
+		if (memcmp(&guid, &fake_guid, sizeof(GUID)))
+			return false;
+
+		if (DataSize != sizeof(reshade::d3d12::crosstalk::entry))
+			return false;
+
+		auto entry = (reshade::d3d12::crosstalk::entry*)pData;
+
+		if (entry->magic != magic)
+			return false;
+
+		reshade::d3d12::crosstalk::set_crosstalk_resource((int)entry->ct_idx, entry->res);
+
+		return true;
+	}
 
 	void crosstalk::set_crosstalk_resource(int ct_index, ID3D12Resource* res)
 	{
-		glob_crostalk_resarray[ct_index] = res;
+		glob_crosstalk_resarray[ct_index] = res;
 	}
-	ID3D12Resource* crosstalk::get_crosstalk_resource(int ct_index)
+
+	ID3D12Resource* crosstalk::get_crosstalk_resource(crosstalk::ResNames ct_index)
 	{
-		return glob_crostalk_resarray[ct_index].get();
+		return glob_crosstalk_resarray[ct_index].get();
+	}
+
+	//replace specific resources with game supplied ones
+	void crosstalk::replace_texture(const texture& texture, com_ptr<ID3D12Resource>& resource)
+	{
+		if (texture.unique_name == "V__crosstalk_color")
+			resource = crosstalk::get_crosstalk_resource(crosstalk::ResNames::COLOR);
+		else if (texture.unique_name == "V__crosstalk_depth")
+			resource = crosstalk::get_crosstalk_resource(crosstalk::ResNames::DEPTH);
+		else if (texture.unique_name == "V__crosstalk_zprepass")
+			resource = crosstalk::get_crosstalk_resource(crosstalk::ResNames::ZPREPASS);
+		else if (texture.unique_name == "V__crosstalk_gbuf_0")
+			resource = crosstalk::get_crosstalk_resource(crosstalk::ResNames::GBUF_0);
+		else if (texture.unique_name == "V__crosstalk_gbuf_1")
+			resource = crosstalk::get_crosstalk_resource(crosstalk::ResNames::GBUF_1);
+		else if (texture.unique_name == "V__crosstalk_gbuf_2")
+			resource = crosstalk::get_crosstalk_resource(crosstalk::ResNames::GBUF_2);
+		else if (texture.unique_name == "V__crosstalk_gbuf_3")
+			resource = crosstalk::get_crosstalk_resource(crosstalk::ResNames::GBUF_3);
+		else if (texture.unique_name == "V__crosstalk_gbuf_4")
+			resource = crosstalk::get_crosstalk_resource(crosstalk::ResNames::GBUF_4);
+		else if (texture.unique_name == "V__crosstalk_overlay_0")
+			resource = crosstalk::get_crosstalk_resource(crosstalk::ResNames::OVERLAY_0);
+		else if (texture.unique_name == "V__crosstalk_overlay_1")
+			resource = crosstalk::get_crosstalk_resource(crosstalk::ResNames::OVERLAY_1);
+		else if (texture.unique_name == "V__crosstalk_overlay_2")
+			resource = crosstalk::get_crosstalk_resource(crosstalk::ResNames::OVERLAY_2);
+		else if (texture.unique_name == "V__crosstalk_overlay_3")
+			resource = crosstalk::get_crosstalk_resource(crosstalk::ResNames::OVERLAY_3);
 	}
 }
 
@@ -1023,15 +1077,8 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 					effect_data.depth_texture_binding = srv_handle;
 				}
 #endif
-				if (texture.unique_name == "V__crosstalk_game_3d_color")
-				{
-					resource = crosstalk::get_crosstalk_resource(crosstalk::ResNames::COLOR);
-				}
 
-				if (texture.unique_name == "V__crosstalk_game_3d_depth")
-				{
-					resource = crosstalk::get_crosstalk_resource(crosstalk::ResNames::DEPTH);
-				}
+				crosstalk::replace_texture(texture, resource);
 
 				if (resource != nullptr)
 				{
