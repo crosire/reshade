@@ -115,29 +115,29 @@ namespace reshade::d3d12
 	//replace specific resources with game supplied ones
 	void crosstalk::replace_texture(const texture& texture, com_ptr<ID3D12Resource>& resource)
 	{
-		if (texture.unique_name == "V__crosstalk_color")
+		if (texture.semantic == "CROSSTALK_COLOR")
 			resource = crosstalk::get_crosstalk_resource(crosstalk::ResNames::COLOR);
-		else if (texture.unique_name == "V__crosstalk_depth")
+		else if (texture.semantic == "CROSSTALK_DEPTH")
 			resource = crosstalk::get_crosstalk_resource(crosstalk::ResNames::DEPTH);
-		else if (texture.unique_name == "V__crosstalk_zprepass")
+		else if (texture.semantic == "CROSSTALK_ZPREPASS")
 			resource = crosstalk::get_crosstalk_resource(crosstalk::ResNames::ZPREPASS);
-		else if (texture.unique_name == "V__crosstalk_gbuf_0")
+		else if (texture.semantic == "CROSSTALK_GBUF_0")
 			resource = crosstalk::get_crosstalk_resource(crosstalk::ResNames::GBUF_0);
-		else if (texture.unique_name == "V__crosstalk_gbuf_1")
+		else if (texture.semantic == "CROSSTALK_GBUF_1")
 			resource = crosstalk::get_crosstalk_resource(crosstalk::ResNames::GBUF_1);
-		else if (texture.unique_name == "V__crosstalk_gbuf_2")
+		else if (texture.semantic == "CROSSTALK_GBUF_2")
 			resource = crosstalk::get_crosstalk_resource(crosstalk::ResNames::GBUF_2);
-		else if (texture.unique_name == "V__crosstalk_gbuf_3")
+		else if (texture.semantic == "CROSSTALK_GBUF_3")
 			resource = crosstalk::get_crosstalk_resource(crosstalk::ResNames::GBUF_3);
-		else if (texture.unique_name == "V__crosstalk_gbuf_4")
+		else if (texture.semantic == "CROSSTALK_GBUF_4")
 			resource = crosstalk::get_crosstalk_resource(crosstalk::ResNames::GBUF_4);
-		else if (texture.unique_name == "V__crosstalk_overlay_0")
+		else if (texture.semantic == "CROSSTALK_OVERLAY_0")
 			resource = crosstalk::get_crosstalk_resource(crosstalk::ResNames::OVERLAY_0);
-		else if (texture.unique_name == "V__crosstalk_overlay_1")
+		else if (texture.semantic == "CROSSTALK_OVERLAY_1")
 			resource = crosstalk::get_crosstalk_resource(crosstalk::ResNames::OVERLAY_1);
-		else if (texture.unique_name == "V__crosstalk_overlay_2")
+		else if (texture.semantic == "CROSSTALK_OVERLAY_2")
 			resource = crosstalk::get_crosstalk_resource(crosstalk::ResNames::OVERLAY_2);
-		else if (texture.unique_name == "V__crosstalk_overlay_3")
+		else if (texture.semantic == "CROSSTALK_OVERLAY_3")
 			resource = crosstalk::get_crosstalk_resource(crosstalk::ResNames::OVERLAY_3);
 	}
 }
