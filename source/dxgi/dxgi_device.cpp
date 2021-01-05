@@ -5,7 +5,6 @@
 
 #include "dll_log.hpp"
 #include "dxgi_device.hpp"
-#include "dxgi_swapchain.hpp"
 
 DXGIDevice::DXGIDevice(IDXGIDevice1 *original, IUnknown *direct3d_device) :
 	_orig(original),

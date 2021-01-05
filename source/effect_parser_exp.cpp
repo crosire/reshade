@@ -297,7 +297,6 @@ bool reshadefx::parser::accept_type_class(type &type)
 		type.rows = 2 + (static_cast<unsigned int>(_token_next.id) - static_cast<unsigned int>(tokenid::float2x2)) / 3;
 		type.cols = 2 + (static_cast<unsigned int>(_token_next.id) - static_cast<unsigned int>(tokenid::float2x2)) % 3;
 		break;
-		break;
 	case tokenid::min16float:
 	case tokenid::min16float2:
 	case tokenid::min16float3:

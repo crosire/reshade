@@ -396,7 +396,7 @@ private:
 			return "gl_LocalInvocationID";
 		if (semantic == "SV_DISPATCHTHREADID")
 			return "gl_GlobalInvocationID";
-		return escape_name(name);
+		return escape_name(std::move(name));
 	}
 
 	static void increase_indentation_level(std::string &block)
