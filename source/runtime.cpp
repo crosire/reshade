@@ -468,6 +468,8 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 			// Fill all specialization constants with values from the current preset
 			if (_performance_mode)
 			{
+				effect.preamble.clear();
+
 				for (reshadefx::uniform_info &constant : effect.module.spec_constants)
 				{
 					effect.preamble += "#define SPEC_CONSTANT_" + constant.name + ' ';

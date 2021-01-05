@@ -362,14 +362,18 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 	const auto D3DDisassemble = reinterpret_cast<pD3DDisassemble>(GetProcAddress(_d3d_compiler, "D3DDisassemble"));
 
 	// Add specialization constant defines to source code
-	effect.preamble +=
+	const std::string hlsl =
+		effect.preamble +
 		"#define COLOR_PIXEL_SIZE 1.0 / " + std::to_string(_width) + ", 1.0 / " + std::to_string(_height) + "\n"
 		"#define DEPTH_PIXEL_SIZE COLOR_PIXEL_SIZE\n"
 		"#define SV_DEPTH_PIXEL_SIZE DEPTH_PIXEL_SIZE\n"
-		"#define SV_TARGET_PIXEL_SIZE COLOR_PIXEL_SIZE\n";
+		"#define SV_TARGET_PIXEL_SIZE COLOR_PIXEL_SIZE\n" +
+		effect.module.hlsl;
 
-	const std::string hlsl_vs = effect.preamble + effect.module.hlsl;
-	const std::string hlsl_ps = effect.preamble + "#define POSITION VPOS\n" + effect.module.hlsl;
+	// Overwrite position semantic in pixel shaders
+	const D3D_SHADER_MACRO ps_defines[] = {
+		{ "POSITION", "VPOS" }, { nullptr, nullptr }
+	};
 
 	std::unordered_map<std::string, com_ptr<IUnknown>> entry_points;
 
@@ -378,17 +382,15 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 	{
 		HRESULT hr = E_FAIL;
 
-		std::string_view profile, hlsl;
+		std::string profile;
 		com_ptr<ID3DBlob> compiled, d3d_errors;
 
 		switch (entry_point.type)
 		{
 		case reshadefx::shader_type::vs:
-			hlsl = hlsl_vs;
 			profile = "vs_3_0";
 			break;
 		case reshadefx::shader_type::ps:
-			hlsl = hlsl_ps;
 			profile = "ps_3_0";
 			break;
 		case reshadefx::shader_type::cs:
@@ -400,7 +402,7 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 
 		std::string attributes;
 		attributes += "entrypoint=" + entry_point.name + ';';
-		attributes += "profile=" + std::string(profile) + ';';
+		attributes += "profile=" + profile + ';';
 		attributes += "flags=" + std::to_string(_performance_mode ? D3DCOMPILE_OPTIMIZATION_LEVEL3 : D3DCOMPILE_OPTIMIZATION_LEVEL1) + ';';
 
 		const size_t hash = std::hash<std::string_view>()(attributes) ^ std::hash<std::string_view>()(hlsl);
@@ -408,10 +410,11 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 		if (!load_effect_cache(effect.source_file, entry_point.name, hash, cso, effect.assembly[entry_point.name]))
 		{
 			hr = D3DCompile(
-				hlsl.data(), hlsl.size(),
-				nullptr, nullptr, nullptr,
+				hlsl.data(), hlsl.size(), nullptr,
+				entry_point.type == reshadefx::shader_type::ps ? ps_defines : nullptr,
+				nullptr,
 				entry_point.name.c_str(),
-				profile.data(),
+				profile.c_str(),
 				_performance_mode ? D3DCOMPILE_OPTIMIZATION_LEVEL3 : D3DCOMPILE_OPTIMIZATION_LEVEL1, 0,
 				&compiled, &d3d_errors);
 
