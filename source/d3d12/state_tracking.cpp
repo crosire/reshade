@@ -235,6 +235,52 @@ void reshade::d3d12::state_tracking::on_clear_depthstencil(D3D12_CLEAR_FLAGS cle
 	counters.current_stats = { 0, 0 };
 }
 
+const std::vector<std::pair<ID3D12Resource*, reshade::d3d12::state_tracking::depthstencil_info>> reshade::d3d12::state_tracking::sorted_counters_per_used_depth_texture()
+{
+	struct pair_wrapper
+	{
+		int display_count;
+		ID3D12Resource* wrapped_dsv_texture;
+		depthstencil_info wrapped_depthstencil_info;
+	};
+
+	std::vector<pair_wrapper> sorted_counters_per_buffer;
+	sorted_counters_per_buffer.reserve(_counters_per_used_depth_texture.size());
+	
+	for (const auto& [dsv_texture, snapshot] : _counters_per_used_depth_texture)
+	{
+		auto dsv_texture_instance = dsv_texture.get();
+		size_t texture_address = *((size_t*)(&dsv_texture_instance));
+		// get the display counter, if any of this texture.
+		if(_shown_count_per_depth_texture_address.count(texture_address) > 0)
+		{
+			auto shown_count = _shown_count_per_depth_texture_address[texture_address];
+			sorted_counters_per_buffer.push_back({ shown_count++, dsv_texture_instance, snapshot });
+		}
+		else
+		{
+			sorted_counters_per_buffer.push_back({ 1, dsv_texture_instance, snapshot });
+		}
+	}
+	// sort it
+	std::sort(sorted_counters_per_buffer.begin(), sorted_counters_per_buffer.end(), [](const pair_wrapper& a, const pair_wrapper& b)
+	{
+		return (a.display_count > b.display_count) || (a.display_count == b.display_count && a.wrapped_dsv_texture > b.wrapped_dsv_texture);
+	});
+	// build a new vector with the sorted elements
+	std::vector<std::pair<ID3D12Resource*, state_tracking::depthstencil_info>> to_return;
+	to_return.reserve(sorted_counters_per_buffer.size());
+	_shown_count_per_depth_texture_address.clear();
+	for(const auto& [display_count, dsv_texture, snapshot] : sorted_counters_per_buffer)
+	{
+		to_return.push_back({ dsv_texture, snapshot });
+		
+		size_t texture_address = *((size_t*)(&dsv_texture));
+		_shown_count_per_depth_texture_address[texture_address] = display_count;
+	}
+	return to_return;
+}
+
 void reshade::d3d12::state_tracking_context::on_create_dsv(ID3D12Resource *dsv_texture, D3D12_CPU_DESCRIPTOR_HANDLE handle)
 {
 	const std::lock_guard<std::mutex> lock(s_global_mutex);
