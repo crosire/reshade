@@ -1824,7 +1824,7 @@ void reshade::d3d12::runtime_d3d12::draw_depth_debug_menu()
 	ImGui::Separator();
 	ImGui::Spacing();
 
-	auto sorted_buffers = _state_tracking.sorted_counters_per_used_depth_texture();
+	auto sorted_buffers = _state_tracking.sorted_counters_per_used_depthstencil();
 	
 	for (const auto &[dsv_texture, snapshot] : sorted_buffers)
 	{

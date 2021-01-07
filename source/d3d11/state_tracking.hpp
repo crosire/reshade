@@ -37,6 +37,7 @@ namespace reshade::d3d11
 #if RESHADE_DEPTH
 		void on_set_render_targets();
 		void on_clear_depthstencil(UINT clear_flags, ID3D11DepthStencilView *dsv, bool rect_draw_call = false);
+		std::vector<std::pair<ID3D11Texture2D*, depthstencil_info>> sorted_counters_per_used_depthstencil();
 #endif
 
 	protected:
@@ -48,6 +49,11 @@ namespace reshade::d3d11
 		bool _first_empty_stats = true;
 		bool _has_indirect_drawcalls = false;
 		std::unordered_map<com_ptr<ID3D11Texture2D>, depthstencil_info> _counters_per_used_depth_texture;
+#endif
+
+	private:
+#if RESHADE_DEPTH
+		std::unordered_map<size_t, int> _shown_count_per_depthstencil_address;
 #endif
 	};
 

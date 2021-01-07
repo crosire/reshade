@@ -29,11 +29,6 @@ namespace reshade::d3d12
 			D3D12_RESOURCE_STATES current_state = D3D12_RESOURCE_STATE_COMMON;
 			bool copied_due_to_aliasing = false;
 		};
-		struct buffer_display_info
-		{
-			size_t buffer_address = 0;
-			int shown_count = 0;
-		};
 
 		void init(ID3D12Device *device, ID3D12GraphicsCommandList *cmd_list, const class state_tracking_context *context);
 		void reset();
@@ -46,7 +41,7 @@ namespace reshade::d3d12
 		void on_transition(const D3D12_RESOURCE_TRANSITION_BARRIER &transition);
 		void on_set_depthstencil(D3D12_CPU_DESCRIPTOR_HANDLE dsv);
 		void on_clear_depthstencil(D3D12_CLEAR_FLAGS clear_flags, D3D12_CPU_DESCRIPTOR_HANDLE dsv);
-		const std::vector<std::pair<ID3D12Resource*, depthstencil_info>> sorted_counters_per_used_depth_texture();
+		std::vector<std::pair<ID3D12Resource*, depthstencil_info>> sorted_counters_per_used_depthstencil();
 #endif
 
 	protected:
@@ -60,7 +55,11 @@ namespace reshade::d3d12
 		bool _first_empty_stats = false;
 		bool _has_indirect_drawcalls = false;
 		std::unordered_map<com_ptr<ID3D12Resource>, depthstencil_info> _counters_per_used_depth_texture;
-		std::unordered_map<size_t, int> _shown_count_per_depth_texture_address;
+#endif
+
+	private:
+#if RESHADE_DEPTH
+		std::unordered_map<size_t, int> _shown_count_per_depthstencil_address;
 #endif
 	};
 

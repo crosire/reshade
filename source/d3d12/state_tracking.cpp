@@ -88,6 +88,17 @@ void reshade::d3d12::state_tracking::merge(const state_tracking &source)
 
 		target_snapshot.copied_due_to_aliasing |= snapshot.copied_due_to_aliasing;
 	}
+	for (const auto &[depthstencil_address, shown_count] : source._shown_count_per_depthstencil_address)
+	{
+		if(_shown_count_per_depthstencil_address.count(depthstencil_address) > 0)
+		{
+			_shown_count_per_depthstencil_address[depthstencil_address] = shown_count + _shown_count_per_depthstencil_address[depthstencil_address];
+		}
+		else
+		{
+			_shown_count_per_depthstencil_address[depthstencil_address] = shown_count;
+		}
+	}
 #endif
 }
 
@@ -235,13 +246,15 @@ void reshade::d3d12::state_tracking::on_clear_depthstencil(D3D12_CLEAR_FLAGS cle
 	counters.current_stats = { 0, 0 };
 }
 
-const std::vector<std::pair<ID3D12Resource*, reshade::d3d12::state_tracking::depthstencil_info>> reshade::d3d12::state_tracking::sorted_counters_per_used_depth_texture()
+std::vector<std::pair<ID3D12Resource*, reshade::d3d12::state_tracking::depthstencil_info>> reshade::d3d12::state_tracking::sorted_counters_per_used_depthstencil()
 {
 	struct pair_wrapper
 	{
 		int display_count;
 		ID3D12Resource* wrapped_dsv_texture;
 		depthstencil_info wrapped_depthstencil_info;
+		UINT64 depthstencil_width;
+		UINT64 depthstencil_height;
 	};
 
 	std::vector<pair_wrapper> sorted_counters_per_buffer;
@@ -250,33 +263,38 @@ const std::vector<std::pair<ID3D12Resource*, reshade::d3d12::state_tracking::dep
 	for (const auto& [dsv_texture, snapshot] : _counters_per_used_depth_texture)
 	{
 		auto dsv_texture_instance = dsv_texture.get();
+		const D3D12_RESOURCE_DESC desc = dsv_texture->GetDesc();
 		size_t texture_address = *((size_t*)(&dsv_texture_instance));
 		// get the display counter, if any of this texture.
-		if(_shown_count_per_depth_texture_address.count(texture_address) > 0)
+		if(_shown_count_per_depthstencil_address.count(texture_address) > 0)
 		{
-			auto shown_count = _shown_count_per_depth_texture_address[texture_address];
-			sorted_counters_per_buffer.push_back({ shown_count++, dsv_texture_instance, snapshot });
+			auto shown_count = _shown_count_per_depthstencil_address[texture_address];
+			sorted_counters_per_buffer.push_back({ ++shown_count, dsv_texture_instance, snapshot, desc.Width, desc.Height });
 		}
 		else
 		{
-			sorted_counters_per_buffer.push_back({ 1, dsv_texture_instance, snapshot });
+			sorted_counters_per_buffer.push_back({ 1, dsv_texture_instance, snapshot, desc.Width, desc.Height });
 		}
 	}
-	// sort it
+	
 	std::sort(sorted_counters_per_buffer.begin(), sorted_counters_per_buffer.end(), [](const pair_wrapper& a, const pair_wrapper& b)
 	{
-		return (a.display_count > b.display_count) || (a.display_count == b.display_count && a.wrapped_dsv_texture > b.wrapped_dsv_texture);
+		return (a.display_count > b.display_count) ||
+			(a.display_count == b.display_count &&
+				(a.depthstencil_width > b.depthstencil_width ||
+					(a.depthstencil_width == b.depthstencil_width && a.depthstencil_height > b.depthstencil_height))) ||
+			(a.depthstencil_width == b.depthstencil_width && a.depthstencil_height == b.depthstencil_height &&
+				a.wrapped_dsv_texture < b.wrapped_dsv_texture);
 	});
-	// build a new vector with the sorted elements
+	// build a new vector with the sorted elements to return
 	std::vector<std::pair<ID3D12Resource*, state_tracking::depthstencil_info>> to_return;
 	to_return.reserve(sorted_counters_per_buffer.size());
-	_shown_count_per_depth_texture_address.clear();
-	for(const auto& [display_count, dsv_texture, snapshot] : sorted_counters_per_buffer)
+	// store the state of the counters as we've collected them as the new state for the next frame.
+	_shown_count_per_depthstencil_address.clear();
+	for(const auto& [display_count, dsv_texture, snapshot, w, h] : sorted_counters_per_buffer)
 	{
 		to_return.push_back({ dsv_texture, snapshot });
-		
-		size_t texture_address = *((size_t*)(&dsv_texture));
-		_shown_count_per_depth_texture_address[texture_address] = display_count;
+		_shown_count_per_depthstencil_address[(*(size_t*)&dsv_texture)] = display_count;
 	}
 	return to_return;
 }
