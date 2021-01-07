@@ -43,6 +43,9 @@ private:
 	bool _uniforms_to_spec_constants = false;
 	unsigned int _shader_model = 0;
 
+	// Only write compatibility intrinsics to result if they are actually in use
+	bool _uses_bitwise_cast = false;
+
 	void write_result(module &module) override
 	{
 		module = std::move(_module);
@@ -57,6 +60,39 @@ private:
 		else
 		{
 			module.hlsl += "struct __sampler2D { sampler2D s; float2 pixelsize; };\nuniform float2 __TEXEL_SIZE__ : register(c255);\n";
+
+			if (_uses_bitwise_cast)
+				module.hlsl +=
+					"int __asint(float v) {"
+					"	if (v == 0) return 0;" // Zero (does not handle negative zero)
+					//	if (isinf(v)) return v < 0 ? 4286578688 : 2139095040; // Infinity
+					//	if (isnan(v)) return 2147483647; // NaN (does not handle negative NaN)
+					"	float e = 0;"
+					"	float f = frexp(v, e) * 2 - 1;" // frexp does not include sign bit in HLSL, so can use as is
+					"	float m = ldexp(f, 23);"
+					"	return (v < 0 ? 2147483648 : 0) + ldexp(e + 126, 23) + m;"
+					"}\n"
+					"int2 __asint(float2 v) { return int2(__asint(v.x), __asint(v.y)); }\n"
+					"int3 __asint(float3 v) { return int3(__asint(v.x), __asint(v.y), __asint(v.z)); }\n"
+					"int4 __asint(float4 v) { return int4(__asint(v.x), __asint(v.y), __asint(v.z), __asint(v.w)); }\n"
+
+					"int __asuint(float v) { return __asint(v); }\n"
+					"int2 __asuint(float2 v) { return int2(__asint(v.x), __asint(v.y)); }\n"
+					"int3 __asuint(float3 v) { return int3(__asint(v.x), __asint(v.y), __asint(v.z)); }\n"
+					"int4 __asuint(float4 v) { return int4(__asint(v.x), __asint(v.y), __asint(v.z), __asint(v.w)); }\n"
+
+					"float __asfloat(int v) {"
+					"	float m = v % exp2(23);"
+					"	float f = ldexp(m, -23);"
+					"	float e = floor(ldexp(v, -23) % 256);"
+					"	return (v > 2147483647 ? -1 : 1) * ("
+					//		e == 0 ? ldexp(f, -126) : // Denormalized
+					//		e == 255 ? (m == 0 ? 1.#INF : -1.#IND) : // Infinity and NaN
+					"		ldexp(1 + f, e - 127));"
+					"}\n"
+					"float2 __asfloat(int2 v) { return float2(__asfloat(v.x), __asfloat(v.y)); }\n"
+					"float3 __asfloat(int3 v) { return float3(__asfloat(v.x), __asfloat(v.y), __asfloat(v.z)); }\n"
+					"float4 __asfloat(int4 v) { return float4(__asfloat(v.x), __asfloat(v.y), __asfloat(v.z), __asfloat(v.w)); }\n";
 
 			if (!_cbuffer_block.empty())
 				module.hlsl += _cbuffer_block;

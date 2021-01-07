@@ -344,8 +344,11 @@ IMPLEMENT_INTRINSIC_GLSL(asint, 0, {
 	code += "floatBitsToInt(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(asint, 0, {
-	// Really only supported on SM4+
-	code += "asint(" + id_to_name(args[0].base) + ')';
+	_uses_bitwise_cast = true;
+	if (_shader_model >= 40)
+		code += "asint(" + id_to_name(args[0].base) + ')';
+	else
+		code += "__asint(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(asint, 0, {
 	return add_instruction(spv::OpBitcast, convert_type(res_type))
@@ -362,7 +365,11 @@ IMPLEMENT_INTRINSIC_GLSL(asuint, 0, {
 	code += "floatBitsToUint(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(asuint, 0, {
-	code += "asuint(" + id_to_name(args[0].base) + ')';
+	_uses_bitwise_cast = true;
+	if (_shader_model >= 40)
+		code += "asuint(" + id_to_name(args[0].base) + ')';
+	else
+		code += "__asuint(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(asuint, 0, {
 	return add_instruction(spv::OpBitcast, convert_type(res_type))
@@ -386,10 +393,18 @@ IMPLEMENT_INTRINSIC_GLSL(asfloat, 1, {
 	code += "uintBitsToFloat(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(asfloat, 0, {
-	code += "asfloat(" + id_to_name(args[0].base) + ')';
+	_uses_bitwise_cast = true;
+	if (_shader_model >= 40)
+		code += "asfloat(" + id_to_name(args[0].base) + ')';
+	else
+		code += "__asfloat(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(asfloat, 1, {
-	code += "asfloat(" + id_to_name(args[0].base) + ')';
+	_uses_bitwise_cast = true;
+	if (_shader_model >= 40)
+		code += "asfloat(" + id_to_name(args[0].base) + ')';
+	else
+		code += "__asfloat(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(asfloat, 0, {
 	return add_instruction(spv::OpBitcast, convert_type(res_type))
@@ -430,7 +445,7 @@ IMPLEMENT_INTRINSIC_GLSL(floor, 0, {
 	code += "floor(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(floor, 0, {
-	if (_shader_model >= 40u)
+	if (_shader_model >= 40)
 		code += "floor(" + id_to_name(args[0].base) + ')';
 	else // Using the floor intrinsic sometimes causes the SM3 D3DCompiler to generate wrong code, so replace it with a custom implementation
 		code += id_to_name(args[0].base) + " - frac(" + id_to_name(args[0].base) + ')';
@@ -535,7 +550,7 @@ IMPLEMENT_INTRINSIC_GLSL(mad, 0, {
 	code += "fma(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(mad, 0, {
-	if (_shader_model >= 50u)
+	if (_shader_model >= 50)
 		code += "mad(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
 	else
 		code += id_to_name(args[0].base) + " * " + id_to_name(args[1].base) + " + " + id_to_name(args[2].base);
@@ -559,7 +574,7 @@ IMPLEMENT_INTRINSIC_GLSL(rcp, 0, {
 	code += "1.0 / " + id_to_name(args[0].base);
 	})
 IMPLEMENT_INTRINSIC_HLSL(rcp, 0, {
-	if (_shader_model >= 50u)
+	if (_shader_model >= 50)
 		code += "rcp(" + id_to_name(args[0].base) + ')';
 	else
 		code += "1.0 / " + id_to_name(args[0].base);
@@ -1571,13 +1586,13 @@ IMPLEMENT_INTRINSIC_GLSL(tex2D, 1, {
 	code += "textureOffset(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2D, 0, {
-	if (_shader_model >= 40u) // SM4 and higher use a more object-oriented programming model for textures
+	if (_shader_model >= 40) // SM4 and higher use a more object-oriented programming model for textures
 		code += id_to_name(args[0].base) + ".t.Sample(" + id_to_name(args[0].base) + ".s, " + id_to_name(args[1].base) + ')';
 	else
 		code += "tex2D(" + id_to_name(args[0].base) + ".s, " + id_to_name(args[1].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2D, 1, {
-	if (_shader_model >= 40u)
+	if (_shader_model >= 40)
 		code += id_to_name(args[0].base) + ".t.Sample(" + id_to_name(args[0].base) + ".s, " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
 	else
 		code += "tex2D(" + id_to_name(args[0].base) + ".s, " + id_to_name(args[1].base) + " + " + id_to_name(args[2].base) + " * " + id_to_name(args[0].base) + ".pixelsize)";
@@ -1613,13 +1628,13 @@ IMPLEMENT_INTRINSIC_GLSL(tex2Dlod, 1, {
 	code += "textureLodOffset(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ".xy, " + id_to_name(args[1].base) + ".w, " + id_to_name(args[2].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2Dlod, 0, {
-	if (_shader_model >= 40u)
+	if (_shader_model >= 40)
 		code += id_to_name(args[0].base) + ".t.SampleLevel(" + id_to_name(args[0].base) + ".s, " + id_to_name(args[1].base) + ".xy, " + id_to_name(args[1].base) + ".w)";
 	else
 		code += "tex2Dlod(" + id_to_name(args[0].base) + ".s, " + id_to_name(args[1].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2Dlod, 1, {
-	if (_shader_model >= 40u)
+	if (_shader_model >= 40)
 		code += id_to_name(args[0].base) + ".t.SampleLevel(" + id_to_name(args[0].base) + ".s, " + id_to_name(args[1].base) + ".xy, " + id_to_name(args[1].base) + ".w, " + id_to_name(args[2].base) + ')';
 	else
 		code += "tex2Dlod(" + id_to_name(args[0].base) + ".s, " + id_to_name(args[1].base) + " + float4(" + id_to_name(args[2].base) + " * " + id_to_name(args[0].base) + ".pixelsize, 0, 0))";
@@ -1678,7 +1693,7 @@ IMPLEMENT_INTRINSIC_GLSL(tex2Dfetch, 1, {
 	code += "texelFetch(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2Dfetch, 0, {
-	if (_shader_model >= 40u)
+	if (_shader_model >= 40)
 		code += id_to_name(args[0].base) + ".t.Load(int3(" + id_to_name(args[1].base) + ", 0))";
 	else
 		// SM3 does not have a fetch intrinsic, so emulate it by transforming coordinates into texture space ones
@@ -1688,7 +1703,7 @@ IMPLEMENT_INTRINSIC_HLSL(tex2Dfetch, 0, {
 			id_to_name(args[1].base) + ".xy + 0.5) * " + id_to_name(args[0].base) + ".pixelsize, 0, 0))";
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2Dfetch, 1, {
-	if (_shader_model >= 40u)
+	if (_shader_model >= 40)
 		code += id_to_name(args[0].base) + ".t.Load(int3(" + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + "))";
 	else
 		code += "tex2Dlod(" + id_to_name(args[0].base) + ".s, float4((" +
@@ -1731,9 +1746,9 @@ IMPLEMENT_INTRINSIC_GLSL(tex2DgatherR, 1, {
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2DgatherR, 0, {
 	const std::string s = id_to_name(args[0].base);
-	if (_shader_model >= 50u) {
+	if (_shader_model >= 50) {
 		code += s + ".t.GatherRed(" + s + ".s, " + id_to_name(args[1].base) + ')';
-	} else if (_shader_model >= 40u) { // Emulate texture gather intrinsic by sampling each location separately (SM41 has 'Gather', but that only works on single component texture formats)
+	} else if (_shader_model >= 40) { // Emulate texture gather intrinsic by sampling each location separately (SM41 has 'Gather', but that only works on single component texture formats)
 		code += "float4(" +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, int2(0, 1))." + 'r' + ", " +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, int2(1, 1))." + 'r' + ", " +
@@ -1749,9 +1764,9 @@ IMPLEMENT_INTRINSIC_HLSL(tex2DgatherR, 0, {
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2DgatherR, 1, {
 	const std::string s = id_to_name(args[0].base);
-	if (_shader_model >= 50u) {
+	if (_shader_model >= 50) {
 		code += s + ".t.GatherRed(" + s + ".s, " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
-	} else if (_shader_model >= 40u) {
+	} else if (_shader_model >= 40) {
 		code += "float4(" +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[2].base) + " + int2(0, 1))." + 'r' + ", " +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[2].base) + " + int2(1, 1))." + 'r' + ", " +
@@ -1802,9 +1817,9 @@ IMPLEMENT_INTRINSIC_GLSL(tex2DgatherG, 1, {
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2DgatherG, 0, {
 	const std::string s = id_to_name(args[0].base);
-	if (_shader_model >= 50u) {
+	if (_shader_model >= 50) {
 		code += s + ".t.GatherGreen(" + id_to_name(args[0].base) + ".s, " + id_to_name(args[1].base) + ')';
-	} else if (_shader_model >= 40u) {
+	} else if (_shader_model >= 40) {
 		code += "float4(" +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, int2(0, 1))." + 'g' + ", " +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, int2(1, 1))." + 'g' + ", " +
@@ -1820,9 +1835,9 @@ IMPLEMENT_INTRINSIC_HLSL(tex2DgatherG, 0, {
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2DgatherG, 1, {
 	const std::string s = id_to_name(args[0].base);
-	if (_shader_model >= 50u) {
+	if (_shader_model >= 50) {
 		code += s + ".t.GatherGreen(" + s + ".s, " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
-	} else if (_shader_model >= 40u) {
+	} else if (_shader_model >= 40) {
 		code += "float4(" +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[2].base) + " + int2(0, 1))." + 'g' + ", " +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[2].base) + " + int2(1, 1))." + 'g' + ", " +
@@ -1873,9 +1888,9 @@ IMPLEMENT_INTRINSIC_GLSL(tex2DgatherB, 1, {
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2DgatherB, 0, {
 	const std::string s = id_to_name(args[0].base);
-	if (_shader_model >= 50u) {
+	if (_shader_model >= 50) {
 		code += s + ".t.GatherBlue(" + s + ".s, " + id_to_name(args[1].base) + ')';
-	} else if (_shader_model >= 40u) {
+	} else if (_shader_model >= 40) {
 		code += "float4(" +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, int2(0, 1))." + 'b' + ", " +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, int2(1, 1))." + 'b' + ", " +
@@ -1891,9 +1906,9 @@ IMPLEMENT_INTRINSIC_HLSL(tex2DgatherB, 0, {
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2DgatherB, 1, {
 	const std::string s = id_to_name(args[0].base);
-	if (_shader_model >= 50u) {
+	if (_shader_model >= 50) {
 		code += s + ".t.GatherBlue(" + s + ".s, " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
-	} else if (_shader_model >= 40u) {
+	} else if (_shader_model >= 40) {
 		code += "float4(" +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[2].base) + " + int2(0, 1))." + 'b' + ", " +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[2].base) + " + int2(1, 1))." + 'b' + ", " +
@@ -1944,9 +1959,9 @@ IMPLEMENT_INTRINSIC_GLSL(tex2DgatherA, 1, {
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2DgatherA, 0, {
 	const std::string s = id_to_name(args[0].base);
-	if (_shader_model >= 50u) {
+	if (_shader_model >= 50) {
 		code += s + ".t.GatherAlpha(" + s + ".s, " + id_to_name(args[1].base) + ')';
-	} else if (_shader_model >= 40u) {
+	} else if (_shader_model >= 40) {
 		code += "float4(" +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, int2(0, 1))." + 'a' + ", " +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, int2(1, 1))." + 'a' + ", " +
@@ -1962,9 +1977,9 @@ IMPLEMENT_INTRINSIC_HLSL(tex2DgatherA, 0, {
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2DgatherA, 1, {
 	const std::string s = id_to_name(args[0].base);
-	if (_shader_model >= 50u) {
+	if (_shader_model >= 50) {
 		code += s + ".t.GatherAlpha(" + s + ".s, " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
-	} else if (_shader_model >= 40u) {
+	} else if (_shader_model >= 40) {
 		code += "float4(" +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[2].base) + " + int2(0, 1))." + 'a' + ", " +
 			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[2].base) + " + int2(1, 1))." + 'a' + ", " +
@@ -2036,20 +2051,20 @@ IMPLEMENT_INTRINSIC_GLSL(tex2Dsize, 2, {
 	code += "imageSize(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2Dsize, 0, {
-	if (_shader_model >= 40u)
+	if (_shader_model >= 40)
 		code += id_to_name(args[0].base) + ".t.GetDimensions(" + id_to_name(res) + ".x, " + id_to_name(res) + ".y)";
 	else
 		code += "int2(1.0 / " + id_to_name(args[0].base) + ".pixelsize)";
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2Dsize, 1, {
-	if (_shader_model >= 40u)
+	if (_shader_model >= 40)
 		code += "uint temp" + std::to_string(res) + "; " + // Don't need the number of levels out value, so route that to a dummy variable
 			id_to_name(args[0].base) + ".t.GetDimensions(" + id_to_name(args[1].base) + ", " + id_to_name(res) + ".x, " + id_to_name(res) + ".y, temp" + std::to_string(res) + ')';
 	else
 		code += "int2(1.0 / " + id_to_name(args[0].base) + ".pixelsize) / exp2(" + id_to_name(args[1].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2Dsize, 2, {
-	if (_shader_model >= 50u)
+	if (_shader_model >= 50)
 		code += id_to_name(args[0].base) + ".GetDimensions(" + id_to_name(res) + ".x, " + id_to_name(res) + ".y)";
 	else
 		code += "int2(0, 0)"; // Only supported on SM5+
