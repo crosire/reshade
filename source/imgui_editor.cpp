@@ -654,6 +654,7 @@ void reshade::gui::code_editor::set_text(const std::string &text)
 
 	_undo.clear();
 	_undo_index = 0;
+	_base_undex_index = 0;
 	_errors.clear();
 
 	for (char c : text)
