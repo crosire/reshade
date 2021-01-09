@@ -906,10 +906,10 @@ IMPLEMENT_INTRINSIC_SPIRV(modf, 0, {
 	})
 
 // ret frexp(x, out exp)
-DEFINE_INTRINSIC(frexp, 0, float, float, out_float)
-DEFINE_INTRINSIC(frexp, 0, float2, float2, out_float2)
-DEFINE_INTRINSIC(frexp, 0, float3, float3, out_float3)
-DEFINE_INTRINSIC(frexp, 0, float4, float4, out_float4)
+DEFINE_INTRINSIC(frexp, 0, float, float, out_int)
+DEFINE_INTRINSIC(frexp, 0, float2, float2, out_int2)
+DEFINE_INTRINSIC(frexp, 0, float3, float3, out_int3)
+DEFINE_INTRINSIC(frexp, 0, float4, float4, out_int4)
 IMPLEMENT_INTRINSIC_GLSL(frexp, 0, {
 	code += "frexp(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ')';
 	})

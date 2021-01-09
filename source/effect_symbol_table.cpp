@@ -49,6 +49,10 @@ enum {
 #define int4x2 { reshadefx::type::t_int, 4, 2 }
 #define int4x3 { reshadefx::type::t_int, 4, 3 }
 #define int4x4 { reshadefx::type::t_int, 4, 4 }
+#define out_int { reshadefx::type::t_int, 1, 1, reshadefx::type::q_out }
+#define out_int2 { reshadefx::type::t_int, 2, 1, reshadefx::type::q_out }
+#define out_int3 { reshadefx::type::t_int, 3, 1, reshadefx::type::q_out }
+#define out_int4 { reshadefx::type::t_int, 4, 1, reshadefx::type::q_out }
 #define inout_int { reshadefx::type::t_int, 1, 1, reshadefx::type::q_inout | reshadefx::type::q_groupshared }
 #define uint { reshadefx::type::t_uint, 1, 1 }
 #define uint2 { reshadefx::type::t_uint, 2, 1 }
