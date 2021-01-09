@@ -72,6 +72,7 @@ namespace reshade::d3d12
 #if RESHADE_DEPTH
 		void on_create_dsv(ID3D12Resource *dsv_texture, D3D12_CPU_DESCRIPTOR_HANDLE handle);
 		void on_create_placed_resource(ID3D12Resource *resource, ID3D12Heap *heap, UINT64 offset);
+		std::vector<std::pair<ID3D12Resource*, depthstencil_info>> sorted_counters_per_used_depthstencil();
 
 		// Detection Settings
 		bool preserve_depth_buffers = false;
@@ -96,6 +97,7 @@ namespace reshade::d3d12
 		// Do not hold a reference to the resources here
 		std::unordered_map<SIZE_T, ID3D12Resource *> _depthstencil_resources_by_handle;
 		std::unordered_set<ID3D12Resource *> _placed_depthstencil_resources;
+		std::unordered_map<ID3D12Resource *, int> _shown_count_per_depthstencil_address;
 #endif
 	};
 }

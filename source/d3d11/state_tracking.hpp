@@ -70,6 +70,7 @@ namespace reshade::d3d11
 		std::pair<ID3D11Texture2D *, UINT> depthstencil_clear_index = { nullptr, 0 };
 
 		const auto &depth_buffer_counters() const { return _counters_per_used_depth_texture; }
+		std::vector<std::pair<ID3D11Texture2D*, depthstencil_info>> sorted_counters_per_used_depthstencil();
 
 		com_ptr<ID3D11Texture2D> find_best_depth_texture(UINT width, UINT height,
 			com_ptr<ID3D11Texture2D> override = nullptr);
@@ -81,6 +82,7 @@ namespace reshade::d3d11
 
 		draw_stats _previous_stats;
 		com_ptr<ID3D11Texture2D> _depthstencil_clear_texture;
+		std::unordered_map<ID3D11Texture2D *, int> _shown_count_per_depthstencil_address;
 #endif
 	};
 }

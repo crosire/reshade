@@ -1471,12 +1471,8 @@ void reshade::d3d11::runtime_d3d11::draw_depth_debug_menu()
 	ImGui::Separator();
 	ImGui::Spacing();
 
-	// Sort pointer list so that added/removed items do not change the UI much
-	std::vector<std::pair<ID3D11Texture2D *, state_tracking::depthstencil_info>> sorted_buffers;
-	sorted_buffers.reserve(_state_tracking.depth_buffer_counters().size());
-	for (const auto &[dsv_texture, snapshot] : _state_tracking.depth_buffer_counters())
-		sorted_buffers.push_back({ dsv_texture.get(), snapshot });
-	std::sort(sorted_buffers.begin(), sorted_buffers.end(), [](const auto &a, const auto &b) { return a.first < b.first; });
+	auto sorted_buffers = _state_tracking.sorted_counters_per_used_depthstencil();
+
 	for (const auto &[dsv_texture, snapshot] : sorted_buffers)
 	{
 		char label[512] = "";
