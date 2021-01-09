@@ -139,6 +139,10 @@ namespace reshade::d3d12
 			resource = crosstalk::get_crosstalk_resource(crosstalk::ResNames::OVERLAY_2);
 		else if (texture.semantic == "CROSSTALK_OVERLAY_3")
 			resource = crosstalk::get_crosstalk_resource(crosstalk::ResNames::OVERLAY_3);
+
+		//write resource to texture impl data as otherwise it will be deleted when original texture is deleted
+		//and this does not correlate with its usage - will crash
+		static_cast<tex_data*>(texture.impl)->resource = resource;
 	}
 }
 
