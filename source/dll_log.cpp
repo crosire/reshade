@@ -57,7 +57,11 @@ reshade::log::message::message(level level)
 reshade::log::message::~message()
 {
 	std::string line_string = line_stream.str();
-	line_string += "\r\n"; // Terminate line with line feed
+	line_string += '\n'; // Terminate line with line feed
+
+	// Replace all LF with CRLF
+	for (size_t offset = 0; (offset = line_string.find('\n', offset)) != std::string::npos; offset += 2)
+		line_string.replace(offset, 1, "\r\n", 2);
 
 	// Write line to the log file
 	if (s_file_handle != INVALID_HANDLE_VALUE)
