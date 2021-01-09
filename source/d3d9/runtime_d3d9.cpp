@@ -363,11 +363,12 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 
 	// Add specialization constant defines to source code
 	const std::string hlsl =
-		effect.preamble +
 		"#define COLOR_PIXEL_SIZE 1.0 / " + std::to_string(_width) + ", 1.0 / " + std::to_string(_height) + "\n"
 		"#define DEPTH_PIXEL_SIZE COLOR_PIXEL_SIZE\n"
 		"#define SV_DEPTH_PIXEL_SIZE DEPTH_PIXEL_SIZE\n"
-		"#define SV_TARGET_PIXEL_SIZE COLOR_PIXEL_SIZE\n" +
+		"#define SV_TARGET_PIXEL_SIZE COLOR_PIXEL_SIZE\n"
+		"#line 1\n" + // Reset line number, so it matches what is shown when viewing the generated code
+		effect.preamble +
 		effect.module.hlsl;
 
 	// Overwrite position semantic in pixel shaders
