@@ -80,17 +80,6 @@ void reshade::d3d11::state_tracking::merge(const state_tracking &source)
 
 		target_snapshot.clears.insert(target_snapshot.clears.end(), snapshot.clears.begin(), snapshot.clears.end());
 	}
-	for (const auto& [depthstencil_address, shown_count] : source._shown_count_per_depthstencil_address)
-	{
-		if (_shown_count_per_depthstencil_address.count(depthstencil_address) > 0)
-		{
-			_shown_count_per_depthstencil_address[depthstencil_address] = shown_count + _shown_count_per_depthstencil_address[depthstencil_address];
-		}
-		else
-		{
-			_shown_count_per_depthstencil_address[depthstencil_address] = shown_count;
-		}
-	}
 #endif
 }
 
@@ -219,7 +208,7 @@ bool reshade::d3d11::state_tracking_context::update_depthstencil_clear_texture(D
 	return true;
 }
 
-std::vector<std::pair<ID3D11Texture2D*, reshade::d3d11::state_tracking::depthstencil_info>> reshade::d3d11::state_tracking::sorted_counters_per_used_depthstencil()
+std::vector<std::pair<ID3D11Texture2D*, reshade::d3d11::state_tracking::depthstencil_info>> reshade::d3d11::state_tracking_context::sorted_counters_per_used_depthstencil()
 {
 	struct pair_wrapper
 	{
@@ -238,17 +227,16 @@ std::vector<std::pair<ID3D11Texture2D*, reshade::d3d11::state_tracking::depthste
 		auto dsv_texture_instance = dsv_texture.get();
 		D3D11_TEXTURE2D_DESC desc;
 		dsv_texture->GetDesc(&desc);
-		
-		size_t texture_address = *((size_t*)(&dsv_texture_instance));
 		// get the display counter, if any of this texture.
-		if (_shown_count_per_depthstencil_address.count(texture_address) > 0)
+		auto entry = _shown_count_per_depthstencil_address.find(dsv_texture_instance);
+		if (entry == _shown_count_per_depthstencil_address.end())
 		{
-			auto shown_count = _shown_count_per_depthstencil_address[texture_address];
-			sorted_counters_per_buffer.push_back({ ++shown_count, dsv_texture_instance, snapshot, desc.Width, desc.Height });
+			sorted_counters_per_buffer.push_back({ 1, dsv_texture_instance, snapshot, desc.Width, desc.Height });
 		}
 		else
 		{
-			sorted_counters_per_buffer.push_back({ 1, dsv_texture_instance, snapshot, desc.Width, desc.Height });
+			auto shown_count = entry->second;
+			sorted_counters_per_buffer.push_back({ ++shown_count, dsv_texture_instance, snapshot, desc.Width, desc.Height });
 		}
 	}
 	// sort it
@@ -268,7 +256,7 @@ std::vector<std::pair<ID3D11Texture2D*, reshade::d3d11::state_tracking::depthste
 	for (const auto& [display_count, dsv_texture, snapshot, w, h] : sorted_counters_per_buffer)
 	{
 		to_return.push_back({ dsv_texture, snapshot });
-		_shown_count_per_depthstencil_address[(*(size_t*)&dsv_texture)] = display_count;
+		_shown_count_per_depthstencil_address[dsv_texture] = display_count;
 	}
 	return to_return;
 }

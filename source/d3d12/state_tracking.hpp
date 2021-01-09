@@ -41,7 +41,6 @@ namespace reshade::d3d12
 		void on_transition(const D3D12_RESOURCE_TRANSITION_BARRIER &transition);
 		void on_set_depthstencil(D3D12_CPU_DESCRIPTOR_HANDLE dsv);
 		void on_clear_depthstencil(D3D12_CLEAR_FLAGS clear_flags, D3D12_CPU_DESCRIPTOR_HANDLE dsv);
-		std::vector<std::pair<ID3D12Resource*, depthstencil_info>> sorted_counters_per_used_depthstencil();
 #endif
 
 	protected:
@@ -55,11 +54,6 @@ namespace reshade::d3d12
 		bool _first_empty_stats = false;
 		bool _has_indirect_drawcalls = false;
 		std::unordered_map<com_ptr<ID3D12Resource>, depthstencil_info> _counters_per_used_depth_texture;
-#endif
-
-	private:
-#if RESHADE_DEPTH
-		std::unordered_map<size_t, int> _shown_count_per_depthstencil_address;
 #endif
 	};
 
@@ -78,6 +72,7 @@ namespace reshade::d3d12
 #if RESHADE_DEPTH
 		void on_create_dsv(ID3D12Resource *dsv_texture, D3D12_CPU_DESCRIPTOR_HANDLE handle);
 		void on_create_placed_resource(ID3D12Resource *resource, ID3D12Heap *heap, UINT64 offset);
+		std::vector<std::pair<ID3D12Resource*, depthstencil_info>> sorted_counters_per_used_depthstencil();
 
 		// Detection Settings
 		bool preserve_depth_buffers = false;
@@ -102,6 +97,7 @@ namespace reshade::d3d12
 		// Do not hold a reference to the resources here
 		std::unordered_map<SIZE_T, ID3D12Resource *> _depthstencil_resources_by_handle;
 		std::unordered_set<ID3D12Resource *> _placed_depthstencil_resources;
+		std::unordered_map<ID3D12Resource *, int> _shown_count_per_depthstencil_address;
 #endif
 	};
 }
