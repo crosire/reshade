@@ -12,7 +12,7 @@ Direct3DSwapChain9::Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapCha
 	_orig(original),
 	_extended_interface(0),
 	_device(device),
-	_runtime(new reshade::d3d9::runtime_d3d9(device, original, &device->_state))
+	_runtime(new reshade::d3d9::runtime_d3d9(device->_orig, original, &device->_state))
 {
 	assert(_orig != nullptr && _device != nullptr);
 }
@@ -20,7 +20,7 @@ Direct3DSwapChain9::Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapCha
 	_orig(original),
 	_extended_interface(1),
 	_device(device),
-	_runtime(new reshade::d3d9::runtime_d3d9(device, original, &device->_state))
+	_runtime(new reshade::d3d9::runtime_d3d9(device->_orig, original, &device->_state))
 {
 	assert(_orig != nullptr && _device != nullptr);
 }
