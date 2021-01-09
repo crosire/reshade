@@ -392,7 +392,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		else if (_renderer_id < 0xc000)
 			shader_model = 50; // D3D11
 		else
-			shader_model = 60; // D3D12
+			shader_model = 51; // D3D12
 
 		std::unique_ptr<reshadefx::codegen> codegen;
 		if ((_renderer_id & 0xF0000) == 0)

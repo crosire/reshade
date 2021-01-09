@@ -267,6 +267,8 @@ private:
 
 		s += "#line " + std::to_string(loc.line);
 
+		size_t offset = s.size();
+
 		// Avoid writing the file name every time to reduce output text size
 		if constexpr (force_source)
 		{
@@ -277,6 +279,13 @@ private:
 			s += " \"" + loc.source + '\"';
 
 			_current_location = loc.source;
+		}
+
+		// Need to escape string for new DirectX Shader Compiler (dxc)
+		if (_shader_model >= 60)
+		{
+			for (; (offset = s.find('\\', offset)) != std::string::npos; offset += 2)
+				s.insert(offset, "\\", 1);
 		}
 
 		s += '\n';
