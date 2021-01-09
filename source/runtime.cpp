@@ -415,7 +415,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 
 		if (effect.compiled)
 		{
-			assert(effect.uniforms.empty());
+			effect.uniforms.clear();
 
 			// Create space for all variables (aligned to 16 bytes)
 			effect.uniform_data_storage.resize((effect.module.total_uniform_size + 15) & ~15);
