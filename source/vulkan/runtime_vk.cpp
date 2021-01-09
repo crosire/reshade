@@ -49,8 +49,7 @@ namespace reshade::vulkan
 		VmaAllocation ubo_mem = VK_NULL_HANDLE;
 		VkDescriptorSet ubo_set = VK_NULL_HANDLE;
 #if RESHADE_DEPTH
-		uint32_t depth_image_binding = std::numeric_limits<uint32_t>::max();
-		std::vector<VkDescriptorSet> depth_image_sets;
+		std::unordered_map<uint32_t, std::vector<VkDescriptorSet>> depth_image_bindings;
 		std::vector<VkDescriptorImageInfo> image_bindings;
 #endif
 	};
@@ -959,7 +958,7 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 			if (_depth_image_view != VK_NULL_HANDLE)
 				image_binding.imageView = _depth_image_view;
 			// Keep track of the depth buffer texture descriptor to simplify updating it
-			effect_data.depth_image_binding = info.binding;
+			effect_data.depth_image_bindings.emplace(info.binding, std::vector<VkDescriptorSet>());
 #endif
 		}
 
@@ -1439,8 +1438,8 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 				write.pImageInfo = &sampler_bindings[info.binding];
 
 #if RESHADE_DEPTH
-				if (info.binding == effect_data.depth_image_binding)
-					effect_data.depth_image_sets.push_back(pass_data.set[0]);
+				if (const auto it = effect_data.depth_image_bindings.find(info.binding); it != effect_data.depth_image_bindings.end())
+					it->second.push_back(pass_data.set[0]);
 #endif
 			}
 			pass_data.set[1] = sets[1 + num_passes + total_pass_index];
@@ -1514,6 +1513,10 @@ void reshade::vulkan::runtime_vk::unload_effect(size_t index)
 		vmaDestroyBuffer(_alloc, effect_data.ubo, effect_data.ubo_mem);
 		effect_data.ubo = VK_NULL_HANDLE;
 		effect_data.ubo_mem = VK_NULL_HANDLE;
+#if RESHADE_DEPTH
+		effect_data.depth_image_bindings.clear();
+		effect_data.image_bindings.clear();
+#endif
 	}
 }
 void reshade::vulkan::runtime_vk::unload_effects()
@@ -2591,22 +2594,22 @@ void reshade::vulkan::runtime_vk::update_depth_image_bindings(state_tracking::de
 
 	for (effect_data &effect_data : _effect_data)
 	{
-		if (effect_data.depth_image_binding == std::numeric_limits<uint32_t>::max())
-			continue; // Skip effects that do not have a depth buffer binding
-
-		for (VkDescriptorSet set : effect_data.depth_image_sets)
+		for (const auto [binding, sets] : effect_data.depth_image_bindings)
 		{
-			// Set sampler handle, which should be the same for all writes
-			assert(image_binding.sampler == VK_NULL_HANDLE || image_binding.sampler == effect_data.image_bindings[effect_data.depth_image_binding].sampler);
-			image_binding.sampler = effect_data.image_bindings[effect_data.depth_image_binding].sampler;
+			for (VkDescriptorSet set : sets)
+			{
+				// Set sampler handle, which should be the same for all writes
+				assert(image_binding.sampler == VK_NULL_HANDLE || image_binding.sampler == effect_data.image_bindings[binding].sampler);
+				image_binding.sampler = effect_data.image_bindings[binding].sampler;
 
-			VkWriteDescriptorSet &write = writes.emplace_back();
-			write = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-			write.dstSet = set;
-			write.dstBinding = effect_data.depth_image_binding;
-			write.descriptorCount = 1;
-			write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-			write.pImageInfo = &image_binding;
+				VkWriteDescriptorSet& write = writes.emplace_back();
+				write = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+				write.dstSet = set;
+				write.dstBinding = binding;
+				write.descriptorCount = 1;
+				write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+				write.pImageInfo = &image_binding;
+			}
 		}
 	}
 
