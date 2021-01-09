@@ -80,7 +80,7 @@ namespace reshade::d3d12
 
 		const auto &depth_buffer_counters() const { return _counters_per_used_depth_texture; }
 
-		com_ptr<ID3D12Resource> update_depth_texture(ID3D12CommandQueue *queue, ID3D12GraphicsCommandList *list,
+		com_ptr<ID3D12Resource> update_depth_texture(ID3D12GraphicsCommandList *list,
 			UINT width, UINT height,
 			ID3D12Resource *override = nullptr);
 #endif
@@ -89,7 +89,7 @@ namespace reshade::d3d12
 #if RESHADE_DEPTH
 		com_ptr<ID3D12Resource> resource_from_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle) const;
 
-		bool update_depthstencil_clear_texture(ID3D12CommandQueue *queue, D3D12_RESOURCE_DESC desc);
+		bool update_depthstencil_clear_texture(D3D12_RESOURCE_DESC desc);
 
 		draw_stats _previous_stats;
 		com_ptr<ID3D12Resource> _depthstencil_clear_texture;

@@ -53,7 +53,7 @@ namespace reshade::d3d12
 		D3D12_CPU_DESCRIPTOR_HANDLE sampler_cpu_base;
 		D3D12_GPU_DESCRIPTOR_HANDLE sampler_gpu_base;
 #if RESHADE_DEPTH
-		D3D12_CPU_DESCRIPTOR_HANDLE depth_texture_binding = {};
+		std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> depth_texture_bindings;
 #endif
 	};
 
@@ -400,7 +400,7 @@ void reshade::d3d12::runtime_d3d12::on_present()
 		return;
 
 #if RESHADE_DEPTH
-	update_depth_texture_bindings(_state_tracking.update_depth_texture(_commandqueue.get(), _cmd_list.get(), _width, _height, _depth_texture_override));
+	update_depth_texture_bindings(_state_tracking.update_depth_texture(_cmd_list.get(), _width, _height, _depth_texture_override));
 
 	// Potentially have to restart command list here because depth texture binding update may have done a wait for idle
 	if (!begin_command_list())
@@ -1020,8 +1020,8 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 				if (texture.semantic == "DEPTH")
 				{
 					resource = _depth_texture; // Note: This can be a "nullptr"
-					// Keep track of the depth buffer texture descriptor to simplify updating it
-					effect_data.depth_texture_binding = srv_handle;
+					// Keep track of the depth buffer texture descriptors of each pass to simplify updating it
+					effect_data.depth_texture_bindings.push_back(srv_handle);
 				}
 #endif
 
@@ -1101,7 +1101,7 @@ void reshade::d3d12::runtime_d3d12::unload_effect(size_t index)
 		effect_data.srv_uav_heap.reset();
 		effect_data.sampler_heap.reset();
 #if RESHADE_DEPTH
-		effect_data.depth_texture_binding = { 0 };
+		effect_data.depth_texture_bindings.clear();
 #endif
 	}
 }
@@ -1905,6 +1905,10 @@ void reshade::d3d12::runtime_d3d12::update_depth_texture_bindings(com_ptr<ID3D12
 	if (depth_texture == _depth_texture)
 		return;
 
+	// Descriptors may be currently in use, so make sure all previous frames have finished before updating them
+	wait_for_command_queue();
+
+	// This potentially destroys the previous resource, so it must not be in use on the GPU at this point anymore!
 	_depth_texture = std::move(depth_texture);
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
@@ -1934,16 +1938,9 @@ void reshade::d3d12::runtime_d3d12::update_depth_texture_bindings(com_ptr<ID3D12
 		_has_depth_texture = false;
 	}
 
-	// Descriptors may be currently in use, so make sure all previous frames have finished before updating them
-	wait_for_command_queue();
-
-	for (effect_data &effect_data : _effect_data)
-	{
-		if (effect_data.depth_texture_binding.ptr == 0)
-			continue; // Skip effects that do not have a depth buffer binding
-
-		// Either create a shader resource view or a null descriptor
-		_device->CreateShaderResourceView(_depth_texture.get(), &srv_desc, effect_data.depth_texture_binding);
-	}
+	// Either create a shader resource view or set a null descriptor
+	for (const effect_data &effect_data : _effect_data)
+		for (D3D12_CPU_DESCRIPTOR_HANDLE binding : effect_data.depth_texture_bindings)
+			_device->CreateShaderResourceView(_depth_texture.get(), &srv_desc, binding);
 }
 #endif

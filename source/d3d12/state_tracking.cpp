@@ -261,7 +261,7 @@ com_ptr<ID3D12Resource> reshade::d3d12::state_tracking_context::resource_from_ha
 	return nullptr;
 }
 
-bool reshade::d3d12::state_tracking_context::update_depthstencil_clear_texture(ID3D12CommandQueue *queue, D3D12_RESOURCE_DESC desc)
+bool reshade::d3d12::state_tracking_context::update_depthstencil_clear_texture(D3D12_RESOURCE_DESC desc)
 {
 	assert(_device != nullptr);
 
@@ -272,21 +272,7 @@ bool reshade::d3d12::state_tracking_context::update_depthstencil_clear_texture(I
 		if (desc.Width == existing_desc.Width && desc.Height == existing_desc.Height && desc.Format == existing_desc.Format)
 			return true; // Texture already matches dimensions, so can re-use
 
-		// Texture may still be in use on device, so wait for all operations to finish before destroying it
-		{	com_ptr<ID3D12Fence> fence;
-			if (FAILED(_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence))))
-				return false;
-			const HANDLE fence_event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-			if (fence_event == nullptr)
-				return false;
-
-			assert(queue != nullptr);
-			queue->Signal(fence.get(), 1);
-			fence->SetEventOnCompletion(1, fence_event);
-			WaitForSingleObject(fence_event, INFINITE);
-			CloseHandle(fence_event);
-		}
-
+		// Runtime using this texture should have added its own reference, so can safely release this one here
 		_depthstencil_clear_texture.reset();
 	}
 
@@ -305,7 +291,7 @@ bool reshade::d3d12::state_tracking_context::update_depthstencil_clear_texture(I
 	return true;
 }
 
-com_ptr<ID3D12Resource> reshade::d3d12::state_tracking_context::update_depth_texture(ID3D12CommandQueue *queue, ID3D12GraphicsCommandList *list, UINT width, UINT height, ID3D12Resource *override)
+com_ptr<ID3D12Resource> reshade::d3d12::state_tracking_context::update_depth_texture(ID3D12GraphicsCommandList *list, UINT width, UINT height, ID3D12Resource *override)
 {
 	depthstencil_info best_snapshot;
 	com_ptr<ID3D12Resource> best_match = override;
@@ -354,7 +340,7 @@ com_ptr<ID3D12Resource> reshade::d3d12::state_tracking_context::update_depth_tex
 	const bool has_changed = depthstencil_clear_index.first != best_match;
 	depthstencil_clear_index.first = best_match.get();
 
-	if (best_match == nullptr || !update_depthstencil_clear_texture(queue, best_match->GetDesc()))
+	if (best_match == nullptr || !update_depthstencil_clear_texture(best_match->GetDesc()))
 		return nullptr;
 
 	if (preserve_depth_buffers)
