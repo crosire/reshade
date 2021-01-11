@@ -1244,6 +1244,9 @@ void reshade::runtime::draw_gui_home()
 
 		if (ImGui::Button(ICON_FK_REFRESH " Reload", ImVec2(-11.5f * _font_size, 0)))
 		{
+			if (ImGui::GetIO().KeyCtrl || ImGui::GetIO().KeyShift)
+				clear_effect_cache();
+
 			reload_effects();
 		}
 
@@ -1346,22 +1349,7 @@ void reshade::runtime::draw_gui_settings()
 		}
 
 		if (ImGui::Button("Clear effect cache", ImVec2(ImGui::CalcItemWidth(), 0)))
-		{
-			// Find all cached effect files and delete them
-			std::error_code ec;
-			for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(g_reshade_base_path / _intermediate_cache_path, std::filesystem::directory_options::skip_permission_denied, ec))
-			{
-				if (entry.is_directory(ec))
-					continue;
-
-				const std::filesystem::path filename = entry.path().filename();
-				const std::filesystem::path extension = entry.path().extension();
-				if (filename.native().compare(0, 8, L"reshade-") != 0 || (extension != L".i" && extension != L".cso" && extension != L".asm"))
-					continue;
-
-				DeleteFileW(entry.path().c_str());
-			}
-		}
+			clear_effect_cache();
 	}
 
 	if (ImGui::CollapsingHeader("Screenshots", ImGuiTreeNodeFlags_DefaultOpen))

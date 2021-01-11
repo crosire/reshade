@@ -199,6 +199,10 @@ namespace reshade
 		/// </summary>
 		bool save_effect_cache(const std::filesystem::path &source_file, const size_t hash, const std::string &source) const;
 		bool save_effect_cache(const std::filesystem::path &source_file, const std::string &entry_point, const size_t hash, const std::vector<char> &cso, const std::string &dasm) const;
+		/// <summary>
+		/// Remove all compiled effect data from disk.
+		/// </summary>
+		void clear_effect_cache();
 
 		/// <summary>
 		/// Load image files and update textures with image data.

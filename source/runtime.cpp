@@ -933,6 +933,24 @@ bool reshade::runtime::save_effect_cache(const std::filesystem::path &source_fil
 	return true;
 }
 
+void reshade::runtime::clear_effect_cache()
+{
+	// Find all cached effect files and delete them
+	std::error_code ec;
+	for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(g_reshade_base_path / _intermediate_cache_path, std::filesystem::directory_options::skip_permission_denied, ec))
+	{
+		if (entry.is_directory(ec))
+			continue;
+
+		const std::filesystem::path filename = entry.path().filename();
+		const std::filesystem::path extension = entry.path().extension();
+		if (filename.native().compare(0, 8, L"reshade-") != 0 || (extension != L".i" && extension != L".cso" && extension != L".asm"))
+			continue;
+
+		DeleteFileW(entry.path().c_str());
+	}
+}
+
 void reshade::runtime::update_and_render_effects()
 {
 	// Delay first load to the first render call to avoid loading while the application is still initializing
