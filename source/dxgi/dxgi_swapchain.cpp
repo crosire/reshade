@@ -16,6 +16,7 @@
 
 extern UINT query_device(IUnknown *&device, com_ptr<IUnknown> &device_proxy);
 
+// Needs to be set whenever a DXGI call can end up in 'CDXGISwapChain::EnsureChildDeviceInternal', to avoid hooking internal D3D device creation
 thread_local bool g_in_dxgi_runtime = false;
 
 DXGISwapChain::DXGISwapChain(D3D10Device *device, IDXGISwapChain  *original) :
@@ -238,7 +239,7 @@ ULONG   STDMETHODCALLTYPE DXGISwapChain::Release()
 	{
 	case 10:
 		delete static_cast<reshade::d3d10::runtime_d3d10 *>(_runtime);
-		break; 
+		break;
 	case 11:
 		delete static_cast<reshade::d3d11::runtime_d3d11 *>(_runtime);
 		break;
@@ -306,15 +307,24 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::SetFullscreenState(BOOL Fullscreen, IDX
 {
 	LOG(INFO) << "Redirecting " << "IDXGISwapChain::SetFullscreenState" << '(' << "this = " << this << ", Fullscreen = " << (Fullscreen ? "TRUE" : "FALSE") << ", pTarget = " << pTarget << ')' << " ...";
 
-	return _orig->SetFullscreenState(Fullscreen, pTarget);
+	g_in_dxgi_runtime = true;
+	const HRESULT hr = _orig->SetFullscreenState(Fullscreen, pTarget);
+	g_in_dxgi_runtime = false;
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::GetFullscreenState(BOOL *pFullscreen, IDXGIOutput **ppTarget)
 {
-	return _orig->GetFullscreenState(pFullscreen, ppTarget);
+	g_in_dxgi_runtime = true;
+	const HRESULT hr = _orig->GetFullscreenState(pFullscreen, ppTarget);
+	g_in_dxgi_runtime = false;
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::GetDesc(DXGI_SWAP_CHAIN_DESC *pDesc)
 {
-	return _orig->GetDesc(pDesc);
+	g_in_dxgi_runtime = true;
+	const HRESULT hr = _orig->GetDesc(pDesc);
+	g_in_dxgi_runtime = false;
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Width, UINT Height, DXGI_FORMAT NewFormat, UINT SwapChainFlags)
 {
@@ -336,7 +346,9 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 	if (_force_10_bit_format)
 		NewFormat = DXGI_FORMAT_R10G10B10A2_UNORM;
 
+	g_in_dxgi_runtime = true;
 	const HRESULT hr = _orig->ResizeBuffers(BufferCount, Width, Height, NewFormat, SwapChainFlags);
+	g_in_dxgi_runtime = false;
 	if (hr == DXGI_ERROR_INVALID_CALL) // Ignore invalid call errors since the device is still in a usable state afterwards
 	{
 		LOG(WARN) << "IDXGISwapChain::ResizeBuffers" << " failed with error code " << "DXGI_ERROR_INVALID_CALL" << '.';
@@ -353,7 +365,10 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeTarget(const DXGI_MODE_DESC *pNewTargetParameters)
 {
-	return _orig->ResizeTarget(pNewTargetParameters);
+	g_in_dxgi_runtime = true;
+	const HRESULT hr = _orig->ResizeTarget(pNewTargetParameters);
+	g_in_dxgi_runtime = false;
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::GetContainingOutput(IDXGIOutput **ppOutput)
 {
@@ -371,7 +386,10 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetLastPresentCount(UINT *pLastPresentC
 HRESULT STDMETHODCALLTYPE DXGISwapChain::GetDesc1(DXGI_SWAP_CHAIN_DESC1 *pDesc)
 {
 	assert(_interface_version >= 1);
-	return static_cast<IDXGISwapChain1 *>(_orig)->GetDesc1(pDesc);
+	g_in_dxgi_runtime = true;
+	const HRESULT hr = static_cast<IDXGISwapChain1 *>(_orig)->GetDesc1(pDesc);
+	g_in_dxgi_runtime = false;
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::GetFullscreenDesc(DXGI_SWAP_CHAIN_FULLSCREEN_DESC *pDesc)
 {
@@ -517,7 +535,9 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 	}
 
 	assert(_interface_version >= 3);
+	g_in_dxgi_runtime = true;
 	const HRESULT hr = static_cast<IDXGISwapChain3 *>(_orig)->ResizeBuffers1(BufferCount, Width, Height, Format, SwapChainFlags, pCreationNodeMask, present_queues.data());
+	g_in_dxgi_runtime = false;
 	if (hr == DXGI_ERROR_INVALID_CALL)
 	{
 		LOG(WARN) << "IDXGISwapChain3::ResizeBuffers1" << " failed with error code " << "DXGI_ERROR_INVALID_CALL" << '.';

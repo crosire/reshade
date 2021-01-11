@@ -66,7 +66,7 @@ HOOK_EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter,
 
 HOOK_EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter, D3D10_DRIVER_TYPE DriverType, HMODULE Software, UINT Flags, D3D10_FEATURE_LEVEL1 HardwareLevel, UINT SDKVersion, DXGI_SWAP_CHAIN_DESC *pSwapChainDesc, IDXGISwapChain **ppSwapChain, ID3D10Device1 **ppDevice)
 {
-	// Pass on unmodified in case this called from within 'IDXGISwapChain::Present' or 'IDXGIFactory::CreateSwapChain', which indicates that the DXGI runtime is trying to create an internal device, which should not be hooked
+	// Pass on unmodified in case this called from within 'CDXGISwapChain::EnsureChildDeviceInternal', which indicates that the DXGI runtime is trying to create an internal device, which should not be hooked
 	if (g_in_dxgi_runtime)
 		return reshade::hooks::call(D3D10CreateDeviceAndSwapChain1)(
 			pAdapter, DriverType, Software, Flags, HardwareLevel, SDKVersion, pSwapChainDesc, ppSwapChain, ppDevice);
