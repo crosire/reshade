@@ -323,6 +323,7 @@ namespace reshade
 
 		// === Effect Loading ===
 		bool _no_debug_info = 0;
+		bool _no_effect_cache = false;
 		bool _no_reload_on_init = false;
 		bool _effect_load_skipping = false;
 		bool _load_option_disable_skipping = false;

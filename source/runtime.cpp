@@ -847,6 +847,9 @@ void reshade::runtime::reload_effects()
 
 bool reshade::runtime::load_effect_cache(const std::filesystem::path &source_file, const size_t hash, std::string &source) const
 {
+	if (_no_effect_cache)
+		return false;
+
 	std::filesystem::path path = g_reshade_base_path / _intermediate_cache_path;
 	path /= std::filesystem::u8path("reshade-" + source_file.stem().u8string() + '-' + std::to_string(_renderer_id) + '-' + std::to_string(hash) + ".i");
 
@@ -861,6 +864,9 @@ bool reshade::runtime::load_effect_cache(const std::filesystem::path &source_fil
 }
 bool reshade::runtime::load_effect_cache(const std::filesystem::path &source_file, const std::string &entry_point, const size_t hash, std::vector<char> &cso, std::string &dasm) const
 {
+	if (_no_effect_cache)
+		return false;
+
 	std::filesystem::path path = g_reshade_base_path / _intermediate_cache_path;
 	path /= std::filesystem::u8path("reshade-" + source_file.stem().u8string() + '-' + entry_point + '-' + std::to_string(_renderer_id) + '-' + std::to_string(hash) + ".cso");
 
@@ -892,6 +898,9 @@ bool reshade::runtime::load_effect_cache(const std::filesystem::path &source_fil
 }
 bool reshade::runtime::save_effect_cache(const std::filesystem::path &source_file, const size_t hash, const std::string &source) const
 {
+	if (_no_effect_cache)
+		return false;
+
 	std::filesystem::path path = g_reshade_base_path / _intermediate_cache_path;
 	path /= std::filesystem::u8path("reshade-" + source_file.stem().u8string() + '-' + std::to_string(_renderer_id) + '-' + std::to_string(hash) + ".i");
 
@@ -905,6 +914,9 @@ bool reshade::runtime::save_effect_cache(const std::filesystem::path &source_fil
 }
 bool reshade::runtime::save_effect_cache(const std::filesystem::path &source_file, const std::string &entry_point, const size_t hash, const std::vector<char> &cso, const std::string &dasm) const
 {
+	if (_no_effect_cache)
+		return false;
+
 	std::filesystem::path path = g_reshade_base_path / _intermediate_cache_path;
 	path /= std::filesystem::u8path("reshade-" + source_file.stem().u8string() + '-' + entry_point + '-' + std::to_string(_renderer_id) + '-' + std::to_string(hash) + ".cso");
 
@@ -1408,6 +1420,7 @@ void reshade::runtime::load_config()
 	config.get("INPUT", "KeyScreenshot", _screenshot_key_data);
 
 	config.get("GENERAL", "NoDebugInfo", _no_debug_info);
+	config.get("GENERAL", "NoEffectCache", _no_effect_cache);
 	config.get("GENERAL", "NoReloadOnInit", _no_reload_on_init);
 
 	config.get("GENERAL", "EffectSearchPaths", _effect_search_paths);
@@ -1455,6 +1468,10 @@ void reshade::runtime::save_config() const
 	config.set("INPUT", "KeyPreviousPreset", _prev_preset_key_data);
 	config.set("INPUT", "KeyReload", _reload_key_data);
 	config.set("INPUT", "KeyScreenshot", _screenshot_key_data);
+
+	config.set("GENERAL", "NoDebugInfo", _no_debug_info);
+	config.set("GENERAL", "NoEffectCache", _no_effect_cache);
+	config.set("GENERAL", "NoReloadOnInit", _no_reload_on_init);
 
 	config.set("GENERAL", "EffectSearchPaths", _effect_search_paths);
 	config.set("GENERAL", "PerformanceMode", _performance_mode);

@@ -1244,7 +1244,7 @@ void reshade::runtime::draw_gui_home()
 
 		if (ImGui::Button(ICON_FK_REFRESH " Reload", ImVec2(-11.5f * _font_size, 0)))
 		{
-			if (ImGui::GetIO().KeyCtrl || ImGui::GetIO().KeyShift)
+			if (!_no_effect_cache && (ImGui::GetIO().KeyCtrl || ImGui::GetIO().KeyShift))
 				clear_effect_cache();
 
 			reload_effects();
