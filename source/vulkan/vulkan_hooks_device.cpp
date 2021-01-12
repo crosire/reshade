@@ -33,7 +33,7 @@ struct command_buffer_data
 	reshade::vulkan::state_tracking state;
 };
 
-static lockfree_table<void *, device_data, 16> s_device_dispatch;
+static lockfree_table<void *, device_data, 16> s_vulkan_devices;
 extern lockfree_table<void *, VkLayerInstanceDispatchTable, 16> s_instance_dispatch;
 extern lockfree_table<VkSurfaceKHR, HWND, 16> s_surface_windows;
 static lockfree_table<VkSwapchainKHR, reshade::vulkan::runtime_vk *, 16> s_vulkan_runtimes;
@@ -44,7 +44,7 @@ static lockfree_table<VkCommandBuffer, command_buffer_data, 4096> s_command_buff
 static lockfree_table<VkRenderPass, std::vector<render_pass_data>, 4096> s_renderpass_data;
 
 #define GET_DEVICE_DISPATCH_PTR(name, object) \
-	PFN_vk##name trampoline = s_device_dispatch.at(dispatch_key_from_handle(object)).dispatch_table.name; \
+	PFN_vk##name trampoline = s_vulkan_devices.at(dispatch_key_from_handle(object)).dispatch_table.name; \
 	assert(trampoline != nullptr);
 
 VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDeviceCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkDevice *pDevice)
@@ -328,7 +328,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DEVICE_PROC(CmdDebugMarkerEndEXT);
 
 	// Initialize per-device data
-	s_device_dispatch.emplace(dispatch_key_from_handle(device), device_data { physicalDevice, dispatch_table, graphics_queue_family_index });
+	s_vulkan_devices.emplace(dispatch_key_from_handle(device), device_data { physicalDevice, dispatch_table, graphics_queue_family_index });
 
 #if RESHADE_VERBOSE_LOG
 	LOG(INFO) << "Returning Vulkan device " << device << '.';
@@ -344,7 +344,7 @@ void     VKAPI_CALL vkDestroyDevice(VkDevice device, const VkAllocationCallbacks
 	// Get function pointer before removing it next
 	GET_DEVICE_DISPATCH_PTR(DestroyDevice, device);
 	// Remove device dispatch table since this device is being destroyed
-	s_device_dispatch.erase(dispatch_key_from_handle(device));
+	s_vulkan_devices.erase(dispatch_key_from_handle(device));
 
 	trampoline(device, pAllocator);
 }
@@ -355,7 +355,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 
 	assert(pCreateInfo != nullptr && pSwapchain != nullptr);
 
-	auto &device_data = s_device_dispatch.at(dispatch_key_from_handle(device));
+	auto &device_data = s_vulkan_devices.at(dispatch_key_from_handle(device));
 
 	VkSwapchainCreateInfoKHR create_info = *pCreateInfo;
 	VkImageFormatListCreateInfoKHR format_list_info { VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO_KHR };
@@ -447,9 +447,9 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 
 	if (device_data.graphics_queue_family_index != std::numeric_limits<uint32_t>::max())
 	{
-		reshade::vulkan::runtime_vk *runtime;
 		// Remove old swap chain from the list so that a call to 'vkDestroySwapchainKHR' won't reset the runtime again
-		if (s_vulkan_runtimes.erase(pCreateInfo->oldSwapchain, runtime))
+		reshade::vulkan::runtime_vk *runtime = s_vulkan_runtimes.erase(pCreateInfo->oldSwapchain);
+		if (runtime != nullptr)
 		{
 			assert(pCreateInfo->oldSwapchain != VK_NULL_HANDLE);
 
@@ -487,11 +487,7 @@ void     VKAPI_CALL vkDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapch
 	LOG(INFO) << "Redirecting " << "vkDestroySwapchainKHR" << '(' << device << ", " << swapchain << ", " << pAllocator << ')' << " ...";
 
 	// Remove runtime from global list
-	if (reshade::vulkan::runtime_vk *runtime;
-		s_vulkan_runtimes.erase(swapchain, runtime))
-	{
-		delete runtime;
-	}
+	delete s_vulkan_runtimes.erase(swapchain);
 
 	GET_DEVICE_DISPATCH_PTR(DestroySwapchainKHR, device);
 	trampoline(device, swapchain, pAllocator);
@@ -501,7 +497,7 @@ VkResult VKAPI_CALL vkQueueSubmit(VkQueue queue, uint32_t submitCount, const VkS
 {
 	assert(pSubmits != nullptr);
 
-	auto &device_data = s_device_dispatch.at(dispatch_key_from_handle(queue));
+	auto &device_data = s_vulkan_devices.at(dispatch_key_from_handle(queue));
 
 	for (uint32_t i = 0; i < submitCount; ++i)
 	{
@@ -524,7 +520,7 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 {
 	assert(pPresentInfo != nullptr);
 
-	auto &device_data = s_device_dispatch.at(dispatch_key_from_handle(queue));
+	auto &device_data = s_vulkan_devices.at(dispatch_key_from_handle(queue));
 
 	std::vector<VkSemaphore> wait_semaphores(
 		pPresentInfo->pWaitSemaphores, pPresentInfo->pWaitSemaphores + pPresentInfo->waitSemaphoreCount);
@@ -736,6 +732,23 @@ VkResult VKAPI_CALL vkBeginCommandBuffer(VkCommandBuffer commandBuffer, const Vk
 	return trampoline(commandBuffer, pBeginInfo);
 }
 
+void     VKAPI_CALL vkCmdDraw(VkCommandBuffer commandBuffer, uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance)
+{
+	GET_DEVICE_DISPATCH_PTR(CmdDraw, commandBuffer);
+	trampoline(commandBuffer, vertexCount, instanceCount, firstVertex, firstInstance);
+
+	auto &data = s_command_buffer_data.at(commandBuffer);
+	data.state.on_draw(vertexCount * instanceCount);
+}
+void     VKAPI_CALL vkCmdDrawIndexed(VkCommandBuffer commandBuffer, uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance)
+{
+	GET_DEVICE_DISPATCH_PTR(CmdDrawIndexed, commandBuffer);
+	trampoline(commandBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
+
+	auto &data = s_command_buffer_data.at(commandBuffer);
+	data.state.on_draw(indexCount * instanceCount);
+}
+
 void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const VkRenderPassBeginInfo *pRenderPassBegin, VkSubpassContents contents)
 {
 #if RESHADE_DEPTH
@@ -825,23 +838,6 @@ void     VKAPI_CALL vkCmdExecuteCommands(VkCommandBuffer commandBuffer, uint32_t
 	trampoline(commandBuffer, commandBufferCount, pCommandBuffers);
 }
 
-void     VKAPI_CALL vkCmdDraw(VkCommandBuffer commandBuffer, uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance)
-{
-	GET_DEVICE_DISPATCH_PTR(CmdDraw, commandBuffer);
-	trampoline(commandBuffer, vertexCount, instanceCount, firstVertex, firstInstance);
-
-	auto &data = s_command_buffer_data.at(commandBuffer);
-	data.state.on_draw(vertexCount * instanceCount);
-}
-void     VKAPI_CALL vkCmdDrawIndexed(VkCommandBuffer commandBuffer, uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance)
-{
-	GET_DEVICE_DISPATCH_PTR(CmdDrawIndexed, commandBuffer);
-	trampoline(commandBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
-
-	auto &data = s_command_buffer_data.at(commandBuffer);
-	data.state.on_draw(indexCount * instanceCount);
-}
-
 VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice device, const char *pName)
 {
 #define CHECK_DEVICE_PROC(name) \
@@ -850,7 +846,6 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 
 	// The Vulkan loader gets the 'vkDestroyDevice' function from the device dispatch table
 	CHECK_DEVICE_PROC(DestroyDevice);
-
 	CHECK_DEVICE_PROC(CreateSwapchainKHR);
 	CHECK_DEVICE_PROC(DestroySwapchainKHR);
 	CHECK_DEVICE_PROC(QueueSubmit);
@@ -872,12 +867,12 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	CHECK_DEVICE_PROC(FreeCommandBuffers);
 	CHECK_DEVICE_PROC(BeginCommandBuffer);
 
+	CHECK_DEVICE_PROC(CmdDraw);
+	CHECK_DEVICE_PROC(CmdDrawIndexed);
 	CHECK_DEVICE_PROC(CmdBeginRenderPass);
 	CHECK_DEVICE_PROC(CmdNextSubpass);
 	CHECK_DEVICE_PROC(CmdEndRenderPass);
 	CHECK_DEVICE_PROC(CmdExecuteCommands);
-	CHECK_DEVICE_PROC(CmdDraw);
-	CHECK_DEVICE_PROC(CmdDrawIndexed);
 
 	// Need to self-intercept as well, since some layers rely on this (e.g. Steam overlay)
 	// See https://github.com/KhronosGroup/Vulkan-Loader/blob/master/loader/LoaderAndLayerInterface.md#layer-conventions-and-rules

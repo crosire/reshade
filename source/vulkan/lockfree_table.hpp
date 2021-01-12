@@ -195,3 +195,128 @@ private:
 
 	std::pair<std::atomic<TKey>, TValue *> _data[MAX_ENTRIES];
 };
+
+/// <summary>
+/// Overload of the lock-free table for pointer value types, which avoids an extra indirection and stores the pointers directly.
+/// </summary>
+template <typename TKey, typename TValue, size_t MAX_ENTRIES>
+class lockfree_table<TKey, TValue *, MAX_ENTRIES>
+{
+	using TValuePtr = TValue * ;
+
+public:
+	~lockfree_table()
+	{
+		clear();
+	}
+
+	/// <summary>
+	/// Special key indicating that the entry is empty.
+	/// </summary>
+	static constexpr TKey no_value = (TKey)0;
+	/// <summary>
+	/// Special key indicating that the entry is currently being updated.
+	/// </summary>
+	static constexpr TKey update_value = (TKey)1;
+
+	/// <summary>
+	/// Gets the pointer associated with the specified <paramref name="key"/>.
+	/// This is a weak look up and may fail if another thread is erasing a value at the same time.
+	/// </summary>
+	/// <param name="key">The key to look up.</param>
+	/// <returns>The pointer associated with the key or <c>nullptr</c> if it was not found.</returns>
+	TValuePtr at(TKey key) const
+	{
+		assert(key != no_value && key != update_value);
+
+		size_t start_index = 0;
+		if constexpr (MAX_ENTRIES > 512)
+			start_index = std::hash<TKey>()(key) % (MAX_ENTRIES / 2);
+
+		for (size_t i = start_index; i < MAX_ENTRIES; ++i)
+		{
+			if (_data[i].first.load(std::memory_order_acquire) == key)
+			{
+				return _data[i].second;
+			}
+		}
+
+		return nullptr;
+	}
+
+	/// <summary>
+	/// Adds the specified key-pointer pair to the table.
+	/// </summary>
+	/// <param name="key">The key to add.</param>
+	/// <param name="value">The pointer to add.</param>
+	/// <returns>The added pointer or <c>nullptr</c> if the table is full.</returns>
+	TValuePtr emplace(TKey key, TValuePtr value)
+	{
+		assert(key != no_value && key != update_value);
+
+		size_t start_index = 0;
+		if constexpr (MAX_ENTRIES > 512)
+			start_index = std::hash<TKey>()(key) % (MAX_ENTRIES / 2);
+
+		for (size_t i = start_index; i < MAX_ENTRIES; ++i)
+		{
+			if (TKey test_key = _data[i].first.load(std::memory_order_relaxed);
+				test_key == no_value &&
+				_data[i].first.compare_exchange_strong(test_key, update_value, std::memory_order_relaxed))
+			{
+				_data[i].second = value;
+
+				_data[i].first.store(key, std::memory_order_release);
+
+				return value;
+			}
+		}
+
+		return nullptr;
+	}
+
+	/// <summary>
+	/// Removes and returns the pointer associated with the specified <paramref name="key"/> from the table.
+	/// </summary>
+	/// <param name="key">The key to look up.</param>
+	/// <returns>The removed pointer if the key existed, <c>nullptr</c> otherwise.</returns>
+	TValuePtr erase(TKey key)
+	{
+		if (key == no_value || key == update_value)
+			return nullptr;
+
+		size_t start_index = 0;
+		if constexpr (MAX_ENTRIES > 512)
+			start_index = std::hash<TKey>()(key) % (MAX_ENTRIES / 2);
+
+		for (size_t i = start_index; i < MAX_ENTRIES; ++i)
+		{
+			if (TKey test_key = _data[i].first.load(std::memory_order_relaxed);
+				test_key == key)
+			{
+				const TValuePtr old_value = _data[i].second;
+
+				if (_data[i].first.compare_exchange_strong(test_key, no_value, std::memory_order_relaxed))
+				{
+					return old_value;
+				}
+			}
+		}
+
+		return nullptr;
+	}
+
+	/// <summary>
+	/// Clears the entire table.
+	/// </summary>
+	void clear()
+	{
+		for (size_t i = 0; i < MAX_ENTRIES; ++i)
+		{
+			_data[i].first.exchange(no_value);
+		}
+	}
+
+private:
+	std::pair<std::atomic<TKey>, TValuePtr> _data[MAX_ENTRIES];
+};
