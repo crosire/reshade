@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "state_tracking.hpp"
+#include "render_d3d10.hpp"
 
 struct DXGIDevice;
 
@@ -128,5 +128,5 @@ struct DECLSPEC_UUID("88399375-734F-4892-A95F-70DD42CE7CDD") D3D10Device : ID3D1
 	LONG _ref = 1;
 	ID3D10Device1 *_orig;
 	DXGIDevice *const _dxgi_device;
-	reshade::d3d10::state_tracking _state;
+	reshade::d3d10::device_impl *const _impl;
 };

@@ -6,22 +6,30 @@
 #pragma once
 
 #include "runtime.hpp"
+#include "render_d3d11.hpp"
 #include "state_block_d3d11.hpp"
-#include "state_tracking.hpp"
 
 namespace reshade::d3d11
 {
 	class runtime_d3d11 : public runtime
 	{
 	public:
-		runtime_d3d11(ID3D11Device *device, IDXGISwapChain *swapchain, state_tracking_context *state_tracking);
+		runtime_d3d11(device_impl *device, device_context_impl *device_context, IDXGISwapChain *swapchain);
 		~runtime_d3d11();
+
+		bool get_data(const uint8_t guid[16], uint32_t size, void *data) override { return SUCCEEDED(_swapchain->GetPrivateData(*reinterpret_cast<const GUID *>(guid), &size, data)); }
+		void set_data(const uint8_t guid[16], uint32_t size, const void *data) override { _swapchain->SetPrivateData(*reinterpret_cast<const GUID *>(guid), size, data); }
+
+		api::device *get_device() override { return _device_impl; }
+		api::command_queue *get_command_queue() { return _immediate_context_impl; }
 
 		bool on_init();
 		void on_reset();
 		void on_present();
 
 		bool capture_screenshot(uint8_t *buffer) const override;
+
+		void update_texture_bindings(const char *semantic, api::resource_view_handle srv) override;
 
 	private:
 		bool init_effect(size_t index) override;
@@ -36,11 +44,13 @@ namespace reshade::d3d11
 
 		void set_debug_name(ID3D11DeviceChild *object, LPCWSTR name) const;
 
-		state_block _app_state;
-		state_tracking_context &_state_tracking;
+		device_impl *const _device_impl;
 		const com_ptr<ID3D11Device> _device;
-		com_ptr<ID3D11DeviceContext> _immediate_context;
+		device_context_impl *const _immediate_context_impl;
+		const com_ptr<ID3D11DeviceContext> _immediate_context;
 		const com_ptr<IDXGISwapChain> _swapchain;
+
+		state_block _app_state;
 
 		DXGI_FORMAT _backbuffer_format = DXGI_FORMAT_UNKNOWN;
 		com_ptr<ID3D11Texture2D> _backbuffer;
@@ -58,6 +68,8 @@ namespace reshade::d3d11
 		std::unordered_map<size_t, com_ptr<ID3D11SamplerState>> _effect_sampler_states;
 		com_ptr<ID3D11DepthStencilView> _effect_stencil;
 		std::vector<struct effect_data> _effect_data;
+
+		std::unordered_map<std::string, com_ptr<ID3D11ShaderResourceView>> _texture_semantic_bindings;
 
 #if RESHADE_GUI
 		bool init_imgui_resources();
@@ -79,15 +91,6 @@ namespace reshade::d3d11
 			int num_indices = 0;
 			int num_vertices = 0;
 		} _imgui;
-#endif
-
-#if RESHADE_DEPTH
-		void draw_depth_debug_menu();
-		void update_depth_texture_bindings(com_ptr<ID3D11Texture2D> texture);
-
-		com_ptr<ID3D11Texture2D> _depth_texture;
-		com_ptr<ID3D11ShaderResourceView> _depth_texture_srv;
-		ID3D11Texture2D *_depth_texture_override = nullptr;
 #endif
 	};
 }

@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include <d3d11_4.h>
+#include "render_d3d11.hpp"
 
 struct DXGIDevice;
 struct D3D11DeviceContext;
@@ -107,4 +107,5 @@ struct DECLSPEC_UUID("72299288-2C68-4AD8-945D-2BFB5AA9C609") D3D11Device : ID3D1
 	unsigned int _interface_version;
 	DXGIDevice *const _dxgi_device;
 	D3D11DeviceContext *_immediate_context = nullptr;
+	reshade::d3d11::device_impl *const _impl;
 };

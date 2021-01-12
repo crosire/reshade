@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "state_tracking.hpp"
+#include "render_d3d11.hpp"
 
 struct D3D11Device;
 
@@ -188,5 +188,5 @@ struct DECLSPEC_UUID("27B0246B-2152-4D42-AD11-32489472238F") D3D11DeviceContext 
 	ID3D11DeviceContext *_orig;
 	unsigned int _interface_version;
 	D3D11Device *const _device;
-	reshade::d3d11::state_tracking_context _state;
+	reshade::d3d11::device_context_impl *const _impl;
 };

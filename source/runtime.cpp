@@ -6,6 +6,7 @@
 #include "version.h"
 #include "dll_log.hpp"
 #include "dll_config.hpp"
+#include "addon_manager.hpp"
 #include "runtime.hpp"
 #include "runtime_objects.hpp"
 #include "effect_parser.hpp"
@@ -225,7 +226,7 @@ void reshade::runtime::on_present()
 	}
 	else
 	{
-		_has_high_network_activity = traffic > 10;
+		addon::event_list_enabled = traffic < 10;
 		traffic = 0;
 		cooldown = 60;
 	}
@@ -458,8 +459,6 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 					variable.special = special_uniform::overlay_active;
 				else if (special == "ui_hovered" || special == "overlay_hovered")
 					variable.special = special_uniform::overlay_hovered;
-				else if (special == "bufready_depth")
-					variable.special = special_uniform::bufready_depth;
 
 				effect.uniforms.push_back(std::move(variable));
 			}
@@ -1319,11 +1318,6 @@ void reshade::runtime::update_and_render_effects()
 					break;
 				}
 #endif
-				case special_uniform::bufready_depth:
-				{
-					set_uniform_value(variable, _has_depth_texture);
-					break;
-				}
 			}
 		}
 	}

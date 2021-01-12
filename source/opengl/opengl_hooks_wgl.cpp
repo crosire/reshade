@@ -683,10 +683,13 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 			// Get trampoline pointers to any hooked functions, so that runtime always calls into original OpenGL functions
 			if (s_hooks_installed)
 			{
+				gl3wProcs.gl.TextureView = reshade::hooks::call(glTextureView);
+				gl3wProcs.gl.TexStorage2D = reshade::hooks::call(glTexStorage2D);
 				gl3wProcs.gl.BindFramebuffer = reshade::hooks::call(glBindFramebuffer);
+				gl3wProcs.gl.DrawElementsBaseVertex = reshade::hooks::call(glDrawElementsBaseVertex); // Used in 'runtime_gl::render_imgui_draw_data'
 			}
 
-			const auto runtime = new reshade::opengl::runtime_gl();
+			const auto runtime = new reshade::opengl::runtime_gl(hdc);
 			runtime->_hdcs.insert(hdc);
 
 			// Always set compatibility context flag on contexts that were created with 'wglCreateContext' instead of 'wglCreateContextAttribsARB'
@@ -863,18 +866,25 @@ HOOK_EXPORT BOOL  WINAPI wglSwapBuffers(HDC hdc)
 		RECT rect = { 0, 0, 0, 0 };
 		GetClientRect(hwnd, &rect);
 
+		uint32_t runtime_width = 0, runtime_height = 0;
+		runtime->get_frame_width_and_height(&runtime_width, &runtime_height);
+
 		const auto width = static_cast<unsigned int>(rect.right);
 		const auto height = static_cast<unsigned int>(rect.bottom);
 
-		if (width != runtime->frame_width() || height != runtime->frame_height())
+		if (width != runtime_width || height != runtime_height)
 		{
 			LOG(INFO) << "Resizing runtime " << runtime << " on device context " << hdc << " to " << width << "x" << height << " ...";
+
+			RESHADE_ADDON_EVENT(resize, runtime);
 
 			runtime->on_reset();
 
 			if (!(width == 0 && height == 0) && !runtime->on_init(hwnd, width, height))
 				LOG(ERROR) << "Failed to recreate OpenGL runtime environment on runtime " << runtime << '!';
 		}
+
+		RESHADE_ADDON_EVENT(present, runtime, runtime);
 
 		// Assume that the correct OpenGL context is still current here
 		runtime->on_present();
@@ -1126,6 +1136,13 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		INSTALL_HOOK(glMultiDrawElementsBaseVertex);
 		INSTALL_HOOK(glMultiDrawElementsIndirect);
 		INSTALL_HOOK(glTexImage3D);
+		INSTALL_HOOK(glTextureView);
+		INSTALL_HOOK(glTexStorage1D);
+		INSTALL_HOOK(glTexStorage2D);
+		INSTALL_HOOK(glTexStorage3D);
+		INSTALL_HOOK(glTextureStorage1D);
+		INSTALL_HOOK(glTextureStorage2D);
+		INSTALL_HOOK(glTextureStorage3D);
 
 		INSTALL_HOOK(wglChoosePixelFormatARB);
 		INSTALL_HOOK(wglCreateContextAttribsARB);
@@ -1141,7 +1158,10 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 
 		reshade::hook::apply_queued_actions();
 
+		gl3wProcs.gl.TextureView = reshade::hooks::call(glTextureView);
+		gl3wProcs.gl.TexStorage2D = reshade::hooks::call(glTexStorage2D);
 		gl3wProcs.gl.BindFramebuffer = reshade::hooks::call(glBindFramebuffer);
+		gl3wProcs.gl.DrawElementsBaseVertex = reshade::hooks::call(glDrawElementsBaseVertex);
 
 		s_hooks_installed = true;
 	}

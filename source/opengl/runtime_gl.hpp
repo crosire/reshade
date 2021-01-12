@@ -6,17 +6,21 @@
 #pragma once
 
 #include "runtime.hpp"
+#include "render_gl.hpp"
 #include "state_block_gl.hpp"
-#include "state_tracking.hpp"
-#include <unordered_set>
 
 namespace reshade::opengl
 {
-	class runtime_gl : public runtime
+	class runtime_gl : public runtime, public device_impl
 	{
 	public:
-		runtime_gl();
+		runtime_gl(HDC hdc);
 		~runtime_gl();
+
+		bool get_data(const uint8_t guid[16], uint32_t size, void *data) override { return device_impl::get_data(guid, size, data); }
+		void set_data(const uint8_t guid[16], uint32_t size, const void *data) override  { device_impl::set_data(guid, size, data); }
+
+		api::device *get_device() override { return this; }
 
 		bool on_init(HWND hwnd, unsigned int width, unsigned int height);
 		void on_reset();
@@ -24,9 +28,7 @@ namespace reshade::opengl
 
 		bool capture_screenshot(uint8_t *buffer) const override;
 
-		state_tracking _state_tracking;
-		bool _compatibility_context = false;
-		std::unordered_set<HDC> _hdcs;
+		void update_texture_bindings(const char *semantic, api::resource_view_handle srv) override;
 
 	private:
 		bool init_effect(size_t index) override;
@@ -54,7 +56,6 @@ namespace reshade::opengl
 		{
 			TEX_BACK,
 			TEX_BACK_SRGB,
-			TEX_DEPTH,
 				NUM_TEX
 		};
 		enum VAO
@@ -70,8 +71,6 @@ namespace reshade::opengl
 			FBO_BACK,
 			FBO_BLIT,
 			FBO_CLEAR,
-			FBO_DEPTH_SRC,
-			FBO_DEPTH_DEST,
 				NUM_FBO
 		};
 		enum RBO
@@ -89,10 +88,10 @@ namespace reshade::opengl
 		GLuint _fbo[NUM_FBO] = {}, _current_fbo = 0;
 		GLuint _rbo[NUM_RBO] = {};
 		GLuint _mipmap_program = 0;
-		GLenum _default_depth_format = GL_NONE;
 		std::vector<GLuint> _effect_ubos;
 		std::vector<GLuint> _reserved_texture_names;
 		std::unordered_map<size_t, GLuint> _effect_sampler_states;
+		std::unordered_map<std::string, GLuint> _texture_semantic_bindings;
 
 #if RESHADE_GUI
 		void init_imgui_resources();
@@ -102,17 +101,6 @@ namespace reshade::opengl
 		{
 			GLuint program = 0;
 		} _imgui;
-#endif
-
-#if RESHADE_DEPTH
-		void draw_depth_debug_menu();
-		void update_depth_texture_bindings(state_tracking::depthstencil_info info);
-
-		bool _copy_depth_source = true;
-		GLuint _depth_source = 0;
-		GLuint _depth_source_width = 0, _depth_source_height = 0;
-		GLenum _depth_source_format = 0;
-		GLuint _depth_source_override = std::numeric_limits<GLuint>::max();
 #endif
 	};
 }

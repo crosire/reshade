@@ -13,7 +13,7 @@
 D3D12CommandQueueDownlevel::D3D12CommandQueueDownlevel(D3D12CommandQueue *queue, ID3D12CommandQueueDownlevel *original) :
 	_orig(original),
 	_queue(queue),
-	_runtime(new reshade::d3d12::runtime_d3d12(queue->_device->_orig, queue->_orig, nullptr, &queue->_device->_state))
+	_runtime(new reshade::d3d12::runtime_d3d12(queue->_device->_impl, queue->_impl, nullptr))
 {
 	assert(_orig != nullptr && _queue != nullptr);
 }
@@ -62,11 +62,10 @@ ULONG   STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Release()
 
 HRESULT STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Present(ID3D12GraphicsCommandList *pOpenCommandList, ID3D12Resource *pSourceTex2D, HWND hWindow, D3D12_DOWNLEVEL_PRESENT_FLAGS Flags)
 {
+	RESHADE_ADDON_EVENT(present, _queue->_impl, _runtime);
+
 	assert(pSourceTex2D != nullptr);
 	_runtime->on_present(pSourceTex2D, hWindow);
-
-	// Clear current frame stats
-	_queue->_device->_state.reset(false);
 
 	// Get original command list pointer from proxy object
 	if (com_ptr<D3D12GraphicsCommandList> command_list_proxy;

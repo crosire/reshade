@@ -6,8 +6,7 @@
 #pragma once
 
 #include "runtime.hpp"
-#include "state_tracking.hpp"
-#include <dxgi1_5.h>
+#include "render_d3d12.hpp"
 
 namespace reshade::d3d12
 {
@@ -16,8 +15,14 @@ namespace reshade::d3d12
 		static const uint32_t NUM_IMGUI_BUFFERS = 4;
 
 	public:
-		runtime_d3d12(ID3D12Device *device, ID3D12CommandQueue *queue, IDXGISwapChain3 *swapchain, state_tracking_context *state_tracking);
+		runtime_d3d12(device_impl *device, command_queue_impl *queue, IDXGISwapChain3 *swapchain);
 		~runtime_d3d12();
+
+		bool get_data(const uint8_t guid[16], uint32_t size, void *data) override { return SUCCEEDED(_swapchain->GetPrivateData(*reinterpret_cast<const GUID *>(guid), &size, data)); }
+		void set_data(const uint8_t guid[16], uint32_t size, const void *data) override { _swapchain->SetPrivateData(*reinterpret_cast<const GUID *>(guid), size, data); }
+
+		api::device *get_device() override { return _device_impl; }
+		api::command_queue *get_command_queue() { return _commandqueue_impl; }
 
 		bool on_init();
 		bool on_init(const DXGI_SWAP_CHAIN_DESC &desc);
@@ -26,6 +31,8 @@ namespace reshade::d3d12
 		void on_present(ID3D12Resource *backbuffer, HWND hwnd);
 
 		bool capture_screenshot(uint8_t *buffer) const override;
+
+		void update_texture_bindings(const char *semantic, api::resource_view_handle srv) override;
 
 	private:
 		bool init_effect(size_t index) override;
@@ -43,16 +50,11 @@ namespace reshade::d3d12
 		void execute_command_list() const;
 		bool wait_for_command_queue() const;
 
-		com_ptr<ID3D12RootSignature> create_root_signature(const D3D12_ROOT_SIGNATURE_DESC &desc) const;
-
-		state_tracking_context &_state_tracking;
+		device_impl *const _device_impl;
 		const com_ptr<ID3D12Device> _device;
 		const com_ptr<IDXGISwapChain3> _swapchain;
+		command_queue_impl *const _commandqueue_impl;
 		const com_ptr<ID3D12CommandQueue> _commandqueue;
-		UINT _srv_handle_size = 0;
-		UINT _rtv_handle_size = 0;
-		UINT _dsv_handle_size = 0;
-		UINT _sampler_handle_size = 0;
 
 		UINT _swap_index = 0;
 		HANDLE _fence_event = nullptr;
@@ -75,6 +77,8 @@ namespace reshade::d3d12
 		com_ptr<ID3D12Resource> _effect_stencil;
 		std::vector<struct effect_data> _effect_data;
 
+		std::unordered_map<std::string, com_ptr<ID3D12Resource>> _texture_semantic_bindings;
+
 #if RESHADE_GUI
 		bool init_imgui_resources();
 		void render_imgui_draw_data(ImDrawData *data) override;
@@ -89,14 +93,6 @@ namespace reshade::d3d12
 			int num_indices[NUM_IMGUI_BUFFERS] = {};
 			int num_vertices[NUM_IMGUI_BUFFERS] = {};
 		} _imgui;
-#endif
-
-#if RESHADE_DEPTH
-		void draw_depth_debug_menu();
-		void update_depth_texture_bindings(com_ptr<ID3D12Resource> texture);
-
-		com_ptr<ID3D12Resource> _depth_texture;
-		ID3D12Resource *_depth_texture_override = nullptr;
 #endif
 	};
 }

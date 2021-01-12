@@ -103,6 +103,20 @@ extern "C" void WINAPI glGetTexLevelParameteriv(GLenum target, GLint level, GLen
 extern "C" void WINAPI glGetTexParameterfv(GLenum target, GLenum pname, GLfloat *params);
 #undef glGetTexParameteriv
 extern "C" void WINAPI glGetTexParameteriv(GLenum target, GLenum pname, GLint *params);
+#undef glTexStorage1D
+extern "C" void WINAPI glTexStorage1D(GLenum target, GLsizei levels, GLenum internalformat, GLsizei width);
+#undef glTexStorage2D
+extern "C" void WINAPI glTexStorage2D(GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height);
+#undef glTexStorage3D
+extern "C" void WINAPI glTexStorage3D(GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth);
+#undef glTextureStorage1D
+extern "C" void WINAPI glTextureStorage1D(GLuint texture, GLsizei levels, GLenum internalformat, GLsizei width);
+#undef glTextureStorage2D
+extern "C" void WINAPI glTextureStorage2D(GLuint texture, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height);
+#undef glTextureStorage3D
+extern "C" void WINAPI glTextureStorage3D(GLuint texture, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth);
+#undef glTextureView
+extern "C" void WINAPI glTextureView(GLuint texture, GLenum target, GLuint origtexture, GLenum internalformat, GLuint minlevel, GLuint numlevels, GLuint minlayer, GLuint numlayers);
 #undef glHint
 extern "C" void WINAPI glHint(GLenum target, GLenum mode);
 #undef glIsEnabled

@@ -10,7 +10,6 @@
 #include "runtime_objects.hpp"
 #include "format_utils.hpp"
 #include <imgui.h>
-#include <imgui_internal.h>
 
 #define check_result(call) \
 	if ((call) != VK_SUCCESS) \
@@ -41,6 +40,13 @@ namespace reshade::vulkan
 
 	struct effect_data
 	{
+		struct binding_data
+		{
+			std::string semantic;
+			uint32_t index;
+			std::vector<VkDescriptorSet> sets;
+		};
+
 		VkQueryPool query_pool = VK_NULL_HANDLE;
 		VkPipelineLayout pipeline_layout = VK_NULL_HANDLE;
 		VkDescriptorSetLayout sampler_layout = VK_NULL_HANDLE;
@@ -48,10 +54,8 @@ namespace reshade::vulkan
 		VkBuffer ubo = VK_NULL_HANDLE;
 		VmaAllocation ubo_mem = VK_NULL_HANDLE;
 		VkDescriptorSet ubo_set = VK_NULL_HANDLE;
-#if RESHADE_DEPTH
-		std::unordered_map<uint32_t, std::vector<VkDescriptorSet>> depth_image_bindings;
+		std::vector<binding_data> texture_semantic_to_binding;
 		std::vector<VkDescriptorImageInfo> image_bindings;
-#endif
 	};
 
 	struct technique_data
@@ -130,25 +134,25 @@ namespace reshade::vulkan
 	}
 }
 
-reshade::vulkan::runtime_vk::runtime_vk(VkDevice device, VkPhysicalDevice physical_device, uint32_t queue_family_index, const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table, state_tracking_context *state_tracking) :
-	vk(device_table), _device(device), _queue_family_index(queue_family_index), _state_tracking(*state_tracking)
-{
-	assert(state_tracking != nullptr);
+#define vk _device_impl->vk
 
-	instance_table.GetPhysicalDeviceProperties(physical_device, &_device_props);
-	instance_table.GetPhysicalDeviceMemoryProperties(physical_device, &_memory_props);
+reshade::vulkan::runtime_vk::runtime_vk(device_impl *device) :
+	_device_impl(device), _device(device->_device)
+{
+	VkPhysicalDeviceProperties device_props = {};
+	device->_instance_dispatch_table.GetPhysicalDeviceProperties(device->_physical_device, &device_props);
 
 	_renderer_id = 0x20000 |
-		VK_VERSION_MAJOR(_device_props.apiVersion) << 12 |
-		VK_VERSION_MINOR(_device_props.apiVersion) <<  8;
+		VK_VERSION_MAJOR(device_props.apiVersion) << 12 |
+		VK_VERSION_MINOR(device_props.apiVersion) <<  8;
 
-	_vendor_id = _device_props.vendorID;
-	_device_id = _device_props.deviceID;
+	_vendor_id = device_props.vendorID;
+	_device_id = device_props.deviceID;
 
 	// NVIDIA has a custom driver version scheme, so extract the proper minor version from it
 	const uint32_t driver_minor_version = _vendor_id == 0x10DE ?
-		(_device_props.driverVersion >> 14) & 0xFF : VK_VERSION_MINOR(_device_props.driverVersion);
-	LOG(INFO) << "Running on " << _device_props.deviceName << " Driver " << VK_VERSION_MAJOR(_device_props.driverVersion) << '.' << driver_minor_version;
+		(device_props.driverVersion >> 14) & 0xFF : VK_VERSION_MINOR(device_props.driverVersion);
+	LOG(INFO) << "Running on " << device_props.deviceName << " Driver " << VK_VERSION_MAJOR(device_props.driverVersion) << '.' << driver_minor_version;
 
 	// Find a supported stencil format
 	const VkFormat possible_stencil_formats[] = {
@@ -161,7 +165,7 @@ reshade::vulkan::runtime_vk::runtime_vk(VkDevice device, VkPhysicalDevice physic
 	for (const VkFormat format : possible_stencil_formats)
 	{
 		VkFormatProperties format_props = {};
-		instance_table.GetPhysicalDeviceFormatProperties(physical_device, format, &format_props);
+		device->_instance_dispatch_table.GetPhysicalDeviceFormatProperties(device->_physical_device, format, &format_props);
 
 		if ((format_props.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) != 0)
 		{
@@ -173,71 +177,12 @@ reshade::vulkan::runtime_vk::runtime_vk(VkDevice device, VkPhysicalDevice physic
 	// Get the main graphics queue for command submission
 	// There has to be at least one queue, or else this runtime would not have been created with this queue family index
 	// So it should be safe to just get the first one
-	vk.GetDeviceQueue(_device, _queue_family_index, 0, &_queue);
+	vk.GetDeviceQueue(_device, device->graphics_queue_family_index, 0, &_queue);
 	assert(_queue != VK_NULL_HANDLE);
-
-	{	VmaVulkanFunctions functions;
-		functions.vkGetPhysicalDeviceProperties = instance_table.GetPhysicalDeviceProperties;
-		functions.vkGetPhysicalDeviceMemoryProperties = instance_table.GetPhysicalDeviceMemoryProperties;
-		functions.vkAllocateMemory = device_table.AllocateMemory;
-		functions.vkFreeMemory = device_table.FreeMemory;
-		functions.vkMapMemory = device_table.MapMemory;
-		functions.vkUnmapMemory = device_table.UnmapMemory;
-		functions.vkFlushMappedMemoryRanges = device_table.FlushMappedMemoryRanges;
-		functions.vkInvalidateMappedMemoryRanges = device_table.InvalidateMappedMemoryRanges;
-		functions.vkBindBufferMemory = device_table.BindBufferMemory;
-		functions.vkBindImageMemory = device_table.BindImageMemory;
-		functions.vkGetBufferMemoryRequirements = device_table.GetBufferMemoryRequirements;
-		functions.vkGetImageMemoryRequirements = device_table.GetImageMemoryRequirements;
-		functions.vkCreateBuffer = device_table.CreateBuffer;
-		functions.vkDestroyBuffer = device_table.DestroyBuffer;
-		functions.vkCreateImage = device_table.CreateImage;
-		functions.vkDestroyImage = device_table.DestroyImage;
-		functions.vkCmdCopyBuffer = device_table.CmdCopyBuffer;
-		functions.vkGetBufferMemoryRequirements2KHR = device_table.GetBufferMemoryRequirements2;
-		functions.vkGetImageMemoryRequirements2KHR = device_table.GetImageMemoryRequirements2;
-		functions.vkBindBufferMemory2KHR = device_table.BindBufferMemory2;
-		functions.vkBindImageMemory2KHR = device_table.BindImageMemory2;
-		functions.vkGetPhysicalDeviceMemoryProperties2KHR = instance_table.GetPhysicalDeviceMemoryProperties2;
-
-		VmaAllocatorCreateInfo create_info = {};
-		// The runtime runs in a single thread, so no synchronization necessary
-		create_info.flags = VMA_ALLOCATOR_CREATE_EXTERNALLY_SYNCHRONIZED_BIT;
-		create_info.physicalDevice = physical_device;
-		create_info.device = _device;
-		create_info.preferredLargeHeapBlockSize = 1920 * 1080 * 4 * 16; // Allocate blocks of memory that can comfortably contain 16 Full HD images
-		create_info.pVulkanFunctions = &functions;
-		create_info.vulkanApiVersion = VK_API_VERSION_1_1; // Vulkan 1.1 is guaranteed by code in vulkan_hooks.cpp
-
-		vmaCreateAllocator(&create_info, &_alloc);
-	}
-
-#if RESHADE_GUI
-	subscribe_to_ui("Vulkan", [this, driver_minor_version]() {
-		// Add some information about the device and driver to the UI
-		ImGui::Text("Vulkan %u.%u.%u", VK_VERSION_MAJOR(_device_props.apiVersion), VK_VERSION_MINOR(_device_props.apiVersion), VK_VERSION_PATCH(_device_props.apiVersion));
-		ImGui::Text("%s Driver %u.%u", _device_props.deviceName, VK_VERSION_MAJOR(_device_props.driverVersion), driver_minor_version);
-
-#if RESHADE_DEPTH
-		ImGui::Spacing();
-		draw_depth_debug_menu();
-#endif
-	});
-#endif
-#if RESHADE_DEPTH
-	subscribe_to_load_config([this](const ini_file &config) {
-		config.get("DEPTH", "UseAspectRatioHeuristics", _state_tracking.use_aspect_ratio_heuristics);
-	});
-	subscribe_to_save_config([this](ini_file &config) {
-		config.set("DEPTH", "UseAspectRatioHeuristics", _state_tracking.use_aspect_ratio_heuristics);
-	});
-#endif
 }
 reshade::vulkan::runtime_vk::~runtime_vk()
 {
 	on_reset();
-
-	vmaDestroyAllocator(_alloc);
 }
 
 bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &desc, HWND hwnd)
@@ -378,15 +323,8 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 	_cmd_index = 0;
 	VkCommandBuffer cmd_buffers[NUM_COMMAND_FRAMES];
 
-	{   VkCommandPoolCreateInfo create_info { VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
-		create_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-		create_info.queueFamilyIndex = _queue_family_index;
-
-		check_result(vk.CreateCommandPool(_device, &create_info, nullptr, &_cmd_pool)) false;
-	}
-
 	{   VkCommandBufferAllocateInfo alloc_info { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
-		alloc_info.commandPool = _cmd_pool;
+		alloc_info.commandPool = _device_impl->_cmd_pool;
 		alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 		alloc_info.commandBufferCount = NUM_COMMAND_FRAMES;
 
@@ -493,12 +431,8 @@ void reshade::vulkan::runtime_vk::on_reset()
 	VkCommandBuffer cmd_buffers[NUM_COMMAND_FRAMES] = {};
 	for (uint32_t i = 0; i < NUM_COMMAND_FRAMES; ++i)
 		std::swap(cmd_buffers[i], _cmd_buffers[i].first);
-	if (_cmd_pool != VK_NULL_HANDLE)
-	{
-		vk.FreeCommandBuffers(_device, _cmd_pool, NUM_COMMAND_FRAMES, cmd_buffers);
-		vk.DestroyCommandPool(_device, _cmd_pool, nullptr);
-		_cmd_pool = VK_NULL_HANDLE;
-	}
+	if (_device_impl->_cmd_pool != VK_NULL_HANDLE)
+		vk.FreeCommandBuffers(_device, _device_impl->_cmd_pool, NUM_COMMAND_FRAMES, cmd_buffers);
 
 	vk.DestroyImage(_device, _backbuffer_image, nullptr);
 	_backbuffer_image = VK_NULL_HANDLE;
@@ -526,11 +460,13 @@ void reshade::vulkan::runtime_vk::on_reset()
 	vk.DestroyDescriptorSetLayout(_device, _effect_descriptor_layout, nullptr);
 	_effect_descriptor_layout = VK_NULL_HANDLE;
 
+	_texture_semantic_bindings.clear();
+
 #if RESHADE_GUI
 	for (unsigned int i = 0; i < NUM_IMGUI_BUFFERS; ++i)
 	{
-		vmaDestroyBuffer(_alloc, _imgui.indices[i], _imgui.indices_mem[i]);
-		vmaDestroyBuffer(_alloc, _imgui.vertices[i], _imgui.vertices_mem[i]);
+		vmaDestroyBuffer(_device_impl->_alloc, _imgui.indices[i], _imgui.indices_mem[i]);
+		vmaDestroyBuffer(_device_impl->_alloc, _imgui.vertices[i], _imgui.vertices_mem[i]);
 		_imgui.indices[i] = VK_NULL_HANDLE;
 		_imgui.vertices[i] = VK_NULL_HANDLE;
 		_imgui.indices_mem[i] = VK_NULL_HANDLE;
@@ -551,16 +487,8 @@ void reshade::vulkan::runtime_vk::on_reset()
 	_imgui.sampler = VK_NULL_HANDLE;
 #endif
 
-#if RESHADE_DEPTH
-	_has_depth_texture = false;
-	_depth_image = VK_NULL_HANDLE;
-	_depth_image_override = VK_NULL_HANDLE;
-	vk.DestroyImageView(_device, _depth_image_view, nullptr);
-	_depth_image_view = VK_NULL_HANDLE;
-#endif
-
 	// Free all unmanaged device memory allocated via the 'create_image' and 'create_buffer' functions
-	vmaFreeMemoryPages(_alloc, _allocations.size(), _allocations.data());
+	vmaFreeMemoryPages(_device_impl->_alloc, _allocations.size(), _allocations.data());
 	_allocations.clear();
 }
 
@@ -578,11 +506,6 @@ void reshade::vulkan::runtime_vk::on_present(VkQueue queue, uint32_t swapchain_i
 	{
 		vk.WaitForFences(_device, 1, &fence, VK_TRUE, UINT64_MAX);
 	}
-
-#if RESHADE_DEPTH
-	update_depth_image_bindings(_has_high_network_activity ? state_tracking::depthstencil_info {} :
-		_state_tracking.find_best_depth_texture(VkExtent2D { _width, _height }, _depth_image_override));
-#endif
 
 	update_and_render_effects();
 	runtime::on_present();
@@ -674,7 +597,7 @@ bool reshade::vulkan::runtime_vk::capture_screenshot(uint8_t *buffer) const
 		VmaAllocationCreateInfo alloc_info = {};
 		alloc_info.usage = VMA_MEMORY_USAGE_GPU_TO_CPU;
 
-		check_result(vmaCreateBuffer(_alloc, &create_info, &alloc_info, &intermediate, &intermediate_mem, nullptr)) false;
+		check_result(vmaCreateBuffer(_device_impl->_alloc, &create_info, &alloc_info, &intermediate, &intermediate_mem, nullptr)) false;
 	}
 
 	// Copy image into download buffer
@@ -708,7 +631,7 @@ bool reshade::vulkan::runtime_vk::capture_screenshot(uint8_t *buffer) const
 		execute_command_buffer();
 
 		// Copy data from intermediate image into output buffer
-		if (vmaMapMemory(_alloc, intermediate_mem, reinterpret_cast<void **>(&mapped_data)) != VK_SUCCESS)
+		if (vmaMapMemory(_device_impl->_alloc, intermediate_mem, reinterpret_cast<void **>(&mapped_data)) != VK_SUCCESS)
 			mapped_data = nullptr;
 	}
 
@@ -745,10 +668,10 @@ bool reshade::vulkan::runtime_vk::capture_screenshot(uint8_t *buffer) const
 			}
 		}
 
-		vmaUnmapMemory(_alloc, intermediate_mem);
+		vmaUnmapMemory(_device_impl->_alloc, intermediate_mem);
 	}
 
-	vmaDestroyBuffer(_alloc, intermediate, intermediate_mem);
+	vmaDestroyBuffer(_device_impl->_alloc, intermediate, intermediate_mem);
 
 	return mapped_data != nullptr;
 }
@@ -940,23 +863,27 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 		const texture &texture = look_up_texture_by_name(info.texture_name);
 
 		VkDescriptorImageInfo &image_binding = sampler_bindings[info.binding];
-		image_binding.imageView = static_cast<tex_data *>(texture.impl)->view[info.srgb];
 		image_binding.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
 		if (texture.semantic == "COLOR")
 		{
 			image_binding.imageView = _backbuffer_image_view[info.srgb];
 		}
-		if (texture.semantic == "DEPTH")
+		else if (!texture.semantic.empty())
 		{
-			// Set to a default view to avoid crash because of this being null
+			// Set to a default view to avoid crash because of this not being set
 			image_binding.imageView = _empty_depth_image_view;
-#if RESHADE_DEPTH
-			if (_depth_image_view != VK_NULL_HANDLE)
-				image_binding.imageView = _depth_image_view;
-			// Keep track of the depth buffer texture descriptor to simplify updating it
-			effect_data.depth_image_bindings.emplace(info.binding, std::vector<VkDescriptorSet>());
-#endif
+
+			if (const auto it = _texture_semantic_bindings.find(texture.semantic);
+				it != _texture_semantic_bindings.end())
+				image_binding.imageView = it->second;
+
+			// Keep track of the texture descriptor to simplify updating it
+			effect_data.texture_semantic_to_binding.push_back({ texture.semantic, info.binding });
+		}
+		else
+		{
+			image_binding.imageView = static_cast<tex_data *>(texture.impl)->view[info.srgb];
 		}
 
 		// Unset bindings are not allowed, so fail initialization for the entire effect in that case
@@ -1434,10 +1361,17 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 				write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 				write.pImageInfo = &sampler_bindings[info.binding];
 
-#if RESHADE_DEPTH
-				if (const auto it = effect_data.depth_image_bindings.find(info.binding); it != effect_data.depth_image_bindings.end())
-					it->second.push_back(pass_data.set[0]);
-#endif
+				const texture &texture = look_up_texture_by_name(info.texture_name);
+				if (texture.semantic.empty())
+					continue;
+
+				for (auto &binding : effect_data.texture_semantic_to_binding)
+				{
+					if (binding.semantic != texture.semantic)
+						continue;
+
+					binding.sets.push_back(pass_data.set[0]);
+				}
 			}
 			pass_data.set[1] = sets[1 + num_passes + total_pass_index];
 			for (const reshadefx::storage_info &info : pass_info.storages)
@@ -1460,9 +1394,7 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 
 	vk.UpdateDescriptorSets(_device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
 
-#if RESHADE_DEPTH
 	effect_data.image_bindings = std::move(sampler_bindings);
-#endif
 
 	return true;
 }
@@ -1507,13 +1439,11 @@ void reshade::vulkan::runtime_vk::unload_effect(size_t index)
 		effect_data.sampler_layout = VK_NULL_HANDLE;
 		vk.DestroyDescriptorSetLayout(_device, effect_data.storage_layout, nullptr);
 		effect_data.storage_layout = VK_NULL_HANDLE;
-		vmaDestroyBuffer(_alloc, effect_data.ubo, effect_data.ubo_mem);
+		vmaDestroyBuffer(_device_impl->_alloc, effect_data.ubo, effect_data.ubo_mem);
 		effect_data.ubo = VK_NULL_HANDLE;
 		effect_data.ubo_mem = VK_NULL_HANDLE;
-#if RESHADE_DEPTH
-		effect_data.depth_image_bindings.clear();
+		effect_data.texture_semantic_to_binding.clear();
 		effect_data.image_bindings.clear();
-#endif
 	}
 }
 void reshade::vulkan::runtime_vk::unload_effects()
@@ -1553,7 +1483,7 @@ void reshade::vulkan::runtime_vk::unload_effects()
 		vk.DestroyPipelineLayout(_device, data.pipeline_layout, nullptr);
 		vk.DestroyDescriptorSetLayout(_device, data.sampler_layout, nullptr);
 		vk.DestroyDescriptorSetLayout(_device, data.storage_layout, nullptr);
-		vmaDestroyBuffer(_alloc, data.ubo, data.ubo_mem);
+		vmaDestroyBuffer(_device_impl->_alloc, data.ubo, data.ubo_mem);
 	}
 
 	for (auto &[hash, sampler] : _effect_sampler_states)
@@ -1570,8 +1500,8 @@ bool reshade::vulkan::runtime_vk::init_texture(texture &texture)
 	auto impl = new tex_data();
 	texture.impl = impl;
 
-	// Do not create resource if it is a special reference, those are set in 'render_technique' and 'init_effect'/'update_depth_image_bindings'
-	if (texture.semantic == "COLOR" || texture.semantic == "DEPTH")
+	// Do not create resource if it is a special reference, those are set in 'render_technique' and 'update_texture_bindings'
+	if (!texture.semantic.empty())
 		return true;
 
 	impl->width = texture.width;
@@ -1724,12 +1654,12 @@ void reshade::vulkan::runtime_vk::upload_texture(const texture &texture, const u
 		VmaAllocationCreateInfo alloc_info = {};
 		alloc_info.usage = VMA_MEMORY_USAGE_CPU_ONLY;
 
-		check_result(vmaCreateBuffer(_alloc, &create_info, &alloc_info, &intermediate, &intermediate_mem, nullptr));
+		check_result(vmaCreateBuffer(_device_impl->_alloc, &create_info, &alloc_info, &intermediate, &intermediate_mem, nullptr));
 	}
 
 	// Fill upload buffer with pixel data
 	uint8_t *mapped_data = nullptr;
-	if (vmaMapMemory(_alloc, intermediate_mem, reinterpret_cast<void **>(&mapped_data)) == VK_SUCCESS)
+	if (vmaMapMemory(_device_impl->_alloc, intermediate_mem, reinterpret_cast<void **>(&mapped_data)) == VK_SUCCESS)
 	{
 		switch (texture.format)
 		{
@@ -1754,7 +1684,7 @@ void reshade::vulkan::runtime_vk::upload_texture(const texture &texture, const u
 			break;
 		}
 
-		vmaUnmapMemory(_alloc, intermediate_mem);
+		vmaUnmapMemory(_device_impl->_alloc, intermediate_mem);
 	}
 
 	if (mapped_data != nullptr && begin_command_buffer())
@@ -1776,7 +1706,7 @@ void reshade::vulkan::runtime_vk::upload_texture(const texture &texture, const u
 		execute_command_buffer();
 	}
 
-	vmaDestroyBuffer(_alloc, intermediate, intermediate_mem);
+	vmaDestroyBuffer(_device_impl->_alloc, intermediate, intermediate_mem);
 }
 void reshade::vulkan::runtime_vk::destroy_texture(texture &texture)
 {
@@ -1787,7 +1717,7 @@ void reshade::vulkan::runtime_vk::destroy_texture(texture &texture)
 	// Make sure texture is not still in use before destroying it
 	wait_for_command_buffers();
 
-	vmaDestroyImage(_alloc, impl->image, impl->image_mem);
+	vmaDestroyImage(_device_impl->_alloc, impl->image, impl->image_mem);
 	if (impl->view[0] != VK_NULL_HANDLE)
 		vk.DestroyImageView(_device, impl->view[0], nullptr);
 	if (impl->view[1] != impl->view[0])
@@ -1870,6 +1800,9 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 	vk.CmdResetQueryPool(cmd_list, effect_data.query_pool, impl->query_base_index + _cmd_index * 2, 2);
 	vk.CmdWriteTimestamp(cmd_list, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, effect_data.query_pool, impl->query_base_index + _cmd_index * 2);
 
+	command_list_impl cmd_list_impl(_device_impl, cmd_list);
+	RESHADE_ADDON_EVENT(reshade_before_effects, this, &cmd_list_impl);
+
 	vk.CmdBindDescriptorSets(cmd_list, VK_PIPELINE_BIND_POINT_GRAPHICS, effect_data.pipeline_layout, 0, 1, &effect_data.ubo_set, 0, nullptr);
 	if (impl->has_compute_passes)
 		vk.CmdBindDescriptorSets(cmd_list, VK_PIPELINE_BIND_POINT_COMPUTE, effect_data.pipeline_layout, 0, 1, &effect_data.ubo_set, 0, nullptr);
@@ -1877,14 +1810,6 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 	// Setup shader constants
 	if (effect_data.ubo != VK_NULL_HANDLE)
 		vk.CmdUpdateBuffer(cmd_list, effect_data.ubo, 0, _effects[technique.effect_index].uniform_data_storage.size(), _effects[technique.effect_index].uniform_data_storage.data());
-
-#if RESHADE_DEPTH
-	if (_depth_image != VK_NULL_HANDLE)
-	{
-		// Transition layout of depth-stencil image
-		transition_layout(vk, cmd_list, _depth_image, _depth_image_layout, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, { _depth_image_aspect, 0, 1, 0, 1 });
-	}
-#endif
 
 	bool is_effect_stencil_cleared = false;
 	bool needs_implicit_backbuffer_copy = true; // First pass always needs the back buffer updated
@@ -1982,15 +1907,7 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 #endif
 	}
 
-#if RESHADE_DEPTH
-	if (_depth_image != VK_NULL_HANDLE)
-	{
-		assert(_depth_image_layout != VK_IMAGE_LAYOUT_UNDEFINED);
-
-		// Reset image layout of depth-stencil image
-		transition_layout(vk, cmd_list, _depth_image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, _depth_image_layout, { _depth_image_aspect, 0, 1, 0, 1 });
-	}
-#endif
+	RESHADE_ADDON_EVENT(reshade_after_effects, this, &cmd_list_impl);
 
 	vk.CmdWriteTimestamp(cmd_list, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, effect_data.query_pool, impl->query_base_index + _cmd_index * 2 + 1);
 
@@ -2103,7 +2020,7 @@ VkImage reshade::vulkan::runtime_vk::create_image(uint32_t width, uint32_t heigh
 	alloc_info.usage = mem_usage;
 
 	VkImage image = VK_NULL_HANDLE;
-	const VkResult res = vmaCreateImage(_alloc, &create_info, &alloc_info, &image, &alloc, nullptr);
+	const VkResult res = vmaCreateImage(_device_impl->_alloc, &create_info, &alloc_info, &image, &alloc, nullptr);
 	if (res != VK_SUCCESS)
 	{
 		LOG(ERROR) << "Failed to create image! Vulkan error code is " << res << '.';
@@ -2141,7 +2058,7 @@ VkBuffer reshade::vulkan::runtime_vk::create_buffer(VkDeviceSize size,
 		alloc_info.requiredFlags |= VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
 
 	VkBuffer buffer = VK_NULL_HANDLE;
-	const VkResult res = vmaCreateBuffer(_alloc, &create_info, &alloc_info, &buffer, &alloc, nullptr);
+	const VkResult res = vmaCreateBuffer(_device_impl->_alloc, &create_info, &alloc_info, &buffer, &alloc, nullptr);
 	if (res != VK_SUCCESS)
 	{
 		LOG(ERROR) << "Failed to create buffer! Vulkan error code is " << res << '.';
@@ -2255,7 +2172,8 @@ bool reshade::vulkan::runtime_vk::init_imgui_resources()
 		const resources::data_resource ps = resources::load_data_resource(IDR_IMGUI_PS_SPIRV);
 		create_info.codeSize = ps.data_size;
 		create_info.pCode = static_cast<const uint32_t *>(ps.data);
-		check_result(vk.CreateShaderModule(_device, &create_info, nullptr, &stages[1].module)) vk.DestroyShaderModule(_device, stages[0].module, nullptr), false;
+		check_result(vk.CreateShaderModule(_device, &create_info, nullptr, &stages[1].module))
+			vk.DestroyShaderModule(_device, stages[0].module, nullptr), false;
 	}
 
 	VkVertexInputBindingDescription binding_desc[1] = {};
@@ -2353,7 +2271,7 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 	{
 		wait_for_command_buffers(); // Be safe and ensure nothing still uses this buffer
 
-		vmaDestroyBuffer(_alloc, _imgui.indices[buffer_index], _imgui.indices_mem[buffer_index]);
+		vmaDestroyBuffer(_device_impl->_alloc, _imgui.indices[buffer_index], _imgui.indices_mem[buffer_index]);
 
 		const int new_size = draw_data->TotalIdxCount + 10000;
 		_imgui.indices[buffer_index] = create_buffer(new_size * sizeof(ImDrawIdx),
@@ -2368,7 +2286,7 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 	{
 		wait_for_command_buffers();
 
-		vmaDestroyBuffer(_alloc, _imgui.vertices[buffer_index], _imgui.vertices_mem[buffer_index]);
+		vmaDestroyBuffer(_device_impl->_alloc, _imgui.vertices[buffer_index], _imgui.vertices_mem[buffer_index]);
 
 		const int new_size = draw_data->TotalVtxCount + 5000;
 		_imgui.vertices[buffer_index] = create_buffer(new_size * sizeof(ImDrawVert),
@@ -2381,7 +2299,7 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 	}
 
 	if (ImDrawIdx *idx_dst;
-		vmaMapMemory(_alloc, _imgui.indices_mem[buffer_index], reinterpret_cast<void **>(&idx_dst)) == VK_SUCCESS)
+		vmaMapMemory(_device_impl->_alloc, _imgui.indices_mem[buffer_index], reinterpret_cast<void **>(&idx_dst)) == VK_SUCCESS)
 	{
 		for (int n = 0; n < draw_data->CmdListsCount; ++n)
 		{
@@ -2390,10 +2308,10 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 			idx_dst += draw_list->IdxBuffer.Size;
 		}
 
-		vmaUnmapMemory(_alloc, _imgui.indices_mem[buffer_index]);
+		vmaUnmapMemory(_device_impl->_alloc, _imgui.indices_mem[buffer_index]);
 	}
 	if (ImDrawVert *vtx_dst;
-		vmaMapMemory(_alloc, _imgui.vertices_mem[buffer_index], reinterpret_cast<void **>(&vtx_dst)) == VK_SUCCESS)
+		vmaMapMemory(_device_impl->_alloc, _imgui.vertices_mem[buffer_index], reinterpret_cast<void **>(&vtx_dst)) == VK_SUCCESS)
 	{
 		for (int n = 0; n < draw_data->CmdListsCount; ++n)
 		{
@@ -2402,7 +2320,7 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 			vtx_dst += draw_list->VtxBuffer.Size;
 		}
 
-		vmaUnmapMemory(_alloc, _imgui.vertices_mem[buffer_index]);
+		vmaUnmapMemory(_device_impl->_alloc, _imgui.vertices_mem[buffer_index]);
 	}
 
 	if (!begin_command_buffer())
@@ -2490,116 +2408,41 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 }
 #endif
 
-#if RESHADE_DEPTH
-void reshade::vulkan::runtime_vk::draw_depth_debug_menu()
+void reshade::vulkan::runtime_vk::update_texture_bindings(const char *semantic, api::resource_view_handle srv)
 {
-	if (!ImGui::CollapsingHeader("Depth Buffers", ImGuiTreeNodeFlags_DefaultOpen))
-		return;
+	const VkImageView view = (VkImageView)srv.handle;
 
-	if (_has_high_network_activity)
-	{
-		ImGui::TextColored(ImColor(204, 204, 0), "High network activity discovered.\nAccess to depth buffers is disabled to prevent exploitation.");
-		return;
-	}
+	_texture_semantic_bindings[semantic] = view;
 
-	if (ImGui::Checkbox("Use aspect ratio heuristics", &_state_tracking.use_aspect_ratio_heuristics))
-		runtime::save_config();
-
-	ImGui::Spacing();
-	ImGui::Separator();
-	ImGui::Spacing();
-
-	// Sort pointer list so that added/removed items do not change the UI much
-	std::vector<std::pair<VkImage, state_tracking::depthstencil_info>> sorted_buffers;
-	sorted_buffers.reserve(_state_tracking.depth_buffer_counters().size());
-	for (const auto &[depth_image, snapshot] : _state_tracking.depth_buffer_counters())
-		sorted_buffers.push_back({ depth_image, snapshot });
-	std::sort(sorted_buffers.begin(), sorted_buffers.end(), [](const auto &a, const auto &b) { return a.first < b.first; });
-	for (const auto &[depth_image, snapshot] : sorted_buffers)
-	{
-		char label[512] = "";
-		sprintf_s(label, "%s0x%016llx", (depth_image == _depth_image ? "> " : "  "), (uint64_t)depth_image);
-
-		const bool msaa = snapshot.image_info.samples != VK_SAMPLE_COUNT_1_BIT;
-		if (msaa) // Disable widget for MSAA textures
-		{
-			ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
-			ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
-		}
-
-		if (bool value = (_depth_image_override == depth_image);
-			ImGui::Checkbox(label, &value))
-			_depth_image_override = value ? depth_image : VK_NULL_HANDLE;
-
-		ImGui::SameLine();
-		ImGui::Text("| %4ux%-4u | %5u draw calls ==> %8u vertices |%s",
-			snapshot.image_info.extent.width, snapshot.image_info.extent.height, snapshot.stats.drawcalls, snapshot.stats.vertices, (msaa ? " MSAA" : ""));
-
-		if (msaa)
-		{
-			ImGui::PopStyleColor();
-			ImGui::PopItemFlag();
-		}
-	}
-
-	ImGui::Spacing();
-	ImGui::Separator();
-	ImGui::Spacing();
-}
-
-void reshade::vulkan::runtime_vk::update_depth_image_bindings(state_tracking::depthstencil_info info)
-{
-	if (_has_high_network_activity)
-		info = state_tracking::depthstencil_info {};
-
-	if (info.image == _depth_image)
-		return;
-
-	assert(info.image_info.initialLayout != VK_IMAGE_LAYOUT_UNDEFINED || info.image == VK_NULL_HANDLE);
-
-	_depth_image = info.image;
-	_depth_image_layout = info.image_info.initialLayout;
-	_depth_image_aspect = aspect_flags_from_format(info.image_info.format);
+	VkDescriptorImageInfo image_binding = { VK_NULL_HANDLE, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
+	if (view != VK_NULL_HANDLE)
+		image_binding.imageView = view;
+	else
+		image_binding.imageView = _empty_depth_image_view;
 
 	// Make sure all previous frames have finished before freeing the image view and updating descriptors (since they may be in use otherwise)
 	wait_for_command_buffers();
-
-	vk.DestroyImageView(_device, _depth_image_view, nullptr);
-	_depth_image_view = VK_NULL_HANDLE;
-
-	VkDescriptorImageInfo image_binding = { VK_NULL_HANDLE, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
-
-	if (info.image != VK_NULL_HANDLE)
-	{
-		_depth_image_view = create_image_view(info.image, info.image_info.format, 1, VK_IMAGE_ASPECT_DEPTH_BIT);
-		image_binding.imageView = _depth_image_view;
-
-		_has_depth_texture = true;
-	}
-	else
-	{
-		image_binding.imageView = _empty_depth_image_view;
-
-		_has_depth_texture = false;
-	}
 
 	// Update image bindings
 	std::vector<VkWriteDescriptorSet> writes;
 
 	for (effect_data &effect_data : _effect_data)
 	{
-		for (const auto [binding, sets] : effect_data.depth_image_bindings)
+		for (const auto &binding : effect_data.texture_semantic_to_binding)
 		{
-			for (VkDescriptorSet set : sets)
+			if (binding.semantic != semantic)
+				continue;
+
+			for (VkDescriptorSet set : binding.sets)
 			{
 				// Set sampler handle, which should be the same for all writes
-				assert(image_binding.sampler == VK_NULL_HANDLE || image_binding.sampler == effect_data.image_bindings[binding].sampler);
-				image_binding.sampler = effect_data.image_bindings[binding].sampler;
+				assert(image_binding.sampler == VK_NULL_HANDLE || image_binding.sampler == effect_data.image_bindings[binding.index].sampler);
+				image_binding.sampler = effect_data.image_bindings[binding.index].sampler;
 
-				VkWriteDescriptorSet& write = writes.emplace_back();
+				VkWriteDescriptorSet &write = writes.emplace_back();
 				write = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
 				write.dstSet = set;
-				write.dstBinding = binding;
+				write.dstBinding = binding.index;
 				write.descriptorCount = 1;
 				write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 				write.pImageInfo = &image_binding;
@@ -2609,4 +2452,3 @@ void reshade::vulkan::runtime_vk::update_depth_image_bindings(state_tracking::de
 
 	vk.UpdateDescriptorSets(_device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
 }
-#endif

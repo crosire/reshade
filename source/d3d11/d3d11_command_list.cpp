@@ -10,7 +10,8 @@
 
 D3D11CommandList::D3D11CommandList(D3D11Device *device, ID3D11CommandList *original) :
 	_orig(original),
-	_device(device)
+	_device(device),
+	_impl(new reshade::d3d11::command_list_impl(device->_impl, original))
 {
 	assert(_orig != nullptr && _device != nullptr);
 }
@@ -50,6 +51,8 @@ ULONG   STDMETHODCALLTYPE D3D11CommandList::Release()
 	const ULONG ref = InterlockedDecrement(&_ref);
 	if (ref != 0)
 		return _orig->Release(), ref;
+
+	delete _impl;
 
 	const ULONG ref_orig = _orig->Release();
 	if (ref_orig != 0)

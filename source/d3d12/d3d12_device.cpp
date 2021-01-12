@@ -12,10 +12,9 @@
 D3D12Device::D3D12Device(ID3D12Device *original) :
 	_orig(original),
 	_interface_version(0),
-	_state(original)
+	_impl(new reshade::d3d12::device_impl(original))
 {
 	assert(_orig != nullptr);
-	_state.init(_orig, nullptr, &_state);
 }
 
 bool D3D12Device::check_and_upgrade_interface(REFIID riid)
@@ -94,7 +93,7 @@ ULONG   STDMETHODCALLTYPE D3D12Device::Release()
 	if (ref != 0)
 		return _orig->Release(), ref;
 
-	_state.reset(true);
+	delete _impl;
 
 	if (_downlevel != nullptr)
 		_downlevel->Release();
@@ -156,6 +155,8 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandQueue(const D3D12_COMMAND_QU
 		return hr;
 	}
 
+	_impl->register_queue(static_cast<ID3D12CommandQueue *>(*ppCommandQueue));
+
 	const auto command_queue_proxy = new D3D12CommandQueue(this, static_cast<ID3D12CommandQueue *>(*ppCommandQueue));
 
 	// Upgrade to the actual interface version requested here
@@ -199,8 +200,6 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandList(UINT nodeMask, D3D12_CO
 	// Upgrade to the actual interface version requested here (and only hook graphics command lists)
 	if (command_list_proxy->check_and_upgrade_interface(riid))
 	{
-		command_list_proxy->_state.init(_orig, command_list_proxy->_orig, &_state);
-
 		*ppCommandList = command_list_proxy;
 	}
 	else // Do not hook object if we do not support the requested interface or this is a compute command list
@@ -232,7 +231,23 @@ void    STDMETHODCALLTYPE D3D12Device::CreateConstantBufferView(const D3D12_CONS
 }
 void    STDMETHODCALLTYPE D3D12Device::CreateShaderResourceView(ID3D12Resource *pResource, const D3D12_SHADER_RESOURCE_VIEW_DESC *pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
 {
-	_orig->CreateShaderResourceView(pResource, pDesc, DestDescriptor);
+	if (pResource == nullptr)
+		return;
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC new_desc =
+		pDesc != nullptr ? *pDesc : D3D12_SHADER_RESOURCE_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D12_SRV_DIMENSION_UNKNOWN };
+
+#if RESHADE_ADDON
+	reshade::api::resource_view_desc api_desc = reshade::d3d12::convert_shader_resource_view_desc(new_desc);
+	RESHADE_ADDON_EVENT(create_resource_view, _impl, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, &api_desc);
+	reshade::d3d12::convert_shader_resource_view_desc(api_desc, new_desc);
+#endif
+
+	_orig->CreateShaderResourceView(pResource, new_desc.ViewDimension != D3D12_SRV_DIMENSION_UNKNOWN ? &new_desc : nullptr, DestDescriptor);
+
+#if RESHADE_ADDON
+	_impl->register_resource_view(pResource, DestDescriptor);
+#endif
 }
 void    STDMETHODCALLTYPE D3D12Device::CreateUnorderedAccessView(ID3D12Resource *pResource, ID3D12Resource *pCounterResource, const D3D12_UNORDERED_ACCESS_VIEW_DESC *pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
 {
@@ -240,14 +255,42 @@ void    STDMETHODCALLTYPE D3D12Device::CreateUnorderedAccessView(ID3D12Resource 
 }
 void    STDMETHODCALLTYPE D3D12Device::CreateRenderTargetView(ID3D12Resource *pResource, const D3D12_RENDER_TARGET_VIEW_DESC *pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
 {
-	_orig->CreateRenderTargetView(pResource, pDesc, DestDescriptor);
+	if (pResource == nullptr)
+		return;
+
+	D3D12_RENDER_TARGET_VIEW_DESC new_desc =
+		pDesc != nullptr ? *pDesc : D3D12_RENDER_TARGET_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D12_RTV_DIMENSION_UNKNOWN };
+
+#if RESHADE_ADDON
+	reshade::api::resource_view_desc api_desc = reshade::d3d12::convert_render_target_view_desc(new_desc);
+	RESHADE_ADDON_EVENT(create_resource_view, _impl, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, &api_desc);
+	reshade::d3d12::convert_render_target_view_desc(api_desc, new_desc);
+#endif
+
+	_orig->CreateRenderTargetView(pResource, new_desc.ViewDimension != D3D12_RTV_DIMENSION_UNKNOWN ? &new_desc : nullptr, DestDescriptor);
+
+#if RESHADE_ADDON
+	_impl->register_resource_view(pResource, DestDescriptor);
+#endif
 }
 void    STDMETHODCALLTYPE D3D12Device::CreateDepthStencilView(ID3D12Resource *pResource, const D3D12_DEPTH_STENCIL_VIEW_DESC *pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
 {
-	_orig->CreateDepthStencilView(pResource, pDesc, DestDescriptor);
-#if RESHADE_DEPTH
-	if (pResource != nullptr)
-		_state.on_create_dsv(pResource, DestDescriptor);
+	if (pResource == nullptr)
+		return;
+
+	D3D12_DEPTH_STENCIL_VIEW_DESC new_desc =
+		pDesc != nullptr ? *pDesc : D3D12_DEPTH_STENCIL_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D12_DSV_DIMENSION_UNKNOWN };
+
+#if RESHADE_ADDON
+	reshade::api::resource_view_desc api_desc = reshade::d3d12::convert_depth_stencil_view_desc(new_desc);
+	RESHADE_ADDON_EVENT(create_resource_view, _impl, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, &api_desc);
+	reshade::d3d12::convert_depth_stencil_view_desc(api_desc, new_desc);
+#endif
+
+	_orig->CreateDepthStencilView(pResource, new_desc.ViewDimension != D3D12_DSV_DIMENSION_UNKNOWN ? &new_desc : nullptr, DestDescriptor);
+
+#if RESHADE_ADDON
+	_impl->register_resource_view(pResource, DestDescriptor);
 #endif
 }
 void    STDMETHODCALLTYPE D3D12Device::CreateSampler(const D3D12_SAMPLER_DESC *pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
@@ -272,7 +315,43 @@ D3D12_HEAP_PROPERTIES STDMETHODCALLTYPE D3D12Device::GetCustomHeapProperties(UIN
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource(const D3D12_HEAP_PROPERTIES *pHeapProperties, D3D12_HEAP_FLAGS HeapFlags, const D3D12_RESOURCE_DESC *pResourceDesc, D3D12_RESOURCE_STATES InitialResourceState, const D3D12_CLEAR_VALUE *pOptimizedClearValue, REFIID riidResource, void **ppvResource)
 {
-	return _orig->CreateCommittedResource(pHeapProperties, HeapFlags, pResourceDesc, InitialResourceState, pOptimizedClearValue, riidResource, ppvResource);
+	assert(pResourceDesc != nullptr);
+	D3D12_RESOURCE_DESC new_desc = *pResourceDesc;
+
+#if RESHADE_ADDON
+	reshade::api::resource_desc api_desc = reshade::d3d12::convert_resource_desc(new_desc);
+	RESHADE_ADDON_EVENT(create_resource, _impl, &api_desc);
+	reshade::d3d12::convert_resource_desc(api_desc, new_desc);
+#endif
+
+	const HRESULT hr = _orig->CreateCommittedResource(pHeapProperties, HeapFlags, &new_desc, InitialResourceState, pOptimizedClearValue, riidResource, ppvResource);
+	if (SUCCEEDED(hr))
+	{
+#if RESHADE_ADDON
+		assert(ppvResource != nullptr);
+		_impl->register_resource(static_cast<ID3D12Resource *>(*ppvResource));
+#endif
+	}
+	else
+	{
+		LOG(WARN) << "ID3D12Device::CreateCommittedResource" << " failed with error code " << hr << '.';
+		LOG(INFO) << "> Dumping description:";
+		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(INFO) << "  | Dimension                               | " << std::setw(39) << new_desc.Dimension << " |";
+		LOG(INFO) << "  | Alignment                               | " << std::setw(39) << new_desc.Alignment << " |";
+		LOG(INFO) << "  | Width                                   | " << std::setw(39) << new_desc.Width << " |";
+		LOG(INFO) << "  | Height                                  | " << std::setw(39) << new_desc.Height << " |";
+		LOG(INFO) << "  | DepthOrArraySize                        | " << std::setw(39) << new_desc.DepthOrArraySize << " |";
+		LOG(INFO) << "  | MipLevels                               | " << std::setw(39) << new_desc.MipLevels << " |";
+		LOG(INFO) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
+		LOG(INFO) << "  | SampleCount                             | " << std::setw(39) << new_desc.SampleDesc.Count << " |";
+		LOG(INFO) << "  | SampleQuality                           | " << std::setw(39) << new_desc.SampleDesc.Quality << " |";
+		LOG(INFO) << "  | Layout                                  | " << std::setw(39) << new_desc.Layout << " |";
+		LOG(INFO) << "  | Flags                                   | " << std::setw(39) << std::hex << new_desc.Flags << std::dec << " |";
+		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+	}
+
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateHeap(const D3D12_HEAP_DESC *pDesc, REFIID riid, void **ppvHeap)
 {
@@ -280,16 +359,83 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateHeap(const D3D12_HEAP_DESC *pDesc, 
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreatePlacedResource(ID3D12Heap *pHeap, UINT64 HeapOffset, const D3D12_RESOURCE_DESC *pDesc, D3D12_RESOURCE_STATES InitialState, const D3D12_CLEAR_VALUE *pOptimizedClearValue, REFIID riid, void **ppvResource)
 {
-	const HRESULT hr = _orig->CreatePlacedResource(pHeap, HeapOffset, pDesc, InitialState, pOptimizedClearValue, riid, ppvResource);
-#if RESHADE_DEPTH
-	if (SUCCEEDED(hr))
-		_state.on_create_placed_resource(static_cast<ID3D12Resource *>(*ppvResource), pHeap, HeapOffset);
+	assert(pDesc != nullptr);
+	D3D12_RESOURCE_DESC new_desc = *pDesc;
+
+#if RESHADE_ADDON
+	reshade::api::resource_desc api_desc = reshade::d3d12::convert_resource_desc(new_desc);
+	RESHADE_ADDON_EVENT(create_resource, _impl, &api_desc);
+	reshade::d3d12::convert_resource_desc(api_desc, new_desc);
 #endif
+
+	const HRESULT hr = _orig->CreatePlacedResource(pHeap, HeapOffset, &new_desc, InitialState, pOptimizedClearValue, riid, ppvResource);
+	if (SUCCEEDED(hr))
+	{
+#if RESHADE_ADDON
+		assert(ppvResource != nullptr);
+		_impl->register_resource(static_cast<ID3D12Resource *>(*ppvResource));
+#endif
+	}
+	else
+	{
+		LOG(WARN) << "ID3D12Device::CreatePlacedResource" << " failed with error code " << hr << '.';
+		LOG(INFO) << "> Dumping description:";
+		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(INFO) << "  | Dimension                               | " << std::setw(39) << new_desc.Dimension << " |";
+		LOG(INFO) << "  | Alignment                               | " << std::setw(39) << new_desc.Alignment << " |";
+		LOG(INFO) << "  | Width                                   | " << std::setw(39) << new_desc.Width << " |";
+		LOG(INFO) << "  | Height                                  | " << std::setw(39) << new_desc.Height << " |";
+		LOG(INFO) << "  | DepthOrArraySize                        | " << std::setw(39) << new_desc.DepthOrArraySize << " |";
+		LOG(INFO) << "  | MipLevels                               | " << std::setw(39) << new_desc.MipLevels << " |";
+		LOG(INFO) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
+		LOG(INFO) << "  | SampleCount                             | " << std::setw(39) << new_desc.SampleDesc.Count << " |";
+		LOG(INFO) << "  | SampleQuality                           | " << std::setw(39) << new_desc.SampleDesc.Quality << " |";
+		LOG(INFO) << "  | Layout                                  | " << std::setw(39) << new_desc.Layout << " |";
+		LOG(INFO) << "  | Flags                                   | " << std::setw(39) << std::hex << new_desc.Flags << std::dec << " |";
+		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+	}
+
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource(const D3D12_RESOURCE_DESC *pDesc, D3D12_RESOURCE_STATES InitialState, const D3D12_CLEAR_VALUE *pOptimizedClearValue, REFIID riid, void **ppvResource)
 {
-	return _orig->CreateReservedResource(pDesc, InitialState, pOptimizedClearValue, riid, ppvResource);
+	assert(pDesc != nullptr);
+	D3D12_RESOURCE_DESC new_desc = *pDesc;
+
+#if RESHADE_ADDON
+	reshade::api::resource_desc api_desc = reshade::d3d12::convert_resource_desc(new_desc);
+	RESHADE_ADDON_EVENT(create_resource, _impl, &api_desc);
+	reshade::d3d12::convert_resource_desc(api_desc, new_desc);
+#endif
+
+	const HRESULT hr = _orig->CreateReservedResource(&new_desc, InitialState, pOptimizedClearValue, riid, ppvResource);
+	if (SUCCEEDED(hr))
+	{
+#if RESHADE_ADDON
+		assert(ppvResource != nullptr);
+		_impl->register_resource(static_cast<ID3D12Resource *>(*ppvResource));
+#endif
+	}
+	else
+	{
+		LOG(WARN) << "ID3D12Device::CreateReservedResource" << " failed with error code " << hr << '.';
+		LOG(INFO) << "> Dumping description:";
+		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(INFO) << "  | Dimension                               | " << std::setw(39) << new_desc.Dimension << " |";
+		LOG(INFO) << "  | Alignment                               | " << std::setw(39) << new_desc.Alignment << " |";
+		LOG(INFO) << "  | Width                                   | " << std::setw(39) << new_desc.Width << " |";
+		LOG(INFO) << "  | Height                                  | " << std::setw(39) << new_desc.Height << " |";
+		LOG(INFO) << "  | DepthOrArraySize                        | " << std::setw(39) << new_desc.DepthOrArraySize << " |";
+		LOG(INFO) << "  | MipLevels                               | " << std::setw(39) << new_desc.MipLevels << " |";
+		LOG(INFO) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
+		LOG(INFO) << "  | SampleCount                             | " << std::setw(39) << new_desc.SampleDesc.Count << " |";
+		LOG(INFO) << "  | SampleQuality                           | " << std::setw(39) << new_desc.SampleDesc.Quality << " |";
+		LOG(INFO) << "  | Layout                                  | " << std::setw(39) << new_desc.Layout << " |";
+		LOG(INFO) << "  | Flags                                   | " << std::setw(39) << std::hex << new_desc.Flags << std::dec << " |";
+		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+	}
+
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateSharedHandle(ID3D12DeviceChild *pObject, const SECURITY_ATTRIBUTES *pAttributes, DWORD Access, LPCWSTR Name, HANDLE *pHandle)
 {
@@ -397,8 +543,6 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandList1(UINT NodeMask, D3D12_C
 	// Upgrade to the actual interface version requested here (and only hook graphics command lists)
 	if (command_list_proxy->check_and_upgrade_interface(riid))
 	{
-		command_list_proxy->_state.init(_orig, command_list_proxy->_orig, &_state);
-
 		*ppCommandList = command_list_proxy;
 	}
 	else // Do not hook object if we do not support the requested interface or this is a compute command list
@@ -416,8 +560,44 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateProtectedResourceSession(const D3D1
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource1(const D3D12_HEAP_PROPERTIES *pHeapProperties, D3D12_HEAP_FLAGS HeapFlags, const D3D12_RESOURCE_DESC *pDesc, D3D12_RESOURCE_STATES InitialResourceState, const D3D12_CLEAR_VALUE *pOptimizedClearValue, ID3D12ProtectedResourceSession *pProtectedSession, REFIID riidResource, void **ppvResource)
 {
+	assert(pDesc != nullptr);
+	D3D12_RESOURCE_DESC new_desc = *pDesc;
+
+#if RESHADE_ADDON
+	reshade::api::resource_desc api_desc = reshade::d3d12::convert_resource_desc(new_desc);
+	RESHADE_ADDON_EVENT(create_resource, _impl, &api_desc);
+	reshade::d3d12::convert_resource_desc(api_desc, new_desc);
+#endif
+
 	assert(_interface_version >= 4);
-	return static_cast<ID3D12Device4 *>(_orig)->CreateCommittedResource1(pHeapProperties, HeapFlags, pDesc, InitialResourceState, pOptimizedClearValue, pProtectedSession, riidResource, ppvResource);
+	const HRESULT hr = static_cast<ID3D12Device4 *>(_orig)->CreateCommittedResource1(pHeapProperties, HeapFlags, &new_desc, InitialResourceState, pOptimizedClearValue, pProtectedSession, riidResource, ppvResource);
+	if (SUCCEEDED(hr))
+	{
+#if RESHADE_ADDON
+		assert(ppvResource != nullptr);
+		_impl->register_resource(static_cast<ID3D12Resource *>(*ppvResource));
+#endif
+	}
+	else
+	{
+		LOG(WARN) << "ID3D12Device::CreateCommittedResource1" << " failed with error code " << hr << '.';
+		LOG(INFO) << "> Dumping description:";
+		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(INFO) << "  | Dimension                               | " << std::setw(39) << new_desc.Dimension << " |";
+		LOG(INFO) << "  | Alignment                               | " << std::setw(39) << new_desc.Alignment << " |";
+		LOG(INFO) << "  | Width                                   | " << std::setw(39) << new_desc.Width << " |";
+		LOG(INFO) << "  | Height                                  | " << std::setw(39) << new_desc.Height << " |";
+		LOG(INFO) << "  | DepthOrArraySize                        | " << std::setw(39) << new_desc.DepthOrArraySize << " |";
+		LOG(INFO) << "  | MipLevels                               | " << std::setw(39) << new_desc.MipLevels << " |";
+		LOG(INFO) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
+		LOG(INFO) << "  | SampleCount                             | " << std::setw(39) << new_desc.SampleDesc.Count << " |";
+		LOG(INFO) << "  | SampleQuality                           | " << std::setw(39) << new_desc.SampleDesc.Quality << " |";
+		LOG(INFO) << "  | Layout                                  | " << std::setw(39) << new_desc.Layout << " |";
+		LOG(INFO) << "  | Flags                                   | " << std::setw(39) << std::hex << new_desc.Flags << std::dec << " |";
+		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+	}
+
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateHeap1(const D3D12_HEAP_DESC *pDesc, ID3D12ProtectedResourceSession *pProtectedSession, REFIID riid, void **ppvHeap)
 {
@@ -426,8 +606,44 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateHeap1(const D3D12_HEAP_DESC *pDesc,
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource1(const D3D12_RESOURCE_DESC *pDesc, D3D12_RESOURCE_STATES InitialState, const D3D12_CLEAR_VALUE *pOptimizedClearValue, ID3D12ProtectedResourceSession *pProtectedSession, REFIID riid, void **ppvResource)
 {
+	assert(pDesc != nullptr);
+	D3D12_RESOURCE_DESC new_desc = *pDesc;
+
+#if RESHADE_ADDON
+	reshade::api::resource_desc api_desc = reshade::d3d12::convert_resource_desc(new_desc);
+	RESHADE_ADDON_EVENT(create_resource, _impl, &api_desc);
+	reshade::d3d12::convert_resource_desc(api_desc, new_desc);
+#endif
+
 	assert(_interface_version >= 4);
-	return static_cast<ID3D12Device4 *>(_orig)->CreateReservedResource1(pDesc, InitialState, pOptimizedClearValue, pProtectedSession, riid, ppvResource);
+	const HRESULT hr = static_cast<ID3D12Device4 *>(_orig)->CreateReservedResource1(&new_desc, InitialState, pOptimizedClearValue, pProtectedSession, riid, ppvResource);
+	if (SUCCEEDED(hr))
+	{
+#if RESHADE_ADDON
+		assert(ppvResource != nullptr);
+		_impl->register_resource(static_cast<ID3D12Resource *>(*ppvResource));
+#endif
+	}
+	else
+	{
+		LOG(WARN) << "ID3D12Device::CreateReservedResource1" << " failed with error code " << hr << '.';
+		LOG(INFO) << "> Dumping description:";
+		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(INFO) << "  | Dimension                               | " << std::setw(39) << new_desc.Dimension << " |";
+		LOG(INFO) << "  | Alignment                               | " << std::setw(39) << new_desc.Alignment << " |";
+		LOG(INFO) << "  | Width                                   | " << std::setw(39) << new_desc.Width << " |";
+		LOG(INFO) << "  | Height                                  | " << std::setw(39) << new_desc.Height << " |";
+		LOG(INFO) << "  | DepthOrArraySize                        | " << std::setw(39) << new_desc.DepthOrArraySize << " |";
+		LOG(INFO) << "  | MipLevels                               | " << std::setw(39) << new_desc.MipLevels << " |";
+		LOG(INFO) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
+		LOG(INFO) << "  | SampleCount                             | " << std::setw(39) << new_desc.SampleDesc.Count << " |";
+		LOG(INFO) << "  | SampleQuality                           | " << std::setw(39) << new_desc.SampleDesc.Quality << " |";
+		LOG(INFO) << "  | Layout                                  | " << std::setw(39) << new_desc.Layout << " |";
+		LOG(INFO) << "  | Flags                                   | " << std::setw(39) << std::hex << new_desc.Flags << std::dec << " |";
+		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+	}
+
+	return hr;
 }
 D3D12_RESOURCE_ALLOCATION_INFO STDMETHODCALLTYPE D3D12Device::GetResourceAllocationInfo1(UINT VisibleMask, UINT NumResourceDescs, const D3D12_RESOURCE_DESC *pResourceDescs, D3D12_RESOURCE_ALLOCATION_INFO1 *pResourceAllocationInfo1)
 {

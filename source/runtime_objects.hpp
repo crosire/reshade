@@ -27,7 +27,6 @@ namespace reshade
 		overlay_open,
 		overlay_active,
 		overlay_hovered,
-		bufready_depth,
 	};
 
 	template <typename T, size_t SAMPLES>

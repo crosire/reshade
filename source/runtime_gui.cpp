@@ -9,6 +9,7 @@
 #include "dll_log.hpp"
 #include "dll_config.hpp"
 #include "dll_resources.hpp"
+#include "addon_manager.hpp"
 #include "runtime.hpp"
 #include "runtime_objects.hpp"
 #include "input.hpp"
@@ -75,6 +76,9 @@ void reshade::runtime::init_gui()
 	ImGui::SetCurrentContext(nullptr);
 
 	subscribe_to_ui("Home", [this]() { draw_gui_home(); });
+#if RESHADE_ADDON
+	subscribe_to_ui("Add-ons", [this]() { draw_gui_addons(); });
+#endif
 	subscribe_to_ui("Settings", [this]() { draw_gui_settings(); });
 	subscribe_to_ui("Statistics", [this]() { draw_gui_statistics(); });
 	subscribe_to_ui("Log", [this]() { draw_gui_log(); });
@@ -804,6 +808,13 @@ void reshade::runtime::draw_gui()
 		{
 			if (ImGui::Begin(widget.first.c_str(), nullptr, ImGuiWindowFlags_NoFocusOnAppearing)) // No focus so that window state is preserved between opening/closing the UI
 				widget.second();
+			ImGui::End();
+		}
+
+		for (const auto &widget : addon::overlay_list)
+		{
+			if (ImGui::Begin(widget.first.c_str(), nullptr, ImGuiWindowFlags_NoFocusOnAppearing))
+				widget.second(this, _imgui_context);
 			ImGui::End();
 		}
 
@@ -2026,6 +2037,67 @@ This Font Software is licensed under the SIL Open Font License, Version 1.1. (ht
 
 	ImGui::PopTextWrapPos();
 }
+#if RESHADE_ADDON
+void reshade::runtime::draw_gui_addons()
+{
+	if (!addon::event_list_enabled)
+	{
+		ImGui::TextColored(ImColor(204, 204, 0), "High network activity discovered.\nAll add-ons are disabled to prevent exploitation.");
+		return;
+	}
+
+	widgets::search_input_box(_addons_filter, sizeof(_addons_filter));
+	const std::string_view filter_view = _addons_filter;
+
+	ImGui::Spacing();
+
+	for (size_t index = 0; index < addon::loaded_info.size(); ++index)
+	{
+		const addon::info &info = addon::loaded_info[index];
+
+		if (!filter_view.empty() &&
+			std::search(info.name.begin(), info.name.end(), filter_view.begin(), filter_view.end(), // Search case insensitive
+				[](const char c1, const char c2) { return (('a' <= c1 && c1 <= 'z') ? static_cast<char>(c1 - ' ') : c1) == (('a' <= c2 && c2 <= 'z') ? static_cast<char>(c2 - ' ') : c2); }) == info.name.end())
+			continue;
+
+		ImGui::PushID(static_cast<int>(index + 1));
+
+		const ImVec2 spacing = ImGui::GetStyle().ItemSpacing;
+		ImGui::BeginGroup();
+		ImGui::Dummy(ImVec2(spacing.x, 0.0f));
+		ImGui::SameLine(0.0f, 0.0f);
+		ImGui::BeginGroup();
+		ImGui::Dummy(ImVec2(ImGui::GetContentRegionAvail().x, spacing.y));
+		ImGui::GetCurrentWindow()->Size.x -= spacing.x * 2;
+		ImGui::GetCurrentWindow()->WorkRect.Max.x -= spacing.x;
+		ImGui::GetCurrentWindow()->InnerRect.Max.x -= spacing.x;
+		ImGui::GetCurrentWindow()->ContentRegionRect.Max.x -= spacing.x;
+
+		bool open = _open_addon_index == static_cast<int>(index + 1);
+		if (ImGui::ArrowButton("addon_open", open ? ImGuiDir_Down : ImGuiDir_Right))
+			_open_addon_index = open ? 0 : static_cast<int>(index + 1);
+		ImGui::SameLine();
+		ImGui::TextUnformatted(info.name.c_str());
+
+		if (open && !info.description.empty())
+			ImGui::TextUnformatted(info.description.c_str());
+
+		ImGui::GetCurrentWindow()->Size.x += spacing.x;
+		ImGui::GetCurrentWindow()->WorkRect.Max.x += spacing.x;
+		ImGui::GetCurrentWindow()->InnerRect.Max.x += spacing.x;
+		ImGui::GetCurrentWindow()->ContentRegionRect.Max.x += spacing.x;
+		ImGui::EndGroup();
+		ImGui::Dummy(ImVec2(0.0f, spacing.y));
+		ImGui::EndGroup();
+
+		ImGui::GetWindowDrawList()->AddRect(
+			ImGui::GetItemRectMin(), ImGui::GetItemRectMax(),
+			ImColor(ImGui::GetStyleColorVec4(ImGuiCol_Border)), ImGui::GetStyle().ChildBorderSize);
+
+		ImGui::PopID();
+	}
+}
+#endif
 
 void reshade::runtime::draw_variable_editor()
 {

@@ -10,7 +10,6 @@
 #include "runtime_objects.hpp"
 #include "dxgi/format_utils.hpp"
 #include <imgui.h>
-#include <imgui_internal.h>
 #include <d3dcompiler.h>
 
 namespace reshade::d3d10
@@ -50,11 +49,9 @@ namespace reshade::d3d10
 
 extern bool is_windows7();
 
-reshade::d3d10::runtime_d3d10::runtime_d3d10(ID3D10Device1 *device, IDXGISwapChain *swapchain, state_tracking *state_tracking) :
-	_app_state(device), _state_tracking(*state_tracking), _device(device), _swapchain(swapchain)
+reshade::d3d10::runtime_d3d10::runtime_d3d10(device_impl *device, IDXGISwapChain *swapchain) :
+	_device_impl(device), _device(device->_device), _swapchain(swapchain), _app_state(device->_device.get())
 {
-	assert(device != nullptr && swapchain != nullptr && state_tracking != nullptr);
-
 	_renderer_id = _device->GetFeatureLevel();
 
 	if (com_ptr<IDXGIDevice> dxgi_device;
@@ -71,29 +68,6 @@ reshade::d3d10::runtime_d3d10::runtime_d3d10(ID3D10Device1 *device, IDXGISwapCha
 			}
 		}
 	}
-
-#if RESHADE_GUI
-	subscribe_to_ui("D3D10", [this]() {
-#if RESHADE_DEPTH
-		draw_depth_debug_menu();
-#endif
-	});
-#endif
-#if RESHADE_DEPTH
-	subscribe_to_load_config([this](const ini_file &config) {
-		config.get("DEPTH", "DepthCopyBeforeClears", _state_tracking.preserve_depth_buffers);
-		config.get("DEPTH", "DepthCopyAtClearIndex", _state_tracking.depthstencil_clear_index.second);
-		config.get("DEPTH", "UseAspectRatioHeuristics", _state_tracking.use_aspect_ratio_heuristics);
-
-		if (_state_tracking.depthstencil_clear_index.second == std::numeric_limits<UINT>::max())
-			_state_tracking.depthstencil_clear_index.second  = 0;
-	});
-	subscribe_to_save_config([this](ini_file &config) {
-		config.set("DEPTH", "DepthCopyBeforeClears", _state_tracking.preserve_depth_buffers);
-		config.set("DEPTH", "DepthCopyAtClearIndex", _state_tracking.depthstencil_clear_index.second);
-		config.set("DEPTH", "UseAspectRatioHeuristics", _state_tracking.use_aspect_ratio_heuristics);
-	});
-#endif
 
 	if (!on_init())
 		LOG(ERROR) << "Failed to initialize Direct3D 10 runtime environment on runtime " << this << '!';
@@ -239,6 +213,8 @@ void reshade::d3d10::runtime_d3d10::on_reset()
 	_effect_stencil.reset();
 	_effect_rasterizer.reset();
 
+	_texture_semantic_bindings.clear();
+
 #if RESHADE_GUI
 	_imgui.cb.reset();
 	_imgui.vs.reset();
@@ -253,25 +229,12 @@ void reshade::d3d10::runtime_d3d10::on_reset()
 	_imgui.num_indices = 0;
 	_imgui.num_vertices = 0;
 #endif
-
-#if RESHADE_DEPTH
-	_depth_texture.reset();
-	_depth_texture_srv.reset();
-
-	_has_depth_texture = false;
-	_depth_texture_override = nullptr;
-#endif
 }
 
 void reshade::d3d10::runtime_d3d10::on_present()
 {
 	if (!_is_initialized)
 		return;
-
-#if RESHADE_DEPTH
-	update_depth_texture_bindings(_has_high_network_activity ? nullptr :
-		_state_tracking.find_best_depth_texture(_width, _height, _depth_texture_override));
-#endif
 
 	_app_state.capture();
 
@@ -793,12 +756,11 @@ bool reshade::d3d10::runtime_d3d10::init_texture(texture &texture)
 		impl->srv[1] = _backbuffer_texture_srv[1];
 		return true;
 	}
-	if (texture.semantic == "DEPTH")
+	else if (!texture.semantic.empty())
 	{
-#if RESHADE_DEPTH
-		impl->srv[0] = _depth_texture_srv;
-		impl->srv[1] = _depth_texture_srv;
-#endif
+		if (const auto it = _texture_semantic_bindings.find(texture.semantic);
+			it != _texture_semantic_bindings.end())
+			impl->srv[0] = impl->srv[1] = it->second;
 		return true;
 	}
 
@@ -973,6 +935,8 @@ void reshade::d3d10::runtime_d3d10::render_technique(technique &technique)
 		impl->timestamp_query_beg->End();
 	}
 
+	RESHADE_ADDON_EVENT(reshade_before_effects, this, _device_impl);
+
 	// Setup vertex input (no explicit vertices are provided, so bind to null)
 	const uintptr_t null = 0;
 	_device->IASetInputLayout(nullptr);
@@ -1108,6 +1072,8 @@ void reshade::d3d10::runtime_d3d10::render_technique(technique &technique)
 				_device->GenerateMips(resource.get());
 		}
 	}
+
+	RESHADE_ADDON_EVENT(reshade_after_effects, this, _device_impl);
 
 	if (!impl->query_in_flight)
 	{
@@ -1321,133 +1287,20 @@ void reshade::d3d10::runtime_d3d10::render_imgui_draw_data(ImDrawData *draw_data
 }
 #endif
 
-#if RESHADE_DEPTH
-void reshade::d3d10::runtime_d3d10::draw_depth_debug_menu()
+void reshade::d3d10::runtime_d3d10::update_texture_bindings(const char *semantic, api::resource_view_handle api_srv)
 {
-	if (!ImGui::CollapsingHeader("Depth Buffers", ImGuiTreeNodeFlags_DefaultOpen))
-		return;
+	const auto new_srv = reinterpret_cast<ID3D10ShaderResourceView *>(api_srv.handle);
 
-	if (_has_high_network_activity)
-	{
-		ImGui::TextColored(ImColor(204, 204, 0), "High network activity discovered.\nAccess to depth buffers is disabled to prevent exploitation.");
-		return;
-	}
-
-	bool modified = false;
-	modified |= ImGui::Checkbox("Use aspect ratio heuristics", &_state_tracking.use_aspect_ratio_heuristics);
-	modified |= ImGui::Checkbox("Copy depth buffer before clear operations", &_state_tracking.preserve_depth_buffers);
-
-	if (modified) // Detection settings have changed, reset heuristic
-		_state_tracking.reset(true);
-
-	ImGui::Spacing();
-	ImGui::Separator();
-	ImGui::Spacing();
-
-	// Sort pointer list so that added/removed items do not change the UI much
-	std::vector<std::pair<ID3D10Texture2D *, state_tracking::depthstencil_info>> sorted_buffers;
-	sorted_buffers.reserve(_state_tracking.depth_buffer_counters().size());
-	for (const auto &[dsv_texture, snapshot] : _state_tracking.depth_buffer_counters())
-		sorted_buffers.push_back({ dsv_texture.get(), snapshot });
-	std::sort(sorted_buffers.begin(), sorted_buffers.end(), [](const auto &a, const auto &b) { return a.first < b.first; });
-	for (const auto &[dsv_texture, snapshot] : sorted_buffers)
-	{
-		char label[512] = "";
-		sprintf_s(label, "%s0x%p", (dsv_texture == _state_tracking.depthstencil_clear_index.first ? "> " : "  "), dsv_texture);
-
-		D3D10_TEXTURE2D_DESC desc;
-		dsv_texture->GetDesc(&desc);
-
-		const bool msaa = desc.SampleDesc.Count > 1;
-		if (msaa) // Disable widget for MSAA textures
-		{
-			ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
-			ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
-		}
-
-		if (bool value = (_depth_texture_override == dsv_texture);
-			ImGui::Checkbox(label, &value))
-			_depth_texture_override = value ? dsv_texture : nullptr;
-
-		ImGui::SameLine();
-		ImGui::Text("| %4ux%-4u | %5u draw calls ==> %8u vertices |%s",
-			desc.Width, desc.Height, snapshot.total_stats.drawcalls, snapshot.total_stats.vertices, (msaa ? " MSAA" : ""));
-
-		if (_state_tracking.preserve_depth_buffers && dsv_texture == _state_tracking.depthstencil_clear_index.first)
-		{
-			for (UINT clear_index = 1; clear_index <= snapshot.clears.size(); ++clear_index)
-			{
-				sprintf_s(label, "%s  CLEAR %2u", (clear_index == _state_tracking.depthstencil_clear_index.second ? "> " : "  "), clear_index);
-
-				if (bool value = (_state_tracking.depthstencil_clear_index.second == clear_index);
-					ImGui::Checkbox(label, &value))
-				{
-					_state_tracking.depthstencil_clear_index.second = value ? clear_index : 0;
-					modified = true;
-				}
-
-				ImGui::SameLine();
-				ImGui::Text("%*s|           | %5u draw calls ==> %8u vertices |%s",
-					sizeof(dsv_texture) == 8 ? 8 : 0, "", // Add space to fill pointer length
-					snapshot.clears[clear_index - 1].drawcalls, snapshot.clears[clear_index - 1].vertices,
-					snapshot.clears[clear_index - 1].rect ? " RECT" : "");
-			}
-		}
-
-		if (msaa)
-		{
-			ImGui::PopStyleColor();
-			ImGui::PopItemFlag();
-		}
-	}
-
-	ImGui::Spacing();
-	ImGui::Separator();
-	ImGui::Spacing();
-
-	if (modified)
-		runtime::save_config();
-}
-
-void reshade::d3d10::runtime_d3d10::update_depth_texture_bindings(com_ptr<ID3D10Texture2D> depth_texture)
-{
-	if (_has_high_network_activity)
-		depth_texture.reset();
-
-	if (depth_texture == _depth_texture)
-		return;
-
-	_depth_texture = std::move(depth_texture);
-	_depth_texture_srv.reset();
-	_has_depth_texture = false;
-
-	if (_depth_texture != nullptr)
-	{
-		D3D10_TEXTURE2D_DESC tex_desc;
-		_depth_texture->GetDesc(&tex_desc);
-		assert((tex_desc.BindFlags & D3D10_BIND_SHADER_RESOURCE) != 0);
-
-		D3D10_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
-		srv_desc.ViewDimension = D3D10_SRV_DIMENSION_TEXTURE2D;
-		srv_desc.Texture2D.MipLevels = 1;
-		srv_desc.Format = make_dxgi_format_normal(tex_desc.Format);
-
-		if (HRESULT hr = _device->CreateShaderResourceView(_depth_texture.get(), &srv_desc, &_depth_texture_srv); FAILED(hr))
-		{
-			LOG(ERROR) << "Failed to create depth-stencil resource view! HRESULT is " << hr << '.';
-		}
-		else
-		{
-			_has_depth_texture = true;
-		}
-	}
+	_texture_semantic_bindings[semantic] = new_srv;
 
 	// Update all references to the new texture
 	for (const texture &tex : _textures)
 	{
-		if (tex.impl == nullptr || tex.semantic != "DEPTH")
+		if (tex.impl == nullptr || tex.semantic != semantic)
 			continue;
 		const auto tex_impl = static_cast<tex_data *>(tex.impl);
+		if (tex_impl->srv[0] == new_srv)
+			continue;
 
 		// Update references in technique list
 		for (const technique &tech : _techniques)
@@ -1460,10 +1313,9 @@ void reshade::d3d10::runtime_d3d10::update_depth_texture_bindings(com_ptr<ID3D10
 				// Replace all occurances of the old resource view with the new one
 				for (com_ptr<ID3D10ShaderResourceView> &srv : pass_data.srvs)
 					if (tex_impl->srv[0] == srv || tex_impl->srv[1] == srv)
-						srv = _depth_texture_srv;
+						srv = new_srv;
 		}
 
-		tex_impl->srv[0] = tex_impl->srv[1] = _depth_texture_srv;
+		tex_impl->srv[0] = tex_impl->srv[1] = new_srv;
 	}
 }
-#endif

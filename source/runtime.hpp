@@ -12,6 +12,8 @@
 #include <functional>
 #include <filesystem>
 
+#include "reshade_api.hpp"
+
 #if RESHADE_GUI
 #include "imgui_editor.hpp"
 
@@ -33,7 +35,7 @@ namespace reshade
 	/// Platform independent base class for the main ReShade runtime.
 	/// This class needs to be implemented for all supported rendering APIs.
 	/// </summary>
-	class runtime
+	class runtime : public api::effect_runtime
 	{
 	public:
 		/// <summary>
@@ -42,13 +44,9 @@ namespace reshade
 		bool is_initialized() const { return _is_initialized; }
 
 		/// <summary>
-		/// Return the frame width in pixels.
+		/// Return the frame width and height in pixels.
 		/// </summary>
-		unsigned int frame_width() const { return _width; }
-		/// <summary>
-		/// Return the frame height in pixels.
-		/// </summary>
-		unsigned int frame_height() const { return _height; }
+		void get_frame_width_and_height(uint32_t *width, uint32_t *height) const override { *width = _width; *height = _height; }
 
 		/// <summary>
 		/// Create a copy of the current frame image in system memory.
@@ -234,8 +232,6 @@ namespace reshade
 
 		bool _is_initialized = false;
 		bool _performance_mode = false;
-		bool _has_high_network_activity = false;
-		bool _has_depth_texture = false;
 		unsigned int _width = 0;
 		unsigned int _height = 0;
 		unsigned int _window_width = 0;
@@ -388,6 +384,9 @@ namespace reshade
 		void draw_gui_statistics();
 		void draw_gui_log();
 		void draw_gui_about();
+#if RESHADE_ADDON
+		void draw_gui_addons();
+#endif
 
 		void draw_variable_editor();
 		void draw_technique_editor();
@@ -425,6 +424,10 @@ namespace reshade
 		unsigned int _tutorial_index = 0;
 		unsigned int _effects_expanded_state = 2;
 		float _variable_editor_height = 300.0f;
+
+		// === User Interface - Add-ons ===
+		char _addons_filter[64] = {};
+		int _open_addon_index = 0;
 
 		// === User Interface - Settings ===
 		int _font_size = 13;

@@ -24,7 +24,7 @@ DXGISwapChain::DXGISwapChain(D3D10Device *device, IDXGISwapChain  *original) :
 	_interface_version(0),
 	_direct3d_device(device),
 	_direct3d_version(10),
-	_runtime(new reshade::d3d10::runtime_d3d10(device->_orig, original, &device->_state))
+	_runtime(new reshade::d3d10::runtime_d3d10(device->_impl, original))
 {
 	assert(_orig != nullptr && _direct3d_device != nullptr);
 	// Explicitly add a reference to the device, to ensure it stays valid for the lifetime of this swap chain object
@@ -35,7 +35,7 @@ DXGISwapChain::DXGISwapChain(D3D10Device *device, IDXGISwapChain1 *original) :
 	_interface_version(1),
 	_direct3d_device(device),
 	_direct3d_version(10),
-	_runtime(new reshade::d3d10::runtime_d3d10(device->_orig, original, &device->_state))
+	_runtime(new reshade::d3d10::runtime_d3d10(device->_impl, original))
 {
 	assert(_orig != nullptr && _direct3d_device != nullptr);
 	_direct3d_device->AddRef();
@@ -45,7 +45,7 @@ DXGISwapChain::DXGISwapChain(D3D11Device *device, IDXGISwapChain  *original) :
 	_interface_version(0),
 	_direct3d_device(device),
 	_direct3d_version(11),
-	_runtime(new reshade::d3d11::runtime_d3d11(device->_orig, original, &device->_immediate_context->_state))
+	_runtime(new reshade::d3d11::runtime_d3d11(device->_impl, device->_immediate_context->_impl, original))
 {
 	assert(_orig != nullptr && _direct3d_device != nullptr);
 	_direct3d_device->AddRef();
@@ -55,7 +55,7 @@ DXGISwapChain::DXGISwapChain(D3D11Device *device, IDXGISwapChain1 *original) :
 	_interface_version(1),
 	_direct3d_device(device),
 	_direct3d_version(11),
-	_runtime(new reshade::d3d11::runtime_d3d11(device->_orig, original, &device->_immediate_context->_state))
+	_runtime(new reshade::d3d11::runtime_d3d11(device->_impl, device->_immediate_context->_impl, original))
 {
 	assert(_orig != nullptr && _direct3d_device != nullptr);
 	_direct3d_device->AddRef();
@@ -65,7 +65,7 @@ DXGISwapChain::DXGISwapChain(D3D12CommandQueue *command_queue, IDXGISwapChain3 *
 	_interface_version(3),
 	_direct3d_device(command_queue->_device), // Get the device instead of the command queue, so that 'IDXGISwapChain::GetDevice' works
 	_direct3d_version(12),
-	_runtime(new reshade::d3d12::runtime_d3d12(command_queue->_device->_orig, command_queue->_orig, original, &command_queue->_device->_state))
+	_runtime(new reshade::d3d12::runtime_d3d12(command_queue->_device->_impl, command_queue->_impl, original))
 {
 	assert(_orig != nullptr && _direct3d_device != nullptr);
 	_direct3d_device->AddRef();
@@ -73,6 +73,8 @@ DXGISwapChain::DXGISwapChain(D3D12CommandQueue *command_queue, IDXGISwapChain3 *
 
 void DXGISwapChain::runtime_reset()
 {
+	RESHADE_ADDON_EVENT(resize, _runtime);
+
 	const std::lock_guard<std::mutex> lock(_runtime_mutex);
 
 	switch (_direct3d_version)
@@ -116,6 +118,19 @@ void DXGISwapChain::runtime_present(UINT flags)
 	if (flags & DXGI_PRESENT_TEST)
 		return;
 
+	switch (_direct3d_version)
+	{
+	case 10:
+		RESHADE_ADDON_EVENT(present, static_cast<reshade::d3d10::runtime_d3d10 *>(_runtime)->get_command_queue(), _runtime);
+		break;
+	case 11:
+		RESHADE_ADDON_EVENT(present, static_cast<reshade::d3d11::runtime_d3d11 *>(_runtime)->get_command_queue(), _runtime);
+		break;
+	case 12:
+		RESHADE_ADDON_EVENT(present, static_cast<reshade::d3d12::runtime_d3d12 *>(_runtime)->get_command_queue(), _runtime);
+		break;
+	}
+
 	// Synchronize access to runtime to avoid race conditions between 'load_effects' and 'unload_effects' causing crashes
 	// This is necessary because Resident Evil 3 calls DXGI functions simultaneously from multiple threads (which is technically illegal)
 	const std::lock_guard<std::mutex> lock(_runtime_mutex);
@@ -124,15 +139,12 @@ void DXGISwapChain::runtime_present(UINT flags)
 	{
 	case 10:
 		static_cast<reshade::d3d10::runtime_d3d10 *>(_runtime)->on_present();
-		static_cast<D3D10Device *>(_direct3d_device)->_state.reset(false);
 		break;
 	case 11:
 		static_cast<reshade::d3d11::runtime_d3d11 *>(_runtime)->on_present();
-		static_cast<D3D11Device *>(_direct3d_device)->_immediate_context->_state.reset(false);
 		break;
 	case 12:
 		static_cast<reshade::d3d12::runtime_d3d12 *>(_runtime)->on_present();
-		static_cast<D3D12Device *>(_direct3d_device)->_state.reset(false);
 		break;
 	}
 }

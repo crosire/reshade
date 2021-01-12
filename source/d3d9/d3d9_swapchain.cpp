@@ -12,7 +12,7 @@ Direct3DSwapChain9::Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapCha
 	_orig(original),
 	_extended_interface(0),
 	_device(device),
-	_runtime(new reshade::d3d9::runtime_d3d9(device->_orig, original, &device->_state))
+	_runtime(new reshade::d3d9::runtime_d3d9(device->_impl, original))
 {
 	assert(_orig != nullptr && _device != nullptr);
 }
@@ -20,7 +20,7 @@ Direct3DSwapChain9::Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapCha
 	_orig(original),
 	_extended_interface(1),
 	_device(device),
-	_runtime(new reshade::d3d9::runtime_d3d9(device->_orig, original, &device->_state))
+	_runtime(new reshade::d3d9::runtime_d3d9(device->_impl, original))
 {
 	assert(_orig != nullptr && _device != nullptr);
 }
@@ -110,10 +110,11 @@ ULONG   STDMETHODCALLTYPE Direct3DSwapChain9::Release()
 
 HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::Present(const RECT *pSourceRect, const RECT *pDestRect, HWND hDestWindowOverride, const RGNDATA *pDirtyRegion, DWORD dwFlags)
 {
+	RESHADE_ADDON_EVENT(present, _device->_impl, _runtime);
+
 	// Only call into runtime if the entire surface is presented, to avoid partial updates messing up effects and the GUI
 	if (is_presenting_entire_surface(pSourceRect, hDestWindowOverride))
 		_runtime->on_present();
-	_device->_state.reset(false);
 
 	return _orig->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
 }

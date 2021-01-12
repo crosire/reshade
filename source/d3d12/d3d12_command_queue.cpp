@@ -12,7 +12,8 @@
 D3D12CommandQueue::D3D12CommandQueue(D3D12Device *device, ID3D12CommandQueue *original) :
 	_orig(original),
 	_interface_version(0),
-	_device(device)
+	_device(device),
+	_impl(new reshade::d3d12::command_queue_impl(device->_impl, original))
 {
 	assert(_orig != nullptr && _device != nullptr);
 }
@@ -89,6 +90,8 @@ ULONG   STDMETHODCALLTYPE D3D12CommandQueue::Release()
 	if (ref != 0)
 		return _orig->Release(), ref;
 
+	delete _impl;
+
 	if (_downlevel != nullptr)
 		_downlevel->Release();
 
@@ -136,9 +139,6 @@ void    STDMETHODCALLTYPE D3D12CommandQueue::CopyTileMappings(ID3D12Resource *pD
 }
 void    STDMETHODCALLTYPE D3D12CommandQueue::ExecuteCommandLists(UINT NumCommandLists, ID3D12CommandList *const *ppCommandLists)
 {
-	// The synchronization definition of 'ExecuteCommandLists' is equivalent to an aliasing barrier, see https://docs.microsoft.com/windows/win32/api/d3d12/nf-d3d12-id3d12device-createplacedresource#notes-on-the-aliasing-barrier
-	// TODO (need a command list for this): _device->_state.on_aliasing(D3D12_RESOURCE_ALIASING_BARRIER { nullptr, nullptr });
-
 	std::vector<ID3D12CommandList *> command_lists(NumCommandLists);
 	for (UINT i = 0; i < NumCommandLists; i++)
 	{
@@ -150,8 +150,7 @@ void    STDMETHODCALLTYPE D3D12CommandQueue::ExecuteCommandLists(UINT NumCommand
 			// Get original command list pointer from proxy object
 			command_lists[i] = command_list_proxy->_orig;
 
-			// Merge command list trackers into device one
-			_device->_state.merge(command_list_proxy->_state);
+			RESHADE_ADDON_EVENT(execute_command_list, _impl, command_list_proxy->_impl);
 		}
 		else
 		{

@@ -52,7 +52,7 @@ namespace reshade::opengl
 	};
 }
 
-reshade::opengl::runtime_gl::runtime_gl()
+reshade::opengl::runtime_gl::runtime_gl(HDC hdc) : device_impl(hdc)
 {
 	GLint major = 0, minor = 0;
 	glGetIntegerv(GL_MAJOR_VERSION, &major);
@@ -75,52 +75,11 @@ reshade::opengl::runtime_gl::runtime_gl()
 		}
 	}
 
-	// Check for special extension to detect whether this is a compatibility context (https://www.khronos.org/opengl/wiki/OpenGL_Context#OpenGL_3.1_and_ARB_compatibility)
-	GLint num_extensions = 0;
-	glGetIntegerv(GL_NUM_EXTENSIONS, &num_extensions);
-	for (GLint i = 0; i < num_extensions; ++i)
-	{
-		const GLubyte *const extension = glGetStringi(GL_EXTENSIONS, i);
-		if (std::strcmp(reinterpret_cast<const char *>(extension), "GL_ARB_compatibility") == 0)
-		{
-			_compatibility_context = true;
-			break;
-		}
-	}
-
-#if RESHADE_GUI
-	subscribe_to_ui("OpenGL", [this]() {
-		// Add some information about the device and driver to the UI
-		ImGui::Text("OpenGL %s", glGetString(GL_VERSION));
-		ImGui::TextUnformatted(reinterpret_cast<const char *>(glGetString(GL_RENDERER)));
-
-#if RESHADE_DEPTH
-		draw_depth_debug_menu();
-#endif
-	});
-#endif
 	subscribe_to_load_config([this](const ini_file &config) {
 		// Reserve a fixed amount of texture names by default to work around issues in old OpenGL games (which will use a compatibility context)
 		auto num_reserve_texture_names = _compatibility_context ? 512u : 0u;
 		config.get("APP", "ReserveTextureNames", num_reserve_texture_names);
 		_reserved_texture_names.resize(num_reserve_texture_names);
-
-#if RESHADE_DEPTH
-		auto force_default_depth_override = false;
-		config.get("DEPTH", "ForceMainDepthBuffer", force_default_depth_override);
-		config.get("DEPTH", "DepthCopyBeforeClears", _state_tracking.preserve_depth_buffers);
-		config.get("DEPTH", "DepthCopyAtClearIndex", _state_tracking.depthstencil_clear_index.second);
-		config.get("DEPTH", "UseAspectRatioHeuristics", _state_tracking.use_aspect_ratio_heuristics);
-
-		if (force_default_depth_override)
-			_depth_source_override = 0; // Zero has a special meaning and corresponds to the default depth buffer
-	});
-	subscribe_to_save_config([this](ini_file &config) {
-		config.set("DEPTH", "ForceMainDepthBuffer", _depth_source_override == 0);
-		config.set("DEPTH", "DepthCopyBeforeClears", _state_tracking.preserve_depth_buffers);
-		config.set("DEPTH", "DepthCopyAtClearIndex", _state_tracking.depthstencil_clear_index.second);
-		config.set("DEPTH", "UseAspectRatioHeuristics", _state_tracking.use_aspect_ratio_heuristics);
-#endif
 	});
 
 #ifndef NDEBUG
@@ -146,27 +105,11 @@ bool reshade::opengl::runtime_gl::on_init(HWND hwnd, unsigned int width, unsigne
 	PIXELFORMATDESCRIPTOR pfd = { sizeof(pfd) };
 	DescribePixelFormat(hdc, GetPixelFormat(hdc), sizeof(pfd), &pfd);
 
-	_width = width;
-	_height = height;
+	_width = _default_fbo_width = width;
+	_height = _default_fbo_height = height;
 	_window_width = window_rect.right;
 	_window_height = window_rect.bottom;
 	_color_bit_depth = std::min(pfd.cRedBits, std::min(pfd.cGreenBits, pfd.cBlueBits));
-
-	switch (pfd.cDepthBits)
-	{
-	default:
-	case  0: _default_depth_format = GL_NONE; // No depth in this pixel format
-		break;
-	case 16: _default_depth_format = GL_DEPTH_COMPONENT16;
-		break;
-	case 24: _default_depth_format = pfd.cStencilBits ? GL_DEPTH24_STENCIL8 : GL_DEPTH_COMPONENT24;
-		break;
-	case 32: _default_depth_format = pfd.cStencilBits ? GL_DEPTH32F_STENCIL8 : GL_DEPTH_COMPONENT32;
-		break;
-	}
-
-	// Initialize default frame buffer information
-	_state_tracking.reset(_width, _height, _default_depth_format);
 
 	// Capture and later restore so that the resource creation code below does not affect the application state
 	_app_state.capture(_compatibility_context);
@@ -223,24 +166,6 @@ bool reshade::opengl::runtime_gl::on_init(HWND hwnd, unsigned int width, unsigne
 	glLinkProgram(_mipmap_program);
 	glDeleteShader(mipmap_cs);
 
-#if RESHADE_DEPTH
-	// Initialize depth texture and FBO by assuming they refer to the default frame buffer
-	_has_depth_texture = _default_depth_format != GL_NONE;
-	if (_has_depth_texture)
-	{
-		_copy_depth_source = true;
-		_depth_source_width = _width;
-		_depth_source_height = _height;
-		_depth_source_format = _default_depth_format;
-		glBindTexture(GL_TEXTURE_2D, _tex[TEX_DEPTH]);
-		glTexStorage2D(GL_TEXTURE_2D, 1, _depth_source_format, _depth_source_width, _depth_source_height);
-
-		glBindFramebuffer(GL_FRAMEBUFFER, _fbo[FBO_DEPTH_DEST]);
-		glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, _tex[TEX_DEPTH], 0);
-		assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
-	}
-#endif
-
 #if RESHADE_GUI
 	init_imgui_resources();
 #endif
@@ -252,8 +177,6 @@ bool reshade::opengl::runtime_gl::on_init(HWND hwnd, unsigned int width, unsigne
 void reshade::opengl::runtime_gl::on_reset()
 {
 	runtime::on_reset();
-
-	_state_tracking.release();
 
 	glDeleteBuffers(NUM_BUF, _buf);
 	glDeleteTextures(NUM_TEX, _tex);
@@ -271,15 +194,7 @@ void reshade::opengl::runtime_gl::on_reset()
 	glDeleteProgram(_mipmap_program);
 	_mipmap_program = 0;
 
-#if RESHADE_DEPTH
-	_depth_source = 0;
-	_depth_source_width = 0;
-	_depth_source_height = 0;
-	_depth_source_format = 0;
-	_depth_source_override = std::numeric_limits<GLuint>::max();
-	_has_depth_texture = false;
-	_copy_depth_source = false;
-#endif
+	_texture_semantic_bindings.clear();
 
 #if RESHADE_GUI
 	glDeleteProgram(_imgui.program);
@@ -293,11 +208,6 @@ void reshade::opengl::runtime_gl::on_present()
 		return;
 
 	_app_state.capture(_compatibility_context);
-
-#if RESHADE_DEPTH
-	update_depth_texture_bindings(_has_high_network_activity ? state_tracking::depthstencil_info { 0 } :
-		_state_tracking.find_best_depth_texture(_width, _height, _depth_source_override));
-#endif
 
 	// Set clip space to something consistent
 	if (gl3wProcs.gl.ClipControl != nullptr)
@@ -313,16 +223,6 @@ void reshade::opengl::runtime_gl::on_present()
 	glBlitFramebuffer(0, 0, _width, _height, 0, _height, _width, 0, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 	_current_fbo = _fbo[FBO_BACK];
 
-#if RESHADE_DEPTH
-	// Copy depth from FBO to depth texture (and flip it vertically)
-	if (_copy_depth_source)
-	{
-		glBindFramebuffer(GL_READ_FRAMEBUFFER, _depth_source == 0 ? 0 : _fbo[FBO_DEPTH_SRC]);
-		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _fbo[FBO_DEPTH_DEST]);
-		glBlitFramebuffer(0, 0, _depth_source_width, _depth_source_height, 0, _depth_source_height, _depth_source_width, 0, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
-	}
-#endif
-
 	update_and_render_effects();
 
 	// Copy results from RBO to back buffer (and flip it back vertically)
@@ -336,8 +236,6 @@ void reshade::opengl::runtime_gl::on_present()
 	_current_fbo = 0;
 
 	runtime::on_present();
-
-	_state_tracking.reset(_width, _height, _default_depth_format);
 
 	// Apply previous state from application
 	_app_state.apply(_compatibility_context);
@@ -835,12 +733,11 @@ bool reshade::opengl::runtime_gl::init_texture(texture &texture)
 		impl->id[1] = _tex[TEX_BACK_SRGB];
 		return true;
 	}
-	if (texture.semantic == "DEPTH")
+	else if (!texture.semantic.empty())
 	{
-#if RESHADE_DEPTH
-		impl->id[0] = impl->id[1] =
-			_copy_depth_source ? _tex[TEX_DEPTH] : _depth_source;
-#endif
+		if (const auto it = _texture_semantic_bindings.find(texture.semantic);
+			it != _texture_semantic_bindings.end())
+			impl->id[0] = impl->id[1] = it->second;
 		return true;
 	}
 
@@ -1055,6 +952,8 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 		glBeginQuery(GL_TIME_ELAPSED, impl->query);
 	}
 
+	RESHADE_ADDON_EVENT(reshade_before_effects, this, this);
+
 	// Set up global state
 	glDisable(GL_CULL_FACE);
 	glDisable(GL_DEPTH_TEST);
@@ -1214,6 +1113,8 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 			generate_mipmaps(tex_impl);
 	}
 
+	RESHADE_ADDON_EVENT(reshade_after_effects, this, this);
+
 	if (!impl->query_in_flight) {
 		glEndQuery(GL_TIME_ELAPSED);
 	}
@@ -1351,191 +1252,19 @@ void reshade::opengl::runtime_gl::render_imgui_draw_data(ImDrawData *draw_data)
 }
 #endif
 
-#if RESHADE_DEPTH
-void reshade::opengl::runtime_gl::draw_depth_debug_menu()
+void reshade::opengl::runtime_gl::update_texture_bindings(const char *semantic, api::resource_view_handle srv)
 {
-	if (!ImGui::CollapsingHeader("Depth Buffers", ImGuiTreeNodeFlags_DefaultOpen))
-		return;
+	const GLuint object = srv.handle & 0xFFFFFFFF;
 
-	if (_has_high_network_activity)
-	{
-		ImGui::TextColored(ImColor(204, 204, 0), "High network activity discovered.\nAccess to depth buffers is disabled to prevent exploitation.");
-		return;
-	}
-
-	bool modified = false;
-	modified |= ImGui::Checkbox("Use aspect ratio heuristics", &_state_tracking.use_aspect_ratio_heuristics);
-	modified |= ImGui::Checkbox("Copy depth buffer before clear operations", &_state_tracking.preserve_depth_buffers);
-
-	ImGui::Spacing();
-	ImGui::Separator();
-	ImGui::Spacing();
-
-	// Sort object list so that added/removed items do not change the UI much
-	std::vector<std::pair<GLuint, state_tracking::depthstencil_info>> sorted_buffers;
-	sorted_buffers.reserve(_state_tracking.depth_buffer_counters().size());
-	for (const auto &[depth_source, snapshot] : _state_tracking.depth_buffer_counters())
-		sorted_buffers.push_back({ depth_source, snapshot });
-	std::sort(sorted_buffers.begin(), sorted_buffers.end(), [](const auto &a, const auto &b) { return a.first < b.first; });
-	for (const auto &[depth_source, snapshot] : sorted_buffers)
-	{
-		if (snapshot.format == GL_NONE)
-			continue; // Skip invalid entries
-
-		char label[512] = "";
-		sprintf_s(label, "%s0x%08x", (depth_source == _state_tracking.depthstencil_clear_index.first && !_has_high_network_activity ? "> " : "  "), depth_source);
-
-		if (bool value = _depth_source_override == depth_source;
-			ImGui::Checkbox(label, &value))
-			_depth_source_override = value ? depth_source : std::numeric_limits<GLuint>::max();
-
-		ImGui::SameLine();
-		ImGui::Text("| %4ux%-4u | %5u draw calls ==> %8u vertices |%s",
-			snapshot.width, snapshot.height, snapshot.total_stats.drawcalls, snapshot.total_stats.vertices,
-			(depth_source & 0x80000000) != 0 ? " RBO" : depth_source != 0 ? " FBO" : "");
-
-		if (_state_tracking.preserve_depth_buffers && depth_source == _state_tracking.depthstencil_clear_index.first)
-		{
-			for (UINT clear_index = 1; clear_index <= snapshot.clears.size(); ++clear_index)
-			{
-				sprintf_s(label, "%s  CLEAR %2u", (clear_index == _state_tracking.depthstencil_clear_index.second ? "> " : "  "), clear_index);
-
-				if (bool value = (_state_tracking.depthstencil_clear_index.second == clear_index);
-					ImGui::Checkbox(label, &value))
-				{
-					_state_tracking.depthstencil_clear_index.second = value ? clear_index : 0;
-					modified = true;
-				}
-
-				ImGui::SameLine();
-				ImGui::Text("|           | %5u draw calls ==> %8u vertices |",
-					snapshot.clears[clear_index - 1].drawcalls, snapshot.clears[clear_index - 1].vertices);
-			}
-		}
-	}
-
-	ImGui::Spacing();
-	ImGui::Separator();
-	ImGui::Spacing();
-
-	if (modified)
-		runtime::save_config();
-}
-
-void reshade::opengl::runtime_gl::update_depth_texture_bindings(state_tracking::depthstencil_info info)
-{
-	if (_has_high_network_activity)
-	{
-		_depth_source = 0;
-		_has_depth_texture = false;
-		_copy_depth_source = false;
-
-		if (_tex[TEX_DEPTH])
-		{
-			glDeleteTextures(1, &_tex[TEX_DEPTH]);
-			_tex[TEX_DEPTH] = 0;
-
-			for (const texture &tex : _textures)
-			{
-				if (tex.impl == nullptr || tex.semantic != "DEPTH")
-					continue;
-				const auto tex_impl = static_cast<tex_data *>(tex.impl);
-
-				tex_impl->id[0] = tex_impl->id[1] = 0;
-			}
-		}
-		return;
-	}
-
-	const GLuint source = info.obj | (info.target == GL_RENDERBUFFER ? 0x80000000 : 0);
-	if (_tex[TEX_DEPTH] &&
-		source == _depth_source)
-		return;
-	_depth_source = source;
-
-	// Convert depth formats to internal texture formats
-	switch (info.format)
-	{
-	case GL_NONE:
-		_has_depth_texture = false;
-		return; // Skip invalid entries (e.g. default frame buffer if pixel format has no depth)
-	case GL_DEPTH_STENCIL:
-		info.format = GL_DEPTH24_STENCIL8;
-		break;
-	case GL_DEPTH_COMPONENT:
-		info.format = GL_DEPTH_COMPONENT24;
-		break;
-	}
-
-	_has_depth_texture = true;
-
-	// Can just use source directly if it is a simple depth texture already
-	if (info.target != GL_TEXTURE_2D || info.level != 0 || _depth_source == 0)
-	{
-		assert(_app_state.has_state);
-
-		if (_tex[TEX_DEPTH] == 0 ||
-			// Resize depth texture if dimensions have changed
-			_depth_source_width != info.width || _depth_source_height != info.height || _depth_source_format != info.format)
-		{
-			// Recreate depth texture (since the storage is immutable after the first call to glTexStorage)
-			glDeleteTextures(1, &_tex[TEX_DEPTH]); glGenTextures(1, &_tex[TEX_DEPTH]);
-
-			glBindTexture(GL_TEXTURE_2D, _tex[TEX_DEPTH]);
-			glTexStorage2D(GL_TEXTURE_2D, 1, info.format, info.width, info.height);
-
-			if (GLenum err = glGetError(); err != GL_NO_ERROR)
-			{
-				glDeleteTextures(1, &_tex[TEX_DEPTH]);
-				_tex[TEX_DEPTH] = 0;
-
-				_has_depth_texture = false;
-				_depth_source_width = _depth_source_height = 0;
-				_depth_source_format = GL_NONE;
-
-				LOG(ERROR) << "Failed to create depth texture of format " << std::hex << info.format << " with error code " << err << std::dec << '!';
-				return;
-			}
-
-			_depth_source_width = info.width;
-			_depth_source_height = info.height;
-			_depth_source_format = info.format;
-
-			glBindFramebuffer(GL_FRAMEBUFFER, _fbo[FBO_DEPTH_DEST]);
-			glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, _tex[TEX_DEPTH], 0);
-			assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
-		}
-
-		if (_depth_source != 0)
-		{
-			glBindFramebuffer(GL_FRAMEBUFFER, _fbo[FBO_DEPTH_SRC]);
-
-			if (info.target != GL_RENDERBUFFER) {
-				glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, info.obj, info.level);
-			}
-			else {
-				glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, info.target, info.obj);
-			}
-
-			assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
-		}
-
-		info.obj = _tex[TEX_DEPTH];
-		_copy_depth_source = true;
-	}
-	else
-	{
-		_copy_depth_source = false;
-	}
+	_texture_semantic_bindings[semantic] = object;
 
 	// Update all references to the new texture
 	for (const texture &tex : _textures)
 	{
-		if (tex.impl == nullptr || tex.semantic != "DEPTH")
+		if (tex.impl == nullptr || tex.semantic != semantic)
 			continue;
 		const auto tex_impl = static_cast<tex_data *>(tex.impl);
 
-		tex_impl->id[0] = tex_impl->id[1] = info.obj;
+		tex_impl->id[0] = tex_impl->id[1] = object;
 	}
 }
-#endif
