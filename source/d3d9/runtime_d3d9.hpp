@@ -6,7 +6,7 @@
 #pragma once
 
 #include "runtime.hpp"
-#include "state_block.hpp"
+#include "state_block_d3d9.hpp"
 #include "state_tracking.hpp"
 
 namespace reshade::d3d9

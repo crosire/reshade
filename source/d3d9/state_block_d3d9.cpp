@@ -3,7 +3,7 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "state_block.hpp"
+#include "state_block_d3d9.hpp"
 #include <algorithm>
 
 reshade::d3d9::state_block::state_block(IDirect3DDevice9 *device)

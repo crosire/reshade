@@ -3,7 +3,7 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "state_block.hpp"
+#include "state_block_gl.hpp"
 
 #define glEnableb(cap, value) \
 	if (value) { glEnable(cap); } \
