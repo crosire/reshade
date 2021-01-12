@@ -184,6 +184,18 @@ namespace reshade
 		}
 
 		/// <summary>
+		/// Removes the specified <paramref name="key"/> from the <paramref name="section"/>.
+		/// </summary>
+		/// <param name="section"></param>
+		/// <param name="key"></param>
+		void remove_key(const std::string &section, const std::string &key)
+		{
+			const auto it = _sections.find(section);
+			if (it != _sections.end())
+				it->second.erase(key);
+		}
+
+		/// <summary>
 		/// Gets the specified INI file from cache or opens it when it was not cached yet.
 		/// WARNING: Reference is only valid until the next 'load_cache' call.
 		/// </summary>

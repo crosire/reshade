@@ -1125,7 +1125,7 @@ void reshade::runtime::update_and_render_effects()
 
 		for (uniform &variable : effect.uniforms)
 		{
-			if (!_ignore_shortcuts && variable.toggle_key_data[0] != 0 && _input->is_key_pressed(variable.toggle_key_data, _force_shortcut_modifiers))
+			if (!_ignore_shortcuts && _input->is_key_pressed(variable.toggle_key_data, _force_shortcut_modifiers))
 			{
 				assert(variable.supports_toggle_key());
 
@@ -1575,13 +1575,12 @@ void reshade::runtime::load_current_preset()
 
 			if (variable.supports_toggle_key())
 			{
-				// Load shortcut key, but first reset it, since it may not exist in the preset file
-				std::memset(variable.toggle_key_data, 0, sizeof(variable.toggle_key_data));
-				preset.get(section, "Key" + variable.name, variable.toggle_key_data);
+				if (!preset.get(section, "Key" + variable.name, variable.toggle_key_data))
+					std::memset(variable.toggle_key_data, 0, sizeof(variable.toggle_key_data));
 			}
 
+			// Reset values to defaults before loading from a new preset
 			if (!_is_in_between_presets_transition)
-				// Reset values to defaults before loading from a new preset
 				reset_uniform_value(variable);
 
 			reshadefx::constant values, values_old;
@@ -1630,14 +1629,14 @@ void reshade::runtime::load_current_preset()
 		else
 			disable_technique(technique);
 
-		// Reset toggle key to the value set via annotation first, since it may not exist in the preset
-		technique.toggle_key_data[0] = technique.annotation_as_int("toggle");
-		technique.toggle_key_data[1] = technique.annotation_as_int("togglectrl");
-		technique.toggle_key_data[2] = technique.annotation_as_int("toggleshift");
-		technique.toggle_key_data[3] = technique.annotation_as_int("togglealt");
 		if (!preset.get({}, "Key" + unique_name, technique.toggle_key_data) &&
 			!preset.get({}, "Key" + technique.name, technique.toggle_key_data))
-			std::memset(technique.toggle_key_data, 0, std::size(technique.toggle_key_data));
+		{
+			technique.toggle_key_data[0] = technique.annotation_as_int("toggle");
+			technique.toggle_key_data[1] = technique.annotation_as_int("togglectrl");
+			technique.toggle_key_data[2] = technique.annotation_as_int("toggleshift");
+			technique.toggle_key_data[3] = technique.annotation_as_int("togglealt");
+		}
 	}
 }
 void reshade::runtime::save_current_preset() const
@@ -1666,8 +1665,10 @@ void reshade::runtime::save_current_preset() const
 
 		if (technique.toggle_key_data[0] != 0)
 			preset.set({}, "Key" + unique_name, technique.toggle_key_data);
-		else if (int value = 0; preset.get({}, "Key" + unique_name, value) && value != 0)
-			preset.set({}, "Key" + unique_name, 0); // Clear toggle key data
+		else if (technique.annotation_as_int("toggle") != 0)
+			preset.set({}, "Key" + unique_name, 0); // Overwrite default toggle key to none
+		else
+			preset.remove_key({}, "Key" + unique_name);
 	}
 
 	preset.set({}, "Techniques", std::move(technique_list));
@@ -1696,8 +1697,8 @@ void reshade::runtime::save_current_preset() const
 				// save the shortcut key into the preset files
 				if (variable.toggle_key_data[0] != 0)
 					preset.set(section, "Key" + variable.name, variable.toggle_key_data);
-				else if (int value = 0; preset.get(section, "Key" + variable.name, value) && value != 0)
-					preset.set(section, "Key" + variable.name, 0); // Clear toggle key data
+				else
+					preset.remove_key(section, "Key" + variable.name);
 			}
 
 			switch (variable.type.base)
