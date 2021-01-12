@@ -268,9 +268,6 @@ void reshade::d3d10::runtime_d3d10::on_present()
 	if (!_is_initialized)
 		return;
 
-	_vertices = _state_tracking.total_vertices();
-	_drawcalls = _state_tracking.total_drawcalls();
-
 #if RESHADE_DEPTH
 	update_depth_texture_bindings(_has_high_network_activity ? nullptr :
 		_state_tracking.find_best_depth_texture(_width, _height, _depth_texture_override));
@@ -1083,9 +1080,6 @@ void reshade::d3d10::runtime_d3d10::render_technique(technique &technique)
 		}
 		_device->IASetPrimitiveTopology(topology);
 		_device->Draw(pass_info.num_vertices, 0);
-
-		_vertices += pass_info.num_vertices;
-		_drawcalls += 1;
 
 		// Reset render targets
 		_device->OMSetRenderTargets(0, nullptr, nullptr);

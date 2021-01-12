@@ -33,9 +33,6 @@ namespace reshade::d3d9
 
 		explicit state_tracking(IDirect3DDevice9 *device) : _device(device) {}
 
-		UINT total_vertices() const { return _stats.vertices; }
-		UINT total_drawcalls() const { return _stats.drawcalls; }
-
 		void reset(bool release_resources);
 
 		void on_draw(D3DPRIMITIVETYPE type, UINT primitives);

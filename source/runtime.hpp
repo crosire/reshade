@@ -246,8 +246,6 @@ namespace reshade
 		unsigned int _color_bit_depth = 8;
 
 		uint64_t _framecount = 0;
-		unsigned int _vertices = 0;
-		unsigned int _drawcalls = 0;
 
 		std::vector<effect> _effects;
 		std::vector<texture> _textures;

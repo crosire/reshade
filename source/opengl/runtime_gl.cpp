@@ -291,9 +291,6 @@ void reshade::opengl::runtime_gl::on_present()
 	if (!_is_initialized)
 		return;
 
-	_vertices = _state_tracking.total_vertices();
-	_drawcalls = _state_tracking.total_drawcalls();
-
 	_app_state.capture(_compatibility_context);
 
 #if RESHADE_DEPTH
@@ -1207,9 +1204,6 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 				break;
 			}
 			glDrawArrays(topology, 0, pass_info.num_vertices);
-
-			_vertices += pass_info.num_vertices;
-			_drawcalls += 1;
 
 			needs_implicit_backbuffer_copy = pass_info.render_target_names[0].empty();
 		}

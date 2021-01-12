@@ -49,9 +49,6 @@ namespace reshade::vulkan
 	class state_tracking_context : public state_tracking
 	{
 	public:
-		uint32_t total_vertices() const { return _stats.vertices; }
-		uint32_t total_drawcalls() const { return _stats.drawcalls; }
-
 #if RESHADE_DEPTH
 		const auto &depth_buffer_counters() const { return _counters_per_used_depth_image; }
 

@@ -30,9 +30,6 @@ namespace reshade::d3d10
 
 		explicit state_tracking(ID3D10Device *device) : _device(device) {}
 
-		UINT total_vertices() const { return _stats.vertices; }
-		UINT total_drawcalls() const { return _stats.drawcalls; }
-
 		void reset(bool release_resources);
 
 		void on_draw(UINT vertices);

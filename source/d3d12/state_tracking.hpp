@@ -64,9 +64,6 @@ namespace reshade::d3d12
 	public:
 		explicit state_tracking_context(ID3D12Device *device) { init(device, nullptr, nullptr); }
 
-		UINT total_vertices() const { return _stats.vertices; }
-		UINT total_drawcalls() const { return _stats.drawcalls; }
-
 		void reset(bool release_resources);
 
 #if RESHADE_DEPTH

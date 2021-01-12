@@ -31,9 +31,6 @@ namespace reshade::opengl
 		void reset(GLuint default_width, GLuint default_height, GLenum default_format);
 		void release();
 
-		GLuint total_vertices() const { return _stats.vertices; }
-		GLuint total_drawcalls() const { return _stats.drawcalls; }
-
 		void on_draw(GLsizei vertices);
 		void on_draw_vertex(GLsizei vertices) { _current_vertex_count += vertices; }
 #if RESHADE_DEPTH

@@ -379,9 +379,6 @@ void reshade::d3d12::runtime_d3d12::on_present()
 	if (!_is_initialized)
 		return;
 
-	_vertices = _state_tracking.total_vertices();
-	_drawcalls = _state_tracking.total_drawcalls();
-
 	// There is no swap chain in d3d12on7
 	if (_swapchain != nullptr)
 		_swap_index = _swapchain->GetCurrentBackBufferIndex();
@@ -1512,9 +1509,6 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 			}
 			_cmd_list->IASetPrimitiveTopology(topology);
 			_cmd_list->DrawInstanced(pass_info.num_vertices, 1, 0, 0);
-
-			_vertices += pass_info.num_vertices;
-			_drawcalls += 1;
 
 			// Transition resource state back to shader access
 			for (const tex_data *render_target_texture : pass_data.modified_resources)

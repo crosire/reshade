@@ -569,9 +569,6 @@ void reshade::vulkan::runtime_vk::on_present(VkQueue queue, uint32_t swapchain_i
 	if (!_is_initialized)
 		return;
 
-	_vertices = _state_tracking.total_vertices();
-	_drawcalls = _state_tracking.total_drawcalls();
-
 	_cmd_index = _framecount % NUM_COMMAND_FRAMES;
 	_swap_index = swapchain_image_index;
 
@@ -1971,9 +1968,6 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 			vk.CmdBindPipeline(cmd_list, VK_PIPELINE_BIND_POINT_GRAPHICS, pass_data.pipeline);
 			vk.CmdBindDescriptorSets(cmd_list, VK_PIPELINE_BIND_POINT_GRAPHICS, effect_data.pipeline_layout, 1, 1, pass_data.set, 0, nullptr);
 			vk.CmdDraw(cmd_list, pass_info.num_vertices, 1, 0, 0);
-
-			_vertices += pass_info.num_vertices;
-			_drawcalls += 1;
 
 			vk.CmdEndRenderPass(cmd_list);
 		}

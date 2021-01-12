@@ -1587,7 +1587,6 @@ void reshade::runtime::draw_gui_statistics()
 		ImGui::TextUnformatted("Time:");
 		ImGui::TextUnformatted("Network:");
 		ImGui::Text("Frame %llu:", _framecount + 1);
-		ImGui::NewLine();
 		ImGui::TextUnformatted("Post-Processing:");
 
 		ImGui::EndGroup();
@@ -1602,7 +1601,6 @@ void reshade::runtime::draw_gui_statistics()
 		ImGui::Text("%d-%d-%d %d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour * 3600 + tm.tm_min * 60 + tm.tm_sec);
 		ImGui::Text("%u B", g_network_traffic);
 		ImGui::Text("%.2f fps", _imgui_context->IO.Framerate);
-		ImGui::Text("%u draw calls", _drawcalls);
 		ImGui::Text("%*.3f ms CPU", cpu_digits + 4, post_processing_time_cpu * 1e-6f);
 
 		ImGui::EndGroup();
@@ -1617,7 +1615,6 @@ void reshade::runtime::draw_gui_statistics()
 		ImGui::Text("%.0f ms", std::chrono::duration_cast<std::chrono::nanoseconds>(_last_present_time - _start_time).count() * 1e-6f);
 		ImGui::NewLine();
 		ImGui::Text("%*.3f ms", gpu_digits + 4, _last_frame_duration.count() * 1e-6f);
-		ImGui::Text("%u vertices", _vertices);
 		if (post_processing_time_gpu != 0)
 			ImGui::Text("%*.3f ms GPU", gpu_digits + 4, (post_processing_time_gpu * 1e-6f));
 
