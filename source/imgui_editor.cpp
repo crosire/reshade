@@ -1538,6 +1538,17 @@ bool reshade::gui::code_editor::find_and_scroll_to_text(const std::string &text,
 
 	if (backwards)
 	{
+		// Start searching at the character before the current cursor position
+		if (search_pos.column != 0)
+		{
+			search_pos.column -= 1;
+		}
+		else if (search_pos.line != 0)
+		{
+			search_pos.line -= 1;
+			search_pos.column = _lines[search_pos.line].size();
+		}
+
 		const size_t match_last = text.size() - 1;
 		size_t match_offset = match_last;
 
