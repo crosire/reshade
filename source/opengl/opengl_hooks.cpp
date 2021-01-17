@@ -51,16 +51,6 @@ HOOK_EXPORT void WINAPI glBegin(GLenum mode)
 		g_current_runtime->_state_tracking.on_bind_draw_fbo();
 #endif
 }
-			void WINAPI glBindFramebufferEXT(GLenum target, GLuint framebuffer)
-{
-	static const auto trampoline = reshade::hooks::call(glBindFramebufferEXT);
-	trampoline(target, framebuffer);
-
-#if RESHADE_DEPTH
-	if (g_current_runtime && (target == GL_FRAMEBUFFER /*_EXT*/ || target == GL_DRAW_FRAMEBUFFER /*_EXT*/))
-		g_current_runtime->_state_tracking.on_bind_draw_fbo();
-#endif
-}
 
 HOOK_EXPORT void WINAPI glBindTexture(GLenum target, GLuint texture)
 {
@@ -408,22 +398,6 @@ HOOK_EXPORT void WINAPI glDrawArrays(GLenum mode, GLint first, GLsizei count)
 	static const auto trampoline = reshade::hooks::call(glDrawArraysInstanced);
 	trampoline(mode, first, count, primcount);
 }
-			void WINAPI glDrawArraysInstancedARB(GLenum mode, GLint first, GLsizei count, GLsizei primcount)
-{
-	if (g_current_runtime)
-		g_current_runtime->_state_tracking.on_draw(primcount * count);
-
-	static const auto trampoline = reshade::hooks::call(glDrawArraysInstancedARB);
-	trampoline(mode, first, count, primcount);
-}
-			void WINAPI glDrawArraysInstancedEXT(GLenum mode, GLint first, GLsizei count, GLsizei primcount)
-{
-	if (g_current_runtime)
-		g_current_runtime->_state_tracking.on_draw(primcount * count);
-
-	static const auto trampoline = reshade::hooks::call(glDrawArraysInstancedEXT);
-	trampoline(mode, first, count, primcount);
-}
 			void WINAPI glDrawArraysInstancedBaseInstance(GLenum mode, GLint first, GLsizei count, GLsizei primcount, GLuint baseinstance)
 {
 	if (g_current_runtime)
@@ -469,22 +443,6 @@ HOOK_EXPORT void WINAPI glDrawElements(GLenum mode, GLsizei count, GLenum type, 
 		g_current_runtime->_state_tracking.on_draw(primcount * count);
 
 	static const auto trampoline = reshade::hooks::call(glDrawElementsInstanced);
-	trampoline(mode, count, type, indices, primcount);
-}
-			void WINAPI glDrawElementsInstancedARB(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount)
-{
-	if (g_current_runtime)
-		g_current_runtime->_state_tracking.on_draw(primcount * count);
-
-	static const auto trampoline = reshade::hooks::call(glDrawElementsInstancedARB);
-	trampoline(mode, count, type, indices, primcount);
-}
-			void WINAPI glDrawElementsInstancedEXT(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount)
-{
-	if (g_current_runtime)
-		g_current_runtime->_state_tracking.on_draw(primcount * count);
-
-	static const auto trampoline = reshade::hooks::call(glDrawElementsInstancedEXT);
 	trampoline(mode, count, type, indices, primcount);
 }
 			void WINAPI glDrawElementsInstancedBaseVertex(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount, GLint basevertex)
