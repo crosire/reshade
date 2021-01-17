@@ -124,10 +124,11 @@ reshade::opengl::runtime_gl::runtime_gl()
 	});
 
 #ifndef NDEBUG
-	glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS_ARB);
+	glEnable(GL_DEBUG_OUTPUT);
+	glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
 	glDebugMessageCallback([](unsigned int /*source*/, unsigned int type, unsigned int /*id*/, unsigned int /*severity*/, int /*length*/, const char *message, const void */*userParam*/) {
 		if (type == GL_DEBUG_TYPE_ERROR || type == GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR)
-			OutputDebugStringA(message);
+			OutputDebugStringA(message), OutputDebugStringA("\n");
 		}, nullptr);
 #endif
 }
