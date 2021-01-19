@@ -7,7 +7,7 @@
 
 #include <cstdint>
 
-namespace reshade::api
+namespace reshade { namespace api
 {
 	/// <summary>
 	/// The underlying render API a device is using, as returned by <see cref="device::get_api"/>.
@@ -340,4 +340,4 @@ namespace reshade::api
 		/// </summary>
 		virtual void update_texture_bindings(const char *semantic, resource_view_handle shader_resource_view) = 0;
 	};
-}
+} }
