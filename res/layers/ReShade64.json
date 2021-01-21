@@ -1,0 +1,14 @@
+{
+	"file_format_version" : "1.0.0",
+	"layer" : {
+		"name": "VK_LAYER_reshade",
+		"type": "GLOBAL",
+		"library_path": ".\\ReShade64.dll",
+		"api_version": "1.2.131",
+		"implementation_version": "1",
+		"description": "crosire's ReShade post-processing injector for 64-bit",
+		"disable_environment": {
+			"DISABLE_VK_LAYER_reshade_1": "1"
+		}
+	}
+}
