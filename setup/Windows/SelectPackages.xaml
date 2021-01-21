@@ -1,0 +1,62 @@
+﻿<Window x:Class="ReShade.Setup.Dialogs.SelectPackagesDialog" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:ReShade.Setup.Dialogs" Title="Select effect packages" Width="510" Height="638" MinWidth="355" MinHeight="275" WindowStyle="None" WindowStartupLocation="CenterOwner" FocusManager.FocusedElement="{Binding ElementName=ItemsListBox}">
+  <DockPanel LastChildFill="True">
+    <Label DockPanel.Dock="Top" Margin="10" Padding="0" VerticalAlignment="Top" Foreground="#FF003399" FontSize="16" Content="Select effect packages to install:" />
+    <DockPanel DockPanel.Dock="Bottom" Margin="0,5,0,0" Background="{StaticResource {x:Static SystemColors.ControlLightBrushKey}}">
+      <Button Width="100" Margin="10,15" Content="Uncheck _all" Click="OnCheck" KeyboardNavigation.TabIndex="2" />
+      <Button DockPanel.Dock="Right" HorizontalAlignment="Right" Width="100" Margin="0,15,10,15" Content="_Skip" Click="OnCancel" IsCancel="True" KeyboardNavigation.TabIndex="1" />
+      <Button DockPanel.Dock="Right" HorizontalAlignment="Right" Width="100" Margin="0,15,10,15" Content="_OK" Click="OnConfirm" IsDefault="True" KeyboardNavigation.TabIndex="0" />
+    </DockPanel>
+    <TextBlock DockPanel.Dock="Bottom" Margin="10,5" TextWrapping="Wrap" Text="Check all effect packages you want to install or update or click on Skip to continue without modifying them (e.g. if you want to only update ReShade, but not the effects).&#10;You will get prompted to select individual effects for packages with a filled out checkbox. Those with a checkmark will instead have all effects installed." />
+    <Grid DockPanel.Dock="Bottom" Margin="10,5">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="10" /> <!-- Margin -->
+        <ColumnDefinition Width="100" />
+      </Grid.ColumnDefinitions>
+      <TextBox x:Name="PathBox" Grid.Column="0" Text="Enter ZIP download link to custom repository here" GotFocus="OnTextBoxGotFocus" />
+      <Button Grid.Column="2" Content="Add" Click="OnAddPackage" />
+    </Grid>
+    <ListBox x:Name="ItemsListBox" Margin="10,5" HorizontalContentAlignment="Stretch" ItemsSource="{Binding Items}">
+      <ListBox.ItemTemplate>
+        <DataTemplate>
+          <Grid Margin="0,3">
+            <Grid.ToolTip>
+              <ToolTip>
+                <TextBlock Text="{Binding DownloadUrl}" />
+              </ToolTip>
+            </Grid.ToolTip>
+            <Grid.RowDefinitions>
+              <RowDefinition Height="20" />
+              <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="35" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <local:EffectPackageCheckBox Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center" IsChecked="{Binding Enabled}" IsEnabled="{Binding Modifiable}" IsThreeState="True" />
+            <TextBlock Grid.Column="1" VerticalAlignment="Center">
+              <Hyperlink NavigateUri="{Binding RepositoryUrl}" RequestNavigate="OnHyperlinkRequestNavigate">
+                <TextBlock Text="{Binding PackageName}" />
+                <Hyperlink.ToolTip>
+                  <TextBlock Text="{Binding RepositoryUrl}" />
+                </Hyperlink.ToolTip>
+              </Hyperlink>
+            </TextBlock>
+            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding PackageDescription}">
+              <TextBlock.Style>
+                <Style TargetType="TextBlock">
+                  <Style.Triggers>
+                    <!-- Hide description row if it is empty -->
+                    <DataTrigger Binding="{Binding PackageDescription}" Value="{x:Null}">
+                      <Setter Property="Visibility" Value="Collapsed" />
+                    </DataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </TextBlock.Style>
+            </TextBlock>
+          </Grid>
+        </DataTemplate>
+      </ListBox.ItemTemplate>
+    </ListBox>
+  </DockPanel>
+</Window>

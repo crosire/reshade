@@ -1,0 +1,29 @@
+﻿<Window x:Class="ReShade.Setup.Dialogs.SelectEffectsDialog" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Select effect files" Width="510" Height="638" MinWidth="410" MinHeight="275" WindowStyle="None" WindowStartupLocation="CenterOwner" FocusManager.FocusedElement="{Binding ElementName=ItemsListBox}">
+  <DockPanel LastChildFill="True">
+    <Label DockPanel.Dock="Top" Margin="10" Padding="0" VerticalAlignment="Top" HorizontalContentAlignment="Stretch" Foreground="#FF003399" FontSize="16">
+      <StackPanel Orientation="Horizontal">
+        <TextBlock Text="Select " />
+        <TextBlock x:Name="PackageName" Text="effect" />
+        <TextBlock Text=" files to install:" />
+      </StackPanel>
+    </Label>
+    <DockPanel DockPanel.Dock="Bottom" Margin="0,5,0,0" Background="{StaticResource {x:Static SystemColors.ControlLightBrushKey}}">
+      <Button Width="100" Margin="10,15" Content="Uncheck _all" Click="OnCheck" KeyboardNavigation.TabIndex="2" />
+      <Button DockPanel.Dock="Right" HorizontalAlignment="Right" Width="100" Margin="0,15,10,15" Content="_OK" Click="OnConfirm" IsDefault="True" KeyboardNavigation.TabIndex="0" />
+    </DockPanel>
+    <TextBlock DockPanel.Dock="Bottom" Margin="10,5" TextWrapping="Wrap" Text="Check all effect files of the package you want to install or update. Files not checked here will not be installed or left untouched when updating." />
+    <ListBox x:Name="ItemsListBox" Margin="10,5" HorizontalContentAlignment="Stretch" ItemsSource="{Binding Items}">
+      <ListBox.ItemTemplate>
+        <DataTemplate>
+          <CheckBox VerticalAlignment="Center" IsChecked="{Binding Enabled}" Content="{Binding FileName}" MouseEnter="OnCheckBoxMouseEnter" GotMouseCapture="OnCheckBoxMouseCapture">
+            <CheckBox.ToolTip>
+              <ToolTip>
+                <TextBlock Text="{Binding FilePath}" />
+              </ToolTip>
+            </CheckBox.ToolTip>
+          </CheckBox>
+        </DataTemplate>
+      </ListBox.ItemTemplate>
+    </ListBox>
+  </DockPanel>
+</Window>
