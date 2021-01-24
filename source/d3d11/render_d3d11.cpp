@@ -764,11 +764,48 @@ resource_desc reshade::d3d11::device_impl::get_resource_desc(resource_handle res
 reshade::d3d11::device_context_impl::device_context_impl(device_impl *device, ID3D11DeviceContext *context) :
 	_device_impl(device), _device_context(context)
 {
-	RESHADE_ADDON_EVENT(init_command_queue, this);
+	if (_device_context->GetType() != D3D11_DEVICE_CONTEXT_IMMEDIATE)
+	{
+		RESHADE_ADDON_EVENT(init_command_list, this);
+	}
+	else
+	{
+		RESHADE_ADDON_EVENT(init_command_queue, this);
+	}
 }
 reshade::d3d11::device_context_impl::~device_context_impl()
 {
-	RESHADE_ADDON_EVENT(destroy_command_queue, this);
+	if (_device_context->GetType() != D3D11_DEVICE_CONTEXT_IMMEDIATE)
+	{
+		RESHADE_ADDON_EVENT(destroy_command_list, this);
+	}
+	else
+	{
+		RESHADE_ADDON_EVENT(destroy_command_queue, this);
+	}
+}
+
+bool reshade::d3d11::device_context_impl::get_data(const uint8_t guid[16], uint32_t size, void *data)
+{
+	if (_device_context->GetType() != D3D11_DEVICE_CONTEXT_IMMEDIATE)
+	{
+		return api_data::get_data(guid, size, data);
+	}
+	else
+	{
+		return SUCCEEDED(_device_context->GetPrivateData(*reinterpret_cast<const GUID *>(guid), &size, data));
+	}
+}
+void reshade::d3d11::device_context_impl::set_data(const uint8_t guid[16], uint32_t size, const void *data)
+{
+	if (_device_context->GetType() != D3D11_DEVICE_CONTEXT_IMMEDIATE)
+	{
+		api_data::set_data(guid, size, data);
+	}
+	else
+	{
+		_device_context->SetPrivateData(*reinterpret_cast<const GUID *>(guid), size, data);
+	}
 }
 
 void reshade::d3d11::device_context_impl::clear_depth_stencil_view(resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil)
@@ -786,14 +823,4 @@ void reshade::d3d11::device_context_impl::copy_resource(resource_handle source, 
 {
 	assert(source.handle != 0 && dest.handle != 0);
 	_device_context->CopyResource(reinterpret_cast<ID3D11Resource *>(dest.handle), reinterpret_cast<ID3D11Resource *>(source.handle));
-}
-
-reshade::d3d11::command_list_impl::command_list_impl(device_impl *device, ID3D11CommandList *cmd_list) :
-	_device_impl(device), _cmd_list(cmd_list)
-{
-	RESHADE_ADDON_EVENT(init_command_list, this);
-}
-reshade::d3d11::command_list_impl::~command_list_impl()
-{
-	RESHADE_ADDON_EVENT(destroy_command_list, this);
 }

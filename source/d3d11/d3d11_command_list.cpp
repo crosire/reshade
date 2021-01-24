@@ -10,8 +10,7 @@
 
 D3D11CommandList::D3D11CommandList(D3D11Device *device, ID3D11CommandList *original) :
 	_orig(original),
-	_device(device),
-	_impl(new reshade::d3d11::command_list_impl(device->_impl, original))
+	_device(device)
 {
 	assert(_orig != nullptr && _device != nullptr);
 }

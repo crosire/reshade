@@ -603,6 +603,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::CSGetConstantBuffers(UINT StartSlo
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::ClearState()
 {
+	RESHADE_ADDON_EVENT(reset_command_list, _impl);
 	_orig->ClearState();
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::Flush()
@@ -621,14 +622,13 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::FinishCommandList(BOOL RestoreDefe
 		assert(ppCommandList != nullptr);
 
 		const auto command_list_proxy = new D3D11CommandList(_device, *ppCommandList);
-		RESHADE_ADDON_EVENT(execute_secondary_command_list, command_list_proxy->_impl, _impl);
+
+		// Move current command list of this deferred context into the command list object and create a new one
+		// This technically assumes that 'RestoreDeferredContextState' is FALSE, since the new API object will have the state reset ...
+		command_list_proxy->_impl = _impl;
+		_impl = new reshade::d3d11::device_context_impl(_device->_impl, _orig);
 
 		*ppCommandList = command_list_proxy;
-	}
-
-	if (!RestoreDeferredContextState)
-	{
-		RESHADE_ADDON_EVENT(reset_command_list, _impl);
 	}
 
 	return hr;
@@ -725,6 +725,20 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::SwapDeviceContextState(ID3DDeviceC
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::ClearView(ID3D11View *pView, const FLOAT Color[4], const D3D11_RECT *pRect, UINT NumRects)
 {
+#if RESHADE_ADDON
+	if (com_ptr<ID3D11RenderTargetView> rtv; SUCCEEDED(pView->QueryInterface(&rtv)))
+	{
+		const reshade::api::resource_view_handle rtv_handle = { reinterpret_cast<uintptr_t>(rtv.get()) };
+		RESHADE_ADDON_EVENT(clear_render_target, _impl, rtv_handle, Color);
+	}
+	if (com_ptr<ID3D11DepthStencilView> dsv; SUCCEEDED(pView->QueryInterface(&dsv)))
+	{
+		// The 'ID3D11DeviceContext1::ClearView' API only works on depth-stencil views to depth-only resources (with no stencil component)
+		const reshade::api::resource_view_handle dsv_handle = { reinterpret_cast<uintptr_t>(dsv.get()) };
+		RESHADE_ADDON_EVENT(clear_depth_stencil, _impl, dsv_handle, 0x1, Color[0], 0);
+	}
+#endif
+
 	assert(_interface_version >= 1);
 	static_cast<ID3D11DeviceContext1 *>(_orig)->ClearView(pView, Color, pRect, NumRects);
 }

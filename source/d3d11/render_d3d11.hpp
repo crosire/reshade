@@ -73,7 +73,7 @@ namespace reshade::d3d11
 		com_object_list<ID3D11Resource> _resources;
 	};
 
-	class device_context_impl : public api::command_queue, public api::command_list
+	class device_context_impl : public api::command_queue, public api::command_list, api::api_data
 	{
 		friend class runtime_d3d11;
 
@@ -81,12 +81,12 @@ namespace reshade::d3d11
 		device_context_impl(device_impl *device, ID3D11DeviceContext *context);
 		~device_context_impl();
 
-		bool get_data(const uint8_t guid[16], uint32_t size, void *data) override { return SUCCEEDED(_device_context->GetPrivateData(*reinterpret_cast<const GUID *>(guid), &size, data)); }
-		void set_data(const uint8_t guid[16], uint32_t size, const void *data) override { _device_context->SetPrivateData(*reinterpret_cast<const GUID *>(guid), size, data); }
+		bool get_data(const uint8_t guid[16], uint32_t size, void *data) override;
+		void set_data(const uint8_t guid[16], uint32_t size, const void *data) override;
 
 		api::device *get_device() override { return _device_impl; }
 
-		api::command_list *get_immediate_command_list() override { return this; }
+		api::command_list *get_immediate_command_list() override { assert(_device_context->GetType() == D3D11_DEVICE_CONTEXT_IMMEDIATE); return this; }
 
 		void transition_state(api::resource_handle, api::resource_usage, api::resource_usage) override { /* NOP */ }
 
@@ -98,28 +98,5 @@ namespace reshade::d3d11
 	private:
 		device_impl *const _device_impl;
 		const com_ptr<ID3D11DeviceContext> _device_context;
-	};
-
-	class command_list_impl : public api::command_list
-	{
-	public:
-		command_list_impl(device_impl *device, ID3D11CommandList *cmd_list);
-		~command_list_impl();
-
-		bool get_data(const uint8_t guid[16], uint32_t size, void *data) override { return SUCCEEDED(_cmd_list->GetPrivateData(*reinterpret_cast<const GUID *>(guid), &size, data)); }
-		void set_data(const uint8_t guid[16], uint32_t size, const void *data) override { _cmd_list->SetPrivateData(*reinterpret_cast<const GUID *>(guid), size, data); }
-
-		api::device *get_device() override { return _device_impl; }
-
-		void transition_state(api::resource_handle, api::resource_usage, api::resource_usage) override { /* NOP */ }
-
-		void clear_depth_stencil_view(api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil) override { assert(false); }
-		void clear_render_target_view(api::resource_view_handle rtv, const float color[4]) override { assert(false); }
-
-		void copy_resource(api::resource_handle source, api::resource_handle dest) override { assert(false); }
-
-	private:
-		device_impl *const _device_impl;
-		const com_ptr<ID3D11CommandList> _cmd_list;
 	};
 }
