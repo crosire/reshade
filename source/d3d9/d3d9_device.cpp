@@ -329,8 +329,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateTexture(UINT Width, UINT Height
 
 #if RESHADE_ADDON
 	reshade::api::resource_desc api_desc = reshade::d3d9::convert_resource_desc(new_desc, Levels);
-	RESHADE_ADDON_EVENT(create_resource, _impl, &api_desc);
-	reshade::d3d9::convert_resource_desc(api_desc, new_desc, Levels);
+	RESHADE_ADDON_EVENT(create_resource, _impl, reshade::api::resource_type::texture_2d, &api_desc);
+	reshade::d3d9::convert_resource_desc(api_desc, new_desc, &Levels);
 #endif
 
 	const HRESULT hr = _orig->CreateTexture(new_desc.Width, new_desc.Height, Levels, new_desc.Usage, new_desc.Format, new_desc.Pool, ppTexture, pSharedHandle);
@@ -354,8 +354,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVolumeTexture(UINT Width, UINT 
 
 #if RESHADE_ADDON
 	reshade::api::resource_desc api_desc = reshade::d3d9::convert_resource_desc(new_desc, Levels);
-	RESHADE_ADDON_EVENT(create_resource, _impl, &api_desc);
-	reshade::d3d9::convert_resource_desc(api_desc, new_desc, Levels);
+	RESHADE_ADDON_EVENT(create_resource, _impl, reshade::api::resource_type::texture_3d, &api_desc);
+	reshade::d3d9::convert_resource_desc(api_desc, new_desc, &Levels);
 #endif
 
 	const HRESULT hr = _orig->CreateVolumeTexture(new_desc.Width, new_desc.Height, new_desc.Depth, Levels, new_desc.Usage, new_desc.Format, new_desc.Pool, ppVolumeTexture, pSharedHandle);
@@ -379,9 +379,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateCubeTexture(UINT EdgeLength, UI
 
 #if RESHADE_ADDON
 	reshade::api::resource_desc api_desc = reshade::d3d9::convert_resource_desc(new_desc, Levels);
-	api_desc.layers = 6;
-	RESHADE_ADDON_EVENT(create_resource, _impl, &api_desc);
-	reshade::d3d9::convert_resource_desc(api_desc, new_desc, Levels);
+	RESHADE_ADDON_EVENT(create_resource, _impl, reshade::api::resource_type::texture_2d, &api_desc);
+	reshade::d3d9::convert_resource_desc(api_desc, new_desc, &Levels);
 #endif
 
 	const HRESULT hr = _orig->CreateCubeTexture(new_desc.Width, Levels, new_desc.Usage, new_desc.Format, new_desc.Pool, ppCubeTexture, pSharedHandle);
@@ -436,21 +435,21 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurface(UINT Width,
 	D3DSURFACE_DESC new_desc = { Format, D3DRTYPE_SURFACE, D3DUSAGE_DEPTHSTENCIL, D3DPOOL_DEFAULT, MultiSample, MultisampleQuality, Width, Height };
 
 #if RESHADE_ADDON
-	reshade::api::resource_desc tex_desc = reshade::d3d9::convert_resource_desc(new_desc, 1);
-	RESHADE_ADDON_EVENT(create_resource, _impl, &tex_desc);
-	UINT Levels = 1; reshade::d3d9::convert_resource_desc(tex_desc, new_desc, Levels);
+	reshade::api::resource_desc tex_desc = reshade::d3d9::convert_resource_desc(new_desc);
+	RESHADE_ADDON_EVENT(create_resource, _impl, reshade::api::resource_type::surface, &tex_desc);
+	reshade::d3d9::convert_resource_desc(tex_desc, new_desc);
 
 	// Need to replace surface with a texture if an add-on requested shader access
 	if ((tex_desc.usage & reshade::api::resource_usage::shader_resource) == reshade::api::resource_usage::shader_resource)
 	{
 		com_ptr<IDirect3DTexture9> texture; // Surface will hold a reference to the created texture and keep it alive
 		if (new_desc.MultiSampleType == D3DMULTISAMPLE_NONE &&
-			SUCCEEDED(_orig->CreateTexture(new_desc.Width, new_desc.Height, Levels, new_desc.Usage, new_desc.Format, new_desc.Pool, &texture, pSharedHandle)))
+			SUCCEEDED(_orig->CreateTexture(new_desc.Width, new_desc.Height, 1, new_desc.Usage, new_desc.Format, new_desc.Pool, &texture, pSharedHandle)))
 		{
 			_impl->register_resource(texture.get());
 
 			reshade::api::resource_view_desc dsv_desc = reshade::d3d9::convert_resource_view_desc(new_desc);
-			RESHADE_ADDON_EVENT(create_resource_view, _impl, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(texture.get()) }, &dsv_desc);
+			RESHADE_ADDON_EVENT(create_resource_view, _impl, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(texture.get()) }, reshade::api::resource_view_type::depth_stencil, &dsv_desc);
 			reshade::d3d9::convert_resource_view_desc(dsv_desc, new_desc);
 
 			if (SUCCEEDED(texture->GetSurfaceLevel(dsv_desc.first_level, ppSurface)))
@@ -459,8 +458,6 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurface(UINT Width,
 
 		new_desc.Format = Format;
 	}
-
-	assert(Levels == 1);
 #endif
 
 	const HRESULT hr = _orig->CreateDepthStencilSurface(new_desc.Width, new_desc.Height, new_desc.Format, new_desc.MultiSampleType, new_desc.MultiSampleQuality, Discard, ppSurface, pSharedHandle);
@@ -999,21 +996,21 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurfaceEx(UINT Widt
 	D3DSURFACE_DESC new_desc = { Format, D3DRTYPE_SURFACE, Usage, D3DPOOL_DEFAULT, MultiSample, MultisampleQuality, Width, Height };
 
 #if RESHADE_ADDON
-	reshade::api::resource_desc tex_desc = reshade::d3d9::convert_resource_desc(new_desc, 1);
-	RESHADE_ADDON_EVENT(create_resource, _impl, &tex_desc);
-	UINT Levels = 1; reshade::d3d9::convert_resource_desc(tex_desc, new_desc, Levels);
+	reshade::api::resource_desc tex_desc = reshade::d3d9::convert_resource_desc(new_desc);
+	RESHADE_ADDON_EVENT(create_resource, _impl, reshade::api::resource_type::surface, &tex_desc);
+	reshade::d3d9::convert_resource_desc(tex_desc, new_desc);
 
 	// Need to replace surface with a texture if an add-on requested shader access
 	if ((tex_desc.usage & reshade::api::resource_usage::shader_resource) == reshade::api::resource_usage::shader_resource)
 	{
 		com_ptr<IDirect3DTexture9> texture; // Surface will hold a reference to the created texture and keep it alive
 		if (new_desc.MultiSampleType == D3DMULTISAMPLE_NONE &&
-			SUCCEEDED(_orig->CreateTexture(new_desc.Width, new_desc.Height, Levels, new_desc.Usage, new_desc.Format, new_desc.Pool, &texture, pSharedHandle)))
+			SUCCEEDED(_orig->CreateTexture(new_desc.Width, new_desc.Height, 1, new_desc.Usage, new_desc.Format, new_desc.Pool, &texture, pSharedHandle)))
 		{
 			_impl->register_resource(texture.get());
 
 			reshade::api::resource_view_desc dsv_desc = reshade::d3d9::convert_resource_view_desc(new_desc);
-			RESHADE_ADDON_EVENT(create_resource_view, _impl, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(texture.get()) }, &dsv_desc);
+			RESHADE_ADDON_EVENT(create_resource_view, _impl, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(texture.get()) }, reshade::api::resource_view_type::depth_stencil, &dsv_desc);
 			reshade::d3d9::convert_resource_view_desc(dsv_desc, new_desc);
 
 			if (SUCCEEDED(texture->GetSurfaceLevel(dsv_desc.first_level, ppSurface)))
@@ -1022,8 +1019,6 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurfaceEx(UINT Widt
 
 		new_desc.Format = Format;
 	}
-
-	assert(Levels == 1);
 #endif
 
 	assert(_extended_interface);

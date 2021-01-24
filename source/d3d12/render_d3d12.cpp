@@ -10,12 +10,13 @@ using namespace reshade::api;
 
 static std::mutex s_global_mutex;
 
-void reshade::d3d12::convert_resource_desc(const resource_desc &desc, D3D12_RESOURCE_DESC &internal_desc)
+void reshade::d3d12::convert_resource_desc(resource_type type, const resource_desc &desc, D3D12_RESOURCE_DESC &internal_desc)
 {
-	switch (desc.type)
+	switch (type)
 	{
 	default:
 		assert(false);
+		internal_desc.Dimension = D3D12_RESOURCE_DIMENSION_UNKNOWN;
 		break;
 	case resource_type::buffer:
 		internal_desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
@@ -33,7 +34,7 @@ void reshade::d3d12::convert_resource_desc(const resource_desc &desc, D3D12_RESO
 
 	internal_desc.Width = desc.width;
 	internal_desc.Height = desc.height;
-	internal_desc.DepthOrArraySize = desc.layers;
+	internal_desc.DepthOrArraySize = desc.depth_or_layers;
 	internal_desc.MipLevels = desc.levels;
 	internal_desc.Format = static_cast<DXGI_FORMAT>(desc.format);
 	internal_desc.SampleDesc.Count = desc.samples;
@@ -58,33 +59,35 @@ void reshade::d3d12::convert_resource_desc(const resource_desc &desc, D3D12_RESO
 	else
 		internal_desc.Flags &= ~D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 }
-resource_desc reshade::d3d12::convert_resource_desc(const D3D12_RESOURCE_DESC &internal_desc)
+std::pair<resource_type, resource_desc> reshade::d3d12::convert_resource_desc(const D3D12_RESOURCE_DESC &internal_desc)
 {
-	resource_desc desc = {};
+	resource_type type;
 	switch (internal_desc.Dimension)
 	{
 	default:
 		assert(false);
+		type = resource_type::unknown;
 		break;
 	case D3D12_RESOURCE_DIMENSION_BUFFER:
-		desc.type = resource_type::buffer;
+		type = resource_type::buffer;
 		break;
 	case D3D12_RESOURCE_DIMENSION_TEXTURE1D:
-		desc.type = resource_type::texture_1d;
+		type = resource_type::texture_1d;
 		break;
 	case D3D12_RESOURCE_DIMENSION_TEXTURE2D:
-		desc.type = resource_type::texture_2d;
+		type = resource_type::texture_2d;
 		break;
 	case D3D12_RESOURCE_DIMENSION_TEXTURE3D:
-		desc.type = resource_type::texture_3d;
+		type = resource_type::texture_3d;
 		break;
 	}
 
+	resource_desc desc = {};
 	assert(internal_desc.Width <= std::numeric_limits<uint32_t>::max());
 	desc.width = static_cast<uint32_t>(internal_desc.Width);
 	desc.height = internal_desc.Height;
 	desc.levels = internal_desc.MipLevels;
-	desc.layers = internal_desc.DepthOrArraySize;
+	desc.depth_or_layers = internal_desc.DepthOrArraySize;
 	desc.format = static_cast<uint32_t>(internal_desc.Format);
 	desc.samples = static_cast<uint16_t>(internal_desc.SampleDesc.Count);
 
@@ -100,7 +103,7 @@ resource_desc reshade::d3d12::convert_resource_desc(const D3D12_RESOURCE_DESC &i
 	if ((internal_desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) != 0)
 		desc.usage |= resource_usage::unordered_access;
 
-	return desc;
+	return { type, desc };
 }
 
 void reshade::d3d12::convert_depth_stencil_view_desc(const resource_view_desc &desc, D3D12_DEPTH_STENCIL_VIEW_DESC &internal_desc)
@@ -142,7 +145,7 @@ void reshade::d3d12::convert_depth_stencil_view_desc(const resource_view_desc &d
 resource_view_desc reshade::d3d12::convert_depth_stencil_view_desc(const D3D12_DEPTH_STENCIL_VIEW_DESC &internal_desc)
 {
 	// Missing fields: D3D12_DEPTH_STENCIL_VIEW_DESC::Flags
-	resource_view_desc desc = { resource_view_type::depth_stencil };
+	resource_view_desc desc = {};
 	desc.format = static_cast<uint32_t>(internal_desc.Format);
 	desc.levels = 1;
 	switch (internal_desc.ViewDimension)
@@ -222,7 +225,7 @@ void reshade::d3d12::convert_render_target_view_desc(const resource_view_desc &d
 }
 resource_view_desc reshade::d3d12::convert_render_target_view_desc(const D3D12_RENDER_TARGET_VIEW_DESC &internal_desc)
 {
-	resource_view_desc desc = { resource_view_type::render_target };
+	resource_view_desc desc = {};
 	desc.format = static_cast<uint32_t>(internal_desc.Format);
 	desc.levels = 1;
 	switch (internal_desc.ViewDimension)
@@ -338,7 +341,7 @@ void reshade::d3d12::convert_shader_resource_view_desc(const resource_view_desc 
 resource_view_desc reshade::d3d12::convert_shader_resource_view_desc(const D3D12_SHADER_RESOURCE_VIEW_DESC &internal_desc)
 {
 	// Missing fields: D3D12_SHADER_RESOURCE_VIEW_DESC::Shader4ComponentMapping
-	resource_view_desc desc = { resource_view_type::shader_resource };
+	resource_view_desc desc = {};
 	desc.format = static_cast<uint32_t>(internal_desc.Format);
 	switch (internal_desc.ViewDimension)
 	{
@@ -478,12 +481,12 @@ bool reshade::d3d12::device_impl::is_resource_view_valid(resource_view_handle vi
 	}
 }
 
-bool reshade::d3d12::device_impl::create_resource(const resource_desc &desc, resource_usage initial_state, resource_handle *out_resource)
+bool reshade::d3d12::device_impl::create_resource(resource_type type, const resource_desc &desc, resource_usage initial_state, resource_handle *out_resource)
 {
 	assert((desc.usage & initial_state) == initial_state);
 
 	D3D12_RESOURCE_DESC internal_desc = {};
-	convert_resource_desc(desc, internal_desc);
+	convert_resource_desc(type, desc, internal_desc);
 
 	D3D12_HEAP_PROPERTIES heap_props = { D3D12_HEAP_TYPE_DEFAULT };
 
@@ -500,11 +503,11 @@ bool reshade::d3d12::device_impl::create_resource(const resource_desc &desc, res
 		return false;
 	}
 }
-bool reshade::d3d12::device_impl::create_resource_view(resource_handle resource, const resource_view_desc &desc, resource_view_handle *out_view)
+bool reshade::d3d12::device_impl::create_resource_view(resource_handle resource, resource_view_type type, const resource_view_desc &desc, resource_view_handle *out_view)
 {
 	assert(resource.handle != 0);
 
-	if (desc.type == resource_view_type::shader_resource)
+	if (type == resource_view_type::shader_resource)
 	{
 		// Resource pointers should be at least 4-byte aligned, so that this is safe
 		assert((resource.handle & 1) == 0);
@@ -555,7 +558,7 @@ void reshade::d3d12::device_impl::get_resource_from_view(resource_view_handle vi
 resource_desc reshade::d3d12::device_impl::get_resource_desc(resource_handle resource)
 {
 	assert(resource.handle != 0);
-	return convert_resource_desc(reinterpret_cast<ID3D12Resource *>(resource.handle)->GetDesc());
+	return convert_resource_desc(reinterpret_cast<ID3D12Resource *>(resource.handle)->GetDesc()).second;
 }
 
 void reshade::d3d12::device_impl::wait_idle()

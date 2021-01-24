@@ -122,9 +122,9 @@ static void convert_image_usage_flags_to_usage(const VkImageUsageFlags image_fla
 		usage |= resource_usage::copy_source;
 }
 
-void reshade::vulkan::convert_resource_desc(const resource_desc &desc, VkImageCreateInfo &create_info)
+void reshade::vulkan::convert_resource_desc(resource_type type, const resource_desc &desc, VkImageCreateInfo &create_info)
 {
-	switch (desc.type)
+	switch (type)
 	{
 	default:
 		assert(false);
@@ -132,16 +132,17 @@ void reshade::vulkan::convert_resource_desc(const resource_desc &desc, VkImageCr
 	case resource_type::texture_1d:
 		create_info.imageType = VK_IMAGE_TYPE_1D;
 		create_info.extent = { desc.width, 1u, 1u };
-		create_info.arrayLayers = desc.layers;
+		create_info.arrayLayers = desc.depth_or_layers;
 		break;
 	case resource_type::texture_2d:
 		create_info.imageType = VK_IMAGE_TYPE_2D;
 		create_info.extent = { desc.width, desc.height, 1u };
-		create_info.arrayLayers = desc.layers;
+		create_info.arrayLayers = desc.depth_or_layers;
 		break;
 	case resource_type::texture_3d:
 		create_info.imageType = VK_IMAGE_TYPE_3D;
-		create_info.extent = { desc.width, desc.height, desc.layers };
+		create_info.extent = { desc.width, desc.height, desc.depth_or_layers };
+		create_info.arrayLayers = 1u;
 		break;
 	}
 
@@ -150,8 +151,9 @@ void reshade::vulkan::convert_resource_desc(const resource_desc &desc, VkImageCr
 	create_info.samples = static_cast<VkSampleCountFlagBits>(desc.samples);
 	convert_usage_to_image_usage_flags(desc.usage, create_info.usage);
 }
-resource_desc reshade::vulkan::convert_resource_desc(const VkImageCreateInfo &create_info)
+std::pair<resource_type, resource_desc> reshade::vulkan::convert_resource_desc(const VkImageCreateInfo &create_info)
 {
+	resource_type type = resource_type::unknown;
 	resource_desc desc = {};
 	switch (create_info.imageType)
 	{
@@ -159,24 +161,25 @@ resource_desc reshade::vulkan::convert_resource_desc(const VkImageCreateInfo &cr
 		assert(false);
 		break;
 	case VK_IMAGE_TYPE_1D:
-		desc.type = resource_type::texture_1d;
+		type = resource_type::texture_1d;
 		desc.width = create_info.extent.width;
 		desc.height = 1;
-		desc.layers = 1;
+		desc.depth_or_layers = 1;
 		break;
 	case VK_IMAGE_TYPE_2D:
-		desc.type = resource_type::texture_2d;
+		type = resource_type::texture_2d;
 		desc.width = create_info.extent.width;
 		desc.height = create_info.extent.height;
 		assert(create_info.arrayLayers <= std::numeric_limits<uint16_t>::max());
-		desc.layers = static_cast<uint16_t>(create_info.arrayLayers);
+		desc.depth_or_layers = static_cast<uint16_t>(create_info.arrayLayers);
 		break;
 	case VK_IMAGE_TYPE_3D:
-		desc.type = resource_type::texture_3d;
+		type = resource_type::texture_3d;
 		desc.width = create_info.extent.width;
 		desc.height = create_info.extent.depth;
 		assert(create_info.extent.depth <= std::numeric_limits<uint16_t>::max());
-		desc.layers = static_cast<uint16_t>(create_info.extent.depth);
+		desc.depth_or_layers = static_cast<uint16_t>(create_info.extent.depth);
+		assert(create_info.arrayLayers <= 1);
 		break;
 	}
 
@@ -184,7 +187,8 @@ resource_desc reshade::vulkan::convert_resource_desc(const VkImageCreateInfo &cr
 	desc.format = static_cast<uint32_t>(create_info.format);
 	desc.samples = static_cast<uint16_t>(create_info.samples);
 	convert_image_usage_flags_to_usage(create_info.usage, desc.usage);
-	return desc;
+
+	return { type, desc };
 }
 
 void reshade::vulkan::convert_resource_view_desc(const resource_view_desc &desc, VkImageViewCreateInfo &create_info)
@@ -222,7 +226,7 @@ void reshade::vulkan::convert_resource_view_desc(const resource_view_desc &desc,
 }
 resource_view_desc reshade::vulkan::convert_resource_view_desc(const VkImageViewCreateInfo &create_info)
 {
-	resource_view_desc desc = { resource_view_type::unknown };
+	resource_view_desc desc = {};
 	switch (create_info.viewType)
 	{
 	case VK_IMAGE_VIEW_TYPE_1D:
@@ -253,6 +257,7 @@ resource_view_desc reshade::vulkan::convert_resource_view_desc(const VkImageView
 	desc.levels = create_info.subresourceRange.levelCount;
 	desc.first_layer = create_info.subresourceRange.baseArrayLayer;
 	desc.layers = create_info.subresourceRange.layerCount;
+
 	return desc;
 }
 
@@ -371,7 +376,7 @@ bool reshade::vulkan::device_impl::is_resource_view_valid(resource_view_handle v
 	return _views.at(image_view).view == image_view;
 }
 
-bool reshade::vulkan::device_impl::create_resource(const resource_desc &desc, resource_usage initial_state, resource_handle *out_resource)
+bool reshade::vulkan::device_impl::create_resource(resource_type type, const resource_desc &desc, resource_usage initial_state, resource_handle *out_resource)
 {
 	assert((desc.usage & initial_state) == initial_state);
 
@@ -379,54 +384,55 @@ bool reshade::vulkan::device_impl::create_resource(const resource_desc &desc, re
 	VmaAllocationCreateInfo alloc_info = {};
 	alloc_info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
 
-	VkImageCreateInfo create_info { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
-	convert_resource_desc(desc, create_info);
-
-	if (VkImage image = VK_NULL_HANDLE;
-		vmaCreateImage(_alloc, &create_info, &alloc_info, &image, &allocation, nullptr) == VK_SUCCESS)
+	if (type == resource_type::texture_1d || type == resource_type::texture_2d || type == resource_type::texture_3d)
 	{
-		if (initial_state != resource_usage::common && graphics_queue_family_index != std::numeric_limits<uint32_t>::max())
+		VkImageCreateInfo create_info { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
+		convert_resource_desc(type, desc, create_info);
+
+		if (VkImage image = VK_NULL_HANDLE;
+			vmaCreateImage(_alloc, &create_info, &alloc_info, &image, &allocation, nullptr) == VK_SUCCESS)
 		{
-			VkCommandBufferAllocateInfo cmd_alloc_info { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
-			cmd_alloc_info.commandBufferCount = 1;
-			cmd_alloc_info.commandPool = _cmd_pool;
+			if (initial_state != resource_usage::common && graphics_queue_family_index != std::numeric_limits<uint32_t>::max())
+			{
+				VkCommandBufferAllocateInfo cmd_alloc_info { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
+				cmd_alloc_info.commandBufferCount = 1;
+				cmd_alloc_info.commandPool = _cmd_pool;
 
-			VkCommandBuffer cmd_list = VK_NULL_HANDLE;
-			vk.AllocateCommandBuffers(_device, &cmd_alloc_info, &cmd_list);
+				VkCommandBuffer cmd_list = VK_NULL_HANDLE;
+				vk.AllocateCommandBuffers(_device, &cmd_alloc_info, &cmd_list);
 
-			VkImageMemoryBarrier transition { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
-			transition.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-			transition.newLayout = convert_usage_to_image_layout(initial_state);
-			transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-			transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-			transition.image = image;
-			transition.subresourceRange = { aspect_flags_from_format(create_info.format), 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
+				VkImageMemoryBarrier transition { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+				transition.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+				transition.newLayout = convert_usage_to_image_layout(initial_state);
+				transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+				transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+				transition.image = image;
+				transition.subresourceRange = { aspect_flags_from_format(create_info.format), 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
 
-			vk.CmdPipelineBarrier(cmd_list, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
+				vk.CmdPipelineBarrier(cmd_list, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
 
-			VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
-			submit_info.commandBufferCount = 1;
-			submit_info.pCommandBuffers = &cmd_list;
+				VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
+				submit_info.commandBufferCount = 1;
+				submit_info.pCommandBuffers = &cmd_list;
 
-			VkQueue queue = VK_NULL_HANDLE;
-			vk.GetDeviceQueue(_device, graphics_queue_family_index, 0, &queue);
-			vk.QueueSubmit(queue, 1, &submit_info, VK_NULL_HANDLE);
-			vk.QueueWaitIdle(queue);
+				VkQueue queue = VK_NULL_HANDLE;
+				vk.GetDeviceQueue(_device, graphics_queue_family_index, 0, &queue);
+				vk.QueueSubmit(queue, 1, &submit_info, VK_NULL_HANDLE);
+				vk.QueueWaitIdle(queue);
 
-			vk.FreeCommandBuffers(_device, _cmd_pool, 1, &cmd_list);
+				vk.FreeCommandBuffers(_device, _cmd_pool, 1, &cmd_list);
+			}
+
+			register_resource(image, create_info, allocation);
+			*out_resource = { (uint64_t)image };
+			return true;
 		}
+	}
 
-		register_resource(image, create_info, allocation);
-		*out_resource = { (uint64_t)image };
-		return true;
-	}
-	else
-	{
-		*out_resource = { 0 };
-		return false;
-	}
+	*out_resource = { 0 };
+	return false;
 }
-bool reshade::vulkan::device_impl::create_resource_view(resource_handle resource, const resource_view_desc &desc, resource_view_handle *out_view)
+bool reshade::vulkan::device_impl::create_resource_view(resource_handle resource, resource_view_type type, const resource_view_desc &desc, resource_view_handle *out_view)
 {
 	assert(resource.handle != 0);
 
@@ -437,7 +443,7 @@ bool reshade::vulkan::device_impl::create_resource_view(resource_handle resource
 	create_info.subresourceRange.aspectMask = aspect_flags_from_format(create_info.format);
 
 	// Shader resource views can never access stencil data, so remove that aspect flag for views created with a format that supports stencil
-	if (desc.type == resource_view_type::shader_resource)
+	if (type == resource_view_type::shader_resource)
 		create_info.subresourceRange.aspectMask &= ~VK_IMAGE_ASPECT_STENCIL_BIT;
 
 	if (VkImageView image_view = VK_NULL_HANDLE;
@@ -486,7 +492,7 @@ resource_desc reshade::vulkan::device_impl::get_resource_desc(resource_handle re
 	assert(resource.handle != 0);
 
 	const resource_data &data = _resources.at((VkImage)resource.handle);
-	return convert_resource_desc(data.create_info);
+	return convert_resource_desc(data.create_info).second;
 }
 
 void reshade::vulkan::device_impl::wait_idle()

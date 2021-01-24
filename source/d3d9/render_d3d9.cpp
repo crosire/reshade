@@ -32,27 +32,24 @@ static void convert_d3d_usage_to_usage(const DWORD d3d_usage, resource_usage &us
 		usage |= resource_usage::depth_stencil;
 }
 
-void reshade::d3d9::convert_resource_desc(const resource_desc &desc, D3DVOLUME_DESC &internal_desc, UINT &levels)
+void reshade::d3d9::convert_resource_desc(const resource_desc &desc, D3DVOLUME_DESC &internal_desc, UINT *levels)
 {
-	assert(desc.type == resource_type::texture_3d);
-
 	internal_desc.Width = desc.width;
 	internal_desc.Height = desc.height;
-	internal_desc.Depth = desc.layers;
-	levels = desc.levels;
+	internal_desc.Depth = desc.depth_or_layers;
 	internal_desc.Format = static_cast<D3DFORMAT>(desc.format);
 	assert(desc.samples <= 1);
 
 	convert_usage_to_d3d_usage(desc.usage, internal_desc.Usage);
-}
-void reshade::d3d9::convert_resource_desc(const resource_desc &desc, D3DSURFACE_DESC &internal_desc, UINT &levels)
-{
-	assert(desc.type == resource_type::surface || desc.type == resource_type::texture_2d);
 
+	if (levels != nullptr)
+		*levels = desc.levels;
+}
+void reshade::d3d9::convert_resource_desc(const resource_desc &desc, D3DSURFACE_DESC &internal_desc, UINT *levels)
+{
 	internal_desc.Width = desc.width;
 	internal_desc.Height = desc.height;
-	assert(desc.layers <= 1 || desc.layers == 6 /* D3DRTYPE_CUBETEXTURE */);
-	levels = desc.levels;
+	assert(desc.depth_or_layers <= 1 || desc.depth_or_layers == 6 /* D3DRTYPE_CUBETEXTURE */);
 	internal_desc.Format = static_cast<D3DFORMAT>(desc.format);
 
 	if (desc.samples > 1)
@@ -61,21 +58,25 @@ void reshade::d3d9::convert_resource_desc(const resource_desc &desc, D3DSURFACE_
 		internal_desc.MultiSampleType = D3DMULTISAMPLE_NONE;
 
 	convert_usage_to_d3d_usage(desc.usage, internal_desc.Usage);
+
+	if (levels != nullptr)
+		*levels = desc.levels;
 }
 resource_desc reshade::d3d9::convert_resource_desc(const D3DVOLUME_DESC &internal_desc, UINT levels)
 {
 	assert(internal_desc.Type == D3DRTYPE_VOLUME || internal_desc.Type == D3DRTYPE_VOLUMETEXTURE);
 
-	resource_desc desc = { resource_type::texture_3d };
+	resource_desc desc;
 	desc.width = internal_desc.Width;
 	desc.height = internal_desc.Height;
 	assert(internal_desc.Depth <= std::numeric_limits<uint16_t>::max());
-	desc.layers = static_cast<uint16_t>(internal_desc.Depth);
+	desc.depth_or_layers = static_cast<uint16_t>(internal_desc.Depth);
 	assert(levels <= std::numeric_limits<uint16_t>::max());
 	desc.levels = static_cast<uint16_t>(levels);
 	desc.format = static_cast<uint32_t>(internal_desc.Format);
 	desc.samples = 1;
 
+	desc.usage = resource_usage::common;
 	convert_d3d_usage_to_usage(internal_desc.Usage, desc.usage);
 	if (internal_desc.Type == D3DRTYPE_VOLUMETEXTURE)
 		desc.usage |= resource_usage::shader_resource;
@@ -86,10 +87,10 @@ resource_desc reshade::d3d9::convert_resource_desc(const D3DSURFACE_DESC &intern
 {
 	assert(internal_desc.Type == D3DRTYPE_SURFACE || internal_desc.Type == D3DRTYPE_TEXTURE || internal_desc.Type == D3DRTYPE_CUBETEXTURE);
 
-	resource_desc desc = { internal_desc.Type == D3DRTYPE_SURFACE ? resource_type::surface : resource_type::texture_2d };
+	resource_desc desc;
 	desc.width = internal_desc.Width;
 	desc.height = internal_desc.Height;
-	desc.layers = internal_desc.Type == D3DRTYPE_CUBETEXTURE ? 6 : 1;
+	desc.depth_or_layers = internal_desc.Type == D3DRTYPE_CUBETEXTURE ? 6 : 1;
 	assert(levels <= std::numeric_limits<uint16_t>::max());
 	desc.levels = static_cast<uint16_t>(levels);
 	desc.format = static_cast<uint32_t>(internal_desc.Format);
@@ -99,6 +100,7 @@ resource_desc reshade::d3d9::convert_resource_desc(const D3DSURFACE_DESC &intern
 	else
 		desc.samples = 1;
 
+	desc.usage = resource_usage::common;
 	convert_d3d_usage_to_usage(internal_desc.Usage, desc.usage);
 	if (internal_desc.Type == D3DRTYPE_TEXTURE || internal_desc.Type == D3DRTYPE_CUBETEXTURE)
 		desc.usage |= resource_usage::shader_resource;
@@ -114,7 +116,7 @@ void reshade::d3d9::convert_resource_view_desc(const resource_view_desc &desc, D
 }
 resource_view_desc reshade::d3d9::convert_resource_view_desc(const D3DSURFACE_DESC &internal_desc)
 {
-	resource_view_desc desc = { resource_view_type::unknown };
+	resource_view_desc desc = {};
 	desc.dimension = internal_desc.MultiSampleType >= D3DMULTISAMPLE_2_SAMPLES ? resource_view_dimension::texture_2d_multisample : resource_view_dimension::texture_2d;
 	desc.format = static_cast<uint32_t>(internal_desc.Format);
 
@@ -232,9 +234,9 @@ bool reshade::d3d9::device_impl::is_resource_view_valid(resource_view_handle vie
 	return view.handle != 0 && _resources.has_object(reinterpret_cast<IDirect3DResource9 *>(view.handle));
 }
 
-bool reshade::d3d9::device_impl::create_resource(const resource_desc &desc, resource_usage, resource_handle *out_resource)
+bool reshade::d3d9::device_impl::create_resource(resource_type type, const resource_desc &desc, resource_usage, resource_handle *out_resource)
 {
-	if (desc.type == resource_type::texture_2d)
+	if (type == resource_type::texture_2d)
 	{
 		DWORD d3d_usage = 0;
 		convert_usage_to_d3d_usage(desc.usage, d3d_usage);
@@ -251,21 +253,21 @@ bool reshade::d3d9::device_impl::create_resource(const resource_desc &desc, reso
 	*out_resource = { 0 };
 	return false;
 }
-bool reshade::d3d9::device_impl::create_resource_view(resource_handle resource, const resource_view_desc &desc, resource_view_handle *out_view)
+bool reshade::d3d9::device_impl::create_resource_view(resource_handle resource, resource_view_type type, const resource_view_desc &desc, resource_view_handle *out_view)
 {
 	assert(resource.handle != 0);
 	const auto resource_object = reinterpret_cast<IDirect3DResource9 *>(resource.handle);
 
-	const D3DRESOURCETYPE type = resource_object->GetType();
-	if (type == D3DRTYPE_TEXTURE || type == D3DRTYPE_VOLUMETEXTURE || type == D3DRTYPE_CUBETEXTURE)
+	const D3DRESOURCETYPE resource_type = resource_object->GetType();
+	if (resource_type == D3DRTYPE_TEXTURE || resource_type == D3DRTYPE_VOLUMETEXTURE || resource_type == D3DRTYPE_CUBETEXTURE)
 	{
-		if (desc.type == resource_view_type::shader_resource)
+		if (type == resource_view_type::shader_resource)
 		{
 			resource_object->AddRef();
 			*out_view = { resource.handle };
 			return true;
 		}
-		else if (desc.type == resource_view_type::depth_stencil || desc.type == resource_view_type::render_target)
+		else if (type == resource_view_type::depth_stencil || type == resource_view_type::render_target)
 		{
 			assert(desc.levels <= 1);
 			if (IDirect3DSurface9 *surface = nullptr;
@@ -276,7 +278,7 @@ bool reshade::d3d9::device_impl::create_resource_view(resource_handle resource, 
 			}
 		}
 	}
-	else if (type == D3DRTYPE_SURFACE && (desc.type == resource_view_type::depth_stencil || desc.type == resource_view_type::render_target))
+	else if (resource_type == D3DRTYPE_SURFACE && (type == resource_view_type::depth_stencil || type == resource_view_type::render_target))
 	{
 		resource_object->AddRef();
 		*out_view = { resource.handle };

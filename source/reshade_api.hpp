@@ -102,10 +102,9 @@ namespace reshade { namespace api
 	/// </summary>
 	struct resource_desc
 	{
-		resource_type type;
 		uint32_t width;
 		uint32_t height;
-		uint16_t layers;
+		uint16_t depth_or_layers;
 		uint16_t levels;
 		uint32_t format;
 		uint16_t samples;
@@ -117,7 +116,6 @@ namespace reshade { namespace api
 	/// </summary>
 	struct resource_view_desc
 	{
-		resource_view_type type;
 		resource_view_dimension dimension;
 		uint32_t format;
 		uint32_t first_level;
@@ -228,11 +226,11 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Allocates and creates a new resource based on the specified <paramref name="desc"/>ription.
 		/// </summary>
-		virtual bool create_resource(const resource_desc &desc, resource_usage initial_state, resource_handle *out_resource) = 0;
+		virtual bool create_resource(resource_type type, const resource_desc &desc, resource_usage initial_state, resource_handle *out_resource) = 0;
 		/// <summary>
 		/// Creates a new resource view for the <paramref name="resource"/> based on the specified <paramref name="desc"/>ription.
 		/// </summary>
-		virtual bool create_resource_view(resource_handle resource, const resource_view_desc &desc, resource_view_handle *out_view) = 0;
+		virtual bool create_resource_view(resource_handle resource, resource_view_type type, const resource_view_desc &desc, resource_view_handle *out_view) = 0;
 
 		/// <summary>
 		/// Instantly destroys a <paramref name="resource"/> that was previously created via <see cref="create_resource"/>.

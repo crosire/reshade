@@ -124,8 +124,8 @@ namespace reshade
 	typedef void(*pfn_init_command_queue)(api::command_queue *queue);
 	typedef void(*pfn_destroy_command_queue)(api::command_queue *queue);
 
-	typedef void(*pfn_create_resource)(api::device *device, api::resource_desc *desc);
-	typedef void(*pfn_create_resource_view)(api::device *device, api::resource_handle resource, api::resource_view_desc *desc);
+	typedef void(*pfn_create_resource)(api::device *device, api::resource_type type, api::resource_desc *desc);
+	typedef void(*pfn_create_resource_view)(api::device *device, api::resource_handle resource, api::resource_view_type type, api::resource_view_desc *desc);
 
 	typedef void(*pfn_set_depth_stencil)(api::command_list *cmd, api::resource_view_handle dsv);
 	typedef void(*pfn_set_render_target)(api::command_list *cmd, uint32_t index, api::resource_view_handle rtv);

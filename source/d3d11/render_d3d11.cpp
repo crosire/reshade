@@ -46,39 +46,35 @@ static inline void convert_bind_flags_to_usage(const UINT bind_flags, resource_u
 
 void reshade::d3d11::convert_resource_desc(const resource_desc &desc, D3D11_BUFFER_DESC &internal_desc)
 {
-	assert(desc.type == resource_type::buffer);
 	internal_desc.ByteWidth = desc.width;
-	assert(desc.height <= 1 && desc.layers <= 1 && desc.levels <= 1 && desc.samples <= 1);
+	assert(desc.height <= 1 && desc.depth_or_layers <= 1 && desc.levels <= 1 && desc.samples <= 1);
 	convert_usage_to_bind_flags(desc.usage, internal_desc.BindFlags);
 }
 void reshade::d3d11::convert_resource_desc(const resource_desc &desc, D3D11_TEXTURE1D_DESC &internal_desc)
 {
-	assert(desc.type == resource_type::texture_1d);
 	internal_desc.Width = desc.width;
 	assert(desc.height <= 1);
 	internal_desc.MipLevels = desc.levels;
-	internal_desc.ArraySize = desc.layers;
+	internal_desc.ArraySize = desc.depth_or_layers;
 	internal_desc.Format = static_cast<DXGI_FORMAT>(desc.format);
 	assert(desc.samples <= 1);
 	convert_usage_to_bind_flags(desc.usage, internal_desc.BindFlags);
 }
 void reshade::d3d11::convert_resource_desc(const resource_desc &desc, D3D11_TEXTURE2D_DESC &internal_desc)
 {
-	assert(desc.type == resource_type::texture_2d);
 	internal_desc.Width = desc.width;
 	internal_desc.Height = desc.height;
 	internal_desc.MipLevels = desc.levels;
-	internal_desc.ArraySize = desc.layers;
+	internal_desc.ArraySize = desc.depth_or_layers;
 	internal_desc.Format = static_cast<DXGI_FORMAT>(desc.format);
 	internal_desc.SampleDesc.Count = desc.samples;
 	convert_usage_to_bind_flags(desc.usage, internal_desc.BindFlags);
 }
 void reshade::d3d11::convert_resource_desc(const resource_desc &desc, D3D11_TEXTURE3D_DESC &internal_desc)
 {
-	assert(desc.type == resource_type::texture_3d);
 	internal_desc.Width = desc.width;
 	internal_desc.Height = desc.height;
-	internal_desc.Depth = desc.layers;
+	internal_desc.Depth = desc.depth_or_layers;
 	internal_desc.MipLevels = desc.levels;
 	internal_desc.Format = static_cast<DXGI_FORMAT>(desc.format);
 	assert(desc.samples <= 1);
@@ -86,18 +82,18 @@ void reshade::d3d11::convert_resource_desc(const resource_desc &desc, D3D11_TEXT
 }
 resource_desc reshade::d3d11::convert_resource_desc(const D3D11_BUFFER_DESC &internal_desc)
 {
-	resource_desc desc = { resource_type::buffer };
+	resource_desc desc = {};
 	desc.width = internal_desc.ByteWidth;
 	convert_bind_flags_to_usage(internal_desc.BindFlags, desc.usage);
 	return desc;
 }
 resource_desc reshade::d3d11::convert_resource_desc(const D3D11_TEXTURE1D_DESC &internal_desc)
 {
-	resource_desc desc = { resource_type::texture_1d };
+	resource_desc desc = {};
 	desc.width = internal_desc.Width;
 	desc.height = 1;
 	assert(internal_desc.ArraySize <= std::numeric_limits<uint16_t>::max());
-	desc.layers = static_cast<uint16_t>(internal_desc.ArraySize);
+	desc.depth_or_layers = static_cast<uint16_t>(internal_desc.ArraySize);
 	assert(internal_desc.MipLevels <= std::numeric_limits<uint16_t>::max());
 	desc.levels = static_cast<uint16_t>(internal_desc.MipLevels);
 	desc.format = static_cast<uint32_t>(internal_desc.Format);
@@ -107,11 +103,11 @@ resource_desc reshade::d3d11::convert_resource_desc(const D3D11_TEXTURE1D_DESC &
 }
 resource_desc reshade::d3d11::convert_resource_desc(const D3D11_TEXTURE2D_DESC &internal_desc)
 {
-	resource_desc desc = { resource_type::texture_2d };
+	resource_desc desc = {};
 	desc.width = internal_desc.Width;
 	desc.height = internal_desc.Height;
 	assert(internal_desc.ArraySize <= std::numeric_limits<uint16_t>::max());
-	desc.layers = static_cast<uint16_t>(internal_desc.ArraySize);
+	desc.depth_or_layers = static_cast<uint16_t>(internal_desc.ArraySize);
 	assert(internal_desc.MipLevels <= std::numeric_limits<uint16_t>::max());
 	desc.levels = static_cast<uint16_t>(internal_desc.MipLevels);
 	desc.format = static_cast<uint32_t>(internal_desc.Format);
@@ -121,11 +117,11 @@ resource_desc reshade::d3d11::convert_resource_desc(const D3D11_TEXTURE2D_DESC &
 }
 resource_desc reshade::d3d11::convert_resource_desc(const D3D11_TEXTURE3D_DESC &internal_desc)
 {
-	resource_desc desc = { resource_type::texture_3d };
+	resource_desc desc = {};
 	desc.width = internal_desc.Width;
 	desc.height = internal_desc.Height;
 	assert(internal_desc.Depth <= std::numeric_limits<uint16_t>::max());
-	desc.layers = static_cast<uint16_t>(internal_desc.Depth);
+	desc.depth_or_layers = static_cast<uint16_t>(internal_desc.Depth);
 	assert(internal_desc.MipLevels <= std::numeric_limits<uint16_t>::max());
 	desc.levels = static_cast<uint16_t>(internal_desc.MipLevels);
 	desc.format = static_cast<uint32_t>(internal_desc.Format);
@@ -173,7 +169,7 @@ void reshade::d3d11::convert_depth_stencil_view_desc(const resource_view_desc &d
 resource_view_desc reshade::d3d11::convert_depth_stencil_view_desc(const D3D11_DEPTH_STENCIL_VIEW_DESC &internal_desc)
 {
 	// Missing fields: D3D11_DEPTH_STENCIL_VIEW_DESC::Flags
-	resource_view_desc desc = { resource_view_type::depth_stencil };
+	resource_view_desc desc = {};
 	desc.format = static_cast<uint32_t>(internal_desc.Format);
 	desc.levels = 1;
 	switch (internal_desc.ViewDimension)
@@ -279,7 +275,7 @@ void reshade::d3d11::convert_render_target_view_desc(const resource_view_desc &d
 }
 resource_view_desc reshade::d3d11::convert_render_target_view_desc(const D3D11_RENDER_TARGET_VIEW_DESC &internal_desc)
 {
-	resource_view_desc desc = { resource_view_type::render_target };
+	resource_view_desc desc = {};
 	desc.format = static_cast<uint32_t>(internal_desc.Format);
 	desc.levels = 1;
 	switch (internal_desc.ViewDimension)
@@ -325,7 +321,7 @@ resource_view_desc reshade::d3d11::convert_render_target_view_desc(const D3D11_R
 {
 	if (internal_desc.ViewDimension == D3D11_RTV_DIMENSION_TEXTURE2D || internal_desc.ViewDimension == D3D11_RTV_DIMENSION_TEXTURE2DARRAY)
 	{
-		resource_view_desc desc = { resource_view_type::render_target };
+		resource_view_desc desc = {};
 		desc.format = static_cast<uint32_t>(internal_desc.Format);
 		desc.levels = 1;
 		switch (internal_desc.ViewDimension)
@@ -443,7 +439,7 @@ void reshade::d3d11::convert_shader_resource_view_desc(const resource_view_desc 
 }
 resource_view_desc reshade::d3d11::convert_shader_resource_view_desc(const D3D11_SHADER_RESOURCE_VIEW_DESC &internal_desc)
 {
-	resource_view_desc desc = { resource_view_type::shader_resource };
+	resource_view_desc desc = {};
 	desc.format = static_cast<uint32_t>(internal_desc.Format);
 	switch (internal_desc.ViewDimension)
 	{
@@ -513,7 +509,7 @@ resource_view_desc reshade::d3d11::convert_shader_resource_view_desc(const D3D11
 {
 	if (internal_desc.ViewDimension == D3D11_SRV_DIMENSION_TEXTURE2D || internal_desc.ViewDimension == D3D11_SRV_DIMENSION_TEXTURE2DARRAY)
 	{
-		resource_view_desc desc = { resource_view_type::shader_resource };
+		resource_view_desc desc = {};
 		desc.format = static_cast<uint32_t>(internal_desc.Format);
 		switch (internal_desc.ViewDimension)
 		{
@@ -593,9 +589,9 @@ bool reshade::d3d11::device_impl::is_resource_view_valid(resource_view_handle vi
 	return view.handle != 0 && _views.has_object(reinterpret_cast<ID3D11View *>(view.handle));
 }
 
-bool reshade::d3d11::device_impl::create_resource(const resource_desc &desc, resource_usage, resource_handle *out_resource)
+bool reshade::d3d11::device_impl::create_resource(resource_type type, const resource_desc &desc, resource_usage, resource_handle *out_resource)
 {
-	switch (desc.type)
+	switch (type)
 	{
 		case resource_type::texture_1d:
 		{
@@ -644,11 +640,11 @@ bool reshade::d3d11::device_impl::create_resource(const resource_desc &desc, res
 	*out_resource = { 0 };
 	return false;
 }
-bool reshade::d3d11::device_impl::create_resource_view(resource_handle resource, const resource_view_desc &desc, resource_view_handle *out_view)
+bool reshade::d3d11::device_impl::create_resource_view(resource_handle resource, resource_view_type type, const resource_view_desc &desc, resource_view_handle *out_view)
 {
 	assert(resource.handle != 0);
 
-	switch (desc.type)
+	switch (type)
 	{
 		case resource_view_type::depth_stencil:
 		{

@@ -11,12 +11,10 @@
 
 namespace reshade::opengl
 {
-	void convert_resource_desc(const api::resource_desc &desc, GLsizei *levels, GLenum &internalformat, GLsizei &width);
-	void convert_resource_desc(const api::resource_desc &desc, GLsizei *levels, GLenum &internalformat, GLsizei &width, GLsizei &height);
-	void convert_resource_desc(const api::resource_desc &desc, GLsizei *levels, GLenum &internalformat, GLsizei &width, GLsizei &height, GLsizei &depth);
-	api::resource_desc convert_resource_desc(GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height = 1, GLsizei depth = 1);
+	void convert_resource_desc(const api::resource_desc &desc, GLsizei *levels, GLenum *internalformat, GLsizei *width, GLsizei *height = nullptr, GLsizei *depth = nullptr);
+	std::pair<api::resource_type, api::resource_desc> convert_resource_desc(GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height = 1, GLsizei depth = 1);
 
-	void convert_resource_view_desc(const api::resource_view_desc &desc, GLenum &internalformat, GLuint &minlevel, GLuint &numlevels, GLuint &minlayer, GLuint &numlayers);
+	void convert_resource_view_desc(const api::resource_view_desc &desc, GLenum *internalformat, GLuint *minlevel, GLuint *numlevels, GLuint *minlayer, GLuint *numlayers);
 	api::resource_view_desc convert_resource_view_desc(GLenum target, GLenum internalformat, GLuint minlevel, GLuint numlevels, GLuint minlayer, GLuint numlayers);
 
 	class device_impl : public api::device, public api::command_queue, public api::command_list, api::api_data
@@ -35,8 +33,8 @@ namespace reshade::opengl
 		bool is_resource_valid(api::resource_handle resource) override;
 		bool is_resource_view_valid(api::resource_view_handle view) override;
 
-		bool create_resource(const api::resource_desc &desc, api::resource_usage initial_state, api::resource_handle *out_resource) override;
-		bool create_resource_view(api::resource_handle resource, const api::resource_view_desc &desc, api::resource_view_handle *out_view) override;
+		bool create_resource(api::resource_type type, const api::resource_desc &desc, api::resource_usage initial_state, api::resource_handle *out_resource) override;
+		bool create_resource_view(api::resource_handle resource, api::resource_view_type type, const api::resource_view_desc &desc, api::resource_view_handle *out_view) override;
 
 		void destroy_resource(api::resource_handle resource) override;
 		void destroy_resource_view(api::resource_view_handle view) override;

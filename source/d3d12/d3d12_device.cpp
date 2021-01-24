@@ -239,7 +239,7 @@ void    STDMETHODCALLTYPE D3D12Device::CreateShaderResourceView(ID3D12Resource *
 
 #if RESHADE_ADDON
 	reshade::api::resource_view_desc api_desc = reshade::d3d12::convert_shader_resource_view_desc(new_desc);
-	RESHADE_ADDON_EVENT(create_resource_view, _impl, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, &api_desc);
+	RESHADE_ADDON_EVENT(create_resource_view, _impl, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::shader_resource, &api_desc);
 	reshade::d3d12::convert_shader_resource_view_desc(api_desc, new_desc);
 #endif
 
@@ -263,7 +263,7 @@ void    STDMETHODCALLTYPE D3D12Device::CreateRenderTargetView(ID3D12Resource *pR
 
 #if RESHADE_ADDON
 	reshade::api::resource_view_desc api_desc = reshade::d3d12::convert_render_target_view_desc(new_desc);
-	RESHADE_ADDON_EVENT(create_resource_view, _impl, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, &api_desc);
+	RESHADE_ADDON_EVENT(create_resource_view, _impl, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::render_target, &api_desc);
 	reshade::d3d12::convert_render_target_view_desc(api_desc, new_desc);
 #endif
 
@@ -283,7 +283,7 @@ void    STDMETHODCALLTYPE D3D12Device::CreateDepthStencilView(ID3D12Resource *pR
 
 #if RESHADE_ADDON
 	reshade::api::resource_view_desc api_desc = reshade::d3d12::convert_depth_stencil_view_desc(new_desc);
-	RESHADE_ADDON_EVENT(create_resource_view, _impl, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, &api_desc);
+	RESHADE_ADDON_EVENT(create_resource_view, _impl, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::depth_stencil, &api_desc);
 	reshade::d3d12::convert_depth_stencil_view_desc(api_desc, new_desc);
 #endif
 
@@ -319,9 +319,9 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource(const D3D12_HEAP_
 	D3D12_RESOURCE_DESC new_desc = *pResourceDesc;
 
 #if RESHADE_ADDON
-	reshade::api::resource_desc api_desc = reshade::d3d12::convert_resource_desc(new_desc);
-	RESHADE_ADDON_EVENT(create_resource, _impl, &api_desc);
-	reshade::d3d12::convert_resource_desc(api_desc, new_desc);
+	std::pair<reshade::api::resource_type, reshade::api::resource_desc> api_desc = reshade::d3d12::convert_resource_desc(new_desc);
+	RESHADE_ADDON_EVENT(create_resource, _impl, api_desc.first, &api_desc.second);
+	reshade::d3d12::convert_resource_desc(api_desc.first, api_desc.second, new_desc);
 #endif
 
 	const HRESULT hr = _orig->CreateCommittedResource(pHeapProperties, HeapFlags, &new_desc, InitialResourceState, pOptimizedClearValue, riidResource, ppvResource);
@@ -363,9 +363,9 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePlacedResource(ID3D12Heap *pHeap, U
 	D3D12_RESOURCE_DESC new_desc = *pDesc;
 
 #if RESHADE_ADDON
-	reshade::api::resource_desc api_desc = reshade::d3d12::convert_resource_desc(new_desc);
-	RESHADE_ADDON_EVENT(create_resource, _impl, &api_desc);
-	reshade::d3d12::convert_resource_desc(api_desc, new_desc);
+	std::pair<reshade::api::resource_type, reshade::api::resource_desc> api_desc = reshade::d3d12::convert_resource_desc(new_desc);
+	RESHADE_ADDON_EVENT(create_resource, _impl, api_desc.first, &api_desc.second);
+	reshade::d3d12::convert_resource_desc(api_desc.first, api_desc.second, new_desc);
 #endif
 
 	const HRESULT hr = _orig->CreatePlacedResource(pHeap, HeapOffset, &new_desc, InitialState, pOptimizedClearValue, riid, ppvResource);
@@ -403,9 +403,9 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource(const D3D12_RESOUR
 	D3D12_RESOURCE_DESC new_desc = *pDesc;
 
 #if RESHADE_ADDON
-	reshade::api::resource_desc api_desc = reshade::d3d12::convert_resource_desc(new_desc);
-	RESHADE_ADDON_EVENT(create_resource, _impl, &api_desc);
-	reshade::d3d12::convert_resource_desc(api_desc, new_desc);
+	std::pair<reshade::api::resource_type, reshade::api::resource_desc> api_desc = reshade::d3d12::convert_resource_desc(new_desc);
+	RESHADE_ADDON_EVENT(create_resource, _impl, api_desc.first, &api_desc.second);
+	reshade::d3d12::convert_resource_desc(api_desc.first, api_desc.second, new_desc);
 #endif
 
 	const HRESULT hr = _orig->CreateReservedResource(&new_desc, InitialState, pOptimizedClearValue, riid, ppvResource);
@@ -564,9 +564,9 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource1(const D3D12_HEAP
 	D3D12_RESOURCE_DESC new_desc = *pDesc;
 
 #if RESHADE_ADDON
-	reshade::api::resource_desc api_desc = reshade::d3d12::convert_resource_desc(new_desc);
-	RESHADE_ADDON_EVENT(create_resource, _impl, &api_desc);
-	reshade::d3d12::convert_resource_desc(api_desc, new_desc);
+	std::pair<reshade::api::resource_type, reshade::api::resource_desc> api_desc = reshade::d3d12::convert_resource_desc(new_desc);
+	RESHADE_ADDON_EVENT(create_resource, _impl, api_desc.first, &api_desc.second);
+	reshade::d3d12::convert_resource_desc(api_desc.first, api_desc.second, new_desc);
 #endif
 
 	assert(_interface_version >= 4);
@@ -610,9 +610,9 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource1(const D3D12_RESOU
 	D3D12_RESOURCE_DESC new_desc = *pDesc;
 
 #if RESHADE_ADDON
-	reshade::api::resource_desc api_desc = reshade::d3d12::convert_resource_desc(new_desc);
-	RESHADE_ADDON_EVENT(create_resource, _impl, &api_desc);
-	reshade::d3d12::convert_resource_desc(api_desc, new_desc);
+	std::pair<reshade::api::resource_type, reshade::api::resource_desc> api_desc = reshade::d3d12::convert_resource_desc(new_desc);
+	RESHADE_ADDON_EVENT(create_resource, _impl, api_desc.first, &api_desc.second);
+	reshade::d3d12::convert_resource_desc(api_desc.first, api_desc.second, new_desc);
 #endif
 
 	assert(_interface_version >= 4);

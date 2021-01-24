@@ -616,9 +616,9 @@ VkResult VKAPI_CALL vkCreateImage(VkDevice device, const VkImageCreateInfo *pCre
 
 	VkImageCreateInfo create_info = *pCreateInfo;
 #if RESHADE_ADDON
-	reshade::api::resource_desc api_desc = reshade::vulkan::convert_resource_desc(create_info);
-	RESHADE_ADDON_EVENT(create_resource, device_impl, &api_desc);
-	reshade::vulkan::convert_resource_desc(api_desc, create_info);
+	std::pair<reshade::api::resource_type, reshade::api::resource_desc> api_desc = reshade::vulkan::convert_resource_desc(create_info);
+	RESHADE_ADDON_EVENT(create_resource, device_impl, api_desc.first, &api_desc.second);
+	reshade::vulkan::convert_resource_desc(api_desc.first, api_desc.second, create_info);
 #endif
 
 	GET_DEVICE_DISPATCH_PTR_FROM(CreateImage, device_impl);
@@ -657,7 +657,7 @@ VkResult VKAPI_CALL vkCreateImageView(VkDevice device, const VkImageViewCreateIn
 	VkImageViewCreateInfo create_info = *pCreateInfo;
 #if RESHADE_ADDON
 	reshade::api::resource_view_desc api_desc = reshade::vulkan::convert_resource_view_desc(create_info);
-	RESHADE_ADDON_EVENT(create_resource_view, device_impl, reshade::api::resource_handle { (uint64_t)create_info.image }, &api_desc);
+	RESHADE_ADDON_EVENT(create_resource_view, device_impl, reshade::api::resource_handle { (uint64_t)create_info.image }, reshade::api::resource_view_type::unknown, &api_desc);
 	reshade::vulkan::convert_resource_view_desc(api_desc, create_info);
 #endif
 
