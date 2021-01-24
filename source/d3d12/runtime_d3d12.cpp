@@ -339,7 +339,11 @@ void reshade::d3d12::runtime_d3d12::on_reset()
 	_cmd_list.reset();
 	_cmd_alloc.clear();
 
-	CloseHandle(_fence_event);
+	if (_fence_event != nullptr)
+	{
+		CloseHandle(_fence_event);
+		_fence_event = nullptr;
+	}
 	_fence.clear();
 	_fence_value.clear();
 
