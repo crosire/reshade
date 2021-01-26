@@ -13,16 +13,16 @@ namespace reshade::vulkan
 	class runtime_vk : public runtime, api::api_data
 	{
 		static const uint32_t NUM_IMGUI_BUFFERS = 4;
-		static const uint32_t NUM_COMMAND_FRAMES = 4; // Use power of two so that modulo can be replaced with bitwise operation
 
 	public:
-		runtime_vk(device_impl *device);
+		runtime_vk(device_impl *device, command_queue_impl *graphics_queue);
 		~runtime_vk();
 
 		bool get_data(const uint8_t guid[16], uint32_t size, void *data) override { return api_data::get_data(guid, size, data); }
 		void set_data(const uint8_t guid[16], uint32_t size, const void *data) override  { api_data::set_data(guid, size, data); }
 
 		api::device *get_device() override { return _device_impl; }
+		api::command_queue *get_command_queue() override { return _queue_impl; }
 
 		bool on_init(VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &desc, HWND hwnd);
 		void on_reset();
@@ -44,8 +44,6 @@ namespace reshade::vulkan
 
 		void render_technique(technique &technique) override;
 
-		bool begin_command_buffer() const;
-		void execute_command_buffer() const;
 		void wait_for_command_buffers();
 
 		void set_debug_name(uint64_t object, VkDebugReportObjectTypeEXT type, const char *name) const;
@@ -62,12 +60,12 @@ namespace reshade::vulkan
 
 		device_impl *const _device_impl;
 		const VkDevice _device;
+		command_queue_impl *const _queue_impl;
 		VkQueue _queue = VK_NULL_HANDLE;
+		command_list_immediate_impl *const _cmd_impl;
 
-		VkFence _cmd_fences[NUM_COMMAND_FRAMES + 1] = {};
-		VkSemaphore _cmd_semaphores[NUM_COMMAND_FRAMES * 2] = {};
-		mutable std::pair<VkCommandBuffer, bool> _cmd_buffers[NUM_COMMAND_FRAMES] = {};
-		uint32_t _cmd_index = 0;
+		VkSemaphore _queue_sync_semaphores[4] = {};
+		uint32_t _queue_sync_index = 0;
 		uint32_t _swap_index = 0;
 #ifndef NDEBUG
 		mutable bool _wait_for_idle_happened = false;

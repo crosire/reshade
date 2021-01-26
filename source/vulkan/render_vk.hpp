@@ -59,7 +59,7 @@ namespace reshade::vulkan
 		friend class command_list_impl;
 
 	public:
-		device_impl(VkDevice device, VkPhysicalDevice physical_device, uint32_t graphics_queue_family_index, const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table);
+		device_impl(VkDevice device, VkPhysicalDevice physical_device, const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table);
 		~device_impl();
 
 		bool get_data(const uint8_t guid[16], uint32_t size, void *data) override { return api_data::get_data(guid, size, data); }
@@ -72,7 +72,7 @@ namespace reshade::vulkan
 		bool is_resource_valid(api::resource_handle resource) override;
 		bool is_resource_view_valid(api::resource_view_handle view) override;
 
-		bool create_resource(api::resource_type type, const api::resource_desc &desc, api::resource_usage initial_state, api::resource_handle *out_resource) override;
+		bool create_resource(api::resource_type type, const api::resource_desc &desc, api::resource_handle *out_resource) override;
 		bool create_resource_view(api::resource_handle resource, api::resource_view_type type, const api::resource_view_desc &desc, api::resource_view_handle *out_view) override;
 
 		void destroy_resource(api::resource_handle resource) override;
@@ -91,6 +91,8 @@ namespace reshade::vulkan
 		void unregister_resource_view(VkImageView image_view) { _views.erase(image_view); }
 		api::resource_view_handle get_default_view(VkImage image);
 
+		inline operator VkDevice() const { return _device; }
+
 		const VkLayerDispatchTable vk;
 
 		uint32_t graphics_queue_family_index = std::numeric_limits<uint32_t>::max();
@@ -108,7 +110,6 @@ namespace reshade::vulkan
 		lockfree_table<VkImageView, resource_view_data, 4096> _views;
 
 		VmaAllocator _alloc = nullptr;
-		VkCommandPool _cmd_pool = VK_NULL_HANDLE;
 	};
 
 	class command_list_impl : public api::command_list, api::api_data
@@ -135,26 +136,52 @@ namespace reshade::vulkan
 		VkRenderPass current_renderpass = VK_NULL_HANDLE;
 		VkFramebuffer current_framebuffer = VK_NULL_HANDLE;
 
-	private:
+	protected:
 		device_impl *const _device_impl;
-		const VkCommandBuffer _cmd_list;
+		VkCommandBuffer _cmd_list;
+		bool _has_commands = false;
+	};
+
+	class command_list_immediate_impl : public command_list_impl
+	{
+	public:
+		static const uint32_t NUM_COMMAND_FRAMES = 4; // Use power of two so that modulo can be replaced with bitwise operation
+
+		command_list_immediate_impl(device_impl *device, uint32_t queue_family_index);
+		~command_list_immediate_impl();
+
+		inline uint32_t current_index() const { return _cmd_index; }
+
+		bool flush(VkQueue queue, std::vector<VkSemaphore> &wait_semaphores);
+		bool flush_and_wait(VkQueue queue);
+
+		VkCommandBuffer get() { _has_commands = true; return _cmd_list; }
+
+	private:
+		uint32_t _cmd_index = 0;
+		VkCommandPool _cmd_pool = VK_NULL_HANDLE;
+		VkFence _cmd_fences[NUM_COMMAND_FRAMES] = {};
+		VkSemaphore _cmd_semaphores[NUM_COMMAND_FRAMES] = {};
+		VkCommandBuffer _cmd_buffers[NUM_COMMAND_FRAMES] = {};
 	};
 
 	class command_queue_impl : public api::command_queue, api::api_data
 	{
+		friend class runtime_vk;
+
 	public:
-		command_queue_impl(device_impl *device, VkQueue queue);
+		command_queue_impl(device_impl *device, uint32_t queue_family_index, const VkQueueFamilyProperties &queue_family, VkQueue queue);
 		~command_queue_impl();
 
 		bool get_data(const uint8_t guid[16], uint32_t size, void *data) override { return api_data::get_data(guid, size, data); }
 		void set_data(const uint8_t guid[16], uint32_t size, const void *data) override  { api_data::set_data(guid, size, data); }
 
 		api::device *get_device() override { return _device_impl; }
-
-		api::command_list *get_immediate_command_list() override { return nullptr; }
+		api::command_list *get_immediate_command_list() override { return _immediate_cmd_list; }
 
 	private:
 		device_impl *const _device_impl;
 		const VkQueue _queue;
+		command_list_immediate_impl *_immediate_cmd_list = nullptr;
 	};
 }

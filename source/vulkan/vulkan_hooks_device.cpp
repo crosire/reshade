@@ -309,9 +309,10 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	const auto device_impl = new reshade::vulkan::device_impl(
 		device,
 		physicalDevice,
-		graphics_queue_family_index,
 		s_instance_dispatch.at(dispatch_key_from_handle(physicalDevice)),
 		dispatch_table);
+
+	device_impl->graphics_queue_family_index = graphics_queue_family_index;
 
 	s_vulkan_devices.emplace(dispatch_key_from_handle(device), device_impl);
 
@@ -327,7 +328,12 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 			dispatch_table.GetDeviceQueue(device, queue_create_info.queueFamilyIndex, queue_index, &queue);
 			assert(VK_NULL_HANDLE != queue);
 
-			const auto queue_impl = new reshade::vulkan::command_queue_impl(device_impl, queue);
+			const auto queue_impl = new reshade::vulkan::command_queue_impl(
+				device_impl,
+				queue_create_info.queueFamilyIndex,
+				queue_families[queue_create_info.queueFamilyIndex],
+				queue);
+
 			if (s_vulkan_queues.emplace(queue, queue_impl))
 				device_impl->queues.push_back(queue);
 			else
@@ -500,7 +506,15 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		}
 		else
 		{
-			runtime = new reshade::vulkan::runtime_vk(device_impl);
+			// Get the main graphics queue for command submission
+			// There has to be at least one queue, or else this runtime would not have been created with this queue family index
+			// So it should be safe to just get the first one
+			VkQueue graphics_queue = VK_NULL_HANDLE;
+			device_impl->vk.GetDeviceQueue(device, device_impl->graphics_queue_family_index, 0, &graphics_queue);
+			assert(graphics_queue != VK_NULL_HANDLE);
+
+			// TODO: What if 's_vulkan_queues.at' returns nullptr?
+			runtime = new reshade::vulkan::runtime_vk(device_impl, s_vulkan_queues.at(graphics_queue));
 		}
 
 		// Look up window handle from surface

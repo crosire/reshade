@@ -21,7 +21,7 @@ namespace reshade::d3d10
 		void set_data(const uint8_t guid[16], uint32_t size, const void *data) override { _swapchain->SetPrivateData(*reinterpret_cast<const GUID *>(guid), size, data); }
 
 		api::device *get_device() override { return _device_impl; }
-		api::command_queue *get_command_queue() { return _device_impl; }
+		api::command_queue *get_command_queue() override { return _device_impl; }
 
 		bool on_init();
 		void on_reset();

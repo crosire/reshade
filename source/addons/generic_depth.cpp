@@ -43,7 +43,7 @@ struct depth_stencil_info
 	draw_stats total_stats;
 	draw_stats current_stats; // Stats since last clear operation
 	std::vector<clear_stats> clears;
-	resource_usage current_state = resource_usage::common;
+	resource_usage current_state = resource_usage::undefined;
 	bool copied_during_frame = false;
 };
 
@@ -172,7 +172,7 @@ struct state_tracking_context
 		if (device->get_api() >= render_api::d3d10 && device->get_api() <= render_api::d3d12)
 			desc.format = static_cast<uint32_t>(make_dxgi_format_typeless(static_cast<DXGI_FORMAT>(desc.format)));
 
-		if (!device->create_resource(resource_type::texture_2d, desc, resource_usage::copy_dest, &backup_texture))
+		if (!device->create_resource(resource_type::texture_2d, desc, &backup_texture))
 			LOG(ERROR) << "Failed to create backup depth-stencil texture!";
 	}
 };
@@ -384,7 +384,7 @@ static void on_transition_state(command_list *cmd_list, resource_handle resource
 		return;
 
 	resource_usage &current_state = state.counters_per_used_depth_stencil[resource].current_state;
-	assert(current_state == old_state || current_state == resource_usage::common);
+	assert(current_state == old_state || current_state == resource_usage::undefined);
 	current_state = new_state;
 }
 static void on_set_depth_stencil(command_list *cmd_list, resource_view_handle dsv)
@@ -446,9 +446,10 @@ static void on_resize(effect_runtime *runtime)
 
 	runtime->update_texture_bindings("DEPTH", device_state.selected_shader_resource);
 }
-static void on_present(command_queue *queue, effect_runtime *runtime)
+static void on_present(command_queue *, effect_runtime *runtime)
 {
-	device *const device = queue->get_device();
+	device *const device = runtime->get_device();
+	command_queue *const queue = runtime->get_command_queue();
 	state_tracking &queue_state = queue->get_data<state_tracking>(state_tracking::GUID);
 	state_tracking_context &device_state = device->get_data<state_tracking_context>(state_tracking_context::GUID);
 
@@ -528,6 +529,8 @@ static void on_present(command_queue *queue, effect_runtime *runtime)
 			{
 				device_state.update_backup_texture(device, best_desc);
 
+				queue->get_immediate_command_list()->transition_state(device_state.backup_texture, resource_usage::undefined, resource_usage::copy_dest);
+
 				if (device_state.backup_texture != 0)
 				{
 					device->create_resource_view(device_state.backup_texture, resource_view_type::shader_resource, srv_desc, &device_state.selected_shader_resource);
@@ -554,11 +557,11 @@ static void on_present(command_queue *queue, effect_runtime *runtime)
 		else
 		{
 			// Copy to backup texture unless already copied due to aliasing during the current frame
-			if (device_state.backup_texture != 0 && !best_snapshot.copied_during_frame)
+			if (device_state.backup_texture != 0 && !best_snapshot.copied_during_frame && (best_desc.usage & resource_usage::copy_source) != 0)
 			{
 				command_list *const cmd_list = queue->get_immediate_command_list();
 
-				if (cmd_list != nullptr && (best_desc.usage & resource_usage::copy_source) != 0)
+				if (cmd_list != nullptr)
 				{
 					const resource_usage resource_state = best_snapshot.current_state != 0 ? best_snapshot.current_state : resource_usage::depth_stencil_write;
 					cmd_list->transition_state(best_match, resource_state, resource_usage::copy_source);

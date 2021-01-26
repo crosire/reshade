@@ -61,7 +61,7 @@ namespace reshade::d3d12
 	};
 
 	static void transition_state(
-		const com_ptr<ID3D12GraphicsCommandList> &list,
+		ID3D12GraphicsCommandList *list,
 		const com_ptr<ID3D12Resource> &res,
 		D3D12_RESOURCE_STATES from, D3D12_RESOURCE_STATES to,
 		UINT subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES)
@@ -76,7 +76,7 @@ namespace reshade::d3d12
 }
 
 reshade::d3d12::runtime_d3d12::runtime_d3d12(device_impl *device, command_queue_impl *queue, IDXGISwapChain3 *swapchain) :
-	_device_impl(device), _device(device->_device), _swapchain(swapchain), _commandqueue_impl(queue), _commandqueue(queue->_queue)
+	_device_impl(device), _device(device->_device), _swapchain(swapchain), _commandqueue_impl(queue), _commandqueue(queue->_queue), _cmd_impl(static_cast<command_list_immediate_impl *>(queue->get_immediate_command_list()))
 {
 	_renderer_id = D3D_FEATURE_LEVEL_12_0;
 
@@ -138,26 +138,6 @@ bool reshade::d3d12::runtime_d3d12::on_init(const DXGI_SWAP_CHAIN_DESC &swap_des
 	_window_height = window_rect.bottom;
 	_color_bit_depth = dxgi_format_color_depth(swap_desc.BufferDesc.Format);
 	_backbuffer_format = swap_desc.BufferDesc.Format;
-
-	// Create multiple command allocators to buffer for multiple frames
-	_cmd_alloc.resize(swap_desc.BufferCount);
-	for (UINT i = 0; i < swap_desc.BufferCount; ++i)
-		if (FAILED(_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&_cmd_alloc[i]))))
-			return false;
-	if (FAILED(_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, _cmd_alloc[0].get(), nullptr, IID_PPV_ARGS(&_cmd_list))))
-		return false;
-	_cmd_list->Close(); // Immediately close since it will be reset on first use
-	_cmd_list->SetName(L"ReShade command list");
-
-	// Create auto-reset event and fences for synchronization
-	_fence_event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-	if (_fence_event == nullptr)
-		return false;
-	_fence.resize(swap_desc.BufferCount);
-	_fence_value.resize(swap_desc.BufferCount);
-	for (UINT i = 0; i < swap_desc.BufferCount; ++i)
-		if (FAILED(_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&_fence[i]))))
-			return false;
 
 	// Allocate descriptor heaps
 	{   D3D12_DESCRIPTOR_HEAP_DESC desc = { D3D12_DESCRIPTOR_HEAP_TYPE_RTV };
@@ -300,19 +280,7 @@ void reshade::d3d12::runtime_d3d12::on_reset()
 	runtime::on_reset();
 
 	// Make sure none of the resources below are currently in use (provided the runtime was initialized previously)
-	if (!_fence.empty() && !_fence_value.empty())
-		wait_for_command_queue();
-
-	_cmd_list.reset();
-	_cmd_alloc.clear();
-
-	if (_fence_event != nullptr)
-	{
-		CloseHandle(_fence_event);
-		_fence_event = nullptr;
-	}
-	_fence.clear();
-	_fence_value.clear();
+	_cmd_impl->flush_and_wait(_commandqueue.get());
 
 	_backbuffers.clear();
 	_backbuffer_rtvs.reset();
@@ -349,35 +317,15 @@ void reshade::d3d12::runtime_d3d12::on_present()
 	if (_swapchain != nullptr)
 		_swap_index = _swapchain->GetCurrentBackBufferIndex();
 
-	// Make sure all commands for this command allocator have finished executing before reseting it
-	if (_fence[_swap_index]->GetCompletedValue() < _fence_value[_swap_index])
-	{
-		if (SUCCEEDED(_fence[_swap_index]->SetEventOnCompletion(_fence_value[_swap_index], _fence_event)))
-			WaitForSingleObject(_fence_event, INFINITE); // Event is automatically reset after this wait is released
-	}
-
-	// Reset command allocator before using it this frame again
-	_cmd_alloc[_swap_index]->Reset();
-
-	if (!begin_command_list())
-		return;
-
-	transition_state(_cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	ID3D12GraphicsCommandList *const cmd_list = _cmd_impl->get();
+	transition_state(cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
 	update_and_render_effects();
 	runtime::on_present();
 
-	// Potentially have to restart command list here because a screenshot was taken
-	if (!begin_command_list())
-		return;
+	transition_state(cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 
-	transition_state(_cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-
-	execute_command_list();
-
-	if (const UINT64 sync_value = _fence_value[_swap_index] + 1;
-		SUCCEEDED(_commandqueue->Signal(_fence[_swap_index].get(), sync_value)))
-		_fence_value[_swap_index] = sync_value;
+	_cmd_impl->flush(_commandqueue.get());
 }
 void reshade::d3d12::runtime_d3d12::on_present(ID3D12Resource *source, HWND hwnd)
 {
@@ -459,11 +407,9 @@ bool reshade::d3d12::runtime_d3d12::capture_screenshot(uint8_t *buffer) const
 	}
 	intermediate->SetName(L"ReShade screenshot texture");
 
-	if (!begin_command_list())
-		return false;
-
 	// Was transitioned to D3D12_RESOURCE_STATE_RENDER_TARGET in 'on_present' already
-	transition_state(_cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COPY_SOURCE, 0);
+	ID3D12GraphicsCommandList *const cmd_list = _cmd_impl->get();
+	transition_state(cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COPY_SOURCE, 0);
 	{
 		D3D12_TEXTURE_COPY_LOCATION src_location = { _backbuffers[_swap_index].get() };
 		src_location.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
@@ -477,13 +423,12 @@ bool reshade::d3d12::runtime_d3d12::capture_screenshot(uint8_t *buffer) const
 		dst_location.PlacedFootprint.Footprint.Format = make_dxgi_format_normal(_backbuffer_format);
 		dst_location.PlacedFootprint.Footprint.RowPitch = download_pitch;
 
-		_cmd_list->CopyTextureRegion(&dst_location, 0, 0, 0, &src_location, nullptr);
+		cmd_list->CopyTextureRegion(&dst_location, 0, 0, 0, &src_location, nullptr);
 	}
-	transition_state(_cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET, 0);
+	transition_state(cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET, 0);
 
 	// Execute and wait for completion
-	if (!wait_for_command_queue())
-		return false;
+	_cmd_impl->flush_and_wait(_commandqueue.get());
 
 	// Copy data from system memory texture into output buffer
 	uint8_t *mapped_data;
@@ -1039,7 +984,7 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 void reshade::d3d12::runtime_d3d12::unload_effect(size_t index)
 {
 	// Make sure no effect resources are currently in use
-	wait_for_command_queue();
+	_cmd_impl->flush_and_wait(_commandqueue.get());
 
 	for (technique &tech : _techniques)
 	{
@@ -1066,7 +1011,7 @@ void reshade::d3d12::runtime_d3d12::unload_effect(size_t index)
 void reshade::d3d12::runtime_d3d12::unload_effects()
 {
 	// Make sure no effect resources are currently in use
-	wait_for_command_queue();
+	_cmd_impl->flush_and_wait(_commandqueue.get());
 
 	for (technique &tech : _techniques)
 	{
@@ -1253,10 +1198,11 @@ void reshade::d3d12::runtime_d3d12::upload_texture(const texture &texture, const
 
 	intermediate->Unmap(0, nullptr);
 
-	if (unsupported_format || !begin_command_list())
+	if (unsupported_format)
 		return;
 
-	transition_state(_cmd_list, impl->resource, D3D12_RESOURCE_STATE_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST, 0);
+	ID3D12GraphicsCommandList *const cmd_list = _cmd_impl->get();
+	transition_state(cmd_list, impl->resource, D3D12_RESOURCE_STATE_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST, 0);
 	{ // Copy data from upload buffer into target texture
 		D3D12_TEXTURE_COPY_LOCATION src_location = { intermediate.get() };
 		src_location.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
@@ -1270,19 +1216,19 @@ void reshade::d3d12::runtime_d3d12::upload_texture(const texture &texture, const
 		dst_location.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
 		dst_location.SubresourceIndex = 0;
 
-		_cmd_list->CopyTextureRegion(&dst_location, 0, 0, 0, &src_location, nullptr);
+		cmd_list->CopyTextureRegion(&dst_location, 0, 0, 0, &src_location, nullptr);
 	}
-	transition_state(_cmd_list, impl->resource, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_SHADER_RESOURCE, 0);
+	transition_state(cmd_list, impl->resource, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_SHADER_RESOURCE, 0);
 
 	generate_mipmaps(impl);
 
 	// Execute and wait for completion
-	wait_for_command_queue();
+	_cmd_impl->flush_and_wait(_commandqueue.get());
 }
 void reshade::d3d12::runtime_d3d12::destroy_texture(texture &texture)
 {
 	// Make sure texture is not still in use before destroying it
-	wait_for_command_queue();
+	_cmd_impl->flush_and_wait(_commandqueue.get());
 
 	delete static_cast<tex_data *>(texture.impl);
 	texture.impl = nullptr;
@@ -1295,33 +1241,34 @@ void reshade::d3d12::runtime_d3d12::generate_mipmaps(const tex_data *impl)
 	if (desc.MipLevels <= 1)
 		return; // No need to generate mipmaps when texture does not have any
 
-	_cmd_list->SetComputeRootSignature(_mipmap_signature.get());
-	_cmd_list->SetPipelineState(_mipmap_pipeline.get());
+	ID3D12GraphicsCommandList *const cmd_list = _cmd_impl->get();
+	cmd_list->SetComputeRootSignature(_mipmap_signature.get());
+	cmd_list->SetPipelineState(_mipmap_pipeline.get());
 	ID3D12DescriptorHeap *const descriptor_heap = impl->descriptors.get();
-	_cmd_list->SetDescriptorHeaps(1, &descriptor_heap);
+	cmd_list->SetDescriptorHeaps(1, &descriptor_heap);
 
-	transition_state(_cmd_list, impl->resource, D3D12_RESOURCE_STATE_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	transition_state(cmd_list, impl->resource, D3D12_RESOURCE_STATE_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	for (uint32_t level = 1; level < desc.MipLevels; ++level)
 	{
 		const uint32_t width = std::max(1u, static_cast<uint32_t>(desc.Width) >> level);
 		const uint32_t height = std::max(1u, desc.Height >> level);
 
 		static const auto float_as_uint = [](float value) { return *reinterpret_cast<uint32_t *>(&value); };
-		_cmd_list->SetComputeRoot32BitConstant(0, float_as_uint(1.0f / width), 0);
-		_cmd_list->SetComputeRoot32BitConstant(0, float_as_uint(1.0f / height), 1);
+		cmd_list->SetComputeRoot32BitConstant(0, float_as_uint(1.0f / width), 0);
+		cmd_list->SetComputeRoot32BitConstant(0, float_as_uint(1.0f / height), 1);
 		// Bind next higher mipmap level as input
-		_cmd_list->SetComputeRootDescriptorTable(1, { impl->descriptors->GetGPUDescriptorHandleForHeapStart().ptr + _device_impl->srv_handle_size * (level - 1) });
+		cmd_list->SetComputeRootDescriptorTable(1, { impl->descriptors->GetGPUDescriptorHandleForHeapStart().ptr + _device_impl->srv_handle_size * (level - 1) });
 		// There is no UAV for level 0, so substract one
-		_cmd_list->SetComputeRootDescriptorTable(2, { impl->descriptors->GetGPUDescriptorHandleForHeapStart().ptr + _device_impl->srv_handle_size * (desc.MipLevels + level - 1) });
+		cmd_list->SetComputeRootDescriptorTable(2, { impl->descriptors->GetGPUDescriptorHandleForHeapStart().ptr + _device_impl->srv_handle_size * (desc.MipLevels + level - 1) });
 
-		_cmd_list->Dispatch(std::max(1u, (width + 7) / 8), std::max(1u, (height + 7) / 8), 1);
+		cmd_list->Dispatch(std::max(1u, (width + 7) / 8), std::max(1u, (height + 7) / 8), 1);
 
 		// Wait for all accesses to be finished, since the result will be the input for the next mipmap
 		D3D12_RESOURCE_BARRIER barrier = { D3D12_RESOURCE_BARRIER_TYPE_UAV };
 		barrier.UAV.pResource = impl->resource.get();
-		_cmd_list->ResourceBarrier(1, &barrier);
+		cmd_list->ResourceBarrier(1, &barrier);
 	}
-	transition_state(_cmd_list, impl->resource, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_SHADER_RESOURCE);
+	transition_state(cmd_list, impl->resource, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_SHADER_RESOURCE);
 }
 
 void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
@@ -1329,17 +1276,15 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 	const auto impl = static_cast<technique_data *>(technique.impl);
 	effect_data &effect_data = _effect_data[technique.effect_index];
 
-	if (!begin_command_list())
-		return;
+	ID3D12GraphicsCommandList *const cmd_list = _cmd_impl->get();
 
-	command_list_impl cmd_list_impl(_device_impl, _cmd_list.get());
-	RESHADE_ADDON_EVENT(reshade_before_effects, this, &cmd_list_impl);
+	RESHADE_ADDON_EVENT(reshade_before_effects, this, _cmd_impl);
 
 	ID3D12DescriptorHeap *const descriptor_heaps[] = { effect_data.srv_uav_heap.get(), effect_data.sampler_heap.get() };
-	_cmd_list->SetDescriptorHeaps(ARRAYSIZE(descriptor_heaps), descriptor_heaps);
-	_cmd_list->SetGraphicsRootSignature(effect_data.signature.get());
+	cmd_list->SetDescriptorHeaps(ARRAYSIZE(descriptor_heaps), descriptor_heaps);
+	cmd_list->SetGraphicsRootSignature(effect_data.signature.get());
 	if (impl->has_compute_passes)
-		_cmd_list->SetComputeRootSignature(effect_data.signature.get());
+		cmd_list->SetComputeRootSignature(effect_data.signature.get());
 
 	// Setup shader constants
 	if (effect_data.cb != nullptr)
@@ -1351,15 +1296,15 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 			effect_data.cb->Unmap(0, nullptr);
 		}
 
-		_cmd_list->SetGraphicsRootConstantBufferView(0, effect_data.cbv_gpu_address);
+		cmd_list->SetGraphicsRootConstantBufferView(0, effect_data.cbv_gpu_address);
 		if (impl->has_compute_passes)
-			_cmd_list->SetComputeRootConstantBufferView(0, effect_data.cbv_gpu_address);
+			cmd_list->SetComputeRootConstantBufferView(0, effect_data.cbv_gpu_address);
 	}
 
 	// Setup samplers
-	_cmd_list->SetGraphicsRootDescriptorTable(2, effect_data.sampler_gpu_base);
+	cmd_list->SetGraphicsRootDescriptorTable(2, effect_data.sampler_gpu_base);
 	if (impl->has_compute_passes)
-		_cmd_list->SetComputeRootDescriptorTable(2, effect_data.sampler_gpu_base);
+		cmd_list->SetComputeRootDescriptorTable(2, effect_data.sampler_gpu_base);
 
 	bool is_effect_stencil_cleared = false;
 	bool needs_implicit_backbuffer_copy = true; // First pass always needs the back buffer updated
@@ -1370,43 +1315,43 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 		if (needs_implicit_backbuffer_copy)
 		{
 			// Save back buffer of previous pass
-			transition_state(_cmd_list, _backbuffer_texture, D3D12_RESOURCE_STATE_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
-			transition_state(_cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COPY_SOURCE);
-			_cmd_list->CopyResource(_backbuffer_texture.get(), _backbuffers[_swap_index].get());
-			transition_state(_cmd_list, _backbuffer_texture, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_SHADER_RESOURCE);
-			transition_state(_cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+			transition_state(cmd_list, _backbuffer_texture, D3D12_RESOURCE_STATE_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
+			transition_state(cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COPY_SOURCE);
+			cmd_list->CopyResource(_backbuffer_texture.get(), _backbuffers[_swap_index].get());
+			transition_state(cmd_list, _backbuffer_texture, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_SHADER_RESOURCE);
+			transition_state(cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 		}
 
 		if (pass_index > 0)
 		{
 			// Set descriptor heaps again, since they may have been changed by 'generate_mipmaps' of previous pass
-			_cmd_list->SetDescriptorHeaps(ARRAYSIZE(descriptor_heaps), descriptor_heaps);
+			cmd_list->SetDescriptorHeaps(ARRAYSIZE(descriptor_heaps), descriptor_heaps);
 		}
 
 		const pass_data &pass_data = impl->passes[pass_index];
 		const reshadefx::pass_info &pass_info = technique.passes[pass_index];
 
-		_cmd_list->SetPipelineState(pass_data.pipeline.get());
+		cmd_list->SetPipelineState(pass_data.pipeline.get());
 
 		if (!pass_info.cs_entry_point.empty())
 		{
 			// Compute shaders do not write to the back buffer, so no update necessary
 			needs_implicit_backbuffer_copy = false;
 
-			_cmd_list->SetComputeRootDescriptorTable(1, pass_data.srv_handle);
-			_cmd_list->SetComputeRootDescriptorTable(3, pass_data.uav_handle);
+			cmd_list->SetComputeRootDescriptorTable(1, pass_data.srv_handle);
+			cmd_list->SetComputeRootDescriptorTable(3, pass_data.uav_handle);
 
-			_cmd_list->Dispatch(pass_info.viewport_width, pass_info.viewport_height, pass_info.viewport_dispatch_z);
+			cmd_list->Dispatch(pass_info.viewport_width, pass_info.viewport_height, pass_info.viewport_dispatch_z);
 		}
 		else
 		{
-			_cmd_list->SetGraphicsRootDescriptorTable(1, pass_data.srv_handle);
+			cmd_list->SetGraphicsRootDescriptorTable(1, pass_data.srv_handle);
 
 			// Transition resource state for render targets
 			for (const tex_data *render_target_texture : pass_data.modified_resources)
-				transition_state(_cmd_list, render_target_texture->resource, D3D12_RESOURCE_STATE_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+				transition_state(cmd_list, render_target_texture->resource, D3D12_RESOURCE_STATE_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
-			_cmd_list->OMSetStencilRef(pass_info.stencil_reference_value);
+			cmd_list->OMSetStencilRef(pass_info.stencil_reference_value);
 
 			// Setup render targets
 			const float clear_color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
@@ -1415,7 +1360,7 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 			{
 				is_effect_stencil_cleared = true;
 
-				_cmd_list->ClearDepthStencilView(effect_stencil, D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+				cmd_list->ClearDepthStencilView(effect_stencil, D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 			}
 
 			if (pass_data.num_render_targets == 0)
@@ -1423,27 +1368,27 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 				needs_implicit_backbuffer_copy = true;
 
 				D3D12_CPU_DESCRIPTOR_HANDLE render_target = { _backbuffer_rtvs->GetCPUDescriptorHandleForHeapStart().ptr + (_swap_index * 2 + pass_info.srgb_write_enable) * _device_impl->rtv_handle_size };
-				_cmd_list->OMSetRenderTargets(1, &render_target, false, pass_info.stencil_enable ? &effect_stencil : nullptr);
+				cmd_list->OMSetRenderTargets(1, &render_target, false, pass_info.stencil_enable ? &effect_stencil : nullptr);
 
 				if (pass_info.clear_render_targets)
-					_cmd_list->ClearRenderTargetView(render_target, clear_color, 0, nullptr);
+					cmd_list->ClearRenderTargetView(render_target, clear_color, 0, nullptr);
 			}
 			else
 			{
 				needs_implicit_backbuffer_copy = false;
 
-				_cmd_list->OMSetRenderTargets(pass_data.num_render_targets, &pass_data.render_targets, true,
+				cmd_list->OMSetRenderTargets(pass_data.num_render_targets, &pass_data.render_targets, true,
 					pass_info.stencil_enable && pass_info.viewport_width == _width && pass_info.viewport_height == _height ? &effect_stencil : nullptr);
 
 				if (pass_info.clear_render_targets)
 					for (UINT k = 0; k < pass_data.num_render_targets; ++k)
-						_cmd_list->ClearRenderTargetView({ pass_data.render_targets.ptr + k * _device_impl->rtv_handle_size }, clear_color, 0, nullptr);
+						cmd_list->ClearRenderTargetView({ pass_data.render_targets.ptr + k * _device_impl->rtv_handle_size }, clear_color, 0, nullptr);
 			}
 
 			const D3D12_RECT scissor_rect = { 0, 0, static_cast<LONG>(pass_info.viewport_width), static_cast<LONG>(pass_info.viewport_height) };
 			const D3D12_VIEWPORT viewport = { 0.0f, 0.0f, static_cast<FLOAT>(pass_info.viewport_width), static_cast<FLOAT>(pass_info.viewport_height), 0.0f, 1.0f };
-			_cmd_list->RSSetViewports(1, &viewport);
-			_cmd_list->RSSetScissorRects(1, &scissor_rect);
+			cmd_list->RSSetViewports(1, &viewport);
+			cmd_list->RSSetScissorRects(1, &scissor_rect);
 
 			// Draw primitives
 			D3D_PRIMITIVE_TOPOLOGY topology;
@@ -1466,12 +1411,12 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 				topology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
 				break;
 			}
-			_cmd_list->IASetPrimitiveTopology(topology);
-			_cmd_list->DrawInstanced(pass_info.num_vertices, 1, 0, 0);
+			cmd_list->IASetPrimitiveTopology(topology);
+			cmd_list->DrawInstanced(pass_info.num_vertices, 1, 0, 0);
 
 			// Transition resource state back to shader access
 			for (const tex_data *render_target_texture : pass_data.modified_resources)
-				transition_state(_cmd_list, render_target_texture->resource, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_SHADER_RESOURCE);
+				transition_state(cmd_list, render_target_texture->resource, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_SHADER_RESOURCE);
 		}
 
 		// Generate mipmaps for modified resources
@@ -1479,48 +1424,7 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 			generate_mipmaps(modified_texture);
 	}
 
-	RESHADE_ADDON_EVENT(reshade_after_effects, this, &cmd_list_impl);
-}
-
-bool reshade::d3d12::runtime_d3d12::begin_command_list(const com_ptr<ID3D12PipelineState> &state) const
-{
-	if (_cmd_list_is_recording)
-	{
-		if (state != nullptr) // Update pipeline state if requested
-			_cmd_list->SetPipelineState(state.get());
-		return true;
-	}
-
-	// Reset command list using current command allocator and put it into the recording state
-	_cmd_list_is_recording = SUCCEEDED(_cmd_list->Reset(_cmd_alloc[_swap_index].get(), state.get()));
-	return _cmd_list_is_recording;
-}
-void reshade::d3d12::runtime_d3d12::execute_command_list() const
-{
-	assert(_cmd_list_is_recording);
-	_cmd_list_is_recording = false;
-
-	if (FAILED(_cmd_list->Close()))
-		return;
-
-	ID3D12CommandList *const cmd_lists[] = { _cmd_list.get() };
-	_commandqueue->ExecuteCommandLists(ARRAYSIZE(cmd_lists), cmd_lists);
-}
-bool reshade::d3d12::runtime_d3d12::wait_for_command_queue() const
-{
-	// Flush command list, to avoid it still referencing resources that may be destroyed after this call
-	if (_cmd_list_is_recording)
-		execute_command_list();
-
-	// Increment fence value to ensure it has not been signaled before
-	const UINT64 sync_value = _fence_value[_swap_index] + 1;
-	if (FAILED(_commandqueue->Signal(_fence[_swap_index].get(), sync_value)))
-		return false; // Cannot wait on fence if signaling was not successful
-	if (SUCCEEDED(_fence[_swap_index]->SetEventOnCompletion(sync_value, _fence_event)))
-		WaitForSingleObject(_fence_event, INFINITE);
-	// Update CPU side fence value now that it is guaranteed to have come through
-	_fence_value[_swap_index] = sync_value;
-	return true;
+	RESHADE_ADDON_EVENT(reshade_after_effects, this, _cmd_impl);
 }
 
 #if RESHADE_GUI
@@ -1616,7 +1520,7 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 	// Create and grow vertex/index buffers if needed
 	if (_imgui.num_indices[buffer_index] < draw_data->TotalIdxCount)
 	{
-		wait_for_command_queue(); // Be safe and ensure nothing still uses this buffer
+		_cmd_impl->flush_and_wait(_commandqueue.get()); // Be safe and ensure nothing still uses this buffer
 
 		_imgui.indices[buffer_index].reset();
 
@@ -1638,7 +1542,7 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 	}
 	if (_imgui.num_vertices[buffer_index] < draw_data->TotalVtxCount)
 	{
-		wait_for_command_queue();
+		_cmd_impl->flush_and_wait(_commandqueue.get());
 
 		_imgui.vertices[buffer_index].reset();
 
@@ -1684,8 +1588,8 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 		_imgui.vertices[buffer_index]->Unmap(0, nullptr);
 	}
 
-	if (!begin_command_list(_imgui.pipeline))
-		return;
+	ID3D12GraphicsCommandList *const cmd_list = _cmd_impl->get();
+	cmd_list->SetPipelineState(_imgui.pipeline.get());
 
 	// Setup orthographic projection matrix
 	const float ortho_projection[16] = {
@@ -1699,19 +1603,19 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 	// Setup render state and render draw lists
 	const D3D12_INDEX_BUFFER_VIEW index_buffer_view = {
 		_imgui.indices[buffer_index]->GetGPUVirtualAddress(), _imgui.num_indices[buffer_index] * sizeof(ImDrawIdx), sizeof(ImDrawIdx) == 2 ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT };
-	_cmd_list->IASetIndexBuffer(&index_buffer_view);
+	cmd_list->IASetIndexBuffer(&index_buffer_view);
 	const D3D12_VERTEX_BUFFER_VIEW vertex_buffer_view = {
 		_imgui.vertices[buffer_index]->GetGPUVirtualAddress(), _imgui.num_vertices[buffer_index] * sizeof(ImDrawVert),  sizeof(ImDrawVert) };
-	_cmd_list->IASetVertexBuffers(0, 1, &vertex_buffer_view);
-	_cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	_cmd_list->SetGraphicsRootSignature(_imgui.signature.get());
-	_cmd_list->SetGraphicsRoot32BitConstants(0, sizeof(ortho_projection) / 4, ortho_projection, 0);
+	cmd_list->IASetVertexBuffers(0, 1, &vertex_buffer_view);
+	cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	cmd_list->SetGraphicsRootSignature(_imgui.signature.get());
+	cmd_list->SetGraphicsRoot32BitConstants(0, sizeof(ortho_projection) / 4, ortho_projection, 0);
 	const D3D12_VIEWPORT viewport = { 0, 0, draw_data->DisplaySize.x, draw_data->DisplaySize.y, 0.0f, 1.0f };
-	_cmd_list->RSSetViewports(1, &viewport);
+	cmd_list->RSSetViewports(1, &viewport);
 	const FLOAT blend_factor[4] = { 0.f, 0.f, 0.f, 0.f };
-	_cmd_list->OMSetBlendFactor(blend_factor);
+	cmd_list->OMSetBlendFactor(blend_factor);
 	D3D12_CPU_DESCRIPTOR_HANDLE render_target = { _backbuffer_rtvs->GetCPUDescriptorHandleForHeapStart().ptr + _swap_index * 2 * _device_impl->rtv_handle_size };
-	_cmd_list->OMSetRenderTargets(1, &render_target, false, nullptr);
+	cmd_list->OMSetRenderTargets(1, &render_target, false, nullptr);
 
 	UINT vtx_offset = 0, idx_offset = 0;
 	for (int n = 0; n < draw_data->CmdListsCount; ++n)
@@ -1729,16 +1633,16 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 				static_cast<LONG>(cmd.ClipRect.z - draw_data->DisplayPos.x),
 				static_cast<LONG>(cmd.ClipRect.w - draw_data->DisplayPos.y)
 			};
-			_cmd_list->RSSetScissorRects(1, &scissor_rect);
+			cmd_list->RSSetScissorRects(1, &scissor_rect);
 
 			// First descriptor in resource-specific descriptor heap is SRV to top-most mipmap level
 			// Can assume that the resource state is D3D12_RESOURCE_STATE_SHADER_RESOURCE at this point
 			ID3D12DescriptorHeap *const descriptor_heap = { static_cast<tex_data *>(cmd.TextureId)->descriptors.get() };
 			assert(descriptor_heap != nullptr);
-			_cmd_list->SetDescriptorHeaps(1, &descriptor_heap);
-			_cmd_list->SetGraphicsRootDescriptorTable(1, descriptor_heap->GetGPUDescriptorHandleForHeapStart());
+			cmd_list->SetDescriptorHeaps(1, &descriptor_heap);
+			cmd_list->SetGraphicsRootDescriptorTable(1, descriptor_heap->GetGPUDescriptorHandleForHeapStart());
 
-			_cmd_list->DrawIndexedInstanced(cmd.ElemCount, 1, cmd.IdxOffset + idx_offset, cmd.VtxOffset + vtx_offset, 0);
+			cmd_list->DrawIndexedInstanced(cmd.ElemCount, 1, cmd.IdxOffset + idx_offset, cmd.VtxOffset + vtx_offset, 0);
 
 		}
 
@@ -1754,7 +1658,7 @@ void reshade::d3d12::runtime_d3d12::update_texture_bindings(const char *semantic
 	const auto resource = srv.handle != 0 ? reinterpret_cast<ID3D12Resource *>(srv.handle ^ 1) : nullptr;
 
 	// Descriptors may be currently in use, so make sure all previous frames have finished before updating them
-	wait_for_command_queue();
+	_cmd_impl->flush_and_wait(_commandqueue.get());
 
 	// This potentially destroys the previous resource, so it must not be in use on the GPU at this point anymore!
 	_texture_semantic_bindings[semantic] = resource;

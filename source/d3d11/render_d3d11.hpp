@@ -52,7 +52,7 @@ namespace reshade::d3d11
 		bool is_resource_valid(api::resource_handle resource) override;
 		bool is_resource_view_valid(api::resource_view_handle view) override;
 
-		bool create_resource(api::resource_type type, const api::resource_desc &desc, api::resource_usage initial_state, api::resource_handle *out_resource) override;
+		bool create_resource(api::resource_type type, const api::resource_desc &desc, api::resource_handle *out_resource) override;
 		bool create_resource_view(api::resource_handle resource, api::resource_view_type type, const api::resource_view_desc &desc, api::resource_view_handle *out_view) override;
 
 		void destroy_resource(api::resource_handle resource) override;
@@ -85,7 +85,6 @@ namespace reshade::d3d11
 		void set_data(const uint8_t guid[16], uint32_t size, const void *data) override;
 
 		api::device *get_device() override { return _device_impl; }
-
 		api::command_list *get_immediate_command_list() override { assert(_device_context->GetType() == D3D11_DEVICE_CONTEXT_IMMEDIATE); return this; }
 
 		void transition_state(api::resource_handle, api::resource_usage, api::resource_usage) override { /* NOP */ }

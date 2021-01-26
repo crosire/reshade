@@ -29,6 +29,7 @@ namespace reshade::d3d12
 	class device_impl : public api::device
 	{
 		friend class runtime_d3d12;
+		friend class command_list_immediate_impl;
 
 	public:
 		explicit device_impl(ID3D12Device *device);
@@ -44,7 +45,7 @@ namespace reshade::d3d12
 		bool is_resource_valid(api::resource_handle resource) override;
 		bool is_resource_view_valid(api::resource_view_handle view) override;
 
-		bool create_resource(api::resource_type type, const api::resource_desc &desc, api::resource_usage initial_state, api::resource_handle *out_resource) override;
+		bool create_resource(api::resource_type type, const api::resource_desc &desc, api::resource_handle *out_resource) override;
 		bool create_resource_view(api::resource_handle resource, api::resource_view_type type, const api::resource_view_desc &desc, api::resource_view_handle *out_view) override;
 
 		void destroy_resource(api::resource_handle resource) override;
@@ -92,9 +93,31 @@ namespace reshade::d3d12
 
 		void copy_resource(api::resource_handle source, api::resource_handle dest) override;
 
-	private:
+	protected:
 		device_impl *const _device_impl;
-		const com_ptr<ID3D12GraphicsCommandList> _cmd_list;
+		com_ptr<ID3D12GraphicsCommandList> _cmd_list;
+		bool _has_commands = false;
+	};
+
+	class command_list_immediate_impl : public command_list_impl
+	{
+		static const UINT NUM_COMMAND_FRAMES = 4;
+
+	public:
+		command_list_immediate_impl(device_impl *device);
+		~command_list_immediate_impl();
+
+		bool flush(ID3D12CommandQueue *queue);
+		bool flush_and_wait(ID3D12CommandQueue *queue);
+
+		ID3D12GraphicsCommandList *get() { _has_commands = true; return _cmd_list.get(); }
+
+	private:
+		UINT _cmd_index = 0;
+		HANDLE _fence_event = nullptr;
+		UINT64 _fence_value[NUM_COMMAND_FRAMES] = {};
+		com_ptr<ID3D12Fence> _fence[NUM_COMMAND_FRAMES];
+		com_ptr<ID3D12CommandAllocator> _cmd_alloc[NUM_COMMAND_FRAMES];
 	};
 
 	class command_queue_impl : public api::command_queue
@@ -109,11 +132,11 @@ namespace reshade::d3d12
 		void set_data(const uint8_t guid[16], uint32_t size, const void *data) override { _queue->SetPrivateData(*reinterpret_cast<const GUID *>(guid), size, data); }
 
 		api::device *get_device() override { return _device_impl; }
-
-		api::command_list *get_immediate_command_list() override { return nullptr; }
+		api::command_list *get_immediate_command_list() override { return _immediate_cmd_list; }
 
 	private:
 		device_impl *const _device_impl;
 		const com_ptr<ID3D12CommandQueue> _queue;
+		command_list_immediate_impl *_immediate_cmd_list = nullptr;
 	};
 }

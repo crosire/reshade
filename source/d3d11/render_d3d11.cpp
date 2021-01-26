@@ -589,7 +589,7 @@ bool reshade::d3d11::device_impl::is_resource_view_valid(resource_view_handle vi
 	return view.handle != 0 && _views.has_object(reinterpret_cast<ID3D11View *>(view.handle));
 }
 
-bool reshade::d3d11::device_impl::create_resource(resource_type type, const resource_desc &desc, resource_usage, resource_handle *out_resource)
+bool reshade::d3d11::device_impl::create_resource(resource_type type, const resource_desc &desc, resource_handle *out_resource)
 {
 	switch (type)
 	{

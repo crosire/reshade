@@ -22,7 +22,7 @@ namespace reshade::d3d12
 		void set_data(const uint8_t guid[16], uint32_t size, const void *data) override { _swapchain->SetPrivateData(*reinterpret_cast<const GUID *>(guid), size, data); }
 
 		api::device *get_device() override { return _device_impl; }
-		api::command_queue *get_command_queue() { return _commandqueue_impl; }
+		api::command_queue *get_command_queue() override { return _commandqueue_impl; }
 
 		bool on_init();
 		bool on_init(const DXGI_SWAP_CHAIN_DESC &desc);
@@ -46,23 +46,14 @@ namespace reshade::d3d12
 
 		void render_technique(technique &technique) override;
 
-		bool begin_command_list(const com_ptr<ID3D12PipelineState> &state = nullptr) const;
-		void execute_command_list() const;
-		bool wait_for_command_queue() const;
-
 		device_impl *const _device_impl;
 		const com_ptr<ID3D12Device> _device;
 		const com_ptr<IDXGISwapChain3> _swapchain;
 		command_queue_impl *const _commandqueue_impl;
 		const com_ptr<ID3D12CommandQueue> _commandqueue;
+		command_list_immediate_impl *const _cmd_impl;
 
 		UINT _swap_index = 0;
-		HANDLE _fence_event = nullptr;
-		mutable std::vector<UINT64> _fence_value;
-		std::vector<com_ptr<ID3D12Fence>> _fence;
-		mutable bool _cmd_list_is_recording = false;
-		com_ptr<ID3D12GraphicsCommandList> _cmd_list;
-		std::vector<com_ptr<ID3D12CommandAllocator>> _cmd_alloc;
 
 		DXGI_FORMAT _backbuffer_format = DXGI_FORMAT_UNKNOWN;
 		std::vector<com_ptr<ID3D12Resource>> _backbuffers;

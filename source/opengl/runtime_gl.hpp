@@ -21,6 +21,7 @@ namespace reshade::opengl
 		void set_data(const uint8_t guid[16], uint32_t size, const void *data) override  { device_impl::set_data(guid, size, data); }
 
 		api::device *get_device() override { return this; }
+		api::command_queue *get_command_queue() override { return this; }
 
 		bool on_init(HWND hwnd, unsigned int width, unsigned int height);
 		void on_reset();

@@ -42,7 +42,7 @@ namespace reshade { namespace api
 	/// </summary>
 	enum class resource_usage : uint32_t
 	{
-		common = 0,
+		undefined = 0,
 		depth_stencil = 0x30,
 		depth_stencil_read = 0x20,
 		depth_stencil_write = 0x10,
@@ -68,8 +68,8 @@ namespace reshade { namespace api
 
 	/// <summary>
 	/// The available resource view types. The type of a resource view is specified during creation and is immutable.
-	/// Some render APIs are more strict here then others, so views created by the game and passed into events may have an unknown view type.
-	/// All resource views created through <see cref="device::create_resource_view"/> should always have a known type specified however (never <see cref="resource_view_type::unknown"/>).
+	/// Some render APIs are more strict here then others, so views created by the application and passed into events may have an unknown view type.
+	/// All resource views created through <see cref="device::create_resource_view"/> should ideally have a known type specified however (not <see cref="resource_view_type::unknown"/>).
 	/// </summary>
 	enum class resource_view_type : uint32_t
 	{
@@ -225,8 +225,9 @@ namespace reshade { namespace api
 
 		/// <summary>
 		/// Allocates and creates a new resource based on the specified <paramref name="desc"/>ription.
+		/// New resources start out in the <see cref="resource_usage::undefined"/> state.
 		/// </summary>
-		virtual bool create_resource(resource_type type, const resource_desc &desc, resource_usage initial_state, resource_handle *out_resource) = 0;
+		virtual bool create_resource(resource_type type, const resource_desc &desc, resource_handle *out_resource) = 0;
 		/// <summary>
 		/// Creates a new resource view for the <paramref name="resource"/> based on the specified <paramref name="desc"/>ription.
 		/// </summary>
@@ -317,7 +318,6 @@ namespace reshade { namespace api
 	public:
 		/// <summary>
 		/// Gets a special command list, on which all issued commands are executed immediately.
-		/// This is only available in D3D9, D3D10, D3D11 and OpenGL. D3D12 and Vulkan will return a <c>nullptr</c>.
 		/// </summary>
 		virtual command_list *get_immediate_command_list() = 0;
 	};
@@ -328,6 +328,11 @@ namespace reshade { namespace api
 	class __declspec(novtable) effect_runtime : public device_object
 	{
 	public:
+		/// <summary>
+		/// Gets the main graphics command queue associated with this effect runtime.
+		/// </summary>
+		virtual command_queue *get_command_queue() = 0;
+
 		/// <summary>
 		/// Gets the current buffer dimensions of the swap chain.
 		/// </summary>

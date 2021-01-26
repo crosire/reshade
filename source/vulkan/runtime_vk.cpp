@@ -136,8 +136,8 @@ namespace reshade::vulkan
 
 #define vk _device_impl->vk
 
-reshade::vulkan::runtime_vk::runtime_vk(device_impl *device) :
-	_device_impl(device), _device(device->_device)
+reshade::vulkan::runtime_vk::runtime_vk(device_impl *device, command_queue_impl *graphics_queue) :
+	_device_impl(device), _device(device->_device), _queue_impl(graphics_queue), _queue(graphics_queue->_queue), _cmd_impl(static_cast<command_list_immediate_impl *>(graphics_queue->get_immediate_command_list()))
 {
 	VkPhysicalDeviceProperties device_props = {};
 	device->_instance_dispatch_table.GetPhysicalDeviceProperties(device->_physical_device, &device_props);
@@ -173,12 +173,6 @@ reshade::vulkan::runtime_vk::runtime_vk(device_impl *device) :
 			break;
 		}
 	}
-
-	// Get the main graphics queue for command submission
-	// There has to be at least one queue, or else this runtime would not have been created with this queue family index
-	// So it should be safe to just get the first one
-	vk.GetDeviceQueue(_device, device->graphics_queue_family_index, 0, &_queue);
-	assert(_queue != VK_NULL_HANDLE);
 }
 reshade::vulkan::runtime_vk::~runtime_vk()
 {
@@ -319,43 +313,11 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 		}
 	}
 
-	// Reset index since a few commands are recorded during initialization below
-	_cmd_index = 0;
-	VkCommandBuffer cmd_buffers[NUM_COMMAND_FRAMES];
-
-	{   VkCommandBufferAllocateInfo alloc_info { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
-		alloc_info.commandPool = _device_impl->_cmd_pool;
-		alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-		alloc_info.commandBufferCount = NUM_COMMAND_FRAMES;
-
-		check_result(vk.AllocateCommandBuffers(_device, &alloc_info, cmd_buffers)) VK_NULL_HANDLE;
-	}
-
-	for (uint32_t i = 0; i < NUM_COMMAND_FRAMES; ++i)
+	for (uint32_t i = 0; i < 4; ++i)
 	{
-		_cmd_buffers[i].first = cmd_buffers[i];
-		_cmd_buffers[i].second = false; // Command buffers are in initial state
-
-		// The validation layers expect the loader to have set the dispatch pointer, but this does not happen when calling down the layer chain from here, so fix it
-		*reinterpret_cast<void **>(cmd_buffers[i]) = *reinterpret_cast<void **>(_device);
-
-		VkFenceCreateInfo create_info { VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
-		create_info.flags = VK_FENCE_CREATE_SIGNALED_BIT; // Create signaled so first status check in 'on_present' succeeds
-
-		check_result(vk.CreateFence(_device, &create_info, nullptr, &_cmd_fences[i])) false;
-
 		VkSemaphoreCreateInfo sem_create_info { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
 
-		for (uint32_t k = 0; k < 2; ++k)
-		{
-			check_result(vk.CreateSemaphore(_device, &sem_create_info, nullptr, &_cmd_semaphores[i + k * NUM_COMMAND_FRAMES])) false;
-		}
-	}
-
-	// Create special fence for synchronous execution (see 'execute_command_buffer'), which is not signaled by default
-	{   VkFenceCreateInfo create_info { VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
-
-		check_result(vk.CreateFence(_device, &create_info, nullptr, &_cmd_fences[NUM_COMMAND_FRAMES])) false;
+		check_result(vk.CreateSemaphore(_device, &sem_create_info, nullptr, &_queue_sync_semaphores[i])) false;
 	}
 
 	// Allocate a single descriptor pool for all effects
@@ -392,12 +354,9 @@ bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwap
 		return false;
 
 	// Transition image layouts to the ones required below
-	if (begin_command_buffer())
-	{
-		transition_layout(vk, _cmd_buffers[_cmd_index].first, _effect_stencil, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, { aspect_flags_from_format(_effect_stencil_format), 0, 1, 0, 1 });
-		transition_layout(vk, _cmd_buffers[_cmd_index].first, _empty_depth_image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-		execute_command_buffer();
-	}
+	const VkCommandBuffer cmd_list = _cmd_impl->get();
+	transition_layout(vk, cmd_list, _effect_stencil, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, { aspect_flags_from_format(_effect_stencil_format), 0, 1, 0, 1 });
+	transition_layout(vk, cmd_list, _empty_depth_image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 #if RESHADE_GUI
 	if (!init_imgui_resources())
@@ -421,18 +380,9 @@ void reshade::vulkan::runtime_vk::on_reset()
 	_swapchain_frames.clear();
 	_swapchain_images.clear();
 
-	for (VkFence &fence : _cmd_fences)
-		vk.DestroyFence(_device, fence, nullptr),
-		fence = VK_NULL_HANDLE;
-	for (VkSemaphore &semaphore : _cmd_semaphores)
+	for (VkSemaphore &semaphore : _queue_sync_semaphores)
 		vk.DestroySemaphore(_device, semaphore, nullptr),
 		semaphore = VK_NULL_HANDLE;
-
-	VkCommandBuffer cmd_buffers[NUM_COMMAND_FRAMES] = {};
-	for (uint32_t i = 0; i < NUM_COMMAND_FRAMES; ++i)
-		std::swap(cmd_buffers[i], _cmd_buffers[i].first);
-	if (_device_impl->_cmd_pool != VK_NULL_HANDLE)
-		vk.FreeCommandBuffers(_device, _device_impl->_cmd_pool, NUM_COMMAND_FRAMES, cmd_buffers);
 
 	vk.DestroyImage(_device, _backbuffer_image, nullptr);
 	_backbuffer_image = VK_NULL_HANDLE;
@@ -497,15 +447,7 @@ void reshade::vulkan::runtime_vk::on_present(VkQueue queue, uint32_t swapchain_i
 	if (!_is_initialized)
 		return;
 
-	_cmd_index = _framecount % NUM_COMMAND_FRAMES;
 	_swap_index = swapchain_image_index;
-
-	// Make sure the command buffer has finished executing before reusing it this frame
-	const VkFence fence = _cmd_fences[_cmd_index];
-	if (vk.GetFenceStatus(_device, fence) == VK_NOT_READY)
-	{
-		vk.WaitForFences(_device, 1, &fence, VK_TRUE, UINT64_MAX);
-	}
 
 	update_and_render_effects();
 	runtime::on_present();
@@ -527,54 +469,24 @@ void reshade::vulkan::runtime_vk::on_present(VkQueue queue, uint32_t swapchain_i
 	}
 #endif
 
-	// Submit all asynchronous commands in one batch to the current queue
-	if (auto &cmd_info = _cmd_buffers[_cmd_index];
-		cmd_info.second)
+	// If the application is presenting with a different queue than rendering, synchronize these two queues first
+	// This ensures that it has finished rendering before ReShade applies its own rendering
+	if (queue != _queue)
 	{
-		check_result(vk.EndCommandBuffer(cmd_info.first));
-
+		// Signal a semaphore from the queue the application is presenting with
 		VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
-		std::vector<VkSemaphore> wait_semaphores(wait.begin(), wait.end());
-		std::vector<VkPipelineStageFlags> wait_stages(wait.size(), VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
-
-		// If the application is presenting with a different queue than rendering, synchronize these two queues first
-		// This ensures that it has finished rendering before ReShade applies its own rendering
-		if (queue != _queue)
-		{
-			// Signal a semaphore from the queue the application is presenting with
-			submit_info.signalSemaphoreCount = 1;
-			submit_info.pSignalSemaphores = &_cmd_semaphores[NUM_COMMAND_FRAMES + _cmd_index];
-
-			vk.QueueSubmit(queue, 1, &submit_info, VK_NULL_HANDLE);
-
-			// Wait on that semaphore in the ReShade submit
-			wait_stages.push_back(VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
-			wait_semaphores.push_back(submit_info.pSignalSemaphores[0]);
-		}
-
-		submit_info.waitSemaphoreCount = static_cast<uint32_t>(wait_semaphores.size());
-		submit_info.pWaitSemaphores = wait_semaphores.data();
-		submit_info.pWaitDstStageMask = wait_stages.data();
-		submit_info.commandBufferCount = 1;
-		submit_info.pCommandBuffers = &cmd_info.first;
 		submit_info.signalSemaphoreCount = 1;
-		submit_info.pSignalSemaphores = &_cmd_semaphores[_cmd_index];
+		submit_info.pSignalSemaphores = &_queue_sync_semaphores[_queue_sync_index];
 
-		// Only reset fence before an actual submit which can signal it again
-		vk.ResetFences(_device, 1, &fence);
+		vk.QueueSubmit(queue, 1, &submit_info, VK_NULL_HANDLE);
 
-		// Always submit to the graphics queue
-		if (vk.QueueSubmit(_queue, 1, &submit_info, fence) == VK_SUCCESS)
-		{
-			// This queue submit now waits on the requested wait semaphores
-			// The next queue submit should therefore wait on the semaphore that was signaled by this submit
-			wait.clear();
-			wait.push_back(_cmd_semaphores[_cmd_index]);
-		}
+		// Wait on that semaphore before the immediate command list flush below
+		wait.push_back(submit_info.pSignalSemaphores[0]);
 
-		// Command buffer is now in invalid state and ready for a reset
-		cmd_info.second = false;
+		_queue_sync_index = (_queue_sync_index + 1) % 4;
 	}
+
+	_cmd_impl->flush(_queue, wait);
 }
 
 bool reshade::vulkan::runtime_vk::capture_screenshot(uint8_t *buffer) const
@@ -602,9 +514,8 @@ bool reshade::vulkan::runtime_vk::capture_screenshot(uint8_t *buffer) const
 
 	// Copy image into download buffer
 	uint8_t *mapped_data = nullptr;
-	if (begin_command_buffer())
 	{
-		const VkCommandBuffer cmd_list = _cmd_buffers[_cmd_index].first;
+		const VkCommandBuffer cmd_list = _cmd_impl->get();
 
 		transition_layout(vk, cmd_list, _swapchain_images[_swap_index], VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 		{
@@ -628,7 +539,7 @@ bool reshade::vulkan::runtime_vk::capture_screenshot(uint8_t *buffer) const
 #endif
 
 		// Execute and wait for completion
-		execute_command_buffer();
+		_cmd_impl->flush_and_wait(_queue);
 
 		// Copy data from intermediate image into output buffer
 		if (vmaMapMemory(_device_impl->_alloc, intermediate_mem, reinterpret_cast<void **>(&mapped_data)) != VK_SUCCESS)
@@ -801,7 +712,7 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 	// Create query pool for time measurements
 	{   VkQueryPoolCreateInfo create_info { VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO };
 		create_info.queryType = VK_QUERY_TYPE_TIMESTAMP;
-		create_info.queryCount = static_cast<uint32_t>(effect.module.techniques.size() * 2 * NUM_COMMAND_FRAMES);
+		create_info.queryCount = static_cast<uint32_t>(effect.module.techniques.size() * 2 * command_list_immediate_impl::NUM_COMMAND_FRAMES);
 
 		check_result(vk.CreateQueryPool(_device, &create_info, nullptr, &effect_data.query_pool)) false;
 	}
@@ -1043,7 +954,7 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 		technique.impl = impl;
 
 		// Offset index so that a query exists for each command frame and two subsequent ones are used for before/after stamps
-		impl->query_base_index = technique_index++ * 2 * NUM_COMMAND_FRAMES;
+		impl->query_base_index = technique_index++ * 2 * command_list_immediate_impl::NUM_COMMAND_FRAMES;
 
 		impl->passes.resize(technique.passes.size());
 		for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index, ++total_pass_index)
@@ -1621,19 +1532,19 @@ bool reshade::vulkan::runtime_vk::init_texture(texture &texture)
 	}
 #endif
 
-	if (begin_command_buffer())
+	const VkCommandBuffer cmd_list = _cmd_impl->get();
 	{
-		transition_layout(vk, _cmd_buffers[_cmd_index].first, impl->image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+		transition_layout(vk, cmd_list, impl->image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
 		// Clear texture to zero since by default its contents are undefined
 		const VkClearColorValue clear_value = {};
 		const VkImageSubresourceRange range = { VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
-		vk.CmdClearColorImage(_cmd_buffers[_cmd_index].first, impl->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear_value, 1, &range);
+		vk.CmdClearColorImage(cmd_list, impl->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear_value, 1, &range);
 
 		// Transition to shader read image layout
-		transition_layout(vk, _cmd_buffers[_cmd_index].first, impl->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		transition_layout(vk, cmd_list, impl->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-		execute_command_buffer();
+		_cmd_impl->flush_and_wait(_queue);
 	}
 
 	return true;
@@ -1687,9 +1598,9 @@ void reshade::vulkan::runtime_vk::upload_texture(const texture &texture, const u
 		vmaUnmapMemory(_device_impl->_alloc, intermediate_mem);
 	}
 
-	if (mapped_data != nullptr && begin_command_buffer())
+	if (mapped_data != nullptr)
 	{
-		const VkCommandBuffer cmd_list = _cmd_buffers[_cmd_index].first;
+		const VkCommandBuffer cmd_list = _cmd_impl->get();
 
 		transition_layout(vk, cmd_list, impl->image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 		{ // Copy data from upload buffer into target texture
@@ -1703,7 +1614,7 @@ void reshade::vulkan::runtime_vk::upload_texture(const texture &texture, const u
 
 		generate_mipmaps(impl);
 
-		execute_command_buffer();
+		_cmd_impl->flush_and_wait(_queue);
 	}
 
 	vmaDestroyBuffer(_device_impl->_alloc, intermediate, intermediate_mem);
@@ -1743,7 +1654,7 @@ void reshade::vulkan::runtime_vk::generate_mipmaps(const tex_data *impl)
 
 	int32_t width = impl->width;
 	int32_t height = impl->height;
-	const VkCommandBuffer cmd_list = _cmd_buffers[_cmd_index].first;
+	const VkCommandBuffer cmd_list = _cmd_impl->get();
 
 	for (uint32_t level = 1; level < impl->levels; ++level, width /= 2, height /= 2)
 	{
@@ -1771,15 +1682,13 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 	// Evaluate queries from oldest frame in queue
 	if (uint64_t timestamps[2];
 		vk.GetQueryPoolResults(_device, effect_data.query_pool,
-			impl->query_base_index + ((_cmd_index + 1) % NUM_COMMAND_FRAMES) * 2, 2,
+			impl->query_base_index + ((_cmd_impl->current_index() + 1) % command_list_immediate_impl::NUM_COMMAND_FRAMES) * 2, 2,
 		sizeof(timestamps), timestamps, sizeof(uint64_t), VK_QUERY_RESULT_64_BIT) == VK_SUCCESS)
 	{
 		technique.average_gpu_duration.append(timestamps[1] - timestamps[0]);
 	}
 
-	if (!begin_command_buffer())
-		return;
-	const VkCommandBuffer cmd_list = _cmd_buffers[_cmd_index].first;
+	const VkCommandBuffer cmd_list = _cmd_impl->get();
 
 #ifndef NDEBUG
 	const bool insert_debug_markers = vk.CmdDebugMarkerBeginEXT != nullptr && vk.CmdDebugMarkerEndEXT != nullptr;
@@ -1797,11 +1706,10 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 #endif
 
 	// Reset current queries and then write time stamp value
-	vk.CmdResetQueryPool(cmd_list, effect_data.query_pool, impl->query_base_index + _cmd_index * 2, 2);
-	vk.CmdWriteTimestamp(cmd_list, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, effect_data.query_pool, impl->query_base_index + _cmd_index * 2);
+	vk.CmdResetQueryPool(cmd_list, effect_data.query_pool, impl->query_base_index + _cmd_impl->current_index() * 2, 2);
+	vk.CmdWriteTimestamp(cmd_list, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, effect_data.query_pool, impl->query_base_index + _cmd_impl->current_index() * 2);
 
-	command_list_impl cmd_list_impl(_device_impl, cmd_list);
-	RESHADE_ADDON_EVENT(reshade_before_effects, this, &cmd_list_impl);
+	RESHADE_ADDON_EVENT(reshade_before_effects, this, _cmd_impl);
 
 	vk.CmdBindDescriptorSets(cmd_list, VK_PIPELINE_BIND_POINT_GRAPHICS, effect_data.pipeline_layout, 0, 1, &effect_data.ubo_set, 0, nullptr);
 	if (impl->has_compute_passes)
@@ -1907,9 +1815,9 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 #endif
 	}
 
-	RESHADE_ADDON_EVENT(reshade_after_effects, this, &cmd_list_impl);
+	RESHADE_ADDON_EVENT(reshade_after_effects, this, _cmd_impl);
 
-	vk.CmdWriteTimestamp(cmd_list, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, effect_data.query_pool, impl->query_base_index + _cmd_index * 2 + 1);
+	vk.CmdWriteTimestamp(cmd_list, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, effect_data.query_pool, impl->query_base_index + _cmd_impl->current_index() * 2 + 1);
 
 #ifndef NDEBUG
 	if (insert_debug_markers)
@@ -1917,47 +1825,6 @@ void reshade::vulkan::runtime_vk::render_technique(technique &technique)
 #endif
 }
 
-bool reshade::vulkan::runtime_vk::begin_command_buffer() const
-{
-	assert(_cmd_index < NUM_COMMAND_FRAMES);
-
-	// Check if this command buffer is in initial state or ready for a reset
-	if (auto &cmd_info = _cmd_buffers[_cmd_index];
-		!cmd_info.second)
-	{
-		VkCommandBufferBeginInfo begin_info { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
-		begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-		check_result(vk.BeginCommandBuffer(cmd_info.first, &begin_info)) false;
-
-		cmd_info.second = true; // Command buffer is now in recording state
-	}
-
-	return true;
-}
-void reshade::vulkan::runtime_vk::execute_command_buffer() const
-{
-	auto &cmd_info = _cmd_buffers[_cmd_index];
-	assert(cmd_info.second); // Can only execute command buffers that are recording
-
-	check_result(vk.EndCommandBuffer(cmd_info.first));
-
-	VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
-	submit_info.commandBufferCount = 1;
-	submit_info.pCommandBuffers = &cmd_info.first;
-
-	const VkFence fence = _cmd_fences[NUM_COMMAND_FRAMES]; // Use special fence reserved for synchronous execution
-	if (vk.QueueSubmit(_queue, 1, &submit_info, fence) == VK_SUCCESS)
-	{
-		// Wait for the submitted work to finish and reset fence again for next use
-		vk.WaitForFences(_device, 1, &fence, VK_TRUE, UINT64_MAX); vk.ResetFences(_device, 1, &fence);
-#ifndef NDEBUG
-		_wait_for_idle_happened = true;
-#endif
-	}
-
-	cmd_info.second = false; // Command buffer is now in invalid state and ready for a reset
-}
 void reshade::vulkan::runtime_vk::wait_for_command_buffers()
 {
 	// Wait for all queues to finish to ensure no command buffers are in flight after this call
@@ -1966,11 +1833,9 @@ void reshade::vulkan::runtime_vk::wait_for_command_buffers()
 	_wait_for_idle_happened = true;
 #endif
 
-	if (_cmd_index < NUM_COMMAND_FRAMES &&
-		_cmd_buffers[_cmd_index].second)
-		// Make sure any pending work gets executed here, so it is not enqueued later in 'on_present' (at which point the referenced objects may have been destroyed by the code calling this)
-		// Do this after waiting for idle, since it should run after all work by the application is done and is synchronous anyway
-		execute_command_buffer();
+	// Make sure any pending work gets executed here, so it is not enqueued later in 'on_present' (at which point the referenced objects may have been destroyed by the code calling this)
+	// Do this after waiting for idle, since it should run after all work by the application is done and is synchronous anyway
+	_cmd_impl->flush_and_wait(_queue);
 }
 
 void reshade::vulkan::runtime_vk::set_debug_name(uint64_t object, VkDebugReportObjectTypeEXT type, const char *name) const
@@ -2323,9 +2188,7 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 		vmaUnmapMemory(_device_impl->_alloc, _imgui.vertices_mem[buffer_index]);
 	}
 
-	if (!begin_command_buffer())
-		return;
-	const VkCommandBuffer cmd_list = _cmd_buffers[_cmd_index].first;
+	const VkCommandBuffer cmd_list = _cmd_impl->get();
 
 	{   VkRenderPassBeginInfo begin_info { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
 		begin_info.renderPass = _default_render_pass[0];

@@ -90,10 +90,11 @@ ULONG   STDMETHODCALLTYPE D3D12CommandQueue::Release()
 	if (ref != 0)
 		return _orig->Release(), ref;
 
-	delete _impl;
-
+	// Release before deleting implementation object, since runtime created in D3D12CommandQueueDownlevel may still reference it
 	if (_downlevel != nullptr)
 		_downlevel->Release();
+
+	delete _impl;
 
 	const ULONG ref_orig = _orig->Release();
 	if (ref_orig != 0) // Verify internal reference count

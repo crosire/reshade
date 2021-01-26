@@ -55,7 +55,7 @@ static auto convert_usage_to_image_layout(resource_usage state) -> VkImageLayout
 }
 static auto convert_usage_to_pipeline_stage(resource_usage state) -> VkPipelineStageFlags
 {
-	if (state == resource_usage::common)
+	if (state == resource_usage::undefined)
 		return VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT; // Do not wait on any previous stage
 
 	VkPipelineStageFlags result = 0;
@@ -288,8 +288,8 @@ resource_usage reshade::vulkan::convert_image_layout(VkImageLayout layout)
 	}
 }
 
-reshade::vulkan::device_impl::device_impl(VkDevice device, VkPhysicalDevice physical_device, uint32_t graphics_queue_family_index, const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table) :
-	vk(device_table), graphics_queue_family_index(graphics_queue_family_index), _device(device), _physical_device(physical_device), _instance_dispatch_table(instance_table)
+reshade::vulkan::device_impl::device_impl(VkDevice device, VkPhysicalDevice physical_device, const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table) :
+	vk(device_table), _device(device), _physical_device(physical_device), _instance_dispatch_table(instance_table)
 {
 	{	VmaVulkanFunctions functions;
 		functions.vkGetPhysicalDeviceProperties = instance_table.GetPhysicalDeviceProperties;
@@ -327,15 +327,6 @@ reshade::vulkan::device_impl::device_impl(VkDevice device, VkPhysicalDevice phys
 		vmaCreateAllocator(&create_info, &_alloc);
 	}
 
-	if (graphics_queue_family_index != std::numeric_limits<uint32_t>::max())
-	{
-		VkCommandPoolCreateInfo create_info { VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
-		create_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-		create_info.queueFamilyIndex = graphics_queue_family_index;
-
-		vk.CreateCommandPool(_device, &create_info, nullptr, &_cmd_pool);
-	}
-
 #if RESHADE_ADDON
 	// Load and initialize add-ons
 	reshade::addon::load_addons();
@@ -350,8 +341,6 @@ reshade::vulkan::device_impl::~device_impl()
 #if RESHADE_ADDON
 	reshade::addon::unload_addons();
 #endif
-
-	vk.DestroyCommandPool(_device, _cmd_pool, nullptr);
 
 	vmaDestroyAllocator(_alloc);
 }
@@ -376,10 +365,8 @@ bool reshade::vulkan::device_impl::is_resource_view_valid(resource_view_handle v
 	return _views.at(image_view).view == image_view;
 }
 
-bool reshade::vulkan::device_impl::create_resource(resource_type type, const resource_desc &desc, resource_usage initial_state, resource_handle *out_resource)
+bool reshade::vulkan::device_impl::create_resource(resource_type type, const resource_desc &desc, resource_handle *out_resource)
 {
-	assert((desc.usage & initial_state) == initial_state);
-
 	VmaAllocation allocation = VK_NULL_HANDLE;
 	VmaAllocationCreateInfo alloc_info = {};
 	alloc_info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
@@ -392,37 +379,6 @@ bool reshade::vulkan::device_impl::create_resource(resource_type type, const res
 		if (VkImage image = VK_NULL_HANDLE;
 			vmaCreateImage(_alloc, &create_info, &alloc_info, &image, &allocation, nullptr) == VK_SUCCESS)
 		{
-			if (initial_state != resource_usage::common && graphics_queue_family_index != std::numeric_limits<uint32_t>::max())
-			{
-				VkCommandBufferAllocateInfo cmd_alloc_info { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
-				cmd_alloc_info.commandBufferCount = 1;
-				cmd_alloc_info.commandPool = _cmd_pool;
-
-				VkCommandBuffer cmd_list = VK_NULL_HANDLE;
-				vk.AllocateCommandBuffers(_device, &cmd_alloc_info, &cmd_list);
-
-				VkImageMemoryBarrier transition { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
-				transition.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-				transition.newLayout = convert_usage_to_image_layout(initial_state);
-				transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-				transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-				transition.image = image;
-				transition.subresourceRange = { aspect_flags_from_format(create_info.format), 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
-
-				vk.CmdPipelineBarrier(cmd_list, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
-
-				VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
-				submit_info.commandBufferCount = 1;
-				submit_info.pCommandBuffers = &cmd_list;
-
-				VkQueue queue = VK_NULL_HANDLE;
-				vk.GetDeviceQueue(_device, graphics_queue_family_index, 0, &queue);
-				vk.QueueSubmit(queue, 1, &submit_info, VK_NULL_HANDLE);
-				vk.QueueWaitIdle(queue);
-
-				vk.FreeCommandBuffers(_device, _cmd_pool, 1, &cmd_list);
-			}
-
 			register_resource(image, create_info, allocation);
 			*out_resource = { (uint64_t)image };
 			return true;
@@ -510,17 +466,25 @@ resource_view_handle reshade::vulkan::device_impl::get_default_view(VkImage imag
 }
 
 reshade::vulkan::command_list_impl::command_list_impl(device_impl *device, VkCommandBuffer cmd_list) :
-	_device_impl(device), _cmd_list(cmd_list)
+	_device_impl(device), _cmd_list(cmd_list), _has_commands(cmd_list != VK_NULL_HANDLE)
 {
-	RESHADE_ADDON_EVENT(init_command_list, this);
+	if (_has_commands)
+	{
+		RESHADE_ADDON_EVENT(init_command_list, this);
+	}
 }
 reshade::vulkan::command_list_impl::~command_list_impl()
 {
-	RESHADE_ADDON_EVENT(destroy_command_list, this);
+	if (_has_commands)
+	{
+		RESHADE_ADDON_EVENT(destroy_command_list, this);
+	}
 }
 
 void reshade::vulkan::command_list_impl::transition_state(resource_handle resource, resource_usage old_state, resource_usage new_state)
 {
+	_has_commands = true;
+
 	assert(resource.handle != 0);
 	const resource_data &data = _device_impl->_resources.at((VkImage)resource.handle);
 
@@ -539,6 +503,8 @@ void reshade::vulkan::command_list_impl::transition_state(resource_handle resour
 
 void reshade::vulkan::command_list_impl::clear_depth_stencil_view(resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil)
 {
+	_has_commands = true;
+
 	const resource_view_data &dsv_data = _device_impl->_views.at((VkImageView)dsv.handle);
 
 	const VkClearDepthStencilValue clear_value = { depth, stencil };
@@ -557,6 +523,8 @@ void reshade::vulkan::command_list_impl::clear_depth_stencil_view(resource_view_
 }
 void reshade::vulkan::command_list_impl::clear_render_target_view(resource_view_handle rtv, const float color[4])
 {
+	_has_commands = true;
+
 	const resource_view_data &rtv_data = _device_impl->_views.at((VkImageView)rtv.handle);
 
 	VkClearColorValue clear_value;
@@ -571,6 +539,8 @@ void reshade::vulkan::command_list_impl::clear_render_target_view(resource_view_
 
 void reshade::vulkan::command_list_impl::copy_resource(resource_handle source, resource_handle dest)
 {
+	_has_commands = true;
+
 	assert(source.handle != 0 && dest.handle != 0);
 	const resource_data &dest_data = _device_impl->_resources.at((VkImage)dest.handle);
 	const resource_data &source_data = _device_impl->_resources.at((VkImage)source.handle);
@@ -583,12 +553,151 @@ void reshade::vulkan::command_list_impl::copy_resource(resource_handle source, r
 	_device_impl->vk.CmdCopyImage(_cmd_list, source_data.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dest_data.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 }
 
-reshade::vulkan::command_queue_impl::command_queue_impl(device_impl *device, VkQueue queue) :
+reshade::vulkan::command_list_immediate_impl::command_list_immediate_impl(device_impl *device, uint32_t queue_family_index) :
+	command_list_impl(device, VK_NULL_HANDLE)
+{
+	{	VkCommandPoolCreateInfo create_info { VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
+		create_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+		create_info.queueFamilyIndex = queue_family_index;
+
+		if (_device_impl->vk.CreateCommandPool(*_device_impl, &create_info, nullptr, &_cmd_pool) != VK_SUCCESS)
+			return;
+	}
+
+	{   VkCommandBufferAllocateInfo alloc_info { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
+		alloc_info.commandPool = _cmd_pool;
+		alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+		alloc_info.commandBufferCount = NUM_COMMAND_FRAMES;
+
+		if (_device_impl->vk.AllocateCommandBuffers(*_device_impl, &alloc_info, _cmd_buffers) != VK_SUCCESS)
+			return;
+	}
+
+	for (uint32_t i = 0; i < NUM_COMMAND_FRAMES; ++i)
+	{
+		// The validation layers expect the loader to have set the dispatch pointer, but this does not happen when calling down the layer chain from here, so fix it
+		*reinterpret_cast<void **>(_cmd_buffers[i]) = *reinterpret_cast<void **>(static_cast<VkDevice>(*device));
+
+		VkFenceCreateInfo create_info { VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
+		create_info.flags = VK_FENCE_CREATE_SIGNALED_BIT; // Create signaled so waiting on it when no commands where submitted succeeds
+
+		if (_device_impl->vk.CreateFence(*_device_impl, &create_info, nullptr, &_cmd_fences[i]) != VK_SUCCESS)
+			return;
+
+		VkSemaphoreCreateInfo sem_create_info { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
+
+		if (_device_impl->vk.CreateSemaphore(*_device_impl, &sem_create_info, nullptr, &_cmd_semaphores[i]) != VK_SUCCESS)
+			return;
+	}
+
+	// Command buffer is in an invalid state and ready for a reset
+	VkCommandBufferBeginInfo begin_info { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
+	begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+	if (_device_impl->vk.BeginCommandBuffer(_cmd_buffers[_cmd_index], &begin_info) != VK_SUCCESS)
+		return;
+
+	// Command buffer is now in the recording state
+	_cmd_list = _cmd_buffers[_cmd_index];
+}
+reshade::vulkan::command_list_immediate_impl::~command_list_immediate_impl()
+{
+	for (VkFence fence : _cmd_fences)
+		_device_impl->vk.DestroyFence(*_device_impl, fence, nullptr);
+	for (VkSemaphore semaphore : _cmd_semaphores)
+		_device_impl->vk.DestroySemaphore(*_device_impl, semaphore, nullptr);
+
+	_device_impl->vk.FreeCommandBuffers(*_device_impl, _cmd_pool, NUM_COMMAND_FRAMES, _cmd_buffers);
+	_device_impl->vk.DestroyCommandPool(*_device_impl, _cmd_pool, nullptr);
+
+	// Signal to 'command_list_impl' destructor that this is an immediate command list
+	_has_commands = false;
+}
+
+bool reshade::vulkan::command_list_immediate_impl::flush(VkQueue queue, std::vector<VkSemaphore> &wait_semaphores)
+{
+	if (!_has_commands)
+		return true;
+
+	// Submit all asynchronous commands in one batch to the current queue
+	if (_device_impl->vk.EndCommandBuffer(_cmd_buffers[_cmd_index]) != VK_SUCCESS)
+		return false;
+
+	VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
+	submit_info.commandBufferCount = 1;
+	submit_info.pCommandBuffers = &_cmd_buffers[_cmd_index];
+
+	std::vector<VkPipelineStageFlags> wait_stages(wait_semaphores.size(), VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
+	if (!wait_semaphores.empty())
+	{
+		submit_info.waitSemaphoreCount = static_cast<uint32_t>(wait_semaphores.size());
+		submit_info.pWaitSemaphores = wait_semaphores.data();
+		submit_info.pWaitDstStageMask = wait_stages.data();
+		submit_info.signalSemaphoreCount = 1;
+		submit_info.pSignalSemaphores = &_cmd_semaphores[_cmd_index];
+	}
+
+	// Only reset fence before an actual submit which can signal it again
+	_device_impl->vk.ResetFences(*_device_impl, 1, &_cmd_fences[_cmd_index]);
+
+	if (_device_impl->vk.QueueSubmit(queue, 1, &submit_info, _cmd_fences[_cmd_index]) != VK_SUCCESS)
+		return false;
+
+	// This queue submit now waits on the requested wait semaphores
+	// The next queue submit should therefore wait on the semaphore that was signaled by this submit
+	if (!wait_semaphores.empty())
+	{
+		wait_semaphores.clear();
+		wait_semaphores.push_back(_cmd_semaphores[_cmd_index]);
+	}
+
+	// Continue with next command buffer now that the current one was submitted
+	_cmd_index = (_cmd_index + 1) % NUM_COMMAND_FRAMES;
+
+	// Make sure the next command buffer has finished executing before reusing it this frame
+	if (_device_impl->vk.GetFenceStatus(*_device_impl, _cmd_fences[_cmd_index]) == VK_NOT_READY)
+	{
+		_device_impl->vk.WaitForFences(*_device_impl, 1, &_cmd_fences[_cmd_index], VK_TRUE, UINT64_MAX);
+	}
+
+	// Command buffer is now ready for a reset
+	VkCommandBufferBeginInfo begin_info { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
+	begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+	if (_device_impl->vk.BeginCommandBuffer(_cmd_buffers[_cmd_index], &begin_info) != VK_SUCCESS)
+		return false;
+
+	// Command buffer is now in the recording state
+	_cmd_list = _cmd_buffers[_cmd_index];
+	return true;
+}
+bool reshade::vulkan::command_list_immediate_impl::flush_and_wait(VkQueue queue)
+{
+	// Index is updated during flush below, so keep track of the current one to wait on
+	const uint32_t cmd_index_to_wait_on = _cmd_index;
+
+	if (std::vector<VkSemaphore> wait_semaphores; // No semaphores to wait on
+		!flush(queue, wait_semaphores))
+		return false;
+
+	// Wait for the submitted work to finish and reset fence again for next use
+	return _device_impl->vk.WaitForFences(*_device_impl, 1, &_cmd_fences[cmd_index_to_wait_on], VK_TRUE, UINT64_MAX) == VK_SUCCESS;
+}
+
+reshade::vulkan::command_queue_impl::command_queue_impl(device_impl *device, uint32_t queue_family_index, const VkQueueFamilyProperties &queue_family, VkQueue queue) :
 	_device_impl(device), _queue(queue)
 {
+	// Only create an immediate command list for graphics queues (since the implemented commands do not work on other queue types)
+	if ((queue_family.queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0)
+	{
+		_immediate_cmd_list = new command_list_immediate_impl(device, queue_family_index);
+	}
+
 	RESHADE_ADDON_EVENT(init_command_queue, this);
 }
 reshade::vulkan::command_queue_impl::~command_queue_impl()
 {
 	RESHADE_ADDON_EVENT(destroy_command_queue, this);
+
+	delete _immediate_cmd_list;
 }

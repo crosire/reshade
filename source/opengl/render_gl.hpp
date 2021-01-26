@@ -33,7 +33,7 @@ namespace reshade::opengl
 		bool is_resource_valid(api::resource_handle resource) override;
 		bool is_resource_view_valid(api::resource_view_handle view) override;
 
-		bool create_resource(api::resource_type type, const api::resource_desc &desc, api::resource_usage initial_state, api::resource_handle *out_resource) override;
+		bool create_resource(api::resource_type type, const api::resource_desc &desc, api::resource_handle *out_resource) override;
 		bool create_resource_view(api::resource_handle resource, api::resource_view_type type, const api::resource_view_desc &desc, api::resource_view_handle *out_view) override;
 
 		void destroy_resource(api::resource_handle resource) override;
@@ -49,7 +49,6 @@ namespace reshade::opengl
 		api::resource_view_handle get_render_target_from_fbo(GLuint fbo, GLuint drawbuffer);
 
 		api::device *get_device() override { return this; }
-
 		api::command_list *get_immediate_command_list() override { return this; }
 
 		void transition_state(api::resource_handle, api::resource_usage, api::resource_usage) override { /* NOP */ }
