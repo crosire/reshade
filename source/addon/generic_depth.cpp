@@ -5,7 +5,7 @@
 
 #include "dll_log.hpp"
 #include "dll_config.hpp"
-#include "reshade_events.hpp"
+#include "reshade.hpp"
 #include "dxgi/format_utils.hpp"
 #include <vector>
 #include <unordered_map>

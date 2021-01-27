@@ -111,6 +111,13 @@ void reshade::addon::load_addons()
 	}
 }
 
+extern void reshade_addon_depth();
+
+void reshade::addon::load_builtin_addons()
+{
+	reshade_addon_depth();
+}
+
 void reshade::addon::unload_addons()
 {
 	if (--s_reference_count != 0)
@@ -122,6 +129,10 @@ void reshade::addon::unload_addons()
 	}
 
 	loaded_info.clear();
+}
+void reshade::addon::unload_builtin_addons()
+{
+
 }
 #endif
 

@@ -376,6 +376,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="source\addon_manager.cpp" />
+    <ClCompile Include="source\addon\generic_depth.cpp" />
     <ClCompile Include="source\d2d1\d2d1.cpp" />
     <ClCompile Include="source\d3d10\d3d10.cpp" />
     <ClCompile Include="source\d3d10\d3d10_device.cpp" />
@@ -482,6 +483,7 @@
     <ClInclude Include="source\opengl\render_gl.hpp" />
     <ClInclude Include="source\opengl\runtime_gl.hpp" />
     <ClInclude Include="source\opengl\state_block_gl.hpp" />
+    <ClInclude Include="source\reshade.hpp" />
     <ClInclude Include="source\reshade_api.hpp" />
     <ClInclude Include="source\reshade_events.hpp" />
     <ClInclude Include="source\runtime.hpp" />
