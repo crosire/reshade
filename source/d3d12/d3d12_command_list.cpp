@@ -6,6 +6,7 @@
 #include "dll_log.hpp"
 #include "d3d12_device.hpp"
 #include "d3d12_command_list.hpp"
+#include "runtime_d3d12.hpp"
 
 D3D12GraphicsCommandList::D3D12GraphicsCommandList(D3D12Device *device, ID3D12GraphicsCommandList *original) :
 	_orig(original),
@@ -94,8 +95,12 @@ HRESULT STDMETHODCALLTYPE D3D12GraphicsCommandList::GetPrivateData(REFGUID guid,
 {
 	return _orig->GetPrivateData(guid, pDataSize, pData);
 }
+
 HRESULT STDMETHODCALLTYPE D3D12GraphicsCommandList::SetPrivateData(REFGUID guid, UINT DataSize, const void *pData)
 {
+	if (reshade::d3d12::crosstalk::check_call(guid, DataSize, pData))
+		return S_OK;
+
 	return _orig->SetPrivateData(guid, DataSize, pData);
 }
 HRESULT STDMETHODCALLTYPE D3D12GraphicsCommandList::SetPrivateDataInterface(REFGUID guid, const IUnknown *pData)

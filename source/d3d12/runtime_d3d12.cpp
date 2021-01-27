@@ -78,6 +78,75 @@ namespace reshade::d3d12
 	}
 }
 
+//crosstalk feature impl
+namespace reshade::d3d12
+{
+	com_ptr<ID3D12Resource> glob_crosstalk_resarray[crosstalk::ResNames::COUNT] = {};
+	const GUID crosstalk::fake_guid = { 0, 0, 0, { 0, 0, 0, 0, 0, 0, 0, 0 } };
+	const uint64_t crosstalk::magic = 0x505670b7c18ff478;
+
+	bool crosstalk::check_call(REFGUID guid, UINT DataSize, const void* pData)
+	{
+		if (memcmp(&guid, &fake_guid, sizeof(GUID)))
+			return false;
+
+		if (DataSize != sizeof(reshade::d3d12::crosstalk::entry))
+			return false;
+
+		auto entry = (reshade::d3d12::crosstalk::entry*)pData;
+
+		if (entry->magic != magic)
+			return false;
+
+		reshade::d3d12::crosstalk::set_crosstalk_resource((int)entry->ct_idx, entry->res);
+
+		return true;
+	}
+
+	void crosstalk::set_crosstalk_resource(int ct_index, ID3D12Resource* res)
+	{
+		glob_crosstalk_resarray[ct_index] = res;
+	}
+
+	ID3D12Resource* crosstalk::get_crosstalk_resource(crosstalk::ResNames ct_index)
+	{
+		return glob_crosstalk_resarray[ct_index].get();
+	}
+
+	//replace specific resources with game supplied ones
+	void crosstalk::replace_texture(const texture& texture, com_ptr<ID3D12Resource>& resource)
+	{
+		if (texture.semantic == "CROSSTALK_COLOR")
+			resource = crosstalk::get_crosstalk_resource(crosstalk::ResNames::COLOR);
+		else if (texture.semantic == "CROSSTALK_DEPTH")
+			resource = crosstalk::get_crosstalk_resource(crosstalk::ResNames::DEPTH);
+		else if (texture.semantic == "CROSSTALK_ZPREPASS")
+			resource = crosstalk::get_crosstalk_resource(crosstalk::ResNames::ZPREPASS);
+		else if (texture.semantic == "CROSSTALK_GBUF_0")
+			resource = crosstalk::get_crosstalk_resource(crosstalk::ResNames::GBUF_0);
+		else if (texture.semantic == "CROSSTALK_GBUF_1")
+			resource = crosstalk::get_crosstalk_resource(crosstalk::ResNames::GBUF_1);
+		else if (texture.semantic == "CROSSTALK_GBUF_2")
+			resource = crosstalk::get_crosstalk_resource(crosstalk::ResNames::GBUF_2);
+		else if (texture.semantic == "CROSSTALK_GBUF_3")
+			resource = crosstalk::get_crosstalk_resource(crosstalk::ResNames::GBUF_3);
+		else if (texture.semantic == "CROSSTALK_GBUF_4")
+			resource = crosstalk::get_crosstalk_resource(crosstalk::ResNames::GBUF_4);
+		else if (texture.semantic == "CROSSTALK_OVERLAY_0")
+			resource = crosstalk::get_crosstalk_resource(crosstalk::ResNames::OVERLAY_0);
+		else if (texture.semantic == "CROSSTALK_OVERLAY_1")
+			resource = crosstalk::get_crosstalk_resource(crosstalk::ResNames::OVERLAY_1);
+		else if (texture.semantic == "CROSSTALK_OVERLAY_2")
+			resource = crosstalk::get_crosstalk_resource(crosstalk::ResNames::OVERLAY_2);
+		else if (texture.semantic == "CROSSTALK_OVERLAY_3")
+			resource = crosstalk::get_crosstalk_resource(crosstalk::ResNames::OVERLAY_3);
+
+		//write resource to texture impl data as otherwise it will be deleted when original texture is deleted
+		//and this does not correlate with its usage - will crash
+		static_cast<tex_data*>(texture.impl)->resource = resource;
+	}
+}
+
 reshade::d3d12::runtime_d3d12::runtime_d3d12(ID3D12Device *device, ID3D12CommandQueue *queue, IDXGISwapChain3 *swapchain, state_tracking_context *state_tracking) :
 	_state_tracking(*state_tracking), _device(device), _swapchain(swapchain), _commandqueue(queue)
 {
@@ -1025,6 +1094,8 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 					effect_data.depth_texture_bindings.push_back(srv_handle);
 				}
 #endif
+
+				crosstalk::replace_texture(texture, resource);
 
 				if (resource != nullptr)
 				{
