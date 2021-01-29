@@ -51,7 +51,7 @@ namespace reshade::opengl
 		api::device *get_device() override { return this; }
 		api::command_list *get_immediate_command_list() override { return this; }
 
-		void transition_state(api::resource_handle, api::resource_usage, api::resource_usage) override { /* NOP */ }
+		void transition_state(api::resource_handle, api::resource_usage, api::resource_usage) override { /* no-op */ }
 
 		void clear_depth_stencil_view(api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil) override;
 		void clear_render_target_view(api::resource_view_handle rtv, const float color[4]) override;
@@ -60,7 +60,7 @@ namespace reshade::opengl
 
 		bool _compatibility_context = false;
 		std::unordered_set<HDC> _hdcs;
-		GLuint current_vertex_count = 0; // Used to calculate vertex count inside glBegin/glEnd pairs
+		GLuint _current_vertex_count = 0; // Used to calculate vertex count inside glBegin/glEnd pairs
 
 	protected:
 		GLuint _default_fbo_width = 0;

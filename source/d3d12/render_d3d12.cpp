@@ -4,7 +4,6 @@
  */
 
 #include "render_d3d12.hpp"
-#include "hook_manager.hpp"
 
 using namespace reshade::api;
 
@@ -602,7 +601,7 @@ com_ptr<ID3D12RootSignature> reshade::d3d12::device_impl::create_root_signature(
 {
 	com_ptr<ID3DBlob> signature_blob;
 	com_ptr<ID3D12RootSignature> signature;
-	if (SUCCEEDED(hooks::call(D3D12SerializeRootSignature)(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &signature_blob, nullptr)))
+	if (SUCCEEDED(D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &signature_blob, nullptr)))
 		_device->CreateRootSignature(0, signature_blob->GetBufferPointer(), signature_blob->GetBufferSize(), IID_PPV_ARGS(&signature));
 	return signature;
 }

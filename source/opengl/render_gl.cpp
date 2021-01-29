@@ -39,6 +39,36 @@ static inline GLenum get_binding_for_target(GLenum target)
 	}
 }
 
+static inline GLenum convert_to_internal_format(GLenum format)
+{
+	// Convert depth formats to internal texture formats
+	switch (format)
+	{
+	default:
+		return format;
+	case GL_DEPTH_STENCIL:
+		return GL_DEPTH24_STENCIL8;
+	case GL_DEPTH_COMPONENT:
+		return GL_DEPTH_COMPONENT24;
+	}
+}
+
+static inline GLboolean is_depth_format(GLenum format)
+{
+	switch (format)
+	{
+	case GL_DEPTH_COMPONENT16:
+	case GL_DEPTH_COMPONENT24:
+	case GL_DEPTH_COMPONENT32:
+	case GL_DEPTH_COMPONENT32F:
+	case GL_DEPTH24_STENCIL8:
+	case GL_DEPTH32F_STENCIL8:
+		return GL_TRUE;
+	default:
+		return GL_FALSE;
+	}
+}
+
 static GLint get_rbo_param(GLuint id, GLenum param)
 {
 	GLint value = 0;
@@ -112,36 +142,6 @@ static GLint get_fbo_attachment_param(GLuint id, GLenum attachment, GLenum param
 		glBindFramebuffer(GL_FRAMEBUFFER, prev_binding);
 	}
 	return value;
-}
-
-static inline bool is_depth_format(GLenum format)
-{
-	switch (format)
-	{
-	case GL_DEPTH_COMPONENT16:
-	case GL_DEPTH_COMPONENT24:
-	case GL_DEPTH_COMPONENT32:
-	case GL_DEPTH_COMPONENT32F:
-	case GL_DEPTH24_STENCIL8:
-	case GL_DEPTH32F_STENCIL8:
-		return true;
-	default:
-		return false;
-	}
-}
-
-static inline GLenum convert_to_internal_format(GLenum format)
-{
-	// Convert depth formats to internal texture formats
-	switch (format)
-	{
-	default:
-		return format;
-	case GL_DEPTH_STENCIL:
-		return GL_DEPTH24_STENCIL8;
-	case GL_DEPTH_COMPONENT:
-		return GL_DEPTH_COMPONENT24;
-	}
 }
 
 void reshade::opengl::convert_resource_desc(const resource_desc &desc, GLsizei *levels, GLenum *internalformat, GLsizei *width, GLsizei *height, GLsizei *depth)

@@ -91,7 +91,8 @@ reshade::d3d12::runtime_d3d12::runtime_d3d12(device_impl *device, command_queue_
 		{
 			if (DXGI_ADAPTER_DESC desc; SUCCEEDED(dxgi_adapter->GetDesc(&desc)))
 			{
-				_vendor_id = desc.VendorId, _device_id = desc.DeviceId;
+				_vendor_id = desc.VendorId;
+				_device_id = desc.DeviceId;
 
 				LOG(INFO) << "Running on " << desc.Description;
 			}

@@ -85,8 +85,7 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d
 	}
 
 	if (unsigned int force_resolution[2] = {};
-		reshade::global_config().get("APP", "ForceResolution", force_resolution) &&
-		force_resolution[0] != 0 && force_resolution[1] != 0)
+		reshade::global_config().get("APP", "ForceResolution", force_resolution) && force_resolution[0] != 0 && force_resolution[1] != 0)
 	{
 		pp.BackBufferWidth = force_resolution[0];
 		pp.BackBufferHeight = force_resolution[1];
@@ -97,7 +96,7 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d
 		pp.BackBufferFormat = D3DFMT_A2R10G10B10;
 	}
 }
-void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, D3DDISPLAYMODEEX &fullscreen_desc, IDirect3D9Ex *d3d, UINT adapter_index)
+void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, D3DDISPLAYMODEEX &fullscreen_desc, IDirect3D9 *d3d, UINT adapter_index)
 {
 	dump_and_modify_present_parameters(pp, d3d, adapter_index);
 
@@ -152,9 +151,11 @@ static void init_device_proxy(T *&device, D3DDEVTYPE device_type, const D3DPRESE
 	// Overwrite returned device with hooked one
 	device = device_proxy;
 
+#if 1
 	// Upgrade to extended interface if available to prevent compatibility issues with some games
 	com_ptr<IDirect3DDevice9Ex> deviceex;
 	device_proxy->QueryInterface(IID_PPV_ARGS(&deviceex));
+#endif
 
 #if RESHADE_VERBOSE_LOG
 	LOG(INFO) << "Returning IDirect3DDevice9" << (device_proxy->_extended_interface ? "Ex" : "") << " object " << device << '.';
@@ -232,10 +233,10 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 		return D3DERR_NOTAVAILABLE;
 	}
 
-	D3DPRESENT_PARAMETERS pp = *pPresentationParameters;
 	D3DDISPLAYMODEEX fullscreen_mode = { sizeof(fullscreen_mode) };
 	if (pFullscreenDisplayMode != nullptr)
 		fullscreen_mode = *pFullscreenDisplayMode;
+	D3DPRESENT_PARAMETERS pp = *pPresentationParameters;
 	dump_and_modify_present_parameters(pp, fullscreen_mode, pD3D, Adapter);
 
 	const bool use_software_rendering = (BehaviorFlags & D3DCREATE_SOFTWARE_VERTEXPROCESSING) != 0;

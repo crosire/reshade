@@ -40,7 +40,7 @@ HOOK_EXPORT void WINAPI glBegin(GLenum mode)
 	static const auto trampoline = reshade::hooks::call(glBegin);
 	trampoline(mode);
 
-	assert(g_current_runtime == nullptr || g_current_runtime->current_vertex_count == 0);
+	assert(g_current_runtime == nullptr || g_current_runtime->_current_vertex_count == 0);
 }
 
 			void WINAPI glBindFramebuffer(GLenum target, GLuint framebuffer)
@@ -570,8 +570,8 @@ HOOK_EXPORT void WINAPI glEnd()
 
 	if (g_current_runtime)
 	{
-		RESHADE_ADDON_EVENT(draw, g_current_runtime, g_current_runtime->current_vertex_count, 1);
-		g_current_runtime->current_vertex_count = 0;
+		RESHADE_ADDON_EVENT(draw, g_current_runtime, g_current_runtime->_current_vertex_count, 1);
+		g_current_runtime->_current_vertex_count = 0;
 	}
 }
 
@@ -2054,7 +2054,7 @@ HOOK_EXPORT void WINAPI glTranslatef(GLfloat x, GLfloat y, GLfloat z)
 HOOK_EXPORT void WINAPI glVertex2d(GLdouble x, GLdouble y)
 {
 	if (g_current_runtime)
-		g_current_runtime->current_vertex_count += 2;
+		g_current_runtime->_current_vertex_count += 2;
 
 	static const auto trampoline = reshade::hooks::call(glVertex2d);
 	trampoline(x, y);
@@ -2062,7 +2062,7 @@ HOOK_EXPORT void WINAPI glVertex2d(GLdouble x, GLdouble y)
 HOOK_EXPORT void WINAPI glVertex2dv(const GLdouble *v)
 {
 	if (g_current_runtime)
-		g_current_runtime->current_vertex_count += 2;
+		g_current_runtime->_current_vertex_count += 2;
 
 	static const auto trampoline = reshade::hooks::call(glVertex2dv);
 	trampoline(v);
@@ -2070,7 +2070,7 @@ HOOK_EXPORT void WINAPI glVertex2dv(const GLdouble *v)
 HOOK_EXPORT void WINAPI glVertex2f(GLfloat x, GLfloat y)
 {
 	if (g_current_runtime)
-		g_current_runtime->current_vertex_count += 2;
+		g_current_runtime->_current_vertex_count += 2;
 
 	static const auto trampoline = reshade::hooks::call(glVertex2f);
 	trampoline(x, y);
@@ -2078,7 +2078,7 @@ HOOK_EXPORT void WINAPI glVertex2f(GLfloat x, GLfloat y)
 HOOK_EXPORT void WINAPI glVertex2fv(const GLfloat *v)
 {
 	if (g_current_runtime)
-		g_current_runtime->current_vertex_count += 2;
+		g_current_runtime->_current_vertex_count += 2;
 
 	static const auto trampoline = reshade::hooks::call(glVertex2fv);
 	trampoline(v);
@@ -2086,7 +2086,7 @@ HOOK_EXPORT void WINAPI glVertex2fv(const GLfloat *v)
 HOOK_EXPORT void WINAPI glVertex2i(GLint x, GLint y)
 {
 	if (g_current_runtime)
-		g_current_runtime->current_vertex_count += 2;
+		g_current_runtime->_current_vertex_count += 2;
 
 	static const auto trampoline = reshade::hooks::call(glVertex2i);
 	trampoline(x, y);
@@ -2094,7 +2094,7 @@ HOOK_EXPORT void WINAPI glVertex2i(GLint x, GLint y)
 HOOK_EXPORT void WINAPI glVertex2iv(const GLint *v)
 {
 	if (g_current_runtime)
-		g_current_runtime->current_vertex_count += 2;
+		g_current_runtime->_current_vertex_count += 2;
 
 	static const auto trampoline = reshade::hooks::call(glVertex2iv);
 	trampoline(v);
@@ -2102,7 +2102,7 @@ HOOK_EXPORT void WINAPI glVertex2iv(const GLint *v)
 HOOK_EXPORT void WINAPI glVertex2s(GLshort x, GLshort y)
 {
 	if (g_current_runtime)
-		g_current_runtime->current_vertex_count += 2;
+		g_current_runtime->_current_vertex_count += 2;
 
 	static const auto trampoline = reshade::hooks::call(glVertex2s);
 	trampoline(x, y);
@@ -2110,7 +2110,7 @@ HOOK_EXPORT void WINAPI glVertex2s(GLshort x, GLshort y)
 HOOK_EXPORT void WINAPI glVertex2sv(const GLshort *v)
 {
 	if (g_current_runtime)
-		g_current_runtime->current_vertex_count += 2;
+		g_current_runtime->_current_vertex_count += 2;
 
 	static const auto trampoline = reshade::hooks::call(glVertex2sv);
 	trampoline(v);
@@ -2118,7 +2118,7 @@ HOOK_EXPORT void WINAPI glVertex2sv(const GLshort *v)
 HOOK_EXPORT void WINAPI glVertex3d(GLdouble x, GLdouble y, GLdouble z)
 {
 	if (g_current_runtime)
-		g_current_runtime->current_vertex_count += 3;
+		g_current_runtime->_current_vertex_count += 3;
 
 	static const auto trampoline = reshade::hooks::call(glVertex3d);
 	trampoline(x, y, z);
@@ -2126,7 +2126,7 @@ HOOK_EXPORT void WINAPI glVertex3d(GLdouble x, GLdouble y, GLdouble z)
 HOOK_EXPORT void WINAPI glVertex3dv(const GLdouble *v)
 {
 	if (g_current_runtime)
-		g_current_runtime->current_vertex_count += 3;
+		g_current_runtime->_current_vertex_count += 3;
 
 	static const auto trampoline = reshade::hooks::call(glVertex3dv);
 	trampoline(v);
@@ -2134,7 +2134,7 @@ HOOK_EXPORT void WINAPI glVertex3dv(const GLdouble *v)
 HOOK_EXPORT void WINAPI glVertex3f(GLfloat x, GLfloat y, GLfloat z)
 {
 	if (g_current_runtime)
-		g_current_runtime->current_vertex_count += 3;
+		g_current_runtime->_current_vertex_count += 3;
 
 	static const auto trampoline = reshade::hooks::call(glVertex3f);
 	trampoline(x, y, z);
@@ -2142,7 +2142,7 @@ HOOK_EXPORT void WINAPI glVertex3f(GLfloat x, GLfloat y, GLfloat z)
 HOOK_EXPORT void WINAPI glVertex3fv(const GLfloat *v)
 {
 	if (g_current_runtime)
-		g_current_runtime->current_vertex_count += 3;
+		g_current_runtime->_current_vertex_count += 3;
 
 	static const auto trampoline = reshade::hooks::call(glVertex3fv);
 	trampoline(v);
@@ -2150,7 +2150,7 @@ HOOK_EXPORT void WINAPI glVertex3fv(const GLfloat *v)
 HOOK_EXPORT void WINAPI glVertex3i(GLint x, GLint y, GLint z)
 {
 	if (g_current_runtime)
-		g_current_runtime->current_vertex_count += 3;
+		g_current_runtime->_current_vertex_count += 3;
 
 	static const auto trampoline = reshade::hooks::call(glVertex3i);
 	trampoline(x, y, z);
@@ -2158,7 +2158,7 @@ HOOK_EXPORT void WINAPI glVertex3i(GLint x, GLint y, GLint z)
 HOOK_EXPORT void WINAPI glVertex3iv(const GLint *v)
 {
 	if (g_current_runtime)
-		g_current_runtime->current_vertex_count += 3;
+		g_current_runtime->_current_vertex_count += 3;
 
 	static const auto trampoline = reshade::hooks::call(glVertex3iv);
 	trampoline(v);
@@ -2166,7 +2166,7 @@ HOOK_EXPORT void WINAPI glVertex3iv(const GLint *v)
 HOOK_EXPORT void WINAPI glVertex3s(GLshort x, GLshort y, GLshort z)
 {
 	if (g_current_runtime)
-		g_current_runtime->current_vertex_count += 3;
+		g_current_runtime->_current_vertex_count += 3;
 
 	static const auto trampoline = reshade::hooks::call(glVertex3s);
 	trampoline(x, y, z);
@@ -2174,7 +2174,7 @@ HOOK_EXPORT void WINAPI glVertex3s(GLshort x, GLshort y, GLshort z)
 HOOK_EXPORT void WINAPI glVertex3sv(const GLshort *v)
 {
 	if (g_current_runtime)
-		g_current_runtime->current_vertex_count += 3;
+		g_current_runtime->_current_vertex_count += 3;
 
 	static const auto trampoline = reshade::hooks::call(glVertex3sv);
 	trampoline(v);
@@ -2182,7 +2182,7 @@ HOOK_EXPORT void WINAPI glVertex3sv(const GLshort *v)
 HOOK_EXPORT void WINAPI glVertex4d(GLdouble x, GLdouble y, GLdouble z, GLdouble w)
 {
 	if (g_current_runtime)
-		g_current_runtime->current_vertex_count += 4;
+		g_current_runtime->_current_vertex_count += 4;
 
 	static const auto trampoline = reshade::hooks::call(glVertex4d);
 	trampoline(x, y, z, w);
@@ -2190,7 +2190,7 @@ HOOK_EXPORT void WINAPI glVertex4d(GLdouble x, GLdouble y, GLdouble z, GLdouble 
 HOOK_EXPORT void WINAPI glVertex4dv(const GLdouble *v)
 {
 	if (g_current_runtime)
-		g_current_runtime->current_vertex_count += 4;
+		g_current_runtime->_current_vertex_count += 4;
 
 	static const auto trampoline = reshade::hooks::call(glVertex4dv);
 	trampoline(v);
@@ -2198,7 +2198,7 @@ HOOK_EXPORT void WINAPI glVertex4dv(const GLdouble *v)
 HOOK_EXPORT void WINAPI glVertex4f(GLfloat x, GLfloat y, GLfloat z, GLfloat w)
 {
 	if (g_current_runtime)
-		g_current_runtime->current_vertex_count += 4;
+		g_current_runtime->_current_vertex_count += 4;
 
 	static const auto trampoline = reshade::hooks::call(glVertex4f);
 	trampoline(x, y, z, w);
@@ -2206,7 +2206,7 @@ HOOK_EXPORT void WINAPI glVertex4f(GLfloat x, GLfloat y, GLfloat z, GLfloat w)
 HOOK_EXPORT void WINAPI glVertex4fv(const GLfloat *v)
 {
 	if (g_current_runtime)
-		g_current_runtime->current_vertex_count += 4;
+		g_current_runtime->_current_vertex_count += 4;
 
 	static const auto trampoline = reshade::hooks::call(glVertex4fv);
 	trampoline(v);
@@ -2214,7 +2214,7 @@ HOOK_EXPORT void WINAPI glVertex4fv(const GLfloat *v)
 HOOK_EXPORT void WINAPI glVertex4i(GLint x, GLint y, GLint z, GLint w)
 {
 	if (g_current_runtime)
-		g_current_runtime->current_vertex_count += 4;
+		g_current_runtime->_current_vertex_count += 4;
 
 	static const auto trampoline = reshade::hooks::call(glVertex4i);
 	trampoline(x, y, z, w);
@@ -2222,7 +2222,7 @@ HOOK_EXPORT void WINAPI glVertex4i(GLint x, GLint y, GLint z, GLint w)
 HOOK_EXPORT void WINAPI glVertex4iv(const GLint *v)
 {
 	if (g_current_runtime)
-		g_current_runtime->current_vertex_count += 4;
+		g_current_runtime->_current_vertex_count += 4;
 
 	static const auto trampoline = reshade::hooks::call(glVertex4iv);
 	trampoline(v);
@@ -2230,7 +2230,7 @@ HOOK_EXPORT void WINAPI glVertex4iv(const GLint *v)
 HOOK_EXPORT void WINAPI glVertex4s(GLshort x, GLshort y, GLshort z, GLshort w)
 {
 	if (g_current_runtime)
-		g_current_runtime->current_vertex_count += 4;
+		g_current_runtime->_current_vertex_count += 4;
 
 	static const auto trampoline = reshade::hooks::call(glVertex4s);
 	trampoline(x, y, z, w);
@@ -2238,7 +2238,7 @@ HOOK_EXPORT void WINAPI glVertex4s(GLshort x, GLshort y, GLshort z, GLshort w)
 HOOK_EXPORT void WINAPI glVertex4sv(const GLshort *v)
 {
 	if (g_current_runtime)
-		g_current_runtime->current_vertex_count += 4;
+		g_current_runtime->_current_vertex_count += 4;
 
 	static const auto trampoline = reshade::hooks::call(glVertex4sv);
 	trampoline(v);

@@ -9,7 +9,7 @@
 #include "runtime_d3d9.hpp"
 
 extern void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d3d, UINT adapter_index);
-extern void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, D3DDISPLAYMODEEX &fullscreen_desc, IDirect3D9Ex *d3d, UINT adapter_index);
+extern void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, D3DDISPLAYMODEEX &fullscreen_desc, IDirect3D9 *d3d, UINT adapter_index);
 
 #if RESHADE_ADDON
 static inline UINT calc_vertex_from_prim_count(D3DPRIMITIVETYPE type, UINT count)
@@ -240,7 +240,6 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 
 	_implicit_swapchain->_runtime->on_reset();
 	_impl->on_reset();
-
 	_auto_depthstencil.reset();
 
 	const HRESULT hr = _orig->Reset(&pp);
@@ -1046,22 +1045,18 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 
 	com_ptr<IDirect3D9> d3d;
 	_orig->GetDirect3D(&d3d);
-	com_ptr<IDirect3D9Ex> d3dex;
-	d3d->QueryInterface(IID_PPV_ARGS(&d3dex));
 	D3DDEVICE_CREATION_PARAMETERS cp = {};
 	_orig->GetCreationParameters(&cp);
 
-	D3DPRESENT_PARAMETERS pp = *pPresentationParameters;
 	D3DDISPLAYMODEEX fullscreen_mode = { sizeof(fullscreen_mode) };
 	if (pFullscreenDisplayMode != nullptr)
 		fullscreen_mode = *pFullscreenDisplayMode;
-	dump_and_modify_present_parameters(pp, fullscreen_mode, d3dex.get(), cp.AdapterOrdinal);
+	D3DPRESENT_PARAMETERS pp = *pPresentationParameters;
+	dump_and_modify_present_parameters(pp, fullscreen_mode, d3d.get(), cp.AdapterOrdinal);
 	d3d.reset();
-	d3dex.reset();
 
 	_implicit_swapchain->_runtime->on_reset();
 	_impl->on_reset();
-
 	_auto_depthstencil.reset();
 
 	assert(_extended_interface);

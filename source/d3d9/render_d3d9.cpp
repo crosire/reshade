@@ -128,9 +128,6 @@ resource_view_desc reshade::d3d9::convert_resource_view_desc(const D3DSURFACE_DE
 reshade::d3d9::device_impl::device_impl(IDirect3DDevice9 *device) :
 	_device(device), _backup_state(device)
 {
-	com_ptr<IDirect3D9> d3d;
-	_device->GetDirect3D(&d3d);
-
 	D3DCAPS9 caps = {};
 	_device->GetDeviceCaps(&caps);
 	D3DDEVICE_CREATION_PARAMETERS creation_params = {};

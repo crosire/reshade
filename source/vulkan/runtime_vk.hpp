@@ -79,6 +79,7 @@ namespace reshade::vulkan
 		std::vector<VkFramebuffer> _swapchain_frames;
 		VkImage _backbuffer_image = VK_NULL_HANDLE;
 		VkImageView _backbuffer_image_view[2] = {};
+
 		VkImage _empty_depth_image = VK_NULL_HANDLE;
 		VkImageView _empty_depth_image_view = VK_NULL_HANDLE;
 

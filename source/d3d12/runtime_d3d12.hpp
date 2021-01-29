@@ -54,7 +54,6 @@ namespace reshade::d3d12
 		command_list_immediate_impl *const _cmd_impl;
 
 		UINT _swap_index = 0;
-
 		DXGI_FORMAT _backbuffer_format = DXGI_FORMAT_UNKNOWN;
 		std::vector<com_ptr<ID3D12Resource>> _backbuffers;
 		com_ptr<ID3D12Resource> _backbuffer_texture;
