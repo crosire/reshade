@@ -43,7 +43,6 @@ struct depth_stencil_info
 	draw_stats total_stats;
 	draw_stats current_stats; // Stats since last clear operation
 	std::vector<clear_stats> clears;
-	resource_usage current_state = resource_usage::undefined;
 	bool copied_during_frame = false;
 };
 
@@ -92,10 +91,6 @@ struct state_tracking
 			target_snapshot.current_stats.drawcalls += snapshot.current_stats.drawcalls;
 
 			target_snapshot.clears.insert(target_snapshot.clears.end(), snapshot.clears.begin(), snapshot.clears.end());
-
-			// Only update state if a transition happened in this command list
-			if (snapshot.current_state != 0)
-				target_snapshot.current_state = snapshot.current_state;
 
 			target_snapshot.copied_during_frame |= snapshot.copied_during_frame;
 		}
@@ -218,10 +213,9 @@ static void clear_depth_impl(command_list *cmd_list, state_tracking &state, cons
 			state.best_copy_stats = counters.current_stats;
 
 		// A resource has to be in this state for a clear operation, so can assume it here
-		const resource_usage resource_state = counters.current_state != 0 ? counters.current_state : resource_usage::depth_stencil_write;
-		cmd_list->transition_state(depth_stencil, resource_state, resource_usage::copy_source);
+		cmd_list->transition_state(depth_stencil, resource_usage::depth_stencil_write, resource_usage::copy_source);
 		cmd_list->copy_resource(depth_stencil, device_state.backup_texture);
-		cmd_list->transition_state(depth_stencil, resource_usage::copy_source, resource_state);
+		cmd_list->transition_state(depth_stencil, resource_usage::copy_source, resource_usage::depth_stencil_write);
 
 		counters.copied_during_frame = true;
 	}
@@ -378,18 +372,6 @@ static void on_alias_resource(command_list *cmd_list, resource_handle old_resour
 		cmd_list->get_data<state_tracking>(state_tracking::GUID),
 		device_state,
 		old_resource, true);
-}
-static void on_transition_state(command_list *cmd_list, resource_handle resource, resource_usage old_state, resource_usage new_state)
-{
-	state_tracking &state = cmd_list->get_data<state_tracking>(state_tracking::GUID);
-
-	const resource_desc desc = cmd_list->get_device()->get_resource_desc(resource);
-	if ((desc.usage & resource_usage::depth_stencil) == 0)
-		return;
-
-	resource_usage &current_state = state.counters_per_used_depth_stencil[resource].current_state;
-	assert(current_state == old_state || current_state == resource_usage::undefined);
-	current_state = new_state;
 }
 static void on_set_depth_stencil(command_list *cmd_list, resource_view_handle dsv)
 {
@@ -552,10 +534,9 @@ static void on_present(command_queue *, effect_runtime *runtime)
 			{
 				command_list *const cmd_list = queue->get_immediate_command_list();
 
-				const resource_usage resource_state = best_snapshot.current_state != 0 ? best_snapshot.current_state : resource_usage::depth_stencil_write;
-				cmd_list->transition_state(best_match, resource_state, resource_usage::copy_source);
+				cmd_list->transition_state(best_match, resource_usage::depth_stencil | resource_usage::shader_resource, resource_usage::copy_source);
 				cmd_list->copy_resource(best_match, device_state.backup_texture);
-				cmd_list->transition_state(best_match, resource_usage::copy_source, resource_state);
+				cmd_list->transition_state(best_match, resource_usage::copy_source, resource_usage::depth_stencil | resource_usage::shader_resource);
 			}
 		}
 
@@ -609,7 +590,7 @@ static void on_before_render_effects(effect_runtime *runtime, command_list *cmd_
 		}
 		else
 		{
-			cmd_list->transition_state(resource, resource_usage::depth_stencil_write, resource_usage::shader_resource);
+			cmd_list->transition_state(resource, resource_usage::depth_stencil | resource_usage::shader_resource, resource_usage::shader_resource);
 		}
 	}
 }
@@ -629,7 +610,7 @@ static void on_after_render_effects(effect_runtime *runtime, command_list *cmd_l
 		}
 		else
 		{
-			cmd_list->transition_state(resource, resource_usage::shader_resource, resource_usage::depth_stencil_write);
+			cmd_list->transition_state(resource, resource_usage::shader_resource, resource_usage::depth_stencil | resource_usage::shader_resource);
 		}
 	}
 }
@@ -782,7 +763,6 @@ void reshade_addon_depth()
 	reshade::register_event(reshade::addon_event::draw_indexed, on_draw);
 	reshade::register_event(reshade::addon_event::draw_indirect, on_draw_indirect);
 	reshade::register_event(reshade::addon_event::alias_resource, on_alias_resource);
-	reshade::register_event(reshade::addon_event::transition_state, on_transition_state);
 	reshade::register_event(reshade::addon_event::set_depth_stencil, on_set_depth_stencil);
 	reshade::register_event(reshade::addon_event::clear_depth_stencil, on_clear_depth_stencil);
 

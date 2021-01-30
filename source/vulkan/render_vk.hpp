@@ -36,6 +36,7 @@ namespace reshade::vulkan
 		{
 			uint32_t index;
 			uint32_t clear_flags;
+			VkImageLayout initial_layout;
 		};
 
 		std::vector<subpass> subpasses;

@@ -783,11 +783,11 @@ void reshade::d3d12::command_list_impl::transition_state(resource_handle resourc
 
 	assert(resource.handle != 0);
 
-	// Depth write state is mutually exclusive with other states
+	// Depth write state is mutually exclusive with other states, so remove it when read state is specified too
 	if ((old_layout & resource_usage::depth_stencil) == resource_usage::depth_stencil)
-		old_layout  = resource_usage::depth_stencil_write;
+		old_layout ^= resource_usage::depth_stencil_write;
 	if ((new_layout & resource_usage::depth_stencil) == resource_usage::depth_stencil)
-		new_layout  = resource_usage::depth_stencil_write;
+		new_layout ^= resource_usage::depth_stencil_write;
 
 	D3D12_RESOURCE_BARRIER transition = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
 	transition.Transition.pResource = reinterpret_cast<ID3D12Resource *>(resource.handle);

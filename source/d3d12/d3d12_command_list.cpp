@@ -197,21 +197,12 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::ResourceBarrier(UINT NumBarrier
 #if RESHADE_ADDON
 	for (UINT i = 0; i < NumBarriers; ++i)
 	{
-		switch (pBarriers[i].Type)
+		if (pBarriers[i].Type == D3D12_RESOURCE_BARRIER_TYPE_ALIASING)
 		{
-		case D3D12_RESOURCE_BARRIER_TYPE_ALIASING:
 			RESHADE_ADDON_EVENT(alias_resource,
 				_impl,
 				reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pBarriers[i].Aliasing.pResourceBefore) },
 				reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pBarriers[i].Aliasing.pResourceAfter) });
-			break;
-		case D3D12_RESOURCE_BARRIER_TYPE_TRANSITION:
-			RESHADE_ADDON_EVENT(transition_state,
-				_impl,
-				reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pBarriers[i].Transition.pResource) },
-				static_cast<reshade::api::resource_usage>(pBarriers[i].Transition.StateBefore),
-				static_cast<reshade::api::resource_usage>(pBarriers[i].Transition.StateAfter));
-			break;
 		}
 	}
 #endif

@@ -79,15 +79,13 @@ namespace reshade
 		/// </summary>
 		alias_resource,
 		/// <summary>
-		/// Called before 'ID3D12GraphicsCommandList::ResourceBarrier' or 'vkCmdPipelineBarrier'.
-		/// </summary>
-		transition_state,
-		/// <summary>
 		/// Called before 'IDirect3DDevice9::Clear', 'ID3D10Device::ClearDepthStencilView', 'ID3D11DeviceContext::ClearDepthStencilView', 'ID3D12GraphicsCommandList::ClearDepthStencilView', 'glClear', 'vkCmdBeginRenderPass' or 'vkCmdClearDepthStencilImage'.
+		/// Resource will be in <see cref="resource_usage::depth_stencil_write"/> state.
 		/// </summary>
 		clear_depth_stencil,
 		/// <summary>
 		/// Called before 'IDirect3DDevice9::Clear', 'ID3D10Device::ClearRenderTargetView', 'ID3D11DeviceContext::ClearRenderTargetView', 'ID3D12GraphicsCommandList::ClearRenderTargetView', 'glClear', 'vkCmdBeginRenderPass' or 'vkCmdClearColorImage'.
+		/// Resource will be in <see cref="resource_usage::render_target"/> state.
 		/// </summary>
 		clear_render_target,
 

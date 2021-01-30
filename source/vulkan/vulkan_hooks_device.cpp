@@ -869,7 +869,7 @@ VkResult VKAPI_CALL vkCreateRenderPass(VkDevice device, const VkRenderPassCreate
 			(pCreateInfo->pAttachments[attachment].stencilLoadOp == VK_ATTACHMENT_LOAD_OP_CLEAR ? 0x2 : 0x0);
 
 		if (clear_flags != 0)
-			renderpass_data.cleared_attachments.push_back({ clear_flags, attachment });
+			renderpass_data.cleared_attachments.push_back({ clear_flags, attachment, pCreateInfo->pAttachments[attachment].initialLayout });
 	}
 #endif
 
@@ -925,7 +925,7 @@ VkResult VKAPI_CALL vkCreateRenderPass2(VkDevice device, const VkRenderPassCreat
 			(pCreateInfo->pAttachments[attachment].stencilLoadOp == VK_ATTACHMENT_LOAD_OP_CLEAR ? 0x2 : 0x0);
 
 		if (clear_flags != 0)
-			renderpass_data.cleared_attachments.push_back({ clear_flags, attachment });
+			renderpass_data.cleared_attachments.push_back({ clear_flags, attachment, pCreateInfo->pAttachments[attachment].initialLayout });
 	}
 #endif
 
@@ -1094,8 +1094,24 @@ void     VKAPI_CALL vkCmdClearColorImage(VkCommandBuffer commandBuffer, VkImage 
 	reshade::vulkan::command_list_impl *const cmd_impl = s_vulkan_command_buffers.at(commandBuffer);
 	if (cmd_impl != nullptr)
 	{
+#ifndef NDEBUG
+		VkImageMemoryBarrier transition { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+		transition.oldLayout = imageLayout;
+		transition.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+		transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		transition.image = image;
+		transition.subresourceRange = { VK_IMAGE_ASPECT_DEPTH_BIT, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
+		device_impl->vk.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
+#endif
+
 		const reshade::api::resource_view_handle rtv = device_impl->get_default_view(image);
 		RESHADE_ADDON_EVENT(clear_render_target, cmd_impl, rtv, pColor->float32);
+
+#ifndef NDEBUG
+		std::swap(transition.oldLayout, transition.newLayout);
+		device_impl->vk.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
+#endif
 	}
 #endif
 
@@ -1111,6 +1127,17 @@ void     VKAPI_CALL vkCmdClearDepthStencilImage(VkCommandBuffer commandBuffer, V
 	reshade::vulkan::command_list_impl *const cmd_impl = s_vulkan_command_buffers.at(commandBuffer);
 	if (cmd_impl != nullptr)
 	{
+#ifndef NDEBUG
+		VkImageMemoryBarrier transition { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+		transition.oldLayout = imageLayout;
+		transition.newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+		transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		transition.image = image;
+		transition.subresourceRange = { VK_IMAGE_ASPECT_DEPTH_BIT, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
+		device_impl->vk.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
+#endif
+
 		uint32_t clear_flags = 0;
 		if ((pRanges->aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT) != 0)
 			clear_flags |= 0x1;
@@ -1119,33 +1146,16 @@ void     VKAPI_CALL vkCmdClearDepthStencilImage(VkCommandBuffer commandBuffer, V
 
 		const reshade::api::resource_view_handle dsv = device_impl->get_default_view(image);
 		RESHADE_ADDON_EVENT(clear_depth_stencil, cmd_impl, dsv, clear_flags, pDepthStencil->depth, static_cast<uint8_t>(pDepthStencil->stencil));
+
+#ifndef NDEBUG
+		std::swap(transition.oldLayout, transition.newLayout);
+		device_impl->vk.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
+#endif
 	}
 #endif
 
 	GET_DEVICE_DISPATCH_PTR_FROM(CmdClearDepthStencilImage, device_impl);
 	trampoline(commandBuffer, image, imageLayout, pDepthStencil, rangeCount, pRanges);
-}
-
-void     VKAPI_CALL vkCmdPipelineBarrier(VkCommandBuffer commandBuffer, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask, VkDependencyFlags dependencyFlags, uint32_t memoryBarrierCount, const VkMemoryBarrier *pMemoryBarriers, uint32_t bufferMemoryBarrierCount, const VkBufferMemoryBarrier *pBufferMemoryBarriers, uint32_t imageMemoryBarrierCount, const VkImageMemoryBarrier *pImageMemoryBarriers)
-{
-#if RESHADE_ADDON
-	reshade::vulkan::command_list_impl *const cmd_impl = s_vulkan_command_buffers.at(commandBuffer);
-	if (cmd_impl != nullptr)
-	{
-		for (uint32_t i = 0; i < imageMemoryBarrierCount; ++i)
-		{
-			const VkImageMemoryBarrier &barrier = pImageMemoryBarriers[i];
-
-			if (barrier.oldLayout != barrier.newLayout)
-			{
-				RESHADE_ADDON_EVENT(transition_state, cmd_impl, reshade::api::resource_handle { (uint64_t)barrier.image }, convert_image_layout(barrier.oldLayout), convert_image_layout(barrier.newLayout));
-			}
-		}
-	}
-#endif
-
-	GET_DEVICE_DISPATCH_PTR(CmdPipelineBarrier, commandBuffer);
-	trampoline(commandBuffer, srcStageMask, dstStageMask, dependencyFlags, memoryBarrierCount, pMemoryBarriers, bufferMemoryBarrierCount, pBufferMemoryBarriers, imageMemoryBarrierCount, pImageMemoryBarriers);
 }
 
 void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const VkRenderPassBeginInfo *pRenderPassBegin, VkSubpassContents contents)
@@ -1193,6 +1203,20 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 		assert(renderpass_data.cleared_attachments.size() == pRenderPassBegin->clearValueCount);
 		for (uint32_t i = 0; i < renderpass_data.cleared_attachments.size() && i < pRenderPassBegin->clearValueCount; ++i)
 		{
+#ifndef NDEBUG
+			reshade::api::resource_handle image = { 0 };
+			device_impl->get_resource_from_view(attachments[renderpass_data.cleared_attachments[i].index], &image);
+
+			VkImageMemoryBarrier transition { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+			transition.oldLayout = renderpass_data.cleared_attachments[i].initial_layout;
+			transition.newLayout = renderpass_data.cleared_attachments[i].index != subpass_data.depth_stencil_attachment.attachment ? VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+			transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			transition.image = (VkImage)image.handle;
+			transition.subresourceRange = { VK_IMAGE_ASPECT_DEPTH_BIT, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
+			device_impl->vk.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
+#endif
+
 			const VkClearValue &clear_value = pRenderPassBegin->pClearValues[i];
 
 			if (renderpass_data.cleared_attachments[i].index != subpass_data.depth_stencil_attachment.attachment)
@@ -1207,6 +1231,11 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 				RESHADE_ADDON_EVENT(clear_depth_stencil, cmd_impl, dsv,
 					renderpass_data.cleared_attachments[i].clear_flags, clear_value.depthStencil.depth, static_cast<uint8_t>(clear_value.depthStencil.stencil));
 			}
+
+#ifndef NDEBUG
+			std::swap(transition.oldLayout, transition.newLayout);
+			device_impl->vk.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
+#endif
 		}
 	}
 #endif
@@ -1337,7 +1366,6 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	CHECK_DEVICE_PROC(CmdDrawIndexedIndirect);
 	CHECK_DEVICE_PROC(CmdClearColorImage);
 	CHECK_DEVICE_PROC(CmdClearDepthStencilImage);
-	CHECK_DEVICE_PROC(CmdPipelineBarrier);
 	CHECK_DEVICE_PROC(CmdBeginRenderPass);
 	CHECK_DEVICE_PROC(CmdNextSubpass);
 	CHECK_DEVICE_PROC(CmdEndRenderPass);
