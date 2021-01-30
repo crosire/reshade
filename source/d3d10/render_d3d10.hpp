@@ -72,8 +72,8 @@ namespace reshade::d3d10
 
 		void copy_resource(api::resource_handle source, api::resource_handle dest) override;
 
-		void register_resource(ID3D10Resource *resource) { _resources.register_object(resource); }
-		void register_resource_view(ID3D10View *resource_view) { _views.register_object(resource_view); }
+		inline void register_resource(ID3D10Resource *resource) { _resources.register_object(resource); }
+		inline void register_resource_view(ID3D10View *resource_view) { _views.register_object(resource_view); }
 
 	private:
 		com_ptr<ID3D10Device1> _device;

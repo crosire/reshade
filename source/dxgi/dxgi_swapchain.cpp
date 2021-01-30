@@ -75,7 +75,12 @@ void DXGISwapChain::runtime_reset(UINT width, UINT height)
 {
 	const std::lock_guard<std::mutex> lock(_runtime_mutex);
 
+#if RESHADE_ADDON
 	RESHADE_ADDON_EVENT(resize, _runtime, width, height);
+#else
+	UNREFERENCED_PARAMETER(width);
+	UNREFERENCED_PARAMETER(height);
+#endif
 
 	switch (_direct3d_version)
 	{

@@ -8,11 +8,11 @@
 #include "vulkan_hooks.hpp"
 #include "lockfree_table.hpp"
 
-lockfree_table<void *, VkLayerInstanceDispatchTable, 16> s_instance_dispatch;
-lockfree_table<VkSurfaceKHR, HWND, 16> s_surface_windows;
+lockfree_table<void *, VkLayerInstanceDispatchTable, 16> g_instance_dispatch;
+lockfree_table<VkSurfaceKHR, HWND, 16> g_surface_windows;
 
 #define GET_INSTANCE_DISPATCH_PTR(name, object) \
-	PFN_vk##name trampoline = s_instance_dispatch.at(dispatch_key_from_handle(object)).name; \
+	PFN_vk##name trampoline = g_instance_dispatch.at(dispatch_key_from_handle(object)).name; \
 	assert(trampoline != nullptr)
 
 VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkInstance *pInstance)
@@ -106,7 +106,7 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	// ---- VK_KHR_win32_surface extension commands
 	INIT_INSTANCE_PROC(CreateWin32SurfaceKHR);
 
-	s_instance_dispatch.emplace(dispatch_key_from_handle(instance), dispatch_table);
+	g_instance_dispatch.emplace(dispatch_key_from_handle(instance), dispatch_table);
 
 #if RESHADE_VERBOSE_LOG
 	LOG(INFO) << "Returning Vulkan instance " << instance << '.';
@@ -121,7 +121,7 @@ void     VKAPI_CALL vkDestroyInstance(VkInstance instance, const VkAllocationCal
 	// Get function pointer before removing it next
 	GET_INSTANCE_DISPATCH_PTR(DestroyInstance, instance);
 	// Remove instance dispatch table since this instance is being destroyed
-	s_instance_dispatch.erase(dispatch_key_from_handle(instance));
+	g_instance_dispatch.erase(dispatch_key_from_handle(instance));
 
 	trampoline(instance, pAllocator);
 }
@@ -138,7 +138,7 @@ VkResult VKAPI_CALL vkCreateWin32SurfaceKHR(VkInstance instance, const VkWin32Su
 		return result;
 	}
 
-	s_surface_windows.emplace(*pSurface, pCreateInfo->hwnd);
+	g_surface_windows.emplace(*pSurface, pCreateInfo->hwnd);
 
 	return VK_SUCCESS;
 }
@@ -147,7 +147,7 @@ void     VKAPI_CALL vkDestroySurfaceKHR(VkInstance instance, VkSurfaceKHR surfac
 {
 	LOG(INFO) << "Redirecting " << "vkDestroySurfaceKHR" << '(' << "instance = " << instance << ", surface = " << surface << ", pAllocator = " << pAllocator << ')' << " ...";
 
-	s_surface_windows.erase(surface);
+	g_surface_windows.erase(surface);
 
 	GET_INSTANCE_DISPATCH_PTR(DestroySurfaceKHR, instance);
 	trampoline(instance, surface, pAllocator);

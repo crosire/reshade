@@ -513,7 +513,8 @@ static void on_present(command_queue *, effect_runtime *runtime)
 			{
 				device_state.update_backup_texture(device, best_desc);
 
-				queue->get_immediate_command_list()->transition_state(device_state.backup_texture, resource_usage::undefined, resource_usage::copy_dest);
+				command_list *const cmd_list = queue->get_immediate_command_list();
+				cmd_list->transition_state(device_state.backup_texture, resource_usage::undefined, resource_usage::copy_dest);
 
 				if (device_state.backup_texture != 0)
 				{
@@ -545,13 +546,10 @@ static void on_present(command_queue *, effect_runtime *runtime)
 			{
 				command_list *const cmd_list = queue->get_immediate_command_list();
 
-				if (cmd_list != nullptr)
-				{
-					const resource_usage resource_state = best_snapshot.current_state != 0 ? best_snapshot.current_state : resource_usage::depth_stencil_write;
-					cmd_list->transition_state(best_match, resource_state, resource_usage::copy_source);
-					cmd_list->copy_resource(best_match, device_state.backup_texture);
-					cmd_list->transition_state(best_match, resource_usage::copy_source, resource_state);
-				}
+				const resource_usage resource_state = best_snapshot.current_state != 0 ? best_snapshot.current_state : resource_usage::depth_stencil_write;
+				cmd_list->transition_state(best_match, resource_state, resource_usage::copy_source);
+				cmd_list->copy_resource(best_match, device_state.backup_texture);
+				cmd_list->transition_state(best_match, resource_usage::copy_source, resource_state);
 			}
 		}
 

@@ -69,8 +69,8 @@ namespace reshade::d3d11
 
 		void wait_idle() override { /* no-op */ }
 
-		void register_resource(ID3D11Resource *resource) { _resources.register_object(resource); }
-		void register_resource_view(ID3D11View *resource_view) { _views.register_object(resource_view); }
+		inline void register_resource(ID3D11Resource *resource) { _resources.register_object(resource); }
+		inline void register_resource_view(ID3D11View *resource_view) { _views.register_object(resource_view); }
 
 	private:
 		com_ptr<ID3D11Device> _device;

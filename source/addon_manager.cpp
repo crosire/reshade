@@ -134,7 +134,6 @@ void reshade::addon::unload_builtin_addons()
 {
 
 }
-#endif
 
 extern "C" __declspec(dllexport) void ReShadeRegisterEvent(reshade::addon_event ev, void *callback)
 {
@@ -163,4 +162,6 @@ extern "C" __declspec(dllexport) void ReShadeUnregisterOverlay(const char *title
 	auto &overlay_list = reshade::addon::overlay_list;
 	overlay_list.erase(std::remove_if(overlay_list.begin(), overlay_list.end(), func { title }), overlay_list.end());
 }
+#endif
+
 #endif

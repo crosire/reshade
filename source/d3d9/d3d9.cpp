@@ -126,6 +126,8 @@ static void init_device_proxy(T *&device, D3DDEVTYPE device_type, const D3DPRESE
 		LOG(WARN) << "Skipping device because it uses a video swap chain.";
 		return;
 	}
+#else
+	UNREFERENCED_PARAMETER(pp);
 #endif
 
 	if (device_type == D3DDEVTYPE_NULLREF)
@@ -140,13 +142,6 @@ static void init_device_proxy(T *&device, D3DDEVTYPE device_type, const D3DPRESE
 
 	const auto device_proxy = new Direct3DDevice9(device, use_software_rendering);
 	device_proxy->_implicit_swapchain = new Direct3DSwapChain9(device_proxy, swapchain);
-
-	// Get and set depth-stencil surface so that the depth detection callbacks are called with the auto depth-stencil surface
-	if (pp.EnableAutoDepthStencil)
-	{
-		device->GetDepthStencilSurface(&device_proxy->_auto_depthstencil);
-		device_proxy->SetDepthStencilSurface(device_proxy->_auto_depthstencil.get());
-	}
 
 	// Overwrite returned device with hooked one
 	device = device_proxy;

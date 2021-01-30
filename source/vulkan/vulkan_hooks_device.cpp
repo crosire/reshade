@@ -12,8 +12,8 @@
 static lockfree_table<void *, reshade::vulkan::device_impl *, 16> s_vulkan_devices;
 static lockfree_table<VkQueue, reshade::vulkan::command_queue_impl *, 16> s_vulkan_queues;
 static lockfree_table<VkCommandBuffer, reshade::vulkan::command_list_impl *, 4096> s_vulkan_command_buffers;
-extern lockfree_table<void *, VkLayerInstanceDispatchTable, 16> s_instance_dispatch;
-extern lockfree_table<VkSurfaceKHR, HWND, 16> s_surface_windows;
+extern lockfree_table<void *, VkLayerInstanceDispatchTable, 16> g_instance_dispatch;
+extern lockfree_table<VkSurfaceKHR, HWND, 16> g_surface_windows;
 static lockfree_table<VkSwapchainKHR, reshade::vulkan::runtime_vk *, 16> s_vulkan_runtimes;
 
 #define GET_DEVICE_DISPATCH_PTR(name, object) \
@@ -95,9 +95,9 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	for (uint32_t i = 0; i < pCreateInfo->enabledExtensionCount; ++i)
 		LOG(INFO) << "  " << pCreateInfo->ppEnabledExtensionNames[i];
 
-	auto enum_queue_families = s_instance_dispatch.at(dispatch_key_from_handle(physicalDevice)).GetPhysicalDeviceQueueFamilyProperties;
+	auto enum_queue_families = g_instance_dispatch.at(dispatch_key_from_handle(physicalDevice)).GetPhysicalDeviceQueueFamilyProperties;
 	assert(enum_queue_families != nullptr);
-	auto enum_device_extensions = s_instance_dispatch.at(dispatch_key_from_handle(physicalDevice)).EnumerateDeviceExtensionProperties;
+	auto enum_device_extensions = g_instance_dispatch.at(dispatch_key_from_handle(physicalDevice)).EnumerateDeviceExtensionProperties;
 	assert(enum_device_extensions != nullptr);
 
 	uint32_t num_queue_families = 0;
@@ -338,14 +338,13 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	const auto device_impl = new reshade::vulkan::device_impl(
 		device,
 		physicalDevice,
-		s_instance_dispatch.at(dispatch_key_from_handle(physicalDevice)),
+		g_instance_dispatch.at(dispatch_key_from_handle(physicalDevice)),
 		dispatch_table);
 
 	device_impl->graphics_queue_family_index = graphics_queue_family_index;
 
 	s_vulkan_devices.emplace(dispatch_key_from_handle(device), device_impl);
 
-#if RESHADE_ADDON
 	// Initialize all queues associated with this device
 	for (uint32_t i = 0; i < pCreateInfo->queueCreateInfoCount; ++i)
 	{
@@ -369,7 +368,6 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 				delete queue_impl;
 		}
 	}
-#endif
 
 #if RESHADE_VERBOSE_LOG
 	LOG(INFO) << "Returning Vulkan device " << device << '.';
@@ -386,11 +384,9 @@ void     VKAPI_CALL vkDestroyDevice(VkDevice device, const VkAllocationCallbacks
 	reshade::vulkan::device_impl *const device_impl = s_vulkan_devices.erase(dispatch_key_from_handle(device));
 	assert(device_impl != nullptr);
 
-#if RESHADE_ADDON
 	// Destroy all queues associated with this device
 	for (VkQueue queue : device_impl->queues)
 		delete s_vulkan_queues.erase(queue);
-#endif
 
 	// Get function pointer before data is destroyed next
 	GET_DEVICE_DISPATCH_PTR_FROM(DestroyDevice, device_impl);
@@ -520,7 +516,20 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		device_impl->register_image(swapchain_images[i], image_create_info);
 #endif
 
+	reshade::vulkan::command_queue_impl *queue_impl = nullptr;
 	if (device_impl->graphics_queue_family_index != std::numeric_limits<uint32_t>::max())
+	{
+		// Get the main graphics queue for command submission
+		// There has to be at least one queue, or else this runtime would not have been created with this queue family index
+		// So it should be safe to just get the first one
+		VkQueue graphics_queue = VK_NULL_HANDLE;
+		device_impl->vk.GetDeviceQueue(device, device_impl->graphics_queue_family_index, 0, &graphics_queue);
+		assert(graphics_queue != VK_NULL_HANDLE);
+
+		queue_impl = s_vulkan_queues.at(graphics_queue);
+	}
+
+	if (queue_impl != nullptr)
 	{
 		// Remove old swap chain from the list so that a call to 'vkDestroySwapchainKHR' won't reset the runtime again
 		reshade::vulkan::runtime_vk *runtime = s_vulkan_runtimes.erase(create_info.oldSwapchain);
@@ -535,19 +544,11 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		}
 		else
 		{
-			// Get the main graphics queue for command submission
-			// There has to be at least one queue, or else this runtime would not have been created with this queue family index
-			// So it should be safe to just get the first one
-			VkQueue graphics_queue = VK_NULL_HANDLE;
-			device_impl->vk.GetDeviceQueue(device, device_impl->graphics_queue_family_index, 0, &graphics_queue);
-			assert(graphics_queue != VK_NULL_HANDLE);
-
-			// TODO: What if 's_vulkan_queues.at' returns nullptr?
-			runtime = new reshade::vulkan::runtime_vk(device_impl, s_vulkan_queues.at(graphics_queue));
+			runtime = new reshade::vulkan::runtime_vk(device_impl, queue_impl);
 		}
 
 		// Look up window handle from surface
-		const HWND hwnd = s_surface_windows.at(create_info.surface);
+		const HWND hwnd = g_surface_windows.at(create_info.surface);
 
 		if (!runtime->on_init(*pSwapchain, create_info, hwnd))
 			LOG(ERROR) << "Failed to initialize Vulkan runtime environment on runtime " << runtime << '.';

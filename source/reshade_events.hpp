@@ -37,11 +37,11 @@ namespace reshade
 		destroy_command_queue,
 
 		/// <summary>
-		/// Called before 'IDirect3Device9::Create(...)Texture', 'IDirect3DDevice9::Create(...)Surface(Ex)', 'ID3D10Device::CreateTexture(...)', 'ID3D11Device::CreateTexture(...)', 'ID3D12Device::Create(...)Resource', 'glTex(ture)Storage(...)' or 'vkCreateImage'.
+		/// Called before 'IDirect3Device9::Create(...)Buffer/Texture', 'IDirect3DDevice9::Create(...)Surface(Ex)', 'ID3D10Device::CreateBuffer/Texture(...)', 'ID3D11Device::CreateBuffer/Texture(...)', 'ID3D12Device::Create(...)Resource', 'gl(Named)Buffer/Tex(ture)Storage(...)' or 'vkCreateBuffer/Image'.
 		/// </summary>
 		create_resource,
 		/// <summary>
-		/// Called before 'IDirect3DDevice9::Create(...)Surface(Ex)', 'ID3D10Device::Create(...)View', 'ID3D11Device::Create(...)View', 'ID3D12Device::Create(...)View', 'glTextureView(...)' or 'vkCreateImageView'.
+		/// Called before 'IDirect3DDevice9::Create(...)Surface(Ex)', 'ID3D10Device::Create(...)View', 'ID3D11Device::Create(...)View', 'ID3D12Device::Create(...)View', 'glTex(ture)Buffer', 'glTextureView(...)' or 'vkCreateBuffer/ImageView'.
 		/// </summary>
 		create_resource_view,
 

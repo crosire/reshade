@@ -170,7 +170,11 @@ reshade::d3d9::device_impl::device_impl(IDirect3DDevice9 *device) :
 	reshade::addon::load_addons();
 #endif
 
-	on_after_reset();
+	com_ptr<IDirect3DSwapChain9> swapchain;
+	device->GetSwapChain(0, &swapchain);
+	D3DPRESENT_PARAMETERS pp = {};
+	swapchain->GetPresentParameters(&pp);
+	on_after_reset(pp);
 }
 reshade::d3d9::device_impl::~device_impl()
 {
@@ -190,7 +194,7 @@ void reshade::d3d9::device_impl::on_reset()
 	_app_state.release_state_block();
 	_copy_state.reset();
 }
-void reshade::d3d9::device_impl::on_after_reset()
+void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 {
 	HRESULT hr = _device->BeginStateBlock();
 	if (SUCCEEDED(hr))
@@ -238,6 +242,18 @@ void reshade::d3d9::device_impl::on_after_reset()
 
 	RESHADE_ADDON_EVENT(init_device, this);
 	RESHADE_ADDON_EVENT(init_command_queue, this);
+
+#if RESHADE_ADDON
+	// Communicate default state to add-ons
+	if (pp.EnableAutoDepthStencil)
+	{
+		com_ptr<IDirect3DSurface9> auto_depth_stencil;
+		_device->GetDepthStencilSurface(&auto_depth_stencil);
+
+		const reshade::api::resource_view_handle dsv = get_resource_view_handle(auto_depth_stencil.get());
+		RESHADE_ADDON_EVENT(set_depth_stencil, this, dsv);
+	}
+#endif
 }
 
 bool reshade::d3d9::device_impl::check_format_support(uint32_t format, resource_usage usage)
@@ -275,7 +291,7 @@ bool reshade::d3d9::device_impl::create_resource(resource_type type, const resou
 			if (IDirect3DTexture9 *resource;
 				SUCCEEDED(_device->CreateTexture(desc.width, desc.height, desc.levels, d3d_usage, static_cast<D3DFORMAT>(desc.format), D3DPOOL_DEFAULT, &resource, nullptr)))
 			{
-				_resources.register_object(resource);
+				register_resource(resource);
 				*out_resource = { reinterpret_cast<uintptr_t>(resource) };
 				return true;
 			}
@@ -286,7 +302,7 @@ bool reshade::d3d9::device_impl::create_resource(resource_type type, const resou
 			if (IDirect3DVolumeTexture9 *resource;
 				SUCCEEDED(_device->CreateVolumeTexture(desc.width, desc.height, desc.depth_or_layers, desc.levels, d3d_usage, static_cast<D3DFORMAT>(desc.format), D3DPOOL_DEFAULT, &resource, nullptr)))
 			{
-				_resources.register_object(resource);
+				register_resource(resource);
 				*out_resource = { reinterpret_cast<uintptr_t>(resource) };
 				return true;
 			}

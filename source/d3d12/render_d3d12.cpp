@@ -741,6 +741,7 @@ void reshade::d3d12::device_impl::register_queue(ID3D12CommandQueue *queue)
 
 	_queues.push_back(queue);
 }
+#if RESHADE_ADDON
 void reshade::d3d12::device_impl::register_resource_view(ID3D12Resource *resource, D3D12_CPU_DESCRIPTOR_HANDLE handle)
 {
 	assert(resource != nullptr);
@@ -749,6 +750,7 @@ void reshade::d3d12::device_impl::register_resource_view(ID3D12Resource *resourc
 
 	_views.emplace(handle.ptr, resource);
 }
+#endif
 
 com_ptr<ID3D12RootSignature> reshade::d3d12::device_impl::create_root_signature(const D3D12_ROOT_SIGNATURE_DESC &desc) const
 {

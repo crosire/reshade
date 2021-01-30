@@ -102,7 +102,6 @@ ULONG   STDMETHODCALLTYPE Direct3DDevice9::Release()
 	_implicit_swapchain->Release();
 
 	delete _impl;
-	_auto_depthstencil.reset();
 
 	const ULONG ref_orig = _orig->Release();
 	if (ref_orig != 0) // Verify internal reference count
@@ -240,7 +239,6 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 
 	_implicit_swapchain->_runtime->on_reset();
 	_impl->on_reset();
-	_auto_depthstencil.reset();
 
 	const HRESULT hr = _orig->Reset(&pp);
 	// Update output values (see https://docs.microsoft.com/windows/win32/api/d3d9/nf-d3d9-idirect3ddevice9-reset)
@@ -255,16 +253,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 		return hr;
 	}
 
-	_impl->on_after_reset();
+	_impl->on_after_reset(pp);
 	if (!_implicit_swapchain->_runtime->on_init())
 		LOG(ERROR) << "Failed to recreate Direct3D 9 runtime environment on runtime " << _implicit_swapchain->_runtime << '!';
-
-	// Reload auto depth-stencil surface
-	if (pp.EnableAutoDepthStencil)
-	{
-		_orig->GetDepthStencilSurface(&_auto_depthstencil);
-		SetDepthStencilSurface(_auto_depthstencil.get());
-	}
 
 	return hr;
 }
@@ -1099,7 +1090,6 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 
 	_implicit_swapchain->_runtime->on_reset();
 	_impl->on_reset();
-	_auto_depthstencil.reset();
 
 	assert(_extended_interface);
 	const HRESULT hr = static_cast<IDirect3DDevice9Ex *>(_orig)->ResetEx(&pp, pp.Windowed ? nullptr : &fullscreen_mode);
@@ -1114,16 +1104,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 		return hr;
 	}
 
-	_impl->on_after_reset();
+	_impl->on_after_reset(pp);
 	if (!_implicit_swapchain->_runtime->on_init())
 		LOG(ERROR) << "Failed to recreate Direct3D 9 runtime environment on runtime " << _implicit_swapchain->_runtime << '!';
-
-	// Reload auto depth-stencil surface
-	if (pp.EnableAutoDepthStencil)
-	{
-		_orig->GetDepthStencilSurface(&_auto_depthstencil);
-		SetDepthStencilSurface(_auto_depthstencil.get());
-	}
 
 	return hr;
 }

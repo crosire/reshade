@@ -44,7 +44,7 @@ namespace reshade::vulkan
 
 	struct resource_data
 	{
-		bool type;
+		bool type; // true => image, false => buffer
 
 		union
 		{
@@ -62,7 +62,7 @@ namespace reshade::vulkan
 
 	struct resource_view_data
 	{
-		bool type;
+		bool type; // true => image view, false => buffer view
 
 		union
 		{
@@ -107,6 +107,9 @@ namespace reshade::vulkan
 
 		void wait_idle() override;
 
+		inline operator VkDevice() const { return _device; }
+
+#if RESHADE_ADDON
 		void register_image(VkImage image, const VkImageCreateInfo &create_info)
 		{
 			resource_data data { true };
@@ -114,6 +117,22 @@ namespace reshade::vulkan
 			data.image_create_info = create_info;
 			_resources.emplace((uint64_t)image, data);
 		}
+		void register_buffer(VkBuffer buffer, const VkBufferCreateInfo &create_info)
+		{
+			resource_data data { false };
+			data.buffer = buffer;
+			data.buffer_create_info = create_info;
+			_resources.emplace((uint64_t)buffer, data);
+		}
+
+		api::resource_view_handle get_default_view(VkImage image)
+		{
+			VkImageViewCreateInfo create_info{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
+			create_info.image = image;
+			register_image_view((VkImageView)image, create_info); // Register fake image view for this image
+			return { (uint64_t)image };
+		}
+#endif
 		void register_image(VkImage image, const VkImageCreateInfo &create_info, VmaAllocation allocation)
 		{
 			resource_data data { true };
@@ -124,21 +143,14 @@ namespace reshade::vulkan
 		}
 		void register_image_view(VkImageView image_view, const VkImageViewCreateInfo &create_info)
 		{
-			resource_view_data data { true };
+			resource_view_data data{ true };
 			data.image_view = image_view;
 			data.image_create_info = create_info;
 			_views.emplace((uint64_t)image_view, data);
 		}
-		void register_buffer(VkBuffer buffer, const VkBufferCreateInfo &create_info)
-		{
-			resource_data data { false };
-			data.buffer = buffer;
-			data.buffer_create_info = create_info;
-			_resources.emplace((uint64_t)buffer, data);
-		}
 		void register_buffer_view(VkBufferView buffer_view, const VkBufferViewCreateInfo &create_info)
 		{
-			resource_view_data data { false };
+			resource_view_data data{ false };
 			data.buffer_view = buffer_view;
 			data.buffer_create_info = create_info;
 			_views.emplace((uint64_t)buffer_view, data);
@@ -149,21 +161,11 @@ namespace reshade::vulkan
 		void unregister_buffer(VkBuffer buffer) { _resources.erase((uint64_t)buffer); }
 		void unregister_buffer_view(VkBufferView buffer_view) { _views.erase((uint64_t)buffer_view); }
 
-		api::resource_view_handle get_default_view(VkImage image)
-		{
-			VkImageViewCreateInfo create_info{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
-			create_info.image = image;
-			register_image_view((VkImageView)image, create_info); // Register fake image view for this image
-			return { (uint64_t)image };
-		}
-
-		inline operator VkDevice() const { return _device; }
-
 		const VkLayerDispatchTable vk;
 
 		uint32_t graphics_queue_family_index = std::numeric_limits<uint32_t>::max();
-#if RESHADE_ADDON
 		std::vector<VkQueue> queues;
+#if RESHADE_ADDON
 		lockfree_table<VkRenderPass, render_pass_data, 4096> render_pass_list;
 		lockfree_table<VkFramebuffer, std::vector<api::resource_view_handle>, 4096> framebuffer_list;
 #endif

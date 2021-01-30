@@ -295,9 +295,11 @@ reshade::opengl::device_impl::device_impl(HDC hdc)
 	RESHADE_ADDON_EVENT(init_device, this);
 	RESHADE_ADDON_EVENT(init_command_queue, this);
 
+#if RESHADE_ADDON
 	// Communicate default state to add-ons
 	const resource_view_handle default_depth_stencil = get_depth_stencil_from_fbo(0);
 	RESHADE_ADDON_EVENT(set_depth_stencil, this, default_depth_stencil);
+#endif
 }
 reshade::opengl::device_impl::~device_impl()
 {

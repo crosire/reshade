@@ -33,7 +33,7 @@ namespace reshade::d3d9
 		~device_impl();
 
 		void on_reset();
-		void on_after_reset();
+		void on_after_reset(const D3DPRESENT_PARAMETERS &pp);
 
 		bool get_data(const uint8_t guid[16], uint32_t size, void *data) override { return api_data::get_data(guid, size, data); }
 		void set_data(const uint8_t guid[16], uint32_t size, const void *data) override  { api_data::set_data(guid, size, data); }
@@ -67,13 +67,15 @@ namespace reshade::d3d9
 
 		void copy_resource(api::resource_handle source, api::resource_handle dest) override;
 
-		void register_resource(IDirect3DResource9 *resource) { _resources.register_object(resource); }
+		inline void register_resource(IDirect3DResource9 *resource) { _resources.register_object(resource); }
+#if RESHADE_ADDON
 		api::resource_view_handle get_resource_view_handle(IDirect3DSurface9 *surface)
 		{
 			if (surface != nullptr)
 				register_resource(surface);
 			return { reinterpret_cast<uintptr_t>(surface) };
 		}
+#endif
 
 		unsigned int _num_samplers;
 		unsigned int _num_simultaneous_rendertargets;

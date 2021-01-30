@@ -110,9 +110,6 @@ static inline std::filesystem::path get_module_path(HMODULE module)
 	return GetModuleFileNameW(module, buf, ARRAYSIZE(buf)) ? buf : std::filesystem::path();
 }
 
-// Export special symbol to identify modules as ReShade instances
-extern "C" __declspec(dllexport) const char *ReShadeVersion = VERSION_STRING_PRODUCT;
-
 #ifdef RESHADE_TEST_APPLICATION
 
 #  include "com_ptr.hpp"
@@ -811,6 +808,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 }
 
 #else
+
+// Export special symbol to identify modules as ReShade instances
+extern "C" __declspec(dllexport) const char *ReShadeVersion = VERSION_STRING_PRODUCT;
 
 #  ifndef NDEBUG
 #include <DbgHelp.h>

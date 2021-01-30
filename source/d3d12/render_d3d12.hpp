@@ -62,7 +62,9 @@ namespace reshade::d3d12
 
 		void register_queue(ID3D12CommandQueue *queue);
 		void register_resource(ID3D12Resource *resource) { _resources.register_object(resource); }
+#if RESHADE_ADDON
 		void register_resource_view(ID3D12Resource *resource, D3D12_CPU_DESCRIPTOR_HANDLE handle);
+#endif
 
 		com_ptr<ID3D12RootSignature> create_root_signature(const D3D12_ROOT_SIGNATURE_DESC &desc) const;
 
