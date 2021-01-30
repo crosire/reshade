@@ -125,6 +125,8 @@ bool reshade::runtime::on_init(input::window_handle window)
 	_preset_save_success = true;
 	_screenshot_save_success = true;
 
+	RESHADE_ADDON_EVENT(init_effect_runtime, this);
+
 	LOG(INFO) << "Recreated runtime environment on runtime " << this << '.';
 
 	return true;
@@ -145,6 +147,8 @@ void reshade::runtime::on_reset()
 		destroy_texture(*_imgui_font_atlas);
 	_rebuild_font_atlas = true;
 #endif
+
+	RESHADE_ADDON_EVENT(destroy_effect_runtime, this);
 
 	LOG(INFO) << "Destroyed runtime environment on runtime " << this << '.';
 }

@@ -582,6 +582,17 @@ static void on_present(command_queue *, effect_runtime *runtime)
 	queue_state.reset_on_present();
 }
 
+static void on_init_effect_runtime(effect_runtime *runtime)
+{
+	device *const device = runtime->get_device();
+	state_tracking_context &device_state = device->get_data<state_tracking_context>(state_tracking_context::GUID);
+
+	// Need to set texture binding again after a runtime was reset
+	if (device_state.selected_shader_resource != 0)
+	{
+		runtime->update_texture_bindings("DEPTH", device_state.selected_shader_resource);
+	}
+}
 static void on_before_render_effects(effect_runtime *runtime, command_list *cmd_list)
 {
 	device *const device = runtime->get_device();
@@ -762,6 +773,7 @@ void reshade_addon_depth()
 	reshade::register_event(reshade::addon_event::destroy_command_list, on_destroy_queue_or_command_list);
 	reshade::register_event(reshade::addon_event::init_command_queue, on_init_queue_or_command_list);
 	reshade::register_event(reshade::addon_event::destroy_command_queue, on_destroy_queue_or_command_list);
+	reshade::register_event(reshade::addon_event::init_effect_runtime, on_init_effect_runtime);
 
 	reshade::register_event(reshade::addon_event::create_resource, on_create_resource);
 	reshade::register_event(reshade::addon_event::create_resource_view, on_create_resource_view);
@@ -790,22 +802,3 @@ void reshade_addon_depth()
 		runtime->set_uniform_value(handle, &has_depth, 1);
 	}));*/
 }
-
-#if 0
-BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID)
-{
-	switch (fdwReason)
-	{
-	case DLL_PROCESS_ATTACH:
-		if (!reshade::init_addon())
-			return FALSE;
-		reshade_addon_depth();
-		break;
-	case DLL_PROCESS_DETACH:
-		// TODO: Unregister events
-		break;
-	}
-
-	return TRUE;
-}
-#endif

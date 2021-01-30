@@ -35,6 +35,14 @@ namespace reshade
 		/// Called on command queue destruction, before 'ID3D12CommandQueue::Release' or 'vkDestroyDevice'.
 		/// </summary>
 		destroy_command_queue,
+		/// <summary>
+		/// Called after effect runtime initialization (which happens after swap chain creation or a resize).
+		/// </summary>
+		init_effect_runtime,
+		/// <summary>
+		/// Called when an effect runtime is reset or destroyed.
+		/// </summary>
+		destroy_effect_runtime,
 
 		/// <summary>
 		/// Called before 'IDirect3Device9::Create(...)Buffer/Texture', 'IDirect3DDevice9::Create(...)Surface(Ex)', 'ID3D10Device::CreateBuffer/Texture(...)', 'ID3D11Device::CreateBuffer/Texture(...)', 'ID3D12Device::Create(...)Resource', 'gl(Named)Buffer/Tex(ture)Storage(...)' or 'vkCreateBuffer/Image'.
@@ -123,6 +131,8 @@ namespace reshade
 	typedef void(*pfn_destroy_command_list)(api::command_list *cmd);
 	typedef void(*pfn_init_command_queue)(api::command_queue *queue);
 	typedef void(*pfn_destroy_command_queue)(api::command_queue *queue);
+	typedef void(*pfn_init_effect_runtime)(api::effect_runtime *runtime);
+	typedef void(*pfn_destroy_effect_runtime)(api::effect_runtime *runtime);
 
 	typedef void(*pfn_create_resource)(api::device *device, api::resource_type type, api::resource_desc *desc);
 	typedef void(*pfn_create_resource_view)(api::device *device, api::resource_handle resource, api::resource_view_type type, api::resource_view_desc *desc);
