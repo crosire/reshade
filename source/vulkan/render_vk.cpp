@@ -122,6 +122,20 @@ static void convert_image_usage_flags_to_usage(const VkImageUsageFlags image_fla
 		usage |= resource_usage::copy_source;
 }
 
+void reshade::vulkan::convert_resource_desc(const resource_desc &desc, VkBufferCreateInfo &create_info)
+{
+	create_info.size = desc.width;
+	assert(desc.height <= 1 && desc.depth_or_layers <= 1 && desc.levels <= 1 && desc.samples <= 1);
+	convert_usage_to_image_usage_flags(desc.usage, create_info.usage);
+}
+resource_desc reshade::vulkan::convert_resource_desc(const VkBufferCreateInfo &create_info)
+{
+	resource_desc desc = {};
+	assert(create_info.size <= std::numeric_limits<uint32_t>::max());
+	desc.width = static_cast<uint32_t>(create_info.size);
+	convert_image_usage_flags_to_usage(create_info.usage, desc.usage);
+	return desc;
+}
 void reshade::vulkan::convert_resource_desc(resource_type type, const resource_desc &desc, VkImageCreateInfo &create_info)
 {
 	switch (type)
@@ -260,32 +274,20 @@ resource_view_desc reshade::vulkan::convert_resource_view_desc(const VkImageView
 
 	return desc;
 }
-
-resource_usage reshade::vulkan::convert_image_layout(VkImageLayout layout)
+void reshade::vulkan::convert_resource_view_desc(const resource_view_desc &desc, VkBufferViewCreateInfo &create_info)
 {
-	switch (layout)
-	{
-	default:
-	case VK_IMAGE_LAYOUT_UNDEFINED:
-		return static_cast<resource_usage>(0);
-	case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
-	case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
-	case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL:
-	case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL:
-	case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL:
-	case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL:
-	case VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL:
-	case VK_IMAGE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL:
-		return resource_usage::depth_stencil;
-	case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
-		return resource_usage::render_target;
-	case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-		return resource_usage::shader_resource;
-	case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
-		return resource_usage::copy_dest;
-	case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
-		return resource_usage::copy_source;
-	}
+	assert(desc.dimension == resource_view_dimension::buffer);
+	create_info.format = static_cast<VkFormat>(desc.format);
+	create_info.offset = desc.buffer_offset;
+	create_info.range = desc.buffer_size;
+}
+resource_view_desc reshade::vulkan::convert_resource_view_desc(const VkBufferViewCreateInfo &create_info)
+{
+	resource_view_desc desc = { resource_view_dimension::buffer };
+	desc.format = static_cast<uint32_t>(create_info.format);
+	desc.buffer_offset = create_info.offset;
+	desc.buffer_size = create_info.range;
+	return desc;
 }
 
 reshade::vulkan::device_impl::device_impl(VkDevice device, VkPhysicalDevice physical_device, const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table) :
@@ -356,13 +358,13 @@ bool reshade::vulkan::device_impl::check_format_support(uint32_t format, api::re
 
 bool reshade::vulkan::device_impl::is_resource_valid(resource_handle resource)
 {
-	const VkImage image = (VkImage)resource.handle;
-	return _resources.at(image).image == image;
+	const resource_data &data = _resources.at(resource.handle);
+	return data.type ? (data.image == (VkImage)resource.handle) : (data.buffer == (VkBuffer)resource.handle);
 }
 bool reshade::vulkan::device_impl::is_resource_view_valid(resource_view_handle view)
 {
-	const VkImageView image_view = (VkImageView)view.handle;
-	return _views.at(image_view).view == image_view;
+	const resource_view_data &data = _views.at(view.handle);
+	return data.type ? (data.image_view == (VkImageView)view.handle) : (data.buffer_view == (VkBufferView)view.handle);
 }
 
 bool reshade::vulkan::device_impl::create_resource(resource_type type, const resource_desc &desc, resource_handle *out_resource)
@@ -380,7 +382,7 @@ bool reshade::vulkan::device_impl::create_resource(resource_type type, const res
 		if (VkImage image = VK_NULL_HANDLE;
 			vmaCreateImage(_alloc, &create_info, &alloc_info, &image, &allocation, nullptr) == VK_SUCCESS)
 		{
-			register_resource(image, create_info, allocation);
+			register_image(image, create_info, allocation);
 			*out_resource = { (uint64_t)image };
 			return true;
 		}
@@ -392,78 +394,95 @@ bool reshade::vulkan::device_impl::create_resource(resource_type type, const res
 bool reshade::vulkan::device_impl::create_resource_view(resource_handle resource, resource_view_type type, const resource_view_desc &desc, resource_view_handle *out_view)
 {
 	assert(resource.handle != 0);
+	const resource_data &data = _resources.at(resource.handle);
 
-	VkImageViewCreateInfo create_info { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
-	convert_resource_view_desc(desc, create_info);
-	create_info.image = (VkImage)resource.handle;
-	create_info.components = { VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY };
-	create_info.subresourceRange.aspectMask = aspect_flags_from_format(create_info.format);
-
-	// Shader resource views can never access stencil data, so remove that aspect flag for views created with a format that supports stencil
-	if (type == resource_view_type::shader_resource)
-		create_info.subresourceRange.aspectMask &= ~VK_IMAGE_ASPECT_STENCIL_BIT;
-
-	if (VkImageView image_view = VK_NULL_HANDLE;
-		vk.CreateImageView(_device, &create_info, nullptr, &image_view) == VK_SUCCESS)
+	if (data.type)
 	{
-		register_resource_view(image_view, create_info);
-		*out_view = { (uint64_t)image_view };
-		return true;
+		VkImageViewCreateInfo create_info { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
+		convert_resource_view_desc(desc, create_info);
+		create_info.image = data.image;
+		create_info.components = { VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY };
+		create_info.subresourceRange.aspectMask = aspect_flags_from_format(create_info.format);
+
+		// Shader resource views can never access stencil data, so remove that aspect flag for views created with a format that supports stencil
+		if (type == resource_view_type::shader_resource)
+			create_info.subresourceRange.aspectMask &= ~VK_IMAGE_ASPECT_STENCIL_BIT;
+
+		if (VkImageView image_view = VK_NULL_HANDLE;
+			vk.CreateImageView(_device, &create_info, nullptr, &image_view) == VK_SUCCESS)
+		{
+			register_image_view(image_view, create_info);
+			*out_view = { (uint64_t)image_view };
+			return true;
+		}
 	}
 	else
 	{
-		*out_view = { 0 };
-		return false;
+		VkBufferViewCreateInfo create_info { VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO };
+		convert_resource_view_desc(desc, create_info);
+		create_info.buffer = data.buffer;
+
+		if (VkBufferView buffer_view = VK_NULL_HANDLE;
+			vk.CreateBufferView(_device, &create_info, nullptr, &buffer_view) == VK_SUCCESS)
+		{
+			register_buffer_view(buffer_view, create_info);
+			*out_view = { (uint64_t)buffer_view };
+			return true;
+		}
 	}
+
+	*out_view = { 0 };
+	return false;
 }
 
 void reshade::vulkan::device_impl::destroy_resource(resource_handle resource)
 {
 	assert(resource.handle != 0);
-
-	const resource_data &data = _resources.at((VkImage)resource.handle);
+	const resource_data &data = _resources.at(resource.handle);
 	assert(data.allocation != nullptr);
-	vmaDestroyImage(_alloc, data.image, data.allocation);
 
-	unregister_resource((VkImage)resource.handle);
+	if (data.type)
+		vmaDestroyImage(_alloc, data.image, data.allocation);
+	else
+		vmaDestroyBuffer(_alloc, data.buffer, data.allocation);
+
+	_resources.erase(resource.handle);
 }
 void reshade::vulkan::device_impl::destroy_resource_view(resource_view_handle view)
 {
 	assert(view.handle != 0);
+	const resource_view_data &data = _views.at(view.handle);
 
-	vk.DestroyImageView(_device, (VkImageView)view.handle, nullptr);
+	if (data.type)
+		vk.DestroyImageView(_device, data.image_view, nullptr);
+	else
+		vk.DestroyBufferView(_device, data.buffer_view, nullptr);
 
-	unregister_resource_view((VkImageView)view.handle);
+	_views.erase(view.handle);
 }
 
 void reshade::vulkan::device_impl::get_resource_from_view(resource_view_handle view, resource_handle *out_resource)
 {
 	assert(view.handle != 0);
+	const resource_view_data &data = _views.at(view.handle);
 
-	const resource_view_data &data = _views.at((VkImageView)view.handle);
-	*out_resource = { (uint64_t)data.create_info.image };
+	*out_resource = { data.type ? (uint64_t)data.image_create_info.image : (uint64_t)data.buffer_create_info.buffer };
 }
 
 resource_desc reshade::vulkan::device_impl::get_resource_desc(resource_handle resource)
 {
 	assert(resource.handle != 0);
+	const resource_data &data = _resources.at(resource.handle);
 
-	const resource_data &data = _resources.at((VkImage)resource.handle);
-	return convert_resource_desc(data.create_info).second;
+	if (data.type)
+		return convert_resource_desc(data.image_create_info).second;
+	else
+		return convert_resource_desc(data.buffer_create_info);
 }
 
 void reshade::vulkan::device_impl::wait_idle()
 {
 	vk.DeviceWaitIdle(_device);
-}
-
-resource_view_handle reshade::vulkan::device_impl::get_default_view(VkImage image)
-{
-	VkImageViewCreateInfo create_info { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
-	create_info.image = image;
-
-	register_resource_view((VkImageView)image, create_info);
-	return { (uint64_t)image };
 }
 
 reshade::vulkan::command_list_impl::command_list_impl(device_impl *device, VkCommandBuffer cmd_list) :
@@ -487,26 +506,42 @@ void reshade::vulkan::command_list_impl::transition_state(resource_handle resour
 	_has_commands = true;
 
 	assert(resource.handle != 0);
-	const resource_data &data = _device_impl->_resources.at((VkImage)resource.handle);
+	const resource_data &data = _device_impl->_resources.at(resource.handle);
+	if (data.type)
+	{
+		VkImageMemoryBarrier transition { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+		transition.srcAccessMask = convert_usage_to_access(old_state);
+		transition.dstAccessMask = convert_usage_to_access(new_state);
+		transition.oldLayout = convert_usage_to_image_layout(old_state);
+		transition.newLayout = convert_usage_to_image_layout(new_state);
+		transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		transition.image = data.image;
+		transition.subresourceRange = { aspect_flags_from_format(data.image_create_info.format), 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
 
-	VkImageMemoryBarrier transition { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
-	transition.srcAccessMask = convert_usage_to_access(old_state);
-	transition.dstAccessMask = convert_usage_to_access(new_state);
-	transition.oldLayout = convert_usage_to_image_layout(old_state);
-	transition.newLayout = convert_usage_to_image_layout(new_state);
-	transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	transition.image = data.image;
-	transition.subresourceRange = { aspect_flags_from_format(data.create_info.format), 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
+		_device_impl->vk.CmdPipelineBarrier(_cmd_list, convert_usage_to_pipeline_stage(old_state), convert_usage_to_pipeline_stage(new_state), 0, 0, nullptr, 0, nullptr, 1, &transition);
+	}
+	else
+	{
+		VkBufferMemoryBarrier transition { VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER };
+		transition.srcAccessMask = convert_usage_to_access(old_state);
+		transition.dstAccessMask = convert_usage_to_access(new_state);
+		transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		transition.buffer = data.buffer;
+		transition.offset = 0;
+		transition.size = VK_WHOLE_SIZE;
 
-	_device_impl->vk.CmdPipelineBarrier(_cmd_list, convert_usage_to_pipeline_stage(old_state), convert_usage_to_pipeline_stage(new_state), 0, 0, nullptr, 0, nullptr, 1, &transition);
+		_device_impl->vk.CmdPipelineBarrier(_cmd_list, convert_usage_to_pipeline_stage(old_state), convert_usage_to_pipeline_stage(new_state), 0, 0, nullptr, 1, &transition, 0, nullptr);
+	}
 }
 
 void reshade::vulkan::command_list_impl::clear_depth_stencil_view(resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil)
 {
 	_has_commands = true;
 
-	const resource_view_data &dsv_data = _device_impl->_views.at((VkImageView)dsv.handle);
+	const resource_view_data &dsv_data = _device_impl->_views.at(dsv.handle);
+	assert(dsv_data.type); // Has to be an image
 
 	const VkClearDepthStencilValue clear_value = { depth, stencil };
 
@@ -520,13 +555,14 @@ void reshade::vulkan::command_list_impl::clear_depth_stencil_view(resource_view_
 		aspect_flags,
 		0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
 
-	_device_impl->vk.CmdClearDepthStencilImage(_cmd_list, dsv_data.create_info.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear_value, 1, &range);
+	_device_impl->vk.CmdClearDepthStencilImage(_cmd_list, dsv_data.image_create_info.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear_value, 1, &range);
 }
 void reshade::vulkan::command_list_impl::clear_render_target_view(resource_view_handle rtv, const float color[4])
 {
 	_has_commands = true;
 
-	const resource_view_data &rtv_data = _device_impl->_views.at((VkImageView)rtv.handle);
+	const resource_view_data &rtv_data = _device_impl->_views.at(rtv.handle);
+	assert(rtv_data.type); // Has to be an image
 
 	VkClearColorValue clear_value;
 	std::memcpy(clear_value.float32, color, 4 * sizeof(float));
@@ -535,7 +571,7 @@ void reshade::vulkan::command_list_impl::clear_render_target_view(resource_view_
 		VK_IMAGE_ASPECT_COLOR_BIT,
 		0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
 
-	_device_impl->vk.CmdClearColorImage(_cmd_list, rtv_data.create_info.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear_value, 1, &range);
+	_device_impl->vk.CmdClearColorImage(_cmd_list, rtv_data.image_create_info.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear_value, 1, &range);
 }
 
 void reshade::vulkan::command_list_impl::copy_resource(resource_handle source, resource_handle dest)
@@ -543,15 +579,57 @@ void reshade::vulkan::command_list_impl::copy_resource(resource_handle source, r
 	_has_commands = true;
 
 	assert(source.handle != 0 && dest.handle != 0);
-	const resource_data &dest_data = _device_impl->_resources.at((VkImage)dest.handle);
-	const resource_data &source_data = _device_impl->_resources.at((VkImage)source.handle);
+	const resource_data &dest_data = _device_impl->_resources.at(dest.handle);
+	const resource_data &source_data = _device_impl->_resources.at(source.handle);
 
-	const VkImageCopy region = {
-		{ aspect_flags_from_format(source_data.create_info.format), 0, 0, 1 }, { 0, 0, 0 },
-		{ aspect_flags_from_format(  dest_data.create_info.format), 0, 0, 1 }, { 0, 0, 0 }, dest_data.create_info.extent
-	};
+	switch ((source_data.type ? 1 : 0) | (dest_data.type ? 2 : 0))
+	{
+		case 0x0:
+		{
+			const VkBufferCopy region = {
+				0, 0, dest_data.buffer_create_info.size
+			};
 
-	_device_impl->vk.CmdCopyImage(_cmd_list, source_data.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dest_data.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+			_device_impl->vk.CmdCopyBuffer(_cmd_list, source_data.buffer, dest_data.buffer, 1, &region);
+			break;
+		}
+		case 0x1:
+		{
+			const uint32_t bpp = 4; // TODO: bpp
+			assert(source_data.image_create_info.format == VK_FORMAT_R8G8B8A8_UNORM);
+
+			const VkBufferImageCopy region = {
+				0, source_data.image_create_info.extent.width * bpp, source_data.image_create_info.extent.width * source_data.image_create_info.extent.height * bpp,
+				{ aspect_flags_from_format(source_data.image_create_info.format), 0, 0, 1 }, { 0, 0, 0 }, source_data.image_create_info.extent
+			};
+
+			_device_impl->vk.CmdCopyImageToBuffer(_cmd_list, source_data.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dest_data.buffer, 1, &region);
+			break;
+		}
+		case 0x2:
+		{
+			const uint32_t bpp = 4; // TODO: bpp
+			assert(dest_data.image_create_info.format == VK_FORMAT_R8G8B8A8_UNORM);
+
+			const VkBufferImageCopy region = {
+				0, dest_data.image_create_info.extent.width * bpp, dest_data.image_create_info.extent.width * dest_data.image_create_info.extent.height * bpp,
+				{ aspect_flags_from_format(dest_data.image_create_info.format), 0, 0, 1 }, { 0, 0, 0 }, dest_data.image_create_info.extent
+			};
+
+			_device_impl->vk.CmdCopyBufferToImage(_cmd_list, source_data.buffer, dest_data.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+			break;
+		}
+		case 0x3:
+		{
+			const VkImageCopy region = {
+				{ aspect_flags_from_format(source_data.image_create_info.format), 0, 0, 1 }, { 0, 0, 0 },
+				{ aspect_flags_from_format(  dest_data.image_create_info.format), 0, 0, 1 }, { 0, 0, 0 }, dest_data.image_create_info.extent
+			};
+
+			_device_impl->vk.CmdCopyImage(_cmd_list, source_data.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dest_data.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+			break;
+		}
+	}
 }
 
 reshade::vulkan::command_list_immediate_impl::command_list_immediate_impl(device_impl *device, uint32_t queue_family_index) :

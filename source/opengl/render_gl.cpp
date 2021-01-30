@@ -144,83 +144,60 @@ static GLint get_fbo_attachment_param(GLuint id, GLenum attachment, GLenum param
 	return value;
 }
 
-void reshade::opengl::convert_resource_desc(const resource_desc &desc, GLsizei *levels, GLenum *internalformat, GLsizei *width, GLsizei *height, GLsizei *depth)
+resource_type reshade::opengl::convert_resource_type(GLenum target)
 {
-	if (width != nullptr)
-		*width = desc.width;
-	if (height != nullptr)
-		*height = desc.height;
-	if (depth != nullptr)
-		*depth = desc.depth_or_layers;
-	if (internalformat != nullptr)
-		*internalformat = desc.format;
-	assert(desc.samples <= 1);
-
-	if (levels != nullptr)
-		*levels = desc.levels;
-	else
-		assert(desc.levels <= 1);
-}
-std::pair<resource_type, resource_desc> reshade::opengl::convert_resource_desc(GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth)
-{
-	resource_type type = resource_type::unknown;
-	resource_desc desc = {};
 	switch (target)
 	{
+	default:
+		return resource_type::unknown;
 	case GL_TEXTURE_BUFFER:
-		type = resource_type::buffer;
-		desc.usage = resource_usage::shader_resource | resource_usage::copy_dest | resource_usage::copy_source;
-		break;
+		return resource_type::buffer;
 	case GL_TEXTURE_1D:
 	case GL_TEXTURE_1D_ARRAY:
 	case GL_PROXY_TEXTURE_1D:
 	case GL_PROXY_TEXTURE_1D_ARRAY:
-		type = resource_type::texture_1d;
-		desc.usage = resource_usage::render_target | resource_usage::shader_resource | resource_usage::copy_dest | resource_usage::copy_source;
-		break;
+		return resource_type::texture_1d;
 	case GL_TEXTURE_2D:
 	case GL_TEXTURE_2D_ARRAY:
 	case GL_TEXTURE_RECTANGLE: // This is not technically compatible with 2D textures
 	case GL_PROXY_TEXTURE_2D:
 	case GL_PROXY_TEXTURE_2D_ARRAY:
 	case GL_PROXY_TEXTURE_RECTANGLE:
-		type = resource_type::texture_2d;
-		desc.usage = resource_usage::render_target | resource_usage::shader_resource | resource_usage::copy_dest | resource_usage::copy_source | resource_usage::resolve_dest;
-		break;
+		return resource_type::texture_2d;
 	case GL_TEXTURE_2D_MULTISAMPLE:
 	case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
 	case GL_PROXY_TEXTURE_2D_MULTISAMPLE:
 	case GL_PROXY_TEXTURE_2D_MULTISAMPLE_ARRAY:
-		type = resource_type::texture_2d;
-		desc.usage = resource_usage::render_target | resource_usage::shader_resource | resource_usage::copy_dest | resource_usage::copy_source | resource_usage::resolve_source;
-		break;
+		return resource_type::texture_2d;
 	case GL_TEXTURE_3D:
 	case GL_PROXY_TEXTURE_3D:
-		type = resource_type::texture_3d;
-		desc.usage = resource_usage::shader_resource | resource_usage::copy_dest | resource_usage::copy_source;
-		break;
+		return resource_type::texture_3d;
 	case GL_TEXTURE_CUBE_MAP:
 	case GL_TEXTURE_CUBE_MAP_ARRAY:
 	case GL_PROXY_TEXTURE_CUBE_MAP:
 	case GL_PROXY_TEXTURE_CUBE_MAP_ARRAY:
-		assert((depth % 6) == 0);
-		// fall through
 	case GL_TEXTURE_CUBE_MAP_POSITIVE_X:
 	case GL_TEXTURE_CUBE_MAP_NEGATIVE_X:
 	case GL_TEXTURE_CUBE_MAP_POSITIVE_Y:
 	case GL_TEXTURE_CUBE_MAP_NEGATIVE_Y:
 	case GL_TEXTURE_CUBE_MAP_POSITIVE_Z:
 	case GL_TEXTURE_CUBE_MAP_NEGATIVE_Z:
-		type = resource_type::texture_2d;
-		desc.usage = resource_usage::render_target | resource_usage::shader_resource | resource_usage::copy_dest | resource_usage::copy_source;
-		break;
+		return resource_type::texture_2d;
 	case GL_RENDERBUFFER:
 	case GL_FRAMEBUFFER_DEFAULT:
-		type = resource_type::surface;
-		desc.usage = resource_usage::render_target | resource_usage::copy_dest | resource_usage::copy_source;
-		break;
+		return resource_type::surface;
 	}
-
+}
+resource_desc reshade::opengl::convert_resource_desc(GLsizeiptr buffer_size)
+{
+	resource_desc desc = {};
+	desc.buffer_size = buffer_size;
+	desc.usage = resource_usage::shader_resource | resource_usage::copy_dest | resource_usage::copy_source;
+	return desc;
+}
+resource_desc reshade::opengl::convert_resource_desc(resource_type type, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth)
+{
+	resource_desc desc = {};
 	desc.width = width;
 	desc.height = height;
 	assert(depth <= std::numeric_limits<uint16_t>::max());
@@ -230,65 +207,45 @@ std::pair<resource_type, resource_desc> reshade::opengl::convert_resource_desc(G
 	desc.format = internalformat;
 	desc.samples = 1;
 
+	desc.usage = resource_usage::copy_dest | resource_usage::copy_source;
 	if (is_depth_format(internalformat))
 		desc.usage |= resource_usage::depth_stencil;
-
-	return { type, desc };
-}
-
-void reshade::opengl::convert_resource_view_desc(const resource_view_desc &desc, GLenum *internalformat, GLuint *minlevel, GLuint *numlevels, GLuint *minlayer, GLuint *numlayers)
-{
-	*internalformat = desc.format;
-	*minlevel = desc.first_level;
-	*numlevels = desc.levels;
-	*minlayer = desc.first_layer;
-	*numlayers = desc.layers;
-}
-resource_view_desc reshade::opengl::convert_resource_view_desc(GLenum target, GLenum internalformat, GLuint minlevel, GLuint numlevels, GLuint minlayer, GLuint numlayers)
-{
-	resource_view_desc desc = {};
-	switch (target)
-	{
-	case GL_TEXTURE_BUFFER:
-		desc.dimension = resource_view_dimension::buffer;
-		break;
-	case GL_TEXTURE_1D:
-		desc.dimension = resource_view_dimension::texture_1d;
-		break;
-	case GL_TEXTURE_1D_ARRAY:
-		desc.dimension = resource_view_dimension::texture_1d_array;
-		break;
-	case GL_TEXTURE_2D:
-	case GL_TEXTURE_RECTANGLE:
-		desc.dimension = resource_view_dimension::texture_2d;
-		break;
-	case GL_TEXTURE_2D_ARRAY:
-		desc.dimension = resource_view_dimension::texture_2d_array;
-		break;
-	case GL_TEXTURE_2D_MULTISAMPLE:
-		desc.dimension = resource_view_dimension::texture_2d_multisample;
-		break;
-	case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
-		desc.dimension = resource_view_dimension::texture_2d_multisample_array;
-		break;
-	case GL_TEXTURE_3D:
-		desc.dimension = resource_view_dimension::texture_3d;
-		break;
-	case GL_TEXTURE_CUBE_MAP:
-		desc.dimension = resource_view_dimension::texture_cube;
-		break;
-	case GL_TEXTURE_CUBE_MAP_ARRAY:
-		desc.dimension = resource_view_dimension::texture_cube_array;
-		break;
-	}
-
-	desc.format = internalformat;
-	desc.first_level = minlevel;
-	desc.levels = numlevels;
-	desc.first_layer = minlayer;
-	desc.layers = numlayers;
+	if (type == resource_type::texture_1d || type == resource_type::texture_2d || type == resource_type::surface)
+		desc.usage |= resource_usage::render_target;
+	if (type != resource_type::surface)
+		desc.usage |= resource_usage::shader_resource;
 
 	return desc;
+}
+
+resource_view_dimension reshade::opengl::convert_resource_view_dimension(GLenum target)
+{
+	switch (target)
+	{
+	default:
+		return resource_view_dimension::unknown;
+	case GL_TEXTURE_BUFFER:
+		return resource_view_dimension::buffer;
+	case GL_TEXTURE_1D:
+		return resource_view_dimension::texture_1d;
+	case GL_TEXTURE_1D_ARRAY:
+		return resource_view_dimension::texture_1d_array;
+	case GL_TEXTURE_2D:
+	case GL_TEXTURE_RECTANGLE:
+		return resource_view_dimension::texture_2d;
+	case GL_TEXTURE_2D_ARRAY:
+		return resource_view_dimension::texture_2d_array;
+	case GL_TEXTURE_2D_MULTISAMPLE:
+		return resource_view_dimension::texture_2d_multisample;
+	case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
+		return resource_view_dimension::texture_2d_multisample_array;
+	case GL_TEXTURE_3D:
+		return resource_view_dimension::texture_3d;
+	case GL_TEXTURE_CUBE_MAP:
+		return resource_view_dimension::texture_cube;
+	case GL_TEXTURE_CUBE_MAP_ARRAY:
+		return resource_view_dimension::texture_cube_array;
+	}
 }
 
 reshade::opengl::device_impl::device_impl(HDC hdc)
@@ -367,6 +324,8 @@ bool reshade::opengl::device_impl::is_resource_valid(resource_handle resource)
 	{
 	default:
 		return false;
+	case GL_BUFFER:
+		return glIsBuffer(resource.handle & 0xFFFFFFFF) != GL_FALSE;
 	case GL_TEXTURE:
 	case GL_TEXTURE_BUFFER:
 	case GL_TEXTURE_1D:
@@ -460,6 +419,9 @@ bool reshade::opengl::device_impl::create_resource_view(resource_handle resource
 	{
 	default:
 		return false;
+	case resource_view_dimension::buffer:
+		target = GL_TEXTURE_BUFFER;
+		break;
 	case resource_view_dimension::texture_1d:
 		target = GL_TEXTURE_1D;
 		break;
@@ -501,14 +463,31 @@ bool reshade::opengl::device_impl::create_resource_view(resource_handle resource
 	}
 	else
 	{
-		GLint prev_object = 0;
-		glGetIntegerv(get_binding_for_target(target), &prev_object);
-
 		GLuint object = 0;
 		glGenTextures(1, &object);
-		glTextureView(object, target, resource.handle & 0xFFFFFFFF, internal_format, desc.first_level, desc.levels, desc.first_layer, desc.layers);
 
-		glBindTexture(target, prev_object);
+		if (target != GL_TEXTURE_BUFFER)
+		{
+			glTextureView(object, target, resource.handle & 0xFFFFFFFF, internal_format, desc.first_level, desc.levels, desc.first_layer, desc.layers);
+		}
+		else
+		{
+			GLint prev_object = 0;
+			glGetIntegerv(get_binding_for_target(target), &prev_object);
+
+			glBindTexture(target, object);
+
+			if (desc.buffer_offset == 0 && desc.buffer_size == 0)
+			{
+				glTexBuffer(target, internal_format, resource.handle & 0xFFFFFFFF);
+			}
+			else
+			{
+				glTexBufferRange(target, internal_format, resource.handle & 0xFFFFFFFF, desc.buffer_offset, desc.buffer_size);
+			}
+
+			glBindTexture(target, prev_object);
+		}
 
 		*out_view = { (static_cast<uint64_t>(target) << 40) | object };
 		return true;
@@ -520,6 +499,9 @@ void reshade::opengl::device_impl::destroy_resource(resource_handle resource)
 	const GLuint object = resource.handle & 0xFFFFFFFF;
 	switch (resource.handle >> 40)
 	{
+	case GL_BUFFER:
+		glDeleteBuffers(1, &object);
+		break;
 	case GL_TEXTURE:
 	case GL_TEXTURE_BUFFER:
 	case GL_TEXTURE_1D:
@@ -609,7 +591,7 @@ void reshade::opengl::device_impl::get_resource_from_view(resource_view_handle v
 
 resource_desc reshade::opengl::device_impl::get_resource_desc(resource_handle resource)
 {
-	GLsizei width = 1, height = 1, depth = 1; GLenum internal_format = GL_NONE;
+	GLsizei width = 0, height = 1, depth = 1; GLenum internal_format = GL_NONE;
 
 	const GLenum target = resource.handle >> 40;
 	const GLuint object = resource.handle & 0xFFFFFFFF;
@@ -647,7 +629,7 @@ resource_desc reshade::opengl::device_impl::get_resource_desc(resource_handle re
 		break;
 	}
 
-	return convert_resource_desc(target, 1, internal_format, width, height, depth).second;
+	return convert_resource_desc(convert_resource_type(target), 1, internal_format, width, height, depth);
 }
 
 void reshade::opengl::device_impl::wait_idle()

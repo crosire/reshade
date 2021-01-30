@@ -62,6 +62,20 @@ void reshade::d3d9::convert_resource_desc(const resource_desc &desc, D3DSURFACE_
 	if (levels != nullptr)
 		*levels = desc.levels;
 }
+void reshade::d3d9::convert_resource_desc(const resource_desc &desc, D3DINDEXBUFFER_DESC &internal_desc)
+{
+	assert(desc.buffer_size <= std::numeric_limits<UINT>::max());
+	internal_desc.Size = static_cast<UINT>(desc.buffer_size);
+
+	convert_usage_to_d3d_usage(desc.usage, internal_desc.Usage);
+}
+void reshade::d3d9::convert_resource_desc(const resource_desc &desc, D3DVERTEXBUFFER_DESC &internal_desc)
+{
+	assert(desc.buffer_size <= std::numeric_limits<UINT>::max());
+	internal_desc.Size = static_cast<UINT>(desc.buffer_size);
+
+	convert_usage_to_d3d_usage(desc.usage, internal_desc.Usage);
+}
 resource_desc reshade::d3d9::convert_resource_desc(const D3DVOLUME_DESC &internal_desc, UINT levels)
 {
 	assert(internal_desc.Type == D3DRTYPE_VOLUME || internal_desc.Type == D3DRTYPE_VOLUMETEXTURE);
@@ -103,6 +117,20 @@ resource_desc reshade::d3d9::convert_resource_desc(const D3DSURFACE_DESC &intern
 	if (internal_desc.Type == D3DRTYPE_TEXTURE || internal_desc.Type == D3DRTYPE_CUBETEXTURE)
 		desc.usage |= resource_usage::shader_resource;
 
+	return desc;
+}
+resource_desc reshade::d3d9::convert_resource_desc(const D3DINDEXBUFFER_DESC &internal_desc)
+{
+	resource_desc desc = {};
+	desc.buffer_size = internal_desc.Size;
+	convert_d3d_usage_to_usage(internal_desc.Usage, desc.usage);
+	return desc;
+}
+resource_desc reshade::d3d9::convert_resource_desc(const D3DVERTEXBUFFER_DESC &internal_desc)
+{
+	resource_desc desc = {};
+	desc.buffer_size = internal_desc.Size;
+	convert_d3d_usage_to_usage(internal_desc.Usage, desc.usage);
 	return desc;
 }
 
@@ -231,7 +259,7 @@ bool reshade::d3d9::device_impl::is_resource_valid(resource_handle resource)
 }
 bool reshade::d3d9::device_impl::is_resource_view_valid(resource_view_handle view)
 {
-	return view.handle != 0 && _resources.has_object(reinterpret_cast<IDirect3DResource9 *>(view.handle));
+	return is_resource_valid({ view.handle });
 }
 
 bool reshade::d3d9::device_impl::create_resource(resource_type type, const resource_desc &desc, resource_handle *out_resource)
@@ -369,6 +397,18 @@ resource_desc reshade::d3d9::device_impl::get_resource_desc(resource_handle reso
 			static_cast<IDirect3DCubeTexture9 *>(resource_object)->GetLevelDesc(0, &internal_desc);
 			internal_desc.Type = D3DRTYPE_CUBETEXTURE;
 			return convert_resource_desc(internal_desc, static_cast<IDirect3DCubeTexture9 *>(resource_object)->GetLevelCount());
+		}
+		case D3DRTYPE_VERTEXBUFFER:
+		{
+			D3DVERTEXBUFFER_DESC internal_desc = {};
+			static_cast<IDirect3DVertexBuffer9 *>(resource_object)->GetDesc(&internal_desc);
+			return convert_resource_desc(internal_desc);
+		}
+		case D3DRTYPE_INDEXBUFFER:
+		{
+			D3DINDEXBUFFER_DESC internal_desc = {};
+			static_cast<IDirect3DIndexBuffer9 *>(resource_object)->GetDesc(&internal_desc);
+			return convert_resource_desc(internal_desc);
 		}
 	}
 

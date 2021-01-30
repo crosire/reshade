@@ -23,6 +23,33 @@ static lockfree_table<VkSwapchainKHR, reshade::vulkan::runtime_vk *, 16> s_vulka
 	PFN_vk##name trampoline = (data)->vk.name; \
 	assert(trampoline != nullptr)
 
+static inline reshade::api::resource_usage convert_image_layout(VkImageLayout layout)
+{
+	switch (layout)
+	{
+	default:
+	case VK_IMAGE_LAYOUT_UNDEFINED:
+		return reshade::api::resource_usage::undefined;
+	case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+	case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
+	case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL:
+	case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL:
+	case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL:
+	case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL:
+	case VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL:
+	case VK_IMAGE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL:
+		return reshade::api::resource_usage::depth_stencil;
+	case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+		return reshade::api::resource_usage::render_target;
+	case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+		return reshade::api::resource_usage::shader_resource;
+	case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+		return reshade::api::resource_usage::copy_dest;
+	case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+		return reshade::api::resource_usage::copy_source;
+	}
+}
+
 VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDeviceCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkDevice *pDevice)
 {
 	LOG(INFO) << "Redirecting " << "vkCreateDevice" << '(' << "physicalDevice = " << physicalDevice << ", pCreateInfo = " << pCreateInfo << ", pAllocator = " << pAllocator << ", pDevice = " << pDevice << ')' << " ...";
@@ -221,6 +248,8 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DEVICE_PROC(GetQueryPoolResults);
 	INIT_DEVICE_PROC(CreateBuffer);
 	INIT_DEVICE_PROC(DestroyBuffer);
+	INIT_DEVICE_PROC(CreateBufferView);
+	INIT_DEVICE_PROC(DestroyBufferView);
 	INIT_DEVICE_PROC(CreateImage);
 	INIT_DEVICE_PROC(DestroyImage);
 	INIT_DEVICE_PROC(GetImageSubresourceLayout);
@@ -488,7 +517,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	image_create_info.initialLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
 	for (uint32_t i = 0; i < num_swapchain_images; ++i)
-		device_impl->register_resource(swapchain_images[i], image_create_info);
+		device_impl->register_image(swapchain_images[i], image_create_info);
 #endif
 
 	if (device_impl->graphics_queue_family_index != std::numeric_limits<uint32_t>::max())
@@ -553,7 +582,7 @@ void     VKAPI_CALL vkDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapch
 	device_impl->vk.GetSwapchainImagesKHR(device, swapchain, &num_swapchain_images, swapchain_images.data());
 
 	for (uint32_t i = 0; i < num_swapchain_images; ++i)
-		device_impl->unregister_resource(swapchain_images[i]);
+		device_impl->unregister_image(swapchain_images[i]);
 #endif
 
 	GET_DEVICE_DISPATCH_PTR_FROM(DestroySwapchainKHR, device_impl);
@@ -621,6 +650,90 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 	return trampoline(queue, &present_info);
 }
 
+VkResult VKAPI_CALL vkCreateBuffer(VkDevice device, const VkBufferCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkBuffer *pBuffer)
+{
+	assert(pCreateInfo != nullptr && pBuffer != nullptr);
+
+	reshade::vulkan::device_impl *const device_impl = s_vulkan_devices.at(dispatch_key_from_handle(device));
+	assert(device_impl != nullptr);
+
+	VkBufferCreateInfo create_info = *pCreateInfo;
+#if RESHADE_ADDON
+	reshade::api::resource_desc api_desc = reshade::vulkan::convert_resource_desc(create_info);
+	RESHADE_ADDON_EVENT(create_resource, device_impl, reshade::api::resource_type::buffer, &api_desc);
+	reshade::vulkan::convert_resource_desc(api_desc, create_info);
+#endif
+
+	GET_DEVICE_DISPATCH_PTR_FROM(CreateBuffer, device_impl);
+	const VkResult result = trampoline(device, &create_info, pAllocator, pBuffer);
+#if RESHADE_ADDON
+	if (result == VK_SUCCESS)
+	{
+		device_impl->register_buffer(*pBuffer, create_info);
+	}
+	else
+	{
+		LOG(WARN) << "vkCreateBuffer" << " failed with error code " << result << '.';
+	}
+#endif
+
+	return result;
+}
+void     VKAPI_CALL vkDestroyBuffer(VkDevice device, VkBuffer buffer, const VkAllocationCallbacks *pAllocator)
+{
+	reshade::vulkan::device_impl *const device_impl = s_vulkan_devices.at(dispatch_key_from_handle(device));
+	assert(device_impl != nullptr);
+
+#if RESHADE_ADDON
+	device_impl->unregister_buffer(buffer);
+#endif
+
+	GET_DEVICE_DISPATCH_PTR_FROM(DestroyBuffer, device_impl);
+	trampoline(device, buffer, pAllocator);
+}
+
+VkResult VKAPI_CALL vkCreateBufferView(VkDevice device, const VkBufferViewCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkBufferView *pView)
+{
+	assert(pCreateInfo != nullptr && pView != nullptr);
+
+	reshade::vulkan::device_impl *const device_impl = s_vulkan_devices.at(dispatch_key_from_handle(device));
+	assert(device_impl != nullptr);
+
+	VkBufferViewCreateInfo create_info = *pCreateInfo;
+#if RESHADE_ADDON
+	reshade::api::resource_view_desc api_desc = reshade::vulkan::convert_resource_view_desc(create_info);
+	RESHADE_ADDON_EVENT(create_resource_view, device_impl, reshade::api::resource_handle { (uint64_t)create_info.buffer }, reshade::api::resource_view_type::unknown, &api_desc);
+	reshade::vulkan::convert_resource_view_desc(api_desc, create_info);
+#endif
+
+	GET_DEVICE_DISPATCH_PTR_FROM(CreateBufferView, device_impl);
+	const VkResult result = trampoline(device, &create_info, pAllocator, pView);
+#if RESHADE_ADDON
+	if (result == VK_SUCCESS)
+	{
+		device_impl->register_buffer_view(*pView, create_info);
+	}
+	else
+	{
+		LOG(WARN) << "vkCreateBufferView" << " failed with error code " << result << '.';
+	}
+#endif
+
+	return result;
+}
+void     VKAPI_CALL vkDestroyBufferView(VkDevice device, VkBufferView bufferView, const VkAllocationCallbacks *pAllocator)
+{
+	reshade::vulkan::device_impl *const device_impl = s_vulkan_devices.at(dispatch_key_from_handle(device));
+	assert(device_impl != nullptr);
+
+#if RESHADE_ADDON
+	device_impl->unregister_buffer_view(bufferView);
+#endif
+
+	GET_DEVICE_DISPATCH_PTR_FROM(DestroyBufferView, device_impl);
+	trampoline(device, bufferView, pAllocator);
+}
+
 VkResult VKAPI_CALL vkCreateImage(VkDevice device, const VkImageCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkImage *pImage)
 {
 	assert(pCreateInfo != nullptr && pImage != nullptr);
@@ -637,17 +750,18 @@ VkResult VKAPI_CALL vkCreateImage(VkDevice device, const VkImageCreateInfo *pCre
 
 	GET_DEVICE_DISPATCH_PTR_FROM(CreateImage, device_impl);
 	const VkResult result = trampoline(device, &create_info, pAllocator, pImage);
-	if (result != VK_SUCCESS)
+#if RESHADE_ADDON
+	if (result == VK_SUCCESS)
+	{
+		device_impl->register_image(*pImage, create_info);
+	}
+	else
 	{
 		LOG(WARN) << "vkCreateImage" << " failed with error code " << result << '.';
-		return result;
 	}
-
-#if RESHADE_ADDON
-	device_impl->register_resource(*pImage, create_info);
 #endif
 
-	return VK_SUCCESS;
+	return result;
 }
 void     VKAPI_CALL vkDestroyImage(VkDevice device, VkImage image, const VkAllocationCallbacks *pAllocator)
 {
@@ -655,7 +769,7 @@ void     VKAPI_CALL vkDestroyImage(VkDevice device, VkImage image, const VkAlloc
 	assert(device_impl != nullptr);
 
 #if RESHADE_ADDON
-	device_impl->unregister_resource(image);
+	device_impl->unregister_image(image);
 #endif
 
 	GET_DEVICE_DISPATCH_PTR_FROM(DestroyImage, device_impl);
@@ -667,6 +781,7 @@ VkResult VKAPI_CALL vkCreateImageView(VkDevice device, const VkImageViewCreateIn
 	assert(pCreateInfo != nullptr && pView != nullptr);
 
 	reshade::vulkan::device_impl *const device_impl = s_vulkan_devices.at(dispatch_key_from_handle(device));
+	assert(device_impl != nullptr);
 
 	VkImageViewCreateInfo create_info = *pCreateInfo;
 #if RESHADE_ADDON
@@ -677,17 +792,18 @@ VkResult VKAPI_CALL vkCreateImageView(VkDevice device, const VkImageViewCreateIn
 
 	GET_DEVICE_DISPATCH_PTR_FROM(CreateImageView, device_impl);
 	const VkResult result = trampoline(device, &create_info, pAllocator, pView);
-	if (result != VK_SUCCESS)
+#if RESHADE_ADDON
+	if (result == VK_SUCCESS)
+	{
+		device_impl->register_image_view(*pView, create_info);
+	}
+	else
 	{
 		LOG(WARN) << "vkCreateImageView" << " failed with error code " << result << '.';
-		return result;
 	}
-
-#if RESHADE_ADDON
-	device_impl->register_resource_view(*pView, create_info);
 #endif
 
-	return VK_SUCCESS;
+	return result;
 }
 void     VKAPI_CALL vkDestroyImageView(VkDevice device, VkImageView imageView, const VkAllocationCallbacks *pAllocator)
 {
@@ -695,7 +811,7 @@ void     VKAPI_CALL vkDestroyImageView(VkDevice device, VkImageView imageView, c
 	assert(device_impl != nullptr);
 
 #if RESHADE_ADDON
-	device_impl->unregister_resource_view(imageView);
+	device_impl->unregister_image_view(imageView);
 #endif
 
 	GET_DEVICE_DISPATCH_PTR_FROM(DestroyImageView, device_impl);
@@ -1025,7 +1141,7 @@ void     VKAPI_CALL vkCmdPipelineBarrier(VkCommandBuffer commandBuffer, VkPipeli
 
 			if (barrier.oldLayout != barrier.newLayout)
 			{
-				RESHADE_ADDON_EVENT(transition_state, cmd_impl, reshade::api::resource_handle { (uint64_t)barrier.image }, reshade::vulkan::convert_image_layout(barrier.oldLayout), reshade::vulkan::convert_image_layout(barrier.newLayout));
+				RESHADE_ADDON_EVENT(transition_state, cmd_impl, reshade::api::resource_handle { (uint64_t)barrier.image }, convert_image_layout(barrier.oldLayout), convert_image_layout(barrier.newLayout));
 			}
 		}
 	}
@@ -1198,6 +1314,10 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	CHECK_DEVICE_PROC(QueuePresentKHR);
 
 #if RESHADE_ADDON
+	CHECK_DEVICE_PROC(CreateBuffer);
+	CHECK_DEVICE_PROC(DestroyBuffer);
+	CHECK_DEVICE_PROC(CreateBufferView);
+	CHECK_DEVICE_PROC(DestroyBufferView);
 	CHECK_DEVICE_PROC(CreateImage);
 	CHECK_DEVICE_PROC(DestroyImage);
 	CHECK_DEVICE_PROC(CreateImageView);

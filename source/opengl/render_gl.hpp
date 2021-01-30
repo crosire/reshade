@@ -12,11 +12,11 @@
 
 namespace reshade::opengl
 {
-	void convert_resource_desc(const api::resource_desc &desc, GLsizei *levels, GLenum *internalformat, GLsizei *width, GLsizei *height = nullptr, GLsizei *depth = nullptr);
-	std::pair<api::resource_type, api::resource_desc> convert_resource_desc(GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height = 1, GLsizei depth = 1);
+	api::resource_type convert_resource_type(GLenum target);
+	api::resource_desc convert_resource_desc(GLsizeiptr buffer_size);
+	api::resource_desc convert_resource_desc(api::resource_type type, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height = 1, GLsizei depth = 1);
 
-	void convert_resource_view_desc(const api::resource_view_desc &desc, GLenum *internalformat, GLuint *minlevel, GLuint *numlevels, GLuint *minlayer, GLuint *numlayers);
-	api::resource_view_desc convert_resource_view_desc(GLenum target, GLenum internalformat, GLuint minlevel, GLuint numlevels, GLuint minlayer, GLuint numlayers);
+	api::resource_view_dimension convert_resource_view_dimension(GLenum target);
 
 	class device_impl : public api::device, public api::command_queue, public api::command_list, api::api_data
 	{

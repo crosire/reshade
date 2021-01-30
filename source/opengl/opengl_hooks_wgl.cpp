@@ -683,6 +683,9 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 			// Get trampoline pointers to any hooked functions, so that runtime always calls into original OpenGL functions
 			if (s_hooks_installed)
 			{
+				gl3wProcs.gl.TexBuffer = reshade::hooks::call(glTexBuffer);
+				gl3wProcs.gl.TexBufferRange = reshade::hooks::call(glTexBufferRange);
+				gl3wProcs.gl.BufferData = reshade::hooks::call(glBufferData);
 				gl3wProcs.gl.TextureView = reshade::hooks::call(glTextureView);
 				gl3wProcs.gl.TexStorage2D = reshade::hooks::call(glTexStorage2D); // Used in 'runtime_gl::init_texture'
 				gl3wProcs.gl.BindFramebuffer = reshade::hooks::call(glBindFramebuffer);
@@ -1119,6 +1122,8 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 	reshade::hooks::install(#name, reinterpret_cast<reshade::hook::address>(trampoline(#name)), reinterpret_cast<reshade::hook::address>(name), true)
 		// Install all OpenGL hooks in a single batch job
 		INSTALL_HOOK(glBindFramebuffer);
+		INSTALL_HOOK(glBufferData);
+		INSTALL_HOOK(glBufferStorage);
 		INSTALL_HOOK(glDrawArraysIndirect);
 		INSTALL_HOOK(glDrawArraysInstanced);
 		INSTALL_HOOK(glDrawArraysInstancedBaseInstance);
@@ -1135,14 +1140,20 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		INSTALL_HOOK(glMultiDrawElements);
 		INSTALL_HOOK(glMultiDrawElementsBaseVertex);
 		INSTALL_HOOK(glMultiDrawElementsIndirect);
+		INSTALL_HOOK(glNamedBufferData);
+		INSTALL_HOOK(glNamedBufferStorage);
+		INSTALL_HOOK(glTexBuffer);
+		INSTALL_HOOK(glTextureBuffer);
+		INSTALL_HOOK(glTexBufferRange);
+		INSTALL_HOOK(glTextureBufferRange);
 		INSTALL_HOOK(glTexImage3D);
-		INSTALL_HOOK(glTextureView);
 		INSTALL_HOOK(glTexStorage1D);
 		INSTALL_HOOK(glTexStorage2D);
 		INSTALL_HOOK(glTexStorage3D);
 		INSTALL_HOOK(glTextureStorage1D);
 		INSTALL_HOOK(glTextureStorage2D);
 		INSTALL_HOOK(glTextureStorage3D);
+		INSTALL_HOOK(glTextureView);
 
 		INSTALL_HOOK(wglChoosePixelFormatARB);
 		INSTALL_HOOK(wglCreateContextAttribsARB);
@@ -1158,6 +1169,9 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 
 		reshade::hook::apply_queued_actions();
 
+		gl3wProcs.gl.TexBuffer = reshade::hooks::call(glTexBuffer);
+		gl3wProcs.gl.TexBufferRange = reshade::hooks::call(glTexBufferRange);
+		gl3wProcs.gl.BufferData = reshade::hooks::call(glBufferData);
 		gl3wProcs.gl.TextureView = reshade::hooks::call(glTextureView);
 		gl3wProcs.gl.TexStorage2D = reshade::hooks::call(glTexStorage2D);
 		gl3wProcs.gl.BindFramebuffer = reshade::hooks::call(glBindFramebuffer);

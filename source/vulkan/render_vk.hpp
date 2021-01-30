@@ -15,13 +15,15 @@
 
 namespace reshade::vulkan
 {
+	void convert_resource_desc(const api::resource_desc &desc, VkBufferCreateInfo &create_info);
+	api::resource_desc convert_resource_desc(const VkBufferCreateInfo &create_info);
 	void convert_resource_desc(api::resource_type type, const api::resource_desc &desc, VkImageCreateInfo &create_info);
 	std::pair<api::resource_type, api::resource_desc> convert_resource_desc(const VkImageCreateInfo &create_info);
 
 	void convert_resource_view_desc(const api::resource_view_desc &desc, VkImageViewCreateInfo &create_info);
 	api::resource_view_desc convert_resource_view_desc(const VkImageViewCreateInfo &create_info);
-
-	api::resource_usage convert_image_layout(VkImageLayout layout);
+	void convert_resource_view_desc(const api::resource_view_desc &desc, VkBufferViewCreateInfo &create_info);
+	api::resource_view_desc convert_resource_view_desc(const VkBufferViewCreateInfo &create_info);
 
 	struct render_pass_data
 	{
@@ -42,15 +44,36 @@ namespace reshade::vulkan
 
 	struct resource_data
 	{
-		VkImage image;
-		VkImageCreateInfo create_info;
+		bool type;
+
+		union
+		{
+			VkImage image;
+			VkBuffer buffer;
+		};
+		union
+		{
+			VkImageCreateInfo image_create_info;
+			VkBufferCreateInfo buffer_create_info;
+		};
+
 		VmaAllocation allocation;
 	};
 
 	struct resource_view_data
 	{
-		VkImageView view;
-		VkImageViewCreateInfo create_info;
+		bool type;
+
+		union
+		{
+			VkImageView image_view;
+			VkBufferView buffer_view;
+		};
+		union
+		{
+			VkImageViewCreateInfo image_create_info;
+			VkBufferViewCreateInfo buffer_create_info;
+		};
 	};
 
 	class device_impl : public api::device, api::api_data
@@ -84,12 +107,55 @@ namespace reshade::vulkan
 
 		void wait_idle() override;
 
-		void register_resource(VkImage image, const VkImageCreateInfo &create_info) { _resources.emplace(image, resource_data { image, create_info }); }
-		void register_resource(VkImage image, const VkImageCreateInfo &create_info, VmaAllocation allocation) { _resources.emplace(image, resource_data { image, create_info, allocation }); }
-		void register_resource_view(VkImageView image_view, const VkImageViewCreateInfo &create_info) { _views.emplace(image_view, resource_view_data { image_view, create_info }); }
-		void unregister_resource(VkImage image) { _resources.erase(image); }
-		void unregister_resource_view(VkImageView image_view) { _views.erase(image_view); }
-		api::resource_view_handle get_default_view(VkImage image);
+		void register_image(VkImage image, const VkImageCreateInfo &create_info)
+		{
+			resource_data data { true };
+			data.image = image;
+			data.image_create_info = create_info;
+			_resources.emplace((uint64_t)image, data);
+		}
+		void register_image(VkImage image, const VkImageCreateInfo &create_info, VmaAllocation allocation)
+		{
+			resource_data data { true };
+			data.image = image;
+			data.image_create_info = create_info;
+			data.allocation = allocation;
+			_resources.emplace((uint64_t)image, data);
+		}
+		void register_image_view(VkImageView image_view, const VkImageViewCreateInfo &create_info)
+		{
+			resource_view_data data { true };
+			data.image_view = image_view;
+			data.image_create_info = create_info;
+			_views.emplace((uint64_t)image_view, data);
+		}
+		void register_buffer(VkBuffer buffer, const VkBufferCreateInfo &create_info)
+		{
+			resource_data data { false };
+			data.buffer = buffer;
+			data.buffer_create_info = create_info;
+			_resources.emplace((uint64_t)buffer, data);
+		}
+		void register_buffer_view(VkBufferView buffer_view, const VkBufferViewCreateInfo &create_info)
+		{
+			resource_view_data data { false };
+			data.buffer_view = buffer_view;
+			data.buffer_create_info = create_info;
+			_views.emplace((uint64_t)buffer_view, data);
+		}
+
+		void unregister_image(VkImage image) { _resources.erase((uint64_t)image); }
+		void unregister_image_view(VkImageView image_view) { _views.erase((uint64_t)image_view); }
+		void unregister_buffer(VkBuffer buffer) { _resources.erase((uint64_t)buffer); }
+		void unregister_buffer_view(VkBufferView buffer_view) { _views.erase((uint64_t)buffer_view); }
+
+		api::resource_view_handle get_default_view(VkImage image)
+		{
+			VkImageViewCreateInfo create_info{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
+			create_info.image = image;
+			register_image_view((VkImageView)image, create_info); // Register fake image view for this image
+			return { (uint64_t)image };
+		}
 
 		inline operator VkDevice() const { return _device; }
 
@@ -106,8 +172,8 @@ namespace reshade::vulkan
 		const VkDevice _device;
 		const VkPhysicalDevice _physical_device;
 		VkLayerInstanceDispatchTable _instance_dispatch_table;
-		lockfree_table<VkImage, resource_data, 4096> _resources;
-		lockfree_table<VkImageView, resource_view_data, 4096> _views;
+		lockfree_table<uint64_t, resource_data, 4096> _resources;
+		lockfree_table<uint64_t, resource_view_data, 4096> _views;
 
 		VmaAllocator _alloc = nullptr;
 	};

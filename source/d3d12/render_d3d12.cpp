@@ -32,12 +32,19 @@ void reshade::d3d12::convert_resource_desc(resource_type type, const resource_de
 		break;
 	}
 
-	internal_desc.Width = desc.width;
-	internal_desc.Height = desc.height;
-	internal_desc.DepthOrArraySize = desc.depth_or_layers;
-	internal_desc.MipLevels = desc.levels;
-	internal_desc.Format = static_cast<DXGI_FORMAT>(desc.format);
-	internal_desc.SampleDesc.Count = desc.samples;
+	if (type == resource_type::buffer)
+	{
+		internal_desc.Width = desc.buffer_size;
+	}
+	else
+	{
+		internal_desc.Width = desc.width;
+		internal_desc.Height = desc.height;
+		internal_desc.DepthOrArraySize = desc.depth_or_layers;
+		internal_desc.MipLevels = desc.levels;
+		internal_desc.Format = static_cast<DXGI_FORMAT>(desc.format);
+		internal_desc.SampleDesc.Count = desc.samples;
+	}
 
 	if ((desc.usage & resource_usage::render_target) != 0)
 		internal_desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
@@ -83,13 +90,21 @@ std::pair<resource_type, resource_desc> reshade::d3d12::convert_resource_desc(co
 	}
 
 	resource_desc desc = {};
-	assert(internal_desc.Width <= std::numeric_limits<uint32_t>::max());
-	desc.width = static_cast<uint32_t>(internal_desc.Width);
-	desc.height = internal_desc.Height;
-	desc.levels = internal_desc.MipLevels;
-	desc.depth_or_layers = internal_desc.DepthOrArraySize;
-	desc.format = static_cast<uint32_t>(internal_desc.Format);
-	desc.samples = static_cast<uint16_t>(internal_desc.SampleDesc.Count);
+
+	if (type == resource_type::buffer)
+	{
+		desc.buffer_size = internal_desc.Width;
+	}
+	else
+	{
+		assert(internal_desc.Width <= std::numeric_limits<uint32_t>::max());
+		desc.width = static_cast<uint32_t>(internal_desc.Width);
+		desc.height = internal_desc.Height;
+		desc.levels = internal_desc.MipLevels;
+		desc.depth_or_layers = internal_desc.DepthOrArraySize;
+		desc.format = static_cast<uint32_t>(internal_desc.Format);
+		desc.samples = static_cast<uint16_t>(internal_desc.SampleDesc.Count);
+	}
 
 	// Resources are generally copyable in D3D12
 	desc.usage = resource_usage::copy_dest | resource_usage::copy_source;
@@ -276,8 +291,9 @@ void reshade::d3d12::convert_shader_resource_view_desc(const resource_view_desc 
 	{
 	case resource_view_dimension::buffer:
 		internal_desc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-		internal_desc.Buffer.FirstElement = desc.byte_offset;
-		internal_desc.Buffer.NumElements = desc.levels;
+		internal_desc.Buffer.FirstElement = desc.buffer_offset;
+		assert(desc.buffer_size <= std::numeric_limits<UINT>::max());
+		internal_desc.Buffer.NumElements = static_cast<UINT>(desc.buffer_size);
 		// Missing fields: D3D12_BUFFER_SRV::StructureByteStride, D3D12_BUFFER_SRV::Flags
 		break;
 	case resource_view_dimension::texture_1d:
@@ -347,8 +363,8 @@ resource_view_desc reshade::d3d12::convert_shader_resource_view_desc(const D3D12
 	{
 	case D3D12_SRV_DIMENSION_BUFFER:
 		desc.dimension = resource_view_dimension::buffer;
-		desc.byte_offset = internal_desc.Buffer.FirstElement;
-		desc.levels = internal_desc.Buffer.NumElements;
+		desc.buffer_offset = internal_desc.Buffer.FirstElement;
+		desc.buffer_size = internal_desc.Buffer.NumElements;
 		// Missing fields: D3D12_BUFFER_SRV::StructureByteStride, D3D12_BUFFER_SRV::Flags
 		break;
 	case D3D12_SRV_DIMENSION_TEXTURE1D:
@@ -408,7 +424,7 @@ resource_view_desc reshade::d3d12::convert_shader_resource_view_desc(const D3D12
 		// Missing fields: D3D12_TEXCUBE_ARRAY_SRV::ResourceMinLODClamp
 		break;
 	case D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE:
-		desc.byte_offset = internal_desc.RaytracingAccelerationStructure.Location;
+		desc.buffer_offset = internal_desc.RaytracingAccelerationStructure.Location;
 		break;
 	}
 	return desc;

@@ -383,7 +383,37 @@ void    STDMETHODCALLTYPE D3D10Device::Flush()
 }
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateBuffer(const D3D10_BUFFER_DESC *pDesc, const D3D10_SUBRESOURCE_DATA *pInitialData, ID3D10Buffer **ppBuffer)
 {
-	return _orig->CreateBuffer(pDesc, pInitialData, ppBuffer);
+	assert(pDesc != nullptr);
+	D3D10_BUFFER_DESC new_desc = *pDesc;
+
+#if RESHADE_ADDON
+	reshade::api::resource_desc api_desc = reshade::d3d10::convert_resource_desc(new_desc);
+	RESHADE_ADDON_EVENT(create_resource, _impl, reshade::api::resource_type::buffer, &api_desc);
+	reshade::d3d10::convert_resource_desc(api_desc, new_desc);
+#endif
+
+	const HRESULT hr = _orig->CreateBuffer(pDesc, pInitialData, ppBuffer);
+#if RESHADE_ADDON
+	if (SUCCEEDED(hr))
+	{
+		assert(ppBuffer != nullptr);
+		_impl->register_resource(*ppBuffer);
+	}
+	else
+	{
+		LOG(WARN) << "ID3D10Device::CreateBuffer" << " failed with error code " << hr << '.';
+		LOG(INFO) << "> Dumping description:";
+		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(INFO) << "  | ByteWidth                               | " << std::setw(39) << new_desc.ByteWidth << " |";
+		LOG(INFO) << "  | Usage                                   | " << std::setw(39) << new_desc.Usage << " |";
+		LOG(INFO) << "  | BindFlags                               | " << std::setw(39) << std::hex << new_desc.BindFlags << std::dec << " |";
+		LOG(INFO) << "  | CPUAccessFlags                          | " << std::setw(39) << std::hex << new_desc.CPUAccessFlags << std::dec << " |";
+		LOG(INFO) << "  | MiscFlags                               | " << std::setw(39) << std::hex << new_desc.MiscFlags << std::dec << " |";
+		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+	}
+#endif
+
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture1D(const D3D10_TEXTURE1D_DESC *pDesc, const D3D10_SUBRESOURCE_DATA *pInitialData, ID3D10Texture1D **ppTexture1D)
 {
@@ -397,12 +427,11 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture1D(const D3D10_TEXTURE1D_DES
 #endif
 
 	const HRESULT hr = _orig->CreateTexture1D(&new_desc, pInitialData, ppTexture1D);
+#if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
-#if RESHADE_ADDON
 		assert(ppTexture1D != nullptr);
 		_impl->register_resource(*ppTexture1D);
-#endif
 	}
 	else
 	{
@@ -419,6 +448,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture1D(const D3D10_TEXTURE1D_DES
 		LOG(INFO) << "  | MiscFlags                               | " << std::setw(39) << std::hex << new_desc.MiscFlags << std::dec << " |";
 		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 	}
+#endif
 
 	return hr;
 }
@@ -434,12 +464,11 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture2D(const D3D10_TEXTURE2D_DES
 #endif
 
 	const HRESULT hr = _orig->CreateTexture2D(&new_desc, pInitialData, ppTexture2D);
+#if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
-#if RESHADE_ADDON
 		assert(ppTexture2D != nullptr);
 		_impl->register_resource(*ppTexture2D);
-#endif
 	}
 	else
 	{
@@ -459,6 +488,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture2D(const D3D10_TEXTURE2D_DES
 		LOG(INFO) << "  | MiscFlags                               | " << std::setw(39) << std::hex << new_desc.MiscFlags << std::dec << " |";
 		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 	}
+#endif
 
 	return hr;
 }
@@ -474,12 +504,11 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture3D(const D3D10_TEXTURE3D_DES
 #endif
 
 	const HRESULT hr = _orig->CreateTexture3D(&new_desc, pInitialData, ppTexture3D);
+#if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
-#if RESHADE_ADDON
 		assert(ppTexture3D != nullptr);
 		_impl->register_resource(*ppTexture3D);
-#endif
 	}
 	else
 	{
@@ -497,6 +526,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture3D(const D3D10_TEXTURE3D_DES
 		LOG(INFO) << "  | MiscFlags                               | " << std::setw(39) << std::hex << new_desc.MiscFlags << std::dec << " |";
 		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 	}
+#endif
 
 	return hr;
 }
@@ -515,12 +545,11 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateShaderResourceView(ID3D10Resource *
 #endif
 
 	const HRESULT hr = _orig->CreateShaderResourceView(pResource, new_desc.ViewDimension != D3D10_SRV_DIMENSION_UNKNOWN ? &new_desc : nullptr, ppSRView);
+#if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
-#if RESHADE_ADDON
 		assert(ppSRView != nullptr);
 		_impl->register_resource_view(*ppSRView);
-#endif
 	}
 	else
 	{
@@ -531,6 +560,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateShaderResourceView(ID3D10Resource *
 		LOG(INFO) << "  | ViewDimension                           | " << std::setw(39) << new_desc.ViewDimension << " |";
 		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 	}
+#endif
 
 	return hr;
 }
@@ -549,12 +579,11 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateRenderTargetView(ID3D10Resource *pR
 #endif
 
 	const HRESULT hr = _orig->CreateRenderTargetView(pResource, new_desc.ViewDimension != D3D10_RTV_DIMENSION_UNKNOWN ? &new_desc : nullptr, ppRTView);
+#if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
-#if RESHADE_ADDON
 		assert(ppRTView != nullptr);
 		_impl->register_resource_view(*ppRTView);
-#endif
 	}
 	else
 	{
@@ -565,6 +594,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateRenderTargetView(ID3D10Resource *pR
 		LOG(INFO) << "  | ViewDimension                           | " << std::setw(39) << new_desc.ViewDimension << " |";
 		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 	}
+#endif
 
 	return hr;
 }
@@ -583,12 +613,11 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateDepthStencilView(ID3D10Resource *pR
 #endif
 
 	const HRESULT hr = _orig->CreateDepthStencilView(pResource, new_desc.ViewDimension != D3D10_DSV_DIMENSION_UNKNOWN ? &new_desc : nullptr, ppDepthStencilView);
+#if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
-#if RESHADE_ADDON
 		assert(ppDepthStencilView != nullptr);
 		_impl->register_resource_view(*ppDepthStencilView);
-#endif
 	}
 	else
 	{
@@ -599,6 +628,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateDepthStencilView(ID3D10Resource *pR
 		LOG(INFO) << "  | ViewDimension                           | " << std::setw(39) << new_desc.ViewDimension << " |";
 		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 	}
+#endif
 
 	return hr;
 }
@@ -698,12 +728,11 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateShaderResourceView1(ID3D10Resource 
 #endif
 
 	const HRESULT hr = _orig->CreateShaderResourceView1(pResource, new_desc.ViewDimension != D3D10_1_SRV_DIMENSION_UNKNOWN ? &new_desc : nullptr, ppSRView);
+#if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
-#if RESHADE_ADDON
 		assert(ppSRView != nullptr);
 		_impl->register_resource_view(*ppSRView);
-#endif
 	}
 	else
 	{
@@ -714,6 +743,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateShaderResourceView1(ID3D10Resource 
 		LOG(INFO) << "  | ViewDimension                           | " << std::setw(39) << new_desc.ViewDimension << " |";
 		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 	}
+#endif
 
 	return hr;
 }

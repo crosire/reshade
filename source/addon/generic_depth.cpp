@@ -265,7 +265,7 @@ static void on_destroy_queue_or_command_list(api_object *queue_or_cmd_list)
 
 static void on_create_resource(device *device, resource_type type, resource_desc *desc)
 {
-	if (desc->samples != 1 || (type != resource_type::surface && type != resource_type::texture_2d))
+	if ((type != resource_type::surface && type != resource_type::texture_2d) || desc->samples != 1)
 		return; // Skip MSAA textures and resources that are not 2D textures
 
 	// Allow shader access to images that are used as depth-stencil attachments

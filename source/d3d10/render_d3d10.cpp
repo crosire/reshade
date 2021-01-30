@@ -42,8 +42,8 @@ static inline void convert_bind_flags_to_usage(const UINT bind_flags, resource_u
 
 void reshade::d3d10::convert_resource_desc(const resource_desc &desc, D3D10_BUFFER_DESC &internal_desc)
 {
-	internal_desc.ByteWidth = desc.width;
-	assert(desc.height <= 1 && desc.depth_or_layers <= 1 && desc.levels <= 1 && desc.samples <= 1);
+	assert(desc.buffer_size <= std::numeric_limits<UINT>::max());
+	internal_desc.ByteWidth = static_cast<UINT>(desc.buffer_size);
 	convert_usage_to_bind_flags(desc.usage, internal_desc.BindFlags);
 }
 void reshade::d3d10::convert_resource_desc(const resource_desc &desc, D3D10_TEXTURE1D_DESC &internal_desc)
@@ -79,7 +79,7 @@ void reshade::d3d10::convert_resource_desc(const resource_desc &desc, D3D10_TEXT
 resource_desc reshade::d3d10::convert_resource_desc(const D3D10_BUFFER_DESC &internal_desc)
 {
 	resource_desc desc = {};
-	desc.width = internal_desc.ByteWidth;
+	desc.buffer_size = internal_desc.ByteWidth;
 	convert_bind_flags_to_usage(internal_desc.BindFlags, desc.usage);
 	return desc;
 }
@@ -293,9 +293,10 @@ void reshade::d3d10::convert_shader_resource_view_desc(const resource_view_desc 
 	{
 	case resource_view_dimension::buffer:
 		internal_desc.ViewDimension = D3D10_SRV_DIMENSION_BUFFER;
-		assert(desc.byte_offset <= std::numeric_limits<UINT>::max());
-		internal_desc.Buffer.FirstElement = static_cast<UINT>(desc.byte_offset);
-		internal_desc.Buffer.NumElements = desc.levels;
+		assert(desc.buffer_offset <= std::numeric_limits<UINT>::max());
+		internal_desc.Buffer.FirstElement = static_cast<UINT>(desc.buffer_offset);
+		assert(desc.buffer_size <= std::numeric_limits<UINT>::max());
+		internal_desc.Buffer.NumElements = static_cast<UINT>(desc.buffer_size);
 		break;
 	case resource_view_dimension::texture_1d:
 		internal_desc.ViewDimension = D3D10_SRV_DIMENSION_TEXTURE1D;
@@ -365,8 +366,8 @@ resource_view_desc reshade::d3d10::convert_shader_resource_view_desc(const D3D10
 	{
 	case D3D10_SRV_DIMENSION_BUFFER:
 		desc.dimension = resource_view_dimension::buffer;
-		desc.byte_offset = internal_desc.Buffer.FirstElement;
-		desc.levels = internal_desc.Buffer.NumElements;
+		desc.buffer_offset = internal_desc.Buffer.FirstElement;
+		desc.buffer_size = internal_desc.Buffer.NumElements;
 		break;
 	case D3D10_SRV_DIMENSION_TEXTURE1D:
 		desc.dimension = resource_view_dimension::texture_1d;

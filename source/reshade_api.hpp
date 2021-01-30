@@ -7,6 +7,9 @@
 
 #include <cstdint>
 
+#pragma warning(push)
+#pragma warning(disable: 4201)
+
 namespace reshade { namespace api
 {
 	/// <summary>
@@ -102,12 +105,23 @@ namespace reshade { namespace api
 	/// </summary>
 	struct resource_desc
 	{
-		uint32_t width;
-		uint32_t height;
-		uint16_t depth_or_layers;
-		uint16_t levels;
-		uint32_t format;
-		uint16_t samples;
+		union
+		{
+			struct
+			{
+				uint64_t buffer_size;
+			};
+			struct
+			{
+				uint32_t width;
+				uint32_t height;
+				uint16_t depth_or_layers;
+				uint16_t levels;
+				uint32_t format;
+				uint16_t samples;
+			};
+		};
+
 		resource_usage usage;
 	};
 
@@ -118,11 +132,22 @@ namespace reshade { namespace api
 	{
 		resource_view_dimension dimension;
 		uint32_t format;
-		uint32_t first_level;
-		uint32_t levels;
-		uint32_t first_layer;
-		uint32_t layers;
-		uint64_t byte_offset;
+
+		union
+		{
+			struct
+			{
+				uint64_t buffer_offset;
+				uint64_t buffer_size;
+			};
+			struct
+			{
+				uint32_t first_level;
+				uint32_t levels;
+				uint32_t first_layer;
+				uint32_t layers;
+			};
+		};
 	};
 
 	/// <summary>
@@ -344,3 +369,5 @@ namespace reshade { namespace api
 		virtual void update_texture_bindings(const char *semantic, resource_view_handle shader_resource_view) = 0;
 	};
 } }
+
+#pragma warning(pop)
