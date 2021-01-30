@@ -80,6 +80,7 @@ namespace reshade { namespace api
 		depth_stencil,
 		render_target,
 		shader_resource,
+		unordered_access,
 	};
 
 	/// <summary>

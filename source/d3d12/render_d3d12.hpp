@@ -26,6 +26,9 @@ namespace reshade::d3d12
 	void convert_shader_resource_view_desc(const api::resource_view_desc &desc, D3D12_SHADER_RESOURCE_VIEW_DESC &internal_desc);
 	api::resource_view_desc convert_shader_resource_view_desc(const D3D12_SHADER_RESOURCE_VIEW_DESC &internal_desc);
 
+	void convert_unordered_access_view_desc(const api::resource_view_desc &desc, D3D12_UNORDERED_ACCESS_VIEW_DESC &internal_desc);
+	api::resource_view_desc convert_unordered_access_view_desc(const D3D12_UNORDERED_ACCESS_VIEW_DESC &internal_desc);
+
 	class device_impl : public api::device
 	{
 		friend class runtime_d3d12;

@@ -539,6 +539,144 @@ resource_view_desc reshade::d3d11::convert_shader_resource_view_desc(const D3D11
 	}
 }
 
+void reshade::d3d11::convert_unordered_access_view_desc(const resource_view_desc &desc, D3D11_UNORDERED_ACCESS_VIEW_DESC &internal_desc)
+{
+	internal_desc.Format = static_cast<DXGI_FORMAT>(desc.format);
+	switch (desc.dimension) // Do not modifiy description in case dimension is 'resource_view_dimension::unknown'
+	{
+	case resource_view_dimension::buffer:
+		internal_desc.ViewDimension = D3D11_UAV_DIMENSION_BUFFER;
+		assert(desc.buffer_offset <= std::numeric_limits<UINT>::max());
+		internal_desc.Buffer.FirstElement = static_cast<UINT>(desc.buffer_offset);
+		assert(desc.buffer_size <= std::numeric_limits<UINT>::max());
+		internal_desc.Buffer.NumElements = static_cast<UINT>(desc.buffer_size);
+		break;
+	case resource_view_dimension::texture_1d:
+		internal_desc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE1D;
+		internal_desc.Texture1D.MipSlice = desc.first_level;
+		break;
+	case resource_view_dimension::texture_1d_array:
+		internal_desc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE1DARRAY;
+		internal_desc.Texture1DArray.MipSlice = desc.first_level;
+		internal_desc.Texture1DArray.FirstArraySlice = desc.first_layer;
+		internal_desc.Texture1DArray.ArraySize = desc.layers;
+		break;
+	case resource_view_dimension::texture_2d:
+		internal_desc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
+		internal_desc.Texture2D.MipSlice = desc.first_level;
+		break;
+	case resource_view_dimension::texture_2d_array:
+		internal_desc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2DARRAY;
+		internal_desc.Texture2DArray.MipSlice = desc.first_level;
+		internal_desc.Texture2DArray.FirstArraySlice = desc.first_layer;
+		internal_desc.Texture2DArray.ArraySize = desc.layers;
+		break;
+	case resource_view_dimension::texture_3d:
+		internal_desc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE3D;
+		internal_desc.Texture3D.MipSlice = desc.first_level;
+		internal_desc.Texture3D.FirstWSlice = desc.first_layer;
+		internal_desc.Texture3D.WSize = desc.layers;
+		break;
+	}
+}
+void reshade::d3d11::convert_unordered_access_view_desc(const resource_view_desc &desc, D3D11_UNORDERED_ACCESS_VIEW_DESC1 &internal_desc)
+{
+	if (desc.dimension == resource_view_dimension::texture_2d || desc.dimension == resource_view_dimension::texture_2d_array)
+	{
+		internal_desc.Format = static_cast<DXGI_FORMAT>(desc.format);
+		switch (desc.dimension)
+		{
+		case resource_view_dimension::texture_2d:
+			internal_desc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
+			internal_desc.Texture2D.MipSlice = desc.first_level;
+			// Missing fields: D3D11_TEX2D_UAV1::PlaneSlice
+			break;
+		case resource_view_dimension::texture_2d_array:
+			internal_desc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2DARRAY;
+			internal_desc.Texture2DArray.MipSlice = desc.first_level;
+			internal_desc.Texture2DArray.FirstArraySlice = desc.first_layer;
+			internal_desc.Texture2DArray.ArraySize = desc.layers;
+			// Missing fields: D3D11_TEX2D_ARRAY_UAV1::PlaneSlice
+			break;
+		}
+	}
+	else
+	{
+		convert_unordered_access_view_desc(desc, reinterpret_cast<D3D11_UNORDERED_ACCESS_VIEW_DESC &>(internal_desc));
+	}
+}
+resource_view_desc reshade::d3d11::convert_unordered_access_view_desc(const D3D11_UNORDERED_ACCESS_VIEW_DESC &internal_desc)
+{
+	resource_view_desc desc = {};
+	desc.format = static_cast<uint32_t>(internal_desc.Format);
+	desc.levels = 1;
+	switch (internal_desc.ViewDimension)
+	{
+	case D3D11_UAV_DIMENSION_BUFFER:
+		desc.dimension = resource_view_dimension::buffer;
+		desc.buffer_offset = internal_desc.Buffer.FirstElement;
+		desc.buffer_size = internal_desc.Buffer.NumElements;
+		// Missing fields: D3D11_BUFFER_UAV::Flags
+		break;
+	case D3D11_UAV_DIMENSION_TEXTURE1D:
+		desc.dimension = resource_view_dimension::texture_1d;
+		desc.first_level = internal_desc.Texture1D.MipSlice;
+		break;
+	case D3D11_UAV_DIMENSION_TEXTURE1DARRAY:
+		desc.dimension = resource_view_dimension::texture_1d_array;
+		desc.first_level = internal_desc.Texture1DArray.MipSlice;
+		desc.first_layer = internal_desc.Texture1DArray.FirstArraySlice;
+		desc.layers = internal_desc.Texture1DArray.ArraySize;
+		break;
+	case D3D11_UAV_DIMENSION_TEXTURE2D:
+		desc.dimension = resource_view_dimension::texture_2d;
+		desc.first_level = internal_desc.Texture2D.MipSlice;
+		break;
+	case D3D11_UAV_DIMENSION_TEXTURE2DARRAY:
+		desc.dimension = resource_view_dimension::texture_2d_array;
+		desc.first_level = internal_desc.Texture2DArray.MipSlice;
+		desc.first_layer = internal_desc.Texture2DArray.FirstArraySlice;
+		desc.layers = internal_desc.Texture2DArray.ArraySize;
+		break;
+	case D3D11_UAV_DIMENSION_TEXTURE3D:
+		desc.dimension = resource_view_dimension::texture_3d;
+		desc.first_level = internal_desc.Texture3D.MipSlice;
+		desc.first_layer = internal_desc.Texture3D.FirstWSlice;
+		desc.layers = internal_desc.Texture3D.WSize;
+		break;
+	}
+	return desc;
+}
+resource_view_desc reshade::d3d11::convert_unordered_access_view_desc(const D3D11_UNORDERED_ACCESS_VIEW_DESC1 &internal_desc)
+{
+	if (internal_desc.ViewDimension == D3D11_UAV_DIMENSION_TEXTURE2D || internal_desc.ViewDimension == D3D11_UAV_DIMENSION_TEXTURE2DARRAY)
+	{
+		resource_view_desc desc = {};
+		desc.format = static_cast<uint32_t>(internal_desc.Format);
+		desc.levels = 1;
+		switch (internal_desc.ViewDimension)
+		{
+		case D3D11_UAV_DIMENSION_TEXTURE2D:
+			desc.dimension = resource_view_dimension::texture_2d;
+			desc.first_level = internal_desc.Texture2D.MipSlice;
+			// Missing fields: D3D11_TEX2D_UAV1::PlaneSlice
+			break;
+		case D3D11_UAV_DIMENSION_TEXTURE2DARRAY:
+			desc.dimension = resource_view_dimension::texture_2d_array;
+			desc.first_level = internal_desc.Texture2DArray.MipSlice;
+			desc.first_layer = internal_desc.Texture2DArray.FirstArraySlice;
+			desc.layers = internal_desc.Texture2DArray.ArraySize;
+			// Missing fields: D3D11_TEX2D_ARRAY_UAV1::PlaneSlice
+			break;
+		}
+		return desc;
+	}
+	else
+	{
+		return convert_unordered_access_view_desc(reinterpret_cast<const D3D11_UNORDERED_ACCESS_VIEW_DESC &>(internal_desc));
+	}
+}
+
 reshade::d3d11::device_impl::device_impl(ID3D11Device *device) :
 	_device(device), _app_state(device)
 {

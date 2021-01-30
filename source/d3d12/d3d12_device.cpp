@@ -252,7 +252,24 @@ void    STDMETHODCALLTYPE D3D12Device::CreateShaderResourceView(ID3D12Resource *
 }
 void    STDMETHODCALLTYPE D3D12Device::CreateUnorderedAccessView(ID3D12Resource *pResource, ID3D12Resource *pCounterResource, const D3D12_UNORDERED_ACCESS_VIEW_DESC *pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
 {
-	_orig->CreateUnorderedAccessView(pResource, pCounterResource, pDesc, DestDescriptor);
+#if RESHADE_ADDON
+	if (pResource != nullptr)
+	{
+		D3D12_UNORDERED_ACCESS_VIEW_DESC new_desc =
+			pDesc != nullptr ? *pDesc : D3D12_UNORDERED_ACCESS_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D12_UAV_DIMENSION_UNKNOWN };
+
+		reshade::api::resource_view_desc api_desc = reshade::d3d12::convert_unordered_access_view_desc(new_desc);
+		RESHADE_ADDON_EVENT(create_resource_view, _impl, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::unordered_access, &api_desc);
+		reshade::d3d12::convert_unordered_access_view_desc(api_desc, new_desc);
+
+		_orig->CreateUnorderedAccessView(pResource, pCounterResource, new_desc.ViewDimension != D3D12_UAV_DIMENSION_UNKNOWN ? &new_desc : nullptr, DestDescriptor);
+
+		_impl->register_resource_view(pResource, DestDescriptor);
+	}
+	else
+#endif
+		// Calling with no resource is valid and used to initialize a null descriptor (see https://docs.microsoft.com/windows/win32/api/d3d12/nf-d3d12-id3d12device-createunorderedaccessview)
+		_orig->CreateUnorderedAccessView(pResource, pCounterResource, pDesc, DestDescriptor);
 }
 void    STDMETHODCALLTYPE D3D12Device::CreateRenderTargetView(ID3D12Resource *pResource, const D3D12_RENDER_TARGET_VIEW_DESC *pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
 {

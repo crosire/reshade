@@ -34,6 +34,11 @@ namespace reshade::d3d11
 	api::resource_view_desc convert_shader_resource_view_desc(const D3D11_SHADER_RESOURCE_VIEW_DESC &internal_desc);
 	api::resource_view_desc convert_shader_resource_view_desc(const D3D11_SHADER_RESOURCE_VIEW_DESC1 &internal_desc);
 
+	void convert_unordered_access_view_desc(const api::resource_view_desc &desc, D3D11_UNORDERED_ACCESS_VIEW_DESC &internal_desc);
+	void convert_unordered_access_view_desc(const api::resource_view_desc &desc, D3D11_UNORDERED_ACCESS_VIEW_DESC1 &internal_desc);
+	api::resource_view_desc convert_unordered_access_view_desc(const D3D11_UNORDERED_ACCESS_VIEW_DESC &internal_desc);
+	api::resource_view_desc convert_unordered_access_view_desc(const D3D11_UNORDERED_ACCESS_VIEW_DESC1 &internal_desc);
+
 	class device_impl : public api::device
 	{
 		friend class runtime_d3d11;
