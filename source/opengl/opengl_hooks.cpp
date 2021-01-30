@@ -48,6 +48,8 @@ HOOK_EXPORT void WINAPI glBegin(GLenum mode)
 	static const auto trampoline = reshade::hooks::call(glBindFramebuffer);
 	trampoline(target, framebuffer);
 
+#if RESHADE_ADDON
+	// Call events after binding rather than before like in the other APIs so status can be checked
 	if (g_current_runtime && (target == GL_FRAMEBUFFER || target == GL_DRAW_FRAMEBUFFER) &&
 		glCheckFramebufferStatus(target) == GL_FRAMEBUFFER_COMPLETE) // Skip incomplete frame buffer bindings (e.g. during set up)
 	{
@@ -61,6 +63,7 @@ HOOK_EXPORT void WINAPI glBegin(GLenum mode)
 			RESHADE_ADDON_EVENT(set_depth_stencil, g_current_runtime, dsv);
 		}
 	}
+#endif
 }
 
 HOOK_EXPORT void WINAPI glBindTexture(GLenum target, GLuint texture)
@@ -94,6 +97,7 @@ HOOK_EXPORT void WINAPI glCallLists(GLsizei n, GLenum type, const GLvoid *lists)
 
 HOOK_EXPORT void WINAPI glClear(GLbitfield mask)
 {
+#if RESHADE_ADDON
 	if (g_current_runtime)
 	{
 		GLint   fbo = 0;
@@ -130,6 +134,7 @@ HOOK_EXPORT void WINAPI glClear(GLbitfield mask)
 			RESHADE_ADDON_EVENT(clear_depth_stencil, g_current_runtime, dsv, clear_flags, depth_value, static_cast<uint8_t>(stencil_value));
 		}
 	}
+#endif
 
 	static const auto trampoline = reshade::hooks::call(glClear);
 	trampoline(mask);
@@ -1841,12 +1846,14 @@ HOOK_EXPORT void WINAPI glTexImage1D(GLenum target, GLint level, GLint internalf
 		break;
 	}
 
+#if RESHADE_ADDON
 	if (g_current_runtime)
 	{
 		std::pair<reshade::api::resource_type, reshade::api::resource_desc> api_desc = reshade::opengl::convert_resource_desc(target, 1, internalformat, width);
 		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, api_desc.first, &api_desc.second);
 		reshade::opengl::convert_resource_desc(api_desc.second, nullptr, reinterpret_cast<GLenum *>(&internalformat), &width);
 	}
+#endif
 
 	static const auto trampoline = reshade::hooks::call(glTexImage1D);
 	trampoline(target, level, internalformat, width, border, format, type, pixels);
@@ -1876,12 +1883,15 @@ HOOK_EXPORT void WINAPI glTexImage2D(GLenum target, GLint level, GLint internalf
 		break;
 	}
 
+#if RESHADE_ADDON
 	if (g_current_runtime)
 	{
+		// TODO: This handles every mipmap of a texture initialized via multiple calls to 'glTexImage2D' as a separate resource, which is not technically correct
 		std::pair<reshade::api::resource_type, reshade::api::resource_desc> api_desc = reshade::opengl::convert_resource_desc(target, 1, internalformat, width, height);
 		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, api_desc.first, &api_desc.second);
 		reshade::opengl::convert_resource_desc(api_desc.second, nullptr, reinterpret_cast<GLenum *>(&internalformat), &width, &height);
 	}
+#endif
 
 	static const auto trampoline = reshade::hooks::call(glTexImage2D);
 	trampoline(target, level, internalformat, width, height, border, format, type, pixels);
@@ -1911,12 +1921,14 @@ HOOK_EXPORT void WINAPI glTexImage2D(GLenum target, GLint level, GLint internalf
 		break;
 	}
 
+#if RESHADE_ADDON
 	if (g_current_runtime)
 	{
 		std::pair<reshade::api::resource_type, reshade::api::resource_desc> api_desc = reshade::opengl::convert_resource_desc(target, 1, internalformat, width, height, depth);
 		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, api_desc.first, &api_desc.second);
 		reshade::opengl::convert_resource_desc(api_desc.second, nullptr, reinterpret_cast<GLenum *>(&internalformat), &width, &height, &depth);
 	}
+#endif
 
 	static const auto trampoline = reshade::hooks::call(glTexImage3D);
 	trampoline(target, level, internalformat, width, height, depth, border, format, type, pixels);
@@ -1956,72 +1968,84 @@ HOOK_EXPORT void WINAPI glTexSubImage2D(GLenum target, GLint level, GLint xoffse
 
 			void WINAPI glTexStorage1D(GLenum target, GLsizei levels, GLenum internalformat, GLsizei width)
 {
+#if RESHADE_ADDON
 	if (g_current_runtime)
 	{
 		std::pair<reshade::api::resource_type, reshade::api::resource_desc> api_desc = reshade::opengl::convert_resource_desc(target, levels, internalformat, width);
 		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, api_desc.first, &api_desc.second);
 		reshade::opengl::convert_resource_desc(api_desc.second, &levels, &internalformat, &width);
 	}
+#endif
 
 	static const auto trampoline = reshade::hooks::call(glTexStorage1D);
 	trampoline(target, levels, internalformat, width);
 }
 			void WINAPI glTexStorage2D(GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height)
 {
+#if RESHADE_ADDON
 	if (g_current_runtime)
 	{
 		std::pair<reshade::api::resource_type, reshade::api::resource_desc> api_desc = reshade::opengl::convert_resource_desc(target, levels, internalformat, width, height);
 		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, api_desc.first, &api_desc.second);
 		reshade::opengl::convert_resource_desc(api_desc.second, &levels, &internalformat, &width, &height);
 	}
+#endif
 
 	static const auto trampoline = reshade::hooks::call(glTexStorage2D);
 	trampoline(target, levels, internalformat, width, height);
 }
 			void WINAPI glTexStorage3D(GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth)
 {
+#if RESHADE_ADDON
 	if (g_current_runtime)
 	{
 		std::pair<reshade::api::resource_type, reshade::api::resource_desc> api_desc = reshade::opengl::convert_resource_desc(target, levels, internalformat, width, height, depth);
 		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, api_desc.first, &api_desc.second);
 		reshade::opengl::convert_resource_desc(api_desc.second, &levels, &internalformat, &width, &height, &depth);
 	}
+#endif
 
 	static const auto trampoline = reshade::hooks::call(glTexStorage3D);
 	trampoline(target, levels, internalformat, width, height, depth);
 }
 			void WINAPI glTextureStorage1D(GLuint texture, GLsizei levels, GLenum internalformat, GLsizei width)
 {
+#if RESHADE_ADDON
 	if (g_current_runtime)
 	{
 		std::pair<reshade::api::resource_type, reshade::api::resource_desc> api_desc = reshade::opengl::convert_resource_desc(GL_TEXTURE_1D, levels, internalformat, width);
 		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, api_desc.first, &api_desc.second);
 		reshade::opengl::convert_resource_desc(api_desc.second, &levels, &internalformat, &width);
 	}
+#endif
 
 	static const auto trampoline = reshade::hooks::call(glTextureStorage1D);
 	trampoline(texture, levels, internalformat, width);
 }
 			void WINAPI glTextureStorage2D(GLuint texture, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height)
 {
+#if RESHADE_ADDON
 	if (g_current_runtime)
 	{
 		std::pair<reshade::api::resource_type, reshade::api::resource_desc> api_desc = reshade::opengl::convert_resource_desc(GL_TEXTURE_2D, levels, internalformat, width, height);
 		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, api_desc.first, &api_desc.second);
 		reshade::opengl::convert_resource_desc(api_desc.second, &levels, &internalformat, &width, &height);
 	}
+#endif
 
 	static const auto trampoline = reshade::hooks::call(glTextureStorage2D);
 	trampoline(texture, levels, internalformat, width, height);
 }
 			void WINAPI glTextureStorage3D(GLuint texture, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth)
 {
+#if RESHADE_ADDON
 	if (g_current_runtime)
 	{
 		std::pair<reshade::api::resource_type, reshade::api::resource_desc> api_desc = reshade::opengl::convert_resource_desc(GL_TEXTURE_3D, levels, internalformat, width, height, depth);
 		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, api_desc.first, &api_desc.second);
 		reshade::opengl::convert_resource_desc(api_desc.second, &levels, &internalformat, &width, &height, &depth);
 	}
+#endif
 
 	static const auto trampoline = reshade::hooks::call(glTextureStorage3D);
 	trampoline(texture, levels, internalformat, width, height, depth);
@@ -2029,12 +2053,15 @@ HOOK_EXPORT void WINAPI glTexSubImage2D(GLenum target, GLint level, GLint xoffse
 
 			void WINAPI glTextureView(GLuint texture, GLenum target, GLuint origtexture, GLenum internalformat, GLuint minlevel, GLuint numlevels, GLuint minlayer, GLuint numlayers)
 {
+#if RESHADE_ADDON
 	if (g_current_runtime)
 	{
+		// The target of the original texture is unknown at this point, so use "GL_TEXTURE" as a placeholder instead for the resource handle
 		reshade::api::resource_view_desc api_desc = reshade::opengl::convert_resource_view_desc(target, internalformat, minlevel, numlevels, minlayer, numlayers);
 		RESHADE_ADDON_EVENT(create_resource_view, g_current_runtime, reshade::api::resource_handle { (static_cast<uint64_t>(GL_TEXTURE) << 32) | origtexture }, reshade::api::resource_view_type::unknown, &api_desc);
 		reshade::opengl::convert_resource_view_desc(api_desc, &internalformat, &minlevel, &numlevels, &minlayer, &numlayers);
 	}
+#endif
 
 	static const auto trampoline = reshade::hooks::call(glTextureView);
 	trampoline(texture, target, origtexture, internalformat, minlevel, numlevels, minlayer, numlayers);

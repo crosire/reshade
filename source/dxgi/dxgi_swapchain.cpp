@@ -71,11 +71,11 @@ DXGISwapChain::DXGISwapChain(D3D12CommandQueue *command_queue, IDXGISwapChain3 *
 	_direct3d_device->AddRef();
 }
 
-void DXGISwapChain::runtime_reset()
+void DXGISwapChain::runtime_reset(UINT width, UINT height)
 {
-	RESHADE_ADDON_EVENT(resize, _runtime);
-
 	const std::lock_guard<std::mutex> lock(_runtime_mutex);
+
+	RESHADE_ADDON_EVENT(resize, _runtime, width, height);
 
 	switch (_direct3d_version)
 	{
@@ -118,22 +118,11 @@ void DXGISwapChain::runtime_present(UINT flags)
 	if (flags & DXGI_PRESENT_TEST)
 		return;
 
-	switch (_direct3d_version)
-	{
-	case 10:
-		RESHADE_ADDON_EVENT(present, static_cast<reshade::d3d10::runtime_d3d10 *>(_runtime)->get_command_queue(), _runtime);
-		break;
-	case 11:
-		RESHADE_ADDON_EVENT(present, static_cast<reshade::d3d11::runtime_d3d11 *>(_runtime)->get_command_queue(), _runtime);
-		break;
-	case 12:
-		RESHADE_ADDON_EVENT(present, static_cast<reshade::d3d12::runtime_d3d12 *>(_runtime)->get_command_queue(), _runtime);
-		break;
-	}
-
 	// Synchronize access to runtime to avoid race conditions between 'load_effects' and 'unload_effects' causing crashes
 	// This is necessary because Resident Evil 3 calls DXGI functions simultaneously from multiple threads (which is technically illegal)
 	const std::lock_guard<std::mutex> lock(_runtime_mutex);
+
+	RESHADE_ADDON_EVENT(present, _runtime->get_command_queue(), _runtime);
 
 	switch (_direct3d_version)
 	{
@@ -178,7 +167,7 @@ void DXGISwapChain::handle_runtime_loss(HRESULT hr)
 			LOG(ERROR) << "> Device removal reason is " << reason << '.';
 		}
 
-		runtime_reset();
+		runtime_reset(0, 0);
 	}
 }
 
@@ -349,14 +338,14 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 		<< ", SwapChainFlags = " << std::hex << SwapChainFlags << std::dec
 		<< ')' << " ...";
 
-	runtime_reset();
-
 	if (_force_resolution[0] != 0 &&
 		_force_resolution[1] != 0)
 		Width = _force_resolution[0],
 		Height = _force_resolution[1];
 	if (_force_10_bit_format)
 		NewFormat = DXGI_FORMAT_R10G10B10A2_UNORM;
+
+	runtime_reset(Width, Height);
 
 	g_in_dxgi_runtime = true;
 	const HRESULT hr = _orig->ResizeBuffers(BufferCount, Width, Height, NewFormat, SwapChainFlags);
@@ -527,14 +516,14 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 		<< ", ppPresentQueue = " << ppPresentQueue
 		<< ')' << " ...";
 
-	runtime_reset();
-
 	if (_force_resolution[0] != 0 &&
 		_force_resolution[1] != 0)
 		Width = _force_resolution[0],
 		Height = _force_resolution[1];
 	if (_force_10_bit_format)
 		Format = DXGI_FORMAT_R10G10B10A2_UNORM;
+
+	runtime_reset(Width, Height);
 
 	// Need to extract the original command queue object from the proxies passed in
 	assert(ppPresentQueue != nullptr);

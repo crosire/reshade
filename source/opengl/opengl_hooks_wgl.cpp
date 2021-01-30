@@ -684,7 +684,7 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 			if (s_hooks_installed)
 			{
 				gl3wProcs.gl.TextureView = reshade::hooks::call(glTextureView);
-				gl3wProcs.gl.TexStorage2D = reshade::hooks::call(glTexStorage2D);
+				gl3wProcs.gl.TexStorage2D = reshade::hooks::call(glTexStorage2D); // Used in 'runtime_gl::init_texture'
 				gl3wProcs.gl.BindFramebuffer = reshade::hooks::call(glBindFramebuffer);
 				gl3wProcs.gl.DrawElementsBaseVertex = reshade::hooks::call(glDrawElementsBaseVertex); // Used in 'runtime_gl::render_imgui_draw_data'
 			}
@@ -876,7 +876,7 @@ HOOK_EXPORT BOOL  WINAPI wglSwapBuffers(HDC hdc)
 		{
 			LOG(INFO) << "Resizing runtime " << runtime << " on device context " << hdc << " to " << width << "x" << height << " ...";
 
-			RESHADE_ADDON_EVENT(resize, runtime);
+			RESHADE_ADDON_EVENT(resize, runtime, width, height);
 
 			runtime->on_reset();
 

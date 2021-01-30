@@ -81,7 +81,7 @@ struct DECLSPEC_UUID("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8") DXGISwapChain : IDX
 	HRESULT STDMETHODCALLTYPE SetHDRMetaData(DXGI_HDR_METADATA_TYPE Type, UINT Size, void *pMetaData) override;
 	#pragma endregion
 
-	void runtime_reset();
+	void runtime_reset(UINT width, UINT height);
 	void runtime_resize();
 	void runtime_present(UINT flags);
 	void handle_runtime_loss(HRESULT hr);

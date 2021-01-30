@@ -142,7 +142,7 @@ namespace reshade
 	typedef void(*pfn_execute_command_list)(api::command_queue *queue, api::command_list *cmd);
 	typedef void(*pfn_execute_secondary_command_list)(api::command_list *cmd, api::command_list *bundle);
 
-	typedef void(*pfn_resize)(api::effect_runtime *runtime);
+	typedef void(*pfn_resize)(api::effect_runtime *runtime, uint32_t width, uint32_t height);
 	typedef void(*pfn_present)(api::command_queue *present_queue, api::effect_runtime *runtime);
 
 	typedef void(*pfn_reshade_before_effects)(api::effect_runtime *runtime, api::command_list *cmd);

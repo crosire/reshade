@@ -374,6 +374,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::SetPrivateDataInterface(REFGUID guid, con
 }
 void    STDMETHODCALLTYPE D3D10Device::ClearState()
 {
+	RESHADE_ADDON_EVENT(reset_command_list, _impl);
 	_orig->ClearState();
 }
 void    STDMETHODCALLTYPE D3D10Device::Flush()

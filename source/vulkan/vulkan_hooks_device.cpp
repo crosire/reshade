@@ -392,8 +392,8 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		create_info.imageUsage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 
 		// Add required formats, so views with different formats can be created for the swap chain images
-		format_list.push_back(make_format_srgb(pCreateInfo->imageFormat));
-		format_list.push_back(make_format_normal(pCreateInfo->imageFormat));
+		format_list.push_back(make_format_srgb(create_info.imageFormat));
+		format_list.push_back(make_format_normal(create_info.imageFormat));
 
 		// Only have to make format mutable if they are actually different
 		if (format_list[0] != format_list[1])
@@ -494,12 +494,12 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	if (device_impl->graphics_queue_family_index != std::numeric_limits<uint32_t>::max())
 	{
 		// Remove old swap chain from the list so that a call to 'vkDestroySwapchainKHR' won't reset the runtime again
-		reshade::vulkan::runtime_vk *runtime = s_vulkan_runtimes.erase(pCreateInfo->oldSwapchain);
+		reshade::vulkan::runtime_vk *runtime = s_vulkan_runtimes.erase(create_info.oldSwapchain);
 		if (runtime != nullptr)
 		{
-			assert(pCreateInfo->oldSwapchain != VK_NULL_HANDLE);
+			assert(create_info.oldSwapchain != VK_NULL_HANDLE);
 
-			RESHADE_ADDON_EVENT(resize, runtime);
+			RESHADE_ADDON_EVENT(resize, runtime, create_info.imageExtent.width, create_info.imageExtent.height);
 
 			// Re-use the existing runtime if this swap chain was not created from scratch
 			runtime->on_reset(); // But reset it before initializing again below
@@ -518,7 +518,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		}
 
 		// Look up window handle from surface
-		const HWND hwnd = s_surface_windows.at(pCreateInfo->surface);
+		const HWND hwnd = s_surface_windows.at(create_info.surface);
 
 		if (!runtime->on_init(*pSwapchain, create_info, hwnd))
 			LOG(ERROR) << "Failed to initialize Vulkan runtime environment on runtime " << runtime << '.';

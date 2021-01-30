@@ -430,22 +430,6 @@ static void on_execute(api_object *queue_or_cmd_list, command_list *cmd_list)
 	target_state.merge(source_state);
 }
 
-static void on_resize(effect_runtime *runtime)
-{
-	device *const device = runtime->get_device();
-	state_tracking_context &device_state = device->get_data<state_tracking_context>(state_tracking_context::GUID);
-
-	if (device_state.selected_shader_resource != 0)
-	{
-		device->wait_idle(); // Ensure resource view is no longer in-use before destroying it
-		device->destroy_resource_view(device_state.selected_shader_resource);
-	}
-
-	device_state.selected_depth_stencil = { 0 };
-	device_state.selected_shader_resource = { 0 };
-
-	runtime->update_texture_bindings("DEPTH", device_state.selected_shader_resource);
-}
 static void on_present(command_queue *, effect_runtime *runtime)
 {
 	device *const device = runtime->get_device();
@@ -578,7 +562,16 @@ static void on_present(command_queue *, effect_runtime *runtime)
 		// Unset any existing depth-stencil selected in previous frames
 		if (device_state.selected_depth_stencil != 0)
 		{
-			on_resize(runtime);
+			if (device_state.selected_shader_resource != 0)
+			{
+				device->wait_idle(); // Ensure resource view is no longer in-use before destroying it
+				device->destroy_resource_view(device_state.selected_shader_resource);
+			}
+
+			device_state.selected_depth_stencil = { 0 };
+			device_state.selected_shader_resource = { 0 };
+
+			runtime->update_texture_bindings("DEPTH", device_state.selected_shader_resource);
 		}
 	}
 
@@ -736,7 +729,16 @@ static void draw_debug_menu(effect_runtime *runtime, void *)
 	if (modified)
 	{
 		// Reset selected depth-stencil to force re-creation of resources next frame (like the backup texture)
-		on_resize(runtime);
+		if (device_state.selected_shader_resource != 0)
+		{
+			device->wait_idle(); // Ensure resource view is no longer in-use before destroying it
+			device->destroy_resource_view(device_state.selected_shader_resource);
+		}
+
+		device_state.selected_depth_stencil = { 0 };
+		device_state.selected_shader_resource = { 0 };
+
+		runtime->update_texture_bindings("DEPTH", device_state.selected_shader_resource);
 
 		reshade::ini_file &config = reshade::global_config();
 		config.set("DEPTH", "DisableINTZ", s_disable_intz);
@@ -772,7 +774,6 @@ void reshade_addon_depth()
 	reshade::register_event(reshade::addon_event::execute_command_list, on_execute);
 	reshade::register_event(reshade::addon_event::execute_secondary_command_list, on_execute);
 
-	reshade::register_event(reshade::addon_event::resize, on_resize);
 	reshade::register_event(reshade::addon_event::present, on_present);
 
 	reshade::register_event(reshade::addon_event::reshade_before_effects, on_before_render_effects);
