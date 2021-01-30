@@ -41,17 +41,19 @@ namespace reshade
 		return false;
 	}
 
-	inline void register_event(reshade::addon_event ev, void *callback)
+	template <reshade::addon_event ev>
+	inline void register_event(typename reshade::addon_event_traits<ev>::decl callback)
 	{
-		static const auto func = reinterpret_cast<decltype(&register_event)>(
+		static const auto func = reinterpret_cast<void(*)(reshade::addon_event, void *)>(
 			GetProcAddress(g_module_handle, "ReShadeRegisterEvent"));
-		func(ev, callback);
+		func(ev, static_cast<void *>(callback));
 	}
-	inline void unregister_event(reshade::addon_event ev, void *callback)
+	template <reshade::addon_event ev>
+	inline void unregister_event(typename reshade::addon_event_traits<ev>::decl callback)
 	{
-		static const auto func = reinterpret_cast<decltype(&unregister_event)>(
+		static const auto func = reinterpret_cast<void(*)(reshade::addon_event, void *)>(
 			GetProcAddress(g_module_handle, "ReShadeUnregisterEvent"));
-		func(ev, callback);
+		func(ev, static_cast<void *>(callback));
 	}
 
 	inline void register_overlay(const char *title, void(*callback)(reshade::api::effect_runtime *runtime, void *imgui_context))

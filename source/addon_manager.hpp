@@ -13,7 +13,7 @@
 	#define RESHADE_ADDON_EVENT(name, ...) \
 		if (reshade::addon::event_list_enabled) \
 			for (const auto &hook_info : reshade::addon::event_list[static_cast<size_t>(reshade::addon_event::name)]) \
-				reinterpret_cast<reshade::pfn_##name>(hook_info)(__VA_ARGS__)
+				reinterpret_cast<typename reshade::addon_event_traits<reshade::addon_event::name>::decl>(hook_info)(__VA_ARGS__)
 #else
 	#define RESHADE_ADDON_EVENT(name, ...) ((void)0)
 #endif

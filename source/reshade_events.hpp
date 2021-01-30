@@ -123,36 +123,56 @@ namespace reshade
 		num_addon_events
 	};
 
-	typedef void(*pfn_init_device)(api::device *device);
-	typedef void(*pfn_destroy_device)(api::device *device);
-	typedef void(*pfn_init_command_list)(api::command_list *cmd);
-	typedef void(*pfn_destroy_command_list)(api::command_list *cmd);
-	typedef void(*pfn_init_command_queue)(api::command_queue *queue);
-	typedef void(*pfn_destroy_command_queue)(api::command_queue *queue);
-	typedef void(*pfn_init_effect_runtime)(api::effect_runtime *runtime);
-	typedef void(*pfn_destroy_effect_runtime)(api::effect_runtime *runtime);
-
-	typedef void(*pfn_create_resource)(api::device *device, api::resource_type type, api::resource_desc *desc);
-	typedef void(*pfn_create_resource_view)(api::device *device, api::resource_handle resource, api::resource_view_type type, api::resource_view_desc *desc);
-
-	typedef void(*pfn_set_depth_stencil)(api::command_list *cmd, api::resource_view_handle dsv);
-	typedef void(*pfn_set_render_target)(api::command_list *cmd, uint32_t index, api::resource_view_handle rtv);
-
-	typedef void(*pfn_draw)(api::command_list *cmd, uint32_t indices, uint32_t instances);
-	typedef void(*pfn_draw_indexed)(api::command_list *cmd, uint32_t vertices, uint32_t instances);
-	typedef void(*pfn_draw_indirect)(api::command_list *cmd);
-	typedef void(*pfn_alias_resource)(api::command_list *cmd, api::resource_handle old_resource, api::resource_handle new_resource);
-	typedef void(*pfn_transition_state)(api::command_list *cmd, api::resource_handle resource, api::resource_usage old_state, api::resource_usage new_state);
-	typedef void(*pfn_clear_depth_stencil)(api::command_list *cmd, api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil);
-	typedef void(*pfn_clear_render_target)(api::command_list *cmd, api::resource_view_handle rtv, const float color[4]);
-
-	typedef void(*pfn_reset_command_list)(api::command_list *cmd);
-	typedef void(*pfn_execute_command_list)(api::command_queue *queue, api::command_list *cmd);
-	typedef void(*pfn_execute_secondary_command_list)(api::command_list *cmd, api::command_list *bundle);
-
-	typedef void(*pfn_resize)(api::effect_runtime *runtime, uint32_t width, uint32_t height);
-	typedef void(*pfn_present)(api::command_queue *present_queue, api::effect_runtime *runtime);
-
-	typedef void(*pfn_reshade_before_effects)(api::effect_runtime *runtime, api::command_list *cmd);
-	typedef void(*pfn_reshade_after_effects)(api::effect_runtime *runtime, api::command_list *cmd);
+	template <addon_event ev>
+	struct addon_event_traits;
+	template <>
+	struct addon_event_traits<addon_event::init_device> { typedef void(*decl)(api::device *device); };
+	template <>
+	struct addon_event_traits<addon_event::destroy_device> { typedef void(*decl)(api::device *device); };
+	template <>
+	struct addon_event_traits<addon_event::init_command_list> { typedef void(*decl)(api::command_list *cmd); };
+	template <>
+	struct addon_event_traits<addon_event::destroy_command_list> { typedef void(*decl)(api::command_list *cmd); };
+	template <>
+	struct addon_event_traits<addon_event::init_command_queue> { typedef void(*decl)(api::command_queue *queue); };
+	template <>
+	struct addon_event_traits<addon_event::destroy_command_queue> { typedef void(*decl)(api::command_queue *queue); };
+	template <>
+	struct addon_event_traits<addon_event::init_effect_runtime> { typedef void(*decl)(api::effect_runtime *runtime); };
+	template <>
+	struct addon_event_traits<addon_event::destroy_effect_runtime> { typedef void(*decl)(api::effect_runtime *runtime); };
+	template <>
+	struct addon_event_traits<addon_event::create_resource> { typedef void(*decl)(api::device *device, api::resource_type type, api::resource_desc *desc); };
+	template <>
+	struct addon_event_traits<addon_event::create_resource_view> { typedef void(*decl)(api::device *device, api::resource_handle resource, api::resource_view_type type, api::resource_view_desc *desc); };
+	template <>
+	struct addon_event_traits<addon_event::set_depth_stencil> { typedef void(*decl)(api::command_list *cmd, api::resource_view_handle dsv); };
+	template <>
+	struct addon_event_traits<addon_event::set_render_target> { typedef void(*decl)(api::command_list *cmd, uint32_t index, api::resource_view_handle rtv); };
+	template <>
+	struct addon_event_traits<addon_event::draw> { typedef void(*decl)(api::command_list *cmd, uint32_t indices, uint32_t instances); };
+	template <>
+	struct addon_event_traits<addon_event::draw_indexed> { typedef void(*decl)(api::command_list *cmd, uint32_t vertices, uint32_t instances); };
+	template <>
+	struct addon_event_traits<addon_event::draw_indirect> { typedef void(*decl)(api::command_list *cmd); };
+	template <>
+	struct addon_event_traits<addon_event::alias_resource> { typedef void(*decl)(api::command_list *cmd, api::resource_handle old_resource, api::resource_handle new_resource); };
+	template <>
+	struct addon_event_traits<addon_event::clear_depth_stencil> { typedef void(*decl)(api::command_list *cmd, api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil); };
+	template <>
+	struct addon_event_traits<addon_event::clear_render_target> { typedef void(*decl)(api::command_list *cmd, api::resource_view_handle rtv, const float color[4]); };
+	template <>
+	struct addon_event_traits<addon_event::reset_command_list> { typedef void(*decl)(api::command_list *cmd); };
+	template <>
+	struct addon_event_traits<addon_event::execute_command_list> { typedef void(*decl)(api::command_queue *queue, api::command_list *cmd); };
+	template <>
+	struct addon_event_traits<addon_event::execute_secondary_command_list> { typedef void(*decl)(api::command_list *cmd, api::command_list *bundle); };
+	template <>
+	struct addon_event_traits<addon_event::resize> { typedef void(*decl)(api::effect_runtime *runtime, uint32_t width, uint32_t height); };
+	template <>
+	struct addon_event_traits<addon_event::present> { typedef void(*decl)(api::command_queue *present_queue, api::effect_runtime *runtime); };
+	template <>
+	struct addon_event_traits<addon_event::reshade_before_effects> { typedef void(*decl)(api::effect_runtime *runtime, api::command_list *cmd); };
+	template <>
+	struct addon_event_traits<addon_event::reshade_after_effects> { typedef void(*decl)(api::effect_runtime *runtime, api::command_list *cmd); };
 }

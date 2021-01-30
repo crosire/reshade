@@ -404,9 +404,9 @@ static void on_clear_depth_stencil(command_list *cmd_list, resource_view_handle 
 	clear_depth_impl(cmd_list, cmd_list->get_data<state_tracking>(state_tracking::GUID), device_state, depth_stencil, false);
 }
 
-static void on_reset(api_object *queue_or_cmd_list)
+static void on_reset(command_list *cmd_list)
 {
-	state_tracking &target_state = queue_or_cmd_list->get_data<state_tracking>(state_tracking::GUID);
+	state_tracking &target_state = cmd_list->get_data<state_tracking>(state_tracking::GUID);
 	target_state.reset();
 }
 static void on_execute(api_object *queue_or_cmd_list, command_list *cmd_list)
@@ -744,36 +744,36 @@ static void draw_debug_menu(effect_runtime *runtime, void *)
 	}
 }
 
-void reshade_addon_depth()
+void register_builtin_addon_depth()
 {
 	reshade::register_overlay("Depth", draw_debug_menu);
 
-	reshade::register_event(reshade::addon_event::init_device, on_init_device);
-	reshade::register_event(reshade::addon_event::destroy_device, on_destroy_device);
-	reshade::register_event(reshade::addon_event::init_command_list, on_init_queue_or_command_list);
-	reshade::register_event(reshade::addon_event::destroy_command_list, on_destroy_queue_or_command_list);
-	reshade::register_event(reshade::addon_event::init_command_queue, on_init_queue_or_command_list);
-	reshade::register_event(reshade::addon_event::destroy_command_queue, on_destroy_queue_or_command_list);
-	reshade::register_event(reshade::addon_event::init_effect_runtime, on_init_effect_runtime);
+	reshade::register_event<reshade::addon_event::init_device>(on_init_device);
+	reshade::register_event<reshade::addon_event::destroy_device>(on_destroy_device);
+	reshade::register_event<reshade::addon_event::init_command_list>(reinterpret_cast<void(*)(command_list *)>(on_init_queue_or_command_list));
+	reshade::register_event<reshade::addon_event::destroy_command_list>(reinterpret_cast<void(*)(command_list *)>(on_destroy_queue_or_command_list));
+	reshade::register_event<reshade::addon_event::init_command_queue>(reinterpret_cast<void(*)(command_queue *)>(on_init_queue_or_command_list));
+	reshade::register_event<reshade::addon_event::destroy_command_queue>(reinterpret_cast<void(*)(command_queue *)>(on_destroy_queue_or_command_list));
+	reshade::register_event<reshade::addon_event::init_effect_runtime>(on_init_effect_runtime);
 
-	reshade::register_event(reshade::addon_event::create_resource, on_create_resource);
-	reshade::register_event(reshade::addon_event::create_resource_view, on_create_resource_view);
+	reshade::register_event<reshade::addon_event::create_resource>(on_create_resource);
+	reshade::register_event<reshade::addon_event::create_resource_view>(on_create_resource_view);
 
-	reshade::register_event(reshade::addon_event::draw, on_draw);
-	reshade::register_event(reshade::addon_event::draw_indexed, on_draw);
-	reshade::register_event(reshade::addon_event::draw_indirect, on_draw_indirect);
-	reshade::register_event(reshade::addon_event::alias_resource, on_alias_resource);
-	reshade::register_event(reshade::addon_event::set_depth_stencil, on_set_depth_stencil);
-	reshade::register_event(reshade::addon_event::clear_depth_stencil, on_clear_depth_stencil);
+	reshade::register_event<reshade::addon_event::draw>(on_draw);
+	reshade::register_event<reshade::addon_event::draw_indexed>(on_draw);
+	reshade::register_event<reshade::addon_event::draw_indirect>(on_draw_indirect);
+	reshade::register_event<reshade::addon_event::alias_resource>(on_alias_resource);
+	reshade::register_event<reshade::addon_event::set_depth_stencil>(on_set_depth_stencil);
+	reshade::register_event<reshade::addon_event::clear_depth_stencil>(on_clear_depth_stencil);
 
-	reshade::register_event(reshade::addon_event::reset_command_list, on_reset);
-	reshade::register_event(reshade::addon_event::execute_command_list, on_execute);
-	reshade::register_event(reshade::addon_event::execute_secondary_command_list, on_execute);
+	reshade::register_event<reshade::addon_event::reset_command_list>(on_reset);
+	reshade::register_event<reshade::addon_event::execute_command_list>(reinterpret_cast<void(*)(command_queue *, command_list *)>(on_execute));
+	reshade::register_event<reshade::addon_event::execute_secondary_command_list>(reinterpret_cast<void(*)(command_list *, command_list *)>(on_execute));
 
-	reshade::register_event(reshade::addon_event::present, on_present);
+	reshade::register_event<reshade::addon_event::present>(on_present);
 
-	reshade::register_event(reshade::addon_event::reshade_before_effects, on_before_render_effects);
-	reshade::register_event(reshade::addon_event::reshade_after_effects, on_after_render_effects);
+	reshade::register_event<reshade::addon_event::reshade_before_effects>(on_before_render_effects);
+	reshade::register_event<reshade::addon_event::reshade_after_effects>(on_after_render_effects);
 
 	/*register_uniform_source("bufready_depth", static_cast<void(*)(effect_runtime *, uniform_handle)>([](effect_runtime *runtime, uniform_handle handle) {
 		const state_tracking_context &device_state = runtime->get_device()->get_data<state_tracking_context>(state_tracking_context::GUID);
@@ -781,4 +781,35 @@ void reshade_addon_depth()
 		const bool has_depth = device_state.selected_shader_resource.handle != 0;
 		runtime->set_uniform_value(handle, &has_depth, 1);
 	}));*/
+}
+void unregister_builtin_addon_depth()
+{
+	reshade::unregister_overlay("Depth");
+
+	reshade::unregister_event<reshade::addon_event::init_device>(on_init_device);
+	reshade::unregister_event<reshade::addon_event::destroy_device>(on_destroy_device);
+	reshade::unregister_event<reshade::addon_event::init_command_list>(reinterpret_cast<void(*)(command_list *)>(on_init_queue_or_command_list));
+	reshade::unregister_event<reshade::addon_event::destroy_command_list>(reinterpret_cast<void(*)(command_list *)>(on_destroy_queue_or_command_list));
+	reshade::unregister_event<reshade::addon_event::init_command_queue>(reinterpret_cast<void(*)(command_queue *)>(on_init_queue_or_command_list));
+	reshade::unregister_event<reshade::addon_event::destroy_command_queue>(reinterpret_cast<void(*)(command_queue *)>(on_destroy_queue_or_command_list));
+	reshade::unregister_event<reshade::addon_event::init_effect_runtime>(on_init_effect_runtime);
+
+	reshade::unregister_event<reshade::addon_event::create_resource>(on_create_resource);
+	reshade::unregister_event<reshade::addon_event::create_resource_view>(on_create_resource_view);
+
+	reshade::unregister_event<reshade::addon_event::draw>(on_draw);
+	reshade::unregister_event<reshade::addon_event::draw_indexed>(on_draw);
+	reshade::unregister_event<reshade::addon_event::draw_indirect>(on_draw_indirect);
+	reshade::unregister_event<reshade::addon_event::alias_resource>(on_alias_resource);
+	reshade::unregister_event<reshade::addon_event::set_depth_stencil>(on_set_depth_stencil);
+	reshade::unregister_event<reshade::addon_event::clear_depth_stencil>(on_clear_depth_stencil);
+
+	reshade::unregister_event<reshade::addon_event::reset_command_list>(on_reset);
+	reshade::unregister_event<reshade::addon_event::execute_command_list>(reinterpret_cast<void(*)(command_queue *, command_list *)>(on_execute));
+	reshade::unregister_event<reshade::addon_event::execute_secondary_command_list>(reinterpret_cast<void(*)(command_list *, command_list *)>(on_execute));
+
+	reshade::unregister_event<reshade::addon_event::present>(on_present);
+
+	reshade::unregister_event<reshade::addon_event::reshade_before_effects>(on_before_render_effects);
+	reshade::unregister_event<reshade::addon_event::reshade_after_effects>(on_after_render_effects);
 }
