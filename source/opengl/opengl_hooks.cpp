@@ -49,7 +49,6 @@ HOOK_EXPORT void WINAPI glBegin(GLenum mode)
 	trampoline(target, framebuffer);
 
 #if RESHADE_ADDON
-	// Call events after binding rather than before like in the other APIs so status can be checked
 	if (g_current_runtime && (target == GL_FRAMEBUFFER || target == GL_DRAW_FRAMEBUFFER) &&
 		glCheckFramebufferStatus(target) == GL_FRAMEBUFFER_COMPLETE) // Skip incomplete frame buffer bindings (e.g. during set up)
 	{

@@ -171,6 +171,8 @@ void    STDMETHODCALLTYPE D3D10Device::GSSetSamplers(UINT StartSlot, UINT NumSam
 }
 void    STDMETHODCALLTYPE D3D10Device::OMSetRenderTargets(UINT NumViews, ID3D10RenderTargetView *const *ppRenderTargetViews, ID3D10DepthStencilView *pDepthStencilView)
 {
+	_orig->OMSetRenderTargets(NumViews, ppRenderTargetViews, pDepthStencilView);
+
 #if RESHADE_ADDON
 	for (UINT i = 0; i < NumViews; ++i)
 	{
@@ -182,8 +184,6 @@ void    STDMETHODCALLTYPE D3D10Device::OMSetRenderTargets(UINT NumViews, ID3D10R
 		RESHADE_ADDON_EVENT(set_depth_stencil, _impl, dsv);
 	}
 #endif
-
-	_orig->OMSetRenderTargets(NumViews, ppRenderTargetViews, pDepthStencilView);
 }
 void    STDMETHODCALLTYPE D3D10Device::OMSetBlendState(ID3D10BlendState *pBlendState, const FLOAT BlendFactor[4], UINT SampleMask)
 {
