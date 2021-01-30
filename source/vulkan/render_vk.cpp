@@ -31,7 +31,7 @@ static auto convert_usage_to_image_layout(resource_usage state) -> VkImageLayout
 {
 	switch (state)
 	{
-	default:
+	case resource_usage::undefined:
 		return VK_IMAGE_LAYOUT_UNDEFINED;
 	case resource_usage::depth_stencil:
 	case resource_usage::depth_stencil_read:
@@ -43,6 +43,7 @@ static auto convert_usage_to_image_layout(resource_usage state) -> VkImageLayout
 	case resource_usage::shader_resource_pixel:
 	case resource_usage::shader_resource_non_pixel:
 		return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	default: // Default to general layout if multiple usage flags are specified
 	case resource_usage::unordered_access:
 		return VK_IMAGE_LAYOUT_GENERAL;
 	case resource_usage::copy_dest:
@@ -59,8 +60,10 @@ static auto convert_usage_to_pipeline_stage(resource_usage state) -> VkPipelineS
 		return VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT; // Do not wait on any previous stage
 
 	VkPipelineStageFlags result = 0;
-	if ((state & resource_usage::depth_stencil) != 0)
-		result |= VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+	if ((state & resource_usage::depth_stencil_read) != 0)
+		result |= VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+	if ((state & resource_usage::depth_stencil_write) != 0)
+		result |= VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
 	if ((state & resource_usage::render_target) != 0)
 		result |= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 	if ((state & resource_usage::shader_resource_pixel) != 0)
@@ -124,15 +127,13 @@ static void convert_image_usage_flags_to_usage(const VkImageUsageFlags image_fla
 
 void reshade::vulkan::convert_resource_desc(const resource_desc &desc, VkBufferCreateInfo &create_info)
 {
-	create_info.size = desc.width;
-	assert(desc.height <= 1 && desc.depth_or_layers <= 1 && desc.levels <= 1 && desc.samples <= 1);
+	create_info.size = desc.buffer_size;
 	convert_usage_to_image_usage_flags(desc.usage, create_info.usage);
 }
 resource_desc reshade::vulkan::convert_resource_desc(const VkBufferCreateInfo &create_info)
 {
 	resource_desc desc = {};
-	assert(create_info.size <= std::numeric_limits<uint32_t>::max());
-	desc.width = static_cast<uint32_t>(create_info.size);
+	desc.buffer_size = create_info.size;
 	convert_image_usage_flags_to_usage(create_info.usage, desc.usage);
 	return desc;
 }

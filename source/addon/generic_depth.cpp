@@ -265,6 +265,10 @@ static void on_destroy_queue_or_command_list(api_object *queue_or_cmd_list)
 
 static void on_create_resource(device *device, resource_type type, resource_desc *desc)
 {
+	// No need to modify resources in D3D12, since backup texture is used always
+	if (device->get_api() == render_api::d3d12)
+		return;
+
 	if ((type != resource_type::surface && type != resource_type::texture_2d) || desc->samples != 1)
 		return; // Skip MSAA textures and resources that are not 2D textures
 
@@ -283,7 +287,7 @@ static void on_create_resource(device *device, resource_type type, resource_desc
 static void on_create_resource_view(device *device, resource_handle resource, resource_view_type type, resource_view_desc *desc)
 {
 	// A view cannot be created with a typeless format (which was set in 'on_create_resource' above), so fix it in case defaults are used
-	if (desc->format != 0 || !(device->get_api() >= render_api::d3d10 && device->get_api() <= render_api::d3d12))
+	if (desc->format != 0 || !(device->get_api() >= render_api::d3d10 && device->get_api() <= render_api::d3d11))
 		return;
 
 	const resource_desc texture_desc = device->get_resource_desc(resource);
@@ -480,6 +484,7 @@ static void on_present(command_queue *, effect_runtime *runtime)
 	if (device_state.override_depth_stencil != 0 &&
 		device->is_resource_valid(device_state.override_depth_stencil))
 	{
+		best_desc = device->get_resource_desc(device_state.override_depth_stencil);
 		best_match = device_state.override_depth_stencil;
 		best_snapshot = queue_state.counters_per_used_depth_stencil[best_match];
 	}
@@ -509,7 +514,8 @@ static void on_present(command_queue *, effect_runtime *runtime)
 				srv_desc.format = static_cast<uint32_t>(make_dxgi_format_normal(static_cast<DXGI_FORMAT>(srv_desc.format)));
 
 			// Need to create backup texture only if doing backup copies or original resource does not support shader access (which is necessary for binding it to effects)
-			if (device_state.preserve_depth_buffers || (best_desc.usage & resource_usage::shader_resource) == 0)
+			// Also always create a backup texture in D3D12 to circument problems in case application makes use of resource aliasing
+			if (device_state.preserve_depth_buffers || (best_desc.usage & resource_usage::shader_resource) == 0 || device->get_api() == render_api::d3d12)
 			{
 				device_state.update_backup_texture(device, best_desc);
 

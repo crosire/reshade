@@ -864,11 +864,9 @@ VkResult VKAPI_CALL vkCreateRenderPass(VkDevice device, const VkRenderPassCreate
 
 	for (uint32_t attachment = 0; attachment < pCreateInfo->attachmentCount; ++attachment)
 	{
-		uint32_t clear_flags = 0;
-		if (pCreateInfo->pAttachments[attachment].loadOp == VK_ATTACHMENT_LOAD_OP_CLEAR)
-			clear_flags |= 0x1;
-		if (pCreateInfo->pAttachments[attachment].stencilLoadOp == VK_ATTACHMENT_LOAD_OP_CLEAR)
-			clear_flags |= 0x2;
+		const uint32_t clear_flags =
+			(pCreateInfo->pAttachments[attachment].loadOp == VK_ATTACHMENT_LOAD_OP_CLEAR ? 0x1 : 0x0) |
+			(pCreateInfo->pAttachments[attachment].stencilLoadOp == VK_ATTACHMENT_LOAD_OP_CLEAR ? 0x2 : 0x0);
 
 		if (clear_flags != 0)
 			renderpass_data.cleared_attachments.push_back({ clear_flags, attachment });
@@ -922,11 +920,9 @@ VkResult VKAPI_CALL vkCreateRenderPass2(VkDevice device, const VkRenderPassCreat
 
 	for (uint32_t attachment = 0; attachment < pCreateInfo->attachmentCount; ++attachment)
 	{
-		uint32_t clear_flags = 0;
-		if (pCreateInfo->pAttachments[attachment].loadOp == VK_ATTACHMENT_LOAD_OP_CLEAR)
-			clear_flags |= 0x1;
-		if (pCreateInfo->pAttachments[attachment].stencilLoadOp == VK_ATTACHMENT_LOAD_OP_CLEAR)
-			clear_flags |= 0x2;
+		const uint32_t clear_flags =
+			(pCreateInfo->pAttachments[attachment].loadOp == VK_ATTACHMENT_LOAD_OP_CLEAR ? 0x1 : 0x0) |
+			(pCreateInfo->pAttachments[attachment].stencilLoadOp == VK_ATTACHMENT_LOAD_OP_CLEAR ? 0x2 : 0x0);
 
 		if (clear_flags != 0)
 			renderpass_data.cleared_attachments.push_back({ clear_flags, attachment });

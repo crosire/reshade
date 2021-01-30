@@ -308,7 +308,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::OMSetRenderTargets(UINT NumRend
 #if RESHADE_ADDON
 	for (UINT i = 0; i < NumRenderTargetDescriptors; ++i)
 	{
-		const reshade::api::resource_view_handle rtv = { RTsSingleHandleToDescriptorRange ? pRenderTargetDescriptors->ptr + i * static_cast<reshade::d3d12::device_impl *>(_impl->get_device())->rtv_handle_size : pRenderTargetDescriptors[i].ptr };
+		const reshade::api::resource_view_handle rtv = { RTsSingleHandleToDescriptorRange ? pRenderTargetDescriptors->ptr + i * _device->_impl->rtv_handle_size : pRenderTargetDescriptors[i].ptr };
 		RESHADE_ADDON_EVENT(set_render_target, _impl, i, rtv);
 	}
 	{
@@ -429,7 +429,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::BeginRenderPass(UINT NumRenderT
 #if RESHADE_ADDON
 	for (UINT i = 0; i < NumRenderTargets; ++i)
 	{
-		const reshade::api::resource_view_handle rtv = { pRenderTargets->cpuDescriptor.ptr + i * static_cast<reshade::d3d12::device_impl *>(_impl->get_device())->rtv_handle_size };
+		const reshade::api::resource_view_handle rtv = { pRenderTargets->cpuDescriptor.ptr + i * _device->_impl->rtv_handle_size };
 		RESHADE_ADDON_EVENT(set_render_target, _impl, i, rtv);
 	}
 	{

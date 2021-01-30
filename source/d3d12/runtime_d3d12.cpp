@@ -1326,17 +1326,21 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 			cmd_list->SetGraphicsRootDescriptorTable(1, pass_data.srv_handle);
 
 			// Transition resource state for render targets
-
-			std::vector<D3D12_RESOURCE_BARRIER> transitions(pass_data.modified_resources.size());
-			for (size_t i = 0; i < pass_data.modified_resources.size(); ++i)
+			if (!pass_data.modified_resources.empty())
 			{
-				transitions[i] = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
-				transitions[i].Transition.pResource = pass_data.modified_resources[i]->resource.get();
-				transitions[i].Transition.Subresource = 0;
-				transitions[i].Transition.StateBefore = D3D12_RESOURCE_STATE_SHADER_RESOURCE;
-				transitions[i].Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+				std::vector<D3D12_RESOURCE_BARRIER> transitions;
+				transitions.reserve(pass_data.modified_resources.size());
+				for (const auto modified_resource : pass_data.modified_resources)
+				{
+					D3D12_RESOURCE_BARRIER &transition = transitions.emplace_back();
+					transition = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
+					transition.Transition.pResource = modified_resource->resource.get();
+					transition.Transition.Subresource = 0;
+					transition.Transition.StateBefore = D3D12_RESOURCE_STATE_SHADER_RESOURCE;
+					transition.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+				}
+				cmd_list->ResourceBarrier(static_cast<UINT>(transitions.size()), transitions.data());
 			}
-			cmd_list->ResourceBarrier(static_cast<UINT>(transitions.size()), transitions.data());
 
 			cmd_list->OMSetStencilRef(pass_info.stencil_reference_value);
 
@@ -1402,11 +1406,21 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 			cmd_list->DrawInstanced(pass_info.num_vertices, 1, 0, 0);
 
 			// Transition resource state back to shader access
-			for (size_t i = 0; i < pass_data.modified_resources.size(); ++i)
+			if (!pass_data.modified_resources.empty())
 			{
-				std::swap(transitions[i].Transition.StateBefore, transitions[i].Transition.StateAfter);
+				std::vector<D3D12_RESOURCE_BARRIER> transitions;
+				transitions.reserve(pass_data.modified_resources.size());
+				for (const auto modified_resource : pass_data.modified_resources)
+				{
+					D3D12_RESOURCE_BARRIER &transition = transitions.emplace_back();
+					transition = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
+					transition.Transition.pResource = modified_resource->resource.get();
+					transition.Transition.Subresource = 0;
+					transition.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+					transition.Transition.StateAfter = D3D12_RESOURCE_STATE_SHADER_RESOURCE;
+				}
+				cmd_list->ResourceBarrier(static_cast<UINT>(transitions.size()), transitions.data());
 			}
-			cmd_list->ResourceBarrier(static_cast<UINT>(transitions.size()), transitions.data());
 		}
 
 		// Generate mipmaps for modified resources
