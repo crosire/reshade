@@ -7,6 +7,7 @@
 
 #include "opengl.hpp"
 #include "addon_manager.hpp"
+#include "state_block_gl.hpp"
 #include <unordered_set>
 
 namespace reshade::opengl
@@ -63,6 +64,7 @@ namespace reshade::opengl
 		GLuint _current_vertex_count = 0; // Used to calculate vertex count inside glBegin/glEnd pairs
 
 	protected:
+		state_block _app_state;
 		GLuint _default_fbo_width = 0;
 		GLuint _default_fbo_height = 0;
 		GLenum _default_depth_format = GL_NONE;

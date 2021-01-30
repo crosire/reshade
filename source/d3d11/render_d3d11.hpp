@@ -8,7 +8,7 @@
 #include "com_ptr.hpp"
 #include "com_tracking.hpp"
 #include "addon_manager.hpp"
-#include <d3d11_4.h>
+#include "state_block_d3d11.hpp"
 
 namespace reshade::d3d11
 {
@@ -71,6 +71,11 @@ namespace reshade::d3d11
 		com_ptr<ID3D11Device> _device;
 		com_object_list<ID3D11View> _views;
 		com_object_list<ID3D11Resource> _resources;
+
+		state_block _app_state;
+		com_ptr<ID3D11PixelShader> _copy_pixel_shader;
+		com_ptr<ID3D11VertexShader> _copy_vertex_shader;
+		com_ptr<ID3D11SamplerState>  _copy_sampler_state;
 	};
 
 	class device_context_impl : public api::command_queue, public api::command_list, api::api_data

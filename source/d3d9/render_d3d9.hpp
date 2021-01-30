@@ -79,7 +79,7 @@ namespace reshade::d3d9
 		const com_ptr<IDirect3DDevice9> _device;
 		com_object_list<IDirect3DResource9, true> _resources;
 
-		state_block _backup_state;
+		state_block _app_state;
 		com_ptr<IDirect3DStateBlock9> _copy_state;
 	};
 }

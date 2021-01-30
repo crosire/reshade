@@ -4,6 +4,7 @@
  */
 
 #include "render_d3d12.hpp"
+#include "dll_resources.hpp"
 
 using namespace reshade::api;
 
@@ -420,6 +421,59 @@ reshade::d3d12::device_impl::device_impl(ID3D12Device *device) :
 	rtv_handle_size = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	dsv_handle_size = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 	sampler_handle_size = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
+
+	// Create mipmap generation states
+	{   D3D12_DESCRIPTOR_RANGE srv_range = {};
+		srv_range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+		srv_range.NumDescriptors = 1;
+		srv_range.BaseShaderRegister = 0; // t0
+		D3D12_DESCRIPTOR_RANGE uav_range = {};
+		uav_range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+		uav_range.NumDescriptors = 1;
+		uav_range.BaseShaderRegister = 0; // u0
+
+		D3D12_ROOT_PARAMETER params[3] = {};
+		params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+		params[0].Constants.ShaderRegister = 0; // b0
+		params[0].Constants.Num32BitValues = 2;
+		params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+		params[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		params[1].DescriptorTable.NumDescriptorRanges = 1;
+		params[1].DescriptorTable.pDescriptorRanges = &srv_range;
+		params[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+		params[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		params[2].DescriptorTable.NumDescriptorRanges = 1;
+		params[2].DescriptorTable.pDescriptorRanges = &uav_range;
+		params[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+		D3D12_STATIC_SAMPLER_DESC samplers[1] = {};
+		samplers[0].Filter = D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT;
+		samplers[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		samplers[0].AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		samplers[0].AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		samplers[0].ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+		samplers[0].ShaderRegister = 0; // s0
+		samplers[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+		D3D12_ROOT_SIGNATURE_DESC desc = {};
+		desc.NumParameters = ARRAYSIZE(params);
+		desc.pParameters = params;
+		desc.NumStaticSamplers = ARRAYSIZE(samplers);
+		desc.pStaticSamplers = samplers;
+
+		_mipmap_signature = create_root_signature(desc);
+		assert(_mipmap_signature != nullptr);
+	}
+
+	{   D3D12_COMPUTE_PIPELINE_STATE_DESC pso_desc = {};
+		pso_desc.pRootSignature = _mipmap_signature.get();
+
+		const resources::data_resource cs = resources::load_data_resource(IDR_MIPMAP_CS);
+		pso_desc.CS = { cs.data, cs.data_size };
+
+		if (FAILED(_device->CreateComputePipelineState(&pso_desc, IID_PPV_ARGS(&_mipmap_pipeline))))
+			return;
+	}
 
 #if RESHADE_ADDON
 	// Load and initialize add-ons

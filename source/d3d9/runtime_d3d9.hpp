@@ -46,10 +46,6 @@ namespace reshade::d3d9
 		const com_ptr<IDirect3DDevice9> _device;
 		const com_ptr<IDirect3DSwapChain9> _swapchain;
 
-		state_block _app_state;
-
-		unsigned int _max_vertices = 0;
-
 		D3DFORMAT _backbuffer_format = D3DFMT_UNKNOWN;
 		com_ptr<IDirect3DSurface9> _backbuffer;
 		com_ptr<IDirect3DSurface9> _backbuffer_resolved;
@@ -58,6 +54,7 @@ namespace reshade::d3d9
 
 		HMODULE _d3d_compiler = nullptr;
 		com_ptr<IDirect3DSurface9> _effect_stencil;
+		unsigned int _max_effect_vertices = 0;
 		com_ptr<IDirect3DVertexBuffer9> _effect_vertex_buffer;
 		com_ptr<IDirect3DVertexDeclaration9> _effect_vertex_layout;
 

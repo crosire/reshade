@@ -60,9 +60,6 @@ namespace reshade::d3d12
 		com_ptr<ID3D12DescriptorHeap> _backbuffer_rtvs;
 		com_ptr<ID3D12DescriptorHeap> _depthstencil_dsvs;
 
-		com_ptr<ID3D12PipelineState> _mipmap_pipeline;
-		com_ptr<ID3D12RootSignature> _mipmap_signature;
-
 		HMODULE _d3d_compiler = nullptr;
 		com_ptr<ID3D12Resource> _effect_stencil;
 		std::vector<struct effect_data> _effect_data;

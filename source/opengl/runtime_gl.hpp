@@ -81,8 +81,6 @@ namespace reshade::opengl
 				NUM_RBO
 		};
 
-		state_block _app_state;
-
 		GLuint _buf[NUM_BUF] = {};
 		GLuint _tex[NUM_TEX] = {};
 		GLuint _vao[NUM_VAO] = {};

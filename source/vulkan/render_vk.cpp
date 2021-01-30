@@ -375,6 +375,7 @@ bool reshade::vulkan::device_impl::create_resource(resource_type type, const res
 	{
 		VkImageCreateInfo create_info { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
 		convert_resource_desc(type, desc, create_info);
+		create_info.flags |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
 
 		if (VkImage image = VK_NULL_HANDLE;
 			vmaCreateImage(_alloc, &create_info, &alloc_info, &image, &allocation, nullptr) == VK_SUCCESS)

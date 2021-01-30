@@ -59,20 +59,6 @@ namespace reshade::d3d12
 		bool has_compute_passes = false;
 		std::vector<pass_data> passes;
 	};
-
-	static void transition_state(
-		ID3D12GraphicsCommandList *list,
-		const com_ptr<ID3D12Resource> &res,
-		D3D12_RESOURCE_STATES from, D3D12_RESOURCE_STATES to,
-		UINT subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES)
-	{
-		D3D12_RESOURCE_BARRIER transition = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
-		transition.Transition.pResource = res.get();
-		transition.Transition.Subresource = subresource;
-		transition.Transition.StateBefore = from;
-		transition.Transition.StateAfter = to;
-		list->ResourceBarrier(1, &transition);
-	}
 }
 
 reshade::d3d12::runtime_d3d12::runtime_d3d12(device_impl *device, command_queue_impl *queue, IDXGISwapChain3 *swapchain) :
@@ -217,58 +203,6 @@ bool reshade::d3d12::runtime_d3d12::on_init(const DXGI_SWAP_CHAIN_DESC &swap_des
 		_device->CreateDepthStencilView(_effect_stencil.get(), nullptr, _depthstencil_dsvs->GetCPUDescriptorHandleForHeapStart());
 	}
 
-	// Create mipmap generation states
-	{   D3D12_DESCRIPTOR_RANGE srv_range = {};
-		srv_range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-		srv_range.NumDescriptors = 1;
-		srv_range.BaseShaderRegister = 0; // t0
-		D3D12_DESCRIPTOR_RANGE uav_range = {};
-		uav_range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
-		uav_range.NumDescriptors = 1;
-		uav_range.BaseShaderRegister = 0; // u0
-
-		D3D12_ROOT_PARAMETER params[3] = {};
-		params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
-		params[0].Constants.ShaderRegister = 0; // b0
-		params[0].Constants.Num32BitValues = 2;
-		params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-		params[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-		params[1].DescriptorTable.NumDescriptorRanges = 1;
-		params[1].DescriptorTable.pDescriptorRanges = &srv_range;
-		params[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-		params[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-		params[2].DescriptorTable.NumDescriptorRanges = 1;
-		params[2].DescriptorTable.pDescriptorRanges = &uav_range;
-		params[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-
-		D3D12_STATIC_SAMPLER_DESC samplers[1] = {};
-		samplers[0].Filter = D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT;
-		samplers[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-		samplers[0].AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-		samplers[0].AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-		samplers[0].ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-		samplers[0].ShaderRegister = 0; // s0
-		samplers[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-
-		D3D12_ROOT_SIGNATURE_DESC desc = {};
-		desc.NumParameters = ARRAYSIZE(params);
-		desc.pParameters = params;
-		desc.NumStaticSamplers = ARRAYSIZE(samplers);
-		desc.pStaticSamplers = samplers;
-
-		_mipmap_signature = _device_impl->create_root_signature(desc);
-	}
-
-	{   D3D12_COMPUTE_PIPELINE_STATE_DESC pso_desc = {};
-		pso_desc.pRootSignature = _mipmap_signature.get();
-
-		const resources::data_resource cs = resources::load_data_resource(IDR_MIPMAP_CS);
-		pso_desc.CS = { cs.data, cs.data_size };
-
-		if (FAILED(_device->CreateComputePipelineState(&pso_desc, IID_PPV_ARGS(&_mipmap_pipeline))))
-			return false;
-	}
-
 #if RESHADE_GUI
 	if (!init_imgui_resources())
 		return false;
@@ -287,9 +221,6 @@ void reshade::d3d12::runtime_d3d12::on_reset()
 	_backbuffer_rtvs.reset();
 	_backbuffer_texture.reset();
 	_depthstencil_dsvs.reset();
-
-	_mipmap_pipeline.reset();
-	_mipmap_signature.reset();
 
 	_effect_stencil.reset();
 
@@ -319,12 +250,19 @@ void reshade::d3d12::runtime_d3d12::on_present()
 		_swap_index = _swapchain->GetCurrentBackBufferIndex();
 
 	ID3D12GraphicsCommandList *const cmd_list = _cmd_impl->get();
-	transition_state(cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+	D3D12_RESOURCE_BARRIER transition = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
+	transition.Transition.pResource = _backbuffers[_swap_index].get();
+	transition.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+	transition.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+	transition.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+	cmd_list->ResourceBarrier(1, &transition);
 
 	update_and_render_effects();
 	runtime::on_present();
 
-	transition_state(cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+	std::swap(transition.Transition.StateBefore, transition.Transition.StateAfter);
+	cmd_list->ResourceBarrier(1, &transition);
 
 	_cmd_impl->flush(_commandqueue.get());
 }
@@ -408,9 +346,16 @@ bool reshade::d3d12::runtime_d3d12::capture_screenshot(uint8_t *buffer) const
 	}
 	intermediate->SetName(L"ReShade screenshot texture");
 
-	// Was transitioned to D3D12_RESOURCE_STATE_RENDER_TARGET in 'on_present' already
 	ID3D12GraphicsCommandList *const cmd_list = _cmd_impl->get();
-	transition_state(cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COPY_SOURCE, 0);
+
+	// Was transitioned to D3D12_RESOURCE_STATE_RENDER_TARGET in 'on_present' already
+	D3D12_RESOURCE_BARRIER transition = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
+	transition.Transition.pResource = _backbuffers[_swap_index].get();
+	transition.Transition.Subresource = 0;
+	transition.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+	transition.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
+	cmd_list->ResourceBarrier(1, &transition);
+
 	{
 		D3D12_TEXTURE_COPY_LOCATION src_location = { _backbuffers[_swap_index].get() };
 		src_location.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
@@ -426,7 +371,9 @@ bool reshade::d3d12::runtime_d3d12::capture_screenshot(uint8_t *buffer) const
 
 		cmd_list->CopyTextureRegion(&dst_location, 0, 0, 0, &src_location, nullptr);
 	}
-	transition_state(cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET, 0);
+
+	std::swap(transition.Transition.StateBefore, transition.Transition.StateAfter);
+	cmd_list->ResourceBarrier(1, &transition);
 
 	// Execute and wait for completion
 	_cmd_impl->flush_and_wait(_commandqueue.get());
@@ -1203,7 +1150,14 @@ void reshade::d3d12::runtime_d3d12::upload_texture(const texture &texture, const
 		return;
 
 	ID3D12GraphicsCommandList *const cmd_list = _cmd_impl->get();
-	transition_state(cmd_list, impl->resource, D3D12_RESOURCE_STATE_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST, 0);
+
+	D3D12_RESOURCE_BARRIER transition = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
+	transition.Transition.pResource = impl->resource.get();
+	transition.Transition.Subresource = 0;
+	transition.Transition.StateBefore = D3D12_RESOURCE_STATE_SHADER_RESOURCE;
+	transition.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
+	cmd_list->ResourceBarrier(1, &transition);
+
 	{ // Copy data from upload buffer into target texture
 		D3D12_TEXTURE_COPY_LOCATION src_location = { intermediate.get() };
 		src_location.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
@@ -1219,7 +1173,9 @@ void reshade::d3d12::runtime_d3d12::upload_texture(const texture &texture, const
 
 		cmd_list->CopyTextureRegion(&dst_location, 0, 0, 0, &src_location, nullptr);
 	}
-	transition_state(cmd_list, impl->resource, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_SHADER_RESOURCE, 0);
+
+	std::swap(transition.Transition.StateBefore, transition.Transition.StateAfter);
+	cmd_list->ResourceBarrier(1, &transition);
 
 	generate_mipmaps(impl);
 
@@ -1243,12 +1199,18 @@ void reshade::d3d12::runtime_d3d12::generate_mipmaps(const tex_data *impl)
 		return; // No need to generate mipmaps when texture does not have any
 
 	ID3D12GraphicsCommandList *const cmd_list = _cmd_impl->get();
-	cmd_list->SetComputeRootSignature(_mipmap_signature.get());
-	cmd_list->SetPipelineState(_mipmap_pipeline.get());
+	cmd_list->SetComputeRootSignature(_device_impl->_mipmap_signature.get());
+	cmd_list->SetPipelineState(_device_impl->_mipmap_pipeline.get());
 	ID3D12DescriptorHeap *const descriptor_heap = impl->descriptors.get();
 	cmd_list->SetDescriptorHeaps(1, &descriptor_heap);
 
-	transition_state(cmd_list, impl->resource, D3D12_RESOURCE_STATE_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	D3D12_RESOURCE_BARRIER transition = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
+	transition.Transition.pResource = impl->resource.get();
+	transition.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+	transition.Transition.StateBefore = D3D12_RESOURCE_STATE_SHADER_RESOURCE;
+	transition.Transition.StateAfter = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+	cmd_list->ResourceBarrier(1, &transition);
+
 	for (uint32_t level = 1; level < desc.MipLevels; ++level)
 	{
 		const uint32_t width = std::max(1u, static_cast<uint32_t>(desc.Width) >> level);
@@ -1269,7 +1231,9 @@ void reshade::d3d12::runtime_d3d12::generate_mipmaps(const tex_data *impl)
 		barrier.UAV.pResource = impl->resource.get();
 		cmd_list->ResourceBarrier(1, &barrier);
 	}
-	transition_state(cmd_list, impl->resource, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_SHADER_RESOURCE);
+
+	std::swap(transition.Transition.StateBefore, transition.Transition.StateAfter);
+	cmd_list->ResourceBarrier(1, &transition);
 }
 
 void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
@@ -1315,12 +1279,25 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 	{
 		if (needs_implicit_backbuffer_copy)
 		{
+			D3D12_RESOURCE_BARRIER transitions[2];
+			transitions[0] = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
+			transitions[0].Transition.pResource = _backbuffer_texture.get();
+			transitions[0].Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+			transitions[0].Transition.StateBefore = D3D12_RESOURCE_STATE_SHADER_RESOURCE;
+			transitions[0].Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
+			transitions[1] = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
+			transitions[1].Transition.pResource = _backbuffers[_swap_index].get();
+			transitions[1].Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+			transitions[1].Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+			transitions[1].Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
+			cmd_list->ResourceBarrier(2, transitions);
+
 			// Save back buffer of previous pass
-			transition_state(cmd_list, _backbuffer_texture, D3D12_RESOURCE_STATE_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
-			transition_state(cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COPY_SOURCE);
 			cmd_list->CopyResource(_backbuffer_texture.get(), _backbuffers[_swap_index].get());
-			transition_state(cmd_list, _backbuffer_texture, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_SHADER_RESOURCE);
-			transition_state(cmd_list, _backbuffers[_swap_index], D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+			std::swap(transitions[0].Transition.StateBefore, transitions[0].Transition.StateAfter);
+			std::swap(transitions[1].Transition.StateBefore, transitions[1].Transition.StateAfter);
+			cmd_list->ResourceBarrier(2, transitions);
 		}
 
 		if (pass_index > 0)
@@ -1349,8 +1326,17 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 			cmd_list->SetGraphicsRootDescriptorTable(1, pass_data.srv_handle);
 
 			// Transition resource state for render targets
-			for (const tex_data *render_target_texture : pass_data.modified_resources)
-				transition_state(cmd_list, render_target_texture->resource, D3D12_RESOURCE_STATE_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+			std::vector<D3D12_RESOURCE_BARRIER> transitions(pass_data.modified_resources.size());
+			for (size_t i = 0; i < pass_data.modified_resources.size(); ++i)
+			{
+				transitions[i] = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
+				transitions[i].Transition.pResource = pass_data.modified_resources[i]->resource.get();
+				transitions[i].Transition.Subresource = 0;
+				transitions[i].Transition.StateBefore = D3D12_RESOURCE_STATE_SHADER_RESOURCE;
+				transitions[i].Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+			}
+			cmd_list->ResourceBarrier(static_cast<UINT>(transitions.size()), transitions.data());
 
 			cmd_list->OMSetStencilRef(pass_info.stencil_reference_value);
 
@@ -1416,8 +1402,11 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 			cmd_list->DrawInstanced(pass_info.num_vertices, 1, 0, 0);
 
 			// Transition resource state back to shader access
-			for (const tex_data *render_target_texture : pass_data.modified_resources)
-				transition_state(cmd_list, render_target_texture->resource, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_SHADER_RESOURCE);
+			for (size_t i = 0; i < pass_data.modified_resources.size(); ++i)
+			{
+				std::swap(transitions[i].Transition.StateBefore, transitions[i].Transition.StateAfter);
+			}
+			cmd_list->ResourceBarrier(static_cast<UINT>(transitions.size()), transitions.data());
 		}
 
 		// Generate mipmaps for modified resources

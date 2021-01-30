@@ -64,13 +64,13 @@ namespace reshade::vulkan
 		VkQueue _queue = VK_NULL_HANDLE;
 		command_list_immediate_impl *const _cmd_impl;
 
-		VkSemaphore _queue_sync_semaphores[4] = {};
 		uint32_t _queue_sync_index = 0;
-		uint32_t _swap_index = 0;
+		VkSemaphore _queue_sync_semaphores[4] = {};
 #ifndef NDEBUG
 		mutable bool _wait_for_idle_happened = false;
 #endif
 
+		uint32_t _swap_index = 0;
 		VkFormat _backbuffer_format = VK_FORMAT_UNDEFINED;
 		VkExtent2D _render_area = {};
 		VkRenderPass _default_render_pass[2] = {};

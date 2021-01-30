@@ -46,8 +46,6 @@ namespace reshade::d3d10
 		const com_ptr<ID3D10Device1> _device;
 		const com_ptr<IDXGISwapChain> _swapchain;
 
-		state_block _app_state;
-
 		DXGI_FORMAT _backbuffer_format = DXGI_FORMAT_UNKNOWN;
 		com_ptr<ID3D10Texture2D> _backbuffer;
 		com_ptr<ID3D10Texture2D> _backbuffer_resolved;
@@ -55,15 +53,11 @@ namespace reshade::d3d10
 		com_ptr<ID3D10Texture2D> _backbuffer_texture;
 		com_ptr<ID3D10ShaderResourceView> _backbuffer_texture_srv[2];
 
-		com_ptr<ID3D10PixelShader> _copy_pixel_shader;
-		com_ptr<ID3D10VertexShader> _copy_vertex_shader;
-		com_ptr<ID3D10SamplerState>  _copy_sampler_state;
-
 		HMODULE _d3d_compiler = nullptr;
 		com_ptr<ID3D10RasterizerState> _effect_rasterizer;
 		std::unordered_map<size_t, com_ptr<ID3D10SamplerState>> _effect_sampler_states;
-		com_ptr<ID3D10DepthStencilView> _effect_stencil;
 		std::vector<struct effect_data> _effect_data;
+		com_ptr<ID3D10DepthStencilView> _effect_stencil;
 
 		std::unordered_map<std::string, com_ptr<ID3D10ShaderResourceView>> _texture_semantic_bindings;
 

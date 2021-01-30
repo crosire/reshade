@@ -38,7 +38,7 @@ namespace reshade::d3d9
 }
 
 reshade::d3d9::runtime_d3d9::runtime_d3d9(device_impl *device, IDirect3DSwapChain9 *swapchain) :
-	_device_impl(device), _device(device->_device), _swapchain(swapchain), _app_state(device->_device.get())
+	_device_impl(device), _device(device->_device), _swapchain(swapchain)
 {
 	com_ptr<IDirect3D9> d3d;
 	_device->GetDirect3D(&d3d);
@@ -155,10 +155,6 @@ bool reshade::d3d9::runtime_d3d9::on_init()
 	if (FAILED(_device->CreateVertexDeclaration(declaration, &_effect_vertex_layout)))
 		return false;
 
-	// Create state block object
-	if (!_app_state.init_state_block())
-		return false;
-
 #if RESHADE_GUI
 	if (!init_imgui_resources())
 		return false;
@@ -170,15 +166,13 @@ void reshade::d3d9::runtime_d3d9::on_reset()
 {
 	runtime::on_reset();
 
-	_app_state.release_state_block();
-
 	_backbuffer.reset();
 	_backbuffer_resolved.reset();
 	_backbuffer_texture.reset();
 	_backbuffer_texture_surface.reset();
 
-	_max_vertices = 0;
 	_effect_stencil.reset();
+	_max_effect_vertices = 0;
 	_effect_vertex_buffer.reset();
 	_effect_vertex_layout.reset();
 
@@ -198,7 +192,7 @@ void reshade::d3d9::runtime_d3d9::on_present()
 	if (!_is_initialized || FAILED(_device->BeginScene()))
 		return;
 
-	_app_state.capture();
+	_device_impl->_app_state.capture();
 	BOOL software_rendering_enabled = FALSE;
 	if ((_device_impl->_behavior_flags & D3DCREATE_MIXED_VERTEXPROCESSING) != 0)
 		software_rendering_enabled = _device->GetSoftwareVertexProcessing(),
@@ -216,7 +210,7 @@ void reshade::d3d9::runtime_d3d9::on_present()
 		_device->StretchRect(_backbuffer_resolved.get(), nullptr, _backbuffer.get(), nullptr, D3DTEXF_NONE);
 
 	// Apply previous state from application
-	_app_state.apply_and_release();
+	_device_impl->_app_state.apply_and_release();
 	if ((_device_impl->_behavior_flags & D3DCREATE_MIXED_VERTEXPROCESSING) != 0)
 		_device->SetSoftwareVertexProcessing(software_rendering_enabled);
 
@@ -633,7 +627,7 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 	}
 
 	// Update vertex buffer which holds vertex indices
-	if (max_vertices > _max_vertices)
+	if (max_vertices > _max_effect_vertices)
 	{
 		_effect_vertex_buffer.reset();
 
@@ -648,7 +642,7 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 			_effect_vertex_buffer->Unlock();
 		}
 
-		_max_vertices = max_vertices;
+		_max_effect_vertices = max_vertices;
 	}
 
 	return true;

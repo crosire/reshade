@@ -50,7 +50,7 @@ namespace reshade::d3d10
 extern bool is_windows7();
 
 reshade::d3d10::runtime_d3d10::runtime_d3d10(device_impl *device, IDXGISwapChain *swapchain) :
-	_device_impl(device), _device(device->_device), _swapchain(swapchain), _app_state(device->_device.get())
+	_device_impl(device), _device(device->_device), _swapchain(swapchain)
 {
 	_renderer_id = _device->GetFeatureLevel();
 
@@ -150,24 +150,6 @@ bool reshade::d3d10::runtime_d3d10::on_init()
 	if (FAILED(_device->CreateRenderTargetView(_backbuffer_resolved.get(), &rtv_desc, &_backbuffer_rtv[1])))
 		return false;
 
-	// Create copy states
-	const resources::data_resource vs = resources::load_data_resource(IDR_FULLSCREEN_VS);
-	if (FAILED(_device->CreateVertexShader(vs.data, vs.data_size, &_copy_vertex_shader)))
-		return false;
-	const resources::data_resource ps = resources::load_data_resource(IDR_COPY_PS);
-	if (FAILED(_device->CreatePixelShader(ps.data, ps.data_size, &_copy_pixel_shader)))
-		return false;
-
-	{   D3D10_SAMPLER_DESC desc = {};
-		desc.Filter = D3D10_FILTER_MIN_MAG_MIP_POINT;
-		desc.AddressU = D3D10_TEXTURE_ADDRESS_CLAMP;
-		desc.AddressV = D3D10_TEXTURE_ADDRESS_CLAMP;
-		desc.AddressW = D3D10_TEXTURE_ADDRESS_CLAMP;
-
-		if (FAILED(_device->CreateSamplerState(&desc, &_copy_sampler_state)))
-			return false;
-	}
-
 	// Create effect states
 	{   D3D10_RASTERIZER_DESC desc = {};
 		desc.FillMode = D3D10_FILL_SOLID;
@@ -207,10 +189,6 @@ void reshade::d3d10::runtime_d3d10::on_reset()
 	_backbuffer_texture_srv[0].reset();
 	_backbuffer_texture_srv[1].reset();
 
-	_copy_vertex_shader.reset();
-	_copy_pixel_shader.reset();
-	_copy_sampler_state.reset();
-
 	_effect_stencil.reset();
 	_effect_rasterizer.reset();
 
@@ -237,7 +215,7 @@ void reshade::d3d10::runtime_d3d10::on_present()
 	if (!_is_initialized)
 		return;
 
-	_app_state.capture();
+	_device_impl->_app_state.capture();
 
 	// Resolve MSAA back buffer if MSAA is active
 	if (_backbuffer_resolved != _backbuffer)
@@ -255,10 +233,10 @@ void reshade::d3d10::runtime_d3d10::on_present()
 		const uintptr_t null = 0;
 		_device->IASetVertexBuffers(0, 1, reinterpret_cast<ID3D10Buffer *const *>(&null), reinterpret_cast<const UINT *>(&null), reinterpret_cast<const UINT *>(&null));
 		_device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		_device->VSSetShader(_copy_vertex_shader.get());
+		_device->VSSetShader(_device_impl->_copy_vertex_shader.get());
 		_device->GSSetShader(nullptr);
-		_device->PSSetShader(_copy_pixel_shader.get());
-		ID3D10SamplerState *const samplers[] = { _copy_sampler_state.get() };
+		_device->PSSetShader(_device_impl->_copy_pixel_shader.get());
+		ID3D10SamplerState *const samplers[] = { _device_impl->_copy_sampler_state.get() };
 		_device->PSSetSamplers(0, ARRAYSIZE(samplers), samplers);
 		ID3D10ShaderResourceView *const srvs[] = { _backbuffer_texture_srv[make_dxgi_format_srgb(_backbuffer_format) == _backbuffer_format].get() };
 		_device->PSSetShaderResources(0, ARRAYSIZE(srvs), srvs);
@@ -274,7 +252,7 @@ void reshade::d3d10::runtime_d3d10::on_present()
 	}
 
 	// Apply previous state from application
-	_app_state.apply_and_release();
+	_device_impl->_app_state.apply_and_release();
 }
 
 bool reshade::d3d10::runtime_d3d10::capture_screenshot(uint8_t *buffer) const

@@ -8,7 +8,7 @@
 #include "com_ptr.hpp"
 #include "com_tracking.hpp"
 #include "addon_manager.hpp"
-#include <d3d10_1.h>
+#include "state_block_d3d10.hpp"
 
 namespace reshade::d3d10
 {
@@ -79,5 +79,10 @@ namespace reshade::d3d10
 		com_ptr<ID3D10Device1> _device;
 		com_object_list<ID3D10View> _views;
 		com_object_list<ID3D10Resource> _resources;
+
+		state_block _app_state;
+		com_ptr<ID3D10PixelShader> _copy_pixel_shader;
+		com_ptr<ID3D10VertexShader> _copy_vertex_shader;
+		com_ptr<ID3D10SamplerState>  _copy_sampler_state;
 	};
 }

@@ -73,6 +73,9 @@ namespace reshade::d3d12
 		std::vector<com_ptr<ID3D12CommandQueue>> _queues;
 		com_object_list<ID3D12Resource> _resources;
 		std::unordered_map<uint64_t, ID3D12Resource *> _views;
+
+		com_ptr<ID3D12PipelineState> _mipmap_pipeline;
+		com_ptr<ID3D12RootSignature> _mipmap_signature;
 	};
 
 	class command_list_impl : public api::command_list

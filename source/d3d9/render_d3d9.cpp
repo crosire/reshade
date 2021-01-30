@@ -126,7 +126,7 @@ resource_view_desc reshade::d3d9::convert_resource_view_desc(const D3DSURFACE_DE
 }
 
 reshade::d3d9::device_impl::device_impl(IDirect3DDevice9 *device) :
-	_device(device), _backup_state(device)
+	_device(device), _app_state(device)
 {
 	D3DCAPS9 caps = {};
 	_device->GetDeviceCaps(&caps);
@@ -159,8 +159,8 @@ void reshade::d3d9::device_impl::on_reset()
 	RESHADE_ADDON_EVENT(destroy_command_queue, this);
 	RESHADE_ADDON_EVENT(destroy_device, this);
 
+	_app_state.release_state_block();
 	_copy_state.reset();
-	_backup_state.release_state_block();
 }
 void reshade::d3d9::device_impl::on_after_reset()
 {
@@ -205,7 +205,8 @@ void reshade::d3d9::device_impl::on_after_reset()
 		hr = _device->EndStateBlock(&_copy_state);
 	}
 
-	_backup_state.init_state_block();
+	// Create state block object
+	_app_state.init_state_block();
 
 	RESHADE_ADDON_EVENT(init_device, this);
 	RESHADE_ADDON_EVENT(init_command_queue, this);
@@ -421,7 +422,7 @@ void reshade::d3d9::device_impl::copy_resource(resource_handle source, resource_
 
 	if (type == D3DRTYPE_TEXTURE)
 	{
-		_backup_state.capture();
+		_app_state.capture();
 
 		// Perform copy using fullscreen triangle
 		_copy_state->Apply();
@@ -440,7 +441,7 @@ void reshade::d3d9::device_impl::copy_resource(resource_handle source, resource_
 		};
 		_device->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, vertices, sizeof(vertices[0]));
 
-		_backup_state.apply_and_release();
+		_app_state.apply_and_release();
 		return;
 	}
 	if (type == D3DRTYPE_SURFACE)

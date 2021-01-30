@@ -50,8 +50,6 @@ namespace reshade::d3d11
 		const com_ptr<ID3D11DeviceContext> _immediate_context;
 		const com_ptr<IDXGISwapChain> _swapchain;
 
-		state_block _app_state;
-
 		DXGI_FORMAT _backbuffer_format = DXGI_FORMAT_UNKNOWN;
 		com_ptr<ID3D11Texture2D> _backbuffer;
 		com_ptr<ID3D11Texture2D> _backbuffer_resolved;
@@ -59,15 +57,11 @@ namespace reshade::d3d11
 		com_ptr<ID3D11Texture2D> _backbuffer_texture;
 		com_ptr<ID3D11ShaderResourceView> _backbuffer_texture_srv[2];
 
-		com_ptr<ID3D11PixelShader> _copy_pixel_shader;
-		com_ptr<ID3D11VertexShader> _copy_vertex_shader;
-		com_ptr<ID3D11SamplerState>  _copy_sampler_state;
-
 		HMODULE _d3d_compiler = nullptr;
 		com_ptr<ID3D11RasterizerState> _effect_rasterizer;
 		std::unordered_map<size_t, com_ptr<ID3D11SamplerState>> _effect_sampler_states;
-		com_ptr<ID3D11DepthStencilView> _effect_stencil;
 		std::vector<struct effect_data> _effect_data;
+		com_ptr<ID3D11DepthStencilView> _effect_stencil;
 
 		std::unordered_map<std::string, com_ptr<ID3D11ShaderResourceView>> _texture_semantic_bindings;
 
