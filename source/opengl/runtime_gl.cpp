@@ -6,51 +6,7 @@
 #include "dll_log.hpp"
 #include "dll_config.hpp"
 #include "runtime_gl.hpp"
-#include "runtime_objects.hpp"
-#include <imgui.h>
-
-namespace reshade::opengl
-{
-	struct tex_data
-	{
-		GLuint id[2] = {};
-		GLuint levels = 0;
-		GLenum internal_format = GL_NONE;
-	};
-
-	struct sampler_data
-	{
-		GLuint id;
-		tex_data *texture;
-		bool is_srgb_format;
-	};
-
-	struct pass_data
-	{
-		GLuint fbo = 0;
-		GLuint program = 0;
-		GLenum blend_eq_color = GL_NONE;
-		GLenum blend_eq_alpha = GL_NONE;
-		GLenum blend_src = GL_NONE;
-		GLenum blend_src_alpha = GL_NONE;
-		GLenum blend_dest = GL_NONE;
-		GLenum blend_dest_alpha = GL_NONE;
-		GLenum stencil_func = GL_NONE;
-		GLenum stencil_op_fail = GL_NONE;
-		GLenum stencil_op_z_fail = GL_NONE;
-		GLenum stencil_op_z_pass = GL_NONE;
-		GLenum draw_targets[8] = {};
-		std::vector<tex_data *> storages;
-		std::vector<sampler_data> samplers;
-	};
-
-	struct technique_data
-	{
-		GLuint query = 0;
-		bool query_in_flight = false;
-		std::vector<pass_data> passes;
-	};
-}
+#include "runtime_gl_objects.hpp"
 
 reshade::opengl::runtime_gl::runtime_gl(HDC hdc) : device_impl(hdc)
 {
@@ -94,6 +50,14 @@ reshade::opengl::runtime_gl::runtime_gl(HDC hdc) : device_impl(hdc)
 reshade::opengl::runtime_gl::~runtime_gl()
 {
 	on_reset();
+
+#if RESHADE_GUI
+	glDeleteProgram(_imgui.program);
+	_imgui.program = 0;
+#endif
+
+	glDeleteProgram(_mipmap_program);
+	_mipmap_program = 0;
 }
 
 bool reshade::opengl::runtime_gl::on_init(HWND hwnd, unsigned int width, unsigned int height)
@@ -144,27 +108,30 @@ bool reshade::opengl::runtime_gl::on_init(HWND hwnd, unsigned int width, unsigne
 	glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, _tex[TEX_BACK_SRGB], 0);
 	assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 
-	const GLchar *mipmap_shader[] = {
-		"#version 430\n"
-		"layout(binding = 0) uniform sampler2D src;\n"
-		"layout(binding = 1) uniform writeonly image2D dest;\n"
-		"layout(location = 0) uniform vec3 info;\n"
-		"layout(local_size_x = 8, local_size_y = 8) in;\n"
-		"void main()\n"
-		"{\n"
-		"	vec2 uv = info.xy * (vec2(gl_GlobalInvocationID.xy) + vec2(0.5));\n"
-		"	imageStore(dest, ivec2(gl_GlobalInvocationID.xy), textureLod(src, uv, int(info.z)));\n"
-		"}\n"
-	};
+	if (_mipmap_program == 0)
+	{
+		const GLchar *mipmap_shader[] = {
+			"#version 430\n"
+			"layout(binding = 0) uniform sampler2D src;\n"
+			"layout(binding = 1) uniform writeonly image2D dest;\n"
+			"layout(location = 0) uniform vec3 info;\n"
+			"layout(local_size_x = 8, local_size_y = 8) in;\n"
+			"void main()\n"
+			"{\n"
+			"	vec2 uv = info.xy * (vec2(gl_GlobalInvocationID.xy) + vec2(0.5));\n"
+			"	imageStore(dest, ivec2(gl_GlobalInvocationID.xy), textureLod(src, uv, int(info.z)));\n"
+			"}\n"
+		};
 
-	const GLuint mipmap_cs = glCreateShader(GL_COMPUTE_SHADER);
-	glShaderSource(mipmap_cs, 1, mipmap_shader, 0);
-	glCompileShader(mipmap_cs);
+		const GLuint mipmap_cs = glCreateShader(GL_COMPUTE_SHADER);
+		glShaderSource(mipmap_cs, 1, mipmap_shader, 0);
+		glCompileShader(mipmap_cs);
 
-	_mipmap_program = glCreateProgram();
-	glAttachShader(_mipmap_program, mipmap_cs);
-	glLinkProgram(_mipmap_program);
-	glDeleteShader(mipmap_cs);
+		_mipmap_program = glCreateProgram();
+		glAttachShader(_mipmap_program, mipmap_cs);
+		glLinkProgram(_mipmap_program);
+		glDeleteShader(mipmap_cs);
+	}
 
 #if RESHADE_GUI
 	init_imgui_resources();
@@ -190,16 +157,6 @@ void reshade::opengl::runtime_gl::on_reset()
 	std::memset(_vao, 0, sizeof(_vao));
 	std::memset(_fbo, 0, sizeof(_fbo));
 	std::memset(_rbo, 0, sizeof(_rbo));
-
-	glDeleteProgram(_mipmap_program);
-	_mipmap_program = 0;
-
-	_texture_semantic_bindings.clear();
-
-#if RESHADE_GUI
-	glDeleteProgram(_imgui.program);
-	_imgui.program = 0;
-#endif
 }
 
 void reshade::opengl::runtime_gl::on_present()
@@ -1121,136 +1078,6 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 
 	impl->query_in_flight = true;
 }
-
-#if RESHADE_GUI
-void reshade::opengl::runtime_gl::init_imgui_resources()
-{
-	assert(_app_state.has_state);
-
-	const GLchar *vertex_shader[] = {
-		"#version 430\n"
-		"layout(location = 1) uniform mat4 proj;\n"
-		"layout(location = 0) in vec2 pos;\n"
-		"layout(location = 1) in vec2 tex;\n"
-		"layout(location = 2) in vec4 col;\n"
-		"out vec4 frag_col;\n"
-		"out vec2 frag_tex;\n"
-		"void main()\n"
-		"{\n"
-		"	frag_col = col;\n"
-		"	frag_tex = tex;\n"
-		"	gl_Position = proj * vec4(pos.xy, 0, 1);\n"
-		"}\n"
-	};
-	const GLchar *fragment_shader[] = {
-		"#version 430\n"
-		"layout(binding = 0) uniform sampler2D s0;\n"
-		"in vec4 frag_col;\n"
-		"in vec2 frag_tex;\n"
-		"out vec4 col;\n"
-		"void main()\n"
-		"{\n"
-		"	col = frag_col * texture(s0, frag_tex.st);\n"
-		"}\n"
-	};
-
-	const GLuint imgui_vs = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(imgui_vs, 1, vertex_shader, 0);
-	glCompileShader(imgui_vs);
-	const GLuint imgui_fs = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(imgui_fs, 1, fragment_shader, 0);
-	glCompileShader(imgui_fs);
-
-	_imgui.program = glCreateProgram();
-	glAttachShader(_imgui.program, imgui_vs);
-	glAttachShader(_imgui.program, imgui_fs);
-	 glLinkProgram(_imgui.program);
-	glDeleteShader(imgui_vs);
-	glDeleteShader(imgui_fs);
-}
-
-void reshade::opengl::runtime_gl::render_imgui_draw_data(ImDrawData *draw_data)
-{
-	assert(_app_state.has_state);
-
-	glDisable(GL_CULL_FACE);
-	glDisable(GL_DEPTH_TEST);
-	if (_compatibility_context)
-		glDisable(GL_ALPHA_TEST);
-	glFrontFace(GL_CCW);
-	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glBlendEquation(GL_FUNC_ADD);
-	glEnable(GL_SCISSOR_TEST);
-	glDisable(GL_STENCIL_TEST);
-	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-	glDepthMask(GL_FALSE);
-
-	glViewport(0, 0, GLsizei(draw_data->DisplaySize.x), GLsizei(draw_data->DisplaySize.y));
-
-	glUseProgram(_imgui.program);
-	glBindSampler(0, 0); // Do not use separate sampler object, since state is already set in texture
-	glActiveTexture(GL_TEXTURE0); // s0
-
-	const float ortho_projection[16] = {
-		2.0f / draw_data->DisplaySize.x, 0.0f,   0.0f, 0.0f,
-		0.0f, -2.0f / draw_data->DisplaySize.y,  0.0f, 0.0f,
-		0.0f,                            0.0f,  -1.0f, 0.0f,
-		-(2 * draw_data->DisplayPos.x + draw_data->DisplaySize.x) / draw_data->DisplaySize.x,
-		+(2 * draw_data->DisplayPos.y + draw_data->DisplaySize.y) / draw_data->DisplaySize.y, 0.0f, 1.0f,
-	};
-	glUniformMatrix4fv(1 /* proj */, 1, GL_FALSE, ortho_projection);
-
-	glBindVertexArray(_vao[VAO_IMGUI]);
-	// Need to rebuild vertex array object every frame
-	// Doing so fixes weird interaction with 'glEnableClientState' and 'glVertexPointer' (e.g. in the first Call of Duty)
-	glBindVertexBuffer(0, _buf[VBO_IMGUI], 0, sizeof(ImDrawVert));
-	glEnableVertexAttribArray(0 /* pos */);
-	glVertexAttribFormat(0, 2, GL_FLOAT, GL_FALSE, offsetof(ImDrawVert, pos));
-	glVertexAttribBinding(0, 0);
-	glEnableVertexAttribArray(1 /* tex */);
-	glVertexAttribFormat(1, 2, GL_FLOAT, GL_FALSE, offsetof(ImDrawVert, uv ));
-	glVertexAttribBinding(1, 0);
-	glEnableVertexAttribArray(2 /* col */);
-	glVertexAttribFormat(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, offsetof(ImDrawVert, col));
-	glVertexAttribBinding(2, 0);
-
-	glBindBuffer(GL_ARRAY_BUFFER, _buf[VBO_IMGUI]);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _buf[IBO_IMGUI]);
-
-	for (int n = 0; n < draw_data->CmdListsCount; ++n)
-	{
-		ImDrawList *const draw_list = draw_data->CmdLists[n];
-
-		glBufferData(GL_ARRAY_BUFFER, draw_list->VtxBuffer.Size * sizeof(ImDrawVert), draw_list->VtxBuffer.Data, GL_STREAM_DRAW);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, draw_list->IdxBuffer.Size * sizeof(ImDrawIdx), draw_list->IdxBuffer.Data, GL_STREAM_DRAW);
-
-		for (const ImDrawCmd &cmd : draw_list->CmdBuffer)
-		{
-			assert(cmd.TextureId != 0);
-			assert(cmd.UserCallback == nullptr);
-
-			const ImVec4 scissor_rect(
-				cmd.ClipRect.x - draw_data->DisplayPos.x,
-				cmd.ClipRect.y - draw_data->DisplayPos.y,
-				cmd.ClipRect.z - draw_data->DisplayPos.x,
-				cmd.ClipRect.w - draw_data->DisplayPos.y);
-			glScissor(
-				static_cast<GLint>(scissor_rect.x),
-				static_cast<GLint>(_height - scissor_rect.w),
-				static_cast<GLint>(scissor_rect.z - scissor_rect.x),
-				static_cast<GLint>(scissor_rect.w - scissor_rect.y));
-
-			glBindTexture(GL_TEXTURE_2D,
-				static_cast<const tex_data *>(cmd.TextureId)->id[0]);
-
-			glDrawElementsBaseVertex(GL_TRIANGLES, cmd.ElemCount, sizeof(ImDrawIdx) == 2 ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT,
-				reinterpret_cast<const void *>(static_cast<uintptr_t>(cmd.IdxOffset * sizeof(ImDrawIdx))), cmd.VtxOffset);
-		}
-	}
-}
-#endif
 
 void reshade::opengl::runtime_gl::update_texture_bindings(const char *semantic, api::resource_view_handle srv)
 {

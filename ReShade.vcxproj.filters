@@ -129,6 +129,9 @@
     <ClCompile Include="source\d3d9\runtime_d3d9.cpp">
       <Filter>hooks\d3d9</Filter>
     </ClCompile>
+    <ClCompile Include="source\d3d9\runtime_d3d9_gui.cpp">
+      <Filter>hooks\d3d9</Filter>
+    </ClCompile>
     <ClCompile Include="source\d3d9\state_block_d3d9.cpp">
       <Filter>hooks\d3d9</Filter>
     </ClCompile>
@@ -142,6 +145,9 @@
       <Filter>hooks\d3d10</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d10\runtime_d3d10.cpp">
+      <Filter>hooks\d3d10</Filter>
+    </ClCompile>
+    <ClCompile Include="source\d3d10\runtime_d3d10_gui.cpp">
       <Filter>hooks\d3d10</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d10\state_block_d3d10.cpp">
@@ -163,6 +169,9 @@
       <Filter>hooks\d3d11</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d11\runtime_d3d11.cpp">
+      <Filter>hooks\d3d11</Filter>
+    </ClCompile>
+    <ClCompile Include="source\d3d11\runtime_d3d11_gui.cpp">
       <Filter>hooks\d3d11</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d11\state_block_d3d11.cpp">
@@ -192,6 +201,9 @@
     <ClCompile Include="source\d3d12\runtime_d3d12.cpp">
       <Filter>hooks\d3d12</Filter>
     </ClCompile>
+    <ClCompile Include="source\d3d12\runtime_d3d12_gui.cpp">
+      <Filter>hooks\d3d12</Filter>
+    </ClCompile>
     <ClCompile Include="source\dxgi\dxgi.cpp">
       <Filter>hooks\dxgi</Filter>
     </ClCompile>
@@ -216,6 +228,9 @@
     <ClCompile Include="source\opengl\runtime_gl.cpp">
       <Filter>hooks\opengl</Filter>
     </ClCompile>
+    <ClCompile Include="source\opengl\runtime_gl_gui.cpp">
+      <Filter>hooks\opengl</Filter>
+    </ClCompile>
     <ClCompile Include="source\opengl\state_block_gl.cpp">
       <Filter>hooks\opengl</Filter>
     </ClCompile>
@@ -223,6 +238,9 @@
       <Filter>hooks\vulkan</Filter>
     </ClCompile>
     <ClCompile Include="source\vulkan\runtime_vk.cpp">
+      <Filter>hooks\vulkan</Filter>
+    </ClCompile>
+    <ClCompile Include="source\vulkan\runtime_vk_gui.cpp">
       <Filter>hooks\vulkan</Filter>
     </ClCompile>
     <ClCompile Include="source\vulkan\vulkan_hooks_device.cpp">
@@ -296,6 +314,9 @@
     <ClInclude Include="source\d3d9\runtime_d3d9.hpp">
       <Filter>hooks\d3d9</Filter>
     </ClInclude>
+    <ClInclude Include="source\d3d9\runtime_d3d9_objects.hpp">
+      <Filter>hooks\d3d9</Filter>
+    </ClInclude>
     <ClInclude Include="source\d3d9\state_block_d3d9.hpp">
       <Filter>hooks\d3d9</Filter>
     </ClInclude>
@@ -306,6 +327,9 @@
       <Filter>hooks\d3d10</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d10\runtime_d3d10.hpp">
+      <Filter>hooks\d3d10</Filter>
+    </ClInclude>
+    <ClInclude Include="source\d3d10\runtime_d3d10_objects.hpp">
       <Filter>hooks\d3d10</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d10\state_block_d3d10.hpp">
@@ -324,6 +348,9 @@
       <Filter>hooks\d3d11</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d11\runtime_d3d11.hpp">
+      <Filter>hooks\d3d11</Filter>
+    </ClInclude>
+    <ClInclude Include="source\d3d11\runtime_d3d11_objects.hpp">
       <Filter>hooks\d3d11</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d11\state_block_d3d11.hpp">
@@ -350,6 +377,9 @@
     <ClInclude Include="source\d3d12\runtime_d3d12.hpp">
       <Filter>hooks\d3d12</Filter>
     </ClInclude>
+    <ClInclude Include="source\d3d12\runtime_d3d12_objects.hpp">
+      <Filter>hooks\d3d12</Filter>
+    </ClInclude>
     <ClInclude Include="source\dxgi\dxgi_device.hpp">
       <Filter>hooks\dxgi</Filter>
     </ClInclude>
@@ -371,6 +401,9 @@
     <ClInclude Include="source\opengl\runtime_gl.hpp">
       <Filter>hooks\opengl</Filter>
     </ClInclude>
+    <ClInclude Include="source\opengl\runtime_gl_objects.hpp">
+      <Filter>hooks\opengl</Filter>
+    </ClInclude>
     <ClInclude Include="source\opengl\state_block_gl.hpp">
       <Filter>hooks\opengl</Filter>
     </ClInclude>
@@ -384,6 +417,9 @@
       <Filter>hooks\vulkan</Filter>
     </ClInclude>
     <ClInclude Include="source\vulkan\runtime_vk.hpp">
+      <Filter>hooks\vulkan</Filter>
+    </ClInclude>
+    <ClInclude Include="source\vulkan\runtime_vk_objects.hpp">
       <Filter>hooks\vulkan</Filter>
     </ClInclude>
     <ClInclude Include="source\vulkan\vulkan_hooks.hpp">

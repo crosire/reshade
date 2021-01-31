@@ -13,6 +13,8 @@ namespace reshade::vulkan
 	class runtime_vk : public runtime, api::api_data
 	{
 		static const uint32_t NUM_IMGUI_BUFFERS = 4;
+		static const uint32_t MAX_IMAGE_DESCRIPTOR_SETS = 128; // TODO: Check if these limits are enough
+		static const uint32_t MAX_EFFECT_DESCRIPTOR_SETS = 50 * 2 * 4; // 50 resources, 4 passes
 
 	public:
 		runtime_vk(device_impl *device, command_queue_impl *graphics_queue);

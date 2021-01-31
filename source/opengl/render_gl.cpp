@@ -250,14 +250,14 @@ resource_view_dimension reshade::opengl::convert_resource_view_dimension(GLenum 
 
 reshade::opengl::device_impl::device_impl(HDC hdc)
 {
-	RECT rect = {};
-	GetClientRect(WindowFromDC(hdc), &rect);
+	RECT window_rect = {};
+	GetClientRect(WindowFromDC(hdc), &window_rect);
+
+	_default_fbo_width = window_rect.right - window_rect.left;
+	_default_fbo_height = window_rect.bottom - window_rect.top;
 
 	PIXELFORMATDESCRIPTOR pfd = { sizeof(pfd) };
 	DescribePixelFormat(hdc, GetPixelFormat(hdc), sizeof(pfd), &pfd);
-
-	_default_fbo_width = rect.right - rect.left;
-	_default_fbo_height = rect.bottom - rect.top;
 
 	switch (pfd.cDepthBits)
 	{
@@ -285,6 +285,7 @@ reshade::opengl::device_impl::device_impl(HDC hdc)
 		}
 	}
 
+	// Create framebuffers used in 'copy_resource' implementation
 	glGenFramebuffers(2, _copy_fbo);
 
 #if RESHADE_ADDON
@@ -310,6 +311,7 @@ reshade::opengl::device_impl::~device_impl()
 	reshade::addon::unload_addons();
 #endif
 
+	// Destroy framebuffers used in 'copy_resource' implementation
 	glDeleteFramebuffers(2, _copy_fbo);
 }
 
