@@ -4,6 +4,7 @@
  */
 
 #include "render_d3d12.hpp"
+#include "dll_log.hpp"
 #include "dll_resources.hpp"
 
 using namespace reshade::api;
@@ -835,9 +836,7 @@ reshade::d3d12::command_list_immediate_impl::command_list_immediate_impl(device_
 
 	// Create and open the command list for recording
 	if (SUCCEEDED(_device_impl->_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, _cmd_alloc[_cmd_index].get(), nullptr, IID_PPV_ARGS(&_cmd_list))))
-	{
 		_cmd_list->SetName(L"ReShade command list");
-	}
 
 	// Create auto-reset event and fences for synchronization
 	_fence_event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
@@ -856,8 +855,17 @@ bool reshade::d3d12::command_list_immediate_impl::flush(ID3D12CommandQueue *queu
 	if (!_has_commands)
 		return true;
 
-	if (FAILED(_cmd_list->Close()))
+	if (const HRESULT hr = _cmd_list->Close(); FAILED(hr))
+	{
+		LOG(ERROR) << "Failed to close immediate command list! HRESULT is " << hr << '.';
+
+		// A command list that failed to close can never be reset, so destroy it and create a new one
+		_device_impl->wait_idle();
+		_cmd_list.reset();
+		if (SUCCEEDED(_device_impl->_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, _cmd_alloc[_cmd_index].get(), nullptr, IID_PPV_ARGS(&_cmd_list))))
+			_cmd_list->SetName(L"ReShade command list");		
 		return false;
+	}
 
 	ID3D12CommandList *const cmd_lists[] = { _cmd_list.get() };
 	queue->ExecuteCommandLists(ARRAYSIZE(cmd_lists), cmd_lists);
