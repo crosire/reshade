@@ -120,7 +120,7 @@ void reshade::addon::unload_addons()
 		FreeLibrary(static_cast<HMODULE>(info.handle));
 	}
 
-	loaded_info.clear();
+	loaded_info.erase(std::remove_if(loaded_info.begin(), loaded_info.end(), [](const reshade::addon::info &info) { return info.handle != nullptr; }), loaded_info.end());
 }
 
 extern void register_builtin_addon_depth();
@@ -136,7 +136,7 @@ void reshade::addon::unload_builtin_addons()
 {
 	unregister_builtin_addon_depth();
 
-	loaded_info.erase(std::remove_if(loaded_info.begin(), loaded_info.end(), [](const reshade::addon::info &info) { return info.handle == nullptr; }));
+	loaded_info.erase(std::remove_if(loaded_info.begin(), loaded_info.end(), [](const reshade::addon::info &info) { return info.handle == nullptr; }), loaded_info.end());
 }
 
 extern "C" __declspec(dllexport) void ReShadeRegisterEvent(reshade::addon_event ev, void *callback)

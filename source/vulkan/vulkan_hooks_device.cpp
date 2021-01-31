@@ -1101,7 +1101,7 @@ void     VKAPI_CALL vkCmdClearColorImage(VkCommandBuffer commandBuffer, VkImage 
 		transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 		transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 		transition.image = image;
-		transition.subresourceRange = { VK_IMAGE_ASPECT_DEPTH_BIT, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
+		transition.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
 		device_impl->vk.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
 #endif
 
