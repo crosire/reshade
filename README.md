@@ -12,6 +12,7 @@ source \ runtime.cpp
 If you want to build your own version, use the original repo by crosire, I haven't updated mine for a while
 
 I will try to upload the newest launchers as soon as I see them.
+All credit to u/TheGuyMadeOfCheese on reddit, he taught me how to make these installers.
 
 I AM NOT RESPONSIBLE FOR ANY GAME BANS YOU GET USING THIS MODIFIED VERSION OF RESHADE, YOU SHOULD USE COMMON SENSE, AND NOT USE THIS ON GAMES BANNED ON THIS LIST
 https://www.pcgamingwiki.com/wiki/ReShade#Online_games_to_avoid
