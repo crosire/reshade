@@ -1,3 +1,5 @@
+      RESHADE UNLOCKED - NO DEPTH BUFFER DETECTION   
+   
    I have edited 2 files to disable that annoying depth buffer lock when you are online. You do have to be wary though, I personally have not been banned from any game because of my use of this, but I know one thing for sure, you CAN NOT use reshade or any .dll modification on battle eye anticheat game. You will get banned almost right away if it does not disable it.
    
    Go to the releases tab to download the installers, I'm not gonna keep the source code up to date lol
