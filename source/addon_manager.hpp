@@ -77,12 +77,10 @@ namespace reshade::addon
 	/// Load any add-ons found in the configured search paths.
 	/// </summary>
 	void load_addons();
-	void load_builtin_addons();
 
 	/// <summary>
 	/// Unload any add-ons previously loaded via <see cref="load_addons"/>.
 	/// </summary>
 	void unload_addons();
-	void unload_builtin_addons();
 #endif
 }

@@ -138,10 +138,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 
 	reshade::hooks::register_module(L"user32.dll");
 
-#if RESHADE_ADDON
-	reshade::addon::load_builtin_addons();
-#endif
-
 	static UINT s_resize_w = 0, s_resize_h = 0;
 
 	// Register window class
@@ -287,9 +283,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			HR_CHECK(swapchain->Present(1, 0));
 		}
 
-#if RESHADE_ADDON
-		reshade::addon::unload_builtin_addons();
-#endif
 		reshade::hooks::uninstall();
 
 		FreeLibrary(dxgi_module);
@@ -458,9 +451,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			}
 		}
 
-#if RESHADE_ADDON
-		reshade::addon::unload_builtin_addons();
-#endif
 		reshade::hooks::uninstall();
 
 		FreeLibrary(dxgi_module);
@@ -531,9 +521,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 		wglMakeCurrent(nullptr, nullptr);
 		wglDeleteContext(hglrc2);
 
-#if RESHADE_ADDON
-		reshade::addon::unload_builtin_addons();
-#endif
 		reshade::hooks::uninstall();
 
 		FreeLibrary(opengl_module);
@@ -793,9 +780,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 		VK_CALL_DEVICE(vkDestroyDevice, device, nullptr);
 		VK_CALL_INSTANCE(vkDestroyInstance, instance, instance, nullptr);
 
-#if RESHADE_ADDON
-		reshade::addon::unload_builtin_addons();
-#endif
 		reshade::hooks::uninstall();
 
 		FreeLibrary(vulkan_module);
@@ -922,18 +906,10 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		reshade::hooks::register_module(get_system_path() / L"opengl32.dll");
 		// Do not register Vulkan hooks, since Vulkan layering mechanism is used instead
 
-#if RESHADE_ADDON
-		reshade::addon::load_builtin_addons();
-#endif
-
 		LOG(INFO) << "Initialized.";
 		break;
 	case DLL_PROCESS_DETACH:
 		LOG(INFO) << "Exiting ...";
-
-#if RESHADE_ADDON
-		reshade::addon::unload_builtin_addons();
-#endif
 
 		reshade::hooks::uninstall();
 

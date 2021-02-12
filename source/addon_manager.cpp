@@ -84,12 +84,19 @@ std::vector<std::pair<std::string, void(*)(reshade::api::effect_runtime *, void 
 #if RESHADE_ADDON
 #include <Windows.h>
 
+extern void register_builtin_addon_depth();
+extern void unregister_builtin_addon_depth();
+
 static unsigned long s_reference_count = 0;
 
 void reshade::addon::load_addons()
 {
 	if (s_reference_count++ != 0)
 		return;
+
+	// Load built-in add-ons
+	register_builtin_addon_depth();
+	loaded_info.push_back({ nullptr, "Generic Depth" });
 
 	std::filesystem::path addon_search_path = g_reshade_base_path;
 	if (global_config().get("INSTALL", "AddonPath", addon_search_path))
@@ -117,26 +124,14 @@ void reshade::addon::unload_addons()
 
 	for (const reshade::addon::info &info : loaded_info)
 	{
-		FreeLibrary(static_cast<HMODULE>(info.handle));
+		if (info.handle != nullptr)
+			FreeLibrary(static_cast<HMODULE>(info.handle));
 	}
 
-	loaded_info.erase(std::remove_if(loaded_info.begin(), loaded_info.end(), [](const reshade::addon::info &info) { return info.handle != nullptr; }), loaded_info.end());
-}
-
-extern void register_builtin_addon_depth();
-extern void unregister_builtin_addon_depth();
-
-void reshade::addon::load_builtin_addons()
-{
-	register_builtin_addon_depth();
-
-	loaded_info.push_back({ nullptr, "Generic Depth" });
-}
-void reshade::addon::unload_builtin_addons()
-{
+	// Unload built-in add-ons
 	unregister_builtin_addon_depth();
 
-	loaded_info.erase(std::remove_if(loaded_info.begin(), loaded_info.end(), [](const reshade::addon::info &info) { return info.handle == nullptr; }), loaded_info.end());
+	loaded_info.clear();
 }
 
 extern "C" __declspec(dllexport) void ReShadeRegisterEvent(reshade::addon_event ev, void *callback)
