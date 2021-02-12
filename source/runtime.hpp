@@ -15,7 +15,7 @@
 #include "reshade_api.hpp"
 
 #if RESHADE_GUI
-#include "imgui_editor.hpp"
+#include "imgui_code_editor.hpp"
 
 struct ImDrawData;
 struct ImGuiContext;

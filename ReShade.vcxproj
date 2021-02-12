@@ -422,7 +422,8 @@
     <ClCompile Include="source\dxgi\dxgi_swapchain.cpp" />
     <ClCompile Include="source\hook.cpp" />
     <ClCompile Include="source\hook_manager.cpp" />
-    <ClCompile Include="source\imgui_editor.cpp" />
+    <ClCompile Include="source\imgui_code_editor.cpp" />
+    <ClCompile Include="source\imgui_function_table.cpp" />
     <ClCompile Include="source\imgui_widgets.cpp" />
     <ClCompile Include="source\input.cpp" />
     <ClCompile Include="source\input_freepie.cpp" />
@@ -486,7 +487,8 @@
     <ClInclude Include="source\dxgi\format_utils.hpp" />
     <ClInclude Include="source\hook.hpp" />
     <ClInclude Include="source\hook_manager.hpp" />
-    <ClInclude Include="source\imgui_editor.hpp" />
+    <ClInclude Include="source\imgui_code_editor.hpp" />
+    <ClInclude Include="source\imgui_function_table.hpp" />
     <ClInclude Include="source\imgui_widgets.hpp" />
     <ClInclude Include="source\input.hpp" />
     <ClInclude Include="source\input_freepie.hpp" />
@@ -498,6 +500,7 @@
     <ClInclude Include="source\opengl\state_block_gl.hpp" />
     <ClInclude Include="source\reshade.hpp" />
     <ClInclude Include="source\reshade_api.hpp" />
+    <ClInclude Include="source\reshade_api_imgui.hpp" />
     <ClInclude Include="source\reshade_events.hpp" />
     <ClInclude Include="source\runtime.hpp" />
     <ClInclude Include="source\runtime_objects.hpp" />

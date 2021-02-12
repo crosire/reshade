@@ -161,6 +161,14 @@ extern "C" __declspec(dllexport) void ReShadeUnregisterOverlay(const char *title
 	auto &overlay_list = reshade::addon::overlay_list;
 	overlay_list.erase(std::remove_if(overlay_list.begin(), overlay_list.end(), func { title }), overlay_list.end());
 }
+
+#include "imgui_function_table.hpp"
+extern imgui_function_table g_imgui_function_table;
+
+extern "C" __declspec(dllexport) imgui_function_table *ReShadeGetImGuiFunctionTable()
+{
+	return &g_imgui_function_table;
+}
 #endif
 
 #endif

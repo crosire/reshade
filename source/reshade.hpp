@@ -6,10 +6,16 @@
 #pragma once
 
 #include "reshade_events.hpp"
+#ifdef RESHADE_ADDON_GUI
+#include "reshade_api_imgui.hpp"
+#endif
+#include <Windows.h>
 
-#ifdef _WINDOWS_
 #ifdef RESHADE_ADDON_MAIN
 HMODULE g_module_handle = nullptr;
+#ifdef RESHADE_ADDON_GUI
+imgui_function_table g_imgui_function_table = {};
+#endif
 #else
 extern HMODULE g_module_handle;
 #endif
@@ -33,6 +39,9 @@ namespace reshade
 				if (GetProcAddress(modules[i], "ReShadeVersion") != nullptr)
 				{
 					g_module_handle = modules[i];
+#ifdef RESHADE_ADDON_GUI
+					g_imgui_function_table = *reinterpret_cast<imgui_function_table *(*)()>(GetProcAddress(modules[i], "ReShadeGetImGuiFunctionTable"))();
+#endif
 					return true;
 				}
 			}
@@ -69,4 +78,3 @@ namespace reshade
 		func(title);
 	}
 }
-#endif

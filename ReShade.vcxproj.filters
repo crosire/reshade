@@ -81,7 +81,10 @@
     <ClCompile Include="source\hook_manager.cpp">
       <Filter>core\hook</Filter>
     </ClCompile>
-    <ClCompile Include="source\imgui_editor.cpp">
+    <ClCompile Include="source\imgui_code_editor.cpp">
+      <Filter>core\runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="source\imgui_function_table.cpp">
       <Filter>core\runtime</Filter>
     </ClCompile>
     <ClCompile Include="source\imgui_widgets.cpp">
@@ -272,6 +275,9 @@
     <ClInclude Include="source\reshade_api.hpp">
       <Filter>core\api</Filter>
     </ClInclude>
+    <ClInclude Include="source\reshade_api_imgui.hpp">
+      <Filter>core\api</Filter>
+    </ClInclude>
     <ClInclude Include="source\reshade_events.hpp">
       <Filter>core\api</Filter>
     </ClInclude>
@@ -281,7 +287,10 @@
     <ClInclude Include="source\hook_manager.hpp">
       <Filter>core\hook</Filter>
     </ClInclude>
-    <ClInclude Include="source\imgui_editor.hpp">
+    <ClInclude Include="source\imgui_code_editor.hpp">
+      <Filter>core\runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="source\imgui_function_table.hpp">
       <Filter>core\runtime</Filter>
     </ClInclude>
     <ClInclude Include="source\imgui_widgets.hpp">
