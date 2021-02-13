@@ -21,11 +21,13 @@ namespace reshade::opengl
 	class device_impl : public api::device, public api::command_queue, public api::command_list, api::api_data
 	{
 	public:
-		device_impl(HDC hdc);
+		device_impl(HDC hdc, HGLRC hglrc);
 		~device_impl();
 
 		bool get_data(const uint8_t guid[16], uint32_t size, void *data) override { return api_data::get_data(guid, size, data); }
 		void set_data(const uint8_t guid[16], uint32_t size, const void *data) override  { api_data::set_data(guid, size, data); }
+
+		void *get_native_object() override { return _hglrc; }
 
 		api::render_api get_api() override { return api::render_api::opengl; }
 
@@ -70,6 +72,7 @@ namespace reshade::opengl
 		GLenum _default_depth_format = GL_NONE;
 
 	private:
+		const HGLRC _hglrc;
 		GLuint _copy_fbo[2] = {};
 	};
 }

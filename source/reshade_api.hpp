@@ -224,6 +224,12 @@ namespace reshade { namespace api
 		/// </summary>
 		virtual void set_data(const uint8_t guid[16], uint32_t size, const void *data) = 0;
 
+		/// <summary>
+		/// Gets the underlying native object for this object.
+		/// In case of a <see cref="device"/> this can e.g. be a pointer to 'IDirect3DDevice9', 'ID3D10Device', 'ID3D12Device' or a 'HGLRC' or 'VkDevice' handle etc.
+		/// </summary>
+		virtual /**/ void *get_native_object() = 0;
+
 		// Helper templates to manage custom data creation and destruction:
 		template <typename T> inline T &get_data(const uint8_t guid[16])
 		{

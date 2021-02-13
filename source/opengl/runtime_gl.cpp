@@ -8,7 +8,7 @@
 #include "runtime_gl.hpp"
 #include "runtime_gl_objects.hpp"
 
-reshade::opengl::runtime_gl::runtime_gl(HDC hdc) : device_impl(hdc)
+reshade::opengl::runtime_gl::runtime_gl(HDC hdc, HGLRC hglrc) : device_impl(hdc, hglrc)
 {
 	GLint major = 0, minor = 0;
 	glGetIntegerv(GL_MAJOR_VERSION, &major);

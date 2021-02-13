@@ -20,6 +20,8 @@ namespace reshade::d3d9
 		bool get_data(const uint8_t guid[16], uint32_t size, void *data) override { return api_data::get_data(guid, size, data); }
 		void set_data(const uint8_t guid[16], uint32_t size, const void *data) override  { api_data::set_data(guid, size, data); }
 
+		void *get_native_object() override { return _swapchain.get(); }
+
 		api::device *get_device() override { return _device_impl; }
 		api::command_queue *get_command_queue() override { return _device_impl; }
 

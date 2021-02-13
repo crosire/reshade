@@ -50,6 +50,8 @@ namespace reshade::d3d11
 		bool get_data(const uint8_t guid[16], uint32_t size, void *data) override { return SUCCEEDED(_device->GetPrivateData(*reinterpret_cast<const GUID *>(guid), &size, data)); }
 		void set_data(const uint8_t guid[16], uint32_t size, const void *data) override { _device->SetPrivateData(*reinterpret_cast<const GUID *>(guid), size, data); }
 
+		void *get_native_object() override { return _device.get(); }
+
 		api::render_api get_api() override { return api::render_api::d3d11; }
 
 		bool check_format_support(uint32_t format, api::resource_usage usage) override;
@@ -93,6 +95,8 @@ namespace reshade::d3d11
 
 		bool get_data(const uint8_t guid[16], uint32_t size, void *data) override;
 		void set_data(const uint8_t guid[16], uint32_t size, const void *data) override;
+
+		void *get_native_object() override { return _device_context.get(); }
 
 		api::device *get_device() override { return _device_impl; }
 		api::command_list *get_immediate_command_list() override { assert(_device_context->GetType() == D3D11_DEVICE_CONTEXT_IMMEDIATE); return this; }

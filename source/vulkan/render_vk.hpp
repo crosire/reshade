@@ -89,6 +89,8 @@ namespace reshade::vulkan
 		bool get_data(const uint8_t guid[16], uint32_t size, void *data) override { return api_data::get_data(guid, size, data); }
 		void set_data(const uint8_t guid[16], uint32_t size, const void *data) override  { api_data::set_data(guid, size, data); }
 
+		void *get_native_object() override { return _device; }
+
 		api::render_api get_api() override { return api::render_api::vulkan; }
 
 		bool check_format_support(uint32_t format, api::resource_usage usage) override;
@@ -183,6 +185,8 @@ namespace reshade::vulkan
 		bool get_data(const uint8_t guid[16], uint32_t size, void *data) override { return api_data::get_data(guid, size, data); }
 		void set_data(const uint8_t guid[16], uint32_t size, const void *data) override  { api_data::set_data(guid, size, data); }
 
+		void *get_native_object() override { return _cmd_list; }
+
 		api::device *get_device() override { return _device_impl; }
 
 		void transition_state(api::resource_handle resource, api::resource_usage old_state, api::resource_usage new_state) override;
@@ -237,6 +241,8 @@ namespace reshade::vulkan
 
 		bool get_data(const uint8_t guid[16], uint32_t size, void *data) override { return api_data::get_data(guid, size, data); }
 		void set_data(const uint8_t guid[16], uint32_t size, const void *data) override  { api_data::set_data(guid, size, data); }
+
+		void *get_native_object() override { return _queue; }
 
 		api::device *get_device() override { return _device_impl; }
 		api::command_list *get_immediate_command_list() override { return _immediate_cmd_list; }
