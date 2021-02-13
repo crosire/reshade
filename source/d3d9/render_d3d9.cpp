@@ -463,6 +463,55 @@ resource_desc reshade::d3d9::device_impl::get_resource_desc(resource_handle reso
 	return {};
 }
 
+void reshade::d3d9::device_impl::copy_resource(resource_handle source, resource_handle dest)
+{
+	assert(source.handle != 0 && dest.handle != 0);
+	const auto dest_object = reinterpret_cast<IDirect3DResource9 *>(dest.handle);
+	const auto source_object = reinterpret_cast<IDirect3DResource9 *>(source.handle);
+
+	const D3DRESOURCETYPE type = dest_object->GetType();
+	if (type != source_object->GetType())
+		return; // Copying is only supported between resources of the same type
+
+	switch (type)
+	{
+		case D3DRTYPE_TEXTURE:
+		{
+			_app_state.capture();
+
+			// Perform copy using fullscreen triangle
+			_copy_state->Apply();
+
+			com_ptr<IDirect3DSurface9> target;
+			static_cast<IDirect3DTexture9 *>(dest_object)->GetSurfaceLevel(0, &target);
+			_device->SetTexture(0, static_cast<IDirect3DTexture9 *>(source_object));
+			_device->SetRenderTarget(0, target.get());
+
+			const float vertices[4][5] = {
+				// x      y      z      tu     tv
+				{ -1.0f,  1.0f,  0.0f,  0.0f,  0.0f },
+				{  1.0f,  1.0f,  0.0f,  1.0f,  0.0f },
+				{ -1.0f, -1.0f,  0.0f,  0.0f,  1.0f },
+				{  1.0f, -1.0f,  0.0f,  1.0f,  1.0f },
+			};
+			_device->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, vertices, sizeof(vertices[0]));
+
+			_app_state.apply_and_release();
+			break;
+		}
+		case D3DRTYPE_SURFACE:
+		{
+			_device->StretchRect(static_cast<IDirect3DSurface9 *>(source_object), nullptr, static_cast<IDirect3DSurface9 *>(dest_object), nullptr, D3DTEXF_NONE);
+			break;
+		}
+		default:
+		{
+			assert(false); // Not implemented
+			break;
+		}
+	}
+}
+
 void reshade::d3d9::device_impl::clear_depth_stencil_view(resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil)
 {
 	com_ptr<IDirect3DSurface9> depth_stencil;
@@ -495,47 +544,4 @@ void reshade::d3d9::device_impl::clear_render_target_view(resource_view_handle r
 	for (DWORD target = 0; target < _num_simultaneous_rendertargets; ++target)
 		_device->SetRenderTarget(target, render_targets[target].get());
 	_device->SetViewport(&viewport);
-}
-
-void reshade::d3d9::device_impl::copy_resource(resource_handle source, resource_handle dest)
-{
-	assert(source.handle != 0 && dest.handle != 0);
-	const auto dest_object = reinterpret_cast<IDirect3DResource9 *>(dest.handle);
-	const auto source_object = reinterpret_cast<IDirect3DResource9 *>(source.handle);
-
-	const D3DRESOURCETYPE type = dest_object->GetType();
-	if (type != source_object->GetType())
-		return; // Copying is only supported between resources of the same type
-
-	if (type == D3DRTYPE_TEXTURE)
-	{
-		_app_state.capture();
-
-		// Perform copy using fullscreen triangle
-		_copy_state->Apply();
-
-		com_ptr<IDirect3DSurface9> target;
-		static_cast<IDirect3DTexture9 *>(dest_object)->GetSurfaceLevel(0, &target);
-		_device->SetTexture(0, static_cast<IDirect3DTexture9 *>(source_object));
-		_device->SetRenderTarget(0, target.get());
-
-		const float vertices[4][5] = {
-			// x      y      z      tu     tv
-			{ -1.0f,  1.0f,  0.0f,  0.0f,  0.0f },
-			{  1.0f,  1.0f,  0.0f,  1.0f,  0.0f },
-			{ -1.0f, -1.0f,  0.0f,  0.0f,  1.0f },
-			{  1.0f, -1.0f,  0.0f,  1.0f,  1.0f },
-		};
-		_device->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, vertices, sizeof(vertices[0]));
-
-		_app_state.apply_and_release();
-		return;
-	}
-	if (type == D3DRTYPE_SURFACE)
-	{
-		_device->StretchRect(static_cast<IDirect3DSurface9 *>(source_object), nullptr, static_cast<IDirect3DSurface9 *>(dest_object), nullptr, D3DTEXF_NONE);
-		return;
-	}
-
-	assert(false);
 }

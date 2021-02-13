@@ -760,69 +760,6 @@ void reshade::opengl::device_impl::wait_idle()
 	glFinish();
 }
 
-void reshade::opengl::device_impl::clear_depth_stencil_view(resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil)
-{
-	assert((dsv.handle >> 40) == GL_DEPTH_ATTACHMENT);
-	const GLuint fbo = dsv.handle & 0xFFFFFFFF;
-	GLint stencil_value = stencil;
-
-	if (gl3wProcs.gl.ClearNamedFramebufferfv != nullptr)
-	{
-		switch (clear_flags)
-		{
-		case 0x1:
-			glClearNamedFramebufferfv(fbo, GL_DEPTH, 0, &depth);
-			break;
-		case 0x2:
-			glClearNamedFramebufferiv(fbo, GL_STENCIL, 0, &stencil_value);
-			break;
-		case 0x3:
-			glClearNamedFramebufferfi(fbo, GL_DEPTH_STENCIL, 0, depth, stencil_value);
-			break;
-		}
-	}
-	else
-	{
-		GLint prev_binding = 0;
-		glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prev_binding);
-		glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-
-		switch (clear_flags)
-		{
-		case 0x1:
-			glClearBufferfv(GL_DEPTH, 0, &depth);
-			break;
-		case 0x2:
-			glClearBufferiv(GL_STENCIL, 0, &stencil_value);
-			break;
-		case 0x3:
-			glClearBufferfi(GL_DEPTH_STENCIL, 0, depth, stencil_value);
-			break;
-		}
-
-		glBindFramebuffer(GL_FRAMEBUFFER, prev_binding);
-	}
-}
-void reshade::opengl::device_impl::clear_render_target_view(resource_view_handle rtv, const float color[4])
-{
-	assert((rtv.handle >> 40) >= GL_COLOR_ATTACHMENT0 && (rtv.handle >> 40) <= GL_COLOR_ATTACHMENT31);
-	const GLuint fbo = rtv.handle & 0xFFFFFFFF;
-	const GLuint drawbuffer = (rtv.handle >> 40) - GL_COLOR_ATTACHMENT0;
-
-	if (gl3wProcs.gl.ClearNamedFramebufferfv != nullptr)
-	{
-		glClearNamedFramebufferfv(fbo, GL_COLOR, drawbuffer, color);
-	}
-	else
-	{
-		GLint prev_binding = 0;
-		glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prev_binding);
-		glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-		glClearBufferfv(GL_COLOR, drawbuffer, color);
-		glBindFramebuffer(GL_FRAMEBUFFER, prev_binding);
-	}
-}
-
 void reshade::opengl::device_impl::copy_resource(resource_handle source, resource_handle dest)
 {
 	assert(source.handle != 0 && dest.handle != 0);
@@ -903,4 +840,67 @@ void reshade::opengl::device_impl::copy_resource(resource_handle source, resourc
 
 	glBindFramebuffer(GL_READ_FRAMEBUFFER, prev_read_fbo);
 	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, prev_draw_fbo);
+}
+
+void reshade::opengl::device_impl::clear_depth_stencil_view(resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil)
+{
+	assert((dsv.handle >> 40) == GL_DEPTH_ATTACHMENT);
+	const GLuint fbo = dsv.handle & 0xFFFFFFFF;
+	GLint stencil_value = stencil;
+
+	if (gl3wProcs.gl.ClearNamedFramebufferfv != nullptr)
+	{
+		switch (clear_flags)
+		{
+		case 0x1:
+			glClearNamedFramebufferfv(fbo, GL_DEPTH, 0, &depth);
+			break;
+		case 0x2:
+			glClearNamedFramebufferiv(fbo, GL_STENCIL, 0, &stencil_value);
+			break;
+		case 0x3:
+			glClearNamedFramebufferfi(fbo, GL_DEPTH_STENCIL, 0, depth, stencil_value);
+			break;
+		}
+	}
+	else
+	{
+		GLint prev_binding = 0;
+		glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prev_binding);
+		glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
+		switch (clear_flags)
+		{
+		case 0x1:
+			glClearBufferfv(GL_DEPTH, 0, &depth);
+			break;
+		case 0x2:
+			glClearBufferiv(GL_STENCIL, 0, &stencil_value);
+			break;
+		case 0x3:
+			glClearBufferfi(GL_DEPTH_STENCIL, 0, depth, stencil_value);
+			break;
+		}
+
+		glBindFramebuffer(GL_FRAMEBUFFER, prev_binding);
+	}
+}
+void reshade::opengl::device_impl::clear_render_target_view(resource_view_handle rtv, const float color[4])
+{
+	assert((rtv.handle >> 40) >= GL_COLOR_ATTACHMENT0 && (rtv.handle >> 40) <= GL_COLOR_ATTACHMENT31);
+	const GLuint fbo = rtv.handle & 0xFFFFFFFF;
+	const GLuint drawbuffer = (rtv.handle >> 40) - GL_COLOR_ATTACHMENT0;
+
+	if (gl3wProcs.gl.ClearNamedFramebufferfv != nullptr)
+	{
+		glClearNamedFramebufferfv(fbo, GL_COLOR, drawbuffer, color);
+	}
+	else
+	{
+		GLint prev_binding = 0;
+		glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prev_binding);
+		glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+		glClearBufferfv(GL_COLOR, drawbuffer, color);
+		glBindFramebuffer(GL_FRAMEBUFFER, prev_binding);
+	}
 }

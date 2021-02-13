@@ -999,6 +999,12 @@ void reshade::d3d11::device_context_impl::set_data(const uint8_t guid[16], uint3
 	}
 }
 
+void reshade::d3d11::device_context_impl::copy_resource(resource_handle source, resource_handle dest)
+{
+	assert(source.handle != 0 && dest.handle != 0);
+	_device_context->CopyResource(reinterpret_cast<ID3D11Resource *>(dest.handle), reinterpret_cast<ID3D11Resource *>(source.handle));
+}
+
 void reshade::d3d11::device_context_impl::clear_depth_stencil_view(resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil)
 {
 	assert(dsv.handle != 0);
@@ -1008,10 +1014,4 @@ void reshade::d3d11::device_context_impl::clear_render_target_view(resource_view
 {
 	assert(rtv.handle != 0);
 	_device_context->ClearRenderTargetView(reinterpret_cast<ID3D11RenderTargetView *>(rtv.handle), color);
-}
-
-void reshade::d3d11::device_context_impl::copy_resource(resource_handle source, resource_handle dest)
-{
-	assert(source.handle != 0 && dest.handle != 0);
-	_device_context->CopyResource(reinterpret_cast<ID3D11Resource *>(dest.handle), reinterpret_cast<ID3D11Resource *>(source.handle));
 }

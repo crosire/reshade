@@ -335,6 +335,13 @@ namespace reshade { namespace api
 	{
 	public:
 		/// <summary>
+		/// Copies the entire contents of the <paramref name="source"/> resource to the <paramref name="destination"/> resource.
+		/// The <paramref name="source"/> resource has to be in the <see cref="resource_usage::copy_source"/> state.
+		/// The <paramref name="destination"/> resource has to be in the <see cref="resource_usage::copy_dest"/> state.
+		/// </summary>
+		virtual void copy_resource(resource_handle source, resource_handle destination) = 0;
+
+		/// <summary>
 		/// Adds a transition barrier for the specified <paramref name="resource"/> to the command stream.
 		/// </summary>
 		/// <param name="resource">The resource to transition.</param>
@@ -344,6 +351,7 @@ namespace reshade { namespace api
 
 		/// <summary>
 		/// Clears a depth-stencil resource.
+		/// The resource the view points to has to be in the <see cref="resource_usage::depth_stencil_write"/> state.
 		/// </summary>
 		/// <param name="dsv">The view handle of the depth-stencil.</param>
 		/// <param name="clear_flags">A combination of the following flags to identify which types of data to clear: <c>0x1</c> for depth, <c>0x2</c> for stencil</param>
@@ -352,15 +360,11 @@ namespace reshade { namespace api
 		virtual void clear_depth_stencil_view(resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil) = 0;
 		/// <summary>
 		/// Clears an entire texture resource.
+		/// The resource the view points to has to be in the <see cref="resource_usage::render_target"/> state-
 		/// </summary>
 		/// <param name="rtv">The view handle of the render target.</param>
 		/// <param name="color">The value to clear the resource with.</param>
 		virtual void clear_render_target_view(resource_view_handle rtv, const float color[4]) = 0;
-
-		/// <summary>
-		/// Copies the entire contents of the <paramref name="source"/> resource to the <paramref name="destination"/> resource.
-		/// </summary>
-		virtual void copy_resource(resource_handle source, resource_handle destination) = 0;
 	};
 
 	/// <summary>

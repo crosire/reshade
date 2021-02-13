@@ -101,12 +101,12 @@ namespace reshade::d3d11
 		api::device *get_device() override { return _device_impl; }
 		api::command_list *get_immediate_command_list() override { assert(_device_context->GetType() == D3D11_DEVICE_CONTEXT_IMMEDIATE); return this; }
 
+		void copy_resource(api::resource_handle source, api::resource_handle dest) override;
+
 		void transition_state(api::resource_handle, api::resource_usage, api::resource_usage) override { /* no-op */ }
 
 		void clear_depth_stencil_view(api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil) override;
 		void clear_render_target_view(api::resource_view_handle rtv, const float color[4]) override;
-
-		void copy_resource(api::resource_handle source, api::resource_handle dest) override;
 
 	private:
 		device_impl *const _device_impl;

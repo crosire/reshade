@@ -710,6 +710,12 @@ resource_desc reshade::d3d10::device_impl::get_resource_desc(resource_handle res
 	return {};
 }
 
+void reshade::d3d10::device_impl::copy_resource(resource_handle source, resource_handle dest)
+{
+	assert(source.handle != 0 && dest.handle != 0);
+	_device->CopyResource(reinterpret_cast<ID3D10Resource *>(dest.handle), reinterpret_cast<ID3D10Resource *>(source.handle));
+}
+
 void reshade::d3d10::device_impl::clear_depth_stencil_view(resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil)
 {
 	assert(dsv.handle != 0);
@@ -719,10 +725,4 @@ void reshade::d3d10::device_impl::clear_render_target_view(resource_view_handle 
 {
 	assert(rtv.handle != 0);
 	_device->ClearRenderTargetView(reinterpret_cast<ID3D10RenderTargetView *>(rtv.handle), color);
-}
-
-void reshade::d3d10::device_impl::copy_resource(resource_handle source, resource_handle dest)
-{
-	assert(source.handle != 0 && dest.handle != 0);
-	_device->CopyResource(reinterpret_cast<ID3D10Resource *>(dest.handle), reinterpret_cast<ID3D10Resource *>(source.handle));
 }

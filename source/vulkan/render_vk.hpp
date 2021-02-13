@@ -189,12 +189,12 @@ namespace reshade::vulkan
 
 		api::device *get_device() override { return _device_impl; }
 
+		void copy_resource(api::resource_handle source, api::resource_handle dest) override;
+
 		void transition_state(api::resource_handle resource, api::resource_usage old_state, api::resource_usage new_state) override;
 
 		void clear_depth_stencil_view(api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil) override;
 		void clear_render_target_view(api::resource_view_handle rtv, const float color[4]) override;
-
-		void copy_resource(api::resource_handle source, api::resource_handle dest) override;
 
 		// State tracking for render passes
 		uint32_t current_subpass = std::numeric_limits<uint32_t>::max();

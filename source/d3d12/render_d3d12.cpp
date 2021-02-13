@@ -785,6 +785,14 @@ reshade::d3d12::command_list_impl::~command_list_impl()
 	}
 }
 
+void reshade::d3d12::command_list_impl::copy_resource(resource_handle source, resource_handle dest)
+{
+	_has_commands = true;
+
+	assert(source.handle != 0 && dest.handle != 0);
+	_cmd_list->CopyResource(reinterpret_cast<ID3D12Resource *>(dest.handle), reinterpret_cast<ID3D12Resource *>(source.handle));
+}
+
 void reshade::d3d12::command_list_impl::transition_state(resource_handle resource, resource_usage old_layout, resource_usage new_layout)
 {
 	_has_commands = true;
@@ -819,14 +827,6 @@ void reshade::d3d12::command_list_impl::clear_render_target_view(resource_view_h
 
 	assert(rtv.handle != 0 && (rtv.handle & 1) == 0);
 	_cmd_list->ClearRenderTargetView(D3D12_CPU_DESCRIPTOR_HANDLE { static_cast<SIZE_T>(rtv.handle) }, color, 0, nullptr);
-}
-
-void reshade::d3d12::command_list_impl::copy_resource(resource_handle source, resource_handle dest)
-{
-	_has_commands = true;
-
-	assert(source.handle != 0 && dest.handle != 0);
-	_cmd_list->CopyResource(reinterpret_cast<ID3D12Resource *>(dest.handle), reinterpret_cast<ID3D12Resource *>(source.handle));
 }
 
 reshade::d3d12::command_list_immediate_impl::command_list_immediate_impl(device_impl *device) :

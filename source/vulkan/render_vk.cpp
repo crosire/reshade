@@ -592,79 +592,6 @@ reshade::vulkan::command_list_impl::~command_list_impl()
 	}
 }
 
-void reshade::vulkan::command_list_impl::transition_state(resource_handle resource, resource_usage old_state, resource_usage new_state)
-{
-	_has_commands = true;
-
-	assert(resource.handle != 0);
-	const resource_data &data = _device_impl->_resources.at(resource.handle);
-	if (data.type)
-	{
-		VkImageMemoryBarrier transition { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
-		transition.srcAccessMask = convert_usage_to_access(old_state);
-		transition.dstAccessMask = convert_usage_to_access(new_state);
-		transition.oldLayout = convert_usage_to_image_layout(old_state);
-		transition.newLayout = convert_usage_to_image_layout(new_state);
-		transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		transition.image = data.image;
-		transition.subresourceRange = { aspect_flags_from_format(data.image_create_info.format), 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
-
-		_device_impl->vk.CmdPipelineBarrier(_cmd_list, convert_usage_to_pipeline_stage(old_state), convert_usage_to_pipeline_stage(new_state), 0, 0, nullptr, 0, nullptr, 1, &transition);
-	}
-	else
-	{
-		VkBufferMemoryBarrier transition { VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER };
-		transition.srcAccessMask = convert_usage_to_access(old_state);
-		transition.dstAccessMask = convert_usage_to_access(new_state);
-		transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		transition.buffer = data.buffer;
-		transition.offset = 0;
-		transition.size = VK_WHOLE_SIZE;
-
-		_device_impl->vk.CmdPipelineBarrier(_cmd_list, convert_usage_to_pipeline_stage(old_state), convert_usage_to_pipeline_stage(new_state), 0, 0, nullptr, 1, &transition, 0, nullptr);
-	}
-}
-
-void reshade::vulkan::command_list_impl::clear_depth_stencil_view(resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil)
-{
-	_has_commands = true;
-
-	const resource_view_data &dsv_data = _device_impl->_views.at(dsv.handle);
-	assert(dsv_data.type); // Has to be an image
-
-	const VkClearDepthStencilValue clear_value = { depth, stencil };
-
-	VkImageAspectFlags aspect_flags = 0;
-	if ((clear_flags & 0x1) != 0)
-		aspect_flags |= VK_IMAGE_ASPECT_DEPTH_BIT;
-	if ((clear_flags & 0x2) != 0)
-		aspect_flags |= VK_IMAGE_ASPECT_STENCIL_BIT;
-
-	const VkImageSubresourceRange range = {
-		aspect_flags,
-		0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
-
-	_device_impl->vk.CmdClearDepthStencilImage(_cmd_list, dsv_data.image_create_info.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear_value, 1, &range);
-}
-void reshade::vulkan::command_list_impl::clear_render_target_view(resource_view_handle rtv, const float color[4])
-{
-	_has_commands = true;
-
-	const resource_view_data &rtv_data = _device_impl->_views.at(rtv.handle);
-	assert(rtv_data.type); // Has to be an image
-
-	VkClearColorValue clear_value;
-	std::memcpy(clear_value.float32, color, 4 * sizeof(float));
-
-	const VkImageSubresourceRange range = {
-		VK_IMAGE_ASPECT_COLOR_BIT,
-		0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
-
-	_device_impl->vk.CmdClearColorImage(_cmd_list, rtv_data.image_create_info.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear_value, 1, &range);
-}
-
 void reshade::vulkan::command_list_impl::copy_resource(resource_handle source, resource_handle dest)
 {
 	_has_commands = true;
@@ -721,6 +648,96 @@ void reshade::vulkan::command_list_impl::copy_resource(resource_handle source, r
 			break;
 		}
 	}
+}
+
+void reshade::vulkan::command_list_impl::transition_state(resource_handle resource, resource_usage old_state, resource_usage new_state)
+{
+	_has_commands = true;
+
+	assert(resource.handle != 0);
+	const resource_data &data = _device_impl->_resources.at(resource.handle);
+	if (data.type)
+	{
+		VkImageMemoryBarrier transition { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+		transition.srcAccessMask = convert_usage_to_access(old_state);
+		transition.dstAccessMask = convert_usage_to_access(new_state);
+		transition.oldLayout = convert_usage_to_image_layout(old_state);
+		transition.newLayout = convert_usage_to_image_layout(new_state);
+		transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		transition.image = data.image;
+		transition.subresourceRange = { aspect_flags_from_format(data.image_create_info.format), 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
+
+		_device_impl->vk.CmdPipelineBarrier(_cmd_list, convert_usage_to_pipeline_stage(old_state), convert_usage_to_pipeline_stage(new_state), 0, 0, nullptr, 0, nullptr, 1, &transition);
+	}
+	else
+	{
+		VkBufferMemoryBarrier transition { VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER };
+		transition.srcAccessMask = convert_usage_to_access(old_state);
+		transition.dstAccessMask = convert_usage_to_access(new_state);
+		transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		transition.buffer = data.buffer;
+		transition.offset = 0;
+		transition.size = VK_WHOLE_SIZE;
+
+		_device_impl->vk.CmdPipelineBarrier(_cmd_list, convert_usage_to_pipeline_stage(old_state), convert_usage_to_pipeline_stage(new_state), 0, 0, nullptr, 1, &transition, 0, nullptr);
+	}
+}
+
+void reshade::vulkan::command_list_impl::clear_depth_stencil_view(resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil)
+{
+	_has_commands = true;
+
+	const resource_view_data &dsv_data = _device_impl->_views.at(dsv.handle);
+	assert(dsv_data.type); // Has to be an image
+
+	VkImageAspectFlags aspect_flags = 0;
+	if ((clear_flags & 0x1) != 0)
+		aspect_flags |= VK_IMAGE_ASPECT_DEPTH_BIT;
+	if ((clear_flags & 0x2) != 0)
+		aspect_flags |= VK_IMAGE_ASPECT_STENCIL_BIT;
+
+	// Transition state to VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL (since it will be in 'resource_usage::depth_stencil_write' at this point)
+	VkImageMemoryBarrier transition { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+	transition.oldLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+	transition.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+	transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	transition.image = dsv_data.image_create_info.image;
+	transition.subresourceRange = { aspect_flags, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
+	_device_impl->vk.CmdPipelineBarrier(_cmd_list, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
+
+	const VkClearDepthStencilValue clear_value = { depth, stencil };
+	_device_impl->vk.CmdClearDepthStencilImage(_cmd_list, dsv_data.image_create_info.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear_value, 1, &transition.subresourceRange);
+
+	std::swap(transition.oldLayout, transition.newLayout);
+	_device_impl->vk.CmdPipelineBarrier(_cmd_list, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
+}
+void reshade::vulkan::command_list_impl::clear_render_target_view(resource_view_handle rtv, const float color[4])
+{
+	_has_commands = true;
+
+	const resource_view_data &rtv_data = _device_impl->_views.at(rtv.handle);
+	assert(rtv_data.type); // Has to be an image
+
+	// Transition state to VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL (since it will be in 'resource_usage::render_target' at this point)
+	VkImageMemoryBarrier transition { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+	transition.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	transition.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+	transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	transition.image = rtv_data.image_create_info.image;
+	transition.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
+	_device_impl->vk.CmdPipelineBarrier(_cmd_list, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
+
+	VkClearColorValue clear_value;
+	std::memcpy(clear_value.float32, color, 4 * sizeof(float));
+
+	_device_impl->vk.CmdClearColorImage(_cmd_list, rtv_data.image_create_info.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear_value, 1, &transition.subresourceRange);
+
+	std::swap(transition.oldLayout, transition.newLayout);
+	_device_impl->vk.CmdPipelineBarrier(_cmd_list, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
 }
 
 reshade::vulkan::command_list_immediate_impl::command_list_immediate_impl(device_impl *device, uint32_t queue_family_index) :
