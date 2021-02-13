@@ -90,7 +90,7 @@ namespace reshade
 		clear_render_target,
 
 		/// <summary>
-		/// Called before 'ID3D12GraphicsCommandList::Reset' or 'vkBeginCommandBuffer' or after 'ID3D11DeviceContext::FinishCommandList'.
+		/// Called before 'ID3D10Device::ClearState', 'ID3D11DeviceContext::ClearState', 'ID3D12GraphicsCommandList::Reset' or 'vkBeginCommandBuffer'.
 		/// </summary>
 		reset_command_list,
 		/// <summary>
@@ -98,7 +98,7 @@ namespace reshade
 		/// </summary>
 		execute_command_list,
 		/// <summary>
-		/// Called before 'ID3D12GraphicsCommandList::ExecuteBundle' or 'vkCmdExecuteCommands' or after 'ID3D11DeviceContext::FinishCommandList'.
+		/// Called before 'ID3D12GraphicsCommandList::ExecuteBundle' or 'vkCmdExecuteCommands'.
 		/// </summary>
 		execute_secondary_command_list,
 

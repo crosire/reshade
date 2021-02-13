@@ -520,6 +520,9 @@ static void on_present(command_queue *, effect_runtime *runtime)
 			}
 
 			runtime->update_texture_bindings("DEPTH", device_state.selected_shader_resource);
+
+			const bool bufready_depth_value = true;
+			runtime->update_uniform_variables("bufready_depth", &bufready_depth_value, 1);
 		}
 
 		if (device_state.preserve_depth_buffers)
@@ -556,6 +559,9 @@ static void on_present(command_queue *, effect_runtime *runtime)
 			device_state.selected_shader_resource = { 0 };
 
 			runtime->update_texture_bindings("DEPTH", device_state.selected_shader_resource);
+
+			const bool bufready_depth_value = false;
+			runtime->update_uniform_variables("bufready_depth", &bufready_depth_value, 1);
 		}
 	}
 
@@ -565,13 +571,13 @@ static void on_present(command_queue *, effect_runtime *runtime)
 static void on_init_effect_runtime(effect_runtime *runtime)
 {
 	device *const device = runtime->get_device();
-	state_tracking_context &device_state = device->get_data<state_tracking_context>(state_tracking_context::GUID);
+	const state_tracking_context &device_state = device->get_data<state_tracking_context>(state_tracking_context::GUID);
 
 	// Need to set texture binding again after a runtime was reset
-	if (device_state.selected_shader_resource != 0)
-	{
-		runtime->update_texture_bindings("DEPTH", device_state.selected_shader_resource);
-	}
+	runtime->update_texture_bindings("DEPTH", device_state.selected_shader_resource);
+
+	const bool bufready_depth_value = device_state.selected_shader_resource != 0;
+	runtime->update_uniform_variables("bufready_depth", &bufready_depth_value, 1);
 }
 static void on_before_render_effects(effect_runtime *runtime, command_list *cmd_list)
 {
@@ -774,12 +780,7 @@ void register_builtin_addon_depth()
 	reshade::register_event<reshade::addon_event::reshade_before_effects>(on_before_render_effects);
 	reshade::register_event<reshade::addon_event::reshade_after_effects>(on_after_render_effects);
 
-	/*register_uniform_source("bufready_depth", static_cast<void(*)(effect_runtime *, uniform_handle)>([](effect_runtime *runtime, uniform_handle handle) {
-		const state_tracking_context &device_state = runtime->get_device()->get_data<state_tracking_context>(state_tracking_context::GUID);
 
-		const bool has_depth = device_state.selected_shader_resource.handle != 0;
-		runtime->set_uniform_value(handle, &has_depth, 1);
-	}));*/
 }
 void unregister_builtin_addon_depth()
 {

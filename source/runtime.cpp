@@ -1857,7 +1857,8 @@ void reshade::runtime::get_uniform_value(const uniform &variable, uint8_t *data,
 	assert(variable.offset + size <= data_storage.size());
 
 	const size_t array_length = (variable.type.is_array() ? variable.type.array_length : 1);
-	assert(base_index < array_length);
+	if (assert(base_index < array_length); base_index >= array_length)
+		return;
 
 	if (variable.type.is_matrix())
 	{
@@ -1944,7 +1945,8 @@ void reshade::runtime::set_uniform_value(uniform &variable, const uint8_t *data,
 	assert(variable.offset + size <= data_storage.size());
 
 	const size_t array_length = (variable.type.is_array() ? variable.type.array_length : 1);
-	assert(base_index < array_length);
+	if (assert(base_index < array_length); base_index >= array_length)
+		return;
 
 	if (variable.type.is_matrix())
 	{
@@ -2063,6 +2065,35 @@ void reshade::runtime::reset_uniform_value(uniform &variable)
 			break;
 		}
 	}
+}
+
+void reshade::runtime::update_uniform_variables(const char *source, const bool *values, size_t count, size_t array_index)
+{
+	for (effect &effect : _effects)
+		for (uniform &variable : effect.uniforms)
+			if (variable.annotation_as_string("source") == source)
+				set_uniform_value(variable, values, count, array_index);
+}
+void reshade::runtime::update_uniform_variables(const char *source, const float *values, size_t count, size_t array_index)
+{
+	for (effect &effect : _effects)
+		for (uniform &variable : effect.uniforms)
+			if (variable.annotation_as_string("source") == source)
+				set_uniform_value(variable, values, count, array_index);
+}
+void reshade::runtime::update_uniform_variables(const char *source, const int32_t *values, size_t count, size_t array_index)
+{
+	for (effect &effect : _effects)
+		for (uniform &variable : effect.uniforms)
+			if (variable.annotation_as_string("source") == source)
+				set_uniform_value(variable, values, count, array_index);
+}
+void reshade::runtime::update_uniform_variables(const char *source, const uint32_t *values, size_t count, size_t array_index)
+{
+	for (effect &effect : _effects)
+		for (uniform &variable : effect.uniforms)
+			if (variable.annotation_as_string("source") == source)
+				set_uniform_value(variable, values, count, array_index);
 }
 
 reshade::texture &reshade::runtime::look_up_texture_by_name(const std::string &unique_name)

@@ -114,6 +114,14 @@ namespace reshade
 		/// <param name="variable">The variable to update.</param>
 		void reset_uniform_value(uniform &variable);
 
+		/// <summary>
+		/// Updates the values of all uniform variables with a "source" annotation set to <paramref name="source"/> to the specified <paramref name="values"/>.
+		/// </summary>
+		void update_uniform_variables(const char *source, const bool *values, size_t count, size_t array_index) override;
+		void update_uniform_variables(const char *source, const float *values, size_t count, size_t array_index) override;
+		void update_uniform_variables(const char *source, const int32_t *values, size_t count, size_t array_index) override;
+		void update_uniform_variables(const char *source, const uint32_t *values, size_t count, size_t array_index) override;
+
 #if RESHADE_GUI
 		/// <summary>
 		/// Register a function to be called when the UI is drawn.

@@ -400,6 +400,14 @@ namespace reshade { namespace api
 		/// Updates all textures that use the specified <paramref name="semantic"/> in all active effects to new resource view.
 		/// </summary>
 		virtual void update_texture_bindings(const char *semantic, resource_view_handle shader_resource_view) = 0;
+
+		/// <summary>
+		/// Updates the values of all uniform variables with a "source" annotation set to <paramref name="source"/> to the specified <paramref name="values"/>.
+		/// </summary>
+		virtual void update_uniform_variables(const char *source, const bool *values, size_t count, size_t array_index = 0) = 0;
+		virtual void update_uniform_variables(const char *source, const float *values, size_t count, size_t array_index = 0) = 0;
+		virtual void update_uniform_variables(const char *source, const int32_t *values, size_t count, size_t array_index = 0) = 0;
+		virtual void update_uniform_variables(const char *source, const uint32_t *values, size_t count, size_t array_index = 0) = 0;
 	};
 } }
 
