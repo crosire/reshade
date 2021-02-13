@@ -528,7 +528,7 @@ bool reshade::d3d10::device_impl::check_resource_view_handle_valid(resource_view
 	return view.handle != 0 && _views.has_object(reinterpret_cast<ID3D10View *>(view.handle));
 }
 
-bool reshade::d3d10::device_impl::create_resource(resource_type type, const resource_desc &desc, resource_handle *out_resource)
+bool reshade::d3d10::device_impl::create_resource(resource_type type, const resource_desc &desc, resource_usage, resource_handle *out_resource)
 {
 	switch (type)
 	{

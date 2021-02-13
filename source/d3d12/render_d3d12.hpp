@@ -48,7 +48,7 @@ namespace reshade::d3d12
 		bool check_resource_handle_valid(api::resource_handle resource) override;
 		bool check_resource_view_handle_valid(api::resource_view_handle view) override;
 
-		bool create_resource(api::resource_type type, const api::resource_desc &desc, api::resource_handle *out_resource) override;
+		bool create_resource(api::resource_type type, const api::resource_desc &desc, api::resource_usage initial_state, api::resource_handle *out_resource) override;
 		bool create_resource_view(api::resource_handle resource, api::resource_view_type type, const api::resource_view_desc &desc, api::resource_view_handle *out_view) override;
 
 		void destroy_resource(api::resource_handle resource) override;

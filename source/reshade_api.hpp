@@ -178,7 +178,7 @@ namespace reshade { namespace api
 	/// If you want to use one outside that scope, first ensure the resource is still valid via <see cref="device::check_resource_handle_valid"/>.
 	/// Functionally equivalent to a 'IDirect3DResource9', 'ID3D10Resource', 'ID3D11Resource', 'ID3D12Resource' or 'VkImage'.
 	/// </summary>
-	typedef struct { uint64_t handle; } resource_handle;
+	typedef struct { uint64_t handle = 0; } resource_handle;
 
 	constexpr bool operator< (resource_handle lhs, resource_handle rhs) { return lhs.handle < rhs.handle; }
 	constexpr bool operator!=(resource_handle lhs, uint64_t rhs) { return lhs.handle != rhs; }
@@ -194,7 +194,7 @@ namespace reshade { namespace api
 	/// If you want to use one outside that scope, first ensure the resource is still valid via <see cref="device::check_resource_view_handle_valid"/>.
 	/// Functionally equivalent to a 'ID3D10View', 'ID3D11View', 'D3D12_CPU_DESCRIPTOR_HANDLE' or 'VkImageView'.
 	/// </summary>
-	typedef struct { uint64_t handle; } resource_view_handle;
+	typedef struct { uint64_t handle = 0; } resource_view_handle;
 
 	constexpr bool operator< (resource_view_handle lhs, resource_view_handle rhs) { return lhs.handle < rhs.handle; }
 	constexpr bool operator!=(resource_view_handle lhs, uint64_t rhs) { return lhs.handle != rhs; }
@@ -272,9 +272,8 @@ namespace reshade { namespace api
 
 		/// <summary>
 		/// Allocates and creates a new resource based on the specified <paramref name="desc"/>ription.
-		/// New resources start out in the <see cref="resource_usage::undefined"/> state.
 		/// </summary>
-		virtual bool create_resource(resource_type type, const resource_desc &desc, resource_handle *out_resource) = 0;
+		virtual bool create_resource(resource_type type, const resource_desc &desc, resource_usage initial_state, resource_handle *out_resource) = 0;
 		/// <summary>
 		/// Creates a new resource view for the <paramref name="resource"/> based on the specified <paramref name="desc"/>ription.
 		/// </summary>

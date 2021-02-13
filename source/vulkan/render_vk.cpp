@@ -421,8 +421,10 @@ bool reshade::vulkan::device_impl::check_resource_view_handle_valid(resource_vie
 	return data.type ? (data.image_view == (VkImageView)view.handle) : (data.buffer_view == (VkBufferView)view.handle);
 }
 
-bool reshade::vulkan::device_impl::create_resource(resource_type type, const resource_desc &desc, resource_handle *out_resource)
+bool reshade::vulkan::device_impl::create_resource(resource_type type, const resource_desc &desc, resource_usage initial_state, resource_handle *out_resource)
 {
+	assert((desc.usage & initial_state) == initial_state);
+
 	VmaAllocation allocation = VK_NULL_HANDLE;
 	VmaAllocationCreateInfo alloc_info = {};
 	alloc_info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
@@ -455,6 +457,23 @@ bool reshade::vulkan::device_impl::create_resource(resource_type type, const res
 			{
 				register_image(image, create_info, allocation);
 				*out_resource = { (uint64_t)image };
+
+				if (initial_state != resource_usage::undefined)
+				{
+					// Transition resource into the initial state using the first available immediate command list
+					for (const auto &queue_info : queues)
+					{
+						command_list_immediate_impl *const immediate_command_list = static_cast<command_list_immediate_impl *>(
+							static_cast<command_queue_impl *>(queue_info.second)->get_immediate_command_list());
+						if (immediate_command_list != nullptr)
+						{
+							immediate_command_list->transition_state(*out_resource, resource_usage::undefined, initial_state);
+							immediate_command_list->flush_and_wait(queue_info.first);
+							break;
+						}
+					}
+				}
+
 				return true;
 			}
 		}

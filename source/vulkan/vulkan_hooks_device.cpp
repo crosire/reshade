@@ -363,7 +363,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 				queue);
 
 			if (s_vulkan_queues.emplace(queue, queue_impl))
-				device_impl->queues.push_back(queue);
+				device_impl->queues.push_back({ queue, queue_impl });
 			else
 				delete queue_impl;
 		}
@@ -385,8 +385,8 @@ void     VKAPI_CALL vkDestroyDevice(VkDevice device, const VkAllocationCallbacks
 	assert(device_impl != nullptr);
 
 	// Destroy all queues associated with this device
-	for (VkQueue queue : device_impl->queues)
-		delete s_vulkan_queues.erase(queue);
+	for (const auto &queue_info : device_impl->queues)
+		delete s_vulkan_queues.erase(queue_info.first);
 
 	// Get function pointer before data is destroyed next
 	GET_DEVICE_DISPATCH_PTR_FROM(DestroyDevice, device_impl);
@@ -524,7 +524,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		// So it should be safe to just get the first one
 		VkQueue graphics_queue = VK_NULL_HANDLE;
 		device_impl->vk.GetDeviceQueue(device, device_impl->graphics_queue_family_index, 0, &graphics_queue);
-		assert(graphics_queue != VK_NULL_HANDLE);
+		assert(VK_NULL_HANDLE != graphics_queue);
 
 		queue_impl = s_vulkan_queues.at(graphics_queue);
 	}

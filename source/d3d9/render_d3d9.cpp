@@ -283,7 +283,7 @@ bool reshade::d3d9::device_impl::check_resource_view_handle_valid(resource_view_
 	return check_resource_handle_valid({ view.handle });
 }
 
-bool reshade::d3d9::device_impl::create_resource(resource_type type, const resource_desc &desc, resource_handle *out_resource)
+bool reshade::d3d9::device_impl::create_resource(resource_type type, const resource_desc &desc, resource_usage, resource_handle *out_resource)
 {
 	DWORD d3d_usage = 0;
 	convert_usage_to_d3d_usage(desc.usage, d3d_usage);
@@ -297,7 +297,7 @@ bool reshade::d3d9::device_impl::create_resource(resource_type type, const resou
 			if ((desc.usage & resource_usage::index_buffer) != 0)
 			{
 				if (IDirect3DIndexBuffer9 *resource;
-					SUCCEEDED(_device->CreateIndexBuffer(static_cast<UINT>(desc.buffer_size), d3d_usage, D3DFMT_INDEX32, D3DPOOL_DEFAULT, &resource, nullptr)))
+					SUCCEEDED(_device->CreateIndexBuffer(static_cast<UINT>(desc.buffer_size), d3d_usage, static_cast<D3DFORMAT>(desc.format), D3DPOOL_DEFAULT, &resource, nullptr)))
 				{
 					register_resource(resource);
 					*out_resource = { reinterpret_cast<uintptr_t>(resource) };

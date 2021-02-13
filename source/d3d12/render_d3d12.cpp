@@ -637,8 +637,10 @@ bool reshade::d3d12::device_impl::check_resource_view_handle_valid(resource_view
 	}
 }
 
-bool reshade::d3d12::device_impl::create_resource(resource_type type, const resource_desc &desc, resource_handle *out_resource)
+bool reshade::d3d12::device_impl::create_resource(resource_type type, const resource_desc &desc, resource_usage initial_state, resource_handle *out_resource)
 {
+	assert((desc.usage & initial_state) == initial_state);
+
 	D3D12_RESOURCE_DESC internal_desc = {};
 	convert_resource_desc(type, desc, internal_desc);
 	if (type == resource_type::buffer)
@@ -647,7 +649,7 @@ bool reshade::d3d12::device_impl::create_resource(resource_type type, const reso
 	D3D12_HEAP_PROPERTIES heap_props = { D3D12_HEAP_TYPE_DEFAULT };
 
 	if (com_ptr<ID3D12Resource> resource;
-		SUCCEEDED(_device->CreateCommittedResource(&heap_props, D3D12_HEAP_FLAG_NONE, &internal_desc, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&resource))))
+		SUCCEEDED(_device->CreateCommittedResource(&heap_props, D3D12_HEAP_FLAG_NONE, &internal_desc, static_cast<D3D12_RESOURCE_STATES>(initial_state), nullptr, IID_PPV_ARGS(&resource))))
 	{
 		register_resource(resource.get());
 		*out_resource = { reinterpret_cast<uintptr_t>(resource.release()) };

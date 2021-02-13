@@ -372,7 +372,7 @@ bool reshade::opengl::device_impl::check_resource_view_handle_valid(resource_vie
 	}
 }
 
-bool reshade::opengl::device_impl::create_resource(resource_type type, const resource_desc &desc, resource_handle *out_resource)
+bool reshade::opengl::device_impl::create_resource(resource_type type, const resource_desc &desc, resource_usage, resource_handle *out_resource)
 {
 	GLenum target = GL_NONE;
 	switch (type)

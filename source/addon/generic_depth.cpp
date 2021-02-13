@@ -167,7 +167,7 @@ struct state_tracking_context
 		if (device->get_api() >= render_api::d3d10 && device->get_api() <= render_api::d3d12)
 			desc.format = static_cast<uint32_t>(make_dxgi_format_typeless(static_cast<DXGI_FORMAT>(desc.format)));
 
-		if (!device->create_resource(resource_type::texture_2d, desc, &backup_texture))
+		if (!device->create_resource(resource_type::texture_2d, desc, resource_usage::copy_dest, &backup_texture))
 			LOG(ERROR) << "Failed to create backup depth-stencil texture!";
 	}
 };
@@ -500,9 +500,6 @@ static void on_present(command_queue *, effect_runtime *runtime)
 			if (device_state.preserve_depth_buffers || (best_desc.usage & resource_usage::shader_resource) == 0 || device->get_api() == render_api::d3d12)
 			{
 				device_state.update_backup_texture(device, best_desc);
-
-				command_list *const cmd_list = queue->get_immediate_command_list();
-				cmd_list->transition_state(device_state.backup_texture, resource_usage::undefined, resource_usage::copy_dest);
 
 				if (device_state.backup_texture != 0)
 				{
