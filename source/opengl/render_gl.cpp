@@ -14,8 +14,34 @@ static inline GLenum get_binding_for_target(GLenum target)
 	{
 	default:
 		return GL_NONE;
+	case GL_ARRAY_BUFFER:
+		return GL_ARRAY_BUFFER_BINDING;
+	case GL_ELEMENT_ARRAY_BUFFER:
+		return GL_ELEMENT_ARRAY_BUFFER_BINDING;
+	case GL_PIXEL_PACK_BUFFER:
+		return GL_PIXEL_PACK_BUFFER_BINDING;
+	case GL_PIXEL_UNPACK_BUFFER:
+		return GL_PIXEL_UNPACK_BUFFER_BINDING;
+	case GL_UNIFORM_BUFFER:
+		return GL_UNIFORM_BUFFER_BINDING;
 	case GL_TEXTURE_BUFFER:
 		return GL_TEXTURE_BINDING_BUFFER;
+	case GL_TRANSFORM_FEEDBACK_BUFFER:
+		return GL_TRANSFORM_FEEDBACK_BUFFER_BINDING;
+	case GL_COPY_READ_BUFFER:
+		return GL_COPY_READ_BUFFER_BINDING;
+	case GL_COPY_WRITE_BUFFER:
+		return GL_COPY_WRITE_BUFFER_BINDING;
+	case GL_DRAW_INDIRECT_BUFFER:
+		return GL_DRAW_INDIRECT_BUFFER_BINDING;
+	case GL_SHADER_STORAGE_BUFFER:
+		return GL_SHADER_STORAGE_BUFFER_BINDING;
+	case GL_DISPATCH_INDIRECT_BUFFER:
+		return GL_DISPATCH_INDIRECT_BUFFER_BINDING;
+	case GL_QUERY_BUFFER:
+		return GL_QUERY_BUFFER_BINDING;
+	case GL_ATOMIC_COUNTER_BUFFER:
+		return GL_ATOMIC_COUNTER_BUFFER_BINDING;
 	case GL_TEXTURE_1D:
 		return GL_TEXTURE_BINDING_1D;
 	case GL_TEXTURE_1D_ARRAY:
@@ -86,6 +112,26 @@ static GLint get_rbo_param(GLuint id, GLenum param)
 	}
 	return value;
 }
+static GLint get_buf_param(GLenum target, GLuint id, GLenum param)
+{
+	GLint value = 0;
+	if (gl3wProcs.gl.GetNamedBufferParameteriv != nullptr)
+	{
+		glGetNamedBufferParameteriv(id, param, &value);
+	}
+	else
+	{
+		if (GL_TEXTURE == target)
+			target = GL_TEXTURE_2D;
+
+		GLint prev_binding = 0;
+		glGetIntegerv(get_binding_for_target(target), &prev_binding);
+		glBindBuffer(target, id);
+		glGetBufferParameteriv(target, param, &value);
+		glBindBuffer(target, prev_binding);
+	}
+	return value;
+}
 static GLint get_tex_param(GLenum target, GLuint id, GLenum param)
 {
 	GLint value = 0;
@@ -150,7 +196,20 @@ resource_type reshade::opengl::convert_resource_type(GLenum target)
 	{
 	default:
 		return resource_type::unknown;
+	case GL_ARRAY_BUFFER:
+	case GL_ELEMENT_ARRAY_BUFFER:
+	case GL_PIXEL_PACK_BUFFER:
+	case GL_PIXEL_UNPACK_BUFFER:
+	case GL_UNIFORM_BUFFER:
 	case GL_TEXTURE_BUFFER:
+	case GL_TRANSFORM_FEEDBACK_BUFFER:
+	case GL_COPY_READ_BUFFER:
+	case GL_COPY_WRITE_BUFFER:
+	case GL_DRAW_INDIRECT_BUFFER:
+	case GL_SHADER_STORAGE_BUFFER:
+	case GL_DISPATCH_INDIRECT_BUFFER:
+	case GL_QUERY_BUFFER:
+	case GL_ATOMIC_COUNTER_BUFFER:
 		return resource_type::buffer;
 	case GL_TEXTURE_1D:
 	case GL_TEXTURE_1D_ARRAY:
@@ -338,6 +397,19 @@ bool reshade::opengl::device_impl::check_resource_handle_valid(resource_handle r
 	default:
 		return false;
 	case GL_BUFFER:
+	case GL_ARRAY_BUFFER:
+	case GL_ELEMENT_ARRAY_BUFFER:
+	case GL_PIXEL_PACK_BUFFER:
+	case GL_PIXEL_UNPACK_BUFFER:
+	case GL_UNIFORM_BUFFER:
+	case GL_TRANSFORM_FEEDBACK_BUFFER:
+	case GL_COPY_READ_BUFFER:
+	case GL_COPY_WRITE_BUFFER:
+	case GL_DRAW_INDIRECT_BUFFER:
+	case GL_SHADER_STORAGE_BUFFER:
+	case GL_DISPATCH_INDIRECT_BUFFER:
+	case GL_QUERY_BUFFER:
+	case GL_ATOMIC_COUNTER_BUFFER:
 		return glIsBuffer(resource.handle & 0xFFFFFFFF) != GL_FALSE;
 	case GL_TEXTURE:
 	case GL_TEXTURE_BUFFER:
@@ -379,6 +451,12 @@ bool reshade::opengl::device_impl::create_resource(resource_type type, const res
 	{
 	default:
 		return false;
+	case resource_type::buffer:
+		if ((desc.usage & resource_usage::index_buffer) != 0)
+			target = GL_ELEMENT_ARRAY_BUFFER;
+		else
+			target = GL_ARRAY_BUFFER;
+		break;
 	case resource_type::texture_1d:
 		target = desc.depth_or_layers > 1 ? GL_TEXTURE_1D_ARRAY : GL_TEXTURE_1D;
 		break;
@@ -398,27 +476,40 @@ bool reshade::opengl::device_impl::create_resource(resource_type type, const res
 	glGetIntegerv(get_binding_for_target(target), &prev_object);
 
 	GLuint object = 0;
-	glGenTextures(1, &object);
-	glBindTexture(target, object);
-
-	switch (target)
+	if (type == resource_type::buffer)
 	{
-	case GL_TEXTURE_1D:
-		glTexStorage1D(target, desc.levels, internal_format, desc.width);
-		break;
-	case GL_TEXTURE_1D_ARRAY:
-		glTexStorage2D(target, desc.levels, internal_format, desc.width, desc.depth_or_layers);
-		break;
-	case GL_TEXTURE_2D:
-		glTexStorage2D(target, desc.levels, internal_format, desc.width, desc.height);
-		break;
-	case GL_TEXTURE_2D_ARRAY:
-	case GL_TEXTURE_3D:
-		glTexStorage3D(target, desc.levels, internal_format, desc.width, desc.height, desc.depth_or_layers);
-		break;
-	}
+		glGenBuffers(1, &object);
+		glBindBuffer(target, object);
 
-	glBindTexture(target, prev_object);
+		assert(desc.buffer_size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
+		glBufferData(target, static_cast<GLsizeiptr>(desc.buffer_size), nullptr, GL_STATIC_DRAW);
+
+		glBindBuffer(target, prev_object);
+	}
+	else
+	{
+		glGenTextures(1, &object);
+		glBindTexture(target, object);
+
+		switch (target)
+		{
+		case GL_TEXTURE_1D:
+			glTexStorage1D(target, desc.levels, internal_format, desc.width);
+			break;
+		case GL_TEXTURE_1D_ARRAY:
+			glTexStorage2D(target, desc.levels, internal_format, desc.width, desc.depth_or_layers);
+			break;
+		case GL_TEXTURE_2D:
+			glTexStorage2D(target, desc.levels, internal_format, desc.width, desc.height);
+			break;
+		case GL_TEXTURE_2D_ARRAY:
+		case GL_TEXTURE_3D:
+			glTexStorage3D(target, desc.levels, internal_format, desc.width, desc.height, desc.depth_or_layers);
+			break;
+		}
+
+		glBindTexture(target, prev_object);
+	}
 
 	*out_resource = { (static_cast<uint64_t>(target) << 40) | object };
 	return true;
@@ -604,7 +695,7 @@ void reshade::opengl::device_impl::get_resource_from_view(resource_view_handle v
 
 resource_desc reshade::opengl::device_impl::get_resource_desc(resource_handle resource)
 {
-	GLsizei width = 0, height = 1, depth = 1; GLenum internal_format = GL_NONE;
+	GLsizei width = 0, height = 1, depth = 1, buffer_size = 0; GLenum internal_format = GL_NONE;
 
 	const GLenum target = resource.handle >> 40;
 	const GLuint object = resource.handle & 0xFFFFFFFF;
@@ -612,6 +703,22 @@ resource_desc reshade::opengl::device_impl::get_resource_desc(resource_handle re
 	{
 	default:
 		assert(false);
+		break;
+	case GL_BUFFER:
+	case GL_ARRAY_BUFFER:
+	case GL_ELEMENT_ARRAY_BUFFER:
+	case GL_PIXEL_PACK_BUFFER:
+	case GL_PIXEL_UNPACK_BUFFER:
+	case GL_UNIFORM_BUFFER:
+	case GL_TRANSFORM_FEEDBACK_BUFFER:
+	case GL_COPY_READ_BUFFER:
+	case GL_COPY_WRITE_BUFFER:
+	case GL_DRAW_INDIRECT_BUFFER:
+	case GL_SHADER_STORAGE_BUFFER:
+	case GL_DISPATCH_INDIRECT_BUFFER:
+	case GL_QUERY_BUFFER:
+	case GL_ATOMIC_COUNTER_BUFFER:
+		buffer_size = get_buf_param(target, object, GL_BUFFER_SIZE);
 		break;
 	case GL_TEXTURE:
 	case GL_TEXTURE_BUFFER:
@@ -642,7 +749,10 @@ resource_desc reshade::opengl::device_impl::get_resource_desc(resource_handle re
 		break;
 	}
 
-	return convert_resource_desc(convert_resource_type(target), 1, internal_format, width, height, depth);
+	if (buffer_size != 0)
+		return convert_resource_desc(buffer_size);
+	else
+		return convert_resource_desc(convert_resource_type(target), 1, internal_format, width, height, depth);
 }
 
 void reshade::opengl::device_impl::wait_idle()

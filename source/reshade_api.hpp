@@ -128,7 +128,8 @@ namespace reshade { namespace api
 				uint16_t depth_or_layers;
 				// Number of mipmap levels of the texture.
 				uint16_t levels;
-				// Internal texture format of the texture. This is a value of the 'D3DFORMAT', 'DXGI_FORMAT', OpenGL format or 'VkFormat' enumeration, depending on the device type.
+				// Internal texture format of the texture.
+				// This is a value of the 'D3DFORMAT', 'DXGI_FORMAT', OpenGL internal format or 'VkFormat' enumeration, depending on the device type.
 				uint32_t format;
 				// The number of samples per pixel. A value higher than 1 indicates multisampling.
 				uint16_t samples;
@@ -147,6 +148,7 @@ namespace reshade { namespace api
 		// The type of view. Can be used to reinterpret the data of a resource as a different type.
 		resource_view_dimension dimension;
 		// Internal viewing format of this view. The data of the resource this view was created for is reinterpreted with this format.
+		// This is a value of the 'D3DFORMAT', 'DXGI_FORMAT', OpenGL internal format or 'VkFormat' enumeration, depending on the device type.
 		uint32_t format;
 
 		union
