@@ -3,6 +3,7 @@
  * License: https://github.com/crosire/reshade#license
  */
 
+#include <imgui.h>
 #include "imgui_function_table.hpp"
 
 imgui_function_table g_imgui_function_table = {

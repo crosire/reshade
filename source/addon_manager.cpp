@@ -162,8 +162,7 @@ extern "C" __declspec(dllexport) void ReShadeUnregisterOverlay(const char *title
 	overlay_list.erase(std::remove_if(overlay_list.begin(), overlay_list.end(), func { title }), overlay_list.end());
 }
 
-#include "imgui_function_table.hpp"
-extern imgui_function_table g_imgui_function_table;
+extern struct imgui_function_table g_imgui_function_table;
 
 extern "C" __declspec(dllexport) imgui_function_table *ReShadeGetImGuiFunctionTable()
 {

@@ -500,8 +500,8 @@
     <ClInclude Include="source\opengl\state_block_gl.hpp" />
     <ClInclude Include="source\reshade.hpp" />
     <ClInclude Include="source\reshade_api.hpp" />
-    <ClInclude Include="source\reshade_api_imgui.hpp" />
     <ClInclude Include="source\reshade_events.hpp" />
+    <ClInclude Include="source\reshade_overlay.hpp" />
     <ClInclude Include="source\runtime.hpp" />
     <ClInclude Include="source\runtime_objects.hpp" />
     <ClInclude Include="source\vulkan\format_utils.hpp" />

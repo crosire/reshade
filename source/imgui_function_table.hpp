@@ -3,7 +3,7 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include <imgui.h>
+#ifdef IMGUI_VERSION
 
 struct imgui_function_table
 {
@@ -313,3 +313,4 @@ struct imgui_function_table
 	void(*DestroyPlatformWindows)();
 };
 
+#endif

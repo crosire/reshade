@@ -275,10 +275,10 @@
     <ClInclude Include="source\reshade_api.hpp">
       <Filter>core\api</Filter>
     </ClInclude>
-    <ClInclude Include="source\reshade_api_imgui.hpp">
+    <ClInclude Include="source\reshade_events.hpp">
       <Filter>core\api</Filter>
     </ClInclude>
-    <ClInclude Include="source\reshade_events.hpp">
+    <ClInclude Include="source\reshade_overlay.hpp">
       <Filter>core\api</Filter>
     </ClInclude>
     <ClInclude Include="source\hook.hpp">

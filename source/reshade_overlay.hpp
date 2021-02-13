@@ -7,6 +7,8 @@
 
 #include "imgui_function_table.hpp"
 
+#ifdef IMGUI_VERSION
+
 extern imgui_function_table g_imgui_function_table;
 
 namespace ImGui
@@ -328,3 +330,4 @@ namespace ImGui
 	inline void DestroyPlatformWindows() { g_imgui_function_table.DestroyPlatformWindows(); }
 }
 
+#endif
