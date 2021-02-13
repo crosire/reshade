@@ -739,11 +739,11 @@ bool reshade::d3d11::device_impl::check_format_support(uint32_t format, resource
 	return true;
 }
 
-bool reshade::d3d11::device_impl::is_resource_valid(resource_handle resource)
+bool reshade::d3d11::device_impl::check_resource_handle_valid(resource_handle resource)
 {
 	return resource.handle != 0 && _resources.has_object(reinterpret_cast<ID3D11Resource *>(resource.handle));
 }
-bool reshade::d3d11::device_impl::is_resource_view_valid(resource_view_handle view)
+bool reshade::d3d11::device_impl::check_resource_view_handle_valid(resource_view_handle view)
 {
 	return view.handle != 0 && _views.has_object(reinterpret_cast<ID3D11View *>(view.handle));
 }

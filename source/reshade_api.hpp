@@ -33,7 +33,7 @@ namespace reshade { namespace api
 	{
 		unknown,
 		buffer,
-		surface,
+		surface, // Surfaces are resources that can be rendered into (can create a render target for them), but can not be read in shaders.
 		texture_1d,
 		texture_2d,
 		texture_3d
@@ -112,19 +112,27 @@ namespace reshade { namespace api
 		{
 			struct
 			{
+				// The size in bytes of the buffer.
 				uint64_t buffer_size;
 			};
 			struct
 			{
+				// Width of the texture.
 				uint32_t width;
+				// Height of the texture if this is a 2D or 3D texture, otherwise 1.
 				uint32_t height;
+				// Depth of the texture if this is a 3D texture, otherwise the number of array layers if this is a 1D or 2D texture.
 				uint16_t depth_or_layers;
+				// Number of mipmap levels of the texture.
 				uint16_t levels;
+				// Internal texture format of the texture. This is a value of the 'D3DFORMAT', 'DXGI_FORMAT', OpenGL format or 'VkFormat' enumeration, depending on the device type.
 				uint32_t format;
+				// The number of samples per pixel. A value higher than 1 indicates multisampling.
 				uint16_t samples;
 			};
 		};
 
+		// Flags that specify how this resource may be used.
 		resource_usage usage;
 	};
 
@@ -133,21 +141,29 @@ namespace reshade { namespace api
 	/// </summary>
 	struct resource_view_desc
 	{
+		// The type of view. Can be used to reinterpret the data of a resource as a different type.
 		resource_view_dimension dimension;
+		// Internal viewing format of this view. The data of the resource this view was created for is reinterpreted with this format.
 		uint32_t format;
 
 		union
 		{
 			struct
 			{
+				// Offset from the start of the buffer this view starts at.
 				uint64_t buffer_offset;
+				// Total size in bytes this view covers.
 				uint64_t buffer_size;
 			};
 			struct
 			{
+				// Index of the most detailed mipmap level to use.
 				uint32_t first_level;
+				// The maximum number of mipmap levels for the view of the texture.
 				uint32_t levels;
+				// The index of the first array layer of a texture array to use.
 				uint32_t first_layer;
+				// The maximum number of array layers for the view of the texture array.
 				uint32_t layers;
 			};
 		};
@@ -156,7 +172,7 @@ namespace reshade { namespace api
 	/// <summary>
 	/// An opaque handle to a resource object (buffer, texture, ...).
 	/// Resources created by the application are only guaranteed to be valid during event callbacks.
-	/// If you want to use one outside that scope, first ensure the resource is still valid via <see cref="device::is_resource_valid"/>.
+	/// If you want to use one outside that scope, first ensure the resource is still valid via <see cref="device::check_resource_handle_valid"/>.
 	/// Functionally equivalent to a 'IDirect3DResource9', 'ID3D10Resource', 'ID3D11Resource', 'ID3D12Resource' or 'VkImage'.
 	/// </summary>
 	typedef struct { uint64_t handle; } resource_handle;
@@ -172,7 +188,7 @@ namespace reshade { namespace api
 	/// <summary>
 	/// An opaque handle to a resource view object (depth-stencil, render target, shader resource view, ...).
 	/// Resource views created by the application are only guaranteed to be valid during event callbacks.
-	/// If you want to use one outside that scope, first ensure the resource is still valid via <see cref="device::is_resource_view_valid"/>.
+	/// If you want to use one outside that scope, first ensure the resource is still valid via <see cref="device::check_resource_view_handle_valid"/>.
 	/// Functionally equivalent to a 'ID3D10View', 'ID3D11View', 'D3D12_CPU_DESCRIPTOR_HANDLE' or 'VkImageView'.
 	/// </summary>
 	typedef struct { uint64_t handle; } resource_view_handle;
@@ -245,11 +261,11 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Checks whether the specified <paramref name="resource"/> handle points to a resource that is still alive and valid.
 		/// </summary>
-		virtual bool is_resource_valid(resource_handle resource) = 0;
+		virtual bool check_resource_handle_valid(resource_handle resource) = 0;
 		/// <summary>
 		/// Checks whether the specified <paramref name="view"/> handle points to a resource view that is still alive and valid.
 		/// </summary>
-		virtual bool is_resource_view_valid(resource_view_handle view) = 0;
+		virtual bool check_resource_view_handle_valid(resource_view_handle view) = 0;
 
 		/// <summary>
 		/// Allocates and creates a new resource based on the specified <paramref name="desc"/>ription.

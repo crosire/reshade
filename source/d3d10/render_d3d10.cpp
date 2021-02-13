@@ -29,7 +29,7 @@ static inline void convert_usage_to_bind_flags(const resource_usage usage, UINT 
 }
 static inline void convert_bind_flags_to_usage(const UINT bind_flags, resource_usage &usage)
 {
-	// Resources are generally copyable in D3D11
+	// Resources are generally copyable in D3D10
 	usage |= resource_usage::copy_dest | resource_usage::copy_source;
 
 	if ((bind_flags & D3D10_BIND_RENDER_TARGET) != 0)
@@ -474,6 +474,9 @@ reshade::d3d10::device_impl::~device_impl()
 
 bool reshade::d3d10::device_impl::check_format_support(uint32_t format, resource_usage usage)
 {
+	if ((usage & resource_usage::unordered_access) != 0)
+		return false;
+
 	UINT support = 0;
 	if (FAILED(_device->CheckFormatSupport(static_cast<DXGI_FORMAT>(format), &support)))
 		return false;
@@ -487,9 +490,6 @@ bool reshade::d3d10::device_impl::check_format_support(uint32_t format, resource
 	if ((usage & resource_usage::shader_resource) != 0 &&
 		(support & D3D10_FORMAT_SUPPORT_SHADER_SAMPLE) == 0)
 		return false;
-	if ((usage & resource_usage::unordered_access) != 0 &&
-		(support & D3D10_FORMAT_SUPPORT_SHADER_LOAD) == 0)
-		return false;
 	if ((usage & (resource_usage::resolve_source | resource_usage::resolve_dest)) != 0 &&
 		(support & D3D10_FORMAT_SUPPORT_MULTISAMPLE_RESOLVE) == 0)
 		return false;
@@ -497,11 +497,11 @@ bool reshade::d3d10::device_impl::check_format_support(uint32_t format, resource
 	return true;
 }
 
-bool reshade::d3d10::device_impl::is_resource_valid(resource_handle resource)
+bool reshade::d3d10::device_impl::check_resource_handle_valid(resource_handle resource)
 {
 	return resource.handle != 0 && _resources.has_object(reinterpret_cast<ID3D10Resource *>(resource.handle));
 }
-bool reshade::d3d10::device_impl::is_resource_view_valid(resource_view_handle view)
+bool reshade::d3d10::device_impl::check_resource_view_handle_valid(resource_view_handle view)
 {
 	return view.handle != 0 && _views.has_object(reinterpret_cast<ID3D10View *>(view.handle));
 }

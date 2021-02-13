@@ -435,7 +435,7 @@ static void on_present(command_queue *, effect_runtime *runtime)
 
 	for (const auto &[resource, snapshot] : queue_state.counters_per_used_depth_stencil)
 	{
-		if (!device->is_resource_valid(resource))
+		if (!device->check_resource_handle_valid(resource))
 			continue; // Skip resources that were destroyed by the application
 
 		// Save to current list of depth-stencils on the device, so that it can be displayed in the UI
@@ -464,7 +464,7 @@ static void on_present(command_queue *, effect_runtime *runtime)
 	}
 
 	if (device_state.override_depth_stencil != 0 &&
-		device->is_resource_valid(device_state.override_depth_stencil))
+		device->check_resource_handle_valid(device_state.override_depth_stencil))
 	{
 		best_desc = device->get_resource_desc(device_state.override_depth_stencil);
 		best_match = device_state.override_depth_stencil;
@@ -650,7 +650,7 @@ static void draw_debug_menu(effect_runtime *runtime, void *)
 
 	for (const auto &[resource, snapshot] : device_state.current_depth_stencil_list)
 	{
-		if (!device->is_resource_valid(resource))
+		if (!device->check_resource_handle_valid(resource))
 			continue;
 
 		if (auto it = device_state.display_count_per_depth_stencil.find(resource);

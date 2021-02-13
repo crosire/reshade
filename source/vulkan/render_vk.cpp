@@ -357,13 +357,19 @@ bool reshade::vulkan::device_impl::check_format_support(uint32_t format, api::re
 	return _instance_dispatch_table.GetPhysicalDeviceImageFormatProperties(_physical_device, static_cast<VkFormat>(format), VK_IMAGE_TYPE_2D, VK_IMAGE_TILING_OPTIMAL, image_flags, 0, &props) == VK_SUCCESS;
 }
 
-bool reshade::vulkan::device_impl::is_resource_valid(resource_handle resource)
+bool reshade::vulkan::device_impl::check_resource_handle_valid(resource_handle resource)
 {
+	if (resource.handle == 0)
+		return false;
+
 	const resource_data &data = _resources.at(resource.handle);
 	return data.type ? (data.image == (VkImage)resource.handle) : (data.buffer == (VkBuffer)resource.handle);
 }
-bool reshade::vulkan::device_impl::is_resource_view_valid(resource_view_handle view)
+bool reshade::vulkan::device_impl::check_resource_view_handle_valid(resource_view_handle view)
 {
+	if (view.handle == 0)
+		return false;
+
 	const resource_view_data &data = _views.at(view.handle);
 	return data.type ? (data.image_view == (VkImageView)view.handle) : (data.buffer_view == (VkBufferView)view.handle);
 }

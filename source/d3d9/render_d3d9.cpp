@@ -258,6 +258,9 @@ void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 
 bool reshade::d3d9::device_impl::check_format_support(uint32_t format, resource_usage usage)
 {
+	if ((usage & resource_usage::unordered_access) != 0)
+		return false;
+
 	com_ptr<IDirect3D9> d3d;
 	_device->GetDirect3D(&d3d);
 	D3DDEVICE_CREATION_PARAMETERS cp;
@@ -269,13 +272,13 @@ bool reshade::d3d9::device_impl::check_format_support(uint32_t format, resource_
 	return SUCCEEDED(d3d->CheckDeviceFormat(cp.AdapterOrdinal, cp.DeviceType, D3DFMT_X8R8G8B8, d3d_usage, D3DRTYPE_TEXTURE, static_cast<D3DFORMAT>(format)));
 }
 
-bool reshade::d3d9::device_impl::is_resource_valid(resource_handle resource)
+bool reshade::d3d9::device_impl::check_resource_handle_valid(resource_handle resource)
 {
 	return resource.handle != 0 && _resources.has_object(reinterpret_cast<IDirect3DResource9 *>(resource.handle));
 }
-bool reshade::d3d9::device_impl::is_resource_view_valid(resource_view_handle view)
+bool reshade::d3d9::device_impl::check_resource_view_handle_valid(resource_view_handle view)
 {
-	return is_resource_valid({ view.handle });
+	return check_resource_handle_valid({ view.handle });
 }
 
 bool reshade::d3d9::device_impl::create_resource(resource_type type, const resource_desc &desc, resource_handle *out_resource)

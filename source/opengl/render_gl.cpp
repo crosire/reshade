@@ -315,14 +315,23 @@ reshade::opengl::device_impl::~device_impl()
 	glDeleteFramebuffers(2, _copy_fbo);
 }
 
-bool reshade::opengl::device_impl::check_format_support(uint32_t format, resource_usage)
+bool reshade::opengl::device_impl::check_format_support(uint32_t format, resource_usage usage)
 {
 	GLint supported = GL_FALSE;
 	glGetInternalformativ(GL_TEXTURE_2D, format, GL_INTERNALFORMAT_SUPPORTED, 1, &supported);
-	return supported != GL_FALSE;
+
+	GLint supported_renderable = GL_CAVEAT_SUPPORT;
+	if ((usage & resource_usage::render_target) != 0)
+		glGetInternalformativ(GL_TEXTURE_2D, format, GL_FRAMEBUFFER_RENDERABLE, 1, &supported_renderable);
+
+	GLint supported_image_load = GL_CAVEAT_SUPPORT;
+	if ((usage & resource_usage::unordered_access) != 0)
+		glGetInternalformativ(GL_TEXTURE_2D, format, GL_SHADER_IMAGE_LOAD, 1, &supported_image_load);
+
+	return supported != GL_FALSE && supported_renderable != GL_NONE && supported_image_load != GL_NONE;
 }
 
-bool reshade::opengl::device_impl::is_resource_valid(resource_handle resource)
+bool reshade::opengl::device_impl::check_resource_handle_valid(resource_handle resource)
 {
 	switch (resource.handle >> 40)
 	{
@@ -349,7 +358,7 @@ bool reshade::opengl::device_impl::is_resource_valid(resource_handle resource)
 		return (resource.handle & 0xFFFFFFFF) != GL_DEPTH_ATTACHMENT || _default_depth_format != GL_NONE;
 	}
 }
-bool reshade::opengl::device_impl::is_resource_view_valid(resource_view_handle view)
+bool reshade::opengl::device_impl::check_resource_view_handle_valid(resource_view_handle view)
 {
 	const GLenum attachment = view.handle >> 40;
 	if ((attachment >= GL_COLOR_ATTACHMENT0 && attachment <= GL_COLOR_ATTACHMENT31) || attachment == GL_DEPTH_ATTACHMENT)
@@ -359,7 +368,7 @@ bool reshade::opengl::device_impl::is_resource_view_valid(resource_view_handle v
 	}
 	else
 	{
-		return is_resource_valid({ view.handle });
+		return check_resource_handle_valid({ view.handle });
 	}
 }
 
