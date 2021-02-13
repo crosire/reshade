@@ -103,12 +103,12 @@ void    STDMETHODCALLTYPE D3D10Device::VSSetShader(ID3D10VertexShader *pVertexSh
 }
 void    STDMETHODCALLTYPE D3D10Device::DrawIndexed(UINT IndexCount, UINT StartIndexLocation, INT BaseVertexLocation)
 {
-	RESHADE_ADDON_EVENT(draw_indexed, _impl, IndexCount, 1);
+	RESHADE_ADDON_EVENT(draw_indexed, _impl, IndexCount, 1, StartIndexLocation, BaseVertexLocation, 0);
 	_orig->DrawIndexed(IndexCount, StartIndexLocation, BaseVertexLocation);
 }
 void    STDMETHODCALLTYPE D3D10Device::Draw(UINT VertexCount, UINT StartVertexLocation)
 {
-	RESHADE_ADDON_EVENT(draw, _impl, VertexCount, 1);
+	RESHADE_ADDON_EVENT(draw, _impl, VertexCount, 1, StartVertexLocation, 0);
 	_orig->Draw(VertexCount, StartVertexLocation);
 }
 void    STDMETHODCALLTYPE D3D10Device::PSSetConstantBuffers(UINT StartSlot, UINT NumBuffers, ID3D10Buffer *const *ppConstantBuffers)
@@ -129,12 +129,12 @@ void    STDMETHODCALLTYPE D3D10Device::IASetIndexBuffer(ID3D10Buffer *pIndexBuff
 }
 void    STDMETHODCALLTYPE D3D10Device::DrawIndexedInstanced(UINT IndexCountPerInstance, UINT InstanceCount, UINT StartIndexLocation, INT BaseVertexLocation, UINT StartInstanceLocation)
 {
-	RESHADE_ADDON_EVENT(draw_indexed, _impl, IndexCountPerInstance, InstanceCount);
+	RESHADE_ADDON_EVENT(draw_indexed, _impl, IndexCountPerInstance, InstanceCount, StartIndexLocation, BaseVertexLocation, StartInstanceLocation);
 	_orig->DrawIndexedInstanced(IndexCountPerInstance, InstanceCount, StartIndexLocation, BaseVertexLocation, StartInstanceLocation);
 }
 void    STDMETHODCALLTYPE D3D10Device::DrawInstanced(UINT VertexCountPerInstance, UINT InstanceCount, UINT StartVertexLocation, UINT StartInstanceLocation)
 {
-	RESHADE_ADDON_EVENT(draw, _impl, VertexCountPerInstance, InstanceCount);
+	RESHADE_ADDON_EVENT(draw, _impl, VertexCountPerInstance, InstanceCount, StartVertexLocation, StartInstanceLocation);
 	_orig->DrawInstanced(VertexCountPerInstance, InstanceCount, StartVertexLocation, StartInstanceLocation);
 }
 void    STDMETHODCALLTYPE D3D10Device::GSSetConstantBuffers(UINT StartSlot, UINT NumBuffers, ID3D10Buffer *const *ppConstantBuffers)
@@ -199,7 +199,7 @@ void    STDMETHODCALLTYPE D3D10Device::SOSetTargets(UINT NumBuffers, ID3D10Buffe
 }
 void    STDMETHODCALLTYPE D3D10Device::DrawAuto()
 {
-	RESHADE_ADDON_EVENT(draw, _impl, 0, 0);
+	RESHADE_ADDON_EVENT(draw, _impl, 0, 0, 0, 0);
 	_orig->DrawAuto();
 }
 void    STDMETHODCALLTYPE D3D10Device::RSSetState(ID3D10RasterizerState *pRasterizerState)

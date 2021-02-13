@@ -680,6 +680,7 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 		if (gl3wIsSupported(4, 3))
 		{
+#if RESHADE_ADDON
 			// Get trampoline pointers to any hooked functions, so that runtime always calls into original OpenGL functions
 			if (s_hooks_installed)
 			{
@@ -691,6 +692,7 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 				gl3wProcs.gl.BindFramebuffer = reshade::hooks::call(glBindFramebuffer);
 				gl3wProcs.gl.DrawElementsBaseVertex = reshade::hooks::call(glDrawElementsBaseVertex); // Used in 'runtime_gl::render_imgui_draw_data'
 			}
+#endif
 
 			const auto runtime = new reshade::opengl::runtime_gl(hdc, hglrc);
 			runtime->_hdcs.insert(hdc);
@@ -1120,7 +1122,9 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 	{
 #define INSTALL_HOOK(name) \
 	reshade::hooks::install(#name, reinterpret_cast<reshade::hook::address>(trampoline(#name)), reinterpret_cast<reshade::hook::address>(name), true)
+
 		// Install all OpenGL hooks in a single batch job
+#if RESHADE_ADDON
 		INSTALL_HOOK(glBindFramebuffer);
 		INSTALL_HOOK(glBufferData);
 		INSTALL_HOOK(glBufferStorage);
@@ -1160,7 +1164,7 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		INSTALL_HOOK(glViewportArrayv);
 		INSTALL_HOOK(glViewportIndexedf);
 		INSTALL_HOOK(glViewportIndexedfv);
-
+#endif
 		INSTALL_HOOK(wglChoosePixelFormatARB);
 		INSTALL_HOOK(wglCreateContextAttribsARB);
 		INSTALL_HOOK(wglCreatePbufferARB);
@@ -1175,6 +1179,7 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 
 		reshade::hook::apply_queued_actions();
 
+#if RESHADE_ADDON
 		gl3wProcs.gl.TexBuffer = reshade::hooks::call(glTexBuffer);
 		gl3wProcs.gl.TexBufferRange = reshade::hooks::call(glTexBufferRange);
 		gl3wProcs.gl.BufferData = reshade::hooks::call(glBufferData);
@@ -1182,6 +1187,7 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		gl3wProcs.gl.TexStorage2D = reshade::hooks::call(glTexStorage2D);
 		gl3wProcs.gl.BindFramebuffer = reshade::hooks::call(glBindFramebuffer);
 		gl3wProcs.gl.DrawElementsBaseVertex = reshade::hooks::call(glDrawElementsBaseVertex);
+#endif
 
 		s_hooks_installed = true;
 	}

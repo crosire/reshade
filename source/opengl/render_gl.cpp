@@ -587,8 +587,8 @@ bool reshade::opengl::device_impl::create_resource_view(resource_handle resource
 			}
 			else
 			{
-				assert(desc.buffer_offset <= std::numeric_limits<GLintptr>::max());
-				assert(desc.buffer_size <= std::numeric_limits<GLsizeiptr>::max());
+				assert(desc.buffer_offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()));
+				assert(desc.buffer_size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
 				glTexBufferRange(target, internal_format, resource.handle & 0xFFFFFFFF, static_cast<GLintptr>(desc.buffer_offset), static_cast<GLsizeiptr>(desc.buffer_size));
 			}
 

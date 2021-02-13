@@ -7,7 +7,6 @@
 #include "hook_manager.hpp"
 #include "runtime_gl.hpp"
 #include "opengl_hooks.hpp" // Fix name clashes with gl3w
-#include <numeric> // std::accumulate
 
 extern thread_local reshade::opengl::runtime_gl *g_current_runtime;
 
@@ -90,7 +89,7 @@ HOOK_EXPORT void WINAPI glBlendFunc(GLenum sfactor, GLenum dfactor)
 	{
 		reshade::api::resource_desc api_desc = reshade::opengl::convert_resource_desc(size);
 		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, reshade::api::resource_type::buffer, &api_desc);
-		assert(api_desc.buffer_size <= std::numeric_limits<GLsizeiptr>::max());
+		assert(api_desc.buffer_size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
 		size = static_cast<GLsizeiptr>(api_desc.buffer_size);
 	}
 #endif
@@ -106,7 +105,7 @@ HOOK_EXPORT void WINAPI glBlendFunc(GLenum sfactor, GLenum dfactor)
 	{
 		reshade::api::resource_desc api_desc = reshade::opengl::convert_resource_desc(size);
 		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, reshade::api::resource_type::buffer, &api_desc);
-		assert(api_desc.buffer_size <= std::numeric_limits<GLsizeiptr>::max());
+		assert(api_desc.buffer_size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
 		size = static_cast<GLsizeiptr>(api_desc.buffer_size);
 	}
 #endif
@@ -131,7 +130,7 @@ HOOK_EXPORT void WINAPI glClear(GLbitfield mask)
 #if RESHADE_ADDON
 	if (g_current_runtime)
 	{
-		GLint   fbo = 0;
+		GLint fbo = 0;
 		glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &fbo);
 
 		if ((mask & (GL_COLOR_BUFFER_BIT)) != 0)
@@ -456,7 +455,7 @@ HOOK_EXPORT void WINAPI glDisableClientState(GLenum array)
 HOOK_EXPORT void WINAPI glDrawArrays(GLenum mode, GLint first, GLsizei count)
 {
 	if (g_current_runtime)
-		RESHADE_ADDON_EVENT(draw, g_current_runtime, count, 1);
+		RESHADE_ADDON_EVENT(draw, g_current_runtime, count, 1, first, 0);
 
 	static const auto trampoline = reshade::hooks::call(glDrawArrays);
 	trampoline(mode, first, count);
@@ -472,7 +471,7 @@ HOOK_EXPORT void WINAPI glDrawArrays(GLenum mode, GLint first, GLsizei count)
 			void WINAPI glDrawArraysInstanced(GLenum mode, GLint first, GLsizei count, GLsizei primcount)
 {
 	if (g_current_runtime)
-		RESHADE_ADDON_EVENT(draw, g_current_runtime, primcount, count);
+		RESHADE_ADDON_EVENT(draw, g_current_runtime, primcount, count, first, 0);
 
 	static const auto trampoline = reshade::hooks::call(glDrawArraysInstanced);
 	trampoline(mode, first, count, primcount);
@@ -480,7 +479,7 @@ HOOK_EXPORT void WINAPI glDrawArrays(GLenum mode, GLint first, GLsizei count)
 			void WINAPI glDrawArraysInstancedBaseInstance(GLenum mode, GLint first, GLsizei count, GLsizei primcount, GLuint baseinstance)
 {
 	if (g_current_runtime)
-		RESHADE_ADDON_EVENT(draw, g_current_runtime, primcount, count);
+		RESHADE_ADDON_EVENT(draw, g_current_runtime, primcount, count, first, baseinstance);
 
 	static const auto trampoline = reshade::hooks::call(glDrawArraysInstancedBaseInstance);
 	trampoline(mode, first, count, primcount, baseinstance);
@@ -495,7 +494,7 @@ HOOK_EXPORT void WINAPI glDrawBuffer(GLenum mode)
 HOOK_EXPORT void WINAPI glDrawElements(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices)
 {
 	if (g_current_runtime)
-		RESHADE_ADDON_EVENT(draw_indexed, g_current_runtime, count, 1);
+		RESHADE_ADDON_EVENT(draw_indexed, g_current_runtime, count, 1, static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices)), 0, 0);
 
 	static const auto trampoline = reshade::hooks::call(glDrawElements);
 	trampoline(mode, count, type, indices);
@@ -503,7 +502,7 @@ HOOK_EXPORT void WINAPI glDrawElements(GLenum mode, GLsizei count, GLenum type, 
 			void WINAPI glDrawElementsBaseVertex(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLint basevertex)
 {
 	if (g_current_runtime)
-		RESHADE_ADDON_EVENT(draw_indexed, g_current_runtime, count, 1);
+		RESHADE_ADDON_EVENT(draw_indexed, g_current_runtime, count, 1, static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices)), basevertex, 0);
 
 	static const auto trampoline = reshade::hooks::call(glDrawElementsBaseVertex);
 	trampoline(mode, count, type, indices, basevertex);
@@ -519,7 +518,7 @@ HOOK_EXPORT void WINAPI glDrawElements(GLenum mode, GLsizei count, GLenum type, 
 			void WINAPI glDrawElementsInstanced(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount)
 {
 	if (g_current_runtime)
-		RESHADE_ADDON_EVENT(draw_indexed, g_current_runtime, primcount, count);
+		RESHADE_ADDON_EVENT(draw_indexed, g_current_runtime, primcount, count, static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices)), 0, 0);
 
 	static const auto trampoline = reshade::hooks::call(glDrawElementsInstanced);
 	trampoline(mode, count, type, indices, primcount);
@@ -527,7 +526,7 @@ HOOK_EXPORT void WINAPI glDrawElements(GLenum mode, GLsizei count, GLenum type, 
 			void WINAPI glDrawElementsInstancedBaseVertex(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount, GLint basevertex)
 {
 	if (g_current_runtime)
-		RESHADE_ADDON_EVENT(draw_indexed, g_current_runtime, primcount, count);
+		RESHADE_ADDON_EVENT(draw_indexed, g_current_runtime, primcount, count, static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices)), basevertex, 0);
 
 	static const auto trampoline = reshade::hooks::call(glDrawElementsInstancedBaseVertex);
 	trampoline(mode, count, type, indices, primcount, basevertex);
@@ -535,7 +534,7 @@ HOOK_EXPORT void WINAPI glDrawElements(GLenum mode, GLsizei count, GLenum type, 
 			void WINAPI glDrawElementsInstancedBaseInstance(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount, GLuint baseinstance)
 {
 	if (g_current_runtime)
-		RESHADE_ADDON_EVENT(draw_indexed, g_current_runtime, primcount, count);
+		RESHADE_ADDON_EVENT(draw_indexed, g_current_runtime, primcount, count, static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices)), 0, baseinstance);
 
 	static const auto trampoline = reshade::hooks::call(glDrawElementsInstancedBaseInstance);
 	trampoline(mode, count, type, indices, primcount, baseinstance);
@@ -543,7 +542,7 @@ HOOK_EXPORT void WINAPI glDrawElements(GLenum mode, GLsizei count, GLenum type, 
 			void WINAPI glDrawElementsInstancedBaseVertexBaseInstance(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount, GLint basevertex, GLuint baseinstance)
 {
 	if (g_current_runtime)
-		RESHADE_ADDON_EVENT(draw_indexed, g_current_runtime, primcount, count);
+		RESHADE_ADDON_EVENT(draw_indexed, g_current_runtime, primcount, count, static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices)), basevertex, baseinstance);
 
 	static const auto trampoline = reshade::hooks::call(glDrawElementsInstancedBaseVertexBaseInstance);
 	trampoline(mode, count, type, indices, primcount, basevertex, baseinstance);
@@ -558,7 +557,7 @@ HOOK_EXPORT void WINAPI glDrawPixels(GLsizei width, GLsizei height, GLenum forma
 			void WINAPI glDrawRangeElements(GLenum mode, GLuint start, GLuint end, GLsizei count, GLenum type, const GLvoid *indices)
 {
 	if (g_current_runtime)
-		RESHADE_ADDON_EVENT(draw_indexed, g_current_runtime, count, 1);
+		RESHADE_ADDON_EVENT(draw_indexed, g_current_runtime, count, 1, static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices)), 0, 0);
 
 	static const auto trampoline = reshade::hooks::call(glDrawRangeElements);
 	trampoline(mode, start, end, count, type, indices);
@@ -566,7 +565,7 @@ HOOK_EXPORT void WINAPI glDrawPixels(GLsizei width, GLsizei height, GLenum forma
 			void WINAPI glDrawRangeElementsBaseVertex(GLenum mode, GLuint start, GLuint end, GLsizei count, GLenum type, const GLvoid *indices, GLint basevertex)
 {
 	if (g_current_runtime)
-		RESHADE_ADDON_EVENT(draw_indexed, g_current_runtime, count, 1);
+		RESHADE_ADDON_EVENT(draw_indexed, g_current_runtime, count, 1, static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices)), basevertex, 0);
 
 	static const auto trampoline = reshade::hooks::call(glDrawRangeElementsBaseVertex);
 	trampoline(mode, start, end, count, type, indices, basevertex);
@@ -606,7 +605,7 @@ HOOK_EXPORT void WINAPI glEnd()
 
 	if (g_current_runtime)
 	{
-		RESHADE_ADDON_EVENT(draw, g_current_runtime, g_current_runtime->_current_vertex_count, 1);
+		RESHADE_ADDON_EVENT(draw, g_current_runtime, g_current_runtime->_current_vertex_count, 1, 0, 0);
 		g_current_runtime->_current_vertex_count = 0;
 	}
 }
@@ -1169,7 +1168,8 @@ HOOK_EXPORT void WINAPI glMultMatrixf(const GLfloat *m)
 			void WINAPI glMultiDrawArrays(GLenum mode, const GLint *first, const GLsizei *count, GLsizei drawcount)
 {
 	if (g_current_runtime)
-		RESHADE_ADDON_EVENT(draw, g_current_runtime, std::accumulate(count, count + drawcount, 0), 1);
+		for (GLsizei i = 0; i < drawcount; ++i)
+			RESHADE_ADDON_EVENT(draw, g_current_runtime, count[i], 1, first[i], 0);
 
 	static const auto trampoline = reshade::hooks::call(glMultiDrawArrays);
 	trampoline(mode, first, count, drawcount);
@@ -1185,7 +1185,8 @@ HOOK_EXPORT void WINAPI glMultMatrixf(const GLfloat *m)
 			void WINAPI glMultiDrawElements(GLenum mode, const GLsizei *count, GLenum type, const GLvoid *const *indices, GLsizei drawcount)
 {
 	if (g_current_runtime)
-		RESHADE_ADDON_EVENT(draw_indexed, g_current_runtime, std::accumulate(count, count + drawcount, 0), 1);
+		for (GLsizei i = 0; i < drawcount; ++i)
+			RESHADE_ADDON_EVENT(draw_indexed, g_current_runtime, count[i], 1, static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices[i])), 0, 0);
 
 	static const auto trampoline = reshade::hooks::call(glMultiDrawElements);
 	trampoline(mode, count, type, indices, drawcount);
@@ -1193,7 +1194,8 @@ HOOK_EXPORT void WINAPI glMultMatrixf(const GLfloat *m)
 			void WINAPI glMultiDrawElementsBaseVertex(GLenum mode, const GLsizei *count, GLenum type, const GLvoid *const *indices, GLsizei drawcount, const GLint *basevertex)
 {
 	if (g_current_runtime)
-		RESHADE_ADDON_EVENT(draw_indexed, g_current_runtime, std::accumulate(count, count + drawcount, 0), 1);
+		for (GLsizei i = 0; i < drawcount; ++i)
+			RESHADE_ADDON_EVENT(draw_indexed, g_current_runtime, count[i], 1, static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices[i])), basevertex[i], 0);
 
 	static const auto trampoline = reshade::hooks::call(glMultiDrawElementsBaseVertex);
 	trampoline(mode, count, type, indices, drawcount, basevertex);
@@ -1214,7 +1216,7 @@ HOOK_EXPORT void WINAPI glMultMatrixf(const GLfloat *m)
 	{
 		reshade::api::resource_desc api_desc = reshade::opengl::convert_resource_desc(size);
 		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, reshade::api::resource_type::buffer, &api_desc);
-		assert(api_desc.buffer_size <= std::numeric_limits<GLsizeiptr>::max());
+		assert(api_desc.buffer_size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
 		size = static_cast<GLsizeiptr>(api_desc.buffer_size);
 	}
 #endif
@@ -1230,7 +1232,7 @@ HOOK_EXPORT void WINAPI glMultMatrixf(const GLfloat *m)
 	{
 		reshade::api::resource_desc api_desc = reshade::opengl::convert_resource_desc(size);
 		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, reshade::api::resource_type::buffer, &api_desc);
-		assert(api_desc.buffer_size <= std::numeric_limits<GLsizeiptr>::max());
+		assert(api_desc.buffer_size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
 		size = static_cast<GLsizeiptr>(api_desc.buffer_size);
 	}
 #endif
@@ -1727,8 +1729,8 @@ HOOK_EXPORT void WINAPI glStencilOp(GLenum fail, GLenum zfail, GLenum zpass)
 
 		if (api_desc.buffer_offset != 0 || api_desc.buffer_size != 0)
 		{
-			assert(api_desc.buffer_offset <= std::numeric_limits<GLintptr>::max());
-			assert(api_desc.buffer_size <= std::numeric_limits<GLsizeiptr>::max());
+			assert(api_desc.buffer_offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()));
+			assert(api_desc.buffer_size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
 			reshade::hooks::call(glTexBufferRange)(target, internalformat, buffer, static_cast<GLintptr>(api_desc.buffer_offset), static_cast<GLsizeiptr>(api_desc.buffer_size));
 			return;
 		}
@@ -1750,8 +1752,8 @@ HOOK_EXPORT void WINAPI glStencilOp(GLenum fail, GLenum zfail, GLenum zpass)
 
 		if (api_desc.buffer_offset != 0 || api_desc.buffer_size != 0)
 		{
-			assert(api_desc.buffer_offset <= std::numeric_limits<GLintptr>::max());
-			assert(api_desc.buffer_size <= std::numeric_limits<GLsizeiptr>::max());
+			assert(api_desc.buffer_offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()));
+			assert(api_desc.buffer_size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
 			reshade::hooks::call(glTextureBufferRange)(texture, internalformat, buffer, static_cast<GLintptr>(api_desc.buffer_offset), static_cast<GLsizeiptr>(api_desc.buffer_size));
 			return;
 		}
@@ -1773,9 +1775,9 @@ HOOK_EXPORT void WINAPI glStencilOp(GLenum fail, GLenum zfail, GLenum zpass)
 		api_desc.buffer_size = size;
 		RESHADE_ADDON_EVENT(create_resource_view, g_current_runtime, reshade::api::resource_handle { (static_cast<uint64_t>(GL_BUFFER) << 40) | buffer }, reshade::api::resource_view_type::unknown, &api_desc);
 		internalformat = api_desc.format;
-		assert(api_desc.buffer_offset <= std::numeric_limits<GLintptr>::max());
+		assert(api_desc.buffer_offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()));
 		offset = static_cast<GLintptr>(api_desc.buffer_offset);
-		assert(api_desc.buffer_size <= std::numeric_limits<GLsizeiptr>::max());
+		assert(api_desc.buffer_size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
 		size = static_cast<GLsizeiptr>(api_desc.buffer_size);
 	}
 #endif
@@ -1794,9 +1796,9 @@ HOOK_EXPORT void WINAPI glStencilOp(GLenum fail, GLenum zfail, GLenum zpass)
 		api_desc.buffer_size = size;
 		RESHADE_ADDON_EVENT(create_resource_view, g_current_runtime, reshade::api::resource_handle { (static_cast<uint64_t>(GL_BUFFER) << 40) | buffer }, reshade::api::resource_view_type::unknown, &api_desc);
 		internalformat = api_desc.format;
-		assert(api_desc.buffer_offset <= std::numeric_limits<GLintptr>::max());
+		assert(api_desc.buffer_offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()));
 		offset = static_cast<GLintptr>(api_desc.buffer_offset);
-		assert(api_desc.buffer_size <= std::numeric_limits<GLsizeiptr>::max());
+		assert(api_desc.buffer_size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
 		size = static_cast<GLsizeiptr>(api_desc.buffer_size);
 	}
 #endif

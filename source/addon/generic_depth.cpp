@@ -302,7 +302,7 @@ static void on_create_resource_view(device *device, resource_handle resource, re
 	desc->layers = texture_desc.depth_or_layers;
 }
 
-static void on_draw(command_list *cmd_list, uint32_t vertices, uint32_t instances)
+static void on_draw(command_list *cmd_list, uint32_t vertices, uint32_t instances, uint32_t, uint32_t)
 {
 	state_tracking &state = cmd_list->get_data<state_tracking>(state_tracking::GUID);
 	if (state.current_depth_stencil == 0)
@@ -328,9 +328,13 @@ static void on_draw(command_list *cmd_list, uint32_t vertices, uint32_t instance
 	if (device_state.preserve_depth_buffers)
 		std::memcpy(counters.current_stats.last_viewport, state.current_viewport, 6 * sizeof(float));
 }
+static void on_draw_indexed(command_list *cmd_list, uint32_t indices, uint32_t instances, uint32_t first_index, int32_t, uint32_t first_instance)
+{
+	on_draw(cmd_list, indices, instances, first_index, first_instance);
+}
 static void on_draw_indirect(command_list *cmd_list)
 {
-	on_draw(cmd_list, 0, 0);
+	on_draw(cmd_list, 0, 0, 0, 0);
 
 	state_tracking &state = cmd_list->get_data<state_tracking>(state_tracking::GUID);
 	state.has_indirect_drawcalls = true;
@@ -750,7 +754,7 @@ void register_builtin_addon_depth()
 	reshade::register_event<reshade::addon_event::create_resource_view>(on_create_resource_view);
 
 	reshade::register_event<reshade::addon_event::draw>(on_draw);
-	reshade::register_event<reshade::addon_event::draw_indexed>(on_draw);
+	reshade::register_event<reshade::addon_event::draw_indexed>(on_draw_indexed);
 	reshade::register_event<reshade::addon_event::draw_indirect>(on_draw_indirect);
 	reshade::register_event<reshade::addon_event::alias_resource>(on_alias_resource);
 	reshade::register_event<reshade::addon_event::set_viewport>(on_set_viewport);
@@ -782,7 +786,7 @@ void unregister_builtin_addon_depth()
 	reshade::unregister_event<reshade::addon_event::create_resource_view>(on_create_resource_view);
 
 	reshade::unregister_event<reshade::addon_event::draw>(on_draw);
-	reshade::unregister_event<reshade::addon_event::draw_indexed>(on_draw);
+	reshade::unregister_event<reshade::addon_event::draw_indexed>(on_draw_indexed);
 	reshade::unregister_event<reshade::addon_event::draw_indirect>(on_draw_indirect);
 	reshade::unregister_event<reshade::addon_event::alias_resource>(on_alias_resource);
 	reshade::unregister_event<reshade::addon_event::set_viewport>(on_set_viewport);

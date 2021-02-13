@@ -819,22 +819,22 @@ float   STDMETHODCALLTYPE Direct3DDevice9::GetNPatchMode()
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawPrimitive(D3DPRIMITIVETYPE PrimitiveType, UINT StartVertex, UINT PrimitiveCount)
 {
-	RESHADE_ADDON_EVENT(draw, _impl, calc_vertex_from_prim_count(PrimitiveType, PrimitiveCount), 1);
+	RESHADE_ADDON_EVENT(draw, _impl, calc_vertex_from_prim_count(PrimitiveType, PrimitiveCount), 1, StartVertex, 0);
 	return _orig->DrawPrimitive(PrimitiveType, StartVertex, PrimitiveCount);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawIndexedPrimitive(D3DPRIMITIVETYPE PrimitiveType, INT BaseVertexIndex, UINT MinVertexIndex, UINT NumVertices, UINT StartIndex, UINT PrimitiveCount)
 {
-	RESHADE_ADDON_EVENT(draw_indexed, _impl, calc_vertex_from_prim_count(PrimitiveType, PrimitiveCount), 1);
+	RESHADE_ADDON_EVENT(draw_indexed, _impl, calc_vertex_from_prim_count(PrimitiveType, PrimitiveCount), 1, StartIndex, BaseVertexIndex, 0);
 	return _orig->DrawIndexedPrimitive(PrimitiveType, BaseVertexIndex, MinVertexIndex, NumVertices, StartIndex, PrimitiveCount);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawPrimitiveUP(D3DPRIMITIVETYPE PrimitiveType, UINT PrimitiveCount, const void *pVertexStreamZeroData, UINT VertexStreamZeroStride)
 {
-	RESHADE_ADDON_EVENT(draw, _impl, calc_vertex_from_prim_count(PrimitiveType, PrimitiveCount), 1);
+	RESHADE_ADDON_EVENT(draw, _impl, calc_vertex_from_prim_count(PrimitiveType, PrimitiveCount), 1, 0, 0);
 	return _orig->DrawPrimitiveUP(PrimitiveType, PrimitiveCount, pVertexStreamZeroData, VertexStreamZeroStride);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawIndexedPrimitiveUP(D3DPRIMITIVETYPE PrimitiveType, UINT MinVertexIndex, UINT NumVertices, UINT PrimitiveCount, const void *pIndexData, D3DFORMAT IndexDataFormat, const void *pVertexStreamZeroData, UINT VertexStreamZeroStride)
 {
-	RESHADE_ADDON_EVENT(draw_indexed, _impl, calc_vertex_from_prim_count(PrimitiveType, PrimitiveCount), 1);
+	RESHADE_ADDON_EVENT(draw_indexed, _impl, calc_vertex_from_prim_count(PrimitiveType, PrimitiveCount), 1, 0, 0, 0);
 	return _orig->DrawIndexedPrimitiveUP(PrimitiveType, MinVertexIndex, NumVertices, PrimitiveCount, pIndexData, IndexDataFormat, pVertexStreamZeroData, VertexStreamZeroStride);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::ProcessVertices(UINT SrcStartIndex, UINT DestIndex, UINT VertexCount, IDirect3DVertexBuffer9 *pDestBuffer, IDirect3DVertexDeclaration9 *pVertexDecl, DWORD Flags)

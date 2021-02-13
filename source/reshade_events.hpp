@@ -164,9 +164,9 @@ namespace reshade
 	template <>
 	struct addon_event_traits<addon_event::set_render_target> { typedef void(*decl)(api::command_list *cmd, uint32_t index, api::resource_view_handle rtv); };
 	template <>
-	struct addon_event_traits<addon_event::draw> { typedef void(*decl)(api::command_list *cmd, uint32_t indices, uint32_t instances); };
+	struct addon_event_traits<addon_event::draw> { typedef void(*decl)(api::command_list *cmd, uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance); };
 	template <>
-	struct addon_event_traits<addon_event::draw_indexed> { typedef void(*decl)(api::command_list *cmd, uint32_t vertices, uint32_t instances); };
+	struct addon_event_traits<addon_event::draw_indexed> { typedef void(*decl)(api::command_list *cmd, uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance); };
 	template <>
 	struct addon_event_traits<addon_event::draw_indirect> { typedef void(*decl)(api::command_list *cmd); };
 	template <>

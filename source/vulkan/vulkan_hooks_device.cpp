@@ -1085,7 +1085,7 @@ void     VKAPI_CALL vkCmdDraw(VkCommandBuffer commandBuffer, uint32_t vertexCoun
 	reshade::vulkan::command_list_impl *const cmd_impl = s_vulkan_command_buffers.at(commandBuffer);
 	if (cmd_impl != nullptr)
 	{
-		RESHADE_ADDON_EVENT(draw, cmd_impl, vertexCount, instanceCount);
+		RESHADE_ADDON_EVENT(draw, cmd_impl, vertexCount, instanceCount, firstVertex, firstInstance);
 	}
 #endif
 
@@ -1098,7 +1098,7 @@ void     VKAPI_CALL vkCmdDrawIndexed(VkCommandBuffer commandBuffer, uint32_t ind
 	reshade::vulkan::command_list_impl *const cmd_impl = s_vulkan_command_buffers.at(commandBuffer);
 	if (cmd_impl != nullptr)
 	{
-		RESHADE_ADDON_EVENT(draw_indexed, cmd_impl, indexCount, instanceCount);
+		RESHADE_ADDON_EVENT(draw_indexed, cmd_impl, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
 	}
 #endif
 
