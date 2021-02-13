@@ -1635,6 +1635,55 @@ HOOK_EXPORT void WINAPI glScissor(GLint x, GLint y, GLsizei width, GLsizei heigh
 {
 	static const auto trampoline = reshade::hooks::call(glScissor);
 	trampoline(x, y, width, height);
+
+#if RESHADE_ADDON
+	if (g_current_runtime)
+	{
+		const int32_t rect_data[4] = { x, y, width, height };
+		RESHADE_ADDON_EVENT(set_scissor, g_current_runtime, 0, rect_data);
+	}
+#endif
+}
+			void WINAPI glScissorArrayv(GLuint first, GLsizei count, const GLint *v)
+{
+	static const auto trampoline = reshade::hooks::call(glScissorArrayv);
+	trampoline(first, count, v);
+
+#if RESHADE_ADDON
+	if (g_current_runtime)
+	{
+		for (GLsizei index = 0; index < count; ++index, v += 4)
+		{
+			const int32_t rect_data[4] = { v[0], v[1], v[2], v[3] };
+			RESHADE_ADDON_EVENT(set_scissor, g_current_runtime, first + index, rect_data);
+		}
+	}
+#endif
+}
+			void WINAPI glScissorIndexed(GLuint index, GLint left, GLint bottom, GLsizei width, GLsizei height)
+{
+	static const auto trampoline = reshade::hooks::call(glScissorIndexed);
+	trampoline(index, left, bottom, width, height);
+
+#if RESHADE_ADDON
+	if (g_current_runtime)
+	{
+		const int32_t rect_data[4] = { left, bottom, width, height };
+		RESHADE_ADDON_EVENT(set_scissor, g_current_runtime, index, rect_data);
+	}
+#endif
+}
+			void WINAPI glScissorIndexedv(GLuint index, const GLint *v)
+{
+	static const auto trampoline = reshade::hooks::call(glScissorIndexedv);
+	trampoline(index, v);
+
+#if RESHADE_ADDON
+	if (g_current_runtime)
+	{
+		RESHADE_ADDON_EVENT(set_scissor, g_current_runtime, index, v);
+	}
+#endif
 }
 
 HOOK_EXPORT void WINAPI glSelectBuffer(GLsizei size, GLuint *buffer)
@@ -2474,4 +2523,61 @@ HOOK_EXPORT void WINAPI glViewport(GLint x, GLint y, GLsizei width, GLsizei heig
 {
 	static const auto trampoline = reshade::hooks::call(glViewport);
 	trampoline(x, y, width, height);
+
+#if RESHADE_ADDON
+	if (g_current_runtime)
+	{
+		const float viewport_data[6] = {
+			static_cast<float>(x),
+			static_cast<float>(y),
+			static_cast<float>(width),
+			static_cast<float>(height),
+			0.0f, // This is set via 'glDepthRange', so just assume defaults here for now
+			1.0f
+		};
+		RESHADE_ADDON_EVENT(set_viewport, g_current_runtime, 0, viewport_data);
+	}
+#endif
+}
+			void WINAPI glViewportArrayv(GLuint first, GLsizei count, const GLfloat *v)
+{
+	static const auto trampoline = reshade::hooks::call(glViewportArrayv);
+	trampoline(first, count, v);
+
+#if RESHADE_ADDON
+	if (g_current_runtime)
+	{
+		for (GLsizei index = 0; index < count; ++index, v += 4)
+		{
+			const float viewport_data[6] = { v[0], v[1], v[2], v[3], 0.0f, 1.0f };
+			RESHADE_ADDON_EVENT(set_viewport, g_current_runtime, first + index, viewport_data);
+		}
+	}
+#endif
+}
+			void WINAPI glViewportIndexedf(GLuint index, GLfloat x, GLfloat y, GLfloat w, GLfloat h)
+{
+	static const auto trampoline = reshade::hooks::call(glViewportIndexedf);
+	trampoline(index, x, y, w, h);
+
+#if RESHADE_ADDON
+	if (g_current_runtime)
+	{
+		const float viewport_data[6] = { x, y, w, h, 0.0f, 1.0f };
+		RESHADE_ADDON_EVENT(set_viewport, g_current_runtime, index, viewport_data);
+	}
+#endif
+}
+			void WINAPI glViewportIndexedfv(GLuint index, const GLfloat *v)
+{
+	static const auto trampoline = reshade::hooks::call(glViewportIndexedfv);
+	trampoline(index, v);
+
+#if RESHADE_ADDON
+	if (g_current_runtime)
+	{
+		const float viewport_data[6] = { v[0], v[1], v[2], v[3], 0.0f, 1.0f };
+		RESHADE_ADDON_EVENT(set_viewport, g_current_runtime, index, v);
+	}
+#endif
 }

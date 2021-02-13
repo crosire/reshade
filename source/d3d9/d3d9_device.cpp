@@ -562,6 +562,20 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetRenderTarget(DWORD RenderTargetInd
 	{
 		const reshade::api::resource_view_handle rtv = _impl->get_resource_view_handle(pRenderTarget);
 		RESHADE_ADDON_EVENT(set_render_target, _impl, RenderTargetIndex, rtv);
+
+		// Changing the render target implicitly sets the viewport to the render target dimensions
+		D3DSURFACE_DESC rtv_desc = {};
+		pRenderTarget->GetDesc(&rtv_desc);
+
+		const float viewport_data[6] = {
+			0.0f,
+			0.0f,
+			static_cast<float>(rtv_desc.Width),
+			static_cast<float>(rtv_desc.Height),
+			0.0f,
+			1.0f
+		};
+		RESHADE_ADDON_EVENT(set_viewport, _impl, 0, viewport_data);
 	}
 #endif
 	return hr;
@@ -641,7 +655,22 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::MultiplyTransform(D3DTRANSFORMSTATETY
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetViewport(const D3DVIEWPORT9 *pViewport)
 {
-	return _orig->SetViewport(pViewport);
+	const HRESULT hr = _orig->SetViewport(pViewport);
+#if RESHADE_ADDON
+	if (SUCCEEDED(hr))
+	{
+		const float viewport_data[6] = {
+			static_cast<float>(pViewport->X),
+			static_cast<float>(pViewport->Y),
+			static_cast<float>(pViewport->Width),
+			static_cast<float>(pViewport->Height),
+			pViewport->MinZ,
+			pViewport->MaxZ
+		};
+		RESHADE_ADDON_EVENT(set_viewport, _impl, 0, viewport_data);
+	}
+#endif
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetViewport(D3DVIEWPORT9 *pViewport)
 {
@@ -753,7 +782,20 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetCurrentTexturePalette(UINT *Palett
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetScissorRect(const RECT *pRect)
 {
-	return _orig->SetScissorRect(pRect);
+	const HRESULT hr = _orig->SetScissorRect(pRect);
+#if RESHADE_ADDON
+	if (SUCCEEDED(hr))
+	{
+		const int32_t rect_data[4] = {
+			static_cast<int32_t>(pRect->left),
+			static_cast<int32_t>(pRect->top),
+			static_cast<int32_t>(pRect->right - pRect->left),
+			static_cast<int32_t>(pRect->bottom - pRect->top)
+		};
+		RESHADE_ADDON_EVENT(set_scissor, _impl, 0, rect_data);
+	}
+#endif
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetScissorRect(RECT *pRect)
 {

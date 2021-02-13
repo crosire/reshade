@@ -54,6 +54,16 @@ namespace reshade
 		create_resource_view,
 
 		/// <summary>
+		/// Called after 'IDirect3DDevice9::SetScissorRect', 'ID3D10Device::RSSetScissorRects', 'ID3D11DeviceContext::RSSetScissorRects', 'ID3D12GraphicsCommandList::RSSetScissorRects', 'glScissor' or 'vkCmdSetScissor'.
+		/// Scissor data format is { x, y, width, height }.
+		/// </summary>
+		set_scissor,
+		/// <summary>
+		/// Called after 'IDirect3DDevice9::SetViewport', 'IDirect3DDevice9::SetRenderTarget' (which implicitly sets the viewport), 'ID3D10Device::RSSetViewports', 'ID3D11DeviceContext::RSSetViewports', 'ID3D12GraphicsCommandList::RSSetViewports', 'glViewport(...)' or 'vkCmdSetViewport'.
+		/// Viewport data format is { x, y, width, height, min_depth, max_depth }.
+		/// </summary>
+		set_viewport,
+		/// <summary>
 		/// Called after 'IDirect3DDevice9::SetDepthStencilSurface', 'ID3D10Device::OMSetRenderTargets', 'ID3D11DeviceContext::OMSetRenderTargets(AndUnorderedAccessViews)', 'ID3D12GraphicsCommandList::OMSetRenderTargets', 'ID3D12GraphicsCommandList::BeginRenderPass', 'glBindFramebuffer' or 'vkCmdBeginRenderPass'.
 		/// </summary>
 		set_depth_stencil,
@@ -145,6 +155,10 @@ namespace reshade
 	struct addon_event_traits<addon_event::create_resource> { typedef void(*decl)(api::device *device, api::resource_type type, api::resource_desc *desc); };
 	template <>
 	struct addon_event_traits<addon_event::create_resource_view> { typedef void(*decl)(api::device *device, api::resource_handle resource, api::resource_view_type type, api::resource_view_desc *desc); };
+	template <>
+	struct addon_event_traits<addon_event::set_scissor> { typedef void(*decl)(api::command_list *cmd, uint32_t index, const int32_t rect[4]); };
+	template <>
+	struct addon_event_traits<addon_event::set_viewport> { typedef void(*decl)(api::command_list *cmd, uint32_t index, const float viewport[6]); };
 	template <>
 	struct addon_event_traits<addon_event::set_depth_stencil> { typedef void(*decl)(api::command_list *cmd, api::resource_view_handle dsv); };
 	template <>

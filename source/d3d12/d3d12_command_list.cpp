@@ -175,10 +175,38 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::IASetPrimitiveTopology(D3D12_PR
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::RSSetViewports(UINT NumViewports, const D3D12_VIEWPORT *pViewports)
 {
 	_orig->RSSetViewports(NumViewports, pViewports);
+
+#if RESHADE_ADDON
+	for (UINT i = 0; i < NumViewports; ++i)
+	{
+		const float viewport_data[6] = {
+			pViewports[i].TopLeftX,
+			pViewports[i].TopLeftY,
+			pViewports[i].Width,
+			pViewports[i].Height,
+			pViewports[i].MinDepth,
+			pViewports[i].MaxDepth
+		};
+		RESHADE_ADDON_EVENT(set_viewport, _impl, i, viewport_data);
+	}
+#endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::RSSetScissorRects(UINT NumRects, const D3D12_RECT *pRects)
 {
 	_orig->RSSetScissorRects(NumRects, pRects);
+
+#if RESHADE_ADDON
+	for (UINT i = 0; i < NumRects; ++i)
+	{
+		const int32_t rect_data[4] = {
+			static_cast<int32_t>(pRects[i].left),
+			static_cast<int32_t>(pRects[i].top),
+			static_cast<int32_t>(pRects[i].right - pRects[i].left),
+			static_cast<int32_t>(pRects[i].bottom - pRects[i].top)
+		};
+		RESHADE_ADDON_EVENT(set_scissor, _impl, i, rect_data);
+	}
+#endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::OMSetBlendFactor(const FLOAT BlendFactor[4])
 {

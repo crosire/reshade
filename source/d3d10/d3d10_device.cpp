@@ -209,10 +209,38 @@ void    STDMETHODCALLTYPE D3D10Device::RSSetState(ID3D10RasterizerState *pRaster
 void    STDMETHODCALLTYPE D3D10Device::RSSetViewports(UINT NumViewports, const D3D10_VIEWPORT *pViewports)
 {
 	_orig->RSSetViewports(NumViewports, pViewports);
+
+#if RESHADE_ADDON
+	for (UINT i = 0; i < NumViewports; ++i)
+	{
+		const float viewport_data[6] = {
+			static_cast<float>(pViewports[i].TopLeftX),
+			static_cast<float>(pViewports[i].TopLeftY),
+			static_cast<float>(pViewports[i].Width),
+			static_cast<float>(pViewports[i].Height),
+			pViewports[i].MinDepth,
+			pViewports[i].MaxDepth
+		};
+		RESHADE_ADDON_EVENT(set_viewport, _impl, i, viewport_data);
+	}
+#endif
 }
 void    STDMETHODCALLTYPE D3D10Device::RSSetScissorRects(UINT NumRects, const D3D10_RECT *pRects)
 {
 	_orig->RSSetScissorRects(NumRects, pRects);
+
+#if RESHADE_ADDON
+	for (UINT i = 0; i < NumRects; ++i)
+	{
+		const int32_t rect_data[4] = {
+			static_cast<int32_t>(pRects[i].left),
+			static_cast<int32_t>(pRects[i].top),
+			static_cast<int32_t>(pRects[i].right - pRects[i].left),
+			static_cast<int32_t>(pRects[i].bottom - pRects[i].top)
+		};
+		RESHADE_ADDON_EVENT(set_scissor, _impl, i, rect_data);
+	}
+#endif
 }
 void    STDMETHODCALLTYPE D3D10Device::CopySubresourceRegion(ID3D10Resource *pDstResource, UINT DstSubresource, UINT DstX, UINT DstY, UINT DstZ, ID3D10Resource *pSrcResource, UINT SrcSubresource, const D3D10_BOX *pSrcBox)
 {

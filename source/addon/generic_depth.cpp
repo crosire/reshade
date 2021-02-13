@@ -22,7 +22,7 @@ struct draw_stats
 {
 	uint32_t vertices = 0;
 	uint32_t drawcalls = 0;
-	//render::viewport viewport = {};
+	float last_viewport[6] = {};
 };
 struct clear_stats : public draw_stats
 {
@@ -44,6 +44,7 @@ struct state_tracking
 	bool first_empty_stats = true;
 	bool has_indirect_drawcalls = false;
 	resource_handle current_depth_stencil = { 0 };
+	float current_viewport[6] = {};
 	std::unordered_map<uint64_t, depth_stencil_info> counters_per_used_depth_stencil;
 
 	void reset()
@@ -180,14 +181,13 @@ static void clear_depth_impl(command_list *cmd_list, state_tracking &state, cons
 	if (counters.current_stats.drawcalls == 0)
 		return;
 
-#if 0
-	// Skip clears when drawing only affected a subset of the depth-stencil surface
-	if (!device_state.check_aspect_ratio(counters.current_stats.viewport.width, counters.current_stats.viewport.height, counters.desc.width, counters.desc.height))
+	// Skip clears when last viewport only affected a subset of the depth-stencil
+	if (const resource_desc desc = cmd_list->get_device()->get_resource_desc(depth_stencil);
+		!device_state.check_aspect_ratio(counters.current_stats.last_viewport[2], counters.current_stats.last_viewport[3], desc.width, desc.height))
 	{
 		counters.current_stats = { 0, 0 };
 		return;
 	}
-#endif
 
 	counters.clears.push_back({ counters.current_stats, fullscreen_draw_call });
 
@@ -308,23 +308,14 @@ static void on_draw(command_list *cmd_list, uint32_t vertices, uint32_t instance
 	if (state.current_depth_stencil == 0)
 		return; // This is a draw call with no depth-stencil bound
 
-#if 0
 	const state_tracking_context &device_state = cmd_list->get_device()->get_data<state_tracking_context>(state_tracking_context::GUID);
-
+#if 0
 	// Check if this draw call likely represets a fullscreen rectangle (one or two triangles), which would clear the depth-stencil
-	if (device_state.preserve_depth_buffers && vertices <= 6)
+	if (device_state.preserve_depth_buffers && (vertices == 3 || vertices == 6))
 	{
-		render::pipeline_desc pipeline_state;
-		cmd_list->get_pipeline_state(&pipeline_state);
-
-		if (pipeline_state.rasterizer.cull_mode == render::cull_mode::none &&
-			pipeline_state.depth_stencil.depth_test_enable &&
-			pipeline_state.depth_stencil.depth_write_enable &&
-			pipeline_state.depth_stencil.depth_compare_func == render::comparison_func::always)
-		{
-			clear_depth_impl(cmd_list, state, device_state, state.current_depth_stencil, true);
-			return;
-		}
+		// TODO: Check pipeline state (cull mode none, depth test enabled, depth write enabled, depth compare function always)
+		clear_depth_impl(cmd_list, state, device_state, state.current_depth_stencil, true);
+		return;
 	}
 #endif
 
@@ -334,12 +325,8 @@ static void on_draw(command_list *cmd_list, uint32_t vertices, uint32_t instance
 	counters.current_stats.vertices += vertices * instances;
 	counters.current_stats.drawcalls += 1;
 
-#if 0
 	if (device_state.preserve_depth_buffers)
-	{
-		cmd_list->get_viewport(&counters.current_stats.viewport);
-	}
-#endif
+		std::memcpy(counters.current_stats.last_viewport, state.current_viewport, 6 * sizeof(float));
 }
 static void on_draw_indirect(command_list *cmd_list)
 {
@@ -362,6 +349,14 @@ static void on_alias_resource(command_list *cmd_list, resource_handle old_resour
 		cmd_list->get_data<state_tracking>(state_tracking::GUID),
 		device_state,
 		old_resource, true);
+}
+static void on_set_viewport(command_list *cmd_list, uint32_t index, const float viewport[6])
+{
+	if (index != 0)
+		return; // Only interested in the main viewport
+
+	state_tracking &state = cmd_list->get_data<state_tracking>(state_tracking::GUID);
+	std::memcpy(state.current_viewport, viewport, 6 * sizeof(float));
 }
 static void on_set_depth_stencil(command_list *cmd_list, resource_view_handle dsv)
 {
@@ -758,6 +753,7 @@ void register_builtin_addon_depth()
 	reshade::register_event<reshade::addon_event::draw_indexed>(on_draw);
 	reshade::register_event<reshade::addon_event::draw_indirect>(on_draw_indirect);
 	reshade::register_event<reshade::addon_event::alias_resource>(on_alias_resource);
+	reshade::register_event<reshade::addon_event::set_viewport>(on_set_viewport);
 	reshade::register_event<reshade::addon_event::set_depth_stencil>(on_set_depth_stencil);
 	reshade::register_event<reshade::addon_event::clear_depth_stencil>(on_clear_depth_stencil);
 
@@ -789,6 +785,7 @@ void unregister_builtin_addon_depth()
 	reshade::unregister_event<reshade::addon_event::draw_indexed>(on_draw);
 	reshade::unregister_event<reshade::addon_event::draw_indirect>(on_draw_indirect);
 	reshade::unregister_event<reshade::addon_event::alias_resource>(on_alias_resource);
+	reshade::unregister_event<reshade::addon_event::set_viewport>(on_set_viewport);
 	reshade::unregister_event<reshade::addon_event::set_depth_stencil>(on_set_depth_stencil);
 	reshade::unregister_event<reshade::addon_event::clear_depth_stencil>(on_clear_depth_stencil);
 

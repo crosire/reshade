@@ -1032,6 +1032,53 @@ VkResult VKAPI_CALL vkBeginCommandBuffer(VkCommandBuffer commandBuffer, const Vk
 	return trampoline(commandBuffer, pBeginInfo);
 }
 
+void     VKAPI_CALL vkCmdSetViewport(VkCommandBuffer commandBuffer, uint32_t firstViewport, uint32_t viewportCount, const VkViewport *pViewports)
+{
+	GET_DEVICE_DISPATCH_PTR(CmdSetViewport, commandBuffer);
+	trampoline(commandBuffer, firstViewport, viewportCount, pViewports);
+
+#if RESHADE_ADDON
+	reshade::vulkan::command_list_impl *const cmd_impl = s_vulkan_command_buffers.at(commandBuffer);
+	if (cmd_impl != nullptr)
+	{
+		for (uint32_t i = 0; i < viewportCount; ++i)
+		{
+			const float viewport_data[6] = {
+				pViewports[i].x,
+				pViewports[i].y,
+				pViewports[i].width,
+				pViewports[i].height,
+				pViewports[i].minDepth,
+				pViewports[i].maxDepth
+			};
+			RESHADE_ADDON_EVENT(set_viewport, cmd_impl, firstViewport + i, viewport_data);
+		}
+	}
+#endif
+}
+void     VKAPI_CALL vkCmdSetScissor(VkCommandBuffer commandBuffer, uint32_t firstScissor, uint32_t scissorCount, const VkRect2D *pScissors)
+{
+	GET_DEVICE_DISPATCH_PTR(CmdSetScissor, commandBuffer);
+	trampoline(commandBuffer, firstScissor, scissorCount, pScissors);
+
+#if RESHADE_ADDON
+	reshade::vulkan::command_list_impl *const cmd_impl = s_vulkan_command_buffers.at(commandBuffer);
+	if (cmd_impl != nullptr)
+	{
+		for (uint32_t i = 0; i < scissorCount; ++i)
+		{
+			const int32_t rect_data[4] = {
+				pScissors[i].offset.x,
+				pScissors[i].offset.y,
+				static_cast<int32_t>(pScissors[i].extent.width),
+				static_cast<int32_t>(pScissors[i].extent.height)
+			};
+			RESHADE_ADDON_EVENT(set_scissor, cmd_impl, firstScissor + i, rect_data);
+		}
+	}
+#endif
+}
+
 void     VKAPI_CALL vkCmdDraw(VkCommandBuffer commandBuffer, uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance)
 {
 #if RESHADE_ADDON
@@ -1392,6 +1439,8 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	CHECK_DEVICE_PROC(FreeCommandBuffers);
 	CHECK_DEVICE_PROC(BeginCommandBuffer);
 
+	CHECK_DEVICE_PROC(CmdSetViewport);
+	CHECK_DEVICE_PROC(CmdSetScissor);
 	CHECK_DEVICE_PROC(CmdDraw);
 	CHECK_DEVICE_PROC(CmdDrawIndexed);
 	CHECK_DEVICE_PROC(CmdDrawIndirect);

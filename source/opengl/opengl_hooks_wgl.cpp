@@ -1142,6 +1142,9 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		INSTALL_HOOK(glMultiDrawElementsIndirect);
 		INSTALL_HOOK(glNamedBufferData);
 		INSTALL_HOOK(glNamedBufferStorage);
+		INSTALL_HOOK(glScissorArrayv);
+		INSTALL_HOOK(glScissorIndexed);
+		INSTALL_HOOK(glScissorIndexedv);
 		INSTALL_HOOK(glTexBuffer);
 		INSTALL_HOOK(glTextureBuffer);
 		INSTALL_HOOK(glTexBufferRange);
@@ -1154,6 +1157,9 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		INSTALL_HOOK(glTextureStorage2D);
 		INSTALL_HOOK(glTextureStorage3D);
 		INSTALL_HOOK(glTextureView);
+		INSTALL_HOOK(glViewportArrayv);
+		INSTALL_HOOK(glViewportIndexedf);
+		INSTALL_HOOK(glViewportIndexedfv);
 
 		INSTALL_HOOK(wglChoosePixelFormatARB);
 		INSTALL_HOOK(wglCreateContextAttribsARB);

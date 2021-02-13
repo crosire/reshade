@@ -147,6 +147,12 @@ extern "C" void WINAPI glReadBuffer(GLenum mode);
 extern "C" void WINAPI glReadPixels(GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type, GLvoid *pixels);
 #undef glScissor
 extern "C" void WINAPI glScissor(GLint x, GLint y, GLsizei width, GLsizei height);
+#undef glScissorArrayv
+extern "C" void WINAPI glScissorArrayv(GLuint first, GLsizei count, const GLint *v);
+#undef glScissorIndexed
+extern "C" void WINAPI glScissorIndexed(GLuint index, GLint left, GLint bottom, GLsizei width, GLsizei height);
+#undef glScissorIndexedv
+extern "C" void WINAPI glScissorIndexedv(GLuint index, const GLint *v);
 #undef glStencilFunc
 extern "C" void WINAPI glStencilFunc(GLenum func, GLint ref, GLuint mask);
 #undef glStencilMask
@@ -195,3 +201,9 @@ extern "C" void WINAPI glTextureStorage3D(GLuint texture, GLsizei levels, GLenum
 extern "C" void WINAPI glTextureView(GLuint texture, GLenum target, GLuint origtexture, GLenum internalformat, GLuint minlevel, GLuint numlevels, GLuint minlayer, GLuint numlayers);
 #undef glViewport
 extern "C" void WINAPI glViewport(GLint x, GLint y, GLsizei width, GLsizei height);
+#undef glViewportArrayv
+extern "C" void WINAPI glViewportArrayv(GLuint first, GLsizei count, const GLfloat *v);
+#undef glViewportIndexedf
+extern "C" void WINAPI glViewportIndexedf(GLuint index, GLfloat x, GLfloat y, GLfloat w, GLfloat h);
+#undef glViewportIndexedfv
+extern "C" void WINAPI glViewportIndexedfv(GLuint index, const GLfloat *v);
