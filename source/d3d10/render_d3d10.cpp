@@ -26,6 +26,21 @@ static inline void convert_usage_to_bind_flags(const resource_usage usage, UINT 
 		bind_flags &= ~D3D10_BIND_SHADER_RESOURCE;
 
 	assert((usage & resource_usage::unordered_access) == 0);
+
+	if ((usage & resource_usage::index_buffer) != 0)
+		bind_flags |= D3D10_BIND_INDEX_BUFFER;
+	else
+		bind_flags &= ~D3D10_BIND_INDEX_BUFFER;
+
+	if ((usage & resource_usage::vertex_buffer) != 0)
+		bind_flags |= D3D10_BIND_VERTEX_BUFFER;
+	else
+		bind_flags &= ~D3D10_BIND_VERTEX_BUFFER;
+
+	if ((usage & resource_usage::constant_buffer) != 0)
+		bind_flags |= D3D10_BIND_CONSTANT_BUFFER;
+	else
+		bind_flags &= ~D3D10_BIND_CONSTANT_BUFFER;
 }
 static inline void convert_bind_flags_to_usage(const UINT bind_flags, resource_usage &usage)
 {
@@ -38,6 +53,13 @@ static inline void convert_bind_flags_to_usage(const UINT bind_flags, resource_u
 		usage |= resource_usage::depth_stencil;
 	if ((bind_flags & D3D10_BIND_SHADER_RESOURCE) != 0)
 		usage |= resource_usage::shader_resource;
+
+	if ((bind_flags & D3D10_BIND_INDEX_BUFFER) != 0)
+		usage |= resource_usage::index_buffer;
+	if ((bind_flags & D3D10_BIND_VERTEX_BUFFER) != 0)
+		usage |= resource_usage::vertex_buffer;
+	if ((bind_flags & D3D10_BIND_CONSTANT_BUFFER) != 0)
+		usage |= resource_usage::constant_buffer;
 }
 
 void reshade::d3d10::convert_resource_desc(const resource_desc &desc, D3D10_BUFFER_DESC &internal_desc)
@@ -510,6 +532,20 @@ bool reshade::d3d10::device_impl::create_resource(resource_type type, const reso
 {
 	switch (type)
 	{
+		case resource_type::buffer:
+		{
+			D3D10_BUFFER_DESC internal_desc = {};
+			convert_resource_desc(desc, internal_desc);
+
+			if (com_ptr<ID3D10Buffer> resource;
+				SUCCEEDED(_device->CreateBuffer(&internal_desc, nullptr, &resource)))
+			{
+				register_resource(resource.get());
+				*out_resource = { reinterpret_cast<uintptr_t>(resource.release()) };
+				return true;
+			}
+			break;
+		}
 		case resource_type::texture_1d:
 		{
 			D3D10_TEXTURE1D_DESC internal_desc = {};

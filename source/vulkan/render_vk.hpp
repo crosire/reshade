@@ -111,21 +111,6 @@ namespace reshade::vulkan
 		inline operator VkDevice() const { return _device; }
 
 #if RESHADE_ADDON
-		void register_image(VkImage image, const VkImageCreateInfo &create_info)
-		{
-			resource_data data { true };
-			data.image = image;
-			data.image_create_info = create_info;
-			_resources.emplace((uint64_t)image, data);
-		}
-		void register_buffer(VkBuffer buffer, const VkBufferCreateInfo &create_info)
-		{
-			resource_data data { false };
-			data.buffer = buffer;
-			data.buffer_create_info = create_info;
-			_resources.emplace((uint64_t)buffer, data);
-		}
-
 		api::resource_view_handle get_default_view(VkImage image)
 		{
 			VkImageViewCreateInfo create_info{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
@@ -134,7 +119,7 @@ namespace reshade::vulkan
 			return { (uint64_t)image };
 		}
 #endif
-		void register_image(VkImage image, const VkImageCreateInfo &create_info, VmaAllocation allocation)
+		void register_image(VkImage image, const VkImageCreateInfo &create_info, VmaAllocation allocation = nullptr)
 		{
 			resource_data data { true };
 			data.image = image;
@@ -148,6 +133,14 @@ namespace reshade::vulkan
 			data.image_view = image_view;
 			data.image_create_info = create_info;
 			_views.emplace((uint64_t)image_view, data);
+		}
+		void register_buffer(VkBuffer buffer, const VkBufferCreateInfo &create_info, VmaAllocation allocation = nullptr)
+		{
+			resource_data data { true };
+			data.buffer = buffer;
+			data.buffer_create_info = create_info;
+			data.allocation = allocation;
+			_resources.emplace((uint64_t)buffer, data);
 		}
 		void register_buffer_view(VkBufferView buffer_view, const VkBufferViewCreateInfo &create_info)
 		{

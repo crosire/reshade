@@ -124,6 +124,7 @@ resource_desc reshade::d3d9::convert_resource_desc(const D3DINDEXBUFFER_DESC &in
 	resource_desc desc = {};
 	desc.buffer_size = internal_desc.Size;
 	convert_d3d_usage_to_usage(internal_desc.Usage, desc.usage);
+	desc.usage |= resource_usage::index_buffer;
 	return desc;
 }
 resource_desc reshade::d3d9::convert_resource_desc(const D3DVERTEXBUFFER_DESC &internal_desc)
@@ -131,6 +132,7 @@ resource_desc reshade::d3d9::convert_resource_desc(const D3DVERTEXBUFFER_DESC &i
 	resource_desc desc = {};
 	desc.buffer_size = internal_desc.Size;
 	convert_d3d_usage_to_usage(internal_desc.Usage, desc.usage);
+	desc.usage |= resource_usage::vertex_buffer;
 	return desc;
 }
 
@@ -288,6 +290,32 @@ bool reshade::d3d9::device_impl::create_resource(resource_type type, const resou
 
 	switch (type)
 	{
+		case resource_type::buffer:
+		{
+			assert(desc.buffer_size <= std::numeric_limits<UINT>::max());
+
+			if ((desc.usage & resource_usage::index_buffer) != 0)
+			{
+				if (IDirect3DIndexBuffer9 *resource;
+					SUCCEEDED(_device->CreateIndexBuffer(static_cast<UINT>(desc.buffer_size), d3d_usage, D3DFMT_INDEX32, D3DPOOL_DEFAULT, &resource, nullptr)))
+				{
+					register_resource(resource);
+					*out_resource = { reinterpret_cast<uintptr_t>(resource) };
+					return true;
+				}
+			}
+			else
+			{
+				if (IDirect3DVertexBuffer9 *resource;
+					SUCCEEDED(_device->CreateVertexBuffer(static_cast<UINT>(desc.buffer_size), d3d_usage, 0, D3DPOOL_DEFAULT, &resource, nullptr)))
+				{
+					register_resource(resource);
+					*out_resource = { reinterpret_cast<uintptr_t>(resource) };
+					return true;
+				}
+			}
+			break;
+		}
 		case resource_type::texture_1d:
 		case resource_type::texture_2d:
 		{
@@ -379,7 +407,7 @@ void reshade::d3d9::device_impl::get_resource_from_view(resource_view_handle vie
 		}
 	}
 
-	// If unable to get container, just return the surface directly
+	// If unable to get container, just return the resource directly
 	*out_resource = { view.handle };
 }
 

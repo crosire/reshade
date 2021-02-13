@@ -124,17 +124,64 @@ static void convert_image_usage_flags_to_usage(const VkImageUsageFlags image_fla
 	if ((image_flags & VK_IMAGE_USAGE_TRANSFER_SRC_BIT) != 0)
 		usage |= resource_usage::copy_source;
 }
+static void convert_usage_to_buffer_usage_flags(const resource_usage usage, VkBufferUsageFlags &buffer_flags)
+{
+	if ((usage & resource_usage::index_buffer) != 0)
+		buffer_flags |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+	else
+		buffer_flags &= ~VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+
+	if ((usage & resource_usage::vertex_buffer) != 0)
+		buffer_flags |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+	else
+		buffer_flags &= ~VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+
+	if ((usage & resource_usage::constant_buffer) != 0)
+		buffer_flags |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+	else
+		buffer_flags &= ~VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+
+	if ((usage & resource_usage::unordered_access) != 0)
+		buffer_flags |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+	else
+		buffer_flags &= ~VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+
+	if ((usage & resource_usage::copy_dest) != 0)
+		buffer_flags |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+	else
+		buffer_flags &= ~VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+
+	if ((usage & resource_usage::copy_source) != 0)
+		buffer_flags |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+	else
+		buffer_flags &= ~VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+}
+static void convert_buffer_usage_flags_to_usage(const VkBufferUsageFlags buffer_flags, resource_usage &usage)
+{
+	if ((buffer_flags & VK_BUFFER_USAGE_INDEX_BUFFER_BIT) != 0)
+		usage |= resource_usage::index_buffer;
+	if ((buffer_flags & VK_BUFFER_USAGE_VERTEX_BUFFER_BIT) != 0)
+		usage |= resource_usage::vertex_buffer;
+	if ((buffer_flags & VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT) != 0)
+		usage |= resource_usage::constant_buffer;
+	if ((buffer_flags & VK_BUFFER_USAGE_STORAGE_BUFFER_BIT) != 0)
+		usage |= resource_usage::unordered_access;
+	if ((buffer_flags & VK_BUFFER_USAGE_TRANSFER_DST_BIT) != 0)
+		usage |= resource_usage::copy_dest;
+	if ((buffer_flags & VK_BUFFER_USAGE_TRANSFER_SRC_BIT) != 0)
+		usage |= resource_usage::copy_source;
+}
 
 void reshade::vulkan::convert_resource_desc(const resource_desc &desc, VkBufferCreateInfo &create_info)
 {
 	create_info.size = desc.buffer_size;
-	convert_usage_to_image_usage_flags(desc.usage, create_info.usage);
+	convert_usage_to_buffer_usage_flags(desc.usage, create_info.usage);
 }
 resource_desc reshade::vulkan::convert_resource_desc(const VkBufferCreateInfo &create_info)
 {
 	resource_desc desc = {};
 	desc.buffer_size = create_info.size;
-	convert_image_usage_flags_to_usage(create_info.usage, desc.usage);
+	convert_buffer_usage_flags_to_usage(create_info.usage, desc.usage);
 	return desc;
 }
 void reshade::vulkan::convert_resource_desc(resource_type type, const resource_desc &desc, VkImageCreateInfo &create_info)
@@ -380,18 +427,36 @@ bool reshade::vulkan::device_impl::create_resource(resource_type type, const res
 	VmaAllocationCreateInfo alloc_info = {};
 	alloc_info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
 
-	if (type == resource_type::texture_1d || type == resource_type::texture_2d || type == resource_type::texture_3d)
+	switch (type)
 	{
-		VkImageCreateInfo create_info { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
-		convert_resource_desc(type, desc, create_info);
-		create_info.flags |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
-
-		if (VkImage image = VK_NULL_HANDLE;
-			vmaCreateImage(_alloc, &create_info, &alloc_info, &image, &allocation, nullptr) == VK_SUCCESS)
+		case resource_type::buffer:
 		{
-			register_image(image, create_info, allocation);
-			*out_resource = { (uint64_t)image };
-			return true;
+			VkBufferCreateInfo create_info { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
+			convert_resource_desc(desc, create_info);
+
+			if (VkBuffer buffer = VK_NULL_HANDLE;
+				vmaCreateBuffer(_alloc, &create_info, &alloc_info, &buffer, &allocation, nullptr) == VK_SUCCESS)
+			{
+				register_buffer(buffer, create_info, allocation);
+				*out_resource = { (uint64_t)buffer };
+				return true;
+			}
+		}
+		case resource_type::texture_1d:
+		case resource_type::texture_2d:
+		case resource_type::texture_3d:
+		{
+			VkImageCreateInfo create_info { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
+			convert_resource_desc(type, desc, create_info);
+			create_info.flags |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
+
+			if (VkImage image = VK_NULL_HANDLE;
+				vmaCreateImage(_alloc, &create_info, &alloc_info, &image, &allocation, nullptr) == VK_SUCCESS)
+			{
+				register_image(image, create_info, allocation);
+				*out_resource = { (uint64_t)image };
+				return true;
+			}
 		}
 	}
 

@@ -95,6 +95,9 @@ std::pair<resource_type, resource_desc> reshade::d3d12::convert_resource_desc(co
 	if (type == resource_type::buffer)
 	{
 		desc.buffer_size = internal_desc.Width;
+
+		// Buffers may be of any type
+		desc.usage |= resource_usage::vertex_buffer | resource_usage::index_buffer | resource_usage::constant_buffer;
 	}
 	else
 	{
@@ -108,7 +111,7 @@ std::pair<resource_type, resource_desc> reshade::d3d12::convert_resource_desc(co
 	}
 
 	// Resources are generally copyable in D3D12
-	desc.usage = resource_usage::copy_dest | resource_usage::copy_source;
+	desc.usage |= resource_usage::copy_dest | resource_usage::copy_source;
 
 	if ((internal_desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET) != 0)
 		desc.usage |= resource_usage::render_target;
@@ -638,6 +641,8 @@ bool reshade::d3d12::device_impl::create_resource(resource_type type, const reso
 {
 	D3D12_RESOURCE_DESC internal_desc = {};
 	convert_resource_desc(type, desc, internal_desc);
+	if (type == resource_type::buffer)
+		internal_desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 
 	D3D12_HEAP_PROPERTIES heap_props = { D3D12_HEAP_TYPE_DEFAULT };
 

@@ -57,7 +57,10 @@ namespace reshade { namespace api
 		copy_dest = 0x400,
 		copy_source = 0x800,
 		resolve_dest = 0x1000,
-		resolve_source = 0x2000
+		resolve_source = 0x2000,
+		index_buffer = 0x2,
+		vertex_buffer = 0x1,
+		constant_buffer = 0x1,
 	};
 
 	constexpr bool operator!=(resource_usage lhs, uint32_t rhs) { return static_cast<uint32_t>(lhs) != rhs; }
