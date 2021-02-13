@@ -587,7 +587,9 @@ bool reshade::opengl::device_impl::create_resource_view(resource_handle resource
 			}
 			else
 			{
-				glTexBufferRange(target, internal_format, resource.handle & 0xFFFFFFFF, desc.buffer_offset, desc.buffer_size);
+				assert(desc.buffer_offset <= std::numeric_limits<GLintptr>::max());
+				assert(desc.buffer_size <= std::numeric_limits<GLsizeiptr>::max());
+				glTexBufferRange(target, internal_format, resource.handle & 0xFFFFFFFF, static_cast<GLintptr>(desc.buffer_offset), static_cast<GLsizeiptr>(desc.buffer_size));
 			}
 
 			glBindTexture(target, prev_object);

@@ -18,18 +18,6 @@ static bool s_disable_intz = false;
 
 using namespace reshade::api;
 
-namespace std
-{
-	template <>
-	struct hash<resource_handle>
-	{
-		size_t operator()(const resource_handle &handle) const
-		{
-			return std::hash<uint64_t>()(handle.handle);
-		}
-	};
-}
-
 struct draw_stats
 {
 	uint32_t vertices = 0;
@@ -56,7 +44,7 @@ struct state_tracking
 	bool first_empty_stats = true;
 	bool has_indirect_drawcalls = false;
 	resource_handle current_depth_stencil = { 0 };
-	std::unordered_map<resource_handle, depth_stencil_info> counters_per_used_depth_stencil;
+	std::unordered_map<uint64_t, depth_stencil_info> counters_per_used_depth_stencil;
 
 	void reset()
 	{
@@ -84,9 +72,9 @@ struct state_tracking
 			best_copy_stats = source.best_copy_stats;
 
 		counters_per_used_depth_stencil.reserve(source.counters_per_used_depth_stencil.size());
-		for (const auto &[resource, snapshot] : source.counters_per_used_depth_stencil)
+		for (const auto &[depth_stencil_handle, snapshot] : source.counters_per_used_depth_stencil)
 		{
-			depth_stencil_info &target_snapshot = counters_per_used_depth_stencil[resource];
+			depth_stencil_info &target_snapshot = counters_per_used_depth_stencil[depth_stencil_handle];
 			target_snapshot.total_stats.vertices += snapshot.total_stats.vertices;
 			target_snapshot.total_stats.drawcalls += snapshot.total_stats.drawcalls;
 			target_snapshot.current_stats.vertices += snapshot.current_stats.vertices;
@@ -129,8 +117,8 @@ struct state_tracking_context
 	resource_view_handle selected_shader_resource = { 0 };
 
 	// List of all encountered depth-stencils of the last frame
-	std::vector<std::pair<resource_handle , depth_stencil_info>> current_depth_stencil_list;
-	std::unordered_map<resource_handle, int> display_count_per_depth_stencil;
+	std::vector<std::pair<resource_handle, depth_stencil_info>> current_depth_stencil_list;
+	std::unordered_map<uint64_t, unsigned int> display_count_per_depth_stencil;
 
 	// Checks whether the aspect ratio of the two sets of dimensions is similar or not
 	bool check_aspect_ratio(float width_to_check, float height_to_check, uint32_t width, uint32_t height) const
@@ -179,7 +167,7 @@ static void clear_depth_impl(command_list *cmd_list, state_tracking &state, cons
 	if (depth_stencil == 0 || device_state.backup_texture == 0 || depth_stencil != device_state.selected_depth_stencil)
 		return;
 
-	depth_stencil_info &counters = state.counters_per_used_depth_stencil[depth_stencil];
+	depth_stencil_info &counters = state.counters_per_used_depth_stencil[depth_stencil.handle];
 
 	// Update stats with data from previous frame
 	if (!fullscreen_draw_call && counters.current_stats.drawcalls == 0 && state.first_empty_stats)
@@ -303,15 +291,15 @@ static void on_create_resource_view(device *device, resource_handle resource, re
 	}
 
 	// Only need to set the rest of the fields if the application did not pass in a valid description already
-	if (resource_view_dimension::unknown == desc->dimension)
-	{
-		desc->dimension = texture_desc.depth_or_layers > 1 ? resource_view_dimension::texture_2d_array : resource_view_dimension::texture_2d;
-		desc->first_level = 0;
-		if (type == resource_view_type::shader_resource)
-			desc->levels = static_cast<uint32_t>(-1); // All the mipmap levels from 'first_level' on down to least detailed
-		desc->first_layer = 0;
-		desc->layers = texture_desc.depth_or_layers;
-	}
+	if (desc->dimension != resource_view_dimension::unknown)
+		return;
+
+	desc->dimension = texture_desc.depth_or_layers > 1 ? resource_view_dimension::texture_2d_array : resource_view_dimension::texture_2d;
+	desc->first_level = 0;
+	if (type == resource_view_type::shader_resource)
+		desc->levels = static_cast<uint32_t>(-1); // All the mipmap levels from 'first_level' on down to least detailed
+	desc->first_layer = 0;
+	desc->layers = texture_desc.depth_or_layers;
 }
 
 static void on_draw(command_list *cmd_list, uint32_t vertices, uint32_t instances)
@@ -340,7 +328,7 @@ static void on_draw(command_list *cmd_list, uint32_t vertices, uint32_t instance
 	}
 #endif
 
-	depth_stencil_info &counters = state.counters_per_used_depth_stencil[state.current_depth_stencil];
+	depth_stencil_info &counters = state.counters_per_used_depth_stencil[state.current_depth_stencil.handle];
 	counters.total_stats.vertices += vertices * instances;
 	counters.total_stats.drawcalls += 1;
 	counters.current_stats.vertices += vertices * instances;
@@ -435,8 +423,9 @@ static void on_present(command_queue *, effect_runtime *runtime)
 	resource_handle best_match = { 0 };
 	depth_stencil_info best_snapshot;
 
-	for (const auto &[resource, snapshot] : queue_state.counters_per_used_depth_stencil)
+	for (const auto &[depth_stencil_handle, snapshot] : queue_state.counters_per_used_depth_stencil)
 	{
+		resource_handle const resource = { depth_stencil_handle };
 		if (!device->check_resource_handle_valid(resource))
 			continue; // Skip resources that were destroyed by the application
 
@@ -470,7 +459,7 @@ static void on_present(command_queue *, effect_runtime *runtime)
 	{
 		best_desc = device->get_resource_desc(device_state.override_depth_stencil);
 		best_match = device_state.override_depth_stencil;
-		best_snapshot = queue_state.counters_per_used_depth_stencil[best_match];
+		best_snapshot = queue_state.counters_per_used_depth_stencil[best_match.handle];
 	}
 
 	if (best_match != 0)
@@ -636,15 +625,16 @@ static void draw_debug_menu(effect_runtime *runtime, void *)
 	ImGui::Separator();
 	ImGui::Spacing();
 
-	if (device_state.current_depth_stencil_list.empty())
+	if (device_state.current_depth_stencil_list.empty() && !modified)
 	{
-		ImGui::TextUnformatted("No depth buffers found or add-on disabled.");
+		ImGui::TextUnformatted("No depth buffers found.");
+		return;
 	}
 
 	// Sort pointer list so that added/removed items do not change the UI much
 	struct depth_stencil_item
 	{
-		int display_count;
+		unsigned int display_count;
 		resource_handle resource;
 		depth_stencil_info snapshot;
 		resource_desc desc;
@@ -658,14 +648,14 @@ static void draw_debug_menu(effect_runtime *runtime, void *)
 		if (!device->check_resource_handle_valid(resource))
 			continue;
 
-		if (auto it = device_state.display_count_per_depth_stencil.find(resource);
+		if (auto it = device_state.display_count_per_depth_stencil.find(resource.handle);
 			it == device_state.display_count_per_depth_stencil.end())
 		{
-			sorted_item_list.push_back({ 1, resource, snapshot, device->get_resource_desc(resource) });
+			sorted_item_list.push_back({ 1u, resource, snapshot, device->get_resource_desc(resource) });
 		}
 		else
 		{
-			sorted_item_list.push_back({ it->second + 1, resource, snapshot, device->get_resource_desc(resource) });
+			sorted_item_list.push_back({ it->second + 1u, resource, snapshot, device->get_resource_desc(resource) });
 		}
 	}
 
@@ -678,7 +668,7 @@ static void draw_debug_menu(effect_runtime *runtime, void *)
 	device_state.display_count_per_depth_stencil.clear();
 	for (const depth_stencil_item &item : sorted_item_list)
 	{
-		device_state.display_count_per_depth_stencil[item.resource] = item.display_count;
+		device_state.display_count_per_depth_stencil[item.resource.handle] = item.display_count;
 
 		char label[512] = "";
 		sprintf_s(label, "%s0x%016llx", (item.resource == device_state.selected_depth_stencil ? "> " : "  "), item.resource.handle);
@@ -739,7 +729,7 @@ static void draw_debug_menu(effect_runtime *runtime, void *)
 		device_state.selected_depth_stencil = { 0 };
 		device_state.selected_shader_resource = { 0 };
 
-		runtime->update_texture_bindings("DEPTH", device_state.selected_shader_resource);
+		on_init_effect_runtime(runtime);
 
 		reshade::ini_file &config = reshade::global_config();
 		config.set("DEPTH", "DisableINTZ", s_disable_intz);
@@ -779,8 +769,6 @@ void register_builtin_addon_depth()
 
 	reshade::register_event<reshade::addon_event::reshade_before_effects>(on_before_render_effects);
 	reshade::register_event<reshade::addon_event::reshade_after_effects>(on_after_render_effects);
-
-
 }
 void unregister_builtin_addon_depth()
 {

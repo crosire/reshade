@@ -90,7 +90,8 @@ HOOK_EXPORT void WINAPI glBlendFunc(GLenum sfactor, GLenum dfactor)
 	{
 		reshade::api::resource_desc api_desc = reshade::opengl::convert_resource_desc(size);
 		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, reshade::api::resource_type::buffer, &api_desc);
-		size = api_desc.buffer_size;
+		assert(api_desc.buffer_size <= std::numeric_limits<GLsizeiptr>::max());
+		size = static_cast<GLsizeiptr>(api_desc.buffer_size);
 	}
 #endif
 
@@ -98,14 +99,15 @@ HOOK_EXPORT void WINAPI glBlendFunc(GLenum sfactor, GLenum dfactor)
 	trampoline(target, size, data, usage);
 }
 
-            void WINAPI glBufferStorage(GLenum target, GLsizeiptr size, const void *data, GLbitfield flags)
+			void WINAPI glBufferStorage(GLenum target, GLsizeiptr size, const void *data, GLbitfield flags)
 {
 #if RESHADE_ADDON
 	if (g_current_runtime)
 	{
 		reshade::api::resource_desc api_desc = reshade::opengl::convert_resource_desc(size);
 		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, reshade::api::resource_type::buffer, &api_desc);
-		size = api_desc.buffer_size;
+		assert(api_desc.buffer_size <= std::numeric_limits<GLsizeiptr>::max());
+		size = static_cast<GLsizeiptr>(api_desc.buffer_size);
 	}
 #endif
 
@@ -1212,7 +1214,8 @@ HOOK_EXPORT void WINAPI glMultMatrixf(const GLfloat *m)
 	{
 		reshade::api::resource_desc api_desc = reshade::opengl::convert_resource_desc(size);
 		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, reshade::api::resource_type::buffer, &api_desc);
-		size = api_desc.buffer_size;
+		assert(api_desc.buffer_size <= std::numeric_limits<GLsizeiptr>::max());
+		size = static_cast<GLsizeiptr>(api_desc.buffer_size);
 	}
 #endif
 
@@ -1227,7 +1230,8 @@ HOOK_EXPORT void WINAPI glMultMatrixf(const GLfloat *m)
 	{
 		reshade::api::resource_desc api_desc = reshade::opengl::convert_resource_desc(size);
 		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, reshade::api::resource_type::buffer, &api_desc);
-		size = api_desc.buffer_size;
+		assert(api_desc.buffer_size <= std::numeric_limits<GLsizeiptr>::max());
+		size = static_cast<GLsizeiptr>(api_desc.buffer_size);
 	}
 #endif
 
@@ -1661,7 +1665,7 @@ HOOK_EXPORT void WINAPI glStencilOp(GLenum fail, GLenum zfail, GLenum zpass)
 	trampoline(fail, zfail, zpass);
 }
 
-            void WINAPI glTexBuffer(GLenum target, GLenum internalformat, GLuint buffer)
+			void WINAPI glTexBuffer(GLenum target, GLenum internalformat, GLuint buffer)
 {
 #if RESHADE_ADDON
 	if (g_current_runtime)
@@ -1674,7 +1678,9 @@ HOOK_EXPORT void WINAPI glStencilOp(GLenum fail, GLenum zfail, GLenum zpass)
 
 		if (api_desc.buffer_offset != 0 || api_desc.buffer_size != 0)
 		{
-			reshade::hooks::call(glTexBufferRange)(target, internalformat, buffer, api_desc.buffer_offset, api_desc.buffer_size);
+			assert(api_desc.buffer_offset <= std::numeric_limits<GLintptr>::max());
+			assert(api_desc.buffer_size <= std::numeric_limits<GLsizeiptr>::max());
+			reshade::hooks::call(glTexBufferRange)(target, internalformat, buffer, static_cast<GLintptr>(api_desc.buffer_offset), static_cast<GLsizeiptr>(api_desc.buffer_size));
 			return;
 		}
 	}
@@ -1695,7 +1701,9 @@ HOOK_EXPORT void WINAPI glStencilOp(GLenum fail, GLenum zfail, GLenum zpass)
 
 		if (api_desc.buffer_offset != 0 || api_desc.buffer_size != 0)
 		{
-			reshade::hooks::call(glTextureBufferRange)(texture, internalformat, buffer, api_desc.buffer_offset, api_desc.buffer_size);
+			assert(api_desc.buffer_offset <= std::numeric_limits<GLintptr>::max());
+			assert(api_desc.buffer_size <= std::numeric_limits<GLsizeiptr>::max());
+			reshade::hooks::call(glTextureBufferRange)(texture, internalformat, buffer, static_cast<GLintptr>(api_desc.buffer_offset), static_cast<GLsizeiptr>(api_desc.buffer_size));
 			return;
 		}
 	}
@@ -1705,7 +1713,7 @@ HOOK_EXPORT void WINAPI glStencilOp(GLenum fail, GLenum zfail, GLenum zpass)
 	trampoline(texture, internalformat, buffer);
 }
 
-            void WINAPI glTexBufferRange(GLenum target, GLenum internalformat, GLuint buffer, GLintptr offset, GLsizeiptr size)
+			void WINAPI glTexBufferRange(GLenum target, GLenum internalformat, GLuint buffer, GLintptr offset, GLsizeiptr size)
 {
 #if RESHADE_ADDON
 	if (g_current_runtime)
@@ -1716,15 +1724,17 @@ HOOK_EXPORT void WINAPI glStencilOp(GLenum fail, GLenum zfail, GLenum zpass)
 		api_desc.buffer_size = size;
 		RESHADE_ADDON_EVENT(create_resource_view, g_current_runtime, reshade::api::resource_handle { (static_cast<uint64_t>(GL_BUFFER) << 40) | buffer }, reshade::api::resource_view_type::unknown, &api_desc);
 		internalformat = api_desc.format;
-		offset = api_desc.buffer_offset;
-		size = api_desc.buffer_size;
+		assert(api_desc.buffer_offset <= std::numeric_limits<GLintptr>::max());
+		offset = static_cast<GLintptr>(api_desc.buffer_offset);
+		assert(api_desc.buffer_size <= std::numeric_limits<GLsizeiptr>::max());
+		size = static_cast<GLsizeiptr>(api_desc.buffer_size);
 	}
 #endif
 
 	static const auto trampoline = reshade::hooks::call(glTexBufferRange);
 	trampoline(target, internalformat, buffer, offset, size);
 }
-            void WINAPI glTextureBufferRange(GLuint texture, GLenum internalformat, GLuint buffer, GLintptr offset, GLsizeiptr size)
+			void WINAPI glTextureBufferRange(GLuint texture, GLenum internalformat, GLuint buffer, GLintptr offset, GLsizeiptr size)
 {
 #if RESHADE_ADDON
 	if (g_current_runtime)
@@ -1735,8 +1745,10 @@ HOOK_EXPORT void WINAPI glStencilOp(GLenum fail, GLenum zfail, GLenum zpass)
 		api_desc.buffer_size = size;
 		RESHADE_ADDON_EVENT(create_resource_view, g_current_runtime, reshade::api::resource_handle { (static_cast<uint64_t>(GL_BUFFER) << 40) | buffer }, reshade::api::resource_view_type::unknown, &api_desc);
 		internalformat = api_desc.format;
-		offset = api_desc.buffer_offset;
-		size = api_desc.buffer_size;
+		assert(api_desc.buffer_offset <= std::numeric_limits<GLintptr>::max());
+		offset = static_cast<GLintptr>(api_desc.buffer_offset);
+		assert(api_desc.buffer_size <= std::numeric_limits<GLsizeiptr>::max());
+		size = static_cast<GLsizeiptr>(api_desc.buffer_size);
 	}
 #endif
 

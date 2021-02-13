@@ -23,7 +23,7 @@ namespace reshade::vulkan
 		bool get_data(const uint8_t guid[16], uint32_t size, void *data) override { return api_data::get_data(guid, size, data); }
 		void set_data(const uint8_t guid[16], uint32_t size, const void *data) override  { api_data::set_data(guid, size, data); }
 
-		void *get_native_object() override { return _current_swapchain; }
+		void *get_native_object() override { return nullptr; } // Non-dispatchable swap chain handle does not fit into 32-bits
 
 		api::device *get_device() override { return _device_impl; }
 		api::command_queue *get_command_queue() override { return _queue_impl; }
@@ -67,7 +67,6 @@ namespace reshade::vulkan
 		command_queue_impl *const _queue_impl;
 		VkQueue _queue = VK_NULL_HANDLE;
 		command_list_immediate_impl *const _cmd_impl;
-		VkSwapchainKHR _current_swapchain = VK_NULL_HANDLE;
 
 		uint32_t _queue_sync_index = 0;
 		VkSemaphore _queue_sync_semaphores[4] = {};
