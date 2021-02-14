@@ -412,7 +412,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateBuffer(const D3D10_BUFFER_DESC *pDe
 	reshade::d3d10::convert_resource_desc(api_desc, new_desc);
 #endif
 
-	const HRESULT hr = _orig->CreateBuffer(pDesc, pInitialData, ppBuffer);
+	const HRESULT hr = _orig->CreateBuffer(&new_desc, pInitialData, ppBuffer);
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
