@@ -101,7 +101,10 @@ namespace reshade::d3d11
 		api::device *get_device() override { return _device_impl; }
 		api::command_list *get_immediate_command_list() override { assert(_device_context->GetType() == D3D11_DEVICE_CONTEXT_IMMEDIATE); return this; }
 
-		void copy_resource(api::resource_handle source, api::resource_handle dest) override;
+		void draw(uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance) override;
+		void draw_indexed(uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance) override;
+
+		void copy_resource(api::resource_handle source, api::resource_handle destination) override;
 
 		void transition_state(api::resource_handle, api::resource_usage, api::resource_usage) override { /* no-op */ }
 

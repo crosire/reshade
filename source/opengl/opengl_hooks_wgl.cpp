@@ -683,13 +683,15 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 			// Get trampoline pointers to any hooked functions, so that runtime always calls into original OpenGL functions
 			if (s_hooks_installed)
 			{
+				gl3wProcs.gl.BindFramebuffer = reshade::hooks::call(glBindFramebuffer);
+				gl3wProcs.gl.BufferData = reshade::hooks::call(glBufferData);
+				gl3wProcs.gl.DrawArraysInstancedBaseInstance = reshade::hooks::call(glDrawArraysInstancedBaseInstance);
+				gl3wProcs.gl.DrawElementsBaseVertex = reshade::hooks::call(glDrawElementsBaseVertex); // Used in 'runtime_gl::render_imgui_draw_data'
+				gl3wProcs.gl.DrawElementsInstancedBaseVertexBaseInstance = reshade::hooks::call(glDrawElementsInstancedBaseVertexBaseInstance);
 				gl3wProcs.gl.TexBuffer = reshade::hooks::call(glTexBuffer);
 				gl3wProcs.gl.TexBufferRange = reshade::hooks::call(glTexBufferRange);
-				gl3wProcs.gl.BufferData = reshade::hooks::call(glBufferData);
 				gl3wProcs.gl.TextureView = reshade::hooks::call(glTextureView);
 				gl3wProcs.gl.TexStorage2D = reshade::hooks::call(glTexStorage2D); // Used in 'runtime_gl::init_texture'
-				gl3wProcs.gl.BindFramebuffer = reshade::hooks::call(glBindFramebuffer);
-				gl3wProcs.gl.DrawElementsBaseVertex = reshade::hooks::call(glDrawElementsBaseVertex); // Used in 'runtime_gl::render_imgui_draw_data'
 			}
 #endif
 
@@ -1179,13 +1181,15 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		reshade::hook::apply_queued_actions();
 
 #if RESHADE_ADDON
+		gl3wProcs.gl.BindFramebuffer = reshade::hooks::call(glBindFramebuffer);
+		gl3wProcs.gl.BufferData = reshade::hooks::call(glBufferData);
+		gl3wProcs.gl.DrawArraysInstancedBaseInstance = reshade::hooks::call(glDrawArraysInstancedBaseInstance);
+		gl3wProcs.gl.DrawElementsBaseVertex = reshade::hooks::call(glDrawElementsBaseVertex);
+		gl3wProcs.gl.DrawElementsInstancedBaseVertexBaseInstance = reshade::hooks::call(glDrawElementsInstancedBaseVertexBaseInstance);
 		gl3wProcs.gl.TexBuffer = reshade::hooks::call(glTexBuffer);
 		gl3wProcs.gl.TexBufferRange = reshade::hooks::call(glTexBufferRange);
-		gl3wProcs.gl.BufferData = reshade::hooks::call(glBufferData);
 		gl3wProcs.gl.TextureView = reshade::hooks::call(glTextureView);
 		gl3wProcs.gl.TexStorage2D = reshade::hooks::call(glTexStorage2D);
-		gl3wProcs.gl.BindFramebuffer = reshade::hooks::call(glBindFramebuffer);
-		gl3wProcs.gl.DrawElementsBaseVertex = reshade::hooks::call(glDrawElementsBaseVertex);
 #endif
 
 		s_hooks_installed = true;

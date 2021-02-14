@@ -762,50 +762,41 @@ void reshade::opengl::device_impl::wait_idle()
 	glFinish();
 }
 
-void reshade::opengl::device_impl::copy_resource(resource_handle source, resource_handle dest)
+void reshade::opengl::device_impl::draw(uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance)
 {
-	assert(source.handle != 0 && dest.handle != 0);
+	if (instances <= 1)
+	{
+		glDrawArrays(GL_TRIANGLES, first_vertex, vertices);
+	}
+	else
+	{
+		glDrawArraysInstancedBaseInstance(GL_TRIANGLES, first_vertex, vertices, instances, first_instance);
+	}
+}
+void reshade::opengl::device_impl::draw_indexed(uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)
+{
+	if (instances <= 1)
+	{
+		glDrawElementsBaseVertex(GL_TRIANGLES, indices, GL_UNSIGNED_INT, reinterpret_cast<void *>(static_cast<uintptr_t>(first_index)), vertex_offset);
+	}
+	else
+	{
+		glDrawElementsInstancedBaseVertexBaseInstance(GL_TRIANGLES, indices, GL_UNSIGNED_INT, reinterpret_cast<void *>(static_cast<uintptr_t>(first_index)), instances, vertex_offset, first_instance);
+	}
+}
+
+void reshade::opengl::device_impl::copy_resource(resource_handle source, resource_handle destination)
+{
+	assert(source.handle != 0 && destination.handle != 0);
 
 	GLint prev_read_fbo = 0;
 	GLint prev_draw_fbo = 0;
 	glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &prev_read_fbo);
 	glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &prev_draw_fbo);
 
-	const auto dest_desc = get_resource_desc(dest);
-	const auto source_desc = get_resource_desc(source);
-	const GLenum attachment = is_depth_format(source_desc.format) ? GL_DEPTH_ATTACHMENT : GL_COLOR_ATTACHMENT0;
-
-	const GLuint dest_object = dest.handle & 0xFFFFFFFF;
-	switch (dest.handle >> 40)
-	{
-	default:
-		assert(false);
-		return;
-	case GL_TEXTURE:
-	case GL_TEXTURE_BUFFER:
-	case GL_TEXTURE_1D:
-	case GL_TEXTURE_1D_ARRAY:
-	case GL_TEXTURE_2D:
-	case GL_TEXTURE_2D_ARRAY:
-	case GL_TEXTURE_2D_MULTISAMPLE:
-	case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
-	case GL_TEXTURE_RECTANGLE:
-		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _copy_fbo[0]);
-		glFramebufferTexture(GL_DRAW_FRAMEBUFFER, attachment, dest_object, 0);
-		assert(glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
-		break;
-	case GL_RENDERBUFFER:
-		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _copy_fbo[0]);
-		glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, attachment, GL_RENDERBUFFER, dest_object);
-		assert(glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
-		break;
-	case GL_FRAMEBUFFER_DEFAULT:
-		assert(dest_object == attachment);
-		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-		break;
-	}
-
+	const resource_desc source_desc = get_resource_desc(source);
 	const GLuint source_object = source.handle & 0xFFFFFFFF;
+	const GLenum source_attachment = is_depth_format(source_desc.format) ? GL_DEPTH_ATTACHMENT : GL_COLOR_ATTACHMENT0;
 	switch (source.handle >> 40)
 	{
 	default:
@@ -821,23 +812,56 @@ void reshade::opengl::device_impl::copy_resource(resource_handle source, resourc
 	case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
 	case GL_TEXTURE_RECTANGLE:
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, _copy_fbo[1]);
-		glFramebufferTexture(GL_READ_FRAMEBUFFER, attachment, source_object, 0);
+		glFramebufferTexture(GL_READ_FRAMEBUFFER, source_attachment, source_object, 0);
 		assert(glCheckFramebufferStatus(GL_READ_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 		break;
 	case GL_RENDERBUFFER:
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, _copy_fbo[1]);
-		glFramebufferRenderbuffer(GL_READ_FRAMEBUFFER, attachment, GL_RENDERBUFFER, source_object);
+		glFramebufferRenderbuffer(GL_READ_FRAMEBUFFER, source_attachment, GL_RENDERBUFFER, source_object);
 		assert(glCheckFramebufferStatus(GL_READ_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 		break;
 	case GL_FRAMEBUFFER_DEFAULT:
-		assert(source_object == attachment);
+		assert(source_object == source_attachment);
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
 		break;
 	}
 
+	const resource_desc destination_desc = get_resource_desc(destination);
+	const GLuint destination_object = destination.handle & 0xFFFFFFFF;
+	const GLenum destination_attachment = is_depth_format(destination_desc.format) ? GL_DEPTH_ATTACHMENT : GL_COLOR_ATTACHMENT0;
+	switch (destination.handle >> 40)
+	{
+	default:
+		assert(false);
+		return;
+	case GL_TEXTURE:
+	case GL_TEXTURE_BUFFER:
+	case GL_TEXTURE_1D:
+	case GL_TEXTURE_1D_ARRAY:
+	case GL_TEXTURE_2D:
+	case GL_TEXTURE_2D_ARRAY:
+	case GL_TEXTURE_2D_MULTISAMPLE:
+	case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
+	case GL_TEXTURE_RECTANGLE:
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _copy_fbo[0]);
+		glFramebufferTexture(GL_DRAW_FRAMEBUFFER, destination_attachment, destination_object, 0);
+		assert(glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+		break;
+	case GL_RENDERBUFFER:
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _copy_fbo[0]);
+		glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, destination_attachment, GL_RENDERBUFFER, destination_object);
+		assert(glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+		break;
+	case GL_FRAMEBUFFER_DEFAULT:
+		assert(destination_object == destination_attachment);
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+		break;
+	}
+
+	assert(source_attachment == destination_attachment);
 	glBlitFramebuffer(
 		0, 0, source_desc.width, source_desc.height,
-		0, dest_desc.height, dest_desc.width, 0,
+		0, destination_desc.height, destination_desc.width, 0,
 		is_depth_format(source_desc.format) ? GL_DEPTH_BUFFER_BIT : GL_COLOR_BUFFER_BIT, GL_NEAREST);
 
 	glBindFramebuffer(GL_READ_FRAMEBUFFER, prev_read_fbo);

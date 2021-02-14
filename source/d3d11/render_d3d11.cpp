@@ -999,10 +999,25 @@ void reshade::d3d11::device_context_impl::set_data(const uint8_t guid[16], uint3
 	}
 }
 
-void reshade::d3d11::device_context_impl::copy_resource(resource_handle source, resource_handle dest)
+void reshade::d3d11::device_context_impl::draw(uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance)
 {
-	assert(source.handle != 0 && dest.handle != 0);
-	_device_context->CopyResource(reinterpret_cast<ID3D11Resource *>(dest.handle), reinterpret_cast<ID3D11Resource *>(source.handle));
+	if (instances <= 1)
+		_device_context->Draw(vertices, first_vertex);
+	else
+		_device_context->DrawInstanced(vertices, instances, first_vertex, first_instance);
+}
+void reshade::d3d11::device_context_impl::draw_indexed(uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)
+{
+	if (instances <= 1)
+		_device_context->DrawIndexed(indices, first_index, vertex_offset);
+	else
+		_device_context->DrawIndexedInstanced(indices, instances, first_index, vertex_offset, first_instance);
+}
+
+void reshade::d3d11::device_context_impl::copy_resource(resource_handle source, resource_handle destination)
+{
+	assert(source.handle != 0 && destination.handle != 0);
+	_device_context->CopyResource(reinterpret_cast<ID3D11Resource *>(destination.handle), reinterpret_cast<ID3D11Resource *>(source.handle));
 }
 
 void reshade::d3d11::device_context_impl::clear_depth_stencil_view(resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil)

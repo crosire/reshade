@@ -98,7 +98,10 @@ namespace reshade::d3d12
 
 		api::device *get_device() override { return _device_impl; }
 
-		void copy_resource(api::resource_handle source, api::resource_handle dest) override;
+		void draw(uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance) override;
+		void draw_indexed(uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance) override;
+
+		void copy_resource(api::resource_handle source, api::resource_handle destination) override;
 
 		void transition_state(api::resource_handle resource, api::resource_usage old_state, api::resource_usage new_state) override;
 

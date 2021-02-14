@@ -5,10 +5,10 @@
 
 #include <GL/gl3w.h>
 
-#undef glBindTexture
-extern "C" void WINAPI glBindTexture(GLenum target, GLuint texture);
 #undef glBindFramebuffer
 extern "C" void WINAPI glBindFramebuffer(GLenum target, GLuint framebuffer);
+#undef glBindTexture
+extern "C" void WINAPI glBindTexture(GLenum target, GLuint texture);
 #undef glBlendFunc
 extern "C" void WINAPI glBlendFunc(GLenum sfactor, GLenum dfactor);
 #undef glBufferData

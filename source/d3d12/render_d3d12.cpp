@@ -785,12 +785,25 @@ reshade::d3d12::command_list_impl::~command_list_impl()
 	}
 }
 
-void reshade::d3d12::command_list_impl::copy_resource(resource_handle source, resource_handle dest)
+void reshade::d3d12::command_list_impl::draw(uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance)
 {
 	_has_commands = true;
 
-	assert(source.handle != 0 && dest.handle != 0);
-	_cmd_list->CopyResource(reinterpret_cast<ID3D12Resource *>(dest.handle), reinterpret_cast<ID3D12Resource *>(source.handle));
+	_cmd_list->DrawInstanced(vertices, instances, first_vertex, first_instance);
+}
+void reshade::d3d12::command_list_impl::draw_indexed(uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)
+{
+	_has_commands = true;
+
+	_cmd_list->DrawIndexedInstanced(indices, instances, first_index, vertex_offset, first_instance);
+}
+
+void reshade::d3d12::command_list_impl::copy_resource(resource_handle source, resource_handle destination)
+{
+	_has_commands = true;
+
+	assert(source.handle != 0 && destination.handle != 0);
+	_cmd_list->CopyResource(reinterpret_cast<ID3D12Resource *>(destination.handle), reinterpret_cast<ID3D12Resource *>(source.handle));
 }
 
 void reshade::d3d12::command_list_impl::transition_state(resource_handle resource, resource_usage old_layout, resource_usage new_layout)

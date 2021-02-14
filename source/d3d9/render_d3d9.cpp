@@ -463,13 +463,24 @@ resource_desc reshade::d3d9::device_impl::get_resource_desc(resource_handle reso
 	return {};
 }
 
-void reshade::d3d9::device_impl::copy_resource(resource_handle source, resource_handle dest)
+void reshade::d3d9::device_impl::draw(uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance)
 {
-	assert(source.handle != 0 && dest.handle != 0);
-	const auto dest_object = reinterpret_cast<IDirect3DResource9 *>(dest.handle);
-	const auto source_object = reinterpret_cast<IDirect3DResource9 *>(source.handle);
+	assert(instances <= 1 && first_instance == 0);
+	_device->DrawPrimitive(D3DPT_TRIANGLELIST, first_vertex, vertices / 3);
+}
+void reshade::d3d9::device_impl::draw_indexed(uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)
+{
+	assert(instances <= 1 && first_instance == 0);
+	_device->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, vertex_offset, 0, indices, first_index, indices / 3);
+}
 
-	const D3DRESOURCETYPE type = dest_object->GetType();
+void reshade::d3d9::device_impl::copy_resource(resource_handle source, resource_handle destination)
+{
+	assert(source.handle != 0 && destination.handle != 0);
+	const auto source_object = reinterpret_cast<IDirect3DResource9 *>(source.handle);
+	const auto destination_object = reinterpret_cast<IDirect3DResource9 *>(destination.handle);
+
+	const D3DRESOURCETYPE type = destination_object->GetType();
 	if (type != source_object->GetType())
 		return; // Copying is only supported between resources of the same type
 
@@ -483,7 +494,7 @@ void reshade::d3d9::device_impl::copy_resource(resource_handle source, resource_
 			_copy_state->Apply();
 
 			com_ptr<IDirect3DSurface9> target;
-			static_cast<IDirect3DTexture9 *>(dest_object)->GetSurfaceLevel(0, &target);
+			static_cast<IDirect3DTexture9 *>(destination_object)->GetSurfaceLevel(0, &target);
 			_device->SetTexture(0, static_cast<IDirect3DTexture9 *>(source_object));
 			_device->SetRenderTarget(0, target.get());
 
@@ -501,7 +512,7 @@ void reshade::d3d9::device_impl::copy_resource(resource_handle source, resource_
 		}
 		case D3DRTYPE_SURFACE:
 		{
-			_device->StretchRect(static_cast<IDirect3DSurface9 *>(source_object), nullptr, static_cast<IDirect3DSurface9 *>(dest_object), nullptr, D3DTEXF_NONE);
+			_device->StretchRect(static_cast<IDirect3DSurface9 *>(source_object), nullptr, static_cast<IDirect3DSurface9 *>(destination_object), nullptr, D3DTEXF_NONE);
 			break;
 		}
 		default:

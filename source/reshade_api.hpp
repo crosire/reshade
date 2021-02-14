@@ -335,6 +335,24 @@ namespace reshade { namespace api
 	{
 	public:
 		/// <summary>
+		/// Adds a draw call to the command stream.
+		/// </summary>
+		/// <param name="vertices">The number of vertices to draw.</param>
+		/// <param name="instances">The number of instances to draw.</param>
+		/// <param name="first_vertex">The base vertex within the vertex buffer.</param>
+		/// <param name="first_instance">The instance ID of the first instance to draw.</param>
+		virtual void draw(uint32_t vertices, uint32_t instances, uint32_t first_vertex = 0, uint32_t first_instance = 0) = 0;
+		/// <summary>
+		/// Adds an indexed draw call to the command stream.
+		/// </summary>
+		/// <param name="indices">The number of vertices to draw.</param>
+		/// <param name="instances">The number of instances to draw.</param>
+		/// <param name="first_index">The base index within the index buffer.</param>
+		/// <param name="vertex_offset">The is the value added to the vertex index before indexing into the vertex buffer.</param>
+		/// <param name="first_instance">The instance ID of the first instance to draw.</param>
+		virtual void draw_indexed(uint32_t indices, uint32_t instances, uint32_t first_index = 0, int32_t vertex_offset = 0, uint32_t first_instance = 0) = 0;
+
+		/// <summary>
 		/// Copies the entire contents of the <paramref name="source"/> resource to the <paramref name="destination"/> resource.
 		/// The <paramref name="source"/> resource has to be in the <see cref="resource_usage::copy_source"/> state.
 		/// The <paramref name="destination"/> resource has to be in the <see cref="resource_usage::copy_dest"/> state.

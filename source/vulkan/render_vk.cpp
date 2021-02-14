@@ -592,23 +592,36 @@ reshade::vulkan::command_list_impl::~command_list_impl()
 	}
 }
 
-void reshade::vulkan::command_list_impl::copy_resource(resource_handle source, resource_handle dest)
+void reshade::vulkan::command_list_impl::draw(uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance)
 {
 	_has_commands = true;
 
-	assert(source.handle != 0 && dest.handle != 0);
-	const resource_data &dest_data = _device_impl->_resources.at(dest.handle);
-	const resource_data &source_data = _device_impl->_resources.at(source.handle);
+	_device_impl->vk.CmdDraw(_cmd_list, vertices, instances, first_vertex, first_instance);
+}
+void reshade::vulkan::command_list_impl::draw_indexed(uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)
+{
+	_has_commands = true;
 
-	switch ((source_data.type ? 1 : 0) | (dest_data.type ? 2 : 0))
+	_device_impl->vk.CmdDrawIndexed(_cmd_list, indices, instances, first_index, vertex_offset, first_instance);
+}
+
+void reshade::vulkan::command_list_impl::copy_resource(resource_handle source, resource_handle destination)
+{
+	_has_commands = true;
+
+	assert(source.handle != 0 && destination.handle != 0);
+	const resource_data &source_data = _device_impl->_resources.at(source.handle);
+	const resource_data &destination_data = _device_impl->_resources.at(destination.handle);
+
+	switch ((source_data.type ? 1 : 0) | (destination_data.type ? 2 : 0))
 	{
 		case 0x0:
 		{
 			const VkBufferCopy region = {
-				0, 0, dest_data.buffer_create_info.size
+				0, 0, destination_data.buffer_create_info.size
 			};
 
-			_device_impl->vk.CmdCopyBuffer(_cmd_list, source_data.buffer, dest_data.buffer, 1, &region);
+			_device_impl->vk.CmdCopyBuffer(_cmd_list, source_data.buffer, destination_data.buffer, 1, &region);
 			break;
 		}
 		case 0x1:
@@ -621,30 +634,30 @@ void reshade::vulkan::command_list_impl::copy_resource(resource_handle source, r
 				{ aspect_flags_from_format(source_data.image_create_info.format), 0, 0, 1 }, { 0, 0, 0 }, source_data.image_create_info.extent
 			};
 
-			_device_impl->vk.CmdCopyImageToBuffer(_cmd_list, source_data.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dest_data.buffer, 1, &region);
+			_device_impl->vk.CmdCopyImageToBuffer(_cmd_list, source_data.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, destination_data.buffer, 1, &region);
 			break;
 		}
 		case 0x2:
 		{
 			const uint32_t bpp = 4; // TODO: bpp
-			assert(dest_data.image_create_info.format == VK_FORMAT_R8G8B8A8_UNORM);
+			assert(destination_data.image_create_info.format == VK_FORMAT_R8G8B8A8_UNORM);
 
 			const VkBufferImageCopy region = {
-				0, dest_data.image_create_info.extent.width * bpp, dest_data.image_create_info.extent.width * dest_data.image_create_info.extent.height * bpp,
-				{ aspect_flags_from_format(dest_data.image_create_info.format), 0, 0, 1 }, { 0, 0, 0 }, dest_data.image_create_info.extent
+				0, destination_data.image_create_info.extent.width * bpp, destination_data.image_create_info.extent.width * destination_data.image_create_info.extent.height * bpp,
+				{ aspect_flags_from_format(destination_data.image_create_info.format), 0, 0, 1 }, { 0, 0, 0 }, destination_data.image_create_info.extent
 			};
 
-			_device_impl->vk.CmdCopyBufferToImage(_cmd_list, source_data.buffer, dest_data.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+			_device_impl->vk.CmdCopyBufferToImage(_cmd_list, source_data.buffer, destination_data.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 			break;
 		}
 		case 0x3:
 		{
 			const VkImageCopy region = {
 				{ aspect_flags_from_format(source_data.image_create_info.format), 0, 0, 1 }, { 0, 0, 0 },
-				{ aspect_flags_from_format(  dest_data.image_create_info.format), 0, 0, 1 }, { 0, 0, 0 }, dest_data.image_create_info.extent
+				{ aspect_flags_from_format(destination_data.image_create_info.format), 0, 0, 1 }, { 0, 0, 0 }, destination_data.image_create_info.extent
 			};
 
-			_device_impl->vk.CmdCopyImage(_cmd_list, source_data.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dest_data.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+			_device_impl->vk.CmdCopyImage(_cmd_list, source_data.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, destination_data.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 			break;
 		}
 	}
