@@ -109,10 +109,10 @@ ULONG   STDMETHODCALLTYPE D3D11DeviceContext::Release()
 
 	const ULONG ref_orig = _orig->Release();
 	if (ref_orig != 0) // Verify internal reference count
-		LOG(WARN) << "Reference count for ID3D11DeviceContext" << _interface_version << " object " << this << " is inconsistent.";
+		LOG(WARN) << "Reference count for ID3D11DeviceContext" << _interface_version << " object " << this << " (" << _orig << ") is inconsistent.";
 
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Destroyed ID3D11DeviceContext" << _interface_version << " object " << this << '.';
+	LOG(DEBUG) << "Destroyed ID3D11DeviceContext" << _interface_version << " object " << this << " (" << _orig << ").";
 #endif
 	delete this;
 

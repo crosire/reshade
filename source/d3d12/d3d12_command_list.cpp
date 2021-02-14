@@ -86,7 +86,7 @@ ULONG   STDMETHODCALLTYPE D3D12GraphicsCommandList::Release()
 
 	const ULONG ref_orig = _orig->Release();
 	if (ref_orig != 0)
-		LOG(WARN) << "Reference count for ID3D12GraphicsCommandList" << _interface_version << " object " << this << " is inconsistent.";
+		LOG(WARN) << "Reference count for ID3D12GraphicsCommandList" << _interface_version << " object " << this << " (" << _orig << ") is inconsistent.";
 
 	delete this;
 

@@ -50,10 +50,10 @@ ULONG   STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Release()
 	// Only release internal reference after the runtime has been destroyed, so any references it held are cleaned up at this point
 	const ULONG ref_orig = _orig->Release();
 	if (ref_orig > 1) // Verify internal reference count against one instead of zero because parent queue still holds a reference
-		LOG(WARN) << "Reference count for ID3D12CommandQueueDownlevel object " << this << " is inconsistent.";
+		LOG(WARN) << "Reference count for ID3D12CommandQueueDownlevel object " << this << " (" << _orig << ") is inconsistent.";
 
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Destroyed ID3D12CommandQueueDownlevel object " << this << ".";
+	LOG(DEBUG) << "Destroyed ID3D12CommandQueueDownlevel object " << this << " (" << _orig << ").";
 #endif
 	delete this;
 

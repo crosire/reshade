@@ -105,10 +105,10 @@ ULONG   STDMETHODCALLTYPE Direct3DDevice9::Release()
 
 	const ULONG ref_orig = _orig->Release();
 	if (ref_orig != 0) // Verify internal reference count
-		LOG(WARN) << "Reference count for IDirect3DDevice9" << (_extended_interface ? "Ex" : "") << " object " << this << " is inconsistent.";
+		LOG(WARN) << "Reference count for IDirect3DDevice9" << (_extended_interface ? "Ex" : "") << " object " << this << " (" << _orig << ") is inconsistent.";
 
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Destroyed IDirect3DDevice9" << (_extended_interface ? "Ex" : "") << " object " << this << '.';
+	LOG(DEBUG) << "Destroyed IDirect3DDevice9" << (_extended_interface ? "Ex" : "") << " object " << this << " (" << _orig << ").";
 #endif
 	delete this;
 

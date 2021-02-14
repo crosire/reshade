@@ -260,10 +260,10 @@ ULONG   STDMETHODCALLTYPE DXGISwapChain::Release()
 	// Only release internal reference after the runtime has been destroyed, so any references it held are cleaned up at this point
 	const ULONG ref_orig = _orig->Release();
 	if (ref_orig != 0) // Verify internal reference count
-		LOG(WARN) << "Reference count for IDXGISwapChain" << _interface_version << " object " << this << " is inconsistent.";
+		LOG(WARN) << "Reference count for IDXGISwapChain" << _interface_version << " object " << this << " (" << _orig << ") is inconsistent.";
 
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Destroyed IDXGISwapChain" << _interface_version << " object " << this << '.';
+	LOG(DEBUG) << "Destroyed IDXGISwapChain" << _interface_version << " object " << this << " (" << _orig << ").";
 #endif
 	delete this;
 

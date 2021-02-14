@@ -108,10 +108,10 @@ ULONG   STDMETHODCALLTYPE D3D12CommandQueue::Release()
 
 	const ULONG ref_orig = _orig->Release();
 	if (ref_orig != 0) // Verify internal reference count
-		LOG(WARN) << "Reference count for ID3D12CommandQueue" << _interface_version << " object " << this << " is inconsistent.";
+		LOG(WARN) << "Reference count for ID3D12CommandQueue" << _interface_version << " object " << this << " (" << _orig << ") is inconsistent.";
 
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Destroyed ID3D12CommandQueue" << _interface_version << " object " << this << ".";
+	LOG(DEBUG) << "Destroyed ID3D12CommandQueue" << _interface_version << " object " << this << " (" << _orig << ").";
 #endif
 	delete this;
 

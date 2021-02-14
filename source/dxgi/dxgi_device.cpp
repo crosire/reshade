@@ -80,10 +80,10 @@ ULONG   STDMETHODCALLTYPE DXGIDevice::Release()
 
 	const ULONG ref_orig = _orig->Release();
 	if (ref_orig > 1) // Verify internal reference count against one instead of zero because D3D device still holds a reference
-		LOG(WARN) << "Reference count for IDXGIDevice" << _interface_version << " object " << this << " is inconsistent.";
+		LOG(WARN) << "Reference count for IDXGIDevice" << _interface_version << " object " << this << " (" << _orig << ") is inconsistent.";
 
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Destroyed IDXGIDevice" << _interface_version << " object " << this << '.';
+	LOG(DEBUG) << "Destroyed IDXGIDevice" << _interface_version << " object " << this << " (" << _orig << ").";
 #endif
 	delete this;
 
