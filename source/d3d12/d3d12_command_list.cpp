@@ -338,20 +338,12 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::OMSetRenderTargets(UINT NumRend
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearDepthStencilView(D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilView, D3D12_CLEAR_FLAGS ClearFlags, FLOAT Depth, UINT8 Stencil, UINT NumRects, const D3D12_RECT *pRects)
 {
-#if RESHADE_ADDON
-	const reshade::api::resource_view_handle dsv = { DepthStencilView.ptr };
-	RESHADE_ADDON_EVENT(clear_depth_stencil, _impl, dsv, static_cast<uint32_t>(ClearFlags), Depth, Stencil);
-#endif
-
+	RESHADE_ADDON_EVENT(clear_depth_stencil, _impl, reshade::api::resource_view_handle { DepthStencilView.ptr }, static_cast<uint32_t>(ClearFlags), Depth, Stencil);
 	_orig->ClearDepthStencilView(DepthStencilView, ClearFlags, Depth, Stencil, NumRects, pRects);
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearRenderTargetView(D3D12_CPU_DESCRIPTOR_HANDLE RenderTargetView, const FLOAT ColorRGBA[4], UINT NumRects, const D3D12_RECT *pRects)
 {
-#if RESHADE_ADDON
-	const reshade::api::resource_view_handle rtv = { RenderTargetView.ptr };
-	RESHADE_ADDON_EVENT(clear_render_target, _impl, rtv, ColorRGBA);
-#endif
-
+	RESHADE_ADDON_EVENT(clear_render_target, _impl, reshade::api::resource_view_handle { RenderTargetView.ptr }, ColorRGBA);
 	_orig->ClearRenderTargetView(RenderTargetView, ColorRGBA, NumRects, pRects);
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearUnorderedAccessViewUint(D3D12_GPU_DESCRIPTOR_HANDLE ViewGPUHandleInCurrentHeap, D3D12_CPU_DESCRIPTOR_HANDLE ViewCPUHandle, ID3D12Resource *pResource, const UINT Values[4], UINT NumRects, const D3D12_RECT *pRects)

@@ -11,9 +11,8 @@
 
 #if RESHADE_ADDON
 	#define RESHADE_ADDON_EVENT(name, ...) \
-		if (reshade::addon::event_list_enabled) \
-			for (const auto &hook_info : reshade::addon::event_list[static_cast<size_t>(reshade::addon_event::name)]) \
-				reinterpret_cast<typename reshade::addon_event_traits<reshade::addon_event::name>::decl>(hook_info)(__VA_ARGS__)
+		for (void *const callback : reshade::addon::event_list[static_cast<size_t>(reshade::addon_event::name)]) \
+			reinterpret_cast<typename reshade::addon_event_traits<reshade::addon_event::name>::decl>(callback)(__VA_ARGS__)
 #else
 	#define RESHADE_ADDON_EVENT(name, ...) ((void)0)
 #endif
@@ -51,7 +50,7 @@ namespace reshade::addon
 	};
 
 	/// <summary>
-	/// Used to enable or disable callbacks.
+	/// Can be used to check if add-on event callbacks are enabled or not.
 	/// </summary>
 	extern bool event_list_enabled;
 
@@ -82,5 +81,10 @@ namespace reshade::addon
 	/// Unload any add-ons previously loaded via <see cref="load_addons"/>.
 	/// </summary>
 	void unload_addons();
+
+	/// <summary>
+	/// Enable or disable all loaded add-ons.
+	/// </summary>
+	void enable_or_disable_addons(bool enabled);
 #endif
 }

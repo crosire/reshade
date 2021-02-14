@@ -141,10 +141,9 @@ HOOK_EXPORT void WINAPI glClear(GLbitfield mask)
 			for (GLuint i = 0; i < 8; ++i)
 			{
 				const reshade::api::resource_view_handle rtv = g_current_runtime->get_render_target_from_fbo(fbo, i);
-				if (rtv.handle != 0)
-				{
-					RESHADE_ADDON_EVENT(clear_render_target, g_current_runtime, rtv, color_value);
-				}
+				if (rtv.handle == 0)
+					continue;
+				RESHADE_ADDON_EVENT(clear_render_target, g_current_runtime, rtv, color_value);
 			}
 		}
 		if ((mask & (GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)) != 0)

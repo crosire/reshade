@@ -1234,24 +1234,22 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 		{
 			if (subpass_data.color_attachments[i].attachment != VK_ATTACHMENT_UNUSED)
 			{
-				const reshade::api::resource_view_handle rtv = attachments[subpass_data.color_attachments[i].attachment];
-				RESHADE_ADDON_EVENT(set_render_target, cmd_impl, i, rtv);
+				RESHADE_ADDON_EVENT(set_render_target, cmd_impl, i, attachments[subpass_data.color_attachments[i].attachment]);
 			}
 			else
 			{
-				RESHADE_ADDON_EVENT(set_render_target, cmd_impl, i, { 0 });
+				RESHADE_ADDON_EVENT(set_render_target, cmd_impl, i, reshade::api::resource_view_handle { 0 });
 			}
 		}
 
 		{
 			if (subpass_data.depth_stencil_attachment.attachment != VK_ATTACHMENT_UNUSED)
 			{
-				const reshade::api::resource_view_handle dsv = attachments[subpass_data.depth_stencil_attachment.attachment];
-				RESHADE_ADDON_EVENT(set_depth_stencil, cmd_impl, dsv);
+				RESHADE_ADDON_EVENT(set_depth_stencil, cmd_impl, attachments[subpass_data.depth_stencil_attachment.attachment]);
 			}
 			else
 			{
-				RESHADE_ADDON_EVENT(set_depth_stencil, cmd_impl, { 0 });
+				RESHADE_ADDON_EVENT(set_depth_stencil, cmd_impl, reshade::api::resource_view_handle { 0 });
 			}
 		}
 
@@ -1279,8 +1277,8 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 
 					device_impl->vk.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
 
-					const reshade::api::resource_view_handle rtv = attachments[renderpass_data.cleared_attachments[i].index];
-					RESHADE_ADDON_EVENT(clear_render_target, cmd_impl, rtv, clear_value.color.float32);
+					RESHADE_ADDON_EVENT(clear_render_target, cmd_impl,
+						attachments[renderpass_data.cleared_attachments[i].index], clear_value.color.float32);
 
 					std::swap(transition.oldLayout, transition.newLayout);
 					device_impl->vk.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
@@ -1308,8 +1306,8 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 
 					device_impl->vk.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
 
-					const reshade::api::resource_view_handle dsv = attachments[renderpass_data.cleared_attachments[i].index];
-					RESHADE_ADDON_EVENT(clear_depth_stencil, cmd_impl, dsv, renderpass_data.cleared_attachments[i].clear_flags, clear_value.depthStencil.depth, static_cast<uint8_t>(clear_value.depthStencil.stencil));
+					RESHADE_ADDON_EVENT(clear_depth_stencil, cmd_impl,
+						attachments[renderpass_data.cleared_attachments[i].index], renderpass_data.cleared_attachments[i].clear_flags, clear_value.depthStencil.depth, static_cast<uint8_t>(clear_value.depthStencil.stencil));
 
 					std::swap(transition.oldLayout, transition.newLayout);
 					device_impl->vk.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
@@ -1342,24 +1340,22 @@ void     VKAPI_CALL vkCmdNextSubpass(VkCommandBuffer commandBuffer, VkSubpassCon
 		{
 			if (subpass_data.color_attachments[i].attachment != VK_ATTACHMENT_UNUSED)
 			{
-				const reshade::api::resource_view_handle rtv = attachments[subpass_data.color_attachments[i].attachment];
-				RESHADE_ADDON_EVENT(set_render_target, cmd_impl, i, rtv);
+				RESHADE_ADDON_EVENT(set_render_target, cmd_impl, i, attachments[subpass_data.color_attachments[i].attachment]);
 			}
 			else
 			{
-				RESHADE_ADDON_EVENT(set_render_target, cmd_impl, i, { 0 });
+				RESHADE_ADDON_EVENT(set_render_target, cmd_impl, i, reshade::api::resource_view_handle { 0 });
 			}
 		}
 
 		{
 			if (subpass_data.depth_stencil_attachment.attachment != VK_ATTACHMENT_UNUSED)
 			{
-				const reshade::api::resource_view_handle dsv = attachments[subpass_data.depth_stencil_attachment.attachment];
-				RESHADE_ADDON_EVENT(set_depth_stencil, cmd_impl, dsv);
+				RESHADE_ADDON_EVENT(set_depth_stencil, cmd_impl, attachments[subpass_data.depth_stencil_attachment.attachment]);
 			}
 			else
 			{
-				RESHADE_ADDON_EVENT(set_depth_stencil, cmd_impl, { 0 });
+				RESHADE_ADDON_EVENT(set_depth_stencil, cmd_impl, reshade::api::resource_view_handle { 0 });
 			}
 		}
 	}

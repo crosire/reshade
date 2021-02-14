@@ -75,6 +75,7 @@ void reshade::api::api_data::set_data(const uint8_t guid[16], uint32_t size, con
 }
 
 bool reshade::addon::event_list_enabled = true;
+std::vector<void *> disabled_event_list[static_cast<size_t>(reshade::addon_event::num_addon_events)];
 std::vector<void *> reshade::addon::event_list[static_cast<size_t>(reshade::addon_event::num_addon_events)];
 std::vector<reshade::addon::info> reshade::addon::loaded_info;
 #if RESHADE_GUI
@@ -132,6 +133,25 @@ void reshade::addon::unload_addons()
 	unregister_builtin_addon_depth();
 
 	loaded_info.clear();
+}
+
+void reshade::addon::enable_or_disable_addons(bool enabled)
+{
+	if (enabled == event_list_enabled)
+		return;
+
+	if (enabled)
+	{
+		for (size_t event_index = 0; event_index < static_cast<size_t>(addon_event::num_addon_events); ++event_index)
+			event_list[event_index] = std::move(disabled_event_list[event_index]);
+	}
+	else
+	{
+		for (size_t event_index = 0; event_index < static_cast<size_t>(addon_event::num_addon_events); ++event_index)
+			disabled_event_list[event_index] = std::move(event_list[event_index]);
+	}
+
+	event_list_enabled = enabled;
 }
 
 extern "C" __declspec(dllexport) void ReShadeRegisterEvent(reshade::addon_event ev, void *callback)

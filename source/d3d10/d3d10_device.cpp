@@ -256,20 +256,12 @@ void    STDMETHODCALLTYPE D3D10Device::UpdateSubresource(ID3D10Resource *pDstRes
 }
 void    STDMETHODCALLTYPE D3D10Device::ClearRenderTargetView(ID3D10RenderTargetView *pRenderTargetView, const FLOAT ColorRGBA[4])
 {
-#if RESHADE_ADDON
-	const reshade::api::resource_view_handle rtv = { reinterpret_cast<uintptr_t>(pRenderTargetView) };
-	RESHADE_ADDON_EVENT(clear_render_target, _impl, rtv, ColorRGBA);
-#endif
-
+	RESHADE_ADDON_EVENT(clear_render_target, _impl, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(pRenderTargetView) }, ColorRGBA);
 	_orig->ClearRenderTargetView(pRenderTargetView, ColorRGBA);
 }
 void    STDMETHODCALLTYPE D3D10Device::ClearDepthStencilView(ID3D10DepthStencilView *pDepthStencilView, UINT ClearFlags, FLOAT Depth, UINT8 Stencil)
 {
-#if RESHADE_ADDON
-	const reshade::api::resource_view_handle dsv = { reinterpret_cast<uintptr_t>(pDepthStencilView) };
-	RESHADE_ADDON_EVENT(clear_depth_stencil, _impl, dsv, ClearFlags, Depth, Stencil);
-#endif
-
+	RESHADE_ADDON_EVENT(clear_depth_stencil, _impl, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(pDepthStencilView) }, ClearFlags, Depth, Stencil);
 	_orig->ClearDepthStencilView(pDepthStencilView, ClearFlags, Depth, Stencil);
 }
 void    STDMETHODCALLTYPE D3D10Device::GenerateMips(ID3D10ShaderResourceView *pShaderResourceView)

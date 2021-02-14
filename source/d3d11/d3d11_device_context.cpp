@@ -373,11 +373,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::CopyStructureCount(ID3D11Buffer *p
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::ClearRenderTargetView(ID3D11RenderTargetView *pRenderTargetView, const FLOAT ColorRGBA[4])
 {
-#if RESHADE_ADDON
-	const reshade::api::resource_view_handle rtv = { reinterpret_cast<uintptr_t>(pRenderTargetView) };
-	RESHADE_ADDON_EVENT(clear_render_target, _impl, rtv, ColorRGBA);
-#endif
-
+	RESHADE_ADDON_EVENT(clear_render_target, _impl, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(pRenderTargetView) }, ColorRGBA);
 	_orig->ClearRenderTargetView(pRenderTargetView, ColorRGBA);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::ClearUnorderedAccessViewUint(ID3D11UnorderedAccessView *pUnorderedAccessView, const UINT Values[4])
@@ -390,11 +386,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::ClearUnorderedAccessViewFloat(ID3D
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::ClearDepthStencilView(ID3D11DepthStencilView *pDepthStencilView, UINT ClearFlags, FLOAT Depth, UINT8 Stencil)
 {
-#if RESHADE_ADDON
-	const reshade::api::resource_view_handle dsv = { reinterpret_cast<uintptr_t>(pDepthStencilView) };
-	RESHADE_ADDON_EVENT(clear_depth_stencil, _impl, dsv, ClearFlags, Depth, Stencil);
-#endif
-
+	RESHADE_ADDON_EVENT(clear_depth_stencil, _impl, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(pDepthStencilView) }, ClearFlags, Depth, Stencil);
 	_orig->ClearDepthStencilView(pDepthStencilView, ClearFlags, Depth, Stencil);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::GenerateMips(ID3D11ShaderResourceView *pShaderResourceView)
@@ -756,14 +748,12 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::ClearView(ID3D11View *pView, const
 #if RESHADE_ADDON
 	if (com_ptr<ID3D11RenderTargetView> rtv; SUCCEEDED(pView->QueryInterface(&rtv)))
 	{
-		const reshade::api::resource_view_handle rtv_handle = { reinterpret_cast<uintptr_t>(rtv.get()) };
-		RESHADE_ADDON_EVENT(clear_render_target, _impl, rtv_handle, Color);
+		RESHADE_ADDON_EVENT(clear_render_target, _impl, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(rtv.get()) }, Color);
 	}
 	if (com_ptr<ID3D11DepthStencilView> dsv; SUCCEEDED(pView->QueryInterface(&dsv)))
 	{
 		// The 'ID3D11DeviceContext1::ClearView' API only works on depth-stencil views to depth-only resources (with no stencil component)
-		const reshade::api::resource_view_handle dsv_handle = { reinterpret_cast<uintptr_t>(dsv.get()) };
-		RESHADE_ADDON_EVENT(clear_depth_stencil, _impl, dsv_handle, 0x1, Color[0], 0);
+		RESHADE_ADDON_EVENT(clear_depth_stencil, _impl, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(dsv.get()) }, 0x1, Color[0], 0);
 	}
 #endif
 
