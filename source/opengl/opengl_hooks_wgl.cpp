@@ -522,8 +522,8 @@ HOOK_EXPORT BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 				hdc = GetDC(dummy_window_handle);
 				PIXELFORMATDESCRIPTOR pfd = { sizeof(pfd), 1 };
 				pfd.dwFlags = PFD_DOUBLEBUFFER | PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL;
-				reshade::hooks::call(wglSetPixelFormat)(hdc,
-					reshade::hooks::call(wglChoosePixelFormat)(hdc, &pfd), &pfd);
+				const int pixel_format = reshade::hooks::call(wglChoosePixelFormat)(hdc, &pfd);
+				reshade::hooks::call(wglSetPixelFormat)(hdc, pixel_format, &pfd);
 			}
 
 			if (reshade::hooks::call(wglMakeCurrent)(hdc, hglrc))
@@ -596,14 +596,13 @@ HOOK_EXPORT BOOL  WINAPI wglShareLists(HGLRC hglrc1, HGLRC hglrc2)
 
 HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 {
-	static const auto trampoline = reshade::hooks::call(wglMakeCurrent);
-
 #if RESHADE_VERBOSE_LOG
 	LOG(INFO) << "Redirecting " << "wglMakeCurrent" << '(' << "hdc = " << hdc << ", hglrc = " << hglrc << ')' << " ...";
 #endif
 
 	const HGLRC prev_hglrc = wglGetCurrentContext();
 
+	static const auto trampoline = reshade::hooks::call(wglMakeCurrent);
 	if (!trampoline(hdc, hglrc))
 	{
 #if RESHADE_VERBOSE_LOG

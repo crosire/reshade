@@ -1730,7 +1730,8 @@ HOOK_EXPORT void WINAPI glStencilOp(GLenum fail, GLenum zfail, GLenum zpass)
 		{
 			assert(api_desc.buffer_offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()));
 			assert(api_desc.buffer_size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
-			reshade::hooks::call(glTexBufferRange)(target, internalformat, buffer, static_cast<GLintptr>(api_desc.buffer_offset), static_cast<GLsizeiptr>(api_desc.buffer_size));
+			const auto trampoline_range = reshade::hooks::call(glTexBufferRange);
+			trampoline_range(target, internalformat, buffer, static_cast<GLintptr>(api_desc.buffer_offset), static_cast<GLsizeiptr>(api_desc.buffer_size));
 			return;
 		}
 	}
@@ -1753,7 +1754,8 @@ HOOK_EXPORT void WINAPI glStencilOp(GLenum fail, GLenum zfail, GLenum zpass)
 		{
 			assert(api_desc.buffer_offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()));
 			assert(api_desc.buffer_size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
-			reshade::hooks::call(glTextureBufferRange)(texture, internalformat, buffer, static_cast<GLintptr>(api_desc.buffer_offset), static_cast<GLsizeiptr>(api_desc.buffer_size));
+			const auto trampoline_range = reshade::hooks::call(glTextureBufferRange);
+			trampoline_range(texture, internalformat, buffer, static_cast<GLintptr>(api_desc.buffer_offset), static_cast<GLsizeiptr>(api_desc.buffer_size));
 			return;
 		}
 	}

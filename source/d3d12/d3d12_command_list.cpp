@@ -222,19 +222,6 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetPipelineState(ID3D12Pipeline
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ResourceBarrier(UINT NumBarriers, const D3D12_RESOURCE_BARRIER *pBarriers)
 {
-#if RESHADE_ADDON
-	for (UINT i = 0; i < NumBarriers; ++i)
-	{
-		if (pBarriers[i].Type == D3D12_RESOURCE_BARRIER_TYPE_ALIASING)
-		{
-			RESHADE_ADDON_EVENT(alias_resource,
-				_impl,
-				reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pBarriers[i].Aliasing.pResourceBefore) },
-				reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pBarriers[i].Aliasing.pResourceAfter) });
-		}
-	}
-#endif
-
 	_orig->ResourceBarrier(NumBarriers, pBarriers);
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ExecuteBundle(ID3D12GraphicsCommandList *pCommandList)

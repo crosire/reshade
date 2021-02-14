@@ -85,10 +85,6 @@ namespace reshade
 		/// </summary>
 		draw_indirect,
 		/// <summary>
-		/// Called before 'ID3D12GraphicsCommandList::ResourceBarrier'.
-		/// </summary>
-		alias_resource,
-		/// <summary>
 		/// Called before 'IDirect3DDevice9::Clear', 'ID3D10Device::ClearDepthStencilView', 'ID3D11DeviceContext::ClearDepthStencilView', 'ID3D12GraphicsCommandList::ClearDepthStencilView', 'glClear', 'vkCmdBeginRenderPass' or 'vkCmdClearDepthStencilImage'.
 		/// Resource will be in the <see cref="resource_usage::depth_stencil_write"/> state.
 		/// </summary>
@@ -169,8 +165,6 @@ namespace reshade
 	struct addon_event_traits<addon_event::draw_indexed> { typedef void(*decl)(api::command_list *cmd, uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance); };
 	template <>
 	struct addon_event_traits<addon_event::draw_indirect> { typedef void(*decl)(api::command_list *cmd); };
-	template <>
-	struct addon_event_traits<addon_event::alias_resource> { typedef void(*decl)(api::command_list *cmd, api::resource_handle old_resource, api::resource_handle new_resource); };
 	template <>
 	struct addon_event_traits<addon_event::clear_depth_stencil> { typedef void(*decl)(api::command_list *cmd, api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil); };
 	template <>

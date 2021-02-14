@@ -584,6 +584,7 @@ HOOK_EXPORT BOOL WINAPI HookRegisterRawInputDevices(PCRAWINPUTDEVICE pRawInputDe
 #if RESHADE_VERBOSE_LOG
 	LOG(DEBUG) << "Redirecting " << "RegisterRawInputDevices" << '(' << "pRawInputDevices = " << pRawInputDevices << ", uiNumDevices = " << uiNumDevices << ", cbSize = " << cbSize << ')' << " ...";
 #endif
+
 	for (UINT i = 0; i < uiNumDevices; ++i)
 	{
 		const auto &device = pRawInputDevices[i];
@@ -606,7 +607,8 @@ HOOK_EXPORT BOOL WINAPI HookRegisterRawInputDevices(PCRAWINPUTDEVICE pRawInputDe
 		reshade::input::register_window_with_raw_input(device.hwndTarget, device.usUsage == 0x06 && (device.dwFlags & RIDEV_NOLEGACY) != 0, device.usUsage == 0x02 && (device.dwFlags & RIDEV_NOLEGACY) != 0);
 	}
 
-	if (!reshade::hooks::call(HookRegisterRawInputDevices)(pRawInputDevices, uiNumDevices, cbSize))
+	static const auto trampoline = reshade::hooks::call(HookRegisterRawInputDevices);
+	if (!trampoline(pRawInputDevices, uiNumDevices, cbSize))
 	{
 		LOG(WARN) << "RegisterRawInputDevices" << " failed with error code " << GetLastError() << '.';
 		return FALSE;
