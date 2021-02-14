@@ -587,6 +587,8 @@ reshade::d3d12::device_impl::device_impl(ID3D12Device *device) :
 }
 reshade::d3d12::device_impl::~device_impl()
 {
+	assert(_queues.empty()); // All queues should have been unregistered and destroyed by the application at this point
+
 	RESHADE_ADDON_EVENT(destroy_device, this);
 
 #if RESHADE_ADDON
@@ -632,7 +634,6 @@ bool reshade::d3d12::device_impl::check_resource_view_handle_valid(resource_view
 	else
 	{
 		const std::lock_guard<std::mutex> lock(s_global_mutex);
-
 		return _views.find(view.handle) != _views.end();
 	}
 }
@@ -708,7 +709,6 @@ void reshade::d3d12::device_impl::get_resource_from_view(resource_view_handle vi
 	else
 	{
 		const std::lock_guard<std::mutex> lock(s_global_mutex);
-
 		*out_resource = { reinterpret_cast<uintptr_t>(_views[view.handle]) };
 	}
 }
@@ -732,7 +732,7 @@ void reshade::d3d12::device_impl::wait_idle()
 	const std::lock_guard<std::mutex> lock(s_global_mutex);
 
 	UINT64 signal_value = 1;
-	for (const com_ptr<ID3D12CommandQueue> &queue : _queues)
+	for (ID3D12CommandQueue *const queue : _queues)
 	{
 		queue->Signal(fence.get(), signal_value);
 		fence->SetEventOnCompletion(signal_value, fence_event);
@@ -746,16 +746,20 @@ void reshade::d3d12::device_impl::wait_idle()
 void reshade::d3d12::device_impl::register_queue(ID3D12CommandQueue *queue)
 {
 	const std::lock_guard<std::mutex> lock(s_global_mutex);
-
 	_queues.push_back(queue);
 }
+void reshade::d3d12::device_impl::unregister_queue(ID3D12CommandQueue *queue)
+{
+	const std::lock_guard<std::mutex> lock(s_global_mutex);
+	_queues.erase(std::remove(_queues.begin(), _queues.end(), queue), _queues.end());
+}
+
 #if RESHADE_ADDON
 void reshade::d3d12::device_impl::register_resource_view(ID3D12Resource *resource, D3D12_CPU_DESCRIPTOR_HANDLE handle)
 {
 	assert(resource != nullptr);
 
 	const std::lock_guard<std::mutex> lock(s_global_mutex);
-
 	_views.emplace(handle.ptr, resource);
 }
 #endif

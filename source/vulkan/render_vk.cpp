@@ -386,6 +386,8 @@ reshade::vulkan::device_impl::device_impl(VkDevice device, VkPhysicalDevice phys
 }
 reshade::vulkan::device_impl::~device_impl()
 {
+	assert(queues.empty()); // All queues should have been unregistered and destroyed at this point
+
 	RESHADE_ADDON_EVENT(destroy_device, this);
 
 #if RESHADE_ADDON

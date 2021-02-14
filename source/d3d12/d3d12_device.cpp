@@ -93,10 +93,15 @@ ULONG   STDMETHODCALLTYPE D3D12Device::Release()
 	if (ref != 0)
 		return _orig->Release(), ref;
 
-	delete _impl;
+	if (_downlevel != nullptr &&
+		_downlevel->Release() != 0)
+	{
+		// Do not delete if the downlevel object was not destroyed yet
+		LOG(WARN) << "ID3D12Device" << _interface_version << " object " << this << " (" << _orig << ") was released before ID3D12DeviceDownlevel object " << _downlevel << " (" << _downlevel->_orig << ").";
+		return 0;
+	}
 
-	if (_downlevel != nullptr)
-		_downlevel->Release();
+	delete _impl;
 
 	const ULONG ref_orig = _orig->Release();
 	if (ref_orig != 0) // Verify internal reference count
@@ -154,8 +159,6 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandQueue(const D3D12_COMMAND_QU
 		LOG(WARN) << "ID3D12Device::CreateCommandQueue" << " failed with error code " << hr << '.';
 		return hr;
 	}
-
-	_impl->register_queue(static_cast<ID3D12CommandQueue *>(*ppCommandQueue));
 
 	const auto command_queue_proxy = new D3D12CommandQueue(this, static_cast<ID3D12CommandQueue *>(*ppCommandQueue));
 

@@ -63,6 +63,8 @@ namespace reshade::d3d12
 		void wait_idle() override;
 
 		void register_queue(ID3D12CommandQueue *queue);
+		void unregister_queue(ID3D12CommandQueue *queue);
+
 		void register_resource(ID3D12Resource *resource) { _resources.register_object(resource); }
 #if RESHADE_ADDON
 		void register_resource_view(ID3D12Resource *resource, D3D12_CPU_DESCRIPTOR_HANDLE handle);
@@ -77,7 +79,7 @@ namespace reshade::d3d12
 
 	private:
 		const com_ptr<ID3D12Device> _device;
-		std::vector<com_ptr<ID3D12CommandQueue>> _queues;
+		std::vector<ID3D12CommandQueue *> _queues;
 		com_object_list<ID3D12Resource> _resources;
 		std::unordered_map<uint64_t, ID3D12Resource *> _views;
 

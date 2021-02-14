@@ -16,6 +16,8 @@ D3D12CommandQueue::D3D12CommandQueue(D3D12Device *device, ID3D12CommandQueue *or
 	_impl(new reshade::d3d12::command_queue_impl(device->_impl, original))
 {
 	assert(_orig != nullptr && _device != nullptr);
+	// Keep track of the lifetime of all queues created on a device
+	_device->_impl->register_queue(_orig);
 }
 
 bool D3D12CommandQueue::check_and_upgrade_interface(REFIID riid)
@@ -90,9 +92,17 @@ ULONG   STDMETHODCALLTYPE D3D12CommandQueue::Release()
 	if (ref != 0)
 		return _orig->Release(), ref;
 
+	_device->_impl->unregister_queue(_orig);
+
 	// Release before deleting implementation object, since runtime created in D3D12CommandQueueDownlevel may still reference it
-	if (_downlevel != nullptr)
-		_downlevel->Release();
+	if (_downlevel != nullptr &&
+		_downlevel->Release() != 0)
+	{
+		// Do not delete if the downlevel object was not destroyed yet
+		// This will leak, but at least prevents a crash when the runtime created in the downlevel object tries to access the queue implementation object
+		LOG(WARN) << "ID3D12CommandQueue" << _interface_version << " object " << this << " (" << _orig << ") was released before ID3D12CommandQueueDownlevel object " << _downlevel << " (" << _downlevel->_orig << ").";
+		return 0;
+	}
 
 	delete _impl;
 
