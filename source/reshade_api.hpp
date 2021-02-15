@@ -113,11 +113,17 @@ namespace reshade { namespace api
 	{
 		union
 		{
+			/// <summary>
+			/// Used when resource type is <see cref="resource_type::buffer"/>.
+			/// </summary>
 			struct
 			{
 				// The size in bytes of the buffer.
 				uint64_t buffer_size;
 			};
+			/// <summary>
+			/// Used when resource type is <see cref="resource_type::surface"/>, <see cref="resource_type::texture_1d"/>, <see cref="resource_type::texture_2d"/> or <see cref="resource_type::texture_3d"/>.
+			/// </summary>
 			struct
 			{
 				// Width of the texture.
@@ -153,6 +159,9 @@ namespace reshade { namespace api
 
 		union
 		{
+			/// <summary>
+			/// Used when dimension is <see cref="resource_view_dimension::buffer"/>.
+			/// </summary>
 			struct
 			{
 				// Offset from the start of the buffer this view starts at.
@@ -160,6 +169,9 @@ namespace reshade { namespace api
 				// Total size in bytes this view covers.
 				uint64_t buffer_size;
 			};
+			/// <summary>
+			/// Used when dimension is <see cref="resource_view_dimension::texture_1d"/>, <see cref="resource_view_dimension::texture_2d"/> or any other texture dimension.
+			/// </summary>
 			struct
 			{
 				// Index of the most detailed mipmap level to use.

@@ -11,6 +11,9 @@
 #include <Psapi.h>
 #include <Windows.h>
 
+// Export special symbol to identify modules as ReShade instances
+extern "C" __declspec(dllexport) const char *ReShadeVersion = VERSION_STRING_PRODUCT;
+
 HMODULE g_module_handle = nullptr;
 std::filesystem::path g_reshade_dll_path;
 std::filesystem::path g_reshade_base_path;
@@ -792,9 +795,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 }
 
 #else
-
-// Export special symbol to identify modules as ReShade instances
-extern "C" __declspec(dllexport) const char *ReShadeVersion = VERSION_STRING_PRODUCT;
 
 #  ifndef NDEBUG
 #include <DbgHelp.h>

@@ -16,27 +16,28 @@ namespace reshade
 		/// </summary>
 		init_device,
 		/// <summary>
-		/// Called on device destruction, before 'IDirect3DDevice9::Release', 'ID3D10Device::Release', 'ID3D11Device::Release', 'ID3D12Device::Release', 'wglDeleteContext' or 'vkDestroyDevice'.
+		/// Called on device destruction, before last 'IDirect3DDevice9::Release', 'ID3D10Device::Release', 'ID3D11Device::Release', 'ID3D12Device::Release', 'wglDeleteContext' or 'vkDestroyDevice'.
 		/// </summary>
 		destroy_device,
 		/// <summary>
-		/// Called after 'ID3D11DeviceContext::FinishCommandList', 'ID3D12Device::CreateCommandList(1)' or 'vkAllocateCommandBuffers'.
+		/// Called after 'ID3D11DeviceContext::CreateDeferredContext(1/2/3)', 'ID3D12Device::CreateCommandList(1)' or 'vkAllocateCommandBuffers'.
 		/// </summary>
 		init_command_list,
 		/// <summary>
-		/// Called on command list destruction, before 'ID3D11CommandList::Release', 'ID3D12CommandList::Release' or 'vkFreeCommandBuffers'.
+		/// Called on command list destruction, before last 'ID3D11CommandList::Release', 'ID3D12CommandList::Release' or 'vkFreeCommandBuffers'.
 		/// </summary>
 		destroy_command_list,
 		/// <summary>
 		/// Called after 'ID3D12Device::CreateCommandQueue' or 'vkCreateDevice'.
+		/// In case of D3D9, D3D10, D3D11 and OpenGL this is called during device initialization as well and behaves as if an implicit command queue and list was created.
 		/// </summary>
 		init_command_queue,
 		/// <summary>
-		/// Called on command queue destruction, before 'ID3D12CommandQueue::Release' or 'vkDestroyDevice'.
+		/// Called on command queue destruction, before last 'ID3D12CommandQueue::Release' or 'vkDestroyDevice'.
 		/// </summary>
 		destroy_command_queue,
 		/// <summary>
-		/// Called after effect runtime initialization (which happens after swap chain creation or a resize).
+		/// Called after effect runtime initialization (which happens after swap chain creation or a swap chain buffer resize).
 		/// </summary>
 		init_effect_runtime,
 		/// <summary>
