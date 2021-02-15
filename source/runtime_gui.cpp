@@ -1700,9 +1700,9 @@ void reshade::runtime::draw_gui_statistics()
 		const float single_image_width = (total_width / num_columns) - 5.0f;
 
 		// Variables used to calculate memory size of textures
-		ldiv_t memory_view;
+		lldiv_t memory_view;
+		int64_t post_processing_memory_size = 0;
 		const char *memory_size_unit;
-		uint32_t post_processing_memory_size = 0;
 
 		for (const texture &tex : _textures)
 		{
@@ -1712,24 +1712,24 @@ void reshade::runtime::draw_gui_statistics()
 			ImGui::PushID(texture_index);
 			ImGui::BeginGroup();
 
-			uint32_t memory_size = 0;
+			int64_t memory_size = 0;
 			for (uint32_t level = 0, width = tex.width, height = tex.height; level < tex.levels; ++level, width /= 2, height /= 2)
 				memory_size += width * height * pixel_sizes[static_cast<unsigned int>(tex.format)];
 
 			post_processing_memory_size += memory_size;
 
 			if (memory_size >= 1024 * 1024) {
-				memory_view = std::ldiv(memory_size, 1024 * 1024);
+				memory_view = std::lldiv(memory_size, 1024 * 1024);
 				memory_view.rem /= 1000;
 				memory_size_unit = "MiB";
 			}
 			else {
-				memory_view = std::ldiv(memory_size, 1024);
+				memory_view = std::lldiv(memory_size, 1024);
 				memory_size_unit = "KiB";
 			}
 
 			ImGui::TextColored(ImVec4(1, 1, 1, 1), "%s%s", tex.unique_name.c_str(), tex.shared.size() > 1 ? " (Pooled)" : "");
-			ImGui::Text("%ux%u | %u mipmap(s) | %s | %ld.%03ld %s",
+			ImGui::Text("%ux%u | %u mipmap(s) | %s | %lld.%03lld %s",
 				tex.width,
 				tex.height,
 				tex.levels - 1,
@@ -1874,16 +1874,16 @@ void reshade::runtime::draw_gui_statistics()
 		ImGui::Separator();
 
 		if (post_processing_memory_size >= 1024 * 1024) {
-			memory_view = std::ldiv(post_processing_memory_size, 1024 * 1024);
+			memory_view = std::lldiv(post_processing_memory_size, 1024 * 1024);
 			memory_view.rem /= 1000;
 			memory_size_unit = "MiB";
 		}
 		else {
-			memory_view = std::ldiv(post_processing_memory_size, 1024);
+			memory_view = std::lldiv(post_processing_memory_size, 1024);
 			memory_size_unit = "KiB";
 		}
 
-		ImGui::Text("Total memory usage: %ld.%03ld %s", memory_view.quot, memory_view.rem, memory_size_unit);
+		ImGui::Text("Total memory usage: %lld.%03lld %s", memory_view.quot, memory_view.rem, memory_size_unit);
 	}
 }
 void reshade::runtime::draw_gui_log()
