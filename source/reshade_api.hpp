@@ -190,7 +190,7 @@ namespace reshade { namespace api
 	/// An opaque handle to a resource object (buffer, texture, ...).
 	/// Resources created by the application are only guaranteed to be valid during event callbacks.
 	/// If you want to use one outside that scope, first ensure the resource is still valid via <see cref="device::check_resource_handle_valid"/>.
-	/// Functionally equivalent to a 'IDirect3DResource9', 'ID3D10Resource', 'ID3D11Resource', 'ID3D12Resource' or 'VkImage'.
+	/// Depending on the render API this is really a pointer to a 'IDirect3DResource9', 'ID3D10Resource', 'ID3D11Resource', 'ID3D12Resource' object or a 'VkImage' handle.
 	/// </summary>
 	typedef struct { uint64_t handle; } resource_handle;
 
@@ -206,7 +206,7 @@ namespace reshade { namespace api
 	/// An opaque handle to a resource view object (depth-stencil, render target, shader resource view, ...).
 	/// Resource views created by the application are only guaranteed to be valid during event callbacks.
 	/// If you want to use one outside that scope, first ensure the resource is still valid via <see cref="device::check_resource_view_handle_valid"/>.
-	/// Functionally equivalent to a 'ID3D10View', 'ID3D11View', 'D3D12_CPU_DESCRIPTOR_HANDLE' or 'VkImageView'.
+	/// Depending on the render API this is really a pointer to a 'ID3D10View' or 'ID3D11View' object, the value of 'D3D12_CPU_DESCRIPTOR_HANDLE' or a 'VkImageView' handle.
 	/// </summary>
 	typedef struct { uint64_t handle; } resource_view_handle;
 
@@ -238,9 +238,9 @@ namespace reshade { namespace api
 
 		/// <summary>
 		/// Gets the underlying native object for this object.
-		/// In case of a <see cref="device"/> this can e.g. be a pointer to 'IDirect3DDevice9', 'ID3D10Device', 'ID3D12Device' or a 'HGLRC' or 'VkDevice' handle etc.
+		/// In case of a <see cref="device"/> this can e.g. be a pointer to a 'IDirect3DDevice9', 'ID3D10Device', 'ID3D12Device' object or a 'HGLRC' or 'VkDevice' handle.
 		/// </summary>
-		virtual /**/ void *get_native_object() = 0;
+		virtual uint64_t get_native_object() = 0;
 
 		// Helper templates to manage custom data creation and destruction:
 		template <typename T> inline T &get_data(const uint8_t guid[16])
@@ -411,7 +411,7 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
-	/// A ReShade effect runtime, used to control effects. A separate runtime is instantiated for every swap chain.
+	/// A ReShade effect runtime, used to control effects. A separate runtime is instantiated for every swap chain ('IDirect3DSwapChain9', 'IDXGISwapChain', 'HDC' or 'VkSwapchainKHR').
 	/// </summary>
 	class __declspec(novtable) effect_runtime : public device_object
 	{

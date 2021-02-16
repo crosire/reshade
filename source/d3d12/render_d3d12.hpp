@@ -41,7 +41,7 @@ namespace reshade::d3d12
 		bool get_data(const uint8_t guid[16], uint32_t size, void *data) override { return SUCCEEDED(_device->GetPrivateData(*reinterpret_cast<const GUID *>(guid), &size, data)); }
 		void set_data(const uint8_t guid[16], uint32_t size, const void *data) override { _device->SetPrivateData(*reinterpret_cast<const GUID *>(guid), size, data); }
 
-		void *get_native_object() override { return _device.get(); }
+		uint64_t get_native_object() override { return reinterpret_cast<uintptr_t>(_device.get()); }
 
 		api::render_api get_api() override { return api::render_api::d3d12; }
 
@@ -96,7 +96,7 @@ namespace reshade::d3d12
 		bool get_data(const uint8_t guid[16], uint32_t size, void *data) override { return SUCCEEDED(_cmd_list->GetPrivateData(*reinterpret_cast<const GUID *>(guid), &size, data)); }
 		void set_data(const uint8_t guid[16], uint32_t size, const void *data) override { _cmd_list->SetPrivateData(*reinterpret_cast<const GUID *>(guid), size, data); }
 
-		void *get_native_object() override { return _cmd_list.get(); }
+		uint64_t get_native_object() override { return reinterpret_cast<uintptr_t>(_cmd_list.get()); }
 
 		api::device *get_device() override { return _device_impl; }
 
@@ -148,7 +148,7 @@ namespace reshade::d3d12
 		bool get_data(const uint8_t guid[16], uint32_t size, void *data) override { return SUCCEEDED(_queue->GetPrivateData(*reinterpret_cast<const GUID *>(guid), &size, data)); }
 		void set_data(const uint8_t guid[16], uint32_t size, const void *data) override { _queue->SetPrivateData(*reinterpret_cast<const GUID *>(guid), size, data); }
 
-		void *get_native_object() override { return _queue.get(); }
+		uint64_t get_native_object() override { return reinterpret_cast<uintptr_t>(_queue.get()); }
 
 		api::device *get_device() override { return _device_impl; }
 		api::command_list *get_immediate_command_list() override { return _immediate_cmd_list; }

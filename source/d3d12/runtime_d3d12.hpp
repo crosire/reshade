@@ -21,7 +21,7 @@ namespace reshade::d3d12
 		bool get_data(const uint8_t guid[16], uint32_t size, void *data) override { return SUCCEEDED(_swapchain->GetPrivateData(*reinterpret_cast<const GUID *>(guid), &size, data)); }
 		void set_data(const uint8_t guid[16], uint32_t size, const void *data) override { _swapchain->SetPrivateData(*reinterpret_cast<const GUID *>(guid), size, data); }
 
-		void *get_native_object() override { return _swapchain.get(); }
+		uint64_t get_native_object() override { return reinterpret_cast<uintptr_t>(_swapchain.get()); }
 
 		api::device *get_device() override { return _device_impl; }
 		api::command_queue *get_command_queue() override { return _commandqueue_impl; }

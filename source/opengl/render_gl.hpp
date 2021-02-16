@@ -27,7 +27,7 @@ namespace reshade::opengl
 		bool get_data(const uint8_t guid[16], uint32_t size, void *data) override { return api_data::get_data(guid, size, data); }
 		void set_data(const uint8_t guid[16], uint32_t size, const void *data) override  { api_data::set_data(guid, size, data); }
 
-		void *get_native_object() override { return _hglrc; }
+		uint64_t get_native_object() override { return reinterpret_cast<uintptr_t>(_hglrc); }
 
 		api::render_api get_api() override { return api::render_api::opengl; }
 

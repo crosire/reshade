@@ -134,6 +134,8 @@ reshade::vulkan::runtime_vk::~runtime_vk()
 
 bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &desc, HWND hwnd)
 {
+	_swapchain = swapchain;
+
 	RECT window_rect = {};
 	GetClientRect(hwnd, &window_rect);
 
