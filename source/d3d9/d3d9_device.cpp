@@ -480,14 +480,20 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurface(UINT Width,
 		{
 			_impl->register_resource(texture.get());
 
-			reshade::api::resource_view_desc dsv_desc = reshade::d3d9::convert_resource_view_desc(new_desc);
+			reshade::api::resource_view_desc dsv_desc = { reshade::api::resource_view_dimension::texture_2d };
+			dsv_desc.format = static_cast<uint32_t>(new_desc.Format);
+			dsv_desc.first_level = 0;
+			dsv_desc.levels = 1;
+			dsv_desc.first_layer = 0;
+			dsv_desc.layers = 1;
 			RESHADE_ADDON_EVENT(create_resource_view, _impl, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(texture.get()) }, reshade::api::resource_view_type::depth_stencil, &dsv_desc);
-			reshade::d3d9::convert_resource_view_desc(dsv_desc, new_desc);
+			assert(dsv_desc.format == static_cast<uint32_t>(new_desc.Format) && dsv_desc.levels == 1 && dsv_desc.first_layer == 0 && dsv_desc.layers == 1);
 
 			if (SUCCEEDED(texture->GetSurfaceLevel(dsv_desc.first_level, ppSurface)))
 				return D3D_OK; // Successfully created replacement texture and got surface to it
 		}
 
+		// Restore original format in case replacement texture creation failed
 		new_desc.Format = Format;
 	}
 #endif
@@ -1089,14 +1095,20 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurfaceEx(UINT Widt
 		{
 			_impl->register_resource(texture.get());
 
-			reshade::api::resource_view_desc dsv_desc = reshade::d3d9::convert_resource_view_desc(new_desc);
+			reshade::api::resource_view_desc dsv_desc = { reshade::api::resource_view_dimension::texture_2d };
+			dsv_desc.format = static_cast<uint32_t>(new_desc.Format);
+			dsv_desc.first_level = 0;
+			dsv_desc.levels = 1;
+			dsv_desc.first_layer = 0;
+			dsv_desc.layers = 1;
 			RESHADE_ADDON_EVENT(create_resource_view, _impl, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(texture.get()) }, reshade::api::resource_view_type::depth_stencil, &dsv_desc);
-			reshade::d3d9::convert_resource_view_desc(dsv_desc, new_desc);
+			assert(dsv_desc.format == static_cast<uint32_t>(new_desc.Format) && dsv_desc.levels == 1 && dsv_desc.first_layer == 0 && dsv_desc.layers == 1);
 
 			if (SUCCEEDED(texture->GetSurfaceLevel(dsv_desc.first_level, ppSurface)))
 				return D3D_OK; // Successfully created replacement texture and got surface to it
 		}
 
+		// Restore original format in case replacement texture creation failed
 		new_desc.Format = Format;
 	}
 #endif

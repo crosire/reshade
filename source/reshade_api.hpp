@@ -190,7 +190,7 @@ namespace reshade { namespace api
 	/// An opaque handle to a resource object (buffer, texture, ...).
 	/// Resources created by the application are only guaranteed to be valid during event callbacks.
 	/// If you want to use one outside that scope, first ensure the resource is still valid via <see cref="device::check_resource_handle_valid"/>.
-	/// Depending on the render API this is really a pointer to a 'IDirect3DResource9', 'ID3D10Resource', 'ID3D11Resource', 'ID3D12Resource' object or a 'VkImage' handle.
+	/// Depending on the render API this is really a pointer to a 'IDirect3DResource9', 'ID3D10Resource', 'ID3D11Resource' or 'ID3D12Resource' object or a 'VkImage' handle.
 	/// </summary>
 	typedef struct { uint64_t handle; } resource_handle;
 
@@ -206,7 +206,7 @@ namespace reshade { namespace api
 	/// An opaque handle to a resource view object (depth-stencil, render target, shader resource view, ...).
 	/// Resource views created by the application are only guaranteed to be valid during event callbacks.
 	/// If you want to use one outside that scope, first ensure the resource is still valid via <see cref="device::check_resource_view_handle_valid"/>.
-	/// Depending on the render API this is really a pointer to a 'ID3D10View' or 'ID3D11View' object, the value of 'D3D12_CPU_DESCRIPTOR_HANDLE' or a 'VkImageView' handle.
+	/// Depending on the render API this is really a pointer to a 'IDirect3DResource9', 'ID3D10View' or 'ID3D11View' object, the value of 'D3D12_CPU_DESCRIPTOR_HANDLE' or a 'VkImageView' handle.
 	/// </summary>
 	typedef struct { uint64_t handle; } resource_view_handle;
 
@@ -238,7 +238,10 @@ namespace reshade { namespace api
 
 		/// <summary>
 		/// Gets the underlying native object for this object.
-		/// In case of a <see cref="device"/> this can e.g. be a pointer to a 'IDirect3DDevice9', 'ID3D10Device', 'ID3D12Device' object or a 'HGLRC' or 'VkDevice' handle.
+		/// For <see cref="device"/>s this will be be a pointer to a 'IDirect3DDevice9', 'ID3D10Device', 'ID3D11Device' or 'ID3D12Device' object or a 'HGLRC' or 'VkDevice' handle.
+		/// For <see cref="command_list"/>s this will be a pointer to a 'IDirect3DDevice9', 'ID3D10Device', 'ID3D11DeviceContext' or 'ID3D12GraphicsCommandList' object or a 'VkCommandBuffer' handle.
+		/// For <see cref="command_queue"/>s this will be a pointer to a 'IDirect3DDevice9', 'ID3D10Device', 'ID3D11DeviceContext' or 'ID3D12CommandQueue' object or a 'VkQueue' handle.
+		/// For <see cref="effect_runtime"/>s this will be a pointer to a 'IDirect3DSwapChain9' or 'IDXGISwapChain' object or a 'HDC' or 'VkSwapchainKHR' handle.
 		/// </summary>
 		virtual uint64_t get_native_object() = 0;
 

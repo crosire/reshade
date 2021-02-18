@@ -36,6 +36,10 @@ void reshade::d3d12::convert_resource_desc(resource_type type, const resource_de
 	if (type == resource_type::buffer)
 	{
 		internal_desc.Width = desc.buffer_size;
+		internal_desc.Height = 1;
+		internal_desc.DepthOrArraySize = 1;
+		internal_desc.MipLevels = 1;
+		internal_desc.SampleDesc.Count = 1;
 	}
 	else
 	{
@@ -129,6 +133,7 @@ void reshade::d3d12::convert_depth_stencil_view_desc(const resource_view_desc &d
 {
 	// Missing fields: D3D12_DEPTH_STENCIL_VIEW_DESC::Flags
 	internal_desc.Format = static_cast<DXGI_FORMAT>(desc.format);
+	assert(desc.levels == 1);
 	switch (desc.dimension) // Do not modifiy description in case dimension is 'resource_view_dimension::unknown'
 	{
 	case resource_view_dimension::texture_1d:
@@ -204,6 +209,7 @@ resource_view_desc reshade::d3d12::convert_depth_stencil_view_desc(const D3D12_D
 void reshade::d3d12::convert_render_target_view_desc(const resource_view_desc &desc, D3D12_RENDER_TARGET_VIEW_DESC &internal_desc)
 {
 	internal_desc.Format = static_cast<DXGI_FORMAT>(desc.format);
+	assert(desc.levels == 1);
 	switch (desc.dimension) // Do not modifiy description in case dimension is 'resource_view_dimension::unknown'
 	{
 	case resource_view_dimension::texture_1d:
@@ -437,6 +443,7 @@ resource_view_desc reshade::d3d12::convert_shader_resource_view_desc(const D3D12
 void reshade::d3d12::convert_unordered_access_view_desc(const resource_view_desc &desc, D3D12_UNORDERED_ACCESS_VIEW_DESC &internal_desc)
 {
 	internal_desc.Format = static_cast<DXGI_FORMAT>(desc.format);
+	assert(desc.levels == 1);
 	switch (desc.dimension) // Do not modifiy description in case dimension is 'resource_view_dimension::unknown'
 	{
 	case resource_view_dimension::buffer:
@@ -647,13 +654,13 @@ bool reshade::d3d12::device_impl::create_resource(resource_type type, const reso
 	if (type == resource_type::buffer)
 		internal_desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 
-	D3D12_HEAP_PROPERTIES heap_props = { D3D12_HEAP_TYPE_DEFAULT };
+	const D3D12_HEAP_PROPERTIES heap_props = { D3D12_HEAP_TYPE_DEFAULT };
 
-	if (com_ptr<ID3D12Resource> resource;
+	if (ID3D12Resource *resource = nullptr;
 		SUCCEEDED(_device->CreateCommittedResource(&heap_props, D3D12_HEAP_FLAG_NONE, &internal_desc, static_cast<D3D12_RESOURCE_STATES>(initial_state), nullptr, IID_PPV_ARGS(&resource))))
 	{
-		register_resource(resource.get());
-		*out_resource = { reinterpret_cast<uintptr_t>(resource.release()) };
+		register_resource(resource);
+		*out_resource = { reinterpret_cast<uintptr_t>(resource) };
 		return true;
 	}
 	else
@@ -835,6 +842,7 @@ void reshade::d3d12::command_list_impl::clear_depth_stencil_view(resource_view_h
 {
 	_has_commands = true;
 
+	// Only supported for resource view handles created by the application for now
 	assert(dsv.handle != 0 && (dsv.handle & 1) == 0);
 	_cmd_list->ClearDepthStencilView(D3D12_CPU_DESCRIPTOR_HANDLE { static_cast<SIZE_T>(dsv.handle) }, static_cast<D3D12_CLEAR_FLAGS>(clear_flags), depth, stencil, 0, nullptr);
 }
@@ -842,6 +850,7 @@ void reshade::d3d12::command_list_impl::clear_render_target_view(resource_view_h
 {
 	_has_commands = true;
 
+	// Only supported for resource view handles created by the application for now
 	assert(rtv.handle != 0 && (rtv.handle & 1) == 0);
 	_cmd_list->ClearRenderTargetView(D3D12_CPU_DESCRIPTOR_HANDLE { static_cast<SIZE_T>(rtv.handle) }, color, 0, nullptr);
 }

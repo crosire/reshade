@@ -4,7 +4,6 @@
  */
 
 #include "render_d3d9.hpp"
-#include <algorithm>
 
 using namespace reshade::api;
 
@@ -136,25 +135,6 @@ resource_desc reshade::d3d9::convert_resource_desc(const D3DVERTEXBUFFER_DESC &i
 	return desc;
 }
 
-void reshade::d3d9::convert_resource_view_desc(const resource_view_desc &desc, D3DSURFACE_DESC &internal_desc)
-{
-	assert(desc.dimension == resource_view_dimension::texture_2d || desc.dimension == resource_view_dimension::texture_2d_multisample);
-
-	internal_desc.Format = static_cast<D3DFORMAT>(desc.format);
-}
-resource_view_desc reshade::d3d9::convert_resource_view_desc(const D3DSURFACE_DESC &internal_desc)
-{
-	resource_view_desc desc = {};
-	desc.dimension = internal_desc.MultiSampleType >= D3DMULTISAMPLE_2_SAMPLES ? resource_view_dimension::texture_2d_multisample : resource_view_dimension::texture_2d;
-	desc.format = static_cast<uint32_t>(internal_desc.Format);
-	desc.first_level = 0;
-	desc.levels = 1;
-	desc.first_layer = 0;
-	desc.layers = 1;
-
-	return desc;
-}
-
 reshade::d3d9::device_impl::device_impl(IDirect3DDevice9 *device) :
 	_device(device), _app_state(device)
 {
@@ -164,7 +144,9 @@ reshade::d3d9::device_impl::device_impl(IDirect3DDevice9 *device) :
 	_device->GetCreationParameters(&creation_params);
 
 	_num_samplers = caps.MaxSimultaneousTextures;
-	_num_simultaneous_rendertargets = std::min(caps.NumSimultaneousRTs, static_cast<DWORD>(8));
+	_num_simultaneous_rendertargets = caps.NumSimultaneousRTs;
+	if (_num_simultaneous_rendertargets > 8)
+		_num_simultaneous_rendertargets = 8;
 	_behavior_flags = creation_params.BehaviorFlags;
 
 #if RESHADE_ADDON
@@ -296,15 +278,16 @@ bool reshade::d3d9::device_impl::create_resource(resource_type type, const resou
 
 			if ((desc.usage & resource_usage::index_buffer) != 0)
 			{
+				// TODO: Index format
 				if (IDirect3DIndexBuffer9 *resource;
-					SUCCEEDED(_device->CreateIndexBuffer(static_cast<UINT>(desc.buffer_size), d3d_usage, static_cast<D3DFORMAT>(desc.format), D3DPOOL_DEFAULT, &resource, nullptr)))
+					SUCCEEDED(_device->CreateIndexBuffer(static_cast<UINT>(desc.buffer_size), d3d_usage, D3DFMT_UNKNOWN, D3DPOOL_DEFAULT, &resource, nullptr)))
 				{
 					register_resource(resource);
 					*out_resource = { reinterpret_cast<uintptr_t>(resource) };
 					return true;
 				}
 			}
-			else
+			if ((desc.usage & resource_usage::vertex_buffer) != 0)
 			{
 				if (IDirect3DVertexBuffer9 *resource;
 					SUCCEEDED(_device->CreateVertexBuffer(static_cast<UINT>(desc.buffer_size), d3d_usage, 0, D3DPOOL_DEFAULT, &resource, nullptr)))
@@ -319,17 +302,22 @@ bool reshade::d3d9::device_impl::create_resource(resource_type type, const resou
 		case resource_type::texture_1d:
 		case resource_type::texture_2d:
 		{
-			if (IDirect3DTexture9 *resource;
-				SUCCEEDED(_device->CreateTexture(desc.width, desc.height, desc.levels, d3d_usage, static_cast<D3DFORMAT>(desc.format), D3DPOOL_DEFAULT, &resource, nullptr)))
+			// Array or multisample textures are not supported in Direct3D 9
+			if (desc.depth_or_layers <= 1 && desc.samples <= 1)
 			{
-				register_resource(resource);
-				*out_resource = { reinterpret_cast<uintptr_t>(resource) };
-				return true;
+				if (IDirect3DTexture9 *resource;
+					SUCCEEDED(_device->CreateTexture(desc.width, desc.height, desc.levels, d3d_usage, static_cast<D3DFORMAT>(desc.format), D3DPOOL_DEFAULT, &resource, nullptr)))
+				{
+					register_resource(resource);
+					*out_resource = { reinterpret_cast<uintptr_t>(resource) };
+					return true;
+				}
 			}
 			break;
 		}
 		case resource_type::texture_3d:
 		{
+			assert(desc.samples <= 1); // 3D textures can never have multisampling
 			if (IDirect3DVolumeTexture9 *resource;
 				SUCCEEDED(_device->CreateVolumeTexture(desc.width, desc.height, desc.depth_or_layers, desc.levels, d3d_usage, static_cast<D3DFORMAT>(desc.format), D3DPOOL_DEFAULT, &resource, nullptr)))
 			{
@@ -346,34 +334,67 @@ bool reshade::d3d9::device_impl::create_resource(resource_type type, const resou
 }
 bool reshade::d3d9::device_impl::create_resource_view(resource_handle resource, resource_view_type type, const resource_view_desc &desc, resource_view_handle *out_view)
 {
+	// Views with a different format than the resource are not supported in Direct3D 9
+	assert(desc.format == get_resource_desc(resource).format);
+
 	assert(resource.handle != 0);
 	const auto resource_object = reinterpret_cast<IDirect3DResource9 *>(resource.handle);
 
-	const D3DRESOURCETYPE resource_type = resource_object->GetType();
-	if (resource_type == D3DRTYPE_TEXTURE || resource_type == D3DRTYPE_VOLUMETEXTURE || resource_type == D3DRTYPE_CUBETEXTURE)
+	switch (resource_object->GetType())
 	{
-		if (type == resource_view_type::shader_resource)
+		case D3DRTYPE_SURFACE:
 		{
-			resource_object->AddRef();
-			*out_view = { resource.handle };
-			return true;
-		}
-		else if (type == resource_view_type::depth_stencil || type == resource_view_type::render_target)
-		{
-			assert(desc.levels <= 1);
-			if (IDirect3DSurface9 *surface = nullptr;
-				SUCCEEDED(static_cast<IDirect3DTexture9 *>(resource_object)->GetSurfaceLevel(desc.first_level, &surface)))
+			assert(desc.first_level == 0 && (desc.levels == 1 || desc.levels == std::numeric_limits<uint32_t>::max()));
+			assert(desc.first_layer == 0 && (desc.layers == 1 || desc.layers == std::numeric_limits<uint32_t>::max()));
+			if (type == resource_view_type::depth_stencil || type == resource_view_type::render_target)
 			{
-				*out_view = { reinterpret_cast<uintptr_t>(surface) };
+				resource_object->AddRef();
+				*out_view = { resource.handle };
 				return true;
 			}
+			break;
 		}
-	}
-	else if (resource_type == D3DRTYPE_SURFACE && (type == resource_view_type::depth_stencil || type == resource_view_type::render_target))
-	{
-		resource_object->AddRef();
-		*out_view = { resource.handle };
-		return true;
+		case D3DRTYPE_TEXTURE:
+		{
+			assert(desc.first_layer == 0 && (desc.layers == 1 || desc.layers == std::numeric_limits<uint32_t>::max()));
+			if (type == resource_view_type::depth_stencil || type == resource_view_type::render_target)
+			{
+				assert(desc.levels == 1);
+				if (IDirect3DSurface9 *surface = nullptr;
+					SUCCEEDED(static_cast<IDirect3DTexture9 *>(resource_object)->GetSurfaceLevel(desc.first_level, &surface)))
+				{
+					*out_view = { reinterpret_cast<uintptr_t>(surface) };
+					return true;
+				}
+			}
+			else if (type == resource_view_type::shader_resource && desc.first_level == 0)
+			{
+				resource_object->AddRef();
+				*out_view = { resource.handle };
+				return true;
+			}
+			break;
+		}
+		case D3DRTYPE_CUBETEXTURE:
+		{
+			if (type == resource_view_type::depth_stencil || type == resource_view_type::render_target)
+			{
+				assert(desc.levels == 1 && desc.layers == 1);
+				if (IDirect3DSurface9 *surface = nullptr;
+					SUCCEEDED(static_cast<IDirect3DCubeTexture9 *>(resource_object)->GetCubeMapSurface(static_cast<D3DCUBEMAP_FACES>(desc.first_layer), desc.first_level, &surface)))
+				{
+					*out_view = { reinterpret_cast<uintptr_t>(surface) };
+					return true;
+				}
+			}
+			else if (type == resource_view_type::shader_resource && desc.first_level == 0 && desc.first_layer == 0)
+			{
+				resource_object->AddRef();
+				*out_view = { resource.handle };
+				return true;
+			}
+			break;
+		}
 	}
 
 	*out_view = { 0 };
@@ -387,8 +408,7 @@ void reshade::d3d9::device_impl::destroy_resource(resource_handle resource)
 }
 void reshade::d3d9::device_impl::destroy_resource_view(resource_view_handle view)
 {
-	assert(view.handle != 0);
-	reinterpret_cast<IDirect3DResource9 *>(view.handle)->Release();
+	destroy_resource({ view.handle });
 }
 
 void reshade::d3d9::device_impl::get_resource_from_view(resource_view_handle view, resource_handle *out_resource)
@@ -459,7 +479,7 @@ resource_desc reshade::d3d9::device_impl::get_resource_desc(resource_handle reso
 		}
 	}
 
-	assert(false);
+	assert(false); // Not implemented
 	return {};
 }
 
@@ -508,19 +528,16 @@ void reshade::d3d9::device_impl::copy_resource(resource_handle source, resource_
 			_device->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, vertices, sizeof(vertices[0]));
 
 			_app_state.apply_and_release();
-			break;
+			return;
 		}
 		case D3DRTYPE_SURFACE:
 		{
 			_device->StretchRect(static_cast<IDirect3DSurface9 *>(source_object), nullptr, static_cast<IDirect3DSurface9 *>(destination_object), nullptr, D3DTEXF_NONE);
-			break;
-		}
-		default:
-		{
-			assert(false); // Not implemented
-			break;
+			return;
 		}
 	}
+
+	assert(false); // Not implemented
 }
 
 void reshade::d3d9::device_impl::clear_depth_stencil_view(resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil)

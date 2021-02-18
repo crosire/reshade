@@ -157,6 +157,7 @@ void reshade::d3d11::convert_depth_stencil_view_desc(const resource_view_desc &d
 {
 	// Missing fields: D3D11_DEPTH_STENCIL_VIEW_DESC::Flags
 	internal_desc.Format = static_cast<DXGI_FORMAT>(desc.format);
+	assert(desc.levels == 1);
 	switch (desc.dimension) // Do not modifiy description in case dimension is 'resource_view_dimension::unknown'
 	{
 	case resource_view_dimension::texture_1d:
@@ -232,6 +233,7 @@ resource_view_desc reshade::d3d11::convert_depth_stencil_view_desc(const D3D11_D
 void reshade::d3d11::convert_render_target_view_desc(const resource_view_desc &desc, D3D11_RENDER_TARGET_VIEW_DESC &internal_desc)
 {
 	internal_desc.Format = static_cast<DXGI_FORMAT>(desc.format);
+	assert(desc.levels == 1);
 	switch (desc.dimension) // Do not modifiy description in case dimension is 'resource_view_dimension::unknown'
 	{
 	case resource_view_dimension::texture_1d:
@@ -275,6 +277,7 @@ void reshade::d3d11::convert_render_target_view_desc(const resource_view_desc &d
 	if (desc.dimension == resource_view_dimension::texture_2d || desc.dimension == resource_view_dimension::texture_2d_array)
 	{
 		internal_desc.Format = static_cast<DXGI_FORMAT>(desc.format);
+		assert(desc.levels == 1);
 		switch (desc.dimension)
 		{
 		case resource_view_dimension::texture_2d:
@@ -564,6 +567,7 @@ resource_view_desc reshade::d3d11::convert_shader_resource_view_desc(const D3D11
 void reshade::d3d11::convert_unordered_access_view_desc(const resource_view_desc &desc, D3D11_UNORDERED_ACCESS_VIEW_DESC &internal_desc)
 {
 	internal_desc.Format = static_cast<DXGI_FORMAT>(desc.format);
+	assert(desc.levels == 1);
 	switch (desc.dimension) // Do not modifiy description in case dimension is 'resource_view_dimension::unknown'
 	{
 	case resource_view_dimension::buffer:
@@ -606,6 +610,7 @@ void reshade::d3d11::convert_unordered_access_view_desc(const resource_view_desc
 	if (desc.dimension == resource_view_dimension::texture_2d || desc.dimension == resource_view_dimension::texture_2d_array)
 	{
 		internal_desc.Format = static_cast<DXGI_FORMAT>(desc.format);
+		assert(desc.levels == 1);
 		switch (desc.dimension)
 		{
 		case resource_view_dimension::texture_2d:
@@ -843,8 +848,6 @@ bool reshade::d3d11::device_impl::create_resource_view(resource_handle resource,
 	{
 		case resource_view_type::depth_stencil:
 		{
-			assert(desc.levels <= 1);
-
 			D3D11_DEPTH_STENCIL_VIEW_DESC internal_desc = {};
 			convert_depth_stencil_view_desc(desc, internal_desc);
 
@@ -859,8 +862,6 @@ bool reshade::d3d11::device_impl::create_resource_view(resource_handle resource,
 		}
 		case resource_view_type::render_target:
 		{
-			assert(desc.levels <= 1);
-
 			D3D11_RENDER_TARGET_VIEW_DESC internal_desc = {};
 			convert_render_target_view_desc(desc, internal_desc);
 
@@ -880,6 +881,20 @@ bool reshade::d3d11::device_impl::create_resource_view(resource_handle resource,
 
 			if (com_ptr<ID3D11ShaderResourceView> view;
 				SUCCEEDED(_device->CreateShaderResourceView(reinterpret_cast<ID3D11Resource *>(resource.handle), &internal_desc, &view)))
+			{
+				register_resource_view(view.get());
+				*out_view = { reinterpret_cast<uintptr_t>(view.release()) };
+				return true;
+			}
+			break;
+		}
+		case resource_view_type::unordered_access:
+		{
+			D3D11_UNORDERED_ACCESS_VIEW_DESC internal_desc = {};
+			convert_unordered_access_view_desc(desc, internal_desc);
+
+			if (com_ptr<ID3D11UnorderedAccessView> view;
+				SUCCEEDED(_device->CreateUnorderedAccessView(reinterpret_cast<ID3D11Resource *>(resource.handle), &internal_desc, &view)))
 			{
 				register_resource_view(view.get());
 				*out_view = { reinterpret_cast<uintptr_t>(view.release()) };
@@ -948,7 +963,7 @@ resource_desc reshade::d3d11::device_impl::get_resource_desc(resource_handle res
 		}
 	}
 
-	assert(false);
+	assert(false); // Not implemented
 	return {};
 }
 

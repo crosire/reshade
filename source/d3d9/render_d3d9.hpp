@@ -21,9 +21,6 @@ namespace reshade::d3d9
 	api::resource_desc convert_resource_desc(const D3DINDEXBUFFER_DESC &internal_desc);
 	api::resource_desc convert_resource_desc(const D3DVERTEXBUFFER_DESC &internal_desc);
 
-	void convert_resource_view_desc(const api::resource_view_desc &desc, D3DSURFACE_DESC &internal_desc);
-	api::resource_view_desc convert_resource_view_desc(const D3DSURFACE_DESC &internal_desc);
-
 	class device_impl : public api::device, public api::command_queue, public api::command_list, api::api_data
 	{
 		friend class runtime_d3d9;

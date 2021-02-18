@@ -131,7 +131,7 @@ namespace reshade::vulkan
 		}
 		void register_image_view(VkImageView image_view, const VkImageViewCreateInfo &create_info)
 		{
-			resource_view_data data{ true };
+			resource_view_data data { true };
 			data.image_view = image_view;
 			data.image_create_info = create_info;
 			_views.emplace((uint64_t)image_view, data);
@@ -146,7 +146,7 @@ namespace reshade::vulkan
 		}
 		void register_buffer_view(VkBufferView buffer_view, const VkBufferViewCreateInfo &create_info)
 		{
-			resource_view_data data{ false };
+			resource_view_data data { false };
 			data.buffer_view = buffer_view;
 			data.buffer_create_info = create_info;
 			_views.emplace((uint64_t)buffer_view, data);

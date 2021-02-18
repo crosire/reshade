@@ -445,6 +445,7 @@ bool reshade::vulkan::device_impl::create_resource(resource_type type, const res
 				*out_resource = { (uint64_t)buffer };
 				return true;
 			}
+			break;
 		}
 		case resource_type::texture_1d:
 		case resource_type::texture_2d:
@@ -478,6 +479,7 @@ bool reshade::vulkan::device_impl::create_resource(resource_type type, const res
 
 				return true;
 			}
+			break;
 		}
 	}
 
@@ -532,6 +534,8 @@ void reshade::vulkan::device_impl::destroy_resource(resource_handle resource)
 {
 	assert(resource.handle != 0);
 	const resource_data &data = _resources.at(resource.handle);
+
+	// Can only destroy resources that were allocated via 'create_resource' previously
 	assert(data.allocation != nullptr);
 
 	if (data.type)

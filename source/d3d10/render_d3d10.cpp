@@ -151,6 +151,7 @@ resource_desc reshade::d3d10::convert_resource_desc(const D3D10_TEXTURE3D_DESC &
 void reshade::d3d10::convert_depth_stencil_view_desc(const resource_view_desc &desc, D3D10_DEPTH_STENCIL_VIEW_DESC &internal_desc)
 {
 	internal_desc.Format = static_cast<DXGI_FORMAT>(desc.format);
+	assert(desc.levels == 1);
 	switch (desc.dimension) // Do not modifiy description in case dimension is 'resource_view_dimension::unknown'
 	{
 	case resource_view_dimension::texture_1d:
@@ -225,6 +226,7 @@ resource_view_desc reshade::d3d10::convert_depth_stencil_view_desc(const D3D10_D
 void reshade::d3d10::convert_render_target_view_desc(const resource_view_desc &desc, D3D10_RENDER_TARGET_VIEW_DESC &internal_desc)
 {
 	internal_desc.Format = static_cast<DXGI_FORMAT>(desc.format);
+	assert(desc.levels == 1);
 	switch (desc.dimension) // Do not modifiy description in case dimension is 'resource_view_dimension::unknown'
 	{
 	case resource_view_dimension::texture_1d:
@@ -601,8 +603,6 @@ bool reshade::d3d10::device_impl::create_resource_view(resource_handle resource,
 	{
 		case resource_view_type::depth_stencil:
 		{
-			assert(desc.levels <= 1);
-
 			D3D10_DEPTH_STENCIL_VIEW_DESC internal_desc = {};
 			convert_depth_stencil_view_desc(desc, internal_desc);
 
@@ -617,8 +617,6 @@ bool reshade::d3d10::device_impl::create_resource_view(resource_handle resource,
 		}
 		case resource_view_type::render_target:
 		{
-			assert(desc.levels <= 1);
-
 			D3D10_RENDER_TARGET_VIEW_DESC internal_desc = {};
 			convert_render_target_view_desc(desc, internal_desc);
 
@@ -706,7 +704,7 @@ resource_desc reshade::d3d10::device_impl::get_resource_desc(resource_handle res
 		}
 	}
 
-	assert(false);
+	assert(false); // Not implemented
 	return {};
 }
 
