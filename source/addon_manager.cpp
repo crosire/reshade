@@ -75,8 +75,8 @@ void reshade::api::api_data::set_data(const uint8_t guid[16], uint32_t size, con
 }
 
 bool reshade::addon::event_list_enabled = true;
-std::vector<void *> disabled_event_list[static_cast<size_t>(reshade::addon_event::num_addon_events)];
-std::vector<void *> reshade::addon::event_list[static_cast<size_t>(reshade::addon_event::num_addon_events)];
+std::vector<void *> disabled_event_list[26]; // Keep in sync with higher value in 'reshade::addon_event' enumeration
+std::vector<void *> reshade::addon::event_list[26];
 std::vector<reshade::addon::info> reshade::addon::loaded_info;
 #if RESHADE_GUI
 std::vector<std::pair<std::string, void(*)(reshade::api::effect_runtime *, void *)>> reshade::addon::overlay_list;
@@ -142,12 +142,12 @@ void reshade::addon::enable_or_disable_addons(bool enabled)
 
 	if (enabled)
 	{
-		for (size_t event_index = 0; event_index < static_cast<size_t>(addon_event::num_addon_events); ++event_index)
+		for (size_t event_index = 0; event_index < std::size(event_list); ++event_index)
 			event_list[event_index] = std::move(disabled_event_list[event_index]);
 	}
 	else
 	{
-		for (size_t event_index = 0; event_index < static_cast<size_t>(addon_event::num_addon_events); ++event_index)
+		for (size_t event_index = 0; event_index < std::size(event_list); ++event_index)
 			disabled_event_list[event_index] = std::move(event_list[event_index]);
 	}
 

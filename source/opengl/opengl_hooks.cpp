@@ -135,11 +135,9 @@ HOOK_EXPORT void WINAPI glClear(GLbitfield mask)
 			GLfloat color_value[4] = {};
 			glGetFloatv(GL_COLOR_CLEAR_VALUE, color_value);
 
-			for (GLuint i = 0; i < 8; ++i)
+			reshade::api::resource_view_handle rtv;
+			for (GLuint i = 0; i < 8 && (rtv = g_current_runtime->get_render_target_from_fbo(fbo, i)) != 0; ++i)
 			{
-				const reshade::api::resource_view_handle rtv = g_current_runtime->get_render_target_from_fbo(fbo, i);
-				if (rtv.handle == 0)
-					continue;
 				RESHADE_ADDON_EVENT(clear_render_target, g_current_runtime, rtv, color_value);
 			}
 		}
@@ -165,6 +163,69 @@ HOOK_EXPORT void WINAPI glClear(GLbitfield mask)
 	static const auto trampoline = reshade::hooks::call(glClear);
 	trampoline(mask);
 }
+			void WINAPI glClearBufferfv(GLenum buffer, GLint drawbuffer, const GLfloat *value)
+{
+#if RESHADE_ADDON
+	if (g_current_runtime && buffer == GL_COLOR)
+	{
+		GLint fbo = 0;
+		glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &fbo);
+
+		const reshade::api::resource_view_handle rtv = g_current_runtime->get_render_target_from_fbo(fbo, drawbuffer);
+		RESHADE_ADDON_EVENT(clear_render_target, g_current_runtime, rtv, value);
+	}
+#endif
+
+	static const auto trampoline = reshade::hooks::call(glClearBufferfv);
+	trampoline(buffer, drawbuffer, value);
+}
+			void WINAPI glClearBufferfi(GLenum buffer, GLint drawbuffer, GLfloat depth, GLint stencil)
+{
+#if RESHADE_ADDON
+	if (g_current_runtime && buffer == GL_DEPTH_STENCIL)
+	{
+		assert(drawbuffer == 0);
+
+		GLint fbo = 0;
+		glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &fbo);
+
+		const reshade::api::resource_view_handle dsv = g_current_runtime->get_depth_stencil_from_fbo(fbo);
+		RESHADE_ADDON_EVENT(clear_depth_stencil, g_current_runtime, dsv, 0x3, depth, static_cast<uint8_t>(stencil));
+	}
+#endif
+
+	static const auto trampoline = reshade::hooks::call(glClearBufferfi);
+	trampoline(buffer, drawbuffer, depth, stencil);
+}
+			void WINAPI glClearNamedFramebufferfv(GLuint framebuffer, GLenum buffer, GLint drawbuffer, const GLfloat *value)
+{
+#if RESHADE_ADDON
+	if (g_current_runtime && buffer == GL_COLOR)
+	{
+		const reshade::api::resource_view_handle rtv = g_current_runtime->get_render_target_from_fbo(framebuffer, drawbuffer);
+		RESHADE_ADDON_EVENT(clear_render_target, g_current_runtime, rtv, value);
+	}
+#endif
+
+	static const auto trampoline = reshade::hooks::call(glClearNamedFramebufferfv);
+	trampoline(framebuffer, buffer, drawbuffer, value);
+}
+			void WINAPI glClearNamedFramebufferfi(GLuint framebuffer, GLenum buffer, GLint drawbuffer, GLfloat depth, GLint stencil)
+{
+#if RESHADE_ADDON
+	if (g_current_runtime && buffer == GL_DEPTH_STENCIL)
+	{
+		assert(drawbuffer == 0);
+
+		const reshade::api::resource_view_handle dsv = g_current_runtime->get_depth_stencil_from_fbo(framebuffer);
+		RESHADE_ADDON_EVENT(clear_depth_stencil, g_current_runtime, dsv, 0x3, depth, static_cast<uint8_t>(stencil));
+	}
+#endif
+
+	static const auto trampoline = reshade::hooks::call(glClearNamedFramebufferfi);
+	trampoline(framebuffer, buffer, drawbuffer, depth, stencil);
+}
+
 HOOK_EXPORT void WINAPI glClearAccum(GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha)
 {
 	static const auto trampoline = reshade::hooks::call(glClearAccum);

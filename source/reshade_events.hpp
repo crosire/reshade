@@ -82,18 +82,18 @@ namespace reshade
 		/// </summary>
 		draw_indirect,
 		/// <summary>
-		/// Called before 'IDirect3DDevice9::Clear', 'ID3D10Device::ClearDepthStencilView', 'ID3D11DeviceContext::ClearDepthStencilView', 'ID3D12GraphicsCommandList::ClearDepthStencilView', 'glClear', 'vkCmdBeginRenderPass' or 'vkCmdClearDepthStencilImage'.
+		/// Called before 'IDirect3DDevice9::Clear', 'ID3D10Device::ClearDepthStencilView', 'ID3D11DeviceContext::ClearDepthStencilView', 'ID3D12GraphicsCommandList::ClearDepthStencilView', 'glClear(...) ', 'vkCmdBeginRenderPass' or 'vkCmdClearDepthStencilImage'.
 		/// Resource will be in the <see cref="resource_usage::depth_stencil_write"/> state.
 		/// </summary>
 		clear_depth_stencil,
 		/// <summary>
-		/// Called before 'IDirect3DDevice9::Clear', 'ID3D10Device::ClearRenderTargetView', 'ID3D11DeviceContext::ClearRenderTargetView', 'ID3D12GraphicsCommandList::ClearRenderTargetView', 'glClear', 'vkCmdBeginRenderPass' or 'vkCmdClearColorImage'.
+		/// Called before 'IDirect3DDevice9::Clear', 'ID3D10Device::ClearRenderTargetView', 'ID3D11DeviceContext::ClearRenderTargetView', 'ID3D12GraphicsCommandList::ClearRenderTargetView', 'glClear(...)', 'vkCmdBeginRenderPass' or 'vkCmdClearColorImage'.
 		/// Resource will be in the <see cref="resource_usage::render_target"/> state.
 		/// </summary>
 		clear_render_target,
 
 		/// <summary>
-		/// Called before 'ID3D10Device::ClearState', 'ID3D11DeviceContext::ClearState', 'ID3D12GraphicsCommandList::Reset' or 'vkBeginCommandBuffer'.
+		/// Called before 'ID3D12GraphicsCommandList::Reset' or 'vkBeginCommandBuffer'.
 		/// </summary>
 		reset_command_list,
 		/// <summary>
@@ -106,7 +106,7 @@ namespace reshade
 		execute_secondary_command_list,
 
 		/// <summary>
-		/// Called before 'IDXGISwapChain::ResizeBuffers' or after updated swap chain via 'vkCreateSwapchainKHR'.
+		/// Called before 'IDXGISwapChain::ResizeBuffers' or after existing swap chain was updated via 'vkCreateSwapchainKHR'.
 		/// </summary>
 		resize,
 		/// <summary>
@@ -122,8 +122,6 @@ namespace reshade
 		/// Called right after ReShade effects were rendered.
 		/// </summary>
 		reshade_after_effects,
-
-		num_addon_events
 	};
 
 	template <addon_event ev>

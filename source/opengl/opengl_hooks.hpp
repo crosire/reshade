@@ -17,6 +17,14 @@ extern "C" void WINAPI glBufferData(GLenum target, GLsizeiptr size, const void *
 extern "C" void WINAPI glBufferStorage(GLenum target, GLsizeiptr size, const void *data, GLbitfield flags);
 #undef glClear
 extern "C" void WINAPI glClear(GLbitfield mask);
+#undef glClearBufferfv
+extern "C" void WINAPI glClearBufferfv(GLenum buffer, GLint drawbuffer, const GLfloat *value);
+#undef glClearBufferfi
+extern "C" void WINAPI glClearBufferfi(GLenum buffer, GLint drawbuffer, GLfloat depth, GLint stencil);
+#undef glClearNamedFramebufferfv
+extern "C" void WINAPI glClearNamedFramebufferfv(GLuint framebuffer, GLenum buffer, GLint drawbuffer, const GLfloat *value);
+#undef glClearNamedFramebufferfi
+extern "C" void WINAPI glClearNamedFramebufferfi(GLuint framebuffer, GLenum buffer, GLint drawbuffer, GLfloat depth, GLint stencil);
 #undef glClearColor
 extern "C" void WINAPI glClearColor(GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha);
 #undef glClearDepth

@@ -606,7 +606,6 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::CSGetConstantBuffers(UINT StartSlo
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::ClearState()
 {
-	RESHADE_ADDON_EVENT(reset_command_list, _impl);
 	_orig->ClearState();
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::Flush()
