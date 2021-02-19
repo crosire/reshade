@@ -327,6 +327,19 @@ reshade::opengl::device_impl::device_impl(HDC hdc, HGLRC hglrc) : _hglrc(hglrc)
 	PIXELFORMATDESCRIPTOR pfd = { sizeof(pfd) };
 	DescribePixelFormat(hdc, GetPixelFormat(hdc), sizeof(pfd), &pfd);
 
+	switch (pfd.cColorBits) // Excluding alpha
+	{
+	default:
+	case  0: _default_color_format = GL_NONE;
+		break;
+	case 24: _default_color_format = GL_RGBA8;
+		break;
+	case 30: _default_color_format = GL_RGB10_A2;
+		break;
+	case 48: _default_color_format = GL_RGBA16F;
+		break;
+	}
+
 	switch (pfd.cDepthBits)
 	{
 	default:
@@ -751,7 +764,7 @@ resource_desc reshade::opengl::device_impl::get_resource_desc(resource_handle re
 	case GL_FRAMEBUFFER_DEFAULT:
 		width = _default_fbo_width;
 		height = _default_fbo_height;
-		internal_format = (object == GL_DEPTH_ATTACHMENT) ? _default_depth_format : GL_NONE;
+		internal_format = (object == GL_DEPTH_ATTACHMENT) ? _default_depth_format : _default_color_format;
 		break;
 	}
 

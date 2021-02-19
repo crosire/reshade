@@ -72,6 +72,7 @@ namespace reshade::opengl
 		state_block _app_state;
 		GLuint _default_fbo_width = 0;
 		GLuint _default_fbo_height = 0;
+		GLenum _default_color_format = GL_NONE;
 		GLenum _default_depth_format = GL_NONE;
 
 	private:
