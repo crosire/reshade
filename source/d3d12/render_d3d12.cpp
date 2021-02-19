@@ -133,7 +133,7 @@ void reshade::d3d12::convert_depth_stencil_view_desc(const resource_view_desc &d
 {
 	// Missing fields: D3D12_DEPTH_STENCIL_VIEW_DESC::Flags
 	internal_desc.Format = static_cast<DXGI_FORMAT>(desc.format);
-	assert(desc.levels == 1);
+	assert(desc.dimension != resource_view_dimension::buffer && desc.levels == 1);
 	switch (desc.dimension) // Do not modifiy description in case dimension is 'resource_view_dimension::unknown'
 	{
 	case resource_view_dimension::texture_1d:
@@ -209,7 +209,7 @@ resource_view_desc reshade::d3d12::convert_depth_stencil_view_desc(const D3D12_D
 void reshade::d3d12::convert_render_target_view_desc(const resource_view_desc &desc, D3D12_RENDER_TARGET_VIEW_DESC &internal_desc)
 {
 	internal_desc.Format = static_cast<DXGI_FORMAT>(desc.format);
-	assert(desc.levels == 1);
+	assert(desc.dimension != resource_view_dimension::buffer && desc.levels == 1);
 	switch (desc.dimension) // Do not modifiy description in case dimension is 'resource_view_dimension::unknown'
 	{
 	case resource_view_dimension::texture_1d:
@@ -443,7 +443,7 @@ resource_view_desc reshade::d3d12::convert_shader_resource_view_desc(const D3D12
 void reshade::d3d12::convert_unordered_access_view_desc(const resource_view_desc &desc, D3D12_UNORDERED_ACCESS_VIEW_DESC &internal_desc)
 {
 	internal_desc.Format = static_cast<DXGI_FORMAT>(desc.format);
-	assert(desc.levels == 1);
+	assert(desc.dimension == resource_view_dimension::buffer || desc.levels == 1);
 	switch (desc.dimension) // Do not modifiy description in case dimension is 'resource_view_dimension::unknown'
 	{
 	case resource_view_dimension::buffer:

@@ -76,11 +76,11 @@ void reshade::d3d11::convert_resource_desc(const resource_desc &desc, D3D11_BUFF
 void reshade::d3d11::convert_resource_desc(const resource_desc &desc, D3D11_TEXTURE1D_DESC &internal_desc)
 {
 	internal_desc.Width = desc.width;
-	assert(desc.height <= 1);
+	assert(desc.height == 1);
 	internal_desc.MipLevels = desc.levels;
 	internal_desc.ArraySize = desc.depth_or_layers;
 	internal_desc.Format = static_cast<DXGI_FORMAT>(desc.format);
-	assert(desc.samples <= 1);
+	assert(desc.samples == 1);
 	convert_usage_to_bind_flags(desc.usage, internal_desc.BindFlags);
 }
 void reshade::d3d11::convert_resource_desc(const resource_desc &desc, D3D11_TEXTURE2D_DESC &internal_desc)
@@ -100,7 +100,7 @@ void reshade::d3d11::convert_resource_desc(const resource_desc &desc, D3D11_TEXT
 	internal_desc.Depth = desc.depth_or_layers;
 	internal_desc.MipLevels = desc.levels;
 	internal_desc.Format = static_cast<DXGI_FORMAT>(desc.format);
-	assert(desc.samples <= 1);
+	assert(desc.samples == 1);
 	convert_usage_to_bind_flags(desc.usage, internal_desc.BindFlags);
 }
 resource_desc reshade::d3d11::convert_resource_desc(const D3D11_BUFFER_DESC &internal_desc)
@@ -157,7 +157,7 @@ void reshade::d3d11::convert_depth_stencil_view_desc(const resource_view_desc &d
 {
 	// Missing fields: D3D11_DEPTH_STENCIL_VIEW_DESC::Flags
 	internal_desc.Format = static_cast<DXGI_FORMAT>(desc.format);
-	assert(desc.levels == 1);
+	assert(desc.dimension != resource_view_dimension::buffer && desc.levels == 1);
 	switch (desc.dimension) // Do not modifiy description in case dimension is 'resource_view_dimension::unknown'
 	{
 	case resource_view_dimension::texture_1d:
@@ -233,7 +233,7 @@ resource_view_desc reshade::d3d11::convert_depth_stencil_view_desc(const D3D11_D
 void reshade::d3d11::convert_render_target_view_desc(const resource_view_desc &desc, D3D11_RENDER_TARGET_VIEW_DESC &internal_desc)
 {
 	internal_desc.Format = static_cast<DXGI_FORMAT>(desc.format);
-	assert(desc.levels == 1);
+	assert(desc.dimension != resource_view_dimension::buffer && desc.levels == 1);
 	switch (desc.dimension) // Do not modifiy description in case dimension is 'resource_view_dimension::unknown'
 	{
 	case resource_view_dimension::texture_1d:
@@ -277,7 +277,7 @@ void reshade::d3d11::convert_render_target_view_desc(const resource_view_desc &d
 	if (desc.dimension == resource_view_dimension::texture_2d || desc.dimension == resource_view_dimension::texture_2d_array)
 	{
 		internal_desc.Format = static_cast<DXGI_FORMAT>(desc.format);
-		assert(desc.levels == 1);
+		assert(desc.dimension != resource_view_dimension::buffer && desc.levels == 1);
 		switch (desc.dimension)
 		{
 		case resource_view_dimension::texture_2d:
@@ -567,7 +567,7 @@ resource_view_desc reshade::d3d11::convert_shader_resource_view_desc(const D3D11
 void reshade::d3d11::convert_unordered_access_view_desc(const resource_view_desc &desc, D3D11_UNORDERED_ACCESS_VIEW_DESC &internal_desc)
 {
 	internal_desc.Format = static_cast<DXGI_FORMAT>(desc.format);
-	assert(desc.levels == 1);
+	assert(desc.dimension == resource_view_dimension::buffer || desc.levels == 1);
 	switch (desc.dimension) // Do not modifiy description in case dimension is 'resource_view_dimension::unknown'
 	{
 	case resource_view_dimension::buffer:
@@ -610,7 +610,7 @@ void reshade::d3d11::convert_unordered_access_view_desc(const resource_view_desc
 	if (desc.dimension == resource_view_dimension::texture_2d || desc.dimension == resource_view_dimension::texture_2d_array)
 	{
 		internal_desc.Format = static_cast<DXGI_FORMAT>(desc.format);
-		assert(desc.levels == 1);
+		assert(desc.dimension == resource_view_dimension::buffer || desc.levels == 1);
 		switch (desc.dimension)
 		{
 		case resource_view_dimension::texture_2d:

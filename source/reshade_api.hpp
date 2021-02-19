@@ -114,14 +114,6 @@ namespace reshade { namespace api
 		union
 		{
 			/// <summary>
-			/// Used when resource type is <see cref="resource_type::buffer"/>.
-			/// </summary>
-			struct
-			{
-				// The size in bytes of the buffer.
-				uint64_t buffer_size;
-			};
-			/// <summary>
 			/// Used when resource type is <see cref="resource_type::surface"/>, <see cref="resource_type::texture_1d"/>, <see cref="resource_type::texture_2d"/> or <see cref="resource_type::texture_3d"/>.
 			/// </summary>
 			struct
@@ -139,6 +131,14 @@ namespace reshade { namespace api
 				uint32_t format;
 				// The number of samples per pixel. A value higher than 1 indicates multisampling.
 				uint16_t samples;
+			};
+			/// <summary>
+			/// Used when resource type is <see cref="resource_type::buffer"/>.
+			/// </summary>
+			struct
+			{
+				// The size in bytes of the buffer.
+				uint64_t buffer_size;
 			};
 		};
 
@@ -160,16 +160,6 @@ namespace reshade { namespace api
 		union
 		{
 			/// <summary>
-			/// Used when dimension is <see cref="resource_view_dimension::buffer"/>.
-			/// </summary>
-			struct
-			{
-				// Offset from the start of the buffer this view starts at.
-				uint64_t buffer_offset;
-				// Total size in bytes this view covers.
-				uint64_t buffer_size;
-			};
-			/// <summary>
 			/// Used when dimension is <see cref="resource_view_dimension::texture_1d"/>, <see cref="resource_view_dimension::texture_2d"/> or any other texture dimension.
 			/// </summary>
 			struct
@@ -182,6 +172,16 @@ namespace reshade { namespace api
 				uint32_t first_layer;
 				// The maximum number of array layers for the view of the texture array.
 				uint32_t layers;
+			};
+			/// <summary>
+			/// Used when dimension is <see cref="resource_view_dimension::buffer"/>.
+			/// </summary>
+			struct
+			{
+				// Offset from the start of the buffer this view starts at.
+				uint64_t buffer_offset;
+				// Total size in bytes this view covers.
+				uint64_t buffer_size;
 			};
 		};
 	};

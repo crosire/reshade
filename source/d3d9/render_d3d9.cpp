@@ -37,7 +37,7 @@ void reshade::d3d9::convert_resource_desc(const resource_desc &desc, D3DVOLUME_D
 	internal_desc.Height = desc.height;
 	internal_desc.Depth = desc.depth_or_layers;
 	internal_desc.Format = static_cast<D3DFORMAT>(desc.format);
-	assert(desc.samples <= 1);
+	assert(desc.samples == 1);
 
 	convert_usage_to_d3d_usage(desc.usage, internal_desc.Usage);
 
@@ -48,7 +48,7 @@ void reshade::d3d9::convert_resource_desc(const resource_desc &desc, D3DSURFACE_
 {
 	internal_desc.Width = desc.width;
 	internal_desc.Height = desc.height;
-	assert(desc.depth_or_layers <= 1 || desc.depth_or_layers == 6 /* D3DRTYPE_CUBETEXTURE */);
+	assert(desc.depth_or_layers == 1 || desc.depth_or_layers == 6 /* D3DRTYPE_CUBETEXTURE */);
 	internal_desc.Format = static_cast<D3DFORMAT>(desc.format);
 
 	if (desc.samples > 1)
@@ -307,7 +307,7 @@ bool reshade::d3d9::device_impl::create_resource(resource_type type, const resou
 		case resource_type::texture_2d:
 		{
 			// Array or multisample textures are not supported in Direct3D 9
-			if (desc.depth_or_layers <= 1 && desc.samples <= 1)
+			if (desc.depth_or_layers == 1 && desc.samples == 1)
 			{
 				if (IDirect3DTexture9 *resource;
 					SUCCEEDED(_device->CreateTexture(desc.width, desc.height, desc.levels, d3d_usage, static_cast<D3DFORMAT>(desc.format), D3DPOOL_DEFAULT, &resource, nullptr)))
@@ -321,7 +321,7 @@ bool reshade::d3d9::device_impl::create_resource(resource_type type, const resou
 		}
 		case resource_type::texture_3d:
 		{
-			assert(desc.samples <= 1); // 3D textures can never have multisampling
+			assert(desc.samples == 1); // 3D textures can never have multisampling
 			if (IDirect3DVolumeTexture9 *resource;
 				SUCCEEDED(_device->CreateVolumeTexture(desc.width, desc.height, desc.depth_or_layers, desc.levels, d3d_usage, static_cast<D3DFORMAT>(desc.format), D3DPOOL_DEFAULT, &resource, nullptr)))
 			{
@@ -348,6 +348,7 @@ bool reshade::d3d9::device_impl::create_resource_view(resource_handle resource, 
 	{
 		case D3DRTYPE_SURFACE:
 		{
+			assert(desc.dimension == resource_view_dimension::texture_2d || desc.dimension == resource_view_dimension::texture_2d_multisample);
 			assert(desc.first_level == 0 && (desc.levels == 1 || desc.levels == std::numeric_limits<uint32_t>::max()));
 			assert(desc.first_layer == 0 && (desc.layers == 1 || desc.layers == std::numeric_limits<uint32_t>::max()));
 			if (type == resource_view_type::depth_stencil || type == resource_view_type::render_target)
@@ -360,6 +361,7 @@ bool reshade::d3d9::device_impl::create_resource_view(resource_handle resource, 
 		}
 		case D3DRTYPE_TEXTURE:
 		{
+			assert(desc.dimension == resource_view_dimension::texture_2d || desc.dimension == resource_view_dimension::texture_2d_multisample);
 			assert(desc.first_layer == 0 && (desc.layers == 1 || desc.layers == std::numeric_limits<uint32_t>::max()));
 			if (type == resource_view_type::depth_stencil || type == resource_view_type::render_target)
 			{
@@ -383,6 +385,7 @@ bool reshade::d3d9::device_impl::create_resource_view(resource_handle resource, 
 		{
 			if (type == resource_view_type::depth_stencil || type == resource_view_type::render_target)
 			{
+				assert(desc.dimension == resource_view_dimension::texture_2d || desc.dimension == resource_view_dimension::texture_2d_multisample);
 				assert(desc.levels == 1 && desc.layers == 1);
 				if (IDirect3DSurface9 *surface = nullptr;
 					SUCCEEDED(static_cast<IDirect3DCubeTexture9 *>(resource_object)->GetCubeMapSurface(static_cast<D3DCUBEMAP_FACES>(desc.first_layer), desc.first_level, &surface)))
@@ -393,6 +396,7 @@ bool reshade::d3d9::device_impl::create_resource_view(resource_handle resource, 
 			}
 			else if (type == resource_view_type::shader_resource && desc.first_level == 0 && desc.first_layer == 0)
 			{
+				assert(desc.dimension == resource_view_dimension::texture_cube);
 				resource_object->AddRef();
 				*out_view = { resource.handle };
 				return true;

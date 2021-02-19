@@ -241,7 +241,7 @@ std::pair<resource_type, resource_desc> reshade::vulkan::convert_resource_desc(c
 		desc.height = create_info.extent.depth;
 		assert(create_info.extent.depth <= std::numeric_limits<uint16_t>::max());
 		desc.depth_or_layers = static_cast<uint16_t>(create_info.extent.depth);
-		assert(create_info.arrayLayers <= 1);
+		assert(create_info.arrayLayers == 1);
 		break;
 	}
 

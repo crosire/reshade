@@ -71,11 +71,11 @@ void reshade::d3d10::convert_resource_desc(const resource_desc &desc, D3D10_BUFF
 void reshade::d3d10::convert_resource_desc(const resource_desc &desc, D3D10_TEXTURE1D_DESC &internal_desc)
 {
 	internal_desc.Width = desc.width;
-	assert(desc.height <= 1);
+	assert(desc.height == 1);
 	internal_desc.MipLevels = desc.levels;
 	internal_desc.ArraySize = desc.depth_or_layers;
 	internal_desc.Format = static_cast<DXGI_FORMAT>(desc.format);
-	assert(desc.samples <= 1);
+	assert(desc.samples == 1);
 	convert_usage_to_bind_flags(desc.usage, internal_desc.BindFlags);
 }
 void reshade::d3d10::convert_resource_desc(const resource_desc &desc, D3D10_TEXTURE2D_DESC &internal_desc)
@@ -95,7 +95,7 @@ void reshade::d3d10::convert_resource_desc(const resource_desc &desc, D3D10_TEXT
 	internal_desc.Depth = desc.depth_or_layers;
 	internal_desc.MipLevels = desc.levels;
 	internal_desc.Format = static_cast<DXGI_FORMAT>(desc.format);
-	assert(desc.samples <= 1);
+	assert(desc.samples == 1);
 	convert_usage_to_bind_flags(desc.usage, internal_desc.BindFlags);
 }
 resource_desc reshade::d3d10::convert_resource_desc(const D3D10_BUFFER_DESC &internal_desc)
@@ -151,7 +151,7 @@ resource_desc reshade::d3d10::convert_resource_desc(const D3D10_TEXTURE3D_DESC &
 void reshade::d3d10::convert_depth_stencil_view_desc(const resource_view_desc &desc, D3D10_DEPTH_STENCIL_VIEW_DESC &internal_desc)
 {
 	internal_desc.Format = static_cast<DXGI_FORMAT>(desc.format);
-	assert(desc.levels == 1);
+	assert(desc.dimension != resource_view_dimension::buffer && desc.levels == 1);
 	switch (desc.dimension) // Do not modifiy description in case dimension is 'resource_view_dimension::unknown'
 	{
 	case resource_view_dimension::texture_1d:
@@ -226,7 +226,7 @@ resource_view_desc reshade::d3d10::convert_depth_stencil_view_desc(const D3D10_D
 void reshade::d3d10::convert_render_target_view_desc(const resource_view_desc &desc, D3D10_RENDER_TARGET_VIEW_DESC &internal_desc)
 {
 	internal_desc.Format = static_cast<DXGI_FORMAT>(desc.format);
-	assert(desc.levels == 1);
+	assert(desc.dimension != resource_view_dimension::buffer && desc.levels == 1);
 	switch (desc.dimension) // Do not modifiy description in case dimension is 'resource_view_dimension::unknown'
 	{
 	case resource_view_dimension::texture_1d:
