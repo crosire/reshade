@@ -472,10 +472,12 @@ bool reshade::opengl::device_impl::create_resource(resource_type type, const res
 	default:
 		return false;
 	case resource_type::buffer:
-		if ((desc.usage & resource_usage::index_buffer) != 0)
+		     if ((desc.usage & resource_usage::index_buffer) != 0)
 			target = GL_ELEMENT_ARRAY_BUFFER;
-		else
+		else if ((desc.usage & resource_usage::vertex_buffer) != 0)
 			target = GL_ARRAY_BUFFER;
+		else if ((desc.usage & resource_usage::constant_buffer) != 0)
+			target = GL_UNIFORM_BUFFER;
 		break;
 	case resource_type::texture_1d:
 		target = desc.depth_or_layers > 1 ? GL_TEXTURE_1D_ARRAY : GL_TEXTURE_1D;

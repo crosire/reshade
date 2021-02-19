@@ -11,6 +11,26 @@ using namespace reshade::api;
 
 static std::mutex s_global_mutex;
 
+static inline D3D12_RESOURCE_STATES convert_resource_usage_to_state(resource_usage usage)
+{
+	auto result = static_cast<D3D12_RESOURCE_STATES>(usage);
+
+	// Depth write state is mutually exclusive with other states, so remove it when read state is specified too
+	if ((usage & resource_usage::depth_stencil) == resource_usage::depth_stencil)
+	{
+		result ^= D3D12_RESOURCE_STATE_DEPTH_WRITE;
+	}
+
+	// The separate constant buffer state does not exist in D3D12, so replace it with the combined vertex/constant buffer one
+	if ((usage & resource_usage::constant_buffer) != 0)
+	{
+		result |= D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
+		result ^= static_cast<D3D12_RESOURCE_STATES>(resource_usage::constant_buffer);
+	}
+
+	return result;
+}
+
 void reshade::d3d12::convert_resource_desc(resource_type type, const resource_desc &desc, D3D12_RESOURCE_DESC &internal_desc)
 {
 	switch (type)
@@ -657,7 +677,7 @@ bool reshade::d3d12::device_impl::create_resource(resource_type type, const reso
 	const D3D12_HEAP_PROPERTIES heap_props = { D3D12_HEAP_TYPE_DEFAULT };
 
 	if (ID3D12Resource *resource = nullptr;
-		SUCCEEDED(_device->CreateCommittedResource(&heap_props, D3D12_HEAP_FLAG_NONE, &internal_desc, static_cast<D3D12_RESOURCE_STATES>(initial_state), nullptr, IID_PPV_ARGS(&resource))))
+		SUCCEEDED(_device->CreateCommittedResource(&heap_props, D3D12_HEAP_FLAG_NONE, &internal_desc, convert_resource_usage_to_state(initial_state), nullptr, IID_PPV_ARGS(&resource))))
 	{
 		register_resource(resource);
 		*out_resource = { reinterpret_cast<uintptr_t>(resource) };
@@ -823,17 +843,11 @@ void reshade::d3d12::command_list_impl::transition_state(resource_handle resourc
 
 	assert(resource.handle != 0);
 
-	// Depth write state is mutually exclusive with other states, so remove it when read state is specified too
-	if ((old_layout & resource_usage::depth_stencil) == resource_usage::depth_stencil)
-		old_layout ^= resource_usage::depth_stencil_write;
-	if ((new_layout & resource_usage::depth_stencil) == resource_usage::depth_stencil)
-		new_layout ^= resource_usage::depth_stencil_write;
-
 	D3D12_RESOURCE_BARRIER transition = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
 	transition.Transition.pResource = reinterpret_cast<ID3D12Resource *>(resource.handle);
 	transition.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-	transition.Transition.StateBefore = static_cast<D3D12_RESOURCE_STATES>(old_layout);
-	transition.Transition.StateAfter = static_cast<D3D12_RESOURCE_STATES>(new_layout);
+	transition.Transition.StateBefore = convert_resource_usage_to_state(old_layout);
+	transition.Transition.StateAfter = convert_resource_usage_to_state(new_layout);
 
 	_cmd_list->ResourceBarrier(1, &transition);
 }

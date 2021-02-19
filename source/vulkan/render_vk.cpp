@@ -25,6 +25,12 @@ static auto convert_usage_to_access(resource_usage state) -> VkAccessFlags
 		result |= VK_ACCESS_TRANSFER_WRITE_BIT;
 	if ((state & (resource_usage::copy_source | resource_usage::resolve_source)) != 0)
 		result |= VK_ACCESS_TRANSFER_READ_BIT;
+	if ((state & resource_usage::index_buffer) != 0)
+		result |= VK_ACCESS_INDEX_READ_BIT;
+	if ((state & resource_usage::vertex_buffer) != 0)
+		result |= VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
+	if ((state & resource_usage::constant_buffer) != 0)
+		result |= VK_ACCESS_UNIFORM_READ_BIT;
 	return result;
 }
 static auto convert_usage_to_image_layout(resource_usage state) -> VkImageLayout
@@ -66,14 +72,16 @@ static auto convert_usage_to_pipeline_stage(resource_usage state) -> VkPipelineS
 		result |= VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
 	if ((state & resource_usage::render_target) != 0)
 		result |= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-	if ((state & resource_usage::shader_resource_pixel) != 0)
+	if ((state & (resource_usage::shader_resource_pixel | resource_usage::constant_buffer)) != 0)
 		result |= VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-	if ((state & resource_usage::shader_resource_non_pixel) != 0)
+	if ((state & (resource_usage::shader_resource_non_pixel | resource_usage::constant_buffer)) != 0)
 		result |= VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT | VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT | VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
 	if ((state & resource_usage::unordered_access) != 0)
 		result |= VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
 	if ((state & (resource_usage::copy_dest | resource_usage::copy_source | resource_usage::resolve_dest | resource_usage::resolve_source)) != 0)
 		result |= VK_PIPELINE_STAGE_TRANSFER_BIT;
+	if ((state & (resource_usage::index_buffer | resource_usage::vertex_buffer)) != 0)
+		result |= VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
 	return result;
 }
 
