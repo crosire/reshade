@@ -905,6 +905,9 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		reshade::hooks::register_module(get_system_path() / L"opengl32.dll");
 		// Do not register Vulkan hooks, since Vulkan layering mechanism is used instead
 
+		reshade::hooks::register_module( L"openvr_api.dll" );
+		reshade::hooks::register_module( L"openvr_api64.dll" );
+
 		LOG(INFO) << "Initialized.";
 		break;
 	case DLL_PROCESS_DETACH:

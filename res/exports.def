@@ -456,3 +456,6 @@ EXPORTS
 	WSASendTo = HookWSASendTo @99
 	WSARecv = HookWSARecv @91
 	WSARecvFrom = HookWSARecvFrom @93
+
+	; openvr_api[64].dll
+	VR_GetGenericInterface

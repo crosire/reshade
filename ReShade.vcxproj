@@ -423,6 +423,7 @@
     <ClCompile Include="source\opengl\runtime_gl.cpp" />
     <ClCompile Include="source\opengl\state_block_gl.cpp" />
     <ClCompile Include="source\opengl\state_tracking.cpp" />
+    <ClCompile Include="source\openvr\openvr.cpp" />
     <ClCompile Include="source\runtime.cpp" />
     <ClCompile Include="source\runtime_gui.cpp" />
     <ClCompile Include="source\runtime_update_check.cpp" />
@@ -479,6 +480,7 @@
     <ClInclude Include="source\opengl\runtime_gl.hpp" />
     <ClInclude Include="source\opengl\state_block_gl.hpp" />
     <ClInclude Include="source\opengl\state_tracking.hpp" />
+    <ClInclude Include="source\openvr\openvr_defs.hpp" />
     <ClInclude Include="source\runtime.hpp" />
     <ClInclude Include="source\runtime_objects.hpp" />
     <ClInclude Include="source\vulkan\format_utils.hpp" />
