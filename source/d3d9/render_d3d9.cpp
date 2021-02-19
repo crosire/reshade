@@ -504,19 +504,29 @@ void reshade::d3d9::device_impl::copy_resource(resource_handle source, resource_
 	const auto source_object = reinterpret_cast<IDirect3DResource9 *>(source.handle);
 	const auto destination_object = reinterpret_cast<IDirect3DResource9 *>(destination.handle);
 
-	const D3DRESOURCETYPE type = destination_object->GetType();
-	if (type != source_object->GetType())
-		return; // Copying is only supported between resources of the same type
-
-	switch (type)
+	switch (source_object->GetType() | (destination_object->GetType() << 4))
 	{
-		case D3DRTYPE_TEXTURE:
+		case D3DRTYPE_SURFACE | (D3DRTYPE_SURFACE << 4):
+		{
+			_device->StretchRect(static_cast<IDirect3DSurface9 *>(source_object), nullptr, static_cast<IDirect3DSurface9 *>(destination_object), nullptr, D3DTEXF_NONE);
+			return;
+		}
+		case D3DRTYPE_SURFACE | (D3DRTYPE_TEXTURE << 4):
+		{
+			com_ptr<IDirect3DSurface9> target;
+			static_cast<IDirect3DTexture9 *>(destination_object)->GetSurfaceLevel(0, &target);
+			// Stretching from an offscreen color surface into a texture is supported, however the other way around is not
+			_device->StretchRect(static_cast<IDirect3DSurface9 *>(source_object), nullptr, target.get(), nullptr, D3DTEXF_NONE);
+			return;
+		}
+		case D3DRTYPE_TEXTURE | (D3DRTYPE_TEXTURE << 4):
 		{
 			_app_state.capture();
 
 			// Perform copy using fullscreen triangle
 			_copy_state->Apply();
 
+			// TODO: This copies the first level only ...
 			com_ptr<IDirect3DSurface9> target;
 			static_cast<IDirect3DTexture9 *>(destination_object)->GetSurfaceLevel(0, &target);
 			_device->SetTexture(0, static_cast<IDirect3DTexture9 *>(source_object));
@@ -534,9 +544,25 @@ void reshade::d3d9::device_impl::copy_resource(resource_handle source, resource_
 			_app_state.apply_and_release();
 			return;
 		}
-		case D3DRTYPE_SURFACE:
+		case D3DRTYPE_TEXTURE | (D3DRTYPE_SURFACE << 4):
 		{
-			_device->StretchRect(static_cast<IDirect3DSurface9 *>(source_object), nullptr, static_cast<IDirect3DSurface9 *>(destination_object), nullptr, D3DTEXF_NONE);
+			_app_state.capture();
+
+			_copy_state->Apply();
+
+			_device->SetTexture(0, static_cast<IDirect3DTexture9 *>(source_object));
+			_device->SetRenderTarget(0, static_cast<IDirect3DSurface9 *>(destination_object));
+
+			const float vertices[4][5] = {
+				// x      y      z      tu     tv
+				{ -1.0f,  1.0f,  0.0f,  0.0f,  0.0f },
+				{  1.0f,  1.0f,  0.0f,  1.0f,  0.0f },
+				{ -1.0f, -1.0f,  0.0f,  0.0f,  1.0f },
+				{  1.0f, -1.0f,  0.0f,  1.0f,  1.0f },
+			};
+			_device->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, vertices, sizeof(vertices[0]));
+
+			_app_state.apply_and_release();
 			return;
 		}
 	}

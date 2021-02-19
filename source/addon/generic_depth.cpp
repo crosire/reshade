@@ -154,7 +154,7 @@ struct state_tracking_context
 		desc.usage = resource_usage::shader_resource | resource_usage::copy_dest;
 
 		if (device->get_api() == render_api::d3d9)
-			desc.format = 114; // D3DFMT_R32F
+			desc.format = 114; // D3DFMT_R32F, size INTZ does not support D3DUSAGE_RENDERTARGET which is required for copying
 		if (device->get_api() >= render_api::d3d10 && device->get_api() <= render_api::d3d12)
 			desc.format = static_cast<uint32_t>(make_dxgi_format_typeless(static_cast<DXGI_FORMAT>(desc.format)));
 
@@ -481,6 +481,9 @@ static void on_present(command_queue *, effect_runtime *runtime)
 
 				if (device_state.backup_texture != 0)
 				{
+					if (device->get_api() == render_api::d3d9)
+						srv_desc.format = 114; // Same format as backup texture, as set in 'update_backup_texture'
+
 					device->create_resource_view(device_state.backup_texture, resource_view_type::shader_resource, srv_desc, &device_state.selected_shader_resource);
 				}
 			}
