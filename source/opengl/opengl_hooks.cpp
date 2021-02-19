@@ -51,15 +51,12 @@ HOOK_EXPORT void WINAPI glBegin(GLenum mode)
 	if (g_current_runtime && (target == GL_FRAMEBUFFER || target == GL_DRAW_FRAMEBUFFER) &&
 		glCheckFramebufferStatus(target) == GL_FRAMEBUFFER_COMPLETE) // Skip incomplete frame buffer bindings (e.g. during set up)
 	{
-		for (GLuint i = 0; i < 8; ++i)
-		{
-			const reshade::api::resource_view_handle rtv = g_current_runtime->get_render_target_from_fbo(framebuffer, i);
-			RESHADE_ADDON_EVENT(set_render_target, g_current_runtime, i, rtv);
-		}
-		{
-			const reshade::api::resource_view_handle dsv = g_current_runtime->get_depth_stencil_from_fbo(framebuffer);
-			RESHADE_ADDON_EVENT(set_depth_stencil, g_current_runtime, dsv);
-		}
+		GLuint count = 0;
+		reshade::api::resource_view_handle rtvs[8];
+		while (count < 8 && (rtvs[count] = g_current_runtime->get_render_target_from_fbo(framebuffer, count)) != 0)
+			++count;
+		const reshade::api::resource_view_handle dsv = g_current_runtime->get_depth_stencil_from_fbo(framebuffer);
+		RESHADE_ADDON_EVENT(set_render_targets_and_depth_stencil, g_current_runtime, count, rtvs, dsv);
 	}
 #endif
 }
@@ -1641,7 +1638,7 @@ HOOK_EXPORT void WINAPI glScissor(GLint x, GLint y, GLsizei width, GLsizei heigh
 	if (g_current_runtime)
 	{
 		const int32_t rect_data[4] = { x, y, width, height };
-		RESHADE_ADDON_EVENT(set_scissor, g_current_runtime, 0, rect_data);
+		RESHADE_ADDON_EVENT(set_scissor_rects, g_current_runtime, 0, 1, rect_data);
 	}
 #endif
 }
@@ -1653,11 +1650,7 @@ HOOK_EXPORT void WINAPI glScissor(GLint x, GLint y, GLsizei width, GLsizei heigh
 #if RESHADE_ADDON
 	if (g_current_runtime)
 	{
-		for (GLsizei index = 0; index < count; ++index, v += 4)
-		{
-			const int32_t rect_data[4] = { v[0], v[1], v[2], v[3] };
-			RESHADE_ADDON_EVENT(set_scissor, g_current_runtime, first + index, rect_data);
-		}
+		RESHADE_ADDON_EVENT(set_scissor_rects, g_current_runtime, first, count, v);
 	}
 #endif
 }
@@ -1670,7 +1663,7 @@ HOOK_EXPORT void WINAPI glScissor(GLint x, GLint y, GLsizei width, GLsizei heigh
 	if (g_current_runtime)
 	{
 		const int32_t rect_data[4] = { left, bottom, width, height };
-		RESHADE_ADDON_EVENT(set_scissor, g_current_runtime, index, rect_data);
+		RESHADE_ADDON_EVENT(set_scissor_rects, g_current_runtime, index, 1, rect_data);
 	}
 #endif
 }
@@ -1682,7 +1675,7 @@ HOOK_EXPORT void WINAPI glScissor(GLint x, GLint y, GLsizei width, GLsizei heigh
 #if RESHADE_ADDON
 	if (g_current_runtime)
 	{
-		RESHADE_ADDON_EVENT(set_scissor, g_current_runtime, index, v);
+		RESHADE_ADDON_EVENT(set_scissor_rects, g_current_runtime, index, 1, v);
 	}
 #endif
 }
@@ -2538,7 +2531,7 @@ HOOK_EXPORT void WINAPI glViewport(GLint x, GLint y, GLsizei width, GLsizei heig
 			0.0f, // This is set via 'glDepthRange', so just assume defaults here for now
 			1.0f
 		};
-		RESHADE_ADDON_EVENT(set_viewport, g_current_runtime, 0, viewport_data);
+		RESHADE_ADDON_EVENT(set_viewports, g_current_runtime, 0, 1, viewport_data);
 	}
 #endif
 }
@@ -2550,11 +2543,17 @@ HOOK_EXPORT void WINAPI glViewport(GLint x, GLint y, GLsizei width, GLsizei heig
 #if RESHADE_ADDON
 	if (g_current_runtime)
 	{
-		for (GLsizei index = 0; index < count; ++index, v += 4)
+		auto viewport_data = static_cast<float *>(alloca(sizeof(float) * 6 * count));
+		for (GLsizei i = 0, k = 0; i < count; ++i, k += 6, v += 4)
 		{
-			const float viewport_data[6] = { v[0], v[1], v[2], v[3], 0.0f, 1.0f };
-			RESHADE_ADDON_EVENT(set_viewport, g_current_runtime, first + index, viewport_data);
+			viewport_data[k + 0] = v[0];
+			viewport_data[k + 1] = v[1];
+			viewport_data[k + 2] = v[2];
+			viewport_data[k + 3] = v[3];
+			viewport_data[k + 4] = 0.0f;
+			viewport_data[k + 5] = 1.0f;
 		}
+		RESHADE_ADDON_EVENT(set_viewports, g_current_runtime, first, count, viewport_data);
 	}
 #endif
 }
@@ -2567,7 +2566,7 @@ HOOK_EXPORT void WINAPI glViewport(GLint x, GLint y, GLsizei width, GLsizei heig
 	if (g_current_runtime)
 	{
 		const float viewport_data[6] = { x, y, w, h, 0.0f, 1.0f };
-		RESHADE_ADDON_EVENT(set_viewport, g_current_runtime, index, viewport_data);
+		RESHADE_ADDON_EVENT(set_viewports, g_current_runtime, index, 1, viewport_data);
 	}
 #endif
 }
@@ -2580,7 +2579,7 @@ HOOK_EXPORT void WINAPI glViewport(GLint x, GLint y, GLsizei width, GLsizei heig
 	if (g_current_runtime)
 	{
 		const float viewport_data[6] = { v[0], v[1], v[2], v[3], 0.0f, 1.0f };
-		RESHADE_ADDON_EVENT(set_viewport, g_current_runtime, index, v);
+		RESHADE_ADDON_EVENT(set_viewports, g_current_runtime, index, 1, viewport_data);
 	}
 #endif
 }

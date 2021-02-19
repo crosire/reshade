@@ -566,8 +566,21 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetRenderTarget(DWORD RenderTargetInd
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
-		const reshade::api::resource_view_handle rtv = _impl->get_resource_view_handle(pRenderTarget);
-		RESHADE_ADDON_EVENT(set_render_target, _impl, RenderTargetIndex, rtv);
+		DWORD count = 0;
+		com_ptr<IDirect3DSurface9> surface;
+		reshade::api::resource_view_handle rtvs[8], dsv = { 0 };
+		while (count < _impl->_num_simultaneous_rendertargets && SUCCEEDED(_orig->GetRenderTarget(count, &surface)))
+		{
+			rtvs[count++] = _impl->get_resource_view_handle(surface.get());
+			surface.reset();
+		}
+		if (SUCCEEDED(_orig->GetDepthStencilSurface(&surface)))
+		{
+			dsv = _impl->get_resource_view_handle(surface.get());
+			surface.reset();
+		}
+
+		RESHADE_ADDON_EVENT(set_render_targets_and_depth_stencil, _impl, count, rtvs, dsv);
 
 		// Changing the render target implicitly sets the viewport to the render target dimensions
 		D3DSURFACE_DESC rtv_desc = {};
@@ -581,7 +594,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetRenderTarget(DWORD RenderTargetInd
 			0.0f,
 			1.0f
 		};
-		RESHADE_ADDON_EVENT(set_viewport, _impl, 0, viewport_data);
+		RESHADE_ADDON_EVENT(set_viewports, _impl, 0, 1, viewport_data);
 	}
 #endif
 	return hr;
@@ -596,8 +609,16 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetDepthStencilSurface(IDirect3DSurfa
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
-		const reshade::api::resource_view_handle dsv = _impl->get_resource_view_handle(pNewZStencil);
-		RESHADE_ADDON_EVENT(set_depth_stencil, _impl, dsv);
+		DWORD count = 0;
+		com_ptr<IDirect3DSurface9> surface;
+		reshade::api::resource_view_handle rtvs[8], dsv = _impl->get_resource_view_handle(pNewZStencil);
+		while (count < _impl->_num_simultaneous_rendertargets && SUCCEEDED(_orig->GetRenderTarget(count, &surface)))
+		{
+			rtvs[count++] = _impl->get_resource_view_handle(surface.get());
+			surface.reset();
+		}
+
+		RESHADE_ADDON_EVENT(set_render_targets_and_depth_stencil, _impl, count, rtvs, dsv);
 	}
 #endif
 	return hr;
@@ -622,7 +643,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Clear(DWORD Count, const D3DRECT *pRe
 		const float color[4] = { ((Color >> 16) & 0xFF) / 255.0f, ((Color >> 8) & 0xFF) / 255.0f, (Color & 0xFF) / 255.0f, ((Color >> 24) & 0xFF) / 255.0f };
 
 		com_ptr<IDirect3DSurface9> surface;
-		for (DWORD i = 0; i < _impl->_num_simultaneous_rendertargets && SUCCEEDED(_orig->GetRenderTarget(0, &surface)); ++i, surface.reset())
+		for (DWORD i = 0; i < _impl->_num_simultaneous_rendertargets && SUCCEEDED(_orig->GetRenderTarget(i, &surface)); ++i, surface.reset())
 		{
 			const reshade::api::resource_view_handle rtv = _impl->get_resource_view_handle(surface.get());
 			RESHADE_ADDON_EVENT(clear_render_target, _impl, rtv, color);
@@ -673,7 +694,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetViewport(const D3DVIEWPORT9 *pView
 			pViewport->MinZ,
 			pViewport->MaxZ
 		};
-		RESHADE_ADDON_EVENT(set_viewport, _impl, 0, viewport_data);
+		RESHADE_ADDON_EVENT(set_viewports, _impl, 0, 1, viewport_data);
 	}
 #endif
 	return hr;
@@ -798,7 +819,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetScissorRect(const RECT *pRect)
 			static_cast<int32_t>(pRect->right - pRect->left),
 			static_cast<int32_t>(pRect->bottom - pRect->top)
 		};
-		RESHADE_ADDON_EVENT(set_scissor, _impl, 0, rect_data);
+		RESHADE_ADDON_EVENT(set_scissor_rects, _impl, 0, 1, rect_data);
 	}
 #endif
 	return hr;

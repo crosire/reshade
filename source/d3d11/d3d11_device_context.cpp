@@ -253,15 +253,12 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargets(UINT NumViews, 
 	_orig->OMSetRenderTargets(NumViews, ppRenderTargetViews, pDepthStencilView);
 
 #if RESHADE_ADDON
+	assert(NumViews < D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT);
+	reshade::api::resource_view_handle rtvs[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
 	for (UINT i = 0; i < NumViews; ++i)
-	{
-		const reshade::api::resource_view_handle rtv = { reinterpret_cast<uintptr_t>(ppRenderTargetViews[i]) };
-		RESHADE_ADDON_EVENT(set_render_target, _impl, i, rtv);
-	}
-	{
-		const reshade::api::resource_view_handle dsv = { reinterpret_cast<uintptr_t>(pDepthStencilView) };
-		RESHADE_ADDON_EVENT(set_depth_stencil, _impl, dsv);
-	}
+		rtvs[i] = { reinterpret_cast<uintptr_t>(ppRenderTargetViews[i]) };
+	const reshade::api::resource_view_handle dsv = { reinterpret_cast<uintptr_t>(pDepthStencilView) };
+	RESHADE_ADDON_EVENT(set_render_targets_and_depth_stencil, _impl, NumViews, rtvs, dsv);
 #endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargetsAndUnorderedAccessViews(UINT NumRTVs, ID3D11RenderTargetView *const *ppRenderTargetViews, ID3D11DepthStencilView *pDepthStencilView, UINT UAVStartSlot, UINT NumUAVs, ID3D11UnorderedAccessView *const *ppUnorderedAccessViews, const UINT *pUAVInitialCounts)
@@ -269,15 +266,12 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargetsAndUnorderedAcce
 	_orig->OMSetRenderTargetsAndUnorderedAccessViews(NumRTVs, ppRenderTargetViews, pDepthStencilView, UAVStartSlot, NumUAVs, ppUnorderedAccessViews, pUAVInitialCounts);
 
 #if RESHADE_ADDON
+	assert(NumRTVs < D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT);
+	reshade::api::resource_view_handle rtvs[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
 	for (UINT i = 0; i < NumRTVs; ++i)
-	{
-		const reshade::api::resource_view_handle rtv = { reinterpret_cast<uintptr_t>(ppRenderTargetViews[i]) };
-		RESHADE_ADDON_EVENT(set_render_target, _impl, i, rtv);
-	}
-	{
-		const reshade::api::resource_view_handle dsv = { reinterpret_cast<uintptr_t>(pDepthStencilView) };
-		RESHADE_ADDON_EVENT(set_depth_stencil, _impl, dsv);
-	}
+		rtvs[i] = { reinterpret_cast<uintptr_t>(ppRenderTargetViews[i]) };
+	const reshade::api::resource_view_handle dsv = { reinterpret_cast<uintptr_t>(pDepthStencilView) };
+	RESHADE_ADDON_EVENT(set_render_targets_and_depth_stencil, _impl, NumRTVs, rtvs, dsv);
 #endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetBlendState(ID3D11BlendState *pBlendState, const FLOAT BlendFactor[4], UINT SampleMask)
@@ -323,36 +317,25 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::RSSetViewports(UINT NumViewports, 
 {
 	_orig->RSSetViewports(NumViewports, pViewports);
 
-#if RESHADE_ADDON
-	for (UINT i = 0; i < NumViewports; ++i)
-	{
-		const float viewport_data[6] = {
-			pViewports[i].TopLeftX,
-			pViewports[i].TopLeftY,
-			pViewports[i].Width,
-			pViewports[i].Height,
-			pViewports[i].MinDepth,
-			pViewports[i].MaxDepth
-		};
-		RESHADE_ADDON_EVENT(set_viewport, _impl, i, viewport_data);
-	}
-#endif
+	assert(NumViewports < D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE);
+	static_assert(sizeof(D3D11_VIEWPORT) == (sizeof(float) * 6));
+	RESHADE_ADDON_EVENT(set_viewports, _impl, 0, NumViewports, reinterpret_cast<const float *>(pViewports));
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::RSSetScissorRects(UINT NumRects, const D3D11_RECT *pRects)
 {
 	_orig->RSSetScissorRects(NumRects, pRects);
 
 #if RESHADE_ADDON
-	for (UINT i = 0; i < NumRects; ++i)
+	assert(NumRects < D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE);
+	int32_t rect_data[D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE * 4];
+	for (UINT i = 0, k = 0; i < NumRects; ++i, k += 4)
 	{
-		const int32_t rect_data[4] = {
-			static_cast<int32_t>(pRects[i].left),
-			static_cast<int32_t>(pRects[i].top),
-			static_cast<int32_t>(pRects[i].right - pRects[i].left),
-			static_cast<int32_t>(pRects[i].bottom + pRects[i].top)
-		};
-		RESHADE_ADDON_EVENT(set_scissor, _impl, i, rect_data);
+		rect_data[k + 0] = static_cast<int32_t>(pRects[i].left);
+		rect_data[k + 1] = static_cast<int32_t>(pRects[i].top);
+		rect_data[k + 2] = static_cast<int32_t>(pRects[i].right - pRects[i].left);
+		rect_data[k + 3] = static_cast<int32_t>(pRects[i].bottom - pRects[i].top);
 	}
+	RESHADE_ADDON_EVENT(set_scissor_rects, _impl, 0, NumRects, rect_data);
 #endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::CopySubresourceRegion(ID3D11Resource *pDstResource, UINT DstSubresource, UINT DstX, UINT DstY, UINT DstZ, ID3D11Resource *pSrcResource, UINT SrcSubresource, const D3D11_BOX *pSrcBox)

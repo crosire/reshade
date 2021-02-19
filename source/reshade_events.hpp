@@ -55,23 +55,19 @@ namespace reshade
 		create_resource_view,
 
 		/// <summary>
-		/// Called after 'IDirect3DDevice9::SetScissorRect', 'ID3D10Device::RSSetScissorRects', 'ID3D11DeviceContext::RSSetScissorRects', 'ID3D12GraphicsCommandList::RSSetScissorRects', 'glScissor' or 'vkCmdSetScissor'.
-		/// Scissor data format is { x, y, width, height }.
-		/// </summary>
-		set_scissor,
-		/// <summary>
 		/// Called after 'IDirect3DDevice9::SetViewport', 'IDirect3DDevice9::SetRenderTarget' (which implicitly sets the viewport), 'ID3D10Device::RSSetViewports', 'ID3D11DeviceContext::RSSetViewports', 'ID3D12GraphicsCommandList::RSSetViewports', 'glViewport(...)' or 'vkCmdSetViewport'.
-		/// Viewport data format is { x, y, width, height, min_depth, max_depth }.
+		/// Viewport data format is { viewport[0].x, viewport[0].y, viewport[0].width, viewport[0].height, viewport[0].min_depth, viewport[0].max_depth, viewport[1].x, viewport[1].y, ... }.
 		/// </summary>
-		set_viewport,
+		set_viewports,
 		/// <summary>
-		/// Called after 'IDirect3DDevice9::SetDepthStencilSurface', 'ID3D10Device::OMSetRenderTargets', 'ID3D11DeviceContext::OMSetRenderTargets(AndUnorderedAccessViews)', 'ID3D12GraphicsCommandList::OMSetRenderTargets', 'ID3D12GraphicsCommandList::BeginRenderPass', 'glBindFramebuffer' or 'vkCmdBeginRenderPass'.
+		/// Called after 'IDirect3DDevice9::SetScissorRect', 'ID3D10Device::RSSetScissorRects', 'ID3D11DeviceContext::RSSetScissorRects', 'ID3D12GraphicsCommandList::RSSetScissorRects', 'glScissor' or 'vkCmdSetScissor'.
+		/// Rectangle data format is { rect[0].x, rect[0].y, rect[0].width, rect[0].height, rect[1].x, rect[1].y, ... }.
 		/// </summary>
-		set_depth_stencil,
+		set_scissor_rects,
 		/// <summary>
-		/// Called after 'IDirect3DDevice9::SetRenderTarget', 'ID3D10Device::OMSetRenderTargets', 'ID3D11DeviceContext::OMSetRenderTargets(AndUnorderedAccessViews)', 'ID3D12GraphicsCommandList::OMSetRenderTargets', 'ID3D12GraphicsCommandList::BeginRenderPass', 'glBindFramebuffer' or 'vkCmdBeginRenderPass'.
+		/// Called after 'IDirect3DDevice9::SetRenderTarget', 'IDirect3DDevice9::SetDepthStencilSurface', 'ID3D10Device::OMSetRenderTargets', 'ID3D11DeviceContext::OMSetRenderTargets(AndUnorderedAccessViews)', 'ID3D12GraphicsCommandList::OMSetRenderTargets', 'ID3D12GraphicsCommandList::BeginRenderPass', 'glBindFramebuffer', 'vkCmdBeginRenderPass' or 'vkCmdNextSubpass'.
 		/// </summary>
-		set_render_target,
+		set_render_targets_and_depth_stencil,
 
 		/// <summary>
 		/// Called before 'IDirect3DDevice9::DrawPrimitive(UP)', 'ID3D10Device::Draw(Instanced)', 'ID3D11DeviceContext::Draw(Instanced)', 'ID3D12GraphicsCommandList::DrawInstanced', 'gl(Multi)DrawArrays(...)' or 'vkCmdDraw'.
@@ -153,13 +149,11 @@ namespace reshade
 	template <>
 	struct addon_event_traits<addon_event::create_resource_view> { typedef void(*decl)(api::device *device, api::resource_handle resource, api::resource_view_type type, api::resource_view_desc *desc); };
 	template <>
-	struct addon_event_traits<addon_event::set_scissor> { typedef void(*decl)(api::command_list *cmd, uint32_t index, const int32_t rect[4]); };
+	struct addon_event_traits<addon_event::set_viewports> { typedef void(*decl)(api::command_list *cmd, uint32_t first, uint32_t count, const float *viewports); };
 	template <>
-	struct addon_event_traits<addon_event::set_viewport> { typedef void(*decl)(api::command_list *cmd, uint32_t index, const float viewport[6]); };
+	struct addon_event_traits<addon_event::set_scissor_rects> { typedef void(*decl)(api::command_list *cmd, uint32_t first, uint32_t count, const int32_t *rects); };
 	template <>
-	struct addon_event_traits<addon_event::set_depth_stencil> { typedef void(*decl)(api::command_list *cmd, api::resource_view_handle dsv); };
-	template <>
-	struct addon_event_traits<addon_event::set_render_target> { typedef void(*decl)(api::command_list *cmd, uint32_t index, api::resource_view_handle rtv); };
+	struct addon_event_traits<addon_event::set_render_targets_and_depth_stencil> { typedef void(*decl)(api::command_list *cmd, uint32_t count, const api::resource_view_handle *rtvs, api::resource_view_handle dsv); };
 	template <>
 	struct addon_event_traits<addon_event::draw> { typedef void(*decl)(api::command_list *cmd, uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance); };
 	template <>

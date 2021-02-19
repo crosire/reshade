@@ -176,36 +176,25 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::RSSetViewports(UINT NumViewport
 {
 	_orig->RSSetViewports(NumViewports, pViewports);
 
-#if RESHADE_ADDON
-	for (UINT i = 0; i < NumViewports; ++i)
-	{
-		const float viewport_data[6] = {
-			pViewports[i].TopLeftX,
-			pViewports[i].TopLeftY,
-			pViewports[i].Width,
-			pViewports[i].Height,
-			pViewports[i].MinDepth,
-			pViewports[i].MaxDepth
-		};
-		RESHADE_ADDON_EVENT(set_viewport, _impl, i, viewport_data);
-	}
-#endif
+	assert(NumViewports < D3D12_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE);
+	static_assert(sizeof(D3D12_VIEWPORT) == (sizeof(float) * 6));
+	RESHADE_ADDON_EVENT(set_viewports, _impl, 0, NumViewports, reinterpret_cast<const float *>(pViewports));
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::RSSetScissorRects(UINT NumRects, const D3D12_RECT *pRects)
 {
 	_orig->RSSetScissorRects(NumRects, pRects);
 
 #if RESHADE_ADDON
-	for (UINT i = 0; i < NumRects; ++i)
+	assert(NumRects < D3D12_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE);
+	int32_t rect_data[D3D12_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE * 4];
+	for (UINT i = 0, k = 0; i < NumRects; ++i, k += 4)
 	{
-		const int32_t rect_data[4] = {
-			static_cast<int32_t>(pRects[i].left),
-			static_cast<int32_t>(pRects[i].top),
-			static_cast<int32_t>(pRects[i].right - pRects[i].left),
-			static_cast<int32_t>(pRects[i].bottom - pRects[i].top)
-		};
-		RESHADE_ADDON_EVENT(set_scissor, _impl, i, rect_data);
+		rect_data[k + 0] = static_cast<int32_t>(pRects[i].left);
+		rect_data[k + 1] = static_cast<int32_t>(pRects[i].top);
+		rect_data[k + 2] = static_cast<int32_t>(pRects[i].right - pRects[i].left);
+		rect_data[k + 3] = static_cast<int32_t>(pRects[i].bottom - pRects[i].top);
 	}
+	RESHADE_ADDON_EVENT(set_scissor_rects, _impl, 0, NumRects, rect_data);
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::OMSetBlendFactor(const FLOAT BlendFactor[4])
@@ -312,15 +301,12 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::OMSetRenderTargets(UINT NumRend
 	_orig->OMSetRenderTargets(NumRenderTargetDescriptors, pRenderTargetDescriptors, RTsSingleHandleToDescriptorRange, pDepthStencilDescriptor);
 
 #if RESHADE_ADDON
+	assert(NumRenderTargetDescriptors < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT);
+	reshade::api::resource_view_handle rtvs[D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT];
 	for (UINT i = 0; i < NumRenderTargetDescriptors; ++i)
-	{
-		const reshade::api::resource_view_handle rtv = { RTsSingleHandleToDescriptorRange ? pRenderTargetDescriptors->ptr + i * _device->_impl->rtv_handle_size : pRenderTargetDescriptors[i].ptr };
-		RESHADE_ADDON_EVENT(set_render_target, _impl, i, rtv);
-	}
-	{
-		const reshade::api::resource_view_handle dsv = { pDepthStencilDescriptor != nullptr ? pDepthStencilDescriptor->ptr : 0 };
-		RESHADE_ADDON_EVENT(set_depth_stencil, _impl, dsv);
-	}
+		rtvs[i] = { RTsSingleHandleToDescriptorRange ? pRenderTargetDescriptors->ptr + i * _device->_impl->rtv_handle_size : pRenderTargetDescriptors[i].ptr };
+	const reshade::api::resource_view_handle dsv = { pDepthStencilDescriptor != nullptr ? pDepthStencilDescriptor->ptr : 0 };
+	RESHADE_ADDON_EVENT(set_render_targets_and_depth_stencil, _impl, NumRenderTargetDescriptors, rtvs, dsv);
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearDepthStencilView(D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilView, D3D12_CLEAR_FLAGS ClearFlags, FLOAT Depth, UINT8 Stencil, UINT NumRects, const D3D12_RECT *pRects)
@@ -425,15 +411,12 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetProtectedResourceSession(ID3
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::BeginRenderPass(UINT NumRenderTargets, const D3D12_RENDER_PASS_RENDER_TARGET_DESC *pRenderTargets, const D3D12_RENDER_PASS_DEPTH_STENCIL_DESC *pDepthStencil, D3D12_RENDER_PASS_FLAGS Flags)
 {
 #if RESHADE_ADDON
+	assert(NumRenderTargets < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT);
+	reshade::api::resource_view_handle rtvs[D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT];
 	for (UINT i = 0; i < NumRenderTargets; ++i)
-	{
-		const reshade::api::resource_view_handle rtv = { pRenderTargets->cpuDescriptor.ptr + i * _device->_impl->rtv_handle_size };
-		RESHADE_ADDON_EVENT(set_render_target, _impl, i, rtv);
-	}
-	{
-		const reshade::api::resource_view_handle dsv = { pDepthStencil != nullptr ? pDepthStencil->cpuDescriptor.ptr : 0 };
-		RESHADE_ADDON_EVENT(set_depth_stencil, _impl, dsv);
-	}
+		rtvs[i] = { pRenderTargets->cpuDescriptor.ptr + i * _device->_impl->rtv_handle_size };
+	const reshade::api::resource_view_handle dsv = { pDepthStencil != nullptr ? pDepthStencil->cpuDescriptor.ptr : 0 };
+	RESHADE_ADDON_EVENT(set_render_targets_and_depth_stencil, _impl, NumRenderTargets, rtvs, dsv);
 #endif
 
 	assert(_interface_version >= 4);

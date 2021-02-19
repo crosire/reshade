@@ -174,15 +174,12 @@ void    STDMETHODCALLTYPE D3D10Device::OMSetRenderTargets(UINT NumViews, ID3D10R
 	_orig->OMSetRenderTargets(NumViews, ppRenderTargetViews, pDepthStencilView);
 
 #if RESHADE_ADDON
+	assert(NumViews < D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT);
+	reshade::api::resource_view_handle rtvs[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
 	for (UINT i = 0; i < NumViews; ++i)
-	{
-		const reshade::api::resource_view_handle rtv = { reinterpret_cast<uintptr_t>(ppRenderTargetViews[i]) };
-		RESHADE_ADDON_EVENT(set_render_target, _impl, i, rtv);
-	}
-	{
-		const reshade::api::resource_view_handle dsv = { reinterpret_cast<uintptr_t>(pDepthStencilView) };
-		RESHADE_ADDON_EVENT(set_depth_stencil, _impl, dsv);
-	}
+		rtvs[i] = { reinterpret_cast<uintptr_t>(ppRenderTargetViews[i]) };
+	const reshade::api::resource_view_handle dsv = { reinterpret_cast<uintptr_t>(pDepthStencilView) };
+	RESHADE_ADDON_EVENT(set_render_targets_and_depth_stencil, _impl, NumViews, rtvs, dsv);
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::OMSetBlendState(ID3D10BlendState *pBlendState, const FLOAT BlendFactor[4], UINT SampleMask)
@@ -211,18 +208,18 @@ void    STDMETHODCALLTYPE D3D10Device::RSSetViewports(UINT NumViewports, const D
 	_orig->RSSetViewports(NumViewports, pViewports);
 
 #if RESHADE_ADDON
-	for (UINT i = 0; i < NumViewports; ++i)
+	assert(NumViewports < D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE);
+	float viewport_data[D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE * 6];
+	for (UINT i = 0, k = 0; i < NumViewports; ++i, k += 6)
 	{
-		const float viewport_data[6] = {
-			static_cast<float>(pViewports[i].TopLeftX),
-			static_cast<float>(pViewports[i].TopLeftY),
-			static_cast<float>(pViewports[i].Width),
-			static_cast<float>(pViewports[i].Height),
-			pViewports[i].MinDepth,
-			pViewports[i].MaxDepth
-		};
-		RESHADE_ADDON_EVENT(set_viewport, _impl, i, viewport_data);
+		viewport_data[k + 0] = static_cast<float>(pViewports[i].TopLeftX);
+		viewport_data[k + 1] = static_cast<float>(pViewports[i].TopLeftY);
+		viewport_data[k + 2] = static_cast<float>(pViewports[i].Width);
+		viewport_data[k + 3] = static_cast<float>(pViewports[i].Height);
+		viewport_data[k + 4] = pViewports[i].MinDepth;
+		viewport_data[k + 5] = pViewports[i].MaxDepth;
 	}
+	RESHADE_ADDON_EVENT(set_viewports, _impl, 0, NumViewports, viewport_data);
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::RSSetScissorRects(UINT NumRects, const D3D10_RECT *pRects)
@@ -230,16 +227,16 @@ void    STDMETHODCALLTYPE D3D10Device::RSSetScissorRects(UINT NumRects, const D3
 	_orig->RSSetScissorRects(NumRects, pRects);
 
 #if RESHADE_ADDON
-	for (UINT i = 0; i < NumRects; ++i)
+	assert(NumRects < D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE);
+	int32_t rect_data[D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE * 4];
+	for (UINT i = 0, k = 0; i < NumRects; ++i, k += 4)
 	{
-		const int32_t rect_data[4] = {
-			static_cast<int32_t>(pRects[i].left),
-			static_cast<int32_t>(pRects[i].top),
-			static_cast<int32_t>(pRects[i].right - pRects[i].left),
-			static_cast<int32_t>(pRects[i].bottom - pRects[i].top)
-		};
-		RESHADE_ADDON_EVENT(set_scissor, _impl, i, rect_data);
+		rect_data[k + 0] = static_cast<int32_t>(pRects[i].left);
+		rect_data[k + 1] = static_cast<int32_t>(pRects[i].top);
+		rect_data[k + 2] = static_cast<int32_t>(pRects[i].right - pRects[i].left);
+		rect_data[k + 3] = static_cast<int32_t>(pRects[i].bottom - pRects[i].top);
 	}
+	RESHADE_ADDON_EVENT(set_scissor_rects, _impl, 0, NumRects, rect_data);
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::CopySubresourceRegion(ID3D10Resource *pDstResource, UINT DstSubresource, UINT DstX, UINT DstY, UINT DstZ, ID3D10Resource *pSrcResource, UINT SrcSubresource, const D3D10_BOX *pSrcBox)

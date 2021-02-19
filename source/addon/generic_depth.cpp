@@ -337,15 +337,15 @@ static void on_draw_indirect(command_list *cmd_list)
 	auto &state = cmd_list->get_data<state_tracking>(state_tracking::GUID);
 	state.has_indirect_drawcalls = true;
 }
-static void on_set_viewport(command_list *cmd_list, uint32_t index, const float viewport[6])
+static void on_set_viewport(command_list *cmd_list, uint32_t first, uint32_t count, const float *viewport)
 {
-	if (index != 0)
+	if (first != 0 || count == 0)
 		return; // Only interested in the main viewport
 
 	auto &state = cmd_list->get_data<state_tracking>(state_tracking::GUID);
 	std::memcpy(state.current_viewport, viewport, 6 * sizeof(float));
 }
-static void on_set_depth_stencil(command_list *cmd_list, resource_view_handle dsv)
+static void on_set_depth_stencil(command_list *cmd_list, uint32_t, const resource_view_handle *, resource_view_handle dsv)
 {
 	device *const device = cmd_list->get_device();
 	auto &state = cmd_list->get_data<state_tracking>(state_tracking::GUID);
@@ -744,8 +744,8 @@ void register_builtin_addon_depth()
 	reshade::register_event<reshade::addon_event::draw>(on_draw);
 	reshade::register_event<reshade::addon_event::draw_indexed>(on_draw_indexed);
 	reshade::register_event<reshade::addon_event::draw_indirect>(on_draw_indirect);
-	reshade::register_event<reshade::addon_event::set_viewport>(on_set_viewport);
-	reshade::register_event<reshade::addon_event::set_depth_stencil>(on_set_depth_stencil);
+	reshade::register_event<reshade::addon_event::set_viewports>(on_set_viewport);
+	reshade::register_event<reshade::addon_event::set_render_targets_and_depth_stencil>(on_set_depth_stencil);
 	reshade::register_event<reshade::addon_event::clear_depth_stencil>(on_clear_depth_stencil);
 
 	reshade::register_event<reshade::addon_event::reset_command_list>(on_reset);
@@ -775,8 +775,8 @@ void unregister_builtin_addon_depth()
 	reshade::unregister_event<reshade::addon_event::draw>(on_draw);
 	reshade::unregister_event<reshade::addon_event::draw_indexed>(on_draw_indexed);
 	reshade::unregister_event<reshade::addon_event::draw_indirect>(on_draw_indirect);
-	reshade::unregister_event<reshade::addon_event::set_viewport>(on_set_viewport);
-	reshade::unregister_event<reshade::addon_event::set_depth_stencil>(on_set_depth_stencil);
+	reshade::unregister_event<reshade::addon_event::set_viewports>(on_set_viewport);
+	reshade::unregister_event<reshade::addon_event::set_render_targets_and_depth_stencil>(on_set_depth_stencil);
 	reshade::unregister_event<reshade::addon_event::clear_depth_stencil>(on_clear_depth_stencil);
 
 	reshade::unregister_event<reshade::addon_event::reset_command_list>(on_reset);

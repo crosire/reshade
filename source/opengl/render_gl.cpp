@@ -363,8 +363,9 @@ reshade::opengl::device_impl::device_impl(HDC hdc, HGLRC hglrc) : _hglrc(hglrc)
 
 #if RESHADE_ADDON
 	// Communicate default state to add-ons
+	const resource_view_handle default_render_target = get_render_target_from_fbo(0, 0);
 	const resource_view_handle default_depth_stencil = get_depth_stencil_from_fbo(0);
-	RESHADE_ADDON_EVENT(set_depth_stencil, this, default_depth_stencil);
+	RESHADE_ADDON_EVENT(set_render_targets_and_depth_stencil, this, 1, &default_render_target, default_depth_stencil);
 #endif
 }
 reshade::opengl::device_impl::~device_impl()
@@ -653,6 +654,7 @@ resource_view_handle reshade::opengl::device_impl::get_depth_stencil_from_fbo(GL
 	if (fbo == 0 && _default_depth_format == GL_NONE)
 		return { 0 }; // No default depth buffer exists
 
+	// TODO: Try again with stencil attachment if there is no depth attachment
 	const GLenum attachment = GL_DEPTH_ATTACHMENT;
 	if (fbo != 0 && get_fbo_attachment_param(fbo, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE) == GL_NONE)
 		return { 0 }; // FBO does not have this attachment
