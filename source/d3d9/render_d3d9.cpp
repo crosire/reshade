@@ -171,6 +171,10 @@ reshade::d3d9::device_impl::~device_impl()
 
 void reshade::d3d9::device_impl::on_reset()
 {
+	// Do not call add-on events if this device was already reset before
+	if (_copy_state == nullptr)
+		return;
+
 	// Force add-ons to release all resources associated with this device before performing reset
 	RESHADE_ADDON_EVENT(destroy_command_queue, this);
 	RESHADE_ADDON_EVENT(destroy_device, this);

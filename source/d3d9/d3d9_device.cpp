@@ -582,19 +582,22 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetRenderTarget(DWORD RenderTargetInd
 
 		RESHADE_ADDON_EVENT(set_render_targets_and_depth_stencil, _impl, count, rtvs, dsv);
 
-		// Changing the render target implicitly sets the viewport to the render target dimensions
-		D3DSURFACE_DESC rtv_desc = {};
-		pRenderTarget->GetDesc(&rtv_desc);
+		if (pRenderTarget != nullptr)
+		{
+			// Changing the render target implicitly sets the viewport to the render target dimensions
+			D3DSURFACE_DESC rtv_desc = {};
+			pRenderTarget->GetDesc(&rtv_desc);
 
-		const float viewport_data[6] = {
-			0.0f,
-			0.0f,
-			static_cast<float>(rtv_desc.Width),
-			static_cast<float>(rtv_desc.Height),
-			0.0f,
-			1.0f
-		};
-		RESHADE_ADDON_EVENT(set_viewports, _impl, 0, 1, viewport_data);
+			const float viewport_data[6] = {
+				0.0f,
+				0.0f,
+				static_cast<float>(rtv_desc.Width),
+				static_cast<float>(rtv_desc.Height),
+				0.0f,
+				1.0f
+			};
+			RESHADE_ADDON_EVENT(set_viewports, _impl, 0, 1, viewport_data);
+		}
 	}
 #endif
 	return hr;
@@ -643,10 +646,11 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Clear(DWORD Count, const D3DRECT *pRe
 		const float color[4] = { ((Color >> 16) & 0xFF) / 255.0f, ((Color >> 8) & 0xFF) / 255.0f, (Color & 0xFF) / 255.0f, ((Color >> 24) & 0xFF) / 255.0f };
 
 		com_ptr<IDirect3DSurface9> surface;
-		for (DWORD i = 0; i < _impl->_num_simultaneous_rendertargets && SUCCEEDED(_orig->GetRenderTarget(i, &surface)); ++i, surface.reset())
+		for (DWORD i = 0; i < _impl->_num_simultaneous_rendertargets && SUCCEEDED(_orig->GetRenderTarget(i, &surface)); ++i)
 		{
 			const reshade::api::resource_view_handle rtv = _impl->get_resource_view_handle(surface.get());
 			RESHADE_ADDON_EVENT(clear_render_target, _impl, rtv, color);
+			surface.reset();
 		}
 	}
 	if ((Flags & (D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL)) != 0)
@@ -662,6 +666,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Clear(DWORD Count, const D3DRECT *pRe
 
 			const reshade::api::resource_view_handle dsv = _impl->get_resource_view_handle(surface.get());
 			RESHADE_ADDON_EVENT(clear_depth_stencil, _impl, dsv, clear_flags, Z, static_cast<uint8_t>(Stencil));
+			surface.reset();
 		}
 	}
 #endif
