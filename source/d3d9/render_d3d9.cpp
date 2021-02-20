@@ -232,9 +232,10 @@ void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 	if (pp.EnableAutoDepthStencil)
 	{
 		com_ptr<IDirect3DSurface9> auto_depth_stencil;
-		_orig->GetDepthStencilSurface(&auto_depth_stencil);
+		if (SUCCEEDED(_orig->GetDepthStencilSurface(&auto_depth_stencil)))
+			_resources.register_object(auto_depth_stencil.get());
 
-		const reshade::api::resource_view_handle dsv = get_resource_view_handle(auto_depth_stencil.get());
+		const reshade::api::resource_view_handle dsv = { reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) };
 		RESHADE_ADDON_EVENT(set_render_targets_and_depth_stencil, this, 0, nullptr, dsv);
 	}
 #endif

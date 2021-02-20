@@ -72,15 +72,6 @@ namespace reshade::d3d9
 		com_ptr<IDirect3DStateBlock9> _copy_state;
 
 	protected:
-#if RESHADE_ADDON
-		api::resource_view_handle get_resource_view_handle(IDirect3DSurface9 *surface)
-		{
-			if (surface != nullptr)
-				_resources.register_object(surface);
-			return { reinterpret_cast<uintptr_t>(surface) };
-		}
-#endif
-
 		void on_reset();
 		void on_after_reset(const D3DPRESENT_PARAMETERS &pp);
 

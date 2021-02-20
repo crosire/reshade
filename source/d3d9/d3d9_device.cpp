@@ -325,7 +325,19 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateTexture(UINT Width, UINT Height
 	if (SUCCEEDED(hr))
 	{
 		assert(ppTexture != nullptr);
-		_resources.register_object(*ppTexture);
+		IDirect3DTexture9 *const texture = *ppTexture;
+		_resources.register_object(texture);
+
+		// Register all surfaces of this texture too when it can be used as a render target or depth-stencil
+		if (Usage & (D3DUSAGE_RENDERTARGET | D3DUSAGE_DEPTHSTENCIL))
+		{
+			for (DWORD level = 0, levels = texture->GetLevelCount(); level < levels; ++level)
+			{
+				com_ptr<IDirect3DSurface9> surface;
+				if (SUCCEEDED(texture->GetSurfaceLevel(level, &surface)))
+					_resources.register_object(surface.get());
+			}
+		}
 	}
 	else
 	{
@@ -375,7 +387,22 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateCubeTexture(UINT EdgeLength, UI
 	if (SUCCEEDED(hr))
 	{
 		assert(ppCubeTexture != nullptr);
-		_resources.register_object(*ppCubeTexture);
+		IDirect3DCubeTexture9 *const texture = *ppCubeTexture;
+		_resources.register_object(texture);
+
+		// Register all surfaces of this texture too when it can be used as a render target or depth-stencil
+		if (Usage & (D3DUSAGE_RENDERTARGET | D3DUSAGE_DEPTHSTENCIL))
+		{
+			for (DWORD level = 0, levels = texture->GetLevelCount(); level < levels; ++level)
+			{
+				for (D3DCUBEMAP_FACES face = D3DCUBEMAP_FACE_POSITIVE_X; face <= D3DCUBEMAP_FACE_NEGATIVE_Z; face = static_cast<D3DCUBEMAP_FACES>(face + 1))
+				{
+					com_ptr<IDirect3DSurface9> surface;
+					if (SUCCEEDED(texture->GetCubeMapSurface(face, level, &surface)))
+						_resources.register_object(surface.get());
+				}
+			}
+		}
 	}
 	else
 	{
@@ -487,7 +514,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurface(UINT Width,
 			assert(dsv_desc.format == static_cast<uint32_t>(new_desc.Format) && dsv_desc.levels == 1 && dsv_desc.first_layer == 0 && dsv_desc.layers == 1);
 
 			if (SUCCEEDED(texture->GetSurfaceLevel(dsv_desc.first_level, ppSurface)))
+			{
+				_resources.register_object(*ppSurface);
 				return D3D_OK; // Successfully created replacement texture and got surface to it
+			}
 		}
 
 		// Restore original format in case replacement texture creation failed
@@ -568,12 +598,14 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetRenderTarget(DWORD RenderTargetInd
 		reshade::api::resource_view_handle rtvs[8], dsv = { 0 };
 		while (count < _caps.NumSimultaneousRTs && SUCCEEDED(_orig->GetRenderTarget(count, &surface)))
 		{
-			rtvs[count++] = get_resource_view_handle(surface.get());
+			// All surfaces that can be used as render target should be registered at this point
+			rtvs[count++] = { reinterpret_cast<uintptr_t>(surface.get()) };
 			surface.reset();
 		}
 		if (SUCCEEDED(_orig->GetDepthStencilSurface(&surface)))
 		{
-			dsv = get_resource_view_handle(surface.get());
+			// All surfaces that can be used as depth-stencil should be registered at this point
+			dsv = { reinterpret_cast<uintptr_t>(surface.get()) };
 			surface.reset();
 		}
 
@@ -611,10 +643,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetDepthStencilSurface(IDirect3DSurfa
 	{
 		DWORD count = 0;
 		com_ptr<IDirect3DSurface9> surface;
-		reshade::api::resource_view_handle rtvs[8], dsv = get_resource_view_handle(pNewZStencil);
+		reshade::api::resource_view_handle rtvs[8], dsv = { reinterpret_cast<uintptr_t>(pNewZStencil) };
 		while (count < _caps.NumSimultaneousRTs && SUCCEEDED(_orig->GetRenderTarget(count, &surface)))
 		{
-			rtvs[count++] = get_resource_view_handle(surface.get());
+			rtvs[count++] = { reinterpret_cast<uintptr_t>(surface.get()) };
 			surface.reset();
 		}
 
@@ -645,7 +677,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Clear(DWORD Count, const D3DRECT *pRe
 		com_ptr<IDirect3DSurface9> surface;
 		for (DWORD i = 0; i < _caps.NumSimultaneousRTs && SUCCEEDED(_orig->GetRenderTarget(i, &surface)); ++i)
 		{
-			const reshade::api::resource_view_handle rtv = get_resource_view_handle(surface.get());
+			const reshade::api::resource_view_handle rtv = { reinterpret_cast<uintptr_t>(surface.get()) };
 			RESHADE_ADDON_EVENT(clear_render_target, this, rtv, color);
 			surface.reset();
 		}
@@ -661,7 +693,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Clear(DWORD Count, const D3DRECT *pRe
 			if ((Flags & D3DCLEAR_STENCIL) != 0)
 				clear_flags |= 0x2;
 
-			const reshade::api::resource_view_handle dsv = get_resource_view_handle(surface.get());
+			const reshade::api::resource_view_handle dsv = { reinterpret_cast<uintptr_t>(surface.get()) };
 			RESHADE_ADDON_EVENT(clear_depth_stencil, this, dsv, clear_flags, Z, static_cast<uint8_t>(Stencil));
 			surface.reset();
 		}
@@ -834,7 +866,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetSoftwareVertexProcessing(BOOL bSof
 {
 	return _orig->SetSoftwareVertexProcessing(bSoftware);
 }
-BOOL   STDMETHODCALLTYPE Direct3DDevice9::GetSoftwareVertexProcessing()
+BOOL    STDMETHODCALLTYPE Direct3DDevice9::GetSoftwareVertexProcessing()
 {
 	return _orig->GetSoftwareVertexProcessing();
 }
@@ -848,22 +880,34 @@ float   STDMETHODCALLTYPE Direct3DDevice9::GetNPatchMode()
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawPrimitive(D3DPRIMITIVETYPE PrimitiveType, UINT StartVertex, UINT PrimitiveCount)
 {
-	RESHADE_ADDON_EVENT(draw, this, calc_vertex_from_prim_count(PrimitiveType, PrimitiveCount), 1, StartVertex, 0);
+#if RESHADE_ADDON
+	const UINT vertex_count = calc_vertex_from_prim_count(PrimitiveType, PrimitiveCount);
+	RESHADE_ADDON_EVENT(draw, this, vertex_count, 1, StartVertex, 0);
+#endif
 	return _orig->DrawPrimitive(PrimitiveType, StartVertex, PrimitiveCount);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawIndexedPrimitive(D3DPRIMITIVETYPE PrimitiveType, INT BaseVertexIndex, UINT MinVertexIndex, UINT NumVertices, UINT StartIndex, UINT PrimitiveCount)
 {
-	RESHADE_ADDON_EVENT(draw_indexed, this, calc_vertex_from_prim_count(PrimitiveType, PrimitiveCount), 1, StartIndex, BaseVertexIndex, 0);
+#if RESHADE_ADDON
+	const UINT vertex_count = calc_vertex_from_prim_count(PrimitiveType, PrimitiveCount);
+	RESHADE_ADDON_EVENT(draw_indexed, this, vertex_count, 1, StartIndex, BaseVertexIndex, 0);
+#endif
 	return _orig->DrawIndexedPrimitive(PrimitiveType, BaseVertexIndex, MinVertexIndex, NumVertices, StartIndex, PrimitiveCount);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawPrimitiveUP(D3DPRIMITIVETYPE PrimitiveType, UINT PrimitiveCount, const void *pVertexStreamZeroData, UINT VertexStreamZeroStride)
 {
-	RESHADE_ADDON_EVENT(draw, this, calc_vertex_from_prim_count(PrimitiveType, PrimitiveCount), 1, 0, 0);
+#if RESHADE_ADDON
+	const UINT vertex_count = calc_vertex_from_prim_count(PrimitiveType, PrimitiveCount);
+	RESHADE_ADDON_EVENT(draw, this, vertex_count, 1, 0, 0);
+#endif
 	return _orig->DrawPrimitiveUP(PrimitiveType, PrimitiveCount, pVertexStreamZeroData, VertexStreamZeroStride);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawIndexedPrimitiveUP(D3DPRIMITIVETYPE PrimitiveType, UINT MinVertexIndex, UINT NumVertices, UINT PrimitiveCount, const void *pIndexData, D3DFORMAT IndexDataFormat, const void *pVertexStreamZeroData, UINT VertexStreamZeroStride)
 {
-	RESHADE_ADDON_EVENT(draw_indexed, this, calc_vertex_from_prim_count(PrimitiveType, PrimitiveCount), 1, 0, 0, 0);
+#if RESHADE_ADDON
+	const UINT vertex_count = calc_vertex_from_prim_count(PrimitiveType, PrimitiveCount);
+	RESHADE_ADDON_EVENT(draw_indexed, this, vertex_count, 1, 0, 0, 0);
+#endif
 	return _orig->DrawIndexedPrimitiveUP(PrimitiveType, MinVertexIndex, NumVertices, PrimitiveCount, pIndexData, IndexDataFormat, pVertexStreamZeroData, VertexStreamZeroStride);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::ProcessVertices(UINT SrcStartIndex, UINT DestIndex, UINT VertexCount, IDirect3DVertexBuffer9 *pDestBuffer, IDirect3DVertexDeclaration9 *pVertexDecl, DWORD Flags)
@@ -1128,7 +1172,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurfaceEx(UINT Widt
 			assert(dsv_desc.format == static_cast<uint32_t>(new_desc.Format) && dsv_desc.levels == 1 && dsv_desc.first_layer == 0 && dsv_desc.layers == 1);
 
 			if (SUCCEEDED(texture->GetSurfaceLevel(dsv_desc.first_level, ppSurface)))
+			{
+				_resources.register_object(*ppSurface);
 				return D3D_OK; // Successfully created replacement texture and got surface to it
+			}
 		}
 
 		// Restore original format in case replacement texture creation failed

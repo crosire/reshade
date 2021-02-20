@@ -25,43 +25,45 @@ namespace reshade::api
 	public:
 		bool get_data(const uint8_t guid[16], void **ptr) const override
 		{
-			for (const entry &entry : _entries)
+			for (auto it = _entries.begin(); it != _entries.end(); ++it)
 			{
-				if (std::memcmp(entry.guid, guid, 16) == 0)
+				if (it->guid[0] == reinterpret_cast<const uint64_t *>(guid)[0] &&
+					it->guid[1] == reinterpret_cast<const uint64_t *>(guid)[1])
 				{
-					*ptr = entry.ptr;
+					*ptr = it->data;
 					return true;
 				}
 			}
 			return false;
 		}
-		void set_data(const uint8_t guid[16], void *const ptr)  override
+		void set_data(const uint8_t guid[16], void * const ptr) override
 		{
 			for (auto it = _entries.begin(); it != _entries.end(); ++it)
 			{
-				if (std::memcmp(it->guid, guid, 16) == 0)
+				if (it->guid[0] == reinterpret_cast<const uint64_t *>(guid)[0] &&
+					it->guid[1] == reinterpret_cast<const uint64_t *>(guid)[1])
 				{
 					if (ptr == nullptr)
 						_entries.erase(it);
 					else
-						it->ptr = ptr;
+						it->data = ptr;
 					return;
 				}
 			}
 
 			if (ptr != nullptr)
 			{
-				entry &entry = _entries.emplace_back();
-				std::memcpy(entry.guid, guid, 16);
-				entry.ptr = ptr;
+				_entries.push_back({ ptr, {
+					reinterpret_cast<const uint64_t *>(guid)[0],
+					reinterpret_cast<const uint64_t *>(guid)[1] } });
 			}
 		}
 
 	private:
 		struct entry
 		{
-			uint8_t guid[16];
-			void *ptr;
+			void *data;
+			uint64_t guid[2];
 		};
 
 		std::vector<entry> _entries;
