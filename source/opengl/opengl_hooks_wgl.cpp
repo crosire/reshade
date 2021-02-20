@@ -687,6 +687,7 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 				gl3wProcs.gl.BufferData = reshade::hooks::call(glBufferData);
 				gl3wProcs.gl.ClearBufferfv = reshade::hooks::call(glClearBufferfv);
 				gl3wProcs.gl.ClearBufferfi = reshade::hooks::call(glClearBufferfi);
+				gl3wProcs.gl.DispatchCompute = reshade::hooks::call(glDispatchCompute);
 				gl3wProcs.gl.DrawArraysInstancedBaseInstance = reshade::hooks::call(glDrawArraysInstancedBaseInstance);
 				gl3wProcs.gl.DrawElementsBaseVertex = reshade::hooks::call(glDrawElementsBaseVertex); // Used in 'runtime_gl::render_imgui_draw_data'
 				gl3wProcs.gl.DrawElementsInstancedBaseVertexBaseInstance = reshade::hooks::call(glDrawElementsInstancedBaseVertexBaseInstance);
@@ -1135,6 +1136,8 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		INSTALL_HOOK(glClearBufferfi);
 		INSTALL_HOOK(glClearNamedFramebufferfv);
 		INSTALL_HOOK(glClearNamedFramebufferfi);
+		INSTALL_HOOK(glDispatchCompute);
+		INSTALL_HOOK(glDispatchComputeIndirect);
 		INSTALL_HOOK(glDrawArraysIndirect);
 		INSTALL_HOOK(glDrawArraysInstanced);
 		INSTALL_HOOK(glDrawArraysInstancedBaseInstance);
@@ -1191,6 +1194,7 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		gl3wProcs.gl.BufferData = reshade::hooks::call(glBufferData);
 		gl3wProcs.gl.ClearBufferfv = reshade::hooks::call(glClearBufferfv);
 		gl3wProcs.gl.ClearBufferfi = reshade::hooks::call(glClearBufferfi);
+		gl3wProcs.gl.DispatchCompute = reshade::hooks::call(glDispatchCompute);
 		gl3wProcs.gl.DrawArraysInstancedBaseInstance = reshade::hooks::call(glDrawArraysInstancedBaseInstance);
 		gl3wProcs.gl.DrawElementsBaseVertex = reshade::hooks::call(glDrawElementsBaseVertex);
 		gl3wProcs.gl.DrawElementsInstancedBaseVertexBaseInstance = reshade::hooks::call(glDrawElementsInstancedBaseVertexBaseInstance);

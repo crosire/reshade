@@ -330,8 +330,11 @@ static void on_draw_indexed(command_list *cmd_list, uint32_t indices, uint32_t i
 {
 	on_draw(cmd_list, indices, instances, 0, 0);
 }
-static void on_draw_indirect(command_list *cmd_list)
+static void on_draw_indirect(command_list *cmd_list, reshade::addon_event type, resource_handle, uint64_t, uint32_t, uint32_t)
 {
+	if (type == reshade::addon_event::dispatch)
+		return;
+
 	on_draw(cmd_list, 0, 0, 0, 0);
 
 	auto &state = cmd_list->get_data<state_tracking>(state_tracking::GUID);
@@ -746,7 +749,7 @@ void register_builtin_addon_depth()
 
 	reshade::register_event<reshade::addon_event::draw>(on_draw);
 	reshade::register_event<reshade::addon_event::draw_indexed>(on_draw_indexed);
-	reshade::register_event<reshade::addon_event::draw_indirect>(on_draw_indirect);
+	reshade::register_event<reshade::addon_event::draw_or_dispatch_indirect>(on_draw_indirect);
 	reshade::register_event<reshade::addon_event::set_viewports>(on_set_viewport);
 	reshade::register_event<reshade::addon_event::set_render_targets_and_depth_stencil>(on_set_depth_stencil);
 	reshade::register_event<reshade::addon_event::clear_depth_stencil>(on_clear_depth_stencil);
@@ -777,7 +780,7 @@ void unregister_builtin_addon_depth()
 
 	reshade::unregister_event<reshade::addon_event::draw>(on_draw);
 	reshade::unregister_event<reshade::addon_event::draw_indexed>(on_draw_indexed);
-	reshade::unregister_event<reshade::addon_event::draw_indirect>(on_draw_indirect);
+	reshade::unregister_event<reshade::addon_event::draw_or_dispatch_indirect>(on_draw_indirect);
 	reshade::unregister_event<reshade::addon_event::set_viewports>(on_set_viewport);
 	reshade::unregister_event<reshade::addon_event::set_render_targets_and_depth_stencil>(on_set_depth_stencil);
 	reshade::unregister_event<reshade::addon_event::clear_depth_stencil>(on_clear_depth_stencil);

@@ -53,6 +53,10 @@ extern "C" void WINAPI glDepthMask(GLboolean flag);
 extern "C" void WINAPI glDepthRange(GLclampd zNear, GLclampd zFar);
 #undef glDisable
 extern "C" void WINAPI glDisable(GLenum cap);
+#undef glDispatchCompute
+extern "C" void WINAPI glDispatchCompute(GLuint num_groups_x, GLuint num_groups_y, GLuint num_groups_z);
+#undef glDispatchComputeIndirect
+extern "C" void WINAPI glDispatchComputeIndirect(GLintptr indirect);
 #undef glDrawArrays
 extern "C" void WINAPI glDrawArrays(GLenum mode, GLint first, GLsizei count);
 #undef glDrawArraysIndirect

@@ -294,20 +294,22 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::DrawAuto()
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::DrawIndexedInstancedIndirect(ID3D11Buffer *pBufferForArgs, UINT AlignedByteOffsetForArgs)
 {
-	RESHADE_ADDON_EVENT(draw_indirect, _impl);
+	RESHADE_ADDON_EVENT(draw_or_dispatch_indirect, _impl, reshade::addon_event::draw_indexed, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pBufferForArgs) }, AlignedByteOffsetForArgs, 1, 0);
 	_orig->DrawIndexedInstancedIndirect(pBufferForArgs, AlignedByteOffsetForArgs);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::DrawInstancedIndirect(ID3D11Buffer *pBufferForArgs, UINT AlignedByteOffsetForArgs)
 {
-	RESHADE_ADDON_EVENT(draw_indirect, _impl);
+	RESHADE_ADDON_EVENT(draw_or_dispatch_indirect, _impl, reshade::addon_event::draw, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pBufferForArgs) }, AlignedByteOffsetForArgs, 1, 0);
 	_orig->DrawInstancedIndirect(pBufferForArgs, AlignedByteOffsetForArgs);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::Dispatch(UINT ThreadGroupCountX, UINT ThreadGroupCountY, UINT ThreadGroupCountZ)
 {
+	RESHADE_ADDON_EVENT(dispatch, _impl, ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ);
 	_orig->Dispatch(ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::DispatchIndirect(ID3D11Buffer *pBufferForArgs, UINT AlignedByteOffsetForArgs)
 {
+	RESHADE_ADDON_EVENT(draw_or_dispatch_indirect, _impl, reshade::addon_event::dispatch, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pBufferForArgs) }, AlignedByteOffsetForArgs, 1, 0);
 	_orig->DispatchIndirect(pBufferForArgs, AlignedByteOffsetForArgs);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::RSSetState(ID3D11RasterizerState *pRasterizerState)

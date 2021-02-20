@@ -1093,7 +1093,7 @@ void     VKAPI_CALL vkCmdDrawIndirect(VkCommandBuffer commandBuffer, VkBuffer bu
 	reshade::vulkan::command_list_impl *const cmd_impl = s_vulkan_command_buffers.at(commandBuffer);
 	if (cmd_impl != nullptr)
 	{
-		RESHADE_ADDON_EVENT(draw_indirect, cmd_impl);
+		RESHADE_ADDON_EVENT(draw_or_dispatch_indirect, cmd_impl, reshade::addon_event::draw, reshade::api::resource_handle { (uint64_t)buffer }, offset, drawCount, stride);
 	}
 #endif
 
@@ -1106,12 +1106,38 @@ void     VKAPI_CALL vkCmdDrawIndexedIndirect(VkCommandBuffer commandBuffer, VkBu
 	reshade::vulkan::command_list_impl *const cmd_impl = s_vulkan_command_buffers.at(commandBuffer);
 	if (cmd_impl != nullptr)
 	{
-		RESHADE_ADDON_EVENT(draw_indirect, cmd_impl);
+		RESHADE_ADDON_EVENT(draw_or_dispatch_indirect, cmd_impl, reshade::addon_event::draw_indexed, reshade::api::resource_handle { (uint64_t)buffer }, offset, drawCount, stride);
 	}
 #endif
 
 	GET_DEVICE_DISPATCH_PTR(CmdDrawIndexedIndirect, commandBuffer);
 	trampoline(commandBuffer, buffer, offset, drawCount, stride);
+}
+void     VKAPI_CALL vkCmdDispatch(VkCommandBuffer commandBuffer, uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ)
+{
+#if RESHADE_ADDON
+	reshade::vulkan::command_list_impl *const cmd_impl = s_vulkan_command_buffers.at(commandBuffer);
+	if (cmd_impl != nullptr)
+	{
+		RESHADE_ADDON_EVENT(dispatch, cmd_impl, groupCountX, groupCountY, groupCountZ);
+	}
+#endif
+
+	GET_DEVICE_DISPATCH_PTR(CmdDispatch, commandBuffer);
+	trampoline(commandBuffer, groupCountX, groupCountY, groupCountZ);
+}
+void     VKAPI_CALL vkCmdDispatchIndirect(VkCommandBuffer commandBuffer, VkBuffer buffer, VkDeviceSize offset)
+{
+#if RESHADE_ADDON
+	reshade::vulkan::command_list_impl *const cmd_impl = s_vulkan_command_buffers.at(commandBuffer);
+	if (cmd_impl != nullptr)
+	{
+		RESHADE_ADDON_EVENT(draw_or_dispatch_indirect, cmd_impl, reshade::addon_event::dispatch, reshade::api::resource_handle { (uint64_t)buffer }, offset, 1, 0);
+	}
+#endif
+
+	GET_DEVICE_DISPATCH_PTR(CmdDispatchIndirect, commandBuffer);
+	trampoline(commandBuffer, buffer, offset);
 }
 
 void     VKAPI_CALL vkCmdClearColorImage(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout imageLayout, const VkClearColorValue *pColor, uint32_t rangeCount, const VkImageSubresourceRange *pRanges)
@@ -1403,6 +1429,8 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	CHECK_DEVICE_PROC(CmdDrawIndexed);
 	CHECK_DEVICE_PROC(CmdDrawIndirect);
 	CHECK_DEVICE_PROC(CmdDrawIndexedIndirect);
+	CHECK_DEVICE_PROC(CmdDispatch);
+	CHECK_DEVICE_PROC(CmdDispatchIndirect);
 	CHECK_DEVICE_PROC(CmdClearColorImage);
 	CHECK_DEVICE_PROC(CmdClearDepthStencilImage);
 	CHECK_DEVICE_PROC(CmdBeginRenderPass);

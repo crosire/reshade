@@ -509,6 +509,27 @@ HOOK_EXPORT void WINAPI glDisableClientState(GLenum array)
 	trampoline(array);
 }
 
+			void WINAPI glDispatchCompute(GLuint num_groups_x, GLuint num_groups_y, GLuint num_groups_z)
+{
+	if (g_current_runtime)
+		RESHADE_ADDON_EVENT(dispatch, g_current_runtime, num_groups_x, num_groups_y, num_groups_z);
+
+	static const auto trampoline = reshade::hooks::call(glDispatchCompute);
+	trampoline(num_groups_x, num_groups_y, num_groups_z);
+}
+			void WINAPI glDispatchComputeIndirect(GLintptr indirect)
+{
+#if RESHADE_ADDON
+	GLint buffer = 0;
+	glGetIntegerv(GL_DISPATCH_INDIRECT_BUFFER_BINDING, &buffer);
+	if (g_current_runtime && buffer != 0)
+		RESHADE_ADDON_EVENT(draw_or_dispatch_indirect, g_current_runtime, reshade::addon_event::dispatch, reshade::api::resource_handle { (static_cast<uint64_t>(GL_DISPATCH_INDIRECT_BUFFER) << 40) | buffer }, indirect, 1, 0);
+#endif
+
+	static const auto trampoline = reshade::hooks::call(glDispatchComputeIndirect);
+	trampoline(indirect);
+}
+
 HOOK_EXPORT void WINAPI glDrawArrays(GLenum mode, GLint first, GLsizei count)
 {
 	if (g_current_runtime)
@@ -519,8 +540,12 @@ HOOK_EXPORT void WINAPI glDrawArrays(GLenum mode, GLint first, GLsizei count)
 }
 			void WINAPI glDrawArraysIndirect(GLenum mode, const GLvoid *indirect)
 {
-	if (g_current_runtime)
-		RESHADE_ADDON_EVENT(draw_indirect, g_current_runtime);
+#if RESHADE_ADDON
+	GLint buffer = 0;
+	glGetIntegerv(GL_DRAW_INDIRECT_BUFFER_BINDING, &buffer);
+	if (g_current_runtime && buffer != 0)
+		RESHADE_ADDON_EVENT(draw_or_dispatch_indirect, g_current_runtime, reshade::addon_event::draw, reshade::api::resource_handle { (static_cast<uint64_t>(GL_DRAW_INDIRECT_BUFFER) << 40) | buffer }, reinterpret_cast<uintptr_t>(indirect), 1, 0);
+#endif
 
 	static const auto trampoline = reshade::hooks::call(glDrawArraysIndirect);
 	trampoline(mode, indirect);
@@ -566,8 +591,12 @@ HOOK_EXPORT void WINAPI glDrawElements(GLenum mode, GLsizei count, GLenum type, 
 }
 			void WINAPI glDrawElementsIndirect(GLenum mode, GLenum type, const GLvoid *indirect)
 {
-	if (g_current_runtime)
-		RESHADE_ADDON_EVENT(draw_indirect, g_current_runtime);
+#if RESHADE_ADDON
+	GLint buffer = 0;
+	glGetIntegerv(GL_DRAW_INDIRECT_BUFFER_BINDING, &buffer);
+	if (g_current_runtime && buffer != 0)
+		RESHADE_ADDON_EVENT(draw_or_dispatch_indirect, g_current_runtime, reshade::addon_event::draw_indexed, reshade::api::resource_handle { (static_cast<uint64_t>(GL_DRAW_INDIRECT_BUFFER) << 40) | buffer }, reinterpret_cast<uintptr_t>(indirect), 1, 0);
+#endif
 
 	static const auto trampoline = reshade::hooks::call(glDrawElementsIndirect);
 	trampoline(mode, type, indirect);
@@ -1233,8 +1262,12 @@ HOOK_EXPORT void WINAPI glMultMatrixf(const GLfloat *m)
 }
 			void WINAPI glMultiDrawArraysIndirect(GLenum mode, const void *indirect, GLsizei drawcount, GLsizei stride)
 {
-	if (g_current_runtime)
-		RESHADE_ADDON_EVENT(draw_indirect, g_current_runtime);
+#if RESHADE_ADDON
+	GLint buffer = 0;
+	glGetIntegerv(GL_DRAW_INDIRECT_BUFFER_BINDING, &buffer);
+	if (g_current_runtime && buffer != 0)
+		RESHADE_ADDON_EVENT(draw_or_dispatch_indirect, g_current_runtime, reshade::addon_event::draw, reshade::api::resource_handle { (static_cast<uint64_t>(GL_DRAW_INDIRECT_BUFFER) << 40) | buffer }, reinterpret_cast<uintptr_t>(indirect), drawcount, stride);
+#endif
 
 	static const auto trampoline = reshade::hooks::call(glMultiDrawArraysIndirect);
 	trampoline(mode, indirect, drawcount, stride);
@@ -1259,8 +1292,12 @@ HOOK_EXPORT void WINAPI glMultMatrixf(const GLfloat *m)
 }
 			void WINAPI glMultiDrawElementsIndirect(GLenum mode, GLenum type, const void *indirect, GLsizei drawcount, GLsizei stride)
 {
-	if (g_current_runtime)
-		RESHADE_ADDON_EVENT(draw_indirect, g_current_runtime);
+#if RESHADE_ADDON
+	GLint buffer = 0;
+	glGetIntegerv(GL_DRAW_INDIRECT_BUFFER_BINDING, &buffer);
+	if (g_current_runtime && buffer != 0)
+		RESHADE_ADDON_EVENT(draw_or_dispatch_indirect, g_current_runtime, reshade::addon_event::draw_indexed, reshade::api::resource_handle { (static_cast<uint64_t>(GL_DRAW_INDIRECT_BUFFER) << 40) | buffer }, reinterpret_cast<uintptr_t>(indirect), drawcount, stride);
+#endif
 
 	static const auto trampoline = reshade::hooks::call(glMultiDrawElementsIndirect);
 	trampoline(mode, type, indirect, drawcount, stride);

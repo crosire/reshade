@@ -78,9 +78,13 @@ namespace reshade
 		/// </summary>
 		draw_indexed,
 		/// <summary>
-		/// Called before 'ID3D11DeviceContext::Draw(Indexed)InstancedIndirect', 'ID3D12GraphicsCommandList::ExecuteIndirect', 'gl(Multi)Draw(...)Indirect' or 'vkCmdDraw(Indexed)Indirect'.
+		/// Called before 'ID3D11DeviceContext::Dispatch', 'ID3D12GraphicsCommandList::Dispatch', 'glDispatchCompute' or 'vkCmdDispatch'.
 		/// </summary>
-		draw_indirect,
+		dispatch,
+		/// <summary>
+		/// Called before 'ID3D11DeviceContext::Draw(Indexed)InstancedIndirect', 'ID3D11DeviceContext::DispatchIndirect', 'ID3D12GraphicsCommandList::ExecuteIndirect', 'gl(Multi)Draw(...)Indirect', 'glDispatchComputeIndirect', 'vkCmdDraw(Indexed)Indirect' or 'vkCmdDispatchIndirect'.
+		/// </summary>
+		draw_or_dispatch_indirect,
 		/// <summary>
 		/// Called before 'IDirect3DDevice9::Clear', 'ID3D10Device::ClearDepthStencilView', 'ID3D11DeviceContext::ClearDepthStencilView', 'ID3D12GraphicsCommandList::ClearDepthStencilView', 'glClear(...) ', 'vkCmdBeginRenderPass' or 'vkCmdClearDepthStencilImage'.
 		/// Resource will be in the <see cref="resource_usage::depth_stencil_write"/> state.
@@ -157,7 +161,9 @@ namespace reshade
 	template <>
 	struct addon_event_traits<addon_event::draw_indexed> { typedef void(*decl)(api::command_list *cmd, uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance); };
 	template <>
-	struct addon_event_traits<addon_event::draw_indirect> { typedef void(*decl)(api::command_list *cmd); };
+	struct addon_event_traits<addon_event::dispatch> { typedef void(*decl)(api::command_list *cmd, uint32_t num_groups_x, uint32_t num_groups_y, uint32_t num_groups_z); };
+	template <>
+	struct addon_event_traits<addon_event::draw_or_dispatch_indirect> { typedef void(*decl)(api::command_list *cmd, addon_event type, api::resource_handle buffer, uint64_t offset, uint32_t draw_count, uint32_t stride); };
 	template <>
 	struct addon_event_traits<addon_event::clear_depth_stencil> { typedef void(*decl)(api::command_list *cmd, api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil); };
 	template <>

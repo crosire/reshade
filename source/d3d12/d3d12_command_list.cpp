@@ -363,7 +363,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::EndEvent()
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ExecuteIndirect(ID3D12CommandSignature *pCommandSignature, UINT MaxCommandCount, ID3D12Resource *pArgumentBuffer, UINT64 ArgumentBufferOffset, ID3D12Resource *pCountBuffer, UINT64 CountBufferOffset)
 {
-	RESHADE_ADDON_EVENT(draw_indirect, _impl);
+	RESHADE_ADDON_EVENT(draw_or_dispatch_indirect, this, reshade::addon_event::draw_or_dispatch_indirect, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pArgumentBuffer) }, ArgumentBufferOffset, MaxCommandCount, 0);
 	_orig->ExecuteIndirect(pCommandSignature, MaxCommandCount, pArgumentBuffer, ArgumentBufferOffset, pCountBuffer, CountBufferOffset);
 }
 
