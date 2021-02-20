@@ -24,5 +24,9 @@ namespace reshade::openvr
 		std::unique_ptr<d3d11::state_tracking_context> _state;
 		std::unique_ptr<d3d11::runtime_d3d11> _runtime;
 		uint32_t _num_submitted;
+		bool _left_flipped_horizontally;
+		bool _left_flipped_vertically;
+		bool _right_flipped_horizontally;
+		bool _right_flipped_vertically;
 	};	
 }

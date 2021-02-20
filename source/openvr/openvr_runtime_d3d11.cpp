@@ -14,9 +14,11 @@ namespace reshade::openvr
 
 		D3D11_TEXTURE2D_DESC td;
 		texture->GetDesc(&td);
+		LOG(DEBUG) << "Texture size: " << td.Width << "x" << td.Height;
+		LOG(DEBUG) << "Bounds: (" << pBounds->uMin << ", " << pBounds->vMin << ", " << pBounds->uMax << ", " << pBounds->vMax << ")";
 		// derive our backing texture size from the submitted texture and bounds, then use double width to fit both eyes
-		_width = 2 * td.Width * (pBounds->uMax - pBounds->uMin);
-		_height = td.Height * (pBounds->vMax - pBounds->vMin);
+		_width = 2 * td.Width * std::abs(pBounds->uMax - pBounds->uMin);
+		_height = td.Height * std::abs(pBounds->vMax - pBounds->vMin);
 
 		_state.reset(new d3d11::state_tracking_context(_context.get()));
 		_runtime.reset(new d3d11::runtime_d3d11(_device.get(), _width, _height, td.Format, _state.get()));
@@ -33,13 +35,21 @@ namespace reshade::openvr
 		D3D11_TEXTURE2D_DESC td;
 		texture->GetDesc(&td);
 		D3D11_BOX region;
-		region.left = td.Width * pBounds->uMin;
-		region.right = td.Width * pBounds->uMax;
-		region.top = td.Height * pBounds->vMin;
-		region.bottom = td.Height * pBounds->vMax;
+		region.left = td.Width * std::min(pBounds->uMin, pBounds->uMax);
+		region.right = td.Width * std::max(pBounds->uMin, pBounds->uMax);
+		region.top = td.Height * std::min(pBounds->vMin, pBounds->vMax);
+		region.bottom = td.Height * std::max(pBounds->vMin, pBounds->vMax);
 		region.front = 0;
 		region.back = 1;
 		_context->CopySubresourceRegion(target, 0, eEye == vr::Eye_Left ? 0 : _width/2, 0, 0, texture, 0, &region);
+
+		if (eEye == vr::Eye_Left) {
+			_left_flipped_horizontally = pBounds->uMax < pBounds->uMin;
+			_left_flipped_vertically = pBounds->vMax < pBounds->vMin;
+		} else {
+			_right_flipped_horizontally = pBounds->uMax < pBounds->uMin;
+			_right_flipped_vertically = pBounds->vMax < pBounds->vMin;
+		}
 
 		// TODO: handle resize if necessary
 
@@ -56,6 +66,15 @@ namespace reshade::openvr
 			left_eye_bounds.uMin = left_eye_bounds.vMin = right_eye_bounds.vMin = 0;
 			left_eye_bounds.uMax = right_eye_bounds.uMin = .5f;
 			left_eye_bounds.vMax = right_eye_bounds.uMax = right_eye_bounds.vMax = 1;
+
+			if (_left_flipped_horizontally)
+				std::swap(left_eye_bounds.uMin, left_eye_bounds.uMax);
+			if (_left_flipped_vertically)
+				std::swap(left_eye_bounds.vMin, left_eye_bounds.vMax);
+			if (_right_flipped_horizontally)
+				std::swap(right_eye_bounds.uMin, right_eye_bounds.uMax);
+			if (_right_flipped_vertically)
+				std::swap(right_eye_bounds.vMin, right_eye_bounds.vMax);
 
 			_orig_submit(_orig_compositor, vr::Eye_Left, &tex, &left_eye_bounds, vr::Submit_Default);
 			_orig_submit(_orig_compositor, vr::Eye_Right, &tex, &right_eye_bounds, vr::Submit_Default);
