@@ -199,5 +199,90 @@ enum EVRInitError
 	VRInitError_LastError
 };
 
+enum EVRCompositorError
+{
+	VRCompositorError_None						= 0,
+	VRCompositorError_RequestFailed				= 1,
+	VRCompositorError_IncompatibleVersion		= 100,
+	VRCompositorError_DoNotHaveFocus			= 101,
+	VRCompositorError_InvalidTexture			= 102,
+	VRCompositorError_IsNotSceneApplication		= 103,
+	VRCompositorError_TextureIsOnWrongDevice	= 104,
+	VRCompositorError_TextureUsesUnsupportedFormat = 105,
+	VRCompositorError_SharedTexturesNotSupported = 106,
+	VRCompositorError_IndexOutOfRange			= 107,
+	VRCompositorError_AlreadySubmitted			= 108,
+	VRCompositorError_InvalidBounds				= 109,
+};
+
+enum EVREye
+{
+	Eye_Left = 0,
+	Eye_Right = 1
+};
+
+enum ETextureType
+{
+	TextureType_Invalid = -1, // Handle has been invalidated
+	TextureType_DirectX = 0, // Handle is an ID3D11Texture
+	TextureType_OpenGL = 1,  // Handle is an OpenGL texture name or an OpenGL render buffer name, depending on submit flags
+	TextureType_Vulkan = 2, // Handle is a pointer to a VRVulkanTextureData_t structure
+	TextureType_IOSurface = 3, // Handle is a macOS cross-process-sharable IOSurfaceRef, deprecated in favor of TextureType_Metal on supported platforms
+	TextureType_DirectX12 = 4, // Handle is a pointer to a D3D12TextureData_t structure
+	TextureType_DXGISharedHandle = 5, // Handle is a HANDLE DXGI share handle, only supported for Overlay render targets. 
+									  // this texture is used directly by our renderer, so only perform atomic (copyresource or resolve) on it
+	TextureType_Metal = 6, // Handle is a MTLTexture conforming to the MTLSharedTexture protocol. Textures submitted to IVRCompositor::Submit which
+						   // are of type MTLTextureType2DArray assume layer 0 is the left eye texture (vr::EVREye::Eye_left), layer 1 is the right
+						   // eye texture (vr::EVREye::Eye_Right)
+};
+
+enum EColorSpace
+{
+	ColorSpace_Auto = 0,	// Assumes 'gamma' for 8-bit per component formats, otherwise 'linear'.  This mirrors the DXGI formats which have _SRGB variants.
+	ColorSpace_Gamma = 1,	// Texture data can be displayed directly on the display without any conversion (a.k.a. display native format).
+	ColorSpace_Linear = 2,	// Same as gamma but has been converted to a linear representation using DXGI's sRGB conversion algorithm.
+};
+
+struct Texture_t
+{
+	void* handle; // See ETextureType definition above
+	ETextureType eType;
+	EColorSpace eColorSpace;
+};
+
+/** Allows the application to control what part of the provided texture will be used in the
+* frame buffer. */
+struct VRTextureBounds_t
+{
+	float uMin, vMin;
+	float uMax, vMax;
+};
+
+/** Allows the application to control how scene textures are used by the compositor when calling Submit. */
+enum EVRSubmitFlags
+{
+	// Simple render path. App submits rendered left and right eye images with no lens distortion correction applied.
+	Submit_Default = 0x00,
+
+	// App submits final left and right eye images with lens distortion already applied (lens distortion makes the images appear
+	// barrel distorted with chromatic aberration correction applied). The app would have used the data returned by
+	// vr::IVRSystem::ComputeDistortion() to apply the correct distortion to the rendered images before calling Submit().
+	Submit_LensDistortionAlreadyApplied = 0x01,
+
+	// If the texture pointer passed in is actually a renderbuffer (e.g. for MSAA in OpenGL) then set this flag.
+	Submit_GlRenderBuffer = 0x02,
+
+	// Do not use
+	Submit_Reserved = 0x04,
+
+	// Set to indicate that pTexture is a pointer to a VRTextureWithPose_t.
+	// This flag can be combined with Submit_TextureWithDepth to pass a VRTextureWithPoseAndDepth_t.
+	Submit_TextureWithPose = 0x08,
+
+	// Set to indicate that pTexture is a pointer to a VRTextureWithDepth_t.
+	// This flag can be combined with Submit_TextureWithPose to pass a VRTextureWithPoseAndDepth_t.
+	Submit_TextureWithDepth = 0x10,
+};
+
 }
 
