@@ -231,6 +231,9 @@
     <ClCompile Include="source\openvr\openvr.cpp">
       <Filter>hooks\openvr</Filter>
     </ClCompile>
+    <ClCompile Include="source\openvr\openvr_runtime_d3d11.cpp">
+      <Filter>hooks\openvr</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="source\dll_config.hpp">
@@ -382,6 +385,9 @@
     </ClInclude>
     <ClInclude Include="res\version.h">
       <Filter>resources</Filter>
+    </ClInclude>
+    <ClInclude Include="source\openvr\openvr_runtime_d3d11.hpp">
+      <Filter>hooks\openvr</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

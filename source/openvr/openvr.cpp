@@ -1,16 +1,35 @@
 #include "dll_log.hpp"
 #include "hook_manager.hpp"
-#include "openvr.h"
+#include "openvr_runtime_d3d11.hpp"
+
+#include <d3d11.h>
+
+thread_local reshade::openvr::openvr_runtime_d3d11 *vr_runtime_d3d11 = nullptr;
 
 reshade::hook::address *as_vtable(void *instance)
 {
 	return *static_cast<reshade::hook::address **>(instance);
 }
 
-vr::EVRCompositorError IVRCompositor022_Submit(void *ivrCompositor, vr::EVREye eEye, const vr::Texture_t *pTexture, const vr::VRTextureBounds_t* pBounds, vr::EVRSubmitFlags nSubmitFlags)
+reshade::openvr::openvr_runtime_d3d11 *create_vr_runtime_d3d11( const vr::Texture_t * pTexture, const vr::VRTextureBounds_t * pBounds )
 {
-	LOG(DEBUG) << "VR: Intercepted call to IVRCompositor022::Submit";
-	const auto trampoline = reshade::hooks::call(IVRCompositor022_Submit, as_vtable(ivrCompositor) + 5);
+	ID3D11Texture2D *texture = static_cast<ID3D11Texture2D *>(pTexture->handle);
+	
+}
+
+vr::EVRCompositorError IVRCompositor_Submit(void *ivrCompositor, vr::EVREye eEye, const vr::Texture_t *pTexture, const vr::VRTextureBounds_t* pBounds, vr::EVRSubmitFlags nSubmitFlags)
+{
+	LOG(DEBUG) << "VR: Intercepted call to IVRCompositor::Submit";
+	const auto trampoline = reshade::hooks::call(IVRCompositor_Submit, as_vtable(ivrCompositor) + 5);
+
+	if (pTexture->eType == vr::TextureType_DirectX)
+	{
+		if (vr_runtime_d3d11 == nullptr)
+		{
+			vr_runtime_d3d11 = new reshade::openvr::openvr_runtime_d3d11(pTexture, pBounds);
+		}
+	}
+	
 	return trampoline(ivrCompositor, eEye, pTexture, pBounds, nSubmitFlags);
 }
 
@@ -20,10 +39,13 @@ HOOK_EXPORT void *VR_GetGenericInterface(const char *pchInterfaceVersion, vr::EV
 	LOG(DEBUG) << "VR: Requested interface " << pchInterfaceVersion;
 	auto vrInterface = trampoline(pchInterfaceVersion, peError);
 
-	if (strcmp(pchInterfaceVersion, "IVRCompositor_022") == 0)
+	// NOTE: there are different versions of the IVRCompositor interface that can be returned here.
+	// However, the Submit function definition has been stable and has had the same vtable index since the
+	// OpenVR 1.0 release. Hence we can get away with a unified hook function.
+	if (strcmp(pchInterfaceVersion, "IVRCompositor_015") >= 0 && strcmp(pchInterfaceVersion, "IVRCompositor_026") <= 0)
 	{
 		LOG(INFO) << "VR: Hooking into " << pchInterfaceVersion;
-		reshade::hooks::install("IVRCompositor022::Submit", as_vtable(vrInterface), 5, reinterpret_cast<reshade::hook::address>(IVRCompositor022_Submit));
+		reshade::hooks::install("IVRCompositor::Submit", as_vtable(vrInterface), 5, reinterpret_cast<reshade::hook::address>(IVRCompositor_Submit));
 	}
 	
 	return vrInterface;
