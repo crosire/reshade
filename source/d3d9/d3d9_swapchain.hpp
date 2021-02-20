@@ -8,6 +8,7 @@
 #include "render_d3d9.hpp"
 
 struct Direct3DDevice9;
+namespace reshade::d3d9 { class runtime_d3d9; }
 
 struct DECLSPEC_UUID("BC52FCE4-1EAC-40C8-84CF-863600BBAA01") Direct3DSwapChain9 : IDirect3DSwapChain9Ex
 {

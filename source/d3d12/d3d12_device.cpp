@@ -238,9 +238,9 @@ void    STDMETHODCALLTYPE D3D12Device::CreateShaderResourceView(ID3D12Resource *
 		D3D12_SHADER_RESOURCE_VIEW_DESC new_desc =
 			pDesc != nullptr ? *pDesc : D3D12_SHADER_RESOURCE_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D12_SRV_DIMENSION_UNKNOWN };
 
-		reshade::api::resource_view_desc api_desc = reshade::d3d12::convert_shader_resource_view_desc(new_desc);
+		reshade::api::resource_view_desc api_desc = reshade::d3d12::convert_resource_view_desc(new_desc);
 		RESHADE_ADDON_EVENT(create_resource_view, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::shader_resource, &api_desc);
-		reshade::d3d12::convert_shader_resource_view_desc(api_desc, new_desc);
+		reshade::d3d12::convert_resource_view_desc(api_desc, new_desc);
 
 		_orig->CreateShaderResourceView(pResource, new_desc.ViewDimension != D3D12_SRV_DIMENSION_UNKNOWN ? &new_desc : nullptr, DestDescriptor);
 
@@ -259,9 +259,9 @@ void    STDMETHODCALLTYPE D3D12Device::CreateUnorderedAccessView(ID3D12Resource 
 		D3D12_UNORDERED_ACCESS_VIEW_DESC new_desc =
 			pDesc != nullptr ? *pDesc : D3D12_UNORDERED_ACCESS_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D12_UAV_DIMENSION_UNKNOWN };
 
-		reshade::api::resource_view_desc api_desc = reshade::d3d12::convert_unordered_access_view_desc(new_desc);
+		reshade::api::resource_view_desc api_desc = reshade::d3d12::convert_resource_view_desc(new_desc);
 		RESHADE_ADDON_EVENT(create_resource_view, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::unordered_access, &api_desc);
-		reshade::d3d12::convert_unordered_access_view_desc(api_desc, new_desc);
+		reshade::d3d12::convert_resource_view_desc(api_desc, new_desc);
 
 		_orig->CreateUnorderedAccessView(pResource, pCounterResource, new_desc.ViewDimension != D3D12_UAV_DIMENSION_UNKNOWN ? &new_desc : nullptr, DestDescriptor);
 
@@ -280,9 +280,9 @@ void    STDMETHODCALLTYPE D3D12Device::CreateRenderTargetView(ID3D12Resource *pR
 		D3D12_RENDER_TARGET_VIEW_DESC new_desc =
 			pDesc != nullptr ? *pDesc : D3D12_RENDER_TARGET_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D12_RTV_DIMENSION_UNKNOWN };
 
-		reshade::api::resource_view_desc api_desc = reshade::d3d12::convert_render_target_view_desc(new_desc);
+		reshade::api::resource_view_desc api_desc = reshade::d3d12::convert_resource_view_desc(new_desc);
 		RESHADE_ADDON_EVENT(create_resource_view, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::render_target, &api_desc);
-		reshade::d3d12::convert_render_target_view_desc(api_desc, new_desc);
+		reshade::d3d12::convert_resource_view_desc(api_desc, new_desc);
 
 		_orig->CreateRenderTargetView(pResource, new_desc.ViewDimension != D3D12_RTV_DIMENSION_UNKNOWN ? &new_desc : nullptr, DestDescriptor);
 
@@ -301,9 +301,9 @@ void    STDMETHODCALLTYPE D3D12Device::CreateDepthStencilView(ID3D12Resource *pR
 		D3D12_DEPTH_STENCIL_VIEW_DESC new_desc =
 			pDesc != nullptr ? *pDesc : D3D12_DEPTH_STENCIL_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D12_DSV_DIMENSION_UNKNOWN };
 
-		reshade::api::resource_view_desc api_desc = reshade::d3d12::convert_depth_stencil_view_desc(new_desc);
+		reshade::api::resource_view_desc api_desc = reshade::d3d12::convert_resource_view_desc(new_desc);
 		RESHADE_ADDON_EVENT(create_resource_view, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::depth_stencil, &api_desc);
-		reshade::d3d12::convert_depth_stencil_view_desc(api_desc, new_desc);
+		reshade::d3d12::convert_resource_view_desc(api_desc, new_desc);
 
 		_orig->CreateDepthStencilView(pResource, new_desc.ViewDimension != D3D12_DSV_DIMENSION_UNKNOWN ? &new_desc : nullptr, DestDescriptor);
 
@@ -350,7 +350,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource(const D3D12_HEAP_
 	if (SUCCEEDED(hr))
 	{
 		assert(ppvResource != nullptr);
-		register_resource(static_cast<ID3D12Resource *>(*ppvResource));
+		_resources.register_object(static_cast<ID3D12Resource *>(*ppvResource));
 	}
 	else
 	{
@@ -394,7 +394,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePlacedResource(ID3D12Heap *pHeap, U
 	if (SUCCEEDED(hr))
 	{
 		assert(ppvResource != nullptr);
-		register_resource(static_cast<ID3D12Resource *>(*ppvResource));
+		_resources.register_object(static_cast<ID3D12Resource *>(*ppvResource));
 	}
 	else
 	{
@@ -434,7 +434,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource(const D3D12_RESOUR
 	if (SUCCEEDED(hr))
 	{
 		assert(ppvResource != nullptr);
-		register_resource(static_cast<ID3D12Resource *>(*ppvResource));
+		_resources.register_object(static_cast<ID3D12Resource *>(*ppvResource));
 	}
 	else
 	{
@@ -596,7 +596,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource1(const D3D12_HEAP
 	if (SUCCEEDED(hr))
 	{
 		assert(ppvResource != nullptr);
-		register_resource(static_cast<ID3D12Resource *>(*ppvResource));
+		_resources.register_object(static_cast<ID3D12Resource *>(*ppvResource));
 	}
 	else
 	{
@@ -642,7 +642,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource1(const D3D12_RESOU
 	if (SUCCEEDED(hr))
 	{
 		assert(ppvResource != nullptr);
-		register_resource(static_cast<ID3D12Resource *>(*ppvResource));
+		_resources.register_object(static_cast<ID3D12Resource *>(*ppvResource));
 	}
 	else
 	{

@@ -136,18 +136,14 @@ resource_desc reshade::d3d9::convert_resource_desc(const D3DVERTEXBUFFER_DESC &i
 }
 
 reshade::d3d9::device_impl::device_impl(IDirect3DDevice9 *device) :
-	_orig(device), _app_state(device)
+	_orig(device), _caps(), _cp(), _app_state(device)
 {
-	D3DCAPS9 caps = {};
-	_orig->GetDeviceCaps(&caps);
-	D3DDEVICE_CREATION_PARAMETERS creation_params = {};
-	_orig->GetCreationParameters(&creation_params);
+	_orig->GetDeviceCaps(&_caps);
+	_orig->GetCreationParameters(&_cp);
 
-	_num_samplers = caps.MaxSimultaneousTextures;
-	_num_simultaneous_rendertargets = caps.NumSimultaneousRTs;
-	if (_num_simultaneous_rendertargets > 8)
-		_num_simultaneous_rendertargets = 8;
-	_behavior_flags = creation_params.BehaviorFlags;
+	// Limit maximum simultaneous number of render targets to 8 (usually only 4 in D3D9 anyway)
+	if (_caps.NumSimultaneousRTs > 8)
+		_caps.NumSimultaneousRTs = 8;
 
 #if RESHADE_ADDON
 	// Load and initialize add-ons
@@ -251,13 +247,11 @@ bool reshade::d3d9::device_impl::check_format_support(uint32_t format, resource_
 
 	com_ptr<IDirect3D9> d3d;
 	_orig->GetDirect3D(&d3d);
-	D3DDEVICE_CREATION_PARAMETERS cp;
-	_orig->GetCreationParameters(&cp);
 
 	DWORD d3d_usage = 0;
 	convert_usage_to_d3d_usage(usage, d3d_usage);
 
-	return SUCCEEDED(d3d->CheckDeviceFormat(cp.AdapterOrdinal, cp.DeviceType, D3DFMT_X8R8G8B8, d3d_usage, D3DRTYPE_TEXTURE, static_cast<D3DFORMAT>(format)));
+	return SUCCEEDED(d3d->CheckDeviceFormat(_cp.AdapterOrdinal, _cp.DeviceType, D3DFMT_X8R8G8B8, d3d_usage, D3DRTYPE_TEXTURE, static_cast<D3DFORMAT>(format)));
 }
 
 bool reshade::d3d9::device_impl::check_resource_handle_valid(resource_handle resource)
@@ -286,7 +280,7 @@ bool reshade::d3d9::device_impl::create_resource(resource_type type, const resou
 				if (IDirect3DIndexBuffer9 *resource;
 					SUCCEEDED(_orig->CreateIndexBuffer(static_cast<UINT>(desc.buffer_size), d3d_usage, D3DFMT_UNKNOWN, D3DPOOL_DEFAULT, &resource, nullptr)))
 				{
-					register_resource(resource);
+					_resources.register_object(resource);
 					*out_resource = { reinterpret_cast<uintptr_t>(resource) };
 					return true;
 				}
@@ -296,7 +290,7 @@ bool reshade::d3d9::device_impl::create_resource(resource_type type, const resou
 				if (IDirect3DVertexBuffer9 *resource;
 					SUCCEEDED(_orig->CreateVertexBuffer(static_cast<UINT>(desc.buffer_size), d3d_usage, 0, D3DPOOL_DEFAULT, &resource, nullptr)))
 				{
-					register_resource(resource);
+					_resources.register_object(resource);
 					*out_resource = { reinterpret_cast<uintptr_t>(resource) };
 					return true;
 				}
@@ -312,7 +306,7 @@ bool reshade::d3d9::device_impl::create_resource(resource_type type, const resou
 				if (IDirect3DTexture9 *resource;
 					SUCCEEDED(_orig->CreateTexture(desc.width, desc.height, desc.levels, d3d_usage, static_cast<D3DFORMAT>(desc.format), D3DPOOL_DEFAULT, &resource, nullptr)))
 				{
-					register_resource(resource);
+					_resources.register_object(resource);
 					*out_resource = { reinterpret_cast<uintptr_t>(resource) };
 					return true;
 				}
@@ -325,7 +319,7 @@ bool reshade::d3d9::device_impl::create_resource(resource_type type, const resou
 			if (IDirect3DVolumeTexture9 *resource;
 				SUCCEEDED(_orig->CreateVolumeTexture(desc.width, desc.height, desc.depth_or_layers, desc.levels, d3d_usage, static_cast<D3DFORMAT>(desc.format), D3DPOOL_DEFAULT, &resource, nullptr)))
 			{
-				register_resource(resource);
+				_resources.register_object(resource);
 				*out_resource = { reinterpret_cast<uintptr_t>(resource) };
 				return true;
 			}
@@ -594,16 +588,16 @@ void reshade::d3d9::device_impl::clear_render_target_view(resource_view_handle r
 	D3DVIEWPORT9 viewport = {};
 	_orig->GetViewport(&viewport);
 	com_ptr<IDirect3DSurface9> render_targets[8];
-	for (DWORD target = 0; target < _num_simultaneous_rendertargets; ++target)
+	for (DWORD target = 0; target < _caps.NumSimultaneousRTs; ++target)
 		_orig->GetRenderTarget(target, &render_targets[target]);
 
 	_orig->SetRenderTarget(0, reinterpret_cast<IDirect3DSurface9 *>(rtv.handle));
-	for (DWORD target = 1; target < _num_simultaneous_rendertargets; ++target)
+	for (DWORD target = 1; target < _caps.NumSimultaneousRTs; ++target)
 		_orig->SetRenderTarget(target, nullptr);
 
 	_orig->Clear(0, nullptr, D3DCLEAR_TARGET, D3DCOLOR_COLORVALUE(color[0], color[1], color[2], color[3]), 0.0f, 0);
 
-	for (DWORD target = 0; target < _num_simultaneous_rendertargets; ++target)
+	for (DWORD target = 0; target < _caps.NumSimultaneousRTs; ++target)
 		_orig->SetRenderTarget(target, render_targets[target].get());
 	_orig->SetViewport(&viewport);
 }

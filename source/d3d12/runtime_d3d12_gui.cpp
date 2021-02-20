@@ -107,7 +107,7 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 	// Create and grow vertex/index buffers if needed
 	if (_imgui.num_indices[buffer_index] < draw_data->TotalIdxCount)
 	{
-		_cmd_impl->flush_and_wait(_commandqueue.get()); // Be safe and ensure nothing still uses this buffer
+		_cmd_impl->flush_and_wait(_queue.get()); // Be safe and ensure nothing still uses this buffer
 
 		_imgui.indices[buffer_index].reset();
 
@@ -129,7 +129,7 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 	}
 	if (_imgui.num_vertices[buffer_index] < draw_data->TotalVtxCount)
 	{
-		_cmd_impl->flush_and_wait(_commandqueue.get());
+		_cmd_impl->flush_and_wait(_queue.get());
 
 		_imgui.vertices[buffer_index].reset();
 
@@ -175,7 +175,7 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 		_imgui.vertices[buffer_index]->Unmap(0, nullptr);
 	}
 
-	ID3D12GraphicsCommandList *const cmd_list = _cmd_impl->get();
+	ID3D12GraphicsCommandList *const cmd_list = _cmd_impl->begin_commands();
 	cmd_list->SetPipelineState(_imgui.pipeline.get());
 
 	// Setup orthographic projection matrix
@@ -201,7 +201,7 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 	cmd_list->RSSetViewports(1, &viewport);
 	const FLOAT blend_factor[4] = { 0.f, 0.f, 0.f, 0.f };
 	cmd_list->OMSetBlendFactor(blend_factor);
-	D3D12_CPU_DESCRIPTOR_HANDLE render_target = { _backbuffer_rtvs->GetCPUDescriptorHandleForHeapStart().ptr + _swap_index * 2 * _device_impl->rtv_handle_size };
+	D3D12_CPU_DESCRIPTOR_HANDLE render_target = { _backbuffer_rtvs->GetCPUDescriptorHandleForHeapStart().ptr + _swap_index * 2 * _device_impl->_rtv_handle_size };
 	cmd_list->OMSetRenderTargets(1, &render_target, false, nullptr);
 
 	UINT vtx_offset = 0, idx_offset = 0;

@@ -24,7 +24,7 @@ namespace reshade::d3d12
 		uint64_t get_native_object() override { return reinterpret_cast<uintptr_t>(_swapchain.get()); }
 
 		api::device *get_device() override { return _device_impl; }
-		api::command_queue *get_command_queue() override { return _commandqueue_impl; }
+		api::command_queue *get_command_queue() override { return _queue_impl; }
 
 		bool on_init();
 		bool on_init(const DXGI_SWAP_CHAIN_DESC &desc);
@@ -51,8 +51,8 @@ namespace reshade::d3d12
 		device_impl *const _device_impl;
 		const com_ptr<ID3D12Device> _device;
 		const com_ptr<IDXGISwapChain3> _swapchain;
-		command_queue_impl *const _commandqueue_impl;
-		const com_ptr<ID3D12CommandQueue> _commandqueue;
+		command_queue_impl *const _queue_impl;
+		const com_ptr<ID3D12CommandQueue> _queue;
 		command_list_immediate_impl *const _cmd_impl;
 
 		UINT _swap_index = 0;

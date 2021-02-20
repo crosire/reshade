@@ -137,9 +137,9 @@ void reshade::d3d9::runtime_d3d9::render_imgui_draw_data(ImDrawData *draw_data)
 	_device->SetRenderTarget(0, _backbuffer_resolved.get());
 
 	// Clear unused bindings
-	for (unsigned int i = 0; i < _device_impl->_num_samplers; i++)
+	for (unsigned int i = 0; i < _device_impl->_caps.MaxSimultaneousTextures; i++)
 		_device->SetTexture(i, nullptr);
-	for (unsigned int i = 1; i < _device_impl->_num_simultaneous_rendertargets; i++)
+	for (unsigned int i = 1; i < _device_impl->_caps.NumSimultaneousRTs; i++)
 		_device->SetRenderTarget(i, nullptr);
 	_device->SetDepthStencilSurface(nullptr);
 

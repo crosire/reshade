@@ -235,7 +235,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 	d3d.reset();
 
 	_implicit_swapchain->_runtime->on_reset();
-	on_reset();
+	device_impl::on_reset();
 
 	const HRESULT hr = _orig->Reset(&pp);
 	// Update output values (see https://docs.microsoft.com/windows/win32/api/d3d9/nf-d3d9-idirect3ddevice9-reset)
@@ -250,7 +250,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 		return hr;
 	}
 
-	on_after_reset(pp);
+	device_impl::on_after_reset(pp);
 	if (!_implicit_swapchain->_runtime->on_init())
 		LOG(ERROR) << "Failed to recreate Direct3D 9 runtime environment on runtime " << _implicit_swapchain->_runtime << '!';
 
@@ -325,7 +325,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateTexture(UINT Width, UINT Height
 	if (SUCCEEDED(hr))
 	{
 		assert(ppTexture != nullptr);
-		register_resource(*ppTexture);
+		_resources.register_object(*ppTexture);
 	}
 	else
 	{
@@ -350,7 +350,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVolumeTexture(UINT Width, UINT 
 	if (SUCCEEDED(hr))
 	{
 		assert(ppVolumeTexture != nullptr);
-		register_resource(*ppVolumeTexture);
+		_resources.register_object(*ppVolumeTexture);
 	}
 	else
 	{
@@ -375,7 +375,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateCubeTexture(UINT EdgeLength, UI
 	if (SUCCEEDED(hr))
 	{
 		assert(ppCubeTexture != nullptr);
-		register_resource(*ppCubeTexture);
+		_resources.register_object(*ppCubeTexture);
 	}
 	else
 	{
@@ -404,7 +404,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexBuffer(UINT Length, DWORD
 	if (SUCCEEDED(hr))
 	{
 		assert(ppVertexBuffer != nullptr);
-		register_resource(*ppVertexBuffer);
+		_resources.register_object(*ppVertexBuffer);
 	}
 	else
 	{
@@ -432,7 +432,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateIndexBuffer(UINT Length, DWORD 
 	if (SUCCEEDED(hr))
 	{
 		assert(ppIndexBuffer != nullptr);
-		register_resource(*ppIndexBuffer);
+		_resources.register_object(*ppIndexBuffer);
 	}
 	else
 	{
@@ -449,7 +449,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTarget(UINT Width, UINT H
 	if (SUCCEEDED(hr))
 	{
 		assert(ppSurface != nullptr);
-		register_resource(*ppSurface);
+		_resources.register_object(*ppSurface);
 	}
 	else
 	{
@@ -475,7 +475,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurface(UINT Width,
 		if (new_desc.MultiSampleType == D3DMULTISAMPLE_NONE &&
 			SUCCEEDED(_orig->CreateTexture(new_desc.Width, new_desc.Height, 1, new_desc.Usage, new_desc.Format, new_desc.Pool, &texture, pSharedHandle)))
 		{
-			register_resource(texture.get());
+			_resources.register_object(texture.get());
 
 			reshade::api::resource_view_desc dsv_desc = { reshade::api::resource_view_dimension::texture_2d };
 			dsv_desc.format = static_cast<uint32_t>(new_desc.Format);
@@ -500,7 +500,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurface(UINT Width,
 	if (SUCCEEDED(hr))
 	{
 		assert(ppSurface != nullptr);
-		register_resource(*ppSurface);
+		_resources.register_object(*ppSurface);
 	}
 	else
 	{
@@ -547,7 +547,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateOffscreenPlainSurface(UINT Widt
 	if (SUCCEEDED(hr))
 	{
 		assert(ppSurface != nullptr);
-		register_resource(*ppSurface);
+		_resources.register_object(*ppSurface);
 	}
 	else
 	{
@@ -566,7 +566,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetRenderTarget(DWORD RenderTargetInd
 		DWORD count = 0;
 		com_ptr<IDirect3DSurface9> surface;
 		reshade::api::resource_view_handle rtvs[8], dsv = { 0 };
-		while (count < _num_simultaneous_rendertargets && SUCCEEDED(_orig->GetRenderTarget(count, &surface)))
+		while (count < _caps.NumSimultaneousRTs && SUCCEEDED(_orig->GetRenderTarget(count, &surface)))
 		{
 			rtvs[count++] = get_resource_view_handle(surface.get());
 			surface.reset();
@@ -612,7 +612,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetDepthStencilSurface(IDirect3DSurfa
 		DWORD count = 0;
 		com_ptr<IDirect3DSurface9> surface;
 		reshade::api::resource_view_handle rtvs[8], dsv = get_resource_view_handle(pNewZStencil);
-		while (count < _num_simultaneous_rendertargets && SUCCEEDED(_orig->GetRenderTarget(count, &surface)))
+		while (count < _caps.NumSimultaneousRTs && SUCCEEDED(_orig->GetRenderTarget(count, &surface)))
 		{
 			rtvs[count++] = get_resource_view_handle(surface.get());
 			surface.reset();
@@ -643,7 +643,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Clear(DWORD Count, const D3DRECT *pRe
 		const float color[4] = { ((Color >> 16) & 0xFF) / 255.0f, ((Color >> 8) & 0xFF) / 255.0f, (Color & 0xFF) / 255.0f, ((Color >> 24) & 0xFF) / 255.0f };
 
 		com_ptr<IDirect3DSurface9> surface;
-		for (DWORD i = 0; i < _num_simultaneous_rendertargets && SUCCEEDED(_orig->GetRenderTarget(i, &surface)); ++i)
+		for (DWORD i = 0; i < _caps.NumSimultaneousRTs && SUCCEEDED(_orig->GetRenderTarget(i, &surface)); ++i)
 		{
 			const reshade::api::resource_view_handle rtv = get_resource_view_handle(surface.get());
 			RESHADE_ADDON_EVENT(clear_render_target, this, rtv, color);
@@ -1072,7 +1072,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTargetEx(UINT Width, UINT
 	if (SUCCEEDED(hr))
 	{
 		assert(ppSurface != nullptr);
-		register_resource(*ppSurface);
+		_resources.register_object(*ppSurface);
 	}
 	else
 	{
@@ -1090,7 +1090,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateOffscreenPlainSurfaceEx(UINT Wi
 	if (SUCCEEDED(hr))
 	{
 		assert(ppSurface != nullptr);
-		register_resource(*ppSurface);
+		_resources.register_object(*ppSurface);
 	}
 	else
 	{
@@ -1116,7 +1116,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurfaceEx(UINT Widt
 		if (new_desc.MultiSampleType == D3DMULTISAMPLE_NONE &&
 			SUCCEEDED(_orig->CreateTexture(new_desc.Width, new_desc.Height, 1, new_desc.Usage, new_desc.Format, new_desc.Pool, &texture, pSharedHandle)))
 		{
-			register_resource(texture.get());
+			_resources.register_object(texture.get());
 
 			reshade::api::resource_view_desc dsv_desc = { reshade::api::resource_view_dimension::texture_2d };
 			dsv_desc.format = static_cast<uint32_t>(new_desc.Format);
@@ -1142,7 +1142,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurfaceEx(UINT Widt
 	if (SUCCEEDED(hr))
 	{
 		assert(ppSurface != nullptr);
-		register_resource(*ppSurface);
+		_resources.register_object(*ppSurface);
 	}
 	else
 	{
@@ -1172,7 +1172,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 	d3d.reset();
 
 	_implicit_swapchain->_runtime->on_reset();
-	on_reset();
+	device_impl::on_reset();
 
 	assert(_extended_interface);
 	const HRESULT hr = static_cast<IDirect3DDevice9Ex *>(_orig)->ResetEx(&pp, pp.Windowed ? nullptr : &fullscreen_mode);
@@ -1187,7 +1187,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 		return hr;
 	}
 
-	on_after_reset(pp);
+	device_impl::on_after_reset(pp);
 	if (!_implicit_swapchain->_runtime->on_init())
 		LOG(ERROR) << "Failed to recreate Direct3D 9 runtime environment on runtime " << _implicit_swapchain->_runtime << '!';
 

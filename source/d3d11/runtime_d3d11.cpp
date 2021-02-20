@@ -11,8 +11,8 @@
 
 extern bool is_windows7();
 
-reshade::d3d11::runtime_d3d11::runtime_d3d11(device_impl *device, device_context_impl *device_context, IDXGISwapChain *swapchain) :
-	_device_impl(device), _device(device->_device), _immediate_context_impl(device_context), _immediate_context(device_context->_device_context), _swapchain(swapchain)
+reshade::d3d11::runtime_d3d11::runtime_d3d11(device_impl *device, device_context_impl *immediate_context, IDXGISwapChain *swapchain) :
+	_device_impl(device), _device(device->_orig), _immediate_context_impl(immediate_context), _immediate_context(reinterpret_cast<ID3D11DeviceContext *>(static_cast<uintptr_t>(immediate_context->get_native_object()))), _swapchain(swapchain)
 {
 	_renderer_id = _device->GetFeatureLevel();
 

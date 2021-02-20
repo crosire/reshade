@@ -14,7 +14,7 @@ namespace reshade::d3d11
 	class runtime_d3d11 : public runtime
 	{
 	public:
-		runtime_d3d11(device_impl *device, device_context_impl *device_context, IDXGISwapChain *swapchain);
+		runtime_d3d11(device_impl *device, device_context_impl *immediate_context, IDXGISwapChain *swapchain);
 		~runtime_d3d11();
 
 		bool get_data(const uint8_t guid[16], uint32_t size, void *data) override { return SUCCEEDED(_swapchain->GetPrivateData(*reinterpret_cast<const GUID *>(guid), &size, data)); }

@@ -12,7 +12,7 @@
 extern bool is_windows7();
 
 reshade::d3d10::runtime_d3d10::runtime_d3d10(device_impl *device, IDXGISwapChain *swapchain) :
-	_device_impl(device), _device(device->_device), _swapchain(swapchain)
+	_device_impl(device), _device(device->_orig), _swapchain(swapchain)
 {
 	_renderer_id = _device->GetFeatureLevel();
 

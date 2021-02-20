@@ -6,6 +6,8 @@
 #include "render_vk.hpp"
 #include "format_utils.hpp"
 
+#define vk _dispatch_table
+
 using namespace reshade::api;
 
 static auto convert_usage_to_access(resource_usage state) -> VkAccessFlags
@@ -294,6 +296,13 @@ void reshade::vulkan::convert_resource_view_desc(const resource_view_desc &desc,
 	create_info.subresourceRange.baseArrayLayer = desc.first_layer;
 	create_info.subresourceRange.layerCount = desc.layers;
 }
+void reshade::vulkan::convert_resource_view_desc(const resource_view_desc &desc, VkBufferViewCreateInfo &create_info)
+{
+	assert(desc.dimension == resource_view_dimension::buffer);
+	create_info.format = static_cast<VkFormat>(desc.format);
+	create_info.offset = desc.buffer_offset;
+	create_info.range = desc.buffer_size;
+}
 resource_view_desc reshade::vulkan::convert_resource_view_desc(const VkImageViewCreateInfo &create_info)
 {
 	resource_view_desc desc = {};
@@ -330,13 +339,6 @@ resource_view_desc reshade::vulkan::convert_resource_view_desc(const VkImageView
 
 	return desc;
 }
-void reshade::vulkan::convert_resource_view_desc(const resource_view_desc &desc, VkBufferViewCreateInfo &create_info)
-{
-	assert(desc.dimension == resource_view_dimension::buffer);
-	create_info.format = static_cast<VkFormat>(desc.format);
-	create_info.offset = desc.buffer_offset;
-	create_info.range = desc.buffer_size;
-}
 resource_view_desc reshade::vulkan::convert_resource_view_desc(const VkBufferViewCreateInfo &create_info)
 {
 	resource_view_desc desc = { resource_view_dimension::buffer };
@@ -347,7 +349,7 @@ resource_view_desc reshade::vulkan::convert_resource_view_desc(const VkBufferVie
 }
 
 reshade::vulkan::device_impl::device_impl(VkDevice device, VkPhysicalDevice physical_device, const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table) :
-	vk(device_table), _device(device), _physical_device(physical_device), _instance_dispatch_table(instance_table)
+	_device(device), _physical_device(physical_device), _dispatch_table(device_table), _instance_dispatch_table(instance_table)
 {
 	{	VmaVulkanFunctions functions;
 		functions.vkGetPhysicalDeviceProperties = instance_table.GetPhysicalDeviceProperties;
@@ -394,7 +396,7 @@ reshade::vulkan::device_impl::device_impl(VkDevice device, VkPhysicalDevice phys
 }
 reshade::vulkan::device_impl::~device_impl()
 {
-	assert(queues.empty()); // All queues should have been unregistered and destroyed at this point
+	assert(_queues.empty()); // All queues should have been unregistered and destroyed at this point
 
 	RESHADE_ADDON_EVENT(destroy_device, this);
 
@@ -472,19 +474,17 @@ bool reshade::vulkan::device_impl::create_resource(resource_type type, const res
 				if (initial_state != resource_usage::undefined)
 				{
 					// Transition resource into the initial state using the first available immediate command list
-					for (const auto &queue_info : queues)
+					for (command_queue_impl *const queue : _queues)
 					{
-						command_list_immediate_impl *const immediate_command_list = static_cast<command_list_immediate_impl *>(
-							static_cast<command_queue_impl *>(queue_info.second)->get_immediate_command_list());
+						const auto immediate_command_list = static_cast<command_list_immediate_impl *>(queue->get_immediate_command_list());
 						if (immediate_command_list != nullptr)
 						{
 							immediate_command_list->transition_state(*out_resource, resource_usage::undefined, initial_state);
-							immediate_command_list->flush_and_wait(queue_info.first);
+							immediate_command_list->flush_and_wait((VkQueue)queue->get_native_object());
 							break;
 						}
 					}
 				}
-
 				return true;
 			}
 			break;
@@ -593,7 +593,7 @@ void reshade::vulkan::device_impl::wait_idle()
 reshade::vulkan::command_list_impl::command_list_impl(device_impl *device, VkCommandBuffer cmd_list) :
 	_device_impl(device), _cmd_list(cmd_list), _has_commands(cmd_list != VK_NULL_HANDLE)
 {
-	if (_has_commands)
+	if (_has_commands) // Do not call add-on event for immediate command list
 	{
 		RESHADE_ADDON_EVENT(init_command_list, this);
 	}
@@ -774,7 +774,7 @@ reshade::vulkan::command_list_immediate_impl::command_list_immediate_impl(device
 		create_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 		create_info.queueFamilyIndex = queue_family_index;
 
-		if (_device_impl->vk.CreateCommandPool(*_device_impl, &create_info, nullptr, &_cmd_pool) != VK_SUCCESS)
+		if (_device_impl->vk.CreateCommandPool(_device_impl->_device, &create_info, nullptr, &_cmd_pool) != VK_SUCCESS)
 			return;
 	}
 
@@ -783,24 +783,24 @@ reshade::vulkan::command_list_immediate_impl::command_list_immediate_impl(device
 		alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 		alloc_info.commandBufferCount = NUM_COMMAND_FRAMES;
 
-		if (_device_impl->vk.AllocateCommandBuffers(*_device_impl, &alloc_info, _cmd_buffers) != VK_SUCCESS)
+		if (_device_impl->vk.AllocateCommandBuffers(_device_impl->_device, &alloc_info, _cmd_buffers) != VK_SUCCESS)
 			return;
 	}
 
 	for (uint32_t i = 0; i < NUM_COMMAND_FRAMES; ++i)
 	{
 		// The validation layers expect the loader to have set the dispatch pointer, but this does not happen when calling down the layer chain from here, so fix it
-		*reinterpret_cast<void **>(_cmd_buffers[i]) = *reinterpret_cast<void **>(static_cast<VkDevice>(*device));
+		*reinterpret_cast<void **>(_cmd_buffers[i]) = *reinterpret_cast<void **>(device->_device);
 
 		VkFenceCreateInfo create_info { VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
 		create_info.flags = VK_FENCE_CREATE_SIGNALED_BIT; // Create signaled so waiting on it when no commands where submitted succeeds
 
-		if (_device_impl->vk.CreateFence(*_device_impl, &create_info, nullptr, &_cmd_fences[i]) != VK_SUCCESS)
+		if (_device_impl->vk.CreateFence(_device_impl->_device, &create_info, nullptr, &_cmd_fences[i]) != VK_SUCCESS)
 			return;
 
 		VkSemaphoreCreateInfo sem_create_info { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
 
-		if (_device_impl->vk.CreateSemaphore(*_device_impl, &sem_create_info, nullptr, &_cmd_semaphores[i]) != VK_SUCCESS)
+		if (_device_impl->vk.CreateSemaphore(_device_impl->_device, &sem_create_info, nullptr, &_cmd_semaphores[i]) != VK_SUCCESS)
 			return;
 	}
 
@@ -817,12 +817,12 @@ reshade::vulkan::command_list_immediate_impl::command_list_immediate_impl(device
 reshade::vulkan::command_list_immediate_impl::~command_list_immediate_impl()
 {
 	for (VkFence fence : _cmd_fences)
-		_device_impl->vk.DestroyFence(*_device_impl, fence, nullptr);
+		_device_impl->vk.DestroyFence(_device_impl->_device, fence, nullptr);
 	for (VkSemaphore semaphore : _cmd_semaphores)
-		_device_impl->vk.DestroySemaphore(*_device_impl, semaphore, nullptr);
+		_device_impl->vk.DestroySemaphore(_device_impl->_device, semaphore, nullptr);
 
-	_device_impl->vk.FreeCommandBuffers(*_device_impl, _cmd_pool, NUM_COMMAND_FRAMES, _cmd_buffers);
-	_device_impl->vk.DestroyCommandPool(*_device_impl, _cmd_pool, nullptr);
+	_device_impl->vk.FreeCommandBuffers(_device_impl->_device, _cmd_pool, NUM_COMMAND_FRAMES, _cmd_buffers);
+	_device_impl->vk.DestroyCommandPool(_device_impl->_device, _cmd_pool, nullptr);
 
 	// Signal to 'command_list_impl' destructor that this is an immediate command list
 	_has_commands = false;
@@ -852,7 +852,7 @@ bool reshade::vulkan::command_list_immediate_impl::flush(VkQueue queue, std::vec
 	}
 
 	// Only reset fence before an actual submit which can signal it again
-	_device_impl->vk.ResetFences(*_device_impl, 1, &_cmd_fences[_cmd_index]);
+	_device_impl->vk.ResetFences(_device_impl->_device, 1, &_cmd_fences[_cmd_index]);
 
 	if (_device_impl->vk.QueueSubmit(queue, 1, &submit_info, _cmd_fences[_cmd_index]) != VK_SUCCESS)
 		return false;
@@ -869,9 +869,9 @@ bool reshade::vulkan::command_list_immediate_impl::flush(VkQueue queue, std::vec
 	_cmd_index = (_cmd_index + 1) % NUM_COMMAND_FRAMES;
 
 	// Make sure the next command buffer has finished executing before reusing it this frame
-	if (_device_impl->vk.GetFenceStatus(*_device_impl, _cmd_fences[_cmd_index]) == VK_NOT_READY)
+	if (_device_impl->vk.GetFenceStatus(_device_impl->_device, _cmd_fences[_cmd_index]) == VK_NOT_READY)
 	{
-		_device_impl->vk.WaitForFences(*_device_impl, 1, &_cmd_fences[_cmd_index], VK_TRUE, UINT64_MAX);
+		_device_impl->vk.WaitForFences(_device_impl->_device, 1, &_cmd_fences[_cmd_index], VK_TRUE, UINT64_MAX);
 	}
 
 	// Command buffer is now ready for a reset
@@ -895,12 +895,15 @@ bool reshade::vulkan::command_list_immediate_impl::flush_and_wait(VkQueue queue)
 		return false;
 
 	// Wait for the submitted work to finish and reset fence again for next use
-	return _device_impl->vk.WaitForFences(*_device_impl, 1, &_cmd_fences[cmd_index_to_wait_on], VK_TRUE, UINT64_MAX) == VK_SUCCESS;
+	return _device_impl->vk.WaitForFences(_device_impl->_device, 1, &_cmd_fences[cmd_index_to_wait_on], VK_TRUE, UINT64_MAX) == VK_SUCCESS;
 }
 
 reshade::vulkan::command_queue_impl::command_queue_impl(device_impl *device, uint32_t queue_family_index, const VkQueueFamilyProperties &queue_family, VkQueue queue) :
 	_device_impl(device), _queue(queue)
 {
+	// Register queue to device
+	_device_impl->_queues.push_back(this);
+
 	// Only create an immediate command list for graphics queues (since the implemented commands do not work on other queue types)
 	if ((queue_family.queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0)
 	{
@@ -914,4 +917,7 @@ reshade::vulkan::command_queue_impl::~command_queue_impl()
 	RESHADE_ADDON_EVENT(destroy_command_queue, this);
 
 	delete _immediate_cmd_list;
+
+	// Unregister queue from device
+	_device_impl->_queues.erase(std::find(_device_impl->_queues.begin(), _device_impl->_queues.end(), this));
 }

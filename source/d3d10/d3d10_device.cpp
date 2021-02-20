@@ -410,7 +410,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateBuffer(const D3D10_BUFFER_DESC *pDe
 	if (SUCCEEDED(hr))
 	{
 		assert(ppBuffer != nullptr);
-		register_resource(*ppBuffer);
+		_resources.register_object(*ppBuffer);
 	}
 	else
 	{
@@ -444,7 +444,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture1D(const D3D10_TEXTURE1D_DES
 	if (SUCCEEDED(hr))
 	{
 		assert(ppTexture1D != nullptr);
-		register_resource(*ppTexture1D);
+		_resources.register_object(*ppTexture1D);
 	}
 	else
 	{
@@ -481,7 +481,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture2D(const D3D10_TEXTURE2D_DES
 	if (SUCCEEDED(hr))
 	{
 		assert(ppTexture2D != nullptr);
-		register_resource(*ppTexture2D);
+		_resources.register_object(*ppTexture2D);
 	}
 	else
 	{
@@ -521,7 +521,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture3D(const D3D10_TEXTURE3D_DES
 	if (SUCCEEDED(hr))
 	{
 		assert(ppTexture3D != nullptr);
-		register_resource(*ppTexture3D);
+		_resources.register_object(*ppTexture3D);
 	}
 	else
 	{
@@ -552,9 +552,9 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateShaderResourceView(ID3D10Resource *
 		pDesc != nullptr ? *pDesc : D3D10_SHADER_RESOURCE_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D10_SRV_DIMENSION_UNKNOWN };
 
 #if RESHADE_ADDON
-	reshade::api::resource_view_desc api_desc = reshade::d3d10::convert_shader_resource_view_desc(new_desc);
+	reshade::api::resource_view_desc api_desc = reshade::d3d10::convert_resource_view_desc(new_desc);
 	RESHADE_ADDON_EVENT(create_resource_view, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::shader_resource, &api_desc);
-	reshade::d3d10::convert_shader_resource_view_desc(api_desc, new_desc);
+	reshade::d3d10::convert_resource_view_desc(api_desc, new_desc);
 #endif
 
 	const HRESULT hr = _orig->CreateShaderResourceView(pResource, new_desc.ViewDimension != D3D10_SRV_DIMENSION_UNKNOWN ? &new_desc : nullptr, ppSRView);
@@ -562,7 +562,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateShaderResourceView(ID3D10Resource *
 	if (SUCCEEDED(hr))
 	{
 		assert(ppSRView != nullptr);
-		register_resource_view(*ppSRView);
+		_views.register_object(*ppSRView);
 	}
 	else
 	{
@@ -586,9 +586,9 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateRenderTargetView(ID3D10Resource *pR
 		pDesc != nullptr ? *pDesc : D3D10_RENDER_TARGET_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D10_RTV_DIMENSION_UNKNOWN };
 
 #if RESHADE_ADDON
-	reshade::api::resource_view_desc api_desc = reshade::d3d10::convert_render_target_view_desc(new_desc);
+	reshade::api::resource_view_desc api_desc = reshade::d3d10::convert_resource_view_desc(new_desc);
 	RESHADE_ADDON_EVENT(create_resource_view, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::render_target, &api_desc);
-	reshade::d3d10::convert_render_target_view_desc(api_desc, new_desc);
+	reshade::d3d10::convert_resource_view_desc(api_desc, new_desc);
 #endif
 
 	const HRESULT hr = _orig->CreateRenderTargetView(pResource, new_desc.ViewDimension != D3D10_RTV_DIMENSION_UNKNOWN ? &new_desc : nullptr, ppRTView);
@@ -596,7 +596,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateRenderTargetView(ID3D10Resource *pR
 	if (SUCCEEDED(hr))
 	{
 		assert(ppRTView != nullptr);
-		register_resource_view(*ppRTView);
+		_views.register_object(*ppRTView);
 	}
 	else
 	{
@@ -620,9 +620,9 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateDepthStencilView(ID3D10Resource *pR
 		pDesc != nullptr ? *pDesc : D3D10_DEPTH_STENCIL_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D10_DSV_DIMENSION_UNKNOWN };
 
 #if RESHADE_ADDON
-	reshade::api::resource_view_desc api_desc = reshade::d3d10::convert_depth_stencil_view_desc(new_desc);
+	reshade::api::resource_view_desc api_desc = reshade::d3d10::convert_resource_view_desc(new_desc);
 	RESHADE_ADDON_EVENT(create_resource_view, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::depth_stencil, &api_desc);
-	reshade::d3d10::convert_depth_stencil_view_desc(api_desc, new_desc);
+	reshade::d3d10::convert_resource_view_desc(api_desc, new_desc);
 #endif
 
 	const HRESULT hr = _orig->CreateDepthStencilView(pResource, new_desc.ViewDimension != D3D10_DSV_DIMENSION_UNKNOWN ? &new_desc : nullptr, ppDepthStencilView);
@@ -630,7 +630,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateDepthStencilView(ID3D10Resource *pR
 	if (SUCCEEDED(hr))
 	{
 		assert(ppDepthStencilView != nullptr);
-		register_resource_view(*ppDepthStencilView);
+		_views.register_object(*ppDepthStencilView);
 	}
 	else
 	{
@@ -735,9 +735,9 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateShaderResourceView1(ID3D10Resource 
 		pDesc != nullptr ? *pDesc : D3D10_SHADER_RESOURCE_VIEW_DESC1 { DXGI_FORMAT_UNKNOWN, D3D10_1_SRV_DIMENSION_UNKNOWN };
 
 #if RESHADE_ADDON
-	reshade::api::resource_view_desc api_desc = reshade::d3d10::convert_shader_resource_view_desc(new_desc);
+	reshade::api::resource_view_desc api_desc = reshade::d3d10::convert_resource_view_desc(new_desc);
 	RESHADE_ADDON_EVENT(create_resource_view, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::shader_resource, &api_desc);
-	reshade::d3d10::convert_shader_resource_view_desc(api_desc, new_desc);
+	reshade::d3d10::convert_resource_view_desc(api_desc, new_desc);
 #endif
 
 	const HRESULT hr = _orig->CreateShaderResourceView1(pResource, new_desc.ViewDimension != D3D10_1_SRV_DIMENSION_UNKNOWN ? &new_desc : nullptr, ppSRView);
@@ -745,7 +745,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateShaderResourceView1(ID3D10Resource 
 	if (SUCCEEDED(hr))
 	{
 		assert(ppSRView != nullptr);
-		register_resource_view(*ppSRView);
+		_views.register_object(*ppSRView);
 	}
 	else
 	{

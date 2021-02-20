@@ -17,23 +17,18 @@ namespace reshade::d3d12
 	void convert_resource_desc(api::resource_type type, const api::resource_desc &desc, D3D12_RESOURCE_DESC &internal_desc);
 	std::pair<api::resource_type, api::resource_desc> convert_resource_desc(const D3D12_RESOURCE_DESC &internal_desc);
 
-	void convert_depth_stencil_view_desc(const api::resource_view_desc &desc, D3D12_DEPTH_STENCIL_VIEW_DESC &internal_desc);
-	api::resource_view_desc convert_depth_stencil_view_desc(const D3D12_DEPTH_STENCIL_VIEW_DESC &internal_desc);
-
-	void convert_render_target_view_desc(const api::resource_view_desc &desc, D3D12_RENDER_TARGET_VIEW_DESC &internal_desc);
-	api::resource_view_desc convert_render_target_view_desc(const D3D12_RENDER_TARGET_VIEW_DESC &internal_desc);
-
-	void convert_shader_resource_view_desc(const api::resource_view_desc &desc, D3D12_SHADER_RESOURCE_VIEW_DESC &internal_desc);
-	api::resource_view_desc convert_shader_resource_view_desc(const D3D12_SHADER_RESOURCE_VIEW_DESC &internal_desc);
-
-	void convert_unordered_access_view_desc(const api::resource_view_desc &desc, D3D12_UNORDERED_ACCESS_VIEW_DESC &internal_desc);
-	api::resource_view_desc convert_unordered_access_view_desc(const D3D12_UNORDERED_ACCESS_VIEW_DESC &internal_desc);
+	void convert_resource_view_desc(const api::resource_view_desc &desc, D3D12_DEPTH_STENCIL_VIEW_DESC &internal_desc);
+	void convert_resource_view_desc(const api::resource_view_desc &desc, D3D12_RENDER_TARGET_VIEW_DESC &internal_desc);
+	void convert_resource_view_desc(const api::resource_view_desc &desc, D3D12_SHADER_RESOURCE_VIEW_DESC &internal_desc);
+	void convert_resource_view_desc(const api::resource_view_desc &desc, D3D12_UNORDERED_ACCESS_VIEW_DESC &internal_desc);
+	api::resource_view_desc convert_resource_view_desc(const D3D12_DEPTH_STENCIL_VIEW_DESC &internal_desc);
+	api::resource_view_desc convert_resource_view_desc(const D3D12_RENDER_TARGET_VIEW_DESC &internal_desc);
+	api::resource_view_desc convert_resource_view_desc(const D3D12_SHADER_RESOURCE_VIEW_DESC &internal_desc);
+	api::resource_view_desc convert_resource_view_desc(const D3D12_UNORDERED_ACCESS_VIEW_DESC &internal_desc);
 
 	class device_impl : public api::device
 	{
-		friend class runtime_d3d12;
 		friend class command_queue_impl;
-		friend class command_list_immediate_impl;
 
 	public:
 		explicit device_impl(ID3D12Device *device);
@@ -65,37 +60,32 @@ namespace reshade::d3d12
 
 		com_ptr<ID3D12RootSignature> create_root_signature(const D3D12_ROOT_SIGNATURE_DESC &desc) const;
 
-		UINT srv_handle_size = 0;
-		UINT rtv_handle_size = 0;
-		UINT dsv_handle_size = 0;
-		UINT sampler_handle_size = 0;
-
-	protected:
-		inline void register_queue(ID3D12CommandQueue *queue)
-		{
-			const std::lock_guard<std::mutex> lock(_mutex);
-			_queues.push_back(queue);
-		}
-		inline void unregister_queue(ID3D12CommandQueue *queue)
-		{
-			const std::lock_guard<std::mutex> lock(_mutex);
-			_queues.erase(std::remove(_queues.begin(), _queues.end(), queue), _queues.end());
-		}
-
-		void register_resource(ID3D12Resource *resource) { _resources.register_object(resource); }
-#if RESHADE_ADDON
-		void register_resource_view(ID3D12Resource *resource, D3D12_CPU_DESCRIPTOR_HANDLE handle);
-#endif
-
+		// Pointer to original device object (managed by D3D12Device class)
 		ID3D12Device *_orig;
-		std::vector<ID3D12CommandQueue *> _queues;
 
-	private:
-		std::mutex _mutex;
-		com_object_list<ID3D12Resource> _resources;
-		std::unordered_map<uint64_t, ID3D12Resource *> _views;
+		// Cached device capabilities for quick access
+		UINT _srv_handle_size = 0;
+		UINT _rtv_handle_size = 0;
+		UINT _dsv_handle_size = 0;
+		UINT _sampler_handle_size = 0;
+		// Device local resources that may be used by multiple effect runtimes
 		com_ptr<ID3D12PipelineState> _mipmap_pipeline;
 		com_ptr<ID3D12RootSignature> _mipmap_signature;
+
+	protected:
+#if RESHADE_ADDON
+		inline void register_resource_view(ID3D12Resource *resource, D3D12_CPU_DESCRIPTOR_HANDLE handle)
+		{
+			assert(resource != nullptr);
+			const std::lock_guard<std::mutex> lock(_mutex);
+			_views.emplace(handle.ptr, resource);
+		}
+#endif
+
+		com_object_list<ID3D12Resource> _resources;
+		std::unordered_map<uint64_t, ID3D12Resource *> _views;
+		std::mutex _mutex;
+		std::vector<ID3D12CommandQueue *> _queues;
 	};
 
 	class command_list_impl : public api::command_list
@@ -121,6 +111,7 @@ namespace reshade::d3d12
 		void clear_depth_stencil_view(api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil) override;
 		void clear_render_target_view(api::resource_view_handle rtv, const float color[4]) override;
 
+		// Pointer to original command list object (managed by D3D12CommandList class)
 		ID3D12GraphicsCommandList *_orig;
 
 	protected:
@@ -139,7 +130,7 @@ namespace reshade::d3d12
 		bool flush(ID3D12CommandQueue *queue);
 		bool flush_and_wait(ID3D12CommandQueue *queue);
 
-		ID3D12GraphicsCommandList *get() { _has_commands = true; return _orig; }
+		ID3D12GraphicsCommandList *begin_commands() { _has_commands = true; return _orig; }
 
 	private:
 		UINT _cmd_index = 0;
@@ -151,8 +142,6 @@ namespace reshade::d3d12
 
 	class command_queue_impl : public api::command_queue
 	{
-		friend class runtime_d3d12;
-
 	public:
 		command_queue_impl(device_impl *device, ID3D12CommandQueue *queue);
 		~command_queue_impl();
@@ -165,7 +154,7 @@ namespace reshade::d3d12
 		api::device *get_device() override { return _device_impl; }
 		api::command_list *get_immediate_command_list() override { return _immediate_cmd_list; }
 
-	protected:
+		// Pointer to original command queue object (managed by D3D12CommandQueue class)
 		ID3D12CommandQueue *_orig;
 
 	private:

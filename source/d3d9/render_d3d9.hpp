@@ -23,19 +23,14 @@ namespace reshade::d3d9
 
 	class device_impl : public api::device, public api::command_queue, public api::command_list, api::api_data
 	{
-		friend class runtime_d3d9;
-
 	public:
 		explicit device_impl(IDirect3DDevice9 *device);
 		~device_impl();
 
-		void on_reset();
-		void on_after_reset(const D3DPRESENT_PARAMETERS &pp);
-
 		bool get_data(const uint8_t guid[16], uint32_t size, void *data) override { return api_data::get_data(guid, size, data); }
 		void set_data(const uint8_t guid[16], uint32_t size, const void *data) override  { api_data::set_data(guid, size, data); }
 
-		uint64_t get_native_object() override { return reinterpret_cast<uintptr_t>(_device.get()); }
+		uint64_t get_native_object() override { return reinterpret_cast<uintptr_t>(_orig); }
 
 		api::render_api get_api() override { return api::render_api::d3d9; }
 
@@ -69,25 +64,29 @@ namespace reshade::d3d9
 		void clear_depth_stencil_view(api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil) override;
 		void clear_render_target_view(api::resource_view_handle dsv, const float color[4]) override;
 
-		inline void register_resource(IDirect3DResource9 *resource) { _resources.register_object(resource); }
 #if RESHADE_ADDON
 		api::resource_view_handle get_resource_view_handle(IDirect3DSurface9 *surface)
 		{
 			if (surface != nullptr)
-				register_resource(surface);
+				_resources.register_object(surface);
 			return { reinterpret_cast<uintptr_t>(surface) };
 		}
 #endif
 
-	protected:
-		IDirect3DDevice9 *_orig;
-		unsigned int _num_samplers;
-		unsigned int _num_simultaneous_rendertargets;
-		unsigned int _behavior_flags;
+		void on_reset();
+		void on_after_reset(const D3DPRESENT_PARAMETERS &pp);
 
-	private:
-		com_object_list<IDirect3DResource9, true> _resources;
+		// Pointer to original device object (managed by Direct3DDevice9 class)
+		IDirect3DDevice9 *_orig;
+
+		// Cached device capabilities for quick access
+		D3DCAPS9 _caps;
+		D3DDEVICE_CREATION_PARAMETERS _cp;
+		// Device local resources that may be used by multiple effect runtimes
 		state_block _app_state;
 		com_ptr<IDirect3DStateBlock9> _copy_state;
+
+	protected:
+		com_object_list<IDirect3DResource9, true> _resources;
 	};
 }

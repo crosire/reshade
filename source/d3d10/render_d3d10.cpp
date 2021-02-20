@@ -148,7 +148,7 @@ resource_desc reshade::d3d10::convert_resource_desc(const D3D10_TEXTURE3D_DESC &
 	return desc;
 }
 
-void reshade::d3d10::convert_depth_stencil_view_desc(const resource_view_desc &desc, D3D10_DEPTH_STENCIL_VIEW_DESC &internal_desc)
+void reshade::d3d10::convert_resource_view_desc(const resource_view_desc &desc, D3D10_DEPTH_STENCIL_VIEW_DESC &internal_desc)
 {
 	internal_desc.Format = static_cast<DXGI_FORMAT>(desc.format);
 	assert(desc.dimension != resource_view_dimension::buffer && desc.levels == 1);
@@ -184,46 +184,7 @@ void reshade::d3d10::convert_depth_stencil_view_desc(const resource_view_desc &d
 		break;
 	}
 }
-resource_view_desc reshade::d3d10::convert_depth_stencil_view_desc(const D3D10_DEPTH_STENCIL_VIEW_DESC &internal_desc)
-{
-	resource_view_desc desc = {};
-	desc.format = static_cast<uint32_t>(internal_desc.Format);
-	desc.levels = 1;
-	switch (internal_desc.ViewDimension)
-	{
-	case D3D10_DSV_DIMENSION_TEXTURE1D:
-		desc.dimension = resource_view_dimension::texture_1d;
-		desc.first_level = internal_desc.Texture1D.MipSlice;
-		break;
-	case D3D10_DSV_DIMENSION_TEXTURE1DARRAY:
-		desc.dimension = resource_view_dimension::texture_1d_array;
-		desc.first_level = internal_desc.Texture1DArray.MipSlice;
-		desc.first_layer = internal_desc.Texture1DArray.FirstArraySlice;
-		desc.layers = internal_desc.Texture1DArray.ArraySize;
-		break;
-	case D3D10_DSV_DIMENSION_TEXTURE2D:
-		desc.dimension = resource_view_dimension::texture_2d;
-		desc.first_level = internal_desc.Texture2D.MipSlice;
-		break;
-	case D3D10_DSV_DIMENSION_TEXTURE2DARRAY:
-		desc.dimension = resource_view_dimension::texture_2d_array;
-		desc.first_level = internal_desc.Texture2DArray.MipSlice;
-		desc.first_layer = internal_desc.Texture2DArray.FirstArraySlice;
-		desc.layers = internal_desc.Texture2DArray.ArraySize;
-		break;
-	case D3D10_DSV_DIMENSION_TEXTURE2DMS:
-		desc.dimension = resource_view_dimension::texture_2d_multisample;
-		break;
-	case D3D10_DSV_DIMENSION_TEXTURE2DMSARRAY:
-		desc.dimension = resource_view_dimension::texture_2d_multisample_array;
-		desc.first_layer = internal_desc.Texture2DMSArray.FirstArraySlice;
-		desc.layers = internal_desc.Texture2DMSArray.ArraySize;
-		break;
-	}
-	return desc;
-}
-
-void reshade::d3d10::convert_render_target_view_desc(const resource_view_desc &desc, D3D10_RENDER_TARGET_VIEW_DESC &internal_desc)
+void reshade::d3d10::convert_resource_view_desc(const resource_view_desc &desc, D3D10_RENDER_TARGET_VIEW_DESC &internal_desc)
 {
 	internal_desc.Format = static_cast<DXGI_FORMAT>(desc.format);
 	assert(desc.dimension != resource_view_dimension::buffer && desc.levels == 1);
@@ -265,52 +226,7 @@ void reshade::d3d10::convert_render_target_view_desc(const resource_view_desc &d
 		break;
 	}
 }
-resource_view_desc reshade::d3d10::convert_render_target_view_desc(const D3D10_RENDER_TARGET_VIEW_DESC &internal_desc)
-{
-	resource_view_desc desc = {};
-	desc.format = static_cast<uint32_t>(internal_desc.Format);
-	desc.levels = 1;
-	switch (internal_desc.ViewDimension)
-	{
-	case D3D10_RTV_DIMENSION_TEXTURE1D:
-		desc.dimension = resource_view_dimension::texture_1d;
-		desc.first_level = internal_desc.Texture1D.MipSlice;
-		break;
-	case D3D10_RTV_DIMENSION_TEXTURE1DARRAY:
-		desc.dimension = resource_view_dimension::texture_1d_array;
-		desc.first_level = internal_desc.Texture1DArray.MipSlice;
-		desc.first_layer = internal_desc.Texture1DArray.FirstArraySlice;
-		desc.layers = internal_desc.Texture1DArray.ArraySize;
-		break;
-	case D3D10_RTV_DIMENSION_TEXTURE2D:
-		desc.dimension = resource_view_dimension::texture_2d;
-		desc.first_level = internal_desc.Texture2D.MipSlice;
-		break;
-	case D3D10_RTV_DIMENSION_TEXTURE2DARRAY:
-		desc.dimension = resource_view_dimension::texture_2d_array;
-		desc.first_level = internal_desc.Texture2DArray.MipSlice;
-		desc.first_layer = internal_desc.Texture2DArray.FirstArraySlice;
-		desc.layers = internal_desc.Texture2DArray.ArraySize;
-		break;
-	case D3D10_RTV_DIMENSION_TEXTURE2DMS:
-		desc.dimension = resource_view_dimension::texture_2d_multisample;
-		break;
-	case D3D10_RTV_DIMENSION_TEXTURE2DMSARRAY:
-		desc.dimension = resource_view_dimension::texture_2d_multisample_array;
-		desc.first_layer = internal_desc.Texture2DMSArray.FirstArraySlice;
-		desc.layers = internal_desc.Texture2DMSArray.ArraySize;
-		break;
-	case D3D10_RTV_DIMENSION_TEXTURE3D:
-		desc.dimension = resource_view_dimension::texture_3d;
-		desc.first_level = internal_desc.Texture3D.MipSlice;
-		desc.first_layer = internal_desc.Texture3D.FirstWSlice;
-		desc.layers = internal_desc.Texture3D.WSize;
-		break;
-	}
-	return desc;
-}
-
-void reshade::d3d10::convert_shader_resource_view_desc(const resource_view_desc &desc, D3D10_SHADER_RESOURCE_VIEW_DESC &internal_desc)
+void reshade::d3d10::convert_resource_view_desc(const resource_view_desc &desc, D3D10_SHADER_RESOURCE_VIEW_DESC &internal_desc)
 {
 	internal_desc.Format = static_cast<DXGI_FORMAT>(desc.format);
 	switch (desc.dimension) // Do not modifiy description in case dimension is 'resource_view_dimension::unknown'
@@ -366,7 +282,7 @@ void reshade::d3d10::convert_shader_resource_view_desc(const resource_view_desc 
 		break;
 	}
 }
-void reshade::d3d10::convert_shader_resource_view_desc(const resource_view_desc &desc, D3D10_SHADER_RESOURCE_VIEW_DESC1 &internal_desc)
+void reshade::d3d10::convert_resource_view_desc(const resource_view_desc &desc, D3D10_SHADER_RESOURCE_VIEW_DESC1 &internal_desc)
 {
 	if (desc.dimension == resource_view_dimension::texture_cube_array)
 	{
@@ -379,10 +295,92 @@ void reshade::d3d10::convert_shader_resource_view_desc(const resource_view_desc 
 	}
 	else
 	{
-		convert_shader_resource_view_desc(desc, reinterpret_cast<D3D10_SHADER_RESOURCE_VIEW_DESC &>(internal_desc));
+		convert_resource_view_desc(desc, reinterpret_cast<D3D10_SHADER_RESOURCE_VIEW_DESC &>(internal_desc));
 	}
 }
-resource_view_desc reshade::d3d10::convert_shader_resource_view_desc(const D3D10_SHADER_RESOURCE_VIEW_DESC &internal_desc)
+resource_view_desc reshade::d3d10::convert_resource_view_desc(const D3D10_DEPTH_STENCIL_VIEW_DESC &internal_desc)
+{
+	resource_view_desc desc = {};
+	desc.format = static_cast<uint32_t>(internal_desc.Format);
+	desc.levels = 1;
+	switch (internal_desc.ViewDimension)
+	{
+	case D3D10_DSV_DIMENSION_TEXTURE1D:
+		desc.dimension = resource_view_dimension::texture_1d;
+		desc.first_level = internal_desc.Texture1D.MipSlice;
+		break;
+	case D3D10_DSV_DIMENSION_TEXTURE1DARRAY:
+		desc.dimension = resource_view_dimension::texture_1d_array;
+		desc.first_level = internal_desc.Texture1DArray.MipSlice;
+		desc.first_layer = internal_desc.Texture1DArray.FirstArraySlice;
+		desc.layers = internal_desc.Texture1DArray.ArraySize;
+		break;
+	case D3D10_DSV_DIMENSION_TEXTURE2D:
+		desc.dimension = resource_view_dimension::texture_2d;
+		desc.first_level = internal_desc.Texture2D.MipSlice;
+		break;
+	case D3D10_DSV_DIMENSION_TEXTURE2DARRAY:
+		desc.dimension = resource_view_dimension::texture_2d_array;
+		desc.first_level = internal_desc.Texture2DArray.MipSlice;
+		desc.first_layer = internal_desc.Texture2DArray.FirstArraySlice;
+		desc.layers = internal_desc.Texture2DArray.ArraySize;
+		break;
+	case D3D10_DSV_DIMENSION_TEXTURE2DMS:
+		desc.dimension = resource_view_dimension::texture_2d_multisample;
+		break;
+	case D3D10_DSV_DIMENSION_TEXTURE2DMSARRAY:
+		desc.dimension = resource_view_dimension::texture_2d_multisample_array;
+		desc.first_layer = internal_desc.Texture2DMSArray.FirstArraySlice;
+		desc.layers = internal_desc.Texture2DMSArray.ArraySize;
+		break;
+	}
+	return desc;
+}
+resource_view_desc reshade::d3d10::convert_resource_view_desc(const D3D10_RENDER_TARGET_VIEW_DESC &internal_desc)
+{
+	resource_view_desc desc = {};
+	desc.format = static_cast<uint32_t>(internal_desc.Format);
+	desc.levels = 1;
+	switch (internal_desc.ViewDimension)
+	{
+	case D3D10_RTV_DIMENSION_TEXTURE1D:
+		desc.dimension = resource_view_dimension::texture_1d;
+		desc.first_level = internal_desc.Texture1D.MipSlice;
+		break;
+	case D3D10_RTV_DIMENSION_TEXTURE1DARRAY:
+		desc.dimension = resource_view_dimension::texture_1d_array;
+		desc.first_level = internal_desc.Texture1DArray.MipSlice;
+		desc.first_layer = internal_desc.Texture1DArray.FirstArraySlice;
+		desc.layers = internal_desc.Texture1DArray.ArraySize;
+		break;
+	case D3D10_RTV_DIMENSION_TEXTURE2D:
+		desc.dimension = resource_view_dimension::texture_2d;
+		desc.first_level = internal_desc.Texture2D.MipSlice;
+		break;
+	case D3D10_RTV_DIMENSION_TEXTURE2DARRAY:
+		desc.dimension = resource_view_dimension::texture_2d_array;
+		desc.first_level = internal_desc.Texture2DArray.MipSlice;
+		desc.first_layer = internal_desc.Texture2DArray.FirstArraySlice;
+		desc.layers = internal_desc.Texture2DArray.ArraySize;
+		break;
+	case D3D10_RTV_DIMENSION_TEXTURE2DMS:
+		desc.dimension = resource_view_dimension::texture_2d_multisample;
+		break;
+	case D3D10_RTV_DIMENSION_TEXTURE2DMSARRAY:
+		desc.dimension = resource_view_dimension::texture_2d_multisample_array;
+		desc.first_layer = internal_desc.Texture2DMSArray.FirstArraySlice;
+		desc.layers = internal_desc.Texture2DMSArray.ArraySize;
+		break;
+	case D3D10_RTV_DIMENSION_TEXTURE3D:
+		desc.dimension = resource_view_dimension::texture_3d;
+		desc.first_level = internal_desc.Texture3D.MipSlice;
+		desc.first_layer = internal_desc.Texture3D.FirstWSlice;
+		desc.layers = internal_desc.Texture3D.WSize;
+		break;
+	}
+	return desc;
+}
+resource_view_desc reshade::d3d10::convert_resource_view_desc(const D3D10_SHADER_RESOURCE_VIEW_DESC &internal_desc)
 {
 	resource_view_desc desc = {};
 	desc.format = static_cast<uint32_t>(internal_desc.Format);
@@ -438,7 +436,7 @@ resource_view_desc reshade::d3d10::convert_shader_resource_view_desc(const D3D10
 	}
 	return desc;
 }
-resource_view_desc reshade::d3d10::convert_shader_resource_view_desc(const D3D10_SHADER_RESOURCE_VIEW_DESC1 &internal_desc)
+resource_view_desc reshade::d3d10::convert_resource_view_desc(const D3D10_SHADER_RESOURCE_VIEW_DESC1 &internal_desc)
 {
 	if (internal_desc.ViewDimension == D3D10_1_SRV_DIMENSION_TEXTURECUBEARRAY)
 	{
@@ -453,7 +451,7 @@ resource_view_desc reshade::d3d10::convert_shader_resource_view_desc(const D3D10
 	}
 	else
 	{
-		return convert_shader_resource_view_desc(reinterpret_cast<const D3D10_SHADER_RESOURCE_VIEW_DESC &>(internal_desc));
+		return convert_resource_view_desc(reinterpret_cast<const D3D10_SHADER_RESOURCE_VIEW_DESC &>(internal_desc));
 	}
 }
 
@@ -542,7 +540,7 @@ bool reshade::d3d10::device_impl::create_resource(resource_type type, const reso
 			if (com_ptr<ID3D10Buffer> resource;
 				SUCCEEDED(_orig->CreateBuffer(&internal_desc, nullptr, &resource)))
 			{
-				register_resource(resource.get());
+				_resources.register_object(resource.get());
 				*out_resource = { reinterpret_cast<uintptr_t>(resource.release()) };
 				return true;
 			}
@@ -556,7 +554,7 @@ bool reshade::d3d10::device_impl::create_resource(resource_type type, const reso
 			if (com_ptr<ID3D10Texture1D> resource;
 				SUCCEEDED(_orig->CreateTexture1D(&internal_desc, nullptr, &resource)))
 			{
-				register_resource(resource.get());
+				_resources.register_object(resource.get());
 				*out_resource = { reinterpret_cast<uintptr_t>(resource.release()) };
 				return true;
 			}
@@ -570,7 +568,7 @@ bool reshade::d3d10::device_impl::create_resource(resource_type type, const reso
 			if (com_ptr<ID3D10Texture2D> resource;
 				SUCCEEDED(_orig->CreateTexture2D(&internal_desc, nullptr, &resource)))
 			{
-				register_resource(resource.get());
+				_resources.register_object(resource.get());
 				*out_resource = { reinterpret_cast<uintptr_t>(resource.release()) };
 				return true;
 			}
@@ -584,7 +582,7 @@ bool reshade::d3d10::device_impl::create_resource(resource_type type, const reso
 			if (com_ptr<ID3D10Texture3D> resource;
 				SUCCEEDED(_orig->CreateTexture3D(&internal_desc, nullptr, &resource)))
 			{
-				register_resource(resource.get());
+				_resources.register_object(resource.get());
 				*out_resource = { reinterpret_cast<uintptr_t>(resource.release()) };
 				return true;
 			}
@@ -604,12 +602,12 @@ bool reshade::d3d10::device_impl::create_resource_view(resource_handle resource,
 		case resource_view_type::depth_stencil:
 		{
 			D3D10_DEPTH_STENCIL_VIEW_DESC internal_desc = {};
-			convert_depth_stencil_view_desc(desc, internal_desc);
+			convert_resource_view_desc(desc, internal_desc);
 
 			if (com_ptr<ID3D10DepthStencilView> view;
 				SUCCEEDED(_orig->CreateDepthStencilView(reinterpret_cast<ID3D10Resource *>(resource.handle), &internal_desc, &view)))
 			{
-				register_resource_view(view.get());
+				_views.register_object(view.get());
 				*out_view = { reinterpret_cast<uintptr_t>(view.release()) };
 				return true;
 			}
@@ -618,12 +616,12 @@ bool reshade::d3d10::device_impl::create_resource_view(resource_handle resource,
 		case resource_view_type::render_target:
 		{
 			D3D10_RENDER_TARGET_VIEW_DESC internal_desc = {};
-			convert_render_target_view_desc(desc, internal_desc);
+			convert_resource_view_desc(desc, internal_desc);
 
 			if (com_ptr<ID3D10RenderTargetView> view;
 				SUCCEEDED(_orig->CreateRenderTargetView(reinterpret_cast<ID3D10Resource *>(resource.handle), &internal_desc, &view)))
 			{
-				register_resource_view(view.get());
+				_views.register_object(view.get());
 				*out_view = { reinterpret_cast<uintptr_t>(view.release()) };
 				return true;
 			}
@@ -632,12 +630,12 @@ bool reshade::d3d10::device_impl::create_resource_view(resource_handle resource,
 		case resource_view_type::shader_resource:
 		{
 			D3D10_SHADER_RESOURCE_VIEW_DESC internal_desc = {};
-			convert_shader_resource_view_desc(desc, internal_desc);
+			convert_resource_view_desc(desc, internal_desc);
 
 			if (com_ptr<ID3D10ShaderResourceView> view;
 				SUCCEEDED(_orig->CreateShaderResourceView(reinterpret_cast<ID3D10Resource *>(resource.handle), &internal_desc, &view)))
 			{
-				register_resource_view(view.get());
+				_views.register_object(view.get());
 				*out_view = { reinterpret_cast<uintptr_t>(view.release()) };
 				return true;
 			}

@@ -21,21 +21,17 @@ namespace reshade::d3d10
 	api::resource_desc convert_resource_desc(const D3D10_TEXTURE2D_DESC &internal_desc);
 	api::resource_desc convert_resource_desc(const D3D10_TEXTURE3D_DESC &internal_desc);
 
-	void convert_depth_stencil_view_desc(const api::resource_view_desc &desc, D3D10_DEPTH_STENCIL_VIEW_DESC &internal_desc);
-	api::resource_view_desc convert_depth_stencil_view_desc(const D3D10_DEPTH_STENCIL_VIEW_DESC &internal_desc);
-
-	void convert_render_target_view_desc(const api::resource_view_desc &desc, D3D10_RENDER_TARGET_VIEW_DESC &internal_desc);
-	api::resource_view_desc convert_render_target_view_desc(const D3D10_RENDER_TARGET_VIEW_DESC &internal_desc);
-
-	void convert_shader_resource_view_desc(const api::resource_view_desc &desc, D3D10_SHADER_RESOURCE_VIEW_DESC &internal_desc);
-	void convert_shader_resource_view_desc(const api::resource_view_desc &desc, D3D10_SHADER_RESOURCE_VIEW_DESC1 &internal_desc);
-	api::resource_view_desc convert_shader_resource_view_desc(const D3D10_SHADER_RESOURCE_VIEW_DESC &internal_desc);
-	api::resource_view_desc convert_shader_resource_view_desc(const D3D10_SHADER_RESOURCE_VIEW_DESC1 &internal_desc);
+	void convert_resource_view_desc(const api::resource_view_desc &desc, D3D10_DEPTH_STENCIL_VIEW_DESC &internal_desc);
+	void convert_resource_view_desc(const api::resource_view_desc &desc, D3D10_RENDER_TARGET_VIEW_DESC &internal_desc);
+	void convert_resource_view_desc(const api::resource_view_desc &desc, D3D10_SHADER_RESOURCE_VIEW_DESC &internal_desc);
+	void convert_resource_view_desc(const api::resource_view_desc &desc, D3D10_SHADER_RESOURCE_VIEW_DESC1 &internal_desc);
+	api::resource_view_desc convert_resource_view_desc(const D3D10_DEPTH_STENCIL_VIEW_DESC &internal_desc);
+	api::resource_view_desc convert_resource_view_desc(const D3D10_RENDER_TARGET_VIEW_DESC &internal_desc);
+	api::resource_view_desc convert_resource_view_desc(const D3D10_SHADER_RESOURCE_VIEW_DESC &internal_desc);
+	api::resource_view_desc convert_resource_view_desc(const D3D10_SHADER_RESOURCE_VIEW_DESC1 &internal_desc);
 
 	class device_impl : public api::device, public api::command_queue, public api::command_list
 	{
-		friend class runtime_d3d10;
-
 	public:
 		explicit device_impl(ID3D10Device1 *device);
 		~device_impl();
@@ -77,18 +73,17 @@ namespace reshade::d3d10
 		void clear_depth_stencil_view(api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil) override;
 		void clear_render_target_view(api::resource_view_handle rtv, const float color[4]) override;
 
-	protected:
-		inline void register_resource(ID3D10Resource *resource) { _resources.register_object(resource); }
-		inline void register_resource_view(ID3D10View *resource_view) { _views.register_object(resource_view); }
-
+		// Pointer to original device object (managed by D3D10Device class)
 		ID3D10Device1 *_orig;
 
-	private:
+		// Device local resources that may be used by multiple effect runtimes
+		state_block _app_state;
+		com_ptr<ID3D10PixelShader > _copy_pixel_shader;
+		com_ptr<ID3D10VertexShader> _copy_vertex_shader;
+		com_ptr<ID3D10SamplerState> _copy_sampler_state;
+
+	protected:
 		com_object_list<ID3D10View> _views;
 		com_object_list<ID3D10Resource> _resources;
-		state_block _app_state;
-		com_ptr<ID3D10PixelShader> _copy_pixel_shader;
-		com_ptr<ID3D10VertexShader> _copy_vertex_shader;
-		com_ptr<ID3D10SamplerState>  _copy_sampler_state;
 	};
 }

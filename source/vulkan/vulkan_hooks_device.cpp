@@ -20,7 +20,7 @@ static lockfree_table<VkSwapchainKHR, reshade::vulkan::runtime_vk *, 16> s_vulka
 	GET_DEVICE_DISPATCH_PTR_FROM(name, s_vulkan_devices.at(dispatch_key_from_handle(object)))
 #define GET_DEVICE_DISPATCH_PTR_FROM(name, data) \
 	assert((data) != nullptr); \
-	PFN_vk##name trampoline = (data)->vk.name; \
+	PFN_vk##name trampoline = (data)->_dispatch_table.name; \
 	assert(trampoline != nullptr)
 
 static inline reshade::api::resource_usage convert_image_layout(VkImageLayout layout)
@@ -341,7 +341,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		g_instance_dispatch.at(dispatch_key_from_handle(physicalDevice)),
 		dispatch_table);
 
-	device_impl->graphics_queue_family_index = graphics_queue_family_index;
+	device_impl->_graphics_queue_family_index = graphics_queue_family_index;
 
 	s_vulkan_devices.emplace(dispatch_key_from_handle(device), device_impl);
 
@@ -362,10 +362,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 				queue_families[queue_create_info.queueFamilyIndex],
 				queue);
 
-			if (s_vulkan_queues.emplace(queue, queue_impl))
-				device_impl->queues.push_back({ queue, queue_impl });
-			else
-				delete queue_impl;
+			s_vulkan_queues.emplace(queue, queue_impl);
 		}
 	}
 
@@ -385,8 +382,11 @@ void     VKAPI_CALL vkDestroyDevice(VkDevice device, const VkAllocationCallbacks
 	assert(device_impl != nullptr);
 
 	// Destroy all queues associated with this device
-	for (const auto &queue_info : device_impl->queues)
-		delete s_vulkan_queues.erase(queue_info.first);
+	for (reshade::vulkan::command_queue_impl *const queue_impl : device_impl->_queues)
+	{
+		s_vulkan_queues.erase((VkQueue)queue_impl->get_native_object());
+		delete queue_impl;
+	}
 
 	// Get function pointer before data is destroyed next
 	GET_DEVICE_DISPATCH_PTR_FROM(DestroyDevice, device_impl);
@@ -411,7 +411,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	std::vector<VkFormat> format_list; std::vector<uint32_t> queue_family_list;
 
 	// Only have to enable additional features if there is a graphics queue, since ReShade will not run otherwise
-	if (device_impl->graphics_queue_family_index != std::numeric_limits<uint32_t>::max())
+	if (device_impl->_graphics_queue_family_index != std::numeric_limits<uint32_t>::max())
 	{
 		// Add required usage flags to create info
 		create_info.imageUsage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
@@ -452,10 +452,10 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		if (create_info.imageSharingMode == VK_SHARING_MODE_CONCURRENT)
 		{
 			queue_family_list.reserve(create_info.queueFamilyIndexCount + 1);
-			queue_family_list.push_back(device_impl->graphics_queue_family_index);
+			queue_family_list.push_back(device_impl->_graphics_queue_family_index);
 
 			for (uint32_t i = 0; i < create_info.queueFamilyIndexCount; ++i)
-				if (create_info.pQueueFamilyIndices[i] != device_impl->graphics_queue_family_index)
+				if (create_info.pQueueFamilyIndices[i] != device_impl->_graphics_queue_family_index)
 					queue_family_list.push_back(create_info.pQueueFamilyIndices[i]);
 
 			create_info.queueFamilyIndexCount = static_cast<uint32_t>(queue_family_list.size());
@@ -498,9 +498,9 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 #if RESHADE_ADDON
 	// Add swap chain images to the image list
 	uint32_t num_swapchain_images = 0;
-	device_impl->vk.GetSwapchainImagesKHR(device, *pSwapchain, &num_swapchain_images, nullptr);
+	device_impl->_dispatch_table.GetSwapchainImagesKHR(device, *pSwapchain, &num_swapchain_images, nullptr);
 	std::vector<VkImage> swapchain_images(num_swapchain_images);
-	device_impl->vk.GetSwapchainImagesKHR(device, *pSwapchain, &num_swapchain_images, swapchain_images.data());
+	device_impl->_dispatch_table.GetSwapchainImagesKHR(device, *pSwapchain, &num_swapchain_images, swapchain_images.data());
 
 	VkImageCreateInfo image_create_info { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
 	image_create_info.imageType = VK_IMAGE_TYPE_2D;
@@ -517,13 +517,13 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 #endif
 
 	reshade::vulkan::command_queue_impl *queue_impl = nullptr;
-	if (device_impl->graphics_queue_family_index != std::numeric_limits<uint32_t>::max())
+	if (device_impl->_graphics_queue_family_index != std::numeric_limits<uint32_t>::max())
 	{
 		// Get the main graphics queue for command submission
 		// There has to be at least one queue, or else this runtime would not have been created with this queue family index
 		// So it should be safe to just get the first one
 		VkQueue graphics_queue = VK_NULL_HANDLE;
-		device_impl->vk.GetDeviceQueue(device, device_impl->graphics_queue_family_index, 0, &graphics_queue);
+		device_impl->_dispatch_table.GetDeviceQueue(device, device_impl->_graphics_queue_family_index, 0, &graphics_queue);
 		assert(VK_NULL_HANDLE != graphics_queue);
 
 		queue_impl = s_vulkan_queues.at(graphics_queue);
@@ -578,9 +578,9 @@ void     VKAPI_CALL vkDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapch
 #if RESHADE_ADDON
 	// Remove swap chain images from the image list
 	uint32_t num_swapchain_images = 0;
-	device_impl->vk.GetSwapchainImagesKHR(device, swapchain, &num_swapchain_images, nullptr);
+	device_impl->_dispatch_table.GetSwapchainImagesKHR(device, swapchain, &num_swapchain_images, nullptr);
 	std::vector<VkImage> swapchain_images(num_swapchain_images);
-	device_impl->vk.GetSwapchainImagesKHR(device, swapchain, &num_swapchain_images, swapchain_images.data());
+	device_impl->_dispatch_table.GetSwapchainImagesKHR(device, swapchain, &num_swapchain_images, swapchain_images.data());
 
 	for (uint32_t i = 0; i < num_swapchain_images; ++i)
 		device_impl->unregister_image(swapchain_images[i]);
@@ -835,7 +835,7 @@ VkResult VKAPI_CALL vkCreateRenderPass(VkDevice device, const VkRenderPassCreate
 	}
 
 #if RESHADE_ADDON
-	auto &renderpass_data = device_impl->render_pass_list.emplace(*pRenderPass);
+	auto &renderpass_data = device_impl->_render_pass_list.emplace(*pRenderPass);
 	renderpass_data.subpasses.reserve(pCreateInfo->subpassCount);
 	renderpass_data.cleared_attachments.reserve(pCreateInfo->attachmentCount);
 
@@ -891,7 +891,7 @@ VkResult VKAPI_CALL vkCreateRenderPass2(VkDevice device, const VkRenderPassCreat
 	}
 
 #if RESHADE_ADDON
-	auto &renderpass_data = device_impl->render_pass_list.emplace(*pRenderPass);
+	auto &renderpass_data = device_impl->_render_pass_list.emplace(*pRenderPass);
 	renderpass_data.subpasses.reserve(pCreateInfo->subpassCount);
 	renderpass_data.cleared_attachments.reserve(pCreateInfo->attachmentCount);
 
@@ -937,7 +937,7 @@ void     VKAPI_CALL vkDestroyRenderPass(VkDevice device, VkRenderPass renderPass
 	assert(device_impl != nullptr);
 
 #if RESHADE_ADDON
-	device_impl->render_pass_list.erase(renderPass);
+	device_impl->_render_pass_list.erase(renderPass);
 #endif
 
 	GET_DEVICE_DISPATCH_PTR_FROM(DestroyRenderPass, device_impl);
@@ -959,7 +959,7 @@ VkResult VKAPI_CALL vkCreateFramebuffer(VkDevice device, const VkFramebufferCrea
 
 #if RESHADE_ADDON
 	// Keep track of the frame buffer attachments
-	auto &attachments = device_impl->framebuffer_list.emplace(*pFramebuffer);
+	auto &attachments = device_impl->_framebuffer_list.emplace(*pFramebuffer);
 	attachments.resize(pCreateInfo->attachmentCount);
 	for (uint32_t i = 0; i < pCreateInfo->attachmentCount; ++i)
 		attachments[i] = { (uint64_t)pCreateInfo->pAttachments[i] };
@@ -973,7 +973,7 @@ void     VKAPI_CALL vkDestroyFramebuffer(VkDevice device, VkFramebuffer framebuf
 	assert(device_impl != nullptr);
 
 #if RESHADE_ADDON
-	device_impl->framebuffer_list.erase(framebuffer);
+	device_impl->_framebuffer_list.erase(framebuffer);
 #endif
 
 	GET_DEVICE_DISPATCH_PTR_FROM(DestroyFramebuffer, device_impl);
@@ -1139,13 +1139,13 @@ void     VKAPI_CALL vkCmdClearColorImage(VkCommandBuffer commandBuffer, VkImage 
 			transition.subresourceRange.layerCount = std::max(transition.subresourceRange.layerCount, pRanges[i].layerCount);
 		}
 
-		device_impl->vk.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
+		device_impl->_dispatch_table.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
 
 		const reshade::api::resource_view_handle rtv = device_impl->get_default_view(image);
 		RESHADE_ADDON_EVENT(clear_render_target, cmd_impl, rtv, pColor->float32);
 
 		std::swap(transition.oldLayout, transition.newLayout);
-		device_impl->vk.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
+		device_impl->_dispatch_table.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
 	}
 #endif
 
@@ -1177,7 +1177,7 @@ void     VKAPI_CALL vkCmdClearDepthStencilImage(VkCommandBuffer commandBuffer, V
 			transition.subresourceRange.layerCount = std::max(transition.subresourceRange.layerCount, pRanges[i].layerCount);
 		}
 
-		device_impl->vk.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
+		device_impl->_dispatch_table.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
 
 		const uint32_t clear_flags =
 			(transition.subresourceRange.aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT ? 0x1 : 0x0) |
@@ -1187,7 +1187,7 @@ void     VKAPI_CALL vkCmdClearDepthStencilImage(VkCommandBuffer commandBuffer, V
 		RESHADE_ADDON_EVENT(clear_depth_stencil, cmd_impl, dsv, clear_flags, pDepthStencil->depth, static_cast<uint8_t>(pDepthStencil->stencil));
 
 		std::swap(transition.oldLayout, transition.newLayout);
-		device_impl->vk.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
+		device_impl->_dispatch_table.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
 	}
 #endif
 
@@ -1208,8 +1208,8 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 		cmd_impl->current_renderpass = pRenderPassBegin->renderPass;
 		cmd_impl->current_framebuffer = pRenderPassBegin->framebuffer;
 
-		const auto &attachments = device_impl->framebuffer_list.at(cmd_impl->current_framebuffer);
-		const auto &renderpass_data = device_impl->render_pass_list.at(cmd_impl->current_renderpass);
+		const auto &attachments = device_impl->_framebuffer_list.at(cmd_impl->current_framebuffer);
+		const auto &renderpass_data = device_impl->_render_pass_list.at(cmd_impl->current_renderpass);
 		const auto &renderpass_data_subpass = renderpass_data.subpasses[0];
 
 		auto rtvs = static_cast<reshade::api::resource_view_handle *>(alloca(sizeof(reshade::api::resource_view_handle) * renderpass_data_subpass.color_attachments.size()));
@@ -1247,13 +1247,13 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 
 					assert(renderpass_data.cleared_attachments[i].clear_flags == 0x1);
 
-					device_impl->vk.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
+					device_impl->_dispatch_table.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
 
 					RESHADE_ADDON_EVENT(clear_render_target, cmd_impl,
 						attachments[renderpass_data.cleared_attachments[i].index], clear_value.color.float32);
 
 					std::swap(transition.oldLayout, transition.newLayout);
-					device_impl->vk.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
+					device_impl->_dispatch_table.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
 				}
 			}
 			else
@@ -1276,13 +1276,13 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 					if ((renderpass_data.cleared_attachments[i].clear_flags & 0x2) == 0x2)
 						transition.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
 
-					device_impl->vk.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
+					device_impl->_dispatch_table.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
 
 					RESHADE_ADDON_EVENT(clear_depth_stencil, cmd_impl,
 						attachments[renderpass_data.cleared_attachments[i].index], renderpass_data.cleared_attachments[i].clear_flags, clear_value.depthStencil.depth, static_cast<uint8_t>(clear_value.depthStencil.stencil));
 
 					std::swap(transition.oldLayout, transition.newLayout);
-					device_impl->vk.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
+					device_impl->_dispatch_table.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
 				}
 			}
 		}
@@ -1304,8 +1304,8 @@ void     VKAPI_CALL vkCmdNextSubpass(VkCommandBuffer commandBuffer, VkSubpassCon
 		assert(cmd_impl->current_renderpass != VK_NULL_HANDLE);
 		assert(cmd_impl->current_framebuffer != VK_NULL_HANDLE);
 
-		const auto &attachments = device_impl->framebuffer_list.at(cmd_impl->current_framebuffer);
-		const auto &renderpass_data = device_impl->render_pass_list.at(cmd_impl->current_renderpass);
+		const auto &attachments = device_impl->_framebuffer_list.at(cmd_impl->current_framebuffer);
+		const auto &renderpass_data = device_impl->_render_pass_list.at(cmd_impl->current_renderpass);
 		const auto &renderpass_data_subpass = renderpass_data.subpasses[cmd_impl->current_subpass];
 
 		auto rtvs = static_cast<reshade::api::resource_view_handle *>(alloca(sizeof(reshade::api::resource_view_handle) * renderpass_data_subpass.color_attachments.size()));

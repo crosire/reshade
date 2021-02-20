@@ -9,7 +9,7 @@
 #include <d3dcompiler.h>
 
 reshade::d3d9::runtime_d3d9::runtime_d3d9(device_impl *device, IDirect3DSwapChain9 *swapchain) :
-	_device_impl(device), _device(device->_device), _swapchain(swapchain)
+	_device_impl(device), _device(device->_orig), _swapchain(swapchain)
 {
 	com_ptr<IDirect3D9> d3d;
 	_device->GetDirect3D(&d3d);
@@ -165,7 +165,7 @@ void reshade::d3d9::runtime_d3d9::on_present()
 
 	_device_impl->_app_state.capture();
 	BOOL software_rendering_enabled = FALSE;
-	if ((_device_impl->_behavior_flags & D3DCREATE_MIXED_VERTEXPROCESSING) != 0)
+	if ((_device_impl->_cp.BehaviorFlags & D3DCREATE_MIXED_VERTEXPROCESSING) != 0)
 		software_rendering_enabled = _device->GetSoftwareVertexProcessing(),
 		_device->SetSoftwareVertexProcessing(FALSE); // Disable software vertex processing since it is incompatible with programmable shaders
 
@@ -182,7 +182,7 @@ void reshade::d3d9::runtime_d3d9::on_present()
 
 	// Apply previous state from application
 	_device_impl->_app_state.apply_and_release();
-	if ((_device_impl->_behavior_flags & D3DCREATE_MIXED_VERTEXPROCESSING) != 0)
+	if ((_device_impl->_cp.BehaviorFlags & D3DCREATE_MIXED_VERTEXPROCESSING) != 0)
 		_device->SetSoftwareVertexProcessing(software_rendering_enabled);
 
 	_device->EndScene();
@@ -422,9 +422,9 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 
 			for (UINT k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k)
 			{
-				if (k > _device_impl->_num_simultaneous_rendertargets)
+				if (k > _device_impl->_caps.NumSimultaneousRTs)
 				{
-					LOG(WARN) << "Device only supports " << _device_impl->_num_simultaneous_rendertargets << " simultaneous render targets, but pass " << pass_index << " in technique '" << technique.name << "' uses more, which are ignored.";
+					LOG(WARN) << "Device only supports " << _device_impl->_caps.NumSimultaneousRTs << " simultaneous render targets, but pass " << pass_index << " in technique '" << technique.name << "' uses more, which are ignored.";
 					break;
 				}
 
@@ -873,7 +873,7 @@ void reshade::d3d9::runtime_d3d9::render_technique(technique &technique)
 		}
 
 		// Setup render targets (and viewport, which is implicitly updated by 'SetRenderTarget')
-		for (DWORD target = 0; target < _device_impl->_num_simultaneous_rendertargets; target++)
+		for (DWORD target = 0; target < _device_impl->_caps.NumSimultaneousRTs; target++)
 			_device->SetRenderTarget(target, pass_data.render_targets[target]);
 
 		D3DVIEWPORT9 viewport;

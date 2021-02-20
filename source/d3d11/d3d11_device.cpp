@@ -128,7 +128,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateBuffer(const D3D11_BUFFER_DESC *pDe
 	if (SUCCEEDED(hr))
 	{
 		assert(ppBuffer != nullptr);
-		register_resource(*ppBuffer);
+		_resources.register_object(*ppBuffer);
 	}
 	else
 	{
@@ -162,7 +162,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture1D(const D3D11_TEXTURE1D_DES
 	if (SUCCEEDED(hr))
 	{
 		assert(ppTexture1D != nullptr);
-		register_resource(*ppTexture1D);
+		_resources.register_object(*ppTexture1D);
 	}
 	else
 	{
@@ -199,7 +199,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture2D(const D3D11_TEXTURE2D_DES
 	if (SUCCEEDED(hr))
 	{
 		assert(ppTexture2D != nullptr);
-		register_resource(*ppTexture2D);
+		_resources.register_object(*ppTexture2D);
 	}
 	else
 	{
@@ -239,7 +239,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture3D(const D3D11_TEXTURE3D_DES
 	if (SUCCEEDED(hr))
 	{
 		assert(ppTexture3D != nullptr);
-		register_resource(*ppTexture3D);
+		_resources.register_object(*ppTexture3D);
 	}
 	else
 	{
@@ -270,9 +270,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateShaderResourceView(ID3D11Resource *
 		pDesc != nullptr ? *pDesc : D3D11_SHADER_RESOURCE_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D11_SRV_DIMENSION_UNKNOWN };
 
 #if RESHADE_ADDON
-	reshade::api::resource_view_desc api_desc = reshade::d3d11::convert_shader_resource_view_desc(new_desc);
+	reshade::api::resource_view_desc api_desc = reshade::d3d11::convert_resource_view_desc(new_desc);
 	RESHADE_ADDON_EVENT(create_resource_view, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::shader_resource, &api_desc);
-	reshade::d3d11::convert_shader_resource_view_desc(api_desc, new_desc);
+	reshade::d3d11::convert_resource_view_desc(api_desc, new_desc);
 #endif
 
 	const HRESULT hr = _orig->CreateShaderResourceView(pResource, new_desc.ViewDimension != D3D11_SRV_DIMENSION_UNKNOWN ? &new_desc : nullptr, ppSRView);
@@ -280,7 +280,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateShaderResourceView(ID3D11Resource *
 	if (SUCCEEDED(hr))
 	{
 		assert(ppSRView != nullptr);
-		register_resource_view(*ppSRView);
+		_views.register_object(*ppSRView);
 	}
 	else
 	{
@@ -304,9 +304,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateUnorderedAccessView(ID3D11Resource 
 		pDesc != nullptr ? *pDesc : D3D11_UNORDERED_ACCESS_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D11_UAV_DIMENSION_UNKNOWN };
 
 #if RESHADE_ADDON
-	reshade::api::resource_view_desc api_desc = reshade::d3d11::convert_unordered_access_view_desc(new_desc);
+	reshade::api::resource_view_desc api_desc = reshade::d3d11::convert_resource_view_desc(new_desc);
 	RESHADE_ADDON_EVENT(create_resource_view, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::unordered_access, &api_desc);
-	reshade::d3d11::convert_unordered_access_view_desc(api_desc, new_desc);
+	reshade::d3d11::convert_resource_view_desc(api_desc, new_desc);
 #endif
 
 	const HRESULT hr = _orig->CreateUnorderedAccessView(pResource, new_desc.ViewDimension != D3D11_UAV_DIMENSION_UNKNOWN ? &new_desc : nullptr, ppUAView);
@@ -314,7 +314,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateUnorderedAccessView(ID3D11Resource 
 	if (SUCCEEDED(hr))
 	{
 		assert(ppUAView != nullptr);
-		register_resource_view(*ppUAView);
+		_views.register_object(*ppUAView);
 	}
 	else
 	{
@@ -338,9 +338,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRenderTargetView(ID3D11Resource *pR
 		pDesc != nullptr ? *pDesc : D3D11_RENDER_TARGET_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D11_RTV_DIMENSION_UNKNOWN };
 
 #if RESHADE_ADDON
-	reshade::api::resource_view_desc api_desc = reshade::d3d11::convert_render_target_view_desc(new_desc);
+	reshade::api::resource_view_desc api_desc = reshade::d3d11::convert_resource_view_desc(new_desc);
 	RESHADE_ADDON_EVENT(create_resource_view, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::render_target, &api_desc);
-	reshade::d3d11::convert_render_target_view_desc(api_desc, new_desc);
+	reshade::d3d11::convert_resource_view_desc(api_desc, new_desc);
 #endif
 
 	const HRESULT hr = _orig->CreateRenderTargetView(pResource, new_desc.ViewDimension != D3D11_RTV_DIMENSION_UNKNOWN ? &new_desc : nullptr, ppRTView);
@@ -348,7 +348,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRenderTargetView(ID3D11Resource *pR
 	if (SUCCEEDED(hr))
 	{
 		assert(ppRTView != nullptr);
-		register_resource_view(*ppRTView);
+		_views.register_object(*ppRTView);
 	}
 	else
 	{
@@ -372,9 +372,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDepthStencilView(ID3D11Resource *pR
 		pDesc != nullptr ? *pDesc : D3D11_DEPTH_STENCIL_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D11_DSV_DIMENSION_UNKNOWN };
 
 #if RESHADE_ADDON
-	reshade::api::resource_view_desc api_desc = reshade::d3d11::convert_depth_stencil_view_desc(new_desc);
+	reshade::api::resource_view_desc api_desc = reshade::d3d11::convert_resource_view_desc(new_desc);
 	RESHADE_ADDON_EVENT(create_resource_view, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::depth_stencil, &api_desc);
-	reshade::d3d11::convert_depth_stencil_view_desc(api_desc, new_desc);
+	reshade::d3d11::convert_resource_view_desc(api_desc, new_desc);
 #endif
 
 	const HRESULT hr = _orig->CreateDepthStencilView(pResource, new_desc.ViewDimension != D3D11_DSV_DIMENSION_UNKNOWN ? &new_desc : nullptr, ppDepthStencilView);
@@ -382,7 +382,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDepthStencilView(ID3D11Resource *pR
 	if (SUCCEEDED(hr))
 	{
 		assert(ppDepthStencilView != nullptr);
-		register_resource_view(*ppDepthStencilView);
+		_views.register_object(*ppDepthStencilView);
 	}
 	else
 	{
@@ -675,7 +675,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture2D1(const D3D11_TEXTURE2D_DE
 	if (SUCCEEDED(hr))
 	{
 		assert(ppTexture2D != nullptr);
-		register_resource(*ppTexture2D);
+		_resources.register_object(*ppTexture2D);
 	}
 	else
 	{
@@ -717,7 +717,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture3D1(const D3D11_TEXTURE3D_DE
 	if (SUCCEEDED(hr))
 	{
 		assert(ppTexture3D != nullptr);
-		register_resource(*ppTexture3D);
+		_resources.register_object(*ppTexture3D);
 	}
 	else
 	{
@@ -754,9 +754,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateShaderResourceView1(ID3D11Resource 
 		pDesc1 != nullptr ? *pDesc1 : D3D11_SHADER_RESOURCE_VIEW_DESC1 { DXGI_FORMAT_UNKNOWN, D3D11_SRV_DIMENSION_UNKNOWN };
 
 #if RESHADE_ADDON
-	reshade::api::resource_view_desc api_desc = reshade::d3d11::convert_shader_resource_view_desc(new_desc);
+	reshade::api::resource_view_desc api_desc = reshade::d3d11::convert_resource_view_desc(new_desc);
 	RESHADE_ADDON_EVENT(create_resource_view, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::shader_resource, &api_desc);
-	reshade::d3d11::convert_shader_resource_view_desc(api_desc, new_desc);
+	reshade::d3d11::convert_resource_view_desc(api_desc, new_desc);
 #endif
 
 	assert(_interface_version >= 3);
@@ -765,7 +765,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateShaderResourceView1(ID3D11Resource 
 	if (SUCCEEDED(hr))
 	{
 		assert(ppSRView1 != nullptr);
-		register_resource_view(*ppSRView1);
+		_views.register_object(*ppSRView1);
 	}
 	else
 	{
@@ -789,9 +789,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateUnorderedAccessView1(ID3D11Resource
 		pDesc1 != nullptr ? *pDesc1 : D3D11_UNORDERED_ACCESS_VIEW_DESC1 { DXGI_FORMAT_UNKNOWN, D3D11_UAV_DIMENSION_UNKNOWN };
 
 #if RESHADE_ADDON
-	reshade::api::resource_view_desc api_desc = reshade::d3d11::convert_unordered_access_view_desc(new_desc);
+	reshade::api::resource_view_desc api_desc = reshade::d3d11::convert_resource_view_desc(new_desc);
 	RESHADE_ADDON_EVENT(create_resource_view, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::render_target, &api_desc);
-	reshade::d3d11::convert_unordered_access_view_desc(api_desc, new_desc);
+	reshade::d3d11::convert_resource_view_desc(api_desc, new_desc);
 #endif
 
 	assert(_interface_version >= 3);
@@ -800,7 +800,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateUnorderedAccessView1(ID3D11Resource
 	if (SUCCEEDED(hr))
 	{
 		assert(ppUAView1 != nullptr);
-		register_resource_view(*ppUAView1);
+		_views.register_object(*ppUAView1);
 	}
 	else
 	{
@@ -824,9 +824,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRenderTargetView1(ID3D11Resource *p
 		pDesc1 != nullptr ? *pDesc1 : D3D11_RENDER_TARGET_VIEW_DESC1 { DXGI_FORMAT_UNKNOWN, D3D11_RTV_DIMENSION_UNKNOWN };
 
 #if RESHADE_ADDON
-	reshade::api::resource_view_desc api_desc = reshade::d3d11::convert_render_target_view_desc(new_desc);
+	reshade::api::resource_view_desc api_desc = reshade::d3d11::convert_resource_view_desc(new_desc);
 	RESHADE_ADDON_EVENT(create_resource_view, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::render_target, &api_desc);
-	reshade::d3d11::convert_render_target_view_desc(api_desc, new_desc);
+	reshade::d3d11::convert_resource_view_desc(api_desc, new_desc);
 #endif
 
 	assert(_interface_version >= 3);
@@ -835,7 +835,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRenderTargetView1(ID3D11Resource *p
 	if (SUCCEEDED(hr))
 	{
 		assert(ppRTView1 != nullptr);
-		register_resource_view(*ppRTView1);
+		_views.register_object(*ppRTView1);
 	}
 	else
 	{

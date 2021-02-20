@@ -10,7 +10,7 @@
 #include "runtime_vk_objects.hpp"
 #include <imgui.h>
 
-#define vk _device_impl->vk
+#define vk _device_impl->_dispatch_table
 
 bool reshade::vulkan::runtime_vk::init_imgui_resources()
 {
@@ -262,7 +262,7 @@ void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
 		vmaUnmapMemory(_device_impl->_alloc, _imgui.vertices_mem[buffer_index]);
 	}
 
-	const VkCommandBuffer cmd_list = _cmd_impl->get();
+	const VkCommandBuffer cmd_list = _cmd_impl->begin_commands();
 
 	{   VkRenderPassBeginInfo begin_info { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
 		begin_info.renderPass = _default_render_pass[0];
