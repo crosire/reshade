@@ -7,9 +7,6 @@
 
 #include <cstdint>
 
-#pragma warning(push)
-#pragma warning(disable: 4201)
-
 namespace reshade { namespace api
 {
 	/// <summary>
@@ -77,7 +74,7 @@ namespace reshade { namespace api
 	/// <summary>
 	/// The available resource view types. The type of a resource view is specified during creation and is immutable.
 	/// Some render APIs are more strict here then others, so views created by the application and passed into events may have an unknown view type.
-	/// All resource views created through <see cref="device::create_resource_view"/> should ideally have a known type specified however (not <see cref="resource_view_type::unknown"/>).
+	/// All resource views created through <see cref="device::create_resource_view"/> should have a known type specified however (not <see cref="resource_view_type::unknown"/>).
 	/// </summary>
 	enum class resource_view_type : uint32_t
 	{
@@ -89,7 +86,7 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
-	/// The available resource view dimensions. Identifies how the data of a resource should be interpreted.
+	/// The available resource view dimensions. Identifies how a view should interpret the resource.
 	/// </summary>
 	enum class resource_view_dimension : uint32_t
 	{
@@ -111,37 +108,19 @@ namespace reshade { namespace api
 	/// </summary>
 	struct resource_desc
 	{
-		union
-		{
-			/// <summary>
-			/// Used when resource type is <see cref="resource_type::surface"/>, <see cref="resource_type::texture_1d"/>, <see cref="resource_type::texture_2d"/> or <see cref="resource_type::texture_3d"/>.
-			/// </summary>
-			struct
-			{
-				// Width of the texture.
-				uint32_t width;
-				// Height of the texture if this is a 2D or 3D texture, otherwise 1.
-				uint32_t height;
-				// Depth of the texture if this is a 3D texture, otherwise the number of array layers if this is a 1D or 2D texture.
-				uint16_t depth_or_layers;
-				// Number of mipmap levels of the texture.
-				uint16_t levels;
-				// Internal texture format of the texture.
-				// This is a value of the 'D3DFORMAT', 'DXGI_FORMAT', OpenGL internal format or 'VkFormat' enumeration, depending on the device type.
-				uint32_t format;
-				// The number of samples per pixel. A value higher than 1 indicates multisampling.
-				uint16_t samples;
-			};
-			/// <summary>
-			/// Used when resource type is <see cref="resource_type::buffer"/>.
-			/// </summary>
-			struct
-			{
-				// The size in bytes of the buffer.
-				uint64_t buffer_size;
-			};
-		};
-
+		// If this is a texture, width of the texture (in texels), otherwise lower 32-bits of the 64-bit buffer size (in bytes).
+		uint32_t width;
+		// If this is a 2D or 3D texture, height of the texture (in texels), otherwise 1 or upper 32-bits of the 64-bit buffer size (in bytes).
+		uint32_t height;
+		// If this is a 3D texture, depth of the texture (in texels), otherwise number of array layers.
+		uint16_t depth_or_layers;
+		// Maximum number of mipmap levels in the texture, including the base level, so at least 1.
+		uint16_t levels;
+		// Data format of each texel in the texture.
+		// This is a 'D3DFORMAT', 'DXGI_FORMAT', OpenGL internal format or 'VkFormat' value, depending on the render API.
+		uint32_t format;
+		// The number of samples per texel. Set to a value higher than 1 for multisampling.
+		uint16_t samples;
 		// Flags that specify how this resource may be used.
 		resource_usage usage;
 	};
@@ -151,39 +130,23 @@ namespace reshade { namespace api
 	/// </summary>
 	struct resource_view_desc
 	{
-		// The type of view. Can be used to reinterpret the data of a resource as a different type.
+		// Type of the view. Identifies how the view should interpret the resource.
 		resource_view_dimension dimension;
-		// Internal viewing format of this view. The data of the resource this view was created for is reinterpreted with this format.
-		// This is a value of the 'D3DFORMAT', 'DXGI_FORMAT', OpenGL internal format or 'VkFormat' enumeration, depending on the device type.
+		// Viewing format of this view. The data of the resource is reinterpreted in this format when accessed through this view.
+		// This is a 'D3DFORMAT', 'DXGI_FORMAT', OpenGL internal format or 'VkFormat' value, depending on the render API.
 		uint32_t format;
-
-		union
-		{
-			/// <summary>
-			/// Used when dimension is <see cref="resource_view_dimension::texture_1d"/>, <see cref="resource_view_dimension::texture_2d"/> or any other texture dimension.
-			/// </summary>
-			struct
-			{
-				// Index of the most detailed mipmap level to use.
-				uint32_t first_level;
-				// The maximum number of mipmap levels for the view of the texture.
-				uint32_t levels;
-				// The index of the first array layer of a texture array to use.
-				uint32_t first_layer;
-				// The maximum number of array layers for the view of the texture array.
-				uint32_t layers;
-			};
-			/// <summary>
-			/// Used when dimension is <see cref="resource_view_dimension::buffer"/>.
-			/// </summary>
-			struct
-			{
-				// Offset from the start of the buffer this view starts at.
-				uint64_t buffer_offset;
-				// Total size in bytes this view covers.
-				uint64_t buffer_size;
-			};
-		};
+		// If this is a buffer view, lower 32-bits of the 64-bit offset from the start of the buffer resource (in bytes).
+		// If this is a texture view, index of the most detailed mipmap level to use. This number is between zero and the maximum number of mipmap levels in the texture minus 1.
+		uint32_t first_level;
+		// If this is a buffer view, lower 32-bits of the 64-bit range of elements this view covers in the buffer resource (in bytes).
+		// If this is a texture view, maximum number of mipmap levels for the view of the texture. Set to -1 to indicate that all mipmap levels down to the least detailed should be used.
+		uint32_t levels;
+		// If this is a buffer view, upper 32-bits of the 64-bit offset from the start of the buffer resource (in bytes).
+		// If this is a texture view, index of the first array layer of the texture array to use.
+		uint32_t first_layer;
+		// If this is a buffer view, upper 32-bits of the 64-bit range of elements this view covers in the buffer resource (in bytes).
+		// If this is a texture view, maximum number of array layers for the view of the texture array.
+		uint32_t layers;
 	};
 
 	/// <summary>
@@ -205,8 +168,8 @@ namespace reshade { namespace api
 	/// <summary>
 	/// An opaque handle to a resource view object (depth-stencil, render target, shader resource view, ...).
 	/// Resource views created by the application are only guaranteed to be valid during event callbacks.
-	/// If you want to use one outside that scope, first ensure the resource is still valid via <see cref="device::check_resource_view_handle_valid"/>.
-	/// Depending on the render API this is really a pointer to a 'IDirect3DResource9', 'ID3D10View' or 'ID3D11View' object, the value of 'D3D12_CPU_DESCRIPTOR_HANDLE' or a 'VkImageView' handle.
+	/// If you want to use one outside that scope, first ensure the resource view is still valid via <see cref="device::check_resource_view_handle_valid"/>.
+	/// Depending on the render API this is really a pointer to a 'IDirect3DResource9', 'ID3D10View' or 'ID3D11View' object, or a 'D3D12_CPU_DESCRIPTOR_HANDLE' or 'VkImageView' handle.
 	/// </summary>
 	typedef struct { uint64_t handle; } resource_view_handle;
 
@@ -219,8 +182,8 @@ namespace reshade { namespace api
 	constexpr bool operator==(resource_view_handle lhs, resource_view_handle rhs) { return lhs.handle == rhs.handle; }
 
 	/// <summary>
-	/// The base class for objects provided by this API.
-	/// This lets you store and retrieve custom data with objects, to be able to have persistent data between event callbacks.
+	/// The base class for objects provided by the ReShade API.
+	/// This lets you store and retrieve custom data with objects, to be able to communicate persistent data between event callbacks.
 	/// </summary>
 	class __declspec(novtable) api_object
 	{
@@ -232,17 +195,17 @@ namespace reshade { namespace api
 		/// <returns><c>true</c> if a pointer was previously set with this <paramref name="guid"/>, <c>false</c> otherwise.</returns>
 		virtual bool get_data(const uint8_t guid[16], void **ptr) const = 0;
 		/// <summary>
-		/// Sets a custom data pointer associated with a <paramref name="guid"/> to the object.
+		/// Sets a custom data pointer associated with the specified <paramref name="guid"/> to the object.
 		/// You can call this with <paramref name="ptr"/> set to <c>nullptr</c> to remove the pointer associated with the provided <paramref name="guid"/> from this object.
 		/// This function is not thread-safe!
 		/// </summary>
-		virtual void set_data(const uint8_t guid[16], void *const ptr)  = 0;
+		virtual void set_data(const uint8_t guid[16], void * const ptr) = 0;
 
 		/// <summary>
 		/// Gets the underlying native object for this API object.
 		/// For <see cref="device"/>s this will be be a pointer to a 'IDirect3DDevice9', 'ID3D10Device', 'ID3D11Device' or 'ID3D12Device' object or a 'HGLRC' or 'VkDevice' handle.
-		/// For <see cref="command_list"/>s this will be a pointer to a 'IDirect3DDevice9', 'ID3D10Device', 'ID3D11DeviceContext' or 'ID3D12GraphicsCommandList' object or a 'VkCommandBuffer' handle.
-		/// For <see cref="command_queue"/>s this will be a pointer to a 'IDirect3DDevice9', 'ID3D10Device', 'ID3D11DeviceContext' or 'ID3D12CommandQueue' object or a 'VkQueue' handle.
+		/// For <see cref="command_list"/>s this will be a pointer to a 'ID3D11DeviceContext' or 'ID3D12GraphicsCommandList' object or a 'VkCommandBuffer' handle.
+		/// For <see cref="command_queue"/>s this will be a pointer to a 'ID3D11DeviceContext' or 'ID3D12CommandQueue' object or a 'VkQueue' handle.
 		/// For <see cref="effect_runtime"/>s this will be a pointer to a 'IDirect3DSwapChain9' or 'IDXGISwapChain' object or a 'HDC' or 'VkSwapchainKHR' handle.
 		/// </summary>
 		virtual uint64_t get_native_object() const = 0;
@@ -277,12 +240,12 @@ namespace reshade { namespace api
 	{
 	public:
 		/// <summary>
-		/// Gets the underlying render API used for this device.
+		/// Gets the underlying render API used by this device.
 		/// </summary>
 		virtual render_api get_api() const = 0;
 
 		/// <summary>
-		/// Checks whether the specified <paramref name="format"/> is supported with the specified <paramref name="usage"/> on the current system.
+		/// Checks whether the specified <paramref name="format"/> supports the specified <paramref name="usage"/>.
 		/// </summary>
 		virtual bool check_format_support(uint32_t format, resource_usage usage) const = 0;
 
@@ -292,7 +255,7 @@ namespace reshade { namespace api
 		/// </summary>
 		virtual bool check_resource_handle_valid(resource_handle resource) const = 0;
 		/// <summary>
-		/// Checks whether the specified <paramref name="view"/> handle points to a resource view that is still alive and valid.
+		/// Checks whether the specified resource <paramref name="view"/> handle points to a resource view that is still alive and valid.
 		/// This function is thread-safe.
 		/// </summary>
 		virtual bool check_resource_view_handle_valid(resource_view_handle view) const = 0;
@@ -300,16 +263,25 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Allocates and creates a new resource based on the specified <paramref name="desc"/>ription.
 		/// </summary>
+		/// <param name="type">The type of the resource to create.</param>
+		/// <param name="desc">The description of the resource to create.</param>
+		/// <param name="initial_state">Initial usage of the resource after creation. This can later be changed via <see cref="command_list::transition_state"/>.</param>
+		/// <param name="out_resource">Pointer to a handle that is set to the handle of the created resource.</param>
+		/// <returns><c>true</c>if the resource was successfully created, <c>false</c> otherwise (in this case <paramref name="out_resource"/> is set to zero).</returns>
 		virtual bool create_resource(resource_type type, const resource_desc &desc, resource_usage initial_state, resource_handle *out_resource) = 0;
 		/// <summary>
-		/// Creates a new resource view for the <paramref name="resource"/> based on the specified <paramref name="desc"/>ription.
+		/// Creates a new resource view for the specified <paramref name="resource"/> based on the specified <paramref name="desc"/>ription.
 		/// </summary>
+		/// <param name="resource">The resource the view is created for.</param>
+		/// <param name="type">The type of the resource view to create.</param>
+		/// <param name="desc">The description of the resource to create.</param>
+		/// <param name="out_view">Pointer to a handle that is set to the handle of the created resource view.</param>
+		/// <returns><c>true</c>if the resource view was successfully created, <c>false</c> otherwise (in this case <paramref name="out_view"/> is set to zero).</returns>
 		virtual bool create_resource_view(resource_handle resource, resource_view_type type, const resource_view_desc &desc, resource_view_handle *out_view) = 0;
 
 		/// <summary>
-		/// Instantly destroys a <paramref name="resource"/> that was previously created via <see cref="create_resource"/>.
-		/// Make sure it is no longer in use on the GPU (via any command list that may reference it and is still being executed) before doing this.
-		/// Also never try to destroy resources created by the application!
+		/// Instantly destroys a <paramref name="resource"/> that was previously created via <see cref="create_resource"/> and frees its memory.
+		/// Make sure it is no longer in use on the GPU (via any command list that may reference it and is still being executed) before doing this and never try to destroy resources created by the application!
 		/// </summary>
 		virtual void destroy_resource(resource_handle resource) = 0;
 		/// <summary>
@@ -318,7 +290,7 @@ namespace reshade { namespace api
 		virtual void destroy_resource_view(resource_view_handle view) = 0;
 
 		/// <summary>
-		/// Gets the handle to the underlying resource behind the specified resource <paramref name="view"/>.
+		/// Gets the handle to the underlying resource the specified resource <paramref name="view"/> was created for.
 		/// This function is thread-safe.
 		/// </summary>
 		virtual void get_resource_from_view(resource_view_handle view, resource_handle *out_resource) const = 0;
@@ -390,16 +362,16 @@ namespace reshade { namespace api
 
 		/// <summary>
 		/// Clears a depth-stencil resource.
-		/// The resource the view points to has to be in the <see cref="resource_usage::depth_stencil_write"/> state.
+		/// The resource the <paramref name="dsv"/> view points to has to be in the <see cref="resource_usage::depth_stencil_write"/> state.
 		/// </summary>
 		/// <param name="dsv">The view handle of the depth-stencil.</param>
-		/// <param name="clear_flags">A combination of the following flags to identify which types of data to clear: <c>0x1</c> for depth, <c>0x2</c> for stencil</param>
+		/// <param name="clear_flags">A combination of flags to identify which types of data to clear: <c>0x1</c> for depth, <c>0x2</c> for stencil</param>
 		/// <param name="depth">The value to clear the depth buffer with.</param>
 		/// <param name="stencil">The value to clear the stencil buffer with.</param>
 		virtual void clear_depth_stencil_view(resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil) = 0;
 		/// <summary>
 		/// Clears an entire texture resource.
-		/// The resource the view points to has to be in the <see cref="resource_usage::render_target"/> state-
+		/// The resource the <paramref name="rtv"/> view points to has to be in the <see cref="resource_usage::render_target"/> state-
 		/// </summary>
 		/// <param name="rtv">The view handle of the render target.</param>
 		/// <param name="color">The value to clear the resource with.</param>
@@ -408,13 +380,13 @@ namespace reshade { namespace api
 
 	/// <summary>
 	/// A command queue, used to execute command lists on the GPU.
-	/// Functionally equivalent to a 'ID3D11DeviceContext', 'ID3D12CommandQueue' or 'VkQueue'.
+	/// Functionally equivalent to the immediate 'ID3D11DeviceContext' or a 'ID3D12CommandQueue' or 'VkQueue'.
 	/// </summary>
 	class __declspec(novtable) command_queue : public device_object
 	{
 	public:
 		/// <summary>
-		/// Gets a special command list, on which all issued commands are executed immediately.
+		/// Gets a special command list, on which all issued commands are executed immediately (or right before the application executes its next command list on this queue).
 		/// </summary>
 		virtual command_list *get_immediate_command_list() = 0;
 	};
@@ -427,6 +399,7 @@ namespace reshade { namespace api
 	public:
 		/// <summary>
 		/// Gets the main graphics command queue associated with this effect runtime.
+		/// This may potentially be different from the presentation queue and should be used to execute graphics commands on.
 		/// </summary>
 		virtual command_queue *get_command_queue() = 0;
 
@@ -449,5 +422,3 @@ namespace reshade { namespace api
 		virtual void update_uniform_variables(const char *source, const uint32_t *values, size_t count, size_t array_index = 0) = 0;
 	};
 } }
-
-#pragma warning(pop)

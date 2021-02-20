@@ -53,7 +53,7 @@ void reshade::d3d12::convert_resource_desc(resource_type type, const resource_de
 
 	if (type == resource_type::buffer)
 	{
-		internal_desc.Width = desc.buffer_size;
+		internal_desc.Width = desc.width | (static_cast<uint64_t>(desc.height) << 32);
 		internal_desc.Height = 1;
 		internal_desc.DepthOrArraySize = 1;
 		internal_desc.MipLevels = 1;
@@ -116,7 +116,8 @@ std::pair<resource_type, resource_desc> reshade::d3d12::convert_resource_desc(co
 
 	if (type == resource_type::buffer)
 	{
-		desc.buffer_size = internal_desc.Width;
+		desc.width = internal_desc.Width & 0xFFFFFFFF;
+		desc.height = (internal_desc.Width >> 32) & 0xFFFFFFFF;
 
 		// Buffers may be of any type
 		desc.usage |= resource_usage::vertex_buffer | resource_usage::index_buffer | resource_usage::constant_buffer;
@@ -234,9 +235,9 @@ void reshade::d3d12::convert_resource_view_desc(const resource_view_desc &desc, 
 	{
 	case resource_view_dimension::buffer:
 		internal_desc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-		internal_desc.Buffer.FirstElement = desc.buffer_offset;
-		assert(desc.buffer_size <= std::numeric_limits<UINT>::max());
-		internal_desc.Buffer.NumElements = static_cast<UINT>(desc.buffer_size);
+		internal_desc.Buffer.FirstElement = desc.first_level | (static_cast<uint64_t>(desc.first_layer) << 32);
+		assert(desc.layers == 0);
+		internal_desc.Buffer.NumElements = desc.levels;
 		// Missing fields: D3D12_BUFFER_SRV::StructureByteStride, D3D12_BUFFER_SRV::Flags
 		break;
 	case resource_view_dimension::texture_1d:
@@ -305,9 +306,9 @@ void reshade::d3d12::convert_resource_view_desc(const resource_view_desc &desc, 
 	{
 	case resource_view_dimension::buffer:
 		internal_desc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
-		internal_desc.Buffer.FirstElement = desc.buffer_offset;
-		assert(desc.buffer_size <= std::numeric_limits<UINT>::max());
-		internal_desc.Buffer.NumElements = static_cast<UINT>(desc.buffer_size);
+		internal_desc.Buffer.FirstElement = desc.first_level | (static_cast<uint64_t>(desc.first_layer) << 32);
+		assert(desc.layers == 0);
+		internal_desc.Buffer.NumElements = desc.levels;
 		// Missing fields: D3D12_BUFFER_UAV::StructureByteStride, D3D12_BUFFER_UAV::CounterOffsetInBytes, D3D12_BUFFER_UAV::Flags
 		break;
 	case resource_view_dimension::texture_1d:
@@ -430,8 +431,9 @@ resource_view_desc reshade::d3d12::convert_resource_view_desc(const D3D12_SHADER
 	{
 	case D3D12_SRV_DIMENSION_BUFFER:
 		desc.dimension = resource_view_dimension::buffer;
-		desc.buffer_offset = internal_desc.Buffer.FirstElement;
-		desc.buffer_size = internal_desc.Buffer.NumElements;
+		desc.first_level = internal_desc.Buffer.FirstElement & 0xFFFFFFFF;
+		desc.first_layer = (internal_desc.Buffer.FirstElement >> 32) & 0xFFFFFFFF;
+		desc.levels = internal_desc.Buffer.NumElements;
 		// Missing fields: D3D12_BUFFER_SRV::StructureByteStride, D3D12_BUFFER_SRV::Flags
 		break;
 	case D3D12_SRV_DIMENSION_TEXTURE1D:
@@ -491,7 +493,8 @@ resource_view_desc reshade::d3d12::convert_resource_view_desc(const D3D12_SHADER
 		// Missing fields: D3D12_TEXCUBE_ARRAY_SRV::ResourceMinLODClamp
 		break;
 	case D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE:
-		desc.buffer_offset = internal_desc.RaytracingAccelerationStructure.Location;
+		desc.first_level = internal_desc.RaytracingAccelerationStructure.Location & 0xFFFFFFFF;
+		desc.first_layer = (internal_desc.RaytracingAccelerationStructure.Location >> 32) & 0xFFFFFFFF;
 		break;
 	}
 	return desc;
@@ -505,8 +508,9 @@ resource_view_desc reshade::d3d12::convert_resource_view_desc(const D3D12_UNORDE
 	{
 	case D3D12_UAV_DIMENSION_BUFFER:
 		desc.dimension = resource_view_dimension::buffer;
-		desc.buffer_offset = internal_desc.Buffer.FirstElement;
-		desc.buffer_size = internal_desc.Buffer.NumElements;
+		desc.first_level = internal_desc.Buffer.FirstElement & 0xFFFFFFFF;
+		desc.first_layer = (internal_desc.Buffer.FirstElement >> 32) & 0xFFFFFFFF;
+		desc.levels = internal_desc.Buffer.NumElements;
 		// Missing fields: D3D12_BUFFER_UAV::StructureByteStride, D3D12_BUFFER_UAV::CounterOffsetInBytes, D3D12_BUFFER_UAV::Flags
 		break;
 	case D3D12_UAV_DIMENSION_TEXTURE1D:

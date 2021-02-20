@@ -259,7 +259,10 @@ resource_type reshade::opengl::convert_resource_type(GLenum target)
 resource_desc reshade::opengl::convert_resource_desc(GLsizeiptr buffer_size)
 {
 	resource_desc desc = {};
-	desc.buffer_size = buffer_size;
+	desc.width = buffer_size & 0xFFFFFFFF;
+#ifdef _WIN64
+	desc.height = (buffer_size >> 32) & 0xFFFFFFFF;
+#endif
 	desc.usage = resource_usage::shader_resource | resource_usage::copy_dest | resource_usage::copy_source;
 	return desc;
 }
@@ -503,8 +506,13 @@ bool reshade::opengl::device_impl::create_resource(resource_type type, const res
 		glGenBuffers(1, &object);
 		glBindBuffer(target, object);
 
-		assert(desc.buffer_size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
-		glBufferData(target, static_cast<GLsizeiptr>(desc.buffer_size), nullptr, GL_STATIC_DRAW);
+#ifdef _WIN64
+		const GLsizeiptr size = desc.width | (static_cast<uint64_t>(desc.height) << 32);
+#else
+		assert(desc.height == 0);
+		const GLsizeiptr size = desc.width;
+#endif
+		glBufferData(target, size, nullptr, GL_STATIC_DRAW);
 
 		glBindBuffer(target, prev_object);
 	}
@@ -606,15 +614,21 @@ bool reshade::opengl::device_impl::create_resource_view(resource_handle resource
 
 			glBindTexture(target, object);
 
-			if (desc.buffer_offset == 0 && desc.buffer_size == 0)
+			if (desc.first_level == 0 && desc.first_layer == 0 && desc.levels == 0 && desc.layers == 0)
 			{
 				glTexBuffer(target, internal_format, resource.handle & 0xFFFFFFFF);
 			}
 			else
 			{
-				assert(desc.buffer_offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()));
-				assert(desc.buffer_size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
-				glTexBufferRange(target, internal_format, resource.handle & 0xFFFFFFFF, static_cast<GLintptr>(desc.buffer_offset), static_cast<GLsizeiptr>(desc.buffer_size));
+#ifdef _WIN64
+				const GLintptr offset = desc.first_level | static_cast<uint64_t>(desc.first_layer) << 32;
+				const GLsizeiptr size = desc.levels | static_cast<uint64_t>(desc.layers) << 32;
+#else
+				assert(desc.first_layer == 0 && desc.layers == 0);
+				const GLintptr offset = desc.first_level;
+				const GLsizeiptr size = desc.levels;
+#endif
+				glTexBufferRange(target, internal_format, resource.handle & 0xFFFFFFFF, offset, size);
 			}
 
 			glBindTexture(target, prev_object);

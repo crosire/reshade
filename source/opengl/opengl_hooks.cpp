@@ -86,8 +86,12 @@ HOOK_EXPORT void WINAPI glBlendFunc(GLenum sfactor, GLenum dfactor)
 	{
 		reshade::api::resource_desc api_desc = reshade::opengl::convert_resource_desc(size);
 		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, reshade::api::resource_type::buffer, &api_desc);
-		assert(api_desc.buffer_size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
-		size = static_cast<GLsizeiptr>(api_desc.buffer_size);
+#ifdef _WIN64
+		size = api_desc.width | (static_cast<uint64_t>(api_desc.height) << 32);
+#else
+		size = api_desc.width;
+		assert(api_desc.height == 0);
+#endif
 	}
 #endif
 
@@ -102,8 +106,12 @@ HOOK_EXPORT void WINAPI glBlendFunc(GLenum sfactor, GLenum dfactor)
 	{
 		reshade::api::resource_desc api_desc = reshade::opengl::convert_resource_desc(size);
 		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, reshade::api::resource_type::buffer, &api_desc);
-		assert(api_desc.buffer_size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
-		size = static_cast<GLsizeiptr>(api_desc.buffer_size);
+#ifdef _WIN64
+		size = api_desc.width | (static_cast<uint64_t>(api_desc.height) << 32);
+#else
+		size = api_desc.width;
+		assert(api_desc.height == 0);
+#endif
 	}
 #endif
 
@@ -1310,8 +1318,12 @@ HOOK_EXPORT void WINAPI glMultMatrixf(const GLfloat *m)
 	{
 		reshade::api::resource_desc api_desc = reshade::opengl::convert_resource_desc(size);
 		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, reshade::api::resource_type::buffer, &api_desc);
-		assert(api_desc.buffer_size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
-		size = static_cast<GLsizeiptr>(api_desc.buffer_size);
+#ifdef _WIN64
+		size = api_desc.width | (static_cast<uint64_t>(api_desc.height) << 32);
+#else
+		size = api_desc.width;
+		assert(api_desc.height == 0);
+#endif
 	}
 #endif
 
@@ -1326,8 +1338,12 @@ HOOK_EXPORT void WINAPI glMultMatrixf(const GLfloat *m)
 	{
 		reshade::api::resource_desc api_desc = reshade::opengl::convert_resource_desc(size);
 		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, reshade::api::resource_type::buffer, &api_desc);
-		assert(api_desc.buffer_size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
-		size = static_cast<GLsizeiptr>(api_desc.buffer_size);
+#ifdef _WIN64
+		size = api_desc.width | (static_cast<uint64_t>(api_desc.height) << 32);
+#else
+		size = api_desc.width;
+		assert(api_desc.height == 0);
+#endif
 	}
 #endif
 
@@ -1817,12 +1833,18 @@ HOOK_EXPORT void WINAPI glStencilOp(GLenum fail, GLenum zfail, GLenum zpass)
 		RESHADE_ADDON_EVENT(create_resource_view, g_current_runtime, reshade::api::resource_handle { (static_cast<uint64_t>(GL_BUFFER) << 40) | buffer }, reshade::api::resource_view_type::unknown, &api_desc);
 		internalformat = api_desc.format;
 
-		if (api_desc.buffer_offset != 0 || api_desc.buffer_size != 0)
+		if (api_desc.first_level != 0 || api_desc.levels != 0)
 		{
-			assert(api_desc.buffer_offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()));
-			assert(api_desc.buffer_size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
+#ifdef _WIN64
+			const GLintptr offset = api_desc.first_level | static_cast<uint64_t>(api_desc.first_layer) << 32;
+			const GLsizeiptr size = api_desc.levels | static_cast<uint64_t>(api_desc.layers) << 32;
+#else
+			const GLintptr offset = api_desc.first_level;
+			const GLsizeiptr size = api_desc.levels;
+			assert(api_desc.first_layer == 0 && api_desc.layers == 0);
+#endif
 			const auto trampoline_range = reshade::hooks::call(glTexBufferRange);
-			trampoline_range(target, internalformat, buffer, static_cast<GLintptr>(api_desc.buffer_offset), static_cast<GLsizeiptr>(api_desc.buffer_size));
+			trampoline_range(target, internalformat, buffer, offset, size);
 			return;
 		}
 	}
@@ -1841,12 +1863,18 @@ HOOK_EXPORT void WINAPI glStencilOp(GLenum fail, GLenum zfail, GLenum zpass)
 		RESHADE_ADDON_EVENT(create_resource_view, g_current_runtime, reshade::api::resource_handle { (static_cast<uint64_t>(GL_BUFFER) << 40) | buffer }, reshade::api::resource_view_type::unknown, &api_desc);
 		internalformat = api_desc.format;
 
-		if (api_desc.buffer_offset != 0 || api_desc.buffer_size != 0)
+		if (api_desc.first_level != 0 || api_desc.levels != 0)
 		{
-			assert(api_desc.buffer_offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()));
-			assert(api_desc.buffer_size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
+#ifdef _WIN64
+			const GLintptr offset = api_desc.first_level | static_cast<uint64_t>(api_desc.first_layer) << 32;
+			const GLsizeiptr size = api_desc.levels | static_cast<uint64_t>(api_desc.layers) << 32;
+#else
+			const GLintptr offset = api_desc.first_level;
+			const GLsizeiptr size = api_desc.levels;
+			assert(api_desc.first_layer == 0 && api_desc.layers == 0);
+#endif
 			const auto trampoline_range = reshade::hooks::call(glTextureBufferRange);
-			trampoline_range(texture, internalformat, buffer, static_cast<GLintptr>(api_desc.buffer_offset), static_cast<GLsizeiptr>(api_desc.buffer_size));
+			trampoline_range(texture, internalformat, buffer, offset, size);
 			return;
 		}
 	}
@@ -1863,14 +1891,22 @@ HOOK_EXPORT void WINAPI glStencilOp(GLenum fail, GLenum zfail, GLenum zpass)
 	{
 		reshade::api::resource_view_desc api_desc = { reshade::opengl::convert_resource_view_dimension(target) };
 		api_desc.format = internalformat;
-		api_desc.buffer_offset = offset;
-		api_desc.buffer_size = size;
+		api_desc.first_level = offset & 0xFFFFFFFF;
+		api_desc.levels = size & 0xFFFFFFFF;
+#ifdef _WIN64
+		api_desc.first_layer = (offset >> 32) & 0xFFFFFFFF;
+		api_desc.layers = (size >> 32) & 0xFFFFFFFF;
+#endif
 		RESHADE_ADDON_EVENT(create_resource_view, g_current_runtime, reshade::api::resource_handle { (static_cast<uint64_t>(GL_BUFFER) << 40) | buffer }, reshade::api::resource_view_type::unknown, &api_desc);
+#ifdef _WIN64
+		size = api_desc.levels | static_cast<uint64_t>(api_desc.layers) << 32;
+		offset = api_desc.first_level | static_cast<uint64_t>(api_desc.first_layer) << 32;
+#else
+		size = api_desc.levels;
+		offset = api_desc.first_level;
+		assert(api_desc.first_layer == 0 && api_desc.layers == 0);
+#endif
 		internalformat = api_desc.format;
-		assert(api_desc.buffer_offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()));
-		offset = static_cast<GLintptr>(api_desc.buffer_offset);
-		assert(api_desc.buffer_size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
-		size = static_cast<GLsizeiptr>(api_desc.buffer_size);
 	}
 #endif
 
@@ -1884,14 +1920,22 @@ HOOK_EXPORT void WINAPI glStencilOp(GLenum fail, GLenum zfail, GLenum zpass)
 	{
 		reshade::api::resource_view_desc api_desc = { reshade::api::resource_view_dimension::buffer };
 		api_desc.format = internalformat;
-		api_desc.buffer_offset = offset;
-		api_desc.buffer_size = size;
+		api_desc.first_level = offset & 0xFFFFFFFF;
+		api_desc.levels = size & 0xFFFFFFFF;
+#ifdef _WIN64
+		api_desc.first_layer = (offset >> 32) & 0xFFFFFFFF;
+		api_desc.layers = (size >> 32) & 0xFFFFFFFF;
+#endif
 		RESHADE_ADDON_EVENT(create_resource_view, g_current_runtime, reshade::api::resource_handle { (static_cast<uint64_t>(GL_BUFFER) << 40) | buffer }, reshade::api::resource_view_type::unknown, &api_desc);
+#ifdef _WIN64
+		size = api_desc.levels | static_cast<uint64_t>(api_desc.layers) << 32;
+		offset = api_desc.first_level | static_cast<uint64_t>(api_desc.first_layer) << 32;
+#else
+		size = api_desc.levels;
+		offset = api_desc.first_level;
+		assert(api_desc.first_layer == 0 && api_desc.layers == 0);
+#endif
 		internalformat = api_desc.format;
-		assert(api_desc.buffer_offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()));
-		offset = static_cast<GLintptr>(api_desc.buffer_offset);
-		assert(api_desc.buffer_size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
-		size = static_cast<GLsizeiptr>(api_desc.buffer_size);
 	}
 #endif
 

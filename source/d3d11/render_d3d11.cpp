@@ -69,8 +69,8 @@ static inline void convert_bind_flags_to_usage(const UINT bind_flags, resource_u
 
 void reshade::d3d11::convert_resource_desc(const resource_desc &desc, D3D11_BUFFER_DESC &internal_desc)
 {
-	assert(desc.buffer_size <= std::numeric_limits<UINT>::max());
-	internal_desc.ByteWidth = static_cast<UINT>(desc.buffer_size);
+	assert(desc.height == 0);
+	internal_desc.ByteWidth = desc.width;
 	convert_usage_to_bind_flags(desc.usage, internal_desc.BindFlags);
 }
 void reshade::d3d11::convert_resource_desc(const resource_desc &desc, D3D11_TEXTURE1D_DESC &internal_desc)
@@ -106,7 +106,7 @@ void reshade::d3d11::convert_resource_desc(const resource_desc &desc, D3D11_TEXT
 resource_desc reshade::d3d11::convert_resource_desc(const D3D11_BUFFER_DESC &internal_desc)
 {
 	resource_desc desc = {};
-	desc.buffer_size = internal_desc.ByteWidth;
+	desc.width = internal_desc.ByteWidth;
 	convert_bind_flags_to_usage(internal_desc.BindFlags, desc.usage);
 	return desc;
 }
@@ -266,10 +266,9 @@ void reshade::d3d11::convert_resource_view_desc(const resource_view_desc &desc, 
 	{
 	case resource_view_dimension::buffer:
 		internal_desc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
-		assert(desc.buffer_offset <= std::numeric_limits<UINT>::max());
-		internal_desc.Buffer.FirstElement = static_cast<UINT>(desc.buffer_offset);
-		assert(desc.buffer_size <= std::numeric_limits<UINT>::max());
-		internal_desc.Buffer.NumElements = static_cast<UINT>(desc.buffer_size);
+		assert(desc.first_layer == 0 && desc.layers == 0);
+		internal_desc.Buffer.FirstElement = desc.first_level;
+		internal_desc.Buffer.NumElements = desc.levels;
 		break;
 	case resource_view_dimension::texture_1d:
 		internal_desc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE1D;
@@ -358,10 +357,9 @@ void reshade::d3d11::convert_resource_view_desc(const resource_view_desc &desc, 
 	{
 	case resource_view_dimension::buffer:
 		internal_desc.ViewDimension = D3D11_UAV_DIMENSION_BUFFER;
-		assert(desc.buffer_offset <= std::numeric_limits<UINT>::max());
-		internal_desc.Buffer.FirstElement = static_cast<UINT>(desc.buffer_offset);
-		assert(desc.buffer_size <= std::numeric_limits<UINT>::max());
-		internal_desc.Buffer.NumElements = static_cast<UINT>(desc.buffer_size);
+		assert(desc.first_layer == 0 && desc.layers == 0);
+		internal_desc.Buffer.FirstElement = desc.first_level;
+		internal_desc.Buffer.NumElements = desc.levels;
 		break;
 	case resource_view_dimension::texture_1d:
 		internal_desc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE1D;
@@ -538,8 +536,8 @@ resource_view_desc reshade::d3d11::convert_resource_view_desc(const D3D11_SHADER
 	{
 	case D3D11_SRV_DIMENSION_BUFFER:
 		desc.dimension = resource_view_dimension::buffer;
-		desc.buffer_offset = internal_desc.Buffer.FirstElement;
-		desc.buffer_size = internal_desc.Buffer.NumElements;
+		desc.first_level = internal_desc.Buffer.FirstElement;
+		desc.levels = internal_desc.Buffer.NumElements;
 		break;
 	case D3D11_SRV_DIMENSION_TEXTURE1D:
 		desc.dimension = resource_view_dimension::texture_1d;
@@ -592,8 +590,8 @@ resource_view_desc reshade::d3d11::convert_resource_view_desc(const D3D11_SHADER
 		break;
 	case D3D11_SRV_DIMENSION_BUFFEREX:
 		// Do not set dimension to 'resource_view_dimension::buffer', so that flags field is kept later during conversion into the other direction
-		desc.buffer_offset = internal_desc.BufferEx.FirstElement;
-		desc.buffer_size = internal_desc.BufferEx.NumElements;
+		desc.first_level = internal_desc.BufferEx.FirstElement;
+		desc.levels = internal_desc.BufferEx.NumElements;
 		// Missing fields: D3D11_BUFFEREX_SRV::Flags
 		break;
 	}
@@ -638,8 +636,8 @@ resource_view_desc reshade::d3d11::convert_resource_view_desc(const D3D11_UNORDE
 	{
 	case D3D11_UAV_DIMENSION_BUFFER:
 		desc.dimension = resource_view_dimension::buffer;
-		desc.buffer_offset = internal_desc.Buffer.FirstElement;
-		desc.buffer_size = internal_desc.Buffer.NumElements;
+		desc.first_level = internal_desc.Buffer.FirstElement;
+		desc.levels = internal_desc.Buffer.NumElements;
 		// Missing fields: D3D11_BUFFER_UAV::Flags
 		break;
 	case D3D11_UAV_DIMENSION_TEXTURE1D:

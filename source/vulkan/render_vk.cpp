@@ -184,13 +184,14 @@ static void convert_buffer_usage_flags_to_usage(const VkBufferUsageFlags buffer_
 
 void reshade::vulkan::convert_resource_desc(const resource_desc &desc, VkBufferCreateInfo &create_info)
 {
-	create_info.size = desc.buffer_size;
+	create_info.size = desc.width | (static_cast<uint64_t>(desc.height) << 32);
 	convert_usage_to_buffer_usage_flags(desc.usage, create_info.usage);
 }
 resource_desc reshade::vulkan::convert_resource_desc(const VkBufferCreateInfo &create_info)
 {
 	resource_desc desc = {};
-	desc.buffer_size = create_info.size;
+	desc.width = create_info.size & 0xFFFFFFFF;
+	desc.height = (create_info.size >> 32) & 0xFFFFFFFF;
 	convert_buffer_usage_flags_to_usage(create_info.usage, desc.usage);
 	return desc;
 }
@@ -300,8 +301,8 @@ void reshade::vulkan::convert_resource_view_desc(const resource_view_desc &desc,
 {
 	assert(desc.dimension == resource_view_dimension::buffer);
 	create_info.format = static_cast<VkFormat>(desc.format);
-	create_info.offset = desc.buffer_offset;
-	create_info.range = desc.buffer_size;
+	create_info.offset = desc.first_level | (static_cast<uint64_t>(desc.first_layer) << 32);
+	create_info.range = desc.levels | (static_cast<uint64_t>(desc.layers) << 32);
 }
 resource_view_desc reshade::vulkan::convert_resource_view_desc(const VkImageViewCreateInfo &create_info)
 {
@@ -343,8 +344,10 @@ resource_view_desc reshade::vulkan::convert_resource_view_desc(const VkBufferVie
 {
 	resource_view_desc desc = { resource_view_dimension::buffer };
 	desc.format = static_cast<uint32_t>(create_info.format);
-	desc.buffer_offset = create_info.offset;
-	desc.buffer_size = create_info.range;
+	desc.first_level = create_info.offset & 0xFFFFFFFF;
+	desc.first_layer = (create_info.offset >> 32) & 0xFFFFFFFF;
+	desc.levels = create_info.range & 0xFFFFFFFF;
+	desc.layers = (create_info.range >> 32) & 0xFFFFFFFF;
 	return desc;
 }
 
