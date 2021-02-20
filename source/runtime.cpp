@@ -128,6 +128,28 @@ bool reshade::runtime::on_init(input::window_handle window)
 
 	return true;
 }
+
+bool reshade::runtime::on_init_vr()
+{
+	assert(!_is_initialized);
+
+	// FIXME: fake input
+	_input.reset(new input(this));
+
+	// Reset frame count to zero so effects are loaded in 'update_and_render_effects'
+	_framecount = 0;
+
+	_is_initialized = true;
+	_last_reload_time = std::chrono::high_resolution_clock::now();
+
+	_preset_save_success = true;
+	_screenshot_save_success = true;
+
+	LOG(INFO) << "Recreated runtime environment on runtime " << this << '.';
+
+	return true;
+}
+
 void reshade::runtime::on_reset()
 {
 	if (_is_initialized)

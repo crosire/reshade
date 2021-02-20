@@ -19,7 +19,7 @@ namespace reshade::d3d11
 		~runtime_d3d11();
 
 		bool on_init(IDXGISwapChain *swapchain);
-		bool on_init(uint32_t width, uint32_t height, DXGI_FORMAT format);
+		bool on_init_vr(uint32_t width, uint32_t height, DXGI_FORMAT format);
 		void on_reset();
 		void on_present();
 		void on_submit_vr();

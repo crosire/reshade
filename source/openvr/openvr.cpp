@@ -2,19 +2,11 @@
 #include "hook_manager.hpp"
 #include "openvr_runtime_d3d11.hpp"
 
-#include <d3d11.h>
-
-thread_local reshade::openvr::openvr_runtime_d3d11 *vr_runtime_d3d11 = nullptr;
+reshade::openvr::openvr_runtime_d3d11 *vr_runtime_d3d11 = nullptr;
 
 reshade::hook::address *as_vtable(void *instance)
 {
 	return *static_cast<reshade::hook::address **>(instance);
-}
-
-reshade::openvr::openvr_runtime_d3d11 *create_vr_runtime_d3d11( const vr::Texture_t * pTexture, const vr::VRTextureBounds_t * pBounds )
-{
-	ID3D11Texture2D *texture = static_cast<ID3D11Texture2D *>(pTexture->handle);
-	
 }
 
 vr::EVRCompositorError IVRCompositor_Submit(void *ivrCompositor, vr::EVREye eEye, const vr::Texture_t *pTexture, const vr::VRTextureBounds_t* pBounds, vr::EVRSubmitFlags nSubmitFlags)

@@ -57,7 +57,6 @@ namespace reshade::openvr
 			left_eye_bounds.uMax = right_eye_bounds.uMin = .5f;
 			left_eye_bounds.vMax = right_eye_bounds.uMax = right_eye_bounds.vMax = 1;
 
-			LOG(DEBUG) << "VR: Submitting both eyes to the compositor";
 			_orig_submit(_orig_compositor, vr::Eye_Left, &tex, &left_eye_bounds, vr::Submit_Default);
 			_orig_submit(_orig_compositor, vr::Eye_Right, &tex, &right_eye_bounds, vr::Submit_Default);
 

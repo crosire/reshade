@@ -128,7 +128,7 @@ reshade::d3d11::runtime_d3d11::runtime_d3d11( ID3D11Device *device, uint32_t wid
 		}
 	}
 	
-	if (!on_init(width, height, format))
+	if (!on_init_vr(width, height, format))
 		LOG(ERROR) << "Failed to initialize Direct3D 11 runtime environment on runtime " << this << '!';
 }
 
@@ -259,10 +259,8 @@ bool reshade::d3d11::runtime_d3d11::on_init(IDXGISwapChain *swapchain)
 	return runtime::on_init(swap_desc.OutputWindow);
 }
 
-bool reshade::d3d11::runtime_d3d11::on_init(uint32_t width, uint32_t height, DXGI_FORMAT format)
+bool reshade::d3d11::runtime_d3d11::on_init_vr(uint32_t width, uint32_t height, DXGI_FORMAT format)
 {
-	assert(!_is_initialized);
-
 	_width = width;
 	_height = height;
 	_window_width = width;
@@ -352,15 +350,7 @@ bool reshade::d3d11::runtime_d3d11::on_init(uint32_t width, uint32_t height, DXG
 		return false;
 #endif
 
-	
-
-	// Reset frame count to zero so effects are loaded in 'update_and_render_effects'
-	_framecount = 0;
-	_is_initialized = true;
-
-	LOG(INFO) << "Recreated runtime environment on runtime " << this << '.';
-
-	return true;
+	return runtime::on_init_vr();
 }
 
 void reshade::d3d11::runtime_d3d11::on_reset()
