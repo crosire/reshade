@@ -85,6 +85,7 @@
     <Import Project="deps\SPIRV.props" />
     <Import Project="deps\Vulkan.props" />
     <Import Project="deps\D3D12On7.props" />
+    <Import Project="deps\OpenVR.props" />
   </ImportGroup>
   <PropertyGroup>
     <ExecutablePath>$(SolutionDir)tools;$(ExecutablePath)</ExecutablePath>
@@ -480,7 +481,6 @@
     <ClInclude Include="source\opengl\runtime_gl.hpp" />
     <ClInclude Include="source\opengl\state_block_gl.hpp" />
     <ClInclude Include="source\opengl\state_tracking.hpp" />
-    <ClInclude Include="source\openvr\openvr_defs.hpp" />
     <ClInclude Include="source\runtime.hpp" />
     <ClInclude Include="source\runtime_objects.hpp" />
     <ClInclude Include="source\vulkan\format_utils.hpp" />

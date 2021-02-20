@@ -383,9 +383,6 @@
     <ClInclude Include="res\version.h">
       <Filter>resources</Filter>
     </ClInclude>
-    <ClInclude Include="source\openvr\openvr_defs.hpp">
-      <Filter>hooks\openvr</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="res\resource.rc">

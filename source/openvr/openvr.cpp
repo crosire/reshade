@@ -1,6 +1,6 @@
 #include "dll_log.hpp"
 #include "hook_manager.hpp"
-#include "openvr_defs.hpp"
+#include "openvr.h"
 
 reshade::hook::address *as_vtable(void *instance)
 {
