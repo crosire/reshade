@@ -249,7 +249,8 @@ HOOK_EXPORT int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPT
 }
 HOOK_EXPORT int   WINAPI wglGetPixelFormat(HDC hdc)
 {
-	return reshade::hooks::call(wglGetPixelFormat)(hdc);
+	static const auto trampoline = reshade::hooks::call(wglGetPixelFormat);
+	return trampoline(hdc);
 }
 			BOOL  WINAPI wglGetPixelFormatAttribivARB(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, int *piValues)
 {
@@ -1124,68 +1125,68 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		return reinterpret_cast<PROC>(glViewport);
 	else if (!s_hooks_installed)
 	{
-#define INSTALL_HOOK(name) \
+#define HOOK_PROC(name) \
 	reshade::hooks::install(#name, reinterpret_cast<reshade::hook::address>(trampoline(#name)), reinterpret_cast<reshade::hook::address>(name), true)
 
 		// Install all OpenGL hooks in a single batch job
 #if RESHADE_ADDON
-		INSTALL_HOOK(glBindFramebuffer);
-		INSTALL_HOOK(glBufferData);
-		INSTALL_HOOK(glBufferStorage);
-		INSTALL_HOOK(glClearBufferfv);
-		INSTALL_HOOK(glClearBufferfi);
-		INSTALL_HOOK(glClearNamedFramebufferfv);
-		INSTALL_HOOK(glClearNamedFramebufferfi);
-		INSTALL_HOOK(glDispatchCompute);
-		INSTALL_HOOK(glDispatchComputeIndirect);
-		INSTALL_HOOK(glDrawArraysIndirect);
-		INSTALL_HOOK(glDrawArraysInstanced);
-		INSTALL_HOOK(glDrawArraysInstancedBaseInstance);
-		INSTALL_HOOK(glDrawElementsBaseVertex);
-		INSTALL_HOOK(glDrawElementsIndirect);
-		INSTALL_HOOK(glDrawElementsInstanced);
-		INSTALL_HOOK(glDrawElementsInstancedBaseVertex);
-		INSTALL_HOOK(glDrawElementsInstancedBaseInstance);
-		INSTALL_HOOK(glDrawElementsInstancedBaseVertexBaseInstance);
-		INSTALL_HOOK(glDrawRangeElements);
-		INSTALL_HOOK(glDrawRangeElementsBaseVertex);
-		INSTALL_HOOK(glMultiDrawArrays);
-		INSTALL_HOOK(glMultiDrawArraysIndirect);
-		INSTALL_HOOK(glMultiDrawElements);
-		INSTALL_HOOK(glMultiDrawElementsBaseVertex);
-		INSTALL_HOOK(glMultiDrawElementsIndirect);
-		INSTALL_HOOK(glNamedBufferData);
-		INSTALL_HOOK(glNamedBufferStorage);
-		INSTALL_HOOK(glScissorArrayv);
-		INSTALL_HOOK(glScissorIndexed);
-		INSTALL_HOOK(glScissorIndexedv);
-		INSTALL_HOOK(glTexBuffer);
-		INSTALL_HOOK(glTextureBuffer);
-		INSTALL_HOOK(glTexBufferRange);
-		INSTALL_HOOK(glTextureBufferRange);
-		INSTALL_HOOK(glTexImage3D);
-		INSTALL_HOOK(glTexStorage1D);
-		INSTALL_HOOK(glTexStorage2D);
-		INSTALL_HOOK(glTexStorage3D);
-		INSTALL_HOOK(glTextureStorage1D);
-		INSTALL_HOOK(glTextureStorage2D);
-		INSTALL_HOOK(glTextureStorage3D);
-		INSTALL_HOOK(glTextureView);
-		INSTALL_HOOK(glViewportArrayv);
-		INSTALL_HOOK(glViewportIndexedf);
-		INSTALL_HOOK(glViewportIndexedfv);
+		HOOK_PROC(glBindFramebuffer);
+		HOOK_PROC(glBufferData);
+		HOOK_PROC(glBufferStorage);
+		HOOK_PROC(glClearBufferfv);
+		HOOK_PROC(glClearBufferfi);
+		HOOK_PROC(glClearNamedFramebufferfv);
+		HOOK_PROC(glClearNamedFramebufferfi);
+		HOOK_PROC(glDispatchCompute);
+		HOOK_PROC(glDispatchComputeIndirect);
+		HOOK_PROC(glDrawArraysIndirect);
+		HOOK_PROC(glDrawArraysInstanced);
+		HOOK_PROC(glDrawArraysInstancedBaseInstance);
+		HOOK_PROC(glDrawElementsBaseVertex);
+		HOOK_PROC(glDrawElementsIndirect);
+		HOOK_PROC(glDrawElementsInstanced);
+		HOOK_PROC(glDrawElementsInstancedBaseVertex);
+		HOOK_PROC(glDrawElementsInstancedBaseInstance);
+		HOOK_PROC(glDrawElementsInstancedBaseVertexBaseInstance);
+		HOOK_PROC(glDrawRangeElements);
+		HOOK_PROC(glDrawRangeElementsBaseVertex);
+		HOOK_PROC(glMultiDrawArrays);
+		HOOK_PROC(glMultiDrawArraysIndirect);
+		HOOK_PROC(glMultiDrawElements);
+		HOOK_PROC(glMultiDrawElementsBaseVertex);
+		HOOK_PROC(glMultiDrawElementsIndirect);
+		HOOK_PROC(glNamedBufferData);
+		HOOK_PROC(glNamedBufferStorage);
+		HOOK_PROC(glScissorArrayv);
+		HOOK_PROC(glScissorIndexed);
+		HOOK_PROC(glScissorIndexedv);
+		HOOK_PROC(glTexBuffer);
+		HOOK_PROC(glTextureBuffer);
+		HOOK_PROC(glTexBufferRange);
+		HOOK_PROC(glTextureBufferRange);
+		HOOK_PROC(glTexImage3D);
+		HOOK_PROC(glTexStorage1D);
+		HOOK_PROC(glTexStorage2D);
+		HOOK_PROC(glTexStorage3D);
+		HOOK_PROC(glTextureStorage1D);
+		HOOK_PROC(glTextureStorage2D);
+		HOOK_PROC(glTextureStorage3D);
+		HOOK_PROC(glTextureView);
+		HOOK_PROC(glViewportArrayv);
+		HOOK_PROC(glViewportIndexedf);
+		HOOK_PROC(glViewportIndexedfv);
 #endif
-		INSTALL_HOOK(wglChoosePixelFormatARB);
-		INSTALL_HOOK(wglCreateContextAttribsARB);
-		INSTALL_HOOK(wglCreatePbufferARB);
-		INSTALL_HOOK(wglDestroyPbufferARB);
-		INSTALL_HOOK(wglGetPbufferDCARB);
-		INSTALL_HOOK(wglGetPixelFormatAttribivARB);
-		INSTALL_HOOK(wglGetPixelFormatAttribfvARB);
-		INSTALL_HOOK(wglQueryPbufferARB);
-		INSTALL_HOOK(wglReleasePbufferDCARB);
-		INSTALL_HOOK(wglGetSwapIntervalEXT);
-		INSTALL_HOOK(wglSwapIntervalEXT);
+		HOOK_PROC(wglChoosePixelFormatARB);
+		HOOK_PROC(wglCreateContextAttribsARB);
+		HOOK_PROC(wglCreatePbufferARB);
+		HOOK_PROC(wglDestroyPbufferARB);
+		HOOK_PROC(wglGetPbufferDCARB);
+		HOOK_PROC(wglGetPixelFormatAttribivARB);
+		HOOK_PROC(wglGetPixelFormatAttribfvARB);
+		HOOK_PROC(wglQueryPbufferARB);
+		HOOK_PROC(wglReleasePbufferDCARB);
+		HOOK_PROC(wglGetSwapIntervalEXT);
+		HOOK_PROC(wglSwapIntervalEXT);
 
 		reshade::hook::apply_queued_actions();
 

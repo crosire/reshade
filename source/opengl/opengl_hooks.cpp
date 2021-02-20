@@ -22,7 +22,7 @@ HOOK_EXPORT void WINAPI glAlphaFunc(GLenum func, GLclampf ref)
 	trampoline(func, ref);
 }
 
-HOOK_EXPORT GLboolean WINAPI glAreTexturesResident(GLsizei n, const GLuint *textures, GLboolean *residences)
+HOOK_EXPORT auto WINAPI glAreTexturesResident(GLsizei n, const GLuint *textures, GLboolean *residences) -> GLboolean
 {
 	static const auto trampoline = reshade::hooks::call(glAreTexturesResident);
 	return trampoline(n, textures, residences);
@@ -162,8 +162,11 @@ HOOK_EXPORT void WINAPI glClear(GLbitfield mask)
 			if ((mask & GL_STENCIL_BUFFER_BIT) != 0)
 				clear_flags |= 0x2;
 
-			const reshade::api::resource_view_handle dsv = g_current_runtime->get_depth_stencil_from_fbo(fbo);
-			RESHADE_ADDON_EVENT(clear_depth_stencil, g_current_runtime, dsv, clear_flags, depth_value, static_cast<uint8_t>(stencil_value));
+			reshade::api::resource_view_handle dsv;
+			if ((dsv = g_current_runtime->get_depth_stencil_from_fbo(fbo)) != 0)
+			{
+				RESHADE_ADDON_EVENT(clear_depth_stencil, g_current_runtime, dsv, clear_flags, depth_value, static_cast<uint8_t>(stencil_value));
+			}
 		}
 	}
 #endif
@@ -583,16 +586,24 @@ HOOK_EXPORT void WINAPI glDrawBuffer(GLenum mode)
 
 HOOK_EXPORT void WINAPI glDrawElements(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices)
 {
-	if (g_current_runtime)
+#if RESHADE_ADDON
+	GLint buffer = 0;
+	glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &buffer); // 'indices' is an offset into the index buffer only if an index buffer is bound
+	if (g_current_runtime && buffer != 0)
 		RESHADE_ADDON_EVENT(draw_indexed, g_current_runtime, count, 1, static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices)), 0, 0);
+#endif
 
 	static const auto trampoline = reshade::hooks::call(glDrawElements);
 	trampoline(mode, count, type, indices);
 }
 			void WINAPI glDrawElementsBaseVertex(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLint basevertex)
 {
-	if (g_current_runtime)
+#if RESHADE_ADDON
+	GLint buffer = 0;
+	glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &buffer);
+	if (g_current_runtime && buffer != 0)
 		RESHADE_ADDON_EVENT(draw_indexed, g_current_runtime, count, 1, static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices)), basevertex, 0);
+#endif
 
 	static const auto trampoline = reshade::hooks::call(glDrawElementsBaseVertex);
 	trampoline(mode, count, type, indices, basevertex);
@@ -601,7 +612,7 @@ HOOK_EXPORT void WINAPI glDrawElements(GLenum mode, GLsizei count, GLenum type, 
 {
 #if RESHADE_ADDON
 	GLint buffer = 0;
-	glGetIntegerv(GL_DRAW_INDIRECT_BUFFER_BINDING, &buffer);
+	glGetIntegerv(GL_DRAW_INDIRECT_BUFFER_BINDING, &buffer); // 'indirect' is an offset into the indirect buffer only if an indirect buffer is bound
 	if (g_current_runtime && buffer != 0)
 		RESHADE_ADDON_EVENT(draw_or_dispatch_indirect, g_current_runtime, reshade::addon_event::draw_indexed, reshade::api::resource_handle { (static_cast<uint64_t>(GL_DRAW_INDIRECT_BUFFER) << 40) | buffer }, reinterpret_cast<uintptr_t>(indirect), 1, 0);
 #endif
@@ -611,32 +622,48 @@ HOOK_EXPORT void WINAPI glDrawElements(GLenum mode, GLsizei count, GLenum type, 
 }
 			void WINAPI glDrawElementsInstanced(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount)
 {
-	if (g_current_runtime)
+#if RESHADE_ADDON
+	GLint buffer = 0;
+	glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &buffer);
+	if (g_current_runtime && buffer != 0)
 		RESHADE_ADDON_EVENT(draw_indexed, g_current_runtime, primcount, count, static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices)), 0, 0);
+#endif
 
 	static const auto trampoline = reshade::hooks::call(glDrawElementsInstanced);
 	trampoline(mode, count, type, indices, primcount);
 }
 			void WINAPI glDrawElementsInstancedBaseVertex(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount, GLint basevertex)
 {
-	if (g_current_runtime)
+#if RESHADE_ADDON
+	GLint buffer = 0;
+	glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &buffer);
+	if (g_current_runtime && buffer != 0)
 		RESHADE_ADDON_EVENT(draw_indexed, g_current_runtime, primcount, count, static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices)), basevertex, 0);
+#endif
 
 	static const auto trampoline = reshade::hooks::call(glDrawElementsInstancedBaseVertex);
 	trampoline(mode, count, type, indices, primcount, basevertex);
 }
 			void WINAPI glDrawElementsInstancedBaseInstance(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount, GLuint baseinstance)
 {
-	if (g_current_runtime)
+#if RESHADE_ADDON
+	GLint buffer = 0;
+	glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &buffer);
+	if (g_current_runtime && buffer != 0)
 		RESHADE_ADDON_EVENT(draw_indexed, g_current_runtime, primcount, count, static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices)), 0, baseinstance);
+#endif
 
 	static const auto trampoline = reshade::hooks::call(glDrawElementsInstancedBaseInstance);
 	trampoline(mode, count, type, indices, primcount, baseinstance);
 }
 			void WINAPI glDrawElementsInstancedBaseVertexBaseInstance(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount, GLint basevertex, GLuint baseinstance)
 {
-	if (g_current_runtime)
+#if RESHADE_ADDON
+	GLint buffer = 0;
+	glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &buffer);
+	if (g_current_runtime && buffer != 0)
 		RESHADE_ADDON_EVENT(draw_indexed, g_current_runtime, primcount, count, static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices)), basevertex, baseinstance);
+#endif
 
 	static const auto trampoline = reshade::hooks::call(glDrawElementsInstancedBaseVertexBaseInstance);
 	trampoline(mode, count, type, indices, primcount, basevertex, baseinstance);
@@ -650,16 +677,24 @@ HOOK_EXPORT void WINAPI glDrawPixels(GLsizei width, GLsizei height, GLenum forma
 
 			void WINAPI glDrawRangeElements(GLenum mode, GLuint start, GLuint end, GLsizei count, GLenum type, const GLvoid *indices)
 {
-	if (g_current_runtime)
+#if RESHADE_ADDON
+	GLint buffer = 0;
+	glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &buffer);
+	if (g_current_runtime && buffer != 0)
 		RESHADE_ADDON_EVENT(draw_indexed, g_current_runtime, count, 1, static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices)), 0, 0);
+#endif
 
 	static const auto trampoline = reshade::hooks::call(glDrawRangeElements);
 	trampoline(mode, start, end, count, type, indices);
 }
 			void WINAPI glDrawRangeElementsBaseVertex(GLenum mode, GLuint start, GLuint end, GLsizei count, GLenum type, const GLvoid *indices, GLint basevertex)
 {
-	if (g_current_runtime)
+#if RESHADE_ADDON
+	GLint buffer = 0;
+	glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &buffer);
+	if (g_current_runtime && buffer != 0)
 		RESHADE_ADDON_EVENT(draw_indexed, g_current_runtime, count, 1, static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices)), basevertex, 0);
+#endif
 
 	static const auto trampoline = reshade::hooks::call(glDrawRangeElementsBaseVertex);
 	trampoline(mode, start, end, count, type, indices, basevertex);
@@ -823,7 +858,7 @@ HOOK_EXPORT void WINAPI glFrustum(GLdouble left, GLdouble right, GLdouble bottom
 	trampoline(left, right, bottom, top, zNear, zFar);
 }
 
-HOOK_EXPORT GLuint WINAPI glGenLists(GLsizei range)
+HOOK_EXPORT auto WINAPI glGenLists(GLsizei range) -> GLuint
 {
 	static const auto trampoline = reshade::hooks::call(glGenLists);
 	return trampoline(range);
@@ -862,7 +897,7 @@ HOOK_EXPORT void WINAPI glGetClipPlane(GLenum plane, GLdouble *equation)
 	trampoline(plane, equation);
 }
 
-HOOK_EXPORT GLenum WINAPI glGetError()
+HOOK_EXPORT auto WINAPI glGetError() -> GLenum
 {
 	static const auto trampoline = reshade::hooks::call(glGetError);
 	return trampoline();
@@ -934,7 +969,7 @@ HOOK_EXPORT void WINAPI glGetPolygonStipple(GLubyte *mask)
 	trampoline(mask);
 }
 
-HOOK_EXPORT const GLubyte *WINAPI glGetString(GLenum name)
+HOOK_EXPORT auto WINAPI glGetString(GLenum name) -> const GLubyte *
 {
 	static const auto trampoline = reshade::hooks::call(glGetString);
 	return trampoline(name);
@@ -1075,18 +1110,19 @@ HOOK_EXPORT void WINAPI glInterleavedArrays(GLenum format, GLsizei stride, const
 	trampoline(format, stride, pointer);
 }
 
-HOOK_EXPORT GLboolean WINAPI glIsEnabled(GLenum cap)
+HOOK_EXPORT auto WINAPI glIsEnabled(GLenum cap) -> GLboolean
 {
 	static const auto trampoline = reshade::hooks::call(glIsEnabled);
 	return trampoline(cap);
 }
 
-HOOK_EXPORT GLboolean WINAPI glIsList(GLuint list)
+HOOK_EXPORT auto WINAPI glIsList(GLuint list) -> GLboolean
 {
 	static const auto trampoline = reshade::hooks::call(glIsList);
 	return trampoline(list);
 }
-HOOK_EXPORT GLboolean WINAPI glIsTexture(GLuint texture)
+
+HOOK_EXPORT auto WINAPI glIsTexture(GLuint texture) -> GLboolean
 {
 	static const auto trampoline = reshade::hooks::call(glIsTexture);
 	return trampoline(texture);
@@ -1282,18 +1318,26 @@ HOOK_EXPORT void WINAPI glMultMatrixf(const GLfloat *m)
 }
 			void WINAPI glMultiDrawElements(GLenum mode, const GLsizei *count, GLenum type, const GLvoid *const *indices, GLsizei drawcount)
 {
-	if (g_current_runtime)
+#if RESHADE_ADDON
+	GLint buffer = 0;
+	glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &buffer);
+	if (g_current_runtime && buffer != 0)
 		for (GLsizei i = 0; i < drawcount; ++i)
 			RESHADE_ADDON_EVENT(draw_indexed, g_current_runtime, count[i], 1, static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices[i])), 0, 0);
+#endif
 
 	static const auto trampoline = reshade::hooks::call(glMultiDrawElements);
 	trampoline(mode, count, type, indices, drawcount);
 }
 			void WINAPI glMultiDrawElementsBaseVertex(GLenum mode, const GLsizei *count, GLenum type, const GLvoid *const *indices, GLsizei drawcount, const GLint *basevertex)
 {
-	if (g_current_runtime)
+#if RESHADE_ADDON
+	GLint buffer = 0;
+	glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &buffer);
+	if (g_current_runtime && buffer != 0)
 		for (GLsizei i = 0; i < drawcount; ++i)
 			RESHADE_ADDON_EVENT(draw_indexed, g_current_runtime, count[i], 1, static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices[i])), basevertex[i], 0);
+#endif
 
 	static const auto trampoline = reshade::hooks::call(glMultiDrawElementsBaseVertex);
 	trampoline(mode, count, type, indices, drawcount, basevertex);
@@ -1502,11 +1546,13 @@ HOOK_EXPORT void WINAPI glPopClientAttrib()
 	static const auto trampoline = reshade::hooks::call(glPopClientAttrib);
 	trampoline();
 }
+
 HOOK_EXPORT void WINAPI glPopMatrix()
 {
 	static const auto trampoline = reshade::hooks::call(glPopMatrix);
 	trampoline();
 }
+
 HOOK_EXPORT void WINAPI glPopName()
 {
 	static const auto trampoline = reshade::hooks::call(glPopName);
@@ -1529,11 +1575,13 @@ HOOK_EXPORT void WINAPI glPushClientAttrib(GLbitfield mask)
 	static const auto trampoline = reshade::hooks::call(glPushClientAttrib);
 	trampoline(mask);
 }
+
 HOOK_EXPORT void WINAPI glPushMatrix()
 {
 	static const auto trampoline = reshade::hooks::call(glPushMatrix);
 	trampoline();
 }
+
 HOOK_EXPORT void WINAPI glPushName(GLuint name)
 {
 	static const auto trampoline = reshade::hooks::call(glPushName);
@@ -1715,7 +1763,7 @@ HOOK_EXPORT void WINAPI glRectsv(const GLshort *v1, const GLshort *v2)
 	trampoline(v1, v2);
 }
 
-HOOK_EXPORT GLint WINAPI glRenderMode(GLenum mode)
+HOOK_EXPORT auto WINAPI glRenderMode(GLenum mode) -> GLint
 {
 	static const auto trampoline = reshade::hooks::call(glRenderMode);
 	return trampoline(mode);
@@ -2193,8 +2241,8 @@ HOOK_EXPORT void WINAPI glTexImage1D(GLenum target, GLint level, GLint internalf
 		reshade::api::resource_type api_type = reshade::opengl::convert_resource_type(target);
 		reshade::api::resource_desc api_desc = reshade::opengl::convert_resource_desc(api_type, 1, static_cast<GLenum>(internalformat), width);
 		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, api_type, &api_desc);
-		internalformat = api_desc.format;
 		width = api_desc.width;
+		internalformat = api_desc.format;
 	}
 #endif
 
@@ -2233,9 +2281,9 @@ HOOK_EXPORT void WINAPI glTexImage2D(GLenum target, GLint level, GLint internalf
 		reshade::api::resource_type api_type = reshade::opengl::convert_resource_type(target);
 		reshade::api::resource_desc api_desc = reshade::opengl::convert_resource_desc(api_type, 1, static_cast<GLenum>(internalformat), width, height);
 		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, api_type, &api_desc);
-		internalformat = api_desc.format;
 		width = api_desc.width;
 		height = api_desc.height;
+		internalformat = api_desc.format;
 	}
 #endif
 
@@ -2273,10 +2321,10 @@ HOOK_EXPORT void WINAPI glTexImage2D(GLenum target, GLint level, GLint internalf
 		reshade::api::resource_type api_type = reshade::opengl::convert_resource_type(target);
 		reshade::api::resource_desc api_desc = reshade::opengl::convert_resource_desc(api_type, 1, static_cast<GLenum>(internalformat), width, height, depth);
 		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, api_type, &api_desc);
-		internalformat = api_desc.format;
 		width = api_desc.width;
 		height = api_desc.height;
 		depth = api_desc.depth_or_layers;
+		internalformat = api_desc.format;
 	}
 #endif
 
@@ -2324,9 +2372,9 @@ HOOK_EXPORT void WINAPI glTexSubImage2D(GLenum target, GLint level, GLint xoffse
 		reshade::api::resource_type api_type = reshade::opengl::convert_resource_type(target);
 		reshade::api::resource_desc api_desc = reshade::opengl::convert_resource_desc(api_type, levels, internalformat, width);
 		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, api_type, &api_desc);
+		width = api_desc.width;
 		levels = api_desc.levels;
 		internalformat = api_desc.format;
-		width = api_desc.width;
 	}
 #endif
 
@@ -2341,10 +2389,10 @@ HOOK_EXPORT void WINAPI glTexSubImage2D(GLenum target, GLint level, GLint xoffse
 		reshade::api::resource_type api_type = reshade::opengl::convert_resource_type(target);
 		reshade::api::resource_desc api_desc = reshade::opengl::convert_resource_desc(api_type, levels, internalformat, width, height);
 		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, api_type, &api_desc);
-		levels = api_desc.levels;
-		internalformat = api_desc.format;
 		width = api_desc.width;
 		height = api_desc.height;
+		levels = api_desc.levels;
+		internalformat = api_desc.format;
 	}
 #endif
 
@@ -2359,11 +2407,11 @@ HOOK_EXPORT void WINAPI glTexSubImage2D(GLenum target, GLint level, GLint xoffse
 		reshade::api::resource_type api_type = reshade::opengl::convert_resource_type(target);
 		reshade::api::resource_desc api_desc = reshade::opengl::convert_resource_desc(api_type, levels, internalformat, width, height, depth);
 		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, api_type, &api_desc);
-		levels = api_desc.levels;
-		internalformat = api_desc.format;
 		width = api_desc.width;
 		height = api_desc.height;
 		depth = api_desc.depth_or_layers;
+		levels = api_desc.levels;
+		internalformat = api_desc.format;
 	}
 #endif
 
@@ -2377,9 +2425,9 @@ HOOK_EXPORT void WINAPI glTexSubImage2D(GLenum target, GLint level, GLint xoffse
 	{
 		reshade::api::resource_desc api_desc = reshade::opengl::convert_resource_desc(reshade::api::resource_type::texture_1d, levels, internalformat, width);
 		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, reshade::api::resource_type::texture_1d, &api_desc);
+		width = api_desc.width;
 		levels = api_desc.levels;
 		internalformat = api_desc.format;
-		width = api_desc.width;
 	}
 #endif
 
@@ -2393,10 +2441,10 @@ HOOK_EXPORT void WINAPI glTexSubImage2D(GLenum target, GLint level, GLint xoffse
 	{
 		reshade::api::resource_desc api_desc = reshade::opengl::convert_resource_desc(reshade::api::resource_type::texture_2d, levels, internalformat, width, height);
 		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, reshade::api::resource_type::texture_2d, &api_desc);
-		levels = api_desc.levels;
-		internalformat = api_desc.format;
 		width = api_desc.width;
 		height = api_desc.height;
+		levels = api_desc.levels;
+		internalformat = api_desc.format;
 	}
 #endif
 
@@ -2410,11 +2458,11 @@ HOOK_EXPORT void WINAPI glTexSubImage2D(GLenum target, GLint level, GLint xoffse
 	{
 		reshade::api::resource_desc api_desc = reshade::opengl::convert_resource_desc(reshade::api::resource_type::texture_3d, levels, internalformat, width, height, depth);
 		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, reshade::api::resource_type::texture_2d, &api_desc);
-		levels = api_desc.levels;
-		internalformat = api_desc.format;
 		width = api_desc.width;
 		height = api_desc.height;
 		depth = api_desc.depth_or_layers;
+		levels = api_desc.levels;
+		internalformat = api_desc.format;
 	}
 #endif
 

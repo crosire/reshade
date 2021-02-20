@@ -11,9 +11,11 @@
 lockfree_table<void *, VkLayerInstanceDispatchTable, 16> g_instance_dispatch;
 lockfree_table<VkSurfaceKHR, HWND, 16> g_surface_windows;
 
-#define GET_INSTANCE_DISPATCH_PTR(name, object) \
+#define GET_DISPATCH_PTR(name, object) \
 	PFN_vk##name trampoline = g_instance_dispatch.at(dispatch_key_from_handle(object)).name; \
 	assert(trampoline != nullptr)
+#define INIT_DISPATCH_PTR(name) \
+	dispatch_table.name = reinterpret_cast<PFN_vk##name>(get_instance_proc(instance, "vk" #name))
 
 VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkInstance *pInstance)
 {
@@ -87,24 +89,21 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	// Initialize the instance dispatch table
 	VkLayerInstanceDispatchTable dispatch_table = { get_physical_device_proc };
 
-#define INIT_INSTANCE_PROC(name) \
-	dispatch_table.name = reinterpret_cast<PFN_vk##name>(get_instance_proc(instance, "vk" #name))
-
 	// ---- Core 1_0 commands
-	INIT_INSTANCE_PROC(DestroyInstance);
-	INIT_INSTANCE_PROC(EnumeratePhysicalDevices);
-	INIT_INSTANCE_PROC(GetPhysicalDeviceFormatProperties);
-	INIT_INSTANCE_PROC(GetPhysicalDeviceProperties);
-	INIT_INSTANCE_PROC(GetPhysicalDeviceMemoryProperties);
-	INIT_INSTANCE_PROC(GetPhysicalDeviceQueueFamilyProperties);
+	INIT_DISPATCH_PTR(DestroyInstance);
+	INIT_DISPATCH_PTR(EnumeratePhysicalDevices);
+	INIT_DISPATCH_PTR(GetPhysicalDeviceFormatProperties);
+	INIT_DISPATCH_PTR(GetPhysicalDeviceProperties);
+	INIT_DISPATCH_PTR(GetPhysicalDeviceMemoryProperties);
+	INIT_DISPATCH_PTR(GetPhysicalDeviceQueueFamilyProperties);
 	dispatch_table.GetInstanceProcAddr = get_instance_proc;
-	INIT_INSTANCE_PROC(EnumerateDeviceExtensionProperties);
+	INIT_DISPATCH_PTR(EnumerateDeviceExtensionProperties);
 	// ---- Core 1_1 commands
-	INIT_INSTANCE_PROC(GetPhysicalDeviceMemoryProperties2);
+	INIT_DISPATCH_PTR(GetPhysicalDeviceMemoryProperties2);
 	// ---- VK_KHR_surface extension commands
-	INIT_INSTANCE_PROC(DestroySurfaceKHR);
+	INIT_DISPATCH_PTR(DestroySurfaceKHR);
 	// ---- VK_KHR_win32_surface extension commands
-	INIT_INSTANCE_PROC(CreateWin32SurfaceKHR);
+	INIT_DISPATCH_PTR(CreateWin32SurfaceKHR);
 
 	g_instance_dispatch.emplace(dispatch_key_from_handle(instance), dispatch_table);
 
@@ -119,7 +118,7 @@ void     VKAPI_CALL vkDestroyInstance(VkInstance instance, const VkAllocationCal
 	LOG(INFO) << "Redirecting " << "vkDestroyInstance" << '(' << "instance = " << instance << ", pAllocator = " << pAllocator << ')' << " ...";
 
 	// Get function pointer before removing it next
-	GET_INSTANCE_DISPATCH_PTR(DestroyInstance, instance);
+	GET_DISPATCH_PTR(DestroyInstance, instance);
 	// Remove instance dispatch table since this instance is being destroyed
 	g_instance_dispatch.erase(dispatch_key_from_handle(instance));
 
@@ -130,7 +129,7 @@ VkResult VKAPI_CALL vkCreateWin32SurfaceKHR(VkInstance instance, const VkWin32Su
 {
 	LOG(INFO) << "Redirecting " << "vkCreateWin32SurfaceKHR" << '(' << "instance = " << instance << ", pCreateInfo = " << pCreateInfo << ", pAllocator = " << pAllocator << ", pSurface = " << pSurface << ')' << " ...";
 
-	GET_INSTANCE_DISPATCH_PTR(CreateWin32SurfaceKHR, instance);
+	GET_DISPATCH_PTR(CreateWin32SurfaceKHR, instance);
 	const VkResult result = trampoline(instance, pCreateInfo, pAllocator, pSurface);
 	if (result != VK_SUCCESS)
 	{
@@ -149,29 +148,6 @@ void     VKAPI_CALL vkDestroySurfaceKHR(VkInstance instance, VkSurfaceKHR surfac
 
 	g_surface_windows.erase(surface);
 
-	GET_INSTANCE_DISPATCH_PTR(DestroySurfaceKHR, instance);
+	GET_DISPATCH_PTR(DestroySurfaceKHR, instance);
 	trampoline(instance, surface, pAllocator);
-}
-
-VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr(VkInstance instance, const char *pName)
-{
-#define CHECK_INSTANCE_PROC(name) \
-	if (0 == strcmp(pName, "vk" #name)) \
-		return reinterpret_cast<PFN_vkVoidFunction>(vk##name)
-
-	CHECK_INSTANCE_PROC(CreateInstance);
-	CHECK_INSTANCE_PROC(DestroyInstance);
-	CHECK_INSTANCE_PROC(CreateDevice);
-	CHECK_INSTANCE_PROC(DestroyDevice);
-	CHECK_INSTANCE_PROC(CreateWin32SurfaceKHR);
-	CHECK_INSTANCE_PROC(DestroySurfaceKHR);
-
-	// Self-intercept here as well to stay consistent with 'vkGetDeviceProcAddr' implementation
-	CHECK_INSTANCE_PROC(GetInstanceProcAddr);
-
-	if (instance == VK_NULL_HANDLE)
-		return nullptr;
-
-	GET_INSTANCE_DISPATCH_PTR(GetInstanceProcAddr, instance);
-	return trampoline(instance, pName);
 }

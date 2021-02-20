@@ -9,19 +9,21 @@
 #include "runtime_vk.hpp"
 #include "format_utils.hpp"
 
-static lockfree_table<void *, reshade::vulkan::device_impl *, 16> s_vulkan_devices;
+lockfree_table<void *, reshade::vulkan::device_impl *, 16> g_vulkan_devices;
 static lockfree_table<VkQueue, reshade::vulkan::command_queue_impl *, 16> s_vulkan_queues;
 static lockfree_table<VkCommandBuffer, reshade::vulkan::command_list_impl *, 4096> s_vulkan_command_buffers;
 extern lockfree_table<void *, VkLayerInstanceDispatchTable, 16> g_instance_dispatch;
 extern lockfree_table<VkSurfaceKHR, HWND, 16> g_surface_windows;
 static lockfree_table<VkSwapchainKHR, reshade::vulkan::runtime_vk *, 16> s_vulkan_runtimes;
 
-#define GET_DEVICE_DISPATCH_PTR(name, object) \
-	GET_DEVICE_DISPATCH_PTR_FROM(name, s_vulkan_devices.at(dispatch_key_from_handle(object)))
-#define GET_DEVICE_DISPATCH_PTR_FROM(name, data) \
+#define GET_DISPATCH_PTR(name, object) \
+	GET_DISPATCH_PTR_FROM(name, g_vulkan_devices.at(dispatch_key_from_handle(object)))
+#define GET_DISPATCH_PTR_FROM(name, data) \
 	assert((data) != nullptr); \
 	PFN_vk##name trampoline = (data)->_dispatch_table.name; \
 	assert(trampoline != nullptr)
+#define INIT_DISPATCH_PTR(name) \
+	dispatch_table.name = reinterpret_cast<PFN_vk##name>(get_device_proc(device, "vk" #name))
 
 static inline reshade::api::resource_usage convert_image_layout(VkImageLayout layout)
 {
@@ -217,122 +219,119 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	// Initialize the device dispatch table
 	VkLayerDispatchTable dispatch_table = { get_device_proc };
 
-#define INIT_DEVICE_PROC(name) \
-	dispatch_table.name = reinterpret_cast<PFN_vk##name>(get_device_proc(device, "vk" #name))
-
 	// ---- Core 1_0 commands
-	INIT_DEVICE_PROC(DestroyDevice);
-	INIT_DEVICE_PROC(GetDeviceQueue);
-	INIT_DEVICE_PROC(QueueSubmit);
-	INIT_DEVICE_PROC(QueueWaitIdle);
-	INIT_DEVICE_PROC(DeviceWaitIdle);
-	INIT_DEVICE_PROC(AllocateMemory);
-	INIT_DEVICE_PROC(FreeMemory);
-	INIT_DEVICE_PROC(MapMemory);
-	INIT_DEVICE_PROC(UnmapMemory);
-	INIT_DEVICE_PROC(FlushMappedMemoryRanges);
-	INIT_DEVICE_PROC(InvalidateMappedMemoryRanges);
-	INIT_DEVICE_PROC(BindBufferMemory);
-	INIT_DEVICE_PROC(BindImageMemory);
-	INIT_DEVICE_PROC(GetBufferMemoryRequirements);
-	INIT_DEVICE_PROC(GetImageMemoryRequirements);
-	INIT_DEVICE_PROC(CreateFence);
-	INIT_DEVICE_PROC(DestroyFence);
-	INIT_DEVICE_PROC(ResetFences);
-	INIT_DEVICE_PROC(GetFenceStatus);
-	INIT_DEVICE_PROC(WaitForFences);
-	INIT_DEVICE_PROC(CreateSemaphore);
-	INIT_DEVICE_PROC(DestroySemaphore);
-	INIT_DEVICE_PROC(CreateQueryPool);
-	INIT_DEVICE_PROC(DestroyQueryPool);
-	INIT_DEVICE_PROC(GetQueryPoolResults);
-	INIT_DEVICE_PROC(CreateBuffer);
-	INIT_DEVICE_PROC(DestroyBuffer);
-	INIT_DEVICE_PROC(CreateBufferView);
-	INIT_DEVICE_PROC(DestroyBufferView);
-	INIT_DEVICE_PROC(CreateImage);
-	INIT_DEVICE_PROC(DestroyImage);
-	INIT_DEVICE_PROC(GetImageSubresourceLayout);
-	INIT_DEVICE_PROC(CreateImageView);
-	INIT_DEVICE_PROC(DestroyImageView);
-	INIT_DEVICE_PROC(CreateShaderModule);
-	INIT_DEVICE_PROC(DestroyShaderModule);
-	INIT_DEVICE_PROC(CreateGraphicsPipelines);
-	INIT_DEVICE_PROC(CreateComputePipelines);
-	INIT_DEVICE_PROC(DestroyPipeline);
-	INIT_DEVICE_PROC(CreatePipelineLayout);
-	INIT_DEVICE_PROC(DestroyPipelineLayout);
-	INIT_DEVICE_PROC(CreateSampler);
-	INIT_DEVICE_PROC(DestroySampler);
-	INIT_DEVICE_PROC(CreateDescriptorSetLayout);
-	INIT_DEVICE_PROC(DestroyDescriptorSetLayout);
-	INIT_DEVICE_PROC(CreateDescriptorPool);
-	INIT_DEVICE_PROC(DestroyDescriptorPool);
-	INIT_DEVICE_PROC(ResetDescriptorPool);
-	INIT_DEVICE_PROC(AllocateDescriptorSets);
-	INIT_DEVICE_PROC(FreeDescriptorSets);
-	INIT_DEVICE_PROC(UpdateDescriptorSets);
-	INIT_DEVICE_PROC(CreateFramebuffer);
-	INIT_DEVICE_PROC(DestroyFramebuffer);
-	INIT_DEVICE_PROC(CreateRenderPass);
-	INIT_DEVICE_PROC(DestroyRenderPass);
-	INIT_DEVICE_PROC(CreateCommandPool);
-	INIT_DEVICE_PROC(DestroyCommandPool);
-	INIT_DEVICE_PROC(ResetCommandPool);
-	INIT_DEVICE_PROC(AllocateCommandBuffers);
-	INIT_DEVICE_PROC(FreeCommandBuffers);
-	INIT_DEVICE_PROC(BeginCommandBuffer);
-	INIT_DEVICE_PROC(EndCommandBuffer);
-	INIT_DEVICE_PROC(ResetCommandBuffer);
-	INIT_DEVICE_PROC(CmdBindPipeline);
-	INIT_DEVICE_PROC(CmdSetViewport);
-	INIT_DEVICE_PROC(CmdSetScissor);
-	INIT_DEVICE_PROC(CmdBindDescriptorSets);
-	INIT_DEVICE_PROC(CmdBindIndexBuffer);
-	INIT_DEVICE_PROC(CmdBindVertexBuffers);
-	INIT_DEVICE_PROC(CmdDraw);
-	INIT_DEVICE_PROC(CmdDrawIndexed);
-	INIT_DEVICE_PROC(CmdDrawIndirect);
-	INIT_DEVICE_PROC(CmdDrawIndexedIndirect);
-	INIT_DEVICE_PROC(CmdDispatch);
-	INIT_DEVICE_PROC(CmdCopyBuffer);
-	INIT_DEVICE_PROC(CmdCopyImage);
-	INIT_DEVICE_PROC(CmdBlitImage);
-	INIT_DEVICE_PROC(CmdCopyBufferToImage);
-	INIT_DEVICE_PROC(CmdCopyImageToBuffer);
-	INIT_DEVICE_PROC(CmdUpdateBuffer);
-	INIT_DEVICE_PROC(CmdClearColorImage);
-	INIT_DEVICE_PROC(CmdClearDepthStencilImage);
-	INIT_DEVICE_PROC(CmdClearAttachments);
-	INIT_DEVICE_PROC(CmdPipelineBarrier);
-	INIT_DEVICE_PROC(CmdResetQueryPool);
-	INIT_DEVICE_PROC(CmdWriteTimestamp);
-	INIT_DEVICE_PROC(CmdPushConstants);
-	INIT_DEVICE_PROC(CmdBeginRenderPass);
-	INIT_DEVICE_PROC(CmdNextSubpass);
-	INIT_DEVICE_PROC(CmdEndRenderPass);
-	INIT_DEVICE_PROC(CmdExecuteCommands);
+	INIT_DISPATCH_PTR(DestroyDevice);
+	INIT_DISPATCH_PTR(GetDeviceQueue);
+	INIT_DISPATCH_PTR(QueueSubmit);
+	INIT_DISPATCH_PTR(QueueWaitIdle);
+	INIT_DISPATCH_PTR(DeviceWaitIdle);
+	INIT_DISPATCH_PTR(AllocateMemory);
+	INIT_DISPATCH_PTR(FreeMemory);
+	INIT_DISPATCH_PTR(MapMemory);
+	INIT_DISPATCH_PTR(UnmapMemory);
+	INIT_DISPATCH_PTR(FlushMappedMemoryRanges);
+	INIT_DISPATCH_PTR(InvalidateMappedMemoryRanges);
+	INIT_DISPATCH_PTR(BindBufferMemory);
+	INIT_DISPATCH_PTR(BindImageMemory);
+	INIT_DISPATCH_PTR(GetBufferMemoryRequirements);
+	INIT_DISPATCH_PTR(GetImageMemoryRequirements);
+	INIT_DISPATCH_PTR(CreateFence);
+	INIT_DISPATCH_PTR(DestroyFence);
+	INIT_DISPATCH_PTR(ResetFences);
+	INIT_DISPATCH_PTR(GetFenceStatus);
+	INIT_DISPATCH_PTR(WaitForFences);
+	INIT_DISPATCH_PTR(CreateSemaphore);
+	INIT_DISPATCH_PTR(DestroySemaphore);
+	INIT_DISPATCH_PTR(CreateQueryPool);
+	INIT_DISPATCH_PTR(DestroyQueryPool);
+	INIT_DISPATCH_PTR(GetQueryPoolResults);
+	INIT_DISPATCH_PTR(CreateBuffer);
+	INIT_DISPATCH_PTR(DestroyBuffer);
+	INIT_DISPATCH_PTR(CreateBufferView);
+	INIT_DISPATCH_PTR(DestroyBufferView);
+	INIT_DISPATCH_PTR(CreateImage);
+	INIT_DISPATCH_PTR(DestroyImage);
+	INIT_DISPATCH_PTR(GetImageSubresourceLayout);
+	INIT_DISPATCH_PTR(CreateImageView);
+	INIT_DISPATCH_PTR(DestroyImageView);
+	INIT_DISPATCH_PTR(CreateShaderModule);
+	INIT_DISPATCH_PTR(DestroyShaderModule);
+	INIT_DISPATCH_PTR(CreateGraphicsPipelines);
+	INIT_DISPATCH_PTR(CreateComputePipelines);
+	INIT_DISPATCH_PTR(DestroyPipeline);
+	INIT_DISPATCH_PTR(CreatePipelineLayout);
+	INIT_DISPATCH_PTR(DestroyPipelineLayout);
+	INIT_DISPATCH_PTR(CreateSampler);
+	INIT_DISPATCH_PTR(DestroySampler);
+	INIT_DISPATCH_PTR(CreateDescriptorSetLayout);
+	INIT_DISPATCH_PTR(DestroyDescriptorSetLayout);
+	INIT_DISPATCH_PTR(CreateDescriptorPool);
+	INIT_DISPATCH_PTR(DestroyDescriptorPool);
+	INIT_DISPATCH_PTR(ResetDescriptorPool);
+	INIT_DISPATCH_PTR(AllocateDescriptorSets);
+	INIT_DISPATCH_PTR(FreeDescriptorSets);
+	INIT_DISPATCH_PTR(UpdateDescriptorSets);
+	INIT_DISPATCH_PTR(CreateFramebuffer);
+	INIT_DISPATCH_PTR(DestroyFramebuffer);
+	INIT_DISPATCH_PTR(CreateRenderPass);
+	INIT_DISPATCH_PTR(DestroyRenderPass);
+	INIT_DISPATCH_PTR(CreateCommandPool);
+	INIT_DISPATCH_PTR(DestroyCommandPool);
+	INIT_DISPATCH_PTR(ResetCommandPool);
+	INIT_DISPATCH_PTR(AllocateCommandBuffers);
+	INIT_DISPATCH_PTR(FreeCommandBuffers);
+	INIT_DISPATCH_PTR(BeginCommandBuffer);
+	INIT_DISPATCH_PTR(EndCommandBuffer);
+	INIT_DISPATCH_PTR(ResetCommandBuffer);
+	INIT_DISPATCH_PTR(CmdBindPipeline);
+	INIT_DISPATCH_PTR(CmdSetViewport);
+	INIT_DISPATCH_PTR(CmdSetScissor);
+	INIT_DISPATCH_PTR(CmdBindDescriptorSets);
+	INIT_DISPATCH_PTR(CmdBindIndexBuffer);
+	INIT_DISPATCH_PTR(CmdBindVertexBuffers);
+	INIT_DISPATCH_PTR(CmdDraw);
+	INIT_DISPATCH_PTR(CmdDrawIndexed);
+	INIT_DISPATCH_PTR(CmdDrawIndirect);
+	INIT_DISPATCH_PTR(CmdDrawIndexedIndirect);
+	INIT_DISPATCH_PTR(CmdDispatch);
+	INIT_DISPATCH_PTR(CmdCopyBuffer);
+	INIT_DISPATCH_PTR(CmdCopyImage);
+	INIT_DISPATCH_PTR(CmdBlitImage);
+	INIT_DISPATCH_PTR(CmdCopyBufferToImage);
+	INIT_DISPATCH_PTR(CmdCopyImageToBuffer);
+	INIT_DISPATCH_PTR(CmdUpdateBuffer);
+	INIT_DISPATCH_PTR(CmdClearColorImage);
+	INIT_DISPATCH_PTR(CmdClearDepthStencilImage);
+	INIT_DISPATCH_PTR(CmdClearAttachments);
+	INIT_DISPATCH_PTR(CmdPipelineBarrier);
+	INIT_DISPATCH_PTR(CmdResetQueryPool);
+	INIT_DISPATCH_PTR(CmdWriteTimestamp);
+	INIT_DISPATCH_PTR(CmdPushConstants);
+	INIT_DISPATCH_PTR(CmdBeginRenderPass);
+	INIT_DISPATCH_PTR(CmdNextSubpass);
+	INIT_DISPATCH_PTR(CmdEndRenderPass);
+	INIT_DISPATCH_PTR(CmdExecuteCommands);
 	// ---- Core 1_1 commands
-	INIT_DEVICE_PROC(BindBufferMemory2);
-	INIT_DEVICE_PROC(BindImageMemory2);
-	INIT_DEVICE_PROC(GetBufferMemoryRequirements2);
-	INIT_DEVICE_PROC(GetImageMemoryRequirements2);
-	INIT_DEVICE_PROC(GetDeviceQueue2);
+	INIT_DISPATCH_PTR(BindBufferMemory2);
+	INIT_DISPATCH_PTR(BindImageMemory2);
+	INIT_DISPATCH_PTR(GetBufferMemoryRequirements2);
+	INIT_DISPATCH_PTR(GetImageMemoryRequirements2);
+	INIT_DISPATCH_PTR(GetDeviceQueue2);
 	// ---- Core 1_2 commands
-	INIT_DEVICE_PROC(CreateRenderPass2);
+	INIT_DISPATCH_PTR(CreateRenderPass2);
 	if (dispatch_table.CreateRenderPass2 == nullptr) // Try the KHR version if the core version does not exist
 		dispatch_table.CreateRenderPass2  = reinterpret_cast<PFN_vkCreateRenderPass2KHR>(get_device_proc(device, "vkCreateRenderPass2KHR"));
 	// ---- VK_KHR_swapchain extension commands
-	INIT_DEVICE_PROC(CreateSwapchainKHR);
-	INIT_DEVICE_PROC(DestroySwapchainKHR);
-	INIT_DEVICE_PROC(GetSwapchainImagesKHR);
-	INIT_DEVICE_PROC(QueuePresentKHR);
+	INIT_DISPATCH_PTR(CreateSwapchainKHR);
+	INIT_DISPATCH_PTR(DestroySwapchainKHR);
+	INIT_DISPATCH_PTR(GetSwapchainImagesKHR);
+	INIT_DISPATCH_PTR(QueuePresentKHR);
 	// ---- VK_KHR_push_descriptor extension commands
-	INIT_DEVICE_PROC(CmdPushDescriptorSetKHR);
+	INIT_DISPATCH_PTR(CmdPushDescriptorSetKHR);
 	// ---- VK_EXT_debug_marker extension commands
-	INIT_DEVICE_PROC(DebugMarkerSetObjectNameEXT);
-	INIT_DEVICE_PROC(CmdDebugMarkerBeginEXT);
-	INIT_DEVICE_PROC(CmdDebugMarkerEndEXT);
+	INIT_DISPATCH_PTR(DebugMarkerSetObjectNameEXT);
+	INIT_DISPATCH_PTR(CmdDebugMarkerBeginEXT);
+	INIT_DISPATCH_PTR(CmdDebugMarkerEndEXT);
 
 	// Initialize per-device data
 	const auto device_impl = new reshade::vulkan::device_impl(
@@ -343,7 +342,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 
 	device_impl->_graphics_queue_family_index = graphics_queue_family_index;
 
-	s_vulkan_devices.emplace(dispatch_key_from_handle(device), device_impl);
+	g_vulkan_devices.emplace(dispatch_key_from_handle(device), device_impl);
 
 	// Initialize all queues associated with this device
 	for (uint32_t i = 0; i < pCreateInfo->queueCreateInfoCount; ++i)
@@ -378,7 +377,7 @@ void     VKAPI_CALL vkDestroyDevice(VkDevice device, const VkAllocationCallbacks
 	s_vulkan_command_buffers.clear(); // Reset all command buffer data
 
 	// Remove from device dispatch table since this device is being destroyed
-	reshade::vulkan::device_impl *const device_impl = s_vulkan_devices.erase(dispatch_key_from_handle(device));
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.erase(dispatch_key_from_handle(device));
 	assert(device_impl != nullptr);
 
 	// Destroy all queues associated with this device
@@ -389,7 +388,7 @@ void     VKAPI_CALL vkDestroyDevice(VkDevice device, const VkAllocationCallbacks
 	}
 
 	// Get function pointer before data is destroyed next
-	GET_DEVICE_DISPATCH_PTR_FROM(DestroyDevice, device_impl);
+	GET_DISPATCH_PTR_FROM(DestroyDevice, device_impl);
 
 	// Finally destroy the device
 	delete device_impl;
@@ -403,7 +402,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 
 	assert(pCreateInfo != nullptr && pSwapchain != nullptr);
 
-	reshade::vulkan::device_impl *const device_impl = s_vulkan_devices.at(dispatch_key_from_handle(device));
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
 	assert(device_impl != nullptr);
 
 	VkSwapchainCreateInfoKHR create_info = *pCreateInfo;
@@ -487,7 +486,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	LOG(INFO) << "  | oldSwapchain                            | " << std::setw(39) << create_info.oldSwapchain << " |";
 	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 
-	GET_DEVICE_DISPATCH_PTR_FROM(CreateSwapchainKHR, device_impl);
+	GET_DISPATCH_PTR_FROM(CreateSwapchainKHR, device_impl);
 	const VkResult result = trampoline(device, &create_info, pAllocator, pSwapchain);
 	if (result != VK_SUCCESS)
 	{
@@ -569,7 +568,7 @@ void     VKAPI_CALL vkDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapch
 {
 	LOG(INFO) << "Redirecting " << "vkDestroySwapchainKHR" << '(' << device << ", " << swapchain << ", " << pAllocator << ')' << " ...";
 
-	reshade::vulkan::device_impl *const device_impl = s_vulkan_devices.at(dispatch_key_from_handle(device));
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
 	assert(device_impl != nullptr);
 
 	// Remove runtime from global list
@@ -586,7 +585,7 @@ void     VKAPI_CALL vkDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapch
 		device_impl->unregister_image(swapchain_images[i]);
 #endif
 
-	GET_DEVICE_DISPATCH_PTR_FROM(DestroySwapchainKHR, device_impl);
+	GET_DISPATCH_PTR_FROM(DestroySwapchainKHR, device_impl);
 	trampoline(device, swapchain, pAllocator);
 }
 
@@ -615,7 +614,7 @@ VkResult VKAPI_CALL vkQueueSubmit(VkQueue queue, uint32_t submitCount, const VkS
 #endif
 
 	// The loader uses the same dispatch table pointer for queues and devices, so can use queue to perform lookup here
-	GET_DEVICE_DISPATCH_PTR(QueueSubmit, queue);
+	GET_DISPATCH_PTR(QueueSubmit, queue);
 	return trampoline(queue, submitCount, pSubmits, fence);
 }
 VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPresentInfo)
@@ -647,7 +646,7 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 	present_info.waitSemaphoreCount = static_cast<uint32_t>(wait_semaphores.size());
 	present_info.pWaitSemaphores = wait_semaphores.data();
 
-	GET_DEVICE_DISPATCH_PTR(QueuePresentKHR, queue);
+	GET_DISPATCH_PTR(QueuePresentKHR, queue);
 	return trampoline(queue, &present_info);
 }
 
@@ -655,7 +654,7 @@ VkResult VKAPI_CALL vkCreateBuffer(VkDevice device, const VkBufferCreateInfo *pC
 {
 	assert(pCreateInfo != nullptr && pBuffer != nullptr);
 
-	reshade::vulkan::device_impl *const device_impl = s_vulkan_devices.at(dispatch_key_from_handle(device));
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
 	assert(device_impl != nullptr);
 
 	VkBufferCreateInfo create_info = *pCreateInfo;
@@ -665,7 +664,7 @@ VkResult VKAPI_CALL vkCreateBuffer(VkDevice device, const VkBufferCreateInfo *pC
 	reshade::vulkan::convert_resource_desc(api_desc, create_info);
 #endif
 
-	GET_DEVICE_DISPATCH_PTR_FROM(CreateBuffer, device_impl);
+	GET_DISPATCH_PTR_FROM(CreateBuffer, device_impl);
 	const VkResult result = trampoline(device, &create_info, pAllocator, pBuffer);
 #if RESHADE_ADDON
 	if (result == VK_SUCCESS)
@@ -682,14 +681,14 @@ VkResult VKAPI_CALL vkCreateBuffer(VkDevice device, const VkBufferCreateInfo *pC
 }
 void     VKAPI_CALL vkDestroyBuffer(VkDevice device, VkBuffer buffer, const VkAllocationCallbacks *pAllocator)
 {
-	reshade::vulkan::device_impl *const device_impl = s_vulkan_devices.at(dispatch_key_from_handle(device));
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
 	assert(device_impl != nullptr);
 
 #if RESHADE_ADDON
 	device_impl->unregister_buffer(buffer);
 #endif
 
-	GET_DEVICE_DISPATCH_PTR_FROM(DestroyBuffer, device_impl);
+	GET_DISPATCH_PTR_FROM(DestroyBuffer, device_impl);
 	trampoline(device, buffer, pAllocator);
 }
 
@@ -697,7 +696,7 @@ VkResult VKAPI_CALL vkCreateBufferView(VkDevice device, const VkBufferViewCreate
 {
 	assert(pCreateInfo != nullptr && pView != nullptr);
 
-	reshade::vulkan::device_impl *const device_impl = s_vulkan_devices.at(dispatch_key_from_handle(device));
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
 	assert(device_impl != nullptr);
 
 	VkBufferViewCreateInfo create_info = *pCreateInfo;
@@ -707,7 +706,7 @@ VkResult VKAPI_CALL vkCreateBufferView(VkDevice device, const VkBufferViewCreate
 	reshade::vulkan::convert_resource_view_desc(api_desc, create_info);
 #endif
 
-	GET_DEVICE_DISPATCH_PTR_FROM(CreateBufferView, device_impl);
+	GET_DISPATCH_PTR_FROM(CreateBufferView, device_impl);
 	const VkResult result = trampoline(device, &create_info, pAllocator, pView);
 #if RESHADE_ADDON
 	if (result == VK_SUCCESS)
@@ -724,14 +723,14 @@ VkResult VKAPI_CALL vkCreateBufferView(VkDevice device, const VkBufferViewCreate
 }
 void     VKAPI_CALL vkDestroyBufferView(VkDevice device, VkBufferView bufferView, const VkAllocationCallbacks *pAllocator)
 {
-	reshade::vulkan::device_impl *const device_impl = s_vulkan_devices.at(dispatch_key_from_handle(device));
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
 	assert(device_impl != nullptr);
 
 #if RESHADE_ADDON
 	device_impl->unregister_buffer_view(bufferView);
 #endif
 
-	GET_DEVICE_DISPATCH_PTR_FROM(DestroyBufferView, device_impl);
+	GET_DISPATCH_PTR_FROM(DestroyBufferView, device_impl);
 	trampoline(device, bufferView, pAllocator);
 }
 
@@ -739,7 +738,7 @@ VkResult VKAPI_CALL vkCreateImage(VkDevice device, const VkImageCreateInfo *pCre
 {
 	assert(pCreateInfo != nullptr && pImage != nullptr);
 
-	reshade::vulkan::device_impl *const device_impl = s_vulkan_devices.at(dispatch_key_from_handle(device));
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
 	assert(device_impl != nullptr);
 
 	VkImageCreateInfo create_info = *pCreateInfo;
@@ -749,7 +748,7 @@ VkResult VKAPI_CALL vkCreateImage(VkDevice device, const VkImageCreateInfo *pCre
 	reshade::vulkan::convert_resource_desc(api_desc.first, api_desc.second, create_info);
 #endif
 
-	GET_DEVICE_DISPATCH_PTR_FROM(CreateImage, device_impl);
+	GET_DISPATCH_PTR_FROM(CreateImage, device_impl);
 	const VkResult result = trampoline(device, &create_info, pAllocator, pImage);
 #if RESHADE_ADDON
 	if (result == VK_SUCCESS)
@@ -766,14 +765,14 @@ VkResult VKAPI_CALL vkCreateImage(VkDevice device, const VkImageCreateInfo *pCre
 }
 void     VKAPI_CALL vkDestroyImage(VkDevice device, VkImage image, const VkAllocationCallbacks *pAllocator)
 {
-	reshade::vulkan::device_impl *const device_impl = s_vulkan_devices.at(dispatch_key_from_handle(device));
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
 	assert(device_impl != nullptr);
 
 #if RESHADE_ADDON
 	device_impl->unregister_image(image);
 #endif
 
-	GET_DEVICE_DISPATCH_PTR_FROM(DestroyImage, device_impl);
+	GET_DISPATCH_PTR_FROM(DestroyImage, device_impl);
 	trampoline(device, image, pAllocator);
 }
 
@@ -781,7 +780,7 @@ VkResult VKAPI_CALL vkCreateImageView(VkDevice device, const VkImageViewCreateIn
 {
 	assert(pCreateInfo != nullptr && pView != nullptr);
 
-	reshade::vulkan::device_impl *const device_impl = s_vulkan_devices.at(dispatch_key_from_handle(device));
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
 	assert(device_impl != nullptr);
 
 	VkImageViewCreateInfo create_info = *pCreateInfo;
@@ -791,7 +790,7 @@ VkResult VKAPI_CALL vkCreateImageView(VkDevice device, const VkImageViewCreateIn
 	reshade::vulkan::convert_resource_view_desc(api_desc, create_info);
 #endif
 
-	GET_DEVICE_DISPATCH_PTR_FROM(CreateImageView, device_impl);
+	GET_DISPATCH_PTR_FROM(CreateImageView, device_impl);
 	const VkResult result = trampoline(device, &create_info, pAllocator, pView);
 #if RESHADE_ADDON
 	if (result == VK_SUCCESS)
@@ -808,14 +807,14 @@ VkResult VKAPI_CALL vkCreateImageView(VkDevice device, const VkImageViewCreateIn
 }
 void     VKAPI_CALL vkDestroyImageView(VkDevice device, VkImageView imageView, const VkAllocationCallbacks *pAllocator)
 {
-	reshade::vulkan::device_impl *const device_impl = s_vulkan_devices.at(dispatch_key_from_handle(device));
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
 	assert(device_impl != nullptr);
 
 #if RESHADE_ADDON
 	device_impl->unregister_image_view(imageView);
 #endif
 
-	GET_DEVICE_DISPATCH_PTR_FROM(DestroyImageView, device_impl);
+	GET_DISPATCH_PTR_FROM(DestroyImageView, device_impl);
 	trampoline(device, imageView, pAllocator);
 }
 
@@ -823,10 +822,10 @@ VkResult VKAPI_CALL vkCreateRenderPass(VkDevice device, const VkRenderPassCreate
 {
 	assert(pCreateInfo != nullptr && pRenderPass != nullptr);
 
-	reshade::vulkan::device_impl *const device_impl = s_vulkan_devices.at(dispatch_key_from_handle(device));
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
 	assert(device_impl != nullptr);
 
-	GET_DEVICE_DISPATCH_PTR_FROM(CreateRenderPass, device_impl);
+	GET_DISPATCH_PTR_FROM(CreateRenderPass, device_impl);
 	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pRenderPass);
 	if (result != VK_SUCCESS)
 	{
@@ -879,10 +878,10 @@ VkResult VKAPI_CALL vkCreateRenderPass2(VkDevice device, const VkRenderPassCreat
 {
 	assert(pCreateInfo != nullptr && pRenderPass != nullptr);
 
-	reshade::vulkan::device_impl *const device_impl = s_vulkan_devices.at(dispatch_key_from_handle(device));
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
 	assert(device_impl != nullptr);
 
-	GET_DEVICE_DISPATCH_PTR_FROM(CreateRenderPass2, device_impl);
+	GET_DISPATCH_PTR_FROM(CreateRenderPass2, device_impl);
 	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pRenderPass);
 	if (result != VK_SUCCESS)
 	{
@@ -933,23 +932,23 @@ VkResult VKAPI_CALL vkCreateRenderPass2(VkDevice device, const VkRenderPassCreat
 }
 void     VKAPI_CALL vkDestroyRenderPass(VkDevice device, VkRenderPass renderPass, const VkAllocationCallbacks *pAllocator)
 {
-	reshade::vulkan::device_impl *const device_impl = s_vulkan_devices.at(dispatch_key_from_handle(device));
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
 	assert(device_impl != nullptr);
 
 #if RESHADE_ADDON
 	device_impl->_render_pass_list.erase(renderPass);
 #endif
 
-	GET_DEVICE_DISPATCH_PTR_FROM(DestroyRenderPass, device_impl);
+	GET_DISPATCH_PTR_FROM(DestroyRenderPass, device_impl);
 	trampoline(device, renderPass, pAllocator);
 }
 
 VkResult VKAPI_CALL vkCreateFramebuffer(VkDevice device, const VkFramebufferCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkFramebuffer *pFramebuffer)
 {
-	reshade::vulkan::device_impl *const device_impl = s_vulkan_devices.at(dispatch_key_from_handle(device));
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
 	assert(device_impl != nullptr);
 
-	GET_DEVICE_DISPATCH_PTR_FROM(CreateFramebuffer, device_impl);
+	GET_DISPATCH_PTR_FROM(CreateFramebuffer, device_impl);
 	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pFramebuffer);
 	if (result != VK_SUCCESS)
 	{
@@ -969,23 +968,23 @@ VkResult VKAPI_CALL vkCreateFramebuffer(VkDevice device, const VkFramebufferCrea
 }
 void     VKAPI_CALL vkDestroyFramebuffer(VkDevice device, VkFramebuffer framebuffer, const VkAllocationCallbacks *pAllocator)
 {
-	reshade::vulkan::device_impl *const device_impl = s_vulkan_devices.at(dispatch_key_from_handle(device));
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
 	assert(device_impl != nullptr);
 
 #if RESHADE_ADDON
 	device_impl->_framebuffer_list.erase(framebuffer);
 #endif
 
-	GET_DEVICE_DISPATCH_PTR_FROM(DestroyFramebuffer, device_impl);
+	GET_DISPATCH_PTR_FROM(DestroyFramebuffer, device_impl);
 	trampoline(device, framebuffer, pAllocator);
 }
 
 VkResult VKAPI_CALL vkAllocateCommandBuffers(VkDevice device, const VkCommandBufferAllocateInfo *pAllocateInfo, VkCommandBuffer *pCommandBuffers)
 {
-	reshade::vulkan::device_impl *const device_impl = s_vulkan_devices.at(dispatch_key_from_handle(device));
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
 	assert(device_impl != nullptr);
 
-	GET_DEVICE_DISPATCH_PTR_FROM(AllocateCommandBuffers, device_impl);
+	GET_DISPATCH_PTR_FROM(AllocateCommandBuffers, device_impl);
 	const VkResult result = trampoline(device, pAllocateInfo, pCommandBuffers);
 	if (result != VK_SUCCESS)
 	{
@@ -1013,7 +1012,7 @@ void     VKAPI_CALL vkFreeCommandBuffers(VkDevice device, VkCommandPool commandP
 	}
 #endif
 
-	GET_DEVICE_DISPATCH_PTR(FreeCommandBuffers, device);
+	GET_DISPATCH_PTR(FreeCommandBuffers, device);
 	trampoline(device, commandPool, commandBufferCount, pCommandBuffers);
 }
 
@@ -1028,13 +1027,13 @@ VkResult VKAPI_CALL vkBeginCommandBuffer(VkCommandBuffer commandBuffer, const Vk
 	}
 #endif
 
-	GET_DEVICE_DISPATCH_PTR(BeginCommandBuffer, commandBuffer);
+	GET_DISPATCH_PTR(BeginCommandBuffer, commandBuffer);
 	return trampoline(commandBuffer, pBeginInfo);
 }
 
 void     VKAPI_CALL vkCmdSetViewport(VkCommandBuffer commandBuffer, uint32_t firstViewport, uint32_t viewportCount, const VkViewport *pViewports)
 {
-	GET_DEVICE_DISPATCH_PTR(CmdSetViewport, commandBuffer);
+	GET_DISPATCH_PTR(CmdSetViewport, commandBuffer);
 	trampoline(commandBuffer, firstViewport, viewportCount, pViewports);
 
 #if RESHADE_ADDON
@@ -1048,7 +1047,7 @@ void     VKAPI_CALL vkCmdSetViewport(VkCommandBuffer commandBuffer, uint32_t fir
 }
 void     VKAPI_CALL vkCmdSetScissor(VkCommandBuffer commandBuffer, uint32_t firstScissor, uint32_t scissorCount, const VkRect2D *pScissors)
 {
-	GET_DEVICE_DISPATCH_PTR(CmdSetScissor, commandBuffer);
+	GET_DISPATCH_PTR(CmdSetScissor, commandBuffer);
 	trampoline(commandBuffer, firstScissor, scissorCount, pScissors);
 
 #if RESHADE_ADDON
@@ -1071,7 +1070,7 @@ void     VKAPI_CALL vkCmdDraw(VkCommandBuffer commandBuffer, uint32_t vertexCoun
 	}
 #endif
 
-	GET_DEVICE_DISPATCH_PTR(CmdDraw, commandBuffer);
+	GET_DISPATCH_PTR(CmdDraw, commandBuffer);
 	trampoline(commandBuffer, vertexCount, instanceCount, firstVertex, firstInstance);
 }
 void     VKAPI_CALL vkCmdDrawIndexed(VkCommandBuffer commandBuffer, uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance)
@@ -1084,7 +1083,7 @@ void     VKAPI_CALL vkCmdDrawIndexed(VkCommandBuffer commandBuffer, uint32_t ind
 	}
 #endif
 
-	GET_DEVICE_DISPATCH_PTR(CmdDrawIndexed, commandBuffer);
+	GET_DISPATCH_PTR(CmdDrawIndexed, commandBuffer);
 	trampoline(commandBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
 }
 void     VKAPI_CALL vkCmdDrawIndirect(VkCommandBuffer commandBuffer, VkBuffer buffer, VkDeviceSize offset, uint32_t drawCount, uint32_t stride)
@@ -1097,7 +1096,7 @@ void     VKAPI_CALL vkCmdDrawIndirect(VkCommandBuffer commandBuffer, VkBuffer bu
 	}
 #endif
 
-	GET_DEVICE_DISPATCH_PTR(CmdDrawIndirect, commandBuffer);
+	GET_DISPATCH_PTR(CmdDrawIndirect, commandBuffer);
 	trampoline(commandBuffer, buffer, offset, drawCount, stride);
 }
 void     VKAPI_CALL vkCmdDrawIndexedIndirect(VkCommandBuffer commandBuffer, VkBuffer buffer, VkDeviceSize offset, uint32_t drawCount, uint32_t stride)
@@ -1110,7 +1109,7 @@ void     VKAPI_CALL vkCmdDrawIndexedIndirect(VkCommandBuffer commandBuffer, VkBu
 	}
 #endif
 
-	GET_DEVICE_DISPATCH_PTR(CmdDrawIndexedIndirect, commandBuffer);
+	GET_DISPATCH_PTR(CmdDrawIndexedIndirect, commandBuffer);
 	trampoline(commandBuffer, buffer, offset, drawCount, stride);
 }
 void     VKAPI_CALL vkCmdDispatch(VkCommandBuffer commandBuffer, uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ)
@@ -1123,7 +1122,7 @@ void     VKAPI_CALL vkCmdDispatch(VkCommandBuffer commandBuffer, uint32_t groupC
 	}
 #endif
 
-	GET_DEVICE_DISPATCH_PTR(CmdDispatch, commandBuffer);
+	GET_DISPATCH_PTR(CmdDispatch, commandBuffer);
 	trampoline(commandBuffer, groupCountX, groupCountY, groupCountZ);
 }
 void     VKAPI_CALL vkCmdDispatchIndirect(VkCommandBuffer commandBuffer, VkBuffer buffer, VkDeviceSize offset)
@@ -1136,13 +1135,13 @@ void     VKAPI_CALL vkCmdDispatchIndirect(VkCommandBuffer commandBuffer, VkBuffe
 	}
 #endif
 
-	GET_DEVICE_DISPATCH_PTR(CmdDispatchIndirect, commandBuffer);
+	GET_DISPATCH_PTR(CmdDispatchIndirect, commandBuffer);
 	trampoline(commandBuffer, buffer, offset);
 }
 
 void     VKAPI_CALL vkCmdClearColorImage(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout imageLayout, const VkClearColorValue *pColor, uint32_t rangeCount, const VkImageSubresourceRange *pRanges)
 {
-	reshade::vulkan::device_impl *const device_impl = s_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
 	assert(device_impl != nullptr);
 
 #if RESHADE_ADDON
@@ -1175,12 +1174,12 @@ void     VKAPI_CALL vkCmdClearColorImage(VkCommandBuffer commandBuffer, VkImage 
 	}
 #endif
 
-	GET_DEVICE_DISPATCH_PTR_FROM(CmdClearColorImage, device_impl);
+	GET_DISPATCH_PTR_FROM(CmdClearColorImage, device_impl);
 	trampoline(commandBuffer, image, imageLayout, pColor, rangeCount, pRanges);
 }
 void     VKAPI_CALL vkCmdClearDepthStencilImage(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout imageLayout, const VkClearDepthStencilValue *pDepthStencil, uint32_t rangeCount, const VkImageSubresourceRange *pRanges)
 {
-	reshade::vulkan::device_impl *const device_impl = s_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
 	assert(device_impl != nullptr);
 
 #if RESHADE_ADDON
@@ -1217,13 +1216,13 @@ void     VKAPI_CALL vkCmdClearDepthStencilImage(VkCommandBuffer commandBuffer, V
 	}
 #endif
 
-	GET_DEVICE_DISPATCH_PTR_FROM(CmdClearDepthStencilImage, device_impl);
+	GET_DISPATCH_PTR_FROM(CmdClearDepthStencilImage, device_impl);
 	trampoline(commandBuffer, image, imageLayout, pDepthStencil, rangeCount, pRanges);
 }
 
 void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const VkRenderPassBeginInfo *pRenderPassBegin, VkSubpassContents contents)
 {
-	reshade::vulkan::device_impl *const device_impl = s_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
 	assert(device_impl != nullptr);
 
 #if RESHADE_ADDON
@@ -1315,12 +1314,12 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 	}
 #endif
 
-	GET_DEVICE_DISPATCH_PTR_FROM(CmdBeginRenderPass, device_impl);
+	GET_DISPATCH_PTR_FROM(CmdBeginRenderPass, device_impl);
 	trampoline(commandBuffer, pRenderPassBegin, contents);
 }
 void     VKAPI_CALL vkCmdNextSubpass(VkCommandBuffer commandBuffer, VkSubpassContents contents)
 {
-	reshade::vulkan::device_impl *const device_impl = s_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
 
 #if RESHADE_ADDON
 	reshade::vulkan::command_list_impl *const cmd_impl = s_vulkan_command_buffers.at(commandBuffer);
@@ -1349,7 +1348,7 @@ void     VKAPI_CALL vkCmdNextSubpass(VkCommandBuffer commandBuffer, VkSubpassCon
 	}
 #endif
 
-	GET_DEVICE_DISPATCH_PTR_FROM(CmdNextSubpass, device_impl);
+	GET_DISPATCH_PTR_FROM(CmdNextSubpass, device_impl);
 	trampoline(commandBuffer, contents);
 }
 void     VKAPI_CALL vkCmdEndRenderPass(VkCommandBuffer commandBuffer)
@@ -1364,7 +1363,7 @@ void     VKAPI_CALL vkCmdEndRenderPass(VkCommandBuffer commandBuffer)
 	}
 #endif
 
-	GET_DEVICE_DISPATCH_PTR(CmdEndRenderPass, commandBuffer);
+	GET_DISPATCH_PTR(CmdEndRenderPass, commandBuffer);
 	trampoline(commandBuffer);
 }
 
@@ -1385,67 +1384,6 @@ void     VKAPI_CALL vkCmdExecuteCommands(VkCommandBuffer commandBuffer, uint32_t
 	}
 #endif
 
-	GET_DEVICE_DISPATCH_PTR(CmdExecuteCommands, commandBuffer);
+	GET_DISPATCH_PTR(CmdExecuteCommands, commandBuffer);
 	trampoline(commandBuffer, commandBufferCount, pCommandBuffers);
-}
-
-VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice device, const char *pName)
-{
-#define CHECK_DEVICE_PROC(name) \
-	if (0 == strcmp(pName, "vk" #name)) \
-		return reinterpret_cast<PFN_vkVoidFunction>(vk##name)
-
-	// The Vulkan loader gets the 'vkDestroyDevice' function from the device dispatch table
-	CHECK_DEVICE_PROC(DestroyDevice);
-	CHECK_DEVICE_PROC(CreateSwapchainKHR);
-	CHECK_DEVICE_PROC(DestroySwapchainKHR);
-	CHECK_DEVICE_PROC(QueueSubmit);
-	CHECK_DEVICE_PROC(QueuePresentKHR);
-
-#if RESHADE_ADDON
-	CHECK_DEVICE_PROC(CreateBuffer);
-	CHECK_DEVICE_PROC(DestroyBuffer);
-	CHECK_DEVICE_PROC(CreateBufferView);
-	CHECK_DEVICE_PROC(DestroyBufferView);
-	CHECK_DEVICE_PROC(CreateImage);
-	CHECK_DEVICE_PROC(DestroyImage);
-	CHECK_DEVICE_PROC(CreateImageView);
-	CHECK_DEVICE_PROC(DestroyImageView);
-	CHECK_DEVICE_PROC(CreateRenderPass);
-	CHECK_DEVICE_PROC(CreateRenderPass2);
-	if (0 == strcmp(pName, "vkCreateRenderPass2KHR"))
-		return reinterpret_cast<PFN_vkVoidFunction>(vkCreateRenderPass2);
-	CHECK_DEVICE_PROC(DestroyRenderPass);
-	CHECK_DEVICE_PROC(CreateFramebuffer);
-	CHECK_DEVICE_PROC(DestroyFramebuffer);
-
-	CHECK_DEVICE_PROC(AllocateCommandBuffers);
-	CHECK_DEVICE_PROC(FreeCommandBuffers);
-	CHECK_DEVICE_PROC(BeginCommandBuffer);
-
-	CHECK_DEVICE_PROC(CmdSetViewport);
-	CHECK_DEVICE_PROC(CmdSetScissor);
-	CHECK_DEVICE_PROC(CmdDraw);
-	CHECK_DEVICE_PROC(CmdDrawIndexed);
-	CHECK_DEVICE_PROC(CmdDrawIndirect);
-	CHECK_DEVICE_PROC(CmdDrawIndexedIndirect);
-	CHECK_DEVICE_PROC(CmdDispatch);
-	CHECK_DEVICE_PROC(CmdDispatchIndirect);
-	CHECK_DEVICE_PROC(CmdClearColorImage);
-	CHECK_DEVICE_PROC(CmdClearDepthStencilImage);
-	CHECK_DEVICE_PROC(CmdBeginRenderPass);
-	CHECK_DEVICE_PROC(CmdNextSubpass);
-	CHECK_DEVICE_PROC(CmdEndRenderPass);
-	CHECK_DEVICE_PROC(CmdExecuteCommands);
-#endif
-
-	// Need to self-intercept as well, since some layers rely on this (e.g. Steam overlay)
-	// See https://github.com/KhronosGroup/Vulkan-Loader/blob/master/loader/LoaderAndLayerInterface.md#layer-conventions-and-rules
-	CHECK_DEVICE_PROC(GetDeviceProcAddr);
-
-	if (device == VK_NULL_HANDLE)
-		return nullptr;
-
-	GET_DEVICE_DISPATCH_PTR(GetDeviceProcAddr, device);
-	return trampoline(device, pName);
 }

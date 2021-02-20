@@ -441,6 +441,7 @@
       <PreprocessorDefinitions>VMA_IMPLEMENTATION;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <ClCompile Include="source\vulkan\runtime_vk_gui.cpp" />
+    <ClCompile Include="source\vulkan\vulkan_hooks.cpp" />
     <ClCompile Include="source\vulkan\vulkan_hooks_device.cpp" />
     <ClCompile Include="source\vulkan\vulkan_hooks_instance.cpp" />
     <ClCompile Include="source\windows\user32.cpp" />
