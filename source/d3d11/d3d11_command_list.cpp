@@ -53,12 +53,15 @@ ULONG   STDMETHODCALLTYPE D3D11CommandList::Release()
 
 	delete _impl;
 
-	const ULONG ref_orig = _orig->Release();
-	if (ref_orig != 0)
-		LOG(WARN) << "Reference count for ID3D11CommandList object " << this << " (" << _orig << ") is inconsistent.";
-
+	const auto orig = _orig;
+#if 0
+	LOG(DEBUG) << "Destroying ID3D11CommandList object " << this << " (" << orig << ").";
+#endif
 	delete this;
 
+	const ULONG ref_orig = orig->Release();
+	if (ref_orig != 0) // Verify internal reference count
+		LOG(WARN) << "Reference count for ID3D11CommandList object " << this << " (" << orig << ") is inconsistent.";
 	return 0;
 }
 

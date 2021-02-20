@@ -12,7 +12,7 @@ Direct3DSwapChain9::Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapCha
 	_orig(original),
 	_extended_interface(0),
 	_device(device),
-	_runtime(new reshade::d3d9::runtime_d3d9(device->_impl, original))
+	_runtime(new reshade::d3d9::runtime_d3d9(device, original))
 {
 	assert(_orig != nullptr && _device != nullptr);
 }
@@ -20,7 +20,7 @@ Direct3DSwapChain9::Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapCha
 	_orig(original),
 	_extended_interface(1),
 	_device(device),
-	_runtime(new reshade::d3d9::runtime_d3d9(device->_impl, original))
+	_runtime(new reshade::d3d9::runtime_d3d9(device, original))
 {
 	assert(_orig != nullptr && _device != nullptr);
 }
@@ -95,22 +95,23 @@ ULONG   STDMETHODCALLTYPE Direct3DSwapChain9::Release()
 		_device->Release(); // Remove the reference that was added in 'Direct3DDevice9::CreateAdditionalSwapChain'
 	}
 
-	// Only release internal reference after the runtime has been destroyed, so any references it held are cleaned up at this point
-	const ULONG ref_orig = _orig->Release();
-	if (ref_orig != 0) // Verify internal reference count
-		LOG(WARN) << "Reference count for IDirect3DSwapChain9" << (_extended_interface ? "Ex" : "") << " object " << this << " (" << _orig << ") is inconsistent.";
-
+	const auto orig = _orig;
+	const bool extended_interface = _extended_interface;
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Destroyed IDirect3DSwapChain9" << (_extended_interface ? "Ex" : "") << " object " << this << " (" << _orig << ").";
+	LOG(DEBUG) << "Destroying IDirect3DSwapChain9" << (extended_interface ? "Ex" : "") << " object " << this << " (" << orig << ").";
 #endif
 	delete this;
 
+	// Only release internal reference after the runtime has been destroyed, so any references it held are cleaned up at this point
+	const ULONG ref_orig = orig->Release();
+	if (ref_orig != 0) // Verify internal reference count
+		LOG(WARN) << "Reference count for IDirect3DSwapChain9" << (extended_interface ? "Ex" : "") << " object " << this << " (" << orig << ") is inconsistent.";
 	return 0;
 }
 
 HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::Present(const RECT *pSourceRect, const RECT *pDestRect, HWND hDestWindowOverride, const RGNDATA *pDirtyRegion, DWORD dwFlags)
 {
-	RESHADE_ADDON_EVENT(present, _device->_impl, _runtime);
+	RESHADE_ADDON_EVENT(present, _device, _runtime);
 
 	// Only call into runtime if the entire surface is presented, to avoid partial updates messing up effects and the GUI
 	if (is_presenting_entire_surface(pSourceRect, hDestWindowOverride))

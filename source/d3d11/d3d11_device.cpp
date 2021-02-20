@@ -9,10 +9,10 @@
 #include "dxgi/dxgi_device.hpp"
 
 D3D11Device::D3D11Device(IDXGIDevice1 *dxgi_device, ID3D11Device *original) :
+	device_impl(original),
 	_orig(original),
 	_interface_version(0),
-	_dxgi_device(new DXGIDevice(dxgi_device, this)),
-	_impl(new reshade::d3d11::device_impl(original))
+	_dxgi_device(new DXGIDevice(dxgi_device, this))
 {
 	assert(_orig != nullptr);
 }
@@ -99,18 +99,17 @@ ULONG   STDMETHODCALLTYPE D3D11Device::Release()
 	if (ref != 0)
 		return _orig->Release(), ref;
 
-	delete _impl;
-
-	// Note: At this point the immediate context should have been deleted by the release above (so do not access it)
-	const ULONG ref_orig = _orig->Release();
-	if (ref_orig != 0) // Verify internal reference count
-		LOG(WARN) << "Reference count for ID3D11Device" << _interface_version << " object " << this << " (" << _orig << ") is inconsistent.";
-
+	const auto orig = _orig;
+	const auto interface_version = _interface_version;
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Destroyed ID3D11Device" << _interface_version << " object " << this << " (" << _orig << ").";
+	LOG(DEBUG) << "Destroying ID3D11Device" << interface_version << " object " << this << " (" << orig << ").";
 #endif
 	delete this;
 
+	// Note: At this point the immediate context should have been deleted by the release above (so do not access it)
+	const ULONG ref_orig = orig->Release();
+	if (ref_orig != 0) // Verify internal reference count
+		LOG(WARN) << "Reference count for ID3D11Device" << interface_version << " object " << this << " (" << orig << ") is inconsistent.";
 	return 0;
 }
 
@@ -121,7 +120,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateBuffer(const D3D11_BUFFER_DESC *pDe
 
 #if RESHADE_ADDON
 	reshade::api::resource_desc api_desc = reshade::d3d11::convert_resource_desc(new_desc);
-	RESHADE_ADDON_EVENT(create_resource, _impl, reshade::api::resource_type::buffer, &api_desc);
+	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::buffer, &api_desc);
 	reshade::d3d11::convert_resource_desc(api_desc, new_desc);
 #endif
 
@@ -130,7 +129,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateBuffer(const D3D11_BUFFER_DESC *pDe
 	if (SUCCEEDED(hr))
 	{
 		assert(ppBuffer != nullptr);
-		_impl->register_resource(*ppBuffer);
+		register_resource(*ppBuffer);
 	}
 	else
 	{
@@ -155,7 +154,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture1D(const D3D11_TEXTURE1D_DES
 
 #if RESHADE_ADDON
 	reshade::api::resource_desc api_desc = reshade::d3d11::convert_resource_desc(new_desc);
-	RESHADE_ADDON_EVENT(create_resource, _impl, reshade::api::resource_type::texture_1d, &api_desc);
+	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::texture_1d, &api_desc);
 	reshade::d3d11::convert_resource_desc(api_desc, new_desc);
 #endif
 
@@ -164,7 +163,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture1D(const D3D11_TEXTURE1D_DES
 	if (SUCCEEDED(hr))
 	{
 		assert(ppTexture1D != nullptr);
-		_impl->register_resource(*ppTexture1D);
+		register_resource(*ppTexture1D);
 	}
 	else
 	{
@@ -192,7 +191,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture2D(const D3D11_TEXTURE2D_DES
 
 #if RESHADE_ADDON
 	reshade::api::resource_desc api_desc = reshade::d3d11::convert_resource_desc(new_desc);
-	RESHADE_ADDON_EVENT(create_resource, _impl, reshade::api::resource_type::texture_2d, &api_desc);
+	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::texture_2d, &api_desc);
 	reshade::d3d11::convert_resource_desc(api_desc, new_desc);
 #endif
 
@@ -201,7 +200,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture2D(const D3D11_TEXTURE2D_DES
 	if (SUCCEEDED(hr))
 	{
 		assert(ppTexture2D != nullptr);
-		_impl->register_resource(*ppTexture2D);
+		register_resource(*ppTexture2D);
 	}
 	else
 	{
@@ -232,7 +231,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture3D(const D3D11_TEXTURE3D_DES
 
 #if RESHADE_ADDON
 	reshade::api::resource_desc api_desc = reshade::d3d11::convert_resource_desc(new_desc);
-	RESHADE_ADDON_EVENT(create_resource, _impl, reshade::api::resource_type::texture_3d, &api_desc);
+	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::texture_3d, &api_desc);
 	reshade::d3d11::convert_resource_desc(api_desc, new_desc);
 #endif
 
@@ -241,7 +240,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture3D(const D3D11_TEXTURE3D_DES
 	if (SUCCEEDED(hr))
 	{
 		assert(ppTexture3D != nullptr);
-		_impl->register_resource(*ppTexture3D);
+		register_resource(*ppTexture3D);
 	}
 	else
 	{
@@ -273,7 +272,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateShaderResourceView(ID3D11Resource *
 
 #if RESHADE_ADDON
 	reshade::api::resource_view_desc api_desc = reshade::d3d11::convert_shader_resource_view_desc(new_desc);
-	RESHADE_ADDON_EVENT(create_resource_view, _impl, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::shader_resource, &api_desc);
+	RESHADE_ADDON_EVENT(create_resource_view, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::shader_resource, &api_desc);
 	reshade::d3d11::convert_shader_resource_view_desc(api_desc, new_desc);
 #endif
 
@@ -282,7 +281,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateShaderResourceView(ID3D11Resource *
 	if (SUCCEEDED(hr))
 	{
 		assert(ppSRView != nullptr);
-		_impl->register_resource_view(*ppSRView);
+		register_resource_view(*ppSRView);
 	}
 	else
 	{
@@ -307,7 +306,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateUnorderedAccessView(ID3D11Resource 
 
 #if RESHADE_ADDON
 	reshade::api::resource_view_desc api_desc = reshade::d3d11::convert_unordered_access_view_desc(new_desc);
-	RESHADE_ADDON_EVENT(create_resource_view, _impl, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::unordered_access, &api_desc);
+	RESHADE_ADDON_EVENT(create_resource_view, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::unordered_access, &api_desc);
 	reshade::d3d11::convert_unordered_access_view_desc(api_desc, new_desc);
 #endif
 
@@ -316,7 +315,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateUnorderedAccessView(ID3D11Resource 
 	if (SUCCEEDED(hr))
 	{
 		assert(ppUAView != nullptr);
-		_impl->register_resource_view(*ppUAView);
+		register_resource_view(*ppUAView);
 	}
 	else
 	{
@@ -341,7 +340,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRenderTargetView(ID3D11Resource *pR
 
 #if RESHADE_ADDON
 	reshade::api::resource_view_desc api_desc = reshade::d3d11::convert_render_target_view_desc(new_desc);
-	RESHADE_ADDON_EVENT(create_resource_view, _impl, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::render_target, &api_desc);
+	RESHADE_ADDON_EVENT(create_resource_view, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::render_target, &api_desc);
 	reshade::d3d11::convert_render_target_view_desc(api_desc, new_desc);
 #endif
 
@@ -350,7 +349,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRenderTargetView(ID3D11Resource *pR
 	if (SUCCEEDED(hr))
 	{
 		assert(ppRTView != nullptr);
-		_impl->register_resource_view(*ppRTView);
+		register_resource_view(*ppRTView);
 	}
 	else
 	{
@@ -375,7 +374,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDepthStencilView(ID3D11Resource *pR
 
 #if RESHADE_ADDON
 	reshade::api::resource_view_desc api_desc = reshade::d3d11::convert_depth_stencil_view_desc(new_desc);
-	RESHADE_ADDON_EVENT(create_resource_view, _impl, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::depth_stencil, &api_desc);
+	RESHADE_ADDON_EVENT(create_resource_view, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::depth_stencil, &api_desc);
 	reshade::d3d11::convert_depth_stencil_view_desc(api_desc, new_desc);
 #endif
 
@@ -384,7 +383,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDepthStencilView(ID3D11Resource *pR
 	if (SUCCEEDED(hr))
 	{
 		assert(ppDepthStencilView != nullptr);
-		_impl->register_resource_view(*ppDepthStencilView);
+		register_resource_view(*ppDepthStencilView);
 	}
 	else
 	{
@@ -667,7 +666,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture2D1(const D3D11_TEXTURE2D_DE
 
 #if RESHADE_ADDON
 	reshade::api::resource_desc api_desc = reshade::d3d11::convert_resource_desc(reinterpret_cast<D3D11_TEXTURE2D_DESC &>(new_desc)); // D3D11_TEXTURE2D_DESC1 is a superset of D3D11_TEXTURE2D_DESC
-	RESHADE_ADDON_EVENT(create_resource, _impl, reshade::api::resource_type::texture_2d, &api_desc);
+	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::texture_2d, &api_desc);
 	reshade::d3d11::convert_resource_desc(api_desc, reinterpret_cast<D3D11_TEXTURE2D_DESC &>(new_desc));
 #endif
 
@@ -677,7 +676,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture2D1(const D3D11_TEXTURE2D_DE
 	if (SUCCEEDED(hr))
 	{
 		assert(ppTexture2D != nullptr);
-		_impl->register_resource(*ppTexture2D);
+		register_resource(*ppTexture2D);
 	}
 	else
 	{
@@ -709,7 +708,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture3D1(const D3D11_TEXTURE3D_DE
 
 #if RESHADE_ADDON
 	reshade::api::resource_desc api_desc = reshade::d3d11::convert_resource_desc(reinterpret_cast<D3D11_TEXTURE3D_DESC &>(new_desc)); // D3D11_TEXTURE3D_DESC1 is a superset of D3D11_TEXTURE3D_DESC
-	RESHADE_ADDON_EVENT(create_resource, _impl, reshade::api::resource_type::texture_3d, &api_desc);
+	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::texture_3d, &api_desc);
 	reshade::d3d11::convert_resource_desc(api_desc, reinterpret_cast<D3D11_TEXTURE3D_DESC &>(new_desc));
 #endif
 
@@ -719,7 +718,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture3D1(const D3D11_TEXTURE3D_DE
 	if (SUCCEEDED(hr))
 	{
 		assert(ppTexture3D != nullptr);
-		_impl->register_resource(*ppTexture3D);
+		register_resource(*ppTexture3D);
 	}
 	else
 	{
@@ -757,7 +756,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateShaderResourceView1(ID3D11Resource 
 
 #if RESHADE_ADDON
 	reshade::api::resource_view_desc api_desc = reshade::d3d11::convert_shader_resource_view_desc(new_desc);
-	RESHADE_ADDON_EVENT(create_resource_view, _impl, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::shader_resource, &api_desc);
+	RESHADE_ADDON_EVENT(create_resource_view, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::shader_resource, &api_desc);
 	reshade::d3d11::convert_shader_resource_view_desc(api_desc, new_desc);
 #endif
 
@@ -767,7 +766,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateShaderResourceView1(ID3D11Resource 
 	if (SUCCEEDED(hr))
 	{
 		assert(ppSRView1 != nullptr);
-		_impl->register_resource_view(*ppSRView1);
+		register_resource_view(*ppSRView1);
 	}
 	else
 	{
@@ -792,7 +791,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateUnorderedAccessView1(ID3D11Resource
 
 #if RESHADE_ADDON
 	reshade::api::resource_view_desc api_desc = reshade::d3d11::convert_unordered_access_view_desc(new_desc);
-	RESHADE_ADDON_EVENT(create_resource_view, _impl, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::render_target, &api_desc);
+	RESHADE_ADDON_EVENT(create_resource_view, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::render_target, &api_desc);
 	reshade::d3d11::convert_unordered_access_view_desc(api_desc, new_desc);
 #endif
 
@@ -802,7 +801,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateUnorderedAccessView1(ID3D11Resource
 	if (SUCCEEDED(hr))
 	{
 		assert(ppUAView1 != nullptr);
-		_impl->register_resource_view(*ppUAView1);
+		register_resource_view(*ppUAView1);
 	}
 	else
 	{
@@ -827,7 +826,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRenderTargetView1(ID3D11Resource *p
 
 #if RESHADE_ADDON
 	reshade::api::resource_view_desc api_desc = reshade::d3d11::convert_render_target_view_desc(new_desc);
-	RESHADE_ADDON_EVENT(create_resource_view, _impl, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::render_target, &api_desc);
+	RESHADE_ADDON_EVENT(create_resource_view, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::render_target, &api_desc);
 	reshade::d3d11::convert_render_target_view_desc(api_desc, new_desc);
 #endif
 
@@ -837,7 +836,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRenderTargetView1(ID3D11Resource *p
 	if (SUCCEEDED(hr))
 	{
 		assert(ppRTView1 != nullptr);
-		_impl->register_resource_view(*ppRTView1);
+		register_resource_view(*ppRTView1);
 	}
 	else
 	{

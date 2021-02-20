@@ -12,7 +12,7 @@ D3D11DeviceContext::D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext 
 	_orig(original),
 	_interface_version(0),
 	_device(device),
-	_impl(new reshade::d3d11::device_context_impl(device->_impl, original))
+	_impl(new reshade::d3d11::device_context_impl(device, original))
 {
 	assert(_orig != nullptr && _device != nullptr);
 }
@@ -20,7 +20,7 @@ D3D11DeviceContext::D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext1
 	_orig(original),
 	_interface_version(1),
 	_device(device),
-	_impl(new reshade::d3d11::device_context_impl(device->_impl, original))
+	_impl(new reshade::d3d11::device_context_impl(device, original))
 {
 	assert(_orig != nullptr && _device != nullptr);
 }
@@ -28,7 +28,7 @@ D3D11DeviceContext::D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext2
 	_orig(original),
 	_interface_version(2),
 	_device(device),
-	_impl(new reshade::d3d11::device_context_impl(device->_impl, original))
+	_impl(new reshade::d3d11::device_context_impl(device, original))
 {
 	assert(_orig != nullptr && _device != nullptr);
 }
@@ -36,7 +36,7 @@ D3D11DeviceContext::D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext3
 	_orig(original),
 	_interface_version(3),
 	_device(device),
-	_impl(new reshade::d3d11::device_context_impl(device->_impl, original))
+	_impl(new reshade::d3d11::device_context_impl(device, original))
 {
 	assert(_orig != nullptr && _device != nullptr);
 }
@@ -107,15 +107,16 @@ ULONG   STDMETHODCALLTYPE D3D11DeviceContext::Release()
 
 	delete _impl;
 
-	const ULONG ref_orig = _orig->Release();
-	if (ref_orig != 0) // Verify internal reference count
-		LOG(WARN) << "Reference count for ID3D11DeviceContext" << _interface_version << " object " << this << " (" << _orig << ") is inconsistent.";
-
+	const auto orig = _orig;
+	const auto interface_version = _interface_version;
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Destroyed ID3D11DeviceContext" << _interface_version << " object " << this << " (" << _orig << ").";
+	LOG(DEBUG) << "Destroying ID3D11DeviceContext" << interface_version << " object " << this << " (" << orig << ").";
 #endif
 	delete this;
 
+	const ULONG ref_orig = orig->Release();
+	if (ref_orig != 0) // Verify internal reference count
+		LOG(WARN) << "Reference count for ID3D11DeviceContext" << interface_version << " object " << this << " (" << orig << ") is inconsistent.";
 	return 0;
 }
 
@@ -628,7 +629,7 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::FinishCommandList(BOOL RestoreDefe
 		// Move current command list of this deferred context into the command list object and create a new one
 		// This technically assumes that 'RestoreDeferredContextState' is FALSE, since the new API object will have the state reset ...
 		command_list_proxy->_impl = _impl;
-		_impl = new reshade::d3d11::device_context_impl(_device->_impl, _orig);
+		_impl = new reshade::d3d11::device_context_impl(_device, _orig);
 
 		*ppCommandList = command_list_proxy;
 	}

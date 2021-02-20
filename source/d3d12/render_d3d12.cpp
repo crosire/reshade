@@ -953,6 +953,9 @@ bool reshade::d3d12::command_list_immediate_impl::flush_and_wait(ID3D12CommandQu
 reshade::d3d12::command_queue_impl::command_queue_impl(device_impl *device, ID3D12CommandQueue *queue) :
 	_device_impl(device), _queue(queue)
 {
+	// Keep track of the lifetime of all queues created on a device
+	_device_impl->register_queue(_queue.get());
+
 	// Only create an immediate command list for graphics queues (since the implemented commands do not work on other queue types)
 	if (queue->GetDesc().Type == D3D12_COMMAND_LIST_TYPE_DIRECT)
 	{
@@ -966,4 +969,6 @@ reshade::d3d12::command_queue_impl::~command_queue_impl()
 	RESHADE_ADDON_EVENT(destroy_command_queue, this);
 
 	delete _immediate_cmd_list;
+
+	_device_impl->unregister_queue(_queue.get());
 }

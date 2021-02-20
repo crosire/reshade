@@ -10,14 +10,12 @@
 #include "d3d12_command_queue_downlevel.hpp"
 
 D3D12CommandQueue::D3D12CommandQueue(D3D12Device *device, ID3D12CommandQueue *original) :
+	command_queue_impl(device, original),
 	_orig(original),
 	_interface_version(0),
-	_device(device),
-	_impl(new reshade::d3d12::command_queue_impl(device->_impl, original))
+	_device(device)
 {
 	assert(_orig != nullptr && _device != nullptr);
-	// Keep track of the lifetime of all queues created on a device
-	_device->_impl->register_queue(_orig);
 }
 
 bool D3D12CommandQueue::check_and_upgrade_interface(REFIID riid)
@@ -92,8 +90,6 @@ ULONG   STDMETHODCALLTYPE D3D12CommandQueue::Release()
 	if (ref != 0)
 		return _orig->Release(), ref;
 
-	_device->_impl->unregister_queue(_orig);
-
 	// Release before deleting implementation object, since runtime created in D3D12CommandQueueDownlevel may still reference it
 	if (_downlevel != nullptr &&
 		_downlevel->Release() != 0)
@@ -104,17 +100,16 @@ ULONG   STDMETHODCALLTYPE D3D12CommandQueue::Release()
 		return 0;
 	}
 
-	delete _impl;
-
-	const ULONG ref_orig = _orig->Release();
-	if (ref_orig != 0) // Verify internal reference count
-		LOG(WARN) << "Reference count for ID3D12CommandQueue" << _interface_version << " object " << this << " (" << _orig << ") is inconsistent.";
-
+	const auto orig = _orig;
+	const auto interface_version = _interface_version;
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Destroyed ID3D12CommandQueue" << _interface_version << " object " << this << " (" << _orig << ").";
+	LOG(DEBUG) << "Destroying ID3D12CommandQueue" << interface_version << " object " << this << " (" << orig << ").";
 #endif
 	delete this;
 
+	const ULONG ref_orig = orig->Release();
+	if (ref_orig != 0) // Verify internal reference count
+		LOG(WARN) << "Reference count for ID3D12CommandQueue" << interface_version << " object " << this << " (" << orig << ") is inconsistent.";
 	return 0;
 }
 
@@ -161,7 +156,7 @@ void    STDMETHODCALLTYPE D3D12CommandQueue::ExecuteCommandLists(UINT NumCommand
 			// Get original command list pointer from proxy object
 			command_lists[i] = command_list_proxy->_orig;
 
-			RESHADE_ADDON_EVENT(execute_command_list, _impl, command_list_proxy->_impl);
+			RESHADE_ADDON_EVENT(execute_command_list, this, command_list_proxy.get());
 		}
 		else
 		{

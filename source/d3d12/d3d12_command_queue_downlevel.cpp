@@ -13,7 +13,7 @@
 D3D12CommandQueueDownlevel::D3D12CommandQueueDownlevel(D3D12CommandQueue *queue, ID3D12CommandQueueDownlevel *original) :
 	_orig(original),
 	_queue(queue),
-	_runtime(new reshade::d3d12::runtime_d3d12(queue->_device->_impl, queue->_impl, nullptr))
+	_runtime(new reshade::d3d12::runtime_d3d12(queue->_device, queue, nullptr))
 {
 	assert(_orig != nullptr && _queue != nullptr);
 }
@@ -47,22 +47,22 @@ ULONG   STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Release()
 
 	delete _runtime;
 
-	// Only release internal reference after the runtime has been destroyed, so any references it held are cleaned up at this point
-	const ULONG ref_orig = _orig->Release();
-	if (ref_orig > 1) // Verify internal reference count against one instead of zero because parent queue still holds a reference
-		LOG(WARN) << "Reference count for ID3D12CommandQueueDownlevel object " << this << " (" << _orig << ") is inconsistent.";
-
+	const auto orig = _orig;
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Destroyed ID3D12CommandQueueDownlevel object " << this << " (" << _orig << ").";
+	LOG(DEBUG) << "Destroying ID3D12CommandQueueDownlevel object " << this << " (" << orig << ").";
 #endif
 	delete this;
 
+	// Only release internal reference after the runtime has been destroyed, so any references it held are cleaned up at this point
+	const ULONG ref_orig = orig->Release();
+	if (ref_orig > 1) // Verify internal reference count against one instead of zero because parent queue still holds a reference
+		LOG(WARN) << "Reference count for ID3D12CommandQueueDownlevel object " << this << " (" << orig << ") is inconsistent.";
 	return 0;
 }
 
 HRESULT STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Present(ID3D12GraphicsCommandList *pOpenCommandList, ID3D12Resource *pSourceTex2D, HWND hWindow, D3D12_DOWNLEVEL_PRESENT_FLAGS Flags)
 {
-	RESHADE_ADDON_EVENT(present, _queue->_impl, _runtime);
+	RESHADE_ADDON_EVENT(present, _queue, _runtime);
 
 	assert(pSourceTex2D != nullptr);
 	_runtime->on_present(pSourceTex2D, hWindow);

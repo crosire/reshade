@@ -24,7 +24,7 @@ DXGISwapChain::DXGISwapChain(D3D10Device *device, IDXGISwapChain  *original) :
 	_interface_version(0),
 	_direct3d_device(device),
 	_direct3d_version(10),
-	_runtime(new reshade::d3d10::runtime_d3d10(device->_impl, original))
+	_runtime(new reshade::d3d10::runtime_d3d10(device, original))
 {
 	assert(_orig != nullptr && _direct3d_device != nullptr);
 	// Explicitly add a reference to the device, to ensure it stays valid for the lifetime of this swap chain object
@@ -35,7 +35,7 @@ DXGISwapChain::DXGISwapChain(D3D10Device *device, IDXGISwapChain1 *original) :
 	_interface_version(1),
 	_direct3d_device(device),
 	_direct3d_version(10),
-	_runtime(new reshade::d3d10::runtime_d3d10(device->_impl, original))
+	_runtime(new reshade::d3d10::runtime_d3d10(device, original))
 {
 	assert(_orig != nullptr && _direct3d_device != nullptr);
 	_direct3d_device->AddRef();
@@ -45,7 +45,7 @@ DXGISwapChain::DXGISwapChain(D3D11Device *device, IDXGISwapChain  *original) :
 	_interface_version(0),
 	_direct3d_device(device),
 	_direct3d_version(11),
-	_runtime(new reshade::d3d11::runtime_d3d11(device->_impl, device->_immediate_context->_impl, original))
+	_runtime(new reshade::d3d11::runtime_d3d11(device, device->_immediate_context->_impl, original))
 {
 	assert(_orig != nullptr && _direct3d_device != nullptr);
 	_direct3d_device->AddRef();
@@ -55,7 +55,7 @@ DXGISwapChain::DXGISwapChain(D3D11Device *device, IDXGISwapChain1 *original) :
 	_interface_version(1),
 	_direct3d_device(device),
 	_direct3d_version(11),
-	_runtime(new reshade::d3d11::runtime_d3d11(device->_impl, device->_immediate_context->_impl, original))
+	_runtime(new reshade::d3d11::runtime_d3d11(device, device->_immediate_context->_impl, original))
 {
 	assert(_orig != nullptr && _direct3d_device != nullptr);
 	_direct3d_device->AddRef();
@@ -65,7 +65,7 @@ DXGISwapChain::DXGISwapChain(D3D12CommandQueue *command_queue, IDXGISwapChain3 *
 	_interface_version(3),
 	_direct3d_device(command_queue->_device), // Get the device instead of the command queue, so that 'IDXGISwapChain::GetDevice' works
 	_direct3d_version(12),
-	_runtime(new reshade::d3d12::runtime_d3d12(command_queue->_device->_impl, command_queue->_impl, original))
+	_runtime(new reshade::d3d12::runtime_d3d12(command_queue->_device, command_queue, original))
 {
 	assert(_orig != nullptr && _direct3d_device != nullptr);
 	_direct3d_device->AddRef();
@@ -257,16 +257,17 @@ ULONG   STDMETHODCALLTYPE DXGISwapChain::Release()
 	// Release the explicit reference to device that was added in the DXGISwapChain constructor above
 	_direct3d_device->Release();
 
-	// Only release internal reference after the runtime has been destroyed, so any references it held are cleaned up at this point
-	const ULONG ref_orig = _orig->Release();
-	if (ref_orig != 0) // Verify internal reference count
-		LOG(WARN) << "Reference count for IDXGISwapChain" << _interface_version << " object " << this << " (" << _orig << ") is inconsistent.";
-
+	const auto orig = _orig;
+	const auto interface_version = _interface_version;
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Destroyed IDXGISwapChain" << _interface_version << " object " << this << " (" << _orig << ").";
+	LOG(DEBUG) << "Destroying IDXGISwapChain" << interface_version << " object " << this << " (" << orig << ").";
 #endif
 	delete this;
 
+	// Only release internal reference after the runtime has been destroyed, so any references it held are cleaned up at this point
+	const ULONG ref_orig = orig->Release();
+	if (ref_orig != 0) // Verify internal reference count
+		LOG(WARN) << "Reference count for IDXGISwapChain" << interface_version << " object " << this << " (" << orig << ") is inconsistent.";
 	return 0;
 }
 

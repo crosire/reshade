@@ -10,9 +10,9 @@
 #include "d3d12_command_queue.hpp"
 
 D3D12Device::D3D12Device(ID3D12Device *original) :
+	device_impl(original),
 	_orig(original),
-	_interface_version(0),
-	_impl(new reshade::d3d12::device_impl(original))
+	_interface_version(0)
 {
 	assert(_orig != nullptr);
 }
@@ -101,17 +101,16 @@ ULONG   STDMETHODCALLTYPE D3D12Device::Release()
 		return 0;
 	}
 
-	delete _impl;
-
-	const ULONG ref_orig = _orig->Release();
-	if (ref_orig != 0) // Verify internal reference count
-		LOG(WARN) << "Reference count for ID3D12Device" << _interface_version << " object " << this << " (" << _orig << ") is inconsistent.";
-
+	const auto orig = _orig;
+	const auto interface_version = _interface_version;
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Destroyed ID3D12Device" << _interface_version << " object " << this << " (" << _orig << ").";
+	LOG(DEBUG) << "Destroying ID3D12Device" << interface_version << " object " << this << " (" << orig << ").";
 #endif
 	delete this;
 
+	const ULONG ref_orig = orig->Release();
+	if (ref_orig != 0) // Verify internal reference count
+		LOG(WARN) << "Reference count for ID3D12Device" << interface_version << " object " << this << " (" << orig << ") is inconsistent.";
 	return 0;
 }
 
@@ -241,12 +240,12 @@ void    STDMETHODCALLTYPE D3D12Device::CreateShaderResourceView(ID3D12Resource *
 			pDesc != nullptr ? *pDesc : D3D12_SHADER_RESOURCE_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D12_SRV_DIMENSION_UNKNOWN };
 
 		reshade::api::resource_view_desc api_desc = reshade::d3d12::convert_shader_resource_view_desc(new_desc);
-		RESHADE_ADDON_EVENT(create_resource_view, _impl, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::shader_resource, &api_desc);
+		RESHADE_ADDON_EVENT(create_resource_view, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::shader_resource, &api_desc);
 		reshade::d3d12::convert_shader_resource_view_desc(api_desc, new_desc);
 
 		_orig->CreateShaderResourceView(pResource, new_desc.ViewDimension != D3D12_SRV_DIMENSION_UNKNOWN ? &new_desc : nullptr, DestDescriptor);
 
-		_impl->register_resource_view(pResource, DestDescriptor);
+		register_resource_view(pResource, DestDescriptor);
 	}
 	else
 #endif
@@ -262,12 +261,12 @@ void    STDMETHODCALLTYPE D3D12Device::CreateUnorderedAccessView(ID3D12Resource 
 			pDesc != nullptr ? *pDesc : D3D12_UNORDERED_ACCESS_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D12_UAV_DIMENSION_UNKNOWN };
 
 		reshade::api::resource_view_desc api_desc = reshade::d3d12::convert_unordered_access_view_desc(new_desc);
-		RESHADE_ADDON_EVENT(create_resource_view, _impl, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::unordered_access, &api_desc);
+		RESHADE_ADDON_EVENT(create_resource_view, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::unordered_access, &api_desc);
 		reshade::d3d12::convert_unordered_access_view_desc(api_desc, new_desc);
 
 		_orig->CreateUnorderedAccessView(pResource, pCounterResource, new_desc.ViewDimension != D3D12_UAV_DIMENSION_UNKNOWN ? &new_desc : nullptr, DestDescriptor);
 
-		_impl->register_resource_view(pResource, DestDescriptor);
+		register_resource_view(pResource, DestDescriptor);
 	}
 	else
 #endif
@@ -283,12 +282,12 @@ void    STDMETHODCALLTYPE D3D12Device::CreateRenderTargetView(ID3D12Resource *pR
 			pDesc != nullptr ? *pDesc : D3D12_RENDER_TARGET_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D12_RTV_DIMENSION_UNKNOWN };
 
 		reshade::api::resource_view_desc api_desc = reshade::d3d12::convert_render_target_view_desc(new_desc);
-		RESHADE_ADDON_EVENT(create_resource_view, _impl, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::render_target, &api_desc);
+		RESHADE_ADDON_EVENT(create_resource_view, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::render_target, &api_desc);
 		reshade::d3d12::convert_render_target_view_desc(api_desc, new_desc);
 
 		_orig->CreateRenderTargetView(pResource, new_desc.ViewDimension != D3D12_RTV_DIMENSION_UNKNOWN ? &new_desc : nullptr, DestDescriptor);
 
-		_impl->register_resource_view(pResource, DestDescriptor);
+		register_resource_view(pResource, DestDescriptor);
 	}
 	else
 #endif
@@ -304,12 +303,12 @@ void    STDMETHODCALLTYPE D3D12Device::CreateDepthStencilView(ID3D12Resource *pR
 			pDesc != nullptr ? *pDesc : D3D12_DEPTH_STENCIL_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D12_DSV_DIMENSION_UNKNOWN };
 
 		reshade::api::resource_view_desc api_desc = reshade::d3d12::convert_depth_stencil_view_desc(new_desc);
-		RESHADE_ADDON_EVENT(create_resource_view, _impl, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::depth_stencil, &api_desc);
+		RESHADE_ADDON_EVENT(create_resource_view, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::depth_stencil, &api_desc);
 		reshade::d3d12::convert_depth_stencil_view_desc(api_desc, new_desc);
 
 		_orig->CreateDepthStencilView(pResource, new_desc.ViewDimension != D3D12_DSV_DIMENSION_UNKNOWN ? &new_desc : nullptr, DestDescriptor);
 
-		_impl->register_resource_view(pResource, DestDescriptor);
+		register_resource_view(pResource, DestDescriptor);
 	}
 	else
 #endif
@@ -343,7 +342,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource(const D3D12_HEAP_
 
 #if RESHADE_ADDON
 	std::pair<reshade::api::resource_type, reshade::api::resource_desc> api_desc = reshade::d3d12::convert_resource_desc(new_desc);
-	RESHADE_ADDON_EVENT(create_resource, _impl, api_desc.first, &api_desc.second);
+	RESHADE_ADDON_EVENT(create_resource, this, api_desc.first, &api_desc.second);
 	reshade::d3d12::convert_resource_desc(api_desc.first, api_desc.second, new_desc);
 #endif
 
@@ -352,7 +351,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource(const D3D12_HEAP_
 	if (SUCCEEDED(hr))
 	{
 		assert(ppvResource != nullptr);
-		_impl->register_resource(static_cast<ID3D12Resource *>(*ppvResource));
+		register_resource(static_cast<ID3D12Resource *>(*ppvResource));
 	}
 	else
 	{
@@ -387,7 +386,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePlacedResource(ID3D12Heap *pHeap, U
 
 #if RESHADE_ADDON
 	std::pair<reshade::api::resource_type, reshade::api::resource_desc> api_desc = reshade::d3d12::convert_resource_desc(new_desc);
-	RESHADE_ADDON_EVENT(create_resource, _impl, api_desc.first, &api_desc.second);
+	RESHADE_ADDON_EVENT(create_resource, this, api_desc.first, &api_desc.second);
 	reshade::d3d12::convert_resource_desc(api_desc.first, api_desc.second, new_desc);
 #endif
 
@@ -396,7 +395,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePlacedResource(ID3D12Heap *pHeap, U
 	if (SUCCEEDED(hr))
 	{
 		assert(ppvResource != nullptr);
-		_impl->register_resource(static_cast<ID3D12Resource *>(*ppvResource));
+		register_resource(static_cast<ID3D12Resource *>(*ppvResource));
 	}
 	else
 	{
@@ -427,7 +426,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource(const D3D12_RESOUR
 
 #if RESHADE_ADDON
 	std::pair<reshade::api::resource_type, reshade::api::resource_desc> api_desc = reshade::d3d12::convert_resource_desc(new_desc);
-	RESHADE_ADDON_EVENT(create_resource, _impl, api_desc.first, &api_desc.second);
+	RESHADE_ADDON_EVENT(create_resource, this, api_desc.first, &api_desc.second);
 	reshade::d3d12::convert_resource_desc(api_desc.first, api_desc.second, new_desc);
 #endif
 
@@ -436,7 +435,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource(const D3D12_RESOUR
 	if (SUCCEEDED(hr))
 	{
 		assert(ppvResource != nullptr);
-		_impl->register_resource(static_cast<ID3D12Resource *>(*ppvResource));
+		register_resource(static_cast<ID3D12Resource *>(*ppvResource));
 	}
 	else
 	{
@@ -588,7 +587,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource1(const D3D12_HEAP
 
 #if RESHADE_ADDON
 	std::pair<reshade::api::resource_type, reshade::api::resource_desc> api_desc = reshade::d3d12::convert_resource_desc(new_desc);
-	RESHADE_ADDON_EVENT(create_resource, _impl, api_desc.first, &api_desc.second);
+	RESHADE_ADDON_EVENT(create_resource, this, api_desc.first, &api_desc.second);
 	reshade::d3d12::convert_resource_desc(api_desc.first, api_desc.second, new_desc);
 #endif
 
@@ -598,7 +597,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource1(const D3D12_HEAP
 	if (SUCCEEDED(hr))
 	{
 		assert(ppvResource != nullptr);
-		_impl->register_resource(static_cast<ID3D12Resource *>(*ppvResource));
+		register_resource(static_cast<ID3D12Resource *>(*ppvResource));
 	}
 	else
 	{
@@ -634,7 +633,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource1(const D3D12_RESOU
 
 #if RESHADE_ADDON
 	std::pair<reshade::api::resource_type, reshade::api::resource_desc> api_desc = reshade::d3d12::convert_resource_desc(new_desc);
-	RESHADE_ADDON_EVENT(create_resource, _impl, api_desc.first, &api_desc.second);
+	RESHADE_ADDON_EVENT(create_resource, this, api_desc.first, &api_desc.second);
 	reshade::d3d12::convert_resource_desc(api_desc.first, api_desc.second, new_desc);
 #endif
 
@@ -644,7 +643,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource1(const D3D12_RESOU
 	if (SUCCEEDED(hr))
 	{
 		assert(ppvResource != nullptr);
-		_impl->register_resource(static_cast<ID3D12Resource *>(*ppvResource));
+		register_resource(static_cast<ID3D12Resource *>(*ppvResource));
 	}
 	else
 	{
