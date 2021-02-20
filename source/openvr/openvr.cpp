@@ -19,15 +19,17 @@ reshade::openvr::openvr_runtime_d3d11 *create_vr_runtime_d3d11( const vr::Textur
 
 vr::EVRCompositorError IVRCompositor_Submit(void *ivrCompositor, vr::EVREye eEye, const vr::Texture_t *pTexture, const vr::VRTextureBounds_t* pBounds, vr::EVRSubmitFlags nSubmitFlags)
 {
-	LOG(DEBUG) << "VR: Intercepted call to IVRCompositor::Submit";
 	const auto trampoline = reshade::hooks::call(IVRCompositor_Submit, as_vtable(ivrCompositor) + 5);
 
 	if (pTexture->eType == vr::TextureType_DirectX)
 	{
 		if (vr_runtime_d3d11 == nullptr)
 		{
-			vr_runtime_d3d11 = new reshade::openvr::openvr_runtime_d3d11(pTexture, pBounds);
+			vr_runtime_d3d11 = new reshade::openvr::openvr_runtime_d3d11(pTexture, pBounds, trampoline, ivrCompositor);
 		}
+		vr_runtime_d3d11->on_submit(eEye, pTexture, pBounds);
+		// FIXME: should we do better error reporting here?
+		return vr::VRCompositorError_None;
 	}
 	
 	return trampoline(ivrCompositor, eEye, pTexture, pBounds, nSubmitFlags);
