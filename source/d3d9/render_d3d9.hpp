@@ -79,14 +79,14 @@ namespace reshade::d3d9
 		}
 #endif
 
+	protected:
+		IDirect3DDevice9 *_orig;
 		unsigned int _num_samplers;
 		unsigned int _num_simultaneous_rendertargets;
 		unsigned int _behavior_flags;
 
 	private:
-		const com_ptr<IDirect3DDevice9> _device;
 		com_object_list<IDirect3DResource9, true> _resources;
-
 		state_block _app_state;
 		com_ptr<IDirect3DStateBlock9> _copy_state;
 	};

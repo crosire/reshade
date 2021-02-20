@@ -33,7 +33,6 @@ static inline UINT calc_vertex_from_prim_count(D3DPRIMITIVETYPE type, UINT count
 
 Direct3DDevice9::Direct3DDevice9(IDirect3DDevice9   *original, bool use_software_rendering) :
 	device_impl(original),
-	_orig(original),
 	_extended_interface(0),
 	_use_software_rendering(use_software_rendering)
 {
@@ -41,7 +40,6 @@ Direct3DDevice9::Direct3DDevice9(IDirect3DDevice9   *original, bool use_software
 }
 Direct3DDevice9::Direct3DDevice9(IDirect3DDevice9Ex *original, bool use_software_rendering) :
 	device_impl(original),
-	_orig(original),
 	_extended_interface(1),
 	_use_software_rendering(use_software_rendering)
 {

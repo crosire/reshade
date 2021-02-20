@@ -10,7 +10,6 @@
 
 D3D11Device::D3D11Device(IDXGIDevice1 *dxgi_device, ID3D11Device *original) :
 	device_impl(original),
-	_orig(original),
 	_interface_version(0),
 	_dxgi_device(new DXGIDevice(dxgi_device, this))
 {

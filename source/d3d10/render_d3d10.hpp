@@ -40,10 +40,10 @@ namespace reshade::d3d10
 		explicit device_impl(ID3D10Device1 *device);
 		~device_impl();
 
-		bool get_data(const uint8_t guid[16], uint32_t size, void *data) override { return SUCCEEDED(_device->GetPrivateData(*reinterpret_cast<const GUID *>(guid), &size, data)); }
-		void set_data(const uint8_t guid[16], uint32_t size, const void *data) override { _device->SetPrivateData(*reinterpret_cast<const GUID *>(guid), size, data); }
+		bool get_data(const uint8_t guid[16], uint32_t size, void *data) override { return SUCCEEDED(_orig->GetPrivateData(*reinterpret_cast<const GUID *>(guid), &size, data)); }
+		void set_data(const uint8_t guid[16], uint32_t size, const void *data) override { _orig->SetPrivateData(*reinterpret_cast<const GUID *>(guid), size, data); }
 
-		uint64_t get_native_object() override { return reinterpret_cast<uintptr_t>(_device.get()); }
+		uint64_t get_native_object() override { return reinterpret_cast<uintptr_t>(_orig); }
 
 		api::render_api get_api() override { return api::render_api::d3d10; }
 
@@ -77,14 +77,15 @@ namespace reshade::d3d10
 		void clear_depth_stencil_view(api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil) override;
 		void clear_render_target_view(api::resource_view_handle rtv, const float color[4]) override;
 
+	protected:
 		inline void register_resource(ID3D10Resource *resource) { _resources.register_object(resource); }
 		inline void register_resource_view(ID3D10View *resource_view) { _views.register_object(resource_view); }
 
+		ID3D10Device1 *_orig;
+
 	private:
-		com_ptr<ID3D10Device1> _device;
 		com_object_list<ID3D10View> _views;
 		com_object_list<ID3D10Resource> _resources;
-
 		state_block _app_state;
 		com_ptr<ID3D10PixelShader> _copy_pixel_shader;
 		com_ptr<ID3D10VertexShader> _copy_vertex_shader;

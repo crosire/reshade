@@ -241,6 +241,7 @@ ULONG   STDMETHODCALLTYPE DXGISwapChain::Release()
 	if (ref != 0)
 		return _orig->Release(), ref;
 
+	// Delete runtime first to release all internal references to device objects
 	switch (_direct3d_version)
 	{
 	case 10:

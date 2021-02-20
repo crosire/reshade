@@ -136,12 +136,12 @@ resource_desc reshade::d3d9::convert_resource_desc(const D3DVERTEXBUFFER_DESC &i
 }
 
 reshade::d3d9::device_impl::device_impl(IDirect3DDevice9 *device) :
-	_device(device), _app_state(device)
+	_orig(device), _app_state(device)
 {
 	D3DCAPS9 caps = {};
-	_device->GetDeviceCaps(&caps);
+	_orig->GetDeviceCaps(&caps);
 	D3DDEVICE_CREATION_PARAMETERS creation_params = {};
-	_device->GetCreationParameters(&creation_params);
+	_orig->GetCreationParameters(&creation_params);
 
 	_num_samplers = caps.MaxSimultaneousTextures;
 	_num_simultaneous_rendertargets = caps.NumSimultaneousRTs;
@@ -184,45 +184,45 @@ void reshade::d3d9::device_impl::on_reset()
 }
 void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 {
-	HRESULT hr = _device->BeginStateBlock();
+	HRESULT hr = _orig->BeginStateBlock();
 	if (SUCCEEDED(hr))
 	{
-		_device->SetFVF(D3DFVF_XYZ | D3DFVF_TEX1);
-		_device->SetPixelShader(nullptr);
-		_device->SetVertexShader(nullptr);
-		_device->SetRenderState(D3DRS_ZENABLE, false);
-		_device->SetRenderState(D3DRS_FILLMODE, D3DFILL_SOLID);
-		_device->SetRenderState(D3DRS_ALPHATESTENABLE, false);
-		_device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_ONE);
-		_device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_ZERO);
-		_device->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
-		_device->SetRenderState(D3DRS_ALPHABLENDENABLE, false);
-		_device->SetRenderState(D3DRS_FOGENABLE, false);
-		_device->SetRenderState(D3DRS_STENCILENABLE, false);
-		_device->SetRenderState(D3DRS_CLIPPING, false);
-		_device->SetRenderState(D3DRS_LIGHTING, false);
-		_device->SetRenderState(D3DRS_COLORWRITEENABLE, D3DCOLORWRITEENABLE_RED | D3DCOLORWRITEENABLE_GREEN | D3DCOLORWRITEENABLE_BLUE | D3DCOLORWRITEENABLE_ALPHA);
-		_device->SetRenderState(D3DRS_SCISSORTESTENABLE, false);
-		_device->SetRenderState(D3DRS_BLENDOP, D3DBLENDOP_ADD);
-		_device->SetRenderState(D3DRS_SRGBWRITEENABLE, false);
-		_device->SetRenderState(D3DRS_BLENDOPALPHA, D3DBLENDOP_ADD);
-		_device->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
-		_device->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
-		_device->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
-		_device->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
-		_device->SetTextureStageState(0, D3DTSS_TEXCOORDINDEX, 0);
-		_device->SetTextureStageState(0, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
-		_device->SetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
-		_device->SetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
-		_device->SetSamplerState(0, D3DSAMP_ADDRESSW, D3DTADDRESS_CLAMP);
-		_device->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
-		_device->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
-		_device->SetSamplerState(0, D3DSAMP_MIPFILTER, D3DTEXF_NONE);
-		_device->SetSamplerState(0, D3DSAMP_MIPMAPLODBIAS, 0);
-		_device->SetSamplerState(0, D3DSAMP_MAXMIPLEVEL, 0);
-		_device->SetSamplerState(0, D3DSAMP_SRGBTEXTURE, 0);
+		_orig->SetFVF(D3DFVF_XYZ | D3DFVF_TEX1);
+		_orig->SetPixelShader(nullptr);
+		_orig->SetVertexShader(nullptr);
+		_orig->SetRenderState(D3DRS_ZENABLE, false);
+		_orig->SetRenderState(D3DRS_FILLMODE, D3DFILL_SOLID);
+		_orig->SetRenderState(D3DRS_ALPHATESTENABLE, false);
+		_orig->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_ONE);
+		_orig->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_ZERO);
+		_orig->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+		_orig->SetRenderState(D3DRS_ALPHABLENDENABLE, false);
+		_orig->SetRenderState(D3DRS_FOGENABLE, false);
+		_orig->SetRenderState(D3DRS_STENCILENABLE, false);
+		_orig->SetRenderState(D3DRS_CLIPPING, false);
+		_orig->SetRenderState(D3DRS_LIGHTING, false);
+		_orig->SetRenderState(D3DRS_COLORWRITEENABLE, D3DCOLORWRITEENABLE_RED | D3DCOLORWRITEENABLE_GREEN | D3DCOLORWRITEENABLE_BLUE | D3DCOLORWRITEENABLE_ALPHA);
+		_orig->SetRenderState(D3DRS_SCISSORTESTENABLE, false);
+		_orig->SetRenderState(D3DRS_BLENDOP, D3DBLENDOP_ADD);
+		_orig->SetRenderState(D3DRS_SRGBWRITEENABLE, false);
+		_orig->SetRenderState(D3DRS_BLENDOPALPHA, D3DBLENDOP_ADD);
+		_orig->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
+		_orig->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+		_orig->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
+		_orig->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+		_orig->SetTextureStageState(0, D3DTSS_TEXCOORDINDEX, 0);
+		_orig->SetTextureStageState(0, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
+		_orig->SetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
+		_orig->SetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
+		_orig->SetSamplerState(0, D3DSAMP_ADDRESSW, D3DTADDRESS_CLAMP);
+		_orig->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
+		_orig->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
+		_orig->SetSamplerState(0, D3DSAMP_MIPFILTER, D3DTEXF_NONE);
+		_orig->SetSamplerState(0, D3DSAMP_MIPMAPLODBIAS, 0);
+		_orig->SetSamplerState(0, D3DSAMP_MAXMIPLEVEL, 0);
+		_orig->SetSamplerState(0, D3DSAMP_SRGBTEXTURE, 0);
 
-		hr = _device->EndStateBlock(&_copy_state);
+		hr = _orig->EndStateBlock(&_copy_state);
 	}
 
 	// Create state block object
@@ -236,7 +236,7 @@ void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 	if (pp.EnableAutoDepthStencil)
 	{
 		com_ptr<IDirect3DSurface9> auto_depth_stencil;
-		_device->GetDepthStencilSurface(&auto_depth_stencil);
+		_orig->GetDepthStencilSurface(&auto_depth_stencil);
 
 		const reshade::api::resource_view_handle dsv = get_resource_view_handle(auto_depth_stencil.get());
 		RESHADE_ADDON_EVENT(set_render_targets_and_depth_stencil, this, 0, nullptr, dsv);
@@ -250,9 +250,9 @@ bool reshade::d3d9::device_impl::check_format_support(uint32_t format, resource_
 		return false;
 
 	com_ptr<IDirect3D9> d3d;
-	_device->GetDirect3D(&d3d);
+	_orig->GetDirect3D(&d3d);
 	D3DDEVICE_CREATION_PARAMETERS cp;
-	_device->GetCreationParameters(&cp);
+	_orig->GetCreationParameters(&cp);
 
 	DWORD d3d_usage = 0;
 	convert_usage_to_d3d_usage(usage, d3d_usage);
@@ -284,7 +284,7 @@ bool reshade::d3d9::device_impl::create_resource(resource_type type, const resou
 			{
 				// TODO: Index format
 				if (IDirect3DIndexBuffer9 *resource;
-					SUCCEEDED(_device->CreateIndexBuffer(static_cast<UINT>(desc.buffer_size), d3d_usage, D3DFMT_UNKNOWN, D3DPOOL_DEFAULT, &resource, nullptr)))
+					SUCCEEDED(_orig->CreateIndexBuffer(static_cast<UINT>(desc.buffer_size), d3d_usage, D3DFMT_UNKNOWN, D3DPOOL_DEFAULT, &resource, nullptr)))
 				{
 					register_resource(resource);
 					*out_resource = { reinterpret_cast<uintptr_t>(resource) };
@@ -294,7 +294,7 @@ bool reshade::d3d9::device_impl::create_resource(resource_type type, const resou
 			if ((desc.usage & resource_usage::vertex_buffer) != 0)
 			{
 				if (IDirect3DVertexBuffer9 *resource;
-					SUCCEEDED(_device->CreateVertexBuffer(static_cast<UINT>(desc.buffer_size), d3d_usage, 0, D3DPOOL_DEFAULT, &resource, nullptr)))
+					SUCCEEDED(_orig->CreateVertexBuffer(static_cast<UINT>(desc.buffer_size), d3d_usage, 0, D3DPOOL_DEFAULT, &resource, nullptr)))
 				{
 					register_resource(resource);
 					*out_resource = { reinterpret_cast<uintptr_t>(resource) };
@@ -310,7 +310,7 @@ bool reshade::d3d9::device_impl::create_resource(resource_type type, const resou
 			if (desc.depth_or_layers == 1 && desc.samples == 1)
 			{
 				if (IDirect3DTexture9 *resource;
-					SUCCEEDED(_device->CreateTexture(desc.width, desc.height, desc.levels, d3d_usage, static_cast<D3DFORMAT>(desc.format), D3DPOOL_DEFAULT, &resource, nullptr)))
+					SUCCEEDED(_orig->CreateTexture(desc.width, desc.height, desc.levels, d3d_usage, static_cast<D3DFORMAT>(desc.format), D3DPOOL_DEFAULT, &resource, nullptr)))
 				{
 					register_resource(resource);
 					*out_resource = { reinterpret_cast<uintptr_t>(resource) };
@@ -323,7 +323,7 @@ bool reshade::d3d9::device_impl::create_resource(resource_type type, const resou
 		{
 			assert(desc.samples == 1); // 3D textures can never have multisampling
 			if (IDirect3DVolumeTexture9 *resource;
-				SUCCEEDED(_device->CreateVolumeTexture(desc.width, desc.height, desc.depth_or_layers, desc.levels, d3d_usage, static_cast<D3DFORMAT>(desc.format), D3DPOOL_DEFAULT, &resource, nullptr)))
+				SUCCEEDED(_orig->CreateVolumeTexture(desc.width, desc.height, desc.depth_or_layers, desc.levels, d3d_usage, static_cast<D3DFORMAT>(desc.format), D3DPOOL_DEFAULT, &resource, nullptr)))
 			{
 				register_resource(resource);
 				*out_resource = { reinterpret_cast<uintptr_t>(resource) };
@@ -494,12 +494,12 @@ resource_desc reshade::d3d9::device_impl::get_resource_desc(resource_handle reso
 void reshade::d3d9::device_impl::draw(uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance)
 {
 	assert(instances <= 1 && first_instance == 0);
-	_device->DrawPrimitive(D3DPT_TRIANGLELIST, first_vertex, vertices / 3);
+	_orig->DrawPrimitive(D3DPT_TRIANGLELIST, first_vertex, vertices / 3);
 }
 void reshade::d3d9::device_impl::draw_indexed(uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)
 {
 	assert(instances <= 1 && first_instance == 0);
-	_device->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, vertex_offset, 0, indices, first_index, indices / 3);
+	_orig->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, vertex_offset, 0, indices, first_index, indices / 3);
 }
 
 void reshade::d3d9::device_impl::copy_resource(resource_handle source, resource_handle destination)
@@ -512,7 +512,7 @@ void reshade::d3d9::device_impl::copy_resource(resource_handle source, resource_
 	{
 		case D3DRTYPE_SURFACE | (D3DRTYPE_SURFACE << 4):
 		{
-			_device->StretchRect(static_cast<IDirect3DSurface9 *>(source_object), nullptr, static_cast<IDirect3DSurface9 *>(destination_object), nullptr, D3DTEXF_NONE);
+			_orig->StretchRect(static_cast<IDirect3DSurface9 *>(source_object), nullptr, static_cast<IDirect3DSurface9 *>(destination_object), nullptr, D3DTEXF_NONE);
 			return;
 		}
 		case D3DRTYPE_SURFACE | (D3DRTYPE_TEXTURE << 4):
@@ -520,7 +520,7 @@ void reshade::d3d9::device_impl::copy_resource(resource_handle source, resource_
 			com_ptr<IDirect3DSurface9> target;
 			static_cast<IDirect3DTexture9 *>(destination_object)->GetSurfaceLevel(0, &target);
 			// Stretching from an offscreen color surface into a texture is supported, however the other way around is not
-			_device->StretchRect(static_cast<IDirect3DSurface9 *>(source_object), nullptr, target.get(), nullptr, D3DTEXF_NONE);
+			_orig->StretchRect(static_cast<IDirect3DSurface9 *>(source_object), nullptr, target.get(), nullptr, D3DTEXF_NONE);
 			return;
 		}
 		case D3DRTYPE_TEXTURE | (D3DRTYPE_TEXTURE << 4):
@@ -533,8 +533,8 @@ void reshade::d3d9::device_impl::copy_resource(resource_handle source, resource_
 			// TODO: This copies the first level only ...
 			com_ptr<IDirect3DSurface9> target;
 			static_cast<IDirect3DTexture9 *>(destination_object)->GetSurfaceLevel(0, &target);
-			_device->SetTexture(0, static_cast<IDirect3DTexture9 *>(source_object));
-			_device->SetRenderTarget(0, target.get());
+			_orig->SetTexture(0, static_cast<IDirect3DTexture9 *>(source_object));
+			_orig->SetRenderTarget(0, target.get());
 
 			const float vertices[4][5] = {
 				// x      y      z      tu     tv
@@ -543,7 +543,7 @@ void reshade::d3d9::device_impl::copy_resource(resource_handle source, resource_
 				{ -1.0f, -1.0f,  0.0f,  0.0f,  1.0f },
 				{  1.0f, -1.0f,  0.0f,  1.0f,  1.0f },
 			};
-			_device->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, vertices, sizeof(vertices[0]));
+			_orig->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, vertices, sizeof(vertices[0]));
 
 			_app_state.apply_and_release();
 			return;
@@ -554,8 +554,8 @@ void reshade::d3d9::device_impl::copy_resource(resource_handle source, resource_
 
 			_copy_state->Apply();
 
-			_device->SetTexture(0, static_cast<IDirect3DTexture9 *>(source_object));
-			_device->SetRenderTarget(0, static_cast<IDirect3DSurface9 *>(destination_object));
+			_orig->SetTexture(0, static_cast<IDirect3DTexture9 *>(source_object));
+			_orig->SetRenderTarget(0, static_cast<IDirect3DSurface9 *>(destination_object));
 
 			const float vertices[4][5] = {
 				// x      y      z      tu     tv
@@ -564,7 +564,7 @@ void reshade::d3d9::device_impl::copy_resource(resource_handle source, resource_
 				{ -1.0f, -1.0f,  0.0f,  0.0f,  1.0f },
 				{  1.0f, -1.0f,  0.0f,  1.0f,  1.0f },
 			};
-			_device->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, vertices, sizeof(vertices[0]));
+			_orig->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, vertices, sizeof(vertices[0]));
 
 			_app_state.apply_and_release();
 			return;
@@ -577,33 +577,33 @@ void reshade::d3d9::device_impl::copy_resource(resource_handle source, resource_
 void reshade::d3d9::device_impl::clear_depth_stencil_view(resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil)
 {
 	com_ptr<IDirect3DSurface9> depth_stencil;
-	_device->GetDepthStencilSurface(&depth_stencil);
+	_orig->GetDepthStencilSurface(&depth_stencil);
 
-	_device->SetDepthStencilSurface(reinterpret_cast<IDirect3DSurface9 *>(dsv.handle));
+	_orig->SetDepthStencilSurface(reinterpret_cast<IDirect3DSurface9 *>(dsv.handle));
 
-	_device->Clear(
+	_orig->Clear(
 		0, nullptr,
 		((clear_flags & 0x1) != 0 ? D3DCLEAR_ZBUFFER : 0) |
 		((clear_flags & 0x2) != 0 ? D3DCLEAR_STENCIL : 0),
 		0, depth, stencil);
 
-	_device->SetDepthStencilSurface(depth_stencil.get());
+	_orig->SetDepthStencilSurface(depth_stencil.get());
 }
 void reshade::d3d9::device_impl::clear_render_target_view(resource_view_handle rtv, const float color[4])
 {
 	D3DVIEWPORT9 viewport = {};
-	_device->GetViewport(&viewport);
+	_orig->GetViewport(&viewport);
 	com_ptr<IDirect3DSurface9> render_targets[8];
 	for (DWORD target = 0; target < _num_simultaneous_rendertargets; ++target)
-		_device->GetRenderTarget(target, &render_targets[target]);
+		_orig->GetRenderTarget(target, &render_targets[target]);
 
-	_device->SetRenderTarget(0, reinterpret_cast<IDirect3DSurface9 *>(rtv.handle));
+	_orig->SetRenderTarget(0, reinterpret_cast<IDirect3DSurface9 *>(rtv.handle));
 	for (DWORD target = 1; target < _num_simultaneous_rendertargets; ++target)
-		_device->SetRenderTarget(target, nullptr);
+		_orig->SetRenderTarget(target, nullptr);
 
-	_device->Clear(0, nullptr, D3DCLEAR_TARGET, D3DCOLOR_COLORVALUE(color[0], color[1], color[2], color[3]), 0.0f, 0);
+	_orig->Clear(0, nullptr, D3DCLEAR_TARGET, D3DCOLOR_COLORVALUE(color[0], color[1], color[2], color[3]), 0.0f, 0);
 
 	for (DWORD target = 0; target < _num_simultaneous_rendertargets; ++target)
-		_device->SetRenderTarget(target, render_targets[target].get());
-	_device->SetViewport(&viewport);
+		_orig->SetRenderTarget(target, render_targets[target].get());
+	_orig->SetViewport(&viewport);
 }

@@ -32,16 +32,17 @@ namespace reshade::d3d12
 	class device_impl : public api::device
 	{
 		friend class runtime_d3d12;
+		friend class command_queue_impl;
 		friend class command_list_immediate_impl;
 
 	public:
 		explicit device_impl(ID3D12Device *device);
 		~device_impl();
 
-		bool get_data(const uint8_t guid[16], uint32_t size, void *data) override { return SUCCEEDED(_device->GetPrivateData(*reinterpret_cast<const GUID *>(guid), &size, data)); }
-		void set_data(const uint8_t guid[16], uint32_t size, const void *data) override { _device->SetPrivateData(*reinterpret_cast<const GUID *>(guid), size, data); }
+		bool get_data(const uint8_t guid[16], uint32_t size, void *data) override { return SUCCEEDED(_orig->GetPrivateData(*reinterpret_cast<const GUID *>(guid), &size, data)); }
+		void set_data(const uint8_t guid[16], uint32_t size, const void *data) override { _orig->SetPrivateData(*reinterpret_cast<const GUID *>(guid), size, data); }
 
-		uint64_t get_native_object() override { return reinterpret_cast<uintptr_t>(_device.get()); }
+		uint64_t get_native_object() override { return reinterpret_cast<uintptr_t>(_orig); }
 
 		api::render_api get_api() override { return api::render_api::d3d12; }
 
@@ -62,14 +63,6 @@ namespace reshade::d3d12
 
 		void wait_idle() override;
 
-		void register_queue(ID3D12CommandQueue *queue);
-		void unregister_queue(ID3D12CommandQueue *queue);
-
-		void register_resource(ID3D12Resource *resource) { _resources.register_object(resource); }
-#if RESHADE_ADDON
-		void register_resource_view(ID3D12Resource *resource, D3D12_CPU_DESCRIPTOR_HANDLE handle);
-#endif
-
 		com_ptr<ID3D12RootSignature> create_root_signature(const D3D12_ROOT_SIGNATURE_DESC &desc) const;
 
 		UINT srv_handle_size = 0;
@@ -77,12 +70,30 @@ namespace reshade::d3d12
 		UINT dsv_handle_size = 0;
 		UINT sampler_handle_size = 0;
 
-	private:
-		const com_ptr<ID3D12Device> _device;
+	protected:
+		inline void register_queue(ID3D12CommandQueue *queue)
+		{
+			const std::lock_guard<std::mutex> lock(_mutex);
+			_queues.push_back(queue);
+		}
+		inline void unregister_queue(ID3D12CommandQueue *queue)
+		{
+			const std::lock_guard<std::mutex> lock(_mutex);
+			_queues.erase(std::remove(_queues.begin(), _queues.end(), queue), _queues.end());
+		}
+
+		void register_resource(ID3D12Resource *resource) { _resources.register_object(resource); }
+#if RESHADE_ADDON
+		void register_resource_view(ID3D12Resource *resource, D3D12_CPU_DESCRIPTOR_HANDLE handle);
+#endif
+
+		ID3D12Device *_orig;
 		std::vector<ID3D12CommandQueue *> _queues;
+
+	private:
+		std::mutex _mutex;
 		com_object_list<ID3D12Resource> _resources;
 		std::unordered_map<uint64_t, ID3D12Resource *> _views;
-
 		com_ptr<ID3D12PipelineState> _mipmap_pipeline;
 		com_ptr<ID3D12RootSignature> _mipmap_signature;
 	};
@@ -93,10 +104,10 @@ namespace reshade::d3d12
 		command_list_impl(device_impl *device, ID3D12GraphicsCommandList *cmd_list);
 		~command_list_impl();
 
-		bool get_data(const uint8_t guid[16], uint32_t size, void *data) override { return SUCCEEDED(_cmd_list->GetPrivateData(*reinterpret_cast<const GUID *>(guid), &size, data)); }
-		void set_data(const uint8_t guid[16], uint32_t size, const void *data) override { _cmd_list->SetPrivateData(*reinterpret_cast<const GUID *>(guid), size, data); }
+		bool get_data(const uint8_t guid[16], uint32_t size, void *data) override { return SUCCEEDED(_orig->GetPrivateData(*reinterpret_cast<const GUID *>(guid), &size, data)); }
+		void set_data(const uint8_t guid[16], uint32_t size, const void *data) override { _orig->SetPrivateData(*reinterpret_cast<const GUID *>(guid), size, data); }
 
-		uint64_t get_native_object() override { return reinterpret_cast<uintptr_t>(_cmd_list.get()); }
+		uint64_t get_native_object() override { return reinterpret_cast<uintptr_t>(_orig); }
 
 		api::device *get_device() override { return _device_impl; }
 
@@ -110,9 +121,10 @@ namespace reshade::d3d12
 		void clear_depth_stencil_view(api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil) override;
 		void clear_render_target_view(api::resource_view_handle rtv, const float color[4]) override;
 
+		ID3D12GraphicsCommandList *_orig;
+
 	protected:
 		device_impl *const _device_impl;
-		com_ptr<ID3D12GraphicsCommandList> _cmd_list;
 		bool _has_commands = false;
 	};
 
@@ -127,7 +139,7 @@ namespace reshade::d3d12
 		bool flush(ID3D12CommandQueue *queue);
 		bool flush_and_wait(ID3D12CommandQueue *queue);
 
-		ID3D12GraphicsCommandList *get() { _has_commands = true; return _cmd_list.get(); }
+		ID3D12GraphicsCommandList *get() { _has_commands = true; return _orig; }
 
 	private:
 		UINT _cmd_index = 0;
@@ -145,17 +157,19 @@ namespace reshade::d3d12
 		command_queue_impl(device_impl *device, ID3D12CommandQueue *queue);
 		~command_queue_impl();
 
-		bool get_data(const uint8_t guid[16], uint32_t size, void *data) override { return SUCCEEDED(_queue->GetPrivateData(*reinterpret_cast<const GUID *>(guid), &size, data)); }
-		void set_data(const uint8_t guid[16], uint32_t size, const void *data) override { _queue->SetPrivateData(*reinterpret_cast<const GUID *>(guid), size, data); }
+		bool get_data(const uint8_t guid[16], uint32_t size, void *data) override { return SUCCEEDED(_orig->GetPrivateData(*reinterpret_cast<const GUID *>(guid), &size, data)); }
+		void set_data(const uint8_t guid[16], uint32_t size, const void *data) override { _orig->SetPrivateData(*reinterpret_cast<const GUID *>(guid), size, data); }
 
-		uint64_t get_native_object() override { return reinterpret_cast<uintptr_t>(_queue.get()); }
+		uint64_t get_native_object() override { return reinterpret_cast<uintptr_t>(_orig); }
 
 		api::device *get_device() override { return _device_impl; }
 		api::command_list *get_immediate_command_list() override { return _immediate_cmd_list; }
 
+	protected:
+		ID3D12CommandQueue *_orig;
+
 	private:
 		device_impl *const _device_impl;
-		const com_ptr<ID3D12CommandQueue> _queue;
 		command_list_immediate_impl *_immediate_cmd_list = nullptr;
 	};
 }

@@ -9,8 +9,6 @@
 
 using namespace reshade::api;
 
-static std::mutex s_global_mutex;
-
 static inline D3D12_RESOURCE_STATES convert_resource_usage_to_state(resource_usage usage)
 {
 	auto result = static_cast<D3D12_RESOURCE_STATES>(usage);
@@ -545,7 +543,7 @@ resource_view_desc reshade::d3d12::convert_unordered_access_view_desc(const D3D1
 }
 
 reshade::d3d12::device_impl::device_impl(ID3D12Device *device) :
-	_device(device)
+	_orig(device)
 {
 	srv_handle_size = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	rtv_handle_size = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
@@ -601,7 +599,7 @@ reshade::d3d12::device_impl::device_impl(ID3D12Device *device) :
 		const resources::data_resource cs = resources::load_data_resource(IDR_MIPMAP_CS);
 		pso_desc.CS = { cs.data, cs.data_size };
 
-		if (FAILED(_device->CreateComputePipelineState(&pso_desc, IID_PPV_ARGS(&_mipmap_pipeline))))
+		if (FAILED(_orig->CreateComputePipelineState(&pso_desc, IID_PPV_ARGS(&_mipmap_pipeline))))
 			return;
 	}
 
@@ -626,7 +624,7 @@ reshade::d3d12::device_impl::~device_impl()
 bool reshade::d3d12::device_impl::check_format_support(uint32_t format, resource_usage usage)
 {
 	D3D12_FEATURE_DATA_FORMAT_SUPPORT feature = { static_cast<DXGI_FORMAT>(format) };
-	if (FAILED(_device->CheckFeatureSupport(D3D12_FEATURE_FORMAT_SUPPORT, &feature, sizeof(feature))))
+	if (FAILED(_orig->CheckFeatureSupport(D3D12_FEATURE_FORMAT_SUPPORT, &feature, sizeof(feature))))
 		return false;
 
 	if ((usage & resource_usage::render_target) != 0 &&
@@ -660,7 +658,7 @@ bool reshade::d3d12::device_impl::check_resource_view_handle_valid(resource_view
 	}
 	else
 	{
-		const std::lock_guard<std::mutex> lock(s_global_mutex);
+		const std::lock_guard<std::mutex> lock(_mutex);
 		return _views.find(view.handle) != _views.end();
 	}
 }
@@ -677,7 +675,7 @@ bool reshade::d3d12::device_impl::create_resource(resource_type type, const reso
 	const D3D12_HEAP_PROPERTIES heap_props = { D3D12_HEAP_TYPE_DEFAULT };
 
 	if (ID3D12Resource *resource = nullptr;
-		SUCCEEDED(_device->CreateCommittedResource(&heap_props, D3D12_HEAP_FLAG_NONE, &internal_desc, convert_resource_usage_to_state(initial_state), nullptr, IID_PPV_ARGS(&resource))))
+		SUCCEEDED(_orig->CreateCommittedResource(&heap_props, D3D12_HEAP_FLAG_NONE, &internal_desc, convert_resource_usage_to_state(initial_state), nullptr, IID_PPV_ARGS(&resource))))
 	{
 		register_resource(resource);
 		*out_resource = { reinterpret_cast<uintptr_t>(resource) };
@@ -735,7 +733,7 @@ void reshade::d3d12::device_impl::get_resource_from_view(resource_view_handle vi
 	}
 	else
 	{
-		const std::lock_guard<std::mutex> lock(s_global_mutex);
+		const std::lock_guard<std::mutex> lock(_mutex);
 		*out_resource = { reinterpret_cast<uintptr_t>(_views[view.handle]) };
 	}
 }
@@ -749,14 +747,14 @@ resource_desc reshade::d3d12::device_impl::get_resource_desc(resource_handle res
 void reshade::d3d12::device_impl::wait_idle()
 {
 	com_ptr<ID3D12Fence> fence;
-	if (FAILED(_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence))))
+	if (FAILED(_orig->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence))))
 		return;
 
 	const HANDLE fence_event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
 	if (fence_event == nullptr)
 		return;
 
-	const std::lock_guard<std::mutex> lock(s_global_mutex);
+	const std::lock_guard<std::mutex> lock(_mutex);
 
 	UINT64 signal_value = 1;
 	for (ID3D12CommandQueue *const queue : _queues)
@@ -770,15 +768,13 @@ void reshade::d3d12::device_impl::wait_idle()
 	CloseHandle(fence_event);
 }
 
-void reshade::d3d12::device_impl::register_queue(ID3D12CommandQueue *queue)
+com_ptr<ID3D12RootSignature> reshade::d3d12::device_impl::create_root_signature(const D3D12_ROOT_SIGNATURE_DESC &desc) const
 {
-	const std::lock_guard<std::mutex> lock(s_global_mutex);
-	_queues.push_back(queue);
-}
-void reshade::d3d12::device_impl::unregister_queue(ID3D12CommandQueue *queue)
-{
-	const std::lock_guard<std::mutex> lock(s_global_mutex);
-	_queues.erase(std::remove(_queues.begin(), _queues.end(), queue), _queues.end());
+	com_ptr<ID3DBlob> signature_blob;
+	com_ptr<ID3D12RootSignature> signature;
+	if (SUCCEEDED(D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &signature_blob, nullptr)))
+		_orig->CreateRootSignature(0, signature_blob->GetBufferPointer(), signature_blob->GetBufferSize(), IID_PPV_ARGS(&signature));
+	return signature;
 }
 
 #if RESHADE_ADDON
@@ -786,22 +782,13 @@ void reshade::d3d12::device_impl::register_resource_view(ID3D12Resource *resourc
 {
 	assert(resource != nullptr);
 
-	const std::lock_guard<std::mutex> lock(s_global_mutex);
+	const std::lock_guard<std::mutex> lock(_mutex);
 	_views.emplace(handle.ptr, resource);
 }
 #endif
 
-com_ptr<ID3D12RootSignature> reshade::d3d12::device_impl::create_root_signature(const D3D12_ROOT_SIGNATURE_DESC &desc) const
-{
-	com_ptr<ID3DBlob> signature_blob;
-	com_ptr<ID3D12RootSignature> signature;
-	if (SUCCEEDED(D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &signature_blob, nullptr)))
-		_device->CreateRootSignature(0, signature_blob->GetBufferPointer(), signature_blob->GetBufferSize(), IID_PPV_ARGS(&signature));
-	return signature;
-}
-
 reshade::d3d12::command_list_impl::command_list_impl(device_impl *device, ID3D12GraphicsCommandList *cmd_list) :
-	_device_impl(device), _cmd_list(cmd_list), _has_commands(cmd_list != nullptr)
+	_orig(cmd_list), _device_impl(device), _has_commands(cmd_list != nullptr)
 {
 	if (_has_commands)
 	{
@@ -820,13 +807,13 @@ void reshade::d3d12::command_list_impl::draw(uint32_t vertices, uint32_t instanc
 {
 	_has_commands = true;
 
-	_cmd_list->DrawInstanced(vertices, instances, first_vertex, first_instance);
+	_orig->DrawInstanced(vertices, instances, first_vertex, first_instance);
 }
 void reshade::d3d12::command_list_impl::draw_indexed(uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)
 {
 	_has_commands = true;
 
-	_cmd_list->DrawIndexedInstanced(indices, instances, first_index, vertex_offset, first_instance);
+	_orig->DrawIndexedInstanced(indices, instances, first_index, vertex_offset, first_instance);
 }
 
 void reshade::d3d12::command_list_impl::copy_resource(resource_handle source, resource_handle destination)
@@ -834,7 +821,7 @@ void reshade::d3d12::command_list_impl::copy_resource(resource_handle source, re
 	_has_commands = true;
 
 	assert(source.handle != 0 && destination.handle != 0);
-	_cmd_list->CopyResource(reinterpret_cast<ID3D12Resource *>(destination.handle), reinterpret_cast<ID3D12Resource *>(source.handle));
+	_orig->CopyResource(reinterpret_cast<ID3D12Resource *>(destination.handle), reinterpret_cast<ID3D12Resource *>(source.handle));
 }
 
 void reshade::d3d12::command_list_impl::transition_state(resource_handle resource, resource_usage old_layout, resource_usage new_layout)
@@ -849,7 +836,7 @@ void reshade::d3d12::command_list_impl::transition_state(resource_handle resourc
 	transition.Transition.StateBefore = convert_resource_usage_to_state(old_layout);
 	transition.Transition.StateAfter = convert_resource_usage_to_state(new_layout);
 
-	_cmd_list->ResourceBarrier(1, &transition);
+	_orig->ResourceBarrier(1, &transition);
 }
 
 void reshade::d3d12::command_list_impl::clear_depth_stencil_view(resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil)
@@ -858,7 +845,7 @@ void reshade::d3d12::command_list_impl::clear_depth_stencil_view(resource_view_h
 
 	// Only supported for resource view handles created by the application for now
 	assert(dsv.handle != 0 && (dsv.handle & 1) == 0);
-	_cmd_list->ClearDepthStencilView(D3D12_CPU_DESCRIPTOR_HANDLE { static_cast<SIZE_T>(dsv.handle) }, static_cast<D3D12_CLEAR_FLAGS>(clear_flags), depth, stencil, 0, nullptr);
+	_orig->ClearDepthStencilView(D3D12_CPU_DESCRIPTOR_HANDLE { static_cast<SIZE_T>(dsv.handle) }, static_cast<D3D12_CLEAR_FLAGS>(clear_flags), depth, stencil, 0, nullptr);
 }
 void reshade::d3d12::command_list_impl::clear_render_target_view(resource_view_handle rtv, const float color[4])
 {
@@ -866,7 +853,7 @@ void reshade::d3d12::command_list_impl::clear_render_target_view(resource_view_h
 
 	// Only supported for resource view handles created by the application for now
 	assert(rtv.handle != 0 && (rtv.handle & 1) == 0);
-	_cmd_list->ClearRenderTargetView(D3D12_CPU_DESCRIPTOR_HANDLE { static_cast<SIZE_T>(rtv.handle) }, color, 0, nullptr);
+	_orig->ClearRenderTargetView(D3D12_CPU_DESCRIPTOR_HANDLE { static_cast<SIZE_T>(rtv.handle) }, color, 0, nullptr);
 }
 
 reshade::d3d12::command_list_immediate_impl::command_list_immediate_impl(device_impl *device) :
@@ -875,21 +862,23 @@ reshade::d3d12::command_list_immediate_impl::command_list_immediate_impl(device_
 	// Create multiple command allocators to buffer for multiple frames
 	for (UINT i = 0; i < NUM_COMMAND_FRAMES; ++i)
 	{
-		if (FAILED(_device_impl->_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&_fence[i]))))
+		if (FAILED(_device_impl->_orig->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&_fence[i]))))
 			return;
-		if (FAILED(_device_impl->_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&_cmd_alloc[i]))))
+		if (FAILED(_device_impl->_orig->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&_cmd_alloc[i]))))
 			return;
 	}
 
 	// Create and open the command list for recording
-	if (SUCCEEDED(_device_impl->_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, _cmd_alloc[_cmd_index].get(), nullptr, IID_PPV_ARGS(&_cmd_list))))
-		_cmd_list->SetName(L"ReShade command list");
+	if (SUCCEEDED(_device_impl->_orig->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, _cmd_alloc[_cmd_index].get(), nullptr, IID_PPV_ARGS(&_orig))))
+		_orig->SetName(L"ReShade command list");
 
 	// Create auto-reset event and fences for synchronization
 	_fence_event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
 }
 reshade::d3d12::command_list_immediate_impl::~command_list_immediate_impl()
 {
+	if (_orig != nullptr)
+		_orig->Release();
 	if (_fence_event != nullptr)
 		CloseHandle(_fence_event);
 
@@ -902,19 +891,19 @@ bool reshade::d3d12::command_list_immediate_impl::flush(ID3D12CommandQueue *queu
 	if (!_has_commands)
 		return true;
 
-	if (const HRESULT hr = _cmd_list->Close(); FAILED(hr))
+	if (const HRESULT hr = _orig->Close(); FAILED(hr))
 	{
 		LOG(ERROR) << "Failed to close immediate command list! HRESULT is " << hr << '.';
 
 		// A command list that failed to close can never be reset, so destroy it and create a new one
 		_device_impl->wait_idle();
-		_cmd_list.reset();
-		if (SUCCEEDED(_device_impl->_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, _cmd_alloc[_cmd_index].get(), nullptr, IID_PPV_ARGS(&_cmd_list))))
-			_cmd_list->SetName(L"ReShade command list");		
+		_orig->Release(); _orig = nullptr;
+		if (SUCCEEDED(_device_impl->_orig->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, _cmd_alloc[_cmd_index].get(), nullptr, IID_PPV_ARGS(&_orig))))
+			_orig->SetName(L"ReShade command list");
 		return false;
 	}
 
-	ID3D12CommandList *const cmd_lists[] = { _cmd_list.get() };
+	ID3D12CommandList *const cmd_lists[] = { _orig };
 	queue->ExecuteCommandLists(ARRAYSIZE(cmd_lists), cmd_lists);
 
 	if (const UINT64 sync_value = _fence_value[_cmd_index] + NUM_COMMAND_FRAMES;
@@ -935,7 +924,7 @@ bool reshade::d3d12::command_list_immediate_impl::flush(ID3D12CommandQueue *queu
 	_cmd_alloc[_cmd_index]->Reset();
 
 	// Reset command list using current command allocator and put it into the recording state
-	return SUCCEEDED(_cmd_list->Reset(_cmd_alloc[_cmd_index].get(), nullptr));
+	return SUCCEEDED(_orig->Reset(_cmd_alloc[_cmd_index].get(), nullptr));
 }
 bool reshade::d3d12::command_list_immediate_impl::flush_and_wait(ID3D12CommandQueue *queue)
 {
@@ -951,10 +940,10 @@ bool reshade::d3d12::command_list_immediate_impl::flush_and_wait(ID3D12CommandQu
 }
 
 reshade::d3d12::command_queue_impl::command_queue_impl(device_impl *device, ID3D12CommandQueue *queue) :
-	_device_impl(device), _queue(queue)
+	_orig(queue), _device_impl(device)
 {
 	// Keep track of the lifetime of all queues created on a device
-	_device_impl->register_queue(_queue.get());
+	_device_impl->register_queue(_orig);
 
 	// Only create an immediate command list for graphics queues (since the implemented commands do not work on other queue types)
 	if (queue->GetDesc().Type == D3D12_COMMAND_LIST_TYPE_DIRECT)
@@ -970,5 +959,5 @@ reshade::d3d12::command_queue_impl::~command_queue_impl()
 
 	delete _immediate_cmd_list;
 
-	_device_impl->unregister_queue(_queue.get());
+	_device_impl->unregister_queue(_orig);
 }

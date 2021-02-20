@@ -11,7 +11,6 @@
 
 D3D12Device::D3D12Device(ID3D12Device *original) :
 	device_impl(original),
-	_orig(original),
 	_interface_version(0)
 {
 	assert(_orig != nullptr);

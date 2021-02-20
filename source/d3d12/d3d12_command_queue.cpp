@@ -11,7 +11,6 @@
 
 D3D12CommandQueue::D3D12CommandQueue(D3D12Device *device, ID3D12CommandQueue *original) :
 	command_queue_impl(device, original),
-	_orig(original),
 	_interface_version(0),
 	_device(device)
 {

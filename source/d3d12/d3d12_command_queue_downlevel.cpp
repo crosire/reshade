@@ -12,10 +12,10 @@
 
 D3D12CommandQueueDownlevel::D3D12CommandQueueDownlevel(D3D12CommandQueue *queue, ID3D12CommandQueueDownlevel *original) :
 	_orig(original),
-	_queue(queue),
+	_parent_queue(queue),
 	_runtime(new reshade::d3d12::runtime_d3d12(queue->_device, queue, nullptr))
 {
-	assert(_orig != nullptr && _queue != nullptr);
+	assert(_orig != nullptr && _parent_queue != nullptr);
 }
 
 HRESULT STDMETHODCALLTYPE D3D12CommandQueueDownlevel::QueryInterface(REFIID riid, void **ppvObj)
@@ -45,6 +45,7 @@ ULONG   STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Release()
 	if (ref != 0)
 		return _orig->Release(), ref;
 
+	// Delete runtime first to release all internal references to device objects
 	delete _runtime;
 
 	const auto orig = _orig;
@@ -62,7 +63,7 @@ ULONG   STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Release()
 
 HRESULT STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Present(ID3D12GraphicsCommandList *pOpenCommandList, ID3D12Resource *pSourceTex2D, HWND hWindow, D3D12_DOWNLEVEL_PRESENT_FLAGS Flags)
 {
-	RESHADE_ADDON_EVENT(present, _queue, _runtime);
+	RESHADE_ADDON_EVENT(present, _parent_queue, _runtime);
 
 	assert(pSourceTex2D != nullptr);
 	_runtime->on_present(pSourceTex2D, hWindow);

@@ -9,7 +9,6 @@
 
 D3D12GraphicsCommandList::D3D12GraphicsCommandList(D3D12Device *device, ID3D12GraphicsCommandList *original) :
 	command_list_impl(device, original),
-	_orig(original),
 	_interface_version(0),
 	_device(device)
 {

@@ -27,6 +27,6 @@ struct DECLSPEC_UUID("98CF28C0-F383-487E-A61E-3A638FEE29BD") D3D12CommandQueueDo
 
 	ULONG _ref = 1;
 	ID3D12CommandQueueDownlevel *_orig;
-	D3D12CommandQueue *const _queue;
+	D3D12CommandQueue *const _parent_queue;
 	reshade::d3d12::runtime_d3d12 *const _runtime;
 };

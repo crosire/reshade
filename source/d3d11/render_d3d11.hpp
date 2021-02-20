@@ -71,14 +71,15 @@ namespace reshade::d3d11
 
 		void wait_idle() override { /* no-op */ }
 
+	protected:
 		inline void register_resource(ID3D11Resource *resource) { _resources.register_object(resource); }
 		inline void register_resource_view(ID3D11View *resource_view) { _views.register_object(resource_view); }
 
+		ID3D11Device *_orig;
+
 	private:
-		com_ptr<ID3D11Device> _device;
 		com_object_list<ID3D11View> _views;
 		com_object_list<ID3D11Resource> _resources;
-
 		state_block _app_state;
 		com_ptr<ID3D11PixelShader> _copy_pixel_shader;
 		com_ptr<ID3D11VertexShader> _copy_vertex_shader;

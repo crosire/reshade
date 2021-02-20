@@ -86,6 +86,7 @@ ULONG   STDMETHODCALLTYPE Direct3DSwapChain9::Release()
 	if (ref != 0)
 		return _orig->Release(), ref;
 
+	// Delete runtime first to release all internal references to device objects
 	delete _runtime;
 
 	const auto it = std::find(_device->_additional_swapchains.begin(), _device->_additional_swapchains.end(), this);

@@ -6,10 +6,11 @@
 #include "dll_log.hpp"
 #include "d3d12_device_downlevel.hpp"
 
-D3D12DeviceDownlevel::D3D12DeviceDownlevel(D3D12Device *, ID3D12DeviceDownlevel *original) :
-	_orig(original)
+D3D12DeviceDownlevel::D3D12DeviceDownlevel(D3D12Device *device, ID3D12DeviceDownlevel *original) :
+	_orig(original),
+	_parent_device(device)
 {
-	assert(_orig != nullptr);
+	assert(_orig != nullptr && _parent_device != nullptr);
 }
 
 HRESULT STDMETHODCALLTYPE D3D12DeviceDownlevel::QueryInterface(REFIID riid, void **ppvObj)

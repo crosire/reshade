@@ -160,7 +160,6 @@ struct DECLSPEC_UUID("F1006E9A-1C51-4AF4-ACEF-3605D2D4C8EE") Direct3DDevice9 : I
 	bool check_and_upgrade_interface(REFIID riid);
 
 	LONG _ref = 1;
-	IDirect3DDevice9 *_orig;
 	bool _extended_interface;
 	bool _use_software_rendering;
 	Direct3DSwapChain9 *_implicit_swapchain = nullptr;

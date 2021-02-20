@@ -705,14 +705,14 @@ resource_view_desc reshade::d3d11::convert_unordered_access_view_desc(const D3D1
 }
 
 reshade::d3d11::device_impl::device_impl(ID3D11Device *device) :
-	_device(device), _app_state(device)
+	_orig(device), _app_state(device)
 {
 	// Create copy states
 	const resources::data_resource ps = resources::load_data_resource(IDR_COPY_PS);
-	if (FAILED(_device->CreatePixelShader(ps.data, ps.data_size, nullptr, &_copy_pixel_shader)))
+	if (FAILED(_orig->CreatePixelShader(ps.data, ps.data_size, nullptr, &_copy_pixel_shader)))
 		return;
 	const resources::data_resource vs = resources::load_data_resource(IDR_FULLSCREEN_VS);
-	if (FAILED(_device->CreateVertexShader(vs.data, vs.data_size, nullptr, &_copy_vertex_shader)))
+	if (FAILED(_orig->CreateVertexShader(vs.data, vs.data_size, nullptr, &_copy_vertex_shader)))
 		return;
 
 	{   D3D11_SAMPLER_DESC desc = {};
@@ -721,7 +721,7 @@ reshade::d3d11::device_impl::device_impl(ID3D11Device *device) :
 		desc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
 		desc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
 
-		if (FAILED(_device->CreateSamplerState(&desc, &_copy_sampler_state)))
+		if (FAILED(_orig->CreateSamplerState(&desc, &_copy_sampler_state)))
 			return;
 	}
 
@@ -744,7 +744,7 @@ reshade::d3d11::device_impl::~device_impl()
 bool reshade::d3d11::device_impl::check_format_support(uint32_t format, resource_usage usage)
 {
 	UINT support = 0;
-	if (FAILED(_device->CheckFormatSupport(static_cast<DXGI_FORMAT>(format), &support)))
+	if (FAILED(_orig->CheckFormatSupport(static_cast<DXGI_FORMAT>(format), &support)))
 		return false;
 
 	if ((usage & resource_usage::render_target) != 0 &&
@@ -785,7 +785,7 @@ bool reshade::d3d11::device_impl::create_resource(resource_type type, const reso
 			convert_resource_desc(desc, internal_desc);
 
 			if (com_ptr<ID3D11Buffer> resource;
-				SUCCEEDED(_device->CreateBuffer(&internal_desc, nullptr, &resource)))
+				SUCCEEDED(_orig->CreateBuffer(&internal_desc, nullptr, &resource)))
 			{
 				register_resource(resource.get());
 				*out_resource = { reinterpret_cast<uintptr_t>(resource.release()) };
@@ -799,7 +799,7 @@ bool reshade::d3d11::device_impl::create_resource(resource_type type, const reso
 			convert_resource_desc(desc, internal_desc);
 
 			if (com_ptr<ID3D11Texture1D> resource;
-				SUCCEEDED(_device->CreateTexture1D(&internal_desc, nullptr, &resource)))
+				SUCCEEDED(_orig->CreateTexture1D(&internal_desc, nullptr, &resource)))
 			{
 				register_resource(resource.get());
 				*out_resource = { reinterpret_cast<uintptr_t>(resource.release()) };
@@ -813,7 +813,7 @@ bool reshade::d3d11::device_impl::create_resource(resource_type type, const reso
 			convert_resource_desc(desc, internal_desc);
 
 			if (com_ptr<ID3D11Texture2D> resource;
-				SUCCEEDED(_device->CreateTexture2D(&internal_desc, nullptr, &resource)))
+				SUCCEEDED(_orig->CreateTexture2D(&internal_desc, nullptr, &resource)))
 			{
 				register_resource(resource.get());
 				*out_resource = { reinterpret_cast<uintptr_t>(resource.release()) };
@@ -827,7 +827,7 @@ bool reshade::d3d11::device_impl::create_resource(resource_type type, const reso
 			convert_resource_desc(desc, internal_desc);
 
 			if (com_ptr<ID3D11Texture3D> resource;
-				SUCCEEDED(_device->CreateTexture3D(&internal_desc, nullptr, &resource)))
+				SUCCEEDED(_orig->CreateTexture3D(&internal_desc, nullptr, &resource)))
 			{
 				register_resource(resource.get());
 				*out_resource = { reinterpret_cast<uintptr_t>(resource.release()) };
@@ -852,7 +852,7 @@ bool reshade::d3d11::device_impl::create_resource_view(resource_handle resource,
 			convert_depth_stencil_view_desc(desc, internal_desc);
 
 			if (com_ptr<ID3D11DepthStencilView> view;
-				SUCCEEDED(_device->CreateDepthStencilView(reinterpret_cast<ID3D11Resource *>(resource.handle), &internal_desc, &view)))
+				SUCCEEDED(_orig->CreateDepthStencilView(reinterpret_cast<ID3D11Resource *>(resource.handle), &internal_desc, &view)))
 			{
 				register_resource_view(view.get());
 				*out_view = { reinterpret_cast<uintptr_t>(view.release()) };
@@ -866,7 +866,7 @@ bool reshade::d3d11::device_impl::create_resource_view(resource_handle resource,
 			convert_render_target_view_desc(desc, internal_desc);
 
 			if (com_ptr<ID3D11RenderTargetView> view;
-				SUCCEEDED(_device->CreateRenderTargetView(reinterpret_cast<ID3D11Resource *>(resource.handle), &internal_desc, &view)))
+				SUCCEEDED(_orig->CreateRenderTargetView(reinterpret_cast<ID3D11Resource *>(resource.handle), &internal_desc, &view)))
 			{
 				register_resource_view(view.get());
 				*out_view = { reinterpret_cast<uintptr_t>(view.release()) };
@@ -880,7 +880,7 @@ bool reshade::d3d11::device_impl::create_resource_view(resource_handle resource,
 			convert_shader_resource_view_desc(desc, internal_desc);
 
 			if (com_ptr<ID3D11ShaderResourceView> view;
-				SUCCEEDED(_device->CreateShaderResourceView(reinterpret_cast<ID3D11Resource *>(resource.handle), &internal_desc, &view)))
+				SUCCEEDED(_orig->CreateShaderResourceView(reinterpret_cast<ID3D11Resource *>(resource.handle), &internal_desc, &view)))
 			{
 				register_resource_view(view.get());
 				*out_view = { reinterpret_cast<uintptr_t>(view.release()) };
@@ -894,7 +894,7 @@ bool reshade::d3d11::device_impl::create_resource_view(resource_handle resource,
 			convert_unordered_access_view_desc(desc, internal_desc);
 
 			if (com_ptr<ID3D11UnorderedAccessView> view;
-				SUCCEEDED(_device->CreateUnorderedAccessView(reinterpret_cast<ID3D11Resource *>(resource.handle), &internal_desc, &view)))
+				SUCCEEDED(_orig->CreateUnorderedAccessView(reinterpret_cast<ID3D11Resource *>(resource.handle), &internal_desc, &view)))
 			{
 				register_resource_view(view.get());
 				*out_view = { reinterpret_cast<uintptr_t>(view.release()) };

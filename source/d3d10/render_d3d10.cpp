@@ -458,14 +458,14 @@ resource_view_desc reshade::d3d10::convert_shader_resource_view_desc(const D3D10
 }
 
 reshade::d3d10::device_impl::device_impl(ID3D10Device1 *device) :
-	_device(device), _app_state(device)
+	_orig(device), _app_state(device)
 {
 	// Create copy states
 	const resources::data_resource ps = resources::load_data_resource(IDR_COPY_PS);
-	if (FAILED(_device->CreatePixelShader(ps.data, ps.data_size, &_copy_pixel_shader)))
+	if (FAILED(_orig->CreatePixelShader(ps.data, ps.data_size, &_copy_pixel_shader)))
 		return;
 	const resources::data_resource vs = resources::load_data_resource(IDR_FULLSCREEN_VS);
-	if (FAILED(_device->CreateVertexShader(vs.data, vs.data_size, &_copy_vertex_shader)))
+	if (FAILED(_orig->CreateVertexShader(vs.data, vs.data_size, &_copy_vertex_shader)))
 		return;
 
 	{   D3D10_SAMPLER_DESC desc = {};
@@ -474,7 +474,7 @@ reshade::d3d10::device_impl::device_impl(ID3D10Device1 *device) :
 		desc.AddressV = D3D10_TEXTURE_ADDRESS_CLAMP;
 		desc.AddressW = D3D10_TEXTURE_ADDRESS_CLAMP;
 
-		if (FAILED(_device->CreateSamplerState(&desc, &_copy_sampler_state)))
+		if (FAILED(_orig->CreateSamplerState(&desc, &_copy_sampler_state)))
 			return;
 	}
 
@@ -502,7 +502,7 @@ bool reshade::d3d10::device_impl::check_format_support(uint32_t format, resource
 		return false;
 
 	UINT support = 0;
-	if (FAILED(_device->CheckFormatSupport(static_cast<DXGI_FORMAT>(format), &support)))
+	if (FAILED(_orig->CheckFormatSupport(static_cast<DXGI_FORMAT>(format), &support)))
 		return false;
 
 	if ((usage & resource_usage::render_target) != 0 &&
@@ -540,7 +540,7 @@ bool reshade::d3d10::device_impl::create_resource(resource_type type, const reso
 			convert_resource_desc(desc, internal_desc);
 
 			if (com_ptr<ID3D10Buffer> resource;
-				SUCCEEDED(_device->CreateBuffer(&internal_desc, nullptr, &resource)))
+				SUCCEEDED(_orig->CreateBuffer(&internal_desc, nullptr, &resource)))
 			{
 				register_resource(resource.get());
 				*out_resource = { reinterpret_cast<uintptr_t>(resource.release()) };
@@ -554,7 +554,7 @@ bool reshade::d3d10::device_impl::create_resource(resource_type type, const reso
 			convert_resource_desc(desc, internal_desc);
 
 			if (com_ptr<ID3D10Texture1D> resource;
-				SUCCEEDED(_device->CreateTexture1D(&internal_desc, nullptr, &resource)))
+				SUCCEEDED(_orig->CreateTexture1D(&internal_desc, nullptr, &resource)))
 			{
 				register_resource(resource.get());
 				*out_resource = { reinterpret_cast<uintptr_t>(resource.release()) };
@@ -568,7 +568,7 @@ bool reshade::d3d10::device_impl::create_resource(resource_type type, const reso
 			convert_resource_desc(desc, internal_desc);
 
 			if (com_ptr<ID3D10Texture2D> resource;
-				SUCCEEDED(_device->CreateTexture2D(&internal_desc, nullptr, &resource)))
+				SUCCEEDED(_orig->CreateTexture2D(&internal_desc, nullptr, &resource)))
 			{
 				register_resource(resource.get());
 				*out_resource = { reinterpret_cast<uintptr_t>(resource.release()) };
@@ -582,7 +582,7 @@ bool reshade::d3d10::device_impl::create_resource(resource_type type, const reso
 			convert_resource_desc(desc, internal_desc);
 
 			if (com_ptr<ID3D10Texture3D> resource;
-				SUCCEEDED(_device->CreateTexture3D(&internal_desc, nullptr, &resource)))
+				SUCCEEDED(_orig->CreateTexture3D(&internal_desc, nullptr, &resource)))
 			{
 				register_resource(resource.get());
 				*out_resource = { reinterpret_cast<uintptr_t>(resource.release()) };
@@ -607,7 +607,7 @@ bool reshade::d3d10::device_impl::create_resource_view(resource_handle resource,
 			convert_depth_stencil_view_desc(desc, internal_desc);
 
 			if (com_ptr<ID3D10DepthStencilView> view;
-				SUCCEEDED(_device->CreateDepthStencilView(reinterpret_cast<ID3D10Resource *>(resource.handle), &internal_desc, &view)))
+				SUCCEEDED(_orig->CreateDepthStencilView(reinterpret_cast<ID3D10Resource *>(resource.handle), &internal_desc, &view)))
 			{
 				register_resource_view(view.get());
 				*out_view = { reinterpret_cast<uintptr_t>(view.release()) };
@@ -621,7 +621,7 @@ bool reshade::d3d10::device_impl::create_resource_view(resource_handle resource,
 			convert_render_target_view_desc(desc, internal_desc);
 
 			if (com_ptr<ID3D10RenderTargetView> view;
-				SUCCEEDED(_device->CreateRenderTargetView(reinterpret_cast<ID3D10Resource *>(resource.handle), &internal_desc, &view)))
+				SUCCEEDED(_orig->CreateRenderTargetView(reinterpret_cast<ID3D10Resource *>(resource.handle), &internal_desc, &view)))
 			{
 				register_resource_view(view.get());
 				*out_view = { reinterpret_cast<uintptr_t>(view.release()) };
@@ -635,7 +635,7 @@ bool reshade::d3d10::device_impl::create_resource_view(resource_handle resource,
 			convert_shader_resource_view_desc(desc, internal_desc);
 
 			if (com_ptr<ID3D10ShaderResourceView> view;
-				SUCCEEDED(_device->CreateShaderResourceView(reinterpret_cast<ID3D10Resource *>(resource.handle), &internal_desc, &view)))
+				SUCCEEDED(_orig->CreateShaderResourceView(reinterpret_cast<ID3D10Resource *>(resource.handle), &internal_desc, &view)))
 			{
 				register_resource_view(view.get());
 				*out_view = { reinterpret_cast<uintptr_t>(view.release()) };
@@ -711,31 +711,31 @@ resource_desc reshade::d3d10::device_impl::get_resource_desc(resource_handle res
 void reshade::d3d10::device_impl::draw(uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance)
 {
 	if (instances <= 1)
-		_device->Draw(vertices, first_vertex);
+		_orig->Draw(vertices, first_vertex);
 	else
-		_device->DrawInstanced(vertices, instances, first_vertex, first_instance);
+		_orig->DrawInstanced(vertices, instances, first_vertex, first_instance);
 }
 void reshade::d3d10::device_impl::draw_indexed(uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)
 {
 	if (instances <= 1)
-		_device->DrawIndexed(indices, first_index, vertex_offset);
+		_orig->DrawIndexed(indices, first_index, vertex_offset);
 	else
-		_device->DrawIndexedInstanced(indices, instances, first_index, vertex_offset, first_instance);
+		_orig->DrawIndexedInstanced(indices, instances, first_index, vertex_offset, first_instance);
 }
 
 void reshade::d3d10::device_impl::copy_resource(resource_handle source, resource_handle destination)
 {
 	assert(source.handle != 0 && destination.handle != 0);
-	_device->CopyResource(reinterpret_cast<ID3D10Resource *>(destination.handle), reinterpret_cast<ID3D10Resource *>(source.handle));
+	_orig->CopyResource(reinterpret_cast<ID3D10Resource *>(destination.handle), reinterpret_cast<ID3D10Resource *>(source.handle));
 }
 
 void reshade::d3d10::device_impl::clear_depth_stencil_view(resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil)
 {
 	assert(dsv.handle != 0);
-	_device->ClearDepthStencilView(reinterpret_cast<ID3D10DepthStencilView *>(dsv.handle), clear_flags, depth, stencil);
+	_orig->ClearDepthStencilView(reinterpret_cast<ID3D10DepthStencilView *>(dsv.handle), clear_flags, depth, stencil);
 }
 void reshade::d3d10::device_impl::clear_render_target_view(resource_view_handle rtv, const float color[4])
 {
 	assert(rtv.handle != 0);
-	_device->ClearRenderTargetView(reinterpret_cast<ID3D10RenderTargetView *>(rtv.handle), color);
+	_orig->ClearRenderTargetView(reinterpret_cast<ID3D10RenderTargetView *>(rtv.handle), color);
 }

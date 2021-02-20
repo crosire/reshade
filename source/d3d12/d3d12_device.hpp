@@ -103,7 +103,6 @@ struct DECLSPEC_UUID("2523AFF4-978B-4939-BA16-8EE876A4CB2A") D3D12Device : ID3D1
 	bool check_and_upgrade_interface(REFIID riid);
 
 	LONG _ref = 1;
-	ID3D12Device *_orig;
 	unsigned int _interface_version;
 	D3D12DeviceDownlevel *_downlevel = nullptr;
 };
