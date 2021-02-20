@@ -60,15 +60,13 @@ public:
 		for (auto it = _objects.begin(); it != _objects.end(); it = _objects.begin())
 		{
 			T *const object = *it;
-
 			object->SetPrivateData(private_guid, 0, nullptr);
 		}
 	}
 
-	bool has_object(T *object)
+	bool has_object(T *object) const
 	{
 		const std::lock_guard<std::mutex> lock(_mutex);
-
 		return _objects.find(object) != _objects.end();
 	}
 
@@ -77,7 +75,6 @@ public:
 		assert(object != nullptr);
 
 		const std::lock_guard<std::mutex> lock(_mutex);
-
 		if (_objects.find(object) == _objects.end())
 		{
 			_objects.insert(object);
@@ -90,12 +87,11 @@ public:
 		assert(object != nullptr);
 
 		const std::lock_guard<std::mutex> lock(_mutex);
-
 		_objects.erase(object);
 	}
 
 private:
-	std::mutex _mutex;
+	mutable std::mutex _mutex;
 	std::unordered_set<T *> _objects;
 };
 
@@ -149,15 +145,13 @@ public:
 		for (auto it = _objects.begin(); it != _objects.end(); it = _objects.begin())
 		{
 			T *const object = *it;
-
 			object->SetPrivateData(private_guid, nullptr, 0, 0);
 		}
 	}
 
-	bool has_object(T *object)
+	bool has_object(T *object) const
 	{
 		const std::lock_guard<std::mutex> lock(_mutex);
-
 		return _objects.find(object) != _objects.end();
 	}
 
@@ -166,7 +160,6 @@ public:
 		assert(object != nullptr);
 
 		const std::lock_guard<std::mutex> lock(_mutex);
-
 		if (_objects.find(object) == _objects.end())
 		{
 			_objects.insert(object);
@@ -180,11 +173,10 @@ public:
 		assert(object != nullptr);
 
 		const std::lock_guard<std::mutex> lock(_mutex);
-
 		_objects.erase(object);
 	}
 
 private:
-	std::mutex _mutex;
+	mutable std::mutex _mutex;
 	std::unordered_set<T *> _objects;
 };

@@ -226,44 +226,46 @@ namespace reshade { namespace api
 	{
 	public:
 		/// <summary>
-		/// Gets custom data from the object that was previously set via <see cref="api_object::set_data"/>.
+		/// Gets a custom data pointer from the object that was previously set via <see cref="api_object::set_data"/>.
+		/// This function is not thread-safe!
 		/// </summary>
-		/// <returns><c>true</c> if the data with the associated <paramref name="guid"/> exists and was copied to <paramref name="data"/>, <c>false</c> otherwise.</returns>
-		virtual bool get_data(const uint8_t guid[16], uint32_t size, void *data) = 0;
+		/// <returns><c>true</c> if a pointer was previously set with this <paramref name="guid"/>, <c>false</c> otherwise.</returns>
+		virtual bool get_data(const uint8_t guid[16], void **ptr) const = 0;
 		/// <summary>
-		/// Sets custom data to the object and associate it with a <paramref name="guid"/> for later retrieval.
-		/// You can call this with <paramref name="size"/> set to zero and <paramref name="data"/> set to <c>nullptr</c> to destroy an entry.
+		/// Sets a custom data pointer associated with a <paramref name="guid"/> to the object.
+		/// You can call this with <paramref name="ptr"/> set to <c>nullptr</c> to remove the pointer associated with the provided <paramref name="guid"/> from this object.
+		/// This function is not thread-safe!
 		/// </summary>
-		virtual void set_data(const uint8_t guid[16], uint32_t size, const void *data) = 0;
+		virtual void set_data(const uint8_t guid[16], void *const ptr)  = 0;
 
 		/// <summary>
-		/// Gets the underlying native object for this object.
+		/// Gets the underlying native object for this API object.
 		/// For <see cref="device"/>s this will be be a pointer to a 'IDirect3DDevice9', 'ID3D10Device', 'ID3D11Device' or 'ID3D12Device' object or a 'HGLRC' or 'VkDevice' handle.
 		/// For <see cref="command_list"/>s this will be a pointer to a 'IDirect3DDevice9', 'ID3D10Device', 'ID3D11DeviceContext' or 'ID3D12GraphicsCommandList' object or a 'VkCommandBuffer' handle.
 		/// For <see cref="command_queue"/>s this will be a pointer to a 'IDirect3DDevice9', 'ID3D10Device', 'ID3D11DeviceContext' or 'ID3D12CommandQueue' object or a 'VkQueue' handle.
 		/// For <see cref="effect_runtime"/>s this will be a pointer to a 'IDirect3DSwapChain9' or 'IDXGISwapChain' object or a 'HDC' or 'VkSwapchainKHR' handle.
 		/// </summary>
-		virtual uint64_t get_native_object() = 0;
+		virtual uint64_t get_native_object() const = 0;
 
 		// Helper templates to manage custom data creation and destruction:
-		template <typename T> inline T &get_data(const uint8_t guid[16])
+		template <typename T> inline T &get_data(const uint8_t guid[16]) const
 		{
 			T *res = nullptr;
-			get_data(guid, sizeof(res), &res);
+			get_data(guid, reinterpret_cast<void **>(&res));
 			return *res;
 		}
 		template <typename T> inline T &create_data(const uint8_t guid[16])
 		{
 			T *res = new T();
-			set_data(guid, sizeof(res), &res);
+			set_data(guid, res);
 			return *res;
 		}
 		template <typename T> inline void destroy_data(const uint8_t guid[16])
 		{
 			T *res = nullptr;
-			get_data(guid, sizeof(res), &res);
+			get_data(guid, reinterpret_cast<void **>(&res));
 			delete res;
-			set_data(guid, 0, nullptr);
+			set_data(guid, nullptr);
 		}
 	};
 
@@ -277,21 +279,23 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Gets the underlying render API used for this device.
 		/// </summary>
-		virtual render_api get_api() = 0;
+		virtual render_api get_api() const = 0;
 
 		/// <summary>
 		/// Checks whether the specified <paramref name="format"/> is supported with the specified <paramref name="usage"/> on the current system.
 		/// </summary>
-		virtual bool check_format_support(uint32_t format, resource_usage usage) = 0;
+		virtual bool check_format_support(uint32_t format, resource_usage usage) const = 0;
 
 		/// <summary>
 		/// Checks whether the specified <paramref name="resource"/> handle points to a resource that is still alive and valid.
+		/// This function is thread-safe.
 		/// </summary>
-		virtual bool check_resource_handle_valid(resource_handle resource) = 0;
+		virtual bool check_resource_handle_valid(resource_handle resource) const = 0;
 		/// <summary>
 		/// Checks whether the specified <paramref name="view"/> handle points to a resource view that is still alive and valid.
+		/// This function is thread-safe.
 		/// </summary>
-		virtual bool check_resource_view_handle_valid(resource_view_handle view) = 0;
+		virtual bool check_resource_view_handle_valid(resource_view_handle view) const = 0;
 
 		/// <summary>
 		/// Allocates and creates a new resource based on the specified <paramref name="desc"/>ription.
@@ -315,19 +319,21 @@ namespace reshade { namespace api
 
 		/// <summary>
 		/// Gets the handle to the underlying resource behind the specified resource <paramref name="view"/>.
+		/// This function is thread-safe.
 		/// </summary>
-		virtual void get_resource_from_view(resource_view_handle view, resource_handle *out_resource) = 0;
+		virtual void get_resource_from_view(resource_view_handle view, resource_handle *out_resource) const = 0;
 
 		/// <summary>
 		/// Gets the description of the specified <paramref name="resource"/>.
+		/// This function is thread-safe.
 		/// </summary>
-		virtual resource_desc get_resource_desc(resource_handle resource) = 0;
+		virtual resource_desc get_resource_desc(resource_handle resource) const = 0;
 
 		/// <summary>
 		/// Waits for all issued GPU operations to finish before returning.
 		/// This can be used to ensure that e.g. resources are no longer in use on the GPU before destroying them.
 		/// </summary>
-		virtual void wait_idle() = 0;
+		virtual void wait_idle() const = 0;
 	};
 
 	/// <summary>

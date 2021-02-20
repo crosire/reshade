@@ -407,7 +407,7 @@ reshade::vulkan::device_impl::~device_impl()
 	vmaDestroyAllocator(_alloc);
 }
 
-bool reshade::vulkan::device_impl::check_format_support(uint32_t format, api::resource_usage usage)
+bool reshade::vulkan::device_impl::check_format_support(uint32_t format, api::resource_usage usage) const
 {
 	VkImageUsageFlags image_flags = 0;
 	convert_usage_to_image_usage_flags(usage, image_flags);
@@ -416,7 +416,7 @@ bool reshade::vulkan::device_impl::check_format_support(uint32_t format, api::re
 	return _instance_dispatch_table.GetPhysicalDeviceImageFormatProperties(_physical_device, static_cast<VkFormat>(format), VK_IMAGE_TYPE_2D, VK_IMAGE_TILING_OPTIMAL, image_flags, 0, &props) == VK_SUCCESS;
 }
 
-bool reshade::vulkan::device_impl::check_resource_handle_valid(resource_handle resource)
+bool reshade::vulkan::device_impl::check_resource_handle_valid(resource_handle resource) const
 {
 	if (resource.handle == 0)
 		return false;
@@ -424,7 +424,7 @@ bool reshade::vulkan::device_impl::check_resource_handle_valid(resource_handle r
 	const resource_data &data = _resources.at(resource.handle);
 	return data.type ? (data.image == (VkImage)resource.handle) : (data.buffer == (VkBuffer)resource.handle);
 }
-bool reshade::vulkan::device_impl::check_resource_view_handle_valid(resource_view_handle view)
+bool reshade::vulkan::device_impl::check_resource_view_handle_valid(resource_view_handle view) const
 {
 	if (view.handle == 0)
 		return false;
@@ -566,7 +566,7 @@ void reshade::vulkan::device_impl::destroy_resource_view(resource_view_handle vi
 	_views.erase(view.handle);
 }
 
-void reshade::vulkan::device_impl::get_resource_from_view(resource_view_handle view, resource_handle *out_resource)
+void reshade::vulkan::device_impl::get_resource_from_view(resource_view_handle view, resource_handle *out_resource) const
 {
 	assert(view.handle != 0);
 	const resource_view_data &data = _views.at(view.handle);
@@ -574,7 +574,7 @@ void reshade::vulkan::device_impl::get_resource_from_view(resource_view_handle v
 	*out_resource = { data.type ? (uint64_t)data.image_create_info.image : (uint64_t)data.buffer_create_info.buffer };
 }
 
-resource_desc reshade::vulkan::device_impl::get_resource_desc(resource_handle resource)
+resource_desc reshade::vulkan::device_impl::get_resource_desc(resource_handle resource) const
 {
 	assert(resource.handle != 0);
 	const resource_data &data = _resources.at(resource.handle);
@@ -585,7 +585,7 @@ resource_desc reshade::vulkan::device_impl::get_resource_desc(resource_handle re
 		return convert_resource_desc(data.buffer_create_info);
 }
 
-void reshade::vulkan::device_impl::wait_idle()
+void reshade::vulkan::device_impl::wait_idle() const
 {
 	vk.DeviceWaitIdle(_device);
 }

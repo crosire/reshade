@@ -26,7 +26,7 @@ namespace reshade::d3d12
 	api::resource_view_desc convert_resource_view_desc(const D3D12_SHADER_RESOURCE_VIEW_DESC &internal_desc);
 	api::resource_view_desc convert_resource_view_desc(const D3D12_UNORDERED_ACCESS_VIEW_DESC &internal_desc);
 
-	class device_impl : public api::device
+	class device_impl : public api::api_object_impl<api::device>
 	{
 		friend class command_queue_impl;
 
@@ -34,17 +34,14 @@ namespace reshade::d3d12
 		explicit device_impl(ID3D12Device *device);
 		~device_impl();
 
-		bool get_data(const uint8_t guid[16], uint32_t size, void *data) override { return SUCCEEDED(_orig->GetPrivateData(*reinterpret_cast<const GUID *>(guid), &size, data)); }
-		void set_data(const uint8_t guid[16], uint32_t size, const void *data) override { _orig->SetPrivateData(*reinterpret_cast<const GUID *>(guid), size, data); }
+		uint64_t get_native_object() const override { return reinterpret_cast<uintptr_t>(_orig); }
 
-		uint64_t get_native_object() override { return reinterpret_cast<uintptr_t>(_orig); }
+		reshade::api::render_api get_api() const override { return api::render_api::d3d12; }
 
-		api::render_api get_api() override { return api::render_api::d3d12; }
+		bool check_format_support(uint32_t format, api::resource_usage usage) const override;
 
-		bool check_format_support(uint32_t format, api::resource_usage usage) override;
-
-		bool check_resource_handle_valid(api::resource_handle resource) override;
-		bool check_resource_view_handle_valid(api::resource_view_handle view) override;
+		bool check_resource_handle_valid(api::resource_handle resource) const override;
+		bool check_resource_view_handle_valid(api::resource_view_handle view) const override;
 
 		bool create_resource(api::resource_type type, const api::resource_desc &desc, api::resource_usage initial_state, api::resource_handle *out_resource) override;
 		bool create_resource_view(api::resource_handle resource, api::resource_view_type type, const api::resource_view_desc &desc, api::resource_view_handle *out_view) override;
@@ -52,11 +49,11 @@ namespace reshade::d3d12
 		void destroy_resource(api::resource_handle resource) override;
 		void destroy_resource_view(api::resource_view_handle view) override;
 
-		void get_resource_from_view(api::resource_view_handle view, api::resource_handle *out_resource) override;
+		void get_resource_from_view(api::resource_view_handle view, api::resource_handle *out_resource) const override;
 
-		api::resource_desc get_resource_desc(api::resource_handle resource) override;
+		api::resource_desc get_resource_desc(api::resource_handle resource) const override;
 
-		void wait_idle() override;
+		void wait_idle() const override;
 
 		com_ptr<ID3D12RootSignature> create_root_signature(const D3D12_ROOT_SIGNATURE_DESC &desc) const;
 
@@ -68,7 +65,7 @@ namespace reshade::d3d12
 		UINT _rtv_handle_size = 0;
 		UINT _dsv_handle_size = 0;
 		UINT _sampler_handle_size = 0;
-		// Device local resources that may be used by multiple effect runtimes
+		// Device-local resources that may be used by multiple effect runtimes
 		com_ptr<ID3D12PipelineState> _mipmap_pipeline;
 		com_ptr<ID3D12RootSignature> _mipmap_signature;
 
@@ -84,20 +81,17 @@ namespace reshade::d3d12
 
 		com_object_list<ID3D12Resource> _resources;
 		std::unordered_map<uint64_t, ID3D12Resource *> _views;
-		std::mutex _mutex;
+		mutable std::mutex _mutex;
 		std::vector<ID3D12CommandQueue *> _queues;
 	};
 
-	class command_list_impl : public api::command_list
+	class command_list_impl : public api::api_object_impl<api::command_list>
 	{
 	public:
 		command_list_impl(device_impl *device, ID3D12GraphicsCommandList *cmd_list);
 		~command_list_impl();
 
-		bool get_data(const uint8_t guid[16], uint32_t size, void *data) override { return SUCCEEDED(_orig->GetPrivateData(*reinterpret_cast<const GUID *>(guid), &size, data)); }
-		void set_data(const uint8_t guid[16], uint32_t size, const void *data) override { _orig->SetPrivateData(*reinterpret_cast<const GUID *>(guid), size, data); }
-
-		uint64_t get_native_object() override { return reinterpret_cast<uintptr_t>(_orig); }
+		uint64_t get_native_object() const override { return reinterpret_cast<uintptr_t>(_orig); }
 
 		api::device *get_device() override { return _device_impl; }
 
@@ -130,7 +124,7 @@ namespace reshade::d3d12
 		bool flush(ID3D12CommandQueue *queue);
 		bool flush_and_wait(ID3D12CommandQueue *queue);
 
-		ID3D12GraphicsCommandList *begin_commands() { _has_commands = true; return _orig; }
+		ID3D12GraphicsCommandList *const begin_commands() { _has_commands = true; return _orig; }
 
 	private:
 		UINT _cmd_index = 0;
@@ -140,16 +134,13 @@ namespace reshade::d3d12
 		com_ptr<ID3D12CommandAllocator> _cmd_alloc[NUM_COMMAND_FRAMES];
 	};
 
-	class command_queue_impl : public api::command_queue
+	class command_queue_impl : public api::api_object_impl<api::command_queue>
 	{
 	public:
 		command_queue_impl(device_impl *device, ID3D12CommandQueue *queue);
 		~command_queue_impl();
 
-		bool get_data(const uint8_t guid[16], uint32_t size, void *data) override { return SUCCEEDED(_orig->GetPrivateData(*reinterpret_cast<const GUID *>(guid), &size, data)); }
-		void set_data(const uint8_t guid[16], uint32_t size, const void *data) override { _orig->SetPrivateData(*reinterpret_cast<const GUID *>(guid), size, data); }
-
-		uint64_t get_native_object() override { return reinterpret_cast<uintptr_t>(_orig); }
+		uint64_t get_native_object() const override { return reinterpret_cast<uintptr_t>(_orig); }
 
 		api::device *get_device() override { return _device_impl; }
 		api::command_list *get_immediate_command_list() override { return _immediate_cmd_list; }

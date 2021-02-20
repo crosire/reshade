@@ -240,7 +240,7 @@ void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 #endif
 }
 
-bool reshade::d3d9::device_impl::check_format_support(uint32_t format, resource_usage usage)
+bool reshade::d3d9::device_impl::check_format_support(uint32_t format, resource_usage usage) const
 {
 	if ((usage & resource_usage::unordered_access) != 0)
 		return false;
@@ -254,11 +254,11 @@ bool reshade::d3d9::device_impl::check_format_support(uint32_t format, resource_
 	return SUCCEEDED(d3d->CheckDeviceFormat(_cp.AdapterOrdinal, _cp.DeviceType, D3DFMT_X8R8G8B8, d3d_usage, D3DRTYPE_TEXTURE, static_cast<D3DFORMAT>(format)));
 }
 
-bool reshade::d3d9::device_impl::check_resource_handle_valid(resource_handle resource)
+bool reshade::d3d9::device_impl::check_resource_handle_valid(resource_handle resource) const
 {
 	return resource.handle != 0 && _resources.has_object(reinterpret_cast<IDirect3DResource9 *>(resource.handle));
 }
-bool reshade::d3d9::device_impl::check_resource_view_handle_valid(resource_view_handle view)
+bool reshade::d3d9::device_impl::check_resource_view_handle_valid(resource_view_handle view) const
 {
 	return check_resource_handle_valid({ view.handle });
 }
@@ -413,7 +413,7 @@ void reshade::d3d9::device_impl::destroy_resource_view(resource_view_handle view
 	destroy_resource({ view.handle });
 }
 
-void reshade::d3d9::device_impl::get_resource_from_view(resource_view_handle view, resource_handle *out_resource)
+void reshade::d3d9::device_impl::get_resource_from_view(resource_view_handle view, resource_handle *out_resource) const
 {
 	assert(view.handle != 0);
 	const auto resource_object = reinterpret_cast<IDirect3DResource9 *>(view.handle);
@@ -433,7 +433,7 @@ void reshade::d3d9::device_impl::get_resource_from_view(resource_view_handle vie
 	*out_resource = { view.handle };
 }
 
-resource_desc reshade::d3d9::device_impl::get_resource_desc(resource_handle resource)
+resource_desc reshade::d3d9::device_impl::get_resource_desc(resource_handle resource) const
 {
 	assert(resource.handle != 0);
 	const auto resource_object = reinterpret_cast<IDirect3DResource9 *>(resource.handle);

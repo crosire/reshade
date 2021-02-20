@@ -11,16 +11,13 @@
 
 namespace reshade::d3d9
 {
-	class runtime_d3d9 : public runtime, api::api_data
+	class runtime_d3d9 : public api::api_object_impl<runtime>
 	{
 	public:
 		runtime_d3d9(device_impl *device, IDirect3DSwapChain9 *swapchain);
 		~runtime_d3d9();
 
-		bool get_data(const uint8_t guid[16], uint32_t size, void *data) override { return api_data::get_data(guid, size, data); }
-		void set_data(const uint8_t guid[16], uint32_t size, const void *data) override  { api_data::set_data(guid, size, data); }
-
-		uint64_t get_native_object() override { return reinterpret_cast<uintptr_t>(_swapchain.get()); }
+		uint64_t get_native_object() const override { return reinterpret_cast<uintptr_t>(_swapchain.get()); }
 
 		api::device *get_device() override { return _device_impl; }
 		api::command_queue *get_command_queue() override { return _device_impl; }

@@ -19,21 +19,49 @@
 
 namespace reshade::api
 {
-	class api_data
+	template <typename... T>
+	class api_object_impl : public T...
 	{
 	public:
-		bool get_data(const uint8_t guid[16], uint32_t size, void *data);
-		void set_data(const uint8_t guid[16], uint32_t size, const void *data);
+		bool get_data(const uint8_t guid[16], void **ptr) const override
+		{
+			for (const entry &entry : _entries)
+			{
+				if (std::memcmp(entry.guid, guid, 16) == 0)
+				{
+					*ptr = entry.ptr;
+					return true;
+				}
+			}
+			return false;
+		}
+		void set_data(const uint8_t guid[16], void *const ptr)  override
+		{
+			for (auto it = _entries.begin(); it != _entries.end(); ++it)
+			{
+				if (std::memcmp(it->guid, guid, 16) == 0)
+				{
+					if (ptr == nullptr)
+						_entries.erase(it);
+					else
+						it->ptr = ptr;
+					return;
+				}
+			}
+
+			if (ptr != nullptr)
+			{
+				entry &entry = _entries.emplace_back();
+				std::memcpy(entry.guid, guid, 16);
+				entry.ptr = ptr;
+			}
+		}
 
 	private:
 		struct entry
 		{
-			entry(uint32_t size, const void *data);
-			~entry();
-
 			uint8_t guid[16];
-			uint32_t size;
-			uint64_t storage;
+			void *ptr;
 		};
 
 		std::vector<entry> _entries;

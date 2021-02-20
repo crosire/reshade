@@ -738,7 +738,7 @@ reshade::d3d11::device_impl::~device_impl()
 #endif
 }
 
-bool reshade::d3d11::device_impl::check_format_support(uint32_t format, resource_usage usage)
+bool reshade::d3d11::device_impl::check_format_support(uint32_t format, resource_usage usage) const
 {
 	UINT support = 0;
 	if (FAILED(_orig->CheckFormatSupport(static_cast<DXGI_FORMAT>(format), &support)))
@@ -763,11 +763,11 @@ bool reshade::d3d11::device_impl::check_format_support(uint32_t format, resource
 	return true;
 }
 
-bool reshade::d3d11::device_impl::check_resource_handle_valid(resource_handle resource)
+bool reshade::d3d11::device_impl::check_resource_handle_valid(resource_handle resource) const
 {
 	return resource.handle != 0 && _resources.has_object(reinterpret_cast<ID3D11Resource *>(resource.handle));
 }
-bool reshade::d3d11::device_impl::check_resource_view_handle_valid(resource_view_handle view)
+bool reshade::d3d11::device_impl::check_resource_view_handle_valid(resource_view_handle view) const
 {
 	return view.handle != 0 && _views.has_object(reinterpret_cast<ID3D11View *>(view.handle));
 }
@@ -916,7 +916,7 @@ void reshade::d3d11::device_impl::destroy_resource_view(resource_view_handle vie
 	reinterpret_cast<ID3D11View *>(view.handle)->Release();
 }
 
-void reshade::d3d11::device_impl::get_resource_from_view(resource_view_handle view, resource_handle *out_resource)
+void reshade::d3d11::device_impl::get_resource_from_view(resource_view_handle view, resource_handle *out_resource) const
 {
 	assert(view.handle != 0);
 	com_ptr<ID3D11Resource> resource;
@@ -925,7 +925,7 @@ void reshade::d3d11::device_impl::get_resource_from_view(resource_view_handle vi
 	*out_resource = { reinterpret_cast<uintptr_t>(resource.get()) };
 }
 
-resource_desc reshade::d3d11::device_impl::get_resource_desc(resource_handle resource)
+resource_desc reshade::d3d11::device_impl::get_resource_desc(resource_handle resource) const
 {
 	assert(resource.handle != 0);
 	const auto resource_object = reinterpret_cast<ID3D11Resource *>(resource.handle);
@@ -985,29 +985,6 @@ reshade::d3d11::device_context_impl::~device_context_impl()
 	else
 	{
 		RESHADE_ADDON_EVENT(destroy_command_queue, this);
-	}
-}
-
-bool reshade::d3d11::device_context_impl::get_data(const uint8_t guid[16], uint32_t size, void *data)
-{
-	if (_orig->GetType() != D3D11_DEVICE_CONTEXT_IMMEDIATE)
-	{
-		return api_data::get_data(guid, size, data);
-	}
-	else
-	{
-		return SUCCEEDED(_orig->GetPrivateData(*reinterpret_cast<const GUID *>(guid), &size, data));
-	}
-}
-void reshade::d3d11::device_context_impl::set_data(const uint8_t guid[16], uint32_t size, const void *data)
-{
-	if (_orig->GetType() != D3D11_DEVICE_CONTEXT_IMMEDIATE)
-	{
-		api_data::set_data(guid, size, data);
-	}
-	else
-	{
-		_orig->SetPrivateData(*reinterpret_cast<const GUID *>(guid), size, data);
 	}
 }
 

@@ -10,7 +10,7 @@
 
 namespace reshade::vulkan
 {
-	class runtime_vk : public runtime, api::api_data
+	class runtime_vk : public api::api_object_impl<runtime>
 	{
 		static const uint32_t NUM_QUERY_FRAMES = 4;
 		static const uint32_t NUM_IMGUI_BUFFERS = 4;
@@ -21,10 +21,7 @@ namespace reshade::vulkan
 		runtime_vk(device_impl *device, command_queue_impl *graphics_queue);
 		~runtime_vk();
 
-		bool get_data(const uint8_t guid[16], uint32_t size, void *data) override { return api_data::get_data(guid, size, data); }
-		void set_data(const uint8_t guid[16], uint32_t size, const void *data) override  { api_data::set_data(guid, size, data); }
-
-		uint64_t get_native_object() override { return (uint64_t)_swapchain; }
+		uint64_t get_native_object() const override { return (uint64_t)_swapchain; }
 
 		api::device *get_device() override { return _device_impl; }
 		api::command_queue *get_command_queue() override { return _queue_impl; }

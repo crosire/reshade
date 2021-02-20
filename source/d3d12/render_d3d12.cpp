@@ -618,7 +618,7 @@ reshade::d3d12::device_impl::~device_impl()
 #endif
 }
 
-bool reshade::d3d12::device_impl::check_format_support(uint32_t format, resource_usage usage)
+bool reshade::d3d12::device_impl::check_format_support(uint32_t format, resource_usage usage) const
 {
 	D3D12_FEATURE_DATA_FORMAT_SUPPORT feature = { static_cast<DXGI_FORMAT>(format) };
 	if (FAILED(_orig->CheckFeatureSupport(D3D12_FEATURE_FORMAT_SUPPORT, &feature, sizeof(feature))))
@@ -643,11 +643,11 @@ bool reshade::d3d12::device_impl::check_format_support(uint32_t format, resource
 	return true;
 }
 
-bool reshade::d3d12::device_impl::check_resource_handle_valid(resource_handle resource)
+bool reshade::d3d12::device_impl::check_resource_handle_valid(resource_handle resource) const
 {
 	return resource.handle != 0 && _resources.has_object(reinterpret_cast<ID3D12Resource *>(resource.handle));
 }
-bool reshade::d3d12::device_impl::check_resource_view_handle_valid(resource_view_handle view)
+bool reshade::d3d12::device_impl::check_resource_view_handle_valid(resource_view_handle view) const
 {
 	if (view.handle & 1)
 	{
@@ -720,7 +720,7 @@ void reshade::d3d12::device_impl::destroy_resource_view(resource_view_handle vie
 	}
 }
 
-void reshade::d3d12::device_impl::get_resource_from_view(resource_view_handle view, resource_handle *out_resource)
+void reshade::d3d12::device_impl::get_resource_from_view(resource_view_handle view, resource_handle *out_resource) const
 {
 	assert(view.handle != 0);
 
@@ -731,17 +731,21 @@ void reshade::d3d12::device_impl::get_resource_from_view(resource_view_handle vi
 	else
 	{
 		const std::lock_guard<std::mutex> lock(_mutex);
-		*out_resource = { reinterpret_cast<uintptr_t>(_views[view.handle]) };
+
+		if (const auto it = _views.find(view.handle); it != _views.end())
+			*out_resource = { reinterpret_cast<uintptr_t>(it->second) };
+		else
+			*out_resource = { 0 };
 	}
 }
 
-resource_desc reshade::d3d12::device_impl::get_resource_desc(resource_handle resource)
+resource_desc reshade::d3d12::device_impl::get_resource_desc(resource_handle resource) const
 {
 	assert(resource.handle != 0);
 	return convert_resource_desc(reinterpret_cast<ID3D12Resource *>(resource.handle)->GetDesc()).second;
 }
 
-void reshade::d3d12::device_impl::wait_idle()
+void reshade::d3d12::device_impl::wait_idle() const
 {
 	com_ptr<ID3D12Fence> fence;
 	if (FAILED(_orig->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence))))

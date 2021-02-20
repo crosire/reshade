@@ -394,7 +394,7 @@ reshade::opengl::device_impl::~device_impl()
 	glDeleteFramebuffers(2, _copy_fbo);
 }
 
-bool reshade::opengl::device_impl::check_format_support(uint32_t format, resource_usage usage)
+bool reshade::opengl::device_impl::check_format_support(uint32_t format, resource_usage usage) const
 {
 	GLint supported = GL_FALSE;
 	glGetInternalformativ(GL_TEXTURE_2D, format, GL_INTERNALFORMAT_SUPPORTED, 1, &supported);
@@ -410,7 +410,7 @@ bool reshade::opengl::device_impl::check_format_support(uint32_t format, resourc
 	return supported != GL_FALSE && supported_renderable != GL_NONE && supported_image_load != GL_NONE;
 }
 
-bool reshade::opengl::device_impl::check_resource_handle_valid(resource_handle resource)
+bool reshade::opengl::device_impl::check_resource_handle_valid(resource_handle resource) const
 {
 	switch (resource.handle >> 40)
 	{
@@ -450,7 +450,7 @@ bool reshade::opengl::device_impl::check_resource_handle_valid(resource_handle r
 		return (resource.handle & 0xFFFFFFFF) != GL_DEPTH_ATTACHMENT || _default_depth_format != GL_NONE;
 	}
 }
-bool reshade::opengl::device_impl::check_resource_view_handle_valid(resource_view_handle view)
+bool reshade::opengl::device_impl::check_resource_view_handle_valid(resource_view_handle view) const
 {
 	const GLenum attachment = view.handle >> 40;
 	if ((attachment >= GL_COLOR_ATTACHMENT0 && attachment <= GL_COLOR_ATTACHMENT31) || attachment == GL_DEPTH_ATTACHMENT || attachment == GL_STENCIL_ATTACHMENT)
@@ -664,7 +664,7 @@ void reshade::opengl::device_impl::destroy_resource_view(resource_view_handle vi
 		destroy_resource({ view.handle });
 }
 
-resource_view_handle reshade::opengl::device_impl::get_depth_stencil_from_fbo(GLuint fbo)
+resource_view_handle reshade::opengl::device_impl::get_depth_stencil_from_fbo(GLuint fbo) const
 {
 	if (fbo == 0 && _default_depth_format == GL_NONE)
 		return { 0 }; // No default depth buffer exists
@@ -676,7 +676,7 @@ resource_view_handle reshade::opengl::device_impl::get_depth_stencil_from_fbo(GL
 
 	return { (static_cast<uint64_t>(attachment) << 40) | fbo };
 }
-resource_view_handle reshade::opengl::device_impl::get_render_target_from_fbo(GLuint fbo, GLuint drawbuffer)
+resource_view_handle reshade::opengl::device_impl::get_render_target_from_fbo(GLuint fbo, GLuint drawbuffer) const
 {
 	const GLenum attachment = GL_COLOR_ATTACHMENT0 + drawbuffer;
 	if (fbo != 0 && get_fbo_attachment_param(fbo, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE) == GL_NONE)
@@ -685,7 +685,7 @@ resource_view_handle reshade::opengl::device_impl::get_render_target_from_fbo(GL
 	return { (static_cast<uint64_t>(attachment) << 40) | fbo };
 }
 
-void reshade::opengl::device_impl::get_resource_from_view(resource_view_handle view, resource_handle *out_resource)
+void reshade::opengl::device_impl::get_resource_from_view(resource_view_handle view, resource_handle *out_resource) const
 {
 	assert(view.handle != 0);
 
@@ -714,7 +714,7 @@ void reshade::opengl::device_impl::get_resource_from_view(resource_view_handle v
 	}
 }
 
-resource_desc reshade::opengl::device_impl::get_resource_desc(resource_handle resource)
+resource_desc reshade::opengl::device_impl::get_resource_desc(resource_handle resource) const
 {
 	GLsizei width = 0, height = 1, depth = 1, buffer_size = 0; GLenum internal_format = GL_NONE;
 
@@ -776,7 +776,7 @@ resource_desc reshade::opengl::device_impl::get_resource_desc(resource_handle re
 		return convert_resource_desc(convert_resource_type(target), 1, internal_format, width, height, depth);
 }
 
-void reshade::opengl::device_impl::wait_idle()
+void reshade::opengl::device_impl::wait_idle() const
 {
 	glFinish();
 }
