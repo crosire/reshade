@@ -201,7 +201,7 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 	cmd_list->RSSetViewports(1, &viewport);
 	const FLOAT blend_factor[4] = { 0.f, 0.f, 0.f, 0.f };
 	cmd_list->OMSetBlendFactor(blend_factor);
-	D3D12_CPU_DESCRIPTOR_HANDLE render_target = { _backbuffer_rtvs->GetCPUDescriptorHandleForHeapStart().ptr + _swap_index * 2 * _device_impl->_rtv_handle_size };
+	D3D12_CPU_DESCRIPTOR_HANDLE render_target = { _backbuffer_rtvs->GetCPUDescriptorHandleForHeapStart().ptr + _swap_index * 2 * _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_RTV] };
 	cmd_list->OMSetRenderTargets(1, &render_target, false, nullptr);
 
 	UINT vtx_offset = 0, idx_offset = 0;

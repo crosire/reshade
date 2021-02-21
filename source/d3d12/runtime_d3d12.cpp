@@ -105,7 +105,7 @@ bool reshade::d3d12::runtime_d3d12::on_init(const DXGI_SWAP_CHAIN_DESC &swap_des
 			if (FAILED(_swapchain->GetBuffer(i, IID_PPV_ARGS(&_backbuffers[i]))))
 				return false;
 
-			for (int srgb_write_enable = 0; srgb_write_enable < 2; ++srgb_write_enable, rtv_handle.ptr += _device_impl->_rtv_handle_size)
+			for (int srgb_write_enable = 0; srgb_write_enable < 2; ++srgb_write_enable, rtv_handle.ptr += _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_RTV])
 			{
 				D3D12_RENDER_TARGET_VIEW_DESC rtv_desc = {};
 				rtv_desc.Format = srgb_write_enable ?
@@ -244,9 +244,9 @@ void reshade::d3d12::runtime_d3d12::on_present(ID3D12Resource *source, HWND hwnd
 		_backbuffers[_swap_index]  = source;
 
 		D3D12_CPU_DESCRIPTOR_HANDLE rtv_handle = _backbuffer_rtvs->GetCPUDescriptorHandleForHeapStart();
-		rtv_handle.ptr += _device_impl->_rtv_handle_size * 2 * _swap_index;
+		rtv_handle.ptr += _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_RTV] * 2 * _swap_index;
 
-		for (int srgb_write_enable = 0; srgb_write_enable < 2; ++srgb_write_enable, rtv_handle.ptr += _device_impl->_rtv_handle_size)
+		for (int srgb_write_enable = 0; srgb_write_enable < 2; ++srgb_write_enable, rtv_handle.ptr += _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_RTV])
 		{
 			D3D12_RENDER_TARGET_VIEW_DESC rtv_desc = {};
 			rtv_desc.Format = srgb_write_enable ?
@@ -538,9 +538,9 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 		effect_data.srv_gpu_base = effect_data.srv_uav_heap->GetGPUDescriptorHandleForHeapStart();
 
 		effect_data.uav_cpu_base = effect_data.srv_cpu_base;
-		effect_data.uav_cpu_base.ptr += effect.module.num_texture_bindings * num_passes * _device_impl->_srv_handle_size;
+		effect_data.uav_cpu_base.ptr += effect.module.num_texture_bindings * num_passes * _device_impl->_descriptor_handle_size[desc.Type];
 		effect_data.uav_gpu_base = effect_data.srv_gpu_base;
-		effect_data.uav_gpu_base.ptr += effect.module.num_texture_bindings * num_passes * _device_impl->_srv_handle_size;
+		effect_data.uav_gpu_base.ptr += effect.module.num_texture_bindings * num_passes * _device_impl->_descriptor_handle_size[desc.Type];
 	}
 
 	{   D3D12_DESCRIPTOR_HEAP_DESC desc = { D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER };
@@ -582,7 +582,7 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 			desc.MaxLOD = info.max_lod;
 
 			D3D12_CPU_DESCRIPTOR_HANDLE sampler_handle = effect_data.sampler_cpu_base;
-			sampler_handle.ptr += info.binding * _device_impl->_sampler_handle_size;
+			sampler_handle.ptr += info.binding * _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER];
 
 			_device->CreateSampler(&desc, sampler_handle);
 		}
@@ -639,7 +639,7 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 
 				// Keep track of the base handle, which is followed by a contiguous range of render target descriptors
 				pass_data.render_targets = rtv_cpu_base;
-				rtv_cpu_base.ptr += 8 * _device_impl->_rtv_handle_size;
+				rtv_cpu_base.ptr += 8 * _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_RTV];
 
 				for (UINT k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k)
 				{
@@ -651,7 +651,7 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 					const D3D12_RESOURCE_DESC desc = tex_impl->resource->GetDesc();
 
 					D3D12_CPU_DESCRIPTOR_HANDLE rtv_handle = pass_data.render_targets;
-					rtv_handle.ptr += k * _device_impl->_rtv_handle_size;
+					rtv_handle.ptr += k * _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_RTV];
 
 					D3D12_RENDER_TARGET_VIEW_DESC rtv_desc = {};
 					rtv_desc.Format = pass_info.srgb_write_enable ?
@@ -805,7 +805,7 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 				const texture &texture = look_up_texture_by_name(info.texture_name);
 
 				D3D12_CPU_DESCRIPTOR_HANDLE srv_handle = srv_cpu_base;
-				srv_handle.ptr += info.texture_binding * _device_impl->_srv_handle_size;
+				srv_handle.ptr += info.texture_binding * _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV];
 
 				com_ptr<ID3D12Resource> resource;
 				if (texture.semantic == "COLOR")
@@ -816,7 +816,7 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 				{
 					if (const auto it = _texture_semantic_bindings.find(texture.semantic);
 						it != _texture_semantic_bindings.end())
-						resource = it->second;
+						_device->CopyDescriptorsSimple(1, srv_handle, it->second, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 					// Keep track of the texture descriptor to simplify updating it
 					effect_data.texture_semantic_to_binding[texture.semantic].push_back(srv_handle);
@@ -839,8 +839,8 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 					_device->CreateShaderResourceView(resource.get(), &desc, srv_handle);
 				}
 			}
-			srv_cpu_base.ptr += effect.module.num_texture_bindings * _device_impl->_srv_handle_size;
-			srv_gpu_base.ptr += effect.module.num_texture_bindings * _device_impl->_srv_handle_size;
+			srv_cpu_base.ptr += effect.module.num_texture_bindings * _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV];
+			srv_gpu_base.ptr += effect.module.num_texture_bindings * _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV];
 
 			pass_data.uav_handle = uav_gpu_base;
 			for (const reshadefx::storage_info &info : pass_info.storages)
@@ -854,7 +854,7 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 				const texture &texture = look_up_texture_by_name(info.texture_name);
 
 				D3D12_CPU_DESCRIPTOR_HANDLE uav_handle = uav_cpu_base;
-				uav_handle.ptr += info.binding * _device_impl->_srv_handle_size;
+				uav_handle.ptr += info.binding * _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV];
 
 				const com_ptr<ID3D12Resource> resource =
 					static_cast<tex_data *>(texture.impl)->resource;
@@ -870,8 +870,8 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 					pass_data.modified_resources.push_back(static_cast<tex_data *>(texture.impl));
 				}
 			}
-			uav_cpu_base.ptr += effect.module.num_storage_bindings * _device_impl->_srv_handle_size;
-			uav_gpu_base.ptr += effect.module.num_storage_bindings * _device_impl->_srv_handle_size;
+			uav_cpu_base.ptr += effect.module.num_storage_bindings * _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV];
+			uav_gpu_base.ptr += effect.module.num_storage_bindings * _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV];
 		}
 	}
 
@@ -1012,7 +1012,7 @@ bool reshade::d3d12::runtime_d3d12::init_texture(texture &texture)
 
 	D3D12_CPU_DESCRIPTOR_HANDLE srv_cpu_handle = impl->descriptors->GetCPUDescriptorHandleForHeapStart();
 
-	for (uint32_t level = 0; level < texture.levels; ++level, srv_cpu_handle.ptr += _device_impl->_srv_handle_size)
+	for (uint32_t level = 0; level < texture.levels; ++level, srv_cpu_handle.ptr += _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV])
 	{
 		D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
 		srv_desc.Format = make_dxgi_format_normal(desc.Format);
@@ -1025,7 +1025,7 @@ bool reshade::d3d12::runtime_d3d12::init_texture(texture &texture)
 	}
 
 	// Generate UAVs for mipmap generation
-	for (uint32_t level = 1; level < texture.levels; ++level, srv_cpu_handle.ptr += _device_impl->_srv_handle_size)
+	for (uint32_t level = 1; level < texture.levels; ++level, srv_cpu_handle.ptr += _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV])
 	{
 		D3D12_UNORDERED_ACCESS_VIEW_DESC uav_desc = {};
 		uav_desc.Format = make_dxgi_format_normal(desc.Format);
@@ -1168,9 +1168,9 @@ void reshade::d3d12::runtime_d3d12::generate_mipmaps(const tex_data *impl)
 		cmd_list->SetComputeRoot32BitConstant(0, float_as_uint(1.0f / width), 0);
 		cmd_list->SetComputeRoot32BitConstant(0, float_as_uint(1.0f / height), 1);
 		// Bind next higher mipmap level as input
-		cmd_list->SetComputeRootDescriptorTable(1, { impl->descriptors->GetGPUDescriptorHandleForHeapStart().ptr + _device_impl->_srv_handle_size * (level - 1) });
+		cmd_list->SetComputeRootDescriptorTable(1, { impl->descriptors->GetGPUDescriptorHandleForHeapStart().ptr + _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV] * (level - 1) });
 		// There is no UAV for level 0, so substract one
-		cmd_list->SetComputeRootDescriptorTable(2, { impl->descriptors->GetGPUDescriptorHandleForHeapStart().ptr + _device_impl->_srv_handle_size * (desc.MipLevels + level - 1) });
+		cmd_list->SetComputeRootDescriptorTable(2, { impl->descriptors->GetGPUDescriptorHandleForHeapStart().ptr + _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV] * (desc.MipLevels + level - 1) });
 
 		cmd_list->Dispatch(std::max(1u, (width + 7) / 8), std::max(1u, (height + 7) / 8), 1);
 
@@ -1221,7 +1221,7 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 
 	bool is_effect_stencil_cleared = false;
 	bool needs_implicit_backbuffer_copy = true; // First pass always needs the back buffer updated
-	D3D12_CPU_DESCRIPTOR_HANDLE effect_stencil = _depthstencil_dsvs->GetCPUDescriptorHandleForHeapStart();
+	D3D12_CPU_DESCRIPTOR_HANDLE dsv_handle = _depthstencil_dsvs->GetCPUDescriptorHandleForHeapStart();
 
 	for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
 	{
@@ -1299,29 +1299,31 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 			{
 				is_effect_stencil_cleared = true;
 
-				cmd_list->ClearDepthStencilView(effect_stencil, D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+				cmd_list->ClearDepthStencilView(dsv_handle, D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 			}
 
 			if (pass_data.num_render_targets == 0)
 			{
 				needs_implicit_backbuffer_copy = true;
 
-				D3D12_CPU_DESCRIPTOR_HANDLE render_target = { _backbuffer_rtvs->GetCPUDescriptorHandleForHeapStart().ptr + (_swap_index * 2 + pass_info.srgb_write_enable) * _device_impl->_rtv_handle_size };
-				cmd_list->OMSetRenderTargets(1, &render_target, false, pass_info.stencil_enable ? &effect_stencil : nullptr);
+				D3D12_CPU_DESCRIPTOR_HANDLE rtv_handle = _backbuffer_rtvs->GetCPUDescriptorHandleForHeapStart();
+				rtv_handle.ptr += (_swap_index * 2 + pass_info.srgb_write_enable) * _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_RTV];
+
+				cmd_list->OMSetRenderTargets(1, &rtv_handle, false, pass_info.stencil_enable ? &dsv_handle : nullptr);
 
 				if (pass_info.clear_render_targets)
-					cmd_list->ClearRenderTargetView(render_target, clear_color, 0, nullptr);
+					cmd_list->ClearRenderTargetView(rtv_handle, clear_color, 0, nullptr);
 			}
 			else
 			{
 				needs_implicit_backbuffer_copy = false;
 
 				cmd_list->OMSetRenderTargets(pass_data.num_render_targets, &pass_data.render_targets, true,
-					pass_info.stencil_enable && pass_info.viewport_width == _width && pass_info.viewport_height == _height ? &effect_stencil : nullptr);
+					pass_info.stencil_enable && pass_info.viewport_width == _width && pass_info.viewport_height == _height ? &dsv_handle : nullptr);
 
 				if (pass_info.clear_render_targets)
 					for (UINT k = 0; k < pass_data.num_render_targets; ++k)
-						cmd_list->ClearRenderTargetView({ pass_data.render_targets.ptr + k * _device_impl->_rtv_handle_size }, clear_color, 0, nullptr);
+						cmd_list->ClearRenderTargetView({ pass_data.render_targets.ptr + k * _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_RTV] }, clear_color, 0, nullptr);
 			}
 
 			const D3D12_RECT scissor_rect = { 0, 0, static_cast<LONG>(pass_info.viewport_width), static_cast<LONG>(pass_info.viewport_height) };
@@ -1381,39 +1383,34 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 
 void reshade::d3d12::runtime_d3d12::update_texture_bindings(const char *semantic, api::resource_view_handle srv)
 {
-	assert(srv.handle == 0 || (srv.handle & 1) == 1);
-	const auto resource = srv.handle != 0 ? reinterpret_cast<ID3D12Resource *>(srv.handle ^ 1) : nullptr;
-
 	// Descriptors may be currently in use, so make sure all previous frames have finished before updating them
 	_cmd_impl->flush_and_wait(_queue.get());
 
-	// This potentially destroys the previous resource, so it must not be in use on the GPU at this point anymore!
-	_texture_semantic_bindings[semantic] = resource;
-
-	D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
-	if (resource != nullptr)
+	if (srv.handle != 0)
 	{
-		const D3D12_RESOURCE_DESC desc = resource->GetDesc();
+		const D3D12_CPU_DESCRIPTOR_HANDLE descriptor = { static_cast<SIZE_T>(srv.handle) };
+		_texture_semantic_bindings[semantic] = descriptor;
 
-		srv_desc.Format = make_dxgi_format_normal(desc.Format);
-		srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-		srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		srv_desc.Texture2D.MipLevels = desc.MipLevels;
+		for (effect_data &effect_data : _effect_data)
+			for (D3D12_CPU_DESCRIPTOR_HANDLE binding : effect_data.texture_semantic_to_binding[semantic])
+				_device->CopyDescriptorsSimple(1, binding, descriptor, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	}
 	else
 	{
+		_texture_semantic_bindings.erase(semantic);
+
 		// Need to provide a description so descriptor type can be determined
 		// See https://docs.microsoft.com/windows/win32/api/d3d12/nf-d3d12-id3d12device-createshaderresourceview
+		D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
 		srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 		srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 		srv_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 		srv_desc.Texture2D.MipLevels = 1;
 		srv_desc.Texture2D.MostDetailedMip = 0;
 		srv_desc.Texture2D.ResourceMinLODClamp = 0.0f;
-	}
 
-	// Either create a shader resource view or set a null descriptor
-	for (effect_data &effect_data : _effect_data)
-		for (D3D12_CPU_DESCRIPTOR_HANDLE binding : effect_data.texture_semantic_to_binding[semantic])
-			_device->CreateShaderResourceView(resource, &srv_desc, binding);
+		for (effect_data &effect_data : _effect_data)
+			for (D3D12_CPU_DESCRIPTOR_HANDLE binding : effect_data.texture_semantic_to_binding[semantic])
+				_device->CreateShaderResourceView(nullptr, &srv_desc, binding);
+	}
 }

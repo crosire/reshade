@@ -306,7 +306,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::OMSetRenderTargets(UINT NumRend
 	assert(NumRenderTargetDescriptors < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT);
 	reshade::api::resource_view_handle rtvs[D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT];
 	for (UINT i = 0; i < NumRenderTargetDescriptors; ++i)
-		rtvs[i] = { RTsSingleHandleToDescriptorRange ? pRenderTargetDescriptors->ptr + i * _device->_rtv_handle_size : pRenderTargetDescriptors[i].ptr };
+		rtvs[i] = { RTsSingleHandleToDescriptorRange ? pRenderTargetDescriptors->ptr + i * _device->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_RTV] : pRenderTargetDescriptors[i].ptr };
 	const reshade::api::resource_view_handle dsv = { pDepthStencilDescriptor != nullptr ? pDepthStencilDescriptor->ptr : 0 };
 	RESHADE_ADDON_EVENT(set_render_targets_and_depth_stencil, this, NumRenderTargetDescriptors, rtvs, dsv);
 #endif
@@ -419,7 +419,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::BeginRenderPass(UINT NumRenderT
 	assert(NumRenderTargets < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT);
 	reshade::api::resource_view_handle rtvs[D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT];
 	for (UINT i = 0; i < NumRenderTargets; ++i)
-		rtvs[i] = { pRenderTargets->cpuDescriptor.ptr + i * _device->_rtv_handle_size };
+		rtvs[i] = { pRenderTargets->cpuDescriptor.ptr + i * _device->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_RTV] };
 	const reshade::api::resource_view_handle dsv = { pDepthStencil != nullptr ? pDepthStencil->cpuDescriptor.ptr : 0 };
 	RESHADE_ADDON_EVENT(set_render_targets_and_depth_stencil, this, NumRenderTargets, rtvs, dsv);
 #endif

@@ -63,7 +63,7 @@ namespace reshade::d3d12
 		com_ptr<ID3D12Resource> _effect_stencil;
 		std::vector<struct effect_data> _effect_data;
 
-		std::unordered_map<std::string, com_ptr<ID3D12Resource>> _texture_semantic_bindings;
+		std::unordered_map<std::string, D3D12_CPU_DESCRIPTOR_HANDLE> _texture_semantic_bindings;
 
 #if RESHADE_GUI
 		bool init_imgui_resources();

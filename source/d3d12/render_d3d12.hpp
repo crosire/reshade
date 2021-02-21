@@ -61,10 +61,7 @@ namespace reshade::d3d12
 		ID3D12Device *_orig;
 
 		// Cached device capabilities for quick access
-		UINT _srv_handle_size = 0;
-		UINT _rtv_handle_size = 0;
-		UINT _dsv_handle_size = 0;
-		UINT _sampler_handle_size = 0;
+		UINT _descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES] = {};
 		// Device-local resources that may be used by multiple effect runtimes
 		com_ptr<ID3D12PipelineState> _mipmap_pipeline;
 		com_ptr<ID3D12RootSignature> _mipmap_signature;
@@ -83,6 +80,31 @@ namespace reshade::d3d12
 		std::unordered_map<uint64_t, ID3D12Resource *> _views;
 		mutable std::mutex _mutex;
 		std::vector<ID3D12CommandQueue *> _queues;
+
+	private:
+		D3D12_CPU_DESCRIPTOR_HANDLE allocate_descriptor_handle(D3D12_DESCRIPTOR_HEAP_TYPE type)
+		{
+			std::vector<bool> &usage = _resource_view_heaps_usage[type];
+			// Find free entry in the descriptor heap
+			const std::lock_guard<std::mutex> lock(_mutex);
+			if (const auto it = std::find(usage.begin(), usage.end(), false);
+				it != usage.end() && _resource_view_heaps[type] != nullptr)
+			{
+				const size_t index = it - usage.begin();
+				usage[index] = true; // Mark this entry as being in use
+
+				D3D12_CPU_DESCRIPTOR_HANDLE descriptor_handle = _resource_view_heaps[type]->GetCPUDescriptorHandleForHeapStart();
+				descriptor_handle.ptr += index * _descriptor_handle_size[type];
+				return descriptor_handle;
+			}
+			else
+			{
+				return D3D12_CPU_DESCRIPTOR_HANDLE { 0 };
+			}
+		}
+
+		std::vector<bool> _resource_view_heaps_usage[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
+		com_ptr<ID3D12DescriptorHeap> _resource_view_heaps[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
 	};
 
 	class command_list_impl : public api::api_object_impl<api::command_list>

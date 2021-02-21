@@ -546,10 +546,16 @@ resource_view_desc reshade::d3d12::convert_resource_view_desc(const D3D12_UNORDE
 reshade::d3d12::device_impl::device_impl(ID3D12Device *device) :
 	_orig(device)
 {
-	_srv_handle_size = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	_rtv_handle_size = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-	_dsv_handle_size = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
-	_sampler_handle_size = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
+	for (UINT type = 0; type < D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES; ++type)
+	{
+		_descriptor_handle_size[type] = device->GetDescriptorHandleIncrementSize(static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>(type));
+
+		D3D12_DESCRIPTOR_HEAP_DESC heap_desc = {};
+		heap_desc.Type = static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>(type);
+		heap_desc.NumDescriptors = 32;
+		_orig->CreateDescriptorHeap(&heap_desc, IID_PPV_ARGS(&_resource_view_heaps[type]));
+		_resource_view_heaps_usage[type].resize(heap_desc.NumDescriptors);
+	}
 
 	// Create mipmap generation states
 	{   D3D12_DESCRIPTOR_RANGE srv_range = {};
@@ -600,8 +606,8 @@ reshade::d3d12::device_impl::device_impl(ID3D12Device *device) :
 		const resources::data_resource cs = resources::load_data_resource(IDR_MIPMAP_CS);
 		pso_desc.CS = { cs.data, cs.data_size };
 
-		if (FAILED(_orig->CreateComputePipelineState(&pso_desc, IID_PPV_ARGS(&_mipmap_pipeline))))
-			return;
+		_orig->CreateComputePipelineState(&pso_desc, IID_PPV_ARGS(&_mipmap_pipeline));
+		assert(_mipmap_pipeline != nullptr);
 	}
 
 #if RESHADE_ADDON
@@ -653,15 +659,8 @@ bool reshade::d3d12::device_impl::check_resource_handle_valid(resource_handle re
 }
 bool reshade::d3d12::device_impl::check_resource_view_handle_valid(resource_view_handle view) const
 {
-	if (view.handle & 1)
-	{
-		return check_resource_handle_valid({ view.handle ^ 1 });
-	}
-	else
-	{
-		const std::lock_guard<std::mutex> lock(_mutex);
-		return _views.find(view.handle) != _views.end();
-	}
+	const std::lock_guard<std::mutex> lock(_mutex);
+	return _views.find(view.handle) != _views.end();
 }
 
 bool reshade::d3d12::device_impl::create_resource(resource_type type, const resource_desc &desc, resource_usage initial_state, resource_handle *out_resource)
@@ -692,21 +691,73 @@ bool reshade::d3d12::device_impl::create_resource_view(resource_handle resource,
 {
 	assert(resource.handle != 0);
 
-	if (type == resource_view_type::shader_resource)
+	switch (type)
 	{
-		// Resource pointers should be at least 4-byte aligned, so that this is safe
-		assert((resource.handle & 1) == 0);
+		case resource_view_type::depth_stencil:
+		{
+			D3D12_CPU_DESCRIPTOR_HANDLE descriptor_handle = allocate_descriptor_handle(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+			if (descriptor_handle.ptr == 0)
+				break; // No more space available in the descriptor heap
 
-		reinterpret_cast<ID3D12Resource *>(resource.handle)->AddRef();
-		*out_view = { resource.handle | 1 };
-		return true;
+			D3D12_DEPTH_STENCIL_VIEW_DESC internal_desc = {};
+			convert_resource_view_desc(desc, internal_desc);
+
+			_orig->CreateDepthStencilView(reinterpret_cast<ID3D12Resource *>(resource.handle), &internal_desc, descriptor_handle);
+
+			register_resource_view(reinterpret_cast<ID3D12Resource *>(resource.handle), descriptor_handle);
+			*out_view = { descriptor_handle.ptr };
+			return true;
+		}
+		case resource_view_type::render_target:
+		{
+			D3D12_CPU_DESCRIPTOR_HANDLE descriptor_handle = allocate_descriptor_handle(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+			if (descriptor_handle.ptr == 0)
+				break;
+
+			D3D12_RENDER_TARGET_VIEW_DESC internal_desc = {};
+			convert_resource_view_desc(desc, internal_desc);
+
+			_orig->CreateRenderTargetView(reinterpret_cast<ID3D12Resource *>(resource.handle), &internal_desc, descriptor_handle);
+
+			register_resource_view(reinterpret_cast<ID3D12Resource *>(resource.handle), descriptor_handle);
+			*out_view = { descriptor_handle.ptr };
+			return true;
+		}
+		case resource_view_type::shader_resource:
+		{
+			D3D12_CPU_DESCRIPTOR_HANDLE descriptor_handle = allocate_descriptor_handle(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+			if (descriptor_handle.ptr == 0)
+				break;
+
+			D3D12_SHADER_RESOURCE_VIEW_DESC internal_desc = {};
+			internal_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+			convert_resource_view_desc(desc, internal_desc);
+
+			_orig->CreateShaderResourceView(reinterpret_cast<ID3D12Resource *>(resource.handle), &internal_desc, descriptor_handle);
+
+			register_resource_view(reinterpret_cast<ID3D12Resource *>(resource.handle), descriptor_handle);
+			*out_view = { descriptor_handle.ptr };
+			return true;
+		}
+		case resource_view_type::unordered_access:
+		{
+			D3D12_CPU_DESCRIPTOR_HANDLE descriptor_handle = allocate_descriptor_handle(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+			if (descriptor_handle.ptr == 0)
+				break;
+
+			D3D12_UNORDERED_ACCESS_VIEW_DESC internal_desc = {};
+			convert_resource_view_desc(desc, internal_desc);
+
+			_orig->CreateUnorderedAccessView(reinterpret_cast<ID3D12Resource *>(resource.handle), nullptr, &internal_desc, descriptor_handle);
+
+			register_resource_view(reinterpret_cast<ID3D12Resource *>(resource.handle), descriptor_handle);
+			*out_view = { descriptor_handle.ptr };
+			return true;
+		}
 	}
-	else
-	{
-		assert(false);
-		*out_view = { 0 };
-		return false; // TODO
-	}
+
+	*out_view = { 0 };
+	return false;
 }
 
 void reshade::d3d12::device_impl::destroy_resource(resource_handle resource)
@@ -718,9 +769,19 @@ void reshade::d3d12::device_impl::destroy_resource_view(resource_view_handle vie
 {
 	assert(view.handle != 0);
 
-	if (view.handle & 1)
+	const std::lock_guard<std::mutex> lock(_mutex);
+	_views.erase(view.handle);
+
+	// Mark free slot in the descriptor heap
+	for (UINT type = 0; type < D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES; ++type)
 	{
-		reinterpret_cast<ID3D12Resource *>(view.handle ^ 1)->Release();
+		const D3D12_CPU_DESCRIPTOR_HANDLE heap_start = _resource_view_heaps[type]->GetCPUDescriptorHandleForHeapStart();
+		if (view.handle >= heap_start.ptr && view.handle < (heap_start.ptr + _resource_view_heaps_usage[type].size() * _descriptor_handle_size[type]))
+		{
+			const size_t index = (view.handle - heap_start.ptr) / _descriptor_handle_size[type];
+			_resource_view_heaps_usage[type][index] = false;
+			break;
+		}
 	}
 }
 
@@ -728,19 +789,11 @@ void reshade::d3d12::device_impl::get_resource_from_view(resource_view_handle vi
 {
 	assert(view.handle != 0);
 
-	if (view.handle & 1)
-	{
-		*out_resource = { view.handle ^ 1 };
-	}
+	const std::lock_guard<std::mutex> lock(_mutex);
+	if (const auto it = _views.find(view.handle); it != _views.end())
+		*out_resource = { reinterpret_cast<uintptr_t>(it->second) };
 	else
-	{
-		const std::lock_guard<std::mutex> lock(_mutex);
-
-		if (const auto it = _views.find(view.handle); it != _views.end())
-			*out_resource = { reinterpret_cast<uintptr_t>(it->second) };
-		else
-			*out_resource = { 0 };
-	}
+		*out_resource = { 0 };
 }
 
 resource_desc reshade::d3d12::device_impl::get_resource_desc(resource_handle resource) const
@@ -838,16 +891,14 @@ void reshade::d3d12::command_list_impl::clear_depth_stencil_view(resource_view_h
 {
 	_has_commands = true;
 
-	// Only supported for resource view handles created by the application for now
-	assert(dsv.handle != 0 && (dsv.handle & 1) == 0);
+	assert(dsv.handle != 0);
 	_orig->ClearDepthStencilView(D3D12_CPU_DESCRIPTOR_HANDLE { static_cast<SIZE_T>(dsv.handle) }, static_cast<D3D12_CLEAR_FLAGS>(clear_flags), depth, stencil, 0, nullptr);
 }
 void reshade::d3d12::command_list_impl::clear_render_target_view(resource_view_handle rtv, const float color[4])
 {
 	_has_commands = true;
 
-	// Only supported for resource view handles created by the application for now
-	assert(rtv.handle != 0 && (rtv.handle & 1) == 0);
+	assert(rtv.handle != 0);
 	_orig->ClearRenderTargetView(D3D12_CPU_DESCRIPTOR_HANDLE { static_cast<SIZE_T>(rtv.handle) }, color, 0, nullptr);
 }
 
