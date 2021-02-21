@@ -4,17 +4,12 @@
 
 reshade::openvr::openvr_runtime_d3d11 *vr_runtime_d3d11 = nullptr;
 
-reshade::hook::address *as_vtable(void *instance)
-{
-	return *static_cast<reshade::hook::address **>(instance);
-}
-
-vr::EVRCompositorError IVRCompositor_Submit(void *ivrCompositor, vr::EVREye eEye, const vr::Texture_t *pTexture, const vr::VRTextureBounds_t* pBounds, vr::EVRSubmitFlags nSubmitFlags)
+vr::EVRCompositorError IVRCompositor_Submit(vr::IVRCompositor *compositor, vr::EVREye eEye, const vr::Texture_t *pTexture, const vr::VRTextureBounds_t* pBounds, vr::EVRSubmitFlags nSubmitFlags)
 {
 	if (pTexture == nullptr)
 		return vr::VRCompositorError_InvalidTexture;
 
-	const auto trampoline = reshade::hooks::call(IVRCompositor_Submit, as_vtable(ivrCompositor) + 5);
+	const auto trampoline = reshade::hooks::call(IVRCompositor_Submit, vtable_from_instance(compositor) + 5);
 
 	static const vr::VRTextureBounds_t full_texture { 0, 0, 1, 1 };
 	if (pBounds == nullptr)
@@ -24,14 +19,14 @@ vr::EVRCompositorError IVRCompositor_Submit(void *ivrCompositor, vr::EVREye eEye
 	{
 		if (vr_runtime_d3d11 == nullptr)
 		{
-			vr_runtime_d3d11 = new reshade::openvr::openvr_runtime_d3d11(pTexture, pBounds, trampoline, ivrCompositor);
+			vr_runtime_d3d11 = new reshade::openvr::openvr_runtime_d3d11(pTexture, pBounds, trampoline, compositor);
 		}
 		vr_runtime_d3d11->on_submit(eEye, pTexture, pBounds);
 		// FIXME: should we do better error reporting here?
 		return vr::VRCompositorError_None;
 	}
 	
-	return trampoline(ivrCompositor, eEye, pTexture, pBounds, nSubmitFlags);
+	return trampoline(compositor, eEye, pTexture, pBounds, nSubmitFlags);
 }
 
 HOOK_EXPORT void *VR_GetGenericInterface(const char *pchInterfaceVersion, vr::EVRInitError *peError)
@@ -46,7 +41,8 @@ HOOK_EXPORT void *VR_GetGenericInterface(const char *pchInterfaceVersion, vr::EV
 	if (strcmp(pchInterfaceVersion, "IVRCompositor_015") >= 0 && strcmp(pchInterfaceVersion, "IVRCompositor_026") <= 0)
 	{
 		LOG(INFO) << "VR: Hooking into " << pchInterfaceVersion;
-		reshade::hooks::install("IVRCompositor::Submit", as_vtable(vrInterface), 5, reinterpret_cast<reshade::hook::address>(IVRCompositor_Submit));
+		vr::IVRCompositor *compositor = static_cast< vr::IVRCompositor* >( vrInterface );
+		reshade::hooks::install("IVRCompositor::Submit", vtable_from_instance(compositor), 5, reinterpret_cast<reshade::hook::address>(IVRCompositor_Submit));
 	}
 	
 	return vrInterface;

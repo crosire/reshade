@@ -5,7 +5,7 @@
 namespace reshade::openvr
 {
 
-	openvr_runtime_d3d11::openvr_runtime_d3d11(const vr::Texture_t *pTexture, const vr::VRTextureBounds_t *pBounds, submit_function orig_submit, void *orig_compositor) :
+	openvr_runtime_d3d11::openvr_runtime_d3d11(const vr::Texture_t *pTexture, const vr::VRTextureBounds_t *pBounds, submit_function orig_submit, vr::IVRCompositor *orig_compositor) :
 		_orig_submit(orig_submit), _orig_compositor(orig_compositor), _num_submitted(0)
 	{
 		ID3D11Texture2D *texture = static_cast<ID3D11Texture2D *>(pTexture->handle);

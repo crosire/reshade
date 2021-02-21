@@ -10,13 +10,13 @@ namespace reshade::openvr
 	class openvr_runtime_d3d11
 	{
 	public:
-	    typedef vr::EVRCompositorError(* const submit_function)(void *, vr::EVREye, const vr::Texture_t *, const vr::VRTextureBounds_t *, vr::EVRSubmitFlags);
-		openvr_runtime_d3d11(const vr::Texture_t *pTexture, const vr::VRTextureBounds_t *pBounds, submit_function orig_submit, void * orig_compositor);
+	    typedef vr::EVRCompositorError(* const submit_function)(vr::IVRCompositor *, vr::EVREye, const vr::Texture_t *, const vr::VRTextureBounds_t *, vr::EVRSubmitFlags);
+		openvr_runtime_d3d11(const vr::Texture_t *pTexture, const vr::VRTextureBounds_t *pBounds, submit_function orig_submit, vr::IVRCompositor *orig_compositor);
 
 		bool on_submit(vr::EVREye eEye, const vr::Texture_t *pTexture, const vr::VRTextureBounds_t *pBounds);
 	private:
 		submit_function _orig_submit;
-		void *_orig_compositor;
+		vr::IVRCompositor *_orig_compositor;
 		com_ptr<ID3D11Device> _device;
 		com_ptr<ID3D11DeviceContext> _context;
 		uint32_t _width;
