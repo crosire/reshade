@@ -11,7 +11,14 @@ reshade::hook::address *as_vtable(void *instance)
 
 vr::EVRCompositorError IVRCompositor_Submit(void *ivrCompositor, vr::EVREye eEye, const vr::Texture_t *pTexture, const vr::VRTextureBounds_t* pBounds, vr::EVRSubmitFlags nSubmitFlags)
 {
+	if (pTexture == nullptr)
+		return vr::VRCompositorError_InvalidTexture;
+
 	const auto trampoline = reshade::hooks::call(IVRCompositor_Submit, as_vtable(ivrCompositor) + 5);
+
+	static const vr::VRTextureBounds_t full_texture { 0, 0, 1, 1 };
+	if (pBounds == nullptr)
+		pBounds = &full_texture;
 
 	if (pTexture->eType == vr::TextureType_DirectX)
 	{
