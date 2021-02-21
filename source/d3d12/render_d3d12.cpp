@@ -961,3 +961,9 @@ reshade::d3d12::command_queue_impl::~command_queue_impl()
 		_device_impl->_queues.erase(std::find(_device_impl->_queues.begin(), _device_impl->_queues.end(), _orig));
 	}
 }
+
+void reshade::d3d12::command_queue_impl::flush_immediate_command_list() const
+{
+	if (_immediate_cmd_list != nullptr)
+		_immediate_cmd_list->flush(_orig);
+}

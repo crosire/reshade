@@ -85,7 +85,10 @@ namespace reshade::d3d11
 		uint64_t get_native_object() const override { return reinterpret_cast<uintptr_t>(_orig.get()); }
 
 		api::device *get_device() override { return _device_impl; }
+
 		api::command_list *get_immediate_command_list() override { assert(_orig->GetType() == D3D11_DEVICE_CONTEXT_IMMEDIATE); return this; }
+
+		void flush_immediate_command_list() const override;
 
 		void draw(uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance) override;
 		void draw_indexed(uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance) override;

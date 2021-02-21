@@ -862,11 +862,8 @@ bool reshade::vulkan::command_list_immediate_impl::flush(VkQueue queue, std::vec
 
 	// This queue submit now waits on the requested wait semaphores
 	// The next queue submit should therefore wait on the semaphore that was signaled by this submit
-	if (!wait_semaphores.empty())
-	{
-		wait_semaphores.clear();
-		wait_semaphores.push_back(_cmd_semaphores[_cmd_index]);
-	}
+	wait_semaphores.clear();
+	wait_semaphores.push_back(_cmd_semaphores[_cmd_index]);
 
 	// Continue with next command buffer now that the current one was submitted
 	_cmd_index = (_cmd_index + 1) % NUM_COMMAND_FRAMES;
@@ -893,8 +890,8 @@ bool reshade::vulkan::command_list_immediate_impl::flush_and_wait(VkQueue queue)
 	// Index is updated during flush below, so keep track of the current one to wait on
 	const uint32_t cmd_index_to_wait_on = _cmd_index;
 
-	if (std::vector<VkSemaphore> wait_semaphores; // No semaphores to wait on
-		!flush(queue, wait_semaphores))
+	std::vector<VkSemaphore> wait_semaphores; // No semaphores to wait on
+	if (!flush(queue, wait_semaphores))
 		return false;
 
 	// Wait for the submitted work to finish and reset fence again for next use
@@ -923,4 +920,11 @@ reshade::vulkan::command_queue_impl::~command_queue_impl()
 
 	// Unregister queue from device
 	_device_impl->_queues.erase(std::find(_device_impl->_queues.begin(), _device_impl->_queues.end(), this));
+}
+
+void reshade::vulkan::command_queue_impl::flush_immediate_command_list() const
+{
+	std::vector<VkSemaphore> wait_semaphores; // No semaphores to wait on
+	if (_immediate_cmd_list != nullptr)
+		_immediate_cmd_list->flush(_queue, wait_semaphores);
 }

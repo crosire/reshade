@@ -705,6 +705,11 @@ resource_desc reshade::d3d10::device_impl::get_resource_desc(resource_handle res
 	return {};
 }
 
+void reshade::d3d10::device_impl::flush_immediate_command_list() const
+{
+	_orig->Flush();
+}
+
 void reshade::d3d10::device_impl::draw(uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance)
 {
 	if (instances <= 1)

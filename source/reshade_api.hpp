@@ -386,9 +386,15 @@ namespace reshade { namespace api
 	{
 	public:
 		/// <summary>
-		/// Gets a special command list, on which all issued commands are executed immediately (or right before the application executes its next command list on this queue).
+		/// Gets a special command list, on which all issued commands are executed as soon as possible (or right before the application executes its next command list on this queue).
 		/// </summary>
 		virtual command_list *get_immediate_command_list() = 0;
+
+		/// <summary>
+		/// Flushes and executes the special immediate command list returned by <see cref="command_queue::get_immediate_command_list"/> immediately.
+		/// This can be used to force commands to execute right away instead of waiting for the runtime to flush it automatically at some point.
+		/// </summary>
+		virtual void flush_immediate_command_list() const  = 0;
 	};
 
 	/// <summary>

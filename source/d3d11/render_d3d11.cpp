@@ -986,6 +986,12 @@ reshade::d3d11::device_context_impl::~device_context_impl()
 	}
 }
 
+void reshade::d3d11::device_context_impl::flush_immediate_command_list() const
+{
+	assert(_orig->GetType() == D3D11_DEVICE_CONTEXT_IMMEDIATE);
+	_orig->Flush();
+}
+
 void reshade::d3d11::device_context_impl::draw(uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance)
 {
 	if (instances <= 1)

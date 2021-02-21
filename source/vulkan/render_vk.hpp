@@ -230,7 +230,10 @@ namespace reshade::vulkan
 		uint64_t get_native_object() const override { return (uint64_t)_queue; }
 
 		api::device *get_device() override { return _device_impl; }
+
 		api::command_list *get_immediate_command_list() override { return _immediate_cmd_list; }
+
+		void flush_immediate_command_list() const override;
 
 	private:
 		const VkQueue _queue;

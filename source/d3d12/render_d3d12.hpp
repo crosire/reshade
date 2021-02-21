@@ -143,7 +143,10 @@ namespace reshade::d3d12
 		uint64_t get_native_object() const override { return reinterpret_cast<uintptr_t>(_orig); }
 
 		api::device *get_device() override { return _device_impl; }
+
 		api::command_list *get_immediate_command_list() override { return _immediate_cmd_list; }
+
+		void flush_immediate_command_list() const override;
 
 		// Pointer to original command queue object (managed by D3D12CommandQueue class)
 		ID3D12CommandQueue *_orig;

@@ -58,7 +58,10 @@ namespace reshade::d3d10
 		void wait_idle() const override { /* no-op */ }
 
 		api::device *get_device() override { return this; }
+
 		api::command_list *get_immediate_command_list() override { return this; }
+
+		void flush_immediate_command_list() const override;
 
 		void draw(uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance) override;
 		void draw_indexed(uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance) override;

@@ -795,6 +795,11 @@ void reshade::opengl::device_impl::wait_idle() const
 	glFinish();
 }
 
+void reshade::opengl::device_impl::flush_immediate_command_list() const
+{
+	glFlush();
+}
+
 void reshade::opengl::device_impl::draw(uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance)
 {
 	if (instances <= 1)
