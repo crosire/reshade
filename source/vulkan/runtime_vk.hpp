@@ -68,7 +68,7 @@ namespace reshade::vulkan
 		VkSwapchainKHR _swapchain = VK_NULL_HANDLE;
 
 		uint32_t _queue_sync_index = 0;
-		VkSemaphore _queue_sync_semaphores[4] = {};
+		VkSemaphore _queue_sync_semaphores[NUM_QUERY_FRAMES] = {};
 #ifndef NDEBUG
 		mutable bool _wait_for_idle_happened = false;
 #endif

@@ -294,6 +294,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DISPATCH_PTR(CmdDrawIndirect);
 	INIT_DISPATCH_PTR(CmdDrawIndexedIndirect);
 	INIT_DISPATCH_PTR(CmdDispatch);
+	INIT_DISPATCH_PTR(CmdDispatchIndirect);
 	INIT_DISPATCH_PTR(CmdCopyBuffer);
 	INIT_DISPATCH_PTR(CmdCopyImage);
 	INIT_DISPATCH_PTR(CmdBlitImage);

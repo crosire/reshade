@@ -167,11 +167,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateAdditionalSwapChain(D3DPRESENT_
 
 	com_ptr<IDirect3D9> d3d;
 	_orig->GetDirect3D(&d3d);
-	D3DDEVICE_CREATION_PARAMETERS cp = {};
-	_orig->GetCreationParameters(&cp);
 
 	D3DPRESENT_PARAMETERS pp = *pPresentationParameters;
-	dump_and_modify_present_parameters(pp, d3d.get(), cp.AdapterOrdinal);
+	dump_and_modify_present_parameters(pp, d3d.get(), _cp.AdapterOrdinal);
 	d3d.reset();
 
 	const HRESULT hr = _orig->CreateAdditionalSwapChain(&pp, ppSwapChain);
@@ -227,11 +225,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 
 	com_ptr<IDirect3D9> d3d;
 	_orig->GetDirect3D(&d3d);
-	D3DDEVICE_CREATION_PARAMETERS cp = {};
-	_orig->GetCreationParameters(&cp);
 
 	D3DPRESENT_PARAMETERS pp = *pPresentationParameters;
-	dump_and_modify_present_parameters(pp, d3d.get(), cp.AdapterOrdinal);
+	dump_and_modify_present_parameters(pp, d3d.get(), _cp.AdapterOrdinal);
 	d3d.reset();
 
 	_implicit_swapchain->_runtime->on_reset();
@@ -1208,14 +1204,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 
 	com_ptr<IDirect3D9> d3d;
 	_orig->GetDirect3D(&d3d);
-	D3DDEVICE_CREATION_PARAMETERS cp = {};
-	_orig->GetCreationParameters(&cp);
 
 	D3DDISPLAYMODEEX fullscreen_mode = { sizeof(fullscreen_mode) };
 	if (pFullscreenDisplayMode != nullptr)
 		fullscreen_mode = *pFullscreenDisplayMode;
 	D3DPRESENT_PARAMETERS pp = *pPresentationParameters;
-	dump_and_modify_present_parameters(pp, fullscreen_mode, d3d.get(), cp.AdapterOrdinal);
+	dump_and_modify_present_parameters(pp, fullscreen_mode, d3d.get(), _cp.AdapterOrdinal);
 	d3d.reset();
 
 	_implicit_swapchain->_runtime->on_reset();

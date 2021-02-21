@@ -43,6 +43,7 @@ namespace reshade::d3d11
 
 		void set_debug_name(ID3D11DeviceChild *object, LPCWSTR name) const;
 
+		state_block _app_state;
 		device_impl *const _device_impl;
 		const com_ptr<ID3D11Device> _device;
 		device_context_impl *const _immediate_context_impl;

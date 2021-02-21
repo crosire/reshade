@@ -455,7 +455,7 @@ resource_view_desc reshade::d3d10::convert_resource_view_desc(const D3D10_SHADER
 }
 
 reshade::d3d10::device_impl::device_impl(ID3D10Device1 *device) :
-	_orig(device), _app_state(device)
+	_orig(device)
 {
 	// Create copy states
 	const resources::data_resource ps = resources::load_data_resource(IDR_COPY_PS);

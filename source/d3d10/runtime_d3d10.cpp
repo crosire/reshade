@@ -12,7 +12,7 @@
 extern bool is_windows7();
 
 reshade::d3d10::runtime_d3d10::runtime_d3d10(device_impl *device, IDXGISwapChain *swapchain) :
-	_device_impl(device), _device(device->_orig), _swapchain(swapchain)
+	_app_state(device->_orig), _device_impl(device), _device(device->_orig), _swapchain(swapchain)
 {
 	_renderer_id = _device->GetFeatureLevel();
 
@@ -169,7 +169,7 @@ void reshade::d3d10::runtime_d3d10::on_present()
 	if (!_is_initialized)
 		return;
 
-	_device_impl->_app_state.capture();
+	_app_state.capture();
 
 	// Resolve MSAA back buffer if MSAA is active
 	if (_backbuffer_resolved != _backbuffer)
@@ -206,7 +206,7 @@ void reshade::d3d10::runtime_d3d10::on_present()
 	}
 
 	// Apply previous state from application
-	_device_impl->_app_state.apply_and_release();
+	_app_state.apply_and_release();
 }
 
 bool reshade::d3d10::runtime_d3d10::capture_screenshot(uint8_t *buffer) const

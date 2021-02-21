@@ -11,15 +11,13 @@
 reshade::d3d9::runtime_d3d9::runtime_d3d9(device_impl *device, IDirect3DSwapChain9 *swapchain) :
 	_device_impl(device), _device(device->_orig), _swapchain(swapchain)
 {
-	com_ptr<IDirect3D9> d3d;
-	_device->GetDirect3D(&d3d);
-	D3DDEVICE_CREATION_PARAMETERS creation_params = {};
-	_device->GetCreationParameters(&creation_params);
-
 	_renderer_id = 0x9000;
 
+	com_ptr<IDirect3D9> d3d;
+	_device->GetDirect3D(&d3d);
+
 	if (D3DADAPTER_IDENTIFIER9 adapter_desc;
-		SUCCEEDED(d3d->GetAdapterIdentifier(creation_params.AdapterOrdinal, 0, &adapter_desc)))
+		SUCCEEDED(d3d->GetAdapterIdentifier(_device_impl->_cp.AdapterOrdinal, 0, &adapter_desc)))
 	{
 		_vendor_id = adapter_desc.VendorId;
 		_device_id = adapter_desc.DeviceId;
@@ -667,8 +665,6 @@ bool reshade::d3d9::runtime_d3d9::init_texture(texture &texture)
 
 	com_ptr<IDirect3D9> d3d;
 	_device->GetDirect3D(&d3d);
-	D3DDEVICE_CREATION_PARAMETERS cp;
-	_device->GetCreationParameters(&cp);
 
 	switch (texture.format)
 	{
@@ -713,7 +709,7 @@ bool reshade::d3d9::runtime_d3d9::init_texture(texture &texture)
 	if (levels > 1)
 	{
 		// Enable auto-generated mipmaps if the format supports it
-		if (d3d->CheckDeviceFormat(cp.AdapterOrdinal, cp.DeviceType, D3DFMT_X8R8G8B8, D3DUSAGE_AUTOGENMIPMAP, D3DRTYPE_TEXTURE, format) == D3D_OK)
+		if (d3d->CheckDeviceFormat(_device_impl->_cp.AdapterOrdinal, _device_impl->_cp.DeviceType, D3DFMT_X8R8G8B8, D3DUSAGE_AUTOGENMIPMAP, D3DRTYPE_TEXTURE, format) == D3D_OK)
 		{
 			usage |= D3DUSAGE_AUTOGENMIPMAP;
 			levels = 0;
@@ -727,7 +723,7 @@ bool reshade::d3d9::runtime_d3d9::init_texture(texture &texture)
 	if (texture.render_target)
 	{
 		// Make texture a render target if format allows it
-		if (d3d->CheckDeviceFormat(cp.AdapterOrdinal, cp.DeviceType, D3DFMT_X8R8G8B8, D3DUSAGE_RENDERTARGET, D3DRTYPE_TEXTURE, format) == D3D_OK)
+		if (d3d->CheckDeviceFormat(_device_impl->_cp.AdapterOrdinal, _device_impl->_cp.DeviceType, D3DFMT_X8R8G8B8, D3DUSAGE_RENDERTARGET, D3DRTYPE_TEXTURE, format) == D3D_OK)
 		{
 			usage |= D3DUSAGE_RENDERTARGET;
 		}

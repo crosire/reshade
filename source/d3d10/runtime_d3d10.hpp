@@ -41,6 +41,7 @@ namespace reshade::d3d10
 
 		void render_technique(technique &technique) override;
 
+		state_block _app_state;
 		device_impl *const _device_impl;
 		const com_ptr<ID3D10Device1> _device;
 		const com_ptr<IDXGISwapChain> _swapchain;

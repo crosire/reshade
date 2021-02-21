@@ -84,7 +84,8 @@ HOOK_EXPORT HRESULT WINAPI D3D12SerializeRootSignature(
 	ID3DBlob **ppBlob,
 	ID3DBlob **ppErrorBlob)
 {
-	return reshade::hooks::call(D3D12SerializeRootSignature)(pRootSignature, Version, ppBlob, ppErrorBlob);
+	static const auto trampoline = reshade::hooks::call(D3D12SerializeRootSignature);
+	return trampoline(pRootSignature, Version, ppBlob, ppErrorBlob);
 }
 
 HOOK_EXPORT HRESULT WINAPI D3D12SerializeVersionedRootSignature(
@@ -92,5 +93,6 @@ HOOK_EXPORT HRESULT WINAPI D3D12SerializeVersionedRootSignature(
 	ID3DBlob **ppBlob,
 	ID3DBlob **ppErrorBlob)
 {
-	return reshade::hooks::call(D3D12SerializeVersionedRootSignature)(pRootSignature, ppBlob, ppErrorBlob);
+	static const auto trampoline = reshade::hooks::call(D3D12SerializeVersionedRootSignature);
+	return trampoline(pRootSignature, ppBlob, ppErrorBlob);
 }

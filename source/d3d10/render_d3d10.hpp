@@ -8,7 +8,7 @@
 #include "com_ptr.hpp"
 #include "com_tracking.hpp"
 #include "addon_manager.hpp"
-#include "state_block_d3d10.hpp"
+#include <d3d10_1.h>
 
 namespace reshade::d3d10
 {
@@ -74,7 +74,6 @@ namespace reshade::d3d10
 		ID3D10Device1 *_orig;
 
 		// Device-local resources that may be used by multiple effect runtimes
-		state_block _app_state;
 		com_ptr<ID3D10PixelShader > _copy_pixel_shader;
 		com_ptr<ID3D10VertexShader> _copy_vertex_shader;
 		com_ptr<ID3D10SamplerState> _copy_sampler_state;
