@@ -9,7 +9,7 @@
 
 struct D3D11Device;
 
-struct DECLSPEC_UUID("27B0246B-2152-4D42-AD11-32489472238F") D3D11DeviceContext : ID3D11DeviceContext4
+struct DECLSPEC_UUID("27B0246B-2152-4D42-AD11-32489472238F") D3D11DeviceContext : ID3D11DeviceContext4, public reshade::d3d11::device_context_impl
 {
 	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext  *original);
 	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext1 *original);
@@ -185,8 +185,6 @@ struct DECLSPEC_UUID("27B0246B-2152-4D42-AD11-32489472238F") D3D11DeviceContext 
 	bool check_and_upgrade_interface(REFIID riid);
 
 	LONG _ref = 1;
-	ID3D11DeviceContext *_orig;
 	unsigned int _interface_version;
 	D3D11Device *const _device;
-	reshade::d3d11::device_context_impl *_impl;
 };

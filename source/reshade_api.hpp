@@ -204,7 +204,7 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Gets the underlying native object for this API object.
 		/// For <see cref="device"/>s this will be be a pointer to a 'IDirect3DDevice9', 'ID3D10Device', 'ID3D11Device' or 'ID3D12Device' object or a 'HGLRC' or 'VkDevice' handle.
-		/// For <see cref="command_list"/>s this will be a pointer to a 'ID3D11DeviceContext' or 'ID3D12GraphicsCommandList' object or a 'VkCommandBuffer' handle.
+		/// For <see cref="command_list"/>s this will be a pointer to a 'ID3D11DeviceContext' (when recording), 'ID3D11CommandList' (when executing) or 'ID3D12GraphicsCommandList' object or a 'VkCommandBuffer' handle.
 		/// For <see cref="command_queue"/>s this will be a pointer to a 'ID3D11DeviceContext' or 'ID3D12CommandQueue' object or a 'VkQueue' handle.
 		/// For <see cref="effect_runtime"/>s this will be a pointer to a 'IDirect3DSwapChain9' or 'IDXGISwapChain' object or a 'HDC' or 'VkSwapchainKHR' handle.
 		/// </summary>

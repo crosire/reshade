@@ -105,7 +105,7 @@ namespace reshade
 		/// </summary>
 		execute_command_list,
 		/// <summary>
-		/// Called before 'ID3D12GraphicsCommandList::ExecuteBundle' or 'vkCmdExecuteCommands'.
+		/// Called before 'ID3D12GraphicsCommandList::ExecuteBundle' or 'vkCmdExecuteCommands' or after 'ID3D11DeviceContext::FinishCommandList'.
 		/// </summary>
 		execute_secondary_command_list,
 

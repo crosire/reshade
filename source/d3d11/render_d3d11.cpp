@@ -962,6 +962,16 @@ resource_desc reshade::d3d11::device_impl::get_resource_desc(resource_handle res
 	return {};
 }
 
+reshade::d3d11::command_list_impl::command_list_impl(device_impl *device, ID3D11CommandList *list) :
+	_device_impl(device), _orig(list)
+{
+	RESHADE_ADDON_EVENT(init_command_list, this);
+}
+reshade::d3d11::command_list_impl::~command_list_impl()
+{
+	RESHADE_ADDON_EVENT(destroy_command_list, this);
+}
+
 reshade::d3d11::device_context_impl::device_context_impl(device_impl *device, ID3D11DeviceContext *context) :
 	_device_impl(device), _orig(context)
 {

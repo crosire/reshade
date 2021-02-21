@@ -61,7 +61,7 @@ namespace reshade::d3d12
 		ID3D12Device *_orig;
 
 		// Cached device capabilities for quick access
-		UINT _descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES] = {};
+		UINT _descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
 		// Device-local resources that may be used by multiple effect runtimes
 		com_ptr<ID3D12PipelineState> _mipmap_pipeline;
 		com_ptr<ID3D12RootSignature> _mipmap_signature;

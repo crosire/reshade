@@ -76,13 +76,40 @@ namespace reshade::d3d11
 		com_object_list<ID3D11Resource> _resources;
 	};
 
-	class device_context_impl : public api::api_object_impl<api::command_queue, api::command_list>
+	class command_list_impl : public api::api_object_impl<api::command_list>
+	{
+	public:
+		command_list_impl(device_impl *device, ID3D11CommandList *list);
+		~command_list_impl();
+
+		uint64_t get_native_object() const override { return reinterpret_cast<uintptr_t>(_orig); }
+
+		api::device *get_device() override { return _device_impl; }
+
+		void draw(uint32_t, uint32_t, uint32_t, uint32_t) override {}
+		void draw_indexed(uint32_t, uint32_t, uint32_t, int32_t, uint32_t) override {}
+
+		void copy_resource(api::resource_handle, api::resource_handle) override {}
+
+		void transition_state(api::resource_handle, api::resource_usage, api::resource_usage) override {}
+
+		void clear_depth_stencil_view(api::resource_view_handle, uint32_t, float, uint8_t) override {}
+		void clear_render_target_view(api::resource_view_handle, const float[4]) override {}
+
+		// Pointer to original command list object (managed by D3D11CommandList class)
+		ID3D11CommandList *_orig;
+
+	private:
+		device_impl *const _device_impl;
+	};
+
+	class device_context_impl : public api::api_object_impl<api::command_list, api::command_queue>
 	{
 	public:
 		device_context_impl(device_impl *device, ID3D11DeviceContext *context);
 		~device_context_impl();
 
-		uint64_t get_native_object() const override { return reinterpret_cast<uintptr_t>(_orig.get()); }
+		uint64_t get_native_object() const override { return reinterpret_cast<uintptr_t>(_orig); }
 
 		api::device *get_device() override { return _device_impl; }
 
@@ -100,8 +127,10 @@ namespace reshade::d3d11
 		void clear_depth_stencil_view(api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil) override;
 		void clear_render_target_view(api::resource_view_handle rtv, const float color[4]) override;
 
+		// Pointer to original device context object (managed by D3D11DeviceContext class)
+		ID3D11DeviceContext *_orig;
+
 	private:
 		device_impl *const _device_impl;
-		const com_ptr<ID3D11DeviceContext> _orig;
 	};
 }

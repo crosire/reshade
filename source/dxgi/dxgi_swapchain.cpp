@@ -45,7 +45,7 @@ DXGISwapChain::DXGISwapChain(D3D11Device *device, IDXGISwapChain  *original) :
 	_interface_version(0),
 	_direct3d_device(device),
 	_direct3d_version(11),
-	_runtime(new reshade::d3d11::runtime_d3d11(device, device->_immediate_context->_impl, original))
+	_runtime(new reshade::d3d11::runtime_d3d11(device, device->_immediate_context, original))
 {
 	assert(_orig != nullptr && _direct3d_device != nullptr);
 	_direct3d_device->AddRef();
@@ -55,7 +55,7 @@ DXGISwapChain::DXGISwapChain(D3D11Device *device, IDXGISwapChain1 *original) :
 	_interface_version(1),
 	_direct3d_device(device),
 	_direct3d_version(11),
-	_runtime(new reshade::d3d11::runtime_d3d11(device, device->_immediate_context->_impl, original))
+	_runtime(new reshade::d3d11::runtime_d3d11(device, device->_immediate_context, original))
 {
 	assert(_orig != nullptr && _direct3d_device != nullptr);
 	_direct3d_device->AddRef();

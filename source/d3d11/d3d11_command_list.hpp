@@ -9,7 +9,7 @@
 
 struct D3D11Device;
 
-struct DECLSPEC_UUID("592F5E83-A17B-4EEB-A2BF-7568DA2A3728") D3D11CommandList : ID3D11CommandList
+struct DECLSPEC_UUID("592F5E83-A17B-4EEB-A2BF-7568DA2A3728") D3D11CommandList : ID3D11CommandList, public reshade::d3d11::command_list_impl
 {
 	D3D11CommandList(D3D11Device *device, ID3D11CommandList *original);
 
@@ -33,7 +33,5 @@ struct DECLSPEC_UUID("592F5E83-A17B-4EEB-A2BF-7568DA2A3728") D3D11CommandList : 
 	bool check_and_upgrade_interface(REFIID riid);
 
 	ULONG _ref = 1;
-	ID3D11CommandList *_orig;
 	D3D11Device *const _device;
-	reshade::d3d11::device_context_impl *_impl = nullptr;
 };
