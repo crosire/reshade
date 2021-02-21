@@ -758,7 +758,7 @@ bool reshade::vulkan::runtime_vk::init_effect(size_t index)
 		}
 
 		// Unset bindings are not allowed, so fail initialization for the entire effect in that case
-		if (image_binding.imageView == VK_NULL_HANDLE)
+		if (assert(image_binding.imageView != VK_NULL_HANDLE); image_binding.imageView == VK_NULL_HANDLE)
 			return false;
 
 		VkSamplerCreateInfo create_info { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
@@ -1925,13 +1925,19 @@ void reshade::vulkan::runtime_vk::update_texture_bindings(const char *semantic, 
 {
 	const VkImageView view = (VkImageView)srv.handle;
 
-	_texture_semantic_bindings[semantic] = view;
-
 	VkDescriptorImageInfo image_binding = { VK_NULL_HANDLE, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
 	if (view != VK_NULL_HANDLE)
+	{
 		image_binding.imageView = view;
+
+		_texture_semantic_bindings[semantic] = view;
+	}
 	else
+	{
 		image_binding.imageView = _empty_depth_image_view;
+
+		_texture_semantic_bindings.erase(semantic);
+	}
 
 	// Make sure all previous frames have finished before freeing the image view and updating descriptors (since they may be in use otherwise)
 	wait_for_command_buffers();
