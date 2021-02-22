@@ -523,7 +523,9 @@ void reshade::d3d9::device_impl::copy_resource(resource_handle source, resource_
 		}
 		case D3DRTYPE_TEXTURE | (D3DRTYPE_TEXTURE << 4):
 		{
+			D3DVIEWPORT9 viewport = {};
 			com_ptr<IDirect3DSurface9> render_targets[8];
+			_orig->GetViewport(&viewport);
 			for (DWORD target = 0; target < _caps.NumSimultaneousRTs; ++target)
 				_orig->GetRenderTarget(target, &render_targets[target]);
 
@@ -549,16 +551,18 @@ void reshade::d3d9::device_impl::copy_resource(resource_handle source, resource_
 			};
 			_orig->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, vertices, sizeof(vertices[0]));
 
+			_backup_state->Apply();
+
 			for (DWORD target = 0; target < _caps.NumSimultaneousRTs; ++target)
 				_orig->SetRenderTarget(target, render_targets[target].get());
-
-			// Apply backup state block after setting render targets, so that viewport is set correctly
-			_backup_state->Apply();
+			_orig->SetViewport(&viewport);
 			return;
 		}
 		case D3DRTYPE_TEXTURE | (D3DRTYPE_SURFACE << 4):
 		{
+			D3DVIEWPORT9 viewport = {};
 			com_ptr<IDirect3DSurface9> render_targets[8];
+			_orig->GetViewport(&viewport);
 			for (DWORD target = 0; target < _caps.NumSimultaneousRTs; ++target)
 				_orig->GetRenderTarget(target, &render_targets[target]);
 
@@ -580,10 +584,11 @@ void reshade::d3d9::device_impl::copy_resource(resource_handle source, resource_
 			};
 			_orig->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, vertices, sizeof(vertices[0]));
 
+			_backup_state->Apply();
+
 			for (DWORD target = 0; target < _caps.NumSimultaneousRTs; ++target)
 				_orig->SetRenderTarget(target, render_targets[target].get());
-
-			_backup_state->Apply();
+			_orig->SetViewport(&viewport);
 			return;
 		}
 	}
