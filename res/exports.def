@@ -459,3 +459,4 @@ EXPORTS
 
 	; openvr_api[64].dll
 	VR_GetGenericInterface
+	VR_ShutdownInternal

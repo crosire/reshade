@@ -2,7 +2,7 @@
 #include "hook_manager.hpp"
 #include "openvr_runtime_d3d11.hpp"
 
-reshade::openvr::openvr_runtime_d3d11 *vr_runtime_d3d11 = nullptr;
+std::unique_ptr<reshade::openvr::openvr_runtime_d3d11> vr_runtime_d3d11;
 
 vr::EVRCompositorError IVRCompositor_Submit(vr::IVRCompositor *compositor, vr::EVREye eEye, const vr::Texture_t *pTexture, const vr::VRTextureBounds_t* pBounds, vr::EVRSubmitFlags nSubmitFlags)
 {
@@ -19,11 +19,11 @@ vr::EVRCompositorError IVRCompositor_Submit(vr::IVRCompositor *compositor, vr::E
 	{
 		if (vr_runtime_d3d11 == nullptr)
 		{
-			vr_runtime_d3d11 = new reshade::openvr::openvr_runtime_d3d11(pTexture, pBounds, trampoline, compositor);
+			com_ptr<ID3D11Device> device;
+			static_cast<ID3D11Texture2D*>(pTexture->handle)->GetDevice(&device);
+			vr_runtime_d3d11.reset(new reshade::openvr::openvr_runtime_d3d11(device.get(), trampoline, compositor));
 		}
-		vr_runtime_d3d11->on_submit(eEye, pTexture, pBounds);
-		// FIXME: should we do better error reporting here?
-		return vr::VRCompositorError_None;
+		return vr_runtime_d3d11->on_submit(eEye, pTexture, pBounds, nSubmitFlags);
 	}
 	
 	return trampoline(compositor, eEye, pTexture, pBounds, nSubmitFlags);
@@ -46,4 +46,11 @@ HOOK_EXPORT void *VR_GetGenericInterface(const char *pchInterfaceVersion, vr::EV
 	}
 	
 	return vrInterface;
+}
+
+HOOK_EXPORT void VR_ShutdownInternal()
+{
+	LOG(INFO) << "VR: Shutting down";
+	vr_runtime_d3d11.reset();
+	reshade::hooks::call(VR_ShutdownInternal)();
 }

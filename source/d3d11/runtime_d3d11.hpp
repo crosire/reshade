@@ -15,20 +15,20 @@ namespace reshade::d3d11
 	{
 	public:
 		runtime_d3d11(ID3D11Device *device, IDXGISwapChain *swapchain, state_tracking_context *state_tracking);
-		runtime_d3d11(ID3D11Device *device, uint32_t width, uint32_t height, DXGI_FORMAT format, state_tracking_context *state_tracking);
 		~runtime_d3d11();
 
 		bool on_init(IDXGISwapChain *swapchain);
-		bool on_init_vr(uint32_t width, uint32_t height, DXGI_FORMAT format);
 		void on_reset();
 		void on_present();
-		void on_submit_vr();
+		void on_present(ID3D11Texture2D *source);
 
 		bool capture_screenshot(uint8_t *buffer) const override;
 
 		ID3D11Texture2D *get_backbuffer() const;
 
 	private:
+		bool on_init(ID3D11Texture2D *source);
+		bool init_resources();
 		bool init_effect(size_t index) override;
 		void unload_effect(size_t index) override;
 		void unload_effects() override;

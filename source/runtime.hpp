@@ -144,7 +144,6 @@ namespace reshade
 		/// </summary>
 		/// <returns>Returns if the initialization succeeded.</returns>
 		bool on_init(void *window);
-		bool on_init_vr();
 		/// <summary>
 		/// Callback function called when the runtime is uninitialized.
 		/// </summary>
