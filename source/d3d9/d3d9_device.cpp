@@ -230,7 +230,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 	dump_and_modify_present_parameters(pp, d3d.get(), _cp.AdapterOrdinal);
 	d3d.reset();
 
-	_implicit_swapchain->_runtime->on_reset();
+	_implicit_swapchain->on_reset();
 	device_impl::on_reset();
 
 	const HRESULT hr = _orig->Reset(&pp);
@@ -247,18 +247,18 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 	}
 
 	device_impl::on_after_reset(pp);
-	if (!_implicit_swapchain->_runtime->on_init())
-		LOG(ERROR) << "Failed to recreate Direct3D 9 runtime environment on runtime " << _implicit_swapchain->_runtime << '!';
+	if (!_implicit_swapchain->on_init())
+		LOG(ERROR) << "Failed to recreate Direct3D 9 runtime environment on runtime " << static_cast<reshade::d3d9::runtime_d3d9 *>(_implicit_swapchain) << '!';
 
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::Present(const RECT *pSourceRect, const RECT *pDestRect, HWND hDestWindowOverride, const RGNDATA *pDirtyRegion)
 {
-	RESHADE_ADDON_EVENT(present, this, _implicit_swapchain->_runtime);
+	RESHADE_ADDON_EVENT(present, this, _implicit_swapchain);
 
 	// Only call into runtime if the entire surface is presented, to avoid partial updates messing up effects and the GUI
 	if (Direct3DSwapChain9::is_presenting_entire_surface(pSourceRect, hDestWindowOverride))
-		_implicit_swapchain->_runtime->on_present();
+		_implicit_swapchain->on_present();
 
 	return _orig->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
 }
@@ -1055,10 +1055,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ComposeRects(IDirect3DSurface9 *pSrc,
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::PresentEx(const RECT *pSourceRect, const RECT *pDestRect, HWND hDestWindowOverride, const RGNDATA *pDirtyRegion, DWORD dwFlags)
 {
-	RESHADE_ADDON_EVENT(present, this, _implicit_swapchain->_runtime);
+	RESHADE_ADDON_EVENT(present, this, _implicit_swapchain);
 
 	if (Direct3DSwapChain9::is_presenting_entire_surface(pSourceRect, hDestWindowOverride))
-		_implicit_swapchain->_runtime->on_present();
+		_implicit_swapchain->on_present();
 
 	assert(_extended_interface);
 	return static_cast<IDirect3DDevice9Ex *>(_orig)->PresentEx(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
@@ -1212,7 +1212,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 	dump_and_modify_present_parameters(pp, fullscreen_mode, d3d.get(), _cp.AdapterOrdinal);
 	d3d.reset();
 
-	_implicit_swapchain->_runtime->on_reset();
+	_implicit_swapchain->on_reset();
 	device_impl::on_reset();
 
 	assert(_extended_interface);
@@ -1229,8 +1229,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 	}
 
 	device_impl::on_after_reset(pp);
-	if (!_implicit_swapchain->_runtime->on_init())
-		LOG(ERROR) << "Failed to recreate Direct3D 9 runtime environment on runtime " << _implicit_swapchain->_runtime << '!';
+	if (!_implicit_swapchain->on_init())
+		LOG(ERROR) << "Failed to recreate Direct3D 9 runtime environment on runtime " << static_cast<reshade::d3d9::runtime_d3d9 *>(_implicit_swapchain) << '!';
 
 	return hr;
 }
