@@ -5,7 +5,6 @@
 
 #include "dll_config.hpp"
 #include "addon_manager.hpp"
-#include "runtime.hpp"
 
 bool reshade::addon::event_list_enabled = true;
 std::vector<void *> disabled_event_list[28]; // Keep in sync with highest value in 'reshade::addon_event' enumeration

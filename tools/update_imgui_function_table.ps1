@@ -149,6 +149,6 @@ $function_header += @"
 
 "@
 
-$function_table | Out-File -FilePath "..\source\imgui_function_table.hpp" -Encoding ASCII
+$function_table | Out-File -FilePath "..\include\imgui_function_table.hpp" -Encoding ASCII
 $function_table_init | Out-File -FilePath "..\source\imgui_function_table.cpp" -Encoding ASCII
-$function_header | Out-File -FilePath "..\source\reshade_overlay.hpp" -Encoding ASCII
+$function_header | Out-File -FilePath "..\include\reshade_overlay.hpp" -Encoding ASCII

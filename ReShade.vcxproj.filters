@@ -269,19 +269,22 @@
     <ClInclude Include="source\dll_resources.hpp">
       <Filter>core</Filter>
     </ClInclude>
+    <ClInclude Include="source\addon_impl.hpp">
+      <Filter>core\api</Filter>
+    </ClInclude>
     <ClInclude Include="source\addon_manager.hpp">
       <Filter>core\api</Filter>
     </ClInclude>
-    <ClInclude Include="source\reshade.hpp">
+    <ClInclude Include="include\reshade.hpp">
       <Filter>core\api</Filter>
     </ClInclude>
-    <ClInclude Include="source\reshade_api.hpp">
+    <ClInclude Include="include\reshade_api.hpp">
       <Filter>core\api</Filter>
     </ClInclude>
-    <ClInclude Include="source\reshade_events.hpp">
+    <ClInclude Include="include\reshade_events.hpp">
       <Filter>core\api</Filter>
     </ClInclude>
-    <ClInclude Include="source\reshade_overlay.hpp">
+    <ClInclude Include="include\reshade_overlay.hpp">
       <Filter>core\api</Filter>
     </ClInclude>
     <ClInclude Include="source\hook.hpp">
@@ -293,7 +296,7 @@
     <ClInclude Include="source\imgui_code_editor.hpp">
       <Filter>core\runtime</Filter>
     </ClInclude>
-    <ClInclude Include="source\imgui_function_table.hpp">
+    <ClInclude Include="include\imgui_function_table.hpp">
       <Filter>core\runtime</Filter>
     </ClInclude>
     <ClInclude Include="source\imgui_widgets.hpp">
