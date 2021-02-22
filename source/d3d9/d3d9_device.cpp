@@ -317,7 +317,6 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateTexture(UINT Width, UINT Height
 #endif
 
 	const HRESULT hr = _orig->CreateTexture(new_desc.Width, new_desc.Height, Levels, new_desc.Usage, new_desc.Format, new_desc.Pool, ppTexture, pSharedHandle);
-#if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
 		assert(ppTexture != nullptr);
@@ -335,6 +334,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateTexture(UINT Width, UINT Height
 			}
 		}
 	}
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 	else
 	{
 		LOG(WARN) << "IDirect3DDevice9::CreateTexture" << " failed with error code " << hr << '.';
@@ -354,12 +354,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVolumeTexture(UINT Width, UINT 
 #endif
 
 	const HRESULT hr = _orig->CreateVolumeTexture(new_desc.Width, new_desc.Height, new_desc.Depth, Levels, new_desc.Usage, new_desc.Format, new_desc.Pool, ppVolumeTexture, pSharedHandle);
-#if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
 		assert(ppVolumeTexture != nullptr);
 		_resources.register_object(*ppVolumeTexture);
 	}
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 	else
 	{
 		LOG(WARN) << "IDirect3DDevice9::CreateVolumeTexture" << " failed with error code " << hr << '.';
@@ -379,7 +379,6 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateCubeTexture(UINT EdgeLength, UI
 #endif
 
 	const HRESULT hr = _orig->CreateCubeTexture(new_desc.Width, Levels, new_desc.Usage, new_desc.Format, new_desc.Pool, ppCubeTexture, pSharedHandle);
-#if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
 		assert(ppCubeTexture != nullptr);
@@ -400,6 +399,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateCubeTexture(UINT EdgeLength, UI
 			}
 		}
 	}
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 	else
 	{
 		LOG(WARN) << "IDirect3DDevice9::CreateCubeTexture" << " failed with error code " << hr << '.';
@@ -423,12 +423,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexBuffer(UINT Length, DWORD
 #endif
 
 	const HRESULT hr = _orig->CreateVertexBuffer(new_desc.Size, new_desc.Usage, new_desc.FVF, new_desc.Pool, ppVertexBuffer, pSharedHandle);
-#if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
 		assert(ppVertexBuffer != nullptr);
 		_resources.register_object(*ppVertexBuffer);
 	}
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 	else
 	{
 		LOG(WARN) << "IDirect3DDevice9::CreateVertexBuffer" << " failed with error code " << hr << '.';
@@ -451,12 +451,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateIndexBuffer(UINT Length, DWORD 
 #endif
 
 	const HRESULT hr = _orig->CreateIndexBuffer(new_desc.Size, new_desc.Usage, new_desc.Format, new_desc.Pool, ppIndexBuffer, pSharedHandle);
-#if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
 		assert(ppIndexBuffer != nullptr);
 		_resources.register_object(*ppIndexBuffer);
 	}
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 	else
 	{
 		LOG(WARN) << "IDirect3DDevice9::CreateIndexBuffer" << " failed with error code " << hr << '.';
@@ -468,12 +468,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateIndexBuffer(UINT Length, DWORD 
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTarget(UINT Width, UINT Height, D3DFORMAT Format, D3DMULTISAMPLE_TYPE MultiSample, DWORD MultisampleQuality, BOOL Lockable, IDirect3DSurface9 **ppSurface, HANDLE *pSharedHandle)
 {
 	const HRESULT hr = _orig->CreateRenderTarget(Width, Height, Format, MultiSample, MultisampleQuality, Lockable, ppSurface, pSharedHandle);
-#if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
 		assert(ppSurface != nullptr);
 		_resources.register_object(*ppSurface);
 	}
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 	else
 	{
 		LOG(WARN) << "IDirect3DDevice9::CreateRenderTarget" << " failed with error code " << hr << '.';
@@ -522,12 +522,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurface(UINT Width,
 #endif
 
 	const HRESULT hr = _orig->CreateDepthStencilSurface(new_desc.Width, new_desc.Height, new_desc.Format, new_desc.MultiSampleType, new_desc.MultiSampleQuality, Discard, ppSurface, pSharedHandle);
-#if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
 		assert(ppSurface != nullptr);
 		_resources.register_object(*ppSurface);
 	}
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 	else
 	{
 		LOG(WARN) << "IDirect3DDevice9::CreateDepthStencilSurface" << " failed with error code " << hr << '.';
@@ -569,12 +569,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ColorFill(IDirect3DSurface9 *pSurface
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateOffscreenPlainSurface(UINT Width, UINT Height, D3DFORMAT Format, D3DPOOL Pool, IDirect3DSurface9 **ppSurface, HANDLE *pSharedHandle)
 {
 	const HRESULT hr = _orig->CreateOffscreenPlainSurface(Width, Height, Format, Pool, ppSurface, pSharedHandle);
-#if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
 		assert(ppSurface != nullptr);
 		_resources.register_object(*ppSurface);
 	}
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 	else
 	{
 		LOG(WARN) << "IDirect3DDevice9::CreateOffscreenPlainSurface" << " failed with error code " << hr << '.';
@@ -1125,12 +1125,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTargetEx(UINT Width, UINT
 {
 	assert(_extended_interface);
 	const HRESULT hr = static_cast<IDirect3DDevice9Ex *>(_orig)->CreateRenderTargetEx(Width, Height, Format, MultiSample, MultisampleQuality, Lockable, ppSurface, pSharedHandle, Usage);
-#if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
 		assert(ppSurface != nullptr);
 		_resources.register_object(*ppSurface);
 	}
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 	else
 	{
 		LOG(WARN) << "IDirect3DDevice9Ex::CreateRenderTargetEx" << " failed with error code " << hr << '.';
@@ -1143,12 +1143,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateOffscreenPlainSurfaceEx(UINT Wi
 {
 	assert(_extended_interface);
 	const HRESULT hr = static_cast<IDirect3DDevice9Ex *>(_orig)->CreateOffscreenPlainSurfaceEx(Width, Height, Format, Pool, ppSurface, pSharedHandle, Usage);
-#if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
 		assert(ppSurface != nullptr);
 		_resources.register_object(*ppSurface);
 	}
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 	else
 	{
 		LOG(WARN) << "IDirect3DDevice9Ex::CreateOffscreenPlainSurfaceEx" << " failed with error code " << hr << '.';
@@ -1198,12 +1198,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurfaceEx(UINT Widt
 
 	assert(_extended_interface);
 	const HRESULT hr = static_cast<IDirect3DDevice9Ex *>(_orig)->CreateDepthStencilSurfaceEx(new_desc.Width, new_desc.Height, new_desc.Format, new_desc.MultiSampleType, new_desc.MultiSampleQuality, Discard, ppSurface, pSharedHandle, new_desc.Usage);
-#if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
 		assert(ppSurface != nullptr);
 		_resources.register_object(*ppSurface);
 	}
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 	else
 	{
 		LOG(WARN) << "IDirect3DDevice9Ex::CreateDepthStencilSurfaceEx" << " failed with error code " << hr << '.';

@@ -222,6 +222,7 @@ void reshade::runtime::on_present()
 	if (!ini_file::flush_cache())
 		_preset_save_success = false;
 
+#if RESHADE_ADDON
 	// Detect high network traffic
 	static int cooldown = 0, traffic = 0;
 	if (cooldown-- > 0)
@@ -234,6 +235,7 @@ void reshade::runtime::on_present()
 		traffic = 0;
 		cooldown = 60;
 	}
+#endif
 
 	// Reset frame statistics
 	g_network_traffic = 0;

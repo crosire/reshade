@@ -667,15 +667,11 @@ VkResult VKAPI_CALL vkCreateBuffer(VkDevice device, const VkBufferCreateInfo *pC
 
 	GET_DISPATCH_PTR_FROM(CreateBuffer, device_impl);
 	const VkResult result = trampoline(device, &create_info, pAllocator, pBuffer);
-#if RESHADE_ADDON
 	if (result == VK_SUCCESS)
-	{
 		device_impl->register_buffer(*pBuffer, create_info);
-	}
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 	else
-	{
 		LOG(WARN) << "vkCreateBuffer" << " failed with error code " << result << '.';
-	}
 #endif
 
 	return result;
@@ -709,15 +705,11 @@ VkResult VKAPI_CALL vkCreateBufferView(VkDevice device, const VkBufferViewCreate
 
 	GET_DISPATCH_PTR_FROM(CreateBufferView, device_impl);
 	const VkResult result = trampoline(device, &create_info, pAllocator, pView);
-#if RESHADE_ADDON
 	if (result == VK_SUCCESS)
-	{
 		device_impl->register_buffer_view(*pView, create_info);
-	}
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 	else
-	{
 		LOG(WARN) << "vkCreateBufferView" << " failed with error code " << result << '.';
-	}
 #endif
 
 	return result;
@@ -751,15 +743,11 @@ VkResult VKAPI_CALL vkCreateImage(VkDevice device, const VkImageCreateInfo *pCre
 
 	GET_DISPATCH_PTR_FROM(CreateImage, device_impl);
 	const VkResult result = trampoline(device, &create_info, pAllocator, pImage);
-#if RESHADE_ADDON
 	if (result == VK_SUCCESS)
-	{
 		device_impl->register_image(*pImage, create_info);
-	}
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 	else
-	{
 		LOG(WARN) << "vkCreateImage" << " failed with error code " << result << '.';
-	}
 #endif
 
 	return result;
@@ -793,15 +781,11 @@ VkResult VKAPI_CALL vkCreateImageView(VkDevice device, const VkImageViewCreateIn
 
 	GET_DISPATCH_PTR_FROM(CreateImageView, device_impl);
 	const VkResult result = trampoline(device, &create_info, pAllocator, pView);
-#if RESHADE_ADDON
 	if (result == VK_SUCCESS)
-	{
 		device_impl->register_image_view(*pView, create_info);
-	}
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 	else
-	{
 		LOG(WARN) << "vkCreateImageView" << " failed with error code " << result << '.';
-	}
 #endif
 
 	return result;

@@ -124,12 +124,12 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateBuffer(const D3D11_BUFFER_DESC *pDe
 #endif
 
 	const HRESULT hr = _orig->CreateBuffer(&new_desc, pInitialData, ppBuffer);
-#if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
 		assert(ppBuffer != nullptr);
 		_resources.register_object(*ppBuffer);
 	}
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 	else
 	{
 		LOG(WARN) << "ID3D11Device::CreateBuffer" << " failed with error code " << hr << '.';
@@ -158,12 +158,12 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture1D(const D3D11_TEXTURE1D_DES
 #endif
 
 	const HRESULT hr = _orig->CreateTexture1D(&new_desc, pInitialData, ppTexture1D);
-#if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
 		assert(ppTexture1D != nullptr);
 		_resources.register_object(*ppTexture1D);
 	}
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 	else
 	{
 		LOG(WARN) << "ID3D11Device::CreateTexture1D" << " failed with error code " << hr << '.';
@@ -195,12 +195,12 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture2D(const D3D11_TEXTURE2D_DES
 #endif
 
 	const HRESULT hr = _orig->CreateTexture2D(&new_desc, pInitialData, ppTexture2D);
-#if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
 		assert(ppTexture2D != nullptr);
 		_resources.register_object(*ppTexture2D);
 	}
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 	else
 	{
 		LOG(WARN) << "ID3D11Device::CreateTexture2D" << " failed with error code " << hr << '.';
@@ -235,12 +235,12 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture3D(const D3D11_TEXTURE3D_DES
 #endif
 
 	const HRESULT hr = _orig->CreateTexture3D(&new_desc, pInitialData, ppTexture3D);
-#if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
 		assert(ppTexture3D != nullptr);
 		_resources.register_object(*ppTexture3D);
 	}
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 	else
 	{
 		LOG(WARN) << "ID3D11Device::CreateTexture3D" << " failed with error code " << hr << '.';
@@ -276,12 +276,12 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateShaderResourceView(ID3D11Resource *
 #endif
 
 	const HRESULT hr = _orig->CreateShaderResourceView(pResource, new_desc.ViewDimension != D3D11_SRV_DIMENSION_UNKNOWN ? &new_desc : nullptr, ppSRView);
-#if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
 		assert(ppSRView != nullptr);
 		_views.register_object(*ppSRView);
 	}
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 	else
 	{
 		LOG(WARN) << "ID3D11Device::CreateShaderResourceView" << " failed with error code " << hr << '.';
@@ -310,12 +310,12 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateUnorderedAccessView(ID3D11Resource 
 #endif
 
 	const HRESULT hr = _orig->CreateUnorderedAccessView(pResource, new_desc.ViewDimension != D3D11_UAV_DIMENSION_UNKNOWN ? &new_desc : nullptr, ppUAView);
-#if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
 		assert(ppUAView != nullptr);
 		_views.register_object(*ppUAView);
 	}
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 	else
 	{
 		LOG(WARN) << "ID3D11Device::CreateUnorderedAccessView" << " failed with error code " << hr << '.';
@@ -344,12 +344,12 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRenderTargetView(ID3D11Resource *pR
 #endif
 
 	const HRESULT hr = _orig->CreateRenderTargetView(pResource, new_desc.ViewDimension != D3D11_RTV_DIMENSION_UNKNOWN ? &new_desc : nullptr, ppRTView);
-#if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
 		assert(ppRTView != nullptr);
 		_views.register_object(*ppRTView);
 	}
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 	else
 	{
 		LOG(WARN) << "ID3D11Device::CreateRenderTargetView" << " failed with error code " << hr << '.';
@@ -378,12 +378,12 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDepthStencilView(ID3D11Resource *pR
 #endif
 
 	const HRESULT hr = _orig->CreateDepthStencilView(pResource, new_desc.ViewDimension != D3D11_DSV_DIMENSION_UNKNOWN ? &new_desc : nullptr, ppDepthStencilView);
-#if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
 		assert(ppDepthStencilView != nullptr);
 		_views.register_object(*ppDepthStencilView);
 	}
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 	else
 	{
 		LOG(WARN) << "ID3D11Device::CreateDepthStencilView" << " failed with error code " << hr << '.';
@@ -671,12 +671,12 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture2D1(const D3D11_TEXTURE2D_DE
 
 	assert(_interface_version >= 3);
 	const HRESULT hr = static_cast<ID3D11Device3 *>(_orig)->CreateTexture2D1(&new_desc, pInitialData, ppTexture2D);
-#if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
 		assert(ppTexture2D != nullptr);
 		_resources.register_object(*ppTexture2D);
 	}
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 	else
 	{
 		LOG(WARN) << "ID3D11Device3::CreateTexture2D1" << " failed with error code " << hr << '.';
@@ -713,12 +713,12 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture3D1(const D3D11_TEXTURE3D_DE
 
 	assert(_interface_version >= 3);
 	const HRESULT hr = static_cast<ID3D11Device3 *>(_orig)->CreateTexture3D1(&new_desc, pInitialData, ppTexture3D);
-#if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
 		assert(ppTexture3D != nullptr);
 		_resources.register_object(*ppTexture3D);
 	}
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 	else
 	{
 		LOG(WARN) << "ID3D11Device3::CreateTexture3D1" << " failed with error code " << hr << '.';
@@ -761,12 +761,12 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateShaderResourceView1(ID3D11Resource 
 
 	assert(_interface_version >= 3);
 	const HRESULT hr = static_cast<ID3D11Device3 *>(_orig)->CreateShaderResourceView1(pResource, new_desc.ViewDimension != D3D11_SRV_DIMENSION_UNKNOWN ? &new_desc : nullptr, ppSRView1);
-#if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
 		assert(ppSRView1 != nullptr);
 		_views.register_object(*ppSRView1);
 	}
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 	else
 	{
 		LOG(WARN) << "ID3D11Device3::CreateShaderResourceView1" << " failed with error code " << hr << '.';
@@ -796,12 +796,12 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateUnorderedAccessView1(ID3D11Resource
 
 	assert(_interface_version >= 3);
 	const HRESULT hr = static_cast<ID3D11Device3 *>(_orig)->CreateUnorderedAccessView1(pResource, new_desc.ViewDimension != D3D11_UAV_DIMENSION_UNKNOWN ? &new_desc : nullptr, ppUAView1);
-#if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
 		assert(ppUAView1 != nullptr);
 		_views.register_object(*ppUAView1);
 	}
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 	else
 	{
 		LOG(WARN) << "ID3D11Device3::CreateUnorderedAccessView1" << " failed with error code " << hr << '.';
@@ -831,12 +831,12 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRenderTargetView1(ID3D11Resource *p
 
 	assert(_interface_version >= 3);
 	const HRESULT hr = static_cast<ID3D11Device3 *>(_orig)->CreateRenderTargetView1(pResource, new_desc.ViewDimension != D3D11_RTV_DIMENSION_UNKNOWN ? &new_desc : nullptr, ppRTView1);
-#if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
 		assert(ppRTView1 != nullptr);
 		_views.register_object(*ppRTView1);
 	}
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 	else
 	{
 		LOG(WARN) << "ID3D11Device3::CreateRenderTargetView1" << " failed with error code " << hr << '.';

@@ -97,7 +97,7 @@
       <SDLCheck>true</SDLCheck>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>$(SolutionDir)res;$(SolutionDir)source;$(SolutionDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>RESHADE_GUI;RESHADE_ADDON;RESHADE_VERBOSE_LOG;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;_GDI32_;WINSOCK_API_LINKAGE=;WIN32;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>RESHADE_GUI;RESHADE_ADDON;RESHADE_ADDON_LOAD;RESHADE_VERBOSE_LOG;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;_GDI32_;WINSOCK_API_LINKAGE=;WIN32;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
@@ -127,7 +127,7 @@
       <SDLCheck>true</SDLCheck>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>$(SolutionDir)res;$(SolutionDir)source;$(SolutionDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>RESHADE_GUI;RESHADE_ADDON;RESHADE_VERBOSE_LOG;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;_GDI32_;WINSOCK_API_LINKAGE=;WIN64;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>RESHADE_GUI;RESHADE_ADDON;RESHADE_ADDON_LOAD;RESHADE_VERBOSE_LOG;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;_GDI32_;WINSOCK_API_LINKAGE=;WIN64;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
@@ -157,7 +157,7 @@
       <SDLCheck>true</SDLCheck>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>$(SolutionDir)res;$(SolutionDir)source;$(SolutionDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>RESHADE_GUI;RESHADE_ADDON;RESHADE_TEST_APPLICATION;RESHADE_VERBOSE_LOG;D3D_DEBUG_INFO;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;_GDI32_;WINSOCK_API_LINKAGE=;WIN32;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>RESHADE_GUI;RESHADE_ADDON;RESHADE_ADDON_LOAD;RESHADE_TEST_APPLICATION;RESHADE_VERBOSE_LOG;D3D_DEBUG_INFO;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;_GDI32_;WINSOCK_API_LINKAGE=;WIN32;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
@@ -187,7 +187,7 @@
       <SDLCheck>true</SDLCheck>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>$(SolutionDir)res;$(SolutionDir)source;$(SolutionDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>RESHADE_GUI;RESHADE_ADDON;RESHADE_TEST_APPLICATION;RESHADE_VERBOSE_LOG;D3D_DEBUG_INFO;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;_GDI32_;WINSOCK_API_LINKAGE=;WIN64;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>RESHADE_GUI;RESHADE_ADDON;RESHADE_ADDON_LOAD;RESHADE_TEST_APPLICATION;RESHADE_VERBOSE_LOG;D3D_DEBUG_INFO;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;_GDI32_;WINSOCK_API_LINKAGE=;WIN64;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
@@ -219,6 +219,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <AdditionalIncludeDirectories>$(SolutionDir)res;$(SolutionDir)source;$(SolutionDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>RESHADE_GUI;RESHADE_ADDON;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;_GDI32_;WINSOCK_API_LINKAGE=;WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="!Exists('res\sign.pfx')">RESHADE_ADDON_LOAD;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
@@ -258,6 +259,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <AdditionalIncludeDirectories>$(SolutionDir)res;$(SolutionDir)source;$(SolutionDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>RESHADE_GUI;RESHADE_ADDON;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;_GDI32_;WINSOCK_API_LINKAGE=;WIN64;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="!Exists('res\sign.pfx')">RESHADE_ADDON_LOAD;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>

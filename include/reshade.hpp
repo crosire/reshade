@@ -35,7 +35,7 @@ namespace reshade
 				if (GetProcAddress(modules[i], "ReShadeVersion") != nullptr)
 				{
 #ifdef IMGUI_VERSION
-					g_imgui_function_table = *reinterpret_cast<imgui_function_table *(*)()>(GetProcAddress(modules[i], "ReShadeGetImGuiFunctionTable"))();
+					g_imgui_function_table = *reinterpret_cast<const imgui_function_table *(*)()>(GetProcAddress(modules[i], "ReShadeGetImGuiFunctionTable"))();
 #endif
 					g_reshade_module_handle = modules[i];
 					return true;

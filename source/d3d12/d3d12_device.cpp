@@ -346,15 +346,17 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource(const D3D12_HEAP_
 #endif
 
 	const HRESULT hr = _orig->CreateCommittedResource(pHeapProperties, HeapFlags, &new_desc, InitialResourceState, pOptimizedClearValue, riidResource, ppvResource);
-#if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
 		assert(ppvResource != nullptr);
 		_resources.register_object(static_cast<ID3D12Resource *>(*ppvResource));
 
+#if RESHADE_ADDON
 		if (new_desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
 			register_buffer_gpu_address(static_cast<ID3D12Resource *>(*ppvResource), new_desc.Width);
+#endif
 	}
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 	else
 	{
 		LOG(WARN) << "ID3D12Device::CreateCommittedResource" << " failed with error code " << hr << '.';
@@ -393,15 +395,17 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePlacedResource(ID3D12Heap *pHeap, U
 #endif
 
 	const HRESULT hr = _orig->CreatePlacedResource(pHeap, HeapOffset, &new_desc, InitialState, pOptimizedClearValue, riid, ppvResource);
-#if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
 		assert(ppvResource != nullptr);
 		_resources.register_object(static_cast<ID3D12Resource *>(*ppvResource));
 
+#if RESHADE_ADDON
 		if (new_desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
 			register_buffer_gpu_address(static_cast<ID3D12Resource *>(*ppvResource), new_desc.Width);
+#endif
 	}
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 	else
 	{
 		LOG(WARN) << "ID3D12Device::CreatePlacedResource" << " failed with error code " << hr << '.';
@@ -436,12 +440,12 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource(const D3D12_RESOUR
 #endif
 
 	const HRESULT hr = _orig->CreateReservedResource(&new_desc, InitialState, pOptimizedClearValue, riid, ppvResource);
-#if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
 		assert(ppvResource != nullptr);
 		_resources.register_object(static_cast<ID3D12Resource *>(*ppvResource));
 	}
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 	else
 	{
 		LOG(WARN) << "ID3D12Device::CreateReservedResource" << " failed with error code " << hr << '.';
@@ -598,15 +602,17 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource1(const D3D12_HEAP
 
 	assert(_interface_version >= 4);
 	const HRESULT hr = static_cast<ID3D12Device4 *>(_orig)->CreateCommittedResource1(pHeapProperties, HeapFlags, &new_desc, InitialResourceState, pOptimizedClearValue, pProtectedSession, riidResource, ppvResource);
-#if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
 		assert(ppvResource != nullptr);
 		_resources.register_object(static_cast<ID3D12Resource *>(*ppvResource));
 
+#if RESHADE_ADDON
 		if (new_desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
 			register_buffer_gpu_address(static_cast<ID3D12Resource *>(*ppvResource), new_desc.Width);
+#endif
 	}
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 	else
 	{
 		LOG(WARN) << "ID3D12Device::CreateCommittedResource1" << " failed with error code " << hr << '.';
@@ -647,12 +653,12 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource1(const D3D12_RESOU
 
 	assert(_interface_version >= 4);
 	const HRESULT hr = static_cast<ID3D12Device4 *>(_orig)->CreateReservedResource1(&new_desc, InitialState, pOptimizedClearValue, pProtectedSession, riid, ppvResource);
-#if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
 		assert(ppvResource != nullptr);
 		_resources.register_object(static_cast<ID3D12Resource *>(*ppvResource));
 	}
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 	else
 	{
 		LOG(WARN) << "ID3D12Device::CreateReservedResource1" << " failed with error code " << hr << '.';

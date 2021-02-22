@@ -17,6 +17,7 @@
 	#define RESHADE_ADDON_EVENT(name, ...) ((void)0)
 #endif
 
+#if RESHADE_ADDON
 namespace reshade::addon
 {
 	struct info
@@ -25,11 +26,6 @@ namespace reshade::addon
 		std::string name;
 		std::string description;
 	};
-
-	/// <summary>
-	/// Can be used to check if add-on event callbacks are enabled or not.
-	/// </summary>
-	extern bool event_list_enabled;
 
 	/// <summary>
 	/// List of currently loaded add-ons.
@@ -48,7 +44,6 @@ namespace reshade::addon
 	extern std::vector<std::pair<std::string, void(*)(api::effect_runtime *, void *)>> overlay_list;
 #endif
 
-#if RESHADE_ADDON
 	/// <summary>
 	/// Load any add-ons found in the configured search paths.
 	/// </summary>
@@ -63,5 +58,5 @@ namespace reshade::addon
 	/// Enable or disable all loaded add-ons.
 	/// </summary>
 	void enable_or_disable_addons(bool enabled);
-#endif
 }
+#endif

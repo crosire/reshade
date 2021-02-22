@@ -3,11 +3,14 @@
  * License: https://github.com/crosire/reshade#license
  */
 
+#if RESHADE_ADDON
+
 #define g_reshade_module_handle g_module_handle
 
 #include "dll_log.hpp"
 #include "dll_config.hpp"
 #include "reshade.hpp"
+#include "addon_manager.hpp"
 #include "dxgi/format_utils.hpp"
 #include <vector>
 #include <unordered_map>
@@ -732,8 +735,10 @@ static void draw_debug_menu(effect_runtime *runtime, void *)
 	}
 }
 
-void register_builtin_addon_depth()
+void register_builtin_addon_depth(reshade::addon::info &info)
 {
+	info.name = "Generic Depth";
+
 	reshade::register_overlay("Depth", draw_debug_menu);
 
 	reshade::register_event<reshade::addon_event::init_device>(on_init_device);
@@ -794,3 +799,5 @@ void unregister_builtin_addon_depth()
 	reshade::unregister_event<reshade::addon_event::reshade_before_effects>(on_before_render_effects);
 	reshade::unregister_event<reshade::addon_event::reshade_after_effects>(on_after_render_effects);
 }
+
+#endif

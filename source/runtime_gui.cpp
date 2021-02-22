@@ -21,15 +21,17 @@
 
 using namespace reshade::gui;
 
-static std::string g_window_state_path;
+extern bool g_addons_enabled;
+
+static std::string s_window_state_path;
 
 static const ImVec4 COLOR_RED = ImColor(240, 100, 100);
 static const ImVec4 COLOR_YELLOW = ImColor(204, 204, 0);
 
 void reshade::runtime::init_gui()
 {
-	if (g_window_state_path.empty())
-		g_window_state_path = (g_reshade_base_path / L"ReShadeGUI.ini").u8string();
+	if (s_window_state_path.empty())
+		s_window_state_path = (g_reshade_base_path / L"ReShadeGUI.ini").u8string();
 
 	// Default shortcut: Home
 	_overlay_key_data[0] = 0x24;
@@ -102,7 +104,7 @@ void reshade::runtime::init_gui()
 
 		bool save_imgui_window_state = false;
 		config.get("OVERLAY", "SaveWindowState", save_imgui_window_state);
-		imgui_io.IniFilename = save_imgui_window_state ? g_window_state_path.c_str() : nullptr;
+		imgui_io.IniFilename = save_imgui_window_state ? s_window_state_path.c_str() : nullptr;
 
 		config.get("STYLE", "Alpha", imgui_style.Alpha);
 		config.get("STYLE", "ChildRounding", imgui_style.ChildRounding);
@@ -811,12 +813,14 @@ void reshade::runtime::draw_gui()
 			ImGui::End();
 		}
 
+#if RESHADE_ADDON
 		for (const auto &widget : addon::overlay_list)
 		{
 			if (ImGui::Begin(widget.first.c_str(), nullptr, ImGuiWindowFlags_NoFocusOnAppearing))
 				widget.second(this, _imgui_context);
 			ImGui::End();
 		}
+#endif
 
 		if (!_editors.empty())
 		{
@@ -1399,7 +1403,7 @@ void reshade::runtime::draw_gui_settings()
 		if (ImGui::Checkbox("Save window state (ReShadeGUI.ini)", &save_imgui_window_state))
 		{
 			modified = true;
-			_imgui_context->IO.IniFilename = save_imgui_window_state ? g_window_state_path.c_str() : nullptr;
+			_imgui_context->IO.IniFilename = save_imgui_window_state ? s_window_state_path.c_str() : nullptr;
 		}
 
 		modified |= ImGui::Checkbox("Group effect files with tabs instead of a tree", &_variable_editor_tabs);
@@ -2040,7 +2044,7 @@ This Font Software is licensed under the SIL Open Font License, Version 1.1. (ht
 #if RESHADE_ADDON
 void reshade::runtime::draw_gui_addons()
 {
-	if (!addon::event_list_enabled)
+	if (!g_addons_enabled)
 	{
 		ImGui::TextColored(ImColor(204, 204, 0), "High network activity discovered.\nAll add-ons are disabled to prevent exploitation.");
 		return;

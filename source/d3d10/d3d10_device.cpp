@@ -418,12 +418,12 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateBuffer(const D3D10_BUFFER_DESC *pDe
 #endif
 
 	const HRESULT hr = _orig->CreateBuffer(&new_desc, pInitialData, ppBuffer);
-#if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
 		assert(ppBuffer != nullptr);
 		_resources.register_object(*ppBuffer);
 	}
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 	else
 	{
 		LOG(WARN) << "ID3D10Device::CreateBuffer" << " failed with error code " << hr << '.';
@@ -452,12 +452,12 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture1D(const D3D10_TEXTURE1D_DES
 #endif
 
 	const HRESULT hr = _orig->CreateTexture1D(&new_desc, pInitialData, ppTexture1D);
-#if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
 		assert(ppTexture1D != nullptr);
 		_resources.register_object(*ppTexture1D);
 	}
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 	else
 	{
 		LOG(WARN) << "ID3D10Device::CreateTexture1D" << " failed with error code " << hr << '.';
@@ -489,12 +489,12 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture2D(const D3D10_TEXTURE2D_DES
 #endif
 
 	const HRESULT hr = _orig->CreateTexture2D(&new_desc, pInitialData, ppTexture2D);
-#if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
 		assert(ppTexture2D != nullptr);
 		_resources.register_object(*ppTexture2D);
 	}
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 	else
 	{
 		LOG(WARN) << "ID3D10Device::CreateTexture2D" << " failed with error code " << hr << '.';
@@ -529,12 +529,12 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture3D(const D3D10_TEXTURE3D_DES
 #endif
 
 	const HRESULT hr = _orig->CreateTexture3D(&new_desc, pInitialData, ppTexture3D);
-#if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
 		assert(ppTexture3D != nullptr);
 		_resources.register_object(*ppTexture3D);
 	}
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 	else
 	{
 		LOG(WARN) << "ID3D10Device::CreateTexture3D" << " failed with error code " << hr << '.';
@@ -570,12 +570,12 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateShaderResourceView(ID3D10Resource *
 #endif
 
 	const HRESULT hr = _orig->CreateShaderResourceView(pResource, new_desc.ViewDimension != D3D10_SRV_DIMENSION_UNKNOWN ? &new_desc : nullptr, ppSRView);
-#if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
 		assert(ppSRView != nullptr);
 		_views.register_object(*ppSRView);
 	}
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 	else
 	{
 		LOG(WARN) << "ID3D10Device::CreateShaderResourceView" << " failed with error code " << hr << '.';
@@ -604,12 +604,12 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateRenderTargetView(ID3D10Resource *pR
 #endif
 
 	const HRESULT hr = _orig->CreateRenderTargetView(pResource, new_desc.ViewDimension != D3D10_RTV_DIMENSION_UNKNOWN ? &new_desc : nullptr, ppRTView);
-#if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
 		assert(ppRTView != nullptr);
 		_views.register_object(*ppRTView);
 	}
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 	else
 	{
 		LOG(WARN) << "ID3D10Device::CreateRenderTargetView" << " failed with error code " << hr << '.';
@@ -638,12 +638,12 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateDepthStencilView(ID3D10Resource *pR
 #endif
 
 	const HRESULT hr = _orig->CreateDepthStencilView(pResource, new_desc.ViewDimension != D3D10_DSV_DIMENSION_UNKNOWN ? &new_desc : nullptr, ppDepthStencilView);
-#if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
 		assert(ppDepthStencilView != nullptr);
 		_views.register_object(*ppDepthStencilView);
 	}
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 	else
 	{
 		LOG(WARN) << "ID3D10Device::CreateDepthStencilView" << " failed with error code " << hr << '.';
@@ -753,12 +753,12 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateShaderResourceView1(ID3D10Resource 
 #endif
 
 	const HRESULT hr = _orig->CreateShaderResourceView1(pResource, new_desc.ViewDimension != D3D10_1_SRV_DIMENSION_UNKNOWN ? &new_desc : nullptr, ppSRView);
-#if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
 		assert(ppSRView != nullptr);
 		_views.register_object(*ppSRView);
 	}
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 	else
 	{
 		LOG(WARN) << "ID3D10Device1::CreateShaderResourceView1" << " failed with error code " << hr << '.';
