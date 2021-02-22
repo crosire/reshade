@@ -13,13 +13,11 @@ struct DECLSPEC_UUID("2523AFF4-978B-4939-BA16-8EE876A4CB2A") D3D12Device : ID3D1
 {
 	D3D12Device(ID3D12Device *original);
 
-	D3D12Device(const D3D12Device &) = delete;
-	D3D12Device &operator=(const D3D12Device &) = delete;
-
+	#pragma region IUnknown
 	HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
 	ULONG   STDMETHODCALLTYPE AddRef() override;
 	ULONG   STDMETHODCALLTYPE Release() override;
-
+	#pragma endregion
 	#pragma region ID3D12Object
 	HRESULT STDMETHODCALLTYPE GetPrivateData(REFGUID guid, UINT *pDataSize, void *pData) override;
 	HRESULT STDMETHODCALLTYPE SetPrivateData(REFGUID guid, UINT DataSize, const void *pData) override;

@@ -13,13 +13,11 @@ struct DECLSPEC_UUID("592F5E83-A17B-4EEB-A2BF-7568DA2A3728") D3D11CommandList : 
 {
 	D3D11CommandList(D3D11Device *device, ID3D11CommandList *original);
 
-	D3D11CommandList(const D3D11CommandList &) = delete;
-	D3D11CommandList &operator=(const D3D11CommandList &) = delete;
-
+	#pragma region IUnknown
 	HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
 	ULONG   STDMETHODCALLTYPE AddRef() override;
 	ULONG   STDMETHODCALLTYPE Release() override;
-
+	#pragma endregion
 	#pragma region ID3D11DeviceChild
 	void    STDMETHODCALLTYPE GetDevice(ID3D11Device **ppDevice) override;
 	HRESULT STDMETHODCALLTYPE GetPrivateData(REFGUID guid, UINT *pDataSize, void *pData) override;

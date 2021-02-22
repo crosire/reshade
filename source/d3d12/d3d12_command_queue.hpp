@@ -14,13 +14,11 @@ struct DECLSPEC_UUID("2C576D2A-0C1C-4D1D-AD7C-BC4FAEC15ABC") D3D12CommandQueue :
 {
 	D3D12CommandQueue(D3D12Device *device, ID3D12CommandQueue *original);
 
-	D3D12CommandQueue(const D3D12CommandQueue &) = delete;
-	D3D12CommandQueue &operator=(const D3D12CommandQueue &) = delete;
-
+	#pragma region IUnknown
 	HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
 	ULONG   STDMETHODCALLTYPE AddRef() override;
 	ULONG   STDMETHODCALLTYPE Release() override;
-
+	#pragma endregion
 	#pragma region ID3D12Object
 	HRESULT STDMETHODCALLTYPE GetPrivateData(REFGUID guid, UINT *pDataSize, void *pData) override;
 	HRESULT STDMETHODCALLTYPE SetPrivateData(REFGUID guid, UINT DataSize, const void *pData) override;

@@ -25,7 +25,8 @@ namespace reshade::api
 	public:
 		api_object_impl(T orig) : _orig(orig) {}
 
-		uint64_t get_native_object() const override { return (uint64_t)_orig; }
+		api_object_impl(const api_object_impl &) = delete;
+		api_object_impl &operator=(const api_object_impl &) = delete;
 
 		bool get_data(const uint8_t guid[16], void **ptr) const override
 		{
@@ -62,6 +63,8 @@ namespace reshade::api
 					reinterpret_cast<const uint64_t *>(guid)[1] } });
 			}
 		}
+
+		uint64_t get_native_object() const override { return (uint64_t)_orig; }
 
 		T _orig;
 

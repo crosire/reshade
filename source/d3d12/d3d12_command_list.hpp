@@ -13,13 +13,11 @@ struct DECLSPEC_UUID("479B29E3-9A2C-11D0-B696-00A0C903487A") D3D12GraphicsComman
 {
 	D3D12GraphicsCommandList(D3D12Device *device, ID3D12GraphicsCommandList *original);
 
-	D3D12GraphicsCommandList(const D3D12GraphicsCommandList &) = delete;
-	D3D12GraphicsCommandList &operator=(const D3D12GraphicsCommandList &) = delete;
-
+	#pragma region IUnknown
 	HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
 	ULONG   STDMETHODCALLTYPE AddRef() override;
 	ULONG   STDMETHODCALLTYPE Release() override;
-
+	#pragma endregion
 	#pragma region ID3D12Object
 	HRESULT STDMETHODCALLTYPE GetPrivateData(REFGUID guid, UINT *pDataSize, void *pData) override;
 	HRESULT STDMETHODCALLTYPE SetPrivateData(REFGUID guid, UINT DataSize, const void *pData) override;

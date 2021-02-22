@@ -16,13 +16,11 @@ struct DECLSPEC_UUID("27B0246B-2152-4D42-AD11-32489472238F") D3D11DeviceContext 
 	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext2 *original);
 	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext3 *original);
 
-	D3D11DeviceContext(const D3D11DeviceContext &) = delete;
-	D3D11DeviceContext &operator=(const D3D11DeviceContext &) = delete;
-
+	#pragma region IUnknown
 	HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
 	ULONG   STDMETHODCALLTYPE AddRef() override;
 	ULONG   STDMETHODCALLTYPE Release() override;
-
+	#pragma endregion
 	#pragma region ID3D11DeviceChild
 	void    STDMETHODCALLTYPE GetDevice(ID3D11Device **ppDevice) override;
 	HRESULT STDMETHODCALLTYPE GetPrivateData(REFGUID guid, UINT *pDataSize, void *pData) override;

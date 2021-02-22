@@ -14,13 +14,11 @@ struct DECLSPEC_UUID("F1006E9A-1C51-4AF4-ACEF-3605D2D4C8EE") Direct3DDevice9 : I
 	Direct3DDevice9(IDirect3DDevice9   *original, bool use_software_rendering);
 	Direct3DDevice9(IDirect3DDevice9Ex *original, bool use_software_rendering);
 
-	Direct3DDevice9(const Direct3DDevice9 &) = delete;
-	Direct3DDevice9 &operator=(const Direct3DDevice9 &) = delete;
-
+	#pragma region IUnknown
 	HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
 	ULONG   STDMETHODCALLTYPE AddRef() override;
 	ULONG   STDMETHODCALLTYPE Release() override;
-
+	#pragma endregion
 	#pragma region IDirect3DDevice9
 	HRESULT STDMETHODCALLTYPE TestCooperativeLevel() override;
 	UINT    STDMETHODCALLTYPE GetAvailableTextureMem() override;
