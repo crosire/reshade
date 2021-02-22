@@ -13,7 +13,7 @@
 extern bool is_windows7();
 
 reshade::d3d10::runtime_d3d10::runtime_d3d10(device_impl *device, IDXGISwapChain *swapchain) :
-	_app_state(device->_orig), _device_impl(device), _device(device->_orig), _swapchain(swapchain)
+	api_object_impl(swapchain), _app_state(device->_orig), _device_impl(device), _device(device->_orig)
 {
 	_renderer_id = _device->GetFeatureLevel();
 
@@ -47,7 +47,7 @@ reshade::d3d10::runtime_d3d10::~runtime_d3d10()
 bool reshade::d3d10::runtime_d3d10::on_init()
 {
 	DXGI_SWAP_CHAIN_DESC swap_desc;
-	if (FAILED(_swapchain->GetDesc(&swap_desc)))
+	if (FAILED(_orig->GetDesc(&swap_desc)))
 		return false;
 
 	RECT window_rect = {};
@@ -61,7 +61,7 @@ bool reshade::d3d10::runtime_d3d10::on_init()
 	_backbuffer_format = swap_desc.BufferDesc.Format;
 
 	// Get back buffer texture
-	if (FAILED(_swapchain->GetBuffer(0, IID_PPV_ARGS(&_backbuffer))))
+	if (FAILED(_orig->GetBuffer(0, IID_PPV_ARGS(&_backbuffer))))
 		return false;
 
 	D3D10_TEXTURE2D_DESC tex_desc = {};

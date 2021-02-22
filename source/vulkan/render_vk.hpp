@@ -77,7 +77,7 @@ namespace reshade::vulkan
 		};
 	};
 
-	class device_impl : public api::api_object_impl<api::device>
+	class device_impl : public api::api_object_impl<VkDevice, api::device>
 	{
 		friend class command_queue_impl;
 
@@ -85,9 +85,7 @@ namespace reshade::vulkan
 		device_impl(VkDevice device, VkPhysicalDevice physical_device, const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table);
 		~device_impl();
 
-		uint64_t get_native_object() const override { return (uint64_t)_device; }
-
-		reshade::api::render_api get_api() const override { return api::render_api::vulkan; }
+		api::render_api get_api() const override { return api::render_api::vulkan; }
 
 		bool check_format_support(uint32_t format, api::resource_usage usage) const override;
 
@@ -151,8 +149,6 @@ namespace reshade::vulkan
 		void unregister_buffer(VkBuffer buffer) { _resources.erase((uint64_t)buffer); }
 		void unregister_buffer_view(VkBufferView buffer_view) { _views.erase((uint64_t)buffer_view); }
 
-	public:
-		const VkDevice _device;
 		const VkPhysicalDevice _physical_device;
 		const VkLayerDispatchTable _dispatch_table;
 		const VkLayerInstanceDispatchTable _instance_dispatch_table;
@@ -169,13 +165,11 @@ namespace reshade::vulkan
 #endif
 	};
 
-	class command_list_impl : public api::api_object_impl<api::command_list>
+	class command_list_impl : public api::api_object_impl<VkCommandBuffer, api::command_list>
 	{
 	public:
 		command_list_impl(device_impl *device, VkCommandBuffer cmd_list);
 		~command_list_impl();
-
-		uint64_t get_native_object() const override { return (uint64_t)_cmd_list; }
 
 		api::device *get_device() override { return _device_impl; }
 
@@ -189,7 +183,6 @@ namespace reshade::vulkan
 		void clear_depth_stencil_view(api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil) override;
 		void clear_render_target_view(api::resource_view_handle rtv, const float color[4]) override;
 
-	public:
 		// State tracking for render passes
 		uint32_t current_subpass = std::numeric_limits<uint32_t>::max();
 		VkViewport current_viewport = {};
@@ -197,7 +190,6 @@ namespace reshade::vulkan
 		VkFramebuffer current_framebuffer = VK_NULL_HANDLE;
 
 	protected:
-		VkCommandBuffer _cmd_list;
 		device_impl *const _device_impl;
 		bool _has_commands = false;
 	};
@@ -213,7 +205,7 @@ namespace reshade::vulkan
 		bool flush(VkQueue queue, std::vector<VkSemaphore> &wait_semaphores);
 		bool flush_and_wait(VkQueue queue);
 
-		const VkCommandBuffer begin_commands() { _has_commands = true; return _cmd_list; }
+		const VkCommandBuffer begin_commands() { _has_commands = true; return _orig; }
 
 	private:
 		uint32_t _cmd_index = 0;
@@ -223,13 +215,11 @@ namespace reshade::vulkan
 		VkCommandBuffer _cmd_buffers[NUM_COMMAND_FRAMES] = {};
 	};
 
-	class command_queue_impl : public api::api_object_impl<api::command_queue>
+	class command_queue_impl : public api::api_object_impl<VkQueue, api::command_queue>
 	{
 	public:
 		command_queue_impl(device_impl *device, uint32_t queue_family_index, const VkQueueFamilyProperties &queue_family, VkQueue queue);
 		~command_queue_impl();
-
-		uint64_t get_native_object() const override { return (uint64_t)_queue; }
 
 		api::device *get_device() override { return _device_impl; }
 
@@ -238,7 +228,6 @@ namespace reshade::vulkan
 		void flush_immediate_command_list() const override;
 
 	private:
-		const VkQueue _queue;
 		device_impl *const _device_impl;
 		command_list_immediate_impl *_immediate_cmd_list = nullptr;
 	};

@@ -543,7 +543,7 @@ resource_view_desc reshade::d3d12::convert_resource_view_desc(const D3D12_UNORDE
 }
 
 reshade::d3d12::device_impl::device_impl(ID3D12Device *device) :
-	_orig(device)
+	api_object_impl(device)
 {
 	for (UINT type = 0; type < D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES; ++type)
 	{
@@ -793,7 +793,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE reshade::d3d12::device_impl::allocate_descriptor_han
 }
 
 reshade::d3d12::command_list_impl::command_list_impl(device_impl *device, ID3D12GraphicsCommandList *cmd_list) :
-	_orig(cmd_list), _device_impl(device), _has_commands(cmd_list != nullptr)
+	api_object_impl(cmd_list), _device_impl(device), _has_commands(cmd_list != nullptr)
 {
 	if (_has_commands) // Do not call add-on event for immediate command list
 	{
@@ -943,7 +943,7 @@ bool reshade::d3d12::command_list_immediate_impl::flush_and_wait(ID3D12CommandQu
 }
 
 reshade::d3d12::command_queue_impl::command_queue_impl(device_impl *device, ID3D12CommandQueue *queue) :
-	_orig(queue), _device_impl(device)
+	api_object_impl(queue), _device_impl(device)
 {
 	// Register queue to device
 	{	const std::lock_guard<std::mutex> lock(_device_impl->_mutex);

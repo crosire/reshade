@@ -17,15 +17,13 @@ namespace reshade::opengl
 
 	api::resource_view_dimension convert_resource_view_dimension(GLenum target);
 
-	class device_impl : public api::api_object_impl<api::device, api::command_queue, api::command_list>
+	class device_impl : public api::api_object_impl<HGLRC, api::device, api::command_queue, api::command_list>
 	{
 	public:
 		device_impl(HDC hdc, HGLRC hglrc);
 		~device_impl();
 
-		uint64_t get_native_object() const override { return reinterpret_cast<uintptr_t>(_hglrc); }
-
-		reshade::api::render_api get_api() const override { return api::render_api::opengl; }
+		api::render_api get_api() const override { return api::render_api::opengl; }
 
 		bool check_format_support(uint32_t format, api::resource_usage usage) const override;
 
@@ -65,9 +63,11 @@ namespace reshade::opengl
 
 	public:
 		bool _compatibility_context = false;
-		const HGLRC _hglrc;
 		std::unordered_set<HDC> _hdcs;
 		GLuint _current_vertex_count = 0; // Used to calculate vertex count inside glBegin/glEnd pairs
+
+	private:
+		GLuint _copy_fbo[2] = {};
 
 	protected:
 		// Cached context information for quick access
@@ -75,8 +75,5 @@ namespace reshade::opengl
 		GLuint _default_fbo_height = 0;
 		GLenum _default_color_format = GL_NONE;
 		GLenum _default_depth_format = GL_NONE;
-
-	private:
-		GLuint _copy_fbo[2] = {};
 	};
 }

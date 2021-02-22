@@ -11,13 +11,11 @@
 
 namespace reshade::d3d11
 {
-	class runtime_d3d11 : public api::api_object_impl<runtime>
+	class runtime_d3d11 : public api::api_object_impl<IDXGISwapChain *, runtime>
 	{
 	public:
 		runtime_d3d11(device_impl *device, device_context_impl *immediate_context, IDXGISwapChain *swapchain);
 		~runtime_d3d11();
-
-		uint64_t get_native_object() const override { return reinterpret_cast<uintptr_t>(_swapchain.get()); }
 
 		api::device *get_device() override { return _immediate_context_impl->get_device(); }
 		api::command_queue *get_command_queue() override { return _immediate_context_impl; }
@@ -47,7 +45,6 @@ namespace reshade::d3d11
 		device_context_impl *const _immediate_context_impl;
 		const com_ptr<ID3D11Device> _device;
 		const com_ptr<ID3D11DeviceContext> _immediate_context;
-		const com_ptr<IDXGISwapChain> _swapchain;
 
 		com_ptr<ID3D11PixelShader> _copy_pixel_shader;
 		com_ptr<ID3D11VertexShader> _copy_vertex_shader;

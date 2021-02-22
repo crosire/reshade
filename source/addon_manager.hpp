@@ -19,13 +19,17 @@
 
 namespace reshade::api
 {
-	template <typename... T>
-	class api_object_impl : public T...
+	template <typename T, typename... BASE>
+	class api_object_impl : public BASE...
 	{
 	public:
+		api_object_impl(T orig) : _orig(orig) {}
+
+		uint64_t get_native_object() const override { return (uint64_t)_orig; }
+
 		bool get_data(const uint8_t guid[16], void **ptr) const override
 		{
-			for (auto it = _entries.begin(); it != _entries.end(); ++it)
+			for (auto it = _data_entries.begin(); it != _data_entries.end(); ++it)
 			{
 				if (it->guid[0] == reinterpret_cast<const uint64_t *>(guid)[0] &&
 					it->guid[1] == reinterpret_cast<const uint64_t *>(guid)[1])
@@ -38,13 +42,13 @@ namespace reshade::api
 		}
 		void set_data(const uint8_t guid[16], void * const ptr) override
 		{
-			for (auto it = _entries.begin(); it != _entries.end(); ++it)
+			for (auto it = _data_entries.begin(); it != _data_entries.end(); ++it)
 			{
 				if (it->guid[0] == reinterpret_cast<const uint64_t *>(guid)[0] &&
 					it->guid[1] == reinterpret_cast<const uint64_t *>(guid)[1])
 				{
 					if (ptr == nullptr)
-						_entries.erase(it);
+						_data_entries.erase(it);
 					else
 						it->data = ptr;
 					return;
@@ -53,11 +57,13 @@ namespace reshade::api
 
 			if (ptr != nullptr)
 			{
-				_entries.push_back({ ptr, {
+				_data_entries.push_back({ ptr, {
 					reinterpret_cast<const uint64_t *>(guid)[0],
 					reinterpret_cast<const uint64_t *>(guid)[1] } });
 			}
 		}
+
+		T _orig;
 
 	private:
 		struct entry
@@ -66,7 +72,7 @@ namespace reshade::api
 			uint64_t guid[2];
 		};
 
-		std::vector<entry> _entries;
+		std::vector<entry> _data_entries;
 	};
 }
 

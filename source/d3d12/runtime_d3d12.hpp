@@ -10,15 +10,13 @@
 
 namespace reshade::d3d12
 {
-	class runtime_d3d12 : public api::api_object_impl<runtime>
+	class runtime_d3d12 : public api::api_object_impl<IDXGISwapChain3 *, runtime>
 	{
 		static const uint32_t NUM_IMGUI_BUFFERS = 4;
 
 	public:
 		runtime_d3d12(device_impl *device, command_queue_impl *queue, IDXGISwapChain3 *swapchain);
 		~runtime_d3d12();
-
-		uint64_t get_native_object() const override { return reinterpret_cast<uintptr_t>(_swapchain.get()); }
 
 		api::device *get_device() override { return _device_impl; }
 		api::command_queue *get_command_queue() override { return _queue_impl; }
@@ -47,7 +45,6 @@ namespace reshade::d3d12
 
 		device_impl *const _device_impl;
 		const com_ptr<ID3D12Device> _device;
-		const com_ptr<IDXGISwapChain3> _swapchain;
 		command_queue_impl *const _queue_impl;
 		const com_ptr<ID3D12CommandQueue> _queue;
 		command_list_immediate_impl *const _cmd_impl;

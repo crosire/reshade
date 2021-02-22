@@ -319,7 +319,8 @@ resource_view_dimension reshade::opengl::convert_resource_view_dimension(GLenum 
 	}
 }
 
-reshade::opengl::device_impl::device_impl(HDC hdc, HGLRC hglrc) : _hglrc(hglrc)
+reshade::opengl::device_impl::device_impl(HDC hdc, HGLRC hglrc) :
+	api_object_impl(hglrc)
 {
 	RECT window_rect = {};
 	GetClientRect(WindowFromDC(hdc), &window_rect);

@@ -454,7 +454,7 @@ resource_view_desc reshade::d3d10::convert_resource_view_desc(const D3D10_SHADER
 }
 
 reshade::d3d10::device_impl::device_impl(ID3D10Device1 *device) :
-	_orig(device)
+	api_object_impl(device)
 {
 #if RESHADE_ADDON
 	reshade::addon::load_addons();

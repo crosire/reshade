@@ -9,7 +9,7 @@
 #include <d3dcompiler.h>
 
 reshade::d3d9::runtime_d3d9::runtime_d3d9(device_impl *device, IDirect3DSwapChain9 *swapchain) :
-	_app_state(device->_orig), _device_impl(device), _device(device->_orig), _swapchain(swapchain)
+	api_object_impl(swapchain), _app_state(device->_orig), _device_impl(device), _device(device->_orig)
 {
 	_renderer_id = 0x9000;
 
@@ -44,7 +44,7 @@ bool reshade::d3d9::runtime_d3d9::on_init()
 	// Retrieve present parameters here, instead using the ones passed in during creation, to get correct values for 'BackBufferWidth' and 'BackBufferHeight'
 	// They may otherwise still be set to zero (which is valid for creation)
 	D3DPRESENT_PARAMETERS pp;
-	if (FAILED(_swapchain->GetPresentParameters(&pp)))
+	if (FAILED(_orig->GetPresentParameters(&pp)))
 		return false;
 
 	RECT window_rect = {};
@@ -80,7 +80,7 @@ bool reshade::d3d9::runtime_d3d9::on_init()
 	}
 
 	// Get back buffer surface
-	HRESULT hr = _swapchain->GetBackBuffer(0, D3DBACKBUFFER_TYPE_MONO, &_backbuffer);
+	HRESULT hr = _orig->GetBackBuffer(0, D3DBACKBUFFER_TYPE_MONO, &_backbuffer);
 	assert(SUCCEEDED(hr));
 
 	if (pp.MultiSampleType != D3DMULTISAMPLE_NONE || (pp.BackBufferFormat == D3DFMT_X8R8G8B8 || pp.BackBufferFormat == D3DFMT_X8B8G8R8))

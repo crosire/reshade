@@ -76,7 +76,7 @@ static inline void transition_layout(const VkLayerDispatchTable &vk, VkCommandBu
 #define vk _device_impl->_dispatch_table
 
 reshade::vulkan::runtime_vk::runtime_vk(device_impl *device, command_queue_impl *graphics_queue) :
-	_device_impl(device), _device(device->_device), _queue_impl(graphics_queue), _queue((VkQueue)graphics_queue->get_native_object()), _cmd_impl(static_cast<command_list_immediate_impl *>(graphics_queue->get_immediate_command_list()))
+	api_object_impl(VK_NULL_HANDLE), _device_impl(device), _device(device->_orig), _queue_impl(graphics_queue), _queue((VkQueue)graphics_queue->get_native_object()), _cmd_impl(static_cast<command_list_immediate_impl *>(graphics_queue->get_immediate_command_list()))
 {
 	VkPhysicalDeviceProperties device_props = {};
 	device->_instance_dispatch_table.GetPhysicalDeviceProperties(device->_physical_device, &device_props);
@@ -134,7 +134,7 @@ reshade::vulkan::runtime_vk::~runtime_vk()
 
 bool reshade::vulkan::runtime_vk::on_init(VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &desc, HWND hwnd)
 {
-	_swapchain = swapchain;
+	_orig = swapchain;
 
 	RECT window_rect = {};
 	GetClientRect(hwnd, &window_rect);

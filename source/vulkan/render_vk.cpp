@@ -352,7 +352,7 @@ resource_view_desc reshade::vulkan::convert_resource_view_desc(const VkBufferVie
 }
 
 reshade::vulkan::device_impl::device_impl(VkDevice device, VkPhysicalDevice physical_device, const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table) :
-	_device(device), _physical_device(physical_device), _dispatch_table(device_table), _instance_dispatch_table(instance_table)
+	api_object_impl(device), _physical_device(physical_device), _dispatch_table(device_table), _instance_dispatch_table(instance_table)
 {
 	{	VmaVulkanFunctions functions;
 		functions.vkGetPhysicalDeviceProperties = instance_table.GetPhysicalDeviceProperties;
@@ -514,7 +514,7 @@ bool reshade::vulkan::device_impl::create_resource_view(resource_handle resource
 			create_info.subresourceRange.aspectMask &= ~VK_IMAGE_ASPECT_STENCIL_BIT;
 
 		if (VkImageView image_view = VK_NULL_HANDLE;
-			vk.CreateImageView(_device, &create_info, nullptr, &image_view) == VK_SUCCESS)
+			vk.CreateImageView(_orig, &create_info, nullptr, &image_view) == VK_SUCCESS)
 		{
 			register_image_view(image_view, create_info);
 			*out_view = { (uint64_t)image_view };
@@ -528,7 +528,7 @@ bool reshade::vulkan::device_impl::create_resource_view(resource_handle resource
 		create_info.buffer = data.buffer;
 
 		if (VkBufferView buffer_view = VK_NULL_HANDLE;
-			vk.CreateBufferView(_device, &create_info, nullptr, &buffer_view) == VK_SUCCESS)
+			vk.CreateBufferView(_orig, &create_info, nullptr, &buffer_view) == VK_SUCCESS)
 		{
 			register_buffer_view(buffer_view, create_info);
 			*out_view = { (uint64_t)buffer_view };
@@ -561,9 +561,9 @@ void reshade::vulkan::device_impl::destroy_resource_view(resource_view_handle vi
 	const resource_view_data &data = _views.at(view.handle);
 
 	if (data.type)
-		vk.DestroyImageView(_device, data.image_view, nullptr);
+		vk.DestroyImageView(_orig, data.image_view, nullptr);
 	else
-		vk.DestroyBufferView(_device, data.buffer_view, nullptr);
+		vk.DestroyBufferView(_orig, data.buffer_view, nullptr);
 
 	_views.erase(view.handle);
 }
@@ -589,11 +589,11 @@ resource_desc reshade::vulkan::device_impl::get_resource_desc(resource_handle re
 
 void reshade::vulkan::device_impl::wait_idle() const
 {
-	vk.DeviceWaitIdle(_device);
+	vk.DeviceWaitIdle(_orig);
 }
 
 reshade::vulkan::command_list_impl::command_list_impl(device_impl *device, VkCommandBuffer cmd_list) :
-	_device_impl(device), _cmd_list(cmd_list), _has_commands(cmd_list != VK_NULL_HANDLE)
+	api_object_impl(cmd_list), _device_impl(device), _has_commands(cmd_list != VK_NULL_HANDLE)
 {
 	if (_has_commands) // Do not call add-on event for immediate command list
 	{
@@ -612,13 +612,13 @@ void reshade::vulkan::command_list_impl::draw(uint32_t vertices, uint32_t instan
 {
 	_has_commands = true;
 
-	_device_impl->vk.CmdDraw(_cmd_list, vertices, instances, first_vertex, first_instance);
+	_device_impl->vk.CmdDraw(_orig, vertices, instances, first_vertex, first_instance);
 }
 void reshade::vulkan::command_list_impl::draw_indexed(uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)
 {
 	_has_commands = true;
 
-	_device_impl->vk.CmdDrawIndexed(_cmd_list, indices, instances, first_index, vertex_offset, first_instance);
+	_device_impl->vk.CmdDrawIndexed(_orig, indices, instances, first_index, vertex_offset, first_instance);
 }
 
 void reshade::vulkan::command_list_impl::copy_resource(resource_handle source, resource_handle destination)
@@ -637,7 +637,7 @@ void reshade::vulkan::command_list_impl::copy_resource(resource_handle source, r
 				0, 0, destination_data.buffer_create_info.size
 			};
 
-			_device_impl->vk.CmdCopyBuffer(_cmd_list, source_data.buffer, destination_data.buffer, 1, &region);
+			_device_impl->vk.CmdCopyBuffer(_orig, source_data.buffer, destination_data.buffer, 1, &region);
 			break;
 		}
 		case 0x1:
@@ -650,7 +650,7 @@ void reshade::vulkan::command_list_impl::copy_resource(resource_handle source, r
 				{ aspect_flags_from_format(source_data.image_create_info.format), 0, 0, 1 }, { 0, 0, 0 }, source_data.image_create_info.extent
 			};
 
-			_device_impl->vk.CmdCopyImageToBuffer(_cmd_list, source_data.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, destination_data.buffer, 1, &region);
+			_device_impl->vk.CmdCopyImageToBuffer(_orig, source_data.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, destination_data.buffer, 1, &region);
 			break;
 		}
 		case 0x2:
@@ -663,7 +663,7 @@ void reshade::vulkan::command_list_impl::copy_resource(resource_handle source, r
 				{ aspect_flags_from_format(destination_data.image_create_info.format), 0, 0, 1 }, { 0, 0, 0 }, destination_data.image_create_info.extent
 			};
 
-			_device_impl->vk.CmdCopyBufferToImage(_cmd_list, source_data.buffer, destination_data.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+			_device_impl->vk.CmdCopyBufferToImage(_orig, source_data.buffer, destination_data.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 			break;
 		}
 		case 0x3:
@@ -673,7 +673,7 @@ void reshade::vulkan::command_list_impl::copy_resource(resource_handle source, r
 				{ aspect_flags_from_format(destination_data.image_create_info.format), 0, 0, 1 }, { 0, 0, 0 }, destination_data.image_create_info.extent
 			};
 
-			_device_impl->vk.CmdCopyImage(_cmd_list, source_data.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, destination_data.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+			_device_impl->vk.CmdCopyImage(_orig, source_data.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, destination_data.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 			break;
 		}
 	}
@@ -697,7 +697,7 @@ void reshade::vulkan::command_list_impl::transition_state(resource_handle resour
 		transition.image = data.image;
 		transition.subresourceRange = { aspect_flags_from_format(data.image_create_info.format), 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
 
-		_device_impl->vk.CmdPipelineBarrier(_cmd_list, convert_usage_to_pipeline_stage(old_state), convert_usage_to_pipeline_stage(new_state), 0, 0, nullptr, 0, nullptr, 1, &transition);
+		_device_impl->vk.CmdPipelineBarrier(_orig, convert_usage_to_pipeline_stage(old_state), convert_usage_to_pipeline_stage(new_state), 0, 0, nullptr, 0, nullptr, 1, &transition);
 	}
 	else
 	{
@@ -710,7 +710,7 @@ void reshade::vulkan::command_list_impl::transition_state(resource_handle resour
 		transition.offset = 0;
 		transition.size = VK_WHOLE_SIZE;
 
-		_device_impl->vk.CmdPipelineBarrier(_cmd_list, convert_usage_to_pipeline_stage(old_state), convert_usage_to_pipeline_stage(new_state), 0, 0, nullptr, 1, &transition, 0, nullptr);
+		_device_impl->vk.CmdPipelineBarrier(_orig, convert_usage_to_pipeline_stage(old_state), convert_usage_to_pipeline_stage(new_state), 0, 0, nullptr, 1, &transition, 0, nullptr);
 	}
 }
 
@@ -735,13 +735,13 @@ void reshade::vulkan::command_list_impl::clear_depth_stencil_view(resource_view_
 	transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 	transition.image = dsv_data.image_create_info.image;
 	transition.subresourceRange = { aspect_flags, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
-	_device_impl->vk.CmdPipelineBarrier(_cmd_list, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
+	_device_impl->vk.CmdPipelineBarrier(_orig, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
 
 	const VkClearDepthStencilValue clear_value = { depth, stencil };
-	_device_impl->vk.CmdClearDepthStencilImage(_cmd_list, dsv_data.image_create_info.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear_value, 1, &transition.subresourceRange);
+	_device_impl->vk.CmdClearDepthStencilImage(_orig, dsv_data.image_create_info.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear_value, 1, &transition.subresourceRange);
 
 	std::swap(transition.oldLayout, transition.newLayout);
-	_device_impl->vk.CmdPipelineBarrier(_cmd_list, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
+	_device_impl->vk.CmdPipelineBarrier(_orig, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
 }
 void reshade::vulkan::command_list_impl::clear_render_target_view(resource_view_handle rtv, const float color[4])
 {
@@ -758,15 +758,15 @@ void reshade::vulkan::command_list_impl::clear_render_target_view(resource_view_
 	transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 	transition.image = rtv_data.image_create_info.image;
 	transition.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
-	_device_impl->vk.CmdPipelineBarrier(_cmd_list, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
+	_device_impl->vk.CmdPipelineBarrier(_orig, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
 
 	VkClearColorValue clear_value;
 	std::memcpy(clear_value.float32, color, 4 * sizeof(float));
 
-	_device_impl->vk.CmdClearColorImage(_cmd_list, rtv_data.image_create_info.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear_value, 1, &transition.subresourceRange);
+	_device_impl->vk.CmdClearColorImage(_orig, rtv_data.image_create_info.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear_value, 1, &transition.subresourceRange);
 
 	std::swap(transition.oldLayout, transition.newLayout);
-	_device_impl->vk.CmdPipelineBarrier(_cmd_list, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
+	_device_impl->vk.CmdPipelineBarrier(_orig, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
 }
 
 reshade::vulkan::command_list_immediate_impl::command_list_immediate_impl(device_impl *device, uint32_t queue_family_index) :
@@ -776,7 +776,7 @@ reshade::vulkan::command_list_immediate_impl::command_list_immediate_impl(device
 		create_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 		create_info.queueFamilyIndex = queue_family_index;
 
-		if (_device_impl->vk.CreateCommandPool(_device_impl->_device, &create_info, nullptr, &_cmd_pool) != VK_SUCCESS)
+		if (_device_impl->vk.CreateCommandPool(_device_impl->_orig, &create_info, nullptr, &_cmd_pool) != VK_SUCCESS)
 			return;
 	}
 
@@ -785,24 +785,24 @@ reshade::vulkan::command_list_immediate_impl::command_list_immediate_impl(device
 		alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 		alloc_info.commandBufferCount = NUM_COMMAND_FRAMES;
 
-		if (_device_impl->vk.AllocateCommandBuffers(_device_impl->_device, &alloc_info, _cmd_buffers) != VK_SUCCESS)
+		if (_device_impl->vk.AllocateCommandBuffers(_device_impl->_orig, &alloc_info, _cmd_buffers) != VK_SUCCESS)
 			return;
 	}
 
 	for (uint32_t i = 0; i < NUM_COMMAND_FRAMES; ++i)
 	{
 		// The validation layers expect the loader to have set the dispatch pointer, but this does not happen when calling down the layer chain from here, so fix it
-		*reinterpret_cast<void **>(_cmd_buffers[i]) = *reinterpret_cast<void **>(device->_device);
+		*reinterpret_cast<void **>(_cmd_buffers[i]) = *reinterpret_cast<void **>(device->_orig);
 
 		VkFenceCreateInfo create_info { VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
 		create_info.flags = VK_FENCE_CREATE_SIGNALED_BIT; // Create signaled so waiting on it when no commands where submitted succeeds
 
-		if (_device_impl->vk.CreateFence(_device_impl->_device, &create_info, nullptr, &_cmd_fences[i]) != VK_SUCCESS)
+		if (_device_impl->vk.CreateFence(_device_impl->_orig, &create_info, nullptr, &_cmd_fences[i]) != VK_SUCCESS)
 			return;
 
 		VkSemaphoreCreateInfo sem_create_info { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
 
-		if (_device_impl->vk.CreateSemaphore(_device_impl->_device, &sem_create_info, nullptr, &_cmd_semaphores[i]) != VK_SUCCESS)
+		if (_device_impl->vk.CreateSemaphore(_device_impl->_orig, &sem_create_info, nullptr, &_cmd_semaphores[i]) != VK_SUCCESS)
 			return;
 	}
 
@@ -814,17 +814,17 @@ reshade::vulkan::command_list_immediate_impl::command_list_immediate_impl(device
 		return;
 
 	// Command buffer is now in the recording state
-	_cmd_list = _cmd_buffers[_cmd_index];
+	_orig = _cmd_buffers[_cmd_index];
 }
 reshade::vulkan::command_list_immediate_impl::~command_list_immediate_impl()
 {
 	for (VkFence fence : _cmd_fences)
-		_device_impl->vk.DestroyFence(_device_impl->_device, fence, nullptr);
+		_device_impl->vk.DestroyFence(_device_impl->_orig, fence, nullptr);
 	for (VkSemaphore semaphore : _cmd_semaphores)
-		_device_impl->vk.DestroySemaphore(_device_impl->_device, semaphore, nullptr);
+		_device_impl->vk.DestroySemaphore(_device_impl->_orig, semaphore, nullptr);
 
-	_device_impl->vk.FreeCommandBuffers(_device_impl->_device, _cmd_pool, NUM_COMMAND_FRAMES, _cmd_buffers);
-	_device_impl->vk.DestroyCommandPool(_device_impl->_device, _cmd_pool, nullptr);
+	_device_impl->vk.FreeCommandBuffers(_device_impl->_orig, _cmd_pool, NUM_COMMAND_FRAMES, _cmd_buffers);
+	_device_impl->vk.DestroyCommandPool(_device_impl->_orig, _cmd_pool, nullptr);
 
 	// Signal to 'command_list_impl' destructor that this is an immediate command list
 	_has_commands = false;
@@ -854,7 +854,7 @@ bool reshade::vulkan::command_list_immediate_impl::flush(VkQueue queue, std::vec
 	}
 
 	// Only reset fence before an actual submit which can signal it again
-	_device_impl->vk.ResetFences(_device_impl->_device, 1, &_cmd_fences[_cmd_index]);
+	_device_impl->vk.ResetFences(_device_impl->_orig, 1, &_cmd_fences[_cmd_index]);
 
 	if (_device_impl->vk.QueueSubmit(queue, 1, &submit_info, _cmd_fences[_cmd_index]) != VK_SUCCESS)
 		return false;
@@ -868,9 +868,9 @@ bool reshade::vulkan::command_list_immediate_impl::flush(VkQueue queue, std::vec
 	_cmd_index = (_cmd_index + 1) % NUM_COMMAND_FRAMES;
 
 	// Make sure the next command buffer has finished executing before reusing it this frame
-	if (_device_impl->vk.GetFenceStatus(_device_impl->_device, _cmd_fences[_cmd_index]) == VK_NOT_READY)
+	if (_device_impl->vk.GetFenceStatus(_device_impl->_orig, _cmd_fences[_cmd_index]) == VK_NOT_READY)
 	{
-		_device_impl->vk.WaitForFences(_device_impl->_device, 1, &_cmd_fences[_cmd_index], VK_TRUE, UINT64_MAX);
+		_device_impl->vk.WaitForFences(_device_impl->_orig, 1, &_cmd_fences[_cmd_index], VK_TRUE, UINT64_MAX);
 	}
 
 	// Command buffer is now ready for a reset
@@ -881,7 +881,7 @@ bool reshade::vulkan::command_list_immediate_impl::flush(VkQueue queue, std::vec
 		return false;
 
 	// Command buffer is now in the recording state
-	_cmd_list = _cmd_buffers[_cmd_index];
+	_orig = _cmd_buffers[_cmd_index];
 	return true;
 }
 bool reshade::vulkan::command_list_immediate_impl::flush_and_wait(VkQueue queue)
@@ -894,11 +894,11 @@ bool reshade::vulkan::command_list_immediate_impl::flush_and_wait(VkQueue queue)
 		return false;
 
 	// Wait for the submitted work to finish and reset fence again for next use
-	return _device_impl->vk.WaitForFences(_device_impl->_device, 1, &_cmd_fences[cmd_index_to_wait_on], VK_TRUE, UINT64_MAX) == VK_SUCCESS;
+	return _device_impl->vk.WaitForFences(_device_impl->_orig, 1, &_cmd_fences[cmd_index_to_wait_on], VK_TRUE, UINT64_MAX) == VK_SUCCESS;
 }
 
 reshade::vulkan::command_queue_impl::command_queue_impl(device_impl *device, uint32_t queue_family_index, const VkQueueFamilyProperties &queue_family, VkQueue queue) :
-	_device_impl(device), _queue(queue)
+	api_object_impl(queue), _device_impl(device)
 {
 	// Register queue to device
 	_device_impl->_queues.push_back(this);
@@ -925,5 +925,5 @@ void reshade::vulkan::command_queue_impl::flush_immediate_command_list() const
 {
 	std::vector<VkSemaphore> wait_semaphores; // No semaphores to wait on
 	if (_immediate_cmd_list != nullptr)
-		_immediate_cmd_list->flush(_queue, wait_semaphores);
+		_immediate_cmd_list->flush(_orig, wait_semaphores);
 }

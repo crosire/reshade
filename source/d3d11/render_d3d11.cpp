@@ -699,7 +699,7 @@ resource_view_desc reshade::d3d11::convert_resource_view_desc(const D3D11_UNORDE
 }
 
 reshade::d3d11::device_impl::device_impl(ID3D11Device *device) :
-	_orig(device)
+	api_object_impl(device)
 {
 #if RESHADE_ADDON
 	reshade::addon::load_addons();
@@ -942,8 +942,8 @@ resource_desc reshade::d3d11::device_impl::get_resource_desc(resource_handle res
 	return {};
 }
 
-reshade::d3d11::command_list_impl::command_list_impl(device_impl *device, ID3D11CommandList *list) :
-	_device_impl(device), _orig(list)
+reshade::d3d11::command_list_impl::command_list_impl(device_impl *device, ID3D11CommandList *cmd_list) :
+	api_object_impl(cmd_list), _device_impl(device)
 {
 	RESHADE_ADDON_EVENT(init_command_list, this);
 }
@@ -953,7 +953,7 @@ reshade::d3d11::command_list_impl::~command_list_impl()
 }
 
 reshade::d3d11::device_context_impl::device_context_impl(device_impl *device, ID3D11DeviceContext *context) :
-	_device_impl(device), _orig(context)
+	api_object_impl(context), _device_impl(device)
 {
 	if (_orig->GetType() != D3D11_DEVICE_CONTEXT_IMMEDIATE)
 	{

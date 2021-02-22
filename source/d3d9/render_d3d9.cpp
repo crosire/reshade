@@ -136,7 +136,7 @@ resource_desc reshade::d3d9::convert_resource_desc(const D3DVERTEXBUFFER_DESC &i
 }
 
 reshade::d3d9::device_impl::device_impl(IDirect3DDevice9 *device) :
-	_orig(device), _caps(), _cp()
+	api_object_impl(device), _caps(), _cp()
 {
 	_orig->GetDeviceCaps(&_caps);
 	_orig->GetCreationParameters(&_cp);

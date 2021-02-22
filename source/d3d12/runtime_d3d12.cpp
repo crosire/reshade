@@ -24,13 +24,13 @@ com_ptr<ID3D12RootSignature> create_root_signature(ID3D12Device *device, const D
 }
 
 reshade::d3d12::runtime_d3d12::runtime_d3d12(device_impl *device, command_queue_impl *queue, IDXGISwapChain3 *swapchain) :
-	_device_impl(device), _device(device->_orig), _swapchain(swapchain), _queue_impl(queue), _queue(queue->_orig), _cmd_impl(static_cast<command_list_immediate_impl *>(queue->get_immediate_command_list()))
+	api_object_impl(swapchain), _device_impl(device), _device(device->_orig), _queue_impl(queue), _queue(queue->_orig), _cmd_impl(static_cast<command_list_immediate_impl *>(queue->get_immediate_command_list()))
 {
 	_renderer_id = D3D_FEATURE_LEVEL_12_0;
 
 	// There is no swap chain in d3d12on7
 	if (com_ptr<IDXGIFactory4> factory;
-		_swapchain != nullptr && SUCCEEDED(_swapchain->GetParent(IID_PPV_ARGS(&factory))))
+		_orig != nullptr && SUCCEEDED(_orig->GetParent(IID_PPV_ARGS(&factory))))
 	{
 		const LUID luid = _device->GetAdapterLuid();
 
@@ -47,7 +47,7 @@ reshade::d3d12::runtime_d3d12::runtime_d3d12(device_impl *device, command_queue_
 		}
 	}
 
-	if (_swapchain != nullptr && !on_init())
+	if (_orig != nullptr && !on_init())
 		LOG(ERROR) << "Failed to initialize Direct3D 12 runtime environment on runtime " << this << '!';
 }
 reshade::d3d12::runtime_d3d12::~runtime_d3d12()
@@ -60,18 +60,18 @@ reshade::d3d12::runtime_d3d12::~runtime_d3d12()
 
 bool reshade::d3d12::runtime_d3d12::on_init()
 {
-	assert(_swapchain != nullptr);
+	assert(_orig != nullptr);
 
 	DXGI_SWAP_CHAIN_DESC swap_desc;
 	// Get description from IDXGISwapChain interface, since later versions are slightly different
-	if (FAILED(_swapchain->GetDesc(&swap_desc)))
+	if (FAILED(_orig->GetDesc(&swap_desc)))
 		return false;
 
 	// Update window handle in swap chain description for UWP applications
-	if (HWND hwnd = nullptr; SUCCEEDED(_swapchain->GetHwnd(&hwnd)))
+	if (HWND hwnd = nullptr; SUCCEEDED(_orig->GetHwnd(&hwnd)))
 		swap_desc.OutputWindow = hwnd;
 	else if (com_ptr<ICoreWindowInterop> window_interop; // Get window handle of the core window
-		SUCCEEDED(_swapchain->GetCoreWindow(IID_PPV_ARGS(&window_interop))) && SUCCEEDED(window_interop->get_WindowHandle(&hwnd)))
+		SUCCEEDED(_orig->GetCoreWindow(IID_PPV_ARGS(&window_interop))) && SUCCEEDED(window_interop->get_WindowHandle(&hwnd)))
 		swap_desc.OutputWindow = hwnd;
 
 	return on_init(swap_desc);
@@ -106,13 +106,13 @@ bool reshade::d3d12::runtime_d3d12::on_init(const DXGI_SWAP_CHAIN_DESC &swap_des
 
 	// Get back buffer textures (skip on d3d12on7 devices, since there is no swap chain there)
 	_backbuffers.resize(swap_desc.BufferCount);
-	if (_swapchain != nullptr)
+	if (_orig != nullptr)
 	{
 		D3D12_CPU_DESCRIPTOR_HANDLE rtv_handle = _backbuffer_rtvs->GetCPUDescriptorHandleForHeapStart();
 
 		for (unsigned int i = 0; i < swap_desc.BufferCount; ++i)
 		{
-			if (FAILED(_swapchain->GetBuffer(i, IID_PPV_ARGS(&_backbuffers[i]))))
+			if (FAILED(_orig->GetBuffer(i, IID_PPV_ARGS(&_backbuffers[i]))))
 				return false;
 
 			for (int srgb_write_enable = 0; srgb_write_enable < 2; ++srgb_write_enable, rtv_handle.ptr += _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_RTV])
@@ -261,8 +261,8 @@ void reshade::d3d12::runtime_d3d12::on_present()
 		return;
 
 	// There is no swap chain in d3d12on7
-	if (_swapchain != nullptr)
-		_swap_index = _swapchain->GetCurrentBackBufferIndex();
+	if (_orig != nullptr)
+		_swap_index = _orig->GetCurrentBackBufferIndex();
 
 	ID3D12GraphicsCommandList *const cmd_list = _cmd_impl->begin_commands();
 

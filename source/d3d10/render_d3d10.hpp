@@ -30,15 +30,13 @@ namespace reshade::d3d10
 	api::resource_view_desc convert_resource_view_desc(const D3D10_SHADER_RESOURCE_VIEW_DESC &internal_desc);
 	api::resource_view_desc convert_resource_view_desc(const D3D10_SHADER_RESOURCE_VIEW_DESC1 &internal_desc);
 
-	class device_impl : public api::api_object_impl<api::device, api::command_queue, api::command_list>
+	class device_impl : public api::api_object_impl<ID3D10Device1 *, api::device, api::command_queue, api::command_list>
 	{
 	public:
 		explicit device_impl(ID3D10Device1 *device);
 		~device_impl();
 
-		uint64_t get_native_object() const override { return reinterpret_cast<uintptr_t>(_orig); }
-
-		reshade::api::render_api get_api() const override { return api::render_api::d3d10; }
+		api::render_api get_api() const override { return api::render_api::d3d10; }
 
 		bool check_format_support(uint32_t format, api::resource_usage usage) const override;
 
@@ -72,10 +70,6 @@ namespace reshade::d3d10
 
 		void clear_depth_stencil_view(api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil) override;
 		void clear_render_target_view(api::resource_view_handle rtv, const float color[4]) override;
-
-	public:
-		// Pointer to original device object (managed by D3D10Device class)
-		ID3D10Device1 *_orig;
 
 	protected:
 		com_object_list<ID3D10View> _views;

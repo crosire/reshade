@@ -10,7 +10,7 @@
 
 namespace reshade::vulkan
 {
-	class runtime_vk : public api::api_object_impl<runtime>
+	class runtime_vk : public api::api_object_impl<VkSwapchainKHR, runtime>
 	{
 		static const uint32_t NUM_QUERY_FRAMES = 4;
 		static const uint32_t NUM_IMGUI_BUFFERS = 4;
@@ -20,8 +20,6 @@ namespace reshade::vulkan
 	public:
 		runtime_vk(device_impl *device, command_queue_impl *graphics_queue);
 		~runtime_vk();
-
-		uint64_t get_native_object() const override { return (uint64_t)_swapchain; }
 
 		api::device *get_device() override { return _device_impl; }
 		api::command_queue *get_command_queue() override { return _queue_impl; }
@@ -65,7 +63,6 @@ namespace reshade::vulkan
 		command_queue_impl *const _queue_impl;
 		VkQueue _queue = VK_NULL_HANDLE;
 		command_list_immediate_impl *const _cmd_impl;
-		VkSwapchainKHR _swapchain = VK_NULL_HANDLE;
 
 		uint32_t _queue_sync_index = 0;
 		VkSemaphore _queue_sync_semaphores[NUM_QUERY_FRAMES] = {};

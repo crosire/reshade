@@ -26,7 +26,7 @@ namespace reshade::d3d12
 	api::resource_view_desc convert_resource_view_desc(const D3D12_SHADER_RESOURCE_VIEW_DESC &internal_desc);
 	api::resource_view_desc convert_resource_view_desc(const D3D12_UNORDERED_ACCESS_VIEW_DESC &internal_desc);
 
-	class device_impl : public api::api_object_impl<api::device>
+	class device_impl : public api::api_object_impl<ID3D12Device *, api::device>
 	{
 		friend class command_queue_impl;
 
@@ -34,9 +34,7 @@ namespace reshade::d3d12
 		explicit device_impl(ID3D12Device *device);
 		~device_impl();
 
-		uint64_t get_native_object() const override { return reinterpret_cast<uintptr_t>(_orig); }
-
-		reshade::api::render_api get_api() const override { return api::render_api::d3d12; }
+		api::render_api get_api() const override { return api::render_api::d3d12; }
 
 		bool check_format_support(uint32_t format, api::resource_usage usage) const override;
 
@@ -55,12 +53,16 @@ namespace reshade::d3d12
 
 		void wait_idle() const override;
 
-	public:
-		// Pointer to original device object (managed by D3D12Device class)
-		ID3D12Device *_orig;
-
 		// Cached device capabilities for quick access
 		UINT _descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
+
+	private:
+		D3D12_CPU_DESCRIPTOR_HANDLE allocate_descriptor_handle(D3D12_DESCRIPTOR_HEAP_TYPE type);
+
+		mutable std::mutex _mutex;
+		std::vector<ID3D12CommandQueue *> _queues;
+		std::vector<bool> _resource_view_pool_state[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
+		com_ptr<ID3D12DescriptorHeap> _resource_view_pool[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
 
 	protected:
 #if RESHADE_ADDON
@@ -74,23 +76,13 @@ namespace reshade::d3d12
 
 		com_object_list<ID3D12Resource> _resources;
 		std::unordered_map<uint64_t, ID3D12Resource *> _views;
-
-	private:
-		auto allocate_descriptor_handle(D3D12_DESCRIPTOR_HEAP_TYPE type) -> D3D12_CPU_DESCRIPTOR_HANDLE;
-
-		mutable std::mutex _mutex;
-		std::vector<ID3D12CommandQueue *> _queues;
-		std::vector<bool> _resource_view_pool_state[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
-		com_ptr<ID3D12DescriptorHeap> _resource_view_pool[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
 	};
 
-	class command_list_impl : public api::api_object_impl<api::command_list>
+	class command_list_impl : public api::api_object_impl<ID3D12GraphicsCommandList *, api::command_list>
 	{
 	public:
 		command_list_impl(device_impl *device, ID3D12GraphicsCommandList *cmd_list);
 		~command_list_impl();
-
-		uint64_t get_native_object() const override { return reinterpret_cast<uintptr_t>(_orig); }
 
 		api::device *get_device() override { return _device_impl; }
 
@@ -103,10 +95,6 @@ namespace reshade::d3d12
 
 		void clear_depth_stencil_view(api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil) override;
 		void clear_render_target_view(api::resource_view_handle rtv, const float color[4]) override;
-
-	public:
-		// Pointer to original command list object (managed by D3D12GraphicsCommandList class)
-		ID3D12GraphicsCommandList *_orig;
 
 	protected:
 		device_impl *const _device_impl;
@@ -134,23 +122,17 @@ namespace reshade::d3d12
 		com_ptr<ID3D12CommandAllocator> _cmd_alloc[NUM_COMMAND_FRAMES];
 	};
 
-	class command_queue_impl : public api::api_object_impl<api::command_queue>
+	class command_queue_impl : public api::api_object_impl<ID3D12CommandQueue *, api::command_queue>
 	{
 	public:
 		command_queue_impl(device_impl *device, ID3D12CommandQueue *queue);
 		~command_queue_impl();
-
-		uint64_t get_native_object() const override { return reinterpret_cast<uintptr_t>(_orig); }
 
 		api::device *get_device() override { return _device_impl; }
 
 		api::command_list *get_immediate_command_list() override { return _immediate_cmd_list; }
 
 		void flush_immediate_command_list() const override;
-
-	public:
-		// Pointer to original command queue object (managed by D3D12CommandQueue class)
-		ID3D12CommandQueue *_orig;
 
 	private:
 		device_impl *const _device_impl;

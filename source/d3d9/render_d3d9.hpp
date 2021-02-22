@@ -21,15 +21,13 @@ namespace reshade::d3d9
 	api::resource_desc convert_resource_desc(const D3DINDEXBUFFER_DESC &internal_desc);
 	api::resource_desc convert_resource_desc(const D3DVERTEXBUFFER_DESC &internal_desc);
 
-	class device_impl : public api::api_object_impl<api::device, api::command_queue, api::command_list>
+	class device_impl : public api::api_object_impl<IDirect3DDevice9 *, api::device, api::command_queue, api::command_list>
 	{
 	public:
 		explicit device_impl(IDirect3DDevice9 *device);
 		~device_impl();
 
-		uint64_t get_native_object() const override { return reinterpret_cast<uintptr_t>(_orig); }
-
-		reshade::api::render_api get_api() const override { return api::render_api::d3d9; }
+		api::render_api get_api() const override { return api::render_api::d3d9; }
 
 		bool check_format_support(uint32_t format, api::resource_usage usage) const override;
 
@@ -64,21 +62,18 @@ namespace reshade::d3d9
 		void clear_depth_stencil_view(api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil) override;
 		void clear_render_target_view(api::resource_view_handle dsv, const float color[4]) override;
 
-		// Pointer to original device object (managed by Direct3DDevice9 class)
-		IDirect3DDevice9 *_orig;
-
 		// Cached device capabilities for quick access
 		D3DCAPS9 _caps;
 		D3DDEVICE_CREATION_PARAMETERS _cp;
+
+	private:
+		com_ptr<IDirect3DStateBlock9> _copy_state;
+		com_ptr<IDirect3DStateBlock9> _backup_state;
 
 	protected:
 		void on_reset();
 		void on_after_reset(const D3DPRESENT_PARAMETERS &pp);
 
 		com_object_list<IDirect3DResource9, true> _resources;
-
-	private:
-		com_ptr<IDirect3DStateBlock9> _copy_state;
-		com_ptr<IDirect3DStateBlock9> _backup_state;
 	};
 }
