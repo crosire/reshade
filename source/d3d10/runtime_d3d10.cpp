@@ -4,6 +4,7 @@
  */
 
 #include "dll_log.hpp"
+#include "dll_resources.hpp"
 #include "runtime_d3d10.hpp"
 #include "runtime_d3d10_objects.hpp"
 #include "dxgi/format_utils.hpp"
@@ -112,6 +113,32 @@ bool reshade::d3d10::runtime_d3d10::on_init()
 	if (FAILED(_device->CreateRenderTargetView(_backbuffer_resolved.get(), &rtv_desc, &_backbuffer_rtv[1])))
 		return false;
 
+	// Create copy states
+	if (_copy_pixel_shader == nullptr)
+	{
+		const resources::data_resource ps = resources::load_data_resource(IDR_COPY_PS);
+		if (FAILED(_device->CreatePixelShader(ps.data, ps.data_size, &_copy_pixel_shader)))
+			return false;
+	}
+	if (_copy_vertex_shader == nullptr)
+	{
+		const resources::data_resource vs = resources::load_data_resource(IDR_FULLSCREEN_VS);
+		if (FAILED(_device->CreateVertexShader(vs.data, vs.data_size, &_copy_vertex_shader)))
+			return false;
+	}
+
+	if (_copy_sampler_state == nullptr)
+	{
+		D3D10_SAMPLER_DESC desc = {};
+		desc.Filter = D3D10_FILTER_MIN_MAG_MIP_POINT;
+		desc.AddressU = D3D10_TEXTURE_ADDRESS_CLAMP;
+		desc.AddressV = D3D10_TEXTURE_ADDRESS_CLAMP;
+		desc.AddressW = D3D10_TEXTURE_ADDRESS_CLAMP;
+
+		if (FAILED(_device->CreateSamplerState(&desc, &_copy_sampler_state)))
+			return false;
+	}
+
 	// Create effect states
 	if (_effect_rasterizer == nullptr)
 	{
@@ -187,10 +214,10 @@ void reshade::d3d10::runtime_d3d10::on_present()
 		const uintptr_t null = 0;
 		_device->IASetVertexBuffers(0, 1, reinterpret_cast<ID3D10Buffer *const *>(&null), reinterpret_cast<const UINT *>(&null), reinterpret_cast<const UINT *>(&null));
 		_device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		_device->VSSetShader(_device_impl->_copy_vertex_shader.get());
+		_device->VSSetShader(_copy_vertex_shader.get());
 		_device->GSSetShader(nullptr);
-		_device->PSSetShader(_device_impl->_copy_pixel_shader.get());
-		ID3D10SamplerState *const samplers[] = { _device_impl->_copy_sampler_state.get() };
+		_device->PSSetShader(_copy_pixel_shader.get());
+		ID3D10SamplerState *const samplers[] = { _copy_sampler_state.get() };
 		_device->PSSetSamplers(0, ARRAYSIZE(samplers), samplers);
 		ID3D10ShaderResourceView *const srvs[] = { _backbuffer_texture_srv[make_dxgi_format_srgb(_backbuffer_format) == _backbuffer_format].get() };
 		_device->PSSetShaderResources(0, ARRAYSIZE(srvs), srvs);

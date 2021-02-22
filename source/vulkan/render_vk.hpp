@@ -151,6 +151,7 @@ namespace reshade::vulkan
 		void unregister_buffer(VkBuffer buffer) { _resources.erase((uint64_t)buffer); }
 		void unregister_buffer_view(VkBufferView buffer_view) { _views.erase((uint64_t)buffer_view); }
 
+	public:
 		const VkDevice _device;
 		const VkPhysicalDevice _physical_device;
 		const VkLayerDispatchTable _dispatch_table;
@@ -188,6 +189,7 @@ namespace reshade::vulkan
 		void clear_depth_stencil_view(api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil) override;
 		void clear_render_target_view(api::resource_view_handle rtv, const float color[4]) override;
 
+	public:
 		// State tracking for render passes
 		uint32_t current_subpass = std::numeric_limits<uint32_t>::max();
 		VkViewport current_viewport = {};

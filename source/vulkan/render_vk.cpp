@@ -391,7 +391,6 @@ reshade::vulkan::device_impl::device_impl(VkDevice device, VkPhysicalDevice phys
 	}
 
 #if RESHADE_ADDON
-	// Load and initialize add-ons
 	reshade::addon::load_addons();
 #endif
 

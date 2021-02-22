@@ -19,7 +19,7 @@ namespace reshade::d3d11
 
 		uint64_t get_native_object() const override { return reinterpret_cast<uintptr_t>(_swapchain.get()); }
 
-		api::device *get_device() override { return _device_impl; }
+		api::device *get_device() override { return _immediate_context_impl->get_device(); }
 		api::command_queue *get_command_queue() override { return _immediate_context_impl; }
 
 		bool on_init();
@@ -44,11 +44,14 @@ namespace reshade::d3d11
 		void set_debug_name(ID3D11DeviceChild *object, LPCWSTR name) const;
 
 		state_block _app_state;
-		device_impl *const _device_impl;
-		const com_ptr<ID3D11Device> _device;
 		device_context_impl *const _immediate_context_impl;
+		const com_ptr<ID3D11Device> _device;
 		const com_ptr<ID3D11DeviceContext> _immediate_context;
 		const com_ptr<IDXGISwapChain> _swapchain;
+
+		com_ptr<ID3D11PixelShader> _copy_pixel_shader;
+		com_ptr<ID3D11VertexShader> _copy_vertex_shader;
+		com_ptr<ID3D11SamplerState> _copy_sampler_state;
 
 		DXGI_FORMAT _backbuffer_format = DXGI_FORMAT_UNKNOWN;
 		com_ptr<ID3D11Texture2D> _backbuffer;

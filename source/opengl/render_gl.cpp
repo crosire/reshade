@@ -370,7 +370,6 @@ reshade::opengl::device_impl::device_impl(HDC hdc, HGLRC hglrc) : _hglrc(hglrc)
 	}
 
 #if RESHADE_ADDON
-	// Load and initialize add-ons
 	reshade::addon::load_addons();
 #endif
 

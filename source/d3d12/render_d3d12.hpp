@@ -55,16 +55,12 @@ namespace reshade::d3d12
 
 		void wait_idle() const override;
 
-		com_ptr<ID3D12RootSignature> create_root_signature(const D3D12_ROOT_SIGNATURE_DESC &desc) const;
-
+	public:
 		// Pointer to original device object (managed by D3D12Device class)
 		ID3D12Device *_orig;
 
 		// Cached device capabilities for quick access
 		UINT _descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
-		// Device-local resources that may be used by multiple effect runtimes
-		com_ptr<ID3D12PipelineState> _mipmap_pipeline;
-		com_ptr<ID3D12RootSignature> _mipmap_signature;
 
 	protected:
 #if RESHADE_ADDON
@@ -78,33 +74,14 @@ namespace reshade::d3d12
 
 		com_object_list<ID3D12Resource> _resources;
 		std::unordered_map<uint64_t, ID3D12Resource *> _views;
-		mutable std::mutex _mutex;
-		std::vector<ID3D12CommandQueue *> _queues;
 
 	private:
-		D3D12_CPU_DESCRIPTOR_HANDLE allocate_descriptor_handle(D3D12_DESCRIPTOR_HEAP_TYPE type)
-		{
-			std::vector<bool> &usage = _resource_view_heaps_usage[type];
-			// Find free entry in the descriptor heap
-			const std::lock_guard<std::mutex> lock(_mutex);
-			if (const auto it = std::find(usage.begin(), usage.end(), false);
-				it != usage.end() && _resource_view_heaps[type] != nullptr)
-			{
-				const size_t index = it - usage.begin();
-				usage[index] = true; // Mark this entry as being in use
+		auto allocate_descriptor_handle(D3D12_DESCRIPTOR_HEAP_TYPE type) -> D3D12_CPU_DESCRIPTOR_HANDLE;
 
-				D3D12_CPU_DESCRIPTOR_HANDLE descriptor_handle = _resource_view_heaps[type]->GetCPUDescriptorHandleForHeapStart();
-				descriptor_handle.ptr += index * _descriptor_handle_size[type];
-				return descriptor_handle;
-			}
-			else
-			{
-				return D3D12_CPU_DESCRIPTOR_HANDLE { 0 };
-			}
-		}
-
-		std::vector<bool> _resource_view_heaps_usage[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
-		com_ptr<ID3D12DescriptorHeap> _resource_view_heaps[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
+		mutable std::mutex _mutex;
+		std::vector<ID3D12CommandQueue *> _queues;
+		std::vector<bool> _resource_view_pool_state[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
+		com_ptr<ID3D12DescriptorHeap> _resource_view_pool[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
 	};
 
 	class command_list_impl : public api::api_object_impl<api::command_list>
@@ -127,7 +104,8 @@ namespace reshade::d3d12
 		void clear_depth_stencil_view(api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil) override;
 		void clear_render_target_view(api::resource_view_handle rtv, const float color[4]) override;
 
-		// Pointer to original command list object (managed by D3D12CommandList class)
+	public:
+		// Pointer to original command list object (managed by D3D12GraphicsCommandList class)
 		ID3D12GraphicsCommandList *_orig;
 
 	protected:
@@ -170,6 +148,7 @@ namespace reshade::d3d12
 
 		void flush_immediate_command_list() const override;
 
+	public:
 		// Pointer to original command queue object (managed by D3D12CommandQueue class)
 		ID3D12CommandQueue *_orig;
 

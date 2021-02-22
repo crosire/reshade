@@ -9,7 +9,7 @@
 #include <d3dcompiler.h>
 
 reshade::d3d9::runtime_d3d9::runtime_d3d9(device_impl *device, IDirect3DSwapChain9 *swapchain) :
-	_device_impl(device), _device(device->_orig), _swapchain(swapchain)
+	_app_state(device->_orig), _device_impl(device), _device(device->_orig), _swapchain(swapchain)
 {
 	_renderer_id = 0x9000;
 
@@ -123,6 +123,10 @@ bool reshade::d3d9::runtime_d3d9::on_init()
 	if (FAILED(_device->CreateVertexDeclaration(declaration, &_effect_vertex_layout)))
 		return false;
 
+	// Create state block object
+	if (!_app_state.init_state_block())
+		return false;
+
 #if RESHADE_GUI
 	if (!init_imgui_resources())
 		return false;
@@ -133,6 +137,8 @@ bool reshade::d3d9::runtime_d3d9::on_init()
 void reshade::d3d9::runtime_d3d9::on_reset()
 {
 	runtime::on_reset();
+
+	_app_state.release_state_block();
 
 	_backbuffer.reset();
 	_backbuffer_resolved.reset();
@@ -161,7 +167,7 @@ void reshade::d3d9::runtime_d3d9::on_present()
 	if (!_is_initialized || FAILED(_device->BeginScene()))
 		return;
 
-	_device_impl->_app_state.capture();
+	_app_state.capture();
 	BOOL software_rendering_enabled = FALSE;
 	if ((_device_impl->_cp.BehaviorFlags & D3DCREATE_MIXED_VERTEXPROCESSING) != 0)
 		software_rendering_enabled = _device->GetSoftwareVertexProcessing(),
@@ -179,7 +185,7 @@ void reshade::d3d9::runtime_d3d9::on_present()
 		_device->StretchRect(_backbuffer_resolved.get(), nullptr, _backbuffer.get(), nullptr, D3DTEXF_NONE);
 
 	// Apply previous state from application
-	_device_impl->_app_state.apply_and_release();
+	_app_state.apply_and_release();
 	if ((_device_impl->_cp.BehaviorFlags & D3DCREATE_MIXED_VERTEXPROCESSING) != 0)
 		_device->SetSoftwareVertexProcessing(software_rendering_enabled);
 

@@ -8,7 +8,7 @@
 #include "com_ptr.hpp"
 #include "com_tracking.hpp"
 #include "addon_manager.hpp"
-#include "state_block_d3d9.hpp"
+#include <d3d9.h>
 
 namespace reshade::d3d9
 {
@@ -70,14 +70,15 @@ namespace reshade::d3d9
 		// Cached device capabilities for quick access
 		D3DCAPS9 _caps;
 		D3DDEVICE_CREATION_PARAMETERS _cp;
-		// Device-local resources that may be used by multiple effect runtimes
-		state_block _app_state;
-		com_ptr<IDirect3DStateBlock9> _copy_state;
 
 	protected:
 		void on_reset();
 		void on_after_reset(const D3DPRESENT_PARAMETERS &pp);
 
 		com_object_list<IDirect3DResource9, true> _resources;
+
+	private:
+		com_ptr<IDirect3DStateBlock9> _copy_state;
+		com_ptr<IDirect3DStateBlock9> _backup_state;
 	};
 }

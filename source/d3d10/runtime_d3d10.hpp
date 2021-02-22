@@ -46,6 +46,10 @@ namespace reshade::d3d10
 		const com_ptr<ID3D10Device1> _device;
 		const com_ptr<IDXGISwapChain> _swapchain;
 
+		com_ptr<ID3D10PixelShader> _copy_pixel_shader;
+		com_ptr<ID3D10VertexShader> _copy_vertex_shader;
+		com_ptr<ID3D10SamplerState> _copy_sampler_state;
+
 		DXGI_FORMAT _backbuffer_format = DXGI_FORMAT_UNKNOWN;
 		com_ptr<ID3D10Texture2D> _backbuffer;
 		com_ptr<ID3D10Texture2D> _backbuffer_resolved;

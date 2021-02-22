@@ -4,7 +4,6 @@
  */
 
 #include "render_d3d11.hpp"
-#include "dll_resources.hpp"
 
 using namespace reshade::api;
 
@@ -702,26 +701,7 @@ resource_view_desc reshade::d3d11::convert_resource_view_desc(const D3D11_UNORDE
 reshade::d3d11::device_impl::device_impl(ID3D11Device *device) :
 	_orig(device)
 {
-	// Create copy states
-	const resources::data_resource ps = resources::load_data_resource(IDR_COPY_PS);
-	if (FAILED(_orig->CreatePixelShader(ps.data, ps.data_size, nullptr, &_copy_pixel_shader)))
-		return;
-	const resources::data_resource vs = resources::load_data_resource(IDR_FULLSCREEN_VS);
-	if (FAILED(_orig->CreateVertexShader(vs.data, vs.data_size, nullptr, &_copy_vertex_shader)))
-		return;
-
-	{   D3D11_SAMPLER_DESC desc = {};
-		desc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
-		desc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
-		desc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
-		desc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
-
-		if (FAILED(_orig->CreateSamplerState(&desc, &_copy_sampler_state)))
-			return;
-	}
-
 #if RESHADE_ADDON
-	// Load and initialize add-ons
 	reshade::addon::load_addons();
 #endif
 

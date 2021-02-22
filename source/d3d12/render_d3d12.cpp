@@ -3,9 +3,8 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "render_d3d12.hpp"
 #include "dll_log.hpp"
-#include "dll_resources.hpp"
+#include "render_d3d12.hpp"
 
 using namespace reshade::api;
 
@@ -553,65 +552,11 @@ reshade::d3d12::device_impl::device_impl(ID3D12Device *device) :
 		D3D12_DESCRIPTOR_HEAP_DESC heap_desc = {};
 		heap_desc.Type = static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>(type);
 		heap_desc.NumDescriptors = 32;
-		_orig->CreateDescriptorHeap(&heap_desc, IID_PPV_ARGS(&_resource_view_heaps[type]));
-		_resource_view_heaps_usage[type].resize(heap_desc.NumDescriptors);
-	}
-
-	// Create mipmap generation states
-	{   D3D12_DESCRIPTOR_RANGE srv_range = {};
-		srv_range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-		srv_range.NumDescriptors = 1;
-		srv_range.BaseShaderRegister = 0; // t0
-		D3D12_DESCRIPTOR_RANGE uav_range = {};
-		uav_range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
-		uav_range.NumDescriptors = 1;
-		uav_range.BaseShaderRegister = 0; // u0
-
-		D3D12_ROOT_PARAMETER params[3] = {};
-		params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
-		params[0].Constants.ShaderRegister = 0; // b0
-		params[0].Constants.Num32BitValues = 2;
-		params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-		params[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-		params[1].DescriptorTable.NumDescriptorRanges = 1;
-		params[1].DescriptorTable.pDescriptorRanges = &srv_range;
-		params[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-		params[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-		params[2].DescriptorTable.NumDescriptorRanges = 1;
-		params[2].DescriptorTable.pDescriptorRanges = &uav_range;
-		params[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-
-		D3D12_STATIC_SAMPLER_DESC samplers[1] = {};
-		samplers[0].Filter = D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT;
-		samplers[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-		samplers[0].AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-		samplers[0].AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-		samplers[0].ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-		samplers[0].ShaderRegister = 0; // s0
-		samplers[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-
-		D3D12_ROOT_SIGNATURE_DESC desc = {};
-		desc.NumParameters = ARRAYSIZE(params);
-		desc.pParameters = params;
-		desc.NumStaticSamplers = ARRAYSIZE(samplers);
-		desc.pStaticSamplers = samplers;
-
-		_mipmap_signature = create_root_signature(desc);
-		assert(_mipmap_signature != nullptr);
-	}
-
-	{   D3D12_COMPUTE_PIPELINE_STATE_DESC pso_desc = {};
-		pso_desc.pRootSignature = _mipmap_signature.get();
-
-		const resources::data_resource cs = resources::load_data_resource(IDR_MIPMAP_CS);
-		pso_desc.CS = { cs.data, cs.data_size };
-
-		_orig->CreateComputePipelineState(&pso_desc, IID_PPV_ARGS(&_mipmap_pipeline));
-		assert(_mipmap_pipeline != nullptr);
+		_orig->CreateDescriptorHeap(&heap_desc, IID_PPV_ARGS(&_resource_view_pool[type]));
+		_resource_view_pool_state[type].resize(heap_desc.NumDescriptors);
 	}
 
 #if RESHADE_ADDON
-	// Load and initialize add-ons
 	reshade::addon::load_addons();
 #endif
 
@@ -775,11 +720,11 @@ void reshade::d3d12::device_impl::destroy_resource_view(resource_view_handle vie
 	// Mark free slot in the descriptor heap
 	for (UINT type = 0; type < D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES; ++type)
 	{
-		const D3D12_CPU_DESCRIPTOR_HANDLE heap_start = _resource_view_heaps[type]->GetCPUDescriptorHandleForHeapStart();
-		if (view.handle >= heap_start.ptr && view.handle < (heap_start.ptr + _resource_view_heaps_usage[type].size() * _descriptor_handle_size[type]))
+		const D3D12_CPU_DESCRIPTOR_HANDLE heap_start = _resource_view_pool[type]->GetCPUDescriptorHandleForHeapStart();
+		if (view.handle >= heap_start.ptr && view.handle < (heap_start.ptr + _resource_view_pool_state[type].size() * _descriptor_handle_size[type]))
 		{
 			const size_t index = (view.handle - heap_start.ptr) / _descriptor_handle_size[type];
-			_resource_view_heaps_usage[type][index] = false;
+			_resource_view_pool_state[type][index] = false;
 			break;
 		}
 	}
@@ -826,13 +771,25 @@ void reshade::d3d12::device_impl::wait_idle() const
 	CloseHandle(fence_event);
 }
 
-com_ptr<ID3D12RootSignature> reshade::d3d12::device_impl::create_root_signature(const D3D12_ROOT_SIGNATURE_DESC &desc) const
+D3D12_CPU_DESCRIPTOR_HANDLE reshade::d3d12::device_impl::allocate_descriptor_handle(D3D12_DESCRIPTOR_HEAP_TYPE type)
 {
-	com_ptr<ID3DBlob> signature_blob;
-	com_ptr<ID3D12RootSignature> signature;
-	if (SUCCEEDED(D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &signature_blob, nullptr)))
-		_orig->CreateRootSignature(0, signature_blob->GetBufferPointer(), signature_blob->GetBufferSize(), IID_PPV_ARGS(&signature));
-	return signature;
+	std::vector<bool> &state = _resource_view_pool_state[type];
+	// Find free entry in the descriptor heap
+	const std::lock_guard<std::mutex> lock(_mutex);
+	if (const auto it = std::find(state.begin(), state.end(), false);
+		it != state.end() && _resource_view_pool[type] != nullptr)
+	{
+		const size_t index = it - state.begin();
+		state[index] = true; // Mark this entry as being in use
+
+		D3D12_CPU_DESCRIPTOR_HANDLE descriptor_handle = _resource_view_pool[type]->GetCPUDescriptorHandleForHeapStart();
+		descriptor_handle.ptr += index * _descriptor_handle_size[type];
+		return descriptor_handle;
+	}
+	else
+	{
+		return D3D12_CPU_DESCRIPTOR_HANDLE { 0 };
+	}
 }
 
 reshade::d3d12::command_list_impl::command_list_impl(device_impl *device, ID3D12GraphicsCommandList *cmd_list) :
@@ -995,9 +952,7 @@ reshade::d3d12::command_queue_impl::command_queue_impl(device_impl *device, ID3D
 
 	// Only create an immediate command list for graphics queues (since the implemented commands do not work on other queue types)
 	if (queue->GetDesc().Type == D3D12_COMMAND_LIST_TYPE_DIRECT)
-	{
 		_immediate_cmd_list = new command_list_immediate_impl(device);
-	}
 
 	RESHADE_ADDON_EVENT(init_command_queue, this);
 }

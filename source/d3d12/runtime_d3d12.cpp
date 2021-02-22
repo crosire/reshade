@@ -4,6 +4,7 @@
  */
 
 #include "dll_log.hpp"
+#include "dll_resources.hpp"
 #include "runtime_d3d12.hpp"
 #include "runtime_d3d12_objects.hpp"
 #include "dxgi/format_utils.hpp"
@@ -12,6 +13,15 @@
 
 #define D3D12_RESOURCE_STATE_SHADER_RESOURCE \
 	(D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)
+
+com_ptr<ID3D12RootSignature> create_root_signature(ID3D12Device *device, const D3D12_ROOT_SIGNATURE_DESC &desc)
+{
+	com_ptr<ID3DBlob> signature_blob;
+	com_ptr<ID3D12RootSignature> signature;
+	if (SUCCEEDED(D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &signature_blob, nullptr)))
+		device->CreateRootSignature(0, signature_blob->GetBufferPointer(), signature_blob->GetBufferSize(), IID_PPV_ARGS(&signature));
+	return signature;
+}
 
 reshade::d3d12::runtime_d3d12::runtime_d3d12(device_impl *device, command_queue_impl *queue, IDXGISwapChain3 *swapchain) :
 	_device_impl(device), _device(device->_orig), _swapchain(swapchain), _queue_impl(queue), _queue(queue->_orig), _cmd_impl(static_cast<command_list_immediate_impl *>(queue->get_immediate_command_list()))
@@ -153,6 +163,64 @@ bool reshade::d3d12::runtime_d3d12::on_init(const DXGI_SWAP_CHAIN_DESC &swap_des
 		_effect_stencil->SetName(L"ReShade stencil buffer");
 
 		_device->CreateDepthStencilView(_effect_stencil.get(), nullptr, _depthstencil_dsvs->GetCPUDescriptorHandleForHeapStart());
+	}
+
+	// Create mipmap generation states
+	if (_mipmap_signature == nullptr)
+	{
+		D3D12_DESCRIPTOR_RANGE srv_range = {};
+		srv_range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+		srv_range.NumDescriptors = 1;
+		srv_range.BaseShaderRegister = 0; // t0
+		D3D12_DESCRIPTOR_RANGE uav_range = {};
+		uav_range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+		uav_range.NumDescriptors = 1;
+		uav_range.BaseShaderRegister = 0; // u0
+
+		D3D12_ROOT_PARAMETER params[3] = {};
+		params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+		params[0].Constants.ShaderRegister = 0; // b0
+		params[0].Constants.Num32BitValues = 2;
+		params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+		params[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		params[1].DescriptorTable.NumDescriptorRanges = 1;
+		params[1].DescriptorTable.pDescriptorRanges = &srv_range;
+		params[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+		params[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		params[2].DescriptorTable.NumDescriptorRanges = 1;
+		params[2].DescriptorTable.pDescriptorRanges = &uav_range;
+		params[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+		D3D12_STATIC_SAMPLER_DESC samplers[1] = {};
+		samplers[0].Filter = D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT;
+		samplers[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		samplers[0].AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		samplers[0].AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		samplers[0].ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+		samplers[0].ShaderRegister = 0; // s0
+		samplers[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+		D3D12_ROOT_SIGNATURE_DESC desc = {};
+		desc.NumParameters = ARRAYSIZE(params);
+		desc.pParameters = params;
+		desc.NumStaticSamplers = ARRAYSIZE(samplers);
+		desc.pStaticSamplers = samplers;
+
+		_mipmap_signature = create_root_signature(_device.get(), desc);
+		if (_mipmap_signature == nullptr)
+			return false;
+	}
+
+	if (_mipmap_pipeline == nullptr)
+	{
+		D3D12_COMPUTE_PIPELINE_STATE_DESC pso_desc = {};
+		pso_desc.pRootSignature = _mipmap_signature.get();
+
+		const resources::data_resource cs = resources::load_data_resource(IDR_MIPMAP_CS);
+		pso_desc.CS = { cs.data, cs.data_size };
+
+		if (FAILED(_device->CreateComputePipelineState(&pso_desc, IID_PPV_ARGS(&_mipmap_pipeline))))
+			return false;
 	}
 
 #if RESHADE_GUI
@@ -481,7 +549,7 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 		desc.NumParameters = effect.module.num_storage_bindings == 0 ? 3 : 4;
 		desc.pParameters = params;
 
-		effect_data.signature = _device_impl->create_root_signature(desc);
+		effect_data.signature = create_root_signature(_device.get(), desc);
 		if (effect_data.signature == nullptr)
 		{
 			LOG(ERROR) << "Failed to create root signature for effect file '" << effect.source_file << "'!";
@@ -1147,8 +1215,8 @@ void reshade::d3d12::runtime_d3d12::generate_mipmaps(const tex_data *impl)
 		return; // No need to generate mipmaps when texture does not have any
 
 	ID3D12GraphicsCommandList *const cmd_list = _cmd_impl->begin_commands();
-	cmd_list->SetComputeRootSignature(_device_impl->_mipmap_signature.get());
-	cmd_list->SetPipelineState(_device_impl->_mipmap_pipeline.get());
+	cmd_list->SetComputeRootSignature(_mipmap_signature.get());
+	cmd_list->SetPipelineState(_mipmap_pipeline.get());
 	ID3D12DescriptorHeap *const descriptor_heap = impl->descriptors.get();
 	cmd_list->SetDescriptorHeaps(1, &descriptor_heap);
 

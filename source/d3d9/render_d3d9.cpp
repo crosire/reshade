@@ -136,7 +136,7 @@ resource_desc reshade::d3d9::convert_resource_desc(const D3DVERTEXBUFFER_DESC &i
 }
 
 reshade::d3d9::device_impl::device_impl(IDirect3DDevice9 *device) :
-	_orig(device), _caps(), _cp(), _app_state(device)
+	_orig(device), _caps(), _cp()
 {
 	_orig->GetDeviceCaps(&_caps);
 	_orig->GetCreationParameters(&_cp);
@@ -146,7 +146,6 @@ reshade::d3d9::device_impl::device_impl(IDirect3DDevice9 *device) :
 		_caps.NumSimultaneousRTs = 8;
 
 #if RESHADE_ADDON
-	// Load and initialize add-ons
 	reshade::addon::load_addons();
 #endif
 
@@ -168,18 +167,19 @@ reshade::d3d9::device_impl::~device_impl()
 void reshade::d3d9::device_impl::on_reset()
 {
 	// Do not call add-on events if this device was already reset before
-	if (_copy_state == nullptr)
+	if (_copy_state == nullptr || _backup_state == nullptr)
 		return;
 
 	// Force add-ons to release all resources associated with this device before performing reset
 	RESHADE_ADDON_EVENT(destroy_command_queue, this);
 	RESHADE_ADDON_EVENT(destroy_device, this);
 
-	_app_state.release_state_block();
 	_copy_state.reset();
+	_backup_state.reset();
 }
 void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 {
+	// Create state blocks used for resource copying
 	HRESULT hr = _orig->BeginStateBlock();
 	if (SUCCEEDED(hr))
 	{
@@ -219,10 +219,13 @@ void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 		_orig->SetSamplerState(0, D3DSAMP_SRGBTEXTURE, 0);
 
 		hr = _orig->EndStateBlock(&_copy_state);
-	}
+		if (FAILED(hr))
+			return;
 
-	// Create state block object
-	_app_state.init_state_block();
+		hr = _orig->CreateStateBlock(D3DSBT_PIXELSTATE, &_backup_state);
+		if (FAILED(hr))
+			return;
+	}
 
 	RESHADE_ADDON_EVENT(init_device, this);
 	RESHADE_ADDON_EVENT(init_command_queue, this);
@@ -512,24 +515,30 @@ void reshade::d3d9::device_impl::copy_resource(resource_handle source, resource_
 		}
 		case D3DRTYPE_SURFACE | (D3DRTYPE_TEXTURE << 4):
 		{
-			com_ptr<IDirect3DSurface9> target;
-			static_cast<IDirect3DTexture9 *>(destination_object)->GetSurfaceLevel(0, &target);
+			com_ptr<IDirect3DSurface9> destination_surface;
+			static_cast<IDirect3DTexture9 *>(destination_object)->GetSurfaceLevel(0, &destination_surface);
 			// Stretching from an offscreen color surface into a texture is supported, however the other way around is not
-			_orig->StretchRect(static_cast<IDirect3DSurface9 *>(source_object), nullptr, target.get(), nullptr, D3DTEXF_NONE);
+			_orig->StretchRect(static_cast<IDirect3DSurface9 *>(source_object), nullptr, destination_surface.get(), nullptr, D3DTEXF_NONE);
 			return;
 		}
 		case D3DRTYPE_TEXTURE | (D3DRTYPE_TEXTURE << 4):
 		{
-			_app_state.capture();
+			com_ptr<IDirect3DSurface9> render_targets[8];
+			for (DWORD target = 0; target < _caps.NumSimultaneousRTs; ++target)
+				_orig->GetRenderTarget(target, &render_targets[target]);
+
+			_backup_state->Capture();
 
 			// Perform copy using fullscreen triangle
 			_copy_state->Apply();
 
 			// TODO: This copies the first level only ...
-			com_ptr<IDirect3DSurface9> target;
-			static_cast<IDirect3DTexture9 *>(destination_object)->GetSurfaceLevel(0, &target);
+			com_ptr<IDirect3DSurface9> destination_surface;
+			static_cast<IDirect3DTexture9 *>(destination_object)->GetSurfaceLevel(0, &destination_surface);
 			_orig->SetTexture(0, static_cast<IDirect3DTexture9 *>(source_object));
-			_orig->SetRenderTarget(0, target.get());
+			_orig->SetRenderTarget(0, destination_surface.get());
+			for (DWORD target = 1; target < _caps.NumSimultaneousRTs; ++target)
+				_orig->SetRenderTarget(target, nullptr);
 
 			const float vertices[4][5] = {
 				// x      y      z      tu     tv
@@ -540,17 +549,27 @@ void reshade::d3d9::device_impl::copy_resource(resource_handle source, resource_
 			};
 			_orig->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, vertices, sizeof(vertices[0]));
 
-			_app_state.apply_and_release();
+			for (DWORD target = 0; target < _caps.NumSimultaneousRTs; ++target)
+				_orig->SetRenderTarget(target, render_targets[target].get());
+
+			// Apply backup state block after setting render targets, so that viewport is set correctly
+			_backup_state->Apply();
 			return;
 		}
 		case D3DRTYPE_TEXTURE | (D3DRTYPE_SURFACE << 4):
 		{
-			_app_state.capture();
+			com_ptr<IDirect3DSurface9> render_targets[8];
+			for (DWORD target = 0; target < _caps.NumSimultaneousRTs; ++target)
+				_orig->GetRenderTarget(target, &render_targets[target]);
+
+			_backup_state->Capture();
 
 			_copy_state->Apply();
 
 			_orig->SetTexture(0, static_cast<IDirect3DTexture9 *>(source_object));
 			_orig->SetRenderTarget(0, static_cast<IDirect3DSurface9 *>(destination_object));
+			for (DWORD target = 1; target < _caps.NumSimultaneousRTs; ++target)
+				_orig->SetRenderTarget(target, nullptr);
 
 			const float vertices[4][5] = {
 				// x      y      z      tu     tv
@@ -561,7 +580,10 @@ void reshade::d3d9::device_impl::copy_resource(resource_handle source, resource_
 			};
 			_orig->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, vertices, sizeof(vertices[0]));
 
-			_app_state.apply_and_release();
+			for (DWORD target = 0; target < _caps.NumSimultaneousRTs; ++target)
+				_orig->SetRenderTarget(target, render_targets[target].get());
+
+			_backup_state->Apply();
 			return;
 		}
 	}

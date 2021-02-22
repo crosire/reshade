@@ -41,6 +41,7 @@ namespace reshade::d3d9
 
 		void render_technique(technique &technique) override;
 
+		state_block _app_state;
 		device_impl *const _device_impl;
 		const com_ptr<IDirect3DDevice9> _device;
 		const com_ptr<IDirect3DSwapChain9> _swapchain;

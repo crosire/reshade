@@ -10,6 +10,8 @@
 #include "runtime_d3d12_objects.hpp"
 #include <imgui.h>
 
+extern com_ptr<ID3D12RootSignature> create_root_signature(ID3D12Device *device, const D3D12_ROOT_SIGNATURE_DESC &desc);
+
 bool reshade::d3d12::runtime_d3d12::init_imgui_resources()
 {
 	if (_imgui.signature == nullptr)
@@ -45,7 +47,9 @@ bool reshade::d3d12::runtime_d3d12::init_imgui_resources()
 		desc.pStaticSamplers = samplers;
 		desc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
-		_imgui.signature = _device_impl->create_root_signature(desc);
+		_imgui.signature = create_root_signature(_device.get(), desc);
+		if (_imgui.signature == nullptr)
+			return false;
 	}
 
 	if (_imgui.pipeline != nullptr)

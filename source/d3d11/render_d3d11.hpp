@@ -63,13 +63,9 @@ namespace reshade::d3d11
 
 		void wait_idle() const override { /* no-op */ }
 
+	public:
 		// Pointer to original device object (managed by D3D11Device class)
 		ID3D11Device *_orig;
-
-		// Device-local resources that may be used by multiple effect runtimes
-		com_ptr<ID3D11PixelShader > _copy_pixel_shader;
-		com_ptr<ID3D11VertexShader> _copy_vertex_shader;
-		com_ptr<ID3D11SamplerState> _copy_sampler_state;
 
 	protected:
 		com_object_list<ID3D11View> _views;
@@ -96,6 +92,7 @@ namespace reshade::d3d11
 		void clear_depth_stencil_view(api::resource_view_handle, uint32_t, float, uint8_t) override {}
 		void clear_render_target_view(api::resource_view_handle, const float[4]) override {}
 
+	public:
 		// Pointer to original command list object (managed by D3D11CommandList class)
 		ID3D11CommandList *_orig;
 
@@ -127,6 +124,7 @@ namespace reshade::d3d11
 		void clear_depth_stencil_view(api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil) override;
 		void clear_render_target_view(api::resource_view_handle rtv, const float color[4]) override;
 
+	public:
 		// Pointer to original device context object (managed by D3D11DeviceContext class)
 		ID3D11DeviceContext *_orig;
 

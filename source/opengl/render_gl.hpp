@@ -63,7 +63,9 @@ namespace reshade::opengl
 		void clear_depth_stencil_view(api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil) override;
 		void clear_render_target_view(api::resource_view_handle rtv, const float color[4]) override;
 
+	public:
 		bool _compatibility_context = false;
+		const HGLRC _hglrc;
 		std::unordered_set<HDC> _hdcs;
 		GLuint _current_vertex_count = 0; // Used to calculate vertex count inside glBegin/glEnd pairs
 
@@ -75,7 +77,6 @@ namespace reshade::opengl
 		GLenum _default_depth_format = GL_NONE;
 
 	private:
-		const HGLRC _hglrc;
 		GLuint _copy_fbo[2] = {};
 	};
 }

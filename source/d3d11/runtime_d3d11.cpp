@@ -4,6 +4,7 @@
  */
 
 #include "dll_log.hpp"
+#include "dll_resources.hpp"
 #include "runtime_d3d11.hpp"
 #include "runtime_d3d11_objects.hpp"
 #include "dxgi/format_utils.hpp"
@@ -12,7 +13,7 @@
 extern bool is_windows7();
 
 reshade::d3d11::runtime_d3d11::runtime_d3d11(device_impl *device, device_context_impl *immediate_context, IDXGISwapChain *swapchain) :
-	_app_state(device->_orig), _device_impl(device), _device(device->_orig), _immediate_context_impl(immediate_context), _immediate_context(immediate_context->_orig), _swapchain(swapchain)
+	_app_state(device->_orig), _device(device->_orig), _immediate_context_impl(immediate_context), _immediate_context(immediate_context->_orig), _swapchain(swapchain)
 {
 	_renderer_id = _device->GetFeatureLevel();
 
@@ -113,6 +114,32 @@ bool reshade::d3d11::runtime_d3d11::on_init()
 	if (FAILED(_device->CreateRenderTargetView(_backbuffer_resolved.get(), &rtv_desc, &_backbuffer_rtv[1])))
 		return false;
 
+	// Create copy states
+	if (_copy_pixel_shader == nullptr)
+	{
+		const resources::data_resource ps = resources::load_data_resource(IDR_COPY_PS);
+		if (FAILED(_device->CreatePixelShader(ps.data, ps.data_size, nullptr, &_copy_pixel_shader)))
+			return false;
+	}
+	if (_copy_vertex_shader == nullptr)
+	{
+		const resources::data_resource vs = resources::load_data_resource(IDR_FULLSCREEN_VS);
+		if (FAILED(_device->CreateVertexShader(vs.data, vs.data_size, nullptr, &_copy_vertex_shader)))
+			return false;
+	}
+
+	if (_copy_sampler_state == nullptr)
+	{
+		D3D11_SAMPLER_DESC desc = {};
+		desc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
+		desc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+		desc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+		desc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+
+		if (FAILED(_device->CreateSamplerState(&desc, &_copy_sampler_state)))
+			return false;
+	}
+
 	// Create effect states
 	if (_effect_rasterizer == nullptr)
 	{
@@ -207,12 +234,12 @@ void reshade::d3d11::runtime_d3d11::on_present()
 		const uintptr_t null = 0;
 		_immediate_context->IASetVertexBuffers(0, 1, reinterpret_cast<ID3D11Buffer *const *>(&null), reinterpret_cast<const UINT *>(&null), reinterpret_cast<const UINT *>(&null));
 		_immediate_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		_immediate_context->VSSetShader(_device_impl->_copy_vertex_shader.get(), nullptr, 0);
+		_immediate_context->VSSetShader(_copy_vertex_shader.get(), nullptr, 0);
 		_immediate_context->HSSetShader(nullptr, nullptr, 0);
 		_immediate_context->DSSetShader(nullptr, nullptr, 0);
 		_immediate_context->GSSetShader(nullptr, nullptr, 0);
-		_immediate_context->PSSetShader(_device_impl->_copy_pixel_shader.get(), nullptr, 0);
-		ID3D11SamplerState *const samplers[] = { _device_impl->_copy_sampler_state.get() };
+		_immediate_context->PSSetShader(_copy_pixel_shader.get(), nullptr, 0);
+		ID3D11SamplerState *const samplers[] = { _copy_sampler_state.get() };
 		_immediate_context->PSSetSamplers(0, ARRAYSIZE(samplers), samplers);
 		ID3D11ShaderResourceView *const srvs[] = { _backbuffer_texture_srv[make_dxgi_format_srgb(_backbuffer_format) == _backbuffer_format].get() };
 		_immediate_context->PSSetShaderResources(0, ARRAYSIZE(srvs), srvs);

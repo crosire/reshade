@@ -52,6 +52,9 @@ namespace reshade::d3d12
 		const com_ptr<ID3D12CommandQueue> _queue;
 		command_list_immediate_impl *const _cmd_impl;
 
+		com_ptr<ID3D12PipelineState> _mipmap_pipeline;
+		com_ptr<ID3D12RootSignature> _mipmap_signature;
+
 		UINT _swap_index = 0;
 		DXGI_FORMAT _backbuffer_format = DXGI_FORMAT_UNKNOWN;
 		std::vector<com_ptr<ID3D12Resource>> _backbuffers;
