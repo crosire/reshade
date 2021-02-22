@@ -968,7 +968,16 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetVertexShaderConstantB(UINT StartRe
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetStreamSource(UINT StreamNumber, IDirect3DVertexBuffer9 *pStreamData, UINT OffsetInBytes, UINT Stride)
 {
-	return _orig->SetStreamSource(StreamNumber, pStreamData, OffsetInBytes, Stride);
+	const HRESULT hr = _orig->SetStreamSource(StreamNumber, pStreamData, OffsetInBytes, Stride);
+#if RESHADE_ADDON
+	if (SUCCEEDED(hr))
+	{
+		const reshade::api::resource_handle buffer = { reinterpret_cast<uintptr_t>(pStreamData) };
+		const uint64_t offset = OffsetInBytes;
+		RESHADE_ADDON_EVENT(set_vertex_buffers, this, StreamNumber, 1, &buffer, &offset);
+	}
+#endif
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetStreamSource(UINT StreamNumber, IDirect3DVertexBuffer9 **ppStreamData, UINT *OffsetInBytes, UINT *pStride)
 {
@@ -984,7 +993,15 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetStreamSourceFreq(UINT StreamNumber
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetIndices(IDirect3DIndexBuffer9 *pIndexData)
 {
-	return _orig->SetIndices(pIndexData);
+	const HRESULT hr = _orig->SetIndices(pIndexData);
+#if RESHADE_ADDON
+	if (SUCCEEDED(hr))
+	{
+		const reshade::api::resource_handle buffer = { reinterpret_cast<uintptr_t>(pIndexData) };
+		RESHADE_ADDON_EVENT(set_index_buffer, this, buffer, 0);
+	}
+#endif
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetIndices(IDirect3DIndexBuffer9 **ppIndexData)
 {

@@ -1130,6 +1130,7 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 
 		// Install all OpenGL hooks in a single batch job
 #if RESHADE_ADDON
+		HOOK_PROC(glBindBuffer);
 		HOOK_PROC(glBindFramebuffer);
 		HOOK_PROC(glBufferData);
 		HOOK_PROC(glBufferStorage);
@@ -1191,6 +1192,7 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		reshade::hook::apply_queued_actions();
 
 #if RESHADE_ADDON
+		gl3wProcs.gl.BindBuffer = reshade::hooks::call(glBindBuffer);
 		gl3wProcs.gl.BindFramebuffer = reshade::hooks::call(glBindFramebuffer);
 		gl3wProcs.gl.BufferData = reshade::hooks::call(glBufferData);
 		gl3wProcs.gl.ClearBufferfv = reshade::hooks::call(glClearBufferfv);

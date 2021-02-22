@@ -8,8 +8,8 @@
 #include "runtime.hpp"
 
 bool reshade::addon::event_list_enabled = true;
-std::vector<void *> disabled_event_list[27]; // Keep in sync with highest value in 'reshade::addon_event' enumeration
-std::vector<void *> reshade::addon::event_list[27];
+std::vector<void *> disabled_event_list[28]; // Keep in sync with highest value in 'reshade::addon_event' enumeration
+std::vector<void *> reshade::addon::event_list[28];
 std::vector<reshade::addon::info> reshade::addon::loaded_info;
 #if RESHADE_GUI
 std::vector<std::pair<std::string, void(*)(reshade::api::effect_runtime *, void *)>> reshade::addon::overlay_list;

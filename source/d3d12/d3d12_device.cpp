@@ -351,6 +351,9 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource(const D3D12_HEAP_
 	{
 		assert(ppvResource != nullptr);
 		_resources.register_object(static_cast<ID3D12Resource *>(*ppvResource));
+
+		if (new_desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
+			register_buffer_gpu_address(static_cast<ID3D12Resource *>(*ppvResource), new_desc.Width);
 	}
 	else
 	{
@@ -395,6 +398,9 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePlacedResource(ID3D12Heap *pHeap, U
 	{
 		assert(ppvResource != nullptr);
 		_resources.register_object(static_cast<ID3D12Resource *>(*ppvResource));
+
+		if (new_desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
+			register_buffer_gpu_address(static_cast<ID3D12Resource *>(*ppvResource), new_desc.Width);
 	}
 	else
 	{
@@ -597,6 +603,9 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource1(const D3D12_HEAP
 	{
 		assert(ppvResource != nullptr);
 		_resources.register_object(static_cast<ID3D12Resource *>(*ppvResource));
+
+		if (new_desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
+			register_buffer_gpu_address(static_cast<ID3D12Resource *>(*ppvResource), new_desc.Width);
 	}
 	else
 	{

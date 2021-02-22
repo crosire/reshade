@@ -42,6 +42,28 @@ HOOK_EXPORT void WINAPI glBegin(GLenum mode)
 	assert(g_current_runtime == nullptr || g_current_runtime->_current_vertex_count == 0);
 }
 
+			void WINAPI glBindBuffer(GLenum target, GLuint buffer)
+{
+	static const auto trampoline = reshade::hooks::call(glBindBuffer);
+	trampoline(target, buffer);
+
+#if RESHADE_ADDON
+	if (g_current_runtime)
+	{
+		const reshade::api::resource_handle resource = { (static_cast<uint64_t>(target) << 40) | buffer };
+		switch (target)
+		{
+		case GL_ARRAY_BUFFER:
+			RESHADE_ADDON_EVENT(set_vertex_buffers, g_current_runtime, 0, 1, &resource, 0);
+			break;
+		case GL_ELEMENT_ARRAY_BUFFER:
+			RESHADE_ADDON_EVENT(set_index_buffer, g_current_runtime, resource, 0);
+			break;
+		}
+	}
+#endif
+}
+
 			void WINAPI glBindFramebuffer(GLenum target, GLuint framebuffer)
 {
 	static const auto trampoline = reshade::hooks::call(glBindFramebuffer);

@@ -5,6 +5,8 @@
 
 #include <GL/gl3w.h>
 
+#undef glBindBuffer
+extern "C" void WINAPI glBindBuffer(GLenum target, GLuint buffer);
 #undef glBindFramebuffer
 extern "C" void WINAPI glBindFramebuffer(GLenum target, GLuint framebuffer);
 #undef glBindTexture

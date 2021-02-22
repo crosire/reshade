@@ -53,6 +53,24 @@ namespace reshade::d3d12
 
 		void wait_idle() const override;
 
+		bool resolve_gpu_address(D3D12_GPU_VIRTUAL_ADDRESS address, ID3D12Resource **out_resource, UINT64 *out_offset)
+		{
+			const std::lock_guard<std::mutex> lock(_mutex);
+			for (const auto &buffer_info : _buffer_gpu_addresses)
+			{
+				if (address < buffer_info.second.StartAddress)
+					continue;
+				const UINT64 address_offset = address - buffer_info.second.StartAddress;
+				if (address_offset < buffer_info.second.SizeInBytes)
+				{
+					*out_offset = address_offset;
+					*out_resource = buffer_info.first;
+					return true;
+				}
+			}
+			return false;
+		}
+
 		// Cached device capabilities for quick access
 		UINT _descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
 
@@ -63,16 +81,21 @@ namespace reshade::d3d12
 		std::vector<ID3D12CommandQueue *> _queues;
 		std::vector<bool> _resource_view_pool_state[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
 		com_ptr<ID3D12DescriptorHeap> _resource_view_pool[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
+		std::vector<std::pair<ID3D12Resource *, D3D12_GPU_VIRTUAL_ADDRESS_RANGE>> _buffer_gpu_addresses;
 
 	protected:
-#if RESHADE_ADDON
 		inline void register_resource_view(ID3D12Resource *resource, D3D12_CPU_DESCRIPTOR_HANDLE handle)
 		{
 			assert(resource != nullptr);
 			const std::lock_guard<std::mutex> lock(_mutex);
 			_views.emplace(handle.ptr, resource);
 		}
-#endif
+		inline void register_buffer_gpu_address(ID3D12Resource *resource, UINT64 size)
+		{
+			assert(resource != nullptr);
+			const std::lock_guard<std::mutex> lock(_mutex);
+			_buffer_gpu_addresses.emplace_back(resource, D3D12_GPU_VIRTUAL_ADDRESS_RANGE { resource->GetGPUVirtualAddress(), size });
+		}
 
 		com_object_list<ID3D12Resource> _resources;
 		std::unordered_map<uint64_t, ID3D12Resource *> _views;

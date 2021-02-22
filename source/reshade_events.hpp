@@ -55,6 +55,14 @@ namespace reshade
 		create_resource_view,
 
 		/// <summary>
+		/// Called after 'IDirect3DDevice9::SetIndices', 'ID3D10Device::IASetIndexBuffer', 'ID3D11DeviceContext::IASetIndexBuffer', 'ID3D12GraphicsCommandList::IASetIndexBuffer', 'glBindBuffer(...)' or 'vkCmdBindIndexBuffer'.
+		/// </summary>
+		set_index_buffer,
+		/// <summary>
+		/// Called after 'IDirect3DDevice9::SetStreamSource', 'ID3D10Device::IASetVertexBuffers', 'ID3D11DeviceContext::IASetVertexBuffers', 'ID3D12GraphicsCommandList::IASetVertexBuffers', 'glBindBuffer(...)' or 'vkCmdBindVertexBuffers'.
+		/// </summary>
+		set_vertex_buffers,
+		/// <summary>
 		/// Called after 'IDirect3DDevice9::SetViewport', 'IDirect3DDevice9::SetRenderTarget' (which implicitly sets the viewport), 'ID3D10Device::RSSetViewports', 'ID3D11DeviceContext::RSSetViewports', 'ID3D12GraphicsCommandList::RSSetViewports', 'glViewport(...)' or 'vkCmdSetViewport'.
 		/// Viewport data format is { viewport[0].x, viewport[0].y, viewport[0].width, viewport[0].height, viewport[0].min_depth, viewport[0].max_depth, viewport[1].x, viewport[1].y, ... }.
 		/// </summary>
@@ -150,6 +158,10 @@ namespace reshade
 	struct addon_event_traits<addon_event::create_resource> { typedef void(*decl)(api::device *device, api::resource_type type, api::resource_desc *desc); };
 	template <>
 	struct addon_event_traits<addon_event::create_resource_view> { typedef void(*decl)(api::device *device, api::resource_handle resource, api::resource_view_type type, api::resource_view_desc *desc); };
+	template <>
+	struct addon_event_traits<addon_event::set_index_buffer> { typedef void(*decl)(api::command_list *cmd, api::resource_handle buffer, uint64_t offset); };
+	template <>
+	struct addon_event_traits<addon_event::set_vertex_buffers> { typedef void(*decl)(api::command_list *cmd, uint32_t first, uint32_t count, const api::resource_handle *buffers, const uint64_t *offsets); };
 	template <>
 	struct addon_event_traits<addon_event::set_viewports> { typedef void(*decl)(api::command_list *cmd, uint32_t first, uint32_t count, const float *viewports); };
 	template <>

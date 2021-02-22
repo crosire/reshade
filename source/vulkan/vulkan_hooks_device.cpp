@@ -1061,6 +1061,36 @@ void     VKAPI_CALL vkCmdSetScissor(VkCommandBuffer commandBuffer, uint32_t firs
 #endif
 }
 
+void     VKAPI_CALL vkCmdBindIndexBuffer(VkCommandBuffer commandBuffer, VkBuffer buffer, VkDeviceSize offset, VkIndexType indexType)
+{
+	GET_DISPATCH_PTR(CmdBindIndexBuffer, commandBuffer);
+	trampoline(commandBuffer, buffer, offset, indexType);
+
+#if RESHADE_ADDON
+	reshade::vulkan::command_list_impl *const cmd_impl = s_vulkan_command_buffers.at(commandBuffer);
+	if (cmd_impl != nullptr)
+	{
+		RESHADE_ADDON_EVENT(set_index_buffer, cmd_impl, reshade::api::resource_handle { (uint64_t)buffer }, offset);
+	}
+#endif
+}
+void     VKAPI_CALL vkCmdBindVertexBuffers(VkCommandBuffer commandBuffer, uint32_t firstBinding, uint32_t bindingCount, const VkBuffer *pBuffers, const VkDeviceSize *pOffsets)
+{
+	GET_DISPATCH_PTR(CmdBindVertexBuffers, commandBuffer);
+	trampoline(commandBuffer, firstBinding, bindingCount, pBuffers, pOffsets);
+
+#if RESHADE_ADDON
+	reshade::vulkan::command_list_impl *const cmd_impl = s_vulkan_command_buffers.at(commandBuffer);
+	if (cmd_impl != nullptr)
+	{
+		const auto buffers = static_cast<reshade::api::resource_handle *>(alloca(sizeof(reshade::api::resource_handle) * bindingCount));
+		for (uint32_t i = 0; i < bindingCount; ++i)
+			buffers[i] = { (uint64_t)pBuffers[i] };
+		RESHADE_ADDON_EVENT(set_vertex_buffers, cmd_impl, firstBinding, bindingCount, buffers, pOffsets);
+	}
+#endif
+}
+
 void     VKAPI_CALL vkCmdDraw(VkCommandBuffer commandBuffer, uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance)
 {
 #if RESHADE_ADDON
