@@ -175,7 +175,7 @@ resource_desc reshade::d3d9::convert_resource_desc(const D3DVERTEXBUFFER_DESC &i
 }
 
 reshade::d3d9::device_impl::device_impl(IDirect3DDevice9 *device) :
-	api_object_impl(device), _caps(), _cp()
+	api_object_impl(device), _caps(), _cp(), _backup_state(device)
 {
 	_orig->GetDirect3D(&_d3d);
 	_orig->GetDeviceCaps(&_caps);
@@ -209,7 +209,7 @@ reshade::d3d9::device_impl::~device_impl()
 void reshade::d3d9::device_impl::on_reset()
 {
 	// Do not call add-on events if this device was already reset before
-	if (_copy_state == nullptr || _backup_state == nullptr)
+	if (_copy_state == nullptr)
 		return;
 
 	// Force add-ons to release all resources associated with this device before performing reset
@@ -217,7 +217,7 @@ void reshade::d3d9::device_impl::on_reset()
 	RESHADE_ADDON_EVENT(destroy_device, this);
 
 	_copy_state.reset();
-	_backup_state.reset();
+	_backup_state.release_state_block();
 }
 void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 {
@@ -264,8 +264,7 @@ void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 		if (FAILED(hr))
 			return;
 
-		hr = _orig->CreateStateBlock(D3DSBT_PIXELSTATE, &_backup_state);
-		if (FAILED(hr))
+		if (!_backup_state.init_state_block())
 			return;
 	}
 
@@ -273,17 +272,61 @@ void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 	RESHADE_ADDON_EVENT(init_command_queue, this);
 
 #if RESHADE_ADDON
-	// Communicate default state to add-ons
-	if (pp.EnableAutoDepthStencil)
+	if (com_ptr<IDirect3DSurface9> auto_depth_stencil;
+		pp.EnableAutoDepthStencil && SUCCEEDED(_orig->GetDepthStencilSurface(&auto_depth_stencil)))
 	{
-		com_ptr<IDirect3DSurface9> auto_depth_stencil;
-		if (SUCCEEDED(_orig->GetDepthStencilSurface(&auto_depth_stencil)))
-			_resources.register_object(auto_depth_stencil.get());
+		_resources.register_object(auto_depth_stencil.get());
 
+		D3DSURFACE_DESC desc = {};
+		auto_depth_stencil->GetDesc(&desc);
+		D3DSURFACE_DESC new_desc = desc;
+
+		reshade::api::resource_desc api_desc = convert_resource_desc(desc, 1, _caps);
+		RESHADE_ADDON_EVENT(create_resource, this, resource_type::surface, &api_desc);
+		convert_resource_desc(api_desc, new_desc);
+
+		// Need to replace auto depth stencil if add-on modified the description
+		if (com_ptr<IDirect3DSurface9> auto_depth_stencil_replacement;
+			std::memcmp(&desc, &new_desc, sizeof(D3DSURFACE_DESC)) != 0 &&
+			create_surface_replacement(new_desc, &auto_depth_stencil_replacement))
+		{
+			// The device will hold a reference to the surface after binding it, so can release this one afterwards
+			_orig->SetDepthStencilSurface(auto_depth_stencil_replacement.get());
+
+			auto_depth_stencil = std::move(auto_depth_stencil_replacement);
+		}
+
+		// Communicate default state to add-ons
 		const reshade::api::resource_view_handle dsv = { reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) };
 		RESHADE_ADDON_EVENT(set_render_targets_and_depth_stencil, this, 0, nullptr, dsv);
 	}
 #endif
+}
+
+bool reshade::d3d9::device_impl::create_surface_replacement(const D3DSURFACE_DESC &new_desc, IDirect3DSurface9 **out_surface, HANDLE *out_shared_handle)
+{
+	com_ptr<IDirect3DTexture9> texture; // Surface will hold a reference to the created texture and keep it alive
+	if (new_desc.MultiSampleType == D3DMULTISAMPLE_NONE &&
+		SUCCEEDED(_orig->CreateTexture(new_desc.Width, new_desc.Height, 1, new_desc.Usage, new_desc.Format, new_desc.Pool, &texture, out_shared_handle)))
+	{
+		_resources.register_object(texture.get());
+
+		reshade::api::resource_view_desc dsv_desc = { reshade::api::resource_view_dimension::texture_2d };
+		dsv_desc.format = static_cast<uint32_t>(new_desc.Format);
+		dsv_desc.first_level = 0;
+		dsv_desc.levels = 1;
+		dsv_desc.first_layer = 0;
+		dsv_desc.layers = 1;
+		RESHADE_ADDON_EVENT(create_resource_view, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(texture.get()) }, reshade::api::resource_view_type::depth_stencil, &dsv_desc);
+		assert(dsv_desc.format == static_cast<uint32_t>(new_desc.Format) && dsv_desc.levels == 1 && dsv_desc.first_layer == 0 && dsv_desc.layers == 1);
+
+		if (SUCCEEDED(texture->GetSurfaceLevel(dsv_desc.first_level, out_surface)))
+		{
+			_resources.register_object(*out_surface);
+			return true; // Successfully created replacement texture and got surface to it
+		}
+	}
+	return false;
 }
 
 bool reshade::d3d9::device_impl::check_format_support(uint32_t format, resource_usage usage) const
@@ -569,24 +612,20 @@ void reshade::d3d9::device_impl::copy_resource(resource_handle source, resource_
 		}
 		case D3DRTYPE_TEXTURE | (D3DRTYPE_TEXTURE << 4):
 		{
-			D3DVIEWPORT9 viewport = {};
-			com_ptr<IDirect3DSurface9> render_targets[8];
-			_orig->GetViewport(&viewport);
-			for (DWORD target = 0; target < _caps.NumSimultaneousRTs; ++target)
-				_orig->GetRenderTarget(target, &render_targets[target]);
-
-			_backup_state->Capture();
+			// Capture and restore state, render targets, depth stencil surface and viewport (which all may change next)
+			_backup_state.capture();
 
 			// Perform copy using rasterization pipeline
 			_copy_state->Apply();
 
-			// TODO: This copies the first level only ...
+			// TODO: This copies the first mipmap level only ...
 			com_ptr<IDirect3DSurface9> destination_surface;
 			static_cast<IDirect3DTexture9 *>(destination_object)->GetSurfaceLevel(0, &destination_surface);
 			_orig->SetTexture(0, static_cast<IDirect3DTexture9 *>(source_object));
 			_orig->SetRenderTarget(0, destination_surface.get());
 			for (DWORD target = 1; target < _caps.NumSimultaneousRTs; ++target)
 				_orig->SetRenderTarget(target, nullptr);
+			_orig->SetDepthStencilSurface(nullptr);
 
 			const float vertices[4][5] = {
 				// x      y      z      tu     tv
@@ -597,11 +636,7 @@ void reshade::d3d9::device_impl::copy_resource(resource_handle source, resource_
 			};
 			_orig->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, vertices, sizeof(vertices[0]));
 
-			_backup_state->Apply();
-
-			for (DWORD target = 0; target < _caps.NumSimultaneousRTs; ++target)
-				_orig->SetRenderTarget(target, render_targets[target].get());
-			_orig->SetViewport(&viewport);
+			_backup_state.apply_and_release();
 			return;
 		}
 		case D3DRTYPE_TEXTURE | (D3DRTYPE_SURFACE << 4):

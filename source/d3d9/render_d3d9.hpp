@@ -8,7 +8,7 @@
 #include "com_ptr.hpp"
 #include "com_tracking.hpp"
 #include "addon_manager.hpp"
-#include <d3d9.h>
+#include "state_block_d3d9.hpp"
 
 namespace reshade::d3d9
 {
@@ -68,12 +68,14 @@ namespace reshade::d3d9
 		com_ptr<IDirect3D9> _d3d;
 
 	private:
+		state_block _backup_state;
 		com_ptr<IDirect3DStateBlock9> _copy_state;
-		com_ptr<IDirect3DStateBlock9> _backup_state;
 
 	protected:
 		void on_reset();
 		void on_after_reset(const D3DPRESENT_PARAMETERS &pp);
+
+		bool create_surface_replacement(const D3DSURFACE_DESC &new_desc, IDirect3DSurface9 **out_surface, HANDLE *out_shared_handle = nullptr);
 
 		com_object_list<IDirect3DResource9, true> _resources;
 	};

@@ -497,27 +497,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurface(UINT Width,
 	// Need to replace surface with a texture if an add-on requested shader access
 	if ((surface_desc.usage & reshade::api::resource_usage::shader_resource) == reshade::api::resource_usage::shader_resource)
 	{
-		com_ptr<IDirect3DTexture9> texture; // Surface will hold a reference to the created texture and keep it alive
-		if (new_desc.MultiSampleType == D3DMULTISAMPLE_NONE &&
-			SUCCEEDED(_orig->CreateTexture(new_desc.Width, new_desc.Height, 1, new_desc.Usage, new_desc.Format, new_desc.Pool, &texture, pSharedHandle)))
-		{
-			_resources.register_object(texture.get());
-
-			reshade::api::resource_view_desc dsv_desc = { reshade::api::resource_view_dimension::texture_2d };
-			dsv_desc.format = static_cast<uint32_t>(new_desc.Format);
-			dsv_desc.first_level = 0;
-			dsv_desc.levels = 1;
-			dsv_desc.first_layer = 0;
-			dsv_desc.layers = 1;
-			RESHADE_ADDON_EVENT(create_resource_view, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(texture.get()) }, reshade::api::resource_view_type::depth_stencil, &dsv_desc);
-			assert(dsv_desc.format == static_cast<uint32_t>(new_desc.Format) && dsv_desc.levels == 1 && dsv_desc.first_layer == 0 && dsv_desc.layers == 1);
-
-			if (SUCCEEDED(texture->GetSurfaceLevel(dsv_desc.first_level, ppSurface)))
-			{
-				_resources.register_object(*ppSurface);
-				return D3D_OK; // Successfully created replacement texture and got surface to it
-			}
-		}
+		if (create_surface_replacement(new_desc, ppSurface, pSharedHandle))
+			return D3D_OK;
 
 		// Restore original format in case replacement texture creation failed
 		new_desc.Format = Format;
@@ -1157,27 +1138,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurfaceEx(UINT Widt
 	// Need to replace surface with a texture if an add-on requested shader access
 	if ((surface_desc.usage & reshade::api::resource_usage::shader_resource) == reshade::api::resource_usage::shader_resource)
 	{
-		com_ptr<IDirect3DTexture9> texture; // Surface will hold a reference to the created texture and keep it alive
-		if (new_desc.MultiSampleType == D3DMULTISAMPLE_NONE &&
-			SUCCEEDED(_orig->CreateTexture(new_desc.Width, new_desc.Height, 1, new_desc.Usage, new_desc.Format, new_desc.Pool, &texture, pSharedHandle)))
-		{
-			_resources.register_object(texture.get());
-
-			reshade::api::resource_view_desc dsv_desc = { reshade::api::resource_view_dimension::texture_2d };
-			dsv_desc.format = static_cast<uint32_t>(new_desc.Format);
-			dsv_desc.first_level = 0;
-			dsv_desc.levels = 1;
-			dsv_desc.first_layer = 0;
-			dsv_desc.layers = 1;
-			RESHADE_ADDON_EVENT(create_resource_view, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(texture.get()) }, reshade::api::resource_view_type::depth_stencil, &dsv_desc);
-			assert(dsv_desc.format == static_cast<uint32_t>(new_desc.Format) && dsv_desc.levels == 1 && dsv_desc.first_layer == 0 && dsv_desc.layers == 1);
-
-			if (SUCCEEDED(texture->GetSurfaceLevel(dsv_desc.first_level, ppSurface)))
-			{
-				_resources.register_object(*ppSurface);
-				return D3D_OK; // Successfully created replacement texture and got surface to it
-			}
-		}
+		if (create_surface_replacement(new_desc, ppSurface, pSharedHandle))
+			return D3D_OK;
 
 		// Restore original format in case replacement texture creation failed
 		new_desc.Format = Format;
