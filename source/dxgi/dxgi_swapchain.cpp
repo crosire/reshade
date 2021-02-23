@@ -241,7 +241,7 @@ ULONG   STDMETHODCALLTYPE DXGISwapChain::Release()
 	if (ref != 0)
 		return _orig->Release(), ref;
 
-	// Delete runtime first to release all internal references to device objects
+	// Destroy runtime first to release all internal references to device objects
 	switch (_direct3d_version)
 	{
 	case 10:
@@ -255,10 +255,8 @@ ULONG   STDMETHODCALLTYPE DXGISwapChain::Release()
 		break;
 	}
 
-	// Release the explicit reference to device that was added in the DXGISwapChain constructor above
-	_direct3d_device->Release();
-
 	const auto orig = _orig;
+	const auto device = _direct3d_device;
 	const auto interface_version = _interface_version;
 #if RESHADE_VERBOSE_LOG
 	LOG(DEBUG) << "Destroying " << "IDXGISwapChain" << interface_version << " object " << this << " (" << orig << ").";
@@ -269,6 +267,9 @@ ULONG   STDMETHODCALLTYPE DXGISwapChain::Release()
 	const ULONG ref_orig = orig->Release();
 	if (ref_orig != 0) // Verify internal reference count
 		LOG(WARN) << "Reference count for " << "IDXGISwapChain" << interface_version << " object " << this << " (" << orig << ") is inconsistent (" << ref_orig << ").";
+
+	// Release the explicit reference to the device that was added in the DXGISwapChain constructor above now that the runtime was destroyed and is longer referencing it
+	device->Release();
 	return 0;
 }
 

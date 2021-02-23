@@ -6,11 +6,11 @@
 #pragma once
 
 #include <D3D12Downlevel.h>
+#include "runtime_d3d12.hpp"
 
 struct D3D12CommandQueue;
-namespace reshade::d3d12 { class runtime_d3d12; }
 
-struct DECLSPEC_UUID("98CF28C0-F383-487E-A61E-3A638FEE29BD") D3D12CommandQueueDownlevel : ID3D12CommandQueueDownlevel
+struct DECLSPEC_UUID("98CF28C0-F383-487E-A61E-3A638FEE29BD") D3D12CommandQueueDownlevel : ID3D12CommandQueueDownlevel, public reshade::d3d12::runtime_d3d12
 {
 	D3D12CommandQueueDownlevel(D3D12CommandQueue *queue, ID3D12CommandQueueDownlevel *original);
 
@@ -26,8 +26,6 @@ struct DECLSPEC_UUID("98CF28C0-F383-487E-A61E-3A638FEE29BD") D3D12CommandQueueDo
 	HRESULT STDMETHODCALLTYPE Present(ID3D12GraphicsCommandList *pOpenCommandList, ID3D12Resource *pSourceTex2D, HWND hWindow, D3D12_DOWNLEVEL_PRESENT_FLAGS Flags) override;
 	#pragma endregion
 
-	ULONG _ref = 1;
 	ID3D12CommandQueueDownlevel *_orig;
 	D3D12CommandQueue *const _parent_queue;
-	reshade::d3d12::runtime_d3d12 *const _runtime;
 };

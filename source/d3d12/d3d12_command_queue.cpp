@@ -15,12 +15,14 @@ D3D12CommandQueue::D3D12CommandQueue(D3D12Device *device, ID3D12CommandQueue *or
 	_device(device)
 {
 	assert(_orig != nullptr && _device != nullptr);
+	// Explicitly add a reference to the device, to ensure it stays valid for the lifetime of this queue object
+	_device->AddRef();
 }
 
 bool D3D12CommandQueue::check_and_upgrade_interface(REFIID riid)
 {
 	if (riid == __uuidof(this) ||
-		riid == __uuidof(IUnknown) ||
+		riid == __uuidof(IUnknown) || // This is the IID_IUnknown identity object
 		riid == __uuidof(ID3D12Object) ||
 		riid == __uuidof(ID3D12DeviceChild) ||
 		riid == __uuidof(ID3D12Pageable))
@@ -89,17 +91,15 @@ ULONG   STDMETHODCALLTYPE D3D12CommandQueue::Release()
 	if (ref != 0)
 		return _orig->Release(), ref;
 
-	// Release before deleting implementation object, since runtime created in D3D12CommandQueueDownlevel may still reference it
-	if (_downlevel != nullptr &&
-		_downlevel->Release() != 0)
+	if (_downlevel != nullptr)
 	{
-		// Do not delete if the downlevel object was not destroyed yet
-		// This will leak, but at least prevents a crash when the runtime created in the downlevel object tries to access the queue implementation object
-		LOG(WARN) << "ID3D12CommandQueue" << _interface_version << " object " << this << " (" << _orig << ") was released before ID3D12CommandQueueDownlevel object " << _downlevel << " (" << _downlevel->_orig << ").";
-		return 0;
+		// Release the reference that was added when the downlevel interface was first queried in 'QueryInterface' above
+		_downlevel->_orig->Release();
+		delete _downlevel;
 	}
 
 	const auto orig = _orig;
+	const auto device = _device;
 	const auto interface_version = _interface_version;
 #if RESHADE_VERBOSE_LOG
 	LOG(DEBUG) << "Destroying " << "ID3D12CommandQueue" << interface_version << " object " << this << " (" << orig << ").";
@@ -109,6 +109,9 @@ ULONG   STDMETHODCALLTYPE D3D12CommandQueue::Release()
 	const ULONG ref_orig = orig->Release();
 	if (ref_orig != 0) // Verify internal reference count
 		LOG(WARN) << "Reference count for " << "ID3D12CommandQueue" << interface_version << " object " << this << " (" << orig << ") is inconsistent (" << ref_orig << ").";
+
+	// Release the explicit reference to the device that was added in the D3D12CommandQueue constructor above now that the queue implementation was destroyed and is no longer referencing it
+	device->Release();
 	return 0;
 }
 

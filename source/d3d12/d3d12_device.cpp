@@ -19,7 +19,7 @@ D3D12Device::D3D12Device(ID3D12Device *original) :
 bool D3D12Device::check_and_upgrade_interface(REFIID riid)
 {
 	if (riid == __uuidof(this) ||
-		riid == __uuidof(IUnknown) ||
+		riid == __uuidof(IUnknown) || // This is the IID_IUnknown identity object
 		riid == __uuidof(ID3D12Object))
 		return true;
 
@@ -92,12 +92,11 @@ ULONG   STDMETHODCALLTYPE D3D12Device::Release()
 	if (ref != 0)
 		return _orig->Release(), ref;
 
-	if (_downlevel != nullptr &&
-		_downlevel->Release() != 0)
+	if (_downlevel != nullptr)
 	{
-		// Do not delete if the downlevel object was not destroyed yet
-		LOG(WARN) << "ID3D12Device" << _interface_version << " object " << this << " (" << _orig << ") was released before ID3D12DeviceDownlevel object " << _downlevel << " (" << _downlevel->_orig << ").";
-		return 0;
+		// Release the reference that was added when the downlevel interface was first queried in 'QueryInterface' above
+		_downlevel->_orig->Release();
+		delete _downlevel;
 	}
 
 	const auto orig = _orig;

@@ -25,7 +25,6 @@ struct DECLSPEC_UUID("918B5021-E085-430C-BA85-D9C0EFE6FAA0") D3D12DeviceDownleve
 	HRESULT STDMETHODCALLTYPE QueryVideoMemoryInfo(UINT NodeIndex, DXGI_MEMORY_SEGMENT_GROUP MemorySegmentGroup, DXGI_QUERY_VIDEO_MEMORY_INFO *pVideoMemoryInfo) override;
 	#pragma endregion
 
-	ULONG _ref = 1;
 	ID3D12DeviceDownlevel *_orig;
 	D3D12Device *const _parent_device;
 };
