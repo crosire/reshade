@@ -10,7 +10,8 @@ using namespace reshade::api;
 static void convert_usage_to_d3d_usage(const resource_usage usage, DWORD &d3d_usage)
 {
 	// Copying textures is implemented using the rasterization pipeline (see 'device_impl::copy_resource' implementation), so needs render target usage too
-	if ((usage & (resource_usage::render_target | resource_usage::copy_dest | resource_usage::copy_source)) != 0)
+	// When the destination in 'IDirect3DDevice9::StretchRect' is a texture surface, it too has to have render target usage (see https://docs.microsoft.com/windows/win32/api/d3d9helper/nf-d3d9helper-idirect3ddevice9-stretchrect)
+	if ((usage & (resource_usage::render_target | resource_usage::copy_dest)) != 0)
 		d3d_usage |= D3DUSAGE_RENDERTARGET;
 	else
 		d3d_usage &= ~D3DUSAGE_RENDERTARGET;
@@ -26,7 +27,7 @@ static void convert_usage_to_d3d_usage(const resource_usage usage, DWORD &d3d_us
 static void convert_d3d_usage_to_usage(const DWORD d3d_usage, resource_usage &usage)
 {
 	if (d3d_usage & D3DUSAGE_RENDERTARGET)
-		usage |= resource_usage::render_target | resource_usage::copy_dest | resource_usage::copy_source;
+		usage |= resource_usage::render_target;
 	if (d3d_usage & D3DUSAGE_DEPTHSTENCIL)
 		usage |= resource_usage::depth_stencil;
 }
@@ -95,7 +96,7 @@ resource_desc reshade::d3d9::convert_resource_desc(const D3DVOLUME_DESC &interna
 
 	return desc;
 }
-resource_desc reshade::d3d9::convert_resource_desc(const D3DSURFACE_DESC &internal_desc, UINT levels)
+resource_desc reshade::d3d9::convert_resource_desc(const D3DSURFACE_DESC &internal_desc, UINT levels, const D3DCAPS9 &caps)
 {
 	assert(internal_desc.Type == D3DRTYPE_SURFACE || internal_desc.Type == D3DRTYPE_TEXTURE || internal_desc.Type == D3DRTYPE_CUBETEXTURE);
 
@@ -115,6 +116,44 @@ resource_desc reshade::d3d9::convert_resource_desc(const D3DSURFACE_DESC &intern
 	convert_d3d_usage_to_usage(internal_desc.Usage, desc.usage);
 	if (internal_desc.Type == D3DRTYPE_TEXTURE || internal_desc.Type == D3DRTYPE_CUBETEXTURE)
 		desc.usage |= resource_usage::shader_resource;
+
+	// Copying is restricted by limitations of 'IDirect3DDevice9::StretchRect' (see https://docs.microsoft.com/windows/win32/api/d3d9helper/nf-d3d9helper-idirect3ddevice9-stretchrect)
+	// or performing copy between two textures using rasterization pipeline (see 'device_impl::copy_resource' implementation)
+	if (internal_desc.Pool == D3DPOOL_DEFAULT && (internal_desc.Type == D3DRTYPE_SURFACE || (internal_desc.Type == D3DRTYPE_TEXTURE && (caps.Caps2 & D3DDEVCAPS2_CAN_STRETCHRECT_FROM_TEXTURES) != 0)))
+	{
+		switch (static_cast<DWORD>(internal_desc.Format))
+		{
+		default:
+			desc.usage |= resource_usage::copy_source;
+			if (internal_desc.Usage & D3DUSAGE_RENDERTARGET)
+				desc.usage |= resource_usage::copy_dest;
+			break;
+		case D3DFMT_DXT1:
+		case D3DFMT_DXT2:
+		case D3DFMT_DXT3:
+		case D3DFMT_DXT4:
+		case D3DFMT_DXT5:
+			// Stretching is not supported if either surface is in a compressed format
+			break;
+		case D3DFMT_D16_LOCKABLE:
+		case D3DFMT_D32:
+		case D3DFMT_D15S1:
+		case D3DFMT_D24S8:
+		case D3DFMT_D24X8:
+		case D3DFMT_D24X4S4:
+		case D3DFMT_D16:
+		case D3DFMT_D32F_LOCKABLE:
+		case D3DFMT_D24FS8:
+		case D3DFMT_D32_LOCKABLE:
+		case D3DFMT_S8_LOCKABLE:
+			// Stretching depth stencil surfaces is extremly limited (does not support copying from surface to texture for example), so just do not allow it
+			assert(internal_desc.Usage & D3DUSAGE_DEPTHSTENCIL);
+			break;
+		case MAKEFOURCC('N', 'U', 'L', 'L'):
+			// Special render target format that has no memory attached, so cannot be copied
+			break;
+		}
+	}
 
 	return desc;
 }
@@ -269,30 +308,31 @@ bool reshade::d3d9::device_impl::check_resource_view_handle_valid(resource_view_
 
 bool reshade::d3d9::device_impl::create_resource(resource_type type, const resource_desc &desc, resource_usage, resource_handle *out_resource)
 {
-	DWORD d3d_usage = 0;
-	convert_usage_to_d3d_usage(desc.usage, d3d_usage);
-
 	switch (type)
 	{
 		case resource_type::buffer:
 		{
-			assert(desc.height == 0);
-
-			if ((desc.usage & resource_usage::index_buffer) != 0)
+			if (desc.usage == resource_usage::index_buffer)
 			{
+				D3DINDEXBUFFER_DESC internal_desc = {};
+				convert_resource_desc(desc, internal_desc);
+
 				// TODO: Index format
 				if (IDirect3DIndexBuffer9 *resource;
-					SUCCEEDED(_orig->CreateIndexBuffer(desc.width, d3d_usage, D3DFMT_UNKNOWN, D3DPOOL_DEFAULT, &resource, nullptr)))
+					SUCCEEDED(_orig->CreateIndexBuffer(internal_desc.Size, internal_desc.Usage, D3DFMT_UNKNOWN, D3DPOOL_DEFAULT, &resource, nullptr)))
 				{
 					_resources.register_object(resource);
 					*out_resource = { reinterpret_cast<uintptr_t>(resource) };
 					return true;
 				}
 			}
-			if ((desc.usage & resource_usage::vertex_buffer) != 0)
+			if (desc.usage == resource_usage::vertex_buffer)
 			{
+				D3DVERTEXBUFFER_DESC internal_desc = {};
+				convert_resource_desc(desc, internal_desc);
+
 				if (IDirect3DVertexBuffer9 *resource;
-					SUCCEEDED(_orig->CreateVertexBuffer(desc.width, d3d_usage, 0, D3DPOOL_DEFAULT, &resource, nullptr)))
+					SUCCEEDED(_orig->CreateVertexBuffer(internal_desc.Size, internal_desc.Usage, 0, D3DPOOL_DEFAULT, &resource, nullptr)))
 				{
 					_resources.register_object(resource);
 					*out_resource = { reinterpret_cast<uintptr_t>(resource) };
@@ -305,23 +345,30 @@ bool reshade::d3d9::device_impl::create_resource(resource_type type, const resou
 		case resource_type::texture_2d:
 		{
 			// Array or multisample textures are not supported in Direct3D 9
-			if (desc.depth_or_layers == 1 && desc.samples == 1)
+			if (desc.depth_or_layers != 1 || desc.samples != 1)
+				break;
+
+			D3DSURFACE_DESC internal_desc = {};
+			convert_resource_desc(desc, internal_desc);
+
+			if (IDirect3DTexture9 *resource;
+				SUCCEEDED(_orig->CreateTexture(internal_desc.Width, internal_desc.Height, desc.levels, internal_desc.Usage, internal_desc.Format, D3DPOOL_DEFAULT, &resource, nullptr)))
 			{
-				if (IDirect3DTexture9 *resource;
-					SUCCEEDED(_orig->CreateTexture(desc.width, desc.height, desc.levels, d3d_usage, static_cast<D3DFORMAT>(desc.format), D3DPOOL_DEFAULT, &resource, nullptr)))
-				{
-					_resources.register_object(resource);
-					*out_resource = { reinterpret_cast<uintptr_t>(resource) };
-					return true;
-				}
+				_resources.register_object(resource);
+				*out_resource = { reinterpret_cast<uintptr_t>(resource) };
+				return true;
 			}
 			break;
 		}
 		case resource_type::texture_3d:
 		{
 			assert(desc.samples == 1); // 3D textures can never have multisampling
+
+			D3DVOLUME_DESC internal_desc = {};
+			convert_resource_desc(desc, internal_desc);
+
 			if (IDirect3DVolumeTexture9 *resource;
-				SUCCEEDED(_orig->CreateVolumeTexture(desc.width, desc.height, desc.depth_or_layers, desc.levels, d3d_usage, static_cast<D3DFORMAT>(desc.format), D3DPOOL_DEFAULT, &resource, nullptr)))
+				SUCCEEDED(_orig->CreateVolumeTexture(internal_desc.Width, internal_desc.Height, internal_desc.Depth, desc.levels, internal_desc.Usage, internal_desc.Format, D3DPOOL_DEFAULT, &resource, nullptr)))
 			{
 				_resources.register_object(resource);
 				*out_resource = { reinterpret_cast<uintptr_t>(resource) };
@@ -448,14 +495,14 @@ resource_desc reshade::d3d9::device_impl::get_resource_desc(resource_handle reso
 		{
 			D3DSURFACE_DESC internal_desc = {};
 			static_cast<IDirect3DSurface9 *>(resource_object)->GetDesc(&internal_desc);
-			return convert_resource_desc(internal_desc);
+			return convert_resource_desc(internal_desc, 1, _caps);
 		}
 		case D3DRTYPE_TEXTURE:
 		{
 			D3DSURFACE_DESC internal_desc = {};
 			static_cast<IDirect3DTexture9 *>(resource_object)->GetLevelDesc(0, &internal_desc);
 			internal_desc.Type = D3DRTYPE_TEXTURE;
-			return convert_resource_desc(internal_desc, static_cast<IDirect3DTexture9 *>(resource_object)->GetLevelCount());
+			return convert_resource_desc(internal_desc, static_cast<IDirect3DTexture9 *>(resource_object)->GetLevelCount(), _caps);
 		}
 		case D3DRTYPE_VOLUMETEXTURE:
 		{
@@ -469,7 +516,7 @@ resource_desc reshade::d3d9::device_impl::get_resource_desc(resource_handle reso
 			D3DSURFACE_DESC internal_desc = {};
 			static_cast<IDirect3DCubeTexture9 *>(resource_object)->GetLevelDesc(0, &internal_desc);
 			internal_desc.Type = D3DRTYPE_CUBETEXTURE;
-			return convert_resource_desc(internal_desc, static_cast<IDirect3DCubeTexture9 *>(resource_object)->GetLevelCount());
+			return convert_resource_desc(internal_desc, static_cast<IDirect3DCubeTexture9 *>(resource_object)->GetLevelCount(), _caps);
 		}
 		case D3DRTYPE_VERTEXBUFFER:
 		{
@@ -517,7 +564,6 @@ void reshade::d3d9::device_impl::copy_resource(resource_handle source, resource_
 		{
 			com_ptr<IDirect3DSurface9> destination_surface;
 			static_cast<IDirect3DTexture9 *>(destination_object)->GetSurfaceLevel(0, &destination_surface);
-			// Stretching from an offscreen color surface into a texture is supported, however the other way around is not
 			_orig->StretchRect(static_cast<IDirect3DSurface9 *>(source_object), nullptr, destination_surface.get(), nullptr, D3DTEXF_NONE);
 			return;
 		}
@@ -531,7 +577,7 @@ void reshade::d3d9::device_impl::copy_resource(resource_handle source, resource_
 
 			_backup_state->Capture();
 
-			// Perform copy using fullscreen triangle
+			// Perform copy using rasterization pipeline
 			_copy_state->Apply();
 
 			// TODO: This copies the first level only ...
@@ -560,35 +606,9 @@ void reshade::d3d9::device_impl::copy_resource(resource_handle source, resource_
 		}
 		case D3DRTYPE_TEXTURE | (D3DRTYPE_SURFACE << 4):
 		{
-			D3DVIEWPORT9 viewport = {};
-			com_ptr<IDirect3DSurface9> render_targets[8];
-			_orig->GetViewport(&viewport);
-			for (DWORD target = 0; target < _caps.NumSimultaneousRTs; ++target)
-				_orig->GetRenderTarget(target, &render_targets[target]);
-
-			_backup_state->Capture();
-
-			_copy_state->Apply();
-
-			_orig->SetTexture(0, static_cast<IDirect3DTexture9 *>(source_object));
-			_orig->SetRenderTarget(0, static_cast<IDirect3DSurface9 *>(destination_object));
-			for (DWORD target = 1; target < _caps.NumSimultaneousRTs; ++target)
-				_orig->SetRenderTarget(target, nullptr);
-
-			const float vertices[4][5] = {
-				// x      y      z      tu     tv
-				{ -1.0f,  1.0f,  0.0f,  0.0f,  0.0f },
-				{  1.0f,  1.0f,  0.0f,  1.0f,  0.0f },
-				{ -1.0f, -1.0f,  0.0f,  0.0f,  1.0f },
-				{  1.0f, -1.0f,  0.0f,  1.0f,  1.0f },
-			};
-			_orig->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, vertices, sizeof(vertices[0]));
-
-			_backup_state->Apply();
-
-			for (DWORD target = 0; target < _caps.NumSimultaneousRTs; ++target)
-				_orig->SetRenderTarget(target, render_targets[target].get());
-			_orig->SetViewport(&viewport);
+			com_ptr<IDirect3DSurface9> source_surface;
+			static_cast<IDirect3DTexture9 *>(source_object)->GetSurfaceLevel(0, &source_surface);
+			_orig->StretchRect(source_surface.get(), nullptr, static_cast<IDirect3DSurface9 *>(destination_object), nullptr, D3DTEXF_NONE);
 			return;
 		}
 	}

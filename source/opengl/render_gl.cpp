@@ -263,7 +263,7 @@ resource_desc reshade::opengl::convert_resource_desc(GLsizeiptr buffer_size)
 #ifdef _WIN64
 	desc.height = (buffer_size >> 32) & 0xFFFFFFFF;
 #endif
-	desc.usage = resource_usage::shader_resource | resource_usage::copy_dest | resource_usage::copy_source;
+	desc.usage = resource_usage::shader_resource; // TODO: Only texture copy currently implemented in 'device_impl::copy_resource', so cannot add copy usage flags here
 	return desc;
 }
 resource_desc reshade::opengl::convert_resource_desc(resource_type type, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth)

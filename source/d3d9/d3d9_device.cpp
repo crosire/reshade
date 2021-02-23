@@ -303,7 +303,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateTexture(UINT Width, UINT Height
 	D3DSURFACE_DESC new_desc = { Format, D3DRTYPE_TEXTURE, Usage, Pool, D3DMULTISAMPLE_NONE, 0, Width, Height };
 
 #if RESHADE_ADDON
-	reshade::api::resource_desc api_desc = reshade::d3d9::convert_resource_desc(new_desc, Levels);
+	reshade::api::resource_desc api_desc = reshade::d3d9::convert_resource_desc(new_desc, Levels, _caps);
 	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::texture_2d, &api_desc);
 	reshade::d3d9::convert_resource_desc(api_desc, new_desc, &Levels);
 #endif
@@ -365,9 +365,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateCubeTexture(UINT EdgeLength, UI
 	D3DSURFACE_DESC new_desc = { Format, D3DRTYPE_CUBETEXTURE, Usage, Pool, D3DMULTISAMPLE_NONE, 0, EdgeLength, EdgeLength };
 
 #if RESHADE_ADDON
-	reshade::api::resource_desc api_desc = reshade::d3d9::convert_resource_desc(new_desc, Levels);
+	reshade::api::resource_desc api_desc = reshade::d3d9::convert_resource_desc(new_desc, Levels, _caps);
 	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::texture_2d, &api_desc);
 	reshade::d3d9::convert_resource_desc(api_desc, new_desc, &Levels);
+	assert(new_desc.Width == new_desc.Height);
 #endif
 
 	const HRESULT hr = _orig->CreateCubeTexture(new_desc.Width, Levels, new_desc.Usage, new_desc.Format, new_desc.Pool, ppCubeTexture, pSharedHandle);
@@ -459,7 +460,16 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateIndexBuffer(UINT Length, DWORD 
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTarget(UINT Width, UINT Height, D3DFORMAT Format, D3DMULTISAMPLE_TYPE MultiSample, DWORD MultisampleQuality, BOOL Lockable, IDirect3DSurface9 **ppSurface, HANDLE *pSharedHandle)
 {
-	const HRESULT hr = _orig->CreateRenderTarget(Width, Height, Format, MultiSample, MultisampleQuality, Lockable, ppSurface, pSharedHandle);
+	D3DSURFACE_DESC new_desc = { Format, D3DRTYPE_SURFACE, D3DUSAGE_RENDERTARGET, D3DPOOL_DEFAULT, MultiSample, MultisampleQuality, Width, Height };
+
+#if RESHADE_ADDON
+	reshade::api::resource_desc surface_desc = reshade::d3d9::convert_resource_desc(new_desc, 1, _caps);
+	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::surface, &surface_desc);
+	reshade::d3d9::convert_resource_desc(surface_desc, new_desc);
+	assert(surface_desc.levels == 1);
+#endif
+
+	const HRESULT hr = _orig->CreateRenderTarget(new_desc.Width, new_desc.Height, new_desc.Format, new_desc.MultiSampleType, new_desc.MultiSampleQuality, Lockable, ppSurface, pSharedHandle);
 	if (SUCCEEDED(hr))
 	{
 		assert(ppSurface != nullptr);
@@ -479,12 +489,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurface(UINT Width,
 	D3DSURFACE_DESC new_desc = { Format, D3DRTYPE_SURFACE, D3DUSAGE_DEPTHSTENCIL, D3DPOOL_DEFAULT, MultiSample, MultisampleQuality, Width, Height };
 
 #if RESHADE_ADDON
-	reshade::api::resource_desc tex_desc = reshade::d3d9::convert_resource_desc(new_desc);
-	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::surface, &tex_desc);
-	reshade::d3d9::convert_resource_desc(tex_desc, new_desc);
+	reshade::api::resource_desc surface_desc = reshade::d3d9::convert_resource_desc(new_desc, 1, _caps);
+	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::surface, &surface_desc);
+	reshade::d3d9::convert_resource_desc(surface_desc, new_desc);
+	assert(surface_desc.levels == 1);
 
 	// Need to replace surface with a texture if an add-on requested shader access
-	if ((tex_desc.usage & reshade::api::resource_usage::shader_resource) == reshade::api::resource_usage::shader_resource)
+	if ((surface_desc.usage & reshade::api::resource_usage::shader_resource) == reshade::api::resource_usage::shader_resource)
 	{
 		com_ptr<IDirect3DTexture9> texture; // Surface will hold a reference to the created texture and keep it alive
 		if (new_desc.MultiSampleType == D3DMULTISAMPLE_NONE &&
@@ -560,20 +571,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ColorFill(IDirect3DSurface9 *pSurface
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateOffscreenPlainSurface(UINT Width, UINT Height, D3DFORMAT Format, D3DPOOL Pool, IDirect3DSurface9 **ppSurface, HANDLE *pSharedHandle)
 {
-	const HRESULT hr = _orig->CreateOffscreenPlainSurface(Width, Height, Format, Pool, ppSurface, pSharedHandle);
-	if (SUCCEEDED(hr))
-	{
-		assert(ppSurface != nullptr);
-		_resources.register_object(*ppSurface);
-	}
-#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
-	else
-	{
-		LOG(WARN) << "IDirect3DDevice9::CreateOffscreenPlainSurface" << " failed with error code " << hr << '.';
-	}
-#endif
-
-	return hr;
+	// Do not call add-on events or register offscreen surfaces, since they cannot be used with the ReShade API in a meaningful way
+	return _orig->CreateOffscreenPlainSurface(Width, Height, Format, Pool, ppSurface, pSharedHandle);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetRenderTarget(DWORD RenderTargetIndex, IDirect3DSurface9 *pRenderTarget)
 {
@@ -1115,8 +1114,17 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CheckDeviceState(HWND hDestinationWin
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTargetEx(UINT Width, UINT Height, D3DFORMAT Format, D3DMULTISAMPLE_TYPE MultiSample, DWORD MultisampleQuality, BOOL Lockable, IDirect3DSurface9 **ppSurface, HANDLE *pSharedHandle, DWORD Usage)
 {
+	D3DSURFACE_DESC new_desc = { Format, D3DRTYPE_SURFACE, Usage, D3DPOOL_DEFAULT, MultiSample, MultisampleQuality, Width, Height };
+
+#if RESHADE_ADDON
+	reshade::api::resource_desc surface_desc = reshade::d3d9::convert_resource_desc(new_desc, 1, _caps);
+	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::surface, &surface_desc);
+	reshade::d3d9::convert_resource_desc(surface_desc, new_desc);
+	assert(surface_desc.levels == 1);
+#endif
+
 	assert(_extended_interface);
-	const HRESULT hr = static_cast<IDirect3DDevice9Ex *>(_orig)->CreateRenderTargetEx(Width, Height, Format, MultiSample, MultisampleQuality, Lockable, ppSurface, pSharedHandle, Usage);
+	const HRESULT hr = static_cast<IDirect3DDevice9Ex *>(_orig)->CreateRenderTargetEx(new_desc.Width, new_desc.Height, new_desc.Format, new_desc.MultiSampleType, new_desc.MultiSampleQuality, Lockable, ppSurface, pSharedHandle, new_desc.Usage);
 	if (SUCCEEDED(hr))
 	{
 		assert(ppSurface != nullptr);
@@ -1134,32 +1142,20 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTargetEx(UINT Width, UINT
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateOffscreenPlainSurfaceEx(UINT Width, UINT Height, D3DFORMAT Format, D3DPOOL Pool, IDirect3DSurface9 **ppSurface, HANDLE *pSharedHandle, DWORD Usage)
 {
 	assert(_extended_interface);
-	const HRESULT hr = static_cast<IDirect3DDevice9Ex *>(_orig)->CreateOffscreenPlainSurfaceEx(Width, Height, Format, Pool, ppSurface, pSharedHandle, Usage);
-	if (SUCCEEDED(hr))
-	{
-		assert(ppSurface != nullptr);
-		_resources.register_object(*ppSurface);
-	}
-#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
-	else
-	{
-		LOG(WARN) << "IDirect3DDevice9Ex::CreateOffscreenPlainSurfaceEx" << " failed with error code " << hr << '.';
-	}
-#endif
-
-	return hr;
+	return static_cast<IDirect3DDevice9Ex *>(_orig)->CreateOffscreenPlainSurfaceEx(Width, Height, Format, Pool, ppSurface, pSharedHandle, Usage);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurfaceEx(UINT Width, UINT Height, D3DFORMAT Format, D3DMULTISAMPLE_TYPE MultiSample, DWORD MultisampleQuality, BOOL Discard, IDirect3DSurface9 **ppSurface, HANDLE *pSharedHandle, DWORD Usage)
 {
 	D3DSURFACE_DESC new_desc = { Format, D3DRTYPE_SURFACE, Usage, D3DPOOL_DEFAULT, MultiSample, MultisampleQuality, Width, Height };
 
 #if RESHADE_ADDON
-	reshade::api::resource_desc tex_desc = reshade::d3d9::convert_resource_desc(new_desc);
-	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::surface, &tex_desc);
-	reshade::d3d9::convert_resource_desc(tex_desc, new_desc);
+	reshade::api::resource_desc surface_desc = reshade::d3d9::convert_resource_desc(new_desc, 1, _caps);
+	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::surface, &surface_desc);
+	reshade::d3d9::convert_resource_desc(surface_desc, new_desc);
+	assert(surface_desc.levels == 1);
 
 	// Need to replace surface with a texture if an add-on requested shader access
-	if ((tex_desc.usage & reshade::api::resource_usage::shader_resource) == reshade::api::resource_usage::shader_resource)
+	if ((surface_desc.usage & reshade::api::resource_usage::shader_resource) == reshade::api::resource_usage::shader_resource)
 	{
 		com_ptr<IDirect3DTexture9> texture; // Surface will hold a reference to the created texture and keep it alive
 		if (new_desc.MultiSampleType == D3DMULTISAMPLE_NONE &&
