@@ -165,12 +165,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateAdditionalSwapChain(D3DPRESENT_
 	if (pPresentationParameters == nullptr)
 		return D3DERR_INVALIDCALL;
 
-	com_ptr<IDirect3D9> d3d;
-	_orig->GetDirect3D(&d3d);
-
 	D3DPRESENT_PARAMETERS pp = *pPresentationParameters;
-	dump_and_modify_present_parameters(pp, d3d.get(), _cp.AdapterOrdinal);
-	d3d.reset();
+	dump_and_modify_present_parameters(pp, _d3d.get(), _cp.AdapterOrdinal);
 
 	const HRESULT hr = _orig->CreateAdditionalSwapChain(&pp, ppSwapChain);
 	// Update output values (see https://docs.microsoft.com/windows/win32/api/d3d9/nf-d3d9-idirect3ddevice9-createadditionalswapchain)
@@ -214,7 +210,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetSwapChain(UINT iSwapChain, IDirect
 }
 UINT    STDMETHODCALLTYPE Direct3DDevice9::GetNumberOfSwapChains()
 {
-	return 1;
+	return 1; // Multi-head swap chains are not supported
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresentationParameters)
 {
@@ -223,12 +219,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 	if (pPresentationParameters == nullptr)
 		return D3DERR_INVALIDCALL;
 
-	com_ptr<IDirect3D9> d3d;
-	_orig->GetDirect3D(&d3d);
-
 	D3DPRESENT_PARAMETERS pp = *pPresentationParameters;
-	dump_and_modify_present_parameters(pp, d3d.get(), _cp.AdapterOrdinal);
-	d3d.reset();
+	dump_and_modify_present_parameters(pp, _d3d.get(), _cp.AdapterOrdinal);
 
 	_implicit_swapchain->on_reset();
 	device_impl::on_reset();
@@ -1219,15 +1211,11 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 	if (pPresentationParameters == nullptr)
 		return D3DERR_INVALIDCALL;
 
-	com_ptr<IDirect3D9> d3d;
-	_orig->GetDirect3D(&d3d);
-
 	D3DDISPLAYMODEEX fullscreen_mode = { sizeof(fullscreen_mode) };
 	if (pFullscreenDisplayMode != nullptr)
 		fullscreen_mode = *pFullscreenDisplayMode;
 	D3DPRESENT_PARAMETERS pp = *pPresentationParameters;
-	dump_and_modify_present_parameters(pp, fullscreen_mode, d3d.get(), _cp.AdapterOrdinal);
-	d3d.reset();
+	dump_and_modify_present_parameters(pp, fullscreen_mode, _d3d.get(), _cp.AdapterOrdinal);
 
 	_implicit_swapchain->on_reset();
 	device_impl::on_reset();

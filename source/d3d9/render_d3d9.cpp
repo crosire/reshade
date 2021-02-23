@@ -138,6 +138,7 @@ resource_desc reshade::d3d9::convert_resource_desc(const D3DVERTEXBUFFER_DESC &i
 reshade::d3d9::device_impl::device_impl(IDirect3DDevice9 *device) :
 	api_object_impl(device), _caps(), _cp()
 {
+	_orig->GetDirect3D(&_d3d);
 	_orig->GetDeviceCaps(&_caps);
 	_orig->GetCreationParameters(&_cp);
 
@@ -151,6 +152,8 @@ reshade::d3d9::device_impl::device_impl(IDirect3DDevice9 *device) :
 
 	com_ptr<IDirect3DSwapChain9> swapchain;
 	device->GetSwapChain(0, &swapchain);
+	assert(swapchain != nullptr);
+
 	D3DPRESENT_PARAMETERS pp = {};
 	swapchain->GetPresentParameters(&pp);
 	on_after_reset(pp);
@@ -249,13 +252,10 @@ bool reshade::d3d9::device_impl::check_format_support(uint32_t format, resource_
 	if ((usage & resource_usage::unordered_access) != 0)
 		return false;
 
-	com_ptr<IDirect3D9> d3d;
-	_orig->GetDirect3D(&d3d);
-
 	DWORD d3d_usage = 0;
 	convert_usage_to_d3d_usage(usage, d3d_usage);
 
-	return SUCCEEDED(d3d->CheckDeviceFormat(_cp.AdapterOrdinal, _cp.DeviceType, D3DFMT_X8R8G8B8, d3d_usage, D3DRTYPE_TEXTURE, static_cast<D3DFORMAT>(format)));
+	return SUCCEEDED(_d3d->CheckDeviceFormat(_cp.AdapterOrdinal, _cp.DeviceType, D3DFMT_X8R8G8B8, d3d_usage, D3DRTYPE_TEXTURE, static_cast<D3DFORMAT>(format)));
 }
 
 bool reshade::d3d9::device_impl::check_resource_handle_valid(resource_handle resource) const

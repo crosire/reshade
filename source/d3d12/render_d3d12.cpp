@@ -723,7 +723,7 @@ void reshade::d3d12::device_impl::destroy_resource_view(resource_view_handle vie
 		const D3D12_CPU_DESCRIPTOR_HANDLE heap_start = _resource_view_pool[type]->GetCPUDescriptorHandleForHeapStart();
 		if (view.handle >= heap_start.ptr && view.handle < (heap_start.ptr + _resource_view_pool_state[type].size() * _descriptor_handle_size[type]))
 		{
-			const size_t index = (view.handle - heap_start.ptr) / _descriptor_handle_size[type];
+			const size_t index = static_cast<size_t>(view.handle - heap_start.ptr) / _descriptor_handle_size[type];
 			_resource_view_pool_state[type][index] = false;
 			break;
 		}

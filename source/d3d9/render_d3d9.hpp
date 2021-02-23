@@ -65,6 +65,7 @@ namespace reshade::d3d9
 		// Cached device capabilities for quick access
 		D3DCAPS9 _caps;
 		D3DDEVICE_CREATION_PARAMETERS _cp;
+		com_ptr<IDirect3D9> _d3d;
 
 	private:
 		com_ptr<IDirect3DStateBlock9> _copy_state;
