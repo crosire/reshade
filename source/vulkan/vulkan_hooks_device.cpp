@@ -668,10 +668,14 @@ VkResult VKAPI_CALL vkCreateBuffer(VkDevice device, const VkBufferCreateInfo *pC
 	GET_DISPATCH_PTR_FROM(CreateBuffer, device_impl);
 	const VkResult result = trampoline(device, &create_info, pAllocator, pBuffer);
 	if (result == VK_SUCCESS)
+	{
 		device_impl->register_buffer(*pBuffer, create_info);
+	}
 #if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 	else
+	{
 		LOG(WARN) << "vkCreateBuffer" << " failed with error code " << result << '.';
+	}
 #endif
 
 	return result;
@@ -706,10 +710,14 @@ VkResult VKAPI_CALL vkCreateBufferView(VkDevice device, const VkBufferViewCreate
 	GET_DISPATCH_PTR_FROM(CreateBufferView, device_impl);
 	const VkResult result = trampoline(device, &create_info, pAllocator, pView);
 	if (result == VK_SUCCESS)
+	{
 		device_impl->register_buffer_view(*pView, create_info);
+	}
 #if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 	else
+	{
 		LOG(WARN) << "vkCreateBufferView" << " failed with error code " << result << '.';
+	}
 #endif
 
 	return result;
@@ -744,10 +752,14 @@ VkResult VKAPI_CALL vkCreateImage(VkDevice device, const VkImageCreateInfo *pCre
 	GET_DISPATCH_PTR_FROM(CreateImage, device_impl);
 	const VkResult result = trampoline(device, &create_info, pAllocator, pImage);
 	if (result == VK_SUCCESS)
+	{
 		device_impl->register_image(*pImage, create_info);
+	}
 #if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 	else
+	{
 		LOG(WARN) << "vkCreateImage" << " failed with error code " << result << '.';
+	}
 #endif
 
 	return result;
@@ -782,10 +794,14 @@ VkResult VKAPI_CALL vkCreateImageView(VkDevice device, const VkImageViewCreateIn
 	GET_DISPATCH_PTR_FROM(CreateImageView, device_impl);
 	const VkResult result = trampoline(device, &create_info, pAllocator, pView);
 	if (result == VK_SUCCESS)
+	{
 		device_impl->register_image_view(*pView, create_info);
+	}
 #if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 	else
+	{
 		LOG(WARN) << "vkCreateImageView" << " failed with error code " << result << '.';
+	}
 #endif
 
 	return result;
@@ -814,7 +830,9 @@ VkResult VKAPI_CALL vkCreateRenderPass(VkDevice device, const VkRenderPassCreate
 	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pRenderPass);
 	if (result != VK_SUCCESS)
 	{
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 		LOG(WARN) << "vkCreateRenderPass" << " failed with error code " << result << '.';
+#endif
 		return result;
 	}
 
@@ -870,7 +888,9 @@ VkResult VKAPI_CALL vkCreateRenderPass2(VkDevice device, const VkRenderPassCreat
 	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pRenderPass);
 	if (result != VK_SUCCESS)
 	{
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 		LOG(WARN) << "vkCreateRenderPass2" << " failed with error code " << result << '.';
+#endif
 		return result;
 	}
 
@@ -937,7 +957,9 @@ VkResult VKAPI_CALL vkCreateFramebuffer(VkDevice device, const VkFramebufferCrea
 	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pFramebuffer);
 	if (result != VK_SUCCESS)
 	{
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 		LOG(WARN) << "vkCreateFramebuffer" << " failed with error code " << result << '.';
+#endif
 		return result;
 	}
 

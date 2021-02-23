@@ -56,7 +56,7 @@ class com_object_list
 public:
 	~com_object_list()
 	{
-		// Destroy all lifetime tracker objects, so that there are non referencing this list after it was destroyed
+		// Destroy all lifetime tracker objects, so that there are none referencing this list after it was destroyed
 		for (auto it = _objects.begin(); it != _objects.end(); it = _objects.begin())
 		{
 			T *const object = *it;

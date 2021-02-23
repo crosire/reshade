@@ -42,13 +42,13 @@ ULONG   STDMETHODCALLTYPE D3D12DeviceDownlevel::Release()
 
 	const auto orig = _orig;
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Destroying ID3D12DeviceDownlevel object " << this << " (" << orig << ").";
+	LOG(DEBUG) << "Destroying " << "ID3D12DeviceDownlevel" << " object " << this << " (" << orig << ").";
 #endif
 	delete this;
 
 	const ULONG ref_orig = orig->Release();
 	if (ref_orig > 1) // Verify internal reference count against one instead of zero because parent device still holds a reference
-		LOG(WARN) << "Reference count for ID3D12DeviceDownlevel object " << this << " (" << orig << ") is inconsistent.";
+		LOG(WARN) << "Reference count for " << "ID3D12DeviceDownlevel" << " object " << this << " (" << orig << ") is inconsistent (" << (ref_orig - 1) << ").";
 	return 0;
 }
 

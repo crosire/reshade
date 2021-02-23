@@ -8,6 +8,7 @@
 #include "dll_log.hpp"
 #include "dll_config.hpp"
 #include "addon_manager.hpp"
+#include <Windows.h>
 
 bool g_addons_enabled = true;
 std::vector<void *> reshade::addon::event_list[28]; // Keep in sync with highest value in 'reshade::addon_event' enumeration
@@ -15,8 +16,10 @@ std::vector<reshade::addon::info> reshade::addon::loaded_info;
 #if RESHADE_GUI
 std::vector<std::pair<std::string, void(*)(reshade::api::effect_runtime *, void *)>> reshade::addon::overlay_list;
 #endif
+static unsigned long s_reference_count = 0;
 
-#include <Windows.h>
+extern void register_builtin_addon_depth(reshade::addon::info &info);
+extern void unregister_builtin_addon_depth();
 
 #if RESHADE_VERBOSE_LOG
 static const char *addon_event_to_string(reshade::addon_event ev)
@@ -57,11 +60,6 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 	return "unknown";
 }
 #endif
-
-extern void register_builtin_addon_depth(reshade::addon::info &info);
-extern void unregister_builtin_addon_depth();
-
-static unsigned long s_reference_count = 0;
 
 void reshade::addon::load_addons()
 {

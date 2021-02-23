@@ -68,13 +68,13 @@ ULONG   STDMETHODCALLTYPE D3D10Device::Release()
 
 	const auto orig = _orig;
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Destroying ID3D10Device1 object " << this << " (" << orig << ").";
+	LOG(DEBUG) << "Destroying " << "ID3D10Device1" << " object " << this << " (" << orig << ").";
 #endif
 	delete this;
 
 	const ULONG ref_orig = orig->Release();
 	if (ref_orig != 0) // Verify internal reference count
-		LOG(WARN) << "Reference count for ID3D10Device1 object " << this << " (" << orig << ") is inconsistent.";
+		LOG(WARN) << "Reference count for " << "ID3D10Device1" << " object " << this << " (" << orig << ") is inconsistent (" << ref_orig << ").";
 	return 0;
 }
 
