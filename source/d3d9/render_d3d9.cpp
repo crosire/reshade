@@ -44,6 +44,8 @@ void reshade::d3d9::convert_resource_desc(const resource_desc &desc, D3DVOLUME_D
 
 	if (levels != nullptr)
 		*levels = desc.levels;
+	else
+		assert(desc.levels == 1);
 }
 void reshade::d3d9::convert_resource_desc(const resource_desc &desc, D3DSURFACE_DESC &internal_desc, UINT *levels)
 {
@@ -61,6 +63,8 @@ void reshade::d3d9::convert_resource_desc(const resource_desc &desc, D3DSURFACE_
 
 	if (levels != nullptr)
 		*levels = desc.levels;
+	else
+		assert(desc.levels == 1);
 }
 void reshade::d3d9::convert_resource_desc(const resource_desc &desc, D3DINDEXBUFFER_DESC &internal_desc)
 {
@@ -273,10 +277,9 @@ void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 
 #if RESHADE_ADDON
 	if (com_ptr<IDirect3DSurface9> auto_depth_stencil;
-		pp.EnableAutoDepthStencil && SUCCEEDED(_orig->GetDepthStencilSurface(&auto_depth_stencil)))
+		pp.EnableAutoDepthStencil &&
+		SUCCEEDED(_orig->GetDepthStencilSurface(&auto_depth_stencil)))
 	{
-		_resources.register_object(auto_depth_stencil.get());
-
 		D3DSURFACE_DESC desc = {};
 		auto_depth_stencil->GetDesc(&desc);
 		D3DSURFACE_DESC new_desc = desc;
@@ -295,6 +298,10 @@ void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 
 			auto_depth_stencil = std::move(auto_depth_stencil_replacement);
 		}
+		else
+		{
+			_resources.register_object(auto_depth_stencil.get());
+		}
 
 		// Communicate default state to add-ons
 		const reshade::api::resource_view_handle dsv = { reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) };
@@ -307,24 +314,12 @@ bool reshade::d3d9::device_impl::create_surface_replacement(const D3DSURFACE_DES
 {
 	com_ptr<IDirect3DTexture9> texture; // Surface will hold a reference to the created texture and keep it alive
 	if (new_desc.MultiSampleType == D3DMULTISAMPLE_NONE &&
-		SUCCEEDED(_orig->CreateTexture(new_desc.Width, new_desc.Height, 1, new_desc.Usage, new_desc.Format, new_desc.Pool, &texture, out_shared_handle)))
+		SUCCEEDED(_orig->CreateTexture(new_desc.Width, new_desc.Height, 1, new_desc.Usage, new_desc.Format, new_desc.Pool, &texture, out_shared_handle)) &&
+		SUCCEEDED(texture->GetSurfaceLevel(0, out_surface)))
 	{
 		_resources.register_object(texture.get());
-
-		reshade::api::resource_view_desc dsv_desc = { reshade::api::resource_view_dimension::texture_2d };
-		dsv_desc.format = static_cast<uint32_t>(new_desc.Format);
-		dsv_desc.first_level = 0;
-		dsv_desc.levels = 1;
-		dsv_desc.first_layer = 0;
-		dsv_desc.layers = 1;
-		RESHADE_ADDON_EVENT(create_resource_view, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(texture.get()) }, reshade::api::resource_view_type::depth_stencil, &dsv_desc);
-		assert(dsv_desc.format == static_cast<uint32_t>(new_desc.Format) && dsv_desc.levels == 1 && dsv_desc.first_layer == 0 && dsv_desc.layers == 1);
-
-		if (SUCCEEDED(texture->GetSurfaceLevel(dsv_desc.first_level, out_surface)))
-		{
-			_resources.register_object(*out_surface);
-			return true; // Successfully created replacement texture and got surface to it
-		}
+		_resources.register_object(*out_surface);
+		return true; // Successfully created replacement texture and got surface to it
 	}
 	return false;
 }
@@ -391,11 +386,12 @@ bool reshade::d3d9::device_impl::create_resource(resource_type type, const resou
 			if (desc.depth_or_layers != 1 || desc.samples != 1)
 				break;
 
+			UINT levels = 0;
 			D3DSURFACE_DESC internal_desc = {};
-			convert_resource_desc(desc, internal_desc);
+			convert_resource_desc(desc, internal_desc, &levels);
 
 			if (IDirect3DTexture9 *resource;
-				SUCCEEDED(_orig->CreateTexture(internal_desc.Width, internal_desc.Height, desc.levels, internal_desc.Usage, internal_desc.Format, D3DPOOL_DEFAULT, &resource, nullptr)))
+				SUCCEEDED(_orig->CreateTexture(internal_desc.Width, internal_desc.Height, levels, internal_desc.Usage, internal_desc.Format, D3DPOOL_DEFAULT, &resource, nullptr)))
 			{
 				_resources.register_object(resource);
 				*out_resource = { reinterpret_cast<uintptr_t>(resource) };
@@ -407,11 +403,12 @@ bool reshade::d3d9::device_impl::create_resource(resource_type type, const resou
 		{
 			assert(desc.samples == 1); // 3D textures can never have multisampling
 
+			UINT levels = 0;
 			D3DVOLUME_DESC internal_desc = {};
-			convert_resource_desc(desc, internal_desc);
+			convert_resource_desc(desc, internal_desc, &levels);
 
 			if (IDirect3DVolumeTexture9 *resource;
-				SUCCEEDED(_orig->CreateVolumeTexture(internal_desc.Width, internal_desc.Height, internal_desc.Depth, desc.levels, internal_desc.Usage, internal_desc.Format, D3DPOOL_DEFAULT, &resource, nullptr)))
+				SUCCEEDED(_orig->CreateVolumeTexture(internal_desc.Width, internal_desc.Height, internal_desc.Depth, levels, internal_desc.Usage, internal_desc.Format, D3DPOOL_DEFAULT, &resource, nullptr)))
 			{
 				_resources.register_object(resource);
 				*out_resource = { reinterpret_cast<uintptr_t>(resource) };

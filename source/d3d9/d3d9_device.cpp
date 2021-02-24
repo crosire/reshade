@@ -367,8 +367,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateCubeTexture(UINT EdgeLength, UI
 #if RESHADE_ADDON
 	reshade::api::resource_desc api_desc = reshade::d3d9::convert_resource_desc(new_desc, Levels, _caps);
 	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::texture_2d, &api_desc);
+	assert(api_desc.width == api_desc.height && api_desc.depth_or_layers == 6);
 	reshade::d3d9::convert_resource_desc(api_desc, new_desc, &Levels);
-	assert(new_desc.Width == new_desc.Height);
 #endif
 
 	const HRESULT hr = _orig->CreateCubeTexture(new_desc.Width, Levels, new_desc.Usage, new_desc.Format, new_desc.Pool, ppCubeTexture, pSharedHandle);
@@ -466,7 +466,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTarget(UINT Width, UINT H
 	reshade::api::resource_desc surface_desc = reshade::d3d9::convert_resource_desc(new_desc, 1, _caps);
 	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::surface, &surface_desc);
 	reshade::d3d9::convert_resource_desc(surface_desc, new_desc);
-	assert(surface_desc.levels == 1);
+
+	// Need to replace surface with a texture if an add-on requested shader access
+	if ((surface_desc.usage & reshade::api::resource_usage::shader_resource) != 0)
+	{
+		if (create_surface_replacement(new_desc, ppSurface, pSharedHandle))
+			return D3D_OK;
+	}
 #endif
 
 	const HRESULT hr = _orig->CreateRenderTarget(new_desc.Width, new_desc.Height, new_desc.Format, new_desc.MultiSampleType, new_desc.MultiSampleQuality, Lockable, ppSurface, pSharedHandle);
@@ -492,10 +498,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurface(UINT Width,
 	reshade::api::resource_desc surface_desc = reshade::d3d9::convert_resource_desc(new_desc, 1, _caps);
 	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::surface, &surface_desc);
 	reshade::d3d9::convert_resource_desc(surface_desc, new_desc);
-	assert(surface_desc.levels == 1);
 
 	// Need to replace surface with a texture if an add-on requested shader access
-	if ((surface_desc.usage & reshade::api::resource_usage::shader_resource) == reshade::api::resource_usage::shader_resource)
+	if ((surface_desc.usage & reshade::api::resource_usage::shader_resource) != 0)
 	{
 		if (create_surface_replacement(new_desc, ppSurface, pSharedHandle))
 			return D3D_OK;
@@ -1101,7 +1106,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTargetEx(UINT Width, UINT
 	reshade::api::resource_desc surface_desc = reshade::d3d9::convert_resource_desc(new_desc, 1, _caps);
 	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::surface, &surface_desc);
 	reshade::d3d9::convert_resource_desc(surface_desc, new_desc);
-	assert(surface_desc.levels == 1);
+
+	// Need to replace surface with a texture if an add-on requested shader access
+	if ((surface_desc.usage & reshade::api::resource_usage::shader_resource) != 0)
+	{
+		if (create_surface_replacement(new_desc, ppSurface, pSharedHandle))
+			return D3D_OK;
+	}
 #endif
 
 	assert(_extended_interface);
@@ -1133,10 +1144,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurfaceEx(UINT Widt
 	reshade::api::resource_desc surface_desc = reshade::d3d9::convert_resource_desc(new_desc, 1, _caps);
 	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::surface, &surface_desc);
 	reshade::d3d9::convert_resource_desc(surface_desc, new_desc);
-	assert(surface_desc.levels == 1);
 
 	// Need to replace surface with a texture if an add-on requested shader access
-	if ((surface_desc.usage & reshade::api::resource_usage::shader_resource) == reshade::api::resource_usage::shader_resource)
+	if ((surface_desc.usage & reshade::api::resource_usage::shader_resource) != 0)
 	{
 		if (create_surface_replacement(new_desc, ppSurface, pSharedHandle))
 			return D3D_OK;
