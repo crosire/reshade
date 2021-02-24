@@ -189,12 +189,12 @@ extern "C" __declspec(dllexport) void ReShadeUnregisterOverlay(const char *title
 	auto &overlay_list = reshade::addon::overlay_list;
 
 	// Need to use a functor instead of a lambda here, since lambdas don't compile in functions declared 'extern "C"' on MSVC ...
-	struct pred {
+	struct predicate {
 		const char *title;
-		bool operator()(const std::pair<std::string, void(*)(reshade::api::effect_runtime *, void *)> &it) { return it.first == title; }
+		bool operator()(const std::pair<std::string, void(*)(reshade::api::effect_runtime *, void *)> &it) const { return it.first == title; }
 	};
 
-	const auto callback_it = std::find_if(overlay_list.begin(), overlay_list.end(), pred { title });
+	const auto callback_it = std::find_if(overlay_list.begin(), overlay_list.end(), predicate { title });
 	if (callback_it == overlay_list.end())
 		return;
 #if RESHADE_VERBOSE_LOG

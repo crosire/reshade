@@ -118,7 +118,7 @@ std::pair<resource_type, resource_desc> reshade::d3d12::convert_resource_desc(co
 		desc.width = internal_desc.Width & 0xFFFFFFFF;
 		desc.height = (internal_desc.Width >> 32) & 0xFFFFFFFF;
 
-		// Buffers may be of any type
+		// Buffers may be of any type in D3D12, so add all possible usage flags
 		desc.usage |= resource_usage::vertex_buffer | resource_usage::index_buffer | resource_usage::constant_buffer;
 	}
 	else
@@ -130,6 +130,9 @@ std::pair<resource_type, resource_desc> reshade::d3d12::convert_resource_desc(co
 		desc.depth_or_layers = internal_desc.DepthOrArraySize;
 		desc.format = static_cast<uint32_t>(internal_desc.Format);
 		desc.samples = static_cast<uint16_t>(internal_desc.SampleDesc.Count);
+
+		if (type == resource_type::texture_2d)
+			desc.usage |= desc.samples > 1 ? resource_usage::resolve_source : resource_usage::resolve_dest;
 	}
 
 	// Resources are generally copyable in D3D12

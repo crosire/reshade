@@ -222,6 +222,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 	D3DPRESENT_PARAMETERS pp = *pPresentationParameters;
 	dump_and_modify_present_parameters(pp, _d3d.get(), _cp.AdapterOrdinal);
 
+	// Release all resources before performing reset
 	_implicit_swapchain->on_reset();
 	device_impl::on_reset();
 
@@ -586,7 +587,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetRenderTarget(DWORD RenderTargetInd
 
 		if (pRenderTarget != nullptr)
 		{
-			// Changing the render target implicitly sets the viewport to the render target dimensions
+			// Setting a new render target will cause the viewport to be set to the full size of the new render target
+			// See https://docs.microsoft.com/windows/win32/api/d3d9helper/nf-d3d9helper-idirect3ddevice9-setrendertarget
 			D3DSURFACE_DESC rtv_desc = {};
 			pRenderTarget->GetDesc(&rtv_desc);
 
@@ -1185,6 +1187,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 	D3DPRESENT_PARAMETERS pp = *pPresentationParameters;
 	dump_and_modify_present_parameters(pp, fullscreen_mode, _d3d.get(), _cp.AdapterOrdinal);
 
+	// Release all resources before performing reset
 	_implicit_swapchain->on_reset();
 	device_impl::on_reset();
 

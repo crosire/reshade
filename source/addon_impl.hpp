@@ -9,8 +9,8 @@
 
 namespace reshade::api
 {
-	template <typename T, typename... BASE>
-	class api_object_impl : public BASE...
+	template <typename T, typename... api_object_base>
+	class api_object_impl : public api_object_base...
 	{
 	public:
 		explicit api_object_impl(T orig) : _orig(orig) {}

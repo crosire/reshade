@@ -301,9 +301,7 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 			profile = "ps_3_0";
 			break;
 		case reshadefx::shader_type::cs:
-			effect.errors += "Compute shaders are not supported in ";
-			effect.errors += "D3D9";
-			effect.errors += '.';
+			effect.errors += "Compute shaders are not supported in D3D9.";
 			return false;
 		}
 
@@ -729,7 +727,8 @@ bool reshade::d3d9::runtime_d3d9::init_texture(texture &texture)
 		}
 		else
 		{
-			LOG(WARN) << "Render target usage is not supported for format " << static_cast<unsigned int>(texture.format) << " of texture '" << texture.unique_name << "'.";
+			LOG(ERROR) << "Render target usage is not supported for format " << static_cast<unsigned int>(texture.format) << " of texture '" << texture.unique_name << "'.";
+			return false;
 		}
 	}
 

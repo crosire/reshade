@@ -370,9 +370,7 @@ bool reshade::d3d11::runtime_d3d11::init_effect(size_t index)
 			// See https://docs.microsoft.com/windows/win32/direct3d11/direct3d-11-advanced-stages-compute-shader
 			if (_renderer_id < D3D_FEATURE_LEVEL_11_0)
 			{
-				effect.errors += "Compute shaders are not supported in ";
-				effect.errors += "D3D10";
-				effect.errors += '.';
+				effect.errors += "Compute shaders are not supported in D3D10.";
 				return false;
 			}
 			break;

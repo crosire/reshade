@@ -259,7 +259,11 @@ std::pair<resource_type, resource_desc> reshade::vulkan::convert_resource_desc(c
 	desc.levels = static_cast<uint16_t>(create_info.mipLevels);
 	desc.format = static_cast<uint32_t>(create_info.format);
 	desc.samples = static_cast<uint16_t>(create_info.samples);
+
 	convert_image_usage_flags_to_usage(create_info.usage, desc.usage);
+	if (type == resource_type::texture_2d && (
+		create_info.usage & (desc.samples > 1 ? VK_IMAGE_USAGE_TRANSFER_SRC_BIT : VK_IMAGE_USAGE_TRANSFER_DST_BIT)) != 0)
+		desc.usage |= desc.samples > 1 ? resource_usage::resolve_source : resource_usage::resolve_dest;
 
 	return { type, desc };
 }

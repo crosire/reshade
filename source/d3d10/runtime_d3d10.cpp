@@ -342,9 +342,7 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 			profile = "ps";
 			break;
 		case reshadefx::shader_type::cs:
-			effect.errors += "Compute shaders are not supported in ";
-			effect.errors += "D3D10";
-			effect.errors += '.';
+			effect.errors += "Compute shaders are not supported in D3D10.";
 			return false;
 		}
 

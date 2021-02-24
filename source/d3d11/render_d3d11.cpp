@@ -135,6 +135,7 @@ resource_desc reshade::d3d11::convert_resource_desc(const D3D11_TEXTURE2D_DESC &
 	desc.format = static_cast<uint32_t>(internal_desc.Format);
 	desc.samples = static_cast<uint16_t>(internal_desc.SampleDesc.Count);
 	convert_bind_flags_to_usage(internal_desc.BindFlags, desc.usage);
+	desc.usage |= desc.samples > 1 ? resource_usage::resolve_source : resource_usage::resolve_dest;
 	return desc;
 }
 resource_desc reshade::d3d11::convert_resource_desc(const D3D11_TEXTURE3D_DESC &internal_desc)

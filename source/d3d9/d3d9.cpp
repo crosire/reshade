@@ -138,7 +138,7 @@ static void init_device_proxy(T *&device, D3DDEVTYPE device_type, const D3DPRESE
 
 	IDirect3DSwapChain9 *swapchain = nullptr;
 	device->GetSwapChain(0, &swapchain);
-	assert(swapchain != nullptr);
+	assert(swapchain != nullptr); // There should always be an implicit swap chain
 
 	const auto device_proxy = new Direct3DDevice9(device, use_software_rendering);
 	device_proxy->_implicit_swapchain = new Direct3DSwapChain9(device_proxy, swapchain);

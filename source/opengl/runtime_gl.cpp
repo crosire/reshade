@@ -37,15 +37,6 @@ reshade::opengl::runtime_gl::runtime_gl(HDC hdc, HGLRC hglrc) : device_impl(hdc,
 		config.get("APP", "ReserveTextureNames", num_reserve_texture_names);
 		_reserved_texture_names.resize(num_reserve_texture_names);
 	});
-
-#ifndef NDEBUG
-	glEnable(GL_DEBUG_OUTPUT);
-	glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
-	glDebugMessageCallback([](unsigned int /*source*/, unsigned int type, unsigned int /*id*/, unsigned int /*severity*/, int /*length*/, const char *message, const void */*userParam*/) {
-		if (type == GL_DEBUG_TYPE_ERROR || type == GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR)
-			OutputDebugStringA(message), OutputDebugStringA("\n");
-		}, nullptr);
-#endif
 }
 reshade::opengl::runtime_gl::~runtime_gl()
 {
