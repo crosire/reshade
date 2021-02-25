@@ -186,8 +186,9 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::IASetVertexBuffers(UINT StartSlot,
 	_orig->IASetVertexBuffers(StartSlot, NumBuffers, ppVertexBuffers, pStrides, pOffsets);
 
 #if RESHADE_ADDON
-	const auto buffers = static_cast<reshade::api::resource_handle *>(alloca(sizeof(reshade::api::resource_handle) * NumBuffers));
-	const auto offsets = static_cast<uint64_t *>(alloca(sizeof(uint64_t) * NumBuffers));
+	assert(NumBuffers < D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT);
+	reshade::api::resource_handle buffers[D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
+	uint64_t offsets[D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
 	for (UINT i = 0; i < NumBuffers; ++i)
 	{
 		buffers[i] = { reinterpret_cast<uintptr_t>(ppVertexBuffers[i]) };
@@ -260,10 +261,15 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargets(UINT NumViews, 
 	_orig->OMSetRenderTargets(NumViews, ppRenderTargetViews, pDepthStencilView);
 
 #if RESHADE_ADDON
+#  ifdef WIN64
+	static_assert(sizeof(*ppRenderTargetViews) == sizeof(reshade::api::resource_view_handle));
+	const auto rtvs = reinterpret_cast<const reshade::api::resource_view_handle *>(ppRenderTargetViews);
+#  else
 	assert(NumViews < D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT);
 	reshade::api::resource_view_handle rtvs[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
 	for (UINT i = 0; i < NumViews; ++i)
 		rtvs[i] = { reinterpret_cast<uintptr_t>(ppRenderTargetViews[i]) };
+#  endif
 	const reshade::api::resource_view_handle dsv = { reinterpret_cast<uintptr_t>(pDepthStencilView) };
 	RESHADE_ADDON_EVENT(set_render_targets_and_depth_stencil, this, NumViews, rtvs, dsv);
 #endif
@@ -273,10 +279,15 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargetsAndUnorderedAcce
 	_orig->OMSetRenderTargetsAndUnorderedAccessViews(NumRTVs, ppRenderTargetViews, pDepthStencilView, UAVStartSlot, NumUAVs, ppUnorderedAccessViews, pUAVInitialCounts);
 
 #if RESHADE_ADDON
+#  ifdef WIN64
+	static_assert(sizeof(*ppRenderTargetViews) == sizeof(reshade::api::resource_view_handle));
+	const auto rtvs = reinterpret_cast<const reshade::api::resource_view_handle *>(ppRenderTargetViews);
+#  else
 	assert(NumRTVs < D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT);
 	reshade::api::resource_view_handle rtvs[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
 	for (UINT i = 0; i < NumRTVs; ++i)
 		rtvs[i] = { reinterpret_cast<uintptr_t>(ppRenderTargetViews[i]) };
+#  endif
 	const reshade::api::resource_view_handle dsv = { reinterpret_cast<uintptr_t>(pDepthStencilView) };
 	RESHADE_ADDON_EVENT(set_render_targets_and_depth_stencil, this, NumRTVs, rtvs, dsv);
 #endif
@@ -326,7 +337,6 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::RSSetViewports(UINT NumViewports, 
 {
 	_orig->RSSetViewports(NumViewports, pViewports);
 
-	assert(NumViewports < D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE);
 	static_assert(sizeof(D3D11_VIEWPORT) == (sizeof(float) * 6));
 	RESHADE_ADDON_EVENT(set_viewports, this, 0, NumViewports, reinterpret_cast<const float *>(pViewports));
 }

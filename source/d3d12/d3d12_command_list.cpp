@@ -178,7 +178,6 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::RSSetViewports(UINT NumViewport
 {
 	_orig->RSSetViewports(NumViewports, pViewports);
 
-	assert(NumViewports < D3D12_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE);
 	static_assert(sizeof(D3D12_VIEWPORT) == (sizeof(float) * 6));
 	RESHADE_ADDON_EVENT(set_viewports, this, 0, NumViewports, reinterpret_cast<const float *>(pViewports));
 }
@@ -291,17 +290,15 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::IASetIndexBuffer(const D3D12_IN
 	_orig->IASetIndexBuffer(pView);
 
 #if RESHADE_ADDON
+	reshade::api::resource_handle buffer = { 0 };
+	uint64_t offset = 0;
 	if (pView != nullptr)
 	{
 		ID3D12Resource *resource = nullptr;
-		uint64_t offset = 0;
 		_device_impl->resolve_gpu_address(pView->BufferLocation, &resource, &offset);
-		RESHADE_ADDON_EVENT(set_index_buffer, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(resource) }, offset);
+		buffer = { reinterpret_cast<uintptr_t>(resource) };
 	}
-	else
-	{
-		RESHADE_ADDON_EVENT(set_index_buffer, this, reshade::api::resource_handle { 0 }, 0);
-	}
+	RESHADE_ADDON_EVENT(set_index_buffer, this, buffer, offset);
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::IASetVertexBuffers(UINT StartSlot, UINT NumViews, const D3D12_VERTEX_BUFFER_VIEW *pViews)
@@ -309,22 +306,17 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::IASetVertexBuffers(UINT StartSl
 	_orig->IASetVertexBuffers(StartSlot, NumViews, pViews);
 
 #if RESHADE_ADDON
-	if (pViews != nullptr)
+	assert(NumViews < D3D12_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT);
+	reshade::api::resource_handle buffers[D3D12_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
+	uint64_t offsets[D3D12_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
+	for (UINT i = 0; i < NumViews; ++i)
 	{
-		const auto buffers = static_cast<reshade::api::resource_handle *>(alloca(sizeof(reshade::api::resource_handle) * NumViews));
-		const auto offsets = static_cast<uint64_t *>(alloca(sizeof(uint64_t) * NumViews));
-		for (UINT i = 0; i < NumViews; ++i)
-		{
-			ID3D12Resource *resource = nullptr;
-			_device_impl->resolve_gpu_address(pViews->BufferLocation, &resource, &offsets[i]);
-			buffers[i] = { reinterpret_cast<uintptr_t>(resource) };
-		}
-		RESHADE_ADDON_EVENT(set_vertex_buffers, this, StartSlot, NumViews, buffers, offsets);
+		ID3D12Resource *resource = nullptr;
+		if (pViews != nullptr)
+			_device_impl->resolve_gpu_address(pViews[i].BufferLocation, &resource, &offsets[i]);
+		buffers[i] = { reinterpret_cast<uintptr_t>(resource) };
 	}
-	else
-	{
-		RESHADE_ADDON_EVENT(set_vertex_buffers, this, StartSlot, NumViews, nullptr, nullptr);
-	}
+	RESHADE_ADDON_EVENT(set_vertex_buffers, this, StartSlot, NumViews, buffers, offsets);
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SOSetTargets(UINT StartSlot, UINT NumViews, const D3D12_STREAM_OUTPUT_BUFFER_VIEW *pViews)

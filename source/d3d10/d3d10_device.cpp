@@ -121,8 +121,9 @@ void    STDMETHODCALLTYPE D3D10Device::IASetVertexBuffers(UINT StartSlot, UINT N
 	_orig->IASetVertexBuffers(StartSlot, NumBuffers, ppVertexBuffers, pStrides, pOffsets);
 
 #if RESHADE_ADDON
-	const auto buffers = static_cast<reshade::api::resource_handle *>(alloca(sizeof(reshade::api::resource_handle) * NumBuffers));
-	const auto offsets = static_cast<uint64_t *>(alloca(sizeof(uint64_t) * NumBuffers));
+	assert(NumBuffers < D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT);
+	reshade::api::resource_handle buffers[D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
+	uint64_t offsets[D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
 	for (UINT i = 0; i < NumBuffers; ++i)
 	{
 		buffers[i] = { reinterpret_cast<uintptr_t>(ppVertexBuffers[i]) };
@@ -183,10 +184,15 @@ void    STDMETHODCALLTYPE D3D10Device::OMSetRenderTargets(UINT NumViews, ID3D10R
 	_orig->OMSetRenderTargets(NumViews, ppRenderTargetViews, pDepthStencilView);
 
 #if RESHADE_ADDON
+#  ifdef WIN64
+	static_assert(sizeof(*ppRenderTargetViews) == sizeof(reshade::api::resource_view_handle));
+	const auto rtvs = reinterpret_cast<const reshade::api::resource_view_handle *>(ppRenderTargetViews);
+#  else
 	assert(NumViews < D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT);
 	reshade::api::resource_view_handle rtvs[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
 	for (UINT i = 0; i < NumViews; ++i)
 		rtvs[i] = { reinterpret_cast<uintptr_t>(ppRenderTargetViews[i]) };
+#  endif
 	const reshade::api::resource_view_handle dsv = { reinterpret_cast<uintptr_t>(pDepthStencilView) };
 	RESHADE_ADDON_EVENT(set_render_targets_and_depth_stencil, this, NumViews, rtvs, dsv);
 #endif
