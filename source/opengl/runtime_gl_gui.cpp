@@ -9,7 +9,7 @@
 #include "runtime_gl_objects.hpp"
 #include <imgui.h>
 
-void reshade::opengl::runtime_gl::init_imgui_resources()
+void reshade::opengl::runtime_impl::init_imgui_resources()
 {
 	if (_imgui.program != 0)
 		return;
@@ -58,7 +58,7 @@ void reshade::opengl::runtime_gl::init_imgui_resources()
 	glDeleteShader(imgui_fs);
 }
 
-void reshade::opengl::runtime_gl::render_imgui_draw_data(ImDrawData *draw_data)
+void reshade::opengl::runtime_impl::render_imgui_draw_data(ImDrawData *draw_data)
 {
 	assert(_app_state.has_state);
 

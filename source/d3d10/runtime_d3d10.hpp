@@ -11,11 +11,11 @@
 
 namespace reshade::d3d10
 {
-	class runtime_d3d10 : public api::api_object_impl<IDXGISwapChain *, runtime>
+	class runtime_impl : public api::api_object_impl<IDXGISwapChain *, runtime>
 	{
 	public:
-		runtime_d3d10(device_impl *device, IDXGISwapChain *swapchain);
-		~runtime_d3d10();
+		runtime_impl(device_impl *device, IDXGISwapChain *swapchain);
+		~runtime_impl();
 
 		api::device *get_device() override { return _device_impl; }
 		api::command_queue *get_command_queue() override { return _device_impl; }
@@ -39,9 +39,10 @@ namespace reshade::d3d10
 
 		void render_technique(technique &technique) override;
 
-		state_block _app_state;
-		device_impl *const _device_impl;
 		const com_ptr<ID3D10Device1> _device;
+		device_impl *const _device_impl;
+
+		state_block _app_state;
 
 		com_ptr<ID3D10PixelShader> _copy_pixel_shader;
 		com_ptr<ID3D10VertexShader> _copy_vertex_shader;

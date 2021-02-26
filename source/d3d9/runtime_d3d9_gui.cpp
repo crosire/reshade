@@ -10,7 +10,7 @@
 #include "runtime_d3d9_objects.hpp"
 #include <imgui.h>
 
-bool reshade::d3d9::runtime_d3d9::init_imgui_resources()
+bool reshade::d3d9::runtime_impl::init_imgui_resources()
 {
 	HRESULT hr = _device->BeginStateBlock();
 	if (SUCCEEDED(hr))
@@ -64,7 +64,7 @@ bool reshade::d3d9::runtime_d3d9::init_imgui_resources()
 	return true;
 }
 
-void reshade::d3d9::runtime_d3d9::render_imgui_draw_data(ImDrawData *draw_data)
+void reshade::d3d9::runtime_impl::render_imgui_draw_data(ImDrawData *draw_data)
 {
 	// Fixed-function vertex layout
 	struct ImDrawVert9

@@ -4,9 +4,8 @@
  */
 
 #include "render_gl.hpp"
+#include "render_gl_utils.hpp"
 #include <cassert>
-
-using namespace reshade::api;
 
 static inline GLenum get_binding_for_target(GLenum target)
 {
@@ -76,31 +75,6 @@ static inline GLenum convert_to_internal_format(GLenum format)
 		return GL_DEPTH24_STENCIL8;
 	case GL_DEPTH_COMPONENT:
 		return GL_DEPTH_COMPONENT24;
-	}
-}
-
-static inline GLboolean is_depth_stencil_format(GLenum format, GLenum usage = GL_DEPTH_STENCIL)
-{
-	switch (format)
-	{
-	case GL_DEPTH_COMPONENT:
-	case GL_DEPTH_COMPONENT16:
-	case GL_DEPTH_COMPONENT24:
-	case GL_DEPTH_COMPONENT32:
-	case GL_DEPTH_COMPONENT32F:
-		return usage == GL_DEPTH_STENCIL || usage == GL_DEPTH;
-	case GL_DEPTH_STENCIL:
-	case GL_DEPTH24_STENCIL8:
-	case GL_DEPTH32F_STENCIL8:
-		return usage == GL_DEPTH_STENCIL || usage == GL_DEPTH || usage == GL_STENCIL;
-	case GL_STENCIL:
-	case GL_STENCIL_INDEX1:
-	case GL_STENCIL_INDEX4:
-	case GL_STENCIL_INDEX8:
-	case GL_STENCIL_INDEX16:
-		return usage == GL_DEPTH_STENCIL || usage == GL_STENCIL;
-	default:
-		return GL_FALSE;
 	}
 }
 
@@ -199,126 +173,6 @@ static GLint get_fbo_attachment_param(GLuint id, GLenum attachment, GLenum param
 	return value;
 }
 
-resource_type reshade::opengl::convert_resource_type(GLenum target)
-{
-	switch (target)
-	{
-	default:
-		return resource_type::unknown;
-	case GL_ARRAY_BUFFER:
-	case GL_ELEMENT_ARRAY_BUFFER:
-	case GL_PIXEL_PACK_BUFFER:
-	case GL_PIXEL_UNPACK_BUFFER:
-	case GL_UNIFORM_BUFFER:
-	case GL_TEXTURE_BUFFER:
-	case GL_TRANSFORM_FEEDBACK_BUFFER:
-	case GL_COPY_READ_BUFFER:
-	case GL_COPY_WRITE_BUFFER:
-	case GL_DRAW_INDIRECT_BUFFER:
-	case GL_SHADER_STORAGE_BUFFER:
-	case GL_DISPATCH_INDIRECT_BUFFER:
-	case GL_QUERY_BUFFER:
-	case GL_ATOMIC_COUNTER_BUFFER:
-		return resource_type::buffer;
-	case GL_TEXTURE_1D:
-	case GL_TEXTURE_1D_ARRAY:
-	case GL_PROXY_TEXTURE_1D:
-	case GL_PROXY_TEXTURE_1D_ARRAY:
-		return resource_type::texture_1d;
-	case GL_TEXTURE_2D:
-	case GL_TEXTURE_2D_ARRAY:
-	case GL_TEXTURE_RECTANGLE: // This is not technically compatible with 2D textures
-	case GL_PROXY_TEXTURE_2D:
-	case GL_PROXY_TEXTURE_2D_ARRAY:
-	case GL_PROXY_TEXTURE_RECTANGLE:
-		return resource_type::texture_2d;
-	case GL_TEXTURE_2D_MULTISAMPLE:
-	case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
-	case GL_PROXY_TEXTURE_2D_MULTISAMPLE:
-	case GL_PROXY_TEXTURE_2D_MULTISAMPLE_ARRAY:
-		return resource_type::texture_2d;
-	case GL_TEXTURE_3D:
-	case GL_PROXY_TEXTURE_3D:
-		return resource_type::texture_3d;
-	case GL_TEXTURE_CUBE_MAP:
-	case GL_TEXTURE_CUBE_MAP_ARRAY:
-	case GL_PROXY_TEXTURE_CUBE_MAP:
-	case GL_PROXY_TEXTURE_CUBE_MAP_ARRAY:
-	case GL_TEXTURE_CUBE_MAP_POSITIVE_X:
-	case GL_TEXTURE_CUBE_MAP_NEGATIVE_X:
-	case GL_TEXTURE_CUBE_MAP_POSITIVE_Y:
-	case GL_TEXTURE_CUBE_MAP_NEGATIVE_Y:
-	case GL_TEXTURE_CUBE_MAP_POSITIVE_Z:
-	case GL_TEXTURE_CUBE_MAP_NEGATIVE_Z:
-		return resource_type::texture_2d;
-	case GL_RENDERBUFFER:
-	case GL_FRAMEBUFFER_DEFAULT:
-		return resource_type::surface;
-	}
-}
-resource_desc reshade::opengl::convert_resource_desc(GLsizeiptr buffer_size)
-{
-	resource_desc desc = {};
-	desc.width = buffer_size & 0xFFFFFFFF;
-#ifdef _WIN64
-	desc.height = (buffer_size >> 32) & 0xFFFFFFFF;
-#endif
-	desc.usage = resource_usage::shader_resource; // TODO: Only texture copy currently implemented in 'device_impl::copy_resource', so cannot add copy usage flags here
-	return desc;
-}
-resource_desc reshade::opengl::convert_resource_desc(resource_type type, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth)
-{
-	resource_desc desc = {};
-	desc.width = width;
-	desc.height = height;
-	assert(depth <= std::numeric_limits<uint16_t>::max());
-	desc.depth_or_layers = static_cast<uint16_t>(depth);
-	assert(levels <= std::numeric_limits<uint16_t>::max());
-	desc.levels = static_cast<uint16_t>(levels);
-	desc.format = internalformat;
-	desc.samples = 1;
-
-	desc.usage = resource_usage::copy_dest | resource_usage::copy_source;
-	if (is_depth_stencil_format(internalformat))
-		desc.usage |= resource_usage::depth_stencil;
-	if (type == resource_type::texture_1d || type == resource_type::texture_2d || type == resource_type::surface)
-		desc.usage |= resource_usage::render_target;
-	if (type != resource_type::surface)
-		desc.usage |= resource_usage::shader_resource;
-
-	return desc;
-}
-
-resource_view_dimension reshade::opengl::convert_resource_view_dimension(GLenum target)
-{
-	switch (target)
-	{
-	default:
-		return resource_view_dimension::unknown;
-	case GL_TEXTURE_BUFFER:
-		return resource_view_dimension::buffer;
-	case GL_TEXTURE_1D:
-		return resource_view_dimension::texture_1d;
-	case GL_TEXTURE_1D_ARRAY:
-		return resource_view_dimension::texture_1d_array;
-	case GL_TEXTURE_2D:
-	case GL_TEXTURE_RECTANGLE:
-		return resource_view_dimension::texture_2d;
-	case GL_TEXTURE_2D_ARRAY:
-		return resource_view_dimension::texture_2d_array;
-	case GL_TEXTURE_2D_MULTISAMPLE:
-		return resource_view_dimension::texture_2d_multisample;
-	case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
-		return resource_view_dimension::texture_2d_multisample_array;
-	case GL_TEXTURE_3D:
-		return resource_view_dimension::texture_3d;
-	case GL_TEXTURE_CUBE_MAP:
-		return resource_view_dimension::texture_cube;
-	case GL_TEXTURE_CUBE_MAP_ARRAY:
-		return resource_view_dimension::texture_cube_array;
-	}
-}
-
 reshade::opengl::device_impl::device_impl(HDC hdc, HGLRC hglrc) :
 	api_object_impl(hglrc)
 {
@@ -388,8 +242,8 @@ reshade::opengl::device_impl::device_impl(HDC hdc, HGLRC hglrc) :
 
 #if RESHADE_ADDON
 	// Communicate default state to add-ons
-	const resource_view_handle default_render_target = get_render_target_from_fbo(0, 0);
-	const resource_view_handle default_depth_stencil = get_depth_stencil_from_fbo(0);
+	const api::resource_view_handle default_render_target = get_render_target_from_fbo(0, 0);
+	const api::resource_view_handle default_depth_stencil = get_depth_stencil_from_fbo(0);
 	RESHADE_ADDON_EVENT(set_render_targets_and_depth_stencil, this, 1, &default_render_target, default_depth_stencil);
 #endif
 }
@@ -406,23 +260,23 @@ reshade::opengl::device_impl::~device_impl()
 	glDeleteFramebuffers(2, _copy_fbo);
 }
 
-bool reshade::opengl::device_impl::check_format_support(uint32_t format, resource_usage usage) const
+bool reshade::opengl::device_impl::check_format_support(uint32_t format, api::resource_usage usage) const
 {
 	GLint supported = GL_FALSE;
 	glGetInternalformativ(GL_TEXTURE_2D, format, GL_INTERNALFORMAT_SUPPORTED, 1, &supported);
 
 	GLint supported_renderable = GL_CAVEAT_SUPPORT;
-	if ((usage & resource_usage::render_target) != 0)
+	if ((usage & api::resource_usage::render_target) != 0)
 		glGetInternalformativ(GL_TEXTURE_2D, format, GL_FRAMEBUFFER_RENDERABLE, 1, &supported_renderable);
 
 	GLint supported_image_load = GL_CAVEAT_SUPPORT;
-	if ((usage & resource_usage::unordered_access) != 0)
+	if ((usage & api::resource_usage::unordered_access) != 0)
 		glGetInternalformativ(GL_TEXTURE_2D, format, GL_SHADER_IMAGE_LOAD, 1, &supported_image_load);
 
 	return supported != GL_FALSE && supported_renderable != GL_NONE && supported_image_load != GL_NONE;
 }
 
-bool reshade::opengl::device_impl::check_resource_handle_valid(resource_handle resource) const
+bool reshade::opengl::device_impl::check_resource_handle_valid(api::resource_handle resource) const
 {
 	switch (resource.handle >> 40)
 	{
@@ -462,7 +316,7 @@ bool reshade::opengl::device_impl::check_resource_handle_valid(resource_handle r
 		return (resource.handle & 0xFFFFFFFF) != GL_DEPTH_ATTACHMENT || _default_depth_format != GL_NONE;
 	}
 }
-bool reshade::opengl::device_impl::check_resource_view_handle_valid(resource_view_handle view) const
+bool reshade::opengl::device_impl::check_resource_view_handle_valid(api::resource_view_handle view) const
 {
 	const GLenum attachment = view.handle >> 40;
 	if ((attachment >= GL_COLOR_ATTACHMENT0 && attachment <= GL_COLOR_ATTACHMENT31) || attachment == GL_DEPTH_ATTACHMENT || attachment == GL_STENCIL_ATTACHMENT)
@@ -476,28 +330,28 @@ bool reshade::opengl::device_impl::check_resource_view_handle_valid(resource_vie
 	}
 }
 
-bool reshade::opengl::device_impl::create_resource(resource_type type, const resource_desc &desc, resource_usage, resource_handle *out_resource)
+bool reshade::opengl::device_impl::create_resource(api::resource_type type, const api::resource_desc &desc, api::resource_usage, api::resource_handle *out_resource)
 {
 	GLenum target = GL_NONE;
 	switch (type)
 	{
 	default:
 		return false;
-	case resource_type::buffer:
-		     if ((desc.usage & resource_usage::index_buffer) != 0)
+	case api::resource_type::buffer:
+		     if ((desc.usage & api::resource_usage::index_buffer) != 0)
 			target = GL_ELEMENT_ARRAY_BUFFER;
-		else if ((desc.usage & resource_usage::vertex_buffer) != 0)
+		else if ((desc.usage & api::resource_usage::vertex_buffer) != 0)
 			target = GL_ARRAY_BUFFER;
-		else if ((desc.usage & resource_usage::constant_buffer) != 0)
+		else if ((desc.usage & api::resource_usage::constant_buffer) != 0)
 			target = GL_UNIFORM_BUFFER;
 		break;
-	case resource_type::texture_1d:
+	case api::resource_type::texture_1d:
 		target = desc.depth_or_layers > 1 ? GL_TEXTURE_1D_ARRAY : GL_TEXTURE_1D;
 		break;
-	case resource_type::texture_2d:
+	case api::resource_type::texture_2d:
 		target = desc.depth_or_layers > 1 ? GL_TEXTURE_2D_ARRAY : GL_TEXTURE_2D;
 		break;
-	case resource_type::texture_3d:
+	case api::resource_type::texture_3d:
 		target = GL_TEXTURE_3D;
 		break;
 	}
@@ -510,7 +364,7 @@ bool reshade::opengl::device_impl::create_resource(resource_type type, const res
 	glGetIntegerv(get_binding_for_target(target), &prev_object);
 
 	GLuint object = 0;
-	if (type == resource_type::buffer)
+	if (type == api::resource_type::buffer)
 	{
 		glGenBuffers(1, &object);
 		glBindBuffer(target, object);
@@ -553,7 +407,7 @@ bool reshade::opengl::device_impl::create_resource(resource_type type, const res
 	*out_resource = { (static_cast<uint64_t>(target) << 40) | object };
 	return true;
 }
-bool reshade::opengl::device_impl::create_resource_view(resource_handle resource, resource_view_type, const resource_view_desc &desc, resource_view_handle *out_view)
+bool reshade::opengl::device_impl::create_resource_view(api::resource_handle resource, api::resource_view_type, const api::resource_view_desc &desc, api::resource_view_handle *out_view)
 {
 	assert(resource.handle != 0);
 
@@ -562,34 +416,34 @@ bool reshade::opengl::device_impl::create_resource_view(resource_handle resource
 	{
 	default:
 		return false;
-	case resource_view_dimension::buffer:
+	case api::resource_view_dimension::buffer:
 		target = GL_TEXTURE_BUFFER;
 		break;
-	case resource_view_dimension::texture_1d:
+	case api::resource_view_dimension::texture_1d:
 		target = GL_TEXTURE_1D;
 		break;
-	case resource_view_dimension::texture_1d_array:
+	case api::resource_view_dimension::texture_1d_array:
 		target = GL_TEXTURE_1D_ARRAY;
 		break;
-	case resource_view_dimension::texture_2d:
+	case api::resource_view_dimension::texture_2d:
 		target = GL_TEXTURE_2D;
 		break;
-	case resource_view_dimension::texture_2d_array:
+	case api::resource_view_dimension::texture_2d_array:
 		target = GL_TEXTURE_2D_ARRAY;
 		break;
-	case resource_view_dimension::texture_2d_multisample:
+	case api::resource_view_dimension::texture_2d_multisample:
 		target = GL_TEXTURE_2D_MULTISAMPLE;
 		break;
-	case resource_view_dimension::texture_2d_multisample_array:
+	case api::resource_view_dimension::texture_2d_multisample_array:
 		target = GL_TEXTURE_2D_MULTISAMPLE_ARRAY;
 		break;
-	case resource_view_dimension::texture_3d:
+	case api::resource_view_dimension::texture_3d:
 		target = GL_TEXTURE_3D;
 		break;
-	case resource_view_dimension::texture_cube:
+	case api::resource_view_dimension::texture_cube:
 		target = GL_TEXTURE_CUBE_MAP;
 		break;
-	case resource_view_dimension::texture_cube_array:
+	case api::resource_view_dimension::texture_cube_array:
 		target = GL_TEXTURE_CUBE_MAP_ARRAY;
 		break;
 	}
@@ -648,7 +502,7 @@ bool reshade::opengl::device_impl::create_resource_view(resource_handle resource
 	}
 }
 
-void reshade::opengl::device_impl::destroy_resource(resource_handle resource)
+void reshade::opengl::device_impl::destroy_resource(api::resource_handle resource)
 {
 	const GLuint object = resource.handle & 0xFFFFFFFF;
 	switch (resource.handle >> 40)
@@ -681,13 +535,13 @@ void reshade::opengl::device_impl::destroy_resource(resource_handle resource)
 		break;
 	}
 }
-void reshade::opengl::device_impl::destroy_resource_view(resource_view_handle view)
+void reshade::opengl::device_impl::destroy_resource_view(api::resource_view_handle view)
 {
 	if ((view.handle & 0x100000000) == 0)
 		destroy_resource({ view.handle });
 }
 
-resource_view_handle reshade::opengl::device_impl::get_depth_stencil_from_fbo(GLuint fbo) const
+reshade::api::resource_view_handle reshade::opengl::device_impl::get_depth_stencil_from_fbo(GLuint fbo) const
 {
 	if (fbo == 0 && _default_depth_format == GL_NONE)
 		return { 0 }; // No default depth buffer exists
@@ -699,7 +553,7 @@ resource_view_handle reshade::opengl::device_impl::get_depth_stencil_from_fbo(GL
 
 	return { (static_cast<uint64_t>(attachment) << 40) | fbo };
 }
-resource_view_handle reshade::opengl::device_impl::get_render_target_from_fbo(GLuint fbo, GLuint drawbuffer) const
+reshade::api::resource_view_handle reshade::opengl::device_impl::get_render_target_from_fbo(GLuint fbo, GLuint drawbuffer) const
 {
 	const GLenum attachment = GL_COLOR_ATTACHMENT0 + drawbuffer;
 	if (fbo != 0 && get_fbo_attachment_param(fbo, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE) == GL_NONE)
@@ -708,7 +562,7 @@ resource_view_handle reshade::opengl::device_impl::get_render_target_from_fbo(GL
 	return { (static_cast<uint64_t>(attachment) << 40) | fbo };
 }
 
-void reshade::opengl::device_impl::get_resource_from_view(resource_view_handle view, resource_handle *out_resource) const
+void reshade::opengl::device_impl::get_resource_from_view(api::resource_view_handle view, api::resource_handle *out_resource) const
 {
 	assert(view.handle != 0);
 
@@ -737,7 +591,7 @@ void reshade::opengl::device_impl::get_resource_from_view(resource_view_handle v
 	}
 }
 
-resource_desc reshade::opengl::device_impl::get_resource_desc(resource_handle resource) const
+reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api::resource_handle resource) const
 {
 	GLsizei width = 0, height = 1, depth = 1, buffer_size = 0; GLenum internal_format = GL_NONE;
 
@@ -832,14 +686,14 @@ void reshade::opengl::device_impl::draw_indexed(uint32_t indices, uint32_t insta
 	}
 }
 
-void reshade::opengl::device_impl::copy_resource(resource_handle source, resource_handle destination)
+void reshade::opengl::device_impl::copy_resource(api::resource_handle source, api::resource_handle destination)
 {
 	assert(source.handle != 0 && destination.handle != 0);
 
-	const resource_desc source_desc = get_resource_desc(source);
+	const api::resource_desc source_desc = get_resource_desc(source);
 	const GLenum source_target = source.handle >> 40;
 	const GLuint source_object = source.handle & 0xFFFFFFFF;
-	const resource_desc destination_desc = get_resource_desc(destination);
+	const api::resource_desc destination_desc = get_resource_desc(destination);
 	const GLuint destination_target = destination.handle >> 40;
 	const GLuint destination_object = destination.handle & 0xFFFFFFFF;
 
@@ -930,7 +784,7 @@ void reshade::opengl::device_impl::copy_resource(resource_handle source, resourc
 	}
 }
 
-void reshade::opengl::device_impl::clear_depth_stencil_view(resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil)
+void reshade::opengl::device_impl::clear_depth_stencil_view(api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil)
 {
 	assert((dsv.handle >> 40) == GL_DEPTH_ATTACHMENT);
 	const GLuint fbo = dsv.handle & 0xFFFFFFFF;
@@ -973,7 +827,7 @@ void reshade::opengl::device_impl::clear_depth_stencil_view(resource_view_handle
 		glBindFramebuffer(GL_FRAMEBUFFER, prev_binding);
 	}
 }
-void reshade::opengl::device_impl::clear_render_target_view(resource_view_handle rtv, const float color[4])
+void reshade::opengl::device_impl::clear_render_target_view(api::resource_view_handle rtv, const float color[4])
 {
 	assert((rtv.handle >> 40) >= GL_COLOR_ATTACHMENT0 && (rtv.handle >> 40) <= GL_COLOR_ATTACHMENT31);
 	const GLuint fbo = rtv.handle & 0xFFFFFFFF;

@@ -19,7 +19,6 @@ reshade::d3d11::state_block::state_block(ID3D11Device *device)
 {
 	ZeroMemory(this, sizeof(*this));
 
-	_device = device;
 	_device_feature_level = device->GetFeatureLevel();
 }
 reshade::d3d11::state_block::~state_block()
@@ -27,9 +26,9 @@ reshade::d3d11::state_block::~state_block()
 	release_all_device_objects();
 }
 
-void reshade::d3d11::state_block::capture(ID3D11DeviceContext *devicecontext)
+void reshade::d3d11::state_block::capture(ID3D11DeviceContext *device_context)
 {
-	_device_context = devicecontext;
+	_device_context = device_context;
 
 	_device_context->IAGetPrimitiveTopology(&_ia_primitive_topology);
 	_device_context->IAGetInputLayout(&_ia_input_layout);
@@ -141,7 +140,7 @@ void reshade::d3d11::state_block::apply_and_release()
 		_device_context->CSSetSamplers(0, ARRAYSIZE(_cs_sampler_states), _cs_sampler_states);
 		_device_context->CSSetShaderResources(0, ARRAYSIZE(_cs_shader_resources), _cs_shader_resources);
 		UINT uav_initial_counts[D3D11_1_UAV_SLOT_COUNT];
-		std::memset(uav_initial_counts, -1, sizeof(uav_initial_counts)); // Keep the current offset
+		FillMemory(uav_initial_counts, sizeof(uav_initial_counts), -1); // Keep the current offset
 		_device_context->CSSetUnorderedAccessViews(0,
 			_device_feature_level >= D3D_FEATURE_LEVEL_11_1 ? D3D11_1_UAV_SLOT_COUNT :
 			_device_feature_level == D3D_FEATURE_LEVEL_11_0 ? D3D11_PS_CS_UAV_REGISTER_COUNT : D3D11_CS_4_X_UAV_REGISTER_COUNT, _cs_unordered_access_views, uav_initial_counts);

@@ -12,7 +12,7 @@
 
 extern com_ptr<ID3D12RootSignature> create_root_signature(ID3D12Device *device, const D3D12_ROOT_SIGNATURE_DESC &desc);
 
-bool reshade::d3d12::runtime_d3d12::init_imgui_resources()
+bool reshade::d3d12::runtime_impl::init_imgui_resources()
 {
 	if (_imgui.signature == nullptr)
 	{
@@ -103,7 +103,7 @@ bool reshade::d3d12::runtime_d3d12::init_imgui_resources()
 	return SUCCEEDED(_device->CreateGraphicsPipelineState(&pso_desc, IID_PPV_ARGS(&_imgui.pipeline)));
 }
 
-void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data)
+void reshade::d3d12::runtime_impl::render_imgui_draw_data(ImDrawData *draw_data)
 {
 	// Need to multi-buffer vertex data so not to modify data below when the previous frame is still in flight
 	const unsigned int buffer_index = _framecount % NUM_IMGUI_BUFFERS;
@@ -111,7 +111,7 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 	// Create and grow vertex/index buffers if needed
 	if (_imgui.num_indices[buffer_index] < draw_data->TotalIdxCount)
 	{
-		_cmd_impl->flush_and_wait(_queue.get()); // Be safe and ensure nothing still uses this buffer
+		_cmd_impl->flush_and_wait(_cmd_queue.get()); // Be safe and ensure nothing still uses this buffer
 
 		_imgui.indices[buffer_index].reset();
 
@@ -133,7 +133,7 @@ void reshade::d3d12::runtime_d3d12::render_imgui_draw_data(ImDrawData *draw_data
 	}
 	if (_imgui.num_vertices[buffer_index] < draw_data->TotalVtxCount)
 	{
-		_cmd_impl->flush_and_wait(_queue.get());
+		_cmd_impl->flush_and_wait(_cmd_queue.get());
 
 		_imgui.vertices[buffer_index].reset();
 

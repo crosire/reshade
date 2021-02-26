@@ -6,9 +6,10 @@
 #include "dll_log.hpp"
 #include "hook_manager.hpp"
 #include "runtime_gl.hpp"
+#include "render_gl_utils.hpp"
 #include "opengl_hooks.hpp" // Fix name clashes with gl3w
 
-extern thread_local reshade::opengl::runtime_gl *g_current_runtime;
+extern thread_local reshade::opengl::runtime_impl *g_current_runtime;
 
 HOOK_EXPORT void WINAPI glAccum(GLenum op, GLfloat value)
 {

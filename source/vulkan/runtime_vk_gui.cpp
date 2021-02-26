@@ -12,7 +12,7 @@
 
 #define vk _device_impl->_dispatch_table
 
-bool reshade::vulkan::runtime_vk::init_imgui_resources()
+bool reshade::vulkan::runtime_impl::init_imgui_resources()
 {
 	if (_imgui.sampler == VK_NULL_HANDLE)
 	{
@@ -200,7 +200,7 @@ bool reshade::vulkan::runtime_vk::init_imgui_resources()
 	return res == VK_SUCCESS;
 }
 
-void reshade::vulkan::runtime_vk::render_imgui_draw_data(ImDrawData *draw_data)
+void reshade::vulkan::runtime_impl::render_imgui_draw_data(ImDrawData *draw_data)
 {
 	// Need to multi-buffer vertex data so not to modify data below when the previous frame is still in flight
 	const unsigned int buffer_index = _framecount % NUM_IMGUI_BUFFERS;

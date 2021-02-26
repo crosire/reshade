@@ -11,11 +11,11 @@
 
 namespace reshade::opengl
 {
-	class runtime_gl : public runtime, public device_impl
+	class runtime_impl : public runtime, public device_impl
 	{
 	public:
-		runtime_gl(HDC hdc, HGLRC hglrc);
-		~runtime_gl();
+		runtime_impl(HDC hdc, HGLRC hglrc);
+		~runtime_impl();
 
 		bool get_data(const uint8_t guid[16], void **ptr) const override { return device_impl::get_data(guid, ptr); }
 		void set_data(const uint8_t guid[16], void *const ptr)  override { device_impl::set_data(guid, ptr); }

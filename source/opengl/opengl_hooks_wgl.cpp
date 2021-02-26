@@ -18,8 +18,8 @@ static std::mutex s_global_mutex;
 static std::unordered_set<HDC> s_pbuffer_device_contexts;
 static std::unordered_set<HGLRC> s_legacy_contexts;
 static std::unordered_map<HGLRC, HGLRC> s_shared_contexts;
-static std::unordered_map<HGLRC, reshade::opengl::runtime_gl *> s_opengl_runtimes;
-thread_local reshade::opengl::runtime_gl *g_current_runtime = nullptr;
+static std::unordered_map<HGLRC, reshade::opengl::runtime_impl *> s_opengl_runtimes;
+thread_local reshade::opengl::runtime_impl *g_current_runtime = nullptr;
 
 HOOK_EXPORT int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPTOR *ppfd)
 {
@@ -690,16 +690,16 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 				gl3wProcs.gl.ClearBufferfi = reshade::hooks::call(glClearBufferfi);
 				gl3wProcs.gl.DispatchCompute = reshade::hooks::call(glDispatchCompute);
 				gl3wProcs.gl.DrawArraysInstancedBaseInstance = reshade::hooks::call(glDrawArraysInstancedBaseInstance);
-				gl3wProcs.gl.DrawElementsBaseVertex = reshade::hooks::call(glDrawElementsBaseVertex); // Used in 'runtime_gl::render_imgui_draw_data'
+				gl3wProcs.gl.DrawElementsBaseVertex = reshade::hooks::call(glDrawElementsBaseVertex); // Used in 'runtime_impl::render_imgui_draw_data'
 				gl3wProcs.gl.DrawElementsInstancedBaseVertexBaseInstance = reshade::hooks::call(glDrawElementsInstancedBaseVertexBaseInstance);
 				gl3wProcs.gl.TexBuffer = reshade::hooks::call(glTexBuffer);
 				gl3wProcs.gl.TexBufferRange = reshade::hooks::call(glTexBufferRange);
 				gl3wProcs.gl.TextureView = reshade::hooks::call(glTextureView);
-				gl3wProcs.gl.TexStorage2D = reshade::hooks::call(glTexStorage2D); // Used in 'runtime_gl::init_texture'
+				gl3wProcs.gl.TexStorage2D = reshade::hooks::call(glTexStorage2D); // Used in 'runtime_impl::init_texture'
 			}
 #endif
 
-			const auto runtime = new reshade::opengl::runtime_gl(hdc, hglrc);
+			const auto runtime = new reshade::opengl::runtime_impl(hdc, hglrc);
 			runtime->_hdcs.insert(hdc);
 
 			// Always set compatibility context flag on contexts that were created with 'wglCreateContext' instead of 'wglCreateContextAttribsARB'
@@ -860,12 +860,12 @@ HOOK_EXPORT BOOL  WINAPI wglSwapBuffers(HDC hdc)
 {
 	static const auto trampoline = reshade::hooks::call(wglSwapBuffers);
 
-	reshade::opengl::runtime_gl *runtime = g_current_runtime;
+	reshade::opengl::runtime_impl *runtime = g_current_runtime;
 	if (runtime == nullptr || runtime->_hdcs.find(hdc) == runtime->_hdcs.end())
 	{
 		// Find the runtime that is associated with this device context
 		const auto it = std::find_if(s_opengl_runtimes.begin(), s_opengl_runtimes.end(),
-			[hdc](const std::pair<HGLRC, reshade::opengl::runtime_gl *> &it) { return it.second->_hdcs.find(hdc) != it.second->_hdcs.end(); });
+			[hdc](const std::pair<HGLRC, reshade::opengl::runtime_impl *> &it) { return it.second->_hdcs.find(hdc) != it.second->_hdcs.end(); });
 		runtime = (it != s_opengl_runtimes.end()) ? it->second : nullptr;
 	}
 

@@ -15,16 +15,6 @@
 
 namespace reshade::vulkan
 {
-	void convert_resource_desc(const api::resource_desc &desc, VkBufferCreateInfo &create_info);
-	api::resource_desc convert_resource_desc(const VkBufferCreateInfo &create_info);
-	void convert_resource_desc(api::resource_type type, const api::resource_desc &desc, VkImageCreateInfo &create_info);
-	std::pair<api::resource_type, api::resource_desc> convert_resource_desc(const VkImageCreateInfo &create_info);
-
-	void convert_resource_view_desc(const api::resource_view_desc &desc, VkImageViewCreateInfo &create_info);
-	void convert_resource_view_desc(const api::resource_view_desc &desc, VkBufferViewCreateInfo &create_info);
-	api::resource_view_desc convert_resource_view_desc(const VkImageViewCreateInfo &create_info);
-	api::resource_view_desc convert_resource_view_desc(const VkBufferViewCreateInfo &create_info);
-
 	struct render_pass_data
 	{
 		struct subpass

@@ -10,7 +10,7 @@
 #include "runtime_d3d10_objects.hpp"
 #include <imgui.h>
 
-bool reshade::d3d10::runtime_d3d10::init_imgui_resources()
+bool reshade::d3d10::runtime_impl::init_imgui_resources()
 {
 	if (_imgui.vs == nullptr)
 	{
@@ -111,7 +111,7 @@ bool reshade::d3d10::runtime_d3d10::init_imgui_resources()
 	return true;
 }
 
-void reshade::d3d10::runtime_d3d10::render_imgui_draw_data(ImDrawData *draw_data)
+void reshade::d3d10::runtime_impl::render_imgui_draw_data(ImDrawData *draw_data)
 {
 	// Projection matrix resides in an immutable constant buffer, so cannot change display dimensions
 	assert(draw_data->DisplayPos.x == 0 && draw_data->DisplaySize.x == _width);

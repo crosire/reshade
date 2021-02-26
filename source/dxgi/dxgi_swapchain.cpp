@@ -24,7 +24,7 @@ DXGISwapChain::DXGISwapChain(D3D10Device *device, IDXGISwapChain  *original) :
 	_interface_version(0),
 	_direct3d_device(device),
 	_direct3d_version(10),
-	_runtime(new reshade::d3d10::runtime_d3d10(device, original))
+	_runtime(new reshade::d3d10::runtime_impl(device, original))
 {
 	assert(_orig != nullptr && _direct3d_device != nullptr);
 	// Explicitly add a reference to the device, to ensure it stays valid for the lifetime of this swap chain object
@@ -35,7 +35,7 @@ DXGISwapChain::DXGISwapChain(D3D10Device *device, IDXGISwapChain1 *original) :
 	_interface_version(1),
 	_direct3d_device(device),
 	_direct3d_version(10),
-	_runtime(new reshade::d3d10::runtime_d3d10(device, original))
+	_runtime(new reshade::d3d10::runtime_impl(device, original))
 {
 	assert(_orig != nullptr && _direct3d_device != nullptr);
 	_direct3d_device->AddRef();
@@ -45,7 +45,7 @@ DXGISwapChain::DXGISwapChain(D3D11Device *device, IDXGISwapChain  *original) :
 	_interface_version(0),
 	_direct3d_device(device),
 	_direct3d_version(11),
-	_runtime(new reshade::d3d11::runtime_d3d11(device, device->_immediate_context, original))
+	_runtime(new reshade::d3d11::runtime_impl(device, device->_immediate_context, original))
 {
 	assert(_orig != nullptr && _direct3d_device != nullptr);
 	_direct3d_device->AddRef();
@@ -55,7 +55,7 @@ DXGISwapChain::DXGISwapChain(D3D11Device *device, IDXGISwapChain1 *original) :
 	_interface_version(1),
 	_direct3d_device(device),
 	_direct3d_version(11),
-	_runtime(new reshade::d3d11::runtime_d3d11(device, device->_immediate_context, original))
+	_runtime(new reshade::d3d11::runtime_impl(device, device->_immediate_context, original))
 {
 	assert(_orig != nullptr && _direct3d_device != nullptr);
 	_direct3d_device->AddRef();
@@ -65,7 +65,7 @@ DXGISwapChain::DXGISwapChain(D3D12CommandQueue *command_queue, IDXGISwapChain3 *
 	_interface_version(3),
 	_direct3d_device(command_queue->_device), // Get the device instead of the command queue, so that 'IDXGISwapChain::GetDevice' works
 	_direct3d_version(12),
-	_runtime(new reshade::d3d12::runtime_d3d12(command_queue->_device, command_queue, original))
+	_runtime(new reshade::d3d12::runtime_impl(command_queue->_device, command_queue, original))
 {
 	assert(_orig != nullptr && _direct3d_device != nullptr);
 	_direct3d_device->AddRef();
@@ -85,13 +85,13 @@ void DXGISwapChain::runtime_reset(UINT width, UINT height)
 	switch (_direct3d_version)
 	{
 	case 10:
-		static_cast<reshade::d3d10::runtime_d3d10 *>(_runtime)->on_reset();
+		static_cast<reshade::d3d10::runtime_impl *>(_runtime)->on_reset();
 		break;
 	case 11:
-		static_cast<reshade::d3d11::runtime_d3d11 *>(_runtime)->on_reset();
+		static_cast<reshade::d3d11::runtime_impl *>(_runtime)->on_reset();
 		break;
 	case 12:
-		static_cast<reshade::d3d12::runtime_d3d12 *>(_runtime)->on_reset();
+		static_cast<reshade::d3d12::runtime_impl *>(_runtime)->on_reset();
 		break;
 	}
 }
@@ -103,13 +103,13 @@ void DXGISwapChain::runtime_resize()
 	switch (_direct3d_version)
 	{
 	case 10:
-		initialized = static_cast<reshade::d3d10::runtime_d3d10 *>(_runtime)->on_init();
+		initialized = static_cast<reshade::d3d10::runtime_impl *>(_runtime)->on_init();
 		break;
 	case 11:
-		initialized = static_cast<reshade::d3d11::runtime_d3d11 *>(_runtime)->on_init();
+		initialized = static_cast<reshade::d3d11::runtime_impl *>(_runtime)->on_init();
 		break;
 	case 12:
-		initialized = static_cast<reshade::d3d12::runtime_d3d12 *>(_runtime)->on_init();
+		initialized = static_cast<reshade::d3d12::runtime_impl *>(_runtime)->on_init();
 		break;
 	}
 
@@ -132,13 +132,13 @@ void DXGISwapChain::runtime_present(UINT flags)
 	switch (_direct3d_version)
 	{
 	case 10:
-		static_cast<reshade::d3d10::runtime_d3d10 *>(_runtime)->on_present();
+		static_cast<reshade::d3d10::runtime_impl *>(_runtime)->on_present();
 		break;
 	case 11:
-		static_cast<reshade::d3d11::runtime_d3d11 *>(_runtime)->on_present();
+		static_cast<reshade::d3d11::runtime_impl *>(_runtime)->on_present();
 		break;
 	case 12:
-		static_cast<reshade::d3d12::runtime_d3d12 *>(_runtime)->on_present();
+		static_cast<reshade::d3d12::runtime_impl *>(_runtime)->on_present();
 		break;
 	}
 }
@@ -245,13 +245,13 @@ ULONG   STDMETHODCALLTYPE DXGISwapChain::Release()
 	switch (_direct3d_version)
 	{
 	case 10:
-		delete static_cast<reshade::d3d10::runtime_d3d10 *>(_runtime);
+		delete static_cast<reshade::d3d10::runtime_impl *>(_runtime);
 		break;
 	case 11:
-		delete static_cast<reshade::d3d11::runtime_d3d11 *>(_runtime);
+		delete static_cast<reshade::d3d11::runtime_impl *>(_runtime);
 		break;
 	case 12:
-		delete static_cast<reshade::d3d12::runtime_d3d12 *>(_runtime);
+		delete static_cast<reshade::d3d12::runtime_impl *>(_runtime);
 		break;
 	}
 

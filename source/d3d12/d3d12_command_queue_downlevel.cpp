@@ -10,7 +10,7 @@
 #include "d3d12_command_queue_downlevel.hpp"
 
 D3D12CommandQueueDownlevel::D3D12CommandQueueDownlevel(D3D12CommandQueue *queue, ID3D12CommandQueueDownlevel *original) :
-	runtime_d3d12(queue->_device, queue, nullptr),
+	runtime_impl(queue->_device, queue, nullptr),
 	_orig(original),
 	_parent_queue(queue)
 {
@@ -47,7 +47,7 @@ HRESULT STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Present(ID3D12GraphicsComm
 	RESHADE_ADDON_EVENT(present, _parent_queue, this);
 
 	assert(pSourceTex2D != nullptr);
-	runtime_d3d12::on_present(pSourceTex2D, hWindow);
+	runtime_impl::on_present(pSourceTex2D, hWindow);
 
 	// Get original command list pointer from proxy object
 	if (com_ptr<D3D12GraphicsCommandList> command_list_proxy;

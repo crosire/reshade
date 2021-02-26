@@ -8,7 +8,7 @@
 #include "runtime_gl.hpp"
 #include "runtime_gl_objects.hpp"
 
-reshade::opengl::runtime_gl::runtime_gl(HDC hdc, HGLRC hglrc) : device_impl(hdc, hglrc)
+reshade::opengl::runtime_impl::runtime_impl(HDC hdc, HGLRC hglrc) : device_impl(hdc, hglrc)
 {
 	GLint major = 0, minor = 0;
 	glGetIntegerv(GL_MAJOR_VERSION, &major);
@@ -38,7 +38,7 @@ reshade::opengl::runtime_gl::runtime_gl(HDC hdc, HGLRC hglrc) : device_impl(hdc,
 		_reserved_texture_names.resize(num_reserve_texture_names);
 	});
 }
-reshade::opengl::runtime_gl::~runtime_gl()
+reshade::opengl::runtime_impl::~runtime_impl()
 {
 	on_reset();
 
@@ -51,7 +51,7 @@ reshade::opengl::runtime_gl::~runtime_gl()
 	_mipmap_program = 0;
 }
 
-bool reshade::opengl::runtime_gl::on_init(HWND hwnd, unsigned int width, unsigned int height)
+bool reshade::opengl::runtime_impl::on_init(HWND hwnd, unsigned int width, unsigned int height)
 {
 	RECT window_rect = {};
 	GetClientRect(hwnd, &window_rect);
@@ -132,7 +132,7 @@ bool reshade::opengl::runtime_gl::on_init(HWND hwnd, unsigned int width, unsigne
 
 	return runtime::on_init(hwnd);
 }
-void reshade::opengl::runtime_gl::on_reset()
+void reshade::opengl::runtime_impl::on_reset()
 {
 	runtime::on_reset();
 
@@ -150,7 +150,7 @@ void reshade::opengl::runtime_gl::on_reset()
 	std::memset(_rbo, 0, sizeof(_rbo));
 }
 
-void reshade::opengl::runtime_gl::on_present()
+void reshade::opengl::runtime_impl::on_present()
 {
 	if (!_is_initialized)
 		return;
@@ -189,7 +189,7 @@ void reshade::opengl::runtime_gl::on_present()
 	_app_state.apply(_compatibility_context);
 }
 
-bool reshade::opengl::runtime_gl::capture_screenshot(uint8_t *buffer) const
+bool reshade::opengl::runtime_impl::capture_screenshot(uint8_t *buffer) const
 {
 	assert(_app_state.has_state);
 
@@ -218,7 +218,7 @@ bool reshade::opengl::runtime_gl::capture_screenshot(uint8_t *buffer) const
 	return true;
 }
 
-bool reshade::opengl::runtime_gl::init_effect(size_t index)
+bool reshade::opengl::runtime_impl::init_effect(size_t index)
 {
 	assert(_app_state.has_state); // Make sure all binds below are reset later when application state is restored
 
@@ -607,7 +607,7 @@ bool reshade::opengl::runtime_gl::init_effect(size_t index)
 
 	return success;
 }
-void reshade::opengl::runtime_gl::unload_effect(size_t index)
+void reshade::opengl::runtime_impl::unload_effect(size_t index)
 {
 	for (technique &tech : _techniques)
 	{
@@ -639,7 +639,7 @@ void reshade::opengl::runtime_gl::unload_effect(size_t index)
 		_effect_ubos[index] = 0;
 	}
 }
-void reshade::opengl::runtime_gl::unload_effects()
+void reshade::opengl::runtime_impl::unload_effects()
 {
 	for (technique &tech : _techniques)
 	{
@@ -670,7 +670,7 @@ void reshade::opengl::runtime_gl::unload_effects()
 	_effect_sampler_states.clear();
 }
 
-bool reshade::opengl::runtime_gl::init_texture(texture &texture)
+bool reshade::opengl::runtime_impl::init_texture(texture &texture)
 {
 	auto impl = new tex_data();
 	texture.impl = impl;
@@ -776,7 +776,7 @@ bool reshade::opengl::runtime_gl::init_texture(texture &texture)
 
 	return true;
 }
-void reshade::opengl::runtime_gl::upload_texture(const texture &texture, const uint8_t *pixels)
+void reshade::opengl::runtime_impl::upload_texture(const texture &texture, const uint8_t *pixels)
 {
 	auto impl = static_cast<tex_data *>(texture.impl);
 	assert(impl != nullptr && texture.semantic.empty() && pixels != nullptr);
@@ -834,7 +834,7 @@ void reshade::opengl::runtime_gl::upload_texture(const texture &texture, const u
 	glPixelStorei(GL_UNPACK_SKIP_PIXELS, previous_unpack_skip_pixels);
 	glPixelStorei(GL_UNPACK_SKIP_IMAGES, previous_unpack_skip_images);
 }
-void reshade::opengl::runtime_gl::destroy_texture(texture &texture)
+void reshade::opengl::runtime_impl::destroy_texture(texture &texture)
 {
 	if (texture.impl == nullptr)
 		return;
@@ -847,7 +847,7 @@ void reshade::opengl::runtime_gl::destroy_texture(texture &texture)
 	delete impl;
 	texture.impl = nullptr;
 }
-void reshade::opengl::runtime_gl::generate_mipmaps(const tex_data *impl)
+void reshade::opengl::runtime_impl::generate_mipmaps(const tex_data *impl)
 {
 	if (impl == nullptr || impl->levels <= 1)
 		return;
@@ -879,7 +879,7 @@ void reshade::opengl::runtime_gl::generate_mipmaps(const tex_data *impl)
 #endif
 }
 
-void reshade::opengl::runtime_gl::render_technique(technique &technique)
+void reshade::opengl::runtime_impl::render_technique(technique &technique)
 {
 	assert(_app_state.has_state);
 
@@ -1070,7 +1070,7 @@ void reshade::opengl::runtime_gl::render_technique(technique &technique)
 	impl->query_in_flight = true;
 }
 
-void reshade::opengl::runtime_gl::update_texture_bindings(const char *semantic, api::resource_view_handle srv)
+void reshade::opengl::runtime_impl::update_texture_bindings(const char *semantic, api::resource_view_handle srv)
 {
 	const GLuint object = srv.handle & 0xFFFFFFFF;
 

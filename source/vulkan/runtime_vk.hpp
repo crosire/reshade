@@ -10,16 +10,15 @@
 
 namespace reshade::vulkan
 {
-	class runtime_vk : public api::api_object_impl<VkSwapchainKHR, runtime>
+	class runtime_impl : public api::api_object_impl<VkSwapchainKHR, runtime>
 	{
 		static const uint32_t NUM_QUERY_FRAMES = 4;
-		static const uint32_t NUM_IMGUI_BUFFERS = 4;
 		static const uint32_t MAX_IMAGE_DESCRIPTOR_SETS = 128; // TODO: Check if these limits are enough
 		static const uint32_t MAX_EFFECT_DESCRIPTOR_SETS = 50 * 2 * 4; // 50 resources, 4 passes
 
 	public:
-		runtime_vk(device_impl *device, command_queue_impl *graphics_queue);
-		~runtime_vk();
+		runtime_impl(device_impl *device, command_queue_impl *graphics_queue);
+		~runtime_impl();
 
 		api::device *get_device() override { return _device_impl; }
 		api::command_queue *get_command_queue() override { return _queue_impl; }
@@ -96,6 +95,8 @@ namespace reshade::vulkan
 		std::unordered_map<std::string, VkImageView> _texture_semantic_bindings;
 
 #if RESHADE_GUI
+		static const uint32_t NUM_IMGUI_BUFFERS = 4;
+
 		bool init_imgui_resources();
 		void render_imgui_draw_data(ImDrawData *draw_data) override;
 

@@ -12,8 +12,11 @@
 
 extern bool is_windows7();
 
-reshade::d3d10::runtime_d3d10::runtime_d3d10(device_impl *device, IDXGISwapChain *swapchain) :
-	api_object_impl(swapchain), _app_state(device->_orig), _device_impl(device), _device(device->_orig)
+reshade::d3d10::runtime_impl::runtime_impl(device_impl *device, IDXGISwapChain *swapchain) :
+	api_object_impl(swapchain),
+	_device(device->_orig),
+	_device_impl(device),
+	_app_state(device->_orig)
 {
 	_renderer_id = _device->GetFeatureLevel();
 
@@ -36,7 +39,7 @@ reshade::d3d10::runtime_d3d10::runtime_d3d10(device_impl *device, IDXGISwapChain
 	if (!on_init())
 		LOG(ERROR) << "Failed to initialize Direct3D 10 runtime environment on runtime " << this << '!';
 }
-reshade::d3d10::runtime_d3d10::~runtime_d3d10()
+reshade::d3d10::runtime_impl::~runtime_impl()
 {
 	on_reset();
 
@@ -44,7 +47,7 @@ reshade::d3d10::runtime_d3d10::~runtime_d3d10()
 		FreeLibrary(_d3d_compiler);
 }
 
-bool reshade::d3d10::runtime_d3d10::on_init()
+bool reshade::d3d10::runtime_impl::on_init()
 {
 	DXGI_SWAP_CHAIN_DESC swap_desc;
 	if (FAILED(_orig->GetDesc(&swap_desc)))
@@ -167,7 +170,7 @@ bool reshade::d3d10::runtime_d3d10::on_init()
 
 	return runtime::on_init(swap_desc.OutputWindow);
 }
-void reshade::d3d10::runtime_d3d10::on_reset()
+void reshade::d3d10::runtime_impl::on_reset()
 {
 	runtime::on_reset();
 
@@ -191,7 +194,7 @@ void reshade::d3d10::runtime_d3d10::on_reset()
 #endif
 }
 
-void reshade::d3d10::runtime_d3d10::on_present()
+void reshade::d3d10::runtime_impl::on_present()
 {
 	if (!_is_initialized)
 		return;
@@ -236,7 +239,7 @@ void reshade::d3d10::runtime_d3d10::on_present()
 	_app_state.apply_and_release();
 }
 
-bool reshade::d3d10::runtime_d3d10::capture_screenshot(uint8_t *buffer) const
+bool reshade::d3d10::runtime_impl::capture_screenshot(uint8_t *buffer) const
 {
 	if (_color_bit_depth != 8 && _color_bit_depth != 10)
 	{
@@ -306,7 +309,7 @@ bool reshade::d3d10::runtime_d3d10::capture_screenshot(uint8_t *buffer) const
 	return true;
 }
 
-bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
+bool reshade::d3d10::runtime_impl::init_effect(size_t index)
 {
 	if (_d3d_compiler == nullptr)
 		_d3d_compiler = LoadLibraryW(L"d3dcompiler_47.dll");
@@ -673,7 +676,7 @@ bool reshade::d3d10::runtime_d3d10::init_effect(size_t index)
 
 	return true;
 }
-void reshade::d3d10::runtime_d3d10::unload_effect(size_t index)
+void reshade::d3d10::runtime_impl::unload_effect(size_t index)
 {
 	for (technique &tech : _techniques)
 	{
@@ -689,7 +692,7 @@ void reshade::d3d10::runtime_d3d10::unload_effect(size_t index)
 	if (index < _effect_data.size())
 		_effect_data[index].cb.reset();
 }
-void reshade::d3d10::runtime_d3d10::unload_effects()
+void reshade::d3d10::runtime_impl::unload_effects()
 {
 	for (technique &tech : _techniques)
 	{
@@ -703,7 +706,7 @@ void reshade::d3d10::runtime_d3d10::unload_effects()
 	_effect_sampler_states.clear();
 }
 
-bool reshade::d3d10::runtime_d3d10::init_texture(texture &texture)
+bool reshade::d3d10::runtime_impl::init_texture(texture &texture)
 {
 	auto impl = new tex_data();
 	texture.impl = impl;
@@ -822,10 +825,10 @@ bool reshade::d3d10::runtime_d3d10::init_texture(texture &texture)
 
 	return true;
 }
-void reshade::d3d10::runtime_d3d10::upload_texture(const texture &texture, const uint8_t *pixels)
+void reshade::d3d10::runtime_impl::upload_texture(const texture &texture, const uint8_t *pixels)
 {
 	auto impl = static_cast<tex_data *>(texture.impl);
-	assert(impl != nullptr && !texture.semantic.empty() && pixels != nullptr);
+	assert(impl != nullptr && texture.semantic.empty() && pixels != nullptr);
 
 	unsigned int upload_pitch;
 	std::vector<uint8_t> upload_data;
@@ -860,13 +863,13 @@ void reshade::d3d10::runtime_d3d10::upload_texture(const texture &texture, const
 	if (texture.levels > 1)
 		_device->GenerateMips(impl->srv[0].get());
 }
-void reshade::d3d10::runtime_d3d10::destroy_texture(texture &texture)
+void reshade::d3d10::runtime_impl::destroy_texture(texture &texture)
 {
 	delete static_cast<tex_data *>(texture.impl);
 	texture.impl = nullptr;
 }
 
-void reshade::d3d10::runtime_d3d10::render_technique(technique &technique)
+void reshade::d3d10::runtime_impl::render_technique(technique &technique)
 {
 	const auto impl = static_cast<technique_data *>(technique.impl);
 	effect_data &effect_data = _effect_data[technique.effect_index];
@@ -1042,7 +1045,7 @@ void reshade::d3d10::runtime_d3d10::render_technique(technique &technique)
 	impl->query_in_flight = true;
 }
 
-void reshade::d3d10::runtime_d3d10::update_texture_bindings(const char *semantic, api::resource_view_handle api_srv)
+void reshade::d3d10::runtime_impl::update_texture_bindings(const char *semantic, api::resource_view_handle api_srv)
 {
 	const auto new_srv = reinterpret_cast<ID3D10ShaderResourceView *>(api_srv.handle);
 

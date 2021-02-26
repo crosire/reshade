@@ -10,16 +10,14 @@
 
 namespace reshade::d3d12
 {
-	class runtime_d3d12 : public api::api_object_impl<IDXGISwapChain3 *, runtime>
+	class runtime_impl : public api::api_object_impl<IDXGISwapChain3 *, runtime>
 	{
-		static const uint32_t NUM_IMGUI_BUFFERS = 4;
-
 	public:
-		runtime_d3d12(device_impl *device, command_queue_impl *queue, IDXGISwapChain3 *swapchain);
-		~runtime_d3d12();
+		runtime_impl(device_impl *device, command_queue_impl *queue, IDXGISwapChain3 *swapchain);
+		~runtime_impl();
 
 		api::device *get_device() override { return _device_impl; }
-		api::command_queue *get_command_queue() override { return _queue_impl; }
+		api::command_queue *get_command_queue() override { return _cmd_queue_impl; }
 
 		bool on_init();
 		bool on_init(const DXGI_SWAP_CHAIN_DESC &desc);
@@ -43,10 +41,10 @@ namespace reshade::d3d12
 
 		void render_technique(technique &technique) override;
 
-		device_impl *const _device_impl;
 		const com_ptr<ID3D12Device> _device;
-		command_queue_impl *const _queue_impl;
-		const com_ptr<ID3D12CommandQueue> _queue;
+		const com_ptr<ID3D12CommandQueue> _cmd_queue;
+		device_impl *const _device_impl;
+		command_queue_impl *const _cmd_queue_impl;
 		command_list_immediate_impl *const _cmd_impl;
 
 		com_ptr<ID3D12PipelineState> _mipmap_pipeline;
@@ -66,6 +64,8 @@ namespace reshade::d3d12
 		std::unordered_map<std::string, D3D12_CPU_DESCRIPTOR_HANDLE> _texture_semantic_bindings;
 
 #if RESHADE_GUI
+		static const uint32_t NUM_IMGUI_BUFFERS = 4;
+
 		bool init_imgui_resources();
 		void render_imgui_draw_data(ImDrawData *data) override;
 

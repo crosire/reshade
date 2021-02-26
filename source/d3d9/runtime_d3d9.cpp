@@ -8,8 +8,11 @@
 #include "runtime_d3d9_objects.hpp"
 #include <d3dcompiler.h>
 
-reshade::d3d9::runtime_d3d9::runtime_d3d9(device_impl *device, IDirect3DSwapChain9 *swapchain) :
-	api_object_impl(swapchain), _app_state(device->_orig), _device_impl(device), _device(device->_orig)
+reshade::d3d9::runtime_impl::runtime_impl(device_impl *device, IDirect3DSwapChain9 *swapchain) :
+	api_object_impl(swapchain),
+	_device(device->_orig),
+	_device_impl(device),
+	_app_state(device->_orig)
 {
 	_renderer_id = 0x9000;
 
@@ -28,7 +31,7 @@ reshade::d3d9::runtime_d3d9::runtime_d3d9(device_impl *device, IDirect3DSwapChai
 	if (!on_init())
 		LOG(ERROR) << "Failed to initialize Direct3D 9 runtime environment on runtime " << this << '!';
 }
-reshade::d3d9::runtime_d3d9::~runtime_d3d9()
+reshade::d3d9::runtime_impl::~runtime_impl()
 {
 	on_reset();
 
@@ -36,7 +39,7 @@ reshade::d3d9::runtime_d3d9::~runtime_d3d9()
 		FreeLibrary(_d3d_compiler);
 }
 
-bool reshade::d3d9::runtime_d3d9::on_init()
+bool reshade::d3d9::runtime_impl::on_init()
 {
 	// Retrieve present parameters here, instead using the ones passed in during creation, to get correct values for 'BackBufferWidth' and 'BackBufferHeight'
 	// They may otherwise still be set to zero (which is valid for creation)
@@ -131,7 +134,7 @@ bool reshade::d3d9::runtime_d3d9::on_init()
 
 	return runtime::on_init(pp.hDeviceWindow);
 }
-void reshade::d3d9::runtime_d3d9::on_reset()
+void reshade::d3d9::runtime_impl::on_reset()
 {
 	runtime::on_reset();
 
@@ -159,7 +162,7 @@ void reshade::d3d9::runtime_d3d9::on_reset()
 #endif
 }
 
-void reshade::d3d9::runtime_d3d9::on_present()
+void reshade::d3d9::runtime_impl::on_present()
 {
 	if (!_is_initialized || FAILED(_device->BeginScene()))
 		return;
@@ -189,7 +192,7 @@ void reshade::d3d9::runtime_d3d9::on_present()
 	_device->EndScene();
 }
 
-bool reshade::d3d9::runtime_d3d9::capture_screenshot(uint8_t *buffer) const
+bool reshade::d3d9::runtime_impl::capture_screenshot(uint8_t *buffer) const
 {
 	if (_color_bit_depth != 8 && _color_bit_depth != 10)
 	{
@@ -249,7 +252,7 @@ bool reshade::d3d9::runtime_d3d9::capture_screenshot(uint8_t *buffer) const
 	return true;
 }
 
-bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
+bool reshade::d3d9::runtime_impl::init_effect(size_t index)
 {
 	if (_d3d_compiler == nullptr)
 		_d3d_compiler = LoadLibraryW(L"d3dcompiler_47.dll");
@@ -617,7 +620,7 @@ bool reshade::d3d9::runtime_d3d9::init_effect(size_t index)
 
 	return true;
 }
-void reshade::d3d9::runtime_d3d9::unload_effect(size_t index)
+void reshade::d3d9::runtime_impl::unload_effect(size_t index)
 {
 	for (technique &tech : _techniques)
 	{
@@ -630,7 +633,7 @@ void reshade::d3d9::runtime_d3d9::unload_effect(size_t index)
 
 	runtime::unload_effect(index);
 }
-void reshade::d3d9::runtime_d3d9::unload_effects()
+void reshade::d3d9::runtime_impl::unload_effects()
 {
 	for (technique &tech : _techniques)
 	{
@@ -641,7 +644,7 @@ void reshade::d3d9::runtime_d3d9::unload_effects()
 	runtime::unload_effects();
 }
 
-bool reshade::d3d9::runtime_d3d9::init_texture(texture &texture)
+bool reshade::d3d9::runtime_impl::init_texture(texture &texture)
 {
 	auto impl = new tex_data();
 	texture.impl = impl;
@@ -749,7 +752,7 @@ bool reshade::d3d9::runtime_d3d9::init_texture(texture &texture)
 
 	return true;
 }
-void reshade::d3d9::runtime_d3d9::upload_texture(const texture &texture, const uint8_t *pixels)
+void reshade::d3d9::runtime_impl::upload_texture(const texture &texture, const uint8_t *pixels)
 {
 	auto impl = static_cast<tex_data *>(texture.impl);
 	assert(impl != nullptr && texture.semantic.empty() && pixels != nullptr);
@@ -807,13 +810,13 @@ void reshade::d3d9::runtime_d3d9::upload_texture(const texture &texture, const u
 		return;
 	}
 }
-void reshade::d3d9::runtime_d3d9::destroy_texture(texture &texture)
+void reshade::d3d9::runtime_impl::destroy_texture(texture &texture)
 {
 	delete static_cast<tex_data *>(texture.impl);
 	texture.impl = nullptr;
 }
 
-void reshade::d3d9::runtime_d3d9::render_technique(technique &technique)
+void reshade::d3d9::runtime_impl::render_technique(technique &technique)
 {
 	const auto impl = static_cast<technique_data *>(technique.impl);
 
@@ -947,7 +950,7 @@ void reshade::d3d9::runtime_d3d9::render_technique(technique &technique)
 	RESHADE_ADDON_EVENT(reshade_after_effects, this, _device_impl);
 }
 
-void reshade::d3d9::runtime_d3d9::update_texture_bindings(const char *semantic, api::resource_view_handle srv)
+void reshade::d3d9::runtime_impl::update_texture_bindings(const char *semantic, api::resource_view_handle srv)
 {
 	const auto new_texture = reinterpret_cast<IDirect3DTexture9 *>(srv.handle);
 	assert(new_texture == nullptr || new_texture->GetType() == D3DRTYPE_TEXTURE);

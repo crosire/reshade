@@ -7,7 +7,6 @@
 #include "dll_log.hpp"
 #include "dll_config.hpp"
 #include "hook_manager.hpp"
-#include "addon_manager.hpp"
 #include <Psapi.h>
 #include <Windows.h>
 
@@ -449,7 +448,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			}
 			else
 			{
-				// Synchronization is handled in "runtime_d3d12::on_present"
+				// Synchronization is handled in "runtime_impl::on_present"
 				HR_CHECK(swapchain->Present(1, 0));
 			}
 		}

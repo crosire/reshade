@@ -11,13 +11,13 @@
 
 namespace reshade::d3d11
 {
-	class runtime_d3d11 : public api::api_object_impl<IDXGISwapChain *, runtime>
+	class runtime_impl : public api::api_object_impl<IDXGISwapChain *, runtime>
 	{
 	public:
-		runtime_d3d11(device_impl *device, device_context_impl *immediate_context, IDXGISwapChain *swapchain);
-		~runtime_d3d11();
+		runtime_impl(device_impl *device, device_context_impl *immediate_context, IDXGISwapChain *swapchain);
+		~runtime_impl();
 
-		api::device *get_device() override { return _immediate_context_impl->get_device(); }
+		api::device *get_device() override { return _device_impl; }
 		api::command_queue *get_command_queue() override { return _immediate_context_impl; }
 
 		bool on_init();
@@ -39,12 +39,12 @@ namespace reshade::d3d11
 
 		void render_technique(technique &technique) override;
 
-		void set_debug_name(ID3D11DeviceChild *object, LPCWSTR name) const;
-
-		state_block _app_state;
-		device_context_impl *const _immediate_context_impl;
 		const com_ptr<ID3D11Device> _device;
 		const com_ptr<ID3D11DeviceContext> _immediate_context;
+		device_impl *const _device_impl;
+		device_context_impl *const _immediate_context_impl;
+
+		state_block _app_state;
 
 		com_ptr<ID3D11PixelShader> _copy_pixel_shader;
 		com_ptr<ID3D11VertexShader> _copy_vertex_shader;

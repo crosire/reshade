@@ -120,9 +120,11 @@ struct state_tracking_context
 	// This can be created from either the original depth-stencil of the application (if it supports shader access), or from the backup resource, or from one of the replacement resources
 	resource_view_handle selected_shader_resource = { 0 };
 
+#if RESHADE_GUI
 	// List of all encountered depth-stencils of the last frame
 	std::vector<std::pair<resource_handle, depth_stencil_info>> current_depth_stencil_list;
 	std::unordered_map<uint64_t, unsigned int> display_count_per_depth_stencil;
+#endif
 
 	// Checks whether the aspect ratio of the two sets of dimensions is similar or not
 	bool check_aspect_ratio(float width_to_check, float height_to_check, uint32_t width, uint32_t height) const
@@ -406,8 +408,10 @@ static void on_present(command_queue *, effect_runtime *runtime)
 	state_tracking &queue_state = queue->get_data<state_tracking>(state_tracking::GUID);
 	state_tracking_context &device_state = device->get_data<state_tracking_context>(state_tracking_context::GUID);
 
+#if RESHADE_GUI
 	device_state.current_depth_stencil_list.clear();
 	device_state.current_depth_stencil_list.reserve(queue_state.counters_per_used_depth_stencil.size());
+#endif
 
 	uint32_t frame_width, frame_height;
 	runtime->get_frame_width_and_height(&frame_width, &frame_height);
@@ -422,8 +426,10 @@ static void on_present(command_queue *, effect_runtime *runtime)
 		if (!device->check_resource_handle_valid(resource))
 			continue; // Skip resources that were destroyed by the application
 
+#if RESHADE_GUI
 		// Save to current list of depth-stencils on the device, so that it can be displayed in the UI
 		device_state.current_depth_stencil_list.emplace_back(resource, snapshot);
+#endif
 
 		if (snapshot.total_stats.drawcalls == 0)
 			continue; // Skip unused
@@ -605,6 +611,7 @@ static void on_after_render_effects(effect_runtime *runtime, command_list *cmd_l
 	}
 }
 
+#if RESHADE_GUI
 static void draw_debug_menu(effect_runtime *runtime, void *)
 {
 	device *const device = runtime->get_device();
@@ -734,12 +741,15 @@ static void draw_debug_menu(effect_runtime *runtime, void *)
 		config.set("DEPTH", "UseAspectRatioHeuristics", device_state.use_aspect_ratio_heuristics);
 	}
 }
+#endif
 
 void register_builtin_addon_depth(reshade::addon::info &info)
 {
 	info.name = "Generic Depth";
 
+#if RESHADE_GUI
 	reshade::register_overlay("Depth", draw_debug_menu);
+#endif
 
 	reshade::register_event<reshade::addon_event::init_device>(on_init_device);
 	reshade::register_event<reshade::addon_event::destroy_device>(on_destroy_device);
@@ -770,7 +780,9 @@ void register_builtin_addon_depth(reshade::addon::info &info)
 }
 void unregister_builtin_addon_depth()
 {
+#if RESHADE_GUI
 	reshade::unregister_overlay("Depth");
+#endif
 
 	reshade::unregister_event<reshade::addon_event::init_device>(on_init_device);
 	reshade::unregister_event<reshade::addon_event::destroy_device>(on_destroy_device);

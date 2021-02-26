@@ -11,12 +11,6 @@
 
 namespace reshade::opengl
 {
-	api::resource_type convert_resource_type(GLenum target);
-	api::resource_desc convert_resource_desc(GLsizeiptr buffer_size);
-	api::resource_desc convert_resource_desc(api::resource_type type, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height = 1, GLsizei depth = 1);
-
-	api::resource_view_dimension convert_resource_view_dimension(GLenum target);
-
 	class device_impl : public api::api_object_impl<HGLRC, api::device, api::command_queue, api::command_list>
 	{
 	public:

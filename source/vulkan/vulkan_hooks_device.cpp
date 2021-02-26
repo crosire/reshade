@@ -6,7 +6,9 @@
 #include "dll_log.hpp"
 #include "hook_manager.hpp"
 #include "vulkan_hooks.hpp"
+#include "lockfree_table.hpp"
 #include "runtime_vk.hpp"
+#include "render_vk_utils.hpp"
 #include "format_utils.hpp"
 
 lockfree_table<void *, reshade::vulkan::device_impl *, 16> g_vulkan_devices;
@@ -14,7 +16,7 @@ static lockfree_table<VkQueue, reshade::vulkan::command_queue_impl *, 16> s_vulk
 static lockfree_table<VkCommandBuffer, reshade::vulkan::command_list_impl *, 4096> s_vulkan_command_buffers;
 extern lockfree_table<void *, VkLayerInstanceDispatchTable, 16> g_instance_dispatch;
 extern lockfree_table<VkSurfaceKHR, HWND, 16> g_surface_windows;
-static lockfree_table<VkSwapchainKHR, reshade::vulkan::runtime_vk *, 16> s_vulkan_runtimes;
+static lockfree_table<VkSwapchainKHR, reshade::vulkan::runtime_impl *, 16> s_vulkan_runtimes;
 
 #define GET_DISPATCH_PTR(name, object) \
 	GET_DISPATCH_PTR_FROM(name, g_vulkan_devices.at(dispatch_key_from_handle(object)))
@@ -24,33 +26,6 @@ static lockfree_table<VkSwapchainKHR, reshade::vulkan::runtime_vk *, 16> s_vulka
 	assert(trampoline != nullptr)
 #define INIT_DISPATCH_PTR(name) \
 	dispatch_table.name = reinterpret_cast<PFN_vk##name>(get_device_proc(device, "vk" #name))
-
-static inline reshade::api::resource_usage convert_image_layout(VkImageLayout layout)
-{
-	switch (layout)
-	{
-	default:
-	case VK_IMAGE_LAYOUT_UNDEFINED:
-		return reshade::api::resource_usage::undefined;
-	case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
-	case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
-	case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL:
-	case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL:
-	case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL:
-	case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL:
-	case VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL:
-	case VK_IMAGE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL:
-		return reshade::api::resource_usage::depth_stencil;
-	case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
-		return reshade::api::resource_usage::render_target;
-	case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-		return reshade::api::resource_usage::shader_resource;
-	case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
-		return reshade::api::resource_usage::copy_dest;
-	case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
-		return reshade::api::resource_usage::copy_source;
-	}
-}
 
 VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDeviceCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkDevice *pDevice)
 {
@@ -184,7 +159,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		enabled_features.shaderStorageImageWriteWithoutFormat = true;
 
 		// Enable extensions that ReShade requires
-		add_extension(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME, false); // This is optional, see imgui code in 'runtime_vk'
+		add_extension(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME, false); // This is optional, see imgui code in 'runtime_impl'
 		add_extension(VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME, true);
 		add_extension(VK_KHR_SWAPCHAIN_MUTABLE_FORMAT_EXTENSION_NAME, true);
 #ifndef NDEBUG
@@ -532,7 +507,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	if (queue_impl != nullptr)
 	{
 		// Remove old swap chain from the list so that a call to 'vkDestroySwapchainKHR' won't reset the runtime again
-		reshade::vulkan::runtime_vk *runtime = s_vulkan_runtimes.erase(create_info.oldSwapchain);
+		reshade::vulkan::runtime_impl *runtime = s_vulkan_runtimes.erase(create_info.oldSwapchain);
 		if (runtime != nullptr)
 		{
 			assert(create_info.oldSwapchain != VK_NULL_HANDLE);
@@ -544,7 +519,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		}
 		else
 		{
-			runtime = new reshade::vulkan::runtime_vk(device_impl, queue_impl);
+			runtime = new reshade::vulkan::runtime_impl(device_impl, queue_impl);
 		}
 
 		// Look up window handle from surface

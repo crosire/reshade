@@ -14,18 +14,6 @@
 
 namespace reshade::d3d12
 {
-	void convert_resource_desc(api::resource_type type, const api::resource_desc &desc, D3D12_RESOURCE_DESC &internal_desc);
-	std::pair<api::resource_type, api::resource_desc> convert_resource_desc(const D3D12_RESOURCE_DESC &internal_desc);
-
-	void convert_resource_view_desc(const api::resource_view_desc &desc, D3D12_DEPTH_STENCIL_VIEW_DESC &internal_desc);
-	void convert_resource_view_desc(const api::resource_view_desc &desc, D3D12_RENDER_TARGET_VIEW_DESC &internal_desc);
-	void convert_resource_view_desc(const api::resource_view_desc &desc, D3D12_SHADER_RESOURCE_VIEW_DESC &internal_desc);
-	void convert_resource_view_desc(const api::resource_view_desc &desc, D3D12_UNORDERED_ACCESS_VIEW_DESC &internal_desc);
-	api::resource_view_desc convert_resource_view_desc(const D3D12_DEPTH_STENCIL_VIEW_DESC &internal_desc);
-	api::resource_view_desc convert_resource_view_desc(const D3D12_RENDER_TARGET_VIEW_DESC &internal_desc);
-	api::resource_view_desc convert_resource_view_desc(const D3D12_SHADER_RESOURCE_VIEW_DESC &internal_desc);
-	api::resource_view_desc convert_resource_view_desc(const D3D12_UNORDERED_ACCESS_VIEW_DESC &internal_desc);
-
 	class device_impl : public api::api_object_impl<ID3D12Device *, api::device>
 	{
 		friend class command_queue_impl;

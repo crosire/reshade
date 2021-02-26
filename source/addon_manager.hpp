@@ -11,8 +11,8 @@
 
 #if RESHADE_ADDON
 	#define RESHADE_ADDON_EVENT(name, ...) \
-		for (size_t i = 0; i < reshade::addon::event_list[static_cast<size_t>(reshade::addon_event::name)].size(); ++i) /* Generates better code than ranged-based for loop */ \
-			reinterpret_cast<typename reshade::addon_event_traits<reshade::addon_event::name>::decl>(reshade::addon::event_list[static_cast<size_t>(reshade::addon_event::name)][i])(__VA_ARGS__)
+		for (size_t cb = 0; cb < reshade::addon::event_list[static_cast<size_t>(reshade::addon_event::name)].size(); ++cb) /* Generates better code than ranged-based for loop */ \
+			reinterpret_cast<typename reshade::addon_event_traits<reshade::addon_event::name>::decl>(reshade::addon::event_list[static_cast<size_t>(reshade::addon_event::name)][cb])(__VA_ARGS__)
 #else
 	#define RESHADE_ADDON_EVENT(name, ...) ((void)0)
 #endif

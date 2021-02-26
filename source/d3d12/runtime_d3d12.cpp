@@ -23,8 +23,13 @@ com_ptr<ID3D12RootSignature> create_root_signature(ID3D12Device *device, const D
 	return signature;
 }
 
-reshade::d3d12::runtime_d3d12::runtime_d3d12(device_impl *device, command_queue_impl *queue, IDXGISwapChain3 *swapchain) :
-	api_object_impl(swapchain), _device_impl(device), _device(device->_orig), _queue_impl(queue), _queue(queue->_orig), _cmd_impl(static_cast<command_list_immediate_impl *>(queue->get_immediate_command_list()))
+reshade::d3d12::runtime_impl::runtime_impl(device_impl *device, command_queue_impl *queue, IDXGISwapChain3 *swapchain) :
+	api_object_impl(swapchain),
+	_device(device->_orig),
+	_cmd_queue(queue->_orig),
+	_device_impl(device),
+	_cmd_queue_impl(queue),
+	_cmd_impl(static_cast<command_list_immediate_impl *>(queue->get_immediate_command_list()))
 {
 	_renderer_id = D3D_FEATURE_LEVEL_12_0;
 
@@ -50,7 +55,7 @@ reshade::d3d12::runtime_d3d12::runtime_d3d12(device_impl *device, command_queue_
 	if (_orig != nullptr && !on_init())
 		LOG(ERROR) << "Failed to initialize Direct3D 12 runtime environment on runtime " << this << '!';
 }
-reshade::d3d12::runtime_d3d12::~runtime_d3d12()
+reshade::d3d12::runtime_impl::~runtime_impl()
 {
 	on_reset();
 
@@ -58,7 +63,7 @@ reshade::d3d12::runtime_d3d12::~runtime_d3d12()
 		FreeLibrary(_d3d_compiler);
 }
 
-bool reshade::d3d12::runtime_d3d12::on_init()
+bool reshade::d3d12::runtime_impl::on_init()
 {
 	assert(_orig != nullptr);
 
@@ -76,7 +81,7 @@ bool reshade::d3d12::runtime_d3d12::on_init()
 
 	return on_init(swap_desc);
 }
-bool reshade::d3d12::runtime_d3d12::on_init(const DXGI_SWAP_CHAIN_DESC &swap_desc)
+bool reshade::d3d12::runtime_impl::on_init(const DXGI_SWAP_CHAIN_DESC &swap_desc)
 {
 	RECT window_rect = {};
 	GetClientRect(swap_desc.OutputWindow, &window_rect);
@@ -230,12 +235,12 @@ bool reshade::d3d12::runtime_d3d12::on_init(const DXGI_SWAP_CHAIN_DESC &swap_des
 
 	return runtime::on_init(swap_desc.OutputWindow);
 }
-void reshade::d3d12::runtime_d3d12::on_reset()
+void reshade::d3d12::runtime_impl::on_reset()
 {
 	runtime::on_reset();
 
 	// Make sure none of the resources below are currently in use (provided the runtime was initialized previously)
-	_cmd_impl->flush_and_wait(_queue.get());
+	_cmd_impl->flush_and_wait(_cmd_queue.get());
 
 	_backbuffers.clear();
 	_backbuffer_rtvs.reset();
@@ -255,7 +260,7 @@ void reshade::d3d12::runtime_d3d12::on_reset()
 #endif
 }
 
-void reshade::d3d12::runtime_d3d12::on_present()
+void reshade::d3d12::runtime_impl::on_present()
 {
 	if (!_is_initialized)
 		return;
@@ -279,9 +284,9 @@ void reshade::d3d12::runtime_d3d12::on_present()
 	std::swap(transition.Transition.StateBefore, transition.Transition.StateAfter);
 	cmd_list->ResourceBarrier(1, &transition);
 
-	_cmd_impl->flush(_queue.get());
+	_cmd_impl->flush(_cmd_queue.get());
 }
-void reshade::d3d12::runtime_d3d12::on_present(ID3D12Resource *source, HWND hwnd)
+void reshade::d3d12::runtime_impl::on_present(ID3D12Resource *source, HWND hwnd)
 {
 	// Reinitialize runtime when the source texture dimensions changes
 	const D3D12_RESOURCE_DESC source_desc = source->GetDesc();
@@ -329,7 +334,7 @@ void reshade::d3d12::runtime_d3d12::on_present(ID3D12Resource *source, HWND hwnd
 	on_present();
 }
 
-bool reshade::d3d12::runtime_d3d12::capture_screenshot(uint8_t *buffer) const
+bool reshade::d3d12::runtime_impl::capture_screenshot(uint8_t *buffer) const
 {
 	if (_color_bit_depth != 8 && _color_bit_depth != 10)
 	{
@@ -391,7 +396,7 @@ bool reshade::d3d12::runtime_d3d12::capture_screenshot(uint8_t *buffer) const
 	cmd_list->ResourceBarrier(1, &transition);
 
 	// Execute and wait for completion
-	if (!_cmd_impl->flush_and_wait(_queue.get()))
+	if (!_cmd_impl->flush_and_wait(_cmd_queue.get()))
 		return false;
 
 	// Copy data from system memory texture into output buffer
@@ -432,7 +437,7 @@ bool reshade::d3d12::runtime_d3d12::capture_screenshot(uint8_t *buffer) const
 	return true;
 }
 
-bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
+bool reshade::d3d12::runtime_impl::init_effect(size_t index)
 {
 	if (_d3d_compiler == nullptr)
 		_d3d_compiler = LoadLibraryW(L"d3dcompiler_47.dll");
@@ -945,10 +950,10 @@ bool reshade::d3d12::runtime_d3d12::init_effect(size_t index)
 
 	return true;
 }
-void reshade::d3d12::runtime_d3d12::unload_effect(size_t index)
+void reshade::d3d12::runtime_impl::unload_effect(size_t index)
 {
 	// Make sure no effect resources are currently in use
-	_cmd_impl->flush_and_wait(_queue.get());
+	_cmd_impl->flush_and_wait(_cmd_queue.get());
 
 	for (technique &tech : _techniques)
 	{
@@ -972,10 +977,10 @@ void reshade::d3d12::runtime_d3d12::unload_effect(size_t index)
 		effect_data.texture_semantic_to_binding.clear();
 	}
 }
-void reshade::d3d12::runtime_d3d12::unload_effects()
+void reshade::d3d12::runtime_impl::unload_effects()
 {
 	// Make sure no effect resources are currently in use
-	_cmd_impl->flush_and_wait(_queue.get());
+	_cmd_impl->flush_and_wait(_cmd_queue.get());
 
 	for (technique &tech : _techniques)
 	{
@@ -988,7 +993,7 @@ void reshade::d3d12::runtime_d3d12::unload_effects()
 	_effect_data.clear();
 }
 
-bool reshade::d3d12::runtime_d3d12::init_texture(texture &texture)
+bool reshade::d3d12::runtime_impl::init_texture(texture &texture)
 {
 	auto impl = new tex_data();
 	texture.impl = impl;
@@ -1105,7 +1110,7 @@ bool reshade::d3d12::runtime_d3d12::init_texture(texture &texture)
 
 	return true;
 }
-void reshade::d3d12::runtime_d3d12::upload_texture(const texture &texture, const uint8_t *pixels)
+void reshade::d3d12::runtime_impl::upload_texture(const texture &texture, const uint8_t *pixels)
 {
 	auto impl = static_cast<tex_data *>(texture.impl);
 	assert(impl != nullptr && texture.semantic.empty() && pixels != nullptr);
@@ -1196,17 +1201,17 @@ void reshade::d3d12::runtime_d3d12::upload_texture(const texture &texture, const
 	generate_mipmaps(impl);
 
 	// Execute and wait for completion
-	_cmd_impl->flush_and_wait(_queue.get());
+	_cmd_impl->flush_and_wait(_cmd_queue.get());
 }
-void reshade::d3d12::runtime_d3d12::destroy_texture(texture &texture)
+void reshade::d3d12::runtime_impl::destroy_texture(texture &texture)
 {
 	// Make sure texture is not still in use before destroying it
-	_cmd_impl->flush_and_wait(_queue.get());
+	_cmd_impl->flush_and_wait(_cmd_queue.get());
 
 	delete static_cast<tex_data *>(texture.impl);
 	texture.impl = nullptr;
 }
-void reshade::d3d12::runtime_d3d12::generate_mipmaps(const tex_data *impl)
+void reshade::d3d12::runtime_impl::generate_mipmaps(const tex_data *impl)
 {
 	assert(impl != nullptr);
 
@@ -1252,7 +1257,7 @@ void reshade::d3d12::runtime_d3d12::generate_mipmaps(const tex_data *impl)
 	cmd_list->ResourceBarrier(1, &transition);
 }
 
-void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
+void reshade::d3d12::runtime_impl::render_technique(technique &technique)
 {
 	const auto impl = static_cast<technique_data *>(technique.impl);
 	effect_data &effect_data = _effect_data[technique.effect_index];
@@ -1449,10 +1454,10 @@ void reshade::d3d12::runtime_d3d12::render_technique(technique &technique)
 	RESHADE_ADDON_EVENT(reshade_after_effects, this, _cmd_impl);
 }
 
-void reshade::d3d12::runtime_d3d12::update_texture_bindings(const char *semantic, api::resource_view_handle srv)
+void reshade::d3d12::runtime_impl::update_texture_bindings(const char *semantic, api::resource_view_handle srv)
 {
 	// Descriptors may be currently in use, so make sure all previous frames have finished before updating them
-	_cmd_impl->flush_and_wait(_queue.get());
+	_cmd_impl->flush_and_wait(_cmd_queue.get());
 
 	if (srv.handle != 0)
 	{

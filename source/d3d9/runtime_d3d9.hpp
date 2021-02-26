@@ -11,11 +11,11 @@
 
 namespace reshade::d3d9
 {
-	class runtime_d3d9 : public api::api_object_impl<IDirect3DSwapChain9 *, runtime>
+	class runtime_impl : public api::api_object_impl<IDirect3DSwapChain9 *, runtime>
 	{
 	public:
-		runtime_d3d9(device_impl *device, IDirect3DSwapChain9 *swapchain);
-		~runtime_d3d9();
+		runtime_impl(device_impl *device, IDirect3DSwapChain9 *swapchain);
+		~runtime_impl();
 
 		api::device *get_device() override { return _device_impl; }
 		api::command_queue *get_command_queue() override { return _device_impl; }
@@ -39,9 +39,10 @@ namespace reshade::d3d9
 
 		void render_technique(technique &technique) override;
 
-		state_block _app_state;
-		device_impl *const _device_impl;
 		const com_ptr<IDirect3DDevice9> _device;
+		device_impl *const _device_impl;
+
+		state_block _app_state;
 
 		D3DFORMAT _backbuffer_format = D3DFMT_UNKNOWN;
 		com_ptr<IDirect3DSurface9> _backbuffer;
