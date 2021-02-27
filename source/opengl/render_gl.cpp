@@ -663,29 +663,6 @@ void reshade::opengl::device_impl::flush_immediate_command_list() const
 	glFlush();
 }
 
-void reshade::opengl::device_impl::draw(uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance)
-{
-	if (instances <= 1)
-	{
-		glDrawArrays(GL_TRIANGLES, first_vertex, vertices);
-	}
-	else
-	{
-		glDrawArraysInstancedBaseInstance(GL_TRIANGLES, first_vertex, vertices, instances, first_instance);
-	}
-}
-void reshade::opengl::device_impl::draw_indexed(uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)
-{
-	if (instances <= 1)
-	{
-		glDrawElementsBaseVertex(GL_TRIANGLES, indices, GL_UNSIGNED_INT, reinterpret_cast<void *>(static_cast<uintptr_t>(first_index)), vertex_offset);
-	}
-	else
-	{
-		glDrawElementsInstancedBaseVertexBaseInstance(GL_TRIANGLES, indices, GL_UNSIGNED_INT, reinterpret_cast<void *>(static_cast<uintptr_t>(first_index)), instances, vertex_offset, first_instance);
-	}
-}
-
 void reshade::opengl::device_impl::copy_resource(api::resource_handle source, api::resource_handle destination)
 {
 	assert(source.handle != 0 && destination.handle != 0);

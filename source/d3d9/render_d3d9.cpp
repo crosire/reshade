@@ -424,17 +424,6 @@ reshade::api::resource_desc reshade::d3d9::device_impl::get_resource_desc(api::r
 	return {};
 }
 
-void reshade::d3d9::device_impl::draw(uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance)
-{
-	assert(instances <= 1 && first_instance == 0);
-	_orig->DrawPrimitive(D3DPT_TRIANGLELIST, first_vertex, vertices / 3);
-}
-void reshade::d3d9::device_impl::draw_indexed(uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)
-{
-	assert(instances <= 1 && first_instance == 0);
-	_orig->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, vertex_offset, 0, indices, first_index, indices / 3);
-}
-
 void reshade::d3d9::device_impl::copy_resource(api::resource_handle source, api::resource_handle destination)
 {
 	assert(source.handle != 0 && destination.handle != 0);

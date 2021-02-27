@@ -97,9 +97,6 @@ namespace reshade::d3d12
 
 		api::device *get_device() final { return _device_impl; }
 
-		void draw(uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance) final;
-		void draw_indexed(uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance) final;
-
 		void copy_resource(api::resource_handle source, api::resource_handle destination) final;
 
 		void transition_state(api::resource_handle resource, api::resource_usage old_state, api::resource_usage new_state) final;

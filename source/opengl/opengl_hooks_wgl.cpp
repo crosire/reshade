@@ -689,9 +689,7 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 				gl3wProcs.gl.ClearBufferfv = reshade::hooks::call(glClearBufferfv);
 				gl3wProcs.gl.ClearBufferfi = reshade::hooks::call(glClearBufferfi);
 				gl3wProcs.gl.DispatchCompute = reshade::hooks::call(glDispatchCompute);
-				gl3wProcs.gl.DrawArraysInstancedBaseInstance = reshade::hooks::call(glDrawArraysInstancedBaseInstance);
 				gl3wProcs.gl.DrawElementsBaseVertex = reshade::hooks::call(glDrawElementsBaseVertex); // Used in 'runtime_impl::render_imgui_draw_data'
-				gl3wProcs.gl.DrawElementsInstancedBaseVertexBaseInstance = reshade::hooks::call(glDrawElementsInstancedBaseVertexBaseInstance);
 				gl3wProcs.gl.TexBuffer = reshade::hooks::call(glTexBuffer);
 				gl3wProcs.gl.TexBufferRange = reshade::hooks::call(glTexBufferRange);
 				gl3wProcs.gl.TextureView = reshade::hooks::call(glTextureView);
@@ -1198,9 +1196,7 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		gl3wProcs.gl.ClearBufferfv = reshade::hooks::call(glClearBufferfv);
 		gl3wProcs.gl.ClearBufferfi = reshade::hooks::call(glClearBufferfi);
 		gl3wProcs.gl.DispatchCompute = reshade::hooks::call(glDispatchCompute);
-		gl3wProcs.gl.DrawArraysInstancedBaseInstance = reshade::hooks::call(glDrawArraysInstancedBaseInstance);
 		gl3wProcs.gl.DrawElementsBaseVertex = reshade::hooks::call(glDrawElementsBaseVertex);
-		gl3wProcs.gl.DrawElementsInstancedBaseVertexBaseInstance = reshade::hooks::call(glDrawElementsInstancedBaseVertexBaseInstance);
 		gl3wProcs.gl.TexBuffer = reshade::hooks::call(glTexBuffer);
 		gl3wProcs.gl.TexBufferRange = reshade::hooks::call(glTexBufferRange);
 		gl3wProcs.gl.TextureView = reshade::hooks::call(glTextureView);

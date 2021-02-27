@@ -243,21 +243,6 @@ void reshade::d3d10::device_impl::flush_immediate_command_list() const
 	_orig->Flush();
 }
 
-void reshade::d3d10::device_impl::draw(uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance)
-{
-	if (instances <= 1)
-		_orig->Draw(vertices, first_vertex);
-	else
-		_orig->DrawInstanced(vertices, instances, first_vertex, first_instance);
-}
-void reshade::d3d10::device_impl::draw_indexed(uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)
-{
-	if (instances <= 1)
-		_orig->DrawIndexed(indices, first_index, vertex_offset);
-	else
-		_orig->DrawIndexedInstanced(indices, instances, first_index, vertex_offset, first_instance);
-}
-
 void reshade::d3d10::device_impl::copy_resource(api::resource_handle src, api::resource_handle dst)
 {
 	assert(src.handle != 0 && dst.handle != 0);

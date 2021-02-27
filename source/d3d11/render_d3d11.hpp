@@ -50,9 +50,6 @@ namespace reshade::d3d11
 
 		api::device *get_device() final { return _device_impl; }
 
-		void draw(uint32_t, uint32_t, uint32_t, uint32_t) final {}
-		void draw_indexed(uint32_t, uint32_t, uint32_t, int32_t, uint32_t) final {}
-
 		void copy_resource(api::resource_handle, api::resource_handle) final {}
 
 		void transition_state(api::resource_handle, api::resource_usage, api::resource_usage) final {}
@@ -75,9 +72,6 @@ namespace reshade::d3d11
 		api::command_list *get_immediate_command_list() final { assert(_orig->GetType() == D3D11_DEVICE_CONTEXT_IMMEDIATE); return this; }
 
 		void flush_immediate_command_list() const final;
-
-		void draw(uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance) final;
-		void draw_indexed(uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance) final;
 
 		void copy_resource(api::resource_handle source, api::resource_handle destination) final;
 

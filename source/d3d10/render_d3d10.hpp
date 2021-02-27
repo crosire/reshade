@@ -43,9 +43,6 @@ namespace reshade::d3d10
 
 		void flush_immediate_command_list() const final;
 
-		void draw(uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance) final;
-		void draw_indexed(uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance) final;
-
 		void copy_resource(api::resource_handle source, api::resource_handle destination) final;
 
 		void transition_state(api::resource_handle, api::resource_usage, api::resource_usage) final { /* no-op */ }

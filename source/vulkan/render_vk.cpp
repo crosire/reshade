@@ -266,19 +266,6 @@ reshade::vulkan::command_list_impl::~command_list_impl()
 	}
 }
 
-void reshade::vulkan::command_list_impl::draw(uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance)
-{
-	_has_commands = true;
-
-	_device_impl->vk.CmdDraw(_orig, vertices, instances, first_vertex, first_instance);
-}
-void reshade::vulkan::command_list_impl::draw_indexed(uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)
-{
-	_has_commands = true;
-
-	_device_impl->vk.CmdDrawIndexed(_orig, indices, instances, first_index, vertex_offset, first_instance);
-}
-
 void reshade::vulkan::command_list_impl::copy_resource(api::resource_handle source, api::resource_handle destination)
 {
 	_has_commands = true;
