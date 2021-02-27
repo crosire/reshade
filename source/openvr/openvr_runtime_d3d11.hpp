@@ -3,6 +3,7 @@
 
 #include "com_ptr.hpp"
 #include <openvr.h>
+#include "d3d11/d3d11_device.hpp"
 #include "d3d11/runtime_d3d11.hpp"
 
 namespace reshade::openvr
@@ -26,7 +27,7 @@ namespace reshade::openvr
 	{
 	public:
 	    typedef vr::EVRCompositorError(* const submit_function)(vr::IVRCompositor *, vr::EVREye, const vr::Texture_t *, const vr::VRTextureBounds_t *, vr::EVRSubmitFlags);
-		openvr_runtime_d3d11(ID3D11Device *device, submit_function orig_submit, vr::IVRCompositor *orig_compositor);
+		openvr_runtime_d3d11(D3D11Device *device, submit_function orig_submit, vr::IVRCompositor *orig_compositor);
 
 	    vr::EVRCompositorError on_submit(vr::EVREye eEye, const vr::Texture_t *pTexture, const vr::VRTextureBounds_t *pBounds, vr::EVRSubmitFlags nSubmitFlags);
 	private:
@@ -37,8 +38,7 @@ namespace reshade::openvr
 		vr::IVRCompositor *_orig_compositor;
 		com_ptr<ID3D11Device> _device;
 		com_ptr<ID3D11DeviceContext> _context;
-		std::unique_ptr<d3d11::state_tracking_context> _state;
-		std::unique_ptr<d3d11::runtime_d3d11> _runtime;
+		std::unique_ptr<d3d11::runtime_impl> _runtime;
 		eye_texture_d3d11 _eye_texture;
 	};	
 }

@@ -1,16 +1,16 @@
 #include "openvr_runtime_d3d11.hpp"
 
 #include "dll_log.hpp"
+#include "d3d11/d3d11_device_context.hpp"
 #include "dxgi/format_utils.hpp"
 
 namespace reshade::openvr
 {
-	openvr_runtime_d3d11::openvr_runtime_d3d11(ID3D11Device *device, submit_function orig_submit, vr::IVRCompositor *orig_compositor) :
-		_orig_submit(orig_submit), _orig_compositor(orig_compositor), _device(device)
+	openvr_runtime_d3d11::openvr_runtime_d3d11(D3D11Device *device, submit_function orig_submit, vr::IVRCompositor *orig_compositor) :
+		_orig_submit(orig_submit), _orig_compositor(orig_compositor), _device(device->_orig)
 	{
 		_device->GetImmediateContext(&_context);
-		_state.reset(new d3d11::state_tracking_context(_context.get()));
-		_runtime.reset(new d3d11::runtime_d3d11(_device.get(), nullptr, _state.get()));
+		_runtime.reset(new d3d11::runtime_impl(device, device->_immediate_context, nullptr));
 
 		LOG(DEBUG) << "Created OpenVR D3D11 runtime";
 	}
@@ -61,10 +61,10 @@ namespace reshade::openvr
 		}
 		
 		D3D11_BOX region;
-		region.left = td.Width * std::min(pBounds->uMin, pBounds->uMax);
-		region.right = td.Width * std::max(pBounds->uMin, pBounds->uMax);
-		region.top = td.Height * std::min(pBounds->vMin, pBounds->vMax);
-		region.bottom = td.Height * std::max(pBounds->vMin, pBounds->vMax);
+		region.left = static_cast<UINT>(td.Width * std::min(pBounds->uMin, pBounds->uMax));
+		region.right = static_cast<UINT>(td.Width * std::max(pBounds->uMin, pBounds->uMax));
+		region.top = static_cast<UINT>(td.Height * std::min(pBounds->vMin, pBounds->vMax));
+		region.bottom = static_cast<UINT>(td.Height * std::max(pBounds->vMin, pBounds->vMax));
 		region.front = 0;
 		region.back = 1;
 		uint32_t tex_width = region.right - region.left;

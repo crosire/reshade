@@ -21,7 +21,11 @@ vr::EVRCompositorError IVRCompositor_Submit(vr::IVRCompositor *compositor, vr::E
 		{
 			com_ptr<ID3D11Device> device;
 			static_cast<ID3D11Texture2D*>(pTexture->handle)->GetDevice(&device);
-			vr_runtime_d3d11.reset(new reshade::openvr::openvr_runtime_d3d11(device.get(), trampoline, compositor));
+			com_ptr< D3D11Device> device_proxy;
+			if (UINT data_size = sizeof(device_proxy);
+				FAILED(device->GetPrivateData(__uuidof(D3D11Device), &data_size, reinterpret_cast<void *>(&device_proxy))))
+				return vr::VRCompositorError_TextureIsOnWrongDevice;
+			vr_runtime_d3d11.reset(new reshade::openvr::openvr_runtime_d3d11(device_proxy.get(), trampoline, compositor));
 		}
 		return vr_runtime_d3d11->on_submit(eEye, pTexture, pBounds, nSubmitFlags);
 	}
