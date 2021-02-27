@@ -359,7 +359,7 @@ void     VKAPI_CALL vkDestroyDevice(VkDevice device, const VkAllocationCallbacks
 	// Destroy all queues associated with this device
 	for (reshade::vulkan::command_queue_impl *const queue_impl : device_impl->_queues)
 	{
-		s_vulkan_queues.erase((VkQueue)queue_impl->get_native_object());
+		s_vulkan_queues.erase(queue_impl->_orig);
 		delete queue_impl;
 	}
 
@@ -573,6 +573,8 @@ VkResult VKAPI_CALL vkQueueSubmit(VkQueue queue, uint32_t submitCount, const VkS
 	reshade::vulkan::command_queue_impl *const queue_impl = s_vulkan_queues.at(queue);
 	if (queue_impl != nullptr)
 	{
+		queue_impl->flush_immediate_command_list();
+
 		for (uint32_t i = 0; i < submitCount; ++i)
 		{
 			for (uint32_t k = 0; k < pSubmits[i].commandBufferCount; ++k)
