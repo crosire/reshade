@@ -252,6 +252,9 @@
     <ClCompile Include="source\opengl\state_block_gl.cpp">
       <Filter>hooks\opengl</Filter>
     </ClCompile>
+    <ClCompile Include="source\openvr\openvr.cpp">
+      <Filter>hooks\openvr</Filter>
+    </ClCompile>
     <ClCompile Include="source\vulkan\render_vk.cpp">
       <Filter>hooks\vulkan</Filter>
     </ClCompile>
@@ -278,12 +281,6 @@
     </ClCompile>
     <ClCompile Include="source\windows\ws2_32.cpp">
       <Filter>hooks\windows</Filter>
-    </ClCompile>
-    <ClCompile Include="source\openvr\openvr.cpp">
-      <Filter>hooks\openvr</Filter>
-    </ClCompile>
-    <ClCompile Include="source\openvr\openvr_runtime_d3d11.cpp">
-      <Filter>hooks\openvr</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -496,9 +493,6 @@
     </ClInclude>
     <ClInclude Include="res\version.h">
       <Filter>resources</Filter>
-    </ClInclude>
-    <ClInclude Include="source\openvr\openvr_runtime_d3d11.hpp">
-      <Filter>hooks\openvr</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

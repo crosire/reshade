@@ -280,25 +280,46 @@ void reshade::d3d11::runtime_impl::on_present()
 	// Apply previous state from application
 	_app_state.apply_and_release();
 }
-void reshade::d3d11::runtime_impl::on_present(ID3D11Texture2D *source)
+void reshade::d3d11::runtime_impl::on_present(ID3D11Texture2D *source, const D3D11_BOX &region)
 {
 	assert(source != nullptr);
 
-	if (source != _backbuffer)
+	D3D11_TEXTURE2D_DESC source_desc;
+	source->GetDesc(&source_desc);
+
+	const unsigned int region_width = region.right - region.left;
+	const unsigned int region_height = region.bottom - region.top;
+	assert((region.back - region.front) == 1);
+
+	if (region_width != _width || region_height != _height || source_desc.Format != _backbuffer_format)
 	{
 		on_reset();
 
-		D3D11_TEXTURE2D_DESC tex_desc;
-		source->GetDesc(&tex_desc);
+		if (region_width != source_desc.Width || region_height != source_desc.Height || (source_desc.BindFlags & D3D11_BIND_RENDER_TARGET) == 0)
+		{
+			source_desc.Width = region_width;
+			source_desc.Height = region_height;
+			source_desc.Format = make_dxgi_format_typeless(source_desc.Format);
+			source_desc.Usage = D3D11_USAGE_DEFAULT;
+			source_desc.BindFlags = D3D11_BIND_RENDER_TARGET;
+
+			if (HRESULT hr = _device->CreateTexture2D(&source_desc, nullptr, &_backbuffer); FAILED(hr))
+			{
+				LOG(ERROR) << "Failed to create region texture! HRESULT is " << hr << '.';
+				return;
+			}
+		}
+		else
+		{
+			_backbuffer = source;
+		}
 
 		DXGI_SWAP_CHAIN_DESC swap_desc = {};
-		swap_desc.BufferDesc.Width = tex_desc.Width;
-		swap_desc.BufferDesc.Height = tex_desc.Height;
-		swap_desc.BufferDesc.Format = tex_desc.Format;
-		swap_desc.SampleDesc = tex_desc.SampleDesc;
+		swap_desc.BufferDesc.Width = region_width;
+		swap_desc.BufferDesc.Height = region_height;
+		swap_desc.BufferDesc.Format = source_desc.Format;
+		swap_desc.SampleDesc = source_desc.SampleDesc;
 		swap_desc.BufferCount = 1;
-
-		_backbuffer = source;
 
 		if (!on_init(swap_desc))
 		{
@@ -307,7 +328,15 @@ void reshade::d3d11::runtime_impl::on_present(ID3D11Texture2D *source)
 		}
 	}
 
+	// Copy region of the source texture
+	if (_backbuffer != source)
+		_immediate_context->CopySubresourceRegion(_backbuffer.get(), 0, 0, 0, 0, source, 0, &region);
+
 	on_present();
+
+	// Copy result back into the source texture
+	if (_backbuffer != source)
+		_immediate_context->CopySubresourceRegion(source, 0, region.left, region.top, region.front, _backbuffer.get(), 0, nullptr);
 }
 
 bool reshade::d3d11::runtime_impl::capture_screenshot(uint8_t *buffer) const
