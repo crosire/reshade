@@ -99,7 +99,7 @@ void DXGISwapChain::runtime_resize()
 		initialized = static_cast<reshade::d3d10::runtime_d3d10 *>(_runtime)->on_init();
 		break;
 	case 11:
-		initialized = static_cast<reshade::d3d11::runtime_d3d11 *>(_runtime)->on_init(_orig);
+		initialized = static_cast<reshade::d3d11::runtime_d3d11 *>(_runtime)->on_init();
 		break;
 	case 12:
 		initialized = static_cast<reshade::d3d12::runtime_d3d12 *>(_runtime)->on_init();

@@ -2,7 +2,7 @@
 #include <d3d11.h>
 
 #include "com_ptr.hpp"
-#include "openvr.h"
+#include <openvr.h>
 #include "d3d11/runtime_d3d11.hpp"
 
 namespace reshade::openvr

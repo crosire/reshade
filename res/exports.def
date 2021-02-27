@@ -425,6 +425,10 @@ EXPORTS
 	wglUseFontOutlinesA
 	wglUseFontOutlinesW
 
+	; openvr_api[64].dll
+	VR_ShutdownInternal
+	VR_GetGenericInterface
+
 	; vulkan-1.dll
 	vkCreateDevice
 	vkCreateInstance
@@ -456,7 +460,3 @@ EXPORTS
 	WSASendTo = HookWSASendTo @99
 	WSARecv = HookWSARecv @91
 	WSARecvFrom = HookWSARecvFrom @93
-
-	; openvr_api[64].dll
-	VR_GetGenericInterface
-	VR_ShutdownInternal

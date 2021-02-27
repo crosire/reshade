@@ -35,11 +35,12 @@ static bool is_uwp_app()
 
 void reshade::input::register_window_with_raw_input(window_handle window, bool no_legacy_keyboard, bool no_legacy_mouse)
 {
-	assert(window != nullptr);
 #if RESHADE_UWP
 	if (is_uwp_app()) // UWP apps never use legacy input messages
 		no_legacy_keyboard = no_legacy_mouse = true;
 #endif
+
+	assert(window != nullptr);
 
 	const std::lock_guard<std::mutex> lock(s_windows_mutex);
 
@@ -51,6 +52,7 @@ void reshade::input::register_window_with_raw_input(window_handle window, bool n
 std::shared_ptr<reshade::input> reshade::input::register_window(window_handle window)
 {
 	assert(window != nullptr);
+
 	const std::lock_guard<std::mutex> lock(s_windows_mutex);
 
 	const auto insert = s_windows.emplace(static_cast<HWND>(window), std::weak_ptr<input>());

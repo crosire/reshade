@@ -17,18 +17,15 @@ namespace reshade::d3d11
 		runtime_d3d11(ID3D11Device *device, IDXGISwapChain *swapchain, state_tracking_context *state_tracking);
 		~runtime_d3d11();
 
-		bool on_init(IDXGISwapChain *swapchain);
+		bool on_init();
+		bool on_init(const DXGI_SWAP_CHAIN_DESC &desc);
 		void on_reset();
 		void on_present();
 		void on_present(ID3D11Texture2D *source);
 
 		bool capture_screenshot(uint8_t *buffer) const override;
 
-		ID3D11Texture2D *get_backbuffer() const;
-
 	private:
-		bool on_init(ID3D11Texture2D *source);
-		bool init_resources();
 		bool init_effect(size_t index) override;
 		void unload_effect(size_t index) override;
 		void unload_effects() override;
@@ -45,6 +42,7 @@ namespace reshade::d3d11
 		state_tracking_context &_state_tracking;
 		const com_ptr<ID3D11Device> _device;
 		com_ptr<ID3D11DeviceContext> _immediate_context;
+		const com_ptr<IDXGISwapChain> _swapchain;
 
 		DXGI_FORMAT _backbuffer_format = DXGI_FORMAT_UNKNOWN;
 		com_ptr<ID3D11Texture2D> _backbuffer;

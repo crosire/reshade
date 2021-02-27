@@ -34,6 +34,9 @@
     <Filter Include="hooks\opengl">
       <UniqueIdentifier>{78832e2a-8fda-4ae5-aecb-a4e0f5a0df02}</UniqueIdentifier>
     </Filter>
+    <Filter Include="hooks\openvr">
+      <UniqueIdentifier>{d33c801e-4764-4584-b168-66dde19a6f57}</UniqueIdentifier>
+    </Filter>
     <Filter Include="hooks\vulkan">
       <UniqueIdentifier>{40ae025e-f912-4ebf-9a43-69d7c1a96d3e}</UniqueIdentifier>
     </Filter>
@@ -51,9 +54,6 @@
     </Filter>
     <Filter Include="resources\shaders">
       <UniqueIdentifier>{9232c43b-559d-4435-b309-c8bbf4e6477b}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="hooks\openvr">
-      <UniqueIdentifier>{d33c801e-4764-4584-b168-66dde19a6f57}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

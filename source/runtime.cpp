@@ -131,7 +131,6 @@ bool reshade::runtime::on_init(input::window_handle window)
 
 	return true;
 }
-
 void reshade::runtime::on_reset()
 {
 	if (_is_initialized)
