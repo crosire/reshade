@@ -681,6 +681,9 @@ void reshade::runtime::load_effects()
 	if (effect_files.empty())
 		return; // No effect files found, so nothing more to do
 
+	// Have to be initialized at this point or else the threads spawned below will immediately exit without reducing the remaining effects count
+	assert(_is_initialized);
+
 	// Allocate space for effects which are placed in this array during the 'load_effect' call
 	const size_t offset = _effects.size();
 	_effects.resize(offset + effect_files.size());
