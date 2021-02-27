@@ -17,43 +17,43 @@ namespace reshade::opengl
 		device_impl(HDC hdc, HGLRC hglrc);
 		~device_impl();
 
-		api::render_api get_api() const override { return api::render_api::opengl; }
+		api::render_api get_api() const final { return api::render_api::opengl; }
 
-		bool check_format_support(uint32_t format, api::resource_usage usage) const override;
+		bool check_format_support(uint32_t format, api::resource_usage usage) const final;
 
-		bool check_resource_handle_valid(api::resource_handle resource) const override;
-		bool check_resource_view_handle_valid(api::resource_view_handle view) const override;
+		bool check_resource_handle_valid(api::resource_handle resource) const final;
+		bool check_resource_view_handle_valid(api::resource_view_handle view) const final;
 
-		bool create_resource(api::resource_type type, const api::resource_desc &desc, api::resource_usage initial_state, api::resource_handle *out_resource) override;
-		bool create_resource_view(api::resource_handle resource, api::resource_view_type type, const api::resource_view_desc &desc, api::resource_view_handle *out_view) override;
+		bool create_resource(api::resource_type type, const api::resource_desc &desc, api::resource_usage initial_state, api::resource_handle *out_resource) final;
+		bool create_resource_view(api::resource_handle resource, api::resource_view_type type, const api::resource_view_desc &desc, api::resource_view_handle *out_view) final;
 
-		void destroy_resource(api::resource_handle resource) override;
-		void destroy_resource_view(api::resource_view_handle view) override;
+		void destroy_resource(api::resource_handle resource) final;
+		void destroy_resource_view(api::resource_view_handle view) final;
 
-		void get_resource_from_view(api::resource_view_handle view, api::resource_handle *out_resource) const override;
+		void get_resource_from_view(api::resource_view_handle view, api::resource_handle *out_resource) const final;
 
-		api::resource_desc get_resource_desc(api::resource_handle resource) const override;
+		api::resource_desc get_resource_desc(api::resource_handle resource) const final;
 
-		void wait_idle() const override;
+		void wait_idle() const final;
 
 		api::resource_view_handle get_depth_stencil_from_fbo(GLuint fbo) const;
 		api::resource_view_handle get_render_target_from_fbo(GLuint fbo, GLuint drawbuffer) const;
 
 		api::device *get_device() override { return this; }
 
-		api::command_list *get_immediate_command_list() override { return this; }
+		api::command_list *get_immediate_command_list() final { return this; }
 
-		void flush_immediate_command_list() const override;
+		void flush_immediate_command_list() const final;
 
-		void draw(uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance) override;
-		void draw_indexed(uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance) override;
+		void draw(uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance) final;
+		void draw_indexed(uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance) final;
 
-		void copy_resource(api::resource_handle source, api::resource_handle destination) override;
+		void copy_resource(api::resource_handle source, api::resource_handle destination) final;
 
-		void transition_state(api::resource_handle, api::resource_usage, api::resource_usage) override { /* no-op */ }
+		void transition_state(api::resource_handle, api::resource_usage, api::resource_usage) final { /* no-op */ }
 
-		void clear_depth_stencil_view(api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil) override;
-		void clear_render_target_view(api::resource_view_handle rtv, const float color[4]) override;
+		void clear_depth_stencil_view(api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil) final;
+		void clear_render_target_view(api::resource_view_handle rtv, const float color[4]) final;
 
 	public:
 		bool _compatibility_context = false;

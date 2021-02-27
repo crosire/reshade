@@ -13,7 +13,7 @@ struct D3D11Device;
 struct D3D12CommandQueue;
 namespace reshade { class runtime; }
 
-struct DECLSPEC_UUID("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8") DXGISwapChain : IDXGISwapChain4
+struct DECLSPEC_UUID("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8") DXGISwapChain final : IDXGISwapChain4
 {
 	DXGISwapChain(D3D10Device *device, IDXGISwapChain  *original);
 	DXGISwapChain(D3D10Device *device, IDXGISwapChain1 *original);

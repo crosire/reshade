@@ -12,7 +12,7 @@
 template <typename T, bool d3d9_style = false>
 class com_object_list
 {
-	class tracker_instance : public IUnknown
+	class tracker_instance final : public IUnknown
 	{
 	public:
 		tracker_instance(T *object, com_object_list<T, d3d9_style> *list) :
@@ -98,7 +98,7 @@ private:
 template <typename T>
 class com_object_list<T, true>
 {
-	class tracker_instance : public IUnknown
+	class tracker_instance final : public IUnknown
 	{
 	public:
 		tracker_instance(T *object, com_object_list<T, true> *list) :

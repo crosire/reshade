@@ -9,7 +9,7 @@
 
 struct Direct3DDevice9;
 
-struct DECLSPEC_UUID("BC52FCE4-1EAC-40C8-84CF-863600BBAA01") Direct3DSwapChain9 : IDirect3DSwapChain9Ex, public reshade::d3d9::runtime_impl
+struct DECLSPEC_UUID("BC52FCE4-1EAC-40C8-84CF-863600BBAA01") Direct3DSwapChain9 final : IDirect3DSwapChain9Ex, public reshade::d3d9::runtime_impl
 {
 	Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9   *original);
 	Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9Ex *original);

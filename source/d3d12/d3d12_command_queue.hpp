@@ -10,7 +10,7 @@
 struct D3D12Device;
 struct D3D12CommandQueueDownlevel;
 
-struct DECLSPEC_UUID("2C576D2A-0C1C-4D1D-AD7C-BC4FAEC15ABC") D3D12CommandQueue : ID3D12CommandQueue, public reshade::d3d12::command_queue_impl
+struct DECLSPEC_UUID("2C576D2A-0C1C-4D1D-AD7C-BC4FAEC15ABC") D3D12CommandQueue final : ID3D12CommandQueue, public reshade::d3d12::command_queue_impl
 {
 	D3D12CommandQueue(D3D12Device *device, ID3D12CommandQueue *original);
 

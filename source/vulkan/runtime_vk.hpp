@@ -20,28 +20,28 @@ namespace reshade::vulkan
 		runtime_impl(device_impl *device, command_queue_impl *graphics_queue);
 		~runtime_impl();
 
-		api::device *get_device() override { return _device_impl; }
-		api::command_queue *get_command_queue() override { return _queue_impl; }
+		api::device *get_device() final { return _device_impl; }
+		api::command_queue *get_command_queue() final { return _queue_impl; }
 
 		bool on_init(VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &desc, HWND hwnd);
 		void on_reset();
 		void on_present(VkQueue queue, uint32_t swapchain_image_index, std::vector<VkSemaphore> &wait);
 
-		bool capture_screenshot(uint8_t *buffer) const override;
+		bool capture_screenshot(uint8_t *buffer) const final;
 
-		void update_texture_bindings(const char *semantic, api::resource_view_handle srv) override;
+		void update_texture_bindings(const char *semantic, api::resource_view_handle srv) final;
 
 	private:
-		bool init_effect(size_t index) override;
-		void unload_effect(size_t index) override;
-		void unload_effects() override;
+		bool init_effect(size_t index) final;
+		void unload_effect(size_t index) final;
+		void unload_effects() final;
 
-		bool init_texture(texture &texture) override;
-		void upload_texture(const texture &texture, const uint8_t *pixels) override;
-		void destroy_texture(texture &texture) override;
+		bool init_texture(texture &texture) final;
+		void upload_texture(const texture &texture, const uint8_t *pixels) final;
+		void destroy_texture(texture &texture) final;
 		void generate_mipmaps(const struct tex_data *impl);
 
-		void render_technique(technique &technique) override;
+		void render_technique(technique &technique) final;
 
 		void wait_for_command_buffers();
 
@@ -98,7 +98,7 @@ namespace reshade::vulkan
 		static const uint32_t NUM_IMGUI_BUFFERS = 4;
 
 		bool init_imgui_resources();
-		void render_imgui_draw_data(ImDrawData *draw_data) override;
+		void render_imgui_draw_data(ImDrawData *draw_data) final;
 
 		struct imgui_resources
 		{

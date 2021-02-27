@@ -46,7 +46,7 @@ namespace reshade
 		/// <summary>
 		/// Return the frame width and height in pixels.
 		/// </summary>
-		void get_frame_width_and_height(uint32_t *width, uint32_t *height) const override { *width = _width; *height = _height; }
+		void get_frame_width_and_height(uint32_t *width, uint32_t *height) const final { *width = _width; *height = _height; }
 
 		/// <summary>
 		/// Create a copy of the current frame image in system memory.
@@ -117,10 +117,10 @@ namespace reshade
 		/// <summary>
 		/// Updates the values of all uniform variables with a "source" annotation set to <paramref name="source"/> to the specified <paramref name="values"/>.
 		/// </summary>
-		void update_uniform_variables(const char *source, const bool *values, size_t count, size_t array_index) override;
-		void update_uniform_variables(const char *source, const float *values, size_t count, size_t array_index) override;
-		void update_uniform_variables(const char *source, const int32_t *values, size_t count, size_t array_index) override;
-		void update_uniform_variables(const char *source, const uint32_t *values, size_t count, size_t array_index) override;
+		void update_uniform_variables(const char *source, const bool *values, size_t count, size_t array_index) final;
+		void update_uniform_variables(const char *source, const float *values, size_t count, size_t array_index) final;
+		void update_uniform_variables(const char *source, const int32_t *values, size_t count, size_t array_index) final;
+		void update_uniform_variables(const char *source, const uint32_t *values, size_t count, size_t array_index) final;
 
 #if RESHADE_GUI
 		/// <summary>

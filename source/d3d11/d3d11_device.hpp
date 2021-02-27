@@ -10,7 +10,7 @@
 struct DXGIDevice;
 struct D3D11DeviceContext;
 
-struct DECLSPEC_UUID("72299288-2C68-4AD8-945D-2BFB5AA9C609") D3D11Device : ID3D11Device5, public reshade::d3d11::device_impl
+struct DECLSPEC_UUID("72299288-2C68-4AD8-945D-2BFB5AA9C609") D3D11Device final : ID3D11Device5, public reshade::d3d11::device_impl
 {
 	D3D11Device(IDXGIDevice1 *dxgi_device, ID3D11Device *original);
 

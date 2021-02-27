@@ -17,27 +17,27 @@ namespace reshade::d3d11
 		runtime_impl(device_impl *device, device_context_impl *immediate_context, IDXGISwapChain *swapchain);
 		~runtime_impl();
 
-		api::device *get_device() override { return _device_impl; }
-		api::command_queue *get_command_queue() override { return _immediate_context_impl; }
+		api::device *get_device() final { return _device_impl; }
+		api::command_queue *get_command_queue() final { return _immediate_context_impl; }
 
 		bool on_init();
 		void on_reset();
 		void on_present();
 
-		bool capture_screenshot(uint8_t *buffer) const override;
+		bool capture_screenshot(uint8_t *buffer) const final;
 
-		void update_texture_bindings(const char *semantic, api::resource_view_handle srv) override;
+		void update_texture_bindings(const char *semantic, api::resource_view_handle srv) final;
 
 	private:
-		bool init_effect(size_t index) override;
-		void unload_effect(size_t index) override;
-		void unload_effects() override;
+		bool init_effect(size_t index) final;
+		void unload_effect(size_t index) final;
+		void unload_effects() final;
 
-		bool init_texture(texture &texture) override;
-		void upload_texture(const texture &texture, const uint8_t *pixels) override;
-		void destroy_texture(texture &texture) override;
+		bool init_texture(texture &texture) final;
+		void upload_texture(const texture &texture, const uint8_t *pixels) final;
+		void destroy_texture(texture &texture) final;
 
-		void render_technique(technique &technique) override;
+		void render_technique(technique &technique) final;
 
 		const com_ptr<ID3D11Device> _device;
 		const com_ptr<ID3D11DeviceContext> _immediate_context;
@@ -67,7 +67,7 @@ namespace reshade::d3d11
 
 #if RESHADE_GUI
 		bool init_imgui_resources();
-		void render_imgui_draw_data(ImDrawData *data) override;
+		void render_imgui_draw_data(ImDrawData *data) final;
 
 		struct imgui_resources
 		{

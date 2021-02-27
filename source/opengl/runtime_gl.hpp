@@ -17,33 +17,33 @@ namespace reshade::opengl
 		runtime_impl(HDC hdc, HGLRC hglrc);
 		~runtime_impl();
 
-		bool get_data(const uint8_t guid[16], void **ptr) const override { return device_impl::get_data(guid, ptr); }
-		void set_data(const uint8_t guid[16], void *const ptr)  override { device_impl::set_data(guid, ptr); }
+		bool get_data(const uint8_t guid[16], void **ptr) const final { return device_impl::get_data(guid, ptr); }
+		void set_data(const uint8_t guid[16], void *const ptr)  final { device_impl::set_data(guid, ptr); }
 
-		uint64_t get_native_object() const override { return reinterpret_cast<uintptr_t>(*_hdcs.begin()); } // Simply return the first device context
+		uint64_t get_native_object() const final { return reinterpret_cast<uintptr_t>(*_hdcs.begin()); } // Simply return the first device context
 
-		api::device *get_device() override { return this; }
-		api::command_queue *get_command_queue() override { return this; }
+		api::device *get_device() final { return this; }
+		api::command_queue *get_command_queue() final { return this; }
 
 		bool on_init(HWND hwnd, unsigned int width, unsigned int height);
 		void on_reset();
 		void on_present();
 
-		bool capture_screenshot(uint8_t *buffer) const override;
+		bool capture_screenshot(uint8_t *buffer) const final;
 
-		void update_texture_bindings(const char *semantic, api::resource_view_handle srv) override;
+		void update_texture_bindings(const char *semantic, api::resource_view_handle srv) final;
 
 	private:
-		bool init_effect(size_t index) override;
-		void unload_effect(size_t index) override;
-		void unload_effects() override;
+		bool init_effect(size_t index) final;
+		void unload_effect(size_t index) final;
+		void unload_effects() final;
 
-		bool init_texture(texture &texture) override;
-		void upload_texture(const texture &texture, const uint8_t *data) override;
-		void destroy_texture(texture &texture) override;
+		bool init_texture(texture &texture) final;
+		void upload_texture(const texture &texture, const uint8_t *data) final;
+		void destroy_texture(texture &texture) final;
 		void generate_mipmaps(const struct tex_data *impl);
 
-		void render_technique(technique &technique) override;
+		void render_technique(technique &technique) final;
 
 		enum BUF
 		{
@@ -97,7 +97,7 @@ namespace reshade::opengl
 
 #if RESHADE_GUI
 		void init_imgui_resources();
-		void render_imgui_draw_data(ImDrawData *data) override;
+		void render_imgui_draw_data(ImDrawData *data) final;
 
 		struct imgui_resources
 		{

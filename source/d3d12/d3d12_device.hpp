@@ -9,7 +9,7 @@
 
 struct D3D12DeviceDownlevel;
 
-struct DECLSPEC_UUID("2523AFF4-978B-4939-BA16-8EE876A4CB2A") D3D12Device : ID3D12Device6, public reshade::d3d12::device_impl
+struct DECLSPEC_UUID("2523AFF4-978B-4939-BA16-8EE876A4CB2A") D3D12Device final : ID3D12Device6, public reshade::d3d12::device_impl
 {
 	D3D12Device(ID3D12Device *original);
 

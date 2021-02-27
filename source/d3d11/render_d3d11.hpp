@@ -18,24 +18,24 @@ namespace reshade::d3d11
 		explicit device_impl(ID3D11Device *device);
 		~device_impl();
 
-		api::render_api get_api() const override { return api::render_api::d3d11; }
+		api::render_api get_api() const final { return api::render_api::d3d11; }
 
-		bool check_format_support(uint32_t format, api::resource_usage usage) const override;
+		bool check_format_support(uint32_t format, api::resource_usage usage) const final;
 
-		bool check_resource_handle_valid(api::resource_handle resource) const override;
-		bool check_resource_view_handle_valid(api::resource_view_handle view) const override;
+		bool check_resource_handle_valid(api::resource_handle resource) const final;
+		bool check_resource_view_handle_valid(api::resource_view_handle view) const final;
 
-		bool create_resource(api::resource_type type, const api::resource_desc &desc, api::resource_usage initial_state, api::resource_handle *out_resource) override;
-		bool create_resource_view(api::resource_handle resource, api::resource_view_type type, const api::resource_view_desc &desc, api::resource_view_handle *out_view) override;
+		bool create_resource(api::resource_type type, const api::resource_desc &desc, api::resource_usage initial_state, api::resource_handle *out_resource) final;
+		bool create_resource_view(api::resource_handle resource, api::resource_view_type type, const api::resource_view_desc &desc, api::resource_view_handle *out_view) final;
 
-		void destroy_resource(api::resource_handle resource) override;
-		void destroy_resource_view(api::resource_view_handle view) override;
+		void destroy_resource(api::resource_handle resource) final;
+		void destroy_resource_view(api::resource_view_handle view) final;
 
-		void get_resource_from_view(api::resource_view_handle view, api::resource_handle *out_resource) const override;
+		void get_resource_from_view(api::resource_view_handle view, api::resource_handle *out_resource) const final;
 
-		api::resource_desc get_resource_desc(api::resource_handle resource) const override;
+		api::resource_desc get_resource_desc(api::resource_handle resource) const final;
 
-		void wait_idle() const override { /* no-op */ }
+		void wait_idle() const final { /* no-op */ }
 
 	protected:
 		com_object_list<ID3D11View> _views;
@@ -48,17 +48,17 @@ namespace reshade::d3d11
 		command_list_impl(device_impl *device, ID3D11CommandList *cmd_list);
 		~command_list_impl();
 
-		api::device *get_device() override { return _device_impl; }
+		api::device *get_device() final { return _device_impl; }
 
-		void draw(uint32_t, uint32_t, uint32_t, uint32_t) override {}
-		void draw_indexed(uint32_t, uint32_t, uint32_t, int32_t, uint32_t) override {}
+		void draw(uint32_t, uint32_t, uint32_t, uint32_t) final {}
+		void draw_indexed(uint32_t, uint32_t, uint32_t, int32_t, uint32_t) final {}
 
-		void copy_resource(api::resource_handle, api::resource_handle) override {}
+		void copy_resource(api::resource_handle, api::resource_handle) final {}
 
-		void transition_state(api::resource_handle, api::resource_usage, api::resource_usage) override {}
+		void transition_state(api::resource_handle, api::resource_usage, api::resource_usage) final {}
 
-		void clear_depth_stencil_view(api::resource_view_handle, uint32_t, float, uint8_t) override {}
-		void clear_render_target_view(api::resource_view_handle, const float[4]) override {}
+		void clear_depth_stencil_view(api::resource_view_handle, uint32_t, float, uint8_t) final {}
+		void clear_render_target_view(api::resource_view_handle, const float[4]) final {}
 
 	private:
 		device_impl *const _device_impl;
@@ -70,21 +70,21 @@ namespace reshade::d3d11
 		device_context_impl(device_impl *device, ID3D11DeviceContext *context);
 		~device_context_impl();
 
-		api::device *get_device() override { return _device_impl; }
+		api::device *get_device() final { return _device_impl; }
 
-		api::command_list *get_immediate_command_list() override { assert(_orig->GetType() == D3D11_DEVICE_CONTEXT_IMMEDIATE); return this; }
+		api::command_list *get_immediate_command_list() final { assert(_orig->GetType() == D3D11_DEVICE_CONTEXT_IMMEDIATE); return this; }
 
-		void flush_immediate_command_list() const override;
+		void flush_immediate_command_list() const final;
 
-		void draw(uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance) override;
-		void draw_indexed(uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance) override;
+		void draw(uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance) final;
+		void draw_indexed(uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance) final;
 
-		void copy_resource(api::resource_handle source, api::resource_handle destination) override;
+		void copy_resource(api::resource_handle source, api::resource_handle destination) final;
 
-		void transition_state(api::resource_handle, api::resource_usage, api::resource_usage) override { /* no-op */ }
+		void transition_state(api::resource_handle, api::resource_usage, api::resource_usage) final { /* no-op */ }
 
-		void clear_depth_stencil_view(api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil) override;
-		void clear_render_target_view(api::resource_view_handle rtv, const float color[4]) override;
+		void clear_depth_stencil_view(api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil) final;
+		void clear_render_target_view(api::resource_view_handle rtv, const float color[4]) final;
 
 	private:
 		device_impl *const _device_impl;
