@@ -21,8 +21,10 @@ namespace reshade::d3d11
 		api::command_queue *get_command_queue() final { return _immediate_context_impl; }
 
 		bool on_init();
+		bool on_init(const DXGI_SWAP_CHAIN_DESC &desc);
 		void on_reset();
 		void on_present();
+		void on_present(ID3D11Texture2D *source, const D3D11_BOX &region);
 
 		bool capture_screenshot(uint8_t *buffer) const final;
 

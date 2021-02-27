@@ -22,3 +22,6 @@
 [submodule "vulkan"]
 	path = deps/vulkan
 	url = https://github.com/KhronosGroup/Vulkan-Headers.git
+[submodule "openvr"]
+	path = deps/openvr
+	url = https://github.com/ValveSoftware/openvr.git

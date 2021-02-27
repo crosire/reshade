@@ -45,7 +45,7 @@ reshade::d3d11::runtime_impl::runtime_impl(device_impl *device, device_context_i
 		}
 	}
 
-	if (!on_init())
+	if (_orig != nullptr && !on_init())
 		LOG(ERROR) << "Failed to initialize Direct3D 11 runtime environment on runtime " << this << '!';
 }
 reshade::d3d11::runtime_impl::~runtime_impl()
@@ -58,23 +58,33 @@ reshade::d3d11::runtime_impl::~runtime_impl()
 
 bool reshade::d3d11::runtime_impl::on_init()
 {
+	assert(_orig != nullptr);
+
 	DXGI_SWAP_CHAIN_DESC swap_desc;
 	if (FAILED(_orig->GetDesc(&swap_desc)))
 		return false;
 
-	RECT window_rect = {};
-	GetClientRect(swap_desc.OutputWindow, &window_rect);
-
-	_width = swap_desc.BufferDesc.Width;
-	_height = swap_desc.BufferDesc.Height;
-	_window_width = window_rect.right;
-	_window_height = window_rect.bottom;
+	return on_init(swap_desc);
+}
+bool reshade::d3d11::runtime_impl::on_init(const DXGI_SWAP_CHAIN_DESC &swap_desc)
+{
+	_width = _window_width = swap_desc.BufferDesc.Width;
+	_height = _window_height = swap_desc.BufferDesc.Height;
 	_color_bit_depth = dxgi_format_color_depth(swap_desc.BufferDesc.Format);
 	_backbuffer_format = swap_desc.BufferDesc.Format;
 
-	// Get back buffer texture
-	if (FAILED(_orig->GetBuffer(0, IID_PPV_ARGS(&_backbuffer))))
+	if (swap_desc.OutputWindow != nullptr)
+	{
+		RECT window_rect = {};
+		GetClientRect(swap_desc.OutputWindow, &window_rect);
+		_window_width = window_rect.right;
+		_window_height = window_rect.bottom;
+	}
+
+	// Get back buffer texture (skip when there is no swap chain, in which case it should already have been set in 'on_present')
+	if (_orig != nullptr && FAILED(_orig->GetBuffer(0, IID_PPV_ARGS(&_backbuffer))))
 		return false;
+	assert(_backbuffer != nullptr);
 
 	D3D11_TEXTURE2D_DESC tex_desc = {};
 	tex_desc.Width = _width;
@@ -87,9 +97,10 @@ bool reshade::d3d11::runtime_impl::on_init()
 	tex_desc.BindFlags = D3D11_BIND_RENDER_TARGET;
 
 	// Creating a render target view for the back buffer fails on Windows 8+, so use a intermediate texture there
-	if (swap_desc.SampleDesc.Count > 1 ||
+	if (_orig != nullptr && (
+		swap_desc.SampleDesc.Count > 1 ||
 		make_dxgi_format_normal(_backbuffer_format) != _backbuffer_format ||
-		!is_windows7())
+		!is_windows7()))
 	{
 		if (FAILED(_device->CreateTexture2D(&tex_desc, nullptr, &_backbuffer_resolved)))
 			return false;
@@ -268,6 +279,64 @@ void reshade::d3d11::runtime_impl::on_present()
 
 	// Apply previous state from application
 	_app_state.apply_and_release();
+}
+void reshade::d3d11::runtime_impl::on_present(ID3D11Texture2D *source, const D3D11_BOX &region)
+{
+	assert(source != nullptr);
+
+	D3D11_TEXTURE2D_DESC source_desc;
+	source->GetDesc(&source_desc);
+
+	const unsigned int region_width = region.right - region.left;
+	const unsigned int region_height = region.bottom - region.top;
+	assert((region.back - region.front) == 1);
+
+	if (region_width != _width || region_height != _height || source_desc.Format != _backbuffer_format)
+	{
+		on_reset();
+
+		if (region_width != source_desc.Width || region_height != source_desc.Height || (source_desc.BindFlags & D3D11_BIND_RENDER_TARGET) == 0)
+		{
+			source_desc.Width = region_width;
+			source_desc.Height = region_height;
+			source_desc.Format = make_dxgi_format_typeless(source_desc.Format);
+			source_desc.Usage = D3D11_USAGE_DEFAULT;
+			source_desc.BindFlags = D3D11_BIND_RENDER_TARGET;
+
+			if (HRESULT hr = _device->CreateTexture2D(&source_desc, nullptr, &_backbuffer); FAILED(hr))
+			{
+				LOG(ERROR) << "Failed to create region texture! HRESULT is " << hr << '.';
+				return;
+			}
+		}
+		else
+		{
+			_backbuffer = source;
+		}
+
+		DXGI_SWAP_CHAIN_DESC swap_desc = {};
+		swap_desc.BufferDesc.Width = region_width;
+		swap_desc.BufferDesc.Height = region_height;
+		swap_desc.BufferDesc.Format = source_desc.Format;
+		swap_desc.SampleDesc = source_desc.SampleDesc;
+		swap_desc.BufferCount = 1;
+
+		if (!on_init(swap_desc))
+		{
+			LOG(ERROR) << "Failed to initialize Direct3D 11 runtime environment on runtime " << this << '!';
+			return;
+		}
+	}
+
+	// Copy region of the source texture
+	if (_backbuffer != source)
+		_immediate_context->CopySubresourceRegion(_backbuffer.get(), 0, 0, 0, 0, source, 0, &region);
+
+	on_present();
+
+	// Copy result back into the source texture
+	if (_backbuffer != source)
+		_immediate_context->CopySubresourceRegion(source, 0, region.left, region.top, region.front, _backbuffer.get(), 0, nullptr);
 }
 
 bool reshade::d3d11::runtime_impl::capture_screenshot(uint8_t *buffer) const
