@@ -5,22 +5,20 @@
 
 #pragma once
 
-#include "state_tracking.hpp"
+#include "render_d3d9.hpp"
 
 struct Direct3DSwapChain9;
 
-struct DECLSPEC_UUID("F1006E9A-1C51-4AF4-ACEF-3605D2D4C8EE") Direct3DDevice9 : IDirect3DDevice9Ex
+struct DECLSPEC_UUID("F1006E9A-1C51-4AF4-ACEF-3605D2D4C8EE") Direct3DDevice9 final : IDirect3DDevice9Ex, public reshade::d3d9::device_impl
 {
 	Direct3DDevice9(IDirect3DDevice9   *original, bool use_software_rendering);
 	Direct3DDevice9(IDirect3DDevice9Ex *original, bool use_software_rendering);
 
-	Direct3DDevice9(const Direct3DDevice9 &) = delete;
-	Direct3DDevice9 &operator=(const Direct3DDevice9 &) = delete;
-
+	#pragma region IUnknown
 	HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
 	ULONG   STDMETHODCALLTYPE AddRef() override;
 	ULONG   STDMETHODCALLTYPE Release() override;
-
+	#pragma endregion
 	#pragma region IDirect3DDevice9
 	HRESULT STDMETHODCALLTYPE TestCooperativeLevel() override;
 	UINT    STDMETHODCALLTYPE GetAvailableTextureMem() override;
@@ -160,11 +158,8 @@ struct DECLSPEC_UUID("F1006E9A-1C51-4AF4-ACEF-3605D2D4C8EE") Direct3DDevice9 : I
 	bool check_and_upgrade_interface(REFIID riid);
 
 	LONG _ref = 1;
-	IDirect3DDevice9 *_orig;
 	bool _extended_interface;
 	bool _use_software_rendering;
 	Direct3DSwapChain9 *_implicit_swapchain = nullptr;
 	std::vector<Direct3DSwapChain9 *> _additional_swapchains;
-	com_ptr<IDirect3DSurface9> _auto_depthstencil;
-	reshade::d3d9::state_tracking _state;
 };

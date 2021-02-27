@@ -5,21 +5,19 @@
 
 #pragma once
 
-#include "state_tracking.hpp"
+#include "render_d3d10.hpp"
 
 struct DXGIDevice;
 
-struct DECLSPEC_UUID("88399375-734F-4892-A95F-70DD42CE7CDD") D3D10Device : ID3D10Device1
+struct DECLSPEC_UUID("88399375-734F-4892-A95F-70DD42CE7CDD") D3D10Device final : ID3D10Device1, public reshade::d3d10::device_impl
 {
 	D3D10Device(IDXGIDevice1 *dxgi_device, ID3D10Device1 *original);
 
-	D3D10Device(const D3D10Device &) = delete;
-	D3D10Device &operator=(const D3D10Device &) = delete;
-
+	#pragma region IUnknown
 	HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
 	ULONG   STDMETHODCALLTYPE AddRef() override;
 	ULONG   STDMETHODCALLTYPE Release() override;
-
+	#pragma endregion
 	#pragma region ID3D10Device
 	void    STDMETHODCALLTYPE VSSetConstantBuffers(UINT StartSlot, UINT NumBuffers, ID3D10Buffer *const *ppConstantBuffers) override;
 	void    STDMETHODCALLTYPE PSSetShaderResources(UINT StartSlot, UINT NumViews, ID3D10ShaderResourceView *const *ppShaderResourceViews) override;
@@ -126,7 +124,5 @@ struct DECLSPEC_UUID("88399375-734F-4892-A95F-70DD42CE7CDD") D3D10Device : ID3D1
 	bool check_and_upgrade_interface(REFIID riid);
 
 	LONG _ref = 1;
-	ID3D10Device1 *_orig;
 	DXGIDevice *const _dxgi_device;
-	reshade::d3d10::state_tracking _state;
 };

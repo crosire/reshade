@@ -6,38 +6,47 @@
 #pragma once
 
 #include "runtime.hpp"
+#include "render_d3d10.hpp"
 #include "state_block_d3d10.hpp"
-#include "state_tracking.hpp"
 
 namespace reshade::d3d10
 {
-	class runtime_d3d10 : public runtime
+	class runtime_impl : public api::api_object_impl<IDXGISwapChain *, runtime>
 	{
 	public:
-		runtime_d3d10(ID3D10Device1 *device, IDXGISwapChain *swapchain, state_tracking *state_tracking);
-		~runtime_d3d10();
+		runtime_impl(device_impl *device, IDXGISwapChain *swapchain);
+		~runtime_impl();
+
+		api::device *get_device() final { return _device_impl; }
+		api::command_queue *get_command_queue() final { return _device_impl; }
 
 		bool on_init();
 		void on_reset();
 		void on_present();
 
-		bool capture_screenshot(uint8_t *buffer) const override;
+		bool capture_screenshot(uint8_t *buffer) const final;
+
+		void update_texture_bindings(const char *semantic, api::resource_view_handle srv) final;
 
 	private:
-		bool init_effect(size_t index) override;
-		void unload_effect(size_t index) override;
-		void unload_effects() override;
+		bool init_effect(size_t index) final;
+		void unload_effect(size_t index) final;
+		void unload_effects() final;
 
-		bool init_texture(texture &texture) override;
-		void upload_texture(const texture &texture, const uint8_t *pixels) override;
-		void destroy_texture(texture &texture) override;
+		bool init_texture(texture &texture) final;
+		void upload_texture(const texture &texture, const uint8_t *pixels) final;
+		void destroy_texture(texture &texture) final;
 
-		void render_technique(technique &technique) override;
+		void render_technique(technique &technique) final;
+
+		const com_ptr<ID3D10Device1> _device;
+		device_impl *const _device_impl;
 
 		state_block _app_state;
-		state_tracking &_state_tracking;
-		const com_ptr<ID3D10Device1> _device;
-		const com_ptr<IDXGISwapChain> _swapchain;
+
+		com_ptr<ID3D10PixelShader> _copy_pixel_shader;
+		com_ptr<ID3D10VertexShader> _copy_vertex_shader;
+		com_ptr<ID3D10SamplerState> _copy_sampler_state;
 
 		DXGI_FORMAT _backbuffer_format = DXGI_FORMAT_UNKNOWN;
 		com_ptr<ID3D10Texture2D> _backbuffer;
@@ -46,19 +55,17 @@ namespace reshade::d3d10
 		com_ptr<ID3D10Texture2D> _backbuffer_texture;
 		com_ptr<ID3D10ShaderResourceView> _backbuffer_texture_srv[2];
 
-		com_ptr<ID3D10PixelShader> _copy_pixel_shader;
-		com_ptr<ID3D10VertexShader> _copy_vertex_shader;
-		com_ptr<ID3D10SamplerState>  _copy_sampler_state;
-
 		HMODULE _d3d_compiler = nullptr;
 		com_ptr<ID3D10RasterizerState> _effect_rasterizer;
 		std::unordered_map<size_t, com_ptr<ID3D10SamplerState>> _effect_sampler_states;
-		com_ptr<ID3D10DepthStencilView> _effect_stencil;
 		std::vector<struct effect_data> _effect_data;
+		com_ptr<ID3D10DepthStencilView> _effect_stencil;
+
+		std::unordered_map<std::string, com_ptr<ID3D10ShaderResourceView>> _texture_semantic_bindings;
 
 #if RESHADE_GUI
 		bool init_imgui_resources();
-		void render_imgui_draw_data(ImDrawData *data) override;
+		void render_imgui_draw_data(ImDrawData *data) final;
 
 		struct imgui_resources
 		{
@@ -76,15 +83,6 @@ namespace reshade::d3d10
 			int num_indices = 0;
 			int num_vertices = 0;
 		} _imgui;
-#endif
-
-#if RESHADE_DEPTH
-		void draw_depth_debug_menu();
-		void update_depth_texture_bindings(com_ptr<ID3D10Texture2D> texture);
-
-		com_ptr<ID3D10Texture2D> _depth_texture;
-		com_ptr<ID3D10ShaderResourceView> _depth_texture_srv;
-		ID3D10Texture2D *_depth_texture_override = nullptr;
 #endif
 	};
 }

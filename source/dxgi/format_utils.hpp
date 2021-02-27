@@ -5,6 +5,8 @@
 
 #pragma once
 
+#include <dxgiformat.h>
+
 inline UINT dxgi_format_color_depth(DXGI_FORMAT format)
 {
 	// Only need to handle swap chain formats

@@ -10,6 +10,9 @@
 #include <Psapi.h>
 #include <Windows.h>
 
+// Export special symbol to identify modules as ReShade instances
+extern "C" __declspec(dllexport) const char *ReShadeVersion = VERSION_STRING_PRODUCT;
+
 HMODULE g_module_handle = nullptr;
 std::filesystem::path g_reshade_dll_path;
 std::filesystem::path g_reshade_base_path;
@@ -445,7 +448,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			}
 			else
 			{
-				// Synchronization is handled in "runtime_d3d12::on_present"
+				// Synchronization is handled in "runtime_impl::on_present"
 				HR_CHECK(swapchain->Present(1, 0));
 			}
 		}
@@ -797,9 +800,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 
 static PVOID g_exception_handler_handle = nullptr;
 #  endif
-
-// Export special symbol to identify modules as ReShade instances
-extern "C" __declspec(dllexport) const char *ReShadeVersion = VERSION_STRING_PRODUCT;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 {

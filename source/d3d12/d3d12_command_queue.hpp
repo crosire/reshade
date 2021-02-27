@@ -5,22 +5,20 @@
 
 #pragma once
 
-#include <d3d12.h>
+#include "render_d3d12.hpp"
 
 struct D3D12Device;
 struct D3D12CommandQueueDownlevel;
 
-struct DECLSPEC_UUID("2C576D2A-0C1C-4D1D-AD7C-BC4FAEC15ABC") D3D12CommandQueue : ID3D12CommandQueue
+struct DECLSPEC_UUID("2C576D2A-0C1C-4D1D-AD7C-BC4FAEC15ABC") D3D12CommandQueue final : ID3D12CommandQueue, public reshade::d3d12::command_queue_impl
 {
 	D3D12CommandQueue(D3D12Device *device, ID3D12CommandQueue *original);
 
-	D3D12CommandQueue(const D3D12CommandQueue &) = delete;
-	D3D12CommandQueue &operator=(const D3D12CommandQueue &) = delete;
-
+	#pragma region IUnknown
 	HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
 	ULONG   STDMETHODCALLTYPE AddRef() override;
 	ULONG   STDMETHODCALLTYPE Release() override;
-
+	#pragma endregion
 	#pragma region ID3D12Object
 	HRESULT STDMETHODCALLTYPE GetPrivateData(REFGUID guid, UINT *pDataSize, void *pData) override;
 	HRESULT STDMETHODCALLTYPE SetPrivateData(REFGUID guid, UINT DataSize, const void *pData) override;
@@ -47,7 +45,6 @@ struct DECLSPEC_UUID("2C576D2A-0C1C-4D1D-AD7C-BC4FAEC15ABC") D3D12CommandQueue :
 	bool check_and_upgrade_interface(REFIID riid);
 
 	ULONG _ref = 1;
-	ID3D12CommandQueue *_orig;
 	unsigned int _interface_version;
 	D3D12Device *const _device;
 	D3D12CommandQueueDownlevel *_downlevel = nullptr;

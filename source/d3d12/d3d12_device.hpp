@@ -5,21 +5,19 @@
 
 #pragma once
 
-#include "state_tracking.hpp"
+#include "render_d3d12.hpp"
 
 struct D3D12DeviceDownlevel;
 
-struct DECLSPEC_UUID("2523AFF4-978B-4939-BA16-8EE876A4CB2A") D3D12Device : ID3D12Device6
+struct DECLSPEC_UUID("2523AFF4-978B-4939-BA16-8EE876A4CB2A") D3D12Device final : ID3D12Device6, public reshade::d3d12::device_impl
 {
 	D3D12Device(ID3D12Device *original);
 
-	D3D12Device(const D3D12Device &) = delete;
-	D3D12Device &operator=(const D3D12Device &) = delete;
-
+	#pragma region IUnknown
 	HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
 	ULONG   STDMETHODCALLTYPE AddRef() override;
 	ULONG   STDMETHODCALLTYPE Release() override;
-
+	#pragma endregion
 	#pragma region ID3D12Object
 	HRESULT STDMETHODCALLTYPE GetPrivateData(REFGUID guid, UINT *pDataSize, void *pData) override;
 	HRESULT STDMETHODCALLTYPE SetPrivateData(REFGUID guid, UINT DataSize, const void *pData) override;
@@ -103,8 +101,6 @@ struct DECLSPEC_UUID("2523AFF4-978B-4939-BA16-8EE876A4CB2A") D3D12Device : ID3D1
 	bool check_and_upgrade_interface(REFIID riid);
 
 	LONG _ref = 1;
-	ID3D12Device *_orig;
 	unsigned int _interface_version;
 	D3D12DeviceDownlevel *_downlevel = nullptr;
-	reshade::d3d12::state_tracking_context _state;
 };

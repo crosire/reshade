@@ -4,62 +4,29 @@
  */
 
 #include "dll_log.hpp"
-#include "dll_config.hpp"
 #include "dll_resources.hpp"
 #include "runtime_d3d11.hpp"
-#include "runtime_objects.hpp"
+#include "runtime_d3d11_objects.hpp"
 #include "dxgi/format_utils.hpp"
-#include <imgui.h>
-#include <imgui_internal.h>
 #include <d3dcompiler.h>
-
-namespace reshade::d3d11
-{
-	struct tex_data
-	{
-		com_ptr<ID3D11Texture2D> texture;
-		com_ptr<ID3D11RenderTargetView> rtv[2];
-		com_ptr<ID3D11ShaderResourceView> srv[2];
-		com_ptr<ID3D11UnorderedAccessView> uav;
-	};
-
-	struct pass_data
-	{
-		com_ptr<ID3D11BlendState> blend_state;
-		com_ptr<ID3D11DepthStencilState> depth_stencil_state;
-		com_ptr<ID3D11PixelShader> pixel_shader;
-		com_ptr<ID3D11VertexShader> vertex_shader;
-		com_ptr<ID3D11ComputeShader> compute_shader;
-		com_ptr<ID3D11RenderTargetView> render_targets[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
-		std::vector<com_ptr<ID3D11ShaderResourceView>> srvs, modified_resources;
-		std::vector<com_ptr<ID3D11UnorderedAccessView>> uavs;
-	};
-
-	struct effect_data
-	{
-		com_ptr<ID3D11Buffer> cb;
-	};
-
-	struct technique_data
-	{
-		bool query_in_flight = false;
-		com_ptr<ID3D11Query> timestamp_disjoint;
-		com_ptr<ID3D11Query> timestamp_query_beg;
-		com_ptr<ID3D11Query> timestamp_query_end;
-		std::vector<com_ptr<ID3D11SamplerState>> sampler_states;
-		std::vector<pass_data> passes;
-	};
-}
 
 extern bool is_windows7();
 
-reshade::d3d11::runtime_d3d11::runtime_d3d11(ID3D11Device *device, IDXGISwapChain *swapchain, state_tracking_context *state_tracking) :
-	_app_state(device), _state_tracking(*state_tracking), _device(device), _swapchain(swapchain)
+static inline void set_debug_name(ID3D11DeviceChild *object, LPCWSTR name)
 {
-	assert(device != nullptr && state_tracking != nullptr);
+	// WKPDID_D3DDebugObjectNameW
+	const GUID debug_object_name_guid = { 0x4cca5fd8, 0x921f, 0x42c8, { 0x85, 0x66, 0x70, 0xca, 0xf2, 0xa9, 0xb7, 0x41 } };
+	object->SetPrivateData(debug_object_name_guid, static_cast<UINT>(wcslen(name) * sizeof(WCHAR)), name);
+}
 
-	_device->GetImmediateContext(&_immediate_context);
-
+reshade::d3d11::runtime_impl::runtime_impl(device_impl *device, device_context_impl *immediate_context, IDXGISwapChain *swapchain) :
+	api_object_impl(swapchain),
+	_device(device->_orig),
+	_immediate_context(immediate_context->_orig),
+	_device_impl(device),
+	_immediate_context_impl(immediate_context),
+	_app_state(device->_orig)
+{
 	_renderer_id = _device->GetFeatureLevel();
 
 	if (com_ptr<IDXGIDevice> dxgi_device;
@@ -70,40 +37,18 @@ reshade::d3d11::runtime_d3d11::runtime_d3d11(ID3D11Device *device, IDXGISwapChai
 		{
 			if (DXGI_ADAPTER_DESC desc; SUCCEEDED(dxgi_adapter->GetDesc(&desc)))
 			{
-				_vendor_id = desc.VendorId, _device_id = desc.DeviceId;
+				_vendor_id = desc.VendorId;
+				_device_id = desc.DeviceId;
 
 				LOG(INFO) << "Running on " << desc.Description;
 			}
 		}
 	}
 
-#if RESHADE_GUI
-	subscribe_to_ui("D3D11", [this]() {
-#if RESHADE_DEPTH
-		draw_depth_debug_menu();
-#endif
-	});
-#endif
-#if RESHADE_DEPTH
-	subscribe_to_load_config([this](const ini_file &config) {
-		config.get("DEPTH", "DepthCopyBeforeClears", _state_tracking.preserve_depth_buffers);
-		config.get("DEPTH", "DepthCopyAtClearIndex", _state_tracking.depthstencil_clear_index.second);
-		config.get("DEPTH", "UseAspectRatioHeuristics", _state_tracking.use_aspect_ratio_heuristics);
-
-		if (_state_tracking.depthstencil_clear_index.second == std::numeric_limits<UINT>::max())
-			_state_tracking.depthstencil_clear_index.second  = 0;
-	});
-	subscribe_to_save_config([this](ini_file &config) {
-		config.set("DEPTH", "DepthCopyBeforeClears", _state_tracking.preserve_depth_buffers);
-		config.set("DEPTH", "DepthCopyAtClearIndex", _state_tracking.depthstencil_clear_index.second);
-		config.set("DEPTH", "UseAspectRatioHeuristics", _state_tracking.use_aspect_ratio_heuristics);
-	});
-#endif
-
-	if (_swapchain != nullptr && !on_init())
+	if (_orig != nullptr && !on_init())
 		LOG(ERROR) << "Failed to initialize Direct3D 11 runtime environment on runtime " << this << '!';
 }
-reshade::d3d11::runtime_d3d11::~runtime_d3d11()
+reshade::d3d11::runtime_impl::~runtime_impl()
 {
 	on_reset();
 
@@ -111,17 +56,17 @@ reshade::d3d11::runtime_d3d11::~runtime_d3d11()
 		FreeLibrary(_d3d_compiler);
 }
 
-bool reshade::d3d11::runtime_d3d11::on_init()
+bool reshade::d3d11::runtime_impl::on_init()
 {
-	assert(_swapchain != nullptr);
+	assert(_orig != nullptr);
 
 	DXGI_SWAP_CHAIN_DESC swap_desc;
-	if (FAILED(_swapchain->GetDesc(&swap_desc)))
+	if (FAILED(_orig->GetDesc(&swap_desc)))
 		return false;
 
 	return on_init(swap_desc);
 }
-bool reshade::d3d11::runtime_d3d11::on_init(const DXGI_SWAP_CHAIN_DESC &swap_desc)
+bool reshade::d3d11::runtime_impl::on_init(const DXGI_SWAP_CHAIN_DESC &swap_desc)
 {
 	_width = _window_width = swap_desc.BufferDesc.Width;
 	_height = _window_height = swap_desc.BufferDesc.Height;
@@ -137,7 +82,7 @@ bool reshade::d3d11::runtime_d3d11::on_init(const DXGI_SWAP_CHAIN_DESC &swap_des
 	}
 
 	// Get back buffer texture (skip when there is no swap chain, in which case it should already have been set in 'on_present')
-	if (_swapchain != nullptr && FAILED(_swapchain->GetBuffer(0, IID_PPV_ARGS(&_backbuffer))))
+	if (_orig != nullptr && FAILED(_orig->GetBuffer(0, IID_PPV_ARGS(&_backbuffer))))
 		return false;
 	assert(_backbuffer != nullptr);
 
@@ -152,7 +97,7 @@ bool reshade::d3d11::runtime_d3d11::on_init(const DXGI_SWAP_CHAIN_DESC &swap_des
 	tex_desc.BindFlags = D3D11_BIND_RENDER_TARGET;
 
 	// Creating a render target view for the back buffer fails on Windows 8+, so use a intermediate texture there
-	if (_swapchain != nullptr && (
+	if (_orig != nullptr && (
 		swap_desc.SampleDesc.Count > 1 ||
 		make_dxgi_format_normal(_backbuffer_format) != _backbuffer_format ||
 		!is_windows7()))
@@ -193,14 +138,22 @@ bool reshade::d3d11::runtime_d3d11::on_init(const DXGI_SWAP_CHAIN_DESC &swap_des
 		return false;
 
 	// Create copy states
-	const resources::data_resource vs = resources::load_data_resource(IDR_FULLSCREEN_VS);
-	if (FAILED(_device->CreateVertexShader(vs.data, vs.data_size, nullptr, &_copy_vertex_shader)))
-		return false;
-	const resources::data_resource ps = resources::load_data_resource(IDR_COPY_PS);
-	if (FAILED(_device->CreatePixelShader(ps.data, ps.data_size, nullptr, &_copy_pixel_shader)))
-		return false;
+	if (_copy_pixel_shader == nullptr)
+	{
+		const resources::data_resource ps = resources::load_data_resource(IDR_COPY_PS);
+		if (FAILED(_device->CreatePixelShader(ps.data, ps.data_size, nullptr, &_copy_pixel_shader)))
+			return false;
+	}
+	if (_copy_vertex_shader == nullptr)
+	{
+		const resources::data_resource vs = resources::load_data_resource(IDR_FULLSCREEN_VS);
+		if (FAILED(_device->CreateVertexShader(vs.data, vs.data_size, nullptr, &_copy_vertex_shader)))
+			return false;
+	}
 
-	{   D3D11_SAMPLER_DESC desc = {};
+	if (_copy_sampler_state == nullptr)
+	{
+		D3D11_SAMPLER_DESC desc = {};
 		desc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
 		desc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
 		desc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
@@ -211,7 +164,9 @@ bool reshade::d3d11::runtime_d3d11::on_init(const DXGI_SWAP_CHAIN_DESC &swap_des
 	}
 
 	// Create effect states
-	{   D3D11_RASTERIZER_DESC desc = {};
+	if (_effect_rasterizer == nullptr)
+	{
+		D3D11_RASTERIZER_DESC desc = {};
 		desc.FillMode = D3D11_FILL_SOLID;
 		desc.CullMode = D3D11_CULL_NONE;
 		desc.DepthClipEnable = TRUE;
@@ -240,7 +195,7 @@ bool reshade::d3d11::runtime_d3d11::on_init(const DXGI_SWAP_CHAIN_DESC &swap_des
 
 	return runtime::on_init(swap_desc.OutputWindow);
 }
-void reshade::d3d11::runtime_d3d11::on_reset()
+void reshade::d3d11::runtime_impl::on_reset()
 {
 	if (_backbuffer != nullptr)
 	{
@@ -268,46 +223,21 @@ void reshade::d3d11::runtime_d3d11::on_reset()
 	_backbuffer_texture_srv[0].reset();
 	_backbuffer_texture_srv[1].reset();
 
-	_copy_vertex_shader.reset();
-	_copy_pixel_shader.reset();
-	_copy_sampler_state.reset();
-
 	_effect_stencil.reset();
-	_effect_rasterizer.reset();
 
 #if RESHADE_GUI
 	_imgui.cb.reset();
-	_imgui.vs.reset();
-	_imgui.rs.reset();
-	_imgui.ps.reset();
-	_imgui.ss.reset();
-	_imgui.bs.reset();
-	_imgui.ds.reset();
-	_imgui.layout.reset();
 	_imgui.indices.reset();
 	_imgui.vertices.reset();
 	_imgui.num_indices = 0;
 	_imgui.num_vertices = 0;
 #endif
-
-#if RESHADE_DEPTH
-	_depth_texture.reset();
-	_depth_texture_srv.reset();
-
-	_has_depth_texture = false;
-	_depth_texture_override = nullptr;
-#endif
 }
 
-void reshade::d3d11::runtime_d3d11::on_present()
+void reshade::d3d11::runtime_impl::on_present()
 {
 	if (!_is_initialized)
 		return;
-
-#if RESHADE_DEPTH
-	update_depth_texture_bindings(_has_high_network_activity ? nullptr :
-		_state_tracking.find_best_depth_texture(_width, _height, _depth_texture_override));
-#endif
 
 	_app_state.capture(_immediate_context.get());
 
@@ -350,7 +280,7 @@ void reshade::d3d11::runtime_d3d11::on_present()
 	// Apply previous state from application
 	_app_state.apply_and_release();
 }
-void reshade::d3d11::runtime_d3d11::on_present(ID3D11Texture2D *source)
+void reshade::d3d11::runtime_impl::on_present(ID3D11Texture2D *source)
 {
 	assert(source != nullptr);
 
@@ -380,7 +310,7 @@ void reshade::d3d11::runtime_d3d11::on_present(ID3D11Texture2D *source)
 	on_present();
 }
 
-bool reshade::d3d11::runtime_d3d11::capture_screenshot(uint8_t *buffer) const
+bool reshade::d3d11::runtime_impl::capture_screenshot(uint8_t *buffer) const
 {
 	if (_color_bit_depth != 8 && _color_bit_depth != 10)
 	{
@@ -451,7 +381,7 @@ bool reshade::d3d11::runtime_d3d11::capture_screenshot(uint8_t *buffer) const
 	return true;
 }
 
-bool reshade::d3d11::runtime_d3d11::init_effect(size_t index)
+bool reshade::d3d11::runtime_impl::init_effect(size_t index)
 {
 	if (_d3d_compiler == nullptr)
 		_d3d_compiler = LoadLibraryW(L"d3dcompiler_47.dll");
@@ -492,9 +422,7 @@ bool reshade::d3d11::runtime_d3d11::init_effect(size_t index)
 			// See https://docs.microsoft.com/windows/win32/direct3d11/direct3d-11-advanced-stages-compute-shader
 			if (_renderer_id < D3D_FEATURE_LEVEL_11_0)
 			{
-				effect.errors += "Compute shaders are not supported in ";
-				effect.errors += "D3D10";
-				effect.errors += '.';
+				effect.errors += "Compute shaders are not supported in D3D10.";
 				return false;
 			}
 			break;
@@ -857,7 +785,7 @@ bool reshade::d3d11::runtime_d3d11::init_effect(size_t index)
 
 	return true;
 }
-void reshade::d3d11::runtime_d3d11::unload_effect(size_t index)
+void reshade::d3d11::runtime_impl::unload_effect(size_t index)
 {
 	for (technique &tech : _techniques)
 	{
@@ -873,7 +801,7 @@ void reshade::d3d11::runtime_d3d11::unload_effect(size_t index)
 	if (index < _effect_data.size())
 		_effect_data[index].cb.reset();
 }
-void reshade::d3d11::runtime_d3d11::unload_effects()
+void reshade::d3d11::runtime_impl::unload_effects()
 {
 	for (technique &tech : _techniques)
 	{
@@ -887,7 +815,7 @@ void reshade::d3d11::runtime_d3d11::unload_effects()
 	_effect_sampler_states.clear();
 }
 
-bool reshade::d3d11::runtime_d3d11::init_texture(texture &texture)
+bool reshade::d3d11::runtime_impl::init_texture(texture &texture)
 {
 	auto impl = new tex_data();
 	texture.impl = impl;
@@ -898,12 +826,11 @@ bool reshade::d3d11::runtime_d3d11::init_texture(texture &texture)
 		impl->srv[1] = _backbuffer_texture_srv[1];
 		return true;
 	}
-	if (texture.semantic == "DEPTH")
+	else if (!texture.semantic.empty())
 	{
-#if RESHADE_DEPTH
-		impl->srv[0] = _depth_texture_srv;
-		impl->srv[1] = _depth_texture_srv;
-#endif
+		if (const auto it = _texture_semantic_bindings.find(texture.semantic);
+			it != _texture_semantic_bindings.end())
+			impl->srv[0] = impl->srv[1] = it->second;
 		return true;
 	}
 
@@ -1029,7 +956,7 @@ bool reshade::d3d11::runtime_d3d11::init_texture(texture &texture)
 
 	return true;
 }
-void reshade::d3d11::runtime_d3d11::upload_texture(const texture &texture, const uint8_t *pixels)
+void reshade::d3d11::runtime_impl::upload_texture(const texture &texture, const uint8_t *pixels)
 {
 	auto impl = static_cast<tex_data *>(texture.impl);
 	assert(impl != nullptr && texture.semantic.empty() && pixels != nullptr);
@@ -1067,13 +994,13 @@ void reshade::d3d11::runtime_d3d11::upload_texture(const texture &texture, const
 	if (texture.levels > 1)
 		_immediate_context->GenerateMips(impl->srv[0].get());
 }
-void reshade::d3d11::runtime_d3d11::destroy_texture(texture &texture)
+void reshade::d3d11::runtime_impl::destroy_texture(texture &texture)
 {
 	delete static_cast<tex_data *>(texture.impl);
 	texture.impl = nullptr;
 }
 
-void reshade::d3d11::runtime_d3d11::render_technique(technique &technique)
+void reshade::d3d11::runtime_impl::render_technique(technique &technique)
 {
 	const auto impl = static_cast<technique_data *>(technique.impl);
 	effect_data &effect_data = _effect_data[technique.effect_index];
@@ -1099,6 +1026,8 @@ void reshade::d3d11::runtime_d3d11::render_technique(technique &technique)
 		_immediate_context->Begin(impl->timestamp_disjoint.get());
 		_immediate_context->End(impl->timestamp_query_beg.get());
 	}
+
+	RESHADE_ADDON_EVENT(reshade_before_effects, this, _immediate_context_impl);
 
 	// Setup vertex input (no explicit vertices are provided, so bind to null)
 	const uintptr_t null = 0;
@@ -1257,6 +1186,8 @@ void reshade::d3d11::runtime_d3d11::render_technique(technique &technique)
 		}
 	}
 
+	RESHADE_ADDON_EVENT(reshade_after_effects, this, _immediate_context_impl);
+
 	if (!impl->query_in_flight)
 	{
 		_immediate_context->End(impl->timestamp_query_end.get());
@@ -1266,345 +1197,20 @@ void reshade::d3d11::runtime_d3d11::render_technique(technique &technique)
 	impl->query_in_flight = true;
 }
 
-void reshade::d3d11::runtime_d3d11::set_debug_name(ID3D11DeviceChild *object, LPCWSTR name) const
+void reshade::d3d11::runtime_impl::update_texture_bindings(const char *semantic, api::resource_view_handle api_srv)
 {
-	// WKPDID_D3DDebugObjectNameW
-	const GUID debug_object_name_guid = { 0x4cca5fd8, 0x921f, 0x42c8, { 0x85, 0x66, 0x70, 0xca, 0xf2, 0xa9, 0xb7, 0x41 } };
-	object->SetPrivateData(debug_object_name_guid, static_cast<UINT>(wcslen(name) * sizeof(WCHAR)), name);
-}
+	const auto new_srv = reinterpret_cast<ID3D11ShaderResourceView *>(api_srv.handle);
 
-#if RESHADE_GUI
-bool reshade::d3d11::runtime_d3d11::init_imgui_resources()
-{
-	{   const resources::data_resource vs = resources::load_data_resource(IDR_IMGUI_VS);
-		if (FAILED(_device->CreateVertexShader(vs.data, vs.data_size, nullptr, &_imgui.vs)))
-			return false;
-
-		const D3D11_INPUT_ELEMENT_DESC input_layout[] = {
-			{ "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT,   0, offsetof(ImDrawVert, pos), D3D11_INPUT_PER_VERTEX_DATA, 0 },
-			{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,   0, offsetof(ImDrawVert, uv ), D3D11_INPUT_PER_VERTEX_DATA, 0 },
-			{ "COLOR",    0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, offsetof(ImDrawVert, col), D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		};
-		if (FAILED(_device->CreateInputLayout(input_layout, ARRAYSIZE(input_layout), vs.data, vs.data_size, &_imgui.layout)))
-			return false;
-	}
-
-	{   const resources::data_resource ps = resources::load_data_resource(IDR_IMGUI_PS);
-		if (FAILED(_device->CreatePixelShader(ps.data, ps.data_size, nullptr, &_imgui.ps)))
-			return false;
-	}
-
-	{   D3D11_BUFFER_DESC desc = {};
-		desc.ByteWidth = 16 * sizeof(float);
-		desc.Usage = D3D11_USAGE_IMMUTABLE;
-		desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-
-		// Setup orthographic projection matrix
-		const float ortho_projection[16] = {
-			2.0f / _width, 0.0f,   0.0f, 0.0f,
-			0.0f, -2.0f / _height, 0.0f, 0.0f,
-			0.0f,          0.0f,   0.5f, 0.0f,
-			-1.f,          1.0f,   0.5f, 1.0f
-		};
-
-		D3D11_SUBRESOURCE_DATA initial_data = {};
-		initial_data.pSysMem = ortho_projection;
-		initial_data.SysMemPitch = sizeof(ortho_projection);
-
-		if (FAILED(_device->CreateBuffer(&desc, &initial_data, &_imgui.cb)))
-			return false;
-	}
-
-	{   D3D11_BLEND_DESC desc = {};
-		desc.RenderTarget[0].BlendEnable = TRUE;
-		desc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
-		desc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
-		desc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
-		desc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_INV_SRC_ALPHA;
-		desc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
-		desc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
-		desc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
-
-		if (FAILED(_device->CreateBlendState(&desc, &_imgui.bs)))
-			return false;
-	}
-
-	{   D3D11_RASTERIZER_DESC desc = {};
-		desc.FillMode = D3D11_FILL_SOLID;
-		desc.CullMode = D3D11_CULL_NONE;
-		desc.ScissorEnable = TRUE;
-		desc.DepthClipEnable = TRUE;
-
-		if (FAILED(_device->CreateRasterizerState(&desc, &_imgui.rs)))
-			return false;
-	}
-
-	{   D3D11_DEPTH_STENCIL_DESC desc = {};
-		desc.DepthEnable = FALSE;
-		desc.StencilEnable = FALSE;
-
-		if (FAILED(_device->CreateDepthStencilState(&desc, &_imgui.ds)))
-			return false;
-	}
-
-	{   D3D11_SAMPLER_DESC desc = {};
-		desc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-		desc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-		desc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-		desc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-		desc.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
-
-		if (FAILED(_device->CreateSamplerState(&desc, &_imgui.ss)))
-			return false;
-	}
-
-	return true;
-}
-
-void reshade::d3d11::runtime_d3d11::render_imgui_draw_data(ImDrawData *draw_data)
-{
-	// Projection matrix resides in an immutable constant buffer, so cannot change display dimensions
-	assert(draw_data->DisplayPos.x == 0 && draw_data->DisplaySize.x == _width);
-	assert(draw_data->DisplayPos.y == 0 && draw_data->DisplaySize.y == _height);
-
-	// Create and grow vertex/index buffers if needed
-	if (_imgui.num_indices < draw_data->TotalIdxCount)
-	{
-		_imgui.indices.reset();
-		_imgui.num_indices = draw_data->TotalIdxCount + 10000;
-
-		D3D11_BUFFER_DESC desc = {};
-		desc.Usage = D3D11_USAGE_DYNAMIC;
-		desc.ByteWidth = _imgui.num_indices * sizeof(ImDrawIdx);
-		desc.BindFlags = D3D11_BIND_INDEX_BUFFER;
-		desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-
-		if (FAILED(_device->CreateBuffer(&desc, nullptr, &_imgui.indices)))
-			return;
-		set_debug_name(_imgui.indices.get(), L"ImGui index buffer");
-	}
-	if (_imgui.num_vertices < draw_data->TotalVtxCount)
-	{
-		_imgui.vertices.reset();
-		_imgui.num_vertices = draw_data->TotalVtxCount + 5000;
-
-		D3D11_BUFFER_DESC desc = {};
-		desc.Usage = D3D11_USAGE_DYNAMIC;
-		desc.ByteWidth = _imgui.num_vertices * sizeof(ImDrawVert);
-		desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-		desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-
-		if (FAILED(_device->CreateBuffer(&desc, nullptr, &_imgui.vertices)))
-			return;
-		set_debug_name(_imgui.vertices.get(), L"ImGui vertex buffer");
-	}
-
-	if (D3D11_MAPPED_SUBRESOURCE idx_resource;
-		SUCCEEDED(_immediate_context->Map(_imgui.indices.get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &idx_resource)))
-	{
-		auto idx_dst = static_cast<ImDrawIdx *>(idx_resource.pData);
-		for (int n = 0; n < draw_data->CmdListsCount; ++n)
-		{
-			const ImDrawList *const draw_list = draw_data->CmdLists[n];
-			std::memcpy(idx_dst, draw_list->IdxBuffer.Data, draw_list->IdxBuffer.Size * sizeof(ImDrawIdx));
-			idx_dst += draw_list->IdxBuffer.Size;
-		}
-
-		_immediate_context->Unmap(_imgui.indices.get(), 0);
-	}
-	if (D3D11_MAPPED_SUBRESOURCE vtx_resource;
-		SUCCEEDED(_immediate_context->Map(_imgui.vertices.get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &vtx_resource)))
-	{
-		auto vtx_dst = static_cast<ImDrawVert *>(vtx_resource.pData);
-		for (int n = 0; n < draw_data->CmdListsCount; ++n)
-		{
-			const ImDrawList *const draw_list = draw_data->CmdLists[n];
-			std::memcpy(vtx_dst, draw_list->VtxBuffer.Data, draw_list->VtxBuffer.Size * sizeof(ImDrawVert));
-			vtx_dst += draw_list->VtxBuffer.Size;
-		}
-
-		_immediate_context->Unmap(_imgui.vertices.get(), 0);
-	}
-
-	// Setup render state and render draw lists
-	_immediate_context->IASetInputLayout(_imgui.layout.get());
-	_immediate_context->IASetIndexBuffer(_imgui.indices.get(), sizeof(ImDrawIdx) == 2 ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT, 0);
-	const UINT stride = sizeof(ImDrawVert), offset = 0;
-	ID3D11Buffer *const vertex_buffers[] = { _imgui.vertices.get() };
-	_immediate_context->IASetVertexBuffers(0, ARRAYSIZE(vertex_buffers), vertex_buffers, &stride, &offset);
-	_immediate_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	_immediate_context->VSSetShader(_imgui.vs.get(), nullptr, 0);
-	ID3D11Buffer *const constant_buffers[] = { _imgui.cb.get() };
-	_immediate_context->VSSetConstantBuffers(0, ARRAYSIZE(constant_buffers), constant_buffers);
-	_immediate_context->HSSetShader(nullptr, nullptr, 0);
-	_immediate_context->DSSetShader(nullptr, nullptr, 0);
-	_immediate_context->GSSetShader(nullptr, nullptr, 0);
-	_immediate_context->PSSetShader(_imgui.ps.get(), nullptr, 0);
-	ID3D11SamplerState *const samplers[] = { _imgui.ss.get() };
-	_immediate_context->PSSetSamplers(0, ARRAYSIZE(samplers), samplers);
-	_immediate_context->RSSetState(_imgui.rs.get());
-	const D3D11_VIEWPORT viewport = { 0.0f, 0.0f, static_cast<FLOAT>(_width), static_cast<FLOAT>(_height), 0.0f, 1.0f };
-	_immediate_context->RSSetViewports(1, &viewport);
-	const FLOAT blend_factor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-	_immediate_context->OMSetBlendState(_imgui.bs.get(), blend_factor, D3D11_DEFAULT_SAMPLE_MASK);
-	_immediate_context->OMSetDepthStencilState(_imgui.ds.get(), 0);
-	ID3D11RenderTargetView *const render_targets[] = { _backbuffer_rtv[0].get() };
-	_immediate_context->OMSetRenderTargets(ARRAYSIZE(render_targets), render_targets, nullptr);
-
-	UINT vtx_offset = 0, idx_offset = 0;
-	for (int n = 0; n < draw_data->CmdListsCount; ++n)
-	{
-		const ImDrawList *const draw_list = draw_data->CmdLists[n];
-
-		for (const ImDrawCmd &cmd : draw_list->CmdBuffer)
-		{
-			assert(cmd.TextureId != 0);
-			assert(cmd.UserCallback == nullptr);
-
-			const D3D11_RECT scissor_rect = {
-				static_cast<LONG>(cmd.ClipRect.x),
-				static_cast<LONG>(cmd.ClipRect.y),
-				static_cast<LONG>(cmd.ClipRect.z),
-				static_cast<LONG>(cmd.ClipRect.w)
-			};
-			_immediate_context->RSSetScissorRects(1, &scissor_rect);
-
-			ID3D11ShaderResourceView *const texture_view =
-				static_cast<const tex_data *>(cmd.TextureId)->srv[0].get();
-			_immediate_context->PSSetShaderResources(0, 1, &texture_view);
-
-			_immediate_context->DrawIndexed(cmd.ElemCount, cmd.IdxOffset + idx_offset, cmd.VtxOffset + vtx_offset);
-		}
-
-		idx_offset += draw_list->IdxBuffer.Size;
-		vtx_offset += draw_list->VtxBuffer.Size;
-	}
-}
-#endif
-
-#if RESHADE_DEPTH
-void reshade::d3d11::runtime_d3d11::draw_depth_debug_menu()
-{
-	if (!ImGui::CollapsingHeader("Depth Buffers", ImGuiTreeNodeFlags_DefaultOpen))
-		return;
-
-	if (_has_high_network_activity)
-	{
-		ImGui::TextColored(ImColor(204, 204, 0), "High network activity discovered.\nAccess to depth buffers is disabled to prevent exploitation.");
-		return;
-	}
-
-	bool modified = false;
-	modified |= ImGui::Checkbox("Use aspect ratio heuristics", &_state_tracking.use_aspect_ratio_heuristics);
-	modified |= ImGui::Checkbox("Copy depth buffer before clear operations", &_state_tracking.preserve_depth_buffers);
-
-	if (modified) // Detection settings have changed, reset heuristic
-		_state_tracking.reset(true);
-
-	ImGui::Spacing();
-	ImGui::Separator();
-	ImGui::Spacing();
-
-	auto sorted_buffers = _state_tracking.sorted_counters_per_used_depthstencil();
-
-	for (const auto &[dsv_texture, snapshot] : sorted_buffers)
-	{
-		char label[512] = "";
-		sprintf_s(label, "%s0x%p", (dsv_texture == _state_tracking.depthstencil_clear_index.first ? "> " : "  "), dsv_texture);
-
-		D3D11_TEXTURE2D_DESC desc;
-		dsv_texture->GetDesc(&desc);
-
-		const bool msaa = desc.SampleDesc.Count > 1;
-		if (msaa) // Disable widget for MSAA textures
-		{
-			ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
-			ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
-		}
-
-		if (bool value = (_depth_texture_override == dsv_texture);
-			ImGui::Checkbox(label, &value))
-			_depth_texture_override = value ? dsv_texture : nullptr;
-
-		ImGui::SameLine();
-		ImGui::Text("| %4ux%-4u | %5u draw calls ==> %8u vertices |%s",
-			desc.Width, desc.Height, snapshot.total_stats.drawcalls, snapshot.total_stats.vertices, (msaa ? " MSAA" : ""));
-
-		if (_state_tracking.preserve_depth_buffers && dsv_texture == _state_tracking.depthstencil_clear_index.first)
-		{
-			for (UINT clear_index = 1; clear_index <= snapshot.clears.size(); ++clear_index)
-			{
-				sprintf_s(label, "%s  CLEAR %2u", (clear_index == _state_tracking.depthstencil_clear_index.second ? "> " : "  "), clear_index);
-
-				if (bool value = (_state_tracking.depthstencil_clear_index.second == clear_index);
-					ImGui::Checkbox(label, &value))
-				{
-					_state_tracking.depthstencil_clear_index.second = value ? clear_index : 0;
-					modified = true;
-				}
-
-				ImGui::SameLine();
-				ImGui::Text("%*s|           | %5u draw calls ==> %8u vertices |%s",
-					sizeof(dsv_texture) == 8 ? 8 : 0, "", // Add space to fill pointer length
-					snapshot.clears[clear_index - 1].drawcalls, snapshot.clears[clear_index - 1].vertices,
-					snapshot.clears[clear_index - 1].rect ? " RECT" : "");
-			}
-		}
-
-		if (msaa)
-		{
-			ImGui::PopStyleColor();
-			ImGui::PopItemFlag();
-		}
-	}
-
-	ImGui::Spacing();
-	ImGui::Separator();
-	ImGui::Spacing();
-
-	if (modified)
-		runtime::save_config();
-}
-
-void reshade::d3d11::runtime_d3d11::update_depth_texture_bindings(com_ptr<ID3D11Texture2D> depth_texture)
-{
-	if (_has_high_network_activity)
-		depth_texture.reset();
-
-	if (depth_texture == _depth_texture)
-		return;
-
-	_depth_texture = std::move(depth_texture);
-	_depth_texture_srv.reset();
-	_has_depth_texture = false;
-
-	if (_depth_texture != nullptr)
-	{
-		D3D11_TEXTURE2D_DESC tex_desc;
-		_depth_texture->GetDesc(&tex_desc);
-		assert((tex_desc.BindFlags & D3D11_BIND_SHADER_RESOURCE) != 0);
-
-		D3D11_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
-		srv_desc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-		srv_desc.Texture2D.MipLevels = 1;
-		srv_desc.Format = make_dxgi_format_normal(tex_desc.Format);
-
-		if (HRESULT hr = _device->CreateShaderResourceView(_depth_texture.get(), &srv_desc, &_depth_texture_srv); FAILED(hr))
-		{
-			LOG(ERROR) << "Failed to create depth-stencil resource view! HRESULT is " << hr << '.';
-		}
-		else
-		{
-			_has_depth_texture = true;
-		}
-	}
+	_texture_semantic_bindings[semantic] = new_srv;
 
 	// Update all references to the new texture
 	for (const texture &tex : _textures)
 	{
-		if (tex.impl == nullptr || tex.semantic != "DEPTH")
+		if (tex.impl == nullptr || tex.semantic != semantic)
 			continue;
 		const auto tex_impl = static_cast<tex_data *>(tex.impl);
+		if (tex_impl->srv[0] == new_srv)
+			continue;
 
 		// Update references in technique list
 		for (const technique &tech : _techniques)
@@ -1617,10 +1223,9 @@ void reshade::d3d11::runtime_d3d11::update_depth_texture_bindings(com_ptr<ID3D11
 				// Replace all occurances of the old resource view with the new one
 				for (com_ptr<ID3D11ShaderResourceView> &srv : pass_data.srvs)
 					if (tex_impl->srv[0] == srv || tex_impl->srv[1] == srv)
-						srv = _depth_texture_srv;
+						srv = new_srv;
 		}
 
-		tex_impl->srv[0] = tex_impl->srv[1] = _depth_texture_srv;
+		tex_impl->srv[0] = tex_impl->srv[1] = new_srv;
 	}
 }
-#endif

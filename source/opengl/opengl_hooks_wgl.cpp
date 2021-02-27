@@ -18,8 +18,8 @@ static std::mutex s_global_mutex;
 static std::unordered_set<HDC> s_pbuffer_device_contexts;
 static std::unordered_set<HGLRC> s_legacy_contexts;
 static std::unordered_map<HGLRC, HGLRC> s_shared_contexts;
-static std::unordered_map<HGLRC, reshade::opengl::runtime_gl *> s_opengl_runtimes;
-thread_local reshade::opengl::runtime_gl *g_current_runtime = nullptr;
+static std::unordered_map<HGLRC, reshade::opengl::runtime_impl *> s_opengl_runtimes;
+thread_local reshade::opengl::runtime_impl *g_current_runtime = nullptr;
 
 HOOK_EXPORT int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPTOR *ppfd)
 {
@@ -249,7 +249,8 @@ HOOK_EXPORT int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPT
 }
 HOOK_EXPORT int   WINAPI wglGetPixelFormat(HDC hdc)
 {
-	return reshade::hooks::call(wglGetPixelFormat)(hdc);
+	static const auto trampoline = reshade::hooks::call(wglGetPixelFormat);
+	return trampoline(hdc);
 }
 			BOOL  WINAPI wglGetPixelFormatAttribivARB(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, int *piValues)
 {
@@ -522,8 +523,8 @@ HOOK_EXPORT BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 				hdc = GetDC(dummy_window_handle);
 				PIXELFORMATDESCRIPTOR pfd = { sizeof(pfd), 1 };
 				pfd.dwFlags = PFD_DOUBLEBUFFER | PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL;
-				reshade::hooks::call(wglSetPixelFormat)(hdc,
-					reshade::hooks::call(wglChoosePixelFormat)(hdc, &pfd), &pfd);
+				const int pixel_format = reshade::hooks::call(wglChoosePixelFormat)(hdc, &pfd);
+				reshade::hooks::call(wglSetPixelFormat)(hdc, pixel_format, &pfd);
 			}
 
 			if (reshade::hooks::call(wglMakeCurrent)(hdc, hglrc))
@@ -596,14 +597,13 @@ HOOK_EXPORT BOOL  WINAPI wglShareLists(HGLRC hglrc1, HGLRC hglrc2)
 
 HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 {
-	static const auto trampoline = reshade::hooks::call(wglMakeCurrent);
-
 #if RESHADE_VERBOSE_LOG
 	LOG(INFO) << "Redirecting " << "wglMakeCurrent" << '(' << "hdc = " << hdc << ", hglrc = " << hglrc << ')' << " ...";
 #endif
 
 	const HGLRC prev_hglrc = wglGetCurrentContext();
 
+	static const auto trampoline = reshade::hooks::call(wglMakeCurrent);
 	if (!trampoline(hdc, hglrc))
 	{
 #if RESHADE_VERBOSE_LOG
@@ -680,13 +680,24 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 		if (gl3wIsSupported(4, 3))
 		{
+#if RESHADE_ADDON
 			// Get trampoline pointers to any hooked functions, so that runtime always calls into original OpenGL functions
 			if (s_hooks_installed)
 			{
 				gl3wProcs.gl.BindFramebuffer = reshade::hooks::call(glBindFramebuffer);
+				gl3wProcs.gl.BufferData = reshade::hooks::call(glBufferData);
+				gl3wProcs.gl.ClearBufferfv = reshade::hooks::call(glClearBufferfv);
+				gl3wProcs.gl.ClearBufferfi = reshade::hooks::call(glClearBufferfi);
+				gl3wProcs.gl.DispatchCompute = reshade::hooks::call(glDispatchCompute);
+				gl3wProcs.gl.DrawElementsBaseVertex = reshade::hooks::call(glDrawElementsBaseVertex); // Used in 'runtime_impl::render_imgui_draw_data'
+				gl3wProcs.gl.TexBuffer = reshade::hooks::call(glTexBuffer);
+				gl3wProcs.gl.TexBufferRange = reshade::hooks::call(glTexBufferRange);
+				gl3wProcs.gl.TextureView = reshade::hooks::call(glTextureView);
+				gl3wProcs.gl.TexStorage2D = reshade::hooks::call(glTexStorage2D); // Used in 'runtime_impl::init_texture'
 			}
+#endif
 
-			const auto runtime = new reshade::opengl::runtime_gl();
+			const auto runtime = new reshade::opengl::runtime_impl(hdc, hglrc);
 			runtime->_hdcs.insert(hdc);
 
 			// Always set compatibility context flag on contexts that were created with 'wglCreateContext' instead of 'wglCreateContextAttribsARB'
@@ -847,12 +858,12 @@ HOOK_EXPORT BOOL  WINAPI wglSwapBuffers(HDC hdc)
 {
 	static const auto trampoline = reshade::hooks::call(wglSwapBuffers);
 
-	reshade::opengl::runtime_gl *runtime = g_current_runtime;
+	reshade::opengl::runtime_impl *runtime = g_current_runtime;
 	if (runtime == nullptr || runtime->_hdcs.find(hdc) == runtime->_hdcs.end())
 	{
 		// Find the runtime that is associated with this device context
 		const auto it = std::find_if(s_opengl_runtimes.begin(), s_opengl_runtimes.end(),
-			[hdc](const std::pair<HGLRC, reshade::opengl::runtime_gl *> &it) { return it.second->_hdcs.find(hdc) != it.second->_hdcs.end(); });
+			[hdc](const std::pair<HGLRC, reshade::opengl::runtime_impl *> &it) { return it.second->_hdcs.find(hdc) != it.second->_hdcs.end(); });
 		runtime = (it != s_opengl_runtimes.end()) ? it->second : nullptr;
 	}
 
@@ -863,18 +874,25 @@ HOOK_EXPORT BOOL  WINAPI wglSwapBuffers(HDC hdc)
 		RECT rect = { 0, 0, 0, 0 };
 		GetClientRect(hwnd, &rect);
 
+		uint32_t runtime_width = 0, runtime_height = 0;
+		runtime->get_frame_width_and_height(&runtime_width, &runtime_height);
+
 		const auto width = static_cast<unsigned int>(rect.right);
 		const auto height = static_cast<unsigned int>(rect.bottom);
 
-		if (width != runtime->frame_width() || height != runtime->frame_height())
+		if (width != runtime_width || height != runtime_height)
 		{
 			LOG(INFO) << "Resizing runtime " << runtime << " on device context " << hdc << " to " << width << "x" << height << " ...";
+
+			RESHADE_ADDON_EVENT(resize, runtime, width, height);
 
 			runtime->on_reset();
 
 			if (!(width == 0 && height == 0) && !runtime->on_init(hwnd, width, height))
 				LOG(ERROR) << "Failed to recreate OpenGL runtime environment on runtime " << runtime << '!';
 		}
+
+		RESHADE_ADDON_EVENT(present, runtime, runtime);
 
 		// Assume that the correct OpenGL context is still current here
 		runtime->on_present();
@@ -1105,43 +1123,85 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		return reinterpret_cast<PROC>(glViewport);
 	else if (!s_hooks_installed)
 	{
-#define INSTALL_HOOK(name) \
+#define HOOK_PROC(name) \
 	reshade::hooks::install(#name, reinterpret_cast<reshade::hook::address>(trampoline(#name)), reinterpret_cast<reshade::hook::address>(name), true)
-		// Install all OpenGL hooks in a single batch job
-		INSTALL_HOOK(glBindFramebuffer);
-		INSTALL_HOOK(glDrawArraysIndirect);
-		INSTALL_HOOK(glDrawArraysInstanced);
-		INSTALL_HOOK(glDrawArraysInstancedBaseInstance);
-		INSTALL_HOOK(glDrawElementsBaseVertex);
-		INSTALL_HOOK(glDrawElementsIndirect);
-		INSTALL_HOOK(glDrawElementsInstanced);
-		INSTALL_HOOK(glDrawElementsInstancedBaseVertex);
-		INSTALL_HOOK(glDrawElementsInstancedBaseInstance);
-		INSTALL_HOOK(glDrawElementsInstancedBaseVertexBaseInstance);
-		INSTALL_HOOK(glDrawRangeElements);
-		INSTALL_HOOK(glDrawRangeElementsBaseVertex);
-		INSTALL_HOOK(glMultiDrawArrays);
-		INSTALL_HOOK(glMultiDrawArraysIndirect);
-		INSTALL_HOOK(glMultiDrawElements);
-		INSTALL_HOOK(glMultiDrawElementsBaseVertex);
-		INSTALL_HOOK(glMultiDrawElementsIndirect);
-		INSTALL_HOOK(glTexImage3D);
 
-		INSTALL_HOOK(wglChoosePixelFormatARB);
-		INSTALL_HOOK(wglCreateContextAttribsARB);
-		INSTALL_HOOK(wglCreatePbufferARB);
-		INSTALL_HOOK(wglDestroyPbufferARB);
-		INSTALL_HOOK(wglGetPbufferDCARB);
-		INSTALL_HOOK(wglGetPixelFormatAttribivARB);
-		INSTALL_HOOK(wglGetPixelFormatAttribfvARB);
-		INSTALL_HOOK(wglQueryPbufferARB);
-		INSTALL_HOOK(wglReleasePbufferDCARB);
-		INSTALL_HOOK(wglGetSwapIntervalEXT);
-		INSTALL_HOOK(wglSwapIntervalEXT);
+		// Install all OpenGL hooks in a single batch job
+#if RESHADE_ADDON
+		HOOK_PROC(glBindBuffer);
+		HOOK_PROC(glBindFramebuffer);
+		HOOK_PROC(glBufferData);
+		HOOK_PROC(glBufferStorage);
+		HOOK_PROC(glClearBufferfv);
+		HOOK_PROC(glClearBufferfi);
+		HOOK_PROC(glClearNamedFramebufferfv);
+		HOOK_PROC(glClearNamedFramebufferfi);
+		HOOK_PROC(glDispatchCompute);
+		HOOK_PROC(glDispatchComputeIndirect);
+		HOOK_PROC(glDrawArraysIndirect);
+		HOOK_PROC(glDrawArraysInstanced);
+		HOOK_PROC(glDrawArraysInstancedBaseInstance);
+		HOOK_PROC(glDrawElementsBaseVertex);
+		HOOK_PROC(glDrawElementsIndirect);
+		HOOK_PROC(glDrawElementsInstanced);
+		HOOK_PROC(glDrawElementsInstancedBaseVertex);
+		HOOK_PROC(glDrawElementsInstancedBaseInstance);
+		HOOK_PROC(glDrawElementsInstancedBaseVertexBaseInstance);
+		HOOK_PROC(glDrawRangeElements);
+		HOOK_PROC(glDrawRangeElementsBaseVertex);
+		HOOK_PROC(glMultiDrawArrays);
+		HOOK_PROC(glMultiDrawArraysIndirect);
+		HOOK_PROC(glMultiDrawElements);
+		HOOK_PROC(glMultiDrawElementsBaseVertex);
+		HOOK_PROC(glMultiDrawElementsIndirect);
+		HOOK_PROC(glNamedBufferData);
+		HOOK_PROC(glNamedBufferStorage);
+		HOOK_PROC(glScissorArrayv);
+		HOOK_PROC(glScissorIndexed);
+		HOOK_PROC(glScissorIndexedv);
+		HOOK_PROC(glTexBuffer);
+		HOOK_PROC(glTextureBuffer);
+		HOOK_PROC(glTexBufferRange);
+		HOOK_PROC(glTextureBufferRange);
+		HOOK_PROC(glTexImage3D);
+		HOOK_PROC(glTexStorage1D);
+		HOOK_PROC(glTexStorage2D);
+		HOOK_PROC(glTexStorage3D);
+		HOOK_PROC(glTextureStorage1D);
+		HOOK_PROC(glTextureStorage2D);
+		HOOK_PROC(glTextureStorage3D);
+		HOOK_PROC(glTextureView);
+		HOOK_PROC(glViewportArrayv);
+		HOOK_PROC(glViewportIndexedf);
+		HOOK_PROC(glViewportIndexedfv);
+#endif
+		HOOK_PROC(wglChoosePixelFormatARB);
+		HOOK_PROC(wglCreateContextAttribsARB);
+		HOOK_PROC(wglCreatePbufferARB);
+		HOOK_PROC(wglDestroyPbufferARB);
+		HOOK_PROC(wglGetPbufferDCARB);
+		HOOK_PROC(wglGetPixelFormatAttribivARB);
+		HOOK_PROC(wglGetPixelFormatAttribfvARB);
+		HOOK_PROC(wglQueryPbufferARB);
+		HOOK_PROC(wglReleasePbufferDCARB);
+		HOOK_PROC(wglGetSwapIntervalEXT);
+		HOOK_PROC(wglSwapIntervalEXT);
 
 		reshade::hook::apply_queued_actions();
 
+#if RESHADE_ADDON
+		gl3wProcs.gl.BindBuffer = reshade::hooks::call(glBindBuffer);
 		gl3wProcs.gl.BindFramebuffer = reshade::hooks::call(glBindFramebuffer);
+		gl3wProcs.gl.BufferData = reshade::hooks::call(glBufferData);
+		gl3wProcs.gl.ClearBufferfv = reshade::hooks::call(glClearBufferfv);
+		gl3wProcs.gl.ClearBufferfi = reshade::hooks::call(glClearBufferfi);
+		gl3wProcs.gl.DispatchCompute = reshade::hooks::call(glDispatchCompute);
+		gl3wProcs.gl.DrawElementsBaseVertex = reshade::hooks::call(glDrawElementsBaseVertex);
+		gl3wProcs.gl.TexBuffer = reshade::hooks::call(glTexBuffer);
+		gl3wProcs.gl.TexBufferRange = reshade::hooks::call(glTexBufferRange);
+		gl3wProcs.gl.TextureView = reshade::hooks::call(glTextureView);
+		gl3wProcs.gl.TexStorage2D = reshade::hooks::call(glTexStorage2D);
+#endif
 
 		s_hooks_installed = true;
 	}

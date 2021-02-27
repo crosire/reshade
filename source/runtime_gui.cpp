@@ -9,6 +9,7 @@
 #include "dll_log.hpp"
 #include "dll_config.hpp"
 #include "dll_resources.hpp"
+#include "addon_manager.hpp"
 #include "runtime.hpp"
 #include "runtime_objects.hpp"
 #include "input.hpp"
@@ -20,15 +21,17 @@
 
 using namespace reshade::gui;
 
-static std::string g_window_state_path;
+extern bool g_addons_enabled;
+
+static std::string s_window_state_path;
 
 static const ImVec4 COLOR_RED = ImColor(240, 100, 100);
 static const ImVec4 COLOR_YELLOW = ImColor(204, 204, 0);
 
 void reshade::runtime::init_gui()
 {
-	if (g_window_state_path.empty())
-		g_window_state_path = (g_reshade_base_path / L"ReShadeGUI.ini").u8string();
+	if (s_window_state_path.empty())
+		s_window_state_path = (g_reshade_base_path / L"ReShadeGUI.ini").u8string();
 
 	// Default shortcut: Home
 	_overlay_key_data[0] = 0x24;
@@ -75,6 +78,9 @@ void reshade::runtime::init_gui()
 	ImGui::SetCurrentContext(nullptr);
 
 	subscribe_to_ui("Home", [this]() { draw_gui_home(); });
+#if RESHADE_ADDON
+	subscribe_to_ui("Add-ons", [this]() { draw_gui_addons(); });
+#endif
 	subscribe_to_ui("Settings", [this]() { draw_gui_settings(); });
 	subscribe_to_ui("Statistics", [this]() { draw_gui_statistics(); });
 	subscribe_to_ui("Log", [this]() { draw_gui_log(); });
@@ -98,7 +104,7 @@ void reshade::runtime::init_gui()
 
 		bool save_imgui_window_state = false;
 		config.get("OVERLAY", "SaveWindowState", save_imgui_window_state);
-		imgui_io.IniFilename = save_imgui_window_state ? g_window_state_path.c_str() : nullptr;
+		imgui_io.IniFilename = save_imgui_window_state ? s_window_state_path.c_str() : nullptr;
 
 		config.get("STYLE", "Alpha", imgui_style.Alpha);
 		config.get("STYLE", "ChildRounding", imgui_style.ChildRounding);
@@ -807,6 +813,15 @@ void reshade::runtime::draw_gui()
 			ImGui::End();
 		}
 
+#if RESHADE_ADDON
+		for (const auto &widget : addon::overlay_list)
+		{
+			if (ImGui::Begin(widget.first.c_str(), nullptr, ImGuiWindowFlags_NoFocusOnAppearing))
+				widget.second(this, _imgui_context);
+			ImGui::End();
+		}
+#endif
+
 		if (!_editors.empty())
 		{
 			if (ImGui::Begin("Edit###editor", nullptr, ImGuiWindowFlags_NoFocusOnAppearing) &&
@@ -1388,7 +1403,7 @@ void reshade::runtime::draw_gui_settings()
 		if (ImGui::Checkbox("Save window state (ReShadeGUI.ini)", &save_imgui_window_state))
 		{
 			modified = true;
-			_imgui_context->IO.IniFilename = save_imgui_window_state ? g_window_state_path.c_str() : nullptr;
+			_imgui_context->IO.IniFilename = save_imgui_window_state ? s_window_state_path.c_str() : nullptr;
 		}
 
 		modified |= ImGui::Checkbox("Group effect files with tabs instead of a tree", &_variable_editor_tabs);
@@ -1689,9 +1704,9 @@ void reshade::runtime::draw_gui_statistics()
 		const float single_image_width = (total_width / num_columns) - 5.0f;
 
 		// Variables used to calculate memory size of textures
-		ldiv_t memory_view;
+		lldiv_t memory_view;
+		int64_t post_processing_memory_size = 0;
 		const char *memory_size_unit;
-		uint32_t post_processing_memory_size = 0;
 
 		for (const texture &tex : _textures)
 		{
@@ -1701,24 +1716,24 @@ void reshade::runtime::draw_gui_statistics()
 			ImGui::PushID(texture_index);
 			ImGui::BeginGroup();
 
-			uint32_t memory_size = 0;
+			int64_t memory_size = 0;
 			for (uint32_t level = 0, width = tex.width, height = tex.height; level < tex.levels; ++level, width /= 2, height /= 2)
 				memory_size += width * height * pixel_sizes[static_cast<unsigned int>(tex.format)];
 
 			post_processing_memory_size += memory_size;
 
 			if (memory_size >= 1024 * 1024) {
-				memory_view = std::ldiv(memory_size, 1024 * 1024);
+				memory_view = std::lldiv(memory_size, 1024 * 1024);
 				memory_view.rem /= 1000;
 				memory_size_unit = "MiB";
 			}
 			else {
-				memory_view = std::ldiv(memory_size, 1024);
+				memory_view = std::lldiv(memory_size, 1024);
 				memory_size_unit = "KiB";
 			}
 
 			ImGui::TextColored(ImVec4(1, 1, 1, 1), "%s%s", tex.unique_name.c_str(), tex.shared.size() > 1 ? " (Pooled)" : "");
-			ImGui::Text("%ux%u | %u mipmap(s) | %s | %ld.%03ld %s",
+			ImGui::Text("%ux%u | %u mipmap(s) | %s | %lld.%03lld %s",
 				tex.width,
 				tex.height,
 				tex.levels - 1,
@@ -1863,16 +1878,16 @@ void reshade::runtime::draw_gui_statistics()
 		ImGui::Separator();
 
 		if (post_processing_memory_size >= 1024 * 1024) {
-			memory_view = std::ldiv(post_processing_memory_size, 1024 * 1024);
+			memory_view = std::lldiv(post_processing_memory_size, 1024 * 1024);
 			memory_view.rem /= 1000;
 			memory_size_unit = "MiB";
 		}
 		else {
-			memory_view = std::ldiv(post_processing_memory_size, 1024);
+			memory_view = std::lldiv(post_processing_memory_size, 1024);
 			memory_size_unit = "KiB";
 		}
 
-		ImGui::Text("Total memory usage: %ld.%03ld %s", memory_view.quot, memory_view.rem, memory_size_unit);
+		ImGui::Text("Total memory usage: %lld.%03lld %s", memory_view.quot, memory_view.rem, memory_size_unit);
 	}
 }
 void reshade::runtime::draw_gui_log()
@@ -2026,6 +2041,67 @@ This Font Software is licensed under the SIL Open Font License, Version 1.1. (ht
 
 	ImGui::PopTextWrapPos();
 }
+#if RESHADE_ADDON
+void reshade::runtime::draw_gui_addons()
+{
+	if (!g_addons_enabled)
+	{
+		ImGui::TextColored(ImColor(204, 204, 0), "High network activity discovered.\nAll add-ons are disabled to prevent exploitation.");
+		return;
+	}
+
+	widgets::search_input_box(_addons_filter, sizeof(_addons_filter));
+	const std::string_view filter_view = _addons_filter;
+
+	ImGui::Spacing();
+
+	for (size_t index = 0; index < addon::loaded_info.size(); ++index)
+	{
+		const addon::info &info = addon::loaded_info[index];
+
+		if (!filter_view.empty() &&
+			std::search(info.name.begin(), info.name.end(), filter_view.begin(), filter_view.end(), // Search case insensitive
+				[](const char c1, const char c2) { return (('a' <= c1 && c1 <= 'z') ? static_cast<char>(c1 - ' ') : c1) == (('a' <= c2 && c2 <= 'z') ? static_cast<char>(c2 - ' ') : c2); }) == info.name.end())
+			continue;
+
+		ImGui::PushID(static_cast<int>(index + 1));
+
+		const ImVec2 spacing = ImGui::GetStyle().ItemSpacing;
+		ImGui::BeginGroup();
+		ImGui::Dummy(ImVec2(spacing.x, 0.0f));
+		ImGui::SameLine(0.0f, 0.0f);
+		ImGui::BeginGroup();
+		ImGui::Dummy(ImVec2(ImGui::GetContentRegionAvail().x, spacing.y));
+		ImGui::GetCurrentWindow()->Size.x -= spacing.x * 2;
+		ImGui::GetCurrentWindow()->WorkRect.Max.x -= spacing.x;
+		ImGui::GetCurrentWindow()->InnerRect.Max.x -= spacing.x;
+		ImGui::GetCurrentWindow()->ContentRegionRect.Max.x -= spacing.x;
+
+		bool open = _open_addon_index == static_cast<int>(index + 1);
+		if (ImGui::ArrowButton("addon_open", open ? ImGuiDir_Down : ImGuiDir_Right))
+			_open_addon_index = open ? 0 : static_cast<int>(index + 1);
+		ImGui::SameLine();
+		ImGui::TextUnformatted(info.name.c_str());
+
+		if (open && !info.description.empty())
+			ImGui::TextUnformatted(info.description.c_str());
+
+		ImGui::GetCurrentWindow()->Size.x += spacing.x;
+		ImGui::GetCurrentWindow()->WorkRect.Max.x += spacing.x;
+		ImGui::GetCurrentWindow()->InnerRect.Max.x += spacing.x;
+		ImGui::GetCurrentWindow()->ContentRegionRect.Max.x += spacing.x;
+		ImGui::EndGroup();
+		ImGui::Dummy(ImVec2(0.0f, spacing.y));
+		ImGui::EndGroup();
+
+		ImGui::GetWindowDrawList()->AddRect(
+			ImGui::GetItemRectMin(), ImGui::GetItemRectMax(),
+			ImColor(ImGui::GetStyleColorVec4(ImGuiCol_Border)), ImGui::GetStyle().ChildBorderSize);
+
+		ImGui::PopID();
+	}
+}
+#endif
 
 void reshade::runtime::draw_variable_editor()
 {

@@ -6,39 +6,44 @@
 #pragma once
 
 #include "runtime.hpp"
+#include "render_gl.hpp"
 #include "state_block_gl.hpp"
-#include "state_tracking.hpp"
-#include <unordered_set>
 
 namespace reshade::opengl
 {
-	class runtime_gl : public runtime
+	class runtime_impl : public runtime, public device_impl
 	{
 	public:
-		runtime_gl();
-		~runtime_gl();
+		runtime_impl(HDC hdc, HGLRC hglrc);
+		~runtime_impl();
+
+		bool get_data(const uint8_t guid[16], void **ptr) const final { return device_impl::get_data(guid, ptr); }
+		void set_data(const uint8_t guid[16], void *const ptr)  final { device_impl::set_data(guid, ptr); }
+
+		uint64_t get_native_object() const final { return reinterpret_cast<uintptr_t>(*_hdcs.begin()); } // Simply return the first device context
+
+		api::device *get_device() final { return this; }
+		api::command_queue *get_command_queue() final { return this; }
 
 		bool on_init(HWND hwnd, unsigned int width, unsigned int height);
 		void on_reset();
 		void on_present();
 
-		bool capture_screenshot(uint8_t *buffer) const override;
+		bool capture_screenshot(uint8_t *buffer) const final;
 
-		state_tracking _state_tracking;
-		bool _compatibility_context = false;
-		std::unordered_set<HDC> _hdcs;
+		void update_texture_bindings(const char *semantic, api::resource_view_handle srv) final;
 
 	private:
-		bool init_effect(size_t index) override;
-		void unload_effect(size_t index) override;
-		void unload_effects() override;
+		bool init_effect(size_t index) final;
+		void unload_effect(size_t index) final;
+		void unload_effects() final;
 
-		bool init_texture(texture &texture) override;
-		void upload_texture(const texture &texture, const uint8_t *data) override;
-		void destroy_texture(texture &texture) override;
+		bool init_texture(texture &texture) final;
+		void upload_texture(const texture &texture, const uint8_t *data) final;
+		void destroy_texture(texture &texture) final;
 		void generate_mipmaps(const struct tex_data *impl);
 
-		void render_technique(technique &technique) override;
+		void render_technique(technique &technique) final;
 
 		enum BUF
 		{
@@ -54,7 +59,6 @@ namespace reshade::opengl
 		{
 			TEX_BACK,
 			TEX_BACK_SRGB,
-			TEX_DEPTH,
 				NUM_TEX
 		};
 		enum VAO
@@ -70,8 +74,6 @@ namespace reshade::opengl
 			FBO_BACK,
 			FBO_BLIT,
 			FBO_CLEAR,
-			FBO_DEPTH_SRC,
-			FBO_DEPTH_DEST,
 				NUM_FBO
 		};
 		enum RBO
@@ -82,37 +84,25 @@ namespace reshade::opengl
 		};
 
 		state_block _app_state;
-
 		GLuint _buf[NUM_BUF] = {};
 		GLuint _tex[NUM_TEX] = {};
 		GLuint _vao[NUM_VAO] = {};
 		GLuint _fbo[NUM_FBO] = {}, _current_fbo = 0;
 		GLuint _rbo[NUM_RBO] = {};
 		GLuint _mipmap_program = 0;
-		GLenum _default_depth_format = GL_NONE;
 		std::vector<GLuint> _effect_ubos;
 		std::vector<GLuint> _reserved_texture_names;
 		std::unordered_map<size_t, GLuint> _effect_sampler_states;
+		std::unordered_map<std::string, GLuint> _texture_semantic_bindings;
 
 #if RESHADE_GUI
 		void init_imgui_resources();
-		void render_imgui_draw_data(ImDrawData *data) override;
+		void render_imgui_draw_data(ImDrawData *data) final;
 
 		struct imgui_resources
 		{
 			GLuint program = 0;
 		} _imgui;
-#endif
-
-#if RESHADE_DEPTH
-		void draw_depth_debug_menu();
-		void update_depth_texture_bindings(state_tracking::depthstencil_info info);
-
-		bool _copy_depth_source = true;
-		GLuint _depth_source = 0;
-		GLuint _depth_source_width = 0, _depth_source_height = 0;
-		GLenum _depth_source_format = 0;
-		GLuint _depth_source_override = std::numeric_limits<GLuint>::max();
 #endif
 	};
 }

@@ -6,18 +6,18 @@
 #pragma once
 
 #include "runtime.hpp"
-#include "state_tracking.hpp"
-#include <dxgi1_5.h>
+#include "render_d3d12.hpp"
 
 namespace reshade::d3d12
 {
-	class runtime_d3d12 : public runtime
+	class runtime_impl : public api::api_object_impl<IDXGISwapChain3 *, runtime>
 	{
-		static const uint32_t NUM_IMGUI_BUFFERS = 4;
-
 	public:
-		runtime_d3d12(ID3D12Device *device, ID3D12CommandQueue *queue, IDXGISwapChain3 *swapchain, state_tracking_context *state_tracking);
-		~runtime_d3d12();
+		runtime_impl(device_impl *device, command_queue_impl *queue, IDXGISwapChain3 *swapchain);
+		~runtime_impl();
+
+		api::device *get_device() final { return _device_impl; }
+		api::command_queue *get_command_queue() final { return _cmd_queue_impl; }
 
 		bool on_init();
 		bool on_init(const DXGI_SWAP_CHAIN_DESC &desc);
@@ -25,59 +25,49 @@ namespace reshade::d3d12
 		void on_present();
 		void on_present(ID3D12Resource *backbuffer, HWND hwnd);
 
-		bool capture_screenshot(uint8_t *buffer) const override;
+		bool capture_screenshot(uint8_t *buffer) const final;
+
+		void update_texture_bindings(const char *semantic, api::resource_view_handle srv) final;
 
 	private:
-		bool init_effect(size_t index) override;
-		void unload_effect(size_t index) override;
-		void unload_effects() override;
+		bool init_effect(size_t index) final;
+		void unload_effect(size_t index) final;
+		void unload_effects() final;
 
-		bool init_texture(texture &texture) override;
-		void upload_texture(const texture &texture, const uint8_t *pixels) override;
-		void destroy_texture(texture &texture) override;
+		bool init_texture(texture &texture) final;
+		void upload_texture(const texture &texture, const uint8_t *pixels) final;
+		void destroy_texture(texture &texture) final;
 		void generate_mipmaps(const struct tex_data *impl);
 
-		void render_technique(technique &technique) override;
+		void render_technique(technique &technique) final;
 
-		bool begin_command_list(const com_ptr<ID3D12PipelineState> &state = nullptr) const;
-		void execute_command_list() const;
-		bool wait_for_command_queue() const;
-
-		com_ptr<ID3D12RootSignature> create_root_signature(const D3D12_ROOT_SIGNATURE_DESC &desc) const;
-
-		state_tracking_context &_state_tracking;
 		const com_ptr<ID3D12Device> _device;
-		const com_ptr<IDXGISwapChain3> _swapchain;
-		const com_ptr<ID3D12CommandQueue> _commandqueue;
-		UINT _srv_handle_size = 0;
-		UINT _rtv_handle_size = 0;
-		UINT _dsv_handle_size = 0;
-		UINT _sampler_handle_size = 0;
+		const com_ptr<ID3D12CommandQueue> _cmd_queue;
+		device_impl *const _device_impl;
+		command_queue_impl *const _cmd_queue_impl;
+		command_list_immediate_impl *const _cmd_impl;
+
+		com_ptr<ID3D12PipelineState> _mipmap_pipeline;
+		com_ptr<ID3D12RootSignature> _mipmap_signature;
 
 		UINT _swap_index = 0;
-		HANDLE _fence_event = nullptr;
-		mutable std::vector<UINT64> _fence_value;
-		std::vector<com_ptr<ID3D12Fence>> _fence;
-		mutable bool _cmd_list_is_recording = false;
-		com_ptr<ID3D12GraphicsCommandList> _cmd_list;
-		std::vector<com_ptr<ID3D12CommandAllocator>> _cmd_alloc;
-
 		DXGI_FORMAT _backbuffer_format = DXGI_FORMAT_UNKNOWN;
 		std::vector<com_ptr<ID3D12Resource>> _backbuffers;
 		com_ptr<ID3D12Resource> _backbuffer_texture;
 		com_ptr<ID3D12DescriptorHeap> _backbuffer_rtvs;
 		com_ptr<ID3D12DescriptorHeap> _depthstencil_dsvs;
 
-		com_ptr<ID3D12PipelineState> _mipmap_pipeline;
-		com_ptr<ID3D12RootSignature> _mipmap_signature;
-
 		HMODULE _d3d_compiler = nullptr;
 		com_ptr<ID3D12Resource> _effect_stencil;
 		std::vector<struct effect_data> _effect_data;
 
+		std::unordered_map<std::string, D3D12_CPU_DESCRIPTOR_HANDLE> _texture_semantic_bindings;
+
 #if RESHADE_GUI
+		static const uint32_t NUM_IMGUI_BUFFERS = 4;
+
 		bool init_imgui_resources();
-		void render_imgui_draw_data(ImDrawData *data) override;
+		void render_imgui_draw_data(ImDrawData *data) final;
 
 		struct imgui_resources
 		{
@@ -89,14 +79,6 @@ namespace reshade::d3d12
 			int num_indices[NUM_IMGUI_BUFFERS] = {};
 			int num_vertices[NUM_IMGUI_BUFFERS] = {};
 		} _imgui;
-#endif
-
-#if RESHADE_DEPTH
-		void draw_depth_debug_menu();
-		void update_depth_texture_bindings(com_ptr<ID3D12Resource> texture);
-
-		com_ptr<ID3D12Resource> _depth_texture;
-		ID3D12Resource *_depth_texture_override = nullptr;
 #endif
 	};
 }

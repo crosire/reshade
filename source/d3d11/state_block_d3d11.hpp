@@ -16,14 +16,13 @@ namespace reshade::d3d11
 		explicit state_block(ID3D11Device *device);
 		~state_block();
 
-		void capture(ID3D11DeviceContext *devicecontext);
+		void capture(ID3D11DeviceContext *device_context);
 		void apply_and_release();
 
 	private:
 		void release_all_device_objects();
 
 		D3D_FEATURE_LEVEL _device_feature_level;
-		com_ptr<ID3D11Device> _device;
 		com_ptr<ID3D11DeviceContext> _device_context;
 		ID3D11InputLayout *_ia_input_layout;
 		D3D11_PRIMITIVE_TOPOLOGY _ia_primitive_topology;

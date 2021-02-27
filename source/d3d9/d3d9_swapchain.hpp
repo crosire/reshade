@@ -5,23 +5,20 @@
 
 #pragma once
 
-#include <d3d9.h>
+#include "runtime_d3d9.hpp"
 
 struct Direct3DDevice9;
-namespace reshade::d3d9 { class runtime_d3d9; }
 
-struct DECLSPEC_UUID("BC52FCE4-1EAC-40C8-84CF-863600BBAA01") Direct3DSwapChain9 : IDirect3DSwapChain9Ex
+struct DECLSPEC_UUID("BC52FCE4-1EAC-40C8-84CF-863600BBAA01") Direct3DSwapChain9 final : IDirect3DSwapChain9Ex, public reshade::d3d9::runtime_impl
 {
 	Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9   *original);
 	Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9Ex *original);
 
-	Direct3DSwapChain9(const Direct3DSwapChain9 &) = delete;
-	Direct3DSwapChain9 &operator=(const Direct3DSwapChain9 &) = delete;
-
+	#pragma region IUnknown
 	HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
 	ULONG   STDMETHODCALLTYPE AddRef() override;
 	ULONG   STDMETHODCALLTYPE Release() override;
-
+	#pragma endregion
 	#pragma region IDirect3DSwapChain9
 	HRESULT STDMETHODCALLTYPE Present(const RECT *pSourceRect, const RECT *pDestRect, HWND hDestWindowOverride, const RGNDATA *pDirtyRegion, DWORD dwFlags) override;
 	HRESULT STDMETHODCALLTYPE GetFrontBufferData(IDirect3DSurface9 *pDestSurface) override;
@@ -42,8 +39,6 @@ struct DECLSPEC_UUID("BC52FCE4-1EAC-40C8-84CF-863600BBAA01") Direct3DSwapChain9 
 	bool check_and_upgrade_interface(REFIID riid);
 
 	LONG _ref = 1;
-	IDirect3DSwapChain9 *_orig;
 	bool _extended_interface;
 	Direct3DDevice9 *const _device;
-	reshade::d3d9::runtime_d3d9 *_runtime;
 };

@@ -9,7 +9,7 @@
 #include "d3d11_command_list.hpp"
 
 D3D11CommandList::D3D11CommandList(D3D11Device *device, ID3D11CommandList *original) :
-	_orig(original),
+	command_list_impl(device, original),
 	_device(device)
 {
 	assert(_orig != nullptr && _device != nullptr);
@@ -51,12 +51,15 @@ ULONG   STDMETHODCALLTYPE D3D11CommandList::Release()
 	if (ref != 0)
 		return _orig->Release(), ref;
 
-	const ULONG ref_orig = _orig->Release();
-	if (ref_orig != 0)
-		LOG(WARN) << "Reference count for ID3D11CommandList object " << this << " is inconsistent.";
-
+	const auto orig = _orig;
+#if 0
+	LOG(DEBUG) << "Destroying " << "ID3D11CommandList" << " object " << this << " (" << orig << ").";
+#endif
 	delete this;
 
+	const ULONG ref_orig = orig->Release();
+	if (ref_orig != 0) // Verify internal reference count
+		LOG(WARN) << "Reference count for " << "ID3D11CommandList" << " object " << this << " (" << orig << ") is inconsistent (" << ref_orig << ").";
 	return 0;
 }
 

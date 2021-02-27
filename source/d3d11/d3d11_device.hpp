@@ -5,22 +5,20 @@
 
 #pragma once
 
-#include <d3d11_4.h>
+#include "render_d3d11.hpp"
 
 struct DXGIDevice;
 struct D3D11DeviceContext;
 
-struct DECLSPEC_UUID("72299288-2C68-4AD8-945D-2BFB5AA9C609") D3D11Device : ID3D11Device5
+struct DECLSPEC_UUID("72299288-2C68-4AD8-945D-2BFB5AA9C609") D3D11Device final : ID3D11Device5, public reshade::d3d11::device_impl
 {
 	D3D11Device(IDXGIDevice1 *dxgi_device, ID3D11Device *original);
 
-	D3D11Device(const D3D11Device &) = delete;
-	D3D11Device &operator=(const D3D11Device &) = delete;
-
+	#pragma region IUnknown
 	HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
 	ULONG   STDMETHODCALLTYPE AddRef() override;
 	ULONG   STDMETHODCALLTYPE Release() override;
-
+	#pragma endregion
 	#pragma region ID3D11Device
 	HRESULT STDMETHODCALLTYPE CreateBuffer(const D3D11_BUFFER_DESC *pDesc, const D3D11_SUBRESOURCE_DATA *pInitialData, ID3D11Buffer **ppBuffer) override;
 	HRESULT STDMETHODCALLTYPE CreateTexture1D(const D3D11_TEXTURE1D_DESC *pDesc, const D3D11_SUBRESOURCE_DATA *pInitialData, ID3D11Texture1D **ppTexture1D) override;
@@ -103,7 +101,6 @@ struct DECLSPEC_UUID("72299288-2C68-4AD8-945D-2BFB5AA9C609") D3D11Device : ID3D1
 	bool check_and_upgrade_interface(REFIID riid);
 
 	LONG _ref = 1;
-	ID3D11Device *_orig;
 	unsigned int _interface_version;
 	DXGIDevice *const _dxgi_device;
 	D3D11DeviceContext *_immediate_context = nullptr;

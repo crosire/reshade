@@ -6,44 +6,43 @@
 #pragma once
 
 #include "runtime.hpp"
+#include "render_d3d9.hpp"
 #include "state_block_d3d9.hpp"
-#include "state_tracking.hpp"
 
 namespace reshade::d3d9
 {
-	class runtime_d3d9 : public runtime
+	class runtime_impl : public api::api_object_impl<IDirect3DSwapChain9 *, runtime>
 	{
 	public:
-		runtime_d3d9(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain, state_tracking *state_tracking);
-		~runtime_d3d9();
+		runtime_impl(device_impl *device, IDirect3DSwapChain9 *swapchain);
+		~runtime_impl();
+
+		api::device *get_device() final { return _device_impl; }
+		api::command_queue *get_command_queue() final { return _device_impl; }
 
 		bool on_init();
 		void on_reset();
 		void on_present();
 
-		bool capture_screenshot(uint8_t *buffer) const override;
+		bool capture_screenshot(uint8_t *buffer) const final;
+
+		void update_texture_bindings(const char *semantic, api::resource_view_handle srv) final;
 
 	private:
-		bool init_effect(size_t index) override;
-		void unload_effect(size_t index) override;
-		void unload_effects() override;
+		bool init_effect(size_t index) final;
+		void unload_effect(size_t index) final;
+		void unload_effects() final;
 
-		bool init_texture(texture &texture) override;
-		void upload_texture(const texture &texture, const uint8_t *pixels) override;
-		void destroy_texture(texture &texture) override;
+		bool init_texture(texture &texture) final;
+		void upload_texture(const texture &texture, const uint8_t *pixels) final;
+		void destroy_texture(texture &texture) final;
 
-		void render_technique(technique &technique) override;
+		void render_technique(technique &technique) final;
+
+		const com_ptr<IDirect3DDevice9> _device;
+		device_impl *const _device_impl;
 
 		state_block _app_state;
-		state_tracking &_state_tracking;
-		com_ptr<IDirect3D9> _d3d;
-		const com_ptr<IDirect3DDevice9> _device;
-		const com_ptr<IDirect3DSwapChain9> _swapchain;
-
-		unsigned int _max_vertices = 0;
-		unsigned int _num_samplers;
-		unsigned int _num_simultaneous_rendertargets;
-		unsigned int _behavior_flags;
 
 		D3DFORMAT _backbuffer_format = D3DFMT_UNKNOWN;
 		com_ptr<IDirect3DSurface9> _backbuffer;
@@ -53,12 +52,15 @@ namespace reshade::d3d9
 
 		HMODULE _d3d_compiler = nullptr;
 		com_ptr<IDirect3DSurface9> _effect_stencil;
+		unsigned int _max_effect_vertices = 0;
 		com_ptr<IDirect3DVertexBuffer9> _effect_vertex_buffer;
 		com_ptr<IDirect3DVertexDeclaration9> _effect_vertex_layout;
 
+		std::unordered_map<std::string, com_ptr<IDirect3DTexture9>> _texture_semantic_bindings;
+
 #if RESHADE_GUI
 		bool init_imgui_resources();
-		void render_imgui_draw_data(ImDrawData *data) override;
+		void render_imgui_draw_data(ImDrawData *data) final;
 
 		struct imgui_resources
 		{
@@ -69,18 +71,6 @@ namespace reshade::d3d9
 			int num_indices = 0;
 			int num_vertices = 0;
 		} _imgui;
-#endif
-
-#if RESHADE_DEPTH
-		void draw_depth_debug_menu();
-		void update_depth_texture_bindings(com_ptr<IDirect3DSurface9> surface);
-
-		com_ptr<IDirect3DTexture9> _depth_texture;
-		com_ptr<IDirect3DSurface9> _depth_surface;
-
-		bool _disable_intz = false;
-		bool _reset_buffer_detection = false;
-		IDirect3DSurface9 *_depth_surface_override = nullptr;
 #endif
 	};
 }

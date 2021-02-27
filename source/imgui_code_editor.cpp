@@ -23,8 +23,8 @@
  * SOFTWARE.
  */
 
-#include "imgui_editor.hpp"
 #include "effect_lexer.hpp"
+#include "imgui_code_editor.hpp"
 #include <algorithm>
 #include <imgui.h>
 #include <imgui_internal.h> // GetCurrentWindowRead

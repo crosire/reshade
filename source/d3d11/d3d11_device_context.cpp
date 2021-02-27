@@ -9,43 +9,32 @@
 #include "d3d11_command_list.hpp"
 
 D3D11DeviceContext::D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext  *original) :
-	_orig(original),
+	device_context_impl(device, original),
 	_interface_version(0),
-	_device(device),
-	_state(original)
+	_device(device)
 {
 	assert(_orig != nullptr && _device != nullptr);
-	if (device->_immediate_context == nullptr)
-		_state.init(_orig, &_state);
-	else
-		_state.init(_orig, &device->_immediate_context->_state);
 }
 D3D11DeviceContext::D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext1 *original) :
-	_orig(original),
+	device_context_impl(device, original),
 	_interface_version(1),
-	_device(device),
-	_state(original)
+	_device(device)
 {
 	assert(_orig != nullptr && _device != nullptr);
-	_state.init(_orig, &device->_immediate_context->_state);
 }
 D3D11DeviceContext::D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext2 *original) :
-	_orig(original),
+	device_context_impl(device, original),
 	_interface_version(2),
-	_device(device),
-	_state(original)
+	_device(device)
 {
 	assert(_orig != nullptr && _device != nullptr);
-	_state.init(_orig, &device->_immediate_context->_state);
 }
 D3D11DeviceContext::D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext3 *original) :
-	_orig(original),
+	device_context_impl(device, original),
 	_interface_version(3),
-	_device(device),
-	_state(original)
+	_device(device)
 {
 	assert(_orig != nullptr && _device != nullptr);
-	_state.init(_orig, &device->_immediate_context->_state);
 }
 
 bool D3D11DeviceContext::check_and_upgrade_interface(REFIID riid)
@@ -112,18 +101,16 @@ ULONG   STDMETHODCALLTYPE D3D11DeviceContext::Release()
 	if (ref != 0)
 		return _orig->Release(), ref;
 
-	// Only the immediate context holds references to buffer detection resources
-	_state.reset(this == _device->_immediate_context);
-
-	const ULONG ref_orig = _orig->Release();
-	if (ref_orig != 0) // Verify internal reference count
-		LOG(WARN) << "Reference count for ID3D11DeviceContext" << _interface_version << " object " << this << " is inconsistent.";
-
+	const auto orig = _orig;
+	const auto interface_version = _interface_version;
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Destroyed ID3D11DeviceContext" << _interface_version << " object " << this << '.';
+	LOG(DEBUG) << "Destroying " << "ID3D11DeviceContext" << interface_version << " object " << this << " (" << orig << ").";
 #endif
 	delete this;
 
+	const ULONG ref_orig = orig->Release();
+	if (ref_orig != 0) // Verify internal reference count
+		LOG(WARN) << "Reference count for " << "ID3D11DeviceContext" << interface_version << " object " << this << " (" << orig << ") is inconsistent (" << ref_orig << ").";
 	return 0;
 }
 
@@ -170,12 +157,12 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::VSSetShader(ID3D11VertexShader *pV
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::DrawIndexed(UINT IndexCount, UINT StartIndexLocation, INT BaseVertexLocation)
 {
-	_state.on_draw(IndexCount);
+	RESHADE_ADDON_EVENT(draw_indexed, this, IndexCount, 1, StartIndexLocation, BaseVertexLocation, 0);
 	_orig->DrawIndexed(IndexCount, StartIndexLocation, BaseVertexLocation);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::Draw(UINT VertexCount, UINT StartVertexLocation)
 {
-	_state.on_draw(VertexCount);
+	RESHADE_ADDON_EVENT(draw, this, VertexCount, 1, StartVertexLocation, 0);
 	_orig->Draw(VertexCount, StartVertexLocation);
 }
 HRESULT STDMETHODCALLTYPE D3D11DeviceContext::Map(ID3D11Resource *pResource, UINT Subresource, D3D11_MAP MapType, UINT MapFlags, D3D11_MAPPED_SUBRESOURCE *pMappedResource)
@@ -197,19 +184,32 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::IASetInputLayout(ID3D11InputLayout
 void    STDMETHODCALLTYPE D3D11DeviceContext::IASetVertexBuffers(UINT StartSlot, UINT NumBuffers, ID3D11Buffer *const *ppVertexBuffers, const UINT *pStrides, const UINT *pOffsets)
 {
 	_orig->IASetVertexBuffers(StartSlot, NumBuffers, ppVertexBuffers, pStrides, pOffsets);
+
+#if RESHADE_ADDON
+	assert(NumBuffers < D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT);
+	reshade::api::resource_handle buffers[D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
+	uint64_t offsets[D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
+	for (UINT i = 0; i < NumBuffers; ++i)
+	{
+		buffers[i] = { reinterpret_cast<uintptr_t>(ppVertexBuffers[i]) };
+		offsets[i] = pOffsets[i];
+	}
+	RESHADE_ADDON_EVENT(set_vertex_buffers, this, StartSlot, NumBuffers, buffers, offsets);
+#endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::IASetIndexBuffer(ID3D11Buffer *pIndexBuffer, DXGI_FORMAT Format, UINT Offset)
 {
 	_orig->IASetIndexBuffer(pIndexBuffer, Format, Offset);
+	RESHADE_ADDON_EVENT(set_index_buffer, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pIndexBuffer) }, Offset);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::DrawIndexedInstanced(UINT IndexCountPerInstance, UINT InstanceCount, UINT StartIndexLocation, INT BaseVertexLocation, UINT StartInstanceLocation)
 {
-	_state.on_draw(IndexCountPerInstance * InstanceCount);
+	RESHADE_ADDON_EVENT(draw_indexed, this, IndexCountPerInstance, InstanceCount, StartIndexLocation, BaseVertexLocation, StartInstanceLocation);
 	_orig->DrawIndexedInstanced(IndexCountPerInstance, InstanceCount, StartIndexLocation, BaseVertexLocation, StartInstanceLocation);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::DrawInstanced(UINT VertexCountPerInstance, UINT InstanceCount, UINT StartVertexLocation, UINT StartInstanceLocation)
 {
-	_state.on_draw(VertexCountPerInstance * InstanceCount);
+	RESHADE_ADDON_EVENT(draw, this, VertexCountPerInstance, InstanceCount, StartVertexLocation, StartInstanceLocation);
 	_orig->DrawInstanced(VertexCountPerInstance, InstanceCount, StartVertexLocation, StartInstanceLocation);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::GSSetConstantBuffers(UINT StartSlot, UINT NumBuffers, ID3D11Buffer *const *ppConstantBuffers)
@@ -259,10 +259,38 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::GSSetSamplers(UINT StartSlot, UINT
 void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargets(UINT NumViews, ID3D11RenderTargetView *const *ppRenderTargetViews, ID3D11DepthStencilView *pDepthStencilView)
 {
 	_orig->OMSetRenderTargets(NumViews, ppRenderTargetViews, pDepthStencilView);
+
+#if RESHADE_ADDON
+#  ifdef WIN64
+	static_assert(sizeof(*ppRenderTargetViews) == sizeof(reshade::api::resource_view_handle));
+	const auto rtvs = reinterpret_cast<const reshade::api::resource_view_handle *>(ppRenderTargetViews);
+#  else
+	assert(NumViews < D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT);
+	reshade::api::resource_view_handle rtvs[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
+	for (UINT i = 0; i < NumViews; ++i)
+		rtvs[i] = { reinterpret_cast<uintptr_t>(ppRenderTargetViews[i]) };
+#  endif
+	const reshade::api::resource_view_handle dsv = { reinterpret_cast<uintptr_t>(pDepthStencilView) };
+	RESHADE_ADDON_EVENT(set_render_targets_and_depth_stencil, this, NumViews, rtvs, dsv);
+#endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargetsAndUnorderedAccessViews(UINT NumRTVs, ID3D11RenderTargetView *const *ppRenderTargetViews, ID3D11DepthStencilView *pDepthStencilView, UINT UAVStartSlot, UINT NumUAVs, ID3D11UnorderedAccessView *const *ppUnorderedAccessViews, const UINT *pUAVInitialCounts)
 {
 	_orig->OMSetRenderTargetsAndUnorderedAccessViews(NumRTVs, ppRenderTargetViews, pDepthStencilView, UAVStartSlot, NumUAVs, ppUnorderedAccessViews, pUAVInitialCounts);
+
+#if RESHADE_ADDON
+#  ifdef WIN64
+	static_assert(sizeof(*ppRenderTargetViews) == sizeof(reshade::api::resource_view_handle));
+	const auto rtvs = reinterpret_cast<const reshade::api::resource_view_handle *>(ppRenderTargetViews);
+#  else
+	assert(NumRTVs < D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT);
+	reshade::api::resource_view_handle rtvs[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
+	for (UINT i = 0; i < NumRTVs; ++i)
+		rtvs[i] = { reinterpret_cast<uintptr_t>(ppRenderTargetViews[i]) };
+#  endif
+	const reshade::api::resource_view_handle dsv = { reinterpret_cast<uintptr_t>(pDepthStencilView) };
+	RESHADE_ADDON_EVENT(set_render_targets_and_depth_stencil, this, NumRTVs, rtvs, dsv);
+#endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetBlendState(ID3D11BlendState *pBlendState, const FLOAT BlendFactor[4], UINT SampleMask)
 {
@@ -278,25 +306,27 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::SOSetTargets(UINT NumBuffers, ID3D
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::DrawAuto()
 {
-	_state.on_draw(0);
+	RESHADE_ADDON_EVENT(draw, this, 0, 0, 0, 0);
 	_orig->DrawAuto();
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::DrawIndexedInstancedIndirect(ID3D11Buffer *pBufferForArgs, UINT AlignedByteOffsetForArgs)
 {
-	_state.on_draw(0);
+	RESHADE_ADDON_EVENT(draw_or_dispatch_indirect, this, reshade::addon_event::draw_indexed, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pBufferForArgs) }, AlignedByteOffsetForArgs, 1, 0);
 	_orig->DrawIndexedInstancedIndirect(pBufferForArgs, AlignedByteOffsetForArgs);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::DrawInstancedIndirect(ID3D11Buffer *pBufferForArgs, UINT AlignedByteOffsetForArgs)
 {
-	_state.on_draw(0);
+	RESHADE_ADDON_EVENT(draw_or_dispatch_indirect, this, reshade::addon_event::draw, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pBufferForArgs) }, AlignedByteOffsetForArgs, 1, 0);
 	_orig->DrawInstancedIndirect(pBufferForArgs, AlignedByteOffsetForArgs);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::Dispatch(UINT ThreadGroupCountX, UINT ThreadGroupCountY, UINT ThreadGroupCountZ)
 {
+	RESHADE_ADDON_EVENT(dispatch, this, ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ);
 	_orig->Dispatch(ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::DispatchIndirect(ID3D11Buffer *pBufferForArgs, UINT AlignedByteOffsetForArgs)
 {
+	RESHADE_ADDON_EVENT(draw_or_dispatch_indirect, this, reshade::addon_event::dispatch, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pBufferForArgs) }, AlignedByteOffsetForArgs, 1, 0);
 	_orig->DispatchIndirect(pBufferForArgs, AlignedByteOffsetForArgs);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::RSSetState(ID3D11RasterizerState *pRasterizerState)
@@ -306,10 +336,26 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::RSSetState(ID3D11RasterizerState *
 void    STDMETHODCALLTYPE D3D11DeviceContext::RSSetViewports(UINT NumViewports, const D3D11_VIEWPORT *pViewports)
 {
 	_orig->RSSetViewports(NumViewports, pViewports);
+
+	static_assert(sizeof(D3D11_VIEWPORT) == (sizeof(float) * 6));
+	RESHADE_ADDON_EVENT(set_viewports, this, 0, NumViewports, reinterpret_cast<const float *>(pViewports));
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::RSSetScissorRects(UINT NumRects, const D3D11_RECT *pRects)
 {
 	_orig->RSSetScissorRects(NumRects, pRects);
+
+#if RESHADE_ADDON
+	assert(NumRects < D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE);
+	int32_t rect_data[D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE * 4];
+	for (UINT i = 0, k = 0; i < NumRects; ++i, k += 4)
+	{
+		rect_data[k + 0] = static_cast<int32_t>(pRects[i].left);
+		rect_data[k + 1] = static_cast<int32_t>(pRects[i].top);
+		rect_data[k + 2] = static_cast<int32_t>(pRects[i].right - pRects[i].left);
+		rect_data[k + 3] = static_cast<int32_t>(pRects[i].bottom - pRects[i].top);
+	}
+	RESHADE_ADDON_EVENT(set_scissor_rects, this, 0, NumRects, rect_data);
+#endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::CopySubresourceRegion(ID3D11Resource *pDstResource, UINT DstSubresource, UINT DstX, UINT DstY, UINT DstZ, ID3D11Resource *pSrcResource, UINT SrcSubresource, const D3D11_BOX *pSrcBox)
 {
@@ -329,6 +375,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::CopyStructureCount(ID3D11Buffer *p
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::ClearRenderTargetView(ID3D11RenderTargetView *pRenderTargetView, const FLOAT ColorRGBA[4])
 {
+	RESHADE_ADDON_EVENT(clear_render_target, this, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(pRenderTargetView) }, ColorRGBA);
 	_orig->ClearRenderTargetView(pRenderTargetView, ColorRGBA);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::ClearUnorderedAccessViewUint(ID3D11UnorderedAccessView *pUnorderedAccessView, const UINT Values[4])
@@ -341,9 +388,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::ClearUnorderedAccessViewFloat(ID3D
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::ClearDepthStencilView(ID3D11DepthStencilView *pDepthStencilView, UINT ClearFlags, FLOAT Depth, UINT8 Stencil)
 {
-#if RESHADE_DEPTH
-	_state.on_clear_depthstencil(ClearFlags, pDepthStencilView);
-#endif
+	RESHADE_ADDON_EVENT(clear_depth_stencil, this, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(pDepthStencilView) }, ClearFlags, Depth, Stencil);
 	_orig->ClearDepthStencilView(pDepthStencilView, ClearFlags, Depth, Stencil);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::GenerateMips(ID3D11ShaderResourceView *pShaderResourceView)
@@ -369,8 +414,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::ExecuteCommandList(ID3D11CommandLi
 	// The only way to create a command list is through 'FinishCommandList', so can always assume a proxy object here
 	D3D11CommandList *const command_list_proxy = static_cast<D3D11CommandList *>(pCommandList);
 
-	// Merge command list trackers into device one
-	_state.merge(command_list_proxy->_state);
+	RESHADE_ADDON_EVENT(execute_command_list, this, command_list_proxy);
 
 	// Get original command list pointer from proxy object and execute with it
 	_orig->ExecuteCommandList(command_list_proxy->_orig, RestoreContextState);
@@ -599,13 +643,10 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::FinishCommandList(BOOL RestoreDefe
 		assert(ppCommandList != nullptr);
 
 		const auto command_list_proxy = new D3D11CommandList(_device, *ppCommandList);
-		command_list_proxy->_state.merge(_state);
-
 		*ppCommandList = command_list_proxy;
-	}
 
-	// All statistics are now stored in the command list tracker, so reset current tracker here
-	_state.reset(false);
+		RESHADE_ADDON_EVENT(execute_secondary_command_list, command_list_proxy, this);
+	}
 
 	return hr;
 }
@@ -701,6 +742,18 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::SwapDeviceContextState(ID3DDeviceC
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::ClearView(ID3D11View *pView, const FLOAT Color[4], const D3D11_RECT *pRect, UINT NumRects)
 {
+#if RESHADE_ADDON
+	if (com_ptr<ID3D11RenderTargetView> rtv; SUCCEEDED(pView->QueryInterface(&rtv)))
+	{
+		RESHADE_ADDON_EVENT(clear_render_target, this, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(rtv.get()) }, Color);
+	}
+	if (com_ptr<ID3D11DepthStencilView> dsv; SUCCEEDED(pView->QueryInterface(&dsv)))
+	{
+		// The 'ID3D11DeviceContext1::ClearView' API only works on depth-stencil views to depth-only resources (with no stencil component)
+		RESHADE_ADDON_EVENT(clear_depth_stencil, this, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(dsv.get()) }, 0x1, Color[0], 0);
+	}
+#endif
+
 	assert(_interface_version >= 1);
 	static_cast<ID3D11DeviceContext1 *>(_orig)->ClearView(pView, Color, pRect, NumRects);
 }

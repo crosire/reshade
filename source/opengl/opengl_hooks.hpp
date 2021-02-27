@@ -5,14 +5,28 @@
 
 #include <GL/gl3w.h>
 
-#undef glBindTexture
-extern "C" void WINAPI glBindTexture(GLenum target, GLuint texture);
+#undef glBindBuffer
+extern "C" void WINAPI glBindBuffer(GLenum target, GLuint buffer);
 #undef glBindFramebuffer
 extern "C" void WINAPI glBindFramebuffer(GLenum target, GLuint framebuffer);
+#undef glBindTexture
+extern "C" void WINAPI glBindTexture(GLenum target, GLuint texture);
 #undef glBlendFunc
 extern "C" void WINAPI glBlendFunc(GLenum sfactor, GLenum dfactor);
+#undef glBufferData
+extern "C" void WINAPI glBufferData(GLenum target, GLsizeiptr size, const void *data, GLenum usage);
+#undef glBufferStorage
+extern "C" void WINAPI glBufferStorage(GLenum target, GLsizeiptr size, const void *data, GLbitfield flags);
 #undef glClear
 extern "C" void WINAPI glClear(GLbitfield mask);
+#undef glClearBufferfv
+extern "C" void WINAPI glClearBufferfv(GLenum buffer, GLint drawbuffer, const GLfloat *value);
+#undef glClearBufferfi
+extern "C" void WINAPI glClearBufferfi(GLenum buffer, GLint drawbuffer, GLfloat depth, GLint stencil);
+#undef glClearNamedFramebufferfv
+extern "C" void WINAPI glClearNamedFramebufferfv(GLuint framebuffer, GLenum buffer, GLint drawbuffer, const GLfloat *value);
+#undef glClearNamedFramebufferfi
+extern "C" void WINAPI glClearNamedFramebufferfi(GLuint framebuffer, GLenum buffer, GLint drawbuffer, GLfloat depth, GLint stencil);
 #undef glClearColor
 extern "C" void WINAPI glClearColor(GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha);
 #undef glClearDepth
@@ -41,6 +55,10 @@ extern "C" void WINAPI glDepthMask(GLboolean flag);
 extern "C" void WINAPI glDepthRange(GLclampd zNear, GLclampd zFar);
 #undef glDisable
 extern "C" void WINAPI glDisable(GLenum cap);
+#undef glDispatchCompute
+extern "C" void WINAPI glDispatchCompute(GLuint num_groups_x, GLuint num_groups_y, GLuint num_groups_z);
+#undef glDispatchComputeIndirect
+extern "C" void WINAPI glDispatchComputeIndirect(GLintptr indirect);
 #undef glDrawArrays
 extern "C" void WINAPI glDrawArrays(GLenum mode, GLint first, GLsizei count);
 #undef glDrawArraysIndirect
@@ -123,6 +141,10 @@ extern "C" void WINAPI glMultiDrawElements(GLenum mode, const GLsizei *count, GL
 extern "C" void WINAPI glMultiDrawElementsBaseVertex(GLenum mode, const GLsizei *count, GLenum type, const GLvoid *const *indices, GLsizei drawcount, const GLint *basevertex);
 #undef glMultiDrawElementsIndirect
 extern "C" void WINAPI glMultiDrawElementsIndirect(GLenum mode, GLenum type, const void *indirect, GLsizei drawcount, GLsizei stride);
+#undef glNamedBufferData
+extern "C" void WINAPI glNamedBufferData(GLuint buffer, GLsizeiptr size, const void *data, GLenum usage);
+#undef glNamedBufferStorage
+extern "C" void WINAPI glNamedBufferStorage(GLuint buffer, GLsizeiptr size, const void *data, GLbitfield flags);
 #undef glPixelStoref
 extern "C" void WINAPI glPixelStoref(GLenum pname, GLfloat param);
 #undef glPixelStorei
@@ -139,12 +161,26 @@ extern "C" void WINAPI glReadBuffer(GLenum mode);
 extern "C" void WINAPI glReadPixels(GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type, GLvoid *pixels);
 #undef glScissor
 extern "C" void WINAPI glScissor(GLint x, GLint y, GLsizei width, GLsizei height);
+#undef glScissorArrayv
+extern "C" void WINAPI glScissorArrayv(GLuint first, GLsizei count, const GLint *v);
+#undef glScissorIndexed
+extern "C" void WINAPI glScissorIndexed(GLuint index, GLint left, GLint bottom, GLsizei width, GLsizei height);
+#undef glScissorIndexedv
+extern "C" void WINAPI glScissorIndexedv(GLuint index, const GLint *v);
 #undef glStencilFunc
 extern "C" void WINAPI glStencilFunc(GLenum func, GLint ref, GLuint mask);
 #undef glStencilMask
 extern "C" void WINAPI glStencilMask(GLuint mask);
 #undef glStencilOp
 extern "C" void WINAPI glStencilOp(GLenum fail, GLenum zfail, GLenum zpass);
+#undef glTexBuffer
+extern "C" void WINAPI glTexBuffer(GLenum target, GLenum internalformat, GLuint buffer);
+#undef glTextureBuffer
+extern "C" void WINAPI glTextureBuffer(GLuint texture, GLenum internalformat, GLuint buffer);
+#undef glTexBufferRange
+extern "C" void WINAPI glTexBufferRange(GLenum target, GLenum internalformat, GLuint buffer, GLintptr offset, GLsizeiptr size);
+#undef glTextureBufferRange
+extern "C" void WINAPI glTextureBufferRange(GLuint texture, GLenum internalformat, GLuint buffer, GLintptr offset, GLsizeiptr size);
 #undef glTexImage1D
 extern "C" void WINAPI glTexImage1D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLint border, GLenum format, GLenum type, const GLvoid *pixels);
 #undef glTexImage2D
@@ -163,5 +199,25 @@ extern "C" void WINAPI glTexParameteriv(GLenum target, GLenum pname, const GLint
 extern "C" void WINAPI glTexSubImage1D(GLenum target, GLint level, GLint xoffset, GLsizei width, GLenum format, GLenum type, const GLvoid *pixels);
 #undef glTexSubImage2D
 extern "C" void WINAPI glTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const GLvoid *pixels);
+#undef glTexStorage1D
+extern "C" void WINAPI glTexStorage1D(GLenum target, GLsizei levels, GLenum internalformat, GLsizei width);
+#undef glTexStorage2D
+extern "C" void WINAPI glTexStorage2D(GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height);
+#undef glTexStorage3D
+extern "C" void WINAPI glTexStorage3D(GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth);
+#undef glTextureStorage1D
+extern "C" void WINAPI glTextureStorage1D(GLuint texture, GLsizei levels, GLenum internalformat, GLsizei width);
+#undef glTextureStorage2D
+extern "C" void WINAPI glTextureStorage2D(GLuint texture, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height);
+#undef glTextureStorage3D
+extern "C" void WINAPI glTextureStorage3D(GLuint texture, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth);
+#undef glTextureView
+extern "C" void WINAPI glTextureView(GLuint texture, GLenum target, GLuint origtexture, GLenum internalformat, GLuint minlevel, GLuint numlevels, GLuint minlayer, GLuint numlayers);
 #undef glViewport
 extern "C" void WINAPI glViewport(GLint x, GLint y, GLsizei width, GLsizei height);
+#undef glViewportArrayv
+extern "C" void WINAPI glViewportArrayv(GLuint first, GLsizei count, const GLfloat *v);
+#undef glViewportIndexedf
+extern "C" void WINAPI glViewportIndexedf(GLuint index, GLfloat x, GLfloat y, GLfloat w, GLfloat h);
+#undef glViewportIndexedfv
+extern "C" void WINAPI glViewportIndexedfv(GLuint index, const GLfloat *v);

@@ -6,6 +6,7 @@
 #include "version.h"
 #include "dll_log.hpp"
 #include "dll_config.hpp"
+#include "addon_manager.hpp"
 #include "runtime.hpp"
 #include "runtime_objects.hpp"
 #include "effect_parser.hpp"
@@ -127,6 +128,8 @@ bool reshade::runtime::on_init(input::window_handle window)
 	_preset_save_success = true;
 	_screenshot_save_success = true;
 
+	RESHADE_ADDON_EVENT(init_effect_runtime, this);
+
 	LOG(INFO) << "Recreated runtime environment on runtime " << this << '.';
 
 	return true;
@@ -147,6 +150,8 @@ void reshade::runtime::on_reset()
 		destroy_texture(*_imgui_font_atlas);
 	_rebuild_font_atlas = true;
 #endif
+
+	RESHADE_ADDON_EVENT(destroy_effect_runtime, this);
 
 	LOG(INFO) << "Destroyed runtime environment on runtime " << this << '.';
 }
@@ -220,6 +225,7 @@ void reshade::runtime::on_present()
 	if (!ini_file::flush_cache())
 		_preset_save_success = false;
 
+#if RESHADE_ADDON
 	// Detect high network traffic
 	static int cooldown = 0, traffic = 0;
 	if (cooldown-- > 0)
@@ -228,10 +234,11 @@ void reshade::runtime::on_present()
 	}
 	else
 	{
-		_has_high_network_activity = traffic > 10;
+		addon::enable_or_disable_addons(traffic < 10);
 		traffic = 0;
 		cooldown = 60;
 	}
+#endif
 
 	// Reset frame statistics
 	g_network_traffic = 0;
@@ -461,8 +468,6 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 					variable.special = special_uniform::overlay_active;
 				else if (special == "ui_hovered" || special == "overlay_hovered")
 					variable.special = special_uniform::overlay_hovered;
-				else if (special == "bufready_depth")
-					variable.special = special_uniform::bufready_depth;
 
 				effect.uniforms.push_back(std::move(variable));
 			}
@@ -678,6 +683,9 @@ void reshade::runtime::load_effects()
 
 	if (effect_files.empty())
 		return; // No effect files found, so nothing more to do
+
+	// Have to be initialized at this point or else the threads spawned below will immediately exit without reducing the remaining effects count
+	assert(_is_initialized);
 
 	// Allocate space for effects which are placed in this array during the 'load_effect' call
 	const size_t offset = _effects.size();
@@ -1322,11 +1330,6 @@ void reshade::runtime::update_and_render_effects()
 					break;
 				}
 #endif
-				case special_uniform::bufready_depth:
-				{
-					set_uniform_value(variable, _has_depth_texture);
-					break;
-				}
 			}
 		}
 	}
@@ -1862,7 +1865,8 @@ void reshade::runtime::get_uniform_value(const uniform &variable, uint8_t *data,
 	assert(variable.offset + size <= data_storage.size());
 
 	const size_t array_length = (variable.type.is_array() ? variable.type.array_length : 1);
-	assert(base_index < array_length);
+	if (assert(base_index < array_length); base_index >= array_length)
+		return;
 
 	if (variable.type.is_matrix())
 	{
@@ -1949,7 +1953,8 @@ void reshade::runtime::set_uniform_value(uniform &variable, const uint8_t *data,
 	assert(variable.offset + size <= data_storage.size());
 
 	const size_t array_length = (variable.type.is_array() ? variable.type.array_length : 1);
-	assert(base_index < array_length);
+	if (assert(base_index < array_length); base_index >= array_length)
+		return;
 
 	if (variable.type.is_matrix())
 	{
@@ -2068,6 +2073,35 @@ void reshade::runtime::reset_uniform_value(uniform &variable)
 			break;
 		}
 	}
+}
+
+void reshade::runtime::update_uniform_variables(const char *source, const bool *values, size_t count, size_t array_index)
+{
+	for (effect &effect : _effects)
+		for (uniform &variable : effect.uniforms)
+			if (variable.annotation_as_string("source") == source)
+				set_uniform_value(variable, values, count, array_index);
+}
+void reshade::runtime::update_uniform_variables(const char *source, const float *values, size_t count, size_t array_index)
+{
+	for (effect &effect : _effects)
+		for (uniform &variable : effect.uniforms)
+			if (variable.annotation_as_string("source") == source)
+				set_uniform_value(variable, values, count, array_index);
+}
+void reshade::runtime::update_uniform_variables(const char *source, const int32_t *values, size_t count, size_t array_index)
+{
+	for (effect &effect : _effects)
+		for (uniform &variable : effect.uniforms)
+			if (variable.annotation_as_string("source") == source)
+				set_uniform_value(variable, values, count, array_index);
+}
+void reshade::runtime::update_uniform_variables(const char *source, const uint32_t *values, size_t count, size_t array_index)
+{
+	for (effect &effect : _effects)
+		for (uniform &variable : effect.uniforms)
+			if (variable.annotation_as_string("source") == source)
+				set_uniform_value(variable, values, count, array_index);
 }
 
 reshade::texture &reshade::runtime::look_up_texture_by_name(const std::string &unique_name)

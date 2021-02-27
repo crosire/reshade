@@ -10,17 +10,19 @@
 #include "d3d12_command_queue_downlevel.hpp"
 
 D3D12CommandQueue::D3D12CommandQueue(D3D12Device *device, ID3D12CommandQueue *original) :
-	_orig(original),
+	command_queue_impl(device, original),
 	_interface_version(0),
 	_device(device)
 {
 	assert(_orig != nullptr && _device != nullptr);
+	// Explicitly add a reference to the device, to ensure it stays valid for the lifetime of this queue object
+	_device->AddRef();
 }
 
 bool D3D12CommandQueue::check_and_upgrade_interface(REFIID riid)
 {
 	if (riid == __uuidof(this) ||
-		riid == __uuidof(IUnknown) ||
+		riid == __uuidof(IUnknown) || // This is the IID_IUnknown identity object
 		riid == __uuidof(ID3D12Object) ||
 		riid == __uuidof(ID3D12DeviceChild) ||
 		riid == __uuidof(ID3D12Pageable))
@@ -90,17 +92,26 @@ ULONG   STDMETHODCALLTYPE D3D12CommandQueue::Release()
 		return _orig->Release(), ref;
 
 	if (_downlevel != nullptr)
-		_downlevel->Release();
+	{
+		// Release the reference that was added when the downlevel interface was first queried in 'QueryInterface' above
+		_downlevel->_orig->Release();
+		delete _downlevel;
+	}
 
-	const ULONG ref_orig = _orig->Release();
-	if (ref_orig != 0) // Verify internal reference count
-		LOG(WARN) << "Reference count for ID3D12CommandQueue" << _interface_version << " object " << this << " is inconsistent.";
-
+	const auto orig = _orig;
+	const auto device = _device;
+	const auto interface_version = _interface_version;
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Destroyed ID3D12CommandQueue" << _interface_version << " object " << this << ".";
+	LOG(DEBUG) << "Destroying " << "ID3D12CommandQueue" << interface_version << " object " << this << " (" << orig << ").";
 #endif
 	delete this;
 
+	const ULONG ref_orig = orig->Release();
+	if (ref_orig != 0) // Verify internal reference count
+		LOG(WARN) << "Reference count for " << "ID3D12CommandQueue" << interface_version << " object " << this << " (" << orig << ") is inconsistent (" << ref_orig << ").";
+
+	// Release the explicit reference to the device that was added in the D3D12CommandQueue constructor above now that the queue implementation was destroyed and is no longer referencing it
+	device->Release();
 	return 0;
 }
 
@@ -136,8 +147,7 @@ void    STDMETHODCALLTYPE D3D12CommandQueue::CopyTileMappings(ID3D12Resource *pD
 }
 void    STDMETHODCALLTYPE D3D12CommandQueue::ExecuteCommandLists(UINT NumCommandLists, ID3D12CommandList *const *ppCommandLists)
 {
-	// The synchronization definition of 'ExecuteCommandLists' is equivalent to an aliasing barrier, see https://docs.microsoft.com/windows/win32/api/d3d12/nf-d3d12-id3d12device-createplacedresource#notes-on-the-aliasing-barrier
-	// TODO (need a command list for this): _device->_state.on_aliasing(D3D12_RESOURCE_ALIASING_BARRIER { nullptr, nullptr });
+	flush_immediate_command_list();
 
 	std::vector<ID3D12CommandList *> command_lists(NumCommandLists);
 	for (UINT i = 0; i < NumCommandLists; i++)
@@ -147,11 +157,10 @@ void    STDMETHODCALLTYPE D3D12CommandQueue::ExecuteCommandLists(UINT NumCommand
 		if (com_ptr<D3D12GraphicsCommandList> command_list_proxy;
 			SUCCEEDED(ppCommandLists[i]->QueryInterface(&command_list_proxy)))
 		{
+			RESHADE_ADDON_EVENT(execute_command_list, this, command_list_proxy.get());
+
 			// Get original command list pointer from proxy object
 			command_lists[i] = command_list_proxy->_orig;
-
-			// Merge command list trackers into device one
-			_device->_state.merge(command_list_proxy->_state);
 		}
 		else
 		{

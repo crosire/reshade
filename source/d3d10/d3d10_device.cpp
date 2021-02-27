@@ -6,12 +6,11 @@
 #include "dll_log.hpp"
 #include "d3d10_device.hpp"
 #include "dxgi/dxgi_device.hpp"
-#include "dxgi/format_utils.hpp"
+#include "render_d3d10_utils.hpp"
 
 D3D10Device::D3D10Device(IDXGIDevice1 *dxgi_device, ID3D10Device1 *original) :
-	_orig(original),
-	_dxgi_device(new DXGIDevice(dxgi_device, this)),
-	_state(original)
+	device_impl(original),
+	_dxgi_device(new DXGIDevice(dxgi_device, this))
 {
 	assert(_orig != nullptr);
 }
@@ -68,17 +67,15 @@ ULONG   STDMETHODCALLTYPE D3D10Device::Release()
 	if (ref != 0)
 		return _orig->Release(), ref;
 
-	_state.reset(true);
-
-	const ULONG ref_orig = _orig->Release();
-	if (ref_orig != 0) // Verify internal reference count
-		LOG(WARN) << "Reference count for ID3D10Device1 object " << this << " is inconsistent.";
-
+	const auto orig = _orig;
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Destroyed ID3D10Device1 object " << this << '.';
+	LOG(DEBUG) << "Destroying " << "ID3D10Device1" << " object " << this << " (" << orig << ").";
 #endif
 	delete this;
 
+	const ULONG ref_orig = orig->Release();
+	if (ref_orig != 0) // Verify internal reference count
+		LOG(WARN) << "Reference count for " << "ID3D10Device1" << " object " << this << " (" << orig << ") is inconsistent (" << ref_orig << ").";
 	return 0;
 }
 
@@ -104,12 +101,12 @@ void    STDMETHODCALLTYPE D3D10Device::VSSetShader(ID3D10VertexShader *pVertexSh
 }
 void    STDMETHODCALLTYPE D3D10Device::DrawIndexed(UINT IndexCount, UINT StartIndexLocation, INT BaseVertexLocation)
 {
-	_state.on_draw(IndexCount);
+	RESHADE_ADDON_EVENT(draw_indexed, this, IndexCount, 1, StartIndexLocation, BaseVertexLocation, 0);
 	_orig->DrawIndexed(IndexCount, StartIndexLocation, BaseVertexLocation);
 }
 void    STDMETHODCALLTYPE D3D10Device::Draw(UINT VertexCount, UINT StartVertexLocation)
 {
-	_state.on_draw(VertexCount);
+	RESHADE_ADDON_EVENT(draw, this, VertexCount, 1, StartVertexLocation, 0);
 	_orig->Draw(VertexCount, StartVertexLocation);
 }
 void    STDMETHODCALLTYPE D3D10Device::PSSetConstantBuffers(UINT StartSlot, UINT NumBuffers, ID3D10Buffer *const *ppConstantBuffers)
@@ -123,19 +120,32 @@ void    STDMETHODCALLTYPE D3D10Device::IASetInputLayout(ID3D10InputLayout *pInpu
 void    STDMETHODCALLTYPE D3D10Device::IASetVertexBuffers(UINT StartSlot, UINT NumBuffers, ID3D10Buffer *const *ppVertexBuffers, const UINT *pStrides, const UINT *pOffsets)
 {
 	_orig->IASetVertexBuffers(StartSlot, NumBuffers, ppVertexBuffers, pStrides, pOffsets);
+
+#if RESHADE_ADDON
+	assert(NumBuffers < D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT);
+	reshade::api::resource_handle buffers[D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
+	uint64_t offsets[D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
+	for (UINT i = 0; i < NumBuffers; ++i)
+	{
+		buffers[i] = { reinterpret_cast<uintptr_t>(ppVertexBuffers[i]) };
+		offsets[i] = pOffsets[i];
+	}
+	RESHADE_ADDON_EVENT(set_vertex_buffers, this, StartSlot, NumBuffers, buffers, offsets);
+#endif
 }
 void    STDMETHODCALLTYPE D3D10Device::IASetIndexBuffer(ID3D10Buffer *pIndexBuffer, DXGI_FORMAT Format, UINT Offset)
 {
 	_orig->IASetIndexBuffer(pIndexBuffer, Format, Offset);
+	RESHADE_ADDON_EVENT(set_index_buffer, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pIndexBuffer) }, Offset);
 }
 void    STDMETHODCALLTYPE D3D10Device::DrawIndexedInstanced(UINT IndexCountPerInstance, UINT InstanceCount, UINT StartIndexLocation, INT BaseVertexLocation, UINT StartInstanceLocation)
 {
-	_state.on_draw(IndexCountPerInstance * InstanceCount);
+	RESHADE_ADDON_EVENT(draw_indexed, this, IndexCountPerInstance, InstanceCount, StartIndexLocation, BaseVertexLocation, StartInstanceLocation);
 	_orig->DrawIndexedInstanced(IndexCountPerInstance, InstanceCount, StartIndexLocation, BaseVertexLocation, StartInstanceLocation);
 }
 void    STDMETHODCALLTYPE D3D10Device::DrawInstanced(UINT VertexCountPerInstance, UINT InstanceCount, UINT StartVertexLocation, UINT StartInstanceLocation)
 {
-	_state.on_draw(VertexCountPerInstance * InstanceCount);
+	RESHADE_ADDON_EVENT(draw, this, VertexCountPerInstance, InstanceCount, StartVertexLocation, StartInstanceLocation);
 	_orig->DrawInstanced(VertexCountPerInstance, InstanceCount, StartVertexLocation, StartInstanceLocation);
 }
 void    STDMETHODCALLTYPE D3D10Device::GSSetConstantBuffers(UINT StartSlot, UINT NumBuffers, ID3D10Buffer *const *ppConstantBuffers)
@@ -173,6 +183,20 @@ void    STDMETHODCALLTYPE D3D10Device::GSSetSamplers(UINT StartSlot, UINT NumSam
 void    STDMETHODCALLTYPE D3D10Device::OMSetRenderTargets(UINT NumViews, ID3D10RenderTargetView *const *ppRenderTargetViews, ID3D10DepthStencilView *pDepthStencilView)
 {
 	_orig->OMSetRenderTargets(NumViews, ppRenderTargetViews, pDepthStencilView);
+
+#if RESHADE_ADDON
+#  ifdef WIN64
+	static_assert(sizeof(*ppRenderTargetViews) == sizeof(reshade::api::resource_view_handle));
+	const auto rtvs = reinterpret_cast<const reshade::api::resource_view_handle *>(ppRenderTargetViews);
+#  else
+	assert(NumViews < D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT);
+	reshade::api::resource_view_handle rtvs[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
+	for (UINT i = 0; i < NumViews; ++i)
+		rtvs[i] = { reinterpret_cast<uintptr_t>(ppRenderTargetViews[i]) };
+#  endif
+	const reshade::api::resource_view_handle dsv = { reinterpret_cast<uintptr_t>(pDepthStencilView) };
+	RESHADE_ADDON_EVENT(set_render_targets_and_depth_stencil, this, NumViews, rtvs, dsv);
+#endif
 }
 void    STDMETHODCALLTYPE D3D10Device::OMSetBlendState(ID3D10BlendState *pBlendState, const FLOAT BlendFactor[4], UINT SampleMask)
 {
@@ -188,7 +212,7 @@ void    STDMETHODCALLTYPE D3D10Device::SOSetTargets(UINT NumBuffers, ID3D10Buffe
 }
 void    STDMETHODCALLTYPE D3D10Device::DrawAuto()
 {
-	_state.on_draw(0);
+	RESHADE_ADDON_EVENT(draw, this, 0, 0, 0, 0);
 	_orig->DrawAuto();
 }
 void    STDMETHODCALLTYPE D3D10Device::RSSetState(ID3D10RasterizerState *pRasterizerState)
@@ -198,10 +222,38 @@ void    STDMETHODCALLTYPE D3D10Device::RSSetState(ID3D10RasterizerState *pRaster
 void    STDMETHODCALLTYPE D3D10Device::RSSetViewports(UINT NumViewports, const D3D10_VIEWPORT *pViewports)
 {
 	_orig->RSSetViewports(NumViewports, pViewports);
+
+#if RESHADE_ADDON
+	assert(NumViewports < D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE);
+	float viewport_data[D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE * 6];
+	for (UINT i = 0, k = 0; i < NumViewports; ++i, k += 6)
+	{
+		viewport_data[k + 0] = static_cast<float>(pViewports[i].TopLeftX);
+		viewport_data[k + 1] = static_cast<float>(pViewports[i].TopLeftY);
+		viewport_data[k + 2] = static_cast<float>(pViewports[i].Width);
+		viewport_data[k + 3] = static_cast<float>(pViewports[i].Height);
+		viewport_data[k + 4] = pViewports[i].MinDepth;
+		viewport_data[k + 5] = pViewports[i].MaxDepth;
+	}
+	RESHADE_ADDON_EVENT(set_viewports, this, 0, NumViewports, viewport_data);
+#endif
 }
 void    STDMETHODCALLTYPE D3D10Device::RSSetScissorRects(UINT NumRects, const D3D10_RECT *pRects)
 {
 	_orig->RSSetScissorRects(NumRects, pRects);
+
+#if RESHADE_ADDON
+	assert(NumRects < D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE);
+	int32_t rect_data[D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE * 4];
+	for (UINT i = 0, k = 0; i < NumRects; ++i, k += 4)
+	{
+		rect_data[k + 0] = static_cast<int32_t>(pRects[i].left);
+		rect_data[k + 1] = static_cast<int32_t>(pRects[i].top);
+		rect_data[k + 2] = static_cast<int32_t>(pRects[i].right - pRects[i].left);
+		rect_data[k + 3] = static_cast<int32_t>(pRects[i].bottom - pRects[i].top);
+	}
+	RESHADE_ADDON_EVENT(set_scissor_rects, this, 0, NumRects, rect_data);
+#endif
 }
 void    STDMETHODCALLTYPE D3D10Device::CopySubresourceRegion(ID3D10Resource *pDstResource, UINT DstSubresource, UINT DstX, UINT DstY, UINT DstZ, ID3D10Resource *pSrcResource, UINT SrcSubresource, const D3D10_BOX *pSrcBox)
 {
@@ -217,13 +269,12 @@ void    STDMETHODCALLTYPE D3D10Device::UpdateSubresource(ID3D10Resource *pDstRes
 }
 void    STDMETHODCALLTYPE D3D10Device::ClearRenderTargetView(ID3D10RenderTargetView *pRenderTargetView, const FLOAT ColorRGBA[4])
 {
+	RESHADE_ADDON_EVENT(clear_render_target, this, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(pRenderTargetView) }, ColorRGBA);
 	_orig->ClearRenderTargetView(pRenderTargetView, ColorRGBA);
 }
 void    STDMETHODCALLTYPE D3D10Device::ClearDepthStencilView(ID3D10DepthStencilView *pDepthStencilView, UINT ClearFlags, FLOAT Depth, UINT8 Stencil)
 {
-#if RESHADE_DEPTH
-	_state.on_clear_depthstencil(ClearFlags, pDepthStencilView);
-#endif
+	RESHADE_ADDON_EVENT(clear_depth_stencil, this, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(pDepthStencilView) }, ClearFlags, Depth, Stencil);
 	_orig->ClearDepthStencilView(pDepthStencilView, ClearFlags, Depth, Stencil);
 }
 void    STDMETHODCALLTYPE D3D10Device::GenerateMips(ID3D10ShaderResourceView *pShaderResourceView)
@@ -364,28 +415,94 @@ void    STDMETHODCALLTYPE D3D10Device::Flush()
 }
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateBuffer(const D3D10_BUFFER_DESC *pDesc, const D3D10_SUBRESOURCE_DATA *pInitialData, ID3D10Buffer **ppBuffer)
 {
-	return _orig->CreateBuffer(pDesc, pInitialData, ppBuffer);
+	assert(pDesc != nullptr);
+	D3D10_BUFFER_DESC new_desc = *pDesc;
+
+#if RESHADE_ADDON
+	reshade::api::resource_desc api_desc = reshade::d3d10::convert_resource_desc(new_desc);
+	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::buffer, &api_desc);
+	reshade::d3d10::convert_resource_desc(api_desc, new_desc);
+#endif
+
+	const HRESULT hr = _orig->CreateBuffer(&new_desc, pInitialData, ppBuffer);
+	if (SUCCEEDED(hr))
+	{
+		assert(ppBuffer != nullptr);
+		_resources.register_object(*ppBuffer);
+	}
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
+	else
+	{
+		LOG(WARN) << "ID3D10Device::CreateBuffer" << " failed with error code " << hr << '.';
+		LOG(INFO) << "> Dumping description:";
+		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(INFO) << "  | ByteWidth                               | " << std::setw(39) << new_desc.ByteWidth << " |";
+		LOG(INFO) << "  | Usage                                   | " << std::setw(39) << new_desc.Usage << " |";
+		LOG(INFO) << "  | BindFlags                               | " << std::setw(39) << std::hex << new_desc.BindFlags << std::dec << " |";
+		LOG(INFO) << "  | CPUAccessFlags                          | " << std::setw(39) << std::hex << new_desc.CPUAccessFlags << std::dec << " |";
+		LOG(INFO) << "  | MiscFlags                               | " << std::setw(39) << std::hex << new_desc.MiscFlags << std::dec << " |";
+		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+	}
+#endif
+
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture1D(const D3D10_TEXTURE1D_DESC *pDesc, const D3D10_SUBRESOURCE_DATA *pInitialData, ID3D10Texture1D **ppTexture1D)
 {
-	return _orig->CreateTexture1D(pDesc, pInitialData, ppTexture1D);
+	assert(pDesc != nullptr);
+	D3D10_TEXTURE1D_DESC new_desc = *pDesc;
+
+#if RESHADE_ADDON
+	reshade::api::resource_desc api_desc = reshade::d3d10::convert_resource_desc(new_desc);
+	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::texture_1d, &api_desc);
+	reshade::d3d10::convert_resource_desc(api_desc, new_desc);
+#endif
+
+	const HRESULT hr = _orig->CreateTexture1D(&new_desc, pInitialData, ppTexture1D);
+	if (SUCCEEDED(hr))
+	{
+		assert(ppTexture1D != nullptr);
+		_resources.register_object(*ppTexture1D);
+	}
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
+	else
+	{
+		LOG(WARN) << "ID3D10Device::CreateTexture1D" << " failed with error code " << hr << '.';
+		LOG(INFO) << "> Dumping description:";
+		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(INFO) << "  | Width                                   | " << std::setw(39) << new_desc.Width << " |";
+		LOG(INFO) << "  | MipLevels                               | " << std::setw(39) << new_desc.MipLevels << " |";
+		LOG(INFO) << "  | ArraySize                               | " << std::setw(39) << new_desc.ArraySize << " |";
+		LOG(INFO) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
+		LOG(INFO) << "  | Usage                                   | " << std::setw(39) << new_desc.Usage << " |";
+		LOG(INFO) << "  | BindFlags                               | " << std::setw(39) << std::hex << new_desc.BindFlags << std::dec << " |";
+		LOG(INFO) << "  | CPUAccessFlags                          | " << std::setw(39) << std::hex << new_desc.CPUAccessFlags << std::dec << " |";
+		LOG(INFO) << "  | MiscFlags                               | " << std::setw(39) << std::hex << new_desc.MiscFlags << std::dec << " |";
+		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+	}
+#endif
+
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture2D(const D3D10_TEXTURE2D_DESC *pDesc, const D3D10_SUBRESOURCE_DATA *pInitialData, ID3D10Texture2D **ppTexture2D)
 {
 	assert(pDesc != nullptr);
-
-	// Add D3D10_BIND_SHADER_RESOURCE flag to all depth-stencil textures so that we can access them in post-processing shaders
 	D3D10_TEXTURE2D_DESC new_desc = *pDesc;
-	if (new_desc.SampleDesc.Count == 1 && // Skip MSAA textures
-		0 != (new_desc.BindFlags & D3D10_BIND_DEPTH_STENCIL) &&
-		0 == (new_desc.BindFlags & D3D10_BIND_SHADER_RESOURCE))
-	{
-		new_desc.Format = make_dxgi_format_typeless(new_desc.Format);
-		new_desc.BindFlags |= D3D10_BIND_SHADER_RESOURCE;
-	}
+
+#if RESHADE_ADDON
+	reshade::api::resource_desc api_desc = reshade::d3d10::convert_resource_desc(new_desc);
+	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::texture_2d, &api_desc);
+	reshade::d3d10::convert_resource_desc(api_desc, new_desc);
+#endif
 
 	const HRESULT hr = _orig->CreateTexture2D(&new_desc, pInitialData, ppTexture2D);
-	if (FAILED(hr))
+	if (SUCCEEDED(hr))
+	{
+		assert(ppTexture2D != nullptr);
+		_resources.register_object(*ppTexture2D);
+	}
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
+	else
 	{
 		LOG(WARN) << "ID3D10Device::CreateTexture2D" << " failed with error code " << hr << '.';
 		LOG(INFO) << "> Dumping description:";
@@ -403,12 +520,47 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture2D(const D3D10_TEXTURE2D_DES
 		LOG(INFO) << "  | MiscFlags                               | " << std::setw(39) << std::hex << new_desc.MiscFlags << std::dec << " |";
 		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 	}
+#endif
 
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture3D(const D3D10_TEXTURE3D_DESC *pDesc, const D3D10_SUBRESOURCE_DATA *pInitialData, ID3D10Texture3D **ppTexture3D)
 {
-	return _orig->CreateTexture3D(pDesc, pInitialData, ppTexture3D);
+	assert(pDesc != nullptr);
+	D3D10_TEXTURE3D_DESC new_desc = *pDesc;
+
+#if RESHADE_ADDON
+	reshade::api::resource_desc api_desc = reshade::d3d10::convert_resource_desc(new_desc);
+	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::texture_3d, &api_desc);
+	reshade::d3d10::convert_resource_desc(api_desc, new_desc);
+#endif
+
+	const HRESULT hr = _orig->CreateTexture3D(&new_desc, pInitialData, ppTexture3D);
+	if (SUCCEEDED(hr))
+	{
+		assert(ppTexture3D != nullptr);
+		_resources.register_object(*ppTexture3D);
+	}
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
+	else
+	{
+		LOG(WARN) << "ID3D10Device::CreateTexture3D" << " failed with error code " << hr << '.';
+		LOG(INFO) << "> Dumping description:";
+		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(INFO) << "  | Width                                   | " << std::setw(39) << new_desc.Width << " |";
+		LOG(INFO) << "  | Height                                  | " << std::setw(39) << new_desc.Height << " |";
+		LOG(INFO) << "  | Depth                                   | " << std::setw(39) << new_desc.Depth << " |";
+		LOG(INFO) << "  | MipLevels                               | " << std::setw(39) << new_desc.MipLevels << " |";
+		LOG(INFO) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
+		LOG(INFO) << "  | Usage                                   | " << std::setw(39) << new_desc.Usage << " |";
+		LOG(INFO) << "  | BindFlags                               | " << std::setw(39) << std::hex << new_desc.BindFlags << std::dec << " |";
+		LOG(INFO) << "  | CPUAccessFlags                          | " << std::setw(39) << std::hex << new_desc.CPUAccessFlags << std::dec << " |";
+		LOG(INFO) << "  | MiscFlags                               | " << std::setw(39) << std::hex << new_desc.MiscFlags << std::dec << " |";
+		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+	}
+#endif
+
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateShaderResourceView(ID3D10Resource *pResource, const D3D10_SHADER_RESOURCE_VIEW_DESC *pDesc, ID3D10ShaderResourceView **ppSRView)
 {
@@ -416,39 +568,22 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateShaderResourceView(ID3D10Resource *
 		return E_INVALIDARG;
 
 	D3D10_SHADER_RESOURCE_VIEW_DESC new_desc =
-		pDesc != nullptr ? *pDesc : D3D10_SHADER_RESOURCE_VIEW_DESC { DXGI_FORMAT_UNKNOWN };
+		pDesc != nullptr ? *pDesc : D3D10_SHADER_RESOURCE_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D10_SRV_DIMENSION_UNKNOWN };
 
-	// A view cannot be created with a typeless format (which was set in 'CreateTexture2D'), so fix it
-	if (pDesc == nullptr || pDesc->Format == DXGI_FORMAT_UNKNOWN)
+#if RESHADE_ADDON
+	reshade::api::resource_view_desc api_desc = reshade::d3d10::convert_resource_view_desc(new_desc);
+	RESHADE_ADDON_EVENT(create_resource_view, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::shader_resource, &api_desc);
+	reshade::d3d10::convert_resource_view_desc(api_desc, new_desc);
+#endif
+
+	const HRESULT hr = _orig->CreateShaderResourceView(pResource, new_desc.ViewDimension != D3D10_SRV_DIMENSION_UNKNOWN ? &new_desc : nullptr, ppSRView);
+	if (SUCCEEDED(hr))
 	{
-		D3D10_TEXTURE2D_DESC texture_desc;
-		if (com_ptr<ID3D10Texture2D> texture;
-			SUCCEEDED(pResource->QueryInterface(&texture)))
-		{
-			texture->GetDesc(&texture_desc);
-
-			// Only non-MSAA textures with the depth-stencil bind flag where modified, so skip all others
-			if (texture_desc.SampleDesc.Count == 1 &&
-				0 != (texture_desc.BindFlags & D3D10_BIND_DEPTH_STENCIL))
-			{
-				new_desc.Format = make_dxgi_format_normal(texture_desc.Format);
-
-				if (pDesc == nullptr) // Only need to set the rest of the fields if the application did not pass in a valid description already
-				{
-					new_desc.ViewDimension = texture_desc.ArraySize > 1 ? D3D10_SRV_DIMENSION_TEXTURE2DARRAY : D3D10_SRV_DIMENSION_TEXTURE2D;
-					new_desc.Texture2DArray.MipLevels = texture_desc.MipLevels;
-					new_desc.Texture2DArray.MostDetailedMip = 0;
-					new_desc.Texture2DArray.ArraySize = texture_desc.ArraySize;
-					new_desc.Texture2DArray.FirstArraySlice = 0;
-				}
-
-				pDesc = &new_desc;
-			}
-		}
+		assert(ppSRView != nullptr);
+		_views.register_object(*ppSRView);
 	}
-
-	const HRESULT hr = _orig->CreateShaderResourceView(pResource, pDesc, ppSRView);
-	if (FAILED(hr))
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
+	else
 	{
 		LOG(WARN) << "ID3D10Device::CreateShaderResourceView" << " failed with error code " << hr << '.';
 		LOG(INFO) << "> Dumping description:";
@@ -457,12 +592,43 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateShaderResourceView(ID3D10Resource *
 		LOG(INFO) << "  | ViewDimension                           | " << std::setw(39) << new_desc.ViewDimension << " |";
 		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 	}
+#endif
 
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateRenderTargetView(ID3D10Resource *pResource, const D3D10_RENDER_TARGET_VIEW_DESC *pDesc, ID3D10RenderTargetView **ppRTView)
 {
-	return _orig->CreateRenderTargetView(pResource, pDesc, ppRTView);
+	if (pResource == nullptr)
+		return E_INVALIDARG;
+
+	D3D10_RENDER_TARGET_VIEW_DESC new_desc =
+		pDesc != nullptr ? *pDesc : D3D10_RENDER_TARGET_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D10_RTV_DIMENSION_UNKNOWN };
+
+#if RESHADE_ADDON
+	reshade::api::resource_view_desc api_desc = reshade::d3d10::convert_resource_view_desc(new_desc);
+	RESHADE_ADDON_EVENT(create_resource_view, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::render_target, &api_desc);
+	reshade::d3d10::convert_resource_view_desc(api_desc, new_desc);
+#endif
+
+	const HRESULT hr = _orig->CreateRenderTargetView(pResource, new_desc.ViewDimension != D3D10_RTV_DIMENSION_UNKNOWN ? &new_desc : nullptr, ppRTView);
+	if (SUCCEEDED(hr))
+	{
+		assert(ppRTView != nullptr);
+		_views.register_object(*ppRTView);
+	}
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
+	else
+	{
+		LOG(WARN) << "ID3D10Device::CreateRenderTargetView" << " failed with error code " << hr << '.';
+		LOG(INFO) << "> Dumping description:";
+		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(INFO) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
+		LOG(INFO) << "  | ViewDimension                           | " << std::setw(39) << new_desc.ViewDimension << " |";
+		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+	}
+#endif
+
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateDepthStencilView(ID3D10Resource *pResource, const D3D10_DEPTH_STENCIL_VIEW_DESC *pDesc, ID3D10DepthStencilView **ppDepthStencilView)
 {
@@ -470,39 +636,22 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateDepthStencilView(ID3D10Resource *pR
 		return E_INVALIDARG;
 
 	D3D10_DEPTH_STENCIL_VIEW_DESC new_desc =
-		pDesc != nullptr ? *pDesc : D3D10_DEPTH_STENCIL_VIEW_DESC { DXGI_FORMAT_UNKNOWN };
+		pDesc != nullptr ? *pDesc : D3D10_DEPTH_STENCIL_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D10_DSV_DIMENSION_UNKNOWN };
 
-	// A view cannot be created with a typeless format (which was set in 'CreateTexture2D'), so fix it
-	if (pDesc == nullptr || pDesc->Format == DXGI_FORMAT_UNKNOWN)
+#if RESHADE_ADDON
+	reshade::api::resource_view_desc api_desc = reshade::d3d10::convert_resource_view_desc(new_desc);
+	RESHADE_ADDON_EVENT(create_resource_view, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::depth_stencil, &api_desc);
+	reshade::d3d10::convert_resource_view_desc(api_desc, new_desc);
+#endif
+
+	const HRESULT hr = _orig->CreateDepthStencilView(pResource, new_desc.ViewDimension != D3D10_DSV_DIMENSION_UNKNOWN ? &new_desc : nullptr, ppDepthStencilView);
+	if (SUCCEEDED(hr))
 	{
-		D3D10_TEXTURE2D_DESC texture_desc;
-		if (com_ptr<ID3D10Texture2D> texture;
-			SUCCEEDED(pResource->QueryInterface(&texture)))
-		{
-			texture->GetDesc(&texture_desc);
-
-			// Only non-MSAA textures where modified, so skip all others
-			if (texture_desc.SampleDesc.Count == 1)
-			{
-				assert((texture_desc.BindFlags & D3D10_BIND_DEPTH_STENCIL) != 0);
-
-				new_desc.Format = make_dxgi_format_dsv(texture_desc.Format);
-
-				if (pDesc == nullptr) // Only need to set the rest of the fields if the application did not pass in a valid description already
-				{
-					new_desc.ViewDimension = texture_desc.ArraySize > 1 ? D3D10_DSV_DIMENSION_TEXTURE2DARRAY : D3D10_DSV_DIMENSION_TEXTURE2D;
-					new_desc.Texture2DArray.MipSlice = 0;
-					new_desc.Texture2DArray.FirstArraySlice = 0;
-					new_desc.Texture2DArray.ArraySize = texture_desc.ArraySize;
-				}
-
-				pDesc = &new_desc;
-			}
-		}
+		assert(ppDepthStencilView != nullptr);
+		_views.register_object(*ppDepthStencilView);
 	}
-
-	const HRESULT hr = _orig->CreateDepthStencilView(pResource, pDesc, ppDepthStencilView);
-	if (FAILED(hr))
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
+	else
 	{
 		LOG(WARN) << "ID3D10Device::CreateDepthStencilView" << " failed with error code " << hr << '.';
 		LOG(INFO) << "> Dumping description:";
@@ -511,6 +660,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateDepthStencilView(ID3D10Resource *pR
 		LOG(INFO) << "  | ViewDimension                           | " << std::setw(39) << new_desc.ViewDimension << " |";
 		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 	}
+#endif
 
 	return hr;
 }
@@ -601,37 +751,22 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateShaderResourceView1(ID3D10Resource 
 		return E_INVALIDARG;
 
 	D3D10_SHADER_RESOURCE_VIEW_DESC1 new_desc =
-		pDesc != nullptr ? *pDesc : D3D10_SHADER_RESOURCE_VIEW_DESC1 { DXGI_FORMAT_UNKNOWN };
+		pDesc != nullptr ? *pDesc : D3D10_SHADER_RESOURCE_VIEW_DESC1 { DXGI_FORMAT_UNKNOWN, D3D10_1_SRV_DIMENSION_UNKNOWN };
 
-	if (pDesc == nullptr || pDesc->Format == DXGI_FORMAT_UNKNOWN)
+#if RESHADE_ADDON
+	reshade::api::resource_view_desc api_desc = reshade::d3d10::convert_resource_view_desc(new_desc);
+	RESHADE_ADDON_EVENT(create_resource_view, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::shader_resource, &api_desc);
+	reshade::d3d10::convert_resource_view_desc(api_desc, new_desc);
+#endif
+
+	const HRESULT hr = _orig->CreateShaderResourceView1(pResource, new_desc.ViewDimension != D3D10_1_SRV_DIMENSION_UNKNOWN ? &new_desc : nullptr, ppSRView);
+	if (SUCCEEDED(hr))
 	{
-		D3D10_TEXTURE2D_DESC texture_desc;
-		if (com_ptr<ID3D10Texture2D> texture;
-			SUCCEEDED(pResource->QueryInterface(&texture)))
-		{
-			texture->GetDesc(&texture_desc);
-
-			if (texture_desc.SampleDesc.Count == 1 &&
-				0 != (texture_desc.BindFlags & D3D10_BIND_DEPTH_STENCIL))
-			{
-				new_desc.Format = make_dxgi_format_normal(texture_desc.Format);
-
-				if (pDesc == nullptr)
-				{
-					new_desc.ViewDimension = texture_desc.ArraySize > 1 ? D3D10_1_SRV_DIMENSION_TEXTURE2DARRAY : D3D10_1_SRV_DIMENSION_TEXTURE2D;
-					new_desc.Texture2DArray.MipLevels = texture_desc.MipLevels;
-					new_desc.Texture2DArray.MostDetailedMip = 0;
-					new_desc.Texture2DArray.ArraySize = texture_desc.ArraySize;
-					new_desc.Texture2DArray.FirstArraySlice = 0;
-				}
-
-				pDesc = &new_desc;
-			}
-		}
+		assert(ppSRView != nullptr);
+		_views.register_object(*ppSRView);
 	}
-
-	const HRESULT hr = _orig->CreateShaderResourceView1(pResource, pDesc, ppSRView);
-	if (FAILED(hr))
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
+	else
 	{
 		LOG(WARN) << "ID3D10Device1::CreateShaderResourceView1" << " failed with error code " << hr << '.';
 		LOG(INFO) << "> Dumping description:";
@@ -640,6 +775,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateShaderResourceView1(ID3D10Resource 
 		LOG(INFO) << "  | ViewDimension                           | " << std::setw(39) << new_desc.ViewDimension << " |";
 		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 	}
+#endif
 
 	return hr;
 }

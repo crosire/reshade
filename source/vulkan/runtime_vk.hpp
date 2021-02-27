@@ -6,47 +6,43 @@
 #pragma once
 
 #include "runtime.hpp"
-#include "state_tracking.hpp"
-
-#pragma warning(push)
-#pragma warning(disable: 4100 4127 4324 4703) // Disable a bunch of warnings thrown by VMA code
-#include <vk_mem_alloc.h>
-#pragma warning(pop)
-#include <vk_layer_dispatch_table.h>
+#include "render_vk.hpp"
 
 namespace reshade::vulkan
 {
-	class runtime_vk : public runtime
+	class runtime_impl : public api::api_object_impl<VkSwapchainKHR, runtime>
 	{
-		static const uint32_t NUM_IMGUI_BUFFERS = 4;
-		static const uint32_t NUM_COMMAND_FRAMES = 4; // Use power of two so that modulo can be replaced with bitwise operation
+		static const uint32_t NUM_QUERY_FRAMES = 4;
+		static const uint32_t MAX_IMAGE_DESCRIPTOR_SETS = 128; // TODO: Check if these limits are enough
+		static const uint32_t MAX_EFFECT_DESCRIPTOR_SETS = 50 * 2 * 4; // 50 resources, 4 passes
 
 	public:
-		runtime_vk(VkDevice device, VkPhysicalDevice physical_device, uint32_t queue_family_index, const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table, state_tracking_context *state_tracking);
-		~runtime_vk();
+		runtime_impl(device_impl *device, command_queue_impl *graphics_queue);
+		~runtime_impl();
+
+		api::device *get_device() final { return _device_impl; }
+		api::command_queue *get_command_queue() final { return _queue_impl; }
 
 		bool on_init(VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &desc, HWND hwnd);
 		void on_reset();
 		void on_present(VkQueue queue, uint32_t swapchain_image_index, std::vector<VkSemaphore> &wait);
 
-		bool capture_screenshot(uint8_t *buffer) const override;
+		bool capture_screenshot(uint8_t *buffer) const final;
 
-		const VkLayerDispatchTable vk;
+		void update_texture_bindings(const char *semantic, api::resource_view_handle srv) final;
 
 	private:
-		bool init_effect(size_t index) override;
-		void unload_effect(size_t index) override;
-		void unload_effects() override;
+		bool init_effect(size_t index) final;
+		void unload_effect(size_t index) final;
+		void unload_effects() final;
 
-		bool init_texture(texture &texture) override;
-		void upload_texture(const texture &texture, const uint8_t *pixels) override;
-		void destroy_texture(texture &texture) override;
+		bool init_texture(texture &texture) final;
+		void upload_texture(const texture &texture, const uint8_t *pixels) final;
+		void destroy_texture(texture &texture) final;
 		void generate_mipmaps(const struct tex_data *impl);
 
-		void render_technique(technique &technique) override;
+		void render_technique(technique &technique) final;
 
-		bool begin_command_buffer() const;
-		void execute_command_buffer() const;
 		void wait_for_command_buffers();
 
 		void set_debug_name(uint64_t object, VkDebugReportObjectTypeEXT type, const char *name) const;
@@ -61,24 +57,19 @@ namespace reshade::vulkan
 			VkBufferCreateFlags flags = 0, VmaAllocationCreateFlags mem_flags = 0, VmaAllocation *out_mem = nullptr);
 		VkImageView create_image_view(VkImage image, VkFormat format, uint32_t levels, VkImageAspectFlags aspect);
 
-		VmaAllocator _alloc = VK_NULL_HANDLE;
+		device_impl *const _device_impl;
 		const VkDevice _device;
+		command_queue_impl *const _queue_impl;
 		VkQueue _queue = VK_NULL_HANDLE;
-		const uint32_t _queue_family_index;
-		VkPhysicalDeviceProperties _device_props = {};
-		VkPhysicalDeviceMemoryProperties _memory_props = {};
-		state_tracking_context &_state_tracking;
+		command_list_immediate_impl *const _cmd_impl;
 
-		VkFence _cmd_fences[NUM_COMMAND_FRAMES + 1] = {};
-		VkSemaphore _cmd_semaphores[NUM_COMMAND_FRAMES * 2] = {};
-		VkCommandPool _cmd_pool = VK_NULL_HANDLE;
-		mutable std::pair<VkCommandBuffer, bool> _cmd_buffers[NUM_COMMAND_FRAMES] = {};
-		uint32_t _cmd_index = 0;
-		uint32_t _swap_index = 0;
+		uint32_t _queue_sync_index = 0;
+		VkSemaphore _queue_sync_semaphores[NUM_QUERY_FRAMES] = {};
 #ifndef NDEBUG
 		mutable bool _wait_for_idle_happened = false;
 #endif
 
+		uint32_t _swap_index = 0;
 		VkFormat _backbuffer_format = VK_FORMAT_UNDEFINED;
 		VkExtent2D _render_area = {};
 		VkRenderPass _default_render_pass[2] = {};
@@ -87,6 +78,7 @@ namespace reshade::vulkan
 		std::vector<VkFramebuffer> _swapchain_frames;
 		VkImage _backbuffer_image = VK_NULL_HANDLE;
 		VkImageView _backbuffer_image_view[2] = {};
+
 		VkImage _empty_depth_image = VK_NULL_HANDLE;
 		VkImageView _empty_depth_image_view = VK_NULL_HANDLE;
 
@@ -100,9 +92,13 @@ namespace reshade::vulkan
 		VkDescriptorSetLayout _effect_descriptor_layout = VK_NULL_HANDLE;
 		std::unordered_map<size_t, VkSampler> _effect_sampler_states;
 
+		std::unordered_map<std::string, VkImageView> _texture_semantic_bindings;
+
 #if RESHADE_GUI
+		static const uint32_t NUM_IMGUI_BUFFERS = 4;
+
 		bool init_imgui_resources();
-		void render_imgui_draw_data(ImDrawData *draw_data) override;
+		void render_imgui_draw_data(ImDrawData *draw_data) final;
 
 		struct imgui_resources
 		{
@@ -119,17 +115,6 @@ namespace reshade::vulkan
 			int num_indices[NUM_IMGUI_BUFFERS] = {};
 			int num_vertices[NUM_IMGUI_BUFFERS] = {};
 		} _imgui;
-#endif
-
-#if RESHADE_DEPTH
-		void draw_depth_debug_menu();
-		void update_depth_image_bindings(state_tracking::depthstencil_info info);
-
-		VkImage _depth_image = VK_NULL_HANDLE;
-		VkImage _depth_image_override = VK_NULL_HANDLE;
-		VkImageView _depth_image_view = VK_NULL_HANDLE;
-		VkImageLayout _depth_image_layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-		VkImageAspectFlags _depth_image_aspect = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
 #endif
 	};
 }

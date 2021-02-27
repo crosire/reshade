@@ -8,7 +8,7 @@
 #include "d3d12_command_list.hpp"
 
 D3D12GraphicsCommandList::D3D12GraphicsCommandList(D3D12Device *device, ID3D12GraphicsCommandList *original) :
-	_orig(original),
+	command_list_impl(device, original),
 	_interface_version(0),
 	_device(device)
 {
@@ -81,12 +81,16 @@ ULONG   STDMETHODCALLTYPE D3D12GraphicsCommandList::Release()
 	if (ref != 0)
 		return _orig->Release(), ref;
 
-	const ULONG ref_orig = _orig->Release();
-	if (ref_orig != 0)
-		LOG(WARN) << "Reference count for ID3D12GraphicsCommandList" << _interface_version << " object " << this << " is inconsistent.";
-
+	const auto orig = _orig;
+	const auto interface_version = _interface_version;
+#if 0
+	LOG(DEBUG) << "Destroying " << "ID3D12GraphicsCommandList" << interface_version << " object " << this << " (" << orig << ").";
+#endif
 	delete this;
 
+	const ULONG ref_orig = orig->Release();
+	if (ref_orig != 0) // Verify internal reference count
+		LOG(WARN) << "Reference count for " << "ID3D12GraphicsCommandList" << interface_version << " object " << this << " (" << orig << ") is inconsistent (" << ref_orig << ").";
 	return 0;
 }
 
@@ -123,8 +127,7 @@ HRESULT STDMETHODCALLTYPE D3D12GraphicsCommandList::Close()
 }
 HRESULT STDMETHODCALLTYPE D3D12GraphicsCommandList::Reset(ID3D12CommandAllocator *pAllocator, ID3D12PipelineState *pInitialState)
 {
-	_state.reset();
-
+	RESHADE_ADDON_EVENT(reset_command_list, this);
 	return _orig->Reset(pAllocator, pInitialState);
 }
 
@@ -134,16 +137,17 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearState(ID3D12PipelineState 
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::DrawInstanced(UINT VertexCountPerInstance, UINT InstanceCount, UINT StartVertexLocation, UINT StartInstanceLocation)
 {
+	RESHADE_ADDON_EVENT(draw, this, VertexCountPerInstance, InstanceCount, StartVertexLocation, StartInstanceLocation);
 	_orig->DrawInstanced(VertexCountPerInstance, InstanceCount, StartVertexLocation, StartInstanceLocation);
-	_state.on_draw(VertexCountPerInstance * InstanceCount);
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::DrawIndexedInstanced(UINT IndexCountPerInstance, UINT InstanceCount, UINT StartIndexLocation, INT BaseVertexLocation, UINT StartInstanceLocation)
 {
+	RESHADE_ADDON_EVENT(draw_indexed, this, IndexCountPerInstance, InstanceCount, StartIndexLocation, BaseVertexLocation, StartInstanceLocation);
 	_orig->DrawIndexedInstanced(IndexCountPerInstance, InstanceCount, StartIndexLocation, BaseVertexLocation, StartInstanceLocation);
-	_state.on_draw(IndexCountPerInstance * InstanceCount);
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::Dispatch(UINT ThreadGroupCountX, UINT ThreadGroupCountY, UINT ThreadGroupCountZ)
 {
+	RESHADE_ADDON_EVENT(dispatch, this, ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ);
 	_orig->Dispatch(ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ);
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::CopyBufferRegion(ID3D12Resource *pDstBuffer, UINT64 DstOffset, ID3D12Resource *pSrcBuffer, UINT64 SrcOffset, UINT64 NumBytes)
@@ -173,10 +177,26 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::IASetPrimitiveTopology(D3D12_PR
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::RSSetViewports(UINT NumViewports, const D3D12_VIEWPORT *pViewports)
 {
 	_orig->RSSetViewports(NumViewports, pViewports);
+
+	static_assert(sizeof(D3D12_VIEWPORT) == (sizeof(float) * 6));
+	RESHADE_ADDON_EVENT(set_viewports, this, 0, NumViewports, reinterpret_cast<const float *>(pViewports));
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::RSSetScissorRects(UINT NumRects, const D3D12_RECT *pRects)
 {
 	_orig->RSSetScissorRects(NumRects, pRects);
+
+#if RESHADE_ADDON
+	assert(NumRects < D3D12_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE);
+	int32_t rect_data[D3D12_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE * 4];
+	for (UINT i = 0, k = 0; i < NumRects; ++i, k += 4)
+	{
+		rect_data[k + 0] = static_cast<int32_t>(pRects[i].left);
+		rect_data[k + 1] = static_cast<int32_t>(pRects[i].top);
+		rect_data[k + 2] = static_cast<int32_t>(pRects[i].right - pRects[i].left);
+		rect_data[k + 3] = static_cast<int32_t>(pRects[i].bottom - pRects[i].top);
+	}
+	RESHADE_ADDON_EVENT(set_scissor_rects, this, 0, NumRects, rect_data);
+#endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::OMSetBlendFactor(const FLOAT BlendFactor[4])
 {
@@ -192,20 +212,6 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetPipelineState(ID3D12Pipeline
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ResourceBarrier(UINT NumBarriers, const D3D12_RESOURCE_BARRIER *pBarriers)
 {
-#if RESHADE_DEPTH
-	for (UINT i = 0; i < NumBarriers; ++i)
-	{
-		switch (pBarriers[i].Type)
-		{
-		case D3D12_RESOURCE_BARRIER_TYPE_ALIASING:
-			_state.on_aliasing(pBarriers[i].Aliasing);
-			break;
-		case D3D12_RESOURCE_BARRIER_TYPE_TRANSITION:
-			_state.on_transition(pBarriers[i].Transition);
-			break;
-		}
-	}
-#endif
 	_orig->ResourceBarrier(NumBarriers, pBarriers);
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ExecuteBundle(ID3D12GraphicsCommandList *pCommandList)
@@ -215,8 +221,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::ExecuteBundle(ID3D12GraphicsCom
 	// Get original command list pointer from proxy object
 	const auto command_list_proxy = static_cast<D3D12GraphicsCommandList *>(pCommandList);
 
-	// Merge bundle command list trackers into the current one
-	_state.merge(command_list_proxy->_state);
+	RESHADE_ADDON_EVENT(execute_secondary_command_list, this, command_list_proxy);
 
 	_orig->ExecuteBundle(command_list_proxy->_orig);
 }
@@ -283,10 +288,36 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRootUnorderedAccessV
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::IASetIndexBuffer(const D3D12_INDEX_BUFFER_VIEW *pView)
 {
 	_orig->IASetIndexBuffer(pView);
+
+#if RESHADE_ADDON
+	reshade::api::resource_handle buffer = { 0 };
+	uint64_t offset = 0;
+	if (pView != nullptr)
+	{
+		ID3D12Resource *resource = nullptr;
+		_device_impl->resolve_gpu_address(pView->BufferLocation, &resource, &offset);
+		buffer = { reinterpret_cast<uintptr_t>(resource) };
+	}
+	RESHADE_ADDON_EVENT(set_index_buffer, this, buffer, offset);
+#endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::IASetVertexBuffers(UINT StartSlot, UINT NumViews, const D3D12_VERTEX_BUFFER_VIEW *pViews)
 {
 	_orig->IASetVertexBuffers(StartSlot, NumViews, pViews);
+
+#if RESHADE_ADDON
+	assert(NumViews < D3D12_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT);
+	reshade::api::resource_handle buffers[D3D12_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
+	uint64_t offsets[D3D12_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
+	for (UINT i = 0; i < NumViews; ++i)
+	{
+		ID3D12Resource *resource = nullptr;
+		if (pViews != nullptr)
+			_device_impl->resolve_gpu_address(pViews[i].BufferLocation, &resource, &offsets[i]);
+		buffers[i] = { reinterpret_cast<uintptr_t>(resource) };
+	}
+	RESHADE_ADDON_EVENT(set_vertex_buffers, this, StartSlot, NumViews, buffers, offsets);
+#endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SOSetTargets(UINT StartSlot, UINT NumViews, const D3D12_STREAM_OUTPUT_BUFFER_VIEW *pViews)
 {
@@ -294,20 +325,25 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SOSetTargets(UINT StartSlot, UI
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::OMSetRenderTargets(UINT NumRenderTargetDescriptors, const D3D12_CPU_DESCRIPTOR_HANDLE *pRenderTargetDescriptors, BOOL RTsSingleHandleToDescriptorRange, D3D12_CPU_DESCRIPTOR_HANDLE const *pDepthStencilDescriptor)
 {
-#if RESHADE_DEPTH
-	_state.on_set_depthstencil(pDepthStencilDescriptor != nullptr ? *pDepthStencilDescriptor : D3D12_CPU_DESCRIPTOR_HANDLE { 0 });
-#endif
 	_orig->OMSetRenderTargets(NumRenderTargetDescriptors, pRenderTargetDescriptors, RTsSingleHandleToDescriptorRange, pDepthStencilDescriptor);
+
+#if RESHADE_ADDON
+	assert(NumRenderTargetDescriptors < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT);
+	reshade::api::resource_view_handle rtvs[D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT];
+	for (UINT i = 0; i < NumRenderTargetDescriptors; ++i)
+		rtvs[i] = { RTsSingleHandleToDescriptorRange ? pRenderTargetDescriptors->ptr + i * _device->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_RTV] : pRenderTargetDescriptors[i].ptr };
+	const reshade::api::resource_view_handle dsv = { pDepthStencilDescriptor != nullptr ? pDepthStencilDescriptor->ptr : 0 };
+	RESHADE_ADDON_EVENT(set_render_targets_and_depth_stencil, this, NumRenderTargetDescriptors, rtvs, dsv);
+#endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearDepthStencilView(D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilView, D3D12_CLEAR_FLAGS ClearFlags, FLOAT Depth, UINT8 Stencil, UINT NumRects, const D3D12_RECT *pRects)
 {
-#if RESHADE_DEPTH
-	_state.on_clear_depthstencil(ClearFlags, DepthStencilView);
-#endif
+	RESHADE_ADDON_EVENT(clear_depth_stencil, this, reshade::api::resource_view_handle { DepthStencilView.ptr }, static_cast<uint32_t>(ClearFlags), Depth, Stencil);
 	_orig->ClearDepthStencilView(DepthStencilView, ClearFlags, Depth, Stencil, NumRects, pRects);
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearRenderTargetView(D3D12_CPU_DESCRIPTOR_HANDLE RenderTargetView, const FLOAT ColorRGBA[4], UINT NumRects, const D3D12_RECT *pRects)
 {
+	RESHADE_ADDON_EVENT(clear_render_target, this, reshade::api::resource_view_handle { RenderTargetView.ptr }, ColorRGBA);
 	_orig->ClearRenderTargetView(RenderTargetView, ColorRGBA, NumRects, pRects);
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearUnorderedAccessViewUint(D3D12_GPU_DESCRIPTOR_HANDLE ViewGPUHandleInCurrentHeap, D3D12_CPU_DESCRIPTOR_HANDLE ViewCPUHandle, ID3D12Resource *pResource, const UINT Values[4], UINT NumRects, const D3D12_RECT *pRects)
@@ -352,8 +388,8 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::EndEvent()
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ExecuteIndirect(ID3D12CommandSignature *pCommandSignature, UINT MaxCommandCount, ID3D12Resource *pArgumentBuffer, UINT64 ArgumentBufferOffset, ID3D12Resource *pCountBuffer, UINT64 CountBufferOffset)
 {
+	RESHADE_ADDON_EVENT(draw_or_dispatch_indirect, this, reshade::addon_event::draw_or_dispatch_indirect, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pArgumentBuffer) }, ArgumentBufferOffset, MaxCommandCount, 0);
 	_orig->ExecuteIndirect(pCommandSignature, MaxCommandCount, pArgumentBuffer, ArgumentBufferOffset, pCountBuffer, CountBufferOffset);
-	_state.on_draw(0);
 }
 
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::AtomicCopyBufferUINT(ID3D12Resource *pDstBuffer, UINT64 DstOffset, ID3D12Resource *pSrcBuffer, UINT64 SrcOffset, UINT Dependencies, ID3D12Resource *const *ppDependentResources, const D3D12_SUBRESOURCE_RANGE_UINT64 *pDependentSubresourceRanges)
@@ -403,6 +439,15 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::BeginRenderPass(UINT NumRenderT
 {
 	assert(_interface_version >= 4);
 	static_cast<ID3D12GraphicsCommandList4 *>(_orig)->BeginRenderPass(NumRenderTargets, pRenderTargets, pDepthStencil, Flags);
+
+#if RESHADE_ADDON
+	assert(NumRenderTargets < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT);
+	reshade::api::resource_view_handle rtvs[D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT];
+	for (UINT i = 0; i < NumRenderTargets; ++i)
+		rtvs[i] = { pRenderTargets->cpuDescriptor.ptr + i * _device->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_RTV] };
+	const reshade::api::resource_view_handle dsv = { pDepthStencil != nullptr ? pDepthStencil->cpuDescriptor.ptr : 0 };
+	RESHADE_ADDON_EVENT(set_render_targets_and_depth_stencil, this, NumRenderTargets, rtvs, dsv);
+#endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::EndRenderPass(void)
 {
