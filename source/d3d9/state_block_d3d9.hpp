@@ -27,9 +27,10 @@ namespace reshade::d3d9
 
 		com_ptr<IDirect3DDevice9> _device;
 		com_ptr<IDirect3DStateBlock9> _state_block;
-		UINT _num_simultaneous_rendertargets;
-		D3DVIEWPORT9 _viewport;
+		UINT _num_simultaneous_rts;
+		D3DVIEWPORT9 _viewport = {};
 		com_ptr<IDirect3DSurface9> _depth_stencil;
 		com_ptr<IDirect3DSurface9> _render_targets[8];
+		float _clip_plane_0[4] = {};
 	};
 }
