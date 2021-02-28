@@ -512,6 +512,7 @@
     <ClInclude Include="source\imgui_widgets.hpp" />
     <ClInclude Include="source\input.hpp" />
     <ClInclude Include="source\input_freepie.hpp" />
+    <ClInclude Include="source\lockfree_table.hpp" />
     <ClInclude Include="source\opengl\opengl.hpp" />
     <ClInclude Include="source\opengl\opengl_hooks.hpp" />
     <ClInclude Include="source\opengl\render_gl.hpp" />
@@ -522,7 +523,6 @@
     <ClInclude Include="source\runtime.hpp" />
     <ClInclude Include="source\runtime_objects.hpp" />
     <ClInclude Include="source\vulkan\format_utils.hpp" />
-    <ClInclude Include="source\vulkan\lockfree_table.hpp" />
     <ClInclude Include="source\vulkan\render_vk.hpp" />
     <ClInclude Include="source\vulkan\render_vk_utils.hpp" />
     <ClInclude Include="source\vulkan\runtime_vk.hpp" />

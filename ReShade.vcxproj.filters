@@ -461,7 +461,7 @@
     <ClInclude Include="source\vulkan\format_utils.hpp">
       <Filter>hooks\vulkan</Filter>
     </ClInclude>
-    <ClInclude Include="source\vulkan\lockfree_table.hpp">
+    <ClInclude Include="source\lockfree_table.hpp">
       <Filter>hooks\vulkan</Filter>
     </ClInclude>
     <ClInclude Include="source\vulkan\render_vk.hpp">
