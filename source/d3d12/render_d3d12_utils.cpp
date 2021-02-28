@@ -295,7 +295,10 @@ void reshade::d3d12::convert_resource_view_desc(const resource_view_desc &desc, 
 		internal_desc.TextureCubeArray.MostDetailedMip = desc.first_level;
 		internal_desc.TextureCubeArray.MipLevels = desc.levels;
 		internal_desc.TextureCubeArray.First2DArrayFace = desc.first_layer;
-		internal_desc.TextureCubeArray.NumCubes = desc.layers / 6;
+		if (desc.layers == 0xFFFFFFFF)
+			internal_desc.TextureCubeArray.NumCubes = 0xFFFFFFFF;
+		else
+			internal_desc.TextureCubeArray.NumCubes = desc.layers / 6;
 		// Missing fields: D3D12_TEXCUBE_ARRAY_SRV::ResourceMinLODClamp
 		break;
 	}
@@ -491,7 +494,10 @@ resource_view_desc reshade::d3d12::convert_resource_view_desc(const D3D12_SHADER
 		desc.first_level = internal_desc.TextureCubeArray.MostDetailedMip;
 		desc.levels = internal_desc.TextureCubeArray.MipLevels;
 		desc.first_layer = internal_desc.TextureCubeArray.First2DArrayFace;
-		desc.layers = internal_desc.TextureCubeArray.NumCubes * 6;
+		if (internal_desc.TextureCubeArray.NumCubes == 0xFFFFFFFF)
+			desc.layers = 0xFFFFFFFF;
+		else
+			desc.layers = internal_desc.TextureCubeArray.NumCubes * 6;
 		// Missing fields: D3D12_TEXCUBE_ARRAY_SRV::ResourceMinLODClamp
 		break;
 	case D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE:
