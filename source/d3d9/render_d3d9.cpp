@@ -60,22 +60,19 @@ void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 		_orig->SetFVF(D3DFVF_XYZ | D3DFVF_TEX1);
 		_orig->SetPixelShader(nullptr);
 		_orig->SetVertexShader(nullptr);
-		_orig->SetRenderState(D3DRS_ZENABLE, false);
+		_orig->SetRenderState(D3DRS_ZENABLE, FALSE);
 		_orig->SetRenderState(D3DRS_FILLMODE, D3DFILL_SOLID);
-		_orig->SetRenderState(D3DRS_ALPHATESTENABLE, false);
-		_orig->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_ONE);
-		_orig->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_ZERO);
+		_orig->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
 		_orig->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
-		_orig->SetRenderState(D3DRS_ALPHABLENDENABLE, false);
-		_orig->SetRenderState(D3DRS_FOGENABLE, false);
-		_orig->SetRenderState(D3DRS_STENCILENABLE, false);
-		_orig->SetRenderState(D3DRS_CLIPPING, false);
-		_orig->SetRenderState(D3DRS_LIGHTING, false);
+		_orig->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+		_orig->SetRenderState(D3DRS_FOGENABLE, FALSE);
+		_orig->SetRenderState(D3DRS_STENCILENABLE, FALSE);
+		_orig->SetRenderState(D3DRS_CLIPPING, FALSE);
+		_orig->SetRenderState(D3DRS_LIGHTING, FALSE);
+		_orig->SetRenderState(D3DRS_CLIPPLANEENABLE, 0);
 		_orig->SetRenderState(D3DRS_COLORWRITEENABLE, D3DCOLORWRITEENABLE_RED | D3DCOLORWRITEENABLE_GREEN | D3DCOLORWRITEENABLE_BLUE | D3DCOLORWRITEENABLE_ALPHA);
-		_orig->SetRenderState(D3DRS_SCISSORTESTENABLE, false);
-		_orig->SetRenderState(D3DRS_BLENDOP, D3DBLENDOP_ADD);
-		_orig->SetRenderState(D3DRS_SRGBWRITEENABLE, false);
-		_orig->SetRenderState(D3DRS_BLENDOPALPHA, D3DBLENDOP_ADD);
+		_orig->SetRenderState(D3DRS_SCISSORTESTENABLE, FALSE);
+		_orig->SetRenderState(D3DRS_SRGBWRITEENABLE, FALSE);
 		_orig->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
 		_orig->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
 		_orig->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
@@ -85,12 +82,12 @@ void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 		_orig->SetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
 		_orig->SetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
 		_orig->SetSamplerState(0, D3DSAMP_ADDRESSW, D3DTADDRESS_CLAMP);
-		_orig->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
-		_orig->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
+		_orig->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_POINT);
+		_orig->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_POINT);
 		_orig->SetSamplerState(0, D3DSAMP_MIPFILTER, D3DTEXF_NONE);
 		_orig->SetSamplerState(0, D3DSAMP_MIPMAPLODBIAS, 0);
 		_orig->SetSamplerState(0, D3DSAMP_MAXMIPLEVEL, 0);
-		_orig->SetSamplerState(0, D3DSAMP_SRGBTEXTURE, 0);
+		_orig->SetSamplerState(0, D3DSAMP_SRGBTEXTURE, FALSE);
 
 		hr = _orig->EndStateBlock(&_copy_state);
 		if (FAILED(hr))
@@ -452,9 +449,8 @@ void reshade::d3d9::device_impl::copy_resource(api::resource_handle source, api:
 			// Perform copy using rasterization pipeline
 			_copy_state->Apply();
 
-			// TODO: This copies the first mipmap level only ...
 			com_ptr<IDirect3DSurface9> destination_surface;
-			static_cast<IDirect3DTexture9 *>(destination_object)->GetSurfaceLevel(0, &destination_surface);
+			static_cast<IDirect3DTexture9 *>(destination_object)->GetSurfaceLevel(0, &destination_surface); // TODO: This copies the first mipmap level only ...
 			_orig->SetTexture(0, static_cast<IDirect3DTexture9 *>(source_object));
 			_orig->SetRenderTarget(0, destination_surface.get());
 			for (DWORD target = 1; target < _caps.NumSimultaneousRTs; ++target)

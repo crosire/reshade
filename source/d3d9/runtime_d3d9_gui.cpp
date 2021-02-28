@@ -18,21 +18,22 @@ bool reshade::d3d9::runtime_impl::init_imgui_resources()
 		_device->SetFVF(D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1);
 		_device->SetPixelShader(nullptr);
 		_device->SetVertexShader(nullptr);
-		_device->SetRenderState(D3DRS_ZENABLE, false);
+		_device->SetRenderState(D3DRS_ZENABLE, FALSE);
 		_device->SetRenderState(D3DRS_FILLMODE, D3DFILL_SOLID);
-		_device->SetRenderState(D3DRS_ALPHATESTENABLE, false);
+		_device->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
 		_device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
 		_device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
 		_device->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
-		_device->SetRenderState(D3DRS_ALPHABLENDENABLE, true);
-		_device->SetRenderState(D3DRS_FOGENABLE, false);
-		_device->SetRenderState(D3DRS_STENCILENABLE, false);
-		_device->SetRenderState(D3DRS_CLIPPING, false);
-		_device->SetRenderState(D3DRS_LIGHTING, false);
+		_device->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+		_device->SetRenderState(D3DRS_FOGENABLE, FALSE);
+		_device->SetRenderState(D3DRS_STENCILENABLE, FALSE);
+		_device->SetRenderState(D3DRS_CLIPPING, FALSE);
+		_device->SetRenderState(D3DRS_LIGHTING, FALSE);
+		_device->SetRenderState(D3DRS_CLIPPLANEENABLE, 0);
 		_device->SetRenderState(D3DRS_COLORWRITEENABLE, D3DCOLORWRITEENABLE_RED | D3DCOLORWRITEENABLE_GREEN | D3DCOLORWRITEENABLE_BLUE | D3DCOLORWRITEENABLE_ALPHA);
-		_device->SetRenderState(D3DRS_SCISSORTESTENABLE, true);
+		_device->SetRenderState(D3DRS_SCISSORTESTENABLE, TRUE);
 		_device->SetRenderState(D3DRS_BLENDOP, D3DBLENDOP_ADD);
-		_device->SetRenderState(D3DRS_SRGBWRITEENABLE, false);
+		_device->SetRenderState(D3DRS_SRGBWRITEENABLE, FALSE);
 		_device->SetRenderState(D3DRS_BLENDOPALPHA, D3DBLENDOP_ADD);
 		_device->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
 		_device->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
@@ -50,7 +51,7 @@ bool reshade::d3d9::runtime_impl::init_imgui_resources()
 		_device->SetSamplerState(0, D3DSAMP_MIPFILTER, D3DTEXF_NONE);
 		_device->SetSamplerState(0, D3DSAMP_MIPMAPLODBIAS, 0);
 		_device->SetSamplerState(0, D3DSAMP_MAXMIPLEVEL, 0);
-		_device->SetSamplerState(0, D3DSAMP_SRGBTEXTURE, 0);
+		_device->SetSamplerState(0, D3DSAMP_SRGBTEXTURE, FALSE);
 
 		hr = _device->EndStateBlock(&_imgui.state);
 	}
@@ -137,10 +138,10 @@ void reshade::d3d9::runtime_impl::render_imgui_draw_data(ImDrawData *draw_data)
 	_device->SetRenderTarget(0, _backbuffer_resolved.get());
 
 	// Clear unused bindings
-	for (unsigned int i = 0; i < _device_impl->_caps.MaxSimultaneousTextures; i++)
+	for (DWORD i = 0; i < _device_impl->_caps.MaxSimultaneousTextures; ++i)
 		_device->SetTexture(i, nullptr);
-	for (unsigned int i = 1; i < _device_impl->_caps.NumSimultaneousRTs; i++)
-		_device->SetRenderTarget(i, nullptr);
+	for (DWORD target = 1; target < _device_impl->_caps.NumSimultaneousRTs; ++target)
+		_device->SetRenderTarget(target, nullptr);
 	_device->SetDepthStencilSurface(nullptr);
 
 	const D3DMATRIX identity_mat = {
