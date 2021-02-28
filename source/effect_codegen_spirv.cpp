@@ -2022,7 +2022,7 @@ private:
 		add_location(loc, *_current_block_data);
 		add_instruction_without_result(spv::OpSelectionMerge)
 			.add(merge_label.result)
-			.add(selection_control); // 'SelectionControl' happens to match the flags produced by the parser
+			.add(selection_control & 0x3); // 'SelectionControl' happens to match the flags produced by the parser
 
 		// Append all blocks belonging to the branch
 		_current_block_data->instructions.push_back(branch_inst);
@@ -2077,7 +2077,7 @@ private:
 		add_instruction_without_result(spv::OpLoopMerge)
 			.add(merge_label.result)
 			.add(continue_block)
-			.add(loop_control); // 'LoopControl' happens to match the flags produced by the parser
+			.add(loop_control & 0x3); // 'LoopControl' happens to match the flags produced by the parser
 
 		_current_block_data->instructions.push_back(_block_data[header_block].instructions[1]);
 		assert(_current_block_data->instructions.back().op == spv::OpBranch);
@@ -2111,7 +2111,7 @@ private:
 		add_location(loc, *_current_block_data);
 		add_instruction_without_result(spv::OpSelectionMerge)
 			.add(merge_label.result)
-			.add(selection_control); // 'SelectionControl' happens to match the flags produced by the parser
+			.add(selection_control & 0x3); // 'SelectionControl' happens to match the flags produced by the parser
 
 		// Update switch instruction to contain all case labels
 		switch_inst.operands[1] = default_label;

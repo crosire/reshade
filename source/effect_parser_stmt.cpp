@@ -155,8 +155,10 @@ bool reshadefx::parser::parse_statement(bool scoped)
 		{
 			unroll = 0x1,
 			dont_unroll = 0x2,
-			flatten = 0x4,
-			dont_flatten = 0x8,
+			flatten = (0x1 << 4),
+			dont_flatten = (0x2 << 4),
+			switch_force_case = (0x4 << 4),
+			switch_call = (0x8 << 4)
 		};
 
 		const auto attribute = std::move(_token_next.literal_as_string);
@@ -172,6 +174,10 @@ bool reshadefx::parser::parse_statement(bool scoped)
 			selection_control |= flatten;
 		else if (attribute == "branch")
 			selection_control |= dont_flatten;
+		else if (attribute == "forcecase")
+			selection_control |= switch_force_case;
+		else if (attribute == "call")
+			selection_control |= switch_call;
 		else
 			warning(_token.location, 0, "unknown attribute");
 
@@ -182,7 +188,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 	}
 
 	// Shift by two so that the possible values are 0x01 for 'flatten' and 0x02 for 'dont_flatten', equivalent to 'unroll' and 'dont_unroll'
-	selection_control >>= 2;
+	selection_control >>= 4;
 
 	if (peek('{')) // Parse statement block
 		return parse_statement_block(scoped);

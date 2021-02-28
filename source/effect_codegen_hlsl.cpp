@@ -1248,7 +1248,7 @@ private:
 		code += '\t';
 
 		if (flags & 0x1) code += "[flatten] ";
-		if (flags & 0x2) code +=  "[branch] ";
+		if (flags & 0x2) code += "[branch] ";
 
 		code += "if (" + id_to_name(condition_value) + ")\n\t{\n";
 		code += true_statement_data;
@@ -1322,7 +1322,7 @@ private:
 		if (flags & 0x1)
 			attributes += "[unroll] ";
 		if (flags & 0x2)
-			attributes += "[loop] ";
+			attributes += "[fastopt] ";
 
 		// Condition value can be missing in infinite loop constructs like "for (;;)"
 		std::string condition_name = condition_value != 0 ? id_to_name(condition_value) : "true";
@@ -1431,6 +1431,8 @@ private:
 
 			if (flags & 0x1) code += "[flatten] ";
 			if (flags & 0x2) code += "[branch] ";
+			if (flags & 0x4) code += "[forcecase] ";
+			if (flags & 0x8) code += "[call] ";
 
 			code += "switch (" + id_to_name(selector_value) + ")\n\t{\n";
 
