@@ -23,6 +23,7 @@ DXGISwapChain::DXGISwapChain(D3D10Device *device, IDXGISwapChain  *original) :
 	_orig(original),
 	_interface_version(0),
 	_direct3d_device(device),
+	_direct3d_command_queue(nullptr),
 	_direct3d_version(10),
 	_runtime(new reshade::d3d10::runtime_impl(device, original))
 {
@@ -34,6 +35,7 @@ DXGISwapChain::DXGISwapChain(D3D10Device *device, IDXGISwapChain1 *original) :
 	_orig(original),
 	_interface_version(1),
 	_direct3d_device(device),
+	_direct3d_command_queue(nullptr),
 	_direct3d_version(10),
 	_runtime(new reshade::d3d10::runtime_impl(device, original))
 {
@@ -44,6 +46,7 @@ DXGISwapChain::DXGISwapChain(D3D11Device *device, IDXGISwapChain  *original) :
 	_orig(original),
 	_interface_version(0),
 	_direct3d_device(device),
+	_direct3d_command_queue(nullptr),
 	_direct3d_version(11),
 	_runtime(new reshade::d3d11::runtime_impl(device, device->_immediate_context, original))
 {
@@ -54,6 +57,7 @@ DXGISwapChain::DXGISwapChain(D3D11Device *device, IDXGISwapChain1 *original) :
 	_orig(original),
 	_interface_version(1),
 	_direct3d_device(device),
+	_direct3d_command_queue(nullptr),
 	_direct3d_version(11),
 	_runtime(new reshade::d3d11::runtime_impl(device, device->_immediate_context, original))
 {
@@ -64,11 +68,14 @@ DXGISwapChain::DXGISwapChain(D3D12CommandQueue *command_queue, IDXGISwapChain3 *
 	_orig(original),
 	_interface_version(3),
 	_direct3d_device(command_queue->_device), // Get the device instead of the command queue, so that 'IDXGISwapChain::GetDevice' works
+	_direct3d_command_queue(command_queue),
 	_direct3d_version(12),
 	_runtime(new reshade::d3d12::runtime_impl(command_queue->_device, command_queue, original))
 {
-	assert(_orig != nullptr && _direct3d_device != nullptr);
+	assert(_orig != nullptr && _direct3d_device != nullptr && _direct3d_command_queue != nullptr);
 	_direct3d_device->AddRef();
+	// Add reference to command queue as well to ensure it is kept alive for the lifetime of the runtime
+	_direct3d_command_queue->AddRef();
 }
 
 void DXGISwapChain::runtime_reset(UINT width, UINT height)
@@ -257,6 +264,7 @@ ULONG   STDMETHODCALLTYPE DXGISwapChain::Release()
 
 	const auto orig = _orig;
 	const auto device = _direct3d_device;
+	const auto command_queue = _direct3d_command_queue;
 	const auto interface_version = _interface_version;
 #if RESHADE_VERBOSE_LOG
 	LOG(DEBUG) << "Destroying " << "IDXGISwapChain" << interface_version << " object " << this << " (" << orig << ").";
@@ -270,6 +278,8 @@ ULONG   STDMETHODCALLTYPE DXGISwapChain::Release()
 
 	// Release the explicit reference to the device that was added in the DXGISwapChain constructor above now that the runtime was destroyed and is longer referencing it
 	device->Release();
+	if (command_queue != nullptr)
+		command_queue->Release();
 	return 0;
 }
 
