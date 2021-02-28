@@ -31,6 +31,19 @@ reshade::opengl::runtime_impl::runtime_impl(HDC hdc, HGLRC hglrc) : device_impl(
 		}
 	}
 
+	switch (_default_color_format)
+	{
+	case GL_RGBA8:
+		_color_bit_depth = 8;
+		break;
+	case GL_RGB10_A2:
+		_color_bit_depth = 10;
+		break;
+	case GL_RGBA16F:
+		_color_bit_depth = 16;
+		break;
+	}
+
 	subscribe_to_load_config([this](const ini_file &config) {
 		// Reserve a fixed amount of texture names by default to work around issues in old OpenGL games (which will use a compatibility context)
 		auto num_reserve_texture_names = _compatibility_context ? 512u : 0u;
@@ -65,12 +78,6 @@ bool reshade::opengl::runtime_impl::on_init(HWND hwnd, unsigned int width, unsig
 		_window_height = window_rect.bottom;
 		_default_fbo_width = width;
 		_default_fbo_height = height;
-
-		const HDC hdc = GetDC(hwnd);
-		PIXELFORMATDESCRIPTOR pfd = { sizeof(pfd) };
-		DescribePixelFormat(hdc, GetPixelFormat(hdc), sizeof(pfd), &pfd);
-
-		_color_bit_depth = std::min(pfd.cRedBits, std::min(pfd.cGreenBits, pfd.cBlueBits));
 	}
 
 	// Capture and later restore so that the resource creation code below does not affect the application state
