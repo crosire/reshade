@@ -157,8 +157,16 @@ static void init_device_proxy(T *&device, D3DDEVTYPE device_type, const D3DPRESE
 #endif
 }
 
+// Needs to be set before entering the D3D9 runtime, to avoid hooking internal D3D device creation (e.g. when PIX is attached)
+thread_local bool g_in_d3d9_runtime = false;
+
 HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter, D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD BehaviorFlags, D3DPRESENT_PARAMETERS *pPresentationParameters, IDirect3DDevice9 **ppReturnedDeviceInterface)
 {
+	// Pass on unmodified in case this called from within the runtime, to avoid hooking internal devices
+	if (g_in_d3d9_runtime)
+		return reshade::hooks::call(IDirect3D9_CreateDevice, vtable_from_instance(pD3D) + 16)(
+			pD3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, ppReturnedDeviceInterface);
+
 	LOG(INFO) << "Redirecting " << "IDirect3D9::CreateDevice" << '('
 		<<   "this = " << pD3D
 		<< ", Adapter = " << Adapter
@@ -188,7 +196,10 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 		BehaviorFlags = (BehaviorFlags & ~D3DCREATE_SOFTWARE_VERTEXPROCESSING) | D3DCREATE_MIXED_VERTEXPROCESSING;
 	}
 
+	g_in_d3d9_runtime = true;
 	const HRESULT hr = reshade::hooks::call(IDirect3D9_CreateDevice, vtable_from_instance(pD3D) + 16)(pD3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, &pp, ppReturnedDeviceInterface);
+	g_in_d3d9_runtime = false;
+
 	// Update output values (see https://docs.microsoft.com/windows/win32/api/d3d9/nf-d3d9-idirect3d9-createdevice)
 	pPresentationParameters->BackBufferWidth = pp.BackBufferWidth;
 	pPresentationParameters->BackBufferHeight = pp.BackBufferHeight;
@@ -208,6 +219,10 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 
 HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT Adapter, D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD BehaviorFlags, D3DPRESENT_PARAMETERS *pPresentationParameters, D3DDISPLAYMODEEX *pFullscreenDisplayMode, IDirect3DDevice9Ex **ppReturnedDeviceInterface)
 {
+	if (g_in_d3d9_runtime)
+		return reshade::hooks::call(IDirect3D9Ex_CreateDeviceEx, vtable_from_instance(pD3D) + 20)(
+			pD3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, pFullscreenDisplayMode, ppReturnedDeviceInterface);
+
 	LOG(INFO) << "Redirecting " << "IDirect3D9Ex::CreateDeviceEx" << '('
 		<<   "this = " << pD3D
 		<< ", Adapter = " << Adapter
@@ -241,7 +256,10 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 		BehaviorFlags = (BehaviorFlags & ~D3DCREATE_SOFTWARE_VERTEXPROCESSING) | D3DCREATE_MIXED_VERTEXPROCESSING;
 	}
 
+	g_in_d3d9_runtime = true;
 	const HRESULT hr = reshade::hooks::call(IDirect3D9Ex_CreateDeviceEx, vtable_from_instance(pD3D) + 20)(pD3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, &pp, pp.Windowed ? nullptr : &fullscreen_mode, ppReturnedDeviceInterface);
+	g_in_d3d9_runtime = false;
+
 	pPresentationParameters->BackBufferWidth = pp.BackBufferWidth;
 	pPresentationParameters->BackBufferHeight = pp.BackBufferHeight;
 	pPresentationParameters->BackBufferFormat = pp.BackBufferFormat;
@@ -260,9 +278,14 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 
 HOOK_EXPORT IDirect3D9 *WINAPI Direct3DCreate9(UINT SDKVersion)
 {
+	if (g_in_d3d9_runtime)
+		return reshade::hooks::call(Direct3DCreate9)(SDKVersion);
+
 	LOG(INFO) << "Redirecting " << "Direct3DCreate9" << '(' << "SDKVersion = " << SDKVersion << ')' << " ...";
 
+	g_in_d3d9_runtime = true;
 	IDirect3D9 *const res = reshade::hooks::call(Direct3DCreate9)(SDKVersion);
+	g_in_d3d9_runtime = false;
 	if (res == nullptr)
 	{
 		LOG(WARN) << "Direct3DCreate9" << " failed!";
@@ -279,9 +302,14 @@ HOOK_EXPORT IDirect3D9 *WINAPI Direct3DCreate9(UINT SDKVersion)
 
 HOOK_EXPORT     HRESULT WINAPI Direct3DCreate9Ex(UINT SDKVersion, IDirect3D9Ex **ppD3D)
 {
+	if (g_in_d3d9_runtime)
+		return reshade::hooks::call(Direct3DCreate9Ex)(SDKVersion, ppD3D);
+
 	LOG(INFO) << "Redirecting " << "Direct3DCreate9Ex" << '(' << "SDKVersion = " << SDKVersion << ", ppD3D = " << ppD3D << ')' << " ...";
 
+	g_in_d3d9_runtime = true;
 	const HRESULT hr = reshade::hooks::call(Direct3DCreate9Ex)(SDKVersion, ppD3D);
+	g_in_d3d9_runtime = false;
 	if (FAILED(hr))
 	{
 		LOG(WARN) << "Direct3DCreate9Ex" << " failed with error code " << hr << '.';
