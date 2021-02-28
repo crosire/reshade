@@ -437,14 +437,14 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateBuffer(const D3D10_BUFFER_DESC *pDe
 	else
 	{
 		LOG(WARN) << "ID3D10Device::CreateBuffer" << " failed with error code " << hr << '.';
-		LOG(INFO) << "> Dumping description:";
-		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
-		LOG(INFO) << "  | ByteWidth                               | " << std::setw(39) << new_desc.ByteWidth << " |";
-		LOG(INFO) << "  | Usage                                   | " << std::setw(39) << new_desc.Usage << " |";
-		LOG(INFO) << "  | BindFlags                               | " << std::setw(39) << std::hex << new_desc.BindFlags << std::dec << " |";
-		LOG(INFO) << "  | CPUAccessFlags                          | " << std::setw(39) << std::hex << new_desc.CPUAccessFlags << std::dec << " |";
-		LOG(INFO) << "  | MiscFlags                               | " << std::setw(39) << std::hex << new_desc.MiscFlags << std::dec << " |";
-		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(DEBUG) << "> Dumping description:";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(DEBUG) << "  | ByteWidth                               | " << std::setw(39) << new_desc.ByteWidth << " |";
+		LOG(DEBUG) << "  | Usage                                   | " << std::setw(39) << new_desc.Usage << " |";
+		LOG(DEBUG) << "  | BindFlags                               | " << std::setw(39) << std::hex << new_desc.BindFlags << std::dec << " |";
+		LOG(DEBUG) << "  | CPUAccessFlags                          | " << std::setw(39) << std::hex << new_desc.CPUAccessFlags << std::dec << " |";
+		LOG(DEBUG) << "  | MiscFlags                               | " << std::setw(39) << std::hex << new_desc.MiscFlags << std::dec << " |";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
 	}
 #endif
 
@@ -471,17 +471,17 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture1D(const D3D10_TEXTURE1D_DES
 	else
 	{
 		LOG(WARN) << "ID3D10Device::CreateTexture1D" << " failed with error code " << hr << '.';
-		LOG(INFO) << "> Dumping description:";
-		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
-		LOG(INFO) << "  | Width                                   | " << std::setw(39) << new_desc.Width << " |";
-		LOG(INFO) << "  | MipLevels                               | " << std::setw(39) << new_desc.MipLevels << " |";
-		LOG(INFO) << "  | ArraySize                               | " << std::setw(39) << new_desc.ArraySize << " |";
-		LOG(INFO) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
-		LOG(INFO) << "  | Usage                                   | " << std::setw(39) << new_desc.Usage << " |";
-		LOG(INFO) << "  | BindFlags                               | " << std::setw(39) << std::hex << new_desc.BindFlags << std::dec << " |";
-		LOG(INFO) << "  | CPUAccessFlags                          | " << std::setw(39) << std::hex << new_desc.CPUAccessFlags << std::dec << " |";
-		LOG(INFO) << "  | MiscFlags                               | " << std::setw(39) << std::hex << new_desc.MiscFlags << std::dec << " |";
-		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(DEBUG) << "> Dumping description:";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(DEBUG) << "  | Width                                   | " << std::setw(39) << new_desc.Width << " |";
+		LOG(DEBUG) << "  | MipLevels                               | " << std::setw(39) << new_desc.MipLevels << " |";
+		LOG(DEBUG) << "  | ArraySize                               | " << std::setw(39) << new_desc.ArraySize << " |";
+		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
+		LOG(DEBUG) << "  | Usage                                   | " << std::setw(39) << new_desc.Usage << " |";
+		LOG(DEBUG) << "  | BindFlags                               | " << std::setw(39) << std::hex << new_desc.BindFlags << std::dec << " |";
+		LOG(DEBUG) << "  | CPUAccessFlags                          | " << std::setw(39) << std::hex << new_desc.CPUAccessFlags << std::dec << " |";
+		LOG(DEBUG) << "  | MiscFlags                               | " << std::setw(39) << std::hex << new_desc.MiscFlags << std::dec << " |";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
 	}
 #endif
 
@@ -508,20 +508,20 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture2D(const D3D10_TEXTURE2D_DES
 	else
 	{
 		LOG(WARN) << "ID3D10Device::CreateTexture2D" << " failed with error code " << hr << '.';
-		LOG(INFO) << "> Dumping description:";
-		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
-		LOG(INFO) << "  | Width                                   | " << std::setw(39) << new_desc.Width << " |";
-		LOG(INFO) << "  | Height                                  | " << std::setw(39) << new_desc.Height << " |";
-		LOG(INFO) << "  | MipLevels                               | " << std::setw(39) << new_desc.MipLevels << " |";
-		LOG(INFO) << "  | ArraySize                               | " << std::setw(39) << new_desc.ArraySize << " |";
-		LOG(INFO) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
-		LOG(INFO) << "  | SampleCount                             | " << std::setw(39) << new_desc.SampleDesc.Count << " |";
-		LOG(INFO) << "  | SampleQuality                           | " << std::setw(39) << new_desc.SampleDesc.Quality << " |";
-		LOG(INFO) << "  | Usage                                   | " << std::setw(39) << new_desc.Usage << " |";
-		LOG(INFO) << "  | BindFlags                               | " << std::setw(39) << std::hex << new_desc.BindFlags << std::dec << " |";
-		LOG(INFO) << "  | CPUAccessFlags                          | " << std::setw(39) << std::hex << new_desc.CPUAccessFlags << std::dec << " |";
-		LOG(INFO) << "  | MiscFlags                               | " << std::setw(39) << std::hex << new_desc.MiscFlags << std::dec << " |";
-		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(DEBUG) << "> Dumping description:";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(DEBUG) << "  | Width                                   | " << std::setw(39) << new_desc.Width << " |";
+		LOG(DEBUG) << "  | Height                                  | " << std::setw(39) << new_desc.Height << " |";
+		LOG(DEBUG) << "  | MipLevels                               | " << std::setw(39) << new_desc.MipLevels << " |";
+		LOG(DEBUG) << "  | ArraySize                               | " << std::setw(39) << new_desc.ArraySize << " |";
+		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
+		LOG(DEBUG) << "  | SampleCount                             | " << std::setw(39) << new_desc.SampleDesc.Count << " |";
+		LOG(DEBUG) << "  | SampleQuality                           | " << std::setw(39) << new_desc.SampleDesc.Quality << " |";
+		LOG(DEBUG) << "  | Usage                                   | " << std::setw(39) << new_desc.Usage << " |";
+		LOG(DEBUG) << "  | BindFlags                               | " << std::setw(39) << std::hex << new_desc.BindFlags << std::dec << " |";
+		LOG(DEBUG) << "  | CPUAccessFlags                          | " << std::setw(39) << std::hex << new_desc.CPUAccessFlags << std::dec << " |";
+		LOG(DEBUG) << "  | MiscFlags                               | " << std::setw(39) << std::hex << new_desc.MiscFlags << std::dec << " |";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
 	}
 #endif
 
@@ -548,18 +548,18 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture3D(const D3D10_TEXTURE3D_DES
 	else
 	{
 		LOG(WARN) << "ID3D10Device::CreateTexture3D" << " failed with error code " << hr << '.';
-		LOG(INFO) << "> Dumping description:";
-		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
-		LOG(INFO) << "  | Width                                   | " << std::setw(39) << new_desc.Width << " |";
-		LOG(INFO) << "  | Height                                  | " << std::setw(39) << new_desc.Height << " |";
-		LOG(INFO) << "  | Depth                                   | " << std::setw(39) << new_desc.Depth << " |";
-		LOG(INFO) << "  | MipLevels                               | " << std::setw(39) << new_desc.MipLevels << " |";
-		LOG(INFO) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
-		LOG(INFO) << "  | Usage                                   | " << std::setw(39) << new_desc.Usage << " |";
-		LOG(INFO) << "  | BindFlags                               | " << std::setw(39) << std::hex << new_desc.BindFlags << std::dec << " |";
-		LOG(INFO) << "  | CPUAccessFlags                          | " << std::setw(39) << std::hex << new_desc.CPUAccessFlags << std::dec << " |";
-		LOG(INFO) << "  | MiscFlags                               | " << std::setw(39) << std::hex << new_desc.MiscFlags << std::dec << " |";
-		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(DEBUG) << "> Dumping description:";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(DEBUG) << "  | Width                                   | " << std::setw(39) << new_desc.Width << " |";
+		LOG(DEBUG) << "  | Height                                  | " << std::setw(39) << new_desc.Height << " |";
+		LOG(DEBUG) << "  | Depth                                   | " << std::setw(39) << new_desc.Depth << " |";
+		LOG(DEBUG) << "  | MipLevels                               | " << std::setw(39) << new_desc.MipLevels << " |";
+		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
+		LOG(DEBUG) << "  | Usage                                   | " << std::setw(39) << new_desc.Usage << " |";
+		LOG(DEBUG) << "  | BindFlags                               | " << std::setw(39) << std::hex << new_desc.BindFlags << std::dec << " |";
+		LOG(DEBUG) << "  | CPUAccessFlags                          | " << std::setw(39) << std::hex << new_desc.CPUAccessFlags << std::dec << " |";
+		LOG(DEBUG) << "  | MiscFlags                               | " << std::setw(39) << std::hex << new_desc.MiscFlags << std::dec << " |";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
 	}
 #endif
 
@@ -589,11 +589,11 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateShaderResourceView(ID3D10Resource *
 	else
 	{
 		LOG(WARN) << "ID3D10Device::CreateShaderResourceView" << " failed with error code " << hr << '.';
-		LOG(INFO) << "> Dumping description:";
-		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
-		LOG(INFO) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
-		LOG(INFO) << "  | ViewDimension                           | " << std::setw(39) << new_desc.ViewDimension << " |";
-		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(DEBUG) << "> Dumping description:";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
+		LOG(DEBUG) << "  | ViewDimension                           | " << std::setw(39) << new_desc.ViewDimension << " |";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
 	}
 #endif
 
@@ -623,11 +623,11 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateRenderTargetView(ID3D10Resource *pR
 	else
 	{
 		LOG(WARN) << "ID3D10Device::CreateRenderTargetView" << " failed with error code " << hr << '.';
-		LOG(INFO) << "> Dumping description:";
-		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
-		LOG(INFO) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
-		LOG(INFO) << "  | ViewDimension                           | " << std::setw(39) << new_desc.ViewDimension << " |";
-		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(DEBUG) << "> Dumping description:";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
+		LOG(DEBUG) << "  | ViewDimension                           | " << std::setw(39) << new_desc.ViewDimension << " |";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
 	}
 #endif
 
@@ -657,11 +657,11 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateDepthStencilView(ID3D10Resource *pR
 	else
 	{
 		LOG(WARN) << "ID3D10Device::CreateDepthStencilView" << " failed with error code " << hr << '.';
-		LOG(INFO) << "> Dumping description:";
-		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
-		LOG(INFO) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
-		LOG(INFO) << "  | ViewDimension                           | " << std::setw(39) << new_desc.ViewDimension << " |";
-		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(DEBUG) << "> Dumping description:";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
+		LOG(DEBUG) << "  | ViewDimension                           | " << std::setw(39) << new_desc.ViewDimension << " |";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
 	}
 #endif
 
@@ -772,11 +772,11 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateShaderResourceView1(ID3D10Resource 
 	else
 	{
 		LOG(WARN) << "ID3D10Device1::CreateShaderResourceView1" << " failed with error code " << hr << '.';
-		LOG(INFO) << "> Dumping description:";
-		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
-		LOG(INFO) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
-		LOG(INFO) << "  | ViewDimension                           | " << std::setw(39) << new_desc.ViewDimension << " |";
-		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(DEBUG) << "> Dumping description:";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
+		LOG(DEBUG) << "  | ViewDimension                           | " << std::setw(39) << new_desc.ViewDimension << " |";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
 	}
 #endif
 

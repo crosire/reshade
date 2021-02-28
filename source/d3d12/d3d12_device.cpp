@@ -363,20 +363,20 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource(const D3D12_HEAP_
 	else
 	{
 		LOG(WARN) << "ID3D12Device::CreateCommittedResource" << " failed with error code " << hr << '.';
-		LOG(INFO) << "> Dumping description:";
-		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
-		LOG(INFO) << "  | Dimension                               | " << std::setw(39) << new_desc.Dimension << " |";
-		LOG(INFO) << "  | Alignment                               | " << std::setw(39) << new_desc.Alignment << " |";
-		LOG(INFO) << "  | Width                                   | " << std::setw(39) << new_desc.Width << " |";
-		LOG(INFO) << "  | Height                                  | " << std::setw(39) << new_desc.Height << " |";
-		LOG(INFO) << "  | DepthOrArraySize                        | " << std::setw(39) << new_desc.DepthOrArraySize << " |";
-		LOG(INFO) << "  | MipLevels                               | " << std::setw(39) << new_desc.MipLevels << " |";
-		LOG(INFO) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
-		LOG(INFO) << "  | SampleCount                             | " << std::setw(39) << new_desc.SampleDesc.Count << " |";
-		LOG(INFO) << "  | SampleQuality                           | " << std::setw(39) << new_desc.SampleDesc.Quality << " |";
-		LOG(INFO) << "  | Layout                                  | " << std::setw(39) << new_desc.Layout << " |";
-		LOG(INFO) << "  | Flags                                   | " << std::setw(39) << std::hex << new_desc.Flags << std::dec << " |";
-		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(DEBUG) << "> Dumping description:";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(DEBUG) << "  | Dimension                               | " << std::setw(39) << new_desc.Dimension << " |";
+		LOG(DEBUG) << "  | Alignment                               | " << std::setw(39) << new_desc.Alignment << " |";
+		LOG(DEBUG) << "  | Width                                   | " << std::setw(39) << new_desc.Width << " |";
+		LOG(DEBUG) << "  | Height                                  | " << std::setw(39) << new_desc.Height << " |";
+		LOG(DEBUG) << "  | DepthOrArraySize                        | " << std::setw(39) << new_desc.DepthOrArraySize << " |";
+		LOG(DEBUG) << "  | MipLevels                               | " << std::setw(39) << new_desc.MipLevels << " |";
+		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
+		LOG(DEBUG) << "  | SampleCount                             | " << std::setw(39) << new_desc.SampleDesc.Count << " |";
+		LOG(DEBUG) << "  | SampleQuality                           | " << std::setw(39) << new_desc.SampleDesc.Quality << " |";
+		LOG(DEBUG) << "  | Layout                                  | " << std::setw(39) << new_desc.Layout << " |";
+		LOG(DEBUG) << "  | Flags                                   | " << std::setw(39) << std::hex << new_desc.Flags << std::dec << " |";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
 	}
 #endif
 
@@ -412,20 +412,20 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePlacedResource(ID3D12Heap *pHeap, U
 	else
 	{
 		LOG(WARN) << "ID3D12Device::CreatePlacedResource" << " failed with error code " << hr << '.';
-		LOG(INFO) << "> Dumping description:";
-		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
-		LOG(INFO) << "  | Dimension                               | " << std::setw(39) << new_desc.Dimension << " |";
-		LOG(INFO) << "  | Alignment                               | " << std::setw(39) << new_desc.Alignment << " |";
-		LOG(INFO) << "  | Width                                   | " << std::setw(39) << new_desc.Width << " |";
-		LOG(INFO) << "  | Height                                  | " << std::setw(39) << new_desc.Height << " |";
-		LOG(INFO) << "  | DepthOrArraySize                        | " << std::setw(39) << new_desc.DepthOrArraySize << " |";
-		LOG(INFO) << "  | MipLevels                               | " << std::setw(39) << new_desc.MipLevels << " |";
-		LOG(INFO) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
-		LOG(INFO) << "  | SampleCount                             | " << std::setw(39) << new_desc.SampleDesc.Count << " |";
-		LOG(INFO) << "  | SampleQuality                           | " << std::setw(39) << new_desc.SampleDesc.Quality << " |";
-		LOG(INFO) << "  | Layout                                  | " << std::setw(39) << new_desc.Layout << " |";
-		LOG(INFO) << "  | Flags                                   | " << std::setw(39) << std::hex << new_desc.Flags << std::dec << " |";
-		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(DEBUG) << "> Dumping description:";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(DEBUG) << "  | Dimension                               | " << std::setw(39) << new_desc.Dimension << " |";
+		LOG(DEBUG) << "  | Alignment                               | " << std::setw(39) << new_desc.Alignment << " |";
+		LOG(DEBUG) << "  | Width                                   | " << std::setw(39) << new_desc.Width << " |";
+		LOG(DEBUG) << "  | Height                                  | " << std::setw(39) << new_desc.Height << " |";
+		LOG(DEBUG) << "  | DepthOrArraySize                        | " << std::setw(39) << new_desc.DepthOrArraySize << " |";
+		LOG(DEBUG) << "  | MipLevels                               | " << std::setw(39) << new_desc.MipLevels << " |";
+		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
+		LOG(DEBUG) << "  | SampleCount                             | " << std::setw(39) << new_desc.SampleDesc.Count << " |";
+		LOG(DEBUG) << "  | SampleQuality                           | " << std::setw(39) << new_desc.SampleDesc.Quality << " |";
+		LOG(DEBUG) << "  | Layout                                  | " << std::setw(39) << new_desc.Layout << " |";
+		LOG(DEBUG) << "  | Flags                                   | " << std::setw(39) << std::hex << new_desc.Flags << std::dec << " |";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
 	}
 #endif
 
@@ -452,20 +452,20 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource(const D3D12_RESOUR
 	else
 	{
 		LOG(WARN) << "ID3D12Device::CreateReservedResource" << " failed with error code " << hr << '.';
-		LOG(INFO) << "> Dumping description:";
-		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
-		LOG(INFO) << "  | Dimension                               | " << std::setw(39) << new_desc.Dimension << " |";
-		LOG(INFO) << "  | Alignment                               | " << std::setw(39) << new_desc.Alignment << " |";
-		LOG(INFO) << "  | Width                                   | " << std::setw(39) << new_desc.Width << " |";
-		LOG(INFO) << "  | Height                                  | " << std::setw(39) << new_desc.Height << " |";
-		LOG(INFO) << "  | DepthOrArraySize                        | " << std::setw(39) << new_desc.DepthOrArraySize << " |";
-		LOG(INFO) << "  | MipLevels                               | " << std::setw(39) << new_desc.MipLevels << " |";
-		LOG(INFO) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
-		LOG(INFO) << "  | SampleCount                             | " << std::setw(39) << new_desc.SampleDesc.Count << " |";
-		LOG(INFO) << "  | SampleQuality                           | " << std::setw(39) << new_desc.SampleDesc.Quality << " |";
-		LOG(INFO) << "  | Layout                                  | " << std::setw(39) << new_desc.Layout << " |";
-		LOG(INFO) << "  | Flags                                   | " << std::setw(39) << std::hex << new_desc.Flags << std::dec << " |";
-		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(DEBUG) << "> Dumping description:";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(DEBUG) << "  | Dimension                               | " << std::setw(39) << new_desc.Dimension << " |";
+		LOG(DEBUG) << "  | Alignment                               | " << std::setw(39) << new_desc.Alignment << " |";
+		LOG(DEBUG) << "  | Width                                   | " << std::setw(39) << new_desc.Width << " |";
+		LOG(DEBUG) << "  | Height                                  | " << std::setw(39) << new_desc.Height << " |";
+		LOG(DEBUG) << "  | DepthOrArraySize                        | " << std::setw(39) << new_desc.DepthOrArraySize << " |";
+		LOG(DEBUG) << "  | MipLevels                               | " << std::setw(39) << new_desc.MipLevels << " |";
+		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
+		LOG(DEBUG) << "  | SampleCount                             | " << std::setw(39) << new_desc.SampleDesc.Count << " |";
+		LOG(DEBUG) << "  | SampleQuality                           | " << std::setw(39) << new_desc.SampleDesc.Quality << " |";
+		LOG(DEBUG) << "  | Layout                                  | " << std::setw(39) << new_desc.Layout << " |";
+		LOG(DEBUG) << "  | Flags                                   | " << std::setw(39) << std::hex << new_desc.Flags << std::dec << " |";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
 	}
 #endif
 
@@ -619,20 +619,20 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource1(const D3D12_HEAP
 	else
 	{
 		LOG(WARN) << "ID3D12Device::CreateCommittedResource1" << " failed with error code " << hr << '.';
-		LOG(INFO) << "> Dumping description:";
-		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
-		LOG(INFO) << "  | Dimension                               | " << std::setw(39) << new_desc.Dimension << " |";
-		LOG(INFO) << "  | Alignment                               | " << std::setw(39) << new_desc.Alignment << " |";
-		LOG(INFO) << "  | Width                                   | " << std::setw(39) << new_desc.Width << " |";
-		LOG(INFO) << "  | Height                                  | " << std::setw(39) << new_desc.Height << " |";
-		LOG(INFO) << "  | DepthOrArraySize                        | " << std::setw(39) << new_desc.DepthOrArraySize << " |";
-		LOG(INFO) << "  | MipLevels                               | " << std::setw(39) << new_desc.MipLevels << " |";
-		LOG(INFO) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
-		LOG(INFO) << "  | SampleCount                             | " << std::setw(39) << new_desc.SampleDesc.Count << " |";
-		LOG(INFO) << "  | SampleQuality                           | " << std::setw(39) << new_desc.SampleDesc.Quality << " |";
-		LOG(INFO) << "  | Layout                                  | " << std::setw(39) << new_desc.Layout << " |";
-		LOG(INFO) << "  | Flags                                   | " << std::setw(39) << std::hex << new_desc.Flags << std::dec << " |";
-		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(DEBUG) << "> Dumping description:";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(DEBUG) << "  | Dimension                               | " << std::setw(39) << new_desc.Dimension << " |";
+		LOG(DEBUG) << "  | Alignment                               | " << std::setw(39) << new_desc.Alignment << " |";
+		LOG(DEBUG) << "  | Width                                   | " << std::setw(39) << new_desc.Width << " |";
+		LOG(DEBUG) << "  | Height                                  | " << std::setw(39) << new_desc.Height << " |";
+		LOG(DEBUG) << "  | DepthOrArraySize                        | " << std::setw(39) << new_desc.DepthOrArraySize << " |";
+		LOG(DEBUG) << "  | MipLevels                               | " << std::setw(39) << new_desc.MipLevels << " |";
+		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
+		LOG(DEBUG) << "  | SampleCount                             | " << std::setw(39) << new_desc.SampleDesc.Count << " |";
+		LOG(DEBUG) << "  | SampleQuality                           | " << std::setw(39) << new_desc.SampleDesc.Quality << " |";
+		LOG(DEBUG) << "  | Layout                                  | " << std::setw(39) << new_desc.Layout << " |";
+		LOG(DEBUG) << "  | Flags                                   | " << std::setw(39) << std::hex << new_desc.Flags << std::dec << " |";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
 	}
 #endif
 
@@ -665,20 +665,20 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource1(const D3D12_RESOU
 	else
 	{
 		LOG(WARN) << "ID3D12Device::CreateReservedResource1" << " failed with error code " << hr << '.';
-		LOG(INFO) << "> Dumping description:";
-		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
-		LOG(INFO) << "  | Dimension                               | " << std::setw(39) << new_desc.Dimension << " |";
-		LOG(INFO) << "  | Alignment                               | " << std::setw(39) << new_desc.Alignment << " |";
-		LOG(INFO) << "  | Width                                   | " << std::setw(39) << new_desc.Width << " |";
-		LOG(INFO) << "  | Height                                  | " << std::setw(39) << new_desc.Height << " |";
-		LOG(INFO) << "  | DepthOrArraySize                        | " << std::setw(39) << new_desc.DepthOrArraySize << " |";
-		LOG(INFO) << "  | MipLevels                               | " << std::setw(39) << new_desc.MipLevels << " |";
-		LOG(INFO) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
-		LOG(INFO) << "  | SampleCount                             | " << std::setw(39) << new_desc.SampleDesc.Count << " |";
-		LOG(INFO) << "  | SampleQuality                           | " << std::setw(39) << new_desc.SampleDesc.Quality << " |";
-		LOG(INFO) << "  | Layout                                  | " << std::setw(39) << new_desc.Layout << " |";
-		LOG(INFO) << "  | Flags                                   | " << std::setw(39) << std::hex << new_desc.Flags << std::dec << " |";
-		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(DEBUG) << "> Dumping description:";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(DEBUG) << "  | Dimension                               | " << std::setw(39) << new_desc.Dimension << " |";
+		LOG(DEBUG) << "  | Alignment                               | " << std::setw(39) << new_desc.Alignment << " |";
+		LOG(DEBUG) << "  | Width                                   | " << std::setw(39) << new_desc.Width << " |";
+		LOG(DEBUG) << "  | Height                                  | " << std::setw(39) << new_desc.Height << " |";
+		LOG(DEBUG) << "  | DepthOrArraySize                        | " << std::setw(39) << new_desc.DepthOrArraySize << " |";
+		LOG(DEBUG) << "  | MipLevels                               | " << std::setw(39) << new_desc.MipLevels << " |";
+		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
+		LOG(DEBUG) << "  | SampleCount                             | " << std::setw(39) << new_desc.SampleDesc.Count << " |";
+		LOG(DEBUG) << "  | SampleQuality                           | " << std::setw(39) << new_desc.SampleDesc.Quality << " |";
+		LOG(DEBUG) << "  | Layout                                  | " << std::setw(39) << new_desc.Layout << " |";
+		LOG(DEBUG) << "  | Flags                                   | " << std::setw(39) << std::hex << new_desc.Flags << std::dec << " |";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
 	}
 #endif
 
