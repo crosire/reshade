@@ -202,7 +202,7 @@ void reshade::opengl::runtime_impl::on_present()
 	// Apply previous state from application
 	_app_state.apply(_compatibility_context);
 }
-bool reshade::opengl::runtime_impl::on_present(GLuint source_object, bool rbo, unsigned int width, unsigned int height, const GLint region[4])
+bool reshade::opengl::runtime_impl::on_present(GLuint source_object, bool is_rbo, bool is_array, unsigned int width, unsigned int height, const GLint region[4])
 {
 	if (width != _width || height != _height)
 	{
@@ -227,9 +227,12 @@ bool reshade::opengl::runtime_impl::on_present(GLuint source_object, bool rbo, u
 	glBindFramebuffer(GL_READ_FRAMEBUFFER, _fbo[FBO_BLIT]);
 	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _fbo[FBO_BACK]);
 
-	if (rbo) {
+	if (is_rbo) {
 		// TODO: This or the second blit below will fail if RBO is multisampled
 		glFramebufferRenderbuffer(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_RENDERBUFFER, source_object);
+	}
+	else if (is_array) {
+		glFramebufferTextureLayer(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, source_object, 0, 0);
 	}
 	else {
 		glFramebufferTexture(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, source_object, 0);

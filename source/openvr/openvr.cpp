@@ -79,7 +79,7 @@ static bool on_submit_d3d12(vr::EVREye, const vr::D3D12TextureData_t *texture, c
 	// Resource should be in D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE state at this point
 	return static_cast<reshade::d3d12::runtime_impl *>(s_vr_runtime.first)->on_present(texture->m_pResource, region, nullptr);
 }
-static bool on_submit_opengl(vr::EVREye, GLuint object, bool rbo, const vr::VRTextureBounds_t *bounds)
+static bool on_submit_opengl(vr::EVREye, GLuint object, bool is_rbo, bool is_array, const vr::VRTextureBounds_t *bounds)
 {
 	if (s_vr_runtime.first == nullptr)
 	{
@@ -93,7 +93,7 @@ static bool on_submit_opengl(vr::EVREye, GLuint object, bool rbo, const vr::VRTe
 		return false;
 
 	reshade::api::resource_desc object_desc = static_cast<reshade::opengl::runtime_impl *>(s_vr_runtime.first)->get_resource_desc(
-		reshade::api::resource_handle { (static_cast<uint64_t>(rbo ? GL_RENDERBUFFER : GL_TEXTURE) << 40) | object });
+		reshade::api::resource_handle { (static_cast<uint64_t>(is_rbo ? GL_RENDERBUFFER : GL_TEXTURE) << 40) | object });
 
 	GLint region[4] = { 0, 0, static_cast<GLint>(object_desc.width), static_cast<GLint>(object_desc.height) };
 	if (bounds != nullptr)
@@ -104,7 +104,7 @@ static bool on_submit_opengl(vr::EVREye, GLuint object, bool rbo, const vr::VRTe
 		region[3] = static_cast<GLint>(object_desc.height * std::max(bounds->vMin, bounds->vMax));
 	}
 
-	return static_cast<reshade::opengl::runtime_impl *>(s_vr_runtime.first)->on_present(object, rbo, object_desc.width, object_desc.height, region);
+	return static_cast<reshade::opengl::runtime_impl *>(s_vr_runtime.first)->on_present(object, is_rbo, is_array, object_desc.width, object_desc.height, region);
 }
 static bool on_submit_vulkan(vr::EVREye, const vr::VRVulkanTextureData_t *texture, bool with_array_data, const vr::VRTextureBounds_t *bounds)
 {
@@ -201,7 +201,7 @@ IVRCompositor_Submit_Impl(6, 007, {
 		status = on_submit_d3d11(eEye, static_cast<ID3D11Texture2D *>(pTexture), pBounds);
 		break;
 	case 1: // API_OpenGL
-		status = on_submit_opengl(eEye, static_cast<GLuint>(reinterpret_cast<uintptr_t>(pTexture)), false, pBounds);
+		status = on_submit_opengl(eEye, static_cast<GLuint>(reinterpret_cast<uintptr_t>(pTexture)), false, false, pBounds);
 		break;
 	} })
 IVRCompositor_Submit_Impl(6, 008, {
@@ -211,7 +211,7 @@ IVRCompositor_Submit_Impl(6, 008, {
 		status = on_submit_d3d11(eEye, static_cast<ID3D11Texture2D *>(pTexture), pBounds);
 		break;
 	case 1: // API_OpenGL
-		status = on_submit_opengl(eEye, static_cast<GLuint>(reinterpret_cast<uintptr_t>(pTexture)), (nSubmitFlags & vr::Submit_GlRenderBuffer) != 0, pBounds);
+		status = on_submit_opengl(eEye, static_cast<GLuint>(reinterpret_cast<uintptr_t>(pTexture)), (nSubmitFlags & vr::Submit_GlRenderBuffer) != 0, false, pBounds);
 		break;
 	} })
 IVRCompositor_Submit_Impl(4, 009, {
@@ -221,7 +221,7 @@ IVRCompositor_Submit_Impl(4, 009, {
 		status = on_submit_d3d11(eEye, static_cast<ID3D11Texture2D *>(pTexture->handle), pBounds);
 		break;
 	case vr::TextureType_OpenGL:
-		status = on_submit_opengl(eEye, static_cast<GLuint>(reinterpret_cast<uintptr_t>(pTexture->handle)), (nSubmitFlags & vr::Submit_GlRenderBuffer) != 0, pBounds);
+		status = on_submit_opengl(eEye, static_cast<GLuint>(reinterpret_cast<uintptr_t>(pTexture->handle)), (nSubmitFlags & vr::Submit_GlRenderBuffer) != 0, false, pBounds);
 		break;
 	} })
 IVRCompositor_Submit_Impl(5, 012, {
@@ -234,7 +234,7 @@ IVRCompositor_Submit_Impl(5, 012, {
 		status = on_submit_d3d12(eEye, static_cast<const vr::D3D12TextureData_t *>(pTexture->handle), pBounds);
 		break;
 	case vr::TextureType_OpenGL:
-		status = on_submit_opengl(eEye, static_cast<GLuint>(reinterpret_cast<uintptr_t>(pTexture->handle)), (nSubmitFlags & vr::Submit_GlRenderBuffer) != 0, pBounds);
+		status = on_submit_opengl(eEye, static_cast<GLuint>(reinterpret_cast<uintptr_t>(pTexture->handle)), (nSubmitFlags & vr::Submit_GlRenderBuffer) != 0, (nSubmitFlags & vr::Submit_GlArrayTexture) != 0, pBounds);
 		break;
 	case vr::TextureType_Vulkan:
 		status = on_submit_vulkan(eEye, static_cast<const vr::VRVulkanTextureData_t *>(pTexture->handle), (nSubmitFlags & vr::Submit_VulkanTextureWithArrayData) != 0, pBounds);
