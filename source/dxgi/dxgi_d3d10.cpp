@@ -11,6 +11,27 @@
 // Therefore can assume that the export module handle points toward the system dxgi.dll
 extern HMODULE g_export_module_handle;
 
+HOOK_EXPORT BOOL    WINAPI CompatValue(LPCSTR szName, UINT64 *pValue)
+{
+	assert(g_export_module_handle != nullptr);
+
+	const FARPROC proc = GetProcAddress(g_export_module_handle, "CompatValue");
+	if (proc != nullptr)
+		return reinterpret_cast<decltype(&CompatValue)>(proc)(szName, pValue);
+	else
+		return FALSE;
+}
+HOOK_EXPORT BOOL    WINAPI CompatString(LPCSTR szName, ULONG *pSize, LPSTR lpData, bool Flag)
+{
+	assert(g_export_module_handle != nullptr);
+
+	const FARPROC proc = GetProcAddress(g_export_module_handle, "CompatString");
+	if (proc != nullptr)
+		return reinterpret_cast<decltype(&CompatString)>(proc)(szName, pSize, lpData, Flag);
+	else
+		return FALSE;
+}
+
 HOOK_EXPORT HRESULT WINAPI DXGIDumpJournal(void *pfnCallback)
 {
 	assert(g_export_module_handle != nullptr);

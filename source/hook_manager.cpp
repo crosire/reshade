@@ -169,6 +169,8 @@ static bool install_internal(HMODULE target_module, HMODULE replacement_module, 
 
 		// Filter out uninteresting functions
 		if (it != replacement_exports.cend() &&
+			std::strcmp(symbol.name, "CompatValue") != 0 &&
+			std::strcmp(symbol.name, "CompatString") != 0 &&
 			std::strcmp(symbol.name, "DXGIDumpJournal") != 0 &&
 			std::strcmp(symbol.name, "DXGIReportAdapterConfiguration") != 0 &&
 			std::strcmp(symbol.name, "DXGID3D10CreateDevice") != 0 &&

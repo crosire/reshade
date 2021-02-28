@@ -57,6 +57,8 @@ EXPORTS
 	DXGID3D10GetLayeredDeviceSize PRIVATE
 	DXGID3D10RegisterLayers PRIVATE
 
+	CompatValue PRIVATE
+	CompatString PRIVATE
 	DXGIDumpJournal PRIVATE
 	DXGIDeclareAdapterRemovalSupport PRIVATE
 	DXGIGetDebugInterface1 PRIVATE
