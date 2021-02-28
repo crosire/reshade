@@ -55,18 +55,11 @@ static bool on_submit_d3d12(vr::EVREye, const vr::D3D12TextureData_t *texture, c
 {
 	if (s_vr_runtime.first == nullptr)
 	{
-		com_ptr<ID3D12Device> device;
-		com_ptr< D3D12Device> device_proxy;
-		texture->m_pResource->GetDevice(IID_PPV_ARGS(&device));
-		if (UINT data_size = sizeof(device_proxy);
-			FAILED(device->GetPrivateData(__uuidof(D3D12Device), &data_size, reinterpret_cast<void *>(&device_proxy))))
-			return false;
-
-		com_ptr< D3D12CommandQueue> command_queue_proxy;
+		com_ptr<D3D12CommandQueue> command_queue_proxy;
 		if (FAILED(texture->m_pCommandQueue->QueryInterface(IID_PPV_ARGS(&command_queue_proxy))))
 			return false;
 
-		s_vr_runtime = { new reshade::d3d12::runtime_impl(device_proxy.get(), command_queue_proxy.get(), nullptr), vr::TextureType_DirectX12 };
+		s_vr_runtime = { new reshade::d3d12::runtime_impl(command_queue_proxy->_device, command_queue_proxy.get(), nullptr), vr::TextureType_DirectX12 };
 	}
 
 	if (s_vr_runtime.second != vr::TextureType_DirectX12)

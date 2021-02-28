@@ -16,6 +16,7 @@ D3D11Device::D3D11Device(IDXGIDevice1 *dxgi_device, ID3D11Device *original) :
 {
 	assert(_orig != nullptr);
 
+	// Add proxy object to the private data of the device, so that it can be retrieved again when only the original device is available (as is the case in the OpenVR hooks)
 	D3D11Device *const device_proxy = this;
 	_orig->SetPrivateData(__uuidof(D3D11Device), sizeof(device_proxy), &device_proxy);
 }
