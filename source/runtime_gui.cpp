@@ -814,11 +814,14 @@ void reshade::runtime::draw_gui()
 		}
 
 #if RESHADE_ADDON
-		for (const auto &widget : addon::overlay_list)
+		if (g_addons_enabled)
 		{
-			if (ImGui::Begin(widget.first.c_str(), nullptr, ImGuiWindowFlags_NoFocusOnAppearing))
-				widget.second(this, _imgui_context);
-			ImGui::End();
+			for (const auto &widget : addon::overlay_list)
+			{
+				if (ImGui::Begin(widget.first.c_str(), nullptr, ImGuiWindowFlags_NoFocusOnAppearing))
+					widget.second(this, _imgui_context);
+				ImGui::End();
+			}
 		}
 #endif
 
