@@ -80,7 +80,7 @@ reshade::vulkan::runtime_impl::runtime_impl(device_impl *device, command_queue_i
 	_device_impl(device),
 	_device(device->_orig),
 	_queue_impl(graphics_queue),
-	_queue((VkQueue)graphics_queue->get_native_object()),
+	_queue(graphics_queue->_orig),
 	_cmd_impl(static_cast<command_list_immediate_impl *>(graphics_queue->get_immediate_command_list()))
 {
 	VkPhysicalDeviceProperties device_props = {};
@@ -141,15 +141,19 @@ bool reshade::vulkan::runtime_impl::on_init(VkSwapchainKHR swapchain, const VkSw
 {
 	_orig = swapchain;
 
-	RECT window_rect = {};
-	GetClientRect(hwnd, &window_rect);
-
-	_width = desc.imageExtent.width;
-	_height = desc.imageExtent.height;
-	_window_width = window_rect.right;
-	_window_height = window_rect.bottom;
+	_width = _window_width = desc.imageExtent.width;
+	_height = _window_height = desc.imageExtent.height;
 	_color_bit_depth = desc.imageFormat >= VK_FORMAT_A2R10G10B10_UNORM_PACK32 && desc.imageFormat <= VK_FORMAT_A2B10G10R10_SINT_PACK32 ? 10 : 8;
 	_backbuffer_format = desc.imageFormat;
+
+	if (hwnd != nullptr)
+	{
+		RECT window_rect = {};
+		GetClientRect(hwnd, &window_rect);
+
+		_window_width = window_rect.right;
+		_window_height = window_rect.bottom;
+	}
 
 	if (_queue == VK_NULL_HANDLE)
 		return false;
@@ -237,13 +241,21 @@ bool reshade::vulkan::runtime_impl::on_init(VkSwapchainKHR swapchain, const VkSw
 			return false;
 	}
 
-	// Get back buffer images
 	uint32_t num_images = 0;
-	if (vk.GetSwapchainImagesKHR(_device, swapchain, &num_images, nullptr) != VK_SUCCESS)
-		return false;
-	_swapchain_images.resize(num_images);
-	if (vk.GetSwapchainImagesKHR(_device, swapchain, &num_images, _swapchain_images.data()) != VK_SUCCESS)
-		return false;
+	if (swapchain != VK_NULL_HANDLE)
+	{
+		// Get back buffer images
+		if (vk.GetSwapchainImagesKHR(_device, swapchain, &num_images, nullptr) != VK_SUCCESS)
+			return false;
+		_swapchain_images.resize(num_images);
+		if (vk.GetSwapchainImagesKHR(_device, swapchain, &num_images, _swapchain_images.data()) != VK_SUCCESS)
+			return false;
+	}
+	else
+	{
+		num_images = static_cast<uint32_t>(_swapchain_images.size());
+		assert(num_images != 0);
+	}
 
 	assert(desc.imageUsage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
 	_render_area = desc.imageExtent;
@@ -350,6 +362,10 @@ void reshade::vulkan::runtime_impl::on_reset()
 	for (VkFramebuffer frame : _swapchain_frames)
 		vk.DestroyFramebuffer(_device, frame, nullptr);
 	_swapchain_frames.clear();
+
+	if (_orig == VK_NULL_HANDLE)
+		for (VkImage image : _swapchain_images)
+			vk.DestroyImage(_device, image, nullptr);
 	_swapchain_images.clear();
 
 	for (VkSemaphore &semaphore : _queue_sync_semaphores)
@@ -402,7 +418,7 @@ void reshade::vulkan::runtime_impl::on_reset()
 	_allocations.clear();
 }
 
-void reshade::vulkan::runtime_impl::on_present(VkQueue queue, uint32_t swapchain_image_index, std::vector<VkSemaphore> &wait)
+void reshade::vulkan::runtime_impl::on_present(VkQueue queue, const uint32_t swapchain_image_index, std::vector<VkSemaphore> &wait)
 {
 	if (!_is_initialized)
 		return;
@@ -447,6 +463,89 @@ void reshade::vulkan::runtime_impl::on_present(VkQueue queue, uint32_t swapchain
 	}
 
 	_cmd_impl->flush(_queue, wait);
+}
+bool reshade::vulkan::runtime_impl::on_present(VkQueue queue, VkImage source, VkFormat source_format, VkSampleCountFlags source_samples, const VkRect2D &region, uint32_t layer_index, HWND hwnd, std::vector<VkSemaphore> &wait)
+{
+	assert(source != VK_NULL_HANDLE);
+
+	if (source_samples != VK_SAMPLE_COUNT_1_BIT)
+		return false;
+
+	if (region.extent.width != _width || region.extent.height != _height || source_format != _backbuffer_format)
+	{
+		on_reset();
+
+		const VkImage image = create_image(
+			region.extent.width, region.extent.height, 1, source_format,
+			VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+		if (image == VK_NULL_HANDLE)
+		{
+			LOG(ERROR) << "Failed to create region image!";
+			return false;
+		}
+
+		_swapchain_images.resize(1);
+		_swapchain_images[0] = image;
+
+		VkSwapchainCreateInfoKHR desc = { VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR };
+		desc.imageExtent = region.extent;
+		desc.imageFormat = source_format;
+		desc.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
+		if (!on_init(VK_NULL_HANDLE, desc, hwnd))
+		{
+			LOG(ERROR) << "Failed to initialize Vulkan runtime environment on runtime " << this << '!';
+			return false;
+		}
+	}
+
+	const VkCommandBuffer cmd_list = _cmd_impl->begin_commands();
+
+	transition_layout(_device_impl->_dispatch_table, cmd_list, _swapchain_images[0], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+	// Copy region of the source texture
+	if (source_samples == VK_SAMPLE_COUNT_1_BIT)
+	{
+		const VkImageCopy copy_region = {
+			{ VK_IMAGE_ASPECT_COLOR_BIT, 0, layer_index, 1 }, { region.offset.x, region.offset.y, 0 },
+			{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 }, { 0, 0, 0 }, { region.extent.width, region.extent.height, 1 }
+		};
+		vk.CmdCopyImage(cmd_list, source, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, _swapchain_images[0], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy_region);
+	}
+	else
+	{
+		const VkImageResolve resolve_region = {
+			{ VK_IMAGE_ASPECT_COLOR_BIT, 0, layer_index, 1 }, { region.offset.x, region.offset.y, 0 },
+			{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 }, { 0, 0, 0 }, { region.extent.width, region.extent.height, 1 }
+		};
+		vk.CmdResolveImage(cmd_list, source, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, _swapchain_images[0], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &resolve_region);
+	}
+
+	transition_layout(_device_impl->_dispatch_table, cmd_list, _swapchain_images[0], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+
+	on_present(queue, 0, wait);
+
+	transition_layout(_device_impl->_dispatch_table, cmd_list, _swapchain_images[0], VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+	transition_layout(_device_impl->_dispatch_table, cmd_list, source, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+	// Copy results back into the source texture
+	if (source_samples == VK_SAMPLE_COUNT_1_BIT)
+	{
+		const VkImageCopy copy_region = {
+			{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 }, { 0, 0, 0 },
+			{ VK_IMAGE_ASPECT_COLOR_BIT, 0, layer_index, 1 }, { region.offset.x, region.offset.y, 0 }, { region.extent.width, region.extent.height, 1 }
+		};
+		vk.CmdCopyImage(cmd_list, _swapchain_images[0], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, source, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy_region);
+	}
+	else
+	{
+		// TODO
+		assert(false);
+	}
+
+	transition_layout(_device_impl->_dispatch_table, cmd_list, source, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+
+	return true;
 }
 
 bool reshade::vulkan::runtime_impl::capture_screenshot(uint8_t *buffer) const

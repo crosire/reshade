@@ -13,6 +13,9 @@ D3D10Device::D3D10Device(IDXGIDevice1 *dxgi_device, ID3D10Device1 *original) :
 	_dxgi_device(new DXGIDevice(dxgi_device, this))
 {
 	assert(_orig != nullptr);
+
+	D3D10Device *const device_proxy = this;
+	_orig->SetPrivateData(__uuidof(D3D10Device), sizeof(device_proxy), &device_proxy);
 }
 
 bool D3D10Device::check_and_upgrade_interface(REFIID riid)

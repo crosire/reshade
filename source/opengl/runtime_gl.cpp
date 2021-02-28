@@ -53,18 +53,25 @@ reshade::opengl::runtime_impl::~runtime_impl()
 
 bool reshade::opengl::runtime_impl::on_init(HWND hwnd, unsigned int width, unsigned int height)
 {
-	RECT window_rect = {};
-	GetClientRect(hwnd, &window_rect);
+	_width = _window_width = width;
+	_height = _window_height = height;
 
-	const HDC hdc = GetDC(hwnd);
-	PIXELFORMATDESCRIPTOR pfd = { sizeof(pfd) };
-	DescribePixelFormat(hdc, GetPixelFormat(hdc), sizeof(pfd), &pfd);
+	if (hwnd != nullptr)
+	{
+		RECT window_rect = {};
+		GetClientRect(hwnd, &window_rect);
 
-	_width = _default_fbo_width = width;
-	_height = _default_fbo_height = height;
-	_window_width = window_rect.right;
-	_window_height = window_rect.bottom;
-	_color_bit_depth = std::min(pfd.cRedBits, std::min(pfd.cGreenBits, pfd.cBlueBits));
+		_window_width = window_rect.right;
+		_window_height = window_rect.bottom;
+		_default_fbo_width = width;
+		_default_fbo_height = height;
+
+		const HDC hdc = GetDC(hwnd);
+		PIXELFORMATDESCRIPTOR pfd = { sizeof(pfd) };
+		DescribePixelFormat(hdc, GetPixelFormat(hdc), sizeof(pfd), &pfd);
+
+		_color_bit_depth = std::min(pfd.cRedBits, std::min(pfd.cGreenBits, pfd.cBlueBits));
+	}
 
 	// Capture and later restore so that the resource creation code below does not affect the application state
 	_app_state.capture(_compatibility_context);
@@ -187,6 +194,62 @@ void reshade::opengl::runtime_impl::on_present()
 
 	// Apply previous state from application
 	_app_state.apply(_compatibility_context);
+}
+bool reshade::opengl::runtime_impl::on_present(GLuint source_object, bool rbo, unsigned int width, unsigned int height, const GLint region[4])
+{
+	if (width != _width || height != _height)
+	{
+		on_reset();
+
+		if (!on_init(nullptr, width, height))
+		{
+			LOG(ERROR) << "Failed to initialize OpenGL runtime environment on runtime " << this << '!';
+			return false;
+		}
+	}
+
+	_app_state.capture(_compatibility_context);
+
+	// Set clip space to something consistent
+	if (gl3wProcs.gl.ClipControl != nullptr)
+		glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
+
+	// Copy source region to RBO
+	glDisable(GL_SCISSOR_TEST);
+	glDisable(GL_FRAMEBUFFER_SRGB);
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, _fbo[FBO_BLIT]);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _fbo[FBO_BACK]);
+
+	if (rbo) {
+		// TODO: This or the second blit below will fail if RBO is multisampled
+		glFramebufferRenderbuffer(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_RENDERBUFFER, source_object);
+	}
+	else {
+		glFramebufferTexture(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, source_object, 0);
+	}
+
+	glReadBuffer(GL_COLOR_ATTACHMENT1);
+	glDrawBuffer(GL_COLOR_ATTACHMENT0);
+	glBlitFramebuffer(region[0], region[1], region[2], region[3], 0, 0, _width, _height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+	_current_fbo = _fbo[FBO_BACK];
+
+	update_and_render_effects();
+	runtime::on_present();
+
+	// Copy results from RBO back into the source region
+	glDisable(GL_SCISSOR_TEST);
+	glDisable(GL_FRAMEBUFFER_SRGB);
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, _fbo[FBO_BACK]);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _fbo[FBO_BLIT]);
+	glReadBuffer(GL_COLOR_ATTACHMENT0);
+	glDrawBuffer(GL_COLOR_ATTACHMENT1);
+	glBlitFramebuffer(0, 0, _width, _height, region[0], region[1], region[2], region[3], GL_COLOR_BUFFER_BIT, GL_NEAREST);
+	_current_fbo = _fbo[FBO_BLIT];
+
+	// Apply previous state from application
+	_app_state.apply(_compatibility_context);
+
+	return true;
 }
 
 bool reshade::opengl::runtime_impl::capture_screenshot(uint8_t *buffer) const

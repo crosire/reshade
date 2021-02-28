@@ -23,7 +23,8 @@ namespace reshade::d3d12
 		bool on_init(const DXGI_SWAP_CHAIN_DESC &desc);
 		void on_reset();
 		void on_present();
-		void on_present(ID3D12Resource *backbuffer, HWND hwnd);
+		bool on_present(ID3D12Resource *source, HWND hwnd);
+		bool on_present(ID3D12Resource *source, const D3D12_BOX &region, HWND hwnd);
 
 		bool capture_screenshot(uint8_t *buffer) const final;
 

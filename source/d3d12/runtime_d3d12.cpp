@@ -83,15 +83,22 @@ bool reshade::d3d12::runtime_impl::on_init()
 }
 bool reshade::d3d12::runtime_impl::on_init(const DXGI_SWAP_CHAIN_DESC &swap_desc)
 {
-	RECT window_rect = {};
-	GetClientRect(swap_desc.OutputWindow, &window_rect);
+	if (swap_desc.SampleDesc.Count > 1)
+		return false; // Multisampled swap chains are not currently supported
 
-	_width = swap_desc.BufferDesc.Width;
-	_height = swap_desc.BufferDesc.Height;
-	_window_width = window_rect.right;
-	_window_height = window_rect.bottom;
+	_width = _window_width = swap_desc.BufferDesc.Width;
+	_height = _window_height = swap_desc.BufferDesc.Height;
 	_color_bit_depth = dxgi_format_color_depth(swap_desc.BufferDesc.Format);
 	_backbuffer_format = swap_desc.BufferDesc.Format;
+
+	if (swap_desc.OutputWindow != nullptr)
+	{
+		RECT window_rect = {};
+		GetClientRect(swap_desc.OutputWindow, &window_rect);
+
+		_window_width = window_rect.right;
+		_window_height = window_rect.bottom;
+	}
 
 	// Allocate descriptor heaps
 	{   D3D12_DESCRIPTOR_HEAP_DESC desc = { D3D12_DESCRIPTOR_HEAP_TYPE_RTV };
@@ -286,8 +293,10 @@ void reshade::d3d12::runtime_impl::on_present()
 
 	_cmd_impl->flush(_cmd_queue.get());
 }
-void reshade::d3d12::runtime_impl::on_present(ID3D12Resource *source, HWND hwnd)
+bool reshade::d3d12::runtime_impl::on_present(ID3D12Resource *source, HWND hwnd)
 {
+	assert(source != nullptr);
+
 	// Reinitialize runtime when the source texture dimensions changes
 	const D3D12_RESOURCE_DESC source_desc = source->GetDesc();
 	if (source_desc.Width != _width || source_desc.Height != _height || source_desc.Format != _backbuffer_format)
@@ -298,13 +307,14 @@ void reshade::d3d12::runtime_impl::on_present(ID3D12Resource *source, HWND hwnd)
 		swap_desc.BufferDesc.Width = static_cast<UINT>(source_desc.Width);
 		swap_desc.BufferDesc.Height = source_desc.Height;
 		swap_desc.BufferDesc.Format = source_desc.Format;
+		swap_desc.SampleDesc = source_desc.SampleDesc;
 		swap_desc.BufferCount = 3; // Cycle between three fake back buffers
 		swap_desc.OutputWindow = hwnd;
 
 		if (!on_init(swap_desc))
 		{
 			LOG(ERROR) << "Failed to initialize Direct3D 12 runtime environment on runtime " << this << '!';
-			return;
+			return false;
 		}
 	}
 
@@ -332,6 +342,105 @@ void reshade::d3d12::runtime_impl::on_present(ID3D12Resource *source, HWND hwnd)
 	}
 
 	on_present();
+	return true;
+}
+bool reshade::d3d12::runtime_impl::on_present(ID3D12Resource *source, const D3D12_BOX &region, HWND hwnd)
+{
+	assert(source != nullptr);
+
+	D3D12_RESOURCE_DESC source_desc = source->GetDesc();
+
+	const UINT region_width = region.right - region.left;
+	const UINT region_height = region.bottom - region.top;
+	assert((region.back - region.front) == 1);
+
+	if (region_width != _width || region_height != _height || source_desc.Format != _backbuffer_format)
+	{
+		on_reset();
+
+		DXGI_SWAP_CHAIN_DESC swap_desc = {};
+		swap_desc.BufferDesc.Width = region_width;
+		swap_desc.BufferDesc.Height = region_height;
+		swap_desc.BufferDesc.Format = source_desc.Format;
+		swap_desc.SampleDesc = source_desc.SampleDesc;
+		swap_desc.BufferCount = 1;
+		swap_desc.OutputWindow = hwnd;
+
+		if (!on_init(swap_desc))
+		{
+			LOG(ERROR) << "Failed to initialize Direct3D 12 runtime environment on runtime " << this << '!';
+			return false;
+		}
+
+		assert(_backbuffers.size() == 1);
+
+		source_desc.Width = region_width;
+		source_desc.Height = region_height;
+		source_desc.Format = make_dxgi_format_typeless(source_desc.Format);
+
+		const D3D12_HEAP_PROPERTIES heap_props = { D3D12_HEAP_TYPE_DEFAULT };
+
+		if (HRESULT hr = _device->CreateCommittedResource(&heap_props, D3D12_HEAP_FLAG_NONE, &source_desc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&_backbuffers[0])); FAILED(hr))
+		{
+			LOG(ERROR) << "Failed to create region texture! HRESULT is " << hr << '.';
+			return false;
+		}
+
+		D3D12_CPU_DESCRIPTOR_HANDLE rtv_handle = _backbuffer_rtvs->GetCPUDescriptorHandleForHeapStart();
+
+		for (int srgb_write_enable = 0; srgb_write_enable < 2; ++srgb_write_enable, rtv_handle.ptr += _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_RTV])
+		{
+			D3D12_RENDER_TARGET_VIEW_DESC rtv_desc = {};
+			rtv_desc.Format = srgb_write_enable ?
+				make_dxgi_format_srgb(_backbuffer_format) :
+				make_dxgi_format_normal(_backbuffer_format);
+			rtv_desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+
+			_device->CreateRenderTargetView(_backbuffers[0].get(), &rtv_desc, rtv_handle);
+		}
+	}
+
+	ID3D12GraphicsCommandList *const cmd_list = _cmd_impl->begin_commands();
+
+	D3D12_RESOURCE_BARRIER transitions[2];
+	transitions[0] = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
+	transitions[0].Transition.pResource = source;
+	transitions[0].Transition.Subresource = 0;
+	transitions[1] = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
+	transitions[1].Transition.pResource = _backbuffers[0].get();
+	transitions[1].Transition.Subresource = 0;
+
+	transitions[0].Transition.StateBefore = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+	transitions[0].Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
+	cmd_list->ResourceBarrier(1, &transitions[0]);
+
+	// Copy region of the source texture
+	const D3D12_TEXTURE_COPY_LOCATION src_location = { source, D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX };
+	const D3D12_TEXTURE_COPY_LOCATION dest_location = { _backbuffers[0].get(), D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX };
+	cmd_list->CopyTextureRegion(&dest_location, 0, 0, 0, &src_location, &region);
+
+	transitions[1].Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+	transitions[1].Transition.StateAfter = D3D12_RESOURCE_STATE_COMMON;
+	cmd_list->ResourceBarrier(1, &transitions[1]);
+
+	on_present();
+
+	transitions[0].Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_SOURCE;
+	transitions[0].Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
+	transitions[1].Transition.StateBefore = D3D12_RESOURCE_STATE_COMMON;
+	transitions[1].Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
+	cmd_list->ResourceBarrier(2, &transitions[0]);
+
+	// Copy results back into the source texture
+	cmd_list->CopyTextureRegion(&src_location, region.left, region.top, region.front, &dest_location, nullptr);
+
+	transitions[0].Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+	transitions[0].Transition.StateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+	transitions[1].Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_SOURCE;
+	transitions[1].Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
+	cmd_list->ResourceBarrier(2, &transitions[0]);
+
+	return true;
 }
 
 bool reshade::d3d12::runtime_impl::capture_screenshot(uint8_t *buffer) const

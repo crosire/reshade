@@ -53,15 +53,19 @@ bool reshade::d3d10::runtime_impl::on_init()
 	if (FAILED(_orig->GetDesc(&swap_desc)))
 		return false;
 
-	RECT window_rect = {};
-	GetClientRect(swap_desc.OutputWindow, &window_rect);
-
-	_width = swap_desc.BufferDesc.Width;
-	_height = swap_desc.BufferDesc.Height;
-	_window_width = window_rect.right;
-	_window_height = window_rect.bottom;
+	_width = _window_width = swap_desc.BufferDesc.Width;
+	_height = _window_height = swap_desc.BufferDesc.Height;
 	_color_bit_depth = dxgi_format_color_depth(swap_desc.BufferDesc.Format);
 	_backbuffer_format = swap_desc.BufferDesc.Format;
+
+	if (swap_desc.OutputWindow != nullptr)
+	{
+		RECT window_rect = {};
+		GetClientRect(swap_desc.OutputWindow, &window_rect);
+
+		_window_width = window_rect.right;
+		_window_height = window_rect.bottom;
+	}
 
 	// Get back buffer texture
 	if (FAILED(_orig->GetBuffer(0, IID_PPV_ARGS(&_backbuffer))))

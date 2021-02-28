@@ -279,6 +279,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DISPATCH_PTR(CmdClearColorImage);
 	INIT_DISPATCH_PTR(CmdClearDepthStencilImage);
 	INIT_DISPATCH_PTR(CmdClearAttachments);
+	INIT_DISPATCH_PTR(CmdResolveImage);
 	INIT_DISPATCH_PTR(CmdPipelineBarrier);
 	INIT_DISPATCH_PTR(CmdResetQueryPool);
 	INIT_DISPATCH_PTR(CmdWriteTimestamp);
