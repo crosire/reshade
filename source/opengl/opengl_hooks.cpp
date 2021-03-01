@@ -557,7 +557,7 @@ HOOK_EXPORT void WINAPI glDisableClientState(GLenum array)
 	GLint buffer = 0;
 	glGetIntegerv(GL_DISPATCH_INDIRECT_BUFFER_BINDING, &buffer);
 	if (g_current_runtime && buffer != 0)
-		RESHADE_ADDON_EVENT(draw_or_dispatch_indirect, g_current_runtime, reshade::addon_event::dispatch, reshade::api::resource_handle { (static_cast<uint64_t>(GL_DISPATCH_INDIRECT_BUFFER) << 40) | buffer }, indirect, 1, 0);
+		RESHADE_ADDON_EVENT(draw_or_dispatch_indirect, g_current_runtime, reshade::addon_event::dispatch, reshade::opengl::make_resource_handle(GL_DISPATCH_INDIRECT_BUFFER, buffer), indirect, 1, 0);
 #endif
 
 	static const auto trampoline = reshade::hooks::call(glDispatchComputeIndirect);
@@ -578,7 +578,7 @@ HOOK_EXPORT void WINAPI glDrawArrays(GLenum mode, GLint first, GLsizei count)
 	GLint buffer = 0;
 	glGetIntegerv(GL_DRAW_INDIRECT_BUFFER_BINDING, &buffer);
 	if (g_current_runtime && buffer != 0)
-		RESHADE_ADDON_EVENT(draw_or_dispatch_indirect, g_current_runtime, reshade::addon_event::draw, reshade::api::resource_handle { (static_cast<uint64_t>(GL_DRAW_INDIRECT_BUFFER) << 40) | buffer }, reinterpret_cast<uintptr_t>(indirect), 1, 0);
+		RESHADE_ADDON_EVENT(draw_or_dispatch_indirect, g_current_runtime, reshade::addon_event::draw, reshade::opengl::make_resource_handle(GL_DRAW_INDIRECT_BUFFER, buffer), reinterpret_cast<uintptr_t>(indirect), 1, 0);
 #endif
 
 	static const auto trampoline = reshade::hooks::call(glDrawArraysIndirect);
@@ -637,7 +637,7 @@ HOOK_EXPORT void WINAPI glDrawElements(GLenum mode, GLsizei count, GLenum type, 
 	GLint buffer = 0;
 	glGetIntegerv(GL_DRAW_INDIRECT_BUFFER_BINDING, &buffer); // 'indirect' is an offset into the indirect buffer only if an indirect buffer is bound
 	if (g_current_runtime && buffer != 0)
-		RESHADE_ADDON_EVENT(draw_or_dispatch_indirect, g_current_runtime, reshade::addon_event::draw_indexed, reshade::api::resource_handle { (static_cast<uint64_t>(GL_DRAW_INDIRECT_BUFFER) << 40) | buffer }, reinterpret_cast<uintptr_t>(indirect), 1, 0);
+		RESHADE_ADDON_EVENT(draw_or_dispatch_indirect, g_current_runtime, reshade::addon_event::draw_indexed, reshade::opengl::make_resource_handle(GL_DRAW_INDIRECT_BUFFER, buffer), reinterpret_cast<uintptr_t>(indirect), 1, 0);
 #endif
 
 	static const auto trampoline = reshade::hooks::call(glDrawElementsIndirect);
@@ -1333,7 +1333,7 @@ HOOK_EXPORT void WINAPI glMultMatrixf(const GLfloat *m)
 	GLint buffer = 0;
 	glGetIntegerv(GL_DRAW_INDIRECT_BUFFER_BINDING, &buffer);
 	if (g_current_runtime && buffer != 0)
-		RESHADE_ADDON_EVENT(draw_or_dispatch_indirect, g_current_runtime, reshade::addon_event::draw, reshade::api::resource_handle { (static_cast<uint64_t>(GL_DRAW_INDIRECT_BUFFER) << 40) | buffer }, reinterpret_cast<uintptr_t>(indirect), drawcount, stride);
+		RESHADE_ADDON_EVENT(draw_or_dispatch_indirect, g_current_runtime, reshade::addon_event::draw, reshade::opengl::make_resource_handle(GL_DRAW_INDIRECT_BUFFER, buffer), reinterpret_cast<uintptr_t>(indirect), drawcount, stride);
 #endif
 
 	static const auto trampoline = reshade::hooks::call(glMultiDrawArraysIndirect);
@@ -1371,7 +1371,7 @@ HOOK_EXPORT void WINAPI glMultMatrixf(const GLfloat *m)
 	GLint buffer = 0;
 	glGetIntegerv(GL_DRAW_INDIRECT_BUFFER_BINDING, &buffer);
 	if (g_current_runtime && buffer != 0)
-		RESHADE_ADDON_EVENT(draw_or_dispatch_indirect, g_current_runtime, reshade::addon_event::draw_indexed, reshade::api::resource_handle { (static_cast<uint64_t>(GL_DRAW_INDIRECT_BUFFER) << 40) | buffer }, reinterpret_cast<uintptr_t>(indirect), drawcount, stride);
+		RESHADE_ADDON_EVENT(draw_or_dispatch_indirect, g_current_runtime, reshade::addon_event::draw_indexed, reshade::opengl::make_resource_handle(GL_DRAW_INDIRECT_BUFFER, buffer), reinterpret_cast<uintptr_t>(indirect), drawcount, stride);
 #endif
 
 	static const auto trampoline = reshade::hooks::call(glMultiDrawElementsIndirect);
@@ -1901,7 +1901,7 @@ HOOK_EXPORT void WINAPI glStencilOp(GLenum fail, GLenum zfail, GLenum zpass)
 		reshade::api::resource_view_desc api_desc = { reshade::opengl::convert_resource_view_dimension(target) };
 		api_desc.format = internalformat;
 		// The target of the original buffer is unknown at this point, so use "GL_BUFFER" as a placeholder instead for the resource handle
-		RESHADE_ADDON_EVENT(create_resource_view, g_current_runtime, reshade::api::resource_handle { (static_cast<uint64_t>(GL_BUFFER) << 40) | buffer }, reshade::api::resource_view_type::unknown, &api_desc);
+		RESHADE_ADDON_EVENT(create_resource_view, g_current_runtime, reshade::opengl::make_resource_handle(GL_BUFFER, buffer), reshade::api::resource_view_type::unknown, &api_desc);
 		internalformat = api_desc.format;
 
 		if (api_desc.first_level != 0 || api_desc.levels != 0)
@@ -1931,7 +1931,7 @@ HOOK_EXPORT void WINAPI glStencilOp(GLenum fail, GLenum zfail, GLenum zpass)
 	{
 		reshade::api::resource_view_desc api_desc = { reshade::api::resource_view_dimension::buffer };
 		api_desc.format = internalformat;
-		RESHADE_ADDON_EVENT(create_resource_view, g_current_runtime, reshade::api::resource_handle { (static_cast<uint64_t>(GL_BUFFER) << 40) | buffer }, reshade::api::resource_view_type::unknown, &api_desc);
+		RESHADE_ADDON_EVENT(create_resource_view, g_current_runtime, reshade::opengl::make_resource_handle(GL_BUFFER, buffer), reshade::api::resource_view_type::unknown, &api_desc);
 		internalformat = api_desc.format;
 
 		if (api_desc.first_level != 0 || api_desc.levels != 0)
@@ -1968,7 +1968,7 @@ HOOK_EXPORT void WINAPI glStencilOp(GLenum fail, GLenum zfail, GLenum zpass)
 		api_desc.first_layer = (offset >> 32) & 0xFFFFFFFF;
 		api_desc.layers = (size >> 32) & 0xFFFFFFFF;
 #endif
-		RESHADE_ADDON_EVENT(create_resource_view, g_current_runtime, reshade::api::resource_handle { (static_cast<uint64_t>(GL_BUFFER) << 40) | buffer }, reshade::api::resource_view_type::unknown, &api_desc);
+		RESHADE_ADDON_EVENT(create_resource_view, g_current_runtime, reshade::opengl::make_resource_handle(GL_BUFFER, buffer), reshade::api::resource_view_type::unknown, &api_desc);
 #ifdef _WIN64
 		size = api_desc.levels | static_cast<uint64_t>(api_desc.layers) << 32;
 		offset = api_desc.first_level | static_cast<uint64_t>(api_desc.first_layer) << 32;
@@ -1997,7 +1997,7 @@ HOOK_EXPORT void WINAPI glStencilOp(GLenum fail, GLenum zfail, GLenum zpass)
 		api_desc.first_layer = (offset >> 32) & 0xFFFFFFFF;
 		api_desc.layers = (size >> 32) & 0xFFFFFFFF;
 #endif
-		RESHADE_ADDON_EVENT(create_resource_view, g_current_runtime, reshade::api::resource_handle { (static_cast<uint64_t>(GL_BUFFER) << 40) | buffer }, reshade::api::resource_view_type::unknown, &api_desc);
+		RESHADE_ADDON_EVENT(create_resource_view, g_current_runtime, reshade::opengl::make_resource_handle(GL_BUFFER, buffer), reshade::api::resource_view_type::unknown, &api_desc);
 #ifdef _WIN64
 		size = api_desc.levels | static_cast<uint64_t>(api_desc.layers) << 32;
 		offset = api_desc.first_level | static_cast<uint64_t>(api_desc.first_layer) << 32;
@@ -2505,7 +2505,7 @@ HOOK_EXPORT void WINAPI glTexSubImage2D(GLenum target, GLint level, GLint xoffse
 		api_desc.first_layer = minlayer;
 		api_desc.layers = numlayers;
 		// The target of the original texture is unknown at this point, so use "GL_TEXTURE" as a placeholder instead for the resource handle
-		RESHADE_ADDON_EVENT(create_resource_view, g_current_runtime, reshade::api::resource_handle { (static_cast<uint64_t>(GL_TEXTURE) << 40) | origtexture }, reshade::api::resource_view_type::unknown, &api_desc);
+		RESHADE_ADDON_EVENT(create_resource_view, g_current_runtime, reshade::opengl::make_resource_handle(GL_TEXTURE, origtexture), reshade::api::resource_view_type::unknown, &api_desc);
 		internalformat = api_desc.format;
 		minlevel = api_desc.first_level;
 		numlevels = api_desc.levels;

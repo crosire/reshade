@@ -93,7 +93,7 @@ static bool on_submit_opengl(vr::EVREye, GLuint object, bool is_rbo, bool is_arr
 		return false;
 
 	reshade::api::resource_desc object_desc = static_cast<reshade::opengl::runtime_impl *>(s_vr_runtime.first)->get_resource_desc(
-		reshade::api::resource_handle { (static_cast<uint64_t>(is_rbo ? GL_RENDERBUFFER : GL_TEXTURE) << 40) | object });
+		reshade::opengl::make_resource_handle(is_rbo ? GL_RENDERBUFFER : GL_TEXTURE, object));
 
 	GLint region[4] = { 0, 0, static_cast<GLint>(object_desc.width), static_cast<GLint>(object_desc.height) };
 	if (bounds != nullptr)

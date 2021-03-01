@@ -406,7 +406,7 @@ bool reshade::opengl::device_impl::create_resource(api::resource_type type, cons
 		glBindTexture(target, prev_object);
 	}
 
-	*out_resource = { (static_cast<uint64_t>(target) << 40) | object };
+	*out_resource = make_resource_handle(target, object);
 	return true;
 }
 bool reshade::opengl::device_impl::create_resource_view(api::resource_handle resource, api::resource_view_type, const api::resource_view_desc &desc, api::resource_view_handle *out_view)
@@ -499,7 +499,7 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource_handle res
 			glBindTexture(target, prev_object);
 		}
 
-		*out_view = { (static_cast<uint64_t>(target) << 40) | object };
+		*out_view = make_resource_view_handle(target, object);
 		return true;
 	}
 }
@@ -553,7 +553,7 @@ reshade::api::resource_view_handle reshade::opengl::device_impl::get_depth_stenc
 	if (fbo != 0 && get_fbo_attachment_param(fbo, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE) == GL_NONE)
 		return { 0 }; // FBO does not have this attachment
 
-	return { (static_cast<uint64_t>(attachment) << 40) | fbo };
+	return make_resource_view_handle(attachment, fbo);
 }
 reshade::api::resource_view_handle reshade::opengl::device_impl::get_render_target_from_fbo(GLuint fbo, GLuint drawbuffer) const
 {
@@ -561,7 +561,7 @@ reshade::api::resource_view_handle reshade::opengl::device_impl::get_render_targ
 	if (fbo != 0 && get_fbo_attachment_param(fbo, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE) == GL_NONE)
 		return { 0 }; // FBO does not have this attachment
 
-	return { (static_cast<uint64_t>(attachment) << 40) | fbo };
+	return make_resource_view_handle(attachment, fbo);
 }
 
 void reshade::opengl::device_impl::get_resource_from_view(api::resource_view_handle view, api::resource_handle *out_resource) const
@@ -585,7 +585,7 @@ void reshade::opengl::device_impl::get_resource_from_view(api::resource_view_han
 				target  = get_tex_param(target, object, GL_TEXTURE_TARGET);
 		}
 
-		*out_resource = { (static_cast<uint64_t>(target) << 40) | object };
+		*out_resource = make_resource_handle(target, object);
 	}
 	else
 	{

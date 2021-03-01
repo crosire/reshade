@@ -11,6 +11,15 @@
 
 namespace reshade::opengl
 {
+	inline api::resource_handle make_resource_handle(GLenum target, GLuint object)
+	{
+		return { (static_cast<uint64_t>(target) << 40) | object };
+	}
+	inline api::resource_view_handle make_resource_view_handle(GLenum target_or_attachment, GLuint object)
+	{
+		return { (static_cast<uint64_t>(target_or_attachment) << 40) | object };
+	}
+
 	class device_impl : public api::api_object_impl<HGLRC, api::device, api::command_queue, api::command_list>
 	{
 	public:
