@@ -31,6 +31,5 @@ namespace reshade::d3d9
 		D3DVIEWPORT9 _viewport = {};
 		com_ptr<IDirect3DSurface9> _depth_stencil;
 		com_ptr<IDirect3DSurface9> _render_targets[8];
-		float _clip_plane_0[4] = {};
 	};
 }

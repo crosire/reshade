@@ -26,14 +26,6 @@ reshade::d3d9::state_block::~state_block()
 
 void reshade::d3d9::state_block::capture()
 {
-	// Getting the clip plane only works on devices created without the D3DCREATE_PUREDEVICE flag
-	if (SUCCEEDED(_device->GetClipPlane(0, _clip_plane_0)))
-	{
-		// For some reason state block capturing behaves weirdly if a clip plane is set, so clear it to zero before ...
-		const float zero_clip_plane[4] = { 0, 0, 0, 0 };
-		_device->SetClipPlane(0, zero_clip_plane);
-	}
-
 	_state_block->Capture();
 
 	_device->GetViewport(&_viewport);
@@ -45,12 +37,6 @@ void reshade::d3d9::state_block::capture()
 void reshade::d3d9::state_block::apply_and_release()
 {
 	_state_block->Apply();
-
-	// Reset clip plane to the original value again if there was one
-	if (_clip_plane_0[0] != 0 || _clip_plane_0[1] != 0 || _clip_plane_0[2] != 0 || _clip_plane_0[3] != 0)
-	{
-		_device->SetClipPlane(0, _clip_plane_0);
-	}
 
 	for (DWORD target = 0; target < _num_simultaneous_rts; target++)
 		_device->SetRenderTarget(target, _render_targets[target].get());

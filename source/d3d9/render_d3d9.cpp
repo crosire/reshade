@@ -446,6 +446,10 @@ void reshade::d3d9::device_impl::copy_resource(api::resource_handle source, api:
 			// Capture and restore state, render targets, depth stencil surface and viewport (which all may change next)
 			_backup_state.capture();
 
+			// For some reason rendering below water acts up in Source Engine games if the active clip plane is not cleared to zero before executing any draw calls ...
+			const float zero_clip_plane[4] = { 0, 0, 0, 0 };
+			_orig->SetClipPlane(0, zero_clip_plane);
+
 			// Perform copy using rasterization pipeline
 			_copy_state->Apply();
 
