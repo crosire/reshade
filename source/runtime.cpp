@@ -1643,6 +1643,9 @@ void reshade::runtime::load_current_preset()
 			technique.toggle_key_data[3] = technique.annotation_as_int("togglealt");
 		}
 	}
+
+	// Reverse compile queue so that effects are enabled in the order they are defined in the preset (since the queue is worked from back to front)
+	std::reverse(_reload_compile_queue.begin(), _reload_compile_queue.end());
 }
 void reshade::runtime::save_current_preset() const
 {
