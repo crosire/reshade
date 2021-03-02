@@ -2684,6 +2684,98 @@ void reshade::runtime::draw_variable_editor()
 }
 void reshade::runtime::draw_technique_editor()
 {
+	if (!_last_reload_successfull)
+	{
+		// Add fake items at the top for effects that failed to compile and not a single technique was parsed successfully
+		for (size_t effect_index = 0; effect_index < _effects.size(); ++effect_index)
+		{
+			const effect &effect = _effects[effect_index];
+
+			if (!effect.compiled)
+			{
+				ImGui::PushID(static_cast<int>(_techniques.size() + effect_index));
+
+				ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+				ImGui::PushStyleColor(ImGuiCol_Text, COLOR_RED);
+
+				const std::string label = '[' + effect.source_file.filename().u8string() + ']' + " failed to compile";
+
+				bool value = false;
+				ImGui::Checkbox(label.c_str(), &value);
+
+				ImGui::PopStyleColor();
+				ImGui::PopItemFlag();
+
+				if (ImGui::IsItemHovered())
+				{
+					ImGui::BeginTooltip();
+					ImGui::PushStyleColor(ImGuiCol_Text, COLOR_RED);
+					ImGui::TextUnformatted(effect.errors.c_str());
+					ImGui::PopStyleColor();
+					ImGui::EndTooltip();
+				}
+
+				if (ImGui::BeginPopupContextItem("##context"))
+				{
+					if (ImGui::Button("Open folder in explorer", ImVec2(230.0f, 0)))
+					{
+						// Use absolute path to explorer to avoid potential security issues when executable is replaced
+						WCHAR explorer_path[260] = L"";
+						GetWindowsDirectoryW(explorer_path, ARRAYSIZE(explorer_path));
+						wcscat_s(explorer_path, L"\\explorer.exe");
+
+						ShellExecuteW(nullptr, L"open", explorer_path, (L"/select,\"" + effect.source_file.wstring() + L"\"").c_str(), nullptr, SW_SHOWDEFAULT);
+					}
+
+					ImGui::Separator();
+
+					if (widgets::popup_button(ICON_FK_PENCIL " Edit source code", 230.0f))
+					{
+						std::filesystem::path source_file;
+						if (ImGui::MenuItem(effect.source_file.filename().u8string().c_str()))
+							source_file = effect.source_file;
+
+						if (!effect.included_files.empty())
+						{
+							ImGui::Separator();
+
+							for (const std::filesystem::path &included_file : effect.included_files)
+								if (ImGui::MenuItem(included_file.filename().u8string().c_str()))
+									source_file = included_file;
+						}
+
+						ImGui::EndPopup();
+
+						if (!source_file.empty())
+						{
+							open_code_editor(effect_index, source_file);
+							ImGui::CloseCurrentPopup();
+						}
+					}
+
+					if (!effect.module.hlsl.empty() && // Hide if using SPIR-V, since that cannot easily be shown here
+						widgets::popup_button("Show compiled results", 230.0f))
+					{
+						std::string entry_point_name;
+						if (ImGui::MenuItem("Generated code"))
+							entry_point_name = "Generated code";
+						ImGui::EndPopup();
+
+						if (!entry_point_name.empty())
+						{
+							open_code_editor(effect_index, entry_point_name);
+							ImGui::CloseCurrentPopup();
+						}
+					}
+
+					ImGui::EndPopup();
+				}
+
+				ImGui::PopID();
+			}
+		}
+	}
+
 	size_t force_reload_effect = std::numeric_limits<size_t>::max();
 	size_t hovered_technique_index = std::numeric_limits<size_t>::max();
 
@@ -2692,7 +2784,7 @@ void reshade::runtime::draw_technique_editor()
 		reshade::technique &technique = _techniques[index];
 
 		// Skip hidden techniques
-		if (technique.hidden)
+		if (technique.hidden || !_effects[technique.effect_index].compiled)
 			continue;
 
 		ImGui::PushID(static_cast<int>(index));
@@ -2705,27 +2797,20 @@ void reshade::runtime::draw_technique_editor()
 		if (draw_border)
 			ImGui::Separator();
 
-		const bool clicked = _imgui_context->IO.MouseClicked[0];
-		assert(effect.compiled || !technique.enabled);
-
-		// Prevent user from enabling the technique when the effect failed to compile
-		// Also prevent disabling it for when the technique is set to always be enabled via annotation
-		ImGui::PushItemFlag(ImGuiItemFlags_Disabled, !effect.compiled || technique.annotation_as_int("enabled"));
-		// Gray out disabled techniques and mark techniques which failed to compile red
+		// Prevent user from disabling the technique when it is set to always be enabled via annotation
+		ImGui::PushItemFlag(ImGuiItemFlags_Disabled, technique.annotation_as_int("enabled"));
+		// Gray out disabled techniques and mark those with warnings yellow
 		ImGui::PushStyleColor(ImGuiCol_Text,
-			effect.compiled ?
-				effect.errors.empty() || technique.enabled ?
-					_imgui_context->Style.Colors[technique.enabled ? ImGuiCol_Text : ImGuiCol_TextDisabled] :
-					COLOR_YELLOW :
-				COLOR_RED);
+			effect.errors.empty() || technique.enabled ?
+				_imgui_context->Style.Colors[technique.enabled ? ImGuiCol_Text : ImGuiCol_TextDisabled] : COLOR_YELLOW);
 
 		std::string label(technique.annotation_as_string("ui_label"));
-		if (label.empty() || !effect.compiled)
+		if (label.empty())
 			label = technique.name;
-		label += " [" + effect.source_file.filename().u8string() + ']' + (!effect.compiled ? " failed to compile" : "");
+		label += " [" + effect.source_file.filename().u8string() + ']';
 
 		if (bool status = technique.enabled;
-			ImGui::Checkbox(label.data(), &status))
+			ImGui::Checkbox(label.c_str(), &status))
 		{
 			if (status)
 				enable_technique(technique);
@@ -2756,7 +2841,7 @@ void reshade::runtime::draw_technique_editor()
 			}
 			if (!effect.errors.empty())
 			{
-				ImGui::PushStyleColor(ImGuiCol_Text, effect.compiled ? COLOR_YELLOW : COLOR_RED);
+				ImGui::PushStyleColor(ImGuiCol_Text, COLOR_YELLOW);
 				ImGui::TextUnformatted(effect.errors.c_str());
 				ImGui::PopStyleColor();
 			}
@@ -2776,18 +2861,17 @@ void reshade::runtime::draw_technique_editor()
 
 			const bool is_not_top = index > 0;
 			const bool is_not_bottom = index < _techniques.size() - 1;
-			const float button_width = ImGui::CalcItemWidth();
 
 			ImGui::PopItemWidth();
 
-			if (is_not_top && ImGui::Button("Move to top", ImVec2(button_width, 0)))
+			if (is_not_top && ImGui::Button("Move to top", ImVec2(230.0f, 0)))
 			{
 				_techniques.insert(_techniques.begin(), std::move(_techniques[index]));
 				_techniques.erase(_techniques.begin() + 1 + index);
 				save_current_preset();
 				ImGui::CloseCurrentPopup();
 			}
-			if (is_not_bottom && ImGui::Button("Move to bottom", ImVec2(button_width, 0)))
+			if (is_not_bottom && ImGui::Button("Move to bottom", ImVec2(230.0f, 0)))
 			{
 				_techniques.push_back(std::move(_techniques[index]));
 				_techniques.erase(_techniques.begin() + index);
@@ -2797,7 +2881,7 @@ void reshade::runtime::draw_technique_editor()
 
 			ImGui::Separator();
 
-			if (ImGui::Button("Open folder in explorer", ImVec2(button_width, 0)))
+			if (ImGui::Button("Open folder in explorer", ImVec2(230.0f, 0)))
 			{
 				// Use absolute path to explorer to avoid potential security issues when executable is replaced
 				WCHAR explorer_path[260] = L"";
@@ -2809,7 +2893,7 @@ void reshade::runtime::draw_technique_editor()
 
 			ImGui::Separator();
 
-			if (widgets::popup_button(ICON_FK_PENCIL " Edit source code", button_width))
+			if (widgets::popup_button(ICON_FK_PENCIL " Edit source code", 230.0f))
 			{
 				std::filesystem::path source_file;
 				if (ImGui::MenuItem(effect.source_file.filename().u8string().c_str()))
@@ -2839,7 +2923,7 @@ void reshade::runtime::draw_technique_editor()
 			}
 
 			if (!effect.module.hlsl.empty() && // Hide if using SPIR-V, since that cannot easily be shown here
-				widgets::popup_button("Show compiled results", button_width))
+				widgets::popup_button("Show compiled results", 230.0f))
 			{
 				std::string entry_point_name;
 				if (ImGui::MenuItem("Generated code"))
@@ -2867,7 +2951,7 @@ void reshade::runtime::draw_technique_editor()
 			ImGui::EndPopup();
 		}
 
-		if (technique.toggle_key_data[0] != 0 && effect.compiled)
+		if (technique.toggle_key_data[0] != 0)
 		{
 			ImGui::SameLine(ImGui::GetWindowContentRegionWidth() - 120);
 			ImGui::TextDisabled("%s", reshade::input::key_name(technique.toggle_key_data).c_str());
