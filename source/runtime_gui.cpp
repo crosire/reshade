@@ -1574,6 +1574,7 @@ void reshade::runtime::draw_gui_statistics()
 		vr::vr_runtime()->draw_gui_statistics();
 		return;
 	}
+	const float factor = vr::vr_runtime() == this ? 2 : 1;
 
 	unsigned int cpu_digits = 1;
 	unsigned int gpu_digits = 1;
@@ -1626,8 +1627,8 @@ void reshade::runtime::draw_gui_statistics()
 		ImGui::TextUnformatted(g_target_executable_path.filename().u8string().c_str());
 		ImGui::Text("%d-%d-%d %d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour * 3600 + tm.tm_min * 60 + tm.tm_sec);
 		ImGui::Text("%u B", g_network_traffic);
-		ImGui::Text("%.2f fps", _imgui_context->IO.Framerate);
-		ImGui::Text("%*.3f ms CPU", cpu_digits + 4, post_processing_time_cpu * 1e-6f);
+		ImGui::Text("%.2f fps", _imgui_context->IO.Framerate / factor);
+		ImGui::Text("%*.3f ms CPU", cpu_digits + 4, post_processing_time_cpu * 1e-6f * factor);
 
 		ImGui::EndGroup();
 		ImGui::SameLine(ImGui::GetWindowWidth() * 0.66666666f);
@@ -1642,7 +1643,7 @@ void reshade::runtime::draw_gui_statistics()
 		ImGui::NewLine();
 		ImGui::Text("%*.3f ms", gpu_digits + 4, _last_frame_duration.count() * 1e-6f);
 		if (post_processing_time_gpu != 0)
-			ImGui::Text("%*.3f ms GPU", gpu_digits + 4, (post_processing_time_gpu * 1e-6f));
+			ImGui::Text("%*.3f ms GPU", gpu_digits + 4, (post_processing_time_gpu * 1e-6f * factor));
 
 		ImGui::EndGroup();
 	}
@@ -1672,7 +1673,7 @@ void reshade::runtime::draw_gui_statistics()
 				continue;
 
 			if (technique.average_cpu_duration != 0)
-				ImGui::Text("%*.3f ms CPU", cpu_digits + 4, technique.average_cpu_duration * 1e-6f);
+				ImGui::Text("%*.3f ms CPU", cpu_digits + 4, technique.average_cpu_duration * 1e-6f * factor);
 			else
 				ImGui::NewLine();
 		}
@@ -1688,7 +1689,7 @@ void reshade::runtime::draw_gui_statistics()
 
 			// GPU timings are not available for all APIs
 			if (technique.average_gpu_duration != 0)
-				ImGui::Text("%*.3f ms GPU", gpu_digits + 4, technique.average_gpu_duration * 1e-6f);
+				ImGui::Text("%*.3f ms GPU", gpu_digits + 4, technique.average_gpu_duration * 1e-6f * factor);
 			else
 				ImGui::NewLine();
 		}
