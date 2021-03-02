@@ -202,9 +202,8 @@ namespace reshade { namespace api
 	/// The base class for objects provided by the ReShade API.
 	/// This lets you store and retrieve custom data with objects, to be able to communicate persistent data between event callbacks.
 	/// </summary>
-	class __declspec(novtable) api_object
+	struct __declspec(novtable) api_object
 	{
-	public:
 		/// <summary>
 		/// Gets a custom data pointer from the object that was previously set via <see cref="api_object::set_data"/>.
 		/// This function is not thread-safe!
@@ -253,9 +252,8 @@ namespace reshade { namespace api
 	/// A logical render device, used for resource creation and global operations.
 	/// Functionally equivalent to a 'IDirect3DDevice9', 'ID3D10Device', 'ID3D11Device', 'ID3D12Device', 'HGLRC' or 'VkDevice'.
 	/// </summary>
-	class __declspec(novtable) device : public api_object
+	struct __declspec(novtable) device : public api_object
 	{
-	public:
 		/// <summary>
 		/// Gets the underlying render API used by this device.
 		/// </summary>
@@ -328,9 +326,8 @@ namespace reshade { namespace api
 	/// <summary>
 	/// The base class for objects that are children to a logical render <see cref="device"/>.
 	/// </summary>
-	class __declspec(novtable) device_object : public api_object
+	struct __declspec(novtable) device_object : public api_object
 	{
-	public:
 		/// <summary>
 		/// Gets the parent device for this object.
 		/// </summary>
@@ -341,9 +338,8 @@ namespace reshade { namespace api
 	/// A command list, used to enqueue render commands on the CPU, before later executing them in a command queue.
 	/// Functionally equivalent to a 'ID3D11CommandList', 'ID3D12CommandList' or 'VkCommandBuffer'.
 	/// </summary>
-	class __declspec(novtable) command_list : public device_object
+	struct __declspec(novtable) command_list : public device_object
 	{
-	public:
 		/// <summary>
 		/// Copies the entire contents of the <paramref name="source"/> resource to the <paramref name="destination"/> resource.
 		/// The <paramref name="source"/> resource has to be in the <see cref="resource_usage::copy_source"/> state.
@@ -381,9 +377,8 @@ namespace reshade { namespace api
 	/// A command queue, used to execute command lists on the GPU.
 	/// Functionally equivalent to the immediate 'ID3D11DeviceContext' or a 'ID3D12CommandQueue' or 'VkQueue'.
 	/// </summary>
-	class __declspec(novtable) command_queue : public device_object
+	struct __declspec(novtable) command_queue : public device_object
 	{
-	public:
 		/// <summary>
 		/// Gets a special command list, on which all issued commands are executed as soon as possible (or right before the application executes its next command list on this queue).
 		/// </summary>
@@ -399,9 +394,8 @@ namespace reshade { namespace api
 	/// <summary>
 	/// A ReShade effect runtime, used to control effects. A separate runtime is instantiated for every swap chain ('IDirect3DSwapChain9', 'IDXGISwapChain', 'HDC' or 'VkSwapchainKHR').
 	/// </summary>
-	class __declspec(novtable) effect_runtime : public device_object
+	struct __declspec(novtable) effect_runtime : public device_object
 	{
-	public:
 		/// <summary>
 		/// Gets the main graphics command queue associated with this effect runtime.
 		/// This may potentially be different from the presentation queue and should be used to execute graphics commands on.
