@@ -571,17 +571,19 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetRenderTarget(DWORD RenderTargetInd
 		DWORD count = 0;
 		com_ptr<IDirect3DSurface9> surface;
 		reshade::api::resource_view_handle rtvs[8], dsv = { 0 };
-		while (count < _caps.NumSimultaneousRTs && SUCCEEDED(_orig->GetRenderTarget(count, &surface)))
+		for (DWORD i = 0; i < _caps.NumSimultaneousRTs; ++i, surface.reset())
 		{
+			if (FAILED(_orig->GetRenderTarget(i, &surface)))
+				continue;
+
 			// All surfaces that can be used as render target should be registered at this point
-			rtvs[count++] = { reinterpret_cast<uintptr_t>(surface.get()) };
-			surface.reset();
+			rtvs[i] = { reinterpret_cast<uintptr_t>(surface.get()) };
+			count = i + 1;
 		}
 		if (SUCCEEDED(_orig->GetDepthStencilSurface(&surface)))
 		{
 			// All surfaces that can be used as depth-stencil should be registered at this point
 			dsv = { reinterpret_cast<uintptr_t>(surface.get()) };
-			surface.reset();
 		}
 
 		RESHADE_ADDON_EVENT(set_render_targets_and_depth_stencil, this, count, rtvs, dsv);
@@ -620,10 +622,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetDepthStencilSurface(IDirect3DSurfa
 		DWORD count = 0;
 		com_ptr<IDirect3DSurface9> surface;
 		reshade::api::resource_view_handle rtvs[8], dsv = { reinterpret_cast<uintptr_t>(pNewZStencil) };
-		while (count < _caps.NumSimultaneousRTs && SUCCEEDED(_orig->GetRenderTarget(count, &surface)))
+		for (DWORD i = 0; i < _caps.NumSimultaneousRTs; ++i, surface.reset())
 		{
-			rtvs[count++] = { reinterpret_cast<uintptr_t>(surface.get()) };
-			surface.reset();
+			if (FAILED(_orig->GetRenderTarget(i, &surface)))
+				continue;
+
+			rtvs[i] = { reinterpret_cast<uintptr_t>(surface.get()) };
+			count = i + 1;
 		}
 
 		RESHADE_ADDON_EVENT(set_render_targets_and_depth_stencil, this, count, rtvs, dsv);
@@ -651,11 +656,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Clear(DWORD Count, const D3DRECT *pRe
 		const float color[4] = { ((Color >> 16) & 0xFF) / 255.0f, ((Color >> 8) & 0xFF) / 255.0f, (Color & 0xFF) / 255.0f, ((Color >> 24) & 0xFF) / 255.0f };
 
 		com_ptr<IDirect3DSurface9> surface;
-		for (DWORD i = 0; i < _caps.NumSimultaneousRTs && SUCCEEDED(_orig->GetRenderTarget(i, &surface)); ++i)
+		for (DWORD i = 0; i < _caps.NumSimultaneousRTs; ++i, surface.reset())
 		{
+			if (FAILED(_orig->GetRenderTarget(i, &surface)))
+				continue;
+
 			const reshade::api::resource_view_handle rtv = { reinterpret_cast<uintptr_t>(surface.get()) };
 			RESHADE_ADDON_EVENT(clear_render_target, this, rtv, color);
-			surface.reset();
 		}
 	}
 	if ((Flags & (D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL)) != 0)
@@ -671,7 +678,6 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Clear(DWORD Count, const D3DRECT *pRe
 
 			const reshade::api::resource_view_handle dsv = { reinterpret_cast<uintptr_t>(surface.get()) };
 			RESHADE_ADDON_EVENT(clear_depth_stencil, this, dsv, clear_flags, Z, static_cast<uint8_t>(Stencil));
-			surface.reset();
 		}
 	}
 #endif
@@ -857,32 +863,32 @@ float   STDMETHODCALLTYPE Direct3DDevice9::GetNPatchMode()
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawPrimitive(D3DPRIMITIVETYPE PrimitiveType, UINT StartVertex, UINT PrimitiveCount)
 {
 #if RESHADE_ADDON
-	const UINT vertex_count = calc_vertex_from_prim_count(PrimitiveType, PrimitiveCount);
-	RESHADE_ADDON_EVENT(draw, this, vertex_count, 1, StartVertex, 0);
+	const UINT count = calc_vertex_from_prim_count(PrimitiveType, PrimitiveCount);
+	RESHADE_ADDON_EVENT(draw, this, count, 1, StartVertex, 0);
 #endif
 	return _orig->DrawPrimitive(PrimitiveType, StartVertex, PrimitiveCount);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawIndexedPrimitive(D3DPRIMITIVETYPE PrimitiveType, INT BaseVertexIndex, UINT MinVertexIndex, UINT NumVertices, UINT StartIndex, UINT PrimitiveCount)
 {
 #if RESHADE_ADDON
-	const UINT vertex_count = calc_vertex_from_prim_count(PrimitiveType, PrimitiveCount);
-	RESHADE_ADDON_EVENT(draw_indexed, this, vertex_count, 1, StartIndex, BaseVertexIndex, 0);
+	const UINT count = calc_vertex_from_prim_count(PrimitiveType, PrimitiveCount);
+	RESHADE_ADDON_EVENT(draw_indexed, this, count, 1, StartIndex, BaseVertexIndex, 0);
 #endif
 	return _orig->DrawIndexedPrimitive(PrimitiveType, BaseVertexIndex, MinVertexIndex, NumVertices, StartIndex, PrimitiveCount);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawPrimitiveUP(D3DPRIMITIVETYPE PrimitiveType, UINT PrimitiveCount, const void *pVertexStreamZeroData, UINT VertexStreamZeroStride)
 {
 #if RESHADE_ADDON
-	const UINT vertex_count = calc_vertex_from_prim_count(PrimitiveType, PrimitiveCount);
-	RESHADE_ADDON_EVENT(draw, this, vertex_count, 1, 0, 0);
+	const UINT count = calc_vertex_from_prim_count(PrimitiveType, PrimitiveCount);
+	RESHADE_ADDON_EVENT(draw, this, count, 1, 0, 0);
 #endif
 	return _orig->DrawPrimitiveUP(PrimitiveType, PrimitiveCount, pVertexStreamZeroData, VertexStreamZeroStride);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawIndexedPrimitiveUP(D3DPRIMITIVETYPE PrimitiveType, UINT MinVertexIndex, UINT NumVertices, UINT PrimitiveCount, const void *pIndexData, D3DFORMAT IndexDataFormat, const void *pVertexStreamZeroData, UINT VertexStreamZeroStride)
 {
 #if RESHADE_ADDON
-	const UINT vertex_count = calc_vertex_from_prim_count(PrimitiveType, PrimitiveCount);
-	RESHADE_ADDON_EVENT(draw_indexed, this, vertex_count, 1, 0, 0, 0);
+	const UINT count = calc_vertex_from_prim_count(PrimitiveType, PrimitiveCount);
+	RESHADE_ADDON_EVENT(draw_indexed, this, count, 1, 0, 0, 0);
 #endif
 	return _orig->DrawIndexedPrimitiveUP(PrimitiveType, MinVertexIndex, NumVertices, PrimitiveCount, pIndexData, IndexDataFormat, pVertexStreamZeroData, VertexStreamZeroStride);
 }
