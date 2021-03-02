@@ -3,6 +3,7 @@
  * License: https://github.com/crosire/reshade#license
  */
 
+#include "openvr/reshade_vr.hpp"
 #if RESHADE_GUI
 
 #include "version.h"
@@ -1567,6 +1568,13 @@ void reshade::runtime::draw_gui_settings()
 }
 void reshade::runtime::draw_gui_statistics()
 {
+	if (vr::vr_runtime() != nullptr && vr::vr_runtime() != this)
+	{
+		// if VR mode is enabled, the VR runtime's statistics are the ones we are actually interested in
+		vr::vr_runtime()->draw_gui_statistics();
+		return;
+	}
+
 	unsigned int cpu_digits = 1;
 	unsigned int gpu_digits = 1;
 	uint64_t post_processing_time_cpu = 0;
