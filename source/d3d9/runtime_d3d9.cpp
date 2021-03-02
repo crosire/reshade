@@ -85,6 +85,7 @@ bool reshade::d3d9::runtime_impl::on_init()
 
 	if (pp.MultiSampleType != D3DMULTISAMPLE_NONE || (pp.BackBufferFormat == D3DFMT_X8R8G8B8 || pp.BackBufferFormat == D3DFMT_X8B8G8R8))
 	{
+		// Some effects rely on there being an alpha channel available, so create custom back buffer in case that is not the case
 		switch (_backbuffer_format)
 		{
 		case D3DFMT_X8R8G8B8:
@@ -820,6 +821,13 @@ void reshade::d3d9::runtime_impl::render_technique(technique &technique)
 {
 	const auto impl = static_cast<technique_data *>(technique.impl);
 
+#ifndef NDEBUG
+	std::wstring technique_name;
+	technique_name.reserve(technique.name.size());
+	utf8::unchecked::utf8to16(technique.name.begin(), technique.name.end(), std::back_inserter(technique_name));
+	D3DPERF_BeginEvent(D3DCOLOR_COLORVALUE(0.8f, 0.0f, 0.8f, 1.0f), technique_name.c_str());
+#endif
+
 	RESHADE_ADDON_EVENT(reshade_before_effects, this, _device_impl);
 
 	// Setup vertex input (used to have a vertex ID as vertex shader input)
@@ -847,6 +855,16 @@ void reshade::d3d9::runtime_impl::render_technique(technique &technique)
 
 		const pass_data &pass_data = impl->passes[pass_index];
 		const reshadefx::pass_info &pass_info = technique.passes[pass_index];
+
+#ifndef NDEBUG
+		std::wstring pass_name;
+		pass_name.reserve(pass_info.name.size());
+		if (pass_info.name.empty())
+			pass_name = L"Pass " + std::to_wstring(pass_index);
+		else
+			utf8::unchecked::utf8to16(pass_info.name.begin(), pass_info.name.end(), std::back_inserter(pass_name));
+		D3DPERF_BeginEvent(D3DCOLOR_COLORVALUE(0.8f, 0.8f, 0.8f, 1.0f), pass_name.c_str());
+#endif
 
 		// Setup state
 		pass_data.stateblock->Apply();
@@ -945,9 +963,17 @@ void reshade::d3d9::runtime_impl::render_technique(technique &technique)
 				texture->GenerateMipSubLevels();
 			}
 		}
+
+#ifndef NDEBUG
+		D3DPERF_EndEvent();
+#endif
 	}
 
 	RESHADE_ADDON_EVENT(reshade_after_effects, this, _device_impl);
+
+#ifndef NDEBUG
+	D3DPERF_EndEvent();
+#endif
 }
 
 void reshade::d3d9::runtime_impl::update_texture_bindings(const char *semantic, api::resource_view_handle srv)
