@@ -426,7 +426,7 @@ static void on_present(command_queue *, effect_runtime *runtime)
 			continue; // Skip resources that were destroyed by the application
 
 #if RESHADE_GUI
-		// Save to current list of depth-stencils on the device, so that it can be displayed in the UI
+		// Save to current list of depth-stencils on the device, so that it can be displayed in the GUI
 		device_state.current_depth_stencil_list.emplace_back(resource, snapshot);
 #endif
 
@@ -633,7 +633,7 @@ static void draw_debug_menu(effect_runtime *runtime, void *)
 		return;
 	}
 
-	// Sort pointer list so that added/removed items do not change the UI much
+	// Sort pointer list so that added/removed items do not change the GUI much
 	struct depth_stencil_item
 	{
 		unsigned int display_count;

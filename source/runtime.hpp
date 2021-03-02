@@ -122,14 +122,6 @@ namespace reshade
 		void update_uniform_variables(const char *source, const int32_t *values, size_t count, size_t array_index) final;
 		void update_uniform_variables(const char *source, const uint32_t *values, size_t count, size_t array_index) final;
 
-#if RESHADE_GUI
-		/// <summary>
-		/// Register a function to be called when the UI is drawn.
-		/// </summary>
-		/// <param name="label">Name of the widget.</param>
-		/// <param name="function">The callback function.</param>
-		void subscribe_to_ui(std::string label, std::function<void()> function) { _menu_callables.emplace_back(label, function); }
-#endif
 		/// <summary>
 		/// Register a function to be called when user configuration is loaded.
 		/// </summary>
@@ -347,7 +339,7 @@ namespace reshade
 
 		// === Screenshots ===
 		bool _should_save_screenshot = false;
-		bool _screenshot_save_ui = false;
+		bool _screenshot_save_gui = false;
 		bool _screenshot_save_before = false;
 		bool _screenshot_save_success = true;
 		bool _screenshot_include_preset = false;

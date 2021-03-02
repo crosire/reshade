@@ -171,8 +171,8 @@ void reshade::runtime::on_present()
 	// Draw overlay
 	draw_gui();
 
-	if (_should_save_screenshot && _screenshot_save_ui && (_show_overlay || (_preview_texture != nullptr && _effects_enabled)))
-		save_screenshot(L" ui");
+	if (_should_save_screenshot && _screenshot_save_gui && (_show_overlay || (_preview_texture != nullptr && _effects_enabled)))
+		save_screenshot(L" overlay");
 #endif
 
 	// All screenshots were created at this point, so reset request
@@ -1455,7 +1455,7 @@ void reshade::runtime::load_config()
 	config.get("SCREENSHOT", "FileNamingFormat", _screenshot_naming);
 	config.get("SCREENSHOT", "JPEGQuality", _screenshot_jpeg_quality);
 	config.get("SCREENSHOT", "SaveBeforeShot", _screenshot_save_before);
-	config.get("SCREENSHOT", "SaveOverlayShot", _screenshot_save_ui);
+	config.get("SCREENSHOT", "SaveOverlayShot", _screenshot_save_gui);
 	config.get("SCREENSHOT", "SavePath", _screenshot_path);
 	config.get("SCREENSHOT", "SavePresetFile", _screenshot_include_preset);
 
@@ -1499,7 +1499,7 @@ void reshade::runtime::save_config() const
 	config.set("SCREENSHOT", "FileNamingFormat", _screenshot_naming);
 	config.set("SCREENSHOT", "JPEGQuality", _screenshot_jpeg_quality);
 	config.set("SCREENSHOT", "SaveBeforeShot", _screenshot_save_before);
-	config.set("SCREENSHOT", "SaveOverlayShot", _screenshot_save_ui);
+	config.set("SCREENSHOT", "SaveOverlayShot", _screenshot_save_gui);
 	config.set("SCREENSHOT", "SavePath", _screenshot_path);
 	config.set("SCREENSHOT", "SavePresetFile", _screenshot_include_preset);
 

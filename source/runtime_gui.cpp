@@ -77,14 +77,14 @@ void reshade::runtime::init_gui()
 
 	ImGui::SetCurrentContext(nullptr);
 
-	subscribe_to_ui("Home", [this]() { draw_gui_home(); });
+	_menu_callables.emplace_back("Home", [this]() { draw_gui_home(); });
 #if RESHADE_ADDON
-	subscribe_to_ui("Add-ons", [this]() { draw_gui_addons(); });
+	_menu_callables.emplace_back("Add-ons", [this]() { draw_gui_addons(); });
 #endif
-	subscribe_to_ui("Settings", [this]() { draw_gui_settings(); });
-	subscribe_to_ui("Statistics", [this]() { draw_gui_statistics(); });
-	subscribe_to_ui("Log", [this]() { draw_gui_log(); });
-	subscribe_to_ui("About", [this]() { draw_gui_about(); });
+	_menu_callables.emplace_back("Settings", [this]() { draw_gui_settings(); });
+	_menu_callables.emplace_back("Statistics", [this]() { draw_gui_statistics(); });
+	_menu_callables.emplace_back("Log", [this]() { draw_gui_log(); });
+	_menu_callables.emplace_back("About", [this]() { draw_gui_about(); });
 
 	_load_config_callables.push_back([this, &imgui_io, &imgui_style](const ini_file &config) {
 		config.get("INPUT", "KeyOverlay", _overlay_key_data);
@@ -533,7 +533,7 @@ void reshade::runtime::draw_gui()
 	assert(_is_initialized);
 
 	bool show_splash = _show_splash && (is_loading() || !_reload_compile_queue.empty() || (_reload_count <= 1 && (_last_present_time - _last_reload_time) < std::chrono::seconds(5)));
-	// Do not show this message in the same frame the screenshot is taken (so that it won't show up on the UI screenshot)
+	// Do not show this message in the same frame the screenshot is taken (so that it won't show up on the GUI screenshot)
 	const bool show_screenshot_message = (_show_screenshot_message || !_screenshot_save_success) && !_should_save_screenshot && (_last_present_time - _last_screenshot_time) < std::chrono::seconds(_screenshot_save_success ? 3 : 5);
 
 	if (show_screenshot_message || !_preset_save_success || (!_show_overlay && _tutorial_index == 0))
@@ -552,18 +552,18 @@ void reshade::runtime::draw_gui()
 	{
 		_input->block_mouse_input(false);
 		_input->block_keyboard_input(false);
-		return; // Early-out to avoid costly ImGui calls when no UI elements are on the screen
+		return; // Early-out to avoid costly ImGui calls when no GUI elements are on the screen
 	}
 
 	if (_rebuild_font_atlas)
 		build_font_atlas();
 	if (_imgui_font_atlas == nullptr)
-		return; // Cannot render UI without font atlas
+		return; // Cannot render GUI without font atlas
 
 	ImGui::SetCurrentContext(_imgui_context);
 	auto &imgui_io = _imgui_context->IO;
 	imgui_io.DeltaTime = _last_frame_duration.count() * 1e-9f;
-	imgui_io.MouseDrawCursor = _show_overlay && (!_should_save_screenshot || !_screenshot_save_ui);
+	imgui_io.MouseDrawCursor = _show_overlay && (!_should_save_screenshot || !_screenshot_save_gui);
 	imgui_io.MousePos.x = static_cast<float>(_input->mouse_position_x());
 	imgui_io.MousePos.y = static_cast<float>(_input->mouse_position_y());
 	imgui_io.DisplaySize.x = static_cast<float>(_width);
@@ -808,7 +808,7 @@ void reshade::runtime::draw_gui()
 
 		for (const auto &widget : _menu_callables)
 		{
-			if (ImGui::Begin(widget.first.c_str(), nullptr, ImGuiWindowFlags_NoFocusOnAppearing)) // No focus so that window state is preserved between opening/closing the UI
+			if (ImGui::Begin(widget.first.c_str(), nullptr, ImGuiWindowFlags_NoFocusOnAppearing)) // No focus so that window state is preserved between opening/closing the GUI
 				widget.second();
 			ImGui::End();
 		}
@@ -1389,7 +1389,7 @@ void reshade::runtime::draw_gui_settings()
 
 		modified |= ImGui::Checkbox("Save current preset file", &_screenshot_include_preset);
 		modified |= ImGui::Checkbox("Save before and after images", &_screenshot_save_before);
-		modified |= ImGui::Checkbox("Save separate image with the overlay visible", &_screenshot_save_ui);
+		modified |= ImGui::Checkbox("Save separate image with the overlay visible", &_screenshot_save_gui);
 	}
 
 	if (ImGui::CollapsingHeader("Overlay & Styling", ImGuiTreeNodeFlags_DefaultOpen))
