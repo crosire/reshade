@@ -22,6 +22,8 @@
 #include <stb_image_write.h>
 #include <stb_image_resize.h>
 
+#include "openvr/reshade_vr.hpp"
+
 bool resolve_path(std::filesystem::path &path)
 {
 	std::error_code ec;
@@ -1505,6 +1507,12 @@ void reshade::runtime::save_config() const
 
 	for (const auto &callback : _save_config_callables)
 		callback(config);
+
+	if (vr::vr_runtime() != nullptr)
+	{
+		vr::vr_runtime()->load_config();
+		vr::vr_runtime()->load_current_preset();
+	}
 }
 
 void reshade::runtime::load_current_preset()
@@ -1727,6 +1735,9 @@ void reshade::runtime::save_current_preset() const
 			}
 		}
 	}
+
+	if (vr::vr_runtime() != nullptr)
+		vr::vr_runtime()->load_current_preset();
 }
 
 bool reshade::runtime::switch_to_next_preset(std::filesystem::path filter_path, bool reversed)
