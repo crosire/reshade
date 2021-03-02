@@ -135,7 +135,7 @@ namespace reshade
 
 	protected:
 		runtime();
-		virtual ~runtime();
+		~runtime();
 
 		/// <summary>
 		/// Callback function called when the runtime is initialized.

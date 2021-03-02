@@ -14,6 +14,7 @@ D3D10Device::D3D10Device(IDXGIDevice1 *dxgi_device, ID3D10Device1 *original) :
 {
 	assert(_orig != nullptr);
 
+	// Add proxy object to the private data of the device, so that it can be retrieved again when only the original device is available
 	D3D10Device *const device_proxy = this;
 	_orig->SetPrivateData(__uuidof(D3D10Device), sizeof(device_proxy), &device_proxy);
 }
@@ -589,11 +590,6 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateShaderResourceView(ID3D10Resource *
 	else
 	{
 		LOG(WARN) << "ID3D10Device::CreateShaderResourceView" << " failed with error code " << hr << '.';
-		LOG(DEBUG) << "> Dumping description:";
-		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
-		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
-		LOG(DEBUG) << "  | ViewDimension                           | " << std::setw(39) << new_desc.ViewDimension << " |";
-		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
 	}
 #endif
 
@@ -623,11 +619,6 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateRenderTargetView(ID3D10Resource *pR
 	else
 	{
 		LOG(WARN) << "ID3D10Device::CreateRenderTargetView" << " failed with error code " << hr << '.';
-		LOG(DEBUG) << "> Dumping description:";
-		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
-		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
-		LOG(DEBUG) << "  | ViewDimension                           | " << std::setw(39) << new_desc.ViewDimension << " |";
-		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
 	}
 #endif
 
@@ -657,11 +648,6 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateDepthStencilView(ID3D10Resource *pR
 	else
 	{
 		LOG(WARN) << "ID3D10Device::CreateDepthStencilView" << " failed with error code " << hr << '.';
-		LOG(DEBUG) << "> Dumping description:";
-		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
-		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
-		LOG(DEBUG) << "  | ViewDimension                           | " << std::setw(39) << new_desc.ViewDimension << " |";
-		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
 	}
 #endif
 
@@ -772,11 +758,6 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateShaderResourceView1(ID3D10Resource 
 	else
 	{
 		LOG(WARN) << "ID3D10Device1::CreateShaderResourceView1" << " failed with error code " << hr << '.';
-		LOG(DEBUG) << "> Dumping description:";
-		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
-		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
-		LOG(DEBUG) << "  | ViewDimension                           | " << std::setw(39) << new_desc.ViewDimension << " |";
-		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
 	}
 #endif
 

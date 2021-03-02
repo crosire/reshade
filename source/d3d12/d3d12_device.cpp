@@ -16,6 +16,7 @@ D3D12Device::D3D12Device(ID3D12Device *original) :
 {
 	assert(_orig != nullptr);
 
+	// Add proxy object to the private data of the device, so that it can be retrieved again when only the original device is available
 	D3D12Device *const device_proxy = this;
 	_orig->SetPrivateData(__uuidof(D3D12Device), sizeof(device_proxy), &device_proxy);
 }

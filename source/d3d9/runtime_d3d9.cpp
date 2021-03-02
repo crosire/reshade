@@ -387,9 +387,9 @@ bool reshade::d3d9::runtime_impl::init_effect(size_t index)
 		technique_init.sampler_states[info.binding][D3DSAMP_ADDRESSV] = static_cast<D3DTEXTUREADDRESS>(info.address_v);
 		technique_init.sampler_states[info.binding][D3DSAMP_ADDRESSW] = static_cast<D3DTEXTUREADDRESS>(info.address_w);
 		technique_init.sampler_states[info.binding][D3DSAMP_BORDERCOLOR] = 0;
-		technique_init.sampler_states[info.binding][D3DSAMP_MAGFILTER] = 1 + ((static_cast<unsigned int>(info.filter) & 0x0C) >> 2);
-		technique_init.sampler_states[info.binding][D3DSAMP_MINFILTER] = 1 + ((static_cast<unsigned int>(info.filter) & 0x30) >> 4);
-		technique_init.sampler_states[info.binding][D3DSAMP_MIPFILTER] = 1 + ((static_cast<unsigned int>(info.filter) & 0x03));
+		technique_init.sampler_states[info.binding][D3DSAMP_MAGFILTER] = 1 + ((static_cast<DWORD>(info.filter) & 0x0C) >> 2);
+		technique_init.sampler_states[info.binding][D3DSAMP_MINFILTER] = 1 + ((static_cast<DWORD>(info.filter) & 0x30) >> 4);
+		technique_init.sampler_states[info.binding][D3DSAMP_MIPFILTER] = 1 + ((static_cast<DWORD>(info.filter) & 0x03));
 		technique_init.sampler_states[info.binding][D3DSAMP_MIPMAPLODBIAS] = *reinterpret_cast<const DWORD *>(&lod_bias);
 		technique_init.sampler_states[info.binding][D3DSAMP_MAXMIPLEVEL] = static_cast<DWORD>(std::max(0.0f, info.min_lod));
 		technique_init.sampler_states[info.binding][D3DSAMP_MAXANISOTROPY] = 1;

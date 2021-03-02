@@ -290,11 +290,6 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateShaderResourceView(ID3D11Resource *
 	else
 	{
 		LOG(WARN) << "ID3D11Device::CreateShaderResourceView" << " failed with error code " << hr << '.';
-		LOG(DEBUG) << "> Dumping description:";
-		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
-		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
-		LOG(DEBUG) << "  | ViewDimension                           | " << std::setw(39) << new_desc.ViewDimension << " |";
-		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
 	}
 #endif
 
@@ -324,11 +319,6 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateUnorderedAccessView(ID3D11Resource 
 	else
 	{
 		LOG(WARN) << "ID3D11Device::CreateUnorderedAccessView" << " failed with error code " << hr << '.';
-		LOG(DEBUG) << "> Dumping description:";
-		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
-		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
-		LOG(DEBUG) << "  | ViewDimension                           | " << std::setw(39) << new_desc.ViewDimension << " |";
-		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
 	}
 #endif
 
@@ -358,11 +348,6 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRenderTargetView(ID3D11Resource *pR
 	else
 	{
 		LOG(WARN) << "ID3D11Device::CreateRenderTargetView" << " failed with error code " << hr << '.';
-		LOG(DEBUG) << "> Dumping description:";
-		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
-		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
-		LOG(DEBUG) << "  | ViewDimension                           | " << std::setw(39) << new_desc.ViewDimension << " |";
-		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
 	}
 #endif
 
@@ -392,11 +377,6 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDepthStencilView(ID3D11Resource *pR
 	else
 	{
 		LOG(WARN) << "ID3D11Device::CreateDepthStencilView" << " failed with error code " << hr << '.';
-		LOG(DEBUG) << "> Dumping description:";
-		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
-		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
-		LOG(DEBUG) << "  | ViewDimension                           | " << std::setw(39) << new_desc.ViewDimension << " |";
-		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
 	}
 #endif
 
@@ -775,11 +755,6 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateShaderResourceView1(ID3D11Resource 
 	else
 	{
 		LOG(WARN) << "ID3D11Device3::CreateShaderResourceView1" << " failed with error code " << hr << '.';
-		LOG(DEBUG) << "> Dumping description:";
-		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
-		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
-		LOG(DEBUG) << "  | ViewDimension                           | " << std::setw(39) << new_desc.ViewDimension << " |";
-		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
 	}
 #endif
 
@@ -810,11 +785,6 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateUnorderedAccessView1(ID3D11Resource
 	else
 	{
 		LOG(WARN) << "ID3D11Device3::CreateUnorderedAccessView1" << " failed with error code " << hr << '.';
-		LOG(DEBUG) << "> Dumping description:";
-		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
-		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
-		LOG(DEBUG) << "  | ViewDimension                           | " << std::setw(39) << new_desc.ViewDimension << " |";
-		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
 	}
 #endif
 
@@ -845,11 +815,6 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRenderTargetView1(ID3D11Resource *p
 	else
 	{
 		LOG(WARN) << "ID3D11Device3::CreateRenderTargetView1" << " failed with error code " << hr << '.';
-		LOG(DEBUG) << "> Dumping description:";
-		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
-		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
-		LOG(DEBUG) << "  | ViewDimension                           | " << std::setw(39) << new_desc.ViewDimension << " |";
-		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
 	}
 #endif
 

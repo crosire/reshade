@@ -332,6 +332,15 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateTexture(UINT Width, UINT Height
 	else
 	{
 		LOG(WARN) << "IDirect3DDevice9::CreateTexture" << " failed with error code " << hr << '.';
+		LOG(DEBUG) << "> Dumping description:";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(DEBUG) << "  | Width                                   | " << std::setw(39) << new_desc.Width << " |";
+		LOG(DEBUG) << "  | Height                                  | " << std::setw(39) << new_desc.Height << " |";
+		LOG(DEBUG) << "  | Levels                                  | " << std::setw(39) << Levels << " |";
+		LOG(DEBUG) << "  | Usage                                   | " << std::setw(39) << std::hex << new_desc.Usage << std::dec << " |";
+		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
+		LOG(DEBUG) << "  | Pool                                    | " << std::setw(39) << new_desc.Pool << " |";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
 	}
 #endif
 
@@ -357,6 +366,16 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVolumeTexture(UINT Width, UINT 
 	else
 	{
 		LOG(WARN) << "IDirect3DDevice9::CreateVolumeTexture" << " failed with error code " << hr << '.';
+		LOG(DEBUG) << "> Dumping description:";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(DEBUG) << "  | Width                                   | " << std::setw(39) << new_desc.Width << " |";
+		LOG(DEBUG) << "  | Height                                  | " << std::setw(39) << new_desc.Height << " |";
+		LOG(DEBUG) << "  | Depth                                   | " << std::setw(39) << new_desc.Depth << " |";
+		LOG(DEBUG) << "  | Levels                                  | " << std::setw(39) << Levels << " |";
+		LOG(DEBUG) << "  | Usage                                   | " << std::setw(39) << std::hex << new_desc.Usage << std::dec << " |";
+		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
+		LOG(DEBUG) << "  | Pool                                    | " << std::setw(39) << new_desc.Pool << " |";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
 	}
 #endif
 
@@ -398,6 +417,14 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateCubeTexture(UINT EdgeLength, UI
 	else
 	{
 		LOG(WARN) << "IDirect3DDevice9::CreateCubeTexture" << " failed with error code " << hr << '.';
+		LOG(DEBUG) << "> Dumping description:";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(DEBUG) << "  | EdgeLength                              | " << std::setw(39) << new_desc.Width << " |";
+		LOG(DEBUG) << "  | Levels                                  | " << std::setw(39) << Levels << " |";
+		LOG(DEBUG) << "  | Usage                                   | " << std::setw(39) << std::hex << new_desc.Usage << std::dec << " |";
+		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
+		LOG(DEBUG) << "  | Pool                                    | " << std::setw(39) << new_desc.Pool << " |";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
 	}
 #endif
 
@@ -427,6 +454,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexBuffer(UINT Length, DWORD
 	else
 	{
 		LOG(WARN) << "IDirect3DDevice9::CreateVertexBuffer" << " failed with error code " << hr << '.';
+		LOG(DEBUG) << "> Dumping description:";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(DEBUG) << "  | Length                                  | " << std::setw(39) << new_desc.Size << " |";
+		LOG(DEBUG) << "  | Usage                                   | " << std::setw(39) << std::hex << new_desc.Usage << std::dec << " |";
+		LOG(DEBUG) << "  | Pool                                    | " << std::setw(39) << new_desc.Pool << " |";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
 	}
 #endif
 
@@ -455,6 +488,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateIndexBuffer(UINT Length, DWORD 
 	else
 	{
 		LOG(WARN) << "IDirect3DDevice9::CreateIndexBuffer" << " failed with error code " << hr << '.';
+		LOG(DEBUG) << "> Dumping description:";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(DEBUG) << "  | Length                                  | " << std::setw(39) << new_desc.Size << " |";
+		LOG(DEBUG) << "  | Usage                                   | " << std::setw(39) << std::hex << new_desc.Usage << std::dec << " |";
+		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
+		LOG(DEBUG) << "  | Pool                                    | " << std::setw(39) << new_desc.Pool << " |";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
 	}
 #endif
 
@@ -468,6 +508,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTarget(UINT Width, UINT H
 	reshade::api::resource_desc surface_desc = reshade::d3d9::convert_resource_desc(new_desc, 1, _caps);
 	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::surface, &surface_desc);
 	reshade::d3d9::convert_resource_desc(surface_desc, new_desc);
+	assert(new_desc.Usage == D3DUSAGE_RENDERTARGET);
 
 	// Need to replace surface with a texture if an add-on requested shader access
 	if ((surface_desc.usage & reshade::api::resource_usage::shader_resource) != 0)
@@ -487,6 +528,14 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTarget(UINT Width, UINT H
 	else
 	{
 		LOG(WARN) << "IDirect3DDevice9::CreateRenderTarget" << " failed with error code " << hr << '.';
+		LOG(DEBUG) << "> Dumping description:";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(DEBUG) << "  | Width                                   | " << std::setw(39) << new_desc.Width << " |";
+		LOG(DEBUG) << "  | Height                                  | " << std::setw(39) << new_desc.Height << " |";
+		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
+		LOG(DEBUG) << "  | MultiSampleType                         | " << std::setw(39) << new_desc.MultiSampleType << " |";
+		LOG(DEBUG) << "  | MultiSampleQuality                      | " << std::setw(39) << new_desc.MultiSampleQuality << " |";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
 	}
 #endif
 
@@ -500,6 +549,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurface(UINT Width,
 	reshade::api::resource_desc surface_desc = reshade::d3d9::convert_resource_desc(new_desc, 1, _caps);
 	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::surface, &surface_desc);
 	reshade::d3d9::convert_resource_desc(surface_desc, new_desc);
+	assert(new_desc.Usage == D3DUSAGE_DEPTHSTENCIL);
 
 	// Need to replace surface with a texture if an add-on requested shader access
 	if ((surface_desc.usage & reshade::api::resource_usage::shader_resource) != 0)
@@ -522,6 +572,14 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurface(UINT Width,
 	else
 	{
 		LOG(WARN) << "IDirect3DDevice9::CreateDepthStencilSurface" << " failed with error code " << hr << '.';
+		LOG(DEBUG) << "> Dumping description:";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(DEBUG) << "  | Width                                   | " << std::setw(39) << new_desc.Width << " |";
+		LOG(DEBUG) << "  | Height                                  | " << std::setw(39) << new_desc.Height << " |";
+		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
+		LOG(DEBUG) << "  | MultiSampleType                         | " << std::setw(39) << new_desc.MultiSampleType << " |";
+		LOG(DEBUG) << "  | MultiSampleQuality                      | " << std::setw(39) << new_desc.MultiSampleQuality << " |";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
 	}
 #endif
 
@@ -1135,6 +1193,15 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTargetEx(UINT Width, UINT
 	else
 	{
 		LOG(WARN) << "IDirect3DDevice9Ex::CreateRenderTargetEx" << " failed with error code " << hr << '.';
+		LOG(DEBUG) << "> Dumping description:";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(DEBUG) << "  | Width                                   | " << std::setw(39) << new_desc.Width << " |";
+		LOG(DEBUG) << "  | Height                                  | " << std::setw(39) << new_desc.Height << " |";
+		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
+		LOG(DEBUG) << "  | MultiSampleType                         | " << std::setw(39) << new_desc.MultiSampleType << " |";
+		LOG(DEBUG) << "  | MultiSampleQuality                      | " << std::setw(39) << new_desc.MultiSampleQuality << " |";
+		LOG(DEBUG) << "  | Usage                                   | " << std::setw(39) << std::hex << new_desc.Usage << std::dec << " |";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
 	}
 #endif
 
@@ -1176,6 +1243,15 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurfaceEx(UINT Widt
 	else
 	{
 		LOG(WARN) << "IDirect3DDevice9Ex::CreateDepthStencilSurfaceEx" << " failed with error code " << hr << '.';
+		LOG(DEBUG) << "> Dumping description:";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(DEBUG) << "  | Width                                   | " << std::setw(39) << new_desc.Width << " |";
+		LOG(DEBUG) << "  | Height                                  | " << std::setw(39) << new_desc.Height << " |";
+		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << new_desc.Format << " |";
+		LOG(DEBUG) << "  | MultiSampleType                         | " << std::setw(39) << new_desc.MultiSampleType << " |";
+		LOG(DEBUG) << "  | MultiSampleQuality                      | " << std::setw(39) << new_desc.MultiSampleQuality << " |";
+		LOG(DEBUG) << "  | Usage                                   | " << std::setw(39) << std::hex << new_desc.Usage << std::dec << " |";
+		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
 	}
 #endif
 
