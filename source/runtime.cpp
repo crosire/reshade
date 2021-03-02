@@ -1129,6 +1129,14 @@ void reshade::runtime::update_and_render_effects()
 	if (!_effects_enabled)
 		return;
 
+	if (vr::vr_runtime() != nullptr && vr::vr_runtime() != this) {
+		// In VR mode, effects should not be applied to the window unless GUI is active
+#if RESHADE_GUI
+		if (!_show_overlay)
+#endif
+			return;
+	}
+
 	// Update special uniform variables
 	for (effect &effect : _effects)
 	{
