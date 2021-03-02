@@ -109,12 +109,8 @@ HOOK_EXPORT void WINAPI glBlendFunc(GLenum sfactor, GLenum dfactor)
 	{
 		reshade::api::resource_desc api_desc = reshade::opengl::convert_resource_desc(size);
 		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, reshade::api::resource_type::buffer, &api_desc);
-#ifdef _WIN64
-		size = api_desc.width | (static_cast<uint64_t>(api_desc.height) << 32);
-#else
-		size = api_desc.width;
-		assert(api_desc.height == 0);
-#endif
+		assert(api_desc.size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
+		size = static_cast<GLsizeiptr>(api_desc.size);
 	}
 #endif
 
@@ -129,12 +125,8 @@ HOOK_EXPORT void WINAPI glBlendFunc(GLenum sfactor, GLenum dfactor)
 	{
 		reshade::api::resource_desc api_desc = reshade::opengl::convert_resource_desc(size);
 		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, reshade::api::resource_type::buffer, &api_desc);
-#ifdef _WIN64
-		size = api_desc.width | (static_cast<uint64_t>(api_desc.height) << 32);
-#else
-		size = api_desc.width;
-		assert(api_desc.height == 0);
-#endif
+		assert(api_desc.size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
+		size = static_cast<GLsizeiptr>(api_desc.size);
 	}
 #endif
 
@@ -1385,12 +1377,8 @@ HOOK_EXPORT void WINAPI glMultMatrixf(const GLfloat *m)
 	{
 		reshade::api::resource_desc api_desc = reshade::opengl::convert_resource_desc(size);
 		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, reshade::api::resource_type::buffer, &api_desc);
-#ifdef _WIN64
-		size = api_desc.width | (static_cast<uint64_t>(api_desc.height) << 32);
-#else
-		size = api_desc.width;
-		assert(api_desc.height == 0);
-#endif
+		assert(api_desc.size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
+		size = static_cast<GLsizeiptr>(api_desc.size);
 	}
 #endif
 
@@ -1405,12 +1393,8 @@ HOOK_EXPORT void WINAPI glMultMatrixf(const GLfloat *m)
 	{
 		reshade::api::resource_desc api_desc = reshade::opengl::convert_resource_desc(size);
 		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, reshade::api::resource_type::buffer, &api_desc);
-#ifdef _WIN64
-		size = api_desc.width | (static_cast<uint64_t>(api_desc.height) << 32);
-#else
-		size = api_desc.width;
-		assert(api_desc.height == 0);
-#endif
+		assert(api_desc.size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
+		size = static_cast<GLsizeiptr>(api_desc.size);
 	}
 #endif
 
@@ -1898,26 +1882,11 @@ HOOK_EXPORT void WINAPI glStencilOp(GLenum fail, GLenum zfail, GLenum zpass)
 #if RESHADE_ADDON
 	if (g_current_runtime)
 	{
-		reshade::api::resource_view_desc api_desc = { reshade::opengl::convert_resource_view_dimension(target) };
-		api_desc.format = internalformat;
+		reshade::api::resource_view_desc api_desc = { reshade::opengl::convert_resource_view_type(target), internalformat };
 		// The target of the original buffer is unknown at this point, so use "GL_BUFFER" as a placeholder instead for the resource handle
-		RESHADE_ADDON_EVENT(create_resource_view, g_current_runtime, reshade::opengl::make_resource_handle(GL_BUFFER, buffer), reshade::api::resource_view_type::unknown, &api_desc);
+		RESHADE_ADDON_EVENT(create_resource_view, g_current_runtime, reshade::opengl::make_resource_handle(GL_BUFFER, buffer), reshade::api::resource_usage::undefined, &api_desc);
 		internalformat = api_desc.format;
-
-		if (api_desc.first_level != 0 || api_desc.levels != 0)
-		{
-#ifdef _WIN64
-			const GLintptr offset = api_desc.first_level | static_cast<uint64_t>(api_desc.first_layer) << 32;
-			const GLsizeiptr size = api_desc.levels | static_cast<uint64_t>(api_desc.layers) << 32;
-#else
-			const GLintptr offset = api_desc.first_level;
-			const GLsizeiptr size = api_desc.levels;
-			assert(api_desc.first_layer == 0 && api_desc.layers == 0);
-#endif
-			const auto trampoline_range = reshade::hooks::call(glTexBufferRange);
-			trampoline_range(target, internalformat, buffer, offset, size);
-			return;
-		}
+		assert(api_desc.offset == 0 && api_desc.size == 0);
 	}
 #endif
 
@@ -1929,25 +1898,11 @@ HOOK_EXPORT void WINAPI glStencilOp(GLenum fail, GLenum zfail, GLenum zpass)
 #if RESHADE_ADDON
 	if (g_current_runtime)
 	{
-		reshade::api::resource_view_desc api_desc = { reshade::api::resource_view_dimension::buffer };
-		api_desc.format = internalformat;
-		RESHADE_ADDON_EVENT(create_resource_view, g_current_runtime, reshade::opengl::make_resource_handle(GL_BUFFER, buffer), reshade::api::resource_view_type::unknown, &api_desc);
+		reshade::api::resource_view_desc api_desc = { reshade::api::resource_view_type::buffer, internalformat };
+		RESHADE_ADDON_EVENT(create_resource_view, g_current_runtime, reshade::opengl::make_resource_handle(GL_BUFFER, buffer), reshade::api::resource_usage::undefined, &api_desc);
+		assert(api_desc.type == reshade::api::resource_view_type::buffer);
 		internalformat = api_desc.format;
-
-		if (api_desc.first_level != 0 || api_desc.levels != 0)
-		{
-#ifdef _WIN64
-			const GLintptr offset = api_desc.first_level | static_cast<uint64_t>(api_desc.first_layer) << 32;
-			const GLsizeiptr size = api_desc.levels | static_cast<uint64_t>(api_desc.layers) << 32;
-#else
-			const GLintptr offset = api_desc.first_level;
-			const GLsizeiptr size = api_desc.levels;
-			assert(api_desc.first_layer == 0 && api_desc.layers == 0);
-#endif
-			const auto trampoline_range = reshade::hooks::call(glTextureBufferRange);
-			trampoline_range(texture, internalformat, buffer, offset, size);
-			return;
-		}
+		assert(api_desc.offset == 0 && api_desc.size == 0);
 	}
 #endif
 
@@ -1960,24 +1915,15 @@ HOOK_EXPORT void WINAPI glStencilOp(GLenum fail, GLenum zfail, GLenum zpass)
 #if RESHADE_ADDON
 	if (g_current_runtime)
 	{
-		reshade::api::resource_view_desc api_desc = { reshade::opengl::convert_resource_view_dimension(target) };
-		api_desc.format = internalformat;
-		api_desc.first_level = offset & 0xFFFFFFFF;
-		api_desc.levels = size & 0xFFFFFFFF;
-#ifdef _WIN64
-		api_desc.first_layer = (offset >> 32) & 0xFFFFFFFF;
-		api_desc.layers = (size >> 32) & 0xFFFFFFFF;
-#endif
-		RESHADE_ADDON_EVENT(create_resource_view, g_current_runtime, reshade::opengl::make_resource_handle(GL_BUFFER, buffer), reshade::api::resource_view_type::unknown, &api_desc);
-#ifdef _WIN64
-		size = api_desc.levels | static_cast<uint64_t>(api_desc.layers) << 32;
-		offset = api_desc.first_level | static_cast<uint64_t>(api_desc.first_layer) << 32;
-#else
-		size = api_desc.levels;
-		offset = api_desc.first_level;
-		assert(api_desc.first_layer == 0 && api_desc.layers == 0);
-#endif
+		reshade::api::resource_view_desc api_desc = { reshade::opengl::convert_resource_view_type(target), internalformat };
+		api_desc.offset = offset;
+		api_desc.size = size;
+		RESHADE_ADDON_EVENT(create_resource_view, g_current_runtime, reshade::opengl::make_resource_handle(GL_BUFFER, buffer), reshade::api::resource_usage::undefined, &api_desc);
 		internalformat = api_desc.format;
+		assert(api_desc.offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()));
+		offset = static_cast<GLsizeiptr>(api_desc.offset);
+		assert(api_desc.size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
+		size = static_cast<GLintptr>(api_desc.size);
 	}
 #endif
 
@@ -1989,24 +1935,16 @@ HOOK_EXPORT void WINAPI glStencilOp(GLenum fail, GLenum zfail, GLenum zpass)
 #if RESHADE_ADDON
 	if (g_current_runtime)
 	{
-		reshade::api::resource_view_desc api_desc = { reshade::api::resource_view_dimension::buffer };
-		api_desc.format = internalformat;
-		api_desc.first_level = offset & 0xFFFFFFFF;
-		api_desc.levels = size & 0xFFFFFFFF;
-#ifdef _WIN64
-		api_desc.first_layer = (offset >> 32) & 0xFFFFFFFF;
-		api_desc.layers = (size >> 32) & 0xFFFFFFFF;
-#endif
-		RESHADE_ADDON_EVENT(create_resource_view, g_current_runtime, reshade::opengl::make_resource_handle(GL_BUFFER, buffer), reshade::api::resource_view_type::unknown, &api_desc);
-#ifdef _WIN64
-		size = api_desc.levels | static_cast<uint64_t>(api_desc.layers) << 32;
-		offset = api_desc.first_level | static_cast<uint64_t>(api_desc.first_layer) << 32;
-#else
-		size = api_desc.levels;
-		offset = api_desc.first_level;
-		assert(api_desc.first_layer == 0 && api_desc.layers == 0);
-#endif
+		reshade::api::resource_view_desc api_desc = { reshade::api::resource_view_type::buffer, internalformat };
+		api_desc.offset = offset;
+		api_desc.size = size;
+		RESHADE_ADDON_EVENT(create_resource_view, g_current_runtime, reshade::opengl::make_resource_handle(GL_BUFFER, buffer), reshade::api::resource_usage::undefined, &api_desc);
+		assert(api_desc.type == reshade::api::resource_view_type::buffer);
 		internalformat = api_desc.format;
+		assert(api_desc.offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()));
+		offset = static_cast<GLsizeiptr>(api_desc.offset);
+		assert(api_desc.size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
+		size = static_cast<GLintptr>(api_desc.size);
 	}
 #endif
 
@@ -2261,7 +2199,8 @@ HOOK_EXPORT void WINAPI glTexImage1D(GLenum target, GLint level, GLint internalf
 #if RESHADE_ADDON
 	if (g_current_runtime)
 	{
-		reshade::api::resource_type api_type = reshade::opengl::convert_resource_type(target);
+		const reshade::api::resource_type api_type = reshade::opengl::convert_resource_type(target);
+		assert(api_type != reshade::api::resource_type::buffer);
 		reshade::api::resource_desc api_desc = reshade::opengl::convert_resource_desc(api_type, 1, static_cast<GLenum>(internalformat), width);
 		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, api_type, &api_desc);
 		width = api_desc.width;
@@ -2301,7 +2240,8 @@ HOOK_EXPORT void WINAPI glTexImage2D(GLenum target, GLint level, GLint internalf
 	if (g_current_runtime)
 	{
 		// TODO: This handles every mipmap of a texture initialized via multiple calls to 'glTexImage2D' as a separate resource, which is not technically correct
-		reshade::api::resource_type api_type = reshade::opengl::convert_resource_type(target);
+		const reshade::api::resource_type api_type = reshade::opengl::convert_resource_type(target);
+		assert(api_type != reshade::api::resource_type::buffer);
 		reshade::api::resource_desc api_desc = reshade::opengl::convert_resource_desc(api_type, 1, static_cast<GLenum>(internalformat), width, height);
 		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, api_type, &api_desc);
 		width = api_desc.width;
@@ -2341,7 +2281,8 @@ HOOK_EXPORT void WINAPI glTexImage2D(GLenum target, GLint level, GLint internalf
 #if RESHADE_ADDON
 	if (g_current_runtime)
 	{
-		reshade::api::resource_type api_type = reshade::opengl::convert_resource_type(target);
+		const reshade::api::resource_type api_type = reshade::opengl::convert_resource_type(target);
+		assert(api_type != reshade::api::resource_type::buffer);
 		reshade::api::resource_desc api_desc = reshade::opengl::convert_resource_desc(api_type, 1, static_cast<GLenum>(internalformat), width, height, depth);
 		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, api_type, &api_desc);
 		width = api_desc.width;
@@ -2392,7 +2333,8 @@ HOOK_EXPORT void WINAPI glTexSubImage2D(GLenum target, GLint level, GLint xoffse
 #if RESHADE_ADDON
 	if (g_current_runtime)
 	{
-		reshade::api::resource_type api_type = reshade::opengl::convert_resource_type(target);
+		const reshade::api::resource_type api_type = reshade::opengl::convert_resource_type(target);
+		assert(api_type != reshade::api::resource_type::buffer);
 		reshade::api::resource_desc api_desc = reshade::opengl::convert_resource_desc(api_type, levels, internalformat, width);
 		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, api_type, &api_desc);
 		width = api_desc.width;
@@ -2409,7 +2351,8 @@ HOOK_EXPORT void WINAPI glTexSubImage2D(GLenum target, GLint level, GLint xoffse
 #if RESHADE_ADDON
 	if (g_current_runtime)
 	{
-		reshade::api::resource_type api_type = reshade::opengl::convert_resource_type(target);
+		const reshade::api::resource_type api_type = reshade::opengl::convert_resource_type(target);
+		assert(api_type != reshade::api::resource_type::buffer);
 		reshade::api::resource_desc api_desc = reshade::opengl::convert_resource_desc(api_type, levels, internalformat, width, height);
 		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, api_type, &api_desc);
 		width = api_desc.width;
@@ -2427,7 +2370,8 @@ HOOK_EXPORT void WINAPI glTexSubImage2D(GLenum target, GLint level, GLint xoffse
 #if RESHADE_ADDON
 	if (g_current_runtime)
 	{
-		reshade::api::resource_type api_type = reshade::opengl::convert_resource_type(target);
+		const reshade::api::resource_type api_type = reshade::opengl::convert_resource_type(target);
+		assert(api_type != reshade::api::resource_type::buffer);
 		reshade::api::resource_desc api_desc = reshade::opengl::convert_resource_desc(api_type, levels, internalformat, width, height, depth);
 		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, api_type, &api_desc);
 		width = api_desc.width;
@@ -2498,14 +2442,15 @@ HOOK_EXPORT void WINAPI glTexSubImage2D(GLenum target, GLint level, GLint xoffse
 #if RESHADE_ADDON
 	if (g_current_runtime)
 	{
-		reshade::api::resource_view_desc api_desc = { reshade::opengl::convert_resource_view_dimension(target) };
+		reshade::api::resource_view_desc api_desc = { reshade::opengl::convert_resource_view_type(target) };
+		assert(api_desc.type != reshade::api::resource_view_type::buffer);
 		api_desc.format = internalformat;
 		api_desc.first_level = minlevel;
 		api_desc.levels = numlevels;
 		api_desc.first_layer = minlayer;
 		api_desc.layers = numlayers;
 		// The target of the original texture is unknown at this point, so use "GL_TEXTURE" as a placeholder instead for the resource handle
-		RESHADE_ADDON_EVENT(create_resource_view, g_current_runtime, reshade::opengl::make_resource_handle(GL_TEXTURE, origtexture), reshade::api::resource_view_type::unknown, &api_desc);
+		RESHADE_ADDON_EVENT(create_resource_view, g_current_runtime, reshade::opengl::make_resource_handle(GL_TEXTURE, origtexture), reshade::api::resource_usage::undefined, &api_desc);
 		internalformat = api_desc.format;
 		minlevel = api_desc.first_level;
 		numlevels = api_desc.levels;

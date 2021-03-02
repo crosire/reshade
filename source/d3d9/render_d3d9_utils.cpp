@@ -69,15 +69,15 @@ void reshade::d3d9::convert_resource_desc(const resource_desc &desc, D3DSURFACE_
 }
 void reshade::d3d9::convert_resource_desc(const resource_desc &desc, D3DINDEXBUFFER_DESC &internal_desc)
 {
-	internal_desc.Size = desc.width;
-	assert(desc.height == 0 && desc.depth_or_layers == 0 && desc.levels == 0 && desc.format == 0 && desc.samples == 0);
+	assert(desc.size <= std::numeric_limits<UINT>::max());
+	internal_desc.Size = static_cast<UINT>(desc.size);
 	assert((desc.usage & (resource_usage::vertex_buffer | resource_usage::index_buffer)) == resource_usage::index_buffer);
 	convert_resource_usage_to_d3d_usage(desc.usage, internal_desc.Usage);
 }
 void reshade::d3d9::convert_resource_desc(const resource_desc &desc, D3DVERTEXBUFFER_DESC &internal_desc)
 {
-	internal_desc.Size = desc.width;
-	assert(desc.height == 0 && desc.depth_or_layers == 0 && desc.levels == 0 && desc.format == 0 && desc.samples == 0);
+	assert(desc.size <= std::numeric_limits<UINT>::max());
+	internal_desc.Size = static_cast<UINT>(desc.size);
 	assert((desc.usage & (resource_usage::vertex_buffer | resource_usage::index_buffer)) == resource_usage::vertex_buffer);
 	convert_resource_usage_to_d3d_usage(desc.usage, internal_desc.Usage);
 }
@@ -167,7 +167,7 @@ resource_desc reshade::d3d9::convert_resource_desc(const D3DSURFACE_DESC &intern
 resource_desc reshade::d3d9::convert_resource_desc(const D3DINDEXBUFFER_DESC &internal_desc)
 {
 	resource_desc desc = {};
-	desc.width = internal_desc.Size;
+	desc.size = internal_desc.Size;
 	convert_d3d_usage_to_resource_usage(internal_desc.Usage, desc.usage);
 	desc.usage |= resource_usage::index_buffer;
 	return desc;
@@ -175,7 +175,7 @@ resource_desc reshade::d3d9::convert_resource_desc(const D3DINDEXBUFFER_DESC &in
 resource_desc reshade::d3d9::convert_resource_desc(const D3DVERTEXBUFFER_DESC &internal_desc)
 {
 	resource_desc desc = {};
-	desc.width = internal_desc.Size;
+	desc.size = internal_desc.Size;
 	convert_d3d_usage_to_resource_usage(internal_desc.Usage, desc.usage);
 	desc.usage |= resource_usage::vertex_buffer;
 	return desc;

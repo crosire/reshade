@@ -7,6 +7,9 @@
 
 #include <cstdint>
 
+#pragma warning(push)
+#pragma warning(disable: 4201)
+
 namespace reshade { namespace api
 {
 	/// <summary>
@@ -72,23 +75,9 @@ namespace reshade { namespace api
 	constexpr resource_usage &operator|=(resource_usage &lhs, resource_usage rhs) { return lhs = static_cast<resource_usage>(static_cast<uint32_t>(lhs) | static_cast<uint32_t>(rhs)); }
 
 	/// <summary>
-	/// The available resource view types. The type of a resource view is specified during creation and is immutable.
-	/// Some render APIs are more strict here then others, so views created by the application and passed into events may have an unknown view type.
-	/// All resource views created through <see cref="device::create_resource_view"/> should have a known type specified however (not <see cref="resource_view_type::unknown"/>).
+	/// The available resource view types. This identifies how a view should interpret the resource.
 	/// </summary>
 	enum class resource_view_type : uint32_t
-	{
-		unknown,
-		depth_stencil,
-		render_target,
-		shader_resource,
-		unordered_access
-	};
-
-	/// <summary>
-	/// The available resource view dimensions. Identifies how a view should interpret the resource.
-	/// </summary>
-	enum class resource_view_dimension : uint32_t
 	{
 		unknown,
 		buffer,
@@ -108,19 +97,33 @@ namespace reshade { namespace api
 	/// </summary>
 	struct resource_desc
 	{
-		// If this is a texture, width of the texture (in texels), otherwise lower 32-bits of the 64-bit buffer size (in bytes).
-		uint32_t width;
-		// If this is a 2D or 3D texture, height of the texture (in texels), otherwise 1 or upper 32-bits of the 64-bit buffer size (in bytes).
-		uint32_t height;
-		// If this is a 3D texture, depth of the texture (in texels), otherwise number of array layers.
-		uint16_t depth_or_layers;
-		// Maximum number of mipmap levels in the texture, including the base level, so at least 1.
-		uint16_t levels;
-		// Data format of each texel in the texture.
-		// This is a 'D3DFORMAT', 'DXGI_FORMAT', OpenGL internal format or 'VkFormat' value, depending on the render API.
-		uint32_t format;
-		// The number of samples per texel. Set to a value higher than 1 for multisampling.
-		uint16_t samples;
+		union
+		{
+			// Used when resource type is <see cref="resource_type::buffer"/>.
+			struct
+			{
+				// Size of the buffer (in bytes).
+				uint64_t size;
+			};
+			// Used when resource type is <see cref="resource_type::surface"/>, <see cref="resource_type::texture_1d"/> or any other texture type.
+			struct
+			{
+				// Width of the texture (in texels).
+				uint32_t width;
+				// If this is a 2D or 3D texture, height of the texture (in texels), otherwise 1.
+				uint32_t height;
+				// If this is a 3D texture, depth of the texture (in texels), otherwise number of array layers.
+				uint16_t depth_or_layers;
+				// Maximum number of mipmap levels in the texture, including the base level, so at least 1.
+				uint16_t levels;
+				// Data format of each texel in the texture.
+				// This is a 'D3DFORMAT', 'DXGI_FORMAT', OpenGL internal format or 'VkFormat' value, depending on the render API.
+				uint32_t format;
+				// The number of samples per texel. Set to a value higher than 1 for multisampling.
+				uint16_t samples;
+			};
+		};
+
 		// Flags that specify how this resource may be used.
 		resource_usage usage;
 	};
@@ -131,22 +134,36 @@ namespace reshade { namespace api
 	struct resource_view_desc
 	{
 		// Type of the view. Identifies how the view should interpret the resource.
-		resource_view_dimension dimension;
+		resource_view_type type;
 		// Viewing format of this view. The data of the resource is reinterpreted in this format when accessed through this view.
 		// This is a 'D3DFORMAT', 'DXGI_FORMAT', OpenGL internal format or 'VkFormat' value, depending on the render API.
 		uint32_t format;
-		// If this is a buffer view, lower 32-bits of the 64-bit offset from the start of the buffer resource (in bytes).
-		// If this is a texture view, index of the most detailed mipmap level to use. This number is between zero and the maximum number of mipmap levels in the texture minus 1.
-		uint32_t first_level;
-		// If this is a buffer view, lower 32-bits of the 64-bit range of elements this view covers in the buffer resource (in bytes).
-		// If this is a texture view, maximum number of mipmap levels for the view of the texture. Set to -1 to indicate that all mipmap levels down to the least detailed should be used.
-		uint32_t levels;
-		// If this is a buffer view, upper 32-bits of the 64-bit offset from the start of the buffer resource (in bytes).
-		// If this is a texture view, index of the first array layer of the texture array to use.
-		uint32_t first_layer;
-		// If this is a buffer view, upper 32-bits of the 64-bit range of elements this view covers in the buffer resource (in bytes).
-		// If this is a texture view, maximum number of array layers for the view of the texture array.
-		uint32_t layers;
+
+		union
+		{
+			// Used when dimension is <see cref="resource_view_dimension::buffer"/>.
+			struct
+			{
+				// Offset from the start of the buffer resource (in bytes).
+				uint64_t offset;
+				// Number of elements this view covers in the buffer resource (in bytes).
+				uint64_t size;
+			};
+			// Used when dimension is <see cref="resource_view_dimension::texture_1d"/> or any other texture type.
+			struct
+			{
+				// Index of the most detailed mipmap level to use. This number has to be between zero and the maximum number of mipmap levels in the texture minus 1.
+				uint32_t first_level;
+				// Maximum number of mipmap levels for the view of the texture.
+				// Set to -1 (0xFFFFFFFF) to indicate that all mipmap levels down to the least detailed should be used.
+				uint32_t levels;
+				// Index of the first array layer of the texture array to use. This value is ignored if the texture is not layered.
+				uint32_t first_layer;
+				// Maximum number of array layers for the view of the texture array. This value is ignored if the texture is not layered.
+				// Set to -1 (0xFFFFFFFF) to indicate that all array layers should be used.
+				uint32_t layers;
+			};
+		};
 	};
 
 	/// <summary>
@@ -273,11 +290,11 @@ namespace reshade { namespace api
 		/// Creates a new resource view for the specified <paramref name="resource"/> based on the specified <paramref name="desc"/>ription.
 		/// </summary>
 		/// <param name="resource">The resource the view is created for.</param>
-		/// <param name="type">The type of the resource view to create.</param>
+		/// <param name="usage_type">The usage type of the resource view to create. Set to <see cref="resource_usage::shader_resource"/> to create a shader resource view, <see cref="resource_usage::depth_stencil"/> for a depth-stencil view, <see cref="resource_usage::render_target"/> for a render target etc.</param>
 		/// <param name="desc">The description of the resource to create.</param>
 		/// <param name="out_view">Pointer to a handle that is set to the handle of the created resource view.</param>
 		/// <returns><c>true</c>if the resource view was successfully created, <c>false</c> otherwise (in this case <paramref name="out_view"/> is set to zero).</returns>
-		virtual bool create_resource_view(resource_handle resource, resource_view_type type, const resource_view_desc &desc, resource_view_handle *out_view) = 0;
+		virtual bool create_resource_view(resource_handle resource, resource_usage usage_type, const resource_view_desc &desc, resource_view_handle *out_view) = 0;
 
 		/// <summary>
 		/// Instantly destroys a <paramref name="resource"/> that was previously created via <see cref="create_resource"/> and frees its memory.
@@ -410,3 +427,5 @@ namespace reshade { namespace api
 		virtual void update_uniform_variables(const char *source, const uint32_t *values, size_t count, size_t array_index = 0) = 0;
 	};
 } }
+
+#pragma warning(pop)

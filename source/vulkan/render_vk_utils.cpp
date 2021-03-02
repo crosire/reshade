@@ -182,14 +182,13 @@ static inline void convert_buffer_usage_flags_to_usage(const VkBufferUsageFlags 
 
 void reshade::vulkan::convert_resource_desc(const resource_desc &desc, VkBufferCreateInfo &create_info)
 {
-	create_info.size = desc.width | (static_cast<uint64_t>(desc.height) << 32);
+	create_info.size = desc.size;
 	convert_usage_to_buffer_usage_flags(desc.usage, create_info.usage);
 }
 resource_desc reshade::vulkan::convert_resource_desc(const VkBufferCreateInfo &create_info)
 {
 	resource_desc desc = {};
-	desc.width = create_info.size & 0xFFFFFFFF;
-	desc.height = (create_info.size >> 32) & 0xFFFFFFFF;
+	desc.size = create_info.size;
 	convert_buffer_usage_flags_to_usage(create_info.usage, desc.usage);
 	return desc;
 }
@@ -268,27 +267,30 @@ std::pair<resource_type, resource_desc> reshade::vulkan::convert_resource_desc(c
 
 void reshade::vulkan::convert_resource_view_desc(const resource_view_desc &desc, VkImageViewCreateInfo &create_info)
 {
-	switch (desc.dimension)
+	switch (desc.type)
 	{
-	case resource_view_dimension::texture_1d:
+	default:
+		assert(false);
+		break;
+	case resource_view_type::texture_1d:
 		create_info.viewType = VK_IMAGE_VIEW_TYPE_1D;
 		break;
-	case resource_view_dimension::texture_1d_array:
+	case resource_view_type::texture_1d_array:
 		create_info.viewType = VK_IMAGE_VIEW_TYPE_1D_ARRAY;
 		break;
-	case resource_view_dimension::texture_2d:
+	case resource_view_type::texture_2d:
 		create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
 		break;
-	case resource_view_dimension::texture_2d_array:
+	case resource_view_type::texture_2d_array:
 		create_info.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
 		break;
-	case resource_view_dimension::texture_3d:
+	case resource_view_type::texture_3d:
 		create_info.viewType = VK_IMAGE_VIEW_TYPE_3D;
 		break;
-	case resource_view_dimension::texture_cube:
+	case resource_view_type::texture_cube:
 		create_info.viewType = VK_IMAGE_VIEW_TYPE_CUBE;
 		break;
-	case resource_view_dimension::texture_cube_array:
+	case resource_view_type::texture_cube_array:
 		create_info.viewType = VK_IMAGE_VIEW_TYPE_CUBE_ARRAY;
 		break;
 	}
@@ -301,36 +303,38 @@ void reshade::vulkan::convert_resource_view_desc(const resource_view_desc &desc,
 }
 void reshade::vulkan::convert_resource_view_desc(const resource_view_desc &desc, VkBufferViewCreateInfo &create_info)
 {
-	assert(desc.dimension == resource_view_dimension::buffer);
+	assert(desc.type == resource_view_type::buffer);
+
 	create_info.format = static_cast<VkFormat>(desc.format);
-	create_info.offset = desc.first_level | (static_cast<uint64_t>(desc.first_layer) << 32);
-	create_info.range = desc.levels | (static_cast<uint64_t>(desc.layers) << 32);
+	create_info.offset = desc.offset;
+	create_info.range = desc.size;
 }
 resource_view_desc reshade::vulkan::convert_resource_view_desc(const VkImageViewCreateInfo &create_info)
 {
 	resource_view_desc desc = {};
+
 	switch (create_info.viewType)
 	{
 	case VK_IMAGE_VIEW_TYPE_1D:
-		desc.dimension = resource_view_dimension::texture_1d;
+		desc.type = resource_view_type::texture_1d;
 		break;
 	case VK_IMAGE_VIEW_TYPE_1D_ARRAY:
-		desc.dimension = resource_view_dimension::texture_1d_array;
+		desc.type = resource_view_type::texture_1d_array;
 		break;
 	case VK_IMAGE_VIEW_TYPE_2D:
-		desc.dimension = resource_view_dimension::texture_2d;
+		desc.type = resource_view_type::texture_2d;
 		break;
 	case VK_IMAGE_VIEW_TYPE_2D_ARRAY:
-		desc.dimension = resource_view_dimension::texture_2d_array;
+		desc.type = resource_view_type::texture_2d_array;
 		break;
 	case VK_IMAGE_VIEW_TYPE_3D:
-		desc.dimension = resource_view_dimension::texture_3d;
+		desc.type = resource_view_type::texture_3d;
 		break;
 	case VK_IMAGE_VIEW_TYPE_CUBE:
-		desc.dimension = resource_view_dimension::texture_cube;
+		desc.type = resource_view_type::texture_cube;
 		break;
 	case VK_IMAGE_VIEW_TYPE_CUBE_ARRAY:
-		desc.dimension = resource_view_dimension::texture_cube_array;
+		desc.type = resource_view_type::texture_cube_array;
 		break;
 	}
 
@@ -344,11 +348,11 @@ resource_view_desc reshade::vulkan::convert_resource_view_desc(const VkImageView
 }
 resource_view_desc reshade::vulkan::convert_resource_view_desc(const VkBufferViewCreateInfo &create_info)
 {
-	resource_view_desc desc = { resource_view_dimension::buffer };
+	resource_view_desc desc = {};
+	desc.type = resource_view_type::buffer;
 	desc.format = static_cast<uint32_t>(create_info.format);
-	desc.first_level = create_info.offset & 0xFFFFFFFF;
-	desc.first_layer = (create_info.offset >> 32) & 0xFFFFFFFF;
-	desc.levels = create_info.range & 0xFFFFFFFF;
-	desc.layers = (create_info.range >> 32) & 0xFFFFFFFF;
+	desc.offset = create_info.offset;
+	desc.size = create_info.sType;
+
 	return desc;
 }

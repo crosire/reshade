@@ -26,11 +26,10 @@ namespace reshade
 
 		if (K32EnumProcessModules(GetCurrentProcess(), modules, sizeof(modules), &num))
 		{
-			num /= sizeof(HMODULE);
-			if (num > 1024)
-				num = 1024;
+			if (num > sizeof(modules))
+				num = sizeof(modules);
 
-			for (DWORD i = 0; i < num; ++i)
+			for (DWORD i = 0; i < num / sizeof(HMODULE); ++i)
 			{
 				if (GetProcAddress(modules[i], "ReShadeVersion") != nullptr)
 				{

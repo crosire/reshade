@@ -273,7 +273,7 @@ static void on_create_resource(device *device, resource_type type, resource_desc
 		desc->usage |= resource_usage::shader_resource;
 	}
 }
-static void on_create_resource_view(device *device, resource_handle resource, resource_view_type type, resource_view_desc *desc)
+static void on_create_resource_view(device *device, resource_handle resource, resource_usage usage_type, resource_view_desc *desc)
 {
 	// A view cannot be created with a typeless format (which was set in 'on_create_resource' above), so fix it in case defaults are used
 	if (desc->format != 0 || !(device->get_api() >= render_api::d3d10 && device->get_api() <= render_api::d3d11))
@@ -283,28 +283,27 @@ static void on_create_resource_view(device *device, resource_handle resource, re
 	if (texture_desc.samples != 1 || (texture_desc.usage & resource_usage::depth_stencil) == 0)
 		return; // Only non-MSAA textures where modified, so skip all others
 
-	switch (type)
+	switch (usage_type)
 	{
 	default:
 		return;
-	case resource_view_type::depth_stencil:
+	case resource_usage::depth_stencil:
 		desc->format = static_cast<uint32_t>(make_dxgi_format_dsv(static_cast<DXGI_FORMAT>(texture_desc.format)));
 		break;
-	case resource_view_type::shader_resource:
+	case resource_usage::shader_resource:
 		desc->format = static_cast<uint32_t>(make_dxgi_format_normal(static_cast<DXGI_FORMAT>(texture_desc.format)));
 		break;
 	}
 
 	// Only need to set the rest of the fields if the application did not pass in a valid description already
-	if (desc->dimension != resource_view_dimension::unknown)
+	if (desc->type != resource_view_type::unknown)
 		return;
 
-	desc->dimension = texture_desc.depth_or_layers > 1 ? resource_view_dimension::texture_2d_array : resource_view_dimension::texture_2d;
+	desc->type = texture_desc.depth_or_layers > 1 ? resource_view_type::texture_2d_array : resource_view_type::texture_2d;
 	desc->first_level = 0;
-	if (type == resource_view_type::shader_resource)
-		desc->levels = static_cast<uint32_t>(-1); // All the mipmap levels from 'first_level' on down to least detailed
+	desc->levels = (usage_type == resource_usage::shader_resource) ? 0xFFFFFFFF : 1;
 	desc->first_layer = 0;
-	desc->layers = texture_desc.depth_or_layers;
+	desc->layers = (usage_type == resource_usage::shader_resource) ? 0xFFFFFFFF : 1;
 }
 
 static void on_draw(command_list *cmd_list, uint32_t vertices, uint32_t instances, uint32_t, uint32_t)
@@ -477,7 +476,7 @@ static void on_present(command_queue *, effect_runtime *runtime)
 
 			// Create two-dimensional resource view to the first level and layer of the depth-stencil resource
 			resource_view_desc srv_desc = {};
-			srv_desc.dimension = resource_view_dimension::texture_2d;
+			srv_desc.type = resource_view_type::texture_2d;
 			srv_desc.format = best_desc.format;
 			srv_desc.levels = 1;
 			srv_desc.layers = 1;
@@ -496,12 +495,12 @@ static void on_present(command_queue *, effect_runtime *runtime)
 					if (device->get_api() == render_api::d3d9)
 						srv_desc.format = 114; // Same format as backup texture, as set in 'update_backup_texture'
 
-					device->create_resource_view(device_state.backup_texture, resource_view_type::shader_resource, srv_desc, &device_state.selected_shader_resource);
+					device->create_resource_view(device_state.backup_texture, resource_usage::shader_resource, srv_desc, &device_state.selected_shader_resource);
 				}
 			}
 			else
 			{
-				device->create_resource_view(best_match, resource_view_type::shader_resource, srv_desc, &device_state.selected_shader_resource);
+				device->create_resource_view(best_match, resource_usage::shader_resource, srv_desc, &device_state.selected_shader_resource);
 
 				if (device_state.backup_texture != 0)
 				{

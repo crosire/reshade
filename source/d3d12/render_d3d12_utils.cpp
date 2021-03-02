@@ -52,7 +52,7 @@ void reshade::d3d12::convert_resource_desc(resource_type type, const resource_de
 
 	if (type == resource_type::buffer)
 	{
-		internal_desc.Width = desc.width | (static_cast<uint64_t>(desc.height) << 32);
+		internal_desc.Width = desc.size;
 		internal_desc.Height = 1;
 		internal_desc.DepthOrArraySize = 1;
 		internal_desc.MipLevels = 1;
@@ -115,8 +115,7 @@ std::pair<resource_type, resource_desc> reshade::d3d12::convert_resource_desc(co
 
 	if (type == resource_type::buffer)
 	{
-		desc.width = internal_desc.Width & 0xFFFFFFFF;
-		desc.height = (internal_desc.Width >> 32) & 0xFFFFFFFF;
+		desc.size = internal_desc.Width;
 
 		// Buffers may be of any type in D3D12, so add all possible usage flags
 		desc.usage |= resource_usage::vertex_buffer | resource_usage::index_buffer | resource_usage::constant_buffer;
@@ -154,33 +153,33 @@ void reshade::d3d12::convert_resource_view_desc(const resource_view_desc &desc, 
 {
 	// Missing fields: D3D12_DEPTH_STENCIL_VIEW_DESC::Flags
 	internal_desc.Format = static_cast<DXGI_FORMAT>(desc.format);
-	assert(desc.dimension != resource_view_dimension::buffer && desc.levels == 1);
-	switch (desc.dimension) // Do not modifiy description in case dimension is 'resource_view_dimension::unknown'
+	assert(desc.type != resource_view_type::buffer && desc.levels == 1);
+	switch (desc.type) // Do not modifiy description in case type is 'resource_view_type::unknown'
 	{
-	case resource_view_dimension::texture_1d:
+	case resource_view_type::texture_1d:
 		internal_desc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE1D;
 		internal_desc.Texture1D.MipSlice = desc.first_level;
 		break;
-	case resource_view_dimension::texture_1d_array:
+	case resource_view_type::texture_1d_array:
 		internal_desc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE1DARRAY;
 		internal_desc.Texture1DArray.MipSlice = desc.first_level;
 		internal_desc.Texture1DArray.FirstArraySlice = desc.first_layer;
 		internal_desc.Texture1DArray.ArraySize = desc.layers;
 		break;
-	case resource_view_dimension::texture_2d:
+	case resource_view_type::texture_2d:
 		internal_desc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
 		internal_desc.Texture2D.MipSlice = desc.first_level;
 		break;
-	case resource_view_dimension::texture_2d_array:
+	case resource_view_type::texture_2d_array:
 		internal_desc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2DARRAY;
 		internal_desc.Texture2DArray.MipSlice = desc.first_level;
 		internal_desc.Texture2DArray.FirstArraySlice = desc.first_layer;
 		internal_desc.Texture2DArray.ArraySize = desc.layers;
 		break;
-	case resource_view_dimension::texture_2d_multisample:
+	case resource_view_type::texture_2d_multisample:
 		internal_desc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2DMS;
 		break;
-	case resource_view_dimension::texture_2d_multisample_array:
+	case resource_view_type::texture_2d_multisample_array:
 		internal_desc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2DMSARRAY;
 		internal_desc.Texture2DMSArray.FirstArraySlice = desc.first_layer;
 		internal_desc.Texture2DMSArray.ArraySize = desc.layers;
@@ -190,38 +189,38 @@ void reshade::d3d12::convert_resource_view_desc(const resource_view_desc &desc, 
 void reshade::d3d12::convert_resource_view_desc(const resource_view_desc &desc, D3D12_RENDER_TARGET_VIEW_DESC &internal_desc)
 {
 	internal_desc.Format = static_cast<DXGI_FORMAT>(desc.format);
-	assert(desc.dimension != resource_view_dimension::buffer && desc.levels == 1);
-	switch (desc.dimension) // Do not modifiy description in case dimension is 'resource_view_dimension::unknown'
+	assert(desc.type != resource_view_type::buffer && desc.levels == 1);
+	switch (desc.type) // Do not modifiy description in case type is 'resource_view_type::unknown'
 	{
-	case resource_view_dimension::texture_1d:
+	case resource_view_type::texture_1d:
 		internal_desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE1D;
 		internal_desc.Texture1D.MipSlice = desc.first_level;
 		break;
-	case resource_view_dimension::texture_1d_array:
+	case resource_view_type::texture_1d_array:
 		internal_desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE1DARRAY;
 		internal_desc.Texture1DArray.MipSlice = desc.first_level;
 		internal_desc.Texture1DArray.FirstArraySlice = desc.first_layer;
 		internal_desc.Texture1DArray.ArraySize = desc.layers;
 		break;
-	case resource_view_dimension::texture_2d:
+	case resource_view_type::texture_2d:
 		internal_desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 		internal_desc.Texture2D.MipSlice = desc.first_level;
 		break;
-	case resource_view_dimension::texture_2d_array:
+	case resource_view_type::texture_2d_array:
 		internal_desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2DARRAY;
 		internal_desc.Texture2DArray.MipSlice = desc.first_level;
 		internal_desc.Texture2DArray.FirstArraySlice = desc.first_layer;
 		internal_desc.Texture2DArray.ArraySize = desc.layers;
 		break;
-	case resource_view_dimension::texture_2d_multisample:
+	case resource_view_type::texture_2d_multisample:
 		internal_desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2DMS;
 		break;
-	case resource_view_dimension::texture_2d_multisample_array:
+	case resource_view_type::texture_2d_multisample_array:
 		internal_desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2DMSARRAY;
 		internal_desc.Texture2DMSArray.FirstArraySlice = desc.first_layer;
 		internal_desc.Texture2DMSArray.ArraySize = desc.layers;
 		break;
-	case resource_view_dimension::texture_3d:
+	case resource_view_type::texture_3d:
 		internal_desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE3D;
 		internal_desc.Texture3D.MipSlice = desc.first_level;
 		internal_desc.Texture3D.FirstWSlice = desc.first_layer;
@@ -233,22 +232,22 @@ void reshade::d3d12::convert_resource_view_desc(const resource_view_desc &desc, 
 {
 	// Missing fields: D3D12_SHADER_RESOURCE_VIEW_DESC::Shader4ComponentMapping
 	internal_desc.Format = static_cast<DXGI_FORMAT>(desc.format);
-	switch (desc.dimension) // Do not modifiy description in case dimension is 'resource_view_dimension::unknown'
+	switch (desc.type) // Do not modifiy description in case type is 'resource_view_type::unknown'
 	{
-	case resource_view_dimension::buffer:
+	case resource_view_type::buffer:
 		internal_desc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-		internal_desc.Buffer.FirstElement = desc.first_level | (static_cast<uint64_t>(desc.first_layer) << 32);
-		assert(desc.layers == 0);
-		internal_desc.Buffer.NumElements = desc.levels;
+		internal_desc.Buffer.FirstElement = desc.offset;
+		assert(desc.size <= std::numeric_limits<UINT>::max());
+		internal_desc.Buffer.NumElements = static_cast<UINT>(desc.size);
 		// Missing fields: D3D12_BUFFER_SRV::StructureByteStride, D3D12_BUFFER_SRV::Flags
 		break;
-	case resource_view_dimension::texture_1d:
+	case resource_view_type::texture_1d:
 		internal_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE1D;
 		internal_desc.Texture1D.MostDetailedMip = desc.first_level;
 		internal_desc.Texture1D.MipLevels = desc.levels;
 		// Missing fields: D3D12_TEX1D_SRV::ResourceMinLODClamp
 		break;
-	case resource_view_dimension::texture_1d_array:
+	case resource_view_type::texture_1d_array:
 		internal_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE1DARRAY;
 		internal_desc.Texture1DArray.MostDetailedMip = desc.first_level;
 		internal_desc.Texture1DArray.MipLevels = desc.levels;
@@ -256,13 +255,13 @@ void reshade::d3d12::convert_resource_view_desc(const resource_view_desc &desc, 
 		internal_desc.Texture1DArray.ArraySize = desc.layers;
 		// Missing fields: D3D12_TEX1D_ARRAY_SRV::ResourceMinLODClamp
 		break;
-	case resource_view_dimension::texture_2d:
+	case resource_view_type::texture_2d:
 		internal_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 		internal_desc.Texture2D.MostDetailedMip = desc.first_level;
 		internal_desc.Texture2D.MipLevels = desc.levels;
 		// Missing fields: D3D12_TEX2D_SRV::PlaneSlice, D3D12_TEX2D_SRV::ResourceMinLODClamp
 		break;
-	case resource_view_dimension::texture_2d_array:
+	case resource_view_type::texture_2d_array:
 		internal_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
 		internal_desc.Texture2DArray.MostDetailedMip = desc.first_level;
 		internal_desc.Texture2DArray.MipLevels = desc.levels;
@@ -270,27 +269,27 @@ void reshade::d3d12::convert_resource_view_desc(const resource_view_desc &desc, 
 		internal_desc.Texture2DArray.ArraySize = desc.layers;
 		// Missing fields D3D12_TEX2D_ARRAY_SRV::PlaneSlice, D3D12_TEX2D_ARRAY_SRV::ResourceMinLODClamp
 		break;
-	case resource_view_dimension::texture_2d_multisample:
+	case resource_view_type::texture_2d_multisample:
 		internal_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DMS;
 		break;
-	case resource_view_dimension::texture_2d_multisample_array:
+	case resource_view_type::texture_2d_multisample_array:
 		internal_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DMSARRAY;
 		internal_desc.Texture2DMSArray.FirstArraySlice = desc.first_layer;
 		internal_desc.Texture2DMSArray.ArraySize = desc.layers;
 		break;
-	case resource_view_dimension::texture_3d:
+	case resource_view_type::texture_3d:
 		internal_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE3D;
 		internal_desc.Texture3D.MostDetailedMip = desc.first_level;
 		internal_desc.Texture3D.MipLevels = desc.levels;
 		// Missing fields: D3D12_TEX3D_SRV::ResourceMinLODClamp
 		break;
-	case resource_view_dimension::texture_cube:
+	case resource_view_type::texture_cube:
 		internal_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
 		internal_desc.TextureCube.MostDetailedMip = desc.first_level;
 		internal_desc.TextureCube.MipLevels = desc.levels;
 		// Missing fields: D3D12_TEXCUBE_SRV::ResourceMinLODClamp
 		break;
-	case resource_view_dimension::texture_cube_array:
+	case resource_view_type::texture_cube_array:
 		internal_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBEARRAY;
 		internal_desc.TextureCubeArray.MostDetailedMip = desc.first_level;
 		internal_desc.TextureCubeArray.MipLevels = desc.levels;
@@ -306,37 +305,37 @@ void reshade::d3d12::convert_resource_view_desc(const resource_view_desc &desc, 
 void reshade::d3d12::convert_resource_view_desc(const resource_view_desc &desc, D3D12_UNORDERED_ACCESS_VIEW_DESC &internal_desc)
 {
 	internal_desc.Format = static_cast<DXGI_FORMAT>(desc.format);
-	assert(desc.dimension == resource_view_dimension::buffer || desc.levels == 1);
-	switch (desc.dimension) // Do not modifiy description in case dimension is 'resource_view_dimension::unknown'
+	assert(desc.type == resource_view_type::buffer || desc.levels == 1);
+	switch (desc.type) // Do not modifiy description in case type is 'resource_view_type::unknown'
 	{
-	case resource_view_dimension::buffer:
+	case resource_view_type::buffer:
 		internal_desc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
-		internal_desc.Buffer.FirstElement = desc.first_level | (static_cast<uint64_t>(desc.first_layer) << 32);
-		assert(desc.layers == 0);
-		internal_desc.Buffer.NumElements = desc.levels;
+		internal_desc.Buffer.FirstElement = desc.offset;
+		assert(desc.size <= std::numeric_limits<UINT>::max());
+		internal_desc.Buffer.NumElements = static_cast<UINT>(desc.size);
 		// Missing fields: D3D12_BUFFER_UAV::StructureByteStride, D3D12_BUFFER_UAV::CounterOffsetInBytes, D3D12_BUFFER_UAV::Flags
 		break;
-	case resource_view_dimension::texture_1d:
+	case resource_view_type::texture_1d:
 		internal_desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE1D;
 		internal_desc.Texture1D.MipSlice = desc.first_level;
 		break;
-	case resource_view_dimension::texture_1d_array:
+	case resource_view_type::texture_1d_array:
 		internal_desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE1DARRAY;
 		internal_desc.Texture1DArray.MipSlice = desc.first_level;
 		internal_desc.Texture1DArray.FirstArraySlice = desc.first_layer;
 		internal_desc.Texture1DArray.ArraySize = desc.layers;
 		break;
-	case resource_view_dimension::texture_2d:
+	case resource_view_type::texture_2d:
 		internal_desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
 		internal_desc.Texture2D.MipSlice = desc.first_level;
 		break;
-	case resource_view_dimension::texture_2d_array:
+	case resource_view_type::texture_2d_array:
 		internal_desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2DARRAY;
 		internal_desc.Texture2DArray.MipSlice = desc.first_level;
 		internal_desc.Texture2DArray.FirstArraySlice = desc.first_layer;
 		internal_desc.Texture2DArray.ArraySize = desc.layers;
 		break;
-	case resource_view_dimension::texture_3d:
+	case resource_view_type::texture_3d:
 		internal_desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE3D;
 		internal_desc.Texture3D.MipSlice = desc.first_level;
 		internal_desc.Texture3D.FirstWSlice = desc.first_layer;
@@ -353,30 +352,30 @@ resource_view_desc reshade::d3d12::convert_resource_view_desc(const D3D12_DEPTH_
 	switch (internal_desc.ViewDimension)
 	{
 	case D3D12_DSV_DIMENSION_TEXTURE1D:
-		desc.dimension = resource_view_dimension::texture_1d;
+		desc.type = resource_view_type::texture_1d;
 		desc.first_level = internal_desc.Texture1D.MipSlice;
 		break;
 	case D3D12_DSV_DIMENSION_TEXTURE1DARRAY:
-		desc.dimension = resource_view_dimension::texture_1d_array;
+		desc.type = resource_view_type::texture_1d_array;
 		desc.first_level = internal_desc.Texture1DArray.MipSlice;
 		desc.first_layer = internal_desc.Texture1DArray.FirstArraySlice;
 		desc.layers = internal_desc.Texture1DArray.ArraySize;
 		break;
 	case D3D12_DSV_DIMENSION_TEXTURE2D:
-		desc.dimension = resource_view_dimension::texture_2d;
+		desc.type = resource_view_type::texture_2d;
 		desc.first_level = internal_desc.Texture2D.MipSlice;
 		break;
 	case D3D12_DSV_DIMENSION_TEXTURE2DARRAY:
-		desc.dimension = resource_view_dimension::texture_2d_array;
+		desc.type = resource_view_type::texture_2d_array;
 		desc.first_level = internal_desc.Texture2DArray.MipSlice;
 		desc.first_layer = internal_desc.Texture2DArray.FirstArraySlice;
 		desc.layers = internal_desc.Texture2DArray.ArraySize;
 		break;
 	case D3D12_DSV_DIMENSION_TEXTURE2DMS:
-		desc.dimension = resource_view_dimension::texture_2d_multisample;
+		desc.type = resource_view_type::texture_2d_multisample;
 		break;
 	case D3D12_DSV_DIMENSION_TEXTURE2DMSARRAY:
-		desc.dimension = resource_view_dimension::texture_2d_multisample_array;
+		desc.type = resource_view_type::texture_2d_multisample_array;
 		desc.first_layer = internal_desc.Texture2DMSArray.FirstArraySlice;
 		desc.layers = internal_desc.Texture2DMSArray.ArraySize;
 		break;
@@ -391,35 +390,35 @@ resource_view_desc reshade::d3d12::convert_resource_view_desc(const D3D12_RENDER
 	switch (internal_desc.ViewDimension)
 	{
 	case D3D12_RTV_DIMENSION_TEXTURE1D:
-		desc.dimension = resource_view_dimension::texture_1d;
+		desc.type = resource_view_type::texture_1d;
 		desc.first_level = internal_desc.Texture1D.MipSlice;
 		break;
 	case D3D12_RTV_DIMENSION_TEXTURE1DARRAY:
-		desc.dimension = resource_view_dimension::texture_1d_array;
+		desc.type = resource_view_type::texture_1d_array;
 		desc.first_level = internal_desc.Texture1DArray.MipSlice;
 		desc.first_layer = internal_desc.Texture1DArray.FirstArraySlice;
 		desc.layers = internal_desc.Texture1DArray.ArraySize;
 		break;
 	case D3D12_RTV_DIMENSION_TEXTURE2D:
-		desc.dimension = resource_view_dimension::texture_2d;
+		desc.type = resource_view_type::texture_2d;
 		desc.first_level = internal_desc.Texture2D.MipSlice;
 		break;
 	case D3D12_RTV_DIMENSION_TEXTURE2DARRAY:
-		desc.dimension = resource_view_dimension::texture_2d_array;
+		desc.type = resource_view_type::texture_2d_array;
 		desc.first_level = internal_desc.Texture2DArray.MipSlice;
 		desc.first_layer = internal_desc.Texture2DArray.FirstArraySlice;
 		desc.layers = internal_desc.Texture2DArray.ArraySize;
 		break;
 	case D3D12_RTV_DIMENSION_TEXTURE2DMS:
-		desc.dimension = resource_view_dimension::texture_2d_multisample;
+		desc.type = resource_view_type::texture_2d_multisample;
 		break;
 	case D3D12_RTV_DIMENSION_TEXTURE2DMSARRAY:
-		desc.dimension = resource_view_dimension::texture_2d_multisample_array;
+		desc.type = resource_view_type::texture_2d_multisample_array;
 		desc.first_layer = internal_desc.Texture2DMSArray.FirstArraySlice;
 		desc.layers = internal_desc.Texture2DMSArray.ArraySize;
 		break;
 	case D3D12_RTV_DIMENSION_TEXTURE3D:
-		desc.dimension = resource_view_dimension::texture_3d;
+		desc.type = resource_view_type::texture_3d;
 		desc.first_level = internal_desc.Texture3D.MipSlice;
 		desc.first_layer = internal_desc.Texture3D.FirstWSlice;
 		desc.layers = internal_desc.Texture3D.WSize;
@@ -435,20 +434,19 @@ resource_view_desc reshade::d3d12::convert_resource_view_desc(const D3D12_SHADER
 	switch (internal_desc.ViewDimension)
 	{
 	case D3D12_SRV_DIMENSION_BUFFER:
-		desc.dimension = resource_view_dimension::buffer;
-		desc.first_level = internal_desc.Buffer.FirstElement & 0xFFFFFFFF;
-		desc.first_layer = (internal_desc.Buffer.FirstElement >> 32) & 0xFFFFFFFF;
-		desc.levels = internal_desc.Buffer.NumElements;
+		desc.type = resource_view_type::buffer;
+		desc.offset = internal_desc.Buffer.FirstElement;
+		desc.size = internal_desc.Buffer.NumElements;
 		// Missing fields: D3D12_BUFFER_SRV::StructureByteStride, D3D12_BUFFER_SRV::Flags
 		break;
 	case D3D12_SRV_DIMENSION_TEXTURE1D:
-		desc.dimension = resource_view_dimension::texture_1d;
+		desc.type = resource_view_type::texture_1d;
 		desc.first_level = internal_desc.Texture1D.MostDetailedMip;
 		desc.levels = internal_desc.Texture1D.MipLevels;
 		// Missing fields: D3D12_TEX1D_SRV::ResourceMinLODClamp
 		break;
 	case D3D12_SRV_DIMENSION_TEXTURE1DARRAY:
-		desc.dimension = resource_view_dimension::texture_1d_array;
+		desc.type = resource_view_type::texture_1d_array;
 		desc.first_level = internal_desc.Texture1DArray.MostDetailedMip;
 		desc.levels = internal_desc.Texture1DArray.MipLevels;
 		desc.first_layer = internal_desc.Texture1DArray.FirstArraySlice;
@@ -456,13 +454,13 @@ resource_view_desc reshade::d3d12::convert_resource_view_desc(const D3D12_SHADER
 		// Missing fields: D3D12_TEX1D_ARRAY_SRV::ResourceMinLODClamp
 		break;
 	case D3D12_SRV_DIMENSION_TEXTURE2D:
-		desc.dimension = resource_view_dimension::texture_2d;
+		desc.type = resource_view_type::texture_2d;
 		desc.first_level = internal_desc.Texture2D.MostDetailedMip;
 		desc.levels = internal_desc.Texture2D.MipLevels;
 		// Missing fields: D3D12_TEX2D_SRV::PlaneSlice, D3D12_TEX2D_SRV::ResourceMinLODClamp
 		break;
 	case D3D12_SRV_DIMENSION_TEXTURE2DARRAY:
-		desc.dimension = resource_view_dimension::texture_2d_array;
+		desc.type = resource_view_type::texture_2d_array;
 		desc.first_level = internal_desc.Texture2DArray.MostDetailedMip;
 		desc.levels = internal_desc.Texture2DArray.MipLevels;
 		desc.first_layer = internal_desc.Texture2DArray.FirstArraySlice;
@@ -470,27 +468,27 @@ resource_view_desc reshade::d3d12::convert_resource_view_desc(const D3D12_SHADER
 		// Missing fields D3D12_TEX2D_ARRAY_SRV::PlaneSlice, D3D12_TEX2D_ARRAY_SRV::ResourceMinLODClamp
 		break;
 	case D3D12_SRV_DIMENSION_TEXTURE2DMS:
-		desc.dimension = resource_view_dimension::texture_2d_multisample;
+		desc.type = resource_view_type::texture_2d_multisample;
 		break;
 	case D3D12_SRV_DIMENSION_TEXTURE2DMSARRAY:
-		desc.dimension = resource_view_dimension::texture_2d_multisample_array;
+		desc.type = resource_view_type::texture_2d_multisample_array;
 		desc.first_layer = internal_desc.Texture2DMSArray.FirstArraySlice;
 		desc.layers = internal_desc.Texture2DMSArray.ArraySize;
 		break;
 	case D3D12_SRV_DIMENSION_TEXTURE3D:
-		desc.dimension = resource_view_dimension::texture_3d;
+		desc.type = resource_view_type::texture_3d;
 		desc.first_level = internal_desc.Texture3D.MostDetailedMip;
 		desc.levels = internal_desc.Texture3D.MipLevels;
 		// Missing fields: D3D12_TEX3D_SRV::ResourceMinLODClamp
 		break;
 	case D3D12_SRV_DIMENSION_TEXTURECUBE:
-		desc.dimension = resource_view_dimension::texture_cube;
+		desc.type = resource_view_type::texture_cube;
 		desc.first_level = internal_desc.TextureCube.MostDetailedMip;
 		desc.levels = internal_desc.TextureCube.MipLevels;
 		// Missing fields: D3D12_TEXCUBE_SRV::ResourceMinLODClamp
 		break;
 	case D3D12_SRV_DIMENSION_TEXTURECUBEARRAY:
-		desc.dimension = resource_view_dimension::texture_cube_array;
+		desc.type = resource_view_type::texture_cube_array;
 		desc.first_level = internal_desc.TextureCubeArray.MostDetailedMip;
 		desc.levels = internal_desc.TextureCubeArray.MipLevels;
 		desc.first_layer = internal_desc.TextureCubeArray.First2DArrayFace;
@@ -501,8 +499,7 @@ resource_view_desc reshade::d3d12::convert_resource_view_desc(const D3D12_SHADER
 		// Missing fields: D3D12_TEXCUBE_ARRAY_SRV::ResourceMinLODClamp
 		break;
 	case D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE:
-		desc.first_level = internal_desc.RaytracingAccelerationStructure.Location & 0xFFFFFFFF;
-		desc.first_layer = (internal_desc.RaytracingAccelerationStructure.Location >> 32) & 0xFFFFFFFF;
+		desc.offset = internal_desc.RaytracingAccelerationStructure.Location;
 		break;
 	}
 	return desc;
@@ -515,34 +512,33 @@ resource_view_desc reshade::d3d12::convert_resource_view_desc(const D3D12_UNORDE
 	switch (internal_desc.ViewDimension)
 	{
 	case D3D12_UAV_DIMENSION_BUFFER:
-		desc.dimension = resource_view_dimension::buffer;
-		desc.first_level = internal_desc.Buffer.FirstElement & 0xFFFFFFFF;
-		desc.first_layer = (internal_desc.Buffer.FirstElement >> 32) & 0xFFFFFFFF;
-		desc.levels = internal_desc.Buffer.NumElements;
+		desc.type = resource_view_type::buffer;
+		desc.offset = internal_desc.Buffer.FirstElement;
+		desc.size = internal_desc.Buffer.NumElements;
 		// Missing fields: D3D12_BUFFER_UAV::StructureByteStride, D3D12_BUFFER_UAV::CounterOffsetInBytes, D3D12_BUFFER_UAV::Flags
 		break;
 	case D3D12_UAV_DIMENSION_TEXTURE1D:
-		desc.dimension = resource_view_dimension::texture_1d;
+		desc.type = resource_view_type::texture_1d;
 		desc.first_level = internal_desc.Texture1D.MipSlice;
 		break;
 	case D3D12_UAV_DIMENSION_TEXTURE1DARRAY:
-		desc.dimension = resource_view_dimension::texture_1d_array;
+		desc.type = resource_view_type::texture_1d_array;
 		desc.first_level = internal_desc.Texture1DArray.MipSlice;
 		desc.first_layer = internal_desc.Texture1DArray.FirstArraySlice;
 		desc.layers = internal_desc.Texture1DArray.ArraySize;
 		break;
 	case D3D12_UAV_DIMENSION_TEXTURE2D:
-		desc.dimension = resource_view_dimension::texture_2d;
+		desc.type = resource_view_type::texture_2d;
 		desc.first_level = internal_desc.Texture2D.MipSlice;
 		break;
 	case D3D12_UAV_DIMENSION_TEXTURE2DARRAY:
-		desc.dimension = resource_view_dimension::texture_2d_array;
+		desc.type = resource_view_type::texture_2d_array;
 		desc.first_level = internal_desc.Texture2DArray.MipSlice;
 		desc.first_layer = internal_desc.Texture2DArray.FirstArraySlice;
 		desc.layers = internal_desc.Texture2DArray.ArraySize;
 		break;
 	case D3D12_UAV_DIMENSION_TEXTURE3D:
-		desc.dimension = resource_view_dimension::texture_3d;
+		desc.type = resource_view_type::texture_3d;
 		desc.first_level = internal_desc.Texture3D.MipSlice;
 		desc.first_layer = internal_desc.Texture3D.FirstWSlice;
 		desc.layers = internal_desc.Texture3D.WSize;

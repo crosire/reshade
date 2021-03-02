@@ -575,7 +575,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateShaderResourceView(ID3D10Resource *
 
 #if RESHADE_ADDON
 	reshade::api::resource_view_desc api_desc = reshade::d3d10::convert_resource_view_desc(new_desc);
-	RESHADE_ADDON_EVENT(create_resource_view, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::shader_resource, &api_desc);
+	RESHADE_ADDON_EVENT(create_resource_view, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_usage::shader_resource, &api_desc);
 	reshade::d3d10::convert_resource_view_desc(api_desc, new_desc);
 #endif
 
@@ -609,7 +609,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateRenderTargetView(ID3D10Resource *pR
 
 #if RESHADE_ADDON
 	reshade::api::resource_view_desc api_desc = reshade::d3d10::convert_resource_view_desc(new_desc);
-	RESHADE_ADDON_EVENT(create_resource_view, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::render_target, &api_desc);
+	RESHADE_ADDON_EVENT(create_resource_view, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_usage::render_target, &api_desc);
 	reshade::d3d10::convert_resource_view_desc(api_desc, new_desc);
 #endif
 
@@ -643,7 +643,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateDepthStencilView(ID3D10Resource *pR
 
 #if RESHADE_ADDON
 	reshade::api::resource_view_desc api_desc = reshade::d3d10::convert_resource_view_desc(new_desc);
-	RESHADE_ADDON_EVENT(create_resource_view, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::depth_stencil, &api_desc);
+	RESHADE_ADDON_EVENT(create_resource_view, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_usage::depth_stencil, &api_desc);
 	reshade::d3d10::convert_resource_view_desc(api_desc, new_desc);
 #endif
 
@@ -758,7 +758,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateShaderResourceView1(ID3D10Resource 
 
 #if RESHADE_ADDON
 	reshade::api::resource_view_desc api_desc = reshade::d3d10::convert_resource_view_desc(new_desc);
-	RESHADE_ADDON_EVENT(create_resource_view, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_view_type::shader_resource, &api_desc);
+	RESHADE_ADDON_EVENT(create_resource_view, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_usage::shader_resource, &api_desc);
 	reshade::d3d10::convert_resource_view_desc(api_desc, new_desc);
 #endif
 

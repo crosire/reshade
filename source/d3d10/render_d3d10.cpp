@@ -125,13 +125,13 @@ bool reshade::d3d10::device_impl::create_resource(api::resource_type type, const
 	*out_resource = { 0 };
 	return false;
 }
-bool reshade::d3d10::device_impl::create_resource_view(api::resource_handle resource, api::resource_view_type type, const api::resource_view_desc &desc, api::resource_view_handle *out_view)
+bool reshade::d3d10::device_impl::create_resource_view(api::resource_handle resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view_handle *out_view)
 {
 	assert(resource.handle != 0);
 
-	switch (type)
+	switch (usage_type)
 	{
-		case api::resource_view_type::depth_stencil:
+		case api::resource_usage::depth_stencil:
 		{
 			D3D10_DEPTH_STENCIL_VIEW_DESC internal_desc = {};
 			convert_resource_view_desc(desc, internal_desc);
@@ -145,7 +145,7 @@ bool reshade::d3d10::device_impl::create_resource_view(api::resource_handle reso
 			}
 			break;
 		}
-		case api::resource_view_type::render_target:
+		case api::resource_usage::render_target:
 		{
 			D3D10_RENDER_TARGET_VIEW_DESC internal_desc = {};
 			convert_resource_view_desc(desc, internal_desc);
@@ -159,7 +159,7 @@ bool reshade::d3d10::device_impl::create_resource_view(api::resource_handle reso
 			}
 			break;
 		}
-		case api::resource_view_type::shader_resource:
+		case api::resource_usage::shader_resource:
 		{
 			D3D10_SHADER_RESOURCE_VIEW_DESC internal_desc = {};
 			convert_resource_view_desc(desc, internal_desc);

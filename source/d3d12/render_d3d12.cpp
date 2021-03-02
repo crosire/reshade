@@ -97,13 +97,13 @@ bool reshade::d3d12::device_impl::create_resource(api::resource_type type, const
 		return false;
 	}
 }
-bool reshade::d3d12::device_impl::create_resource_view(api::resource_handle resource, api::resource_view_type type, const api::resource_view_desc &desc, api::resource_view_handle *out_view)
+bool reshade::d3d12::device_impl::create_resource_view(api::resource_handle resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view_handle *out_view)
 {
 	assert(resource.handle != 0);
 
-	switch (type)
+	switch (usage_type)
 	{
-		case api::resource_view_type::depth_stencil:
+		case api::resource_usage::depth_stencil:
 		{
 			D3D12_CPU_DESCRIPTOR_HANDLE descriptor_handle = allocate_descriptor_handle(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 			if (descriptor_handle.ptr == 0)
@@ -118,7 +118,7 @@ bool reshade::d3d12::device_impl::create_resource_view(api::resource_handle reso
 			*out_view = { descriptor_handle.ptr };
 			return true;
 		}
-		case api::resource_view_type::render_target:
+		case api::resource_usage::render_target:
 		{
 			D3D12_CPU_DESCRIPTOR_HANDLE descriptor_handle = allocate_descriptor_handle(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 			if (descriptor_handle.ptr == 0)
@@ -133,7 +133,7 @@ bool reshade::d3d12::device_impl::create_resource_view(api::resource_handle reso
 			*out_view = { descriptor_handle.ptr };
 			return true;
 		}
-		case api::resource_view_type::shader_resource:
+		case api::resource_usage::shader_resource:
 		{
 			D3D12_CPU_DESCRIPTOR_HANDLE descriptor_handle = allocate_descriptor_handle(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 			if (descriptor_handle.ptr == 0)
@@ -149,7 +149,7 @@ bool reshade::d3d12::device_impl::create_resource_view(api::resource_handle reso
 			*out_view = { descriptor_handle.ptr };
 			return true;
 		}
-		case api::resource_view_type::unordered_access:
+		case api::resource_usage::unordered_access:
 		{
 			D3D12_CPU_DESCRIPTOR_HANDLE descriptor_handle = allocate_descriptor_handle(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 			if (descriptor_handle.ptr == 0)

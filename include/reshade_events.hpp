@@ -157,7 +157,7 @@ namespace reshade
 	template <>
 	struct addon_event_traits<addon_event::create_resource> { typedef void(*decl)(api::device *device, api::resource_type type, api::resource_desc *desc); };
 	template <>
-	struct addon_event_traits<addon_event::create_resource_view> { typedef void(*decl)(api::device *device, api::resource_handle resource, api::resource_view_type type, api::resource_view_desc *desc); };
+	struct addon_event_traits<addon_event::create_resource_view> { typedef void(*decl)(api::device *device, api::resource_handle resource, api::resource_usage usage_type, api::resource_view_desc *desc); };
 	template <>
 	struct addon_event_traits<addon_event::set_index_buffer> { typedef void(*decl)(api::command_list *cmd, api::resource_handle buffer, uint64_t offset); };
 	template <>

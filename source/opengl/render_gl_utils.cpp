@@ -95,10 +95,7 @@ resource_type reshade::opengl::convert_resource_type(GLenum target)
 resource_desc reshade::opengl::convert_resource_desc(GLsizeiptr buffer_size)
 {
 	resource_desc desc = {};
-	desc.width = buffer_size & 0xFFFFFFFF;
-#ifdef _WIN64
-	desc.height = (buffer_size >> 32) & 0xFFFFFFFF;
-#endif
+	desc.size = buffer_size;
 	desc.usage = resource_usage::shader_resource; // TODO: Only texture copy currently implemented in 'device_impl::copy_resource', so cannot add copy usage flags here
 	return desc;
 }
@@ -125,32 +122,32 @@ resource_desc reshade::opengl::convert_resource_desc(resource_type type, GLsizei
 	return desc;
 }
 
-resource_view_dimension reshade::opengl::convert_resource_view_dimension(GLenum target)
+resource_view_type reshade::opengl::convert_resource_view_type(GLenum target)
 {
 	switch (target)
 	{
 	default:
-		return resource_view_dimension::unknown;
+		return resource_view_type::unknown;
 	case GL_TEXTURE_BUFFER:
-		return resource_view_dimension::buffer;
+		return resource_view_type::buffer;
 	case GL_TEXTURE_1D:
-		return resource_view_dimension::texture_1d;
+		return resource_view_type::texture_1d;
 	case GL_TEXTURE_1D_ARRAY:
-		return resource_view_dimension::texture_1d_array;
+		return resource_view_type::texture_1d_array;
 	case GL_TEXTURE_2D:
 	case GL_TEXTURE_RECTANGLE:
-		return resource_view_dimension::texture_2d;
+		return resource_view_type::texture_2d;
 	case GL_TEXTURE_2D_ARRAY:
-		return resource_view_dimension::texture_2d_array;
+		return resource_view_type::texture_2d_array;
 	case GL_TEXTURE_2D_MULTISAMPLE:
-		return resource_view_dimension::texture_2d_multisample;
+		return resource_view_type::texture_2d_multisample;
 	case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
-		return resource_view_dimension::texture_2d_multisample_array;
+		return resource_view_type::texture_2d_multisample_array;
 	case GL_TEXTURE_3D:
-		return resource_view_dimension::texture_3d;
+		return resource_view_type::texture_3d;
 	case GL_TEXTURE_CUBE_MAP:
-		return resource_view_dimension::texture_cube;
+		return resource_view_type::texture_cube;
 	case GL_TEXTURE_CUBE_MAP_ARRAY:
-		return resource_view_dimension::texture_cube_array;
+		return resource_view_type::texture_cube_array;
 	}
 }

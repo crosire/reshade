@@ -371,13 +371,8 @@ bool reshade::opengl::device_impl::create_resource(api::resource_type type, cons
 		glGenBuffers(1, &object);
 		glBindBuffer(target, object);
 
-#ifdef _WIN64
-		const GLsizeiptr size = desc.width | (static_cast<uint64_t>(desc.height) << 32);
-#else
-		assert(desc.height == 0);
-		const GLsizeiptr size = desc.width;
-#endif
-		glBufferData(target, size, nullptr, GL_STATIC_DRAW);
+		assert(desc.size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
+		glBufferData(target, static_cast<GLsizeiptr>(desc.size), nullptr, GL_STATIC_DRAW);
 
 		glBindBuffer(target, prev_object);
 	}
@@ -409,43 +404,43 @@ bool reshade::opengl::device_impl::create_resource(api::resource_type type, cons
 	*out_resource = make_resource_handle(target, object);
 	return true;
 }
-bool reshade::opengl::device_impl::create_resource_view(api::resource_handle resource, api::resource_view_type, const api::resource_view_desc &desc, api::resource_view_handle *out_view)
+bool reshade::opengl::device_impl::create_resource_view(api::resource_handle resource, api::resource_usage, const api::resource_view_desc &desc, api::resource_view_handle *out_view)
 {
 	assert(resource.handle != 0);
 
 	GLenum target = GL_NONE;
-	switch (desc.dimension)
+	switch (desc.type)
 	{
 	default:
 		return false;
-	case api::resource_view_dimension::buffer:
+	case api::resource_view_type::buffer:
 		target = GL_TEXTURE_BUFFER;
 		break;
-	case api::resource_view_dimension::texture_1d:
+	case api::resource_view_type::texture_1d:
 		target = GL_TEXTURE_1D;
 		break;
-	case api::resource_view_dimension::texture_1d_array:
+	case api::resource_view_type::texture_1d_array:
 		target = GL_TEXTURE_1D_ARRAY;
 		break;
-	case api::resource_view_dimension::texture_2d:
+	case api::resource_view_type::texture_2d:
 		target = GL_TEXTURE_2D;
 		break;
-	case api::resource_view_dimension::texture_2d_array:
+	case api::resource_view_type::texture_2d_array:
 		target = GL_TEXTURE_2D_ARRAY;
 		break;
-	case api::resource_view_dimension::texture_2d_multisample:
+	case api::resource_view_type::texture_2d_multisample:
 		target = GL_TEXTURE_2D_MULTISAMPLE;
 		break;
-	case api::resource_view_dimension::texture_2d_multisample_array:
+	case api::resource_view_type::texture_2d_multisample_array:
 		target = GL_TEXTURE_2D_MULTISAMPLE_ARRAY;
 		break;
-	case api::resource_view_dimension::texture_3d:
+	case api::resource_view_type::texture_3d:
 		target = GL_TEXTURE_3D;
 		break;
-	case api::resource_view_dimension::texture_cube:
+	case api::resource_view_type::texture_cube:
 		target = GL_TEXTURE_CUBE_MAP;
 		break;
-	case api::resource_view_dimension::texture_cube_array:
+	case api::resource_view_type::texture_cube_array:
 		target = GL_TEXTURE_CUBE_MAP_ARRAY;
 		break;
 	}
@@ -458,6 +453,8 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource_handle res
 		desc.first_level == 0 && desc.first_layer == 0 &&
 		get_resource_desc(resource).format == internal_format)
 	{
+		assert(target != GL_TEXTURE_BUFFER);
+
 		// No need to create a view, so use resource directly, but set a bit so to not destroy it twice via 'destroy_resource_view'
 		*out_view = { resource.handle | 0x100000000 };
 		return true;
@@ -479,21 +476,15 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource_handle res
 
 			glBindTexture(target, object);
 
-			if (desc.first_level == 0 && desc.first_layer == 0 && desc.levels == 0 && desc.layers == 0)
+			if (desc.offset == 0 && desc.size == static_cast<uint64_t>(-1))
 			{
 				glTexBuffer(target, internal_format, resource.handle & 0xFFFFFFFF);
 			}
 			else
 			{
-#ifdef _WIN64
-				const GLintptr offset = desc.first_level | static_cast<uint64_t>(desc.first_layer) << 32;
-				const GLsizeiptr size = desc.levels | static_cast<uint64_t>(desc.layers) << 32;
-#else
-				assert(desc.first_layer == 0 && desc.layers == 0);
-				const GLintptr offset = desc.first_level;
-				const GLsizeiptr size = desc.levels;
-#endif
-				glTexBufferRange(target, internal_format, resource.handle & 0xFFFFFFFF, offset, size);
+				assert(desc.offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()));
+				assert(desc.size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
+				glTexBufferRange(target, internal_format, resource.handle & 0xFFFFFFFF, static_cast<GLintptr>(desc.offset), static_cast<GLsizeiptr>(desc.size));
 			}
 
 			glBindTexture(target, prev_object);

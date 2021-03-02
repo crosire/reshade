@@ -154,7 +154,7 @@ bool reshade::vulkan::device_impl::create_resource(api::resource_type type, cons
 	*out_resource = { 0 };
 	return false;
 }
-bool reshade::vulkan::device_impl::create_resource_view(api::resource_handle resource, api::resource_view_type type, const api::resource_view_desc &desc, api::resource_view_handle *out_view)
+bool reshade::vulkan::device_impl::create_resource_view(api::resource_handle resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view_handle *out_view)
 {
 	assert(resource.handle != 0);
 	const resource_data &data = _resources.at(resource.handle);
@@ -168,7 +168,7 @@ bool reshade::vulkan::device_impl::create_resource_view(api::resource_handle res
 		create_info.subresourceRange.aspectMask = aspect_flags_from_format(create_info.format);
 
 		// Shader resource views can never access stencil data, so remove that aspect flag for views created with a format that supports stencil
-		if (type == api::resource_view_type::shader_resource)
+		if ((usage_type & api::resource_usage::shader_resource) != 0)
 			create_info.subresourceRange.aspectMask &= ~VK_IMAGE_ASPECT_STENCIL_BIT;
 
 		if (VkImageView image_view = VK_NULL_HANDLE;

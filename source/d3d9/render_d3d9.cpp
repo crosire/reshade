@@ -132,6 +132,8 @@ void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 		const reshade::api::resource_view_handle dsv = { reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) };
 		RESHADE_ADDON_EVENT(set_render_targets_and_depth_stencil, this, 0, nullptr, dsv);
 	}
+#else
+	UNREFERENCED_PARAMETER(pp);
 #endif
 }
 
@@ -248,7 +250,7 @@ bool reshade::d3d9::device_impl::create_resource(api::resource_type type, const 
 	*out_resource = { 0 };
 	return false;
 }
-bool reshade::d3d9::device_impl::create_resource_view(api::resource_handle resource, api::resource_view_type type, const api::resource_view_desc &desc, api::resource_view_handle *out_view)
+bool reshade::d3d9::device_impl::create_resource_view(api::resource_handle resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view_handle *out_view)
 {
 	assert(resource.handle != 0);
 	auto resource_object = reinterpret_cast<IDirect3DResource9 *>(resource.handle);
@@ -260,10 +262,10 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource_handle resou
 	{
 		case D3DRTYPE_SURFACE:
 		{
-			assert(desc.dimension == api::resource_view_dimension::texture_2d || desc.dimension == api::resource_view_dimension::texture_2d_multisample);
+			assert(desc.type == api::resource_view_type::texture_2d || desc.type == api::resource_view_type::texture_2d_multisample);
 			assert(desc.first_layer == 0 && (desc.layers == 1 || desc.layers == std::numeric_limits<uint32_t>::max()));
 
-			if (type == api::resource_view_type::depth_stencil || type == api::resource_view_type::render_target)
+			if (usage_type == api::resource_usage::depth_stencil || usage_type == api::resource_usage::render_target)
 			{
 				if (desc.first_level != 0 || desc.levels != 1)
 					break;
@@ -276,10 +278,10 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource_handle resou
 		}
 		case D3DRTYPE_TEXTURE:
 		{
-			assert(desc.dimension == api::resource_view_dimension::texture_2d || desc.dimension == api::resource_view_dimension::texture_2d_multisample);
+			assert(desc.type == api::resource_view_type::texture_2d || desc.type == api::resource_view_type::texture_2d_multisample);
 			assert(desc.first_layer == 0 && (desc.layers == 1 || desc.layers == std::numeric_limits<uint32_t>::max()));
 
-			if (type == api::resource_view_type::depth_stencil || type == api::resource_view_type::render_target)
+			if (usage_type == api::resource_usage::depth_stencil || usage_type == api::resource_usage::render_target)
 			{
 				if (desc.levels != 1)
 					break;
@@ -291,7 +293,7 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource_handle resou
 					return true;
 				}
 			}
-			else if (type == api::resource_view_type::shader_resource && desc.first_level == 0)
+			else if (usage_type == api::resource_usage::shader_resource && desc.first_level == 0)
 			{
 				resource_object->AddRef();
 				*out_view = { resource.handle };
@@ -301,9 +303,9 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource_handle resou
 		}
 		case D3DRTYPE_CUBETEXTURE:
 		{
-			if (type == api::resource_view_type::depth_stencil || type == api::resource_view_type::render_target)
+			if (usage_type == api::resource_usage::depth_stencil || usage_type == api::resource_usage::render_target)
 			{
-				assert(desc.dimension == api::resource_view_dimension::texture_2d || desc.dimension == api::resource_view_dimension::texture_2d_multisample);
+				assert(desc.type == api::resource_view_type::texture_2d || desc.type == api::resource_view_type::texture_2d_multisample);
 
 				if (desc.levels != 1 || desc.layers != 1)
 					break;
@@ -315,9 +317,9 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource_handle resou
 					return true;
 				}
 			}
-			else if (type == api::resource_view_type::shader_resource && desc.first_level == 0 && desc.first_layer == 0)
+			else if (usage_type == api::resource_usage::shader_resource && desc.first_level == 0 && desc.first_layer == 0)
 			{
-				assert(desc.dimension == api::resource_view_dimension::texture_cube);
+				assert(desc.type == api::resource_view_type::texture_cube);
 
 				resource_object->AddRef();
 				*out_view = { resource.handle };
