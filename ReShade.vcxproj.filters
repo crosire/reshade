@@ -494,6 +494,9 @@
     <ClInclude Include="res\version.h">
       <Filter>resources</Filter>
     </ClInclude>
+    <ClInclude Include="source\openvr\reshade_vr.hpp">
+      <Filter>core\api</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="res\resource.rc">

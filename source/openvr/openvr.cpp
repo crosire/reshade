@@ -14,11 +14,20 @@
 #include "opengl/runtime_gl.hpp"
 #include "vulkan/vulkan_hooks.hpp"
 #include "vulkan/runtime_vk.hpp"
+#include "reshade_vr.hpp"
 #include <openvr.h>
 
 static std::pair<reshade::runtime *, vr::ETextureType> s_vr_runtime = { nullptr, vr::TextureType_Invalid };
 
 extern lockfree_table<void *, reshade::vulkan::device_impl *, 16> g_vulkan_devices;
+
+namespace reshade::vr
+{
+	runtime *vr_runtime()
+	{
+		return s_vr_runtime.first;
+	}
+}
 
 static bool on_submit_d3d11(vr::EVREye, ID3D11Texture2D *texture, const vr::VRTextureBounds_t *bounds)
 {
