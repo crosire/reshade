@@ -1438,6 +1438,8 @@ void reshade::runtime::load_config()
 	config.get("GENERAL", "PresetPath", _current_preset_path);
 	config.get("GENERAL", "PresetTransitionDelay", _preset_transition_delay);
 
+	config.get("GENERAL", "GatherGPUStatistics", _gather_gpu_statistics);
+
 	// Fall back to temp directory if cache path does not exist
 	if (_intermediate_cache_path.empty() || !resolve_path(_intermediate_cache_path))
 	{
@@ -1493,6 +1495,8 @@ void reshade::runtime::save_config() const
 		relative_preset_path = L"." / relative_preset_path;
 	config.set("GENERAL", "PresetPath", relative_preset_path);
 	config.set("GENERAL", "PresetTransitionDelay", _preset_transition_delay);
+
+	config.set("GENERAL", "GatherGPUStatistics", _gather_gpu_statistics);
 
 	config.set("SCREENSHOT", "ClearAlpha", _screenshot_clear_alpha);
 	config.set("SCREENSHOT", "FileFormat", _screenshot_format);

@@ -1747,13 +1747,16 @@ void reshade::vulkan::runtime_impl::render_technique(technique &technique)
 	const auto impl = static_cast<technique_data *>(technique.impl);
 	effect_data &effect_data = _effect_data[technique.effect_index];
 
-	// Evaluate queries from oldest frame in queue
-	if (uint64_t timestamps[2];
-		vk.GetQueryPoolResults(_device, effect_data.query_pool,
-			impl->query_base_index + ((_framecount + 1) % NUM_QUERY_FRAMES) * 2, 2,
-		sizeof(timestamps), timestamps, sizeof(uint64_t), VK_QUERY_RESULT_64_BIT) == VK_SUCCESS)
+	if (_gather_gpu_statistics)
 	{
-		technique.average_gpu_duration.append(timestamps[1] - timestamps[0]);
+		// Evaluate queries from oldest frame in queue
+		if (uint64_t timestamps[2];
+			vk.GetQueryPoolResults(_device, effect_data.query_pool,
+				impl->query_base_index + ((_framecount + 1) % NUM_QUERY_FRAMES) * 2, 2,
+			sizeof(timestamps), timestamps, sizeof(uint64_t), VK_QUERY_RESULT_64_BIT) == VK_SUCCESS)
+		{
+			technique.average_gpu_duration.append(timestamps[1] - timestamps[0]);
+		}
 	}
 
 	const VkCommandBuffer cmd_list = _cmd_impl->begin_commands();
@@ -1773,9 +1776,12 @@ void reshade::vulkan::runtime_impl::render_technique(technique &technique)
 	}
 #endif
 
-	// Reset current queries and then write time stamp value
-	vk.CmdResetQueryPool(cmd_list, effect_data.query_pool, impl->query_base_index + (_framecount % NUM_QUERY_FRAMES) * 2, 2);
-	vk.CmdWriteTimestamp(cmd_list, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, effect_data.query_pool, impl->query_base_index + (_framecount % NUM_QUERY_FRAMES) * 2);
+	if (_gather_gpu_statistics)
+	{
+		// Reset current queries and then write time stamp value
+		vk.CmdResetQueryPool(cmd_list, effect_data.query_pool, impl->query_base_index + (_framecount % NUM_QUERY_FRAMES) * 2, 2);
+		vk.CmdWriteTimestamp(cmd_list, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, effect_data.query_pool, impl->query_base_index + (_framecount % NUM_QUERY_FRAMES) * 2);
+	}
 
 	RESHADE_ADDON_EVENT(reshade_before_effects, this, _cmd_impl);
 
@@ -1885,7 +1891,8 @@ void reshade::vulkan::runtime_impl::render_technique(technique &technique)
 
 	RESHADE_ADDON_EVENT(reshade_after_effects, this, _cmd_impl);
 
-	vk.CmdWriteTimestamp(cmd_list, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, effect_data.query_pool, impl->query_base_index + (_framecount % NUM_QUERY_FRAMES) * 2 + 1);
+	if (_gather_gpu_statistics)
+		vk.CmdWriteTimestamp(cmd_list, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, effect_data.query_pool, impl->query_base_index + (_framecount % NUM_QUERY_FRAMES) * 2 + 1);
 
 #ifndef NDEBUG
 	if (insert_debug_markers)
