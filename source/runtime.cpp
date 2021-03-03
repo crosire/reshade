@@ -22,6 +22,8 @@
 #include <stb_image_write.h>
 #include <stb_image_resize.h>
 
+extern volatile long g_network_traffic;
+
 bool resolve_path(std::filesystem::path &path)
 {
 	std::error_code ec;

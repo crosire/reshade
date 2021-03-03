@@ -13,15 +13,12 @@
 #include <filesystem>
 
 #include "reshade_api.hpp"
-
 #if RESHADE_GUI
 #include "imgui_code_editor.hpp"
 
 struct ImDrawData;
 struct ImGuiContext;
 #endif
-
-extern volatile long g_network_traffic;
 
 namespace reshade
 {
