@@ -126,7 +126,7 @@ void    STDMETHODCALLTYPE D3D10Device::IASetVertexBuffers(UINT StartSlot, UINT N
 	_orig->IASetVertexBuffers(StartSlot, NumBuffers, ppVertexBuffers, pStrides, pOffsets);
 
 #if RESHADE_ADDON
-	assert(NumBuffers < D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT);
+	assert(NumBuffers <= D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT);
 	reshade::api::resource_handle buffers[D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
 	uint64_t offsets[D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
 	for (UINT i = 0; i < NumBuffers; ++i)
@@ -193,7 +193,7 @@ void    STDMETHODCALLTYPE D3D10Device::OMSetRenderTargets(UINT NumViews, ID3D10R
 	static_assert(sizeof(*ppRenderTargetViews) == sizeof(reshade::api::resource_view_handle));
 	const auto rtvs = reinterpret_cast<const reshade::api::resource_view_handle *>(ppRenderTargetViews);
 #  else
-	assert(NumViews < D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT);
+	assert(NumViews <= D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT);
 	reshade::api::resource_view_handle rtvs[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
 	for (UINT i = 0; i < NumViews; ++i)
 		rtvs[i] = { reinterpret_cast<uintptr_t>(ppRenderTargetViews[i]) };
@@ -228,7 +228,7 @@ void    STDMETHODCALLTYPE D3D10Device::RSSetViewports(UINT NumViewports, const D
 	_orig->RSSetViewports(NumViewports, pViewports);
 
 #if RESHADE_ADDON
-	assert(NumViewports < D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE);
+	assert(NumViewports <= D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE);
 	float viewport_data[D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE * 6];
 	for (UINT i = 0, k = 0; i < NumViewports; ++i, k += 6)
 	{
@@ -247,7 +247,7 @@ void    STDMETHODCALLTYPE D3D10Device::RSSetScissorRects(UINT NumRects, const D3
 	_orig->RSSetScissorRects(NumRects, pRects);
 
 #if RESHADE_ADDON
-	assert(NumRects < D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE);
+	assert(NumRects <= D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE);
 	int32_t rect_data[D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE * 4];
 	for (UINT i = 0, k = 0; i < NumRects; ++i, k += 4)
 	{

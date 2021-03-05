@@ -186,7 +186,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::IASetVertexBuffers(UINT StartSlot,
 	_orig->IASetVertexBuffers(StartSlot, NumBuffers, ppVertexBuffers, pStrides, pOffsets);
 
 #if RESHADE_ADDON
-	assert(NumBuffers < D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT);
+	assert(NumBuffers <= D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT);
 	reshade::api::resource_handle buffers[D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
 	uint64_t offsets[D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
 	for (UINT i = 0; i < NumBuffers; ++i)
@@ -265,7 +265,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargets(UINT NumViews, 
 	static_assert(sizeof(*ppRenderTargetViews) == sizeof(reshade::api::resource_view_handle));
 	const auto rtvs = reinterpret_cast<const reshade::api::resource_view_handle *>(ppRenderTargetViews);
 #  else
-	assert(NumViews < D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT);
+	assert(NumViews <= D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT);
 	reshade::api::resource_view_handle rtvs[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
 	for (UINT i = 0; i < NumViews; ++i)
 		rtvs[i] = { reinterpret_cast<uintptr_t>(ppRenderTargetViews[i]) };
@@ -283,7 +283,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargetsAndUnorderedAcce
 	static_assert(sizeof(*ppRenderTargetViews) == sizeof(reshade::api::resource_view_handle));
 	const auto rtvs = reinterpret_cast<const reshade::api::resource_view_handle *>(ppRenderTargetViews);
 #  else
-	assert(NumRTVs < D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT);
+	assert(NumRTVs <= D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT);
 	reshade::api::resource_view_handle rtvs[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
 	for (UINT i = 0; i < NumRTVs; ++i)
 		rtvs[i] = { reinterpret_cast<uintptr_t>(ppRenderTargetViews[i]) };
@@ -345,7 +345,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::RSSetScissorRects(UINT NumRects, c
 	_orig->RSSetScissorRects(NumRects, pRects);
 
 #if RESHADE_ADDON
-	assert(NumRects < D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE);
+	assert(NumRects <= D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE);
 	int32_t rect_data[D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE * 4];
 	for (UINT i = 0, k = 0; i < NumRects; ++i, k += 4)
 	{

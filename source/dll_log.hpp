@@ -125,12 +125,14 @@ namespace reshade::log
 
 		inline message &operator<<(const char *message)
 		{
+			assert(message != nullptr);
 			line_stream << message;
 			return *this;
 		}
 
 		inline message &operator<<(const wchar_t *message)
 		{
+			assert(message != nullptr);
 			static_assert(sizeof(wchar_t) == sizeof(uint16_t), "expected 'wchar_t' to use UTF-16 encoding");
 			std::string utf8_message;
 			utf8::unchecked::utf16to8(message, message + wcslen(message), std::back_inserter(utf8_message));
