@@ -184,7 +184,11 @@ void reshade::runtime::on_present()
 	if (!_ignore_shortcuts)
 	{
 		if (_input->is_key_pressed(_effects_key_data, _force_shortcut_modifiers))
+		{
 			_effects_enabled = !_effects_enabled;
+			if (vr::vr_runtime() != nullptr && vr::vr_runtime() != this)
+				vr::vr_runtime()->_effects_enabled = _effects_enabled;
+		}
 
 		if (_input->is_key_pressed(_screenshot_key_data, _force_shortcut_modifiers))
 			_should_save_screenshot = true; // Notify 'update_and_render_effects' that we want to save a screenshot next frame
