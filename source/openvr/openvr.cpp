@@ -215,6 +215,8 @@ IVRCompositor_Submit_Impl(6, 008, {
 		break;
 	} })
 IVRCompositor_Submit_Impl(4, 009, {
+	if (pTexture->handle == nullptr)
+		return vr::VRCompositorError_InvalidTexture;
 	switch (pTexture->eType)
 	{
 	case vr::TextureType_DirectX:
@@ -225,6 +227,8 @@ IVRCompositor_Submit_Impl(4, 009, {
 		break;
 	} })
 IVRCompositor_Submit_Impl(5, 012, {
+	if (pTexture->handle == nullptr)
+		return vr::VRCompositorError_InvalidTexture;
 	switch (pTexture->eType)
 	{
 	case vr::TextureType_DirectX:
