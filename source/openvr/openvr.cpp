@@ -14,6 +14,7 @@
 #include "opengl/runtime_gl.hpp"
 #include "vulkan/vulkan_hooks.hpp"
 #include "vulkan/runtime_vk.hpp"
+#include "reshade_vr.hpp"
 #include <openvr.h>
 
 static std::pair<reshade::runtime *, vr::ETextureType> s_vr_runtime = { nullptr, vr::TextureType_Invalid };
@@ -153,6 +154,44 @@ static bool on_submit_vulkan(vr::EVREye, const vr::VRVulkanTextureData_t *textur
 		wait_semaphores);
 }
 
+static void update_submit_info(vr::EVREye eye, const vr::Texture_t *texture, const vr::VRTextureBounds_t *bounds, vr::EVRSubmitFlags submitFlags)
+{
+	if (s_vr_runtime.first == nullptr)
+		return;
+
+	reshade::vr::submit_info *submit_info = nullptr;
+	if (!s_vr_runtime.first->get_data(reshade::vr::submit_info::GUID, reinterpret_cast<void**>(&submit_info)))
+		submit_info = &s_vr_runtime.first->create_data<reshade::vr::submit_info>(reshade::vr::submit_info::GUID);
+
+	auto *device = s_vr_runtime.first->get_device();
+
+	submit_info->eye = eye;
+
+	if (texture == nullptr || texture->handle == nullptr)
+		return;
+	
+	submit_info->color = reshade::api::resource_handle {reinterpret_cast<uint64_t>(texture->handle)};
+	auto desc = device->get_resource_desc(submit_info->color);
+	reshade::api::region region { 0, 0, desc.width, desc.height };
+	if (bounds != nullptr)
+	{
+		region.left = static_cast<uint32_t>(desc.width * std::min(bounds->uMin, bounds->uMax));
+		region.top =   static_cast<uint32_t>(desc.height * std::min(bounds->vMin, bounds->vMax));
+		region.right = static_cast<uint32_t>(desc.width * std::max(bounds->uMin, bounds->uMax));
+		region.bottom = static_cast<uint32_t>(desc.height * std::max(bounds->vMin, bounds->vMax));
+	}
+	submit_info->region = region;
+
+	submit_info->depth = {0};
+	if (submitFlags & vr::Submit_TextureWithDepth)
+	{
+		vr::VRTextureDepthInfo_t depth_info = submitFlags & vr::Submit_TextureWithPose
+			? static_cast<const vr::VRTextureWithPoseAndDepth_t*>(texture)->depth
+			: static_cast<const vr::VRTextureWithDepth_t*>(texture)->depth;
+		submit_info->depth = {reinterpret_cast<uint64_t>(depth_info.handle)};
+	}
+}
+
 #ifdef WIN64
 	#define IVRCompositor_Submit_Impl(vtable_offset, interface_version, impl) \
 		static vr::EVRCompositorError IVRCompositor_Submit_##interface_version(vr::IVRCompositor *pCompositor, IVRCompositor_Submit_##interface_version##_ArgTypes) \
@@ -195,6 +234,7 @@ static bool on_submit_vulkan(vr::EVREye, const vr::VRVulkanTextureData_t *textur
 #define IVRCompositor_Submit_012_ArgNames eEye, pTexture, pBounds, nSubmitFlags
 
 IVRCompositor_Submit_Impl(6, 007, {
+	update_submit_info(eEye, nullptr, nullptr, vr::Submit_Default);
 	switch (eTextureType)
 	{
 	case 0: // API_DirectX
@@ -205,6 +245,7 @@ IVRCompositor_Submit_Impl(6, 007, {
 		break;
 	} })
 IVRCompositor_Submit_Impl(6, 008, {
+	update_submit_info(eEye, nullptr, nullptr, vr::Submit_Default);
 	switch (eTextureType)
 	{
 	case 0: // API_DirectX
@@ -217,6 +258,7 @@ IVRCompositor_Submit_Impl(6, 008, {
 IVRCompositor_Submit_Impl(4, 009, {
 	if (pTexture->handle == nullptr)
 		return vr::VRCompositorError_InvalidTexture;
+	update_submit_info(eEye, pTexture, pBounds, nSubmitFlags);
 	switch (pTexture->eType)
 	{
 	case vr::TextureType_DirectX:
@@ -229,6 +271,7 @@ IVRCompositor_Submit_Impl(4, 009, {
 IVRCompositor_Submit_Impl(5, 012, {
 	if (pTexture->handle == nullptr)
 		return vr::VRCompositorError_InvalidTexture;
+	update_submit_info(eEye, pTexture, pBounds, nSubmitFlags);
 	switch (pTexture->eType)
 	{
 	case vr::TextureType_DirectX:
