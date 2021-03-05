@@ -33,10 +33,10 @@ namespace reshade { namespace api
 	{
 		unknown,
 		buffer,
-		surface, // Surfaces are resources that can be rendered into (can create a render target for them), but can not be read in shaders.
 		texture_1d,
 		texture_2d,
-		texture_3d
+		texture_3d,
+		surface // Surfaces are resources that can be rendered into (can create a render target for them), but can not be read in shaders.
 	};
 
 	/// <summary>
@@ -315,6 +315,11 @@ namespace reshade { namespace api
 		/// This function is thread-safe.
 		/// </summary>
 		virtual resource_desc get_resource_desc(resource_handle resource) const = 0;
+		/// <summary>
+		/// Gets the type of the specified <paramref name="resource"/>.
+		/// This function is thread-safe.
+		/// </summary>
+		virtual resource_type get_resource_type(resource_handle resource) const = 0;
 
 		/// <summary>
 		/// Waits for all issued GPU operations to finish before returning.

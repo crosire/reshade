@@ -645,6 +645,10 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 	else
 		return convert_resource_desc(convert_resource_type(target), 1, internal_format, width, height, depth);
 }
+reshade::api::resource_type reshade::opengl::device_impl::get_resource_type(api::resource_handle resource) const
+{
+	return convert_resource_type(resource.handle >> 40);
+}
 
 void reshade::opengl::device_impl::wait_idle() const
 {

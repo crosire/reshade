@@ -34,6 +34,7 @@ namespace reshade::d3d11
 		void get_resource_from_view(api::resource_view_handle view, api::resource_handle *out_resource) const final;
 
 		api::resource_desc get_resource_desc(api::resource_handle resource) const final;
+		api::resource_type get_resource_type(api::resource_handle resource) const final;
 
 		void wait_idle() const final { /* no-op */ }
 

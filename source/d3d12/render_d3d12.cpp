@@ -211,6 +211,17 @@ reshade::api::resource_desc reshade::d3d12::device_impl::get_resource_desc(api::
 	assert(resource.handle != 0);
 	return convert_resource_desc(reinterpret_cast<ID3D12Resource *>(resource.handle)->GetDesc()).second;
 }
+reshade::api::resource_type reshade::d3d12::device_impl::get_resource_type(api::resource_handle resource) const
+{
+	static_assert(
+		D3D12_RESOURCE_DIMENSION_BUFFER    == static_cast<uint32_t>(api::resource_type::buffer) &&
+		D3D12_RESOURCE_DIMENSION_TEXTURE1D == static_cast<uint32_t>(api::resource_type::texture_1d) &&
+		D3D12_RESOURCE_DIMENSION_TEXTURE2D == static_cast<uint32_t>(api::resource_type::texture_2d) &&
+		D3D12_RESOURCE_DIMENSION_TEXTURE3D == static_cast<uint32_t>(api::resource_type::texture_3d));
+
+	assert(resource.handle != 0);
+	return static_cast<api::resource_type>(reinterpret_cast<ID3D12Resource *>(resource.handle)->GetDesc().Dimension);
+}
 
 void reshade::d3d12::device_impl::wait_idle() const
 {

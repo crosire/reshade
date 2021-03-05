@@ -244,6 +244,16 @@ reshade::api::resource_desc reshade::vulkan::device_impl::get_resource_desc(api:
 	else
 		return convert_resource_desc(data.buffer_create_info);
 }
+reshade::api::resource_type reshade::vulkan::device_impl::get_resource_type(api::resource_handle resource) const
+{
+	assert(resource.handle != 0);
+	const resource_data &data = _resources.at(resource.handle);
+
+	if (data.type)
+		return static_cast<api::resource_type>(static_cast<uint32_t>(api::resource_type::texture_1d) + data.image_create_info.imageType);
+	else
+		return api::resource_type::buffer;
+}
 
 void reshade::vulkan::device_impl::wait_idle() const
 {

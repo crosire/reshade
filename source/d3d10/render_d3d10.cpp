@@ -237,6 +237,19 @@ reshade::api::resource_desc reshade::d3d10::device_impl::get_resource_desc(api::
 	assert(false); // Not implemented
 	return {};
 }
+reshade::api::resource_type reshade::d3d10::device_impl::get_resource_type(api::resource_handle resource) const
+{
+	static_assert(
+		D3D10_RESOURCE_DIMENSION_BUFFER    == static_cast<uint32_t>(api::resource_type::buffer) &&
+		D3D10_RESOURCE_DIMENSION_TEXTURE1D == static_cast<uint32_t>(api::resource_type::texture_1d) &&
+		D3D10_RESOURCE_DIMENSION_TEXTURE2D == static_cast<uint32_t>(api::resource_type::texture_2d) &&
+		D3D10_RESOURCE_DIMENSION_TEXTURE3D == static_cast<uint32_t>(api::resource_type::texture_3d));
+
+	assert(resource.handle != 0);
+	D3D10_RESOURCE_DIMENSION dimension;
+	reinterpret_cast<ID3D10Resource *>(resource.handle)->GetType(&dimension);
+	return static_cast<api::resource_type>(dimension);
+}
 
 void reshade::d3d10::device_impl::flush_immediate_command_list() const
 {

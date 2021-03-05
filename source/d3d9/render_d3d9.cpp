@@ -367,7 +367,6 @@ void reshade::d3d9::device_impl::get_resource_from_view(api::resource_view_handl
 reshade::api::resource_desc reshade::d3d9::device_impl::get_resource_desc(api::resource_handle resource) const
 {
 	assert(resource != 0);
-
 	switch (reinterpret_cast<IDirect3DResource9 *>(resource.handle)->GetType())
 	{
 		case D3DRTYPE_SURFACE:
@@ -421,6 +420,25 @@ reshade::api::resource_desc reshade::d3d9::device_impl::get_resource_desc(api::r
 
 	assert(false); // Not implemented
 	return {};
+}
+reshade::api::resource_type reshade::d3d9::device_impl::get_resource_type(api::resource_handle resource) const
+{
+	assert(resource.handle != 0);
+	switch (reinterpret_cast<IDirect3DResource9 *>(resource.handle)->GetType())
+	{
+	default:
+		return api::resource_type::unknown;
+	case D3DRTYPE_SURFACE:
+		return api::resource_type::surface;
+	case D3DRTYPE_TEXTURE:
+	case D3DRTYPE_CUBETEXTURE:
+		return api::resource_type::texture_2d;
+	case D3DRTYPE_VOLUMETEXTURE:
+		return api::resource_type::texture_3d;
+	case D3DRTYPE_VERTEXBUFFER:
+	case D3DRTYPE_INDEXBUFFER:
+		return api::resource_type::buffer;
+	}
 }
 
 void reshade::d3d9::device_impl::copy_resource(api::resource_handle source, api::resource_handle destination)
