@@ -229,6 +229,7 @@ namespace reshade
 
 		bool _is_initialized = false;
 		bool _performance_mode = false;
+		bool _gather_gpu_statistics = true;
 		unsigned int _width = 0;
 		unsigned int _height = 0;
 		unsigned int _window_width = 0;
@@ -243,9 +244,6 @@ namespace reshade
 		std::vector<effect> _effects;
 		std::vector<texture> _textures;
 		std::vector<technique> _techniques;
-
-		// === Statistics ===
-		bool _gather_gpu_statistics = true;
 
 	private:
 		/// <summary>

@@ -1368,8 +1368,6 @@ void reshade::runtime::draw_gui_settings()
 
 		if (ImGui::Button("Clear effect cache", ImVec2(ImGui::CalcItemWidth(), 0)))
 			clear_effect_cache();
-
-		modified |= ImGui::Checkbox("Gather GPU statistics", &_gather_gpu_statistics);
 	}
 
 	if (ImGui::CollapsingHeader("Screenshots", ImGuiTreeNodeFlags_DefaultOpen))
@@ -1585,6 +1583,9 @@ void reshade::runtime::draw_gui_statistics()
 		}
 	}
 
+	if (ImGui::Checkbox("Gather GPU statistics", &_gather_gpu_statistics))
+		save_config();
+
 	if (ImGui::CollapsingHeader("General", ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x);
@@ -1631,9 +1632,8 @@ void reshade::runtime::draw_gui_statistics()
 			ImGui::TextUnformatted("Unknown");
 		ImGui::Text("0x%X", std::hash<std::string>()(g_target_executable_path.stem().u8string()) & 0xFFFFFFFF);
 		ImGui::Text("%.0f ms", std::chrono::duration_cast<std::chrono::nanoseconds>(_last_present_time - _start_time).count() * 1e-6f);
-		ImGui::NewLine();
 		ImGui::Text("%*.3f ms", gpu_digits + 4, _last_frame_duration.count() * 1e-6f);
-		if (post_processing_time_gpu != 0)
+		if (_gather_gpu_statistics && post_processing_time_gpu != 0)
 			ImGui::Text("%*.3f ms GPU", gpu_digits + 4, (post_processing_time_gpu * 1e-6f));
 
 		ImGui::EndGroup();
@@ -1679,7 +1679,7 @@ void reshade::runtime::draw_gui_statistics()
 				continue;
 
 			// GPU timings are not available for all APIs
-			if (technique.average_gpu_duration != 0)
+			if (_gather_gpu_statistics && technique.average_gpu_duration != 0)
 				ImGui::Text("%*.3f ms GPU", gpu_digits + 4, technique.average_gpu_duration * 1e-6f);
 			else
 				ImGui::NewLine();
