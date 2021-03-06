@@ -244,6 +244,9 @@ namespace reshade
 		std::vector<texture> _textures;
 		std::vector<technique> _techniques;
 
+		// === Statistics ===
+		bool _gather_gpu_statistics = true;
+
 	private:
 		/// <summary>
 		/// Compare current version against the latest published one.

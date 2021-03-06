@@ -958,19 +958,22 @@ void reshade::opengl::runtime_impl::render_technique(technique &technique)
 
 	const auto impl = static_cast<technique_data *>(technique.impl);
 
-	if (GLuint available = 0; impl->query_in_flight)
+	if (_gather_gpu_statistics)
 	{
-		glGetQueryObjectuiv(impl->query, GL_QUERY_RESULT_AVAILABLE, &available);
-		if (GLuint64 elapsed_time = 0; available != GL_FALSE)
+		if (GLuint available = 0; impl->query_in_flight)
 		{
-			glGetQueryObjectui64v(impl->query, GL_QUERY_RESULT, &elapsed_time);
-			technique.average_gpu_duration.append(elapsed_time);
-			impl->query_in_flight = false; // Reset query status
+			glGetQueryObjectuiv(impl->query, GL_QUERY_RESULT_AVAILABLE, &available);
+			if (GLuint64 elapsed_time = 0; available != GL_FALSE)
+			{
+				glGetQueryObjectui64v(impl->query, GL_QUERY_RESULT, &elapsed_time);
+				technique.average_gpu_duration.append(elapsed_time);
+				impl->query_in_flight = false; // Reset query status
+			}
 		}
-	}
 
-	if (!impl->query_in_flight) {
-		glBeginQuery(GL_TIME_ELAPSED, impl->query);
+		if (!impl->query_in_flight) {
+			glBeginQuery(GL_TIME_ELAPSED, impl->query);
+		}
 	}
 
 	RESHADE_ADDON_EVENT(reshade_before_effects, this, this);
@@ -1136,11 +1139,14 @@ void reshade::opengl::runtime_impl::render_technique(technique &technique)
 
 	RESHADE_ADDON_EVENT(reshade_after_effects, this, this);
 
-	if (!impl->query_in_flight) {
-		glEndQuery(GL_TIME_ELAPSED);
-	}
+	if (_gather_gpu_statistics)
+	{
+		if (!impl->query_in_flight) {
+			glEndQuery(GL_TIME_ELAPSED);
+		}
 
-	impl->query_in_flight = true;
+		impl->query_in_flight = true;
+	}
 }
 
 void reshade::opengl::runtime_impl::update_texture_bindings(const char *semantic, api::resource_view_handle srv)

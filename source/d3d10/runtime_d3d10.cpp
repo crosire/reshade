@@ -878,26 +878,29 @@ void reshade::d3d10::runtime_impl::render_technique(technique &technique)
 	const auto impl = static_cast<technique_data *>(technique.impl);
 	effect_data &effect_data = _effect_data[technique.effect_index];
 
-	// Evaluate queries
-	if (impl->query_in_flight)
+	if (_gather_gpu_statistics)
 	{
-		UINT64 timestamp0, timestamp1;
-		D3D10_QUERY_DATA_TIMESTAMP_DISJOINT disjoint;
-
-		if (impl->timestamp_disjoint->GetData(&disjoint,    sizeof(disjoint),   D3D10_ASYNC_GETDATA_DONOTFLUSH) == S_OK &&
-			impl->timestamp_query_beg->GetData(&timestamp0, sizeof(timestamp0), D3D10_ASYNC_GETDATA_DONOTFLUSH) == S_OK &&
-			impl->timestamp_query_end->GetData(&timestamp1, sizeof(timestamp1), D3D10_ASYNC_GETDATA_DONOTFLUSH) == S_OK)
+		// Evaluate queries
+		if (impl->query_in_flight)
 		{
-			if (!disjoint.Disjoint)
-				technique.average_gpu_duration.append((timestamp1 - timestamp0) * 1'000'000'000 / disjoint.Frequency);
-			impl->query_in_flight = false;
-		}
-	}
+			UINT64 timestamp0, timestamp1;
+			D3D10_QUERY_DATA_TIMESTAMP_DISJOINT disjoint;
 
-	if (!impl->query_in_flight)
-	{
-		impl->timestamp_disjoint->Begin();
-		impl->timestamp_query_beg->End();
+			if (impl->timestamp_disjoint->GetData(&disjoint,    sizeof(disjoint),   D3D10_ASYNC_GETDATA_DONOTFLUSH) == S_OK &&
+				impl->timestamp_query_beg->GetData(&timestamp0, sizeof(timestamp0), D3D10_ASYNC_GETDATA_DONOTFLUSH) == S_OK &&
+				impl->timestamp_query_end->GetData(&timestamp1, sizeof(timestamp1), D3D10_ASYNC_GETDATA_DONOTFLUSH) == S_OK)
+			{
+				if (!disjoint.Disjoint)
+					technique.average_gpu_duration.append((timestamp1 - timestamp0) * 1'000'000'000 / disjoint.Frequency);
+				impl->query_in_flight = false;
+			}
+		}
+
+		if (!impl->query_in_flight)
+		{
+			impl->timestamp_disjoint->Begin();
+			impl->timestamp_query_beg->End();
+		}
 	}
 
 	RESHADE_ADDON_EVENT(reshade_before_effects, this, _device_impl);
@@ -1040,13 +1043,16 @@ void reshade::d3d10::runtime_impl::render_technique(technique &technique)
 
 	RESHADE_ADDON_EVENT(reshade_after_effects, this, _device_impl);
 
-	if (!impl->query_in_flight)
+	if (_gather_gpu_statistics)
 	{
-		impl->timestamp_query_end->End();
-		impl->timestamp_disjoint->End();
-	}
+		if (!impl->query_in_flight)
+		{
+			impl->timestamp_query_end->End();
+			impl->timestamp_disjoint->End();
+		}
 
-	impl->query_in_flight = true;
+		impl->query_in_flight = true;
+	}
 }
 
 void reshade::d3d10::runtime_impl::update_texture_bindings(const char *semantic, api::resource_view_handle api_srv)
