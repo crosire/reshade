@@ -169,6 +169,10 @@ namespace reshade
 		/// <para>Callback function signature: <c>void (api::effect_runtime *runtime, api::command_list *cmd_list)</c></para>
 		/// </summary>
 		reshade_after_effects,
+
+#ifdef RESHADE_ADDON
+		max // Last value used internally by ReShade to determine number of events in this enum
+#endif
 	};
 
 	template <addon_event ev>
