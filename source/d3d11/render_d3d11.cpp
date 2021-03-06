@@ -215,56 +215,65 @@ void reshade::d3d11::device_impl::get_resource_from_view(api::resource_view_hand
 	*out_resource = { reinterpret_cast<uintptr_t>(resource.get()) };
 }
 
-reshade::api::resource_desc reshade::d3d11::device_impl::get_resource_desc(api::resource_handle resource) const
+reshade::api::resource_desc reshade::d3d11::device_impl::get_resource_desc(api::resource_handle resource, api::resource_type *out_type, api::memory_usage *out_mem_usage) const
 {
 	assert(resource.handle != 0);
 	const auto resource_object = reinterpret_cast<ID3D11Resource *>(resource.handle);
 
 	D3D11_RESOURCE_DIMENSION dimension;
 	resource_object->GetType(&dimension);
-	switch (dimension)
-	{
-		case D3D11_RESOURCE_DIMENSION_BUFFER:
-		{
-			D3D11_BUFFER_DESC internal_desc;
-			static_cast<ID3D11Buffer *>(resource_object)->GetDesc(&internal_desc);
-			return convert_resource_desc(internal_desc);
-		}
-		case D3D11_RESOURCE_DIMENSION_TEXTURE1D:
-		{
-			D3D11_TEXTURE1D_DESC internal_desc;
-			static_cast<ID3D11Texture1D *>(resource_object)->GetDesc(&internal_desc);
-			return convert_resource_desc(internal_desc);
-		}
-		case D3D11_RESOURCE_DIMENSION_TEXTURE2D:
-		{
-			D3D11_TEXTURE2D_DESC internal_desc;
-			static_cast<ID3D11Texture2D *>(resource_object)->GetDesc(&internal_desc);
-			return convert_resource_desc(internal_desc);
-		}
-		case D3D11_RESOURCE_DIMENSION_TEXTURE3D:
-		{
-			D3D11_TEXTURE3D_DESC internal_desc;
-			static_cast<ID3D11Texture3D *>(resource_object)->GetDesc(&internal_desc);
-			return convert_resource_desc(internal_desc);
-		}
-	}
 
-	assert(false); // Not implemented
-	return {};
-}
-reshade::api::resource_type reshade::d3d11::device_impl::get_resource_type(api::resource_handle resource) const
-{
 	static_assert(
 		D3D10_RESOURCE_DIMENSION_BUFFER    == static_cast<uint32_t>(api::resource_type::buffer) &&
 		D3D10_RESOURCE_DIMENSION_TEXTURE1D == static_cast<uint32_t>(api::resource_type::texture_1d) &&
 		D3D10_RESOURCE_DIMENSION_TEXTURE2D == static_cast<uint32_t>(api::resource_type::texture_2d) &&
 		D3D10_RESOURCE_DIMENSION_TEXTURE3D == static_cast<uint32_t>(api::resource_type::texture_3d));
 
-	assert(resource.handle != 0);
-	D3D11_RESOURCE_DIMENSION dimension;
-	reinterpret_cast<ID3D11Resource *>(resource.handle)->GetType(&dimension);
-	return static_cast<api::resource_type>(dimension);
+	if (out_type != nullptr)
+		*out_type = static_cast<api::resource_type>(dimension);
+
+	switch (dimension)
+	{
+		case D3D11_RESOURCE_DIMENSION_BUFFER:
+		{
+			D3D11_BUFFER_DESC internal_desc;
+			static_cast<ID3D11Buffer *>(resource_object)->GetDesc(&internal_desc);
+
+			if (out_mem_usage != nullptr)
+				*out_mem_usage = convert_memory_usage(internal_desc.Usage);
+			return convert_resource_desc(internal_desc);
+		}
+		case D3D11_RESOURCE_DIMENSION_TEXTURE1D:
+		{
+			D3D11_TEXTURE1D_DESC internal_desc;
+			static_cast<ID3D11Texture1D *>(resource_object)->GetDesc(&internal_desc);
+
+			if (out_mem_usage != nullptr)
+				*out_mem_usage = convert_memory_usage(internal_desc.Usage);
+			return convert_resource_desc(internal_desc);
+		}
+		case D3D11_RESOURCE_DIMENSION_TEXTURE2D:
+		{
+			D3D11_TEXTURE2D_DESC internal_desc;
+			static_cast<ID3D11Texture2D *>(resource_object)->GetDesc(&internal_desc);
+
+			if (out_mem_usage != nullptr)
+				*out_mem_usage = convert_memory_usage(internal_desc.Usage);
+			return convert_resource_desc(internal_desc);
+		}
+		case D3D11_RESOURCE_DIMENSION_TEXTURE3D:
+		{
+			D3D11_TEXTURE3D_DESC internal_desc;
+			static_cast<ID3D11Texture3D *>(resource_object)->GetDesc(&internal_desc);
+
+			if (out_mem_usage != nullptr)
+				*out_mem_usage = convert_memory_usage(internal_desc.Usage);
+			return convert_resource_desc(internal_desc);
+		}
+	}
+
+	assert(false); // Not implemented
+	return {};
 }
 
 reshade::d3d11::command_list_impl::command_list_impl(device_impl *device, ID3D11CommandList *cmd_list) :

@@ -466,7 +466,7 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource_handle res
 
 	if (target == (resource.handle >> 40) &&
 		desc.first_level == 0 && desc.first_layer == 0 &&
-		get_resource_desc(resource).format == internal_format)
+		get_tex_level_param(target, resource.handle & 0xFFFFFFFF, 0, GL_TEXTURE_INTERNAL_FORMAT) == internal_format)
 	{
 		assert(target != GL_TEXTURE_BUFFER);
 
@@ -599,12 +599,19 @@ void reshade::opengl::device_impl::get_resource_from_view(api::resource_view_han
 	}
 }
 
-reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api::resource_handle resource) const
+reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api::resource_handle resource, api::resource_type *out_type, api::memory_usage *out_mem_usage) const
 {
 	GLsizei width = 0, height = 1, depth = 1, buffer_size = 0; GLenum internal_format = GL_NONE;
 
 	const GLenum target = resource.handle >> 40;
 	const GLuint object = resource.handle & 0xFFFFFFFF;
+
+	if (out_type != nullptr)
+		*out_type = convert_resource_type(target);
+
+	if (out_mem_usage != nullptr)
+		*out_mem_usage = api::memory_usage::unknown;
+
 	switch (target)
 	{
 	default:
@@ -660,10 +667,6 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 	else
 		return convert_resource_desc(convert_resource_type(target), 1, internal_format, width, height, depth);
 }
-reshade::api::resource_type reshade::opengl::device_impl::get_resource_type(api::resource_handle resource) const
-{
-	return convert_resource_type(resource.handle >> 40);
-}
 
 void reshade::opengl::device_impl::wait_idle() const
 {
@@ -679,10 +682,11 @@ void reshade::opengl::device_impl::copy_resource(api::resource_handle source, ap
 {
 	assert(source.handle != 0 && destination.handle != 0);
 
-	const api::resource_desc source_desc = get_resource_desc(source);
+	const api::resource_desc source_desc = get_resource_desc(source, nullptr, nullptr);
 	const GLenum source_target = source.handle >> 40;
 	const GLuint source_object = source.handle & 0xFFFFFFFF;
-	const api::resource_desc destination_desc = get_resource_desc(destination);
+
+	const api::resource_desc destination_desc = get_resource_desc(destination, nullptr, nullptr);
 	const GLuint destination_target = destination.handle >> 40;
 	const GLuint destination_object = destination.handle & 0xFFFFFFFF;
 

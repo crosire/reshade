@@ -327,12 +327,10 @@ namespace reshade { namespace api
 		/// Gets the description of the specified <paramref name="resource"/>.
 		/// This function is thread-safe.
 		/// </summary>
-		virtual resource_desc get_resource_desc(resource_handle resource) const = 0;
-		/// <summary>
-		/// Gets the type of the specified <paramref name="resource"/>.
-		/// This function is thread-safe.
-		/// </summary>
-		virtual resource_type get_resource_type(resource_handle resource) const = 0;
+		/// <param name="resource">The resource to get the description from.</param>
+		/// <param name="out_type">Optional pointer to a variable that is set to the type of the resource. Can be <c>nullptr</c> to not get this information.</param>
+		/// <param name="out_mem_usage">Optional pointer to a variable that is set to the memory usage of the resource. Can be <c>nullptr</c> to not get this information.</param>
+		virtual resource_desc get_resource_desc(resource_handle resource, resource_type *out_type = nullptr, memory_usage *out_mem_usage = nullptr) const = 0;
 
 		/// <summary>
 		/// Waits for all issued GPU operations to finish before returning.

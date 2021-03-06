@@ -207,21 +207,31 @@ void reshade::d3d12::device_impl::get_resource_from_view(api::resource_view_hand
 		*out_resource = { 0 };
 }
 
-reshade::api::resource_desc reshade::d3d12::device_impl::get_resource_desc(api::resource_handle resource) const
+reshade::api::resource_desc reshade::d3d12::device_impl::get_resource_desc(api::resource_handle resource, api::resource_type *out_type, api::memory_usage *out_mem_usage) const
 {
 	assert(resource.handle != 0);
-	return convert_resource_desc(reinterpret_cast<ID3D12Resource *>(resource.handle)->GetDesc()).second;
-}
-reshade::api::resource_type reshade::d3d12::device_impl::get_resource_type(api::resource_handle resource) const
-{
+	const D3D12_RESOURCE_DESC internal_desc = reinterpret_cast<ID3D12Resource *>(resource.handle)->GetDesc();
+
 	static_assert(
 		D3D12_RESOURCE_DIMENSION_BUFFER    == static_cast<uint32_t>(api::resource_type::buffer) &&
 		D3D12_RESOURCE_DIMENSION_TEXTURE1D == static_cast<uint32_t>(api::resource_type::texture_1d) &&
 		D3D12_RESOURCE_DIMENSION_TEXTURE2D == static_cast<uint32_t>(api::resource_type::texture_2d) &&
 		D3D12_RESOURCE_DIMENSION_TEXTURE3D == static_cast<uint32_t>(api::resource_type::texture_3d));
 
-	assert(resource.handle != 0);
-	return static_cast<api::resource_type>(reinterpret_cast<ID3D12Resource *>(resource.handle)->GetDesc().Dimension);
+	if (out_type != nullptr)
+		*out_type = static_cast<api::resource_type>(internal_desc.Dimension);
+
+	if (out_mem_usage != nullptr)
+	{
+		D3D12_HEAP_FLAGS heap_flags;
+		D3D12_HEAP_PROPERTIES heap_props;
+		if (SUCCEEDED(reinterpret_cast<ID3D12Resource *>(resource.handle)->GetHeapProperties(&heap_props, &heap_flags)))
+			*out_mem_usage = convert_memory_usage(heap_props.Type);
+		else
+			*out_mem_usage = api::memory_usage::unknown;
+	}
+
+	return convert_resource_desc(internal_desc).second;
 }
 
 void reshade::d3d12::device_impl::wait_idle() const

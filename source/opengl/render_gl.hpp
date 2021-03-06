@@ -41,8 +41,7 @@ namespace reshade::opengl
 
 		void get_resource_from_view(api::resource_view_handle view, api::resource_handle *out_resource) const final;
 
-		api::resource_desc get_resource_desc(api::resource_handle resource) const final;
-		api::resource_type get_resource_type(api::resource_handle resource) const final;
+		api::resource_desc get_resource_desc(api::resource_handle resource, api::resource_type *out_type, api::memory_usage *out_mem_usage) const final;
 
 		void wait_idle() const final;
 

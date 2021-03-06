@@ -249,25 +249,28 @@ void reshade::vulkan::device_impl::get_resource_from_view(api::resource_view_han
 	*out_resource = { data.type ? (uint64_t)data.image_create_info.image : (uint64_t)data.buffer_create_info.buffer };
 }
 
-reshade::api::resource_desc reshade::vulkan::device_impl::get_resource_desc(api::resource_handle resource) const
+reshade::api::resource_desc reshade::vulkan::device_impl::get_resource_desc(api::resource_handle resource, api::resource_type *out_type, api::memory_usage *out_mem_usage) const
 {
 	assert(resource.handle != 0);
 	const resource_data &data = _resources.at(resource.handle);
 
+	if (out_mem_usage != nullptr)
+		*out_mem_usage = api::memory_usage::unknown;
+
 	if (data.type)
+	{
+		if (out_type != nullptr)
+			*out_type = static_cast<api::resource_type>(static_cast<uint32_t>(api::resource_type::texture_1d) + data.image_create_info.imageType);
+
 		return convert_resource_desc(data.image_create_info).second;
+	}
 	else
-		return convert_resource_desc(data.buffer_create_info);
-}
-reshade::api::resource_type reshade::vulkan::device_impl::get_resource_type(api::resource_handle resource) const
-{
-	assert(resource.handle != 0);
-	const resource_data &data = _resources.at(resource.handle);
+	{
+		if (out_type != nullptr)
+			*out_type = api::resource_type::buffer;
 
-	if (data.type)
-		return static_cast<api::resource_type>(static_cast<uint32_t>(api::resource_type::texture_1d) + data.image_create_info.imageType);
-	else
-		return api::resource_type::buffer;
+		return convert_resource_desc(data.buffer_create_info);
+	}
 }
 
 void reshade::vulkan::device_impl::wait_idle() const
