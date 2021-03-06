@@ -58,13 +58,14 @@ bool reshade::d3d11::device_impl::check_resource_view_handle_valid(api::resource
 	return view.handle != 0 && _views.has_object(reinterpret_cast<ID3D11View *>(view.handle));
 }
 
-bool reshade::d3d11::device_impl::create_resource(api::resource_type type, const api::resource_desc &desc, api::resource_usage, api::resource_handle *out_resource)
+bool reshade::d3d11::device_impl::create_resource(api::resource_type type, const api::resource_desc &desc, api::memory_usage mem_usage, api::resource_usage, api::resource_handle *out_resource)
 {
 	switch (type)
 	{
 		case api::resource_type::buffer:
 		{
 			D3D11_BUFFER_DESC internal_desc = {};
+			convert_memory_usage(mem_usage, internal_desc.Usage, internal_desc.CPUAccessFlags);
 			convert_resource_desc(desc, internal_desc);
 
 			if (com_ptr<ID3D11Buffer> resource;
@@ -79,6 +80,7 @@ bool reshade::d3d11::device_impl::create_resource(api::resource_type type, const
 		case api::resource_type::texture_1d:
 		{
 			D3D11_TEXTURE1D_DESC internal_desc = {};
+			convert_memory_usage(mem_usage, internal_desc.Usage, internal_desc.CPUAccessFlags);
 			convert_resource_desc(desc, internal_desc);
 
 			if (com_ptr<ID3D11Texture1D> resource;
@@ -93,6 +95,7 @@ bool reshade::d3d11::device_impl::create_resource(api::resource_type type, const
 		case api::resource_type::texture_2d:
 		{
 			D3D11_TEXTURE2D_DESC internal_desc = {};
+			convert_memory_usage(mem_usage, internal_desc.Usage, internal_desc.CPUAccessFlags);
 			convert_resource_desc(desc, internal_desc);
 
 			if (com_ptr<ID3D11Texture2D> resource;
@@ -107,6 +110,7 @@ bool reshade::d3d11::device_impl::create_resource(api::resource_type type, const
 		case api::resource_type::texture_3d:
 		{
 			D3D11_TEXTURE3D_DESC internal_desc = {};
+			convert_memory_usage(mem_usage, internal_desc.Usage, internal_desc.CPUAccessFlags);
 			convert_resource_desc(desc, internal_desc);
 
 			if (com_ptr<ID3D11Texture3D> resource;

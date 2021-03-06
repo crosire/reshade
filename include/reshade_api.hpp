@@ -75,7 +75,7 @@ namespace reshade { namespace api
 	constexpr resource_usage &operator|=(resource_usage &lhs, resource_usage rhs) { return lhs = static_cast<resource_usage>(static_cast<uint32_t>(lhs) | static_cast<uint32_t>(rhs)); }
 
 	/// <summary>
-	/// The available resource view types. This identifies how a view should interpret the resource.
+	/// The available resource view types, which identify how a view interprets the data of its resource.
 	/// </summary>
 	enum class resource_view_type : uint32_t
 	{
@@ -90,6 +90,18 @@ namespace reshade { namespace api
 		texture_3d,
 		texture_cube,
 		texture_cube_array
+	};
+
+	/// <summary>
+	/// The available memory usage types, which give a hint as to where to place the memory allocation for a resource.
+	/// </summary>
+	enum class memory_usage : uint32_t
+	{
+		unknown,
+		gpu_only,
+		cpu_to_gpu,
+		gpu_to_cpu,
+		cpu_only
 	};
 
 	/// <summary>
@@ -280,10 +292,11 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <param name="type">The type of the resource to create.</param>
 		/// <param name="desc">The description of the resource to create.</param>
+		/// <param name="mem_usage">The memory usage type of the resource, which is used to determine where to place the memory allocation.</param>
 		/// <param name="initial_state">Initial usage of the resource after creation. This can later be changed via <see cref="command_list::transition_state"/>.</param>
 		/// <param name="out_resource">Pointer to a handle that is set to the handle of the created resource.</param>
 		/// <returns><c>true</c>if the resource was successfully created, <c>false</c> otherwise (in this case <paramref name="out_resource"/> is set to zero).</returns>
-		virtual bool create_resource(resource_type type, const resource_desc &desc, resource_usage initial_state, resource_handle *out_resource) = 0;
+		virtual bool create_resource(resource_type type, const resource_desc &desc, memory_usage mem_usage, resource_usage initial_state, resource_handle *out_resource) = 0;
 		/// <summary>
 		/// Creates a new resource view for the specified <paramref name="resource"/> based on the specified <paramref name="desc"/>ription.
 		/// </summary>

@@ -340,12 +340,13 @@ D3D12_HEAP_PROPERTIES STDMETHODCALLTYPE D3D12Device::GetCustomHeapProperties(UIN
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource(const D3D12_HEAP_PROPERTIES *pHeapProperties, D3D12_HEAP_FLAGS HeapFlags, const D3D12_RESOURCE_DESC *pResourceDesc, D3D12_RESOURCE_STATES InitialResourceState, const D3D12_CLEAR_VALUE *pOptimizedClearValue, REFIID riidResource, void **ppvResource)
 {
-	assert(pResourceDesc != nullptr);
+	assert(pHeapProperties != nullptr && pResourceDesc != nullptr);
 	D3D12_RESOURCE_DESC new_desc = *pResourceDesc;
 
 #if RESHADE_ADDON
+	const reshade::api::memory_usage mem_usage = reshade::d3d12::convert_memory_usage(pHeapProperties->Type);
 	std::pair<reshade::api::resource_type, reshade::api::resource_desc> api_desc = reshade::d3d12::convert_resource_desc(new_desc);
-	RESHADE_ADDON_EVENT(create_resource, this, api_desc.first, &api_desc.second);
+	RESHADE_ADDON_EVENT(create_resource, this, api_desc.first, &api_desc.second, mem_usage);
 	reshade::d3d12::convert_resource_desc(api_desc.first, api_desc.second, new_desc);
 #endif
 
@@ -389,12 +390,13 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateHeap(const D3D12_HEAP_DESC *pDesc, 
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreatePlacedResource(ID3D12Heap *pHeap, UINT64 HeapOffset, const D3D12_RESOURCE_DESC *pDesc, D3D12_RESOURCE_STATES InitialState, const D3D12_CLEAR_VALUE *pOptimizedClearValue, REFIID riid, void **ppvResource)
 {
-	assert(pDesc != nullptr);
+	assert(pHeap != nullptr && pDesc != nullptr);
 	D3D12_RESOURCE_DESC new_desc = *pDesc;
 
 #if RESHADE_ADDON
+	const reshade::api::memory_usage mem_usage = reshade::d3d12::convert_memory_usage(pHeap->GetDesc().Properties.Type);
 	std::pair<reshade::api::resource_type, reshade::api::resource_desc> api_desc = reshade::d3d12::convert_resource_desc(new_desc);
-	RESHADE_ADDON_EVENT(create_resource, this, api_desc.first, &api_desc.second);
+	RESHADE_ADDON_EVENT(create_resource, this, api_desc.first, &api_desc.second, mem_usage);
 	reshade::d3d12::convert_resource_desc(api_desc.first, api_desc.second, new_desc);
 #endif
 
@@ -439,7 +441,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource(const D3D12_RESOUR
 
 #if RESHADE_ADDON
 	std::pair<reshade::api::resource_type, reshade::api::resource_desc> api_desc = reshade::d3d12::convert_resource_desc(new_desc);
-	RESHADE_ADDON_EVENT(create_resource, this, api_desc.first, &api_desc.second);
+	RESHADE_ADDON_EVENT(create_resource, this, api_desc.first, &api_desc.second, reshade::api::memory_usage::unknown);
 	reshade::d3d12::convert_resource_desc(api_desc.first, api_desc.second, new_desc);
 #endif
 
@@ -595,12 +597,13 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateProtectedResourceSession(const D3D1
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource1(const D3D12_HEAP_PROPERTIES *pHeapProperties, D3D12_HEAP_FLAGS HeapFlags, const D3D12_RESOURCE_DESC *pDesc, D3D12_RESOURCE_STATES InitialResourceState, const D3D12_CLEAR_VALUE *pOptimizedClearValue, ID3D12ProtectedResourceSession *pProtectedSession, REFIID riidResource, void **ppvResource)
 {
-	assert(pDesc != nullptr);
+	assert(pHeapProperties != nullptr && pDesc != nullptr);
 	D3D12_RESOURCE_DESC new_desc = *pDesc;
 
 #if RESHADE_ADDON
+	const reshade::api::memory_usage mem_usage = reshade::d3d12::convert_memory_usage(pHeapProperties->Type);
 	std::pair<reshade::api::resource_type, reshade::api::resource_desc> api_desc = reshade::d3d12::convert_resource_desc(new_desc);
-	RESHADE_ADDON_EVENT(create_resource, this, api_desc.first, &api_desc.second);
+	RESHADE_ADDON_EVENT(create_resource, this, api_desc.first, &api_desc.second, mem_usage);
 	reshade::d3d12::convert_resource_desc(api_desc.first, api_desc.second, new_desc);
 #endif
 
@@ -651,7 +654,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource1(const D3D12_RESOU
 
 #if RESHADE_ADDON
 	std::pair<reshade::api::resource_type, reshade::api::resource_desc> api_desc = reshade::d3d12::convert_resource_desc(new_desc);
-	RESHADE_ADDON_EVENT(create_resource, this, api_desc.first, &api_desc.second);
+	RESHADE_ADDON_EVENT(create_resource, this, api_desc.first, &api_desc.second, reshade::api::memory_usage::unknown);
 	reshade::d3d12::convert_resource_desc(api_desc.first, api_desc.second, new_desc);
 #endif
 

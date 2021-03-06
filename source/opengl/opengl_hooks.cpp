@@ -108,7 +108,8 @@ HOOK_EXPORT void WINAPI glBlendFunc(GLenum sfactor, GLenum dfactor)
 	if (g_current_runtime)
 	{
 		reshade::api::resource_desc api_desc = reshade::opengl::convert_resource_desc(size);
-		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, reshade::api::resource_type::buffer, &api_desc);
+		const reshade::api::memory_usage mem_usage = reshade::opengl::convert_memory_usage(usage);
+		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, reshade::api::resource_type::buffer, &api_desc, mem_usage);
 		assert(api_desc.size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
 		size = static_cast<GLsizeiptr>(api_desc.size);
 	}
@@ -124,7 +125,8 @@ HOOK_EXPORT void WINAPI glBlendFunc(GLenum sfactor, GLenum dfactor)
 	if (g_current_runtime)
 	{
 		reshade::api::resource_desc api_desc = reshade::opengl::convert_resource_desc(size);
-		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, reshade::api::resource_type::buffer, &api_desc);
+		const reshade::api::memory_usage mem_usage = reshade::opengl::convert_memory_usage_from_flags(flags);
+		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, reshade::api::resource_type::buffer, &api_desc, mem_usage);
 		assert(api_desc.size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
 		size = static_cast<GLsizeiptr>(api_desc.size);
 	}
@@ -1376,7 +1378,8 @@ HOOK_EXPORT void WINAPI glMultMatrixf(const GLfloat *m)
 	if (g_current_runtime)
 	{
 		reshade::api::resource_desc api_desc = reshade::opengl::convert_resource_desc(size);
-		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, reshade::api::resource_type::buffer, &api_desc);
+		const reshade::api::memory_usage mem_usage = reshade::opengl::convert_memory_usage(usage);
+		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, reshade::api::resource_type::buffer, &api_desc, mem_usage);
 		assert(api_desc.size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
 		size = static_cast<GLsizeiptr>(api_desc.size);
 	}
@@ -1392,7 +1395,8 @@ HOOK_EXPORT void WINAPI glMultMatrixf(const GLfloat *m)
 	if (g_current_runtime)
 	{
 		reshade::api::resource_desc api_desc = reshade::opengl::convert_resource_desc(size);
-		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, reshade::api::resource_type::buffer, &api_desc);
+		const reshade::api::memory_usage mem_usage = reshade::opengl::convert_memory_usage_from_flags(flags);
+		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, reshade::api::resource_type::buffer, &api_desc, mem_usage);
 		assert(api_desc.size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
 		size = static_cast<GLsizeiptr>(api_desc.size);
 	}
@@ -2202,7 +2206,7 @@ HOOK_EXPORT void WINAPI glTexImage1D(GLenum target, GLint level, GLint internalf
 		const reshade::api::resource_type api_type = reshade::opengl::convert_resource_type(target);
 		assert(api_type != reshade::api::resource_type::buffer);
 		reshade::api::resource_desc api_desc = reshade::opengl::convert_resource_desc(api_type, 1, static_cast<GLenum>(internalformat), width);
-		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, api_type, &api_desc);
+		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, api_type, &api_desc, reshade::api::memory_usage::gpu_only);
 		width = api_desc.width;
 		internalformat = api_desc.format;
 	}
@@ -2243,7 +2247,7 @@ HOOK_EXPORT void WINAPI glTexImage2D(GLenum target, GLint level, GLint internalf
 		const reshade::api::resource_type api_type = reshade::opengl::convert_resource_type(target);
 		assert(api_type != reshade::api::resource_type::buffer);
 		reshade::api::resource_desc api_desc = reshade::opengl::convert_resource_desc(api_type, 1, static_cast<GLenum>(internalformat), width, height);
-		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, api_type, &api_desc);
+		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, api_type, &api_desc, reshade::api::memory_usage::gpu_only);
 		width = api_desc.width;
 		height = api_desc.height;
 		internalformat = api_desc.format;
@@ -2284,7 +2288,7 @@ HOOK_EXPORT void WINAPI glTexImage2D(GLenum target, GLint level, GLint internalf
 		const reshade::api::resource_type api_type = reshade::opengl::convert_resource_type(target);
 		assert(api_type != reshade::api::resource_type::buffer);
 		reshade::api::resource_desc api_desc = reshade::opengl::convert_resource_desc(api_type, 1, static_cast<GLenum>(internalformat), width, height, depth);
-		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, api_type, &api_desc);
+		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, api_type, &api_desc, reshade::api::memory_usage::gpu_only);
 		width = api_desc.width;
 		height = api_desc.height;
 		depth = api_desc.depth_or_layers;
@@ -2336,7 +2340,7 @@ HOOK_EXPORT void WINAPI glTexSubImage2D(GLenum target, GLint level, GLint xoffse
 		const reshade::api::resource_type api_type = reshade::opengl::convert_resource_type(target);
 		assert(api_type != reshade::api::resource_type::buffer);
 		reshade::api::resource_desc api_desc = reshade::opengl::convert_resource_desc(api_type, levels, internalformat, width);
-		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, api_type, &api_desc);
+		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, api_type, &api_desc, reshade::api::memory_usage::gpu_only);
 		width = api_desc.width;
 		levels = api_desc.levels;
 		internalformat = api_desc.format;
@@ -2354,7 +2358,7 @@ HOOK_EXPORT void WINAPI glTexSubImage2D(GLenum target, GLint level, GLint xoffse
 		const reshade::api::resource_type api_type = reshade::opengl::convert_resource_type(target);
 		assert(api_type != reshade::api::resource_type::buffer);
 		reshade::api::resource_desc api_desc = reshade::opengl::convert_resource_desc(api_type, levels, internalformat, width, height);
-		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, api_type, &api_desc);
+		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, api_type, &api_desc, reshade::api::memory_usage::gpu_only);
 		width = api_desc.width;
 		height = api_desc.height;
 		levels = api_desc.levels;
@@ -2373,7 +2377,7 @@ HOOK_EXPORT void WINAPI glTexSubImage2D(GLenum target, GLint level, GLint xoffse
 		const reshade::api::resource_type api_type = reshade::opengl::convert_resource_type(target);
 		assert(api_type != reshade::api::resource_type::buffer);
 		reshade::api::resource_desc api_desc = reshade::opengl::convert_resource_desc(api_type, levels, internalformat, width, height, depth);
-		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, api_type, &api_desc);
+		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, api_type, &api_desc, reshade::api::memory_usage::gpu_only);
 		width = api_desc.width;
 		height = api_desc.height;
 		depth = api_desc.depth_or_layers;
@@ -2391,7 +2395,7 @@ HOOK_EXPORT void WINAPI glTexSubImage2D(GLenum target, GLint level, GLint xoffse
 	if (g_current_runtime)
 	{
 		reshade::api::resource_desc api_desc = reshade::opengl::convert_resource_desc(reshade::api::resource_type::texture_1d, levels, internalformat, width);
-		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, reshade::api::resource_type::texture_1d, &api_desc);
+		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, reshade::api::resource_type::texture_1d, &api_desc, reshade::api::memory_usage::gpu_only);
 		width = api_desc.width;
 		levels = api_desc.levels;
 		internalformat = api_desc.format;
@@ -2407,7 +2411,7 @@ HOOK_EXPORT void WINAPI glTexSubImage2D(GLenum target, GLint level, GLint xoffse
 	if (g_current_runtime)
 	{
 		reshade::api::resource_desc api_desc = reshade::opengl::convert_resource_desc(reshade::api::resource_type::texture_2d, levels, internalformat, width, height);
-		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, reshade::api::resource_type::texture_2d, &api_desc);
+		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, reshade::api::resource_type::texture_2d, &api_desc, reshade::api::memory_usage::gpu_only);
 		width = api_desc.width;
 		height = api_desc.height;
 		levels = api_desc.levels;
@@ -2424,7 +2428,7 @@ HOOK_EXPORT void WINAPI glTexSubImage2D(GLenum target, GLint level, GLint xoffse
 	if (g_current_runtime)
 	{
 		reshade::api::resource_desc api_desc = reshade::opengl::convert_resource_desc(reshade::api::resource_type::texture_3d, levels, internalformat, width, height, depth);
-		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, reshade::api::resource_type::texture_2d, &api_desc);
+		RESHADE_ADDON_EVENT(create_resource, g_current_runtime, reshade::api::resource_type::texture_2d, &api_desc, reshade::api::memory_usage::gpu_only);
 		width = api_desc.width;
 		height = api_desc.height;
 		depth = api_desc.depth_or_layers;

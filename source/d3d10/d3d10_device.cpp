@@ -424,7 +424,8 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateBuffer(const D3D10_BUFFER_DESC *pDe
 
 #if RESHADE_ADDON
 	reshade::api::resource_desc api_desc = reshade::d3d10::convert_resource_desc(new_desc);
-	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::buffer, &api_desc);
+	const reshade::api::memory_usage mem_usage = reshade::d3d10::convert_memory_usage(new_desc.Usage);
+	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::buffer, &api_desc, mem_usage);
 	reshade::d3d10::convert_resource_desc(api_desc, new_desc);
 #endif
 
@@ -458,7 +459,8 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture1D(const D3D10_TEXTURE1D_DES
 
 #if RESHADE_ADDON
 	reshade::api::resource_desc api_desc = reshade::d3d10::convert_resource_desc(new_desc);
-	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::texture_1d, &api_desc);
+	const reshade::api::memory_usage mem_usage = reshade::d3d10::convert_memory_usage(new_desc.Usage);
+	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::texture_1d, &api_desc, mem_usage);
 	reshade::d3d10::convert_resource_desc(api_desc, new_desc);
 #endif
 
@@ -495,7 +497,8 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture2D(const D3D10_TEXTURE2D_DES
 
 #if RESHADE_ADDON
 	reshade::api::resource_desc api_desc = reshade::d3d10::convert_resource_desc(new_desc);
-	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::texture_2d, &api_desc);
+	const reshade::api::memory_usage mem_usage = reshade::d3d10::convert_memory_usage(new_desc.Usage);
+	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::texture_2d, &api_desc, mem_usage);
 	reshade::d3d10::convert_resource_desc(api_desc, new_desc);
 #endif
 
@@ -535,7 +538,8 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture3D(const D3D10_TEXTURE3D_DES
 
 #if RESHADE_ADDON
 	reshade::api::resource_desc api_desc = reshade::d3d10::convert_resource_desc(new_desc);
-	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::texture_3d, &api_desc);
+	const reshade::api::memory_usage mem_usage = reshade::d3d10::convert_memory_usage(new_desc.Usage);
+	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::texture_3d, &api_desc, mem_usage);
 	reshade::d3d10::convert_resource_desc(api_desc, new_desc);
 #endif
 

@@ -163,7 +163,7 @@ struct state_tracking_context
 		if (device->get_api() >= render_api::d3d10 && device->get_api() <= render_api::d3d12)
 			desc.format = static_cast<uint32_t>(make_dxgi_format_typeless(static_cast<DXGI_FORMAT>(desc.format)));
 
-		if (!device->create_resource(resource_type::texture_2d, desc, resource_usage::copy_dest, &backup_texture))
+		if (!device->create_resource(resource_type::texture_2d, desc, memory_usage::gpu_only, resource_usage::copy_dest, &backup_texture))
 			LOG(ERROR) << "Failed to create backup depth-stencil texture!";
 	}
 };
@@ -252,7 +252,7 @@ static void on_destroy_queue_or_command_list(api_object *queue_or_cmd_list)
 	queue_or_cmd_list->destroy_data<state_tracking>(state_tracking::GUID);
 }
 
-static void on_create_resource(device *device, resource_type type, resource_desc *desc)
+static void on_create_resource(device *device, resource_type type, resource_desc *desc, memory_usage)
 {
 	// No need to modify resources in D3D12, since backup texture is used always
 	if (device->get_api() == render_api::d3d12)

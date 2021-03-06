@@ -73,7 +73,7 @@ bool reshade::d3d12::device_impl::check_resource_view_handle_valid(api::resource
 	return _views.find(view.handle) != _views.end();
 }
 
-bool reshade::d3d12::device_impl::create_resource(api::resource_type type, const api::resource_desc &desc, api::resource_usage initial_state, api::resource_handle *out_resource)
+bool reshade::d3d12::device_impl::create_resource(api::resource_type type, const api::resource_desc &desc, api::memory_usage mem_usage, api::resource_usage initial_state, api::resource_handle *out_resource)
 {
 	assert((desc.usage & initial_state) == initial_state);
 
@@ -82,7 +82,8 @@ bool reshade::d3d12::device_impl::create_resource(api::resource_type type, const
 	if (type == api::resource_type::buffer)
 		internal_desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 
-	const D3D12_HEAP_PROPERTIES heap_props = { D3D12_HEAP_TYPE_DEFAULT };
+	D3D12_HEAP_PROPERTIES heap_props = {};
+	convert_memory_usage(mem_usage, heap_props.Type);
 
 	if (ID3D12Resource *resource = nullptr;
 		SUCCEEDED(_orig->CreateCommittedResource(&heap_props, D3D12_HEAP_FLAG_NONE, &internal_desc, convert_resource_usage_to_states(initial_state), nullptr, IID_PPV_ARGS(&resource))))

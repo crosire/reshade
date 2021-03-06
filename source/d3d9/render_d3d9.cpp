@@ -110,7 +110,7 @@ void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 		D3DSURFACE_DESC new_desc = desc;
 
 		reshade::api::resource_desc api_desc = convert_resource_desc(desc, 1, _caps);
-		RESHADE_ADDON_EVENT(create_resource, this, api::resource_type::surface, &api_desc);
+		RESHADE_ADDON_EVENT(create_resource, this, api::resource_type::surface, &api_desc, api::memory_usage::gpu_only);
 		convert_resource_desc(api_desc, new_desc);
 
 		// Need to replace auto depth stencil if add-on modified the description
@@ -171,8 +171,11 @@ bool reshade::d3d9::device_impl::check_resource_view_handle_valid(api::resource_
 	return view.handle != 0 && _resources.has_object(reinterpret_cast<IDirect3DResource9 *>(view.handle));
 }
 
-bool reshade::d3d9::device_impl::create_resource(api::resource_type type, const api::resource_desc &desc, api::resource_usage, api::resource_handle *out_resource)
+bool reshade::d3d9::device_impl::create_resource(api::resource_type type, const api::resource_desc &desc, api::memory_usage mem_usage, api::resource_usage, api::resource_handle *out_resource)
 {
+	D3DPOOL pool;
+	convert_memory_usage_to_d3d_pool(mem_usage, pool);
+
 	switch (type)
 	{
 		case api::resource_type::buffer:
@@ -184,7 +187,7 @@ bool reshade::d3d9::device_impl::create_resource(api::resource_type type, const 
 
 				// TODO: Index format
 				if (IDirect3DIndexBuffer9 *resource;
-					SUCCEEDED(_orig->CreateIndexBuffer(internal_desc.Size, internal_desc.Usage, D3DFMT_UNKNOWN, D3DPOOL_DEFAULT, &resource, nullptr)))
+					SUCCEEDED(_orig->CreateIndexBuffer(internal_desc.Size, internal_desc.Usage, D3DFMT_UNKNOWN, pool, &resource, nullptr)))
 				{
 					_resources.register_object(resource);
 					*out_resource = { reinterpret_cast<uintptr_t>(resource) };
@@ -197,7 +200,7 @@ bool reshade::d3d9::device_impl::create_resource(api::resource_type type, const 
 				convert_resource_desc(desc, internal_desc);
 
 				if (IDirect3DVertexBuffer9 *resource;
-					SUCCEEDED(_orig->CreateVertexBuffer(internal_desc.Size, internal_desc.Usage, 0, D3DPOOL_DEFAULT, &resource, nullptr)))
+					SUCCEEDED(_orig->CreateVertexBuffer(internal_desc.Size, internal_desc.Usage, 0, pool, &resource, nullptr)))
 				{
 					_resources.register_object(resource);
 					*out_resource = { reinterpret_cast<uintptr_t>(resource) };
@@ -218,7 +221,7 @@ bool reshade::d3d9::device_impl::create_resource(api::resource_type type, const 
 			convert_resource_desc(desc, internal_desc, &levels);
 
 			if (IDirect3DTexture9 *resource;
-				SUCCEEDED(_orig->CreateTexture(internal_desc.Width, internal_desc.Height, levels, internal_desc.Usage, internal_desc.Format, D3DPOOL_DEFAULT, &resource, nullptr)))
+				SUCCEEDED(_orig->CreateTexture(internal_desc.Width, internal_desc.Height, levels, internal_desc.Usage, internal_desc.Format, pool, &resource, nullptr)))
 			{
 				_resources.register_object(resource);
 				*out_resource = { reinterpret_cast<uintptr_t>(resource) };
@@ -237,7 +240,7 @@ bool reshade::d3d9::device_impl::create_resource(api::resource_type type, const 
 			convert_resource_desc(desc, internal_desc, &levels);
 
 			if (IDirect3DVolumeTexture9 *resource;
-				SUCCEEDED(_orig->CreateVolumeTexture(internal_desc.Width, internal_desc.Height, internal_desc.Depth, levels, internal_desc.Usage, internal_desc.Format, D3DPOOL_DEFAULT, &resource, nullptr)))
+				SUCCEEDED(_orig->CreateVolumeTexture(internal_desc.Width, internal_desc.Height, internal_desc.Depth, levels, internal_desc.Usage, internal_desc.Format, pool, &resource, nullptr)))
 			{
 				_resources.register_object(resource);
 				*out_resource = { reinterpret_cast<uintptr_t>(resource) };

@@ -34,6 +34,31 @@ bool reshade::opengl::is_depth_stencil_format(GLenum format, GLenum usage)
 	}
 }
 
+memory_usage  reshade::opengl::convert_memory_usage(GLenum usage)
+{
+	switch (usage)
+	{
+	default:
+	case GL_STATIC_DRAW:
+		return memory_usage::gpu_only;
+	case GL_STREAM_DRAW:
+	case GL_DYNAMIC_DRAW:
+		return memory_usage::cpu_to_gpu;
+	case GL_STREAM_READ:
+	case GL_STATIC_READ:
+	case GL_DYNAMIC_READ:
+		return memory_usage::gpu_to_cpu;
+	}
+}
+memory_usage  reshade::opengl::convert_memory_usage_from_flags(GLbitfield flags)
+{
+	if ((flags & GL_DYNAMIC_STORAGE_BIT) != 0)
+		return memory_usage::cpu_to_gpu;
+	if ((flags & GL_MAP_READ_BIT) != 0)
+		return memory_usage::gpu_to_cpu;
+	return memory_usage::gpu_only;
+}
+
 resource_type reshade::opengl::convert_resource_type(GLenum target)
 {
 	switch (target)

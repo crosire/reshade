@@ -639,7 +639,7 @@ VkResult VKAPI_CALL vkCreateBuffer(VkDevice device, const VkBufferCreateInfo *pC
 	VkBufferCreateInfo create_info = *pCreateInfo;
 #if RESHADE_ADDON
 	reshade::api::resource_desc api_desc = reshade::vulkan::convert_resource_desc(create_info);
-	RESHADE_ADDON_EVENT(create_resource, device_impl, reshade::api::resource_type::buffer, &api_desc);
+	RESHADE_ADDON_EVENT(create_resource, device_impl, reshade::api::resource_type::buffer, &api_desc, reshade::api::memory_usage::unknown);
 	reshade::vulkan::convert_resource_desc(api_desc, create_info);
 #endif
 
@@ -723,7 +723,7 @@ VkResult VKAPI_CALL vkCreateImage(VkDevice device, const VkImageCreateInfo *pCre
 	VkImageCreateInfo create_info = *pCreateInfo;
 #if RESHADE_ADDON
 	std::pair<reshade::api::resource_type, reshade::api::resource_desc> api_desc = reshade::vulkan::convert_resource_desc(create_info);
-	RESHADE_ADDON_EVENT(create_resource, device_impl, api_desc.first, &api_desc.second);
+	RESHADE_ADDON_EVENT(create_resource, device_impl, api_desc.first, &api_desc.second, reshade::api::memory_usage::unknown);
 	reshade::vulkan::convert_resource_desc(api_desc.first, api_desc.second, create_info);
 #endif
 

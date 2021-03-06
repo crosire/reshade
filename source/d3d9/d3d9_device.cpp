@@ -305,8 +305,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateTexture(UINT Width, UINT Height
 	D3DSURFACE_DESC new_desc = { Format, D3DRTYPE_TEXTURE, Usage, Pool, D3DMULTISAMPLE_NONE, 0, Width, Height };
 
 #if RESHADE_ADDON
+	reshade::api::memory_usage mem_usage;
+	reshade::d3d9::convert_d3d_pool_to_memory_usage(Pool, mem_usage);
 	reshade::api::resource_desc api_desc = reshade::d3d9::convert_resource_desc(new_desc, Levels, _caps);
-	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::texture_2d, &api_desc);
+	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::texture_2d, &api_desc, mem_usage);
 	reshade::d3d9::convert_resource_desc(api_desc, new_desc, &Levels);
 #endif
 
@@ -351,8 +353,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVolumeTexture(UINT Width, UINT 
 	D3DVOLUME_DESC new_desc = { Format, D3DRTYPE_VOLUMETEXTURE, Usage, Pool, Width, Height, Depth };
 
 #if RESHADE_ADDON
+	reshade::api::memory_usage mem_usage;
+	reshade::d3d9::convert_d3d_pool_to_memory_usage(Pool, mem_usage);
 	reshade::api::resource_desc api_desc = reshade::d3d9::convert_resource_desc(new_desc, Levels);
-	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::texture_3d, &api_desc);
+	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::texture_3d, &api_desc, mem_usage);
 	reshade::d3d9::convert_resource_desc(api_desc, new_desc, &Levels);
 #endif
 
@@ -386,8 +390,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateCubeTexture(UINT EdgeLength, UI
 	D3DSURFACE_DESC new_desc = { Format, D3DRTYPE_CUBETEXTURE, Usage, Pool, D3DMULTISAMPLE_NONE, 0, EdgeLength, EdgeLength };
 
 #if RESHADE_ADDON
+	reshade::api::memory_usage mem_usage;
+	reshade::d3d9::convert_d3d_pool_to_memory_usage(Pool, mem_usage);
 	reshade::api::resource_desc api_desc = reshade::d3d9::convert_resource_desc(new_desc, Levels, _caps);
-	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::texture_2d, &api_desc);
+	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::texture_2d, &api_desc, mem_usage);
 	assert(api_desc.width == api_desc.height && api_desc.depth_or_layers == 6);
 	reshade::d3d9::convert_resource_desc(api_desc, new_desc, &Levels);
 #endif
@@ -439,8 +445,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexBuffer(UINT Length, DWORD
 	D3DVERTEXBUFFER_DESC new_desc = { D3DFMT_UNKNOWN, D3DRTYPE_VERTEXBUFFER, Usage, Pool, Length, FVF };
 
 #if RESHADE_ADDON
+	reshade::api::memory_usage mem_usage;
+	reshade::d3d9::convert_d3d_pool_to_memory_usage(Pool, mem_usage);
 	reshade::api::resource_desc api_desc = reshade::d3d9::convert_resource_desc(new_desc);
-	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::buffer, &api_desc);
+	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::buffer, &api_desc, mem_usage);
 	reshade::d3d9::convert_resource_desc(api_desc, new_desc);
 #endif
 
@@ -473,8 +481,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateIndexBuffer(UINT Length, DWORD 
 	D3DINDEXBUFFER_DESC new_desc = { Format, D3DRTYPE_INDEXBUFFER, Usage, Pool, Length };
 
 #if RESHADE_ADDON
+	reshade::api::memory_usage mem_usage;
+	reshade::d3d9::convert_d3d_pool_to_memory_usage(Pool, mem_usage);
 	reshade::api::resource_desc api_desc = reshade::d3d9::convert_resource_desc(new_desc);
-	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::buffer, &api_desc);
+	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::buffer, &api_desc, mem_usage);
 	reshade::d3d9::convert_resource_desc(api_desc, new_desc);
 #endif
 
@@ -506,7 +516,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTarget(UINT Width, UINT H
 
 #if RESHADE_ADDON
 	reshade::api::resource_desc surface_desc = reshade::d3d9::convert_resource_desc(new_desc, 1, _caps);
-	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::surface, &surface_desc);
+	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::surface, &surface_desc, reshade::api::memory_usage::gpu_only);
 	reshade::d3d9::convert_resource_desc(surface_desc, new_desc);
 	assert(new_desc.Usage == D3DUSAGE_RENDERTARGET);
 
@@ -547,7 +557,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurface(UINT Width,
 
 #if RESHADE_ADDON
 	reshade::api::resource_desc surface_desc = reshade::d3d9::convert_resource_desc(new_desc, 1, _caps);
-	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::surface, &surface_desc);
+	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::surface, &surface_desc, reshade::api::memory_usage::gpu_only);
 	reshade::d3d9::convert_resource_desc(surface_desc, new_desc);
 	assert(new_desc.Usage == D3DUSAGE_DEPTHSTENCIL);
 
@@ -1171,7 +1181,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTargetEx(UINT Width, UINT
 
 #if RESHADE_ADDON
 	reshade::api::resource_desc surface_desc = reshade::d3d9::convert_resource_desc(new_desc, 1, _caps);
-	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::surface, &surface_desc);
+	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::surface, &surface_desc, reshade::api::memory_usage::gpu_only);
 	reshade::d3d9::convert_resource_desc(surface_desc, new_desc);
 
 	// Need to replace surface with a texture if an add-on requested shader access
@@ -1218,7 +1228,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurfaceEx(UINT Widt
 
 #if RESHADE_ADDON
 	reshade::api::resource_desc surface_desc = reshade::d3d9::convert_resource_desc(new_desc, 1, _caps);
-	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::surface, &surface_desc);
+	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::surface, &surface_desc, reshade::api::memory_usage::gpu_only);
 	reshade::d3d9::convert_resource_desc(surface_desc, new_desc);
 
 	// Need to replace surface with a texture if an add-on requested shader access

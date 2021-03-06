@@ -57,7 +57,7 @@ namespace reshade
 
 		/// <summary>
 		/// Called before 'IDirect3Device9::Create(...)Buffer/Texture', 'IDirect3DDevice9::Create(...)Surface(Ex)', 'ID3D10Device::CreateBuffer/Texture(...)', 'ID3D11Device::CreateBuffer/Texture(...)', 'ID3D12Device::Create(...)Resource', 'gl(Named)Buffer/Tex(ture)Storage(...)' or 'vkCreateBuffer/Image'.
-		/// <para>Callback function signature: <c>void (api::device *device, api::resource_type type, api::resource_desc *desc)</c></para>
+		/// <para>Callback function signature: <c>void (api::device *device, api::resource_type type, api::resource_desc *desc, api::memory_usage mem_usage)</c></para>
 		/// </summary>
 		create_resource,
 		/// <summary>
@@ -194,7 +194,7 @@ namespace reshade
 	template <>
 	struct addon_event_traits<addon_event::destroy_effect_runtime> { typedef void(*decl)(api::effect_runtime *runtime); };
 	template <>
-	struct addon_event_traits<addon_event::create_resource> { typedef void(*decl)(api::device *device, api::resource_type type, api::resource_desc *desc); };
+	struct addon_event_traits<addon_event::create_resource> { typedef void(*decl)(api::device *device, api::resource_type type, api::resource_desc *desc, api::memory_usage mem_usage); };
 	template <>
 	struct addon_event_traits<addon_event::create_resource_view> { typedef void(*decl)(api::device *device, api::resource_handle resource, api::resource_usage usage_type, api::resource_view_desc *desc); };
 	template <>

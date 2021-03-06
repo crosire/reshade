@@ -332,7 +332,7 @@ bool reshade::opengl::device_impl::check_resource_view_handle_valid(api::resourc
 	}
 }
 
-bool reshade::opengl::device_impl::create_resource(api::resource_type type, const api::resource_desc &desc, api::resource_usage, api::resource_handle *out_resource)
+bool reshade::opengl::device_impl::create_resource(api::resource_type type, const api::resource_desc &desc, api::memory_usage mem_usage, api::resource_usage, api::resource_handle *out_resource)
 {
 	GLenum target = GL_NONE;
 	switch (type)
@@ -371,8 +371,23 @@ bool reshade::opengl::device_impl::create_resource(api::resource_type type, cons
 		glGenBuffers(1, &object);
 		glBindBuffer(target, object);
 
+		GLenum usage = GL_NONE;
+		switch (mem_usage)
+		{
+		case api::memory_usage::gpu_only:
+			GL_STATIC_DRAW;
+			break;
+		case api::memory_usage::cpu_to_gpu:
+			GL_DYNAMIC_DRAW;
+			break;
+		case api::memory_usage::gpu_to_cpu:
+		case api::memory_usage::cpu_only:
+			GL_DYNAMIC_READ;
+			break;
+		}
+
 		assert(desc.size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
-		glBufferData(target, static_cast<GLsizeiptr>(desc.size), nullptr, GL_STATIC_DRAW);
+		glBufferData(target, static_cast<GLsizeiptr>(desc.size), nullptr, usage);
 
 		glBindBuffer(target, prev_object);
 	}

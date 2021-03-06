@@ -28,6 +28,37 @@ D3D12_RESOURCE_STATES reshade::d3d12::convert_resource_usage_to_states(reshade::
 	return result;
 }
 
+void reshade::d3d12::convert_memory_usage(memory_usage mem_usage, D3D12_HEAP_TYPE &heap_type)
+{
+	switch (mem_usage)
+	{
+	default:
+	case memory_usage::gpu_only:
+		heap_type = D3D12_HEAP_TYPE_DEFAULT;
+		break;
+	case memory_usage::cpu_only:
+	case memory_usage::cpu_to_gpu:
+		heap_type = D3D12_HEAP_TYPE_UPLOAD;
+		break;
+	case memory_usage::gpu_to_cpu:
+		heap_type = D3D12_HEAP_TYPE_READBACK;
+		break;
+	}
+}
+memory_usage reshade::d3d12::convert_memory_usage(D3D12_HEAP_TYPE heap_type)
+{
+	switch (heap_type)
+	{
+	default:
+	case D3D12_HEAP_TYPE_DEFAULT:
+		return memory_usage::gpu_only;
+	case D3D12_HEAP_TYPE_UPLOAD:
+		return memory_usage::cpu_to_gpu;
+	case D3D12_HEAP_TYPE_READBACK:
+		return memory_usage::gpu_to_cpu;
+	}
+}
+
 void reshade::d3d12::convert_resource_desc(resource_type type, const resource_desc &desc, D3D12_RESOURCE_DESC &internal_desc)
 {
 	switch (type)

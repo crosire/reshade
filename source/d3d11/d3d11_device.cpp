@@ -124,7 +124,8 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateBuffer(const D3D11_BUFFER_DESC *pDe
 
 #if RESHADE_ADDON
 	reshade::api::resource_desc api_desc = reshade::d3d11::convert_resource_desc(new_desc);
-	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::buffer, &api_desc);
+	const reshade::api::memory_usage mem_usage = reshade::d3d11::convert_memory_usage(new_desc.Usage);
+	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::buffer, &api_desc, mem_usage);
 	reshade::d3d11::convert_resource_desc(api_desc, new_desc);
 #endif
 
@@ -158,7 +159,8 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture1D(const D3D11_TEXTURE1D_DES
 
 #if RESHADE_ADDON
 	reshade::api::resource_desc api_desc = reshade::d3d11::convert_resource_desc(new_desc);
-	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::texture_1d, &api_desc);
+	const reshade::api::memory_usage mem_usage = reshade::d3d11::convert_memory_usage(new_desc.Usage);
+	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::texture_1d, &api_desc, mem_usage);
 	reshade::d3d11::convert_resource_desc(api_desc, new_desc);
 #endif
 
@@ -195,7 +197,8 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture2D(const D3D11_TEXTURE2D_DES
 
 #if RESHADE_ADDON
 	reshade::api::resource_desc api_desc = reshade::d3d11::convert_resource_desc(new_desc);
-	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::texture_2d, &api_desc);
+	const reshade::api::memory_usage mem_usage = reshade::d3d11::convert_memory_usage(new_desc.Usage);
+	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::texture_2d, &api_desc, mem_usage);
 	reshade::d3d11::convert_resource_desc(api_desc, new_desc);
 #endif
 
@@ -235,7 +238,8 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture3D(const D3D11_TEXTURE3D_DES
 
 #if RESHADE_ADDON
 	reshade::api::resource_desc api_desc = reshade::d3d11::convert_resource_desc(new_desc);
-	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::texture_3d, &api_desc);
+	const reshade::api::memory_usage mem_usage = reshade::d3d11::convert_memory_usage(new_desc.Usage);
+	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::texture_3d, &api_desc, mem_usage);
 	reshade::d3d11::convert_resource_desc(api_desc, new_desc);
 #endif
 
@@ -650,7 +654,8 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture2D1(const D3D11_TEXTURE2D_DE
 
 #if RESHADE_ADDON
 	reshade::api::resource_desc api_desc = reshade::d3d11::convert_resource_desc(reinterpret_cast<D3D11_TEXTURE2D_DESC &>(new_desc)); // D3D11_TEXTURE2D_DESC1 is a superset of D3D11_TEXTURE2D_DESC
-	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::texture_2d, &api_desc);
+	const reshade::api::memory_usage mem_usage = reshade::d3d11::convert_memory_usage(new_desc.Usage);
+	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::texture_2d, &api_desc, mem_usage);
 	reshade::d3d11::convert_resource_desc(api_desc, reinterpret_cast<D3D11_TEXTURE2D_DESC &>(new_desc));
 #endif
 
@@ -692,7 +697,8 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture3D1(const D3D11_TEXTURE3D_DE
 
 #if RESHADE_ADDON
 	reshade::api::resource_desc api_desc = reshade::d3d11::convert_resource_desc(reinterpret_cast<D3D11_TEXTURE3D_DESC &>(new_desc)); // D3D11_TEXTURE3D_DESC1 is a superset of D3D11_TEXTURE3D_DESC
-	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::texture_3d, &api_desc);
+	const reshade::api::memory_usage mem_usage = reshade::d3d11::convert_memory_usage(new_desc.Usage);
+	RESHADE_ADDON_EVENT(create_resource, this, reshade::api::resource_type::texture_3d, &api_desc, mem_usage);
 	reshade::d3d11::convert_resource_desc(api_desc, reinterpret_cast<D3D11_TEXTURE3D_DESC &>(new_desc));
 #endif
 

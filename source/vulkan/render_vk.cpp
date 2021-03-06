@@ -93,13 +93,28 @@ bool reshade::vulkan::device_impl::check_resource_view_handle_valid(api::resourc
 	return data.type ? (data.image_view == (VkImageView)view.handle) : (data.buffer_view == (VkBufferView)view.handle);
 }
 
-bool reshade::vulkan::device_impl::create_resource(api::resource_type type, const api::resource_desc &desc, api::resource_usage initial_state, api::resource_handle *out_resource)
+bool reshade::vulkan::device_impl::create_resource(api::resource_type type, const api::resource_desc &desc, api::memory_usage mem_usage, api::resource_usage initial_state, api::resource_handle *out_resource)
 {
 	assert((desc.usage & initial_state) == initial_state);
 
 	VmaAllocation allocation = VK_NULL_HANDLE;
 	VmaAllocationCreateInfo alloc_info = {};
-	alloc_info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+	switch (mem_usage)
+	{
+	default:
+	case api::memory_usage::gpu_only:
+		alloc_info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+		break;
+	case api::memory_usage::cpu_to_gpu:
+		alloc_info.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
+		break;
+	case api::memory_usage::gpu_to_cpu:
+		alloc_info.usage = VMA_MEMORY_USAGE_GPU_TO_CPU;
+		break;
+	case api::memory_usage::cpu_only:
+		alloc_info.usage = VMA_MEMORY_USAGE_CPU_ONLY;
+		break;
+	}
 
 	switch (type)
 	{

@@ -5,6 +5,9 @@
 
 namespace reshade::d3d11
 {
+	void convert_memory_usage(api::memory_usage memory, D3D11_USAGE &usage, UINT &cpu_access_flags);
+	api::memory_usage  convert_memory_usage(D3D11_USAGE usage);
+
 	void convert_resource_desc(const api::resource_desc &desc, D3D11_BUFFER_DESC &internal_desc);
 	void convert_resource_desc(const api::resource_desc &desc, D3D11_TEXTURE1D_DESC &internal_desc);
 	void convert_resource_desc(const api::resource_desc &desc, D3D11_TEXTURE2D_DESC &internal_desc);

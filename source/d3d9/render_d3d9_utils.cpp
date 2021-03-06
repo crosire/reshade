@@ -8,7 +8,42 @@
 
 using namespace reshade::api;
 
-void reshade::d3d9::convert_resource_usage_to_d3d_usage(const resource_usage usage, DWORD &d3d_usage)
+void reshade::d3d9::convert_memory_usage_to_d3d_pool(memory_usage mem_usage, D3DPOOL &pool)
+{
+	switch (mem_usage)
+	{
+	default:
+	case memory_usage::gpu_only:
+		pool = D3DPOOL_DEFAULT;
+		break;
+	case memory_usage::cpu_to_gpu:
+	case memory_usage::gpu_to_cpu:
+		pool = D3DPOOL_SYSTEMMEM;
+		break;
+	case memory_usage::cpu_only:
+		pool = D3DPOOL_SCRATCH;
+		break;
+	}
+}
+void reshade::d3d9::convert_d3d_pool_to_memory_usage(D3DPOOL pool, memory_usage &mem_usage)
+{
+	switch (pool)
+	{
+	default:
+	case D3DPOOL_DEFAULT:
+		mem_usage = memory_usage::gpu_only;
+		break;
+	case D3DPOOL_MANAGED:
+	case D3DPOOL_SYSTEMMEM:
+		mem_usage = memory_usage::cpu_to_gpu;
+		break;
+	case D3DPOOL_SCRATCH:
+		mem_usage = memory_usage::cpu_only;
+		break;
+	}
+}
+
+void reshade::d3d9::convert_resource_usage_to_d3d_usage(resource_usage usage, DWORD &d3d_usage)
 {
 	// Copying textures is implemented using the rasterization pipeline (see 'device_impl::copy_resource' implementation), so needs render target usage
 	// When the destination in 'IDirect3DDevice9::StretchRect' is a texture surface, it too has to have render target usage (see https://docs.microsoft.com/windows/win32/api/d3d9helper/nf-d3d9helper-idirect3ddevice9-stretchrect)
@@ -25,7 +60,7 @@ void reshade::d3d9::convert_resource_usage_to_d3d_usage(const resource_usage usa
 	// Unordered access is not supported in D3D9
 	assert((usage & resource_usage::unordered_access) == 0);
 }
-void reshade::d3d9::convert_d3d_usage_to_resource_usage(const DWORD d3d_usage, resource_usage &usage)
+void reshade::d3d9::convert_d3d_usage_to_resource_usage(DWORD d3d_usage, resource_usage &usage)
 {
 	if (d3d_usage & D3DUSAGE_RENDERTARGET)
 		usage |= resource_usage::render_target;

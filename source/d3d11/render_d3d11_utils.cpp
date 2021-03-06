@@ -67,6 +67,43 @@ static inline void convert_bind_flags_to_usage(const UINT bind_flags, resource_u
 		usage |= resource_usage::constant_buffer;
 }
 
+void reshade::d3d11::convert_memory_usage(memory_usage memory, D3D11_USAGE &usage, UINT &cpu_access_flags)
+{
+	switch (memory)
+	{
+	default:
+	case memory_usage::gpu_only:
+		usage = D3D11_USAGE_DEFAULT;
+		break;
+	case memory_usage::cpu_to_gpu:
+		usage = D3D11_USAGE_DYNAMIC;
+		cpu_access_flags |= D3D11_CPU_ACCESS_WRITE;
+		break;
+	case memory_usage::gpu_to_cpu:
+		usage = D3D11_USAGE_STAGING;
+		cpu_access_flags |= D3D11_CPU_ACCESS_READ;
+		break;
+	case memory_usage::cpu_only:
+		usage = D3D11_USAGE_STAGING;
+		cpu_access_flags |= D3D11_CPU_ACCESS_READ | D3D11_CPU_ACCESS_WRITE;
+		break;
+	}
+}
+memory_usage  reshade::d3d11::convert_memory_usage(D3D11_USAGE usage)
+{
+	switch (usage)
+	{
+	default:
+	case D3D11_USAGE_DEFAULT:
+	case D3D11_USAGE_IMMUTABLE:
+		return memory_usage::gpu_only;
+	case D3D11_USAGE_DYNAMIC:
+		return memory_usage::cpu_to_gpu;
+	case D3D11_USAGE_STAGING:
+		return memory_usage::gpu_to_cpu;
+	}
+}
+
 void reshade::d3d11::convert_resource_desc(const resource_desc &desc, D3D11_BUFFER_DESC &internal_desc)
 {
 	assert(desc.size <= std::numeric_limits<UINT>::max());
