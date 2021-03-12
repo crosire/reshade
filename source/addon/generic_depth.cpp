@@ -671,18 +671,14 @@ static void on_init_effect_runtime(effect_runtime *runtime)
 	const bool bufready_depth_value = device_state.selected_depth_stencil.view != 0;
 	runtime->update_uniform_variables("bufready_depth", &bufready_depth_value, 1);
 }
-static void on_before_render_effects(effect_runtime *runtime, command_list *cmd_list)
+static void transition_state_before_effects(device *const device, command_list *cmd_list, const depth_stencil_selection &selected_depth_stencil)
 {
-	device *const device = runtime->get_device();
-	const state_tracking_context &device_state = device->get_data<state_tracking_context>(state_tracking_context::GUID);
-
-	// TODO: VR resources
-	if (device_state.selected_depth_stencil.view != 0)
+	if (selected_depth_stencil.view != 0)
 	{
 		resource_handle resource = { 0 };
-		device->get_resource_from_view(device_state.selected_depth_stencil.view, &resource);
+		device->get_resource_from_view(selected_depth_stencil.view, &resource);
 
-		if (resource == device_state.selected_depth_stencil.backup)
+		if (resource == selected_depth_stencil.backup)
 		{
 			cmd_list->transition_state(resource, resource_usage::copy_dest, resource_usage::shader_resource);
 		}
@@ -692,18 +688,23 @@ static void on_before_render_effects(effect_runtime *runtime, command_list *cmd_
 		}
 	}
 }
-static void on_after_render_effects(effect_runtime *runtime, command_list *cmd_list)
+static void on_before_render_effects(effect_runtime *runtime, command_list *cmd_list)
 {
 	device *const device = runtime->get_device();
 	const state_tracking_context &device_state = device->get_data<state_tracking_context>(state_tracking_context::GUID);
 
-	// TODO: VR resources
-	if (device_state.selected_depth_stencil.view != 0)
+	transition_state_before_effects(device, cmd_list, device_state.selected_depth_stencil);
+	transition_state_before_effects(device, cmd_list, device_state.vr_depth_stencil[0]);
+	transition_state_before_effects(device, cmd_list, device_state.vr_depth_stencil[1]);
+}
+static void transition_state_after_effects(device *const device, command_list *cmd_list, const depth_stencil_selection &selected_depth_stencil)
+{
+	if (selected_depth_stencil.view != 0)
 	{
 		resource_handle resource = { 0 };
-		device->get_resource_from_view(device_state.selected_depth_stencil.view, &resource);
+		device->get_resource_from_view(selected_depth_stencil.view, &resource);
 
-		if (resource == device_state.selected_depth_stencil.backup)
+		if (resource == selected_depth_stencil.backup)
 		{
 			cmd_list->transition_state(resource, resource_usage::shader_resource, resource_usage::copy_dest);
 		}
@@ -712,6 +713,15 @@ static void on_after_render_effects(effect_runtime *runtime, command_list *cmd_l
 			cmd_list->transition_state(resource, resource_usage::shader_resource, resource_usage::depth_stencil | resource_usage::shader_resource);
 		}
 	}
+}
+static void on_after_render_effects(effect_runtime *runtime, command_list *cmd_list)
+{
+	device *const device = runtime->get_device();
+	const state_tracking_context &device_state = device->get_data<state_tracking_context>(state_tracking_context::GUID);
+
+	transition_state_after_effects(device, cmd_list, device_state.selected_depth_stencil);
+	transition_state_after_effects(device, cmd_list, device_state.vr_depth_stencil[0]);
+	transition_state_after_effects(device, cmd_list, device_state.vr_depth_stencil[1]);
 }
 
 #if RESHADE_GUI
