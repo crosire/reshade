@@ -42,13 +42,6 @@ static bool on_submit_d3d11(vr::EVREye, ID3D11Texture2D *texture, const vr::VRTe
 	texture->GetDesc(&tex_desc);
 
 	D3D11_BOX region = { 0, 0, 0, tex_desc.Width, tex_desc.Height, 1 };
-	if (bounds != nullptr)
-	{
-		region.left = static_cast<UINT>(region.right * std::min(bounds->uMin, bounds->uMax));
-		region.top =   static_cast<UINT>(region.bottom * std::min(bounds->vMin, bounds->vMax));
-		region.right = static_cast<UINT>(region.right * std::max(bounds->uMin, bounds->uMax));
-		region.bottom = static_cast<UINT>(region.bottom * std::max(bounds->vMin, bounds->vMax));
-	}
 
 	return static_cast<reshade::d3d11::runtime_impl *>(s_vr_runtime.first)->on_present(texture, region, nullptr);
 }
@@ -69,13 +62,6 @@ static bool on_submit_d3d12(vr::EVREye, const vr::D3D12TextureData_t *texture, c
 	const D3D12_RESOURCE_DESC tex_desc = texture->m_pResource->GetDesc();
 
 	D3D12_BOX region = { 0, 0, 0, static_cast<UINT>(tex_desc.Width), tex_desc.Height, 1 };
-	if (bounds != nullptr)
-	{
-		region.left = static_cast<UINT>(region.right * std::min(bounds->uMin, bounds->uMax));
-		region.top =   static_cast<UINT>(region.bottom * std::min(bounds->vMin, bounds->vMax));
-		region.right = static_cast<UINT>(region.right * std::max(bounds->uMin, bounds->uMax));
-		region.bottom = static_cast<UINT>(region.bottom * std::max(bounds->vMin, bounds->vMax));
-	}
 
 	// Resource should be in D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE state at this point
 	return static_cast<reshade::d3d12::runtime_impl *>(s_vr_runtime.first)->on_present(texture->m_pResource, region, nullptr);
@@ -97,13 +83,6 @@ static bool on_submit_opengl(vr::EVREye, GLuint object, bool is_rbo, bool is_arr
 		reshade::opengl::make_resource_handle(is_rbo ? GL_RENDERBUFFER : GL_TEXTURE, object), nullptr, nullptr);
 
 	GLint region[4] = { 0, 0, static_cast<GLint>(object_desc.width), static_cast<GLint>(object_desc.height) };
-	if (bounds != nullptr)
-	{
-		region[0] = static_cast<GLint>(object_desc.width * std::min(bounds->uMin, bounds->uMax));
-		region[1] = static_cast<GLint>(object_desc.height * std::min(bounds->vMin, bounds->vMax));
-		region[2] = static_cast<GLint>(object_desc.width * std::max(bounds->uMin, bounds->uMax));
-		region[3] = static_cast<GLint>(object_desc.height * std::max(bounds->vMin, bounds->vMax));
-	}
 
 	return static_cast<reshade::opengl::runtime_impl *>(s_vr_runtime.first)->on_present(object, is_rbo, is_array, object_desc.width, object_desc.height, region);
 }
@@ -131,13 +110,6 @@ static bool on_submit_vulkan(vr::EVREye, const vr::VRVulkanTextureData_t *textur
 		VkOffset2D { 0, 0 },
 		VkExtent2D { texture->m_nWidth, texture->m_nHeight }
 	};
-	if (bounds != nullptr)
-	{
-		region.offset.x = static_cast<int32_t>(texture->m_nWidth * std::min(bounds->uMin, bounds->uMax));
-		region.extent.width = static_cast<uint32_t>(texture->m_nWidth * std::max(bounds->uMin, bounds->uMax) - region.offset.x);
-		region.offset.y = static_cast<int32_t>(texture->m_nHeight * std::min(bounds->vMin, bounds->vMax));
-		region.extent.height = static_cast<uint32_t>(texture->m_nHeight * std::max(bounds->vMin, bounds->vMax) - region.offset.y);
-	}
 
 	const uint32_t layer_index = with_array_data ? static_cast<const vr::VRVulkanTextureArrayData_t *>(texture)->m_unArrayIndex : 0;
 
