@@ -18,6 +18,8 @@
 #include <openvr.h>
 
 static std::pair<reshade::runtime *, vr::ETextureType> s_vr_runtime = { nullptr, vr::TextureType_Invalid };
+static void *last_submitted_texture = nullptr;
+static vr::VRTextureBounds_t last_submitted_bounds = { 0, 0, 0, 0 };
 
 extern lockfree_table<void *, reshade::vulkan::device_impl *, 16> g_vulkan_devices;
 
@@ -164,6 +166,21 @@ static void update_submit_info(vr::EVREye eye, const vr::Texture_t *texture, con
 	}
 }
 
+bool should_apply_effects(void *texture_handle, const vr::VRTextureBounds_t *bounds)
+{
+	if (texture_handle != last_submitted_texture || bounds == nullptr || (bounds->uMin == last_submitted_bounds.uMin && bounds->uMax == last_submitted_bounds.uMax && bounds->vMin == last_submitted_bounds.vMin && bounds->vMax == last_submitted_bounds.vMax))
+	{
+		last_submitted_texture = texture_handle;
+		last_submitted_bounds = *bounds;
+		return true;
+	}
+	else
+	{
+		last_submitted_texture = nullptr;
+		return false;
+	}
+}
+
 #ifdef WIN64
 	#define IVRCompositor_Submit_Impl(vtable_offset, interface_version, impl) \
 		static vr::EVRCompositorError IVRCompositor_Submit_##interface_version(vr::IVRCompositor *pCompositor, IVRCompositor_Submit_##interface_version##_ArgTypes) \
@@ -206,58 +223,80 @@ static void update_submit_info(vr::EVREye eye, const vr::Texture_t *texture, con
 #define IVRCompositor_Submit_012_ArgNames eEye, pTexture, pBounds, nSubmitFlags
 
 IVRCompositor_Submit_Impl(6, 007, {
-	update_submit_info(eEye, nullptr, nullptr, vr::Submit_Default);
-	switch (eTextureType)
+	if (!should_apply_effects(pTexture, pBounds))
+		status = true;
+	else
 	{
-	case 0: // API_DirectX
-		status = on_submit_d3d11(eEye, static_cast<ID3D11Texture2D *>(pTexture), pBounds);
-		break;
-	case 1: // API_OpenGL
-		status = on_submit_opengl(eEye, static_cast<GLuint>(reinterpret_cast<uintptr_t>(pTexture)), false, false, pBounds);
-		break;
+		update_submit_info(eEye, nullptr, nullptr, vr::Submit_Default);
+		switch (eTextureType)
+		{
+		case 0: // API_DirectX
+			status = on_submit_d3d11(eEye, static_cast<ID3D11Texture2D *>(pTexture), pBounds);
+			break;
+		case 1: // API_OpenGL
+			status = on_submit_opengl(eEye, static_cast<GLuint>(reinterpret_cast<uintptr_t>(pTexture)), false, false, pBounds);
+			break;
+		}
 	} })
 IVRCompositor_Submit_Impl(6, 008, {
-	update_submit_info(eEye, nullptr, nullptr, vr::Submit_Default);
-	switch (eTextureType)
+	if (!should_apply_effects(pTexture, pBounds))
+		status = true;
+	else
 	{
-	case 0: // API_DirectX
-		status = on_submit_d3d11(eEye, static_cast<ID3D11Texture2D *>(pTexture), pBounds);
-		break;
-	case 1: // API_OpenGL
-		status = on_submit_opengl(eEye, static_cast<GLuint>(reinterpret_cast<uintptr_t>(pTexture)), (nSubmitFlags & vr::Submit_GlRenderBuffer) != 0, false, pBounds);
-		break;
+		update_submit_info(eEye, nullptr, nullptr, vr::Submit_Default);
+		switch (eTextureType)
+		{
+		case 0: // API_DirectX
+			status = on_submit_d3d11(eEye, static_cast<ID3D11Texture2D *>(pTexture), pBounds);
+			break;
+		case 1: // API_OpenGL
+			status = on_submit_opengl(eEye, static_cast<GLuint>(reinterpret_cast<uintptr_t>(pTexture)), (nSubmitFlags & vr::Submit_GlRenderBuffer) != 0, false, pBounds);
+			break;
+		}
 	} })
 IVRCompositor_Submit_Impl(4, 009, {
 	if (pTexture->handle == nullptr)
 		return vr::VRCompositorError_InvalidTexture;
 	update_submit_info(eEye, pTexture, pBounds, nSubmitFlags);
-	switch (pTexture->eType)
+
+	if (!should_apply_effects(pTexture->handle, pBounds))
+		status = true;
+	else
 	{
-	case vr::TextureType_DirectX:
-		status = on_submit_d3d11(eEye, static_cast<ID3D11Texture2D *>(pTexture->handle), pBounds);
-		break;
-	case vr::TextureType_OpenGL:
-		status = on_submit_opengl(eEye, static_cast<GLuint>(reinterpret_cast<uintptr_t>(pTexture->handle)), (nSubmitFlags & vr::Submit_GlRenderBuffer) != 0, false, pBounds);
-		break;
+		switch (pTexture->eType)
+		{
+		case vr::TextureType_DirectX:
+			status = on_submit_d3d11(eEye, static_cast<ID3D11Texture2D *>(pTexture->handle), pBounds);
+			break;
+		case vr::TextureType_OpenGL:
+			status = on_submit_opengl(eEye, static_cast<GLuint>(reinterpret_cast<uintptr_t>(pTexture->handle)), (nSubmitFlags & vr::Submit_GlRenderBuffer) != 0, false, pBounds);
+			break;
+		}
 	} })
 IVRCompositor_Submit_Impl(5, 012, {
 	if (pTexture->handle == nullptr)
 		return vr::VRCompositorError_InvalidTexture;
 	update_submit_info(eEye, pTexture, pBounds, nSubmitFlags);
-	switch (pTexture->eType)
+
+	if (!should_apply_effects(pTexture->handle, pBounds))
+		status = true;
+	else
 	{
-	case vr::TextureType_DirectX:
-		status = on_submit_d3d11(eEye, static_cast<ID3D11Texture2D *>(pTexture->handle), pBounds);
-		break;
-	case vr::TextureType_DirectX12:
-		status = on_submit_d3d12(eEye, static_cast<const vr::D3D12TextureData_t *>(pTexture->handle), pBounds);
-		break;
-	case vr::TextureType_OpenGL:
-		status = on_submit_opengl(eEye, static_cast<GLuint>(reinterpret_cast<uintptr_t>(pTexture->handle)), (nSubmitFlags & vr::Submit_GlRenderBuffer) != 0, (nSubmitFlags & vr::Submit_GlArrayTexture) != 0, pBounds);
-		break;
-	case vr::TextureType_Vulkan:
-		status = on_submit_vulkan(eEye, static_cast<const vr::VRVulkanTextureData_t *>(pTexture->handle), (nSubmitFlags & vr::Submit_VulkanTextureWithArrayData) != 0, pBounds);
-		break;
+		switch (pTexture->eType)
+		{
+		case vr::TextureType_DirectX:
+			status = on_submit_d3d11(eEye, static_cast<ID3D11Texture2D *>(pTexture->handle), pBounds);
+			break;
+		case vr::TextureType_DirectX12:
+			status = on_submit_d3d12(eEye, static_cast<const vr::D3D12TextureData_t *>(pTexture->handle), pBounds);
+			break;
+		case vr::TextureType_OpenGL:
+			status = on_submit_opengl(eEye, static_cast<GLuint>(reinterpret_cast<uintptr_t>(pTexture->handle)), (nSubmitFlags & vr::Submit_GlRenderBuffer) != 0, (nSubmitFlags & vr::Submit_GlArrayTexture) != 0, pBounds);
+			break;
+		case vr::TextureType_Vulkan:
+			status = on_submit_vulkan(eEye, static_cast<const vr::VRVulkanTextureData_t *>(pTexture->handle), (nSubmitFlags & vr::Submit_VulkanTextureWithArrayData) != 0, pBounds);
+			break;
+		}
 	} })
 
 HOOK_EXPORT uint32_t VR_CALLTYPE VR_InitInternal2(vr::EVRInitError *peError, vr::EVRApplicationType eApplicationType, const char *pStartupInfo)
