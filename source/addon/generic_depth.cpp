@@ -155,6 +155,9 @@ struct state_tracking_context
 	depth_stencil_selection selected_depth_stencil;
 	depth_stencil_selection vr_depth_stencil[2];
 
+	// By default, the left eye is expected to be the first eye rendered. Enable this to swap eyes if necessary.
+	bool vr_swap_eyes = false;
+
 #if RESHADE_GUI
 	// List of all encountered depth-stencils of the last frame
 	std::vector<std::pair<resource_handle, depth_stencil_info>> current_depth_stencil_list;
@@ -246,6 +249,7 @@ static void on_init_device(device *device)
 	config.get("DEPTH", "DepthCopyAtClearIndex", device_state.selected_depth_stencil.force_clear_index);
 	config.get("DEPTH", "UseAspectRatioHeuristics", device_state.use_aspect_ratio_heuristics);
 	config.get("DEPTH", "VRFirstEyeCopyAtClearIndex", device_state.vr_depth_stencil[0].force_clear_index);
+	config.get("DEPTH", "VRSwapEyes", device_state.vr_swap_eyes);
 
 	if (device_state.selected_depth_stencil.force_clear_index == std::numeric_limits<uint32_t>::max())
 		device_state.selected_depth_stencil.force_clear_index  = 0;
@@ -623,9 +627,10 @@ static void on_present_vr(effect_runtime *runtime, reshade::vr::submit_info subm
 		}
 	}
 
-	depth_stencil_selection &selected_depth_stencil = device_state.vr_depth_stencil[submit_info.eye];
+	uint8_t eye = device_state.vr_swap_eyes ? 1 - submit_info.eye : submit_info.eye;
+	depth_stencil_selection &selected_depth_stencil = device_state.vr_depth_stencil[eye];
 	selected_depth_stencil.override = submit_info.depth;
-	update_selected_depth_stencil(runtime, selected_depth_stencil, matches[submit_info.eye]);
+	update_selected_depth_stencil(runtime, selected_depth_stencil, matches[eye]);
 }
 
 static void on_present(command_queue *, effect_runtime *runtime)
@@ -857,6 +862,7 @@ static void draw_debug_menu(effect_runtime *runtime, void *)
 		config.set("DEPTH", "DepthCopyAtClearIndex", device_state.selected_depth_stencil.force_clear_index);
 		config.set("DEPTH", "UseAspectRatioHeuristics", device_state.use_aspect_ratio_heuristics);
 		config.set("DEPTH", "VRFirstEyeCopyAtClearIndex", device_state.vr_depth_stencil[0].force_clear_index);
+		config.set("DEPTH", "VRSwapEyes", device_state.vr_swap_eyes);
 	}
 }
 #endif
