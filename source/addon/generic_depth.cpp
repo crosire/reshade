@@ -245,14 +245,18 @@ static void on_init_device(device *device)
 	config.get("DEPTH", "DepthCopyBeforeClears", device_state.selected_depth_stencil.preserve_depth_buffers);
 	config.get("DEPTH", "DepthCopyAtClearIndex", device_state.selected_depth_stencil.force_clear_index);
 	config.get("DEPTH", "UseAspectRatioHeuristics", device_state.use_aspect_ratio_heuristics);
+	config.get("DEPTH", "VRFirstEyeCopyAtClearIndex", device_state.vr_depth_stencil[0].force_clear_index);
 
 	if (device_state.selected_depth_stencil.force_clear_index == std::numeric_limits<uint32_t>::max())
 		device_state.selected_depth_stencil.force_clear_index  = 0;
+	if (device_state.vr_depth_stencil[0].force_clear_index == std::numeric_limits<uint32_t>::max())
+		device_state.vr_depth_stencil[0].force_clear_index  = 0;
 
 	for (int i = 0; i < 2; ++i)
 	{
 		device_state.vr_depth_stencil[i].preserve_depth_buffers = device_state.selected_depth_stencil.preserve_depth_buffers;
-		device_state.vr_depth_stencil[i].force_clear_index = device_state.selected_depth_stencil.force_clear_index;
+		if (device_state.vr_depth_stencil[i].force_clear_index == 0)
+			device_state.vr_depth_stencil[i].force_clear_index = device_state.selected_depth_stencil.force_clear_index;
 	}
 }
 static void on_destroy_device(device *device)
@@ -852,6 +856,7 @@ static void draw_debug_menu(effect_runtime *runtime, void *)
 		config.set("DEPTH", "DepthCopyBeforeClears", device_state.selected_depth_stencil.preserve_depth_buffers);
 		config.set("DEPTH", "DepthCopyAtClearIndex", device_state.selected_depth_stencil.force_clear_index);
 		config.set("DEPTH", "UseAspectRatioHeuristics", device_state.use_aspect_ratio_heuristics);
+		config.set("DEPTH", "VRFirstEyeCopyAtClearIndex", device_state.vr_depth_stencil[0].force_clear_index);
 	}
 }
 #endif
