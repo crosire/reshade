@@ -37,6 +37,7 @@ struct depth_stencil_info
 	draw_stats current_stats; // Stats since last clear operation
 	std::vector<clear_stats> clears;
 	bool copied_during_frame = false;
+	std::chrono::high_resolution_clock::time_point last_drawcall;
 };
 
 struct state_tracking
@@ -329,6 +330,7 @@ static void on_draw(command_list *cmd_list, uint32_t vertices, uint32_t instance
 	counters.current_stats.vertices += vertices * instances;
 	counters.current_stats.drawcalls += 1;
 	std::memcpy(counters.current_stats.last_viewport, state.current_viewport, 6 * sizeof(float));
+	counters.last_drawcall = std::chrono::high_resolution_clock::now();
 }
 static void on_draw_indexed(command_list *cmd_list, uint32_t indices, uint32_t instances, uint32_t, int32_t, uint32_t)
 {
