@@ -45,6 +45,7 @@ static bool on_submit_d3d11(vr::EVREye, ID3D11Texture2D *texture, const vr::VRTe
 
 	D3D11_BOX region = { 0, 0, 0, tex_desc.Width, tex_desc.Height, 1 };
 
+	RESHADE_ADDON_EVENT(present, s_vr_runtime.first->get_command_queue(), s_vr_runtime.first);
 	return static_cast<reshade::d3d11::runtime_impl *>(s_vr_runtime.first)->on_present(texture, region, nullptr);
 }
 static bool on_submit_d3d12(vr::EVREye, const vr::D3D12TextureData_t *texture, const vr::VRTextureBounds_t *bounds)
@@ -65,6 +66,7 @@ static bool on_submit_d3d12(vr::EVREye, const vr::D3D12TextureData_t *texture, c
 
 	D3D12_BOX region = { 0, 0, 0, static_cast<UINT>(tex_desc.Width), tex_desc.Height, 1 };
 
+	RESHADE_ADDON_EVENT(present, s_vr_runtime.first->get_command_queue(), s_vr_runtime.first);
 	// Resource should be in D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE state at this point
 	return static_cast<reshade::d3d12::runtime_impl *>(s_vr_runtime.first)->on_present(texture->m_pResource, region, nullptr);
 }
@@ -86,6 +88,7 @@ static bool on_submit_opengl(vr::EVREye, GLuint object, bool is_rbo, bool is_arr
 
 	GLint region[4] = { 0, 0, static_cast<GLint>(object_desc.width), static_cast<GLint>(object_desc.height) };
 
+	RESHADE_ADDON_EVENT(present, s_vr_runtime.first->get_command_queue(), s_vr_runtime.first);
 	return static_cast<reshade::opengl::runtime_impl *>(s_vr_runtime.first)->on_present(object, is_rbo, is_array, object_desc.width, object_desc.height, region);
 }
 static bool on_submit_vulkan(vr::EVREye, const vr::VRVulkanTextureData_t *texture, bool with_array_data, const vr::VRTextureBounds_t *bounds)
@@ -115,6 +118,7 @@ static bool on_submit_vulkan(vr::EVREye, const vr::VRVulkanTextureData_t *textur
 
 	const uint32_t layer_index = with_array_data ? static_cast<const vr::VRVulkanTextureArrayData_t *>(texture)->m_unArrayIndex : 0;
 
+	RESHADE_ADDON_EVENT(present, s_vr_runtime.first->get_command_queue(), s_vr_runtime.first);
 	// Image should be in VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL layout at this point
 	std::vector<VkSemaphore> wait_semaphores;
 	return static_cast<reshade::vulkan::runtime_impl *>(s_vr_runtime.first)->on_present(
