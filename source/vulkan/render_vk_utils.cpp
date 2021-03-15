@@ -233,26 +233,30 @@ std::pair<resource_type, resource_desc> reshade::vulkan::convert_resource_desc(c
 	case VK_IMAGE_TYPE_1D:
 		type = resource_type::texture_1d;
 		desc.width = create_info.extent.width;
+		assert(create_info.extent.height == 1 && create_info.extent.depth == 1);
 		desc.height = 1;
-		desc.depth_or_layers = 1;
+		assert(create_info.arrayLayers <= std::numeric_limits<uint16_t>::max());
+		desc.depth_or_layers = static_cast<uint16_t>(create_info.arrayLayers);
 		break;
 	case VK_IMAGE_TYPE_2D:
 		type = resource_type::texture_2d;
 		desc.width = create_info.extent.width;
 		desc.height = create_info.extent.height;
+		assert(create_info.extent.depth == 1);
 		assert(create_info.arrayLayers <= std::numeric_limits<uint16_t>::max());
 		desc.depth_or_layers = static_cast<uint16_t>(create_info.arrayLayers);
 		break;
 	case VK_IMAGE_TYPE_3D:
 		type = resource_type::texture_3d;
 		desc.width = create_info.extent.width;
-		desc.height = create_info.extent.depth;
+		desc.height = create_info.extent.height;
 		assert(create_info.extent.depth <= std::numeric_limits<uint16_t>::max());
 		desc.depth_or_layers = static_cast<uint16_t>(create_info.extent.depth);
 		assert(create_info.arrayLayers == 1);
 		break;
 	}
 
+	assert(create_info.mipLevels <= std::numeric_limits<uint16_t>::max());
 	desc.levels = static_cast<uint16_t>(create_info.mipLevels);
 	desc.format = static_cast<uint32_t>(create_info.format);
 	desc.samples = static_cast<uint16_t>(create_info.samples);
