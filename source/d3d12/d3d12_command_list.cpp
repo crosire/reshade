@@ -42,7 +42,7 @@ bool D3D12GraphicsCommandList::check_and_upgrade_interface(REFIID riid)
 			IUnknown *new_interface = nullptr;
 			if (FAILED(_orig->QueryInterface(riid, reinterpret_cast<void **>(&new_interface))))
 				return false;
-#if RESHADE_VERBOSE_LOG
+#if 0
 			LOG(DEBUG) << "Upgraded ID3D12GraphicsCommandList" << _interface_version << " object " << this << " to ID3D12GraphicsCommandList" << version << '.';
 #endif
 			_orig->Release();

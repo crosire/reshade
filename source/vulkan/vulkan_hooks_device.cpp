@@ -358,11 +358,13 @@ void     VKAPI_CALL vkDestroyDevice(VkDevice device, const VkAllocationCallbacks
 	assert(device_impl != nullptr);
 
 	// Destroy all queues associated with this device
-	for (reshade::vulkan::command_queue_impl *const queue_impl : device_impl->_queues)
+	const std::vector<reshade::vulkan::command_queue_impl *> queues = device_impl->_queues;
+	for (reshade::vulkan::command_queue_impl *queue_impl : queues)
 	{
 		s_vulkan_queues.erase(queue_impl->_orig);
-		delete queue_impl;
+		delete queue_impl; // This will remove the queue from the queue list of the device too (see 'command_queue_impl' destructor)
 	}
+	assert(device_impl->_queues.empty());
 
 	// Get function pointer before data is destroyed next
 	GET_DISPATCH_PTR_FROM(DestroyDevice, device_impl);
@@ -529,7 +531,8 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		if (!runtime->on_init(*pSwapchain, create_info, hwnd))
 			LOG(ERROR) << "Failed to initialize Vulkan runtime environment on runtime " << runtime << '.';
 
-		s_vulkan_runtimes.emplace(*pSwapchain, runtime);
+		if (!s_vulkan_runtimes.emplace(*pSwapchain, runtime))
+			delete runtime;
 	}
 	else
 	{

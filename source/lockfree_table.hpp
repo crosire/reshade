@@ -14,7 +14,7 @@
 /// The key values "one" and "zero" hold a special meaning (see <see cref="no_value"/> and <see cref="update_value"/>), so do not use them.
 /// </summary>
 template <typename TKey, typename TValue, size_t MAX_ENTRIES>
-class lockfree_table
+class lockfree_table : lockfree_table<TKey, TValue *, MAX_ENTRIES>
 {
 public:
 	~lockfree_table()
@@ -22,14 +22,8 @@ public:
 		clear(); // Free all pointers
 	}
 
-	/// <summary>
-	/// Special key indicating that the entry is empty.
-	/// </summary>
-	static constexpr TKey no_value = (TKey)0;
-	/// <summary>
-	/// Special key indicating that the entry is currently being updated.
-	/// </summary>
-	static constexpr TKey update_value = (TKey)1;
+	using lockfree_table<TKey, TValue *, MAX_ENTRIES>::no_value;
+	using lockfree_table<TKey, TValue *, MAX_ENTRIES>::update_value;
 
 	/// <summary>
 	/// Gets the value associated with the specified <paramref name="key"/>.
@@ -39,21 +33,9 @@ public:
 	/// <returns>A reference to the associated value.</returns>
 	TValue &at(TKey key) const
 	{
-		assert(key != no_value && key != update_value);
-
-		size_t start_index = 0;
-		// If the table is really big, reduce search time by using hash as start index
-		if constexpr (MAX_ENTRIES > 512)
-			start_index = std::hash<TKey>()(key) % (MAX_ENTRIES / 2);
-
-		for (size_t i = start_index; i < MAX_ENTRIES; ++i)
-		{
-			if (_data[i].first.load(std::memory_order_acquire) == key)
-			{
-				// The pointer is guaranteed to be value at this point, or else key would have been in update mode
-				return *_data[i].second;
-			}
-		}
+		TValue *const value = lockfree_table<TKey, TValue *, MAX_ENTRIES>::at(key);
+		if (value != nullptr)
+			return *value;
 
 		assert(false);
 		return default_value(); // Fall back if table is key does not exist
@@ -68,29 +50,10 @@ public:
 	template <typename... Args>
 	TValue &emplace(TKey key, Args... args)
 	{
-		assert(key != no_value && key != update_value);
-
-		size_t start_index = 0;
-		if constexpr (MAX_ENTRIES > 512)
-			start_index = std::hash<TKey>()(key) % (MAX_ENTRIES / 2);
-
 		// Create a pointer to the new value using copy construction
-		TValue *new_value = new TValue(std::forward<Args>(args)...);
-
-		for (size_t i = start_index; i < MAX_ENTRIES; ++i)
-		{
-			if (TKey test_key = _data[i].first.load(std::memory_order_relaxed);
-				test_key == no_value &&
-				_data[i].first.compare_exchange_strong(test_key, update_value, std::memory_order_relaxed))
-			{
-				_data[i].second = new_value;
-
-				_data[i].first.store(key, std::memory_order_release);
-
-				return *new_value;
-			}
-		}
-
+		TValue *const new_value = new TValue(std::forward<Args>(args)...);
+		if (lockfree_table<TKey, TValue *, MAX_ENTRIES>::emplace(key, new_value))
+			return *new_value;
 		delete new_value;
 
 		assert(false);
@@ -104,30 +67,12 @@ public:
 	/// <returns><c>true</c> if the key existed and was removed, <c>false</c> otherwise.</returns>
 	bool erase(TKey key)
 	{
-		if (key == no_value || key == update_value) // Cannot remove special keys
-			return false;
-
-		size_t start_index = 0;
-		if constexpr (MAX_ENTRIES > 512)
-			start_index = std::hash<TKey>()(key) % (MAX_ENTRIES / 2);
-
-		for (size_t i = start_index; i < MAX_ENTRIES; ++i)
+		TValue *const old_value = lockfree_table<TKey, TValue *, MAX_ENTRIES>::erase(key);
+		if (old_value != nullptr)
 		{
-			// Load and check before doing an expensive CAS
-			if (TKey test_key = _data[i].first.load(std::memory_order_relaxed);
-				test_key == key)
-			{
-				// Get the value before freeing the entry up for other threads to fill again
-				TValue *const old_value = _data[i].second;
-
-				if (_data[i].first.compare_exchange_strong(test_key, no_value, std::memory_order_relaxed))
-				{
-					delete old_value;
-					return true;
-				}
-			}
+			delete old_value;
+			return true;
 		}
-
 		return false;
 	}
 	/// <summary>
@@ -138,31 +83,14 @@ public:
 	/// <returns><c>true</c> if the key existed and was removed, <c>false</c> otherwise.</returns>
 	bool erase(TKey key, TValue &value)
 	{
-		if (key == no_value || key == update_value)
-			return false;
-
-		size_t start_index = 0;
-		if constexpr (MAX_ENTRIES > 512)
-			start_index = std::hash<TKey>()(key) % (MAX_ENTRIES / 2);
-
-		for (size_t i = start_index; i < MAX_ENTRIES; ++i)
+		TValue *const old_value = lockfree_table<TKey, TValue *, MAX_ENTRIES>::erase(key);
+		if (old_value != nullptr)
 		{
-			if (TKey test_key = _data[i].first.load(std::memory_order_relaxed);
-				test_key == key)
-			{
-				TValue *const old_value = _data[i].second;
-
-				if (_data[i].first.compare_exchange_strong(test_key, no_value, std::memory_order_relaxed))
-				{
-					// Move value to output argument and delete its pointer (which is no longer in use now)
-					value = std::move(*old_value);
-
-					delete old_value;
-					return true;
-				}
-			}
+			// Move value to output argument and delete its pointer (which is no longer in use now)
+			value = std::move(*old_value);
+			delete old_value;
+			return true;
 		}
-
 		return false;
 	}
 
@@ -192,8 +120,6 @@ private:
 		// Make default value thread local, so no data races occur after multiple threads failed to access a value
 		static thread_local TValue _ = {}; return _;
 	}
-
-	std::pair<std::atomic<TKey>, TValue *> _data[MAX_ENTRIES];
 };
 
 /// <summary>
@@ -229,6 +155,7 @@ public:
 	{
 		assert(key != no_value && key != update_value);
 
+		// If the table is really big, reduce search time by using hash as start index
 		size_t start_index = 0;
 		if constexpr (MAX_ENTRIES > 512)
 			start_index = std::hash<TKey>()(key) % (MAX_ENTRIES / 2);
@@ -237,6 +164,7 @@ public:
 		{
 			if (_data[i].first.load(std::memory_order_acquire) == key)
 			{
+				// The pointer is guaranteed to be value at this point, or else key would have been in update mode
 				return _data[i].second;
 			}
 		}
@@ -249,8 +177,8 @@ public:
 	/// </summary>
 	/// <param name="key">The key to add.</param>
 	/// <param name="value">The pointer to add.</param>
-	/// <returns>The added pointer or <c>nullptr</c> if the table is full.</returns>
-	TValuePtr emplace(TKey key, TValuePtr value)
+	/// <returns>The <c>true</c> if the key-pointer pair was added successfully or <c>false</c> if the table is full.</returns>
+	bool emplace(TKey key, TValuePtr value)
 	{
 		assert(key != no_value && key != update_value);
 
@@ -268,11 +196,11 @@ public:
 
 				_data[i].first.store(key, std::memory_order_release);
 
-				return value;
+				return true;
 			}
 		}
 
-		return nullptr;
+		return false;
 	}
 
 	/// <summary>
@@ -282,7 +210,7 @@ public:
 	/// <returns>The removed pointer if the key existed, <c>nullptr</c> otherwise.</returns>
 	TValuePtr erase(TKey key)
 	{
-		if (key == no_value || key == update_value)
+		if (key == no_value || key == update_value) // Cannot remove special keys
 			return nullptr;
 
 		size_t start_index = 0;
@@ -291,9 +219,11 @@ public:
 
 		for (size_t i = start_index; i < MAX_ENTRIES; ++i)
 		{
+			// Load and check before doing an expensive CAS
 			if (TKey test_key = _data[i].first.load(std::memory_order_relaxed);
 				test_key == key)
 			{
+				// Get the value before freeing the entry up for other threads to fill again
 				const TValuePtr old_value = _data[i].second;
 
 				if (_data[i].first.compare_exchange_strong(test_key, no_value, std::memory_order_relaxed))
@@ -317,6 +247,6 @@ public:
 		}
 	}
 
-private:
+protected:
 	std::pair<std::atomic<TKey>, TValuePtr> _data[MAX_ENTRIES];
 };
