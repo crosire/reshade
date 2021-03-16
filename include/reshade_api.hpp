@@ -179,6 +179,20 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
+	/// Describes a rectangular region in a resource.
+	/// </summary>
+	struct region
+	{
+		uint32_t left;
+		uint32_t top;
+		uint32_t right;
+		uint32_t bottom;
+
+		constexpr uint32_t width() const { return right - left; }
+		constexpr uint32_t height() const { return bottom - top; }
+	};
+
+	/// <summary>
 	/// An opaque handle to a resource object (buffer, texture, ...).
 	/// Resources created by the application are only guaranteed to be valid during event callbacks.
 	/// If you want to use one outside that scope, first ensure the resource is still valid via <see cref="device::check_resource_handle_valid"/>.
