@@ -118,11 +118,14 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	{
 		LOG(WARN) << "Skipping device because it is not created with the \"" VK_KHR_SWAPCHAIN_EXTENSION_NAME "\" extension.";
 
-		graphics_queue_family_index  = std::numeric_limits<uint32_t>::max();
+		graphics_queue_family_index = std::numeric_limits<uint32_t>::max();
 	}
-
 	// Only have to enable additional features if there is a graphics queue, since ReShade will not run otherwise
-	if (graphics_queue_family_index != std::numeric_limits<uint32_t>::max())
+	else if (graphics_queue_family_index == std::numeric_limits<uint32_t>::max())
+	{
+		LOG(WARN) << "Skipping device because it is not created with a graphics queue.";
+	}
+	else
 	{
 		uint32_t num_extensions = 0;
 		enum_device_extensions(physicalDevice, nullptr, &num_extensions, nullptr);
@@ -166,10 +169,6 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		add_extension(VK_EXT_DEBUG_MARKER_EXTENSION_NAME, false);
 #endif
 	}
-	else
-	{
-		LOG(WARN) << "Skipping device because it is not created with a graphics queue.";
-	}
 
 	VkDeviceCreateInfo create_info = *pCreateInfo;
 	create_info.enabledExtensionCount = uint32_t(enabled_extensions.size());
@@ -182,7 +181,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	else
 		create_info.pEnabledFeatures = &enabled_features;
 
-	// Continue call down the chain
+	// Continue calling down the chain
 	const VkResult result = trampoline(physicalDevice, &create_info, pAllocator, pDevice);
 	if (result != VK_SUCCESS)
 	{
@@ -413,7 +412,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 			std::sort(format_list.begin(), format_list.end());
 			format_list.erase(std::unique(format_list.begin(), format_list.end()), format_list.end());
 
-			// This is evil, because writing into the application memory, but whatever
+			// This is evil, because writing into the application memory, but eh =)
 			const_cast<VkImageFormatListCreateInfoKHR *>(format_list_info2)->viewFormatCount = static_cast<uint32_t>(format_list.size());
 			const_cast<VkImageFormatListCreateInfoKHR *>(format_list_info2)->pViewFormats = format_list.data();
 		}
@@ -498,8 +497,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	if (device_impl->_graphics_queue_family_index != std::numeric_limits<uint32_t>::max())
 	{
 		// Get the main graphics queue for command submission
-		// There has to be at least one queue, or else this runtime would not have been created with this queue family index
-		// So it should be safe to just get the first one
+		// There has to be at least one queue, or else this runtime would not have been created with this queue family index, so it is safe to get the first one here
 		VkQueue graphics_queue = VK_NULL_HANDLE;
 		device_impl->_dispatch_table.GetDeviceQueue(device, device_impl->_graphics_queue_family_index, 0, &graphics_queue);
 		assert(VK_NULL_HANDLE != graphics_queue);
@@ -517,8 +515,8 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 
 			RESHADE_ADDON_EVENT(resize, runtime, create_info.imageExtent.width, create_info.imageExtent.height);
 
-			// Re-use the existing runtime if this swap chain was not created from scratch
-			runtime->on_reset(); // But reset it before initializing again below
+			// Re-use the existing runtime if this swap chain was not created from scratch, but reset it before initializing again below
+			runtime->on_reset();
 		}
 		else
 		{

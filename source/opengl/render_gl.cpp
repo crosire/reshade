@@ -466,7 +466,7 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource_handle res
 
 	if (target == (resource.handle >> 40) &&
 		desc.first_level == 0 && desc.first_layer == 0 &&
-		get_tex_level_param(target, resource.handle & 0xFFFFFFFF, 0, GL_TEXTURE_INTERNAL_FORMAT) == internal_format)
+		static_cast<GLenum>(get_tex_level_param(target, resource.handle & 0xFFFFFFFF, 0, GL_TEXTURE_INTERNAL_FORMAT)) == internal_format)
 	{
 		assert(target != GL_TEXTURE_BUFFER);
 

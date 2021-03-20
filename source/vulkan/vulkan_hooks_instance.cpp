@@ -77,7 +77,7 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	VkInstanceCreateInfo create_info = *pCreateInfo;
 	create_info.pApplicationInfo = &app_info;
 
-	// Continue call down the chain
+	// Continue calling down the chain
 	const VkResult result = trampoline(&create_info, pAllocator, pInstance);
 	if (result != VK_SUCCESS)
 	{
