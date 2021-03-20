@@ -164,7 +164,7 @@ void reshade::opengl::runtime_impl::on_reset()
 	std::memset(_rbo, 0, sizeof(_rbo));
 }
 
-void reshade::opengl::runtime_impl::on_present()
+void reshade::opengl::runtime_impl::on_present(bool default_fbo)
 {
 	if (!_is_initialized)
 		return;
@@ -175,89 +175,99 @@ void reshade::opengl::runtime_impl::on_present()
 	if (gl3wProcs.gl.ClipControl != nullptr)
 		glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
 
-	// Copy back buffer to RBO (and flip it vertically)
-	glDisable(GL_SCISSOR_TEST);
-	glDisable(GL_FRAMEBUFFER_SRGB);
-	glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _fbo[FBO_BACK]);
-	glReadBuffer(GL_BACK);
-	glDrawBuffer(GL_COLOR_ATTACHMENT0);
-	glBlitFramebuffer(0, 0, _width, _height, 0, _height, _width, 0, GL_COLOR_BUFFER_BIT, GL_NEAREST);
-	_current_fbo = _fbo[FBO_BACK];
+	if (default_fbo)
+	{
+		// Copy back buffer to RBO (and flip it vertically)
+		glDisable(GL_SCISSOR_TEST);
+		glDisable(GL_FRAMEBUFFER_SRGB);
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _current_fbo = _fbo[FBO_BACK]);
+		glReadBuffer(GL_BACK);
+		glDrawBuffer(GL_COLOR_ATTACHMENT0);
+		glBlitFramebuffer(0, 0, _width, _height, 0, _height, _width, 0, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+	}
+	else
+	{
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _current_fbo = _fbo[FBO_BACK]);
+		glDrawBuffer(GL_COLOR_ATTACHMENT0);
+	}
 
 	update_and_render_effects();
 
-	// Copy results from RBO to back buffer (and flip it back vertically)
-	glDisable(GL_SCISSOR_TEST);
-	glDisable(GL_FRAMEBUFFER_SRGB);
-	glBindFramebuffer(GL_READ_FRAMEBUFFER, _fbo[FBO_BACK]);
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-	glReadBuffer(GL_COLOR_ATTACHMENT0);
-	glDrawBuffer(GL_BACK);
-	glBlitFramebuffer(0, 0, _width, _height, 0, _height, _width, 0, GL_COLOR_BUFFER_BIT, GL_NEAREST);
-	_current_fbo = 0;
+	if (default_fbo)
+	{
+		// Copy results from RBO to back buffer (and flip it back vertically)
+		glDisable(GL_SCISSOR_TEST);
+		glDisable(GL_FRAMEBUFFER_SRGB);
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, _fbo[FBO_BACK]);
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _current_fbo = 0);
+		glReadBuffer(GL_COLOR_ATTACHMENT0);
+		glDrawBuffer(GL_BACK);
+		glBlitFramebuffer(0, 0, _width, _height, 0, _height, _width, 0, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+	}
+	else
+	{
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _current_fbo = _fbo[FBO_BACK]);
+		glDrawBuffer(GL_COLOR_ATTACHMENT0);
+	}
 
 	runtime::on_present();
 
 	// Apply previous state from application
 	_app_state.apply(_compatibility_context);
 }
-bool reshade::opengl::runtime_impl::on_present(GLuint source_object, bool is_rbo, bool is_array, unsigned int width, unsigned int height, const GLint region[4])
+bool reshade::opengl::runtime_impl::on_layer_submit(uint32_t eye, GLuint source_object, bool is_rbo, bool is_array, const float bounds[4], GLuint *target_rbo)
 {
-	if (width != _width || height != _height)
+	assert(eye < 2 && source_object != 0);
+
+	reshade::api::resource_desc object_desc = get_resource_desc(
+		reshade::opengl::make_resource_handle(is_rbo ? GL_RENDERBUFFER : GL_TEXTURE, source_object), nullptr, nullptr);
+
+	GLint source_region[4] = { 0, 0, static_cast<GLint>(object_desc.width), static_cast<GLint>(object_desc.height) };
+	if (bounds != nullptr)
+	{
+		source_region[0] = static_cast<GLint>(object_desc.width * std::min(bounds[0], bounds[2]));
+		source_region[1] = static_cast<GLint>(object_desc.height * std::min(bounds[1], bounds[3]));
+		source_region[2] = static_cast<GLint>(object_desc.width * std::max(bounds[0], bounds[2]));
+		source_region[3] = static_cast<GLint>(object_desc.height * std::max(bounds[1], bounds[3]));
+	}
+
+	const GLint region_width = source_region[2] - source_region[0];
+	object_desc.width = region_width * 2;
+
+	if (object_desc.width != _width || object_desc.height != _height)
 	{
 		on_reset();
 
-		if (!on_init(nullptr, width, height))
+		if (!on_init(nullptr, object_desc.width, object_desc.height))
 		{
 			LOG(ERROR) << "Failed to initialize OpenGL runtime environment on runtime " << this << '!';
 			return false;
 		}
 	}
 
-	_app_state.capture(_compatibility_context);
-
-	// Set clip space to something consistent
-	if (gl3wProcs.gl.ClipControl != nullptr)
-		glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
-
 	// Copy source region to RBO
 	glDisable(GL_SCISSOR_TEST);
 	glDisable(GL_FRAMEBUFFER_SRGB);
-	glBindFramebuffer(GL_READ_FRAMEBUFFER, _fbo[FBO_BLIT]);
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _fbo[FBO_BACK]);
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, _fbo[FBO_CLEAR]); // Use clear FBO here, since it is reset on every use anyway
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _current_fbo = _fbo[FBO_BACK]);
 
 	if (is_rbo) {
 		// TODO: This or the second blit below will fail if RBO is multisampled
-		glFramebufferRenderbuffer(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_RENDERBUFFER, source_object);
+		glFramebufferRenderbuffer(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, source_object);
 	}
 	else if (is_array) {
-		glFramebufferTextureLayer(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, source_object, 0, 0);
+		glFramebufferTextureLayer(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, source_object, 0, 0);
 	}
 	else {
-		glFramebufferTexture(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, source_object, 0);
+		glFramebufferTexture(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, source_object, 0);
 	}
 
-	glReadBuffer(GL_COLOR_ATTACHMENT1);
-	glDrawBuffer(GL_COLOR_ATTACHMENT0);
-	glBlitFramebuffer(region[0], region[1], region[2], region[3], 0, 0, _width, _height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
-	_current_fbo = _fbo[FBO_BACK];
-
-	update_and_render_effects();
-	runtime::on_present();
-
-	// Copy results from RBO back into the source region
-	glDisable(GL_SCISSOR_TEST);
-	glDisable(GL_FRAMEBUFFER_SRGB);
-	glBindFramebuffer(GL_READ_FRAMEBUFFER, _fbo[FBO_BACK]);
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _fbo[FBO_BLIT]);
 	glReadBuffer(GL_COLOR_ATTACHMENT0);
-	glDrawBuffer(GL_COLOR_ATTACHMENT1);
-	glBlitFramebuffer(0, 0, _width, _height, region[0], region[1], region[2], region[3], GL_COLOR_BUFFER_BIT, GL_NEAREST);
-	_current_fbo = _fbo[FBO_BLIT];
+	glDrawBuffer(GL_COLOR_ATTACHMENT0);
+	glBlitFramebuffer(source_region[0], source_region[1], source_region[2], source_region[3], eye * region_width, 0, (eye + 1) * region_width, _height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 
-	// Apply previous state from application
-	_app_state.apply(_compatibility_context);
+	*target_rbo = _rbo[RBO_COLOR];
 
 	return true;
 }

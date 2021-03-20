@@ -27,8 +27,8 @@ namespace reshade::opengl
 
 		bool on_init(HWND hwnd, unsigned int width, unsigned int height);
 		void on_reset();
-		void on_present();
-		bool on_present(GLuint source_object, bool is_rbo, bool is_array, unsigned int width, unsigned int height, const GLint region[4]);
+		void on_present(bool default_fbo = true);
+		bool on_layer_submit(uint32_t eye, GLuint source_object, bool is_rbo, bool is_array, const float bounds[4], GLuint *target_rbo);
 
 		bool capture_screenshot(uint8_t *buffer) const final;
 

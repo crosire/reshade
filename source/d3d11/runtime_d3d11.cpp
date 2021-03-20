@@ -280,34 +280,44 @@ void reshade::d3d11::runtime_impl::on_present()
 	// Apply previous state from application
 	_app_state.apply_and_release();
 }
-bool reshade::d3d11::runtime_impl::on_present(ID3D11Texture2D *source, const D3D11_BOX &region, HWND hwnd)
+bool reshade::d3d11::runtime_impl::on_layer_submit(UINT eye, ID3D11Texture2D *source, const float bounds[4], ID3D11Texture2D **target)
 {
-	assert(source != nullptr);
+	assert(eye < 2 && source != nullptr);
 
 	D3D11_TEXTURE2D_DESC source_desc;
 	source->GetDesc(&source_desc);
 
-	const UINT region_width = region.right - region.left;
-	const UINT region_height = region.bottom - region.top;
-	assert((region.back - region.front) == 1);
+	if (source_desc.SampleDesc.Count > 1)
+		return false; // When the resource is multisampled, 'CopySubresourceRegion' can only copy whole subresources
 
-	if (source_desc.SampleDesc.Count > 1 && (source_desc.Width != region_width || source_desc.Height != region_height))
-		return false; // 'CopySubresourceRegion' can only copy whole subresources when the resource is multisampled
+	D3D11_BOX source_region = { 0, 0, 0, source_desc.Width, source_desc.Height, 1 };
+	if (bounds != nullptr)
+	{
+		source_region.left = static_cast<UINT>(source_desc.Width * std::min(bounds[0], bounds[2]));
+		source_region.top  = static_cast<UINT>(source_desc.Height * std::min(bounds[1], bounds[3]));
+		source_region.right = static_cast<UINT>(source_desc.Width * std::max(bounds[0], bounds[2]));
+		source_region.bottom = static_cast<UINT>(source_desc.Height * std::max(bounds[1], bounds[3]));
+	}
 
-	if (region_width != _width || region_height != _height || source_desc.Format != _backbuffer_format)
+	const UINT region_width = source_region.right - source_region.left;
+	const UINT target_width = region_width * 2;
+	const UINT region_height = source_region.bottom - source_region.top;
+
+	if (target_width != _width || region_height != _height || source_desc.Format != _backbuffer_format)
 	{
 		on_reset();
 
 		DXGI_SWAP_CHAIN_DESC swap_desc = {};
-		swap_desc.BufferDesc.Width = region_width;
+		swap_desc.BufferDesc.Width = target_width;
 		swap_desc.BufferDesc.Height = region_height;
 		swap_desc.BufferDesc.Format = source_desc.Format;
 		swap_desc.SampleDesc = source_desc.SampleDesc;
 		swap_desc.BufferCount = 1;
-		swap_desc.OutputWindow = hwnd;
 
-		source_desc.Width = region_width;
+		source_desc.Width = target_width;
 		source_desc.Height = region_height;
+		source_desc.MipLevels = 1;
+		source_desc.ArraySize = 1;
 		source_desc.Format = make_dxgi_format_typeless(source_desc.Format);
 		source_desc.BindFlags = D3D11_BIND_RENDER_TARGET;
 
@@ -325,12 +335,9 @@ bool reshade::d3d11::runtime_impl::on_present(ID3D11Texture2D *source, const D3D
 	}
 
 	// Copy region of the source texture
-	_immediate_context->CopySubresourceRegion(_backbuffer.get(), 0, 0, 0, 0, source, 0, &region);
+	_immediate_context->CopySubresourceRegion(_backbuffer.get(), 0, eye * region_width, 0, 0, source, 0, &source_region);
 
-	on_present();
-
-	// Copy results back into the source texture
-	_immediate_context->CopySubresourceRegion(source, 0, region.left, region.top, region.front, _backbuffer.get(), 0, nullptr);
+	*target = _backbuffer.get();
 
 	return true;
 }

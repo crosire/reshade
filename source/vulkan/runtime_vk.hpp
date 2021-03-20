@@ -26,7 +26,7 @@ namespace reshade::vulkan
 		bool on_init(VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &desc, HWND hwnd);
 		void on_reset();
 		void on_present(VkQueue queue, const uint32_t swapchain_image_index, std::vector<VkSemaphore> &wait);
-		bool on_present(VkQueue queue, VkImage source, VkFormat source_format, VkSampleCountFlags source_samples, const VkRect2D &region, uint32_t layer_index, HWND hwnd, std::vector<VkSemaphore> &wait);
+		bool on_layer_submit(uint32_t eye, VkImage source, const VkExtent2D &source_extent, VkFormat source_format, VkSampleCountFlags source_samples, uint32_t source_layer_index, const float bounds[4], VkImage *target_image);
 
 		bool capture_screenshot(uint8_t *buffer) const final;
 

@@ -464,19 +464,31 @@ void reshade::vulkan::runtime_impl::on_present(VkQueue queue, const uint32_t swa
 
 	_cmd_impl->flush(_queue, wait);
 }
-bool reshade::vulkan::runtime_impl::on_present(VkQueue queue, VkImage source, VkFormat source_format, VkSampleCountFlags source_samples, const VkRect2D &region, uint32_t layer_index, HWND hwnd, std::vector<VkSemaphore> &wait)
+bool reshade::vulkan::runtime_impl::on_layer_submit(uint32_t eye, VkImage source, const VkExtent2D &source_extent, VkFormat source_format, VkSampleCountFlags source_samples, uint32_t source_layer_index, const float bounds[4], VkImage *target_image)
 {
-	assert(source != VK_NULL_HANDLE);
+	assert(eye < 2 && source != VK_NULL_HANDLE);
 
-	if (source_samples != VK_SAMPLE_COUNT_1_BIT)
-		return false;
+	VkOffset3D source_region_offset = { 0, 0, 0 };
+	VkExtent3D source_region_extent = { source_extent.width, source_extent.height, 1 };
+	if (bounds != nullptr)
+	{
+		source_region_offset.x = static_cast<int32_t>(source_extent.width * std::min(bounds[0], bounds[2]));
+		source_region_extent.width = static_cast<uint32_t>(source_extent.width* std::max(bounds[0], bounds[2]) - source_region_offset.x);
+		source_region_offset.y = static_cast<int32_t>(source_extent.height * std::min(bounds[1], bounds[3]));
+		source_region_extent.height = static_cast<uint32_t>(source_extent.height * std::max(bounds[1], bounds[3]) - source_region_offset.y);
+	}
 
-	if (region.extent.width != _width || region.extent.height != _height || source_format != _backbuffer_format)
+	VkExtent2D target_extent = { source_region_extent.width, source_region_extent.height };
+	target_extent.width *= 2;
+
+	VkCommandBuffer cmd_list = VK_NULL_HANDLE;
+
+	if (target_extent.width != _width || target_extent.height != _height || source_format != _backbuffer_format)
 	{
 		on_reset();
 
 		const VkImage image = create_image(
-			region.extent.width, region.extent.height, 1, source_format,
+			target_extent.width, target_extent.height, 1, source_format,
 			VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
 		if (image == VK_NULL_HANDLE)
 		{
@@ -488,62 +500,46 @@ bool reshade::vulkan::runtime_impl::on_present(VkQueue queue, VkImage source, Vk
 		_swapchain_images[0] = image;
 
 		VkSwapchainCreateInfoKHR desc = { VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR };
-		desc.imageExtent = region.extent;
+		desc.imageExtent = target_extent;
 		desc.imageFormat = source_format;
 		desc.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-		if (!on_init(VK_NULL_HANDLE, desc, hwnd))
+		if (!on_init(VK_NULL_HANDLE, desc, nullptr))
 		{
 			LOG(ERROR) << "Failed to initialize Vulkan runtime environment on runtime " << this << '!';
 			return false;
 		}
+
+		cmd_list = _cmd_impl->begin_commands();
+		transition_layout(vk, cmd_list, _swapchain_images[0], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 	}
-
-	const VkCommandBuffer cmd_list = _cmd_impl->begin_commands();
-
-	transition_layout(_device_impl->_dispatch_table, cmd_list, _swapchain_images[0], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+	else
+	{
+		cmd_list = _cmd_impl->begin_commands();
+		transition_layout(vk, cmd_list, _swapchain_images[0], VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+	}
 
 	// Copy region of the source texture
 	if (source_samples == VK_SAMPLE_COUNT_1_BIT)
 	{
 		const VkImageCopy copy_region = {
-			{ VK_IMAGE_ASPECT_COLOR_BIT, 0, layer_index, 1 }, { region.offset.x, region.offset.y, 0 },
-			{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 }, { 0, 0, 0 }, { region.extent.width, region.extent.height, 1 }
+			{ VK_IMAGE_ASPECT_COLOR_BIT, 0, source_layer_index, 1 }, source_region_offset,
+			{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 }, { static_cast<int32_t>(eye * source_region_extent.width), 0, 0 }, source_region_extent
 		};
 		vk.CmdCopyImage(cmd_list, source, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, _swapchain_images[0], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy_region);
 	}
 	else
 	{
 		const VkImageResolve resolve_region = {
-			{ VK_IMAGE_ASPECT_COLOR_BIT, 0, layer_index, 1 }, { region.offset.x, region.offset.y, 0 },
-			{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 }, { 0, 0, 0 }, { region.extent.width, region.extent.height, 1 }
+			{ VK_IMAGE_ASPECT_COLOR_BIT, 0, source_layer_index, 1 }, source_region_offset,
+			{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 }, { static_cast<int32_t>(eye * source_region_extent.width), 0, 0 }, source_region_extent
 		};
 		vk.CmdResolveImage(cmd_list, source, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, _swapchain_images[0], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &resolve_region);
 	}
 
-	transition_layout(_device_impl->_dispatch_table, cmd_list, _swapchain_images[0], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+	transition_layout(vk, cmd_list, _swapchain_images[0], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
-	on_present(queue, 0, wait);
-
-	transition_layout(_device_impl->_dispatch_table, cmd_list, _swapchain_images[0], VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-	transition_layout(_device_impl->_dispatch_table, cmd_list, source, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-
-	// Copy results back into the source texture
-	if (source_samples == VK_SAMPLE_COUNT_1_BIT)
-	{
-		const VkImageCopy copy_region = {
-			{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 }, { 0, 0, 0 },
-			{ VK_IMAGE_ASPECT_COLOR_BIT, 0, layer_index, 1 }, { region.offset.x, region.offset.y, 0 }, { region.extent.width, region.extent.height, 1 }
-		};
-		vk.CmdCopyImage(cmd_list, _swapchain_images[0], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, source, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy_region);
-	}
-	else
-	{
-		// TODO
-		assert(false);
-	}
-
-	transition_layout(_device_impl->_dispatch_table, cmd_list, source, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+	*target_image = _swapchain_images[0];
 
 	return true;
 }

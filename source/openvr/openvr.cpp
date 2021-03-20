@@ -18,9 +18,20 @@
 
 static std::pair<reshade::runtime *, vr::ETextureType> s_vr_runtime = { nullptr, vr::TextureType_Invalid };
 
-extern lockfree_table<void *, reshade::vulkan::device_impl *, 16> g_vulkan_devices;
+static inline vr::VRTextureBounds_t calc_side_by_side_bounds(vr::EVREye eye, const vr::VRTextureBounds_t *orig_bounds)
+{
+	vr::VRTextureBounds_t bounds = (eye == vr::Eye_Left) ?
+		vr::VRTextureBounds_t { 0.0f, 0.0f, 0.5f, 1.0f } :
+		vr::VRTextureBounds_t { 0.5f, 0.0f, 1.0f, 1.0f };
+	if (orig_bounds != nullptr && orig_bounds->uMin > orig_bounds->uMax)
+		std::swap(bounds.uMin, bounds.uMax);
+	if (orig_bounds != nullptr && orig_bounds->vMin > orig_bounds->vMax)
+		std::swap(bounds.vMin, bounds.vMax);
+	return bounds;
+}
 
-static bool on_submit_d3d11(vr::EVREye, ID3D11Texture2D *texture, const vr::VRTextureBounds_t *bounds)
+static vr::EVRCompositorError on_submit_d3d11(vr::EVREye eye, ID3D11Texture2D *texture, const vr::VRTextureBounds_t *bounds, vr::EVRSubmitFlags flags,
+	std::function<vr::EVRCompositorError(vr::EVREye eye, void *texture, const vr::VRTextureBounds_t *bounds, vr::EVRSubmitFlags flags)> submit)
 {
 	if (s_vr_runtime.first == nullptr)
 	{
@@ -29,57 +40,94 @@ static bool on_submit_d3d11(vr::EVREye, ID3D11Texture2D *texture, const vr::VRTe
 		texture->GetDevice(&device);
 		if (UINT data_size = sizeof(device_proxy);
 			FAILED(device->GetPrivateData(__uuidof(D3D11Device), &data_size, reinterpret_cast<void *>(&device_proxy))))
-			return false;
+			return vr::VRCompositorError_RequestFailed;
 
 		s_vr_runtime = { new reshade::d3d11::runtime_impl(device_proxy.get(), device_proxy->_immediate_context, nullptr), vr::TextureType_DirectX };
 	}
 
 	if (s_vr_runtime.second != vr::TextureType_DirectX)
-		return false;
+		return vr::VRCompositorError_InvalidTexture;
 
-	D3D11_TEXTURE2D_DESC tex_desc;
-	texture->GetDesc(&tex_desc);
+	ID3D11Texture2D *target_texture = nullptr;
 
-	D3D11_BOX region = { 0, 0, 0, tex_desc.Width, tex_desc.Height, 1 };
-	if (bounds != nullptr)
+	const auto runtime = static_cast<reshade::d3d11::runtime_impl *>(s_vr_runtime.first);
+	// Copy current eye texture to single side-by-side texture for use by the effect runtime
+	if (!runtime->on_layer_submit(
+		static_cast<UINT>(eye),
+		texture,
+		reinterpret_cast<const float *>(bounds),
+		&target_texture))
 	{
-		region.left = static_cast<UINT>(region.right * std::min(bounds->uMin, bounds->uMax));
-		region.top =   static_cast<UINT>(region.bottom * std::min(bounds->vMin, bounds->vMax));
-		region.right = static_cast<UINT>(region.right * std::max(bounds->uMin, bounds->uMax));
-		region.bottom = static_cast<UINT>(region.bottom * std::max(bounds->vMin, bounds->vMax));
+		// Failed to initialize runtime or copy eye texture, so submit normally
+		return submit(eye, texture, bounds, flags);
 	}
 
-	return static_cast<reshade::d3d11::runtime_impl *>(s_vr_runtime.first)->on_present(texture, region, nullptr);
+	// Skip submission of the first eye and instead submit both left and right eye in one step after application submitted both
+	if (eye != vr::Eye_Right)
+	{
+		return vr::VRCompositorError_None;
+	}
+	else
+	{
+		RESHADE_ADDON_EVENT(present, runtime->get_command_queue(), runtime);
+
+		runtime->on_present();
+
+		// The left and right eye were copied side-by-side to a single texture in 'on_layer_submit', so set bounds accordingly
+		const vr::VRTextureBounds_t left_bounds = calc_side_by_side_bounds(vr::Eye_Left, bounds);
+		submit(vr::Eye_Left, target_texture, &left_bounds, flags);
+		const vr::VRTextureBounds_t right_bounds = calc_side_by_side_bounds(vr::Eye_Right, bounds);
+		return submit(vr::Eye_Right, target_texture, &right_bounds, flags);
+	}
 }
-static bool on_submit_d3d12(vr::EVREye, const vr::D3D12TextureData_t *texture, const vr::VRTextureBounds_t *bounds)
+static vr::EVRCompositorError on_submit_d3d12(vr::EVREye eye, const vr::D3D12TextureData_t *texture, const vr::VRTextureBounds_t *bounds, vr::EVRSubmitFlags flags,
+	std::function<vr::EVRCompositorError(vr::EVREye eye, void *texture, const vr::VRTextureBounds_t *bounds, vr::EVRSubmitFlags flags)> submit)
 {
 	if (s_vr_runtime.first == nullptr)
 	{
 		com_ptr<D3D12CommandQueue> command_queue_proxy;
 		if (FAILED(texture->m_pCommandQueue->QueryInterface(IID_PPV_ARGS(&command_queue_proxy))))
-			return false;
+			return vr::VRCompositorError_RequestFailed;
 
 		s_vr_runtime = { new reshade::d3d12::runtime_impl(command_queue_proxy->_device, command_queue_proxy.get(), nullptr), vr::TextureType_DirectX12 };
 	}
 
 	if (s_vr_runtime.second != vr::TextureType_DirectX12)
-		return false;
+		return vr::VRCompositorError_InvalidTexture;
 
-	const D3D12_RESOURCE_DESC tex_desc = texture->m_pResource->GetDesc();
+	vr::D3D12TextureData_t target_texture = *texture;
 
-	D3D12_BOX region = { 0, 0, 0, static_cast<UINT>(tex_desc.Width), tex_desc.Height, 1 };
-	if (bounds != nullptr)
+	const auto runtime = static_cast<reshade::d3d12::runtime_impl *>(s_vr_runtime.first);
+	// Copy current eye texture to single side-by-side texture for use by the effect runtime
+	if (!runtime->on_layer_submit(
+		static_cast<UINT>(eye),
+		texture->m_pResource, // Resource should be in D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE state at this point
+		reinterpret_cast<const float *>(bounds),
+		&target_texture.m_pResource))
 	{
-		region.left = static_cast<UINT>(region.right * std::min(bounds->uMin, bounds->uMax));
-		region.top =   static_cast<UINT>(region.bottom * std::min(bounds->vMin, bounds->vMax));
-		region.right = static_cast<UINT>(region.right * std::max(bounds->uMin, bounds->uMax));
-		region.bottom = static_cast<UINT>(region.bottom * std::max(bounds->vMin, bounds->vMax));
+		// Failed to initialize runtime or copy eye texture, so submit normally
+		return submit(eye, (void *)texture, bounds, flags);
 	}
 
-	// Resource should be in D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE state at this point
-	return static_cast<reshade::d3d12::runtime_impl *>(s_vr_runtime.first)->on_present(texture->m_pResource, region, nullptr);
+	// Skip submission of the first eye and instead submit both left and right eye in one step after application submitted both
+	if (eye != vr::Eye_Right)
+	{
+		return vr::VRCompositorError_None;
+	}
+	else
+	{
+		RESHADE_ADDON_EVENT(present, runtime->get_command_queue(), runtime);
+
+		runtime->on_present();
+
+		const vr::VRTextureBounds_t left_bounds = calc_side_by_side_bounds(vr::Eye_Left, bounds);
+		submit(vr::Eye_Left, &target_texture, &left_bounds, flags);
+		const vr::VRTextureBounds_t right_bounds = calc_side_by_side_bounds(vr::Eye_Right, bounds);
+		return submit(vr::Eye_Right, &target_texture, &right_bounds, flags);
+	}
 }
-static bool on_submit_opengl(vr::EVREye, GLuint object, bool is_rbo, bool is_array, const vr::VRTextureBounds_t *bounds)
+static vr::EVRCompositorError on_submit_opengl(vr::EVREye eye, GLuint object, const vr::VRTextureBounds_t *bounds, vr::EVRSubmitFlags flags,
+	std::function<vr::EVRCompositorError(vr::EVREye eye, void *texture, const vr::VRTextureBounds_t *bounds, vr::EVRSubmitFlags flags)> submit)
 {
 	if (s_vr_runtime.first == nullptr)
 	{
@@ -90,155 +138,211 @@ static bool on_submit_opengl(vr::EVREye, GLuint object, bool is_rbo, bool is_arr
 	}
 
 	if (s_vr_runtime.second != vr::TextureType_OpenGL)
-		return false;
+		return vr::VRCompositorError_InvalidTexture;
 
-	reshade::api::resource_desc object_desc = static_cast<reshade::opengl::runtime_impl *>(s_vr_runtime.first)->get_resource_desc(
-		reshade::opengl::make_resource_handle(is_rbo ? GL_RENDERBUFFER : GL_TEXTURE, object), nullptr, nullptr);
+	GLuint target_rbo = 0;
 
-	GLint region[4] = { 0, 0, static_cast<GLint>(object_desc.width), static_cast<GLint>(object_desc.height) };
-	if (bounds != nullptr)
+	const auto runtime = static_cast<reshade::opengl::runtime_impl *>(s_vr_runtime.first);
+	// Copy current eye texture to single side-by-side texture for use by the effect runtime
+	if (!runtime->on_layer_submit(
+		static_cast<uint32_t>(eye),
+		object,
+		(flags & vr::Submit_GlRenderBuffer) != 0,
+		(flags & vr::Submit_GlArrayTexture) != 0,
+		reinterpret_cast<const float *>(bounds),
+		&target_rbo))
 	{
-		region[0] = static_cast<GLint>(object_desc.width * std::min(bounds->uMin, bounds->uMax));
-		region[1] = static_cast<GLint>(object_desc.height * std::min(bounds->vMin, bounds->vMax));
-		region[2] = static_cast<GLint>(object_desc.width * std::max(bounds->uMin, bounds->uMax));
-		region[3] = static_cast<GLint>(object_desc.height * std::max(bounds->vMin, bounds->vMax));
+		// Failed to initialize runtime or copy eye texture, so submit normally
+		return submit(eye, reinterpret_cast<void *>(static_cast<uintptr_t>(object)), bounds, flags);
 	}
 
-	return static_cast<reshade::opengl::runtime_impl *>(s_vr_runtime.first)->on_present(object, is_rbo, is_array, object_desc.width, object_desc.height, region);
+	// Skip submission of the first eye and instead submit both left and right eye in one step after application submitted both
+	if (eye != vr::Eye_Right)
+	{
+		return vr::VRCompositorError_None;
+	}
+	else
+	{
+		RESHADE_ADDON_EVENT(present, runtime->get_command_queue(), runtime);
+
+		// Skip copy, data was already copied in 'on_layer_submit' above
+		runtime->on_present(false);
+
+		// Target object created in 'on_layer_submit' is a RBO, not a texture or array texture
+		flags = static_cast<vr::EVRSubmitFlags>((flags & ~vr::Submit_GlArrayTexture) | vr::Submit_GlRenderBuffer);
+
+		const vr::VRTextureBounds_t left_bounds = calc_side_by_side_bounds(vr::Eye_Left, bounds);
+		submit(vr::Eye_Left, reinterpret_cast<void *>(static_cast<uintptr_t>(target_rbo)), &left_bounds, flags);
+		const vr::VRTextureBounds_t right_bounds = calc_side_by_side_bounds(vr::Eye_Right, bounds);
+		return submit(vr::Eye_Right, reinterpret_cast<void *>(static_cast<uintptr_t>(target_rbo)), &right_bounds, flags);
+	}
 }
-static bool on_submit_vulkan(vr::EVREye, const vr::VRVulkanTextureData_t *texture, bool with_array_data, const vr::VRTextureBounds_t *bounds)
+static vr::EVRCompositorError on_submit_vulkan(vr::EVREye eye, const vr::VRVulkanTextureData_t *texture, const vr::VRTextureBounds_t *bounds, vr::EVRSubmitFlags flags,
+	std::function<vr::EVRCompositorError(vr::EVREye eye, void *texture, const vr::VRTextureBounds_t *bounds, vr::EVRSubmitFlags flags)> submit)
 {
 	if (s_vr_runtime.first == nullptr)
 	{
+		extern lockfree_table<void *, reshade::vulkan::device_impl *, 16> g_vulkan_devices;
 		reshade::vulkan::device_impl *const device = g_vulkan_devices.at(dispatch_key_from_handle(texture->m_pDevice));
 		if (device == nullptr)
-			return false;
+			return vr::VRCompositorError_RequestFailed;
 
 		const auto queue_it = std::find_if(device->_queues.begin(), device->_queues.end(),
 			[texture](reshade::vulkan::command_queue_impl *queue) { return queue->_orig == texture->m_pQueue; });
 		if (queue_it == device->_queues.end())
-			return false;
+			return vr::VRCompositorError_RequestFailed;
 
 		// OpenVR requires the passed in queue to be a graphics queue, so can safely use it
 		s_vr_runtime = { new reshade::vulkan::runtime_impl(device, *queue_it), vr::TextureType_Vulkan };
 	}
 
 	if (s_vr_runtime.second != vr::TextureType_Vulkan)
-		return false;
+		return vr::VRCompositorError_InvalidTexture;
 
-	VkRect2D region = {
-		VkOffset2D { 0, 0 },
-		VkExtent2D { texture->m_nWidth, texture->m_nHeight }
-	};
-	if (bounds != nullptr)
-	{
-		region.offset.x = static_cast<int32_t>(texture->m_nWidth * std::min(bounds->uMin, bounds->uMax));
-		region.extent.width = static_cast<uint32_t>(texture->m_nWidth * std::max(bounds->uMin, bounds->uMax) - region.offset.x);
-		region.offset.y = static_cast<int32_t>(texture->m_nHeight * std::min(bounds->vMin, bounds->vMax));
-		region.extent.height = static_cast<uint32_t>(texture->m_nHeight * std::max(bounds->vMin, bounds->vMax) - region.offset.y);
-	}
+	VkImage target_image = VK_NULL_HANDLE;
 
-	const uint32_t layer_index = with_array_data ? static_cast<const vr::VRVulkanTextureArrayData_t *>(texture)->m_unArrayIndex : 0;
-
-	// Image should be in VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL layout at this point
-	std::vector<VkSemaphore> wait_semaphores;
-	return static_cast<reshade::vulkan::runtime_impl *>(s_vr_runtime.first)->on_present(
-		texture->m_pQueue,
-		(VkImage)texture->m_nImage,
+	const auto runtime = static_cast<reshade::vulkan::runtime_impl *>(s_vr_runtime.first);
+	// Copy current eye texture to single side-by-side texture for use by the effect runtime
+	if (!runtime->on_layer_submit(
+		static_cast<uint32_t>(eye),
+		(VkImage)texture->m_nImage, // Image should be in VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL layout at this point
+		VkExtent2D { texture->m_nWidth, texture->m_nHeight },
 		static_cast<VkFormat>(texture->m_nFormat),
 		static_cast<VkSampleCountFlags>(texture->m_nSampleCount),
-		region,
-		layer_index,
-		nullptr,
-		wait_semaphores);
+		(flags & vr::Submit_VulkanTextureWithArrayData) != 0 ? static_cast<const vr::VRVulkanTextureArrayData_t *>(texture)->m_unArrayIndex : 0,
+		reinterpret_cast<const float *>(bounds),
+		&target_image))
+	{
+		// Failed to initialize runtime or copy eye texture, so submit normally
+		return submit(eye, (void *)texture, bounds, flags);
+	}
+
+	// Skip submission of the first eye and instead submit both left and right eye in one step after application submitted both
+	if (eye != vr::Eye_Right)
+	{
+		return vr::VRCompositorError_None;
+	}
+	else
+	{
+		RESHADE_ADDON_EVENT(present, runtime->get_command_queue(), runtime);
+
+		std::vector<VkSemaphore> wait_semaphores;
+		runtime->on_present(texture->m_pQueue, 0, wait_semaphores);
+
+		auto target_texture = *texture;
+		target_texture.m_nImage = (uint64_t)target_image;
+		// Multisampled source textures were already resolved in 'on_layer_submit', so sample count is always one at this point
+		target_texture.m_nSampleCount = 1;
+		runtime->get_frame_width_and_height(&target_texture.m_nWidth, &target_texture.m_nHeight);
+		// Target texture created in 'on_layer_submit' is not an array texture
+		flags = static_cast<vr::EVRSubmitFlags>(flags & ~vr::Submit_VulkanTextureWithArrayData);
+
+		const vr::VRTextureBounds_t left_bounds = calc_side_by_side_bounds(vr::Eye_Left, bounds);
+		submit(vr::Eye_Left, &target_texture, &left_bounds, flags);
+		const vr::VRTextureBounds_t right_bounds = calc_side_by_side_bounds(vr::Eye_Right, bounds);
+		return submit(vr::Eye_Right, &target_texture, &right_bounds, flags);
+	}
 }
 
 #ifdef WIN64
 	#define IVRCompositor_Submit_Impl(vtable_offset, interface_version, impl) \
 		static vr::EVRCompositorError IVRCompositor_Submit_##interface_version(vr::IVRCompositor *pCompositor, IVRCompositor_Submit_##interface_version##_ArgTypes) \
 		{ \
-			if (pTexture == nullptr) \
-				return vr::VRCompositorError_InvalidTexture; \
-			bool status = false; \
-			impl \
-			if (!status) \
-				return vr::VRCompositorError_InvalidTexture; \
 			static const auto trampoline = reshade::hooks::call(IVRCompositor_Submit_##interface_version, vtable_from_instance(pCompositor) + vtable_offset); \
-			return trampoline(pCompositor, IVRCompositor_Submit_##interface_version##_ArgNames); \
+			if (pTexture != nullptr) \
+				impl \
+			return vr::VRCompositorError_InvalidTexture; \
 		}
+	#define IVRCompositor_Submit_Call(...) trampoline(pCompositor, __VA_ARGS__)
 #else
 	// The 'IVRCompositor' functions use the __thiscall calling convention on x86, so need to emulate that with __fastcall and a dummy second argument which passes along the EDX register value
 	#define IVRCompositor_Submit_Impl(vtable_offset, interface_version, impl) \
 		static vr::EVRCompositorError __fastcall IVRCompositor_Submit_##interface_version(vr::IVRCompositor *pCompositor, void *EDX, IVRCompositor_Submit_##interface_version##_ArgTypes) \
 		{ \
-			if (pTexture == nullptr) \
-				return vr::VRCompositorError_InvalidTexture; \
-			bool status = false; \
-			impl \
-			if (!status) \
-				return vr::VRCompositorError_InvalidTexture; \
 			static const auto trampoline = reshade::hooks::call(IVRCompositor_Submit_##interface_version, vtable_from_instance(pCompositor) + vtable_offset); \
-			return trampoline(pCompositor, EDX, IVRCompositor_Submit_##interface_version##_ArgNames); \
+			if (pTexture != nullptr) \
+				impl \
+			return vr::VRCompositorError_InvalidTexture; \
 		}
+	#define IVRCompositor_Submit_Call(...) trampoline(pCompositor, EDX, __VA_ARGS__)
 #endif
 
 #define IVRCompositor_Submit_007_ArgTypes vr::EVREye eEye, /* vr::GraphicsAPIConvention */ unsigned int eTextureType, void *pTexture, const vr::VRTextureBounds_t *pBounds
-#define IVRCompositor_Submit_007_ArgNames eEye, eTextureType, pTexture, pBounds
-
 #define IVRCompositor_Submit_008_ArgTypes vr::EVREye eEye, /* vr::GraphicsAPIConvention */ unsigned int eTextureType, void *pTexture, const vr::VRTextureBounds_t *pBounds, vr::EVRSubmitFlags nSubmitFlags
-#define IVRCompositor_Submit_008_ArgNames eEye, eTextureType, pTexture, pBounds, nSubmitFlags
-
 #define IVRCompositor_Submit_009_ArgTypes vr::EVREye eEye, const vr::Texture_t *pTexture, const vr::VRTextureBounds_t *pBounds, vr::EVRSubmitFlags nSubmitFlags
-#define IVRCompositor_Submit_009_ArgNames eEye, pTexture, pBounds, nSubmitFlags
-
 #define IVRCompositor_Submit_012_ArgTypes vr::EVREye eEye, const vr::Texture_t *pTexture, const vr::VRTextureBounds_t *pBounds, vr::EVRSubmitFlags nSubmitFlags
-#define IVRCompositor_Submit_012_ArgNames eEye, pTexture, pBounds, nSubmitFlags
 
 IVRCompositor_Submit_Impl(6, 007, {
+	const auto submit_lambda = [&](vr::EVREye eye, void *handle, const vr::VRTextureBounds_t *bounds, vr::EVRSubmitFlags flags) {
+		assert(flags == vr::Submit_Default);
+		return IVRCompositor_Submit_Call(eye, eTextureType, handle, bounds);
+	};
 	switch (eTextureType)
 	{
 	case 0: // API_DirectX
-		status = on_submit_d3d11(eEye, static_cast<ID3D11Texture2D *>(pTexture), pBounds);
-		break;
+		return on_submit_d3d11(eEye, static_cast<ID3D11Texture2D *>(pTexture), pBounds, vr::Submit_Default, submit_lambda);
 	case 1: // API_OpenGL
-		status = on_submit_opengl(eEye, static_cast<GLuint>(reinterpret_cast<uintptr_t>(pTexture)), false, false, pBounds);
-		break;
+		return submit_lambda(eEye, pTexture, pBounds, vr::Submit_Default); // Unsupported because overwritting would require the 'vr::Submit_GlRenderBuffer' flag, but it did not yet exist in this OpenVR version
 	} })
 IVRCompositor_Submit_Impl(6, 008, {
+	const auto submit_lambda = [&](vr::EVREye eye, void *handle, const vr::VRTextureBounds_t *bounds, vr::EVRSubmitFlags flags) {
+		return IVRCompositor_Submit_Call(eye, eTextureType, handle, bounds, flags);
+	};
 	switch (eTextureType)
 	{
 	case 0: // API_DirectX
-		status = on_submit_d3d11(eEye, static_cast<ID3D11Texture2D *>(pTexture), pBounds);
-		break;
+		return on_submit_d3d11(eEye, static_cast<ID3D11Texture2D *>(pTexture), pBounds, nSubmitFlags, submit_lambda);
 	case 1: // API_OpenGL
-		status = on_submit_opengl(eEye, static_cast<GLuint>(reinterpret_cast<uintptr_t>(pTexture)), (nSubmitFlags & vr::Submit_GlRenderBuffer) != 0, false, pBounds);
-		break;
+		return on_submit_opengl(eEye, static_cast<GLuint>(reinterpret_cast<uintptr_t>(pTexture)), pBounds, nSubmitFlags, submit_lambda);
 	} })
 IVRCompositor_Submit_Impl(4, 009, {
+	const auto submit_lambda = [&](vr::EVREye eye, void *handle, const vr::VRTextureBounds_t *bounds, vr::EVRSubmitFlags flags) {
+		vr::Texture_t texture;
+		texture.handle = handle;
+		texture.eType = pTexture->eType;
+		texture.eColorSpace = pTexture->eColorSpace;
+		return IVRCompositor_Submit_Call(eye, &texture, bounds, flags);
+	};
 	switch (pTexture->eType)
 	{
 	case vr::TextureType_DirectX:
-		status = on_submit_d3d11(eEye, static_cast<ID3D11Texture2D *>(pTexture->handle), pBounds);
-		break;
+		return on_submit_d3d11(eEye, static_cast<ID3D11Texture2D *>(pTexture->handle), pBounds, nSubmitFlags, submit_lambda);
 	case vr::TextureType_OpenGL:
-		status = on_submit_opengl(eEye, static_cast<GLuint>(reinterpret_cast<uintptr_t>(pTexture->handle)), (nSubmitFlags & vr::Submit_GlRenderBuffer) != 0, false, pBounds);
-		break;
+		return on_submit_opengl(eEye, static_cast<GLuint>(reinterpret_cast<uintptr_t>(pTexture->handle)), pBounds, nSubmitFlags, submit_lambda);
 	} })
 IVRCompositor_Submit_Impl(5, 012, {
+	// Keep track of pose and depth information of both eyes
+	static vr::VRTextureWithPoseAndDepth_t s_last_texture[2];
+	switch (nSubmitFlags & (vr::Submit_TextureWithPose | vr::Submit_TextureWithDepth))
+	{
+	case 0:
+		std::memcpy(&s_last_texture[eEye], pTexture, sizeof(vr::Texture_t));
+		break;
+	case vr::Submit_TextureWithPose:
+		std::memcpy(&s_last_texture[eEye], pTexture, sizeof(vr::VRTextureWithPose_t));
+		break;
+	case vr::Submit_TextureWithDepth:
+		std::memcpy(&s_last_texture[eEye], pTexture, sizeof(vr::VRTextureWithDepth_t));
+		break;
+	case vr::Submit_TextureWithPose | vr::Submit_TextureWithDepth:
+		std::memcpy(&s_last_texture[eEye], pTexture, sizeof(vr::VRTextureWithPoseAndDepth_t));
+		break;
+	}
+	const auto submit_lambda = [&](vr::EVREye eye, void *handle, const vr::VRTextureBounds_t *bounds, vr::EVRSubmitFlags flags) {
+		vr::VRTextureWithPoseAndDepth_t texture = s_last_texture[eye];
+		texture.handle = handle;
+		return IVRCompositor_Submit_Call(eye, &texture, bounds, flags);
+	};
 	switch (pTexture->eType)
 	{
 	case vr::TextureType_DirectX:
-		status = on_submit_d3d11(eEye, static_cast<ID3D11Texture2D *>(pTexture->handle), pBounds);
-		break;
+		return on_submit_d3d11(eEye, static_cast<ID3D11Texture2D *>(pTexture->handle), pBounds, nSubmitFlags, submit_lambda);
 	case vr::TextureType_DirectX12:
-		status = on_submit_d3d12(eEye, static_cast<const vr::D3D12TextureData_t *>(pTexture->handle), pBounds);
-		break;
+		return on_submit_d3d12(eEye, static_cast<const vr::D3D12TextureData_t *>(pTexture->handle), pBounds, nSubmitFlags, submit_lambda);
 	case vr::TextureType_OpenGL:
-		status = on_submit_opengl(eEye, static_cast<GLuint>(reinterpret_cast<uintptr_t>(pTexture->handle)), (nSubmitFlags & vr::Submit_GlRenderBuffer) != 0, (nSubmitFlags & vr::Submit_GlArrayTexture) != 0, pBounds);
-		break;
+		return on_submit_opengl(eEye, static_cast<GLuint>(reinterpret_cast<uintptr_t>(pTexture->handle)), pBounds, nSubmitFlags, submit_lambda);
 	case vr::TextureType_Vulkan:
-		status = on_submit_vulkan(eEye, static_cast<const vr::VRVulkanTextureData_t *>(pTexture->handle), (nSubmitFlags & vr::Submit_VulkanTextureWithArrayData) != 0, pBounds);
-		break;
+		return on_submit_vulkan(eEye, static_cast<const vr::VRVulkanTextureData_t *>(pTexture->handle), pBounds, nSubmitFlags, submit_lambda);
 	} })
 
 HOOK_EXPORT uint32_t VR_CALLTYPE VR_InitInternal2(vr::EVRInitError *peError, vr::EVRApplicationType eApplicationType, const char *pStartupInfo)

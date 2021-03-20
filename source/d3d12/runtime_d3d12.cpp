@@ -344,27 +344,38 @@ bool reshade::d3d12::runtime_impl::on_present(ID3D12Resource *source, HWND hwnd)
 	on_present();
 	return true;
 }
-bool reshade::d3d12::runtime_impl::on_present(ID3D12Resource *source, const D3D12_BOX &region, HWND hwnd)
+bool reshade::d3d12::runtime_impl::on_layer_submit(UINT eye, ID3D12Resource *source, const float bounds[4], ID3D12Resource **target)
 {
-	assert(source != nullptr);
+	assert(eye < 2 && source != nullptr);
 
 	D3D12_RESOURCE_DESC source_desc = source->GetDesc();
 
-	const UINT region_width = region.right - region.left;
-	const UINT region_height = region.bottom - region.top;
-	assert((region.back - region.front) == 1);
+	if (source_desc.SampleDesc.Count > 1)
+		return false; // When the resource is multisampled, 'CopyTextureRegion' can only copy whole subresources
 
-	if (region_width != _width || region_height != _height || source_desc.Format != _backbuffer_format)
+	D3D12_BOX source_region = { 0, 0, 0, static_cast<UINT>(source_desc.Width), source_desc.Height, 1 };
+	if (bounds != nullptr)
+	{
+		source_region.left = static_cast<UINT>(source_desc.Width * std::min(bounds[0], bounds[2]));
+		source_region.top  = static_cast<UINT>(source_desc.Height * std::min(bounds[1], bounds[3]));
+		source_region.right = static_cast<UINT>(source_desc.Width * std::max(bounds[0], bounds[2]));
+		source_region.bottom = static_cast<UINT>(source_desc.Height * std::max(bounds[1], bounds[3]));
+	}
+
+	const UINT region_width = source_region.right - source_region.left;
+	const UINT target_width = region_width * 2;
+	const UINT region_height = source_region.bottom - source_region.top;
+
+	if (target_width != _width || region_height != _height || source_desc.Format != _backbuffer_format)
 	{
 		on_reset();
 
 		DXGI_SWAP_CHAIN_DESC swap_desc = {};
-		swap_desc.BufferDesc.Width = region_width;
+		swap_desc.BufferDesc.Width = target_width;
 		swap_desc.BufferDesc.Height = region_height;
 		swap_desc.BufferDesc.Format = source_desc.Format;
 		swap_desc.SampleDesc = source_desc.SampleDesc;
 		swap_desc.BufferCount = 1;
-		swap_desc.OutputWindow = hwnd;
 
 		if (!on_init(swap_desc))
 		{
@@ -374,13 +385,15 @@ bool reshade::d3d12::runtime_impl::on_present(ID3D12Resource *source, const D3D1
 
 		assert(_backbuffers.size() == 1);
 
-		source_desc.Width = region_width;
+		source_desc.Width = target_width;
 		source_desc.Height = region_height;
+		source_desc.DepthOrArraySize = 1;
+		source_desc.MipLevels = 1;
 		source_desc.Format = make_dxgi_format_typeless(source_desc.Format);
 
 		const D3D12_HEAP_PROPERTIES heap_props = { D3D12_HEAP_TYPE_DEFAULT };
 
-		if (HRESULT hr = _device->CreateCommittedResource(&heap_props, D3D12_HEAP_FLAG_NONE, &source_desc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&_backbuffers[0])); FAILED(hr))
+		if (HRESULT hr = _device->CreateCommittedResource(&heap_props, D3D12_HEAP_FLAG_NONE, &source_desc, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&_backbuffers[0])); FAILED(hr))
 		{
 			LOG(ERROR) << "Failed to create region texture! HRESULT is " << hr << '.';
 			return false;
@@ -406,39 +419,25 @@ bool reshade::d3d12::runtime_impl::on_present(ID3D12Resource *source, const D3D1
 	transitions[0] = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
 	transitions[0].Transition.pResource = source;
 	transitions[0].Transition.Subresource = 0;
+	transitions[0].Transition.StateBefore = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+	transitions[0].Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
 	transitions[1] = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
 	transitions[1].Transition.pResource = _backbuffers[0].get();
 	transitions[1].Transition.Subresource = 0;
-
-	transitions[0].Transition.StateBefore = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-	transitions[0].Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
-	cmd_list->ResourceBarrier(1, &transitions[0]);
+	transitions[1].Transition.StateBefore = D3D12_RESOURCE_STATE_COMMON;
+	transitions[1].Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
+	cmd_list->ResourceBarrier(2, transitions);
 
 	// Copy region of the source texture
 	const D3D12_TEXTURE_COPY_LOCATION src_location = { source, D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX };
 	const D3D12_TEXTURE_COPY_LOCATION dest_location = { _backbuffers[0].get(), D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX };
-	cmd_list->CopyTextureRegion(&dest_location, 0, 0, 0, &src_location, &region);
+	cmd_list->CopyTextureRegion(&dest_location, eye * region_width, 0, 0, &src_location, &source_region);
 
-	transitions[1].Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
-	transitions[1].Transition.StateAfter = D3D12_RESOURCE_STATE_COMMON;
-	cmd_list->ResourceBarrier(1, &transitions[1]);
+	std::swap(transitions[0].Transition.StateBefore, transitions[0].Transition.StateAfter);
+	std::swap(transitions[1].Transition.StateBefore, transitions[1].Transition.StateAfter);
+	cmd_list->ResourceBarrier(2, transitions);
 
-	on_present();
-
-	transitions[0].Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_SOURCE;
-	transitions[0].Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
-	transitions[1].Transition.StateBefore = D3D12_RESOURCE_STATE_COMMON;
-	transitions[1].Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
-	cmd_list->ResourceBarrier(2, &transitions[0]);
-
-	// Copy results back into the source texture
-	cmd_list->CopyTextureRegion(&src_location, region.left, region.top, region.front, &dest_location, nullptr);
-
-	transitions[0].Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
-	transitions[0].Transition.StateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-	transitions[1].Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_SOURCE;
-	transitions[1].Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
-	cmd_list->ResourceBarrier(2, &transitions[0]);
+	*target = _backbuffers[0].get();
 
 	return true;
 }

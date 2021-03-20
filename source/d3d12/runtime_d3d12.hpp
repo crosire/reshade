@@ -24,7 +24,7 @@ namespace reshade::d3d12
 		void on_reset();
 		void on_present();
 		bool on_present(ID3D12Resource *source, HWND hwnd);
-		bool on_present(ID3D12Resource *source, const D3D12_BOX &region, HWND hwnd);
+		bool on_layer_submit(UINT eye, ID3D12Resource *source, const float bounds[4], ID3D12Resource **target);
 
 		bool capture_screenshot(uint8_t *buffer) const final;
 
