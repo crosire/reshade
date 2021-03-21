@@ -2086,6 +2086,9 @@ void reshade::runtime::reset_uniform_value(uniform &variable)
 
 void reshade::runtime::update_uniform_variables(const char *source, const bool *values, size_t count, size_t array_index)
 {
+	if (is_loading())
+		return;
+
 	for (effect &effect : _effects)
 		for (uniform &variable : effect.uniforms)
 			if (variable.annotation_as_string("source") == source)
@@ -2093,6 +2096,9 @@ void reshade::runtime::update_uniform_variables(const char *source, const bool *
 }
 void reshade::runtime::update_uniform_variables(const char *source, const float *values, size_t count, size_t array_index)
 {
+	if (is_loading())
+		return;
+
 	for (effect &effect : _effects)
 		for (uniform &variable : effect.uniforms)
 			if (variable.annotation_as_string("source") == source)
@@ -2100,6 +2106,9 @@ void reshade::runtime::update_uniform_variables(const char *source, const float 
 }
 void reshade::runtime::update_uniform_variables(const char *source, const int32_t *values, size_t count, size_t array_index)
 {
+	if (is_loading())
+		return;
+
 	for (effect &effect : _effects)
 		for (uniform &variable : effect.uniforms)
 			if (variable.annotation_as_string("source") == source)
@@ -2107,6 +2116,9 @@ void reshade::runtime::update_uniform_variables(const char *source, const int32_
 }
 void reshade::runtime::update_uniform_variables(const char *source, const uint32_t *values, size_t count, size_t array_index)
 {
+	if (is_loading())
+		return;
+
 	for (effect &effect : _effects)
 		for (uniform &variable : effect.uniforms)
 			if (variable.annotation_as_string("source") == source)
