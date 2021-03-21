@@ -167,6 +167,8 @@ extern "C" void WINAPI glScissorArrayv(GLuint first, GLsizei count, const GLint 
 extern "C" void WINAPI glScissorIndexed(GLuint index, GLint left, GLint bottom, GLsizei width, GLsizei height);
 #undef glScissorIndexedv
 extern "C" void WINAPI glScissorIndexedv(GLuint index, const GLint *v);
+#undef glShaderSource
+extern "C" void WINAPI glShaderSource(GLuint shader, GLsizei count, const GLchar *const *string, const GLint *length);
 #undef glStencilFunc
 extern "C" void WINAPI glStencilFunc(GLenum func, GLint ref, GLuint mask);
 #undef glStencilMask

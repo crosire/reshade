@@ -798,6 +798,28 @@ void     VKAPI_CALL vkDestroyImageView(VkDevice device, VkImageView imageView, c
 	trampoline(device, imageView, pAllocator);
 }
 
+VkResult VKAPI_CALL vkCreateShaderModule(VkDevice device, const VkShaderModuleCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkShaderModule *pShaderModule)
+{
+	assert(pCreateInfo != nullptr && pShaderModule != nullptr);
+
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
+	assert(device_impl != nullptr);
+
+	RESHADE_ADDON_EVENT(create_shader_module, device_impl, pCreateInfo->pCode, pCreateInfo->codeSize);
+
+	GET_DISPATCH_PTR_FROM(CreateShaderModule, device_impl);
+	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pShaderModule);
+	if (result != VK_SUCCESS)
+	{
+#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
+		LOG(WARN) << "vkCreateShaderModule" << " failed with error code " << result << '.';
+#endif
+		return result;
+	}
+
+	return VK_SUCCESS;
+}
+
 VkResult VKAPI_CALL vkCreateRenderPass(VkDevice device, const VkRenderPassCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkRenderPass *pRenderPass)
 {
 	assert(pCreateInfo != nullptr && pRenderPass != nullptr);

@@ -1865,6 +1865,37 @@ HOOK_EXPORT void WINAPI glShadeModel(GLenum mode)
 	trampoline(mode);
 }
 
+			void WINAPI glShaderSource(GLuint shader, GLsizei count, const GLchar *const *string, const GLint *length)
+{
+	std::string combined_source;
+	if (length != nullptr)
+	{
+		combined_source.reserve(length[0]);
+		for (GLsizei i = 0; i < count; ++i)
+			combined_source.append(string[i], length[i]);
+	}
+	else
+	{
+		for (GLsizei i = 0; i < count; ++i)
+			combined_source.append(string[i]);
+	}
+
+	const auto combined_source_p = combined_source.c_str();
+	const auto combined_source_length = static_cast<GLint>(combined_source.size());
+
+	if (g_current_runtime)
+	{
+		RESHADE_ADDON_EVENT(create_shader_module, g_current_runtime, combined_source.data(), combined_source.size());
+
+		count  = 1;
+		string = &combined_source_p;
+		length = &combined_source_length;
+	}
+
+	static const auto trampoline = reshade::hooks::call(glShaderSource);
+	trampoline(shader, count, string, length);
+}
+
 HOOK_EXPORT void WINAPI glStencilFunc(GLenum func, GLint ref, GLuint mask)
 {
 	static const auto trampoline = reshade::hooks::call(glStencilFunc);

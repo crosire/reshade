@@ -986,6 +986,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetFVF(DWORD *pFVF)
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexShader(const DWORD *pFunction, IDirect3DVertexShader9 **ppShader)
 {
+	if (pFunction == nullptr)
+		return D3DERR_INVALIDCALL;
+
+	// Total size is at byte offset 24 (see http://timjones.io/blog/archive/2015/09/02/parsing-direct3d-shader-bytecode)
+	const DWORD total_size = pFunction[6];
+	RESHADE_ADDON_EVENT(create_shader_module, this, pFunction, total_size);
+
 	return _orig->CreateVertexShader(pFunction, ppShader);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetVertexShader(IDirect3DVertexShader9 *pShader)
@@ -1063,6 +1070,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetIndices(IDirect3DIndexBuffer9 **pp
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreatePixelShader(const DWORD *pFunction, IDirect3DPixelShader9 **ppShader)
 {
+	if (pFunction == nullptr)
+		return D3DERR_INVALIDCALL;
+
+	// Total size is at byte offset 24 (see http://timjones.io/blog/archive/2015/09/02/parsing-direct3d-shader-bytecode)
+	const DWORD total_size = pFunction[6];
+	RESHADE_ADDON_EVENT(create_shader_module, this, pFunction, total_size);
+
 	return _orig->CreatePixelShader(pFunction, ppShader);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetPixelShader(IDirect3DPixelShader9 *pShader)

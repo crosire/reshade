@@ -185,10 +185,28 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandAllocator(D3D12_COMMAND_LIST
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateGraphicsPipelineState(const D3D12_GRAPHICS_PIPELINE_STATE_DESC *pDesc, REFIID riid, void **ppPipelineState)
 {
+	assert(pDesc != nullptr);
+
+	if (pDesc->VS.BytecodeLength != 0)
+		RESHADE_ADDON_EVENT(create_shader_module, this, pDesc->VS.pShaderBytecode, pDesc->VS.BytecodeLength);
+	if (pDesc->PS.BytecodeLength != 0)
+		RESHADE_ADDON_EVENT(create_shader_module, this, pDesc->PS.pShaderBytecode, pDesc->PS.BytecodeLength);
+	if (pDesc->DS.BytecodeLength != 0)
+		RESHADE_ADDON_EVENT(create_shader_module, this, pDesc->DS.pShaderBytecode, pDesc->DS.BytecodeLength);
+	if (pDesc->HS.BytecodeLength != 0)
+		RESHADE_ADDON_EVENT(create_shader_module, this, pDesc->HS.pShaderBytecode, pDesc->HS.BytecodeLength);
+	if (pDesc->GS.BytecodeLength != 0)
+		RESHADE_ADDON_EVENT(create_shader_module, this, pDesc->GS.pShaderBytecode, pDesc->GS.BytecodeLength);
+
 	return _orig->CreateGraphicsPipelineState(pDesc, riid, ppPipelineState);
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateComputePipelineState(const D3D12_COMPUTE_PIPELINE_STATE_DESC *pDesc, REFIID riid, void **ppPipelineState)
 {
+	assert(pDesc != nullptr);
+
+	if (pDesc->CS.BytecodeLength != 0)
+		RESHADE_ADDON_EVENT(create_shader_module, this, pDesc->CS.pShaderBytecode, pDesc->CS.BytecodeLength);
+
 	return _orig->CreateComputePipelineState(pDesc, riid, ppPipelineState);
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandList(UINT nodeMask, D3D12_COMMAND_LIST_TYPE type, ID3D12CommandAllocator *pCommandAllocator, ID3D12PipelineState *pInitialState, REFIID riid, void **ppCommandList)

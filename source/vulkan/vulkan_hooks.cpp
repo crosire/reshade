@@ -31,6 +31,7 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	HOOK_PROC(DestroyImage);
 	HOOK_PROC(CreateImageView);
 	HOOK_PROC(DestroyImageView);
+	HOOK_PROC(CreateShaderModule);
 	HOOK_PROC(CreateRenderPass);
 	HOOK_PROC(CreateRenderPass2);
 	if (0 == strcmp(pName, "vkCreateRenderPass2KHR"))

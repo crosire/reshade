@@ -1159,6 +1159,7 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glScissorArrayv);
 		HOOK_PROC(glScissorIndexed);
 		HOOK_PROC(glScissorIndexedv);
+		HOOK_PROC(glShaderSource);
 		HOOK_PROC(glTexBuffer);
 		HOOK_PROC(glTextureBuffer);
 		HOOK_PROC(glTexBufferRange);

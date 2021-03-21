@@ -65,6 +65,11 @@ namespace reshade
 		/// <para>Callback function signature: <c>void (api::device *device, api::resource_handle resource, api::resource_usage usage_type, api::resource_view_desc *desc)</c></para>
 		/// </summary>
 		create_resource_view,
+		/// <summary>
+		/// Called before 'IDirect3DDevice9::Create(...)Shader', 'ID3D10Device::Create(...)Shader', 'ID3D11Device::Create(...)Shader', 'ID3D12Device::Create(...)PipelineState', 'glShaderSource' or 'vkCreateShaderModule'.
+		/// <para>Callback function signature: <c>void (api::device *device, const void *code, size_t code_size)</c></para>
+		/// </summary>
+		create_shader_module,
 
 		/// <summary>
 		/// Called after 'IDirect3DDevice9::SetIndices', 'ID3D10Device::IASetIndexBuffer', 'ID3D11DeviceContext::IASetIndexBuffer', 'ID3D12GraphicsCommandList::IASetIndexBuffer', 'glBindBuffer(...)' or 'vkCmdBindIndexBuffer'.
@@ -197,6 +202,8 @@ namespace reshade
 	struct addon_event_traits<addon_event::create_resource> { typedef void(*decl)(api::device *device, api::resource_type type, api::resource_desc *desc, api::memory_usage mem_usage); };
 	template <>
 	struct addon_event_traits<addon_event::create_resource_view> { typedef void(*decl)(api::device *device, api::resource_handle resource, api::resource_usage usage_type, api::resource_view_desc *desc); };
+	template <>
+	struct addon_event_traits<addon_event::create_shader_module> { typedef void(*decl)(api::device *device, const void *code, size_t code_size); };
 	template <>
 	struct addon_event_traits<addon_event::set_index_buffer> { typedef void(*decl)(api::command_list *cmd_list, api::resource_handle buffer, uint64_t offset); };
 	template <>
