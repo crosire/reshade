@@ -35,8 +35,6 @@ namespace reshade::vulkan
 
 	struct resource_data
 	{
-		bool type; // true => image, false => buffer
-
 		union
 		{
 			VkImage image;
@@ -44,6 +42,7 @@ namespace reshade::vulkan
 		};
 		union
 		{
+			VkStructureType type;
 			VkImageCreateInfo image_create_info;
 			VkBufferCreateInfo buffer_create_info;
 		};
@@ -53,8 +52,6 @@ namespace reshade::vulkan
 
 	struct resource_view_data
 	{
-		bool type; // true => image view, false => buffer view
-
 		union
 		{
 			VkImageView image_view;
@@ -62,6 +59,7 @@ namespace reshade::vulkan
 		};
 		union
 		{
+			VkStructureType type;
 			VkImageViewCreateInfo image_create_info;
 			VkBufferViewCreateInfo buffer_create_info;
 		};
@@ -105,7 +103,7 @@ namespace reshade::vulkan
 #endif
 		void register_image(VkImage image, const VkImageCreateInfo &create_info, VmaAllocation allocation = nullptr)
 		{
-			resource_data data { true };
+			resource_data data;
 			data.image = image;
 			data.image_create_info = create_info;
 			data.allocation = allocation;
@@ -113,14 +111,14 @@ namespace reshade::vulkan
 		}
 		void register_image_view(VkImageView image_view, const VkImageViewCreateInfo &create_info)
 		{
-			resource_view_data data { true };
+			resource_view_data data;
 			data.image_view = image_view;
 			data.image_create_info = create_info;
 			_views.emplace((uint64_t)image_view, data);
 		}
 		void register_buffer(VkBuffer buffer, const VkBufferCreateInfo &create_info, VmaAllocation allocation = nullptr)
 		{
-			resource_data data { true };
+			resource_data data;
 			data.buffer = buffer;
 			data.buffer_create_info = create_info;
 			data.allocation = allocation;
@@ -128,7 +126,7 @@ namespace reshade::vulkan
 		}
 		void register_buffer_view(VkBufferView buffer_view, const VkBufferViewCreateInfo &create_info)
 		{
-			resource_view_data data { false };
+			resource_view_data data;
 			data.buffer_view = buffer_view;
 			data.buffer_create_info = create_info;
 			_views.emplace((uint64_t)buffer_view, data);

@@ -160,32 +160,40 @@ bool reshade::vulkan::runtime_impl::on_init(VkSwapchainKHR swapchain, const VkSw
 
 	// Create back buffer shader image
 	assert(_backbuffer_format != VK_FORMAT_UNDEFINED);
-	_backbuffer_image = create_image(
-		_width, _height, 1, _backbuffer_format,
-		VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VMA_MEMORY_USAGE_GPU_ONLY,
-		VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT, VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT);
-	if (_backbuffer_image == VK_NULL_HANDLE)
+	if (!_device_impl->create_resource(
+		api::resource_type::texture_2d,
+		{ _width, _height, 1, 1, static_cast<uint32_t>(_backbuffer_format), 1, api::resource_usage::copy_dest | api::resource_usage::shader_resource },
+		api::memory_usage::gpu_only, api::resource_usage::undefined, reinterpret_cast<api::resource_handle *>(&_backbuffer_image)))
 		return false;
 	set_debug_name_image(_backbuffer_image, "ReShade back buffer");
 
-	_backbuffer_image_view[0] = create_image_view(_backbuffer_image, make_format_normal(_backbuffer_format), 1, VK_IMAGE_ASPECT_COLOR_BIT);
-	if (_backbuffer_image_view[0] == VK_NULL_HANDLE)
+	if (!_device_impl->create_resource_view(
+		reinterpret_cast<api::resource_handle &>(_backbuffer_image),
+		api::resource_usage::shader_resource,
+		{ static_cast<uint32_t>(make_format_srgb(_backbuffer_format)), 0, 1, 0, 1 },
+		reinterpret_cast<api::resource_view_handle *>(&_backbuffer_image_view[1])))
 		return false;
-	_backbuffer_image_view[1] = create_image_view(_backbuffer_image, make_format_srgb(_backbuffer_format), 1, VK_IMAGE_ASPECT_COLOR_BIT);
-	if (_backbuffer_image_view[1] == VK_NULL_HANDLE)
+	if (!_device_impl->create_resource_view(
+		reinterpret_cast<api::resource_handle &>(_backbuffer_image),
+		api::resource_usage::shader_resource,
+		{ static_cast<uint32_t>(make_format_normal(_backbuffer_format)), 0, 1, 0, 1 },
+		reinterpret_cast<api::resource_view_handle *>(&_backbuffer_image_view[0])))
 		return false;
 
 	// Create effect depth-stencil resource
 	assert(_effect_stencil_format != VK_FORMAT_UNDEFINED);
-	_effect_stencil = create_image(
-		_width, _height, 1, _effect_stencil_format,
-		VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
-	if (_effect_stencil == VK_NULL_HANDLE)
+	if (!_device_impl->create_resource(
+		api::resource_type::texture_2d,
+		{ _width, _height, 1, 1, static_cast<uint32_t>(_effect_stencil_format), 1, api::resource_usage::copy_dest | api::resource_usage::depth_stencil },
+		api::memory_usage::gpu_only, api::resource_usage::undefined, reinterpret_cast<api::resource_handle *>(&_effect_stencil)))
 		return false;
 	set_debug_name_image(_effect_stencil, "ReShade stencil buffer");
 
-	_effect_stencil_view = create_image_view(_effect_stencil, _effect_stencil_format, 1, VK_IMAGE_ASPECT_STENCIL_BIT);
-	if (_effect_stencil_view == VK_NULL_HANDLE)
+	if (!_device_impl->create_resource_view(
+		reinterpret_cast<api::resource_handle &>(_effect_stencil),
+		api::resource_usage::depth_stencil,
+		{ static_cast<uint32_t>(_effect_stencil_format), 0, 1, 0, 1 },
+		reinterpret_cast<api::resource_view_handle *>(&_effect_stencil_view)))
 		return false;
 
 	// Create default render pass
@@ -265,8 +273,18 @@ bool reshade::vulkan::runtime_impl::on_init(VkSwapchainKHR swapchain, const VkSw
 
 	for (uint32_t i = 0, k = 0; i < num_images; ++i, k += 2)
 	{
-		_swapchain_views[k + 1] = create_image_view(_swapchain_images[i], make_format_srgb(desc.imageFormat), 1, VK_IMAGE_ASPECT_COLOR_BIT);
-		_swapchain_views[k + 0] = create_image_view(_swapchain_images[i], make_format_normal(desc.imageFormat), 1, VK_IMAGE_ASPECT_COLOR_BIT);
+		if (!_device_impl->create_resource_view(
+			reinterpret_cast<api::resource_handle &>(_swapchain_images[i]),
+			api::resource_usage::render_target,
+			{ static_cast<uint32_t>(make_format_srgb(desc.imageFormat)), 0, 1, 0, 1 },
+			reinterpret_cast<api::resource_view_handle *>(&_swapchain_views[k + 1])))
+			return false;
+		if (!_device_impl->create_resource_view(
+			reinterpret_cast<api::resource_handle &>(_swapchain_images[i]),
+			api::resource_usage::render_target,
+			{ static_cast<uint32_t>(make_format_normal(desc.imageFormat)), 0, 1, 0, 1 },
+			reinterpret_cast<api::resource_view_handle *>(&_swapchain_views[k + 0])))
+			return false;
 
 		const VkImageView attachment_views[2] = { _swapchain_views[k + 0], _effect_stencil_view };
 		const VkImageView attachment_views_srgb[2] = { _swapchain_views[k + 1], _effect_stencil_view };
@@ -330,11 +348,16 @@ bool reshade::vulkan::runtime_impl::on_init(VkSwapchainKHR swapchain, const VkSw
 
 	// Create an empty image, which is used when no depth buffer was detected (since you cannot bind nothing to a descriptor in Vulkan)
 	// Use VK_FORMAT_R16_SFLOAT format, since it is mandatory according to the spec (see https://www.khronos.org/registry/vulkan/specs/1.1/html/vkspec.html#features-required-format-support)
-	_empty_depth_image = create_image(1, 1, 1, VK_FORMAT_R16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
-	if (_empty_depth_image == VK_NULL_HANDLE)
+	if (!_device_impl->create_resource(
+		api::resource_type::texture_2d,
+		{ 1, 1, 1, 1, VK_FORMAT_R16_SFLOAT, 1, api::resource_usage::shader_resource },
+		api::memory_usage::gpu_only, api::resource_usage::undefined, reinterpret_cast<api::resource_handle *>(&_empty_depth_image)))
 		return false;
-	_empty_depth_image_view = create_image_view(_empty_depth_image, VK_FORMAT_R16_SFLOAT, 1, VK_IMAGE_ASPECT_COLOR_BIT);
-	if (_empty_depth_image_view == VK_NULL_HANDLE)
+	if (!_device_impl->create_resource_view(
+		reinterpret_cast<api::resource_handle &>(_empty_depth_image),
+		api::resource_usage::shader_resource,
+		{ VK_FORMAT_R16_SFLOAT, 0, 1, 0, 1 },
+		reinterpret_cast<api::resource_view_handle *>(&_empty_depth_image_view)))
 		return false;
 
 	// Transition image layouts to the ones required below
@@ -357,7 +380,7 @@ void reshade::vulkan::runtime_impl::on_reset()
 	wait_for_command_buffers();
 
 	for (VkImageView view : _swapchain_views)
-		vk.DestroyImageView(_device, view, nullptr);
+		_device_impl->destroy_resource_view(reinterpret_cast<api::resource_view_handle &>(view));
 	_swapchain_views.clear();
 	for (VkFramebuffer frame : _swapchain_frames)
 		vk.DestroyFramebuffer(_device, frame, nullptr);
@@ -365,18 +388,18 @@ void reshade::vulkan::runtime_impl::on_reset()
 
 	if (_orig == VK_NULL_HANDLE)
 		for (VkImage image : _swapchain_images)
-			vk.DestroyImage(_device, image, nullptr);
+			_device_impl->destroy_resource(reinterpret_cast<api::resource_handle &>(image));
 	_swapchain_images.clear();
 
 	for (VkSemaphore &semaphore : _queue_sync_semaphores)
 		vk.DestroySemaphore(_device, semaphore, nullptr),
 		semaphore = VK_NULL_HANDLE;
 
-	vk.DestroyImage(_device, _backbuffer_image, nullptr);
+	_device_impl->destroy_resource(reinterpret_cast<api::resource_handle &>(_backbuffer_image));
 	_backbuffer_image = VK_NULL_HANDLE;
-	vk.DestroyImageView(_device, _backbuffer_image_view[0], nullptr);
+	_device_impl->destroy_resource_view(reinterpret_cast<api::resource_view_handle &>(_backbuffer_image_view[0]));
 	_backbuffer_image_view[0] = VK_NULL_HANDLE;
-	vk.DestroyImageView(_device, _backbuffer_image_view[1], nullptr);
+	_device_impl->destroy_resource_view(reinterpret_cast<api::resource_view_handle &>(_backbuffer_image_view[1]));
 	_backbuffer_image_view[1] = VK_NULL_HANDLE;
 
 	vk.DestroyRenderPass(_device, _default_render_pass[0], nullptr);
@@ -384,14 +407,14 @@ void reshade::vulkan::runtime_impl::on_reset()
 	vk.DestroyRenderPass(_device, _default_render_pass[1], nullptr);
 	_default_render_pass[1] = VK_NULL_HANDLE;
 
-	vk.DestroyImage(_device, _empty_depth_image, nullptr);
+	_device_impl->destroy_resource(reinterpret_cast<api::resource_handle &>(_empty_depth_image));
 	_empty_depth_image = VK_NULL_HANDLE;
-	vk.DestroyImageView(_device, _empty_depth_image_view, nullptr);
+	_device_impl->destroy_resource_view(reinterpret_cast<api::resource_view_handle &>(_empty_depth_image_view));
 	_empty_depth_image_view = VK_NULL_HANDLE;
 
-	vk.DestroyImage(_device, _effect_stencil, nullptr);
+	_device_impl->destroy_resource(reinterpret_cast<api::resource_handle &>(_effect_stencil));
 	_effect_stencil = VK_NULL_HANDLE;
-	vk.DestroyImageView(_device, _effect_stencil_view, nullptr);
+	_device_impl->destroy_resource_view(reinterpret_cast<api::resource_view_handle &>(_effect_stencil_view));
 	_effect_stencil_view = VK_NULL_HANDLE;
 	vk.DestroyDescriptorPool(_device, _effect_descriptor_pool, nullptr);
 	_effect_descriptor_pool = VK_NULL_HANDLE;
@@ -399,12 +422,10 @@ void reshade::vulkan::runtime_impl::on_reset()
 #if RESHADE_GUI
 	for (unsigned int i = 0; i < NUM_IMGUI_BUFFERS; ++i)
 	{
-		vmaDestroyBuffer(_device_impl->_alloc, _imgui.indices[i], _imgui.indices_mem[i]);
-		vmaDestroyBuffer(_device_impl->_alloc, _imgui.vertices[i], _imgui.vertices_mem[i]);
+		_device_impl->destroy_resource(reinterpret_cast<api::resource_handle &>(_imgui.indices[i]));
+		_device_impl->destroy_resource(reinterpret_cast<api::resource_handle &>(_imgui.vertices[i]));
 		_imgui.indices[i] = VK_NULL_HANDLE;
 		_imgui.vertices[i] = VK_NULL_HANDLE;
-		_imgui.indices_mem[i] = VK_NULL_HANDLE;
-		_imgui.vertices_mem[i] = VK_NULL_HANDLE;
 		_imgui.num_indices[i] = 0;
 		_imgui.num_vertices[i] = 0;
 	}
@@ -412,10 +433,6 @@ void reshade::vulkan::runtime_impl::on_reset()
 	vk.DestroyDescriptorPool(_device, _imgui.descriptor_pool, nullptr);
 	_imgui.descriptor_pool = VK_NULL_HANDLE;
 #endif
-
-	// Free all unmanaged device memory allocated via the 'create_image' and 'create_buffer' functions
-	vmaFreeMemoryPages(_device_impl->_alloc, _allocations.size(), _allocations.data());
-	_allocations.clear();
 }
 
 void reshade::vulkan::runtime_impl::on_present(VkQueue queue, const uint32_t swapchain_image_index, std::vector<VkSemaphore> &wait)
@@ -487,12 +504,15 @@ bool reshade::vulkan::runtime_impl::on_layer_submit(uint32_t eye, VkImage source
 	{
 		on_reset();
 
-		const VkImage image = create_image(
-			target_extent.width, target_extent.height, 1, source_format,
-			VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
-		if (image == VK_NULL_HANDLE)
+		VkImage image = VK_NULL_HANDLE;
+
+		if (!_device_impl->create_resource(
+			api::resource_type::texture_2d,
+			{ target_extent.width, target_extent.height, 1, 1, static_cast<uint32_t>(source_format), 1, api::resource_usage::render_target | api::resource_usage::copy_source | api::resource_usage::copy_dest },
+			api::memory_usage::gpu_only, api::resource_usage::undefined, reinterpret_cast<api::resource_handle *>(&image)))
 		{
-			LOG(ERROR) << "Failed to create region image!";
+			LOG(ERROR) << "Failed to create region texture!";
+			LOG(DEBUG) << "> Details: Width = " << target_extent.width << ", Height = " << target_extent.height << ", Format = " << source_format;
 			return false;
 		}
 
@@ -565,7 +585,11 @@ bool reshade::vulkan::runtime_impl::capture_screenshot(uint8_t *buffer) const
 		alloc_info.usage = VMA_MEMORY_USAGE_GPU_TO_CPU;
 
 		if (vmaCreateBuffer(_device_impl->_alloc, &create_info, &alloc_info, &intermediate, &intermediate_mem, nullptr) != VK_SUCCESS)
+		{
+			LOG(ERROR) << "Failed to create system memory buffer for screenshot capture!";
+			LOG(DEBUG) << "> Details: Width = " << create_info.size;
 			return false;
+		}
 	}
 
 	// Copy image into download buffer
@@ -816,12 +840,15 @@ bool reshade::vulkan::runtime_impl::init_effect(size_t index)
 	// Create global uniform buffer object
 	if (!effect.uniform_data_storage.empty())
 	{
-		effect_data.ubo = create_buffer(
-			effect.uniform_data_storage.size(),
-			VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU,
-			0, 0, &effect_data.ubo_mem);
-		if (effect_data.ubo == VK_NULL_HANDLE)
+		if (!_device_impl->create_resource(
+			api::resource_type::buffer,
+			{ effect.uniform_data_storage.size(), api::resource_usage::copy_dest | api::resource_usage::constant_buffer },
+			api::memory_usage::cpu_to_gpu, api::resource_usage::undefined, reinterpret_cast<api::resource_handle *>(&effect_data.ubo)))
+		{
+			LOG(ERROR) << "Failed to create constant buffer for effect file '" << effect.source_file << "'!";
+			LOG(DEBUG) << "> Details: Width = " << effect.uniform_data_storage.size();
 			return false;
+		}
 	}
 
 	// Initialize image and sampler bindings
@@ -1413,9 +1440,8 @@ void reshade::vulkan::runtime_impl::unload_effect(size_t index)
 		effect_data.sampler_layout = VK_NULL_HANDLE;
 		vk.DestroyDescriptorSetLayout(_device, effect_data.storage_layout, nullptr);
 		effect_data.storage_layout = VK_NULL_HANDLE;
-		vmaDestroyBuffer(_device_impl->_alloc, effect_data.ubo, effect_data.ubo_mem);
+		_device_impl->destroy_resource(reinterpret_cast<reshade::api::resource_handle &>(effect_data.ubo));
 		effect_data.ubo = VK_NULL_HANDLE;
-		effect_data.ubo_mem = VK_NULL_HANDLE;
 		effect_data.texture_semantic_to_binding.clear();
 		effect_data.image_bindings.clear();
 	}
@@ -1457,7 +1483,7 @@ void reshade::vulkan::runtime_impl::unload_effects()
 		vk.DestroyPipelineLayout(_device, data.pipeline_layout, nullptr);
 		vk.DestroyDescriptorSetLayout(_device, data.sampler_layout, nullptr);
 		vk.DestroyDescriptorSetLayout(_device, data.storage_layout, nullptr);
-		vmaDestroyBuffer(_device_impl->_alloc, data.ubo, data.ubo_mem);
+		_device_impl->destroy_resource(reinterpret_cast<const reshade::api::resource_handle &>(data.ubo));
 	}
 
 	for (auto &[hash, sampler] : _effect_sampler_states)
@@ -1524,42 +1550,61 @@ bool reshade::vulkan::runtime_impl::init_texture(texture &texture)
 	}
 
 	// Need TRANSFER_DST for texture data upload
-	VkImageUsageFlags usage_flags = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+	api::resource_usage usage_flags = api::resource_usage::shader_resource | api::resource_usage::copy_dest;
 	if (texture.levels > 1) // Add required TRANSFER_SRC flag for mipmap generation
-		usage_flags |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+		usage_flags |= api::resource_usage::copy_source;
 	if (texture.render_target)
-		usage_flags |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+		usage_flags |= api::resource_usage::render_target;
 	if (texture.storage_access)
-		usage_flags |= VK_IMAGE_USAGE_STORAGE_BIT;
+		usage_flags |= api::resource_usage::unordered_access;
 
-	VkImageCreateFlags image_flags = 0;
-	// Add mutable format flag required to create a SRGB view of the image
-	if (impl->formats[1] != VK_FORMAT_UNDEFINED)
-		image_flags = VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
-	else
-		impl->formats[1] = impl->formats[0];
+	if (impl->formats[1] == VK_FORMAT_UNDEFINED)
+		impl->formats[1]  = impl->formats[0];
 
-	impl->image = create_image(
-		texture.width, texture.height, texture.levels, impl->formats[0],
-		usage_flags, VMA_MEMORY_USAGE_GPU_ONLY,
-		image_flags, 0, &impl->image_mem);
-	if (impl->image == VK_NULL_HANDLE)
+	if (!_device_impl->create_resource(
+		api::resource_type::texture_2d,
+		{ texture.width, texture.height, 1, texture.levels, static_cast<uint32_t>(impl->formats[0]), 1, usage_flags },
+		api::memory_usage::gpu_only, api::resource_usage::undefined, reinterpret_cast<api::resource_handle *>(&impl->image)))
+	{
+		LOG(ERROR) << "Failed to create texture '" << texture.unique_name << "'!";
+		LOG(DEBUG) << "> Details: Width = " << texture.width << ", Height = " << texture.height << ", Levels = " << texture.levels << ", Format = " << impl->formats[0] << ", Usage = " << std::hex << static_cast<uint32_t>(usage_flags) << std::dec;
 		return false;
+	}
 	set_debug_name_image(impl->image, texture.unique_name.c_str());
 
 	// Create shader views
-	impl->view[0] = create_image_view(impl->image, impl->formats[0], VK_REMAINING_MIP_LEVELS, VK_IMAGE_ASPECT_COLOR_BIT);
-	impl->view[1] = impl->formats[0] != impl->formats[1] && !texture.storage_access ? // sRGB formats do not support storage usage
-		create_image_view(impl->image, impl->formats[1], VK_REMAINING_MIP_LEVELS, VK_IMAGE_ASPECT_COLOR_BIT) :
-		impl->view[0];
+	if (!_device_impl->create_resource_view(
+		reinterpret_cast<api::resource_handle &>(impl->image),
+		api::resource_usage::shader_resource,
+		{ static_cast<uint32_t>(impl->formats[0]), 0, VK_REMAINING_MIP_LEVELS, 0, 1 },
+		reinterpret_cast<api::resource_view_handle *>(&impl->view[0])))
+		return false;
+	if (impl->formats[0] == impl->formats[1] || texture.storage_access) // sRGB formats do not support storage usage
+		impl->view[1] = impl->view[0];
+	else if (!_device_impl->create_resource_view(
+		reinterpret_cast<api::resource_handle &>(impl->image),
+		api::resource_usage::shader_resource,
+		{ static_cast<uint32_t>(impl->formats[1]), 0, VK_REMAINING_MIP_LEVELS, 0, 1 },
+		reinterpret_cast<api::resource_view_handle *>(&impl->view[1])))
+		return false;
 
 	// Create render target views (with a single level)
 	if (texture.levels > 1)
 	{
-		impl->view[2] = create_image_view(impl->image, impl->formats[0], 1, VK_IMAGE_ASPECT_COLOR_BIT);
-		impl->view[3] = impl->formats[0] != impl->formats[1] && !texture.storage_access ?
-			create_image_view(impl->image, impl->formats[1], 1, VK_IMAGE_ASPECT_COLOR_BIT) :
-			impl->view[2];
+		if (!_device_impl->create_resource_view(
+			reinterpret_cast<api::resource_handle &>(impl->image),
+			api::resource_usage::render_target,
+			{ static_cast<uint32_t>(impl->formats[0]), 0, 1, 0, 1 },
+			reinterpret_cast<api::resource_view_handle *>(&impl->view[2])))
+			return false;
+		if (impl->formats[0] == impl->formats[1] || texture.storage_access)
+			impl->view[3] = impl->view[2];
+		else if (!_device_impl->create_resource_view(
+			reinterpret_cast<api::resource_handle &>(impl->image),
+			api::resource_usage::render_target,
+			{ static_cast<uint32_t>(impl->formats[1]), 0, 1, 0, 1 },
+			reinterpret_cast<api::resource_view_handle *>(&impl->view[3])))
+			return false;
 	}
 	else
 	{
@@ -1629,7 +1674,11 @@ void reshade::vulkan::runtime_impl::upload_texture(const texture &texture, const
 		alloc_info.usage = VMA_MEMORY_USAGE_CPU_ONLY;
 
 		if (vmaCreateBuffer(_device_impl->_alloc, &create_info, &alloc_info, &intermediate, &intermediate_mem, nullptr) != VK_SUCCESS)
+		{
+			LOG(ERROR) << "Failed to create system memory buffer for updating texture '" << texture.unique_name << "'!";
+			LOG(DEBUG) << "> Details: Width = " << create_info.size;
 			return;
+		}
 	}
 
 	// Fill upload buffer with pixel data
@@ -1692,15 +1741,15 @@ void reshade::vulkan::runtime_impl::destroy_texture(texture &texture)
 	// Make sure texture is not still in use before destroying it
 	wait_for_command_buffers();
 
-	vmaDestroyImage(_device_impl->_alloc, impl->image, impl->image_mem);
+	_device_impl->destroy_resource(reinterpret_cast<reshade::api::resource_handle &>(impl->image));
 	if (impl->view[0] != VK_NULL_HANDLE)
-		vk.DestroyImageView(_device, impl->view[0], nullptr);
+		_device_impl->destroy_resource_view(reinterpret_cast<reshade::api::resource_view_handle &>(impl->view[0]));
 	if (impl->view[1] != impl->view[0])
-		vk.DestroyImageView(_device, impl->view[1], nullptr);
+		_device_impl->destroy_resource_view(reinterpret_cast<reshade::api::resource_view_handle &>(impl->view[1]));
 	if (impl->view[2] != impl->view[0])
-		vk.DestroyImageView(_device, impl->view[2], nullptr);
+		_device_impl->destroy_resource_view(reinterpret_cast<reshade::api::resource_view_handle &>(impl->view[2]));
 	if (impl->view[3] != impl->view[2] && impl->view[3] != impl->view[1])
-		vk.DestroyImageView(_device, impl->view[3], nullptr);
+		_device_impl->destroy_resource_view(reinterpret_cast<reshade::api::resource_view_handle &>(impl->view[3]));
 #if RESHADE_GUI
 	if (impl->descriptor_set != VK_NULL_HANDLE)
 		vk.FreeDescriptorSets(_device, _imgui.descriptor_pool, 1, &impl->descriptor_set);
@@ -1920,112 +1969,6 @@ void reshade::vulkan::runtime_impl::set_debug_name(uint64_t object, VkDebugRepor
 
 		vk.DebugMarkerSetObjectNameEXT(_device, &name_info);
 	}
-}
-
-VkImage reshade::vulkan::runtime_impl::create_image(uint32_t width, uint32_t height, uint32_t levels, VkFormat format,
-	VkImageUsageFlags usage, VmaMemoryUsage mem_usage,
-	VkImageCreateFlags flags, VmaAllocationCreateFlags mem_flags, VmaAllocation *out_mem)
-{
-	VkImageCreateInfo create_info { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
-	create_info.flags = flags;
-	create_info.imageType = VK_IMAGE_TYPE_2D;
-	create_info.format = format;
-	create_info.extent = { width, height, 1u };
-	create_info.mipLevels = levels;
-	create_info.arrayLayers = 1;
-	create_info.samples = VK_SAMPLE_COUNT_1_BIT;
-	create_info.tiling = VK_IMAGE_TILING_OPTIMAL;
-	create_info.usage = usage;
-	create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-	create_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-
-	const VkFormat format_list[2] = { make_format_normal(format), make_format_srgb(format) };
-	VkImageFormatListCreateInfoKHR format_list_info { VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO_KHR };
-
-	if (format_list[0] != format_list[1] && (flags & VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT) != 0)
-	{
-		format_list_info.viewFormatCount = 2;
-		format_list_info.pViewFormats = format_list;
-
-		create_info.pNext = &format_list_info;
-	}
-
-	VmaAllocation alloc = VK_NULL_HANDLE;
-	VmaAllocationCreateInfo alloc_info = {};
-	alloc_info.flags = mem_flags;
-	alloc_info.usage = mem_usage;
-
-	VkImage image = VK_NULL_HANDLE;
-	const VkResult res = vmaCreateImage(_device_impl->_alloc, &create_info, &alloc_info, &image, &alloc, nullptr);
-	if (res != VK_SUCCESS)
-	{
-		LOG(ERROR) << "Failed to create image! Vulkan error code is " << res << '.';
-		LOG(DEBUG) << "> Details: Width = " << width << ", Height = " << height << ", Levels = " << levels << ", Format = " << format << ", Usage = " << std::hex << usage << std::dec;
-
-		if (out_mem != nullptr)
-			*out_mem = VK_NULL_HANDLE;
-		return VK_NULL_HANDLE;
-	}
-
-	if (out_mem != nullptr)
-		*out_mem = alloc;
-	else
-		_allocations.push_back(alloc);
-
-	return image;
-}
-VkBuffer reshade::vulkan::runtime_impl::create_buffer(VkDeviceSize size,
-	VkBufferUsageFlags usage, VmaMemoryUsage mem_usage,
-	VkBufferCreateFlags flags, VmaAllocationCreateFlags mem_flags, VmaAllocation *out_mem)
-{
-	VkBufferCreateInfo create_info { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
-	create_info.flags = flags;
-	create_info.size = size;
-	create_info.usage = usage;
-	create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-	VmaAllocation alloc = VK_NULL_HANDLE;
-	VmaAllocationCreateInfo alloc_info = {};
-	alloc_info.flags = mem_flags;
-	alloc_info.usage = mem_usage;
-
-	// Make sure host visible allocations are coherent, since no explicit flushing is performed
-	if (mem_usage == VMA_MEMORY_USAGE_CPU_TO_GPU)
-		alloc_info.requiredFlags |= VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-
-	VkBuffer buffer = VK_NULL_HANDLE;
-	const VkResult res = vmaCreateBuffer(_device_impl->_alloc, &create_info, &alloc_info, &buffer, &alloc, nullptr);
-	if (res != VK_SUCCESS)
-	{
-		LOG(ERROR) << "Failed to create buffer! Vulkan error code is " << res << '.';
-		LOG(DEBUG) << "> Details: Size = " << size << ", Usage = " << std::hex << usage << std::dec;
-
-		if (out_mem != nullptr)
-			*out_mem = VK_NULL_HANDLE;
-		return VK_NULL_HANDLE;
-	}
-
-	if (out_mem != nullptr)
-		*out_mem = alloc;
-	else
-		_allocations.push_back(alloc);
-
-	return buffer;
-}
-VkImageView reshade::vulkan::runtime_impl::create_image_view(VkImage image, VkFormat format, uint32_t levels, VkImageAspectFlags aspect)
-{
-	VkImageViewCreateInfo create_info { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
-	create_info.image = image;
-	create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
-	create_info.format = format;
-	create_info.components = { VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY };
-	create_info.subresourceRange = { aspect, 0, levels, 0, 1 };
-
-	VkImageView view = VK_NULL_HANDLE;
-	if (vk.CreateImageView(_device, &create_info, nullptr, &view) != VK_SUCCESS)
-		return VK_NULL_HANDLE;
-
-	return view;
 }
 
 void reshade::vulkan::runtime_impl::update_texture_bindings(const char *semantic, api::resource_view_handle srv)

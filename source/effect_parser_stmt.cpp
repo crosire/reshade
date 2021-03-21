@@ -1351,11 +1351,12 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 						warning(expression.location, 3571, "negative value specified for property '" + property_name + '\'');
 
 					if (property_name == "Width")
-						texture_info.width = value > 0 ? value : 1;
+						texture_info.width  = value > 0 ? value : 1;
 					else if (property_name == "Height")
 						texture_info.height = value > 0 ? value : 1;
 					else if (property_name == "MipLevels")
-						texture_info.levels = value > 0 ? value : 1; // Also ensures negative values do not cause problems
+						texture_info.levels = value > 0 && value <= std::numeric_limits<uint16_t>::max() ?
+							static_cast<uint16_t>(value) : 1; // Also ensures negative values do not cause problems
 					else if (property_name == "Format")
 						texture_info.format = static_cast<texture_format>(value);
 					else if (property_name == "SRGBTexture" || property_name == "SRGBReadEnable")

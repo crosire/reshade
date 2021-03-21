@@ -16,13 +16,14 @@
 #include "vulkan/runtime_vk.hpp"
 #include <openvr.h>
 
+// There can only be a single global effect runtime in OpenVR (since its API is based on singletons)
 static std::pair<reshade::runtime *, vr::ETextureType> s_vr_runtime = { nullptr, vr::TextureType_Invalid };
 
 static inline vr::VRTextureBounds_t calc_side_by_side_bounds(vr::EVREye eye, const vr::VRTextureBounds_t *orig_bounds)
 {
-	vr::VRTextureBounds_t bounds = (eye == vr::Eye_Left) ?
-		vr::VRTextureBounds_t { 0.0f, 0.0f, 0.5f, 1.0f } :
-		vr::VRTextureBounds_t { 0.5f, 0.0f, 1.0f, 1.0f };
+	vr::VRTextureBounds_t bounds = (eye != vr::Eye_Right) ?
+		vr::VRTextureBounds_t { 0.0f, 0.0f, 0.5f, 1.0f } : // Left half of the texture
+		vr::VRTextureBounds_t { 0.5f, 0.0f, 1.0f, 1.0f };  // Right half of the texture
 	if (orig_bounds != nullptr && orig_bounds->uMin > orig_bounds->uMax)
 		std::swap(bounds.uMin, bounds.uMax);
 	if (orig_bounds != nullptr && orig_bounds->vMin > orig_bounds->vMax)
@@ -40,11 +41,12 @@ static vr::EVRCompositorError on_submit_d3d11(vr::EVREye eye, ID3D11Texture2D *t
 		texture->GetDevice(&device);
 		if (UINT data_size = sizeof(device_proxy);
 			FAILED(device->GetPrivateData(__uuidof(D3D11Device), &data_size, reinterpret_cast<void *>(&device_proxy))))
-			goto normal_submit;
+			goto normal_submit; // No proxy device found, so just submit normally
 
 		s_vr_runtime = { new reshade::d3d11::runtime_impl(device_proxy, device_proxy->_immediate_context, nullptr), vr::TextureType_DirectX };
 	}
 
+	// It is not valid to switch the texture type once submitted for the first time
 	if (s_vr_runtime.second != vr::TextureType_DirectX)
 		return vr::VRCompositorError_InvalidTexture;
 
@@ -59,7 +61,7 @@ static vr::EVRCompositorError on_submit_d3d11(vr::EVREye eye, ID3D11Texture2D *t
 		&target_texture))
 	{
 	normal_submit:
-		// Failed to initialize runtime or copy eye texture, so submit normally
+		// Failed to initialize runtime or copy the eye texture, so submit normally without applying effects
 		return submit(eye, texture, bounds, flags);
 	}
 
@@ -88,7 +90,7 @@ static vr::EVRCompositorError on_submit_d3d12(vr::EVREye eye, const vr::D3D12Tex
 	{
 		com_ptr<D3D12CommandQueue> command_queue_proxy;
 		if (FAILED(texture->m_pCommandQueue->QueryInterface(IID_PPV_ARGS(&command_queue_proxy))))
-			goto normal_submit;
+			goto normal_submit; // No proxy command queue found, so just submit normally
 
 		s_vr_runtime = { new reshade::d3d12::runtime_impl(command_queue_proxy->_device, command_queue_proxy.get(), nullptr), vr::TextureType_DirectX12 };
 	}
@@ -107,7 +109,7 @@ static vr::EVRCompositorError on_submit_d3d12(vr::EVREye eye, const vr::D3D12Tex
 		&target_texture.m_pResource))
 	{
 	normal_submit:
-		// Failed to initialize runtime or copy eye texture, so submit normally
+		// Failed to initialize runtime or copy the eye texture, so submit normally without applying effects
 		return submit(eye, (void *)texture, bounds, flags);
 	}
 
@@ -154,7 +156,7 @@ static vr::EVRCompositorError on_submit_opengl(vr::EVREye eye, GLuint object, co
 		reinterpret_cast<const float *>(bounds),
 		&target_rbo))
 	{
-		// Failed to initialize runtime or copy eye texture, so submit normally
+		// Failed to initialize runtime or copy the eye texture, so submit normally without applying effects
 		return submit(eye, reinterpret_cast<void *>(static_cast<uintptr_t>(object)), bounds, flags);
 	}
 
@@ -216,7 +218,7 @@ static vr::EVRCompositorError on_submit_vulkan(vr::EVREye eye, const vr::VRVulka
 		&target_image))
 	{
 	normal_submit:
-		// Failed to initialize runtime or copy eye texture, so submit normally
+		// Failed to initialize runtime or copy the eye texture, so submit normally without applying effects
 		return submit(eye, (void *)texture, bounds, flags);
 	}
 

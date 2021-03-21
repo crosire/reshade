@@ -395,7 +395,8 @@ bool reshade::d3d12::runtime_impl::on_layer_submit(UINT eye, ID3D12Resource *sou
 
 		if (HRESULT hr = _device->CreateCommittedResource(&heap_props, D3D12_HEAP_FLAG_NONE, &source_desc, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&_backbuffers[0])); FAILED(hr))
 		{
-			LOG(ERROR) << "Failed to create region texture! HRESULT is " << hr << '.';
+			LOG(ERROR) << "Failed to create region texture!" << " HRESULT is " << hr << '.';
+			LOG(DEBUG) << "> Details: Width = " << source_desc.Width << ", Height = " << source_desc.Height << ", Format = " << source_desc.Format << ", Flags = " << std::hex << source_desc.Flags << std::dec;
 			return false;
 		}
 
@@ -468,7 +469,7 @@ bool reshade::d3d12::runtime_impl::capture_screenshot(uint8_t *buffer) const
 	com_ptr<ID3D12Resource> intermediate;
 	if (HRESULT hr = _device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&intermediate)); FAILED(hr))
 	{
-		LOG(ERROR) << "Failed to create system memory texture for screenshot capture! HRESULT is " << hr << '.';
+		LOG(ERROR) << "Failed to create system memory buffer for screenshot capture!" << " HRESULT is " << hr << '.';
 		LOG(DEBUG) << "> Details: Width = " << desc.Width;
 		return false;
 	}
@@ -1238,8 +1239,8 @@ void reshade::d3d12::runtime_impl::upload_texture(const texture &texture, const 
 	com_ptr<ID3D12Resource> intermediate;
 	if (HRESULT hr = _device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&intermediate)); FAILED(hr))
 	{
-		LOG(ERROR) << "Failed to create system memory texture for updating texture '" << texture.unique_name << "'! HRESULT is " << hr << '.';
-		LOG(DEBUG) << "> Details: Width = " << desc.Width << ", Height = " << desc.Height;
+		LOG(ERROR) << "Failed to create system memory buffer for updating texture '" << texture.unique_name << "'!" << " HRESULT is " << hr << '.';
+		LOG(DEBUG) << "> Details: Width = " << desc.Width;
 		return;
 	}
 	intermediate->SetName(L"ReShade upload texture");

@@ -323,7 +323,8 @@ bool reshade::d3d11::runtime_impl::on_layer_submit(UINT eye, ID3D11Texture2D *so
 
 		if (HRESULT hr = _device->CreateTexture2D(&source_desc, nullptr, &_backbuffer); FAILED(hr))
 		{
-			LOG(ERROR) << "Failed to create region texture! HRESULT is " << hr << '.';
+			LOG(ERROR) << "Failed to create region texture!" << " HRESULT is " << hr << '.';
+			LOG(DEBUG) << "> Details: Width = " << source_desc.Width << ", Height = " << source_desc.Height << ", Format = " << source_desc.Format;
 			return false;
 		}
 

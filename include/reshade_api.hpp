@@ -109,6 +109,13 @@ namespace reshade { namespace api
 	/// </summary>
 	struct resource_desc
 	{
+		resource_desc() :
+			width(0), height(0), depth_or_layers(0), levels(0), format(0), samples(0), usage(resource_usage::undefined) {}
+		resource_desc(uint64_t size, resource_usage usage) :
+			size(size), usage(usage) {}
+		resource_desc(uint32_t width, uint32_t height, uint16_t depth_or_layers, uint16_t levels, uint32_t format, uint16_t samples, resource_usage usage) :
+			width(width), height(height), depth_or_layers(depth_or_layers), levels(levels), format(format), samples(samples), usage(usage) {}
+
 		union
 		{
 			// Used when resource type is <see cref="resource_type::buffer"/>.
@@ -145,6 +152,15 @@ namespace reshade { namespace api
 	/// </summary>
 	struct resource_view_desc
 	{
+		resource_view_desc() :
+			type(resource_view_type::unknown), format(0), first_level(0), levels(0), first_layer(0), layers(0) {}
+		resource_view_desc(uint32_t format, uint64_t offset, uint64_t size) :
+			type(resource_view_type::buffer), format(format), offset(offset), size(size) {}
+		resource_view_desc(uint32_t format, uint32_t first_level, uint32_t levels, uint32_t first_layer, uint32_t layers) :
+			type(resource_view_type::texture_2d), format(format), first_level(first_level), levels(levels), first_layer(first_layer), layers(layers) {}
+		resource_view_desc(resource_view_type type, uint32_t format, uint32_t first_level, uint32_t levels, uint32_t first_layer, uint32_t layers) :
+			type(type), format(format), first_level(first_level), levels(levels), first_layer(first_layer), layers(layers) {}
+
 		// Type of the view. Identifies how the view should interpret the resource.
 		resource_view_type type;
 		// Viewing format of this view. The data of the resource is reinterpreted in this format when accessed through this view.

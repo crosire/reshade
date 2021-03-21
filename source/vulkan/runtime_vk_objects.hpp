@@ -11,7 +11,6 @@ namespace reshade::vulkan
 	{
 		VkImage image = VK_NULL_HANDLE;
 		VkImageView view[4] = {};
-		VmaAllocation image_mem = VK_NULL_HANDLE;
 		VkFormat formats[2] = {};
 #if RESHADE_GUI
 		VkDescriptorSet descriptor_set = VK_NULL_HANDLE;
@@ -42,7 +41,6 @@ namespace reshade::vulkan
 		VkDescriptorSetLayout sampler_layout = VK_NULL_HANDLE;
 		VkDescriptorSetLayout storage_layout = VK_NULL_HANDLE;
 		VkBuffer ubo = VK_NULL_HANDLE;
-		VmaAllocation ubo_mem = VK_NULL_HANDLE;
 		VkDescriptorSet ubo_set = VK_NULL_HANDLE;
 		std::vector<binding_data> texture_semantic_to_binding;
 		std::vector<VkDescriptorImageInfo> image_bindings;

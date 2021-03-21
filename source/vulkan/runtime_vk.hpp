@@ -50,14 +50,6 @@ namespace reshade::vulkan
 		inline void set_debug_name_image(VkImage image, const char *name) const { set_debug_name((uint64_t)image, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT, name); }
 		inline void set_debug_name_buffer(VkBuffer buffer, const char *name) const { set_debug_name((uint64_t)buffer, VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT, name); }
 
-		VkImage create_image(uint32_t width, uint32_t height, uint32_t levels, VkFormat format,
-			VkImageUsageFlags usage, VmaMemoryUsage mem_usage,
-			VkImageCreateFlags flags = 0, VmaAllocationCreateFlags mem_flags = 0, VmaAllocation *out_mem = nullptr);
-		VkBuffer create_buffer(VkDeviceSize size,
-			VkBufferUsageFlags usage, VmaMemoryUsage mem_usage,
-			VkBufferCreateFlags flags = 0, VmaAllocationCreateFlags mem_flags = 0, VmaAllocation *out_mem = nullptr);
-		VkImageView create_image_view(VkImage image, VkFormat format, uint32_t levels, VkImageAspectFlags aspect);
-
 		device_impl *const _device_impl;
 		const VkDevice _device;
 		command_queue_impl *const _queue_impl;
@@ -82,8 +74,6 @@ namespace reshade::vulkan
 
 		VkImage _empty_depth_image = VK_NULL_HANDLE;
 		VkImageView _empty_depth_image_view = VK_NULL_HANDLE;
-
-		std::vector<VmaAllocation> _allocations;
 
 		VkImage _effect_stencil = VK_NULL_HANDLE;
 		VkFormat _effect_stencil_format = VK_FORMAT_UNDEFINED;
@@ -111,8 +101,6 @@ namespace reshade::vulkan
 
 			VkBuffer indices[NUM_IMGUI_BUFFERS] = {};
 			VkBuffer vertices[NUM_IMGUI_BUFFERS] = {};
-			VmaAllocation indices_mem[NUM_IMGUI_BUFFERS] = {};
-			VmaAllocation vertices_mem[NUM_IMGUI_BUFFERS] = {};
 			int num_indices[NUM_IMGUI_BUFFERS] = {};
 			int num_vertices[NUM_IMGUI_BUFFERS] = {};
 		} _imgui;

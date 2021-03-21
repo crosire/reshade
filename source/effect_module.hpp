@@ -173,7 +173,7 @@ namespace reshadefx
 		std::vector<annotation> annotations;
 		uint32_t width = 1;
 		uint32_t height = 1;
-		uint32_t levels = 1;
+		uint16_t levels = 1;
 		texture_format format = texture_format::rgba8;
 		bool render_target = false;
 		bool storage_access = false;

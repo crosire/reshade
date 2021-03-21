@@ -82,7 +82,7 @@ bool reshade::vulkan::device_impl::check_resource_handle_valid(api::resource_han
 		return false;
 
 	const resource_data &data = _resources.at(resource.handle);
-	return data.type ? (data.image == (VkImage)resource.handle) : (data.buffer == (VkBuffer)resource.handle);
+	return data.type != VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO ? (data.image == (VkImage)resource.handle) : (data.buffer == (VkBuffer)resource.handle);
 }
 bool reshade::vulkan::device_impl::check_resource_view_handle_valid(api::resource_view_handle view) const
 {
@@ -90,7 +90,7 @@ bool reshade::vulkan::device_impl::check_resource_view_handle_valid(api::resourc
 		return false;
 
 	const resource_view_data &data = _views.at(view.handle);
-	return data.type ? (data.image_view == (VkImageView)view.handle) : (data.buffer_view == (VkBufferView)view.handle);
+	return data.type != VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO ? (data.image_view == (VkImageView)view.handle) : (data.buffer_view == (VkBufferView)view.handle);
 }
 
 bool reshade::vulkan::device_impl::create_resource(api::resource_type type, const api::resource_desc &desc, api::memory_usage mem_usage, api::resource_usage initial_state, api::resource_handle *out_resource)
@@ -107,6 +107,8 @@ bool reshade::vulkan::device_impl::create_resource(api::resource_type type, cons
 		break;
 	case api::memory_usage::cpu_to_gpu:
 		alloc_info.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
+		// Make sure host visible allocations are coherent, since no explicit flushing is performed
+		alloc_info.requiredFlags |= VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
 		break;
 	case api::memory_usage::gpu_to_cpu:
 		alloc_info.usage = VMA_MEMORY_USAGE_GPU_TO_CPU;
@@ -138,7 +140,8 @@ bool reshade::vulkan::device_impl::create_resource(api::resource_type type, cons
 		{
 			VkImageCreateInfo create_info { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
 			convert_resource_desc(type, desc, create_info);
-			create_info.flags |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
+			if ((desc.usage & (api::resource_usage::render_target | api::resource_usage::shader_resource)) != 0)
+				create_info.flags |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
 
 			if (VkImage image = VK_NULL_HANDLE;
 				vmaCreateImage(_alloc, &create_info, &alloc_info, &image, &allocation, nullptr) == VK_SUCCESS)
@@ -174,7 +177,7 @@ bool reshade::vulkan::device_impl::create_resource_view(api::resource_handle res
 	assert(resource.handle != 0);
 	const resource_data &data = _resources.at(resource.handle);
 
-	if (data.type)
+	if (data.type != VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO)
 	{
 		VkImageViewCreateInfo create_info { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
 		convert_resource_view_desc(desc, create_info);
@@ -215,13 +218,14 @@ bool reshade::vulkan::device_impl::create_resource_view(api::resource_handle res
 
 void reshade::vulkan::device_impl::destroy_resource(api::resource_handle resource)
 {
-	assert(resource.handle != 0);
+	if (resource.handle == 0)
+		return;
 	const resource_data &data = _resources.at(resource.handle);
 
 	// Can only destroy resources that were allocated via 'create_resource' previously
 	assert(data.allocation != nullptr);
 
-	if (data.type)
+	if (data.type != VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO)
 		vmaDestroyImage(_alloc, data.image, data.allocation);
 	else
 		vmaDestroyBuffer(_alloc, data.buffer, data.allocation);
@@ -230,10 +234,11 @@ void reshade::vulkan::device_impl::destroy_resource(api::resource_handle resourc
 }
 void reshade::vulkan::device_impl::destroy_resource_view(api::resource_view_handle view)
 {
-	assert(view.handle != 0);
+	if (view.handle == 0)
+		return;
 	const resource_view_data &data = _views.at(view.handle);
 
-	if (data.type)
+	if (data.type != VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO)
 		vk.DestroyImageView(_orig, data.image_view, nullptr);
 	else
 		vk.DestroyBufferView(_orig, data.buffer_view, nullptr);
@@ -246,7 +251,7 @@ void reshade::vulkan::device_impl::get_resource_from_view(api::resource_view_han
 	assert(view.handle != 0);
 	const resource_view_data &data = _views.at(view.handle);
 
-	*out_resource = { data.type ? (uint64_t)data.image_create_info.image : (uint64_t)data.buffer_create_info.buffer };
+	*out_resource = { data.type != VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO ? (uint64_t)data.image_create_info.image : (uint64_t)data.buffer_create_info.buffer };
 }
 
 reshade::api::resource_desc reshade::vulkan::device_impl::get_resource_desc(api::resource_handle resource, api::resource_type *out_type, api::memory_usage *out_mem_usage) const
@@ -257,7 +262,7 @@ reshade::api::resource_desc reshade::vulkan::device_impl::get_resource_desc(api:
 	if (out_mem_usage != nullptr)
 		*out_mem_usage = api::memory_usage::unknown;
 
-	if (data.type)
+	if (data.type != VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO)
 	{
 		if (out_type != nullptr)
 			*out_type = static_cast<api::resource_type>(static_cast<uint32_t>(api::resource_type::texture_1d) + data.image_create_info.imageType);
@@ -302,7 +307,7 @@ void reshade::vulkan::command_list_impl::copy_resource(api::resource_handle sour
 	const resource_data &source_data = _device_impl->_resources.at(source.handle);
 	const resource_data &destination_data = _device_impl->_resources.at(destination.handle);
 
-	switch ((source_data.type ? 1 : 0) | (destination_data.type ? 2 : 0))
+	switch ((source_data.type != VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO ? 1 : 0) | (destination_data.type != VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO ? 2 : 0))
 	{
 		case 0x0:
 		{
@@ -358,7 +363,7 @@ void reshade::vulkan::command_list_impl::transition_state(api::resource_handle r
 
 	assert(resource.handle != 0);
 	const resource_data &data = _device_impl->_resources.at(resource.handle);
-	if (data.type)
+	if (data.type != VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO)
 	{
 		VkImageMemoryBarrier transition { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
 		transition.srcAccessMask = convert_usage_to_access(old_state);
@@ -392,7 +397,7 @@ void reshade::vulkan::command_list_impl::clear_depth_stencil_view(api::resource_
 	_has_commands = true;
 
 	const resource_view_data &dsv_data = _device_impl->_views.at(dsv.handle);
-	assert(dsv_data.type); // Has to be an image
+	assert(dsv_data.type != VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO); // Has to be an image
 
 	VkImageAspectFlags aspect_flags = 0;
 	if ((clear_flags & 0x1) != 0)
@@ -421,7 +426,7 @@ void reshade::vulkan::command_list_impl::clear_render_target_view(api::resource_
 	_has_commands = true;
 
 	const resource_view_data &rtv_data = _device_impl->_views.at(rtv.handle);
-	assert(rtv_data.type); // Has to be an image
+	assert(rtv_data.type != VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO); // Has to be an image
 
 	// Transition state to VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL (since it will be in 'resource_usage::render_target' at this point)
 	VkImageMemoryBarrier transition { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };

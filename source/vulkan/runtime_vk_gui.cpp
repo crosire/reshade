@@ -210,13 +210,13 @@ void reshade::vulkan::runtime_impl::render_imgui_draw_data(ImDrawData *draw_data
 	{
 		wait_for_command_buffers(); // Be safe and ensure nothing still uses this buffer
 
-		vmaDestroyBuffer(_device_impl->_alloc, _imgui.indices[buffer_index], _imgui.indices_mem[buffer_index]);
+		_device_impl->destroy_resource(reinterpret_cast<api::resource_handle &>(_imgui.indices[buffer_index]));
 
 		const int new_size = draw_data->TotalIdxCount + 10000;
-		_imgui.indices[buffer_index] = create_buffer(new_size * sizeof(ImDrawIdx),
-			VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU,
-			0, 0, &_imgui.indices_mem[buffer_index]);
-		if (_imgui.indices[buffer_index] == VK_NULL_HANDLE)
+		if (!_device_impl->create_resource(
+			api::resource_type::buffer,
+			{ new_size * sizeof(ImDrawIdx), api::resource_usage::index_buffer },
+			api::memory_usage::cpu_to_gpu, api::resource_usage::undefined, reinterpret_cast<api::resource_handle *>(&_imgui.indices[buffer_index])))
 			return;
 		set_debug_name_buffer(_imgui.indices[buffer_index], "ImGui index buffer");
 		_imgui.num_indices[buffer_index] = new_size;
@@ -225,20 +225,23 @@ void reshade::vulkan::runtime_impl::render_imgui_draw_data(ImDrawData *draw_data
 	{
 		wait_for_command_buffers();
 
-		vmaDestroyBuffer(_device_impl->_alloc, _imgui.vertices[buffer_index], _imgui.vertices_mem[buffer_index]);
+		_device_impl->destroy_resource(reinterpret_cast<api::resource_handle &>(_imgui.vertices[buffer_index]));
 
 		const int new_size = draw_data->TotalVtxCount + 5000;
-		_imgui.vertices[buffer_index] = create_buffer(new_size * sizeof(ImDrawVert),
-			VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU,
-			0, 0, &_imgui.vertices_mem[buffer_index]);
-		if (_imgui.vertices[buffer_index] == VK_NULL_HANDLE)
+		if (!_device_impl->create_resource(
+			api::resource_type::buffer,
+			{ new_size * sizeof(ImDrawVert), api::resource_usage::vertex_buffer },
+			api::memory_usage::cpu_to_gpu, api::resource_usage::undefined, reinterpret_cast<api::resource_handle *>(&_imgui.vertices[buffer_index])))
 			return;
 		set_debug_name_buffer(_imgui.vertices[buffer_index], "ImGui vertex buffer");
 		_imgui.num_vertices[buffer_index] = new_size;
 	}
 
+	const VmaAllocation indices_mem = _device_impl->_resources.at((uint64_t)_imgui.indices[buffer_index]).allocation;
+	const VmaAllocation vertices_mem = _device_impl->_resources.at((uint64_t)_imgui.vertices[buffer_index]).allocation;
+
 	if (ImDrawIdx *idx_dst;
-		vmaMapMemory(_device_impl->_alloc, _imgui.indices_mem[buffer_index], reinterpret_cast<void **>(&idx_dst)) == VK_SUCCESS)
+		vmaMapMemory(_device_impl->_alloc, indices_mem, reinterpret_cast<void **>(&idx_dst)) == VK_SUCCESS)
 	{
 		for (int n = 0; n < draw_data->CmdListsCount; ++n)
 		{
@@ -247,10 +250,10 @@ void reshade::vulkan::runtime_impl::render_imgui_draw_data(ImDrawData *draw_data
 			idx_dst += draw_list->IdxBuffer.Size;
 		}
 
-		vmaUnmapMemory(_device_impl->_alloc, _imgui.indices_mem[buffer_index]);
+		vmaUnmapMemory(_device_impl->_alloc, indices_mem);
 	}
 	if (ImDrawVert *vtx_dst;
-		vmaMapMemory(_device_impl->_alloc, _imgui.vertices_mem[buffer_index], reinterpret_cast<void **>(&vtx_dst)) == VK_SUCCESS)
+		vmaMapMemory(_device_impl->_alloc, vertices_mem, reinterpret_cast<void **>(&vtx_dst)) == VK_SUCCESS)
 	{
 		for (int n = 0; n < draw_data->CmdListsCount; ++n)
 		{
@@ -259,7 +262,7 @@ void reshade::vulkan::runtime_impl::render_imgui_draw_data(ImDrawData *draw_data
 			vtx_dst += draw_list->VtxBuffer.Size;
 		}
 
-		vmaUnmapMemory(_device_impl->_alloc, _imgui.vertices_mem[buffer_index]);
+		vmaUnmapMemory(_device_impl->_alloc, vertices_mem);
 	}
 
 	const VkCommandBuffer cmd_list = _cmd_impl->begin_commands();
