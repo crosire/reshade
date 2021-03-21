@@ -36,13 +36,13 @@ static vr::EVRCompositorError on_submit_d3d11(vr::EVREye eye, ID3D11Texture2D *t
 	if (s_vr_runtime.first == nullptr)
 	{
 		com_ptr<ID3D11Device> device;
-		com_ptr< D3D11Device> device_proxy;
+		D3D11Device *device_proxy = nullptr; // Was set via 'SetPrivateData', so do not use a 'com_ptr' here, since 'GetPrivateData' will not add a reference
 		texture->GetDevice(&device);
 		if (UINT data_size = sizeof(device_proxy);
 			FAILED(device->GetPrivateData(__uuidof(D3D11Device), &data_size, reinterpret_cast<void *>(&device_proxy))))
 			return vr::VRCompositorError_RequestFailed;
 
-		s_vr_runtime = { new reshade::d3d11::runtime_impl(device_proxy.get(), device_proxy->_immediate_context, nullptr), vr::TextureType_DirectX };
+		s_vr_runtime = { new reshade::d3d11::runtime_impl(device_proxy, device_proxy->_immediate_context, nullptr), vr::TextureType_DirectX };
 	}
 
 	if (s_vr_runtime.second != vr::TextureType_DirectX)
