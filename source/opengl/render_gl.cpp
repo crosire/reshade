@@ -335,10 +335,10 @@ bool reshade::opengl::device_impl::check_resource_view_handle_valid(api::resourc
 	}
 }
 
-bool reshade::opengl::device_impl::create_resource(api::resource_type type, const api::resource_desc &desc, api::memory_usage mem_usage, api::resource_usage, api::resource_handle *out_resource)
+bool reshade::opengl::device_impl::create_resource(const api::resource_desc &desc, api::resource_usage, api::resource_handle *out_resource)
 {
 	GLenum target = GL_NONE;
-	switch (type)
+	switch (desc.type)
 	{
 	default:
 		return false;
@@ -369,13 +369,13 @@ bool reshade::opengl::device_impl::create_resource(api::resource_type type, cons
 	glGetIntegerv(get_binding_for_target(target), &prev_object);
 
 	GLuint object = 0;
-	if (type == api::resource_type::buffer)
+	if (desc.type == api::resource_type::buffer)
 	{
 		glGenBuffers(1, &object);
 		glBindBuffer(target, object);
 
 		GLenum usage = GL_NONE;
-		switch (mem_usage)
+		switch (desc.mem_usage)
 		{
 		case api::memory_usage::gpu_only:
 			GL_STATIC_DRAW;
@@ -602,18 +602,12 @@ void reshade::opengl::device_impl::get_resource_from_view(api::resource_view_han
 	}
 }
 
-reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api::resource_handle resource, api::resource_type *out_type, api::memory_usage *out_mem_usage) const
+reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api::resource_handle resource) const
 {
 	GLsizei width = 0, height = 1, depth = 1, buffer_size = 0; GLenum internal_format = GL_NONE;
 
 	const GLenum target = resource.handle >> 40;
 	const GLuint object = resource.handle & 0xFFFFFFFF;
-
-	if (out_type != nullptr)
-		*out_type = convert_resource_type(target);
-
-	if (out_mem_usage != nullptr)
-		*out_mem_usage = api::memory_usage::unknown;
 
 	switch (target)
 	{
@@ -666,9 +660,9 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 	}
 
 	if (buffer_size != 0)
-		return convert_resource_desc(buffer_size);
+		return convert_resource_desc(target, buffer_size, api::memory_usage::unknown);
 	else
-		return convert_resource_desc(convert_resource_type(target), 1, internal_format, width, height, depth);
+		return convert_resource_desc(target, 1, internal_format, width, height, depth);
 }
 
 void reshade::opengl::device_impl::wait_idle() const
@@ -685,11 +679,11 @@ void reshade::opengl::device_impl::copy_resource(api::resource_handle source, ap
 {
 	assert(source.handle != 0 && destination.handle != 0);
 
-	const api::resource_desc source_desc = get_resource_desc(source, nullptr, nullptr);
+	const api::resource_desc source_desc = get_resource_desc(source);
 	const GLenum source_target = source.handle >> 40;
 	const GLuint source_object = source.handle & 0xFFFFFFFF;
 
-	const api::resource_desc destination_desc = get_resource_desc(destination, nullptr, nullptr);
+	const api::resource_desc destination_desc = get_resource_desc(destination);
 	const GLuint destination_target = destination.handle >> 40;
 	const GLuint destination_object = destination.handle & 0xFFFFFFFF;
 

@@ -104,17 +104,29 @@ namespace reshade { namespace api
 		cpu_only
 	};
 
+	struct mapped_subresource
+	{
+		const void *data;
+		uint32_t row_pitch;
+		uint32_t depth_pitch;
+	};
+
 	/// <summary>
 	/// Describes a resource, such as a buffer or texture.
 	/// </summary>
 	struct resource_desc
 	{
 		resource_desc() :
-			width(0), height(0), depth_or_layers(0), levels(0), format(0), samples(0), usage(resource_usage::undefined) {}
-		resource_desc(uint64_t size, resource_usage usage) :
-			size(size), usage(usage) {}
-		resource_desc(uint32_t width, uint32_t height, uint16_t depth_or_layers, uint16_t levels, uint32_t format, uint16_t samples, resource_usage usage) :
-			width(width), height(height), depth_or_layers(depth_or_layers), levels(levels), format(format), samples(samples), usage(usage) {}
+			type(resource_type::unknown), width(0), height(0), depth_or_layers(0), levels(0), format(0), samples(0), usage(resource_usage::undefined), mem_usage(memory_usage::unknown) {}
+		resource_desc(uint64_t size, resource_usage usage, memory_usage mem_usage) :
+			type(resource_type::buffer), size(size), usage(usage), mem_usage(mem_usage) {}
+		resource_desc(uint32_t width, uint32_t height, uint16_t layers, uint16_t levels, uint32_t format, uint16_t samples, resource_usage usage, memory_usage mem_usage) :
+			type(resource_type::texture_2d), width(width), height(height), depth_or_layers(layers), levels(levels), format(format), samples(samples), usage(usage), mem_usage(mem_usage) {}
+		resource_desc(resource_type type, uint32_t width, uint32_t height, uint16_t depth_or_layers, uint16_t levels, uint32_t format, uint16_t samples, resource_usage usage, memory_usage mem_usage) :
+			type(type), width(width), height(height), depth_or_layers(depth_or_layers), levels(levels), format(format), samples(samples), usage(usage), mem_usage(mem_usage) {}
+
+		// Type of the resource.
+		resource_type type;
 
 		union
 		{
@@ -145,6 +157,8 @@ namespace reshade { namespace api
 
 		// Flags that specify how this resource may be used.
 		resource_usage usage;
+		// The memory usage type of the resource, which is used to determine where to place the memory allocation.
+		memory_usage mem_usage;
 	};
 
 	/// <summary>
@@ -306,13 +320,11 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Allocates and creates a new resource based on the specified <paramref name="desc"/>ription.
 		/// </summary>
-		/// <param name="type">The type of the resource to create.</param>
 		/// <param name="desc">The description of the resource to create.</param>
-		/// <param name="mem_usage">The memory usage type of the resource, which is used to determine where to place the memory allocation.</param>
 		/// <param name="initial_state">Initial usage of the resource after creation. This can later be changed via <see cref="command_list::transition_state"/>.</param>
 		/// <param name="out_resource">Pointer to a handle that is set to the handle of the created resource.</param>
 		/// <returns><c>true</c>if the resource was successfully created, <c>false</c> otherwise (in this case <paramref name="out_resource"/> is set to zero).</returns>
-		virtual bool create_resource(resource_type type, const resource_desc &desc, memory_usage mem_usage, resource_usage initial_state, resource_handle *out_resource) = 0;
+		virtual bool create_resource(const resource_desc &desc, resource_usage initial_state, resource_handle *out_resource) = 0;
 		/// <summary>
 		/// Creates a new resource view for the specified <paramref name="resource"/> based on the specified <paramref name="desc"/>ription.
 		/// </summary>
@@ -344,9 +356,7 @@ namespace reshade { namespace api
 		/// This function is thread-safe.
 		/// </summary>
 		/// <param name="resource">The resource to get the description from.</param>
-		/// <param name="out_type">Optional pointer to a variable that is set to the type of the resource. Can be <c>nullptr</c> to not get this information.</param>
-		/// <param name="out_mem_usage">Optional pointer to a variable that is set to the memory usage of the resource. Can be <c>nullptr</c> to not get this information.</param>
-		virtual resource_desc get_resource_desc(resource_handle resource, resource_type *out_type = nullptr, memory_usage *out_mem_usage = nullptr) const = 0;
+		virtual resource_desc get_resource_desc(resource_handle resource) const = 0;
 
 		/// <summary>
 		/// Waits for all issued GPU operations to finish before returning.

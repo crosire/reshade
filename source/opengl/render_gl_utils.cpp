@@ -117,16 +117,19 @@ resource_type reshade::opengl::convert_resource_type(GLenum target)
 	}
 }
 
-resource_desc reshade::opengl::convert_resource_desc(GLsizeiptr buffer_size)
+resource_desc reshade::opengl::convert_resource_desc(GLenum target, GLsizeiptr buffer_size, memory_usage mem_usage)
 {
 	resource_desc desc = {};
+	desc.type = convert_resource_type(target);
 	desc.size = buffer_size;
 	desc.usage = resource_usage::shader_resource; // TODO: Only texture copy currently implemented in 'device_impl::copy_resource', so cannot add copy usage flags here
+	desc.mem_usage = mem_usage;
 	return desc;
 }
-resource_desc reshade::opengl::convert_resource_desc(resource_type type, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth)
+resource_desc reshade::opengl::convert_resource_desc(GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth)
 {
 	resource_desc desc = {};
+	desc.type = convert_resource_type(target);
 	desc.width = width;
 	desc.height = height;
 	assert(depth <= std::numeric_limits<uint16_t>::max());
@@ -139,10 +142,12 @@ resource_desc reshade::opengl::convert_resource_desc(resource_type type, GLsizei
 	desc.usage = resource_usage::copy_dest | resource_usage::copy_source;
 	if (is_depth_stencil_format(internalformat))
 		desc.usage |= resource_usage::depth_stencil;
-	if (type == resource_type::texture_1d || type == resource_type::texture_2d || type == resource_type::surface)
+	if (desc.type == resource_type::texture_1d || desc.type == resource_type::texture_2d || desc.type == resource_type::surface)
 		desc.usage |= resource_usage::render_target;
-	if (type != resource_type::surface)
+	if (desc.type != resource_type::surface)
 		desc.usage |= resource_usage::shader_resource;
+
+	desc.mem_usage = memory_usage::gpu_only;
 
 	return desc;
 }
@@ -175,4 +180,75 @@ resource_view_type reshade::opengl::convert_resource_view_type(GLenum target)
 	case GL_TEXTURE_CUBE_MAP_ARRAY:
 		return resource_view_type::texture_cube_array;
 	}
+}
+
+mapped_subresource reshade::opengl::convert_mapped_subresource(GLenum format, GLenum type, const GLvoid *pixels, GLsizei width, GLsizei height, GLsizei)
+{
+	mapped_subresource result;
+	result.data = pixels;
+
+	uint32_t bpp = 1;
+	switch (type)
+	{
+	case GL_BYTE:
+	case GL_UNSIGNED_BYTE:
+	case GL_UNSIGNED_BYTE_3_3_2:
+	case GL_UNSIGNED_BYTE_2_3_3_REV:
+		bpp = 1;
+		break;
+	case GL_SHORT:
+	case GL_UNSIGNED_SHORT:
+	case GL_UNSIGNED_SHORT_5_6_5:
+	case GL_UNSIGNED_SHORT_5_6_5_REV:
+	case GL_UNSIGNED_SHORT_4_4_4_4:
+	case GL_UNSIGNED_SHORT_4_4_4_4_REV:
+	case GL_UNSIGNED_SHORT_5_5_5_1:
+	case GL_UNSIGNED_SHORT_1_5_5_5_REV:
+	case GL_HALF_FLOAT:
+		bpp = 2;
+		break;
+	case GL_INT:
+	case GL_UNSIGNED_INT:
+	case GL_UNSIGNED_INT_8_8_8_8:
+	case GL_UNSIGNED_INT_8_8_8_8_REV:
+	case GL_UNSIGNED_INT_10_10_10_2:
+	case GL_UNSIGNED_INT_2_10_10_10_REV:
+	case GL_FLOAT:
+		bpp = 4;
+		break;
+	}
+
+	result.row_pitch = bpp * width;
+	result.depth_pitch = bpp * width * height;
+
+	switch (format)
+	{
+	case GL_RED:
+	case GL_RED_INTEGER:
+	case GL_STENCIL_INDEX:
+	case GL_DEPTH_COMPONENT:
+		break;
+	case GL_RG:
+	case GL_RG_INTEGER:
+	case GL_DEPTH_STENCIL:
+		result.row_pitch *= 2;
+		result.depth_pitch *= 2;
+		break;
+	case GL_RGB:
+	case GL_RGB_INTEGER:
+	case GL_BGR:
+	case GL_BGR_INTEGER:
+		result.row_pitch *= 3;
+		result.depth_pitch *= 3;
+		break;
+	case GL_RGBA:
+	case GL_RGBA_INTEGER:
+	case GL_BGRA:
+	case GL_BGRA_INTEGER:
+		result.row_pitch *= 4;
+		result.depth_pitch *= 4;
+		break;
+	}
+
+	return result;
 }

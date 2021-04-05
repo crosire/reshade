@@ -156,14 +156,16 @@ struct state_tracking_context
 			backup_texture = { 0 };
 		}
 
+		desc.type = resource_type::texture_2d;
 		desc.usage = resource_usage::shader_resource | resource_usage::copy_dest;
+		desc.mem_usage = memory_usage::gpu_only;
 
 		if (device->get_api() == render_api::d3d9)
 			desc.format = 114; // D3DFMT_R32F, size INTZ does not support D3DUSAGE_RENDERTARGET which is required for copying
 		if (device->get_api() >= render_api::d3d10 && device->get_api() <= render_api::d3d12)
 			desc.format = static_cast<uint32_t>(make_dxgi_format_typeless(static_cast<DXGI_FORMAT>(desc.format)));
 
-		if (!device->create_resource(resource_type::texture_2d, desc, memory_usage::gpu_only, resource_usage::copy_dest, &backup_texture))
+		if (!device->create_resource(desc, resource_usage::copy_dest, &backup_texture))
 			LOG(ERROR) << "Failed to create backup depth-stencil texture!";
 	}
 };
@@ -252,15 +254,15 @@ static void on_destroy_queue_or_command_list(api_object *queue_or_cmd_list)
 	queue_or_cmd_list->destroy_data<state_tracking>(state_tracking::GUID);
 }
 
-static void on_create_resource(
-	reshade::addon_event_trampoline<reshade::addon_event::create_resource> &trampoline, device *device, resource_type type, const resource_desc &desc, memory_usage mem_usage, resource_handle *out)
+static bool on_create_resource(
+	reshade::addon_event_trampoline<reshade::addon_event::create_resource> &trampoline, device *device, const resource_desc &desc, resource_usage initial_state, const reshade::api::mapped_subresource *initial_data, resource_handle *out)
 {
 	resource_desc new_desc = desc;
 
 	// No need to modify resources in D3D12, since backup texture is used always
 	if ((device->get_api() != render_api::d3d12) && (
 		// Skip MSAA textures and resources that are not 2D textures
-		(type == resource_type::surface || type == resource_type::texture_2d) && desc.samples == 1) && (
+		(desc.type == resource_type::surface || desc.type == resource_type::texture_2d) && desc.samples == 1) && (
 		// Allow shader access to images that are used as depth-stencil attachments
 		(desc.usage & resource_usage::depth_stencil) != 0 && (desc.usage & resource_usage::shader_resource) == 0))
 	{
@@ -272,9 +274,9 @@ static void on_create_resource(
 		new_desc.usage |= resource_usage::shader_resource;
 	}
 
-	trampoline(device, type, new_desc, mem_usage, out);
+	return trampoline(device, new_desc, initial_state, initial_data, out);
 }
-static void on_create_resource_view(
+static bool on_create_resource_view(
 	reshade::addon_event_trampoline<reshade::addon_event::create_resource_view> &trampoline, device *device, resource_handle resource, resource_usage usage_type, const resource_view_desc &desc, resource_view_handle *out)
 {
 	resource_view_desc new_desc = desc;
@@ -308,7 +310,7 @@ static void on_create_resource_view(
 		}
 	}
 
-	trampoline(device, resource, usage_type, new_desc, out);
+	return trampoline(device, resource, usage_type, new_desc, out);
 }
 
 static void draw_impl(command_list *cmd_list, uint32_t vertices, uint32_t instances)

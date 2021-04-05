@@ -50,6 +50,7 @@ memory_usage reshade::d3d12::convert_memory_usage(D3D12_HEAP_TYPE heap_type)
 	switch (heap_type)
 	{
 	default:
+		return memory_usage::unknown;
 	case D3D12_HEAP_TYPE_DEFAULT:
 		return memory_usage::gpu_only;
 	case D3D12_HEAP_TYPE_UPLOAD:
@@ -59,9 +60,9 @@ memory_usage reshade::d3d12::convert_memory_usage(D3D12_HEAP_TYPE heap_type)
 	}
 }
 
-void reshade::d3d12::convert_resource_desc(resource_type type, const resource_desc &desc, D3D12_RESOURCE_DESC &internal_desc)
+void reshade::d3d12::convert_resource_desc(const resource_desc &desc, D3D12_RESOURCE_DESC &internal_desc, D3D12_HEAP_PROPERTIES &heap_props)
 {
-	switch (type)
+	switch (desc.type)
 	{
 	default:
 		assert(false);
@@ -81,7 +82,7 @@ void reshade::d3d12::convert_resource_desc(resource_type type, const resource_de
 		break;
 	}
 
-	if (type == resource_type::buffer)
+	if (desc.type == resource_type::buffer)
 	{
 		internal_desc.Width = desc.size;
 		internal_desc.Height = 1;
@@ -118,33 +119,33 @@ void reshade::d3d12::convert_resource_desc(resource_type type, const resource_de
 		internal_desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 	else
 		internal_desc.Flags &= ~D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+
+	convert_memory_usage(desc.mem_usage, heap_props.Type);
 }
-std::pair<resource_type, resource_desc> reshade::d3d12::convert_resource_desc(const D3D12_RESOURCE_DESC &internal_desc)
+resource_desc reshade::d3d12::convert_resource_desc(const D3D12_RESOURCE_DESC &internal_desc, const D3D12_HEAP_PROPERTIES &heap_props)
 {
-	resource_type type;
+	resource_desc desc = {};
 	switch (internal_desc.Dimension)
 	{
 	default:
 		assert(false);
-		type = resource_type::unknown;
+		desc.type = resource_type::unknown;
 		break;
 	case D3D12_RESOURCE_DIMENSION_BUFFER:
-		type = resource_type::buffer;
+		desc.type = resource_type::buffer;
 		break;
 	case D3D12_RESOURCE_DIMENSION_TEXTURE1D:
-		type = resource_type::texture_1d;
+		desc.type = resource_type::texture_1d;
 		break;
 	case D3D12_RESOURCE_DIMENSION_TEXTURE2D:
-		type = resource_type::texture_2d;
+		desc.type = resource_type::texture_2d;
 		break;
 	case D3D12_RESOURCE_DIMENSION_TEXTURE3D:
-		type = resource_type::texture_3d;
+		desc.type = resource_type::texture_3d;
 		break;
 	}
 
-	resource_desc desc = {};
-
-	if (type == resource_type::buffer)
+	if (desc.type == resource_type::buffer)
 	{
 		desc.size = internal_desc.Width;
 
@@ -161,7 +162,7 @@ std::pair<resource_type, resource_desc> reshade::d3d12::convert_resource_desc(co
 		desc.format = static_cast<uint32_t>(internal_desc.Format);
 		desc.samples = static_cast<uint16_t>(internal_desc.SampleDesc.Count);
 
-		if (type == resource_type::texture_2d)
+		if (desc.type == resource_type::texture_2d)
 			desc.usage |= desc.samples > 1 ? resource_usage::resolve_source : resource_usage::resolve_dest;
 	}
 
@@ -177,7 +178,9 @@ std::pair<resource_type, resource_desc> reshade::d3d12::convert_resource_desc(co
 	if ((internal_desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) != 0)
 		desc.usage |= resource_usage::unordered_access;
 
-	return { type, desc };
+	desc.mem_usage = convert_memory_usage(heap_props.Type);
+
+	return desc;
 }
 
 void reshade::d3d12::convert_resource_view_desc(const resource_view_desc &desc, D3D12_DEPTH_STENCIL_VIEW_DESC &internal_desc)

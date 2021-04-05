@@ -14,8 +14,10 @@ namespace reshade::opengl
 
 	api::resource_type convert_resource_type(GLenum target);
 
-	api::resource_desc convert_resource_desc(GLsizeiptr buffer_size);
-	api::resource_desc convert_resource_desc(api::resource_type type, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height = 1, GLsizei depth = 1);
+	api::resource_desc convert_resource_desc(GLenum target, GLsizeiptr buffer_size, api::memory_usage mem_usage);
+	api::resource_desc convert_resource_desc(GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height = 1, GLsizei depth = 1);
 
 	api::resource_view_type convert_resource_view_type(GLenum target);
+
+	api::mapped_subresource convert_mapped_subresource(GLenum format, GLenum type, const GLvoid *pixels, GLsizei width, GLsizei height = 1, GLsizei depth = 1);
 }

@@ -111,8 +111,9 @@ void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 
 		reshade::api::resource_handle out = { 0 };
 		reshade::invoke_addon_event<reshade::addon_event::create_resource>(
-			[this, &auto_depth_stencil, &old_desc, &new_desc](reshade::api::device *, api::resource_type type, const api::resource_desc &desc, api::memory_usage, api::resource_handle *out) {
-				assert(type == reshade::api::resource_type::surface);
+			[this, &auto_depth_stencil, &old_desc, &new_desc](reshade::api::device *, const api::resource_desc &desc, api::resource_usage, const reshade::api::mapped_subresource *initial_data, api::resource_handle *out) {
+				if (desc.type != reshade::api::resource_type::surface || desc.mem_usage != api::memory_usage::gpu_only || initial_data != nullptr || out == nullptr)
+					return false;
 				convert_resource_desc(desc, new_desc);
 
 				// Need to replace auto depth stencil if add-on modified the description
@@ -131,12 +132,20 @@ void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 				}
 
 				*out = { reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) };
-			}, this, api::resource_type::surface, convert_resource_desc(old_desc, 1, _caps), api::memory_usage::gpu_only, &out);
+				return true;
+			}, this, convert_resource_desc(old_desc, 1, _caps), api::resource_usage::depth_stencil, nullptr, &out);
 
 		// Communicate default state to add-ons
 		reshade::invoke_addon_event<reshade::addon_event::set_render_targets_and_depth_stencil>(
-			[](reshade::api::command_list *, uint32_t count, const reshade::api::resource_view_handle *rtvs, reshade::api::resource_view_handle dsv) {
-				// TODO
+			[this, dsv = api::resource_view_handle { out.handle }](reshade::api::command_list *, uint32_t count, const reshade::api::resource_view_handle *new_rtvs, reshade::api::resource_view_handle new_dsv) {
+				for (DWORD i = 0; i < count; ++i)
+				{
+					_orig->SetRenderTarget(i, reinterpret_cast<IDirect3DSurface9 *>(new_rtvs[i].handle));
+				}
+				if (new_dsv != dsv)
+				{
+					_orig->SetDepthStencilSurface(reinterpret_cast<IDirect3DSurface9 *>(new_dsv.handle));
+				}
 			}, this, 0, nullptr, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) });
 	}
 #else
@@ -178,15 +187,9 @@ bool reshade::d3d9::device_impl::check_resource_view_handle_valid(api::resource_
 	return view.handle != 0 && _resources.has_object(reinterpret_cast<IDirect3DResource9 *>(view.handle));
 }
 
-bool reshade::d3d9::device_impl::create_resource(api::resource_type type, const api::resource_desc &desc, api::memory_usage mem_usage, api::resource_usage, api::resource_handle *out_resource)
+bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc, api::resource_usage, api::resource_handle *out_resource)
 {
-	D3DPOOL pool = D3DPOOL_DEFAULT;
-	if (mem_usage == api::memory_usage::cpu_to_gpu || mem_usage == api::memory_usage::gpu_to_cpu)
-		pool = D3DPOOL_SYSTEMMEM;
-	else if (mem_usage == api::memory_usage::cpu_only)
-		pool = D3DPOOL_SCRATCH;
-
-	switch (type)
+	switch (desc.type)
 	{
 		case api::resource_type::buffer:
 		{
@@ -197,7 +200,7 @@ bool reshade::d3d9::device_impl::create_resource(api::resource_type type, const 
 
 				// TODO: Index format
 				if (IDirect3DIndexBuffer9 *resource;
-					SUCCEEDED(_orig->CreateIndexBuffer(internal_desc.Size, internal_desc.Usage, D3DFMT_UNKNOWN, pool, &resource, nullptr)))
+					SUCCEEDED(_orig->CreateIndexBuffer(internal_desc.Size, internal_desc.Usage, internal_desc.Format, internal_desc.Pool, &resource, nullptr)))
 				{
 					_resources.register_object(resource);
 					*out_resource = { reinterpret_cast<uintptr_t>(resource) };
@@ -210,7 +213,7 @@ bool reshade::d3d9::device_impl::create_resource(api::resource_type type, const 
 				convert_resource_desc(desc, internal_desc);
 
 				if (IDirect3DVertexBuffer9 *resource;
-					SUCCEEDED(_orig->CreateVertexBuffer(internal_desc.Size, internal_desc.Usage, 0, pool, &resource, nullptr)))
+					SUCCEEDED(_orig->CreateVertexBuffer(internal_desc.Size, internal_desc.Usage, internal_desc.FVF, internal_desc.Pool, &resource, nullptr)))
 				{
 					_resources.register_object(resource);
 					*out_resource = { reinterpret_cast<uintptr_t>(resource) };
@@ -231,7 +234,7 @@ bool reshade::d3d9::device_impl::create_resource(api::resource_type type, const 
 			convert_resource_desc(desc, internal_desc, &levels);
 
 			if (IDirect3DTexture9 *resource;
-				SUCCEEDED(_orig->CreateTexture(internal_desc.Width, internal_desc.Height, levels, internal_desc.Usage, internal_desc.Format, pool, &resource, nullptr)))
+				SUCCEEDED(_orig->CreateTexture(internal_desc.Width, internal_desc.Height, levels, internal_desc.Usage, internal_desc.Format, internal_desc.Pool, &resource, nullptr)))
 			{
 				_resources.register_object(resource);
 				*out_resource = { reinterpret_cast<uintptr_t>(resource) };
@@ -250,7 +253,7 @@ bool reshade::d3d9::device_impl::create_resource(api::resource_type type, const 
 			convert_resource_desc(desc, internal_desc, &levels);
 
 			if (IDirect3DVolumeTexture9 *resource;
-				SUCCEEDED(_orig->CreateVolumeTexture(internal_desc.Width, internal_desc.Height, internal_desc.Depth, levels, internal_desc.Usage, internal_desc.Format, pool, &resource, nullptr)))
+				SUCCEEDED(_orig->CreateVolumeTexture(internal_desc.Width, internal_desc.Height, internal_desc.Depth, levels, internal_desc.Usage, internal_desc.Format, internal_desc.Pool, &resource, nullptr)))
 			{
 				_resources.register_object(resource);
 				*out_resource = { reinterpret_cast<uintptr_t>(resource) };
@@ -399,86 +402,56 @@ void reshade::d3d9::device_impl::get_resource_from_view(api::resource_view_handl
 	*out_resource = { view.handle };
 }
 
-reshade::api::resource_desc reshade::d3d9::device_impl::get_resource_desc(api::resource_handle resource, api::resource_type *out_type, api::memory_usage *out_mem_usage) const
+reshade::api::resource_desc reshade::d3d9::device_impl::get_resource_desc(api::resource_handle resource) const
 {
 	assert(resource != 0);
-	switch (reinterpret_cast<IDirect3DResource9 *>(resource.handle)->GetType())
+	auto resource_object = reinterpret_cast<IDirect3DResource9 *>(resource.handle);
+
+	switch (resource_object->GetType())
 	{
 		case D3DRTYPE_SURFACE:
 		{
-			const auto surface = reinterpret_cast<IDirect3DSurface9 *>(resource.handle);
-
 			D3DSURFACE_DESC internal_desc = {};
-			surface->GetDesc(&internal_desc);
-
-			if (out_type != nullptr)
-				*out_type = api::resource_type::surface;
-			if (out_mem_usage != nullptr)
-				*out_mem_usage = convert_d3d_pool_to_memory_usage(internal_desc.Pool);
+			static_cast<IDirect3DSurface9 *>(resource_object)->GetDesc(&internal_desc);
 			return convert_resource_desc(internal_desc, 1, _caps);
 		}
 		case D3DRTYPE_TEXTURE:
 		{
-			const auto texture = reinterpret_cast<IDirect3DTexture9 *>(resource.handle);
+			const auto texture = static_cast<IDirect3DTexture9 *>(resource_object);
 
 			D3DSURFACE_DESC internal_desc = {};
 			texture->GetLevelDesc(0, &internal_desc);
 			internal_desc.Type = D3DRTYPE_TEXTURE;
-
-			if (out_type != nullptr)
-				*out_type = api::resource_type::texture_2d;
-			if (out_mem_usage != nullptr)
-				*out_mem_usage = convert_d3d_pool_to_memory_usage(internal_desc.Pool);
 			return convert_resource_desc(internal_desc, texture->GetLevelCount(), _caps);
 		}
 		case D3DRTYPE_VOLUMETEXTURE:
 		{
-			const auto texture = reinterpret_cast<IDirect3DVolumeTexture9 *>(resource.handle);
+			const auto texture = static_cast<IDirect3DVolumeTexture9 *>(resource_object);
 
 			D3DVOLUME_DESC internal_desc = {};
 			texture->GetLevelDesc(0, &internal_desc);
 			internal_desc.Type = D3DRTYPE_VOLUMETEXTURE;
-
-			if (out_type != nullptr)
-				*out_type = api::resource_type::texture_3d;
-			if (out_mem_usage != nullptr)
-				*out_mem_usage = convert_d3d_pool_to_memory_usage(internal_desc.Pool);
 			return convert_resource_desc(internal_desc, texture->GetLevelCount());
 		}
 		case D3DRTYPE_CUBETEXTURE:
 		{
-			const auto texture = reinterpret_cast<IDirect3DCubeTexture9 *>(resource.handle);
+			const auto texture = static_cast<IDirect3DCubeTexture9 *>(resource_object);
 
 			D3DSURFACE_DESC internal_desc = {};
 			texture->GetLevelDesc(0, &internal_desc);
 			internal_desc.Type = D3DRTYPE_CUBETEXTURE;
-
-			if (out_type != nullptr)
-				*out_type = api::resource_type::texture_2d;
-			if (out_mem_usage != nullptr)
-				*out_mem_usage = convert_d3d_pool_to_memory_usage(internal_desc.Pool);
 			return convert_resource_desc(internal_desc, texture->GetLevelCount(), _caps);
 		}
 		case D3DRTYPE_VERTEXBUFFER:
 		{
 			D3DVERTEXBUFFER_DESC internal_desc = {};
-			reinterpret_cast<IDirect3DVertexBuffer9 *>(resource.handle)->GetDesc(&internal_desc);
-
-			if (out_type != nullptr)
-				*out_type = api::resource_type::buffer;
-			if (out_mem_usage != nullptr)
-				*out_mem_usage = convert_d3d_pool_to_memory_usage(internal_desc.Pool);
+			static_cast<IDirect3DVertexBuffer9 *>(resource_object)->GetDesc(&internal_desc);
 			return convert_resource_desc(internal_desc);
 		}
 		case D3DRTYPE_INDEXBUFFER:
 		{
 			D3DINDEXBUFFER_DESC internal_desc = {};
-			reinterpret_cast<IDirect3DIndexBuffer9 *>(resource.handle)->GetDesc(&internal_desc);
-
-			if (out_type != nullptr)
-				*out_type = api::resource_type::buffer;
-			if (out_mem_usage != nullptr)
-				*out_mem_usage = convert_d3d_pool_to_memory_usage(internal_desc.Pool);
+			static_cast<IDirect3DIndexBuffer9 *>(resource_object)->GetDesc(&internal_desc);
 			return convert_resource_desc(internal_desc);
 		}
 	}

@@ -101,12 +101,15 @@ memory_usage  reshade::d3d10::convert_memory_usage(D3D10_USAGE usage)
 
 void reshade::d3d10::convert_resource_desc(const resource_desc &desc, D3D10_BUFFER_DESC &internal_desc)
 {
+	assert(desc.type == resource_type::buffer);
 	assert(desc.size <= std::numeric_limits<UINT>::max());
 	internal_desc.ByteWidth = static_cast<UINT>(desc.size);
 	convert_usage_to_bind_flags(desc.usage, internal_desc.BindFlags);
+	convert_memory_usage(desc.mem_usage, internal_desc.Usage, internal_desc.CPUAccessFlags);
 }
 void reshade::d3d10::convert_resource_desc(const resource_desc &desc, D3D10_TEXTURE1D_DESC &internal_desc)
 {
+	assert(desc.type == resource_type::texture_1d);
 	internal_desc.Width = desc.width;
 	assert(desc.height == 1);
 	internal_desc.MipLevels = desc.levels;
@@ -114,9 +117,11 @@ void reshade::d3d10::convert_resource_desc(const resource_desc &desc, D3D10_TEXT
 	internal_desc.Format = static_cast<DXGI_FORMAT>(desc.format);
 	assert(desc.samples == 1);
 	convert_usage_to_bind_flags(desc.usage, internal_desc.BindFlags);
+	convert_memory_usage(desc.mem_usage, internal_desc.Usage, internal_desc.CPUAccessFlags);
 }
 void reshade::d3d10::convert_resource_desc(const resource_desc &desc, D3D10_TEXTURE2D_DESC &internal_desc)
 {
+	assert(desc.type == resource_type::texture_2d);
 	internal_desc.Width = desc.width;
 	internal_desc.Height = desc.height;
 	internal_desc.MipLevels = desc.levels;
@@ -124,9 +129,11 @@ void reshade::d3d10::convert_resource_desc(const resource_desc &desc, D3D10_TEXT
 	internal_desc.Format = static_cast<DXGI_FORMAT>(desc.format);
 	internal_desc.SampleDesc.Count = desc.samples;
 	convert_usage_to_bind_flags(desc.usage, internal_desc.BindFlags);
+	convert_memory_usage(desc.mem_usage, internal_desc.Usage, internal_desc.CPUAccessFlags);
 }
 void reshade::d3d10::convert_resource_desc(const resource_desc &desc, D3D10_TEXTURE3D_DESC &internal_desc)
 {
+	assert(desc.type == resource_type::texture_3d);
 	internal_desc.Width = desc.width;
 	internal_desc.Height = desc.height;
 	internal_desc.Depth = desc.depth_or_layers;
@@ -134,17 +141,21 @@ void reshade::d3d10::convert_resource_desc(const resource_desc &desc, D3D10_TEXT
 	internal_desc.Format = static_cast<DXGI_FORMAT>(desc.format);
 	assert(desc.samples == 1);
 	convert_usage_to_bind_flags(desc.usage, internal_desc.BindFlags);
+	convert_memory_usage(desc.mem_usage, internal_desc.Usage, internal_desc.CPUAccessFlags);
 }
 resource_desc reshade::d3d10::convert_resource_desc(const D3D10_BUFFER_DESC &internal_desc)
 {
 	resource_desc desc = {};
+	desc.type = resource_type::buffer;
 	desc.size = internal_desc.ByteWidth;
 	convert_bind_flags_to_usage(internal_desc.BindFlags, desc.usage);
+	desc.mem_usage = convert_memory_usage(internal_desc.Usage);
 	return desc;
 }
 resource_desc reshade::d3d10::convert_resource_desc(const D3D10_TEXTURE1D_DESC &internal_desc)
 {
 	resource_desc desc = {};
+	desc.type = resource_type::texture_1d;
 	desc.width = internal_desc.Width;
 	desc.height = 1;
 	assert(internal_desc.ArraySize <= std::numeric_limits<uint16_t>::max());
@@ -154,11 +165,13 @@ resource_desc reshade::d3d10::convert_resource_desc(const D3D10_TEXTURE1D_DESC &
 	desc.format = static_cast<uint32_t>(internal_desc.Format);
 	desc.samples = 1;
 	convert_bind_flags_to_usage(internal_desc.BindFlags, desc.usage);
+	desc.mem_usage = convert_memory_usage(internal_desc.Usage);
 	return desc;
 }
 resource_desc reshade::d3d10::convert_resource_desc(const D3D10_TEXTURE2D_DESC &internal_desc)
 {
 	resource_desc desc = {};
+	desc.type = resource_type::texture_2d;
 	desc.width = internal_desc.Width;
 	desc.height = internal_desc.Height;
 	assert(internal_desc.ArraySize <= std::numeric_limits<uint16_t>::max());
@@ -169,11 +182,13 @@ resource_desc reshade::d3d10::convert_resource_desc(const D3D10_TEXTURE2D_DESC &
 	desc.samples = static_cast<uint16_t>(internal_desc.SampleDesc.Count);
 	convert_bind_flags_to_usage(internal_desc.BindFlags, desc.usage);
 	desc.usage |= desc.samples > 1 ? resource_usage::resolve_source : resource_usage::resolve_dest;
+	desc.mem_usage = convert_memory_usage(internal_desc.Usage);
 	return desc;
 }
 resource_desc reshade::d3d10::convert_resource_desc(const D3D10_TEXTURE3D_DESC &internal_desc)
 {
 	resource_desc desc = {};
+	desc.type = resource_type::texture_3d;
 	desc.width = internal_desc.Width;
 	desc.height = internal_desc.Height;
 	assert(internal_desc.Depth <= std::numeric_limits<uint16_t>::max());
@@ -183,6 +198,7 @@ resource_desc reshade::d3d10::convert_resource_desc(const D3D10_TEXTURE3D_DESC &
 	desc.format = static_cast<uint32_t>(internal_desc.Format);
 	desc.samples = 1;
 	convert_bind_flags_to_usage(internal_desc.BindFlags, desc.usage);
+	desc.mem_usage = convert_memory_usage(internal_desc.Usage);
 	return desc;
 }
 

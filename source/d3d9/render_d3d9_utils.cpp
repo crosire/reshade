@@ -8,18 +8,40 @@
 
 using namespace reshade::api;
 
-memory_usage reshade::d3d9::convert_d3d_pool_to_memory_usage(D3DPOOL pool)
+void reshade::d3d9::convert_memory_usage_to_d3d_pool(memory_usage usage, D3DPOOL &d3d_pool)
 {
-	switch (pool)
+	if (d3d_pool == D3DPOOL_MANAGED)
+		return;
+
+	switch (usage)
+	{
+	default:
+	case memory_usage::gpu_only:
+		d3d_pool = D3DPOOL_DEFAULT;
+		break;
+	case memory_usage::cpu_to_gpu:
+		d3d_pool = D3DPOOL_SYSTEMMEM;
+		break;
+	case memory_usage::cpu_only:
+		d3d_pool = D3DPOOL_SCRATCH;
+		break;
+	}
+}
+void reshade::d3d9::convert_d3d_pool_to_memory_usage(D3DPOOL d3d_pool, memory_usage &usage)
+{
+	switch (d3d_pool)
 	{
 	default:
 	case D3DPOOL_DEFAULT:
-		return memory_usage::gpu_only;
+		usage = memory_usage::gpu_only;
+		break;
 	case D3DPOOL_MANAGED:
 	case D3DPOOL_SYSTEMMEM:
-		return memory_usage::cpu_to_gpu;
+		usage = memory_usage::cpu_to_gpu;
+		break;
 	case D3DPOOL_SCRATCH:
-		return memory_usage::cpu_only;
+		usage = memory_usage::cpu_only;
+		break;
 	}
 }
 
@@ -50,12 +72,15 @@ void reshade::d3d9::convert_d3d_usage_to_resource_usage(DWORD d3d_usage, resourc
 
 void reshade::d3d9::convert_resource_desc(const resource_desc &desc, D3DVOLUME_DESC &internal_desc, UINT *levels)
 {
+	assert(desc.type == resource_type::texture_3d);
+
 	internal_desc.Width = desc.width;
 	internal_desc.Height = desc.height;
 	internal_desc.Depth = desc.depth_or_layers;
 	internal_desc.Format = static_cast<D3DFORMAT>(desc.format);
 	assert(desc.samples == 1);
 
+	convert_memory_usage_to_d3d_pool(desc.mem_usage, internal_desc.Pool);
 	convert_resource_usage_to_d3d_usage(desc.usage, internal_desc.Usage);
 
 	if (levels != nullptr)
@@ -65,6 +90,8 @@ void reshade::d3d9::convert_resource_desc(const resource_desc &desc, D3DVOLUME_D
 }
 void reshade::d3d9::convert_resource_desc(const resource_desc &desc, D3DSURFACE_DESC &internal_desc, UINT *levels)
 {
+	assert(desc.type == resource_type::surface || desc.type == resource_type::texture_2d);
+
 	internal_desc.Width = desc.width;
 	internal_desc.Height = desc.height;
 	assert(desc.depth_or_layers == 1 || desc.depth_or_layers == 6 /* D3DRTYPE_CUBETEXTURE */);
@@ -75,6 +102,7 @@ void reshade::d3d9::convert_resource_desc(const resource_desc &desc, D3DSURFACE_
 	else
 		internal_desc.MultiSampleType = D3DMULTISAMPLE_NONE;
 
+	convert_memory_usage_to_d3d_pool(desc.mem_usage, internal_desc.Pool);
 	convert_resource_usage_to_d3d_usage(desc.usage, internal_desc.Usage);
 
 	if (levels != nullptr)
@@ -84,15 +112,19 @@ void reshade::d3d9::convert_resource_desc(const resource_desc &desc, D3DSURFACE_
 }
 void reshade::d3d9::convert_resource_desc(const resource_desc &desc, D3DINDEXBUFFER_DESC &internal_desc)
 {
+	assert(desc.type == resource_type::buffer);
 	assert(desc.size <= std::numeric_limits<UINT>::max());
 	internal_desc.Size = static_cast<UINT>(desc.size);
+	convert_memory_usage_to_d3d_pool(desc.mem_usage, internal_desc.Pool);
 	assert((desc.usage & (resource_usage::vertex_buffer | resource_usage::index_buffer)) == resource_usage::index_buffer);
 	convert_resource_usage_to_d3d_usage(desc.usage, internal_desc.Usage);
 }
 void reshade::d3d9::convert_resource_desc(const resource_desc &desc, D3DVERTEXBUFFER_DESC &internal_desc)
 {
+	assert(desc.type == resource_type::buffer);
 	assert(desc.size <= std::numeric_limits<UINT>::max());
 	internal_desc.Size = static_cast<UINT>(desc.size);
+	convert_memory_usage_to_d3d_pool(desc.mem_usage, internal_desc.Pool);
 	assert((desc.usage & (resource_usage::vertex_buffer | resource_usage::index_buffer)) == resource_usage::vertex_buffer);
 	convert_resource_usage_to_d3d_usage(desc.usage, internal_desc.Usage);
 }
@@ -101,6 +133,7 @@ resource_desc reshade::d3d9::convert_resource_desc(const D3DVOLUME_DESC &interna
 	assert(internal_desc.Type == D3DRTYPE_VOLUME || internal_desc.Type == D3DRTYPE_VOLUMETEXTURE);
 
 	resource_desc desc = {};
+	desc.type = resource_type::texture_3d;
 	desc.width = internal_desc.Width;
 	desc.height = internal_desc.Height;
 	assert(internal_desc.Depth <= std::numeric_limits<uint16_t>::max());
@@ -110,6 +143,7 @@ resource_desc reshade::d3d9::convert_resource_desc(const D3DVOLUME_DESC &interna
 	desc.format = static_cast<uint32_t>(internal_desc.Format);
 	desc.samples = 1;
 
+	convert_d3d_pool_to_memory_usage(internal_desc.Pool, desc.mem_usage);
 	convert_d3d_usage_to_resource_usage(internal_desc.Usage, desc.usage);
 	if (internal_desc.Type == D3DRTYPE_VOLUMETEXTURE)
 		desc.usage |= resource_usage::shader_resource;
@@ -121,6 +155,7 @@ resource_desc reshade::d3d9::convert_resource_desc(const D3DSURFACE_DESC &intern
 	assert(internal_desc.Type == D3DRTYPE_SURFACE || internal_desc.Type == D3DRTYPE_TEXTURE || internal_desc.Type == D3DRTYPE_CUBETEXTURE);
 
 	resource_desc desc = {};
+	desc.type = (internal_desc.Type == D3DRTYPE_SURFACE) ? resource_type::surface : resource_type::texture_2d;
 	desc.width = internal_desc.Width;
 	desc.height = internal_desc.Height;
 	desc.depth_or_layers = internal_desc.Type == D3DRTYPE_CUBETEXTURE ? 6 : 1;
@@ -133,6 +168,7 @@ resource_desc reshade::d3d9::convert_resource_desc(const D3DSURFACE_DESC &intern
 	else
 		desc.samples = 1;
 
+	convert_d3d_pool_to_memory_usage(internal_desc.Pool, desc.mem_usage);
 	convert_d3d_usage_to_resource_usage(internal_desc.Usage, desc.usage);
 	if (internal_desc.Type == D3DRTYPE_TEXTURE || internal_desc.Type == D3DRTYPE_CUBETEXTURE)
 		desc.usage |= resource_usage::shader_resource;
@@ -182,7 +218,9 @@ resource_desc reshade::d3d9::convert_resource_desc(const D3DSURFACE_DESC &intern
 resource_desc reshade::d3d9::convert_resource_desc(const D3DINDEXBUFFER_DESC &internal_desc)
 {
 	resource_desc desc = {};
+	desc.type = resource_type::buffer;
 	desc.size = internal_desc.Size;
+	convert_d3d_pool_to_memory_usage(internal_desc.Pool, desc.mem_usage);
 	convert_d3d_usage_to_resource_usage(internal_desc.Usage, desc.usage);
 	desc.usage |= resource_usage::index_buffer;
 	return desc;
@@ -190,7 +228,9 @@ resource_desc reshade::d3d9::convert_resource_desc(const D3DINDEXBUFFER_DESC &in
 resource_desc reshade::d3d9::convert_resource_desc(const D3DVERTEXBUFFER_DESC &internal_desc)
 {
 	resource_desc desc = {};
+	desc.type = resource_type::buffer;
 	desc.size = internal_desc.Size;
+	convert_d3d_pool_to_memory_usage(internal_desc.Pool, desc.mem_usage);
 	convert_d3d_usage_to_resource_usage(internal_desc.Usage, desc.usage);
 	desc.usage |= resource_usage::vertex_buffer;
 	return desc;

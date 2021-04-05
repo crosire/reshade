@@ -93,13 +93,13 @@ bool reshade::vulkan::device_impl::check_resource_view_handle_valid(api::resourc
 	return data.type != VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO ? (data.image_view == (VkImageView)view.handle) : (data.buffer_view == (VkBufferView)view.handle);
 }
 
-bool reshade::vulkan::device_impl::create_resource(api::resource_type type, const api::resource_desc &desc, api::memory_usage mem_usage, api::resource_usage initial_state, api::resource_handle *out_resource)
+bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &desc, api::resource_usage initial_state, api::resource_handle *out_resource)
 {
 	assert((desc.usage & initial_state) == initial_state);
 
 	VmaAllocation allocation = VK_NULL_HANDLE;
 	VmaAllocationCreateInfo alloc_info = {};
-	switch (mem_usage)
+	switch (desc.mem_usage)
 	{
 	default:
 	case api::memory_usage::gpu_only:
@@ -118,7 +118,7 @@ bool reshade::vulkan::device_impl::create_resource(api::resource_type type, cons
 		break;
 	}
 
-	switch (type)
+	switch (desc.type)
 	{
 		case api::resource_type::buffer:
 		{
@@ -139,7 +139,7 @@ bool reshade::vulkan::device_impl::create_resource(api::resource_type type, cons
 		case api::resource_type::texture_3d:
 		{
 			VkImageCreateInfo create_info { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
-			convert_resource_desc(type, desc, create_info);
+			convert_resource_desc(desc, create_info);
 			if ((desc.usage & (api::resource_usage::render_target | api::resource_usage::shader_resource)) != 0)
 				create_info.flags |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
 
@@ -254,26 +254,17 @@ void reshade::vulkan::device_impl::get_resource_from_view(api::resource_view_han
 	*out_resource = { data.type != VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO ? (uint64_t)data.image_create_info.image : (uint64_t)data.buffer_create_info.buffer };
 }
 
-reshade::api::resource_desc reshade::vulkan::device_impl::get_resource_desc(api::resource_handle resource, api::resource_type *out_type, api::memory_usage *out_mem_usage) const
+reshade::api::resource_desc reshade::vulkan::device_impl::get_resource_desc(api::resource_handle resource) const
 {
 	assert(resource.handle != 0);
 	const resource_data &data = _resources.at(resource.handle);
 
-	if (out_mem_usage != nullptr)
-		*out_mem_usage = api::memory_usage::unknown;
-
 	if (data.type != VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO)
 	{
-		if (out_type != nullptr)
-			*out_type = static_cast<api::resource_type>(static_cast<uint32_t>(api::resource_type::texture_1d) + data.image_create_info.imageType);
-
-		return convert_resource_desc(data.image_create_info).second;
+		return convert_resource_desc(data.image_create_info);
 	}
 	else
 	{
-		if (out_type != nullptr)
-			*out_type = api::resource_type::buffer;
-
 		return convert_resource_desc(data.buffer_create_info);
 	}
 }

@@ -180,21 +180,9 @@ static inline void convert_buffer_usage_flags_to_usage(const VkBufferUsageFlags 
 		usage |= resource_usage::copy_source;
 }
 
-void reshade::vulkan::convert_resource_desc(const resource_desc &desc, VkBufferCreateInfo &create_info)
+void reshade::vulkan::convert_resource_desc(const resource_desc &desc, VkImageCreateInfo &create_info)
 {
-	create_info.size = desc.size;
-	convert_usage_to_buffer_usage_flags(desc.usage, create_info.usage);
-}
-resource_desc reshade::vulkan::convert_resource_desc(const VkBufferCreateInfo &create_info)
-{
-	resource_desc desc = {};
-	desc.size = create_info.size;
-	convert_buffer_usage_flags_to_usage(create_info.usage, desc.usage);
-	return desc;
-}
-void reshade::vulkan::convert_resource_desc(resource_type type, const resource_desc &desc, VkImageCreateInfo &create_info)
-{
-	switch (type)
+	switch (desc.type)
 	{
 	default:
 		assert(false);
@@ -221,9 +209,14 @@ void reshade::vulkan::convert_resource_desc(resource_type type, const resource_d
 	create_info.samples = static_cast<VkSampleCountFlagBits>(desc.samples);
 	convert_usage_to_image_usage_flags(desc.usage, create_info.usage);
 }
-std::pair<resource_type, resource_desc> reshade::vulkan::convert_resource_desc(const VkImageCreateInfo &create_info)
+void reshade::vulkan::convert_resource_desc(const resource_desc &desc, VkBufferCreateInfo &create_info)
 {
-	resource_type type = resource_type::unknown;
+	assert(desc.type == resource_type::buffer);
+	create_info.size = desc.size;
+	convert_usage_to_buffer_usage_flags(desc.usage, create_info.usage);
+}
+resource_desc reshade::vulkan::convert_resource_desc(const VkImageCreateInfo &create_info)
+{
 	resource_desc desc = {};
 	switch (create_info.imageType)
 	{
@@ -231,7 +224,7 @@ std::pair<resource_type, resource_desc> reshade::vulkan::convert_resource_desc(c
 		assert(false);
 		break;
 	case VK_IMAGE_TYPE_1D:
-		type = resource_type::texture_1d;
+		desc.type = resource_type::texture_1d;
 		desc.width = create_info.extent.width;
 		assert(create_info.extent.height == 1 && create_info.extent.depth == 1);
 		desc.height = 1;
@@ -239,7 +232,7 @@ std::pair<resource_type, resource_desc> reshade::vulkan::convert_resource_desc(c
 		desc.depth_or_layers = static_cast<uint16_t>(create_info.arrayLayers);
 		break;
 	case VK_IMAGE_TYPE_2D:
-		type = resource_type::texture_2d;
+		desc.type = resource_type::texture_2d;
 		desc.width = create_info.extent.width;
 		desc.height = create_info.extent.height;
 		assert(create_info.extent.depth == 1);
@@ -247,7 +240,7 @@ std::pair<resource_type, resource_desc> reshade::vulkan::convert_resource_desc(c
 		desc.depth_or_layers = static_cast<uint16_t>(create_info.arrayLayers);
 		break;
 	case VK_IMAGE_TYPE_3D:
-		type = resource_type::texture_3d;
+		desc.type = resource_type::texture_3d;
 		desc.width = create_info.extent.width;
 		desc.height = create_info.extent.height;
 		assert(create_info.extent.depth <= std::numeric_limits<uint16_t>::max());
@@ -262,11 +255,19 @@ std::pair<resource_type, resource_desc> reshade::vulkan::convert_resource_desc(c
 	desc.samples = static_cast<uint16_t>(create_info.samples);
 
 	convert_image_usage_flags_to_usage(create_info.usage, desc.usage);
-	if (type == resource_type::texture_2d && (
+	if (desc.type == resource_type::texture_2d && (
 		create_info.usage & (desc.samples > 1 ? VK_IMAGE_USAGE_TRANSFER_SRC_BIT : VK_IMAGE_USAGE_TRANSFER_DST_BIT)) != 0)
 		desc.usage |= desc.samples > 1 ? resource_usage::resolve_source : resource_usage::resolve_dest;
 
-	return { type, desc };
+	return desc;
+}
+resource_desc reshade::vulkan::convert_resource_desc(const VkBufferCreateInfo &create_info)
+{
+	resource_desc desc = {};
+	desc.type = resource_type::buffer;
+	desc.size = create_info.size;
+	convert_buffer_usage_flags_to_usage(create_info.usage, desc.usage);
+	return desc;
 }
 
 void reshade::vulkan::convert_resource_view_desc(const resource_view_desc &desc, VkImageViewCreateInfo &create_info)

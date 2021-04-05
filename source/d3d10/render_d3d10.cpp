@@ -60,14 +60,13 @@ bool reshade::d3d10::device_impl::check_resource_view_handle_valid(api::resource
 	return view.handle != 0 && _views.has_object(reinterpret_cast<ID3D10View *>(view.handle));
 }
 
-bool reshade::d3d10::device_impl::create_resource(api::resource_type type, const api::resource_desc &desc, api::memory_usage mem_usage, api::resource_usage, api::resource_handle *out_resource)
+bool reshade::d3d10::device_impl::create_resource(const api::resource_desc &desc, api::resource_usage, api::resource_handle *out_resource)
 {
-	switch (type)
+	switch (desc.type)
 	{
 		case api::resource_type::buffer:
 		{
 			D3D10_BUFFER_DESC internal_desc = {};
-			convert_memory_usage(mem_usage, internal_desc.Usage, internal_desc.CPUAccessFlags);
 			convert_resource_desc(desc, internal_desc);
 
 			if (com_ptr<ID3D10Buffer> resource;
@@ -82,7 +81,6 @@ bool reshade::d3d10::device_impl::create_resource(api::resource_type type, const
 		case api::resource_type::texture_1d:
 		{
 			D3D10_TEXTURE1D_DESC internal_desc = {};
-			convert_memory_usage(mem_usage, internal_desc.Usage, internal_desc.CPUAccessFlags);
 			convert_resource_desc(desc, internal_desc);
 
 			if (com_ptr<ID3D10Texture1D> resource;
@@ -97,7 +95,6 @@ bool reshade::d3d10::device_impl::create_resource(api::resource_type type, const
 		case api::resource_type::texture_2d:
 		{
 			D3D10_TEXTURE2D_DESC internal_desc = {};
-			convert_memory_usage(mem_usage, internal_desc.Usage, internal_desc.CPUAccessFlags);
 			convert_resource_desc(desc, internal_desc);
 
 			if (com_ptr<ID3D10Texture2D> resource;
@@ -112,7 +109,6 @@ bool reshade::d3d10::device_impl::create_resource(api::resource_type type, const
 		case api::resource_type::texture_3d:
 		{
 			D3D10_TEXTURE3D_DESC internal_desc = {};
-			convert_memory_usage(mem_usage, internal_desc.Usage, internal_desc.CPUAccessFlags);
 			convert_resource_desc(desc, internal_desc);
 
 			if (com_ptr<ID3D10Texture3D> resource;
@@ -203,59 +199,37 @@ void reshade::d3d10::device_impl::get_resource_from_view(api::resource_view_hand
 	*out_resource = { reinterpret_cast<uintptr_t>(resource.get()) };
 }
 
-reshade::api::resource_desc reshade::d3d10::device_impl::get_resource_desc(api::resource_handle resource, api::resource_type *out_type, api::memory_usage *out_mem_usage) const
+reshade::api::resource_desc reshade::d3d10::device_impl::get_resource_desc(api::resource_handle resource) const
 {
 	assert(resource.handle != 0);
 	const auto resource_object = reinterpret_cast<ID3D10Resource *>(resource.handle);
 
 	D3D10_RESOURCE_DIMENSION dimension;
 	resource_object->GetType(&dimension);
-
-	static_assert(
-		D3D10_RESOURCE_DIMENSION_BUFFER    == static_cast<uint32_t>(api::resource_type::buffer) &&
-		D3D10_RESOURCE_DIMENSION_TEXTURE1D == static_cast<uint32_t>(api::resource_type::texture_1d) &&
-		D3D10_RESOURCE_DIMENSION_TEXTURE2D == static_cast<uint32_t>(api::resource_type::texture_2d) &&
-		D3D10_RESOURCE_DIMENSION_TEXTURE3D == static_cast<uint32_t>(api::resource_type::texture_3d));
-
-	if (out_type != nullptr)
-		*out_type = static_cast<api::resource_type>(dimension);
-
 	switch (dimension)
 	{
 		case D3D10_RESOURCE_DIMENSION_BUFFER:
 		{
 			D3D10_BUFFER_DESC internal_desc;
 			static_cast<ID3D10Buffer *>(resource_object)->GetDesc(&internal_desc);
-
-			if (out_mem_usage != nullptr)
-				*out_mem_usage = convert_memory_usage(internal_desc.Usage);
 			return convert_resource_desc(internal_desc);
 		}
 		case D3D10_RESOURCE_DIMENSION_TEXTURE1D:
 		{
 			D3D10_TEXTURE1D_DESC internal_desc;
 			static_cast<ID3D10Texture1D *>(resource_object)->GetDesc(&internal_desc);
-
-			if (out_mem_usage != nullptr)
-				*out_mem_usage = convert_memory_usage(internal_desc.Usage);
 			return convert_resource_desc(internal_desc);
 		}
 		case D3D10_RESOURCE_DIMENSION_TEXTURE2D:
 		{
 			D3D10_TEXTURE2D_DESC internal_desc;
 			static_cast<ID3D10Texture2D *>(resource_object)->GetDesc(&internal_desc);
-
-			if (out_mem_usage != nullptr)
-				*out_mem_usage = convert_memory_usage(internal_desc.Usage);
 			return convert_resource_desc(internal_desc);
 		}
 		case D3D10_RESOURCE_DIMENSION_TEXTURE3D:
 		{
 			D3D10_TEXTURE3D_DESC internal_desc;
 			static_cast<ID3D10Texture3D *>(resource_object)->GetDesc(&internal_desc);
-
-			if (out_mem_usage != nullptr)
-				*out_mem_usage = convert_memory_usage(internal_desc.Usage);
 			return convert_resource_desc(internal_desc);
 		}
 	}

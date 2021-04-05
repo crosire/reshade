@@ -25,7 +25,7 @@ namespace reshade::d3d10
 		bool check_resource_handle_valid(api::resource_handle resource) const final;
 		bool check_resource_view_handle_valid(api::resource_view_handle view) const final;
 
-		bool create_resource(api::resource_type type, const api::resource_desc &desc, api::memory_usage mem_usage, api::resource_usage initial_state, api::resource_handle *resource) final;
+		bool create_resource(const api::resource_desc &desc, api::resource_usage initial_state, api::resource_handle *resource) final;
 		bool create_resource_view(api::resource_handle resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view_handle *view) final;
 
 		void destroy_resource(api::resource_handle resource) final;
@@ -33,7 +33,7 @@ namespace reshade::d3d10
 
 		void get_resource_from_view(api::resource_view_handle view, api::resource_handle *resource) const final;
 
-		api::resource_desc get_resource_desc(api::resource_handle resource, api::resource_type *out_type, api::memory_usage *out_mem_usage) const final;
+		api::resource_desc get_resource_desc(api::resource_handle resource) const final;
 
 		void wait_idle() const final { /* no-op */ }
 

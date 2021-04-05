@@ -73,17 +73,15 @@ bool reshade::d3d12::device_impl::check_resource_view_handle_valid(api::resource
 	return _views.find(view.handle) != _views.end();
 }
 
-bool reshade::d3d12::device_impl::create_resource(api::resource_type type, const api::resource_desc &desc, api::memory_usage mem_usage, api::resource_usage initial_state, api::resource_handle *out_resource)
+bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc, api::resource_usage initial_state, api::resource_handle *out_resource)
 {
 	assert((desc.usage & initial_state) == initial_state);
 
 	D3D12_RESOURCE_DESC internal_desc = {};
-	convert_resource_desc(type, desc, internal_desc);
-	if (type == api::resource_type::buffer)
-		internal_desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-
 	D3D12_HEAP_PROPERTIES heap_props = {};
-	convert_memory_usage(mem_usage, heap_props.Type);
+	convert_resource_desc(desc, internal_desc, heap_props);
+	if (desc.type == api::resource_type::buffer)
+		internal_desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 
 	if (ID3D12Resource *resource = nullptr;
 		SUCCEEDED(_orig->CreateCommittedResource(&heap_props, D3D12_HEAP_FLAG_NONE, &internal_desc, convert_resource_usage_to_states(initial_state), nullptr, IID_PPV_ARGS(&resource))))
@@ -207,31 +205,16 @@ void reshade::d3d12::device_impl::get_resource_from_view(api::resource_view_hand
 		*out_resource = { 0 };
 }
 
-reshade::api::resource_desc reshade::d3d12::device_impl::get_resource_desc(api::resource_handle resource, api::resource_type *out_type, api::memory_usage *out_mem_usage) const
+reshade::api::resource_desc reshade::d3d12::device_impl::get_resource_desc(api::resource_handle resource) const
 {
 	assert(resource.handle != 0);
 	const D3D12_RESOURCE_DESC internal_desc = reinterpret_cast<ID3D12Resource *>(resource.handle)->GetDesc();
 
-	static_assert(
-		D3D12_RESOURCE_DIMENSION_BUFFER    == static_cast<uint32_t>(api::resource_type::buffer) &&
-		D3D12_RESOURCE_DIMENSION_TEXTURE1D == static_cast<uint32_t>(api::resource_type::texture_1d) &&
-		D3D12_RESOURCE_DIMENSION_TEXTURE2D == static_cast<uint32_t>(api::resource_type::texture_2d) &&
-		D3D12_RESOURCE_DIMENSION_TEXTURE3D == static_cast<uint32_t>(api::resource_type::texture_3d));
+	D3D12_HEAP_FLAGS heap_flags;
+	D3D12_HEAP_PROPERTIES heap_props = {};
+	reinterpret_cast<ID3D12Resource *>(resource.handle)->GetHeapProperties(&heap_props, &heap_flags);
 
-	if (out_type != nullptr)
-		*out_type = static_cast<api::resource_type>(internal_desc.Dimension);
-
-	if (out_mem_usage != nullptr)
-	{
-		D3D12_HEAP_FLAGS heap_flags;
-		D3D12_HEAP_PROPERTIES heap_props;
-		if (SUCCEEDED(reinterpret_cast<ID3D12Resource *>(resource.handle)->GetHeapProperties(&heap_props, &heap_flags)))
-			*out_mem_usage = convert_memory_usage(heap_props.Type);
-		else
-			*out_mem_usage = api::memory_usage::unknown;
-	}
-
-	return convert_resource_desc(internal_desc).second;
+	return convert_resource_desc(internal_desc, heap_props);
 }
 
 void reshade::d3d12::device_impl::wait_idle() const

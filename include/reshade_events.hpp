@@ -57,17 +57,17 @@ namespace reshade
 
 		/// <summary>
 		/// Called before 'IDirect3Device9::Create(...)Buffer/Texture', 'IDirect3DDevice9::Create(...)Surface(Ex)', 'ID3D10Device::CreateBuffer/Texture(...)', 'ID3D11Device::CreateBuffer/Texture(...)', 'ID3D12Device::Create(...)Resource', 'gl(Named)Buffer/Tex(ture)Storage(...)' or 'vkCreateBuffer/Image'.
-		/// <para>Callback function signature: <c>void (api::device *device, api::resource_type type, const api::resource_desc &desc, api::memory_usage mem_usage, api::resource_handle *out)</c></para>
+		/// <para>Callback function signature: <c>bool (api::device *device, const api::resource_desc &desc, api::resource_usage initial_state, const api::mapped_subresource *initial_data, api::resource_handle *out)</c></para>
 		/// </summary>
 		create_resource,
 		/// <summary>
 		/// Called before 'IDirect3DDevice9::Create(...)Surface(Ex)', 'ID3D10Device::Create(...)View', 'ID3D11Device::Create(...)View', 'ID3D12Device::Create(...)View', 'glTex(ture)Buffer', 'glTextureView(...)' or 'vkCreateBuffer/ImageView'.
-		/// <para>Callback function signature: <c>void (api::device *device, api::resource_handle resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view_handle *out)</c></para>
+		/// <para>Callback function signature: <c>bool (api::device *device, api::resource_handle resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view_handle *out)</c></para>
 		/// </summary>
 		create_resource_view,
 		/// <summary>
 		/// Called before 'IDirect3DDevice9::Create(...)Shader', 'ID3D10Device::Create(...)Shader', 'ID3D11Device::Create(...)Shader', 'ID3D12Device::Create(...)PipelineState', 'glShaderSource' or 'vkCreateShaderModule'.
-		/// <para>Callback function signature: <c>void (api::device *device, const void *code, size_t code_size)</c></para>
+		/// <para>Callback function signature: <c>bool (api::device *device, const void *code, size_t code_size)</c></para>
 		/// </summary>
 		create_shader_module,
 
@@ -202,53 +202,53 @@ namespace reshade
 		callback_type  term_callback;
 	};
 
-#define DEFINE_ADDON_EVENT(ev, ...) \
+#define DEFINE_ADDON_EVENT(ev, ret, ...) \
 	template <> \
 	struct addon_event_traits<ev> { \
-		using decl = void(*)(addon_event_trampoline<ev> &trampoline, __VA_ARGS__); \
+		using decl = ret(*)(addon_event_trampoline<ev> &trampoline, __VA_ARGS__); \
 		static const bool has_trampoline = true; \
 	}; \
 	template <> \
-	class  addon_event_trampoline<ev> : public addon_event_trampoline_data<void(__VA_ARGS__)> {}
-#define DEFINE_ADDON_EVENT_WITHOUT_TRAMPOLINE(ev, ...) \
+	class  addon_event_trampoline<ev> : public addon_event_trampoline_data<ret(__VA_ARGS__)> {}
+#define DEFINE_ADDON_EVENT_WITHOUT_TRAMPOLINE(ev, ret, ...) \
 	template <> \
 	struct addon_event_traits<ev> { \
-		using decl = void(*)(__VA_ARGS__); \
+		using decl = ret(*)(__VA_ARGS__); \
 		static const bool has_trampoline = false; \
 	}
 
-	DEFINE_ADDON_EVENT_WITHOUT_TRAMPOLINE(addon_event::init_device, api::device *device);
-	DEFINE_ADDON_EVENT_WITHOUT_TRAMPOLINE(addon_event::destroy_device, api::device *device);
-	DEFINE_ADDON_EVENT_WITHOUT_TRAMPOLINE(addon_event::init_command_list, api::command_list *cmd_list);
-	DEFINE_ADDON_EVENT_WITHOUT_TRAMPOLINE(addon_event::destroy_command_list, api::command_list *cmd_list);
-	DEFINE_ADDON_EVENT_WITHOUT_TRAMPOLINE(addon_event::init_command_queue, api::command_queue *queue);
-	DEFINE_ADDON_EVENT_WITHOUT_TRAMPOLINE(addon_event::destroy_command_queue, api::command_queue *queue);
-	DEFINE_ADDON_EVENT_WITHOUT_TRAMPOLINE(addon_event::init_effect_runtime, api::effect_runtime *runtime);
-	DEFINE_ADDON_EVENT_WITHOUT_TRAMPOLINE(addon_event::destroy_effect_runtime, api::effect_runtime *runtime);
+	DEFINE_ADDON_EVENT_WITHOUT_TRAMPOLINE(addon_event::init_device, void, api::device *device);
+	DEFINE_ADDON_EVENT_WITHOUT_TRAMPOLINE(addon_event::destroy_device, void, api::device *device);
+	DEFINE_ADDON_EVENT_WITHOUT_TRAMPOLINE(addon_event::init_command_list, void, api::command_list *cmd_list);
+	DEFINE_ADDON_EVENT_WITHOUT_TRAMPOLINE(addon_event::destroy_command_list, void, api::command_list *cmd_list);
+	DEFINE_ADDON_EVENT_WITHOUT_TRAMPOLINE(addon_event::init_command_queue, void, api::command_queue *queue);
+	DEFINE_ADDON_EVENT_WITHOUT_TRAMPOLINE(addon_event::destroy_command_queue, void, api::command_queue *queue);
+	DEFINE_ADDON_EVENT_WITHOUT_TRAMPOLINE(addon_event::init_effect_runtime, void, api::effect_runtime *runtime);
+	DEFINE_ADDON_EVENT_WITHOUT_TRAMPOLINE(addon_event::destroy_effect_runtime, void, api::effect_runtime *runtime);
 
-	DEFINE_ADDON_EVENT(addon_event::create_resource, api::device *device, api::resource_type type, const api::resource_desc &desc, api::memory_usage mem_usage, api::resource_handle *out);
-	DEFINE_ADDON_EVENT(addon_event::create_resource_view, api::device *device, api::resource_handle resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view_handle *out);
-	DEFINE_ADDON_EVENT(addon_event::create_shader_module, api::device *device, const void *code, size_t code_size);
+	DEFINE_ADDON_EVENT(addon_event::create_resource, bool, api::device *device, const api::resource_desc &desc, api::resource_usage initial_state, const api::mapped_subresource *initial_data, api::resource_handle *out);
+	DEFINE_ADDON_EVENT(addon_event::create_resource_view, bool, api::device *device, api::resource_handle resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view_handle *out);
+	DEFINE_ADDON_EVENT(addon_event::create_shader_module, bool, api::device *device, const void *code, size_t code_size);
 
-	DEFINE_ADDON_EVENT(addon_event::set_index_buffer, api::command_list *cmd_list, api::resource_handle buffer, uint32_t format, uint64_t offset);
-	DEFINE_ADDON_EVENT(addon_event::set_vertex_buffers, api::command_list *cmd_list, uint32_t first, uint32_t count, const api::resource_handle *buffers, const uint32_t *strides, const uint64_t *offsets);
-	DEFINE_ADDON_EVENT(addon_event::set_viewports, api::command_list *cmd_list, uint32_t first, uint32_t count, const float *viewports);
-	DEFINE_ADDON_EVENT(addon_event::set_scissor_rects, api::command_list *cmd_list, uint32_t first, uint32_t count, const int32_t *rects);
-	DEFINE_ADDON_EVENT(addon_event::set_render_targets_and_depth_stencil, api::command_list *cmd_list, uint32_t count, const api::resource_view_handle *rtvs, api::resource_view_handle dsv);
-	DEFINE_ADDON_EVENT(addon_event::draw, api::command_list *cmd_list, uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance);
-	DEFINE_ADDON_EVENT(addon_event::draw_indexed, api::command_list *cmd_list, uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance);
-	DEFINE_ADDON_EVENT(addon_event::dispatch, api::command_list *cmd_list, uint32_t num_groups_x, uint32_t num_groups_y, uint32_t num_groups_z);
-	DEFINE_ADDON_EVENT(addon_event::draw_or_dispatch_indirect, api::command_list *cmd_list, addon_event type, api::resource_handle buffer, uint64_t offset, uint32_t draw_count, uint32_t stride);
-	DEFINE_ADDON_EVENT(addon_event::clear_depth_stencil, api::command_list *cmd_list, api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil);
-	DEFINE_ADDON_EVENT(addon_event::clear_render_target, api::command_list *cmd_list, api::resource_view_handle rtv, const float color[4]);
+	DEFINE_ADDON_EVENT(addon_event::set_index_buffer, void, api::command_list *cmd_list, api::resource_handle buffer, uint32_t format, uint64_t offset);
+	DEFINE_ADDON_EVENT(addon_event::set_vertex_buffers, void, api::command_list *cmd_list, uint32_t first, uint32_t count, const api::resource_handle *buffers, const uint32_t *strides, const uint64_t *offsets);
+	DEFINE_ADDON_EVENT(addon_event::set_viewports, void, api::command_list *cmd_list, uint32_t first, uint32_t count, const float *viewports);
+	DEFINE_ADDON_EVENT(addon_event::set_scissor_rects, void, api::command_list *cmd_list, uint32_t first, uint32_t count, const int32_t *rects);
+	DEFINE_ADDON_EVENT(addon_event::set_render_targets_and_depth_stencil, void, api::command_list *cmd_list, uint32_t count, const api::resource_view_handle *rtvs, api::resource_view_handle dsv);
+	DEFINE_ADDON_EVENT(addon_event::draw, void, api::command_list *cmd_list, uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance);
+	DEFINE_ADDON_EVENT(addon_event::draw_indexed, void, api::command_list *cmd_list, uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance);
+	DEFINE_ADDON_EVENT(addon_event::dispatch, void, api::command_list *cmd_list, uint32_t num_groups_x, uint32_t num_groups_y, uint32_t num_groups_z);
+	DEFINE_ADDON_EVENT(addon_event::draw_or_dispatch_indirect, void, api::command_list *cmd_list, addon_event type, api::resource_handle buffer, uint64_t offset, uint32_t draw_count, uint32_t stride);
+	DEFINE_ADDON_EVENT(addon_event::clear_depth_stencil, void, api::command_list *cmd_list, api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil);
+	DEFINE_ADDON_EVENT(addon_event::clear_render_target, void, api::command_list *cmd_list, api::resource_view_handle rtv, const float color[4]);
 
-	DEFINE_ADDON_EVENT_WITHOUT_TRAMPOLINE(addon_event::reset_command_list, api::command_list *cmd_list);
-	DEFINE_ADDON_EVENT_WITHOUT_TRAMPOLINE(addon_event::execute_command_list, api::command_queue *queue, api::command_list *cmd_list);
-	DEFINE_ADDON_EVENT_WITHOUT_TRAMPOLINE(addon_event::execute_secondary_command_list, api::command_list *cmd_list, api::command_list *secondary_cmd_list);
+	DEFINE_ADDON_EVENT_WITHOUT_TRAMPOLINE(addon_event::reset_command_list, void, api::command_list *cmd_list);
+	DEFINE_ADDON_EVENT_WITHOUT_TRAMPOLINE(addon_event::execute_command_list, void, api::command_queue *queue, api::command_list *cmd_list);
+	DEFINE_ADDON_EVENT_WITHOUT_TRAMPOLINE(addon_event::execute_secondary_command_list, void, api::command_list *cmd_list, api::command_list *secondary_cmd_list);
 
-	DEFINE_ADDON_EVENT_WITHOUT_TRAMPOLINE(addon_event::resize, api::effect_runtime *runtime, uint32_t width, uint32_t height);
-	DEFINE_ADDON_EVENT_WITHOUT_TRAMPOLINE(addon_event::present, api::command_queue *present_queue, api::effect_runtime *runtime);
+	DEFINE_ADDON_EVENT_WITHOUT_TRAMPOLINE(addon_event::resize, void, api::effect_runtime *runtime, uint32_t width, uint32_t height);
+	DEFINE_ADDON_EVENT_WITHOUT_TRAMPOLINE(addon_event::present, void, api::command_queue *present_queue, api::effect_runtime *runtime);
 
-	DEFINE_ADDON_EVENT_WITHOUT_TRAMPOLINE(addon_event::reshade_before_effects, api::effect_runtime *runtime, api::command_list *cmd_list);
-	DEFINE_ADDON_EVENT_WITHOUT_TRAMPOLINE(addon_event::reshade_after_effects, api::effect_runtime *runtime, api::command_list *cmd_list);
+	DEFINE_ADDON_EVENT_WITHOUT_TRAMPOLINE(addon_event::reshade_before_effects, void, api::effect_runtime *runtime, api::command_list *cmd_list);
+	DEFINE_ADDON_EVENT_WITHOUT_TRAMPOLINE(addon_event::reshade_after_effects, void, api::effect_runtime *runtime, api::command_list *cmd_list);
 }
