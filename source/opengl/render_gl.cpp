@@ -7,77 +7,6 @@
 #include "render_gl_utils.hpp"
 #include <cassert>
 
-GLenum reshade::opengl::get_binding_for_target(GLenum target)
-{
-	switch (target)
-	{
-	default:
-		return GL_NONE;
-	case GL_ARRAY_BUFFER:
-		return GL_ARRAY_BUFFER_BINDING;
-	case GL_ELEMENT_ARRAY_BUFFER:
-		return GL_ELEMENT_ARRAY_BUFFER_BINDING;
-	case GL_PIXEL_PACK_BUFFER:
-		return GL_PIXEL_PACK_BUFFER_BINDING;
-	case GL_PIXEL_UNPACK_BUFFER:
-		return GL_PIXEL_UNPACK_BUFFER_BINDING;
-	case GL_UNIFORM_BUFFER:
-		return GL_UNIFORM_BUFFER_BINDING;
-	case GL_TEXTURE_BUFFER:
-		return GL_TEXTURE_BINDING_BUFFER;
-	case GL_TRANSFORM_FEEDBACK_BUFFER:
-		return GL_TRANSFORM_FEEDBACK_BUFFER_BINDING;
-	case GL_COPY_READ_BUFFER:
-		return GL_COPY_READ_BUFFER_BINDING;
-	case GL_COPY_WRITE_BUFFER:
-		return GL_COPY_WRITE_BUFFER_BINDING;
-	case GL_DRAW_INDIRECT_BUFFER:
-		return GL_DRAW_INDIRECT_BUFFER_BINDING;
-	case GL_SHADER_STORAGE_BUFFER:
-		return GL_SHADER_STORAGE_BUFFER_BINDING;
-	case GL_DISPATCH_INDIRECT_BUFFER:
-		return GL_DISPATCH_INDIRECT_BUFFER_BINDING;
-	case GL_QUERY_BUFFER:
-		return GL_QUERY_BUFFER_BINDING;
-	case GL_ATOMIC_COUNTER_BUFFER:
-		return GL_ATOMIC_COUNTER_BUFFER_BINDING;
-	case GL_TEXTURE_1D:
-		return GL_TEXTURE_BINDING_1D;
-	case GL_TEXTURE_1D_ARRAY:
-		return GL_TEXTURE_BINDING_1D_ARRAY;
-	case GL_TEXTURE_2D:
-		return GL_TEXTURE_BINDING_2D;
-	case GL_TEXTURE_2D_ARRAY:
-		return GL_TEXTURE_BINDING_2D_ARRAY;
-	case GL_TEXTURE_2D_MULTISAMPLE:
-		return GL_TEXTURE_BINDING_2D_MULTISAMPLE;
-	case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
-		return GL_TEXTURE_BINDING_2D_MULTISAMPLE_ARRAY;
-	case GL_TEXTURE_3D:
-		return GL_TEXTURE_BINDING_3D;
-	case GL_TEXTURE_CUBE_MAP:
-		return GL_TEXTURE_BINDING_CUBE_MAP;
-	case GL_TEXTURE_CUBE_MAP_ARRAY:
-		return GL_TEXTURE_BINDING_CUBE_MAP_ARRAY;
-	case GL_TEXTURE_RECTANGLE:
-		return GL_TEXTURE_BINDING_RECTANGLE;
-	}
-}
-
-static inline GLenum convert_to_internal_format(GLenum format)
-{
-	// Convert depth formats to internal texture formats
-	switch (format)
-	{
-	default:
-		return format;
-	case GL_DEPTH_STENCIL:
-		return GL_DEPTH24_STENCIL8;
-	case GL_DEPTH_COMPONENT:
-		return GL_DEPTH_COMPONENT24;
-	}
-}
-
 static GLint get_rbo_param(GLuint id, GLenum param)
 {
 	GLint value = 0;
@@ -173,6 +102,20 @@ static GLint get_fbo_attachment_param(GLuint id, GLenum attachment, GLenum param
 	return value;
 }
 
+static inline GLenum convert_to_internal_format(GLenum format)
+{
+	// Convert depth formats to internal texture formats
+	switch (format)
+	{
+	default:
+		return format;
+	case GL_DEPTH_STENCIL:
+		return GL_DEPTH24_STENCIL8;
+	case GL_DEPTH_COMPONENT:
+		return GL_DEPTH_COMPONENT24;
+	}
+}
+
 reshade::opengl::device_impl::device_impl(HDC hdc, HGLRC hglrc) :
 	api_object_impl(hglrc)
 {
@@ -237,27 +180,25 @@ reshade::opengl::device_impl::device_impl(HDC hdc, HGLRC hglrc) :
 
 #if RESHADE_ADDON
 	reshade::addon::load_addons();
-#endif
 
 	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::init_device>(this);
 	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::init_command_queue>(this);
 
-#if RESHADE_ADDON
 	// Communicate default state to add-ons
 	const api::resource_view_handle default_render_target = get_render_target_from_fbo(0, 0);
 	const api::resource_view_handle default_depth_stencil = get_depth_stencil_from_fbo(0);
 	reshade::invoke_addon_event<reshade::addon_event::set_render_targets_and_depth_stencil>(
-		[](reshade::api::command_list *, uint32_t count, const api::resource_view_handle *rtvs, api::resource_view_handle dsv) {
+		[](reshade::api::command_list *, uint32_t count, const api::resource_view_handle *new_rtvs, api::resource_view_handle new_dsv) {
 			// TODO
 		}, this, 1, &default_render_target, default_depth_stencil);
 #endif
 }
 reshade::opengl::device_impl::~device_impl()
 {
+#if RESHADE_ADDON
 	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::destroy_command_queue>(this);
 	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::destroy_device>(this);
 
-#if RESHADE_ADDON
 	reshade::addon::unload_addons();
 #endif
 

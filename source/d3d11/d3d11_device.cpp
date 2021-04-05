@@ -147,8 +147,8 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateBuffer(const D3D11_BUFFER_DESC *pDe
 			}
 			else
 			{
-#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 				LOG(WARN) << "ID3D11Device::CreateBuffer" << " failed with error code " << hr << '.';
+#if RESHADE_VERBOSE_LOG
 				LOG(DEBUG) << "> Dumping description:";
 				LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
 				LOG(DEBUG) << "  | ByteWidth                               | " << std::setw(39) << new_desc.ByteWidth << " |";
@@ -194,8 +194,8 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture1D(const D3D11_TEXTURE1D_DES
 			}
 			else
 			{
-#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 				LOG(WARN) << "ID3D11Device::CreateTexture1D" << " failed with error code " << hr << '.';
+#if RESHADE_VERBOSE_LOG
 				LOG(DEBUG) << "> Dumping description:";
 				LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
 				LOG(DEBUG) << "  | Width                                   | " << std::setw(39) << new_desc.Width << " |";
@@ -244,8 +244,8 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture2D(const D3D11_TEXTURE2D_DES
 			}
 			else
 			{
-#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 				LOG(WARN) << "ID3D11Device::CreateTexture2D" << " failed with error code " << hr << '.';
+#if RESHADE_VERBOSE_LOG
 				LOG(DEBUG) << "> Dumping description:";
 				LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
 				LOG(DEBUG) << "  | Width                                   | " << std::setw(39) << new_desc.Width << " |";
@@ -297,8 +297,8 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture3D(const D3D11_TEXTURE3D_DES
 			}
 			else
 			{
-#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 				LOG(WARN) << "ID3D11Device::CreateTexture3D" << " failed with error code " << hr << '.';
+#if RESHADE_VERBOSE_LOG
 				LOG(DEBUG) << "> Dumping description:";
 				LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
 				LOG(DEBUG) << "  | Width                                   | " << std::setw(39) << new_desc.Width << " |";
@@ -349,9 +349,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateShaderResourceView(ID3D11Resource *
 			}
 			else
 			{
-#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 				LOG(WARN) << "ID3D11Device::CreateShaderResourceView" << " failed with error code " << hr << '.';
-#endif
 				return false;
 			}
 		}, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_usage::shader_resource, reshade::d3d11::convert_resource_view_desc(new_desc), (ppSRView != nullptr) ? &out : nullptr);
@@ -389,9 +387,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateUnorderedAccessView(ID3D11Resource 
 			}
 			else
 			{
-#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 				LOG(WARN) << "ID3D11Device::CreateUnorderedAccessView" << " failed with error code " << hr << '.';
-#endif
 				return false;
 			}
 		}, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_usage::unordered_access, reshade::d3d11::convert_resource_view_desc(new_desc), (ppUAView != nullptr) ? &out : nullptr);
@@ -429,9 +425,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRenderTargetView(ID3D11Resource *pR
 			}
 			else
 			{
-#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 				LOG(WARN) << "ID3D11Device::CreateRenderTargetView" << " failed with error code " << hr << '.';
-#endif
 				return false;
 			}
 		}, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_usage::render_target, reshade::d3d11::convert_resource_view_desc(new_desc), (ppRTView != nullptr) ? &out : nullptr);
@@ -469,9 +463,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDepthStencilView(ID3D11Resource *pR
 			}
 			else
 			{
-#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 				LOG(WARN) << "ID3D11Device::CreateDepthStencilView" << " failed with error code " << hr << '.';
-#endif
 				return false;
 			}
 		}, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_usage::depth_stencil, reshade::d3d11::convert_resource_view_desc(new_desc), (ppDepthStencilView != nullptr) ? &out : nullptr);
@@ -813,8 +805,8 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture2D1(const D3D11_TEXTURE2D_DE
 			}
 			else
 			{
-#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 				LOG(WARN) << "ID3D11Device3::CreateTexture2D1" << " failed with error code " << hr << '.';
+#if RESHADE_VERBOSE_LOG
 				LOG(DEBUG) << "> Dumping description:";
 				LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
 				LOG(DEBUG) << "  | Width                                   | " << std::setw(39) << new_desc.Width << " |";
@@ -868,8 +860,8 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture3D1(const D3D11_TEXTURE3D_DE
 			}
 			else
 			{
-#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 				LOG(WARN) << "ID3D11Device3::CreateTexture3D1" << " failed with error code " << hr << '.';
+#if RESHADE_VERBOSE_LOG
 				LOG(DEBUG) << "> Dumping description:";
 				LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
 				LOG(DEBUG) << "  | Width                                   | " << std::setw(39) << new_desc.Width << " |";
@@ -927,9 +919,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateShaderResourceView1(ID3D11Resource 
 			}
 			else
 			{
-#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 				LOG(WARN) << "ID3D11Device3::CreateShaderResourceView1" << " failed with error code " << hr << '.';
-#endif
 				return false;
 			}
 		}, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_usage::shader_resource, reshade::d3d11::convert_resource_view_desc(new_desc), (ppSRView1 != nullptr) ? &out : nullptr);
@@ -968,9 +958,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateUnorderedAccessView1(ID3D11Resource
 			}
 			else
 			{
-#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 				LOG(WARN) << "ID3D11Device3::CreateUnorderedAccessView1" << " failed with error code " << hr << '.';
-#endif
 				return false;
 			}
 		}, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_usage::unordered_access, reshade::d3d11::convert_resource_view_desc(new_desc), (ppUAView1 != nullptr) ? &out : nullptr);
@@ -1009,9 +997,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRenderTargetView1(ID3D11Resource *p
 			}
 			else
 			{
-#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 				LOG(WARN) << "ID3D11Device3::CreateRenderTargetView1" << " failed with error code " << hr << '.';
-#endif
 				return false;
 			}
 		}, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_usage::render_target, reshade::d3d11::convert_resource_view_desc(new_desc), (ppRTView1 != nullptr) ? &out : nullptr);

@@ -35,6 +35,8 @@ namespace reshade::vulkan
 
 	struct resource_data
 	{
+		bool is_image() const { return type != VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO; }
+
 		union
 		{
 			VkImage image;
@@ -52,6 +54,8 @@ namespace reshade::vulkan
 
 	struct resource_view_data
 	{
+		bool is_image_view() const { return type != VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO; }
+
 		union
 		{
 			VkImageView image_view;

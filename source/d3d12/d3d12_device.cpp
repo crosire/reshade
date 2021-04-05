@@ -295,7 +295,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandList(UINT nodeMask, D3D12_CO
 	{
 		*ppCommandList = command_list_proxy;
 	}
-	else // Do not hook object if we do not support the requested interface or this is a compute command list
+	else // Do not hook object if we do not support the requested interface
 	{
 		delete command_list_proxy; // Delete instead of release to keep reference count untouched
 	}
@@ -483,8 +483,8 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource(const D3D12_HEAP_
 			}
 			else
 			{
-#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 				LOG(WARN) << "ID3D12Device::CreateCommittedResource" << " failed with error code " << hr << '.';
+#if RESHADE_VERBOSE_LOG
 				LOG(DEBUG) << "> Dumping description:";
 				LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
 				LOG(DEBUG) << "  | Dimension                               | " << std::setw(39) << new_desc.Dimension << " |";
@@ -545,8 +545,8 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePlacedResource(ID3D12Heap *pHeap, U
 			}
 			else
 			{
-#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 				LOG(WARN) << "ID3D12Device::CreatePlacedResource" << " failed with error code " << hr << '.';
+#if RESHADE_VERBOSE_LOG
 				LOG(DEBUG) << "> Dumping description:";
 				LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
 				LOG(DEBUG) << "  | Dimension                               | " << std::setw(39) << new_desc.Dimension << " |";
@@ -599,8 +599,8 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource(const D3D12_RESOUR
 			}
 			else
 			{
-#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 				LOG(WARN) << "ID3D12Device::CreateReservedResource" << " failed with error code " << hr << '.';
+#if RESHADE_VERBOSE_LOG
 				LOG(DEBUG) << "> Dumping description:";
 				LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
 				LOG(DEBUG) << "  | Dimension                               | " << std::setw(39) << new_desc.Dimension << " |";
@@ -779,8 +779,8 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource1(const D3D12_HEAP
 			}
 			else
 			{
-#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 				LOG(WARN) << "ID3D12Device::CreateCommittedResource1" << " failed with error code " << hr << '.';
+#if RESHADE_VERBOSE_LOG
 				LOG(DEBUG) << "> Dumping description:";
 				LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
 				LOG(DEBUG) << "  | Dimension                               | " << std::setw(39) << new_desc.Dimension << " |";
@@ -839,8 +839,8 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource1(const D3D12_RESOU
 			}
 			else
 			{
-#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 				LOG(WARN) << "ID3D12Device::CreateReservedResource1" << " failed with error code " << hr << '.';
+#if RESHADE_VERBOSE_LOG
 				LOG(DEBUG) << "> Dumping description:";
 				LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
 				LOG(DEBUG) << "  | Dimension                               | " << std::setw(39) << new_desc.Dimension << " |";

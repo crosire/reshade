@@ -23,17 +23,17 @@ reshade::d3d12::device_impl::device_impl(ID3D12Device *device) :
 
 #if RESHADE_ADDON
 	reshade::addon::load_addons();
-#endif
 
 	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::init_device>(this);
+#endif
 }
 reshade::d3d12::device_impl::~device_impl()
 {
 	assert(_queues.empty()); // All queues should have been unregistered and destroyed by the application at this point
 
+#if RESHADE_ADDON
 	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::destroy_device>(this);
 
-#if RESHADE_ADDON
 	reshade::addon::unload_addons();
 #endif
 }
@@ -265,17 +265,21 @@ D3D12_CPU_DESCRIPTOR_HANDLE reshade::d3d12::device_impl::allocate_descriptor_han
 reshade::d3d12::command_list_impl::command_list_impl(device_impl *device, ID3D12GraphicsCommandList *cmd_list) :
 	api_object_impl(cmd_list), _device_impl(device), _has_commands(cmd_list != nullptr)
 {
+#if RESHADE_ADDON
 	if (_has_commands) // Do not call add-on event for immediate command list
 	{
 		reshade::invoke_addon_event_without_trampoline<reshade::addon_event::init_command_list>(this);
 	}
+#endif
 }
 reshade::d3d12::command_list_impl::~command_list_impl()
 {
+#if RESHADE_ADDON
 	if (_has_commands)
 	{
 		reshade::invoke_addon_event_without_trampoline<reshade::addon_event::destroy_command_list>(this);
 	}
+#endif
 }
 
 void reshade::d3d12::command_list_impl::copy_resource(api::resource_handle source, api::resource_handle destination)
@@ -411,11 +415,15 @@ reshade::d3d12::command_queue_impl::command_queue_impl(device_impl *device, ID3D
 	if (queue->GetDesc().Type == D3D12_COMMAND_LIST_TYPE_DIRECT)
 		_immediate_cmd_list = new command_list_immediate_impl(device);
 
+#if RESHADE_ADDON
 	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::init_command_queue>(this);
+#endif
 }
 reshade::d3d12::command_queue_impl::~command_queue_impl()
 {
+#if RESHADE_ADDON
 	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::destroy_command_queue>(this);
+#endif
 
 	delete _immediate_cmd_list;
 

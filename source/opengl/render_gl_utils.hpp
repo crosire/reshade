@@ -5,9 +5,9 @@
 
 namespace reshade::opengl
 {
-	GLenum get_binding_for_target(GLenum target);
-
 	bool is_depth_stencil_format(GLenum format, GLenum usage = GL_DEPTH_STENCIL);
+
+	GLenum get_binding_for_target(GLenum target);
 
 	api::memory_usage  convert_memory_usage(GLenum usage);
 	api::memory_usage  convert_memory_usage_from_flags(GLbitfield flags);

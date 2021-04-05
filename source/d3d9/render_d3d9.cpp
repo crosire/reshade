@@ -44,9 +44,11 @@ void reshade::d3d9::device_impl::on_reset()
 	if (_copy_state == nullptr)
 		return;
 
+#if RESHADE_ADDON
 	// Force add-ons to release all resources associated with this device before performing reset
 	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::destroy_command_queue>(this);
 	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::destroy_device>(this);
+#endif
 
 	_copy_state.reset();
 	_backup_state.release_state_block();
@@ -97,10 +99,10 @@ void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 			return;
 	}
 
+#if RESHADE_ADDON
 	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::init_device>(this);
 	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::init_command_queue>(this);
 
-#if RESHADE_ADDON
 	if (com_ptr<IDirect3DSurface9> auto_depth_stencil;
 		pp.EnableAutoDepthStencil &&
 		SUCCEEDED(_orig->GetDepthStencilSurface(&auto_depth_stencil)))

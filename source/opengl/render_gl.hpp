@@ -13,10 +13,14 @@ namespace reshade::opengl
 {
 	inline api::resource_handle make_resource_handle(GLenum target, GLuint object)
 	{
+		if (object == GL_NONE)
+			return { 0 };
 		return { (static_cast<uint64_t>(target) << 40) | object };
 	}
 	inline api::resource_view_handle make_resource_view_handle(GLenum target_or_attachment, GLuint object)
 	{
+		if (object == GL_NONE)
+			return { 0 };
 		return { (static_cast<uint64_t>(target_or_attachment) << 40) | object };
 	}
 

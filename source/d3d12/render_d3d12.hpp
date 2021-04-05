@@ -41,6 +41,7 @@ namespace reshade::d3d12
 
 		void wait_idle() const final;
 
+#if RESHADE_ADDON
 		bool resolve_gpu_address(D3D12_GPU_VIRTUAL_ADDRESS address, ID3D12Resource **out_resource, UINT64 *out_offset)
 		{
 			const std::lock_guard<std::mutex> lock(_mutex);
@@ -58,6 +59,7 @@ namespace reshade::d3d12
 			}
 			return false;
 		}
+#endif
 
 		// Cached device capabilities for quick access
 		UINT _descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
@@ -78,12 +80,14 @@ namespace reshade::d3d12
 			const std::lock_guard<std::mutex> lock(_mutex);
 			_views.emplace(handle.ptr, resource);
 		}
+#if RESHADE_ADDON
 		inline void register_buffer_gpu_address(ID3D12Resource *resource, UINT64 size)
 		{
 			assert(resource != nullptr);
 			const std::lock_guard<std::mutex> lock(_mutex);
 			_buffer_gpu_addresses.emplace_back(resource, D3D12_GPU_VIRTUAL_ADDRESS_RANGE { resource->GetGPUVirtualAddress(), size });
 		}
+#endif
 
 		com_object_list<ID3D12Resource> _resources;
 		std::unordered_map<uint64_t, ID3D12Resource *> _views;

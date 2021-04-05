@@ -653,9 +653,7 @@ VkResult VKAPI_CALL vkCreateBuffer(VkDevice device, const VkBufferCreateInfo *pC
 			}
 			else
 			{
-#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 				LOG(WARN) << "vkCreateBuffer" << " failed with error code " << result << '.';
-#endif
 				return false;
 			}
 		}, device_impl, reshade::vulkan::convert_resource_desc(create_info), reshade::api::resource_usage::undefined, nullptr, &out);
@@ -704,9 +702,7 @@ VkResult VKAPI_CALL vkCreateBufferView(VkDevice device, const VkBufferViewCreate
 			}
 			else
 			{
-#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 				LOG(WARN) << "vkCreateBufferView" << " failed with error code " << result << '.';
-#endif
 				return false;
 			}
 		}, device_impl, reshade::api::resource_handle { (uint64_t)create_info.buffer }, reshade::api::resource_usage::undefined, reshade::vulkan::convert_resource_view_desc(create_info), &out);
@@ -754,9 +750,7 @@ VkResult VKAPI_CALL vkCreateImage(VkDevice device, const VkImageCreateInfo *pCre
 			}
 			else
 			{
-#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 				LOG(WARN) << "vkCreateImage" << " failed with error code " << result << '.';
-#endif
 				return false;
 			}
 		}, device_impl, reshade::vulkan::convert_resource_desc(create_info), reshade::api::resource_usage::undefined, nullptr, &out);
@@ -805,9 +799,7 @@ VkResult VKAPI_CALL vkCreateImageView(VkDevice device, const VkImageViewCreateIn
 			}
 			else
 			{
-#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 				LOG(WARN) << "vkCreateImageView" << " failed with error code " << result << '.';
-#endif
 				return false;
 			}
 		}, device_impl, reshade::api::resource_handle { (uint64_t)create_info.image }, reshade::api::resource_usage::undefined, reshade::vulkan::convert_resource_view_desc(create_info), &out);
@@ -850,9 +842,7 @@ VkResult VKAPI_CALL vkCreateShaderModule(VkDevice device, const VkShaderModuleCr
 			}
 			else
 			{
-#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 				LOG(WARN) << "vkCreateShaderModule" << " failed with error code " << result << '.';
-#endif
 				return false;
 			}
 		}, device_impl, create_info.pCode, create_info.codeSize);
@@ -871,9 +861,7 @@ VkResult VKAPI_CALL vkCreateRenderPass(VkDevice device, const VkRenderPassCreate
 	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pRenderPass);
 	if (result != VK_SUCCESS)
 	{
-#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 		LOG(WARN) << "vkCreateRenderPass" << " failed with error code " << result << '.';
-#endif
 		return result;
 	}
 
@@ -929,9 +917,7 @@ VkResult VKAPI_CALL vkCreateRenderPass2(VkDevice device, const VkRenderPassCreat
 	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pRenderPass);
 	if (result != VK_SUCCESS)
 	{
-#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 		LOG(WARN) << "vkCreateRenderPass2" << " failed with error code " << result << '.';
-#endif
 		return result;
 	}
 
@@ -998,9 +984,7 @@ VkResult VKAPI_CALL vkCreateFramebuffer(VkDevice device, const VkFramebufferCrea
 	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pFramebuffer);
 	if (result != VK_SUCCESS)
 	{
-#if RESHADE_ADDON || RESHADE_VERBOSE_LOG
 		LOG(WARN) << "vkCreateFramebuffer" << " failed with error code " << result << '.';
-#endif
 		return result;
 	}
 
@@ -1171,6 +1155,7 @@ void     VKAPI_CALL vkCmdClearColorImage(VkCommandBuffer commandBuffer, VkImage 
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
 	assert(device_impl != nullptr);
 
+#if RESHADE_ADDON
 	VkImageMemoryBarrier transition { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
 	transition.oldLayout = imageLayout;
 	transition.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
@@ -1197,16 +1182,22 @@ void     VKAPI_CALL vkCmdClearColorImage(VkCommandBuffer commandBuffer, VkImage 
 			std::swap(transition.oldLayout, transition.newLayout);
 			device_impl->_dispatch_table.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
 
+			static_assert(sizeof(VkClearColorValue) == (sizeof(float) * 4));
+
 			GET_DISPATCH_PTR_FROM(CmdClearColorImage, device_impl);
 			trampoline(commandBuffer, (VkImage)image.handle, imageLayout, reinterpret_cast<const VkClearColorValue *>(color), rangeCount, pRanges);
-
 		}, s_vulkan_command_buffers.at(commandBuffer), device_impl->get_default_view(image), pColor->float32);
+#else
+	GET_DISPATCH_PTR_FROM(CmdClearColorImage, device_impl);
+	trampoline(commandBuffer, image, imageLayout, pColor, rangeCount, pRanges);
+#endif
 }
 void     VKAPI_CALL vkCmdClearDepthStencilImage(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout imageLayout, const VkClearDepthStencilValue *pDepthStencil, uint32_t rangeCount, const VkImageSubresourceRange *pRanges)
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
 	assert(device_impl != nullptr);
 
+#if RESHADE_ADDON
 	VkImageMemoryBarrier transition { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
 	transition.oldLayout = imageLayout;
 	transition.newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
@@ -1241,6 +1232,10 @@ void     VKAPI_CALL vkCmdClearDepthStencilImage(VkCommandBuffer commandBuffer, V
 			GET_DISPATCH_PTR_FROM(CmdClearDepthStencilImage, device_impl);
 			trampoline(commandBuffer, (VkImage)image.handle, imageLayout, &clear_value, rangeCount, pRanges);
 		}, s_vulkan_command_buffers.at(commandBuffer), device_impl->get_default_view(image), clear_flags, pDepthStencil->depth, static_cast<uint8_t>(pDepthStencil->stencil));
+#else
+	GET_DISPATCH_PTR_FROM(CmdClearDepthStencilImage, device_impl);
+	trampoline(commandBuffer, image, imageLayout, pDepthStencil, rangeCount, pRanges);
+#endif
 }
 
 void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const VkRenderPassBeginInfo *pRenderPassBegin, VkSubpassContents contents)
@@ -1272,7 +1267,7 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 			dsv = attachments[renderpass_data_subpass.depth_stencil_attachment.attachment];
 
 		reshade::invoke_addon_event<reshade::addon_event::set_render_targets_and_depth_stencil>(
-			[](reshade::api::command_list *, uint32_t count, const reshade::api::resource_view_handle *rtvs, reshade::api::resource_view_handle dsv) {
+			[](reshade::api::command_list *, uint32_t count, const reshade::api::resource_view_handle *new_rtvs, reshade::api::resource_view_handle new_dsv) {
 				// TODO
 			}, cmd_impl, static_cast<uint32_t>(renderpass_data_subpass.color_attachments.size()), rtvs, dsv);
 
@@ -1334,7 +1329,7 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 					reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil>(
 						[](reshade::api::command_list *, reshade::api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil) {
 							// TODO
-						},  cmd_impl, attachments[renderpass_data.cleared_attachments[i].index], renderpass_data.cleared_attachments[i].clear_flags, clear_value.depthStencil.depth, static_cast<uint8_t>(clear_value.depthStencil.stencil));
+						}, cmd_impl, attachments[renderpass_data.cleared_attachments[i].index], renderpass_data.cleared_attachments[i].clear_flags, clear_value.depthStencil.depth, static_cast<uint8_t>(clear_value.depthStencil.stencil));
 
 					std::swap(transition.oldLayout, transition.newLayout);
 					device_impl->_dispatch_table.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
@@ -1350,6 +1345,7 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 void     VKAPI_CALL vkCmdNextSubpass(VkCommandBuffer commandBuffer, VkSubpassContents contents)
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
+	assert(device_impl != nullptr);
 
 #if RESHADE_ADDON
 	reshade::vulkan::command_list_impl *const cmd_impl = s_vulkan_command_buffers.at(commandBuffer);
@@ -1375,7 +1371,7 @@ void     VKAPI_CALL vkCmdNextSubpass(VkCommandBuffer commandBuffer, VkSubpassCon
 			dsv = attachments[renderpass_data_subpass.depth_stencil_attachment.attachment];
 
 		reshade::invoke_addon_event<reshade::addon_event::set_render_targets_and_depth_stencil>(
-			[](reshade::api::command_list *, uint32_t count, const reshade::api::resource_view_handle *rtvs, reshade::api::resource_view_handle dsv) {
+			[](reshade::api::command_list *, uint32_t count, const reshade::api::resource_view_handle *new_rtvs, reshade::api::resource_view_handle new_dsv) {
 				// TODO
 			}, cmd_impl, static_cast<uint32_t>(renderpass_data_subpass.color_attachments.size()), rtvs, dsv);
 	}
@@ -1402,16 +1398,10 @@ void     VKAPI_CALL vkCmdEndRenderPass(VkCommandBuffer commandBuffer)
 
 void     VKAPI_CALL vkCmdExecuteCommands(VkCommandBuffer commandBuffer, uint32_t commandBufferCount, const VkCommandBuffer *pCommandBuffers)
 {
-#if RESHADE_ADDON
-	reshade::vulkan::command_list_impl *const cmd_impl = s_vulkan_command_buffers.at(commandBuffer);
-	if (cmd_impl != nullptr)
-	{
-		for (uint32_t i = 0; i < commandBufferCount; ++i)
-		{
-			reshade::invoke_addon_event_without_trampoline<reshade::addon_event::execute_secondary_command_list>(cmd_impl, s_vulkan_command_buffers.at(pCommandBuffers[i]));
-		}
-	}
-#endif
+	for (uint32_t i = 0; i < commandBufferCount; ++i)
+		reshade::invoke_addon_event_without_trampoline<reshade::addon_event::execute_secondary_command_list>(
+			s_vulkan_command_buffers.at(commandBuffer),
+			s_vulkan_command_buffers.at(pCommandBuffers[i]));
 
 	GET_DISPATCH_PTR(CmdExecuteCommands, commandBuffer);
 	trampoline(commandBuffer, commandBufferCount, pCommandBuffers);
