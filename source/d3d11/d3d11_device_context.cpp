@@ -157,13 +157,19 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::VSSetShader(ID3D11VertexShader *pV
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::DrawIndexed(UINT IndexCount, UINT StartIndexLocation, INT BaseVertexLocation)
 {
-	RESHADE_ADDON_EVENT(draw_indexed, this, IndexCount, 1, StartIndexLocation, BaseVertexLocation, 0);
-	_orig->DrawIndexed(IndexCount, StartIndexLocation, BaseVertexLocation);
+	reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(
+		[this](reshade::api::command_list *, uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance) {
+			assert(instances == 1 && first_instance == 0);
+			_orig->DrawIndexed(indices, first_index, vertex_offset);
+		}, this, IndexCount, 1, StartIndexLocation, BaseVertexLocation, 0);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::Draw(UINT VertexCount, UINT StartVertexLocation)
 {
-	RESHADE_ADDON_EVENT(draw, this, VertexCount, 1, StartVertexLocation, 0);
-	_orig->Draw(VertexCount, StartVertexLocation);
+	reshade::invoke_addon_event<reshade::addon_event::draw>(
+		[this](reshade::api::command_list *, uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance) {
+			assert(instances == 1 && first_instance == 0);
+			_orig->Draw(vertices, first_vertex);
+		}, this, VertexCount, 1, StartVertexLocation, 0);
 }
 HRESULT STDMETHODCALLTYPE D3D11DeviceContext::Map(ID3D11Resource *pResource, UINT Subresource, D3D11_MAP MapType, UINT MapFlags, D3D11_MAPPED_SUBRESOURCE *pMappedResource)
 {
@@ -183,9 +189,6 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::IASetInputLayout(ID3D11InputLayout
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::IASetVertexBuffers(UINT StartSlot, UINT NumBuffers, ID3D11Buffer *const *ppVertexBuffers, const UINT *pStrides, const UINT *pOffsets)
 {
-	_orig->IASetVertexBuffers(StartSlot, NumBuffers, ppVertexBuffers, pStrides, pOffsets);
-
-#if RESHADE_ADDON
 	assert(NumBuffers <= D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT);
 	reshade::api::resource_handle buffers[D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
 	uint64_t offsets[D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
@@ -194,23 +197,39 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::IASetVertexBuffers(UINT StartSlot,
 		buffers[i] = { reinterpret_cast<uintptr_t>(ppVertexBuffers[i]) };
 		offsets[i] = pOffsets[i];
 	}
-	RESHADE_ADDON_EVENT(set_vertex_buffers, this, StartSlot, NumBuffers, buffers, offsets);
-#endif
+
+	reshade::invoke_addon_event<reshade::addon_event::set_vertex_buffers>(
+		[this, pStrides](reshade::api::command_list *, uint32_t first, uint32_t count, const reshade::api::resource_handle *buffers, const uint32_t *strides, const uint64_t *offsets) {
+			ID3D11Buffer *buffer_ptrs[D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
+			UINT uint_offsets[D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
+			for (UINT i = 0; i < count; ++i)
+			{
+				buffer_ptrs[i] = reinterpret_cast<ID3D11Buffer *>(buffers[i].handle);
+				uint_offsets[i] = static_cast<UINT>(offsets[i]);
+			}
+			_orig->IASetVertexBuffers(first, count, buffer_ptrs, strides, uint_offsets);
+		}, this, StartSlot, NumBuffers, buffers, pStrides, offsets);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::IASetIndexBuffer(ID3D11Buffer *pIndexBuffer, DXGI_FORMAT Format, UINT Offset)
 {
-	_orig->IASetIndexBuffer(pIndexBuffer, Format, Offset);
-	RESHADE_ADDON_EVENT(set_index_buffer, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pIndexBuffer) }, Offset);
+	reshade::invoke_addon_event<reshade::addon_event::set_index_buffer>(
+		[this](reshade::api::command_list *, reshade::api::resource_handle buffer, uint32_t format, uint64_t offset) {
+			_orig->IASetIndexBuffer(reinterpret_cast<ID3D11Buffer *>(buffer.handle), static_cast<DXGI_FORMAT>(format), static_cast<UINT>(offset));
+		}, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pIndexBuffer) }, static_cast<uint32_t>(Format), Offset);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::DrawIndexedInstanced(UINT IndexCountPerInstance, UINT InstanceCount, UINT StartIndexLocation, INT BaseVertexLocation, UINT StartInstanceLocation)
 {
-	RESHADE_ADDON_EVENT(draw_indexed, this, IndexCountPerInstance, InstanceCount, StartIndexLocation, BaseVertexLocation, StartInstanceLocation);
-	_orig->DrawIndexedInstanced(IndexCountPerInstance, InstanceCount, StartIndexLocation, BaseVertexLocation, StartInstanceLocation);
+	reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(
+		[this](reshade::api::command_list *, uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance) {
+			_orig->DrawIndexedInstanced(indices, instances, first_index, vertex_offset, first_instance);
+		}, this, IndexCountPerInstance, InstanceCount, StartIndexLocation, BaseVertexLocation, StartInstanceLocation);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::DrawInstanced(UINT VertexCountPerInstance, UINT InstanceCount, UINT StartVertexLocation, UINT StartInstanceLocation)
 {
-	RESHADE_ADDON_EVENT(draw, this, VertexCountPerInstance, InstanceCount, StartVertexLocation, StartInstanceLocation);
-	_orig->DrawInstanced(VertexCountPerInstance, InstanceCount, StartVertexLocation, StartInstanceLocation);
+	reshade::invoke_addon_event<reshade::addon_event::draw>(
+		[this](reshade::api::command_list *, uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance) {
+			_orig->DrawInstanced(vertices, instances, first_vertex, first_instance);
+		}, this, VertexCountPerInstance, InstanceCount, StartVertexLocation, StartInstanceLocation);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::GSSetConstantBuffers(UINT StartSlot, UINT NumBuffers, ID3D11Buffer *const *ppConstantBuffers)
 {
@@ -258,39 +277,53 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::GSSetSamplers(UINT StartSlot, UINT
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargets(UINT NumViews, ID3D11RenderTargetView *const *ppRenderTargetViews, ID3D11DepthStencilView *pDepthStencilView)
 {
-	_orig->OMSetRenderTargets(NumViews, ppRenderTargetViews, pDepthStencilView);
-
-#if RESHADE_ADDON
-#  ifdef WIN64
+#ifdef WIN64
 	static_assert(sizeof(*ppRenderTargetViews) == sizeof(reshade::api::resource_view_handle));
 	const auto rtvs = reinterpret_cast<const reshade::api::resource_view_handle *>(ppRenderTargetViews);
-#  else
+#else
 	assert(NumViews <= D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT);
 	reshade::api::resource_view_handle rtvs[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
 	for (UINT i = 0; i < NumViews; ++i)
 		rtvs[i] = { reinterpret_cast<uintptr_t>(ppRenderTargetViews[i]) };
-#  endif
-	const reshade::api::resource_view_handle dsv = { reinterpret_cast<uintptr_t>(pDepthStencilView) };
-	RESHADE_ADDON_EVENT(set_render_targets_and_depth_stencil, this, NumViews, rtvs, dsv);
 #endif
+	const reshade::api::resource_view_handle dsv = { reinterpret_cast<uintptr_t>(pDepthStencilView) };
+
+	reshade::invoke_addon_event<reshade::addon_event::set_render_targets_and_depth_stencil>(
+		[this](reshade::api::command_list *, uint32_t count, const reshade::api::resource_view_handle *rtvs, reshade::api::resource_view_handle dsv) {
+#ifdef WIN64
+			_orig->OMSetRenderTargets(count, reinterpret_cast<ID3D11RenderTargetView *const *>(rtvs), reinterpret_cast<ID3D11DepthStencilView *>(dsv.handle));
+#else
+			ID3D11RenderTargetView *rtv_ptrs[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
+			for (UINT i = 0; i < count; ++i)
+				rtv_ptrs[i] = reinterpret_cast<ID3D11RenderTargetView *>(rtvs[i].handle);
+			_orig->OMSetRenderTargets(count, rtv_ptrs, reinterpret_cast<ID3D11DepthStencilView *>(dsv.handle));
+#endif
+		}, this, NumViews, rtvs, dsv);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargetsAndUnorderedAccessViews(UINT NumRTVs, ID3D11RenderTargetView *const *ppRenderTargetViews, ID3D11DepthStencilView *pDepthStencilView, UINT UAVStartSlot, UINT NumUAVs, ID3D11UnorderedAccessView *const *ppUnorderedAccessViews, const UINT *pUAVInitialCounts)
 {
-	_orig->OMSetRenderTargetsAndUnorderedAccessViews(NumRTVs, ppRenderTargetViews, pDepthStencilView, UAVStartSlot, NumUAVs, ppUnorderedAccessViews, pUAVInitialCounts);
-
-#if RESHADE_ADDON
-#  ifdef WIN64
+#ifdef WIN64
 	static_assert(sizeof(*ppRenderTargetViews) == sizeof(reshade::api::resource_view_handle));
 	const auto rtvs = reinterpret_cast<const reshade::api::resource_view_handle *>(ppRenderTargetViews);
-#  else
-	assert(NumRTVs <= D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT);
+#else
+	assert(NumViews <= D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT);
 	reshade::api::resource_view_handle rtvs[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
-	for (UINT i = 0; i < NumRTVs; ++i)
+	for (UINT i = 0; i < NumViews; ++i)
 		rtvs[i] = { reinterpret_cast<uintptr_t>(ppRenderTargetViews[i]) };
-#  endif
-	const reshade::api::resource_view_handle dsv = { reinterpret_cast<uintptr_t>(pDepthStencilView) };
-	RESHADE_ADDON_EVENT(set_render_targets_and_depth_stencil, this, NumRTVs, rtvs, dsv);
 #endif
+	const reshade::api::resource_view_handle dsv = { reinterpret_cast<uintptr_t>(pDepthStencilView) };
+
+	reshade::invoke_addon_event<reshade::addon_event::set_render_targets_and_depth_stencil>(
+		[this, UAVStartSlot, NumUAVs, ppUnorderedAccessViews, pUAVInitialCounts](reshade::api::command_list *, uint32_t count, const reshade::api::resource_view_handle *rtvs, reshade::api::resource_view_handle dsv) {
+#ifdef WIN64
+			_orig->OMSetRenderTargetsAndUnorderedAccessViews(count, reinterpret_cast<ID3D11RenderTargetView *const *>(rtvs), reinterpret_cast<ID3D11DepthStencilView *>(dsv.handle), UAVStartSlot, NumUAVs, ppUnorderedAccessViews, pUAVInitialCounts);
+#else
+			ID3D11RenderTargetView *rtv_ptrs[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
+			for (UINT i = 0; i < count; ++i)
+				rtv_ptrs[i] = reinterpret_cast<ID3D11RenderTargetView *>(rtvs[i].handle);
+			_orig->OMSetRenderTargetsAndUnorderedAccessViews(count, rtv_ptrs, reinterpret_cast<ID3D11DepthStencilView *>(dsv.handle), UAVStartSlot, NumUAVs, ppUnorderedAccessViews, pUAVInitialCounts);
+#endif
+		}, this, NumRTVs, rtvs, dsv);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetBlendState(ID3D11BlendState *pBlendState, const FLOAT BlendFactor[4], UINT SampleMask)
 {
@@ -306,28 +339,38 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::SOSetTargets(UINT NumBuffers, ID3D
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::DrawAuto()
 {
-	RESHADE_ADDON_EVENT(draw, this, 0, 0, 0, 0);
 	_orig->DrawAuto();
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::DrawIndexedInstancedIndirect(ID3D11Buffer *pBufferForArgs, UINT AlignedByteOffsetForArgs)
 {
-	RESHADE_ADDON_EVENT(draw_or_dispatch_indirect, this, reshade::addon_event::draw_indexed, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pBufferForArgs) }, AlignedByteOffsetForArgs, 1, 0);
-	_orig->DrawIndexedInstancedIndirect(pBufferForArgs, AlignedByteOffsetForArgs);
+	reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(
+		[this](reshade::api::command_list *, reshade::addon_event type, reshade::api::resource_handle buffer, uint64_t offset, uint32_t draw_count, uint32_t stride) {
+			assert(type == reshade::addon_event::draw_indexed && draw_count == 1 && stride == 0);
+			_orig->DrawIndexedInstancedIndirect(reinterpret_cast<ID3D11Buffer *>(buffer.handle), static_cast<UINT>(offset));
+		}, this, reshade::addon_event::draw_indexed, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pBufferForArgs) }, AlignedByteOffsetForArgs, 1, 0);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::DrawInstancedIndirect(ID3D11Buffer *pBufferForArgs, UINT AlignedByteOffsetForArgs)
 {
-	RESHADE_ADDON_EVENT(draw_or_dispatch_indirect, this, reshade::addon_event::draw, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pBufferForArgs) }, AlignedByteOffsetForArgs, 1, 0);
-	_orig->DrawInstancedIndirect(pBufferForArgs, AlignedByteOffsetForArgs);
+	reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(
+		[this](reshade::api::command_list *, reshade::addon_event type, reshade::api::resource_handle buffer, uint64_t offset, uint32_t draw_count, uint32_t stride) {
+			assert(type == reshade::addon_event::draw && draw_count == 1 && stride == 0);
+			_orig->DrawInstancedIndirect(reinterpret_cast<ID3D11Buffer *>(buffer.handle), static_cast<UINT>(offset));
+		}, this, reshade::addon_event::draw, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pBufferForArgs) }, AlignedByteOffsetForArgs, 1, 0);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::Dispatch(UINT ThreadGroupCountX, UINT ThreadGroupCountY, UINT ThreadGroupCountZ)
 {
-	RESHADE_ADDON_EVENT(dispatch, this, ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ);
-	_orig->Dispatch(ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ);
+	reshade::invoke_addon_event<reshade::addon_event::dispatch>(
+		[this](reshade::api::command_list *, uint32_t num_groups_x, uint32_t num_groups_y, uint32_t num_groups_z) {
+			_orig->Dispatch(num_groups_x, num_groups_y, num_groups_z);
+		}, this, ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::DispatchIndirect(ID3D11Buffer *pBufferForArgs, UINT AlignedByteOffsetForArgs)
 {
-	RESHADE_ADDON_EVENT(draw_or_dispatch_indirect, this, reshade::addon_event::dispatch, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pBufferForArgs) }, AlignedByteOffsetForArgs, 1, 0);
-	_orig->DispatchIndirect(pBufferForArgs, AlignedByteOffsetForArgs);
+	reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(
+		[this](reshade::api::command_list *, reshade::addon_event type, reshade::api::resource_handle buffer, uint64_t offset, uint32_t draw_count, uint32_t stride) {
+			assert(type == reshade::addon_event::dispatch && draw_count == 1 && stride == 0);
+			_orig->DispatchIndirect(reinterpret_cast<ID3D11Buffer *>(buffer.handle), static_cast<UINT>(offset));
+		}, this, reshade::addon_event::dispatch, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pBufferForArgs) }, AlignedByteOffsetForArgs, 1, 0);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::RSSetState(ID3D11RasterizerState *pRasterizerState)
 {
@@ -335,16 +378,16 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::RSSetState(ID3D11RasterizerState *
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::RSSetViewports(UINT NumViewports, const D3D11_VIEWPORT *pViewports)
 {
-	_orig->RSSetViewports(NumViewports, pViewports);
-
 	static_assert(sizeof(D3D11_VIEWPORT) == (sizeof(float) * 6));
-	RESHADE_ADDON_EVENT(set_viewports, this, 0, NumViewports, reinterpret_cast<const float *>(pViewports));
+
+	reshade::invoke_addon_event<reshade::addon_event::set_viewports>(
+		[this](reshade::api::command_list *, uint32_t first, uint32_t count, const float *viewports) {
+			assert(first == 0);
+			_orig->RSSetViewports(count, reinterpret_cast<const D3D11_VIEWPORT *>(viewports));
+		}, this, 0, NumViewports, reinterpret_cast<const float *>(pViewports));
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::RSSetScissorRects(UINT NumRects, const D3D11_RECT *pRects)
 {
-	_orig->RSSetScissorRects(NumRects, pRects);
-
-#if RESHADE_ADDON
 	assert(NumRects <= D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE);
 	int32_t rect_data[D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE * 4];
 	for (UINT i = 0, k = 0; i < NumRects; ++i, k += 4)
@@ -354,8 +397,20 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::RSSetScissorRects(UINT NumRects, c
 		rect_data[k + 2] = static_cast<int32_t>(pRects[i].right - pRects[i].left);
 		rect_data[k + 3] = static_cast<int32_t>(pRects[i].bottom - pRects[i].top);
 	}
-	RESHADE_ADDON_EVENT(set_scissor_rects, this, 0, NumRects, rect_data);
-#endif
+
+	reshade::invoke_addon_event<reshade::addon_event::set_scissor_rects>(
+		[this](reshade::api::command_list *, uint32_t first, uint32_t count, const int32_t *rects) {
+			assert(first == 0);
+			D3D11_RECT rect_data[D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];
+			for (UINT i = 0, k = 0; i < count; ++i, k += 4)
+			{
+				rect_data[i].left = rects[k + 0];
+				rect_data[i].top  = rects[k + 1];
+				rect_data[i].right = rect_data[i].left + rects[k + 2];
+				rect_data[i].bottom = rect_data[i].top + rects[k + 3];
+			}
+			_orig->RSSetScissorRects(count, rect_data);
+		}, this, 0, NumRects, rect_data);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::CopySubresourceRegion(ID3D11Resource *pDstResource, UINT DstSubresource, UINT DstX, UINT DstY, UINT DstZ, ID3D11Resource *pSrcResource, UINT SrcSubresource, const D3D11_BOX *pSrcBox)
 {
@@ -375,8 +430,10 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::CopyStructureCount(ID3D11Buffer *p
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::ClearRenderTargetView(ID3D11RenderTargetView *pRenderTargetView, const FLOAT ColorRGBA[4])
 {
-	RESHADE_ADDON_EVENT(clear_render_target, this, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(pRenderTargetView) }, ColorRGBA);
-	_orig->ClearRenderTargetView(pRenderTargetView, ColorRGBA);
+	reshade::invoke_addon_event<reshade::addon_event::clear_render_target>(
+		[this](reshade::api::command_list *, reshade::api::resource_view_handle rtv, const float color[4]) {
+			_orig->ClearRenderTargetView(reinterpret_cast<ID3D11RenderTargetView *>(rtv.handle), color);
+		}, this, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(pRenderTargetView) }, ColorRGBA);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::ClearUnorderedAccessViewUint(ID3D11UnorderedAccessView *pUnorderedAccessView, const UINT Values[4])
 {
@@ -388,8 +445,10 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::ClearUnorderedAccessViewFloat(ID3D
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::ClearDepthStencilView(ID3D11DepthStencilView *pDepthStencilView, UINT ClearFlags, FLOAT Depth, UINT8 Stencil)
 {
-	RESHADE_ADDON_EVENT(clear_depth_stencil, this, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(pDepthStencilView) }, ClearFlags, Depth, Stencil);
-	_orig->ClearDepthStencilView(pDepthStencilView, ClearFlags, Depth, Stencil);
+	reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil>(
+		[this](reshade::api::command_list *, reshade::api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil) {
+			_orig->ClearDepthStencilView(reinterpret_cast<ID3D11DepthStencilView *>(dsv.handle), clear_flags, depth, stencil);
+		}, this, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(pDepthStencilView) }, ClearFlags, Depth, Stencil);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::GenerateMips(ID3D11ShaderResourceView *pShaderResourceView)
 {
@@ -414,7 +473,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::ExecuteCommandList(ID3D11CommandLi
 	// The only way to create a command list is through 'FinishCommandList', so can always assume a proxy object here
 	D3D11CommandList *const command_list_proxy = static_cast<D3D11CommandList *>(pCommandList);
 
-	RESHADE_ADDON_EVENT(execute_command_list, this, command_list_proxy);
+	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::execute_command_list>(this, command_list_proxy);
 
 	// Get original command list pointer from proxy object and execute with it
 	_orig->ExecuteCommandList(command_list_proxy->_orig, RestoreContextState);
@@ -645,7 +704,7 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::FinishCommandList(BOOL RestoreDefe
 		const auto command_list_proxy = new D3D11CommandList(_device, *ppCommandList);
 		*ppCommandList = command_list_proxy;
 
-		RESHADE_ADDON_EVENT(execute_secondary_command_list, command_list_proxy, this);
+		reshade::invoke_addon_event_without_trampoline<reshade::addon_event::execute_secondary_command_list>(command_list_proxy, this);
 	}
 
 	return hr;
@@ -745,12 +804,24 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::ClearView(ID3D11View *pView, const
 #if RESHADE_ADDON
 	if (com_ptr<ID3D11RenderTargetView> rtv; SUCCEEDED(pView->QueryInterface(&rtv)))
 	{
-		RESHADE_ADDON_EVENT(clear_render_target, this, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(rtv.get()) }, Color);
+		reshade::invoke_addon_event<reshade::addon_event::clear_render_target>(
+			[this, pRect, NumRects](reshade::api::command_list *, reshade::api::resource_view_handle rtv, const float color[4]) {
+				assert(_interface_version >= 1);
+				static_cast<ID3D11DeviceContext1 *>(_orig)->ClearView(reinterpret_cast<ID3D11View *>(rtv.handle), color, pRect, NumRects);
+			}, this, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(rtv.get()) }, Color);
+		return;
 	}
 	if (com_ptr<ID3D11DepthStencilView> dsv; SUCCEEDED(pView->QueryInterface(&dsv)))
 	{
 		// The 'ID3D11DeviceContext1::ClearView' API only works on depth-stencil views to depth-only resources (with no stencil component)
-		RESHADE_ADDON_EVENT(clear_depth_stencil, this, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(dsv.get()) }, 0x1, Color[0], 0);
+		reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil>(
+			[this, pRect, NumRects](reshade::api::command_list *, reshade::api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t) {
+				assert(clear_flags == 0x1);
+				const float color[4] = { depth };
+				assert(_interface_version >= 1);
+				static_cast<ID3D11DeviceContext1 *>(_orig)->ClearView(reinterpret_cast<ID3D11View *>(dsv.handle), color, pRect, NumRects);
+			}, this, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(dsv.get()) }, 0x1, Color[0], static_cast<uint8_t>(0));
+		return;
 	}
 #endif
 

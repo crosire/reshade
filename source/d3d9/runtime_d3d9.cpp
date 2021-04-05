@@ -828,7 +828,7 @@ void reshade::d3d9::runtime_impl::render_technique(technique &technique)
 	D3DPERF_BeginEvent(D3DCOLOR_COLORVALUE(0.8f, 0.0f, 0.8f, 1.0f), technique_name.c_str());
 #endif
 
-	RESHADE_ADDON_EVENT(reshade_before_effects, this, _device_impl);
+	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::reshade_before_effects>(this, _device_impl);
 
 	// Setup vertex input (used to have a vertex ID as vertex shader input)
 	_device->SetStreamSource(0, _effect_vertex_buffer.get(), 0, sizeof(float));
@@ -969,7 +969,7 @@ void reshade::d3d9::runtime_impl::render_technique(technique &technique)
 #endif
 	}
 
-	RESHADE_ADDON_EVENT(reshade_after_effects, this, _device_impl);
+	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::reshade_after_effects>(this, _device_impl);
 
 #ifndef NDEBUG
 	D3DPERF_EndEvent();

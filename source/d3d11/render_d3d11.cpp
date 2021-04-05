@@ -13,11 +13,11 @@ reshade::d3d11::device_impl::device_impl(ID3D11Device *device) :
 	reshade::addon::load_addons();
 #endif
 
-	RESHADE_ADDON_EVENT(init_device, this);
+	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::init_device>(this);
 }
 reshade::d3d11::device_impl::~device_impl()
 {
-	RESHADE_ADDON_EVENT(destroy_device, this);
+	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::destroy_device>(this);
 
 #if RESHADE_ADDON
 	reshade::addon::unload_addons();
@@ -279,11 +279,11 @@ reshade::api::resource_desc reshade::d3d11::device_impl::get_resource_desc(api::
 reshade::d3d11::command_list_impl::command_list_impl(device_impl *device, ID3D11CommandList *cmd_list) :
 	api_object_impl(cmd_list), _device_impl(device)
 {
-	RESHADE_ADDON_EVENT(init_command_list, this);
+	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::init_command_list>(this);
 }
 reshade::d3d11::command_list_impl::~command_list_impl()
 {
-	RESHADE_ADDON_EVENT(destroy_command_list, this);
+	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::destroy_command_list>(this);
 }
 
 reshade::d3d11::device_context_impl::device_context_impl(device_impl *device, ID3D11DeviceContext *context) :
@@ -291,22 +291,22 @@ reshade::d3d11::device_context_impl::device_context_impl(device_impl *device, ID
 {
 	if (_orig->GetType() != D3D11_DEVICE_CONTEXT_IMMEDIATE)
 	{
-		RESHADE_ADDON_EVENT(init_command_list, this);
+		reshade::invoke_addon_event_without_trampoline<reshade::addon_event::init_command_list>(this);
 	}
 	else
 	{
-		RESHADE_ADDON_EVENT(init_command_queue, this);
+		reshade::invoke_addon_event_without_trampoline<reshade::addon_event::init_command_queue>(this);
 	}
 }
 reshade::d3d11::device_context_impl::~device_context_impl()
 {
 	if (_orig->GetType() != D3D11_DEVICE_CONTEXT_IMMEDIATE)
 	{
-		RESHADE_ADDON_EVENT(destroy_command_list, this);
+		reshade::invoke_addon_event_without_trampoline<reshade::addon_event::destroy_command_list>(this);
 	}
 	else
 	{
-		RESHADE_ADDON_EVENT(destroy_command_queue, this);
+		reshade::invoke_addon_event_without_trampoline<reshade::addon_event::destroy_command_queue>(this);
 	}
 }
 

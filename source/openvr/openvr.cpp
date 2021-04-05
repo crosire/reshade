@@ -72,7 +72,7 @@ static vr::EVRCompositorError on_submit_d3d11(vr::EVREye eye, ID3D11Texture2D *t
 	}
 	else
 	{
-		RESHADE_ADDON_EVENT(present, runtime->get_command_queue(), runtime);
+		reshade::invoke_addon_event_without_trampoline<reshade::addon_event::present>(runtime->get_command_queue(), runtime);
 
 		runtime->on_present();
 
@@ -120,7 +120,7 @@ static vr::EVRCompositorError on_submit_d3d12(vr::EVREye eye, const vr::D3D12Tex
 	}
 	else
 	{
-		RESHADE_ADDON_EVENT(present, runtime->get_command_queue(), runtime);
+		reshade::invoke_addon_event_without_trampoline<reshade::addon_event::present>(runtime->get_command_queue(), runtime);
 
 		runtime->on_present();
 
@@ -167,7 +167,7 @@ static vr::EVRCompositorError on_submit_opengl(vr::EVREye eye, GLuint object, co
 	}
 	else
 	{
-		RESHADE_ADDON_EVENT(present, runtime->get_command_queue(), runtime);
+		reshade::invoke_addon_event_without_trampoline<reshade::addon_event::present>(runtime->get_command_queue(), runtime);
 
 		// Skip copy, data was already copied in 'on_layer_submit' above
 		runtime->on_present(false);
@@ -184,18 +184,19 @@ static vr::EVRCompositorError on_submit_opengl(vr::EVREye eye, GLuint object, co
 static vr::EVRCompositorError on_submit_vulkan(vr::EVREye eye, const vr::VRVulkanTextureData_t *texture, const vr::VRTextureBounds_t *bounds, vr::EVRSubmitFlags flags,
 	std::function<vr::EVRCompositorError(vr::EVREye eye, void *texture, const vr::VRTextureBounds_t *bounds, vr::EVRSubmitFlags flags)> submit)
 {
+	extern lockfree_table<void *, reshade::vulkan::device_impl *, 16> g_vulkan_devices;
+	reshade::vulkan::device_impl *const device = g_vulkan_devices.at(dispatch_key_from_handle(texture->m_pDevice));
+	std::vector<reshade::vulkan::command_queue_impl *>::iterator queue_it;
+	if (device == nullptr)
+		goto normal_submit;
+
+	queue_it = std::find_if(device->_queues.begin(), device->_queues.end(),
+		[texture](reshade::vulkan::command_queue_impl *queue) { return queue->_orig == texture->m_pQueue; });
+	if (queue_it == device->_queues.end())
+		goto normal_submit;
+
 	if (s_vr_runtime.first == nullptr)
 	{
-		extern lockfree_table<void *, reshade::vulkan::device_impl *, 16> g_vulkan_devices;
-		reshade::vulkan::device_impl *const device = g_vulkan_devices.at(dispatch_key_from_handle(texture->m_pDevice));
-		if (device == nullptr)
-			goto normal_submit;
-
-		const auto queue_it = std::find_if(device->_queues.begin(), device->_queues.end(),
-			[texture](reshade::vulkan::command_queue_impl *queue) { return queue->_orig == texture->m_pQueue; });
-		if (queue_it == device->_queues.end())
-			goto normal_submit;
-
 		// OpenVR requires the passed in queue to be a graphics queue, so can safely use it
 		s_vr_runtime = { new reshade::vulkan::runtime_impl(device, *queue_it), vr::TextureType_Vulkan };
 	}
@@ -229,7 +230,7 @@ static vr::EVRCompositorError on_submit_vulkan(vr::EVREye eye, const vr::VRVulka
 	}
 	else
 	{
-		RESHADE_ADDON_EVENT(present, runtime->get_command_queue(), runtime);
+		reshade::invoke_addon_event_without_trampoline<reshade::addon_event::present>(*queue_it, runtime);
 
 		std::vector<VkSemaphore> wait_semaphores;
 		runtime->on_present(texture->m_pQueue, 0, wait_semaphores);

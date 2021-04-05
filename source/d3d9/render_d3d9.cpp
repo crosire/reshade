@@ -45,8 +45,8 @@ void reshade::d3d9::device_impl::on_reset()
 		return;
 
 	// Force add-ons to release all resources associated with this device before performing reset
-	RESHADE_ADDON_EVENT(destroy_command_queue, this);
-	RESHADE_ADDON_EVENT(destroy_device, this);
+	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::destroy_command_queue>(this);
+	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::destroy_device>(this);
 
 	_copy_state.reset();
 	_backup_state.release_state_block();
@@ -97,40 +97,47 @@ void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 			return;
 	}
 
-	RESHADE_ADDON_EVENT(init_device, this);
-	RESHADE_ADDON_EVENT(init_command_queue, this);
+	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::init_device>(this);
+	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::init_command_queue>(this);
 
 #if RESHADE_ADDON
 	if (com_ptr<IDirect3DSurface9> auto_depth_stencil;
 		pp.EnableAutoDepthStencil &&
 		SUCCEEDED(_orig->GetDepthStencilSurface(&auto_depth_stencil)))
 	{
-		D3DSURFACE_DESC desc = {};
-		auto_depth_stencil->GetDesc(&desc);
-		D3DSURFACE_DESC new_desc = desc;
+		D3DSURFACE_DESC old_desc = {};
+		auto_depth_stencil->GetDesc(&old_desc);
+		D3DSURFACE_DESC new_desc = old_desc;
 
-		reshade::api::resource_desc api_desc = convert_resource_desc(desc, 1, _caps);
-		RESHADE_ADDON_EVENT(create_resource, this, api::resource_type::surface, &api_desc, api::memory_usage::gpu_only);
-		convert_resource_desc(api_desc, new_desc);
+		reshade::api::resource_handle out = { 0 };
+		reshade::invoke_addon_event<reshade::addon_event::create_resource>(
+			[this, &auto_depth_stencil, &old_desc, &new_desc](reshade::api::device *, api::resource_type type, const api::resource_desc &desc, api::memory_usage, api::resource_handle *out) {
+				assert(type == reshade::api::resource_type::surface);
+				convert_resource_desc(desc, new_desc);
 
-		// Need to replace auto depth stencil if add-on modified the description
-		if (com_ptr<IDirect3DSurface9> auto_depth_stencil_replacement;
-			std::memcmp(&desc, &new_desc, sizeof(D3DSURFACE_DESC)) != 0 &&
-			create_surface_replacement(new_desc, &auto_depth_stencil_replacement))
-		{
-			// The device will hold a reference to the surface after binding it, so can release this one afterwards
-			_orig->SetDepthStencilSurface(auto_depth_stencil_replacement.get());
+				// Need to replace auto depth stencil if add-on modified the description
+				if (com_ptr<IDirect3DSurface9> auto_depth_stencil_replacement;
+					std::memcmp(&old_desc, &new_desc, sizeof(D3DSURFACE_DESC)) != 0 &&
+					create_surface_replacement(new_desc, &auto_depth_stencil_replacement))
+				{
+					// The device will hold a reference to the surface after binding it, so can release this one afterwards
+					_orig->SetDepthStencilSurface(auto_depth_stencil_replacement.get());
 
-			auto_depth_stencil = std::move(auto_depth_stencil_replacement);
-		}
-		else
-		{
-			_resources.register_object(auto_depth_stencil.get());
-		}
+					auto_depth_stencil = std::move(auto_depth_stencil_replacement);
+				}
+				else
+				{
+					_resources.register_object(auto_depth_stencil.get());
+				}
+
+				*out = { reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) };
+			}, this, api::resource_type::surface, convert_resource_desc(old_desc, 1, _caps), api::memory_usage::gpu_only, &out);
 
 		// Communicate default state to add-ons
-		const reshade::api::resource_view_handle dsv = { reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) };
-		RESHADE_ADDON_EVENT(set_render_targets_and_depth_stencil, this, 0, nullptr, dsv);
+		reshade::invoke_addon_event<reshade::addon_event::set_render_targets_and_depth_stencil>(
+			[](reshade::api::command_list *, uint32_t count, const reshade::api::resource_view_handle *rtvs, reshade::api::resource_view_handle dsv) {
+				// TODO
+			}, this, 0, nullptr, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) });
 	}
 #else
 	UNREFERENCED_PARAMETER(pp);
@@ -173,8 +180,11 @@ bool reshade::d3d9::device_impl::check_resource_view_handle_valid(api::resource_
 
 bool reshade::d3d9::device_impl::create_resource(api::resource_type type, const api::resource_desc &desc, api::memory_usage mem_usage, api::resource_usage, api::resource_handle *out_resource)
 {
-	D3DPOOL pool;
-	convert_memory_usage_to_d3d_pool(mem_usage, pool);
+	D3DPOOL pool = D3DPOOL_DEFAULT;
+	if (mem_usage == api::memory_usage::cpu_to_gpu || mem_usage == api::memory_usage::gpu_to_cpu)
+		pool = D3DPOOL_SYSTEMMEM;
+	else if (mem_usage == api::memory_usage::cpu_only)
+		pool = D3DPOOL_SCRATCH;
 
 	switch (type)
 	{
@@ -404,7 +414,7 @@ reshade::api::resource_desc reshade::d3d9::device_impl::get_resource_desc(api::r
 			if (out_type != nullptr)
 				*out_type = api::resource_type::surface;
 			if (out_mem_usage != nullptr)
-				convert_d3d_pool_to_memory_usage(internal_desc.Pool, *out_mem_usage);
+				*out_mem_usage = convert_d3d_pool_to_memory_usage(internal_desc.Pool);
 			return convert_resource_desc(internal_desc, 1, _caps);
 		}
 		case D3DRTYPE_TEXTURE:
@@ -418,7 +428,7 @@ reshade::api::resource_desc reshade::d3d9::device_impl::get_resource_desc(api::r
 			if (out_type != nullptr)
 				*out_type = api::resource_type::texture_2d;
 			if (out_mem_usage != nullptr)
-				convert_d3d_pool_to_memory_usage(internal_desc.Pool, *out_mem_usage);
+				*out_mem_usage = convert_d3d_pool_to_memory_usage(internal_desc.Pool);
 			return convert_resource_desc(internal_desc, texture->GetLevelCount(), _caps);
 		}
 		case D3DRTYPE_VOLUMETEXTURE:
@@ -432,7 +442,7 @@ reshade::api::resource_desc reshade::d3d9::device_impl::get_resource_desc(api::r
 			if (out_type != nullptr)
 				*out_type = api::resource_type::texture_3d;
 			if (out_mem_usage != nullptr)
-				convert_d3d_pool_to_memory_usage(internal_desc.Pool, *out_mem_usage);
+				*out_mem_usage = convert_d3d_pool_to_memory_usage(internal_desc.Pool);
 			return convert_resource_desc(internal_desc, texture->GetLevelCount());
 		}
 		case D3DRTYPE_CUBETEXTURE:
@@ -446,7 +456,7 @@ reshade::api::resource_desc reshade::d3d9::device_impl::get_resource_desc(api::r
 			if (out_type != nullptr)
 				*out_type = api::resource_type::texture_2d;
 			if (out_mem_usage != nullptr)
-				convert_d3d_pool_to_memory_usage(internal_desc.Pool, *out_mem_usage);
+				*out_mem_usage = convert_d3d_pool_to_memory_usage(internal_desc.Pool);
 			return convert_resource_desc(internal_desc, texture->GetLevelCount(), _caps);
 		}
 		case D3DRTYPE_VERTEXBUFFER:
@@ -457,7 +467,7 @@ reshade::api::resource_desc reshade::d3d9::device_impl::get_resource_desc(api::r
 			if (out_type != nullptr)
 				*out_type = api::resource_type::buffer;
 			if (out_mem_usage != nullptr)
-				convert_d3d_pool_to_memory_usage(internal_desc.Pool, *out_mem_usage);
+				*out_mem_usage = convert_d3d_pool_to_memory_usage(internal_desc.Pool);
 			return convert_resource_desc(internal_desc);
 		}
 		case D3DRTYPE_INDEXBUFFER:
@@ -468,7 +478,7 @@ reshade::api::resource_desc reshade::d3d9::device_impl::get_resource_desc(api::r
 			if (out_type != nullptr)
 				*out_type = api::resource_type::buffer;
 			if (out_mem_usage != nullptr)
-				convert_d3d_pool_to_memory_usage(internal_desc.Pool, *out_mem_usage);
+				*out_mem_usage = convert_d3d_pool_to_memory_usage(internal_desc.Pool);
 			return convert_resource_desc(internal_desc);
 		}
 	}

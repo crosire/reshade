@@ -7,7 +7,7 @@
 #include "render_gl_utils.hpp"
 #include <cassert>
 
-static inline GLenum get_binding_for_target(GLenum target)
+GLenum reshade::opengl::get_binding_for_target(GLenum target)
 {
 	switch (target)
 	{
@@ -108,7 +108,7 @@ static GLint get_buf_param(GLenum target, GLuint id, GLenum param)
 			target = GL_TEXTURE_2D;
 
 		GLint prev_binding = 0;
-		glGetIntegerv(get_binding_for_target(target), &prev_binding);
+		glGetIntegerv(reshade::opengl::get_binding_for_target(target), &prev_binding);
 		glBindBuffer(target, id);
 		glGetBufferParameteriv(target, param, &value);
 		glBindBuffer(target, prev_binding);
@@ -128,7 +128,7 @@ static GLint get_tex_param(GLenum target, GLuint id, GLenum param)
 			target = GL_TEXTURE_2D;
 
 		GLint prev_binding = 0;
-		glGetIntegerv(get_binding_for_target(target), &prev_binding);
+		glGetIntegerv(reshade::opengl::get_binding_for_target(target), &prev_binding);
 		glBindTexture(target, id);
 		glGetTexParameteriv(target, param, &value);
 		glBindTexture(target, prev_binding);
@@ -148,7 +148,7 @@ static GLint get_tex_level_param(GLenum target, GLuint id, GLuint level, GLenum 
 			target = GL_TEXTURE_2D;
 
 		GLint prev_binding = 0;
-		glGetIntegerv(get_binding_for_target(target), &prev_binding);
+		glGetIntegerv(reshade::opengl::get_binding_for_target(target), &prev_binding);
 		glBindTexture(target, id);
 		glGetTexLevelParameteriv(target, level, param, &value);
 		glBindTexture(target, prev_binding);
@@ -239,20 +239,23 @@ reshade::opengl::device_impl::device_impl(HDC hdc, HGLRC hglrc) :
 	reshade::addon::load_addons();
 #endif
 
-	RESHADE_ADDON_EVENT(init_device, this);
-	RESHADE_ADDON_EVENT(init_command_queue, this);
+	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::init_device>(this);
+	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::init_command_queue>(this);
 
 #if RESHADE_ADDON
 	// Communicate default state to add-ons
 	const api::resource_view_handle default_render_target = get_render_target_from_fbo(0, 0);
 	const api::resource_view_handle default_depth_stencil = get_depth_stencil_from_fbo(0);
-	RESHADE_ADDON_EVENT(set_render_targets_and_depth_stencil, this, 1, &default_render_target, default_depth_stencil);
+	reshade::invoke_addon_event<reshade::addon_event::set_render_targets_and_depth_stencil>(
+		[](reshade::api::command_list *, uint32_t count, const api::resource_view_handle *rtvs, api::resource_view_handle dsv) {
+			// TODO
+		}, this, 1, &default_render_target, default_depth_stencil);
 #endif
 }
 reshade::opengl::device_impl::~device_impl()
 {
-	RESHADE_ADDON_EVENT(destroy_command_queue, this);
-	RESHADE_ADDON_EVENT(destroy_device, this);
+	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::destroy_command_queue>(this);
+	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::destroy_device>(this);
 
 #if RESHADE_ADDON
 	reshade::addon::unload_addons();

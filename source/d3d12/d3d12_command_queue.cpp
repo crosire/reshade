@@ -157,7 +157,7 @@ void    STDMETHODCALLTYPE D3D12CommandQueue::ExecuteCommandLists(UINT NumCommand
 		if (com_ptr<D3D12GraphicsCommandList> command_list_proxy;
 			SUCCEEDED(ppCommandLists[i]->QueryInterface(&command_list_proxy)))
 		{
-			RESHADE_ADDON_EVENT(execute_command_list, this, command_list_proxy.get());
+			reshade::invoke_addon_event_without_trampoline<reshade::addon_event::execute_command_list>(this, command_list_proxy.get());
 
 			// Get original command list pointer from proxy object
 			command_lists[i] = command_list_proxy->_orig;

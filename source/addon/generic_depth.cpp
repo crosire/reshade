@@ -252,61 +252,66 @@ static void on_destroy_queue_or_command_list(api_object *queue_or_cmd_list)
 	queue_or_cmd_list->destroy_data<state_tracking>(state_tracking::GUID);
 }
 
-static void on_create_resource(device *device, resource_type type, resource_desc *desc, memory_usage)
+static void on_create_resource(
+	reshade::addon_event_trampoline<reshade::addon_event::create_resource> &trampoline, device *device, resource_type type, const resource_desc &desc, memory_usage mem_usage, resource_handle *out)
 {
+	resource_desc new_desc = desc;
+
 	// No need to modify resources in D3D12, since backup texture is used always
-	if (device->get_api() == render_api::d3d12)
-		return;
-
-	if ((type != resource_type::surface && type != resource_type::texture_2d) || desc->samples != 1)
-		return; // Skip MSAA textures and resources that are not 2D textures
-
-	// Allow shader access to images that are used as depth-stencil attachments
-	if ((desc->usage & resource_usage::depth_stencil) != 0 &&
-		(desc->usage & resource_usage::shader_resource) == 0)
+	if ((device->get_api() != render_api::d3d12) && (
+		// Skip MSAA textures and resources that are not 2D textures
+		(type == resource_type::surface || type == resource_type::texture_2d) && desc.samples == 1) && (
+		// Allow shader access to images that are used as depth-stencil attachments
+		(desc.usage & resource_usage::depth_stencil) != 0 && (desc.usage & resource_usage::shader_resource) == 0))
 	{
 		if (device->get_api() == render_api::d3d9 && !s_disable_intz)
-			desc->format = ('I' << 0) | ('N' << 8) | ('T' << 16) | ('Z' << 24);
+			new_desc.format = ('I' << 0) | ('N' << 8) | ('T' << 16) | ('Z' << 24);
 		if (device->get_api() >= render_api::d3d10 && device->get_api() <= render_api::d3d12)
-			desc->format = static_cast<uint32_t>(make_dxgi_format_typeless(static_cast<DXGI_FORMAT>(desc->format)));
+			new_desc.format = static_cast<uint32_t>(make_dxgi_format_typeless(static_cast<DXGI_FORMAT>(desc.format)));
 
-		desc->usage |= resource_usage::shader_resource;
+		new_desc.usage |= resource_usage::shader_resource;
 	}
+
+	trampoline(device, type, new_desc, mem_usage, out);
 }
-static void on_create_resource_view(device *device, resource_handle resource, resource_usage usage_type, resource_view_desc *desc)
+static void on_create_resource_view(
+	reshade::addon_event_trampoline<reshade::addon_event::create_resource_view> &trampoline, device *device, resource_handle resource, resource_usage usage_type, const resource_view_desc &desc, resource_view_handle *out)
 {
+	resource_view_desc new_desc = desc;
+
 	// A view cannot be created with a typeless format (which was set in 'on_create_resource' above), so fix it in case defaults are used
-	if (desc->format != 0 || !(device->get_api() >= render_api::d3d10 && device->get_api() <= render_api::d3d11))
-		return;
-
-	const resource_desc texture_desc = device->get_resource_desc(resource);
-	if (texture_desc.samples != 1 || (texture_desc.usage & resource_usage::depth_stencil) == 0)
-		return; // Only non-MSAA textures where modified, so skip all others
-
-	switch (usage_type)
+	if (desc.format == 0 && (device->get_api() >= render_api::d3d10 && device->get_api() <= render_api::d3d11))
 	{
-	default:
-		return;
-	case resource_usage::depth_stencil:
-		desc->format = static_cast<uint32_t>(make_dxgi_format_dsv(static_cast<DXGI_FORMAT>(texture_desc.format)));
-		break;
-	case resource_usage::shader_resource:
-		desc->format = static_cast<uint32_t>(make_dxgi_format_normal(static_cast<DXGI_FORMAT>(texture_desc.format)));
-		break;
+		const resource_desc texture_desc = device->get_resource_desc(resource);
+		// Only non-MSAA textures where modified, so skip all others
+		if (texture_desc.samples == 1 && (texture_desc.usage & resource_usage::depth_stencil) != 0)
+		{
+			switch (usage_type)
+			{
+			case resource_usage::depth_stencil:
+				new_desc.format = static_cast<uint32_t>(make_dxgi_format_dsv(static_cast<DXGI_FORMAT>(texture_desc.format)));
+				break;
+			case resource_usage::shader_resource:
+				new_desc.format = static_cast<uint32_t>(make_dxgi_format_normal(static_cast<DXGI_FORMAT>(texture_desc.format)));
+				break;
+			}
+
+			// Only need to set the rest of the fields if the application did not pass in a valid description already
+			if (desc.type == resource_view_type::unknown)
+			{
+				new_desc.type = texture_desc.depth_or_layers > 1 ? resource_view_type::texture_2d_array : resource_view_type::texture_2d;
+				new_desc.first_level = 0;
+				new_desc.levels = (usage_type == resource_usage::shader_resource) ? 0xFFFFFFFF : 1;
+				new_desc.first_layer = 0;
+				new_desc.layers = (usage_type == resource_usage::shader_resource) ? 0xFFFFFFFF : 1;
+			}
+		}
 	}
 
-	// Only need to set the rest of the fields if the application did not pass in a valid description already
-	if (desc->type != resource_view_type::unknown)
-		return;
-
-	desc->type = texture_desc.depth_or_layers > 1 ? resource_view_type::texture_2d_array : resource_view_type::texture_2d;
-	desc->first_level = 0;
-	desc->levels = (usage_type == resource_usage::shader_resource) ? 0xFFFFFFFF : 1;
-	desc->first_layer = 0;
-	desc->layers = (usage_type == resource_usage::shader_resource) ? 0xFFFFFFFF : 1;
+	trampoline(device, resource, usage_type, new_desc, out);
 }
 
-static void on_draw(command_list *cmd_list, uint32_t vertices, uint32_t instances, uint32_t, uint32_t)
+static void draw_impl(command_list *cmd_list, uint32_t vertices, uint32_t instances)
 {
 	auto &state = cmd_list->get_data<state_tracking>(state_tracking::GUID);
 	if (state.current_depth_stencil == 0)
@@ -330,30 +335,48 @@ static void on_draw(command_list *cmd_list, uint32_t vertices, uint32_t instance
 	counters.current_stats.drawcalls += 1;
 	std::memcpy(counters.current_stats.last_viewport, state.current_viewport, 6 * sizeof(float));
 }
-static void on_draw_indexed(command_list *cmd_list, uint32_t indices, uint32_t instances, uint32_t, int32_t, uint32_t)
-{
-	on_draw(cmd_list, indices, instances, 0, 0);
-}
-static void on_draw_indirect(command_list *cmd_list, reshade::addon_event type, resource_handle, uint64_t, uint32_t, uint32_t)
-{
-	if (type == reshade::addon_event::dispatch)
-		return;
 
-	on_draw(cmd_list, 0, 0, 0, 0);
-
-	auto &state = cmd_list->get_data<state_tracking>(state_tracking::GUID);
-	state.has_indirect_drawcalls = true;
-}
-static void on_set_viewport(command_list *cmd_list, uint32_t first, uint32_t count, const float *viewport)
+static void on_draw(
+	reshade::addon_event_trampoline<reshade::addon_event::draw> &trampoline, command_list *cmd_list, uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance)
 {
+	draw_impl(cmd_list, vertices, instances);
+	trampoline(cmd_list, vertices, instances, first_vertex, first_instance);
+}
+static void on_draw_indexed(
+	reshade::addon_event_trampoline<reshade::addon_event::draw_indexed> &trampoline, command_list *cmd_list, uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)
+{
+	draw_impl(cmd_list, indices, instances);
+	trampoline(cmd_list, indices, instances, first_index, vertex_offset, first_instance);
+}
+static void on_draw_indirect(
+	reshade::addon_event_trampoline<reshade::addon_event::draw_or_dispatch_indirect> &trampoline, command_list *cmd_list, reshade::addon_event type, resource_handle buffer, uint64_t offset, uint32_t draw_count, uint32_t stride)
+{
+	if (type != reshade::addon_event::dispatch)
+	{
+		draw_impl(cmd_list, 0, 0);
+
+		auto &state = cmd_list->get_data<state_tracking>(state_tracking::GUID);
+		state.has_indirect_drawcalls = true;
+	}
+
+	trampoline(cmd_list, type, buffer, offset, draw_count, stride);
+}
+static void on_set_viewport(
+	reshade::addon_event_trampoline<reshade::addon_event::set_viewports> &trampoline, command_list *cmd_list, uint32_t first, uint32_t count, const float *viewport)
+{
+	trampoline(cmd_list, first, count, viewport);
+
 	if (first != 0 || count == 0)
 		return; // Only interested in the main viewport
 
 	auto &state = cmd_list->get_data<state_tracking>(state_tracking::GUID);
 	std::memcpy(state.current_viewport, viewport, 6 * sizeof(float));
 }
-static void on_set_depth_stencil(command_list *cmd_list, uint32_t, const resource_view_handle *, resource_view_handle dsv)
+static void on_set_depth_stencil(
+	reshade::addon_event_trampoline<reshade::addon_event::set_render_targets_and_depth_stencil> &trampoline, command_list *cmd_list, uint32_t count, const resource_view_handle *rtvs, resource_view_handle dsv)
 {
+	trampoline(cmd_list, count, rtvs, dsv);
+
 	device *const device = cmd_list->get_device();
 	auto &state = cmd_list->get_data<state_tracking>(state_tracking::GUID);
 
@@ -371,21 +394,22 @@ static void on_set_depth_stencil(command_list *cmd_list, uint32_t, const resourc
 
 	state.current_depth_stencil = depth_stencil;
 }
-static void on_clear_depth_stencil(command_list *cmd_list, resource_view_handle dsv, uint32_t clear_flags, float, uint8_t)
+static void on_clear_depth_stencil(
+	reshade::addon_event_trampoline<reshade::addon_event::clear_depth_stencil> &trampoline, command_list *cmd_list, resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil)
 {
 	device *const device = cmd_list->get_device();
 	const state_tracking_context &device_state = device->get_data<state_tracking_context>(state_tracking_context::GUID);
 
-	if ((clear_flags & 0x1) == 0 || !device_state.preserve_depth_buffers)
+	// Ignore clears that do not affect the depth buffer (stencil clears)
+	if ((clear_flags & 0x1) != 0 && device_state.preserve_depth_buffers)
 	{
-		// Ignore clears that do not affect the depth buffer (stencil clears)
-		return;
+		resource_handle depth_stencil = { 0 };
+		device->get_resource_from_view(dsv, &depth_stencil);
+
+		clear_depth_impl(cmd_list, cmd_list->get_data<state_tracking>(state_tracking::GUID), device_state, depth_stencil, false);
 	}
 
-	resource_handle depth_stencil = { 0 };
-	device->get_resource_from_view(dsv, &depth_stencil);
-
-	clear_depth_impl(cmd_list, cmd_list->get_data<state_tracking>(state_tracking::GUID), device_state, depth_stencil, false);
+	trampoline(cmd_list, dsv, clear_flags, depth, stencil);
 }
 
 static void on_reset(command_list *cmd_list)

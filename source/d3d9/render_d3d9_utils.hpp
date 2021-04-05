@@ -5,8 +5,7 @@
 
 namespace reshade::d3d9
 {
-	void convert_memory_usage_to_d3d_pool(api::memory_usage mem_usage, D3DPOOL &pool);
-	void convert_d3d_pool_to_memory_usage(D3DPOOL pool, api::memory_usage &mem_usage);
+	api::memory_usage convert_d3d_pool_to_memory_usage(D3DPOOL pool);
 
 	void convert_resource_usage_to_d3d_usage(api::resource_usage usage, DWORD &d3d_usage);
 	void convert_d3d_usage_to_resource_usage(DWORD d3d_usage, api::resource_usage &usage);

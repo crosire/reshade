@@ -1373,7 +1373,7 @@ void reshade::d3d12::runtime_impl::render_technique(technique &technique)
 
 	ID3D12GraphicsCommandList *const cmd_list = _cmd_impl->begin_commands();
 
-	RESHADE_ADDON_EVENT(reshade_before_effects, this, _cmd_impl);
+	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::reshade_before_effects>(this, _cmd_impl);
 
 	ID3D12DescriptorHeap *const descriptor_heaps[] = { effect_data.srv_uav_heap.get(), effect_data.sampler_heap.get() };
 	cmd_list->SetDescriptorHeaps(ARRAYSIZE(descriptor_heaps), descriptor_heaps);
@@ -1560,7 +1560,7 @@ void reshade::d3d12::runtime_impl::render_technique(technique &technique)
 			generate_mipmaps(modified_texture);
 	}
 
-	RESHADE_ADDON_EVENT(reshade_after_effects, this, _cmd_impl);
+	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::reshade_after_effects>(this, _cmd_impl);
 }
 
 void reshade::d3d12::runtime_impl::update_texture_bindings(const char *semantic, api::resource_view_handle srv)

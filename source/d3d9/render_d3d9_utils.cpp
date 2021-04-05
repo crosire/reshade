@@ -8,38 +8,18 @@
 
 using namespace reshade::api;
 
-void reshade::d3d9::convert_memory_usage_to_d3d_pool(memory_usage mem_usage, D3DPOOL &pool)
-{
-	switch (mem_usage)
-	{
-	default:
-	case memory_usage::gpu_only:
-		pool = D3DPOOL_DEFAULT;
-		break;
-	case memory_usage::cpu_to_gpu:
-	case memory_usage::gpu_to_cpu:
-		pool = D3DPOOL_SYSTEMMEM;
-		break;
-	case memory_usage::cpu_only:
-		pool = D3DPOOL_SCRATCH;
-		break;
-	}
-}
-void reshade::d3d9::convert_d3d_pool_to_memory_usage(D3DPOOL pool, memory_usage &mem_usage)
+memory_usage reshade::d3d9::convert_d3d_pool_to_memory_usage(D3DPOOL pool)
 {
 	switch (pool)
 	{
 	default:
 	case D3DPOOL_DEFAULT:
-		mem_usage = memory_usage::gpu_only;
-		break;
+		return memory_usage::gpu_only;
 	case D3DPOOL_MANAGED:
 	case D3DPOOL_SYSTEMMEM:
-		mem_usage = memory_usage::cpu_to_gpu;
-		break;
+		return memory_usage::cpu_to_gpu;
 	case D3DPOOL_SCRATCH:
-		mem_usage = memory_usage::cpu_only;
-		break;
+		return memory_usage::cpu_only;
 	}
 }
 

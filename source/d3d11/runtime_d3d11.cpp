@@ -1063,7 +1063,7 @@ void reshade::d3d11::runtime_impl::render_technique(technique &technique)
 		}
 	}
 
-	RESHADE_ADDON_EVENT(reshade_before_effects, this, _immediate_context_impl);
+	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::reshade_before_effects>(this, _immediate_context_impl);
 
 	// Setup vertex input (no explicit vertices are provided, so bind to null)
 	const uintptr_t null = 0;
@@ -1222,7 +1222,7 @@ void reshade::d3d11::runtime_impl::render_technique(technique &technique)
 		}
 	}
 
-	RESHADE_ADDON_EVENT(reshade_after_effects, this, _immediate_context_impl);
+	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::reshade_after_effects>(this, _immediate_context_impl);
 
 	if (_gather_gpu_statistics)
 	{

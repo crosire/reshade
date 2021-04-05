@@ -52,13 +52,13 @@ reshade::vulkan::device_impl::device_impl(VkDevice device, VkPhysicalDevice phys
 	reshade::addon::load_addons();
 #endif
 
-	RESHADE_ADDON_EVENT(init_device, this);
+	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::init_device>(this);
 }
 reshade::vulkan::device_impl::~device_impl()
 {
 	assert(_queues.empty()); // All queues should have been unregistered and destroyed at this point
 
-	RESHADE_ADDON_EVENT(destroy_device, this);
+	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::destroy_device>(this);
 
 #if RESHADE_ADDON
 	reshade::addon::unload_addons();
@@ -288,14 +288,14 @@ reshade::vulkan::command_list_impl::command_list_impl(device_impl *device, VkCom
 {
 	if (_has_commands) // Do not call add-on event for immediate command list
 	{
-		RESHADE_ADDON_EVENT(init_command_list, this);
+		reshade::invoke_addon_event_without_trampoline<reshade::addon_event::init_command_list>(this);
 	}
 }
 reshade::vulkan::command_list_impl::~command_list_impl()
 {
 	if (_has_commands)
 	{
-		RESHADE_ADDON_EVENT(destroy_command_list, this);
+		reshade::invoke_addon_event_without_trampoline<reshade::addon_event::destroy_command_list>(this);
 	}
 }
 
@@ -587,11 +587,11 @@ reshade::vulkan::command_queue_impl::command_queue_impl(device_impl *device, uin
 		_immediate_cmd_list = new command_list_immediate_impl(device, queue_family_index);
 	}
 
-	RESHADE_ADDON_EVENT(init_command_queue, this);
+	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::init_command_queue>(this);
 }
 reshade::vulkan::command_queue_impl::~command_queue_impl()
 {
-	RESHADE_ADDON_EVENT(destroy_command_queue, this);
+	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::destroy_command_queue>(this);
 
 	delete _immediate_cmd_list;
 

@@ -13,13 +13,13 @@ reshade::d3d10::device_impl::device_impl(ID3D10Device1 *device) :
 	reshade::addon::load_addons();
 #endif
 
-	RESHADE_ADDON_EVENT(init_device, this);
-	RESHADE_ADDON_EVENT(init_command_queue, this);
+	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::init_device>(this);
+	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::init_command_queue>(this);
 }
 reshade::d3d10::device_impl::~device_impl()
 {
-	RESHADE_ADDON_EVENT(destroy_command_queue, this);
-	RESHADE_ADDON_EVENT(destroy_device, this);
+	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::destroy_command_queue>(this);
+	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::destroy_device>(this);
 
 #if RESHADE_ADDON
 	reshade::addon::unload_addons();
