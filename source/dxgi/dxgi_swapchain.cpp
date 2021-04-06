@@ -82,7 +82,7 @@ void DXGISwapChain::runtime_reset(UINT width, UINT height)
 {
 	const std::lock_guard<std::mutex> lock(_runtime_mutex);
 
-	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::resize>(_runtime, width, height);
+	reshade::invoke_addon_event<reshade::addon_event::resize>(_runtime, width, height);
 
 	switch (_direct3d_version)
 	{
@@ -129,7 +129,7 @@ void DXGISwapChain::runtime_present(UINT flags)
 	// This is necessary because Resident Evil 3 calls DXGI functions simultaneously from multiple threads (which is technically illegal)
 	const std::lock_guard<std::mutex> lock(_runtime_mutex);
 
-	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::present>(_runtime->get_command_queue(), _runtime);
+	reshade::invoke_addon_event<reshade::addon_event::present>(_runtime->get_command_queue(), _runtime);
 
 	switch (_direct3d_version)
 	{

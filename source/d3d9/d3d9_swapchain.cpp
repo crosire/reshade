@@ -106,7 +106,7 @@ ULONG   STDMETHODCALLTYPE Direct3DSwapChain9::Release()
 
 HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::Present(const RECT *pSourceRect, const RECT *pDestRect, HWND hDestWindowOverride, const RGNDATA *pDirtyRegion, DWORD dwFlags)
 {
-	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::present>(_device, this);
+	reshade::invoke_addon_event<reshade::addon_event::present>(_device, this);
 
 	// Only call into runtime if the entire surface is presented, to avoid partial updates messing up effects and the GUI
 	if (is_presenting_entire_surface(pSourceRect, hDestWindowOverride))

@@ -263,7 +263,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::Present(const RECT *pSourceRect, const RECT *pDestRect, HWND hDestWindowOverride, const RGNDATA *pDirtyRegion)
 {
-	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::present>(this, _implicit_swapchain);
+	reshade::invoke_addon_event<reshade::addon_event::present>(this, _implicit_swapchain);
 
 	// Only call into runtime if the entire surface is presented, to avoid partial updates messing up effects and the GUI
 	if (Direct3DSwapChain9::is_presenting_entire_surface(pSourceRect, hDestWindowOverride))
@@ -1304,7 +1304,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ComposeRects(IDirect3DSurface9 *pSrc,
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::PresentEx(const RECT *pSourceRect, const RECT *pDestRect, HWND hDestWindowOverride, const RGNDATA *pDirtyRegion, DWORD dwFlags)
 {
-	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::present>(this, _implicit_swapchain);
+	reshade::invoke_addon_event<reshade::addon_event::present>(this, _implicit_swapchain);
 
 	if (Direct3DSwapChain9::is_presenting_entire_surface(pSourceRect, hDestWindowOverride))
 		_implicit_swapchain->on_present();

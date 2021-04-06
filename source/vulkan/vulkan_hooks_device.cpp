@@ -513,7 +513,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		{
 			assert(create_info.oldSwapchain != VK_NULL_HANDLE);
 
-			reshade::invoke_addon_event_without_trampoline<reshade::addon_event::resize>(
+			reshade::invoke_addon_event<reshade::addon_event::resize>(
 				runtime, create_info.imageExtent.width, create_info.imageExtent.height);
 
 			// Re-use the existing runtime if this swap chain was not created from scratch, but reset it before initializing again below
@@ -584,7 +584,7 @@ VkResult VKAPI_CALL vkQueueSubmit(VkQueue queue, uint32_t submitCount, const VkS
 			{
 				assert(pSubmits[i].pCommandBuffers[k] != VK_NULL_HANDLE);
 
-				reshade::invoke_addon_event_without_trampoline<reshade::addon_event::execute_command_list>(
+				reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(
 					queue_impl, s_vulkan_command_buffers.at(pSubmits[i].pCommandBuffers[k]));
 			}
 		}
@@ -610,7 +610,7 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 			if (const auto runtime = s_vulkan_runtimes.at(pPresentInfo->pSwapchains[i]);
 				runtime != nullptr)
 			{
-				reshade::invoke_addon_event_without_trampoline<reshade::addon_event::present>(queue_impl, runtime);
+				reshade::invoke_addon_event<reshade::addon_event::present>(queue_impl, runtime);
 
 				runtime->on_present(queue, pPresentInfo->pImageIndices[i], wait_semaphores);
 			}
@@ -1035,7 +1035,7 @@ void     VKAPI_CALL vkFreeCommandBuffers(VkDevice device, VkCommandPool commandP
 VkResult VKAPI_CALL vkBeginCommandBuffer(VkCommandBuffer commandBuffer, const VkCommandBufferBeginInfo *pBeginInfo)
 {
 	// Begin does perform an implicit reset if command pool was created with 'VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT'
-	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::reset_command_list>(
+	reshade::invoke_addon_event<reshade::addon_event::reset_command_list>(
 		s_vulkan_command_buffers.at(commandBuffer));
 
 	GET_DISPATCH_PTR(BeginCommandBuffer, commandBuffer);
@@ -1383,7 +1383,7 @@ void     VKAPI_CALL vkCmdEndRenderPass(VkCommandBuffer commandBuffer)
 void     VKAPI_CALL vkCmdExecuteCommands(VkCommandBuffer commandBuffer, uint32_t commandBufferCount, const VkCommandBuffer *pCommandBuffers)
 {
 	for (uint32_t i = 0; i < commandBufferCount; ++i)
-		reshade::invoke_addon_event_without_trampoline<reshade::addon_event::execute_secondary_command_list>(
+		reshade::invoke_addon_event<reshade::addon_event::execute_secondary_command_list>(
 			s_vulkan_command_buffers.at(commandBuffer),
 			s_vulkan_command_buffers.at(pCommandBuffers[i]));
 

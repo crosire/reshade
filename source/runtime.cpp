@@ -130,7 +130,7 @@ bool reshade::runtime::on_init(input::window_handle window)
 	_preset_save_success = true;
 	_screenshot_save_success = true;
 
-	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::init_effect_runtime>(this);
+	invoke_addon_event<addon_event::init_effect_runtime>(this);
 
 	LOG(INFO) << "Recreated runtime environment on runtime " << this << '.';
 
@@ -153,7 +153,7 @@ void reshade::runtime::on_reset()
 	_rebuild_font_atlas = true;
 #endif
 
-	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::destroy_effect_runtime>(this);
+	invoke_addon_event<addon_event::destroy_effect_runtime>(this);
 
 	LOG(INFO) << "Destroyed runtime environment on runtime " << this << '.';
 }

@@ -18,7 +18,7 @@ reshade::d3d9::device_impl::device_impl(IDirect3DDevice9 *device) :
 		_caps.NumSimultaneousRTs = 8;
 
 #if RESHADE_ADDON
-	reshade::addon::load_addons();
+	addon::load_addons();
 #endif
 
 	com_ptr<IDirect3DSwapChain9> swapchain;
@@ -34,7 +34,7 @@ reshade::d3d9::device_impl::~device_impl()
 	on_reset();
 
 #if RESHADE_ADDON
-	reshade::addon::unload_addons();
+	addon::unload_addons();
 #endif
 }
 
@@ -46,8 +46,8 @@ void reshade::d3d9::device_impl::on_reset()
 
 #if RESHADE_ADDON
 	// Force add-ons to release all resources associated with this device before performing reset
-	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::destroy_command_queue>(this);
-	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::destroy_device>(this);
+	invoke_addon_event<addon_event::destroy_command_queue>(this);
+	invoke_addon_event<addon_event::destroy_device>(this);
 #endif
 
 	_copy_state.reset();
@@ -100,8 +100,8 @@ void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 	}
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::init_device>(this);
-	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::init_command_queue>(this);
+	invoke_addon_event<addon_event::init_device>(this);
+	invoke_addon_event<addon_event::init_command_queue>(this);
 
 	if (com_ptr<IDirect3DSurface9> auto_depth_stencil;
 		pp.EnableAutoDepthStencil &&
@@ -111,9 +111,9 @@ void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 		auto_depth_stencil->GetDesc(&old_desc);
 		D3DSURFACE_DESC new_desc = old_desc;
 
-		reshade::invoke_addon_event<reshade::addon_event::create_resource>(
-			[this, &auto_depth_stencil, &old_desc, &new_desc](reshade::api::device *, const api::resource_desc &desc, const reshade::api::mapped_subresource *initial_data, api::resource_usage) {
-				if (desc.type != reshade::api::resource_type::surface || desc.heap != api::memory_heap::gpu_only || initial_data != nullptr)
+		invoke_addon_event<addon_event::create_resource>(
+			[this, &auto_depth_stencil, &old_desc, &new_desc](api::device *, const api::resource_desc &desc, const api::mapped_subresource *initial_data, api::resource_usage) {
+				if (desc.type != api::resource_type::surface || desc.heap != api::memory_heap::gpu_only || initial_data != nullptr)
 					return false;
 				convert_resource_desc(desc, new_desc);
 
@@ -135,8 +135,8 @@ void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 			}, this, convert_resource_desc(old_desc, 1, _caps), nullptr, api::resource_usage::depth_stencil);
 
 		// Communicate default state to add-ons
-		reshade::invoke_addon_event<reshade::addon_event::set_render_targets_and_depth_stencil>(
-			[this, dsv = api::resource_view_handle { reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) }](reshade::api::command_list *, uint32_t count, const reshade::api::resource_view_handle *new_rtvs, reshade::api::resource_view_handle new_dsv) {
+		invoke_addon_event<addon_event::set_render_targets_and_depth_stencil>(
+			[this, dsv = api::resource_view_handle { reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) }](api::command_list *, uint32_t count, const api::resource_view_handle *new_rtvs, api::resource_view_handle new_dsv) {
 				for (DWORD i = 0; i < count; ++i)
 				{
 					_orig->SetRenderTarget(i, reinterpret_cast<IDirect3DSurface9 *>(new_rtvs[i].handle));
@@ -145,7 +145,7 @@ void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 				{
 					_orig->SetDepthStencilSurface(reinterpret_cast<IDirect3DSurface9 *>(new_dsv.handle));
 				}
-			}, this, 0, nullptr, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) });
+			}, this, 0, nullptr, api::resource_view_handle { reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) });
 	}
 #else
 	UNREFERENCED_PARAMETER(pp);

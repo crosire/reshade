@@ -519,7 +519,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::ExecuteCommandList(ID3D11CommandLi
 	// The only way to create a command list is through 'FinishCommandList', so can always assume a proxy object here
 	D3D11CommandList *const command_list_proxy = static_cast<D3D11CommandList *>(pCommandList);
 
-	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::execute_command_list>(this, command_list_proxy);
+	reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(this, command_list_proxy);
 
 	// Get original command list pointer from proxy object and execute with it
 	_orig->ExecuteCommandList(command_list_proxy->_orig, RestoreContextState);
@@ -750,7 +750,7 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::FinishCommandList(BOOL RestoreDefe
 		const auto command_list_proxy = new D3D11CommandList(_device, *ppCommandList);
 		*ppCommandList = command_list_proxy;
 
-		reshade::invoke_addon_event_without_trampoline<reshade::addon_event::execute_secondary_command_list>(command_list_proxy, this);
+		reshade::invoke_addon_event<reshade::addon_event::execute_secondary_command_list>(command_list_proxy, this);
 	}
 
 	return hr;

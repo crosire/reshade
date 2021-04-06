@@ -72,7 +72,7 @@ static vr::EVRCompositorError on_submit_d3d11(vr::EVREye eye, ID3D11Texture2D *t
 	}
 	else
 	{
-		reshade::invoke_addon_event_without_trampoline<reshade::addon_event::present>(runtime->get_command_queue(), runtime);
+		reshade::invoke_addon_event<reshade::addon_event::present>(runtime->get_command_queue(), runtime);
 
 		runtime->on_present();
 
@@ -120,7 +120,7 @@ static vr::EVRCompositorError on_submit_d3d12(vr::EVREye eye, const vr::D3D12Tex
 	}
 	else
 	{
-		reshade::invoke_addon_event_without_trampoline<reshade::addon_event::present>(runtime->get_command_queue(), runtime);
+		reshade::invoke_addon_event<reshade::addon_event::present>(runtime->get_command_queue(), runtime);
 
 		runtime->on_present();
 
@@ -167,7 +167,7 @@ static vr::EVRCompositorError on_submit_opengl(vr::EVREye eye, GLuint object, co
 	}
 	else
 	{
-		reshade::invoke_addon_event_without_trampoline<reshade::addon_event::present>(runtime->get_command_queue(), runtime);
+		reshade::invoke_addon_event<reshade::addon_event::present>(runtime->get_command_queue(), runtime);
 
 		// Skip copy, data was already copied in 'on_layer_submit' above
 		runtime->on_present(false);
@@ -230,7 +230,7 @@ static vr::EVRCompositorError on_submit_vulkan(vr::EVREye eye, const vr::VRVulka
 	}
 	else
 	{
-		reshade::invoke_addon_event_without_trampoline<reshade::addon_event::present>(*queue_it, runtime);
+		reshade::invoke_addon_event<reshade::addon_event::present>(*queue_it, runtime);
 
 		std::vector<VkSemaphore> wait_semaphores;
 		runtime->on_present(texture->m_pQueue, 0, wait_semaphores);

@@ -44,7 +44,7 @@ ULONG   STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Release()
 
 HRESULT STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Present(ID3D12GraphicsCommandList *pOpenCommandList, ID3D12Resource *pSourceTex2D, HWND hWindow, D3D12_DOWNLEVEL_PRESENT_FLAGS Flags)
 {
-	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::present>(_parent_queue, this);
+	reshade::invoke_addon_event<reshade::addon_event::present>(_parent_queue, this);
 
 	assert(pSourceTex2D != nullptr);
 	runtime_impl::on_present(pSourceTex2D, hWindow);

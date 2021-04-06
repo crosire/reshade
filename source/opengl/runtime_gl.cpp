@@ -986,7 +986,7 @@ void reshade::opengl::runtime_impl::render_technique(technique &technique)
 		}
 	}
 
-	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::reshade_before_effects>(this, this);
+	invoke_addon_event<addon_event::reshade_before_effects>(this, this);
 
 	// Set up global state
 	glDisable(GL_CULL_FACE);
@@ -1147,7 +1147,7 @@ void reshade::opengl::runtime_impl::render_technique(technique &technique)
 			generate_mipmaps(tex_impl);
 	}
 
-	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::reshade_after_effects>(this, this);
+	invoke_addon_event<addon_event::reshade_after_effects>(this, this);
 
 	if (_gather_gpu_statistics)
 	{

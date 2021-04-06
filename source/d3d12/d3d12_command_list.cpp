@@ -127,7 +127,7 @@ HRESULT STDMETHODCALLTYPE D3D12GraphicsCommandList::Close()
 }
 HRESULT STDMETHODCALLTYPE D3D12GraphicsCommandList::Reset(ID3D12CommandAllocator *pAllocator, ID3D12PipelineState *pInitialState)
 {
-	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::reset_command_list>(this);
+	reshade::invoke_addon_event<reshade::addon_event::reset_command_list>(this);
 	return _orig->Reset(pAllocator, pInitialState);
 }
 
@@ -247,7 +247,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::ExecuteBundle(ID3D12GraphicsCom
 	// Get original command list pointer from proxy object
 	const auto command_list_proxy = static_cast<D3D12GraphicsCommandList *>(pCommandList);
 
-	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::execute_secondary_command_list>(this, command_list_proxy);
+	reshade::invoke_addon_event<reshade::addon_event::execute_secondary_command_list>(this, command_list_proxy);
 
 	_orig->ExecuteBundle(command_list_proxy->_orig);
 }

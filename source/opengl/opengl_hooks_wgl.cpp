@@ -884,7 +884,7 @@ HOOK_EXPORT BOOL  WINAPI wglSwapBuffers(HDC hdc)
 		{
 			LOG(INFO) << "Resizing runtime " << runtime << " on device context " << hdc << " to " << width << "x" << height << " ...";
 
-			reshade::invoke_addon_event_without_trampoline<reshade::addon_event::resize>(runtime, width, height);
+			reshade::invoke_addon_event<reshade::addon_event::resize>(runtime, width, height);
 
 			runtime->on_reset();
 
@@ -892,7 +892,7 @@ HOOK_EXPORT BOOL  WINAPI wglSwapBuffers(HDC hdc)
 				LOG(ERROR) << "Failed to recreate OpenGL runtime environment on runtime " << runtime << '!';
 		}
 
-		reshade::invoke_addon_event_without_trampoline<reshade::addon_event::present>(runtime, runtime);
+		reshade::invoke_addon_event<reshade::addon_event::present>(runtime, runtime);
 
 		// Assume that the correct OpenGL context is still current here
 		runtime->on_present();

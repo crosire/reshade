@@ -31,30 +31,28 @@ namespace reshade
 #endif
 			term_callback = static_cast<callback_type>(
 				[](addon_event_trampoline_data &call_chain, Args... args) -> R {
-				return static_cast<addon_event_call_chain &>(call_chain).terminator_data(std::forward<Args>(args)...);
-			});
-	}
-};
+					return static_cast<addon_event_call_chain &>(call_chain).terminator_data(std::forward<Args>(args)...);
+				});
+		}
+	};
 #endif
 
-	template <addon_event ev, typename F, typename... Args>
-	inline void invoke_addon_event(F &&terminator, Args... args)
-	{
-		static_assert(reshade::addon_event_traits<ev>::has_trampoline == true);
-#if RESHADE_ADDON
-		addon_event_call_chain<ev, F>(std::move(terminator))(std::forward<Args>(args)...);
-#else
-		terminator(std::forward<Args>(args)...);
-#endif
-	}
 	template <addon_event ev, typename... Args>
-	inline void invoke_addon_event_without_trampoline(Args... args)
+	inline std::enable_if_t<!addon_event_traits<ev>::with_call_chain> invoke_addon_event(Args... args)
 	{
-		static_assert(reshade::addon_event_traits<ev>::has_trampoline == false);
 #if RESHADE_ADDON
 		std::vector<void *> &event_list = addon::event_list[static_cast<size_t>(ev)];
 		for (size_t cb = 0; cb < event_list.size(); ++cb) // Generates better code than ranged-based for loop
 			reinterpret_cast<typename reshade::addon_event_traits<ev>::decl>(event_list[cb])(std::forward<Args>(args)...);
+#endif
+	}
+	template <addon_event ev, typename F, typename... Args>
+	inline std::enable_if_t< addon_event_traits<ev>::with_call_chain> invoke_addon_event(F &&terminator, Args... args)
+	{
+#if RESHADE_ADDON
+		addon_event_call_chain<ev, F>(std::move(terminator))(std::forward<Args>(args)...);
+#else
+		terminator(std::forward<Args>(args)...);
 #endif
 	}
 }

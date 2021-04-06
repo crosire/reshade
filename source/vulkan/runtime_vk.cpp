@@ -1834,7 +1834,7 @@ void reshade::vulkan::runtime_impl::render_technique(technique &technique)
 		vk.CmdWriteTimestamp(cmd_list, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, effect_data.query_pool, impl->query_base_index + (_framecount % NUM_QUERY_FRAMES) * 2);
 	}
 
-	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::reshade_before_effects>(this, _cmd_impl);
+	invoke_addon_event<addon_event::reshade_before_effects>(this, _cmd_impl);
 
 	vk.CmdBindDescriptorSets(cmd_list, VK_PIPELINE_BIND_POINT_GRAPHICS, effect_data.pipeline_layout, 0, 1, &effect_data.ubo_set, 0, nullptr);
 	if (impl->has_compute_passes)
@@ -1940,7 +1940,7 @@ void reshade::vulkan::runtime_impl::render_technique(technique &technique)
 #endif
 	}
 
-	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::reshade_after_effects>(this, _cmd_impl);
+	invoke_addon_event<addon_event::reshade_after_effects>(this, _cmd_impl);
 
 	if (_gather_gpu_statistics)
 		vk.CmdWriteTimestamp(cmd_list, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, effect_data.query_pool, impl->query_base_index + (_framecount % NUM_QUERY_FRAMES) * 2 + 1);

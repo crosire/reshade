@@ -22,9 +22,9 @@ reshade::d3d12::device_impl::device_impl(ID3D12Device *device) :
 	}
 
 #if RESHADE_ADDON
-	reshade::addon::load_addons();
+	addon::load_addons();
 
-	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::init_device>(this);
+	invoke_addon_event<addon_event::init_device>(this);
 #endif
 }
 reshade::d3d12::device_impl::~device_impl()
@@ -32,9 +32,9 @@ reshade::d3d12::device_impl::~device_impl()
 	assert(_queues.empty()); // All queues should have been unregistered and destroyed by the application at this point
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::destroy_device>(this);
+	invoke_addon_event<addon_event::destroy_device>(this);
 
-	reshade::addon::unload_addons();
+	addon::unload_addons();
 #endif
 }
 
@@ -271,7 +271,7 @@ reshade::d3d12::command_list_impl::command_list_impl(device_impl *device, ID3D12
 #if RESHADE_ADDON
 	if (_has_commands) // Do not call add-on event for immediate command list
 	{
-		reshade::invoke_addon_event_without_trampoline<reshade::addon_event::init_command_list>(this);
+		invoke_addon_event<addon_event::init_command_list>(this);
 	}
 #endif
 }
@@ -280,7 +280,7 @@ reshade::d3d12::command_list_impl::~command_list_impl()
 #if RESHADE_ADDON
 	if (_has_commands)
 	{
-		reshade::invoke_addon_event_without_trampoline<reshade::addon_event::destroy_command_list>(this);
+		invoke_addon_event<addon_event::destroy_command_list>(this);
 	}
 #endif
 }
@@ -419,13 +419,13 @@ reshade::d3d12::command_queue_impl::command_queue_impl(device_impl *device, ID3D
 		_immediate_cmd_list = new command_list_immediate_impl(device);
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::init_command_queue>(this);
+	invoke_addon_event<addon_event::init_command_queue>(this);
 #endif
 }
 reshade::d3d12::command_queue_impl::~command_queue_impl()
 {
 #if RESHADE_ADDON
-	reshade::invoke_addon_event_without_trampoline<reshade::addon_event::destroy_command_queue>(this);
+	invoke_addon_event<addon_event::destroy_command_queue>(this);
 #endif
 
 	delete _immediate_cmd_list;

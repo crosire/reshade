@@ -255,7 +255,7 @@ static void on_destroy_queue_or_command_list(api_object *queue_or_cmd_list)
 }
 
 static bool on_create_resource(
-	reshade::addon_event_trampoline<reshade::addon_event::create_resource> &trampoline, device *device, const resource_desc &desc, const reshade::api::mapped_subresource *initial_data, resource_usage initial_state)
+	reshade::addon_event_trampoline<reshade::addon_event::create_resource> &call_next, device *device, const resource_desc &desc, const reshade::api::mapped_subresource *initial_data, resource_usage initial_state)
 {
 	resource_desc new_desc = desc;
 
@@ -274,10 +274,10 @@ static bool on_create_resource(
 		new_desc.usage |= resource_usage::shader_resource;
 	}
 
-	return trampoline(device, new_desc, initial_data, initial_state);
+	return call_next(device, new_desc, initial_data, initial_state);
 }
 static bool on_create_resource_view(
-	reshade::addon_event_trampoline<reshade::addon_event::create_resource_view> &trampoline, device *device, resource_handle resource, resource_usage usage_type, const resource_view_desc &desc)
+	reshade::addon_event_trampoline<reshade::addon_event::create_resource_view> &call_next, device *device, resource_handle resource, resource_usage usage_type, const resource_view_desc &desc)
 {
 	resource_view_desc new_desc = desc;
 
@@ -310,7 +310,7 @@ static bool on_create_resource_view(
 		}
 	}
 
-	return trampoline(device, resource, usage_type, new_desc);
+	return call_next(device, resource, usage_type, new_desc);
 }
 
 static void draw_impl(command_list *cmd_list, uint32_t vertices, uint32_t instances)
@@ -339,19 +339,19 @@ static void draw_impl(command_list *cmd_list, uint32_t vertices, uint32_t instan
 }
 
 static void on_draw(
-	reshade::addon_event_trampoline<reshade::addon_event::draw> &trampoline, command_list *cmd_list, uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance)
+	reshade::addon_event_trampoline<reshade::addon_event::draw> &call_next, command_list *cmd_list, uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance)
 {
 	draw_impl(cmd_list, vertices, instances);
-	trampoline(cmd_list, vertices, instances, first_vertex, first_instance);
+	call_next(cmd_list, vertices, instances, first_vertex, first_instance);
 }
 static void on_draw_indexed(
-	reshade::addon_event_trampoline<reshade::addon_event::draw_indexed> &trampoline, command_list *cmd_list, uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)
+	reshade::addon_event_trampoline<reshade::addon_event::draw_indexed> &call_next, command_list *cmd_list, uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)
 {
 	draw_impl(cmd_list, indices, instances);
-	trampoline(cmd_list, indices, instances, first_index, vertex_offset, first_instance);
+	call_next(cmd_list, indices, instances, first_index, vertex_offset, first_instance);
 }
 static void on_draw_indirect(
-	reshade::addon_event_trampoline<reshade::addon_event::draw_or_dispatch_indirect> &trampoline, command_list *cmd_list, reshade::addon_event type, resource_handle buffer, uint64_t offset, uint32_t draw_count, uint32_t stride)
+	reshade::addon_event_trampoline<reshade::addon_event::draw_or_dispatch_indirect> &call_next, command_list *cmd_list, reshade::addon_event type, resource_handle buffer, uint64_t offset, uint32_t draw_count, uint32_t stride)
 {
 	if (type != reshade::addon_event::dispatch)
 	{
@@ -361,12 +361,12 @@ static void on_draw_indirect(
 		state.has_indirect_drawcalls = true;
 	}
 
-	trampoline(cmd_list, type, buffer, offset, draw_count, stride);
+	call_next(cmd_list, type, buffer, offset, draw_count, stride);
 }
 static void on_set_viewport(
-	reshade::addon_event_trampoline<reshade::addon_event::set_viewports> &trampoline, command_list *cmd_list, uint32_t first, uint32_t count, const float *viewport)
+	reshade::addon_event_trampoline<reshade::addon_event::set_viewports> &call_next, command_list *cmd_list, uint32_t first, uint32_t count, const float *viewport)
 {
-	trampoline(cmd_list, first, count, viewport);
+	call_next(cmd_list, first, count, viewport);
 
 	if (first != 0 || count == 0)
 		return; // Only interested in the main viewport
@@ -375,9 +375,9 @@ static void on_set_viewport(
 	std::memcpy(state.current_viewport, viewport, 6 * sizeof(float));
 }
 static void on_set_depth_stencil(
-	reshade::addon_event_trampoline<reshade::addon_event::set_render_targets_and_depth_stencil> &trampoline, command_list *cmd_list, uint32_t count, const resource_view_handle *rtvs, resource_view_handle dsv)
+	reshade::addon_event_trampoline<reshade::addon_event::set_render_targets_and_depth_stencil> &call_next, command_list *cmd_list, uint32_t count, const resource_view_handle *rtvs, resource_view_handle dsv)
 {
-	trampoline(cmd_list, count, rtvs, dsv);
+	call_next(cmd_list, count, rtvs, dsv);
 
 	device *const device = cmd_list->get_device();
 	auto &state = cmd_list->get_data<state_tracking>(state_tracking::GUID);
@@ -397,7 +397,7 @@ static void on_set_depth_stencil(
 	state.current_depth_stencil = depth_stencil;
 }
 static void on_clear_depth_stencil(
-	reshade::addon_event_trampoline<reshade::addon_event::clear_depth_stencil> &trampoline, command_list *cmd_list, resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil)
+	reshade::addon_event_trampoline<reshade::addon_event::clear_depth_stencil> &call_next, command_list *cmd_list, resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil)
 {
 	device *const device = cmd_list->get_device();
 	const state_tracking_context &device_state = device->get_data<state_tracking_context>(state_tracking_context::GUID);
@@ -411,7 +411,7 @@ static void on_clear_depth_stencil(
 		clear_depth_impl(cmd_list, cmd_list->get_data<state_tracking>(state_tracking::GUID), device_state, depth_stencil, false);
 	}
 
-	trampoline(cmd_list, dsv, clear_flags, depth, stencil);
+	call_next(cmd_list, dsv, clear_flags, depth, stencil);
 }
 
 static void on_reset(command_list *cmd_list)
