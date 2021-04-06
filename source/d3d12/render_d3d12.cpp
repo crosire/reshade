@@ -73,8 +73,11 @@ bool reshade::d3d12::device_impl::check_resource_view_handle_valid(api::resource
 	return _views.find(view.handle) != _views.end();
 }
 
-bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc, api::resource_usage initial_state, api::resource_handle *out_resource)
+bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc, api::resource_usage initial_state, const api::mapped_subresource *initial_data, api::resource_handle *out_resource)
 {
+	if (initial_data != nullptr)
+		return false;
+
 	assert((desc.usage & initial_state) == initial_state);
 
 	D3D12_RESOURCE_DESC internal_desc = {};

@@ -322,9 +322,10 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <param name="desc">The description of the resource to create.</param>
 		/// <param name="initial_state">Initial usage of the resource after creation. This can later be changed via <see cref="command_list::transition_state"/>.</param>
+		/// <param name="initial_data">Data to upload to the resource after creation.</param>
 		/// <param name="out_resource">Pointer to a handle that is set to the handle of the created resource.</param>
 		/// <returns><c>true</c>if the resource was successfully created, <c>false</c> otherwise (in this case <paramref name="out_resource"/> is set to zero).</returns>
-		virtual bool create_resource(const resource_desc &desc, resource_usage initial_state, resource_handle *out_resource) = 0;
+		virtual bool create_resource(const resource_desc &desc, resource_usage initial_state, const api::mapped_subresource *initial_data, resource_handle *out_resource) = 0;
 		/// <summary>
 		/// Creates a new resource view for the specified <paramref name="resource"/> based on the specified <paramref name="desc"/>ription.
 		/// </summary>

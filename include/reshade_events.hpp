@@ -57,12 +57,12 @@ namespace reshade
 
 		/// <summary>
 		/// Called before 'IDirect3Device9::Create(...)Buffer/Texture', 'IDirect3DDevice9::Create(...)Surface(Ex)', 'ID3D10Device::CreateBuffer/Texture(...)', 'ID3D11Device::CreateBuffer/Texture(...)', 'ID3D12Device::Create(...)Resource', 'gl(Named)Buffer/Tex(ture)Storage(...)' or 'vkCreateBuffer/Image'.
-		/// <para>Callback function signature: <c>bool (api::device *device, const api::resource_desc &desc, api::resource_usage initial_state, const api::mapped_subresource *initial_data, api::resource_handle *out)</c></para>
+		/// <para>Callback function signature: <c>bool (api::device *device, const api::resource_desc &desc, api::resource_usage initial_state, const api::mapped_subresource *initial_data)</c></para>
 		/// </summary>
 		create_resource,
 		/// <summary>
 		/// Called before 'IDirect3DDevice9::Create(...)Surface(Ex)', 'ID3D10Device::Create(...)View', 'ID3D11Device::Create(...)View', 'ID3D12Device::Create(...)View', 'glTex(ture)Buffer', 'glTextureView(...)' or 'vkCreateBuffer/ImageView'.
-		/// <para>Callback function signature: <c>bool (api::device *device, api::resource_handle resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view_handle *out)</c></para>
+		/// <para>Callback function signature: <c>bool (api::device *device, api::resource_handle resource, api::resource_usage usage_type, const api::resource_view_desc &desc)</c></para>
 		/// </summary>
 		create_resource_view,
 		/// <summary>
@@ -226,8 +226,8 @@ namespace reshade
 	DEFINE_ADDON_EVENT_WITHOUT_TRAMPOLINE(addon_event::init_effect_runtime, void, api::effect_runtime *runtime);
 	DEFINE_ADDON_EVENT_WITHOUT_TRAMPOLINE(addon_event::destroy_effect_runtime, void, api::effect_runtime *runtime);
 
-	DEFINE_ADDON_EVENT(addon_event::create_resource, bool, api::device *device, const api::resource_desc &desc, api::resource_usage initial_state, const api::mapped_subresource *initial_data, api::resource_handle *out);
-	DEFINE_ADDON_EVENT(addon_event::create_resource_view, bool, api::device *device, api::resource_handle resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view_handle *out);
+	DEFINE_ADDON_EVENT(addon_event::create_resource, bool, api::device *device, const api::resource_desc &desc, api::resource_usage initial_state, const api::mapped_subresource *initial_data);
+	DEFINE_ADDON_EVENT(addon_event::create_resource_view, bool, api::device *device, api::resource_handle resource, api::resource_usage usage_type, const api::resource_view_desc &desc);
 	DEFINE_ADDON_EVENT(addon_event::create_shader_module, bool, api::device *device, const void *code, size_t code_size);
 
 	DEFINE_ADDON_EVENT(addon_event::set_index_buffer, void, api::command_list *cmd_list, api::resource_handle buffer, uint32_t format, uint64_t offset);

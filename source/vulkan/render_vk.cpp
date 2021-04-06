@@ -93,8 +93,11 @@ bool reshade::vulkan::device_impl::check_resource_view_handle_valid(api::resourc
 	return data.is_image_view() ? (data.image_view == (VkImageView)view.handle) : (data.buffer_view == (VkBufferView)view.handle);
 }
 
-bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &desc, api::resource_usage initial_state, api::resource_handle *out_resource)
+bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &desc, api::resource_usage initial_state, const api::mapped_subresource *initial_data, api::resource_handle *out_resource)
 {
+	if (initial_data != nullptr)
+		return false;
+
 	assert((desc.usage & initial_state) == initial_state);
 
 	VmaAllocation allocation = VK_NULL_HANDLE;

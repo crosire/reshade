@@ -276,8 +276,11 @@ bool reshade::opengl::device_impl::check_resource_view_handle_valid(api::resourc
 	}
 }
 
-bool reshade::opengl::device_impl::create_resource(const api::resource_desc &desc, api::resource_usage, api::resource_handle *out_resource)
+bool reshade::opengl::device_impl::create_resource(const api::resource_desc &desc, api::resource_usage, const api::mapped_subresource *initial_data, api::resource_handle *out_resource)
 {
+	if (initial_data != nullptr)
+		return false;
+
 	GLenum target = GL_NONE;
 	switch (desc.type)
 	{

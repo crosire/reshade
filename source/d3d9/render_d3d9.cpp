@@ -111,10 +111,9 @@ void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 		auto_depth_stencil->GetDesc(&old_desc);
 		D3DSURFACE_DESC new_desc = old_desc;
 
-		reshade::api::resource_handle out = { 0 };
 		reshade::invoke_addon_event<reshade::addon_event::create_resource>(
-			[this, &auto_depth_stencil, &old_desc, &new_desc](reshade::api::device *, const api::resource_desc &desc, api::resource_usage, const reshade::api::mapped_subresource *initial_data, api::resource_handle *out) {
-				if (desc.type != reshade::api::resource_type::surface || desc.mem_usage != api::memory_usage::gpu_only || initial_data != nullptr || out == nullptr)
+			[this, &auto_depth_stencil, &old_desc, &new_desc](reshade::api::device *, const api::resource_desc &desc, api::resource_usage, const reshade::api::mapped_subresource *initial_data) {
+				if (desc.type != reshade::api::resource_type::surface || desc.mem_usage != api::memory_usage::gpu_only || initial_data != nullptr)
 					return false;
 				convert_resource_desc(desc, new_desc);
 
@@ -132,14 +131,12 @@ void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 				{
 					_resources.register_object(auto_depth_stencil.get());
 				}
-
-				*out = { reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) };
 				return true;
-			}, this, convert_resource_desc(old_desc, 1, _caps), api::resource_usage::depth_stencil, nullptr, &out);
+			}, this, convert_resource_desc(old_desc, 1, _caps), api::resource_usage::depth_stencil, nullptr);
 
 		// Communicate default state to add-ons
 		reshade::invoke_addon_event<reshade::addon_event::set_render_targets_and_depth_stencil>(
-			[this, dsv = api::resource_view_handle { out.handle }](reshade::api::command_list *, uint32_t count, const reshade::api::resource_view_handle *new_rtvs, reshade::api::resource_view_handle new_dsv) {
+			[this, dsv = api::resource_view_handle { reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) }](reshade::api::command_list *, uint32_t count, const reshade::api::resource_view_handle *new_rtvs, reshade::api::resource_view_handle new_dsv) {
 				for (DWORD i = 0; i < count; ++i)
 				{
 					_orig->SetRenderTarget(i, reinterpret_cast<IDirect3DSurface9 *>(new_rtvs[i].handle));
@@ -189,8 +186,11 @@ bool reshade::d3d9::device_impl::check_resource_view_handle_valid(api::resource_
 	return view.handle != 0 && _resources.has_object(reinterpret_cast<IDirect3DResource9 *>(view.handle));
 }
 
-bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc, api::resource_usage, api::resource_handle *out_resource)
+bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc, api::resource_usage, const api::mapped_subresource *initial_data, api::resource_handle *out_resource)
 {
+	if (initial_data != nullptr)
+		return false;
+
 	switch (desc.type)
 	{
 		case api::resource_type::buffer:

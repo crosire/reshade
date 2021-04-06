@@ -60,8 +60,10 @@ bool reshade::d3d10::device_impl::check_resource_view_handle_valid(api::resource
 	return view.handle != 0 && _views.has_object(reinterpret_cast<ID3D10View *>(view.handle));
 }
 
-bool reshade::d3d10::device_impl::create_resource(const api::resource_desc &desc, api::resource_usage, api::resource_handle *out_resource)
+bool reshade::d3d10::device_impl::create_resource(const api::resource_desc &desc, api::resource_usage, const api::mapped_subresource *initial_data, api::resource_handle *out_resource)
 {
+	static_assert(sizeof(api::mapped_subresource) == sizeof(D3D10_SUBRESOURCE_DATA));
+
 	switch (desc.type)
 	{
 		case api::resource_type::buffer:
@@ -70,7 +72,7 @@ bool reshade::d3d10::device_impl::create_resource(const api::resource_desc &desc
 			convert_resource_desc(desc, internal_desc);
 
 			if (com_ptr<ID3D10Buffer> resource;
-				SUCCEEDED(_orig->CreateBuffer(&internal_desc, nullptr, &resource)))
+				SUCCEEDED(_orig->CreateBuffer(&internal_desc, reinterpret_cast<const D3D10_SUBRESOURCE_DATA *>(initial_data), &resource)))
 			{
 				_resources.register_object(resource.get());
 				*out_resource = { reinterpret_cast<uintptr_t>(resource.release()) };
@@ -84,7 +86,7 @@ bool reshade::d3d10::device_impl::create_resource(const api::resource_desc &desc
 			convert_resource_desc(desc, internal_desc);
 
 			if (com_ptr<ID3D10Texture1D> resource;
-				SUCCEEDED(_orig->CreateTexture1D(&internal_desc, nullptr, &resource)))
+				SUCCEEDED(_orig->CreateTexture1D(&internal_desc, reinterpret_cast<const D3D10_SUBRESOURCE_DATA *>(initial_data), &resource)))
 			{
 				_resources.register_object(resource.get());
 				*out_resource = { reinterpret_cast<uintptr_t>(resource.release()) };
@@ -98,7 +100,7 @@ bool reshade::d3d10::device_impl::create_resource(const api::resource_desc &desc
 			convert_resource_desc(desc, internal_desc);
 
 			if (com_ptr<ID3D10Texture2D> resource;
-				SUCCEEDED(_orig->CreateTexture2D(&internal_desc, nullptr, &resource)))
+				SUCCEEDED(_orig->CreateTexture2D(&internal_desc, reinterpret_cast<const D3D10_SUBRESOURCE_DATA *>(initial_data), &resource)))
 			{
 				_resources.register_object(resource.get());
 				*out_resource = { reinterpret_cast<uintptr_t>(resource.release()) };
@@ -112,7 +114,7 @@ bool reshade::d3d10::device_impl::create_resource(const api::resource_desc &desc
 			convert_resource_desc(desc, internal_desc);
 
 			if (com_ptr<ID3D10Texture3D> resource;
-				SUCCEEDED(_orig->CreateTexture3D(&internal_desc, nullptr, &resource)))
+				SUCCEEDED(_orig->CreateTexture3D(&internal_desc, reinterpret_cast<const D3D10_SUBRESOURCE_DATA *>(initial_data), &resource)))
 			{
 				_resources.register_object(resource.get());
 				*out_resource = { reinterpret_cast<uintptr_t>(resource.release()) };
