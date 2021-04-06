@@ -28,38 +28,6 @@ D3D12_RESOURCE_STATES reshade::d3d12::convert_resource_usage_to_states(reshade::
 	return result;
 }
 
-void reshade::d3d12::convert_memory_usage(memory_usage mem_usage, D3D12_HEAP_TYPE &heap_type)
-{
-	switch (mem_usage)
-	{
-	default:
-	case memory_usage::gpu_only:
-		heap_type = D3D12_HEAP_TYPE_DEFAULT;
-		break;
-	case memory_usage::cpu_only:
-	case memory_usage::cpu_to_gpu:
-		heap_type = D3D12_HEAP_TYPE_UPLOAD;
-		break;
-	case memory_usage::gpu_to_cpu:
-		heap_type = D3D12_HEAP_TYPE_READBACK;
-		break;
-	}
-}
-memory_usage reshade::d3d12::convert_memory_usage(D3D12_HEAP_TYPE heap_type)
-{
-	switch (heap_type)
-	{
-	default:
-		return memory_usage::unknown;
-	case D3D12_HEAP_TYPE_DEFAULT:
-		return memory_usage::gpu_only;
-	case D3D12_HEAP_TYPE_UPLOAD:
-		return memory_usage::cpu_to_gpu;
-	case D3D12_HEAP_TYPE_READBACK:
-		return memory_usage::gpu_to_cpu;
-	}
-}
-
 void reshade::d3d12::convert_resource_desc(const resource_desc &desc, D3D12_RESOURCE_DESC &internal_desc, D3D12_HEAP_PROPERTIES &heap_props)
 {
 	switch (desc.type)
@@ -100,6 +68,20 @@ void reshade::d3d12::convert_resource_desc(const resource_desc &desc, D3D12_RESO
 		internal_desc.SampleDesc.Count = desc.samples;
 	}
 
+	switch (desc.heap)
+	{
+	case memory_heap::gpu_only:
+		heap_props.Type = D3D12_HEAP_TYPE_DEFAULT;
+		break;
+	case memory_heap::cpu_only:
+	case memory_heap::cpu_to_gpu:
+		heap_props.Type = D3D12_HEAP_TYPE_UPLOAD;
+		break;
+	case memory_heap::gpu_to_cpu:
+		heap_props.Type = D3D12_HEAP_TYPE_READBACK;
+		break;
+	}
+
 	if ((desc.usage & resource_usage::render_target) != 0)
 		internal_desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 	else
@@ -119,8 +101,6 @@ void reshade::d3d12::convert_resource_desc(const resource_desc &desc, D3D12_RESO
 		internal_desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 	else
 		internal_desc.Flags &= ~D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
-
-	convert_memory_usage(desc.mem_usage, heap_props.Type);
 }
 resource_desc reshade::d3d12::convert_resource_desc(const D3D12_RESOURCE_DESC &internal_desc, const D3D12_HEAP_PROPERTIES &heap_props)
 {
@@ -166,6 +146,22 @@ resource_desc reshade::d3d12::convert_resource_desc(const D3D12_RESOURCE_DESC &i
 			desc.usage |= desc.samples > 1 ? resource_usage::resolve_source : resource_usage::resolve_dest;
 	}
 
+	switch (heap_props.Type)
+	{
+	default:
+		desc.heap = memory_heap::unknown;
+		break;
+	case D3D12_HEAP_TYPE_DEFAULT:
+		desc.heap = memory_heap::gpu_only;
+		break;
+	case D3D12_HEAP_TYPE_UPLOAD:
+		desc.heap = memory_heap::cpu_to_gpu;
+		break;
+	case D3D12_HEAP_TYPE_READBACK:
+		desc.heap = memory_heap::gpu_to_cpu;
+		break;
+	}
+
 	// Resources are generally copyable in D3D12
 	desc.usage |= resource_usage::copy_dest | resource_usage::copy_source;
 
@@ -177,8 +173,6 @@ resource_desc reshade::d3d12::convert_resource_desc(const D3D12_RESOURCE_DESC &i
 		desc.usage |= resource_usage::shader_resource;
 	if ((internal_desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) != 0)
 		desc.usage |= resource_usage::unordered_access;
-
-	desc.mem_usage = convert_memory_usage(heap_props.Type);
 
 	return desc;
 }

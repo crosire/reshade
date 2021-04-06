@@ -58,7 +58,7 @@ bool reshade::d3d11::device_impl::check_resource_view_handle_valid(api::resource
 	return view.handle != 0 && _views.has_object(reinterpret_cast<ID3D11View *>(view.handle));
 }
 
-bool reshade::d3d11::device_impl::create_resource(const api::resource_desc &desc, api::resource_usage, const api::mapped_subresource *initial_data, api::resource_handle *out_resource)
+bool reshade::d3d11::device_impl::create_resource(const api::resource_desc &desc, const api::mapped_subresource *initial_data, api::resource_usage, api::resource_handle *out_resource)
 {
 	static_assert(sizeof(api::mapped_subresource) == sizeof(D3D11_SUBRESOURCE_DATA));
 

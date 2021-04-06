@@ -452,7 +452,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource(const D3D12_HEAP_
 
 	HRESULT hr = E_FAIL;
 	reshade::invoke_addon_event<reshade::addon_event::create_resource>(
-		[this, &hr, &new_desc, &heap_props, HeapFlags, pOptimizedClearValue, riidResource, ppvResource](reshade::api::device *, const reshade::api::resource_desc &desc, reshade::api::resource_usage initial_state, const reshade::api::mapped_subresource *initial_data) {
+		[this, &hr, &new_desc, &heap_props, HeapFlags, pOptimizedClearValue, riidResource, ppvResource](reshade::api::device *, const reshade::api::resource_desc &desc, const reshade::api::mapped_subresource *initial_data, reshade::api::resource_usage initial_state) {
 			if (initial_data != nullptr)
 				return false;
 			reshade::d3d12::convert_resource_desc(desc, new_desc, heap_props);
@@ -492,7 +492,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource(const D3D12_HEAP_
 #endif
 				return false;
 			}
-		}, this, reshade::d3d12::convert_resource_desc(new_desc, heap_props), static_cast<reshade::api::resource_usage>(InitialResourceState), nullptr);
+		}, this, reshade::d3d12::convert_resource_desc(new_desc, heap_props), nullptr, static_cast<reshade::api::resource_usage>(InitialResourceState));
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateHeap(const D3D12_HEAP_DESC *pDesc, REFIID riid, void **ppvHeap)
@@ -505,14 +505,14 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePlacedResource(ID3D12Heap *pHeap, U
 		return E_INVALIDARG;
 
 	D3D12_RESOURCE_DESC new_desc = *pDesc;
-	D3D12_HEAP_PROPERTIES heap_props = pHeap->GetDesc().Properties;
 
 	HRESULT hr = E_FAIL;
 	reshade::invoke_addon_event<reshade::addon_event::create_resource>(
-		[this, &hr, &new_desc, &heap_props, pHeap, HeapOffset, pOptimizedClearValue, riid, ppvResource](reshade::api::device *, const reshade::api::resource_desc &desc, reshade::api::resource_usage initial_state, const reshade::api::mapped_subresource *initial_data) {
-			if (desc.mem_usage != reshade::d3d12::convert_memory_usage(heap_props.Type) || initial_data != nullptr)
+		[this, &hr, &new_desc, pHeap, HeapOffset, pOptimizedClearValue, riid, ppvResource](reshade::api::device *, const reshade::api::resource_desc &desc, const reshade::api::mapped_subresource *initial_data, reshade::api::resource_usage initial_state) {
+			if (desc.heap != reshade::api::memory_heap::unknown || initial_data != nullptr)
 				return false;
-			reshade::d3d12::convert_resource_desc(desc, new_desc, heap_props);
+			D3D12_HEAP_PROPERTIES dummy_heap_props;
+			reshade::d3d12::convert_resource_desc(desc, new_desc, dummy_heap_props);
 
 			hr = _orig->CreatePlacedResource(pHeap, HeapOffset, &new_desc, reshade::d3d12::convert_resource_usage_to_states(initial_state), pOptimizedClearValue, riid, ppvResource);
 			if (SUCCEEDED(hr))
@@ -549,7 +549,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePlacedResource(ID3D12Heap *pHeap, U
 #endif
 				return false;
 			}
-		}, this, reshade::d3d12::convert_resource_desc(new_desc, heap_props), static_cast<reshade::api::resource_usage>(InitialState), nullptr);
+		}, this, reshade::d3d12::convert_resource_desc(new_desc), nullptr, static_cast<reshade::api::resource_usage>(InitialState));
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource(const D3D12_RESOURCE_DESC *pDesc, D3D12_RESOURCE_STATES InitialState, const D3D12_CLEAR_VALUE *pOptimizedClearValue, REFIID riid, void **ppvResource)
@@ -558,14 +558,14 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource(const D3D12_RESOUR
 		return E_INVALIDARG;
 
 	D3D12_RESOURCE_DESC new_desc = *pDesc;
-	D3D12_HEAP_PROPERTIES heap_props = {};
 
 	HRESULT hr = E_FAIL;
 	reshade::invoke_addon_event<reshade::addon_event::create_resource>(
-		[this, &hr, &new_desc, &heap_props, pOptimizedClearValue, riid, ppvResource](reshade::api::device *, const reshade::api::resource_desc &desc, reshade::api::resource_usage initial_state, const reshade::api::mapped_subresource *initial_data) {
-			if (desc.mem_usage != reshade::api::memory_usage::unknown || initial_data != nullptr)
+		[this, &hr, &new_desc, pOptimizedClearValue, riid, ppvResource](reshade::api::device *, const reshade::api::resource_desc &desc, const reshade::api::mapped_subresource *initial_data, reshade::api::resource_usage initial_state) {
+			if (desc.heap != reshade::api::memory_heap::unknown || initial_data != nullptr)
 				return false;
-			reshade::d3d12::convert_resource_desc(desc, new_desc, heap_props);
+			D3D12_HEAP_PROPERTIES dummy_heap_props;
+			reshade::d3d12::convert_resource_desc(desc, new_desc, dummy_heap_props);
 
 			hr = _orig->CreateReservedResource(&new_desc, reshade::d3d12::convert_resource_usage_to_states(initial_state), pOptimizedClearValue, riid, ppvResource);
 			if (SUCCEEDED(hr))
@@ -595,7 +595,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource(const D3D12_RESOUR
 #endif
 				return false;
 			}
-		}, this, reshade::d3d12::convert_resource_desc(new_desc, heap_props), static_cast<reshade::api::resource_usage>(InitialState), nullptr);
+		}, this, reshade::d3d12::convert_resource_desc(new_desc), nullptr, static_cast<reshade::api::resource_usage>(InitialState));
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateSharedHandle(ID3D12DeviceChild *pObject, const SECURITY_ATTRIBUTES *pAttributes, DWORD Access, LPCWSTR Name, HANDLE *pHandle)
@@ -729,7 +729,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource1(const D3D12_HEAP
 
 	HRESULT hr = E_FAIL;
 	reshade::invoke_addon_event<reshade::addon_event::create_resource>(
-		[this, &hr, &new_desc, &heap_props, HeapFlags, pOptimizedClearValue, pProtectedSession, riidResource, ppvResource](reshade::api::device *, const reshade::api::resource_desc &desc, reshade::api::resource_usage initial_state, const reshade::api::mapped_subresource *initial_data) {
+		[this, &hr, &new_desc, &heap_props, HeapFlags, pOptimizedClearValue, pProtectedSession, riidResource, ppvResource](reshade::api::device *, const reshade::api::resource_desc &desc, const reshade::api::mapped_subresource *initial_data, reshade::api::resource_usage initial_state) {
 			if (initial_data != nullptr)
 				return false;
 			reshade::d3d12::convert_resource_desc(desc, new_desc, heap_props);
@@ -770,7 +770,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource1(const D3D12_HEAP
 #endif
 				return false;
 			}
-		}, this, reshade::d3d12::convert_resource_desc(new_desc, heap_props), static_cast<reshade::api::resource_usage>(InitialResourceState), nullptr);
+		}, this, reshade::d3d12::convert_resource_desc(new_desc, heap_props), nullptr, static_cast<reshade::api::resource_usage>(InitialResourceState));
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateHeap1(const D3D12_HEAP_DESC *pDesc, ID3D12ProtectedResourceSession *pProtectedSession, REFIID riid, void **ppvHeap)
@@ -784,14 +784,14 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource1(const D3D12_RESOU
 		return E_INVALIDARG;
 
 	D3D12_RESOURCE_DESC new_desc = *pDesc;
-	D3D12_HEAP_PROPERTIES heap_props = {};
 
 	HRESULT hr = E_FAIL;
 	reshade::invoke_addon_event<reshade::addon_event::create_resource>(
-		[this, &hr, &new_desc, &heap_props, pOptimizedClearValue, pProtectedSession, riid, ppvResource](reshade::api::device *, const reshade::api::resource_desc &desc, reshade::api::resource_usage initial_state, const reshade::api::mapped_subresource *initial_data) {
-			if (desc.mem_usage != reshade::api::memory_usage::unknown || initial_data != nullptr)
+		[this, &hr, &new_desc, pOptimizedClearValue, pProtectedSession, riid, ppvResource](reshade::api::device *, const reshade::api::resource_desc &desc, const reshade::api::mapped_subresource *initial_data, reshade::api::resource_usage initial_state) {
+			if (desc.heap != reshade::api::memory_heap::unknown || initial_data != nullptr)
 				return false;
-			reshade::d3d12::convert_resource_desc(desc, new_desc, heap_props);
+			D3D12_HEAP_PROPERTIES dummy_heap_props;
+			reshade::d3d12::convert_resource_desc(desc, new_desc, dummy_heap_props);
 
 			assert(_interface_version >= 4);
 			hr = static_cast<ID3D12Device4 *>(_orig)->CreateReservedResource1(&new_desc, reshade::d3d12::convert_resource_usage_to_states(initial_state), pOptimizedClearValue, pProtectedSession, riid, ppvResource);
@@ -822,7 +822,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource1(const D3D12_RESOU
 #endif
 				return false;
 			}
-		}, this, reshade::d3d12::convert_resource_desc(new_desc, heap_props), static_cast<reshade::api::resource_usage>(InitialState), nullptr);
+		}, this, reshade::d3d12::convert_resource_desc(new_desc), nullptr, static_cast<reshade::api::resource_usage>(InitialState));
 	return hr;
 }
 D3D12_RESOURCE_ALLOCATION_INFO STDMETHODCALLTYPE D3D12Device::GetResourceAllocationInfo1(UINT VisibleMask, UINT NumResourceDescs, const D3D12_RESOURCE_DESC *pResourceDescs, D3D12_RESOURCE_ALLOCATION_INFO1 *pResourceAllocationInfo1)

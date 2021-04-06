@@ -25,7 +25,7 @@ namespace reshade::d3d11
 		bool check_resource_handle_valid(api::resource_handle resource) const final;
 		bool check_resource_view_handle_valid(api::resource_view_handle view) const final;
 
-		bool create_resource(const api::resource_desc &desc, api::resource_usage initial_state, const api::mapped_subresource *initial_data, api::resource_handle *out_resource) final;
+		bool create_resource(const api::resource_desc &desc, const api::mapped_subresource *initial_data, api::resource_usage initial_state, api::resource_handle *out_resource) final;
 		bool create_resource_view(api::resource_handle resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view_handle *out_view) final;
 
 		void destroy_resource(api::resource_handle resource) final;

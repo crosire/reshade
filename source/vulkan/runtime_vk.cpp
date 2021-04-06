@@ -161,8 +161,10 @@ bool reshade::vulkan::runtime_impl::on_init(VkSwapchainKHR swapchain, const VkSw
 	// Create back buffer shader image
 	assert(_backbuffer_format != VK_FORMAT_UNDEFINED);
 	if (!_device_impl->create_resource(
-		{ _width, _height, 1, 1, static_cast<uint32_t>(_backbuffer_format), 1, api::resource_usage::copy_dest | api::resource_usage::shader_resource, api::memory_usage::gpu_only },
-		api::resource_usage::undefined, nullptr, reinterpret_cast<api::resource_handle *>(&_backbuffer_image)))
+		{ _width, _height, 1, 1, static_cast<uint32_t>(_backbuffer_format), 1, api::memory_heap::gpu_only, api::resource_usage::copy_dest | api::resource_usage::shader_resource },
+		nullptr,
+		api::resource_usage::undefined,
+		reinterpret_cast<api::resource_handle *>(&_backbuffer_image)))
 		return false;
 	set_debug_name_image(_backbuffer_image, "ReShade back buffer");
 
@@ -182,8 +184,10 @@ bool reshade::vulkan::runtime_impl::on_init(VkSwapchainKHR swapchain, const VkSw
 	// Create effect depth-stencil resource
 	assert(_effect_stencil_format != VK_FORMAT_UNDEFINED);
 	if (!_device_impl->create_resource(
-		{ _width, _height, 1, 1, static_cast<uint32_t>(_effect_stencil_format), 1, api::resource_usage::copy_dest | api::resource_usage::depth_stencil, api::memory_usage::gpu_only },
-		api::resource_usage::undefined, nullptr, reinterpret_cast<api::resource_handle *>(&_effect_stencil)))
+		{ _width, _height, 1, 1, static_cast<uint32_t>(_effect_stencil_format), 1, api::memory_heap::gpu_only, api::resource_usage::copy_dest | api::resource_usage::depth_stencil },
+		nullptr,
+		api::resource_usage::undefined,
+		reinterpret_cast<api::resource_handle *>(&_effect_stencil)))
 		return false;
 	set_debug_name_image(_effect_stencil, "ReShade stencil buffer");
 
@@ -347,8 +351,10 @@ bool reshade::vulkan::runtime_impl::on_init(VkSwapchainKHR swapchain, const VkSw
 	// Create an empty image, which is used when no depth buffer was detected (since you cannot bind nothing to a descriptor in Vulkan)
 	// Use VK_FORMAT_R16_SFLOAT format, since it is mandatory according to the spec (see https://www.khronos.org/registry/vulkan/specs/1.1/html/vkspec.html#features-required-format-support)
 	if (!_device_impl->create_resource(
-		{ 1, 1, 1, 1, VK_FORMAT_R16_SFLOAT, 1, api::resource_usage::shader_resource, api::memory_usage::gpu_only },
-		api::resource_usage::undefined, nullptr, reinterpret_cast<api::resource_handle *>(&_empty_depth_image)))
+		{ 1, 1, 1, 1, VK_FORMAT_R16_SFLOAT, 1, api::memory_heap::gpu_only, api::resource_usage::shader_resource },
+		nullptr,
+		api::resource_usage::undefined,
+		reinterpret_cast<api::resource_handle *>(&_empty_depth_image)))
 		return false;
 	if (!_device_impl->create_resource_view(
 		reinterpret_cast<api::resource_handle &>(_empty_depth_image),
@@ -504,8 +510,10 @@ bool reshade::vulkan::runtime_impl::on_layer_submit(uint32_t eye, VkImage source
 		VkImage image = VK_NULL_HANDLE;
 
 		if (!_device_impl->create_resource(
-			{ target_extent.width, target_extent.height, 1, 1, static_cast<uint32_t>(source_format), 1, api::resource_usage::render_target | api::resource_usage::copy_source | api::resource_usage::copy_dest, api::memory_usage::gpu_only },
-			api::resource_usage::undefined, nullptr, reinterpret_cast<api::resource_handle *>(&image)))
+			{ target_extent.width, target_extent.height, 1, 1, static_cast<uint32_t>(source_format), 1, api::memory_heap::gpu_only, api::resource_usage::render_target | api::resource_usage::copy_source | api::resource_usage::copy_dest },
+			nullptr,
+			api::resource_usage::undefined,
+			reinterpret_cast<api::resource_handle *>(&image)))
 		{
 			LOG(ERROR) << "Failed to create region texture!";
 			LOG(DEBUG) << "> Details: Width = " << target_extent.width << ", Height = " << target_extent.height << ", Format = " << source_format;
@@ -837,8 +845,10 @@ bool reshade::vulkan::runtime_impl::init_effect(size_t index)
 	if (!effect.uniform_data_storage.empty())
 	{
 		if (!_device_impl->create_resource(
-			{ effect.uniform_data_storage.size(), api::resource_usage::copy_dest | api::resource_usage::constant_buffer, api::memory_usage::cpu_to_gpu },
-			api::resource_usage::undefined, nullptr, reinterpret_cast<api::resource_handle *>(&effect_data.ubo)))
+			{ effect.uniform_data_storage.size(), api::memory_heap::cpu_to_gpu, api::resource_usage::copy_dest | api::resource_usage::constant_buffer },
+			nullptr,
+			api::resource_usage::undefined,
+			reinterpret_cast<api::resource_handle *>(&effect_data.ubo)))
 		{
 			LOG(ERROR) << "Failed to create constant buffer for effect file '" << effect.source_file << "'!";
 			LOG(DEBUG) << "> Details: Width = " << effect.uniform_data_storage.size();
@@ -1557,8 +1567,10 @@ bool reshade::vulkan::runtime_impl::init_texture(texture &texture)
 		impl->formats[1]  = impl->formats[0];
 
 	if (!_device_impl->create_resource(
-		{ texture.width, texture.height, 1, texture.levels, static_cast<uint32_t>(impl->formats[0]), 1, usage_flags, api::memory_usage::gpu_only },
-		api::resource_usage::undefined, nullptr, reinterpret_cast<api::resource_handle *>(&impl->image)))
+		{ texture.width, texture.height, 1, texture.levels, static_cast<uint32_t>(impl->formats[0]), 1, api::memory_heap::gpu_only, usage_flags },
+		nullptr,
+		api::resource_usage::undefined,
+		reinterpret_cast<api::resource_handle *>(&impl->image)))
 	{
 		LOG(ERROR) << "Failed to create texture '" << texture.unique_name << "'!";
 		LOG(DEBUG) << "> Details: Width = " << texture.width << ", Height = " << texture.height << ", Levels = " << texture.levels << ", Format = " << impl->formats[0] << ", Usage = " << std::hex << static_cast<uint32_t>(usage_flags) << std::dec;

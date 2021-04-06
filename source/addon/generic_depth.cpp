@@ -157,15 +157,15 @@ struct state_tracking_context
 		}
 
 		desc.type = resource_type::texture_2d;
+		desc.heap = memory_heap::gpu_only;
 		desc.usage = resource_usage::shader_resource | resource_usage::copy_dest;
-		desc.mem_usage = memory_usage::gpu_only;
 
 		if (device->get_api() == render_api::d3d9)
 			desc.format = 114; // D3DFMT_R32F, size INTZ does not support D3DUSAGE_RENDERTARGET which is required for copying
 		if (device->get_api() >= render_api::d3d10 && device->get_api() <= render_api::d3d12)
 			desc.format = static_cast<uint32_t>(make_dxgi_format_typeless(static_cast<DXGI_FORMAT>(desc.format)));
 
-		if (!device->create_resource(desc, resource_usage::copy_dest, nullptr, &backup_texture))
+		if (!device->create_resource(desc, nullptr, resource_usage::copy_dest, &backup_texture))
 			LOG(ERROR) << "Failed to create backup depth-stencil texture!";
 	}
 };
@@ -255,7 +255,7 @@ static void on_destroy_queue_or_command_list(api_object *queue_or_cmd_list)
 }
 
 static bool on_create_resource(
-	reshade::addon_event_trampoline<reshade::addon_event::create_resource> &trampoline, device *device, const resource_desc &desc, resource_usage initial_state, const reshade::api::mapped_subresource *initial_data)
+	reshade::addon_event_trampoline<reshade::addon_event::create_resource> &trampoline, device *device, const resource_desc &desc, const reshade::api::mapped_subresource *initial_data, resource_usage initial_state)
 {
 	resource_desc new_desc = desc;
 
@@ -274,7 +274,7 @@ static bool on_create_resource(
 		new_desc.usage |= resource_usage::shader_resource;
 	}
 
-	return trampoline(device, new_desc, initial_state, initial_data);
+	return trampoline(device, new_desc, initial_data, initial_state);
 }
 static bool on_create_resource_view(
 	reshade::addon_event_trampoline<reshade::addon_event::create_resource_view> &trampoline, device *device, resource_handle resource, resource_usage usage_type, const resource_view_desc &desc)

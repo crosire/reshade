@@ -112,8 +112,8 @@ void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 		D3DSURFACE_DESC new_desc = old_desc;
 
 		reshade::invoke_addon_event<reshade::addon_event::create_resource>(
-			[this, &auto_depth_stencil, &old_desc, &new_desc](reshade::api::device *, const api::resource_desc &desc, api::resource_usage, const reshade::api::mapped_subresource *initial_data) {
-				if (desc.type != reshade::api::resource_type::surface || desc.mem_usage != api::memory_usage::gpu_only || initial_data != nullptr)
+			[this, &auto_depth_stencil, &old_desc, &new_desc](reshade::api::device *, const api::resource_desc &desc, const reshade::api::mapped_subresource *initial_data, api::resource_usage) {
+				if (desc.type != reshade::api::resource_type::surface || desc.heap != api::memory_heap::gpu_only || initial_data != nullptr)
 					return false;
 				convert_resource_desc(desc, new_desc);
 
@@ -132,7 +132,7 @@ void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 					_resources.register_object(auto_depth_stencil.get());
 				}
 				return true;
-			}, this, convert_resource_desc(old_desc, 1, _caps), api::resource_usage::depth_stencil, nullptr);
+			}, this, convert_resource_desc(old_desc, 1, _caps), nullptr, api::resource_usage::depth_stencil);
 
 		// Communicate default state to add-ons
 		reshade::invoke_addon_event<reshade::addon_event::set_render_targets_and_depth_stencil>(
@@ -186,7 +186,7 @@ bool reshade::d3d9::device_impl::check_resource_view_handle_valid(api::resource_
 	return view.handle != 0 && _resources.has_object(reinterpret_cast<IDirect3DResource9 *>(view.handle));
 }
 
-bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc, api::resource_usage, const api::mapped_subresource *initial_data, api::resource_handle *out_resource)
+bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc, const api::mapped_subresource *initial_data, api::resource_usage, api::resource_handle *out_resource)
 {
 	if (initial_data != nullptr)
 		return false;

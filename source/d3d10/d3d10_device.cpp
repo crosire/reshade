@@ -517,7 +517,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateBuffer(const D3D10_BUFFER_DESC *pDe
 
 	HRESULT hr = E_FAIL;
 	reshade::invoke_addon_event<reshade::addon_event::create_resource>(
-		[this, &hr, &new_desc, ppBuffer](reshade::api::device *, const reshade::api::resource_desc &desc, reshade::api::resource_usage, const reshade::api::mapped_subresource *initial_data) {
+		[this, &hr, &new_desc, ppBuffer](reshade::api::device *, const reshade::api::resource_desc &desc, const reshade::api::mapped_subresource *initial_data, reshade::api::resource_usage) {
 			if (desc.type != reshade::api::resource_type::buffer)
 				return false;
 			reshade::d3d10::convert_resource_desc(desc, new_desc);
@@ -544,7 +544,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateBuffer(const D3D10_BUFFER_DESC *pDe
 #endif
 				return false;
 			}
-		}, this, reshade::d3d10::convert_resource_desc(new_desc), reshade::api::resource_usage::undefined, reinterpret_cast<const reshade::api::mapped_subresource *>(pInitialData));
+		}, this, reshade::d3d10::convert_resource_desc(new_desc), reinterpret_cast<const reshade::api::mapped_subresource *>(pInitialData), reshade::api::resource_usage::undefined);
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture1D(const D3D10_TEXTURE1D_DESC *pDesc, const D3D10_SUBRESOURCE_DATA *pInitialData, ID3D10Texture1D **ppTexture1D)
@@ -556,7 +556,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture1D(const D3D10_TEXTURE1D_DES
 
 	HRESULT hr = E_FAIL;
 	reshade::invoke_addon_event<reshade::addon_event::create_resource>(
-		[this, &hr, &new_desc, ppTexture1D](reshade::api::device *, const reshade::api::resource_desc &desc, reshade::api::resource_usage, const reshade::api::mapped_subresource *initial_data) {
+		[this, &hr, &new_desc, ppTexture1D](reshade::api::device *, const reshade::api::resource_desc &desc, const reshade::api::mapped_subresource *initial_data, reshade::api::resource_usage) {
 			if (desc.type != reshade::api::resource_type::texture_1d)
 				return false;
 			reshade::d3d10::convert_resource_desc(desc, new_desc);
@@ -586,7 +586,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture1D(const D3D10_TEXTURE1D_DES
 #endif
 				return false;
 			}
-		}, this, reshade::d3d10::convert_resource_desc(new_desc), reshade::api::resource_usage::undefined, reinterpret_cast<const reshade::api::mapped_subresource *>(pInitialData));
+		}, this, reshade::d3d10::convert_resource_desc(new_desc), reinterpret_cast<const reshade::api::mapped_subresource *>(pInitialData), reshade::api::resource_usage::undefined);
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture2D(const D3D10_TEXTURE2D_DESC *pDesc, const D3D10_SUBRESOURCE_DATA *pInitialData, ID3D10Texture2D **ppTexture2D)
@@ -598,7 +598,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture2D(const D3D10_TEXTURE2D_DES
 
 	HRESULT hr = E_FAIL;
 	reshade::invoke_addon_event<reshade::addon_event::create_resource>(
-		[this, &hr, &new_desc, ppTexture2D](reshade::api::device *, const reshade::api::resource_desc &desc, reshade::api::resource_usage, const reshade::api::mapped_subresource *initial_data) {
+		[this, &hr, &new_desc, ppTexture2D](reshade::api::device *, const reshade::api::resource_desc &desc, const reshade::api::mapped_subresource *initial_data, reshade::api::resource_usage) {
 			if (desc.type != reshade::api::resource_type::texture_2d)
 				return false;
 			reshade::d3d10::convert_resource_desc(desc, new_desc);
@@ -631,7 +631,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture2D(const D3D10_TEXTURE2D_DES
 #endif
 				return false;
 			}
-		}, this, reshade::d3d10::convert_resource_desc(new_desc), reshade::api::resource_usage::undefined, reinterpret_cast<const reshade::api::mapped_subresource *>(pInitialData));
+		}, this, reshade::d3d10::convert_resource_desc(new_desc), reinterpret_cast<const reshade::api::mapped_subresource *>(pInitialData), reshade::api::resource_usage::undefined);
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture3D(const D3D10_TEXTURE3D_DESC *pDesc, const D3D10_SUBRESOURCE_DATA *pInitialData, ID3D10Texture3D **ppTexture3D)
@@ -643,7 +643,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture3D(const D3D10_TEXTURE3D_DES
 
 	HRESULT hr = E_FAIL;
 	reshade::invoke_addon_event<reshade::addon_event::create_resource>(
-		[this, &hr, &new_desc, ppTexture3D](reshade::api::device *, const reshade::api::resource_desc &desc, reshade::api::resource_usage, const reshade::api::mapped_subresource *initial_data) {
+		[this, &hr, &new_desc, ppTexture3D](reshade::api::device *, const reshade::api::resource_desc &desc, const reshade::api::mapped_subresource *initial_data, reshade::api::resource_usage) {
 			if (desc.type != reshade::api::resource_type::texture_3d)
 				return false;
 			reshade::d3d10::convert_resource_desc(desc, new_desc);
@@ -674,7 +674,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture3D(const D3D10_TEXTURE3D_DES
 #endif
 				return false;
 			}
-		}, this, reshade::d3d10::convert_resource_desc(new_desc), reshade::api::resource_usage::undefined, reinterpret_cast<const reshade::api::mapped_subresource *>(pInitialData));
+		}, this, reshade::d3d10::convert_resource_desc(new_desc), reinterpret_cast<const reshade::api::mapped_subresource *>(pInitialData), reshade::api::resource_usage::undefined);
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateShaderResourceView(ID3D10Resource *pResource, const D3D10_SHADER_RESOURCE_VIEW_DESC *pDesc, ID3D10ShaderResourceView **ppSRView)

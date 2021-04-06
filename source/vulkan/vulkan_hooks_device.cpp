@@ -636,8 +636,8 @@ VkResult VKAPI_CALL vkCreateBuffer(VkDevice device, const VkBufferCreateInfo *pC
 
 	VkResult result = VK_ERROR_UNKNOWN;
 	reshade::invoke_addon_event<reshade::addon_event::create_resource>(
-		[device_impl, &result, &create_info, pAllocator, pBuffer](reshade::api::device *,const reshade::api::resource_desc &desc, reshade::api::resource_usage initial_state, const reshade::api::mapped_subresource *initial_data) {
-			if (desc.type != reshade::api::resource_type::buffer || desc.mem_usage != reshade::api::memory_usage::unknown || initial_state != reshade::api::resource_usage::undefined || initial_data != nullptr)
+		[device_impl, &result, &create_info, pAllocator, pBuffer](reshade::api::device *,const reshade::api::resource_desc &desc, const reshade::api::mapped_subresource *initial_data, reshade::api::resource_usage initial_state) {
+			if (desc.type != reshade::api::resource_type::buffer || desc.heap != reshade::api::memory_heap::unknown || initial_data != nullptr || initial_state != reshade::api::resource_usage::undefined)
 				return false;
 			reshade::vulkan::convert_resource_desc(desc, create_info);
 
@@ -654,7 +654,7 @@ VkResult VKAPI_CALL vkCreateBuffer(VkDevice device, const VkBufferCreateInfo *pC
 				LOG(WARN) << "vkCreateBuffer" << " failed with error code " << result << '.';
 				return false;
 			}
-		}, device_impl, reshade::vulkan::convert_resource_desc(create_info), reshade::api::resource_usage::undefined, nullptr);
+		}, device_impl, reshade::vulkan::convert_resource_desc(create_info), nullptr, reshade::api::resource_usage::undefined);
 	return result;
 }
 void     VKAPI_CALL vkDestroyBuffer(VkDevice device, VkBuffer buffer, const VkAllocationCallbacks *pAllocator)
@@ -725,8 +725,8 @@ VkResult VKAPI_CALL vkCreateImage(VkDevice device, const VkImageCreateInfo *pCre
 
 	VkResult result = VK_ERROR_UNKNOWN;
 	reshade::invoke_addon_event<reshade::addon_event::create_resource>(
-		[device_impl, &result, &create_info, pAllocator, pImage](reshade::api::device *, const reshade::api::resource_desc &desc, reshade::api::resource_usage initial_state, const reshade::api::mapped_subresource *initial_data) {
-			if (desc.type == reshade::api::resource_type::buffer || desc.mem_usage != reshade::api::memory_usage::unknown || initial_state != reshade::api::resource_usage::undefined || initial_data != nullptr)
+		[device_impl, &result, &create_info, pAllocator, pImage](reshade::api::device *, const reshade::api::resource_desc &desc, const reshade::api::mapped_subresource *initial_data, reshade::api::resource_usage initial_state) {
+			if (desc.type == reshade::api::resource_type::buffer || desc.heap != reshade::api::memory_heap::unknown || initial_data != nullptr || initial_state != reshade::api::resource_usage::undefined)
 				return false;
 			reshade::vulkan::convert_resource_desc(desc, create_info);
 
@@ -743,7 +743,7 @@ VkResult VKAPI_CALL vkCreateImage(VkDevice device, const VkImageCreateInfo *pCre
 				LOG(WARN) << "vkCreateImage" << " failed with error code " << result << '.';
 				return false;
 			}
-		}, device_impl, reshade::vulkan::convert_resource_desc(create_info), reshade::api::resource_usage::undefined, nullptr);
+		}, device_impl, reshade::vulkan::convert_resource_desc(create_info), nullptr, reshade::api::resource_usage::undefined);
 	return result;
 }
 void     VKAPI_CALL vkDestroyImage(VkDevice device, VkImage image, const VkAllocationCallbacks *pAllocator)

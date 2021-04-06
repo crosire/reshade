@@ -214,8 +214,10 @@ void reshade::vulkan::runtime_impl::render_imgui_draw_data(ImDrawData *draw_data
 
 		const int new_size = draw_data->TotalIdxCount + 10000;
 		if (!_device_impl->create_resource(
-			{ new_size * sizeof(ImDrawIdx), api::resource_usage::index_buffer, api::memory_usage::cpu_to_gpu },
-			api::resource_usage::undefined, nullptr, reinterpret_cast<api::resource_handle *>(&_imgui.indices[buffer_index])))
+			{ new_size * sizeof(ImDrawIdx), api::memory_heap::cpu_to_gpu, api::resource_usage::index_buffer },
+			nullptr,
+			api::resource_usage::undefined,
+			reinterpret_cast<api::resource_handle *>(&_imgui.indices[buffer_index])))
 			return;
 		set_debug_name_buffer(_imgui.indices[buffer_index], "ImGui index buffer");
 		_imgui.num_indices[buffer_index] = new_size;
@@ -228,8 +230,10 @@ void reshade::vulkan::runtime_impl::render_imgui_draw_data(ImDrawData *draw_data
 
 		const int new_size = draw_data->TotalVtxCount + 5000;
 		if (!_device_impl->create_resource(
-			{ new_size * sizeof(ImDrawVert), api::resource_usage::vertex_buffer, api::memory_usage::cpu_to_gpu },
-			api::resource_usage::undefined, nullptr, reinterpret_cast<api::resource_handle *>(&_imgui.vertices[buffer_index])))
+			{ new_size * sizeof(ImDrawVert), api::memory_heap::cpu_to_gpu, api::resource_usage::vertex_buffer },
+			nullptr,
+			api::resource_usage::undefined,
+			reinterpret_cast<api::resource_handle *>(&_imgui.vertices[buffer_index])))
 			return;
 		set_debug_name_buffer(_imgui.vertices[buffer_index], "ImGui vertex buffer");
 		_imgui.num_vertices[buffer_index] = new_size;

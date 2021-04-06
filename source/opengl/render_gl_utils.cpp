@@ -34,6 +34,22 @@ bool reshade::opengl::is_depth_stencil_format(GLenum format, GLenum usage)
 	}
 }
 
+GLuint reshade::opengl::get_index_type_size(GLenum type)
+{
+	switch (type)
+	{
+	default:
+		assert(false);
+		return 0;
+	case GL_UNSIGNED_BYTE:
+		return 1;
+	case GL_UNSIGNED_SHORT:
+		return 2;
+	case GL_UNSIGNED_INT:
+		return 4;
+	}
+}
+
 GLenum reshade::opengl::get_binding_for_target(GLenum target)
 {
 	switch (target)
@@ -91,29 +107,61 @@ GLenum reshade::opengl::get_binding_for_target(GLenum target)
 	}
 }
 
-memory_usage  reshade::opengl::convert_memory_usage(GLenum usage)
+memory_heap reshade::opengl::convert_memory_heap_from_usage(GLenum usage)
 {
 	switch (usage)
 	{
-	default:
 	case GL_STATIC_DRAW:
-		return memory_usage::gpu_only;
+		return memory_heap::gpu_only;
 	case GL_STREAM_DRAW:
 	case GL_DYNAMIC_DRAW:
-		return memory_usage::cpu_to_gpu;
+		return memory_heap::cpu_to_gpu;
 	case GL_STREAM_READ:
 	case GL_STATIC_READ:
 	case GL_DYNAMIC_READ:
-		return memory_usage::gpu_to_cpu;
+		return memory_heap::gpu_to_cpu;
+	}
+	return memory_heap::unknown;
+}
+memory_heap reshade::opengl::convert_memory_heap_from_flags(GLbitfield flags)
+{
+	if ((flags & (GL_MAP_WRITE_BIT | GL_DYNAMIC_STORAGE_BIT)) != 0)
+		return memory_heap::cpu_to_gpu;
+	if ((flags & (GL_MAP_READ_BIT)) != 0)
+		return memory_heap::gpu_to_cpu;
+	if ((flags & (GL_CLIENT_STORAGE_BIT)) != 0)
+		return memory_heap::gpu_only;
+	return memory_heap::unknown;
+}
+void reshade::opengl::convert_memory_heap_to_usage(api::memory_heap heap, GLenum &usage)
+{
+	switch (heap)
+	{
+	case memory_heap::gpu_only:
+		usage = GL_STATIC_DRAW;
+		break;
+	case memory_heap::cpu_to_gpu:
+		usage = GL_DYNAMIC_DRAW;
+		break;
+	case memory_heap::gpu_to_cpu:
+		usage = GL_DYNAMIC_READ;
+		break;
 	}
 }
-memory_usage  reshade::opengl::convert_memory_usage_from_flags(GLbitfield flags)
+void reshade::opengl::convert_memory_heap_to_flags(api::memory_heap heap, GLbitfield &flags)
 {
-	if ((flags & GL_DYNAMIC_STORAGE_BIT) != 0)
-		return memory_usage::cpu_to_gpu;
-	if ((flags & GL_MAP_READ_BIT) != 0)
-		return memory_usage::gpu_to_cpu;
-	return memory_usage::gpu_only;
+	switch (heap)
+	{
+	case memory_heap::gpu_only:
+		flags |= GL_CLIENT_STORAGE_BIT;
+		break;
+	case memory_heap::cpu_to_gpu:
+		flags |= GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT;
+		break;
+	case memory_heap::gpu_to_cpu:
+		flags |= GL_DYNAMIC_STORAGE_BIT | GL_MAP_READ_BIT;
+		break;
+	}
 }
 
 resource_type reshade::opengl::convert_resource_type(GLenum target)
@@ -174,13 +222,13 @@ resource_type reshade::opengl::convert_resource_type(GLenum target)
 	}
 }
 
-resource_desc reshade::opengl::convert_resource_desc(GLenum target, GLsizeiptr buffer_size, memory_usage mem_usage)
+resource_desc reshade::opengl::convert_resource_desc(GLenum target, GLsizeiptr buffer_size, memory_heap heap)
 {
 	resource_desc desc = {};
 	desc.type = convert_resource_type(target);
 	desc.size = buffer_size;
+	desc.heap = heap;
 	desc.usage = resource_usage::shader_resource; // TODO: Only texture copy currently implemented in 'device_impl::copy_resource', so cannot add copy usage flags here
-	desc.mem_usage = mem_usage;
 	return desc;
 }
 resource_desc reshade::opengl::convert_resource_desc(GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth)
@@ -195,6 +243,7 @@ resource_desc reshade::opengl::convert_resource_desc(GLenum target, GLsizei leve
 	desc.levels = static_cast<uint16_t>(levels);
 	desc.format = internalformat;
 	desc.samples = 1;
+	desc.heap = memory_heap::gpu_only;
 
 	desc.usage = resource_usage::copy_dest | resource_usage::copy_source;
 	if (is_depth_stencil_format(internalformat))
@@ -203,8 +252,6 @@ resource_desc reshade::opengl::convert_resource_desc(GLenum target, GLsizei leve
 		desc.usage |= resource_usage::render_target;
 	if (desc.type != resource_type::surface)
 		desc.usage |= resource_usage::shader_resource;
-
-	desc.mem_usage = memory_usage::gpu_only;
 
 	return desc;
 }

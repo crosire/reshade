@@ -276,7 +276,7 @@ bool reshade::opengl::device_impl::check_resource_view_handle_valid(api::resourc
 	}
 }
 
-bool reshade::opengl::device_impl::create_resource(const api::resource_desc &desc, api::resource_usage, const api::mapped_subresource *initial_data, api::resource_handle *out_resource)
+bool reshade::opengl::device_impl::create_resource(const api::resource_desc &desc, const api::mapped_subresource *initial_data, api::resource_usage, api::resource_handle *out_resource)
 {
 	if (initial_data != nullptr)
 		return false;
@@ -319,16 +319,16 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 		glBindBuffer(target, object);
 
 		GLenum usage = GL_NONE;
-		switch (desc.mem_usage)
+		switch (desc.heap)
 		{
-		case api::memory_usage::gpu_only:
+		case api::memory_heap::gpu_only:
 			GL_STATIC_DRAW;
 			break;
-		case api::memory_usage::cpu_to_gpu:
+		case api::memory_heap::cpu_to_gpu:
 			GL_DYNAMIC_DRAW;
 			break;
-		case api::memory_usage::gpu_to_cpu:
-		case api::memory_usage::cpu_only:
+		case api::memory_heap::gpu_to_cpu:
+		case api::memory_heap::cpu_only:
 			GL_DYNAMIC_READ;
 			break;
 		}
@@ -604,7 +604,7 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 	}
 
 	if (buffer_size != 0)
-		return convert_resource_desc(target, buffer_size, api::memory_usage::unknown);
+		return convert_resource_desc(target, buffer_size, api::memory_heap::unknown);
 	else
 		return convert_resource_desc(target, 1, internal_format, width, height, depth);
 }

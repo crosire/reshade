@@ -17,12 +17,12 @@ namespace reshade { namespace api
 	/// </summary>
 	enum class render_api
 	{
-		d3d9,
-		d3d10,
-		d3d11,
-		d3d12,
-		opengl,
-		vulkan
+		d3d9 = 0x9000,
+		d3d10 = 0xa000,
+		d3d11 = 0xb000,
+		d3d12 = 0xc000,
+		opengl = 0x10000,
+		vulkan = 0x20000
 	};
 
 	/// <summary>
@@ -36,7 +36,37 @@ namespace reshade { namespace api
 		texture_1d,
 		texture_2d,
 		texture_3d,
-		surface // Surfaces are resources that can be rendered into (can create a render target for them), but can not be read in shaders.
+		surface // Special type for resources that are implicitly both resource and render target view. These cannot be created via the API, but may be referenced by the application.
+	};
+
+	/// <summary>
+	/// The available resource view types, which identify how a view interprets the data of its resource.
+	/// </summary>
+	enum class resource_view_type : uint32_t
+	{
+		unknown,
+		buffer,
+		texture_1d,
+		texture_1d_array,
+		texture_2d,
+		texture_2d_array,
+		texture_2d_multisample,
+		texture_2d_multisample_array,
+		texture_3d,
+		texture_cube,
+		texture_cube_array
+	};
+
+	/// <summary>
+	/// The available memory heap types, which give a hint as to where to place the memory allocation for a resource.
+	/// </summary>
+	enum class memory_heap : uint32_t
+	{
+		unknown,
+		gpu_only,
+		cpu_to_gpu,
+		gpu_to_cpu,
+		cpu_only
 	};
 
 	/// <summary>
@@ -75,68 +105,31 @@ namespace reshade { namespace api
 	constexpr resource_usage &operator|=(resource_usage &lhs, resource_usage rhs) { return lhs = static_cast<resource_usage>(static_cast<uint32_t>(lhs) | static_cast<uint32_t>(rhs)); }
 
 	/// <summary>
-	/// The available resource view types, which identify how a view interprets the data of its resource.
-	/// </summary>
-	enum class resource_view_type : uint32_t
-	{
-		unknown,
-		buffer,
-		texture_1d,
-		texture_1d_array,
-		texture_2d,
-		texture_2d_array,
-		texture_2d_multisample,
-		texture_2d_multisample_array,
-		texture_3d,
-		texture_cube,
-		texture_cube_array
-	};
-
-	/// <summary>
-	/// The available memory usage types, which give a hint as to where to place the memory allocation for a resource.
-	/// </summary>
-	enum class memory_usage : uint32_t
-	{
-		unknown,
-		gpu_only,
-		cpu_to_gpu,
-		gpu_to_cpu,
-		cpu_only
-	};
-
-	struct mapped_subresource
-	{
-		const void *data;
-		uint32_t row_pitch;
-		uint32_t depth_pitch;
-	};
-
-	/// <summary>
 	/// Describes a resource, such as a buffer or texture.
 	/// </summary>
 	struct resource_desc
 	{
 		resource_desc() :
-			type(resource_type::unknown), width(0), height(0), depth_or_layers(0), levels(0), format(0), samples(0), usage(resource_usage::undefined), mem_usage(memory_usage::unknown) {}
-		resource_desc(uint64_t size, resource_usage usage, memory_usage mem_usage) :
-			type(resource_type::buffer), size(size), usage(usage), mem_usage(mem_usage) {}
-		resource_desc(uint32_t width, uint32_t height, uint16_t layers, uint16_t levels, uint32_t format, uint16_t samples, resource_usage usage, memory_usage mem_usage) :
-			type(resource_type::texture_2d), width(width), height(height), depth_or_layers(layers), levels(levels), format(format), samples(samples), usage(usage), mem_usage(mem_usage) {}
-		resource_desc(resource_type type, uint32_t width, uint32_t height, uint16_t depth_or_layers, uint16_t levels, uint32_t format, uint16_t samples, resource_usage usage, memory_usage mem_usage) :
-			type(type), width(width), height(height), depth_or_layers(depth_or_layers), levels(levels), format(format), samples(samples), usage(usage), mem_usage(mem_usage) {}
+			type(resource_type::unknown), width(0), height(0), depth_or_layers(0), levels(0), format(0), samples(0), heap(memory_heap::unknown), usage(resource_usage::undefined) {}
+		resource_desc(uint64_t size, memory_heap heap, resource_usage usage) :
+			type(resource_type::buffer), size(size), heap(heap), usage(usage) {}
+		resource_desc(uint32_t width, uint32_t height, uint16_t layers, uint16_t levels, uint32_t format, uint16_t samples, memory_heap heap, resource_usage usage) :
+			type(resource_type::texture_2d), width(width), height(height), depth_or_layers(layers), levels(levels), format(format), samples(samples), heap(heap), usage(usage) {}
+		resource_desc(resource_type type, uint32_t width, uint32_t height, uint16_t depth_or_layers, uint16_t levels, uint32_t format, uint16_t samples, memory_heap heap, resource_usage usage) :
+			type(type), width(width), height(height), depth_or_layers(depth_or_layers), levels(levels), format(format), samples(samples), heap(heap), usage(usage) {}
 
 		// Type of the resource.
 		resource_type type;
 
 		union
 		{
-			// Used when resource type is <see cref="resource_type::buffer"/>.
+			// Used when resource type is a buffer.
 			struct
 			{
 				// Size of the buffer (in bytes).
 				uint64_t size;
 			};
-			// Used when resource type is <see cref="resource_type::surface"/>, <see cref="resource_type::texture_1d"/> or any other texture type.
+			// Used when resource type is a surface or texture.
 			struct
 			{
 				// Width of the texture (in texels).
@@ -155,10 +148,10 @@ namespace reshade { namespace api
 			};
 		};
 
+		// The heap the resource allocation is placed in.
+		memory_heap heap;
 		// Flags that specify how this resource may be used.
 		resource_usage usage;
-		// The memory usage type of the resource, which is used to determine where to place the memory allocation.
-		memory_usage mem_usage;
 	};
 
 	/// <summary>
@@ -183,7 +176,7 @@ namespace reshade { namespace api
 
 		union
 		{
-			// Used when dimension is <see cref="resource_view_dimension::buffer"/>.
+			// Used when view type is a buffer.
 			struct
 			{
 				// Offset from the start of the buffer resource (in bytes).
@@ -191,7 +184,7 @@ namespace reshade { namespace api
 				// Number of elements this view covers in the buffer resource (in bytes).
 				uint64_t size;
 			};
-			// Used when dimension is <see cref="resource_view_dimension::texture_1d"/> or any other texture type.
+			// Used when view type is a texture.
 			struct
 			{
 				// Index of the most detailed mipmap level to use. This number has to be between zero and the maximum number of mipmap levels in the texture minus 1.
@@ -206,6 +199,19 @@ namespace reshade { namespace api
 				uint32_t layers;
 			};
 		};
+	};
+
+	/// <summary>
+	/// Used to specify data for initializing a subresource or access existing subresource data.
+	/// </summary>
+	struct mapped_subresource
+	{
+		// Pointer to the data.
+		const void *data;
+		// The row pitch of the data (added to the data pointer to move between texture rows, unused for buffers and 1D textures).
+		uint32_t row_pitch;
+		// The depth pitch of the data (added to the data pointer to move between texture depth/array slices, unused for buffers and 1D/2D textures).
+		uint32_t depth_pitch;
 	};
 
 	/// <summary>
@@ -321,11 +327,11 @@ namespace reshade { namespace api
 		/// Allocates and creates a new resource based on the specified <paramref name="desc"/>ription.
 		/// </summary>
 		/// <param name="desc">The description of the resource to create.</param>
+		/// <param name="initial_data">Data to upload to the resource after creation. This should point to an array of <see cref="mapped_subresource"/>, one for each subresource (mipmap levels and array layers).</param>
 		/// <param name="initial_state">Initial usage of the resource after creation. This can later be changed via <see cref="command_list::transition_state"/>.</param>
-		/// <param name="initial_data">Data to upload to the resource after creation.</param>
 		/// <param name="out_resource">Pointer to a handle that is set to the handle of the created resource.</param>
 		/// <returns><c>true</c>if the resource was successfully created, <c>false</c> otherwise (in this case <paramref name="out_resource"/> is set to zero).</returns>
-		virtual bool create_resource(const resource_desc &desc, resource_usage initial_state, const api::mapped_subresource *initial_data, resource_handle *out_resource) = 0;
+		virtual bool create_resource(const resource_desc &desc, const mapped_subresource *initial_data, resource_usage initial_state, resource_handle *out_resource) = 0;
 		/// <summary>
 		/// Creates a new resource view for the specified <paramref name="resource"/> based on the specified <paramref name="desc"/>ription.
 		/// </summary>

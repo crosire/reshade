@@ -37,6 +37,7 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(destroy_effect_runtime);
 		CASE(create_resource);
 		CASE(create_resource_view);
+		CASE(create_shader_module);
 		CASE(set_index_buffer);
 		CASE(set_vertex_buffers);
 		CASE(set_viewports);

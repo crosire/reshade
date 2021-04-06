@@ -93,7 +93,7 @@ bool reshade::vulkan::device_impl::check_resource_view_handle_valid(api::resourc
 	return data.is_image_view() ? (data.image_view == (VkImageView)view.handle) : (data.buffer_view == (VkBufferView)view.handle);
 }
 
-bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &desc, api::resource_usage initial_state, const api::mapped_subresource *initial_data, api::resource_handle *out_resource)
+bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &desc, const api::mapped_subresource *initial_data, api::resource_usage initial_state, api::resource_handle *out_resource)
 {
 	if (initial_data != nullptr)
 		return false;
@@ -102,21 +102,21 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 
 	VmaAllocation allocation = VK_NULL_HANDLE;
 	VmaAllocationCreateInfo alloc_info = {};
-	switch (desc.mem_usage)
+	switch (desc.heap)
 	{
 	default:
-	case api::memory_usage::gpu_only:
+	case api::memory_heap::gpu_only:
 		alloc_info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
 		break;
-	case api::memory_usage::cpu_to_gpu:
+	case api::memory_heap::cpu_to_gpu:
 		alloc_info.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
 		// Make sure host visible allocations are coherent, since no explicit flushing is performed
 		alloc_info.requiredFlags |= VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
 		break;
-	case api::memory_usage::gpu_to_cpu:
+	case api::memory_heap::gpu_to_cpu:
 		alloc_info.usage = VMA_MEMORY_USAGE_GPU_TO_CPU;
 		break;
-	case api::memory_usage::cpu_only:
+	case api::memory_heap::cpu_only:
 		alloc_info.usage = VMA_MEMORY_USAGE_CPU_ONLY;
 		break;
 	}

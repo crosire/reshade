@@ -8,7 +8,45 @@
 
 using namespace reshade::api;
 
-static inline void convert_usage_to_bind_flags(const resource_usage usage, UINT &bind_flags)
+static void convert_memory_heap_to_d3d_usage(memory_heap heap, D3D11_USAGE &usage, UINT &cpu_access_flags)
+{
+	switch (heap)
+	{
+	case memory_heap::gpu_only:
+		usage = D3D11_USAGE_DEFAULT;
+		break;
+	case memory_heap::cpu_to_gpu:
+		usage = D3D11_USAGE_DYNAMIC;
+		cpu_access_flags |= D3D11_CPU_ACCESS_WRITE;
+		break;
+	case memory_heap::gpu_to_cpu:
+		usage = D3D11_USAGE_STAGING;
+		cpu_access_flags |= D3D11_CPU_ACCESS_READ;
+		break;
+	case memory_heap::cpu_only:
+		usage = D3D11_USAGE_STAGING;
+		cpu_access_flags |= D3D11_CPU_ACCESS_READ | D3D11_CPU_ACCESS_WRITE;
+		break;
+	}
+}
+static void convert_d3d_usage_to_memory_heap(D3D11_USAGE usage, memory_heap &heap)
+{
+	switch (usage)
+	{
+	case D3D11_USAGE_DEFAULT:
+	case D3D11_USAGE_IMMUTABLE:
+		heap = memory_heap::gpu_only;
+		break;
+	case D3D11_USAGE_DYNAMIC:
+		heap = memory_heap::cpu_to_gpu;
+		break;
+	case D3D11_USAGE_STAGING:
+		heap = memory_heap::gpu_to_cpu;
+		break;
+	}
+}
+
+static void convert_resource_usage_to_bind_flags(resource_usage usage, UINT &bind_flags)
 {
 	if ((usage & resource_usage::render_target) != 0)
 		bind_flags |= D3D11_BIND_RENDER_TARGET;
@@ -45,7 +83,7 @@ static inline void convert_usage_to_bind_flags(const resource_usage usage, UINT 
 	else
 		bind_flags &= ~D3D11_BIND_CONSTANT_BUFFER;
 }
-static inline void convert_bind_flags_to_usage(const UINT bind_flags, resource_usage &usage)
+static void convert_bind_flags_to_resource_usage(UINT bind_flags, resource_usage &usage)
 {
 	// Resources are generally copyable in D3D11
 	usage |= resource_usage::copy_dest | resource_usage::copy_source;
@@ -67,50 +105,13 @@ static inline void convert_bind_flags_to_usage(const UINT bind_flags, resource_u
 		usage |= resource_usage::constant_buffer;
 }
 
-void reshade::d3d11::convert_memory_usage(memory_usage memory, D3D11_USAGE &usage, UINT &cpu_access_flags)
-{
-	switch (memory)
-	{
-	default:
-	case memory_usage::gpu_only:
-		usage = D3D11_USAGE_DEFAULT;
-		break;
-	case memory_usage::cpu_to_gpu:
-		usage = D3D11_USAGE_DYNAMIC;
-		cpu_access_flags |= D3D11_CPU_ACCESS_WRITE;
-		break;
-	case memory_usage::gpu_to_cpu:
-		usage = D3D11_USAGE_STAGING;
-		cpu_access_flags |= D3D11_CPU_ACCESS_READ;
-		break;
-	case memory_usage::cpu_only:
-		usage = D3D11_USAGE_STAGING;
-		cpu_access_flags |= D3D11_CPU_ACCESS_READ | D3D11_CPU_ACCESS_WRITE;
-		break;
-	}
-}
-memory_usage  reshade::d3d11::convert_memory_usage(D3D11_USAGE usage)
-{
-	switch (usage)
-	{
-	default:
-	case D3D11_USAGE_DEFAULT:
-	case D3D11_USAGE_IMMUTABLE:
-		return memory_usage::gpu_only;
-	case D3D11_USAGE_DYNAMIC:
-		return memory_usage::cpu_to_gpu;
-	case D3D11_USAGE_STAGING:
-		return memory_usage::gpu_to_cpu;
-	}
-}
-
 void reshade::d3d11::convert_resource_desc(const resource_desc &desc, D3D11_BUFFER_DESC &internal_desc)
 {
 	assert(desc.type == resource_type::buffer);
 	assert(desc.size <= std::numeric_limits<UINT>::max());
 	internal_desc.ByteWidth = static_cast<UINT>(desc.size);
-	convert_usage_to_bind_flags(desc.usage, internal_desc.BindFlags);
-	convert_memory_usage(desc.mem_usage, internal_desc.Usage, internal_desc.CPUAccessFlags);
+	convert_memory_heap_to_d3d_usage(desc.heap, internal_desc.Usage, internal_desc.CPUAccessFlags);
+	convert_resource_usage_to_bind_flags(desc.usage, internal_desc.BindFlags);
 }
 void reshade::d3d11::convert_resource_desc(const resource_desc &desc, D3D11_TEXTURE1D_DESC &internal_desc)
 {
@@ -121,8 +122,8 @@ void reshade::d3d11::convert_resource_desc(const resource_desc &desc, D3D11_TEXT
 	internal_desc.ArraySize = desc.depth_or_layers;
 	internal_desc.Format = static_cast<DXGI_FORMAT>(desc.format);
 	assert(desc.samples == 1);
-	convert_usage_to_bind_flags(desc.usage, internal_desc.BindFlags);
-	convert_memory_usage(desc.mem_usage, internal_desc.Usage, internal_desc.CPUAccessFlags);
+	convert_memory_heap_to_d3d_usage(desc.heap, internal_desc.Usage, internal_desc.CPUAccessFlags);
+	convert_resource_usage_to_bind_flags(desc.usage, internal_desc.BindFlags);
 }
 void reshade::d3d11::convert_resource_desc(const resource_desc &desc, D3D11_TEXTURE2D_DESC &internal_desc)
 {
@@ -133,8 +134,8 @@ void reshade::d3d11::convert_resource_desc(const resource_desc &desc, D3D11_TEXT
 	internal_desc.ArraySize = desc.depth_or_layers;
 	internal_desc.Format = static_cast<DXGI_FORMAT>(desc.format);
 	internal_desc.SampleDesc.Count = desc.samples;
-	convert_usage_to_bind_flags(desc.usage, internal_desc.BindFlags);
-	convert_memory_usage(desc.mem_usage, internal_desc.Usage, internal_desc.CPUAccessFlags);
+	convert_memory_heap_to_d3d_usage(desc.heap, internal_desc.Usage, internal_desc.CPUAccessFlags);
+	convert_resource_usage_to_bind_flags(desc.usage, internal_desc.BindFlags);
 }
 void reshade::d3d11::convert_resource_desc(const resource_desc &desc, D3D11_TEXTURE3D_DESC &internal_desc)
 {
@@ -145,16 +146,16 @@ void reshade::d3d11::convert_resource_desc(const resource_desc &desc, D3D11_TEXT
 	internal_desc.MipLevels = desc.levels;
 	internal_desc.Format = static_cast<DXGI_FORMAT>(desc.format);
 	assert(desc.samples == 1);
-	convert_usage_to_bind_flags(desc.usage, internal_desc.BindFlags);
-	convert_memory_usage(desc.mem_usage, internal_desc.Usage, internal_desc.CPUAccessFlags);
+	convert_memory_heap_to_d3d_usage(desc.heap, internal_desc.Usage, internal_desc.CPUAccessFlags);
+	convert_resource_usage_to_bind_flags(desc.usage, internal_desc.BindFlags);
 }
 resource_desc reshade::d3d11::convert_resource_desc(const D3D11_BUFFER_DESC &internal_desc)
 {
 	resource_desc desc = {};
 	desc.type = resource_type::buffer;
 	desc.size = internal_desc.ByteWidth;
-	convert_bind_flags_to_usage(internal_desc.BindFlags, desc.usage);
-	desc.mem_usage = convert_memory_usage(internal_desc.Usage);
+	convert_d3d_usage_to_memory_heap(internal_desc.Usage, desc.heap);
+	convert_bind_flags_to_resource_usage(internal_desc.BindFlags, desc.usage);
 	return desc;
 }
 resource_desc reshade::d3d11::convert_resource_desc(const D3D11_TEXTURE1D_DESC &internal_desc)
@@ -169,8 +170,8 @@ resource_desc reshade::d3d11::convert_resource_desc(const D3D11_TEXTURE1D_DESC &
 	desc.levels = static_cast<uint16_t>(internal_desc.MipLevels);
 	desc.format = static_cast<uint32_t>(internal_desc.Format);
 	desc.samples = 1;
-	convert_bind_flags_to_usage(internal_desc.BindFlags, desc.usage);
-	desc.mem_usage = convert_memory_usage(internal_desc.Usage);
+	convert_d3d_usage_to_memory_heap(internal_desc.Usage, desc.heap);
+	convert_bind_flags_to_resource_usage(internal_desc.BindFlags, desc.usage);
 	return desc;
 }
 resource_desc reshade::d3d11::convert_resource_desc(const D3D11_TEXTURE2D_DESC &internal_desc)
@@ -185,9 +186,9 @@ resource_desc reshade::d3d11::convert_resource_desc(const D3D11_TEXTURE2D_DESC &
 	desc.levels = static_cast<uint16_t>(internal_desc.MipLevels);
 	desc.format = static_cast<uint32_t>(internal_desc.Format);
 	desc.samples = static_cast<uint16_t>(internal_desc.SampleDesc.Count);
-	convert_bind_flags_to_usage(internal_desc.BindFlags, desc.usage);
+	convert_d3d_usage_to_memory_heap(internal_desc.Usage, desc.heap);
+	convert_bind_flags_to_resource_usage(internal_desc.BindFlags, desc.usage);
 	desc.usage |= desc.samples > 1 ? resource_usage::resolve_source : resource_usage::resolve_dest;
-	desc.mem_usage = convert_memory_usage(internal_desc.Usage);
 	return desc;
 }
 resource_desc reshade::d3d11::convert_resource_desc(const D3D11_TEXTURE3D_DESC &internal_desc)
@@ -202,8 +203,8 @@ resource_desc reshade::d3d11::convert_resource_desc(const D3D11_TEXTURE3D_DESC &
 	desc.levels = static_cast<uint16_t>(internal_desc.MipLevels);
 	desc.format = static_cast<uint32_t>(internal_desc.Format);
 	desc.samples = 1;
-	convert_bind_flags_to_usage(internal_desc.BindFlags, desc.usage);
-	desc.mem_usage = convert_memory_usage(internal_desc.Usage);
+	convert_d3d_usage_to_memory_heap(internal_desc.Usage, desc.heap);
+	convert_bind_flags_to_resource_usage(internal_desc.BindFlags, desc.usage);
 	return desc;
 }
 
