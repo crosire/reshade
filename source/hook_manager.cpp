@@ -455,13 +455,8 @@ void reshade::hooks::register_module(const std::filesystem::path &target_path)
 	}
 }
 
-reshade::hook::address reshade::hooks::call(hook::address replacement, hook::address target)
+void reshade::hooks::ensure_export_module_loaded()
 {
-	const hook hook = find_internal(target, replacement);
-	if (hook.valid())
-		return hook.call();
-
-	// If the hook does not exist yet, delay-load export hooks and try again
 	if (!g_export_module_handle && !s_export_hook_path.empty())
 	{
 		assert(s_export_hook_path.is_absolute());
@@ -478,13 +473,24 @@ reshade::hook::address reshade::hooks::call(hook::address replacement, hook::add
 
 			s_export_hook_path.clear();
 			g_export_module_handle = handle;
-
-			return call(replacement, target);
 		}
 		else
 		{
 			LOG(ERROR) << "Failed to load " << s_export_hook_path << '!';
 		}
+	}
+}
+
+reshade::hook::address reshade::hooks::call(hook::address replacement, hook::address target)
+{
+	for (int attempt = 0; attempt < 2; ++attempt)
+	{
+		const hook hook = find_internal(target, replacement);
+		if (hook.valid())
+			return hook.call();
+		else if (attempt == 0)
+			// If the hook does not exist yet, delay-load export hooks and try again
+			ensure_export_module_loaded();
 	}
 
 	LOG(ERROR) << "Unable to resolve hook for 0x" << replacement << '!';

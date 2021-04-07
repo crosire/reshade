@@ -53,6 +53,11 @@ namespace reshade::hooks
 	void register_module(const std::filesystem::path &path);
 
 	/// <summary>
+	/// Loads the module for export hooks if not already loaded.
+	/// </summary>
+	void ensure_export_module_loaded();
+
+	/// <summary>
 	/// Calls the original/trampoline function for the specified hook.
 	/// </summary>
 	/// <param name="target">The original target address of the hooked function (optional).</param>
