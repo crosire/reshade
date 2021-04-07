@@ -101,28 +101,28 @@ namespace reshade
 
 		/// <summary>
 		/// Called before 'IDirect3DDevice9::DrawPrimitive(UP)', 'ID3D10Device::Draw(Instanced)', 'ID3D11DeviceContext::Draw(Instanced)', 'ID3D12GraphicsCommandList::DrawInstanced', 'gl(Multi)DrawArrays(...)' or 'vkCmdDraw'.
-		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance)</c></para>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance)</c></para>
 		/// </summary>
 		draw,
 		/// <summary>
 		/// Called before 'IDirect3DDevice9::DrawIndexedPrimitive(UP)', 'ID3D10Device::DrawIndexed(Instanced)', 'ID3D11DeviceContext::DrawIndexed(Instanced)', 'ID3D12GraphicsCommandList::DrawIndexedInstanced', 'gl(Multi)DrawElements(...)' or 'vkCmdDrawIndexed'.
-		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)</c></para>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)</c></para>
 		/// </summary>
 		draw_indexed,
 		/// <summary>
 		/// Called before 'ID3D11DeviceContext::Dispatch', 'ID3D12GraphicsCommandList::Dispatch', 'glDispatchCompute' or 'vkCmdDispatch'.
-		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, uint32_t num_groups_x, uint32_t num_groups_y, uint32_t num_groups_z)</c></para>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, uint32_t num_groups_x, uint32_t num_groups_y, uint32_t num_groups_z)</c></para>
 		/// </summary>
 		dispatch,
 		/// <summary>
 		/// Called before 'ID3D11DeviceContext::Draw(Indexed)InstancedIndirect', 'ID3D11DeviceContext::DispatchIndirect', 'ID3D12GraphicsCommandList::ExecuteIndirect', 'gl(Multi)Draw(...)Indirect', 'glDispatchComputeIndirect', 'vkCmdDraw(Indexed)Indirect' or 'vkCmdDispatchIndirect'.
-		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, addon_event type, api::resource_handle buffer, uint64_t offset, uint32_t draw_count, uint32_t stride)</c></para>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, addon_event type, api::resource_handle buffer, uint64_t offset, uint32_t draw_count, uint32_t stride)</c></para>
 		/// <para>The "type" parameter to the callback function will be <c>addon_event::draw</c>, <c>addon_event::draw_indexed</c> or <c>addon_event::dispatch</c> depending on the indirect command. Can also be <c>addon_event::draw_or_dispatch_indirect</c> if the type could not be determined.</para>
 		/// </summary>
 		draw_or_dispatch_indirect,
 		/// <summary>
 		/// Called before 'IDirect3DDevice9::Clear', 'ID3D10Device::ClearDepthStencilView', 'ID3D11DeviceContext::ClearDepthStencilView', 'ID3D12GraphicsCommandList::ClearDepthStencilView', 'glClear(...) ', 'vkCmdBeginRenderPass' or 'vkCmdClearDepthStencilImage'.
-		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil)</c></para>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// Resource will be in the <see cref="resource_usage::depth_stencil_write"/> state.
@@ -130,7 +130,7 @@ namespace reshade
 		clear_depth_stencil,
 		/// <summary>
 		/// Called before 'IDirect3DDevice9::Clear', 'ID3D10Device::ClearRenderTargetView', 'ID3D11DeviceContext::ClearRenderTargetView', 'ID3D12GraphicsCommandList::ClearRenderTargetView', 'glClear(...)', 'vkCmdBeginRenderPass' or 'vkCmdClearColorImage'.
-		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::resource_view_handle rtv, const float color[4])</c></para>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view_handle rtv, const float color[4])</c></para>
 		/// </summary>
 		/// <remarks>
 		/// Resource will be in the <see cref="resource_usage::render_target"/> state.
@@ -197,62 +197,74 @@ namespace reshade
 	protected:
 		using callback_type = R(*)(addon_event_trampoline_data &, Args...);
 
-		callback_type *next_callback; // Pointer to the next callback in the list of registered callbacks to execute
-		callback_type *last_callback; // Pointer to the last callback in the list of registered callbacks
-		callback_type  term_callback; // Terminator function that is called by the last registered callback
+		callback_type *next_callback; // Pointer to the next function in the call chain to execute
+		callback_type *last_callback; // Pointer to the last function in the call chain
+		callback_type  term_callback; // Terminator function that is called by the last function in the chain
 	};
 
-#define DEFINE_ADDON_EVENT(ev, ret, ...) \
+	// Define callback event
+#define DEFINE_ADDON_EVENT_TYPE_1(ev, ...) \
 	template <> \
 	struct addon_event_traits<ev> { \
-		using decl = ret(*)(__VA_ARGS__); \
-		static const bool with_call_chain = false; \
+		using decl = void(*)(__VA_ARGS__); \
+		static const int type = 1; \
 	}
-#define DEFINE_ADDON_EVENT_WITH_CALL_CHAIN(ev, ret, ...) \
+
+	// Define action callback event (return value determines whether the action the event was triggered for should be skipped)
+#define DEFINE_ADDON_EVENT_TYPE_2(ev, ...) \
 	template <> \
 	struct addon_event_traits<ev> { \
-		using decl = ret(*)(addon_event_trampoline<ev> &next, __VA_ARGS__); \
-		static const bool with_call_chain =  true; \
+		using decl = bool(*)(__VA_ARGS__); \
+		static const int type = 2; \
+	}
+
+	// Define event with a call chain (first argument points to the next function in the chain that should be called)
+#define DEFINE_ADDON_EVENT_TYPE_3(ev, ...) \
+	template <> \
+	struct addon_event_traits<ev> { \
+		using decl = bool(*)(addon_event_trampoline<ev> &next, __VA_ARGS__); \
+		static const int type = 3; \
 	}; \
 	template <> \
-	class  addon_event_trampoline<ev> : public addon_event_trampoline_data<ret(__VA_ARGS__)> {}
+	class  addon_event_trampoline<ev> : public addon_event_trampoline_data<bool(__VA_ARGS__)> {}
 
-	DEFINE_ADDON_EVENT(addon_event::init_device, void, api::device *device);
-	DEFINE_ADDON_EVENT(addon_event::destroy_device, void, api::device *device);
-	DEFINE_ADDON_EVENT(addon_event::init_command_list, void, api::command_list *cmd_list);
-	DEFINE_ADDON_EVENT(addon_event::destroy_command_list, void, api::command_list *cmd_list);
-	DEFINE_ADDON_EVENT(addon_event::init_command_queue, void, api::command_queue *queue);
-	DEFINE_ADDON_EVENT(addon_event::destroy_command_queue, void, api::command_queue *queue);
-	DEFINE_ADDON_EVENT(addon_event::init_effect_runtime, void, api::effect_runtime *runtime);
-	DEFINE_ADDON_EVENT(addon_event::destroy_effect_runtime, void, api::effect_runtime *runtime);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::init_device, api::device *device);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::destroy_device, api::device *device);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::init_command_list, api::command_list *cmd_list);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::destroy_command_list, api::command_list *cmd_list);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::init_command_queue, api::command_queue *queue);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::destroy_command_queue, api::command_queue *queue);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::init_effect_runtime, api::effect_runtime *runtime);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::destroy_effect_runtime, api::effect_runtime *runtime);
 
-	DEFINE_ADDON_EVENT_WITH_CALL_CHAIN(addon_event::create_resource, bool, api::device *device, const api::resource_desc &desc, const api::mapped_subresource *initial_data, api::resource_usage initial_state);
-	DEFINE_ADDON_EVENT_WITH_CALL_CHAIN(addon_event::create_resource_view, bool, api::device *device, api::resource_handle resource, api::resource_usage usage_type, const api::resource_view_desc &desc);
-	DEFINE_ADDON_EVENT_WITH_CALL_CHAIN(addon_event::create_shader_module, bool, api::device *device, const void *code, size_t code_size);
+	DEFINE_ADDON_EVENT_TYPE_3(addon_event::create_resource, api::device *device, const api::resource_desc &desc, const api::mapped_subresource *initial_data, api::resource_usage initial_state);
+	DEFINE_ADDON_EVENT_TYPE_3(addon_event::create_resource_view, api::device *device, api::resource_handle resource, api::resource_usage usage_type, const api::resource_view_desc &desc);
+	DEFINE_ADDON_EVENT_TYPE_3(addon_event::create_shader_module, api::device *device, const void *code, size_t code_size);
 
-	DEFINE_ADDON_EVENT_WITH_CALL_CHAIN(addon_event::set_index_buffer, void, api::command_list *cmd_list, api::resource_handle buffer, uint32_t format, uint64_t offset);
-	DEFINE_ADDON_EVENT_WITH_CALL_CHAIN(addon_event::set_vertex_buffers, void, api::command_list *cmd_list, uint32_t first, uint32_t count, const api::resource_handle *buffers, const uint32_t *strides, const uint64_t *offsets);
-	DEFINE_ADDON_EVENT_WITH_CALL_CHAIN(addon_event::set_viewports, void, api::command_list *cmd_list, uint32_t first, uint32_t count, const float *viewports);
-	DEFINE_ADDON_EVENT_WITH_CALL_CHAIN(addon_event::set_scissor_rects, void, api::command_list *cmd_list, uint32_t first, uint32_t count, const int32_t *rects);
-	DEFINE_ADDON_EVENT_WITH_CALL_CHAIN(addon_event::set_render_targets_and_depth_stencil, void, api::command_list *cmd_list, uint32_t count, const api::resource_view_handle *rtvs, api::resource_view_handle dsv);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::set_index_buffer, api::command_list *cmd_list, api::resource_handle buffer, uint32_t format, uint64_t offset);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::set_vertex_buffers, api::command_list *cmd_list, uint32_t first, uint32_t count, const api::resource_handle *buffers, const uint32_t *strides, const uint64_t *offsets);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::set_viewports, api::command_list *cmd_list, uint32_t first, uint32_t count, const float *viewports);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::set_scissor_rects, api::command_list *cmd_list, uint32_t first, uint32_t count, const int32_t *rects);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::set_render_targets_and_depth_stencil, api::command_list *cmd_list, uint32_t count, const api::resource_view_handle *rtvs, api::resource_view_handle dsv);
 
-	DEFINE_ADDON_EVENT_WITH_CALL_CHAIN(addon_event::draw, void, api::command_list *cmd_list, uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance);
-	DEFINE_ADDON_EVENT_WITH_CALL_CHAIN(addon_event::draw_indexed, void, api::command_list *cmd_list, uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance);
-	DEFINE_ADDON_EVENT_WITH_CALL_CHAIN(addon_event::dispatch, void, api::command_list *cmd_list, uint32_t num_groups_x, uint32_t num_groups_y, uint32_t num_groups_z);
-	DEFINE_ADDON_EVENT_WITH_CALL_CHAIN(addon_event::draw_or_dispatch_indirect, void, api::command_list *cmd_list, addon_event type, api::resource_handle buffer, uint64_t offset, uint32_t draw_count, uint32_t stride);
-	DEFINE_ADDON_EVENT_WITH_CALL_CHAIN(addon_event::clear_depth_stencil, void, api::command_list *cmd_list, api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil);
-	DEFINE_ADDON_EVENT_WITH_CALL_CHAIN(addon_event::clear_render_target, void, api::command_list *cmd_list, api::resource_view_handle rtv, const float color[4]);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::draw, api::command_list *cmd_list, uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::draw_indexed, api::command_list *cmd_list, uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::dispatch, api::command_list *cmd_list, uint32_t num_groups_x, uint32_t num_groups_y, uint32_t num_groups_z);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::draw_or_dispatch_indirect, api::command_list *cmd_list, addon_event type, api::resource_handle buffer, uint64_t offset, uint32_t draw_count, uint32_t stride);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::clear_depth_stencil, api::command_list *cmd_list, api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::clear_render_target, api::command_list *cmd_list, api::resource_view_handle rtv, const float color[4]);
 
-	DEFINE_ADDON_EVENT(addon_event::reset_command_list, void, api::command_list *cmd_list);
-	DEFINE_ADDON_EVENT(addon_event::execute_command_list, void, api::command_queue *queue, api::command_list *cmd_list);
-	DEFINE_ADDON_EVENT(addon_event::execute_secondary_command_list, void, api::command_list *cmd_list, api::command_list *secondary_cmd_list);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::reset_command_list, api::command_list *cmd_list);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::execute_command_list, api::command_queue *queue, api::command_list *cmd_list);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::execute_secondary_command_list, api::command_list *cmd_list, api::command_list *secondary_cmd_list);
 
-	DEFINE_ADDON_EVENT(addon_event::resize, void, api::effect_runtime *runtime, uint32_t width, uint32_t height);
-	DEFINE_ADDON_EVENT(addon_event::present, void, api::command_queue *present_queue, api::effect_runtime *runtime);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::resize, api::effect_runtime *runtime, uint32_t width, uint32_t height);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::present, api::command_queue *present_queue, api::effect_runtime *runtime);
 
-	DEFINE_ADDON_EVENT(addon_event::reshade_before_effects, void, api::effect_runtime *runtime, api::command_list *cmd_list);
-	DEFINE_ADDON_EVENT(addon_event::reshade_after_effects, void, api::effect_runtime *runtime, api::command_list *cmd_list);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::reshade_before_effects, api::effect_runtime *runtime, api::command_list *cmd_list);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::reshade_after_effects, api::effect_runtime *runtime, api::command_list *cmd_list);
 
-#undef DEFINE_ADDON_EVENT
-#undef DEFINE_ADDON_EVENT_WITH_CALL_CHAIN
+#undef DEFINE_ADDON_EVENT_TYPE_1
+#undef DEFINE_ADDON_EVENT_TYPE_2
+#undef DEFINE_ADDON_EVENT_TYPE_3
 }

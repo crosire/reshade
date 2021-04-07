@@ -12,6 +12,7 @@
 extern void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d3d, UINT adapter_index);
 extern void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, D3DDISPLAYMODEEX &fullscreen_desc, IDirect3D9 *d3d, UINT adapter_index);
 
+#if RESHADE_ADDON
 static inline UINT calc_vertex_from_prim_count(D3DPRIMITIVETYPE type, UINT count)
 {
 	switch (type)
@@ -29,23 +30,7 @@ static inline UINT calc_vertex_from_prim_count(D3DPRIMITIVETYPE type, UINT count
 		return count + 2;
 	}
 }
-static inline UINT calc_prim_from_vertex_count(D3DPRIMITIVETYPE type, UINT count)
-{
-	switch (type)
-	{
-	default:
-		return 0;
-	case D3DPT_LINELIST:
-		return count / 2;
-	case D3DPT_LINESTRIP:
-		return count - 1;
-	case D3DPT_TRIANGLELIST:
-		return count / 3;
-	case D3DPT_TRIANGLESTRIP:
-	case D3DPT_TRIANGLEFAN:
-		return count - 2;
-	}
-}
+#endif
 
 Direct3DDevice9::Direct3DDevice9(IDirect3DDevice9   *original, bool use_software_rendering) :
 	device_impl(original),
@@ -657,85 +642,51 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateOffscreenPlainSurface(UINT Widt
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetRenderTarget(DWORD RenderTargetIndex, IDirect3DSurface9 *pRenderTarget)
 {
+	const HRESULT hr = _orig->SetRenderTarget(RenderTargetIndex, pRenderTarget);
 #if RESHADE_ADDON
-	DWORD count = 0;
-	com_ptr<IDirect3DSurface9> surface;
-	reshade::api::resource_view_handle rtvs[8], dsv = { 0 };
-	for (DWORD i = 0; i < _caps.NumSimultaneousRTs; ++i, surface.reset())
+	if (SUCCEEDED(hr))
 	{
-		if (i == RenderTargetIndex)
-		{
-			rtvs[i] = { reinterpret_cast<uintptr_t>(pRenderTarget) };
-		}
-		else
+		DWORD count = 0;
+		com_ptr<IDirect3DSurface9> surface;
+		reshade::api::resource_view_handle rtvs[8], dsv = { 0 };
+		for (DWORD i = 0; i < _caps.NumSimultaneousRTs; ++i, surface.reset())
 		{
 			if (FAILED(_orig->GetRenderTarget(i, &surface)))
 				continue;
 
 			// All surfaces that can be used as render target should be registered at this point
 			rtvs[i] = { reinterpret_cast<uintptr_t>(surface.get()) };
+			count = i + 1;
+		}
+		if (SUCCEEDED(_orig->GetDepthStencilSurface(&surface)))
+		{
+			// All surfaces that can be used as depth-stencil should be registered at this point
+			dsv = { reinterpret_cast<uintptr_t>(surface.get()) };
 		}
 
-		count = i + 1;
+		reshade::invoke_addon_event<reshade::addon_event::set_render_targets_and_depth_stencil>(this, count, rtvs, dsv);
+
+		if (pRenderTarget != nullptr)
+		{
+			// Setting a new render target will cause the viewport to be set to the full size of the new render target
+			// See https://docs.microsoft.com/windows/win32/api/d3d9helper/nf-d3d9helper-idirect3ddevice9-setrendertarget
+			D3DSURFACE_DESC rtv_desc = {};
+			pRenderTarget->GetDesc(&rtv_desc);
+
+			const float viewport_data[6] = {
+				0.0f,
+				0.0f,
+				static_cast<float>(rtv_desc.Width),
+				static_cast<float>(rtv_desc.Height),
+				0.0f,
+				1.0f
+			};
+
+			reshade::invoke_addon_event<reshade::addon_event::set_viewports>(this, 0, 1, viewport_data);
+		}
 	}
-	if (SUCCEEDED(_orig->GetDepthStencilSurface(&surface)))
-	{
-		// All surfaces that can be used as depth-stencil should be registered at this point
-		dsv = { reinterpret_cast<uintptr_t>(surface.get()) };
-	}
-
-	HRESULT hr = D3D_OK;
-	reshade::invoke_addon_event<reshade::addon_event::set_render_targets_and_depth_stencil>(
-		[this, &hr, &rtvs, &dsv, RenderTargetIndex](reshade::api::command_list *, uint32_t count, const reshade::api::resource_view_handle *new_rtvs, reshade::api::resource_view_handle new_dsv) {
-			for (DWORD i = 0; i < count; ++i)
-			{
-				if (i != RenderTargetIndex && new_rtvs[i] == rtvs[i])
-					continue;
-				hr = _orig->SetRenderTarget(i, reinterpret_cast<IDirect3DSurface9 *>(new_rtvs[i].handle));
-			}
-			if (new_dsv != dsv)
-			{
-				_orig->SetDepthStencilSurface(reinterpret_cast<IDirect3DSurface9 *>(new_dsv.handle));
-			}
-		}, this, count, rtvs, dsv);
-
-	if (pRenderTarget != nullptr)
-	{
-		// Setting a new render target will cause the viewport to be set to the full size of the new render target
-		// See https://docs.microsoft.com/windows/win32/api/d3d9helper/nf-d3d9helper-idirect3ddevice9-setrendertarget
-		D3DSURFACE_DESC rtv_desc = {};
-		pRenderTarget->GetDesc(&rtv_desc);
-
-		const float viewport_data[6] = {
-			0.0f,
-			0.0f,
-			static_cast<float>(rtv_desc.Width),
-			static_cast<float>(rtv_desc.Height),
-			0.0f,
-			1.0f
-		};
-
-		reshade::invoke_addon_event<reshade::addon_event::set_viewports>(
-			[this, &viewport_data](reshade::api::command_list *, uint32_t first, uint32_t count, const float *viewports) {
-				assert(first == 0);
-				if (count != 1 || std::memcmp(viewports, viewport_data, 6 * sizeof(float)) == 0)
-					return;
-				const D3DVIEWPORT9 new_viewport = {
-					static_cast<DWORD>(viewports[0]),
-					static_cast<DWORD>(viewports[1]),
-					static_cast<DWORD>(viewports[2]),
-					static_cast<DWORD>(viewports[3]),
-					viewports[4],
-					viewports[5]
-				};
-				_orig->SetViewport(&new_viewport);
-			}, this, 0, 1, viewport_data);
-	}
-
-	return hr;
-#else
-	return _orig->SetRenderTarget(RenderTargetIndex, pRenderTarget);
 #endif
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetRenderTarget(DWORD RenderTargetIndex, IDirect3DSurface9 **ppRenderTarget)
 {
@@ -743,36 +694,26 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetRenderTarget(DWORD RenderTargetInd
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetDepthStencilSurface(IDirect3DSurface9 *pNewZStencil)
 {
+	const HRESULT hr = _orig->SetDepthStencilSurface(pNewZStencil);
 #if RESHADE_ADDON
-	DWORD count = 0;
-	com_ptr<IDirect3DSurface9> surface;
-	reshade::api::resource_view_handle rtvs[8];
-	for (DWORD i = 0; i < _caps.NumSimultaneousRTs; ++i, surface.reset())
+	if (SUCCEEDED(hr))
 	{
-		if (FAILED(_orig->GetRenderTarget(i, &surface)))
-			continue;
+		DWORD count = 0;
+		com_ptr<IDirect3DSurface9> surface;
+		reshade::api::resource_view_handle rtvs[8];
+		for (DWORD i = 0; i < _caps.NumSimultaneousRTs; ++i, surface.reset())
+		{
+			if (FAILED(_orig->GetRenderTarget(i, &surface)))
+				continue;
 
-		rtvs[i] = { reinterpret_cast<uintptr_t>(surface.get()) };
-		count = i + 1;
+			rtvs[i] = { reinterpret_cast<uintptr_t>(surface.get()) };
+			count = i + 1;
+		}
+
+		reshade::invoke_addon_event<reshade::addon_event::set_render_targets_and_depth_stencil>(this, count, rtvs, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(pNewZStencil) });
 	}
-
-	HRESULT hr = D3D_OK;
-	reshade::invoke_addon_event<reshade::addon_event::set_render_targets_and_depth_stencil>(
-		[this, &hr, &rtvs](reshade::api::command_list *, uint32_t count, const reshade::api::resource_view_handle *new_rtvs, reshade::api::resource_view_handle new_dsv) {
-			for (DWORD i = 0; i < count; ++i)
-			{
-				if (new_rtvs[i] == rtvs[i])
-					continue;
-				_orig->SetRenderTarget(i, reinterpret_cast<IDirect3DSurface9 *>(new_rtvs[i].handle));
-			}
-			{
-				hr = _orig->SetDepthStencilSurface(reinterpret_cast<IDirect3DSurface9 *>(new_dsv.handle));
-			}
-		}, this, count, rtvs, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(pNewZStencil) });
-	return hr;
-#else
-	return _orig->SetDepthStencilSurface(pNewZStencil);
 #endif
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetDepthStencilSurface(IDirect3DSurface9 **ppZStencilSurface)
 {
@@ -789,7 +730,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::EndScene()
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::Clear(DWORD Count, const D3DRECT *pRects, DWORD Flags, D3DCOLOR Color, float Z, DWORD Stencil)
 {
 #if RESHADE_ADDON
-	if ((Flags & (D3DCLEAR_TARGET)) != 0)
+	if (Flags & (D3DCLEAR_TARGET))
 	{
 		const float color[4] = { ((Color >> 16) & 0xFF) / 255.0f, ((Color >> 8) & 0xFF) / 255.0f, (Color & 0xFF) / 255.0f, ((Color >> 24) & 0xFF) / 255.0f };
 
@@ -802,40 +743,24 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Clear(DWORD Count, const D3DRECT *pRe
 			if (surfaces[i] == nullptr)
 				continue;
 
-			reshade::invoke_addon_event<reshade::addon_event::clear_render_target>(
-				[this, &surfaces, Count, pRects](reshade::api::command_list *, reshade::api::resource_view_handle new_rtv, const float color[4]) {
-					D3DVIEWPORT9 viewport = {};
-					_orig->GetViewport(&viewport);
-					_orig->SetRenderTarget(0, reinterpret_cast<IDirect3DSurface9 *>(new_rtv.handle));
-					for (DWORD i = 1; i < _caps.NumSimultaneousRTs; ++i)
-						_orig->SetRenderTarget(i, nullptr);
-					// Clear each render target individually
-					_orig->Clear(Count, pRects, D3DCLEAR_TARGET, D3DCOLOR_COLORVALUE(color[0], color[1], color[2], color[3]), 0.0f, 0);
-					for (DWORD i = 0; i < _caps.NumSimultaneousRTs; ++i)
-						_orig->SetRenderTarget(i, surfaces[i].get());
-					_orig->SetViewport(&viewport);
-				}, this, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(surfaces[i].get()) }, color);
+			if (reshade::invoke_addon_event<reshade::addon_event::clear_render_target>(this, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(surfaces[i].get()) }, color))
+				Flags &= ~(D3DCLEAR_TARGET); // This will skip clears of all bound render targets, not just the one from this event
 		}
 	}
-	if ((Flags & (D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL)) != 0)
+	if (Flags & (D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL))
 	{
 		com_ptr<IDirect3DSurface9> surface;
 		if (SUCCEEDED(_orig->GetDepthStencilSurface(&surface)))
 		{
-			reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil>(
-				[this, Count, pRects, dsv = reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(surface.get()) }](reshade::api::command_list *, reshade::api::resource_view_handle new_dsv, uint32_t clear_flags, float depth, uint8_t stencil) {
-					if (new_dsv != dsv)
-						_orig->SetDepthStencilSurface(reinterpret_cast<IDirect3DSurface9 *>(new_dsv.handle));
-					_orig->Clear(Count, pRects, clear_flags << 1, 0, depth, stencil);
-					if (new_dsv != dsv)
-						_orig->SetDepthStencilSurface(reinterpret_cast<IDirect3DSurface9 *>(dsv.handle));
-				}, this, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(surface.get()) }, Flags >> 1, Z, static_cast<uint8_t>(Stencil));
+			if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil>(this, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(surface.get()) }, Flags >> 1, Z, static_cast<uint8_t>(Stencil)))
+				Flags &= ~(D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL);
 		}
 	}
-	return D3D_OK;
-#else
-	return _orig->Clear(Count, pRects, Flags, Color, Z, Stencil);
+
+	if (Flags == 0) // Nothing to clear, so skip D3D call
+		return D3D_OK;
 #endif
+	return _orig->Clear(Count, pRects, Flags, Color, Z, Stencil);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetTransform(D3DTRANSFORMSTATETYPE State, const D3DMATRIX *pMatrix)
 {
@@ -851,36 +776,23 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::MultiplyTransform(D3DTRANSFORMSTATETY
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetViewport(const D3DVIEWPORT9 *pViewport)
 {
+	const HRESULT hr = _orig->SetViewport(pViewport);
 #if RESHADE_ADDON
-	const float viewport_data[6] = {
-		static_cast<float>(pViewport->X),
-		static_cast<float>(pViewport->Y),
-		static_cast<float>(pViewport->Width),
-		static_cast<float>(pViewport->Height),
-		pViewport->MinZ,
-		pViewport->MaxZ
-	};
+	if (SUCCEEDED(hr))
+	{
+		const float viewport_data[6] = {
+			static_cast<float>(pViewport->X),
+			static_cast<float>(pViewport->Y),
+			static_cast<float>(pViewport->Width),
+			static_cast<float>(pViewport->Height),
+			pViewport->MinZ,
+			pViewport->MaxZ
+		};
 
-	HRESULT hr = D3D_OK;
-	reshade::invoke_addon_event<reshade::addon_event::set_viewports>(
-		[this, &hr](reshade::api::command_list *, uint32_t first, uint32_t count, const float *viewports) {
-			assert(first == 0);
-			if (count != 1)
-				return;
-			const D3DVIEWPORT9 new_viewport = {
-				static_cast<DWORD>(viewports[0]),
-				static_cast<DWORD>(viewports[1]),
-				static_cast<DWORD>(viewports[2]),
-				static_cast<DWORD>(viewports[3]),
-				viewports[4],
-				viewports[5],
-			};
-			hr = _orig->SetViewport(&new_viewport);
-		}, this, 0, 1, viewport_data);
-	return hr;
-#else
-	return _orig->SetViewport(pViewport);
+		reshade::invoke_addon_event<reshade::addon_event::set_viewports>(this, 0, 1, viewport_data);
+	}
 #endif
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetViewport(D3DVIEWPORT9 *pViewport)
 {
@@ -992,32 +904,21 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetCurrentTexturePalette(UINT *Palett
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetScissorRect(const RECT *pRect)
 {
+	const HRESULT hr = _orig->SetScissorRect(pRect);
 #if RESHADE_ADDON
-	const int32_t rect_data[4] = {
-		static_cast<int32_t>(pRect->left),
-		static_cast<int32_t>(pRect->top),
-		static_cast<int32_t>(pRect->right - pRect->left),
-		static_cast<int32_t>(pRect->bottom - pRect->top)
-	};
+	if (SUCCEEDED(hr))
+	{
+		const int32_t rect_data[4] = {
+			static_cast<int32_t>(pRect->left),
+			static_cast<int32_t>(pRect->top),
+			static_cast<int32_t>(pRect->right - pRect->left),
+			static_cast<int32_t>(pRect->bottom - pRect->top)
+		};
 
-	HRESULT hr = D3D_OK;
-	reshade::invoke_addon_event<reshade::addon_event::set_scissor_rects>(
-		[this, &hr](reshade::api::command_list *, uint32_t first, uint32_t count, const int32_t *rects) {
-			assert(first == 0);
-			if (count != 1)
-				return;
-			const RECT new_rect = {
-				static_cast<LONG>(rects[0]),
-				static_cast<LONG>(rects[1]),
-				static_cast<LONG>(rects[0] + rects[2]),
-				static_cast<LONG>(rects[1] + rects[3]),
-			};
-			hr = _orig->SetScissorRect(&new_rect);
-		}, this, 0, 1, rect_data);
-	return hr;
-#else
-	return _orig->SetScissorRect(pRect);
+		reshade::invoke_addon_event<reshade::addon_event::set_scissor_rects>(this, 0, 1, rect_data);
+	}
 #endif
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetScissorRect(RECT *pRect)
 {
@@ -1042,63 +943,34 @@ float   STDMETHODCALLTYPE Direct3DDevice9::GetNPatchMode()
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawPrimitive(D3DPRIMITIVETYPE PrimitiveType, UINT StartVertex, UINT PrimitiveCount)
 {
 #if RESHADE_ADDON
-	HRESULT hr = D3D_OK;
-	reshade::invoke_addon_event<reshade::addon_event::draw>(
-		[this, &hr, PrimitiveType](reshade::api::command_list *, uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance) {
-			assert(instances == 1 && first_instance == 0);
-			hr = _orig->DrawPrimitive(PrimitiveType, first_vertex, calc_prim_from_vertex_count(PrimitiveType, vertices));
-		}, this, calc_vertex_from_prim_count(PrimitiveType, PrimitiveCount), 1, StartVertex, 0);
-	return hr;
-#else
-	return _orig->DrawPrimitive(PrimitiveType, StartVertex, PrimitiveCount);
+	if (reshade::invoke_addon_event<reshade::addon_event::draw>(this, calc_vertex_from_prim_count(PrimitiveType, PrimitiveCount), 1, StartVertex, 0))
+		return D3D_OK;
 #endif
+	return _orig->DrawPrimitive(PrimitiveType, StartVertex, PrimitiveCount);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawIndexedPrimitive(D3DPRIMITIVETYPE PrimitiveType, INT BaseVertexIndex, UINT MinVertexIndex, UINT NumVertices, UINT StartIndex, UINT PrimitiveCount)
 {
 #if RESHADE_ADDON
-	HRESULT hr = D3D_OK;
-	reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(
-		[this, &hr, PrimitiveType, MinVertexIndex, NumVertices](reshade::api::command_list *, uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance) {
-			assert(instances == 1 && first_instance == 0);
-			hr = _orig->DrawIndexedPrimitive(PrimitiveType, vertex_offset, MinVertexIndex, NumVertices, first_index, calc_prim_from_vertex_count(PrimitiveType, indices));
-		}, this, calc_vertex_from_prim_count(PrimitiveType, PrimitiveCount), 1, StartIndex, BaseVertexIndex, 0);
-	return hr;
-#else
-	return _orig->DrawIndexedPrimitive(PrimitiveType, BaseVertexIndex, MinVertexIndex, NumVertices, StartIndex, PrimitiveCount);
+	if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(this, calc_vertex_from_prim_count(PrimitiveType, PrimitiveCount), 1, StartIndex, BaseVertexIndex, 0))
+		return D3D_OK;
 #endif
+	return _orig->DrawIndexedPrimitive(PrimitiveType, BaseVertexIndex, MinVertexIndex, NumVertices, StartIndex, PrimitiveCount);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawPrimitiveUP(D3DPRIMITIVETYPE PrimitiveType, UINT PrimitiveCount, const void *pVertexStreamZeroData, UINT VertexStreamZeroStride)
 {
 #if RESHADE_ADDON
-	// TODO: Distinguish from normal draw calls?
-	HRESULT hr = D3D_OK;
-	reshade::invoke_addon_event<reshade::addon_event::draw>(
-		[this, &hr, PrimitiveType, pVertexStreamZeroData, VertexStreamZeroStride](reshade::api::command_list *, uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance) {
-			assert(instances == 1 && first_instance == 0);
-			if (first_vertex != 0)
-				return;
-			hr = _orig->DrawPrimitiveUP(PrimitiveType, calc_prim_from_vertex_count(PrimitiveType, vertices), pVertexStreamZeroData, VertexStreamZeroStride);
-		}, this, calc_vertex_from_prim_count(PrimitiveType, PrimitiveCount), 1, 0, 0);
-	return hr;
-#else
-	return _orig->DrawPrimitiveUP(PrimitiveType, PrimitiveCount, pVertexStreamZeroData, VertexStreamZeroStride);
+	if (reshade::invoke_addon_event<reshade::addon_event::draw>(this, calc_vertex_from_prim_count(PrimitiveType, PrimitiveCount), 1, 0, 0))
+		return D3D_OK;
 #endif
+	return _orig->DrawPrimitiveUP(PrimitiveType, PrimitiveCount, pVertexStreamZeroData, VertexStreamZeroStride);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawIndexedPrimitiveUP(D3DPRIMITIVETYPE PrimitiveType, UINT MinVertexIndex, UINT NumVertices, UINT PrimitiveCount, const void *pIndexData, D3DFORMAT IndexDataFormat, const void *pVertexStreamZeroData, UINT VertexStreamZeroStride)
 {
 #if RESHADE_ADDON
-	HRESULT hr = D3D_OK;
-	reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(
-		[this, &hr, PrimitiveType, MinVertexIndex, NumVertices, pIndexData, IndexDataFormat, pVertexStreamZeroData, VertexStreamZeroStride](reshade::api::command_list *, uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance) {
-			assert(instances == 1 && first_index == 0 && vertex_offset == 0 && first_instance == 0);
-			if (vertex_offset != 0)
-				return;
-			hr = _orig->DrawIndexedPrimitiveUP(PrimitiveType, MinVertexIndex, NumVertices, calc_prim_from_vertex_count(PrimitiveType, indices), pIndexData, IndexDataFormat, pVertexStreamZeroData, VertexStreamZeroStride);
-		}, this, calc_vertex_from_prim_count(PrimitiveType, PrimitiveCount), 1, 0, 0, 0);
-	return hr;
-#else
-	return _orig->DrawIndexedPrimitiveUP(PrimitiveType, MinVertexIndex, NumVertices, PrimitiveCount, pIndexData, IndexDataFormat, pVertexStreamZeroData, VertexStreamZeroStride);
+	if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(this, calc_vertex_from_prim_count(PrimitiveType, PrimitiveCount), 1, 0, 0, 0))
+		return D3D_OK;
 #endif
+	return _orig->DrawIndexedPrimitiveUP(PrimitiveType, MinVertexIndex, NumVertices, PrimitiveCount, pIndexData, IndexDataFormat, pVertexStreamZeroData, VertexStreamZeroStride);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::ProcessVertices(UINT SrcStartIndex, UINT DestIndex, UINT VertexCount, IDirect3DVertexBuffer9 *pDestBuffer, IDirect3DVertexDeclaration9 *pVertexDecl, DWORD Flags)
 {
@@ -1132,11 +1004,19 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexShader(const DWORD *pFunc
 	// Total size is at byte offset 24 (see http://timjones.io/blog/archive/2015/09/02/parsing-direct3d-shader-bytecode)
 	const DWORD total_size = pFunction[6];
 
-	HRESULT hr = D3D_OK;
+	HRESULT hr = E_FAIL;
 	reshade::invoke_addon_event<reshade::addon_event::create_shader_module>(
 		[this, &hr, ppShader](reshade::api::device *, const void *code, size_t) {
 			hr = _orig->CreateVertexShader(static_cast<const DWORD *>(code), ppShader);
-			return SUCCEEDED(hr);
+			if (SUCCEEDED(hr))
+			{
+				return true;
+			}
+			else
+			{
+				LOG(WARN) << "IDirect3DDevice9::CreateVertexShader" << " failed with error code " << hr << '.';
+				return false;
+			}
 		}, this, pFunction, total_size);
 	return hr;
 }
@@ -1174,23 +1054,17 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetVertexShaderConstantB(UINT StartRe
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetStreamSource(UINT StreamNumber, IDirect3DVertexBuffer9 *pStreamData, UINT OffsetInBytes, UINT Stride)
 {
+	const HRESULT hr = _orig->SetStreamSource(StreamNumber, pStreamData, OffsetInBytes, Stride);
 #if RESHADE_ADDON
-	const reshade::api::resource_handle buffer = { reinterpret_cast<uintptr_t>(pStreamData) };
-	const uint64_t offset = OffsetInBytes;
+	if (SUCCEEDED(hr))
+	{
+		const reshade::api::resource_handle buffer = { reinterpret_cast<uintptr_t>(pStreamData) };
+		const uint64_t offset = OffsetInBytes;
 
-	HRESULT hr = D3D_OK;
-	reshade::invoke_addon_event<reshade::addon_event::set_vertex_buffers>(
-		[this, &hr, StreamNumber](reshade::api::command_list *, uint32_t first, uint32_t count, const reshade::api::resource_handle *buffers, const uint32_t *strides, const uint64_t *offsets) {
-			for (uint32_t i = 0; i < count; ++i)
-			{
-				assert(offsets[i] <= std::numeric_limits<UINT>::max());
-				hr = _orig->SetStreamSource(first + i, reinterpret_cast<IDirect3DVertexBuffer9 *>(buffers[i].handle), static_cast<UINT>(offsets[i]), strides[i]);
-			}
-		}, this, StreamNumber, 1, &buffer, &Stride, &offset);
-	return hr;
-#else
-	return _orig->SetStreamSource(StreamNumber, pStreamData, OffsetInBytes, Stride);
+		reshade::invoke_addon_event<reshade::addon_event::set_vertex_buffers>(this, StreamNumber, 1, &buffer, &Stride, &offset);
+	}
 #endif
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetStreamSource(UINT StreamNumber, IDirect3DVertexBuffer9 **ppStreamData, UINT *OffsetInBytes, UINT *pStride)
 {
@@ -1206,22 +1080,19 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetStreamSourceFreq(UINT StreamNumber
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetIndices(IDirect3DIndexBuffer9 *pIndexData)
 {
+	const HRESULT hr = _orig->SetIndices(pIndexData);
 #if RESHADE_ADDON
-	uint32_t format = 0;
-	if (D3DINDEXBUFFER_DESC desc;
-		pIndexData != nullptr && SUCCEEDED(pIndexData->GetDesc(&desc)))
-		format = static_cast<uint32_t>(desc.Format);
+	if (SUCCEEDED(hr))
+	{
+		uint32_t format = 0;
+		if (D3DINDEXBUFFER_DESC desc;
+			pIndexData != nullptr && SUCCEEDED(pIndexData->GetDesc(&desc)))
+			format = static_cast<uint32_t>(desc.Format);
 
-	HRESULT hr = D3D_OK;
-	reshade::invoke_addon_event<reshade::addon_event::set_index_buffer>(
-		[this, &hr](reshade::api::command_list *, reshade::api::resource_handle buffer, uint32_t, uint64_t offset) {
-			assert(offset == 0);
-			hr = _orig->SetIndices(reinterpret_cast<IDirect3DIndexBuffer9 *>(buffer.handle));
-		}, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pIndexData) }, format, 0ull);
-	return hr;
-#else
-	return _orig->SetIndices(pIndexData);
+		reshade::invoke_addon_event<reshade::addon_event::set_index_buffer>(this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pIndexData) }, format, 0ull);
+	}
 #endif
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetIndices(IDirect3DIndexBuffer9 **ppIndexData)
 {
@@ -1235,11 +1106,19 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreatePixelShader(const DWORD *pFunct
 	// Total size is at byte offset 24 (see http://timjones.io/blog/archive/2015/09/02/parsing-direct3d-shader-bytecode)
 	const DWORD total_size = pFunction[6];
 
-	HRESULT hr = D3D_OK;
+	HRESULT hr = E_FAIL;
 	reshade::invoke_addon_event<reshade::addon_event::create_shader_module>(
 		[this, &hr, ppShader](reshade::api::device *, const void *code, size_t) {
 			hr = _orig->CreatePixelShader(static_cast<const DWORD *>(code), ppShader);
-			return SUCCEEDED(hr);
+			if (SUCCEEDED(hr))
+			{
+				return true;
+			}
+			else
+			{
+				LOG(WARN) << "IDirect3DDevice9::CreatePixelShader" << " failed with error code " << hr << '.';
+				return false;
+			}
 		}, this, pFunction, total_size);
 	return hr;
 }

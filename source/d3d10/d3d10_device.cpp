@@ -105,31 +105,19 @@ void    STDMETHODCALLTYPE D3D10Device::VSSetShader(ID3D10VertexShader *pVertexSh
 }
 void    STDMETHODCALLTYPE D3D10Device::DrawIndexed(UINT IndexCount, UINT StartIndexLocation, INT BaseVertexLocation)
 {
-	reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(
-		[this](reshade::api::command_list *, uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance) {
 #if RESHADE_ADDON
-			if (instances != 1 || first_instance != 0)
-				_orig->DrawIndexedInstanced(indices, instances, first_index, vertex_offset, first_instance);
-			else
-#else
-			assert(instances == 1 && first_instance == 0);
+	if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(this, IndexCount, 1, StartIndexLocation, BaseVertexLocation, 0))
+		return;
 #endif
-			_orig->DrawIndexed(indices, first_index, vertex_offset);
-		}, this, IndexCount, 1, StartIndexLocation, BaseVertexLocation, 0);
+	_orig->DrawIndexed(IndexCount, StartIndexLocation, BaseVertexLocation);
 }
 void    STDMETHODCALLTYPE D3D10Device::Draw(UINT VertexCount, UINT StartVertexLocation)
 {
-	reshade::invoke_addon_event<reshade::addon_event::draw>(
-		[this](reshade::api::command_list *, uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance) {
 #if RESHADE_ADDON
-			if (instances != 1 || first_instance != 0)
-				_orig->DrawInstanced(vertices, instances, first_vertex, first_instance);
-			else
-#else
-			assert(instances == 1 && first_instance == 0);
+	if (reshade::invoke_addon_event<reshade::addon_event::draw>(this, VertexCount, 1, StartVertexLocation, 0))
+		return;
 #endif
-			_orig->Draw(vertices, first_vertex);
-		}, this, VertexCount, 1, StartVertexLocation, 0);
+	_orig->Draw(VertexCount, StartVertexLocation);
 }
 void    STDMETHODCALLTYPE D3D10Device::PSSetConstantBuffers(UINT StartSlot, UINT NumBuffers, ID3D10Buffer *const *ppConstantBuffers)
 {
@@ -141,12 +129,16 @@ void    STDMETHODCALLTYPE D3D10Device::IASetInputLayout(ID3D10InputLayout *pInpu
 }
 void    STDMETHODCALLTYPE D3D10Device::IASetVertexBuffers(UINT StartSlot, UINT NumBuffers, ID3D10Buffer *const *ppVertexBuffers, const UINT *pStrides, const UINT *pOffsets)
 {
+	_orig->IASetVertexBuffers(StartSlot, NumBuffers, ppVertexBuffers, pStrides, pOffsets);
+
 #if RESHADE_ADDON
 	assert(NumBuffers <= D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT);
-#ifdef WIN64
-	const auto buffers = reinterpret_cast<const reshade::api::resource_handle *>(ppVertexBuffers);
-#else
+
+#ifndef WIN64
 	reshade::api::resource_handle buffers[D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
+#else
+	static_assert(sizeof(*ppVertexBuffers) == sizeof(reshade::api::resource_handle));
+	const auto buffers = reinterpret_cast<const reshade::api::resource_handle *>(ppVertexBuffers);
 #endif
 	uint64_t offsets[D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
 	for (UINT i = 0; i < NumBuffers; ++i)
@@ -157,48 +149,32 @@ void    STDMETHODCALLTYPE D3D10Device::IASetVertexBuffers(UINT StartSlot, UINT N
 		offsets[i] = pOffsets[i];
 	}
 
-	reshade::invoke_addon_event<reshade::addon_event::set_vertex_buffers>(
-		[this](reshade::api::command_list *, uint32_t first, uint32_t count, const reshade::api::resource_handle *new_buffers, const uint32_t *strides, const uint64_t *new_offsets) {
-#ifdef WIN64
-			const auto buffers = reinterpret_cast<ID3D10Buffer *const *>(new_buffers);
-#else
-			ID3D10Buffer *buffers[D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
-#endif
-			UINT offsets[D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
-			for (UINT i = 0; i < count; ++i)
-			{
-#ifndef WIN64
-				buffers[i] = reinterpret_cast<ID3D10Buffer *>(new_buffers[i].handle);
-#endif
-				assert(new_offsets[i] <= std::numeric_limits<UINT>::max());
-				offsets[i] = static_cast<UINT>(new_offsets[i]);
-			}
-			_orig->IASetVertexBuffers(first, count, buffers, strides, offsets);
-		}, this, StartSlot, NumBuffers, buffers, pStrides, offsets);
-#else
-	_orig->IASetVertexBuffers(StartSlot, NumBuffers, ppVertexBuffers, pStrides, pOffsets);
+	reshade::invoke_addon_event<reshade::addon_event::set_vertex_buffers>(this, StartSlot, NumBuffers, buffers, pStrides, offsets);
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::IASetIndexBuffer(ID3D10Buffer *pIndexBuffer, DXGI_FORMAT Format, UINT Offset)
 {
-	reshade::invoke_addon_event<reshade::addon_event::set_index_buffer>(
-		[this](reshade::api::command_list *, reshade::api::resource_handle new_buffer, uint32_t format, uint64_t new_offset) {
-			_orig->IASetIndexBuffer(reinterpret_cast<ID3D10Buffer *>(new_buffer.handle), static_cast<DXGI_FORMAT>(format), static_cast<UINT>(new_offset));
-		}, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pIndexBuffer) }, static_cast<uint32_t>(Format), Offset);
+	_orig->IASetIndexBuffer(pIndexBuffer, Format, Offset);
+
+#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::set_index_buffer>(this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pIndexBuffer) }, static_cast<uint32_t>(Format), Offset);
+#endif
 }
 void    STDMETHODCALLTYPE D3D10Device::DrawIndexedInstanced(UINT IndexCountPerInstance, UINT InstanceCount, UINT StartIndexLocation, INT BaseVertexLocation, UINT StartInstanceLocation)
 {
-	reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(
-		[this](reshade::api::command_list *, uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance) {
-			_orig->DrawIndexedInstanced(indices, instances, first_index, vertex_offset, first_instance);
-		}, this, IndexCountPerInstance, InstanceCount, StartIndexLocation, BaseVertexLocation, StartInstanceLocation);
+#if RESHADE_ADDON
+	if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(this, IndexCountPerInstance, InstanceCount, StartIndexLocation, BaseVertexLocation, StartInstanceLocation))
+		return;
+#endif
+	_orig->DrawIndexedInstanced(IndexCountPerInstance, InstanceCount, StartIndexLocation, BaseVertexLocation, StartInstanceLocation);
 }
 void    STDMETHODCALLTYPE D3D10Device::DrawInstanced(UINT VertexCountPerInstance, UINT InstanceCount, UINT StartVertexLocation, UINT StartInstanceLocation)
 {
-	reshade::invoke_addon_event<reshade::addon_event::draw>(
-		[this](reshade::api::command_list *, uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance) {
-			_orig->DrawInstanced(vertices, instances, first_vertex, first_instance);
-		}, this, VertexCountPerInstance, InstanceCount, StartVertexLocation, StartInstanceLocation);
+#if RESHADE_ADDON
+	if (reshade::invoke_addon_event<reshade::addon_event::draw>(this, VertexCountPerInstance, InstanceCount, StartVertexLocation, StartInstanceLocation))
+		return;
+#endif
+	_orig->DrawInstanced(VertexCountPerInstance, InstanceCount, StartVertexLocation, StartInstanceLocation);
 }
 void    STDMETHODCALLTYPE D3D10Device::GSSetConstantBuffers(UINT StartSlot, UINT NumBuffers, ID3D10Buffer *const *ppConstantBuffers)
 {
@@ -234,30 +210,21 @@ void    STDMETHODCALLTYPE D3D10Device::GSSetSamplers(UINT StartSlot, UINT NumSam
 }
 void    STDMETHODCALLTYPE D3D10Device::OMSetRenderTargets(UINT NumViews, ID3D10RenderTargetView *const *ppRenderTargetViews, ID3D10DepthStencilView *pDepthStencilView)
 {
+	_orig->OMSetRenderTargets(NumViews, ppRenderTargetViews, pDepthStencilView);
+
 #if RESHADE_ADDON
 	assert(NumViews <= D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT);
-#ifdef WIN64
-	static_assert(sizeof(*ppRenderTargetViews) == sizeof(reshade::api::resource_view_handle));
-	const auto rtvs = reinterpret_cast<const reshade::api::resource_view_handle *>(ppRenderTargetViews);
-#else
+
+#ifndef WIN64
 	reshade::api::resource_view_handle rtvs[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
 	for (UINT i = 0; i < NumViews; ++i)
 		rtvs[i] = { reinterpret_cast<uintptr_t>(ppRenderTargetViews[i]) };
+#else
+	static_assert(sizeof(*ppRenderTargetViews) == sizeof(reshade::api::resource_view_handle));
+	const auto rtvs = reinterpret_cast<const reshade::api::resource_view_handle *>(ppRenderTargetViews);
 #endif
 
-	reshade::invoke_addon_event<reshade::addon_event::set_render_targets_and_depth_stencil>(
-		[this](reshade::api::command_list *, uint32_t count, const reshade::api::resource_view_handle *new_rtvs, reshade::api::resource_view_handle new_dsv) {
-#ifdef WIN64
-			_orig->OMSetRenderTargets(count, reinterpret_cast<ID3D10RenderTargetView *const *>(new_rtvs), reinterpret_cast<ID3D10DepthStencilView *>(new_dsv.handle));
-#else
-			ID3D10RenderTargetView *rtv_ptrs[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
-			for (UINT i = 0; i < count; ++i)
-				rtv_ptrs[i] = reinterpret_cast<ID3D10RenderTargetView *>(new_rtvs[i].handle);
-			_orig->OMSetRenderTargets(count, rtv_ptrs, reinterpret_cast<ID3D10DepthStencilView *>(new_dsv.handle));
-#endif
-		}, this, NumViews, rtvs, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(pDepthStencilView) });
-#else
-	_orig->OMSetRenderTargets(NumViews, ppRenderTargetViews, pDepthStencilView);
+	reshade::invoke_addon_event<reshade::addon_event::set_render_targets_and_depth_stencil>(this, NumViews, rtvs, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(pDepthStencilView) });
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::OMSetBlendState(ID3D10BlendState *pBlendState, const FLOAT BlendFactor[4], UINT SampleMask)
@@ -274,6 +241,10 @@ void    STDMETHODCALLTYPE D3D10Device::SOSetTargets(UINT NumBuffers, ID3D10Buffe
 }
 void    STDMETHODCALLTYPE D3D10Device::DrawAuto()
 {
+#if RESHADE_ADDON
+	if (reshade::invoke_addon_event<reshade::addon_event::draw>(this, 0, 0, 0, 0))
+		return;
+#endif
 	_orig->DrawAuto();
 }
 void    STDMETHODCALLTYPE D3D10Device::RSSetState(ID3D10RasterizerState *pRasterizerState)
@@ -282,9 +253,12 @@ void    STDMETHODCALLTYPE D3D10Device::RSSetState(ID3D10RasterizerState *pRaster
 }
 void    STDMETHODCALLTYPE D3D10Device::RSSetViewports(UINT NumViewports, const D3D10_VIEWPORT *pViewports)
 {
+	_orig->RSSetViewports(NumViewports, pViewports);
+
 #if RESHADE_ADDON
 	assert(NumViewports <= D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE);
-	float viewport_data[D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE * 6];
+
+	float viewport_data[6 * D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];
 	for (UINT i = 0, k = 0; i < NumViewports; ++i, k += 6)
 	{
 		viewport_data[k + 0] = static_cast<float>(pViewports[i].TopLeftX);
@@ -295,30 +269,17 @@ void    STDMETHODCALLTYPE D3D10Device::RSSetViewports(UINT NumViewports, const D
 		viewport_data[k + 5] = pViewports[i].MaxDepth;
 	}
 
-	reshade::invoke_addon_event<reshade::addon_event::set_viewports>(
-		[this](reshade::api::command_list *, uint32_t first, uint32_t count, const float *viewports) {
-			assert(first == 0);
-			D3D10_VIEWPORT viewport_data[D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];
-			for (UINT i = 0, k = 0; i < count; ++i, k += 6)
-			{
-				viewport_data[i].TopLeftX = static_cast<INT>(viewports[k + 0]);
-				viewport_data[i].TopLeftY = static_cast<INT>(viewports[k + 1]);
-				viewport_data[i].Width   = static_cast<UINT>(viewports[k + 2]);
-				viewport_data[i].Height  = static_cast<UINT>(viewports[k + 3]);
-				viewport_data[i].MinDepth = viewports[k + 4];
-				viewport_data[i].MaxDepth = viewports[k + 5];
-			}
-			_orig->RSSetViewports(count, viewport_data);
-		}, this, 0, NumViewports, viewport_data);
-#else
-	_orig->RSSetViewports(NumViewports, pViewports);
+	reshade::invoke_addon_event<reshade::addon_event::set_viewports>(this, 0, NumViewports, viewport_data);
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::RSSetScissorRects(UINT NumRects, const D3D10_RECT *pRects)
 {
+	_orig->RSSetScissorRects(NumRects, pRects);
+
 #if RESHADE_ADDON
 	assert(NumRects <= D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE);
-	int32_t rect_data[D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE * 4];
+
+	int32_t rect_data[4 * D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];
 	for (UINT i = 0, k = 0; i < NumRects; ++i, k += 4)
 	{
 		rect_data[k + 0] = static_cast<int32_t>(pRects[i].left);
@@ -327,21 +288,7 @@ void    STDMETHODCALLTYPE D3D10Device::RSSetScissorRects(UINT NumRects, const D3
 		rect_data[k + 3] = static_cast<int32_t>(pRects[i].bottom - pRects[i].top);
 	}
 
-	reshade::invoke_addon_event<reshade::addon_event::set_scissor_rects>(
-		[this](reshade::api::command_list *, uint32_t first, uint32_t count, const int32_t *rects) {
-			assert(first == 0);
-			D3D10_RECT rect_data[D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];
-			for (UINT i = 0, k = 0; i < count; ++i, k += 4)
-			{
-				rect_data[i].left = rects[k + 0];
-				rect_data[i].top  = rects[k + 1];
-				rect_data[i].right = rect_data[i].left + rects[k + 2];
-				rect_data[i].bottom = rect_data[i].top + rects[k + 3];
-			}
-			_orig->RSSetScissorRects(count, rect_data);
-		}, this, 0, NumRects, rect_data);
-#else
-	_orig->RSSetScissorRects(NumRects, pRects);
+	reshade::invoke_addon_event<reshade::addon_event::set_scissor_rects>(this, 0, NumRects, rect_data);
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::CopySubresourceRegion(ID3D10Resource *pDstResource, UINT DstSubresource, UINT DstX, UINT DstY, UINT DstZ, ID3D10Resource *pSrcResource, UINT SrcSubresource, const D3D10_BOX *pSrcBox)
@@ -358,17 +305,19 @@ void    STDMETHODCALLTYPE D3D10Device::UpdateSubresource(ID3D10Resource *pDstRes
 }
 void    STDMETHODCALLTYPE D3D10Device::ClearRenderTargetView(ID3D10RenderTargetView *pRenderTargetView, const FLOAT ColorRGBA[4])
 {
-	reshade::invoke_addon_event<reshade::addon_event::clear_render_target>(
-		[this](reshade::api::command_list *, reshade::api::resource_view_handle rtv, const float color[4]) {
-			_orig->ClearRenderTargetView(reinterpret_cast<ID3D10RenderTargetView *>(rtv.handle), color);
-		}, this, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(pRenderTargetView) }, ColorRGBA);
+#if RESHADE_ADDON
+	if (reshade::invoke_addon_event<reshade::addon_event::clear_render_target>(this, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(pRenderTargetView) }, ColorRGBA))
+		return;
+#endif
+	_orig->ClearRenderTargetView(pRenderTargetView, ColorRGBA);
 }
 void    STDMETHODCALLTYPE D3D10Device::ClearDepthStencilView(ID3D10DepthStencilView *pDepthStencilView, UINT ClearFlags, FLOAT Depth, UINT8 Stencil)
 {
-	reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil>(
-		[this](reshade::api::command_list *, reshade::api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil) {
-			_orig->ClearDepthStencilView(reinterpret_cast<ID3D10DepthStencilView *>(dsv.handle), clear_flags, depth, stencil);
-		}, this, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(pDepthStencilView) }, ClearFlags, Depth, Stencil);
+#if RESHADE_ADDON
+	if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil>(this, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(pDepthStencilView) }, ClearFlags, Depth, Stencil))
+		return;
+#endif
+	_orig->ClearDepthStencilView(pDepthStencilView, ClearFlags, Depth, Stencil);
 }
 void    STDMETHODCALLTYPE D3D10Device::GenerateMips(ID3D10ShaderResourceView *pShaderResourceView)
 {

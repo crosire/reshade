@@ -25,7 +25,8 @@ namespace reshade
 #if _ITERATOR_DEBUG_LEVEL != 0
 			next_callback = reinterpret_cast<callback_type *>(event_list.data());
 			last_callback = next_callback + event_list.size();
-#else // std::vector already stores pointers to the begin and end, so loading those directly generates better code (but only works without iterator debugging in case it is empty)
+#else
+			// std::vector already stores pointers to the begin and end, so loading those directly generates better code (but only works without iterator debugging in case it is empty)
 			next_callback = reinterpret_cast<callback_type *>(&(*event_list.begin()));
 			last_callback = reinterpret_cast<callback_type *>(&(*event_list.end()));
 #endif
@@ -38,7 +39,7 @@ namespace reshade
 #endif
 
 	template <addon_event ev, typename... Args>
-	inline std::enable_if_t<!addon_event_traits<ev>::with_call_chain> invoke_addon_event(Args... args)
+	inline std::enable_if_t<addon_event_traits<ev>::type == 1, void> invoke_addon_event(Args... args)
 	{
 #if RESHADE_ADDON
 		std::vector<void *> &event_list = addon::event_list[static_cast<size_t>(ev)];
@@ -46,8 +47,19 @@ namespace reshade
 			reinterpret_cast<typename reshade::addon_event_traits<ev>::decl>(event_list[cb])(std::forward<Args>(args)...);
 #endif
 	}
+	template <addon_event ev, typename... Args>
+	inline std::enable_if_t<addon_event_traits<ev>::type == 2, bool> invoke_addon_event(Args... args)
+	{
+		bool skip = false;
+#if RESHADE_ADDON
+		std::vector<void *> &event_list = addon::event_list[static_cast<size_t>(ev)];
+		for (size_t cb = 0; cb < event_list.size(); ++cb)
+			skip |= reinterpret_cast<typename reshade::addon_event_traits<ev>::decl>(event_list[cb])(std::forward<Args>(args)...);
+#endif
+		return skip;
+	}
 	template <addon_event ev, typename F, typename... Args>
-	inline std::enable_if_t< addon_event_traits<ev>::with_call_chain> invoke_addon_event(F &&terminator, Args... args)
+	inline std::enable_if_t< addon_event_traits<ev>::type == 3, void> invoke_addon_event(F &&terminator, Args... args)
 	{
 #if RESHADE_ADDON
 		addon_event_call_chain<ev, F>(std::move(terminator))(std::forward<Args>(args)...);

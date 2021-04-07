@@ -313,11 +313,11 @@ static bool on_create_resource_view(
 	return call_next(device, resource, usage_type, new_desc);
 }
 
-static void draw_impl(command_list *cmd_list, uint32_t vertices, uint32_t instances)
+static bool on_draw(command_list *cmd_list, uint32_t vertices, uint32_t instances, uint32_t, uint32_t)
 {
 	auto &state = cmd_list->get_data<state_tracking>(state_tracking::GUID);
 	if (state.current_depth_stencil == 0)
-		return; // This is a draw call with no depth-stencil bound
+		return false; // This is a draw call with no depth-stencil bound
 
 #if 0
 	// Check if this draw call likely represets a fullscreen rectangle (one or two triangles), which would clear the depth-stencil
@@ -326,7 +326,7 @@ static void draw_impl(command_list *cmd_list, uint32_t vertices, uint32_t instan
 	{
 		// TODO: Check pipeline state (cull mode none, depth test enabled, depth write enabled, depth compare function always)
 		clear_depth_impl(cmd_list, state, device_state, state.current_depth_stencil, true);
-		return;
+		return false;
 	}
 #endif
 
@@ -336,49 +336,38 @@ static void draw_impl(command_list *cmd_list, uint32_t vertices, uint32_t instan
 	counters.current_stats.vertices += vertices * instances;
 	counters.current_stats.drawcalls += 1;
 	std::memcpy(counters.current_stats.last_viewport, state.current_viewport, 6 * sizeof(float));
-}
 
-static void on_draw(
-	reshade::addon_event_trampoline<reshade::addon_event::draw> &call_next, command_list *cmd_list, uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance)
-{
-	draw_impl(cmd_list, vertices, instances);
-	call_next(cmd_list, vertices, instances, first_vertex, first_instance);
+	return false;
 }
-static void on_draw_indexed(
-	reshade::addon_event_trampoline<reshade::addon_event::draw_indexed> &call_next, command_list *cmd_list, uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)
+static bool on_draw_indexed(command_list *cmd_list, uint32_t indices, uint32_t instances, uint32_t, int32_t, uint32_t)
 {
-	draw_impl(cmd_list, indices, instances);
-	call_next(cmd_list, indices, instances, first_index, vertex_offset, first_instance);
+	on_draw(cmd_list, indices, instances, 0, 0);
+
+	return false;
 }
-static void on_draw_indirect(
-	reshade::addon_event_trampoline<reshade::addon_event::draw_or_dispatch_indirect> &call_next, command_list *cmd_list, reshade::addon_event type, resource_handle buffer, uint64_t offset, uint32_t draw_count, uint32_t stride)
+static bool on_draw_indirect(command_list *cmd_list, reshade::addon_event type, resource_handle, uint64_t, uint32_t draw_count, uint32_t)
 {
 	if (type != reshade::addon_event::dispatch)
 	{
-		draw_impl(cmd_list, 0, 0);
+		for (uint32_t i = 0; i < draw_count; ++i)
+			on_draw(cmd_list, 0, 0, 0, 0);
 
 		auto &state = cmd_list->get_data<state_tracking>(state_tracking::GUID);
 		state.has_indirect_drawcalls = true;
 	}
 
-	call_next(cmd_list, type, buffer, offset, draw_count, stride);
+	return false;
 }
-static void on_set_viewport(
-	reshade::addon_event_trampoline<reshade::addon_event::set_viewports> &call_next, command_list *cmd_list, uint32_t first, uint32_t count, const float *viewport)
+static void on_set_viewport(command_list *cmd_list, uint32_t first, uint32_t count, const float *viewport)
 {
-	call_next(cmd_list, first, count, viewport);
-
 	if (first != 0 || count == 0)
 		return; // Only interested in the main viewport
 
 	auto &state = cmd_list->get_data<state_tracking>(state_tracking::GUID);
 	std::memcpy(state.current_viewport, viewport, 6 * sizeof(float));
 }
-static void on_set_depth_stencil(
-	reshade::addon_event_trampoline<reshade::addon_event::set_render_targets_and_depth_stencil> &call_next, command_list *cmd_list, uint32_t count, const resource_view_handle *rtvs, resource_view_handle dsv)
+static void on_set_depth_stencil(command_list *cmd_list, uint32_t, const resource_view_handle *, resource_view_handle dsv)
 {
-	call_next(cmd_list, count, rtvs, dsv);
-
 	device *const device = cmd_list->get_device();
 	auto &state = cmd_list->get_data<state_tracking>(state_tracking::GUID);
 
@@ -396,8 +385,7 @@ static void on_set_depth_stencil(
 
 	state.current_depth_stencil = depth_stencil;
 }
-static void on_clear_depth_stencil(
-	reshade::addon_event_trampoline<reshade::addon_event::clear_depth_stencil> &call_next, command_list *cmd_list, resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil)
+static bool on_clear_depth_stencil(command_list *cmd_list, resource_view_handle dsv, uint32_t clear_flags, float, uint8_t)
 {
 	device *const device = cmd_list->get_device();
 	const state_tracking_context &device_state = device->get_data<state_tracking_context>(state_tracking_context::GUID);
@@ -411,7 +399,7 @@ static void on_clear_depth_stencil(
 		clear_depth_impl(cmd_list, cmd_list->get_data<state_tracking>(state_tracking::GUID), device_state, depth_stencil, false);
 	}
 
-	call_next(cmd_list, dsv, clear_flags, depth, stencil);
+	return false;
 }
 
 static void on_reset(command_list *cmd_list)

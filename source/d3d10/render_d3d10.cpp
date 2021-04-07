@@ -51,13 +51,13 @@ bool reshade::d3d10::device_impl::check_format_support(uint32_t format, api::res
 	return true;
 }
 
-bool reshade::d3d10::device_impl::check_resource_handle_valid(api::resource_handle object) const
+bool reshade::d3d10::device_impl::check_resource_handle_valid(api::resource_handle resource) const
 {
-	return object.handle != 0 && _resources.has_object(reinterpret_cast<ID3D10Resource *>(object.handle));
+	return resource.handle != 0 && _resources.has_object(reinterpret_cast<ID3D10Resource *>(resource.handle));
 }
-bool reshade::d3d10::device_impl::check_resource_view_handle_valid(api::resource_view_handle object) const
+bool reshade::d3d10::device_impl::check_resource_view_handle_valid(api::resource_view_handle view) const
 {
-	return object.handle != 0 && _views.has_object(reinterpret_cast<ID3D10View *>(object.handle));
+	return view.handle != 0 && _views.has_object(reinterpret_cast<ID3D10View *>(view.handle));
 }
 
 bool reshade::d3d10::device_impl::create_resource(const api::resource_desc &desc, const api::mapped_subresource *initial_data, api::resource_usage, api::resource_handle *out)

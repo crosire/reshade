@@ -137,17 +137,7 @@ void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 			}, this, convert_resource_desc(old_desc, 1, _caps), nullptr, api::resource_usage::depth_stencil);
 
 		// Communicate default state to add-ons
-		invoke_addon_event<addon_event::set_render_targets_and_depth_stencil>(
-			[this, dsv = api::resource_view_handle { reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) }](api::command_list *, uint32_t count, const api::resource_view_handle *new_rtvs, api::resource_view_handle new_dsv) {
-				for (DWORD i = 0; i < count; ++i)
-				{
-					_orig->SetRenderTarget(i, reinterpret_cast<IDirect3DSurface9 *>(new_rtvs[i].handle));
-				}
-				if (new_dsv != dsv)
-				{
-					_orig->SetDepthStencilSurface(reinterpret_cast<IDirect3DSurface9 *>(new_dsv.handle));
-				}
-			}, this, 0, nullptr, api::resource_view_handle { reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) });
+		invoke_addon_event<addon_event::set_render_targets_and_depth_stencil>(this, 0, nullptr, api::resource_view_handle { reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) });
 	}
 #else
 	UNREFERENCED_PARAMETER(pp);

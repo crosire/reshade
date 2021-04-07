@@ -187,12 +187,9 @@ reshade::opengl::device_impl::device_impl(HDC hdc, HGLRC hglrc) :
 
 #if RESHADE_ADDON
 	// Communicate default state to add-ons
-	const api::resource_view_handle default_render_target = get_render_target_from_fbo(0, 0);
 	const api::resource_view_handle default_depth_stencil = get_depth_stencil_from_fbo(0);
-	invoke_addon_event<addon_event::set_render_targets_and_depth_stencil>(
-		[](api::command_list *, uint32_t count, const api::resource_view_handle *new_rtvs, api::resource_view_handle new_dsv) {
-			// TODO
-		}, this, 1, &default_render_target, default_depth_stencil);
+	const api::resource_view_handle default_render_target = get_render_target_from_fbo(0, 0);
+	invoke_addon_event<addon_event::set_render_targets_and_depth_stencil>(this, 1, &default_render_target, default_depth_stencil);
 #endif
 }
 reshade::opengl::device_impl::~device_impl()
