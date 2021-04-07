@@ -23,17 +23,17 @@ reshade::d3d12::device_impl::device_impl(ID3D12Device *device) :
 
 #if RESHADE_ADDON
 	addon::load_addons();
+#endif
 
 	invoke_addon_event<addon_event::init_device>(this);
-#endif
 }
 reshade::d3d12::device_impl::~device_impl()
 {
 	assert(_queues.empty()); // All queues should have been unregistered and destroyed by the application at this point
 
-#if RESHADE_ADDON
 	invoke_addon_event<addon_event::destroy_device>(this);
 
+#if RESHADE_ADDON
 	addon::unload_addons();
 #endif
 }
@@ -73,7 +73,7 @@ bool reshade::d3d12::device_impl::check_resource_view_handle_valid(api::resource
 	return _views.find(view.handle) != _views.end();
 }
 
-bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc, const api::mapped_subresource *initial_data, api::resource_usage initial_state, api::resource_handle *out_resource)
+bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc, const api::mapped_subresource *initial_data, api::resource_usage initial_state, api::resource_handle *out)
 {
 	if (initial_data != nullptr)
 		return false;
@@ -86,20 +86,20 @@ bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc
 	if (desc.type == api::resource_type::buffer)
 		internal_desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 
-	if (ID3D12Resource *resource = nullptr;
-		SUCCEEDED(_orig->CreateCommittedResource(&heap_props, D3D12_HEAP_FLAG_NONE, &internal_desc, convert_resource_usage_to_states(initial_state), nullptr, IID_PPV_ARGS(&resource))))
+	ID3D12Resource *object = nullptr;
+	if (SUCCEEDED(_orig->CreateCommittedResource(&heap_props, D3D12_HEAP_FLAG_NONE, &internal_desc, convert_resource_usage_to_states(initial_state), nullptr, IID_PPV_ARGS(&object))))
 	{
-		_resources.register_object(resource);
-		*out_resource = { reinterpret_cast<uintptr_t>(resource) };
+		_resources.register_object(object);
+		*out = { reinterpret_cast<uintptr_t>(object) };
 		return true;
 	}
 	else
 	{
-		*out_resource = { 0 };
+		*out = { 0 };
 		return false;
 	}
 }
-bool reshade::d3d12::device_impl::create_resource_view(api::resource_handle resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view_handle *out_view)
+bool reshade::d3d12::device_impl::create_resource_view(api::resource_handle resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view_handle *out)
 {
 	assert(resource.handle != 0);
 
@@ -117,7 +117,7 @@ bool reshade::d3d12::device_impl::create_resource_view(api::resource_handle reso
 			_orig->CreateDepthStencilView(reinterpret_cast<ID3D12Resource *>(resource.handle), &internal_desc, descriptor_handle);
 
 			register_resource_view(reinterpret_cast<ID3D12Resource *>(resource.handle), descriptor_handle);
-			*out_view = { descriptor_handle.ptr };
+			*out = { descriptor_handle.ptr };
 			return true;
 		}
 		case api::resource_usage::render_target:
@@ -132,7 +132,7 @@ bool reshade::d3d12::device_impl::create_resource_view(api::resource_handle reso
 			_orig->CreateRenderTargetView(reinterpret_cast<ID3D12Resource *>(resource.handle), &internal_desc, descriptor_handle);
 
 			register_resource_view(reinterpret_cast<ID3D12Resource *>(resource.handle), descriptor_handle);
-			*out_view = { descriptor_handle.ptr };
+			*out = { descriptor_handle.ptr };
 			return true;
 		}
 		case api::resource_usage::shader_resource:
@@ -148,7 +148,7 @@ bool reshade::d3d12::device_impl::create_resource_view(api::resource_handle reso
 			_orig->CreateShaderResourceView(reinterpret_cast<ID3D12Resource *>(resource.handle), &internal_desc, descriptor_handle);
 
 			register_resource_view(reinterpret_cast<ID3D12Resource *>(resource.handle), descriptor_handle);
-			*out_view = { descriptor_handle.ptr };
+			*out = { descriptor_handle.ptr };
 			return true;
 		}
 		case api::resource_usage::unordered_access:
@@ -163,12 +163,12 @@ bool reshade::d3d12::device_impl::create_resource_view(api::resource_handle reso
 			_orig->CreateUnorderedAccessView(reinterpret_cast<ID3D12Resource *>(resource.handle), nullptr, &internal_desc, descriptor_handle);
 
 			register_resource_view(reinterpret_cast<ID3D12Resource *>(resource.handle), descriptor_handle);
-			*out_view = { descriptor_handle.ptr };
+			*out = { descriptor_handle.ptr };
 			return true;
 		}
 	}
 
-	*out_view = { 0 };
+	*out = { 0 };
 	return false;
 }
 
@@ -211,13 +211,12 @@ void reshade::d3d12::device_impl::get_resource_from_view(api::resource_view_hand
 reshade::api::resource_desc reshade::d3d12::device_impl::get_resource_desc(api::resource_handle resource) const
 {
 	assert(resource.handle != 0);
-	const D3D12_RESOURCE_DESC internal_desc = reinterpret_cast<ID3D12Resource *>(resource.handle)->GetDesc();
 
 	D3D12_HEAP_FLAGS heap_flags;
 	D3D12_HEAP_PROPERTIES heap_props = {};
 	reinterpret_cast<ID3D12Resource *>(resource.handle)->GetHeapProperties(&heap_props, &heap_flags);
 
-	return convert_resource_desc(internal_desc, heap_props);
+	return convert_resource_desc(reinterpret_cast<ID3D12Resource *>(resource.handle)->GetDesc(), heap_props);
 }
 
 void reshade::d3d12::device_impl::wait_idle() const
@@ -268,21 +267,13 @@ D3D12_CPU_DESCRIPTOR_HANDLE reshade::d3d12::device_impl::allocate_descriptor_han
 reshade::d3d12::command_list_impl::command_list_impl(device_impl *device, ID3D12GraphicsCommandList *cmd_list) :
 	api_object_impl(cmd_list), _device_impl(device), _has_commands(cmd_list != nullptr)
 {
-#if RESHADE_ADDON
 	if (_has_commands) // Do not call add-on event for immediate command list
-	{
 		invoke_addon_event<addon_event::init_command_list>(this);
-	}
-#endif
 }
 reshade::d3d12::command_list_impl::~command_list_impl()
 {
-#if RESHADE_ADDON
 	if (_has_commands)
-	{
 		invoke_addon_event<addon_event::destroy_command_list>(this);
-	}
-#endif
 }
 
 void reshade::d3d12::command_list_impl::copy_resource(api::resource_handle source, api::resource_handle destination)
@@ -418,15 +409,11 @@ reshade::d3d12::command_queue_impl::command_queue_impl(device_impl *device, ID3D
 	if (queue->GetDesc().Type == D3D12_COMMAND_LIST_TYPE_DIRECT)
 		_immediate_cmd_list = new command_list_immediate_impl(device);
 
-#if RESHADE_ADDON
 	invoke_addon_event<addon_event::init_command_queue>(this);
-#endif
 }
 reshade::d3d12::command_queue_impl::~command_queue_impl()
 {
-#if RESHADE_ADDON
 	invoke_addon_event<addon_event::destroy_command_queue>(this);
-#endif
 
 	delete _immediate_cmd_list;
 

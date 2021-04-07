@@ -50,17 +50,17 @@ reshade::vulkan::device_impl::device_impl(VkDevice device, VkPhysicalDevice phys
 
 #if RESHADE_ADDON
 	addon::load_addons();
+#endif
 
 	invoke_addon_event<reshade::addon_event::init_device>(this);
-#endif
 }
 reshade::vulkan::device_impl::~device_impl()
 {
 	assert(_queues.empty()); // All queues should have been unregistered and destroyed at this point
 
-#if RESHADE_ADDON
 	invoke_addon_event<reshade::addon_event::destroy_device>(this);
 
+#if RESHADE_ADDON
 	addon::unload_addons();
 #endif
 
@@ -80,20 +80,26 @@ bool reshade::vulkan::device_impl::check_resource_handle_valid(api::resource_han
 {
 	if (resource.handle == 0)
 		return false;
-
 	const resource_data &data = _resources.at(resource.handle);
-	return data.is_image() ? (data.image == (VkImage)resource.handle) : (data.buffer == (VkBuffer)resource.handle);
+
+	if (data.is_image())
+		return data.image == (VkImage)resource.handle;
+	else
+		return data.buffer == (VkBuffer)resource.handle;
 }
 bool reshade::vulkan::device_impl::check_resource_view_handle_valid(api::resource_view_handle view) const
 {
 	if (view.handle == 0)
 		return false;
-
 	const resource_view_data &data = _views.at(view.handle);
-	return data.is_image_view() ? (data.image_view == (VkImageView)view.handle) : (data.buffer_view == (VkBufferView)view.handle);
+
+	if (data.is_image_view())
+		return data.image_view == (VkImageView)view.handle;
+	else
+		return data.buffer_view == (VkBufferView)view.handle;
 }
 
-bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &desc, const api::mapped_subresource *initial_data, api::resource_usage initial_state, api::resource_handle *out_resource)
+bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &desc, const api::mapped_subresource *initial_data, api::resource_usage initial_state, api::resource_handle *out)
 {
 	if (initial_data != nullptr)
 		return false;
@@ -128,11 +134,11 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 			VkBufferCreateInfo create_info { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
 			convert_resource_desc(desc, create_info);
 
-			if (VkBuffer buffer = VK_NULL_HANDLE;
-				vmaCreateBuffer(_alloc, &create_info, &alloc_info, &buffer, &allocation, nullptr) == VK_SUCCESS)
+			VkBuffer buffer = VK_NULL_HANDLE;
+			if (vmaCreateBuffer(_alloc, &create_info, &alloc_info, &buffer, &allocation, nullptr) == VK_SUCCESS)
 			{
 				register_buffer(buffer, create_info, allocation);
-				*out_resource = { (uint64_t)buffer };
+				*out = { (uint64_t)buffer };
 				return true;
 			}
 			break;
@@ -146,11 +152,11 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 			if ((desc.usage & (api::resource_usage::render_target | api::resource_usage::shader_resource)) != 0)
 				create_info.flags |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
 
-			if (VkImage image = VK_NULL_HANDLE;
-				vmaCreateImage(_alloc, &create_info, &alloc_info, &image, &allocation, nullptr) == VK_SUCCESS)
+			VkImage image = VK_NULL_HANDLE;
+			if (vmaCreateImage(_alloc, &create_info, &alloc_info, &image, &allocation, nullptr) == VK_SUCCESS)
 			{
 				register_image(image, create_info, allocation);
-				*out_resource = { (uint64_t)image };
+				*out = { (uint64_t)image };
 
 				if (initial_state != api::resource_usage::undefined)
 				{
@@ -160,7 +166,7 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 						const auto immediate_command_list = static_cast<command_list_immediate_impl *>(queue->get_immediate_command_list());
 						if (immediate_command_list != nullptr)
 						{
-							immediate_command_list->transition_state(*out_resource, api::resource_usage::undefined, initial_state);
+							immediate_command_list->transition_state(*out, api::resource_usage::undefined, initial_state);
 							immediate_command_list->flush_and_wait((VkQueue)queue->get_native_object());
 							break;
 						}
@@ -172,10 +178,10 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 		}
 	}
 
-	*out_resource = { 0 };
+	*out = { 0 };
 	return false;
 }
-bool reshade::vulkan::device_impl::create_resource_view(api::resource_handle resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view_handle *out_view)
+bool reshade::vulkan::device_impl::create_resource_view(api::resource_handle resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view_handle *out)
 {
 	assert(resource.handle != 0);
 	const resource_data &data = _resources.at(resource.handle);
@@ -192,11 +198,11 @@ bool reshade::vulkan::device_impl::create_resource_view(api::resource_handle res
 		if ((usage_type & api::resource_usage::shader_resource) != 0)
 			create_info.subresourceRange.aspectMask &= ~VK_IMAGE_ASPECT_STENCIL_BIT;
 
-		if (VkImageView image_view = VK_NULL_HANDLE;
-			vk.CreateImageView(_orig, &create_info, nullptr, &image_view) == VK_SUCCESS)
+		VkImageView image_view = VK_NULL_HANDLE;
+		if (vk.CreateImageView(_orig, &create_info, nullptr, &image_view) == VK_SUCCESS)
 		{
 			register_image_view(image_view, create_info);
-			*out_view = { (uint64_t)image_view };
+			*out = { (uint64_t)image_view };
 			return true;
 		}
 	}
@@ -206,16 +212,16 @@ bool reshade::vulkan::device_impl::create_resource_view(api::resource_handle res
 		convert_resource_view_desc(desc, create_info);
 		create_info.buffer = data.buffer;
 
-		if (VkBufferView buffer_view = VK_NULL_HANDLE;
-			vk.CreateBufferView(_orig, &create_info, nullptr, &buffer_view) == VK_SUCCESS)
+		VkBufferView buffer_view = VK_NULL_HANDLE;
+		if (vk.CreateBufferView(_orig, &create_info, nullptr, &buffer_view) == VK_SUCCESS)
 		{
 			register_buffer_view(buffer_view, create_info);
-			*out_view = { (uint64_t)buffer_view };
+			*out = { (uint64_t)buffer_view };
 			return true;
 		}
 	}
 
-	*out_view = { 0 };
+	*out = { 0 };
 	return false;
 }
 
@@ -279,21 +285,13 @@ void reshade::vulkan::device_impl::wait_idle() const
 reshade::vulkan::command_list_impl::command_list_impl(device_impl *device, VkCommandBuffer cmd_list) :
 	api_object_impl(cmd_list), _device_impl(device), _has_commands(cmd_list != VK_NULL_HANDLE)
 {
-#if RESHADE_ADDON
 	if (_has_commands) // Do not call add-on event for immediate command list
-	{
 		invoke_addon_event<addon_event::init_command_list>(this);
-	}
-#endif
 }
 reshade::vulkan::command_list_impl::~command_list_impl()
 {
-#if RESHADE_ADDON
 	if (_has_commands)
-	{
 		invoke_addon_event<addon_event::destroy_command_list>(this);
-	}
-#endif
 }
 
 void reshade::vulkan::command_list_impl::copy_resource(api::resource_handle source, api::resource_handle destination)
@@ -360,6 +358,7 @@ void reshade::vulkan::command_list_impl::transition_state(api::resource_handle r
 
 	assert(resource.handle != 0);
 	const resource_data &data = _device_impl->_resources.at(resource.handle);
+
 	if (data.is_image())
 	{
 		VkImageMemoryBarrier transition { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
@@ -584,15 +583,11 @@ reshade::vulkan::command_queue_impl::command_queue_impl(device_impl *device, uin
 		_immediate_cmd_list = new command_list_immediate_impl(device, queue_family_index);
 	}
 
-#if RESHADE_ADDON
 	invoke_addon_event<addon_event::init_command_queue>(this);
-#endif
 }
 reshade::vulkan::command_queue_impl::~command_queue_impl()
 {
-#if RESHADE_ADDON
 	invoke_addon_event<addon_event::destroy_command_queue>(this);
-#endif
 
 	delete _immediate_cmd_list;
 

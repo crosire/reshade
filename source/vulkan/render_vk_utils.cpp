@@ -222,6 +222,7 @@ resource_desc reshade::vulkan::convert_resource_desc(const VkImageCreateInfo &cr
 	{
 	default:
 		assert(false);
+		desc.type = resource_type::unknown;
 		break;
 	case VK_IMAGE_TYPE_1D:
 		desc.type = resource_type::texture_1d;
@@ -317,9 +318,12 @@ void reshade::vulkan::convert_resource_view_desc(const resource_view_desc &desc,
 resource_view_desc reshade::vulkan::convert_resource_view_desc(const VkImageViewCreateInfo &create_info)
 {
 	resource_view_desc desc = {};
-
 	switch (create_info.viewType)
 	{
+	default:
+		assert(false);
+		desc.type = resource_view_type::unknown;
+		break;
 	case VK_IMAGE_VIEW_TYPE_1D:
 		desc.type = resource_view_type::texture_1d;
 		break;

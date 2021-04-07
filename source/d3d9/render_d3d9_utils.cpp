@@ -10,6 +10,7 @@ using namespace reshade::api;
 
 void reshade::d3d9::convert_memory_heap_to_d3d_pool(memory_heap heap, D3DPOOL &d3d_pool)
 {
+	// Managed resources are special and already moved to device-accessible memory as needed, so do not change pool to an explicit one for those
 	if (d3d_pool == D3DPOOL_MANAGED)
 		return;
 
@@ -111,8 +112,10 @@ void reshade::d3d9::convert_resource_desc(const resource_desc &desc, D3DSURFACE_
 void reshade::d3d9::convert_resource_desc(const resource_desc &desc, D3DINDEXBUFFER_DESC &internal_desc)
 {
 	assert(desc.type == resource_type::buffer);
+
 	assert(desc.size <= std::numeric_limits<UINT>::max());
 	internal_desc.Size = static_cast<UINT>(desc.size);
+
 	convert_memory_heap_to_d3d_pool(desc.heap, internal_desc.Pool);
 	assert((desc.usage & (resource_usage::vertex_buffer | resource_usage::index_buffer)) == resource_usage::index_buffer);
 	convert_resource_usage_to_d3d_usage(desc.usage, internal_desc.Usage);
@@ -120,8 +123,10 @@ void reshade::d3d9::convert_resource_desc(const resource_desc &desc, D3DINDEXBUF
 void reshade::d3d9::convert_resource_desc(const resource_desc &desc, D3DVERTEXBUFFER_DESC &internal_desc)
 {
 	assert(desc.type == resource_type::buffer);
+
 	assert(desc.size <= std::numeric_limits<UINT>::max());
 	internal_desc.Size = static_cast<UINT>(desc.size);
+
 	convert_memory_heap_to_d3d_pool(desc.heap, internal_desc.Pool);
 	assert((desc.usage & (resource_usage::vertex_buffer | resource_usage::index_buffer)) == resource_usage::vertex_buffer);
 	convert_resource_usage_to_d3d_usage(desc.usage, internal_desc.Usage);

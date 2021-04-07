@@ -180,10 +180,12 @@ reshade::opengl::device_impl::device_impl(HDC hdc, HGLRC hglrc) :
 
 #if RESHADE_ADDON
 	addon::load_addons();
+#endif
 
 	invoke_addon_event<addon_event::init_device>(this);
 	invoke_addon_event<addon_event::init_command_queue>(this);
 
+#if RESHADE_ADDON
 	// Communicate default state to add-ons
 	const api::resource_view_handle default_render_target = get_render_target_from_fbo(0, 0);
 	const api::resource_view_handle default_depth_stencil = get_depth_stencil_from_fbo(0);
@@ -195,10 +197,10 @@ reshade::opengl::device_impl::device_impl(HDC hdc, HGLRC hglrc) :
 }
 reshade::opengl::device_impl::~device_impl()
 {
-#if RESHADE_ADDON
 	invoke_addon_event<addon_event::destroy_command_queue>(this);
 	invoke_addon_event<addon_event::destroy_device>(this);
 
+#if RESHADE_ADDON
 	addon::unload_addons();
 #endif
 
@@ -276,7 +278,7 @@ bool reshade::opengl::device_impl::check_resource_view_handle_valid(api::resourc
 	}
 }
 
-bool reshade::opengl::device_impl::create_resource(const api::resource_desc &desc, const api::mapped_subresource *initial_data, api::resource_usage, api::resource_handle *out_resource)
+bool reshade::opengl::device_impl::create_resource(const api::resource_desc &desc, const api::mapped_subresource *initial_data, api::resource_usage, api::resource_handle *out)
 {
 	if (initial_data != nullptr)
 		return false;
@@ -305,41 +307,29 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 		break;
 	}
 
-	const GLenum internal_format = convert_to_internal_format(desc.format);
-	if (internal_format == GL_NONE)
-		return false;
-
-	GLint prev_object = 0;
-	glGetIntegerv(get_binding_for_target(target), &prev_object);
-
 	GLuint object = 0;
+	GLuint prev_object = 0;
+	glGetIntegerv(get_binding_for_target(target), reinterpret_cast<GLint *>(&prev_object));
+
 	if (desc.type == api::resource_type::buffer)
 	{
 		glGenBuffers(1, &object);
 		glBindBuffer(target, object);
 
-		GLenum usage = GL_NONE;
-		switch (desc.heap)
-		{
-		case api::memory_heap::gpu_only:
-			GL_STATIC_DRAW;
-			break;
-		case api::memory_heap::cpu_to_gpu:
-			GL_DYNAMIC_DRAW;
-			break;
-		case api::memory_heap::gpu_to_cpu:
-		case api::memory_heap::cpu_only:
-			GL_DYNAMIC_READ;
-			break;
-		}
+		GLbitfield usage_flags = GL_NONE;
+		convert_memory_heap_to_flags(desc.heap, usage_flags);
 
 		assert(desc.size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
-		glBufferData(target, static_cast<GLsizeiptr>(desc.size), nullptr, usage);
+		glBufferStorage(target, static_cast<GLsizeiptr>(desc.size), nullptr, usage_flags);
 
 		glBindBuffer(target, prev_object);
 	}
 	else
 	{
+		const GLenum internal_format = convert_to_internal_format(desc.format);
+		if (internal_format == GL_NONE)
+			return false;
+
 		glGenTextures(1, &object);
 		glBindTexture(target, object);
 
@@ -363,10 +353,10 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 		glBindTexture(target, prev_object);
 	}
 
-	*out_resource = make_resource_handle(target, object);
+	*out = make_resource_handle(target, object);
 	return true;
 }
-bool reshade::opengl::device_impl::create_resource_view(api::resource_handle resource, api::resource_usage, const api::resource_view_desc &desc, api::resource_view_handle *out_view)
+bool reshade::opengl::device_impl::create_resource_view(api::resource_handle resource, api::resource_usage, const api::resource_view_desc &desc, api::resource_view_handle *out)
 {
 	assert(resource.handle != 0);
 
@@ -418,12 +408,13 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource_handle res
 		assert(target != GL_TEXTURE_BUFFER);
 
 		// No need to create a view, so use resource directly, but set a bit so to not destroy it twice via 'destroy_resource_view'
-		*out_view = { resource.handle | 0x100000000 };
+		*out = { resource.handle | 0x100000000 };
 		return true;
 	}
 	else
 	{
 		GLuint object = 0;
+		GLuint prev_object = 0;
 		glGenTextures(1, &object);
 
 		if (target != GL_TEXTURE_BUFFER)
@@ -433,8 +424,7 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource_handle res
 		}
 		else
 		{
-			GLint prev_object = 0;
-			glGetIntegerv(get_binding_for_target(target), &prev_object);
+			glGetIntegerv(get_binding_for_target(target), reinterpret_cast<GLint *>(&prev_object));
 
 			glBindTexture(target, object);
 
@@ -452,7 +442,7 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource_handle res
 			glBindTexture(target, prev_object);
 		}
 
-		*out_view = make_resource_view_handle(target, object);
+		*out = make_resource_view_handle(target, object);
 		return true;
 	}
 }

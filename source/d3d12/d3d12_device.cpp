@@ -253,7 +253,13 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateGraphicsPipelineState(const D3D12_G
 				return true;
 			}, this, new_desc.GS.pShaderBytecode, new_desc.GS.BytecodeLength);
 
-	return _orig->CreateGraphicsPipelineState(&new_desc, riid, ppPipelineState);
+	const HRESULT hr = _orig->CreateGraphicsPipelineState(&new_desc, riid, ppPipelineState);
+	if (FAILED(hr))
+	{
+		LOG(WARN) << "ID3D12Device::CreateGraphicsPipelineState" << " failed with error code " << hr << '.';
+	}
+
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateComputePipelineState(const D3D12_COMPUTE_PIPELINE_STATE_DESC *pDesc, REFIID riid, void **ppPipelineState)
 {
@@ -275,7 +281,13 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateComputePipelineState(const D3D12_CO
 				return true;
 			}, this, new_desc.CS.pShaderBytecode, new_desc.CS.BytecodeLength);
 
-	return _orig->CreateComputePipelineState(&new_desc, riid, ppPipelineState);
+	const HRESULT hr = _orig->CreateComputePipelineState(&new_desc, riid, ppPipelineState);
+	if (FAILED(hr))
+	{
+		LOG(WARN) << "ID3D12Device::CreateComputePipelineState" << " failed with error code " << hr << '.';
+	}
+
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandList(UINT nodeMask, D3D12_COMMAND_LIST_TYPE type, ID3D12CommandAllocator *pCommandAllocator, ID3D12PipelineState *pInitialState, REFIID riid, void **ppCommandList)
 {
