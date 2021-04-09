@@ -6,6 +6,7 @@
 #include "dll_log.hpp"
 #include "d3d12_device.hpp"
 #include "d3d12_command_list.hpp"
+#include "render_d3d12_utils.hpp"
 
 D3D12GraphicsCommandList::D3D12GraphicsCommandList(D3D12Device *device, ID3D12GraphicsCommandList *original) :
 	command_list_impl(device, original),
@@ -130,12 +131,29 @@ HRESULT STDMETHODCALLTYPE D3D12GraphicsCommandList::Reset(ID3D12CommandAllocator
 #if RESHADE_ADDON
 	reshade::invoke_addon_event<reshade::addon_event::reset_command_list>(this);
 #endif
-	return _orig->Reset(pAllocator, pInitialState);
+	const HRESULT hr = _orig->Reset(pAllocator, pInitialState);
+#if RESHADE_ADDON
+	if (pInitialState != nullptr && SUCCEEDED(hr))
+	{
+		uint32_t pipeline_state_values[reshade::d3d12::pipeline_state_max_values];
+		if (UINT pipeline_state_size = sizeof(pipeline_state_values);
+			SUCCEEDED(pInitialState->GetPrivateData(reshade::d3d12::pipeline_state_guid, &pipeline_state_size, pipeline_state_values)))
+		{
+			const uint32_t pipeline_state_count = pipeline_state_size / sizeof(uint32_t);
+
+			reshade::invoke_addon_event<reshade::addon_event::set_pipeline_states>(this, pipeline_state_count,
+				pipeline_state_count == ARRAYSIZE(reshade::d3d12::pipeline_states_compute) ? reshade::d3d12::pipeline_states_compute :
+				pipeline_state_count == ARRAYSIZE(reshade::d3d12::pipeline_states_graphics) ? reshade::d3d12::pipeline_states_graphics : nullptr, pipeline_state_values);
+		}
+	}
+#endif
+	return hr;
 }
 
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearState(ID3D12PipelineState *pPipelineState)
 {
 	_orig->ClearState(pPipelineState);
+	// TODO: Call events with cleared state
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::DrawInstanced(UINT VertexCountPerInstance, UINT InstanceCount, UINT StartVertexLocation, UINT StartInstanceLocation)
 {
@@ -217,14 +235,47 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::RSSetScissorRects(UINT NumRects
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::OMSetBlendFactor(const FLOAT BlendFactor[4])
 {
 	_orig->OMSetBlendFactor(BlendFactor);
+
+#if RESHADE_ADDON
+	const reshade::api::pipeline_state state = reshade::api::pipeline_state::blend_factor;
+	const uint32_t value = (BlendFactor == nullptr) ? 0xFFFFFFFF : // Default blend factor is { 1, 1, 1, 1 }
+		((static_cast<uint32_t>(BlendFactor[0] * 255.f) & 0xFF)) |
+		((static_cast<uint32_t>(BlendFactor[1] * 255.f) & 0xFF) << 8) |
+		((static_cast<uint32_t>(BlendFactor[2] * 255.f) & 0xFF) << 16) |
+		((static_cast<uint32_t>(BlendFactor[3] * 255.f) & 0xFF) << 24);
+
+	reshade::invoke_addon_event<reshade::addon_event::set_pipeline_states>(this, 1, &state, &value);
+#endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::OMSetStencilRef(UINT StencilRef)
 {
 	_orig->OMSetStencilRef(StencilRef);
+
+#if RESHADE_ADDON
+	const reshade::api::pipeline_state state = reshade::api::pipeline_state::stencil_ref;
+
+	reshade::invoke_addon_event<reshade::addon_event::set_pipeline_states>(this, 1, &state, &StencilRef);
+#endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetPipelineState(ID3D12PipelineState *pPipelineState)
 {
 	_orig->SetPipelineState(pPipelineState);
+
+#if RESHADE_ADDON
+	if (pPipelineState != nullptr)
+	{
+		uint32_t pipeline_state_values[reshade::d3d12::pipeline_state_max_values];
+		if (UINT pipeline_state_size = sizeof(pipeline_state_values);
+			SUCCEEDED(pPipelineState->GetPrivateData(reshade::d3d12::pipeline_state_guid, &pipeline_state_size, pipeline_state_values)))
+		{
+			const uint32_t pipeline_state_count = pipeline_state_size / sizeof(uint32_t);
+
+			reshade::invoke_addon_event<reshade::addon_event::set_pipeline_states>(this, pipeline_state_count,
+				pipeline_state_count == ARRAYSIZE(reshade::d3d12::pipeline_states_compute) ? reshade::d3d12::pipeline_states_compute :
+				pipeline_state_count == ARRAYSIZE(reshade::d3d12::pipeline_states_graphics) ? reshade::d3d12::pipeline_states_graphics : nullptr, pipeline_state_values);
+		}
+	}
+#endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ResourceBarrier(UINT NumBarriers, const D3D12_RESOURCE_BARRIER *pBarriers)
 {

@@ -7,6 +7,7 @@
 #include "d3d11_device.hpp"
 #include "d3d11_device_context.hpp"
 #include "d3d11_command_list.hpp"
+#include "render_d3d11_utils.hpp"
 
 D3D11DeviceContext::D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext  *original) :
 	device_context_impl(device, original),
@@ -146,6 +147,13 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::PSSetShaderResources(UINT StartSlo
 void    STDMETHODCALLTYPE D3D11DeviceContext::PSSetShader(ID3D11PixelShader *pPixelShader, ID3D11ClassInstance *const *ppClassInstances, UINT NumClassInstances)
 {
 	_orig->PSSetShader(pPixelShader, ppClassInstances, NumClassInstances);
+
+#if RESHADE_ADDON
+	const reshade::api::pipeline_state state = reshade::api::pipeline_state::pixel_shader;
+	const uint32_t value = 0; // TODO: PS
+
+	reshade::invoke_addon_event<reshade::addon_event::set_pipeline_states>(this, 1, &state, &value);
+#endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::PSSetSamplers(UINT StartSlot, UINT NumSamplers, ID3D11SamplerState *const *ppSamplers)
 {
@@ -154,6 +162,13 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::PSSetSamplers(UINT StartSlot, UINT
 void    STDMETHODCALLTYPE D3D11DeviceContext::VSSetShader(ID3D11VertexShader *pVertexShader, ID3D11ClassInstance *const *ppClassInstances, UINT NumClassInstances)
 {
 	_orig->VSSetShader(pVertexShader, ppClassInstances, NumClassInstances);
+
+#if RESHADE_ADDON
+	const reshade::api::pipeline_state state = reshade::api::pipeline_state::vertex_shader;
+	const uint32_t value = 0; // TODO: VS
+
+	reshade::invoke_addon_event<reshade::addon_event::set_pipeline_states>(this, 1, &state, &value);
+#endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::DrawIndexed(UINT IndexCount, UINT StartIndexLocation, INT BaseVertexLocation)
 {
@@ -193,6 +208,9 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::IASetVertexBuffers(UINT StartSlot,
 
 #if RESHADE_ADDON
 	assert(NumBuffers <= D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT);
+
+	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::set_vertex_buffers)].empty())
+		return;
 
 #ifndef WIN64
 	reshade::api::resource_handle buffers[D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
@@ -243,6 +261,13 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::GSSetConstantBuffers(UINT StartSlo
 void    STDMETHODCALLTYPE D3D11DeviceContext::GSSetShader(ID3D11GeometryShader *pShader, ID3D11ClassInstance *const *ppClassInstances, UINT NumClassInstances)
 {
 	_orig->GSSetShader(pShader, ppClassInstances, NumClassInstances);
+
+#if RESHADE_ADDON
+	const reshade::api::pipeline_state state = reshade::api::pipeline_state::geometry_shader;
+	const uint32_t value = 0; // TODO: GS
+
+	reshade::invoke_addon_event<reshade::addon_event::set_pipeline_states>(this, 1, &state, &value);
+#endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY Topology)
 {
@@ -287,6 +312,9 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargets(UINT NumViews, 
 #if RESHADE_ADDON
 	assert(NumViews <= D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT);
 
+	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::set_render_targets_and_depth_stencil)].empty())
+		return;
+
 #ifndef WIN64
 	reshade::api::resource_view_handle rtvs[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
 	for (UINT i = 0; i < NumViews; ++i)
@@ -306,6 +334,9 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargetsAndUnorderedAcce
 #if RESHADE_ADDON
 	assert(NumRTVs <= D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT);
 
+	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::set_render_targets_and_depth_stencil)].empty())
+		return;
+
 #ifndef WIN64
 	reshade::api::resource_view_handle rtvs[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
 	for (UINT i = 0; i < NumRTVs; ++i)
@@ -321,10 +352,30 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargetsAndUnorderedAcce
 void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetBlendState(ID3D11BlendState *pBlendState, const FLOAT BlendFactor[4], UINT SampleMask)
 {
 	_orig->OMSetBlendState(pBlendState, BlendFactor, SampleMask);
+
+#if RESHADE_ADDON
+	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::set_pipeline_states)].empty())
+		return;
+
+	uint32_t pipeline_state_values[ARRAYSIZE(reshade::d3d11::pipeline_states_blend)];
+	reshade::d3d11::fill_pipeline_state_values(pBlendState, BlendFactor, SampleMask, pipeline_state_values);
+
+	reshade::invoke_addon_event<reshade::addon_event::set_pipeline_states>(this, static_cast<uint32_t>(ARRAYSIZE(reshade::d3d11::pipeline_states_blend)), reshade::d3d11::pipeline_states_blend, pipeline_state_values);
+#endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetDepthStencilState(ID3D11DepthStencilState *pDepthStencilState, UINT StencilRef)
 {
 	_orig->OMSetDepthStencilState(pDepthStencilState, StencilRef);
+
+#if RESHADE_ADDON
+	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::set_pipeline_states)].empty())
+		return;
+
+	uint32_t pipeline_state_values[ARRAYSIZE(reshade::d3d11::pipeline_states_depth_stencil)];
+	reshade::d3d11::fill_pipeline_state_values(pDepthStencilState, StencilRef, pipeline_state_values);
+
+	reshade::invoke_addon_event<reshade::addon_event::set_pipeline_states>(this, static_cast<uint32_t>(ARRAYSIZE(reshade::d3d11::pipeline_states_depth_stencil)), reshade::d3d11::pipeline_states_depth_stencil, pipeline_state_values);
+#endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::SOSetTargets(UINT NumBuffers, ID3D11Buffer *const *ppSOTargets, const UINT *pOffsets)
 {
@@ -373,6 +424,16 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::DispatchIndirect(ID3D11Buffer *pBu
 void    STDMETHODCALLTYPE D3D11DeviceContext::RSSetState(ID3D11RasterizerState *pRasterizerState)
 {
 	_orig->RSSetState(pRasterizerState);
+
+#if RESHADE_ADDON
+	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::set_pipeline_states)].empty())
+		return;
+
+	uint32_t pipeline_state_values[ARRAYSIZE(reshade::d3d11::pipeline_states_rasterizer)];
+	reshade::d3d11::fill_pipeline_state_values(pRasterizerState, pipeline_state_values);
+
+	reshade::invoke_addon_event<reshade::addon_event::set_pipeline_states>(this, static_cast<uint32_t>(ARRAYSIZE(reshade::d3d11::pipeline_states_rasterizer)), reshade::d3d11::pipeline_states_rasterizer, pipeline_state_values);
+#endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::RSSetViewports(UINT NumViewports, const D3D11_VIEWPORT *pViewports)
 {
@@ -390,6 +451,9 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::RSSetScissorRects(UINT NumRects, c
 
 #if RESHADE_ADDON
 	assert(NumRects <= D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE);
+
+	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::set_scissor_rects)].empty())
+		return;
 
 	int32_t rect_data[4 * D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];
 	for (UINT i = 0, k = 0; i < NumRects; ++i, k += 4)
@@ -478,6 +542,13 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::HSSetShaderResources(UINT StartSlo
 void    STDMETHODCALLTYPE D3D11DeviceContext::HSSetShader(ID3D11HullShader *pHullShader, ID3D11ClassInstance *const *ppClassInstances, UINT NumClassInstances)
 {
 	_orig->HSSetShader(pHullShader, ppClassInstances, NumClassInstances);
+
+#if RESHADE_ADDON
+	const reshade::api::pipeline_state state = reshade::api::pipeline_state::hull_shader;
+	const uint32_t value = 0; // TODO: HS
+
+	reshade::invoke_addon_event<reshade::addon_event::set_pipeline_states>(this, 1, &state, &value);
+#endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::HSSetSamplers(UINT StartSlot, UINT NumSamplers, ID3D11SamplerState *const *ppSamplers)
 {
@@ -494,6 +565,13 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::DSSetShaderResources(UINT StartSlo
 void    STDMETHODCALLTYPE D3D11DeviceContext::DSSetShader(ID3D11DomainShader *pDomainShader, ID3D11ClassInstance *const *ppClassInstances, UINT NumClassInstances)
 {
 	_orig->DSSetShader(pDomainShader, ppClassInstances, NumClassInstances);
+
+#if RESHADE_ADDON
+	const reshade::api::pipeline_state state = reshade::api::pipeline_state::domain_shader;
+	const uint32_t value = 0; // TODO: DS
+
+	reshade::invoke_addon_event<reshade::addon_event::set_pipeline_states>(this, 1, &state, &value);
+#endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::DSSetSamplers(UINT StartSlot, UINT NumSamplers, ID3D11SamplerState *const *ppSamplers)
 {
@@ -514,6 +592,13 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::CSSetUnorderedAccessViews(UINT Sta
 void    STDMETHODCALLTYPE D3D11DeviceContext::CSSetShader(ID3D11ComputeShader *pComputeShader, ID3D11ClassInstance *const *ppClassInstances, UINT NumClassInstances)
 {
 	_orig->CSSetShader(pComputeShader, ppClassInstances, NumClassInstances);
+
+#if RESHADE_ADDON
+	const reshade::api::pipeline_state state = reshade::api::pipeline_state::compute_shader;
+	const uint32_t value = 0; // TODO: CS
+
+	reshade::invoke_addon_event<reshade::addon_event::set_pipeline_states>(this, 1, &state, &value);
+#endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::CSSetSamplers(UINT StartSlot, UINT NumSamplers, ID3D11SamplerState *const *ppSamplers)
 {
@@ -678,6 +763,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::CSGetConstantBuffers(UINT StartSlo
 void    STDMETHODCALLTYPE D3D11DeviceContext::ClearState()
 {
 	_orig->ClearState();
+	// TODO: Call events with cleared state
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::Flush()
 {

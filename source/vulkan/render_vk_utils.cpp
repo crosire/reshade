@@ -8,6 +8,193 @@
 
 using namespace reshade::api;
 
+const reshade::api::pipeline_state reshade::vulkan::pipeline_states_compute[] = {
+	// VkComputePipelineCreateInfo::stage
+	reshade::api::pipeline_state::compute_shader,
+};
+const reshade::api::pipeline_state reshade::vulkan::pipeline_states_graphics[] = {
+	// VkGraphicsPipelineCreateInfo::stages
+	reshade::api::pipeline_state::vertex_shader,
+	reshade::api::pipeline_state::hull_shader,
+	reshade::api::pipeline_state::domain_shader,
+	reshade::api::pipeline_state::geometry_shader,
+	reshade::api::pipeline_state::pixel_shader,
+	// VkGraphicsPipelineCreateInfo::pRasterizationState::depthClampEnable
+	reshade::api::pipeline_state::depth_clip,
+	// VkGraphicsPipelineCreateInfo::pRasterizationState::polygonMode
+	reshade::api::pipeline_state::fill_mode,
+	// VkGraphicsPipelineCreateInfo::pRasterizationState::cullMode
+	reshade::api::pipeline_state::cull_mode,
+	// VkGraphicsPipelineCreateInfo::pRasterizationState::frontFace
+	reshade::api::pipeline_state::front_face_ccw,
+	// VkGraphicsPipelineCreateInfo::pRasterizationState::depthBiasConstantFactor
+	reshade::api::pipeline_state::depth_bias,
+	// VkGraphicsPipelineCreateInfo::pRasterizationState::depthBiasClamp
+	reshade::api::pipeline_state::depth_bias_clamp,
+	// VkGraphicsPipelineCreateInfo::pRasterizationState::depthBiasSlopeFactor
+	reshade::api::pipeline_state::depth_bias_slope_scaled,
+	// VkGraphicsPipelineCreateInfo::pMultisampleState::sampleShadingEnable
+	reshade::api::pipeline_state::multisample,
+	// VkGraphicsPipelineCreateInfo::pMultisampleState::pSampleMask[0]
+	reshade::api::pipeline_state::sample_mask,
+	// VkGraphicsPipelineCreateInfo::pMultisampleState::alphaToCoverageEnable
+	reshade::api::pipeline_state::sample_alpha_to_coverage,
+	// VkGraphicsPipelineCreateInfo::pDepthStencilState::depthTestEnable
+	reshade::api::pipeline_state::depth_test,
+	// VkGraphicsPipelineCreateInfo::pDepthStencilState::depthWriteEnable
+	reshade::api::pipeline_state::depth_write_mask,
+	// VkGraphicsPipelineCreateInfo::pDepthStencilState::depthCompareOp
+	reshade::api::pipeline_state::depth_func,
+	// VkGraphicsPipelineCreateInfo::pDepthStencilState::stencilTestEnable
+	reshade::api::pipeline_state::stencil_test,
+	// VkGraphicsPipelineCreateInfo::pDepthStencilState::front::failOp
+	reshade::api::pipeline_state::stencil_front_fail,
+	// VkGraphicsPipelineCreateInfo::pDepthStencilState::front::passOp
+	reshade::api::pipeline_state::stencil_front_pass,
+	// VkGraphicsPipelineCreateInfo::pDepthStencilState::front::depthFailOp
+	reshade::api::pipeline_state::stencil_front_depth_fail,
+	// VkGraphicsPipelineCreateInfo::pDepthStencilState::front::compareOp
+	reshade::api::pipeline_state::stencil_front_func,
+	// VkGraphicsPipelineCreateInfo::pDepthStencilState::front::compareMask
+	reshade::api::pipeline_state::stencil_read_mask,
+	// VkGraphicsPipelineCreateInfo::pDepthStencilState::front::writeMask
+	reshade::api::pipeline_state::stencil_write_mask,
+	// VkGraphicsPipelineCreateInfo::pDepthStencilState::front::reference
+	reshade::api::pipeline_state::stencil_ref,
+	// VkGraphicsPipelineCreateInfo::pDepthStencilState::back::failOp
+	reshade::api::pipeline_state::stencil_back_fail,
+	// VkGraphicsPipelineCreateInfo::pDepthStencilState::back::passOp
+	reshade::api::pipeline_state::stencil_back_pass,
+	// VkGraphicsPipelineCreateInfo::pDepthStencilState::back::depthFailOp
+	reshade::api::pipeline_state::stencil_back_depth_fail,
+	// VkGraphicsPipelineCreateInfo::pDepthStencilState::back::compareOp
+	reshade::api::pipeline_state::stencil_back_func,
+	// VkGraphicsPipelineCreateInfo::pColorBlendState::pAttachments[0]::blendEnable
+	reshade::api::pipeline_state::blend,
+	// VkGraphicsPipelineCreateInfo::pColorBlendState::pAttachments[0]::srcColorBlendFactor
+	reshade::api::pipeline_state::blend_color_src,
+	// VkGraphicsPipelineCreateInfo::pColorBlendState::pAttachments[0]::dstColorBlendFactor
+	reshade::api::pipeline_state::blend_color_dest,
+	// VkGraphicsPipelineCreateInfo::pColorBlendState::pAttachments[0]::colorBlendOp
+	reshade::api::pipeline_state::blend_color_op,
+	// VkGraphicsPipelineCreateInfo::pColorBlendState::pAttachments[0]::srcAlphaBlendFactor
+	reshade::api::pipeline_state::blend_alpha_src,
+	// VkGraphicsPipelineCreateInfo::pColorBlendState::pAttachments[0]::dstAlphaBlendFactor
+	reshade::api::pipeline_state::blend_alpha_dest,
+	// VkGraphicsPipelineCreateInfo::pColorBlendState::pAttachments[0]::alphaBlendOp
+	reshade::api::pipeline_state::blend_alpha_op,
+	// VkGraphicsPipelineCreateInfo::pColorBlendState::pAttachments[0]::colorWriteMask
+	reshade::api::pipeline_state::render_target_write_mask,
+	// VkGraphicsPipelineCreateInfo::pColorBlendState::blendConstants
+	reshade::api::pipeline_state::blend_factor,
+};
+
+void reshade::vulkan::fill_pipeline_state_values(const VkComputePipelineCreateInfo &create_info, uint32_t values[])
+{
+	values[0] = 0; // TODO: CS
+}
+void reshade::vulkan::fill_pipeline_state_values(const VkGraphicsPipelineCreateInfo &create_info, uint32_t values[])
+{
+	values[0] = 0; // TODO: VS
+	values[1] = 0; // TODO: HS
+	values[2] = 0; // TODO: DS
+	values[3] = 0; // TODO: GS
+	values[4] = 0; // TODO: PS
+
+	if (create_info.pRasterizationState != nullptr)
+	{
+		const VkPipelineRasterizationStateCreateInfo &info = *create_info.pRasterizationState;
+		values[5] = info.depthClampEnable;
+		values[6] = info.polygonMode;
+		values[7] = info.cullMode;
+		values[8] = info.frontFace;
+		values[9] = static_cast<uint32_t>(static_cast<int32_t>(info.depthBiasConstantFactor));
+		values[10] = *reinterpret_cast<const uint32_t *>(&info.depthBiasClamp);
+		values[11] = *reinterpret_cast<const uint32_t *>(&info.depthBiasSlopeFactor);
+	}
+	else
+	{
+		assert(false);
+	}
+
+	if (create_info.pMultisampleState != nullptr)
+	{
+		const VkPipelineMultisampleStateCreateInfo &info = *create_info.pMultisampleState;
+		values[12] = info.sampleShadingEnable;
+		values[13] = info.pSampleMask[0];
+		values[14] = info.alphaToCoverageEnable;
+	}
+	else
+	{
+		values[12] = values[13] = values[14] = 0;
+	}
+
+	if (create_info.pDepthStencilState != nullptr)
+	{
+		const VkPipelineDepthStencilStateCreateInfo &info = *create_info.pDepthStencilState;
+		values[15] = info.depthTestEnable;
+		values[16] = info.depthWriteEnable;
+		values[17] = info.depthCompareOp;
+		values[18] = info.stencilTestEnable;
+		values[19] = info.front.failOp;
+		values[20] = info.front.passOp;
+		values[21] = info.front.depthFailOp;
+		values[22] = info.front.compareOp;
+		values[23] = info.front.compareMask;
+		values[24] = info.front.writeMask;
+		values[25] = info.front.reference;
+		values[26] = info.back.failOp;
+		values[27] = info.back.passOp;
+		values[28] = info.back.depthFailOp;
+		values[29] = info.back.compareOp;
+	}
+	else
+	{
+		values[15] = VK_FALSE;
+		values[16] = 0;
+		values[17] = 0;
+		values[18] = VK_FALSE;
+		values[19] = values[20] = values[21] = VK_STENCIL_OP_KEEP;
+		values[22] = VK_COMPARE_OP_ALWAYS;
+		values[23] = 0xFFFFFFFF;
+		values[24] = 0xFFFFFFFF;
+		values[25] = 0xFFFFFFFF;
+		values[26] = values[27] = values[28] = VK_STENCIL_OP_KEEP;
+		values[29] = VK_COMPARE_OP_ALWAYS;
+	}
+
+	if (create_info.pColorBlendState != nullptr &&
+		create_info.pColorBlendState->pAttachments != nullptr)
+	{
+		const VkPipelineColorBlendStateCreateInfo &info = *create_info.pColorBlendState;
+		values[30] = info.pAttachments[0].blendEnable;
+		values[31] = info.pAttachments[0].srcColorBlendFactor;
+		values[32] = info.pAttachments[0].dstColorBlendFactor;
+		values[33] = info.pAttachments[0].colorBlendOp;
+		values[34] = info.pAttachments[0].srcAlphaBlendFactor;
+		values[35] = info.pAttachments[0].dstAlphaBlendFactor;
+		values[36] = info.pAttachments[0].alphaBlendOp;
+		values[37] = info.pAttachments[0].colorWriteMask;
+		values[38] =
+			((static_cast<uint32_t>(info.blendConstants[0] * 255.f) & 0xFF)) |
+			((static_cast<uint32_t>(info.blendConstants[1] * 255.f) & 0xFF) << 8) |
+			((static_cast<uint32_t>(info.blendConstants[2] * 255.f) & 0xFF) << 16) |
+			((static_cast<uint32_t>(info.blendConstants[3] * 255.f) & 0xFF) << 24);
+	}
+	else
+	{
+		values[30] = VK_FALSE;
+		values[31] = VK_BLEND_FACTOR_ONE;
+		values[32] = VK_BLEND_FACTOR_ZERO;
+		values[33] = VK_BLEND_OP_ADD;
+		values[34] = VK_BLEND_FACTOR_ONE;
+		values[35] = VK_BLEND_FACTOR_ZERO;
+		values[36] = VK_BLEND_OP_ADD;
+		values[37] = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+		values[38] = 0xFFFFFFFF;
+	}
+}
+
 auto reshade::vulkan::convert_usage_to_access(resource_usage state) -> VkAccessFlags
 {
 	VkAccessFlags result = 0;

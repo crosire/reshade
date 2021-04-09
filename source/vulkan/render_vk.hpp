@@ -15,6 +15,11 @@
 
 namespace reshade::vulkan
 {
+	struct pipeline_data
+	{
+		uint32_t values[39];
+	};
+
 	struct render_pass_data
 	{
 		struct subpass
@@ -152,6 +157,7 @@ namespace reshade::vulkan
 		lockfree_table<uint64_t, resource_data, 4096> _resources;
 		lockfree_table<uint64_t, resource_view_data, 4096> _views;
 #if RESHADE_ADDON
+		lockfree_table<VkPipeline, pipeline_data, 4096> _pipeline_list;
 		lockfree_table<VkRenderPass, render_pass_data, 4096> _render_pass_list;
 		lockfree_table<VkFramebuffer, std::vector<api::resource_view_handle>, 4096> _framebuffer_list;
 #endif

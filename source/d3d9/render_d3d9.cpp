@@ -109,7 +109,7 @@ void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 		pp.EnableAutoDepthStencil &&
 		SUCCEEDED(_orig->GetDepthStencilSurface(&auto_depth_stencil)))
 	{
-		D3DSURFACE_DESC old_desc = {};
+		D3DSURFACE_DESC old_desc;
 		auto_depth_stencil->GetDesc(&old_desc);
 		D3DSURFACE_DESC new_desc = old_desc;
 
@@ -277,7 +277,7 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource_handle resou
 				if (desc.first_level != 0 || desc.levels != 1)
 					break;
 
-				D3DSURFACE_DESC internal_desc; internal_desc.Format = D3DFMT_UNKNOWN;
+				D3DSURFACE_DESC internal_desc;
 				static_cast<IDirect3DSurface9 *>(object)->GetDesc(&internal_desc);
 				if (internal_desc.Format != static_cast<D3DFORMAT>(desc.format))
 					break;
@@ -300,7 +300,7 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource_handle resou
 				if (desc.levels != 1)
 					break;
 
-				D3DSURFACE_DESC internal_desc; internal_desc.Format = D3DFMT_UNKNOWN;
+				D3DSURFACE_DESC internal_desc;
 				static_cast<IDirect3DTexture9 *>(object)->GetLevelDesc(desc.first_level, &internal_desc);
 				if (internal_desc.Format != static_cast<D3DFORMAT>(desc.format))
 					break;
@@ -314,7 +314,7 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource_handle resou
 			}
 			else if (usage_type == api::resource_usage::shader_resource && desc.first_level == 0)
 			{
-				D3DSURFACE_DESC internal_desc; internal_desc.Format = D3DFMT_UNKNOWN;
+				D3DSURFACE_DESC internal_desc;
 				static_cast<IDirect3DTexture9 *>(object)->GetLevelDesc(0, &internal_desc);
 				if (internal_desc.Format != static_cast<D3DFORMAT>(desc.format))
 					break;
@@ -336,7 +336,7 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource_handle resou
 				if (desc.levels != 1 || desc.layers != 1)
 					break;
 
-				D3DSURFACE_DESC internal_desc; internal_desc.Format = D3DFMT_UNKNOWN;
+				D3DSURFACE_DESC internal_desc;
 				static_cast<IDirect3DCubeTexture9 *>(object)->GetLevelDesc(desc.first_level, &internal_desc);
 				if (internal_desc.Format != static_cast<D3DFORMAT>(desc.format))
 					break;
@@ -352,7 +352,7 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource_handle resou
 			{
 				assert(desc.type == api::resource_view_type::texture_cube);
 
-				D3DSURFACE_DESC internal_desc; internal_desc.Format = D3DFMT_UNKNOWN;
+				D3DSURFACE_DESC internal_desc;
 				static_cast<IDirect3DCubeTexture9 *>(object)->GetLevelDesc(0, &internal_desc);
 				if (internal_desc.Format != static_cast<D3DFORMAT>(desc.format))
 					break;

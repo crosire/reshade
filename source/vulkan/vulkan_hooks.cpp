@@ -32,6 +32,8 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	HOOK_PROC(CreateImageView);
 	HOOK_PROC(DestroyImageView);
 	HOOK_PROC(CreateShaderModule);
+	HOOK_PROC(CreateGraphicsPipelines);
+	HOOK_PROC(CreateComputePipelines);
 	HOOK_PROC(CreateRenderPass);
 	HOOK_PROC(CreateRenderPass2);
 	if (0 == strcmp(pName, "vkCreateRenderPass2KHR"))
@@ -44,8 +46,14 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	HOOK_PROC(FreeCommandBuffers);
 	HOOK_PROC(BeginCommandBuffer);
 
+	HOOK_PROC(CmdBindPipeline);
 	HOOK_PROC(CmdSetViewport);
 	HOOK_PROC(CmdSetScissor);
+	HOOK_PROC(CmdSetDepthBias);
+	HOOK_PROC(CmdSetBlendConstants);
+	HOOK_PROC(CmdSetStencilCompareMask);
+	HOOK_PROC(CmdSetStencilWriteMask);
+	HOOK_PROC(CmdSetStencilReference);
 	HOOK_PROC(CmdBindIndexBuffer);
 	HOOK_PROC(CmdBindVertexBuffers);
 	HOOK_PROC(CmdDraw);

@@ -98,6 +98,10 @@ namespace reshade
 		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, uint32_t count, const api::resource_view_handle *rtvs, api::resource_view_handle dsv)</c></para>
 		/// </summary>
 		set_render_targets_and_depth_stencil,
+		/// <summary>
+		/// Called after 'IDirect3DDevice9::SetRenderState', 'ID3D10Device::(...)Set(...)State', 'ID3D11DeviceContext::(...)Set(...)State', 'ID3D12GraphicsCommandList::(...)Set(...)', 'gl(...)', 'vkCmdSet(...)' or 'vkCmdBindPipeline'.
+		/// </summary>
+		set_pipeline_states,
 
 		/// <summary>
 		/// Called before 'IDirect3DDevice9::DrawPrimitive(UP)', 'ID3D10Device::Draw(Instanced)', 'ID3D11DeviceContext::Draw(Instanced)', 'ID3D12GraphicsCommandList::DrawInstanced', 'gl(Multi)DrawArrays(...)' or 'vkCmdDraw'.
@@ -246,6 +250,7 @@ namespace reshade
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::set_viewports, api::command_list *cmd_list, uint32_t first, uint32_t count, const float *viewports);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::set_scissor_rects, api::command_list *cmd_list, uint32_t first, uint32_t count, const int32_t *rects);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::set_render_targets_and_depth_stencil, api::command_list *cmd_list, uint32_t count, const api::resource_view_handle *rtvs, api::resource_view_handle dsv);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::set_pipeline_states, api::command_list *cmd_list, uint32_t count, const api::pipeline_state *states, const uint32_t *values);
 
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::draw, api::command_list *cmd_list, uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance);
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::draw_indexed, api::command_list *cmd_list, uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance);

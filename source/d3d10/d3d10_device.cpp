@@ -94,6 +94,13 @@ void    STDMETHODCALLTYPE D3D10Device::PSSetShaderResources(UINT StartSlot, UINT
 void    STDMETHODCALLTYPE D3D10Device::PSSetShader(ID3D10PixelShader *pPixelShader)
 {
 	_orig->PSSetShader(pPixelShader);
+
+#if RESHADE_ADDON
+	const reshade::api::pipeline_state state = reshade::api::pipeline_state::pixel_shader;
+	const uint32_t value = 0; // TODO: PS
+
+	reshade::invoke_addon_event<reshade::addon_event::set_pipeline_states>(this, 1, &state, &value);
+#endif
 }
 void    STDMETHODCALLTYPE D3D10Device::PSSetSamplers(UINT StartSlot, UINT NumSamplers, ID3D10SamplerState *const *ppSamplers)
 {
@@ -102,6 +109,13 @@ void    STDMETHODCALLTYPE D3D10Device::PSSetSamplers(UINT StartSlot, UINT NumSam
 void    STDMETHODCALLTYPE D3D10Device::VSSetShader(ID3D10VertexShader *pVertexShader)
 {
 	_orig->VSSetShader(pVertexShader);
+
+#if RESHADE_ADDON
+	const reshade::api::pipeline_state state = reshade::api::pipeline_state::vertex_shader;
+	const uint32_t value = 0; // TODO: VS
+
+	reshade::invoke_addon_event<reshade::addon_event::set_pipeline_states>(this, 1, &state, &value);
+#endif
 }
 void    STDMETHODCALLTYPE D3D10Device::DrawIndexed(UINT IndexCount, UINT StartIndexLocation, INT BaseVertexLocation)
 {
@@ -133,6 +147,9 @@ void    STDMETHODCALLTYPE D3D10Device::IASetVertexBuffers(UINT StartSlot, UINT N
 
 #if RESHADE_ADDON
 	assert(NumBuffers <= D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT);
+
+	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::set_vertex_buffers)].empty())
+		return;
 
 #ifndef WIN64
 	reshade::api::resource_handle buffers[D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
@@ -183,6 +200,13 @@ void    STDMETHODCALLTYPE D3D10Device::GSSetConstantBuffers(UINT StartSlot, UINT
 void    STDMETHODCALLTYPE D3D10Device::GSSetShader(ID3D10GeometryShader *pShader)
 {
 	_orig->GSSetShader(pShader);
+
+#if RESHADE_ADDON
+	const reshade::api::pipeline_state state = reshade::api::pipeline_state::geometry_shader;
+	const uint32_t value = 0; // TODO: GS
+
+	reshade::invoke_addon_event<reshade::addon_event::set_pipeline_states>(this, 1, &state, &value);
+#endif
 }
 void    STDMETHODCALLTYPE D3D10Device::IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY Topology)
 {
@@ -215,6 +239,9 @@ void    STDMETHODCALLTYPE D3D10Device::OMSetRenderTargets(UINT NumViews, ID3D10R
 #if RESHADE_ADDON
 	assert(NumViews <= D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT);
 
+	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::set_render_targets_and_depth_stencil)].empty())
+		return;
+
 #ifndef WIN64
 	reshade::api::resource_view_handle rtvs[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
 	for (UINT i = 0; i < NumViews; ++i)
@@ -230,10 +257,30 @@ void    STDMETHODCALLTYPE D3D10Device::OMSetRenderTargets(UINT NumViews, ID3D10R
 void    STDMETHODCALLTYPE D3D10Device::OMSetBlendState(ID3D10BlendState *pBlendState, const FLOAT BlendFactor[4], UINT SampleMask)
 {
 	_orig->OMSetBlendState(pBlendState, BlendFactor, SampleMask);
+
+#if RESHADE_ADDON
+	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::set_pipeline_states)].empty())
+		return;
+
+	uint32_t pipeline_state_values[ARRAYSIZE(reshade::d3d10::pipeline_states_blend)];
+	reshade::d3d10::fill_pipeline_state_values(pBlendState, BlendFactor, SampleMask, pipeline_state_values);
+
+	reshade::invoke_addon_event<reshade::addon_event::set_pipeline_states>(this, static_cast<uint32_t>(ARRAYSIZE(reshade::d3d10::pipeline_states_blend)), reshade::d3d10::pipeline_states_blend, pipeline_state_values);
+#endif
 }
 void    STDMETHODCALLTYPE D3D10Device::OMSetDepthStencilState(ID3D10DepthStencilState *pDepthStencilState, UINT StencilRef)
 {
 	_orig->OMSetDepthStencilState(pDepthStencilState, StencilRef);
+
+#if RESHADE_ADDON
+	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::set_pipeline_states)].empty())
+		return;
+
+	uint32_t pipeline_state_values[ARRAYSIZE(reshade::d3d10::pipeline_states_depth_stencil)];
+	reshade::d3d10::fill_pipeline_state_values(pDepthStencilState, StencilRef, pipeline_state_values);
+
+	reshade::invoke_addon_event<reshade::addon_event::set_pipeline_states>(this, static_cast<uint32_t>(ARRAYSIZE(reshade::d3d10::pipeline_states_depth_stencil)), reshade::d3d10::pipeline_states_depth_stencil, pipeline_state_values);
+#endif
 }
 void    STDMETHODCALLTYPE D3D10Device::SOSetTargets(UINT NumBuffers, ID3D10Buffer *const *ppSOTargets, const UINT *pOffsets)
 {
@@ -250,6 +297,16 @@ void    STDMETHODCALLTYPE D3D10Device::DrawAuto()
 void    STDMETHODCALLTYPE D3D10Device::RSSetState(ID3D10RasterizerState *pRasterizerState)
 {
 	_orig->RSSetState(pRasterizerState);
+
+#if RESHADE_ADDON
+	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::set_pipeline_states)].empty())
+		return;
+
+	uint32_t pipeline_state_values[ARRAYSIZE(reshade::d3d10::pipeline_states_rasterizer)];
+	reshade::d3d10::fill_pipeline_state_values(pRasterizerState, pipeline_state_values);
+
+	reshade::invoke_addon_event<reshade::addon_event::set_pipeline_states>(this, static_cast<uint32_t>(ARRAYSIZE(reshade::d3d10::pipeline_states_rasterizer)), reshade::d3d10::pipeline_states_rasterizer, pipeline_state_values);
+#endif
 }
 void    STDMETHODCALLTYPE D3D10Device::RSSetViewports(UINT NumViewports, const D3D10_VIEWPORT *pViewports)
 {
@@ -257,6 +314,9 @@ void    STDMETHODCALLTYPE D3D10Device::RSSetViewports(UINT NumViewports, const D
 
 #if RESHADE_ADDON
 	assert(NumViewports <= D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE);
+
+	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::set_viewports)].empty())
+		return;
 
 	float viewport_data[6 * D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];
 	for (UINT i = 0, k = 0; i < NumViewports; ++i, k += 6)
@@ -278,6 +338,9 @@ void    STDMETHODCALLTYPE D3D10Device::RSSetScissorRects(UINT NumRects, const D3
 
 #if RESHADE_ADDON
 	assert(NumRects <= D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE);
+
+	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::set_scissor_rects)].empty())
+		return;
 
 	int32_t rect_data[4 * D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];
 	for (UINT i = 0, k = 0; i < NumRects; ++i, k += 4)
@@ -450,6 +513,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::SetPrivateDataInterface(REFGUID guid, con
 void    STDMETHODCALLTYPE D3D10Device::ClearState()
 {
 	_orig->ClearState();
+	// TODO: Call events with cleared state
 }
 void    STDMETHODCALLTYPE D3D10Device::Flush()
 {

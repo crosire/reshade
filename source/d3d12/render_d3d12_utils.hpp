@@ -5,6 +5,15 @@
 
 namespace reshade::d3d12
 {
+	extern const GUID pipeline_state_guid;
+	static const UINT pipeline_state_max_values = 38;
+
+	extern const reshade::api::pipeline_state pipeline_states_compute[1];
+	extern const reshade::api::pipeline_state pipeline_states_graphics[38];
+
+	void fill_pipeline_state_values(const D3D12_COMPUTE_PIPELINE_STATE_DESC &desc, uint32_t (&values)[ARRAYSIZE(pipeline_states_compute)]);
+	void fill_pipeline_state_values(const D3D12_GRAPHICS_PIPELINE_STATE_DESC &desc, uint32_t (&values)[ARRAYSIZE(pipeline_states_graphics)]);
+
 	D3D12_RESOURCE_STATES convert_resource_usage_to_states(api::resource_usage usage);
 
 	void convert_resource_desc(const api::resource_desc &desc, D3D12_RESOURCE_DESC &internal_desc, D3D12_HEAP_PROPERTIES &heap_props);

@@ -8,6 +8,137 @@
 
 using namespace reshade::api;
 
+const GUID reshade::d3d12::pipeline_state_guid = { 0xB2257A30, 0x4014, 0x46EA, { 0xBD, 0x88, 0xDE, 0xC2, 0x1D, 0xB6, 0xA0, 0x2B } };
+
+const pipeline_state reshade::d3d12::pipeline_states_compute[] = {
+	// D3D12_COMPUTE_PIPELINE_STATE_DESC::CS
+	pipeline_state::compute_shader,
+};
+const pipeline_state reshade::d3d12::pipeline_states_graphics[] = {
+	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::VS
+	pipeline_state::vertex_shader,
+	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::PS
+	pipeline_state::pixel_shader,
+	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::DS
+	pipeline_state::domain_shader,
+	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::HS
+	pipeline_state::hull_shader,
+	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::GS
+	pipeline_state::geometry_shader,
+	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::BlendState::AlphaToCoverageEnable
+	pipeline_state::sample_alpha_to_coverage,
+	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::BlendState::RenderTarget[0]::BlendEnable
+	pipeline_state::blend,
+	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::BlendState::RenderTarget[0]::SrcBlend
+	pipeline_state::blend_color_src,
+	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::BlendState::RenderTarget[0]::DestBlend
+	pipeline_state::blend_color_dest,
+	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::BlendState::RenderTarget[0]::BlendOp
+	pipeline_state::blend_color_op,
+	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::BlendState::RenderTarget[0]::SrcBlendAlpha
+	pipeline_state::blend_alpha_src,
+	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::BlendState::RenderTarget[0]::DestBlendAlpha
+	pipeline_state::blend_alpha_dest,
+	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::BlendState::RenderTarget[0]::BlendOpAlpha
+	pipeline_state::blend_alpha_op,
+	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::BlendState::RenderTarget[0]::RenderTargetWriteMask
+	pipeline_state::render_target_write_mask,
+	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::SampleMask
+	pipeline_state::sample_mask,
+	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::RasterizerState::FillMode
+	pipeline_state::fill_mode,
+	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::RasterizerState::CullMode
+	pipeline_state::cull_mode,
+	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::RasterizerState::FrontCounterClockwise
+	pipeline_state::front_face_ccw,
+	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::RasterizerState::DepthBias
+	pipeline_state::depth_bias,
+	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::RasterizerState::DepthBiasClamp
+	pipeline_state::depth_bias_clamp,
+	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::RasterizerState::SlopeScaledDepthBias
+	pipeline_state::depth_bias_slope_scaled,
+	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::RasterizerState::DepthClipEnable
+	pipeline_state::depth_clip,
+	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::RasterizerState::MultisampleEnable
+	pipeline_state::multisample,
+	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::RasterizerState::AntialiasedLineEnable
+	pipeline_state::antialiased_line,
+	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::DepthStencilState::DepthEnable
+	pipeline_state::depth_test,
+	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::DepthStencilState::DepthWriteMask
+	pipeline_state::depth_write_mask,
+	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::DepthStencilState::DepthFunc
+	pipeline_state::depth_func,
+	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::DepthStencilState::StencilEnable
+	pipeline_state::stencil_test,
+	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::DepthStencilState::StencilReadMask
+	pipeline_state::stencil_read_mask,
+	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::DepthStencilState::StencilWriteMask
+	pipeline_state::stencil_write_mask,
+	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::DepthStencilState::FrontFace::StencilFailOp
+	pipeline_state::stencil_front_fail,
+	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::DepthStencilState::FrontFace::StencilDepthFailOp
+	pipeline_state::stencil_front_depth_fail,
+	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::DepthStencilState::FrontFace::StencilPassOp
+	pipeline_state::stencil_front_pass,
+	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::DepthStencilState::FrontFace::StencilFunc
+	pipeline_state::stencil_front_func,
+	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::DepthStencilState::BackFace::StencilFailOp
+	pipeline_state::stencil_back_fail,
+	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::DepthStencilState::BackFace::StencilDepthFailOp
+	pipeline_state::stencil_back_depth_fail,
+	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::DepthStencilState::BackFace::StencilPassOp
+	pipeline_state::stencil_back_pass,
+	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::DepthStencilState::BackFace::StencilFunc
+	pipeline_state::stencil_back_func,
+};
+
+void reshade::d3d12::fill_pipeline_state_values(const D3D12_COMPUTE_PIPELINE_STATE_DESC &desc, uint32_t (&values)[ARRAYSIZE(pipeline_states_compute)])
+{
+	values[0] = 0; // TODO: CS
+}
+void reshade::d3d12::fill_pipeline_state_values(const D3D12_GRAPHICS_PIPELINE_STATE_DESC &desc, uint32_t (&values)[ARRAYSIZE(pipeline_states_graphics)])
+{
+	values[0] = 0; // TODO: VS
+	values[1] = 0; // TODO: PS
+	values[2] = 0; // TODO: DS
+	values[3] = 0; // TODO: HS
+	values[4] = 0; // TODO: GS
+	values[5] = desc.BlendState.AlphaToCoverageEnable;
+	values[6] = desc.BlendState.RenderTarget[0].BlendEnable;
+	values[7] = desc.BlendState.RenderTarget[0].SrcBlend;
+	values[8] = desc.BlendState.RenderTarget[0].DestBlend;
+	values[9] = desc.BlendState.RenderTarget[0].BlendOp;
+	values[10] = desc.BlendState.RenderTarget[0].SrcBlendAlpha;
+	values[11] = desc.BlendState.RenderTarget[0].DestBlendAlpha;
+	values[12] = desc.BlendState.RenderTarget[0].BlendOpAlpha;
+	values[13] = desc.BlendState.RenderTarget[0].RenderTargetWriteMask;
+	values[14] = desc.SampleMask;
+	values[15] = desc.RasterizerState.FillMode;
+	values[16] = desc.RasterizerState.CullMode;
+	values[17] = desc.RasterizerState.FrontCounterClockwise;
+	values[18] = desc.RasterizerState.DepthBias;
+	values[19] = *reinterpret_cast<const uint32_t *>(&desc.RasterizerState.DepthBiasClamp);
+	values[20] = *reinterpret_cast<const uint32_t *>(&desc.RasterizerState.SlopeScaledDepthBias);
+	values[21] = desc.RasterizerState.DepthClipEnable;
+	values[22] = desc.RasterizerState.MultisampleEnable;
+	values[23] = desc.RasterizerState.AntialiasedLineEnable;
+	values[24] = desc.DepthStencilState.DepthEnable;
+	values[25] = desc.DepthStencilState.DepthWriteMask;
+	values[26] = desc.DepthStencilState.DepthFunc;
+	values[27] = desc.DepthStencilState.StencilEnable;
+	values[28] = desc.DepthStencilState.StencilReadMask;
+	values[29] = desc.DepthStencilState.StencilWriteMask;
+	values[30] = desc.DepthStencilState.FrontFace.StencilFailOp;
+	values[31] = desc.DepthStencilState.FrontFace.StencilDepthFailOp;
+	values[32] = desc.DepthStencilState.FrontFace.StencilPassOp;
+	values[33] = desc.DepthStencilState.FrontFace.StencilFunc;
+	values[34] = desc.DepthStencilState.BackFace.StencilFailOp;
+	values[35] = desc.DepthStencilState.BackFace.StencilDepthFailOp;
+	values[36] = desc.DepthStencilState.BackFace.StencilPassOp;
+	values[37] = desc.DepthStencilState.BackFace.StencilFunc;
+}
+
 D3D12_RESOURCE_STATES reshade::d3d12::convert_resource_usage_to_states(reshade::api::resource_usage usage)
 {
 	auto result = static_cast<D3D12_RESOURCE_STATES>(usage);

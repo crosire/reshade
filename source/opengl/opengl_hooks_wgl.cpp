@@ -694,6 +694,7 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 				gl3wProcs.gl.TexBufferRange = reshade::hooks::call(glTexBufferRange);
 				gl3wProcs.gl.TextureView = reshade::hooks::call(glTextureView);
 				gl3wProcs.gl.TexStorage2D = reshade::hooks::call(glTexStorage2D); // Used in 'runtime_impl::init_texture'
+				gl3wProcs.gl.UseProgram = reshade::hooks::call(glUseProgram);
 			}
 #endif
 
@@ -1172,6 +1173,7 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glTextureStorage2D);
 		HOOK_PROC(glTextureStorage3D);
 		HOOK_PROC(glTextureView);
+		HOOK_PROC(glUseProgram);
 		HOOK_PROC(glViewportArrayv);
 		HOOK_PROC(glViewportIndexedf);
 		HOOK_PROC(glViewportIndexedfv);
@@ -1202,6 +1204,7 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		gl3wProcs.gl.TexBufferRange = reshade::hooks::call(glTexBufferRange);
 		gl3wProcs.gl.TextureView = reshade::hooks::call(glTextureView);
 		gl3wProcs.gl.TexStorage2D = reshade::hooks::call(glTexStorage2D);
+		gl3wProcs.gl.UseProgram = reshade::hooks::call(glUseProgram);
 #endif
 
 		s_hooks_installed = true;

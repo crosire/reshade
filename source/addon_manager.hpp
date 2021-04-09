@@ -43,7 +43,7 @@ namespace reshade
 	{
 #if RESHADE_ADDON
 		std::vector<void *> &event_list = addon::event_list[static_cast<size_t>(ev)];
-		for (size_t cb = 0; cb < event_list.size(); ++cb) // Generates better code than ranged-based for loop
+		for (size_t cb = 0, count = event_list.size(); cb < count; ++cb) // Generates better code than ranged-based for loop
 			reinterpret_cast<typename reshade::addon_event_traits<ev>::decl>(event_list[cb])(std::forward<Args>(args)...);
 #endif
 	}
@@ -53,7 +53,7 @@ namespace reshade
 		bool skip = false;
 #if RESHADE_ADDON
 		std::vector<void *> &event_list = addon::event_list[static_cast<size_t>(ev)];
-		for (size_t cb = 0; cb < event_list.size(); ++cb)
+		for (size_t cb = 0, count = event_list.size(); cb < count; ++cb)
 			skip |= reinterpret_cast<typename reshade::addon_event_traits<ev>::decl>(event_list[cb])(std::forward<Args>(args)...);
 #endif
 		return skip;

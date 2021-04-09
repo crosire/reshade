@@ -43,6 +43,7 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(set_viewports);
 		CASE(set_scissor_rects);
 		CASE(set_render_targets_and_depth_stencil);
+		CASE(set_pipeline_states);
 		CASE(draw);
 		CASE(draw_indexed);
 		CASE(dispatch);

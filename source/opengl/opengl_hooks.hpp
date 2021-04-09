@@ -215,6 +215,8 @@ extern "C" void WINAPI glTextureStorage2D(GLuint texture, GLsizei levels, GLenum
 extern "C" void WINAPI glTextureStorage3D(GLuint texture, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth);
 #undef glTextureView
 extern "C" void WINAPI glTextureView(GLuint texture, GLenum target, GLuint origtexture, GLenum internalformat, GLuint minlevel, GLuint numlevels, GLuint minlayer, GLuint numlayers);
+#undef glUseProgram
+extern "C" void WINAPI glUseProgram(GLuint program);
 #undef glViewport
 extern "C" void WINAPI glViewport(GLint x, GLint y, GLsizei width, GLsizei height);
 #undef glViewportArrayv
