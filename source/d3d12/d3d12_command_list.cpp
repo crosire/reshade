@@ -181,14 +181,65 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::Dispatch(UINT ThreadGroupCountX
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::CopyBufferRegion(ID3D12Resource *pDstBuffer, UINT64 DstOffset, ID3D12Resource *pSrcBuffer, UINT64 SrcOffset, UINT64 NumBytes)
 {
+#if RESHADE_ADDON
+	if (reshade::invoke_addon_event<reshade::addon_event::copy_buffer_region>(this,
+		reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pSrcBuffer) }, SrcOffset,
+		reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pDstBuffer) }, DstOffset, NumBytes))
+		return;
+#endif
 	_orig->CopyBufferRegion(pDstBuffer, DstOffset, pSrcBuffer, SrcOffset, NumBytes);
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::CopyTextureRegion(const D3D12_TEXTURE_COPY_LOCATION *pDst, UINT DstX, UINT DstY, UINT DstZ, const D3D12_TEXTURE_COPY_LOCATION *pSrc, const D3D12_BOX *pSrcBox)
 {
+#if RESHADE_ADDON
+	reshade::api::copy_location src_location = pSrc->SubresourceIndex;
+	if (pSrc->Type == D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT)
+	{
+		src_location = reshade::api::copy_location(
+			pSrc->PlacedFootprint.Offset,
+			pSrc->PlacedFootprint.Footprint.RowPitch,
+			pSrc->PlacedFootprint.Footprint.Width,
+			pSrc->PlacedFootprint.Footprint.Height,
+			pSrc->PlacedFootprint.Footprint.Depth);
+	}
+
+	reshade::api::copy_location dst_location = pDst->SubresourceIndex;
+	if (pDst->Type == D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT)
+	{
+		dst_location = reshade::api::copy_location(
+			pDst->PlacedFootprint.Offset,
+			pDst->PlacedFootprint.Footprint.RowPitch,
+			pDst->PlacedFootprint.Footprint.Width,
+			pDst->PlacedFootprint.Footprint.Height,
+			pDst->PlacedFootprint.Footprint.Depth);
+	}
+
+	int32_t dst_rect[6];
+	if (pSrcBox != nullptr)
+	{
+		dst_rect[0] = static_cast<int32_t>(DstX);
+		dst_rect[1] = static_cast<int32_t>(DstY);
+		dst_rect[2] = static_cast<int32_t>(DstZ);
+		dst_rect[3] = dst_rect[0] + (pSrcBox->right - pSrcBox->left);
+		dst_rect[4] = dst_rect[1] + (pSrcBox->bottom - pSrcBox->top);
+		dst_rect[5] = dst_rect[2] + (pSrcBox->back - pSrcBox->front);
+	}
+
+	static_assert(sizeof(D3D12_BOX) == (sizeof(int32_t) * 6));
+
+	if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(this,
+		reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pSrc->pResource) }, src_location, reinterpret_cast<const int32_t *>(pSrcBox),
+		reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pDst->pResource) }, dst_location, pSrcBox != nullptr ? dst_rect : nullptr))
+		return;
+#endif
 	_orig->CopyTextureRegion(pDst, DstX, DstY, DstZ, pSrc, pSrcBox);
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::CopyResource(ID3D12Resource *pDstResource, ID3D12Resource *pSrcResource)
 {
+#if RESHADE_ADDON
+	if (reshade::invoke_addon_event<reshade::addon_event::copy_resource>(this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pSrcResource) }, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pDstResource) }))
+		return;
+#endif
 	_orig->CopyResource(pDstResource, pSrcResource);
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::CopyTiles(ID3D12Resource *pTiledResource, const D3D12_TILED_RESOURCE_COORDINATE *pTileRegionStartCoordinate, const D3D12_TILE_REGION_SIZE *pTileRegionSize, ID3D12Resource *pBuffer, UINT64 BufferStartOffsetInBytes, D3D12_TILE_COPY_FLAGS Flags)

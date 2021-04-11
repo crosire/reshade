@@ -275,6 +275,27 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
+	/// Used to specify which subresource or region of a resource to copy.
+	/// This can either contain a subresource index (level + layer * levels) or a buffer region (offset, row_pitch, ...).
+	/// </summary>
+	struct copy_location
+	{
+		copy_location(uint32_t subresource_index) :
+			subresource(subresource_index), offset(0), row_pitch(0), width(0), height(0), depth_or_layers(0) {}
+		copy_location(uint32_t level, uint32_t layer, uint32_t levels) :
+			subresource(level + layer * levels), offset(0), row_pitch(0), width(0), height(0), depth_or_layers(0) {}
+		copy_location(uint64_t offset, uint32_t row_pitch, uint32_t width, uint32_t height, uint32_t depth_or_layers) :
+			subresource(std::numeric_limits<uint32_t>::max()), offset(offset), row_pitch(row_pitch), width(width), height(height), depth_or_layers(depth_or_layers) {}
+
+		uint32_t subresource;
+		uint64_t offset;
+		uint32_t row_pitch;
+		uint32_t width;
+		uint32_t height;
+		uint32_t depth_or_layers;
+	};
+
+	/// <summary>
 	/// Used to specify data for initializing a subresource or access existing subresource data.
 	/// </summary>
 	struct mapped_subresource

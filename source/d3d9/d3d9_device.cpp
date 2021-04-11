@@ -607,10 +607,51 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurface(UINT Width,
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::UpdateSurface(IDirect3DSurface9 *pSourceSurface, const RECT *pSourceRect, IDirect3DSurface9 *pDestinationSurface, const POINT *pDestPoint)
 {
+#if RESHADE_ADDON
+	int32_t src_rect[6];
+	if (pSourceRect != nullptr)
+	{
+		src_rect[0] = pSourceRect->left;
+		src_rect[1] = pSourceRect->top;
+		src_rect[2] = 0;
+		src_rect[3] = pSourceRect->right;
+		src_rect[4] = pSourceRect->left;
+		src_rect[5] = 1;
+	}
+	int32_t dst_rect[6];
+	if (pDestPoint != nullptr)
+	{
+		src_rect[0] = pDestPoint->x;
+		src_rect[1] = pDestPoint->y;
+		src_rect[2] = 0;
+		if (pSourceRect != nullptr)
+		{
+			src_rect[3] = pSourceRect->right;
+			src_rect[4] = pSourceRect->left;
+		}
+		else
+		{
+			D3DSURFACE_DESC desc;
+			pDestinationSurface->GetDesc(&desc);
+			src_rect[3] = desc.Width;
+			src_rect[4] = desc.Height;
+		}
+		src_rect[5] = 1;
+	}
+
+	if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(this,
+		reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pSourceSurface) }, 0, (pSourceRect != nullptr) ? src_rect : nullptr,
+		reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pDestinationSurface) }, 0, (pDestPoint != nullptr) ? dst_rect : nullptr))
+		return D3D_OK;
+#endif
 	return _orig->UpdateSurface(pSourceSurface, pSourceRect, pDestinationSurface, pDestPoint);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::UpdateTexture(IDirect3DBaseTexture9 *pSourceTexture, IDirect3DBaseTexture9 *pDestinationTexture)
 {
+#if RESHADE_ADDON
+	if (reshade::invoke_addon_event<reshade::addon_event::copy_resource>(this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pSourceTexture) }, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pDestinationTexture) }))
+		return D3D_OK;
+#endif
 	return _orig->UpdateTexture(pSourceTexture, pDestinationTexture);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetRenderTargetData(IDirect3DSurface9 *pRenderTarget, IDirect3DSurface9 *pDestSurface)
@@ -629,11 +670,44 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetFrontBufferData(UINT iSwapChain, I
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::StretchRect(IDirect3DSurface9 *pSourceSurface, const RECT *pSourceRect, IDirect3DSurface9 *pDestSurface, const RECT *pDestRect, D3DTEXTUREFILTERTYPE Filter)
 {
+#if RESHADE_ADDON
+	int32_t src_rect[6];
+	if (pSourceRect != nullptr)
+	{
+		src_rect[0] = pSourceRect->left;
+		src_rect[1] = pSourceRect->top;
+		src_rect[2] = 0;
+		src_rect[3] = pSourceRect->right;
+		src_rect[4] = pSourceRect->bottom;
+		src_rect[5] = 1;
+	}
+	int32_t dst_rect[6];
+	if (pDestRect != nullptr)
+	{
+		dst_rect[0] = pDestRect->left;
+		dst_rect[1] = pDestRect->top;
+		dst_rect[2] = 0;
+		dst_rect[3] = pDestRect->right;
+		dst_rect[4] = pDestRect->bottom;
+		dst_rect[5] = 1;
+	}
+
+	if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(this,
+		reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pSourceSurface) }, 0, (pSourceRect != nullptr) ? src_rect : nullptr,
+		reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pDestSurface) }, 0, (pDestRect != nullptr) ? dst_rect : nullptr))
+		return D3D_OK;
+#endif
 	return _orig->StretchRect(pSourceSurface, pSourceRect, pDestSurface, pDestRect, Filter);
 }
-HRESULT STDMETHODCALLTYPE Direct3DDevice9::ColorFill(IDirect3DSurface9 *pSurface, const RECT *pRect, D3DCOLOR color)
+HRESULT STDMETHODCALLTYPE Direct3DDevice9::ColorFill(IDirect3DSurface9 *pSurface, const RECT *pRect, D3DCOLOR Color)
 {
-	return _orig->ColorFill(pSurface, pRect, color);
+#if RESHADE_ADDON
+	const float color[4] = { ((Color >> 16) & 0xFF) / 255.0f, ((Color >> 8) & 0xFF) / 255.0f, (Color & 0xFF) / 255.0f, ((Color >> 24) & 0xFF) / 255.0f };
+
+	if (reshade::invoke_addon_event<reshade::addon_event::clear_render_target>(this, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(pSurface) }, color))
+		return D3D_OK;
+#endif
+	return _orig->ColorFill(pSurface, pRect, Color);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateOffscreenPlainSurface(UINT Width, UINT Height, D3DFORMAT Format, D3DPOOL Pool, IDirect3DSurface9 **ppSurface, HANDLE *pSharedHandle)
 {
@@ -958,14 +1032,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetScissorRect(const RECT *pRect)
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
-		const int32_t rect_data[4] = {
-			static_cast<int32_t>(pRect->left),
-			static_cast<int32_t>(pRect->top),
-			static_cast<int32_t>(pRect->right - pRect->left),
-			static_cast<int32_t>(pRect->bottom - pRect->top)
-		};
+		static_assert(sizeof(RECT) == (sizeof(int32_t) * 4));
 
-		reshade::invoke_addon_event<reshade::addon_event::set_scissor_rects>(this, 0, 1, rect_data);
+		reshade::invoke_addon_event<reshade::addon_event::set_scissor_rects>(this, 0, 1, reinterpret_cast<const int32_t *>(pRect));
 	}
 #endif
 	return hr;

@@ -142,6 +142,56 @@ HOOK_EXPORT void WINAPI glBlendFunc(GLenum sfactor, GLenum dfactor)
 #endif
 }
 
+			void WINAPI glBlitFramebuffer(GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter)
+{
+#if RESHADE_ADDON
+	if (g_current_runtime)
+	{
+		GLint src_fbo = 0;
+		glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &src_fbo);
+		GLint dst_fbo = 0;
+		glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &dst_fbo);
+
+		reshade::api::resource_handle src = { 0 };
+		g_current_runtime->get_resource_from_view(
+			g_current_runtime->get_render_target_from_fbo(src_fbo, 0), &src);
+		reshade::api::resource_handle dst = { 0 };
+		g_current_runtime->get_resource_from_view(
+			g_current_runtime->get_render_target_from_fbo(dst_fbo, 0), &dst);
+
+		const int32_t src_rect[6] = { srcX0, srcY0, 0, srcX1, srcY1, 1 };
+		const int32_t dst_rect[6] = { dstX0, dstY0, 0, dstX1, dstY1, 1 };
+		if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(g_current_runtime, src, 0, src_rect, dst, 0, dst_rect))
+			return;
+	}
+#endif
+
+	static const auto trampoline = reshade::hooks::call(glBlitFramebuffer);
+	trampoline(srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1, dstY1, mask, filter);
+}
+			void WINAPI glBlitNamedFramebuffer(GLuint readFramebuffer, GLuint drawFramebuffer, GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter)
+{
+#if RESHADE_ADDON
+	if (g_current_runtime)
+	{
+		reshade::api::resource_handle src = { 0 };
+		g_current_runtime->get_resource_from_view(
+			g_current_runtime->get_render_target_from_fbo(readFramebuffer, 0), &src);
+		reshade::api::resource_handle dst = { 0 };
+		g_current_runtime->get_resource_from_view(
+			g_current_runtime->get_render_target_from_fbo(drawFramebuffer, 0), &dst);
+
+		const int32_t src_rect[6] = { srcX0, srcY0, 0, srcX1, srcY1, 1 };
+		const int32_t dst_rect[6] = { dstX0, dstY0, 0, dstX1, dstY1, 1 };
+		if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(g_current_runtime, src, 0, src_rect, dst, 0, dst_rect))
+			return;
+	}
+#endif
+
+	static const auto trampoline = reshade::hooks::call(glBlitNamedFramebuffer);
+	trampoline(readFramebuffer, drawFramebuffer, srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1, dstY1, mask, filter);
+}
+
 			void WINAPI glBufferData(GLenum target, GLsizeiptr size, const void *data, GLenum usage)
 {
 	const reshade::api::mapped_subresource initial_data = { data }; // Row and depth pitch are unused for buffer data
@@ -2102,7 +2152,7 @@ HOOK_EXPORT void WINAPI glScissor(GLint x, GLint y, GLsizei width, GLsizei heigh
 #if RESHADE_ADDON
 	if (g_current_runtime)
 	{
-		const int32_t rect_data[4] = { x, y, width, height };
+		const int32_t rect_data[4] = { x, y, x + width, y + height };
 
 		reshade::invoke_addon_event<reshade::addon_event::set_scissor_rects>(g_current_runtime, 0, 1, rect_data);
 	}
@@ -2117,7 +2167,16 @@ HOOK_EXPORT void WINAPI glScissor(GLint x, GLint y, GLsizei width, GLsizei heigh
 #if RESHADE_ADDON
 	if (g_current_runtime)
 	{
-		reshade::invoke_addon_event<reshade::addon_event::set_scissor_rects>(g_current_runtime, first, count, v);
+		const auto rect_data = static_cast<int32_t *>(alloca(sizeof(int32_t) * 4 * count));
+		for (GLsizei i = 0, k = 0; i < count; ++i, k += 4)
+		{
+			rect_data[k + 0] = v[k + 0];
+			rect_data[k + 1] = v[k + 2];
+			rect_data[k + 2] = v[k + 0] + v[k + 3];
+			rect_data[k + 3] = v[k + 2] + v[k + 4];
+		}
+
+		reshade::invoke_addon_event<reshade::addon_event::set_scissor_rects>(g_current_runtime, first, count, rect_data);
 	}
 #endif
 }
@@ -2129,7 +2188,7 @@ HOOK_EXPORT void WINAPI glScissor(GLint x, GLint y, GLsizei width, GLsizei heigh
 #if RESHADE_ADDON
 	if (g_current_runtime)
 	{
-		const int32_t rect_data[4] = { left, bottom, width, height };
+		const int32_t rect_data[4] = { left, bottom, left + width, bottom + height };
 
 		reshade::invoke_addon_event<reshade::addon_event::set_scissor_rects>(g_current_runtime, index, 1, rect_data);
 	}
@@ -2143,7 +2202,9 @@ HOOK_EXPORT void WINAPI glScissor(GLint x, GLint y, GLsizei width, GLsizei heigh
 #if RESHADE_ADDON
 	if (g_current_runtime)
 	{
-		reshade::invoke_addon_event<reshade::addon_event::set_scissor_rects>(g_current_runtime, index, 1, v);
+		const int32_t rect_data[4] = { v[0], v[1], v[0] + v[2], v[1] + v[3] };
+
+		reshade::invoke_addon_event<reshade::addon_event::set_scissor_rects>(g_current_runtime, index, 1, rect_data);
 	}
 #endif
 }

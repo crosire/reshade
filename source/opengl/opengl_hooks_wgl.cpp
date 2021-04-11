@@ -686,6 +686,8 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 			// Get trampoline pointers to any hooked functions, so that runtime always calls into original OpenGL functions
 			gl3wProcs.gl.BindBuffer = reshade::hooks::call(glBindBuffer);
 			gl3wProcs.gl.BindFramebuffer = reshade::hooks::call(glBindFramebuffer);
+			gl3wProcs.gl.BlitFramebuffer = reshade::hooks::call(glBlitFramebuffer);
+			gl3wProcs.gl.BlitNamedFramebuffer = reshade::hooks::call(glBlitNamedFramebuffer);
 			gl3wProcs.gl.BufferData = reshade::hooks::call(glBufferData);
 			gl3wProcs.gl.BufferStorage = reshade::hooks::call(glBufferStorage);
 			gl3wProcs.gl.ClearBufferfv = reshade::hooks::call(glClearBufferfv);
@@ -1167,6 +1169,8 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 #if RESHADE_ADDON
 		HOOK_PROC(glBindBuffer);
 		HOOK_PROC(glBindFramebuffer);
+		HOOK_PROC(glBlitFramebuffer);
+		HOOK_PROC(glBlitNamedFramebuffer);
 		HOOK_PROC(glBufferData);
 		HOOK_PROC(glBufferStorage);
 		HOOK_PROC(glClearBufferfv);

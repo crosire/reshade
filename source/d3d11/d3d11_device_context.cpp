@@ -450,33 +450,51 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::RSSetScissorRects(UINT NumRects, c
 	_orig->RSSetScissorRects(NumRects, pRects);
 
 #if RESHADE_ADDON
-	assert(NumRects <= D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE);
+	static_assert(sizeof(D3D11_RECT) == (sizeof(int32_t) * 4));
 
-	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::set_scissor_rects)].empty())
-		return;
-
-	int32_t rect_data[4 * D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];
-	for (UINT i = 0, k = 0; i < NumRects; ++i, k += 4)
-	{
-		rect_data[k + 0] = static_cast<int32_t>(pRects[i].left);
-		rect_data[k + 1] = static_cast<int32_t>(pRects[i].top);
-		rect_data[k + 2] = static_cast<int32_t>(pRects[i].right - pRects[i].left);
-		rect_data[k + 3] = static_cast<int32_t>(pRects[i].bottom - pRects[i].top);
-	}
-
-	reshade::invoke_addon_event<reshade::addon_event::set_scissor_rects>(this, 0, NumRects, rect_data);
+	reshade::invoke_addon_event<reshade::addon_event::set_scissor_rects>(this, 0, NumRects, reinterpret_cast<const int32_t *>(pRects));
 #endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::CopySubresourceRegion(ID3D11Resource *pDstResource, UINT DstSubresource, UINT DstX, UINT DstY, UINT DstZ, ID3D11Resource *pSrcResource, UINT SrcSubresource, const D3D11_BOX *pSrcBox)
 {
+#if RESHADE_ADDON
+	int32_t dst_rect[6];
+	if (pSrcBox != nullptr)
+	{
+		dst_rect[0] = static_cast<int32_t>(DstX);
+		dst_rect[1] = static_cast<int32_t>(DstY);
+		dst_rect[2] = static_cast<int32_t>(DstZ);
+		dst_rect[3] = dst_rect[0] + (pSrcBox->right - pSrcBox->left);
+		dst_rect[4] = dst_rect[1] + (pSrcBox->bottom - pSrcBox->top);
+		dst_rect[5] = dst_rect[2] + (pSrcBox->back - pSrcBox->front);
+	}
+
+	static_assert(sizeof(D3D11_BOX) == (sizeof(int32_t) * 6));
+
+	if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(this,
+		reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pSrcResource) }, SrcSubresource, reinterpret_cast<const int32_t *>(pSrcBox),
+		reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pDstResource) }, DstSubresource, pSrcBox != nullptr ? dst_rect : nullptr))
+		return;
+#endif
 	_orig->CopySubresourceRegion(pDstResource, DstSubresource, DstX, DstY, DstZ, pSrcResource, SrcSubresource, pSrcBox);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::CopyResource(ID3D11Resource *pDstResource, ID3D11Resource *pSrcResource)
 {
+#if RESHADE_ADDON
+	if (reshade::invoke_addon_event<reshade::addon_event::copy_resource>(this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pSrcResource) }, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pDstResource) }))
+		return;
+#endif
 	_orig->CopyResource(pDstResource, pSrcResource);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::UpdateSubresource(ID3D11Resource *pDstResource, UINT DstSubresource, const D3D11_BOX *pDstBox, const void *pSrcData, UINT SrcRowPitch, UINT SrcDepthPitch)
 {
+#if RESHADE_ADDON
+	static_assert(sizeof(D3D11_BOX) == (sizeof(int32_t) * 6));
+
+	if (reshade::api::mapped_subresource data = { pSrcData, SrcRowPitch, SrcDepthPitch };
+		reshade::invoke_addon_event<reshade::addon_event::update_resource_region>(this, &data, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pDstResource) }, DstSubresource, reinterpret_cast<const int32_t *>(pDstBox)))
+		return;
+#endif
 	_orig->UpdateSubresource(pDstResource, DstSubresource, pDstBox, pSrcData, SrcRowPitch, SrcDepthPitch);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::CopyStructureCount(ID3D11Buffer *pDstBuffer, UINT DstAlignedByteOffset, ID3D11UnorderedAccessView *pSrcView)

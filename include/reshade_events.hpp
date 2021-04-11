@@ -90,7 +90,7 @@ namespace reshade
 		/// <summary>
 		/// Called after 'IDirect3DDevice9::SetScissorRect', 'ID3D10Device::RSSetScissorRects', 'ID3D11DeviceContext::RSSetScissorRects', 'ID3D12GraphicsCommandList::RSSetScissorRects', 'glScissor' or 'vkCmdSetScissor'.
 		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, uint32_t first, uint32_t count, const int32_t *rects)</c></para>
-		/// <para>Rectangle data format is { rect[0].x, rect[0].y, rect[0].width, rect[0].height, rect[1].x, rect[1].y, ... }.</para>
+		/// <para>Rectangle data format is { rect[0].left, rect[0].top, rect[0].right, rect[0].bottom, rect[1].left, rect[1].right, ... }.</para>
 		/// </summary>
 		set_scissor_rects,
 		/// <summary>
@@ -124,6 +124,40 @@ namespace reshade
 		/// <para>The "type" parameter to the callback function will be <c>addon_event::draw</c>, <c>addon_event::draw_indexed</c> or <c>addon_event::dispatch</c> depending on the indirect command. Can also be <c>addon_event::draw_or_dispatch_indirect</c> if the type could not be determined.</para>
 		/// </summary>
 		draw_or_dispatch_indirect,
+		/// <summary>
+		/// Called before 'IDirect3DDevice9::UpdateTexture', 'IDirect3DDevice9::StretchRect', 'ID3D10Device::CopyResource', 'ID3D11DeviceContext::CopyResource', 'ID3D12GraphicsCommandList::CopyResource'.
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_handle src, api::resource_handle dst)</c></para>
+		/// </summary>
+		/// <remarks>
+		/// Source resource will be in the <see cref="resource_usage::copy_src"/> state. Destination resource will be in the <see cref="resource_usage::copy_dest"/> state.
+		/// </remarks>
+		copy_resource,
+		/// <summary>
+		/// Called before 'ID3D12GraphicsCommandList::CopyBufferRegion' or 'vkCmdCopyBuffer'.
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_handle src, uint64_t src_offset, api::resource_handle dst, uint64_t dst_offset, uint64_t size)</c></para>
+		/// </summary>
+		/// <remarks>
+		/// Source resource will be in the <see cref="resource_usage::copy_src"/> state. Destination resource will be in the <see cref="resource_usage::copy_dest"/> state.
+		/// </remarks>
+		copy_buffer_region,
+		/// <summary>
+		/// Called before 'IDirect3DDevice9::UpdateSurface', 'IDirect3DDevice9::StretchRect', 'ID3D10Device::CopySubresourceRegion', 'ID3D11DeviceContext::CopySubresourceRegion', 'ID3D12GraphicsCommandList::CopyTextureRegion', 'glBlit(Named)Framebuffer', 'vkCmdBlitImage' or 'vkCmdCopy(...)'.
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_handle src, const api::copy_location &src_location, const int32_t *src_box, api::resource_handle dst, const api::copy_location &dst_location, const int32_t *dst_box)</c></para>
+		/// <para>Box data format is { box->left, box->top, box->front, box->right, box->bottom, box->back }.</para>
+		/// </summary>
+		/// <remarks>
+		/// Source resource will be in the <see cref="resource_usage::copy_src"/> state. Destination resource will be in the <see cref="resource_usage::copy_dest"/> state.
+		/// </remarks>
+		copy_texture_region,
+		/// <summary>
+		/// Called before 'ID3D10Device::UpdateSubresource' or 'ID3D11DeviceContext::UpdateSubresource'.
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, const api::mapped_subresource *data, api::resource_handle dst, const api::copy_location &dst_location, const int32_t *dst_box)</c></para>
+		/// <para>Box data format is { box->left, box->top, box->front, box->right, box->bottom, box->back }.</para>
+		/// </summary>
+		/// <remarks>
+		/// Destination resource will be in the <see cref="resource_usage::copy_dest"/> state.
+		/// </remarks>
+		update_resource_region,
 		/// <summary>
 		/// Called before 'IDirect3DDevice9::Clear', 'ID3D10Device::ClearDepthStencilView', 'ID3D11DeviceContext::ClearDepthStencilView', 'ID3D12GraphicsCommandList::ClearDepthStencilView', 'glClear(...) ', 'vkCmdBeginRenderPass' or 'vkCmdClearDepthStencilImage'.
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil)</c></para>
@@ -258,6 +292,10 @@ namespace reshade
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::draw_or_dispatch_indirect, api::command_list *cmd_list, addon_event type, api::resource_handle buffer, uint64_t offset, uint32_t draw_count, uint32_t stride);
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::clear_depth_stencil, api::command_list *cmd_list, api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil);
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::clear_render_target, api::command_list *cmd_list, api::resource_view_handle rtv, const float color[4]);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::copy_resource, api::command_list *cmd_list, api::resource_handle src, api::resource_handle dst);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::copy_buffer_region, api::command_list *cmd_list, api::resource_handle src, uint64_t src_offset, api::resource_handle dst, uint64_t dst_offset, uint64_t size);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::copy_texture_region, api::command_list *cmd_list, api::resource_handle src, const api::copy_location &src_location, const int32_t src_box[6], api::resource_handle dst, const api::copy_location &dst_location, const int32_t dst_box[6]);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::update_resource_region, api::command_list *cmd_list, const api::mapped_subresource *data, api::resource_handle dst, const api::copy_location &dst_location, const int32_t dst_box[6]);
 
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::reset_command_list, api::command_list *cmd_list);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::execute_command_list, api::command_queue *queue, api::command_list *cmd_list);

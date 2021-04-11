@@ -13,6 +13,10 @@ extern "C" void WINAPI glBindFramebuffer(GLenum target, GLuint framebuffer);
 extern "C" void WINAPI glBindTexture(GLenum target, GLuint texture);
 #undef glBlendFunc
 extern "C" void WINAPI glBlendFunc(GLenum sfactor, GLenum dfactor);
+#undef glBlitFramebuffer
+extern "C" void WINAPI glBlitFramebuffer(GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter);
+#undef glBlitNamedFramebuffer
+extern "C" void WINAPI glBlitNamedFramebuffer(GLuint readFramebuffer, GLuint drawFramebuffer, GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter);
 #undef glBufferData
 extern "C" void WINAPI glBufferData(GLenum target, GLsizeiptr size, const void *data, GLenum usage);
 #undef glBufferStorage
