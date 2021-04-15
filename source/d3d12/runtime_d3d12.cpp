@@ -659,7 +659,7 @@ bool reshade::d3d12::runtime_impl::init_effect(size_t index)
 		params[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
 		D3D12_ROOT_SIGNATURE_DESC desc = {};
-		desc.NumParameters = effect.module.num_storage_bindings == 0 ? 3 : 4;
+		desc.NumParameters = 1 + (effect.module.num_storage_bindings != 0) + (effect.module.num_sampler_bindings != 0) + (effect.module.num_texture_bindings != 0);
 		desc.pParameters = params;
 
 		effect_data.signature = create_root_signature(_device.get(), desc);
@@ -707,7 +707,9 @@ bool reshade::d3d12::runtime_impl::init_effect(size_t index)
 	for (const reshadefx::technique_info &info : effect.module.techniques)
 		num_passes += static_cast<UINT>(info.passes.size());
 
-	{   D3D12_DESCRIPTOR_HEAP_DESC desc = { D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV };
+	if((effect.module.num_texture_bindings + effect.module.num_storage_bindings) != 0 )
+	{
+		D3D12_DESCRIPTOR_HEAP_DESC desc = { D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV };
 		desc.NumDescriptors = (effect.module.num_texture_bindings + effect.module.num_storage_bindings) * num_passes;
 		desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 
@@ -724,7 +726,9 @@ bool reshade::d3d12::runtime_impl::init_effect(size_t index)
 		effect_data.uav_gpu_base.ptr += effect.module.num_texture_bindings * num_passes * _device_impl->_descriptor_handle_size[desc.Type];
 	}
 
-	{   D3D12_DESCRIPTOR_HEAP_DESC desc = { D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER };
+	if(effect.module.num_sampler_bindings != 0)
+	{
+		D3D12_DESCRIPTOR_HEAP_DESC desc = { D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER };
 		desc.NumDescriptors = effect.module.num_sampler_bindings;
 		desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 
@@ -1375,7 +1379,8 @@ void reshade::d3d12::runtime_impl::render_technique(technique &technique)
 	RESHADE_ADDON_EVENT(reshade_before_effects, this, _cmd_impl);
 
 	ID3D12DescriptorHeap *const descriptor_heaps[] = { effect_data.srv_uav_heap.get(), effect_data.sampler_heap.get() };
-	cmd_list->SetDescriptorHeaps(ARRAYSIZE(descriptor_heaps), descriptor_heaps);
+	int descriptor_heaps_size = (effect_data.srv_uav_heap != nullptr) + (effect_data.sampler_heap != nullptr);
+	cmd_list->SetDescriptorHeaps(descriptor_heaps_size, descriptor_heaps);
 	cmd_list->SetGraphicsRootSignature(effect_data.signature.get());
 	if (impl->has_compute_passes)
 		cmd_list->SetComputeRootSignature(effect_data.signature.get());
@@ -1396,9 +1401,12 @@ void reshade::d3d12::runtime_impl::render_technique(technique &technique)
 	}
 
 	// Setup samplers
-	cmd_list->SetGraphicsRootDescriptorTable(2, effect_data.sampler_gpu_base);
-	if (impl->has_compute_passes)
-		cmd_list->SetComputeRootDescriptorTable(2, effect_data.sampler_gpu_base);
+	if (effect_data.sampler_heap != nullptr)
+	{
+		cmd_list->SetGraphicsRootDescriptorTable(2, effect_data.sampler_gpu_base);
+		if (impl->has_compute_passes)
+			cmd_list->SetComputeRootDescriptorTable(2, effect_data.sampler_gpu_base);
+	}
 
 	bool is_effect_stencil_cleared = false;
 	bool needs_implicit_backbuffer_copy = true; // First pass always needs the back buffer updated
@@ -1432,7 +1440,7 @@ void reshade::d3d12::runtime_impl::render_technique(technique &technique)
 		if (pass_index > 0)
 		{
 			// Set descriptor heaps again, since they may have been changed by 'generate_mipmaps' of previous pass
-			cmd_list->SetDescriptorHeaps(ARRAYSIZE(descriptor_heaps), descriptor_heaps);
+			cmd_list->SetDescriptorHeaps(descriptor_heaps_size, descriptor_heaps);
 		}
 
 		const pass_data &pass_data = impl->passes[pass_index];
@@ -1452,7 +1460,8 @@ void reshade::d3d12::runtime_impl::render_technique(technique &technique)
 		}
 		else
 		{
-			cmd_list->SetGraphicsRootDescriptorTable(1, pass_data.srv_handle);
+			if(effect_data.srv_uav_heap != nullptr)
+				cmd_list->SetGraphicsRootDescriptorTable(1, pass_data.srv_handle);
 
 			// Transition resource state for render targets
 			if (!pass_data.modified_resources.empty())
