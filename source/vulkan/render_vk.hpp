@@ -17,7 +17,7 @@ namespace reshade::vulkan
 {
 	struct pipeline_data
 	{
-		uint32_t values[39];
+		uint32_t values[40];
 	};
 
 	struct render_pass_data

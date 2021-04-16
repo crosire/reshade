@@ -253,6 +253,12 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::ResolveSubresource(ID3D12Resour
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::IASetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY PrimitiveTopology)
 {
 	_orig->IASetPrimitiveTopology(PrimitiveTopology);
+
+#if RESHADE_ADDON
+	const reshade::api::pipeline_state state = reshade::api::pipeline_state::primitive_topology;
+
+	reshade::invoke_addon_event<reshade::addon_event::set_pipeline_states>(this, 1, &state, &PrimitiveTopology);
+#endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::RSSetViewports(UINT NumViewports, const D3D12_VIEWPORT *pViewports)
 {

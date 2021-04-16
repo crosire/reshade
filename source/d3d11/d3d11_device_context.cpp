@@ -272,6 +272,12 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::GSSetShader(ID3D11GeometryShader *
 void    STDMETHODCALLTYPE D3D11DeviceContext::IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY Topology)
 {
 	_orig->IASetPrimitiveTopology(Topology);
+
+#if RESHADE_ADDON
+	const reshade::api::pipeline_state state = reshade::api::pipeline_state::primitive_topology;
+
+	reshade::invoke_addon_event<reshade::addon_event::set_pipeline_states>(this, 1, &state, &Topology);
+#endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::VSSetShaderResources(UINT StartSlot, UINT NumViews, ID3D11ShaderResourceView *const *ppShaderResourceViews)
 {

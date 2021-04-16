@@ -19,6 +19,8 @@ const reshade::api::pipeline_state reshade::vulkan::pipeline_states_graphics[] =
 	reshade::api::pipeline_state::domain_shader,
 	reshade::api::pipeline_state::geometry_shader,
 	reshade::api::pipeline_state::pixel_shader,
+	// VkGraphicsPipelineCreateInfo::pInputAssemblyState::topology
+	reshade::api::pipeline_state::primitive_topology,
 	// VkGraphicsPipelineCreateInfo::pRasterizationState::depthClampEnable
 	reshade::api::pipeline_state::depth_clip,
 	// VkGraphicsPipelineCreateInfo::pRasterizationState::polygonMode
@@ -101,16 +103,26 @@ void reshade::vulkan::fill_pipeline_state_values(const VkGraphicsPipelineCreateI
 	values[3] = 0; // TODO: GS
 	values[4] = 0; // TODO: PS
 
+	if (create_info.pInputAssemblyState != nullptr)
+	{
+		const VkPipelineInputAssemblyStateCreateInfo &info = *create_info.pInputAssemblyState;
+		values[5] = info.topology;
+	}
+	else
+	{
+		values[5] = 0;
+	}
+
 	if (create_info.pRasterizationState != nullptr)
 	{
 		const VkPipelineRasterizationStateCreateInfo &info = *create_info.pRasterizationState;
-		values[5] = info.depthClampEnable;
-		values[6] = info.polygonMode;
-		values[7] = info.cullMode;
-		values[8] = info.frontFace;
-		values[9] = static_cast<uint32_t>(static_cast<int32_t>(info.depthBiasConstantFactor));
-		values[10] = *reinterpret_cast<const uint32_t *>(&info.depthBiasClamp);
-		values[11] = *reinterpret_cast<const uint32_t *>(&info.depthBiasSlopeFactor);
+		values[6] = info.depthClampEnable;
+		values[7] = info.polygonMode;
+		values[8] = info.cullMode;
+		values[9] = info.frontFace;
+		values[10] = static_cast<uint32_t>(static_cast<int32_t>(info.depthBiasConstantFactor));
+		values[11] = *reinterpret_cast<const uint32_t *>(&info.depthBiasClamp);
+		values[12] = *reinterpret_cast<const uint32_t *>(&info.depthBiasSlopeFactor);
 	}
 	else
 	{
@@ -120,62 +132,62 @@ void reshade::vulkan::fill_pipeline_state_values(const VkGraphicsPipelineCreateI
 	if (create_info.pMultisampleState != nullptr)
 	{
 		const VkPipelineMultisampleStateCreateInfo &info = *create_info.pMultisampleState;
-		values[12] = info.sampleShadingEnable;
-		values[13] = info.pSampleMask[0];
-		values[14] = info.alphaToCoverageEnable;
+		values[13] = info.sampleShadingEnable;
+		values[14] = info.pSampleMask[0];
+		values[15] = info.alphaToCoverageEnable;
 	}
 	else
 	{
-		values[12] = values[13] = values[14] = 0;
+		values[13] = values[14] = values[15] = 0;
 	}
 
 	if (create_info.pDepthStencilState != nullptr)
 	{
 		const VkPipelineDepthStencilStateCreateInfo &info = *create_info.pDepthStencilState;
-		values[15] = info.depthTestEnable;
-		values[16] = info.depthWriteEnable;
-		values[17] = info.depthCompareOp;
-		values[18] = info.stencilTestEnable;
-		values[19] = info.front.failOp;
-		values[20] = info.front.passOp;
-		values[21] = info.front.depthFailOp;
-		values[22] = info.front.compareOp;
-		values[23] = info.front.compareMask;
-		values[24] = info.front.writeMask;
-		values[25] = info.front.reference;
-		values[26] = info.back.failOp;
-		values[27] = info.back.passOp;
-		values[28] = info.back.depthFailOp;
-		values[29] = info.back.compareOp;
+		values[16] = info.depthTestEnable;
+		values[17] = info.depthWriteEnable;
+		values[18] = info.depthCompareOp;
+		values[19] = info.stencilTestEnable;
+		values[20] = info.front.failOp;
+		values[21] = info.front.passOp;
+		values[22] = info.front.depthFailOp;
+		values[23] = info.front.compareOp;
+		values[24] = info.front.compareMask;
+		values[25] = info.front.writeMask;
+		values[26] = info.front.reference;
+		values[27] = info.back.failOp;
+		values[28] = info.back.passOp;
+		values[29] = info.back.depthFailOp;
+		values[30] = info.back.compareOp;
 	}
 	else
 	{
-		values[15] = VK_FALSE;
-		values[16] = 0;
+		values[16] = VK_FALSE;
 		values[17] = 0;
-		values[18] = VK_FALSE;
-		values[19] = values[20] = values[21] = VK_STENCIL_OP_KEEP;
-		values[22] = VK_COMPARE_OP_ALWAYS;
-		values[23] = 0xFFFFFFFF;
+		values[18] = 0;
+		values[19] = VK_FALSE;
+		values[20] = values[21] = values[22] = VK_STENCIL_OP_KEEP;
+		values[23] = VK_COMPARE_OP_ALWAYS;
 		values[24] = 0xFFFFFFFF;
 		values[25] = 0xFFFFFFFF;
-		values[26] = values[27] = values[28] = VK_STENCIL_OP_KEEP;
-		values[29] = VK_COMPARE_OP_ALWAYS;
+		values[26] = 0xFFFFFFFF;
+		values[27] = values[28] = values[29] = VK_STENCIL_OP_KEEP;
+		values[30] = VK_COMPARE_OP_ALWAYS;
 	}
 
 	if (create_info.pColorBlendState != nullptr &&
 		create_info.pColorBlendState->pAttachments != nullptr)
 	{
 		const VkPipelineColorBlendStateCreateInfo &info = *create_info.pColorBlendState;
-		values[30] = info.pAttachments[0].blendEnable;
-		values[31] = info.pAttachments[0].srcColorBlendFactor;
-		values[32] = info.pAttachments[0].dstColorBlendFactor;
-		values[33] = info.pAttachments[0].colorBlendOp;
-		values[34] = info.pAttachments[0].srcAlphaBlendFactor;
-		values[35] = info.pAttachments[0].dstAlphaBlendFactor;
-		values[36] = info.pAttachments[0].alphaBlendOp;
-		values[37] = info.pAttachments[0].colorWriteMask;
-		values[38] =
+		values[31] = info.pAttachments[0].blendEnable;
+		values[32] = info.pAttachments[0].srcColorBlendFactor;
+		values[33] = info.pAttachments[0].dstColorBlendFactor;
+		values[34] = info.pAttachments[0].colorBlendOp;
+		values[35] = info.pAttachments[0].srcAlphaBlendFactor;
+		values[36] = info.pAttachments[0].dstAlphaBlendFactor;
+		values[37] = info.pAttachments[0].alphaBlendOp;
+		values[38] = info.pAttachments[0].colorWriteMask;
+		values[39] =
 			((static_cast<uint32_t>(info.blendConstants[0] * 255.f) & 0xFF)) |
 			((static_cast<uint32_t>(info.blendConstants[1] * 255.f) & 0xFF) << 8) |
 			((static_cast<uint32_t>(info.blendConstants[2] * 255.f) & 0xFF) << 16) |
@@ -183,15 +195,15 @@ void reshade::vulkan::fill_pipeline_state_values(const VkGraphicsPipelineCreateI
 	}
 	else
 	{
-		values[30] = VK_FALSE;
-		values[31] = VK_BLEND_FACTOR_ONE;
-		values[32] = VK_BLEND_FACTOR_ZERO;
-		values[33] = VK_BLEND_OP_ADD;
-		values[34] = VK_BLEND_FACTOR_ONE;
-		values[35] = VK_BLEND_FACTOR_ZERO;
-		values[36] = VK_BLEND_OP_ADD;
-		values[37] = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-		values[38] = 0xFFFFFFFF;
+		values[31] = VK_FALSE;
+		values[32] = VK_BLEND_FACTOR_ONE;
+		values[33] = VK_BLEND_FACTOR_ZERO;
+		values[34] = VK_BLEND_OP_ADD;
+		values[35] = VK_BLEND_FACTOR_ONE;
+		values[36] = VK_BLEND_FACTOR_ZERO;
+		values[37] = VK_BLEND_OP_ADD;
+		values[38] = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+		values[39] = 0xFFFFFFFF;
 	}
 }
 

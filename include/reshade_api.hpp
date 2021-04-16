@@ -157,6 +157,8 @@ namespace reshade { namespace api
 		multisample = 161,
 		antialiased_line = 176,
 
+		primitive_topology = 900,
+
 		// Depth-stencil state
 
 		depth_test = 7,
