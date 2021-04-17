@@ -988,7 +988,27 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetTexture(DWORD Stage, IDirect3DBase
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetTexture(DWORD Stage, IDirect3DBaseTexture9 *pTexture)
 {
-	return _orig->SetTexture(Stage, pTexture);
+	const HRESULT hr = _orig->SetTexture(Stage, pTexture);
+#if RESHADE_ADDON
+	if (SUCCEEDED(hr))
+	{
+		reshade::api::shader_stage shader_stage = reshade::api::shader_stage::pixel;
+		if (Stage >= D3DVERTEXTEXTURESAMPLER0)
+		{
+			shader_stage = reshade::api::shader_stage::vertex;
+			Stage -= D3DVERTEXTEXTURESAMPLER0;
+		}
+		else if (Stage == D3DDMAPSAMPLER)
+		{
+			shader_stage = reshade::api::shader_stage::hull;
+		}
+
+		const reshade::api::resource_view_handle view = { reinterpret_cast<uintptr_t>(pTexture) };
+
+		reshade::invoke_addon_event<reshade::addon_event::set_shader_resources>(this, shader_stage, Stage, 1, &view);
+	}
+#endif
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetTextureStageState(DWORD Stage, D3DTEXTURESTAGESTATETYPE Type, DWORD *pValue)
 {
@@ -1004,7 +1024,25 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetSamplerState(DWORD Sampler, D3DSAM
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetSamplerState(DWORD Sampler, D3DSAMPLERSTATETYPE Type, DWORD Value)
 {
-	return _orig->SetSamplerState(Sampler, Type, Value);
+	const HRESULT hr = _orig->SetSamplerState(Sampler, Type, Value);
+#if RESHADE_ADDON
+	if (SUCCEEDED(hr))
+	{
+		reshade::api::shader_stage shader_stage = reshade::api::shader_stage::pixel;
+		if (Sampler >= D3DVERTEXTEXTURESAMPLER0)
+		{
+			shader_stage = reshade::api::shader_stage::vertex;
+			Sampler -= D3DVERTEXTEXTURESAMPLER0;
+		}
+		else if (Sampler == D3DDMAPSAMPLER)
+		{
+			shader_stage = reshade::api::shader_stage::hull;
+		}
+
+		reshade::invoke_addon_event<reshade::addon_event::set_samplers>(this, shader_stage, Sampler, 1, nullptr); // TODO
+	}
+#endif
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::ValidateDevice(DWORD *pNumPasses)
 {
@@ -1145,10 +1183,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetVertexShader(IDirect3DVertexShader
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
-		const reshade::api::pipeline_state state = reshade::api::pipeline_state::vertex_shader;
-		const uint32_t value = 0; // TODO: VS
-
-		reshade::invoke_addon_event<reshade::addon_event::set_pipeline_states>(this, 1, &state, &value);
+		reshade::invoke_addon_event<reshade::addon_event::set_shader>(this, reshade::api::shader_stage::vertex, reinterpret_cast<uintptr_t>(pShader));
 	}
 #endif
 	return hr;
@@ -1159,7 +1194,14 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetVertexShader(IDirect3DVertexShader
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetVertexShaderConstantF(UINT StartRegister, const float *pConstantData, UINT Vector4fCount)
 {
-	return _orig->SetVertexShaderConstantF(StartRegister, pConstantData, Vector4fCount);
+	const HRESULT hr = _orig->SetVertexShaderConstantF(StartRegister, pConstantData, Vector4fCount);
+#if RESHADE_ADDON
+	if (SUCCEEDED(hr))
+	{
+		reshade::invoke_addon_event<reshade::addon_event::set_constants>(this, reshade::api::shader_stage::vertex, 0, StartRegister, Vector4fCount, reinterpret_cast<const uint32_t *>(pConstantData));
+	}
+#endif
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetVertexShaderConstantF(UINT StartRegister, float *pConstantData, UINT Vector4fCount)
 {
@@ -1167,15 +1209,29 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetVertexShaderConstantF(UINT StartRe
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetVertexShaderConstantI(UINT StartRegister, const int *pConstantData, UINT Vector4iCount)
 {
-	return _orig->SetVertexShaderConstantI(StartRegister, pConstantData, Vector4iCount);
+	const HRESULT hr = _orig->SetVertexShaderConstantI(StartRegister, pConstantData, Vector4iCount);
+#if RESHADE_ADDON
+	if (SUCCEEDED(hr))
+	{
+		reshade::invoke_addon_event<reshade::addon_event::set_constants>(this, reshade::api::shader_stage::vertex, 1, StartRegister, Vector4iCount, reinterpret_cast<const uint32_t *>(pConstantData));
+	}
+#endif
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetVertexShaderConstantI(UINT StartRegister, int *pConstantData, UINT Vector4iCount)
 {
 	return _orig->GetVertexShaderConstantI(StartRegister, pConstantData, Vector4iCount);
 }
-HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetVertexShaderConstantB(UINT StartRegister, const BOOL *pConstantData, UINT  BoolCount)
+HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetVertexShaderConstantB(UINT StartRegister, const BOOL *pConstantData, UINT BoolCount)
 {
-	return _orig->SetVertexShaderConstantB(StartRegister, pConstantData, BoolCount);
+	const HRESULT hr = _orig->SetVertexShaderConstantB(StartRegister, pConstantData, BoolCount);
+#if RESHADE_ADDON
+	if (SUCCEEDED(hr))
+	{
+		reshade::invoke_addon_event<reshade::addon_event::set_constants>(this, reshade::api::shader_stage::vertex, 2, StartRegister, BoolCount, reinterpret_cast<const uint32_t *>(pConstantData));
+	}
+#endif
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetVertexShaderConstantB(UINT StartRegister, BOOL *pConstantData, UINT BoolCount)
 {
@@ -1260,10 +1316,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetPixelShader(IDirect3DPixelShader9 
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
-		const reshade::api::pipeline_state state = reshade::api::pipeline_state::pixel_shader;
-		const uint32_t value = 0; // TODO: PS
-
-		reshade::invoke_addon_event<reshade::addon_event::set_pipeline_states>(this, 1, &state, &value);
+		reshade::invoke_addon_event<reshade::addon_event::set_shader>(this, reshade::api::shader_stage::pixel, reinterpret_cast<uintptr_t>(pShader));
 	}
 #endif
 	return hr;
@@ -1274,7 +1327,14 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetPixelShader(IDirect3DPixelShader9 
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetPixelShaderConstantF(UINT StartRegister, const float *pConstantData, UINT Vector4fCount)
 {
-	return _orig->SetPixelShaderConstantF(StartRegister, pConstantData, Vector4fCount);
+	const HRESULT hr = _orig->SetPixelShaderConstantF(StartRegister, pConstantData, Vector4fCount);
+#if RESHADE_ADDON
+	if (SUCCEEDED(hr))
+	{
+		reshade::invoke_addon_event<reshade::addon_event::set_constants>(this, reshade::api::shader_stage::pixel, 0, StartRegister, Vector4fCount, reinterpret_cast<const uint32_t *>(pConstantData));
+	}
+#endif
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetPixelShaderConstantF(UINT StartRegister, float *pConstantData, UINT Vector4fCount)
 {
@@ -1282,15 +1342,29 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetPixelShaderConstantF(UINT StartReg
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetPixelShaderConstantI(UINT StartRegister, const int *pConstantData, UINT Vector4iCount)
 {
-	return _orig->SetPixelShaderConstantI(StartRegister, pConstantData, Vector4iCount);
+	const HRESULT hr = _orig->SetPixelShaderConstantI(StartRegister, pConstantData, Vector4iCount);
+#if RESHADE_ADDON
+	if (SUCCEEDED(hr))
+	{
+		reshade::invoke_addon_event<reshade::addon_event::set_constants>(this, reshade::api::shader_stage::pixel, 1, StartRegister, Vector4iCount, reinterpret_cast<const uint32_t *>(pConstantData));
+	}
+#endif
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetPixelShaderConstantI(UINT StartRegister, int *pConstantData, UINT Vector4iCount)
 {
 	return _orig->GetPixelShaderConstantI(StartRegister, pConstantData, Vector4iCount);
 }
-HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetPixelShaderConstantB(UINT StartRegister, const BOOL *pConstantData, UINT  BoolCount)
+HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetPixelShaderConstantB(UINT StartRegister, const BOOL *pConstantData, UINT BoolCount)
 {
-	return _orig->SetPixelShaderConstantB(StartRegister, pConstantData, BoolCount);
+	const HRESULT hr = _orig->SetPixelShaderConstantB(StartRegister, pConstantData, BoolCount);
+#if RESHADE_ADDON
+	if (SUCCEEDED(hr))
+	{
+		reshade::invoke_addon_event<reshade::addon_event::set_constants>(this, reshade::api::shader_stage::pixel, 2, StartRegister, BoolCount, reinterpret_cast<const uint32_t *>(pConstantData));
+	}
+#endif
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetPixelShaderConstantB(UINT StartRegister, BOOL *pConstantData, UINT BoolCount)
 {

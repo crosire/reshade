@@ -10,21 +10,7 @@ using namespace reshade::api;
 
 const GUID reshade::d3d12::pipeline_state_guid = { 0xB2257A30, 0x4014, 0x46EA, { 0xBD, 0x88, 0xDE, 0xC2, 0x1D, 0xB6, 0xA0, 0x2B } };
 
-const pipeline_state reshade::d3d12::pipeline_states_compute[] = {
-	// D3D12_COMPUTE_PIPELINE_STATE_DESC::CS
-	pipeline_state::compute_shader,
-};
 const pipeline_state reshade::d3d12::pipeline_states_graphics[] = {
-	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::VS
-	pipeline_state::vertex_shader,
-	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::PS
-	pipeline_state::pixel_shader,
-	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::DS
-	pipeline_state::domain_shader,
-	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::HS
-	pipeline_state::hull_shader,
-	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::GS
-	pipeline_state::geometry_shader,
 	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::BlendState::AlphaToCoverageEnable
 	pipeline_state::sample_alpha_to_coverage,
 	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::BlendState::RenderTarget[0]::BlendEnable
@@ -93,50 +79,41 @@ const pipeline_state reshade::d3d12::pipeline_states_graphics[] = {
 	pipeline_state::stencil_back_func,
 };
 
-void reshade::d3d12::fill_pipeline_state_values(const D3D12_COMPUTE_PIPELINE_STATE_DESC &desc, uint32_t (&values)[ARRAYSIZE(pipeline_states_compute)])
-{
-	values[0] = 0; // TODO: CS
-}
 void reshade::d3d12::fill_pipeline_state_values(const D3D12_GRAPHICS_PIPELINE_STATE_DESC &desc, uint32_t (&values)[ARRAYSIZE(pipeline_states_graphics)])
 {
-	values[0] = 0; // TODO: VS
-	values[1] = 0; // TODO: PS
-	values[2] = 0; // TODO: DS
-	values[3] = 0; // TODO: HS
-	values[4] = 0; // TODO: GS
-	values[5] = desc.BlendState.AlphaToCoverageEnable;
-	values[6] = desc.BlendState.RenderTarget[0].BlendEnable;
-	values[7] = desc.BlendState.RenderTarget[0].SrcBlend;
-	values[8] = desc.BlendState.RenderTarget[0].DestBlend;
-	values[9] = desc.BlendState.RenderTarget[0].BlendOp;
-	values[10] = desc.BlendState.RenderTarget[0].SrcBlendAlpha;
-	values[11] = desc.BlendState.RenderTarget[0].DestBlendAlpha;
-	values[12] = desc.BlendState.RenderTarget[0].BlendOpAlpha;
-	values[13] = desc.BlendState.RenderTarget[0].RenderTargetWriteMask;
-	values[14] = desc.SampleMask;
-	values[15] = desc.RasterizerState.FillMode;
-	values[16] = desc.RasterizerState.CullMode;
-	values[17] = desc.RasterizerState.FrontCounterClockwise;
-	values[18] = desc.RasterizerState.DepthBias;
-	values[19] = *reinterpret_cast<const uint32_t *>(&desc.RasterizerState.DepthBiasClamp);
-	values[20] = *reinterpret_cast<const uint32_t *>(&desc.RasterizerState.SlopeScaledDepthBias);
-	values[21] = desc.RasterizerState.DepthClipEnable;
-	values[22] = desc.RasterizerState.MultisampleEnable;
-	values[23] = desc.RasterizerState.AntialiasedLineEnable;
-	values[24] = desc.DepthStencilState.DepthEnable;
-	values[25] = desc.DepthStencilState.DepthWriteMask;
-	values[26] = desc.DepthStencilState.DepthFunc;
-	values[27] = desc.DepthStencilState.StencilEnable;
-	values[28] = desc.DepthStencilState.StencilReadMask;
-	values[29] = desc.DepthStencilState.StencilWriteMask;
-	values[30] = desc.DepthStencilState.FrontFace.StencilFailOp;
-	values[31] = desc.DepthStencilState.FrontFace.StencilDepthFailOp;
-	values[32] = desc.DepthStencilState.FrontFace.StencilPassOp;
-	values[33] = desc.DepthStencilState.FrontFace.StencilFunc;
-	values[34] = desc.DepthStencilState.BackFace.StencilFailOp;
-	values[35] = desc.DepthStencilState.BackFace.StencilDepthFailOp;
-	values[36] = desc.DepthStencilState.BackFace.StencilPassOp;
-	values[37] = desc.DepthStencilState.BackFace.StencilFunc;
+	values[0] = desc.BlendState.AlphaToCoverageEnable;
+	values[1] = desc.BlendState.RenderTarget[0].BlendEnable;
+	values[2] = desc.BlendState.RenderTarget[0].SrcBlend;
+	values[3] = desc.BlendState.RenderTarget[0].DestBlend;
+	values[4] = desc.BlendState.RenderTarget[0].BlendOp;
+	values[5] = desc.BlendState.RenderTarget[0].SrcBlendAlpha;
+	values[6] = desc.BlendState.RenderTarget[0].DestBlendAlpha;
+	values[7] = desc.BlendState.RenderTarget[0].BlendOpAlpha;
+	values[8] = desc.BlendState.RenderTarget[0].RenderTargetWriteMask;
+	values[9] = desc.SampleMask;
+	values[10] = desc.RasterizerState.FillMode;
+	values[11] = desc.RasterizerState.CullMode;
+	values[12] = desc.RasterizerState.FrontCounterClockwise;
+	values[13] = desc.RasterizerState.DepthBias;
+	values[14] = *reinterpret_cast<const uint32_t *>(&desc.RasterizerState.DepthBiasClamp);
+	values[15] = *reinterpret_cast<const uint32_t *>(&desc.RasterizerState.SlopeScaledDepthBias);
+	values[16] = desc.RasterizerState.DepthClipEnable;
+	values[17] = desc.RasterizerState.MultisampleEnable;
+	values[18] = desc.RasterizerState.AntialiasedLineEnable;
+	values[19] = desc.DepthStencilState.DepthEnable;
+	values[20] = desc.DepthStencilState.DepthWriteMask;
+	values[21] = desc.DepthStencilState.DepthFunc;
+	values[22] = desc.DepthStencilState.StencilEnable;
+	values[23] = desc.DepthStencilState.StencilReadMask;
+	values[24] = desc.DepthStencilState.StencilWriteMask;
+	values[25] = desc.DepthStencilState.FrontFace.StencilFailOp;
+	values[26] = desc.DepthStencilState.FrontFace.StencilDepthFailOp;
+	values[27] = desc.DepthStencilState.FrontFace.StencilPassOp;
+	values[28] = desc.DepthStencilState.FrontFace.StencilFunc;
+	values[29] = desc.DepthStencilState.BackFace.StencilFailOp;
+	values[30] = desc.DepthStencilState.BackFace.StencilDepthFailOp;
+	values[31] = desc.DepthStencilState.BackFace.StencilPassOp;
+	values[32] = desc.DepthStencilState.BackFace.StencilFunc;
 }
 
 D3D12_RESOURCE_STATES reshade::d3d12::convert_resource_usage_to_states(reshade::api::resource_usage usage)

@@ -685,7 +685,17 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 			// Get trampoline pointers to any hooked functions, so that runtime always calls into original OpenGL functions
 			gl3wProcs.gl.BindBuffer = reshade::hooks::call(glBindBuffer);
+			gl3wProcs.gl.BindBufferBase = reshade::hooks::call(glBindBufferBase);
+			gl3wProcs.gl.BindBufferRange = reshade::hooks::call(glBindBufferRange);
+			gl3wProcs.gl.BindBuffersBase = reshade::hooks::call(glBindBuffersBase);
+			gl3wProcs.gl.BindBuffersRange = reshade::hooks::call(glBindBuffersRange);
 			gl3wProcs.gl.BindFramebuffer = reshade::hooks::call(glBindFramebuffer);
+			gl3wProcs.gl.BindSampler = reshade::hooks::call(glBindSampler);
+			gl3wProcs.gl.BindSamplers = reshade::hooks::call(glBindSamplers);
+			gl3wProcs.gl.BindTextureUnit = reshade::hooks::call(glBindTextureUnit);
+			gl3wProcs.gl.BindTextures = reshade::hooks::call(glBindTextures);
+			gl3wProcs.gl.BindVertexBuffer = reshade::hooks::call(glBindVertexBuffer);
+			gl3wProcs.gl.BindVertexBuffers = reshade::hooks::call(glBindVertexBuffers);
 			gl3wProcs.gl.BlitFramebuffer = reshade::hooks::call(glBlitFramebuffer);
 			gl3wProcs.gl.BlitNamedFramebuffer = reshade::hooks::call(glBlitNamedFramebuffer);
 			gl3wProcs.gl.BufferData = reshade::hooks::call(glBufferData);
@@ -730,6 +740,30 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 			gl3wProcs.gl.TextureStorage2D = reshade::hooks::call(glTextureStorage2D);
 			gl3wProcs.gl.TextureStorage3D = reshade::hooks::call(glTextureStorage3D);
 			gl3wProcs.gl.TextureView = reshade::hooks::call(glTextureView);
+			gl3wProcs.gl.Uniform1f = reshade::hooks::call(glUniform1f);
+			gl3wProcs.gl.Uniform2f = reshade::hooks::call(glUniform2f);
+			gl3wProcs.gl.Uniform3f = reshade::hooks::call(glUniform3f);
+			gl3wProcs.gl.Uniform4f = reshade::hooks::call(glUniform4f);
+			gl3wProcs.gl.Uniform1i = reshade::hooks::call(glUniform1i);
+			gl3wProcs.gl.Uniform2i = reshade::hooks::call(glUniform2i);
+			gl3wProcs.gl.Uniform3i = reshade::hooks::call(glUniform3i);
+			gl3wProcs.gl.Uniform4i = reshade::hooks::call(glUniform4i);
+			gl3wProcs.gl.Uniform1ui = reshade::hooks::call(glUniform1ui);
+			gl3wProcs.gl.Uniform2ui = reshade::hooks::call(glUniform2ui);
+			gl3wProcs.gl.Uniform3ui = reshade::hooks::call(glUniform3ui);
+			gl3wProcs.gl.Uniform4ui = reshade::hooks::call(glUniform4ui);
+			gl3wProcs.gl.Uniform1fv = reshade::hooks::call(glUniform1fv);
+			gl3wProcs.gl.Uniform2fv = reshade::hooks::call(glUniform2fv);
+			gl3wProcs.gl.Uniform3fv = reshade::hooks::call(glUniform3fv);
+			gl3wProcs.gl.Uniform4fv = reshade::hooks::call(glUniform4fv);
+			gl3wProcs.gl.Uniform1iv = reshade::hooks::call(glUniform1iv);
+			gl3wProcs.gl.Uniform2iv = reshade::hooks::call(glUniform2iv);
+			gl3wProcs.gl.Uniform3iv = reshade::hooks::call(glUniform3iv);
+			gl3wProcs.gl.Uniform4iv = reshade::hooks::call(glUniform4iv);
+			gl3wProcs.gl.Uniform1uiv = reshade::hooks::call(glUniform1uiv);
+			gl3wProcs.gl.Uniform2uiv = reshade::hooks::call(glUniform2uiv);
+			gl3wProcs.gl.Uniform3uiv = reshade::hooks::call(glUniform3uiv);
+			gl3wProcs.gl.Uniform4uiv = reshade::hooks::call(glUniform4uiv);
 			gl3wProcs.gl.UseProgram = reshade::hooks::call(glUseProgram);
 			gl3wProcs.gl.ViewportArrayv = reshade::hooks::call(glViewportArrayv);
 			gl3wProcs.gl.ViewportIndexedf = reshade::hooks::call(glViewportIndexedf);
@@ -994,6 +1028,7 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 	// Redirect some old extension functions to their modern variants in core OpenGL
 	if (lpszProc == nullptr)
 		return nullptr;
+#if RESHADE_ADDON
 	else if (0 == strcmp(lpszProc, "glIsRenderbufferEXT")) // GL_EXT_framebuffer_object
 		lpszProc = "glIsRenderbuffer";
 	else if (0 == strcmp(lpszProc, "glBindRenderbufferEXT"))
@@ -1032,6 +1067,7 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		lpszProc = "glDrawArraysInstanced";
 	else if (0 == strcmp(lpszProc, "glDrawElementsInstancedARB") || 0 == strcmp(lpszProc, "glDrawElementsInstancedEXT"))
 		lpszProc = "glDrawElementsInstanced";
+#endif
 
 	static const auto trampoline = reshade::hooks::call(wglGetProcAddress);
 	const PROC address = trampoline(lpszProc);
@@ -1168,7 +1204,17 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		// Install all OpenGL hooks in a single batch job
 #if RESHADE_ADDON
 		HOOK_PROC(glBindBuffer);
+		HOOK_PROC(glBindBufferBase);
+		HOOK_PROC(glBindBufferRange);
+		HOOK_PROC(glBindBuffersBase);
+		HOOK_PROC(glBindBuffersRange);
 		HOOK_PROC(glBindFramebuffer);
+		HOOK_PROC(glBindSampler);
+		HOOK_PROC(glBindSamplers);
+		HOOK_PROC(glBindTextureUnit);
+		HOOK_PROC(glBindTextures);
+		HOOK_PROC(glBindVertexBuffer);
+		HOOK_PROC(glBindVertexBuffers);
 		HOOK_PROC(glBlitFramebuffer);
 		HOOK_PROC(glBlitNamedFramebuffer);
 		HOOK_PROC(glBufferData);
@@ -1213,6 +1259,30 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glTextureStorage2D);
 		HOOK_PROC(glTextureStorage3D);
 		HOOK_PROC(glTextureView);
+		HOOK_PROC(glUniform1f);
+		HOOK_PROC(glUniform2f);
+		HOOK_PROC(glUniform3f);
+		HOOK_PROC(glUniform4f);
+		HOOK_PROC(glUniform1i);
+		HOOK_PROC(glUniform2i);
+		HOOK_PROC(glUniform3i);
+		HOOK_PROC(glUniform4i);
+		HOOK_PROC(glUniform1ui);
+		HOOK_PROC(glUniform2ui);
+		HOOK_PROC(glUniform3ui);
+		HOOK_PROC(glUniform4ui);
+		HOOK_PROC(glUniform1fv);
+		HOOK_PROC(glUniform2fv);
+		HOOK_PROC(glUniform3fv);
+		HOOK_PROC(glUniform4fv);
+		HOOK_PROC(glUniform1iv);
+		HOOK_PROC(glUniform2iv);
+		HOOK_PROC(glUniform3iv);
+		HOOK_PROC(glUniform4iv);
+		HOOK_PROC(glUniform1uiv);
+		HOOK_PROC(glUniform2uiv);
+		HOOK_PROC(glUniform3uiv);
+		HOOK_PROC(glUniform4uiv);
 		HOOK_PROC(glUseProgram);
 		HOOK_PROC(glViewportArrayv);
 		HOOK_PROC(glViewportIndexedf);

@@ -54,6 +54,7 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	HOOK_PROC(CmdSetStencilCompareMask);
 	HOOK_PROC(CmdSetStencilWriteMask);
 	HOOK_PROC(CmdSetStencilReference);
+	HOOK_PROC(CmdBindDescriptorSets);
 	HOOK_PROC(CmdBindIndexBuffer);
 	HOOK_PROC(CmdBindVertexBuffers);
 	HOOK_PROC(CmdDraw);

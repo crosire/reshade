@@ -7,10 +7,30 @@
 
 #undef glBindBuffer
 extern "C" void WINAPI glBindBuffer(GLenum target, GLuint buffer);
+#undef glBindBufferBase
+extern "C" void WINAPI glBindBufferBase(GLenum target, GLuint index, GLuint buffer);
+#undef glBindBufferRange
+extern "C" void WINAPI glBindBufferRange(GLenum target, GLuint index, GLuint buffer, GLintptr offset, GLsizeiptr size);
+#undef glBindBuffersBase
+extern "C" void WINAPI glBindBuffersBase(GLenum target, GLuint first, GLsizei count, const GLuint *buffers);
+#undef glBindBuffersRange
+extern "C" void WINAPI glBindBuffersRange(GLenum target, GLuint first, GLsizei count, const GLuint *buffers, const GLintptr *offsets, const GLintptr *sizes);
 #undef glBindFramebuffer
 extern "C" void WINAPI glBindFramebuffer(GLenum target, GLuint framebuffer);
+#undef glBindSampler
+extern "C" void WINAPI glBindSampler(GLuint unit, GLuint sampler);
+#undef glBindSamplers
+extern "C" void WINAPI glBindSamplers(GLuint first, GLsizei count, const GLuint *samplers);
 #undef glBindTexture
 extern "C" void WINAPI glBindTexture(GLenum target, GLuint texture);
+#undef glBindTextureUnit
+extern "C" void WINAPI glBindTextureUnit(GLuint unit, GLuint texture);
+#undef glBindTextures
+extern "C" void WINAPI glBindTextures(GLuint first, GLsizei count, const GLuint *textures);
+#undef glBindVertexBuffer
+extern "C" void WINAPI glBindVertexBuffer(GLuint bindingindex, GLuint buffer, GLintptr offset, GLsizei stride);
+#undef glBindVertexBuffers
+extern "C" void WINAPI glBindVertexBuffers(GLuint first, GLsizei count, const GLuint *buffers, const GLintptr *offsets, const GLsizei *strides);
 #undef glBlendFunc
 extern "C" void WINAPI glBlendFunc(GLenum sfactor, GLenum dfactor);
 #undef glBlitFramebuffer
@@ -219,6 +239,54 @@ extern "C" void WINAPI glTextureStorage2D(GLuint texture, GLsizei levels, GLenum
 extern "C" void WINAPI glTextureStorage3D(GLuint texture, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth);
 #undef glTextureView
 extern "C" void WINAPI glTextureView(GLuint texture, GLenum target, GLuint origtexture, GLenum internalformat, GLuint minlevel, GLuint numlevels, GLuint minlayer, GLuint numlayers);
+#undef glUniform1f
+extern "C" void WINAPI glUniform1f(GLint location, GLfloat v0);
+#undef glUniform2f
+extern "C" void WINAPI glUniform2f(GLint location, GLfloat v0, GLfloat v1);
+#undef glUniform3f
+extern "C" void WINAPI glUniform3f(GLint location, GLfloat v0, GLfloat v1, GLfloat v2);
+#undef glUniform4f
+extern "C" void WINAPI glUniform4f(GLint location, GLfloat v0, GLfloat v1, GLfloat v2, GLfloat v3);
+#undef glUniform1i
+extern "C" void WINAPI glUniform1i(GLint location, GLint v0);
+#undef glUniform2i
+extern "C" void WINAPI glUniform2i(GLint location, GLint v0, GLint v1);
+#undef glUniform3i
+extern "C" void WINAPI glUniform3i(GLint location, GLint v0, GLint v1, GLint v2);
+#undef glUniform4i
+extern "C" void WINAPI glUniform4i(GLint location, GLint v0, GLint v1, GLint v2, GLint v3);
+#undef glUniform1ui
+extern "C" void WINAPI glUniform1ui(GLint location, GLuint v0);
+#undef glUniform2ui
+extern "C" void WINAPI glUniform2ui(GLint location, GLuint v0, GLuint v1);
+#undef glUniform3ui
+extern "C" void WINAPI glUniform3ui(GLint location, GLuint v0, GLuint v1, GLuint v2);
+#undef glUniform4ui
+extern "C" void WINAPI glUniform4ui(GLint location, GLuint v0, GLuint v1, GLuint v2, GLuint v3);
+#undef glUniform1fv
+extern "C" void WINAPI glUniform1fv(GLint location, GLsizei count, const GLfloat *v);
+#undef glUniform2fv
+extern "C" void WINAPI glUniform2fv(GLint location, GLsizei count, const GLfloat *v);
+#undef glUniform3fv
+extern "C" void WINAPI glUniform3fv(GLint location, GLsizei count, const GLfloat *v);
+#undef glUniform4fv
+extern "C" void WINAPI glUniform4fv(GLint location, GLsizei count, const GLfloat *v);
+#undef glUniform1iv
+extern "C" void WINAPI glUniform1iv(GLint location, GLsizei count, const GLint *v);
+#undef glUniform2iv
+extern "C" void WINAPI glUniform2iv(GLint location, GLsizei count, const GLint *v);
+#undef glUniform3iv
+extern "C" void WINAPI glUniform3iv(GLint location, GLsizei count, const GLint *v);
+#undef glUniform4iv
+extern "C" void WINAPI glUniform4iv(GLint location, GLsizei count, const GLint *v);
+#undef glUniform1uiv
+extern "C" void WINAPI glUniform1uiv(GLint location, GLsizei count, const GLuint *v);
+#undef glUniform2uiv
+extern "C" void WINAPI glUniform2uiv(GLint location, GLsizei count, const GLuint *v);
+#undef glUniform3uiv
+extern "C" void WINAPI glUniform3uiv(GLint location, GLsizei count, const GLuint *v);
+#undef glUniform4uiv
+extern "C" void WINAPI glUniform4uiv(GLint location, GLsizei count, const GLuint *v);
 #undef glUseProgram
 extern "C" void WINAPI glUseProgram(GLuint program);
 #undef glViewport

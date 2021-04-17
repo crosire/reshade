@@ -105,18 +105,27 @@ namespace reshade { namespace api
 	constexpr resource_usage &operator|=(resource_usage &lhs, resource_usage rhs) { return lhs = static_cast<resource_usage>(static_cast<uint32_t>(lhs) | static_cast<uint32_t>(rhs)); }
 
 	/// <summary>
-	/// A list of all possible pipeline states that can be set. Support for these varies between render APIs.
+	/// A list of flags that represent the available shader stages in the render pipeline.
+	/// </summary>
+	enum class shader_stage
+	{
+		vertex = 0x1,
+		hull = 0x2,
+		domain = 0x4,
+		geometry = 0x8,
+		pixel = 0x10,
+		compute = 0x20,
+
+		all = 0x7FFFFFFF,
+		all_graphics = 0x1F
+	};
+
+	/// <summary>
+	/// A list of all possible render pipeline states that can be set. Support for these varies between render APIs.
 	/// </summary>
 	enum class pipeline_state
 	{
 		unknown = 0,
-
-		vertex_shader = 1000,
-		hull_shader,
-		domain_shader,
-		geometry_shader,
-		pixel_shader,
-		compute_shader,
 
 		// Blend state
 

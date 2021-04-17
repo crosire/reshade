@@ -294,11 +294,9 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateComputePipelineState(const D3D12_CO
 	if (SUCCEEDED(hr))
 	{
 		assert(ppPipelineState != nullptr);
-		uint32_t pipeline_state_values[ARRAYSIZE(reshade::d3d12::pipeline_states_compute)];
-		reshade::d3d12::fill_pipeline_state_values(new_desc, pipeline_state_values);
 
 		const auto state = static_cast<ID3D12PipelineState *>(*ppPipelineState);
-		state->SetPrivateData(reshade::d3d12::pipeline_state_guid, sizeof(pipeline_state_values), pipeline_state_values);
+		state->SetPrivateData(reshade::d3d12::pipeline_state_guid, 0, nullptr);
 	}
 	else
 	{

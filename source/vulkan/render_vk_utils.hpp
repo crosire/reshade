@@ -5,11 +5,11 @@
 
 namespace reshade::vulkan
 {
-	extern const reshade::api::pipeline_state pipeline_states_compute[1];
-	extern const reshade::api::pipeline_state pipeline_states_graphics[40];
+	extern const reshade::api::pipeline_state pipeline_states_graphics[35];
 
-	void fill_pipeline_state_values(const VkComputePipelineCreateInfo &create_info, uint32_t values[]);
-	void fill_pipeline_state_values(const VkGraphicsPipelineCreateInfo &create_info, uint32_t values[]);
+	void fill_pipeline_state_values(const VkGraphicsPipelineCreateInfo &create_info, uint32_t (&values)[35]);
+
+	api::shader_stage convert_pipeline_bind_point(VkPipelineBindPoint bind_point);
 
 	auto convert_usage_to_access(api::resource_usage state) -> VkAccessFlags;
 	auto convert_usage_to_image_layout(api::resource_usage state) -> VkImageLayout;
