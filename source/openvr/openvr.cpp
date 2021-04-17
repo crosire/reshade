@@ -15,6 +15,7 @@
 #include "vulkan/vulkan_hooks.hpp"
 #include "vulkan/runtime_vk.hpp"
 #include <openvr.h>
+#include <set>
 
 static std::pair<reshade::runtime *, vr::ETextureType> s_vr_runtime = { nullptr, vr::TextureType_Invalid };
 
@@ -373,6 +374,14 @@ HOOK_EXPORT uint32_t VR_CALLTYPE VR_InitInternal2(vr::EVRInitError *peError, vr:
 
 	return  reshade::hooks::call(VR_InitInternal2)(peError, eApplicationType, pStartupInfo);
 }
+
+HOOK_EXPORT uint32_t VR_CALLTYPE VR_Init(vr::EVRInitError* peError, vr::EVRApplicationType eApplicationType, const char* pStartupInfo = nullptr)
+{
+	LOG(INFO) << "Redirecting " << "VR_Init" << '(' << "peError = " << peError << ", eApplicationType = " << eApplicationType << ", pStartupInfo = " << (pStartupInfo != nullptr ? pStartupInfo : "0") << ')' << " ...";
+
+	return  reshade::hooks::call(VR_Init)(peError, eApplicationType, nullptr);
+}
+
 HOOK_EXPORT void     VR_CALLTYPE VR_ShutdownInternal()
 {
 	LOG(INFO) << "Redirecting " << "VR_ShutdownInternal" << '(' << ')' << " ...";
@@ -398,6 +407,31 @@ HOOK_EXPORT void     VR_CALLTYPE VR_ShutdownInternal()
 	reshade::hooks::call(VR_ShutdownInternal)();
 }
 
+HOOK_EXPORT void     VR_CALLTYPE VR_Shutdown()
+{
+	LOG(INFO) << "Redirecting " << "VR_Shutdown" << '(' << ')' << " ...";
+
+	switch (s_vr_runtime.second)
+	{
+	case vr::TextureType_DirectX:
+		delete static_cast<reshade::d3d11::runtime_impl*>(s_vr_runtime.first);
+		break;
+	case vr::TextureType_DirectX12:
+		delete static_cast<reshade::d3d12::runtime_impl*>(s_vr_runtime.first);
+		break;
+	case vr::TextureType_OpenGL:
+		delete static_cast<reshade::opengl::runtime_impl*>(s_vr_runtime.first);
+		break;
+	case vr::TextureType_Vulkan:
+		delete static_cast<reshade::vulkan::runtime_impl*>(s_vr_runtime.first);
+		break;
+	}
+
+	s_vr_runtime = { nullptr, vr::TextureType_Invalid };
+
+	reshade::hooks::call(VR_Shutdown)();
+}
+
 HOOK_EXPORT void *   VR_CALLTYPE VR_GetGenericInterface(const char *pchInterfaceVersion, vr::EVRInitError *peError)
 {
 	assert(pchInterfaceVersion != nullptr);
@@ -421,4 +455,21 @@ HOOK_EXPORT void *   VR_CALLTYPE VR_GetGenericInterface(const char *pchInterface
 	}
 	
 	return interface_instance;
+}
+
+HOOK_EXPORT void* VR_CALLTYPE VRCompositor()
+{
+	static std::set<void*> installed;
+
+	void* const compositor_instance = reshade::hooks::call(VRCompositor)();
+
+	if (compositor_instance && installed.count(compositor_instance) == 0)
+	{
+		// This is just for ProjectCARS2 / AMS2 and done through trial and error (IVRCompositor_010)
+		// Need a way to work out what the Compositor version is. VR_GetGenericInterface isn't called so don't get to hook it there.
+		reshade::hooks::install("IVRCompositor::Submit", vtable_from_instance(static_cast<vr::IVRCompositor*>(compositor_instance)), 4, reinterpret_cast<reshade::hook::address>(IVRCompositor_Submit_009));
+		installed.insert(compositor_instance);
+	}
+
+	return compositor_instance;
 }
