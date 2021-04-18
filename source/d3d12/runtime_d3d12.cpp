@@ -645,21 +645,35 @@ bool reshade::d3d12::runtime_impl::init_effect(size_t index)
 		params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 		params[0].Descriptor.ShaderRegister = 0; // b0 (global constant buffer)
 		params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-		params[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-		params[1].DescriptorTable.NumDescriptorRanges = 1;
-		params[1].DescriptorTable.pDescriptorRanges = &srv_range;
-		params[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-		params[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-		params[2].DescriptorTable.NumDescriptorRanges = 1;
-		params[2].DescriptorTable.pDescriptorRanges = &sampler_range;
-		params[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-		params[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-		params[3].DescriptorTable.NumDescriptorRanges = 1;
-		params[3].DescriptorTable.pDescriptorRanges = &uav_range;
-		params[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+		UINT num_params = 1;
+
+		if (effect.module.num_texture_bindings != 0)
+		{
+			params[num_params].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+			params[num_params].DescriptorTable.NumDescriptorRanges = 1;
+			params[num_params].DescriptorTable.pDescriptorRanges = &srv_range;
+			params[num_params].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+			num_params++;
+		}
+		if (effect.module.num_sampler_bindings != 0)
+		{
+			params[num_params].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+			params[num_params].DescriptorTable.NumDescriptorRanges = 1;
+			params[num_params].DescriptorTable.pDescriptorRanges = &sampler_range;
+			params[num_params].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+			num_params++;
+		}
+		if (effect.module.num_storage_bindings != 0)
+		{
+			params[num_params].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+			params[num_params].DescriptorTable.NumDescriptorRanges = 1;
+			params[num_params].DescriptorTable.pDescriptorRanges = &uav_range;
+			params[num_params].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+			num_params++;
+		}
 
 		D3D12_ROOT_SIGNATURE_DESC desc = {};
-		desc.NumParameters = 1 + (effect.module.num_storage_bindings != 0) + (effect.module.num_sampler_bindings != 0) + (effect.module.num_texture_bindings != 0);
+		desc.NumParameters = num_params;
 		desc.pParameters = params;
 
 		effect_data.signature = create_root_signature(_device.get(), desc);
@@ -707,7 +721,7 @@ bool reshade::d3d12::runtime_impl::init_effect(size_t index)
 	for (const reshadefx::technique_info &info : effect.module.techniques)
 		num_passes += static_cast<UINT>(info.passes.size());
 
-	if((effect.module.num_texture_bindings + effect.module.num_storage_bindings) != 0 )
+	if ((effect.module.num_texture_bindings + effect.module.num_storage_bindings) != 0)
 	{
 		D3D12_DESCRIPTOR_HEAP_DESC desc = { D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV };
 		desc.NumDescriptors = (effect.module.num_texture_bindings + effect.module.num_storage_bindings) * num_passes;
@@ -726,7 +740,7 @@ bool reshade::d3d12::runtime_impl::init_effect(size_t index)
 		effect_data.uav_gpu_base.ptr += effect.module.num_texture_bindings * num_passes * _device_impl->_descriptor_handle_size[desc.Type];
 	}
 
-	if(effect.module.num_sampler_bindings != 0)
+	if (effect.module.num_sampler_bindings != 0)
 	{
 		D3D12_DESCRIPTOR_HEAP_DESC desc = { D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER };
 		desc.NumDescriptors = effect.module.num_sampler_bindings;
@@ -1378,9 +1392,18 @@ void reshade::d3d12::runtime_impl::render_technique(technique &technique)
 
 	RESHADE_ADDON_EVENT(reshade_before_effects, this, _cmd_impl);
 
-	ID3D12DescriptorHeap *const descriptor_heaps[] = { effect_data.srv_uav_heap.get(), effect_data.sampler_heap.get() };
-	int descriptor_heaps_size = (effect_data.srv_uav_heap != nullptr) + (effect_data.sampler_heap != nullptr);
-	cmd_list->SetDescriptorHeaps(descriptor_heaps_size, descriptor_heaps);
+	const UINT root_index_textures = (_effects[technique.effect_index].module.num_texture_bindings != 0) ? 1 : 0;
+	const UINT root_index_samplers = root_index_textures + 1;
+	const UINT root_index_storages = (_effects[technique.effect_index].module.num_storage_bindings != 0) ? root_index_samplers + 1 : 0;
+
+	UINT num_descriptor_heaps = 0;
+	ID3D12DescriptorHeap *descriptor_heaps[2];
+	if (effect_data.srv_uav_heap != nullptr)
+		descriptor_heaps[num_descriptor_heaps++] = effect_data.srv_uav_heap.get();
+	if (effect_data.sampler_heap != nullptr)
+		descriptor_heaps[num_descriptor_heaps++] = effect_data.sampler_heap.get();
+	cmd_list->SetDescriptorHeaps(num_descriptor_heaps, descriptor_heaps);
+
 	cmd_list->SetGraphicsRootSignature(effect_data.signature.get());
 	if (impl->has_compute_passes)
 		cmd_list->SetComputeRootSignature(effect_data.signature.get());
@@ -1403,9 +1426,9 @@ void reshade::d3d12::runtime_impl::render_technique(technique &technique)
 	// Setup samplers
 	if (effect_data.sampler_heap != nullptr)
 	{
-		cmd_list->SetGraphicsRootDescriptorTable(2, effect_data.sampler_gpu_base);
+		cmd_list->SetGraphicsRootDescriptorTable(root_index_samplers, effect_data.sampler_gpu_base);
 		if (impl->has_compute_passes)
-			cmd_list->SetComputeRootDescriptorTable(2, effect_data.sampler_gpu_base);
+			cmd_list->SetComputeRootDescriptorTable(root_index_samplers, effect_data.sampler_gpu_base);
 	}
 
 	bool is_effect_stencil_cleared = false;
@@ -1440,7 +1463,7 @@ void reshade::d3d12::runtime_impl::render_technique(technique &technique)
 		if (pass_index > 0)
 		{
 			// Set descriptor heaps again, since they may have been changed by 'generate_mipmaps' of previous pass
-			cmd_list->SetDescriptorHeaps(descriptor_heaps_size, descriptor_heaps);
+			cmd_list->SetDescriptorHeaps(num_descriptor_heaps, descriptor_heaps);
 		}
 
 		const pass_data &pass_data = impl->passes[pass_index];
@@ -1453,15 +1476,17 @@ void reshade::d3d12::runtime_impl::render_technique(technique &technique)
 			// Compute shaders do not write to the back buffer, so no update necessary
 			needs_implicit_backbuffer_copy = false;
 
-			cmd_list->SetComputeRootDescriptorTable(1, pass_data.srv_handle);
-			cmd_list->SetComputeRootDescriptorTable(3, pass_data.uav_handle);
+			if (root_index_textures != 0)
+				cmd_list->SetComputeRootDescriptorTable(root_index_textures, pass_data.srv_handle);
+			if (root_index_storages != 0)
+				cmd_list->SetComputeRootDescriptorTable(root_index_storages, pass_data.uav_handle);
 
 			cmd_list->Dispatch(pass_info.viewport_width, pass_info.viewport_height, pass_info.viewport_dispatch_z);
 		}
 		else
 		{
-			if(effect_data.srv_uav_heap != nullptr)
-				cmd_list->SetGraphicsRootDescriptorTable(1, pass_data.srv_handle);
+			if (root_index_textures != 0)
+				cmd_list->SetGraphicsRootDescriptorTable(root_index_textures, pass_data.srv_handle);
 
 			// Transition resource state for render targets
 			if (!pass_data.modified_resources.empty())
