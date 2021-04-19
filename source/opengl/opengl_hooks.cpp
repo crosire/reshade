@@ -199,6 +199,37 @@ HOOK_EXPORT void WINAPI glBegin(GLenum mode)
 #endif
 }
 
+			void WINAPI glBindImageTexture(GLuint unit, GLuint texture, GLint level, GLboolean layered, GLint layer, GLenum access, GLenum format)
+{
+	static const auto trampoline = reshade::hooks::call(glBindImageTexture);
+	trampoline(unit, texture, level, layered, layer, access, format);
+
+#if RESHADE_ADDON
+	if (g_current_runtime)
+	{
+		const reshade::api::resource_view_handle view = reshade::opengl::make_resource_view_handle(GL_TEXTURE, texture);
+
+		reshade::invoke_addon_event<reshade::addon_event::bind_unordered_access_views>(g_current_runtime, reshade::api::shader_stage::all, unit, 1, &view);
+	}
+#endif
+}
+			void WINAPI glBindImageTextures(GLuint first, GLsizei count, const GLuint *textures)
+{
+	static const auto trampoline = reshade::hooks::call(glBindImageTextures);
+	trampoline(first, count, textures);
+
+#if RESHADE_ADDON
+	if (g_current_runtime)
+	{
+		const auto views = static_cast<reshade::api::resource_view_handle *>(alloca(count * sizeof(reshade::api::resource_view_handle)));
+		for (GLsizei i = 0; i < count; ++i)
+			views[i] = textures != nullptr ? reshade::opengl::make_resource_view_handle(GL_TEXTURE, textures[i]) : reshade::api::resource_view_handle { 0 };
+
+		reshade::invoke_addon_event<reshade::addon_event::bind_unordered_access_views>(g_current_runtime, reshade::api::shader_stage::all, first, count, views);
+	}
+#endif
+}
+
 			void WINAPI glBindSampler(GLuint unit, GLuint sampler)
 {
 	static const auto trampoline = reshade::hooks::call(glBindSampler);

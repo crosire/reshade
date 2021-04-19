@@ -102,6 +102,11 @@ namespace reshade
 		/// </summary>
 		bind_shader_resources,
 		/// <summary>
+		/// Called after 'ID3D11DeviceContext::CSSetUnorderedAccessViews', 'ID3D11DeviceContext::OMSetRenderTargetsAndUnorderedAccessViews' or 'glBindImageTexture(s)'.
+		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::shader_stage stage, uint32_t first, uint32_t count, const api::resource_view_handle *views)</c></para>
+		/// </summary>
+		bind_unordered_access_views,
+		/// <summary>
 		/// Called after 'IDirect3DDevice9::Set(...)ShaderConstant(...)', 'ID3D12GraphicsCommandList::Set(...)Root32BitConstant(s)', 'glUniform(...)' or 'vkCmdPushConstants'.
 		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::shader_stage stage, uint32_t block, uint32_t first, uint32_t count, const uint32_t *values)</c></para>
 		/// </summary>
@@ -316,6 +321,7 @@ namespace reshade
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_shader, api::command_list *cmd_list, api::shader_stage stage, uint64_t handle);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_samplers, api::command_list *cmd_list, api::shader_stage stage, uint32_t first, uint32_t count, const api::sampler_handle *samplers);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_shader_resources, api::command_list *cmd_list, api::shader_stage stage, uint32_t first, uint32_t count, const api::resource_view_handle *views);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_unordered_access_views, api::command_list *cmd_list, api::shader_stage stage, uint32_t first, uint32_t count, const api::resource_view_handle *views);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_constants, api::command_list *cmd_list, api::shader_stage stage, uint32_t block, uint32_t first, uint32_t count, const uint32_t *values);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_constant_buffers, api::command_list *cmd_list, api::shader_stage stage, uint32_t first, uint32_t count, const api::resource_handle *buffers, const uint64_t *offsets);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_descriptor_tables, api::command_list *cmd_list, api::shader_stage stage, uint32_t first, uint32_t count, const uint64_t *tables);

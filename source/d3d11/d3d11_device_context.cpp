@@ -491,9 +491,10 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargetsAndUnorderedAcce
 	_orig->OMSetRenderTargetsAndUnorderedAccessViews(NumRTVs, ppRenderTargetViews, pDepthStencilView, UAVStartSlot, NumUAVs, ppUnorderedAccessViews, pUAVInitialCounts);
 
 #if RESHADE_ADDON
-	assert(NumRTVs <= D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT);
+	assert(NumRTVs <= D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT && NumUAVs <= D3D11_1_UAV_SLOT_COUNT);
 
-	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_render_targets_and_depth_stencil)].empty())
+	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_render_targets_and_depth_stencil)].empty() &&
+		reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_unordered_access_views)].empty())
 		return;
 
 #ifndef WIN64
@@ -506,6 +507,17 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargetsAndUnorderedAcce
 #endif
 
 	reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(this, NumRTVs, rtvs, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(pDepthStencilView) });
+
+#ifndef WIN64
+	reshade::api::resource_view_handle views[D3D11_1_UAV_SLOT_COUNT];
+	for (UINT i = 0; i < NumUAVs; ++i)
+		views[i] = { reinterpret_cast<uintptr_t>(ppUnorderedAccessViews[i]) };
+#else
+	static_assert(sizeof(*ppUnorderedAccessViews) == sizeof(reshade::api::resource_view_handle));
+	const auto views = reinterpret_cast<const reshade::api::resource_view_handle *>(ppUnorderedAccessViews);
+#endif
+
+	reshade::invoke_addon_event<reshade::addon_event::bind_unordered_access_views>(this, reshade::api::shader_stage::compute, UAVStartSlot, NumUAVs, views);
 #endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetBlendState(ID3D11BlendState *pBlendState, const FLOAT BlendFactor[4], UINT SampleMask)
@@ -885,6 +897,24 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::CSSetShaderResources(UINT StartSlo
 void    STDMETHODCALLTYPE D3D11DeviceContext::CSSetUnorderedAccessViews(UINT StartSlot, UINT NumUAVs, ID3D11UnorderedAccessView *const *ppUnorderedAccessViews, const UINT *pUAVInitialCounts)
 {
 	_orig->CSSetUnorderedAccessViews(StartSlot, NumUAVs, ppUnorderedAccessViews, pUAVInitialCounts);
+
+#if RESHADE_ADDON
+	assert(NumUAVs <= D3D11_1_UAV_SLOT_COUNT);
+
+	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_unordered_access_views)].empty())
+		return;
+
+#ifndef WIN64
+	reshade::api::resource_view_handle views[D3D11_1_UAV_SLOT_COUNT];
+	for (UINT i = 0; i < NumUAVs; ++i)
+		views[i] = { reinterpret_cast<uintptr_t>(ppUnorderedAccessViews[i]) };
+#else
+	static_assert(sizeof(*ppUnorderedAccessViews) == sizeof(reshade::api::resource_view_handle));
+	const auto views = reinterpret_cast<const reshade::api::resource_view_handle *>(ppUnorderedAccessViews);
+#endif
+
+	reshade::invoke_addon_event<reshade::addon_event::bind_unordered_access_views>(this, reshade::api::shader_stage::compute, StartSlot, NumUAVs, views);
+#endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::CSSetShader(ID3D11ComputeShader *pComputeShader, ID3D11ClassInstance *const *ppClassInstances, UINT NumClassInstances)
 {

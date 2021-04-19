@@ -11,7 +11,7 @@
 #include <Windows.h>
 
 bool g_addons_enabled = true;
-std::vector<void *> reshade::addon::event_list[static_cast<size_t>(reshade::addon_event::max)];
+std::vector<void *> reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::max)];
 std::vector<reshade::addon::info> reshade::addon::loaded_info;
 #if RESHADE_GUI
 std::vector<std::pair<std::string, void(*)(reshade::api::effect_runtime *, void *)>> reshade::addon::overlay_list;
@@ -44,6 +44,7 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(bind_shader);
 		CASE(bind_samplers);
 		CASE(bind_shader_resources);
+		CASE(bind_unordered_access_views);
 		CASE(bind_constants);
 		CASE(bind_constant_buffers);
 		CASE(bind_descriptor_tables);

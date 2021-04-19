@@ -690,6 +690,8 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 			gl3wProcs.gl.BindBuffersBase = reshade::hooks::call(glBindBuffersBase);
 			gl3wProcs.gl.BindBuffersRange = reshade::hooks::call(glBindBuffersRange);
 			gl3wProcs.gl.BindFramebuffer = reshade::hooks::call(glBindFramebuffer);
+			gl3wProcs.gl.BindImageTexture = reshade::hooks::call(glBindImageTexture);
+			gl3wProcs.gl.BindImageTextures = reshade::hooks::call(glBindImageTextures);
 			gl3wProcs.gl.BindSampler = reshade::hooks::call(glBindSampler);
 			gl3wProcs.gl.BindSamplers = reshade::hooks::call(glBindSamplers);
 			gl3wProcs.gl.BindTextureUnit = reshade::hooks::call(glBindTextureUnit);
@@ -1209,6 +1211,8 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glBindBuffersBase);
 		HOOK_PROC(glBindBuffersRange);
 		HOOK_PROC(glBindFramebuffer);
+		HOOK_PROC(glBindImageTexture);
+		HOOK_PROC(glBindImageTextures);
 		HOOK_PROC(glBindSampler);
 		HOOK_PROC(glBindSamplers);
 		HOOK_PROC(glBindTextureUnit);
