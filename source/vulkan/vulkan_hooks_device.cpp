@@ -1099,7 +1099,7 @@ void     VKAPI_CALL vkCmdBindPipeline(VkCommandBuffer commandBuffer, VkPipelineB
 
 	reshade::invoke_addon_event<reshade::addon_event::bind_shader>(
 		s_vulkan_command_buffers.at(commandBuffer),
-		reshade::vulkan::convert_pipeline_bind_point(pipelineBindPoint),
+		pipelineBindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS ? reshade::api::shader_stage::all_graphics : reshade::api::shader_stage::compute,
 		(uint64_t)pipeline);
 
 	if (pipelineBindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS)
@@ -1228,7 +1228,7 @@ void     VKAPI_CALL vkCmdBindDescriptorSets(VkCommandBuffer commandBuffer, VkPip
 
 	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_tables>(
 		s_vulkan_command_buffers.at(commandBuffer),
-		reshade::vulkan::convert_pipeline_bind_point(pipelineBindPoint),
+		pipelineBindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS ? reshade::api::shader_stage::all_graphics : reshade::api::shader_stage::compute,
 		firstSet,
 		descriptorSetCount,
 		reinterpret_cast<const uint64_t *>(pDescriptorSets));

@@ -187,19 +187,6 @@ void reshade::vulkan::fill_pipeline_state_values(const VkGraphicsPipelineCreateI
 	}
 }
 
-shader_stage reshade::vulkan::convert_pipeline_bind_point(VkPipelineBindPoint bind_point)
-{
-	switch (bind_point)
-	{
-	default:
-		return shader_stage::all;
-	case VK_PIPELINE_BIND_POINT_COMPUTE:
-		return shader_stage::compute;
-	case VK_PIPELINE_BIND_POINT_GRAPHICS:
-		return shader_stage::all_graphics;
-	}
-}
-
 auto reshade::vulkan::convert_usage_to_access(resource_usage state) -> VkAccessFlags
 {
 	VkAccessFlags result = 0;
