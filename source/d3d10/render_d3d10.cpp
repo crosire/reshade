@@ -60,9 +60,9 @@ bool reshade::d3d10::device_impl::check_resource_view_handle_valid(api::resource
 	return view.handle != 0 && _views.has_object(reinterpret_cast<ID3D10View *>(view.handle));
 }
 
-bool reshade::d3d10::device_impl::create_resource(const api::resource_desc &desc, const api::mapped_subresource *initial_data, api::resource_usage, api::resource_handle *out)
+bool reshade::d3d10::device_impl::create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage, api::resource_handle *out)
 {
-	static_assert(sizeof(api::mapped_subresource) == sizeof(D3D10_SUBRESOURCE_DATA));
+	static_assert(sizeof(api::subresource_data) == sizeof(D3D10_SUBRESOURCE_DATA));
 
 	switch (desc.type)
 	{

@@ -480,7 +480,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource(const D3D12_HEAP_
 
 	HRESULT hr = E_FAIL;
 	reshade::invoke_addon_event<reshade::addon_event::create_resource>(
-		[this, &hr, &new_desc, &heap_props, HeapFlags, pOptimizedClearValue, riidResource, ppvResource](reshade::api::device *, const reshade::api::resource_desc &desc, const reshade::api::mapped_subresource *initial_data, reshade::api::resource_usage initial_state) {
+		[this, &hr, &new_desc, &heap_props, HeapFlags, pOptimizedClearValue, riidResource, ppvResource](reshade::api::device *, const reshade::api::resource_desc &desc, const reshade::api::subresource_data *initial_data, reshade::api::resource_usage initial_state) {
 			if (initial_data != nullptr)
 				return false;
 			reshade::d3d12::convert_resource_desc(desc, new_desc, heap_props);
@@ -536,7 +536,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePlacedResource(ID3D12Heap *pHeap, U
 
 	HRESULT hr = E_FAIL;
 	reshade::invoke_addon_event<reshade::addon_event::create_resource>(
-		[this, &hr, &new_desc, pHeap, HeapOffset, pOptimizedClearValue, riid, ppvResource](reshade::api::device *, const reshade::api::resource_desc &desc, const reshade::api::mapped_subresource *initial_data, reshade::api::resource_usage initial_state) {
+		[this, &hr, &new_desc, pHeap, HeapOffset, pOptimizedClearValue, riid, ppvResource](reshade::api::device *, const reshade::api::resource_desc &desc, const reshade::api::subresource_data *initial_data, reshade::api::resource_usage initial_state) {
 			if (desc.heap != reshade::api::memory_heap::unknown || initial_data != nullptr)
 				return false;
 			D3D12_HEAP_PROPERTIES dummy_heap_props;
@@ -589,7 +589,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource(const D3D12_RESOUR
 
 	HRESULT hr = E_FAIL;
 	reshade::invoke_addon_event<reshade::addon_event::create_resource>(
-		[this, &hr, &new_desc, pOptimizedClearValue, riid, ppvResource](reshade::api::device *, const reshade::api::resource_desc &desc, const reshade::api::mapped_subresource *initial_data, reshade::api::resource_usage initial_state) {
+		[this, &hr, &new_desc, pOptimizedClearValue, riid, ppvResource](reshade::api::device *, const reshade::api::resource_desc &desc, const reshade::api::subresource_data *initial_data, reshade::api::resource_usage initial_state) {
 			if (desc.heap != reshade::api::memory_heap::unknown || initial_data != nullptr)
 				return false;
 			D3D12_HEAP_PROPERTIES dummy_heap_props;
@@ -757,7 +757,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource1(const D3D12_HEAP
 
 	HRESULT hr = E_FAIL;
 	reshade::invoke_addon_event<reshade::addon_event::create_resource>(
-		[this, &hr, &new_desc, &heap_props, HeapFlags, pOptimizedClearValue, pProtectedSession, riidResource, ppvResource](reshade::api::device *, const reshade::api::resource_desc &desc, const reshade::api::mapped_subresource *initial_data, reshade::api::resource_usage initial_state) {
+		[this, &hr, &new_desc, &heap_props, HeapFlags, pOptimizedClearValue, pProtectedSession, riidResource, ppvResource](reshade::api::device *, const reshade::api::resource_desc &desc, const reshade::api::subresource_data *initial_data, reshade::api::resource_usage initial_state) {
 			if (initial_data != nullptr)
 				return false;
 			reshade::d3d12::convert_resource_desc(desc, new_desc, heap_props);
@@ -815,7 +815,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource1(const D3D12_RESOU
 
 	HRESULT hr = E_FAIL;
 	reshade::invoke_addon_event<reshade::addon_event::create_resource>(
-		[this, &hr, &new_desc, pOptimizedClearValue, pProtectedSession, riid, ppvResource](reshade::api::device *, const reshade::api::resource_desc &desc, const reshade::api::mapped_subresource *initial_data, reshade::api::resource_usage initial_state) {
+		[this, &hr, &new_desc, pOptimizedClearValue, pProtectedSession, riid, ppvResource](reshade::api::device *, const reshade::api::resource_desc &desc, const reshade::api::subresource_data *initial_data, reshade::api::resource_usage initial_state) {
 			if (desc.heap != reshade::api::memory_heap::unknown || initial_data != nullptr)
 				return false;
 			D3D12_HEAP_PROPERTIES dummy_heap_props;

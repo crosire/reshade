@@ -99,7 +99,7 @@ bool reshade::vulkan::device_impl::check_resource_view_handle_valid(api::resourc
 		return data.buffer_view == (VkBufferView)view.handle;
 }
 
-bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &desc, const api::mapped_subresource *initial_data, api::resource_usage initial_state, api::resource_handle *out)
+bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage initial_state, api::resource_handle *out)
 {
 	if (initial_data != nullptr)
 		return false;

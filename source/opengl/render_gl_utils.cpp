@@ -286,9 +286,9 @@ resource_view_type reshade::opengl::convert_resource_view_type(GLenum target)
 	}
 }
 
-mapped_subresource reshade::opengl::convert_mapped_subresource(GLenum format, GLenum type, const GLvoid *pixels, GLsizei width, GLsizei height, GLsizei)
+subresource_data reshade::opengl::convert_mapped_subresource(GLenum format, GLenum type, const GLvoid *pixels, GLsizei width, GLsizei height, GLsizei)
 {
-	mapped_subresource result;
+	subresource_data result;
 	result.data = pixels;
 
 	uint32_t bpp = 1;

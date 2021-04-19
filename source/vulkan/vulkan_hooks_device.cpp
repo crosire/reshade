@@ -641,7 +641,7 @@ VkResult VKAPI_CALL vkCreateBuffer(VkDevice device, const VkBufferCreateInfo *pC
 
 	VkResult result = VK_ERROR_UNKNOWN;
 	reshade::invoke_addon_event<reshade::addon_event::create_resource>(
-		[device_impl, &result, &create_info, pAllocator, pBuffer](reshade::api::device *,const reshade::api::resource_desc &desc, const reshade::api::mapped_subresource *initial_data, reshade::api::resource_usage initial_state) {
+		[device_impl, &result, &create_info, pAllocator, pBuffer](reshade::api::device *,const reshade::api::resource_desc &desc, const reshade::api::subresource_data *initial_data, reshade::api::resource_usage initial_state) {
 			if (desc.type != reshade::api::resource_type::buffer || desc.heap != reshade::api::memory_heap::unknown || initial_data != nullptr || initial_state != reshade::api::resource_usage::undefined)
 				return false;
 			reshade::vulkan::convert_resource_desc(desc, create_info);
@@ -730,7 +730,7 @@ VkResult VKAPI_CALL vkCreateImage(VkDevice device, const VkImageCreateInfo *pCre
 
 	VkResult result = VK_ERROR_UNKNOWN;
 	reshade::invoke_addon_event<reshade::addon_event::create_resource>(
-		[device_impl, &result, &create_info, pAllocator, pImage](reshade::api::device *, const reshade::api::resource_desc &desc, const reshade::api::mapped_subresource *initial_data, reshade::api::resource_usage initial_state) {
+		[device_impl, &result, &create_info, pAllocator, pImage](reshade::api::device *, const reshade::api::resource_desc &desc, const reshade::api::subresource_data *initial_data, reshade::api::resource_usage initial_state) {
 			if (desc.type == reshade::api::resource_type::buffer || desc.heap != reshade::api::memory_heap::unknown || initial_data != nullptr || initial_state != reshade::api::resource_usage::undefined)
 				return false;
 			reshade::vulkan::convert_resource_desc(desc, create_info);
@@ -1097,14 +1097,14 @@ void     VKAPI_CALL vkCmdBindPipeline(VkCommandBuffer commandBuffer, VkPipelineB
 #if RESHADE_ADDON
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
 
-	reshade::invoke_addon_event<reshade::addon_event::set_shader>(
+	reshade::invoke_addon_event<reshade::addon_event::bind_shader>(
 		s_vulkan_command_buffers.at(commandBuffer),
 		reshade::vulkan::convert_pipeline_bind_point(pipelineBindPoint),
 		(uint64_t)pipeline);
 
 	if (pipelineBindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS)
 	{
-		reshade::invoke_addon_event<reshade::addon_event::set_pipeline_states>(
+		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(
 			s_vulkan_command_buffers.at(commandBuffer), std::size(reshade::vulkan::pipeline_states_graphics), reshade::vulkan::pipeline_states_graphics, device_impl->_pipeline_list.at(pipeline).values);
 	}
 #endif
@@ -1118,7 +1118,7 @@ void     VKAPI_CALL vkCmdSetViewport(VkCommandBuffer commandBuffer, uint32_t fir
 #if RESHADE_ADDON
 	static_assert(sizeof(*pViewports) == (sizeof(float) * 6));
 
-	reshade::invoke_addon_event<reshade::addon_event::set_viewports>(
+	reshade::invoke_addon_event<reshade::addon_event::bind_viewports>(
 		s_vulkan_command_buffers.at(commandBuffer), firstViewport, viewportCount, reinterpret_cast<const float *>(pViewports));
 #endif
 }
@@ -1137,7 +1137,7 @@ void     VKAPI_CALL vkCmdSetScissor(VkCommandBuffer commandBuffer, uint32_t firs
 		rect_data[k + 3] = pScissors[i].offset.y + pScissors[i].extent.height;
 	}
 
-	reshade::invoke_addon_event<reshade::addon_event::set_scissor_rects>(
+	reshade::invoke_addon_event<reshade::addon_event::bind_scissor_rects>(
 		s_vulkan_command_buffers.at(commandBuffer), firstScissor, scissorCount, rect_data);
 #endif
 }
@@ -1151,7 +1151,7 @@ void     VKAPI_CALL vkCmdSetDepthBias(VkCommandBuffer commandBuffer, float depth
 	const reshade::api::pipeline_state states[3] = { reshade::api::pipeline_state::depth_bias, reshade::api::pipeline_state::depth_bias_clamp, reshade::api::pipeline_state::depth_bias_slope_scaled };
 	const uint32_t values[3] = { static_cast<uint32_t>(static_cast<int32_t>(depthBiasConstantFactor)), *reinterpret_cast<const uint32_t *>(&depthBiasClamp), *reinterpret_cast<const uint32_t *>(&depthBiasSlopeFactor) };
 
-	reshade::invoke_addon_event<reshade::addon_event::set_pipeline_states>(
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(
 		s_vulkan_command_buffers.at(commandBuffer), 3, states, values);
 #endif
 }
@@ -1168,7 +1168,7 @@ void     VKAPI_CALL vkCmdSetBlendConstants(VkCommandBuffer commandBuffer, const 
 		((static_cast<uint32_t>(blendConstants[2] * 255.f) & 0xFF) << 16) |
 		((static_cast<uint32_t>(blendConstants[3] * 255.f) & 0xFF) << 24);
 
-	reshade::invoke_addon_event<reshade::addon_event::set_pipeline_states>(
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(
 		s_vulkan_command_buffers.at(commandBuffer), 1, &state, &value);
 #endif
 }
@@ -1183,7 +1183,7 @@ void     VKAPI_CALL vkCmdSetStencilCompareMask(VkCommandBuffer commandBuffer, Vk
 
 	const reshade::api::pipeline_state state = reshade::api::pipeline_state::stencil_read_mask;
 
-	reshade::invoke_addon_event<reshade::addon_event::set_pipeline_states>(
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(
 		s_vulkan_command_buffers.at(commandBuffer), 1, &state, &compareMask);
 #endif
 }
@@ -1198,7 +1198,7 @@ void     VKAPI_CALL vkCmdSetStencilWriteMask(VkCommandBuffer commandBuffer, VkSt
 
 	const reshade::api::pipeline_state state = reshade::api::pipeline_state::stencil_write_mask;
 
-	reshade::invoke_addon_event<reshade::addon_event::set_pipeline_states>(
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(
 		s_vulkan_command_buffers.at(commandBuffer), 1, &state, &writeMask);
 #endif
 }
@@ -1213,7 +1213,7 @@ void     VKAPI_CALL vkCmdSetStencilReference(VkCommandBuffer commandBuffer, VkSt
 
 	const reshade::api::pipeline_state state = reshade::api::pipeline_state::stencil_ref;
 
-	reshade::invoke_addon_event<reshade::addon_event::set_pipeline_states>(
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(
 		s_vulkan_command_buffers.at(commandBuffer), 1, &state, &reference);
 #endif
 }
@@ -1226,7 +1226,7 @@ void     VKAPI_CALL vkCmdBindDescriptorSets(VkCommandBuffer commandBuffer, VkPip
 #if RESHADE_ADDON
 	static_assert(sizeof(*pDescriptorSets) == sizeof(uint64_t));
 
-	reshade::invoke_addon_event<reshade::addon_event::set_descriptor_tables>(
+	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_tables>(
 		s_vulkan_command_buffers.at(commandBuffer),
 		reshade::vulkan::convert_pipeline_bind_point(pipelineBindPoint),
 		firstSet,
@@ -1241,7 +1241,7 @@ void     VKAPI_CALL vkCmdBindIndexBuffer(VkCommandBuffer commandBuffer, VkBuffer
 	trampoline(commandBuffer, buffer, offset, indexType);
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::set_index_buffer>(
+	reshade::invoke_addon_event<reshade::addon_event::bind_index_buffer>(
 		s_vulkan_command_buffers.at(commandBuffer), reshade::api::resource_handle { (uint64_t)buffer }, static_cast<uint32_t>(indexType), offset);
 #endif
 }
@@ -1253,7 +1253,7 @@ void     VKAPI_CALL vkCmdBindVertexBuffers(VkCommandBuffer commandBuffer, uint32
 #if RESHADE_ADDON
 	static_assert(sizeof(*pBuffers) == sizeof(reshade::api::resource_handle));
 
-	reshade::invoke_addon_event<reshade::addon_event::set_vertex_buffers>(
+	reshade::invoke_addon_event<reshade::addon_event::bind_vertex_buffers>(
 		s_vulkan_command_buffers.at(commandBuffer), firstBinding, bindingCount, reinterpret_cast<const reshade::api::resource_handle *>(pBuffers), nullptr, pOffsets);
 #endif
 }
@@ -1356,7 +1356,7 @@ void     VKAPI_CALL vkCmdCopyImage(VkCommandBuffer commandBuffer, VkImage srcIma
 			region.srcOffset.y + static_cast<int32_t>(region.extent.height),
 			region.srcOffset.z + static_cast<int32_t>(region.extent.depth)
 		};
-		reshade::api::copy_location src_location(
+		reshade::api::subresource_location src_location(
 			region.srcSubresource.mipLevel, region.srcSubresource.baseArrayLayer, 1 /*TODO: mip levels*/);
 
 		const int32_t dst_box[6] = {
@@ -1367,7 +1367,7 @@ void     VKAPI_CALL vkCmdCopyImage(VkCommandBuffer commandBuffer, VkImage srcIma
 			region.dstOffset.y + static_cast<int32_t>(region.extent.height),
 			region.dstOffset.z + static_cast<int32_t>(region.extent.depth)
 		};
-		reshade::api::copy_location dst_location(
+		reshade::api::subresource_location dst_location(
 			region.dstSubresource.mipLevel, region.dstSubresource.baseArrayLayer, 1 /*TODO: mip levels*/);
 
 		if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(
@@ -1388,10 +1388,10 @@ void     VKAPI_CALL vkCmdBlitImage(VkCommandBuffer commandBuffer, VkImage srcIma
 	{
 		const VkImageBlit &region = pRegions[i];
 
-		reshade::api::copy_location src_location(
+		reshade::api::subresource_location src_location(
 			region.srcSubresource.mipLevel, region.srcSubresource.baseArrayLayer, 1 /*TODO: mip levels*/);
 
-		reshade::api::copy_location dst_location(
+		reshade::api::subresource_location dst_location(
 			region.dstSubresource.mipLevel, region.dstSubresource.baseArrayLayer, 1 /*TODO: mip levels*/);
 
 		if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(
@@ -1418,7 +1418,7 @@ void     VKAPI_CALL vkCmdCopyBufferToImage(VkCommandBuffer commandBuffer, VkBuff
 			static_cast<int32_t>(region.imageExtent.height),
 			static_cast<int32_t>(region.imageExtent.depth)
 		};
-		reshade::api::copy_location src_location(
+		reshade::api::subresource_location src_location(
 			region.bufferOffset,
 			region.bufferRowLength,
 			region.imageExtent.width,
@@ -1433,7 +1433,7 @@ void     VKAPI_CALL vkCmdCopyBufferToImage(VkCommandBuffer commandBuffer, VkBuff
 			region.imageOffset.y + static_cast<int32_t>(region.imageExtent.height),
 			region.imageOffset.z + static_cast<int32_t>(region.imageExtent.depth)
 		};
-		reshade::api::copy_location dst_location(
+		reshade::api::subresource_location dst_location(
 			region.imageSubresource.mipLevel, region.imageSubresource.baseArrayLayer, 1 /*TODO: mip levels*/);
 
 		if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(
@@ -1462,7 +1462,7 @@ void     VKAPI_CALL vkCmdCopyImageToBuffer(VkCommandBuffer commandBuffer, VkImag
 			region.imageOffset.y + static_cast<int32_t>(region.imageExtent.height),
 			region.imageOffset.z + static_cast<int32_t>(region.imageExtent.depth)
 		};
-		reshade::api::copy_location src_location(
+		reshade::api::subresource_location src_location(
 			region.imageSubresource.mipLevel, region.imageSubresource.baseArrayLayer, 1 /*TODO: mip levels*/);
 
 		const int32_t dst_box[6] = {
@@ -1471,7 +1471,7 @@ void     VKAPI_CALL vkCmdCopyImageToBuffer(VkCommandBuffer commandBuffer, VkImag
 			static_cast<int32_t>(region.imageExtent.height),
 			static_cast<int32_t>(region.imageExtent.depth)
 		};
-		reshade::api::copy_location dst_location(
+		reshade::api::subresource_location dst_location(
 			region.bufferOffset,
 			region.bufferRowLength,
 			region.imageExtent.width,
@@ -1571,6 +1571,17 @@ void     VKAPI_CALL vkCmdClearDepthStencilImage(VkCommandBuffer commandBuffer, V
 	trampoline(commandBuffer, image, imageLayout, pDepthStencil, rangeCount, pRanges);
 }
 
+void     VKAPI_CALL vkCmdPushConstants(VkCommandBuffer commandBuffer, VkPipelineLayout layout, VkShaderStageFlags stageFlags, uint32_t offset, uint32_t size, const void *pValues)
+{
+	GET_DISPATCH_PTR(CmdPushConstants, commandBuffer);
+	trampoline(commandBuffer, layout, stageFlags, offset, size, pValues);
+
+#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::bind_constants>(
+		s_vulkan_command_buffers.at(commandBuffer), static_cast<reshade::api::shader_stage>(stageFlags), 0, offset / sizeof(uint32_t), size / sizeof(uint32_t), static_cast<const uint32_t *>(pValues));
+#endif
+}
+
 void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const VkRenderPassBeginInfo *pRenderPassBegin, VkSubpassContents contents)
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
@@ -1599,7 +1610,7 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 		if (renderpass_data_subpass.depth_stencil_attachment.attachment != VK_ATTACHMENT_UNUSED)
 			dsv = attachments[renderpass_data_subpass.depth_stencil_attachment.attachment];
 
-		reshade::invoke_addon_event<reshade::addon_event::set_render_targets_and_depth_stencil>(cmd_impl, static_cast<uint32_t>(renderpass_data_subpass.color_attachments.size()), rtvs, dsv);
+		reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(cmd_impl, static_cast<uint32_t>(renderpass_data_subpass.color_attachments.size()), rtvs, dsv);
 
 		assert(renderpass_data.cleared_attachments.size() == pRenderPassBegin->clearValueCount);
 		for (uint32_t i = 0; i < renderpass_data.cleared_attachments.size() && i < pRenderPassBegin->clearValueCount; ++i)
@@ -1608,7 +1619,7 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 
 			if (renderpass_data.cleared_attachments[i].index != renderpass_data_subpass.depth_stencil_attachment.attachment)
 			{
-				if (!reshade::addon::event_list[static_cast<size_t>(reshade::addon_event::clear_render_target)].empty())
+				if (!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::clear_render_target)].empty())
 				{
 					reshade::api::resource_handle image = { 0 };
 					device_impl->get_resource_from_view(attachments[renderpass_data.cleared_attachments[i].index], &image);
@@ -1634,7 +1645,7 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 			}
 			else
 			{
-				if (!reshade::addon::event_list[static_cast<size_t>(reshade::addon_event::clear_depth_stencil)].empty())
+				if (!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::clear_depth_stencil)].empty())
 				{
 					reshade::api::resource_handle image = { 0 };
 					device_impl->get_resource_from_view(attachments[renderpass_data.cleared_attachments[i].index], &image);
@@ -1696,7 +1707,7 @@ void     VKAPI_CALL vkCmdNextSubpass(VkCommandBuffer commandBuffer, VkSubpassCon
 		if (renderpass_data_subpass.depth_stencil_attachment.attachment != VK_ATTACHMENT_UNUSED)
 			dsv = attachments[renderpass_data_subpass.depth_stencil_attachment.attachment];
 
-		reshade::invoke_addon_event<reshade::addon_event::set_render_targets_and_depth_stencil>(cmd_impl, static_cast<uint32_t>(renderpass_data_subpass.color_attachments.size()), rtvs, dsv);
+		reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(cmd_impl, static_cast<uint32_t>(renderpass_data_subpass.color_attachments.size()), rtvs, dsv);
 	}
 #endif
 

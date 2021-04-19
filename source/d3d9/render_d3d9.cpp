@@ -114,7 +114,7 @@ void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 		D3DSURFACE_DESC new_desc = old_desc;
 
 		invoke_addon_event<addon_event::create_resource>(
-			[this, &auto_depth_stencil, &old_desc, &new_desc](api::device *, const api::resource_desc &desc, const api::mapped_subresource *initial_data, api::resource_usage) {
+			[this, &auto_depth_stencil, &old_desc, &new_desc](api::device *, const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage) {
 				if (desc.type != api::resource_type::surface || desc.heap != api::memory_heap::gpu_only || initial_data != nullptr)
 					return false;
 				convert_resource_desc(desc, new_desc);
@@ -137,7 +137,7 @@ void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 			}, this, convert_resource_desc(old_desc, 1, _caps), nullptr, api::resource_usage::depth_stencil);
 
 		// Communicate default state to add-ons
-		invoke_addon_event<addon_event::set_render_targets_and_depth_stencil>(this, 0, nullptr, api::resource_view_handle { reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) });
+		invoke_addon_event<addon_event::bind_render_targets_and_depth_stencil>(this, 0, nullptr, api::resource_view_handle { reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) });
 	}
 #else
 	UNREFERENCED_PARAMETER(pp);
@@ -178,7 +178,7 @@ bool reshade::d3d9::device_impl::check_resource_view_handle_valid(api::resource_
 	return view.handle != 0 && _resources.has_object(reinterpret_cast<IDirect3DResource9 *>(view.handle));
 }
 
-bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc, const api::mapped_subresource *initial_data, api::resource_usage, api::resource_handle *out)
+bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage, api::resource_handle *out)
 {
 	if (initial_data != nullptr)
 		return false;

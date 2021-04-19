@@ -26,85 +26,6 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
-	/// The available resource types. The type of a resource is specified during creation and is immutable.
-	/// Various operations may have special requirements on the type of resources they operate on (e.g. copies can only happen between resources of the same type, ...).
-	/// </summary>
-	enum class resource_type : uint32_t
-	{
-		unknown,
-		buffer,
-		texture_1d,
-		texture_2d,
-		texture_3d,
-		surface // Special type for resources that are implicitly both resource and render target view. These cannot be created via the API, but may be referenced by the application.
-	};
-
-	/// <summary>
-	/// The available resource view types, which identify how a view interprets the data of its resource.
-	/// </summary>
-	enum class resource_view_type : uint32_t
-	{
-		unknown,
-		buffer,
-		texture_1d,
-		texture_1d_array,
-		texture_2d,
-		texture_2d_array,
-		texture_2d_multisample,
-		texture_2d_multisample_array,
-		texture_3d,
-		texture_cube,
-		texture_cube_array
-	};
-
-	/// <summary>
-	/// The available memory heap types, which give a hint as to where to place the memory allocation for a resource.
-	/// </summary>
-	enum class memory_heap : uint32_t
-	{
-		unknown,
-		gpu_only,
-		cpu_to_gpu,
-		gpu_to_cpu,
-		cpu_only
-	};
-
-	/// <summary>
-	/// A list of flags that specify how a resource is to be used.
-	/// This needs to be specified during creation and is also used to transition between different usages within a command stream.
-	/// </summary>
-	enum class resource_usage : uint32_t
-	{
-		undefined = 0,
-		depth_stencil = 0x30,
-		depth_stencil_read = 0x20,
-		depth_stencil_write = 0x10,
-		render_target = 0x4,
-		shader_resource = 0xC0,
-		shader_resource_pixel = 0x80,
-		shader_resource_non_pixel = 0x40,
-		unordered_access = 0x8,
-		copy_dest = 0x400,
-		copy_source = 0x800,
-		resolve_dest = 0x1000,
-		resolve_source = 0x2000,
-		index_buffer = 0x2,
-		vertex_buffer = 0x1,
-		constant_buffer = 0x8000
-	};
-
-	constexpr bool operator!=(resource_usage lhs, uint32_t rhs) { return static_cast<uint32_t>(lhs) != rhs; }
-	constexpr bool operator!=(uint32_t lhs, resource_usage rhs) { return lhs != static_cast<uint32_t>(rhs); }
-	constexpr bool operator==(resource_usage lhs, uint32_t rhs) { return static_cast<uint32_t>(lhs) == rhs; }
-	constexpr bool operator==(uint32_t lhs, resource_usage rhs) { return lhs == static_cast<uint32_t>(rhs); }
-	constexpr resource_usage operator^(resource_usage lhs, resource_usage rhs) { return static_cast<resource_usage>(static_cast<uint32_t>(lhs) ^ static_cast<uint32_t>(rhs)); }
-	constexpr resource_usage operator&(resource_usage lhs, resource_usage rhs) { return static_cast<resource_usage>(static_cast<uint32_t>(lhs) & static_cast<uint32_t>(rhs)); }
-	constexpr resource_usage operator|(resource_usage lhs, resource_usage rhs) { return static_cast<resource_usage>(static_cast<uint32_t>(lhs) | static_cast<uint32_t>(rhs)); }
-	constexpr resource_usage &operator^=(resource_usage &lhs, resource_usage rhs) { return lhs = static_cast<resource_usage>(static_cast<uint32_t>(lhs) ^ static_cast<uint32_t>(rhs)); }
-	constexpr resource_usage &operator&=(resource_usage &lhs, resource_usage rhs) { return lhs = static_cast<resource_usage>(static_cast<uint32_t>(lhs) & static_cast<uint32_t>(rhs)); }
-	constexpr resource_usage &operator|=(resource_usage &lhs, resource_usage rhs) { return lhs = static_cast<resource_usage>(static_cast<uint32_t>(lhs) | static_cast<uint32_t>(rhs)); }
-
-	/// <summary>
 	/// A list of flags that represent the available shader stages in the render pipeline.
 	/// </summary>
 	enum class shader_stage
@@ -187,6 +108,85 @@ namespace reshade { namespace api
 		stencil_front_pass = 55,
 		stencil_front_func = 56,
 	};
+
+	/// <summary>
+	/// The available resource types. The type of a resource is specified during creation and is immutable.
+	/// Various operations may have special requirements on the type of resources they operate on (e.g. copies can only happen between resources of the same type, ...).
+	/// </summary>
+	enum class resource_type : uint32_t
+	{
+		unknown,
+		buffer,
+		texture_1d,
+		texture_2d,
+		texture_3d,
+		surface // Special type for resources that are implicitly both resource and render target view. These cannot be created via the API, but may be referenced by the application.
+	};
+
+	/// <summary>
+	/// The available resource view types, which identify how a view interprets the data of its resource.
+	/// </summary>
+	enum class resource_view_type : uint32_t
+	{
+		unknown,
+		buffer,
+		texture_1d,
+		texture_1d_array,
+		texture_2d,
+		texture_2d_array,
+		texture_2d_multisample,
+		texture_2d_multisample_array,
+		texture_3d,
+		texture_cube,
+		texture_cube_array
+	};
+
+	/// <summary>
+	/// The available memory heap types, which give a hint as to where to place the memory allocation for a resource.
+	/// </summary>
+	enum class memory_heap : uint32_t
+	{
+		unknown,
+		gpu_only,
+		cpu_to_gpu,
+		gpu_to_cpu,
+		cpu_only
+	};
+
+	/// <summary>
+	/// A list of flags that specify how a resource is to be used.
+	/// This needs to be specified during creation and is also used to transition between different usages within a command stream.
+	/// </summary>
+	enum class resource_usage : uint32_t
+	{
+		undefined = 0,
+		depth_stencil = 0x30,
+		depth_stencil_read = 0x20,
+		depth_stencil_write = 0x10,
+		render_target = 0x4,
+		shader_resource = 0xC0,
+		shader_resource_pixel = 0x80,
+		shader_resource_non_pixel = 0x40,
+		unordered_access = 0x8,
+		copy_dest = 0x400,
+		copy_source = 0x800,
+		resolve_dest = 0x1000,
+		resolve_source = 0x2000,
+		index_buffer = 0x2,
+		vertex_buffer = 0x1,
+		constant_buffer = 0x8000
+	};
+
+	constexpr bool operator!=(resource_usage lhs, uint32_t rhs) { return static_cast<uint32_t>(lhs) != rhs; }
+	constexpr bool operator!=(uint32_t lhs, resource_usage rhs) { return lhs != static_cast<uint32_t>(rhs); }
+	constexpr bool operator==(resource_usage lhs, uint32_t rhs) { return static_cast<uint32_t>(lhs) == rhs; }
+	constexpr bool operator==(uint32_t lhs, resource_usage rhs) { return lhs == static_cast<uint32_t>(rhs); }
+	constexpr resource_usage operator^(resource_usage lhs, resource_usage rhs) { return static_cast<resource_usage>(static_cast<uint32_t>(lhs) ^ static_cast<uint32_t>(rhs)); }
+	constexpr resource_usage operator&(resource_usage lhs, resource_usage rhs) { return static_cast<resource_usage>(static_cast<uint32_t>(lhs) & static_cast<uint32_t>(rhs)); }
+	constexpr resource_usage operator|(resource_usage lhs, resource_usage rhs) { return static_cast<resource_usage>(static_cast<uint32_t>(lhs) | static_cast<uint32_t>(rhs)); }
+	constexpr resource_usage &operator^=(resource_usage &lhs, resource_usage rhs) { return lhs = static_cast<resource_usage>(static_cast<uint32_t>(lhs) ^ static_cast<uint32_t>(rhs)); }
+	constexpr resource_usage &operator&=(resource_usage &lhs, resource_usage rhs) { return lhs = static_cast<resource_usage>(static_cast<uint32_t>(lhs) & static_cast<uint32_t>(rhs)); }
+	constexpr resource_usage &operator|=(resource_usage &lhs, resource_usage rhs) { return lhs = static_cast<resource_usage>(static_cast<uint32_t>(lhs) | static_cast<uint32_t>(rhs)); }
 
 	/// <summary>
 	/// Describes a resource, such as a buffer or texture.
@@ -286,30 +286,9 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
-	/// Used to specify which subresource or region of a resource to copy.
-	/// This can either contain a subresource index (level + layer * levels) or a buffer region (offset, row_pitch, ...).
-	/// </summary>
-	struct copy_location
-	{
-		copy_location(uint32_t subresource_index) :
-			subresource(subresource_index), offset(0), row_pitch(0), width(0), height(0), depth_or_layers(0) {}
-		copy_location(uint32_t level, uint32_t layer, uint32_t levels) :
-			subresource(level + layer * levels), offset(0), row_pitch(0), width(0), height(0), depth_or_layers(0) {}
-		copy_location(uint64_t offset, uint32_t row_pitch, uint32_t width, uint32_t height, uint32_t depth_or_layers) :
-			subresource(std::numeric_limits<uint32_t>::max()), offset(offset), row_pitch(row_pitch), width(width), height(height), depth_or_layers(depth_or_layers) {}
-
-		uint32_t subresource;
-		uint64_t offset;
-		uint32_t row_pitch;
-		uint32_t width;
-		uint32_t height;
-		uint32_t depth_or_layers;
-	};
-
-	/// <summary>
 	/// Used to specify data for initializing a subresource or access existing subresource data.
 	/// </summary>
-	struct mapped_subresource
+	struct subresource_data
 	{
 		// Pointer to the data.
 		const void *data;
@@ -318,6 +297,48 @@ namespace reshade { namespace api
 		// The depth pitch of the data (added to the data pointer to move between texture depth/array slices, unused for buffers and 1D/2D textures).
 		uint32_t depth_pitch;
 	};
+
+	/// <summary>
+	/// Used to specify which subresource or region of a resource to copy.
+	/// This can either contain a subresource index (level + layer * levels) or a buffer region (offset, row_pitch, ...).
+	/// </summary>
+	struct subresource_location
+	{
+		subresource_location(uint32_t subresource) :
+			type(0), subresource(subresource) {}
+		subresource_location(uint32_t level, uint32_t layer, uint32_t levels) :
+			type(0), subresource(level + layer * levels) {}
+		subresource_location(uint64_t offset, uint32_t row_pitch, uint32_t width, uint32_t height, uint32_t depth_or_layers) :
+			type(1), placed_footprint({ offset, row_pitch, width, height, depth_or_layers }) {}
+
+		uint32_t type;
+		union
+		{
+			uint32_t subresource;
+			struct
+			{
+				uint64_t offset;
+				uint32_t row_pitch;
+				uint32_t width;
+				uint32_t height;
+				uint32_t depth_or_layers;
+			} placed_footprint;
+		};
+	};
+
+	/// <summary>
+	/// An opaque handle to a sampler state object.
+	/// Depending on the render API this is really a pointer to a 'ID3D10SamplerState', 'ID3D11SamplerState' or a 'VkSampler' handle.
+	/// </summary>
+	typedef struct { uint64_t handle; } sampler_handle;
+
+	constexpr bool operator< (sampler_handle lhs, sampler_handle rhs) { return lhs.handle < rhs.handle; }
+	constexpr bool operator!=(sampler_handle lhs, uint64_t rhs) { return lhs.handle != rhs; }
+	constexpr bool operator!=(uint64_t lhs, sampler_handle rhs) { return lhs != rhs.handle; }
+	constexpr bool operator!=(sampler_handle lhs, sampler_handle rhs) { return lhs.handle != rhs.handle; }
+	constexpr bool operator==(sampler_handle lhs, uint64_t rhs) { return lhs.handle == rhs; }
+	constexpr bool operator==(uint64_t lhs, sampler_handle rhs) { return lhs == rhs.handle; }
+	constexpr bool operator==(sampler_handle lhs, sampler_handle rhs) { return lhs.handle == rhs.handle; }
 
 	/// <summary>
 	/// An opaque handle to a resource object (buffer, texture, ...).
@@ -436,7 +457,7 @@ namespace reshade { namespace api
 		/// <param name="initial_state">Initial usage of the resource after creation. This can later be changed via <see cref="command_list::transition_state"/>.</param>
 		/// <param name="out_resource">Pointer to a handle that is set to the handle of the created resource.</param>
 		/// <returns><c>true</c>if the resource was successfully created, <c>false</c> otherwise (in this case <paramref name="out_resource"/> is set to zero).</returns>
-		virtual bool create_resource(const resource_desc &desc, const mapped_subresource *initial_data, resource_usage initial_state, resource_handle *out_resource) = 0;
+		virtual bool create_resource(const resource_desc &desc, const subresource_data *initial_data, resource_usage initial_state, resource_handle *out_resource) = 0;
 		/// <summary>
 		/// Creates a new resource view for the specified <paramref name="resource"/> based on the specified <paramref name="desc"/>ription.
 		/// </summary>

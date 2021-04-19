@@ -70,6 +70,7 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	HOOK_PROC(CmdCopyImageToBuffer);
 	HOOK_PROC(CmdClearColorImage);
 	HOOK_PROC(CmdClearDepthStencilImage);
+	HOOK_PROC(CmdPushConstants);
 	HOOK_PROC(CmdBeginRenderPass);
 	HOOK_PROC(CmdNextSubpass);
 	HOOK_PROC(CmdEndRenderPass);

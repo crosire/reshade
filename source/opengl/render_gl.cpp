@@ -189,7 +189,7 @@ reshade::opengl::device_impl::device_impl(HDC hdc, HGLRC hglrc) :
 	// Communicate default state to add-ons
 	const api::resource_view_handle default_depth_stencil = get_depth_stencil_from_fbo(0);
 	const api::resource_view_handle default_render_target = get_render_target_from_fbo(0, 0);
-	invoke_addon_event<addon_event::set_render_targets_and_depth_stencil>(this, 1, &default_render_target, default_depth_stencil);
+	invoke_addon_event<addon_event::bind_render_targets_and_depth_stencil>(this, 1, &default_render_target, default_depth_stencil);
 #endif
 }
 reshade::opengl::device_impl::~device_impl()
@@ -275,7 +275,7 @@ bool reshade::opengl::device_impl::check_resource_view_handle_valid(api::resourc
 	}
 }
 
-bool reshade::opengl::device_impl::create_resource(const api::resource_desc &desc, const api::mapped_subresource *initial_data, api::resource_usage, api::resource_handle *out)
+bool reshade::opengl::device_impl::create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage, api::resource_handle *out)
 {
 	if (initial_data != nullptr)
 		return false;
