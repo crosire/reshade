@@ -780,7 +780,7 @@ void register_builtin_addon_depth(reshade::addon::info &info)
 	reshade::register_event<reshade::addon_event::draw_or_dispatch_indirect>(on_draw_indirect);
 	reshade::register_event<reshade::addon_event::bind_viewports>(on_bind_viewport);
 	reshade::register_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(on_bind_depth_stencil);
-	reshade::register_event<reshade::addon_event::clear_depth_stencil>(on_clear_depth_stencil);
+	reshade::register_event<reshade::addon_event::clear_depth_stencil_view>(on_clear_depth_stencil);
 
 	reshade::register_event<reshade::addon_event::reset_command_list>(on_reset);
 	reshade::register_event<reshade::addon_event::execute_command_list>(reinterpret_cast<void(*)(command_queue *, command_list *)>(on_execute));
@@ -813,7 +813,7 @@ void unregister_builtin_addon_depth()
 	reshade::unregister_event<reshade::addon_event::draw_or_dispatch_indirect>(on_draw_indirect);
 	reshade::unregister_event<reshade::addon_event::bind_viewports>(on_bind_viewport);
 	reshade::unregister_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(on_bind_depth_stencil);
-	reshade::unregister_event<reshade::addon_event::clear_depth_stencil>(on_clear_depth_stencil);
+	reshade::unregister_event<reshade::addon_event::clear_depth_stencil_view>(on_clear_depth_stencil);
 
 	reshade::unregister_event<reshade::addon_event::reset_command_list>(on_reset);
 	reshade::unregister_event<reshade::addon_event::execute_command_list>(reinterpret_cast<void(*)(command_queue *, command_list *)>(on_execute));

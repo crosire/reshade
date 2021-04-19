@@ -100,7 +100,7 @@ namespace reshade
 		/// Called after 'IDirect3DDevice9::SetTexture', 'ID3D10Device::(...)SetShaderResources', 'ID3D11DeviceContext::(...)SetShaderResources' or 'glBindTexture(Unit)(s)'.
 		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::shader_stage stage, uint32_t first, uint32_t count, const api::resource_view_handle *views)</c></para>
 		/// </summary>
-		bind_shader_resources,
+		bind_shader_resource_views,
 		/// <summary>
 		/// Called after 'ID3D11DeviceContext::CSSetUnorderedAccessViews', 'ID3D11DeviceContext::OMSetRenderTargetsAndUnorderedAccessViews' or 'glBindImageTexture(s)'.
 		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::shader_stage stage, uint32_t first, uint32_t count, const api::resource_view_handle *views)</c></para>
@@ -195,21 +195,29 @@ namespace reshade
 		/// </remarks>
 		update_resource_region,
 		/// <summary>
-		/// Called before 'IDirect3DDevice9::Clear', 'ID3D10Device::ClearDepthStencilView', 'ID3D11DeviceContext::ClearDepthStencilView', 'ID3D12GraphicsCommandList::ClearDepthStencilView', 'glClear(...) ', 'vkCmdBeginRenderPass' or 'vkCmdClearDepthStencilImage'.
+		/// Called before 'IDirect3DDevice9::Clear', 'ID3D10Device::ClearDepthStencilView', 'ID3D11DeviceContext::ClearDepthStencilView', 'ID3D12GraphicsCommandList::ClearDepthStencilView', 'glClear(...) ', 'vkCmdBeginRenderPass', 'vkCmdClearAttachments' or 'vkCmdClearDepthStencilImage'.
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// Resource will be in the <see cref="resource_usage::depth_stencil_write"/> state.
 		/// </remarks>
-		clear_depth_stencil,
+		clear_depth_stencil_view,
 		/// <summary>
-		/// Called before 'IDirect3DDevice9::Clear', 'ID3D10Device::ClearRenderTargetView', 'ID3D11DeviceContext::ClearRenderTargetView', 'ID3D12GraphicsCommandList::ClearRenderTargetView', 'glClear(...)', 'vkCmdBeginRenderPass' or 'vkCmdClearColorImage'.
-		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view_handle rtv, const float color[4])</c></para>
+		/// Called before 'IDirect3DDevice9::Clear', 'ID3D10Device::ClearRenderTargetView', 'ID3D11DeviceContext::ClearRenderTargetView', 'ID3D12GraphicsCommandList::ClearRenderTargetView', 'glClear(...)', 'vkCmdBeginRenderPass', 'vkCmdClearAttachments' or 'vkCmdClearColorImage'.
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, uint32_t count, const api::resource_view_handle *rtvs, const float color[4])</c></para>
 		/// </summary>
 		/// <remarks>
-		/// Resource will be in the <see cref="resource_usage::render_target"/> state.
+		/// Resources will be in the <see cref="resource_usage::render_target"/> state.
 		/// </remarks>
-		clear_render_target,
+		clear_render_target_views,
+		/// <summary>
+		/// Called before 'ID3D11DeviceContext1::ClearView', 'ID3D12GraphicsCommandList::ClearUnorderedAccessView(...)'
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view_handle uav, const float color[4])</c></para>
+		/// </summary>
+		/// <remarks>
+		/// Resource will be in the <see cref="resource_usage::unordered_access"/> state.
+		/// </remarks>
+		clear_unordered_access_view,
 
 		/// <summary>
 		/// Called before 'ID3D12GraphicsCommandList::Reset' or 'vkBeginCommandBuffer'.
@@ -320,7 +328,7 @@ namespace reshade
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_pipeline_states, api::command_list *cmd_list, uint32_t count, const api::pipeline_state *states, const uint32_t *values);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_shader, api::command_list *cmd_list, api::shader_stage stage, uint64_t handle);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_samplers, api::command_list *cmd_list, api::shader_stage stage, uint32_t first, uint32_t count, const api::sampler_handle *samplers);
-	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_shader_resources, api::command_list *cmd_list, api::shader_stage stage, uint32_t first, uint32_t count, const api::resource_view_handle *views);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_shader_resource_views, api::command_list *cmd_list, api::shader_stage stage, uint32_t first, uint32_t count, const api::resource_view_handle *views);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_unordered_access_views, api::command_list *cmd_list, api::shader_stage stage, uint32_t first, uint32_t count, const api::resource_view_handle *views);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_constants, api::command_list *cmd_list, api::shader_stage stage, uint32_t block, uint32_t first, uint32_t count, const uint32_t *values);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_constant_buffers, api::command_list *cmd_list, api::shader_stage stage, uint32_t first, uint32_t count, const api::resource_handle *buffers, const uint64_t *offsets);
@@ -333,8 +341,9 @@ namespace reshade
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::draw_indexed, api::command_list *cmd_list, uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance);
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::dispatch, api::command_list *cmd_list, uint32_t num_groups_x, uint32_t num_groups_y, uint32_t num_groups_z);
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::draw_or_dispatch_indirect, api::command_list *cmd_list, addon_event type, api::resource_handle buffer, uint64_t offset, uint32_t draw_count, uint32_t stride);
-	DEFINE_ADDON_EVENT_TYPE_2(addon_event::clear_depth_stencil, api::command_list *cmd_list, api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil);
-	DEFINE_ADDON_EVENT_TYPE_2(addon_event::clear_render_target, api::command_list *cmd_list, api::resource_view_handle rtv, const float color[4]);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::clear_depth_stencil_view, api::command_list *cmd_list, api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::clear_render_target_views, api::command_list *cmd_list, uint32_t count, const api::resource_view_handle *rtvs, const float color[4]);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::clear_unordered_access_view, api::command_list *cmd_list, api::resource_view_handle uav, const float color[4]);
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::copy_resource, api::command_list *cmd_list, api::resource_handle src, api::resource_handle dst);
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::copy_buffer_region, api::command_list *cmd_list, api::resource_handle src, uint64_t src_offset, api::resource_handle dst, uint64_t dst_offset, uint64_t size);
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::copy_texture_region, api::command_list *cmd_list, api::resource_handle src, const api::subresource_location &src_location, const int32_t src_box[6], api::resource_handle dst, const api::subresource_location &dst_location, const int32_t dst_box[6]);

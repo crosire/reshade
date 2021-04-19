@@ -704,7 +704,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ColorFill(IDirect3DSurface9 *pSurface
 #if RESHADE_ADDON
 	const float color[4] = { ((Color >> 16) & 0xFF) / 255.0f, ((Color >> 8) & 0xFF) / 255.0f, (Color & 0xFF) / 255.0f, ((Color >> 24) & 0xFF) / 255.0f };
 
-	if (reshade::invoke_addon_event<reshade::addon_event::clear_render_target>(this, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(pSurface) }, color))
+	if (const reshade::api::resource_view_handle rtv = { reinterpret_cast<uintptr_t>(pSurface) };
+		reshade::invoke_addon_event<reshade::addon_event::clear_render_target_views>(this, 1, &rtv, color))
 		return D3D_OK;
 #endif
 	return _orig->ColorFill(pSurface, pRect, Color);
@@ -808,27 +809,28 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Clear(DWORD Count, const D3DRECT *pRe
 	{
 		const float color[4] = { ((Color >> 16) & 0xFF) / 255.0f, ((Color >> 8) & 0xFF) / 255.0f, (Color & 0xFF) / 255.0f, ((Color >> 24) & 0xFF) / 255.0f };
 
-		com_ptr<IDirect3DSurface9> surfaces[8];
-		for (DWORD i = 0; i < _caps.NumSimultaneousRTs; ++i)
-			_orig->GetRenderTarget(i, &surfaces[i]);
-
-		for (DWORD i = 0; i < _caps.NumSimultaneousRTs; ++i)
+		DWORD count = 0;
+		com_ptr<IDirect3DSurface9> surface;
+		reshade::api::resource_view_handle rtvs[8];
+		for (DWORD i = 0; i < _caps.NumSimultaneousRTs; ++i, surface.reset())
 		{
-			if (surfaces[i] == nullptr)
+			if (FAILED(_orig->GetRenderTarget(i, &surface)))
 				continue;
 
-			if (reshade::invoke_addon_event<reshade::addon_event::clear_render_target>(this, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(surfaces[i].get()) }, color))
-				Flags &= ~(D3DCLEAR_TARGET); // This will skip clears of all bound render targets, not just the one from this event
+			rtvs[i] = { reinterpret_cast<uintptr_t>(surface.get()) };
+			count = i + 1;
 		}
+
+		if (reshade::invoke_addon_event<reshade::addon_event::clear_render_target_views>(this, count, rtvs, color))
+			Flags &= ~(D3DCLEAR_TARGET);
 	}
 	if (Flags & (D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL))
 	{
 		com_ptr<IDirect3DSurface9> surface;
-		if (SUCCEEDED(_orig->GetDepthStencilSurface(&surface)))
-		{
-			if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil>(this, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(surface.get()) }, Flags >> 1, Z, static_cast<uint8_t>(Stencil)))
-				Flags &= ~(D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL);
-		}
+		_orig->GetDepthStencilSurface(&surface);
+
+		if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(this, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(surface.get()) }, Flags >> 1, Z, static_cast<uint8_t>(Stencil)))
+			Flags &= ~(D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL);
 	}
 
 	if (Flags == 0) // Nothing to clear, so skip D3D call
@@ -1005,7 +1007,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetTexture(DWORD Stage, IDirect3DBase
 
 		const reshade::api::resource_view_handle view = { reinterpret_cast<uintptr_t>(pTexture) };
 
-		reshade::invoke_addon_event<reshade::addon_event::bind_shader_resources>(this, shader_stage, Stage, 1, &view);
+		reshade::invoke_addon_event<reshade::addon_event::bind_shader_resource_views>(this, shader_stage, Stage, 1, &view);
 	}
 #endif
 	return hr;

@@ -112,7 +112,7 @@ void    STDMETHODCALLTYPE D3D10Device::PSSetShaderResources(UINT StartSlot, UINT
 #if RESHADE_ADDON
 	assert(NumViews <= D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT);
 
-	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_shader_resources)].empty())
+	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_shader_resource_views)].empty())
 		return;
 
 #ifndef WIN64
@@ -124,7 +124,7 @@ void    STDMETHODCALLTYPE D3D10Device::PSSetShaderResources(UINT StartSlot, UINT
 	const auto views = reinterpret_cast<const reshade::api::resource_view_handle *>(ppShaderResourceViews);
 #endif
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_shader_resources>(this, reshade::api::shader_stage::pixel, StartSlot, NumViews, views);
+	reshade::invoke_addon_event<reshade::addon_event::bind_shader_resource_views>(this, reshade::api::shader_stage::pixel, StartSlot, NumViews, views);
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::PSSetShader(ID3D10PixelShader *pPixelShader)
@@ -306,7 +306,7 @@ void    STDMETHODCALLTYPE D3D10Device::VSSetShaderResources(UINT StartSlot, UINT
 #if RESHADE_ADDON
 	assert(NumViews <= D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT);
 
-	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_shader_resources)].empty())
+	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_shader_resource_views)].empty())
 		return;
 
 #ifndef WIN64
@@ -318,7 +318,7 @@ void    STDMETHODCALLTYPE D3D10Device::VSSetShaderResources(UINT StartSlot, UINT
 	const auto views = reinterpret_cast<const reshade::api::resource_view_handle *>(ppShaderResourceViews);
 #endif
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_shader_resources>(this, reshade::api::shader_stage::vertex, StartSlot, NumViews, views);
+	reshade::invoke_addon_event<reshade::addon_event::bind_shader_resource_views>(this, reshade::api::shader_stage::vertex, StartSlot, NumViews, views);
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::VSSetSamplers(UINT StartSlot, UINT NumSamplers, ID3D10SamplerState *const *ppSamplers)
@@ -354,7 +354,7 @@ void    STDMETHODCALLTYPE D3D10Device::GSSetShaderResources(UINT StartSlot, UINT
 #if RESHADE_ADDON
 	assert(NumViews <= D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT);
 
-	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_shader_resources)].empty())
+	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_shader_resource_views)].empty())
 		return;
 
 #ifndef WIN64
@@ -366,7 +366,7 @@ void    STDMETHODCALLTYPE D3D10Device::GSSetShaderResources(UINT StartSlot, UINT
 	const auto views = reinterpret_cast<const reshade::api::resource_view_handle *>(ppShaderResourceViews);
 #endif
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_shader_resources>(this, reshade::api::shader_stage::geometry, StartSlot, NumViews, views);
+	reshade::invoke_addon_event<reshade::addon_event::bind_shader_resource_views>(this, reshade::api::shader_stage::geometry, StartSlot, NumViews, views);
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::GSSetSamplers(UINT StartSlot, UINT NumSamplers, ID3D10SamplerState *const *ppSamplers)
@@ -546,7 +546,8 @@ void    STDMETHODCALLTYPE D3D10Device::UpdateSubresource(ID3D10Resource *pDstRes
 void    STDMETHODCALLTYPE D3D10Device::ClearRenderTargetView(ID3D10RenderTargetView *pRenderTargetView, const FLOAT ColorRGBA[4])
 {
 #if RESHADE_ADDON
-	if (reshade::invoke_addon_event<reshade::addon_event::clear_render_target>(this, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(pRenderTargetView) }, ColorRGBA))
+	if (const reshade::api::resource_view_handle rtv = { reinterpret_cast<uintptr_t>(pRenderTargetView) };
+		reshade::invoke_addon_event<reshade::addon_event::clear_render_target_views>(this, 1, &rtv, ColorRGBA))
 		return;
 #endif
 	_orig->ClearRenderTargetView(pRenderTargetView, ColorRGBA);
@@ -554,7 +555,7 @@ void    STDMETHODCALLTYPE D3D10Device::ClearRenderTargetView(ID3D10RenderTargetV
 void    STDMETHODCALLTYPE D3D10Device::ClearDepthStencilView(ID3D10DepthStencilView *pDepthStencilView, UINT ClearFlags, FLOAT Depth, UINT8 Stencil)
 {
 #if RESHADE_ADDON
-	if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil>(this, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(pDepthStencilView) }, ClearFlags, Depth, Stencil))
+	if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(this, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(pDepthStencilView) }, ClearFlags, Depth, Stencil))
 		return;
 #endif
 	_orig->ClearDepthStencilView(pDepthStencilView, ClearFlags, Depth, Stencil);

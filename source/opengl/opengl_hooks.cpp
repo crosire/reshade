@@ -275,7 +275,7 @@ HOOK_EXPORT void WINAPI glBindTexture(GLenum target, GLuint texture)
 
 		const reshade::api::resource_view_handle view = reshade::opengl::make_resource_view_handle(target, texture);
 
-		reshade::invoke_addon_event<reshade::addon_event::bind_shader_resources>(g_current_runtime, reshade::api::shader_stage::all, unit, 1, &view);
+		reshade::invoke_addon_event<reshade::addon_event::bind_shader_resource_views>(g_current_runtime, reshade::api::shader_stage::all, unit, 1, &view);
 	}
 #endif
 }
@@ -289,7 +289,7 @@ HOOK_EXPORT void WINAPI glBindTexture(GLenum target, GLuint texture)
 	{
 		const reshade::api::resource_view_handle view = reshade::opengl::make_resource_view_handle(GL_TEXTURE, texture);
 
-		reshade::invoke_addon_event<reshade::addon_event::bind_shader_resources>(g_current_runtime, reshade::api::shader_stage::all, unit, 1, &view);
+		reshade::invoke_addon_event<reshade::addon_event::bind_shader_resource_views>(g_current_runtime, reshade::api::shader_stage::all, unit, 1, &view);
 	}
 #endif
 }
@@ -305,7 +305,7 @@ HOOK_EXPORT void WINAPI glBindTexture(GLenum target, GLuint texture)
 		for (GLsizei i = 0; i < count; ++i)
 			views[i] = textures != nullptr ? reshade::opengl::make_resource_view_handle(GL_TEXTURE, textures[i]) : reshade::api::resource_view_handle { 0 };
 
-		reshade::invoke_addon_event<reshade::addon_event::bind_shader_resources>(g_current_runtime, reshade::api::shader_stage::all, first, count, views);
+		reshade::invoke_addon_event<reshade::addon_event::bind_shader_resource_views>(g_current_runtime, reshade::api::shader_stage::all, first, count, views);
 	}
 #endif
 }
@@ -481,12 +481,13 @@ HOOK_EXPORT void WINAPI glClear(GLbitfield mask)
 			GLfloat color_value[4] = {};
 			glGetFloatv(GL_COLOR_CLEAR_VALUE, color_value);
 
-			reshade::api::resource_view_handle rtv;
-			for (GLuint i = 0; i < 8 && (rtv = g_current_runtime->get_render_target_from_fbo(fbo, i)) != 0; ++i)
-			{
-				if (reshade::invoke_addon_event<reshade::addon_event::clear_render_target>(g_current_runtime, rtv, color_value))
-					mask &= ~(GL_COLOR_BUFFER_BIT); // This will skip clears of all bound render targets, not just the one from this event
-			}
+			GLuint count = 0;
+			reshade::api::resource_view_handle rtvs[8];
+			while (count < 8 && (rtvs[count] = g_current_runtime->get_render_target_from_fbo(fbo, count)) != 0)
+				++count;
+
+			if (reshade::invoke_addon_event<reshade::addon_event::clear_render_target_views>(g_current_runtime, count, rtvs, color_value))
+				mask &= ~(GL_COLOR_BUFFER_BIT);
 		}
 		if (mask & (GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT))
 		{
@@ -501,12 +502,10 @@ HOOK_EXPORT void WINAPI glClear(GLbitfield mask)
 			if ((mask & GL_STENCIL_BUFFER_BIT) != 0)
 				clear_flags |= 0x2;
 
-			reshade::api::resource_view_handle dsv;
-			if ((dsv = g_current_runtime->get_depth_stencil_from_fbo(fbo)) != 0)
-			{
-				if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil>(g_current_runtime, dsv, clear_flags, depth_value, static_cast<uint8_t>(stencil_value)))
-					mask &= ~(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-			}
+			const reshade::api::resource_view_handle dsv = g_current_runtime->get_depth_stencil_from_fbo(fbo);
+
+			if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_runtime, dsv, clear_flags, depth_value, static_cast<uint8_t>(stencil_value)))
+				mask &= ~(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 		}
 
 		if (mask == 0)
@@ -525,7 +524,8 @@ HOOK_EXPORT void WINAPI glClear(GLbitfield mask)
 		GLint fbo = 0;
 		glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &fbo);
 
-		if (reshade::invoke_addon_event<reshade::addon_event::clear_render_target>(g_current_runtime, g_current_runtime->get_render_target_from_fbo(fbo, drawbuffer), value))
+		if (const reshade::api::resource_view_handle rtv = g_current_runtime->get_render_target_from_fbo(fbo, drawbuffer);
+			reshade::invoke_addon_event<reshade::addon_event::clear_render_target_views>(g_current_runtime, 1, &rtv, value))
 			return;
 	}
 #endif
@@ -543,7 +543,7 @@ HOOK_EXPORT void WINAPI glClear(GLbitfield mask)
 		GLint fbo = 0;
 		glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &fbo);
 
-		if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil>(g_current_runtime, g_current_runtime->get_depth_stencil_from_fbo(fbo), 0x3, depth, static_cast<uint8_t>(stencil)))
+		if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_runtime, g_current_runtime->get_depth_stencil_from_fbo(fbo), 0x3, depth, static_cast<uint8_t>(stencil)))
 			return;
 	}
 #endif
@@ -554,9 +554,12 @@ HOOK_EXPORT void WINAPI glClear(GLbitfield mask)
 			void WINAPI glClearNamedFramebufferfv(GLuint framebuffer, GLenum buffer, GLint drawbuffer, const GLfloat *value)
 {
 #if RESHADE_ADDON
-	if (g_current_runtime && buffer == GL_COLOR &&
-		reshade::invoke_addon_event<reshade::addon_event::clear_render_target>(g_current_runtime, g_current_runtime->get_render_target_from_fbo(framebuffer, drawbuffer), value))
-		return;
+	if (g_current_runtime && buffer == GL_COLOR)
+	{
+		if (const reshade::api::resource_view_handle rtv = g_current_runtime->get_render_target_from_fbo(framebuffer, drawbuffer);
+			reshade::invoke_addon_event<reshade::addon_event::clear_render_target_views>(g_current_runtime, 1, &rtv, value))
+			return;
+	}
 #endif
 
 	static const auto trampoline = reshade::hooks::call(glClearNamedFramebufferfv);
@@ -567,9 +570,11 @@ HOOK_EXPORT void WINAPI glClear(GLbitfield mask)
 	static const auto trampoline = reshade::hooks::call(glClearNamedFramebufferfi);
 
 #if RESHADE_ADDON
-	if (g_current_runtime && buffer == GL_DEPTH_STENCIL &&
-		reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil>(g_current_runtime, g_current_runtime->get_depth_stencil_from_fbo(framebuffer), 0x3, depth, static_cast<uint8_t>(stencil)))
-		return;
+	if (g_current_runtime && buffer == GL_DEPTH_STENCIL)
+	{
+		if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_runtime, g_current_runtime->get_depth_stencil_from_fbo(framebuffer), 0x3, depth, static_cast<uint8_t>(stencil)))
+			return;
+	}
 #endif
 
 	trampoline(framebuffer, buffer, drawbuffer, depth, stencil);

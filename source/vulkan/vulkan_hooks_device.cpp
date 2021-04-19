@@ -1105,7 +1105,7 @@ void     VKAPI_CALL vkCmdBindPipeline(VkCommandBuffer commandBuffer, VkPipelineB
 	if (pipelineBindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(
-			s_vulkan_command_buffers.at(commandBuffer), std::size(reshade::vulkan::pipeline_states_graphics), reshade::vulkan::pipeline_states_graphics, device_impl->_pipeline_list.at(pipeline).values);
+			s_vulkan_command_buffers.at(commandBuffer), 35, reshade::vulkan::pipeline_states_graphics, device_impl->_pipeline_list.at(pipeline).values);
 	}
 #endif
 }
@@ -1514,9 +1514,12 @@ void     VKAPI_CALL vkCmdClearColorImage(VkCommandBuffer commandBuffer, VkImage 
 
 	device_impl->_dispatch_table.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
 
-	const bool skip = reshade::invoke_addon_event<reshade::addon_event::clear_render_target>(
+	const reshade::api::resource_view_handle rtv = device_impl->get_default_view(image);
+
+	const bool skip = reshade::invoke_addon_event<reshade::addon_event::clear_render_target_views>(
 		s_vulkan_command_buffers.at(commandBuffer),
-		device_impl->get_default_view(image),
+		1,
+		&rtv,
 		pColor->float32);
 
 	std::swap(transition.oldLayout, transition.newLayout);
@@ -1553,7 +1556,7 @@ void     VKAPI_CALL vkCmdClearDepthStencilImage(VkCommandBuffer commandBuffer, V
 
 	device_impl->_dispatch_table.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
 
-	const bool skip = reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil>(
+	const bool skip = reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(
 		s_vulkan_command_buffers.at(commandBuffer),
 		device_impl->get_default_view(image),
 		(transition.subresourceRange.aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT ? 0x1 : 0x0) | (transition.subresourceRange.aspectMask & VK_IMAGE_ASPECT_STENCIL_BIT ? 0x2 : 0x0),
@@ -1570,6 +1573,51 @@ void     VKAPI_CALL vkCmdClearDepthStencilImage(VkCommandBuffer commandBuffer, V
 	GET_DISPATCH_PTR_FROM(CmdClearDepthStencilImage, device_impl);
 	trampoline(commandBuffer, image, imageLayout, pDepthStencil, rangeCount, pRanges);
 }
+void     VKAPI_CALL vkCmdClearAttachments(VkCommandBuffer commandBuffer, uint32_t attachmentCount, const VkClearAttachment *pAttachments, uint32_t rectCount, const VkClearRect *pRects)
+{
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
+	assert(device_impl != nullptr);
+
+#if RESHADE_ADDON
+	reshade::vulkan::command_list_impl *const cmd_impl = s_vulkan_command_buffers.at(commandBuffer);
+	if (cmd_impl != nullptr)
+	{
+		assert(cmd_impl->current_renderpass != VK_NULL_HANDLE);
+		assert(cmd_impl->current_framebuffer != VK_NULL_HANDLE);
+
+		const auto &attachments = device_impl->_framebuffer_list.at(cmd_impl->current_framebuffer);
+		const auto &renderpass_data = device_impl->_render_pass_list.at(cmd_impl->current_renderpass);
+		const auto &renderpass_data_subpass = renderpass_data.subpasses[cmd_impl->current_subpass];
+
+		for (uint32_t i = 0; i < attachmentCount; ++i)
+		{
+			const VkClearAttachment &attachment = pAttachments[i];
+
+			if (attachment.aspectMask & VK_IMAGE_ASPECT_COLOR_BIT)
+			{
+				if (const reshade::api::resource_view_handle rtv = attachments[attachment.colorAttachment];
+					reshade::invoke_addon_event<reshade::addon_event::clear_render_target_views>(cmd_impl, 1, &rtv, attachment.clearValue.color.float32))
+					return; // This will skip clears of all attachments, not just the one from this event
+			}
+			else
+			{
+				assert(renderpass_data_subpass.depth_stencil_attachment.attachment != VK_ATTACHMENT_UNUSED);
+				if (const reshade::api::resource_view_handle dsv = attachments[renderpass_data_subpass.depth_stencil_attachment.attachment];
+					reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(
+					cmd_impl,
+					dsv,
+					(attachment.aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT ? 0x1 : 0x0) | (attachment.aspectMask & VK_IMAGE_ASPECT_STENCIL_BIT ? 0x2 : 0x0),
+					attachment.clearValue.depthStencil.depth,
+					static_cast<uint8_t>(attachment.clearValue.depthStencil.stencil)))
+					return;
+			}
+		}
+	}
+#endif
+
+	GET_DISPATCH_PTR_FROM(CmdClearAttachments, device_impl);
+	trampoline(commandBuffer, attachmentCount, pAttachments, rectCount, pRects);
+}
 
 void     VKAPI_CALL vkCmdPushConstants(VkCommandBuffer commandBuffer, VkPipelineLayout layout, VkShaderStageFlags stageFlags, uint32_t offset, uint32_t size, const void *pValues)
 {
@@ -1578,7 +1626,12 @@ void     VKAPI_CALL vkCmdPushConstants(VkCommandBuffer commandBuffer, VkPipeline
 
 #if RESHADE_ADDON
 	reshade::invoke_addon_event<reshade::addon_event::bind_constants>(
-		s_vulkan_command_buffers.at(commandBuffer), static_cast<reshade::api::shader_stage>(stageFlags), 0, offset / sizeof(uint32_t), size / sizeof(uint32_t), static_cast<const uint32_t *>(pValues));
+		s_vulkan_command_buffers.at(commandBuffer),
+		static_cast<reshade::api::shader_stage>(stageFlags),
+		0,
+		offset / 4,
+		size / 4,
+		static_cast<const uint32_t *>(pValues));
 #endif
 }
 
@@ -1619,7 +1672,7 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 
 			if (renderpass_data.cleared_attachments[i].index != renderpass_data_subpass.depth_stencil_attachment.attachment)
 			{
-				if (!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::clear_render_target)].empty())
+				if (!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::clear_render_target_views)].empty())
 				{
 					reshade::api::resource_handle image = { 0 };
 					device_impl->get_resource_from_view(attachments[renderpass_data.cleared_attachments[i].index], &image);
@@ -1636,8 +1689,8 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 
 					device_impl->_dispatch_table.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
 
-					reshade::invoke_addon_event<reshade::addon_event::clear_render_target>( // Cannot be skipped
-						cmd_impl, attachments[renderpass_data.cleared_attachments[i].index], clear_value.color.float32);
+					reshade::invoke_addon_event<reshade::addon_event::clear_render_target_views>( // Cannot be skipped
+						cmd_impl, 1, &attachments[renderpass_data.cleared_attachments[i].index], clear_value.color.float32);
 
 					std::swap(transition.oldLayout, transition.newLayout);
 					device_impl->_dispatch_table.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
@@ -1645,7 +1698,7 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 			}
 			else
 			{
-				if (!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::clear_depth_stencil)].empty())
+				if (!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::clear_depth_stencil_view)].empty())
 				{
 					reshade::api::resource_handle image = { 0 };
 					device_impl->get_resource_from_view(attachments[renderpass_data.cleared_attachments[i].index], &image);
@@ -1665,7 +1718,7 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 
 					device_impl->_dispatch_table.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
 
-					reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil>( // Cannot be skipped
+					reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>( // Cannot be skipped
 						cmd_impl, attachments[renderpass_data.cleared_attachments[i].index], renderpass_data.cleared_attachments[i].clear_flags, clear_value.depthStencil.depth, static_cast<uint8_t>(clear_value.depthStencil.stencil));
 
 					std::swap(transition.oldLayout, transition.newLayout);

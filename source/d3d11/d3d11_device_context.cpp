@@ -165,7 +165,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::PSSetShaderResources(UINT StartSlo
 #if RESHADE_ADDON
 	assert(NumViews <= D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT);
 
-	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_shader_resources)].empty())
+	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_shader_resource_views)].empty())
 		return;
 
 #ifndef WIN64
@@ -177,7 +177,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::PSSetShaderResources(UINT StartSlo
 	const auto views = reinterpret_cast<const reshade::api::resource_view_handle *>(ppShaderResourceViews);
 #endif
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_shader_resources>(this, reshade::api::shader_stage::pixel, StartSlot, NumViews, views);
+	reshade::invoke_addon_event<reshade::addon_event::bind_shader_resource_views>(this, reshade::api::shader_stage::pixel, StartSlot, NumViews, views);
 #endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::PSSetShader(ID3D11PixelShader *pPixelShader, ID3D11ClassInstance *const *ppClassInstances, UINT NumClassInstances)
@@ -367,7 +367,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::VSSetShaderResources(UINT StartSlo
 #if RESHADE_ADDON
 	assert(NumViews <= D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT);
 
-	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_shader_resources)].empty())
+	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_shader_resource_views)].empty())
 		return;
 
 #ifndef WIN64
@@ -379,7 +379,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::VSSetShaderResources(UINT StartSlo
 	const auto views = reinterpret_cast<const reshade::api::resource_view_handle *>(ppShaderResourceViews);
 #endif
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_shader_resources>(this, reshade::api::shader_stage::vertex, StartSlot, NumViews, views);
+	reshade::invoke_addon_event<reshade::addon_event::bind_shader_resource_views>(this, reshade::api::shader_stage::vertex, StartSlot, NumViews, views);
 #endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::VSSetSamplers(UINT StartSlot, UINT NumSamplers, ID3D11SamplerState *const *ppSamplers)
@@ -427,7 +427,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::GSSetShaderResources(UINT StartSlo
 #if RESHADE_ADDON
 	assert(NumViews <= D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT);
 
-	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_shader_resources)].empty())
+	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_shader_resource_views)].empty())
 		return;
 
 #ifndef WIN64
@@ -439,7 +439,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::GSSetShaderResources(UINT StartSlo
 	const auto views = reinterpret_cast<const reshade::api::resource_view_handle *>(ppShaderResourceViews);
 #endif
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_shader_resources>(this, reshade::api::shader_stage::geometry, StartSlot, NumViews, views);
+	reshade::invoke_addon_event<reshade::addon_event::bind_shader_resource_views>(this, reshade::api::shader_stage::geometry, StartSlot, NumViews, views);
 #endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::GSSetSamplers(UINT StartSlot, UINT NumSamplers, ID3D11SamplerState *const *ppSamplers)
@@ -675,7 +675,8 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::CopyStructureCount(ID3D11Buffer *p
 void    STDMETHODCALLTYPE D3D11DeviceContext::ClearRenderTargetView(ID3D11RenderTargetView *pRenderTargetView, const FLOAT ColorRGBA[4])
 {
 #if RESHADE_ADDON
-	if (reshade::invoke_addon_event<reshade::addon_event::clear_render_target>(this, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(pRenderTargetView) }, ColorRGBA))
+	if (const reshade::api::resource_view_handle rtv = { reinterpret_cast<uintptr_t>(pRenderTargetView) };
+		reshade::invoke_addon_event<reshade::addon_event::clear_render_target_views>(this, 1, &rtv, ColorRGBA))
 		return;
 #endif
 	_orig->ClearRenderTargetView(pRenderTargetView, ColorRGBA);
@@ -691,7 +692,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::ClearUnorderedAccessViewFloat(ID3D
 void    STDMETHODCALLTYPE D3D11DeviceContext::ClearDepthStencilView(ID3D11DepthStencilView *pDepthStencilView, UINT ClearFlags, FLOAT Depth, UINT8 Stencil)
 {
 #if RESHADE_ADDON
-	if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil>(this, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(pDepthStencilView) }, ClearFlags, Depth, Stencil))
+	if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(this, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(pDepthStencilView) }, ClearFlags, Depth, Stencil))
 		return;
 #endif
 	_orig->ClearDepthStencilView(pDepthStencilView, ClearFlags, Depth, Stencil);
@@ -731,7 +732,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::HSSetShaderResources(UINT StartSlo
 #if RESHADE_ADDON
 	assert(NumViews <= D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT);
 
-	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_shader_resources)].empty())
+	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_shader_resource_views)].empty())
 		return;
 
 #ifndef WIN64
@@ -743,7 +744,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::HSSetShaderResources(UINT StartSlo
 	const auto views = reinterpret_cast<const reshade::api::resource_view_handle *>(ppShaderResourceViews);
 #endif
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_shader_resources>(this, reshade::api::shader_stage::hull, StartSlot, NumViews, views);
+	reshade::invoke_addon_event<reshade::addon_event::bind_shader_resource_views>(this, reshade::api::shader_stage::hull, StartSlot, NumViews, views);
 #endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::HSSetShader(ID3D11HullShader *pHullShader, ID3D11ClassInstance *const *ppClassInstances, UINT NumClassInstances)
@@ -805,7 +806,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::DSSetShaderResources(UINT StartSlo
 #if RESHADE_ADDON
 	assert(NumViews <= D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT);
 
-	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_shader_resources)].empty())
+	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_shader_resource_views)].empty())
 		return;
 
 #ifndef WIN64
@@ -817,7 +818,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::DSSetShaderResources(UINT StartSlo
 	const auto views = reinterpret_cast<const reshade::api::resource_view_handle *>(ppShaderResourceViews);
 #endif
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_shader_resources>(this, reshade::api::shader_stage::domain, StartSlot, NumViews, views);
+	reshade::invoke_addon_event<reshade::addon_event::bind_shader_resource_views>(this, reshade::api::shader_stage::domain, StartSlot, NumViews, views);
 #endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::DSSetShader(ID3D11DomainShader *pDomainShader, ID3D11ClassInstance *const *ppClassInstances, UINT NumClassInstances)
@@ -879,7 +880,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::CSSetShaderResources(UINT StartSlo
 #if RESHADE_ADDON
 	assert(NumViews <= D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT);
 
-	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_shader_resources)].empty())
+	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_shader_resource_views)].empty())
 		return;
 
 #ifndef WIN64
@@ -891,7 +892,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::CSSetShaderResources(UINT StartSlo
 	const auto views = reinterpret_cast<const reshade::api::resource_view_handle *>(ppShaderResourceViews);
 #endif
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_shader_resources>(this, reshade::api::shader_stage::compute, StartSlot, NumViews, views);
+	reshade::invoke_addon_event<reshade::addon_event::bind_shader_resource_views>(this, reshade::api::shader_stage::compute, StartSlot, NumViews, views);
 #endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::CSSetUnorderedAccessViews(UINT StartSlot, UINT NumUAVs, ID3D11UnorderedAccessView *const *ppUnorderedAccessViews, const UINT *pUAVInitialCounts)
@@ -1241,15 +1242,24 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::SwapDeviceContextState(ID3DDeviceC
 void    STDMETHODCALLTYPE D3D11DeviceContext::ClearView(ID3D11View *pView, const FLOAT Color[4], const D3D11_RECT *pRect, UINT NumRects)
 {
 #if RESHADE_ADDON
-	if (com_ptr<ID3D11RenderTargetView> rtv; SUCCEEDED(pView->QueryInterface(&rtv)))
+	if (com_ptr<ID3D11RenderTargetView> rtv;
+		SUCCEEDED(pView->QueryInterface(&rtv)))
 	{
-		if (reshade::invoke_addon_event<reshade::addon_event::clear_render_target>(this, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(rtv.get()) }, Color))
+		if (const reshade::api::resource_view_handle rtv_handle = reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(rtv.get()) };
+			reshade::invoke_addon_event<reshade::addon_event::clear_render_target_views>(this, 1, &rtv_handle, Color))
 			return;
 	}
-	if (com_ptr<ID3D11DepthStencilView> dsv; SUCCEEDED(pView->QueryInterface(&dsv)))
+	if (com_ptr<ID3D11DepthStencilView> dsv;
+		SUCCEEDED(pView->QueryInterface(&dsv)))
 	{
 		// The 'ID3D11DeviceContext1::ClearView' API only works on depth-stencil views to depth-only resources (with no stencil component)
-		if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil>(this, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(dsv.get()) }, 0x1, Color[0], static_cast<uint8_t>(0)))
+		if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(this, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(dsv.get()) }, 0x1, Color[0], static_cast<uint8_t>(0)))
+			return;
+	}
+	if (com_ptr<ID3D11UnorderedAccessView> uav;
+		SUCCEEDED(pView->QueryInterface(&uav)))
+	{
+		if (reshade::invoke_addon_event<reshade::addon_event::clear_unordered_access_view>(this, reshade::api::resource_view_handle { reinterpret_cast<uintptr_t>(uav.get()) }, Color))
 			return;
 	}
 #endif

@@ -525,7 +525,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::OMSetRenderTargets(UINT NumRend
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearDepthStencilView(D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilView, D3D12_CLEAR_FLAGS ClearFlags, FLOAT Depth, UINT8 Stencil, UINT NumRects, const D3D12_RECT *pRects)
 {
 #if RESHADE_ADDON
-	if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil>(this, reshade::api::resource_view_handle { DepthStencilView.ptr }, static_cast<uint32_t>(ClearFlags), Depth, Stencil))
+	if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(this, reshade::api::resource_view_handle { DepthStencilView.ptr }, static_cast<uint32_t>(ClearFlags), Depth, Stencil))
 		return;
 #endif
 	_orig->ClearDepthStencilView(DepthStencilView, ClearFlags, Depth, Stencil, NumRects, pRects);
@@ -533,17 +533,26 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearDepthStencilView(D3D12_CPU
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearRenderTargetView(D3D12_CPU_DESCRIPTOR_HANDLE RenderTargetView, const FLOAT ColorRGBA[4], UINT NumRects, const D3D12_RECT *pRects)
 {
 #if RESHADE_ADDON
-	if (reshade::invoke_addon_event<reshade::addon_event::clear_render_target>(this, reshade::api::resource_view_handle { RenderTargetView.ptr }, ColorRGBA))
+	if (const reshade::api::resource_view_handle rtv = { RenderTargetView.ptr };
+		reshade::invoke_addon_event<reshade::addon_event::clear_render_target_views>(this, 1, &rtv, ColorRGBA))
 		return;
 #endif
 	_orig->ClearRenderTargetView(RenderTargetView, ColorRGBA, NumRects, pRects);
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearUnorderedAccessViewUint(D3D12_GPU_DESCRIPTOR_HANDLE ViewGPUHandleInCurrentHeap, D3D12_CPU_DESCRIPTOR_HANDLE ViewCPUHandle, ID3D12Resource *pResource, const UINT Values[4], UINT NumRects, const D3D12_RECT *pRects)
 {
+#if RESHADE_ADDON
+	if (reshade::invoke_addon_event<reshade::addon_event::clear_unordered_access_view>(this, reshade::api::resource_view_handle { ViewCPUHandle.ptr }, reinterpret_cast<const FLOAT *>(Values)))
+		return;
+#endif
 	_orig->ClearUnorderedAccessViewUint(ViewGPUHandleInCurrentHeap, ViewCPUHandle, pResource, Values, NumRects, pRects);
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearUnorderedAccessViewFloat(D3D12_GPU_DESCRIPTOR_HANDLE ViewGPUHandleInCurrentHeap, D3D12_CPU_DESCRIPTOR_HANDLE ViewCPUHandle, ID3D12Resource *pResource, const FLOAT Values[4], UINT NumRects, const D3D12_RECT *pRects)
 {
+#if RESHADE_ADDON
+	if (reshade::invoke_addon_event<reshade::addon_event::clear_unordered_access_view>(this, reshade::api::resource_view_handle { ViewCPUHandle.ptr }, Values))
+		return;
+#endif
 	_orig->ClearUnorderedAccessViewFloat(ViewGPUHandleInCurrentHeap, ViewCPUHandle, pResource, Values, NumRects, pRects);
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::DiscardResource(ID3D12Resource *pResource, const D3D12_DISCARD_REGION *pRegion)
