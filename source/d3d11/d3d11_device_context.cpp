@@ -661,13 +661,27 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::UpdateSubresource(ID3D11Resource *
 	static_assert(sizeof(D3D11_BOX) == (sizeof(int32_t) * 6));
 
 	if (reshade::api::subresource_data data = { pSrcData, SrcRowPitch, SrcDepthPitch };
-		reshade::invoke_addon_event<reshade::addon_event::update_resource_region>(this, &data, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pDstResource) }, DstSubresource, reinterpret_cast<const int32_t *>(pDstBox)))
+		reshade::invoke_addon_event<reshade::addon_event::update_texture_region>(this, &data, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pDstResource) }, DstSubresource, reinterpret_cast<const int32_t *>(pDstBox)))
 		return;
 #endif
 	_orig->UpdateSubresource(pDstResource, DstSubresource, pDstBox, pSrcData, SrcRowPitch, SrcDepthPitch);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::CopyStructureCount(ID3D11Buffer *pDstBuffer, UINT DstAlignedByteOffset, ID3D11UnorderedAccessView *pSrcView)
 {
+#if RESHADE_ADDON
+	assert(pSrcView != nullptr);
+
+	com_ptr<ID3D11Resource> src;
+	pSrcView->GetResource(&src);
+	D3D11_UNORDERED_ACCESS_VIEW_DESC desc;
+	pSrcView->GetDesc(&desc);
+
+	if (desc.ViewDimension == D3D11_UAV_DIMENSION_BUFFER &&
+		reshade::invoke_addon_event<reshade::addon_event::copy_buffer_region>(this,
+		reshade::api::resource_handle { reinterpret_cast<uintptr_t>(src.get()) }, desc.Buffer.FirstElement,
+		reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pDstBuffer) }, DstAlignedByteOffset, desc.Buffer.NumElements))
+		return;
+#endif
 	_orig->CopyStructureCount(pDstBuffer, DstAlignedByteOffset, pSrcView);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::ClearRenderTargetView(ID3D11RenderTargetView *pRenderTargetView, const FLOAT ColorRGBA[4])
@@ -717,6 +731,12 @@ FLOAT   STDMETHODCALLTYPE D3D11DeviceContext::GetResourceMinLOD(ID3D11Resource *
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::ResolveSubresource(ID3D11Resource *pDstResource, UINT DstSubresource, ID3D11Resource *pSrcResource, UINT SrcSubresource, DXGI_FORMAT Format)
 {
+#if RESHADE_ADDON
+	if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(this,
+		reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pSrcResource) }, SrcSubresource, nullptr,
+		reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pDstResource) }, DstSubresource, nullptr, static_cast<uint32_t>(Format)))
+		return;
+#endif
 	_orig->ResolveSubresource(pDstResource, DstSubresource, pSrcResource, SrcSubresource, Format);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::ExecuteCommandList(ID3D11CommandList *pCommandList, BOOL RestoreContextState)

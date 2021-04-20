@@ -1619,6 +1619,47 @@ void     VKAPI_CALL vkCmdClearAttachments(VkCommandBuffer commandBuffer, uint32_
 	trampoline(commandBuffer, attachmentCount, pAttachments, rectCount, pRects);
 }
 
+void     VKAPI_CALL vkCmdResolveImage(VkCommandBuffer commandBuffer, VkImage srcImage, VkImageLayout srcImageLayout, VkImage dstImage, VkImageLayout dstImageLayout, uint32_t regionCount, const VkImageResolve *pRegions)
+{
+#if RESHADE_ADDON
+	for (uint32_t i = 0; i < regionCount; ++i)
+	{
+		const VkImageResolve &region = pRegions[i];
+
+		const int32_t src_box[6] = {
+			region.srcOffset.x,
+			region.srcOffset.y,
+			region.srcOffset.z,
+			region.srcOffset.x + static_cast<int32_t>(region.extent.width),
+			region.srcOffset.y + static_cast<int32_t>(region.extent.height),
+			region.srcOffset.z + static_cast<int32_t>(region.extent.depth)
+		};
+		reshade::api::subresource_location src_location(
+			region.srcSubresource.mipLevel, region.srcSubresource.baseArrayLayer, 1 /*TODO: mip levels*/);
+
+		const int32_t dst_box[6] = {
+			region.dstOffset.x,
+			region.dstOffset.y,
+			region.dstOffset.z,
+			region.dstOffset.x + static_cast<int32_t>(region.extent.width),
+			region.dstOffset.y + static_cast<int32_t>(region.extent.height),
+			region.dstOffset.z + static_cast<int32_t>(region.extent.depth)
+		};
+		reshade::api::subresource_location dst_location(
+			region.dstSubresource.mipLevel, region.dstSubresource.baseArrayLayer, 1 /*TODO: mip levels*/);
+
+		if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(
+			s_vulkan_command_buffers.at(commandBuffer),
+			reshade::api::resource_handle { (uint64_t)srcImage }, src_location, src_box,
+			reshade::api::resource_handle { (uint64_t)dstImage }, dst_location, dst_box, 0))
+			return; // TODO: This skips resolve of all regions, rather than just the one specified to this event call
+	}
+#endif
+
+	GET_DISPATCH_PTR(CmdResolveImage, commandBuffer);
+	trampoline(commandBuffer, srcImage, srcImageLayout, dstImage, dstImageLayout, regionCount, pRegions);
+}
+
 void     VKAPI_CALL vkCmdPushConstants(VkCommandBuffer commandBuffer, VkPipelineLayout layout, VkShaderStageFlags stageFlags, uint32_t offset, uint32_t size, const void *pValues)
 {
 	GET_DISPATCH_PTR(CmdPushConstants, commandBuffer);

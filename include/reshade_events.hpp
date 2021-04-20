@@ -165,7 +165,7 @@ namespace reshade
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_handle src, api::resource_handle dst)</c></para>
 		/// </summary>
 		/// <remarks>
-		/// Source resource will be in the <see cref="resource_usage::copy_src"/> state. Destination resource will be in the <see cref="resource_usage::copy_dest"/> state.
+		/// Source resource will be in the <see cref="resource_usage::copy_source"/> state. Destination resource will be in the <see cref="resource_usage::copy_dest"/> state.
 		/// </remarks>
 		copy_resource,
 		/// <summary>
@@ -173,7 +173,7 @@ namespace reshade
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_handle src, uint64_t src_offset, api::resource_handle dst, uint64_t dst_offset, uint64_t size)</c></para>
 		/// </summary>
 		/// <remarks>
-		/// Source resource will be in the <see cref="resource_usage::copy_src"/> state. Destination resource will be in the <see cref="resource_usage::copy_dest"/> state.
+		/// Source resource will be in the <see cref="resource_usage::copy_source"/> state. Destination resource will be in the <see cref="resource_usage::copy_dest"/> state.
 		/// </remarks>
 		copy_buffer_region,
 		/// <summary>
@@ -182,7 +182,7 @@ namespace reshade
 		/// <para>Box data format is { box->left, box->top, box->front, box->right, box->bottom, box->back }.</para>
 		/// </summary>
 		/// <remarks>
-		/// Source resource will be in the <see cref="resource_usage::copy_src"/> state. Destination resource will be in the <see cref="resource_usage::copy_dest"/> state.
+		/// Source resource will be in the <see cref="resource_usage::copy_source"/> state. Destination resource will be in the <see cref="resource_usage::copy_dest"/> state.
 		/// </remarks>
 		copy_texture_region,
 		/// <summary>
@@ -193,7 +193,15 @@ namespace reshade
 		/// <remarks>
 		/// Destination resource will be in the <see cref="resource_usage::copy_dest"/> state.
 		/// </remarks>
-		update_resource_region,
+		update_texture_region,
+		/// <summary>
+		/// Called before 'IDirect3DDevice9::StretchRect', 'ID3D10Device::ResolveSubresource', 'ID3D11DeviceContext::ResolveSubresource', 'ID3D12GraphicsCommandList::ResolveSubresource' or 'vkCmdResolveImage'.
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_handle src, const api::subresource_location &src_location, const int32_t *src_box, api::resource_handle dst, const api::subresource_location &dst_location, const int32_t *dst_box, uint32_t format)</c></para>
+		/// </summary>
+		/// <remarks>
+		/// Source resource will be in the <see cref="resource_usage::resolve_source"/> state. Destination resource will be in the <see cref="resource_usage::resolve_dest"/> state.
+		/// </remarks>
+		resolve_texture_region,
 		/// <summary>
 		/// Called before 'IDirect3DDevice9::Clear', 'ID3D10Device::ClearDepthStencilView', 'ID3D11DeviceContext::ClearDepthStencilView', 'ID3D12GraphicsCommandList::ClearDepthStencilView', 'glClear(...) ', 'vkCmdBeginRenderPass', 'vkCmdClearAttachments' or 'vkCmdClearDepthStencilImage'.
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil)</c></para>
@@ -352,7 +360,8 @@ namespace reshade
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::copy_resource, api::command_list *cmd_list, api::resource_handle src, api::resource_handle dst);
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::copy_buffer_region, api::command_list *cmd_list, api::resource_handle src, uint64_t src_offset, api::resource_handle dst, uint64_t dst_offset, uint64_t size);
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::copy_texture_region, api::command_list *cmd_list, api::resource_handle src, const api::subresource_location &src_location, const int32_t src_box[6], api::resource_handle dst, const api::subresource_location &dst_location, const int32_t dst_box[6]);
-	DEFINE_ADDON_EVENT_TYPE_2(addon_event::update_resource_region, api::command_list *cmd_list, const api::subresource_data *data, api::resource_handle dst, const api::subresource_location &dst_location, const int32_t dst_box[6]);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::update_texture_region, api::command_list *cmd_list, const api::subresource_data *data, api::resource_handle dst, const api::subresource_location &dst_location, const int32_t dst_box[6]);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::resolve_texture_region, api::command_list *cmd_list, api::resource_handle src, const api::subresource_location &src_location, const int32_t src_box[6], api::resource_handle dst, const api::subresource_location &dst_location, const int32_t dst_box[6], uint32_t format);
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::clear_depth_stencil_view, api::command_list *cmd_list, api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil);
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::clear_render_target_views, api::command_list *cmd_list, uint32_t count, const api::resource_view_handle *rtvs, const float color[4]);
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::clear_unordered_access_view_uint, api::command_list *cmd_list, api::resource_view_handle uav, const uint32_t values[4]);

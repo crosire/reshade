@@ -692,10 +692,22 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::StretchRect(IDirect3DSurface9 *pSourc
 		dst_rect[5] = 1;
 	}
 
-	if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(this,
-		reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pSourceSurface) }, 0, (pSourceRect != nullptr) ? src_rect : nullptr,
-		reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pDestSurface) }, 0, (pDestRect != nullptr) ? dst_rect : nullptr))
-		return D3D_OK;
+	D3DSURFACE_DESC desc;
+	pSourceSurface->GetDesc(&desc);
+	if (desc.MultiSampleType == D3DMULTISAMPLE_NONE)
+	{
+		if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(this,
+			reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pSourceSurface) }, 0, (pSourceRect != nullptr) ? src_rect : nullptr,
+			reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pDestSurface) }, 0, (pDestRect != nullptr) ? dst_rect : nullptr))
+			return D3D_OK;
+	}
+	else
+	{
+		if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(this,
+			reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pSourceSurface) }, 0, (pSourceRect != nullptr) ? src_rect : nullptr,
+			reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pDestSurface) }, 0, (pDestRect != nullptr) ? dst_rect : nullptr, static_cast<uint32_t>(desc.Format)))
+			return D3D_OK;
+	}
 #endif
 	return _orig->StretchRect(pSourceSurface, pSourceRect, pDestSurface, pDestRect, Filter);
 }
