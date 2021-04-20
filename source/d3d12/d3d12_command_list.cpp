@@ -308,7 +308,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetPipelineState(ID3D12Pipeline
 #if RESHADE_ADDON
 	if (pPipelineState != nullptr)
 	{
-		reshade::invoke_addon_event<reshade::addon_event::bind_shader>(this, reshade::api::shader_stage::all, reinterpret_cast<uintptr_t>(pPipelineState));
+		reshade::invoke_addon_event<reshade::addon_event::bind_shader_or_pipeline>(this, reshade::api::shader_stage::all, reinterpret_cast<uintptr_t>(pPipelineState));
 
 		uint32_t pipeline_state_values[ARRAYSIZE(reshade::d3d12::pipeline_states_graphics)];
 		if (UINT pipeline_state_size = sizeof(pipeline_state_values);
@@ -463,17 +463,17 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::IASetIndexBuffer(const D3D12_IN
 		return;
 
 	reshade::api::resource_handle buffer = { 0 };
-	uint32_t format = 0;
 	uint64_t offset = 0;
+	uint32_t index_size = 0;
 	if (pView != nullptr)
 	{
 		ID3D12Resource *resource = nullptr;
 		_device_impl->resolve_gpu_address(pView->BufferLocation, &resource, &offset);
 		buffer = { reinterpret_cast<uintptr_t>(resource) };
-		format = static_cast<uint32_t>(pView->Format);
+		index_size = pView->Format == DXGI_FORMAT_R16_UINT ? 2 : 4;
 	}
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_index_buffer>(this, buffer, format, offset);
+	reshade::invoke_addon_event<reshade::addon_event::bind_index_buffer>(this, buffer, offset, index_size);
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::IASetVertexBuffers(UINT StartSlot, UINT NumViews, const D3D12_VERTEX_BUFFER_VIEW *pViews)
@@ -488,8 +488,8 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::IASetVertexBuffers(UINT StartSl
 		return;
 
 	reshade::api::resource_handle buffers[D3D12_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
-	uint32_t strides[D3D12_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
 	uint64_t offsets[D3D12_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
+	uint32_t strides[D3D12_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
 	for (UINT i = 0; i < NumViews; ++i)
 	{
 		ID3D12Resource *resource = nullptr;
@@ -498,7 +498,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::IASetVertexBuffers(UINT StartSl
 		strides[i] = pViews[i].StrideInBytes;
 	}
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_vertex_buffers>(this, StartSlot, NumViews, buffers, strides, offsets);
+	reshade::invoke_addon_event<reshade::addon_event::bind_vertex_buffers>(this, StartSlot, NumViews, buffers, offsets, strides);
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SOSetTargets(UINT StartSlot, UINT NumViews, const D3D12_STREAM_OUTPUT_BUFFER_VIEW *pViews)

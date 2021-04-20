@@ -1097,7 +1097,7 @@ void     VKAPI_CALL vkCmdBindPipeline(VkCommandBuffer commandBuffer, VkPipelineB
 #if RESHADE_ADDON
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_shader>(
+	reshade::invoke_addon_event<reshade::addon_event::bind_shader_or_pipeline>(
 		s_vulkan_command_buffers.at(commandBuffer),
 		pipelineBindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS ? reshade::api::shader_stage::all_graphics : reshade::api::shader_stage::compute,
 		(uint64_t)pipeline);
@@ -1242,7 +1242,7 @@ void     VKAPI_CALL vkCmdBindIndexBuffer(VkCommandBuffer commandBuffer, VkBuffer
 
 #if RESHADE_ADDON
 	reshade::invoke_addon_event<reshade::addon_event::bind_index_buffer>(
-		s_vulkan_command_buffers.at(commandBuffer), reshade::api::resource_handle { (uint64_t)buffer }, static_cast<uint32_t>(indexType), offset);
+		s_vulkan_command_buffers.at(commandBuffer), reshade::api::resource_handle { (uint64_t)buffer }, offset, buffer == VK_NULL_HANDLE ? 0 : indexType == VK_INDEX_TYPE_UINT8_EXT ? 1 : indexType == VK_INDEX_TYPE_UINT16 ? 2 : 4);
 #endif
 }
 void     VKAPI_CALL vkCmdBindVertexBuffers(VkCommandBuffer commandBuffer, uint32_t firstBinding, uint32_t bindingCount, const VkBuffer *pBuffers, const VkDeviceSize *pOffsets)
@@ -1254,7 +1254,7 @@ void     VKAPI_CALL vkCmdBindVertexBuffers(VkCommandBuffer commandBuffer, uint32
 	static_assert(sizeof(*pBuffers) == sizeof(reshade::api::resource_handle));
 
 	reshade::invoke_addon_event<reshade::addon_event::bind_vertex_buffers>(
-		s_vulkan_command_buffers.at(commandBuffer), firstBinding, bindingCount, reinterpret_cast<const reshade::api::resource_handle *>(pBuffers), nullptr, pOffsets);
+		s_vulkan_command_buffers.at(commandBuffer), firstBinding, bindingCount, reinterpret_cast<const reshade::api::resource_handle *>(pBuffers), pOffsets, nullptr);
 #endif
 }
 

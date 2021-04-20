@@ -1187,7 +1187,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetVertexShader(IDirect3DVertexShader
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
-		reshade::invoke_addon_event<reshade::addon_event::bind_shader>(this, reshade::api::shader_stage::vertex, reinterpret_cast<uintptr_t>(pShader));
+		reshade::invoke_addon_event<reshade::addon_event::bind_shader_or_pipeline>(this, reshade::api::shader_stage::vertex, reinterpret_cast<uintptr_t>(pShader));
 	}
 #endif
 	return hr;
@@ -1250,7 +1250,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetStreamSource(UINT StreamNumber, ID
 		const reshade::api::resource_handle buffer = { reinterpret_cast<uintptr_t>(pStreamData) };
 		const uint64_t offset = OffsetInBytes;
 
-		reshade::invoke_addon_event<reshade::addon_event::bind_vertex_buffers>(this, StreamNumber, 1, &buffer, &Stride, &offset);
+		reshade::invoke_addon_event<reshade::addon_event::bind_vertex_buffers>(this, StreamNumber, 1, &buffer, &offset, &Stride);
 	}
 #endif
 	return hr;
@@ -1273,15 +1273,15 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetIndices(IDirect3DIndexBuffer9 *pIn
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
-		uint32_t format = 0;
+		uint32_t index_size = 0;
 		if (pIndexData != nullptr)
 		{
 			D3DINDEXBUFFER_DESC desc;
 			pIndexData->GetDesc(&desc);
-			format = static_cast<uint32_t>(desc.Format);
+			index_size = desc.Format == D3DFMT_INDEX16 ? 2 : 4;
 		}
 
-		reshade::invoke_addon_event<reshade::addon_event::bind_index_buffer>(this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pIndexData) }, format, 0ull);
+		reshade::invoke_addon_event<reshade::addon_event::bind_index_buffer>(this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pIndexData) }, 0, index_size);
 	}
 #endif
 	return hr;
@@ -1320,7 +1320,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetPixelShader(IDirect3DPixelShader9 
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
-		reshade::invoke_addon_event<reshade::addon_event::bind_shader>(this, reshade::api::shader_stage::pixel, reinterpret_cast<uintptr_t>(pShader));
+		reshade::invoke_addon_event<reshade::addon_event::bind_shader_or_pipeline>(this, reshade::api::shader_stage::pixel, reinterpret_cast<uintptr_t>(pShader));
 	}
 #endif
 	return hr;

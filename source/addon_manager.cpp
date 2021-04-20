@@ -41,7 +41,7 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(bind_index_buffer);
 		CASE(bind_vertex_buffers);
 		CASE(bind_pipeline_states);
-		CASE(bind_shader);
+		CASE(bind_shader_or_pipeline);
 		CASE(bind_samplers);
 		CASE(bind_shader_resource_views);
 		CASE(bind_unordered_access_views);
@@ -55,13 +55,13 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(draw_indexed);
 		CASE(dispatch);
 		CASE(draw_or_dispatch_indirect);
-		CASE(clear_depth_stencil_view);
-		CASE(clear_render_target_views);
-		CASE(clear_unordered_access_view);
 		CASE(copy_resource);
 		CASE(copy_buffer_region);
 		CASE(copy_texture_region);
 		CASE(update_resource_region);
+		CASE(clear_depth_stencil_view);
+		CASE(clear_render_target_views);
+		CASE(clear_unordered_access_view);
 		CASE(reset_command_list);
 		CASE(execute_command_list);
 		CASE(execute_secondary_command_list);

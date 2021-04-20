@@ -185,7 +185,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::PSSetShader(ID3D11PixelShader *pPi
 	_orig->PSSetShader(pPixelShader, ppClassInstances, NumClassInstances);
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::bind_shader>(this, reshade::api::shader_stage::pixel, reinterpret_cast<uintptr_t>(pPixelShader));
+	reshade::invoke_addon_event<reshade::addon_event::bind_shader_or_pipeline>(this, reshade::api::shader_stage::pixel, reinterpret_cast<uintptr_t>(pPixelShader));
 #endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::PSSetSamplers(UINT StartSlot, UINT NumSamplers, ID3D11SamplerState *const *ppSamplers)
@@ -215,7 +215,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::VSSetShader(ID3D11VertexShader *pV
 	_orig->VSSetShader(pVertexShader, ppClassInstances, NumClassInstances);
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::bind_shader>(this, reshade::api::shader_stage::vertex, reinterpret_cast<uintptr_t>(pVertexShader));
+	reshade::invoke_addon_event<reshade::addon_event::bind_shader_or_pipeline>(this, reshade::api::shader_stage::vertex, reinterpret_cast<uintptr_t>(pVertexShader));
 #endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::DrawIndexed(UINT IndexCount, UINT StartIndexLocation, INT BaseVertexLocation)
@@ -293,7 +293,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::IASetVertexBuffers(UINT StartSlot,
 		offsets[i] = pOffsets[i];
 	}
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_vertex_buffers>(this, StartSlot, NumBuffers, buffers, pStrides, offsets);
+	reshade::invoke_addon_event<reshade::addon_event::bind_vertex_buffers>(this, StartSlot, NumBuffers, buffers, offsets, pStrides);
 #endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::IASetIndexBuffer(ID3D11Buffer *pIndexBuffer, DXGI_FORMAT Format, UINT Offset)
@@ -301,7 +301,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::IASetIndexBuffer(ID3D11Buffer *pIn
 	_orig->IASetIndexBuffer(pIndexBuffer, Format, Offset);
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::bind_index_buffer>(this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pIndexBuffer) }, static_cast<uint32_t>(Format), Offset);
+	reshade::invoke_addon_event<reshade::addon_event::bind_index_buffer>(this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pIndexBuffer) }, Offset, pIndexBuffer == nullptr ? 0 : Format == DXGI_FORMAT_R16_UINT ? 2 : 4);
 #endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::DrawIndexedInstanced(UINT IndexCountPerInstance, UINT InstanceCount, UINT StartIndexLocation, INT BaseVertexLocation, UINT StartInstanceLocation)
@@ -347,7 +347,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::GSSetShader(ID3D11GeometryShader *
 	_orig->GSSetShader(pShader, ppClassInstances, NumClassInstances);
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::bind_shader>(this, reshade::api::shader_stage::geometry, reinterpret_cast<uintptr_t>(pShader));
+	reshade::invoke_addon_event<reshade::addon_event::bind_shader_or_pipeline>(this, reshade::api::shader_stage::geometry, reinterpret_cast<uintptr_t>(pShader));
 #endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY Topology)
@@ -752,7 +752,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::HSSetShader(ID3D11HullShader *pHul
 	_orig->HSSetShader(pHullShader, ppClassInstances, NumClassInstances);
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::bind_shader>(this, reshade::api::shader_stage::hull, reinterpret_cast<uintptr_t>(pHullShader));
+	reshade::invoke_addon_event<reshade::addon_event::bind_shader_or_pipeline>(this, reshade::api::shader_stage::hull, reinterpret_cast<uintptr_t>(pHullShader));
 #endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::HSSetSamplers(UINT StartSlot, UINT NumSamplers, ID3D11SamplerState *const *ppSamplers)
@@ -826,7 +826,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::DSSetShader(ID3D11DomainShader *pD
 	_orig->DSSetShader(pDomainShader, ppClassInstances, NumClassInstances);
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::bind_shader>(this, reshade::api::shader_stage::domain, reinterpret_cast<uintptr_t>(pDomainShader));
+	reshade::invoke_addon_event<reshade::addon_event::bind_shader_or_pipeline>(this, reshade::api::shader_stage::domain, reinterpret_cast<uintptr_t>(pDomainShader));
 #endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::DSSetSamplers(UINT StartSlot, UINT NumSamplers, ID3D11SamplerState *const *ppSamplers)
@@ -922,7 +922,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::CSSetShader(ID3D11ComputeShader *p
 	_orig->CSSetShader(pComputeShader, ppClassInstances, NumClassInstances);
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::bind_shader>(this, reshade::api::shader_stage::compute, reinterpret_cast<uintptr_t>(pComputeShader));
+	reshade::invoke_addon_event<reshade::addon_event::bind_shader_or_pipeline>(this, reshade::api::shader_stage::compute, reinterpret_cast<uintptr_t>(pComputeShader));
 #endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::CSSetSamplers(UINT StartSlot, UINT NumSamplers, ID3D11SamplerState *const *ppSamplers)

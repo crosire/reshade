@@ -77,17 +77,18 @@ HOOK_EXPORT void WINAPI glBegin(GLenum mode)
 #if RESHADE_ADDON
 	if (g_current_runtime)
 	{
-		const uint32_t stride = 0;
-		const uint64_t offset = 0;
 		const reshade::api::resource_handle resource = reshade::opengl::make_resource_handle(target, buffer);
+		const uint64_t offset = 0;
+		const uint32_t stride = 0;
 
 		switch (target)
 		{
 		case GL_ARRAY_BUFFER:
-			reshade::invoke_addon_event<reshade::addon_event::bind_vertex_buffers>(g_current_runtime, 0, 1, &resource, &stride, &offset);
+			reshade::invoke_addon_event<reshade::addon_event::bind_vertex_buffers>(g_current_runtime, 0, 1, &resource, &offset, &stride);
 			return;
 		case GL_ELEMENT_ARRAY_BUFFER:
-			reshade::invoke_addon_event<reshade::addon_event::bind_index_buffer>(g_current_runtime, resource, 0, offset);
+			// The index format is provided to 'glDrawElements' and is unknown at this point, so call with index size set to zero
+			reshade::invoke_addon_event<reshade::addon_event::bind_index_buffer>(g_current_runtime, resource, offset, 0);
 			return;
 		}
 	}
@@ -318,11 +319,11 @@ HOOK_EXPORT void WINAPI glBindTexture(GLenum target, GLuint texture)
 #if RESHADE_ADDON
 	if (g_current_runtime)
 	{
-		const uint32_t stride_32 = stride;
-		const uint64_t offset_64 = offset;
 		const reshade::api::resource_handle resource = reshade::opengl::make_resource_handle(GL_ARRAY_BUFFER, buffer);
+		const uint64_t offset_64 = offset;
+		const uint32_t stride_32 = stride;
 
-		reshade::invoke_addon_event<reshade::addon_event::bind_vertex_buffers>(g_current_runtime, bindingindex, 1, &resource, &stride_32, &offset_64);
+		reshade::invoke_addon_event<reshade::addon_event::bind_vertex_buffers>(g_current_runtime, bindingindex, 1, &resource, &offset_64, &stride_32);
 	}
 
 	// TODO: glVertexArrayVertexBuffer
@@ -344,7 +345,7 @@ HOOK_EXPORT void WINAPI glBindTexture(GLenum target, GLuint texture)
 			offsets_64[i] = offsets[i];
 		}
 
-		reshade::invoke_addon_event<reshade::addon_event::bind_vertex_buffers>(g_current_runtime, first, count, buffer_handles, reinterpret_cast<const uint32_t *>(strides), offsets_64);
+		reshade::invoke_addon_event<reshade::addon_event::bind_vertex_buffers>(g_current_runtime, first, count, buffer_handles, offsets_64, reinterpret_cast<const uint32_t *>(strides));
 	}
 
 	// TODO: glVertexArrayVertexBuffers
@@ -3415,7 +3416,7 @@ HOOK_EXPORT void WINAPI glTranslatef(GLfloat x, GLfloat y, GLfloat z)
 #if RESHADE_ADDON
 	if (g_current_runtime)
 	{
-		reshade::invoke_addon_event<reshade::addon_event::bind_shader>(g_current_runtime, reshade::api::shader_stage::all, program);
+		reshade::invoke_addon_event<reshade::addon_event::bind_shader_or_pipeline>(g_current_runtime, reshade::api::shader_stage::all, program);
 	}
 #endif
 }
