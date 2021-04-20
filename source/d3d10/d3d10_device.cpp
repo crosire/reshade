@@ -94,15 +94,15 @@ void    STDMETHODCALLTYPE D3D10Device::VSSetConstantBuffers(UINT StartSlot, UINT
 		return;
 
 #ifndef WIN64
-	reshade::api::resource_handle buffers[D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
+	reshade::api::resource_handle buffer_handles[D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
 	for (UINT i = 0; i < NumBuffers; ++i)
-		buffers[i] = { reinterpret_cast<uintptr_t>(ppConstantBuffers[i]) };
+		buffer_handles[i] = { reinterpret_cast<uintptr_t>(ppConstantBuffers[i]) };
 #else
 	static_assert(sizeof(*ppConstantBuffers) == sizeof(reshade::api::resource_handle));
-	const auto buffers = reinterpret_cast<const reshade::api::resource_handle *>(ppConstantBuffers);
+	const auto buffer_handles = reinterpret_cast<const reshade::api::resource_handle *>(ppConstantBuffers);
 #endif
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_constant_buffers>(this, reshade::api::shader_stage::vertex, StartSlot, NumBuffers, buffers, nullptr);
+	reshade::invoke_addon_event<reshade::addon_event::bind_constant_buffers>(this, reshade::api::shader_stage::vertex, StartSlot, NumBuffers, buffer_handles, nullptr);
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::PSSetShaderResources(UINT StartSlot, UINT NumViews, ID3D10ShaderResourceView *const *ppShaderResourceViews)
@@ -116,15 +116,15 @@ void    STDMETHODCALLTYPE D3D10Device::PSSetShaderResources(UINT StartSlot, UINT
 		return;
 
 #ifndef WIN64
-	reshade::api::resource_view_handle views[D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT];
+	reshade::api::resource_view_handle view_handles[D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT];
 	for (UINT i = 0; i < NumViews; ++i)
-		views[i] = { reinterpret_cast<uintptr_t>(ppShaderResourceViews[i]) };
+		view_handles[i] = { reinterpret_cast<uintptr_t>(ppShaderResourceViews[i]) };
 #else
 	static_assert(sizeof(*ppShaderResourceViews) == sizeof(reshade::api::resource_view_handle));
-	const auto views = reinterpret_cast<const reshade::api::resource_view_handle *>(ppShaderResourceViews);
+	const auto view_handles = reinterpret_cast<const reshade::api::resource_view_handle *>(ppShaderResourceViews);
 #endif
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_shader_resource_views>(this, reshade::api::shader_stage::pixel, StartSlot, NumViews, views);
+	reshade::invoke_addon_event<reshade::addon_event::bind_shader_resource_views>(this, reshade::api::shader_stage::pixel, StartSlot, NumViews, view_handles);
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::PSSetShader(ID3D10PixelShader *pPixelShader)
@@ -192,15 +192,15 @@ void    STDMETHODCALLTYPE D3D10Device::PSSetConstantBuffers(UINT StartSlot, UINT
 		return;
 
 #ifndef WIN64
-	reshade::api::resource_handle buffers[D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
+	reshade::api::resource_handle buffer_handles[D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
 	for (UINT i = 0; i < NumBuffers; ++i)
-		buffers[i] = { reinterpret_cast<uintptr_t>(ppConstantBuffers[i]) };
+		buffer_handles[i] = { reinterpret_cast<uintptr_t>(ppConstantBuffers[i]) };
 #else
 	static_assert(sizeof(*ppConstantBuffers) == sizeof(reshade::api::resource_handle));
-	const auto buffers = reinterpret_cast<const reshade::api::resource_handle *>(ppConstantBuffers);
+	const auto buffer_handles = reinterpret_cast<const reshade::api::resource_handle *>(ppConstantBuffers);
 #endif
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_constant_buffers>(this, reshade::api::shader_stage::pixel, StartSlot, NumBuffers, buffers, nullptr);
+	reshade::invoke_addon_event<reshade::addon_event::bind_constant_buffers>(this, reshade::api::shader_stage::pixel, StartSlot, NumBuffers, buffer_handles, nullptr);
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::IASetInputLayout(ID3D10InputLayout *pInputLayout)
@@ -218,21 +218,19 @@ void    STDMETHODCALLTYPE D3D10Device::IASetVertexBuffers(UINT StartSlot, UINT N
 		return;
 
 #ifndef WIN64
-	reshade::api::resource_handle buffers[D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
+	reshade::api::resource_handle buffer_handles[D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
+	for (UINT i = 0; i < NumBuffers; ++i)
+		buffer_handles[i] = { reinterpret_cast<uintptr_t>(ppVertexBuffers[i]) };
 #else
 	static_assert(sizeof(*ppVertexBuffers) == sizeof(reshade::api::resource_handle));
-	const auto buffers = reinterpret_cast<const reshade::api::resource_handle *>(ppVertexBuffers);
+	const auto buffer_handles = reinterpret_cast<const reshade::api::resource_handle *>(ppVertexBuffers);
 #endif
+
 	uint64_t offsets[D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
 	for (UINT i = 0; i < NumBuffers; ++i)
-	{
-#ifndef WIN64
-		buffers[i] = { reinterpret_cast<uintptr_t>(ppVertexBuffers[i]) };
-#endif
 		offsets[i] = pOffsets[i];
-	}
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_vertex_buffers>(this, StartSlot, NumBuffers, buffers, offsets, pStrides);
+	reshade::invoke_addon_event<reshade::addon_event::bind_vertex_buffers>(this, StartSlot, NumBuffers, buffer_handles, offsets, pStrides);
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::IASetIndexBuffer(ID3D10Buffer *pIndexBuffer, DXGI_FORMAT Format, UINT Offset)
@@ -270,15 +268,15 @@ void    STDMETHODCALLTYPE D3D10Device::GSSetConstantBuffers(UINT StartSlot, UINT
 		return;
 
 #ifndef WIN64
-	reshade::api::resource_handle buffers[D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
+	reshade::api::resource_handle buffer_handles[D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
 	for (UINT i = 0; i < NumBuffers; ++i)
-		buffers[i] = { reinterpret_cast<uintptr_t>(ppConstantBuffers[i]) };
+		buffer_handles[i] = { reinterpret_cast<uintptr_t>(ppConstantBuffers[i]) };
 #else
 	static_assert(sizeof(*ppConstantBuffers) == sizeof(reshade::api::resource_handle));
-	const auto buffers = reinterpret_cast<const reshade::api::resource_handle *>(ppConstantBuffers);
+	const auto buffer_handles = reinterpret_cast<const reshade::api::resource_handle *>(ppConstantBuffers);
 #endif
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_constant_buffers>(this, reshade::api::shader_stage::geometry, StartSlot, NumBuffers, buffers, nullptr);
+	reshade::invoke_addon_event<reshade::addon_event::bind_constant_buffers>(this, reshade::api::shader_stage::geometry, StartSlot, NumBuffers, buffer_handles, nullptr);
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::GSSetShader(ID3D10GeometryShader *pShader)
@@ -310,15 +308,15 @@ void    STDMETHODCALLTYPE D3D10Device::VSSetShaderResources(UINT StartSlot, UINT
 		return;
 
 #ifndef WIN64
-	reshade::api::resource_view_handle views[D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT];
+	reshade::api::resource_view_handle view_handles[D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT];
 	for (UINT i = 0; i < NumViews; ++i)
-		views[i] = { reinterpret_cast<uintptr_t>(ppShaderResourceViews[i]) };
+		view_handles[i] = { reinterpret_cast<uintptr_t>(ppShaderResourceViews[i]) };
 #else
 	static_assert(sizeof(*ppShaderResourceViews) == sizeof(reshade::api::resource_view_handle));
-	const auto views = reinterpret_cast<const reshade::api::resource_view_handle *>(ppShaderResourceViews);
+	const auto view_handles = reinterpret_cast<const reshade::api::resource_view_handle *>(ppShaderResourceViews);
 #endif
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_shader_resource_views>(this, reshade::api::shader_stage::vertex, StartSlot, NumViews, views);
+	reshade::invoke_addon_event<reshade::addon_event::bind_shader_resource_views>(this, reshade::api::shader_stage::vertex, StartSlot, NumViews, view_handles);
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::VSSetSamplers(UINT StartSlot, UINT NumSamplers, ID3D10SamplerState *const *ppSamplers)
@@ -358,15 +356,15 @@ void    STDMETHODCALLTYPE D3D10Device::GSSetShaderResources(UINT StartSlot, UINT
 		return;
 
 #ifndef WIN64
-	reshade::api::resource_view_handle views[D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT];
+	reshade::api::resource_view_handle view_handles[D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT];
 	for (UINT i = 0; i < NumViews; ++i)
-		views[i] = { reinterpret_cast<uintptr_t>(ppShaderResourceViews[i]) };
+		view_handles[i] = { reinterpret_cast<uintptr_t>(ppShaderResourceViews[i]) };
 #else
 	static_assert(sizeof(*ppShaderResourceViews) == sizeof(reshade::api::resource_view_handle));
-	const auto views = reinterpret_cast<const reshade::api::resource_view_handle *>(ppShaderResourceViews);
+	const auto view_handles = reinterpret_cast<const reshade::api::resource_view_handle *>(ppShaderResourceViews);
 #endif
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_shader_resource_views>(this, reshade::api::shader_stage::geometry, StartSlot, NumViews, views);
+	reshade::invoke_addon_event<reshade::addon_event::bind_shader_resource_views>(this, reshade::api::shader_stage::geometry, StartSlot, NumViews, view_handles);
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::GSSetSamplers(UINT StartSlot, UINT NumSamplers, ID3D10SamplerState *const *ppSamplers)

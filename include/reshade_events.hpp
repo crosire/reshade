@@ -211,13 +211,21 @@ namespace reshade
 		/// </remarks>
 		clear_render_target_views,
 		/// <summary>
-		/// Called before 'ID3D11DeviceContext1::ClearView', 'ID3D12GraphicsCommandList::ClearUnorderedAccessView(...)'
+		/// Called before 'ID3D11DeviceContext::ClearUnorderedAccessViewUint' or 'ID3D12GraphicsCommandList::ClearUnorderedAccessViewUint'.
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view_handle uav, const float color[4])</c></para>
 		/// </summary>
 		/// <remarks>
 		/// Resource will be in the <see cref="resource_usage::unordered_access"/> state.
 		/// </remarks>
-		clear_unordered_access_view,
+		clear_unordered_access_view_uint,
+		/// <summary>
+		/// Called before 'ID3D11DeviceContext::ClearUnorderedAccessViewFloat', 'ID3D11DeviceContext1::ClearView' or 'ID3D12GraphicsCommandList::ClearUnorderedAccessViewFloat'.
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view_handle uav, const float color[4])</c></para>
+		/// </summary>
+		/// <remarks>
+		/// Resource will be in the <see cref="resource_usage::unordered_access"/> state.
+		/// </remarks>
+		clear_unordered_access_view_float,
 
 		/// <summary>
 		/// Called before 'ID3D12GraphicsCommandList::Reset' or 'vkBeginCommandBuffer'.
@@ -347,7 +355,8 @@ namespace reshade
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::update_resource_region, api::command_list *cmd_list, const api::subresource_data *data, api::resource_handle dst, const api::subresource_location &dst_location, const int32_t dst_box[6]);
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::clear_depth_stencil_view, api::command_list *cmd_list, api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil);
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::clear_render_target_views, api::command_list *cmd_list, uint32_t count, const api::resource_view_handle *rtvs, const float color[4]);
-	DEFINE_ADDON_EVENT_TYPE_2(addon_event::clear_unordered_access_view, api::command_list *cmd_list, api::resource_view_handle uav, const float color[4]);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::clear_unordered_access_view_uint, api::command_list *cmd_list, api::resource_view_handle uav, const uint32_t values[4]);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::clear_unordered_access_view_float, api::command_list *cmd_list, api::resource_view_handle uav, const float values[4]);
 
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::reset_command_list, api::command_list *cmd_list);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::execute_command_list, api::command_queue *queue, api::command_list *cmd_list);

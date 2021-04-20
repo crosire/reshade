@@ -222,11 +222,11 @@ HOOK_EXPORT void WINAPI glBegin(GLenum mode)
 #if RESHADE_ADDON
 	if (g_current_runtime)
 	{
-		const auto views = static_cast<reshade::api::resource_view_handle *>(alloca(count * sizeof(reshade::api::resource_view_handle)));
+		const auto view_handles = static_cast<reshade::api::resource_view_handle *>(alloca(count * sizeof(reshade::api::resource_view_handle)));
 		for (GLsizei i = 0; i < count; ++i)
-			views[i] = textures != nullptr ? reshade::opengl::make_resource_view_handle(GL_TEXTURE, textures[i]) : reshade::api::resource_view_handle { 0 };
+			view_handles[i] = textures != nullptr ? reshade::opengl::make_resource_view_handle(GL_TEXTURE, textures[i]) : reshade::api::resource_view_handle { 0 };
 
-		reshade::invoke_addon_event<reshade::addon_event::bind_unordered_access_views>(g_current_runtime, reshade::api::shader_stage::all, first, count, views);
+		reshade::invoke_addon_event<reshade::addon_event::bind_unordered_access_views>(g_current_runtime, reshade::api::shader_stage::all, first, count, view_handles);
 	}
 #endif
 }
@@ -302,11 +302,11 @@ HOOK_EXPORT void WINAPI glBindTexture(GLenum target, GLuint texture)
 #if RESHADE_ADDON
 	if (g_current_runtime)
 	{
-		const auto views = static_cast<reshade::api::resource_view_handle *>(alloca(count * sizeof(reshade::api::resource_view_handle)));
+		const auto view_handles = static_cast<reshade::api::resource_view_handle *>(alloca(count * sizeof(reshade::api::resource_view_handle)));
 		for (GLsizei i = 0; i < count; ++i)
-			views[i] = textures != nullptr ? reshade::opengl::make_resource_view_handle(GL_TEXTURE, textures[i]) : reshade::api::resource_view_handle { 0 };
+			view_handles[i] = textures != nullptr ? reshade::opengl::make_resource_view_handle(GL_TEXTURE, textures[i]) : reshade::api::resource_view_handle { 0 };
 
-		reshade::invoke_addon_event<reshade::addon_event::bind_shader_resource_views>(g_current_runtime, reshade::api::shader_stage::all, first, count, views);
+		reshade::invoke_addon_event<reshade::addon_event::bind_shader_resource_views>(g_current_runtime, reshade::api::shader_stage::all, first, count, view_handles);
 	}
 #endif
 }
@@ -3670,7 +3670,7 @@ HOOK_EXPORT void WINAPI glViewport(GLint x, GLint y, GLsizei width, GLsizei heig
 #if RESHADE_ADDON
 	if (g_current_runtime)
 	{
-		const float viewport_data[4] = { x, y, w, h};
+		const float viewport_data[4] = { x, y, w, h };
 
 		reshade::invoke_addon_event<reshade::addon_event::bind_viewports>(g_current_runtime, 0, 1, viewport_data);
 	}

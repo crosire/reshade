@@ -542,7 +542,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearRenderTargetView(D3D12_CPU
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearUnorderedAccessViewUint(D3D12_GPU_DESCRIPTOR_HANDLE ViewGPUHandleInCurrentHeap, D3D12_CPU_DESCRIPTOR_HANDLE ViewCPUHandle, ID3D12Resource *pResource, const UINT Values[4], UINT NumRects, const D3D12_RECT *pRects)
 {
 #if RESHADE_ADDON
-	if (reshade::invoke_addon_event<reshade::addon_event::clear_unordered_access_view>(this, reshade::api::resource_view_handle { ViewCPUHandle.ptr }, reinterpret_cast<const FLOAT *>(Values)))
+	if (reshade::invoke_addon_event<reshade::addon_event::clear_unordered_access_view_uint>(this, reshade::api::resource_view_handle { ViewCPUHandle.ptr }, Values))
 		return;
 #endif
 	_orig->ClearUnorderedAccessViewUint(ViewGPUHandleInCurrentHeap, ViewCPUHandle, pResource, Values, NumRects, pRects);
@@ -550,7 +550,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearUnorderedAccessViewUint(D3
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearUnorderedAccessViewFloat(D3D12_GPU_DESCRIPTOR_HANDLE ViewGPUHandleInCurrentHeap, D3D12_CPU_DESCRIPTOR_HANDLE ViewCPUHandle, ID3D12Resource *pResource, const FLOAT Values[4], UINT NumRects, const D3D12_RECT *pRects)
 {
 #if RESHADE_ADDON
-	if (reshade::invoke_addon_event<reshade::addon_event::clear_unordered_access_view>(this, reshade::api::resource_view_handle { ViewCPUHandle.ptr }, Values))
+	if (reshade::invoke_addon_event<reshade::addon_event::clear_unordered_access_view_float>(this, reshade::api::resource_view_handle { ViewCPUHandle.ptr }, Values))
 		return;
 #endif
 	_orig->ClearUnorderedAccessViewFloat(ViewGPUHandleInCurrentHeap, ViewCPUHandle, pResource, Values, NumRects, pRects);

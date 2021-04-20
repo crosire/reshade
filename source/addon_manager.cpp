@@ -61,7 +61,8 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(update_resource_region);
 		CASE(clear_depth_stencil_view);
 		CASE(clear_render_target_views);
-		CASE(clear_unordered_access_view);
+		CASE(clear_unordered_access_view_uint);
+		CASE(clear_unordered_access_view_float);
 		CASE(reset_command_list);
 		CASE(execute_command_list);
 		CASE(execute_secondary_command_list);
