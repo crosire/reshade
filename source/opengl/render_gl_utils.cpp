@@ -231,7 +231,7 @@ resource_desc reshade::opengl::convert_resource_desc(GLenum target, GLsizeiptr b
 	desc.usage = resource_usage::shader_resource; // TODO: Only texture copy currently implemented in 'device_impl::copy_resource', so cannot add copy usage flags here
 	return desc;
 }
-resource_desc reshade::opengl::convert_resource_desc(GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth)
+resource_desc reshade::opengl::convert_resource_desc(GLenum target, GLsizei levels, GLsizei samples, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth)
 {
 	resource_desc desc = {};
 	desc.type = convert_resource_type(target);
@@ -242,7 +242,8 @@ resource_desc reshade::opengl::convert_resource_desc(GLenum target, GLsizei leve
 	assert(levels <= std::numeric_limits<uint16_t>::max());
 	desc.levels = static_cast<uint16_t>(levels);
 	desc.format = internalformat;
-	desc.samples = 1;
+	desc.samples = static_cast<uint16_t>(samples);
+
 	desc.heap = memory_heap::gpu_only;
 
 	desc.usage = resource_usage::copy_dest | resource_usage::copy_source;

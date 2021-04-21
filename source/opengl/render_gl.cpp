@@ -535,7 +535,7 @@ void reshade::opengl::device_impl::get_resource_from_view(api::resource_view_han
 
 reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api::resource_handle resource) const
 {
-	GLsizei width = 0, height = 1, depth = 1, buffer_size = 0; GLenum internal_format = GL_NONE;
+	GLsizei width = 0, height = 1, depth = 1, levels = 1, samples = 1, buffer_size = 0; GLenum internal_format = GL_NONE;
 
 	const GLenum target = resource.handle >> 40;
 	const GLuint object = resource.handle & 0xFFFFFFFF;
@@ -577,11 +577,15 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 		height = get_tex_level_param(target, object, 0, GL_TEXTURE_HEIGHT);
 		depth = get_tex_level_param(target, object, 0, GL_TEXTURE_DEPTH);
 		internal_format = get_tex_level_param(target, object, 0, GL_TEXTURE_INTERNAL_FORMAT);
+		if (get_tex_param(target, object, GL_TEXTURE_IMMUTABLE_FORMAT))
+			levels = get_tex_param(target, object, GL_TEXTURE_IMMUTABLE_LEVELS);
+		samples = get_tex_level_param(target, object, 0, GL_TEXTURE_SAMPLES);
 		break;
 	case GL_RENDERBUFFER:
 		width = get_rbo_param(object, GL_RENDERBUFFER_WIDTH);
 		height = get_rbo_param(object, GL_RENDERBUFFER_HEIGHT);
 		internal_format = get_rbo_param(object, GL_RENDERBUFFER_INTERNAL_FORMAT);
+		samples = get_rbo_param(object, GL_RENDERBUFFER_SAMPLES);
 		break;
 	case GL_FRAMEBUFFER_DEFAULT:
 		width = _default_fbo_width;
@@ -593,7 +597,7 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 	if (buffer_size != 0)
 		return convert_resource_desc(target, buffer_size, api::memory_heap::unknown);
 	else
-		return convert_resource_desc(target, 1, internal_format, width, height, depth);
+		return convert_resource_desc(target, levels, samples, internal_format, width, height, depth);
 }
 
 void reshade::opengl::device_impl::wait_idle() const

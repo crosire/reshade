@@ -19,7 +19,7 @@ namespace reshade::opengl
 	api::resource_type convert_resource_type(GLenum target);
 
 	api::resource_desc convert_resource_desc(GLenum target, GLsizeiptr buffer_size, api::memory_heap heap);
-	api::resource_desc convert_resource_desc(GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height = 1, GLsizei depth = 1);
+	api::resource_desc convert_resource_desc(GLenum target, GLsizei levels, GLsizei samples, GLenum internalformat, GLsizei width, GLsizei height = 1, GLsizei depth = 1);
 
 	api::resource_view_type convert_resource_view_type(GLenum target);
 
