@@ -99,6 +99,21 @@ bool reshade::vulkan::device_impl::check_resource_view_handle_valid(api::resourc
 		return data.buffer_view == (VkBufferView)view.handle;
 }
 
+bool reshade::vulkan::device_impl::create_sampler(const api::sampler_desc &desc, api::sampler_handle *out)
+{
+	VkSamplerCreateInfo create_info { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
+	convert_sampler_desc(desc, create_info);
+
+	VkSampler sampler = VK_NULL_HANDLE;
+	if (vk.CreateSampler(_orig, &create_info, nullptr, &sampler) == VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER)
+	{
+		*out = { (uint64_t)sampler };
+		return true;
+	}
+
+	*out = { 0 };
+	return false;
+}
 bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage initial_state, api::resource_handle *out)
 {
 	if (initial_data != nullptr)
@@ -225,6 +240,10 @@ bool reshade::vulkan::device_impl::create_resource_view(api::resource_handle res
 	return false;
 }
 
+void reshade::vulkan::device_impl::destroy_sampler(api::sampler_handle sampler)
+{
+	vk.DestroySampler(_orig, (VkSampler)sampler.handle, nullptr);
+}
 void reshade::vulkan::device_impl::destroy_resource(api::resource_handle resource)
 {
 	if (resource.handle == 0)

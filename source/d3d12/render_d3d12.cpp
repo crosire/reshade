@@ -73,6 +73,23 @@ bool reshade::d3d12::device_impl::check_resource_view_handle_valid(api::resource
 	return _views.find(view.handle) != _views.end();
 }
 
+bool reshade::d3d12::device_impl::create_sampler(const api::sampler_desc &desc, api::sampler_handle *out)
+{
+	D3D12_CPU_DESCRIPTOR_HANDLE descriptor_handle = allocate_descriptor_handle(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
+	if (descriptor_handle.ptr == 0)
+	{
+		*out = { 0 };
+		return false;
+	}
+
+	D3D12_SAMPLER_DESC internal_desc = {};
+	convert_sampler_desc(desc, internal_desc);
+
+	_orig->CreateSampler(&internal_desc, descriptor_handle);
+
+	*out = { descriptor_handle.ptr };
+	return true;
+}
 bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage initial_state, api::resource_handle *out)
 {
 	if (initial_data != nullptr)
@@ -172,6 +189,19 @@ bool reshade::d3d12::device_impl::create_resource_view(api::resource_handle reso
 	return false;
 }
 
+void reshade::d3d12::device_impl::destroy_sampler(api::sampler_handle sampler)
+{
+	assert(sampler.handle != 0);
+
+	const std::lock_guard<std::mutex> lock(_mutex);
+
+	const D3D12_CPU_DESCRIPTOR_HANDLE heap_start = _resource_view_pool[D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER]->GetCPUDescriptorHandleForHeapStart();
+	if (sampler.handle >= heap_start.ptr && sampler.handle < (heap_start.ptr + _resource_view_pool_state[D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER].size() * _descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER]))
+	{
+		const size_t index = static_cast<size_t>(sampler.handle - heap_start.ptr) / _descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER];
+		_resource_view_pool_state[D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER][index] = false;
+	}
+}
 void reshade::d3d12::device_impl::destroy_resource(api::resource_handle resource)
 {
 	assert(resource.handle != 0);

@@ -60,6 +60,21 @@ bool reshade::d3d10::device_impl::check_resource_view_handle_valid(api::resource
 	return view.handle != 0 && _views.has_object(reinterpret_cast<ID3D10View *>(view.handle));
 }
 
+bool reshade::d3d10::device_impl::create_sampler(const api::sampler_desc &desc, api::sampler_handle *out)
+{
+	D3D10_SAMPLER_DESC internal_desc = {};
+	convert_sampler_desc(desc, internal_desc);
+
+	ID3D10SamplerState *object = nullptr;
+	if (SUCCEEDED(_orig->CreateSamplerState(&internal_desc, &object)))
+	{
+		*out = { reinterpret_cast<uintptr_t>(object) };
+		return true;
+	}
+
+	*out = { 0 };
+	return false;
+}
 bool reshade::d3d10::device_impl::create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage, api::resource_handle *out)
 {
 	static_assert(sizeof(api::subresource_data) == sizeof(D3D10_SUBRESOURCE_DATA));
@@ -181,6 +196,11 @@ bool reshade::d3d10::device_impl::create_resource_view(api::resource_handle reso
 	return false;
 }
 
+void reshade::d3d10::device_impl::destroy_sampler(api::sampler_handle sampler)
+{
+	assert(sampler.handle != 0);
+	reinterpret_cast<ID3D10SamplerState *>(sampler.handle)->Release();
+}
 void reshade::d3d10::device_impl::destroy_resource(api::resource_handle resource)
 {
 	assert(resource.handle != 0);

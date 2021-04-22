@@ -189,6 +189,49 @@ namespace reshade { namespace api
 	constexpr resource_usage &operator|=(resource_usage &lhs, resource_usage rhs) { return lhs = static_cast<resource_usage>(static_cast<uint32_t>(lhs) | static_cast<uint32_t>(rhs)); }
 
 	/// <summary>
+	/// A filtering type used for texture lookups.
+	/// </summary>
+	enum class texture_filter
+	{
+		min_mag_mip_point = 0,
+		min_mag_point_mip_linear = 0x1,
+		min_point_mag_linear_mip_point = 0x4,
+		min_point_mag_mip_linear = 0x5,
+		min_linear_mag_mip_point = 0x10,
+		min_linear_mag_point_mip_linear = 0x11,
+		min_mag_linear_mip_point = 0x14,
+		min_mag_mip_linear = 0x15,
+		anisotropic = 0x55
+	};
+
+	/// <summary>
+	/// Specifies behavior of sampling with texture coordinates outside an image.
+	/// </summary>
+	enum class texture_address_mode
+	{
+		wrap = 1,
+		mirror = 2,
+		clamp = 3,
+		border = 4,
+		mirror_once = 5
+	};
+
+	/// <summary>
+	/// Describes a sampler state.
+	/// </summary>
+	struct sampler_desc
+	{
+		texture_filter filter;
+		texture_address_mode address_u;
+		texture_address_mode address_v;
+		texture_address_mode address_w;
+		float mip_lod_bias;
+		float max_anisotropy;
+		float min_lod;
+		float max_lod;
+	};
+
+	/// <summary>
 	/// Describes a resource, such as a buffer or texture.
 	/// </summary>
 	struct resource_desc
@@ -450,6 +493,13 @@ namespace reshade { namespace api
 		virtual bool check_resource_view_handle_valid(resource_view_handle view) const = 0;
 
 		/// <summary>
+		/// Creates a new sampler state object based on the specified <paramref name="desc"/>ription.
+		/// </summary>
+		/// <param name="desc">The description of the sampler to create.</param>
+		/// <param name="out_sampler">Pointer to a handle that is set to the handle of the created sampler.</param>
+		/// <returns><c>true</c>if the sampler was successfully created, <c>false</c> otherwise (in this case <paramref name="out_sampler"/> is set to zero).</returns>
+		virtual bool create_sampler(const sampler_desc &desc, sampler_handle *out_sampler) = 0;
+		/// <summary>
 		/// Allocates and creates a new resource based on the specified <paramref name="desc"/>ription.
 		/// </summary>
 		/// <param name="desc">The description of the resource to create.</param>
@@ -468,6 +518,10 @@ namespace reshade { namespace api
 		/// <returns><c>true</c>if the resource view was successfully created, <c>false</c> otherwise (in this case <paramref name="out_view"/> is set to zero).</returns>
 		virtual bool create_resource_view(resource_handle resource, resource_usage usage_type, const resource_view_desc &desc, resource_view_handle *out_view) = 0;
 
+		/// <summary>
+		/// Instantly destroys a <paramref name="sampler"/> that was previously created via <see cref="create_sampler"/>.
+		/// </summary>
+		virtual void destroy_sampler(sampler_handle sampler) = 0;
 		/// <summary>
 		/// Instantly destroys a <paramref name="resource"/> that was previously created via <see cref="create_resource"/> and frees its memory.
 		/// Make sure it is no longer in use on the GPU (via any command list that may reference it and is still being executed) before doing this and never try to destroy resources created by the application!

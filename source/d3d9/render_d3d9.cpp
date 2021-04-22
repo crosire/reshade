@@ -178,6 +178,24 @@ bool reshade::d3d9::device_impl::check_resource_view_handle_valid(api::resource_
 	return view.handle != 0 && _resources.has_object(reinterpret_cast<IDirect3DResource9 *>(view.handle));
 }
 
+bool reshade::d3d9::device_impl::create_sampler(const api::sampler_desc &desc, api::sampler_handle *out_sampler)
+{
+	const auto data = new DWORD[12];
+	data[D3DSAMP_ADDRESSU] = static_cast<DWORD>(desc.address_u);
+	data[D3DSAMP_ADDRESSV] = static_cast<DWORD>(desc.address_v);
+	data[D3DSAMP_ADDRESSW] = static_cast<DWORD>(desc.address_w);
+	data[D3DSAMP_BORDERCOLOR] = 0;
+	data[D3DSAMP_MAGFILTER] = 1 + ((static_cast<DWORD>(desc.filter) & 0x0C) >> 2);
+	data[D3DSAMP_MINFILTER] = 1 + ((static_cast<DWORD>(desc.filter) & 0x30) >> 4);
+	data[D3DSAMP_MIPFILTER] = 1 + ((static_cast<DWORD>(desc.filter) & 0x03));
+	data[D3DSAMP_MIPMAPLODBIAS] = *reinterpret_cast<const DWORD *>(&desc.mip_lod_bias);
+	data[D3DSAMP_MAXMIPLEVEL] = desc.min_lod > 0 ? static_cast<DWORD>(desc.min_lod) : 0;
+	data[D3DSAMP_MAXANISOTROPY] = static_cast<DWORD>(desc.max_anisotropy);
+	data[D3DSAMP_SRGBTEXTURE] = FALSE;
+
+	*out_sampler = { reinterpret_cast<uintptr_t>(data) };
+	return true;
+}
 bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage, api::resource_handle *out)
 {
 	if (initial_data != nullptr)
@@ -371,6 +389,11 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource_handle resou
 	return false;
 }
 
+void reshade::d3d9::device_impl::destroy_sampler(api::sampler_handle sampler)
+{
+	assert(sampler.handle != 0);
+	delete[] reinterpret_cast<DWORD *>(sampler.handle);
+}
 void reshade::d3d9::device_impl::destroy_resource(api::resource_handle resource)
 {
 	assert(resource.handle != 0);

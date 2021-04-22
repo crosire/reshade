@@ -12,6 +12,9 @@ namespace reshade::d3d12
 
 	D3D12_RESOURCE_STATES convert_resource_usage_to_states(api::resource_usage usage);
 
+	void convert_sampler_desc(const api::sampler_desc &desc, D3D12_SAMPLER_DESC &internal_desc);
+	api::sampler_desc convert_sampler_desc(const D3D12_SAMPLER_DESC &internal_desc);
+
 	void convert_resource_desc(const api::resource_desc &desc, D3D12_RESOURCE_DESC &internal_desc, D3D12_HEAP_PROPERTIES &heap_props);
 	api::resource_desc convert_resource_desc(const D3D12_RESOURCE_DESC &internal_desc, const D3D12_HEAP_PROPERTIES &heap_props = { D3D12_HEAP_TYPE_CUSTOM });
 

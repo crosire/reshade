@@ -89,9 +89,11 @@ namespace reshade::vulkan
 		bool check_resource_handle_valid(api::resource_handle resource) const final;
 		bool check_resource_view_handle_valid(api::resource_view_handle view) const final;
 
+		bool create_sampler(const api::sampler_desc &desc, api::sampler_handle *out_sampler) final;
 		bool create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage initial_state, api::resource_handle *out_resource) final;
 		bool create_resource_view(api::resource_handle resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view_handle *out_view) final;
 
+		void destroy_sampler(api::sampler_handle sampler) final;
 		void destroy_resource(api::resource_handle resource) final;
 		void destroy_resource_view(api::resource_view_handle view) final;
 

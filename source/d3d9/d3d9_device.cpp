@@ -1053,7 +1053,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetSamplerState(DWORD Sampler, D3DSAM
 			shader_stage = reshade::api::shader_stage::hull;
 		}
 
-		const reshade::api::sampler_handle sampler_handle = { Sampler };
+		DWORD sampler_data[12];
+		for (D3DSAMPLERSTATETYPE state = D3DSAMP_ADDRESSU; state <= D3DSAMP_SRGBTEXTURE; state = static_cast<D3DSAMPLERSTATETYPE>(state + 1))
+		{
+			_orig->GetSamplerState(Sampler, state, &sampler_data[state]);
+		}
+
+		const reshade::api::sampler_handle sampler_handle = { reinterpret_cast<uintptr_t>(sampler_data) };
 
 		reshade::invoke_addon_event<reshade::addon_event::bind_samplers>(this, shader_stage, Sampler, 1, &sampler_handle);
 	}

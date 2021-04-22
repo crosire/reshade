@@ -136,6 +136,36 @@ D3D12_RESOURCE_STATES reshade::d3d12::convert_resource_usage_to_states(reshade::
 	return result;
 }
 
+void reshade::d3d12::convert_sampler_desc(const sampler_desc &desc, D3D12_SAMPLER_DESC &internal_desc)
+{
+	internal_desc.Filter = static_cast<D3D12_FILTER>(desc.filter);
+	internal_desc.AddressU = static_cast<D3D12_TEXTURE_ADDRESS_MODE>(desc.address_u);
+	internal_desc.AddressV = static_cast<D3D12_TEXTURE_ADDRESS_MODE>(desc.address_v);
+	internal_desc.AddressW = static_cast<D3D12_TEXTURE_ADDRESS_MODE>(desc.address_w);
+	internal_desc.MipLODBias = desc.mip_lod_bias;
+	internal_desc.MaxAnisotropy = static_cast<UINT>(desc.max_anisotropy);
+	internal_desc.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+	internal_desc.BorderColor[0] = 0.0f;
+	internal_desc.BorderColor[1] = 0.0f;
+	internal_desc.BorderColor[2] = 0.0f;
+	internal_desc.BorderColor[3] = 0.0f;
+	internal_desc.MinLOD = desc.min_lod;
+	internal_desc.MaxLOD = desc.max_lod;
+}
+sampler_desc reshade::d3d12::convert_sampler_desc(const D3D12_SAMPLER_DESC &internal_desc)
+{
+	sampler_desc desc = {};
+	desc.filter = static_cast<texture_filter>(internal_desc.Filter);
+	desc.address_u = static_cast<texture_address_mode>(internal_desc.AddressU);
+	desc.address_v = static_cast<texture_address_mode>(internal_desc.AddressV);
+	desc.address_w = static_cast<texture_address_mode>(internal_desc.AddressW);
+	desc.mip_lod_bias = internal_desc.MipLODBias;
+	desc.max_anisotropy = static_cast<float>(internal_desc.MaxAnisotropy);
+	desc.min_lod = internal_desc.MinLOD;
+	desc.max_lod = internal_desc.MaxLOD;
+	return desc;
+}
+
 void reshade::d3d12::convert_resource_desc(const resource_desc &desc, D3D12_RESOURCE_DESC &internal_desc, D3D12_HEAP_PROPERTIES &heap_props)
 {
 	switch (desc.type)

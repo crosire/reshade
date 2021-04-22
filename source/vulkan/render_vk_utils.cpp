@@ -359,6 +359,188 @@ static inline void convert_buffer_usage_flags_to_usage(const VkBufferUsageFlags 
 		usage |= resource_usage::copy_source;
 }
 
+void reshade::vulkan::convert_sampler_desc(const sampler_desc &desc, VkSamplerCreateInfo &create_info)
+{
+	switch (desc.filter)
+	{
+	case texture_filter::min_mag_mip_point:
+		create_info.minFilter = VK_FILTER_NEAREST;
+		create_info.magFilter = VK_FILTER_NEAREST;
+		create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+		create_info.anisotropyEnable = VK_FALSE;
+		break;
+	case texture_filter::min_mag_point_mip_linear:
+		create_info.magFilter = VK_FILTER_NEAREST;
+		create_info.minFilter = VK_FILTER_NEAREST;
+		create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+		create_info.anisotropyEnable = VK_FALSE;
+		break;
+	case texture_filter::min_point_mag_linear_mip_point:
+		create_info.magFilter = VK_FILTER_LINEAR;
+		create_info.minFilter = VK_FILTER_NEAREST;
+		create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+		create_info.anisotropyEnable = VK_FALSE;
+		break;
+	case texture_filter::min_point_mag_mip_linear:
+		create_info.magFilter = VK_FILTER_LINEAR;
+		create_info.minFilter = VK_FILTER_NEAREST;
+		create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+		create_info.anisotropyEnable = VK_FALSE;
+		break;
+	case texture_filter::min_linear_mag_mip_point:
+		create_info.magFilter = VK_FILTER_NEAREST;
+		create_info.minFilter = VK_FILTER_LINEAR;
+		create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+		create_info.anisotropyEnable = VK_FALSE;
+		break;
+	case texture_filter::min_linear_mag_point_mip_linear:
+		create_info.magFilter = VK_FILTER_NEAREST;
+		create_info.minFilter = VK_FILTER_LINEAR;
+		create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+		create_info.anisotropyEnable = VK_FALSE;
+		break;
+	case texture_filter::min_mag_linear_mip_point:
+		create_info.magFilter = VK_FILTER_LINEAR;
+		create_info.minFilter = VK_FILTER_LINEAR;
+		create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+		create_info.anisotropyEnable = VK_FALSE;
+		break;
+	case texture_filter::min_mag_mip_linear:
+		create_info.magFilter = VK_FILTER_LINEAR;
+		create_info.minFilter = VK_FILTER_LINEAR;
+		create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+		create_info.anisotropyEnable = VK_FALSE;
+		break;
+	case texture_filter::anisotropic:
+		create_info.magFilter = VK_FILTER_LINEAR;
+		create_info.minFilter = VK_FILTER_LINEAR;
+		create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+		create_info.anisotropyEnable = VK_TRUE;
+		break;
+	}
+
+	const auto convert_address_mode = [](texture_address_mode mode) {
+		switch (mode)
+		{
+		default:
+		case texture_address_mode::wrap:
+			return VK_SAMPLER_ADDRESS_MODE_REPEAT;
+		case texture_address_mode::mirror:
+			return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
+		case texture_address_mode::clamp:
+			return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		case texture_address_mode::border:
+			return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+		case texture_address_mode::mirror_once:
+			return VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE;
+		}
+	};
+
+	create_info.addressModeU = convert_address_mode(desc.address_u);
+	create_info.addressModeV = convert_address_mode(desc.address_v);
+	create_info.addressModeW = convert_address_mode(desc.address_w);
+	create_info.mipLodBias = desc.mip_lod_bias;
+	create_info.maxAnisotropy = desc.max_anisotropy;
+	create_info.compareEnable = VK_FALSE;
+	create_info.compareOp = VK_COMPARE_OP_ALWAYS;
+	create_info.minLod = desc.min_lod;
+	create_info.maxLod = desc.max_lod;
+}
+sampler_desc reshade::vulkan::convert_sampler_desc(const VkSamplerCreateInfo &create_info)
+{
+	sampler_desc desc = {};
+	if (create_info.anisotropyEnable)
+	{
+		desc.filter = texture_filter::anisotropic;
+	}
+	else
+	{
+		switch (create_info.minFilter)
+		{
+		case VK_FILTER_NEAREST:
+			switch (create_info.magFilter)
+			{
+			case VK_FILTER_NEAREST:
+				switch (create_info.mipmapMode)
+				{
+				case VK_SAMPLER_MIPMAP_MODE_NEAREST:
+					desc.filter = texture_filter::min_mag_mip_point;
+					break;
+				case VK_SAMPLER_MIPMAP_MODE_LINEAR:
+					desc.filter = texture_filter::min_mag_point_mip_linear;
+					break;
+				}
+				break;
+			case VK_FILTER_LINEAR:
+				switch (create_info.mipmapMode)
+				{
+				case VK_SAMPLER_MIPMAP_MODE_NEAREST:
+					desc.filter = texture_filter::min_point_mag_linear_mip_point;
+					break;
+				case VK_SAMPLER_MIPMAP_MODE_LINEAR:
+					desc.filter = texture_filter::min_point_mag_mip_linear;
+					break;
+				}
+				break;
+			}
+			break;
+		case VK_FILTER_LINEAR:
+			switch (create_info.magFilter)
+			{
+			case VK_FILTER_NEAREST:
+				switch (create_info.mipmapMode)
+				{
+				case VK_SAMPLER_MIPMAP_MODE_NEAREST:
+					desc.filter = texture_filter::min_linear_mag_mip_point;
+					break;
+				case VK_SAMPLER_MIPMAP_MODE_LINEAR:
+					desc.filter = texture_filter::min_linear_mag_point_mip_linear;
+					break;
+				}
+				break;
+			case VK_FILTER_LINEAR:
+				switch (create_info.mipmapMode)
+				{
+				case VK_SAMPLER_MIPMAP_MODE_NEAREST:
+					desc.filter = texture_filter::min_mag_linear_mip_point;
+					break;
+				case VK_SAMPLER_MIPMAP_MODE_LINEAR:
+					desc.filter = texture_filter::min_mag_mip_linear;
+					break;
+				}
+				break;
+			}
+			break;
+		}
+	}
+
+	const auto convert_address_mode = [](VkSamplerAddressMode mode) {
+		switch (mode)
+		{
+		default:
+		case VK_SAMPLER_ADDRESS_MODE_REPEAT:
+			return texture_address_mode::wrap;
+		case VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT:
+			return texture_address_mode::mirror;
+		case VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE:
+			return texture_address_mode::clamp;
+		case VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER:
+			return texture_address_mode::border;
+		case VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE:
+			return texture_address_mode::mirror_once;
+		}
+	};
+
+	desc.address_u = convert_address_mode(create_info.addressModeU);
+	desc.address_v = convert_address_mode(create_info.addressModeV);
+	desc.address_w = convert_address_mode(create_info.addressModeW);
+	desc.mip_lod_bias = create_info.mipLodBias;
+	desc.max_anisotropy = create_info.maxAnisotropy;
+	desc.min_lod = create_info.minLod;
+	desc.max_lod = create_info.maxLod;
+	return desc;
+}
+
 void reshade::vulkan::convert_resource_desc(const resource_desc &desc, VkImageCreateInfo &create_info)
 {
 	switch (desc.type)

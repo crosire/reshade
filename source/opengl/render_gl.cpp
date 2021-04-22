@@ -275,6 +275,80 @@ bool reshade::opengl::device_impl::check_resource_view_handle_valid(api::resourc
 	}
 }
 
+bool reshade::opengl::device_impl::create_sampler(const api::sampler_desc &desc, api::sampler_handle *out)
+{
+	GLuint object = 0;
+	glGenSamplers(1, &object);
+
+	GLenum min_filter = GL_NONE;
+	GLenum mag_filter = GL_NONE;
+	switch (desc.filter)
+	{
+	case api::texture_filter::min_mag_mip_point:
+		min_filter = GL_NEAREST_MIPMAP_NEAREST;
+		mag_filter = GL_NEAREST;
+		break;
+	case api::texture_filter::min_mag_point_mip_linear:
+		min_filter = GL_NEAREST_MIPMAP_LINEAR;
+		mag_filter = GL_NEAREST;
+		break;
+	case api::texture_filter::min_point_mag_linear_mip_point:
+		min_filter = GL_NEAREST_MIPMAP_NEAREST;
+		mag_filter = GL_LINEAR;
+		break;
+	case api::texture_filter::min_point_mag_mip_linear:
+		min_filter = GL_NEAREST_MIPMAP_LINEAR;
+		mag_filter = GL_LINEAR;
+		break;
+	case api::texture_filter::min_linear_mag_mip_point:
+		min_filter = GL_LINEAR_MIPMAP_NEAREST;
+		mag_filter = GL_NEAREST;
+		break;
+	case api::texture_filter::min_linear_mag_point_mip_linear:
+		min_filter = GL_LINEAR_MIPMAP_LINEAR;
+		mag_filter = GL_NEAREST;
+		break;
+	case api::texture_filter::min_mag_linear_mip_point:
+		min_filter = GL_LINEAR_MIPMAP_NEAREST;
+		mag_filter = GL_LINEAR;
+		break;
+	case api::texture_filter::anisotropic:
+		glSamplerParameterf(object, 0x84FE /* GL_TEXTURE_MAX_ANISOTROPY_EXT */, desc.max_anisotropy);
+		// fall through
+	case api::texture_filter::min_mag_mip_linear:
+		min_filter = GL_LINEAR_MIPMAP_LINEAR;
+		mag_filter = GL_LINEAR;
+		break;
+	}
+
+	const auto convert_address_mode = [](api::texture_address_mode value) {
+		switch (value)
+		{
+		default:
+			return GL_NONE;
+		case api::texture_address_mode::wrap:
+			return GL_REPEAT;
+		case api::texture_address_mode::mirror:
+			return GL_MIRRORED_REPEAT;
+		case api::texture_address_mode::clamp:
+			return GL_CLAMP_TO_EDGE;
+		case api::texture_address_mode::border:
+			return GL_CLAMP_TO_BORDER;
+		}
+	};
+
+	glSamplerParameteri(object, GL_TEXTURE_MIN_FILTER, min_filter);
+	glSamplerParameteri(object, GL_TEXTURE_MAG_FILTER, mag_filter);
+	glSamplerParameteri(object, GL_TEXTURE_WRAP_S, convert_address_mode(desc.address_u));
+	glSamplerParameteri(object, GL_TEXTURE_WRAP_T, convert_address_mode(desc.address_v));
+	glSamplerParameteri(object, GL_TEXTURE_WRAP_R, convert_address_mode(desc.address_w));
+	glSamplerParameterf(object, GL_TEXTURE_LOD_BIAS, desc.mip_lod_bias);
+	glSamplerParameterf(object, GL_TEXTURE_MIN_LOD, desc.min_lod);
+	glSamplerParameterf(object, GL_TEXTURE_MAX_LOD, desc.max_lod);
+
+	*out = { (static_cast<uint64_t>(GL_SAMPLER) << 40) | object };
+	return true;
+}
 bool reshade::opengl::device_impl::create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage, api::resource_handle *out)
 {
 	if (initial_data != nullptr)
@@ -444,6 +518,13 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource_handle res
 	}
 }
 
+void reshade::opengl::device_impl::destroy_sampler(api::sampler_handle sampler)
+{
+	assert((sampler.handle >> 40) == GL_SAMPLER);
+
+	const GLuint object = sampler.handle & 0xFFFFFFFF;
+	glDeleteSamplers(1, &object);
+}
 void reshade::opengl::device_impl::destroy_resource(api::resource_handle resource)
 {
 	const GLuint object = resource.handle & 0xFFFFFFFF;
