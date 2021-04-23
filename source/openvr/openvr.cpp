@@ -370,18 +370,23 @@ IVRCompositor_Submit_Impl(5, 012, {
 	}
 })
 
-HOOK_EXPORT uint32_t VR_CALLTYPE VR_InitInternal2(vr::EVRInitError *peError, vr::EVRApplicationType eApplicationType, const char *pStartupInfo)
-{
-	LOG(INFO) << "Redirecting " << "VR_InitInternal2" << '(' << "peError = " << peError << ", eApplicationType = " << eApplicationType << ", pStartupInfo = " << (pStartupInfo != nullptr ? pStartupInfo : "0") << ')' << " ...";
-
-	return  reshade::hooks::call(VR_InitInternal2)(peError, eApplicationType, pStartupInfo);
-}
-
-HOOK_EXPORT vr::IVRSystem* VR_CALLTYPE VR_Init(vr::EVRInitError* peError, vr::EVRApplicationType eApplicationType)
+HOOK_EXPORT vr::IVRSystem *VR_CALLTYPE VR_Init(vr::EVRInitError *peError, vr::EVRApplicationType eApplicationType)
 {
 	LOG(INFO) << "Redirecting " << "VR_Init" << '(' << "peError = " << peError << ", eApplicationType = " << eApplicationType << ')' << " ...";
 
 	return reshade::hooks::call(VR_Init)(peError, eApplicationType);
+}
+HOOK_EXPORT uint32_t VR_CALLTYPE VR_InitInternal(vr::EVRInitError *peError, vr::EVRApplicationType eApplicationType)
+{
+	LOG(INFO) << "Redirecting " << "VR_InitInternal" << '(' << "peError = " << peError << ", eApplicationType = " << eApplicationType << ')' << " ...";
+
+	return reshade::hooks::call(VR_InitInternal)(peError, eApplicationType);
+}
+HOOK_EXPORT uint32_t VR_CALLTYPE VR_InitInternal2(vr::EVRInitError *peError, vr::EVRApplicationType eApplicationType, const char *pStartupInfo)
+{
+	LOG(INFO) << "Redirecting " << "VR_InitInternal2" << '(' << "peError = " << peError << ", eApplicationType = " << eApplicationType << ", pStartupInfo = " << (pStartupInfo != nullptr ? pStartupInfo : "0") << ')' << " ...";
+
+	return reshade::hooks::call(VR_InitInternal2)(peError, eApplicationType, pStartupInfo);
 }
 
 HOOK_EXPORT void     VR_CALLTYPE VR_ShutdownInternal()
@@ -459,12 +464,11 @@ HOOK_EXPORT void *   VR_CALLTYPE VR_GetGenericInterface(const char *pchInterface
 	return interface_instance;
 }
 
-HOOK_EXPORT void* VR_CALLTYPE VRCompositor()
+HOOK_EXPORT vr::IVRCompositor *VR_CALLTYPE VRCompositor()
 {
-	static vr::IVRCompositor* last_compositor_instance = nullptr;
+	static vr::IVRCompositor *last_compositor_instance = nullptr;
 
-	vr::IVRCompositor* const compositor_instance = static_cast<vr::IVRCompositor*>(reshade::hooks::call(VRCompositor)());
-
+	const auto compositor_instance = static_cast<vr::IVRCompositor *>(reshade::hooks::call(VRCompositor)());
 	if (compositor_instance != last_compositor_instance)
 	{
 		// This is specifically for ProjectCARS2 / AMS2 which use compositor version IVRCompositor_010
@@ -472,5 +476,6 @@ HOOK_EXPORT void* VR_CALLTYPE VRCompositor()
 		reshade::hooks::install("IVRCompositor::Submit", vtable_from_instance(static_cast<vr::IVRCompositor*>(compositor_instance)), 4, reinterpret_cast<reshade::hook::address>(IVRCompositor_Submit_009));
 		last_compositor_instance = compositor_instance;
 	}
+
 	return compositor_instance;
 }
