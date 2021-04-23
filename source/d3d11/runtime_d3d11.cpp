@@ -319,7 +319,7 @@ bool reshade::d3d11::runtime_impl::on_layer_submit(UINT eye, ID3D11Texture2D *so
 		source_desc.MipLevels = 1;
 		source_desc.ArraySize = 1;
 		source_desc.Format = make_dxgi_format_typeless(source_desc.Format);
-		source_desc.BindFlags = D3D11_BIND_RENDER_TARGET;
+		source_desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
 
 		if (HRESULT hr = _device->CreateTexture2D(&source_desc, nullptr, &_backbuffer); FAILED(hr))
 		{
