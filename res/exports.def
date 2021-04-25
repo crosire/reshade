@@ -429,6 +429,7 @@ EXPORTS
 
 	; openvr_api[64].dll
 	VR_Init PRIVATE
+	VR_InitInternal PRIVATE
 	VR_InitInternal2 PRIVATE
 	VR_Shutdown PRIVATE
 	VR_ShutdownInternal PRIVATE
