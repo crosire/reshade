@@ -352,6 +352,19 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::ExecuteBundle(ID3D12GraphicsCom
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetDescriptorHeaps(UINT NumDescriptorHeaps, ID3D12DescriptorHeap *const *ppDescriptorHeaps)
 {
 	_orig->SetDescriptorHeaps(NumDescriptorHeaps, ppDescriptorHeaps);
+
+#if RESHADE_ADDON
+#ifndef WIN64
+	const auto heap_handles = static_cast<uint64_t *>(alloca(NumDescriptorHeaps * sizeof(uint64_t)));
+	for (UINT i = 0; i < NumDescriptorHeaps; ++i)
+		heap_handles[i] = { reinterpret_cast<uintptr_t>(ppDescriptorHeaps[i]) };
+#else
+	static_assert(sizeof(*ppDescriptorHeaps) == sizeof(uint64_t));
+	const auto heap_handles = reinterpret_cast<const uint64_t *>(ppDescriptorHeaps);
+#endif
+
+	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_heaps>(this, NumDescriptorHeaps, heap_handles);
+#endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootSignature(ID3D12RootSignature *pRootSignature)
 {

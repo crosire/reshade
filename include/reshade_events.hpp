@@ -119,6 +119,11 @@ namespace reshade
 		/// </summary>
 		bind_constant_buffers,
 		/// <summary>
+		/// Called after 'ID3D12GraphicsCommandList::SetDescriptorHeaps'.
+		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, uint32_t count, const uint64_t *heaps)</c></para>
+		/// </summary>
+		bind_descriptor_heaps,
+		/// <summary>
 		/// Called after 'ID3D12GraphicsCommandList::Set(...)RootDescriptorTable' or 'vkCmdBindDescriptorSets'.
 		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::shader_stage stage, uint32_t first, uint32_t count, const uint64_t *tables)</c></para>
 		/// </summary>
@@ -383,6 +388,7 @@ namespace reshade
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_unordered_access_views, api::command_list *cmd_list, api::shader_stage stage, uint32_t first, uint32_t count, const api::resource_view_handle *views);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_constants, api::command_list *cmd_list, api::shader_stage stage, uint32_t block, uint32_t first, uint32_t count, const uint32_t *values);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_constant_buffers, api::command_list *cmd_list, api::shader_stage stage, uint32_t first, uint32_t count, const api::resource_handle *buffers, const uint64_t *offsets);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_descriptor_heaps, api::command_list *cmd_list, uint32_t count, const uint64_t *heap);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_descriptor_tables, api::command_list *cmd_list, api::shader_stage stage, uint32_t first, uint32_t count, const uint64_t *tables);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_viewports, api::command_list *cmd_list, uint32_t first, uint32_t count, const float *viewports);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_scissor_rects, api::command_list *cmd_list, uint32_t first, uint32_t count, const int32_t *rects);

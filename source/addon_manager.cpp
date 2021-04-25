@@ -47,6 +47,7 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(bind_unordered_access_views);
 		CASE(bind_constants);
 		CASE(bind_constant_buffers);
+		CASE(bind_descriptor_heaps);
 		CASE(bind_descriptor_tables);
 		CASE(bind_viewports);
 		CASE(bind_scissor_rects);
