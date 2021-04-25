@@ -55,11 +55,15 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(draw_indexed);
 		CASE(dispatch);
 		CASE(draw_or_dispatch_indirect);
+		CASE(blit);
+		CASE(resolve);
 		CASE(copy_resource);
 		CASE(copy_buffer_region);
+		CASE(copy_buffer_to_texture);
 		CASE(copy_texture_region);
+		CASE(copy_texture_to_buffer);
+		CASE(update_buffer_region);
 		CASE(update_texture_region);
-		CASE(resolve_texture_region);
 		CASE(clear_depth_stencil_view);
 		CASE(clear_render_target_views);
 		CASE(clear_unordered_access_view_uint);

@@ -6,6 +6,8 @@
 #include "dll_log.hpp"
 #include "render_d3d12.hpp"
 #include "render_d3d12_utils.hpp"
+#include "dxgi/format_utils.hpp"
+#include <algorithm>
 
 reshade::d3d12::device_impl::device_impl(ID3D12Device *device) :
 	api_object_impl(device)
@@ -306,12 +308,163 @@ reshade::d3d12::command_list_impl::~command_list_impl()
 		invoke_addon_event<addon_event::destroy_command_list>(this);
 }
 
-void reshade::d3d12::command_list_impl::copy_resource(api::resource_handle source, api::resource_handle destination)
+void reshade::d3d12::command_list_impl::blit(api::resource_handle, uint32_t, const int32_t[6], api::resource_handle, uint32_t, const int32_t[6], api::texture_filter)
+{
+	assert(false);
+}
+void reshade::d3d12::command_list_impl::resolve(api::resource_handle src, uint32_t src_subresource, const int32_t src_offset[3], api::resource_handle dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3], uint32_t format)
 {
 	_has_commands = true;
 
-	assert(source.handle != 0 && destination.handle != 0);
-	_orig->CopyResource(reinterpret_cast<ID3D12Resource *>(destination.handle), reinterpret_cast<ID3D12Resource *>(source.handle));
+	assert(src.handle != 0 && dst.handle != 0);
+	assert(src_offset == nullptr && dst_offset == nullptr && size == nullptr);
+
+	_orig->ResolveSubresource(
+		reinterpret_cast<ID3D12Resource *>(dst.handle), dst_subresource,
+		reinterpret_cast<ID3D12Resource *>(src.handle), src_subresource, static_cast<DXGI_FORMAT>(format));
+}
+void reshade::d3d12::command_list_impl::copy_resource(api::resource_handle src, api::resource_handle dst)
+{
+	_has_commands = true;
+
+	assert(src.handle != 0 && dst.handle != 0);
+
+	_orig->CopyResource(reinterpret_cast<ID3D12Resource *>(dst.handle), reinterpret_cast<ID3D12Resource *>(src.handle));
+}
+void reshade::d3d12::command_list_impl::copy_buffer_region(api::resource_handle src, uint64_t src_offset, api::resource_handle dst, uint64_t dst_offset, uint64_t size)
+{
+	_has_commands = true;
+
+	assert(src.handle != 0 && dst.handle != 0);
+
+	_orig->CopyBufferRegion(reinterpret_cast<ID3D12Resource *>(dst.handle), dst_offset, reinterpret_cast<ID3D12Resource *>(src.handle), src_offset, size);
+}
+void reshade::d3d12::command_list_impl::copy_buffer_to_texture(api::resource_handle src, uint64_t src_offset, uint32_t row_length, uint32_t slice_height, api::resource_handle dst, uint32_t dst_subresource, const int32_t dst_box[6])
+{
+	_has_commands = true;
+
+	assert(src.handle != 0 && dst.handle != 0);
+
+	const D3D12_RESOURCE_DESC res_desc = reinterpret_cast<ID3D12Resource *>(dst.handle)->GetDesc();
+
+	D3D12_BOX src_box = {};
+	if (dst_box != nullptr)
+	{
+		src_box.right = src_box.left + (dst_box[3] - dst_box[0]);
+		src_box.bottom = src_box.top + (dst_box[4] - dst_box[1]);
+		src_box.back = src_box.front + (dst_box[5] - dst_box[2]);
+	}
+	else
+	{
+		src_box.right = src_box.left + std::max(1u, static_cast<UINT>(res_desc.Width) >> (dst_subresource % res_desc.MipLevels));
+		src_box.bottom = src_box.top + std::max(1u, res_desc.Height >> (dst_subresource % res_desc.MipLevels));
+		src_box.back = src_box.front + (res_desc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE3D ? std::max(1u, static_cast<UINT>(res_desc.DepthOrArraySize) >> (dst_subresource % res_desc.MipLevels)) : 1u);
+	}
+
+	D3D12_TEXTURE_COPY_LOCATION src_copy_location;
+	src_copy_location.pResource = reinterpret_cast<ID3D12Resource *>(src.handle);
+	src_copy_location.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+	src_copy_location.PlacedFootprint.Offset = src_offset;
+	src_copy_location.PlacedFootprint.Footprint.Format = res_desc.Format;
+	src_copy_location.PlacedFootprint.Footprint.Width = row_length != 0 ? row_length : src_box.right - src_box.left;
+	src_copy_location.PlacedFootprint.Footprint.Height = slice_height != 0 ? slice_height : src_box.bottom - src_box.top;
+	src_copy_location.PlacedFootprint.Footprint.Depth = 1;
+	src_copy_location.PlacedFootprint.Footprint.RowPitch = src_copy_location.PlacedFootprint.Footprint.Width * dxgi_format_bpp(res_desc.Format);
+
+	D3D12_TEXTURE_COPY_LOCATION dst_copy_location;
+	dst_copy_location.pResource = reinterpret_cast<ID3D12Resource *>(dst.handle);
+	dst_copy_location.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+	dst_copy_location.SubresourceIndex = dst_subresource;
+
+	_orig->CopyTextureRegion(
+		&dst_copy_location, dst_box != nullptr ? dst_box[0] : 0, dst_box != nullptr ? dst_box[1] : 0, dst_box != nullptr ? dst_box[2] : 0,
+		&src_copy_location, &src_box);
+}
+void reshade::d3d12::command_list_impl::copy_texture_region(api::resource_handle src, uint32_t src_subresource, const int32_t src_offset[3], api::resource_handle dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3])
+{
+	_has_commands = true;
+
+	assert(src.handle != 0 && dst.handle != 0);
+
+	const D3D12_RESOURCE_DESC res_desc = reinterpret_cast<ID3D12Resource *>(src.handle)->GetDesc();
+
+	D3D12_BOX src_box = {};
+	if (src_offset != nullptr)
+		std::copy_n(src_offset, 3, &src_box.left);
+
+	if (size != nullptr)
+	{
+		src_box.right = src_box.left + size[0];
+		src_box.bottom = src_box.top + size[1];
+		src_box.back = src_box.front + size[2];
+	}
+	else
+	{
+		src_box.right = src_box.left + std::max(1u, static_cast<UINT>(res_desc.Width) >> (src_subresource % res_desc.MipLevels));
+		src_box.bottom = src_box.top + std::max(1u, res_desc.Height >> (src_subresource % res_desc.MipLevels));
+		src_box.back = src_box.front + (res_desc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE3D ? std::max(1u, static_cast<UINT>(res_desc.DepthOrArraySize) >> (src_subresource % res_desc.MipLevels)) : 1u);
+	}
+
+	D3D12_TEXTURE_COPY_LOCATION src_copy_location;
+	src_copy_location.pResource = reinterpret_cast<ID3D12Resource *>(src.handle);
+	src_copy_location.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+	src_copy_location.SubresourceIndex = src_subresource;
+
+	D3D12_TEXTURE_COPY_LOCATION dst_copy_location;
+	dst_copy_location.pResource = reinterpret_cast<ID3D12Resource *>(dst.handle);
+	dst_copy_location.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+	dst_copy_location.SubresourceIndex = dst_subresource;
+
+	_orig->CopyTextureRegion(
+		&dst_copy_location, dst_offset != nullptr ? dst_offset[0] : 0, dst_offset != nullptr ? dst_offset[1] : 0, dst_offset != nullptr ? dst_offset[2] : 0,
+		&src_copy_location, &src_box);
+}
+void reshade::d3d12::command_list_impl::copy_texture_to_buffer(api::resource_handle src, uint32_t src_subresource, const int32_t src_box[6], api::resource_handle dst, uint64_t dst_offset, uint32_t row_length, uint32_t slice_height)
+{
+	_has_commands = true;
+
+	assert(src.handle != 0 && dst.handle != 0);
+
+	const D3D12_RESOURCE_DESC res_desc = reinterpret_cast<ID3D12Resource *>(src.handle)->GetDesc();
+
+	D3D12_TEXTURE_COPY_LOCATION src_copy_location;
+	src_copy_location.pResource = reinterpret_cast<ID3D12Resource *>(src.handle);
+	src_copy_location.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+	src_copy_location.SubresourceIndex = src_subresource;
+
+	D3D12_TEXTURE_COPY_LOCATION dst_copy_location;
+	dst_copy_location.pResource = reinterpret_cast<ID3D12Resource *>(dst.handle);
+	dst_copy_location.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+	dst_copy_location.PlacedFootprint.Offset = dst_offset;
+	dst_copy_location.PlacedFootprint.Footprint.Format = res_desc.Format;
+	dst_copy_location.PlacedFootprint.Footprint.Width = row_length != 0 ? row_length : std::max(1u, static_cast<UINT>(res_desc.Width) >> (src_subresource % res_desc.MipLevels));
+	dst_copy_location.PlacedFootprint.Footprint.Height = slice_height != 0 ? slice_height : std::max(1u, res_desc.Height >> (src_subresource % res_desc.MipLevels));
+	dst_copy_location.PlacedFootprint.Footprint.Depth = 1;
+	dst_copy_location.PlacedFootprint.Footprint.RowPitch = dst_copy_location.PlacedFootprint.Footprint.Width * dxgi_format_bpp(res_desc.Format);
+
+	_orig->CopyTextureRegion(
+		&dst_copy_location, 0, 0, 0,
+		&src_copy_location, reinterpret_cast<const D3D12_BOX *>(src_box));
+}
+
+void reshade::d3d12::command_list_impl::clear_depth_stencil_view(api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil)
+{
+	_has_commands = true;
+
+	assert(dsv.handle != 0);
+
+	_orig->ClearDepthStencilView(D3D12_CPU_DESCRIPTOR_HANDLE { static_cast<SIZE_T>(dsv.handle) }, static_cast<D3D12_CLEAR_FLAGS>(clear_flags), depth, stencil, 0, nullptr);
+}
+void reshade::d3d12::command_list_impl::clear_render_target_views(uint32_t count, const api::resource_view_handle *rtvs, const float color[4])
+{
+	_has_commands = true;
+
+	for (UINT i = 0; i < count; ++i)
+	{
+		assert(rtvs[i].handle != 0);
+
+		_orig->ClearRenderTargetView(D3D12_CPU_DESCRIPTOR_HANDLE { static_cast<SIZE_T>(rtvs[i].handle) }, color, 0, nullptr);
+	}
 }
 
 void reshade::d3d12::command_list_impl::transition_state(api::resource_handle resource, api::resource_usage old_layout, api::resource_usage new_layout)
@@ -327,21 +480,6 @@ void reshade::d3d12::command_list_impl::transition_state(api::resource_handle re
 	transition.Transition.StateAfter = convert_resource_usage_to_states(new_layout);
 
 	_orig->ResourceBarrier(1, &transition);
-}
-
-void reshade::d3d12::command_list_impl::clear_depth_stencil_view(api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil)
-{
-	_has_commands = true;
-
-	assert(dsv.handle != 0);
-	_orig->ClearDepthStencilView(D3D12_CPU_DESCRIPTOR_HANDLE { static_cast<SIZE_T>(dsv.handle) }, static_cast<D3D12_CLEAR_FLAGS>(clear_flags), depth, stencil, 0, nullptr);
-}
-void reshade::d3d12::command_list_impl::clear_render_target_view(api::resource_view_handle rtv, const float color[4])
-{
-	_has_commands = true;
-
-	assert(rtv.handle != 0);
-	_orig->ClearRenderTargetView(D3D12_CPU_DESCRIPTOR_HANDLE { static_cast<SIZE_T>(rtv.handle) }, color, 0, nullptr);
 }
 
 reshade::d3d12::command_list_immediate_impl::command_list_immediate_impl(device_impl *device) :

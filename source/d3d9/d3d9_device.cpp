@@ -608,40 +608,36 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurface(UINT Width,
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::UpdateSurface(IDirect3DSurface9 *pSourceSurface, const RECT *pSourceRect, IDirect3DSurface9 *pDestinationSurface, const POINT *pDestPoint)
 {
 #if RESHADE_ADDON
-	int32_t src_rect[6];
+	int32_t src_offset[3];
+	uint32_t extent[3];
 	if (pSourceRect != nullptr)
 	{
-		src_rect[0] = pSourceRect->left;
-		src_rect[1] = pSourceRect->top;
-		src_rect[2] = 0;
-		src_rect[3] = pSourceRect->right;
-		src_rect[4] = pSourceRect->left;
-		src_rect[5] = 1;
+		src_offset[0] = pSourceRect->left;
+		src_offset[1] = pSourceRect->top;
+		src_offset[2] = 0;
+		extent[0] = pSourceRect->right - pSourceRect->left;
+		extent[1] = pSourceRect->bottom - pSourceRect->top;
+		extent[2] = 1;
 	}
-	int32_t dst_rect[6];
+	else
+	{
+		D3DSURFACE_DESC desc;
+		pDestinationSurface->GetDesc(&desc);
+		extent[0] = desc.Width;
+		extent[1] = desc.Height;
+		extent[2] = 1;
+	}
+	int32_t dst_offset[3];
 	if (pDestPoint != nullptr)
 	{
-		src_rect[0] = pDestPoint->x;
-		src_rect[1] = pDestPoint->y;
-		src_rect[2] = 0;
-		if (pSourceRect != nullptr)
-		{
-			src_rect[3] = pSourceRect->right;
-			src_rect[4] = pSourceRect->left;
-		}
-		else
-		{
-			D3DSURFACE_DESC desc;
-			pDestinationSurface->GetDesc(&desc);
-			src_rect[3] = desc.Width;
-			src_rect[4] = desc.Height;
-		}
-		src_rect[5] = 1;
+		dst_offset[0] = pDestPoint->x;
+		dst_offset[1] = pDestPoint->y;
+		dst_offset[2] = 0;
 	}
 
 	if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(this,
-		reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pSourceSurface) }, 0, (pSourceRect != nullptr) ? src_rect : nullptr,
-		reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pDestinationSurface) }, 0, (pDestPoint != nullptr) ? dst_rect : nullptr))
+		reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pSourceSurface) }, 0, (pSourceRect != nullptr) ? src_offset : nullptr,
+		reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pDestinationSurface) }, 0, (pDestPoint != nullptr) ? dst_offset : nullptr, extent))
 		return D3D_OK;
 #endif
 	return _orig->UpdateSurface(pSourceSurface, pSourceRect, pDestinationSurface, pDestPoint);
@@ -671,41 +667,47 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetFrontBufferData(UINT iSwapChain, I
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::StretchRect(IDirect3DSurface9 *pSourceSurface, const RECT *pSourceRect, IDirect3DSurface9 *pDestSurface, const RECT *pDestRect, D3DTEXTUREFILTERTYPE Filter)
 {
 #if RESHADE_ADDON
-	int32_t src_rect[6];
+	int32_t src_box[6];
 	if (pSourceRect != nullptr)
 	{
-		src_rect[0] = pSourceRect->left;
-		src_rect[1] = pSourceRect->top;
-		src_rect[2] = 0;
-		src_rect[3] = pSourceRect->right;
-		src_rect[4] = pSourceRect->bottom;
-		src_rect[5] = 1;
+		src_box[0] = pSourceRect->left;
+		src_box[1] = pSourceRect->top;
+		src_box[2] = 0;
+		src_box[3] = pSourceRect->right;
+		src_box[4] = pSourceRect->bottom;
+		src_box[5] = 1;
 	}
-	int32_t dst_rect[6];
+	int32_t dst_box[6];
 	if (pDestRect != nullptr)
 	{
-		dst_rect[0] = pDestRect->left;
-		dst_rect[1] = pDestRect->top;
-		dst_rect[2] = 0;
-		dst_rect[3] = pDestRect->right;
-		dst_rect[4] = pDestRect->bottom;
-		dst_rect[5] = 1;
+		dst_box[0] = pDestRect->left;
+		dst_box[1] = pDestRect->top;
+		dst_box[2] = 0;
+		dst_box[3] = pDestRect->right;
+		dst_box[4] = pDestRect->bottom;
+		dst_box[5] = 1;
 	}
 
 	D3DSURFACE_DESC desc;
 	pSourceSurface->GetDesc(&desc);
+
 	if (desc.MultiSampleType == D3DMULTISAMPLE_NONE)
 	{
-		if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(this,
-			reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pSourceSurface) }, 0, (pSourceRect != nullptr) ? src_rect : nullptr,
-			reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pDestSurface) }, 0, (pDestRect != nullptr) ? dst_rect : nullptr))
+		if (reshade::invoke_addon_event<reshade::addon_event::blit>(this,
+			reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pSourceSurface) }, 0, (pSourceRect != nullptr) ? src_box : nullptr,
+			reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pDestSurface) }, 0, (pDestRect != nullptr) ? dst_box : nullptr,
+			Filter == D3DTEXF_NONE || Filter == D3DTEXF_POINT ? reshade::api::texture_filter::min_mag_mip_point : reshade::api::texture_filter::min_mag_mip_linear))
 			return D3D_OK;
 	}
 	else
 	{
-		if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(this,
-			reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pSourceSurface) }, 0, (pSourceRect != nullptr) ? src_rect : nullptr,
-			reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pDestSurface) }, 0, (pDestRect != nullptr) ? dst_rect : nullptr, static_cast<uint32_t>(desc.Format)))
+		const uint32_t extent[3] = { desc.Width, desc.Height, 1 };
+
+		if (reshade::invoke_addon_event<reshade::addon_event::resolve>(this,
+			reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pSourceSurface) }, 0, (pSourceRect != nullptr) ? src_box : nullptr,
+			reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pDestSurface) }, 0, (pDestRect != nullptr) ? dst_box : nullptr,
+			extent,
+			static_cast<uint32_t>(desc.Format)))
 			return D3D_OK;
 	}
 #endif

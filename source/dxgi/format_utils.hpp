@@ -7,6 +7,27 @@
 
 #include <dxgiformat.h>
 
+inline UINT dxgi_format_bpp(DXGI_FORMAT format)
+{
+	if (format == DXGI_FORMAT_UNKNOWN)
+		return 0;
+	if (format <= DXGI_FORMAT_R32G32B32A32_SINT)
+		return 32;
+	if (format <= DXGI_FORMAT_R32G32B32_SINT)
+		return 24;
+	if (format <= DXGI_FORMAT_X32_TYPELESS_G8X24_UINT)
+		return 16;
+	if (format <= DXGI_FORMAT_X24_TYPELESS_G8_UINT || format == DXGI_FORMAT_B5G6R5_UNORM || format == DXGI_FORMAT_B5G5R5A1_UNORM)
+		return 4;
+	if (format <= DXGI_FORMAT_R16_SINT)
+		return 2;
+	if (format <= DXGI_FORMAT_A8_UNORM)
+		return 1;
+	if (format <= DXGI_FORMAT_G8R8_G8B8_UNORM || (format >= DXGI_FORMAT_B8G8R8A8_UNORM && format <= DXGI_FORMAT_B8G8R8X8_UNORM_SRGB))
+		return 8;
+	return 0;
+}
+
 inline UINT dxgi_format_color_depth(DXGI_FORMAT format)
 {
 	// Only need to handle swap chain formats

@@ -502,23 +502,37 @@ void    STDMETHODCALLTYPE D3D10Device::RSSetScissorRects(UINT NumRects, const D3
 void    STDMETHODCALLTYPE D3D10Device::CopySubresourceRegion(ID3D10Resource *pDstResource, UINT DstSubresource, UINT DstX, UINT DstY, UINT DstZ, ID3D10Resource *pSrcResource, UINT SrcSubresource, const D3D10_BOX *pSrcBox)
 {
 #if RESHADE_ADDON
-	int32_t dst_rect[6];
-	if (pSrcBox != nullptr)
+	assert(pDstResource != nullptr && pSrcResource != nullptr);
+
+	D3D10_RESOURCE_DIMENSION type;
+	pDstResource->GetType(&type);
+	if (type == D3D10_RESOURCE_DIMENSION_BUFFER)
 	{
-		dst_rect[0] = static_cast<int32_t>(DstX);
-		dst_rect[1] = static_cast<int32_t>(DstY);
-		dst_rect[2] = static_cast<int32_t>(DstZ);
-		dst_rect[3] = dst_rect[0] + (pSrcBox->right - pSrcBox->left);
-		dst_rect[4] = dst_rect[1] + (pSrcBox->bottom - pSrcBox->top);
-		dst_rect[5] = dst_rect[2] + (pSrcBox->back - pSrcBox->front);
+		assert(SrcSubresource == 0 && DstSubresource == 0);
+
+		if (reshade::invoke_addon_event<reshade::addon_event::copy_buffer_region>(this,
+			reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pSrcResource) }, pSrcBox != nullptr ? pSrcBox->left : 0,
+			reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pDstResource) }, DstX, pSrcBox != nullptr ? pSrcBox->right - pSrcBox->left : ~0ull))
+			return;
 	}
+	else
+	{
+		const int32_t dst_offset[3] = { static_cast<int32_t>(DstX), static_cast<int32_t>(DstY), static_cast<int32_t>(DstZ) };
+		uint32_t size[3];
+		if (pSrcBox != nullptr)
+		{
+			size[0] = pSrcBox->right - pSrcBox->left;
+			size[1] = pSrcBox->bottom - pSrcBox->top;
+			size[2] = pSrcBox->back - pSrcBox->front;
+		}
 
-	static_assert(sizeof(D3D10_BOX) == (sizeof(int32_t) * 6));
+		static_assert(sizeof(D3D10_BOX) == (sizeof(int32_t) * 6));
 
-	if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(this,
-		reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pSrcResource) }, SrcSubresource, reinterpret_cast<const int32_t *>(pSrcBox),
-		reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pDstResource) }, DstSubresource, pSrcBox != nullptr ? dst_rect : nullptr))
-		return;
+		if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(this,
+			reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pSrcResource) }, SrcSubresource, reinterpret_cast<const int32_t *>(pSrcBox),
+			reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pDstResource) }, DstSubresource, DstX != 0 || DstY != 0 || DstZ != 0 ? dst_offset : nullptr, pSrcBox != nullptr ? size : nullptr))
+			return;
+	}
 #endif
 	_orig->CopySubresourceRegion(pDstResource, DstSubresource, DstX, DstY, DstZ, pSrcResource, SrcSubresource, pSrcBox);
 }
@@ -533,11 +547,28 @@ void    STDMETHODCALLTYPE D3D10Device::CopyResource(ID3D10Resource *pDstResource
 void    STDMETHODCALLTYPE D3D10Device::UpdateSubresource(ID3D10Resource *pDstResource, UINT DstSubresource, const D3D10_BOX *pDstBox, const void *pSrcData, UINT SrcRowPitch, UINT SrcDepthPitch)
 {
 #if RESHADE_ADDON
-	static_assert(sizeof(D3D10_BOX) == (sizeof(int32_t) * 6));
+	assert(pDstResource != nullptr);
 
-	if (reshade::api::subresource_data data = { pSrcData, SrcRowPitch, SrcDepthPitch };
-		reshade::invoke_addon_event<reshade::addon_event::update_texture_region>(this, &data, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pDstResource) }, DstSubresource, reinterpret_cast<const int32_t *>(pDstBox)))
-		return;
+	D3D10_RESOURCE_DIMENSION type;
+	pDstResource->GetType(&type);
+	if (type == D3D10_RESOURCE_DIMENSION_BUFFER)
+	{
+		assert(DstSubresource == 0);
+
+		if (reshade::invoke_addon_event<reshade::addon_event::update_buffer_region>(this,
+			pSrcData,
+			reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pDstResource) }, pDstBox != nullptr ? pDstBox->left : 0, pDstBox != nullptr ? pDstBox->right - pDstBox->left : SrcRowPitch))
+			return;
+	}
+	else
+	{
+		static_assert(sizeof(D3D10_BOX) == (sizeof(int32_t) * 6));
+
+		if (reshade::invoke_addon_event<reshade::addon_event::update_texture_region>(this,
+			pSrcData, SrcRowPitch, SrcDepthPitch,
+			reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pDstResource) }, DstSubresource, reinterpret_cast<const int32_t *>(pDstBox)))
+			return;
+	}
 #endif
 	_orig->UpdateSubresource(pDstResource, DstSubresource, pDstBox, pSrcData, SrcRowPitch, SrcDepthPitch);
 }
@@ -565,9 +596,9 @@ void    STDMETHODCALLTYPE D3D10Device::GenerateMips(ID3D10ShaderResourceView *pS
 void    STDMETHODCALLTYPE D3D10Device::ResolveSubresource(ID3D10Resource *pDstResource, UINT DstSubresource, ID3D10Resource *pSrcResource, UINT SrcSubresource, DXGI_FORMAT Format)
 {
 #if RESHADE_ADDON
-	if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(this,
+	if (reshade::invoke_addon_event<reshade::addon_event::resolve>(this,
 		reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pSrcResource) }, SrcSubresource, nullptr,
-		reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pDstResource) }, DstSubresource, nullptr, static_cast<uint32_t>(Format)))
+		reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pDstResource) }, DstSubresource, nullptr, nullptr, static_cast<uint32_t>(Format)))
 		return;
 #endif
 	_orig->ResolveSubresource(pDstResource, DstSubresource, pSrcResource, SrcSubresource, Format);

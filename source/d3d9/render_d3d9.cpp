@@ -5,6 +5,7 @@
 
 #include "render_d3d9.hpp"
 #include "render_d3d9_utils.hpp"
+#include <algorithm>
 
 reshade::d3d9::device_impl::device_impl(IDirect3DDevice9 *device) :
 	api_object_impl(device), _caps(), _cp(), _backup_state(device)
@@ -479,24 +480,69 @@ reshade::api::resource_desc reshade::d3d9::device_impl::get_resource_desc(api::r
 	}
 }
 
-void reshade::d3d9::device_impl::copy_resource(api::resource_handle source, api::resource_handle destination)
+void reshade::d3d9::device_impl::blit(api::resource_handle src, uint32_t src_subresource, const int32_t src_box[6], api::resource_handle dst, uint32_t dst_subresource, const int32_t dst_box[6], api::texture_filter filter)
 {
-	assert(source.handle != 0 && destination.handle != 0);
-	const auto source_object = reinterpret_cast<IDirect3DResource9 *>(source.handle);
-	const auto destination_object = reinterpret_cast<IDirect3DResource9 *>(destination.handle);
+	assert(src.handle != 0 && dst.handle != 0);
 
-	switch (source_object->GetType() | (destination_object->GetType() << 4))
+	const auto src_object = reinterpret_cast<IDirect3DResource9 *>(src.handle);
+	const auto dst_object = reinterpret_cast<IDirect3DResource9 *>(dst.handle);
+
+	RECT src_rect = {};
+	if (src_box != nullptr)
+	{
+		src_rect.left = src_box[0];
+		src_rect.top = src_box[1];
+		assert(src_box[2] == 0);
+		src_rect.right = src_box[3];
+		src_rect.bottom = src_box[4];
+		assert(src_box[5] == 1);
+	}
+
+	RECT dst_rect = {};
+	if (dst_box != nullptr)
+	{
+		dst_rect.left = dst_box[0];
+		dst_rect.top = dst_box[1];
+		assert(dst_box[2] == 0);
+		dst_rect.right = dst_box[3];
+		dst_rect.bottom = dst_box[4];
+		assert(dst_box[5] == 1);
+	}
+
+	D3DTEXTUREFILTERTYPE stretch_filter = D3DTEXF_NONE;
+	switch (filter)
+	{
+	case api::texture_filter::min_mag_mip_point:
+	case api::texture_filter::min_mag_point_mip_linear:
+		stretch_filter = D3DTEXF_POINT;
+		break;
+	case api::texture_filter::min_mag_mip_linear:
+	case api::texture_filter::min_mag_linear_mip_point:
+		stretch_filter = D3DTEXF_LINEAR;
+		break;
+	}
+
+	switch (src_object->GetType() | (dst_object->GetType() << 4))
 	{
 		case D3DRTYPE_SURFACE | (D3DRTYPE_SURFACE << 4):
 		{
-			_orig->StretchRect(static_cast<IDirect3DSurface9 *>(source_object), nullptr, static_cast<IDirect3DSurface9 *>(destination_object), nullptr, D3DTEXF_NONE);
+			assert(src_subresource == 0 && dst_subresource == 0);
+
+			_orig->StretchRect(
+				static_cast<IDirect3DSurface9 *>(src_object), src_box != nullptr ? &src_rect : nullptr,
+				static_cast<IDirect3DSurface9 *>(dst_object), dst_box != nullptr ? &dst_rect : nullptr, stretch_filter);
 			return;
 		}
 		case D3DRTYPE_SURFACE | (D3DRTYPE_TEXTURE << 4):
 		{
+			assert(src_subresource == 0);
+
 			com_ptr<IDirect3DSurface9> destination_surface;
-			static_cast<IDirect3DTexture9 *>(destination_object)->GetSurfaceLevel(0, &destination_surface);
-			_orig->StretchRect(static_cast<IDirect3DSurface9 *>(source_object), nullptr, destination_surface.get(), nullptr, D3DTEXF_NONE);
+			static_cast<IDirect3DTexture9 *>(dst_object)->GetSurfaceLevel(dst_subresource, &destination_surface);
+
+			_orig->StretchRect(
+				static_cast<IDirect3DSurface9 *>(src_object), src_box != nullptr ? &src_rect : nullptr,
+				destination_surface.get(), dst_box != nullptr ? &dst_rect : nullptr, stretch_filter);
 			return;
 		}
 		case D3DRTYPE_TEXTURE | (D3DRTYPE_TEXTURE << 4):
@@ -512,20 +558,50 @@ void reshade::d3d9::device_impl::copy_resource(api::resource_handle source, api:
 			// Perform copy using rasterization pipeline
 			_copy_state->Apply();
 
+			_orig->SetTexture(0, static_cast<IDirect3DTexture9 *>(src_object));
+			_orig->SetSamplerState(0, D3DSAMP_MINFILTER, stretch_filter);
+			_orig->SetSamplerState(0, D3DSAMP_MAGFILTER, stretch_filter);
+
 			com_ptr<IDirect3DSurface9> destination_surface;
-			static_cast<IDirect3DTexture9 *>(destination_object)->GetSurfaceLevel(0, &destination_surface); // TODO: This copies the first mipmap level only ...
-			_orig->SetTexture(0, static_cast<IDirect3DTexture9 *>(source_object));
+			static_cast<IDirect3DTexture9 *>(dst_object)->GetSurfaceLevel(dst_subresource, &destination_surface);
 			_orig->SetRenderTarget(0, destination_surface.get());
 			for (DWORD target = 1; target < _caps.NumSimultaneousRTs; ++target)
 				_orig->SetRenderTarget(target, nullptr);
 			_orig->SetDepthStencilSurface(nullptr);
 
-			const float vertices[3][5] = {
+			if (dst_box != nullptr)
+			{
+				D3DVIEWPORT9 viewport;
+				viewport.X = dst_rect.left;
+				viewport.Y = dst_rect.top;
+				viewport.Width = dst_rect.right - dst_rect.left;
+				viewport.Height = dst_rect.bottom - dst_rect.top;
+				viewport.MinZ = 0.0f;
+				viewport.MaxZ = 1.0f;
+
+				_orig->SetViewport(&viewport);
+			}
+
+			float vertices[3][5] = {
 				// x      y      z      tu     tv
 				{ -1.0f,  1.0f,  0.0f,  0.0f,  0.0f },
 				{ -1.0f, -3.0f,  0.0f,  0.0f,  2.0f },
 				{  3.0f,  1.0f,  0.0f,  2.0f,  0.0f },
 			};
+
+			if (src_box != nullptr)
+			{
+				D3DSURFACE_DESC desc;
+				destination_surface->GetDesc(&desc);
+
+				vertices[0][3] = src_rect.left * 2.0f / desc.Width;
+				vertices[0][4] = src_rect.top * 2.0f / desc.Height;
+				vertices[1][3] = src_rect.left * 2.0f / desc.Width;
+				vertices[1][4] = src_rect.bottom * 2.0f / desc.Height;
+				vertices[2][3] = src_rect.right * 2.0f / desc.Width;
+				vertices[2][4] = src_rect.top * 2.0f / desc.Height;
+			}
+
 			_orig->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 1, vertices, sizeof(vertices[0]));
 
 			_backup_state.apply_and_release();
@@ -533,18 +609,135 @@ void reshade::d3d9::device_impl::copy_resource(api::resource_handle source, api:
 		}
 		case D3DRTYPE_TEXTURE | (D3DRTYPE_SURFACE << 4):
 		{
+			assert(dst_subresource == 0);
+
 			com_ptr<IDirect3DSurface9> source_surface;
-			static_cast<IDirect3DTexture9 *>(source_object)->GetSurfaceLevel(0, &source_surface);
-			_orig->StretchRect(source_surface.get(), nullptr, static_cast<IDirect3DSurface9 *>(destination_object), nullptr, D3DTEXF_NONE);
+			static_cast<IDirect3DTexture9 *>(src_object)->GetSurfaceLevel(src_subresource, &source_surface);
+
+			_orig->StretchRect(
+				source_surface.get(), src_box != nullptr ? &src_rect : nullptr,
+				static_cast<IDirect3DSurface9 *>(dst_object), dst_box != nullptr ? &dst_rect : nullptr, stretch_filter);
 			return;
 		}
 	}
 
 	assert(false); // Not implemented
 }
+void reshade::d3d9::device_impl::resolve(api::resource_handle src, uint32_t src_subresource, const int32_t src_offset[3], api::resource_handle dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3], uint32_t)
+{
+	int32_t src_box[6] = {};
+	if (src_offset != nullptr)
+		std::copy_n(src_offset, 3, src_box);
+
+	if (size != nullptr)
+	{
+		src_box[3] = src_box[0] + size[0];
+		src_box[4] = src_box[1] + size[1];
+		src_box[5] = src_box[2] + size[2];
+	}
+	else
+	{
+		const api::resource_desc desc = get_resource_desc(src);
+		src_box[3] = src_box[0] + std::max(1u, desc.width >> src_subresource);
+		src_box[4] = src_box[1] + std::max(1u, desc.height >> src_subresource);
+		src_box[5] = src_box[2] + (desc.type == api::resource_type::texture_3d ? std::max(1u, static_cast<uint32_t>(desc.depth_or_layers) >> src_subresource) : 1u);
+	}
+
+	int32_t dst_box[6] = {};
+	if (dst_offset != nullptr)
+		std::copy_n(dst_offset, 3, dst_box);
+
+	if (size != nullptr)
+	{
+		dst_box[3] = dst_box[0] + size[0];
+		dst_box[4] = dst_box[1] + size[1];
+		dst_box[5] = dst_box[2] + size[2];
+	}
+	else
+	{
+		const api::resource_desc desc = get_resource_desc(dst);
+		dst_box[3] = dst_box[0] + std::max(1u, desc.width >> dst_subresource);
+		dst_box[4] = dst_box[1] + std::max(1u, desc.height >> dst_subresource);
+		dst_box[5] = dst_box[2] + (desc.type == api::resource_type::texture_3d ? std::max(1u, static_cast<uint32_t>(desc.depth_or_layers) >> dst_subresource) : 1u);
+	}
+
+	blit(src, src_subresource, src_box, dst, dst_subresource, dst_box, api::texture_filter::min_mag_mip_point);
+}
+void reshade::d3d9::device_impl::copy_resource(api::resource_handle src, api::resource_handle dst)
+{
+	const api::resource_desc desc = get_resource_desc(src);
+
+	if (desc.type == api::resource_type::buffer)
+	{
+		copy_buffer_region(src, 0, dst, 0, ~0llu);
+	}
+	else
+	{
+		for (uint32_t level = 0; level < desc.levels; ++level)
+		{
+			const uint32_t subresource = level;
+
+			copy_texture_region(src, subresource, nullptr, dst, subresource, nullptr, nullptr);
+		}
+	}
+}
+void reshade::d3d9::device_impl::copy_buffer_region(api::resource_handle, uint64_t, api::resource_handle, uint64_t, uint64_t)
+{
+	assert(false);
+}
+void reshade::d3d9::device_impl::copy_buffer_to_texture(api::resource_handle, uint64_t, uint32_t, uint32_t, api::resource_handle, uint32_t, const int32_t[6])
+{
+	assert(false);
+}
+void reshade::d3d9::device_impl::copy_texture_region(api::resource_handle src, uint32_t src_subresource, const int32_t src_offset[3], api::resource_handle dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3])
+{
+	int32_t src_box[6] = {};
+	if (src_offset != nullptr)
+		std::copy_n(src_offset, 3, src_box);
+
+	if (size != nullptr)
+	{
+		src_box[3] = src_box[0] + size[0];
+		src_box[4] = src_box[1] + size[1];
+		src_box[5] = src_box[2] + size[2];
+	}
+	else
+	{
+		const api::resource_desc desc = get_resource_desc(src);
+		src_box[3] = src_box[0] + std::max(1u, desc.width >> src_subresource);
+		src_box[4] = src_box[1] + std::max(1u, desc.height >> src_subresource);
+		src_box[5] = src_box[2] + (desc.type == api::resource_type::texture_3d ? std::max(1u, static_cast<uint32_t>(desc.depth_or_layers) >> src_subresource) : 1u);
+	}
+
+	int32_t dst_box[6] = {};
+	if (dst_offset != nullptr)
+		std::copy_n(dst_offset, 3, dst_box);
+
+	if (size != nullptr)
+	{
+		dst_box[3] = dst_box[0] + size[0];
+		dst_box[4] = dst_box[1] + size[1];
+		dst_box[5] = dst_box[2] + size[2];
+	}
+	else
+	{
+		const api::resource_desc desc = get_resource_desc(dst);
+		dst_box[3] = dst_box[0] + std::max(1u, desc.width >> dst_subresource);
+		dst_box[4] = dst_box[1] + std::max(1u, desc.height >> dst_subresource);
+		dst_box[5] = dst_box[2] + (desc.type == api::resource_type::texture_3d ? std::max(1u, static_cast<uint32_t>(desc.depth_or_layers) >> dst_subresource) : 1u);
+	}
+
+	blit(src, src_subresource, src_box, dst, dst_subresource, dst_box, api::texture_filter::min_mag_mip_point);
+}
+void reshade::d3d9::device_impl::copy_texture_to_buffer(api::resource_handle, uint32_t, const int32_t[6], api::resource_handle, uint64_t, uint32_t, uint32_t)
+{
+	assert(false);
+}
 
 void reshade::d3d9::device_impl::clear_depth_stencil_view(api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil)
 {
+	assert(dsv.handle != 0);
+
 	_backup_state.capture();
 
 	_orig->SetDepthStencilSurface(reinterpret_cast<IDirect3DSurface9 *>(dsv.handle));
@@ -557,15 +750,27 @@ void reshade::d3d9::device_impl::clear_depth_stencil_view(api::resource_view_han
 
 	_backup_state.apply_and_release();
 }
-void reshade::d3d9::device_impl::clear_render_target_view(api::resource_view_handle rtv, const float color[4])
+void reshade::d3d9::device_impl::clear_render_target_views(uint32_t count, const api::resource_view_handle *rtvs, const float color[4])
 {
+#if 0
+	assert(count <= _caps.NumSimultaneousRTs);
+
 	_backup_state.capture();
 
-	_orig->SetRenderTarget(0, reinterpret_cast<IDirect3DSurface9 *>(rtv.handle));
-	for (DWORD target = 1; target < _caps.NumSimultaneousRTs; ++target)
+	for (DWORD target = 0; target < count && target < _caps.NumSimultaneousRTs; ++target)
+		_orig->SetRenderTarget(target, reinterpret_cast<IDirect3DSurface9 *>(rtvs[target].handle));
+	for (DWORD target = count; target < _caps.NumSimultaneousRTs; ++target)
 		_orig->SetRenderTarget(target, nullptr);
 
 	_orig->Clear(0, nullptr, D3DCLEAR_TARGET, D3DCOLOR_COLORVALUE(color[0], color[1], color[2], color[3]), 0.0f, 0);
 
 	_backup_state.apply_and_release();
+#else
+	for (UINT i = 0; i < count; ++i)
+	{
+		assert(rtvs[i].handle != 0);
+
+		_orig->ColorFill(reinterpret_cast<IDirect3DSurface9 *>(rtvs[i].handle), nullptr, D3DCOLOR_COLORVALUE(color[0], color[1], color[2], color[3]));
+	}
+#endif
 }

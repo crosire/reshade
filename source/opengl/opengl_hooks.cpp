@@ -396,12 +396,15 @@ HOOK_EXPORT void WINAPI glBlendFunc(GLenum sfactor, GLenum dfactor)
 
 		if (g_current_runtime->get_resource_desc(src).samples <= 1)
 		{
-			if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(g_current_runtime, src, 0, src_box, dst, 0, dst_box))
+			if (reshade::invoke_addon_event<reshade::addon_event::blit>(g_current_runtime, src, 0, src_box, dst, 0, dst_box,
+				filter == GL_NONE || filter == GL_NEAREST ? reshade::api::texture_filter::min_mag_mip_point : reshade::api::texture_filter::min_mag_mip_linear))
 				return;
 		}
 		else
 		{
-			if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(g_current_runtime, src, 0, src_box, dst, 0, dst_box, 0))
+			// TODO: Ensure same extent
+			const uint32_t extent[3] = { static_cast<uint32_t>(srcX1 - srcX0), static_cast<uint32_t>(srcY1 - srcY0), 1 };
+			if (reshade::invoke_addon_event<reshade::addon_event::resolve>(g_current_runtime, src, 0, src_box, dst, 0, dst_box, extent, 0))
 				return;
 		}
 	}
@@ -427,12 +430,15 @@ HOOK_EXPORT void WINAPI glBlendFunc(GLenum sfactor, GLenum dfactor)
 
 		if (g_current_runtime->get_resource_desc(src).samples <= 1)
 		{
-			if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(g_current_runtime, src, 0, src_box, dst, 0, dst_box))
+			if (reshade::invoke_addon_event<reshade::addon_event::blit>(g_current_runtime, src, 0, src_box, dst, 0, dst_box,
+				filter == GL_NONE || filter == GL_NEAREST ? reshade::api::texture_filter::min_mag_mip_point : reshade::api::texture_filter::min_mag_mip_linear))
 				return;
 		}
 		else
 		{
-			if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(g_current_runtime, src, 0, src_box, dst, 0, dst_box, 0))
+			// TODO: Ensure same extent
+			const uint32_t extent[3] = { static_cast<uint32_t>(srcX1 - srcX0), static_cast<uint32_t>(srcY1 - srcY0), 1 };
+			if (reshade::invoke_addon_event<reshade::addon_event::resolve>(g_current_runtime, src, 0, src_box, dst, 0, dst_box, extent, 0))
 				return;
 		}
 	}
