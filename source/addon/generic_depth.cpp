@@ -161,9 +161,9 @@ struct state_tracking_context
 		desc.usage = resource_usage::shader_resource | resource_usage::copy_dest;
 
 		if (device->get_api() == render_api::d3d9)
-			desc.format = 114; // D3DFMT_R32F, size INTZ does not support D3DUSAGE_RENDERTARGET which is required for copying
+			desc.format = format::r32_float; // D3DFMT_R32F, size INTZ does not support D3DUSAGE_RENDERTARGET which is required for copying
 		if (device->get_api() >= render_api::d3d10 && device->get_api() <= render_api::d3d12)
-			desc.format = static_cast<uint32_t>(make_dxgi_format_typeless(static_cast<DXGI_FORMAT>(desc.format)));
+			desc.format = static_cast<format>(make_dxgi_format_typeless(static_cast<DXGI_FORMAT>(desc.format)));
 
 		if (!device->create_resource(desc, nullptr, resource_usage::copy_dest, &backup_texture))
 			LOG(ERROR) << "Failed to create backup depth-stencil texture!";
@@ -267,9 +267,9 @@ static bool on_create_resource(
 		(desc.usage & resource_usage::depth_stencil) != 0 && (desc.usage & resource_usage::shader_resource) == 0))
 	{
 		if (device->get_api() == render_api::d3d9 && !s_disable_intz)
-			new_desc.format = ('I' << 0) | ('N' << 8) | ('T' << 16) | ('Z' << 24);
+			new_desc.format = format::intz;
 		if (device->get_api() >= render_api::d3d10 && device->get_api() <= render_api::d3d12)
-			new_desc.format = static_cast<uint32_t>(make_dxgi_format_typeless(static_cast<DXGI_FORMAT>(desc.format)));
+			new_desc.format = static_cast<format>(make_dxgi_format_typeless(static_cast<DXGI_FORMAT>(desc.format)));
 
 		new_desc.usage |= resource_usage::shader_resource;
 	}
@@ -282,7 +282,7 @@ static bool on_create_resource_view(
 	resource_view_desc new_desc = desc;
 
 	// A view cannot be created with a typeless format (which was set in 'on_create_resource' above), so fix it in case defaults are used
-	if (desc.format == 0 && (device->get_api() >= render_api::d3d10 && device->get_api() <= render_api::d3d11))
+	if (desc.format == format::unknown && (device->get_api() >= render_api::d3d10 && device->get_api() <= render_api::d3d11))
 	{
 		const resource_desc texture_desc = device->get_resource_desc(resource);
 		// Only non-MSAA textures where modified, so skip all others
@@ -291,10 +291,10 @@ static bool on_create_resource_view(
 			switch (usage_type)
 			{
 			case resource_usage::depth_stencil:
-				new_desc.format = static_cast<uint32_t>(make_dxgi_format_dsv(static_cast<DXGI_FORMAT>(texture_desc.format)));
+				new_desc.format = static_cast<format>(make_dxgi_format_dsv(static_cast<DXGI_FORMAT>(texture_desc.format)));
 				break;
 			case resource_usage::shader_resource:
-				new_desc.format = static_cast<uint32_t>(make_dxgi_format_normal(static_cast<DXGI_FORMAT>(texture_desc.format)));
+				new_desc.format = static_cast<format>(make_dxgi_format_normal(static_cast<DXGI_FORMAT>(texture_desc.format)));
 				break;
 			}
 
@@ -496,7 +496,7 @@ static void on_present(command_queue *, effect_runtime *runtime)
 			srv_desc.layers = 1;
 
 			if (device->get_api() >= render_api::d3d10 && device->get_api() <= render_api::d3d12)
-				srv_desc.format = static_cast<uint32_t>(make_dxgi_format_normal(static_cast<DXGI_FORMAT>(srv_desc.format)));
+				srv_desc.format = static_cast<format>(make_dxgi_format_normal(static_cast<DXGI_FORMAT>(srv_desc.format)));
 
 			// Need to create backup texture only if doing backup copies or original resource does not support shader access (which is necessary for binding it to effects)
 			// Also always create a backup texture in D3D12 or Vulkan to circument problems in case application makes use of resource aliasing
@@ -507,7 +507,7 @@ static void on_present(command_queue *, effect_runtime *runtime)
 				if (device_state.backup_texture != 0)
 				{
 					if (device->get_api() == render_api::d3d9)
-						srv_desc.format = 114; // Same format as backup texture, as set in 'update_backup_texture'
+						srv_desc.format = format::r32_float; // Same format as backup texture, as set in 'update_backup_texture'
 
 					device->create_resource_view(device_state.backup_texture, resource_usage::shader_resource, srv_desc, &device_state.selected_shader_resource);
 				}

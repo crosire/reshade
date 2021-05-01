@@ -380,7 +380,7 @@ resource_desc reshade::d3d10::convert_resource_desc(const D3D10_TEXTURE1D_DESC &
 	desc.depth_or_layers = static_cast<uint16_t>(internal_desc.ArraySize);
 	assert(internal_desc.MipLevels <= std::numeric_limits<uint16_t>::max());
 	desc.levels = static_cast<uint16_t>(internal_desc.MipLevels);
-	desc.format = static_cast<uint32_t>(internal_desc.Format);
+	desc.format = static_cast<format>(internal_desc.Format);
 	desc.samples = 1;
 	convert_d3d_usage_to_memory_heap(internal_desc.Usage, desc.heap);
 	convert_bind_flags_to_resource_usage(internal_desc.BindFlags, desc.usage);
@@ -396,7 +396,7 @@ resource_desc reshade::d3d10::convert_resource_desc(const D3D10_TEXTURE2D_DESC &
 	desc.depth_or_layers = static_cast<uint16_t>(internal_desc.ArraySize);
 	assert(internal_desc.MipLevels <= std::numeric_limits<uint16_t>::max());
 	desc.levels = static_cast<uint16_t>(internal_desc.MipLevels);
-	desc.format = static_cast<uint32_t>(internal_desc.Format);
+	desc.format = static_cast<format>(internal_desc.Format);
 	desc.samples = static_cast<uint16_t>(internal_desc.SampleDesc.Count);
 	convert_d3d_usage_to_memory_heap(internal_desc.Usage, desc.heap);
 	convert_bind_flags_to_resource_usage(internal_desc.BindFlags, desc.usage);
@@ -413,7 +413,7 @@ resource_desc reshade::d3d10::convert_resource_desc(const D3D10_TEXTURE3D_DESC &
 	desc.depth_or_layers = static_cast<uint16_t>(internal_desc.Depth);
 	assert(internal_desc.MipLevels <= std::numeric_limits<uint16_t>::max());
 	desc.levels = static_cast<uint16_t>(internal_desc.MipLevels);
-	desc.format = static_cast<uint32_t>(internal_desc.Format);
+	desc.format = static_cast<format>(internal_desc.Format);
 	desc.samples = 1;
 	convert_d3d_usage_to_memory_heap(internal_desc.Usage, desc.heap);
 	convert_bind_flags_to_resource_usage(internal_desc.BindFlags, desc.usage);
@@ -576,7 +576,7 @@ void reshade::d3d10::convert_resource_view_desc(const resource_view_desc &desc, 
 resource_view_desc reshade::d3d10::convert_resource_view_desc(const D3D10_DEPTH_STENCIL_VIEW_DESC &internal_desc)
 {
 	resource_view_desc desc = {};
-	desc.format = static_cast<uint32_t>(internal_desc.Format);
+	desc.format = static_cast<format>(internal_desc.Format);
 	desc.levels = 1;
 	switch (internal_desc.ViewDimension)
 	{
@@ -614,7 +614,7 @@ resource_view_desc reshade::d3d10::convert_resource_view_desc(const D3D10_DEPTH_
 resource_view_desc reshade::d3d10::convert_resource_view_desc(const D3D10_RENDER_TARGET_VIEW_DESC &internal_desc)
 {
 	resource_view_desc desc = {};
-	desc.format = static_cast<uint32_t>(internal_desc.Format);
+	desc.format = static_cast<format>(internal_desc.Format);
 	desc.levels = 1;
 	switch (internal_desc.ViewDimension)
 	{
@@ -658,7 +658,7 @@ resource_view_desc reshade::d3d10::convert_resource_view_desc(const D3D10_RENDER
 resource_view_desc reshade::d3d10::convert_resource_view_desc(const D3D10_SHADER_RESOURCE_VIEW_DESC &internal_desc)
 {
 	resource_view_desc desc = {};
-	desc.format = static_cast<uint32_t>(internal_desc.Format);
+	desc.format = static_cast<format>(internal_desc.Format);
 	switch (internal_desc.ViewDimension)
 	{
 	case D3D10_SRV_DIMENSION_BUFFER:
@@ -717,7 +717,7 @@ resource_view_desc reshade::d3d10::convert_resource_view_desc(const D3D10_SHADER
 	{
 		resource_view_desc desc = {};
 		desc.type = resource_view_type::texture_cube_array;
-		desc.format = static_cast<uint32_t>(internal_desc.Format);
+		desc.format = static_cast<format>(internal_desc.Format);
 		desc.first_level = internal_desc.TextureCubeArray.MostDetailedMip;
 		desc.levels = internal_desc.TextureCubeArray.MipLevels;
 		desc.first_layer = internal_desc.TextureCubeArray.First2DArrayFace;

@@ -103,20 +103,6 @@ static GLint get_fbo_attachment_param(GLuint id, GLenum attachment, GLenum param
 	return value;
 }
 
-static inline GLenum convert_to_internal_format(GLenum format)
-{
-	// Convert depth formats to internal texture formats
-	switch (format)
-	{
-	default:
-		return format;
-	case GL_DEPTH_STENCIL:
-		return GL_DEPTH24_STENCIL8;
-	case GL_DEPTH_COMPONENT:
-		return GL_DEPTH_COMPONENT24;
-	}
-}
-
 reshade::opengl::device_impl::device_impl(HDC hdc, HGLRC hglrc) :
 	api_object_impl(hglrc)
 {
@@ -206,18 +192,21 @@ reshade::opengl::device_impl::~device_impl()
 	glDeleteFramebuffers(2, _copy_fbo);
 }
 
-bool reshade::opengl::device_impl::check_format_support(uint32_t format, api::resource_usage usage) const
+bool reshade::opengl::device_impl::check_format_support(api::format format, api::resource_usage usage) const
 {
+	GLenum internal_format = GL_NONE;
+	convert_format_to_internal_format(format, internal_format);
+
 	GLint supported = GL_FALSE;
-	glGetInternalformativ(GL_TEXTURE_2D, format, GL_INTERNALFORMAT_SUPPORTED, 1, &supported);
+	glGetInternalformativ(GL_TEXTURE_2D, internal_format, GL_INTERNALFORMAT_SUPPORTED, 1, &supported);
 
 	GLint supported_renderable = GL_CAVEAT_SUPPORT;
 	if ((usage & api::resource_usage::render_target) != 0)
-		glGetInternalformativ(GL_TEXTURE_2D, format, GL_FRAMEBUFFER_RENDERABLE, 1, &supported_renderable);
+		glGetInternalformativ(GL_TEXTURE_2D, internal_format, GL_FRAMEBUFFER_RENDERABLE, 1, &supported_renderable);
 
 	GLint supported_image_load = GL_CAVEAT_SUPPORT;
 	if ((usage & api::resource_usage::unordered_access) != 0)
-		glGetInternalformativ(GL_TEXTURE_2D, format, GL_SHADER_IMAGE_LOAD, 1, &supported_image_load);
+		glGetInternalformativ(GL_TEXTURE_2D, internal_format, GL_SHADER_IMAGE_LOAD, 1, &supported_image_load);
 
 	return supported != GL_FALSE && supported_renderable != GL_NONE && supported_image_load != GL_NONE;
 }
@@ -398,7 +387,8 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 	}
 	else
 	{
-		const GLenum internal_format = convert_to_internal_format(desc.format);
+		GLenum internal_format = GL_NONE;
+		convert_format_to_internal_format(desc.format, internal_format);
 		if (internal_format == GL_NONE)
 			return false;
 
@@ -469,7 +459,8 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource_handle res
 		break;
 	}
 
-	const GLenum internal_format = convert_to_internal_format(desc.format);
+	GLenum internal_format = GL_NONE;
+	convert_format_to_internal_format(desc.format, internal_format);
 	if (internal_format == GL_NONE)
 		return false;
 
@@ -738,7 +729,9 @@ void reshade::opengl::device_impl::blit(api::resource_handle src, uint32_t src_s
 	glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &prev_read_fbo);
 	glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &prev_draw_fbo);
 
-	const GLenum source_attachment = is_depth_stencil_format(src_desc.format, GL_DEPTH) ? GL_DEPTH_ATTACHMENT : GL_COLOR_ATTACHMENT0;
+	GLenum src_internal_format = GL_NONE;
+	convert_format_to_internal_format(src_desc.format, src_internal_format);
+	const GLenum source_attachment = is_depth_stencil_format(src_internal_format, GL_DEPTH) ? GL_DEPTH_ATTACHMENT : GL_COLOR_ATTACHMENT0;
 	switch (src_target)
 	{
 	default:
@@ -778,7 +771,9 @@ void reshade::opengl::device_impl::blit(api::resource_handle src, uint32_t src_s
 		break;
 	}
 
-	const GLenum destination_attachment = is_depth_stencil_format(dst_desc.format, GL_DEPTH) ? GL_DEPTH_ATTACHMENT : GL_COLOR_ATTACHMENT0;
+	GLenum dst_internal_format = GL_NONE;
+	convert_format_to_internal_format(dst_desc.format, dst_internal_format);
+	const GLenum destination_attachment = is_depth_stencil_format(dst_internal_format, GL_DEPTH) ? GL_DEPTH_ATTACHMENT : GL_COLOR_ATTACHMENT0;
 	switch (dst_target)
 	{
 	default:

@@ -27,7 +27,7 @@ reshade::d3d10::device_impl::~device_impl()
 #endif
 }
 
-bool reshade::d3d10::device_impl::check_format_support(uint32_t format, api::resource_usage usage) const
+bool reshade::d3d10::device_impl::check_format_support(api::format format, api::resource_usage usage) const
 {
 	if ((usage & api::resource_usage::unordered_access) != 0)
 		return false;

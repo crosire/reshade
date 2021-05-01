@@ -187,6 +187,488 @@ void reshade::vulkan::fill_pipeline_state_values(const VkGraphicsPipelineCreateI
 	}
 }
 
+void reshade::vulkan::convert_format_to_vk_format(format format, VkFormat &vk_format)
+{
+	switch (format)
+	{
+	default:
+	case format::unknown:
+		break;
+	case format::r1_unorm:
+		// Unsupported
+		break;
+	case format::r8_uint:
+		vk_format = VK_FORMAT_R8_UINT;
+		break;
+	case format::r8_sint:
+		vk_format = VK_FORMAT_R8_SINT;
+		break;
+	case format::r8_typeless:
+	case format::r8_unorm:
+	case format::a8_unorm: // { VK_COMPONENT_SWIZZLE_ZERO, VK_COMPONENT_SWIZZLE_ZERO, VK_COMPONENT_SWIZZLE_ZERO, VK_COMPONENT_SWIZZLE_R }
+		vk_format = VK_FORMAT_R8_UNORM;
+		break;
+	case format::r8_snorm:
+		vk_format = VK_FORMAT_R8_SNORM;
+		break;
+	case format::r8g8_uint:
+		vk_format = VK_FORMAT_R8G8_UINT;
+		break;
+	case format::r8g8_sint:
+		vk_format = VK_FORMAT_R8G8_SINT;
+		break;
+	case format::r8g8_typeless:
+	case format::r8g8_unorm:
+		vk_format = VK_FORMAT_R8G8_UNORM;
+		break;
+	case format::r8g8_snorm:
+		vk_format = VK_FORMAT_R8G8_SNORM;
+		break;
+	case format::r8g8b8a8_uint:
+		vk_format = VK_FORMAT_R8G8B8A8_UINT;
+		break;
+	case format::r8g8b8a8_sint:
+		vk_format = VK_FORMAT_R8G8B8A8_SINT;
+		break;
+	case format::r8g8b8a8_typeless:
+	case format::r8g8b8a8_unorm:
+		vk_format = VK_FORMAT_R8G8B8A8_UNORM;
+		break;
+	case format::r8g8b8a8_unorm_srgb:
+		vk_format = VK_FORMAT_R8G8B8A8_SRGB;
+		break;
+	case format::r8g8b8a8_snorm:
+		vk_format = VK_FORMAT_R8G8B8A8_SNORM;
+		break;
+	case format::b8g8r8a8_typeless:
+	case format::b8g8r8a8_unorm:
+	case format::b8g8r8x8_typeless: // { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_ONE }
+	case format::b8g8r8x8_unorm:
+		vk_format = VK_FORMAT_B8G8R8A8_UNORM;
+		break;
+	case format::b8g8r8a8_unorm_srgb:
+	case format::b8g8r8x8_unorm_srgb:
+		vk_format = VK_FORMAT_B8G8R8A8_SRGB;
+		break;
+	case format::r10g10b10a2_uint:
+		vk_format = VK_FORMAT_A2B10G10R10_UINT_PACK32;
+		break;
+	case format::r10g10b10a2_typeless:
+	case format::r10g10b10a2_unorm:
+		vk_format = VK_FORMAT_A2B10G10R10_UNORM_PACK32;
+		break;
+	case format::r10g10b10a2_xr_bias:
+		// Unsupported
+		break;
+	case format::r16_sint:
+		vk_format = VK_FORMAT_R16_SINT;
+		break;
+	case format::r16_uint:
+		vk_format = VK_FORMAT_R16_UINT;
+		break;
+	case format::r16_typeless:
+	case format::r16_float:
+		vk_format = VK_FORMAT_R16_SFLOAT;
+		break;
+	case format::r16_unorm:
+		vk_format = VK_FORMAT_R16_UNORM;
+		break;
+	case format::r16_snorm:
+		vk_format = VK_FORMAT_R16_SNORM;
+		break;
+	case format::r16g16_uint:
+		vk_format = VK_FORMAT_R16G16_UINT;
+		break;
+	case format::r16g16_sint:
+		vk_format = VK_FORMAT_R16G16_SINT;
+		break;
+	case format::r16g16_typeless:
+	case format::r16g16_float:
+		vk_format = VK_FORMAT_R16G16_SFLOAT;
+		break;
+	case format::r16g16_unorm:
+		vk_format = VK_FORMAT_R16G16_UNORM;
+		break;
+	case format::r16g16_snorm:
+		vk_format = VK_FORMAT_R16G16_SNORM;
+		break;
+	case format::r16g16b16a16_uint:
+		vk_format = VK_FORMAT_R16G16B16A16_UINT;
+		break;
+	case format::r16g16b16a16_sint:
+		vk_format = VK_FORMAT_R16G16B16A16_SINT;
+		break;
+	case format::r16g16b16a16_typeless:
+	case format::r16g16b16a16_float:
+		vk_format = VK_FORMAT_R16G16B16A16_SFLOAT;
+		break;
+	case format::r16g16b16a16_unorm:
+		vk_format = VK_FORMAT_R16G16B16A16_UNORM;
+		break;
+	case format::r16g16b16a16_snorm:
+		vk_format = VK_FORMAT_R16G16B16A16_SNORM;
+		break;
+	case format::r32_uint:
+		vk_format = VK_FORMAT_R32_UINT;
+		break;
+	case format::r32_sint:
+		vk_format = VK_FORMAT_R32_SINT;
+		break;
+	case format::r32_typeless:
+	case format::r32_float:
+		vk_format = VK_FORMAT_R32_SFLOAT;
+		break;
+	case format::r32g32_uint:
+		vk_format = VK_FORMAT_R32G32_UINT;
+		break;
+	case format::r32g32_sint:
+		vk_format = VK_FORMAT_R32G32_SINT;
+		break;
+	case format::r32g32_typeless:
+	case format::r32g32_float:
+		vk_format = VK_FORMAT_R32G32_SFLOAT;
+		break;
+	case format::r32g32b32_uint:
+		vk_format = VK_FORMAT_R32G32B32_UINT;
+		break;
+	case format::r32g32b32_sint:
+		vk_format = VK_FORMAT_R32G32B32_SINT;
+		break;
+	case format::r32g32b32_typeless:
+	case format::r32g32b32_float:
+		vk_format = VK_FORMAT_R32G32B32_SFLOAT;
+		break;
+	case format::r32g32b32a32_uint:
+		vk_format = VK_FORMAT_R32G32B32A32_UINT;
+		break;
+	case format::r32g32b32a32_sint:
+		vk_format = VK_FORMAT_R32G32B32A32_SINT;
+		break;
+	case format::r32g32b32a32_typeless:
+	case format::r32g32b32a32_float:
+		vk_format = VK_FORMAT_R32G32B32A32_SFLOAT;
+		break;
+	case format::r9g9b9e5:
+		vk_format = VK_FORMAT_E5B9G9R9_UFLOAT_PACK32;
+		break;
+	case format::r11g11b10_float:
+		vk_format = VK_FORMAT_B10G11R11_UFLOAT_PACK32;
+		break;
+	case format::b5g6r5_unorm:
+		vk_format = VK_FORMAT_R5G6B5_UNORM_PACK16;
+		break;
+	case format::b5g5r5a1_unorm:
+		vk_format = VK_FORMAT_A1R5G5B5_UNORM_PACK16;
+		break;
+#if 0
+	case format::b4g4r4a4_unorm:
+		vk_format = VK_FORMAT_A4R4G4B4_UNORM_PACK16_EXT;
+		break;
+#endif
+	case format::s8_uint:
+		vk_format = VK_FORMAT_S8_UINT;
+		break;
+	case format::d16_unorm:
+		vk_format = VK_FORMAT_D16_UNORM;
+		break;
+	case format::d16_unorm_s8_uint:
+		vk_format = VK_FORMAT_D16_UNORM_S8_UINT;
+		break;
+	case format::r24_g8_typeless:
+	case format::r24_unorm_x8_uint:
+	case format::x24_unorm_g8_uint:
+	case format::d24_unorm_s8_uint:
+		vk_format = VK_FORMAT_D24_UNORM_S8_UINT;
+		break;
+	case format::d32_float:
+		vk_format = VK_FORMAT_D32_SFLOAT;
+		break;
+	case format::r32_g8_typeless:
+	case format::r32_float_x8_uint:
+	case format::x32_float_g8_uint:
+	case format::d32_float_s8_uint:
+		vk_format = VK_FORMAT_D32_SFLOAT_S8_UINT;
+		break;
+	case format::bc1_typeless:
+	case format::bc1_unorm:
+		vk_format = VK_FORMAT_BC1_RGBA_UNORM_BLOCK;
+		break;
+	case format::bc1_unorm_srgb:
+		vk_format = VK_FORMAT_BC1_RGBA_SRGB_BLOCK;
+		break;
+	case format::bc2_typeless:
+	case format::bc2_unorm:
+		vk_format = VK_FORMAT_BC2_UNORM_BLOCK;
+		break;
+	case format::bc2_unorm_srgb:
+		vk_format = VK_FORMAT_BC2_SRGB_BLOCK;
+		break;
+	case format::bc3_typeless:
+	case format::bc3_unorm:
+		vk_format = VK_FORMAT_BC3_UNORM_BLOCK;
+		break;
+	case format::bc3_unorm_srgb:
+		vk_format = VK_FORMAT_BC3_SRGB_BLOCK;
+		break;
+	case format::bc4_typeless:
+	case format::bc4_unorm:
+		vk_format = VK_FORMAT_BC4_UNORM_BLOCK;
+		break;
+	case format::bc4_snorm:
+		vk_format = VK_FORMAT_BC4_SNORM_BLOCK;
+		break;
+	case format::bc5_typeless:
+	case format::bc5_unorm:
+		vk_format = VK_FORMAT_BC5_UNORM_BLOCK;
+		break;
+	case format::bc5_snorm:
+		vk_format = VK_FORMAT_BC5_SNORM_BLOCK;
+		break;
+	case format::bc6h_typeless:
+	case format::bc6h_ufloat:
+		vk_format = VK_FORMAT_BC6H_UFLOAT_BLOCK;
+		break;
+	case format::bc6h_sfloat:
+		vk_format = VK_FORMAT_BC6H_SFLOAT_BLOCK;
+		break;
+	case format::bc7_typeless:
+	case format::bc7_unorm:
+		vk_format = VK_FORMAT_BC7_UNORM_BLOCK;
+		break;
+	case format::bc7_unorm_srgb:
+		vk_format = VK_FORMAT_BC7_SRGB_BLOCK;
+		break;
+	case format::r8g8_b8g8_unorm:
+		vk_format = VK_FORMAT_B8G8R8G8_422_UNORM;
+		break;
+	case format::g8r8_g8b8_unorm:
+		vk_format = VK_FORMAT_G8B8G8R8_422_UNORM;
+		break;
+	}
+}
+void reshade::vulkan::convert_vk_format_to_format(VkFormat vk_format, format &format)
+{
+	switch (vk_format)
+	{
+	default:
+	case VK_FORMAT_UNDEFINED:
+		format = format::unknown;
+		break;
+#if 0
+	case VK_FORMAT_A4R4G4B4_UNORM_PACK16_EXT:
+		format = format::b4g4r4a4_unorm;
+		break;
+#endif
+	case VK_FORMAT_R5G6B5_UNORM_PACK16:
+		format = format::b5g6r5_unorm;
+		break;
+	case VK_FORMAT_A1R5G5B5_UNORM_PACK16:
+		format = format::b5g5r5a1_unorm;
+		break;
+	case VK_FORMAT_R8_UNORM:
+		format = format::r8_unorm;
+		break;
+	case VK_FORMAT_R8_SNORM:
+		format = format::r8_snorm;
+		break;
+	case VK_FORMAT_R8_UINT:
+		format = format::r8_uint;
+		break;
+	case VK_FORMAT_R8_SINT:
+		format = format::r8_sint;
+		break;
+	case VK_FORMAT_R8G8_UNORM:
+		format = format::r8g8_unorm;
+		break;
+	case VK_FORMAT_R8G8_SNORM:
+		format = format::r8g8_snorm;
+		break;
+	case VK_FORMAT_R8G8_UINT:
+		format = format::r8g8_uint;
+		break;
+	case VK_FORMAT_R8G8_SINT:
+		format = format::r8g8_sint;
+		break;
+	case VK_FORMAT_R8G8B8A8_UNORM:
+		format = format::r8g8b8a8_unorm;
+		break;
+	case VK_FORMAT_R8G8B8A8_SNORM:
+		format = format::r8g8b8a8_snorm;
+		break;
+	case VK_FORMAT_R8G8B8A8_UINT:
+		format = format::r8g8b8a8_uint;
+		break;
+	case VK_FORMAT_R8G8B8A8_SINT:
+		format = format::r8g8b8a8_sint;
+		break;
+	case VK_FORMAT_R8G8B8A8_SRGB:
+		format = format::r8g8b8a8_unorm_srgb;
+		break;
+	case VK_FORMAT_B8G8R8A8_UNORM:
+		format = format::b8g8r8a8_unorm;
+		break;
+	case VK_FORMAT_B8G8R8A8_SRGB:
+		format = format::b8g8r8a8_unorm_srgb;
+		break;
+	case VK_FORMAT_A2B10G10R10_UNORM_PACK32:
+		format = format::r10g10b10a2_unorm;
+		break;
+	case VK_FORMAT_A2B10G10R10_UINT_PACK32:
+		format = format::r10g10b10a2_uint;
+		break;
+	case VK_FORMAT_R16_UNORM:
+		format = format::r16_unorm;
+		break;
+	case VK_FORMAT_R16_SNORM:
+		format = format::r16_snorm;
+		break;
+	case VK_FORMAT_R16_UINT:
+		format = format::r16_uint;
+		break;
+	case VK_FORMAT_R16_SINT:
+		format = format::r16_sint;
+		break;
+	case VK_FORMAT_R16_SFLOAT:
+		format = format::r16_float;
+		break;
+	case VK_FORMAT_R16G16_UNORM:
+		format = format::r16g16_unorm;
+		break;
+	case VK_FORMAT_R16G16_SNORM:
+		format = format::r16g16_snorm;
+		break;
+	case VK_FORMAT_R16G16_UINT:
+		format = format::r16g16_uint;
+		break;
+	case VK_FORMAT_R16G16_SINT:
+		format = format::r16g16_sint;
+		break;
+	case VK_FORMAT_R16G16_SFLOAT:
+		format = format::r16g16_float;
+		break;
+	case VK_FORMAT_R16G16B16A16_UNORM:
+		format = format::r16g16b16a16_unorm;
+		break;
+	case VK_FORMAT_R16G16B16A16_SNORM:
+		format = format::r16g16b16a16_snorm;
+		break;
+	case VK_FORMAT_R16G16B16A16_UINT:
+		format = format::r16g16b16a16_uint;
+		break;
+	case VK_FORMAT_R16G16B16A16_SINT:
+		format = format::r16g16b16a16_sint;
+		break;
+	case VK_FORMAT_R16G16B16A16_SFLOAT:
+		format = format::r16g16b16a16_float;
+		break;
+	case VK_FORMAT_R32_UINT:
+		format = format::r32_uint;
+		break;
+	case VK_FORMAT_R32_SINT:
+		format = format::r32_sint;
+		break;
+	case VK_FORMAT_R32_SFLOAT:
+		format = format::r32_float;
+		break;
+	case VK_FORMAT_R32G32_UINT:
+		format = format::r32g32_uint;
+		break;
+	case VK_FORMAT_R32G32_SINT:
+		format = format::r32g32_sint;
+		break;
+	case VK_FORMAT_R32G32_SFLOAT:
+		format = format::r32g32_float;
+		break;
+	case VK_FORMAT_R32G32B32_UINT:
+		format = format::r32g32b32_uint;
+		break;
+	case VK_FORMAT_R32G32B32_SINT:
+		format = format::r32g32b32_sint;
+		break;
+	case VK_FORMAT_R32G32B32_SFLOAT:
+		format = format::r32g32b32_float;
+		break;
+	case VK_FORMAT_R32G32B32A32_UINT:
+		format = format::r32g32b32a32_uint;
+		break;
+	case VK_FORMAT_R32G32B32A32_SINT:
+		format = format::r32g32b32a32_sint;
+		break;
+	case VK_FORMAT_R32G32B32A32_SFLOAT:
+		format = format::r32g32b32a32_float;
+		break;
+	case VK_FORMAT_B10G11R11_UFLOAT_PACK32:
+		format = format::r11g11b10_float;
+		break;
+	case VK_FORMAT_E5B9G9R9_UFLOAT_PACK32:
+		format = format::r9g9b9e5;
+		break;
+	case VK_FORMAT_D16_UNORM:
+		format = format::d16_unorm;
+		break;
+	case VK_FORMAT_D32_SFLOAT:
+		format = format::d32_float;
+		break;
+	case VK_FORMAT_S8_UINT:
+		format = format::s8_uint;
+		break;
+	case VK_FORMAT_D24_UNORM_S8_UINT:
+		format = format::d24_unorm_s8_uint;
+		break;
+	case VK_FORMAT_D32_SFLOAT_S8_UINT:
+		format = format::d32_float_s8_uint;
+		break;
+	case VK_FORMAT_BC1_RGBA_UNORM_BLOCK:
+		format = format::bc1_unorm;
+		break;
+	case VK_FORMAT_BC1_RGBA_SRGB_BLOCK:
+		format = format::bc1_unorm_srgb;
+		break;
+	case VK_FORMAT_BC2_UNORM_BLOCK:
+		format = format::bc2_unorm;
+		break;
+	case VK_FORMAT_BC2_SRGB_BLOCK:
+		format = format::bc2_unorm_srgb;
+		break;
+	case VK_FORMAT_BC3_UNORM_BLOCK:
+		format = format::bc3_unorm;
+		break;
+	case VK_FORMAT_BC3_SRGB_BLOCK:
+		format = format::bc3_unorm_srgb;
+		break;
+	case VK_FORMAT_BC4_UNORM_BLOCK:
+		format = format::bc4_unorm;
+		break;
+	case VK_FORMAT_BC4_SNORM_BLOCK:
+		format = format::bc4_snorm;
+		break;
+	case VK_FORMAT_BC5_UNORM_BLOCK:
+		format = format::bc5_unorm;
+		break;
+	case VK_FORMAT_BC5_SNORM_BLOCK:
+		format = format::bc5_snorm;
+		break;
+	case VK_FORMAT_BC6H_UFLOAT_BLOCK:
+		format = format::bc6h_ufloat;
+		break;
+	case VK_FORMAT_BC6H_SFLOAT_BLOCK:
+		format = format::bc6h_sfloat;
+		break;
+	case VK_FORMAT_BC7_UNORM_BLOCK:
+		format = format::bc7_unorm;
+		break;
+	case VK_FORMAT_BC7_SRGB_BLOCK:
+		format = format::bc7_unorm_srgb;
+		break;
+	case VK_FORMAT_G8B8G8R8_422_UNORM:
+		format = format::g8r8_g8b8_unorm;
+		break;
+	case VK_FORMAT_B8G8R8G8_422_UNORM:
+		format = format::r8g8_b8g8_unorm;
+		break;
+	}
+}
+
 auto reshade::vulkan::convert_usage_to_access(resource_usage state) -> VkAccessFlags
 {
 	VkAccessFlags result = 0;
@@ -565,7 +1047,7 @@ void reshade::vulkan::convert_resource_desc(const resource_desc &desc, VkImageCr
 		break;
 	}
 
-	create_info.format = static_cast<VkFormat>(desc.format);
+	convert_format_to_vk_format(desc.format, create_info.format);
 	create_info.mipLevels = desc.levels;
 	create_info.samples = static_cast<VkSampleCountFlagBits>(desc.samples);
 	convert_usage_to_image_usage_flags(desc.usage, create_info.usage);
@@ -613,7 +1095,7 @@ resource_desc reshade::vulkan::convert_resource_desc(const VkImageCreateInfo &cr
 
 	assert(create_info.mipLevels <= std::numeric_limits<uint16_t>::max());
 	desc.levels = static_cast<uint16_t>(create_info.mipLevels);
-	desc.format = static_cast<uint32_t>(create_info.format);
+	convert_vk_format_to_format(create_info.format, desc.format);
 	desc.samples = static_cast<uint16_t>(create_info.samples);
 
 	convert_image_usage_flags_to_usage(create_info.usage, desc.usage);
@@ -662,7 +1144,7 @@ void reshade::vulkan::convert_resource_view_desc(const resource_view_desc &desc,
 		break;
 	}
 
-	create_info.format = static_cast<VkFormat>(desc.format);
+	convert_format_to_vk_format(desc.format, create_info.format);
 	create_info.subresourceRange.baseMipLevel = desc.first_level;
 	create_info.subresourceRange.levelCount = desc.levels;
 	create_info.subresourceRange.baseArrayLayer = desc.first_layer;
@@ -672,7 +1154,7 @@ void reshade::vulkan::convert_resource_view_desc(const resource_view_desc &desc,
 {
 	assert(desc.type == resource_view_type::buffer);
 
-	create_info.format = static_cast<VkFormat>(desc.format);
+	convert_format_to_vk_format(desc.format, create_info.format);
 	create_info.offset = desc.offset;
 	create_info.range = desc.size;
 }
@@ -708,7 +1190,7 @@ resource_view_desc reshade::vulkan::convert_resource_view_desc(const VkImageView
 		break;
 	}
 
-	desc.format = static_cast<uint32_t>(create_info.format);
+	convert_vk_format_to_format(create_info.format, desc.format);
 	desc.first_level = create_info.subresourceRange.baseMipLevel;
 	desc.levels = create_info.subresourceRange.levelCount;
 	desc.first_layer = create_info.subresourceRange.baseArrayLayer;
@@ -720,9 +1202,8 @@ resource_view_desc reshade::vulkan::convert_resource_view_desc(const VkBufferVie
 {
 	resource_view_desc desc = {};
 	desc.type = resource_view_type::buffer;
-	desc.format = static_cast<uint32_t>(create_info.format);
+	convert_vk_format_to_format(create_info.format, desc.format);
 	desc.offset = create_info.offset;
 	desc.size = create_info.sType;
-
 	return desc;
 }

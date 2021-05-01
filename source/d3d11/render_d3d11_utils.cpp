@@ -385,7 +385,7 @@ resource_desc reshade::d3d11::convert_resource_desc(const D3D11_TEXTURE1D_DESC &
 	desc.depth_or_layers = static_cast<uint16_t>(internal_desc.ArraySize);
 	assert(internal_desc.MipLevels <= std::numeric_limits<uint16_t>::max());
 	desc.levels = static_cast<uint16_t>(internal_desc.MipLevels);
-	desc.format = static_cast<uint32_t>(internal_desc.Format);
+	desc.format = static_cast<format>(internal_desc.Format);
 	desc.samples = 1;
 	convert_d3d_usage_to_memory_heap(internal_desc.Usage, desc.heap);
 	convert_bind_flags_to_resource_usage(internal_desc.BindFlags, desc.usage);
@@ -401,7 +401,7 @@ resource_desc reshade::d3d11::convert_resource_desc(const D3D11_TEXTURE2D_DESC &
 	desc.depth_or_layers = static_cast<uint16_t>(internal_desc.ArraySize);
 	assert(internal_desc.MipLevels <= std::numeric_limits<uint16_t>::max());
 	desc.levels = static_cast<uint16_t>(internal_desc.MipLevels);
-	desc.format = static_cast<uint32_t>(internal_desc.Format);
+	desc.format = static_cast<format>(internal_desc.Format);
 	desc.samples = static_cast<uint16_t>(internal_desc.SampleDesc.Count);
 	convert_d3d_usage_to_memory_heap(internal_desc.Usage, desc.heap);
 	convert_bind_flags_to_resource_usage(internal_desc.BindFlags, desc.usage);
@@ -418,7 +418,7 @@ resource_desc reshade::d3d11::convert_resource_desc(const D3D11_TEXTURE3D_DESC &
 	desc.depth_or_layers = static_cast<uint16_t>(internal_desc.Depth);
 	assert(internal_desc.MipLevels <= std::numeric_limits<uint16_t>::max());
 	desc.levels = static_cast<uint16_t>(internal_desc.MipLevels);
-	desc.format = static_cast<uint32_t>(internal_desc.Format);
+	desc.format = static_cast<format>(internal_desc.Format);
 	desc.samples = 1;
 	convert_d3d_usage_to_memory_heap(internal_desc.Usage, desc.heap);
 	convert_bind_flags_to_resource_usage(internal_desc.BindFlags, desc.usage);
@@ -697,7 +697,7 @@ resource_view_desc reshade::d3d11::convert_resource_view_desc(const D3D11_DEPTH_
 {
 	// Missing fields: D3D11_DEPTH_STENCIL_VIEW_DESC::Flags
 	resource_view_desc desc = {};
-	desc.format = static_cast<uint32_t>(internal_desc.Format);
+	desc.format = static_cast<format>(internal_desc.Format);
 	desc.levels = 1;
 	switch (internal_desc.ViewDimension)
 	{
@@ -735,7 +735,7 @@ resource_view_desc reshade::d3d11::convert_resource_view_desc(const D3D11_DEPTH_
 resource_view_desc reshade::d3d11::convert_resource_view_desc(const D3D11_RENDER_TARGET_VIEW_DESC &internal_desc)
 {
 	resource_view_desc desc = {};
-	desc.format = static_cast<uint32_t>(internal_desc.Format);
+	desc.format = static_cast<format>(internal_desc.Format);
 	desc.levels = 1;
 	switch (internal_desc.ViewDimension)
 	{
@@ -781,7 +781,7 @@ resource_view_desc reshade::d3d11::convert_resource_view_desc(const D3D11_RENDER
 	if (internal_desc.ViewDimension == D3D11_RTV_DIMENSION_TEXTURE2D || internal_desc.ViewDimension == D3D11_RTV_DIMENSION_TEXTURE2DARRAY)
 	{
 		resource_view_desc desc = {};
-		desc.format = static_cast<uint32_t>(internal_desc.Format);
+		desc.format = static_cast<format>(internal_desc.Format);
 		desc.levels = 1;
 		switch (internal_desc.ViewDimension)
 		{
@@ -808,7 +808,7 @@ resource_view_desc reshade::d3d11::convert_resource_view_desc(const D3D11_RENDER
 resource_view_desc reshade::d3d11::convert_resource_view_desc(const D3D11_SHADER_RESOURCE_VIEW_DESC &internal_desc)
 {
 	resource_view_desc desc = {};
-	desc.format = static_cast<uint32_t>(internal_desc.Format);
+	desc.format = static_cast<format>(internal_desc.Format);
 	switch (internal_desc.ViewDimension)
 	{
 	case D3D11_SRV_DIMENSION_BUFFER:
@@ -882,7 +882,7 @@ resource_view_desc reshade::d3d11::convert_resource_view_desc(const D3D11_SHADER
 	if (internal_desc.ViewDimension == D3D11_SRV_DIMENSION_TEXTURE2D || internal_desc.ViewDimension == D3D11_SRV_DIMENSION_TEXTURE2DARRAY)
 	{
 		resource_view_desc desc = {};
-		desc.format = static_cast<uint32_t>(internal_desc.Format);
+		desc.format = static_cast<format>(internal_desc.Format);
 		switch (internal_desc.ViewDimension)
 		{
 		case D3D11_SRV_DIMENSION_TEXTURE2D:
@@ -910,7 +910,7 @@ resource_view_desc reshade::d3d11::convert_resource_view_desc(const D3D11_SHADER
 resource_view_desc reshade::d3d11::convert_resource_view_desc(const D3D11_UNORDERED_ACCESS_VIEW_DESC &internal_desc)
 {
 	resource_view_desc desc = {};
-	desc.format = static_cast<uint32_t>(internal_desc.Format);
+	desc.format = static_cast<format>(internal_desc.Format);
 	desc.levels = 1;
 	switch (internal_desc.ViewDimension)
 	{
@@ -954,7 +954,7 @@ resource_view_desc reshade::d3d11::convert_resource_view_desc(const D3D11_UNORDE
 	if (internal_desc.ViewDimension == D3D11_UAV_DIMENSION_TEXTURE2D || internal_desc.ViewDimension == D3D11_UAV_DIMENSION_TEXTURE2DARRAY)
 	{
 		resource_view_desc desc = {};
-		desc.format = static_cast<uint32_t>(internal_desc.Format);
+		desc.format = static_cast<format>(internal_desc.Format);
 		desc.levels = 1;
 		switch (internal_desc.ViewDimension)
 		{

@@ -11,6 +11,9 @@ namespace reshade::opengl
 
 	GLenum get_binding_for_target(GLenum target);
 
+	void convert_format_to_internal_format(api::format format, GLenum &internalformat);
+	void convert_internal_format_to_format(GLenum internalformat, api::format &format);
+
 	api::memory_heap convert_memory_heap_from_usage(GLenum usage);
 	api::memory_heap convert_memory_heap_from_flags(GLbitfield flags);
 	void convert_memory_heap_to_usage(api::memory_heap heap, GLenum &usage);

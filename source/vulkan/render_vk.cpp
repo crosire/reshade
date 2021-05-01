@@ -78,13 +78,16 @@ reshade::vulkan::device_impl::~device_impl()
 	vmaDestroyAllocator(_alloc);
 }
 
-bool reshade::vulkan::device_impl::check_format_support(uint32_t format, api::resource_usage usage) const
+bool reshade::vulkan::device_impl::check_format_support(api::format format, api::resource_usage usage) const
 {
+	VkFormat image_format = VK_FORMAT_UNDEFINED;
+	convert_format_to_vk_format(format, image_format);
+
 	VkImageUsageFlags image_flags = 0;
 	convert_usage_to_image_usage_flags(usage, image_flags);
 
 	VkImageFormatProperties props;
-	return _instance_dispatch_table.GetPhysicalDeviceImageFormatProperties(_physical_device, static_cast<VkFormat>(format), VK_IMAGE_TYPE_2D, VK_IMAGE_TILING_OPTIMAL, image_flags, 0, &props) == VK_SUCCESS;
+	return _instance_dispatch_table.GetPhysicalDeviceImageFormatProperties(_physical_device, image_format, VK_IMAGE_TYPE_2D, VK_IMAGE_TILING_OPTIMAL, image_flags, 0, &props) == VK_SUCCESS;
 }
 
 bool reshade::vulkan::device_impl::check_resource_handle_valid(api::resource_handle resource) const

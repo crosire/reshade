@@ -9,6 +9,9 @@ namespace reshade::vulkan
 
 	void fill_pipeline_state_values(const VkGraphicsPipelineCreateInfo &create_info, uint32_t (&values)[35]);
 
+	void convert_format_to_vk_format(api::format format, VkFormat &vk_format);
+	void convert_vk_format_to_format(VkFormat vk_format, api::format &format);
+
 	auto convert_usage_to_access(api::resource_usage state) -> VkAccessFlags;
 	auto convert_usage_to_image_layout(api::resource_usage state) -> VkImageLayout;
 	auto convert_usage_to_pipeline_stage(api::resource_usage state) -> VkPipelineStageFlags;

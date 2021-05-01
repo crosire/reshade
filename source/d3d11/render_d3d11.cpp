@@ -25,7 +25,7 @@ reshade::d3d11::device_impl::~device_impl()
 #endif
 }
 
-bool reshade::d3d11::device_impl::check_format_support(uint32_t format, api::resource_usage usage) const
+bool reshade::d3d11::device_impl::check_format_support(api::format format, api::resource_usage usage) const
 {
 	UINT support = 0;
 	if (FAILED(_orig->CheckFormatSupport(static_cast<DXGI_FORMAT>(format), &support)))

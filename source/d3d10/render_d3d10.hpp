@@ -20,7 +20,7 @@ namespace reshade::d3d10
 
 		api::render_api get_api() const final { return api::render_api::d3d10; }
 
-		bool check_format_support(uint32_t format, api::resource_usage usage) const final;
+		bool check_format_support(api::format format, api::resource_usage usage) const final;
 
 		bool check_resource_handle_valid(api::resource_handle resource) const final;
 		bool check_resource_view_handle_valid(api::resource_view_handle view) const final;

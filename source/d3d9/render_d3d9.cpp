@@ -159,7 +159,7 @@ bool reshade::d3d9::device_impl::create_surface_replacement(const D3DSURFACE_DES
 	return false;
 }
 
-bool reshade::d3d9::device_impl::check_format_support(uint32_t format, api::resource_usage usage) const
+bool reshade::d3d9::device_impl::check_format_support(api::format format, api::resource_usage usage) const
 {
 	if ((usage & api::resource_usage::unordered_access) != 0)
 		return false;
@@ -167,7 +167,10 @@ bool reshade::d3d9::device_impl::check_format_support(uint32_t format, api::reso
 	DWORD d3d_usage = 0;
 	convert_resource_usage_to_d3d_usage(usage, d3d_usage);
 
-	return SUCCEEDED(_d3d->CheckDeviceFormat(_cp.AdapterOrdinal, _cp.DeviceType, D3DFMT_X8R8G8B8, d3d_usage, D3DRTYPE_TEXTURE, static_cast<D3DFORMAT>(format)));
+	D3DFORMAT d3d_format = D3DFMT_UNKNOWN;
+	convert_format_to_d3d_format(format, d3d_format);
+
+	return SUCCEEDED(_d3d->CheckDeviceFormat(_cp.AdapterOrdinal, _cp.DeviceType, D3DFMT_X8R8G8B8, d3d_usage, D3DRTYPE_TEXTURE, d3d_format));
 }
 
 bool reshade::d3d9::device_impl::check_resource_handle_valid(api::resource_handle resource) const
@@ -298,7 +301,9 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource_handle resou
 
 				D3DSURFACE_DESC internal_desc;
 				static_cast<IDirect3DSurface9 *>(object)->GetDesc(&internal_desc);
-				if (internal_desc.Format != static_cast<D3DFORMAT>(desc.format))
+				if (D3DFORMAT view_format = D3DFMT_UNKNOWN;
+					convert_format_to_d3d_format(desc.format, view_format),
+					internal_desc.Format != view_format)
 					break;
 
 				object->AddRef();
@@ -321,7 +326,9 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource_handle resou
 
 				D3DSURFACE_DESC internal_desc;
 				static_cast<IDirect3DTexture9 *>(object)->GetLevelDesc(desc.first_level, &internal_desc);
-				if (internal_desc.Format != static_cast<D3DFORMAT>(desc.format))
+				if (D3DFORMAT view_format = D3DFMT_UNKNOWN;
+					convert_format_to_d3d_format(desc.format, view_format),
+					internal_desc.Format != view_format)
 					break;
 
 				if (IDirect3DSurface9 *surface = nullptr;
@@ -335,7 +342,9 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource_handle resou
 			{
 				D3DSURFACE_DESC internal_desc;
 				static_cast<IDirect3DTexture9 *>(object)->GetLevelDesc(0, &internal_desc);
-				if (internal_desc.Format != static_cast<D3DFORMAT>(desc.format))
+				if (D3DFORMAT view_format = D3DFMT_UNKNOWN;
+					convert_format_to_d3d_format(desc.format, view_format),
+					internal_desc.Format != view_format)
 					break;
 
 				object->AddRef();
@@ -357,7 +366,9 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource_handle resou
 
 				D3DSURFACE_DESC internal_desc;
 				static_cast<IDirect3DCubeTexture9 *>(object)->GetLevelDesc(desc.first_level, &internal_desc);
-				if (internal_desc.Format != static_cast<D3DFORMAT>(desc.format))
+				if (D3DFORMAT view_format = D3DFMT_UNKNOWN;
+					convert_format_to_d3d_format(desc.format, view_format),
+					internal_desc.Format != view_format)
 					break;
 
 				if (IDirect3DSurface9 *surface = nullptr;
@@ -373,7 +384,9 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource_handle resou
 
 				D3DSURFACE_DESC internal_desc;
 				static_cast<IDirect3DCubeTexture9 *>(object)->GetLevelDesc(0, &internal_desc);
-				if (internal_desc.Format != static_cast<D3DFORMAT>(desc.format))
+				if (D3DFORMAT view_format = D3DFMT_UNKNOWN;
+					convert_format_to_d3d_format(desc.format, view_format),
+					internal_desc.Format != view_format)
 					break;
 
 				object->AddRef();

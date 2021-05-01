@@ -8,6 +8,316 @@
 
 using namespace reshade::api;
 
+void reshade::d3d9::convert_format_to_d3d_format(format format, D3DFORMAT &d3d_format, bool lockable)
+{
+	switch (format)
+	{
+	default:
+	case format::unknown:
+		break;
+	case format::r1_unorm:
+		d3d_format = D3DFMT_A1;
+		break;
+	case format::a8_unorm:
+		d3d_format = D3DFMT_A8;
+		break;
+	case format::r8_typeless:
+	case format::r8_uint:
+	case format::r8_sint:
+	case format::r8_unorm:
+	case format::r8_snorm:
+		// Use 4-component format so that blue component is returned as zero and alpha as one (to match behavior from other APIs)
+		d3d_format = D3DFMT_X8R8G8B8;
+		break;
+	case format::r8g8_typeless:
+	case format::r8g8_unorm:
+	case format::r8g8_uint:
+	case format::r8g8_snorm:
+	case format::r8g8_sint:
+		// Use 4-component format so that green/blue components are returned as zero and alpha as one (to match behavior from other APIs)
+		d3d_format = D3DFMT_X8R8G8B8;
+		break;
+	case format::r8g8b8a8_typeless:
+	case format::r8g8b8a8_uint:
+	case format::r8g8b8a8_sint:
+	case format::r8g8b8a8_unorm:
+	case format::r8g8b8a8_unorm_srgb:
+	case format::r8g8b8a8_snorm:
+		d3d_format = D3DFMT_A8B8G8R8;
+		break;
+	case format::b8g8r8a8_typeless:
+	case format::b8g8r8a8_unorm:
+	case format::b8g8r8a8_unorm_srgb:
+		d3d_format = D3DFMT_A8R8G8B8;
+		break;
+	case format::b8g8r8x8_typeless:
+	case format::b8g8r8x8_unorm:
+	case format::b8g8r8x8_unorm_srgb:
+		d3d_format = D3DFMT_X8R8G8B8;
+		break;
+	case format::r10g10b10a2_typeless:
+	case format::r10g10b10a2_uint:
+	case format::r10g10b10a2_unorm:
+		d3d_format = D3DFMT_A2B10G10R10;
+		break;
+	case format::r10g10b10a2_xr_bias:
+		d3d_format = D3DFMT_A2B10G10R10_XR_BIAS;
+		break;
+	case format::r16_uint:
+	case format::r16_sint:
+	case format::r16_unorm:
+	case format::r16_snorm:
+		d3d_format = D3DFMT_L16;
+		break;
+	case format::r16_typeless:
+	case format::r16_float:
+		d3d_format = D3DFMT_R16F;
+		break;
+	case format::r16g16_uint:
+	case format::r16g16_sint:
+	case format::r16g16_unorm:
+	case format::r16g16_snorm:
+		d3d_format = D3DFMT_G16R16;
+		break;
+	case format::r16g16_typeless:
+	case format::r16g16_float:
+		d3d_format = D3DFMT_G16R16F;
+		break;
+	case format::r16g16b16a16_uint:
+	case format::r16g16b16a16_sint:
+	case format::r16g16b16a16_unorm:
+	case format::r16g16b16a16_snorm:
+		d3d_format = D3DFMT_A16B16G16R16;
+		break;
+	case format::r16g16b16a16_typeless:
+	case format::r16g16b16a16_float:
+		d3d_format = D3DFMT_A16B16G16R16F;
+		break;
+	case format::r32_uint:
+	case format::r32_sint:
+		// Unsupported
+		break;
+	case format::r32_typeless:
+	case format::r32_float:
+		d3d_format = D3DFMT_R32F;
+		break;
+	case format::r32g32_uint:
+	case format::r32g32_sint:
+		// Unsupported
+		break;
+	case format::r32g32_typeless:
+	case format::r32g32_float:
+		d3d_format = D3DFMT_G32R32F;
+		break;
+	case format::r32g32b32a32_uint:
+	case format::r32g32b32a32_sint:
+		// Unsupported
+		break;
+	case format::r32g32b32a32_typeless:
+	case format::r32g32b32a32_float:
+		d3d_format = D3DFMT_A32B32G32R32F;
+		break;
+	case format::r9g9b9e5:
+	case format::r11g11b10_float:
+		// Unsupported
+		break;
+	case format::b5g6r5_unorm:
+		d3d_format = D3DFMT_R5G6B5;
+		break;
+	case format::b5g5r5a1_unorm:
+		d3d_format = D3DFMT_A1R5G5B5;
+		break;
+	case format::b4g4r4a4_unorm:
+		d3d_format = D3DFMT_A4R4G4B4;
+		break;
+	case format::s8_uint:
+		d3d_format = D3DFMT_S8_LOCKABLE;
+		break;
+	case format::d16_unorm:
+		d3d_format = lockable ? D3DFMT_D16_LOCKABLE : D3DFMT_D16;
+		break;
+	case format::d16_unorm_s8_uint:
+		// Unsupported
+		break;
+	case format::r24_g8_typeless:
+	case format::r24_unorm_x8_uint:
+	case format::x24_unorm_g8_uint:
+	case format::d24_unorm_s8_uint:
+		d3d_format = D3DFMT_D24S8;
+		break;
+	case format::d32_float:
+		d3d_format = lockable ? D3DFMT_D32F_LOCKABLE : D3DFMT_D32;
+		break;
+	case format::r32_g8_typeless:
+	case format::r32_float_x8_uint:
+	case format::x32_float_g8_uint:
+	case format::d32_float_s8_uint:
+		// Unsupported
+		break;
+	case format::bc1_typeless:
+	case format::bc1_unorm:
+	case format::bc1_unorm_srgb:
+		d3d_format = D3DFMT_DXT1;
+		break;
+	case format::bc2_typeless:
+	case format::bc2_unorm:
+	case format::bc2_unorm_srgb:
+		d3d_format = D3DFMT_DXT3;
+		break;
+	case format::bc3_typeless:
+	case format::bc3_unorm:
+	case format::bc3_unorm_srgb:
+		d3d_format = D3DFMT_DXT5;
+		break;
+	case format::bc4_typeless:
+	case format::bc4_unorm:
+	case format::bc4_snorm:
+		d3d_format = static_cast<D3DFORMAT>(MAKEFOURCC('A', 'T', 'I', '1'));
+		break;
+	case format::bc5_typeless:
+	case format::bc5_unorm:
+	case format::bc5_snorm:
+		d3d_format = static_cast<D3DFORMAT>(MAKEFOURCC('A', 'T', 'I', '2'));
+		break;
+	case format::r8g8_b8g8_unorm:
+		d3d_format = D3DFMT_G8R8_G8B8;
+		break;
+	case format::g8r8_g8b8_unorm:
+		d3d_format = D3DFMT_R8G8_B8G8;
+		break;
+	case format::intz:
+		d3d_format = static_cast<D3DFORMAT>(MAKEFOURCC('I', 'N', 'T', 'Z'));
+		break;
+	}
+}
+void reshade::d3d9::convert_d3d_format_to_format(D3DFORMAT d3d_format, format &format)
+{
+	switch (static_cast<DWORD>(d3d_format))
+	{
+	default:
+	case D3DFMT_UNKNOWN:
+		format = format::unknown;
+		break;
+	case D3DFMT_A1:
+		format = format::r1_unorm;
+		break;
+	case D3DFMT_A8:
+		format = format::a8_unorm;
+		break;
+#if 0
+	case D3DFMT_P8:
+	case D3DFMT_L8:
+		format = format::r8_unorm;
+		break;
+	case D3DFMT_A8P8:
+	case D3DFMT_A8L8:
+		format = format::r8g8_unorm;
+		break;
+#endif
+	case D3DFMT_A8B8G8R8:
+#if 0
+	case D3DFMT_X8B8G8R8:
+#endif
+		format = format::r8g8b8a8_unorm;
+		break;
+	case D3DFMT_A8R8G8B8:
+		format = format::b8g8r8a8_unorm;
+		break;
+	case D3DFMT_X8R8G8B8:
+		format = format::b8g8r8x8_unorm;
+		break;
+	case D3DFMT_A2B10G10R10:
+	case D3DFMT_A2R10G10B10:
+		format = format::r10g10b10a2_unorm;
+		break;
+	case D3DFMT_A2B10G10R10_XR_BIAS:
+		format = format::r10g10b10a2_xr_bias;
+		break;
+	case D3DFMT_L16:
+		format = format::r16_uint;
+		break;
+	case D3DFMT_R16F:
+		format = format::r16_float;
+		break;
+	case D3DFMT_G16R16F:
+		format = format::r16g16_float;
+		break;
+	case D3DFMT_G16R16:
+		format = format::r16g16_unorm;
+		break;
+	case D3DFMT_A16B16G16R16F:
+		format = format::r16g16b16a16_float;
+		break;
+	case D3DFMT_A16B16G16R16:
+		format = format::r16g16b16a16_unorm;
+		break;
+	case D3DFMT_R32F:
+		format = format::r32_float;
+		break;
+	case D3DFMT_G32R32F:
+		format = format::r32g32_float;
+		break;
+	case D3DFMT_A32B32G32R32F:
+		format = format::r32g32b32a32_float;
+		break;
+	case D3DFMT_R5G6B5:
+		format = format::b5g6r5_unorm;
+		break;
+	case D3DFMT_X1R5G5B5:
+	case D3DFMT_A1R5G5B5:
+		format = format::b5g5r5a1_unorm;
+		break;
+	case D3DFMT_A4R4G4B4:
+		format = format::b4g4r4a4_unorm;
+		break;
+	case D3DFMT_S8_LOCKABLE:
+		format = format::s8_uint;
+		break;
+	case D3DFMT_D16:
+		format = format::d16_unorm;
+		break;
+	case D3DFMT_D24S8:
+		format = format::d24_unorm_s8_uint;
+		break;
+	case D3DFMT_D32:
+		format = format::d32_float;
+		break;
+
+	case D3DFMT_DXT1:
+		format = format::bc1_unorm;
+		break;
+	case D3DFMT_DXT2:
+	case D3DFMT_DXT3:
+		format = format::bc2_unorm;
+		break;
+	case D3DFMT_DXT4:
+	case D3DFMT_DXT5:
+		format = format::bc3_unorm;
+		break;
+	case MAKEFOURCC('A', 'T', 'I', '1'):
+		format = format::bc4_unorm;
+		break;
+	case MAKEFOURCC('A', 'T', 'I', '2'):
+		format = format::bc5_unorm;
+		break;
+	case D3DFMT_R8G8_B8G8:
+		format = format::g8r8_g8b8_unorm;
+		break;
+	case D3DFMT_G8R8_G8B8:
+		format = format::r8g8_b8g8_unorm;
+		break;
+	case D3DFMT_INDEX16:
+		format = format::r16_uint;
+		break;
+	case D3DFMT_INDEX32:
+		format = format::r32_uint;
+		break;
+	case MAKEFOURCC('I', 'N', 'T', 'Z'):
+		format = format::intz;
+		break;
+	}
+}
+
 void reshade::d3d9::convert_memory_heap_to_d3d_pool(memory_heap heap, D3DPOOL &d3d_pool)
 {
 	// Managed resources are special and already moved to device-accessible memory as needed, so do not change pool to an explicit one for those
@@ -76,7 +386,7 @@ void reshade::d3d9::convert_resource_desc(const resource_desc &desc, D3DVOLUME_D
 	internal_desc.Width = desc.width;
 	internal_desc.Height = desc.height;
 	internal_desc.Depth = desc.depth_or_layers;
-	internal_desc.Format = static_cast<D3DFORMAT>(desc.format);
+	convert_format_to_d3d_format(desc.format, internal_desc.Format);
 	assert(desc.samples == 1);
 
 	convert_memory_heap_to_d3d_pool(desc.heap, internal_desc.Pool);
@@ -95,6 +405,7 @@ void reshade::d3d9::convert_resource_desc(const resource_desc &desc, D3DSURFACE_
 	internal_desc.Height = desc.height;
 	assert(desc.depth_or_layers == 1 || desc.depth_or_layers == 6 /* D3DRTYPE_CUBETEXTURE */);
 	internal_desc.Format = static_cast<D3DFORMAT>(desc.format);
+	convert_format_to_d3d_format(desc.format, internal_desc.Format);
 
 	if (desc.samples > 1)
 		internal_desc.MultiSampleType = static_cast<D3DMULTISAMPLE_TYPE>(desc.samples);
@@ -143,7 +454,7 @@ resource_desc reshade::d3d9::convert_resource_desc(const D3DVOLUME_DESC &interna
 	desc.depth_or_layers = static_cast<uint16_t>(internal_desc.Depth);
 	assert(levels <= std::numeric_limits<uint16_t>::max());
 	desc.levels = static_cast<uint16_t>(levels);
-	desc.format = static_cast<uint32_t>(internal_desc.Format);
+	convert_d3d_format_to_format(internal_desc.Format, desc.format);
 	desc.samples = 1;
 
 	convert_d3d_pool_to_memory_heap(internal_desc.Pool, desc.heap);
@@ -164,7 +475,7 @@ resource_desc reshade::d3d9::convert_resource_desc(const D3DSURFACE_DESC &intern
 	desc.depth_or_layers = internal_desc.Type == D3DRTYPE_CUBETEXTURE ? 6 : 1;
 	assert(levels <= std::numeric_limits<uint16_t>::max());
 	desc.levels = static_cast<uint16_t>(levels);
-	desc.format = static_cast<uint32_t>(internal_desc.Format);
+	convert_d3d_format_to_format(internal_desc.Format, desc.format);
 
 	if (internal_desc.MultiSampleType >= D3DMULTISAMPLE_2_SAMPLES)
 		desc.samples = static_cast<uint16_t>(internal_desc.MultiSampleType);

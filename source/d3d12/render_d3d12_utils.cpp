@@ -277,7 +277,7 @@ resource_desc reshade::d3d12::convert_resource_desc(const D3D12_RESOURCE_DESC &i
 		desc.height = internal_desc.Height;
 		desc.levels = internal_desc.MipLevels;
 		desc.depth_or_layers = internal_desc.DepthOrArraySize;
-		desc.format = static_cast<uint32_t>(internal_desc.Format);
+		desc.format = static_cast<format>(internal_desc.Format);
 		desc.samples = static_cast<uint16_t>(internal_desc.SampleDesc.Count);
 
 		if (desc.type == resource_type::texture_2d)
@@ -513,7 +513,7 @@ resource_view_desc reshade::d3d12::convert_resource_view_desc(const D3D12_DEPTH_
 {
 	// Missing fields: D3D12_DEPTH_STENCIL_VIEW_DESC::Flags
 	resource_view_desc desc = {};
-	desc.format = static_cast<uint32_t>(internal_desc.Format);
+	desc.format = static_cast<format>(internal_desc.Format);
 	desc.levels = 1;
 	switch (internal_desc.ViewDimension)
 	{
@@ -551,7 +551,7 @@ resource_view_desc reshade::d3d12::convert_resource_view_desc(const D3D12_DEPTH_
 resource_view_desc reshade::d3d12::convert_resource_view_desc(const D3D12_RENDER_TARGET_VIEW_DESC &internal_desc)
 {
 	resource_view_desc desc = {};
-	desc.format = static_cast<uint32_t>(internal_desc.Format);
+	desc.format = static_cast<format>(internal_desc.Format);
 	desc.levels = 1;
 	switch (internal_desc.ViewDimension)
 	{
@@ -596,7 +596,7 @@ resource_view_desc reshade::d3d12::convert_resource_view_desc(const D3D12_SHADER
 {
 	// Missing fields: D3D12_SHADER_RESOURCE_VIEW_DESC::Shader4ComponentMapping
 	resource_view_desc desc = {};
-	desc.format = static_cast<uint32_t>(internal_desc.Format);
+	desc.format = static_cast<format>(internal_desc.Format);
 	switch (internal_desc.ViewDimension)
 	{
 	case D3D12_SRV_DIMENSION_BUFFER:
@@ -673,7 +673,7 @@ resource_view_desc reshade::d3d12::convert_resource_view_desc(const D3D12_SHADER
 resource_view_desc reshade::d3d12::convert_resource_view_desc(const D3D12_UNORDERED_ACCESS_VIEW_DESC &internal_desc)
 {
 	resource_view_desc desc = {};
-	desc.format = static_cast<uint32_t>(internal_desc.Format);
+	desc.format = static_cast<format>(internal_desc.Format);
 	desc.levels = 1;
 	switch (internal_desc.ViewDimension)
 	{

@@ -7,6 +7,7 @@
 #include "runtime_vk.hpp"
 #include "runtime_vk_objects.hpp"
 #include "format_utils.hpp"
+#include "render_vk_utils.hpp"
 
 static inline void transition_layout(const VkLayerDispatchTable &vk, VkCommandBuffer cmd_list, VkImage image, VkImageLayout old_layout, VkImageLayout new_layout,
 	const VkImageSubresourceRange &subresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS })
@@ -160,31 +161,39 @@ bool reshade::vulkan::runtime_impl::on_init(VkSwapchainKHR swapchain, const VkSw
 
 	// Create back buffer shader image
 	assert(_backbuffer_format != VK_FORMAT_UNDEFINED);
+	api::format backbuffer_format;
+	convert_vk_format_to_format(_backbuffer_format, backbuffer_format);
 	if (!_device_impl->create_resource(
-		{ _width, _height, 1, 1, static_cast<uint32_t>(_backbuffer_format), 1, api::memory_heap::gpu_only, api::resource_usage::copy_dest | api::resource_usage::shader_resource },
+		{ _width, _height, 1, 1, backbuffer_format, 1, api::memory_heap::gpu_only, api::resource_usage::copy_dest | api::resource_usage::shader_resource },
 		nullptr,
 		api::resource_usage::undefined,
 		reinterpret_cast<api::resource_handle *>(&_backbuffer_image)))
 		return false;
 	set_debug_name_image(_backbuffer_image, "ReShade back buffer");
 
+	api::format backbuffer_format_srgb;
+	convert_vk_format_to_format(make_format_srgb(_backbuffer_format), backbuffer_format_srgb);
 	if (!_device_impl->create_resource_view(
 		reinterpret_cast<api::resource_handle &>(_backbuffer_image),
 		api::resource_usage::shader_resource,
-		{ static_cast<uint32_t>(make_format_srgb(_backbuffer_format)), 0, 1, 0, 1 },
+		{ backbuffer_format_srgb, 0, 1, 0, 1 },
 		reinterpret_cast<api::resource_view_handle *>(&_backbuffer_image_view[1])))
 		return false;
+	api::format backbuffer_format_normal;
+	convert_vk_format_to_format(make_format_normal(_backbuffer_format), backbuffer_format_normal);
 	if (!_device_impl->create_resource_view(
 		reinterpret_cast<api::resource_handle &>(_backbuffer_image),
 		api::resource_usage::shader_resource,
-		{ static_cast<uint32_t>(make_format_normal(_backbuffer_format)), 0, 1, 0, 1 },
+		{ backbuffer_format_normal, 0, 1, 0, 1 },
 		reinterpret_cast<api::resource_view_handle *>(&_backbuffer_image_view[0])))
 		return false;
 
 	// Create effect depth-stencil resource
 	assert(_effect_stencil_format != VK_FORMAT_UNDEFINED);
+	api::format effect_stencil_format;
+	convert_vk_format_to_format(_effect_stencil_format, effect_stencil_format);
 	if (!_device_impl->create_resource(
-		{ _width, _height, 1, 1, static_cast<uint32_t>(_effect_stencil_format), 1, api::memory_heap::gpu_only, api::resource_usage::copy_dest | api::resource_usage::depth_stencil },
+		{ _width, _height, 1, 1, effect_stencil_format, 1, api::memory_heap::gpu_only, api::resource_usage::copy_dest | api::resource_usage::depth_stencil },
 		nullptr,
 		api::resource_usage::undefined,
 		reinterpret_cast<api::resource_handle *>(&_effect_stencil)))
@@ -194,7 +203,7 @@ bool reshade::vulkan::runtime_impl::on_init(VkSwapchainKHR swapchain, const VkSw
 	if (!_device_impl->create_resource_view(
 		reinterpret_cast<api::resource_handle &>(_effect_stencil),
 		api::resource_usage::depth_stencil,
-		{ static_cast<uint32_t>(_effect_stencil_format), 0, 1, 0, 1 },
+		{ effect_stencil_format, 0, 1, 0, 1 },
 		reinterpret_cast<api::resource_view_handle *>(&_effect_stencil_view)))
 		return false;
 
@@ -278,13 +287,13 @@ bool reshade::vulkan::runtime_impl::on_init(VkSwapchainKHR swapchain, const VkSw
 		if (!_device_impl->create_resource_view(
 			reinterpret_cast<api::resource_handle &>(_swapchain_images[i]),
 			api::resource_usage::render_target,
-			{ static_cast<uint32_t>(make_format_srgb(desc.imageFormat)), 0, 1, 0, 1 },
+			{ backbuffer_format_srgb, 0, 1, 0, 1 },
 			reinterpret_cast<api::resource_view_handle *>(&_swapchain_views[k + 1])))
 			return false;
 		if (!_device_impl->create_resource_view(
 			reinterpret_cast<api::resource_handle &>(_swapchain_images[i]),
 			api::resource_usage::render_target,
-			{ static_cast<uint32_t>(make_format_normal(desc.imageFormat)), 0, 1, 0, 1 },
+			{ backbuffer_format_normal, 0, 1, 0, 1 },
 			reinterpret_cast<api::resource_view_handle *>(&_swapchain_views[k + 0])))
 			return false;
 
@@ -351,7 +360,7 @@ bool reshade::vulkan::runtime_impl::on_init(VkSwapchainKHR swapchain, const VkSw
 	// Create an empty image, which is used when no depth buffer was detected (since you cannot bind nothing to a descriptor in Vulkan)
 	// Use VK_FORMAT_R16_SFLOAT format, since it is mandatory according to the spec (see https://www.khronos.org/registry/vulkan/specs/1.1/html/vkspec.html#features-required-format-support)
 	if (!_device_impl->create_resource(
-		{ 1, 1, 1, 1, VK_FORMAT_R16_SFLOAT, 1, api::memory_heap::gpu_only, api::resource_usage::shader_resource },
+		{ 1, 1, 1, 1, api::format::r16_float, 1, api::memory_heap::gpu_only, api::resource_usage::shader_resource },
 		nullptr,
 		api::resource_usage::undefined,
 		reinterpret_cast<api::resource_handle *>(&_empty_depth_image)))
@@ -359,7 +368,7 @@ bool reshade::vulkan::runtime_impl::on_init(VkSwapchainKHR swapchain, const VkSw
 	if (!_device_impl->create_resource_view(
 		reinterpret_cast<api::resource_handle &>(_empty_depth_image),
 		api::resource_usage::shader_resource,
-		{ VK_FORMAT_R16_SFLOAT, 0, 1, 0, 1 },
+		{ api::format::r16_float, 0, 1, 0, 1 },
 		reinterpret_cast<api::resource_view_handle *>(&_empty_depth_image_view)))
 		return false;
 
@@ -509,8 +518,10 @@ bool reshade::vulkan::runtime_impl::on_layer_submit(uint32_t eye, VkImage source
 
 		VkImage image = VK_NULL_HANDLE;
 
+		api::format format;
+		convert_vk_format_to_format(source_format, format);
 		if (!_device_impl->create_resource(
-			{ target_extent.width, target_extent.height, 1, 1, static_cast<uint32_t>(source_format), 1, api::memory_heap::gpu_only, api::resource_usage::render_target | api::resource_usage::copy_source | api::resource_usage::copy_dest },
+			{ target_extent.width, target_extent.height, 1, 1, format, 1, api::memory_heap::gpu_only, api::resource_usage::render_target | api::resource_usage::copy_source | api::resource_usage::copy_dest },
 			nullptr,
 			api::resource_usage::undefined,
 			reinterpret_cast<api::resource_handle *>(&image)))
@@ -1566,8 +1577,13 @@ bool reshade::vulkan::runtime_impl::init_texture(texture &texture)
 	if (impl->formats[1] == VK_FORMAT_UNDEFINED)
 		impl->formats[1]  = impl->formats[0];
 
+	api::format format_srgb;
+	convert_vk_format_to_format(impl->formats[1], format_srgb);
+	api::format format_normal;
+	convert_vk_format_to_format(impl->formats[0], format_normal);
+
 	if (!_device_impl->create_resource(
-		{ texture.width, texture.height, 1, texture.levels, static_cast<uint32_t>(impl->formats[0]), 1, api::memory_heap::gpu_only, usage_flags },
+		{ texture.width, texture.height, 1, texture.levels, format_normal, 1, api::memory_heap::gpu_only, usage_flags },
 		nullptr,
 		api::resource_usage::undefined,
 		reinterpret_cast<api::resource_handle *>(&impl->image)))
@@ -1582,7 +1598,7 @@ bool reshade::vulkan::runtime_impl::init_texture(texture &texture)
 	if (!_device_impl->create_resource_view(
 		reinterpret_cast<api::resource_handle &>(impl->image),
 		api::resource_usage::shader_resource,
-		{ static_cast<uint32_t>(impl->formats[0]), 0, VK_REMAINING_MIP_LEVELS, 0, 1 },
+		{ format_normal, 0, VK_REMAINING_MIP_LEVELS, 0, 1 },
 		reinterpret_cast<api::resource_view_handle *>(&impl->view[0])))
 		return false;
 	if (impl->formats[0] == impl->formats[1] || texture.storage_access) // sRGB formats do not support storage usage
@@ -1590,7 +1606,7 @@ bool reshade::vulkan::runtime_impl::init_texture(texture &texture)
 	else if (!_device_impl->create_resource_view(
 		reinterpret_cast<api::resource_handle &>(impl->image),
 		api::resource_usage::shader_resource,
-		{ static_cast<uint32_t>(impl->formats[1]), 0, VK_REMAINING_MIP_LEVELS, 0, 1 },
+		{ format_srgb, 0, VK_REMAINING_MIP_LEVELS, 0, 1 },
 		reinterpret_cast<api::resource_view_handle *>(&impl->view[1])))
 		return false;
 
@@ -1600,7 +1616,7 @@ bool reshade::vulkan::runtime_impl::init_texture(texture &texture)
 		if (!_device_impl->create_resource_view(
 			reinterpret_cast<api::resource_handle &>(impl->image),
 			api::resource_usage::render_target,
-			{ static_cast<uint32_t>(impl->formats[0]), 0, 1, 0, 1 },
+			{ format_normal, 0, 1, 0, 1 },
 			reinterpret_cast<api::resource_view_handle *>(&impl->view[2])))
 			return false;
 		if (impl->formats[0] == impl->formats[1] || texture.storage_access)
@@ -1608,7 +1624,7 @@ bool reshade::vulkan::runtime_impl::init_texture(texture &texture)
 		else if (!_device_impl->create_resource_view(
 			reinterpret_cast<api::resource_handle &>(impl->image),
 			api::resource_usage::render_target,
-			{ static_cast<uint32_t>(impl->formats[1]), 0, 1, 0, 1 },
+			{ format_srgb, 0, 1, 0, 1 },
 			reinterpret_cast<api::resource_view_handle *>(&impl->view[3])))
 			return false;
 	}
