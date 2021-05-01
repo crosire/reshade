@@ -90,7 +90,7 @@ bool reshade::vulkan::device_impl::check_format_support(api::format format, api:
 	return _instance_dispatch_table.GetPhysicalDeviceImageFormatProperties(_physical_device, image_format, VK_IMAGE_TYPE_2D, VK_IMAGE_TILING_OPTIMAL, image_flags, 0, &props) == VK_SUCCESS;
 }
 
-bool reshade::vulkan::device_impl::check_resource_handle_valid(api::resource_handle resource) const
+bool reshade::vulkan::device_impl::check_resource_handle_valid(api::resource resource) const
 {
 	if (resource.handle == 0)
 		return false;
@@ -101,7 +101,7 @@ bool reshade::vulkan::device_impl::check_resource_handle_valid(api::resource_han
 	else
 		return data.buffer == (VkBuffer)resource.handle;
 }
-bool reshade::vulkan::device_impl::check_resource_view_handle_valid(api::resource_view_handle view) const
+bool reshade::vulkan::device_impl::check_resource_view_handle_valid(api::resource_view view) const
 {
 	if (view.handle == 0)
 		return false;
@@ -113,22 +113,24 @@ bool reshade::vulkan::device_impl::check_resource_view_handle_valid(api::resourc
 		return data.buffer_view == (VkBufferView)view.handle;
 }
 
-bool reshade::vulkan::device_impl::create_sampler(const api::sampler_desc &desc, api::sampler_handle *out)
+bool reshade::vulkan::device_impl::create_sampler(const api::sampler_desc &desc, api::sampler *out)
 {
 	VkSamplerCreateInfo create_info { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
 	convert_sampler_desc(desc, create_info);
 
-	VkSampler sampler = VK_NULL_HANDLE;
-	if (vk.CreateSampler(_orig, &create_info, nullptr, &sampler) == VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER)
+	if (VkSampler object = VK_NULL_HANDLE;
+		vk.CreateSampler(_orig, &create_info, nullptr, &object) == VK_SUCCESS)
 	{
-		*out = { (uint64_t)sampler };
+		*out = { (uint64_t)object };
 		return true;
 	}
-
-	*out = { 0 };
-	return false;
+	else
+	{
+		*out = { 0 };
+		return false;
+	}
 }
-bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage initial_state, api::resource_handle *out)
+bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage initial_state, api::resource *out)
 {
 	if (initial_data != nullptr)
 		return false;
@@ -163,11 +165,11 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 			VkBufferCreateInfo create_info { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
 			convert_resource_desc(desc, create_info);
 
-			VkBuffer buffer = VK_NULL_HANDLE;
-			if (vmaCreateBuffer(_alloc, &create_info, &alloc_info, &buffer, &allocation, nullptr) == VK_SUCCESS)
+			if (VkBuffer object = VK_NULL_HANDLE;
+				vmaCreateBuffer(_alloc, &create_info, &alloc_info, &object, &allocation, nullptr) == VK_SUCCESS)
 			{
-				register_buffer(buffer, create_info, allocation);
-				*out = { (uint64_t)buffer };
+				register_buffer(object, create_info, allocation);
+				*out = { (uint64_t)object };
 				return true;
 			}
 			break;
@@ -181,11 +183,11 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 			if ((desc.usage & (api::resource_usage::render_target | api::resource_usage::shader_resource)) != 0)
 				create_info.flags |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
 
-			VkImage image = VK_NULL_HANDLE;
-			if (vmaCreateImage(_alloc, &create_info, &alloc_info, &image, &allocation, nullptr) == VK_SUCCESS)
+			if (VkImage object = VK_NULL_HANDLE;
+				vmaCreateImage(_alloc, &create_info, &alloc_info, &object, &allocation, nullptr) == VK_SUCCESS)
 			{
-				register_image(image, create_info, allocation);
-				*out = { (uint64_t)image };
+				register_image(object, create_info, allocation);
+				*out = { (uint64_t)object };
 
 				if (initial_state != api::resource_usage::undefined)
 				{
@@ -210,7 +212,7 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 	*out = { 0 };
 	return false;
 }
-bool reshade::vulkan::device_impl::create_resource_view(api::resource_handle resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view_handle *out)
+bool reshade::vulkan::device_impl::create_resource_view(api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view *out)
 {
 	assert(resource.handle != 0);
 	const resource_data &data = _resources.at(resource.handle);
@@ -254,15 +256,15 @@ bool reshade::vulkan::device_impl::create_resource_view(api::resource_handle res
 	return false;
 }
 
-void reshade::vulkan::device_impl::destroy_sampler(api::sampler_handle sampler)
+void reshade::vulkan::device_impl::destroy_sampler(api::sampler handle)
 {
-	vk.DestroySampler(_orig, (VkSampler)sampler.handle, nullptr);
+	vk.DestroySampler(_orig, (VkSampler)handle.handle, nullptr);
 }
-void reshade::vulkan::device_impl::destroy_resource(api::resource_handle resource)
+void reshade::vulkan::device_impl::destroy_resource(api::resource handle)
 {
-	if (resource.handle == 0)
+	if (handle.handle == 0)
 		return;
-	const resource_data &data = _resources.at(resource.handle);
+	const resource_data &data = _resources.at(handle.handle);
 
 	// Can only destroy resources that were allocated via 'create_resource' previously
 	assert(data.allocation != nullptr);
@@ -272,23 +274,23 @@ void reshade::vulkan::device_impl::destroy_resource(api::resource_handle resourc
 	else
 		vmaDestroyBuffer(_alloc, data.buffer, data.allocation);
 
-	_resources.erase(resource.handle);
+	_resources.erase(handle.handle);
 }
-void reshade::vulkan::device_impl::destroy_resource_view(api::resource_view_handle view)
+void reshade::vulkan::device_impl::destroy_resource_view(api::resource_view handle)
 {
-	if (view.handle == 0)
+	if (handle.handle == 0)
 		return;
-	const resource_view_data &data = _views.at(view.handle);
+	const resource_view_data &data = _views.at(handle.handle);
 
 	if (data.is_image_view())
 		vk.DestroyImageView(_orig, data.image_view, nullptr);
 	else
 		vk.DestroyBufferView(_orig, data.buffer_view, nullptr);
 
-	_views.erase(view.handle);
+	_views.erase(handle.handle);
 }
 
-void reshade::vulkan::device_impl::get_resource_from_view(api::resource_view_handle view, api::resource_handle *out_resource) const
+void reshade::vulkan::device_impl::get_resource_from_view(api::resource_view view, api::resource *out_resource) const
 {
 	assert(view.handle != 0);
 	const resource_view_data &data = _views.at(view.handle);
@@ -299,7 +301,7 @@ void reshade::vulkan::device_impl::get_resource_from_view(api::resource_view_han
 		*out_resource = { (uint64_t)data.buffer_create_info.buffer };
 }
 
-reshade::api::resource_desc reshade::vulkan::device_impl::get_resource_desc(api::resource_handle resource) const
+reshade::api::resource_desc reshade::vulkan::device_impl::get_resource_desc(api::resource resource) const
 {
 	assert(resource.handle != 0);
 	const resource_data &data = _resources.at(resource.handle);
@@ -327,7 +329,7 @@ reshade::vulkan::command_list_impl::~command_list_impl()
 		invoke_addon_event<addon_event::destroy_command_list>(this);
 }
 
-void reshade::vulkan::command_list_impl::blit(api::resource_handle src, uint32_t src_subresource, const int32_t src_box[6], api::resource_handle dst, uint32_t dst_subresource, const int32_t dst_box[6], api::texture_filter filter)
+void reshade::vulkan::command_list_impl::blit(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], api::texture_filter filter)
 {
 	_has_commands = true;
 
@@ -372,7 +374,7 @@ void reshade::vulkan::command_list_impl::blit(api::resource_handle src, uint32_t
 		1, &region,
 		filter == api::texture_filter::min_mag_mip_linear || filter == api::texture_filter::min_mag_linear_mip_point ? VK_FILTER_LINEAR : VK_FILTER_NEAREST);
 }
-void reshade::vulkan::command_list_impl::resolve(api::resource_handle src, uint32_t src_subresource, const int32_t src_offset[3], api::resource_handle dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3], uint32_t)
+void reshade::vulkan::command_list_impl::resolve(api::resource src, uint32_t src_subresource, const int32_t src_offset[3], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3], uint32_t)
 {
 	_has_commands = true;
 
@@ -411,7 +413,7 @@ void reshade::vulkan::command_list_impl::resolve(api::resource_handle src, uint3
 		(VkImage)dst.handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 		1, &region);
 }
-void reshade::vulkan::command_list_impl::copy_resource(api::resource_handle src, api::resource_handle dst)
+void reshade::vulkan::command_list_impl::copy_resource(api::resource src, api::resource dst)
 {
 	const api::resource_desc desc = _device_impl->get_resource_desc(src);
 
@@ -421,18 +423,18 @@ void reshade::vulkan::command_list_impl::copy_resource(api::resource_handle src,
 	}
 	else
 	{
-		for (uint32_t layer = 0, layers = (desc.type != api::resource_type::texture_3d) ? desc.depth_or_layers : 1; layer < layers; ++layer)
+		for (uint32_t layer = 0, layers = (desc.type != api::resource_type::texture_3d) ? desc.texture.depth_or_layers : 1; layer < layers; ++layer)
 		{
-			for (uint32_t level = 0; level < desc.levels; ++level)
+			for (uint32_t level = 0; level < desc.texture.levels; ++level)
 			{
-				const uint32_t subresource = level + layer * desc.levels;
+				const uint32_t subresource = level + layer * desc.texture.levels;
 
 				copy_texture_region(src, subresource, nullptr, dst, subresource, nullptr, nullptr);
 			}
 		}
 	}
 }
-void reshade::vulkan::command_list_impl::copy_buffer_region(api::resource_handle src, uint64_t src_offset, api::resource_handle dst, uint64_t dst_offset, uint64_t size)
+void reshade::vulkan::command_list_impl::copy_buffer_region(api::resource src, uint64_t src_offset, api::resource dst, uint64_t dst_offset, uint64_t size)
 {
 	_has_commands = true;
 
@@ -443,7 +445,7 @@ void reshade::vulkan::command_list_impl::copy_buffer_region(api::resource_handle
 
 	_device_impl->vk.CmdCopyBuffer(_orig, (VkBuffer)src.handle, (VkBuffer)dst.handle, 1, &region);
 }
-void reshade::vulkan::command_list_impl::copy_buffer_to_texture(api::resource_handle src, uint64_t src_offset, uint32_t row_length, uint32_t slice_height, api::resource_handle dst, uint32_t dst_subresource, const int32_t dst_box[6])
+void reshade::vulkan::command_list_impl::copy_buffer_to_texture(api::resource src, uint64_t src_offset, uint32_t row_length, uint32_t slice_height, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6])
 {
 	_has_commands = true;
 
@@ -475,7 +477,7 @@ void reshade::vulkan::command_list_impl::copy_buffer_to_texture(api::resource_ha
 
 	_device_impl->vk.CmdCopyBufferToImage(_orig, (VkBuffer)src.handle, (VkImage)dst.handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 }
-void reshade::vulkan::command_list_impl::copy_texture_region(api::resource_handle src, uint32_t src_subresource, const int32_t src_offset[3], api::resource_handle dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3])
+void reshade::vulkan::command_list_impl::copy_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_offset[3], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3])
 {
 	_has_commands = true;
 
@@ -511,7 +513,7 @@ void reshade::vulkan::command_list_impl::copy_texture_region(api::resource_handl
 
 	_device_impl->vk.CmdCopyImage(_orig, (VkImage)src.handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, (VkImage)dst.handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 }
-void reshade::vulkan::command_list_impl::copy_texture_to_buffer(api::resource_handle src, uint32_t src_subresource, const int32_t src_box[6], api::resource_handle dst, uint64_t dst_offset, uint32_t row_length, uint32_t slice_height)
+void reshade::vulkan::command_list_impl::copy_texture_to_buffer(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint64_t dst_offset, uint32_t row_length, uint32_t slice_height)
 {
 	_has_commands = true;
 
@@ -544,7 +546,7 @@ void reshade::vulkan::command_list_impl::copy_texture_to_buffer(api::resource_ha
 	_device_impl->vk.CmdCopyImageToBuffer(_orig, (VkImage)src.handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, (VkBuffer)dst.handle, 1, &region);
 }
 
-void reshade::vulkan::command_list_impl::clear_depth_stencil_view(api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil)
+void reshade::vulkan::command_list_impl::clear_depth_stencil_view(api::resource_view dsv, uint32_t clear_flags, float depth, uint8_t stencil)
 {
 	_has_commands = true;
 
@@ -573,7 +575,7 @@ void reshade::vulkan::command_list_impl::clear_depth_stencil_view(api::resource_
 	std::swap(transition.oldLayout, transition.newLayout);
 	_device_impl->vk.CmdPipelineBarrier(_orig, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
 }
-void reshade::vulkan::command_list_impl::clear_render_target_views(uint32_t count, const api::resource_view_handle *rtvs, const float color[4])
+void reshade::vulkan::command_list_impl::clear_render_target_views(uint32_t count, const api::resource_view *rtvs, const float color[4])
 {
 	_has_commands = true;
 
@@ -602,7 +604,7 @@ void reshade::vulkan::command_list_impl::clear_render_target_views(uint32_t coun
 	}
 }
 
-void reshade::vulkan::command_list_impl::transition_state(api::resource_handle resource, api::resource_usage old_state, api::resource_usage new_state)
+void reshade::vulkan::command_list_impl::transition_state(api::resource resource, api::resource_usage old_state, api::resource_usage new_state)
 {
 	_has_commands = true;
 

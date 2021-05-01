@@ -52,31 +52,33 @@ bool reshade::d3d10::device_impl::check_format_support(api::format format, api::
 	return true;
 }
 
-bool reshade::d3d10::device_impl::check_resource_handle_valid(api::resource_handle resource) const
+bool reshade::d3d10::device_impl::check_resource_handle_valid(api::resource resource) const
 {
 	return resource.handle != 0 && _resources.has_object(reinterpret_cast<ID3D10Resource *>(resource.handle));
 }
-bool reshade::d3d10::device_impl::check_resource_view_handle_valid(api::resource_view_handle view) const
+bool reshade::d3d10::device_impl::check_resource_view_handle_valid(api::resource_view view) const
 {
 	return view.handle != 0 && _views.has_object(reinterpret_cast<ID3D10View *>(view.handle));
 }
 
-bool reshade::d3d10::device_impl::create_sampler(const api::sampler_desc &desc, api::sampler_handle *out)
+bool reshade::d3d10::device_impl::create_sampler(const api::sampler_desc &desc, api::sampler *out)
 {
 	D3D10_SAMPLER_DESC internal_desc = {};
 	convert_sampler_desc(desc, internal_desc);
 
-	ID3D10SamplerState *object = nullptr;
-	if (SUCCEEDED(_orig->CreateSamplerState(&internal_desc, &object)))
+	if (com_ptr<ID3D10SamplerState> object;
+		SUCCEEDED(_orig->CreateSamplerState(&internal_desc, &object)))
 	{
-		*out = { reinterpret_cast<uintptr_t>(object) };
+		*out = { reinterpret_cast<uintptr_t>(object.release()) };
 		return true;
 	}
-
-	*out = { 0 };
-	return false;
+	else
+	{
+		*out = { 0 };
+		return false;
+	}
 }
-bool reshade::d3d10::device_impl::create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage, api::resource_handle *out)
+bool reshade::d3d10::device_impl::create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage, api::resource *out)
 {
 	static_assert(sizeof(api::subresource_data) == sizeof(D3D10_SUBRESOURCE_DATA));
 
@@ -87,11 +89,11 @@ bool reshade::d3d10::device_impl::create_resource(const api::resource_desc &desc
 			D3D10_BUFFER_DESC internal_desc = {};
 			convert_resource_desc(desc, internal_desc);
 
-			ID3D10Buffer *object = nullptr;
-			if (SUCCEEDED(_orig->CreateBuffer(&internal_desc, reinterpret_cast<const D3D10_SUBRESOURCE_DATA *>(initial_data), &object)))
+			if (com_ptr<ID3D10Buffer> object;
+				SUCCEEDED(_orig->CreateBuffer(&internal_desc, reinterpret_cast<const D3D10_SUBRESOURCE_DATA *>(initial_data), &object)))
 			{
-				_resources.register_object(object);
-				*out = { reinterpret_cast<uintptr_t>(object) };
+				_resources.register_object(object.get());
+				*out = { reinterpret_cast<uintptr_t>(object.release()) };
 				return true;
 			}
 			break;
@@ -101,11 +103,11 @@ bool reshade::d3d10::device_impl::create_resource(const api::resource_desc &desc
 			D3D10_TEXTURE1D_DESC internal_desc = {};
 			convert_resource_desc(desc, internal_desc);
 
-			ID3D10Texture1D *object = nullptr;
-			if (SUCCEEDED(_orig->CreateTexture1D(&internal_desc, reinterpret_cast<const D3D10_SUBRESOURCE_DATA *>(initial_data), &object)))
+			if (com_ptr<ID3D10Texture1D> object;
+				SUCCEEDED(_orig->CreateTexture1D(&internal_desc, reinterpret_cast<const D3D10_SUBRESOURCE_DATA *>(initial_data), &object)))
 			{
-				_resources.register_object(object);
-				*out = { reinterpret_cast<uintptr_t>(object) };
+				_resources.register_object(object.get());
+				*out = { reinterpret_cast<uintptr_t>(object.release()) };
 				return true;
 			}
 			break;
@@ -115,11 +117,11 @@ bool reshade::d3d10::device_impl::create_resource(const api::resource_desc &desc
 			D3D10_TEXTURE2D_DESC internal_desc = {};
 			convert_resource_desc(desc, internal_desc);
 
-			ID3D10Texture2D *object = nullptr;
-			if (SUCCEEDED(_orig->CreateTexture2D(&internal_desc, reinterpret_cast<const D3D10_SUBRESOURCE_DATA *>(initial_data), &object)))
+			if (com_ptr<ID3D10Texture2D> object;
+				SUCCEEDED(_orig->CreateTexture2D(&internal_desc, reinterpret_cast<const D3D10_SUBRESOURCE_DATA *>(initial_data), &object)))
 			{
-				_resources.register_object(object);
-				*out = { reinterpret_cast<uintptr_t>(object) };
+				_resources.register_object(object.get());
+				*out = { reinterpret_cast<uintptr_t>(object.release()) };
 				return true;
 			}
 			break;
@@ -129,11 +131,11 @@ bool reshade::d3d10::device_impl::create_resource(const api::resource_desc &desc
 			D3D10_TEXTURE3D_DESC internal_desc = {};
 			convert_resource_desc(desc, internal_desc);
 
-			ID3D10Texture3D *object = nullptr;
-			if (SUCCEEDED(_orig->CreateTexture3D(&internal_desc, reinterpret_cast<const D3D10_SUBRESOURCE_DATA *>(initial_data), &object)))
+			if (com_ptr<ID3D10Texture3D> object;
+				SUCCEEDED(_orig->CreateTexture3D(&internal_desc, reinterpret_cast<const D3D10_SUBRESOURCE_DATA *>(initial_data), &object)))
 			{
-				_resources.register_object(object);
-				*out = { reinterpret_cast<uintptr_t>(object) };
+				_resources.register_object(object.get());
+				*out = { reinterpret_cast<uintptr_t>(object.release()) };
 				return true;
 			}
 			break;
@@ -143,7 +145,7 @@ bool reshade::d3d10::device_impl::create_resource(const api::resource_desc &desc
 	*out = { 0 };
 	return false;
 }
-bool reshade::d3d10::device_impl::create_resource_view(api::resource_handle resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view_handle *out)
+bool reshade::d3d10::device_impl::create_resource_view(api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view *out)
 {
 	assert(resource.handle != 0);
 
@@ -154,11 +156,11 @@ bool reshade::d3d10::device_impl::create_resource_view(api::resource_handle reso
 			D3D10_DEPTH_STENCIL_VIEW_DESC internal_desc = {};
 			convert_resource_view_desc(desc, internal_desc);
 
-			ID3D10DepthStencilView *object = nullptr;
-			if (SUCCEEDED(_orig->CreateDepthStencilView(reinterpret_cast<ID3D10Resource *>(resource.handle), &internal_desc, &object)))
+			if (com_ptr<ID3D10DepthStencilView> object;
+				SUCCEEDED(_orig->CreateDepthStencilView(reinterpret_cast<ID3D10Resource *>(resource.handle), &internal_desc, &object)))
 			{
-				_views.register_object(object);
-				*out = { reinterpret_cast<uintptr_t>(object) };
+				_views.register_object(object.get());
+				*out = { reinterpret_cast<uintptr_t>(object.release()) };
 				return true;
 			}
 			break;
@@ -168,11 +170,11 @@ bool reshade::d3d10::device_impl::create_resource_view(api::resource_handle reso
 			D3D10_RENDER_TARGET_VIEW_DESC internal_desc = {};
 			convert_resource_view_desc(desc, internal_desc);
 
-			ID3D10RenderTargetView *object = nullptr;
-			if (SUCCEEDED(_orig->CreateRenderTargetView(reinterpret_cast<ID3D10Resource *>(resource.handle), &internal_desc, &object)))
+			if (com_ptr<ID3D10RenderTargetView> object;
+				SUCCEEDED(_orig->CreateRenderTargetView(reinterpret_cast<ID3D10Resource *>(resource.handle), &internal_desc, &object)))
 			{
-				_views.register_object(object);
-				*out = { reinterpret_cast<uintptr_t>(object) };
+				_views.register_object(object.get());
+				*out = { reinterpret_cast<uintptr_t>(object.release()) };
 				return true;
 			}
 			break;
@@ -182,11 +184,11 @@ bool reshade::d3d10::device_impl::create_resource_view(api::resource_handle reso
 			D3D10_SHADER_RESOURCE_VIEW_DESC internal_desc = {};
 			convert_resource_view_desc(desc, internal_desc);
 
-			ID3D10ShaderResourceView *object = nullptr;
-			if (SUCCEEDED(_orig->CreateShaderResourceView(reinterpret_cast<ID3D10Resource *>(resource.handle), &internal_desc, &object)))
+			if (com_ptr<ID3D10ShaderResourceView> object;
+				SUCCEEDED(_orig->CreateShaderResourceView(reinterpret_cast<ID3D10Resource *>(resource.handle), &internal_desc, &object)))
 			{
-				_views.register_object(object);
-				*out = { reinterpret_cast<uintptr_t>(object) };
+				_views.register_object(object.get());
+				*out = { reinterpret_cast<uintptr_t>(object.release()) };
 				return true;
 			}
 			break;
@@ -197,23 +199,23 @@ bool reshade::d3d10::device_impl::create_resource_view(api::resource_handle reso
 	return false;
 }
 
-void reshade::d3d10::device_impl::destroy_sampler(api::sampler_handle sampler)
+void reshade::d3d10::device_impl::destroy_sampler(api::sampler handle)
 {
-	assert(sampler.handle != 0);
-	reinterpret_cast<ID3D10SamplerState *>(sampler.handle)->Release();
+	assert(handle.handle != 0);
+	reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }
-void reshade::d3d10::device_impl::destroy_resource(api::resource_handle resource)
+void reshade::d3d10::device_impl::destroy_resource(api::resource handle)
 {
-	assert(resource.handle != 0);
-	reinterpret_cast<ID3D10Resource *>(resource.handle)->Release();
+	assert(handle.handle != 0);
+	reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }
-void reshade::d3d10::device_impl::destroy_resource_view(api::resource_view_handle view)
+void reshade::d3d10::device_impl::destroy_resource_view(api::resource_view handle)
 {
-	assert(view.handle != 0);
-	reinterpret_cast<ID3D10View *>(view.handle)->Release();
+	assert(handle.handle != 0);
+	reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }
 
-void reshade::d3d10::device_impl::get_resource_from_view(api::resource_view_handle view, api::resource_handle *out_resource) const
+void reshade::d3d10::device_impl::get_resource_from_view(api::resource_view view, api::resource *out_resource) const
 {
 	assert(view.handle != 0);
 	com_ptr<ID3D10Resource> resource;
@@ -222,7 +224,7 @@ void reshade::d3d10::device_impl::get_resource_from_view(api::resource_view_hand
 	*out_resource = { reinterpret_cast<uintptr_t>(resource.get()) };
 }
 
-reshade::api::resource_desc reshade::d3d10::device_impl::get_resource_desc(api::resource_handle resource) const
+reshade::api::resource_desc reshade::d3d10::device_impl::get_resource_desc(api::resource resource) const
 {
 	assert(resource.handle != 0);
 	const auto object = reinterpret_cast<ID3D10Resource *>(resource.handle);
@@ -268,11 +270,11 @@ void reshade::d3d10::device_impl::flush_immediate_command_list() const
 	_orig->Flush();
 }
 
-void reshade::d3d10::device_impl::blit(api::resource_handle, uint32_t, const int32_t[6], api::resource_handle, uint32_t, const int32_t[6], api::texture_filter)
+void reshade::d3d10::device_impl::blit(api::resource, uint32_t, const int32_t[6], api::resource, uint32_t, const int32_t[6], api::texture_filter)
 {
 	assert(false);
 }
-void reshade::d3d10::device_impl::resolve(api::resource_handle src, uint32_t src_subresource, const int32_t src_offset[3], api::resource_handle dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3], uint32_t format)
+void reshade::d3d10::device_impl::resolve(api::resource src, uint32_t src_subresource, const int32_t src_offset[3], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3], uint32_t format)
 {
 	assert(src.handle != 0 && dst.handle != 0);
 	assert(src_offset == nullptr && dst_offset == nullptr && size == nullptr);
@@ -281,13 +283,13 @@ void reshade::d3d10::device_impl::resolve(api::resource_handle src, uint32_t src
 		reinterpret_cast<ID3D10Resource *>(dst.handle), dst_subresource,
 		reinterpret_cast<ID3D10Resource *>(src.handle), src_subresource, static_cast<DXGI_FORMAT>(format));
 }
-void reshade::d3d10::device_impl::copy_resource(api::resource_handle src, api::resource_handle dst)
+void reshade::d3d10::device_impl::copy_resource(api::resource src, api::resource dst)
 {
 	assert(src.handle != 0 && dst.handle != 0);
 
 	_orig->CopyResource(reinterpret_cast<ID3D10Resource *>(dst.handle), reinterpret_cast<ID3D10Resource *>(src.handle));
 }
-void reshade::d3d10::device_impl::copy_buffer_region(api::resource_handle src, uint64_t src_offset, api::resource_handle dst, uint64_t dst_offset, uint64_t size)
+void reshade::d3d10::device_impl::copy_buffer_region(api::resource src, uint64_t src_offset, api::resource dst, uint64_t dst_offset, uint64_t size)
 {
 	assert(src.handle != 0 && dst.handle != 0);
 	assert(src_offset <= std::numeric_limits<UINT>::max() && dst_offset <= std::numeric_limits<UINT>::max() && size <= std::numeric_limits<UINT>::max());
@@ -298,11 +300,11 @@ void reshade::d3d10::device_impl::copy_buffer_region(api::resource_handle src, u
 		reinterpret_cast<ID3D10Resource *>(dst.handle), 0, static_cast<UINT>(dst_offset), 0, 0,
 		reinterpret_cast<ID3D10Resource *>(src.handle), 0, &src_box);
 }
-void reshade::d3d10::device_impl::copy_buffer_to_texture(api::resource_handle, uint64_t, uint32_t, uint32_t, api::resource_handle, uint32_t, const int32_t[6])
+void reshade::d3d10::device_impl::copy_buffer_to_texture(api::resource, uint64_t, uint32_t, uint32_t, api::resource, uint32_t, const int32_t[6])
 {
 	assert(false);
 }
-void reshade::d3d10::device_impl::copy_texture_region(api::resource_handle src, uint32_t src_subresource, const int32_t src_offset[3], api::resource_handle dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3])
+void reshade::d3d10::device_impl::copy_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_offset[3], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3])
 {
 	assert(src.handle != 0 && dst.handle != 0);
 
@@ -329,27 +331,27 @@ void reshade::d3d10::device_impl::copy_texture_region(api::resource_handle src, 
 	else
 	{
 		const api::resource_desc desc = get_resource_desc(src);
-		src_box.right = src_box.left + std::max(1u, desc.width >> (src_subresource % desc.levels));
-		src_box.bottom = src_box.top + std::max(1u, desc.height >> (src_subresource % desc.levels));
-		src_box.back = src_box.front + (desc.type == api::resource_type::texture_3d ? std::max(1u, static_cast<uint32_t>(desc.depth_or_layers) >> (src_subresource % desc.levels)) : 1u);
+		src_box.right = src_box.left + std::max(1u, desc.texture.width >> (src_subresource % desc.texture.levels));
+		src_box.bottom = src_box.top + std::max(1u, desc.texture.height >> (src_subresource % desc.texture.levels));
+		src_box.back = src_box.front + (desc.type == api::resource_type::texture_3d ? std::max(1u, static_cast<uint32_t>(desc.texture.depth_or_layers) >> (src_subresource % desc.texture.levels)) : 1u);
 	}
 
 	_orig->CopySubresourceRegion(
 		reinterpret_cast<ID3D10Resource *>(dst.handle), src_subresource, dst_offset != nullptr ? dst_offset[0] : 0, dst_offset != nullptr ? dst_offset[1] : 0, dst_offset != nullptr ? dst_offset[2] : 0,
 		reinterpret_cast<ID3D10Resource *>(src.handle), dst_subresource, &src_box);
 }
-void reshade::d3d10::device_impl::copy_texture_to_buffer(api::resource_handle, uint32_t, const int32_t[6], api::resource_handle, uint64_t, uint32_t, uint32_t)
+void reshade::d3d10::device_impl::copy_texture_to_buffer(api::resource, uint32_t, const int32_t[6], api::resource, uint64_t, uint32_t, uint32_t)
 {
 	assert(false);
 }
 
-void reshade::d3d10::device_impl::clear_depth_stencil_view(api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil)
+void reshade::d3d10::device_impl::clear_depth_stencil_view(api::resource_view dsv, uint32_t clear_flags, float depth, uint8_t stencil)
 {
 	assert(dsv.handle != 0);
 
 	_orig->ClearDepthStencilView(reinterpret_cast<ID3D10DepthStencilView *>(dsv.handle), clear_flags, depth, stencil);
 }
-void reshade::d3d10::device_impl::clear_render_target_views(uint32_t count, const api::resource_view_handle *rtvs, const float color[4])
+void reshade::d3d10::device_impl::clear_render_target_views(uint32_t count, const api::resource_view *rtvs, const float color[4])
 {
 	for (UINT i = 0; i < count; ++i)
 	{

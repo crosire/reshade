@@ -223,23 +223,23 @@ bool reshade::opengl::runtime_impl::on_layer_submit(uint32_t eye, GLuint source_
 	reshade::api::resource_desc object_desc = get_resource_desc(
 		reshade::opengl::make_resource_handle(is_rbo ? GL_RENDERBUFFER : GL_TEXTURE, source_object));
 
-	GLint source_region[4] = { 0, 0, static_cast<GLint>(object_desc.width), static_cast<GLint>(object_desc.height) };
+	GLint source_region[4] = { 0, 0, static_cast<GLint>(object_desc.texture.width), static_cast<GLint>(object_desc.texture.height) };
 	if (bounds != nullptr)
 	{
-		source_region[0] = static_cast<GLint>(object_desc.width * std::min(bounds[0], bounds[2]));
-		source_region[1] = static_cast<GLint>(object_desc.height * std::min(bounds[1], bounds[3]));
-		source_region[2] = static_cast<GLint>(object_desc.width * std::max(bounds[0], bounds[2]));
-		source_region[3] = static_cast<GLint>(object_desc.height * std::max(bounds[1], bounds[3]));
+		source_region[0] = static_cast<GLint>(object_desc.texture.width * std::min(bounds[0], bounds[2]));
+		source_region[1] = static_cast<GLint>(object_desc.texture.height * std::min(bounds[1], bounds[3]));
+		source_region[2] = static_cast<GLint>(object_desc.texture.width * std::max(bounds[0], bounds[2]));
+		source_region[3] = static_cast<GLint>(object_desc.texture.height * std::max(bounds[1], bounds[3]));
 	}
 
 	const GLint region_width = source_region[2] - source_region[0];
-	object_desc.width = region_width * 2;
+	object_desc.texture.width = region_width * 2;
 
-	if (object_desc.width != _width || object_desc.height != _height)
+	if (object_desc.texture.width != _width || object_desc.texture.height != _height)
 	{
 		on_reset();
 
-		if (!on_init(nullptr, object_desc.width, object_desc.height))
+		if (!on_init(nullptr, object_desc.texture.width, object_desc.texture.height))
 		{
 			LOG(ERROR) << "Failed to initialize OpenGL runtime environment on runtime " << this << '!';
 			return false;
@@ -1159,7 +1159,7 @@ void reshade::opengl::runtime_impl::render_technique(technique &technique)
 	}
 }
 
-void reshade::opengl::runtime_impl::update_texture_bindings(const char *semantic, api::resource_view_handle srv)
+void reshade::opengl::runtime_impl::update_texture_bindings(const char *semantic, api::resource_view srv)
 {
 	const GLuint object = srv.handle & 0xFFFFFFFF;
 

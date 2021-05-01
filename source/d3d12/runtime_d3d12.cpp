@@ -1597,7 +1597,7 @@ void reshade::d3d12::runtime_impl::render_technique(technique &technique)
 	invoke_addon_event<addon_event::reshade_after_effects>(this, _cmd_impl);
 }
 
-void reshade::d3d12::runtime_impl::update_texture_bindings(const char *semantic, api::resource_view_handle srv)
+void reshade::d3d12::runtime_impl::update_texture_bindings(const char *semantic, api::resource_view srv)
 {
 	// Descriptors may be currently in use, so make sure all previous frames have finished before updating them
 	_cmd_impl->flush_and_wait(_cmd_queue.get());

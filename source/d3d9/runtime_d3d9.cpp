@@ -976,7 +976,7 @@ void reshade::d3d9::runtime_impl::render_technique(technique &technique)
 #endif
 }
 
-void reshade::d3d9::runtime_impl::update_texture_bindings(const char *semantic, api::resource_view_handle srv)
+void reshade::d3d9::runtime_impl::update_texture_bindings(const char *semantic, api::resource_view srv)
 {
 	const auto new_texture = reinterpret_cast<IDirect3DTexture9 *>(srv.handle);
 	assert(new_texture == nullptr || new_texture->GetType() == D3DRTYPE_TEXTURE);

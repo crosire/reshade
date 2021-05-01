@@ -1032,30 +1032,30 @@ void reshade::vulkan::convert_resource_desc(const resource_desc &desc, VkImageCr
 		break;
 	case resource_type::texture_1d:
 		create_info.imageType = VK_IMAGE_TYPE_1D;
-		create_info.extent = { desc.width, 1u, 1u };
-		create_info.arrayLayers = desc.depth_or_layers;
+		create_info.extent = { desc.texture.width, 1u, 1u };
+		create_info.arrayLayers = desc.texture.depth_or_layers;
 		break;
 	case resource_type::texture_2d:
 		create_info.imageType = VK_IMAGE_TYPE_2D;
-		create_info.extent = { desc.width, desc.height, 1u };
-		create_info.arrayLayers = desc.depth_or_layers;
+		create_info.extent = { desc.texture.width, desc.texture.height, 1u };
+		create_info.arrayLayers = desc.texture.depth_or_layers;
 		break;
 	case resource_type::texture_3d:
 		create_info.imageType = VK_IMAGE_TYPE_3D;
-		create_info.extent = { desc.width, desc.height, desc.depth_or_layers };
+		create_info.extent = { desc.texture.width, desc.texture.height, desc.texture.depth_or_layers };
 		create_info.arrayLayers = 1u;
 		break;
 	}
 
-	convert_format_to_vk_format(desc.format, create_info.format);
-	create_info.mipLevels = desc.levels;
-	create_info.samples = static_cast<VkSampleCountFlagBits>(desc.samples);
+	convert_format_to_vk_format(desc.texture.format, create_info.format);
+	create_info.mipLevels = desc.texture.levels;
+	create_info.samples = static_cast<VkSampleCountFlagBits>(desc.texture.samples);
 	convert_usage_to_image_usage_flags(desc.usage, create_info.usage);
 }
 void reshade::vulkan::convert_resource_desc(const resource_desc &desc, VkBufferCreateInfo &create_info)
 {
 	assert(desc.type == resource_type::buffer);
-	create_info.size = desc.size;
+	create_info.size = desc.buffer.size;
 	convert_usage_to_buffer_usage_flags(desc.usage, create_info.usage);
 }
 resource_desc reshade::vulkan::convert_resource_desc(const VkImageCreateInfo &create_info)
@@ -1069,39 +1069,39 @@ resource_desc reshade::vulkan::convert_resource_desc(const VkImageCreateInfo &cr
 		break;
 	case VK_IMAGE_TYPE_1D:
 		desc.type = resource_type::texture_1d;
-		desc.width = create_info.extent.width;
+		desc.texture.width = create_info.extent.width;
 		assert(create_info.extent.height == 1 && create_info.extent.depth == 1);
-		desc.height = 1;
+		desc.texture.height = 1;
 		assert(create_info.arrayLayers <= std::numeric_limits<uint16_t>::max());
-		desc.depth_or_layers = static_cast<uint16_t>(create_info.arrayLayers);
+		desc.texture.depth_or_layers = static_cast<uint16_t>(create_info.arrayLayers);
 		break;
 	case VK_IMAGE_TYPE_2D:
 		desc.type = resource_type::texture_2d;
-		desc.width = create_info.extent.width;
-		desc.height = create_info.extent.height;
+		desc.texture.width = create_info.extent.width;
+		desc.texture.height = create_info.extent.height;
 		assert(create_info.extent.depth == 1);
 		assert(create_info.arrayLayers <= std::numeric_limits<uint16_t>::max());
-		desc.depth_or_layers = static_cast<uint16_t>(create_info.arrayLayers);
+		desc.texture.depth_or_layers = static_cast<uint16_t>(create_info.arrayLayers);
 		break;
 	case VK_IMAGE_TYPE_3D:
 		desc.type = resource_type::texture_3d;
-		desc.width = create_info.extent.width;
-		desc.height = create_info.extent.height;
+		desc.texture.width = create_info.extent.width;
+		desc.texture.height = create_info.extent.height;
 		assert(create_info.extent.depth <= std::numeric_limits<uint16_t>::max());
-		desc.depth_or_layers = static_cast<uint16_t>(create_info.extent.depth);
+		desc.texture.depth_or_layers = static_cast<uint16_t>(create_info.extent.depth);
 		assert(create_info.arrayLayers == 1);
 		break;
 	}
 
 	assert(create_info.mipLevels <= std::numeric_limits<uint16_t>::max());
-	desc.levels = static_cast<uint16_t>(create_info.mipLevels);
-	convert_vk_format_to_format(create_info.format, desc.format);
-	desc.samples = static_cast<uint16_t>(create_info.samples);
+	desc.texture.levels = static_cast<uint16_t>(create_info.mipLevels);
+	convert_vk_format_to_format(create_info.format, desc.texture.format);
+	desc.texture.samples = static_cast<uint16_t>(create_info.samples);
 
 	convert_image_usage_flags_to_usage(create_info.usage, desc.usage);
 	if (desc.type == resource_type::texture_2d && (
-		create_info.usage & (desc.samples > 1 ? VK_IMAGE_USAGE_TRANSFER_SRC_BIT : VK_IMAGE_USAGE_TRANSFER_DST_BIT)) != 0)
-		desc.usage |= desc.samples > 1 ? resource_usage::resolve_source : resource_usage::resolve_dest;
+		create_info.usage & (desc.texture.samples > 1 ? VK_IMAGE_USAGE_TRANSFER_SRC_BIT : VK_IMAGE_USAGE_TRANSFER_DST_BIT)) != 0)
+		desc.usage |= desc.texture.samples > 1 ? resource_usage::resolve_source : resource_usage::resolve_dest;
 
 	return desc;
 }
@@ -1109,7 +1109,7 @@ resource_desc reshade::vulkan::convert_resource_desc(const VkBufferCreateInfo &c
 {
 	resource_desc desc = {};
 	desc.type = resource_type::buffer;
-	desc.size = create_info.size;
+	desc.buffer.size = create_info.size;
 	convert_buffer_usage_flags_to_usage(create_info.usage, desc.usage);
 	return desc;
 }
@@ -1145,18 +1145,18 @@ void reshade::vulkan::convert_resource_view_desc(const resource_view_desc &desc,
 	}
 
 	convert_format_to_vk_format(desc.format, create_info.format);
-	create_info.subresourceRange.baseMipLevel = desc.first_level;
-	create_info.subresourceRange.levelCount = desc.levels;
-	create_info.subresourceRange.baseArrayLayer = desc.first_layer;
-	create_info.subresourceRange.layerCount = desc.layers;
+	create_info.subresourceRange.baseMipLevel = desc.texture.first_level;
+	create_info.subresourceRange.levelCount = desc.texture.levels;
+	create_info.subresourceRange.baseArrayLayer = desc.texture.first_layer;
+	create_info.subresourceRange.layerCount = desc.texture.layers;
 }
 void reshade::vulkan::convert_resource_view_desc(const resource_view_desc &desc, VkBufferViewCreateInfo &create_info)
 {
 	assert(desc.type == resource_view_type::buffer);
 
 	convert_format_to_vk_format(desc.format, create_info.format);
-	create_info.offset = desc.offset;
-	create_info.range = desc.size;
+	create_info.offset = desc.buffer.offset;
+	create_info.range = desc.buffer.size;
 }
 resource_view_desc reshade::vulkan::convert_resource_view_desc(const VkImageViewCreateInfo &create_info)
 {
@@ -1191,10 +1191,10 @@ resource_view_desc reshade::vulkan::convert_resource_view_desc(const VkImageView
 	}
 
 	convert_vk_format_to_format(create_info.format, desc.format);
-	desc.first_level = create_info.subresourceRange.baseMipLevel;
-	desc.levels = create_info.subresourceRange.levelCount;
-	desc.first_layer = create_info.subresourceRange.baseArrayLayer;
-	desc.layers = create_info.subresourceRange.layerCount;
+	desc.texture.first_level = create_info.subresourceRange.baseMipLevel;
+	desc.texture.levels = create_info.subresourceRange.levelCount;
+	desc.texture.first_layer = create_info.subresourceRange.baseArrayLayer;
+	desc.texture.layers = create_info.subresourceRange.layerCount;
 
 	return desc;
 }
@@ -1203,7 +1203,7 @@ resource_view_desc reshade::vulkan::convert_resource_view_desc(const VkBufferVie
 	resource_view_desc desc = {};
 	desc.type = resource_view_type::buffer;
 	convert_vk_format_to_format(create_info.format, desc.format);
-	desc.offset = create_info.offset;
-	desc.size = create_info.sType;
+	desc.buffer.offset = create_info.offset;
+	desc.buffer.size = create_info.sType;
 	return desc;
 }

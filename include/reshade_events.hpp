@@ -62,7 +62,7 @@ namespace reshade
 		create_resource,
 		/// <summary>
 		/// Called before 'IDirect3DDevice9::Create(...)Surface(Ex)', 'ID3D10Device::Create(...)View', 'ID3D11Device::Create(...)View', 'ID3D12Device::Create(...)View', 'glTex(ture)Buffer', 'glTextureView(...)' or 'vkCreateBuffer/ImageView'.
-		/// <para>Callback function signature: <c>bool (api::device *device, api::resource_handle resource, api::resource_usage usage_type, const api::resource_view_desc &desc)</c></para>
+		/// <para>Callback function signature: <c>bool (api::device *device, api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc)</c></para>
 		/// </summary>
 		create_resource_view,
 		/// <summary>
@@ -73,12 +73,12 @@ namespace reshade
 
 		/// <summary>
 		/// Called after 'IDirect3DDevice9::SetIndices', 'ID3D10Device::IASetIndexBuffer', 'ID3D11DeviceContext::IASetIndexBuffer', 'ID3D12GraphicsCommandList::IASetIndexBuffer', 'glBindBuffer' or 'vkCmdBindIndexBuffer'.
-		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::resource_handle buffer, uint64_t offset, uint32_t index_size)</c></para>
+		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::resource buffer, uint64_t offset, uint32_t index_size)</c></para>
 		/// </summary>
 		bind_index_buffer,
 		/// <summary>
 		/// Called after 'IDirect3DDevice9::SetStreamSource', 'ID3D10Device::IASetVertexBuffers', 'ID3D11DeviceContext::IASetVertexBuffers', 'ID3D12GraphicsCommandList::IASetVertexBuffers', 'glBindBuffer', 'glBindVertexBuffer(s)' or 'vkCmdBindVertexBuffers'.
-		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, uint32_t first, uint32_t count, const api::resource_handle *buffers, const uint64_t *offsets, const uint32_t *strides)</c></para>
+		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *strides)</c></para>
 		/// </summary>
 		bind_vertex_buffers,
 
@@ -95,17 +95,17 @@ namespace reshade
 
 		/// <summary>
 		/// Called after 'IDirect3DDevice9::SetSamplerState', 'ID3D10Device::(...)SetSamplers', 'ID3D11DeviceContext::(...)SetSamplers' or 'glBindSampler(s)'.
-		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::shader_stage stage, uint32_t first, uint32_t count, const api::sampler_handle *samplers)</c></para>
+		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::shader_stage stage, uint32_t first, uint32_t count, const api::sampler *samplers)</c></para>
 		/// </summary>
 		bind_samplers,
 		/// <summary>
 		/// Called after 'IDirect3DDevice9::SetTexture', 'ID3D10Device::(...)SetShaderResources', 'ID3D11DeviceContext::(...)SetShaderResources' or 'glBindTexture(Unit)(s)'.
-		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::shader_stage stage, uint32_t first, uint32_t count, const api::resource_view_handle *views)</c></para>
+		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::shader_stage stage, uint32_t first, uint32_t count, const api::resource_view *views)</c></para>
 		/// </summary>
 		bind_shader_resource_views,
 		/// <summary>
 		/// Called after 'ID3D11DeviceContext::CSSetUnorderedAccessViews', 'ID3D11DeviceContext::OMSetRenderTargetsAndUnorderedAccessViews' or 'glBindImageTexture(s)'.
-		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::shader_stage stage, uint32_t first, uint32_t count, const api::resource_view_handle *views)</c></para>
+		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::shader_stage stage, uint32_t first, uint32_t count, const api::resource_view *views)</c></para>
 		/// </summary>
 		bind_unordered_access_views,
 		/// <summary>
@@ -115,7 +115,7 @@ namespace reshade
 		bind_constants,
 		/// <summary>
 		/// Called after 'ID3D10Device::(...)SetConstantBuffers', 'ID3D11DeviceContext::(...)SetConstantBuffers', 'ID3D12GraphicsCommandList::Set(...)RootConstantBufferView' or 'glBindBuffer(s)(...)'.
-		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::shader_stage stage, uint32_t first, uint32_t count, const api::resource_handle *buffers, const uint64_t *offsets)</c></para>
+		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::shader_stage stage, uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets)</c></para>
 		/// </summary>
 		bind_constant_buffers,
 		/// <summary>
@@ -143,7 +143,7 @@ namespace reshade
 		bind_scissor_rects,
 		/// <summary>
 		/// Called after 'IDirect3DDevice9::SetRenderTarget', 'IDirect3DDevice9::SetDepthStencilSurface', 'ID3D10Device::OMSetRenderTargets', 'ID3D11DeviceContext::OMSetRenderTargets(AndUnorderedAccessViews)', 'ID3D12GraphicsCommandList::OMSetRenderTargets', 'ID3D12GraphicsCommandList::BeginRenderPass', 'glBindFramebuffer' or before 'vkCmdBeginRenderPass' or 'vkCmdNextSubpass'.
-		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, uint32_t count, const api::resource_view_handle *rtvs, api::resource_view_handle dsv)</c></para>
+		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, uint32_t count, const api::resource_view *rtvs, api::resource_view dsv)</c></para>
 		/// </summary>
 		bind_render_targets_and_depth_stencil,
 
@@ -164,14 +164,14 @@ namespace reshade
 		dispatch,
 		/// <summary>
 		/// Called before 'ID3D11DeviceContext::Draw(Indexed)InstancedIndirect', 'ID3D11DeviceContext::DispatchIndirect', 'ID3D12GraphicsCommandList::ExecuteIndirect', 'gl(Multi)Draw(...)Indirect', 'glDispatchComputeIndirect', 'vkCmdDraw(Indexed)Indirect' or 'vkCmdDispatchIndirect'.
-		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, addon_event type, api::resource_handle buffer, uint64_t offset, uint32_t draw_count, uint32_t stride)</c></para>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, addon_event type, api::resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride)</c></para>
 		/// <para>The "type" parameter to the callback function will be <c>addon_event::draw</c>, <c>addon_event::draw_indexed</c> or <c>addon_event::dispatch</c> depending on the indirect command. Can also be <c>addon_event::draw_or_dispatch_indirect</c> if the type could not be determined.</para>
 		/// </summary>
 		draw_or_dispatch_indirect,
 
 		/// <summary>
 		/// Called before 'IDirect3DDevice9::StretchRect', 'glBlit(Named)Framebuffer' or 'vkCmdBlitImage'.
-		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_handle src, uint32_t src_subresource, const int32_t src_box[6], api::resource_handle dst, uint32_t dst_subresource, const int32_t dst_box[6], api::texture_filter filter)</c></para>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], api::texture_filter filter)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// Source resource will be in the <see cref="resource_usage::copy_source"/> state. Destination resource will be in the <see cref="resource_usage::copy_dest"/> state.
@@ -179,7 +179,7 @@ namespace reshade
 		blit,
 		/// <summary>
 		/// Called before 'IDirect3DDevice9::StretchRect', 'ID3D10Device::ResolveSubresource', 'ID3D11DeviceContext::ResolveSubresource', 'ID3D12GraphicsCommandList::ResolveSubresource', 'glBlit(Named)Framebuffer' or 'vkCmdResolveImage'.
-		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_handle src, uint32_t src_subresource, const int32_t src_offset[3], api::resource_handle dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3], uint32_t format)</c></para>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource src, uint32_t src_subresource, const int32_t src_offset[3], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3], uint32_t format)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// Source resource will be in the <see cref="resource_usage::resolve_source"/> state. Destination resource will be in the <see cref="resource_usage::resolve_dest"/> state.
@@ -187,7 +187,7 @@ namespace reshade
 		resolve,
 		/// <summary>
 		/// Called before 'IDirect3DDevice9::UpdateTexture', 'ID3D10Device::CopyResource', 'ID3D11DeviceContext::CopyResource' or 'ID3D12GraphicsCommandList::CopyResource'.
-		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_handle src, api::resource_handle dst)</c></para>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource src, api::resource dst)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// Source resource will be in the <see cref="resource_usage::copy_source"/> state. Destination resource will be in the <see cref="resource_usage::copy_dest"/> state.
@@ -195,7 +195,7 @@ namespace reshade
 		copy_resource,
 		/// <summary>
 		/// Called before 'ID3D12GraphicsCommandList::CopyBufferRegion' or 'vkCmdCopyBuffer'.
-		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_handle src, uint64_t src_offset, api::resource_handle dst, uint64_t dst_offset, uint64_t size)</c></para>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource src, uint64_t src_offset, api::resource dst, uint64_t dst_offset, uint64_t size)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// Source resource will be in the <see cref="resource_usage::copy_source"/> state. Destination resource will be in the <see cref="resource_usage::copy_dest"/> state.
@@ -203,7 +203,7 @@ namespace reshade
 		copy_buffer_region,
 		/// <summary>
 		/// Called before 'ID3D12GraphicsCommandList::CopyTextureRegion' or 'vkCmdCopyBufferToImage'.
-		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_handle src, uint64_t src_offset, uint32_t row_length, uint32_t slice_height, api::resource_handle dst, uint32_t dst_subresource, const int32_t dst_box[6])</c></para>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource src, uint64_t src_offset, uint32_t row_length, uint32_t slice_height, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6])</c></para>
 		/// </summary>
 		/// <remarks>
 		/// Source resource will be in the <see cref="resource_usage::copy_source"/> state. Destination resource will be in the <see cref="resource_usage::copy_dest"/> state.
@@ -211,7 +211,7 @@ namespace reshade
 		copy_buffer_to_texture,
 		/// <summary>
 		/// Called before 'IDirect3DDevice9::UpdateSurface', 'ID3D10Device::CopySubresourceRegion', 'ID3D11DeviceContext::CopySubresourceRegion', 'ID3D12GraphicsCommandList::CopyTextureRegion' or 'vkCmdCopyImage'.
-		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_handle src, uint32_t src_subresource, const int32_t src_offset[3], api::resource_handle dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3])</c></para>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource src, uint32_t src_subresource, const int32_t src_offset[3], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3])</c></para>
 		/// </summary>
 		/// <remarks>
 		/// Source resource will be in the <see cref="resource_usage::copy_source"/> state. Destination resource will be in the <see cref="resource_usage::copy_dest"/> state.
@@ -219,7 +219,7 @@ namespace reshade
 		copy_texture_region,
 		/// <summary>
 		/// Called before 'ID3D12GraphicsCommandList::CopyTextureRegion' or 'vkCmdCopyImageToBuffer'.
-		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_handle src, uint32_t src_subresource, const int32_t src_box[6], api::resource_handle dst, uint64_t dst_offset, uint32_t row_length, uint32_t slice_height)</c></para>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint64_t dst_offset, uint32_t row_length, uint32_t slice_height)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// Source resource will be in the <see cref="resource_usage::copy_source"/> state. Destination resource will be in the <see cref="resource_usage::copy_dest"/> state.
@@ -227,7 +227,7 @@ namespace reshade
 		copy_texture_to_buffer,
 		/// <summary>
 		/// Called before 'ID3D10Device::UpdateSubresource' or 'ID3D11DeviceContext::UpdateSubresource'.
-		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, const void *data, api::resource_handle dst, uint64_t dst_offset, uint64_t size)</c></para>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, const void *data, api::resource dst, uint64_t dst_offset, uint64_t size)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// Destination resource will be in the <see cref="resource_usage::copy_dest"/> state.
@@ -235,7 +235,7 @@ namespace reshade
 		update_buffer_region,
 		/// <summary>
 		/// Called before 'ID3D10Device::UpdateSubresource' or 'ID3D11DeviceContext::UpdateSubresource'.
-		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, const void *data, uint32_t row_pitch, uint32_t depth_pitch, api::resource_handle dst, uint32_t dst_subresource, const int32_t dst_box[6])</c></para>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, const void *data, uint32_t row_pitch, uint32_t depth_pitch, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6])</c></para>
 		/// </summary>
 		/// <remarks>
 		/// Destination resource will be in the <see cref="resource_usage::copy_dest"/> state.
@@ -244,7 +244,7 @@ namespace reshade
 
 		/// <summary>
 		/// Called before 'IDirect3DDevice9::Clear', 'ID3D10Device::ClearDepthStencilView', 'ID3D11DeviceContext::ClearDepthStencilView', 'ID3D12GraphicsCommandList::ClearDepthStencilView', 'glClear(...) ', 'vkCmdBeginRenderPass', 'vkCmdClearAttachments' or 'vkCmdClearDepthStencilImage'.
-		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil)</c></para>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view dsv, uint32_t clear_flags, float depth, uint8_t stencil)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// Resource will be in the <see cref="resource_usage::depth_stencil_write"/> state.
@@ -252,7 +252,7 @@ namespace reshade
 		clear_depth_stencil_view,
 		/// <summary>
 		/// Called before 'IDirect3DDevice9::Clear', 'ID3D10Device::ClearRenderTargetView', 'ID3D11DeviceContext::ClearRenderTargetView', 'ID3D12GraphicsCommandList::ClearRenderTargetView', 'glClear(...)', 'vkCmdBeginRenderPass', 'vkCmdClearAttachments' or 'vkCmdClearColorImage'.
-		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, uint32_t count, const api::resource_view_handle *rtvs, const float color[4])</c></para>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, uint32_t count, const api::resource_view *rtvs, const float color[4])</c></para>
 		/// </summary>
 		/// <remarks>
 		/// Resources will be in the <see cref="resource_usage::render_target"/> state.
@@ -260,7 +260,7 @@ namespace reshade
 		clear_render_target_views,
 		/// <summary>
 		/// Called before 'ID3D11DeviceContext::ClearUnorderedAccessViewUint' or 'ID3D12GraphicsCommandList::ClearUnorderedAccessViewUint'.
-		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view_handle uav, const float color[4])</c></para>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view uav, const float color[4])</c></para>
 		/// </summary>
 		/// <remarks>
 		/// Resource will be in the <see cref="resource_usage::unordered_access"/> state.
@@ -268,7 +268,7 @@ namespace reshade
 		clear_unordered_access_view_uint,
 		/// <summary>
 		/// Called before 'ID3D11DeviceContext::ClearUnorderedAccessViewFloat', 'ID3D11DeviceContext1::ClearView' or 'ID3D12GraphicsCommandList::ClearUnorderedAccessViewFloat'.
-		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view_handle uav, const float color[4])</c></para>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view uav, const float color[4])</c></para>
 		/// </summary>
 		/// <remarks>
 		/// Resource will be in the <see cref="resource_usage::unordered_access"/> state.
@@ -376,43 +376,43 @@ namespace reshade
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::destroy_effect_runtime, api::effect_runtime *runtime);
 
 	DEFINE_ADDON_EVENT_TYPE_3(addon_event::create_resource, api::device *device, const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage initial_state);
-	DEFINE_ADDON_EVENT_TYPE_3(addon_event::create_resource_view, api::device *device, api::resource_handle resource, api::resource_usage usage_type, const api::resource_view_desc &desc);
+	DEFINE_ADDON_EVENT_TYPE_3(addon_event::create_resource_view, api::device *device, api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc);
 	DEFINE_ADDON_EVENT_TYPE_3(addon_event::create_shader_module, api::device *device, const void *code, size_t code_size);
 
-	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_index_buffer, api::command_list *cmd_list, api::resource_handle buffer, uint64_t offset, uint32_t index_size);
-	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_vertex_buffers, api::command_list *cmd_list, uint32_t first, uint32_t count, const api::resource_handle *buffers, const uint64_t *offsets, const uint32_t *strides);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_index_buffer, api::command_list *cmd_list, api::resource buffer, uint64_t offset, uint32_t index_size);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_vertex_buffers, api::command_list *cmd_list, uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *strides);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_pipeline_states, api::command_list *cmd_list, uint32_t count, const api::pipeline_state *states, const uint32_t *values);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_shader_or_pipeline, api::command_list *cmd_list, api::shader_stage stage, uint64_t handle);
-	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_samplers, api::command_list *cmd_list, api::shader_stage stage, uint32_t first, uint32_t count, const api::sampler_handle *samplers);
-	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_shader_resource_views, api::command_list *cmd_list, api::shader_stage stage, uint32_t first, uint32_t count, const api::resource_view_handle *views);
-	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_unordered_access_views, api::command_list *cmd_list, api::shader_stage stage, uint32_t first, uint32_t count, const api::resource_view_handle *views);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_samplers, api::command_list *cmd_list, api::shader_stage stage, uint32_t first, uint32_t count, const api::sampler *samplers);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_shader_resource_views, api::command_list *cmd_list, api::shader_stage stage, uint32_t first, uint32_t count, const api::resource_view *views);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_unordered_access_views, api::command_list *cmd_list, api::shader_stage stage, uint32_t first, uint32_t count, const api::resource_view *views);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_constants, api::command_list *cmd_list, api::shader_stage stage, uint32_t block, uint32_t first, uint32_t count, const uint32_t *values);
-	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_constant_buffers, api::command_list *cmd_list, api::shader_stage stage, uint32_t first, uint32_t count, const api::resource_handle *buffers, const uint64_t *offsets);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_constant_buffers, api::command_list *cmd_list, api::shader_stage stage, uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_descriptor_heaps, api::command_list *cmd_list, uint32_t count, const uint64_t *heap);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_descriptor_tables, api::command_list *cmd_list, api::shader_stage stage, uint32_t first, uint32_t count, const uint64_t *tables);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_viewports, api::command_list *cmd_list, uint32_t first, uint32_t count, const float *viewports);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_scissor_rects, api::command_list *cmd_list, uint32_t first, uint32_t count, const int32_t *rects);
-	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_render_targets_and_depth_stencil, api::command_list *cmd_list, uint32_t count, const api::resource_view_handle *rtvs, api::resource_view_handle dsv);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_render_targets_and_depth_stencil, api::command_list *cmd_list, uint32_t count, const api::resource_view *rtvs, api::resource_view dsv);
 
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::draw, api::command_list *cmd_list, uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance);
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::draw_indexed, api::command_list *cmd_list, uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance);
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::dispatch, api::command_list *cmd_list, uint32_t num_groups_x, uint32_t num_groups_y, uint32_t num_groups_z);
-	DEFINE_ADDON_EVENT_TYPE_2(addon_event::draw_or_dispatch_indirect, api::command_list *cmd_list, addon_event type, api::resource_handle buffer, uint64_t offset, uint32_t draw_count, uint32_t stride);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::draw_or_dispatch_indirect, api::command_list *cmd_list, addon_event type, api::resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride);
 
-	DEFINE_ADDON_EVENT_TYPE_2(addon_event::blit, api::command_list *cmd_list, api::resource_handle src, uint32_t src_subresource, const int32_t src_box[6], api::resource_handle dst, uint32_t dst_subresource, const int32_t dst_box[6], api::texture_filter filter);
-	DEFINE_ADDON_EVENT_TYPE_2(addon_event::resolve, api::command_list *cmd_list, api::resource_handle src, uint32_t src_subresource, const int32_t src_offset[3], api::resource_handle dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3], uint32_t format);
-	DEFINE_ADDON_EVENT_TYPE_2(addon_event::copy_resource, api::command_list *cmd_list, api::resource_handle src, api::resource_handle dst);
-	DEFINE_ADDON_EVENT_TYPE_2(addon_event::copy_buffer_region, api::command_list *cmd_list, api::resource_handle src, uint64_t src_offset, api::resource_handle dst, uint64_t dst_offset, uint64_t size);
-	DEFINE_ADDON_EVENT_TYPE_2(addon_event::copy_buffer_to_texture, api::command_list *cmd_list, api::resource_handle src, uint64_t src_offset, uint32_t row_length, uint32_t slice_height, api::resource_handle dst, uint32_t dst_subresource, const int32_t dst_box[6]);
-	DEFINE_ADDON_EVENT_TYPE_2(addon_event::copy_texture_region, api::command_list *cmd_list, api::resource_handle src, uint32_t src_subresource, const int32_t src_offset[3], api::resource_handle dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3]);
-	DEFINE_ADDON_EVENT_TYPE_2(addon_event::copy_texture_to_buffer, api::command_list *cmd_list, api::resource_handle src, uint32_t src_subresource, const int32_t src_box[6], api::resource_handle dst, uint64_t dst_offset, uint32_t row_length, uint32_t slice_height);
-	DEFINE_ADDON_EVENT_TYPE_2(addon_event::update_buffer_region, api::command_list *cmd_list, const void *data, api::resource_handle dst, uint64_t dst_offset, uint64_t size);
-	DEFINE_ADDON_EVENT_TYPE_2(addon_event::update_texture_region, api::command_list *cmd_list, const void *data, uint32_t row_pitch, uint32_t depth_pitch, api::resource_handle dst, uint32_t dst_subresource, const int32_t dst_box[6]);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::blit, api::command_list *cmd_list, api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], api::texture_filter filter);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::resolve, api::command_list *cmd_list, api::resource src, uint32_t src_subresource, const int32_t src_offset[3], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3], uint32_t format);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::copy_resource, api::command_list *cmd_list, api::resource src, api::resource dst);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::copy_buffer_region, api::command_list *cmd_list, api::resource src, uint64_t src_offset, api::resource dst, uint64_t dst_offset, uint64_t size);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::copy_buffer_to_texture, api::command_list *cmd_list, api::resource src, uint64_t src_offset, uint32_t row_length, uint32_t slice_height, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6]);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::copy_texture_region, api::command_list *cmd_list, api::resource src, uint32_t src_subresource, const int32_t src_offset[3], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3]);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::copy_texture_to_buffer, api::command_list *cmd_list, api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint64_t dst_offset, uint32_t row_length, uint32_t slice_height);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::update_buffer_region, api::command_list *cmd_list, const void *data, api::resource dst, uint64_t dst_offset, uint64_t size);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::update_texture_region, api::command_list *cmd_list, const void *data, uint32_t row_pitch, uint32_t depth_pitch, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6]);
 
-	DEFINE_ADDON_EVENT_TYPE_2(addon_event::clear_depth_stencil_view, api::command_list *cmd_list, api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil);
-	DEFINE_ADDON_EVENT_TYPE_2(addon_event::clear_render_target_views, api::command_list *cmd_list, uint32_t count, const api::resource_view_handle *rtvs, const float color[4]);
-	DEFINE_ADDON_EVENT_TYPE_2(addon_event::clear_unordered_access_view_uint, api::command_list *cmd_list, api::resource_view_handle uav, const uint32_t values[4]);
-	DEFINE_ADDON_EVENT_TYPE_2(addon_event::clear_unordered_access_view_float, api::command_list *cmd_list, api::resource_view_handle uav, const float values[4]);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::clear_depth_stencil_view, api::command_list *cmd_list, api::resource_view dsv, uint32_t clear_flags, float depth, uint8_t stencil);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::clear_render_target_views, api::command_list *cmd_list, uint32_t count, const api::resource_view *rtvs, const float color[4]);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::clear_unordered_access_view_uint, api::command_list *cmd_list, api::resource_view uav, const uint32_t values[4]);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::clear_unordered_access_view_float, api::command_list *cmd_list, api::resource_view uav, const float values[4]);
 
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::reset_command_list, api::command_list *cmd_list);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::execute_command_list, api::command_queue *queue, api::command_list *cmd_list);

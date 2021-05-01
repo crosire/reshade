@@ -32,7 +32,7 @@ namespace reshade::opengl
 
 		bool capture_screenshot(uint8_t *buffer) const final;
 
-		void update_texture_bindings(const char *semantic, api::resource_view_handle srv) final;
+		void update_texture_bindings(const char *semantic, api::resource_view srv) final;
 
 	private:
 		bool init_effect(size_t index) final;

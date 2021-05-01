@@ -65,17 +65,17 @@ bool reshade::d3d12::device_impl::check_format_support(api::format format, api::
 	return true;
 }
 
-bool reshade::d3d12::device_impl::check_resource_handle_valid(api::resource_handle resource) const
+bool reshade::d3d12::device_impl::check_resource_handle_valid(api::resource resource) const
 {
 	return resource.handle != 0 && _resources.has_object(reinterpret_cast<ID3D12Resource *>(resource.handle));
 }
-bool reshade::d3d12::device_impl::check_resource_view_handle_valid(api::resource_view_handle view) const
+bool reshade::d3d12::device_impl::check_resource_view_handle_valid(api::resource_view view) const
 {
 	const std::lock_guard<std::mutex> lock(_mutex);
 	return _views.find(view.handle) != _views.end();
 }
 
-bool reshade::d3d12::device_impl::create_sampler(const api::sampler_desc &desc, api::sampler_handle *out)
+bool reshade::d3d12::device_impl::create_sampler(const api::sampler_desc &desc, api::sampler *out)
 {
 	D3D12_CPU_DESCRIPTOR_HANDLE descriptor_handle = allocate_descriptor_handle(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
 	if (descriptor_handle.ptr == 0)
@@ -92,7 +92,7 @@ bool reshade::d3d12::device_impl::create_sampler(const api::sampler_desc &desc, 
 	*out = { descriptor_handle.ptr };
 	return true;
 }
-bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage initial_state, api::resource_handle *out)
+bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage initial_state, api::resource *out)
 {
 	if (initial_data != nullptr)
 		return false;
@@ -105,11 +105,11 @@ bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc
 	if (desc.type == api::resource_type::buffer)
 		internal_desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 
-	ID3D12Resource *object = nullptr;
-	if (SUCCEEDED(_orig->CreateCommittedResource(&heap_props, D3D12_HEAP_FLAG_NONE, &internal_desc, convert_resource_usage_to_states(initial_state), nullptr, IID_PPV_ARGS(&object))))
+	if (com_ptr<ID3D12Resource> object;
+		SUCCEEDED(_orig->CreateCommittedResource(&heap_props, D3D12_HEAP_FLAG_NONE, &internal_desc, convert_resource_usage_to_states(initial_state), nullptr, IID_PPV_ARGS(&object))))
 	{
-		_resources.register_object(object);
-		*out = { reinterpret_cast<uintptr_t>(object) };
+		_resources.register_object(object.get());
+		*out = { reinterpret_cast<uintptr_t>(object.release()) };
 		return true;
 	}
 	else
@@ -118,7 +118,7 @@ bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc
 		return false;
 	}
 }
-bool reshade::d3d12::device_impl::create_resource_view(api::resource_handle resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view_handle *out)
+bool reshade::d3d12::device_impl::create_resource_view(api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view *out)
 {
 	assert(resource.handle != 0);
 
@@ -191,45 +191,45 @@ bool reshade::d3d12::device_impl::create_resource_view(api::resource_handle reso
 	return false;
 }
 
-void reshade::d3d12::device_impl::destroy_sampler(api::sampler_handle sampler)
+void reshade::d3d12::device_impl::destroy_sampler(api::sampler handle)
 {
-	assert(sampler.handle != 0);
+	assert(handle.handle != 0);
 
 	const std::lock_guard<std::mutex> lock(_mutex);
 
 	const D3D12_CPU_DESCRIPTOR_HANDLE heap_start = _resource_view_pool[D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER]->GetCPUDescriptorHandleForHeapStart();
-	if (sampler.handle >= heap_start.ptr && sampler.handle < (heap_start.ptr + _resource_view_pool_state[D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER].size() * _descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER]))
+	if (handle.handle >= heap_start.ptr && handle.handle < (heap_start.ptr + _resource_view_pool_state[D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER].size() * _descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER]))
 	{
-		const size_t index = static_cast<size_t>(sampler.handle - heap_start.ptr) / _descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER];
+		const size_t index = static_cast<size_t>(handle.handle - heap_start.ptr) / _descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER];
 		_resource_view_pool_state[D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER][index] = false;
 	}
 }
-void reshade::d3d12::device_impl::destroy_resource(api::resource_handle resource)
+void reshade::d3d12::device_impl::destroy_resource(api::resource handle)
 {
-	assert(resource.handle != 0);
-	reinterpret_cast<ID3D12Resource *>(resource.handle)->Release();
+	assert(handle.handle != 0);
+	reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }
-void reshade::d3d12::device_impl::destroy_resource_view(api::resource_view_handle view)
+void reshade::d3d12::device_impl::destroy_resource_view(api::resource_view handle)
 {
-	assert(view.handle != 0);
+	assert(handle.handle != 0);
 
 	const std::lock_guard<std::mutex> lock(_mutex);
-	_views.erase(view.handle);
+	_views.erase(handle.handle);
 
 	// Mark free slot in the descriptor heap
 	for (UINT type = 0; type < D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES; ++type)
 	{
 		const D3D12_CPU_DESCRIPTOR_HANDLE heap_start = _resource_view_pool[type]->GetCPUDescriptorHandleForHeapStart();
-		if (view.handle >= heap_start.ptr && view.handle < (heap_start.ptr + _resource_view_pool_state[type].size() * _descriptor_handle_size[type]))
+		if (handle.handle >= heap_start.ptr && handle.handle < (heap_start.ptr + _resource_view_pool_state[type].size() * _descriptor_handle_size[type]))
 		{
-			const size_t index = static_cast<size_t>(view.handle - heap_start.ptr) / _descriptor_handle_size[type];
+			const size_t index = static_cast<size_t>(handle.handle - heap_start.ptr) / _descriptor_handle_size[type];
 			_resource_view_pool_state[type][index] = false;
 			break;
 		}
 	}
 }
 
-void reshade::d3d12::device_impl::get_resource_from_view(api::resource_view_handle view, api::resource_handle *out_resource) const
+void reshade::d3d12::device_impl::get_resource_from_view(api::resource_view view, api::resource *out_resource) const
 {
 	assert(view.handle != 0);
 
@@ -240,7 +240,7 @@ void reshade::d3d12::device_impl::get_resource_from_view(api::resource_view_hand
 		*out_resource = { 0 };
 }
 
-reshade::api::resource_desc reshade::d3d12::device_impl::get_resource_desc(api::resource_handle resource) const
+reshade::api::resource_desc reshade::d3d12::device_impl::get_resource_desc(api::resource resource) const
 {
 	assert(resource.handle != 0);
 
@@ -308,11 +308,11 @@ reshade::d3d12::command_list_impl::~command_list_impl()
 		invoke_addon_event<addon_event::destroy_command_list>(this);
 }
 
-void reshade::d3d12::command_list_impl::blit(api::resource_handle, uint32_t, const int32_t[6], api::resource_handle, uint32_t, const int32_t[6], api::texture_filter)
+void reshade::d3d12::command_list_impl::blit(api::resource, uint32_t, const int32_t[6], api::resource, uint32_t, const int32_t[6], api::texture_filter)
 {
 	assert(false);
 }
-void reshade::d3d12::command_list_impl::resolve(api::resource_handle src, uint32_t src_subresource, const int32_t src_offset[3], api::resource_handle dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3], uint32_t format)
+void reshade::d3d12::command_list_impl::resolve(api::resource src, uint32_t src_subresource, const int32_t src_offset[3], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3], uint32_t format)
 {
 	_has_commands = true;
 
@@ -323,7 +323,7 @@ void reshade::d3d12::command_list_impl::resolve(api::resource_handle src, uint32
 		reinterpret_cast<ID3D12Resource *>(dst.handle), dst_subresource,
 		reinterpret_cast<ID3D12Resource *>(src.handle), src_subresource, static_cast<DXGI_FORMAT>(format));
 }
-void reshade::d3d12::command_list_impl::copy_resource(api::resource_handle src, api::resource_handle dst)
+void reshade::d3d12::command_list_impl::copy_resource(api::resource src, api::resource dst)
 {
 	_has_commands = true;
 
@@ -331,7 +331,7 @@ void reshade::d3d12::command_list_impl::copy_resource(api::resource_handle src, 
 
 	_orig->CopyResource(reinterpret_cast<ID3D12Resource *>(dst.handle), reinterpret_cast<ID3D12Resource *>(src.handle));
 }
-void reshade::d3d12::command_list_impl::copy_buffer_region(api::resource_handle src, uint64_t src_offset, api::resource_handle dst, uint64_t dst_offset, uint64_t size)
+void reshade::d3d12::command_list_impl::copy_buffer_region(api::resource src, uint64_t src_offset, api::resource dst, uint64_t dst_offset, uint64_t size)
 {
 	_has_commands = true;
 
@@ -339,7 +339,7 @@ void reshade::d3d12::command_list_impl::copy_buffer_region(api::resource_handle 
 
 	_orig->CopyBufferRegion(reinterpret_cast<ID3D12Resource *>(dst.handle), dst_offset, reinterpret_cast<ID3D12Resource *>(src.handle), src_offset, size);
 }
-void reshade::d3d12::command_list_impl::copy_buffer_to_texture(api::resource_handle src, uint64_t src_offset, uint32_t row_length, uint32_t slice_height, api::resource_handle dst, uint32_t dst_subresource, const int32_t dst_box[6])
+void reshade::d3d12::command_list_impl::copy_buffer_to_texture(api::resource src, uint64_t src_offset, uint32_t row_length, uint32_t slice_height, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6])
 {
 	_has_commands = true;
 
@@ -380,7 +380,7 @@ void reshade::d3d12::command_list_impl::copy_buffer_to_texture(api::resource_han
 		&dst_copy_location, dst_box != nullptr ? dst_box[0] : 0, dst_box != nullptr ? dst_box[1] : 0, dst_box != nullptr ? dst_box[2] : 0,
 		&src_copy_location, &src_box);
 }
-void reshade::d3d12::command_list_impl::copy_texture_region(api::resource_handle src, uint32_t src_subresource, const int32_t src_offset[3], api::resource_handle dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3])
+void reshade::d3d12::command_list_impl::copy_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_offset[3], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3])
 {
 	_has_commands = true;
 
@@ -419,7 +419,7 @@ void reshade::d3d12::command_list_impl::copy_texture_region(api::resource_handle
 		&dst_copy_location, dst_offset != nullptr ? dst_offset[0] : 0, dst_offset != nullptr ? dst_offset[1] : 0, dst_offset != nullptr ? dst_offset[2] : 0,
 		&src_copy_location, &src_box);
 }
-void reshade::d3d12::command_list_impl::copy_texture_to_buffer(api::resource_handle src, uint32_t src_subresource, const int32_t src_box[6], api::resource_handle dst, uint64_t dst_offset, uint32_t row_length, uint32_t slice_height)
+void reshade::d3d12::command_list_impl::copy_texture_to_buffer(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint64_t dst_offset, uint32_t row_length, uint32_t slice_height)
 {
 	_has_commands = true;
 
@@ -447,7 +447,7 @@ void reshade::d3d12::command_list_impl::copy_texture_to_buffer(api::resource_han
 		&src_copy_location, reinterpret_cast<const D3D12_BOX *>(src_box));
 }
 
-void reshade::d3d12::command_list_impl::clear_depth_stencil_view(api::resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil)
+void reshade::d3d12::command_list_impl::clear_depth_stencil_view(api::resource_view dsv, uint32_t clear_flags, float depth, uint8_t stencil)
 {
 	_has_commands = true;
 
@@ -455,7 +455,7 @@ void reshade::d3d12::command_list_impl::clear_depth_stencil_view(api::resource_v
 
 	_orig->ClearDepthStencilView(D3D12_CPU_DESCRIPTOR_HANDLE { static_cast<SIZE_T>(dsv.handle) }, static_cast<D3D12_CLEAR_FLAGS>(clear_flags), depth, stencil, 0, nullptr);
 }
-void reshade::d3d12::command_list_impl::clear_render_target_views(uint32_t count, const api::resource_view_handle *rtvs, const float color[4])
+void reshade::d3d12::command_list_impl::clear_render_target_views(uint32_t count, const api::resource_view *rtvs, const float color[4])
 {
 	_has_commands = true;
 
@@ -467,7 +467,7 @@ void reshade::d3d12::command_list_impl::clear_render_target_views(uint32_t count
 	}
 }
 
-void reshade::d3d12::command_list_impl::transition_state(api::resource_handle resource, api::resource_usage old_layout, api::resource_usage new_layout)
+void reshade::d3d12::command_list_impl::transition_state(api::resource resource, api::resource_usage old_layout, api::resource_usage new_layout)
 {
 	_has_commands = true;
 

@@ -1236,7 +1236,7 @@ void reshade::d3d11::runtime_impl::render_technique(technique &technique)
 	}
 }
 
-void reshade::d3d11::runtime_impl::update_texture_bindings(const char *semantic, api::resource_view_handle api_srv)
+void reshade::d3d11::runtime_impl::update_texture_bindings(const char *semantic, api::resource_view api_srv)
 {
 	const auto new_srv = reinterpret_cast<ID3D11ShaderResourceView *>(api_srv.handle);
 

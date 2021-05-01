@@ -383,32 +383,31 @@ void reshade::d3d9::convert_resource_desc(const resource_desc &desc, D3DVOLUME_D
 {
 	assert(desc.type == resource_type::texture_3d);
 
-	internal_desc.Width = desc.width;
-	internal_desc.Height = desc.height;
-	internal_desc.Depth = desc.depth_or_layers;
-	convert_format_to_d3d_format(desc.format, internal_desc.Format);
-	assert(desc.samples == 1);
+	internal_desc.Width = desc.texture.width;
+	internal_desc.Height = desc.texture.height;
+	internal_desc.Depth = desc.texture.depth_or_layers;
+	convert_format_to_d3d_format(desc.texture.format, internal_desc.Format);
+	assert(desc.texture.samples == 1);
 
 	convert_memory_heap_to_d3d_pool(desc.heap, internal_desc.Pool);
 	convert_resource_usage_to_d3d_usage(desc.usage, internal_desc.Usage);
 
 	if (levels != nullptr)
-		*levels = desc.levels;
+		*levels = desc.texture.levels;
 	else
-		assert(desc.levels == 1);
+		assert(desc.texture.levels == 1);
 }
 void reshade::d3d9::convert_resource_desc(const resource_desc &desc, D3DSURFACE_DESC &internal_desc, UINT *levels)
 {
 	assert(desc.type == resource_type::surface || desc.type == resource_type::texture_2d);
 
-	internal_desc.Width = desc.width;
-	internal_desc.Height = desc.height;
-	assert(desc.depth_or_layers == 1 || desc.depth_or_layers == 6 /* D3DRTYPE_CUBETEXTURE */);
-	internal_desc.Format = static_cast<D3DFORMAT>(desc.format);
-	convert_format_to_d3d_format(desc.format, internal_desc.Format);
+	internal_desc.Width = desc.texture.width;
+	internal_desc.Height = desc.texture.height;
+	assert(desc.texture.depth_or_layers == 1 || desc.texture.depth_or_layers == 6 /* D3DRTYPE_CUBETEXTURE */);
+	convert_format_to_d3d_format(desc.texture.format, internal_desc.Format);
 
-	if (desc.samples > 1)
-		internal_desc.MultiSampleType = static_cast<D3DMULTISAMPLE_TYPE>(desc.samples);
+	if (desc.texture.samples > 1)
+		internal_desc.MultiSampleType = static_cast<D3DMULTISAMPLE_TYPE>(desc.texture.samples);
 	else
 		internal_desc.MultiSampleType = D3DMULTISAMPLE_NONE;
 
@@ -416,16 +415,16 @@ void reshade::d3d9::convert_resource_desc(const resource_desc &desc, D3DSURFACE_
 	convert_resource_usage_to_d3d_usage(desc.usage, internal_desc.Usage);
 
 	if (levels != nullptr)
-		*levels = desc.levels;
+		*levels = desc.texture.levels;
 	else
-		assert(desc.levels == 1);
+		assert(desc.texture.levels == 1);
 }
 void reshade::d3d9::convert_resource_desc(const resource_desc &desc, D3DINDEXBUFFER_DESC &internal_desc)
 {
 	assert(desc.type == resource_type::buffer);
 
-	assert(desc.size <= std::numeric_limits<UINT>::max());
-	internal_desc.Size = static_cast<UINT>(desc.size);
+	assert(desc.buffer.size <= std::numeric_limits<UINT>::max());
+	internal_desc.Size = static_cast<UINT>(desc.buffer.size);
 
 	convert_memory_heap_to_d3d_pool(desc.heap, internal_desc.Pool);
 	assert((desc.usage & (resource_usage::vertex_buffer | resource_usage::index_buffer)) == resource_usage::index_buffer);
@@ -435,8 +434,8 @@ void reshade::d3d9::convert_resource_desc(const resource_desc &desc, D3DVERTEXBU
 {
 	assert(desc.type == resource_type::buffer);
 
-	assert(desc.size <= std::numeric_limits<UINT>::max());
-	internal_desc.Size = static_cast<UINT>(desc.size);
+	assert(desc.buffer.size <= std::numeric_limits<UINT>::max());
+	internal_desc.Size = static_cast<UINT>(desc.buffer.size);
 
 	convert_memory_heap_to_d3d_pool(desc.heap, internal_desc.Pool);
 	assert((desc.usage & (resource_usage::vertex_buffer | resource_usage::index_buffer)) == resource_usage::vertex_buffer);
@@ -448,14 +447,14 @@ resource_desc reshade::d3d9::convert_resource_desc(const D3DVOLUME_DESC &interna
 
 	resource_desc desc = {};
 	desc.type = resource_type::texture_3d;
-	desc.width = internal_desc.Width;
-	desc.height = internal_desc.Height;
+	desc.texture.width = internal_desc.Width;
+	desc.texture.height = internal_desc.Height;
 	assert(internal_desc.Depth <= std::numeric_limits<uint16_t>::max());
-	desc.depth_or_layers = static_cast<uint16_t>(internal_desc.Depth);
+	desc.texture.depth_or_layers = static_cast<uint16_t>(internal_desc.Depth);
 	assert(levels <= std::numeric_limits<uint16_t>::max());
-	desc.levels = static_cast<uint16_t>(levels);
-	convert_d3d_format_to_format(internal_desc.Format, desc.format);
-	desc.samples = 1;
+	desc.texture.levels = static_cast<uint16_t>(levels);
+	convert_d3d_format_to_format(internal_desc.Format, desc.texture.format);
+	desc.texture.samples = 1;
 
 	convert_d3d_pool_to_memory_heap(internal_desc.Pool, desc.heap);
 	convert_d3d_usage_to_resource_usage(internal_desc.Usage, desc.usage);
@@ -470,17 +469,17 @@ resource_desc reshade::d3d9::convert_resource_desc(const D3DSURFACE_DESC &intern
 
 	resource_desc desc = {};
 	desc.type = (internal_desc.Type == D3DRTYPE_SURFACE) ? resource_type::surface : resource_type::texture_2d;
-	desc.width = internal_desc.Width;
-	desc.height = internal_desc.Height;
-	desc.depth_or_layers = internal_desc.Type == D3DRTYPE_CUBETEXTURE ? 6 : 1;
+	desc.texture.width = internal_desc.Width;
+	desc.texture.height = internal_desc.Height;
+	desc.texture.depth_or_layers = internal_desc.Type == D3DRTYPE_CUBETEXTURE ? 6 : 1;
 	assert(levels <= std::numeric_limits<uint16_t>::max());
-	desc.levels = static_cast<uint16_t>(levels);
-	convert_d3d_format_to_format(internal_desc.Format, desc.format);
+	desc.texture.levels = static_cast<uint16_t>(levels);
+	convert_d3d_format_to_format(internal_desc.Format, desc.texture.format);
 
 	if (internal_desc.MultiSampleType >= D3DMULTISAMPLE_2_SAMPLES)
-		desc.samples = static_cast<uint16_t>(internal_desc.MultiSampleType);
+		desc.texture.samples = static_cast<uint16_t>(internal_desc.MultiSampleType);
 	else
-		desc.samples = 1;
+		desc.texture.samples = 1;
 
 	convert_d3d_pool_to_memory_heap(internal_desc.Pool, desc.heap);
 	convert_d3d_usage_to_resource_usage(internal_desc.Usage, desc.usage);
@@ -533,7 +532,7 @@ resource_desc reshade::d3d9::convert_resource_desc(const D3DINDEXBUFFER_DESC &in
 {
 	resource_desc desc = {};
 	desc.type = resource_type::buffer;
-	desc.size = internal_desc.Size;
+	desc.buffer.size = internal_desc.Size;
 	convert_d3d_pool_to_memory_heap(internal_desc.Pool, desc.heap);
 	convert_d3d_usage_to_resource_usage(internal_desc.Usage, desc.usage);
 	desc.usage |= resource_usage::index_buffer;
@@ -543,7 +542,7 @@ resource_desc reshade::d3d9::convert_resource_desc(const D3DVERTEXBUFFER_DESC &i
 {
 	resource_desc desc = {};
 	desc.type = resource_type::buffer;
-	desc.size = internal_desc.Size;
+	desc.buffer.size = internal_desc.Size;
 	convert_d3d_pool_to_memory_heap(internal_desc.Pool, desc.heap);
 	convert_d3d_usage_to_resource_usage(internal_desc.Usage, desc.usage);
 	desc.usage |= resource_usage::vertex_buffer;

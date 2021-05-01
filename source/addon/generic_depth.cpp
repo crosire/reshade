@@ -46,7 +46,7 @@ struct state_tracking
 	draw_stats best_copy_stats;
 	bool first_empty_stats = true;
 	bool has_indirect_drawcalls = false;
-	resource_handle current_depth_stencil = { 0 };
+	resource current_depth_stencil = { 0 };
 	float current_viewport[6] = {};
 	std::unordered_map<uint64_t, depth_stencil_info> counters_per_used_depth_stencil;
 
@@ -107,22 +107,22 @@ struct state_tracking_context
 	draw_stats previous_stats = {};
 
 	// A resource used as target for a backup copy for the selected depth-stencil
-	resource_handle backup_texture = { 0 };
+	resource backup_texture = { 0 };
 
 	// The depth-stencil that is currently selected as being the main depth target
 	// Any clear operations on it are subject for special handling (backup copy or replacement)
-	resource_handle selected_depth_stencil = { 0 };
+	resource selected_depth_stencil = { 0 };
 
 	// Resource used to override automatic depth-stencil selection
-	resource_handle override_depth_stencil = { 0 };
+	resource override_depth_stencil = { 0 };
 
 	// The current shader resource view bound to shaders
 	// This can be created from either the original depth-stencil of the application (if it supports shader access), or from the backup resource, or from one of the replacement resources
-	resource_view_handle selected_shader_resource = { 0 };
+	resource_view selected_shader_resource = { 0 };
 
 #if RESHADE_GUI
 	// List of all encountered depth-stencils of the last frame
-	std::vector<std::pair<resource_handle, depth_stencil_info>> current_depth_stencil_list;
+	std::vector<std::pair<resource, depth_stencil_info>> current_depth_stencil_list;
 	std::unordered_map<uint64_t, unsigned int> display_count_per_depth_stencil;
 #endif
 
@@ -148,7 +148,7 @@ struct state_tracking_context
 		{
 			const resource_desc existing_desc = device->get_resource_desc(backup_texture);
 
-			if (desc.width == existing_desc.width && desc.height == existing_desc.height && desc.format == existing_desc.format)
+			if (desc.texture.width == existing_desc.texture.width && desc.texture.height == existing_desc.texture.height && desc.texture.format == existing_desc.texture.format)
 				return; // Texture already matches dimensions, so can re-use
 
 			device->wait_idle(); // Texture may still be in use on device, so wait for all operations to finish before destroying it
@@ -161,16 +161,16 @@ struct state_tracking_context
 		desc.usage = resource_usage::shader_resource | resource_usage::copy_dest;
 
 		if (device->get_api() == render_api::d3d9)
-			desc.format = format::r32_float; // D3DFMT_R32F, size INTZ does not support D3DUSAGE_RENDERTARGET which is required for copying
+			desc.texture.format = format::r32_float; // D3DFMT_R32F, size INTZ does not support D3DUSAGE_RENDERTARGET which is required for copying
 		if (device->get_api() >= render_api::d3d10 && device->get_api() <= render_api::d3d12)
-			desc.format = static_cast<format>(make_dxgi_format_typeless(static_cast<DXGI_FORMAT>(desc.format)));
+			desc.texture.format = static_cast<format>(make_dxgi_format_typeless(static_cast<DXGI_FORMAT>(desc.texture.format)));
 
 		if (!device->create_resource(desc, nullptr, resource_usage::copy_dest, &backup_texture))
 			LOG(ERROR) << "Failed to create backup depth-stencil texture!";
 	}
 };
 
-static void clear_depth_impl(command_list *cmd_list, state_tracking &state, const state_tracking_context &device_state, resource_handle depth_stencil, bool fullscreen_draw_call)
+static void clear_depth_impl(command_list *cmd_list, state_tracking &state, const state_tracking_context &device_state, resource depth_stencil, bool fullscreen_draw_call)
 {
 	if (depth_stencil == 0 || device_state.backup_texture == 0 || depth_stencil != device_state.selected_depth_stencil)
 		return;
@@ -190,7 +190,7 @@ static void clear_depth_impl(command_list *cmd_list, state_tracking &state, cons
 
 	// Skip clears when last viewport only affected a subset of the depth-stencil
 	if (const resource_desc desc = cmd_list->get_device()->get_resource_desc(depth_stencil);
-		!device_state.check_aspect_ratio(counters.current_stats.last_viewport[2], counters.current_stats.last_viewport[3], desc.width, desc.height))
+		!device_state.check_aspect_ratio(counters.current_stats.last_viewport[2], counters.current_stats.last_viewport[3], desc.texture.width, desc.texture.height))
 	{
 		counters.current_stats = { 0, 0 };
 		return;
@@ -262,14 +262,14 @@ static bool on_create_resource(
 	// No need to modify resources in D3D12, since backup texture is used always
 	if ((device->get_api() != render_api::d3d12) && (
 		// Skip MSAA textures and resources that are not 2D textures
-		(desc.type == resource_type::surface || desc.type == resource_type::texture_2d) && desc.samples == 1) && (
+		(desc.type == resource_type::surface || desc.type == resource_type::texture_2d) && desc.texture.samples == 1) && (
 		// Allow shader access to images that are used as depth-stencil attachments
 		(desc.usage & resource_usage::depth_stencil) != 0 && (desc.usage & resource_usage::shader_resource) == 0))
 	{
 		if (device->get_api() == render_api::d3d9 && !s_disable_intz)
-			new_desc.format = format::intz;
+			new_desc.texture.format = format::intz;
 		if (device->get_api() >= render_api::d3d10 && device->get_api() <= render_api::d3d12)
-			new_desc.format = static_cast<format>(make_dxgi_format_typeless(static_cast<DXGI_FORMAT>(desc.format)));
+			new_desc.texture.format = static_cast<format>(make_dxgi_format_typeless(static_cast<DXGI_FORMAT>(desc.texture.format)));
 
 		new_desc.usage |= resource_usage::shader_resource;
 	}
@@ -277,7 +277,7 @@ static bool on_create_resource(
 	return call_next(device, new_desc, initial_data, initial_state);
 }
 static bool on_create_resource_view(
-	reshade::addon_event_trampoline<reshade::addon_event::create_resource_view> &call_next, device *device, resource_handle resource, resource_usage usage_type, const resource_view_desc &desc)
+	reshade::addon_event_trampoline<reshade::addon_event::create_resource_view> &call_next, device *device, resource resource, resource_usage usage_type, const resource_view_desc &desc)
 {
 	resource_view_desc new_desc = desc;
 
@@ -286,26 +286,26 @@ static bool on_create_resource_view(
 	{
 		const resource_desc texture_desc = device->get_resource_desc(resource);
 		// Only non-MSAA textures where modified, so skip all others
-		if (texture_desc.samples == 1 && (texture_desc.usage & resource_usage::depth_stencil) != 0)
+		if (texture_desc.texture.samples == 1 && (texture_desc.usage & resource_usage::depth_stencil) != 0)
 		{
 			switch (usage_type)
 			{
 			case resource_usage::depth_stencil:
-				new_desc.format = static_cast<format>(make_dxgi_format_dsv(static_cast<DXGI_FORMAT>(texture_desc.format)));
+				new_desc.format = static_cast<format>(make_dxgi_format_dsv(static_cast<DXGI_FORMAT>(texture_desc.texture.format)));
 				break;
 			case resource_usage::shader_resource:
-				new_desc.format = static_cast<format>(make_dxgi_format_normal(static_cast<DXGI_FORMAT>(texture_desc.format)));
+				new_desc.format = static_cast<format>(make_dxgi_format_normal(static_cast<DXGI_FORMAT>(texture_desc.texture.format)));
 				break;
 			}
 
 			// Only need to set the rest of the fields if the application did not pass in a valid description already
 			if (desc.type == resource_view_type::unknown)
 			{
-				new_desc.type = texture_desc.depth_or_layers > 1 ? resource_view_type::texture_2d_array : resource_view_type::texture_2d;
-				new_desc.first_level = 0;
-				new_desc.levels = (usage_type == resource_usage::shader_resource) ? 0xFFFFFFFF : 1;
-				new_desc.first_layer = 0;
-				new_desc.layers = (usage_type == resource_usage::shader_resource) ? 0xFFFFFFFF : 1;
+				new_desc.type = texture_desc.texture.depth_or_layers > 1 ? resource_view_type::texture_2d_array : resource_view_type::texture_2d;
+				new_desc.texture.first_level = 0;
+				new_desc.texture.levels = (usage_type == resource_usage::shader_resource) ? 0xFFFFFFFF : 1;
+				new_desc.texture.first_layer = 0;
+				new_desc.texture.layers = (usage_type == resource_usage::shader_resource) ? 0xFFFFFFFF : 1;
 			}
 		}
 	}
@@ -345,7 +345,7 @@ static bool on_draw_indexed(command_list *cmd_list, uint32_t indices, uint32_t i
 
 	return false;
 }
-static bool on_draw_indirect(command_list *cmd_list, reshade::addon_event type, resource_handle, uint64_t, uint32_t draw_count, uint32_t)
+static bool on_draw_indirect(command_list *cmd_list, reshade::addon_event type, resource, uint64_t, uint32_t draw_count, uint32_t)
 {
 	if (type != reshade::addon_event::dispatch)
 	{
@@ -366,12 +366,12 @@ static void on_bind_viewport(command_list *cmd_list, uint32_t first, uint32_t co
 	auto &state = cmd_list->get_data<state_tracking>(state_tracking::GUID);
 	std::memcpy(state.current_viewport, viewport, 6 * sizeof(float));
 }
-static void on_bind_depth_stencil(command_list *cmd_list, uint32_t, const resource_view_handle *, resource_view_handle dsv)
+static void on_bind_depth_stencil(command_list *cmd_list, uint32_t, const resource_view *, resource_view dsv)
 {
 	device *const device = cmd_list->get_device();
 	auto &state = cmd_list->get_data<state_tracking>(state_tracking::GUID);
 
-	resource_handle depth_stencil = { 0 };
+	resource depth_stencil = { 0 };
 	if (dsv != 0)
 	{
 		device->get_resource_from_view(dsv, &depth_stencil);
@@ -385,7 +385,7 @@ static void on_bind_depth_stencil(command_list *cmd_list, uint32_t, const resour
 
 	state.current_depth_stencil = depth_stencil;
 }
-static bool on_clear_depth_stencil(command_list *cmd_list, resource_view_handle dsv, uint32_t clear_flags, float, uint8_t)
+static bool on_clear_depth_stencil(command_list *cmd_list, resource_view dsv, uint32_t clear_flags, float, uint8_t)
 {
 	device *const device = cmd_list->get_device();
 	const state_tracking_context &device_state = device->get_data<state_tracking_context>(state_tracking_context::GUID);
@@ -393,7 +393,7 @@ static bool on_clear_depth_stencil(command_list *cmd_list, resource_view_handle 
 	// Ignore clears that do not affect the depth buffer (stencil clears)
 	if ((clear_flags & 0x1) != 0 && device_state.preserve_depth_buffers)
 	{
-		resource_handle depth_stencil = { 0 };
+		resource depth_stencil = { 0 };
 		device->get_resource_from_view(dsv, &depth_stencil);
 
 		clear_depth_impl(cmd_list, cmd_list->get_data<state_tracking>(state_tracking::GUID), device_state, depth_stencil, false);
@@ -430,12 +430,12 @@ static void on_present(command_queue *, effect_runtime *runtime)
 	runtime->get_frame_width_and_height(&frame_width, &frame_height);
 
 	resource_desc best_desc = {};
-	resource_handle best_match = { 0 };
+	resource best_match = { 0 };
 	depth_stencil_info best_snapshot;
 
 	for (const auto &[depth_stencil_handle, snapshot] : queue_state.counters_per_used_depth_stencil)
 	{
-		resource_handle const resource = { depth_stencil_handle };
+		resource const resource = { depth_stencil_handle };
 		if (!device->check_resource_handle_valid(resource))
 			continue; // Skip resources that were destroyed by the application
 
@@ -448,10 +448,10 @@ static void on_present(command_queue *, effect_runtime *runtime)
 			continue; // Skip unused
 
 		const resource_desc desc = device->get_resource_desc(resource);
-		if (desc.samples > 1)
+		if (desc.texture.samples > 1)
 			continue; // Ignore MSAA textures, since they would need to be resolved first
 
-		if (device_state.use_aspect_ratio_heuristics && !device_state.check_aspect_ratio(static_cast<float>(desc.width), static_cast<float>(desc.height), frame_width, frame_height))
+		if (device_state.use_aspect_ratio_heuristics && !device_state.check_aspect_ratio(static_cast<float>(desc.texture.width), static_cast<float>(desc.texture.height), frame_width, frame_height))
 			continue; // Not a good fit
 
 		if (!queue_state.has_indirect_drawcalls ?
@@ -489,12 +489,7 @@ static void on_present(command_queue *, effect_runtime *runtime)
 			device_state.selected_shader_resource = { 0 };
 
 			// Create two-dimensional resource view to the first level and layer of the depth-stencil resource
-			resource_view_desc srv_desc = {};
-			srv_desc.type = resource_view_type::texture_2d;
-			srv_desc.format = best_desc.format;
-			srv_desc.levels = 1;
-			srv_desc.layers = 1;
-
+			resource_view_desc srv_desc(best_desc.texture.format, 0, 1, 0, 1);
 			if (device->get_api() >= render_api::d3d10 && device->get_api() <= render_api::d3d12)
 				srv_desc.format = static_cast<format>(make_dxgi_format_normal(static_cast<DXGI_FORMAT>(srv_desc.format)));
 
@@ -590,7 +585,7 @@ static void on_before_render_effects(effect_runtime *runtime, command_list *cmd_
 
 	if (device_state.selected_shader_resource != 0)
 	{
-		resource_handle resource = { 0 };
+		resource resource = { 0 };
 		device->get_resource_from_view(device_state.selected_shader_resource, &resource);
 
 		if (resource == device_state.backup_texture)
@@ -610,7 +605,7 @@ static void on_after_render_effects(effect_runtime *runtime, command_list *cmd_l
 
 	if (device_state.selected_shader_resource != 0)
 	{
-		resource_handle resource = { 0 };
+		resource resource = { 0 };
 		device->get_resource_from_view(device_state.selected_shader_resource, &resource);
 
 		if (resource == device_state.backup_texture)
@@ -651,7 +646,7 @@ static void draw_debug_menu(effect_runtime *runtime, void *)
 	struct depth_stencil_item
 	{
 		unsigned int display_count;
-		resource_handle resource;
+		resource resource;
 		depth_stencil_info snapshot;
 		resource_desc desc;
 	};
@@ -677,8 +672,8 @@ static void draw_debug_menu(effect_runtime *runtime, void *)
 
 	std::sort(sorted_item_list.begin(), sorted_item_list.end(), [](const depth_stencil_item &a, const depth_stencil_item &b) {
 		return (a.display_count > b.display_count) ||
-		       (a.display_count == b.display_count && ((a.desc.width > b.desc.width || (a.desc.width == b.desc.width && a.desc.height > b.desc.height)) ||
-		                                               (a.desc.width == b.desc.width && a.desc.height == b.desc.height && a.resource < b.resource)));
+		       (a.display_count == b.display_count && ((a.desc.texture.width > b.desc.texture.width || (a.desc.texture.width == b.desc.texture.width && a.desc.texture.height > b.desc.texture.height)) ||
+		                                               (a.desc.texture.width == b.desc.texture.width && a.desc.texture.height == b.desc.texture.height && a.resource < b.resource)));
 	});
 
 	device_state.display_count_per_depth_stencil.clear();
@@ -689,7 +684,7 @@ static void draw_debug_menu(effect_runtime *runtime, void *)
 		char label[512] = "";
 		sprintf_s(label, "%s0x%016llx", (item.resource == device_state.selected_depth_stencil ? "> " : "  "), item.resource.handle);
 
-		if (item.desc.samples > 1) // Disable widget for MSAA textures
+		if (item.desc.texture.samples > 1) // Disable widget for MSAA textures
 		{
 			ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
 			ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
@@ -698,13 +693,13 @@ static void draw_debug_menu(effect_runtime *runtime, void *)
 		if (bool value = (item.resource == device_state.override_depth_stencil);
 			ImGui::Checkbox(label, &value))
 		{
-			device_state.override_depth_stencil = value ? item.resource : resource_handle { 0 };
+			device_state.override_depth_stencil = value ? item.resource : resource { 0 };
 			modified = true;
 		}
 
 		ImGui::SameLine();
 		ImGui::Text("| %4ux%-4u | %5u draw calls ==> %8u vertices |%s",
-			item.desc.width, item.desc.height, item.snapshot.total_stats.drawcalls, item.snapshot.total_stats.vertices, (item.desc.samples > 1 ? " MSAA" : ""));
+			item.desc.texture.width, item.desc.texture.height, item.snapshot.total_stats.drawcalls, item.snapshot.total_stats.vertices, (item.desc.texture.samples > 1 ? " MSAA" : ""));
 
 		if (device_state.preserve_depth_buffers && item.resource == device_state.selected_depth_stencil)
 		{
@@ -726,7 +721,7 @@ static void draw_debug_menu(effect_runtime *runtime, void *)
 			}
 		}
 
-		if (item.desc.samples > 1)
+		if (item.desc.texture.samples > 1)
 		{
 			ImGui::PopStyleColor();
 			ImGui::PopItemFlag();

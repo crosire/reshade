@@ -176,65 +176,65 @@ namespace reshade { namespace api
 		/// Checks whether the specified <paramref name="resource"/> handle points to a resource that is still alive and valid.
 		/// This function is thread-safe.
 		/// </summary>
-		virtual bool check_resource_handle_valid(resource_handle resource) const = 0;
+		virtual bool check_resource_handle_valid(resource handle) const = 0;
 		/// <summary>
 		/// Checks whether the specified resource <paramref name="view"/> handle points to a resource view that is still alive and valid.
 		/// This function is thread-safe.
 		/// </summary>
-		virtual bool check_resource_view_handle_valid(resource_view_handle view) const = 0;
+		virtual bool check_resource_view_handle_valid(resource_view handle) const = 0;
 
 		/// <summary>
 		/// Creates a new sampler state object based on the specified <paramref name="desc"/>ription.
 		/// </summary>
 		/// <param name="desc">The description of the sampler to create.</param>
-		/// <param name="out_sampler">Pointer to a handle that is set to the handle of the created sampler.</param>
+		/// <param name="out">Pointer to a handle that is set to the handle of the created sampler.</param>
 		/// <returns><c>true</c>if the sampler was successfully created, <c>false</c> otherwise (in this case <paramref name="out_sampler"/> is set to zero).</returns>
-		virtual bool create_sampler(const sampler_desc &desc, sampler_handle *out_sampler) = 0;
+		virtual bool create_sampler(const sampler_desc &desc, sampler *out) = 0;
 		/// <summary>
 		/// Allocates and creates a new resource based on the specified <paramref name="desc"/>ription.
 		/// </summary>
 		/// <param name="desc">The description of the resource to create.</param>
 		/// <param name="initial_data">Data to upload to the resource after creation. This should point to an array of <see cref="mapped_subresource"/>, one for each subresource (mipmap levels and array layers).</param>
 		/// <param name="initial_state">Initial usage of the resource after creation. This can later be changed via <see cref="command_list::transition_state"/>.</param>
-		/// <param name="out_resource">Pointer to a handle that is set to the handle of the created resource.</param>
+		/// <param name="out">Pointer to a handle that is set to the handle of the created resource.</param>
 		/// <returns><c>true</c>if the resource was successfully created, <c>false</c> otherwise (in this case <paramref name="out_resource"/> is set to zero).</returns>
-		virtual bool create_resource(const resource_desc &desc, const subresource_data *initial_data, resource_usage initial_state, resource_handle *out_resource) = 0;
+		virtual bool create_resource(const resource_desc &desc, const subresource_data *initial_data, resource_usage initial_state, resource *out) = 0;
 		/// <summary>
 		/// Creates a new resource view for the specified <paramref name="resource"/> based on the specified <paramref name="desc"/>ription.
 		/// </summary>
 		/// <param name="resource">The resource the view is created for.</param>
 		/// <param name="usage_type">The usage type of the resource view to create. Set to <see cref="resource_usage::shader_resource"/> to create a shader resource view, <see cref="resource_usage::depth_stencil"/> for a depth-stencil view, <see cref="resource_usage::render_target"/> for a render target etc.</param>
 		/// <param name="desc">The description of the resource to create.</param>
-		/// <param name="out_view">Pointer to a handle that is set to the handle of the created resource view.</param>
+		/// <param name="out">Pointer to a handle that is set to the handle of the created resource view.</param>
 		/// <returns><c>true</c>if the resource view was successfully created, <c>false</c> otherwise (in this case <paramref name="out_view"/> is set to zero).</returns>
-		virtual bool create_resource_view(resource_handle resource, resource_usage usage_type, const resource_view_desc &desc, resource_view_handle *out_view) = 0;
+		virtual bool create_resource_view(resource resource, resource_usage usage_type, const resource_view_desc &desc, resource_view *out) = 0;
 
 		/// <summary>
-		/// Instantly destroys a <paramref name="sampler"/> that was previously created via <see cref="create_sampler"/>.
+		/// Instantly destroys a sampler that was previously created via <see cref="create_sampler"/>.
 		/// </summary>
-		virtual void destroy_sampler(sampler_handle sampler) = 0;
+		virtual void destroy_sampler(sampler handle) = 0;
 		/// <summary>
-		/// Instantly destroys a <paramref name="resource"/> that was previously created via <see cref="create_resource"/> and frees its memory.
+		/// Instantly destroys a resource that was previously created via <see cref="create_resource"/> and frees its memory.
 		/// Make sure it is no longer in use on the GPU (via any command list that may reference it and is still being executed) before doing this and never try to destroy resources created by the application!
 		/// </summary>
-		virtual void destroy_resource(resource_handle resource) = 0;
+		virtual void destroy_resource(resource handle) = 0;
 		/// <summary>
-		/// Instantly destroys a resource <paramref name="view"/> that was previously created via <see cref="create_resource_view"/>.
+		/// Instantly destroys a resource view that was previously created via <see cref="create_resource_view"/>.
 		/// </summary>
-		virtual void destroy_resource_view(resource_view_handle view) = 0;
+		virtual void destroy_resource_view(resource_view handle) = 0;
 
 		/// <summary>
 		/// Gets the handle to the underlying resource the specified resource <paramref name="view"/> was created for.
 		/// This function is thread-safe.
 		/// </summary>
-		virtual void get_resource_from_view(resource_view_handle view, resource_handle *out_resource) const = 0;
+		virtual void get_resource_from_view(resource_view view, resource *result) const = 0;
 
 		/// <summary>
 		/// Gets the description of the specified <paramref name="resource"/>.
 		/// This function is thread-safe.
 		/// </summary>
 		/// <param name="resource">The resource to get the description from.</param>
-		virtual resource_desc get_resource_desc(resource_handle resource) const = 0;
+		virtual resource_desc get_resource_desc(resource resource) const = 0;
 
 		/// <summary>
 		/// Waits for all issued GPU operations to finish before returning.
@@ -272,7 +272,7 @@ namespace reshade { namespace api
 		/// <param name="dst_subresource">The subresource of the <paramref name="destination"/> texture to blit to.</param>
 		/// <param name="dst_box">A 3D box (or <c>nullptr</c> to reference the entire subresource) that defines the region in the <paramref name="destination"/> resource to blit to, in the format { left, top, front, right, bottom, back }.</param>
 		/// <param name="filter">The filter to apply when blit requires scaling.</param>
-		virtual void blit(resource_handle source, uint32_t src_subresource, const int32_t src_box[6], resource_handle destination, uint32_t dst_subresource, const int32_t dst_box[6], texture_filter filter) = 0;
+		virtual void blit(resource source, uint32_t src_subresource, const int32_t src_box[6], resource destination, uint32_t dst_subresource, const int32_t dst_box[6], texture_filter filter) = 0;
 		/// <summary>
 		/// Copies a region from the multisampled <paramref name="source"/> texture to the non-multisampled <paramref name="destination"/> texture.
 		/// <para>The <paramref name="source"/> resource has to be in the <see cref="resource_usage::resolve_source"/> state.</para>
@@ -286,7 +286,7 @@ namespace reshade { namespace api
 		/// <param name="dst_offset">A 3D offset to start resolving to. In D3D10, D3D11 and D3D12 this has to be <c>nullptr</c>.</param>
 		/// <param name="size">Width, height and depth of the texture region to resolve.</param>
 		/// <param name="format">The format of the resource data.</param>
-		virtual void resolve(resource_handle source, uint32_t src_subresource, const int32_t src_offset[3], resource_handle destination, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3], uint32_t format) = 0;
+		virtual void resolve(resource source, uint32_t src_subresource, const int32_t src_offset[3], resource destination, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3], uint32_t format) = 0;
 		/// <summary>
 		/// Copies the entire contents of the <paramref name="source"/> resource to the <paramref name="destination"/> resource.
 		/// <para>The <paramref name="source"/> resource has to be in the <see cref="resource_usage::copy_source"/> state.</para>
@@ -294,7 +294,7 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <param name="source">The resource to copy from.</param>
 		/// <param name="destination">The resource to copy to.</param>
-		virtual void copy_resource(resource_handle source, resource_handle destination) = 0;
+		virtual void copy_resource(resource source, resource destination) = 0;
 		/// <summary>
 		/// Copies a linear memory region from the <paramref name="source"/> buffer to the <paramref name="destination"/> buffer.
 		/// This is not supported (and will do nothing) in D3D9.
@@ -306,7 +306,7 @@ namespace reshade { namespace api
 		/// <param name="destination">The buffer to copy to.</param>
 		/// <param name="dst_offset">An offset in bytes into the <paramref name="destination"/> buffer to start copying to.</param>
 		/// <param name="size">The number of bytes to copy.</param>
-		virtual void copy_buffer_region(resource_handle source, uint64_t src_offset, resource_handle dst, uint64_t dst_offset, uint64_t size) = 0;
+		virtual void copy_buffer_region(resource source, uint64_t src_offset, resource dst, uint64_t dst_offset, uint64_t size) = 0;
 		/// <summary>
 		/// Copies a texture region from the <paramref name="source"/> buffer to the <paramref name="destination"/> texture.
 		/// <para>The <paramref name="source"/> resource has to be in the <see cref="resource_usage::copy_source"/> state.</para>
@@ -319,7 +319,7 @@ namespace reshade { namespace api
 		/// <param name="destination">The texture to copy to.</param>
 		/// <param name="dst_subresource">The subresource of the <paramref name="destination"/> texture to copy to.</param>
 		/// <param name="dst_box">A 3D box (or <c>nullptr</c> to reference the entire subresource) that defines the region in the <paramref name="destination"/> texture to copy to, in the format { left, top, front, right, bottom, back }.</param>
-		virtual void copy_buffer_to_texture(resource_handle source, uint64_t src_offset, uint32_t row_length, uint32_t slice_height, resource_handle destination, uint32_t dst_subresource, const int32_t dst_box[6]) = 0;
+		virtual void copy_buffer_to_texture(resource source, uint64_t src_offset, uint32_t row_length, uint32_t slice_height, resource destination, uint32_t dst_subresource, const int32_t dst_box[6]) = 0;
 		/// <summary>
 		/// Copies a texture region from the <paramref name="source"/> texture to the <paramref name="destination"/> texture.
 		/// <para>The <paramref name="source"/> resource has to be in the <see cref="resource_usage::copy_source"/> state.</para>
@@ -332,7 +332,7 @@ namespace reshade { namespace api
 		/// <param name="dst_subresource">The subresource of the <paramref name="destination"/> texture to copy to.</param>
 		/// <param name="dst_offset">A 3D offset to start copying to.</param>
 		/// <param name="size">Width, height and depth of the texture region to copy.</param>
-		virtual void copy_texture_region(resource_handle source, uint32_t src_subresource, const int32_t src_offset[3], resource_handle destination, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3]) = 0;
+		virtual void copy_texture_region(resource source, uint32_t src_subresource, const int32_t src_offset[3], resource destination, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3]) = 0;
 		/// <summary>
 		/// Copies a texture region from the <paramref name="source"/> texture to the <paramref name="destination"/> buffer.
 		/// <para>The <paramref name="source"/> resource has to be in the <see cref="resource_usage::copy_source"/> state.</para>
@@ -345,7 +345,7 @@ namespace reshade { namespace api
 		/// <param name="dst_offset">An offset in bytes into the <paramref name="destination"/> buffer to start copying to.</param>
 		/// <param name="row_length">The number of pixels from one row to the next (in the buffer), or zero if data is tightly packed.</param>
 		/// <param name="slice_height">The number of rows from one slice to the next (in the buffer), op zero if data is tightly packed.</param>
-		virtual void copy_texture_to_buffer(resource_handle source, uint32_t src_subresource, const int32_t src_box[6], resource_handle destination, uint64_t dst_offset, uint32_t row_length, uint32_t slice_height) = 0;
+		virtual void copy_texture_to_buffer(resource source, uint32_t src_subresource, const int32_t src_box[6], resource destination, uint64_t dst_offset, uint32_t row_length, uint32_t slice_height) = 0;
 
 		/// <summary>
 		/// Clears a depth-stencil resource.
@@ -355,14 +355,14 @@ namespace reshade { namespace api
 		/// <param name="clear_flags">A combination of flags to identify which types of data to clear: <c>0x1</c> for depth, <c>0x2</c> for stencil</param>
 		/// <param name="depth">The value to clear the depth buffer with.</param>
 		/// <param name="stencil">The value to clear the stencil buffer with.</param>
-		virtual void clear_depth_stencil_view(resource_view_handle dsv, uint32_t clear_flags, float depth, uint8_t stencil) = 0;
+		virtual void clear_depth_stencil_view(resource_view dsv, uint32_t clear_flags, float depth, uint8_t stencil) = 0;
 		/// <summary>
 		/// Clears an entire texture resource.
 		/// <para>The resource the <paramref name="rtv"/> view points to has to be in the <see cref="resource_usage::render_target"/> state.</para>
 		/// </summary>
 		/// <param name="rtv">The view handle of the render target.</param>
 		/// <param name="color">The value to clear the resource with.</param>
-		virtual void clear_render_target_views(uint32_t count, const resource_view_handle *rtvs, const float color[4]) = 0;
+		virtual void clear_render_target_views(uint32_t count, const resource_view *rtvs, const float color[4]) = 0;
 
 		/// <summary>
 		/// Adds a transition barrier for the specified <paramref name="resource"/> to the command stream.
@@ -370,7 +370,7 @@ namespace reshade { namespace api
 		/// <param name="resource">The resource to transition.</param>
 		/// <param name="old_state">The usage flags describing how the resource was used before this barrier.</param>
 		/// <param name="new_state">The usage flags describing how the resource will be used after this barrier.</param>
-		virtual void transition_state(resource_handle resource, resource_usage old_state, resource_usage new_state) = 0;
+		virtual void transition_state(resource resource, resource_usage old_state, resource_usage new_state) = 0;
 	};
 
 	/// <summary>
@@ -410,7 +410,7 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Updates all textures that use the specified <paramref name="semantic"/> in all active effects to new resource view.
 		/// </summary>
-		virtual void update_texture_bindings(const char *semantic, resource_view_handle shader_resource_view) = 0;
+		virtual void update_texture_bindings(const char *semantic, resource_view shader_resource_view) = 0;
 
 		/// <summary>
 		/// Updates the values of all uniform variables with a "source" annotation set to <paramref name="source"/> to the specified <paramref name="values"/>.
@@ -421,5 +421,3 @@ namespace reshade { namespace api
 		virtual void update_uniform_variables(const char *source, const uint32_t *values, size_t count, size_t array_index = 0) = 0;
 	};
 } }
-
-#pragma warning(pop)

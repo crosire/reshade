@@ -359,7 +359,7 @@ void    STDMETHODCALLTYPE D3D12Device::CreateShaderResourceView(ID3D12Resource *
 			pDesc != nullptr ? *pDesc : D3D12_SHADER_RESOURCE_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D12_SRV_DIMENSION_UNKNOWN };
 
 		reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(
-			[this, &new_desc, DestDescriptor](reshade::api::device *, reshade::api::resource_handle resource, reshade::api::resource_usage usage_type, const reshade::api::resource_view_desc &desc) {
+			[this, &new_desc, DestDescriptor](reshade::api::device *, reshade::api::resource resource, reshade::api::resource_usage usage_type, const reshade::api::resource_view_desc &desc) {
 				if (usage_type != reshade::api::resource_usage::shader_resource)
 					return false;
 				reshade::d3d12::convert_resource_view_desc(desc, new_desc);
@@ -368,7 +368,7 @@ void    STDMETHODCALLTYPE D3D12Device::CreateShaderResourceView(ID3D12Resource *
 
 				register_resource_view(reinterpret_cast<ID3D12Resource *>(resource.handle), DestDescriptor);
 				return true;
-			}, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_usage::shader_resource, reshade::d3d12::convert_resource_view_desc(new_desc));
+			}, this, reshade::api::resource { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_usage::shader_resource, reshade::d3d12::convert_resource_view_desc(new_desc));
 	}
 	else
 #endif
@@ -384,7 +384,7 @@ void    STDMETHODCALLTYPE D3D12Device::CreateUnorderedAccessView(ID3D12Resource 
 			pDesc != nullptr ? *pDesc : D3D12_UNORDERED_ACCESS_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D12_UAV_DIMENSION_UNKNOWN };
 
 		reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(
-			[this, &new_desc, pCounterResource, DestDescriptor](reshade::api::device *, reshade::api::resource_handle resource, reshade::api::resource_usage usage_type, const reshade::api::resource_view_desc &desc) {
+			[this, &new_desc, pCounterResource, DestDescriptor](reshade::api::device *, reshade::api::resource resource, reshade::api::resource_usage usage_type, const reshade::api::resource_view_desc &desc) {
 				if (usage_type != reshade::api::resource_usage::unordered_access)
 					return false;
 				reshade::d3d12::convert_resource_view_desc(desc, new_desc);
@@ -393,7 +393,7 @@ void    STDMETHODCALLTYPE D3D12Device::CreateUnorderedAccessView(ID3D12Resource 
 
 				register_resource_view(reinterpret_cast<ID3D12Resource *>(resource.handle), DestDescriptor);
 				return true;
-			}, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_usage::unordered_access, reshade::d3d12::convert_resource_view_desc(new_desc));
+			}, this, reshade::api::resource { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_usage::unordered_access, reshade::d3d12::convert_resource_view_desc(new_desc));
 	}
 	else
 #endif
@@ -409,7 +409,7 @@ void    STDMETHODCALLTYPE D3D12Device::CreateRenderTargetView(ID3D12Resource *pR
 			pDesc != nullptr ? *pDesc : D3D12_RENDER_TARGET_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D12_RTV_DIMENSION_UNKNOWN };
 
 		reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(
-			[this, &new_desc, DestDescriptor](reshade::api::device *, reshade::api::resource_handle resource, reshade::api::resource_usage usage_type, const reshade::api::resource_view_desc &desc) {
+			[this, &new_desc, DestDescriptor](reshade::api::device *, reshade::api::resource resource, reshade::api::resource_usage usage_type, const reshade::api::resource_view_desc &desc) {
 				if (usage_type != reshade::api::resource_usage::render_target)
 					return false;
 				reshade::d3d12::convert_resource_view_desc(desc, new_desc);
@@ -418,7 +418,7 @@ void    STDMETHODCALLTYPE D3D12Device::CreateRenderTargetView(ID3D12Resource *pR
 
 				register_resource_view(reinterpret_cast<ID3D12Resource *>(resource.handle), DestDescriptor);
 				return true;
-			}, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_usage::render_target, reshade::d3d12::convert_resource_view_desc(new_desc));
+			}, this, reshade::api::resource { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_usage::render_target, reshade::d3d12::convert_resource_view_desc(new_desc));
 	}
 	else
 #endif
@@ -434,7 +434,7 @@ void    STDMETHODCALLTYPE D3D12Device::CreateDepthStencilView(ID3D12Resource *pR
 			pDesc != nullptr ? *pDesc : D3D12_DEPTH_STENCIL_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D12_DSV_DIMENSION_UNKNOWN };
 
 		reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(
-			[this, &new_desc, DestDescriptor](reshade::api::device *, reshade::api::resource_handle resource, reshade::api::resource_usage usage_type, const reshade::api::resource_view_desc &desc) {
+			[this, &new_desc, DestDescriptor](reshade::api::device *, reshade::api::resource resource, reshade::api::resource_usage usage_type, const reshade::api::resource_view_desc &desc) {
 				if (usage_type != reshade::api::resource_usage::depth_stencil)
 					return false;
 				reshade::d3d12::convert_resource_view_desc(desc, new_desc);
@@ -443,7 +443,7 @@ void    STDMETHODCALLTYPE D3D12Device::CreateDepthStencilView(ID3D12Resource *pR
 
 				register_resource_view(reinterpret_cast<ID3D12Resource *>(resource.handle), DestDescriptor);
 				return true;
-			}, this, reshade::api::resource_handle { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_usage::depth_stencil, reshade::d3d12::convert_resource_view_desc(new_desc));
+			}, this, reshade::api::resource { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_usage::depth_stencil, reshade::d3d12::convert_resource_view_desc(new_desc));
 	}
 	else
 #endif

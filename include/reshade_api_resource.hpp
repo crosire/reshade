@@ -7,9 +7,6 @@
 
 #include "reshade_api_format.hpp"
 
-#pragma warning(push)
-#pragma warning(disable: 4201)
-
 namespace reshade { namespace api
 {
 	/// <summary>
@@ -140,13 +137,13 @@ namespace reshade { namespace api
 	struct resource_desc
 	{
 		resource_desc() :
-			type(resource_type::unknown), width(0), height(0), depth_or_layers(0), levels(0), format(format::unknown), samples(0), heap(memory_heap::unknown), usage(resource_usage::undefined) {}
+			type(resource_type::unknown), texture(), heap(memory_heap::unknown), usage(resource_usage::undefined) {}
 		resource_desc(uint64_t size, memory_heap heap, resource_usage usage) :
-			type(resource_type::buffer), size(size), heap(heap), usage(usage) {}
+			type(resource_type::buffer), buffer({ size }), heap(heap), usage(usage) {}
 		resource_desc(uint32_t width, uint32_t height, uint16_t layers, uint16_t levels, format format, uint16_t samples, memory_heap heap, resource_usage usage) :
-			type(resource_type::texture_2d), width(width), height(height), depth_or_layers(layers), levels(levels), format(format), samples(samples), heap(heap), usage(usage) {}
+			type(resource_type::texture_2d), texture({ width, height, layers, levels, format, samples }), heap(heap), usage(usage) {}
 		resource_desc(resource_type type, uint32_t width, uint32_t height, uint16_t depth_or_layers, uint16_t levels, format format, uint16_t samples, memory_heap heap, resource_usage usage) :
-			type(type), width(width), height(height), depth_or_layers(depth_or_layers), levels(levels), format(format), samples(samples), heap(heap), usage(usage) {}
+			type(type), texture({ width, height, depth_or_layers, levels, format, samples }), heap(heap), usage(usage) {}
 
 		// Type of the resource.
 		resource_type type;
@@ -158,7 +155,7 @@ namespace reshade { namespace api
 			{
 				// Size of the buffer (in bytes).
 				uint64_t size;
-			};
+			} buffer;
 			// Used when resource type is a surface or texture.
 			struct
 			{
@@ -174,7 +171,7 @@ namespace reshade { namespace api
 				format   format;
 				// The number of samples per texel. Set to a value higher than 1 for multisampling.
 				uint16_t samples;
-			};
+			} texture;
 		};
 
 		// The heap the resource allocation is placed in.
@@ -184,22 +181,22 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
-	/// Describes a view (also known as subresource) into a resource.
+	/// Describes a resource view, which specifies how to interpret the data of a resource.
 	/// </summary>
 	struct resource_view_desc
 	{
 		resource_view_desc() :
-			type(resource_view_type::unknown), format(format::unknown), first_level(0), levels(0), first_layer(0), layers(0) {}
+			type(resource_view_type::unknown), format(format::unknown), texture() {}
 		resource_view_desc(format format, uint64_t offset, uint64_t size) :
-			type(resource_view_type::buffer), format(format), offset(offset), size(size) {}
+			type(resource_view_type::buffer), format(format), buffer({ offset, size }) {}
 		resource_view_desc(format format, uint32_t first_level, uint32_t levels, uint32_t first_layer, uint32_t layers) :
-			type(resource_view_type::texture_2d), format(format), first_level(first_level), levels(levels), first_layer(first_layer), layers(layers) {}
+			type(resource_view_type::texture_2d), format(format), texture({ first_level, levels, first_layer, layers }) {}
 		resource_view_desc(resource_view_type type, format format, uint32_t first_level, uint32_t levels, uint32_t first_layer, uint32_t layers) :
-			type(type), format(format), first_level(first_level), levels(levels), first_layer(first_layer), layers(layers) {}
+			type(type), format(format), texture({ first_level, levels, first_layer, layers }) {}
 
-		// Type of the view. Identifies how the view should interpret the resource.
+		// Type of the view. Identifies how the view should interpret the resource data.
 		resource_view_type type;
-		// Viewing format of this view. The data of the resource is reinterpreted in this format when accessed through this view.
+		// Viewing format of this view. The data of the resource is reinterpreted in this format.
 		format format;
 
 		union
@@ -211,7 +208,7 @@ namespace reshade { namespace api
 				uint64_t offset;
 				// Number of elements this view covers in the buffer resource (in bytes).
 				uint64_t size;
-			};
+			} buffer;
 			// Used when view type is a texture.
 			struct
 			{
@@ -225,7 +222,7 @@ namespace reshade { namespace api
 				// Maximum number of array layers for the view of the texture array. This value is ignored if the texture is not layered.
 				// Set to -1 (0xFFFFFFFF) to indicate that all array layers should be used.
 				uint32_t layers;
-			};
+			} texture;
 		};
 	};
 
@@ -244,49 +241,39 @@ namespace reshade { namespace api
 
 	/// <summary>
 	/// An opaque handle to a sampler state object.
-	/// Depending on the render API this is really a pointer to a 'ID3D10SamplerState', 'ID3D11SamplerState' or a 'VkSampler' handle.
+	/// <para>Depending on the render API this is really a pointer to a 'ID3D10SamplerState', 'ID3D11SamplerState' or a 'D3D12_CPU_DESCRIPTOR_HANDLE' or 'VkSampler' handle.</para>
 	/// </summary>
-	typedef struct { uint64_t handle; } sampler_handle;
-
-	constexpr bool operator< (sampler_handle lhs, sampler_handle rhs) { return lhs.handle < rhs.handle; }
-	constexpr bool operator!=(sampler_handle lhs, uint64_t rhs) { return lhs.handle != rhs; }
-	constexpr bool operator!=(uint64_t lhs, sampler_handle rhs) { return lhs != rhs.handle; }
-	constexpr bool operator!=(sampler_handle lhs, sampler_handle rhs) { return lhs.handle != rhs.handle; }
-	constexpr bool operator==(sampler_handle lhs, uint64_t rhs) { return lhs.handle == rhs; }
-	constexpr bool operator==(uint64_t lhs, sampler_handle rhs) { return lhs == rhs.handle; }
-	constexpr bool operator==(sampler_handle lhs, sampler_handle rhs) { return lhs.handle == rhs.handle; }
+	typedef struct { uint64_t handle; } sampler;
 
 	/// <summary>
 	/// An opaque handle to a resource object (buffer, texture, ...).
-	/// Resources created by the application are only guaranteed to be valid during event callbacks.
-	/// If you want to use one outside that scope, first ensure the resource is still valid via <see cref="device::check_resource_handle_valid"/>.
-	/// Depending on the render API this is really a pointer to a 'IDirect3DResource9', 'ID3D10Resource', 'ID3D11Resource' or 'ID3D12Resource' object or a 'VkImage' handle.
+	/// <para>Resources created by the application are only guaranteed to be valid during event callbacks.
+	/// If you want to use one outside that scope, first ensure the resource is still valid via <see cref="device::check_resource_handle_valid"/>.</para>
+	/// <para>Depending on the render API this is really a pointer to a 'IDirect3DResource9', 'ID3D10Resource', 'ID3D11Resource' or 'ID3D12Resource' object or a 'VkImage' handle.</para>
 	/// </summary>
-	typedef struct { uint64_t handle; } resource_handle;
+	typedef struct { uint64_t handle; } resource;
 
-	constexpr bool operator< (resource_handle lhs, resource_handle rhs) { return lhs.handle < rhs.handle; }
-	constexpr bool operator!=(resource_handle lhs, uint64_t rhs) { return lhs.handle != rhs; }
-	constexpr bool operator!=(uint64_t lhs, resource_handle rhs) { return lhs != rhs.handle; }
-	constexpr bool operator!=(resource_handle lhs, resource_handle rhs) { return lhs.handle != rhs.handle; }
-	constexpr bool operator==(resource_handle lhs, uint64_t rhs) { return lhs.handle == rhs; }
-	constexpr bool operator==(uint64_t lhs, resource_handle rhs) { return lhs == rhs.handle; }
-	constexpr bool operator==(resource_handle lhs, resource_handle rhs) { return lhs.handle == rhs.handle; }
+	constexpr bool operator< (resource lhs, resource rhs) { return lhs.handle < rhs.handle; }
+	constexpr bool operator!=(resource lhs, uint64_t rhs) { return lhs.handle != rhs; }
+	constexpr bool operator!=(uint64_t lhs, resource rhs) { return lhs != rhs.handle; }
+	constexpr bool operator!=(resource lhs, resource rhs) { return lhs.handle != rhs.handle; }
+	constexpr bool operator==(resource lhs, uint64_t rhs) { return lhs.handle == rhs; }
+	constexpr bool operator==(uint64_t lhs, resource rhs) { return lhs == rhs.handle; }
+	constexpr bool operator==(resource lhs, resource rhs) { return lhs.handle == rhs.handle; }
 
 	/// <summary>
 	/// An opaque handle to a resource view object (depth-stencil, render target, shader resource view, ...).
-	/// Resource views created by the application are only guaranteed to be valid during event callbacks.
-	/// If you want to use one outside that scope, first ensure the resource view is still valid via <see cref="device::check_resource_view_handle_valid"/>.
-	/// Depending on the render API this is really a pointer to a 'IDirect3DResource9', 'ID3D10View' or 'ID3D11View' object, or a 'D3D12_CPU_DESCRIPTOR_HANDLE' or 'VkImageView' handle.
+	/// <para>Resource views created by the application are only guaranteed to be valid during event callbacks.
+	/// If you want to use one outside that scope, first ensure the resource view is still valid via <see cref="device::check_resource_view_handle_valid"/>.</para>
+	/// <para>Depending on the render API this is really a pointer to a 'IDirect3DResource9', 'ID3D10View' or 'ID3D11View' object, or a 'D3D12_CPU_DESCRIPTOR_HANDLE' or 'VkImageView' handle.</para>
 	/// </summary>
-	typedef struct { uint64_t handle; } resource_view_handle;
+	typedef struct { uint64_t handle; } resource_view;
 
-	constexpr bool operator< (resource_view_handle lhs, resource_view_handle rhs) { return lhs.handle < rhs.handle; }
-	constexpr bool operator!=(resource_view_handle lhs, uint64_t rhs) { return lhs.handle != rhs; }
-	constexpr bool operator!=(uint64_t lhs, resource_view_handle rhs) { return lhs != rhs.handle; }
-	constexpr bool operator!=(resource_view_handle lhs, resource_view_handle rhs) { return lhs.handle != rhs.handle; }
-	constexpr bool operator==(resource_view_handle lhs, uint64_t rhs) { return lhs.handle == rhs; }
-	constexpr bool operator==(uint64_t lhs, resource_view_handle rhs) { return lhs == rhs.handle; }
-	constexpr bool operator==(resource_view_handle lhs, resource_view_handle rhs) { return lhs.handle == rhs.handle; }
+	constexpr bool operator< (resource_view lhs, resource_view rhs) { return lhs.handle < rhs.handle; }
+	constexpr bool operator!=(resource_view lhs, uint64_t rhs) { return lhs.handle != rhs; }
+	constexpr bool operator!=(uint64_t lhs, resource_view rhs) { return lhs != rhs.handle; }
+	constexpr bool operator!=(resource_view lhs, resource_view rhs) { return lhs.handle != rhs.handle; }
+	constexpr bool operator==(resource_view lhs, uint64_t rhs) { return lhs.handle == rhs; }
+	constexpr bool operator==(uint64_t lhs, resource_view rhs) { return lhs == rhs.handle; }
+	constexpr bool operator==(resource_view lhs, resource_view rhs) { return lhs.handle == rhs.handle; }
 } }
-
-#pragma warning(pop)
