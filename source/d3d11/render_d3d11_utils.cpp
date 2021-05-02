@@ -10,25 +10,25 @@ using namespace reshade::api;
 
 const pipeline_state reshade::d3d11::pipeline_states_blend[] = {
 	// D3D11_BLEND_DESC::AlphaToCoverageEnable
-	pipeline_state::sample_alpha_to_coverage,
+	pipeline_state::alpha_to_coverage,
 	// D3D11_BLEND_DESC::RenderTarget[0]::BlendEnable
-	pipeline_state::blend,
+	pipeline_state::blend_enable,
 	// D3D11_BLEND_DESC::RenderTarget[0]::SrcBlend
-	pipeline_state::blend_color_src,
+	pipeline_state::src_color_blend_factor,
 	// D3D11_BLEND_DESC::RenderTarget[0]::DestBlend
-	pipeline_state::blend_color_dest,
+	pipeline_state::dst_color_blend_factor,
 	// D3D11_BLEND_DESC::RenderTarget[0]::BlendOp
-	pipeline_state::blend_color_op,
+	pipeline_state::color_blend_op,
 	// D3D11_BLEND_DESC::RenderTarget[0]::SrcBlendAlpha
-	pipeline_state::blend_alpha_src,
+	pipeline_state::src_alpha_blend_factor,
 	// D3D11_BLEND_DESC::RenderTarget[0]::DestBlendAlpha
-	pipeline_state::blend_alpha_dest,
+	pipeline_state::dst_alpha_blend_factor,
 	// D3D11_BLEND_DESC::RenderTarget[0]::BlendOpAlpha
-	pipeline_state::blend_alpha_op,
+	pipeline_state::alpha_blend_op,
 	// D3D11_BLEND_DESC::RenderTarget[0]::RenderTargetWriteMask
 	pipeline_state::render_target_write_mask,
 	// BlendFactor
-	pipeline_state::blend_factor,
+	pipeline_state::blend_constant,
 	// SampleMask
 	pipeline_state::sample_mask,
 };
@@ -68,23 +68,23 @@ const pipeline_state reshade::d3d11::pipeline_states_depth_stencil[] = {
 	// D3D11_DEPTH_STENCIL_DESC::StencilWriteMask
 	pipeline_state::stencil_write_mask,
 	// D3D11_DEPTH_STENCIL_DESC::FrontFace::StencilFailOp
-	pipeline_state::stencil_front_fail,
+	pipeline_state::front_stencil_fail,
 	// D3D11_DEPTH_STENCIL_DESC::FrontFace::StencilDepthFailOp
-	pipeline_state::stencil_front_depth_fail,
+	pipeline_state::front_stencil_depth_fail,
 	// D3D11_DEPTH_STENCIL_DESC::FrontFace::StencilPassOp
-	pipeline_state::stencil_front_pass,
+	pipeline_state::front_stencil_pass,
 	// D3D11_DEPTH_STENCIL_DESC::FrontFace::StencilFunc
-	pipeline_state::stencil_front_func,
+	pipeline_state::front_stencil_func,
 	// D3D11_DEPTH_STENCIL_DESC::BackFace::StencilFailOp
-	pipeline_state::stencil_back_fail,
+	pipeline_state::back_stencil_fail,
 	// D3D11_DEPTH_STENCIL_DESC::BackFace::StencilDepthFailOp
-	pipeline_state::stencil_back_depth_fail,
+	pipeline_state::back_stencil_depth_fail,
 	// D3D11_DEPTH_STENCIL_DESC::BackFace::StencilPassOp
-	pipeline_state::stencil_back_pass,
+	pipeline_state::back_stencil_pass,
 	// D3D11_DEPTH_STENCIL_DESC::BackFace::StencilFunc
-	pipeline_state::stencil_back_func,
+	pipeline_state::back_stencil_func,
 	// StencilRef
-	pipeline_state::stencil_ref,
+	pipeline_state::stencil_reference_value,
 };
 
 void reshade::d3d11::fill_pipeline_state_values(ID3D11BlendState *state, const FLOAT factor[4], UINT sample_mask, uint32_t (&values)[ARRAYSIZE(pipeline_states_blend)])

@@ -119,6 +119,8 @@ namespace reshade::d3d12
 	protected:
 		device_impl *const _device_impl;
 		bool _has_commands = false;
+
+		ID3D12RootSignature *_current_root_signature[2] = {};
 	};
 
 	class command_list_immediate_impl : public command_list_impl

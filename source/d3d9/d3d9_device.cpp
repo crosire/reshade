@@ -931,42 +931,39 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetRenderState(D3DRENDERSTATETYPE Sta
 			(DWORD)reshade::api::pipeline_state::fill_mode                  == D3DRS_FILLMODE &&
 			(DWORD)reshade::api::pipeline_state::depth_write_mask           == D3DRS_ZWRITEENABLE &&
 			(DWORD)reshade::api::pipeline_state::alpha_test                 == D3DRS_ALPHATESTENABLE &&
-			(DWORD)reshade::api::pipeline_state::blend_color_src            == D3DRS_SRCBLEND &&
-			(DWORD)reshade::api::pipeline_state::blend_color_dest           == D3DRS_DESTBLEND &&
+			(DWORD)reshade::api::pipeline_state::src_color_blend_factor     == D3DRS_SRCBLEND &&
+			(DWORD)reshade::api::pipeline_state::dst_color_blend_factor     == D3DRS_DESTBLEND &&
 			(DWORD)reshade::api::pipeline_state::cull_mode                  == D3DRS_CULLMODE &&
 			(DWORD)reshade::api::pipeline_state::depth_func                 == D3DRS_ZFUNC &&
-			(DWORD)reshade::api::pipeline_state::alpha_ref                  == D3DRS_ALPHAREF &&
+			(DWORD)reshade::api::pipeline_state::alpha_reference_value      == D3DRS_ALPHAREF &&
 			(DWORD)reshade::api::pipeline_state::alpha_func                 == D3DRS_ALPHAFUNC &&
-			(DWORD)reshade::api::pipeline_state::blend                      == D3DRS_ALPHABLENDENABLE &&
+			(DWORD)reshade::api::pipeline_state::blend_enable               == D3DRS_ALPHABLENDENABLE &&
 			(DWORD)reshade::api::pipeline_state::stencil_test               == D3DRS_STENCILENABLE &&
-			(DWORD)reshade::api::pipeline_state::stencil_front_fail         == D3DRS_STENCILFAIL &&
-			(DWORD)reshade::api::pipeline_state::stencil_front_depth_fail   == D3DRS_STENCILZFAIL &&
-			(DWORD)reshade::api::pipeline_state::stencil_front_pass         == D3DRS_STENCILPASS &&
-			(DWORD)reshade::api::pipeline_state::stencil_front_func         == D3DRS_STENCILFUNC &&
-			(DWORD)reshade::api::pipeline_state::stencil_ref                == D3DRS_STENCILREF &&
+			(DWORD)reshade::api::pipeline_state::front_stencil_fail         == D3DRS_STENCILFAIL &&
+			(DWORD)reshade::api::pipeline_state::front_stencil_depth_fail   == D3DRS_STENCILZFAIL &&
+			(DWORD)reshade::api::pipeline_state::front_stencil_pass         == D3DRS_STENCILPASS &&
+			(DWORD)reshade::api::pipeline_state::front_stencil_func         == D3DRS_STENCILFUNC &&
+			(DWORD)reshade::api::pipeline_state::stencil_reference_value    == D3DRS_STENCILREF &&
 			(DWORD)reshade::api::pipeline_state::stencil_read_mask          == D3DRS_STENCILMASK &&
 			(DWORD)reshade::api::pipeline_state::stencil_write_mask         == D3DRS_STENCILWRITEMASK &&
 			(DWORD)reshade::api::pipeline_state::depth_clip                 == D3DRS_CLIPPING &&
 			(DWORD)reshade::api::pipeline_state::multisample                == D3DRS_MULTISAMPLEANTIALIAS &&
 			(DWORD)reshade::api::pipeline_state::sample_mask                == D3DRS_MULTISAMPLEMASK &&
 			(DWORD)reshade::api::pipeline_state::render_target_write_mask   == D3DRS_COLORWRITEENABLE &&
-			(DWORD)reshade::api::pipeline_state::blend_color_op             == D3DRS_BLENDOP &&
+			(DWORD)reshade::api::pipeline_state::color_blend_op             == D3DRS_BLENDOP &&
 			(DWORD)reshade::api::pipeline_state::scissor_test               == D3DRS_SCISSORTESTENABLE &&
 			(DWORD)reshade::api::pipeline_state::depth_bias_slope_scaled    == D3DRS_SLOPESCALEDEPTHBIAS &&
 			(DWORD)reshade::api::pipeline_state::antialiased_line           == D3DRS_ANTIALIASEDLINEENABLE &&
-			(DWORD)reshade::api::pipeline_state::stencil_back_fail          == D3DRS_CCW_STENCILFAIL &&
-			(DWORD)reshade::api::pipeline_state::stencil_back_depth_fail    == D3DRS_CCW_STENCILZFAIL &&
-			(DWORD)reshade::api::pipeline_state::stencil_back_pass          == D3DRS_CCW_STENCILPASS &&
-			(DWORD)reshade::api::pipeline_state::stencil_back_func          == D3DRS_CCW_STENCILFUNC &&
-			(DWORD)reshade::api::pipeline_state::render_target_write_mask_1 == D3DRS_COLORWRITEENABLE1 &&
-			(DWORD)reshade::api::pipeline_state::render_target_write_mask_2 == D3DRS_COLORWRITEENABLE2 &&
-			(DWORD)reshade::api::pipeline_state::render_target_write_mask_3 == D3DRS_COLORWRITEENABLE3 &&
-			(DWORD)reshade::api::pipeline_state::blend_factor               == D3DRS_BLENDFACTOR &&
+			(DWORD)reshade::api::pipeline_state::back_stencil_fail          == D3DRS_CCW_STENCILFAIL &&
+			(DWORD)reshade::api::pipeline_state::back_stencil_depth_fail    == D3DRS_CCW_STENCILZFAIL &&
+			(DWORD)reshade::api::pipeline_state::back_stencil_pass          == D3DRS_CCW_STENCILPASS &&
+			(DWORD)reshade::api::pipeline_state::back_stencil_func          == D3DRS_CCW_STENCILFUNC &&
+			(DWORD)reshade::api::pipeline_state::blend_constant             == D3DRS_BLENDFACTOR &&
 			(DWORD)reshade::api::pipeline_state::srgb_write                 == D3DRS_SRGBWRITEENABLE &&
 			(DWORD)reshade::api::pipeline_state::depth_bias                 == D3DRS_DEPTHBIAS &&
-			(DWORD)reshade::api::pipeline_state::blend_alpha_src            == D3DRS_SRCBLENDALPHA &&
-			(DWORD)reshade::api::pipeline_state::blend_alpha_dest           == D3DRS_DESTBLENDALPHA &&
-			(DWORD)reshade::api::pipeline_state::blend_alpha_op             == D3DRS_BLENDOPALPHA);
+			(DWORD)reshade::api::pipeline_state::src_alpha_blend_factor     == D3DRS_SRCBLENDALPHA &&
+			(DWORD)reshade::api::pipeline_state::dst_alpha_blend_factor     == D3DRS_DESTBLENDALPHA &&
+			(DWORD)reshade::api::pipeline_state::alpha_blend_op             == D3DRS_BLENDOPALPHA);
 		static_assert(sizeof(State) == sizeof(reshade::api::pipeline_state) && sizeof(Value) == sizeof(uint32_t));
 
 		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 1, reinterpret_cast<const reshade::api::pipeline_state *>(&State), reinterpret_cast<const uint32_t *>(&Value));
@@ -1021,7 +1018,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetTexture(DWORD Stage, IDirect3DBase
 
 		const reshade::api::resource_view view = { reinterpret_cast<uintptr_t>(pTexture) };
 
-		reshade::invoke_addon_event<reshade::addon_event::bind_shader_resource_views>(this, shader_stage, Stage, 1, &view);
+		reshade::invoke_addon_event<reshade::addon_event::bind_shader_resource_views>(this, shader_stage, reshade::api::pipeline_layout { 0 }, Stage, 1, &view);
 	}
 #endif
 	return hr;
@@ -1063,7 +1060,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetSamplerState(DWORD Sampler, D3DSAM
 
 		const reshade::api::sampler sampler_handle = { reinterpret_cast<uintptr_t>(sampler_data) };
 
-		reshade::invoke_addon_event<reshade::addon_event::bind_samplers>(this, shader_stage, Sampler, 1, &sampler_handle);
+		reshade::invoke_addon_event<reshade::addon_event::bind_samplers>(this, shader_stage, reshade::api::pipeline_layout { 0 }, Sampler, 1, &sampler_handle);
 	}
 #endif
 	return hr;
@@ -1222,7 +1219,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetVertexShaderConstantF(UINT StartRe
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
-		reshade::invoke_addon_event<reshade::addon_event::bind_constants>(this, reshade::api::shader_stage::vertex, 0, StartRegister, Vector4fCount, reinterpret_cast<const uint32_t *>(pConstantData));
+		reshade::invoke_addon_event<reshade::addon_event::push_constants>(this, reshade::api::shader_stage::vertex, reshade::api::pipeline_layout { 0 }, 0, StartRegister, Vector4fCount, reinterpret_cast<const uint32_t *>(pConstantData));
 	}
 #endif
 	return hr;
@@ -1237,7 +1234,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetVertexShaderConstantI(UINT StartRe
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
-		reshade::invoke_addon_event<reshade::addon_event::bind_constants>(this, reshade::api::shader_stage::vertex, 1, StartRegister, Vector4iCount, reinterpret_cast<const uint32_t *>(pConstantData));
+		reshade::invoke_addon_event<reshade::addon_event::push_constants>(this, reshade::api::shader_stage::vertex, reshade::api::pipeline_layout { 0 }, 1, StartRegister, Vector4iCount, reinterpret_cast<const uint32_t *>(pConstantData));
 	}
 #endif
 	return hr;
@@ -1252,7 +1249,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetVertexShaderConstantB(UINT StartRe
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
-		reshade::invoke_addon_event<reshade::addon_event::bind_constants>(this, reshade::api::shader_stage::vertex, 2, StartRegister, BoolCount, reinterpret_cast<const uint32_t *>(pConstantData));
+		reshade::invoke_addon_event<reshade::addon_event::push_constants>(this, reshade::api::shader_stage::vertex, reshade::api::pipeline_layout { 0 }, 2, StartRegister, BoolCount, reinterpret_cast<const uint32_t *>(pConstantData));
 	}
 #endif
 	return hr;
@@ -1355,7 +1352,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetPixelShaderConstantF(UINT StartReg
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
-		reshade::invoke_addon_event<reshade::addon_event::bind_constants>(this, reshade::api::shader_stage::pixel, 0, StartRegister, Vector4fCount, reinterpret_cast<const uint32_t *>(pConstantData));
+		reshade::invoke_addon_event<reshade::addon_event::push_constants>(this, reshade::api::shader_stage::pixel, reshade::api::pipeline_layout { 0 }, 0, StartRegister, Vector4fCount, reinterpret_cast<const uint32_t *>(pConstantData));
 	}
 #endif
 	return hr;
@@ -1370,7 +1367,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetPixelShaderConstantI(UINT StartReg
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
-		reshade::invoke_addon_event<reshade::addon_event::bind_constants>(this, reshade::api::shader_stage::pixel, 1, StartRegister, Vector4iCount, reinterpret_cast<const uint32_t *>(pConstantData));
+		reshade::invoke_addon_event<reshade::addon_event::push_constants>(this, reshade::api::shader_stage::pixel, reshade::api::pipeline_layout { 0 }, 1, StartRegister, Vector4iCount, reinterpret_cast<const uint32_t *>(pConstantData));
 	}
 #endif
 	return hr;
@@ -1385,7 +1382,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetPixelShaderConstantB(UINT StartReg
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
-		reshade::invoke_addon_event<reshade::addon_event::bind_constants>(this, reshade::api::shader_stage::pixel, 2, StartRegister, BoolCount, reinterpret_cast<const uint32_t *>(pConstantData));
+		reshade::invoke_addon_event<reshade::addon_event::push_constants>(this, reshade::api::shader_stage::pixel, reshade::api::pipeline_layout { 0 }, 2, StartRegister, BoolCount, reinterpret_cast<const uint32_t *>(pConstantData));
 	}
 #endif
 	return hr;

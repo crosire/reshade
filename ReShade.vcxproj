@@ -461,6 +461,7 @@
     <ClInclude Include="include\reshade.hpp" />
     <ClInclude Include="include\reshade_api.hpp" />
     <ClInclude Include="include\reshade_api_format.hpp" />
+    <ClInclude Include="include\reshade_api_pipeline.hpp" />
     <ClInclude Include="include\reshade_api_resource.hpp" />
     <ClInclude Include="include\reshade_events.hpp" />
     <ClInclude Include="include\reshade_overlay.hpp" />

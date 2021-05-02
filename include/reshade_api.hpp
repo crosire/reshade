@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include "reshade_api_pipeline.hpp"
 #include "reshade_api_resource.hpp"
 
 namespace reshade { namespace api
@@ -20,90 +21,6 @@ namespace reshade { namespace api
 		d3d12 = 0xc000,
 		opengl = 0x10000,
 		vulkan = 0x20000
-	};
-
-	/// <summary>
-	/// A list of flags that represent the available shader stages in the render pipeline.
-	/// </summary>
-	enum class shader_stage
-	{
-		vertex = 0x1,
-		hull = 0x2,
-		domain = 0x4,
-		geometry = 0x8,
-		pixel = 0x10,
-		compute = 0x20,
-
-		all = 0x7FFFFFFF,
-		all_graphics = 0x1F
-	};
-
-	/// <summary>
-	/// A list of all possible render pipeline states that can be set. Support for these varies between render APIs.
-	/// </summary>
-	enum class pipeline_state
-	{
-		unknown = 0,
-
-		// Blend state
-
-		alpha_test = 15,
-		alpha_ref = 24,
-		alpha_func = 25,
-
-		sample_alpha_to_coverage = 907,
-
-		blend = 27,
-		blend_factor = 193,
-		blend_color_src = 19,
-		blend_color_dest = 20,
-		blend_color_op = 171,
-		blend_alpha_src = 207,
-		blend_alpha_dest = 208,
-		blend_alpha_op = 209,
-
-		srgb_write = 194,
-		render_target_write_mask = 168,
-		render_target_write_mask_1 = 190,
-		render_target_write_mask_2 = 191,
-		render_target_write_mask_3 = 192,
-		sample_mask = 162,
-
-		// Rasterizer state
-
-		fill_mode = 8,
-		cull_mode = 22,
-		front_face_ccw = 908,
-
-		depth_bias = 195,
-		depth_bias_clamp = 909,
-		depth_bias_slope_scaled = 175,
-
-		depth_clip = 136,
-		scissor_test = 174,
-		multisample = 161,
-		antialiased_line = 176,
-
-		primitive_topology = 900,
-
-		// Depth-stencil state
-
-		depth_test = 7,
-		depth_write_mask = 14,
-		depth_func = 23,
-
-		stencil_test = 52,
-		stencil_ref = 57,
-		stencil_read_mask = 58,
-		stencil_write_mask = 59,
-		stencil_back_fail = 186,
-		stencil_back_depth_fail = 187,
-		stencil_back_pass = 188,
-		stencil_back_func = 189,
-		stencil_front_fail = 53,
-		stencil_front_depth_fail = 54,
-		stencil_front_pass = 55,
-		stencil_front_func = 56,
 	};
 
 	/// <summary>

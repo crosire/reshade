@@ -12,21 +12,21 @@ const GUID reshade::d3d12::pipeline_state_guid = { 0xB2257A30, 0x4014, 0x46EA, {
 
 const pipeline_state reshade::d3d12::pipeline_states_graphics[] = {
 	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::BlendState::AlphaToCoverageEnable
-	pipeline_state::sample_alpha_to_coverage,
+	pipeline_state::alpha_to_coverage,
 	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::BlendState::RenderTarget[0]::BlendEnable
-	pipeline_state::blend,
+	pipeline_state::blend_enable,
 	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::BlendState::RenderTarget[0]::SrcBlend
-	pipeline_state::blend_color_src,
+	pipeline_state::src_color_blend_factor,
 	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::BlendState::RenderTarget[0]::DestBlend
-	pipeline_state::blend_color_dest,
+	pipeline_state::dst_color_blend_factor,
 	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::BlendState::RenderTarget[0]::BlendOp
-	pipeline_state::blend_color_op,
+	pipeline_state::color_blend_op,
 	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::BlendState::RenderTarget[0]::SrcBlendAlpha
-	pipeline_state::blend_alpha_src,
+	pipeline_state::src_alpha_blend_factor,
 	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::BlendState::RenderTarget[0]::DestBlendAlpha
-	pipeline_state::blend_alpha_dest,
+	pipeline_state::dst_alpha_blend_factor,
 	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::BlendState::RenderTarget[0]::BlendOpAlpha
-	pipeline_state::blend_alpha_op,
+	pipeline_state::alpha_blend_op,
 	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::BlendState::RenderTarget[0]::RenderTargetWriteMask
 	pipeline_state::render_target_write_mask,
 	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::SampleMask
@@ -62,21 +62,21 @@ const pipeline_state reshade::d3d12::pipeline_states_graphics[] = {
 	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::DepthStencilState::StencilWriteMask
 	pipeline_state::stencil_write_mask,
 	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::DepthStencilState::FrontFace::StencilFailOp
-	pipeline_state::stencil_front_fail,
+	pipeline_state::front_stencil_fail,
 	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::DepthStencilState::FrontFace::StencilDepthFailOp
-	pipeline_state::stencil_front_depth_fail,
+	pipeline_state::front_stencil_depth_fail,
 	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::DepthStencilState::FrontFace::StencilPassOp
-	pipeline_state::stencil_front_pass,
+	pipeline_state::front_stencil_pass,
 	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::DepthStencilState::FrontFace::StencilFunc
-	pipeline_state::stencil_front_func,
+	pipeline_state::front_stencil_func,
 	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::DepthStencilState::BackFace::StencilFailOp
-	pipeline_state::stencil_back_fail,
+	pipeline_state::back_stencil_fail,
 	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::DepthStencilState::BackFace::StencilDepthFailOp
-	pipeline_state::stencil_back_depth_fail,
+	pipeline_state::back_stencil_depth_fail,
 	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::DepthStencilState::BackFace::StencilPassOp
-	pipeline_state::stencil_back_pass,
+	pipeline_state::back_stencil_pass,
 	// D3D12_GRAPHICS_PIPELINE_STATE_DESC::DepthStencilState::BackFace::StencilFunc
-	pipeline_state::stencil_back_func,
+	pipeline_state::back_stencil_func,
 };
 
 void reshade::d3d12::fill_pipeline_state_values(const D3D12_GRAPHICS_PIPELINE_STATE_DESC &desc, uint32_t (&values)[ARRAYSIZE(pipeline_states_graphics)])

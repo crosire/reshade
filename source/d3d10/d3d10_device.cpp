@@ -102,7 +102,7 @@ void    STDMETHODCALLTYPE D3D10Device::VSSetConstantBuffers(UINT StartSlot, UINT
 	const auto buffer_handles = reinterpret_cast<const reshade::api::resource *>(ppConstantBuffers);
 #endif
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_constant_buffers>(this, reshade::api::shader_stage::vertex, StartSlot, NumBuffers, buffer_handles, nullptr);
+	reshade::invoke_addon_event<reshade::addon_event::bind_constant_buffers>(this, reshade::api::shader_stage::vertex, reshade::api::pipeline_layout { 0 }, StartSlot, NumBuffers, buffer_handles, nullptr);
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::PSSetShaderResources(UINT StartSlot, UINT NumViews, ID3D10ShaderResourceView *const *ppShaderResourceViews)
@@ -124,7 +124,7 @@ void    STDMETHODCALLTYPE D3D10Device::PSSetShaderResources(UINT StartSlot, UINT
 	const auto view_handles = reinterpret_cast<const reshade::api::resource_view *>(ppShaderResourceViews);
 #endif
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_shader_resource_views>(this, reshade::api::shader_stage::pixel, StartSlot, NumViews, view_handles);
+	reshade::invoke_addon_event<reshade::addon_event::bind_shader_resource_views>(this, reshade::api::shader_stage::pixel, reshade::api::pipeline_layout { 0 }, StartSlot, NumViews, view_handles);
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::PSSetShader(ID3D10PixelShader *pPixelShader)
@@ -154,7 +154,7 @@ void    STDMETHODCALLTYPE D3D10Device::PSSetSamplers(UINT StartSlot, UINT NumSam
 	const auto sampler_handles = reinterpret_cast<const reshade::api::sampler *>(ppSamplers);
 #endif
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_samplers>(this, reshade::api::shader_stage::pixel, StartSlot, NumSamplers, sampler_handles);
+	reshade::invoke_addon_event<reshade::addon_event::bind_samplers>(this, reshade::api::shader_stage::pixel, reshade::api::pipeline_layout { 0 }, StartSlot, NumSamplers, sampler_handles);
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::VSSetShader(ID3D10VertexShader *pVertexShader)
@@ -200,7 +200,7 @@ void    STDMETHODCALLTYPE D3D10Device::PSSetConstantBuffers(UINT StartSlot, UINT
 	const auto buffer_handles = reinterpret_cast<const reshade::api::resource *>(ppConstantBuffers);
 #endif
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_constant_buffers>(this, reshade::api::shader_stage::pixel, StartSlot, NumBuffers, buffer_handles, nullptr);
+	reshade::invoke_addon_event<reshade::addon_event::bind_constant_buffers>(this, reshade::api::shader_stage::pixel, reshade::api::pipeline_layout { 0 }, StartSlot, NumBuffers, buffer_handles, nullptr);
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::IASetInputLayout(ID3D10InputLayout *pInputLayout)
@@ -276,7 +276,7 @@ void    STDMETHODCALLTYPE D3D10Device::GSSetConstantBuffers(UINT StartSlot, UINT
 	const auto buffer_handles = reinterpret_cast<const reshade::api::resource *>(ppConstantBuffers);
 #endif
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_constant_buffers>(this, reshade::api::shader_stage::geometry, StartSlot, NumBuffers, buffer_handles, nullptr);
+	reshade::invoke_addon_event<reshade::addon_event::bind_constant_buffers>(this, reshade::api::shader_stage::geometry, reshade::api::pipeline_layout { 0 }, StartSlot, NumBuffers, buffer_handles, nullptr);
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::GSSetShader(ID3D10GeometryShader *pShader)
@@ -316,7 +316,7 @@ void    STDMETHODCALLTYPE D3D10Device::VSSetShaderResources(UINT StartSlot, UINT
 	const auto view_handles = reinterpret_cast<const reshade::api::resource_view *>(ppShaderResourceViews);
 #endif
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_shader_resource_views>(this, reshade::api::shader_stage::vertex, StartSlot, NumViews, view_handles);
+	reshade::invoke_addon_event<reshade::addon_event::bind_shader_resource_views>(this, reshade::api::shader_stage::vertex, reshade::api::pipeline_layout { 0 }, StartSlot, NumViews, view_handles);
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::VSSetSamplers(UINT StartSlot, UINT NumSamplers, ID3D10SamplerState *const *ppSamplers)
@@ -338,7 +338,7 @@ void    STDMETHODCALLTYPE D3D10Device::VSSetSamplers(UINT StartSlot, UINT NumSam
 	const auto sampler_handles = reinterpret_cast<const reshade::api::sampler *>(ppSamplers);
 #endif
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_samplers>(this, reshade::api::shader_stage::vertex, StartSlot, NumSamplers, sampler_handles);
+	reshade::invoke_addon_event<reshade::addon_event::bind_samplers>(this, reshade::api::shader_stage::vertex, reshade::api::pipeline_layout { 0 }, StartSlot, NumSamplers, sampler_handles);
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::SetPredication(ID3D10Predicate *pPredicate, BOOL PredicateValue)
@@ -364,7 +364,7 @@ void    STDMETHODCALLTYPE D3D10Device::GSSetShaderResources(UINT StartSlot, UINT
 	const auto view_handles = reinterpret_cast<const reshade::api::resource_view *>(ppShaderResourceViews);
 #endif
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_shader_resource_views>(this, reshade::api::shader_stage::geometry, StartSlot, NumViews, view_handles);
+	reshade::invoke_addon_event<reshade::addon_event::bind_shader_resource_views>(this, reshade::api::shader_stage::geometry, reshade::api::pipeline_layout { 0 }, StartSlot, NumViews, view_handles);
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::GSSetSamplers(UINT StartSlot, UINT NumSamplers, ID3D10SamplerState *const *ppSamplers)
@@ -386,7 +386,7 @@ void    STDMETHODCALLTYPE D3D10Device::GSSetSamplers(UINT StartSlot, UINT NumSam
 	const auto sampler_handles = reinterpret_cast<const reshade::api::sampler *>(ppSamplers);
 #endif
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_samplers>(this, reshade::api::shader_stage::geometry, StartSlot, NumSamplers, sampler_handles);
+	reshade::invoke_addon_event<reshade::addon_event::bind_samplers>(this, reshade::api::shader_stage::geometry, reshade::api::pipeline_layout { 0 }, StartSlot, NumSamplers, sampler_handles);
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::OMSetRenderTargets(UINT NumViews, ID3D10RenderTargetView *const *ppRenderTargetViews, ID3D10DepthStencilView *pDepthStencilView)

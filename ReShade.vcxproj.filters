@@ -308,6 +308,9 @@
     <ClInclude Include="include\reshade_api_format.hpp">
       <Filter>core\api</Filter>
     </ClInclude>
+    <ClInclude Include="include\reshade_api_pipeline.hpp">
+      <Filter>core\api</Filter>
+    </ClInclude>
     <ClInclude Include="include\reshade_api_resource.hpp">
       <Filter>core\api</Filter>
     </ClInclude>

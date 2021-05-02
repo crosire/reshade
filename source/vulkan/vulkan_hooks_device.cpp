@@ -490,6 +490,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	image_create_info.extent = { create_info.imageExtent.width, create_info.imageExtent.height, 1 };
 	image_create_info.mipLevels = 1;
 	image_create_info.arrayLayers = create_info.imageArrayLayers;
+	image_create_info.samples = VK_SAMPLE_COUNT_1_BIT;
 	image_create_info.usage = create_info.imageUsage;
 	image_create_info.sharingMode = create_info.imageSharingMode;
 	image_create_info.initialLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
@@ -1161,7 +1162,7 @@ void     VKAPI_CALL vkCmdSetBlendConstants(VkCommandBuffer commandBuffer, const 
 	trampoline(commandBuffer, blendConstants);
 
 #if RESHADE_ADDON
-	const reshade::api::pipeline_state state = reshade::api::pipeline_state::blend_factor;
+	const reshade::api::pipeline_state state = reshade::api::pipeline_state::blend_constant;
 	const uint32_t value =
 		((static_cast<uint32_t>(blendConstants[0] * 255.f) & 0xFF)) |
 		((static_cast<uint32_t>(blendConstants[1] * 255.f) & 0xFF) << 8) |
@@ -1211,7 +1212,7 @@ void     VKAPI_CALL vkCmdSetStencilReference(VkCommandBuffer commandBuffer, VkSt
 	if (faceMask != VK_STENCIL_FACE_FRONT_AND_BACK)
 		return;
 
-	const reshade::api::pipeline_state state = reshade::api::pipeline_state::stencil_ref;
+	const reshade::api::pipeline_state state = reshade::api::pipeline_state::stencil_reference_value;
 
 	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(
 		s_vulkan_command_buffers.at(commandBuffer), 1, &state, &reference);
@@ -1229,6 +1230,7 @@ void     VKAPI_CALL vkCmdBindDescriptorSets(VkCommandBuffer commandBuffer, VkPip
 	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_tables>(
 		s_vulkan_command_buffers.at(commandBuffer),
 		pipelineBindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS ? reshade::api::shader_stage::all_graphics : reshade::api::shader_stage::compute,
+		reshade::api::pipeline_layout { (uint64_t)layout },
 		firstSet,
 		descriptorSetCount,
 		reinterpret_cast<const uint64_t *>(pDescriptorSets));
@@ -1621,9 +1623,10 @@ void     VKAPI_CALL vkCmdPushConstants(VkCommandBuffer commandBuffer, VkPipeline
 	trampoline(commandBuffer, layout, stageFlags, offset, size, pValues);
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::bind_constants>(
+	reshade::invoke_addon_event<reshade::addon_event::push_constants>(
 		s_vulkan_command_buffers.at(commandBuffer),
 		static_cast<reshade::api::shader_stage>(stageFlags),
+		reshade::api::pipeline_layout { (uint64_t)layout },
 		0,
 		offset / 4,
 		size / 4,

@@ -296,7 +296,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::OMSetBlendFactor(const FLOAT Bl
 	_orig->OMSetBlendFactor(BlendFactor);
 
 #if RESHADE_ADDON
-	const reshade::api::pipeline_state state = reshade::api::pipeline_state::blend_factor;
+	const reshade::api::pipeline_state state = reshade::api::pipeline_state::blend_constant;
 	const uint32_t value = (BlendFactor == nullptr) ? 0xFFFFFFFF : // Default blend factor is { 1, 1, 1, 1 }
 		((static_cast<uint32_t>(BlendFactor[0] * 255.f) & 0xFF)) |
 		((static_cast<uint32_t>(BlendFactor[1] * 255.f) & 0xFF) << 8) |
@@ -311,7 +311,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::OMSetStencilRef(UINT StencilRef
 	_orig->OMSetStencilRef(StencilRef);
 
 #if RESHADE_ADDON
-	const reshade::api::pipeline_state state = reshade::api::pipeline_state::stencil_ref;
+	const reshade::api::pipeline_state state = reshade::api::pipeline_state::stencil_reference_value;
 
 	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 1, &state, &StencilRef);
 #endif
@@ -369,17 +369,31 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetDescriptorHeaps(UINT NumDesc
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootSignature(ID3D12RootSignature *pRootSignature)
 {
 	_orig->SetComputeRootSignature(pRootSignature);
+
+#if RESHADE_ADDON
+	_current_root_signature[1] = pRootSignature;
+#endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRootSignature(ID3D12RootSignature *pRootSignature)
 {
 	_orig->SetGraphicsRootSignature(pRootSignature);
+
+#if RESHADE_ADDON
+	_current_root_signature[0] = pRootSignature;
+#endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootDescriptorTable(UINT RootParameterIndex, D3D12_GPU_DESCRIPTOR_HANDLE BaseDescriptor)
 {
 	_orig->SetComputeRootDescriptorTable(RootParameterIndex, BaseDescriptor);
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_tables>(this, reshade::api::shader_stage::compute, RootParameterIndex, 1, &BaseDescriptor.ptr);
+	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_tables>(
+		this,
+		reshade::api::shader_stage::compute,
+		reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(_current_root_signature[1]) },
+		RootParameterIndex,
+		1,
+		&BaseDescriptor.ptr);
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRootDescriptorTable(UINT RootParameterIndex, D3D12_GPU_DESCRIPTOR_HANDLE BaseDescriptor)
@@ -387,7 +401,13 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRootDescriptorTable(
 	_orig->SetGraphicsRootDescriptorTable(RootParameterIndex, BaseDescriptor);
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_tables>(this, reshade::api::shader_stage::all_graphics, RootParameterIndex, 1, &BaseDescriptor.ptr);
+	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_tables>(
+		this,
+		reshade::api::shader_stage::all_graphics,
+		reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(_current_root_signature[0]) },
+		RootParameterIndex,
+		1,
+		&BaseDescriptor.ptr);
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRoot32BitConstant(UINT RootParameterIndex, UINT SrcData, UINT DestOffsetIn32BitValues)
@@ -397,7 +417,14 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRoot32BitConstant(UIN
 #if RESHADE_ADDON
 	const uint32_t shader_register = RootParameterIndex; // TODO: Get shader register from root parameter index
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_constants>(this, reshade::api::shader_stage::compute, shader_register, DestOffsetIn32BitValues, 1, &SrcData);
+	reshade::invoke_addon_event<reshade::addon_event::push_constants>(
+		this,
+		reshade::api::shader_stage::compute,
+		reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(_current_root_signature[1]) },
+		shader_register,
+		DestOffsetIn32BitValues,
+		1,
+		&SrcData);
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRoot32BitConstant(UINT RootParameterIndex, UINT SrcData, UINT DestOffsetIn32BitValues)
@@ -407,7 +434,14 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRoot32BitConstant(UI
 #if RESHADE_ADDON
 	const uint32_t shader_register = RootParameterIndex; // TODO: Get shader register from root parameter index
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_constants>(this, reshade::api::shader_stage::all_graphics, shader_register, DestOffsetIn32BitValues, 1, &SrcData);
+	reshade::invoke_addon_event<reshade::addon_event::push_constants>(
+		this,
+		reshade::api::shader_stage::all_graphics,
+		reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(_current_root_signature[0]) },
+		shader_register,
+		DestOffsetIn32BitValues,
+		1,
+		&SrcData);
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRoot32BitConstants(UINT RootParameterIndex, UINT Num32BitValuesToSet, const void *pSrcData, UINT DestOffsetIn32BitValues)
@@ -417,7 +451,14 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRoot32BitConstants(UI
 #if RESHADE_ADDON
 	const uint32_t shader_register = RootParameterIndex; // TODO: Get shader register from root parameter index
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_constants>(this, reshade::api::shader_stage::compute, shader_register, DestOffsetIn32BitValues, Num32BitValuesToSet, static_cast<const uint32_t *>(pSrcData));
+	reshade::invoke_addon_event<reshade::addon_event::push_constants>(
+		this,
+		reshade::api::shader_stage::compute,
+		reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(_current_root_signature[0]) },
+		shader_register,
+		DestOffsetIn32BitValues,
+		Num32BitValuesToSet,
+		static_cast<const uint32_t *>(pSrcData));
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRoot32BitConstants(UINT RootParameterIndex, UINT Num32BitValuesToSet, const void *pSrcData, UINT DestOffsetIn32BitValues)
@@ -427,7 +468,14 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRoot32BitConstants(U
 #if RESHADE_ADDON
 	const uint32_t shader_register = RootParameterIndex; // TODO: Get shader register from root parameter index
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_constants>(this, reshade::api::shader_stage::all_graphics, shader_register, DestOffsetIn32BitValues, Num32BitValuesToSet, static_cast<const uint32_t *>(pSrcData));
+	reshade::invoke_addon_event<reshade::addon_event::push_constants>(
+		this,
+		reshade::api::shader_stage::all_graphics,
+		reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(_current_root_signature[0]) },
+		shader_register,
+		DestOffsetIn32BitValues,
+		Num32BitValuesToSet,
+		static_cast<const uint32_t *>(pSrcData));
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootConstantBufferView(UINT RootParameterIndex, D3D12_GPU_VIRTUAL_ADDRESS BufferLocation)
@@ -445,7 +493,14 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootConstantBufferVie
 	_device_impl->resolve_gpu_address(BufferLocation, &resource, &offset);
 	const reshade::api::resource buffer = { reinterpret_cast<uintptr_t>(resource) };
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_constant_buffers>(this, reshade::api::shader_stage::compute, shader_register, 1, &buffer, &offset);
+	reshade::invoke_addon_event<reshade::addon_event::bind_constant_buffers>(
+		this,
+		reshade::api::shader_stage::compute,
+		reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(_current_root_signature[1]) },
+		shader_register,
+		1,
+		&buffer,
+		&offset);
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRootConstantBufferView(UINT RootParameterIndex, D3D12_GPU_VIRTUAL_ADDRESS BufferLocation)
@@ -463,7 +518,14 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRootConstantBufferVi
 	_device_impl->resolve_gpu_address(BufferLocation, &resource, &offset);
 	const reshade::api::resource buffer = { reinterpret_cast<uintptr_t>(resource) };
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_constant_buffers>(this, reshade::api::shader_stage::all_graphics, shader_register, 1, &buffer, &offset);
+	reshade::invoke_addon_event<reshade::addon_event::bind_constant_buffers>(
+		this,
+		reshade::api::shader_stage::all_graphics,
+		reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(_current_root_signature[0]) },
+		shader_register,
+		1,
+		&buffer,
+		&offset);
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootShaderResourceView(UINT RootParameterIndex, D3D12_GPU_VIRTUAL_ADDRESS BufferLocation)
