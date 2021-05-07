@@ -43,6 +43,8 @@ namespace reshade::d3d12
 
 		void wait_idle() const final;
 
+		void set_debug_name(api::resource resource, const char *name) final;
+
 #if RESHADE_ADDON
 		bool resolve_gpu_address(D3D12_GPU_VIRTUAL_ADDRESS address, ID3D12Resource **out_resource, UINT64 *out_offset)
 		{

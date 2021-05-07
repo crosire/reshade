@@ -103,6 +103,8 @@ namespace reshade::vulkan
 
 		void wait_idle() const final;
 
+		void set_debug_name(api::resource resource, const char *name) final;
+
 #if RESHADE_ADDON
 		uint32_t get_subresource_index(VkImage image, const VkImageSubresourceLayers &layers, uint32_t layer = 0) const
 		{

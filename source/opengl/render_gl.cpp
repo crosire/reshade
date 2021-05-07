@@ -678,6 +678,46 @@ void reshade::opengl::device_impl::wait_idle() const
 	glFinish();
 }
 
+void reshade::opengl::device_impl::set_debug_name(api::resource resource, const char *name)
+{
+	GLenum id = resource.handle >> 40;
+	switch (id)
+	{
+	case GL_BUFFER:
+	case GL_ARRAY_BUFFER:
+	case GL_ELEMENT_ARRAY_BUFFER:
+	case GL_PIXEL_PACK_BUFFER:
+	case GL_PIXEL_UNPACK_BUFFER:
+	case GL_UNIFORM_BUFFER:
+	case GL_TRANSFORM_FEEDBACK_BUFFER:
+	case GL_COPY_READ_BUFFER:
+	case GL_COPY_WRITE_BUFFER:
+	case GL_DRAW_INDIRECT_BUFFER:
+	case GL_SHADER_STORAGE_BUFFER:
+	case GL_DISPATCH_INDIRECT_BUFFER:
+	case GL_QUERY_BUFFER:
+	case GL_ATOMIC_COUNTER_BUFFER:
+		id = GL_BUFFER;
+		break;
+	case GL_TEXTURE:
+	case GL_TEXTURE_BUFFER:
+	case GL_TEXTURE_1D:
+	case GL_TEXTURE_1D_ARRAY:
+	case GL_TEXTURE_2D:
+	case GL_TEXTURE_2D_ARRAY:
+	case GL_TEXTURE_2D_MULTISAMPLE:
+	case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
+	case GL_TEXTURE_3D:
+	case GL_TEXTURE_CUBE_MAP:
+	case GL_TEXTURE_CUBE_MAP_ARRAY:
+	case GL_TEXTURE_RECTANGLE:
+		id = GL_TEXTURE;
+		break;
+	}
+
+	glObjectLabel(id, resource.handle & 0xFFFFFFFF, -1, name);
+}
+
 void reshade::opengl::device_impl::flush_immediate_command_list() const
 {
 	glFlush();

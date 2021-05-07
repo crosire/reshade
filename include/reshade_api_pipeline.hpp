@@ -89,7 +89,7 @@ namespace reshade { namespace api
 
 	/// <summary>
 	/// An opaque handle to a pipeline layout object.
-	/// <para>Depending on the render API this is really a pointer to a 'ID3D12RootSignature' or a 'VkPipelineLayout' handle.</para>
+	/// <para>Depending on the render API this is really a pointer to a 'ID3D12RootSignature' object or a 'VkPipelineLayout' handle.</para>
 	/// </summary>
 	typedef struct { uint64_t handle; } pipeline_layout;
 } }

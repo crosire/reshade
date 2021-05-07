@@ -39,6 +39,8 @@ namespace reshade::d3d11
 
 		void wait_idle() const final { /* no-op */ }
 
+		void set_debug_name(api::resource resource, const char *name) final;
+
 	protected:
 		com_object_list<ID3D11View> _views;
 		com_object_list<ID3D11Resource> _resources;

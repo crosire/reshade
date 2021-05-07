@@ -51,6 +51,8 @@ namespace reshade::opengl
 
 		void wait_idle() const final;
 
+		void set_debug_name(api::resource resource, const char *name) final;
+
 		api::resource_view get_depth_stencil_from_fbo(GLuint fbo) const;
 		api::resource_view get_render_target_from_fbo(GLuint fbo, GLuint drawbuffer) const;
 

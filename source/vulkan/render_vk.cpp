@@ -317,6 +317,21 @@ void reshade::vulkan::device_impl::wait_idle() const
 	vk.DeviceWaitIdle(_orig);
 }
 
+void reshade::vulkan::device_impl::set_debug_name(api::resource resource, const char *name)
+{
+	if (vk.DebugMarkerSetObjectNameEXT != nullptr)
+	{
+		const resource_data &data = _resources.at(resource.handle);
+
+		VkDebugMarkerObjectNameInfoEXT name_info { VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT };
+		name_info.object = resource.handle;
+		name_info.objectType = data.is_image() ? VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT : VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT;
+		name_info.pObjectName = name;
+
+		vk.DebugMarkerSetObjectNameEXT(_orig, &name_info);
+	}
+}
+
 reshade::vulkan::command_list_impl::command_list_impl(device_impl *device, VkCommandBuffer cmd_list) :
 	api_object_impl(cmd_list), _device_impl(device), _has_commands(cmd_list != VK_NULL_HANDLE)
 {

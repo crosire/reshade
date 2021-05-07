@@ -39,6 +39,8 @@ namespace reshade::d3d9
 
 		void wait_idle() const final { /* no-op */ }
 
+		void set_debug_name(api::resource, const char *) final {}
+
 		api::device *get_device() final { return this; }
 
 		api::command_list *get_immediate_command_list() final { return this; }

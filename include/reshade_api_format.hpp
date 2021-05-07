@@ -10,7 +10,7 @@
 namespace reshade { namespace api
 {
 	/// <summary>
-	/// Available data and texture formats. This is mostly compatible with DXGI_FORMAT.
+	/// The available data and texture formats. This is mostly compatible with 'DXGI_FORMAT'.
 	/// </summary>
 	enum class format : uint32_t
 	{

@@ -275,6 +275,16 @@ void reshade::d3d12::device_impl::wait_idle() const
 	CloseHandle(fence_event);
 }
 
+void reshade::d3d12::device_impl::set_debug_name(api::resource resource, const char *name)
+{
+	const size_t debug_name_len = strlen(name);
+	std::wstring debug_name_wide;
+	debug_name_wide.reserve(debug_name_len + 1);
+	utf8::unchecked::utf8to16(name, name + debug_name_len, std::back_inserter(debug_name_wide));
+
+	reinterpret_cast<ID3D12Resource *>(resource.handle)->SetName(debug_name_wide.c_str());
+}
+
 D3D12_CPU_DESCRIPTOR_HANDLE reshade::d3d12::device_impl::allocate_descriptor_handle(D3D12_DESCRIPTOR_HEAP_TYPE type)
 {
 	std::vector<bool> &state = _resource_view_pool_state[type];

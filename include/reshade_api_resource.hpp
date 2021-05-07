@@ -89,7 +89,7 @@ namespace reshade { namespace api
 	constexpr resource_usage &operator|=(resource_usage &lhs, resource_usage rhs) { return lhs = static_cast<resource_usage>(static_cast<uint32_t>(lhs) | static_cast<uint32_t>(rhs)); }
 
 	/// <summary>
-	/// A filtering type used for texture lookups.
+	/// The available filtering types used for texture sampling operations.
 	/// </summary>
 	enum class texture_filter
 	{
@@ -105,7 +105,7 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
-	/// Specifies behavior of sampling with texture coordinates outside an image.
+	/// Specifies behavior of sampling with texture coordinates outside a texture resource.
 	/// </summary>
 	enum class texture_address_mode
 	{
@@ -156,7 +156,7 @@ namespace reshade { namespace api
 				// Size of the buffer (in bytes).
 				uint64_t size;
 			} buffer;
-			// Used when resource type is a surface or texture.
+			// Used when resource type is a texture or surface.
 			struct
 			{
 				// Width of the texture (in texels).
@@ -196,7 +196,8 @@ namespace reshade { namespace api
 
 		// Type of the view. Identifies how the view should interpret the resource data.
 		resource_view_type type;
-		// Viewing format of this view. The data of the resource is reinterpreted in this format.
+		// Viewing format of this view.
+		// The data of the resource is reinterpreted to this format (can be different than the format of the underlying resource as long as the formats are compatible).
 		format format;
 
 		union
@@ -241,7 +242,7 @@ namespace reshade { namespace api
 
 	/// <summary>
 	/// An opaque handle to a sampler state object.
-	/// <para>Depending on the render API this is really a pointer to a 'ID3D10SamplerState', 'ID3D11SamplerState' or a 'D3D12_CPU_DESCRIPTOR_HANDLE' or 'VkSampler' handle.</para>
+	/// <para>Depending on the render API this is really a pointer to a 'ID3D10SamplerState', 'ID3D11SamplerState' or a 'D3D12_CPU_DESCRIPTOR_HANDLE' (to a sampler descriptor) or 'VkSampler' handle.</para>
 	/// </summary>
 	typedef struct { uint64_t handle; } sampler;
 
@@ -265,7 +266,7 @@ namespace reshade { namespace api
 	/// An opaque handle to a resource view object (depth-stencil, render target, shader resource view, ...).
 	/// <para>Resource views created by the application are only guaranteed to be valid during event callbacks.
 	/// If you want to use one outside that scope, first ensure the resource view is still valid via <see cref="device::check_resource_view_handle_valid"/>.</para>
-	/// <para>Depending on the render API this is really a pointer to a 'IDirect3DResource9', 'ID3D10View' or 'ID3D11View' object, or a 'D3D12_CPU_DESCRIPTOR_HANDLE' or 'VkImageView' handle.</para>
+	/// <para>Depending on the render API this is really a pointer to a 'IDirect3DResource9', 'ID3D10View' or 'ID3D11View' object, or a 'D3D12_CPU_DESCRIPTOR_HANDLE' (to a view descriptor) or 'VkImageView' handle.</para>
 	/// </summary>
 	typedef struct { uint64_t handle; } resource_view;
 

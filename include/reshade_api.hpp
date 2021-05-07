@@ -105,7 +105,7 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <param name="desc">The description of the sampler to create.</param>
 		/// <param name="out">Pointer to a handle that is set to the handle of the created sampler.</param>
-		/// <returns><c>true</c>if the sampler was successfully created, <c>false</c> otherwise (in this case <paramref name="out_sampler"/> is set to zero).</returns>
+		/// <returns><c>true</c> if the sampler was successfully created, <c>false</c> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
 		virtual bool create_sampler(const sampler_desc &desc, sampler *out) = 0;
 		/// <summary>
 		/// Allocates and creates a new resource based on the specified <paramref name="desc"/>ription.
@@ -114,7 +114,7 @@ namespace reshade { namespace api
 		/// <param name="initial_data">Data to upload to the resource after creation. This should point to an array of <see cref="mapped_subresource"/>, one for each subresource (mipmap levels and array layers).</param>
 		/// <param name="initial_state">Initial usage of the resource after creation. This can later be changed via <see cref="command_list::transition_state"/>.</param>
 		/// <param name="out">Pointer to a handle that is set to the handle of the created resource.</param>
-		/// <returns><c>true</c>if the resource was successfully created, <c>false</c> otherwise (in this case <paramref name="out_resource"/> is set to zero).</returns>
+		/// <returns><c>true</c> if the resource was successfully created, <c>false</c> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
 		virtual bool create_resource(const resource_desc &desc, const subresource_data *initial_data, resource_usage initial_state, resource *out) = 0;
 		/// <summary>
 		/// Creates a new resource view for the specified <paramref name="resource"/> based on the specified <paramref name="desc"/>ription.
@@ -123,7 +123,7 @@ namespace reshade { namespace api
 		/// <param name="usage_type">The usage type of the resource view to create. Set to <see cref="resource_usage::shader_resource"/> to create a shader resource view, <see cref="resource_usage::depth_stencil"/> for a depth-stencil view, <see cref="resource_usage::render_target"/> for a render target etc.</param>
 		/// <param name="desc">The description of the resource to create.</param>
 		/// <param name="out">Pointer to a handle that is set to the handle of the created resource view.</param>
-		/// <returns><c>true</c>if the resource view was successfully created, <c>false</c> otherwise (in this case <paramref name="out_view"/> is set to zero).</returns>
+		/// <returns><c>true</c> if the resource view was successfully created, <c>false</c> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
 		virtual bool create_resource_view(resource resource, resource_usage usage_type, const resource_view_desc &desc, resource_view *out) = 0;
 
 		/// <summary>
@@ -145,7 +145,6 @@ namespace reshade { namespace api
 		/// This function is thread-safe.
 		/// </summary>
 		virtual void get_resource_from_view(resource_view view, resource *result) const = 0;
-
 		/// <summary>
 		/// Gets the description of the specified <paramref name="resource"/>.
 		/// This function is thread-safe.
@@ -158,6 +157,13 @@ namespace reshade { namespace api
 		/// This can be used to ensure that e.g. resources are no longer in use on the GPU before destroying them.
 		/// </summary>
 		virtual void wait_idle() const = 0;
+
+		/// <summary>
+		/// Associates a name with a resource, which is used by debugging tools to better identify it.
+		/// </summary>
+		/// <param name="resource">The resource to set the debug name for.</param>
+		/// <param name="name">The null-terminated debug name string.</param>
+		virtual void set_debug_name(resource resource, const char *name) = 0;
 	};
 
 	/// <summary>
@@ -219,9 +225,9 @@ namespace reshade { namespace api
 		/// <para>The <paramref name="destination"/> resource has to be in the <see cref="resource_usage::copy_dest"/> state.</para>
 		/// </summary>
 		/// <param name="source">The buffer to copy from.</param>
-		/// <param name="src_offset">An offset in bytes into the <paramref name="source"/> buffer to start copying at.</param>
+		/// <param name="src_offset">An offset (in bytes) into the <paramref name="source"/> buffer to start copying at.</param>
 		/// <param name="destination">The buffer to copy to.</param>
-		/// <param name="dst_offset">An offset in bytes into the <paramref name="destination"/> buffer to start copying to.</param>
+		/// <param name="dst_offset">An offset (in bytes) into the <paramref name="destination"/> buffer to start copying to.</param>
 		/// <param name="size">The number of bytes to copy.</param>
 		virtual void copy_buffer_region(resource source, uint64_t src_offset, resource dst, uint64_t dst_offset, uint64_t size) = 0;
 		/// <summary>
@@ -230,7 +236,7 @@ namespace reshade { namespace api
 		/// <para>The <paramref name="destination"/> resource has to be in the <see cref="resource_usage::copy_dest"/> state.</para>
 		/// </summary>
 		/// <param name="source">The buffer to copy from.</param>
-		/// <param name="src_offset">An offset in bytes into the <paramref name="source"/> buffer to start copying at.</param>
+		/// <param name="src_offset">An offset (in bytes) into the <paramref name="source"/> buffer to start copying at.</param>
 		/// <param name="row_length">The number of pixels from one row to the next (in the buffer), or zero if data is tightly packed.</param>
 		/// <param name="slice_height">The number of rows from one slice to the next (in the buffer) or zero if data is tightly packed.</param>
 		/// <param name="destination">The texture to copy to.</param>
@@ -259,13 +265,13 @@ namespace reshade { namespace api
 		/// <param name="src_subresource">The subresource of the <paramref name="source"/> texture to copy from.</param>
 		/// <param name="src_box">A 3D box (or <c>nullptr</c> to reference the entire subresource) that defines the region in the <paramref name="source"/> texture to copy from, in the format { left, top, front, right, bottom, back }.</param>
 		/// <param name="destination">The buffer to copy to.</param>
-		/// <param name="dst_offset">An offset in bytes into the <paramref name="destination"/> buffer to start copying to.</param>
+		/// <param name="dst_offset">An offset (in bytes) into the <paramref name="destination"/> buffer to start copying to.</param>
 		/// <param name="row_length">The number of pixels from one row to the next (in the buffer), or zero if data is tightly packed.</param>
-		/// <param name="slice_height">The number of rows from one slice to the next (in the buffer), op zero if data is tightly packed.</param>
-		virtual void copy_texture_to_buffer(resource source, uint32_t src_subresource, const int32_t src_box[6], resource destination, uint64_t dst_offset, uint32_t row_length, uint32_t slice_height) = 0;
+		/// <param name="slice_height">The number of rows from one slice to the next (in the buffer), or zero if data is tightly packed.</param>
+		virtual void copy_texture_to_buffer(resource source, uint32_t src_subresource, const int32_t src_box[6], resource destination, uint64_t dst_offset, uint32_t row_length = 0, uint32_t slice_height = 0) = 0;
 
 		/// <summary>
-		/// Clears a depth-stencil resource.
+		/// Clears the resource referenced by the depth-stencil view.
 		/// <para>The resource the <paramref name="dsv"/> view points to has to be in the <see cref="resource_usage::depth_stencil_write"/> state.</para>
 		/// </summary>
 		/// <param name="dsv">The view handle of the depth-stencil.</param>
@@ -274,11 +280,11 @@ namespace reshade { namespace api
 		/// <param name="stencil">The value to clear the stencil buffer with.</param>
 		virtual void clear_depth_stencil_view(resource_view dsv, uint32_t clear_flags, float depth, uint8_t stencil) = 0;
 		/// <summary>
-		/// Clears an entire texture resource.
-		/// <para>The resource the <paramref name="rtv"/> view points to has to be in the <see cref="resource_usage::render_target"/> state.</para>
+		/// Clears the resources referenced by the render target views.
+		/// <para>The resources the <paramref name="rtvs"/> views point to have to be in the <see cref="resource_usage::render_target"/> state.</para>
 		/// </summary>
-		/// <param name="rtv">The view handle of the render target.</param>
-		/// <param name="color">The value to clear the resource with.</param>
+		/// <param name="rtvs">The view handles of the render targets.</param>
+		/// <param name="color">The value to clear the resources with.</param>
 		virtual void clear_render_target_views(uint32_t count, const resource_view *rtvs, const float color[4]) = 0;
 
 		/// <summary>
