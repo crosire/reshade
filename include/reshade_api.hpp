@@ -139,11 +139,11 @@ namespace reshade { namespace api
 		/// <param name="type">The shader type.</param>
 		/// <param name="format">The shader source format of the input <paramref name="data"/>.</param>
 		/// <param name="entry_point">Optional entry point name if the shader source contains multiple entry points.</param>
-		/// <param name="data">The shader source.</param>
-		/// <param name="size">The size (in bytes) of the shader source.</param>
+		/// <param name="code">The shader source.</param>
+		/// <param name="code_size">The size (in bytes) of the shader source.</param>
 		/// <param name="out">Pointer to a handle that is set to the handle of the created shader module.</param>
 		/// <returns><c>true</c> if the shader module was successfully compiled and created, <c>false</c> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
-		virtual bool create_shader_module(shader_stage type, shader_format format, const char *entry_point, const void *data, size_t size, shader_module *out) = 0;
+		virtual bool create_shader_module(shader_stage type, shader_format format, const char *entry_point, const void *code, size_t code_size, shader_module *out) = 0;
 		/// <summary>
 		/// Creates a new pipeline layout.
 		/// </summary>

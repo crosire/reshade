@@ -44,15 +44,32 @@ namespace reshade { namespace api
 	/// </summary>
 	enum class pipeline_type : uint32_t
 	{
+		unknown = 0,
+
+		// Full compute pipeline state
 		compute,
-		graphics_all,
+		// Full graphics pipeline state
+		graphics,
+
+		// Partial pipeline state which binds all shader modules
+		graphics_shaders,
+		// Partial pipeline state which only binds a vertex shader module
 		graphics_vertex_shader,
+		// Partial pipeline state which only binds a hull shader module
 		graphics_hull_shader,
+		// Partial pipeline state which only binds a domain shader module
 		graphics_domain_shader,
+		// Partial pipeline state which only binds a geometry shader module
 		graphics_geometry_shader,
+		// Partial pipeline state which only binds a pixel shader module
 		graphics_pixel_shader,
+		// Partial pipeline state which only binds the input layout
+		graphics_input_layout,
+		// Partial pipeline state which only binds blend state
 		graphics_blend_state,
+		// Partial pipeline state which only binds rasterizer state
 		graphics_rasterizer_state,
+		// Partial pipeline state which only binds depth-stencil state
 		graphics_depth_stencil_state
 	};
 
@@ -398,7 +415,7 @@ namespace reshade { namespace api
 			{
 				shader_module shader;
 			} compute;
-			// Used when pipeline type is <see cref="pipeline_type::graphics_all"/> or any other graphics type.
+			// Used when pipeline type is <see cref="pipeline_type::graphics"/> or any other graphics type.
 			struct
 			{
 				shader_module vertex_shader;

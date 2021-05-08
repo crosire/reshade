@@ -133,14 +133,12 @@ HRESULT STDMETHODCALLTYPE D3D12GraphicsCommandList::Reset(ID3D12CommandAllocator
 #endif
 	const HRESULT hr = _orig->Reset(pAllocator, pInitialState);
 #if RESHADE_ADDON
-	if (pInitialState != nullptr && SUCCEEDED(hr))
+	if (SUCCEEDED(hr))
 	{
-		uint32_t pipeline_state_values[ARRAYSIZE(reshade::d3d12::pipeline_states_graphics)];
-		if (UINT pipeline_state_size = sizeof(pipeline_state_values);
-			SUCCEEDED(pInitialState->GetPrivateData(reshade::d3d12::pipeline_state_guid, &pipeline_state_size, pipeline_state_values)))
-		{
-			reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, static_cast<uint32_t>(ARRAYSIZE(reshade::d3d12::pipeline_states_graphics)), reshade::d3d12::pipeline_states_graphics, pipeline_state_values);
-		}
+		_current_root_signature[0] = nullptr;
+		_current_root_signature[1] = nullptr;
+
+		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(this, reshade::api::pipeline_type::graphics, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pInitialState) });
 	}
 #endif
 	return hr;
@@ -267,7 +265,6 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::IASetPrimitiveTopology(D3D12_PR
 
 #if RESHADE_ADDON
 	const reshade::api::pipeline_state state = reshade::api::pipeline_state::primitive_topology;
-
 	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 1, &state, reinterpret_cast<const uint32_t *>(&PrimitiveTopology));
 #endif
 }
@@ -302,7 +299,6 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::OMSetBlendFactor(const FLOAT Bl
 		((static_cast<uint32_t>(BlendFactor[1] * 255.f) & 0xFF) << 8) |
 		((static_cast<uint32_t>(BlendFactor[2] * 255.f) & 0xFF) << 16) |
 		((static_cast<uint32_t>(BlendFactor[3] * 255.f) & 0xFF) << 24);
-
 	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 1, &state, &value);
 #endif
 }
@@ -312,7 +308,6 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::OMSetStencilRef(UINT StencilRef
 
 #if RESHADE_ADDON
 	const reshade::api::pipeline_state state = reshade::api::pipeline_state::stencil_reference_value;
-
 	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 1, &state, &StencilRef);
 #endif
 }
@@ -321,17 +316,8 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetPipelineState(ID3D12Pipeline
 	_orig->SetPipelineState(pPipelineState);
 
 #if RESHADE_ADDON
-	if (pPipelineState != nullptr)
-	{
-		reshade::invoke_addon_event<reshade::addon_event::bind_shader_or_pipeline>(this, reshade::api::shader_stage::all, reinterpret_cast<uintptr_t>(pPipelineState));
-
-		uint32_t pipeline_state_values[ARRAYSIZE(reshade::d3d12::pipeline_states_graphics)];
-		if (UINT pipeline_state_size = sizeof(pipeline_state_values);
-			SUCCEEDED(pPipelineState->GetPrivateData(reshade::d3d12::pipeline_state_guid, &pipeline_state_size, pipeline_state_values)))
-		{
-			reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, static_cast<uint32_t>(ARRAYSIZE(reshade::d3d12::pipeline_states_graphics)), reshade::d3d12::pipeline_states_graphics, pipeline_state_values);
-		}
-	}
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(this,
+		reshade::api::pipeline_type::unknown, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pPipelineState) });
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ResourceBarrier(UINT NumBarriers, const D3D12_RESOURCE_BARRIER *pBarriers)
@@ -355,12 +341,12 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetDescriptorHeaps(UINT NumDesc
 
 #if RESHADE_ADDON
 #ifndef WIN64
-	const auto heap_handles = static_cast<uint64_t *>(alloca(NumDescriptorHeaps * sizeof(uint64_t)));
+	const auto heap_handles = static_cast<reshade::api::descriptor_heap *>(alloca(NumDescriptorHeaps * sizeof(reshade::api::descriptor_heap)));
 	for (UINT i = 0; i < NumDescriptorHeaps; ++i)
 		heap_handles[i] = { reinterpret_cast<uintptr_t>(ppDescriptorHeaps[i]) };
 #else
-	static_assert(sizeof(*ppDescriptorHeaps) == sizeof(uint64_t));
-	const auto heap_handles = reinterpret_cast<const uint64_t *>(ppDescriptorHeaps);
+	static_assert(sizeof(*ppDescriptorHeaps) == sizeof(reshade::api::descriptor_heap));
+	const auto heap_handles = reinterpret_cast<const reshade::api::descriptor_heap *>(ppDescriptorHeaps);
 #endif
 
 	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_heaps>(this, NumDescriptorHeaps, heap_handles);
@@ -387,13 +373,15 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootDescriptorTable(U
 	_orig->SetComputeRootDescriptorTable(RootParameterIndex, BaseDescriptor);
 
 #if RESHADE_ADDON
+	static_assert(sizeof(BaseDescriptor) == sizeof(reshade::api::descriptor_table));
+
 	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_tables>(
 		this,
 		reshade::api::shader_stage::compute,
 		reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(_current_root_signature[1]) },
 		RootParameterIndex,
 		1,
-		&BaseDescriptor.ptr);
+		reinterpret_cast<const reshade::api::descriptor_table *>(&BaseDescriptor.ptr));
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRootDescriptorTable(UINT RootParameterIndex, D3D12_GPU_DESCRIPTOR_HANDLE BaseDescriptor)
@@ -401,13 +389,15 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRootDescriptorTable(
 	_orig->SetGraphicsRootDescriptorTable(RootParameterIndex, BaseDescriptor);
 
 #if RESHADE_ADDON
+	static_assert(sizeof(BaseDescriptor) == sizeof(reshade::api::descriptor_table));
+
 	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_tables>(
 		this,
 		reshade::api::shader_stage::all_graphics,
 		reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(_current_root_signature[0]) },
 		RootParameterIndex,
 		1,
-		&BaseDescriptor.ptr);
+		reinterpret_cast<const reshade::api::descriptor_table *>(&BaseDescriptor.ptr));
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRoot32BitConstant(UINT RootParameterIndex, UINT SrcData, UINT DestOffsetIn32BitValues)
@@ -415,13 +405,11 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRoot32BitConstant(UIN
 	_orig->SetComputeRoot32BitConstant(RootParameterIndex, SrcData, DestOffsetIn32BitValues);
 
 #if RESHADE_ADDON
-	const uint32_t shader_register = RootParameterIndex; // TODO: Get shader register from root parameter index
-
 	reshade::invoke_addon_event<reshade::addon_event::push_constants>(
 		this,
 		reshade::api::shader_stage::compute,
 		reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(_current_root_signature[1]) },
-		shader_register,
+		RootParameterIndex,
 		DestOffsetIn32BitValues,
 		1,
 		&SrcData);
@@ -432,13 +420,11 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRoot32BitConstant(UI
 	_orig->SetGraphicsRoot32BitConstant(RootParameterIndex, SrcData, DestOffsetIn32BitValues);
 
 #if RESHADE_ADDON
-	const uint32_t shader_register = RootParameterIndex; // TODO: Get shader register from root parameter index
-
 	reshade::invoke_addon_event<reshade::addon_event::push_constants>(
 		this,
 		reshade::api::shader_stage::all_graphics,
 		reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(_current_root_signature[0]) },
-		shader_register,
+		RootParameterIndex,
 		DestOffsetIn32BitValues,
 		1,
 		&SrcData);
@@ -449,13 +435,11 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRoot32BitConstants(UI
 	_orig->SetComputeRoot32BitConstants(RootParameterIndex, Num32BitValuesToSet, pSrcData, DestOffsetIn32BitValues);
 
 #if RESHADE_ADDON
-	const uint32_t shader_register = RootParameterIndex; // TODO: Get shader register from root parameter index
-
 	reshade::invoke_addon_event<reshade::addon_event::push_constants>(
 		this,
 		reshade::api::shader_stage::compute,
 		reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(_current_root_signature[0]) },
-		shader_register,
+		RootParameterIndex,
 		DestOffsetIn32BitValues,
 		Num32BitValuesToSet,
 		static_cast<const uint32_t *>(pSrcData));
@@ -466,13 +450,11 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRoot32BitConstants(U
 	_orig->SetGraphicsRoot32BitConstants(RootParameterIndex, Num32BitValuesToSet, pSrcData, DestOffsetIn32BitValues);
 
 #if RESHADE_ADDON
-	const uint32_t shader_register = RootParameterIndex; // TODO: Get shader register from root parameter index
-
 	reshade::invoke_addon_event<reshade::addon_event::push_constants>(
 		this,
 		reshade::api::shader_stage::all_graphics,
 		reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(_current_root_signature[0]) },
-		shader_register,
+		RootParameterIndex,
 		DestOffsetIn32BitValues,
 		Num32BitValuesToSet,
 		static_cast<const uint32_t *>(pSrcData));
@@ -483,24 +465,23 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootConstantBufferVie
 	_orig->SetComputeRootConstantBufferView(RootParameterIndex, BufferLocation);
 
 #if RESHADE_ADDON
-	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_constant_buffers)].empty())
+	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::push_descriptors)].empty())
 		return;
-
-	const uint32_t shader_register = RootParameterIndex; // TODO: Get shader register from root parameter index
 
 	uint64_t offset = 0;
 	ID3D12Resource *resource = nullptr;
 	_device_impl->resolve_gpu_address(BufferLocation, &resource, &offset);
 	const reshade::api::resource buffer = { reinterpret_cast<uintptr_t>(resource) };
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_constant_buffers>(
+	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
 		this,
 		reshade::api::shader_stage::compute,
 		reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(_current_root_signature[1]) },
-		shader_register,
+		RootParameterIndex,
+		reshade::api::descriptor_type::constant_buffer,
+		0,
 		1,
-		&buffer,
-		&offset);
+		&buffer);
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRootConstantBufferView(UINT RootParameterIndex, D3D12_GPU_VIRTUAL_ADDRESS BufferLocation)
@@ -508,24 +489,23 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRootConstantBufferVi
 	_orig->SetGraphicsRootConstantBufferView(RootParameterIndex, BufferLocation);
 
 #if RESHADE_ADDON
-	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_constant_buffers)].empty())
+	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::push_descriptors)].empty())
 		return;
-
-	const uint32_t shader_register = RootParameterIndex; // TODO: Get shader register from root parameter index
 
 	uint64_t offset = 0;
 	ID3D12Resource *resource = nullptr;
 	_device_impl->resolve_gpu_address(BufferLocation, &resource, &offset);
 	const reshade::api::resource buffer = { reinterpret_cast<uintptr_t>(resource) };
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_constant_buffers>(
+	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
 		this,
 		reshade::api::shader_stage::all_graphics,
 		reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(_current_root_signature[0]) },
-		shader_register,
+		RootParameterIndex,
+		reshade::api::descriptor_type::constant_buffer,
+		0,
 		1,
-		&buffer,
-		&offset);
+		&buffer);
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootShaderResourceView(UINT RootParameterIndex, D3D12_GPU_VIRTUAL_ADDRESS BufferLocation)

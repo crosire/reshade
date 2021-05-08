@@ -30,7 +30,7 @@ namespace reshade::d3d9
 		bool create_resource_view(api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view *out) final;
 
 		bool create_pipeline(const api::pipeline_desc &desc, api::pipeline *out) final;
-		bool create_shader_module(api::shader_stage type, api::shader_format format, const char *entry_point, const void *data, size_t size, api::shader_module *out) final;
+		bool create_shader_module(api::shader_stage type, api::shader_format format, const char *entry_point, const void *code, size_t code_size, api::shader_module *out) final;
 		bool create_pipeline_layout(uint32_t num_table_layouts, const api::descriptor_table_layout *table_layouts, uint32_t num_constant_ranges, const api::constant_range *constant_ranges, api::pipeline_layout *out) final;
 		bool create_descriptor_heap(uint32_t max_tables, uint32_t num_sizes, const api::descriptor_heap_size *sizes, api::descriptor_heap *out) final;
 		bool create_descriptor_table(api::descriptor_heap heap, api::descriptor_table_layout layout, api::descriptor_table *out) final;

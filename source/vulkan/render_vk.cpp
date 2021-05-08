@@ -270,7 +270,7 @@ bool reshade::vulkan::device_impl::create_pipeline(const api::pipeline_desc &des
 		return false;
 	case api::pipeline_type::compute:
 		return create_pipeline_compute(desc, out);
-	case api::pipeline_type::graphics_all:
+	case api::pipeline_type::graphics:
 		return create_pipeline_graphics_all(desc, out);
 	}
 }
@@ -665,7 +665,7 @@ bool reshade::vulkan::device_impl::create_pipeline_graphics_all(const api::pipel
 	}
 }
 
-bool reshade::vulkan::device_impl::create_shader_module(api::shader_stage, api::shader_format format, const char *entry_point, const void *data, size_t size, api::shader_module *out)
+bool reshade::vulkan::device_impl::create_shader_module(api::shader_stage, api::shader_format format, const char *entry_point, const void *code, size_t code_size, api::shader_module *out)
 {
 	if (format != api::shader_format::spirv)
 	{
@@ -674,8 +674,8 @@ bool reshade::vulkan::device_impl::create_shader_module(api::shader_stage, api::
 	}
 
 	VkShaderModuleCreateInfo create_info { VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
-	create_info.codeSize = size;
-	create_info.pCode = static_cast<const uint32_t *>(data);
+	create_info.codeSize = code_size;
+	create_info.pCode = static_cast<const uint32_t *>(code);
 
 	if (VkShaderModule object = VK_NULL_HANDLE;
 		vk.CreateShaderModule(_orig, &create_info, nullptr, &object) == VK_SUCCESS)

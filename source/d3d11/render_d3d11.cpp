@@ -265,7 +265,7 @@ bool reshade::d3d11::device_impl::create_pipeline(const api::pipeline_desc &desc
 		return false;
 	case api::pipeline_type::compute:
 		return create_pipeline_compute(desc, out);
-	case api::pipeline_type::graphics_all:
+	case api::pipeline_type::graphics:
 		return create_pipeline_graphics_all(desc, out);
 	case api::pipeline_type::graphics_blend_state:
 		return create_pipeline_graphics_blend_state(desc, out);
@@ -469,7 +469,7 @@ bool reshade::d3d11::device_impl::create_pipeline_graphics_depth_stencil_state(c
 	}
 }
 
-bool reshade::d3d11::device_impl::create_shader_module(api::shader_stage type, api::shader_format format, const char *entry_point, const void *data, size_t size, api::shader_module *out)
+bool reshade::d3d11::device_impl::create_shader_module(api::shader_stage type, api::shader_format format, const char *entry_point, const void *code, size_t code_size, api::shader_module *out)
 {
 	if (format == api::shader_format::dxbc)
 	{
@@ -479,9 +479,10 @@ bool reshade::d3d11::device_impl::create_shader_module(api::shader_stage type, a
 		{
 		case api::shader_stage::vertex:
 			if (com_ptr<ID3D11VertexShader> object;
-				SUCCEEDED(_orig->CreateVertexShader(data, size, nullptr, &object)))
+				SUCCEEDED(_orig->CreateVertexShader(code, code_size, nullptr, &object)))
 			{
-				object->SetPrivateData(vertex_shader_byte_code_guid, static_cast<UINT>(size), data);
+				assert(code_size <= std::numeric_limits<UINT>::max());
+				object->SetPrivateData(vertex_shader_byte_code_guid, static_cast<UINT>(code_size), code);
 
 				*out = { reinterpret_cast<uintptr_t>(object.release()) };
 				return true;
@@ -489,7 +490,7 @@ bool reshade::d3d11::device_impl::create_shader_module(api::shader_stage type, a
 			break;
 		case api::shader_stage::hull:
 			if (com_ptr<ID3D11HullShader> object;
-				SUCCEEDED(_orig->CreateHullShader(data, size, nullptr, &object)))
+				SUCCEEDED(_orig->CreateHullShader(code, code_size, nullptr, &object)))
 			{
 				*out = { reinterpret_cast<uintptr_t>(object.release()) };
 				return true;
@@ -497,7 +498,7 @@ bool reshade::d3d11::device_impl::create_shader_module(api::shader_stage type, a
 			break;
 		case api::shader_stage::domain:
 			if (com_ptr<ID3D11DomainShader> object;
-				SUCCEEDED(_orig->CreateDomainShader(data, size, nullptr, &object)))
+				SUCCEEDED(_orig->CreateDomainShader(code, code_size, nullptr, &object)))
 			{
 				*out = { reinterpret_cast<uintptr_t>(object.release()) };
 				return true;
@@ -505,7 +506,7 @@ bool reshade::d3d11::device_impl::create_shader_module(api::shader_stage type, a
 			break;
 		case api::shader_stage::geometry:
 			if (com_ptr<ID3D11GeometryShader> object;
-				SUCCEEDED(_orig->CreateGeometryShader(data, size, nullptr, &object)))
+				SUCCEEDED(_orig->CreateGeometryShader(code, code_size, nullptr, &object)))
 			{
 				*out = { reinterpret_cast<uintptr_t>(object.release()) };
 				return true;
@@ -513,7 +514,7 @@ bool reshade::d3d11::device_impl::create_shader_module(api::shader_stage type, a
 			break;
 		case api::shader_stage::pixel:
 			if (com_ptr<ID3D11PixelShader> object;
-				SUCCEEDED(_orig->CreatePixelShader(data, size, nullptr, &object)))
+				SUCCEEDED(_orig->CreatePixelShader(code, code_size, nullptr, &object)))
 			{
 				*out = { reinterpret_cast<uintptr_t>(object.release()) };
 				return true;
@@ -521,7 +522,7 @@ bool reshade::d3d11::device_impl::create_shader_module(api::shader_stage type, a
 			break;
 		case api::shader_stage::compute:
 			if (com_ptr<ID3D11ComputeShader> object;
-				SUCCEEDED(_orig->CreateComputeShader(data, size, nullptr, &object)))
+				SUCCEEDED(_orig->CreateComputeShader(code, code_size, nullptr, &object)))
 			{
 				*out = { reinterpret_cast<uintptr_t>(object.release()) };
 				return true;
@@ -605,7 +606,7 @@ void reshade::d3d11::device_impl::destroy_resource_view(api::resource_view handl
 
 void reshade::d3d11::device_impl::destroy_pipeline(api::pipeline_type type, api::pipeline handle)
 {
-	if (type == api::pipeline_type::graphics_all)
+	if (type == api::pipeline_type::graphics)
 	{
 		delete reinterpret_cast<pipeline_graphics_impl *>(handle.handle);
 		return;
@@ -837,7 +838,7 @@ void reshade::d3d11::device_context_impl::bind_pipeline(api::pipeline_type type,
 	case api::pipeline_type::compute:
 		_orig->CSSetShader(reinterpret_cast<ID3D11ComputeShader *>(pipeline.handle), nullptr, 0);
 		break;
-	case api::pipeline_type::graphics_all:
+	case api::pipeline_type::graphics:
 		reinterpret_cast<pipeline_graphics_impl *>(pipeline.handle)->apply(_orig);
 		break;
 	case api::pipeline_type::graphics_blend_state:

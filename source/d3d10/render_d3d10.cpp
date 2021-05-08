@@ -234,7 +234,7 @@ bool reshade::d3d10::device_impl::create_pipeline(const api::pipeline_desc &desc
 	default:
 		*out = { 0 };
 		return false;
-	case api::pipeline_type::graphics_all:
+	case api::pipeline_type::graphics:
 		return create_pipeline_graphics_all(desc, out);
 	case api::pipeline_type::graphics_blend_state:
 		return create_pipeline_graphics_blend_state(desc, out);
@@ -427,7 +427,7 @@ bool reshade::d3d10::device_impl::create_pipeline_graphics_depth_stencil_state(c
 	}
 }
 
-bool reshade::d3d10::device_impl::create_shader_module(api::shader_stage type, api::shader_format format, const char *entry_point, const void *data, size_t size, api::shader_module *out)
+bool reshade::d3d10::device_impl::create_shader_module(api::shader_stage type, api::shader_format format, const char *entry_point, const void *code, size_t code_size, api::shader_module *out)
 {
 	if (format == api::shader_format::dxbc)
 	{
@@ -437,10 +437,10 @@ bool reshade::d3d10::device_impl::create_shader_module(api::shader_stage type, a
 		{
 		case api::shader_stage::vertex:
 			if (com_ptr<ID3D10VertexShader> object;
-				SUCCEEDED(_orig->CreateVertexShader(data, size, &object)))
+				SUCCEEDED(_orig->CreateVertexShader(code, code_size, &object)))
 			{
-				assert(size <= std::numeric_limits<UINT>::max());
-				object->SetPrivateData(vertex_shader_byte_code_guid, static_cast<UINT>(size), data);
+				assert(code_size <= std::numeric_limits<UINT>::max());
+				object->SetPrivateData(vertex_shader_byte_code_guid, static_cast<UINT>(code_size), code);
 
 				*out = { reinterpret_cast<uintptr_t>(object.release()) };
 				return true;
@@ -448,7 +448,7 @@ bool reshade::d3d10::device_impl::create_shader_module(api::shader_stage type, a
 			break;
 		case api::shader_stage::geometry:
 			if (com_ptr<ID3D10GeometryShader> object;
-				SUCCEEDED(_orig->CreateGeometryShader(data, size, &object)))
+				SUCCEEDED(_orig->CreateGeometryShader(code, code_size, &object)))
 			{
 				*out = { reinterpret_cast<uintptr_t>(object.release()) };
 				return true;
@@ -456,7 +456,7 @@ bool reshade::d3d10::device_impl::create_shader_module(api::shader_stage type, a
 			break;
 		case api::shader_stage::pixel:
 			if (com_ptr<ID3D10PixelShader> object;
-				SUCCEEDED(_orig->CreatePixelShader(data, size, &object)))
+				SUCCEEDED(_orig->CreatePixelShader(code, code_size, &object)))
 			{
 				*out = { reinterpret_cast<uintptr_t>(object.release()) };
 				return true;
@@ -540,7 +540,7 @@ void reshade::d3d10::device_impl::destroy_resource_view(api::resource_view handl
 
 void reshade::d3d10::device_impl::destroy_pipeline(api::pipeline_type type, api::pipeline handle)
 {
-	if (type == api::pipeline_type::graphics_all)
+	if (type == api::pipeline_type::graphics)
 	{
 		delete reinterpret_cast<pipeline_graphics_impl *>(handle.handle);
 		return;
@@ -757,7 +757,7 @@ void reshade::d3d10::device_impl::bind_pipeline(api::pipeline_type type, api::pi
 	default:
 		assert(false);
 		break;
-	case api::pipeline_type::graphics_all: {
+	case api::pipeline_type::graphics: {
 		const auto state = reinterpret_cast<pipeline_graphics_impl *>(pipeline.handle);
 		_orig->VSSetShader(state->vs.get());
 		_orig->GSSetShader(state->gs.get());

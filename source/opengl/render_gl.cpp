@@ -590,7 +590,7 @@ bool reshade::opengl::device_impl::create_pipeline(const api::pipeline_desc &des
 		return false;
 	case api::pipeline_type::compute:
 		return create_pipeline_compute(desc, out);
-	case api::pipeline_type::graphics_all:
+	case api::pipeline_type::graphics:
 		return create_pipeline_graphics(desc, out);
 	}
 }
@@ -864,7 +864,7 @@ bool reshade::opengl::device_impl::create_pipeline_graphics(const api::pipeline_
 	return true;
 }
 
-bool reshade::opengl::device_impl::create_shader_module(api::shader_stage type, api::shader_format format, const char *entry_point, const void *data, size_t size, api::shader_module *out)
+bool reshade::opengl::device_impl::create_shader_module(api::shader_stage type, api::shader_format format, const char *entry_point, const void *code, size_t code_size, api::shader_module *out)
 {
 	GLuint shader_object = glCreateShader(convert_shader_type(type));
 
@@ -872,16 +872,16 @@ bool reshade::opengl::device_impl::create_shader_module(api::shader_stage type, 
 	{
 		assert(entry_point == nullptr || strcmp(entry_point, "main") == 0);
 
-		const auto source = static_cast<const GLchar *>(data);
-		const auto source_len = static_cast<GLint>(size);
+		const auto source = static_cast<const GLchar *>(code);
+		const auto source_len = static_cast<GLint>(code_size);
 		glShaderSource(shader_object, 1, &source, &source_len);
 		glCompileShader(shader_object);
 	}
 	else if (format == api::shader_format::spirv)
 	{
-		assert(size <= static_cast<size_t>(std::numeric_limits<GLsizei>::max()));
+		assert(code_size <= static_cast<size_t>(std::numeric_limits<GLsizei>::max()));
 
-		glShaderBinary(1, &shader_object, GL_SPIR_V_BINARY, data, static_cast<GLsizei>(size));
+		glShaderBinary(1, &shader_object, GL_SPIR_V_BINARY, code, static_cast<GLsizei>(code_size));
 		glSpecializeShader(shader_object, entry_point, 0, nullptr, nullptr);
 	}
 
@@ -1022,7 +1022,7 @@ void reshade::opengl::device_impl::destroy_pipeline(api::pipeline_type type, api
 	case api::pipeline_type::compute:
 		delete reinterpret_cast<pipeline_compute_impl *>(handle.handle);
 		break;
-	case api::pipeline_type::graphics_all:
+	case api::pipeline_type::graphics:
 		delete reinterpret_cast<pipeline_graphics_impl *>(handle.handle);
 		break;
 	}
@@ -1378,7 +1378,7 @@ void reshade::opengl::device_impl::bind_pipeline(api::pipeline_type type, api::p
 		glUseProgram(state->program);
 		break;
 	}
-	case api::pipeline_type::graphics_all: {
+	case api::pipeline_type::graphics: {
 		const auto state = reinterpret_cast<pipeline_graphics_impl *>(pipeline.handle);
 		_current_prim_mode = state->prim_mode;
 

@@ -195,7 +195,9 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateGraphicsPipelineState(const D3D12_G
 	std::vector<uint8_t> temp_vs_code;
 	if (new_desc.VS.BytecodeLength != 0)
 		reshade::invoke_addon_event<reshade::addon_event::create_shader_module>(
-			[&new_desc, &temp_vs_code](reshade::api::device *, const void *code, size_t code_size) {
+			[&new_desc, &temp_vs_code](reshade::api::device *, reshade::api::shader_stage type, reshade::api::shader_format format, const char *, const void *code, size_t code_size) {
+				if (type != reshade::api::shader_stage::vertex || (format != reshade::api::shader_format::dxbc && format != reshade::api::shader_format::dxil))
+					return false;
 				if (code != new_desc.VS.pShaderBytecode)
 				{
 					temp_vs_code.assign(static_cast<const uint8_t *>(code), static_cast<const uint8_t *>(code) + code_size);
@@ -203,11 +205,13 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateGraphicsPipelineState(const D3D12_G
 					new_desc.VS.pShaderBytecode = temp_vs_code.data();
 				}
 				return true;
-			}, this, new_desc.VS.pShaderBytecode, new_desc.VS.BytecodeLength);
+			}, this, reshade::api::shader_stage::vertex, reshade::api::shader_format::dxil, nullptr, new_desc.VS.pShaderBytecode, new_desc.VS.BytecodeLength);
 	std::vector<uint8_t> temp_ps_code;
 	if (new_desc.PS.BytecodeLength != 0)
 		reshade::invoke_addon_event<reshade::addon_event::create_shader_module>(
-			[&new_desc, &temp_ps_code](reshade::api::device *, const void *code, size_t code_size) {
+			[&new_desc, &temp_ps_code](reshade::api::device *, reshade::api::shader_stage type, reshade::api::shader_format format, const char *, const void *code, size_t code_size) {
+				if (type != reshade::api::shader_stage::pixel || (format != reshade::api::shader_format::dxbc && format != reshade::api::shader_format::dxil))
+					return false;
 				if (code != new_desc.PS.pShaderBytecode)
 				{
 					temp_ps_code.assign(static_cast<const uint8_t *>(code), static_cast<const uint8_t *>(code) + code_size);
@@ -215,11 +219,13 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateGraphicsPipelineState(const D3D12_G
 					new_desc.PS.pShaderBytecode = temp_ps_code.data();
 				}
 				return true;
-			}, this, new_desc.PS.pShaderBytecode, new_desc.PS.BytecodeLength);
+			}, this, reshade::api::shader_stage::pixel, reshade::api::shader_format::dxil, nullptr, new_desc.PS.pShaderBytecode, new_desc.PS.BytecodeLength);
 	std::vector<uint8_t> temp_ds_code;
 	if (new_desc.DS.BytecodeLength != 0)
 		reshade::invoke_addon_event<reshade::addon_event::create_shader_module>(
-			[&new_desc, &temp_ds_code](reshade::api::device *, const void *code, size_t code_size) {
+			[&new_desc, &temp_ds_code](reshade::api::device *, reshade::api::shader_stage type, reshade::api::shader_format format, const char *, const void *code, size_t code_size) {
+				if (type != reshade::api::shader_stage::domain || (format != reshade::api::shader_format::dxbc && format != reshade::api::shader_format::dxil))
+					return false;
 				if (code != new_desc.PS.pShaderBytecode)
 				{
 					temp_ds_code.assign(static_cast<const uint8_t *>(code), static_cast<const uint8_t *>(code) + code_size);
@@ -227,11 +233,13 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateGraphicsPipelineState(const D3D12_G
 					new_desc.DS.pShaderBytecode = temp_ds_code.data();
 				}
 				return true;
-			}, this, new_desc.DS.pShaderBytecode, new_desc.DS.BytecodeLength);
+			}, this, reshade::api::shader_stage::domain, reshade::api::shader_format::dxil, nullptr, new_desc.DS.pShaderBytecode, new_desc.DS.BytecodeLength);
 	std::vector<uint8_t> temp_hs_code;
 	if (new_desc.HS.BytecodeLength != 0)
 		reshade::invoke_addon_event<reshade::addon_event::create_shader_module>(
-			[&new_desc, &temp_hs_code](reshade::api::device *, const void *code, size_t code_size) {
+			[&new_desc, &temp_hs_code](reshade::api::device *, reshade::api::shader_stage type, reshade::api::shader_format format, const char *, const void *code, size_t code_size) {
+				if (type != reshade::api::shader_stage::hull || (format != reshade::api::shader_format::dxbc && format != reshade::api::shader_format::dxil))
+					return false;
 				if (code != new_desc.HS.pShaderBytecode)
 				{
 					temp_hs_code.assign(static_cast<const uint8_t *>(code), static_cast<const uint8_t *>(code) + code_size);
@@ -239,11 +247,13 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateGraphicsPipelineState(const D3D12_G
 					new_desc.HS.pShaderBytecode = temp_hs_code.data();
 				}
 				return true;
-			}, this, new_desc.HS.pShaderBytecode, new_desc.HS.BytecodeLength);
+			}, this, reshade::api::shader_stage::hull, reshade::api::shader_format::dxil, nullptr, new_desc.HS.pShaderBytecode, new_desc.HS.BytecodeLength);
 	std::vector<uint8_t> temp_gs_code;
 	if (new_desc.GS.BytecodeLength != 0)
 		reshade::invoke_addon_event<reshade::addon_event::create_shader_module>(
-			[&new_desc, &temp_gs_code](reshade::api::device *, const void *code, size_t code_size) {
+			[&new_desc, &temp_gs_code](reshade::api::device *, reshade::api::shader_stage type, reshade::api::shader_format format, const char *, const void *code, size_t code_size) {
+				if (type != reshade::api::shader_stage::geometry || (format != reshade::api::shader_format::dxbc && format != reshade::api::shader_format::dxil))
+					return false;
 				if (code != new_desc.GS.pShaderBytecode)
 				{
 					temp_gs_code.assign(static_cast<const uint8_t *>(code), static_cast<const uint8_t *>(code) + code_size);
@@ -251,19 +261,10 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateGraphicsPipelineState(const D3D12_G
 					new_desc.GS.pShaderBytecode = temp_gs_code.data();
 				}
 				return true;
-			}, this, new_desc.GS.pShaderBytecode, new_desc.GS.BytecodeLength);
+			}, this, reshade::api::shader_stage::geometry, reshade::api::shader_format::dxil, nullptr, new_desc.GS.pShaderBytecode, new_desc.GS.BytecodeLength);
 
 	const HRESULT hr = _orig->CreateGraphicsPipelineState(&new_desc, riid, ppPipelineState);
-	if (SUCCEEDED(hr))
-	{
-		assert(ppPipelineState != nullptr);
-		uint32_t pipeline_state_values[ARRAYSIZE(reshade::d3d12::pipeline_states_graphics)];
-		reshade::d3d12::fill_pipeline_state_values(new_desc, pipeline_state_values);
-
-		const auto state = static_cast<ID3D12PipelineState *>(*ppPipelineState);
-		state->SetPrivateData(reshade::d3d12::pipeline_state_guid, sizeof(pipeline_state_values), pipeline_state_values);
-	}
-	else
+	if (FAILED(hr))
 	{
 		LOG(WARN) << "ID3D12Device::CreateGraphicsPipelineState" << " failed with error code " << hr << '.';
 	}
@@ -280,7 +281,9 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateComputePipelineState(const D3D12_CO
 	std::vector<uint8_t> temp_cs_code;
 	if (new_desc.CS.BytecodeLength != 0)
 		reshade::invoke_addon_event<reshade::addon_event::create_shader_module>(
-			[&new_desc, &temp_cs_code](reshade::api::device *, const void *code, size_t code_size) {
+			[&new_desc, &temp_cs_code](reshade::api::device *, reshade::api::shader_stage type, reshade::api::shader_format format, const char *, const void *code, size_t code_size) {
+				if (type != reshade::api::shader_stage::compute || (format != reshade::api::shader_format::dxbc && format != reshade::api::shader_format::dxil))
+					return false;
 				if (code != new_desc.CS.pShaderBytecode)
 				{
 					temp_cs_code.assign(static_cast<const uint8_t *>(code), static_cast<const uint8_t *>(code) + code_size);
@@ -288,17 +291,10 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateComputePipelineState(const D3D12_CO
 					new_desc.CS.pShaderBytecode = temp_cs_code.data();
 				}
 				return true;
-			}, this, new_desc.CS.pShaderBytecode, new_desc.CS.BytecodeLength);
+			}, this, reshade::api::shader_stage::compute, reshade::api::shader_format::dxil, nullptr, new_desc.CS.pShaderBytecode, new_desc.CS.BytecodeLength);
 
 	const HRESULT hr = _orig->CreateComputePipelineState(&new_desc, riid, ppPipelineState);
-	if (SUCCEEDED(hr))
-	{
-		assert(ppPipelineState != nullptr);
-
-		const auto state = static_cast<ID3D12PipelineState *>(*ppPipelineState);
-		state->SetPrivateData(reshade::d3d12::pipeline_state_guid, 0, nullptr);
-	}
-	else
+	if (FAILED(hr))
 	{
 		LOG(WARN) << "ID3D12Device::CreateComputePipelineState" << " failed with error code " << hr << '.';
 	}

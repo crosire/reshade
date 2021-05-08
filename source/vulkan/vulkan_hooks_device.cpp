@@ -820,7 +820,10 @@ VkResult VKAPI_CALL vkCreateShaderModule(VkDevice device, const VkShaderModuleCr
 
 	VkResult result = VK_ERROR_UNKNOWN;
 	reshade::invoke_addon_event<reshade::addon_event::create_shader_module>(
-		[device_impl, &result, &create_info, pAllocator, pShaderModule](reshade::api::device *, const void *code, size_t code_size) {
+		[device_impl, &result, &create_info, pAllocator, pShaderModule](reshade::api::device *, reshade::api::shader_stage, reshade::api::shader_format format, const char *, const void *code, size_t code_size) {
+			if (format != reshade::api::shader_format::spirv)
+				return false;
+
 			create_info.pCode = static_cast<const uint32_t *>(code);
 			create_info.codeSize = code_size;
 
@@ -835,7 +838,7 @@ VkResult VKAPI_CALL vkCreateShaderModule(VkDevice device, const VkShaderModuleCr
 				LOG(WARN) << "vkCreateShaderModule" << " failed with error code " << result << '.';
 				return false;
 			}
-		}, device_impl, create_info.pCode, create_info.codeSize);
+		}, device_impl, reshade::api::shader_stage::all, reshade::api::shader_format::spirv, nullptr, create_info.pCode, create_info.codeSize);
 
 	return result;
 }
@@ -852,15 +855,6 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 		LOG(WARN) << "vkCreateGraphicsPipelines" << " failed with error code " << result << '.';
 		return result;
 	}
-
-#if RESHADE_ADDON
-	for (uint32_t i = 0; i < createInfoCount; ++i)
-	{
-		reshade::vulkan::pipeline_data data;
-		reshade::vulkan::fill_pipeline_state_values(pCreateInfos[i], data.values);
-		device_impl->_pipeline_list.emplace(pPipelines[i], data);
-	}
-#endif
 
 	return VK_SUCCESS;
 }
@@ -1096,18 +1090,10 @@ void     VKAPI_CALL vkCmdBindPipeline(VkCommandBuffer commandBuffer, VkPipelineB
 	trampoline(commandBuffer, pipelineBindPoint, pipeline);
 
 #if RESHADE_ADDON
-	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
-
-	reshade::invoke_addon_event<reshade::addon_event::bind_shader_or_pipeline>(
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(
 		s_vulkan_command_buffers.at(commandBuffer),
-		pipelineBindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS ? reshade::api::shader_stage::all_graphics : reshade::api::shader_stage::compute,
-		(uint64_t)pipeline);
-
-	if (pipelineBindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS)
-	{
-		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(
-			s_vulkan_command_buffers.at(commandBuffer), 35, reshade::vulkan::pipeline_states_graphics, device_impl->_pipeline_list.at(pipeline).values);
-	}
+		pipelineBindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS ? reshade::api::pipeline_type::graphics : pipelineBindPoint == VK_PIPELINE_BIND_POINT_COMPUTE ? reshade::api::pipeline_type::compute : reshade::api::pipeline_type::unknown,
+		reshade::api::pipeline { (uint64_t)pipeline });
 #endif
 }
 
@@ -1164,8 +1150,8 @@ void     VKAPI_CALL vkCmdSetBlendConstants(VkCommandBuffer commandBuffer, const 
 #if RESHADE_ADDON
 	const reshade::api::pipeline_state state = reshade::api::pipeline_state::blend_constant;
 	const uint32_t value =
-		((static_cast<uint32_t>(blendConstants[0] * 255.f) & 0xFF)) |
-		((static_cast<uint32_t>(blendConstants[1] * 255.f) & 0xFF) << 8) |
+		((static_cast<uint32_t>(blendConstants[0] * 255.f) & 0xFF)      ) |
+		((static_cast<uint32_t>(blendConstants[1] * 255.f) & 0xFF) <<  8) |
 		((static_cast<uint32_t>(blendConstants[2] * 255.f) & 0xFF) << 16) |
 		((static_cast<uint32_t>(blendConstants[3] * 255.f) & 0xFF) << 24);
 
@@ -1225,7 +1211,7 @@ void     VKAPI_CALL vkCmdBindDescriptorSets(VkCommandBuffer commandBuffer, VkPip
 	trampoline(commandBuffer, pipelineBindPoint, layout, firstSet, descriptorSetCount, pDescriptorSets, dynamicOffsetCount, pDynamicOffsets);
 
 #if RESHADE_ADDON
-	static_assert(sizeof(*pDescriptorSets) == sizeof(uint64_t));
+	static_assert(sizeof(*pDescriptorSets) == sizeof(reshade::api::descriptor_table));
 
 	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_tables>(
 		s_vulkan_command_buffers.at(commandBuffer),
@@ -1233,7 +1219,7 @@ void     VKAPI_CALL vkCmdBindDescriptorSets(VkCommandBuffer commandBuffer, VkPip
 		reshade::api::pipeline_layout { (uint64_t)layout },
 		firstSet,
 		descriptorSetCount,
-		reinterpret_cast<const uint64_t *>(pDescriptorSets));
+		reinterpret_cast<const reshade::api::descriptor_table *>(pDescriptorSets));
 #endif
 }
 

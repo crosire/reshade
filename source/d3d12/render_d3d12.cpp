@@ -221,7 +221,7 @@ bool reshade::d3d12::device_impl::create_pipeline(const api::pipeline_desc &desc
 		return false;
 	case api::pipeline_type::compute:
 		return create_pipeline_compute(desc, out);
-	case api::pipeline_type::graphics_all:
+	case api::pipeline_type::graphics:
 		return create_pipeline_graphics_all(desc, out);
 	}
 }
@@ -438,14 +438,14 @@ bool reshade::d3d12::device_impl::create_pipeline_graphics_all(const api::pipeli
 	}
 }
 
-bool reshade::d3d12::device_impl::create_shader_module(api::shader_stage, api::shader_format format, const char *entry_point, const void *data, size_t size, api::shader_module *out)
+bool reshade::d3d12::device_impl::create_shader_module(api::shader_stage, api::shader_format format, const char *entry_point, const void *code, size_t code_size, api::shader_module *out)
 {
 	if (format == api::shader_format::dxbc || format == api::shader_format::dxil)
 	{
 		assert(entry_point == nullptr);
 
 		const auto result = new shader_module_impl();
-		result->bytecode.assign(static_cast<const uint8_t *>(data), static_cast<const uint8_t *>(data) + size);
+		result->bytecode.assign(static_cast<const uint8_t *>(code), static_cast<const uint8_t *>(code) + code_size);
 
 		*out = { reinterpret_cast<uintptr_t>(result) };
 		return true;
@@ -943,9 +943,9 @@ void reshade::d3d12::command_list_impl::push_constants(api::shader_stage stage, 
 
 	if (stage == api::shader_stage::compute)
 	{
-		if (_current_root_signature[0] != root_signature)
+		if (_current_root_signature[1] != root_signature)
 		{
-			_current_root_signature[0]  = root_signature;
+			_current_root_signature[1]  = root_signature;
 			_orig->SetComputeRootSignature(root_signature);
 		}
 
@@ -953,9 +953,9 @@ void reshade::d3d12::command_list_impl::push_constants(api::shader_stage stage, 
 	}
 	else
 	{
-		if (_current_root_signature[1] != root_signature)
+		if (_current_root_signature[0] != root_signature)
 		{
-			_current_root_signature[1]  = root_signature;
+			_current_root_signature[0]  = root_signature;
 			_orig->SetGraphicsRootSignature(root_signature);
 		}
 
@@ -984,17 +984,17 @@ void reshade::d3d12::command_list_impl::bind_descriptor_tables(api::shader_stage
 
 	if (stage == api::shader_stage::compute)
 	{
-		if (_current_root_signature[0] != root_signature)
+		if (_current_root_signature[1] != root_signature)
 		{
-			_current_root_signature[0] = root_signature;
+			_current_root_signature[1]  = root_signature;
 			_orig->SetComputeRootSignature(root_signature);
 		}
 	}
 	else
 	{
-		if (_current_root_signature[1] != root_signature)
+		if (_current_root_signature[0] != root_signature)
 		{
-			_current_root_signature[1] = root_signature;
+			_current_root_signature[0]  = root_signature;
 			_orig->SetGraphicsRootSignature(root_signature);
 		}
 	}

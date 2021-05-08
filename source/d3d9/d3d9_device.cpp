@@ -997,8 +997,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetTexture(DWORD Stage, IDirect3DBase
 		}
 
 		const reshade::api::resource_view view = { reinterpret_cast<uintptr_t>(pTexture) };
-
-		reshade::invoke_addon_event<reshade::addon_event::bind_shader_resource_views>(this, shader_stage, reshade::api::pipeline_layout { 0 }, Stage, 1, &view);
+		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(this, shader_stage, reshade::api::pipeline_layout { 0 }, 0, reshade::api::descriptor_type::shader_resource_view, Stage, 1, &view);
 	}
 #endif
 	return hr;
@@ -1039,8 +1038,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetSamplerState(DWORD Sampler, D3DSAM
 		}
 
 		const reshade::api::sampler sampler_handle = { reinterpret_cast<uintptr_t>(sampler_data) };
-
-		reshade::invoke_addon_event<reshade::addon_event::bind_samplers>(this, shader_stage, reshade::api::pipeline_layout { 0 }, Sampler, 1, &sampler_handle);
+		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(this, shader_stage, reshade::api::pipeline_layout { 0 }, 0, reshade::api::descriptor_type::sampler, Sampler, 1, &sampler_handle);
 	}
 #endif
 	return hr;
@@ -1196,7 +1194,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexShader(const DWORD *pFunc
 
 	HRESULT hr = E_FAIL;
 	reshade::invoke_addon_event<reshade::addon_event::create_shader_module>(
-		[this, &hr, ppShader](reshade::api::device *, const void *code, size_t) {
+		[this, &hr, ppShader](reshade::api::device *, reshade::api::shader_stage type, reshade::api::shader_format format, const char *, const void *code, size_t) {
+			if (type != reshade::api::shader_stage::vertex || format != reshade::api::shader_format::dxbc)
+				return false;
 			hr = _orig->CreateVertexShader(static_cast<const DWORD *>(code), ppShader);
 			if (SUCCEEDED(hr))
 			{
@@ -1207,7 +1207,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexShader(const DWORD *pFunc
 				LOG(WARN) << "IDirect3DDevice9::CreateVertexShader" << " failed with error code " << hr << '.';
 				return false;
 			}
-		}, this, pFunction, total_size);
+		}, this, reshade::api::shader_stage::vertex, reshade::api::shader_format::dxbc, nullptr, pFunction, total_size);
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetVertexShader(IDirect3DVertexShader9 *pShader)
@@ -1216,7 +1216,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetVertexShader(IDirect3DVertexShader
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
-		reshade::invoke_addon_event<reshade::addon_event::bind_shader_or_pipeline>(this, reshade::api::shader_stage::vertex, reinterpret_cast<uintptr_t>(pShader));
+		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(this,
+			reshade::api::pipeline_type::graphics_vertex_shader, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pShader) });
 	}
 #endif
 	return hr;
@@ -1231,7 +1232,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetVertexShaderConstantF(UINT StartRe
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
-		reshade::invoke_addon_event<reshade::addon_event::push_constants>(this, reshade::api::shader_stage::vertex, reshade::api::pipeline_layout { 0 }, 0, StartRegister, Vector4fCount, reinterpret_cast<const uint32_t *>(pConstantData));
+		reshade::invoke_addon_event<reshade::addon_event::push_constants>(this,
+			reshade::api::shader_stage::vertex, reshade::api::pipeline_layout { 0 }, 0, StartRegister, Vector4fCount, reinterpret_cast<const uint32_t *>(pConstantData));
 	}
 #endif
 	return hr;
@@ -1246,7 +1248,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetVertexShaderConstantI(UINT StartRe
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
-		reshade::invoke_addon_event<reshade::addon_event::push_constants>(this, reshade::api::shader_stage::vertex, reshade::api::pipeline_layout { 0 }, 1, StartRegister, Vector4iCount, reinterpret_cast<const uint32_t *>(pConstantData));
+		reshade::invoke_addon_event<reshade::addon_event::push_constants>(this,
+			reshade::api::shader_stage::vertex, reshade::api::pipeline_layout { 0 }, 1, StartRegister, Vector4iCount, reinterpret_cast<const uint32_t *>(pConstantData));
 	}
 #endif
 	return hr;
@@ -1261,7 +1264,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetVertexShaderConstantB(UINT StartRe
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
-		reshade::invoke_addon_event<reshade::addon_event::push_constants>(this, reshade::api::shader_stage::vertex, reshade::api::pipeline_layout { 0 }, 2, StartRegister, BoolCount, reinterpret_cast<const uint32_t *>(pConstantData));
+		reshade::invoke_addon_event<reshade::addon_event::push_constants>(this,
+			reshade::api::shader_stage::vertex, reshade::api::pipeline_layout { 0 }, 2, StartRegister, BoolCount, reinterpret_cast<const uint32_t *>(pConstantData));
 	}
 #endif
 	return hr;
@@ -1329,7 +1333,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreatePixelShader(const DWORD *pFunct
 
 	HRESULT hr = E_FAIL;
 	reshade::invoke_addon_event<reshade::addon_event::create_shader_module>(
-		[this, &hr, ppShader](reshade::api::device *, const void *code, size_t) {
+		[this, &hr, ppShader](reshade::api::device *, reshade::api::shader_stage type, reshade::api::shader_format format, const char *, const void *code, size_t) {
+			if (type != reshade::api::shader_stage::vertex || format != reshade::api::shader_format::dxbc)
+				return false;
 			hr = _orig->CreatePixelShader(static_cast<const DWORD *>(code), ppShader);
 			if (SUCCEEDED(hr))
 			{
@@ -1340,7 +1346,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreatePixelShader(const DWORD *pFunct
 				LOG(WARN) << "IDirect3DDevice9::CreatePixelShader" << " failed with error code " << hr << '.';
 				return false;
 			}
-		}, this, pFunction, total_size);
+		}, this, reshade::api::shader_stage::pixel, reshade::api::shader_format::dxbc, nullptr, pFunction, total_size);
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetPixelShader(IDirect3DPixelShader9 *pShader)
@@ -1349,7 +1355,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetPixelShader(IDirect3DPixelShader9 
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
-		reshade::invoke_addon_event<reshade::addon_event::bind_shader_or_pipeline>(this, reshade::api::shader_stage::pixel, reinterpret_cast<uintptr_t>(pShader));
+		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(this,
+			reshade::api::pipeline_type::graphics_pixel_shader, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pShader) });
 	}
 #endif
 	return hr;
@@ -1364,7 +1371,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetPixelShaderConstantF(UINT StartReg
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
-		reshade::invoke_addon_event<reshade::addon_event::push_constants>(this, reshade::api::shader_stage::pixel, reshade::api::pipeline_layout { 0 }, 0, StartRegister, Vector4fCount, reinterpret_cast<const uint32_t *>(pConstantData));
+		reshade::invoke_addon_event<reshade::addon_event::push_constants>(this,
+			reshade::api::shader_stage::pixel, reshade::api::pipeline_layout { 0 }, 0, StartRegister, Vector4fCount, reinterpret_cast<const uint32_t *>(pConstantData));
 	}
 #endif
 	return hr;
@@ -1379,7 +1387,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetPixelShaderConstantI(UINT StartReg
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
-		reshade::invoke_addon_event<reshade::addon_event::push_constants>(this, reshade::api::shader_stage::pixel, reshade::api::pipeline_layout { 0 }, 1, StartRegister, Vector4iCount, reinterpret_cast<const uint32_t *>(pConstantData));
+		reshade::invoke_addon_event<reshade::addon_event::push_constants>(this,
+			reshade::api::shader_stage::pixel, reshade::api::pipeline_layout { 0 }, 1, StartRegister, Vector4iCount, reinterpret_cast<const uint32_t *>(pConstantData));
 	}
 #endif
 	return hr;
@@ -1394,7 +1403,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetPixelShaderConstantB(UINT StartReg
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
-		reshade::invoke_addon_event<reshade::addon_event::push_constants>(this, reshade::api::shader_stage::pixel, reshade::api::pipeline_layout { 0 }, 2, StartRegister, BoolCount, reinterpret_cast<const uint32_t *>(pConstantData));
+		reshade::invoke_addon_event<reshade::addon_event::push_constants>(this,
+			reshade::api::shader_stage::pixel, reshade::api::pipeline_layout { 0 }, 2, StartRegister, BoolCount, reinterpret_cast<const uint32_t *>(pConstantData));
 	}
 #endif
 	return hr;

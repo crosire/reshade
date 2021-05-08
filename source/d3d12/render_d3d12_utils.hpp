@@ -5,11 +5,6 @@
 
 namespace reshade::d3d12
 {
-	extern const GUID pipeline_state_guid;
-	extern const reshade::api::pipeline_state pipeline_states_graphics[33];
-
-	void fill_pipeline_state_values(const D3D12_GRAPHICS_PIPELINE_STATE_DESC &desc, uint32_t (&values)[ARRAYSIZE(pipeline_states_graphics)]);
-
 	void convert_blend_op(api::blend_op value, D3D12_BLEND_OP &internal_value);
 	void convert_blend_factor(api::blend_factor value, D3D12_BLEND &internal_value);
 	void convert_fill_mode(api::fill_mode value, D3D12_FILL_MODE &internal_value);

@@ -5,14 +5,6 @@
 
 namespace reshade::d3d11
 {
-	extern const reshade::api::pipeline_state pipeline_states_blend[11];
-	extern const reshade::api::pipeline_state pipeline_states_rasterizer[10];
-	extern const reshade::api::pipeline_state pipeline_states_depth_stencil[15];
-
-	void fill_pipeline_state_values(ID3D11BlendState *state, const FLOAT factor[4], UINT sample_mask, uint32_t (&values)[ARRAYSIZE(pipeline_states_blend)]);
-	void fill_pipeline_state_values(ID3D11RasterizerState *state, uint32_t (&values)[ARRAYSIZE(pipeline_states_rasterizer)]);
-	void fill_pipeline_state_values(ID3D11DepthStencilState *state, UINT ref, uint32_t (&values)[ARRAYSIZE(pipeline_states_depth_stencil)]);
-
 	void convert_blend_op(api::blend_op value, D3D11_BLEND_OP &internal_value);
 	void convert_blend_factor(api::blend_factor value, D3D11_BLEND &internal_value);
 	void convert_fill_mode(api::fill_mode value, D3D11_FILL_MODE &internal_value);

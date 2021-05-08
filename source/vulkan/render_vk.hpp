@@ -98,7 +98,7 @@ namespace reshade::vulkan
 		bool create_pipeline_compute(const api::pipeline_desc &desc, api::pipeline *out);
 		bool create_pipeline_graphics_all(const api::pipeline_desc &desc, api::pipeline *out);
 
-		bool create_shader_module(api::shader_stage type, api::shader_format format, const char *entry_point, const void *data, size_t size, api::shader_module *out) final;
+		bool create_shader_module(api::shader_stage type, api::shader_format format, const char *entry_point, const void *code, size_t code_size, api::shader_module *out) final;
 		bool create_pipeline_layout(uint32_t num_table_layouts, const api::descriptor_table_layout *table_layouts, uint32_t num_constant_ranges, const api::constant_range *constant_ranges, api::pipeline_layout *out) final;
 		bool create_descriptor_heap(uint32_t max_tables, uint32_t num_sizes, const api::descriptor_heap_size *sizes, api::descriptor_heap *out) final;
 		bool create_descriptor_table(api::descriptor_heap heap, api::descriptor_table_layout layout, api::descriptor_table *out) final;
@@ -192,7 +192,6 @@ namespace reshade::vulkan
 		lockfree_table<uint64_t, resource_data, 4096> _resources;
 		lockfree_table<uint64_t, resource_view_data, 4096> _views;
 #if RESHADE_ADDON
-		lockfree_table<VkPipeline, pipeline_data, 4096> _pipeline_list;
 		lockfree_table<VkRenderPass, render_pass_data, 4096> _render_pass_list;
 		lockfree_table<VkFramebuffer, std::vector<api::resource_view>, 4096> _framebuffer_list;
 #endif

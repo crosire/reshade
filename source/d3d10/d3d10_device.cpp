@@ -90,7 +90,7 @@ void    STDMETHODCALLTYPE D3D10Device::VSSetConstantBuffers(UINT StartSlot, UINT
 #if RESHADE_ADDON
 	assert(NumBuffers <= D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT);
 
-	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_constant_buffers)].empty())
+	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::push_descriptors)].empty())
 		return;
 
 #ifndef WIN64
@@ -102,7 +102,7 @@ void    STDMETHODCALLTYPE D3D10Device::VSSetConstantBuffers(UINT StartSlot, UINT
 	const auto buffer_handles = reinterpret_cast<const reshade::api::resource *>(ppConstantBuffers);
 #endif
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_constant_buffers>(this, reshade::api::shader_stage::vertex, reshade::api::pipeline_layout { 0 }, StartSlot, NumBuffers, buffer_handles, nullptr);
+	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(this, reshade::api::shader_stage::vertex, reshade::api::pipeline_layout { 0 }, 0, reshade::api::descriptor_type::constant_buffer, StartSlot, NumBuffers, buffer_handles);
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::PSSetShaderResources(UINT StartSlot, UINT NumViews, ID3D10ShaderResourceView *const *ppShaderResourceViews)
@@ -112,7 +112,7 @@ void    STDMETHODCALLTYPE D3D10Device::PSSetShaderResources(UINT StartSlot, UINT
 #if RESHADE_ADDON
 	assert(NumViews <= D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT);
 
-	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_shader_resource_views)].empty())
+	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::push_descriptors)].empty())
 		return;
 
 #ifndef WIN64
@@ -124,7 +124,7 @@ void    STDMETHODCALLTYPE D3D10Device::PSSetShaderResources(UINT StartSlot, UINT
 	const auto view_handles = reinterpret_cast<const reshade::api::resource_view *>(ppShaderResourceViews);
 #endif
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_shader_resource_views>(this, reshade::api::shader_stage::pixel, reshade::api::pipeline_layout { 0 }, StartSlot, NumViews, view_handles);
+	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(this, reshade::api::shader_stage::pixel, reshade::api::pipeline_layout { 0 }, 0, reshade::api::descriptor_type::shader_resource_view, StartSlot, NumViews, view_handles);
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::PSSetShader(ID3D10PixelShader *pPixelShader)
@@ -132,7 +132,7 @@ void    STDMETHODCALLTYPE D3D10Device::PSSetShader(ID3D10PixelShader *pPixelShad
 	_orig->PSSetShader(pPixelShader);
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::bind_shader_or_pipeline>(this, reshade::api::shader_stage::pixel, reinterpret_cast<uintptr_t>(pPixelShader));
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(this, reshade::api::pipeline_type::graphics_pixel_shader, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pPixelShader) });
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::PSSetSamplers(UINT StartSlot, UINT NumSamplers, ID3D10SamplerState *const *ppSamplers)
@@ -142,7 +142,7 @@ void    STDMETHODCALLTYPE D3D10Device::PSSetSamplers(UINT StartSlot, UINT NumSam
 #if RESHADE_ADDON
 	assert(NumSamplers <= D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT);
 
-	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_samplers)].empty())
+	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::push_descriptors)].empty())
 		return;
 
 #ifndef WIN64
@@ -154,7 +154,7 @@ void    STDMETHODCALLTYPE D3D10Device::PSSetSamplers(UINT StartSlot, UINT NumSam
 	const auto sampler_handles = reinterpret_cast<const reshade::api::sampler *>(ppSamplers);
 #endif
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_samplers>(this, reshade::api::shader_stage::pixel, reshade::api::pipeline_layout { 0 }, StartSlot, NumSamplers, sampler_handles);
+	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(this, reshade::api::shader_stage::pixel, reshade::api::pipeline_layout { 0 }, 0, reshade::api::descriptor_type::sampler, StartSlot, NumSamplers, sampler_handles);
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::VSSetShader(ID3D10VertexShader *pVertexShader)
@@ -162,7 +162,7 @@ void    STDMETHODCALLTYPE D3D10Device::VSSetShader(ID3D10VertexShader *pVertexSh
 	_orig->VSSetShader(pVertexShader);
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::bind_shader_or_pipeline>(this, reshade::api::shader_stage::vertex, reinterpret_cast<uintptr_t>(pVertexShader));
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(this, reshade::api::pipeline_type::graphics_vertex_shader, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pVertexShader) });
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::DrawIndexed(UINT IndexCount, UINT StartIndexLocation, INT BaseVertexLocation)
@@ -188,7 +188,7 @@ void    STDMETHODCALLTYPE D3D10Device::PSSetConstantBuffers(UINT StartSlot, UINT
 #if RESHADE_ADDON
 	assert(NumBuffers <= D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT);
 
-	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_constant_buffers)].empty())
+	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::push_descriptors)].empty())
 		return;
 
 #ifndef WIN64
@@ -200,7 +200,7 @@ void    STDMETHODCALLTYPE D3D10Device::PSSetConstantBuffers(UINT StartSlot, UINT
 	const auto buffer_handles = reinterpret_cast<const reshade::api::resource *>(ppConstantBuffers);
 #endif
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_constant_buffers>(this, reshade::api::shader_stage::pixel, reshade::api::pipeline_layout { 0 }, StartSlot, NumBuffers, buffer_handles, nullptr);
+	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(this, reshade::api::shader_stage::pixel, reshade::api::pipeline_layout { 0 }, 0, reshade::api::descriptor_type::constant_buffer, StartSlot, NumBuffers, buffer_handles);
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::IASetInputLayout(ID3D10InputLayout *pInputLayout)
@@ -264,7 +264,7 @@ void    STDMETHODCALLTYPE D3D10Device::GSSetConstantBuffers(UINT StartSlot, UINT
 #if RESHADE_ADDON
 	assert(NumBuffers <= D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT);
 
-	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_constant_buffers)].empty())
+	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::push_descriptors)].empty())
 		return;
 
 #ifndef WIN64
@@ -276,7 +276,7 @@ void    STDMETHODCALLTYPE D3D10Device::GSSetConstantBuffers(UINT StartSlot, UINT
 	const auto buffer_handles = reinterpret_cast<const reshade::api::resource *>(ppConstantBuffers);
 #endif
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_constant_buffers>(this, reshade::api::shader_stage::geometry, reshade::api::pipeline_layout { 0 }, StartSlot, NumBuffers, buffer_handles, nullptr);
+	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(this, reshade::api::shader_stage::geometry, reshade::api::pipeline_layout { 0 }, 0, reshade::api::descriptor_type::constant_buffer, StartSlot, NumBuffers, buffer_handles);
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::GSSetShader(ID3D10GeometryShader *pShader)
@@ -284,7 +284,7 @@ void    STDMETHODCALLTYPE D3D10Device::GSSetShader(ID3D10GeometryShader *pShader
 	_orig->GSSetShader(pShader);
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::bind_shader_or_pipeline>(this, reshade::api::shader_stage::geometry, reinterpret_cast<uintptr_t>(pShader));
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(this, reshade::api::pipeline_type::graphics_geometry_shader, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pShader) });
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY Topology)
@@ -304,7 +304,7 @@ void    STDMETHODCALLTYPE D3D10Device::VSSetShaderResources(UINT StartSlot, UINT
 #if RESHADE_ADDON
 	assert(NumViews <= D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT);
 
-	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_shader_resource_views)].empty())
+	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::push_descriptors)].empty())
 		return;
 
 #ifndef WIN64
@@ -316,7 +316,7 @@ void    STDMETHODCALLTYPE D3D10Device::VSSetShaderResources(UINT StartSlot, UINT
 	const auto view_handles = reinterpret_cast<const reshade::api::resource_view *>(ppShaderResourceViews);
 #endif
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_shader_resource_views>(this, reshade::api::shader_stage::vertex, reshade::api::pipeline_layout { 0 }, StartSlot, NumViews, view_handles);
+	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(this, reshade::api::shader_stage::vertex, reshade::api::pipeline_layout { 0 }, 0, reshade::api::descriptor_type::shader_resource_view, StartSlot, NumViews, view_handles);
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::VSSetSamplers(UINT StartSlot, UINT NumSamplers, ID3D10SamplerState *const *ppSamplers)
@@ -326,7 +326,7 @@ void    STDMETHODCALLTYPE D3D10Device::VSSetSamplers(UINT StartSlot, UINT NumSam
 #if RESHADE_ADDON
 	assert(NumSamplers <= D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT);
 
-	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_samplers)].empty())
+	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::push_descriptors)].empty())
 		return;
 
 #ifndef WIN64
@@ -338,7 +338,7 @@ void    STDMETHODCALLTYPE D3D10Device::VSSetSamplers(UINT StartSlot, UINT NumSam
 	const auto sampler_handles = reinterpret_cast<const reshade::api::sampler *>(ppSamplers);
 #endif
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_samplers>(this, reshade::api::shader_stage::vertex, reshade::api::pipeline_layout { 0 }, StartSlot, NumSamplers, sampler_handles);
+	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(this, reshade::api::shader_stage::vertex, reshade::api::pipeline_layout { 0 }, 0, reshade::api::descriptor_type::sampler, StartSlot, NumSamplers, sampler_handles);
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::SetPredication(ID3D10Predicate *pPredicate, BOOL PredicateValue)
@@ -352,7 +352,7 @@ void    STDMETHODCALLTYPE D3D10Device::GSSetShaderResources(UINT StartSlot, UINT
 #if RESHADE_ADDON
 	assert(NumViews <= D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT);
 
-	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_shader_resource_views)].empty())
+	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::push_descriptors)].empty())
 		return;
 
 #ifndef WIN64
@@ -364,7 +364,7 @@ void    STDMETHODCALLTYPE D3D10Device::GSSetShaderResources(UINT StartSlot, UINT
 	const auto view_handles = reinterpret_cast<const reshade::api::resource_view *>(ppShaderResourceViews);
 #endif
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_shader_resource_views>(this, reshade::api::shader_stage::geometry, reshade::api::pipeline_layout { 0 }, StartSlot, NumViews, view_handles);
+	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(this, reshade::api::shader_stage::geometry, reshade::api::pipeline_layout { 0 }, 0, reshade::api::descriptor_type::shader_resource_view, StartSlot, NumViews, view_handles);
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::GSSetSamplers(UINT StartSlot, UINT NumSamplers, ID3D10SamplerState *const *ppSamplers)
@@ -374,7 +374,7 @@ void    STDMETHODCALLTYPE D3D10Device::GSSetSamplers(UINT StartSlot, UINT NumSam
 #if RESHADE_ADDON
 	assert(NumSamplers <= D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT);
 
-	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_samplers)].empty())
+	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::push_descriptors)].empty())
 		return;
 
 #ifndef WIN64
@@ -386,7 +386,7 @@ void    STDMETHODCALLTYPE D3D10Device::GSSetSamplers(UINT StartSlot, UINT NumSam
 	const auto sampler_handles = reinterpret_cast<const reshade::api::sampler *>(ppSamplers);
 #endif
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_samplers>(this, reshade::api::shader_stage::geometry, reshade::api::pipeline_layout { 0 }, StartSlot, NumSamplers, sampler_handles);
+	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(this, reshade::api::shader_stage::geometry, reshade::api::pipeline_layout { 0 }, 0, reshade::api::descriptor_type::sampler, StartSlot, NumSamplers, sampler_handles);
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::OMSetRenderTargets(UINT NumViews, ID3D10RenderTargetView *const *ppRenderTargetViews, ID3D10DepthStencilView *pDepthStencilView)
@@ -416,13 +416,17 @@ void    STDMETHODCALLTYPE D3D10Device::OMSetBlendState(ID3D10BlendState *pBlendS
 	_orig->OMSetBlendState(pBlendState, BlendFactor, SampleMask);
 
 #if RESHADE_ADDON
-	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_pipeline_states)].empty())
-		return;
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(this,
+		reshade::api::pipeline_type::graphics_blend_state, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pBlendState) });
 
-	uint32_t pipeline_state_values[ARRAYSIZE(reshade::d3d10::pipeline_states_blend)];
-	reshade::d3d10::fill_pipeline_state_values(pBlendState, BlendFactor, SampleMask, pipeline_state_values);
-
-	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, static_cast<uint32_t>(ARRAYSIZE(reshade::d3d10::pipeline_states_blend)), reshade::d3d10::pipeline_states_blend, pipeline_state_values);
+	const reshade::api::pipeline_state states[2] = { reshade::api::pipeline_state::blend_constant, reshade::api::pipeline_state::sample_mask };
+	const uint32_t values[2] = {
+		(BlendFactor == nullptr) ? 0xFFFFFFFF : // Default blend factor is { 1, 1, 1, 1 }
+			((static_cast<uint32_t>(BlendFactor[0] * 255.f) & 0xFF)) |
+			((static_cast<uint32_t>(BlendFactor[1] * 255.f) & 0xFF) << 8) |
+			((static_cast<uint32_t>(BlendFactor[2] * 255.f) & 0xFF) << 16) |
+			((static_cast<uint32_t>(BlendFactor[3] * 255.f) & 0xFF) << 24), SampleMask };
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 2, states, values);
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::OMSetDepthStencilState(ID3D10DepthStencilState *pDepthStencilState, UINT StencilRef)
@@ -430,13 +434,11 @@ void    STDMETHODCALLTYPE D3D10Device::OMSetDepthStencilState(ID3D10DepthStencil
 	_orig->OMSetDepthStencilState(pDepthStencilState, StencilRef);
 
 #if RESHADE_ADDON
-	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_pipeline_states)].empty())
-		return;
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(this,
+		reshade::api::pipeline_type::graphics_depth_stencil_state, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pDepthStencilState) });
 
-	uint32_t pipeline_state_values[ARRAYSIZE(reshade::d3d10::pipeline_states_depth_stencil)];
-	reshade::d3d10::fill_pipeline_state_values(pDepthStencilState, StencilRef, pipeline_state_values);
-
-	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, static_cast<uint32_t>(ARRAYSIZE(reshade::d3d10::pipeline_states_depth_stencil)), reshade::d3d10::pipeline_states_depth_stencil, pipeline_state_values);
+	const reshade::api::pipeline_state state = reshade::api::pipeline_state::stencil_reference_value;
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 1, &state, &StencilRef);
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::SOSetTargets(UINT NumBuffers, ID3D10Buffer *const *ppSOTargets, const UINT *pOffsets)
@@ -456,13 +458,8 @@ void    STDMETHODCALLTYPE D3D10Device::RSSetState(ID3D10RasterizerState *pRaster
 	_orig->RSSetState(pRasterizerState);
 
 #if RESHADE_ADDON
-	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_pipeline_states)].empty())
-		return;
-
-	uint32_t pipeline_state_values[ARRAYSIZE(reshade::d3d10::pipeline_states_rasterizer)];
-	reshade::d3d10::fill_pipeline_state_values(pRasterizerState, pipeline_state_values);
-
-	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, static_cast<uint32_t>(ARRAYSIZE(reshade::d3d10::pipeline_states_rasterizer)), reshade::d3d10::pipeline_states_rasterizer, pipeline_state_values);
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(this,
+		reshade::api::pipeline_type::graphics_rasterizer_state, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pRasterizerState) });
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::RSSetViewports(UINT NumViewports, const D3D10_VIEWPORT *pViewports)
@@ -1001,7 +998,9 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateVertexShader(const void *pShaderByt
 {
 	HRESULT hr = E_FAIL;
 	reshade::invoke_addon_event<reshade::addon_event::create_shader_module>(
-		[this, &hr, ppVertexShader](reshade::api::device *, const void *code, size_t code_size) {
+		[this, &hr, ppVertexShader](reshade::api::device *, reshade::api::shader_stage type, reshade::api::shader_format format, const char *, const void *code, size_t code_size) {
+			if (type != reshade::api::shader_stage::vertex || format != reshade::api::shader_format::dxbc)
+				return false;
 			hr = _orig->CreateVertexShader(code, code_size, ppVertexShader);
 			if (SUCCEEDED(hr))
 			{
@@ -1012,14 +1011,16 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateVertexShader(const void *pShaderByt
 				LOG(WARN) << "ID3D10Device::CreateVertexShader" << " failed with error code " << hr << '.';
 				return false;
 			}
-		}, this, pShaderBytecode, BytecodeLength);
+		}, this, reshade::api::shader_stage::vertex, reshade::api::shader_format::dxbc, nullptr, pShaderBytecode, BytecodeLength);
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateGeometryShader(const void *pShaderBytecode, SIZE_T BytecodeLength, ID3D10GeometryShader **ppGeometryShader)
 {
 	HRESULT hr = E_FAIL;
 	reshade::invoke_addon_event<reshade::addon_event::create_shader_module>(
-		[this, &hr, ppGeometryShader](reshade::api::device *, const void *code, size_t code_size) {
+		[this, &hr, ppGeometryShader](reshade::api::device *, reshade::api::shader_stage type, reshade::api::shader_format format, const char *, const void *code, size_t code_size) {
+			if (type != reshade::api::shader_stage::geometry || format != reshade::api::shader_format::dxbc)
+				return false;
 			hr = _orig->CreateGeometryShader(code, code_size, ppGeometryShader);
 			if (SUCCEEDED(hr))
 			{
@@ -1030,14 +1031,16 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateGeometryShader(const void *pShaderB
 				LOG(WARN) << "ID3D10Device::CreateGeometryShader" << " failed with error code " << hr << '.';
 				return false;
 			}
-		}, this, pShaderBytecode, BytecodeLength);
+		}, this, reshade::api::shader_stage::geometry, reshade::api::shader_format::dxbc, nullptr, pShaderBytecode, BytecodeLength);
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateGeometryShaderWithStreamOutput(const void *pShaderBytecode, SIZE_T BytecodeLength, const D3D10_SO_DECLARATION_ENTRY *pSODeclaration, UINT NumEntries, UINT OutputStreamStride, ID3D10GeometryShader **ppGeometryShader)
 {
 	HRESULT hr = E_FAIL;
 	reshade::invoke_addon_event<reshade::addon_event::create_shader_module>(
-		[this, &hr, pSODeclaration, NumEntries, OutputStreamStride, ppGeometryShader](reshade::api::device *, const void *code, size_t code_size) {
+		[this, &hr, pSODeclaration, NumEntries, OutputStreamStride, ppGeometryShader](reshade::api::device *, reshade::api::shader_stage type, reshade::api::shader_format format, const char *, const void *code, size_t code_size) {
+			if (type != reshade::api::shader_stage::geometry || format != reshade::api::shader_format::dxbc)
+				return false;
 			hr = _orig->CreateGeometryShaderWithStreamOutput(code, code_size, pSODeclaration, NumEntries, OutputStreamStride, ppGeometryShader);
 			if (SUCCEEDED(hr))
 			{
@@ -1048,14 +1051,16 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateGeometryShaderWithStreamOutput(cons
 				LOG(WARN) << "ID3D10Device::CreateGeometryShaderWithStreamOutput" << " failed with error code " << hr << '.';
 				return false;
 			}
-		}, this, pShaderBytecode, BytecodeLength);
+		}, this, reshade::api::shader_stage::geometry, reshade::api::shader_format::dxbc, nullptr, pShaderBytecode, BytecodeLength);
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D10Device::CreatePixelShader(const void *pShaderBytecode, SIZE_T BytecodeLength, ID3D10PixelShader **ppPixelShader)
 {
 	HRESULT hr = E_FAIL;
 	reshade::invoke_addon_event<reshade::addon_event::create_shader_module>(
-		[this, &hr, ppPixelShader](reshade::api::device *, const void *code, size_t code_size) {
+		[this, &hr, ppPixelShader](reshade::api::device *, reshade::api::shader_stage type, reshade::api::shader_format format, const char *, const void *code, size_t code_size) {
+			if (type != reshade::api::shader_stage::pixel || format != reshade::api::shader_format::dxbc)
+				return false;
 			hr = _orig->CreatePixelShader(code, code_size, ppPixelShader);
 			if (SUCCEEDED(hr))
 			{
@@ -1066,7 +1071,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreatePixelShader(const void *pShaderByte
 				LOG(WARN) << "ID3D10Device::CreatePixelShader" << " failed with error code " << hr << '.';
 				return false;
 			}
-		}, this, pShaderBytecode, BytecodeLength);
+		}, this, reshade::api::shader_stage::pixel, reshade::api::shader_format::dxbc, nullptr, pShaderBytecode, BytecodeLength);
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateBlendState(const D3D10_BLEND_DESC *pBlendStateDesc, ID3D10BlendState **ppBlendState)

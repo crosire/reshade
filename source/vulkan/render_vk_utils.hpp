@@ -5,10 +5,6 @@
 
 namespace reshade::vulkan
 {
-	extern const reshade::api::pipeline_state pipeline_states_graphics[35];
-
-	void fill_pipeline_state_values(const VkGraphicsPipelineCreateInfo &create_info, uint32_t (&values)[35]);
-
 	void convert_format_to_vk_format(api::format format, VkFormat &vk_format);
 	void convert_vk_format_to_format(VkFormat vk_format, api::format &format);
 

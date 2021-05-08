@@ -65,9 +65,15 @@ namespace reshade
 		/// <para>Callback function signature: <c>bool (api::device *device, api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc)</c></para>
 		/// </summary>
 		create_resource_view,
+
+		/// <summary>
+		/// Called before 'ID3D10Device::Create(...)State', 'ID3D11Device::Create(...)State', 'ID3D12Device::Create(...)PipelineState' or 'vkCreate(...)Pipelines'.
+		/// <para>Callback function signature: <c>bool (api::device *device, const api::pipeline_desc &desc)</c></para>
+		/// </summary>
+		create_pipeline,
 		/// <summary>
 		/// Called before 'IDirect3DDevice9::Create(...)Shader', 'ID3D10Device::Create(...)Shader', 'ID3D11Device::Create(...)Shader', 'ID3D12Device::Create(...)PipelineState', 'glShaderSource' or 'vkCreateShaderModule'.
-		/// <para>Callback function signature: <c>bool (api::device *device, const void *code, size_t code_size)</c></para>
+		/// <para>Callback function signature: <c>bool (api::device *device, api::shader_type type, api::shader_format format, const char *entry_point, const void *code, size_t code_size)</c></para>
 		/// </summary>
 		create_shader_module,
 
@@ -83,49 +89,34 @@ namespace reshade
 		bind_vertex_buffers,
 
 		/// <summary>
+		/// Called after 'IDirect3DDevice9::Set(...)Shader', 'ID3D10Device::(...)SetShader', 'ID3D11DeviceContext::(...)SetShader', 'ID3D12GraphicsCommandList::SetPipelineState', 'glUseProgram' or 'vkCmdBindPipeline'.
+		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::pipeline_type type, api::pipeline pipeline)</c></para>
+		/// </summary>
+		bind_pipeline,
+		/// <summary>
 		/// Called after 'IDirect3DDevice9::SetRenderState', 'ID3D10Device::(...)Set(...)State', 'ID3D11DeviceContext::(...)Set(...)State', 'ID3D12GraphicsCommandList::(...)Set(...)', 'gl(...)', 'vkCmdSet(...)' or 'vkCmdBindPipeline'.
 		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, uint32_t count, const api::pipeline_state *states, const uint32_t *values)</c></para>
 		/// </summary>
 		bind_pipeline_states,
-		/// <summary>
-		/// Called after 'IDirect3DDevice9::Set(...)Shader', 'ID3D10Device::(...)SetShader', 'ID3D11DeviceContext::(...)SetShader', 'ID3D12GraphicsCommandList::SetPipelineState', 'glUseProgram' or 'vkCmdBindPipeline'.
-		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::shader_stage stage, uint64_t handle)</c></para>
-		/// </summary>
-		bind_shader_or_pipeline,
 
 		/// <summary>
-		/// Called after 'IDirect3DDevice9::SetSamplerState', 'ID3D10Device::(...)SetSamplers', 'ID3D11DeviceContext::(...)SetSamplers' or 'glBindSampler(s)'.
-		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::shader_stage stage, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::sampler *samplers)</c></para>
-		/// </summary>
-		bind_samplers,
-		/// <summary>
-		/// Called after 'IDirect3DDevice9::SetTexture', 'ID3D10Device::(...)SetShaderResources', 'ID3D11DeviceContext::(...)SetShaderResources' or 'glBindTexture(Unit)(s)'.
-		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::shader_stage stage, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::resource_view *views)</c></para>
-		/// </summary>
-		bind_shader_resource_views,
-		/// <summary>
-		/// Called after 'ID3D11DeviceContext::CSSetUnorderedAccessViews', 'ID3D11DeviceContext::OMSetRenderTargetsAndUnorderedAccessViews' or 'glBindImageTexture(s)'.
-		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::shader_stage stage, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::resource_view *views)</c></para>
-		/// </summary>
-		bind_unordered_access_views,
-		/// <summary>
 		/// Called after 'IDirect3DDevice9::Set(...)ShaderConstant(...)', 'ID3D12GraphicsCommandList::Set(...)Root32BitConstant(s)', 'glUniform(...)' or 'vkCmdPushConstants'.
-		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::shader_stage stage, api::pipeline_layout layout, uint32_t binding, uint32_t first, uint32_t count, const uint32_t *values)</c></para>
+		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::shader_stage stage, api::pipeline_layout layout, uint32_t layout_index, uint32_t first, uint32_t count, const uint32_t *values)</c></para>
 		/// </summary>
 		push_constants,
 		/// <summary>
-		/// Called after 'ID3D10Device::(...)SetConstantBuffers', 'ID3D11DeviceContext::(...)SetConstantBuffers', 'ID3D12GraphicsCommandList::Set(...)RootConstantBufferView' or 'glBindBuffer(s)(...)'.
-		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::shader_stage stage, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets)</c></para>
+		/// Called after 'IDirect3DDevice9::Set(SamplerState/Texture)', 'ID3D10Device::(...)Set(Samplers/ShaderResources/ConstantBuffers)', 'ID3D11DeviceContext::(...)Set(Samplers/ShaderResources/UnorderedAccessViews/ConstantBuffers)', 'ID3D12GraphicsCommandList::Set(...)RootConstantBufferView' or 'glBind(Sampler/Texture/TextureUnit/ImageTexture/Buffer)(s)(...)'.
+		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::shader_stage stage, api::pipeline_layout layout, uint32_t layout_index, api::descriptor_type type, uint32_t first, uint32_t count, const void *descriptors)</c></para>
 		/// </summary>
-		bind_constant_buffers,
+		push_descriptors,
 		/// <summary>
 		/// Called after 'ID3D12GraphicsCommandList::SetDescriptorHeaps'.
-		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, uint32_t count, const uint64_t *heaps)</c></para>
+		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, uint32_t count, const api::descriptor_heap *heaps)</c></para>
 		/// </summary>
 		bind_descriptor_heaps,
 		/// <summary>
 		/// Called after 'ID3D12GraphicsCommandList::Set(...)RootDescriptorTable' or 'vkCmdBindDescriptorSets'.
-		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::shader_stage stage, api::pipeline_layout layout, uint32_t first, uint32_t count, const uint64_t *tables)</c></para>
+		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::shader_stage stage, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_table *tables)</c></para>
 		/// </summary>
 		bind_descriptor_tables,
 
@@ -377,19 +368,18 @@ namespace reshade
 
 	DEFINE_ADDON_EVENT_TYPE_3(addon_event::create_resource, api::device *device, const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage initial_state);
 	DEFINE_ADDON_EVENT_TYPE_3(addon_event::create_resource_view, api::device *device, api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc);
-	DEFINE_ADDON_EVENT_TYPE_3(addon_event::create_shader_module, api::device *device, const void *code, size_t code_size);
+
+	DEFINE_ADDON_EVENT_TYPE_3(addon_event::create_pipeline, api::device *device, const api::pipeline_desc &desc);
+	DEFINE_ADDON_EVENT_TYPE_3(addon_event::create_shader_module, api::device *device, api::shader_stage type, api::shader_format format, const char *entry_point, const void *code, size_t code_size);
 
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_index_buffer, api::command_list *cmd_list, api::resource buffer, uint64_t offset, uint32_t index_size);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_vertex_buffers, api::command_list *cmd_list, uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *strides);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_pipeline, api::command_list *cmd_list, api::pipeline_type type, api::pipeline pipeline);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_pipeline_states, api::command_list *cmd_list, uint32_t count, const api::pipeline_state *states, const uint32_t *values);
-	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_shader_or_pipeline, api::command_list *cmd_list, api::shader_stage stage, uint64_t handle);
-	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_samplers, api::command_list *cmd_list, api::shader_stage stage, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::sampler *samplers);
-	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_shader_resource_views, api::command_list *cmd_list, api::shader_stage stage, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::resource_view *views);
-	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_unordered_access_views, api::command_list *cmd_list, api::shader_stage stage, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::resource_view *views);
-	DEFINE_ADDON_EVENT_TYPE_1(addon_event::push_constants, api::command_list *cmd_list, api::shader_stage stage, api::pipeline_layout layout, uint32_t binding, uint32_t first, uint32_t count, const uint32_t *values);
-	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_constant_buffers, api::command_list *cmd_list, api::shader_stage stage, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets);
-	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_descriptor_heaps, api::command_list *cmd_list, uint32_t count, const uint64_t *heap);
-	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_descriptor_tables, api::command_list *cmd_list, api::shader_stage stage, api::pipeline_layout layout, uint32_t first, uint32_t count, const uint64_t *tables);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::push_constants, api::command_list *cmd_list, api::shader_stage stage, api::pipeline_layout layout, uint32_t layout_index, uint32_t first, uint32_t count, const uint32_t *values);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::push_descriptors, api::command_list *cmd_list, api::shader_stage stage, api::pipeline_layout layout, uint32_t layout_index, api::descriptor_type type, uint32_t first, uint32_t count, const void *descriptors);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_descriptor_heaps, api::command_list *cmd_list, uint32_t count, const api::descriptor_heap *heaps);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_descriptor_tables, api::command_list *cmd_list, api::shader_stage stage, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_table *tables);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_viewports, api::command_list *cmd_list, uint32_t first, uint32_t count, const float *viewports);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_scissor_rects, api::command_list *cmd_list, uint32_t first, uint32_t count, const int32_t *rects);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_render_targets_and_depth_stencil, api::command_list *cmd_list, uint32_t count, const api::resource_view *rtvs, api::resource_view dsv);

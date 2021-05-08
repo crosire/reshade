@@ -424,7 +424,7 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 
 bool reshade::d3d9::device_impl::create_pipeline(const api::pipeline_desc &desc, api::pipeline *out)
 {
-	if (desc.type != api::pipeline_type::graphics_all ||
+	if (desc.type != api::pipeline_type::graphics ||
 		desc.graphics.blend_state.num_render_targets > _caps.NumSimultaneousRTs ||
 		desc.graphics.hull_shader.handle != 0 ||
 		desc.graphics.domain_shader.handle != 0 ||
@@ -651,7 +651,7 @@ bool reshade::d3d9::device_impl::create_pipeline(const api::pipeline_desc &desc,
 		return false;
 	}
 }
-bool reshade::d3d9::device_impl::create_shader_module(api::shader_stage type, api::shader_format format, const char *entry_point, const void *data, size_t, api::shader_module *out)
+bool reshade::d3d9::device_impl::create_shader_module(api::shader_stage type, api::shader_format format, const char *entry_point, const void *code, size_t, api::shader_module *out)
 {
 	if (format == api::shader_format::dxbc)
 	{
@@ -661,7 +661,7 @@ bool reshade::d3d9::device_impl::create_shader_module(api::shader_stage type, ap
 		{
 		case api::shader_stage::vertex:
 			if (com_ptr<IDirect3DVertexShader9> shader;
-				SUCCEEDED(_orig->CreateVertexShader(static_cast<const DWORD *>(data), &shader)))
+				SUCCEEDED(_orig->CreateVertexShader(static_cast<const DWORD *>(code), &shader)))
 			{
 				*out = { reinterpret_cast<uintptr_t>(shader.release()) };
 				return true;
@@ -669,7 +669,7 @@ bool reshade::d3d9::device_impl::create_shader_module(api::shader_stage type, ap
 			break;
 		case api::shader_stage::pixel:
 			if (com_ptr<IDirect3DPixelShader9> shader;
-				SUCCEEDED(_orig->CreatePixelShader(static_cast<const DWORD *>(data), &shader)))
+				SUCCEEDED(_orig->CreatePixelShader(static_cast<const DWORD *>(code), &shader)))
 			{
 				*out = { reinterpret_cast<uintptr_t>(shader.release()) };
 				return true;
@@ -734,7 +734,7 @@ void reshade::d3d9::device_impl::destroy_resource_view(api::resource_view handle
 
 void reshade::d3d9::device_impl::destroy_pipeline(api::pipeline_type type, api::pipeline handle)
 {
-	assert(type == api::pipeline_type::graphics_all);
+	assert(type == api::pipeline_type::graphics);
 
 	delete reinterpret_cast<pipeline_impl *>(handle.handle);
 }
@@ -994,7 +994,7 @@ void reshade::d3d9::device_impl::bind_vertex_buffers(uint32_t first, uint32_t co
 
 void reshade::d3d9::device_impl::bind_pipeline(api::pipeline_type type, api::pipeline pipeline)
 {
-	assert(type == api::pipeline_type::graphics_all && pipeline.handle != 0);
+	assert(type == api::pipeline_type::graphics && pipeline.handle != 0);
 	const auto pipeline_object = reinterpret_cast<pipeline_impl *>(pipeline.handle);
 
 	pipeline_object->state_block->Apply();

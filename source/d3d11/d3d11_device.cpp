@@ -416,7 +416,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateVertexShader(const void *pShaderByt
 {
 	HRESULT hr = E_FAIL;
 	reshade::invoke_addon_event<reshade::addon_event::create_shader_module>(
-		[this, &hr, pClassLinkage, ppVertexShader](reshade::api::device *, const void *code, size_t code_size) {
+		[this, &hr, pClassLinkage, ppVertexShader](reshade::api::device *, reshade::api::shader_stage type, reshade::api::shader_format format, const char *, const void *code, size_t code_size) {
+			if (type != reshade::api::shader_stage::vertex || format != reshade::api::shader_format::dxbc)
+				return false;
 			hr = _orig->CreateVertexShader(code, code_size, pClassLinkage, ppVertexShader);
 			if (SUCCEEDED(hr))
 			{
@@ -427,14 +429,16 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateVertexShader(const void *pShaderByt
 				LOG(WARN) << "ID3D11Device::CreateVertexShader" << " failed with error code " << hr << '.';
 				return false;
 			}
-		}, this, pShaderBytecode, BytecodeLength);
+		}, this, reshade::api::shader_stage::vertex, reshade::api::shader_format::dxbc, nullptr, pShaderBytecode, BytecodeLength);
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateGeometryShader(const void *pShaderBytecode, SIZE_T BytecodeLength, ID3D11ClassLinkage *pClassLinkage, ID3D11GeometryShader **ppGeometryShader)
 {
 	HRESULT hr = E_FAIL;
 	reshade::invoke_addon_event<reshade::addon_event::create_shader_module>(
-		[this, &hr, pClassLinkage, ppGeometryShader](reshade::api::device *, const void *code, size_t code_size) {
+		[this, &hr, pClassLinkage, ppGeometryShader](reshade::api::device *, reshade::api::shader_stage type, reshade::api::shader_format format, const char *, const void *code, size_t code_size) {
+			if (type != reshade::api::shader_stage::geometry || format != reshade::api::shader_format::dxbc)
+				return false;
 			hr = _orig->CreateGeometryShader(code, code_size, pClassLinkage, ppGeometryShader);
 			if (SUCCEEDED(hr))
 			{
@@ -445,14 +449,16 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateGeometryShader(const void *pShaderB
 				LOG(WARN) << "ID3D11Device::CreateGeometryShader" << " failed with error code " << hr << '.';
 				return false;
 			}
-		}, this, pShaderBytecode, BytecodeLength);
+		}, this, reshade::api::shader_stage::geometry, reshade::api::shader_format::dxbc, nullptr, pShaderBytecode, BytecodeLength);
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateGeometryShaderWithStreamOutput(const void *pShaderBytecode, SIZE_T BytecodeLength, const D3D11_SO_DECLARATION_ENTRY *pSODeclaration, UINT NumEntries, const UINT *pBufferStrides, UINT NumStrides, UINT RasterizedStream, ID3D11ClassLinkage *pClassLinkage, ID3D11GeometryShader **ppGeometryShader)
 {
 	HRESULT hr = E_FAIL;
 	reshade::invoke_addon_event<reshade::addon_event::create_shader_module>(
-		[this, &hr, pSODeclaration, NumEntries, pBufferStrides, NumStrides, RasterizedStream, pClassLinkage, ppGeometryShader](reshade::api::device *, const void *code, size_t code_size) {
+		[this, &hr, pSODeclaration, NumEntries, pBufferStrides, NumStrides, RasterizedStream, pClassLinkage, ppGeometryShader](reshade::api::device *, reshade::api::shader_stage type, reshade::api::shader_format format, const char *, const void *code, size_t code_size) {
+			if (type != reshade::api::shader_stage::geometry || format != reshade::api::shader_format::dxbc)
+				return false;
 			hr = _orig->CreateGeometryShaderWithStreamOutput(code, code_size, pSODeclaration, NumEntries, pBufferStrides, NumStrides, RasterizedStream, pClassLinkage, ppGeometryShader);
 			if (SUCCEEDED(hr))
 			{
@@ -463,14 +469,16 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateGeometryShaderWithStreamOutput(cons
 				LOG(WARN) << "ID3D11Device::CreateGeometryShaderWithStreamOutput" << " failed with error code " << hr << '.';
 				return false;
 			}
-		}, this, pShaderBytecode, BytecodeLength);
+		}, this, reshade::api::shader_stage::geometry, reshade::api::shader_format::dxbc, nullptr, pShaderBytecode, BytecodeLength);
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreatePixelShader(const void *pShaderBytecode, SIZE_T BytecodeLength, ID3D11ClassLinkage *pClassLinkage, ID3D11PixelShader **ppPixelShader)
 {
 	HRESULT hr = E_FAIL;
 	reshade::invoke_addon_event<reshade::addon_event::create_shader_module>(
-		[this, &hr, pClassLinkage, ppPixelShader](reshade::api::device *, const void *code, size_t code_size) {
+		[this, &hr, pClassLinkage, ppPixelShader](reshade::api::device *, reshade::api::shader_stage type, reshade::api::shader_format format, const char *, const void *code, size_t code_size) {
+			if (type != reshade::api::shader_stage::pixel || format != reshade::api::shader_format::dxbc)
+				return false;
 			hr = _orig->CreatePixelShader(code, code_size, pClassLinkage, ppPixelShader);
 			if (SUCCEEDED(hr))
 			{
@@ -481,14 +489,16 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreatePixelShader(const void *pShaderByte
 				LOG(WARN) << "ID3D11Device::CreatePixelShader" << " failed with error code " << hr << '.';
 				return false;
 			}
-		}, this, pShaderBytecode, BytecodeLength);
+		}, this, reshade::api::shader_stage::pixel, reshade::api::shader_format::dxbc, nullptr, pShaderBytecode, BytecodeLength);
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateHullShader(const void *pShaderBytecode, SIZE_T BytecodeLength, ID3D11ClassLinkage *pClassLinkage, ID3D11HullShader **ppHullShader)
 {
 	HRESULT hr = E_FAIL;
 	reshade::invoke_addon_event<reshade::addon_event::create_shader_module>(
-		[this, &hr, pClassLinkage, ppHullShader](reshade::api::device *, const void *code, size_t code_size) {
+		[this, &hr, pClassLinkage, ppHullShader](reshade::api::device *, reshade::api::shader_stage type, reshade::api::shader_format format, const char *, const void *code, size_t code_size) {
+			if (type != reshade::api::shader_stage::hull || format != reshade::api::shader_format::dxbc)
+				return false;
 			hr = _orig->CreateHullShader(code, code_size, pClassLinkage, ppHullShader);
 			if (SUCCEEDED(hr))
 			{
@@ -499,14 +509,16 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateHullShader(const void *pShaderBytec
 				LOG(WARN) << "ID3D11Device::CreateHullShader" << " failed with error code " << hr << '.';
 				return false;
 			}
-		}, this, pShaderBytecode, BytecodeLength);
+		}, this, reshade::api::shader_stage::hull, reshade::api::shader_format::dxbc, nullptr, pShaderBytecode, BytecodeLength);
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateDomainShader(const void *pShaderBytecode, SIZE_T BytecodeLength, ID3D11ClassLinkage *pClassLinkage, ID3D11DomainShader **ppDomainShader)
 {
 	HRESULT hr = E_FAIL;
 	reshade::invoke_addon_event<reshade::addon_event::create_shader_module>(
-		[this, &hr, pClassLinkage, ppDomainShader](reshade::api::device *, const void *code, size_t code_size) {
+		[this, &hr, pClassLinkage, ppDomainShader](reshade::api::device *, reshade::api::shader_stage type, reshade::api::shader_format format, const char *, const void *code, size_t code_size) {
+			if (type != reshade::api::shader_stage::domain || format != reshade::api::shader_format::dxbc)
+				return false;
 			hr = _orig->CreateDomainShader(code, code_size, pClassLinkage, ppDomainShader);
 			if (SUCCEEDED(hr))
 			{
@@ -517,14 +529,16 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDomainShader(const void *pShaderByt
 				LOG(WARN) << "ID3D11Device::CreateDomainShader" << " failed with error code " << hr << '.';
 				return false;
 			}
-		}, this, pShaderBytecode, BytecodeLength);
+		}, this, reshade::api::shader_stage::domain, reshade::api::shader_format::dxbc, nullptr, pShaderBytecode, BytecodeLength);
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateComputeShader(const void *pShaderBytecode, SIZE_T BytecodeLength, ID3D11ClassLinkage *pClassLinkage, ID3D11ComputeShader **ppComputeShader)
 {
 	HRESULT hr = E_FAIL;
 	reshade::invoke_addon_event<reshade::addon_event::create_shader_module>(
-		[this, &hr, pClassLinkage, ppComputeShader](reshade::api::device *, const void *code, size_t code_size) {
+		[this, &hr, pClassLinkage, ppComputeShader](reshade::api::device *, reshade::api::shader_stage type, reshade::api::shader_format format, const char *, const void *code, size_t code_size) {
+			if (type != reshade::api::shader_stage::compute || format != reshade::api::shader_format::dxbc)
+				return false;
 			hr = _orig->CreateComputeShader(code, code_size, pClassLinkage, ppComputeShader);
 			if (SUCCEEDED(hr))
 			{
@@ -535,7 +549,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateComputeShader(const void *pShaderBy
 				LOG(WARN) << "ID3D11Device::CreateComputeShader" << " failed with error code " << hr << '.';
 				return false;
 			}
-		}, this, pShaderBytecode, BytecodeLength);
+		}, this, reshade::api::shader_stage::compute, reshade::api::shader_format::dxbc, nullptr, pShaderBytecode, BytecodeLength);
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateClassLinkage(ID3D11ClassLinkage **ppLinkage)
