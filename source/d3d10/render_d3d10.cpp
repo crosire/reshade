@@ -7,6 +7,34 @@
 #include "render_d3d10_utils.hpp"
 #include <algorithm>
 
+namespace
+{
+	struct pipeline_layout_impl
+	{
+		com_ptr<ID3D10Buffer> push_constants;
+		UINT push_constants_binding;
+	};
+
+	struct pipeline_graphics_impl
+	{
+		com_ptr<ID3D10VertexShader> vs;
+		com_ptr<ID3D10GeometryShader> gs;
+		com_ptr<ID3D10PixelShader> ps;
+
+		com_ptr<ID3D10InputLayout> input_layout;
+		com_ptr<ID3D10BlendState> blend_state;
+		com_ptr<ID3D10RasterizerState> rasterizer_state;
+		com_ptr<ID3D10DepthStencilState> depth_stencil_state;
+
+		D3D10_PRIMITIVE_TOPOLOGY topology;
+		UINT sample_mask;
+		UINT stencil_reference_value;
+		FLOAT blend_constant[4];
+	};
+
+	const GUID vertex_shader_byte_code_guid = { 0xB2257A30, 0x4014, 0x46EA, { 0xBD, 0x88, 0xDE, 0xC2, 0x1D, 0xB6, 0xA0, 0x2B } };
+}
+
 reshade::d3d10::device_impl::device_impl(ID3D10Device1 *device) :
 	api_object_impl(device)
 {
@@ -199,6 +227,301 @@ bool reshade::d3d10::device_impl::create_resource_view(api::resource resource, a
 	return false;
 }
 
+bool reshade::d3d10::device_impl::create_pipeline(const api::pipeline_desc &desc, api::pipeline *out)
+{
+	switch (desc.type)
+	{
+	default:
+		*out = { 0 };
+		return false;
+	case api::pipeline_type::graphics_all:
+		return create_pipeline_graphics_all(desc, out);
+	case api::pipeline_type::graphics_blend_state:
+		return create_pipeline_graphics_blend_state(desc, out);
+	case api::pipeline_type::graphics_rasterizer_state:
+		return create_pipeline_graphics_rasterizer_state(desc, out);
+	case api::pipeline_type::graphics_depth_stencil_state:
+		return create_pipeline_graphics_depth_stencil_state(desc, out);
+	}
+}
+bool reshade::d3d10::device_impl::create_pipeline_graphics_all(const api::pipeline_desc &desc, api::pipeline *out)
+{
+	if (desc.graphics.hull_shader.handle != 0 ||
+		desc.graphics.domain_shader.handle != 0 ||
+		desc.graphics.num_dynamic_states != 0)
+	{
+		*out = { 0 };
+		return false;
+	}
+
+	api::pipeline blend_state;
+	if (!create_pipeline_graphics_blend_state(desc, &blend_state))
+	{
+		*out = { 0 };
+		return false;
+	}
+	api::pipeline rasterizer_state;
+	if (!create_pipeline_graphics_rasterizer_state(desc, &rasterizer_state))
+	{
+		*out = { 0 };
+		destroy_pipeline(api::pipeline_type::graphics_blend_state, blend_state);
+		return false;
+	}
+	api::pipeline depth_stencil_state;
+	if (!create_pipeline_graphics_depth_stencil_state(desc, &depth_stencil_state))
+	{
+		*out = { 0 };
+		destroy_pipeline(api::pipeline_type::graphics_blend_state, blend_state);
+		destroy_pipeline(api::pipeline_type::graphics_rasterizer_state, rasterizer_state);
+		return false;
+	}
+
+	std::vector<D3D10_INPUT_ELEMENT_DESC> internal_elements;
+	internal_elements.reserve(16);
+	for (UINT i = 0; i < 16 && desc.graphics.input_layout[i].format != api::format::unknown; ++i)
+	{
+		const auto &element = desc.graphics.input_layout[i];
+		D3D10_INPUT_ELEMENT_DESC &internal_element = internal_elements.emplace_back();
+
+		internal_element.SemanticName = element.semantic;
+		internal_element.SemanticIndex = element.semantic_index;
+		internal_element.Format = static_cast<DXGI_FORMAT>(element.format);
+		internal_element.InputSlot = element.buffer_binding;
+		internal_element.AlignedByteOffset = element.offset;
+		internal_element.InputSlotClass = element.instance_step_rate > 0 ? D3D10_INPUT_PER_INSTANCE_DATA : D3D10_INPUT_PER_VERTEX_DATA;
+		internal_element.InstanceDataStepRate = element.instance_step_rate;
+	}
+
+	std::vector<uint8_t> bytecode;
+	if (desc.graphics.vertex_shader.handle != 0)
+	{
+		const auto vertex_shader = reinterpret_cast<ID3D10VertexShader *>(desc.graphics.vertex_shader.handle);
+
+		UINT bytecode_len = 0;
+		vertex_shader->GetPrivateData(vertex_shader_byte_code_guid, &bytecode_len, nullptr);
+		bytecode.resize(bytecode_len);
+		vertex_shader->GetPrivateData(vertex_shader_byte_code_guid, &bytecode_len, bytecode.data());
+	}
+
+	com_ptr<ID3D10InputLayout> input_layout;
+	if (FAILED(_orig->CreateInputLayout(internal_elements.data(), static_cast<UINT>(internal_elements.size()), bytecode.data(), bytecode.size(), &input_layout)))
+	{
+		*out = { 0 };
+		destroy_pipeline(api::pipeline_type::graphics_blend_state, blend_state);
+		destroy_pipeline(api::pipeline_type::graphics_rasterizer_state, rasterizer_state);
+		destroy_pipeline(api::pipeline_type::graphics_depth_stencil_state, depth_stencil_state);
+		return false;
+	}
+
+	const auto state = new pipeline_graphics_impl();
+
+	state->vs = reinterpret_cast<ID3D10VertexShader *>(desc.graphics.vertex_shader.handle);
+	state->gs = reinterpret_cast<ID3D10GeometryShader *>(desc.graphics.geometry_shader.handle);
+	state->ps = reinterpret_cast<ID3D10PixelShader *>(desc.graphics.pixel_shader.handle);
+
+	state->input_layout = std::move(input_layout);
+
+	state->blend_state = reinterpret_cast<ID3D10BlendState *>(blend_state.handle);
+	state->rasterizer_state = reinterpret_cast<ID3D10RasterizerState *>(rasterizer_state.handle);
+	state->depth_stencil_state = reinterpret_cast<ID3D10DepthStencilState *>(depth_stencil_state.handle);
+
+	state->topology = static_cast<D3D10_PRIMITIVE_TOPOLOGY>(desc.graphics.rasterizer_state.topology);
+	state->sample_mask = desc.graphics.multisample_state.sample_mask;
+	state->stencil_reference_value = desc.graphics.depth_stencil_state.stencil_reference_value;
+
+	state->blend_constant[0] = ((desc.graphics.blend_state.blend_constant      ) & 0xFF) / 255.0f;
+	state->blend_constant[1] = ((desc.graphics.blend_state.blend_constant >>  4) & 0xFF) / 255.0f;
+	state->blend_constant[2] = ((desc.graphics.blend_state.blend_constant >>  8) & 0xFF) / 255.0f;
+	state->blend_constant[3] = ((desc.graphics.blend_state.blend_constant >> 12) & 0xFF) / 255.0f;
+
+	destroy_pipeline(api::pipeline_type::graphics_blend_state, blend_state);
+	destroy_pipeline(api::pipeline_type::graphics_rasterizer_state, rasterizer_state);
+	destroy_pipeline(api::pipeline_type::graphics_depth_stencil_state, depth_stencil_state);
+
+	*out = { reinterpret_cast<uintptr_t>(state) };
+	return true;
+}
+bool reshade::d3d10::device_impl::create_pipeline_graphics_blend_state(const api::pipeline_desc &desc, api::pipeline *out)
+{
+	D3D10_BLEND_DESC internal_desc = {};
+	internal_desc.AlphaToCoverageEnable = desc.graphics.multisample_state.alpha_to_coverage;
+	convert_blend_factor(desc.graphics.blend_state.src_color_blend_factor[0], internal_desc.SrcBlend);
+	convert_blend_factor(desc.graphics.blend_state.dst_color_blend_factor[0], internal_desc.DestBlend);
+	convert_blend_op(desc.graphics.blend_state.color_blend_op[0], internal_desc.BlendOp);
+	convert_blend_factor(desc.graphics.blend_state.src_alpha_blend_factor[0], internal_desc.SrcBlendAlpha);
+	convert_blend_factor(desc.graphics.blend_state.dst_alpha_blend_factor[0], internal_desc.DestBlendAlpha);
+	convert_blend_op(desc.graphics.blend_state.alpha_blend_op[0], internal_desc.BlendOpAlpha);
+
+	for (UINT i = 0; i < 8; ++i)
+	{
+		internal_desc.BlendEnable[i] = desc.graphics.blend_state.blend_enable[i];
+		internal_desc.RenderTargetWriteMask[i] = desc.graphics.blend_state.render_target_write_mask[i];
+	}
+
+	if (com_ptr<ID3D10BlendState> object;
+		SUCCEEDED(_orig->CreateBlendState(&internal_desc, &object)))
+	{
+		*out = { reinterpret_cast<uintptr_t>(object.release()) };
+		return true;
+	}
+	else
+	{
+		*out = { 0 };
+		return false;
+	}
+}
+bool reshade::d3d10::device_impl::create_pipeline_graphics_rasterizer_state(const api::pipeline_desc &desc, api::pipeline *out)
+{
+	D3D10_RASTERIZER_DESC internal_desc = {};
+	convert_fill_mode(desc.graphics.rasterizer_state.fill_mode, internal_desc.FillMode);
+	convert_cull_mode(desc.graphics.rasterizer_state.cull_mode, internal_desc.CullMode);
+	internal_desc.FrontCounterClockwise = desc.graphics.rasterizer_state.front_counter_clockwise;
+	internal_desc.DepthBias = static_cast<INT>(desc.graphics.rasterizer_state.depth_bias);
+	internal_desc.DepthBiasClamp = desc.graphics.rasterizer_state.depth_bias_clamp;
+	internal_desc.SlopeScaledDepthBias = desc.graphics.rasterizer_state.slope_scaled_depth_bias;
+	internal_desc.DepthClipEnable = desc.graphics.rasterizer_state.depth_clip;
+	internal_desc.ScissorEnable = desc.graphics.rasterizer_state.scissor_test;
+	internal_desc.MultisampleEnable = desc.graphics.multisample_state.multisample;
+	internal_desc.AntialiasedLineEnable = desc.graphics.rasterizer_state.antialiased_line;
+
+	if (com_ptr<ID3D10RasterizerState> object;
+		SUCCEEDED(_orig->CreateRasterizerState(&internal_desc, &object)))
+	{
+		*out = { reinterpret_cast<uintptr_t>(object.release()) };
+		return true;
+	}
+	else
+	{
+		*out = { 0 };
+		return false;
+	}
+}
+bool reshade::d3d10::device_impl::create_pipeline_graphics_depth_stencil_state(const api::pipeline_desc &desc, api::pipeline *out)
+{
+	D3D10_DEPTH_STENCIL_DESC internal_desc = {};
+	internal_desc.DepthEnable = desc.graphics.depth_stencil_state.depth_test;
+	internal_desc.DepthWriteMask = desc.graphics.depth_stencil_state.depth_write_mask ? D3D10_DEPTH_WRITE_MASK_ALL : D3D10_DEPTH_WRITE_MASK_ZERO;
+	convert_compare_op(desc.graphics.depth_stencil_state.depth_func, internal_desc.DepthFunc);
+	internal_desc.StencilEnable = desc.graphics.depth_stencil_state.stencil_test;
+	internal_desc.StencilReadMask = desc.graphics.depth_stencil_state.stencil_read_mask;
+	internal_desc.StencilWriteMask = desc.graphics.depth_stencil_state.stencil_write_mask;
+	convert_stencil_op(desc.graphics.depth_stencil_state.back_stencil_fail_op, internal_desc.BackFace.StencilFailOp);
+	convert_stencil_op(desc.graphics.depth_stencil_state.back_stencil_depth_fail_op, internal_desc.BackFace.StencilDepthFailOp);
+	convert_stencil_op(desc.graphics.depth_stencil_state.back_stencil_pass_op, internal_desc.BackFace.StencilPassOp);
+	convert_compare_op(desc.graphics.depth_stencil_state.back_stencil_func, internal_desc.BackFace.StencilFunc);
+	convert_stencil_op(desc.graphics.depth_stencil_state.front_stencil_fail_op, internal_desc.FrontFace.StencilFailOp);
+	convert_stencil_op(desc.graphics.depth_stencil_state.front_stencil_depth_fail_op, internal_desc.FrontFace.StencilDepthFailOp);
+	convert_stencil_op(desc.graphics.depth_stencil_state.front_stencil_pass_op, internal_desc.FrontFace.StencilPassOp);
+	convert_compare_op(desc.graphics.depth_stencil_state.front_stencil_func, internal_desc.FrontFace.StencilFunc);
+
+	if (com_ptr<ID3D10DepthStencilState> object;
+		SUCCEEDED(_orig->CreateDepthStencilState(&internal_desc, &object)))
+	{
+		*out = { reinterpret_cast<uintptr_t>(object.release()) };
+		return true;
+	}
+	else
+	{
+		*out = { 0 };
+		return false;
+	}
+}
+
+bool reshade::d3d10::device_impl::create_shader_module(api::shader_stage type, api::shader_format format, const char *entry_point, const void *data, size_t size, api::shader_module *out)
+{
+	if (format == api::shader_format::dxbc)
+	{
+		assert(entry_point == nullptr);
+
+		switch (type)
+		{
+		case api::shader_stage::vertex:
+			if (com_ptr<ID3D10VertexShader> object;
+				SUCCEEDED(_orig->CreateVertexShader(data, size, &object)))
+			{
+				assert(size <= std::numeric_limits<UINT>::max());
+				object->SetPrivateData(vertex_shader_byte_code_guid, static_cast<UINT>(size), data);
+
+				*out = { reinterpret_cast<uintptr_t>(object.release()) };
+				return true;
+			}
+			break;
+		case api::shader_stage::geometry:
+			if (com_ptr<ID3D10GeometryShader> object;
+				SUCCEEDED(_orig->CreateGeometryShader(data, size, &object)))
+			{
+				*out = { reinterpret_cast<uintptr_t>(object.release()) };
+				return true;
+			}
+			break;
+		case api::shader_stage::pixel:
+			if (com_ptr<ID3D10PixelShader> object;
+				SUCCEEDED(_orig->CreatePixelShader(data, size, &object)))
+			{
+				*out = { reinterpret_cast<uintptr_t>(object.release()) };
+				return true;
+			}
+			break;
+		}
+	}
+
+	*out = { 0 };
+	return false;
+}
+bool reshade::d3d10::device_impl::create_pipeline_layout(uint32_t num_table_layouts, const api::descriptor_table_layout *table_layouts, uint32_t num_constant_ranges, const api::constant_range *constant_ranges, api::pipeline_layout *out)
+{
+	if (num_constant_ranges > 1)
+	{
+		*out = { 0 };
+		return false;
+	}
+
+	const auto layout = new pipeline_layout_impl();
+
+	if (num_constant_ranges == 1)
+	{
+		assert(constant_ranges[0].offset == 0);
+
+		D3D10_BUFFER_DESC desc = {};
+		desc.ByteWidth = constant_ranges[0].count * 4;
+		desc.Usage = D3D10_USAGE_DYNAMIC;
+		desc.BindFlags = D3D10_BIND_CONSTANT_BUFFER;
+		desc.CPUAccessFlags = D3D10_CPU_ACCESS_WRITE;
+
+		if (FAILED(_orig->CreateBuffer(&desc, nullptr, &layout->push_constants)))
+		{
+			delete layout;
+
+			*out = { 0 };
+			return false;
+		}
+
+		layout->push_constants_binding = constant_ranges[0].dx_shader_register;
+	}
+
+	*out = { reinterpret_cast<uintptr_t>(layout) };
+	return true;
+}
+bool reshade::d3d10::device_impl::create_descriptor_heap(uint32_t, uint32_t, const api::descriptor_heap_size *, api::descriptor_heap *out)
+{
+	assert(false);
+
+	*out = { 0 };
+	return false;
+}
+bool reshade::d3d10::device_impl::create_descriptor_table(api::descriptor_heap, api::descriptor_table_layout, api::descriptor_table *out)
+{
+	assert(false);
+
+	*out = { 0 };
+	return false;
+}
+bool reshade::d3d10::device_impl::create_descriptor_table_layout(uint32_t num_ranges, const api::descriptor_range *ranges, bool push_descriptors, api::descriptor_table_layout *out)
+{
+	*out = { 0 };
+	return push_descriptors;
+}
+
 void reshade::d3d10::device_impl::destroy_sampler(api::sampler handle)
 {
 	assert(handle.handle != 0);
@@ -213,6 +536,40 @@ void reshade::d3d10::device_impl::destroy_resource_view(api::resource_view handl
 {
 	assert(handle.handle != 0);
 	reinterpret_cast<IUnknown *>(handle.handle)->Release();
+}
+
+void reshade::d3d10::device_impl::destroy_pipeline(api::pipeline_type type, api::pipeline handle)
+{
+	if (type == api::pipeline_type::graphics_all)
+	{
+		delete reinterpret_cast<pipeline_graphics_impl *>(handle.handle);
+		return;
+	}
+
+	assert(handle.handle != 0);
+	reinterpret_cast<IUnknown *>(handle.handle)->Release();
+}
+void reshade::d3d10::device_impl::destroy_shader_module(api::shader_module handle)
+{
+	assert(handle.handle != 0);
+	reinterpret_cast<IUnknown *>(handle.handle)->Release();
+}
+void reshade::d3d10::device_impl::destroy_pipeline_layout(api::pipeline_layout handle)
+{
+	delete reinterpret_cast<pipeline_layout_impl *>(handle.handle);
+}
+void reshade::d3d10::device_impl::destroy_descriptor_heap(api::descriptor_heap)
+{
+	assert(false);
+}
+void reshade::d3d10::device_impl::destroy_descriptor_table_layout(api::descriptor_table_layout)
+{
+	assert(false);
+}
+
+void reshade::d3d10::device_impl::update_descriptor_tables(uint32_t, const api::descriptor_update *)
+{
+	assert(false);
 }
 
 void reshade::d3d10::device_impl::get_resource_from_view(api::resource_view view, api::resource *out_resource) const
@@ -268,6 +625,305 @@ reshade::api::resource_desc reshade::d3d10::device_impl::get_resource_desc(api::
 void reshade::d3d10::device_impl::flush_immediate_command_list() const
 {
 	_orig->Flush();
+}
+
+void reshade::d3d10::device_impl::bind_index_buffer(api::resource buffer, uint64_t offset, uint32_t index_size)
+{
+	assert(offset <= std::numeric_limits<UINT>::max());
+	assert(buffer.handle == 0 || index_size == 2 || index_size == 4);
+
+	_orig->IASetIndexBuffer(reinterpret_cast<ID3D10Buffer *>(buffer.handle), index_size == 2 ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT, static_cast<UINT>(offset));
+}
+void reshade::d3d10::device_impl::bind_vertex_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *strides)
+{
+	if (count > D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT)
+	{
+		assert(false);
+		count = D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT;
+	}
+
+#ifndef WIN64
+	ID3D10Buffer *buffer_ptrs[D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
+	for (UINT i = 0; i < count; ++i)
+		buffer_ptrs[i] = reinterpret_cast<ID3D10Buffer *>(buffers[i].handle);
+#else
+	const auto buffer_ptrs = reinterpret_cast<ID3D10Buffer *const *>(buffers);
+#endif
+
+	UINT offsets_32[D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
+	for (UINT i = 0; i < count; ++i)
+		offsets_32[i] = static_cast<UINT>(offsets[i]);
+
+	_orig->IASetVertexBuffers(first, count, buffer_ptrs, strides, offsets_32);
+}
+
+void reshade::d3d10::device_impl::bind_pipeline(api::pipeline_type type, api::pipeline pipeline)
+{
+	assert(pipeline.handle != 0);
+
+	switch (type)
+	{
+	default:
+		assert(false);
+		break;
+	case api::pipeline_type::graphics_all: {
+		const auto state = reinterpret_cast<pipeline_graphics_impl *>(pipeline.handle);
+		_orig->VSSetShader(state->vs.get());
+		_orig->GSSetShader(state->gs.get());
+		_orig->PSSetShader(state->ps.get());
+		_orig->IASetInputLayout(state->input_layout.get());
+		_orig->IASetPrimitiveTopology(state->topology);
+		_orig->OMSetBlendState(state->blend_state.get(), state->blend_constant, state->sample_mask);
+		_orig->RSSetState(state->rasterizer_state.get());
+		_orig->OMSetDepthStencilState(state->depth_stencil_state.get(), state->stencil_reference_value);
+		break;
+	}
+	case api::pipeline_type::graphics_blend_state:
+		_orig->OMSetBlendState(reinterpret_cast<ID3D10BlendState *>(pipeline.handle), nullptr, D3D10_DEFAULT_SAMPLE_MASK);
+		break;
+	case api::pipeline_type::graphics_rasterizer_state:
+		_orig->RSSetState(reinterpret_cast<ID3D10RasterizerState *>(pipeline.handle));
+		break;
+	case api::pipeline_type::graphics_depth_stencil_state:
+		_orig->OMSetDepthStencilState(reinterpret_cast<ID3D10DepthStencilState *>(pipeline.handle), 0);
+		break;
+	}
+}
+void reshade::d3d10::device_impl::bind_pipeline_states(uint32_t count, const api::pipeline_state *states, const uint32_t *values)
+{
+	for (UINT i = 0; i < count; ++i)
+	{
+		switch (states[i])
+		{
+		default:
+			assert(false);
+			break;
+		case api::pipeline_state::primitive_topology:
+			_orig->IASetPrimitiveTopology(convert_primitive_topology(static_cast<api::primitive_topology>(values[i])));
+			break;
+		}
+	}
+}
+
+void reshade::d3d10::device_impl::bind_samplers(api::shader_stage stage, uint32_t first, uint32_t count, const api::sampler *samplers)
+{
+	if (count > D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT)
+	{
+		assert(false);
+		count = D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT;
+	}
+
+#ifndef WIN64
+	ID3D10SamplerState *sampler_ptrs[D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT];
+	for (UINT i = 0; i < count; ++i)
+		sampler_ptrs[i] = reinterpret_cast<ID3D10SamplerState *>(samplers[i].handle);
+#else
+	const auto sampler_ptrs = reinterpret_cast<ID3D10SamplerState *const *>(samplers);
+#endif
+
+	switch (stage)
+	{
+	default:
+		assert(false);
+		break;
+	case api::shader_stage::vertex:
+		_orig->VSSetSamplers(first, count, sampler_ptrs);
+		break;
+	case api::shader_stage::geometry:
+		_orig->GSSetSamplers(first, count, sampler_ptrs);
+		break;
+	case api::shader_stage::pixel:
+		_orig->PSSetSamplers(first, count, sampler_ptrs);
+		break;
+	}
+}
+void reshade::d3d10::device_impl::bind_shader_resource_views(api::shader_stage stage, uint32_t first, uint32_t count, const api::resource_view *views)
+{
+	if (count > D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT)
+	{
+		assert(false);
+		count = D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT;
+	}
+
+#ifndef WIN64
+	ID3D10ShaderResourceView *view_ptrs[D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT];
+	for (UINT i = 0; i < count; ++i)
+		view_ptrs[i] = reinterpret_cast<ID3D10ShaderResourceView *>(views[i].handle);
+#else
+	const auto view_ptrs = reinterpret_cast<ID3D10ShaderResourceView *const *>(views);
+#endif
+
+	switch (stage)
+	{
+	default:
+		assert(false);
+		break;
+	case api::shader_stage::vertex:
+		_orig->VSSetShaderResources(first, count, view_ptrs);
+		break;
+	case api::shader_stage::geometry:
+		_orig->GSSetShaderResources(first, count, view_ptrs);
+		break;
+	case api::shader_stage::pixel:
+		_orig->PSSetShaderResources(first, count, view_ptrs);
+		break;
+	}
+}
+void reshade::d3d10::device_impl::bind_constant_buffers(api::shader_stage stage, uint32_t first, uint32_t count, const api::resource *buffers)
+{
+	if (count > D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT)
+	{
+		assert(false);
+		count = D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT;
+	}
+
+#ifndef WIN64
+	ID3D10Buffer *buffer_ptrs[D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
+	for (UINT i = 0; i < count; ++i)
+		buffer_ptrs[i] = reinterpret_cast<ID3D10Buffer *>(buffers[i].handle);
+#else
+	const auto buffer_ptrs = reinterpret_cast<ID3D10Buffer *const *>(buffers);
+#endif
+
+	switch (stage)
+	{
+	default:
+		assert(false);
+		break;
+	case api::shader_stage::vertex:
+		_orig->VSSetConstantBuffers(first, count, buffer_ptrs);
+		break;
+	case api::shader_stage::geometry:
+		_orig->GSSetConstantBuffers(first, count, buffer_ptrs);
+		break;
+	case api::shader_stage::pixel:
+		_orig->PSSetConstantBuffers(first, count, buffer_ptrs);
+		break;
+	}
+}
+
+void reshade::d3d10::device_impl::push_constants(api::shader_stage stage, api::pipeline_layout layout, uint32_t, uint32_t first, uint32_t count, const uint32_t *values)
+{
+	assert(layout.handle != 0);
+	pipeline_layout_impl *const layout_impl = reinterpret_cast<pipeline_layout_impl *>(layout.handle);
+	const auto push_constants = layout_impl->push_constants.get();
+
+	if (void *mapped_ptr;
+		SUCCEEDED(push_constants->Map(D3D10_MAP_WRITE_DISCARD, 0, &mapped_ptr))) // TODO: No discard
+	{
+		std::memcpy(static_cast<uint32_t *>(mapped_ptr) + first, values, count * sizeof(uint32_t));
+
+		push_constants->Unmap();
+	}
+
+	switch (stage)
+	{
+	default:
+		assert(false);
+		break;
+	case api::shader_stage::vertex:
+		_orig->VSSetConstantBuffers(layout_impl->push_constants_binding, 1, &push_constants);
+		break;
+	case api::shader_stage::geometry:
+		_orig->GSSetConstantBuffers(layout_impl->push_constants_binding, 1, &push_constants);
+		break;
+	case api::shader_stage::pixel:
+		_orig->PSSetConstantBuffers(layout_impl->push_constants_binding, 1, &push_constants);
+		break;
+	}
+}
+void reshade::d3d10::device_impl::push_descriptors(api::shader_stage stage, api::pipeline_layout layout, uint32_t layout_index, api::descriptor_type type, uint32_t first, uint32_t count, const void *descriptors)
+{
+	// TODO: Binding indices are not handled correctly here (see layout index)
+
+	switch (type)
+	{
+	case api::descriptor_type::sampler:
+		bind_samplers(stage, first, count, static_cast<const api::sampler *>(descriptors));
+		break;
+	case api::descriptor_type::sampler_with_resource_view:
+		assert(false);
+		break;
+	case api::descriptor_type::shader_resource_view:
+		bind_shader_resource_views(stage, first, count, static_cast<const api::resource_view *>(descriptors));
+		break;
+	case api::descriptor_type::unordered_access_view:
+		assert(false);
+		break;
+	case api::descriptor_type::constant_buffer:
+		bind_constant_buffers(stage, first, count, static_cast<const api::resource *>(descriptors));
+		break;
+	}
+}
+
+void reshade::d3d10::device_impl::bind_descriptor_heaps(uint32_t, const api::descriptor_heap *)
+{
+	assert(false);
+}
+void reshade::d3d10::device_impl::bind_descriptor_tables(api::shader_stage, api::pipeline_layout, uint32_t, uint32_t, const api::descriptor_table *)
+{
+	assert(false);
+}
+
+void reshade::d3d10::device_impl::bind_viewports(uint32_t first, uint32_t count, const float *viewports)
+{
+	assert(first == 0);
+
+	if (count > D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE)
+	{
+		assert(false);
+		count = D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE;
+	}
+
+	D3D10_VIEWPORT viewport_data[D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];
+	for (UINT i = 0, k = 0; i < count; ++i, k += 6)
+	{
+		viewport_data[i].TopLeftX = static_cast<INT>(viewports[k + 0]);
+		viewport_data[i].TopLeftY = static_cast<INT>(viewports[k + 1]);
+		viewport_data[i].Width = static_cast<UINT>(viewports[k + 2]);
+		viewport_data[i].Height = static_cast<UINT>(viewports[k + 3]);
+		viewport_data[i].MinDepth = viewports[k + 4];
+		viewport_data[i].MaxDepth = viewports[k + 5];
+	}
+
+	_orig->RSSetViewports(count, viewport_data);
+}
+void reshade::d3d10::device_impl::bind_scissor_rects(uint32_t first, uint32_t count, const int32_t *rects)
+{
+	assert(first == 0);
+
+	_orig->RSSetScissorRects(count, reinterpret_cast<const D3D10_RECT *>(rects));
+}
+void reshade::d3d10::device_impl::bind_render_targets_and_depth_stencil(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv)
+{
+	if (count > D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT)
+	{
+		assert(false);
+		count = D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT;
+	}
+
+#ifndef WIN64
+	ID3D10RenderTargetView *rtv_ptrs[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
+	for (UINT i = 0; i < count; ++i)
+		rtv_ptrs[i] = reinterpret_cast<ID3D10RenderTargetView *>(rtvs[i].handle);
+#else
+	const auto rtv_ptrs = reinterpret_cast<ID3D10RenderTargetView *const *>(rtvs);
+#endif
+
+	_orig->OMSetRenderTargets(count, rtv_ptrs, reinterpret_cast<ID3D10DepthStencilView *>(dsv.handle));
+}
+
+void reshade::d3d10::device_impl::draw(uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance)
+{
+	_orig->DrawInstanced(vertices, instances, first_vertex, first_instance);
+}
+void reshade::d3d10::device_impl::draw_indexed(uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)
+{
+	_orig->DrawIndexedInstanced(indices, instances, first_index, vertex_offset, first_instance);
+}
+void reshade::d3d10::device_impl::dispatch(uint32_t, uint32_t, uint32_t)
+{
+	assert(false);
 }
 
 void reshade::d3d10::device_impl::blit(api::resource, uint32_t, const int32_t[6], api::resource, uint32_t, const int32_t[6], api::texture_filter)

@@ -107,6 +107,225 @@ GLenum reshade::opengl::get_binding_for_target(GLenum target)
 	}
 }
 
+GLenum reshade::opengl::convert_blend_op(api::blend_op value)
+{
+	switch (value)
+	{
+	default:
+	case reshade::api::blend_op::add:
+		return GL_FUNC_ADD;
+	case reshade::api::blend_op::subtract:
+		return GL_FUNC_SUBTRACT;
+	case reshade::api::blend_op::rev_subtract:
+		return GL_FUNC_REVERSE_SUBTRACT;
+	case reshade::api::blend_op::min:
+		return GL_MIN;
+	case reshade::api::blend_op::max:
+		return GL_MAX;
+	}
+}
+GLenum reshade::opengl::convert_blend_factor(api::blend_factor value)
+{
+	switch (value)
+	{
+	default:
+	case reshade::api::blend_factor::zero:
+		return GL_ZERO;
+	case reshade::api::blend_factor::one:
+		return GL_ONE;
+	case reshade::api::blend_factor::src_color:
+		return GL_SRC_COLOR;
+	case reshade::api::blend_factor::inv_src_color:
+		return GL_ONE_MINUS_SRC_COLOR;
+	case reshade::api::blend_factor::dst_color:
+		return GL_DST_COLOR;
+	case reshade::api::blend_factor::inv_dst_color:
+		return GL_ONE_MINUS_DST_COLOR;
+	case reshade::api::blend_factor::src_alpha:
+		return GL_SRC_ALPHA;
+	case reshade::api::blend_factor::inv_src_alpha:
+		return GL_ONE_MINUS_SRC_ALPHA;
+	case reshade::api::blend_factor::dst_alpha:
+		return GL_DST_ALPHA;
+	case reshade::api::blend_factor::inv_dst_alpha:
+		return GL_ONE_MINUS_DST_ALPHA;
+	case reshade::api::blend_factor::constant_color:
+		return GL_CONSTANT_COLOR;
+	case reshade::api::blend_factor::inv_constant_color:
+		return GL_ONE_MINUS_CONSTANT_COLOR;
+	case reshade::api::blend_factor::constant_alpha:
+		return GL_CONSTANT_ALPHA;
+	case reshade::api::blend_factor::inv_constant_alpha:
+		return GL_ONE_MINUS_CONSTANT_ALPHA;
+	case reshade::api::blend_factor::src_alpha_sat:
+		return GL_SRC_ALPHA_SATURATE;
+	case reshade::api::blend_factor::src1_color:
+		return GL_SRC1_COLOR;
+	case reshade::api::blend_factor::inv_src1_color:
+		return GL_ONE_MINUS_SRC1_COLOR;
+	case reshade::api::blend_factor::src1_alpha:
+		return GL_SRC1_ALPHA;
+	case reshade::api::blend_factor::inv_src1_alpha:
+		return GL_ONE_MINUS_SRC1_ALPHA;
+	}
+}
+GLenum reshade::opengl::convert_fill_mode(api::fill_mode value)
+{
+	switch (value)
+	{
+	default:
+	case reshade::api::fill_mode::solid:
+		return GL_FILL;
+	case reshade::api::fill_mode::wireframe:
+		return GL_LINE;
+	case reshade::api::fill_mode::point:
+		return GL_POINT;
+	}
+}
+GLenum reshade::opengl::convert_cull_mode(api::cull_mode value)
+{
+	switch (value)
+	{
+	default:
+	case reshade::api::cull_mode::none:
+		return GL_NONE;
+	case reshade::api::cull_mode::front:
+		return GL_FRONT;
+	case reshade::api::cull_mode::back:
+		return GL_BACK;
+	case reshade::api::cull_mode::front_and_back:
+		return GL_FRONT_AND_BACK;
+	}
+}
+GLenum reshade::opengl::convert_compare_op(api::compare_op value)
+{
+	switch (value)
+	{
+	default:
+	case reshade::api::compare_op::never:
+		return GL_NEVER;
+	case reshade::api::compare_op::less:
+		return GL_LESS;
+	case reshade::api::compare_op::equal:
+		return GL_EQUAL;
+	case reshade::api::compare_op::less_equal:
+		return GL_LEQUAL;
+	case reshade::api::compare_op::greater:
+		return GL_GREATER;
+	case reshade::api::compare_op::not_equal:
+		return GL_NOTEQUAL;
+	case reshade::api::compare_op::greater_equal:
+		return GL_GEQUAL;
+	case reshade::api::compare_op::always:
+		return GL_ALWAYS;
+	}
+}
+GLenum reshade::opengl::convert_stencil_op(api::stencil_op value)
+{
+	switch (value)
+	{
+	default:
+	case reshade::api::stencil_op::keep:
+		return GL_KEEP;
+	case reshade::api::stencil_op::zero:
+		return GL_ZERO;
+	case reshade::api::stencil_op::replace:
+		return GL_REPLACE;
+	case reshade::api::stencil_op::incr_sat:
+		return GL_INCR;
+	case reshade::api::stencil_op::decr_sat:
+		return GL_DECR;
+	case reshade::api::stencil_op::invert:
+		return GL_INVERT;
+	case reshade::api::stencil_op::incr:
+		return GL_INCR_WRAP;
+	case reshade::api::stencil_op::decr:
+		return GL_DECR_WRAP;
+	}
+}
+GLenum reshade::opengl::convert_primitive_topology(api::primitive_topology value)
+{
+	switch (value)
+	{
+	default:
+	case reshade::api::primitive_topology::undefined:
+		return GL_NONE;
+	case reshade::api::primitive_topology::point_list:
+		return GL_POINTS;
+	case reshade::api::primitive_topology::line_list:
+		return GL_LINES;
+	case reshade::api::primitive_topology::line_strip:
+		return GL_LINE_STRIP;
+	case reshade::api::primitive_topology::triangle_list:
+		return GL_TRIANGLES;
+	case reshade::api::primitive_topology::triangle_strip:
+		return GL_TRIANGLE_STRIP;
+	case reshade::api::primitive_topology::triangle_fan:
+		return GL_TRIANGLE_FAN;
+	case reshade::api::primitive_topology::line_list_adj:
+		return GL_LINES_ADJACENCY;
+	case reshade::api::primitive_topology::line_strip_adj:
+		return GL_LINE_STRIP_ADJACENCY;
+	case reshade::api::primitive_topology::triangle_list_adj:
+		return GL_TRIANGLES_ADJACENCY;
+	case reshade::api::primitive_topology::triangle_strip_adj:
+		return GL_TRIANGLE_STRIP_ADJACENCY;
+	case reshade::api::primitive_topology::patch_list_01_cp:
+	case reshade::api::primitive_topology::patch_list_02_cp:
+	case reshade::api::primitive_topology::patch_list_03_cp:
+	case reshade::api::primitive_topology::patch_list_04_cp:
+	case reshade::api::primitive_topology::patch_list_05_cp:
+	case reshade::api::primitive_topology::patch_list_06_cp:
+	case reshade::api::primitive_topology::patch_list_07_cp:
+	case reshade::api::primitive_topology::patch_list_08_cp:
+	case reshade::api::primitive_topology::patch_list_09_cp:
+	case reshade::api::primitive_topology::patch_list_10_cp:
+	case reshade::api::primitive_topology::patch_list_11_cp:
+	case reshade::api::primitive_topology::patch_list_12_cp:
+	case reshade::api::primitive_topology::patch_list_13_cp:
+	case reshade::api::primitive_topology::patch_list_14_cp:
+	case reshade::api::primitive_topology::patch_list_15_cp:
+	case reshade::api::primitive_topology::patch_list_16_cp:
+	case reshade::api::primitive_topology::patch_list_17_cp:
+	case reshade::api::primitive_topology::patch_list_18_cp:
+	case reshade::api::primitive_topology::patch_list_19_cp:
+	case reshade::api::primitive_topology::patch_list_20_cp:
+	case reshade::api::primitive_topology::patch_list_21_cp:
+	case reshade::api::primitive_topology::patch_list_22_cp:
+	case reshade::api::primitive_topology::patch_list_23_cp:
+	case reshade::api::primitive_topology::patch_list_24_cp:
+	case reshade::api::primitive_topology::patch_list_25_cp:
+	case reshade::api::primitive_topology::patch_list_26_cp:
+	case reshade::api::primitive_topology::patch_list_27_cp:
+	case reshade::api::primitive_topology::patch_list_28_cp:
+	case reshade::api::primitive_topology::patch_list_29_cp:
+	case reshade::api::primitive_topology::patch_list_30_cp:
+	case reshade::api::primitive_topology::patch_list_31_cp:
+	case reshade::api::primitive_topology::patch_list_32_cp:
+		return GL_PATCHES;
+	}
+}
+GLenum reshade::opengl::convert_shader_type(api::shader_stage type)
+{
+	switch (type)
+	{
+	default:
+		return GL_NONE;
+	case api::shader_stage::vertex:
+		return GL_VERTEX_SHADER;
+	case api::shader_stage::hull:
+		return GL_TESS_CONTROL_SHADER;
+	case api::shader_stage::domain:
+		return GL_TESS_EVALUATION_SHADER;
+	case api::shader_stage::geometry:
+		return GL_GEOMETRY_SHADER;
+	case api::shader_stage::pixel:
+		return GL_FRAGMENT_SHADER;
+	case api::shader_stage::compute:
+		return GL_COMPUTE_SHADER;
+	}
+}
+
 void reshade::opengl::convert_format_to_internal_format(format format, GLenum &internalformat)
 {
 	switch (format)

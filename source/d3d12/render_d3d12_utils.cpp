@@ -116,6 +116,127 @@ void reshade::d3d12::fill_pipeline_state_values(const D3D12_GRAPHICS_PIPELINE_ST
 	values[32] = desc.DepthStencilState.BackFace.StencilFunc;
 }
 
+void reshade::d3d12::convert_blend_op(blend_op value, D3D12_BLEND_OP &internal_value)
+{
+	internal_value = static_cast<D3D12_BLEND_OP>(static_cast<uint32_t>(value) + 1);
+}
+void reshade::d3d12::convert_blend_factor(blend_factor value, D3D12_BLEND &internal_value)
+{
+	switch (value)
+	{
+	case blend_factor::zero:
+		internal_value = D3D12_BLEND_ZERO;
+		break;
+	case blend_factor::one:
+		internal_value = D3D12_BLEND_ONE;
+		break;
+	case blend_factor::src_color:
+		internal_value = D3D12_BLEND_SRC_COLOR;
+		break;
+	case blend_factor::inv_src_color:
+		internal_value = D3D12_BLEND_INV_SRC_COLOR;
+		break;
+	case blend_factor::dst_color:
+		internal_value = D3D12_BLEND_DEST_COLOR;
+		break;
+	case blend_factor::inv_dst_color:
+		internal_value = D3D12_BLEND_INV_DEST_COLOR;
+		break;
+	case blend_factor::src_alpha:
+		internal_value = D3D12_BLEND_SRC_ALPHA;
+		break;
+	case blend_factor::inv_src_alpha:
+		internal_value = D3D12_BLEND_INV_SRC_ALPHA;
+		break;
+	case blend_factor::dst_alpha:
+		internal_value = D3D12_BLEND_DEST_ALPHA;
+		break;
+	case blend_factor::inv_dst_alpha:
+		internal_value = D3D12_BLEND_INV_DEST_ALPHA;
+		break;
+	case blend_factor::constant_color:
+	case blend_factor::constant_alpha:
+		internal_value = D3D12_BLEND_BLEND_FACTOR;
+		break;
+	case blend_factor::inv_constant_color:
+	case blend_factor::inv_constant_alpha:
+		internal_value = D3D12_BLEND_INV_BLEND_FACTOR;
+		break;
+	case blend_factor::src_alpha_sat:
+		internal_value = D3D12_BLEND_SRC_ALPHA_SAT;
+		break;
+	case blend_factor::src1_color:
+		internal_value = D3D12_BLEND_SRC1_COLOR;
+		break;
+	case blend_factor::inv_src1_color:
+		internal_value = D3D12_BLEND_INV_SRC1_COLOR;
+		break;
+	case blend_factor::src1_alpha:
+		internal_value = D3D12_BLEND_SRC1_ALPHA;
+		break;
+	case blend_factor::inv_src1_alpha:
+		internal_value = D3D12_BLEND_INV_SRC1_ALPHA;
+		break;
+	}
+}
+void reshade::d3d12::convert_fill_mode(fill_mode value, D3D12_FILL_MODE &internal_value)
+{
+	switch (value)
+	{
+	case fill_mode::solid:
+		internal_value = D3D12_FILL_MODE_SOLID;
+		break;
+	case fill_mode::wireframe:
+		internal_value = D3D12_FILL_MODE_WIREFRAME;
+		break;
+	case fill_mode::point:
+		assert(false);
+		break;
+	}
+}
+void reshade::d3d12::convert_cull_mode(cull_mode value, D3D12_CULL_MODE &internal_value)
+{
+	assert(value != cull_mode::front_and_back);
+	internal_value = static_cast<D3D12_CULL_MODE>(static_cast<uint32_t>(value) + 1);
+}
+void reshade::d3d12::convert_compare_op(compare_op value, D3D12_COMPARISON_FUNC &internal_value)
+{
+	internal_value = static_cast<D3D12_COMPARISON_FUNC>(static_cast<uint32_t>(value) + 1);
+}
+void reshade::d3d12::convert_stencil_op(stencil_op value, D3D12_STENCIL_OP &internal_value)
+{
+	internal_value = static_cast<D3D12_STENCIL_OP>(static_cast<uint32_t>(value) + 1);
+}
+
+auto reshade::d3d12::convert_descriptor_type(descriptor_type type) -> D3D12_DESCRIPTOR_RANGE_TYPE
+{
+	switch (type)
+	{
+	default:
+	case reshade::api::descriptor_type::shader_resource_view:
+		return D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	case reshade::api::descriptor_type::unordered_access_view:
+		return D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+	case reshade::api::descriptor_type::constant_buffer:
+		return D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+	case reshade::api::descriptor_type::sampler:
+		return D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER;
+	}
+}
+auto reshade::d3d12::convert_descriptor_type_to_heap_type(descriptor_type type) -> D3D12_DESCRIPTOR_HEAP_TYPE
+{
+	switch (type)
+	{
+	default:
+	case reshade::api::descriptor_type::constant_buffer:
+	case reshade::api::descriptor_type::shader_resource_view:
+	case reshade::api::descriptor_type::unordered_access_view:
+		return D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	case reshade::api::descriptor_type::sampler:
+		return D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
+	}
+}
+
 D3D12_RESOURCE_STATES reshade::d3d12::convert_resource_usage_to_states(reshade::api::resource_usage usage)
 {
 	auto result = static_cast<D3D12_RESOURCE_STATES>(usage);

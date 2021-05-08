@@ -8,6 +8,123 @@
 
 using namespace reshade::api;
 
+auto reshade::d3d9::convert_blend_op(blend_op value) -> D3DBLENDOP
+{
+	return static_cast<D3DBLENDOP>(static_cast<uint32_t>(value) + 1);
+}
+auto reshade::d3d9::convert_blend_factor(blend_factor value) -> D3DBLEND
+{
+	switch (value)
+	{
+	default:
+	case blend_factor::zero:
+		return D3DBLEND_ZERO;
+	case blend_factor::one:
+		return D3DBLEND_ONE;
+	case blend_factor::src_color:
+		return D3DBLEND_SRCCOLOR;
+	case blend_factor::inv_src_color:
+		return D3DBLEND_INVSRCCOLOR;
+	case blend_factor::dst_color:
+		return D3DBLEND_DESTCOLOR;
+	case blend_factor::inv_dst_color:
+		return D3DBLEND_INVDESTCOLOR;
+	case blend_factor::src_alpha:
+		return D3DBLEND_SRCALPHA;
+	case blend_factor::inv_src_alpha:
+		return D3DBLEND_INVSRCALPHA;
+	case blend_factor::dst_alpha:
+		return D3DBLEND_DESTALPHA;
+	case blend_factor::inv_dst_alpha:
+		return D3DBLEND_INVDESTALPHA;
+	case blend_factor::constant_color:
+	case blend_factor::constant_alpha:
+		return D3DBLEND_BLENDFACTOR;
+	case blend_factor::inv_constant_color:
+	case blend_factor::inv_constant_alpha:
+		return D3DBLEND_INVBLENDFACTOR;
+	case blend_factor::src_alpha_sat:
+		return D3DBLEND_SRCALPHASAT;
+	case blend_factor::src1_color:
+		return D3DBLEND_SRCCOLOR2;
+	case blend_factor::inv_src1_color:
+		return D3DBLEND_INVSRCCOLOR2;
+	case blend_factor::src1_alpha:
+		assert(false);
+		return D3DBLEND_SRCALPHA;
+	case blend_factor::inv_src1_alpha:
+		assert(false);
+		return D3DBLEND_INVSRCALPHA;
+	}
+}
+auto reshade::d3d9::convert_fill_mode(fill_mode value) -> D3DFILLMODE
+{
+	switch (value)
+	{
+	case fill_mode::point:
+		return D3DFILL_POINT;
+	case fill_mode::wireframe:
+		return D3DFILL_WIREFRAME;
+	default:
+	case fill_mode::solid:
+		return D3DFILL_SOLID;
+	}
+}
+auto reshade::d3d9::convert_cull_mode(cull_mode value, bool front_counter_clockwise) -> D3DCULL
+{
+	if (value == api::cull_mode::none)
+		return D3DCULL_NONE;
+	return (value == api::cull_mode::front) == front_counter_clockwise ? D3DCULL_CCW : D3DCULL_CW;
+}
+auto reshade::d3d9::convert_compare_op(compare_op value) -> D3DCMPFUNC
+{
+	return static_cast<D3DCMPFUNC>(static_cast<uint32_t>(value) + 1);
+}
+auto reshade::d3d9::convert_stencil_op(stencil_op value) -> D3DSTENCILOP
+{
+	return static_cast<D3DSTENCILOP>(static_cast<uint32_t>(value) + 1);
+}
+auto reshade::d3d9::convert_primitive_topology(api::primitive_topology value) -> D3DPRIMITIVETYPE
+{
+	assert(value <= api::primitive_topology::triangle_fan);
+	return static_cast<D3DPRIMITIVETYPE>(value);
+}
+
+UINT reshade::d3d9::calc_vertex_from_prim_count(D3DPRIMITIVETYPE type, UINT count)
+{
+	switch (type)
+	{
+	default:
+		return 0;
+	case D3DPT_LINELIST:
+		return count * 2;
+	case D3DPT_LINESTRIP:
+		return count + 1;
+	case D3DPT_TRIANGLELIST:
+		return count * 3;
+	case D3DPT_TRIANGLESTRIP:
+	case D3DPT_TRIANGLEFAN:
+		return count + 2;
+	}
+}
+UINT reshade::d3d9::calc_prim_from_vertex_count(D3DPRIMITIVETYPE type, UINT count)
+{
+	switch (type)
+	{
+	default:
+		return 0;
+	case D3DPT_LINELIST:
+		return count / 2;
+	case D3DPT_LINESTRIP:
+		return count - 1;
+	case D3DPT_TRIANGLELIST:
+		return count / 3;
+	case D3DPT_TRIANGLESTRIP:
+	case D3DPT_TRIANGLEFAN:
+		return count - 2;
+	}
+}
+
 void reshade::d3d9::convert_format_to_d3d_format(format format, D3DFORMAT &d3d_format, bool lockable)
 {
 	switch (format)

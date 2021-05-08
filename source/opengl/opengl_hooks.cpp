@@ -1078,12 +1078,23 @@ HOOK_EXPORT void WINAPI glDrawBuffer(GLenum mode)
 HOOK_EXPORT void WINAPI glDrawElements(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices)
 {
 #if RESHADE_ADDON
-	GLint index_buffer_binding = 0;
-	glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &index_buffer_binding);
+	if (g_current_runtime)
+	{
+		if (mode != g_current_runtime->_current_prim_mode)
+		{
+			const reshade::api::pipeline_state state = reshade::api::pipeline_state::primitive_topology;
+			reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_runtime, 1, &state, &mode);
+		}
 
-	if (g_current_runtime &&
-		reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(g_current_runtime, count, 1, index_buffer_binding != 0 ? static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices) / reshade::opengl::get_index_type_size(type)) : 0, 0, 0))
-		return;
+		g_current_runtime->_current_prim_mode = mode;
+		g_current_runtime->_current_index_type = type;
+
+		GLint index_buffer_binding = 0;
+		glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &index_buffer_binding);
+
+		if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(g_current_runtime, count, 1, index_buffer_binding != 0 ? static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices) / reshade::opengl::get_index_type_size(type)) : 0, 0, 0))
+			return;
+	}
 #endif
 
 	static const auto trampoline = reshade::hooks::call(glDrawElements);
@@ -1092,12 +1103,23 @@ HOOK_EXPORT void WINAPI glDrawElements(GLenum mode, GLsizei count, GLenum type, 
 			void WINAPI glDrawElementsBaseVertex(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLint basevertex)
 {
 #if RESHADE_ADDON
-	GLint index_buffer_binding = 0;
-	glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &index_buffer_binding);
+	if (g_current_runtime)
+	{
+		if (mode != g_current_runtime->_current_prim_mode)
+		{
+			const reshade::api::pipeline_state state = reshade::api::pipeline_state::primitive_topology;
+			reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_runtime, 1, &state, &mode);
+		}
 
-	if (g_current_runtime &&
-		reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(g_current_runtime, count, 1, index_buffer_binding != 0 ? static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices) / reshade::opengl::get_index_type_size(type)) : 0, basevertex, 0))
-		return;
+		g_current_runtime->_current_prim_mode = mode;
+		g_current_runtime->_current_index_type = type;
+
+		GLint index_buffer_binding = 0;
+		glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &index_buffer_binding);
+
+		if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(g_current_runtime, count, 1, index_buffer_binding != 0 ? static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices) / reshade::opengl::get_index_type_size(type)) : 0, basevertex, 0))
+			return;
+	}
 #endif
 
 	static const auto trampoline = reshade::hooks::call(glDrawElementsBaseVertex);
@@ -1111,9 +1133,20 @@ HOOK_EXPORT void WINAPI glDrawElements(GLenum mode, GLsizei count, GLenum type, 
 
 	if (0 != indirect_buffer_binding)
 	{
-		if (g_current_runtime &&
-			reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(g_current_runtime, reshade::addon_event::draw_indexed, reshade::opengl::make_resource_handle(GL_DRAW_INDIRECT_BUFFER, indirect_buffer_binding), reinterpret_cast<uintptr_t>(indirect), 1, 0))
-			return;
+		if (g_current_runtime)
+		{
+			if (mode != g_current_runtime->_current_prim_mode)
+			{
+				const reshade::api::pipeline_state state = reshade::api::pipeline_state::primitive_topology;
+				reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_runtime, 1, &state, &mode);
+			}
+
+			g_current_runtime->_current_prim_mode = mode;
+			g_current_runtime->_current_index_type = type;
+
+			if (reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(g_current_runtime, reshade::addon_event::draw_indexed, reshade::opengl::make_resource_handle(GL_DRAW_INDIRECT_BUFFER, indirect_buffer_binding), reinterpret_cast<uintptr_t>(indirect), 1, 0))
+				return;
+		}
 	}
 	else
 	{
@@ -1129,12 +1162,23 @@ HOOK_EXPORT void WINAPI glDrawElements(GLenum mode, GLsizei count, GLenum type, 
 			void WINAPI glDrawElementsInstanced(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount)
 {
 #if RESHADE_ADDON
-	GLint index_buffer_binding = 0;
-	glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &index_buffer_binding);
+	if (g_current_runtime)
+	{
+		if (mode != g_current_runtime->_current_prim_mode)
+		{
+			const reshade::api::pipeline_state state = reshade::api::pipeline_state::primitive_topology;
+			reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_runtime, 1, &state, &mode);
+		}
 
-	if (g_current_runtime &&
-		reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(g_current_runtime, primcount, count, index_buffer_binding != 0 ? static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices) / reshade::opengl::get_index_type_size(type)) : 0, 0, 0))
-		return;
+		g_current_runtime->_current_prim_mode = mode;
+		g_current_runtime->_current_index_type = type;
+
+		GLint index_buffer_binding = 0;
+		glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &index_buffer_binding);
+
+		if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(g_current_runtime, primcount, count, index_buffer_binding != 0 ? static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices) / reshade::opengl::get_index_type_size(type)) : 0, 0, 0))
+			return;
+	}
 #endif
 
 	static const auto trampoline = reshade::hooks::call(glDrawElementsInstanced);
@@ -1143,12 +1187,23 @@ HOOK_EXPORT void WINAPI glDrawElements(GLenum mode, GLsizei count, GLenum type, 
 			void WINAPI glDrawElementsInstancedBaseVertex(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount, GLint basevertex)
 {
 #if RESHADE_ADDON
-	GLint index_buffer_binding = 0;
-	glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &index_buffer_binding);
+	if (g_current_runtime)
+	{
+		if (mode != g_current_runtime->_current_prim_mode)
+		{
+			const reshade::api::pipeline_state state = reshade::api::pipeline_state::primitive_topology;
+			reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_runtime, 1, &state, &mode);
+		}
 
-	if (g_current_runtime &&
-		reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(g_current_runtime, primcount, count, index_buffer_binding != 0 ? static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices) / reshade::opengl::get_index_type_size(type)) : 0, basevertex, 0))
-		return;
+		g_current_runtime->_current_prim_mode = mode;
+		g_current_runtime->_current_index_type = type;
+
+		GLint index_buffer_binding = 0;
+		glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &index_buffer_binding);
+
+		if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(g_current_runtime, primcount, count, index_buffer_binding != 0 ? static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices) / reshade::opengl::get_index_type_size(type)) : 0, basevertex, 0))
+			return;
+	}
 #endif
 
 	static const auto trampoline = reshade::hooks::call(glDrawElementsInstancedBaseVertex);
@@ -1157,12 +1212,23 @@ HOOK_EXPORT void WINAPI glDrawElements(GLenum mode, GLsizei count, GLenum type, 
 			void WINAPI glDrawElementsInstancedBaseInstance(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount, GLuint baseinstance)
 {
 #if RESHADE_ADDON
-	GLint index_buffer_binding = 0;
-	glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &index_buffer_binding);
+	if (g_current_runtime)
+	{
+		if (mode != g_current_runtime->_current_prim_mode)
+		{
+			const reshade::api::pipeline_state state = reshade::api::pipeline_state::primitive_topology;
+			reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_runtime, 1, &state, &mode);
+		}
 
-	if (g_current_runtime &&
-		reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(g_current_runtime, primcount, count, index_buffer_binding != 0 ? static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices) / reshade::opengl::get_index_type_size(type)) : 0, 0, baseinstance))
-		return;
+		g_current_runtime->_current_prim_mode = mode;
+		g_current_runtime->_current_index_type = type;
+
+		GLint index_buffer_binding = 0;
+		glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &index_buffer_binding);
+
+		if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(g_current_runtime, primcount, count, index_buffer_binding != 0 ? static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices) / reshade::opengl::get_index_type_size(type)) : 0, 0, baseinstance))
+			return;
+	}
 #endif
 
 	static const auto trampoline = reshade::hooks::call(glDrawElementsInstancedBaseInstance);
@@ -1171,12 +1237,23 @@ HOOK_EXPORT void WINAPI glDrawElements(GLenum mode, GLsizei count, GLenum type, 
 			void WINAPI glDrawElementsInstancedBaseVertexBaseInstance(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount, GLint basevertex, GLuint baseinstance)
 {
 #if RESHADE_ADDON
-	GLint index_buffer_binding = 0;
-	glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &index_buffer_binding);
+	if (g_current_runtime)
+	{
+		if (mode != g_current_runtime->_current_prim_mode)
+		{
+			const reshade::api::pipeline_state state = reshade::api::pipeline_state::primitive_topology;
+			reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_runtime, 1, &state, &mode);
+		}
 
-	if (g_current_runtime &&
-		reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(g_current_runtime, primcount, count, index_buffer_binding != 0 ? static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices) / reshade::opengl::get_index_type_size(type)) : 0, basevertex, baseinstance))
-		return;
+		g_current_runtime->_current_prim_mode = mode;
+		g_current_runtime->_current_index_type = type;
+
+		GLint index_buffer_binding = 0;
+		glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &index_buffer_binding);
+
+		if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(g_current_runtime, primcount, count, index_buffer_binding != 0 ? static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices) / reshade::opengl::get_index_type_size(type)) : 0, basevertex, baseinstance))
+			return;
+	}
 #endif
 
 	static const auto trampoline = reshade::hooks::call(glDrawElementsInstancedBaseVertexBaseInstance);
@@ -1192,12 +1269,23 @@ HOOK_EXPORT void WINAPI glDrawPixels(GLsizei width, GLsizei height, GLenum forma
 			void WINAPI glDrawRangeElements(GLenum mode, GLuint start, GLuint end, GLsizei count, GLenum type, const GLvoid *indices)
 {
 #if RESHADE_ADDON
-	GLint index_buffer_binding = 0;
-	glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &index_buffer_binding);
+	if (g_current_runtime)
+	{
+		if (mode != g_current_runtime->_current_prim_mode)
+		{
+			const reshade::api::pipeline_state state = reshade::api::pipeline_state::primitive_topology;
+			reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_runtime, 1, &state, &mode);
+		}
 
-	if (g_current_runtime &&
-		reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(g_current_runtime, count, 1, index_buffer_binding != 0 ? static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices) / reshade::opengl::get_index_type_size(type)) : 0, 0, 0))
-		return;
+		g_current_runtime->_current_prim_mode = mode;
+		g_current_runtime->_current_index_type = type;
+
+		GLint index_buffer_binding = 0;
+		glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &index_buffer_binding);
+
+		if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(g_current_runtime, count, 1, index_buffer_binding != 0 ? static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices) / reshade::opengl::get_index_type_size(type)) : 0, 0, 0))
+			return;
+	}
 #endif
 
 	static const auto trampoline = reshade::hooks::call(glDrawRangeElements);
@@ -1206,12 +1294,23 @@ HOOK_EXPORT void WINAPI glDrawPixels(GLsizei width, GLsizei height, GLenum forma
 			void WINAPI glDrawRangeElementsBaseVertex(GLenum mode, GLuint start, GLuint end, GLsizei count, GLenum type, const GLvoid *indices, GLint basevertex)
 {
 #if RESHADE_ADDON
-	GLint index_buffer_binding = 0;
-	glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &index_buffer_binding);
+	if (g_current_runtime)
+	{
+		if (mode != g_current_runtime->_current_prim_mode)
+		{
+			const reshade::api::pipeline_state state = reshade::api::pipeline_state::primitive_topology;
+			reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_runtime, 1, &state, &mode);
+		}
 
-	if (g_current_runtime &&
-		reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(g_current_runtime, count, 1, index_buffer_binding != 0 ? static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices) / reshade::opengl::get_index_type_size(type)) : 0, basevertex, 0))
-		return;
+		g_current_runtime->_current_prim_mode = mode;
+		g_current_runtime->_current_index_type = type;
+
+		GLint index_buffer_binding = 0;
+		glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &index_buffer_binding);
+
+		if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(g_current_runtime, count, 1, index_buffer_binding != 0 ? static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices) / reshade::opengl::get_index_type_size(type)) : 0, basevertex, 0))
+			return;
+	}
 #endif
 
 	static const auto trampoline = reshade::hooks::call(glDrawRangeElementsBaseVertex);
@@ -1938,9 +2037,20 @@ HOOK_EXPORT void WINAPI glMultMatrixf(const GLfloat *m)
 
 	if (0 != indirect_buffer_binding)
 	{
-		if (g_current_runtime &&
-			reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(g_current_runtime, reshade::addon_event::draw_indexed, reshade::opengl::make_resource_handle(GL_DRAW_INDIRECT_BUFFER, indirect_buffer_binding), reinterpret_cast<uintptr_t>(indirect), drawcount, stride))
-			return;
+		if (g_current_runtime)
+		{
+			if (mode != g_current_runtime->_current_prim_mode)
+			{
+				const reshade::api::pipeline_state state = reshade::api::pipeline_state::primitive_topology;
+				reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_runtime, 1, &state, &mode);
+			}
+
+			g_current_runtime->_current_prim_mode = mode;
+			g_current_runtime->_current_index_type = type;
+
+			if (reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(g_current_runtime, reshade::addon_event::draw_indexed, reshade::opengl::make_resource_handle(GL_DRAW_INDIRECT_BUFFER, indirect_buffer_binding), reinterpret_cast<uintptr_t>(indirect), drawcount, stride))
+				return;
+		}
 	}
 	else
 	{

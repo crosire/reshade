@@ -292,6 +292,102 @@ static void convert_bind_flags_to_resource_usage(UINT bind_flags, resource_usage
 		usage |= resource_usage::constant_buffer;
 }
 
+void reshade::d3d11::convert_blend_op(blend_op value, D3D11_BLEND_OP &internal_value)
+{
+	internal_value = static_cast<D3D11_BLEND_OP>(static_cast<uint32_t>(value) + 1);
+}
+void reshade::d3d11::convert_blend_factor(blend_factor value, D3D11_BLEND &internal_value)
+{
+	switch (value)
+	{
+	case blend_factor::zero:
+		internal_value = D3D11_BLEND_ZERO;
+		break;
+	case blend_factor::one:
+		internal_value = D3D11_BLEND_ONE;
+		break;
+	case blend_factor::src_color:
+		internal_value = D3D11_BLEND_SRC_COLOR;
+		break;
+	case blend_factor::inv_src_color:
+		internal_value = D3D11_BLEND_INV_SRC_COLOR;
+		break;
+	case blend_factor::dst_color:
+		internal_value = D3D11_BLEND_DEST_COLOR;
+		break;
+	case blend_factor::inv_dst_color:
+		internal_value = D3D11_BLEND_INV_DEST_COLOR;
+		break;
+	case blend_factor::src_alpha:
+		internal_value = D3D11_BLEND_SRC_ALPHA;
+		break;
+	case blend_factor::inv_src_alpha:
+		internal_value = D3D11_BLEND_INV_SRC_ALPHA;
+		break;
+	case blend_factor::dst_alpha:
+		internal_value = D3D11_BLEND_DEST_ALPHA;
+		break;
+	case blend_factor::inv_dst_alpha:
+		internal_value = D3D11_BLEND_INV_DEST_ALPHA;
+		break;
+	case blend_factor::constant_color:
+	case blend_factor::constant_alpha:
+		internal_value = D3D11_BLEND_BLEND_FACTOR;
+		break;
+	case blend_factor::inv_constant_color:
+	case blend_factor::inv_constant_alpha:
+		internal_value = D3D11_BLEND_INV_BLEND_FACTOR;
+		break;
+	case blend_factor::src_alpha_sat:
+		internal_value = D3D11_BLEND_SRC_ALPHA_SAT;
+		break;
+	case blend_factor::src1_color:
+		internal_value = D3D11_BLEND_SRC1_COLOR;
+		break;
+	case blend_factor::inv_src1_color:
+		internal_value = D3D11_BLEND_INV_SRC1_COLOR;
+		break;
+	case blend_factor::src1_alpha:
+		internal_value = D3D11_BLEND_SRC1_ALPHA;
+		break;
+	case blend_factor::inv_src1_alpha:
+		internal_value = D3D11_BLEND_INV_SRC1_ALPHA;
+		break;
+	}
+}
+void reshade::d3d11::convert_fill_mode(fill_mode value, D3D11_FILL_MODE &internal_value)
+{
+	switch (value)
+	{
+	case fill_mode::solid:
+		internal_value = D3D11_FILL_SOLID;
+		break;
+	case fill_mode::wireframe:
+		internal_value = D3D11_FILL_WIREFRAME;
+		break;
+	case fill_mode::point:
+		assert(false);
+		break;
+	}
+}
+void reshade::d3d11::convert_cull_mode(cull_mode value, D3D11_CULL_MODE &internal_value)
+{
+	assert(value != cull_mode::front_and_back);
+	internal_value = static_cast<D3D11_CULL_MODE>(static_cast<uint32_t>(value) + 1);
+}
+void reshade::d3d11::convert_compare_op(compare_op value, D3D11_COMPARISON_FUNC &internal_value)
+{
+	internal_value = static_cast<D3D11_COMPARISON_FUNC>(static_cast<uint32_t>(value) + 1);
+}
+void reshade::d3d11::convert_stencil_op(stencil_op value, D3D11_STENCIL_OP &internal_value)
+{
+	internal_value = static_cast<D3D11_STENCIL_OP>(static_cast<uint32_t>(value) + 1);
+}
+auto reshade::d3d11::convert_primitive_topology(api::primitive_topology value) -> D3D11_PRIMITIVE_TOPOLOGY
+{
+	return static_cast<D3D11_PRIMITIVE_TOPOLOGY>(value);
+}
+
 void reshade::d3d11::convert_sampler_desc(const sampler_desc &desc, D3D11_SAMPLER_DESC &internal_desc)
 {
 	internal_desc.Filter = static_cast<D3D11_FILTER>(desc.filter);

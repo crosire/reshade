@@ -12,6 +12,7 @@
 #include <vk_mem_alloc.h>
 #pragma warning(pop)
 #include <vk_layer_dispatch_table.h>
+#include <unordered_map>
 
 namespace reshade::vulkan
 {
@@ -93,12 +94,29 @@ namespace reshade::vulkan
 		bool create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage initial_state, api::resource *out) final;
 		bool create_resource_view(api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view *out) final;
 
+		bool create_pipeline(const api::pipeline_desc &desc, api::pipeline *out) final;
+		bool create_pipeline_compute(const api::pipeline_desc &desc, api::pipeline *out);
+		bool create_pipeline_graphics_all(const api::pipeline_desc &desc, api::pipeline *out);
+
+		bool create_shader_module(api::shader_stage type, api::shader_format format, const char *entry_point, const void *data, size_t size, api::shader_module *out) final;
+		bool create_pipeline_layout(uint32_t num_table_layouts, const api::descriptor_table_layout *table_layouts, uint32_t num_constant_ranges, const api::constant_range *constant_ranges, api::pipeline_layout *out) final;
+		bool create_descriptor_heap(uint32_t max_tables, uint32_t num_sizes, const api::descriptor_heap_size *sizes, api::descriptor_heap *out) final;
+		bool create_descriptor_table(api::descriptor_heap heap, api::descriptor_table_layout layout, api::descriptor_table *out) final;
+		bool create_descriptor_table_layout(uint32_t num_ranges, const api::descriptor_range *ranges, bool push_descriptors, api::descriptor_table_layout *out) final;
+
 		void destroy_sampler(api::sampler handle) final;
 		void destroy_resource(api::resource handle) final;
 		void destroy_resource_view(api::resource_view handle) final;
 
-		void get_resource_from_view(api::resource_view view, api::resource *out_resource) const final;
+		void destroy_pipeline(api::pipeline_type type, api::pipeline handle) final;
+		void destroy_shader_module(api::shader_module handle) final;
+		void destroy_pipeline_layout(api::pipeline_layout handle) final;
+		void destroy_descriptor_heap(api::descriptor_heap handle) final;
+		void destroy_descriptor_table_layout(api::descriptor_table_layout handle) final;
 
+		void update_descriptor_tables(uint32_t num_updates, const api::descriptor_update *updates) final;
+
+		void get_resource_from_view(api::resource_view view, api::resource *out_resource) const final;
 		api::resource_desc get_resource_desc(api::resource resource) const final;
 
 		void wait_idle() const final;
@@ -155,6 +173,8 @@ namespace reshade::vulkan
 		void unregister_buffer(VkBuffer buffer) { _resources.erase((uint64_t)buffer); }
 		void unregister_buffer_view(VkBufferView buffer_view) { _views.erase((uint64_t)buffer_view); }
 
+		bool request_render_pass_and_framebuffer(uint32_t count, const reshade::api::resource_view *rtvs, reshade::api::resource_view dsv, VkRenderPass &out_pass, VkFramebuffer &out_fbo);
+
 		const VkPhysicalDevice _physical_device;
 		const VkLayerDispatchTable _dispatch_table;
 		const VkLayerInstanceDispatchTable _instance_dispatch_table;
@@ -170,6 +190,8 @@ namespace reshade::vulkan
 		lockfree_table<VkRenderPass, render_pass_data, 4096> _render_pass_list;
 		lockfree_table<VkFramebuffer, std::vector<api::resource_view>, 4096> _framebuffer_list;
 #endif
+		std::unordered_map<size_t, VkRenderPass> _render_pass_list_internal;
+		std::unordered_map<size_t, VkFramebuffer> _framebuffer_list_internal;
 	};
 
 	class command_list_impl : public api::api_object_impl<VkCommandBuffer, api::command_list>
@@ -179,6 +201,25 @@ namespace reshade::vulkan
 		~command_list_impl();
 
 		api::device *get_device() final { return _device_impl; }
+
+		void bind_index_buffer(api::resource buffer, uint64_t offset, uint32_t index_size) final;
+		void bind_vertex_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *strides) final;
+
+		void bind_pipeline(api::pipeline_type type, api::pipeline pipeline) final;
+		void bind_pipeline_states(uint32_t count, const api::pipeline_state *states, const uint32_t *values) final;
+
+		void push_constants(api::shader_stage stage, api::pipeline_layout layout, uint32_t layout_index, uint32_t first, uint32_t count, const uint32_t *values) final;
+		void push_descriptors(api::shader_stage stage, api::pipeline_layout layout, uint32_t layout_index, api::descriptor_type type, uint32_t first, uint32_t count, const void *descriptors) final;
+		void bind_descriptor_heaps(uint32_t count, const api::descriptor_heap *heaps) final;
+		void bind_descriptor_tables(api::shader_stage stage, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_table *tables) final;
+
+		void bind_viewports(uint32_t first, uint32_t count, const float *viewports) final;
+		void bind_scissor_rects(uint32_t first, uint32_t count, const int32_t *rects) final;
+		void bind_render_targets_and_depth_stencil(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv) final;
+
+		void draw(uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance) final;
+		void draw_indexed(uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance) final;
+		void dispatch(uint32_t num_groups_x, uint32_t num_groups_y, uint32_t num_groups_z) final;
 
 		void blit(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], api::texture_filter filter) final;
 		void resolve(api::resource src, uint32_t src_subresource, const int32_t src_offset[3], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3], uint32_t format) final;

@@ -8,6 +8,77 @@
 #include <cassert>
 #include <algorithm>
 
+namespace
+{
+	struct pipeline_layout_impl
+	{
+		~pipeline_layout_impl()
+		{
+			glDeleteBuffers(1, &push_constants);
+		}
+
+		GLuint push_constants;
+		GLuint push_constants_binding;
+	};
+
+	struct pipeline_compute_impl
+	{
+		~pipeline_compute_impl()
+		{
+			glDeleteProgram(program);
+		}
+
+		GLuint program;
+	};
+	struct pipeline_graphics_impl
+	{
+		~pipeline_graphics_impl()
+		{
+			glDeleteProgram(program);
+			glDeleteVertexArrays(1, &vao);
+		}
+
+		GLuint program;
+		GLuint vao;
+
+		GLenum prim_mode;
+		GLuint patch_vertices;
+		GLenum front_face;
+		GLenum cull_mode;
+		GLenum polygon_mode;
+
+		GLenum blend_eq;
+		GLenum blend_eq_alpha;
+		GLenum blend_src;
+		GLenum blend_dst;
+		GLenum blend_src_alpha;
+		GLenum blend_dst_alpha;
+
+		GLenum back_stencil_op_fail;
+		GLenum back_stencil_op_depth_fail;
+		GLenum back_stencil_op_pass;
+		GLenum back_stencil_func;
+		GLenum front_stencil_op_fail;
+		GLenum front_stencil_op_depth_fail;
+		GLenum front_stencil_op_pass;
+		GLenum front_stencil_func;
+		GLuint stencil_read_mask;
+		GLuint stencil_write_mask;
+
+		GLboolean blend_enable;
+		GLboolean depth_test;
+		GLboolean depth_write_mask;
+		GLboolean stencil_test;
+		GLboolean scissor_test;
+		GLboolean multisample;
+		GLboolean sample_alpha_to_coverage;
+		GLbitfield sample_mask;
+
+		GLuint color_write_mask;
+		GLint stencil_reference_value;
+	};
+}
+
 static GLint get_rbo_param(GLuint id, GLenum param)
 {
 	GLint value = 0;
@@ -510,6 +581,381 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource resource, 
 	}
 }
 
+bool reshade::opengl::device_impl::create_pipeline(const api::pipeline_desc &desc, api::pipeline *out)
+{
+	switch (desc.type)
+	{
+	default:
+		*out = { 0 };
+		return false;
+	case api::pipeline_type::compute:
+		return create_pipeline_compute(desc, out);
+	case api::pipeline_type::graphics_all:
+		return create_pipeline_graphics(desc, out);
+	}
+}
+bool reshade::opengl::device_impl::create_pipeline_compute(const api::pipeline_desc &desc, api::pipeline *out)
+{
+	const GLuint program = glCreateProgram();
+
+	if (desc.compute.shader.handle != 0)
+		glAttachShader(program, static_cast<GLuint>(desc.compute.shader.handle));
+
+	glLinkProgram(program);
+
+	if (desc.compute.shader.handle != 0)
+		glDetachShader(program, static_cast<GLuint>(desc.compute.shader.handle));
+
+	GLint status = GL_FALSE;
+	glGetProgramiv(program, GL_LINK_STATUS, &status);
+	if (GL_FALSE == status)
+	{
+		glDeleteProgram(program);
+
+		*out = { 0 };
+		return false;
+	}
+
+	const auto state = new pipeline_compute_impl();
+	state->program = program;
+
+	*out = { reinterpret_cast<uintptr_t>(state) };
+	return true;
+}
+bool reshade::opengl::device_impl::create_pipeline_graphics(const api::pipeline_desc &desc, api::pipeline *out)
+{
+	const GLuint program = glCreateProgram();
+
+	if (desc.graphics.vertex_shader.handle != 0)
+		glAttachShader(program, static_cast<GLuint>(desc.graphics.vertex_shader.handle));
+	if (desc.graphics.hull_shader.handle != 0)
+		glAttachShader(program, static_cast<GLuint>(desc.graphics.hull_shader.handle));
+	if (desc.graphics.domain_shader.handle != 0)
+		glAttachShader(program, static_cast<GLuint>(desc.graphics.domain_shader.handle));
+	if (desc.graphics.geometry_shader.handle != 0)
+		glAttachShader(program, static_cast<GLuint>(desc.graphics.geometry_shader.handle));
+	if (desc.graphics.pixel_shader.handle != 0)
+		glAttachShader(program, static_cast<GLuint>(desc.graphics.pixel_shader.handle));
+
+	glLinkProgram(program);
+
+	if (desc.graphics.vertex_shader.handle != 0)
+		glDetachShader(program, static_cast<GLuint>(desc.graphics.vertex_shader.handle));
+	if (desc.graphics.hull_shader.handle != 0)
+		glDetachShader(program, static_cast<GLuint>(desc.graphics.hull_shader.handle));
+	if (desc.graphics.domain_shader.handle != 0)
+		glDetachShader(program, static_cast<GLuint>(desc.graphics.domain_shader.handle));
+	if (desc.graphics.geometry_shader.handle != 0)
+		glDetachShader(program, static_cast<GLuint>(desc.graphics.geometry_shader.handle));
+	if (desc.graphics.pixel_shader.handle != 0)
+		glDetachShader(program, static_cast<GLuint>(desc.graphics.pixel_shader.handle));
+
+	GLint status = GL_FALSE;
+	glGetProgramiv(program, GL_LINK_STATUS, &status);
+	if (GL_FALSE == status)
+	{
+		glDeleteProgram(program);
+
+		*out = { 0 };
+		return false;
+	}
+
+	const auto state = new pipeline_graphics_impl();
+	state->program = program;
+
+	{
+		GLuint prev_vao = 0;
+		glGenVertexArrays(1, &state->vao);
+		glGetIntegerv(GL_VERTEX_ARRAY_BINDING, reinterpret_cast<GLint *>(&prev_vao));
+
+		glBindVertexArray(state->vao);
+
+		for (uint32_t i = 0; i < 16 && desc.graphics.input_layout[i].format != api::format::unknown; ++i)
+		{
+			const auto &element = desc.graphics.input_layout[i];
+
+			glEnableVertexAttribArray(element.location);
+
+			GLint attrib_size = 0;
+			GLenum attrib_format = GL_NONE;
+			GLboolean normalized = GL_FALSE;
+			switch (element.format)
+			{
+			default:
+				assert(false);
+				glBindVertexArray(prev_vao);
+				glDeleteProgram(program);
+				glDeleteVertexArrays(1, &state->vao);
+				delete state;
+				*out = { 0 };
+				return false;
+			case api::format::r8g8b8a8_unorm:
+				normalized = GL_TRUE;
+				// fall through
+			case api::format::r8g8b8a8_uint:
+				attrib_size = 4;
+				attrib_format = GL_UNSIGNED_BYTE;
+				break;
+			case api::format::b8g8r8a8_unorm:
+				normalized = GL_TRUE;
+				attrib_size = GL_BGRA;
+				attrib_format = GL_UNSIGNED_BYTE;
+				break;
+			case api::format::r10g10b10a2_unorm:
+				normalized = GL_TRUE;
+				// fall through
+			case api::format::r10g10b10a2_uint:
+				attrib_size = 4;
+				attrib_format = GL_UNSIGNED_INT_2_10_10_10_REV;
+				break;
+			case api::format::r16_unorm:
+				normalized = GL_TRUE;
+				// fall through
+			case api::format::r16_uint:
+				attrib_size = 1;
+				attrib_format = GL_UNSIGNED_SHORT;
+				break;
+			case api::format::r16_snorm:
+				normalized = GL_TRUE;
+				// fall through
+			case api::format::r16_sint:
+				attrib_size = 1;
+				attrib_format = GL_SHORT;
+				break;
+			case api::format::r16_float:
+				attrib_size = 1;
+				attrib_format = GL_HALF_FLOAT;
+				break;
+			case api::format::r16g16_unorm:
+				normalized = GL_TRUE;
+				// fall through
+			case api::format::r16g16_uint:
+				attrib_size = 2;
+				attrib_format = GL_UNSIGNED_SHORT;
+				break;
+			case api::format::r16g16_snorm:
+				normalized = GL_TRUE;
+				// fall through
+			case api::format::r16g16_sint:
+				attrib_size = 2;
+				attrib_format = GL_SHORT;
+				break;
+			case api::format::r16g16_float:
+				attrib_size = 2;
+				attrib_format = GL_HALF_FLOAT;
+				break;
+			case api::format::r16g16b16a16_unorm:
+				normalized = GL_TRUE;
+				// fall through
+			case api::format::r16g16b16a16_uint:
+				attrib_size = 4;
+				attrib_format = GL_UNSIGNED_SHORT;
+				break;
+			case api::format::r16g16b16a16_snorm:
+				normalized = GL_TRUE;
+				// fall through
+			case api::format::r16g16b16a16_sint:
+				attrib_size = 4;
+				attrib_format = GL_SHORT;
+				break;
+			case api::format::r16g16b16a16_float:
+				attrib_size = 4;
+				attrib_format = GL_HALF_FLOAT;
+				break;
+			case api::format::r32_uint:
+				attrib_size = 1;
+				attrib_format = GL_UNSIGNED_INT;
+				break;
+			case api::format::r32_sint:
+				attrib_size = 1;
+				attrib_format = GL_INT;
+				break;
+			case api::format::r32_float:
+				attrib_size = 1;
+				attrib_format = GL_FLOAT;
+				break;
+			case api::format::r32g32_uint:
+				attrib_size = 2;
+				attrib_format = GL_UNSIGNED_INT;
+				break;
+			case api::format::r32g32_sint:
+				attrib_size = 2;
+				attrib_format = GL_INT;
+				break;
+			case api::format::r32g32_float:
+				attrib_size = 2;
+				attrib_format = GL_FLOAT;
+				break;
+			case api::format::r32g32b32_uint:
+				attrib_size = 3;
+				attrib_format = GL_UNSIGNED_INT;
+				break;
+			case api::format::r32g32b32_sint:
+				attrib_size = 3;
+				attrib_format = GL_INT;
+				break;
+			case api::format::r32g32b32_float:
+				attrib_size = 3;
+				attrib_format = GL_FLOAT;
+				break;
+			case api::format::r32g32b32a32_uint:
+				attrib_size = 4;
+				attrib_format = GL_UNSIGNED_INT;
+				break;
+			case api::format::r32g32b32a32_sint:
+				attrib_size = 4;
+				attrib_format = GL_INT;
+				break;
+			case api::format::r32g32b32a32_float:
+				attrib_size = 4;
+				attrib_format = GL_FLOAT;
+				break;
+			}
+
+#if 1
+			glVertexAttribFormat(element.location, attrib_size, attrib_format, normalized, element.offset);
+			glVertexAttribBinding(element.location, element.buffer_binding);
+#else
+			glVertexAttribPointer(element.location, attrib_size, attrib_format, normalized, element.stride, reinterpret_cast<const void *>(static_cast<uintptr_t>(element.offset)));
+#endif
+			glVertexBindingDivisor(element.buffer_binding, element.instance_step_rate);
+		}
+
+		glBindVertexArray(prev_vao);
+	}
+
+	state->prim_mode = convert_primitive_topology(desc.graphics.rasterizer_state.topology);
+	state->patch_vertices = state->prim_mode == GL_PATCHES ? static_cast<uint32_t>(desc.graphics.rasterizer_state.topology) - static_cast<uint32_t>(api::primitive_topology::patch_list_01_cp) : 0; 
+	state->front_face = desc.graphics.rasterizer_state.front_counter_clockwise ? GL_CCW : GL_CW;
+	state->cull_mode = convert_cull_mode(desc.graphics.rasterizer_state.cull_mode);
+	state->polygon_mode = convert_fill_mode(desc.graphics.rasterizer_state.fill_mode);
+
+	state->blend_eq = convert_blend_op(desc.graphics.blend_state.color_blend_op[0]);
+	state->blend_eq_alpha = convert_blend_op(desc.graphics.blend_state.alpha_blend_op[0]);
+	state->blend_src = convert_blend_factor(desc.graphics.blend_state.src_color_blend_factor[0]);
+	state->blend_dst = convert_blend_factor(desc.graphics.blend_state.dst_color_blend_factor[0]);
+	state->blend_src_alpha = convert_blend_factor(desc.graphics.blend_state.src_alpha_blend_factor[0]);
+	state->blend_dst_alpha = convert_blend_factor(desc.graphics.blend_state.dst_alpha_blend_factor[0]);
+
+	state->back_stencil_op_fail = convert_stencil_op(desc.graphics.depth_stencil_state.back_stencil_fail_op);
+	state->back_stencil_op_depth_fail = convert_stencil_op(desc.graphics.depth_stencil_state.back_stencil_depth_fail_op);
+	state->back_stencil_op_pass = convert_stencil_op(desc.graphics.depth_stencil_state.back_stencil_pass_op);
+	state->back_stencil_func = convert_compare_op(desc.graphics.depth_stencil_state.back_stencil_func);
+	state->front_stencil_op_fail = convert_stencil_op(desc.graphics.depth_stencil_state.front_stencil_fail_op);
+	state->front_stencil_op_depth_fail = convert_stencil_op(desc.graphics.depth_stencil_state.front_stencil_depth_fail_op);
+	state->front_stencil_op_pass = convert_stencil_op(desc.graphics.depth_stencil_state.front_stencil_pass_op);
+	state->front_stencil_func = convert_compare_op(desc.graphics.depth_stencil_state.front_stencil_func);
+	state->stencil_read_mask = desc.graphics.depth_stencil_state.stencil_read_mask;
+	state->stencil_write_mask = desc.graphics.depth_stencil_state.stencil_write_mask;
+	state->stencil_reference_value = static_cast<GLint>(desc.graphics.depth_stencil_state.stencil_reference_value);
+
+	state->color_write_mask = desc.graphics.blend_state.render_target_write_mask[0];
+
+	state->blend_enable = desc.graphics.blend_state.blend_enable[0];
+	state->depth_test = desc.graphics.depth_stencil_state.depth_test;
+	state->depth_write_mask = desc.graphics.depth_stencil_state.depth_write_mask;
+	state->stencil_test = desc.graphics.depth_stencil_state.stencil_test;
+	state->scissor_test = desc.graphics.rasterizer_state.scissor_test;
+	state->multisample = desc.graphics.multisample_state.multisample;
+	state->sample_alpha_to_coverage = desc.graphics.multisample_state.alpha_to_coverage;
+	state->sample_mask = desc.graphics.multisample_state.sample_mask;
+
+	*out = { reinterpret_cast<uintptr_t>(state) };
+	return true;
+}
+
+bool reshade::opengl::device_impl::create_shader_module(api::shader_stage type, api::shader_format format, const char *entry_point, const void *data, size_t size, api::shader_module *out)
+{
+	GLuint shader_object = glCreateShader(convert_shader_type(type));
+
+	if (format == api::shader_format::glsl)
+	{
+		assert(entry_point == nullptr || strcmp(entry_point, "main") == 0);
+
+		const auto source = static_cast<const GLchar *>(data);
+		const auto source_len = static_cast<GLint>(size);
+		glShaderSource(shader_object, 1, &source, &source_len);
+		glCompileShader(shader_object);
+	}
+	else if (format == api::shader_format::spirv)
+	{
+		assert(size <= static_cast<size_t>(std::numeric_limits<GLsizei>::max()));
+
+		glShaderBinary(1, &shader_object, GL_SPIR_V_BINARY, data, static_cast<GLsizei>(size));
+		glSpecializeShader(shader_object, entry_point, 0, nullptr, nullptr);
+	}
+
+	GLint status = GL_FALSE;
+	glGetShaderiv(shader_object, GL_COMPILE_STATUS, &status);
+	if (GL_FALSE != status)
+	{
+		*out = { shader_object };
+		return true;
+	}
+	else
+	{
+		glDeleteShader(shader_object);
+
+		*out = { 0 };
+		return false;
+	}
+}
+bool reshade::opengl::device_impl::create_pipeline_layout(uint32_t num_table_layouts, const api::descriptor_table_layout *table_layouts, uint32_t num_constant_ranges, const api::constant_range *constant_ranges, api::pipeline_layout *out)
+{
+	if (num_table_layouts > 1 || num_constant_ranges > 1)
+	{
+		*out = { 0 };
+		return false;
+	}
+
+	const auto layout = new pipeline_layout_impl();
+
+	if (num_constant_ranges == 1)
+	{
+		assert(constant_ranges[0].offset == 0);
+
+		GLuint prev_object = 0;
+		glGetIntegerv(GL_UNIFORM_BUFFER_BINDING, reinterpret_cast<GLint *>(&prev_object));
+
+		GLuint push_constants = 0;
+		glGenBuffers(1, &push_constants);
+
+		glBindBuffer(GL_UNIFORM_BUFFER, push_constants);
+		glBufferStorage(GL_UNIFORM_BUFFER, constant_ranges[0].count * 4, nullptr, GL_DYNAMIC_STORAGE_BIT);
+		glBindBuffer(GL_UNIFORM_BUFFER, prev_object);
+
+		layout->push_constants = push_constants;
+		layout->push_constants_binding = constant_ranges[0].dx_shader_register;
+	}
+	else
+	{
+		layout->push_constants = 0;
+		layout->push_constants_binding = std::numeric_limits<GLuint>::max();
+	}
+
+	*out = { reinterpret_cast<uintptr_t>(layout) };
+	return true;
+}
+bool reshade::opengl::device_impl::create_descriptor_heap(uint32_t, uint32_t, const api::descriptor_heap_size *, api::descriptor_heap *out)
+{
+	assert(false);
+
+	*out = { 0 };
+	return false;
+}
+bool reshade::opengl::device_impl::create_descriptor_table(api::descriptor_heap, api::descriptor_table_layout, api::descriptor_table *out)
+{
+	assert(false);
+
+	*out = { 0 };
+	return false;
+}
+bool reshade::opengl::device_impl::create_descriptor_table_layout(uint32_t num_ranges, const api::descriptor_range *ranges, bool push_descriptors, api::descriptor_table_layout *out)
+{
+	*out = { 0 };
+	return push_descriptors;
+}
+
 void reshade::opengl::device_impl::destroy_sampler(api::sampler handle)
 {
 	assert((handle.handle >> 40) == GL_SAMPLER);
@@ -523,6 +969,19 @@ void reshade::opengl::device_impl::destroy_resource(api::resource handle)
 	switch (handle.handle >> 40)
 	{
 	case GL_BUFFER:
+	case GL_ARRAY_BUFFER:
+	case GL_ELEMENT_ARRAY_BUFFER:
+	case GL_PIXEL_PACK_BUFFER:
+	case GL_PIXEL_UNPACK_BUFFER:
+	case GL_UNIFORM_BUFFER:
+	case GL_TRANSFORM_FEEDBACK_BUFFER:
+	case GL_COPY_READ_BUFFER:
+	case GL_COPY_WRITE_BUFFER:
+	case GL_DRAW_INDIRECT_BUFFER:
+	case GL_SHADER_STORAGE_BUFFER:
+	case GL_DISPATCH_INDIRECT_BUFFER:
+	case GL_QUERY_BUFFER:
+	case GL_ATOMIC_COUNTER_BUFFER:
 		glDeleteBuffers(1, &object);
 		break;
 	case GL_TEXTURE:
@@ -554,6 +1013,40 @@ void reshade::opengl::device_impl::destroy_resource_view(api::resource_view hand
 {
 	if ((handle.handle & 0x100000000) == 0)
 		destroy_resource({ handle.handle });
+}
+
+void reshade::opengl::device_impl::destroy_pipeline(api::pipeline_type type, api::pipeline handle)
+{
+	switch (type)
+	{
+	case api::pipeline_type::compute:
+		delete reinterpret_cast<pipeline_compute_impl *>(handle.handle);
+		break;
+	case api::pipeline_type::graphics_all:
+		delete reinterpret_cast<pipeline_graphics_impl *>(handle.handle);
+		break;
+	}
+}
+void reshade::opengl::device_impl::destroy_shader_module(api::shader_module handle)
+{
+	glDeleteShader(static_cast<GLuint>(handle.handle));
+}
+void reshade::opengl::device_impl::destroy_pipeline_layout(api::pipeline_layout handle)
+{
+	delete reinterpret_cast<pipeline_layout_impl *>(handle.handle);
+}
+void reshade::opengl::device_impl::destroy_descriptor_heap(api::descriptor_heap)
+{
+	assert(false);
+}
+void reshade::opengl::device_impl::destroy_descriptor_table_layout(api::descriptor_table_layout)
+{
+	assert(false);
+}
+
+void reshade::opengl::device_impl::update_descriptor_tables(uint32_t, const api::descriptor_update *)
+{
+	assert(false);
 }
 
 reshade::api::resource_view reshade::opengl::device_impl::get_depth_stencil_from_fbo(GLuint fbo) const
@@ -721,6 +1214,322 @@ void reshade::opengl::device_impl::set_debug_name(api::resource resource, const 
 void reshade::opengl::device_impl::flush_immediate_command_list() const
 {
 	glFlush();
+}
+
+void reshade::opengl::device_impl::bind_index_buffer(api::resource buffer, uint64_t offset, uint32_t index_size)
+{
+	assert(offset == 0);
+
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer.handle & 0xFFFFFFFF);
+
+	switch (index_size)
+	{
+	case 1:
+		_current_index_type = GL_UNSIGNED_BYTE;
+		break;
+	case 2:
+		_current_index_type = GL_UNSIGNED_SHORT;
+		break;
+	case 4:
+		_current_index_type = GL_UNSIGNED_INT;
+		break;
+	default:
+		assert(false);
+		break;
+	}
+}
+void reshade::opengl::device_impl::bind_vertex_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *strides)
+{
+	for (GLuint i = 0; i < count; ++i)
+	{
+		assert(offsets[i] <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()));
+
+		glBindVertexBuffer(i + first, buffers[i].handle & 0xFFFFFFFF, static_cast<GLintptr>(offsets[i]), strides[i]);
+	}
+}
+
+void reshade::opengl::device_impl::bind_pipeline(api::pipeline_type type, api::pipeline pipeline)
+{
+#define glEnableOrDisable(cap, enable) \
+	if (enable) { \
+		glEnable(cap); \
+	} \
+	else { \
+		glDisable(cap); \
+	}
+
+	assert(pipeline.handle != 0);
+
+	switch (type)
+	{
+	case api::pipeline_type::compute: {
+		const auto state = reinterpret_cast<pipeline_compute_impl *>(pipeline.handle);
+
+		glUseProgram(state->program);
+		break;
+	}
+	case api::pipeline_type::graphics_all: {
+		const auto state = reinterpret_cast<pipeline_graphics_impl *>(pipeline.handle);
+		_current_prim_mode = state->prim_mode;
+
+		if (state->prim_mode == GL_PATCHES)
+		{
+			glPatchParameteri(GL_PATCH_VERTICES, state->patch_vertices);
+		}
+
+		glUseProgram(state->program);
+		glBindVertexArray(state->vao);
+
+		glFrontFace(state->front_face);
+
+		if (state->cull_mode != GL_NONE) {
+			glEnable(GL_CULL_FACE);
+			glCullFace(state->cull_mode);
+		}
+		else {
+			glDisable(GL_CULL_FACE);
+		}
+
+		glPolygonMode(GL_FRONT_AND_BACK, state->polygon_mode);
+
+		if (state->blend_enable) {
+			glEnable(GL_BLEND);
+			glBlendFuncSeparate(state->blend_src, state->blend_dst, state->blend_src_alpha, state->blend_dst_alpha);
+			glBlendEquationSeparate(state->blend_eq, state->blend_eq_alpha);
+		}
+		else {
+			glDisable(GL_BLEND);
+		}
+
+		glColorMask(
+			(state->color_write_mask & (1 << 0)) != 0,
+			(state->color_write_mask & (1 << 1)) != 0,
+			(state->color_write_mask & (1 << 2)) != 0,
+			(state->color_write_mask & (1 << 3)) != 0);
+
+		if (state->depth_test) {
+			glEnable(GL_DEPTH_TEST);
+		}
+		else {
+			glDisable(GL_DEPTH_TEST);
+		}
+
+		glDepthMask(state->depth_write_mask);
+
+		if (state->stencil_test) {
+			glEnable(GL_STENCIL_TEST);
+			glStencilOpSeparate(GL_BACK, state->back_stencil_op_fail, state->back_stencil_op_depth_fail, state->back_stencil_op_pass);
+			glStencilOpSeparate(GL_FRONT, state->front_stencil_op_fail, state->front_stencil_op_depth_fail, state->front_stencil_op_pass);
+			glStencilMask(state->stencil_write_mask);
+			glStencilFuncSeparate(GL_BACK, state->back_stencil_func, state->stencil_reference_value, state->stencil_read_mask);
+			glStencilFuncSeparate(GL_FRONT, state->front_stencil_func, state->stencil_reference_value, state->stencil_read_mask);
+		}
+		else {
+			glDisable(GL_STENCIL_TEST);
+		}
+
+		glEnableOrDisable(GL_SCISSOR_TEST, state->scissor_test);
+		glEnableOrDisable(GL_MULTISAMPLE, state->multisample);
+		glEnableOrDisable(GL_SAMPLE_ALPHA_TO_COVERAGE, state->sample_alpha_to_coverage);
+
+		glSampleMaski(0, state->sample_mask);
+		break;
+	}
+	}
+}
+void reshade::opengl::device_impl::bind_pipeline_states(uint32_t count, const api::pipeline_state *states, const uint32_t *values)
+{
+	for (GLuint i = 0; i < count; ++i)
+	{
+		switch (states[i])
+		{
+		default:
+			assert(false);
+			break;
+		case api::pipeline_state::primitive_topology:
+			_current_prim_mode = values[i];
+			break;
+		}
+	}
+}
+
+void reshade::opengl::device_impl::push_constants(api::shader_stage, api::pipeline_layout layout, uint32_t, uint32_t first, uint32_t count, const uint32_t *values)
+{
+	const auto layout_impl = reinterpret_cast<pipeline_layout_impl *>(layout.handle);
+
+	if (gl3wProcs.gl.NamedBufferSubData != nullptr)
+	{
+		glNamedBufferSubData(layout_impl->push_constants, first * 4, count * 4, values);
+	}
+	else
+	{
+		GLint prev_object = 0;
+		glGetIntegerv(GL_COPY_WRITE_BUFFER_BINDING, &prev_object);
+
+		glBindBuffer(GL_COPY_WRITE_BUFFER, layout_impl->push_constants);
+		glBufferSubData(GL_COPY_WRITE_BUFFER, first * 4, count * 4, values);
+		glBindBuffer(GL_COPY_WRITE_BUFFER, prev_object);
+	}
+
+	glBindBufferBase(GL_UNIFORM_BUFFER, layout_impl->push_constants_binding, layout_impl->push_constants);
+}
+void reshade::opengl::device_impl::push_descriptors(api::shader_stage, api::pipeline_layout layout, uint32_t layout_index, api::descriptor_type type, uint32_t first, uint32_t count, const void *descriptors)
+{
+	assert(layout_index == 0); // There can only be a single descriptor set in OpenGL
+
+	switch (type)
+	{
+	case api::descriptor_type::sampler:
+		for (GLuint i = 0; i < count; ++i)
+		{
+			const auto &descriptor = static_cast<const api::sampler *>(descriptors)[i];
+			glBindSampler(i + first, descriptor.handle & 0xFFFFFFFF);
+		}
+		break;
+	case api::descriptor_type::sampler_with_resource_view:
+		for (GLuint i = 0; i < count; ++i)
+		{
+			const auto &descriptor = static_cast<const api::sampler_with_resource_view *>(descriptors)[i];
+			glBindSampler(i + first, descriptor.sampler.handle & 0xFFFFFFFF);
+			glActiveTexture(GL_TEXTURE0 + i + first);
+			glBindTexture(descriptor.view.handle >> 40, descriptor.view.handle & 0xFFFFFFFF);
+		}
+		break;
+	case api::descriptor_type::shader_resource_view:
+		for (GLuint i = 0; i < count; ++i)
+		{
+			const auto &descriptor = static_cast<const api::resource_view *>(descriptors)[i];
+			glActiveTexture(GL_TEXTURE0 + i + first);
+			glBindTexture(descriptor.handle >> 40, descriptor.handle & 0xFFFFFFFF);
+		}
+		break;
+	case api::descriptor_type::unordered_access_view:
+		for (GLuint i = 0; i < count; ++i)
+		{
+			const auto &descriptor = static_cast<const api::resource_view *>(descriptors)[i];
+			glBindImageTexture(i + first, descriptor.handle & 0xFFFFFFFF, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA8); // TODO: Format
+		}
+		break;
+	case api::descriptor_type::constant_buffer:
+		for (GLuint i = 0; i < count; ++i)
+		{
+			const auto &descriptor = static_cast<const api::resource *>(descriptors)[i];
+			glBindBufferBase(GL_UNIFORM_BUFFER, i + first, descriptor.handle & 0xFFFFFFFF);
+		}
+		break;
+	}
+}
+void reshade::opengl::device_impl::bind_descriptor_heaps(uint32_t, const api::descriptor_heap *)
+{
+	assert(false);
+}
+void reshade::opengl::device_impl::bind_descriptor_tables(api::shader_stage, api::pipeline_layout, uint32_t, uint32_t, const api::descriptor_table *)
+{
+	assert(false);
+}
+
+void reshade::opengl::device_impl::bind_viewports(uint32_t first, uint32_t count, const float *viewports)
+{
+	for (GLuint i = 0, k = 0; i < count; ++i, k += 6)
+	{
+		glViewportIndexedf(i + first, viewports[k], viewports[k + 1], viewports[k + 2], viewports[k + 3]);
+	}
+}
+void reshade::opengl::device_impl::bind_scissor_rects(uint32_t first, uint32_t count, const int32_t *rects)
+{
+	for (GLuint i = 0, k = 0; i < count; ++i, k += 4)
+	{
+		glScissorIndexed(i + first,
+			rects[k + 0],
+			rects[k + 1],
+			rects[k + 2] - rects[k + 0],
+			rects[k + 3] > rects[k + 1] ? rects[k + 3] - rects[k + 1] : rects[k + 1] - rects[k + 3]);
+	}
+}
+void reshade::opengl::device_impl::bind_render_targets_and_depth_stencil(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv)
+{
+	if (_main_fbo == 0)
+	{
+		glGenFramebuffers(1, &_main_fbo);
+	}
+
+	glBindFramebuffer(GL_FRAMEBUFFER, _main_fbo);
+
+	GLenum draw_buffers[8];
+
+	for (GLuint i = 0; i < count; ++i)
+	{
+		draw_buffers[i] = GL_COLOR_ATTACHMENT0 + i;
+
+		switch (rtvs[i].handle >> 40)
+		{
+		default:
+			assert(false);
+			return;
+		case GL_TEXTURE:
+		case GL_TEXTURE_BUFFER:
+		case GL_TEXTURE_1D:
+		case GL_TEXTURE_1D_ARRAY:
+		case GL_TEXTURE_2D:
+		case GL_TEXTURE_2D_ARRAY:
+		case GL_TEXTURE_2D_MULTISAMPLE:
+		case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
+		case GL_TEXTURE_RECTANGLE:
+			glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, rtvs[i].handle & 0xFFFFFFFF, 0);
+			break;
+		case GL_RENDERBUFFER:
+			glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_RENDERBUFFER, rtvs[i].handle & 0xFFFFFFFF);
+			break;
+		case GL_FRAMEBUFFER_DEFAULT:
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+			glDrawBuffer(GL_BACK);
+			return;
+		}
+	}
+
+	glDrawBuffers(count, draw_buffers);
+
+	if (dsv.handle != 0)
+	{
+		switch (dsv.handle >> 40)
+		{
+		default:
+			assert(false);
+			return;
+		case GL_TEXTURE:
+		case GL_TEXTURE_BUFFER:
+		case GL_TEXTURE_1D:
+		case GL_TEXTURE_1D_ARRAY:
+		case GL_TEXTURE_2D:
+		case GL_TEXTURE_2D_ARRAY:
+		case GL_TEXTURE_2D_MULTISAMPLE:
+		case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
+		case GL_TEXTURE_RECTANGLE:
+			glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, dsv.handle & 0xFFFFFFFF, 0);
+			break;
+		case GL_RENDERBUFFER:
+			glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, dsv.handle & 0xFFFFFFFF);
+			break;
+		case GL_FRAMEBUFFER_DEFAULT:
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+			return;
+		}
+	}
+
+	assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+}
+
+void reshade::opengl::device_impl::draw(uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance)
+{
+	glDrawArraysInstancedBaseInstance(_current_prim_mode, first_vertex, vertices, instances, first_instance);
+}
+void reshade::opengl::device_impl::draw_indexed(uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)
+{
+	glDrawElementsInstancedBaseVertexBaseInstance(_current_prim_mode, indices, _current_index_type, reinterpret_cast<void *>(static_cast<uintptr_t>(first_index * get_index_type_size(_current_index_type))), instances, vertex_offset, first_instance);
+}
+void reshade::opengl::device_impl::dispatch(uint32_t num_groups_x, uint32_t num_groups_y, uint32_t num_groups_z)
+{
+	glDispatchCompute(num_groups_x, num_groups_y, num_groups_z);
 }
 
 void reshade::opengl::device_impl::blit(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], api::texture_filter filter)

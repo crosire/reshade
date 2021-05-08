@@ -5,6 +5,17 @@
 
 namespace reshade::d3d9
 {
+	auto convert_blend_op(api::blend_op value) -> D3DBLENDOP;
+	auto convert_blend_factor(api::blend_factor value) -> D3DBLEND;
+	auto convert_fill_mode(api::fill_mode value) -> D3DFILLMODE;
+	auto convert_cull_mode(api::cull_mode value, bool front_counter_clockwise) -> D3DCULL;
+	auto convert_compare_op(api::compare_op value) -> D3DCMPFUNC;
+	auto convert_stencil_op(api::stencil_op value) -> D3DSTENCILOP;
+	auto convert_primitive_topology(api::primitive_topology value) -> D3DPRIMITIVETYPE;
+
+	UINT calc_vertex_from_prim_count(D3DPRIMITIVETYPE type, UINT count);
+	UINT calc_prim_from_vertex_count(D3DPRIMITIVETYPE type, UINT count);
+
 	void convert_format_to_d3d_format(api::format format, D3DFORMAT &d3d_format, bool lockable = false);
 	void convert_d3d_format_to_format(D3DFORMAT d3d_format, api::format &format);
 

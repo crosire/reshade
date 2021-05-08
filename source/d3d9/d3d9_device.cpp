@@ -12,26 +12,6 @@
 extern void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d3d, UINT adapter_index);
 extern void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, D3DDISPLAYMODEEX &fullscreen_desc, IDirect3D9 *d3d, UINT adapter_index);
 
-#if RESHADE_ADDON
-static inline UINT calc_vertex_from_prim_count(D3DPRIMITIVETYPE type, UINT count)
-{
-	switch (type)
-	{
-	default:
-		return 0;
-	case D3DPT_LINELIST:
-		return count * 2;
-	case D3DPT_LINESTRIP:
-		return count + 1;
-	case D3DPT_TRIANGLELIST:
-		return count * 3;
-	case D3DPT_TRIANGLESTRIP:
-	case D3DPT_TRIANGLEFAN:
-		return count + 2;
-	}
-}
-#endif
-
 Direct3DDevice9::Direct3DDevice9(IDirect3DDevice9   *original, bool use_software_rendering) :
 	device_impl(original),
 	_extended_interface(0),
@@ -1121,7 +1101,15 @@ float   STDMETHODCALLTYPE Direct3DDevice9::GetNPatchMode()
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawPrimitive(D3DPRIMITIVETYPE PrimitiveType, UINT StartVertex, UINT PrimitiveCount)
 {
 #if RESHADE_ADDON
-	if (reshade::invoke_addon_event<reshade::addon_event::draw>(this, calc_vertex_from_prim_count(PrimitiveType, PrimitiveCount), 1, StartVertex, 0))
+	if (PrimitiveType != _current_prim_type)
+	{
+		_current_prim_type = PrimitiveType;
+
+		const reshade::api::pipeline_state state = reshade::api::pipeline_state::primitive_topology;
+		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 1, &state, reinterpret_cast<const uint32_t *>(&PrimitiveType));
+	}
+
+	if (reshade::invoke_addon_event<reshade::addon_event::draw>(this, reshade::d3d9::calc_vertex_from_prim_count(PrimitiveType, PrimitiveCount), 1, StartVertex, 0))
 		return D3D_OK;
 #endif
 	return _orig->DrawPrimitive(PrimitiveType, StartVertex, PrimitiveCount);
@@ -1129,7 +1117,15 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawPrimitive(D3DPRIMITIVETYPE Primit
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawIndexedPrimitive(D3DPRIMITIVETYPE PrimitiveType, INT BaseVertexIndex, UINT MinVertexIndex, UINT NumVertices, UINT StartIndex, UINT PrimitiveCount)
 {
 #if RESHADE_ADDON
-	if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(this, calc_vertex_from_prim_count(PrimitiveType, PrimitiveCount), 1, StartIndex, BaseVertexIndex, 0))
+	if (PrimitiveType != _current_prim_type)
+	{
+		_current_prim_type = PrimitiveType;
+
+		const reshade::api::pipeline_state state = reshade::api::pipeline_state::primitive_topology;
+		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 1, &state, reinterpret_cast<const uint32_t *>(&PrimitiveType));
+	}
+
+	if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(this, reshade::d3d9::calc_vertex_from_prim_count(PrimitiveType, PrimitiveCount), 1, StartIndex, BaseVertexIndex, 0))
 		return D3D_OK;
 #endif
 	return _orig->DrawIndexedPrimitive(PrimitiveType, BaseVertexIndex, MinVertexIndex, NumVertices, StartIndex, PrimitiveCount);
@@ -1137,7 +1133,15 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawIndexedPrimitive(D3DPRIMITIVETYPE
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawPrimitiveUP(D3DPRIMITIVETYPE PrimitiveType, UINT PrimitiveCount, const void *pVertexStreamZeroData, UINT VertexStreamZeroStride)
 {
 #if RESHADE_ADDON
-	if (reshade::invoke_addon_event<reshade::addon_event::draw>(this, calc_vertex_from_prim_count(PrimitiveType, PrimitiveCount), 1, 0, 0))
+	if (PrimitiveType != _current_prim_type)
+	{
+		_current_prim_type = PrimitiveType;
+
+		const reshade::api::pipeline_state state = reshade::api::pipeline_state::primitive_topology;
+		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 1, &state, reinterpret_cast<const uint32_t *>(&PrimitiveType));
+	}
+
+	if (reshade::invoke_addon_event<reshade::addon_event::draw>(this, reshade::d3d9::calc_vertex_from_prim_count(PrimitiveType, PrimitiveCount), 1, 0, 0))
 		return D3D_OK;
 #endif
 	return _orig->DrawPrimitiveUP(PrimitiveType, PrimitiveCount, pVertexStreamZeroData, VertexStreamZeroStride);
@@ -1145,7 +1149,15 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawPrimitiveUP(D3DPRIMITIVETYPE Prim
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawIndexedPrimitiveUP(D3DPRIMITIVETYPE PrimitiveType, UINT MinVertexIndex, UINT NumVertices, UINT PrimitiveCount, const void *pIndexData, D3DFORMAT IndexDataFormat, const void *pVertexStreamZeroData, UINT VertexStreamZeroStride)
 {
 #if RESHADE_ADDON
-	if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(this, calc_vertex_from_prim_count(PrimitiveType, PrimitiveCount), 1, 0, 0, 0))
+	if (PrimitiveType != _current_prim_type)
+	{
+		_current_prim_type = PrimitiveType;
+
+		const reshade::api::pipeline_state state = reshade::api::pipeline_state::primitive_topology;
+		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 1, &state, reinterpret_cast<const uint32_t *>(&PrimitiveType));
+	}
+
+	if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(this, reshade::d3d9::calc_vertex_from_prim_count(PrimitiveType, PrimitiveCount), 1, 0, 0, 0))
 		return D3D_OK;
 #endif
 	return _orig->DrawIndexedPrimitiveUP(PrimitiveType, MinVertexIndex, NumVertices, PrimitiveCount, pIndexData, IndexDataFormat, pVertexStreamZeroData, VertexStreamZeroStride);

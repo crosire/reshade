@@ -11,6 +11,15 @@ namespace reshade::opengl
 
 	GLenum get_binding_for_target(GLenum target);
 
+	GLenum convert_blend_op(api::blend_op value);
+	GLenum convert_blend_factor(api::blend_factor value);
+	GLenum convert_fill_mode(api::fill_mode value);
+	GLenum convert_cull_mode(api::cull_mode value);
+	GLenum convert_compare_op(api::compare_op value);
+	GLenum convert_stencil_op(api::stencil_op value);
+	GLenum convert_primitive_topology(api::primitive_topology value);
+	GLenum convert_shader_type(api::shader_stage type);
+
 	void convert_format_to_internal_format(api::format format, GLenum &internalformat);
 	void convert_internal_format_to_format(GLenum internalformat, api::format &format);
 
