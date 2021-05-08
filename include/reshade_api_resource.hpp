@@ -42,6 +42,17 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
+	/// The available memory map access types.
+	/// </summary>
+	enum class map_access
+	{
+		read_only,
+		write_only,
+		read_write,
+		write_discard
+	};
+
+	/// <summary>
 	/// The available memory heap types, which give a hint as to where to place the memory allocation for a resource.
 	/// </summary>
 	enum class memory_heap : uint32_t
@@ -75,6 +86,7 @@ namespace reshade { namespace api
 		index_buffer = 0x2,
 		vertex_buffer = 0x1,
 		constant_buffer = 0x8000,
+		host = 0xAC3
 	};
 
 	constexpr bool operator!=(resource_usage lhs, uint32_t rhs) { return static_cast<uint32_t>(lhs) != rhs; }

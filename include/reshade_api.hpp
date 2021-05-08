@@ -226,6 +226,37 @@ namespace reshade { namespace api
 		virtual void update_descriptor_tables(uint32_t num_updates, const descriptor_update *updates) = 0;
 
 		/// <summary>
+		/// Maps the memory of a resource into application address space.
+		/// </summary>
+		/// <param name="resource">The resource to map.</param>
+		/// <param name="subresource">The index of the subresource.</param>
+		/// <param name="mapped_ptr">Pointer to a pointer that is set to a pointer to the memory of the resource.</param>
+		/// <returns><c>true</c> if the memory of the resource was successfully mapped, <c>false</c> otherwise (in this case <paramref name="mapped_ptr"/> is set to <c>nullptr</c>).</returns>
+		virtual bool map_resource(resource resource, uint32_t subresource, map_access access, void **mapped_ptr) = 0;
+		/// <summary>
+		/// Unmaps a previously mapped resource.
+		/// </summary>
+		/// <param name="resource">The resource to unmap.</param>
+		/// <param name="subresource">The index of the subresource.</param>
+		virtual void unmap_resource(resource resource, uint32_t subresource) = 0;
+
+		/// <summary>
+		/// Uploads data to a buffer resource.
+		/// </summary>
+		/// <param name="resource">The buffer resource to upload to.</param>
+		/// <param name="dst_offset">An offset (in bytes) into the buffer <paramref name="resource"/> to start uploading to.</param>
+		/// <param name="data">Pointer to the data to upload.</param>
+		virtual void upload_buffer_region(resource resource, uint64_t dst_offset, const void *data, uint64_t size) = 0;
+		/// <summary>
+		/// Uploads data to a texture resource.
+		/// </summary>
+		/// <param name="resource">The texture resource to upload to.</param>
+		/// <param name="dst_subresource">The subresource of the <paramref name="resource"/> to upload to.</param>
+		/// <param name="dst_box">A 3D box (or <c>nullptr</c> to reference the entire subresource) that defines the region in the <paramref name="resource"/> to upload to, in the format { left, top, front, right, bottom, back }.</param>
+		/// <param name="data">Pointer to the data to upload.</param>
+		virtual void upload_texture_region(resource resource, uint32_t dst_subresource, const int32_t dst_box[6], const void *data, uint32_t row_pitch, uint32_t depth_pitch) = 0;
+
+		/// <summary>
 		/// Gets the handle to the underlying resource the specified resource <paramref name="view"/> was created for.
 		/// This function is thread-safe.
 		/// </summary>

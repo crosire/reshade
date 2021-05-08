@@ -140,7 +140,7 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 	if (initial_data != nullptr)
 		return false;
 
-	assert((desc.usage & initial_state) == initial_state);
+	assert((desc.usage & initial_state) == initial_state || initial_state == api::resource_usage::host);
 
 	VmaAllocation allocation = VK_NULL_HANDLE;
 	VmaAllocationCreateInfo alloc_info = {};
@@ -881,6 +881,43 @@ void reshade::vulkan::device_impl::update_descriptor_tables(uint32_t num_updates
 	}
 
 	vk.UpdateDescriptorSets(_orig, num_updates, writes.data(), 0, nullptr);
+}
+
+bool reshade::vulkan::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access, void **mapped_ptr)
+{
+	assert(resource.handle != 0);
+	const resource_data &data = _resources.at(resource.handle);
+
+	if (data.allocation != nullptr)
+	{
+		assert(subresource == 0);
+		return vmaMapMemory(_alloc, data.allocation, mapped_ptr) == VK_SUCCESS;
+	}
+	else
+	{
+		*mapped_ptr = nullptr;
+		return false;
+	}
+}
+void reshade::vulkan::device_impl::unmap_resource(api::resource resource, uint32_t subresource)
+{
+	assert(resource.handle != 0);
+	const resource_data &data = _resources.at(resource.handle);
+
+	if (data.allocation != nullptr)
+	{
+		assert(subresource == 0);
+		vmaUnmapMemory(_alloc, data.allocation);
+	}
+}
+
+void reshade::vulkan::device_impl::upload_buffer_region(api::resource dst, uint64_t dst_offset, const void *data, uint64_t size)
+{
+	assert(false); // TODO
+}
+void reshade::vulkan::device_impl::upload_texture_region(api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], const void *data, uint32_t row_pitch, uint32_t depth_pitch)
+{
+	assert(false); // TODO
 }
 
 void reshade::vulkan::device_impl::get_resource_from_view(api::resource_view view, api::resource *out_resource) const

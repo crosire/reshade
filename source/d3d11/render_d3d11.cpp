@@ -637,6 +637,69 @@ void reshade::d3d11::device_impl::update_descriptor_tables(uint32_t, const api::
 	assert(false);
 }
 
+bool reshade::d3d11::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access access, void **mapped_ptr)
+{
+	D3D11_MAP map_type = static_cast<D3D11_MAP>(0);
+	switch (access)
+	{
+	case api::map_access::read_only:
+		map_type = D3D11_MAP_READ;
+		break;
+	case api::map_access::write_only:
+		map_type = D3D11_MAP_WRITE;
+		break;
+	case api::map_access::read_write:
+		map_type = D3D11_MAP_READ_WRITE;
+		break;
+	case api::map_access::write_discard:
+		map_type = D3D11_MAP_WRITE_DISCARD;
+		break;
+	}
+
+	com_ptr<ID3D11DeviceContext> ctx;
+	_orig->GetImmediateContext(&ctx);
+
+	if (D3D11_MAPPED_SUBRESOURCE mapped_resource;
+		SUCCEEDED(ctx->Map(reinterpret_cast<ID3D11Resource *>(resource.handle), subresource, map_type, 0, &mapped_resource)))
+	{
+		*mapped_ptr = mapped_resource.pData;
+		return true;
+	}
+	else
+	{
+		*mapped_ptr = 0;
+		return false;
+	}
+}
+void reshade::d3d11::device_impl::unmap_resource(api::resource resource, uint32_t subresource)
+{
+	com_ptr<ID3D11DeviceContext> ctx;
+	_orig->GetImmediateContext(&ctx);
+
+	ctx->Unmap(reinterpret_cast<ID3D11Resource *>(resource.handle), subresource);
+}
+
+void reshade::d3d11::device_impl::upload_buffer_region(api::resource dst, uint64_t dst_offset, const void *data, uint64_t size)
+{
+	assert(dst.handle != 0);
+	assert(dst_offset <= std::numeric_limits<UINT>::max() && size <= std::numeric_limits<UINT>::max());
+
+	com_ptr<ID3D11DeviceContext> ctx;
+	_orig->GetImmediateContext(&ctx);
+
+	const D3D11_BOX dst_box = { static_cast<UINT>(dst_offset), 0, 0, static_cast<UINT>(dst_offset + size), 1, 1 };
+	ctx->UpdateSubresource(reinterpret_cast<ID3D11Resource *>(dst.handle), 0, nullptr, data, static_cast<UINT>(size), static_cast<UINT>(size));
+}
+void reshade::d3d11::device_impl::upload_texture_region(api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], const void *data, uint32_t row_pitch, uint32_t depth_pitch)
+{
+	assert(dst.handle != 0);
+
+	com_ptr<ID3D11DeviceContext> ctx;
+	_orig->GetImmediateContext(&ctx);
+
+	ctx->UpdateSubresource(reinterpret_cast<ID3D11Resource *>(dst.handle), dst_subresource, reinterpret_cast<const D3D11_BOX *>(dst_box), data, row_pitch, depth_pitch);
+}
+
 void reshade::d3d11::device_impl::get_resource_from_view(api::resource_view view, api::resource *out_resource) const
 {
 	assert(view.handle != 0);

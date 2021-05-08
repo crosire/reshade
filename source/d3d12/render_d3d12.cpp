@@ -118,7 +118,7 @@ bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc
 	if (initial_data != nullptr)
 		return false;
 
-	assert((desc.usage & initial_state) == initial_state);
+	assert((desc.usage & initial_state) == initial_state || initial_state == api::resource_usage::host);
 
 	D3D12_RESOURCE_DESC internal_desc = {};
 	D3D12_HEAP_PROPERTIES heap_props = {};
@@ -749,6 +749,26 @@ void reshade::d3d12::device_impl::update_descriptor_tables(uint32_t num_updates,
 			_orig->CopyDescriptorsSimple(1, dst_range_start, src_range_start, heap_type);
 		}
 	}
+}
+
+bool reshade::d3d12::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access, void **mapped_ptr)
+{
+	assert(resource.handle != 0);
+	return SUCCEEDED(reinterpret_cast<ID3D12Resource *>(resource.handle)->Map(subresource, nullptr, mapped_ptr));
+}
+void reshade::d3d12::device_impl::unmap_resource(api::resource resource, uint32_t subresource)
+{
+	assert(resource.handle != 0);
+	reinterpret_cast<ID3D12Resource *>(resource.handle)->Unmap(subresource, nullptr);
+}
+
+void reshade::d3d12::device_impl::upload_buffer_region(api::resource dst, uint64_t dst_offset, const void *data, uint64_t size)
+{
+	assert(false); // TODO
+}
+void reshade::d3d12::device_impl::upload_texture_region(api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], const void *data, uint32_t row_pitch, uint32_t depth_pitch)
+{
+	assert(false); // TODO
 }
 
 void reshade::d3d12::device_impl::get_resource_from_view(api::resource_view view, api::resource *out_resource) const

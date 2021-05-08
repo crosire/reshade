@@ -671,6 +671,9 @@ void reshade::vulkan::convert_vk_format_to_format(VkFormat vk_format, format &fo
 
 auto reshade::vulkan::convert_usage_to_access(resource_usage state) -> VkAccessFlags
 {
+	if (state == resource_usage::host)
+		return VK_ACCESS_HOST_READ_BIT | VK_ACCESS_HOST_WRITE_BIT;
+
 	VkAccessFlags result = 0;
 	if ((state & resource_usage::depth_stencil_read) != 0)
 		result |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
@@ -725,6 +728,8 @@ auto reshade::vulkan::convert_usage_to_pipeline_stage(resource_usage state) -> V
 {
 	if (state == resource_usage::undefined)
 		return VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT; // Do not wait on any previous stage
+	if (state == resource_usage::host)
+		return VK_PIPELINE_STAGE_HOST_BIT;
 
 	VkPipelineStageFlags result = 0;
 	if ((state & resource_usage::depth_stencil_read) != 0)

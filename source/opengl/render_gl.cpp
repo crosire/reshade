@@ -1049,6 +1049,116 @@ void reshade::opengl::device_impl::update_descriptor_tables(uint32_t, const api:
 	assert(false);
 }
 
+bool reshade::opengl::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access access, void **mapped_ptr)
+{
+	GLenum map_access = 0;
+	switch (access)
+	{
+	case api::map_access::read_only:
+		map_access = GL_READ_ONLY;
+		break;
+	case api::map_access::write_only:
+	case api::map_access::write_discard:
+		map_access = GL_WRITE_ONLY;
+		break;
+	case api::map_access::read_write:
+		map_access = GL_READ_WRITE;
+		break;
+	}
+
+	const GLenum target = resource.handle >> 40;
+	const GLuint object = resource.handle & 0xFFFFFFFF;
+
+	switch (target)
+	{
+	default:
+		assert(false);
+		*mapped_ptr = nullptr;
+		break;
+	case GL_BUFFER:
+	case GL_ARRAY_BUFFER:
+	case GL_ELEMENT_ARRAY_BUFFER:
+	case GL_PIXEL_PACK_BUFFER:
+	case GL_PIXEL_UNPACK_BUFFER:
+	case GL_UNIFORM_BUFFER:
+	case GL_TRANSFORM_FEEDBACK_BUFFER:
+	case GL_COPY_READ_BUFFER:
+	case GL_COPY_WRITE_BUFFER:
+	case GL_DRAW_INDIRECT_BUFFER:
+	case GL_SHADER_STORAGE_BUFFER:
+	case GL_DISPATCH_INDIRECT_BUFFER:
+	case GL_QUERY_BUFFER:
+	case GL_ATOMIC_COUNTER_BUFFER:
+		assert(subresource == 0);
+		if (gl3wProcs.gl.MapNamedBuffer != nullptr)
+		{
+			*mapped_ptr = glMapNamedBuffer(object, map_access);
+		}
+		else
+		{
+			GLint prev_object = 0;
+			glGetIntegerv(get_binding_for_target(target), &prev_object);
+
+			glBindBuffer(target, object);
+			*mapped_ptr = glMapBuffer(target, map_access);
+			glBindBuffer(target, prev_object);
+		}
+		break;
+	}
+
+	return *mapped_ptr != nullptr;
+}
+void reshade::opengl::device_impl::unmap_resource(api::resource resource, uint32_t subresource)
+{
+	const GLenum target = resource.handle >> 40;
+	const GLuint object = resource.handle & 0xFFFFFFFF;
+
+	switch (target)
+	{
+	default:
+		assert(false);
+		break;
+	case GL_BUFFER:
+	case GL_ARRAY_BUFFER:
+	case GL_ELEMENT_ARRAY_BUFFER:
+	case GL_PIXEL_PACK_BUFFER:
+	case GL_PIXEL_UNPACK_BUFFER:
+	case GL_UNIFORM_BUFFER:
+	case GL_TRANSFORM_FEEDBACK_BUFFER:
+	case GL_COPY_READ_BUFFER:
+	case GL_COPY_WRITE_BUFFER:
+	case GL_DRAW_INDIRECT_BUFFER:
+	case GL_SHADER_STORAGE_BUFFER:
+	case GL_DISPATCH_INDIRECT_BUFFER:
+	case GL_QUERY_BUFFER:
+	case GL_ATOMIC_COUNTER_BUFFER:
+		assert(subresource == 0);
+		if (gl3wProcs.gl.UnmapNamedBuffer != nullptr)
+		{
+			glUnmapNamedBuffer(object);
+		}
+		else
+		{
+			GLint prev_object = 0;
+			glGetIntegerv(get_binding_for_target(target), &prev_object);
+
+			glBindBuffer(target, object);
+			glUnmapBuffer(target);
+			glBindBuffer(target, prev_object);
+		}
+		break;
+	}
+}
+
+void reshade::opengl::device_impl::upload_buffer_region(api::resource dst, uint64_t dst_offset, const void *data, uint64_t size)
+{
+	assert(false); // TODO
+}
+void reshade::opengl::device_impl::upload_texture_region(api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], const void *data, uint32_t row_pitch, uint32_t depth_pitch)
+{
+	assert(false); // TODO
+}
+
 reshade::api::resource_view reshade::opengl::device_impl::get_depth_stencil_from_fbo(GLuint fbo) const
 {
 	if (fbo == 0 && _default_depth_format == GL_NONE)
