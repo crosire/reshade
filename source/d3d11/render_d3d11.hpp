@@ -98,6 +98,7 @@ namespace reshade::d3d11
 		void draw(uint32_t, uint32_t, uint32_t, uint32_t) final { assert(false); }
 		void draw_indexed(uint32_t, uint32_t, uint32_t, int32_t, uint32_t) final { assert(false); }
 		void dispatch(uint32_t, uint32_t, uint32_t) final { assert(false); }
+		void draw_or_dispatch_indirect(uint32_t, api::resource, uint64_t, uint32_t, uint32_t) final { assert(false); }
 
 		void blit(api::resource, uint32_t, const int32_t[6], api::resource, uint32_t, const int32_t[6], api::texture_filter) final { assert(false); }
 		void resolve(api::resource, uint32_t, const int32_t[3], api::resource, uint32_t, const int32_t[3], const uint32_t[3], uint32_t) final { assert(false); }
@@ -109,6 +110,8 @@ namespace reshade::d3d11
 
 		void clear_depth_stencil_view(api::resource_view, uint32_t, float, uint8_t) final { assert(false); }
 		void clear_render_target_views(uint32_t, const api::resource_view *, const float[4]) final { assert(false); }
+		void clear_unordered_access_view_uint(api::resource_view, const uint32_t[4]) final { assert(false); }
+		void clear_unordered_access_view_float(api::resource_view, const float[4]) final { assert(false); }
 
 		void transition_state(api::resource, api::resource_usage, api::resource_usage) final { assert(false); }
 
@@ -151,6 +154,7 @@ namespace reshade::d3d11
 		void draw(uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance) final;
 		void draw_indexed(uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance) final;
 		void dispatch(uint32_t num_groups_x, uint32_t num_groups_y, uint32_t num_groups_z) final;
+		void draw_or_dispatch_indirect(uint32_t type, api::resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride) final;
 
 		void blit(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], api::texture_filter filter) final;
 		void resolve(api::resource src, uint32_t src_subresource, const int32_t src_offset[3], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3], uint32_t format) final;
@@ -162,6 +166,8 @@ namespace reshade::d3d11
 
 		void clear_depth_stencil_view(api::resource_view dsv, uint32_t clear_flags, float depth, uint8_t stencil) final;
 		void clear_render_target_views(uint32_t count, const api::resource_view *rtvs, const float color[4]) final;
+		void clear_unordered_access_view_uint(api::resource_view uav, const uint32_t values[4]) final;
+		void clear_unordered_access_view_float(api::resource_view uav, const float values[4]) final;
 
 		void transition_state(api::resource, api::resource_usage, api::resource_usage) final { /* no-op */ }
 

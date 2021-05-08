@@ -39,6 +39,8 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(create_resource_view);
 		CASE(create_pipeline);
 		CASE(create_shader_module);
+		CASE(upload_buffer_region);
+		CASE(upload_texture_region);
 		CASE(bind_index_buffer);
 		CASE(bind_vertex_buffers);
 		CASE(bind_pipeline);
@@ -61,8 +63,6 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(copy_buffer_to_texture);
 		CASE(copy_texture_region);
 		CASE(copy_texture_to_buffer);
-		CASE(update_buffer_region);
-		CASE(update_texture_region);
 		CASE(clear_depth_stencil_view);
 		CASE(clear_render_target_views);
 		CASE(clear_unordered_access_view_uint);

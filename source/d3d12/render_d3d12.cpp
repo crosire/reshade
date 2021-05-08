@@ -1058,6 +1058,13 @@ void reshade::d3d12::command_list_impl::dispatch(uint32_t num_groups_x, uint32_t
 
 	_orig->Dispatch(num_groups_x, num_groups_y, num_groups_z);
 }
+void reshade::d3d12::command_list_impl::draw_or_dispatch_indirect(uint32_t type, api::resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride)
+{
+	_has_commands = true;
+
+	assert(false); // TODO
+	// _orig->ExecuteIndirect(nullptr, draw_count, reinterpret_cast<ID3D12Resource *>(buffer.handle), offset, nullptr, 0);
+}
 
 void reshade::d3d12::command_list_impl::blit(api::resource, uint32_t, const int32_t[6], api::resource, uint32_t, const int32_t[6], api::texture_filter)
 {
@@ -1216,6 +1223,24 @@ void reshade::d3d12::command_list_impl::clear_render_target_views(uint32_t count
 
 		_orig->ClearRenderTargetView(D3D12_CPU_DESCRIPTOR_HANDLE { static_cast<SIZE_T>(rtvs[i].handle) }, color, 0, nullptr);
 	}
+}
+void reshade::d3d12::command_list_impl::clear_unordered_access_view_uint(api::resource_view uav, const uint32_t values[4])
+{
+	_has_commands = true;
+
+	assert(uav.handle != 0);
+
+	assert(false); // TODO
+	// _orig->ClearUnorderedAccessViewUint(D3D12_GPU_DESCRIPTOR_HANDLE { 0 }, D3D12_CPU_DESCRIPTOR_HANDLE { uav.handle }, nullptr, values, 0, nullptr); // TODO
+}
+void reshade::d3d12::command_list_impl::clear_unordered_access_view_float(api::resource_view uav, const float values[4])
+{
+	_has_commands = true;
+
+	assert(uav.handle != 0);
+
+	assert(false); // TODO
+	// _orig->ClearUnorderedAccessViewFloat(D3D12_GPU_DESCRIPTOR_HANDLE { 0 }, D3D12_CPU_DESCRIPTOR_HANDLE { uav.handle }, nullptr, values, 0, nullptr); // TODO
 }
 
 void reshade::d3d12::command_list_impl::transition_state(api::resource resource, api::resource_usage old_layout, api::resource_usage new_layout)

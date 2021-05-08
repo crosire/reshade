@@ -1142,6 +1142,10 @@ void reshade::d3d9::device_impl::dispatch(uint32_t, uint32_t, uint32_t)
 {
 	assert(false);
 }
+void reshade::d3d9::device_impl::draw_or_dispatch_indirect(uint32_t, api::resource, uint64_t, uint32_t, uint32_t)
+{
+	assert(false);
+}
 
 void reshade::d3d9::device_impl::blit(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], api::texture_filter filter)
 {
@@ -1436,4 +1440,12 @@ void reshade::d3d9::device_impl::clear_render_target_views(uint32_t count, const
 		_orig->ColorFill(reinterpret_cast<IDirect3DSurface9 *>(rtvs[i].handle), nullptr, D3DCOLOR_COLORVALUE(color[0], color[1], color[2], color[3]));
 	}
 #endif
+}
+void reshade::d3d9::device_impl::clear_unordered_access_view_uint(api::resource_view, const uint32_t[4])
+{
+	assert(false);
+}
+void reshade::d3d9::device_impl::clear_unordered_access_view_float(api::resource_view, const float[4])
+{
+	assert(false);
 }

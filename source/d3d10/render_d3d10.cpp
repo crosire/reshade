@@ -1016,6 +1016,10 @@ void reshade::d3d10::device_impl::dispatch(uint32_t, uint32_t, uint32_t)
 {
 	assert(false);
 }
+void reshade::d3d10::device_impl::draw_or_dispatch_indirect(uint32_t, api::resource, uint64_t, uint32_t, uint32_t)
+{
+	assert(false);
+}
 
 void reshade::d3d10::device_impl::blit(api::resource, uint32_t, const int32_t[6], api::resource, uint32_t, const int32_t[6], api::texture_filter)
 {
@@ -1106,4 +1110,12 @@ void reshade::d3d10::device_impl::clear_render_target_views(uint32_t count, cons
 
 		_orig->ClearRenderTargetView(reinterpret_cast<ID3D10RenderTargetView *>(rtvs[i].handle), color);
 	}
+}
+void reshade::d3d10::device_impl::clear_unordered_access_view_uint(api::resource_view, const uint32_t[4])
+{
+	assert(false);
+}
+void reshade::d3d10::device_impl::clear_unordered_access_view_float(api::resource_view, const float[4])
+{
+	assert(false);
 }

@@ -563,7 +563,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::DrawAuto()
 void    STDMETHODCALLTYPE D3D11DeviceContext::DrawIndexedInstancedIndirect(ID3D11Buffer *pBufferForArgs, UINT AlignedByteOffsetForArgs)
 {
 #if RESHADE_ADDON
-	if (reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(this, reshade::addon_event::draw_indexed, reshade::api::resource { reinterpret_cast<uintptr_t>(pBufferForArgs) }, AlignedByteOffsetForArgs, 1, 0))
+	if (reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(this, 2, reshade::api::resource { reinterpret_cast<uintptr_t>(pBufferForArgs) }, AlignedByteOffsetForArgs, 1, 0))
 		return;
 #endif
 	_orig->DrawIndexedInstancedIndirect(pBufferForArgs, AlignedByteOffsetForArgs);
@@ -571,7 +571,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::DrawIndexedInstancedIndirect(ID3D1
 void    STDMETHODCALLTYPE D3D11DeviceContext::DrawInstancedIndirect(ID3D11Buffer *pBufferForArgs, UINT AlignedByteOffsetForArgs)
 {
 #if RESHADE_ADDON
-	if (reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(this, reshade::addon_event::draw, reshade::api::resource { reinterpret_cast<uintptr_t>(pBufferForArgs) }, AlignedByteOffsetForArgs, 1, 0))
+	if (reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(this, 1, reshade::api::resource { reinterpret_cast<uintptr_t>(pBufferForArgs) }, AlignedByteOffsetForArgs, 1, 0))
 		return;
 #endif
 	_orig->DrawInstancedIndirect(pBufferForArgs, AlignedByteOffsetForArgs);
@@ -587,7 +587,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::Dispatch(UINT ThreadGroupCountX, U
 void    STDMETHODCALLTYPE D3D11DeviceContext::DispatchIndirect(ID3D11Buffer *pBufferForArgs, UINT AlignedByteOffsetForArgs)
 {
 #if RESHADE_ADDON
-	if (reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(this, reshade::addon_event::dispatch, reshade::api::resource { reinterpret_cast<uintptr_t>(pBufferForArgs) }, AlignedByteOffsetForArgs, 1, 0))
+	if (reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(this, 3, reshade::api::resource { reinterpret_cast<uintptr_t>(pBufferForArgs) }, AlignedByteOffsetForArgs, 1, 0))
 		return;
 #endif
 	_orig->DispatchIndirect(pBufferForArgs, AlignedByteOffsetForArgs);
@@ -677,18 +677,18 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::UpdateSubresource(ID3D11Resource *
 	{
 		assert(DstSubresource == 0);
 
-		if (reshade::invoke_addon_event<reshade::addon_event::update_buffer_region>(this,
-			pSrcData,
-			reshade::api::resource { reinterpret_cast<uintptr_t>(pDstResource) }, pDstBox != nullptr ? pDstBox->left : 0, pDstBox != nullptr ? pDstBox->right - pDstBox->left : SrcRowPitch))
+		if (reshade::invoke_addon_event<reshade::addon_event::upload_buffer_region>(_device,
+			reshade::api::resource { reinterpret_cast<uintptr_t>(pDstResource) }, pDstBox != nullptr ? pDstBox->left : 0,
+			pSrcData, pDstBox != nullptr ? pDstBox->right - pDstBox->left : SrcRowPitch))
 			return;
 	}
 	else
 	{
 		static_assert(sizeof(D3D11_BOX) == (sizeof(int32_t) * 6));
 
-		if (reshade::invoke_addon_event<reshade::addon_event::update_texture_region>(this,
-			pSrcData, SrcRowPitch, SrcDepthPitch,
-			reshade::api::resource { reinterpret_cast<uintptr_t>(pDstResource) }, DstSubresource, reinterpret_cast<const int32_t *>(pDstBox)))
+		if (reshade::invoke_addon_event<reshade::addon_event::upload_texture_region>(_device,
+			reshade::api::resource { reinterpret_cast<uintptr_t>(pDstResource) }, DstSubresource, reinterpret_cast<const int32_t *>(pDstBox),
+			pSrcData, SrcRowPitch, SrcDepthPitch))
 			return;
 	}
 #endif
@@ -1257,18 +1257,18 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::UpdateSubresource1(ID3D11Resource 
 	{
 		assert(DstSubresource == 0);
 
-		if (reshade::invoke_addon_event<reshade::addon_event::update_buffer_region>(this,
-			pSrcData,
-			reshade::api::resource { reinterpret_cast<uintptr_t>(pDstResource) }, pDstBox != nullptr ? pDstBox->left : 0, pDstBox != nullptr ? pDstBox->right - pDstBox->left : SrcRowPitch))
+		if (reshade::invoke_addon_event<reshade::addon_event::upload_buffer_region>(_device,
+			reshade::api::resource { reinterpret_cast<uintptr_t>(pDstResource) }, pDstBox != nullptr ? pDstBox->left : 0,
+			pSrcData, pDstBox != nullptr ? pDstBox->right - pDstBox->left : SrcRowPitch))
 			return;
 	}
 	else
 	{
 		static_assert(sizeof(D3D11_BOX) == (sizeof(int32_t) * 6));
 
-		if (reshade::invoke_addon_event<reshade::addon_event::update_texture_region>(this,
-			pSrcData, SrcRowPitch, SrcDepthPitch,
-			reshade::api::resource { reinterpret_cast<uintptr_t>(pDstResource) }, DstSubresource, reinterpret_cast<const int32_t *>(pDstBox)))
+		if (reshade::invoke_addon_event<reshade::addon_event::upload_texture_region>(_device,
+			reshade::api::resource { reinterpret_cast<uintptr_t>(pDstResource) }, DstSubresource, reinterpret_cast<const int32_t *>(pDstBox),
+			pSrcData, SrcRowPitch, SrcDepthPitch))
 			return;
 	}
 #endif

@@ -1299,6 +1299,24 @@ void reshade::vulkan::command_list_impl::dispatch(uint32_t num_groups_x, uint32_
 
 	_device_impl->vk.CmdDispatch(_orig, num_groups_x, num_groups_y, num_groups_z);
 }
+void reshade::vulkan::command_list_impl::draw_or_dispatch_indirect(uint32_t type, api::resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride)
+{
+	_has_commands = true;
+
+	switch (type)
+	{
+	case 1:
+		_device_impl->vk.CmdDrawIndirect(_orig, (VkBuffer)buffer.handle, offset, draw_count, stride);
+		break;
+	case 2:
+		_device_impl->vk.CmdDrawIndexedIndirect(_orig, (VkBuffer)buffer.handle, offset, draw_count, stride);
+		break;
+	case 3:
+		for (uint32_t i = 0; i < draw_count; ++i)
+			_device_impl->vk.CmdDispatchIndirect(_orig, (VkBuffer)buffer.handle, offset + i * stride);
+		break;
+	}
+}
 
 void reshade::vulkan::command_list_impl::blit(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], api::texture_filter filter)
 {
@@ -1573,6 +1591,34 @@ void reshade::vulkan::command_list_impl::clear_render_target_views(uint32_t coun
 		std::swap(transition.oldLayout, transition.newLayout);
 		_device_impl->vk.CmdPipelineBarrier(_orig, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
 	}
+}
+void reshade::vulkan::command_list_impl::clear_unordered_access_view_uint(api::resource_view uav, const uint32_t values[4])
+{
+	_has_commands = true;
+
+	const resource_view_data &uav_data = _device_impl->_views.at(uav.handle);
+	assert(uav_data.is_image_view()); // Has to be an image
+
+	const VkImageSubresourceRange range = { VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
+
+	VkClearColorValue clear_value;
+	std::memcpy(clear_value.uint32, values, 4 * sizeof(uint32_t));
+
+	_device_impl->vk.CmdClearColorImage(_orig, uav_data.image_create_info.image, VK_IMAGE_LAYOUT_GENERAL, &clear_value, 1, &range);
+}
+void reshade::vulkan::command_list_impl::clear_unordered_access_view_float(api::resource_view uav, const float values[4])
+{
+	_has_commands = true;
+
+	const resource_view_data &uav_data = _device_impl->_views.at(uav.handle);
+	assert(uav_data.is_image_view()); // Has to be an image
+
+	const VkImageSubresourceRange range = { VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
+
+	VkClearColorValue clear_value;
+	std::memcpy(clear_value.float32, values, 4 * sizeof(float));
+
+	_device_impl->vk.CmdClearColorImage(_orig, uav_data.image_create_info.image, VK_IMAGE_LAYOUT_GENERAL, &clear_value, 1, &range);
 }
 
 void reshade::vulkan::command_list_impl::transition_state(api::resource resource, api::resource_usage old_state, api::resource_usage new_state)

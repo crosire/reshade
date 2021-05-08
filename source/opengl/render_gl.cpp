@@ -1641,6 +1641,28 @@ void reshade::opengl::device_impl::dispatch(uint32_t num_groups_x, uint32_t num_
 {
 	glDispatchCompute(num_groups_x, num_groups_y, num_groups_z);
 }
+void reshade::opengl::device_impl::draw_or_dispatch_indirect(uint32_t type, api::resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride)
+{
+	switch (type)
+	{
+	case 1:
+		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, buffer.handle & 0xFFFFFFFF);
+		glMultiDrawArraysIndirect(_current_prim_mode, reinterpret_cast<const void *>(static_cast<uintptr_t>(offset)), static_cast<GLsizei>(draw_count), static_cast<GLsizei>(stride));
+		break;
+	case 2:
+		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, buffer.handle & 0xFFFFFFFF);
+		glMultiDrawElementsIndirect(_current_prim_mode, _current_index_type, reinterpret_cast<const void *>(static_cast<uintptr_t>(offset)), static_cast<GLsizei>(draw_count), static_cast<GLsizei>(stride));
+		break;
+	case 3:
+		glBindBuffer(GL_DISPATCH_INDIRECT_BUFFER, buffer.handle & 0xFFFFFFFF);
+		for (GLuint i = 0; i < draw_count; ++i)
+		{
+			assert(offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()));
+			glDispatchComputeIndirect(static_cast<GLintptr>(offset + i * stride));
+		}
+		break;
+	}
+}
 
 void reshade::opengl::device_impl::blit(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], api::texture_filter filter)
 {
@@ -2024,4 +2046,12 @@ void reshade::opengl::device_impl::clear_render_target_views(uint32_t count, con
 			glBindFramebuffer(GL_FRAMEBUFFER, prev_binding);
 		}
 	}
+}
+void reshade::opengl::device_impl::clear_unordered_access_view_uint(api::resource_view uav, const uint32_t values[4])
+{
+	assert(false);
+}
+void reshade::opengl::device_impl::clear_unordered_access_view_float(api::resource_view uav, const float values[4])
+{
+	assert(false);
 }

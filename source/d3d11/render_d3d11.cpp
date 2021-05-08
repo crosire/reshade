@@ -1135,6 +1135,26 @@ void reshade::d3d11::device_context_impl::dispatch(uint32_t num_groups_x, uint32
 {
 	_orig->Dispatch(num_groups_x, num_groups_y, num_groups_z);
 }
+void reshade::d3d11::device_context_impl::draw_or_dispatch_indirect(uint32_t type, api::resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride)
+{
+	assert(offset <= std::numeric_limits<UINT>::max());
+
+	switch (type)
+	{
+	case 1:
+		for (UINT i = 0; i < draw_count; ++i)
+			_orig->DrawInstancedIndirect(reinterpret_cast<ID3D11Buffer *>(buffer.handle), static_cast<UINT>(offset + i * stride));
+		break;
+	case 2:
+		for (UINT i = 0; i < draw_count; ++i)
+			_orig->DrawIndexedInstancedIndirect(reinterpret_cast<ID3D11Buffer *>(buffer.handle), static_cast<UINT>(offset + i * stride));
+		break;
+	case 3:
+		for (UINT i = 0; i < draw_count; ++i)
+			_orig->DispatchIndirect(reinterpret_cast<ID3D11Buffer *>(buffer.handle), static_cast<UINT>(offset + i * stride));
+		break;
+	}
+}
 
 void reshade::d3d11::device_context_impl::blit(api::resource, uint32_t, const int32_t[6], api::resource, uint32_t, const int32_t[6], api::texture_filter)
 {
@@ -1225,4 +1245,16 @@ void reshade::d3d11::device_context_impl::clear_render_target_views(uint32_t cou
 
 		_orig->ClearRenderTargetView(reinterpret_cast<ID3D11RenderTargetView *>(rtvs[i].handle), color);
 	}
+}
+void reshade::d3d11::device_context_impl::clear_unordered_access_view_uint(api::resource_view uav, const uint32_t values[4])
+{
+	assert(uav.handle != 0);
+
+	_orig->ClearUnorderedAccessViewUint(reinterpret_cast<ID3D11UnorderedAccessView *>(uav.handle), values);
+}
+void reshade::d3d11::device_context_impl::clear_unordered_access_view_float(api::resource_view uav, const float values[4])
+{
+	assert(uav.handle != 0);
+
+	_orig->ClearUnorderedAccessViewFloat(reinterpret_cast<ID3D11UnorderedAccessView *>(uav.handle), values);
 }

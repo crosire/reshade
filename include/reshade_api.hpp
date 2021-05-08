@@ -426,6 +426,16 @@ namespace reshade { namespace api
 		/// <param name="num_groups_y">The number of thread groups dispatched in the y direction.</param>
 		/// <param name="num_groups_z">The number of thread groups dispatched in the z direction.</param>
 		virtual void dispatch(uint32_t num_groups_x, uint32_t num_groups_y, uint32_t num_groups_z) = 0;
+		/// <summary>
+		/// Executes indirect draw or dispatch commands.
+		/// This is not supported (and will do nothing) in D3D9 and D3D10.
+		/// </summary>
+		/// <param name="type">Specifies whether this is an indirect draw, indexed draw or dispatch command: <c>1</c> for draw commands, <c>2</c> for indexed draw commands and <c>3</c> for dispatch commands</param>
+		/// <param name="buffer">The buffer that contains command arguments.</param>
+		/// <param name="offset">Offset (in bytes) from the start of the argument buffer to the first argument to use.</param>
+		/// <param name="draw_count">The number of commands to execute.</param>
+		/// <param name="stride">The stride between commands in the argument buffer.</param>
+		virtual void draw_or_dispatch_indirect(uint32_t type, resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride) = 0;
 
 		/// <summary>
 		/// Blits a region from the <paramref name="source"/> texture to a different region of the <paramref name="destination"/> texture.
@@ -524,12 +534,33 @@ namespace reshade { namespace api
 		/// <param name="stencil">The value to clear the stencil buffer with.</param>
 		virtual void clear_depth_stencil_view(resource_view dsv, uint32_t clear_flags, float depth, uint8_t stencil) = 0;
 		/// <summary>
+		/// Clears the resources referenced by the render target view.
+		/// <para>The resource the <paramref name="rtv"/> view point to has to be in the <see cref="resource_usage::render_target"/> state.</para>
+		/// </summary>
+		/// <param name="rtv">The view handle of the render target.</param>
+		/// <param name="color">The value to clear the resource with.</param>
+		inline  void clear_render_target_view(resource_view rtv, const float color[4]) { clear_render_target_views(1, &rtv, color); }
+		/// <summary>
 		/// Clears the resources referenced by the render target views.
 		/// <para>The resources the <paramref name="rtvs"/> views point to have to be in the <see cref="resource_usage::render_target"/> state.</para>
 		/// </summary>
 		/// <param name="rtvs">The view handles of the render targets.</param>
 		/// <param name="color">The value to clear the resources with.</param>
 		virtual void clear_render_target_views(uint32_t count, const resource_view *rtvs, const float color[4]) = 0;
+		/// <summary>
+		/// Clears the resource referenced by the unordered access view.
+		/// <para>The resources the <paramref name="uav"/> view points to has to be in the <see cref="resource_usage::unordered_access"/> state.</para>
+		/// </summary>
+		/// <param name="uav">The view handle of the resource.</param>
+		/// <param name="values">The value to clear the resources with.</param>
+		virtual void clear_unordered_access_view_uint(resource_view uav, const uint32_t values[4]) = 0;
+		/// <summary>
+		/// Clears the resource referenced by the unordered access view.
+		/// <para>The resources the <paramref name="uav"/> view points to has to be in the <see cref="resource_usage::unordered_access"/> state.</para>
+		/// </summary>
+		/// <param name="uav">The view handle of the resource.</param>
+		/// <param name="values">The value to clear the resources with.</param>
+		virtual void clear_unordered_access_view_float(resource_view uav, const float values[4]) = 0;
 
 		/// <summary>
 		/// Adds a transition barrier for the specified <paramref name="resource"/> to the command stream.
