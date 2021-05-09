@@ -85,14 +85,32 @@ reshade::vulkan::device_impl::~device_impl()
 
 bool reshade::vulkan::device_impl::check_format_support(api::format format, api::resource_usage usage) const
 {
-	VkFormat image_format = VK_FORMAT_UNDEFINED;
-	convert_format_to_vk_format(format, image_format);
+	VkFormat vk_format = VK_FORMAT_UNDEFINED;
+	convert_format_to_vk_format(format, vk_format);
 
-	VkImageUsageFlags image_flags = 0;
-	convert_usage_to_image_usage_flags(usage, image_flags);
+	VkFormatProperties props = {};
+	_instance_dispatch_table.GetPhysicalDeviceFormatProperties(_physical_device, vk_format, &props);
 
-	VkImageFormatProperties props;
-	return _instance_dispatch_table.GetPhysicalDeviceImageFormatProperties(_physical_device, image_format, VK_IMAGE_TYPE_2D, VK_IMAGE_TILING_OPTIMAL, image_flags, 0, &props) == VK_SUCCESS;
+	if ((usage & api::resource_usage::render_target) != 0 &&
+		(props.optimalTilingFeatures & VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT) == 0)
+		return false;
+	if ((usage & api::resource_usage::depth_stencil) != 0 &&
+		(props.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) == 0)
+		return false;
+	if ((usage & api::resource_usage::shader_resource) != 0 &&
+		(props.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT) == 0)
+		return false;
+	if ((usage & api::resource_usage::unordered_access) != 0 &&
+		(props.optimalTilingFeatures & VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT) == 0)
+		return false;
+	if ((usage & api::resource_usage::copy_dest) != 0 &&
+		(props.optimalTilingFeatures & VK_FORMAT_FEATURE_TRANSFER_DST_BIT) == 0)
+		return false;
+	if ((usage & api::resource_usage::copy_source) != 0 &&
+		(props.optimalTilingFeatures & VK_FORMAT_FEATURE_TRANSFER_SRC_BIT) == 0)
+		return false;
+
+	return true;
 }
 
 bool reshade::vulkan::device_impl::check_resource_handle_valid(api::resource resource) const
@@ -600,7 +618,7 @@ bool reshade::vulkan::device_impl::create_pipeline_graphics_all(const api::pipel
 	VkAttachmentReference attachment_refs[8 + 1] = {};
 	VkAttachmentDescription attachment_desc[8 + 1] = {};
 
-	for (uint32_t i = 0; i < 8; ++i)
+	for (uint32_t i = 0; i < desc.graphics.blend_state.num_render_targets && i < 8; ++i)
 	{
 		convert_format_to_vk_format(desc.graphics.blend_state.render_target_format[i], attachment_desc[num_attachments].format);
 		attachment_desc[num_attachments].samples = static_cast<VkSampleCountFlagBits>(desc.graphics.multisample_state.sample_count);
@@ -608,8 +626,8 @@ bool reshade::vulkan::device_impl::create_pipeline_graphics_all(const api::pipel
 		attachment_desc[num_attachments].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 		attachment_desc[num_attachments].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 		attachment_desc[num_attachments].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		attachment_desc[num_attachments].initialLayout = VK_IMAGE_LAYOUT_GENERAL;
-		attachment_desc[num_attachments].finalLayout = VK_IMAGE_LAYOUT_GENERAL;
+		attachment_desc[num_attachments].initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+		attachment_desc[num_attachments].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 		attachment_refs[i].attachment = num_attachments++;
 		attachment_refs[i].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
@@ -623,8 +641,8 @@ bool reshade::vulkan::device_impl::create_pipeline_graphics_all(const api::pipel
 		attachment_desc[num_attachments].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 		attachment_desc[num_attachments].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
 		attachment_desc[num_attachments].stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
-		attachment_desc[num_attachments].initialLayout = VK_IMAGE_LAYOUT_GENERAL;
-		attachment_desc[num_attachments].finalLayout = VK_IMAGE_LAYOUT_GENERAL;
+		attachment_desc[num_attachments].initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+		attachment_desc[num_attachments].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
 		attachment_refs[8].attachment = num_attachments++;
 		attachment_refs[8].layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
@@ -742,7 +760,7 @@ bool reshade::vulkan::device_impl::create_descriptor_heap(uint32_t max_tables, u
 }
 bool reshade::vulkan::device_impl::create_descriptor_table(api::descriptor_heap heap, api::descriptor_table_layout layout, api::descriptor_table *out)
 {
-	VkDescriptorSetAllocateInfo alloc_info { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
+	VkDescriptorSetAllocateInfo alloc_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
 	alloc_info.descriptorPool = (VkDescriptorPool)heap.handle;
 	alloc_info.descriptorSetCount = 1;
 	alloc_info.pSetLayouts = reinterpret_cast<const VkDescriptorSetLayout *>(&layout.handle);
@@ -761,18 +779,23 @@ bool reshade::vulkan::device_impl::create_descriptor_table(api::descriptor_heap 
 }
 bool reshade::vulkan::device_impl::create_descriptor_table_layout(uint32_t num_ranges, const api::descriptor_range *ranges, bool push_descriptors, api::descriptor_table_layout *out)
 {
-	std::vector<VkDescriptorSetLayoutBinding> internal_bindings(num_ranges);
+	std::vector<VkDescriptorSetLayoutBinding> internal_bindings;
+	internal_bindings.reserve(num_ranges);
 	for (uint32_t i = 0; i < num_ranges; ++i)
 	{
-		internal_bindings[i].binding = ranges[i].binding;
-		internal_bindings[i].descriptorType = static_cast<VkDescriptorType>(ranges[i].type);
-		internal_bindings[i].descriptorCount = ranges[i].count;
-		internal_bindings[i].stageFlags = static_cast<VkShaderStageFlags>(ranges[i].visibility);
-		internal_bindings[i].pImmutableSamplers = nullptr;
+		for (uint32_t k = 0; k < ranges[i].count; ++k)
+		{
+			VkDescriptorSetLayoutBinding &internal_binding = internal_bindings.emplace_back();
+			internal_binding.binding = ranges[i].binding + k;
+			internal_binding.descriptorType = static_cast<VkDescriptorType>(ranges[i].type);
+			internal_binding.descriptorCount = 1;
+			internal_binding.stageFlags = static_cast<VkShaderStageFlags>(ranges[i].visibility);
+			internal_binding.pImmutableSamplers = nullptr;
+		}
 	}
 
 	VkDescriptorSetLayoutCreateInfo set_create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
-	set_create_info.bindingCount = num_ranges;
+	set_create_info.bindingCount = static_cast<uint32_t>(internal_bindings.size());
 	set_create_info.pBindings = internal_bindings.data();
 
 	if (push_descriptors)
@@ -994,8 +1017,8 @@ bool reshade::vulkan::device_impl::request_render_pass_and_framebuffer(uint32_t 
 			attach.samples = rt_resource_info.image_create_info.samples;
 			attach.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
 			attach.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-			attach.initialLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-			attach.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+			attach.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+			attach.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 		}
 
 		if (dsv.handle != 0)
@@ -1014,8 +1037,8 @@ bool reshade::vulkan::device_impl::request_render_pass_and_framebuffer(uint32_t 
 			attach.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 			attach.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
 			attach.stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
-			attach.initialLayout = VK_IMAGE_LAYOUT_GENERAL;
-			attach.finalLayout = VK_IMAGE_LAYOUT_GENERAL;
+			attach.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+			attach.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 		}
 
 		// Synchronize any writes to render targets in previous passes with reads from them in this pass
@@ -1095,14 +1118,10 @@ reshade::vulkan::command_list_impl::~command_list_impl()
 
 void reshade::vulkan::command_list_impl::bind_index_buffer(api::resource buffer, uint64_t offset, uint32_t index_size)
 {
-	_has_commands = true;
-
 	_device_impl->vk.CmdBindIndexBuffer(_orig, (VkBuffer)buffer.handle, offset, index_size == 1 ? VK_INDEX_TYPE_UINT8_EXT : index_size == 2 ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32);
 }
 void reshade::vulkan::command_list_impl::bind_vertex_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *)
 {
-	_has_commands = true;
-
 	_device_impl->vk.CmdBindVertexBuffers(_orig, first, count, reinterpret_cast<const VkBuffer *>(buffers), offsets);
 }
 
