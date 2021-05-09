@@ -3,6 +3,8 @@
  * License: https://github.com/crosire/reshade#license
  */
 
+#pragma once
+
 namespace reshade::d3d9
 {
 	auto convert_blend_op(api::blend_op value) -> D3DBLENDOP;

@@ -3,6 +3,8 @@
  * License: https://github.com/crosire/reshade#license
  */
 
+#pragma once
+
 namespace reshade::vulkan
 {
 	void convert_format_to_vk_format(api::format format, VkFormat &vk_format);

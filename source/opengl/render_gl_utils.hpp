@@ -3,6 +3,8 @@
  * License: https://github.com/crosire/reshade#license
  */
 
+#pragma once
+
 namespace reshade::opengl
 {
 	bool is_depth_stencil_format(GLenum format, GLenum usage = GL_DEPTH_STENCIL);
