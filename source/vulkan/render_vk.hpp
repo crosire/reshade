@@ -83,8 +83,9 @@ namespace reshade::vulkan
 		device_impl(VkDevice device, VkPhysicalDevice physical_device, const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table);
 		~device_impl();
 
-		api::render_api get_api() const final { return api::render_api::vulkan; }
+		api::device_api get_api() const final { return api::device_api::vulkan; }
 
+		bool check_capability(api::device_caps capability) const final;
 		bool check_format_support(api::format format, api::resource_usage usage) const final;
 
 		bool check_resource_handle_valid(api::resource resource) const final;

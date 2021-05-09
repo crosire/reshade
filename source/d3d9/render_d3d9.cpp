@@ -178,6 +178,41 @@ bool reshade::d3d9::device_impl::create_surface_replacement(const D3DSURFACE_DES
 	return false;
 }
 
+bool reshade::d3d9::device_impl::check_capability(api::device_caps capability) const
+{
+	switch (capability)
+	{
+	case api::device_caps::compute_shader:
+	case api::device_caps::geometry_shader:
+	case api::device_caps::tessellation_shaders:
+	case api::device_caps::dual_src_blend:
+	case api::device_caps::independent_blend:
+	case api::device_caps::logic_op:
+	case api::device_caps::draw_instanced:
+	case api::device_caps::draw_or_dispatch_indirect:
+		return false;
+	case api::device_caps::fill_mode_non_solid:
+		return true;
+	case api::device_caps::multi_viewport:
+		return false;
+	case api::device_caps::sampler_anisotropy:
+		return true;
+	case api::device_caps::push_descriptors:
+		return true;
+	case api::device_caps::descriptor_tables:
+		return false;
+	case api::device_caps::sampler_with_resource_view:
+		return true;
+	case api::device_caps::blit:
+	case api::device_caps::resolve_region:
+		return true;
+	case api::device_caps::copy_buffer_region:
+	case api::device_caps::copy_buffer_to_texture:
+		return false;
+	default:
+		return false;
+	}
+}
 bool reshade::d3d9::device_impl::check_format_support(api::format format, api::resource_usage usage) const
 {
 	if ((usage & api::resource_usage::unordered_access) != 0)

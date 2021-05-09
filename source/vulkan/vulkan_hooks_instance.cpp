@@ -92,6 +92,7 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	// ---- Core 1_0 commands
 	INIT_DISPATCH_PTR(DestroyInstance);
 	INIT_DISPATCH_PTR(EnumeratePhysicalDevices);
+	INIT_DISPATCH_PTR(GetPhysicalDeviceFeatures);
 	INIT_DISPATCH_PTR(GetPhysicalDeviceFormatProperties);
 	INIT_DISPATCH_PTR(GetPhysicalDeviceProperties);
 	INIT_DISPATCH_PTR(GetPhysicalDeviceMemoryProperties);

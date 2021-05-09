@@ -83,6 +83,49 @@ reshade::vulkan::device_impl::~device_impl()
 	vmaDestroyAllocator(_alloc);
 }
 
+bool reshade::vulkan::device_impl::check_capability(api::device_caps capability) const
+{
+	VkPhysicalDeviceFeatures features = {};
+	_instance_dispatch_table.GetPhysicalDeviceFeatures(_physical_device, &features);
+
+	switch (capability)
+	{
+	case api::device_caps::compute_shader:
+		return true;
+	case api::device_caps::geometry_shader:
+		return features.geometryShader;
+	case api::device_caps::tessellation_shaders:
+		return features.tessellationShader;
+	case api::device_caps::dual_src_blend:
+		return features.dualSrcBlend;
+	case api::device_caps::independent_blend:
+		return features.independentBlend;
+	case api::device_caps::logic_op:
+		return features.logicOp;
+	case api::device_caps::draw_instanced:
+		return true;
+	case api::device_caps::draw_or_dispatch_indirect:
+		// Technically this only specifies whether multi-draw indirect is supported, not draw indirect as a whole
+		return features.multiDrawIndirect;
+	case api::device_caps::fill_mode_non_solid:
+		return features.fillModeNonSolid;
+	case api::device_caps::multi_viewport:
+		return features.multiViewport;
+	case api::device_caps::sampler_anisotropy:
+		return features.samplerAnisotropy;
+	case api::device_caps::push_descriptors:
+		return vk.CmdPushDescriptorSetKHR != nullptr;
+	case api::device_caps::descriptor_tables:
+	case api::device_caps::sampler_with_resource_view:
+	case api::device_caps::blit:
+	case api::device_caps::resolve_region:
+	case api::device_caps::copy_buffer_region:
+	case api::device_caps::copy_buffer_to_texture:
+		return true;
+	default:
+		return false;
+	}
+}
 bool reshade::vulkan::device_impl::check_format_support(api::format format, api::resource_usage usage) const
 {
 	VkFormat vk_format = VK_FORMAT_UNDEFINED;

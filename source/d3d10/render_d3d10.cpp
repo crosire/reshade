@@ -55,6 +55,43 @@ reshade::d3d10::device_impl::~device_impl()
 #endif
 }
 
+bool reshade::d3d10::device_impl::check_capability(api::device_caps capability) const
+{
+	switch (capability)
+	{
+	case api::device_caps::compute_shader:
+		return false;
+	case api::device_caps::geometry_shader:
+		return _orig->GetFeatureLevel() >= D3D_FEATURE_LEVEL_10_0;
+	case api::device_caps::tessellation_shaders:
+		return false;
+	case api::device_caps::dual_src_blend:
+	case api::device_caps::independent_blend:
+		return true;
+	case api::device_caps::logic_op:
+		return false;
+	case api::device_caps::draw_instanced:
+		return true;
+	case api::device_caps::draw_or_dispatch_indirect:
+		return false;
+	case api::device_caps::fill_mode_non_solid:
+	case api::device_caps::multi_viewport:
+	case api::device_caps::sampler_anisotropy:
+	case api::device_caps::push_descriptors:
+		return true;
+	case api::device_caps::descriptor_tables:
+	case api::device_caps::sampler_with_resource_view:
+	case api::device_caps::blit:
+	case api::device_caps::resolve_region:
+		return false;
+	case api::device_caps::copy_buffer_region:
+		return true;
+	case api::device_caps::copy_buffer_to_texture:
+		return false;
+	default:
+		return false;
+	}
+}
 bool reshade::d3d10::device_impl::check_format_support(api::format format, api::resource_usage usage) const
 {
 	if ((usage & api::resource_usage::unordered_access) != 0)

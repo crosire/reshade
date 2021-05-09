@@ -160,9 +160,9 @@ struct state_tracking_context
 		desc.heap = memory_heap::gpu_only;
 		desc.usage = resource_usage::shader_resource | resource_usage::copy_dest;
 
-		if (device->get_api() == render_api::d3d9)
+		if (device->get_api() == device_api::d3d9)
 			desc.texture.format = format::r32_float; // D3DFMT_R32F, size INTZ does not support D3DUSAGE_RENDERTARGET which is required for copying
-		if (device->get_api() >= render_api::d3d10 && device->get_api() <= render_api::d3d12)
+		if (device->get_api() >= device_api::d3d10 && device->get_api() <= device_api::d3d12)
 			desc.texture.format = static_cast<format>(make_dxgi_format_typeless(static_cast<DXGI_FORMAT>(desc.texture.format)));
 
 		if (!device->create_resource(desc, nullptr, resource_usage::copy_dest, &backup_texture))
@@ -260,15 +260,15 @@ static bool on_create_resource(
 	resource_desc new_desc = desc;
 
 	// No need to modify resources in D3D12, since backup texture is used always
-	if ((device->get_api() != render_api::d3d12) && (
+	if ((device->get_api() != device_api::d3d12) && (
 		// Skip MSAA textures and resources that are not 2D textures
 		(desc.type == resource_type::surface || desc.type == resource_type::texture_2d) && desc.texture.samples == 1) && (
 		// Allow shader access to images that are used as depth-stencil attachments
 		(desc.usage & resource_usage::depth_stencil) != 0 && (desc.usage & resource_usage::shader_resource) == 0))
 	{
-		if (device->get_api() == render_api::d3d9 && !s_disable_intz)
+		if (device->get_api() == device_api::d3d9 && !s_disable_intz)
 			new_desc.texture.format = format::intz;
-		if (device->get_api() >= render_api::d3d10 && device->get_api() <= render_api::d3d12)
+		if (device->get_api() >= device_api::d3d10 && device->get_api() <= device_api::d3d12)
 			new_desc.texture.format = static_cast<format>(make_dxgi_format_typeless(static_cast<DXGI_FORMAT>(desc.texture.format)));
 
 		new_desc.usage |= resource_usage::shader_resource;
@@ -282,7 +282,7 @@ static bool on_create_resource_view(
 	resource_view_desc new_desc = desc;
 
 	// A view cannot be created with a typeless format (which was set in 'on_create_resource' above), so fix it in case defaults are used
-	if (desc.format == format::unknown && (device->get_api() >= render_api::d3d10 && device->get_api() <= render_api::d3d11))
+	if (desc.format == format::unknown && (device->get_api() >= device_api::d3d10 && device->get_api() <= device_api::d3d11))
 	{
 		const resource_desc texture_desc = device->get_resource_desc(resource);
 		// Only non-MSAA textures where modified, so skip all others
@@ -378,7 +378,7 @@ static void on_bind_depth_stencil(command_list *cmd_list, uint32_t, const resour
 	}
 
 	// Make a backup of the depth texture before it is used differently, since in D3D12 or Vulkan the underlying memory may be aliased to a different resource, so cannot just access it at the end of the frame
-	if (depth_stencil != state.current_depth_stencil && state.current_depth_stencil != 0 && (device->get_api() == render_api::d3d12 || device->get_api() == render_api::vulkan))
+	if (depth_stencil != state.current_depth_stencil && state.current_depth_stencil != 0 && (device->get_api() == device_api::d3d12 || device->get_api() == device_api::vulkan))
 	{
 		clear_depth_impl(cmd_list, state, device->get_data<state_tracking_context>(state_tracking_context::GUID), state.current_depth_stencil, true);
 	}
@@ -490,18 +490,18 @@ static void on_present(command_queue *, effect_runtime *runtime)
 
 			// Create two-dimensional resource view to the first level and layer of the depth-stencil resource
 			resource_view_desc srv_desc(best_desc.texture.format, 0, 1, 0, 1);
-			if (device->get_api() >= render_api::d3d10 && device->get_api() <= render_api::d3d12)
+			if (device->get_api() >= device_api::d3d10 && device->get_api() <= device_api::d3d12)
 				srv_desc.format = static_cast<format>(make_dxgi_format_normal(static_cast<DXGI_FORMAT>(srv_desc.format)));
 
 			// Need to create backup texture only if doing backup copies or original resource does not support shader access (which is necessary for binding it to effects)
 			// Also always create a backup texture in D3D12 or Vulkan to circument problems in case application makes use of resource aliasing
-			if (device_state.preserve_depth_buffers || (best_desc.usage & resource_usage::shader_resource) == 0 || (device->get_api() == render_api::d3d12 || device->get_api() == render_api::vulkan))
+			if (device_state.preserve_depth_buffers || (best_desc.usage & resource_usage::shader_resource) == 0 || (device->get_api() == device_api::d3d12 || device->get_api() == device_api::vulkan))
 			{
 				device_state.update_backup_texture(device, best_desc);
 
 				if (device_state.backup_texture != 0)
 				{
-					if (device->get_api() == render_api::d3d9)
+					if (device->get_api() == device_api::d3d9)
 						srv_desc.format = format::r32_float; // Same format as backup texture, as set in 'update_backup_texture'
 
 					device->create_resource_view(device_state.backup_texture, resource_usage::shader_resource, srv_desc, &device_state.selected_shader_resource);
@@ -626,7 +626,7 @@ static void draw_debug_menu(effect_runtime *runtime, void *)
 	state_tracking_context &device_state = device->get_data<state_tracking_context>(state_tracking_context::GUID);
 
 	bool modified = false;
-	if (device->get_api() == render_api::d3d9)
+	if (device->get_api() == device_api::d3d9)
 		modified |= ImGui::Checkbox("Disable replacement with INTZ format (requires restart)", &s_disable_intz);
 
 	modified |= ImGui::Checkbox("Use aspect ratio heuristics", &device_state.use_aspect_ratio_heuristics);

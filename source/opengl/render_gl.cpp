@@ -263,6 +263,50 @@ reshade::opengl::device_impl::~device_impl()
 	glDeleteFramebuffers(2, _copy_fbo);
 }
 
+bool reshade::opengl::device_impl::check_capability(api::device_caps capability) const
+{
+	GLint value;
+
+	switch (capability)
+	{
+	case api::device_caps::compute_shader:
+		return true; // OpenGL 4.3
+	case api::device_caps::geometry_shader:
+		return true; // OpenGL 3.2
+	case api::device_caps::tessellation_shaders:
+		return true; // OpenGL 4.0
+	case api::device_caps::dual_src_blend:
+		return true; // OpenGL 3.3
+	case api::device_caps::independent_blend:
+		// TODO
+		return false;
+	case api::device_caps::logic_op:
+		return true; // OpenGL 1.1
+	case api::device_caps::draw_instanced:
+		return true; // OpenGL 3.1
+	case api::device_caps::draw_or_dispatch_indirect:
+		return true; // OpenGL 4.0
+	case api::device_caps::fill_mode_non_solid:
+	case api::device_caps::multi_viewport:
+		return true;
+	case api::device_caps::sampler_anisotropy:
+		glGetIntegerv(GL_TEXTURE_MAX_ANISOTROPY, &value);
+		return value > 1;
+	case api::device_caps::push_descriptors:
+		return true;
+	case api::device_caps::descriptor_tables:
+		return false;
+	case api::device_caps::sampler_with_resource_view:
+	case api::device_caps::blit:
+	case api::device_caps::resolve_region:
+	case api::device_caps::copy_buffer_region:
+		return true;
+	case api::device_caps::copy_buffer_to_texture:
+		return false;
+	default:
+		return false;
+	}
+}
 bool reshade::opengl::device_impl::check_format_support(api::format format, api::resource_usage usage) const
 {
 	GLenum internal_format = GL_NONE;

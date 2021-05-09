@@ -30,8 +30,9 @@ namespace reshade::opengl
 		device_impl(HDC hdc, HGLRC hglrc);
 		~device_impl();
 
-		api::render_api get_api() const final { return api::render_api::opengl; }
+		api::device_api get_api() const final { return api::device_api::opengl; }
 
+		bool check_capability(api::device_caps capability) const final;
 		bool check_format_support(api::format format, api::resource_usage usage) const final;
 
 		bool check_resource_handle_valid(api::resource resource) const final;

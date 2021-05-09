@@ -61,6 +61,42 @@ reshade::d3d12::device_impl::~device_impl()
 #endif
 }
 
+bool reshade::d3d12::device_impl::check_capability(api::device_caps capability) const
+{
+	D3D12_FEATURE_DATA_D3D12_OPTIONS options;
+
+	switch (capability)
+	{
+	case api::device_caps::compute_shader:
+	case api::device_caps::geometry_shader:
+	case api::device_caps::tessellation_shaders:
+	case api::device_caps::dual_src_blend:
+	case api::device_caps::independent_blend:
+		return true;
+	case api::device_caps::logic_op:
+		_orig->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &options, sizeof(options));
+		return options.OutputMergerLogicOp;
+	case api::device_caps::draw_instanced:
+	case api::device_caps::draw_or_dispatch_indirect:
+	case api::device_caps::fill_mode_non_solid:
+	case api::device_caps::multi_viewport:
+	case api::device_caps::sampler_anisotropy:
+		return true;
+	case api::device_caps::push_descriptors:
+		return false;
+	case api::device_caps::descriptor_tables:
+		return true;
+	case api::device_caps::sampler_with_resource_view:
+	case api::device_caps::blit:
+	case api::device_caps::resolve_region:
+		return false;
+	case api::device_caps::copy_buffer_region:
+	case api::device_caps::copy_buffer_to_texture:
+		return true;
+	default:
+		return false;
+	}
+}
 bool reshade::d3d12::device_impl::check_format_support(api::format format, api::resource_usage usage) const
 {
 	D3D12_FEATURE_DATA_FORMAT_SUPPORT feature = { static_cast<DXGI_FORMAT>(format) };

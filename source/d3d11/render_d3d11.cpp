@@ -70,6 +70,44 @@ reshade::d3d11::device_impl::~device_impl()
 #endif
 }
 
+bool reshade::d3d11::device_impl::check_capability(api::device_caps capability) const
+{
+	D3D11_FEATURE_DATA_D3D11_OPTIONS options;
+
+	switch (capability)
+	{
+	case api::device_caps::compute_shader:
+		return _orig->GetFeatureLevel() >= D3D_FEATURE_LEVEL_11_0;
+	case api::device_caps::geometry_shader:
+		return _orig->GetFeatureLevel() >= D3D_FEATURE_LEVEL_10_0;
+	case api::device_caps::tessellation_shaders:
+		return _orig->GetFeatureLevel() >= D3D_FEATURE_LEVEL_11_0;
+	case api::device_caps::dual_src_blend:
+	case api::device_caps::independent_blend:
+		return true;
+	case api::device_caps::logic_op:
+		_orig->CheckFeatureSupport(D3D11_FEATURE_D3D11_OPTIONS, &options, sizeof(options));
+		return options.OutputMergerLogicOp;
+	case api::device_caps::draw_instanced:
+	case api::device_caps::draw_or_dispatch_indirect:
+	case api::device_caps::fill_mode_non_solid:
+	case api::device_caps::multi_viewport:
+	case api::device_caps::sampler_anisotropy:
+	case api::device_caps::push_descriptors:
+		return true;
+	case api::device_caps::descriptor_tables:
+	case api::device_caps::sampler_with_resource_view:
+	case api::device_caps::blit:
+	case api::device_caps::resolve_region:
+		return false;
+	case api::device_caps::copy_buffer_region:
+		return true;
+	case api::device_caps::copy_buffer_to_texture:
+		return false;
+	default:
+		return false;
+	}
+}
 bool reshade::d3d11::device_impl::check_format_support(api::format format, api::resource_usage usage) const
 {
 	UINT support = 0;

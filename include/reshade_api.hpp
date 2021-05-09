@@ -13,7 +13,7 @@ namespace reshade { namespace api
 	/// <summary>
 	/// The underlying render API a device is using, as returned by <see cref="device::get_api"/>.
 	/// </summary>
-	enum class render_api
+	enum class device_api
 	{
 		d3d9 = 0x9000,
 		d3d10 = 0xa000,
@@ -21,6 +21,102 @@ namespace reshade { namespace api
 		d3d12 = 0xc000,
 		opengl = 0x10000,
 		vulkan = 0x20000
+	};
+
+	/// <summary>
+	/// The available features a device may support.
+	/// </summary>
+	enum class device_caps
+	{
+		/// <summary>
+		/// Specifies whether compute shaders are supported.
+		/// If this feature is not present, the "compute_shader" pipeline state must not be used.
+		/// </summary>
+		compute_shader = 1,
+		/// <summary>
+		/// Specifies whether geometry shaders are supported.
+		/// If this feature is not present, the "geometry_shader" pipeline state must not be used.
+		/// </summary>
+		geometry_shader,
+		/// <summary>
+		/// Specifies whether hull and doman shaders are supported.
+		/// If this feature is not present, the "hull_shader" and "domain_shader" pipeline state must not be used.
+		/// </summary>
+		tessellation_shaders,
+		/// <summary>
+		/// Specifies whether blend operations which take two sources are supported.
+		/// If this feature is not present, <see cref="blend_factor::src1_color"/>, <see cref="blend_factor::inv_src1_color"/>, <see cref="blend_factor::src1_alpha"/> and <see cref="blend_factor::inv_src1_alpha"/> must not be used.
+		/// </summary>
+		dual_src_blend,
+		/// <summary>
+		/// Specifies whehter blend state is controlled independently per render target.
+		/// If this feature is not present, the blend state settings for all render targets must be identical.
+		/// </summary>
+		independent_blend,
+		/// <summary>
+		/// Specifies whether logic operations are available in the blend state.
+		/// </summary>
+		logic_op,
+		/// <summary>
+		/// Specifies whether instancing is supported.
+		/// If this feature is not present, the "instances" and "first_instance" parameters to <see cref="command_list::draw"/> and <see cref="command_list::draw_indexed"/> must be 1 and 0.
+		/// </summary>
+		draw_instanced,
+		/// <summary>
+		/// Specifies whether indirect draw or dispatch calls are supported.
+		/// If this feature is not present, <see cref="command_list::draw_or_dispatch_indirect"/> must not be used.
+		/// </summary>
+		draw_or_dispatch_indirect,
+		/// <summary>
+		/// Specifies whether point and wireframe fill modes are supported.
+		/// If this feature is not present, <see cref="fill_mode::point"/> and <see cref="fill_mode::wireframe"/> must not be used.
+		/// </summary>
+		fill_mode_non_solid,
+		/// <summary>
+		/// Specifies whther more than one viewport is supported.
+		/// If this feature is not present, the "first" and "count" parameters to <see cref="command_list::bind_viewports"/> must be 0 and 1.
+		/// </summary>
+		multi_viewport,
+		/// <summary>
+		/// Specifies whether anisotropic filtering is supported.
+		/// If this feature is not present, <see cref="texture_filter::anisotropic"/> must not be used.
+		/// </summary>
+		sampler_anisotropy,
+		/// <summary>
+		/// Specifies whether push desriptors are supported.
+		/// If this feature is not present, <see cref="command_list::push_descriptors"/> must not be used.
+		/// </summary>
+		push_descriptors,
+		/// <summary>
+		/// Specifies whether descriptor tables are supported.
+		/// If this feature is not present, <see cref="command_list::bind_descriptor_tables"/> must not be used.
+		/// </summary>
+		descriptor_tables,
+		/// <summary>
+		/// Specifies whether combined sampler and resource is supported.
+		/// If this feature is not present, <see cref="descriptor_type::sampler_with_resource_view"/> must not be used.
+		/// </summary>
+		sampler_with_resource_view,
+		/// <summary>
+		/// Specifies whether blitting between resources is supported.
+		/// If this feature is not present, <see cref="command_list::blit"/> must not be used.
+		/// </summary>
+		blit,
+		/// <summary>
+		/// Specifies whether resolving a region of a resource rather than its entirety is supported.
+		/// If this feature is not present, the "src_offset", "dst_offset" and "size" parameters to <see cref="command_list::resolve"/> must be <c>nullptr</c>.
+		/// </summary>
+		resolve_region,
+		/// <summary>
+		/// Specifies whether copying between buffers is supported.
+		/// If this feature is not present, <see cref="command_list::copy_buffer_region"/> must not be used.
+		/// </summary>
+		copy_buffer_region,
+		/// <summary>
+		/// Specifies whether copying between buffers and textures is supported.
+		/// If this feature is not present, <see cref="command_list::copy_buffer_to_texture"/> and <see cref="command_list::copy_texture_to_buffer"/> must not be used.
+		/// </summary>
+		copy_buffer_to_texture,
 	};
 
 	/// <summary>
@@ -82,8 +178,12 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Gets the underlying render API used by this device.
 		/// </summary>
-		virtual render_api get_api() const = 0;
+		virtual device_api get_api() const = 0;
 
+		/// <summary>
+		/// Checks whether the device supports the specfied <paramref name="capability"/>.
+		/// </summary>
+		virtual bool check_capability(device_caps capability) const = 0;
 		/// <summary>
 		/// Checks whether the specified <paramref name="format"/> supports the specified <paramref name="usage"/>.
 		/// </summary>
