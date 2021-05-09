@@ -264,14 +264,15 @@ namespace reshade { namespace api
 		/// <returns><c>true</c> if the descriptor heap was successfully created, <c>false</c> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
 		virtual bool create_descriptor_heap(uint32_t max_tables, uint32_t num_sizes, const descriptor_heap_size *sizes, descriptor_heap *out) = 0;
 		/// <summary>
-		/// Allocates a descriptor table/set from the specified descriptor <paramref name="heap"/>.
+		/// Allocates an array of descriptor tables from the specified descriptor <paramref name="heap"/>.
 		/// This is freed again by destroying the heap.
 		/// </summary>
-		/// <param name="heap">The descriptor heap to allocate the table from.</param>
-		/// <param name="layout">The layout of the descriptor table to create.</param>
-		/// <param name="out">Pointer to a handle that is set to the handle of the created descriptor table.</param>
-		/// <returns><c>true</c> if the descriptor table was successfully created, <c>false</c> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
-		virtual bool create_descriptor_table(descriptor_heap heap, descriptor_table_layout layout, descriptor_table *out) = 0;
+		/// <param name="heap">The descriptor heap to allocate the descriptor tables from.</param>
+		/// <param name="layout">The layout of the descriptor tables.</param>
+		/// <param name="count">The number of descriptor tables to allocate.</param>
+		/// <param name="out">Pointer to an array of handles with at least <paramref name="count"/> elements that is filles with the handles of the created descriptor tables.</param>
+		/// <returns><c>true</c> if the descriptor tables were successfully created, <c>false</c> otherwise (in this case <paramref name="out"/> is filles with zeroes).</returns>
+		virtual bool create_descriptor_tables(descriptor_heap heap, descriptor_table_layout layout, uint32_t count, descriptor_table *out) = 0;
 		/// <summary>
 		/// Creates a new descriptor table layout.
 		/// </summary>
@@ -472,12 +473,12 @@ namespace reshade { namespace api
 		/// Binds an array of descriptor tables. This must be preceeded by a call to <see cref="bind_descriptor_heaps"/> with the heaps these descriptor tables were allocated from.
 		/// <para>This is not supported (and will do nothing) in D3D9, D3D10, D3D11 and OpenGL.</para>
 		/// </summary>
-		/// <param name="stage">The pipeline type to bind to (can be <see cref="shader_stage::compute"/> or <see cref="shader_stage::all_graphics"/>).</param>
+		/// <param name="type">The pipeline type that will use the descriptors.</param>
 		/// <param name="layout">The pipeline layout that describes the descriptor tables.</param>
 		/// <param name="first">The index of the first descriptor table in the pipeline <paramref name="layout"/> to bind.</param>
 		/// <param name="count">The number of descriptor tables to bind.</param>
 		/// <param name="tables">A pointer to an array of descriptor tables to bind.</param>
-		virtual void bind_descriptor_tables(shader_stage stage, pipeline_layout layout, uint32_t first, uint32_t count, const descriptor_table *tables) = 0;
+		virtual void bind_descriptor_tables(pipeline_type type, pipeline_layout layout, uint32_t first, uint32_t count, const descriptor_table *tables) = 0;
 
 		/// <summary>
 		/// Binds an array of viewports to the rasterizer stage.

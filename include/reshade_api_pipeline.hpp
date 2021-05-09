@@ -280,7 +280,7 @@ namespace reshade { namespace api
 	/// <summary>
 	/// Describes a single element in the the layout of the vertex buffer data for the input-assembler stage.
 	/// </summary>
-	struct input_element
+	struct input_layout_element
 	{
 		// The GLSL attribute location associated with this element.
 		uint32_t location;
@@ -426,7 +426,7 @@ namespace reshade { namespace api
 
 				// Describes the layout of the vertex buffer data for the input-assembler stage.
 				// Elements following one with the format set to <see cref="format::unknown"/> will be ignored (which can be used to terminate this list).
-				input_element input_layout[16];
+				input_layout_element input_layout[16];
 
 				// Describes the blend state of the output-merger stage.
 				struct

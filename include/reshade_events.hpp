@@ -133,7 +133,7 @@ namespace reshade
 		bind_descriptor_heaps,
 		/// <summary>
 		/// Called after 'ID3D12GraphicsCommandList::Set(...)RootDescriptorTable' or 'vkCmdBindDescriptorSets'.
-		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::shader_stage stage, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_table *tables)</c></para>
+		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::pipeline_type type, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_table *tables)</c></para>
 		/// </summary>
 		bind_descriptor_tables,
 
@@ -383,7 +383,7 @@ namespace reshade
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::push_constants, api::command_list *cmd_list, api::shader_stage stage, api::pipeline_layout layout, uint32_t layout_index, uint32_t first, uint32_t count, const uint32_t *values);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::push_descriptors, api::command_list *cmd_list, api::shader_stage stage, api::pipeline_layout layout, uint32_t layout_index, api::descriptor_type type, uint32_t first, uint32_t count, const void *descriptors);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_descriptor_heaps, api::command_list *cmd_list, uint32_t count, const api::descriptor_heap *heaps);
-	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_descriptor_tables, api::command_list *cmd_list, api::shader_stage stage, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_table *tables);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_descriptor_tables, api::command_list *cmd_list, api::pipeline_type type, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_table *tables);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_viewports, api::command_list *cmd_list, uint32_t first, uint32_t count, const float *viewports);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_scissor_rects, api::command_list *cmd_list, uint32_t first, uint32_t count, const int32_t *rects);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_render_targets_and_depth_stencil, api::command_list *cmd_list, uint32_t count, const api::resource_view *rtvs, api::resource_view dsv);

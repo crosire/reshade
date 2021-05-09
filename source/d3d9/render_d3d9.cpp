@@ -738,7 +738,7 @@ bool reshade::d3d9::device_impl::create_descriptor_heap(uint32_t, uint32_t, cons
 	*out = { 0 };
 	return false;
 }
-bool reshade::d3d9::device_impl::create_descriptor_table(api::descriptor_heap, api::descriptor_table_layout, api::descriptor_table *out)
+bool reshade::d3d9::device_impl::create_descriptor_tables(api::descriptor_heap, api::descriptor_table_layout, uint32_t, api::descriptor_table *out)
 {
 	assert(false);
 
@@ -1124,7 +1124,7 @@ void reshade::d3d9::device_impl::bind_descriptor_heaps(uint32_t, const api::desc
 {
 	assert(false);
 }
-void reshade::d3d9::device_impl::bind_descriptor_tables(api::shader_stage, api::pipeline_layout, uint32_t, uint32_t, const api::descriptor_table *)
+void reshade::d3d9::device_impl::bind_descriptor_tables(api::pipeline_type, api::pipeline_layout, uint32_t, uint32_t, const api::descriptor_table *)
 {
 	assert(false);
 }

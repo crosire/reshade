@@ -595,22 +595,29 @@ bool reshade::d3d12::device_impl::create_descriptor_heap(uint32_t, uint32_t num_
 		return false;
 	}
 }
-bool reshade::d3d12::device_impl::create_descriptor_table(api::descriptor_heap heap, api::descriptor_table_layout layout, api::descriptor_table *out)
+bool reshade::d3d12::device_impl::create_descriptor_tables(api::descriptor_heap heap, api::descriptor_table_layout layout, uint32_t count, api::descriptor_table *out)
 {
 	const auto heap_object = reinterpret_cast<ID3D12DescriptorHeap *>(heap.handle);
 
 	const UINT size = reinterpret_cast<const descriptor_table_layout_impl *>(layout.handle)->total_size;
 	const UINT offset = _descriptor_heap_offset[heap_object];
-	_descriptor_heap_offset[heap_object] += size;
+	const UINT increment = _descriptor_handle_size[heap_object->GetDesc().Type];
+	_descriptor_heap_offset[heap_object] += size * count;
 
 	D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle = heap_object->GetCPUDescriptorHandleForHeapStart();
-	cpu_handle.ptr += offset * _descriptor_handle_size[heap_object->GetDesc().Type];
+	cpu_handle.ptr += offset * increment;
 	D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle = heap_object->GetGPUDescriptorHandleForHeapStart();
-	gpu_handle.ptr += offset * _descriptor_handle_size[heap_object->GetDesc().Type];
+	gpu_handle.ptr += offset * increment;
 
-	_descriptor_table_map[gpu_handle.ptr] = cpu_handle;
+	for (UINT i = 0; i < count; ++i)
+	{
+		_descriptor_table_map[gpu_handle.ptr] = cpu_handle;
+		out[i] = { gpu_handle.ptr };
 
-	*out = { gpu_handle.ptr };
+		cpu_handle.ptr += size * increment;
+		gpu_handle.ptr += size * increment;
+	}
+
 	return true;
 }
 bool reshade::d3d12::device_impl::create_descriptor_table_layout(uint32_t num_ranges, const api::descriptor_range *ranges, bool push_descriptors, api::descriptor_table_layout *out)
@@ -1014,11 +1021,11 @@ void reshade::d3d12::command_list_impl::bind_descriptor_heaps(uint32_t count, co
 
 	_orig->SetDescriptorHeaps(count, heap_ptrs);
 }
-void reshade::d3d12::command_list_impl::bind_descriptor_tables(api::shader_stage stage, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_table *tables)
+void reshade::d3d12::command_list_impl::bind_descriptor_tables(api::pipeline_type type, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_table *tables)
 {
 	const auto root_signature = reinterpret_cast<ID3D12RootSignature *>(layout.handle);
 
-	if (stage == api::shader_stage::compute)
+	if (type == api::pipeline_type::compute)
 	{
 		if (_current_root_signature[1] != root_signature)
 		{
@@ -1037,7 +1044,7 @@ void reshade::d3d12::command_list_impl::bind_descriptor_tables(api::shader_stage
 
 	for (uint32_t i = 0; i < count; ++i)
 	{
-		if (stage == api::shader_stage::compute)
+		if (type == api::pipeline_type::compute)
 			_orig->SetComputeRootDescriptorTable(i + first, D3D12_GPU_DESCRIPTOR_HANDLE { tables[i].handle });
 		else
 			_orig->SetGraphicsRootDescriptorTable(i + first, D3D12_GPU_DESCRIPTOR_HANDLE { tables[i].handle });

@@ -801,22 +801,25 @@ bool reshade::vulkan::device_impl::create_descriptor_heap(uint32_t max_tables, u
 		return false;
 	}
 }
-bool reshade::vulkan::device_impl::create_descriptor_table(api::descriptor_heap heap, api::descriptor_table_layout layout, api::descriptor_table *out)
+bool reshade::vulkan::device_impl::create_descriptor_tables(api::descriptor_heap heap, api::descriptor_table_layout layout, uint32_t count, api::descriptor_table *out)
 {
+	static_assert(sizeof(*out) == sizeof(VkDescriptorSet));
+
+	std::vector<VkDescriptorSetLayout> set_layouts(count, (VkDescriptorSetLayout)layout.handle);
+
 	VkDescriptorSetAllocateInfo alloc_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
 	alloc_info.descriptorPool = (VkDescriptorPool)heap.handle;
-	alloc_info.descriptorSetCount = 1;
-	alloc_info.pSetLayouts = reinterpret_cast<const VkDescriptorSetLayout *>(&layout.handle);
+	alloc_info.descriptorSetCount = count;
+	alloc_info.pSetLayouts = set_layouts.data();
 
-	if (VkDescriptorSet object = VK_NULL_HANDLE;
-		vk.AllocateDescriptorSets(_orig, &alloc_info, &object) == VK_SUCCESS)
+	if (vk.AllocateDescriptorSets(_orig, &alloc_info, reinterpret_cast<VkDescriptorSet *>(out)) == VK_SUCCESS)
 	{
-		*out = { (uint64_t)object };
 		return true;
 	}
 	else
 	{
-		*out = { 0 };
+		for (uint32_t i = 0; i < count; ++i)
+			out[i] = { 0 };
 		return false;
 	}
 }
@@ -1291,10 +1294,10 @@ void reshade::vulkan::command_list_impl::bind_descriptor_heaps(uint32_t, const a
 {
 	// No need to bind descriptor pool in Vulkan
 }
-void reshade::vulkan::command_list_impl::bind_descriptor_tables(api::shader_stage stage, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_table *tables)
+void reshade::vulkan::command_list_impl::bind_descriptor_tables(api::pipeline_type type, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_table *tables)
 {
 	_device_impl->vk.CmdBindDescriptorSets(_orig,
-		stage == api::shader_stage::compute ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS,
+		type == api::pipeline_type::compute ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS,
 		(VkPipelineLayout)layout.handle,
 		first, count, reinterpret_cast<const VkDescriptorSet *>(tables),
 		0, nullptr);

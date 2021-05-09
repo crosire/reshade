@@ -377,7 +377,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootDescriptorTable(U
 
 	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_tables>(
 		this,
-		reshade::api::shader_stage::compute,
+		reshade::api::pipeline_type::compute,
 		reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(_current_root_signature[1]) },
 		RootParameterIndex,
 		1,
@@ -393,7 +393,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRootDescriptorTable(
 
 	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_tables>(
 		this,
-		reshade::api::shader_stage::all_graphics,
+		reshade::api::pipeline_type::graphics,
 		reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(_current_root_signature[0]) },
 		RootParameterIndex,
 		1,

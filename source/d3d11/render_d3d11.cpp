@@ -77,6 +77,8 @@ bool reshade::d3d11::device_impl::check_capability(api::device_caps capability) 
 	switch (capability)
 	{
 	case api::device_caps::compute_shader:
+		// Feature level 10 and 10.1 support a limited form of DirectCompute, but it does not have support for RWTexture2D, so is not particularly useful
+		// See https://docs.microsoft.com/windows/win32/direct3d11/direct3d-11-advanced-stages-compute-shader
 		return _orig->GetFeatureLevel() >= D3D_FEATURE_LEVEL_11_0;
 	case api::device_caps::geometry_shader:
 		return _orig->GetFeatureLevel() >= D3D_FEATURE_LEVEL_10_0;
@@ -613,7 +615,7 @@ bool reshade::d3d11::device_impl::create_descriptor_heap(uint32_t, uint32_t, con
 	*out = { 0 };
 	return false;
 }
-bool reshade::d3d11::device_impl::create_descriptor_table(api::descriptor_heap, api::descriptor_table_layout, api::descriptor_table *out)
+bool reshade::d3d11::device_impl::create_descriptor_tables(api::descriptor_heap, api::descriptor_table_layout, uint32_t, api::descriptor_table *out)
 {
 	assert(false);
 
@@ -1125,7 +1127,7 @@ void reshade::d3d11::device_context_impl::bind_descriptor_heaps(uint32_t, const 
 {
 	assert(false);
 }
-void reshade::d3d11::device_context_impl::bind_descriptor_tables(api::shader_stage, api::pipeline_layout, uint32_t, uint32_t, const api::descriptor_table *)
+void reshade::d3d11::device_context_impl::bind_descriptor_tables(api::pipeline_type, api::pipeline_layout, uint32_t, uint32_t, const api::descriptor_table *)
 {
 	assert(false);
 }
