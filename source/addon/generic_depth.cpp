@@ -11,7 +11,6 @@
 #include "dll_config.hpp"
 #include "reshade.hpp"
 #include "addon_manager.hpp"
-#include "dxgi/format_utils.hpp"
 #include <vector>
 #include <unordered_map>
 #include <imgui.h>
@@ -162,8 +161,8 @@ struct state_tracking_context
 
 		if (device->get_api() == device_api::d3d9)
 			desc.texture.format = format::r32_float; // D3DFMT_R32F, size INTZ does not support D3DUSAGE_RENDERTARGET which is required for copying
-		if (device->get_api() >= device_api::d3d10 && device->get_api() <= device_api::d3d12)
-			desc.texture.format = static_cast<format>(make_dxgi_format_typeless(static_cast<DXGI_FORMAT>(desc.texture.format)));
+		else
+			desc.texture.format = format_to_typeless(desc.texture.format);
 
 		if (!device->create_resource(desc, nullptr, resource_usage::copy_dest, &backup_texture))
 			LOG(ERROR) << "Failed to create backup depth-stencil texture!";
@@ -269,7 +268,7 @@ static bool on_create_resource(
 		if (device->get_api() == device_api::d3d9 && !s_disable_intz)
 			new_desc.texture.format = format::intz;
 		if (device->get_api() >= device_api::d3d10 && device->get_api() <= device_api::d3d12)
-			new_desc.texture.format = static_cast<format>(make_dxgi_format_typeless(static_cast<DXGI_FORMAT>(desc.texture.format)));
+			new_desc.texture.format = format_to_typeless(desc.texture.format);
 
 		new_desc.usage |= resource_usage::shader_resource;
 	}
@@ -291,10 +290,10 @@ static bool on_create_resource_view(
 			switch (usage_type)
 			{
 			case resource_usage::depth_stencil:
-				new_desc.format = static_cast<format>(make_dxgi_format_dsv(static_cast<DXGI_FORMAT>(texture_desc.texture.format)));
+				new_desc.format = format_to_depth_stencil_typed(texture_desc.texture.format);
 				break;
 			case resource_usage::shader_resource:
-				new_desc.format = static_cast<format>(make_dxgi_format_normal(static_cast<DXGI_FORMAT>(texture_desc.texture.format)));
+				new_desc.format = format_to_default_typed(texture_desc.texture.format);
 				break;
 			}
 
@@ -489,9 +488,7 @@ static void on_present(command_queue *, effect_runtime *runtime)
 			device_state.selected_shader_resource = { 0 };
 
 			// Create two-dimensional resource view to the first level and layer of the depth-stencil resource
-			resource_view_desc srv_desc(best_desc.texture.format, 0, 1, 0, 1);
-			if (device->get_api() >= device_api::d3d10 && device->get_api() <= device_api::d3d12)
-				srv_desc.format = static_cast<format>(make_dxgi_format_normal(static_cast<DXGI_FORMAT>(srv_desc.format)));
+			resource_view_desc srv_desc(format_to_default_typed(best_desc.texture.format), 0, 1, 0, 1);
 
 			// Need to create backup texture only if doing backup copies or original resource does not support shader access (which is necessary for binding it to effects)
 			// Also always create a backup texture in D3D12 or Vulkan to circument problems in case application makes use of resource aliasing
