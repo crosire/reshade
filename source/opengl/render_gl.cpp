@@ -247,7 +247,7 @@ reshade::opengl::device_impl::device_impl(HDC hdc, HGLRC hglrc) :
 	// Communicate default state to add-ons
 	const api::resource_view default_depth_stencil = get_depth_stencil_from_fbo(0);
 	const api::resource_view default_render_target = get_render_target_from_fbo(0, 0);
-	invoke_addon_event<addon_event::bind_render_targets_and_depth_stencil>(this, 1, &default_render_target, default_depth_stencil);
+	invoke_addon_event<addon_event::begin_render_pass>(this, 1, &default_render_target, default_depth_stencil);
 #endif
 }
 reshade::opengl::device_impl::~device_impl()
@@ -1197,9 +1197,9 @@ void reshade::opengl::device_impl::upload_buffer_region(api::resource dst, uint6
 {
 	assert(false); // TODO
 }
-void reshade::opengl::device_impl::upload_texture_region(api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], const void *data, uint32_t row_pitch, uint32_t depth_pitch)
+void reshade::opengl::device_impl::upload_texture_region(api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], const void *data, uint32_t row_pitch, uint32_t slice_pitch)
 {
-	assert(false); // TODO
+	assert(false);
 }
 
 reshade::api::resource_view reshade::opengl::device_impl::get_depth_stencil_from_fbo(GLuint fbo) const
@@ -1369,38 +1369,6 @@ void reshade::opengl::device_impl::flush_immediate_command_list() const
 	glFlush();
 }
 
-void reshade::opengl::device_impl::bind_index_buffer(api::resource buffer, uint64_t offset, uint32_t index_size)
-{
-	assert(offset == 0);
-
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer.handle & 0xFFFFFFFF);
-
-	switch (index_size)
-	{
-	case 1:
-		_current_index_type = GL_UNSIGNED_BYTE;
-		break;
-	case 2:
-		_current_index_type = GL_UNSIGNED_SHORT;
-		break;
-	case 4:
-		_current_index_type = GL_UNSIGNED_INT;
-		break;
-	default:
-		assert(false);
-		break;
-	}
-}
-void reshade::opengl::device_impl::bind_vertex_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *strides)
-{
-	for (GLuint i = 0; i < count; ++i)
-	{
-		assert(offsets[i] <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()));
-
-		glBindVertexBuffer(i + first, buffers[i].handle & 0xFFFFFFFF, static_cast<GLintptr>(offsets[i]), strides[i]);
-	}
-}
-
 void reshade::opengl::device_impl::bind_pipeline(api::pipeline_type type, api::pipeline pipeline)
 {
 #define glEnableOrDisable(cap, enable) \
@@ -1505,6 +1473,24 @@ void reshade::opengl::device_impl::bind_pipeline_states(uint32_t count, const ap
 		}
 	}
 }
+void reshade::opengl::device_impl::bind_viewports(uint32_t first, uint32_t count, const float *viewports)
+{
+	for (GLuint i = 0, k = 0; i < count; ++i, k += 6)
+	{
+		glViewportIndexedf(i + first, viewports[k], viewports[k + 1], viewports[k + 2], viewports[k + 3]);
+	}
+}
+void reshade::opengl::device_impl::bind_scissor_rects(uint32_t first, uint32_t count, const int32_t *rects)
+{
+	for (GLuint i = 0, k = 0; i < count; ++i, k += 4)
+	{
+		glScissorIndexed(i + first,
+			rects[k + 0],
+			rects[k + 1],
+			rects[k + 2] - rects[k + 0],
+			rects[k + 3] > rects[k + 1] ? rects[k + 3] - rects[k + 1] : rects[k + 1] - rects[k + 3]);
+	}
+}
 
 void reshade::opengl::device_impl::push_constants(api::shader_stage, api::pipeline_layout layout, uint32_t, uint32_t first, uint32_t count, const uint32_t *values)
 {
@@ -1581,25 +1567,74 @@ void reshade::opengl::device_impl::bind_descriptor_tables(api::pipeline_type, ap
 	assert(false);
 }
 
-void reshade::opengl::device_impl::bind_viewports(uint32_t first, uint32_t count, const float *viewports)
+void reshade::opengl::device_impl::bind_index_buffer(api::resource buffer, uint64_t offset, uint32_t index_size)
 {
-	for (GLuint i = 0, k = 0; i < count; ++i, k += 6)
+	assert(offset == 0);
+
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer.handle & 0xFFFFFFFF);
+
+	switch (index_size)
 	{
-		glViewportIndexedf(i + first, viewports[k], viewports[k + 1], viewports[k + 2], viewports[k + 3]);
+	case 1:
+		_current_index_type = GL_UNSIGNED_BYTE;
+		break;
+	case 2:
+		_current_index_type = GL_UNSIGNED_SHORT;
+		break;
+	case 4:
+		_current_index_type = GL_UNSIGNED_INT;
+		break;
+	default:
+		assert(false);
+		break;
 	}
 }
-void reshade::opengl::device_impl::bind_scissor_rects(uint32_t first, uint32_t count, const int32_t *rects)
+void reshade::opengl::device_impl::bind_vertex_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *strides)
 {
-	for (GLuint i = 0, k = 0; i < count; ++i, k += 4)
+	for (GLuint i = 0; i < count; ++i)
 	{
-		glScissorIndexed(i + first,
-			rects[k + 0],
-			rects[k + 1],
-			rects[k + 2] - rects[k + 0],
-			rects[k + 3] > rects[k + 1] ? rects[k + 3] - rects[k + 1] : rects[k + 1] - rects[k + 3]);
+		assert(offsets[i] <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()));
+
+		glBindVertexBuffer(i + first, buffers[i].handle & 0xFFFFFFFF, static_cast<GLintptr>(offsets[i]), strides[i]);
 	}
 }
-void reshade::opengl::device_impl::bind_render_targets_and_depth_stencil(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv)
+
+void reshade::opengl::device_impl::draw(uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance)
+{
+	glDrawArraysInstancedBaseInstance(_current_prim_mode, first_vertex, vertices, instances, first_instance);
+}
+void reshade::opengl::device_impl::draw_indexed(uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)
+{
+	glDrawElementsInstancedBaseVertexBaseInstance(_current_prim_mode, indices, _current_index_type, reinterpret_cast<void *>(static_cast<uintptr_t>(first_index * get_index_type_size(_current_index_type))), instances, vertex_offset, first_instance);
+}
+void reshade::opengl::device_impl::dispatch(uint32_t num_groups_x, uint32_t num_groups_y, uint32_t num_groups_z)
+{
+	glDispatchCompute(num_groups_x, num_groups_y, num_groups_z);
+}
+void reshade::opengl::device_impl::draw_or_dispatch_indirect(uint32_t type, api::resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride)
+{
+	switch (type)
+	{
+	case 1:
+		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, buffer.handle & 0xFFFFFFFF);
+		glMultiDrawArraysIndirect(_current_prim_mode, reinterpret_cast<const void *>(static_cast<uintptr_t>(offset)), static_cast<GLsizei>(draw_count), static_cast<GLsizei>(stride));
+		break;
+	case 2:
+		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, buffer.handle & 0xFFFFFFFF);
+		glMultiDrawElementsIndirect(_current_prim_mode, _current_index_type, reinterpret_cast<const void *>(static_cast<uintptr_t>(offset)), static_cast<GLsizei>(draw_count), static_cast<GLsizei>(stride));
+		break;
+	case 3:
+		glBindBuffer(GL_DISPATCH_INDIRECT_BUFFER, buffer.handle & 0xFFFFFFFF);
+		for (GLuint i = 0; i < draw_count; ++i)
+		{
+			assert(offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()));
+			glDispatchComputeIndirect(static_cast<GLintptr>(offset + i * stride));
+		}
+		break;
+	}
+}
+
+void reshade::opengl::device_impl::begin_render_pass(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv)
 {
 	if (_main_fbo == 0)
 	{
@@ -1671,40 +1706,8 @@ void reshade::opengl::device_impl::bind_render_targets_and_depth_stencil(uint32_
 
 	assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 }
-
-void reshade::opengl::device_impl::draw(uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance)
+void reshade::opengl::device_impl::end_render_pass()
 {
-	glDrawArraysInstancedBaseInstance(_current_prim_mode, first_vertex, vertices, instances, first_instance);
-}
-void reshade::opengl::device_impl::draw_indexed(uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)
-{
-	glDrawElementsInstancedBaseVertexBaseInstance(_current_prim_mode, indices, _current_index_type, reinterpret_cast<void *>(static_cast<uintptr_t>(first_index * get_index_type_size(_current_index_type))), instances, vertex_offset, first_instance);
-}
-void reshade::opengl::device_impl::dispatch(uint32_t num_groups_x, uint32_t num_groups_y, uint32_t num_groups_z)
-{
-	glDispatchCompute(num_groups_x, num_groups_y, num_groups_z);
-}
-void reshade::opengl::device_impl::draw_or_dispatch_indirect(uint32_t type, api::resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride)
-{
-	switch (type)
-	{
-	case 1:
-		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, buffer.handle & 0xFFFFFFFF);
-		glMultiDrawArraysIndirect(_current_prim_mode, reinterpret_cast<const void *>(static_cast<uintptr_t>(offset)), static_cast<GLsizei>(draw_count), static_cast<GLsizei>(stride));
-		break;
-	case 2:
-		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, buffer.handle & 0xFFFFFFFF);
-		glMultiDrawElementsIndirect(_current_prim_mode, _current_index_type, reinterpret_cast<const void *>(static_cast<uintptr_t>(offset)), static_cast<GLsizei>(draw_count), static_cast<GLsizei>(stride));
-		break;
-	case 3:
-		glBindBuffer(GL_DISPATCH_INDIRECT_BUFFER, buffer.handle & 0xFFFFFFFF);
-		for (GLuint i = 0; i < draw_count; ++i)
-		{
-			assert(offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()));
-			glDispatchComputeIndirect(static_cast<GLintptr>(offset + i * stride));
-		}
-		break;
-	}
 }
 
 void reshade::opengl::device_impl::blit(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], api::texture_filter filter)
@@ -1815,12 +1818,12 @@ void reshade::opengl::device_impl::blit(api::resource src, uint32_t src_subresou
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _copy_fbo[1]);
 		if (dst_desc.texture.depth_or_layers > 1)
 		{
-			glFramebufferTextureLayer(GL_READ_FRAMEBUFFER, destination_attachment, dst_object, dst_subresource % dst_desc.texture.levels, dst_subresource / dst_desc.texture.levels);
+			glFramebufferTextureLayer(GL_DRAW_FRAMEBUFFER, destination_attachment, dst_object, dst_subresource % dst_desc.texture.levels, dst_subresource / dst_desc.texture.levels);
 		}
 		else
 		{
 			assert((dst_subresource % dst_desc.texture.levels) == 0);
-			glFramebufferTexture(GL_READ_FRAMEBUFFER, destination_attachment, dst_object, dst_subresource);
+			glFramebufferTexture(GL_DRAW_FRAMEBUFFER, destination_attachment, dst_object, dst_subresource);
 		}
 		assert(glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 		break;

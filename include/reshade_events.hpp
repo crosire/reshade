@@ -79,7 +79,7 @@ namespace reshade
 
 		/// <summary>
 		/// Called before 'ID3D10Device::UpdateSubresource' or 'ID3D11DeviceContext::UpdateSubresource'.
-		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, const void *data, api::resource dst, uint64_t dst_offset, uint64_t size)</c></para>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource dst, uint64_t dst_offset, const void *data, uint64_t size)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// Destination resource will be in the <see cref="resource_usage::copy_dest"/> state.
@@ -87,23 +87,12 @@ namespace reshade
 		upload_buffer_region,
 		/// <summary>
 		/// Called before 'ID3D10Device::UpdateSubresource' or 'ID3D11DeviceContext::UpdateSubresource'.
-		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, const void *data, uint32_t row_pitch, uint32_t depth_pitch, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6])</c></para>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], const void *data, uint32_t row_pitch, uint32_t slice_pitch)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// Destination resource will be in the <see cref="resource_usage::copy_dest"/> state.
 		/// </remarks>
 		upload_texture_region,
-
-		/// <summary>
-		/// Called after 'IDirect3DDevice9::SetIndices', 'ID3D10Device::IASetIndexBuffer', 'ID3D11DeviceContext::IASetIndexBuffer', 'ID3D12GraphicsCommandList::IASetIndexBuffer', 'glBindBuffer' or 'vkCmdBindIndexBuffer'.
-		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::resource buffer, uint64_t offset, uint32_t index_size)</c></para>
-		/// </summary>
-		bind_index_buffer,
-		/// <summary>
-		/// Called after 'IDirect3DDevice9::SetStreamSource', 'ID3D10Device::IASetVertexBuffers', 'ID3D11DeviceContext::IASetVertexBuffers', 'ID3D12GraphicsCommandList::IASetVertexBuffers', 'glBindBuffer', 'glBindVertexBuffer(s)' or 'vkCmdBindVertexBuffers'.
-		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *strides)</c></para>
-		/// </summary>
-		bind_vertex_buffers,
 
 		/// <summary>
 		/// Called after 'IDirect3DDevice9::Set(...)Shader', 'ID3D10Device::(...)SetShader', 'ID3D11DeviceContext::(...)SetShader', 'ID3D12GraphicsCommandList::SetPipelineState', 'glUseProgram' or 'vkCmdBindPipeline'.
@@ -115,6 +104,18 @@ namespace reshade
 		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, uint32_t count, const api::pipeline_state *states, const uint32_t *values)</c></para>
 		/// </summary>
 		bind_pipeline_states,
+		/// <summary>
+		/// Called after 'IDirect3DDevice9::SetViewport', 'IDirect3DDevice9::SetRenderTarget' (which implicitly sets the viewport), 'ID3D10Device::RSSetViewports', 'ID3D11DeviceContext::RSSetViewports', 'ID3D12GraphicsCommandList::RSSetViewports', 'glViewport(...)' or 'vkCmdSetViewport'.
+		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, uint32_t first, uint32_t count, const float *viewports)</c></para>
+		/// <para>Viewport data format is { viewport[0].x, viewport[0].y, viewport[0].width, viewport[0].height, viewport[0].min_depth, viewport[0].max_depth, viewport[1].x, viewport[1].y, ... }.</para>
+		/// </summary>
+		bind_viewports,
+		/// <summary>
+		/// Called after 'IDirect3DDevice9::SetScissorRect', 'ID3D10Device::RSSetScissorRects', 'ID3D11DeviceContext::RSSetScissorRects', 'ID3D12GraphicsCommandList::RSSetScissorRects', 'glScissor' or 'vkCmdSetScissor'.
+		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, uint32_t first, uint32_t count, const int32_t *rects)</c></para>
+		/// <para>Rectangle data format is { rect[0].left, rect[0].top, rect[0].right, rect[0].bottom, rect[1].left, rect[1].right, ... }.</para>
+		/// </summary>
+		bind_scissor_rects,
 
 		/// <summary>
 		/// Called after 'IDirect3DDevice9::Set(...)ShaderConstant(...)', 'ID3D12GraphicsCommandList::Set(...)Root32BitConstant(s)', 'glUniform(...)' or 'vkCmdPushConstants'.
@@ -138,22 +139,15 @@ namespace reshade
 		bind_descriptor_tables,
 
 		/// <summary>
-		/// Called after 'IDirect3DDevice9::SetViewport', 'IDirect3DDevice9::SetRenderTarget' (which implicitly sets the viewport), 'ID3D10Device::RSSetViewports', 'ID3D11DeviceContext::RSSetViewports', 'ID3D12GraphicsCommandList::RSSetViewports', 'glViewport(...)' or 'vkCmdSetViewport'.
-		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, uint32_t first, uint32_t count, const float *viewports)</c></para>
-		/// <para>Viewport data format is { viewport[0].x, viewport[0].y, viewport[0].width, viewport[0].height, viewport[0].min_depth, viewport[0].max_depth, viewport[1].x, viewport[1].y, ... }.</para>
+		/// Called after 'IDirect3DDevice9::SetIndices', 'ID3D10Device::IASetIndexBuffer', 'ID3D11DeviceContext::IASetIndexBuffer', 'ID3D12GraphicsCommandList::IASetIndexBuffer', 'glBindBuffer' or 'vkCmdBindIndexBuffer'.
+		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::resource buffer, uint64_t offset, uint32_t index_size)</c></para>
 		/// </summary>
-		bind_viewports,
+		bind_index_buffer,
 		/// <summary>
-		/// Called after 'IDirect3DDevice9::SetScissorRect', 'ID3D10Device::RSSetScissorRects', 'ID3D11DeviceContext::RSSetScissorRects', 'ID3D12GraphicsCommandList::RSSetScissorRects', 'glScissor' or 'vkCmdSetScissor'.
-		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, uint32_t first, uint32_t count, const int32_t *rects)</c></para>
-		/// <para>Rectangle data format is { rect[0].left, rect[0].top, rect[0].right, rect[0].bottom, rect[1].left, rect[1].right, ... }.</para>
+		/// Called after 'IDirect3DDevice9::SetStreamSource', 'ID3D10Device::IASetVertexBuffers', 'ID3D11DeviceContext::IASetVertexBuffers', 'ID3D12GraphicsCommandList::IASetVertexBuffers', 'glBindBuffer', 'glBindVertexBuffer(s)' or 'vkCmdBindVertexBuffers'.
+		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *strides)</c></para>
 		/// </summary>
-		bind_scissor_rects,
-		/// <summary>
-		/// Called after 'IDirect3DDevice9::SetRenderTarget', 'IDirect3DDevice9::SetDepthStencilSurface', 'ID3D10Device::OMSetRenderTargets', 'ID3D11DeviceContext::OMSetRenderTargets(AndUnorderedAccessViews)', 'ID3D12GraphicsCommandList::OMSetRenderTargets', 'ID3D12GraphicsCommandList::BeginRenderPass', 'glBindFramebuffer' or before 'vkCmdBeginRenderPass' or 'vkCmdNextSubpass'.
-		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, uint32_t count, const api::resource_view *rtvs, api::resource_view dsv)</c></para>
-		/// </summary>
-		bind_render_targets_and_depth_stencil,
+		bind_vertex_buffers,
 
 		/// <summary>
 		/// Called before 'IDirect3DDevice9::DrawPrimitive(UP)', 'ID3D10Device::Draw(Instanced)', 'ID3D11DeviceContext::Draw(Instanced)', 'ID3D12GraphicsCommandList::DrawInstanced', 'gl(Multi)DrawArrays(...)' or 'vkCmdDraw'.
@@ -176,6 +170,17 @@ namespace reshade
 		/// <para>The "type" parameter to the callback function will be <c>1</c> for draw commands, <c>2</c> for indexed draw commands or <c>3</c> for dispatch commands. Can also be <c>0</c> if the type could not be determined.</para>
 		/// </summary>
 		draw_or_dispatch_indirect,
+
+		/// <summary>
+		/// Called after 'IDirect3DDevice9::SetRenderTarget', 'IDirect3DDevice9::SetDepthStencilSurface', 'ID3D10Device::OMSetRenderTargets', 'ID3D11DeviceContext::OMSetRenderTargets(AndUnorderedAccessViews)', 'ID3D12GraphicsCommandList::OMSetRenderTargets', 'ID3D12GraphicsCommandList::BeginRenderPass', 'glBindFramebuffer', 'vkCmdBeginRenderPass' or 'vkCmdNextSubpass'.
+		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, uint32_t count, const api::resource_view *rtvs, api::resource_view dsv)</c></para>
+		/// </summary>
+		begin_render_pass,
+		/// <summary>
+		/// Called before 'IDirect3DDevice9::SetRenderTarget', 'IDirect3DDevice9::SetDepthStencilSurface', 'ID3D10Device::OMSetRenderTargets', 'ID3D11DeviceContext::OMSetRenderTargets(AndUnorderedAccessViews)', 'ID3D12GraphicsCommandList::OMSetRenderTargets', 'ID3D12GraphicsCommandList::EndRenderPass', 'glBindFramebuffer' or 'vkCmdEndRenderPass'.
+		/// <para>Callback function signature: <c>void (api::command_list *cmd_list)</c></para>
+		/// </summary>
+		end_render_pass,
 
 		/// <summary>
 		/// Called before 'IDirect3DDevice9::StretchRect', 'glBlit(Named)Framebuffer' or 'vkCmdBlitImage'.
@@ -374,24 +379,26 @@ namespace reshade
 	DEFINE_ADDON_EVENT_TYPE_3(addon_event::create_shader_module, api::device *device, api::shader_stage type, api::shader_format format, const char *entry_point, const void *code, size_t code_size);
 
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::upload_buffer_region, api::device *device, api::resource dst, uint64_t dst_offset, const void *data, uint64_t size);
-	DEFINE_ADDON_EVENT_TYPE_2(addon_event::upload_texture_region, api::device *device, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], const void *data, uint32_t row_pitch, uint32_t depth_pitch);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::upload_texture_region, api::device *device, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], const void *data, uint32_t row_pitch, uint32_t slice_pitch);
 
-	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_index_buffer, api::command_list *cmd_list, api::resource buffer, uint64_t offset, uint32_t index_size);
-	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_vertex_buffers, api::command_list *cmd_list, uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *strides);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_pipeline, api::command_list *cmd_list, api::pipeline_type type, api::pipeline pipeline);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_pipeline_states, api::command_list *cmd_list, uint32_t count, const api::pipeline_state *states, const uint32_t *values);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_viewports, api::command_list *cmd_list, uint32_t first, uint32_t count, const float *viewports);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_scissor_rects, api::command_list *cmd_list, uint32_t first, uint32_t count, const int32_t *rects);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::push_constants, api::command_list *cmd_list, api::shader_stage stage, api::pipeline_layout layout, uint32_t layout_index, uint32_t first, uint32_t count, const uint32_t *values);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::push_descriptors, api::command_list *cmd_list, api::shader_stage stage, api::pipeline_layout layout, uint32_t layout_index, api::descriptor_type type, uint32_t first, uint32_t count, const void *descriptors);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_descriptor_heaps, api::command_list *cmd_list, uint32_t count, const api::descriptor_heap *heaps);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_descriptor_tables, api::command_list *cmd_list, api::pipeline_type type, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_table *tables);
-	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_viewports, api::command_list *cmd_list, uint32_t first, uint32_t count, const float *viewports);
-	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_scissor_rects, api::command_list *cmd_list, uint32_t first, uint32_t count, const int32_t *rects);
-	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_render_targets_and_depth_stencil, api::command_list *cmd_list, uint32_t count, const api::resource_view *rtvs, api::resource_view dsv);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_index_buffer, api::command_list *cmd_list, api::resource buffer, uint64_t offset, uint32_t index_size);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_vertex_buffers, api::command_list *cmd_list, uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *strides);
 
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::draw, api::command_list *cmd_list, uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance);
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::draw_indexed, api::command_list *cmd_list, uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance);
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::dispatch, api::command_list *cmd_list, uint32_t num_groups_x, uint32_t num_groups_y, uint32_t num_groups_z);
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::draw_or_dispatch_indirect, api::command_list *cmd_list, uint32_t type, api::resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride);
+
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::begin_render_pass, api::command_list *cmd_list, uint32_t count, const api::resource_view *rtvs, api::resource_view dsv);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::end_render_pass, api::command_list *cmd_list);
 
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::blit, api::command_list *cmd_list, api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], api::texture_filter filter);
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::resolve, api::command_list *cmd_list, api::resource src, uint32_t src_subresource, const int32_t src_offset[3], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3], uint32_t format);

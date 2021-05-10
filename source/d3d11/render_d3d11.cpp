@@ -727,14 +727,14 @@ void reshade::d3d11::device_impl::upload_buffer_region(api::resource dst, uint64
 	const D3D11_BOX dst_box = { static_cast<UINT>(dst_offset), 0, 0, static_cast<UINT>(dst_offset + size), 1, 1 };
 	ctx->UpdateSubresource(reinterpret_cast<ID3D11Resource *>(dst.handle), 0, nullptr, data, static_cast<UINT>(size), static_cast<UINT>(size));
 }
-void reshade::d3d11::device_impl::upload_texture_region(api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], const void *data, uint32_t row_pitch, uint32_t depth_pitch)
+void reshade::d3d11::device_impl::upload_texture_region(api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], const void *data, uint32_t row_pitch, uint32_t slice_pitch)
 {
 	assert(dst.handle != 0);
 
 	com_ptr<ID3D11DeviceContext> ctx;
 	_orig->GetImmediateContext(&ctx);
 
-	ctx->UpdateSubresource(reinterpret_cast<ID3D11Resource *>(dst.handle), dst_subresource, reinterpret_cast<const D3D11_BOX *>(dst_box), data, row_pitch, depth_pitch);
+	ctx->UpdateSubresource(reinterpret_cast<ID3D11Resource *>(dst.handle), dst_subresource, reinterpret_cast<const D3D11_BOX *>(dst_box), data, row_pitch, slice_pitch);
 }
 
 void reshade::d3d11::device_impl::get_resource_from_view(api::resource_view view, api::resource *out_resource) const
@@ -832,36 +832,6 @@ void reshade::d3d11::device_context_impl::flush_immediate_command_list() const
 	_orig->Flush();
 }
 
-void reshade::d3d11::device_context_impl::bind_index_buffer(api::resource buffer, uint64_t offset, uint32_t index_size)
-{
-	assert(offset <= std::numeric_limits<UINT>::max());
-	assert(buffer.handle == 0 || index_size == 2 || index_size == 4);
-
-	_orig->IASetIndexBuffer(reinterpret_cast<ID3D11Buffer *>(buffer.handle), index_size == 2 ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT, static_cast<UINT>(offset));
-}
-void reshade::d3d11::device_context_impl::bind_vertex_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *strides)
-{
-	if (count > D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT)
-	{
-		assert(false);
-		count = D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT;
-	}
-
-#ifndef WIN64
-	ID3D11Buffer *buffer_ptrs[D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
-	for (UINT i = 0; i < count; ++i)
-		buffer_ptrs[i] = reinterpret_cast<ID3D11Buffer *>(buffers[i].handle);
-#else
-	const auto buffer_ptrs = reinterpret_cast<ID3D11Buffer *const *>(buffers);
-#endif
-
-	UINT offsets_32[D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
-	for (UINT i = 0; i < count; ++i)
-		offsets_32[i] = static_cast<UINT>(offsets[i]);
-
-	_orig->IASetVertexBuffers(first, count, buffer_ptrs, strides, offsets_32);
-}
-
 void reshade::d3d11::device_context_impl::bind_pipeline(api::pipeline_type type, api::pipeline pipeline)
 {
 	assert(pipeline.handle != 0);
@@ -902,6 +872,18 @@ void reshade::d3d11::device_context_impl::bind_pipeline_states(uint32_t count, c
 			break;
 		}
 	}
+}
+void reshade::d3d11::device_context_impl::bind_viewports(uint32_t first, uint32_t count, const float *viewports)
+{
+	assert(first == 0);
+
+	_orig->RSSetViewports(count, reinterpret_cast<const D3D11_VIEWPORT *>(viewports));
+}
+void reshade::d3d11::device_context_impl::bind_scissor_rects(uint32_t first, uint32_t count, const int32_t *rects)
+{
+	assert(first == 0);
+
+	_orig->RSSetScissorRects(count, reinterpret_cast<const D3D10_RECT *>(rects));
 }
 
 void reshade::d3d11::device_context_impl::bind_samplers(api::shader_stage stage, uint32_t first, uint32_t count, const api::sampler *samplers)
@@ -1072,35 +1054,34 @@ void reshade::d3d11::device_context_impl::bind_descriptor_tables(api::pipeline_t
 	assert(false);
 }
 
-void reshade::d3d11::device_context_impl::bind_viewports(uint32_t first, uint32_t count, const float *viewports)
+void reshade::d3d11::device_context_impl::bind_index_buffer(api::resource buffer, uint64_t offset, uint32_t index_size)
 {
-	assert(first == 0);
+	assert(offset <= std::numeric_limits<UINT>::max());
+	assert(buffer.handle == 0 || index_size == 2 || index_size == 4);
 
-	_orig->RSSetViewports(count, reinterpret_cast<const D3D11_VIEWPORT *>(viewports));
+	_orig->IASetIndexBuffer(reinterpret_cast<ID3D11Buffer *>(buffer.handle), index_size == 2 ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT, static_cast<UINT>(offset));
 }
-void reshade::d3d11::device_context_impl::bind_scissor_rects(uint32_t first, uint32_t count, const int32_t *rects)
+void reshade::d3d11::device_context_impl::bind_vertex_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *strides)
 {
-	assert(first == 0);
-
-	_orig->RSSetScissorRects(count, reinterpret_cast<const D3D10_RECT *>(rects));
-}
-void reshade::d3d11::device_context_impl::bind_render_targets_and_depth_stencil(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv)
-{
-	if (count > D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT)
+	if (count > D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT)
 	{
 		assert(false);
-		count = D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT;
+		count = D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT;
 	}
 
 #ifndef WIN64
-	ID3D11RenderTargetView *rtv_ptrs[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
+	ID3D11Buffer *buffer_ptrs[D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
 	for (UINT i = 0; i < count; ++i)
-		rtv_ptrs[i] = reinterpret_cast<ID3D11RenderTargetView *>(rtvs[i].handle);
+		buffer_ptrs[i] = reinterpret_cast<ID3D11Buffer *>(buffers[i].handle);
 #else
-	const auto rtv_ptrs = reinterpret_cast<ID3D11RenderTargetView *const *>(rtvs);
+	const auto buffer_ptrs = reinterpret_cast<ID3D11Buffer *const *>(buffers);
 #endif
 
-	_orig->OMSetRenderTargets(count, rtv_ptrs, reinterpret_cast<ID3D11DepthStencilView *>(dsv.handle));
+	UINT offsets_32[D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
+	for (UINT i = 0; i < count; ++i)
+		offsets_32[i] = static_cast<UINT>(offsets[i]);
+
+	_orig->IASetVertexBuffers(first, count, buffer_ptrs, strides, offsets_32);
 }
 
 void reshade::d3d11::device_context_impl::draw(uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance)
@@ -1134,6 +1115,30 @@ void reshade::d3d11::device_context_impl::draw_or_dispatch_indirect(uint32_t typ
 			_orig->DispatchIndirect(reinterpret_cast<ID3D11Buffer *>(buffer.handle), static_cast<UINT>(offset + i * stride));
 		break;
 	}
+}
+
+void reshade::d3d11::device_context_impl::begin_render_pass(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv)
+{
+	if (count > D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT)
+	{
+		assert(false);
+		count = D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT;
+	}
+
+#ifndef WIN64
+	ID3D11RenderTargetView *rtv_ptrs[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
+	for (UINT i = 0; i < count; ++i)
+		rtv_ptrs[i] = reinterpret_cast<ID3D11RenderTargetView *>(rtvs[i].handle);
+#else
+	const auto rtv_ptrs = reinterpret_cast<ID3D11RenderTargetView *const *>(rtvs);
+#endif
+
+	_orig->OMSetRenderTargets(count, rtv_ptrs, reinterpret_cast<ID3D11DepthStencilView *>(dsv.handle));
+}
+void reshade::d3d11::device_context_impl::end_render_pass()
+{
+	// Reset render targets
+	_orig->OMSetRenderTargets(0, nullptr, nullptr);
 }
 
 void reshade::d3d11::device_context_impl::blit(api::resource, uint32_t, const int32_t[6], api::resource, uint32_t, const int32_t[6], api::texture_filter)

@@ -1637,19 +1637,6 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 		const auto &renderpass_data = device_impl->_render_pass_list.at(cmd_impl->current_renderpass);
 		const auto &renderpass_data_subpass = renderpass_data.subpasses[0];
 
-		auto rtvs = static_cast<reshade::api::resource_view *>(alloca(sizeof(reshade::api::resource_view) * renderpass_data_subpass.color_attachments.size()));
-		for (uint32_t i = 0; i < renderpass_data_subpass.color_attachments.size(); ++i)
-			if (renderpass_data_subpass.color_attachments[i].attachment != VK_ATTACHMENT_UNUSED)
-				rtvs[i] = attachments[renderpass_data_subpass.color_attachments[i].attachment];
-			else
-				rtvs[i] = reshade::api::resource_view { 0 };
-
-		reshade::api::resource_view dsv = { 0 };
-		if (renderpass_data_subpass.depth_stencil_attachment.attachment != VK_ATTACHMENT_UNUSED)
-			dsv = attachments[renderpass_data_subpass.depth_stencil_attachment.attachment];
-
-		reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(cmd_impl, static_cast<uint32_t>(renderpass_data_subpass.color_attachments.size()), rtvs, dsv);
-
 		assert(renderpass_data.cleared_attachments.size() == pRenderPassBegin->clearValueCount);
 		for (uint32_t i = 0; i < renderpass_data.cleared_attachments.size() && i < pRenderPassBegin->clearValueCount; ++i)
 		{
@@ -1716,6 +1703,28 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 
 	GET_DISPATCH_PTR_FROM(CmdBeginRenderPass, device_impl);
 	trampoline(commandBuffer, pRenderPassBegin, contents);
+
+#if RESHADE_ADDON
+	if (cmd_impl != nullptr)
+	{
+		const auto &attachments = device_impl->_framebuffer_list.at(cmd_impl->current_framebuffer);
+		const auto &renderpass_data = device_impl->_render_pass_list.at(cmd_impl->current_renderpass);
+		const auto &renderpass_data_subpass = renderpass_data.subpasses[0];
+
+		auto rtvs = static_cast<reshade::api::resource_view *>(alloca(sizeof(reshade::api::resource_view) * renderpass_data_subpass.color_attachments.size()));
+		for (uint32_t i = 0; i < renderpass_data_subpass.color_attachments.size(); ++i)
+			if (renderpass_data_subpass.color_attachments[i].attachment != VK_ATTACHMENT_UNUSED)
+				rtvs[i] = attachments[renderpass_data_subpass.color_attachments[i].attachment];
+			else
+				rtvs[i] = reshade::api::resource_view { 0 };
+
+		reshade::api::resource_view dsv = { 0 };
+		if (renderpass_data_subpass.depth_stencil_attachment.attachment != VK_ATTACHMENT_UNUSED)
+			dsv = attachments[renderpass_data_subpass.depth_stencil_attachment.attachment];
+
+		reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(cmd_impl, static_cast<uint32_t>(renderpass_data_subpass.color_attachments.size()), rtvs, dsv);
+	}
+#endif
 }
 void     VKAPI_CALL vkCmdNextSubpass(VkCommandBuffer commandBuffer, VkSubpassContents contents)
 {
@@ -1726,10 +1735,20 @@ void     VKAPI_CALL vkCmdNextSubpass(VkCommandBuffer commandBuffer, VkSubpassCon
 	reshade::vulkan::command_list_impl *const cmd_impl = s_vulkan_command_buffers.at(commandBuffer);
 	if (cmd_impl != nullptr)
 	{
+		reshade::invoke_addon_event<reshade::addon_event::end_render_pass>(cmd_impl);
+
 		cmd_impl->current_subpass++;
 		assert(cmd_impl->current_renderpass != VK_NULL_HANDLE);
 		assert(cmd_impl->current_framebuffer != VK_NULL_HANDLE);
+	}
+#endif
 
+	GET_DISPATCH_PTR_FROM(CmdNextSubpass, device_impl);
+	trampoline(commandBuffer, contents);
+
+#if RESHADE_ADDON
+	if (cmd_impl != nullptr)
+	{
 		const auto &attachments = device_impl->_framebuffer_list.at(cmd_impl->current_framebuffer);
 		const auto &renderpass_data = device_impl->_render_pass_list.at(cmd_impl->current_renderpass);
 		const auto &renderpass_data_subpass = renderpass_data.subpasses[cmd_impl->current_subpass];
@@ -1745,12 +1764,9 @@ void     VKAPI_CALL vkCmdNextSubpass(VkCommandBuffer commandBuffer, VkSubpassCon
 		if (renderpass_data_subpass.depth_stencil_attachment.attachment != VK_ATTACHMENT_UNUSED)
 			dsv = attachments[renderpass_data_subpass.depth_stencil_attachment.attachment];
 
-		reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(cmd_impl, static_cast<uint32_t>(renderpass_data_subpass.color_attachments.size()), rtvs, dsv);
+		reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(cmd_impl, static_cast<uint32_t>(renderpass_data_subpass.color_attachments.size()), rtvs, dsv);
 	}
 #endif
-
-	GET_DISPATCH_PTR_FROM(CmdNextSubpass, device_impl);
-	trampoline(commandBuffer, contents);
 }
 void     VKAPI_CALL vkCmdEndRenderPass(VkCommandBuffer commandBuffer)
 {
@@ -1758,6 +1774,8 @@ void     VKAPI_CALL vkCmdEndRenderPass(VkCommandBuffer commandBuffer)
 	reshade::vulkan::command_list_impl *const cmd_impl = s_vulkan_command_buffers.at(commandBuffer);
 	if (cmd_impl != nullptr)
 	{
+		reshade::invoke_addon_event<reshade::addon_event::end_render_pass>(cmd_impl);
+
 		cmd_impl->current_subpass = std::numeric_limits<uint32_t>::max();
 		cmd_impl->current_renderpass = VK_NULL_HANDLE;
 		cmd_impl->current_framebuffer = VK_NULL_HANDLE;

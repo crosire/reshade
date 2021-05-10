@@ -577,19 +577,24 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SOSetTargets(UINT StartSlot, UI
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::OMSetRenderTargets(UINT NumRenderTargetDescriptors, const D3D12_CPU_DESCRIPTOR_HANDLE *pRenderTargetDescriptors, BOOL RTsSingleHandleToDescriptorRange, D3D12_CPU_DESCRIPTOR_HANDLE const *pDepthStencilDescriptor)
 {
+#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::end_render_pass>(this);
+#endif
+
 	_orig->OMSetRenderTargets(NumRenderTargetDescriptors, pRenderTargetDescriptors, RTsSingleHandleToDescriptorRange, pDepthStencilDescriptor);
 
 #if RESHADE_ADDON
 	assert(NumRenderTargetDescriptors <= D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT);
 
-	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_render_targets_and_depth_stencil)].empty())
+	if ((NumRenderTargetDescriptors == 0 && pDepthStencilDescriptor == nullptr) ||
+		reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::begin_render_pass)].empty())
 		return;
 
 	reshade::api::resource_view rtvs[D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT];
 	for (UINT i = 0; i < NumRenderTargetDescriptors; ++i)
 		rtvs[i] = { RTsSingleHandleToDescriptorRange ? pRenderTargetDescriptors->ptr + i * _device->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_RTV] : pRenderTargetDescriptors[i].ptr };
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(this, NumRenderTargetDescriptors, rtvs, reshade::api::resource_view { pDepthStencilDescriptor != nullptr ? pDepthStencilDescriptor->ptr : 0 });
+	reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, NumRenderTargetDescriptors, rtvs, reshade::api::resource_view { pDepthStencilDescriptor != nullptr ? pDepthStencilDescriptor->ptr : 0 });
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearDepthStencilView(D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilView, D3D12_CLEAR_FLAGS ClearFlags, FLOAT Depth, UINT8 Stencil, UINT NumRects, const D3D12_RECT *pRects)
@@ -711,6 +716,11 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetProtectedResourceSession(ID3
 
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::BeginRenderPass(UINT NumRenderTargets, const D3D12_RENDER_PASS_RENDER_TARGET_DESC *pRenderTargets, const D3D12_RENDER_PASS_DEPTH_STENCIL_DESC *pDepthStencil, D3D12_RENDER_PASS_FLAGS Flags)
 {
+	// TODO: Clear events when beginning access is D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR
+
+	assert(_interface_version >= 4);
+	static_cast<ID3D12GraphicsCommandList4 *>(_orig)->BeginRenderPass(NumRenderTargets, pRenderTargets, pDepthStencil, Flags);
+
 #if RESHADE_ADDON
 	assert(NumRenderTargets <= D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT);
 
@@ -718,16 +728,15 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::BeginRenderPass(UINT NumRenderT
 	for (UINT i = 0; i < NumRenderTargets; ++i)
 		rtvs[i] = { pRenderTargets->cpuDescriptor.ptr + i * _device->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_RTV] };
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(this, NumRenderTargets, rtvs, reshade::api::resource_view { pDepthStencil != nullptr ? pDepthStencil->cpuDescriptor.ptr : 0 });
-
-	// TODO: Clear events when beginning access is D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR
+	reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, NumRenderTargets, rtvs, reshade::api::resource_view { pDepthStencil != nullptr ? pDepthStencil->cpuDescriptor.ptr : 0 });
 #endif
-
-	assert(_interface_version >= 4);
-	static_cast<ID3D12GraphicsCommandList4 *>(_orig)->BeginRenderPass(NumRenderTargets, pRenderTargets, pDepthStencil, Flags);
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::EndRenderPass(void)
 {
+#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::end_render_pass>(this);
+#endif
+
 	assert(_interface_version >= 4);
 	static_cast<ID3D12GraphicsCommandList4 *>(_orig)->EndRenderPass();
 }

@@ -186,13 +186,15 @@ HOOK_EXPORT void WINAPI glBegin(GLenum mode)
 	if (g_current_runtime && (target == GL_FRAMEBUFFER || target == GL_DRAW_FRAMEBUFFER) &&
 		glCheckFramebufferStatus(target) == GL_FRAMEBUFFER_COMPLETE) // Skip incomplete frame buffer bindings (e.g. during set up)
 	{
+		reshade::invoke_addon_event<reshade::addon_event::end_render_pass>(g_current_runtime);
+
 		GLuint count = 0;
 		reshade::api::resource_view rtvs[8];
 		while (count < 8 && (rtvs[count] = g_current_runtime->get_render_target_from_fbo(framebuffer, count)) != 0)
 			++count;
 		const reshade::api::resource_view dsv = g_current_runtime->get_depth_stencil_from_fbo(framebuffer);
 
-		reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(g_current_runtime, count, rtvs, dsv);
+		reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(g_current_runtime, count, rtvs, dsv);
 	}
 #endif
 }

@@ -158,7 +158,11 @@ void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 			}, this, convert_resource_desc(old_desc, 1, _caps), nullptr, api::resource_usage::depth_stencil);
 
 		// Communicate default state to add-ons
-		invoke_addon_event<addon_event::bind_render_targets_and_depth_stencil>(this, 0, nullptr, api::resource_view { reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) });
+		invoke_addon_event<addon_event::begin_render_pass>(this, 0, nullptr, api::resource_view { reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) });
+	}
+	else
+	{
+		invoke_addon_event<addon_event::begin_render_pass>(this, 0, nullptr, api::resource_view { 0 });
 	}
 #else
 	UNREFERENCED_PARAMETER(pp);
@@ -923,7 +927,7 @@ void reshade::d3d9::device_impl::upload_buffer_region(api::resource dst, uint64_
 		break;
 	}
 }
-void reshade::d3d9::device_impl::upload_texture_region(api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], const void *data, uint32_t row_pitch, uint32_t depth_pitch)
+void reshade::d3d9::device_impl::upload_texture_region(api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], const void *data, uint32_t row_pitch, uint32_t slice_pitch)
 {
 	assert(false); // TODO
 }
@@ -1002,32 +1006,6 @@ reshade::api::resource_desc reshade::d3d9::device_impl::get_resource_desc(api::r
 	}
 }
 
-void reshade::d3d9::device_impl::bind_index_buffer(api::resource buffer, uint64_t offset, uint32_t index_size)
-{
-#ifndef NDEBUG
-	assert(offset == 0);
-	assert(buffer.handle == 0 || index_size == 2 || index_size == 4);
-
-	if (buffer.handle != 0)
-	{
-		D3DINDEXBUFFER_DESC desc;
-		reinterpret_cast<IDirect3DIndexBuffer9 *>(buffer.handle)->GetDesc(&desc);
-		assert(desc.Format == (index_size == 2 ? D3DFMT_INDEX16 : D3DFMT_INDEX32));
-	}
-#endif
-
-	_orig->SetIndices(reinterpret_cast<IDirect3DIndexBuffer9 *>(buffer.handle));
-}
-void reshade::d3d9::device_impl::bind_vertex_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *strides)
-{
-	for (UINT i = 0; i < count; ++i)
-	{
-		assert(offsets == nullptr || offsets[i] <= std::numeric_limits<UINT>::max());
-
-		_orig->SetStreamSource(i + first, reinterpret_cast<IDirect3DVertexBuffer9 *>(buffers[i].handle), offsets != nullptr ? static_cast<UINT>(offsets[i]) : 0, strides[i]);
-	}
-}
-
 void reshade::d3d9::device_impl::bind_pipeline(api::pipeline_type type, api::pipeline pipeline)
 {
 	assert(type == api::pipeline_type::graphics && pipeline.handle != 0);
@@ -1055,6 +1033,26 @@ void reshade::d3d9::device_impl::bind_pipeline_states(uint32_t count, const api:
 			break;
 		}
 	}
+}
+void reshade::d3d9::device_impl::bind_viewports(uint32_t first, uint32_t count, const float *viewports)
+{
+	assert(first == 0 && count == 1);
+
+	D3DVIEWPORT9 d3d_viewport;
+	d3d_viewport.X = static_cast<DWORD>(viewports[0]);
+	d3d_viewport.Y = static_cast<DWORD>(viewports[1]);
+	d3d_viewport.Width = static_cast<DWORD>(viewports[2]);
+	d3d_viewport.Height = static_cast<DWORD>(viewports[3]);
+	d3d_viewport.MinZ = viewports[4];
+	d3d_viewport.MaxZ = viewports[5];
+
+	_orig->SetViewport(&d3d_viewport);
+}
+void reshade::d3d9::device_impl::bind_scissor_rects(uint32_t first, uint32_t count, const int32_t *rects)
+{
+	assert(first == 0 && count == 1);
+
+	_orig->SetScissorRect(reinterpret_cast<const RECT *>(rects));
 }
 
 void reshade::d3d9::device_impl::push_constants(api::shader_stage stage, api::pipeline_layout, uint32_t, uint32_t first, uint32_t count, const uint32_t *values)
@@ -1132,36 +1130,30 @@ void reshade::d3d9::device_impl::bind_descriptor_tables(api::pipeline_type, api:
 	assert(false);
 }
 
-void reshade::d3d9::device_impl::bind_viewports(uint32_t first, uint32_t count, const float *viewports)
+void reshade::d3d9::device_impl::bind_index_buffer(api::resource buffer, uint64_t offset, uint32_t index_size)
 {
-	assert(first == 0 && count == 1);
+#ifndef NDEBUG
+	assert(offset == 0);
+	assert(buffer.handle == 0 || index_size == 2 || index_size == 4);
 
-	D3DVIEWPORT9 d3d_viewport;
-	d3d_viewport.X = static_cast<DWORD>(viewports[0]);
-	d3d_viewport.Y = static_cast<DWORD>(viewports[1]);
-	d3d_viewport.Width = static_cast<DWORD>(viewports[2]);
-	d3d_viewport.Height = static_cast<DWORD>(viewports[3]);
-	d3d_viewport.MinZ = viewports[4];
-	d3d_viewport.MaxZ = viewports[5];
+	if (buffer.handle != 0)
+	{
+		D3DINDEXBUFFER_DESC desc;
+		reinterpret_cast<IDirect3DIndexBuffer9 *>(buffer.handle)->GetDesc(&desc);
+		assert(desc.Format == (index_size == 2 ? D3DFMT_INDEX16 : D3DFMT_INDEX32));
+	}
+#endif
 
-	_orig->SetViewport(&d3d_viewport);
+	_orig->SetIndices(reinterpret_cast<IDirect3DIndexBuffer9 *>(buffer.handle));
 }
-void reshade::d3d9::device_impl::bind_scissor_rects(uint32_t first, uint32_t count, const int32_t *rects)
+void reshade::d3d9::device_impl::bind_vertex_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *strides)
 {
-	assert(first == 0 && count == 1);
-
-	_orig->SetScissorRect(reinterpret_cast<const RECT *>(rects));
-}
-void reshade::d3d9::device_impl::bind_render_targets_and_depth_stencil(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv)
-{
-	assert(count <= _caps.NumSimultaneousRTs);
-
 	for (UINT i = 0; i < count; ++i)
-		_orig->SetRenderTarget(i, reinterpret_cast<IDirect3DSurface9 *>(rtvs[i].handle));
-	for (UINT i = count; i < _caps.NumSimultaneousRTs; ++i)
-		_orig->SetRenderTarget(i, nullptr);
+	{
+		assert(offsets == nullptr || offsets[i] <= std::numeric_limits<UINT>::max());
 
-	_orig->SetDepthStencilSurface(reinterpret_cast<IDirect3DSurface9 *>(dsv.handle));
+		_orig->SetStreamSource(i + first, reinterpret_cast<IDirect3DVertexBuffer9 *>(buffers[i].handle), offsets != nullptr ? static_cast<UINT>(offsets[i]) : 0, strides[i]);
+	}
 }
 
 void reshade::d3d9::device_impl::draw(uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance)
@@ -1183,6 +1175,21 @@ void reshade::d3d9::device_impl::dispatch(uint32_t, uint32_t, uint32_t)
 void reshade::d3d9::device_impl::draw_or_dispatch_indirect(uint32_t, api::resource, uint64_t, uint32_t, uint32_t)
 {
 	assert(false);
+}
+
+void reshade::d3d9::device_impl::begin_render_pass(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv)
+{
+	assert(count <= _caps.NumSimultaneousRTs);
+
+	for (UINT i = 0; i < count; ++i)
+		_orig->SetRenderTarget(i, reinterpret_cast<IDirect3DSurface9 *>(rtvs[i].handle));
+	for (UINT i = count; i < _caps.NumSimultaneousRTs; ++i)
+		_orig->SetRenderTarget(i, nullptr);
+
+	_orig->SetDepthStencilSurface(reinterpret_cast<IDirect3DSurface9 *>(dsv.handle));
+}
+void reshade::d3d9::device_impl::end_render_pass()
+{
 }
 
 void reshade::d3d9::device_impl::blit(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], api::texture_filter filter)

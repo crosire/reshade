@@ -711,6 +711,11 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateOffscreenPlainSurface(UINT Widt
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetRenderTarget(DWORD RenderTargetIndex, IDirect3DSurface9 *pRenderTarget)
 {
+#if RESHADE_ADDON
+	if (RenderTargetIndex == 0)
+		reshade::invoke_addon_event<reshade::addon_event::end_render_pass>(this);
+#endif
+
 	const HRESULT hr = _orig->SetRenderTarget(RenderTargetIndex, pRenderTarget);
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr))
@@ -733,7 +738,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetRenderTarget(DWORD RenderTargetInd
 			dsv = { reinterpret_cast<uintptr_t>(surface.get()) };
 		}
 
-		reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(this, count, rtvs, dsv);
+		if (RenderTargetIndex == 0)
+			reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, count, rtvs, dsv);
 
 		if (pRenderTarget != nullptr)
 		{
@@ -763,6 +769,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetRenderTarget(DWORD RenderTargetInd
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetDepthStencilSurface(IDirect3DSurface9 *pNewZStencil)
 {
+#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::end_render_pass>(this);
+#endif
+
 	const HRESULT hr = _orig->SetDepthStencilSurface(pNewZStencil);
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr))
@@ -779,7 +789,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetDepthStencilSurface(IDirect3DSurfa
 			count = i + 1;
 		}
 
-		reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(this, count, rtvs, reshade::api::resource_view { reinterpret_cast<uintptr_t>(pNewZStencil) });
+		reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, count, rtvs, reshade::api::resource_view { reinterpret_cast<uintptr_t>(pNewZStencil) });
 	}
 #endif
 	return hr;

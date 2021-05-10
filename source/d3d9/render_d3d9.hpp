@@ -53,7 +53,7 @@ namespace reshade::d3d9
 		void unmap_resource(api::resource resource, uint32_t subresource) final;
 
 		void upload_buffer_region(api::resource dst, uint64_t dst_offset, const void *data, uint64_t size) final;
-		void upload_texture_region(api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], const void *data, uint32_t row_pitch, uint32_t depth_pitch) final;
+		void upload_texture_region(api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], const void *data, uint32_t row_pitch, uint32_t slice_pitch) final;
 
 		void get_resource_from_view(api::resource_view view, api::resource *out_resource) const final;
 		api::resource_desc get_resource_desc(api::resource resource) const final;
@@ -68,25 +68,26 @@ namespace reshade::d3d9
 
 		void flush_immediate_command_list() const final { /* no-op */ }
 
-		void bind_index_buffer(api::resource buffer, uint64_t offset, uint32_t index_size) final;
-		void bind_vertex_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *strides) final;
-
 		void bind_pipeline(api::pipeline_type type, api::pipeline pipeline) final;
 		void bind_pipeline_states(uint32_t count, const api::pipeline_state *states, const uint32_t *values) final;
+		void bind_viewports(uint32_t first, uint32_t count, const float *viewports) final;
+		void bind_scissor_rects(uint32_t first, uint32_t count, const int32_t *rects) final;
 
 		void push_constants(api::shader_stage stage, api::pipeline_layout layout, uint32_t layout_index, uint32_t first, uint32_t count, const uint32_t *values) final;
 		void push_descriptors(api::shader_stage stage, api::pipeline_layout layout, uint32_t layout_index, api::descriptor_type type, uint32_t first, uint32_t count, const void *descriptors) final;
 		void bind_descriptor_heaps(uint32_t count, const api::descriptor_heap *heaps) final;
 		void bind_descriptor_tables(api::pipeline_type type, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_table *tables) final;
 
-		void bind_viewports(uint32_t first, uint32_t count, const float *viewports) final;
-		void bind_scissor_rects(uint32_t first, uint32_t count, const int32_t *rects) final;
-		void bind_render_targets_and_depth_stencil(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv) final;
+		void bind_index_buffer(api::resource buffer, uint64_t offset, uint32_t index_size) final;
+		void bind_vertex_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *strides) final;
 
 		void draw(uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance) final;
 		void draw_indexed(uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance) final;
 		void dispatch(uint32_t num_groups_x, uint32_t num_groups_y, uint32_t num_groups_z) final;
 		void draw_or_dispatch_indirect(uint32_t type, api::resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride) final;
+
+		void begin_render_pass(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv) final;
+		void   end_render_pass() final;
 
 		void blit(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], api::texture_filter filter) final;
 		void resolve(api::resource src, uint32_t src_subresource, const int32_t src_offset[3], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3], uint32_t format) final;
@@ -104,7 +105,7 @@ namespace reshade::d3d9
 		void transition_state(api::resource, api::resource_usage, api::resource_usage) final { /* no-op */ }
 
 		void begin_debug_event(const char *label, const float color[4]) final;
-		void end_debug_event() final;
+		void   end_debug_event() final;
 		void insert_debug_marker(const char *label, const float color[4]) final;
 
 		// Cached device capabilities for quick access

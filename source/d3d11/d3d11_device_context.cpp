@@ -464,12 +464,21 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::GSSetSamplers(UINT StartSlot, UINT
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargets(UINT NumViews, ID3D11RenderTargetView *const *ppRenderTargetViews, ID3D11DepthStencilView *pDepthStencilView)
 {
+#if RESHADE_ADDON
+	if (_has_open_render_pass)
+	{
+		reshade::invoke_addon_event<reshade::addon_event::end_render_pass>(this);
+		_has_open_render_pass = false;
+	}
+#endif
+
 	_orig->OMSetRenderTargets(NumViews, ppRenderTargetViews, pDepthStencilView);
 
 #if RESHADE_ADDON
 	assert(NumViews <= D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT);
 
-	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_render_targets_and_depth_stencil)].empty())
+	if ((NumViews == 0 && pDepthStencilView == nullptr) ||
+		reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::begin_render_pass)].empty())
 		return;
 
 #ifndef WIN64
@@ -481,18 +490,28 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargets(UINT NumViews, 
 	const auto rtvs = reinterpret_cast<const reshade::api::resource_view *>(ppRenderTargetViews);
 #endif
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(this, NumViews, rtvs, reshade::api::resource_view { reinterpret_cast<uintptr_t>(pDepthStencilView) });
+	_has_open_render_pass = true;
+	reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, NumViews, rtvs, reshade::api::resource_view { reinterpret_cast<uintptr_t>(pDepthStencilView) });
 #endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargetsAndUnorderedAccessViews(UINT NumRTVs, ID3D11RenderTargetView *const *ppRenderTargetViews, ID3D11DepthStencilView *pDepthStencilView, UINT UAVStartSlot, UINT NumUAVs, ID3D11UnorderedAccessView *const *ppUnorderedAccessViews, const UINT *pUAVInitialCounts)
 {
+#if RESHADE_ADDON
+	if (_has_open_render_pass)
+	{
+		reshade::invoke_addon_event<reshade::addon_event::end_render_pass>(this);
+		_has_open_render_pass = false;
+	}
+#endif
+
 	_orig->OMSetRenderTargetsAndUnorderedAccessViews(NumRTVs, ppRenderTargetViews, pDepthStencilView, UAVStartSlot, NumUAVs, ppUnorderedAccessViews, pUAVInitialCounts);
 
 #if RESHADE_ADDON
 	assert(NumRTVs <= D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT && NumUAVs <= D3D11_1_UAV_SLOT_COUNT);
 
-	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_render_targets_and_depth_stencil)].empty() &&
-		reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::push_descriptors)].empty())
+	if ((NumRTVs == 0 && pDepthStencilView == nullptr && NumUAVs == 0) || (
+		reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::begin_render_pass)].empty() &&
+		reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::push_descriptors)].empty()))
 		return;
 
 #ifndef WIN64
@@ -504,7 +523,8 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargetsAndUnorderedAcce
 	const auto rtvs = reinterpret_cast<const reshade::api::resource_view *>(ppRenderTargetViews);
 #endif
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(this, NumRTVs, rtvs, reshade::api::resource_view { reinterpret_cast<uintptr_t>(pDepthStencilView) });
+	_has_open_render_pass = true;
+	reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, NumRTVs, rtvs, reshade::api::resource_view { reinterpret_cast<uintptr_t>(pDepthStencilView) });
 
 #ifndef WIN64
 	reshade::api::resource_view view_handles[D3D11_1_UAV_SLOT_COUNT];
@@ -1190,6 +1210,14 @@ UINT    STDMETHODCALLTYPE D3D11DeviceContext::GetContextFlags()
 }
 HRESULT STDMETHODCALLTYPE D3D11DeviceContext::FinishCommandList(BOOL RestoreDeferredContextState, ID3D11CommandList **ppCommandList)
 {
+#if RESHADE_ADDON
+	if (_has_open_render_pass)
+	{
+		reshade::invoke_addon_event<reshade::addon_event::end_render_pass>(this);
+		_has_open_render_pass = false;
+	}
+#endif
+
 	const HRESULT hr = _orig->FinishCommandList(RestoreDeferredContextState, ppCommandList);
 	if (SUCCEEDED(hr))
 	{

@@ -984,7 +984,7 @@ void reshade::vulkan::device_impl::upload_buffer_region(api::resource dst, uint6
 {
 	assert(false); // TODO
 }
-void reshade::vulkan::device_impl::upload_texture_region(api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], const void *data, uint32_t row_pitch, uint32_t depth_pitch)
+void reshade::vulkan::device_impl::upload_texture_region(api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], const void *data, uint32_t row_pitch, uint32_t slice_pitch)
 {
 	assert(false); // TODO
 }
@@ -1162,15 +1162,6 @@ reshade::vulkan::command_list_impl::~command_list_impl()
 		invoke_addon_event<addon_event::destroy_command_list>(this);
 }
 
-void reshade::vulkan::command_list_impl::bind_index_buffer(api::resource buffer, uint64_t offset, uint32_t index_size)
-{
-	_device_impl->vk.CmdBindIndexBuffer(_orig, (VkBuffer)buffer.handle, offset, index_size == 1 ? VK_INDEX_TYPE_UINT8_EXT : index_size == 2 ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32);
-}
-void reshade::vulkan::command_list_impl::bind_vertex_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *)
-{
-	_device_impl->vk.CmdBindVertexBuffers(_orig, first, count, reinterpret_cast<const VkBuffer *>(buffers), offsets);
-}
-
 void reshade::vulkan::command_list_impl::bind_pipeline(api::pipeline_type type, api::pipeline pipeline)
 {
 	_device_impl->vk.CmdBindPipeline(_orig,
@@ -1217,9 +1208,28 @@ void reshade::vulkan::command_list_impl::bind_pipeline_states(uint32_t count, co
 		}
 	}
 }
+void reshade::vulkan::command_list_impl::bind_viewports(uint32_t first, uint32_t count, const float *viewports)
+{
+	_device_impl->vk.CmdSetViewport(_orig, first, count, reinterpret_cast<const VkViewport *>(viewports));
+}
+void reshade::vulkan::command_list_impl::bind_scissor_rects(uint32_t first, uint32_t count, const int32_t *rects)
+{
+	const auto rect_data = static_cast<VkRect2D *>(alloca(sizeof(VkRect2D) * count));
+	for (uint32_t i = 0, k = 0; i < count; ++i, k += 4)
+	{
+		rect_data[i].offset.x = rects[k + 0];
+		rect_data[i].offset.y = rects[k + 1];
+		rect_data[i].extent.width = rects[k + 2] - rects[k + 0];
+		rect_data[i].extent.height = rects[k + 3] - rects[k + 1];
+	}
+
+	_device_impl->vk.CmdSetScissor(_orig, first, count, rect_data);
+}
 
 void reshade::vulkan::command_list_impl::push_constants(api::shader_stage stage, api::pipeline_layout layout, uint32_t, uint32_t offset, uint32_t count, const uint32_t *values)
 {
+	assert(count != 0);
+
 	_device_impl->vk.CmdPushConstants(_orig,
 		(VkPipelineLayout)layout.handle,
 		static_cast<VkShaderStageFlags>(stage),
@@ -1227,6 +1237,8 @@ void reshade::vulkan::command_list_impl::push_constants(api::shader_stage stage,
 }
 void reshade::vulkan::command_list_impl::push_descriptors(api::shader_stage stage, api::pipeline_layout layout, uint32_t layout_index, api::descriptor_type type, uint32_t first, uint32_t count, const void *descriptors)
 {
+	assert(count != 0);
+
 	VkWriteDescriptorSet write { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
 	write.dstBinding = first;
 	write.descriptorCount = count;
@@ -1303,47 +1315,13 @@ void reshade::vulkan::command_list_impl::bind_descriptor_tables(api::pipeline_ty
 		0, nullptr);
 }
 
-void reshade::vulkan::command_list_impl::bind_viewports(uint32_t first, uint32_t count, const float *viewports)
+void reshade::vulkan::command_list_impl::bind_index_buffer(api::resource buffer, uint64_t offset, uint32_t index_size)
 {
-	_device_impl->vk.CmdSetViewport(_orig, first, count, reinterpret_cast<const VkViewport *>(viewports));
+	_device_impl->vk.CmdBindIndexBuffer(_orig, (VkBuffer)buffer.handle, offset, index_size == 1 ? VK_INDEX_TYPE_UINT8_EXT : index_size == 2 ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32);
 }
-void reshade::vulkan::command_list_impl::bind_scissor_rects(uint32_t first, uint32_t count, const int32_t *rects)
+void reshade::vulkan::command_list_impl::bind_vertex_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *)
 {
-	const auto rect_data = static_cast<VkRect2D *>(alloca(sizeof(VkRect2D) * count));
-	for (uint32_t i = 0, k = 0; i < count; ++i, k += 4)
-	{
-		rect_data[i].offset.x = rects[k + 0];
-		rect_data[i].offset.y = rects[k + 1];
-		rect_data[i].extent.width = rects[k + 2] - rects[k + 0];
-		rect_data[i].extent.height = rects[k + 3] - rects[k + 1];
-	}
-
-	_device_impl->vk.CmdSetScissor(_orig, first, count, rect_data);
-}
-void reshade::vulkan::command_list_impl::bind_render_targets_and_depth_stencil(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv)
-{
-	VkRenderPassBeginInfo begin_info { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
-
-	if (!_device_impl->request_render_pass_and_framebuffer(count, rtvs, dsv, begin_info.renderPass, begin_info.framebuffer))
-		return;
-
-	if (begin_info.framebuffer == current_framebuffer)
-		return;
-
-	if (current_renderpass != VK_NULL_HANDLE)
-		_device_impl->vk.CmdEndRenderPass(_orig);
-
-	const auto &rtv_info = _device_impl->_views.at(count != 0 ? rtvs[0].handle : dsv.handle);
-	const auto &rt_resource_info = _device_impl->_resources.at((uint64_t)rtv_info.image_create_info.image);
-
-	begin_info.renderArea.extent.width = rt_resource_info.image_create_info.extent.width;
-	begin_info.renderArea.extent.height = rt_resource_info.image_create_info.extent.height;
-
-	_device_impl->vk.CmdBeginRenderPass(_orig, &begin_info, VK_SUBPASS_CONTENTS_INLINE);
-
-	current_subpass = 0;
-	current_renderpass = begin_info.renderPass;
-	current_framebuffer = begin_info.framebuffer;
+	_device_impl->vk.CmdBindVertexBuffers(_orig, first, count, reinterpret_cast<const VkBuffer *>(buffers), offsets);
 }
 
 void reshade::vulkan::command_list_impl::draw(uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance)
@@ -1381,6 +1359,37 @@ void reshade::vulkan::command_list_impl::draw_or_dispatch_indirect(uint32_t type
 			_device_impl->vk.CmdDispatchIndirect(_orig, (VkBuffer)buffer.handle, offset + i * stride);
 		break;
 	}
+}
+
+void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv)
+{
+	_has_commands = true;
+
+	VkRenderPassBeginInfo begin_info { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
+
+	if (!_device_impl->request_render_pass_and_framebuffer(count, rtvs, dsv, begin_info.renderPass, begin_info.framebuffer))
+		return;
+
+	assert(current_renderpass == VK_NULL_HANDLE);
+
+	const auto &rtv_info = _device_impl->_views.at(count != 0 ? rtvs[0].handle : dsv.handle);
+	const auto &rt_resource_info = _device_impl->_resources.at((uint64_t)rtv_info.image_create_info.image);
+
+	begin_info.renderArea.extent.width = rt_resource_info.image_create_info.extent.width;
+	begin_info.renderArea.extent.height = rt_resource_info.image_create_info.extent.height;
+
+	_device_impl->vk.CmdBeginRenderPass(_orig, &begin_info, VK_SUBPASS_CONTENTS_INLINE);
+
+	current_subpass = 0;
+	current_renderpass = begin_info.renderPass;
+	current_framebuffer = begin_info.framebuffer;
+}
+void reshade::vulkan::command_list_impl::end_render_pass()
+{
+	_device_impl->vk.CmdEndRenderPass(_orig);
+
+	current_renderpass = VK_NULL_HANDLE;
+	current_framebuffer = VK_NULL_HANDLE;
 }
 
 void reshade::vulkan::command_list_impl::blit(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], api::texture_filter filter)
@@ -1832,11 +1841,6 @@ bool reshade::vulkan::command_list_immediate_impl::flush(VkQueue queue, std::vec
 {
 	if (!_has_commands)
 		return true;
-
-	if (current_renderpass != VK_NULL_HANDLE)
-		_device_impl->vk.CmdEndRenderPass(_orig);
-	current_renderpass = VK_NULL_HANDLE;
-	current_framebuffer = VK_NULL_HANDLE;
 
 	// Submit all asynchronous commands in one batch to the current queue
 	if (_device_impl->vk.EndCommandBuffer(_cmd_buffers[_cmd_index]) != VK_SUCCESS)

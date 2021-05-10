@@ -905,41 +905,6 @@ reshade::d3d12::command_list_impl::~command_list_impl()
 		invoke_addon_event<addon_event::destroy_command_list>(this);
 }
 
-void reshade::d3d12::command_list_impl::bind_index_buffer(api::resource buffer, uint64_t offset, uint32_t index_size)
-{
-	if (buffer.handle != 0)
-	{
-		assert(index_size == 2 || index_size == 4);
-
-		const auto buffer_ptr = reinterpret_cast<ID3D12Resource *>(buffer.handle);
-
-		D3D12_INDEX_BUFFER_VIEW view;
-		view.BufferLocation = buffer_ptr->GetGPUVirtualAddress() + offset;
-		view.Format = index_size == 2 ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT;
-		view.SizeInBytes = static_cast<UINT>(buffer_ptr->GetDesc().Width - offset);
-
-		_orig->IASetIndexBuffer(&view);
-	}
-	else
-	{
-		_orig->IASetIndexBuffer(nullptr);
-	}
-}
-void reshade::d3d12::command_list_impl::bind_vertex_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *strides)
-{
-	const auto views = static_cast<D3D12_VERTEX_BUFFER_VIEW *>(alloca(sizeof(D3D12_VERTEX_BUFFER_VIEW) * count));
-	for (UINT i = 0; i < count; ++i)
-	{
-		const auto buffer_ptr = reinterpret_cast<ID3D12Resource *>(buffers[i].handle);
-
-		views[i].BufferLocation = buffer_ptr->GetGPUVirtualAddress() + offsets[i];
-		views[i].SizeInBytes = static_cast<UINT>(buffer_ptr->GetDesc().Width - offsets[i]);
-		views[i].StrideInBytes = strides[i];
-	}
-
-	_orig->IASetVertexBuffers(first, count, views);
-}
-
 void reshade::d3d12::command_list_impl::bind_pipeline(api::pipeline_type, api::pipeline pipeline)
 {
 	assert(pipeline.handle != 0);
@@ -980,6 +945,18 @@ void reshade::d3d12::command_list_impl::bind_pipeline_states(uint32_t count, con
 			break;
 		}
 	}
+}
+void reshade::d3d12::command_list_impl::bind_viewports(uint32_t first, uint32_t count, const float *viewports)
+{
+	assert(first == 0);
+
+	_orig->RSSetViewports(count, reinterpret_cast<const D3D12_VIEWPORT *>(viewports));
+}
+void reshade::d3d12::command_list_impl::bind_scissor_rects(uint32_t first, uint32_t count, const int32_t *rects)
+{
+	assert(first == 0);
+
+	_orig->RSSetScissorRects(count, reinterpret_cast<const D3D12_RECT *>(rects));
 }
 
 void reshade::d3d12::command_list_impl::push_constants(api::shader_stage stage, api::pipeline_layout layout, uint32_t layout_index, uint32_t first, uint32_t count, const uint32_t *values)
@@ -1053,36 +1030,39 @@ void reshade::d3d12::command_list_impl::bind_descriptor_tables(api::pipeline_typ
 	}
 }
 
-void reshade::d3d12::command_list_impl::bind_viewports(uint32_t first, uint32_t count, const float *viewports)
+void reshade::d3d12::command_list_impl::bind_index_buffer(api::resource buffer, uint64_t offset, uint32_t index_size)
 {
-	assert(first == 0);
-
-	_orig->RSSetViewports(count, reinterpret_cast<const D3D12_VIEWPORT *>(viewports));
-}
-void reshade::d3d12::command_list_impl::bind_scissor_rects(uint32_t first, uint32_t count, const int32_t *rects)
-{
-	assert(first == 0);
-
-	_orig->RSSetScissorRects(count, reinterpret_cast<const D3D12_RECT *>(rects));
-}
-void reshade::d3d12::command_list_impl::bind_render_targets_and_depth_stencil(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv)
-{
-	if (count > D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT)
+	if (buffer.handle != 0)
 	{
-		assert(false);
-		count = D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT;
+		assert(index_size == 2 || index_size == 4);
+
+		const auto buffer_ptr = reinterpret_cast<ID3D12Resource *>(buffer.handle);
+
+		D3D12_INDEX_BUFFER_VIEW view;
+		view.BufferLocation = buffer_ptr->GetGPUVirtualAddress() + offset;
+		view.Format = index_size == 2 ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT;
+		view.SizeInBytes = static_cast<UINT>(buffer_ptr->GetDesc().Width - offset);
+
+		_orig->IASetIndexBuffer(&view);
+	}
+	else
+	{
+		_orig->IASetIndexBuffer(nullptr);
+	}
+}
+void reshade::d3d12::command_list_impl::bind_vertex_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *strides)
+{
+	const auto views = static_cast<D3D12_VERTEX_BUFFER_VIEW *>(alloca(sizeof(D3D12_VERTEX_BUFFER_VIEW) * count));
+	for (UINT i = 0; i < count; ++i)
+	{
+		const auto buffer_ptr = reinterpret_cast<ID3D12Resource *>(buffers[i].handle);
+
+		views[i].BufferLocation = buffer_ptr->GetGPUVirtualAddress() + offsets[i];
+		views[i].SizeInBytes = static_cast<UINT>(buffer_ptr->GetDesc().Width - offsets[i]);
+		views[i].StrideInBytes = strides[i];
 	}
 
-#ifndef WIN64
-	D3D12_CPU_DESCRIPTOR_HANDLE rtv_handles[D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT];
-	for (UINT i = 0; i < count; ++i)
-		rtv_handles[i] = { static_cast<SIZE_T>(rtvs[i].handle) };
-#else
-	const auto rtv_handles = reinterpret_cast<const D3D12_CPU_DESCRIPTOR_HANDLE *>(rtvs);
-#endif
-	const D3D12_CPU_DESCRIPTOR_HANDLE dsv_handle = { static_cast<SIZE_T>(dsv.handle) };
-
-	_orig->OMSetRenderTargets(count, rtv_handles, FALSE, dsv.handle != 0 ? &dsv_handle : nullptr);
+	_orig->IASetVertexBuffers(first, count, views);
 }
 
 void reshade::d3d12::command_list_impl::draw(uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance)
@@ -1109,6 +1089,57 @@ void reshade::d3d12::command_list_impl::draw_or_dispatch_indirect(uint32_t type,
 
 	assert(false); // TODO
 	// _orig->ExecuteIndirect(nullptr, draw_count, reinterpret_cast<ID3D12Resource *>(buffer.handle), offset, nullptr, 0);
+}
+
+void reshade::d3d12::command_list_impl::begin_render_pass(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv)
+{
+	if (count > D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT)
+	{
+		assert(false);
+		count = D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT;
+	}
+
+	com_ptr<ID3D12GraphicsCommandList4> cmd_list4;
+	if (SUCCEEDED(_orig->QueryInterface(&cmd_list4)))
+	{
+		D3D12_RENDER_PASS_DEPTH_STENCIL_DESC depth_stencil_desc = {};
+		depth_stencil_desc.cpuDescriptor = { static_cast<SIZE_T>(dsv.handle) };
+		depth_stencil_desc.DepthBeginningAccess.Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_PRESERVE;
+		depth_stencil_desc.DepthEndingAccess.Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE;
+		depth_stencil_desc.StencilBeginningAccess.Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_PRESERVE;
+		depth_stencil_desc.StencilEndingAccess.Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE;
+
+		D3D12_RENDER_PASS_RENDER_TARGET_DESC render_target_desc[D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT] = {};
+		for (UINT i = 0; i < count; ++i)
+		{
+			render_target_desc[i].cpuDescriptor = { static_cast<SIZE_T>(rtvs[i].handle) };
+			render_target_desc[i].BeginningAccess.Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_PRESERVE;
+			render_target_desc[i].EndingAccess.Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE;
+		}
+
+		cmd_list4->BeginRenderPass(count, render_target_desc, dsv.handle != 0 ? &depth_stencil_desc : nullptr, D3D12_RENDER_PASS_FLAG_NONE);
+	}
+	else
+	{
+#ifndef WIN64
+		D3D12_CPU_DESCRIPTOR_HANDLE rtv_handles[D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT];
+		for (UINT i = 0; i < count; ++i)
+			rtv_handles[i] = { static_cast<SIZE_T>(rtvs[i].handle) };
+#else
+		const auto rtv_handles = reinterpret_cast<const D3D12_CPU_DESCRIPTOR_HANDLE *>(rtvs);
+#endif
+		const D3D12_CPU_DESCRIPTOR_HANDLE dsv_handle = { static_cast<SIZE_T>(dsv.handle) };
+
+		_orig->OMSetRenderTargets(count, rtv_handles, FALSE, dsv.handle != 0 ? &dsv_handle : nullptr);
+	}
+}
+void reshade::d3d12::command_list_impl::end_render_pass()
+{
+	com_ptr<ID3D12GraphicsCommandList4> cmd_list4;
+	if (SUCCEEDED(_orig->QueryInterface(&cmd_list4)))
+	{
+		cmd_list4->EndRenderPass();
+	}
 }
 
 void reshade::d3d12::command_list_impl::blit(api::resource, uint32_t, const int32_t[6], api::resource, uint32_t, const int32_t[6], api::texture_filter)

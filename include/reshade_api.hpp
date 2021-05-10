@@ -355,7 +355,7 @@ namespace reshade { namespace api
 		/// <param name="dst_subresource">The subresource of the <paramref name="resource"/> to upload to.</param>
 		/// <param name="dst_box">A 3D box (or <c>nullptr</c> to reference the entire subresource) that defines the region in the <paramref name="resource"/> to upload to, in the format { left, top, front, right, bottom, back }.</param>
 		/// <param name="data">Pointer to the data to upload.</param>
-		virtual void upload_texture_region(resource resource, uint32_t dst_subresource, const int32_t dst_box[6], const void *data, uint32_t row_pitch, uint32_t depth_pitch) = 0;
+		virtual void upload_texture_region(resource resource, uint32_t dst_subresource, const int32_t dst_box[6], const void *data, uint32_t row_pitch, uint32_t slice_pitch) = 0;
 
 		/// <summary>
 		/// Gets the handle to the underlying resource the specified resource <paramref name="view"/> was created for.
@@ -401,31 +401,6 @@ namespace reshade { namespace api
 	struct __declspec(novtable) command_list : public device_object
 	{
 		/// <summary>
-		/// Binds an index buffer to the input-assembler stage.
-		/// </summary>
-		/// <param name="buffer">The index buffer resource. This resource must have been created with the <see cref="resource_usage::index_buffer"/> usage.</param>
-		/// <param name="offset">Offset (in bytes) from the start of the index buffer to the first index to use. In D3D9 this has to be 0.</param>
-		/// <param name="index_size">The size (in bytes) of each index. Can typically be 2 (16-bit indices) or 4 (32-bit indices).</param>
-		virtual void bind_index_buffer(resource buffer, uint64_t offset, uint32_t index_size) = 0;
-		/// <summary>
-		/// Binds a single vertex buffer to the input-assembler stage.
-		/// </summary>
-		/// <param name="index">The input slot for binding.</param>
-		/// <param name="buffer">The vertex buffer resource. This resources must have been created with the <see cref="resource_usage::vertex_buffer"/> usage.</param>
-		/// <param name="offset">Offset (in bytes) from the start of the vertex buffer to the first vertex element to use.</param>
-		/// <param name="stride">The size (in bytes) of the vertex element that will be used from the vertex buffer (is added to an element offset to advance to the next).</param>
-		inline  void bind_vertex_buffer(uint32_t index, resource buffer, uint64_t offset, uint32_t stride) { bind_vertex_buffers(index, 1, &buffer, &offset, &stride); }
-		/// <summary>
-		/// Binds an array of vertex buffers to the input-assembler stage.
-		/// </summary>
-		/// <param name="first">The first input slot for binding.</param>
-		/// <param name="count">The number of vertex buffers to bind.</param>
-		/// <param name="buffers">A pointer to an array of vertex buffer resources. These resources must have been created with the <see cref="resource_usage::vertex_buffer"/> usage.</param>
-		/// <param name="offsets">A pointer to an array of offset values, with one for each buffer in <paramref name="buffers"/>. Each offset is the number of bytes from the start of the vertex buffer to the first vertex element to use.</param>
-		/// <param name="strides">A pointer to an array of stride values, with one for each buffer in <paramref name="strides"/>. Each stride is the size (in bytes) of the vertex element that will be used from that vertex buffer (is added to an element offset to advance to the next).</param>
-		virtual void bind_vertex_buffers(uint32_t first, uint32_t count, const resource *buffers, const uint64_t *offsets, const uint32_t *strides) = 0;
-
-		/// <summary>
 		/// Binds a pipeline state object.
 		/// </summary>
 		/// <param name="stage">The pipeline state object type to bind.</param>
@@ -438,6 +413,20 @@ namespace reshade { namespace api
 		/// <param name="states">A pointer to an array of pipeline states to set.</param>
 		/// <param name="values">A pointer to an array of pipeline state values, with one for each state in <paramref name="states"/>.</param>
 		virtual void bind_pipeline_states(uint32_t count, const pipeline_state *states, const uint32_t *values) = 0;
+		/// <summary>
+		/// Binds an array of viewports to the rasterizer stage.
+		/// </summary>
+		/// <param name="first">The index of the first viewport to bind. In D3D9, D3D10, D3D11 and D3D12 this has to be 0.</param>
+		/// <param name="count">The number of viewports to bind. In D3D9 this has to be 1.</param>
+		/// <param name="viewports">A pointer to an array of viewports in the format { x 0, y 0, width 0, height 0, min depth 0, max depth 0, x 1, y 1, width 1, height 1, ... }.</param>
+		virtual void bind_viewports(uint32_t first, uint32_t count, const float *viewports) = 0;
+		/// <summary>
+		/// Binds an array of scissor rectangles to the rasterizer stage.
+		/// </summary>
+		/// <param name="first">The index of the first scissor rectangle to bind. In D3D9, D3D10, D3D11 and D3D12 this has to be 0.</param>
+		/// <param name="count">The number of scissor rectangles to bind. In D3D9 this has to be 1.</param>
+		/// <param name="rects">A pointer to an array of scissor rectangles in the format { left 0, top 0, right 0, bottom 0, left 1, top 1, right 1, ... }.</param>
+		virtual void bind_scissor_rects(uint32_t first, uint32_t count, const int32_t *rects) = 0;
 
 		/// <summary>
 		/// Directly updates constant values in the specified shader pipeline stage.
@@ -481,26 +470,29 @@ namespace reshade { namespace api
 		virtual void bind_descriptor_tables(pipeline_type type, pipeline_layout layout, uint32_t first, uint32_t count, const descriptor_table *tables) = 0;
 
 		/// <summary>
-		/// Binds an array of viewports to the rasterizer stage.
+		/// Binds an index buffer to the input-assembler stage.
 		/// </summary>
-		/// <param name="first">The index of the first viewport to bind. In D3D9, D3D10, D3D11 and D3D12 this has to be 0.</param>
-		/// <param name="count">The number of viewports to bind. In D3D9 this has to be 1.</param>
-		/// <param name="viewports">A pointer to an array of viewports in the format { x 0, y 0, width 0, height 0, min depth 0, max depth 0, x 1, y 1, width 1, height 1, ... }.</param>
-		virtual void bind_viewports(uint32_t first, uint32_t count, const float *viewports) = 0;
+		/// <param name="buffer">The index buffer resource. This resource must have been created with the <see cref="resource_usage::index_buffer"/> usage.</param>
+		/// <param name="offset">Offset (in bytes) from the start of the index buffer to the first index to use. In D3D9 this has to be 0.</param>
+		/// <param name="index_size">The size (in bytes) of each index. Can typically be 2 (16-bit indices) or 4 (32-bit indices).</param>
+		virtual void bind_index_buffer(resource buffer, uint64_t offset, uint32_t index_size) = 0;
 		/// <summary>
-		/// Binds an array of scissor rectangles to the rasterizer stage.
+		/// Binds a single vertex buffer to the input-assembler stage.
 		/// </summary>
-		/// <param name="first">The index of the first scissor rectangle to bind. In D3D9, D3D10, D3D11 and D3D12 this has to be 0.</param>
-		/// <param name="count">The number of scissor rectangles to bind. In D3D9 this has to be 1.</param>
-		/// <param name="rects">A pointer to an array of scissor rectangles in the format { left 0, top 0, right 0, bottom 0, left 1, top 1, right 1, ... }.</param>
-		virtual void bind_scissor_rects(uint32_t first, uint32_t count, const int32_t *rects) = 0;
+		/// <param name="index">The input slot for binding.</param>
+		/// <param name="buffer">The vertex buffer resource. This resources must have been created with the <see cref="resource_usage::vertex_buffer"/> usage.</param>
+		/// <param name="offset">Offset (in bytes) from the start of the vertex buffer to the first vertex element to use.</param>
+		/// <param name="stride">The size (in bytes) of the vertex element that will be used from the vertex buffer (is added to an element offset to advance to the next).</param>
+		inline  void bind_vertex_buffer(uint32_t index, resource buffer, uint64_t offset, uint32_t stride) { bind_vertex_buffers(index, 1, &buffer, &offset, &stride); }
 		/// <summary>
-		/// Binds one or more render targets and the depth-stencil buffer to the output-merger stage.
+		/// Binds an array of vertex buffers to the input-assembler stage.
 		/// </summary>
-		/// <param name="count">The number of render targets to bind.</param>
-		/// <param name="rtvs">A pointer to an array of resource views that represent the render targets to bind. The resources these point to must have been created with the <see cref="resource_usage::render_target"/> usage.</param>
-		/// <param name="dsv">The resource view that represents the depth-stencil buffer to bind (or zero to bind none). The resource this points to must have been created with the <see cref="resource_usage::depth_stencil"/> usage.</param>
-		virtual void bind_render_targets_and_depth_stencil(uint32_t count, const resource_view *rtvs, resource_view dsv = { 0 }) = 0;
+		/// <param name="first">The first input slot for binding.</param>
+		/// <param name="count">The number of vertex buffers to bind.</param>
+		/// <param name="buffers">A pointer to an array of vertex buffer resources. These resources must have been created with the <see cref="resource_usage::vertex_buffer"/> usage.</param>
+		/// <param name="offsets">A pointer to an array of offset values, with one for each buffer in <paramref name="buffers"/>. Each offset is the number of bytes from the start of the vertex buffer to the first vertex element to use.</param>
+		/// <param name="strides">A pointer to an array of stride values, with one for each buffer in <paramref name="strides"/>. Each stride is the size (in bytes) of the vertex element that will be used from that vertex buffer (is added to an element offset to advance to the next).</param>
+		virtual void bind_vertex_buffers(uint32_t first, uint32_t count, const resource *buffers, const uint64_t *offsets, const uint32_t *strides) = 0;
 
 		/// <summary>
 		/// Draws non-indexed primitives.
@@ -537,6 +529,18 @@ namespace reshade { namespace api
 		/// <param name="draw_count">The number of commands to execute.</param>
 		/// <param name="stride">The stride between commands in the argument buffer.</param>
 		virtual void draw_or_dispatch_indirect(uint32_t type, resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride) = 0;
+
+		/// <summary>
+		/// Marks the beginning of a render pass by binding one or more render targets and the depth-stencil buffer to the output-merger stage.
+		/// </summary>
+		/// <param name="count">The number of render targets to bind.</param>
+		/// <param name="rtvs">A pointer to an array of resource views that represent the render targets to bind. The resources these point to must have been created with the <see cref="resource_usage::render_target"/> usage.</param>
+		/// <param name="dsv">The resource view that represents the depth-stencil buffer to bind (or zero to bind none). The resource this points to must have been created with the <see cref="resource_usage::depth_stencil"/> usage.</param>
+		virtual void begin_render_pass(uint32_t count, const resource_view *rtvs, resource_view dsv = { 0 }) = 0;
+		/// <summary>
+		/// Marks the ending of a render pass. This must be preceeded by a call to <see cref="command_list::begin_render_pass"/>).
+		/// </summary>
+		virtual void   end_render_pass() = 0;
 
 		/// <summary>
 		/// Blits a region from the <paramref name="source"/> texture to a different region of the <paramref name="destination"/> texture.
@@ -680,7 +684,7 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Closes the current debug marker region (the last one opened with <see cref="command_list::begin_debug_event"/>).
 		/// </summary>
-		virtual void end_debug_event() = 0;
+		virtual void   end_debug_event() = 0;
 		/// <summary>
 		/// Inserts a debug marker label into the command list.
 		/// </summary>

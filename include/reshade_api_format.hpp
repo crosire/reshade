@@ -270,6 +270,7 @@ namespace reshade { namespace api
 		{
 		case format::r8_typeless:
 			return format::r8_unorm;
+		case format::r8g8_typeless:
 			return format::r8g8_unorm;
 		case format::r8g8b8a8_typeless:
 		case format::r8g8b8a8_unorm_srgb:
