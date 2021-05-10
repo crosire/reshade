@@ -1238,3 +1238,38 @@ void reshade::d3d11::device_context_impl::clear_unordered_access_view_float(api:
 
 	_orig->ClearUnorderedAccessViewFloat(reinterpret_cast<ID3D11UnorderedAccessView *>(uav.handle), values);
 }
+
+void reshade::d3d11::device_context_impl::begin_debug_event(const char *label, const float[4])
+{
+	com_ptr<ID3DUserDefinedAnnotation> annotation;
+	if (SUCCEEDED(_orig->QueryInterface(&annotation)))
+	{
+		const size_t label_len = strlen(label);
+		std::wstring label_wide;
+		label_wide.reserve(label_len + 1);
+		utf8::unchecked::utf8to16(label, label + label_len, std::back_inserter(label_wide));
+
+		annotation->BeginEvent(label_wide.c_str());
+	}
+}
+void reshade::d3d11::device_context_impl::end_debug_event()
+{
+	com_ptr<ID3DUserDefinedAnnotation> annotation;
+	if (SUCCEEDED(_orig->QueryInterface(&annotation)))
+	{
+		annotation->EndEvent();
+	}
+}
+void reshade::d3d11::device_context_impl::insert_debug_marker(const char *label, const float[4])
+{
+	com_ptr<ID3DUserDefinedAnnotation> annotation;
+	if (SUCCEEDED(_orig->QueryInterface(&annotation)))
+	{
+		const size_t label_len = strlen(label);
+		std::wstring label_wide;
+		label_wide.reserve(label_len + 1);
+		utf8::unchecked::utf8to16(label, label + label_len, std::back_inserter(label_wide));
+
+		annotation->SetMarker(label_wide.c_str());
+	}
+}

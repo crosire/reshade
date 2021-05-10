@@ -1303,6 +1303,29 @@ void reshade::d3d12::command_list_impl::transition_state(api::resource resource,
 	_orig->ResourceBarrier(1, &transition);
 }
 
+void reshade::d3d12::command_list_impl::begin_debug_event(const char *label, const float[4])
+{
+	const size_t label_len = strlen(label);
+	std::wstring label_wide;
+	label_wide.reserve(label_len + 1);
+	utf8::unchecked::utf8to16(label, label + label_len, std::back_inserter(label_wide));
+
+	_orig->BeginEvent(0, label_wide.c_str(), static_cast<UINT>(label_wide.size()));
+}
+void reshade::d3d12::command_list_impl::end_debug_event()
+{
+	_orig->EndEvent();
+}
+void reshade::d3d12::command_list_impl::insert_debug_marker(const char *label, const float[4])
+{
+	const size_t label_len = strlen(label);
+	std::wstring label_wide;
+	label_wide.reserve(label_len + 1);
+	utf8::unchecked::utf8to16(label, label + label_len, std::back_inserter(label_wide));
+
+	_orig->SetMarker(0, label_wide.c_str(), static_cast<UINT>(label_wide.size()));
+}
+
 reshade::d3d12::command_list_immediate_impl::command_list_immediate_impl(device_impl *device) :
 	command_list_impl(device, nullptr)
 {

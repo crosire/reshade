@@ -3,6 +3,7 @@
  * License: https://github.com/crosire/reshade#license
  */
 
+#include "dll_log.hpp"
 #include "render_d3d9.hpp"
 #include "render_d3d9_utils.hpp"
 #include <algorithm>
@@ -1485,4 +1486,27 @@ void reshade::d3d9::device_impl::clear_unordered_access_view_uint(api::resource_
 void reshade::d3d9::device_impl::clear_unordered_access_view_float(api::resource_view, const float[4])
 {
 	assert(false);
+}
+
+void reshade::d3d9::device_impl::begin_debug_event(const char *label, const float color[4])
+{
+	const size_t label_len = strlen(label);
+	std::wstring label_wide;
+	label_wide.reserve(label_len + 1);
+	utf8::unchecked::utf8to16(label, label + label_len, std::back_inserter(label_wide));
+
+	D3DPERF_BeginEvent(D3DCOLOR_COLORVALUE(color[0], color[1], color[2], color[3]), label_wide.c_str());
+}
+void reshade::d3d9::device_impl::end_debug_event()
+{
+	D3DPERF_EndEvent();
+}
+void reshade::d3d9::device_impl::insert_debug_marker(const char *label, const float color[4])
+{
+	const size_t label_len = strlen(label);
+	std::wstring label_wide;
+	label_wide.reserve(label_len + 1);
+	utf8::unchecked::utf8to16(label, label + label_len, std::back_inserter(label_wide));
+
+	D3DPERF_SetMarker(D3DCOLOR_COLORVALUE(color[0], color[1], color[2], color[3]), label_wide.c_str());
 }

@@ -1116,3 +1116,13 @@ void reshade::d3d10::device_impl::clear_unordered_access_view_float(api::resourc
 {
 	assert(false);
 }
+
+void reshade::d3d10::device_impl::begin_debug_event(const char *, const float[4])
+{
+}
+void reshade::d3d10::device_impl::end_debug_event()
+{
+}
+void reshade::d3d10::device_impl::insert_debug_marker(const char *, const float[4])
+{
+}

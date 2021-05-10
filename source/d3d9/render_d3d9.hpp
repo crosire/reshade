@@ -103,6 +103,10 @@ namespace reshade::d3d9
 
 		void transition_state(api::resource, api::resource_usage, api::resource_usage) final { /* no-op */ }
 
+		void begin_debug_event(const char *label, const float color[4]) final;
+		void end_debug_event() final;
+		void insert_debug_marker(const char *label, const float color[4]) final;
+
 		// Cached device capabilities for quick access
 		D3DCAPS9 _caps;
 		D3DDEVICE_CREATION_PARAMETERS _cp;

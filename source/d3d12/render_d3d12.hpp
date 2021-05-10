@@ -167,6 +167,10 @@ namespace reshade::d3d12
 
 		void transition_state(api::resource resource, api::resource_usage old_state, api::resource_usage new_state) final;
 
+		void begin_debug_event(const char *label, const float color[4]) final;
+		void end_debug_event() final;
+		void insert_debug_marker(const char *label, const float color[4]) final;
+
 	protected:
 		device_impl *const _device_impl;
 		bool _has_commands = false;

@@ -670,6 +670,23 @@ namespace reshade { namespace api
 		/// <param name="old_state">The usage flags describing how the resource was used before this barrier.</param>
 		/// <param name="new_state">The usage flags describing how the resource will be used after this barrier.</param>
 		virtual void transition_state(resource resource, resource_usage old_state, resource_usage new_state) = 0;
+
+		/// <summary>
+		/// Opens a debug marker region in the command list.
+		/// </summary>
+		/// <param name="label">A null-terminated string containing the label of the debug region.</param>
+		/// <param name="color">An optional RGBA color value associated with the debug region.</param>
+		virtual void begin_debug_event(const char *label, const float color[4] = nullptr) = 0;
+		/// <summary>
+		/// Closes the current debug marker region (the last one opened with <see cref="command_list::begin_debug_event"/>).
+		/// </summary>
+		virtual void end_debug_event() = 0;
+		/// <summary>
+		/// Inserts a debug marker label into the command list.
+		/// </summary>
+		/// <param name="label">A null-terminated string containing the label of the debug marker.</param>
+		/// <param name="color">An optional RGBA color value associated with the debug marker.</param>
+		virtual void insert_debug_marker(const char *label, const float color[4] = nullptr) = 0;
 	};
 
 	/// <summary>

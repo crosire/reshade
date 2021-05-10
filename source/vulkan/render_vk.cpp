@@ -1722,6 +1722,51 @@ void reshade::vulkan::command_list_impl::transition_state(api::resource resource
 	}
 }
 
+void reshade::vulkan::command_list_impl::begin_debug_event(const char *label, const float color[4])
+{
+	if (_device_impl->vk.CmdDebugMarkerBeginEXT == nullptr)
+		return;
+
+	VkDebugMarkerMarkerInfoEXT marker_info { VK_STRUCTURE_TYPE_DEBUG_MARKER_MARKER_INFO_EXT };
+	marker_info.pMarkerName = label;
+
+	// The optional color value is ignored if all elements are set to zero
+	if (color != nullptr)
+	{
+		marker_info.color[0] = color[0];
+		marker_info.color[1] = color[1];
+		marker_info.color[2] = color[2];
+		marker_info.color[3] = color[3];
+	}
+
+	_device_impl->vk.CmdDebugMarkerBeginEXT(_orig, &marker_info);
+}
+void reshade::vulkan::command_list_impl::end_debug_event()
+{
+	if (_device_impl->vk.CmdDebugMarkerEndEXT == nullptr)
+		return;
+
+	_device_impl->vk.CmdDebugMarkerEndEXT(_orig);
+}
+void reshade::vulkan::command_list_impl::insert_debug_marker(const char *label, const float color[4])
+{
+	if (_device_impl->vk.CmdDebugMarkerInsertEXT == nullptr)
+		return;
+
+	VkDebugMarkerMarkerInfoEXT marker_info { VK_STRUCTURE_TYPE_DEBUG_MARKER_MARKER_INFO_EXT };
+	marker_info.pMarkerName = label;
+
+	if (color != nullptr)
+	{
+		marker_info.color[0] = color[0];
+		marker_info.color[1] = color[1];
+		marker_info.color[2] = color[2];
+		marker_info.color[3] = color[3];
+	}
+
+	_device_impl->vk.CmdDebugMarkerInsertEXT(_orig, &marker_info);
+}
+
 reshade::vulkan::command_list_immediate_impl::command_list_immediate_impl(device_impl *device, uint32_t queue_family_index) :
 	command_list_impl(device, VK_NULL_HANDLE)
 {

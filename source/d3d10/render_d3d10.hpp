@@ -112,6 +112,10 @@ namespace reshade::d3d10
 
 		void transition_state(api::resource, api::resource_usage, api::resource_usage) final { /* no-op */ }
 
+		void begin_debug_event(const char *label, const float color[4]) final;
+		void end_debug_event() final;
+		void insert_debug_marker(const char *label, const float color[4]) final;
+
 	protected:
 		com_object_list<ID3D10View> _views;
 		com_object_list<ID3D10Resource> _resources;

@@ -121,6 +121,10 @@ namespace reshade::opengl
 
 		void transition_state(api::resource, api::resource_usage, api::resource_usage) final { /* no-op */ }
 
+		void begin_debug_event(const char *label, const float color[4]) final;
+		void end_debug_event() final;
+		void insert_debug_marker(const char *label, const float color[4]) final;
+
 	public:
 		bool _compatibility_context = false;
 		std::unordered_set<HDC> _hdcs;

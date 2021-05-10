@@ -116,6 +116,10 @@ namespace reshade::d3d11
 
 		void transition_state(api::resource, api::resource_usage, api::resource_usage) final { assert(false); }
 
+		void begin_debug_event(const char *, const float[4]) final { assert(false); }
+		void end_debug_event() final { assert(false); }
+		void insert_debug_marker(const char *, const float[4]) final { assert(false); }
+
 	private:
 		device_impl *const _device_impl;
 	};
@@ -171,6 +175,10 @@ namespace reshade::d3d11
 		void clear_unordered_access_view_float(api::resource_view uav, const float values[4]) final;
 
 		void transition_state(api::resource, api::resource_usage, api::resource_usage) final { /* no-op */ }
+
+		void begin_debug_event(const char *label, const float color[4]) final;
+		void end_debug_event() final;
+		void insert_debug_marker(const char *label, const float color[4]) final;
 
 	private:
 		device_impl *const _device_impl;
