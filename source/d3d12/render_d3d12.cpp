@@ -162,6 +162,9 @@ bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc
 	if (desc.type == api::resource_type::buffer)
 		internal_desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 
+	if ((desc.usage & api::resource_usage::constant_buffer) != 0)
+		internal_desc.Width = (internal_desc.Width + D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT - 1u) & ~(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT - 1u);
+
 	if (com_ptr<ID3D12Resource> object;
 		SUCCEEDED(_orig->CreateCommittedResource(&heap_props, D3D12_HEAP_FLAG_NONE, &internal_desc, convert_resource_usage_to_states(initial_state), nullptr, IID_PPV_ARGS(&object))))
 	{
@@ -552,7 +555,7 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t num_table_layo
 		return false;
 	}
 }
-bool reshade::d3d12::device_impl::create_descriptor_heap(uint32_t, uint32_t num_sizes, const api::descriptor_heap_size *sizes, api::descriptor_heap *out)
+bool reshade::d3d12::device_impl::create_descriptor_heap(uint32_t max_tables, uint32_t num_sizes, const api::descriptor_heap_size *sizes, api::descriptor_heap *out)
 {
 	D3D12_DESCRIPTOR_HEAP_TYPE prev_type = D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES;
 	D3D12_DESCRIPTOR_HEAP_DESC internal_desc = {};
@@ -580,7 +583,7 @@ bool reshade::d3d12::device_impl::create_descriptor_heap(uint32_t, uint32_t num_
 		}
 
 		prev_type = internal_desc.Type;
-		internal_desc.NumDescriptors += sizes[i].count;
+		internal_desc.NumDescriptors += sizes[i].count * max_tables;
 	}
 
 	if (com_ptr<ID3D12DescriptorHeap> object;
@@ -773,7 +776,7 @@ void reshade::d3d12::device_impl::update_descriptor_tables(uint32_t num_updates,
 			D3D12_CONSTANT_BUFFER_VIEW_DESC view_desc;
 			view_desc.BufferLocation = buffer->GetGPUVirtualAddress();
 			view_desc.SizeInBytes = static_cast<UINT>(buffer->GetDesc().Width);
-			
+
 			_orig->CreateConstantBufferView(&view_desc, dst_range_start);
 		}
 		else
