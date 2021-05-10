@@ -131,6 +131,9 @@ auto reshade::d3d12::convert_descriptor_type_to_heap_type(descriptor_type type) 
 
 D3D12_RESOURCE_STATES reshade::d3d12::convert_resource_usage_to_states(reshade::api::resource_usage usage)
 {
+	if (usage == resource_usage::present)
+		return D3D12_RESOURCE_STATE_PRESENT;
+
 	auto result = static_cast<D3D12_RESOURCE_STATES>(usage);
 
 	// Depth write state is mutually exclusive with other states, so remove it when read state is specified too

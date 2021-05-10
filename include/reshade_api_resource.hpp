@@ -86,7 +86,9 @@ namespace reshade { namespace api
 		index_buffer = 0x2,
 		vertex_buffer = 0x1,
 		constant_buffer = 0x8000,
-		host = 0xAC3
+
+		host = vertex_buffer | index_buffer | shader_resource | 0x200 | copy_source,
+		present = render_target | copy_source | 0x10000
 	};
 
 	constexpr bool operator!=(resource_usage lhs, uint32_t rhs) { return static_cast<uint32_t>(lhs) != rhs; }

@@ -494,6 +494,8 @@ auto reshade::vulkan::convert_usage_to_access(resource_usage state) -> VkAccessF
 {
 	if (state == resource_usage::host)
 		return VK_ACCESS_HOST_READ_BIT | VK_ACCESS_HOST_WRITE_BIT;
+	if (state == resource_usage::present)
+		return 0;
 
 	VkAccessFlags result = 0;
 	if ((state & resource_usage::depth_stencil_read) != 0)
@@ -543,14 +545,18 @@ auto reshade::vulkan::convert_usage_to_image_layout(resource_usage state) -> VkI
 	case resource_usage::copy_source:
 	case resource_usage::resolve_source:
 		return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+	case resource_usage::present:
+		return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 	}
 }
 auto reshade::vulkan::convert_usage_to_pipeline_stage(resource_usage state) -> VkPipelineStageFlags
 {
-	if (state == resource_usage::undefined)
-		return VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT; // Do not wait on any previous stage
 	if (state == resource_usage::host)
 		return VK_PIPELINE_STAGE_HOST_BIT;
+	if (state == resource_usage::present)
+		return VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+	if (state == resource_usage::undefined)
+		return VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT; // Do not wait on any previous stage
 
 	VkPipelineStageFlags result = 0;
 	if ((state & resource_usage::depth_stencil_read) != 0)
@@ -575,12 +581,14 @@ auto reshade::vulkan::convert_usage_to_pipeline_stage(resource_usage state) -> V
 void reshade::vulkan::convert_usage_to_image_usage_flags(resource_usage usage, VkImageUsageFlags &image_flags)
 {
 	if ((usage & resource_usage::render_target) != 0)
-		image_flags |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+		// Add transfer destination usage as well to support clearing via 'vkCmdClearColorImage'
+		image_flags |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 	else
 		image_flags &= ~VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
 	if ((usage & resource_usage::depth_stencil) != 0)
-		image_flags |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+		// Add transfer destination usage as well to support clearing via 'vkCmdClearDepthStencilImage'
+		image_flags |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 	else
 		image_flags &= ~VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 
