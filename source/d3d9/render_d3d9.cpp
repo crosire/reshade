@@ -753,18 +753,17 @@ bool reshade::d3d9::device_impl::create_descriptor_table_layout(uint32_t num_ran
 
 void reshade::d3d9::device_impl::destroy_sampler(api::sampler handle)
 {
-	assert(handle.handle != 0);
 	delete[] reinterpret_cast<DWORD *>(handle.handle);
 }
 void reshade::d3d9::device_impl::destroy_resource(api::resource handle)
 {
-	assert(handle.handle != 0);
-	reinterpret_cast<IUnknown *>(handle.handle)->Release();
+	if (handle.handle != 0)
+		reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }
 void reshade::d3d9::device_impl::destroy_resource_view(api::resource_view handle)
 {
-	assert(handle.handle != 0);
-	reinterpret_cast<IUnknown *>(handle.handle)->Release();
+	if (handle.handle != 0)
+		reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }
 
 void reshade::d3d9::device_impl::destroy_pipeline(api::pipeline_type type, api::pipeline handle)
@@ -775,8 +774,8 @@ void reshade::d3d9::device_impl::destroy_pipeline(api::pipeline_type type, api::
 }
 void reshade::d3d9::device_impl::destroy_shader_module(api::shader_module handle)
 {
-	assert(handle.handle != 0);
-	reinterpret_cast<IUnknown *>(handle.handle)->Release();
+	if (handle.handle != 0)
+		reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }
 void reshade::d3d9::device_impl::destroy_pipeline_layout(api::pipeline_layout handle)
 {
@@ -788,7 +787,6 @@ void reshade::d3d9::device_impl::destroy_descriptor_heap(api::descriptor_heap)
 }
 void reshade::d3d9::device_impl::destroy_descriptor_table_layout(api::descriptor_table_layout)
 {
-	assert(false);
 }
 
 void reshade::d3d9::device_impl::update_descriptor_tables(uint32_t, const api::descriptor_update *)

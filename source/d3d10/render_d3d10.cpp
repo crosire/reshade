@@ -341,7 +341,8 @@ bool reshade::d3d10::device_impl::create_pipeline_graphics_all(const api::pipeli
 	}
 
 	com_ptr<ID3D10InputLayout> input_layout;
-	if (FAILED(_orig->CreateInputLayout(internal_elements.data(), static_cast<UINT>(internal_elements.size()), bytecode.data(), bytecode.size(), &input_layout)))
+	if (!internal_elements.empty() &&
+		FAILED(_orig->CreateInputLayout(internal_elements.data(), static_cast<UINT>(internal_elements.size()), bytecode.data(), bytecode.size(), &input_layout)))
 	{
 		*out = { 0 };
 		destroy_pipeline(api::pipeline_type::graphics_blend_state, blend_state);
@@ -561,35 +562,31 @@ bool reshade::d3d10::device_impl::create_descriptor_table_layout(uint32_t num_ra
 
 void reshade::d3d10::device_impl::destroy_sampler(api::sampler handle)
 {
-	assert(handle.handle != 0);
-	reinterpret_cast<IUnknown *>(handle.handle)->Release();
+	if (handle.handle != 0)
+		reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }
 void reshade::d3d10::device_impl::destroy_resource(api::resource handle)
 {
-	assert(handle.handle != 0);
-	reinterpret_cast<IUnknown *>(handle.handle)->Release();
+	if (handle.handle != 0)
+		reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }
 void reshade::d3d10::device_impl::destroy_resource_view(api::resource_view handle)
 {
-	assert(handle.handle != 0);
-	reinterpret_cast<IUnknown *>(handle.handle)->Release();
+	if (handle.handle != 0)
+		reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }
 
 void reshade::d3d10::device_impl::destroy_pipeline(api::pipeline_type type, api::pipeline handle)
 {
 	if (type == api::pipeline_type::graphics)
-	{
 		delete reinterpret_cast<pipeline_graphics_impl *>(handle.handle);
-		return;
-	}
-
-	assert(handle.handle != 0);
-	reinterpret_cast<IUnknown *>(handle.handle)->Release();
+	else if (handle.handle != 0)
+		reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }
 void reshade::d3d10::device_impl::destroy_shader_module(api::shader_module handle)
 {
-	assert(handle.handle != 0);
-	reinterpret_cast<IUnknown *>(handle.handle)->Release();
+	if (handle.handle != 0)
+		reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }
 void reshade::d3d10::device_impl::destroy_pipeline_layout(api::pipeline_layout handle)
 {
@@ -601,7 +598,6 @@ void reshade::d3d10::device_impl::destroy_descriptor_heap(api::descriptor_heap)
 }
 void reshade::d3d10::device_impl::destroy_descriptor_table_layout(api::descriptor_table_layout)
 {
-	assert(false);
 }
 
 void reshade::d3d10::device_impl::update_descriptor_tables(uint32_t, const api::descriptor_update *)

@@ -695,7 +695,8 @@ bool reshade::d3d12::device_impl::create_descriptor_table_layout(uint32_t num_ra
 
 void reshade::d3d12::device_impl::destroy_sampler(api::sampler handle)
 {
-	assert(handle.handle != 0);
+	if (handle.handle == 0)
+		return;
 
 	const std::lock_guard<std::mutex> lock(_mutex);
 
@@ -708,12 +709,13 @@ void reshade::d3d12::device_impl::destroy_sampler(api::sampler handle)
 }
 void reshade::d3d12::device_impl::destroy_resource(api::resource handle)
 {
-	assert(handle.handle != 0);
-	reinterpret_cast<IUnknown *>(handle.handle)->Release();
+	if (handle.handle != 0)
+		reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }
 void reshade::d3d12::device_impl::destroy_resource_view(api::resource_view handle)
 {
-	assert(handle.handle != 0);
+	if (handle.handle == 0)
+		return;
 
 	const std::lock_guard<std::mutex> lock(_mutex);
 	_views.erase(handle.handle);
@@ -733,8 +735,8 @@ void reshade::d3d12::device_impl::destroy_resource_view(api::resource_view handl
 
 void reshade::d3d12::device_impl::destroy_pipeline(api::pipeline_type, api::pipeline handle)
 {
-	assert(handle.handle != 0);
-	reinterpret_cast<IUnknown *>(handle.handle)->Release();
+	if (handle.handle != 0)
+		reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }
 void reshade::d3d12::device_impl::destroy_shader_module(api::shader_module handle)
 {
@@ -742,13 +744,13 @@ void reshade::d3d12::device_impl::destroy_shader_module(api::shader_module handl
 }
 void reshade::d3d12::device_impl::destroy_pipeline_layout(api::pipeline_layout handle)
 {
-	assert(handle.handle != 0);
-	reinterpret_cast<IUnknown *>(handle.handle)->Release();
+	if (handle.handle != 0)
+		reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }
 void reshade::d3d12::device_impl::destroy_descriptor_heap(api::descriptor_heap handle)
 {
-	assert(handle.handle != 0);
-	reinterpret_cast<IUnknown *>(handle.handle)->Release();
+	if (handle.handle != 0)
+		reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }
 void reshade::d3d12::device_impl::destroy_descriptor_table_layout(api::descriptor_table_layout handle)
 {

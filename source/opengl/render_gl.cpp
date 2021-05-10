@@ -1085,7 +1085,6 @@ void reshade::opengl::device_impl::destroy_descriptor_heap(api::descriptor_heap)
 }
 void reshade::opengl::device_impl::destroy_descriptor_table_layout(api::descriptor_table_layout)
 {
-	assert(false);
 }
 
 void reshade::opengl::device_impl::update_descriptor_tables(uint32_t, const api::descriptor_update *)
@@ -2091,11 +2090,11 @@ void reshade::opengl::device_impl::clear_render_target_views(uint32_t count, con
 		}
 	}
 }
-void reshade::opengl::device_impl::clear_unordered_access_view_uint(api::resource_view uav, const uint32_t values[4])
+void reshade::opengl::device_impl::clear_unordered_access_view_uint(api::resource_view, const uint32_t[4])
 {
 	assert(false);
 }
-void reshade::opengl::device_impl::clear_unordered_access_view_float(api::resource_view uav, const float values[4])
+void reshade::opengl::device_impl::clear_unordered_access_view_float(api::resource_view, const float[4])
 {
 	assert(false);
 }
