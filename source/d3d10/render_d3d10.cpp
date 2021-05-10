@@ -845,21 +845,12 @@ void reshade::d3d10::device_impl::bind_samplers(api::shader_stage stage, uint32_
 	const auto sampler_ptrs = reinterpret_cast<ID3D10SamplerState *const *>(samplers);
 #endif
 
-	switch (stage)
-	{
-	default:
-		assert(false);
-		break;
-	case api::shader_stage::vertex:
+	if ((stage & api::shader_stage::vertex) != 0)
 		_orig->VSSetSamplers(first, count, sampler_ptrs);
-		break;
-	case api::shader_stage::geometry:
+	if ((stage & api::shader_stage::geometry) != 0)
 		_orig->GSSetSamplers(first, count, sampler_ptrs);
-		break;
-	case api::shader_stage::pixel:
+	if ((stage & api::shader_stage::pixel) != 0)
 		_orig->PSSetSamplers(first, count, sampler_ptrs);
-		break;
-	}
 }
 void reshade::d3d10::device_impl::bind_shader_resource_views(api::shader_stage stage, uint32_t first, uint32_t count, const api::resource_view *views)
 {
@@ -877,21 +868,12 @@ void reshade::d3d10::device_impl::bind_shader_resource_views(api::shader_stage s
 	const auto view_ptrs = reinterpret_cast<ID3D10ShaderResourceView *const *>(views);
 #endif
 
-	switch (stage)
-	{
-	default:
-		assert(false);
-		break;
-	case api::shader_stage::vertex:
+	if ((stage & api::shader_stage::vertex) != 0)
 		_orig->VSSetShaderResources(first, count, view_ptrs);
-		break;
-	case api::shader_stage::geometry:
+	if ((stage & api::shader_stage::geometry) != 0)
 		_orig->GSSetShaderResources(first, count, view_ptrs);
-		break;
-	case api::shader_stage::pixel:
+	if ((stage & api::shader_stage::pixel) != 0)
 		_orig->PSSetShaderResources(first, count, view_ptrs);
-		break;
-	}
 }
 void reshade::d3d10::device_impl::bind_constant_buffers(api::shader_stage stage, uint32_t first, uint32_t count, const api::resource *buffers)
 {
@@ -909,21 +891,12 @@ void reshade::d3d10::device_impl::bind_constant_buffers(api::shader_stage stage,
 	const auto buffer_ptrs = reinterpret_cast<ID3D10Buffer *const *>(buffers);
 #endif
 
-	switch (stage)
-	{
-	default:
-		assert(false);
-		break;
-	case api::shader_stage::vertex:
+	if ((stage & api::shader_stage::vertex) != 0)
 		_orig->VSSetConstantBuffers(first, count, buffer_ptrs);
-		break;
-	case api::shader_stage::geometry:
+	if ((stage & api::shader_stage::geometry) != 0)
 		_orig->GSSetConstantBuffers(first, count, buffer_ptrs);
-		break;
-	case api::shader_stage::pixel:
+	if ((stage & api::shader_stage::pixel) != 0)
 		_orig->PSSetConstantBuffers(first, count, buffer_ptrs);
-		break;
-	}
 }
 
 void reshade::d3d10::device_impl::push_constants(api::shader_stage stage, api::pipeline_layout layout, uint32_t, uint32_t first, uint32_t count, const uint32_t *values)
@@ -940,21 +913,12 @@ void reshade::d3d10::device_impl::push_constants(api::shader_stage stage, api::p
 		push_constants->Unmap();
 	}
 
-	switch (stage)
-	{
-	default:
-		assert(false);
-		break;
-	case api::shader_stage::vertex:
+	if ((stage & api::shader_stage::vertex) != 0)
 		_orig->VSSetConstantBuffers(layout_impl->push_constants_binding, 1, &push_constants);
-		break;
-	case api::shader_stage::geometry:
+	if ((stage & api::shader_stage::geometry) != 0)
 		_orig->GSSetConstantBuffers(layout_impl->push_constants_binding, 1, &push_constants);
-		break;
-	case api::shader_stage::pixel:
+	if ((stage & api::shader_stage::pixel) != 0)
 		_orig->PSSetConstantBuffers(layout_impl->push_constants_binding, 1, &push_constants);
-		break;
-	}
 }
 void reshade::d3d10::device_impl::push_descriptors(api::shader_stage stage, api::pipeline_layout layout, uint32_t layout_index, api::descriptor_type type, uint32_t first, uint32_t count, const void *descriptors)
 {

@@ -25,6 +25,17 @@ namespace reshade { namespace api
 		all_graphics = 0x1F
 	};
 
+	constexpr bool operator!=(shader_stage lhs, uint32_t rhs) { return static_cast<uint32_t>(lhs) != rhs; }
+	constexpr bool operator!=(uint32_t lhs, shader_stage rhs) { return lhs != static_cast<uint32_t>(rhs); }
+	constexpr bool operator==(shader_stage lhs, uint32_t rhs) { return static_cast<uint32_t>(lhs) == rhs; }
+	constexpr bool operator==(uint32_t lhs, shader_stage rhs) { return lhs == static_cast<uint32_t>(rhs); }
+	constexpr shader_stage operator^(shader_stage lhs, shader_stage rhs) { return static_cast<shader_stage>(static_cast<uint32_t>(lhs) ^ static_cast<uint32_t>(rhs)); }
+	constexpr shader_stage operator&(shader_stage lhs, shader_stage rhs) { return static_cast<shader_stage>(static_cast<uint32_t>(lhs) & static_cast<uint32_t>(rhs)); }
+	constexpr shader_stage operator|(shader_stage lhs, shader_stage rhs) { return static_cast<shader_stage>(static_cast<uint32_t>(lhs) | static_cast<uint32_t>(rhs)); }
+	constexpr shader_stage &operator^=(shader_stage &lhs, shader_stage rhs) { return lhs = static_cast<shader_stage>(static_cast<uint32_t>(lhs) ^ static_cast<uint32_t>(rhs)); }
+	constexpr shader_stage &operator&=(shader_stage &lhs, shader_stage rhs) { return lhs = static_cast<shader_stage>(static_cast<uint32_t>(lhs) & static_cast<uint32_t>(rhs)); }
+	constexpr shader_stage &operator|=(shader_stage &lhs, shader_stage rhs) { return lhs = static_cast<shader_stage>(static_cast<uint32_t>(lhs) | static_cast<uint32_t>(rhs)); }
+
 	/// <summary>
 	/// The available shader source formats.
 	/// Support for these varies between render APIs (e.g. D3D generally accepts DXBC, but no GLSL, the reverse of which is true for OpenGL).

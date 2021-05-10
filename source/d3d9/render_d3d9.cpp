@@ -224,7 +224,7 @@ bool reshade::d3d9::device_impl::check_format_support(api::format format, api::r
 	D3DFORMAT d3d_format = D3DFMT_UNKNOWN;
 	convert_format_to_d3d_format(format, d3d_format);
 
-	return SUCCEEDED(_d3d->CheckDeviceFormat(_cp.AdapterOrdinal, _cp.DeviceType, D3DFMT_X8R8G8B8, d3d_usage, D3DRTYPE_TEXTURE, d3d_format));
+	return d3d_format != D3DFMT_UNKNOWN && SUCCEEDED(_d3d->CheckDeviceFormat(_cp.AdapterOrdinal, _cp.DeviceType, D3DFMT_X8R8G8B8, d3d_usage, D3DRTYPE_TEXTURE, d3d_format));
 }
 
 bool reshade::d3d9::device_impl::check_resource_handle_valid(api::resource resource) const
@@ -302,6 +302,7 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 			UINT levels = 0;
 			D3DSURFACE_DESC internal_desc = {};
 			convert_resource_desc(desc, internal_desc, &levels);
+			assert(internal_desc.Format != D3DFMT_UNKNOWN);
 
 			if (com_ptr<IDirect3DTexture9> object;
 				SUCCEEDED(_orig->CreateTexture(internal_desc.Width, internal_desc.Height, levels, internal_desc.Usage, internal_desc.Format, internal_desc.Pool, &object, nullptr)))
@@ -321,6 +322,7 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 			UINT levels = 0;
 			D3DVOLUME_DESC internal_desc = {};
 			convert_resource_desc(desc, internal_desc, &levels);
+			assert(internal_desc.Format != D3DFMT_UNKNOWN);
 
 			if (com_ptr<IDirect3DVolumeTexture9> object;
 				SUCCEEDED(_orig->CreateVolumeTexture(internal_desc.Width, internal_desc.Height, internal_desc.Depth, levels, internal_desc.Usage, internal_desc.Format, internal_desc.Pool, &object, nullptr)))
@@ -577,7 +579,7 @@ bool reshade::d3d9::device_impl::create_pipeline(const api::pipeline_desc &desc,
 			internal_element.UsageIndex = static_cast<BYTE>(element.semantic_index);
 		}
 
-		internal_elements.back() = D3DDECL_END();
+		internal_elements.push_back(D3DDECL_END());
 
 		if (FAILED(_orig->CreateVertexDeclaration(internal_elements.data(), &decl)))
 		{
@@ -1056,18 +1058,20 @@ void reshade::d3d9::device_impl::bind_pipeline_states(uint32_t count, const api:
 
 void reshade::d3d9::device_impl::push_constants(api::shader_stage stage, api::pipeline_layout, uint32_t, uint32_t first, uint32_t count, const uint32_t *values)
 {
-	switch (stage)
-	{
-	case api::shader_stage::vertex:
-		_orig->SetVertexShaderConstantF(first, reinterpret_cast<const float *>(values), count);
-		break;
-	case api::shader_stage::pixel:
-		_orig->SetPixelShaderConstantF(first, reinterpret_cast<const float *>(values), count);
-		break;
-	}
+	if ((stage & api::shader_stage::vertex) != 0)
+		_orig->SetVertexShaderConstantF(first / 4, reinterpret_cast<const float *>(values), count / 4);
+	if ((stage & api::shader_stage::pixel) != 0)
+		_orig->SetPixelShaderConstantF(first / 4, reinterpret_cast<const float *>(values), count / 4);
 }
 void reshade::d3d9::device_impl::push_descriptors(api::shader_stage stage, api::pipeline_layout layout, uint32_t layout_index, api::descriptor_type type, uint32_t first, uint32_t count, const void *descriptors)
 {
+	if ((stage & (api::shader_stage::vertex | api::shader_stage::pixel)) == (api::shader_stage::vertex | api::shader_stage::pixel))
+	{
+		push_descriptors(api::shader_stage::vertex, layout, layout_index, type, first, count, descriptors);
+		push_descriptors(api::shader_stage::pixel, layout, layout_index, type, first, count, descriptors);
+		return;
+	}
+
 	switch (stage)
 	{
 	default:
@@ -1169,7 +1173,7 @@ void reshade::d3d9::device_impl::draw_indexed(uint32_t indices, uint32_t instanc
 {
 	assert(instances == 1 && first_instance == 0);
 
-	_orig->DrawIndexedPrimitive(_current_prim_type, vertex_offset, 0, UINT_MAX, first_index, calc_prim_from_vertex_count(_current_prim_type, indices));
+	_orig->DrawIndexedPrimitive(_current_prim_type, vertex_offset, 0, 0xFFFF, first_index, calc_prim_from_vertex_count(_current_prim_type, indices));
 }
 void reshade::d3d9::device_impl::dispatch(uint32_t, uint32_t, uint32_t)
 {
