@@ -44,6 +44,7 @@ private:
 	bool _debug_info = false;
 	bool _uniforms_to_spec_constants = false;
 	bool _enable_16bit_types = false;
+	bool _enable_control_flow_attributes = false;
 	bool _flip_vert_y = false;
 	std::unordered_map<id, id> _remapped_sampler_variables;
 	std::unordered_map<std::string, uint32_t> _semantic_to_location;
@@ -61,6 +62,9 @@ private:
 		if (_enable_16bit_types)
 			// GL_NV_gpu_shader5, GL_AMD_gpu_shader_half_float or GL_EXT_shader_16bit_storage
 			module.hlsl += "#extension GL_NV_gpu_shader5 : require\n";
+		if (_enable_control_flow_attributes)
+			module.hlsl += "#extension GL_EXT_control_flow_attributes : enable\n";
+
 		if (_uses_fmod)
 			module.hlsl += "float fmodHLSL(float x, float y) { return x - y * trunc(x / y); }\n"
 				"vec2 fmodHLSL(vec2 x, vec2 y) { return x - y * trunc(x / y); }\n"
@@ -95,6 +99,7 @@ private:
 			// Read matrices in column major layout, even though they are actually row major, to avoid transposing them on every access (since GLSL uses column matrices)
 			// TODO: This technically only works with square matrices
 			module.hlsl += "layout(std140, column_major, binding = 0) uniform _Globals {\n" + _ubo_block + "};\n";
+
 		module.hlsl += _blocks.at(0);
 	}
 
@@ -1519,7 +1524,7 @@ private:
 		return res;
 	}
 
-	void emit_if(const location &loc, id condition_value, id condition_block, id true_statement_block, id false_statement_block, unsigned int) override
+	void emit_if(const location &loc, id condition_value, id condition_block, id true_statement_block, id false_statement_block, unsigned int flags) override
 	{
 		assert(condition_value != 0 && condition_block != 0 && true_statement_block != 0 && false_statement_block != 0);
 
@@ -1535,7 +1540,22 @@ private:
 
 		write_location(code, loc);
 
-		code += "\tif (" + id_to_name(condition_value) + ")\n\t{\n";
+		if (flags != 0)
+		{
+			_enable_control_flow_attributes = true;
+
+			code += "#if GL_EXT_control_flow_attributes\n\t[[";
+			if ((flags & 0x1) == 0x1)
+				code += "flatten";
+			if ((flags & 0x3) == 0x3)
+				code += ", ";
+			if ((flags & 0x2) == 0x2)
+				code += "dont_flatten";
+			code += "]]\n#endif\n";
+		}
+
+		code += '\t';
+		code += "if (" + id_to_name(condition_value) + ")\n\t{\n";
 		code += true_statement_data;
 		code += "\t}\n";
 
@@ -1588,7 +1608,7 @@ private:
 
 		return res;
 	}
-	void emit_loop(const location &loc, id condition_value, id prev_block, id header_block, id condition_block, id loop_block, id continue_block, unsigned int) override
+	void emit_loop(const location &loc, id condition_value, id prev_block, id header_block, id condition_block, id loop_block, id continue_block, unsigned int flags) override
 	{
 		assert(prev_block != 0 && header_block != 0 && loop_block != 0 && continue_block != 0);
 
@@ -1602,6 +1622,21 @@ private:
 		increase_indentation_level(continue_data);
 
 		code += _blocks.at(prev_block);
+
+		std::string attributes;
+		if (flags != 0)
+		{
+			_enable_control_flow_attributes = true;
+
+			attributes += "#if GL_EXT_control_flow_attributes\n\t[[";
+			if ((flags & 0x1) == 0x1)
+				attributes += "unroll";
+			if ((flags & 0x3) == 0x3)
+				attributes += ", ";
+			if ((flags & 0x2) == 0x2)
+				attributes += "dont_unroll";
+			attributes += "]]\n#endif\n";
+		}
 
 		// Condition value can be missing in infinite loop constructs like "for (;;)"
 		std::string condition_name = condition_value != 0 ? id_to_name(condition_value) : "true";
@@ -1622,6 +1657,7 @@ private:
 
 			write_location(code, loc);
 
+			code += attributes;
 			code += '\t';
 			code += "do\n\t{\n\t\t{\n";
 			code += loop_data; // Encapsulate loop body into another scope, so not to confuse any local variables with the current iteration variable accessed in the continue block below
@@ -1661,6 +1697,7 @@ private:
 			for (size_t offset = 0; (offset = loop_data.find(continue_id, offset)) != std::string::npos; offset += continue_data.size())
 				loop_data.replace(offset, continue_id.size(), continue_data + condition_data);
 
+			code += attributes;
 			code += '\t';
 			code += "while (" + condition_name + ")\n\t{\n\t\t{\n";
 			code += loop_data;
