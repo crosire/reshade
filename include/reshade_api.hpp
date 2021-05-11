@@ -677,14 +677,15 @@ namespace reshade { namespace api
 		virtual void clear_unordered_access_view_float(resource_view uav, const float values[4]) = 0;
 
 		/// <summary>
-		/// Adds a transition barrier for the specified <paramref name="resource"/> to the command stream.
+		/// Adds a barrier for the specified <paramref name="resource"/> to the command stream.
+		/// When both <paramref name="old_state"/> and <paramref name="new_state"/> are <see cref="resource_usage::unordered_access"/> a UAV barrier is added, otherwise a state transition is performed.
 		/// </summary>
 		/// <param name="resource">The resource to transition.</param>
 		/// <param name="old_state">The usage flags describing how the resource was used before this barrier.</param>
 		/// <param name="new_state">The usage flags describing how the resource will be used after this barrier.</param>
 		inline  void insert_barrier(resource resource, resource_usage old_state, resource_usage new_state) { insert_barrier(1, &resource, &old_state, &new_state); }
 		/// <summary>
-		/// Adds a transition barrier for the specified <paramref name="resources"/> to the command stream.
+		/// Adds a barrier for the specified <paramref name="resources"/> to the command stream.
 		/// </summary>
 		/// <param name="count">The number of resources to transition.</param>
 		/// <param name="resources">A pointer to an array of resources to transition.</param>

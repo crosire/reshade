@@ -1283,11 +1283,21 @@ void reshade::d3d12::command_list_impl::insert_barrier(uint32_t count, const api
 	const auto barriers = static_cast<D3D12_RESOURCE_BARRIER *>(alloca(sizeof(D3D12_RESOURCE_BARRIER) * count));
 	for (UINT i = 0; i < count; ++i)
 	{
-		barriers[i].Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-		barriers[i].Transition.pResource = reinterpret_cast<ID3D12Resource *>(resources[i].handle);
-		barriers[i].Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-		barriers[i].Transition.StateBefore = convert_resource_usage_to_states(old_states[i]);
-		barriers[i].Transition.StateAfter = convert_resource_usage_to_states(new_states[i]);
+		if (old_states[i] == api::resource_usage::unordered_access && new_states[i] == api::resource_usage::unordered_access)
+		{
+			barriers[i].Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+			barriers[i].Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+			barriers[i].UAV.pResource = reinterpret_cast<ID3D12Resource *>(resources[i].handle);
+		}
+		else
+		{
+			barriers[i].Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+			barriers[i].Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+			barriers[i].Transition.pResource = reinterpret_cast<ID3D12Resource *>(resources[i].handle);
+			barriers[i].Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+			barriers[i].Transition.StateBefore = convert_resource_usage_to_states(old_states[i]);
+			barriers[i].Transition.StateAfter = convert_resource_usage_to_states(new_states[i]);
+		}
 	}
 
 	_orig->ResourceBarrier(count, barriers);
