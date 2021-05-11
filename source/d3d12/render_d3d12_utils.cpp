@@ -142,7 +142,9 @@ void reshade::d3d12::convert_resource_desc(const api::resource_desc &desc, D3D12
 	else
 		internal_desc.Flags &= ~D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
 
-	if ((desc.usage & api::resource_usage::unordered_access) != api::resource_usage::undefined)
+	// Mipmap generation is using compute shaders and therefore needs unordered access flag (see 'generate_mipmaps' implementation)
+	if ((desc.usage & api::resource_usage::unordered_access) != api::resource_usage::undefined ||
+		(desc.flags & api::resource_flags::generate_mipmaps) == api::resource_flags::generate_mipmaps)
 		internal_desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 	else
 		internal_desc.Flags &= ~D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
@@ -219,8 +221,14 @@ reshade::api::resource_desc reshade::d3d12::convert_resource_desc(const D3D12_RE
 		desc.usage |= api::resource_usage::render_target;
 	if ((internal_desc.Flags & D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE) == 0)
 		desc.usage |= api::resource_usage::shader_resource;
+
 	if ((internal_desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) != 0)
+	{
 		desc.usage |= api::resource_usage::unordered_access;
+		// Resources that have unordered access are usable with the 'generate_mipmaps' function
+		if (internal_desc.MipLevels > 1)
+			desc.flags |= api::resource_flags::generate_mipmaps;
+	}
 
 	if ((heap_flags & D3D12_HEAP_FLAG_SHARED) != 0)
 		desc.flags |= api::resource_flags::shared;

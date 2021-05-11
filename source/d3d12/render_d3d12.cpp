@@ -1233,6 +1233,11 @@ void reshade::d3d12::command_list_impl::copy_texture_to_buffer(api::resource src
 		&src_copy_location, reinterpret_cast<const D3D12_BOX *>(src_box));
 }
 
+void reshade::d3d12::command_list_impl::generate_mipmaps(api::resource_view srv)
+{
+	assert(false); // TODO
+}
+
 void reshade::d3d12::command_list_impl::clear_depth_stencil_view(api::resource_view dsv, uint32_t clear_flags, float depth, uint8_t stencil)
 {
 	_has_commands = true;

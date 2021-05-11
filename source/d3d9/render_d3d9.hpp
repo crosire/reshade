@@ -97,6 +97,8 @@ namespace reshade::d3d9
 		void copy_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_offset[3], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3]) final;
 		void copy_texture_to_buffer(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint64_t dst_offset, uint32_t row_length, uint32_t slice_height) final;
 
+		void generate_mipmaps(api::resource_view srv) final;
+
 		void clear_depth_stencil_view(api::resource_view dsv, uint32_t clear_flags, float depth, uint8_t stencil) final;
 		void clear_render_target_views(uint32_t count, const api::resource_view *rtvs, const float color[4]) final;
 		void clear_unordered_access_view_uint(api::resource_view uav, const uint32_t values[4]) final;

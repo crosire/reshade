@@ -236,6 +236,31 @@ reshade::opengl::device_impl::device_impl(HDC hdc, HGLRC hglrc) :
 	}, nullptr);
 #endif
 
+	// Create mipmap generation program used in the 'generate_mipmaps' function
+	{
+		const GLchar *mipmap_shader[] = {
+			"#version 430\n"
+			"layout(binding = 0) uniform sampler2D src;\n"
+			"layout(binding = 1) uniform writeonly image2D dest;\n"
+			"layout(location = 0) uniform vec3 info;\n"
+			"layout(local_size_x = 8, local_size_y = 8) in;\n"
+			"void main()\n"
+			"{\n"
+			"	vec2 uv = info.xy * (vec2(gl_GlobalInvocationID.xy) + vec2(0.5));\n"
+			"	imageStore(dest, ivec2(gl_GlobalInvocationID.xy), textureLod(src, uv, int(info.z)));\n"
+			"}\n"
+		};
+
+		const GLuint mipmap_cs = glCreateShader(GL_COMPUTE_SHADER);
+		glShaderSource(mipmap_cs, 1, mipmap_shader, 0);
+		glCompileShader(mipmap_cs);
+
+		_mipmap_program = glCreateProgram();
+		glAttachShader(_mipmap_program, mipmap_cs);
+		glLinkProgram(_mipmap_program);
+		glDeleteShader(mipmap_cs);
+	}
+
 #if RESHADE_ADDON
 	addon::load_addons();
 #endif
@@ -261,6 +286,9 @@ reshade::opengl::device_impl::~device_impl()
 
 	// Destroy framebuffers used in 'copy_resource' implementation
 	glDeleteFramebuffers(2, _copy_fbo);
+
+	// Destroy mipmap generation program
+	glDeleteProgram(_mipmap_program);
 }
 
 bool reshade::opengl::device_impl::check_capability(api::device_caps capability) const
@@ -1929,6 +1957,44 @@ void reshade::opengl::device_impl::copy_texture_region(api::resource src, uint32
 void reshade::opengl::device_impl::copy_texture_to_buffer(api::resource, uint32_t, const int32_t[6], api::resource, uint64_t, uint32_t, uint32_t)
 {
 	assert(false);
+}
+
+void reshade::opengl::device_impl::generate_mipmaps(api::resource_view srv)
+{
+	assert(srv.handle != 0);
+	const GLenum target = srv.handle >> 40;
+	const GLuint object = srv.handle & 0xFFFFFFFF;
+
+	glBindSampler(0, 0);
+	glActiveTexture(GL_TEXTURE0); // src
+	glBindTexture(target, object);
+
+#if 0
+	glGenerateMipmap(target);
+#else
+	// Use custom mipmap generation implementation because 'glGenerateMipmap' generates shifted results
+	glUseProgram(_mipmap_program);
+
+	GLuint levels = 0;
+	GLuint base_width = 0;
+	GLuint base_height = 0;
+	GLenum internal_format = GL_NONE;
+	glGetTexParameteriv(target, GL_TEXTURE_IMMUTABLE_LEVELS, reinterpret_cast<GLint *>(&levels));
+	glGetTexLevelParameteriv(target, 0, GL_TEXTURE_WIDTH, reinterpret_cast<GLint *>(&base_width));
+	glGetTexLevelParameteriv(target, 0, GL_TEXTURE_HEIGHT, reinterpret_cast<GLint *>(&base_height));
+	glGetTexLevelParameteriv(target, 0, GL_TEXTURE_INTERNAL_FORMAT, reinterpret_cast<GLint *>(&internal_format));
+
+	for (GLuint level = 1; level < levels; ++level)
+	{
+		const GLuint width = std::max(1u, base_width >> level);
+		const GLuint height = std::max(1u, base_height >> level);
+
+		glUniform3f(0 /* info */, 1.0f / width, 1.0f / height, static_cast<float>(level - 1));
+		glBindImageTexture(1 /* dest */, object, level, GL_FALSE, 0, GL_WRITE_ONLY, internal_format);
+
+		glDispatchCompute(std::max(1u, (width + 7) / 8), std::max(1u, (height + 7) / 8), 1);
+	}
+#endif
 }
 
 void reshade::opengl::device_impl::clear_depth_stencil_view(api::resource_view dsv, uint32_t clear_flags, float depth, uint8_t stencil)

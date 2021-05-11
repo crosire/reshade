@@ -630,6 +630,14 @@ namespace reshade { namespace api
 		virtual void copy_texture_to_buffer(resource source, uint32_t src_subresource, const int32_t src_box[6], resource destination, uint64_t dst_offset, uint32_t row_length = 0, uint32_t slice_height = 0) = 0;
 
 		/// <summary>
+		/// Generates the lower mipmap levels for the specified shader resource view.
+		/// Uses the largest mipmap level of the view to recursively generate the lower levels of the mip and stops with the smallest level that is specified by the view.
+		/// <para>The resource the <paramref name="srv"/> view points to has to be in the <see cref="resource_usage::shader_resource"/> state and has to have been created with the <see cref="resource_flags::generate_mipmaps"/> flag.</para>
+		/// </summary>
+		/// <param name="srv">The shader resource view to update.</param>
+		virtual void generate_mipmaps(resource_view srv) = 0;
+
+		/// <summary>
 		/// Clears the resource referenced by the depth-stencil view.
 		/// <para>The resource the <paramref name="dsv"/> view points to has to be in the <see cref="resource_usage::depth_stencil_write"/> state.</para>
 		/// </summary>

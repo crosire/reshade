@@ -1217,6 +1217,13 @@ void reshade::d3d11::device_context_impl::copy_texture_to_buffer(api::resource, 
 	assert(false);
 }
 
+void reshade::d3d11::device_context_impl::generate_mipmaps(api::resource_view srv)
+{
+	assert(srv.handle != 0);
+
+	_orig->GenerateMips(reinterpret_cast<ID3D11ShaderResourceView *>(srv.handle));
+}
+
 void reshade::d3d11::device_context_impl::clear_depth_stencil_view(api::resource_view dsv, uint32_t clear_flags, float depth, uint8_t stencil)
 {
 	assert(dsv.handle != 0);

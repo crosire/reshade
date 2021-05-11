@@ -760,6 +760,10 @@ void reshade::vulkan::convert_resource_desc(const api::resource_desc &desc, VkIm
 		create_info.flags |= VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
 	else
 		create_info.flags &= ~VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
+
+	// Mipmap generation is using 'vkCmdBlitImage' and therefore needs transfer usage flags (see 'generate_mipmaps' implementation)
+	if ((desc.flags & api::resource_flags::generate_mipmaps) == api::resource_flags::generate_mipmaps)
+		create_info.usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 }
 void reshade::vulkan::convert_resource_desc(const api::resource_desc &desc, VkBufferCreateInfo &create_info)
 {
@@ -815,6 +819,10 @@ reshade::api::resource_desc reshade::vulkan::convert_resource_desc(const VkImage
 
 	if ((create_info.flags & VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT) != 0)
 		desc.flags |= api::resource_flags::cube_compatible;
+
+	// Images that have both transfer usage flags are usable with the 'generate_mipmaps' function
+	if (create_info.mipLevels > 1 && (create_info.usage & (VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT)) == (VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT))
+		desc.flags |= api::resource_flags::generate_mipmaps;
 
 	return desc;
 }

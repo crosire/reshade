@@ -134,6 +134,11 @@ static void convert_resource_flags_to_misc_flags(reshade::api::resource_flags fl
 		misc_flags |= D3D11_RESOURCE_MISC_TEXTURECUBE;
 	else
 		misc_flags &= ~D3D11_RESOURCE_MISC_TEXTURECUBE;
+
+	if ((flags & api::resource_flags::generate_mipmaps) == api::resource_flags::generate_mipmaps)
+		misc_flags |= D3D11_RESOURCE_MISC_GENERATE_MIPS;
+	else
+		misc_flags &= ~D3D11_RESOURCE_MISC_GENERATE_MIPS;
 }
 static void convert_misc_flags_to_resource_flags(UINT misc_flags, reshade::api::resource_flags &flags)
 {
@@ -143,6 +148,8 @@ static void convert_misc_flags_to_resource_flags(UINT misc_flags, reshade::api::
 		flags |= api::resource_flags::shared;
 	if ((misc_flags & D3D11_RESOURCE_MISC_TEXTURECUBE) != 0)
 		flags |= api::resource_flags::cube_compatible;
+	if ((misc_flags & D3D10_RESOURCE_MISC_GENERATE_MIPS) != 0)
+		flags |= api::resource_flags::generate_mipmaps;
 }
 
 void reshade::d3d11::convert_sampler_desc(const api::sampler_desc &desc, D3D11_SAMPLER_DESC &internal_desc)
@@ -196,6 +203,10 @@ void reshade::d3d11::convert_resource_desc(const api::resource_desc &desc, D3D11
 	convert_memory_heap_to_d3d_usage(desc.heap, internal_desc.Usage, internal_desc.CPUAccessFlags);
 	convert_resource_usage_to_bind_flags(desc.usage, internal_desc.BindFlags);
 	convert_resource_flags_to_misc_flags(desc.flags, internal_desc.MiscFlags);
+
+	// The 'D3D11_RESOURCE_MISC_GENERATE_MIPS' flag requires render target and shader resource bind flags
+	if ((desc.flags & api::resource_flags::generate_mipmaps) == api::resource_flags::generate_mipmaps)
+		internal_desc.BindFlags |= D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
 }
 void reshade::d3d11::convert_resource_desc(const api::resource_desc &desc, D3D11_TEXTURE2D_DESC &internal_desc)
 {
@@ -209,6 +220,9 @@ void reshade::d3d11::convert_resource_desc(const api::resource_desc &desc, D3D11
 	convert_memory_heap_to_d3d_usage(desc.heap, internal_desc.Usage, internal_desc.CPUAccessFlags);
 	convert_resource_usage_to_bind_flags(desc.usage, internal_desc.BindFlags);
 	convert_resource_flags_to_misc_flags(desc.flags, internal_desc.MiscFlags);
+
+	if ((desc.flags & api::resource_flags::generate_mipmaps) == api::resource_flags::generate_mipmaps)
+		internal_desc.BindFlags |= D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
 }
 void reshade::d3d11::convert_resource_desc(const api::resource_desc &desc, D3D11_TEXTURE3D_DESC &internal_desc)
 {
@@ -222,6 +236,9 @@ void reshade::d3d11::convert_resource_desc(const api::resource_desc &desc, D3D11
 	convert_memory_heap_to_d3d_usage(desc.heap, internal_desc.Usage, internal_desc.CPUAccessFlags);
 	convert_resource_usage_to_bind_flags(desc.usage, internal_desc.BindFlags);
 	convert_resource_flags_to_misc_flags(desc.flags, internal_desc.MiscFlags);
+
+	if ((desc.flags & api::resource_flags::generate_mipmaps) == api::resource_flags::generate_mipmaps)
+		internal_desc.BindFlags |= D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
 }
 reshade::api::resource_desc reshade::d3d11::convert_resource_desc(const D3D11_BUFFER_DESC &internal_desc)
 {

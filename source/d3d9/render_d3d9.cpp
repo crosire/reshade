@@ -1476,6 +1476,15 @@ void reshade::d3d9::device_impl::copy_texture_to_buffer(api::resource, uint32_t,
 	assert(false);
 }
 
+void reshade::d3d9::device_impl::generate_mipmaps(api::resource_view srv)
+{
+	assert(srv.handle != 0);
+	const auto texture = reinterpret_cast<IDirect3DBaseTexture9 *>(srv.handle);
+
+	texture->SetAutoGenFilterType(D3DTEXF_LINEAR);
+	texture->GenerateMipSubLevels();
+}
+
 void reshade::d3d9::device_impl::clear_depth_stencil_view(api::resource_view dsv, uint32_t clear_flags, float depth, uint8_t stencil)
 {
 	assert(dsv.handle != 0);

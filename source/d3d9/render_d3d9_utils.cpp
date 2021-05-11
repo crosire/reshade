@@ -349,10 +349,19 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DSUR
 	if (desc.heap == api::memory_heap::cpu_to_gpu)
 		internal_desc.Usage |= D3DUSAGE_DYNAMIC;
 
-	if (levels != nullptr)
-		*levels = desc.texture.levels;
+	if ((desc.flags & api::resource_flags::generate_mipmaps) == api::resource_flags::generate_mipmaps)
+	{
+		internal_desc.Usage |= D3DUSAGE_AUTOGENMIPMAP;
+		if (levels != nullptr)
+			*levels = 0;
+	}
 	else
-		assert(desc.texture.levels == 1);
+	{
+		if (levels != nullptr)
+			*levels = desc.texture.levels;
+		else
+			assert(desc.texture.levels == 1);
+	}
 }
 void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DINDEXBUFFER_DESC &internal_desc)
 {
@@ -428,8 +437,6 @@ reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DSURFAC
 	convert_d3d_usage_to_resource_usage(internal_desc.Usage, desc.usage);
 	if (internal_desc.Type == D3DRTYPE_TEXTURE || internal_desc.Type == D3DRTYPE_CUBETEXTURE)
 		desc.usage |= api::resource_usage::shader_resource;
-	if (internal_desc.Type == D3DRTYPE_CUBETEXTURE)
-		desc.flags |= api::resource_flags::cube_compatible;
 
 	// Copying is restricted by limitations of 'IDirect3DDevice9::StretchRect' (see https://docs.microsoft.com/windows/win32/api/d3d9helper/nf-d3d9helper-idirect3ddevice9-stretchrect)
 	// or performing copy between two textures using rasterization pipeline (see 'device_impl::copy_resource' implementation)
@@ -470,6 +477,11 @@ reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DSURFAC
 			break;
 		}
 	}
+
+	if (internal_desc.Type == D3DRTYPE_CUBETEXTURE)
+		desc.flags |= api::resource_flags::cube_compatible;
+	if (internal_desc.Usage & D3DUSAGE_AUTOGENMIPMAP)
+		desc.flags |= api::resource_flags::generate_mipmaps;
 
 	return desc;
 }
