@@ -1613,7 +1613,7 @@ void reshade::d3d9::device_impl::copy_query_results(api::query_heap, api::query_
 	assert(false);
 }
 
-void reshade::d3d9::device_impl::begin_debug_event(const char *label, const float color[4])
+void reshade::d3d9::device_impl::begin_debug_marker(const char *label, const float color[4])
 {
 	const size_t label_len = strlen(label);
 	std::wstring label_wide;
@@ -1622,7 +1622,7 @@ void reshade::d3d9::device_impl::begin_debug_event(const char *label, const floa
 
 	D3DPERF_BeginEvent(D3DCOLOR_COLORVALUE(color[0], color[1], color[2], color[3]), label_wide.c_str());
 }
-void reshade::d3d9::device_impl::end_debug_event()
+void reshade::d3d9::device_impl::end_debug_marker()
 {
 	D3DPERF_EndEvent();
 }

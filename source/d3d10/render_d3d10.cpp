@@ -794,6 +794,12 @@ bool reshade::d3d10::device_impl::get_query_results(api::query_heap heap, uint32
 	return true;
 }
 
+void reshade::d3d10::device_impl::set_debug_name(api::resource resource, const char *name)
+{
+	const GUID debug_object_name_guid = { 0x429b8c22, 0x9188, 0x4b0c, { 0x87, 0x42, 0xac, 0xb0, 0xbf, 0x85, 0xc2, 0x00} }; // WKPDID_D3DDebugObjectName
+	reinterpret_cast<ID3D10Resource *>(resource.handle)->SetPrivateData(debug_object_name_guid, static_cast<UINT>(strlen(name)), name);
+}
+
 void reshade::d3d10::device_impl::flush_immediate_command_list() const
 {
 	_orig->Flush();
@@ -1189,10 +1195,10 @@ void reshade::d3d10::device_impl::copy_query_results(api::query_heap, api::query
 	assert(false);
 }
 
-void reshade::d3d10::device_impl::begin_debug_event(const char *, const float[4])
+void reshade::d3d10::device_impl::begin_debug_marker(const char *, const float[4])
 {
 }
-void reshade::d3d10::device_impl::end_debug_event()
+void reshade::d3d10::device_impl::end_debug_marker()
 {
 }
 void reshade::d3d10::device_impl::insert_debug_marker(const char *, const float[4])

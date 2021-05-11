@@ -180,8 +180,8 @@ namespace reshade::d3d12
 
 		void insert_barrier(uint32_t count, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states) final;
 
-		void begin_debug_event(const char *label, const float color[4]) final;
-		void end_debug_event() final;
+		void begin_debug_marker(const char *label, const float color[4]) final;
+		void end_debug_marker() final;
 		void insert_debug_marker(const char *label, const float color[4]) final;
 
 	protected:
@@ -223,6 +223,10 @@ namespace reshade::d3d12
 		api::command_list *get_immediate_command_list() final { return _immediate_cmd_list; }
 
 		void flush_immediate_command_list() const final;
+
+		void begin_debug_marker(const char *label, const float color[4]) final;
+		void end_debug_marker() final;
+		void insert_debug_marker(const char *label, const float color[4]) final;
 
 	private:
 		device_impl *const _device_impl;

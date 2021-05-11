@@ -71,7 +71,7 @@ namespace reshade::d3d10
 
 		void wait_idle() const final { /* no-op */ }
 
-		void set_debug_name(api::resource, const char *) final {}
+		void set_debug_name(api::resource resource, const char *name) final;
 
 		api::device *get_device() final { return this; }
 
@@ -125,8 +125,8 @@ namespace reshade::d3d10
 
 		void insert_barrier(uint32_t, const api::resource *, const api::resource_usage *, const api::resource_usage *) final { /* no-op */ }
 
-		void begin_debug_event(const char *label, const float color[4]) final;
-		void end_debug_event() final;
+		void begin_debug_marker(const char *label, const float color[4]) final;
+		void end_debug_marker() final;
 		void insert_debug_marker(const char *label, const float color[4]) final;
 
 	protected:

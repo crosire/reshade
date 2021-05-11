@@ -2163,11 +2163,11 @@ void reshade::opengl::device_impl::copy_query_results(api::query_heap heap, api:
 	}
 }
 
-void reshade::opengl::device_impl::begin_debug_event(const char *label, const float[4])
+void reshade::opengl::device_impl::begin_debug_marker(const char *label, const float[4])
 {
 	glPushDebugGroup(GL_DEBUG_SOURCE_THIRD_PARTY, 0, -1, label);
 }
-void reshade::opengl::device_impl::end_debug_event()
+void reshade::opengl::device_impl::end_debug_marker()
 {
 	glPopDebugGroup();
 }

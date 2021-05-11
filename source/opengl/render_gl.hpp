@@ -132,8 +132,8 @@ namespace reshade::opengl
 
 		void insert_barrier(uint32_t, const api::resource *, const api::resource_usage *, const api::resource_usage *) final { /* no-op */ }
 
-		void begin_debug_event(const char *label, const float color[4]) final;
-		void end_debug_event() final;
+		void begin_debug_marker(const char *label, const float color[4]) final;
+		void end_debug_marker() final;
 		void insert_debug_marker(const char *label, const float color[4]) final;
 
 	public:

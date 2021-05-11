@@ -60,6 +60,48 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	for (uint32_t i = 0; i < pCreateInfo->enabledExtensionCount; ++i)
 		LOG(INFO) << "  " << pCreateInfo->ppEnabledExtensionNames[i];
 
+	auto enum_instance_extensions = reinterpret_cast<PFN_vkEnumerateInstanceExtensionProperties>(get_instance_proc(nullptr, "vkEnumerateInstanceExtensionProperties"));
+	assert(enum_instance_extensions != nullptr);
+
+	std::vector<const char *> enabled_extensions;
+	enabled_extensions.reserve(pCreateInfo->enabledExtensionCount);
+	for (uint32_t i = 0; i < pCreateInfo->enabledExtensionCount; ++i)
+		enabled_extensions.push_back(pCreateInfo->ppEnabledExtensionNames[i]);
+
+	{
+		uint32_t num_extensions = 0;
+		enum_instance_extensions(nullptr, &num_extensions, nullptr);
+		std::vector<VkExtensionProperties> extensions(num_extensions);
+		enum_instance_extensions(nullptr, &num_extensions, extensions.data());
+
+		// Make sure the driver actually supports the requested extensions
+		const auto add_extension = [&extensions, &enabled_extensions](const char *name, bool required) {
+			if (const auto it = std::find_if(extensions.begin(), extensions.end(),
+				[name](const auto &props) { return strncmp(props.extensionName, name, VK_MAX_EXTENSION_NAME_SIZE) == 0; });
+				it != extensions.end())
+			{
+				enabled_extensions.push_back(name);
+				return true;
+			}
+
+			if (required)
+			{
+				LOG(ERROR) << "Required extension \"" << name << "\" is not supported on this instance. Initialization failed.";
+			}
+			else
+			{
+				LOG(WARN) << "Optional extension \"" << name << "\" is not supported on this instance.";
+			}
+
+			return false;
+		};
+
+		// Enable extensions that ReShade requires
+#ifndef NDEBUG
+		add_extension(VK_EXT_DEBUG_UTILS_EXTENSION_NAME, false);
+#endif
+	}
+
 	VkApplicationInfo app_info { VK_STRUCTURE_TYPE_APPLICATION_INFO };
 	if (pCreateInfo->pApplicationInfo != nullptr)
 		app_info = *pCreateInfo->pApplicationInfo;
@@ -76,6 +118,8 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 
 	VkInstanceCreateInfo create_info = *pCreateInfo;
 	create_info.pApplicationInfo = &app_info;
+	create_info.enabledExtensionCount = uint32_t(enabled_extensions.size());
+	create_info.ppEnabledExtensionNames = enabled_extensions.data();
 
 	// Continue calling down the chain
 	const VkResult result = trampoline(&create_info, pAllocator, pInstance);

@@ -165,9 +165,6 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		add_extension(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME, false); // This is optional, see imgui code in 'runtime_impl'
 		add_extension(VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME, true);
 		add_extension(VK_KHR_SWAPCHAIN_MUTABLE_FORMAT_EXTENSION_NAME, true);
-#ifndef NDEBUG
-		add_extension(VK_EXT_DEBUG_MARKER_EXTENSION_NAME, false);
-#endif
 	}
 
 	VkDeviceCreateInfo create_info = *pCreateInfo;
@@ -309,10 +306,14 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DISPATCH_PTR(QueuePresentKHR);
 	// ---- VK_KHR_push_descriptor extension commands
 	INIT_DISPATCH_PTR(CmdPushDescriptorSetKHR);
-	// ---- VK_EXT_debug_marker extension commands
-	INIT_DISPATCH_PTR(DebugMarkerSetObjectNameEXT);
-	INIT_DISPATCH_PTR(CmdDebugMarkerBeginEXT);
-	INIT_DISPATCH_PTR(CmdDebugMarkerEndEXT);
+	// ---- VK_EXT_debug_utils extension commands
+	INIT_DISPATCH_PTR(SetDebugUtilsObjectNameEXT);
+	INIT_DISPATCH_PTR(QueueBeginDebugUtilsLabelEXT);
+	INIT_DISPATCH_PTR(QueueEndDebugUtilsLabelEXT);
+	INIT_DISPATCH_PTR(QueueInsertDebugUtilsLabelEXT);
+	INIT_DISPATCH_PTR(CmdBeginDebugUtilsLabelEXT);
+	INIT_DISPATCH_PTR(CmdEndDebugUtilsLabelEXT);
+	INIT_DISPATCH_PTR(CmdInsertDebugUtilsLabelEXT);
 
 	// Initialize per-device data
 	const auto device_impl = new reshade::vulkan::device_impl(

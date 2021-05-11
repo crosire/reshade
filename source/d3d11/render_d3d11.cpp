@@ -840,14 +840,8 @@ bool reshade::d3d11::device_impl::get_query_results(api::query_heap heap, uint32
 
 void reshade::d3d11::device_impl::set_debug_name(api::resource resource, const char *name)
 {
-	const size_t debug_name_len = strlen(name);
-	std::wstring debug_name_wide;
-	debug_name_wide.reserve(debug_name_len + 1);
-	utf8::unchecked::utf8to16(name, name + debug_name_len, std::back_inserter(debug_name_wide));
-
-	// WKPDID_D3DDebugObjectNameW
-	const GUID debug_object_name_guid = { 0x4cca5fd8, 0x921f, 0x42c8, { 0x85, 0x66, 0x70, 0xca, 0xf2, 0xa9, 0xb7, 0x41 } };
-	reinterpret_cast<ID3D11Resource *>(resource.handle)->SetPrivateData(debug_object_name_guid, static_cast<UINT>(debug_name_len * sizeof(WCHAR)), name);
+	const GUID debug_object_name_guid = { 0x429b8c22, 0x9188, 0x4b0c, { 0x87, 0x42, 0xac, 0xb0, 0xbf, 0x85, 0xc2, 0x00} }; // WKPDID_D3DDebugObjectName
+	reinterpret_cast<ID3D11Resource *>(resource.handle)->SetPrivateData(debug_object_name_guid, static_cast<UINT>(strlen(name)), name);
 }
 
 reshade::d3d11::command_list_impl::command_list_impl(device_impl *device, ID3D11CommandList *cmd_list) :
@@ -1315,7 +1309,7 @@ void reshade::d3d11::device_context_impl::copy_query_results(api::query_heap, ap
 	assert(false);
 }
 
-void reshade::d3d11::device_context_impl::begin_debug_event(const char *label, const float[4])
+void reshade::d3d11::device_context_impl::begin_debug_marker(const char *label, const float[4])
 {
 	com_ptr<ID3DUserDefinedAnnotation> annotation;
 	if (SUCCEEDED(_orig->QueryInterface(&annotation)))
@@ -1328,7 +1322,7 @@ void reshade::d3d11::device_context_impl::begin_debug_event(const char *label, c
 		annotation->BeginEvent(label_wide.c_str());
 	}
 }
-void reshade::d3d11::device_context_impl::end_debug_event()
+void reshade::d3d11::device_context_impl::end_debug_marker()
 {
 	com_ptr<ID3DUserDefinedAnnotation> annotation;
 	if (SUCCEEDED(_orig->QueryInterface(&annotation)))

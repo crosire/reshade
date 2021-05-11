@@ -1413,38 +1413,40 @@ void reshade::d3d12::command_list_impl::insert_barrier(uint32_t count, const api
 	_orig->ResourceBarrier(count, barriers);
 }
 
-void reshade::d3d12::command_list_impl::begin_debug_event(const char *label, const float color[4])
+static inline void encode_pix3blob(UINT64(&pix3blob)[64], const char *label, const float color[4])
+{
+	pix3blob[0] = (0x2ull /* PIXEvent_BeginEvent_NoArgs */ << 10);
+	pix3blob[1] = 0xFF000000;
+	if (color != nullptr)
+		pix3blob[1] |= ((static_cast<DWORD>(color[0] * 255) & 0xFF) << 16) | ((static_cast<DWORD>(color[1] * 255) & 0xFF) << 8) | (static_cast<DWORD>(color[2] * 255) & 0xFF);
+	pix3blob[2] = (8ull /* copyChunkSize */ << 55) | (1ull /* isANSI */ << 54);
+	std::strncpy(reinterpret_cast<char *>(pix3blob + 3), label, sizeof(pix3blob) - (4 * sizeof(UINT64)));
+	pix3blob[63] = 0;
+}
+
+void reshade::d3d12::command_list_impl::begin_debug_marker(const char *label, const float color[4])
 {
 #if 0
 	// Metadata is WINPIX_EVENT_ANSI_VERSION
 	_orig->BeginEvent(1, label, static_cast<UINT>(strlen(label)));
 #else
 	UINT64 pix3blob[64];
-	pix3blob[0] = (0x2ull /* PIXEvent_BeginEvent_NoArgs */ << 10);
-	pix3blob[1] = 0xFF000000 | ((static_cast<DWORD>(color[0] * 255) & 0xFF) << 16) | ((static_cast<DWORD>(color[1] * 255) & 0xFF) << 8) | (static_cast<DWORD>(color[2] * 255) & 0xFF);
-	pix3blob[2] = (8ull /* copyChunkSize */ << 55) | (1ull /* isANSI */ << 54);
-	std::strncpy(reinterpret_cast<char *>(pix3blob + 3), label, sizeof(pix3blob) - (4 * sizeof(UINT64)));
-	pix3blob[63] = 0;
+	encode_pix3blob(pix3blob, label, color);
 	// Metadata is WINPIX_EVENT_PIX3BLOB_VERSION
 	_orig->BeginEvent(2, pix3blob, sizeof(pix3blob));
 #endif
 }
-void reshade::d3d12::command_list_impl::end_debug_event()
+void reshade::d3d12::command_list_impl::end_debug_marker()
 {
 	_orig->EndEvent();
 }
 void reshade::d3d12::command_list_impl::insert_debug_marker(const char *label, const float color[4])
 {
 #if 0
-	_orig->SetMarker(0, label, static_cast<UINT>(strlen(label)));
+	_orig->SetMarker(1, label, static_cast<UINT>(strlen(label)));
 #else
 	UINT64 pix3blob[64];
-	pix3blob[0] = (0x2ull /* PIXEvent_BeginEvent_NoArgs */ << 10);
-	pix3blob[1] = 0xFF000000 | ((static_cast<DWORD>(color[0] * 255) & 0xFF) << 16) | ((static_cast<DWORD>(color[1] * 255) & 0xFF) << 8) | (static_cast<DWORD>(color[2] * 255) & 0xFF);
-	pix3blob[2] = (8ull /* copyChunkSize */ << 55) | (1ull /* isANSI */ << 54);
-	std::strncpy(reinterpret_cast<char *>(pix3blob + 3), label, sizeof(pix3blob) - (4 * sizeof(UINT64)));
-	pix3blob[63] = 0;
-	// Metadata is WINPIX_EVENT_PIX3BLOB_VERSION
+	encode_pix3blob(pix3blob, label, color);
 	_orig->SetMarker(2, pix3blob, sizeof(pix3blob));
 #endif
 }
@@ -1565,4 +1567,29 @@ void reshade::d3d12::command_queue_impl::flush_immediate_command_list() const
 {
 	if (_immediate_cmd_list != nullptr)
 		_immediate_cmd_list->flush(_orig);
+}
+
+void reshade::d3d12::command_queue_impl::begin_debug_marker(const char *label, const float color[4])
+{
+#if 0
+	_orig->BeginEvent(1, label, static_cast<UINT>(strlen(label)));
+#else
+	UINT64 pix3blob[64];
+	encode_pix3blob(pix3blob, label, color);
+	_orig->BeginEvent(2, pix3blob, sizeof(pix3blob));
+#endif
+}
+void reshade::d3d12::command_queue_impl::end_debug_marker()
+{
+	_orig->EndEvent();
+}
+void reshade::d3d12::command_queue_impl::insert_debug_marker(const char *label, const float color[4])
+{
+#if 0
+	_orig->SetMarker(1, label, static_cast<UINT>(strlen(label)));
+#else
+	UINT64 pix3blob[64];
+	encode_pix3blob(pix3blob, label, color);
+	_orig->SetMarker(2, pix3blob, sizeof(pix3blob));
+#endif
 }

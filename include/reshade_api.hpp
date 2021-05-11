@@ -753,15 +753,15 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Opens a debug marker region in the command list.
 		/// </summary>
-		/// <param name="label">A null-terminated string containing the label of the debug region.</param>
-		/// <param name="color">An optional RGBA color value associated with the debug region.</param>
-		virtual void begin_debug_event(const char *label, const float color[4] = nullptr) = 0;
+		/// <param name="label">A null-terminated string containing the label of the debug marker.</param>
+		/// <param name="color">An optional RGBA color value associated with the debug marker.</param>
+		virtual void begin_debug_marker(const char *label, const float color[4] = nullptr) = 0;
 		/// <summary>
-		/// Closes the current debug marker region (the last one opened with <see cref="command_list::begin_debug_event"/>).
+		/// Closes the current debug marker region (the last one opened with <see cref="command_list::begin_debug_marker"/>).
 		/// </summary>
-		virtual void end_debug_event() = 0;
+		virtual void end_debug_marker() = 0;
 		/// <summary>
-		/// Inserts a debug marker label into the command list.
+		/// Inserts a debug marker into the command list.
 		/// </summary>
 		/// <param name="label">A null-terminated string containing the label of the debug marker.</param>
 		/// <param name="color">An optional RGBA color value associated with the debug marker.</param>
@@ -784,6 +784,23 @@ namespace reshade { namespace api
 		/// This can be used to force commands to execute right away instead of waiting for the runtime to flush it automatically at some point.
 		/// </summary>
 		virtual void flush_immediate_command_list() const  = 0;
+
+		/// <summary>
+		/// Opens a debug marker region in the command queue.
+		/// </summary>
+		/// <param name="label">A null-terminated string containing the label of the debug marker.</param>
+		/// <param name="color">An optional RGBA color value associated with the debug marker.</param>
+		virtual void begin_debug_marker(const char *label, const float color[4] = nullptr) = 0;
+		/// <summary>
+		/// Closes the current debug marker region (the last one opened with <see cref="command_queue::begin_debug_marker"/>).
+		/// </summary>
+		virtual void end_debug_marker() = 0;
+		/// <summary>
+		/// Inserts a debug marker into the command queue.
+		/// </summary>
+		/// <param name="label">A null-terminated string containing the label of the debug marker.</param>
+		/// <param name="color">An optional RGBA color value associated with the debug marker.</param>
+		virtual void insert_debug_marker(const char *label, const float color[4] = nullptr) = 0;
 	};
 
 	/// <summary>
