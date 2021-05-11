@@ -92,6 +92,7 @@ bool reshade::d3d12::device_impl::check_capability(api::device_caps capability) 
 		return false;
 	case api::device_caps::copy_buffer_region:
 	case api::device_caps::copy_buffer_to_texture:
+	case api::device_caps::copy_query_results:
 		return true;
 	default:
 		return false;
@@ -643,6 +644,46 @@ bool reshade::d3d12::device_impl::create_descriptor_table_layout(uint32_t num_ra
 	return true;
 }
 
+bool reshade::d3d12::device_impl::create_query_heap(api::query_type type, uint32_t count, api::query_heap *out)
+{
+	com_ptr<ID3D12Resource> readback_resource;
+	{
+		D3D12_RESOURCE_DESC readback_desc = {};
+		readback_desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+		readback_desc.Width = count * sizeof(uint64_t);
+		readback_desc.Height = 1;
+		readback_desc.DepthOrArraySize = 1;
+		readback_desc.MipLevels = 1;
+		readback_desc.SampleDesc = { 1, 0 };
+		readback_desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+		const D3D12_HEAP_PROPERTIES heap_props = { D3D12_HEAP_TYPE_READBACK };
+
+		if (FAILED(_orig->CreateCommittedResource(&heap_props, D3D12_HEAP_FLAG_NONE, &readback_desc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&readback_resource))))
+		{
+			*out = { 0 };
+			return false;
+		}
+	}
+
+	D3D12_QUERY_HEAP_DESC internal_desc = {};
+	internal_desc.Type = convert_query_type_to_heap_type(type);
+	internal_desc.Count = count;
+
+	if (com_ptr<ID3D12QueryHeap> object;
+		SUCCEEDED(_orig->CreateQueryHeap(&internal_desc, IID_PPV_ARGS(&object))))
+	{
+		object->SetPrivateDataInterface(pipeline_extra_data_guid, readback_resource.get());
+
+		*out = { reinterpret_cast<uintptr_t>(object.release()) };
+		return true;
+	}
+	else
+	{
+		*out = { 0 };
+		return false;
+	}
+}
+
 void reshade::d3d12::device_impl::destroy_sampler(api::sampler handle)
 {
 	if (handle.handle == 0)
@@ -707,6 +748,12 @@ void reshade::d3d12::device_impl::destroy_descriptor_table_layout(api::descripto
 	delete reinterpret_cast<descriptor_table_layout_impl *>(handle.handle);
 }
 
+void reshade::d3d12::device_impl::destroy_query_heap(api::query_heap handle)
+{
+	if (handle.handle != 0)
+		reinterpret_cast<IUnknown *>(handle.handle)->Release();
+}
+
 void reshade::d3d12::device_impl::update_descriptor_tables(uint32_t num_updates, const api::descriptor_update *updates)
 {
 	for (UINT i = 0; i < num_updates; ++i)
@@ -746,10 +793,13 @@ void reshade::d3d12::device_impl::update_descriptor_tables(uint32_t num_updates,
 	}
 }
 
-bool reshade::d3d12::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access, void **mapped_ptr)
+bool reshade::d3d12::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access access, void **mapped_ptr)
 {
+	const D3D12_RANGE no_read_range = { 0, 0 };
+
 	assert(resource.handle != 0);
-	return SUCCEEDED(reinterpret_cast<ID3D12Resource *>(resource.handle)->Map(subresource, nullptr, mapped_ptr));
+	return SUCCEEDED(reinterpret_cast<ID3D12Resource *>(resource.handle)->Map(
+		subresource, access == api::map_access::write_only || access == api::map_access::write_discard ? &no_read_range : nullptr, mapped_ptr));
 }
 void reshade::d3d12::device_impl::unmap_resource(api::resource resource, uint32_t subresource)
 {
@@ -786,6 +836,36 @@ reshade::api::resource_desc reshade::d3d12::device_impl::get_resource_desc(api::
 	reinterpret_cast<ID3D12Resource *>(resource.handle)->GetHeapProperties(&heap_props, &heap_flags);
 
 	return convert_resource_desc(reinterpret_cast<ID3D12Resource *>(resource.handle)->GetDesc(), heap_props);
+}
+
+bool reshade::d3d12::device_impl::get_query_results(api::query_heap heap, uint32_t first, uint32_t count, void *results, uint32_t stride)
+{
+	assert(stride >= sizeof(uint64_t));
+
+	const auto heap_object = reinterpret_cast<ID3D12QueryHeap *>(heap.handle);
+
+	com_ptr<ID3D12Resource> readback_resource;
+	UINT private_size = sizeof(ID3D12Resource *);
+	if (SUCCEEDED(heap_object->GetPrivateData(pipeline_extra_data_guid, &private_size, &readback_resource)))
+	{
+		const D3D12_RANGE read_range = { first * sizeof(uint64_t), (first + count) * sizeof(uint64_t) };
+		const D3D12_RANGE write_range = { 0, 0 };
+
+		void *mapped_data = nullptr;
+		if (SUCCEEDED(readback_resource->Map(0, &read_range, &mapped_data)))
+		{
+			for (UINT i = 0; i < count; ++i)
+			{
+				*reinterpret_cast<uint64_t *>((reinterpret_cast<uint8_t *>(results) + (i + first) * stride)) = static_cast<uint64_t *>(mapped_data)[i + first];
+			}
+
+			readback_resource->Unmap(0, &write_range);
+
+			return true;
+		}
+	}
+
+	return false;
 }
 
 void reshade::d3d12::device_impl::wait_idle() const
@@ -1274,6 +1354,36 @@ void reshade::d3d12::command_list_impl::clear_unordered_access_view_float(api::r
 
 	assert(false); // TODO
 	// _orig->ClearUnorderedAccessViewFloat(D3D12_GPU_DESCRIPTOR_HANDLE { 0 }, D3D12_CPU_DESCRIPTOR_HANDLE { uav.handle }, nullptr, values, 0, nullptr); // TODO
+}
+
+void reshade::d3d12::command_list_impl::begin_query(api::query_heap heap, api::query_type type, uint32_t index)
+{
+	_has_commands = true;
+
+	_orig->BeginQuery(reinterpret_cast<ID3D12QueryHeap *>(heap.handle), convert_query_type(type), index);
+}
+void reshade::d3d12::command_list_impl::end_query(api::query_heap heap, api::query_type type, uint32_t index)
+{
+	_has_commands = true;
+
+	const auto heap_object = reinterpret_cast<ID3D12QueryHeap *>(heap.handle);
+	const auto d3d_query_type = convert_query_type(type);
+	_orig->EndQuery(heap_object, d3d_query_type, index);
+
+	com_ptr<ID3D12Resource> readback_resource;
+	UINT private_size = sizeof(ID3D12Resource *);
+	if (SUCCEEDED(heap_object->GetPrivateData(pipeline_extra_data_guid, &private_size, &readback_resource)))
+	{
+		_orig->ResolveQueryData(reinterpret_cast<ID3D12QueryHeap *>(heap.handle), convert_query_type(type), index, 1, readback_resource.get(), index * sizeof(uint64_t));
+	}
+}
+void reshade::d3d12::command_list_impl::copy_query_results(api::query_heap heap, api::query_type type, uint32_t first, uint32_t count, api::resource dst, uint64_t dst_offset, uint32_t stride)
+{
+	assert(stride == sizeof(uint64_t));
+
+	_has_commands = true;
+
+	_orig->ResolveQueryData(reinterpret_cast<ID3D12QueryHeap *>(heap.handle), convert_query_type(type), first, count, reinterpret_cast<ID3D12Resource *>(dst.handle), dst_offset);
 }
 
 void reshade::d3d12::command_list_impl::insert_barrier(uint32_t count, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states)

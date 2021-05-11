@@ -778,6 +778,40 @@ auto reshade::d3d12::convert_primitive_topology_type(api::primitive_topology val
 	}
 }
 
+auto reshade::d3d12::convert_query_type(api::query_type type) -> D3D12_QUERY_TYPE
+{
+	switch (type)
+	{
+	case api::query_type::occlusion:
+		return D3D12_QUERY_TYPE_OCCLUSION;
+	case api::query_type::binary_occlusion:
+		return D3D12_QUERY_TYPE_BINARY_OCCLUSION;
+	case api::query_type::timestamp:
+		return D3D12_QUERY_TYPE_TIMESTAMP;
+	case api::query_type::pipeline_statistics:
+		return D3D12_QUERY_TYPE_PIPELINE_STATISTICS;
+	default:
+		assert(false);
+		return static_cast<D3D12_QUERY_TYPE>(0xFFFFFFFF);
+	}
+}
+auto reshade::d3d12::convert_query_type_to_heap_type(api::query_type type) -> D3D12_QUERY_HEAP_TYPE
+{
+	switch (type)
+	{
+	case api::query_type::occlusion:
+	case api::query_type::binary_occlusion:
+		return D3D12_QUERY_HEAP_TYPE_OCCLUSION;
+	case api::query_type::timestamp:
+		return D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
+	case api::query_type::pipeline_statistics:
+		return D3D12_QUERY_HEAP_TYPE_PIPELINE_STATISTICS;
+	default:
+		assert(false);
+		return static_cast<D3D12_QUERY_HEAP_TYPE>(0xFFFFFFFF);
+	}
+}
+
 auto reshade::d3d12::convert_descriptor_type(api::descriptor_type type) -> D3D12_DESCRIPTOR_RANGE_TYPE
 {
 	switch (type)

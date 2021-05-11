@@ -38,4 +38,5 @@ namespace reshade::d3d10
 	auto convert_compare_op(api::compare_op value) -> D3D10_COMPARISON_FUNC;
 	auto convert_stencil_op(api::stencil_op value) -> D3D10_STENCIL_OP;
 	auto convert_primitive_topology(api::primitive_topology value) -> D3D10_PRIMITIVE_TOPOLOGY;
+	auto convert_query_type(api::query_type value) -> D3D10_QUERY;
 }

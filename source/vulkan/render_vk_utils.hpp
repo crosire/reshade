@@ -37,4 +37,5 @@ namespace reshade::vulkan
 	auto convert_compare_op(api::compare_op value) -> VkCompareOp;
 	auto convert_stencil_op(api::stencil_op value) -> VkStencilOp;
 	auto convert_primitive_topology(api::primitive_topology value) -> VkPrimitiveTopology;
+	auto convert_query_type(api::query_type value) -> VkQueryType;
 }

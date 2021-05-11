@@ -595,6 +595,20 @@ auto reshade::d3d9::convert_primitive_topology(api::primitive_topology value) ->
 	assert(value <= api::primitive_topology::triangle_fan);
 	return static_cast<D3DPRIMITIVETYPE>(value);
 }
+auto reshade::d3d9::convert_query_type(api::query_type value) -> D3DQUERYTYPE
+{
+	switch (value)
+	{
+	case reshade::api::query_type::occlusion:
+	case reshade::api::query_type::binary_occlusion:
+		return D3DQUERYTYPE_OCCLUSION;
+	case reshade::api::query_type::timestamp:
+		return D3DQUERYTYPE_TIMESTAMP;
+	default:
+		assert(false);
+		return static_cast<D3DQUERYTYPE>(0xFFFFFFFF);
+	}
+}
 
 UINT reshade::d3d9::calc_vertex_from_prim_count(D3DPRIMITIVETYPE type, UINT count)
 {

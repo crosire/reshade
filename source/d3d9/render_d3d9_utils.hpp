@@ -32,6 +32,7 @@ namespace reshade::d3d9
 	auto convert_compare_op(api::compare_op value) -> D3DCMPFUNC;
 	auto convert_stencil_op(api::stencil_op value) -> D3DSTENCILOP;
 	auto convert_primitive_topology(api::primitive_topology value) -> D3DPRIMITIVETYPE;
+	auto convert_query_type(api::query_type value) -> D3DQUERYTYPE;
 
 	UINT calc_vertex_from_prim_count(D3DPRIMITIVETYPE type, UINT count);
 	UINT calc_prim_from_vertex_count(D3DPRIMITIVETYPE type, UINT count);

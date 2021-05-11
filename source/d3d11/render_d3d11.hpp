@@ -43,6 +43,8 @@ namespace reshade::d3d11
 		bool create_descriptor_tables(api::descriptor_heap heap, api::descriptor_table_layout layout, uint32_t count, api::descriptor_table *out) final;
 		bool create_descriptor_table_layout(uint32_t num_ranges, const api::descriptor_range *ranges, bool push_descriptors, api::descriptor_table_layout *out) final;
 
+		bool create_query_heap(api::query_type type, uint32_t count, api::query_heap *out) final;
+
 		void destroy_sampler(api::sampler handle) final;
 		void destroy_resource(api::resource handle) final;
 		void destroy_resource_view(api::resource_view handle) final;
@@ -52,6 +54,8 @@ namespace reshade::d3d11
 		void destroy_pipeline_layout(api::pipeline_layout handle) final;
 		void destroy_descriptor_heap(api::descriptor_heap handle) final;
 		void destroy_descriptor_table_layout(api::descriptor_table_layout handle) final;
+
+		void destroy_query_heap(api::query_heap handle) final;
 
 		void update_descriptor_tables(uint32_t num_updates, const api::descriptor_update *updates) final;
 
@@ -63,6 +67,8 @@ namespace reshade::d3d11
 
 		void get_resource_from_view(api::resource_view view, api::resource *out_resource) const final;
 		api::resource_desc get_resource_desc(api::resource resource) const final;
+
+		bool get_query_results(api::query_heap heap, uint32_t first, uint32_t count, void *results, uint32_t stride) final;
 
 		void wait_idle() const final { /* no-op */ }
 
@@ -116,6 +122,10 @@ namespace reshade::d3d11
 		void clear_render_target_views(uint32_t, const api::resource_view *, const float[4]) final { assert(false); }
 		void clear_unordered_access_view_uint(api::resource_view, const uint32_t[4]) final { assert(false); }
 		void clear_unordered_access_view_float(api::resource_view, const float[4]) final { assert(false); }
+
+		void begin_query(api::query_heap, api::query_type, uint32_t) final { assert(false); }
+		void end_query(api::query_heap, api::query_type, uint32_t) final { assert(false); }
+		void copy_query_results(api::query_heap, api::query_type, uint32_t, uint32_t, api::resource, uint64_t, uint32_t) final { assert(false); }
 
 		void insert_barrier(uint32_t, const api::resource *, const api::resource_usage *, const api::resource_usage *) final { assert(false); }
 
@@ -179,6 +189,10 @@ namespace reshade::d3d11
 		void clear_render_target_views(uint32_t count, const api::resource_view *rtvs, const float color[4]) final;
 		void clear_unordered_access_view_uint(api::resource_view uav, const uint32_t values[4]) final;
 		void clear_unordered_access_view_float(api::resource_view uav, const float values[4]) final;
+
+		void begin_query(api::query_heap heap, api::query_type type, uint32_t index) final;
+		void end_query(api::query_heap heap, api::query_type type, uint32_t index) final;
+		void copy_query_results(api::query_heap heap, api::query_type type, uint32_t first, uint32_t count, api::resource dst, uint64_t dst_offset, uint32_t stride) final;
 
 		void insert_barrier(uint32_t, const api::resource *, const api::resource_usage *, const api::resource_usage *) final { /* no-op */ }
 

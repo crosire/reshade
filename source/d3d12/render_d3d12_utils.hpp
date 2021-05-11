@@ -36,6 +36,9 @@ namespace reshade::d3d12
 	auto convert_primitive_topology(api::primitive_topology value) -> D3D12_PRIMITIVE_TOPOLOGY;
 	auto convert_primitive_topology_type(api::primitive_topology value) -> D3D12_PRIMITIVE_TOPOLOGY_TYPE;
 
+	auto convert_query_type(api::query_type type) -> D3D12_QUERY_TYPE;
+	auto convert_query_type_to_heap_type(api::query_type type) -> D3D12_QUERY_HEAP_TYPE;
+
 	auto convert_descriptor_type(api::descriptor_type type) -> D3D12_DESCRIPTOR_RANGE_TYPE;
 	auto convert_descriptor_type_to_heap_type(api::descriptor_type type) -> D3D12_DESCRIPTOR_HEAP_TYPE;
 }

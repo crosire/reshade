@@ -120,6 +120,7 @@ bool reshade::vulkan::device_impl::check_capability(api::device_caps capability)
 	case api::device_caps::resolve_region:
 	case api::device_caps::copy_buffer_region:
 	case api::device_caps::copy_buffer_to_texture:
+	case api::device_caps::copy_query_results:
 		return true;
 	default:
 		return false;
@@ -784,6 +785,25 @@ bool reshade::vulkan::device_impl::create_descriptor_table_layout(uint32_t num_r
 	}
 }
 
+bool reshade::vulkan::device_impl::create_query_heap(api::query_type type, uint32_t count, api::query_heap *out)
+{
+	VkQueryPoolCreateInfo create_info { VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO };
+	create_info.queryType = convert_query_type(type);
+	create_info.queryCount = count;
+
+	if (VkQueryPool pool = VK_NULL_HANDLE;
+		vk.CreateQueryPool(_orig, &create_info, nullptr, &pool) == VK_SUCCESS)
+	{
+		*out = { (uint64_t)pool };
+		return true;
+	}
+	else
+	{
+		*out = { 0 };
+		return false;
+	}
+}
+
 void reshade::vulkan::device_impl::destroy_sampler(api::sampler handle)
 {
 	vk.DestroySampler(_orig, (VkSampler)handle.handle, nullptr);
@@ -837,6 +857,11 @@ void reshade::vulkan::device_impl::destroy_descriptor_heap(api::descriptor_heap 
 void reshade::vulkan::device_impl::destroy_descriptor_table_layout(api::descriptor_table_layout handle)
 {
 	vk.DestroyDescriptorSetLayout(_orig, (VkDescriptorSetLayout)handle.handle, nullptr);
+}
+
+void reshade::vulkan::device_impl::destroy_query_heap(api::query_heap handle)
+{
+	vk.DestroyQueryPool(_orig, (VkQueryPool)handle.handle, nullptr);
 }
 
 void reshade::vulkan::device_impl::update_descriptor_tables(uint32_t num_updates, const api::descriptor_update *updates)
@@ -933,6 +958,21 @@ reshade::api::resource_desc reshade::vulkan::device_impl::get_resource_desc(api:
 		return convert_resource_desc(data.image_create_info);
 	else
 		return convert_resource_desc(data.buffer_create_info);
+}
+
+bool reshade::vulkan::device_impl::get_query_results(api::query_heap heap, uint32_t first, uint32_t count, void *results, uint32_t stride)
+{
+	assert(stride >= sizeof(uint64_t));
+
+	if (vk.GetQueryPoolResults(_orig, (VkQueryPool)heap.handle, first, count, count * stride, results, stride, VK_QUERY_RESULT_64_BIT) == VK_SUCCESS)
+	{
+		vk.ResetQueryPool(_orig, (VkQueryPool)heap.handle, first, count);
+		return true;
+	}
+	else
+	{
+		return false;
+	}
 }
 
 void reshade::vulkan::device_impl::wait_idle() const
@@ -1665,6 +1705,28 @@ void reshade::vulkan::command_list_impl::clear_unordered_access_view_float(api::
 	std::memcpy(clear_value.float32, values, 4 * sizeof(float));
 
 	_device_impl->vk.CmdClearColorImage(_orig, uav_data.image_create_info.image, VK_IMAGE_LAYOUT_GENERAL, &clear_value, 1, &range);
+}
+
+void reshade::vulkan::command_list_impl::begin_query(api::query_heap heap, api::query_type, uint32_t index)
+{
+	_has_commands = true;
+
+	_device_impl->vk.CmdBeginQuery(_orig, (VkQueryPool)heap.handle, index, 0);
+}
+void reshade::vulkan::command_list_impl::end_query(api::query_heap heap, api::query_type type, uint32_t index)
+{
+	_has_commands = true;
+
+	if (type == api::query_type::timestamp)
+		_device_impl->vk.CmdWriteTimestamp(_orig, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, (VkQueryPool)heap.handle, index);
+	else
+		_device_impl->vk.CmdEndQuery(_orig, (VkQueryPool)heap.handle, index);
+}
+void reshade::vulkan::command_list_impl::copy_query_results(api::query_heap heap, api::query_type, uint32_t first, uint32_t count, api::resource dst, uint64_t dst_offset, uint32_t stride)
+{
+	_has_commands = true;
+
+	_device_impl->vk.CmdCopyQueryPoolResults(_orig, (VkQueryPool)heap.handle, first, count, (VkBuffer)dst.handle, dst_offset, stride, VK_QUERY_RESULT_64_BIT);
 }
 
 void reshade::vulkan::command_list_impl::insert_barrier(uint32_t count, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states)

@@ -117,6 +117,11 @@ namespace reshade { namespace api
 		/// If this feature is not present, <see cref="command_list::copy_buffer_to_texture"/> and <see cref="command_list::copy_texture_to_buffer"/> must not be used.
 		/// </summary>
 		copy_buffer_to_texture,
+		/// <summary>
+		/// Specifies whether copying query results to a buffer is supported.
+		/// If this feature is not present, <see cref="command_list::copy_query_results"/> must not be used.
+		/// </summary>
+		copy_query_results,
 	};
 
 	/// <summary>
@@ -284,6 +289,15 @@ namespace reshade { namespace api
 		virtual bool create_descriptor_table_layout(uint32_t num_ranges, const descriptor_range *ranges, bool push_descriptors, descriptor_table_layout *out) = 0;
 
 		/// <summary>
+		/// Creates a new query heap.
+		/// </summary>
+		/// <param name="type">The type of queries that will be used with this heap.</param>
+		/// <param name="count">The number of queries to allocate.</param>
+		/// <param name="out">Pointer to a handle that is set to the handle of the created query heap.</param>
+		/// <returns><c>true</c> if the query heap was successfully created, <c>false</c> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
+		virtual bool create_query_heap(query_type type, uint32_t count, query_heap *out) = 0;
+
+		/// <summary>
 		/// Instantly destroys a sampler that was previously created via <see cref="create_sampler"/>.
 		/// </summary>
 		virtual void destroy_sampler(sampler handle) = 0;
@@ -318,6 +332,11 @@ namespace reshade { namespace api
 		/// Instantly destroys a descriptor table layout that previously created via <see cref="create_descriptor_table_layout"/>.
 		/// </summary>
 		virtual void destroy_descriptor_table_layout(descriptor_table_layout handle) = 0;
+
+		/// <summary>
+		/// Instantly destroys a query heap that was previously created via <see cref="create_query_heap"/>.
+		/// </summary>
+		virtual void destroy_query_heap(query_heap handle) = 0;
 
 		/// <summary>
 		/// Updates the contents of descriptor tables with the specified descriptors.
@@ -368,6 +387,17 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <param name="resource">The resource to get the description from.</param>
 		virtual resource_desc get_resource_desc(resource resource) const = 0;
+
+		/// <summary>
+		/// Gets the results of queries in a query heap.
+		/// </summary>
+		/// <param name="heap">The query heap that manages the results of the queries.</param>
+		/// <param name="first">The index of the first query in the heap to copy the result from.</param>
+		/// <param name="count">The number of query results to copy.</param>
+		/// <param name="results">Pointer to an array that is filled with the results.</param>
+		/// <param name="stride">The size (in bytes) of the each result element.</param>
+		/// <returns></returns>
+		virtual bool get_query_results(api::query_heap heap, uint32_t first, uint32_t count, void *results, uint32_t stride) = 0;
 
 		/// <summary>
 		/// Waits for all issued GPU operations to finish before returning.
@@ -675,6 +705,33 @@ namespace reshade { namespace api
 		/// <param name="uav">The view handle of the resource.</param>
 		/// <param name="values">The value to clear the resources with.</param>
 		virtual void clear_unordered_access_view_float(resource_view uav, const float values[4]) = 0;
+
+		/// <summary>
+		/// Begins a query.
+		/// </summary>
+		/// <param name="heap">The query heap that will manage the results of the query.</param>
+		/// <param name="type">The type of the query to begin.</param>
+		/// <param name="index">The index of the query in the heap.</param>
+		virtual void begin_query(query_heap heap, query_type type, uint32_t index) = 0;
+		/// <summary>
+		/// Ends a query.
+		/// </summary>
+		/// <param name="heap">The query heap that will manage the results of the query.</param>
+		/// <param name="type">The type of the query end.</param>
+		/// <param name="index">The index of the query in the heap.</param>
+		virtual void end_query(query_heap heap, query_type type, uint32_t index) = 0;
+		/// <summary>
+		/// Copy the results of queries in a query heap to a buffer resource.
+		/// <para>The <paramref name="destination"/> resource has to be in the <see cref="resource_usage::copy_dest"/> state.</para>
+		/// </summary>
+		/// <param name="heap">The query heap that manages the results of the queries.</param>
+		/// <param name="type">The type of the queries to copy.</param>
+		/// <param name="first">The index of the first query in the heap to copy the result from.</param>
+		/// <param name="count">The number of query results to copy.</param>
+		/// <param name="destination">The buffer to copy to.</param>
+		/// <param name="dst_offset">An offset (in bytes) into the <paramref name="destination"/> buffer to start copying to.</param>
+		/// <param name="stride">The size (in bytes) of the each result element.</param>
+		virtual void copy_query_results(query_heap heap, query_type type, uint32_t first, uint32_t count, resource destination, uint64_t dst_offset, uint32_t stride) = 0;
 
 		/// <summary>
 		/// Adds a barrier for the specified <paramref name="resource"/> to the command stream.

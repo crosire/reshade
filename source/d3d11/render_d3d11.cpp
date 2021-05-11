@@ -10,6 +10,11 @@
 
 namespace
 {
+	struct query_pool_impl
+	{
+		std::vector<com_ptr<ID3D11Query>> queries;
+	};
+
 	struct pipeline_layout_impl
 	{
 		com_ptr<ID3D11Buffer> push_constants;
@@ -105,6 +110,7 @@ bool reshade::d3d11::device_impl::check_capability(api::device_caps capability) 
 	case api::device_caps::copy_buffer_region:
 		return true;
 	case api::device_caps::copy_buffer_to_texture:
+	case api::device_caps::copy_query_results:
 		return false;
 	default:
 		return false;
@@ -630,6 +636,29 @@ bool reshade::d3d11::device_impl::create_descriptor_table_layout(uint32_t num_ra
 	return push_descriptors;
 }
 
+bool reshade::d3d11::device_impl::create_query_heap(api::query_type type, uint32_t count, api::query_heap *out)
+{
+	const auto result = new query_pool_impl();
+	result->queries.resize(count);
+
+	for (UINT i = 0; i < count; ++i)
+	{
+		D3D11_QUERY_DESC internal_desc = {};
+		internal_desc.Query = convert_query_type(type);
+
+		if (FAILED(_orig->CreateQuery(&internal_desc, &result->queries[i])))
+		{
+			delete result;
+
+			*out = { 0 };
+			return false;
+		}
+	}
+
+	*out = { reinterpret_cast<uintptr_t>(result) };
+	return true;
+}
+
 void reshade::d3d11::device_impl::destroy_sampler(api::sampler handle)
 {
 	if (handle.handle != 0)
@@ -668,6 +697,11 @@ void reshade::d3d11::device_impl::destroy_descriptor_heap(api::descriptor_heap)
 }
 void reshade::d3d11::device_impl::destroy_descriptor_table_layout(api::descriptor_table_layout)
 {
+}
+
+void reshade::d3d11::device_impl::destroy_query_heap(api::query_heap handle)
+{
+	delete reinterpret_cast<query_pool_impl *>(handle.handle);
 }
 
 void reshade::d3d11::device_impl::update_descriptor_tables(uint32_t, const api::descriptor_update *)
@@ -786,6 +820,22 @@ reshade::api::resource_desc reshade::d3d11::device_impl::get_resource_desc(api::
 			return convert_resource_desc(internal_desc);
 		}
 	}
+}
+
+bool reshade::d3d11::device_impl::get_query_results(api::query_heap heap, uint32_t first, uint32_t count, void *results, uint32_t stride)
+{
+	com_ptr<ID3D11DeviceContext> ctx;
+	_orig->GetImmediateContext(&ctx);
+
+	const auto impl = reinterpret_cast<query_pool_impl *>(heap.handle);
+
+	for (UINT i = 0; i < count; ++i)
+	{
+		if (FAILED(ctx->GetData(impl->queries[i + first].get(), static_cast<uint8_t *>(results) + i * stride, stride, D3D11_ASYNC_GETDATA_DONOTFLUSH)))
+			return false;
+	}
+
+	return true;
 }
 
 void reshade::d3d11::device_impl::set_debug_name(api::resource resource, const char *name)
@@ -1250,6 +1300,19 @@ void reshade::d3d11::device_context_impl::clear_unordered_access_view_float(api:
 	assert(uav.handle != 0);
 
 	_orig->ClearUnorderedAccessViewFloat(reinterpret_cast<ID3D11UnorderedAccessView *>(uav.handle), values);
+}
+
+void reshade::d3d11::device_context_impl::begin_query(api::query_heap heap, api::query_type, uint32_t index)
+{
+	_orig->Begin(reinterpret_cast<query_pool_impl *>(heap.handle)->queries[index].get());
+}
+void reshade::d3d11::device_context_impl::end_query(api::query_heap heap, api::query_type, uint32_t index)
+{
+	_orig->End(reinterpret_cast<query_pool_impl *>(heap.handle)->queries[index].get());
+}
+void reshade::d3d11::device_context_impl::copy_query_results(api::query_heap, api::query_type, uint32_t, uint32_t, api::resource, uint64_t, uint32_t)
+{
+	assert(false);
 }
 
 void reshade::d3d11::device_context_impl::begin_debug_event(const char *label, const float[4])

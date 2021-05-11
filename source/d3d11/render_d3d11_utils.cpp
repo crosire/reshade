@@ -942,3 +942,20 @@ auto reshade::d3d11::convert_primitive_topology(api::primitive_topology value) -
 	assert(value != api::primitive_topology::triangle_fan);
 	return static_cast<D3D11_PRIMITIVE_TOPOLOGY>(value);
 }
+auto reshade::d3d11::convert_query_type(api::query_type value) -> D3D11_QUERY
+{
+	switch (value)
+	{
+	case api::query_type::occlusion:
+		return D3D11_QUERY_OCCLUSION;
+	case api::query_type::binary_occlusion:
+		return D3D11_QUERY_OCCLUSION_PREDICATE;
+	case api::query_type::timestamp:
+		return D3D11_QUERY_TIMESTAMP;
+	case api::query_type::pipeline_statistics:
+		return D3D11_QUERY_PIPELINE_STATISTICS;
+	default:
+		assert(false);
+		return static_cast<D3D11_QUERY>(0xFFFFFFFF);
+	}
+}

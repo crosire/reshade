@@ -10,6 +10,16 @@
 
 namespace
 {
+	struct query_heap_impl
+	{
+		~query_heap_impl()
+		{
+			glDeleteQueries(static_cast<GLsizei>(queries.size()), queries.data());
+		}
+
+		std::vector<GLuint> queries;
+	};
+
 	struct pipeline_layout_impl
 	{
 		~pipeline_layout_impl()
@@ -331,6 +341,8 @@ bool reshade::opengl::device_impl::check_capability(api::device_caps capability)
 		return true;
 	case api::device_caps::copy_buffer_to_texture:
 		return false;
+	case api::device_caps::copy_query_results:
+		return gl3wProcs.gl.GetQueryBufferObjectui64v != nullptr; // OpenGL 4.5
 	default:
 		return false;
 	}
@@ -932,6 +944,23 @@ bool reshade::opengl::device_impl::create_descriptor_table_layout(uint32_t num_r
 	return push_descriptors;
 }
 
+bool reshade::opengl::device_impl::create_query_heap(api::query_type type, uint32_t count, api::query_heap *out)
+{
+	if (type == api::query_type::pipeline_statistics)
+	{
+		*out = { 0 };
+		return false;
+	}
+
+	const auto result = new query_heap_impl();
+	result->queries.resize(count);
+
+	glGenQueries(static_cast<GLsizei>(count), result->queries.data());
+
+	*out = { reinterpret_cast<uintptr_t>(result) };
+	return true;
+}
+
 void reshade::opengl::device_impl::destroy_sampler(api::sampler handle)
 {
 	assert((handle.handle >> 40) == GL_SAMPLER);
@@ -1017,6 +1046,11 @@ void reshade::opengl::device_impl::destroy_descriptor_heap(api::descriptor_heap)
 }
 void reshade::opengl::device_impl::destroy_descriptor_table_layout(api::descriptor_table_layout)
 {
+}
+
+void reshade::opengl::device_impl::destroy_query_heap(api::query_heap handle)
+{
+	delete reinterpret_cast<query_heap_impl *>(handle.handle);
 }
 
 void reshade::opengl::device_impl::update_descriptor_tables(uint32_t, const api::descriptor_update *)
@@ -1249,6 +1283,25 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 		return convert_resource_desc(target, buffer_size, api::memory_heap::unknown);
 	else
 		return convert_resource_desc(target, levels, samples, internal_format, width, height, depth);
+}
+
+bool reshade::opengl::device_impl::get_query_results(api::query_heap heap, uint32_t first, uint32_t count, void *results, uint32_t stride)
+{
+	assert(stride >= sizeof(uint64_t));
+
+	const auto impl = reinterpret_cast<query_heap_impl *>(heap.handle);
+
+	for (uint32_t i = 0; i < count; ++i)
+	{
+		GLuint available = GL_FALSE;
+		glGetQueryObjectuiv(impl->queries[i], GL_QUERY_RESULT_AVAILABLE, &available);
+		if (!available)
+			return false;
+
+		glGetQueryObjectui64v(impl->queries[i], GL_QUERY_RESULT, reinterpret_cast<GLuint64 *>(static_cast<uint8_t *>(results) + i * stride));
+	}
+
+	return true;
 }
 
 void reshade::opengl::device_impl::wait_idle() const
@@ -2069,6 +2122,30 @@ void reshade::opengl::device_impl::clear_unordered_access_view_uint(api::resourc
 void reshade::opengl::device_impl::clear_unordered_access_view_float(api::resource_view, const float[4])
 {
 	assert(false);
+}
+
+void reshade::opengl::device_impl::begin_query(api::query_heap heap, api::query_type type, uint32_t index)
+{
+	glBeginQuery(convert_query_type(type), reinterpret_cast<query_heap_impl *>(heap.handle)->queries[index]);
+}
+void reshade::opengl::device_impl::end_query(api::query_heap heap, api::query_type type, uint32_t index)
+{
+	if (type == api::query_type::timestamp)
+	{
+		glQueryCounter(reinterpret_cast<query_heap_impl *>(heap.handle)->queries[index], GL_TIMESTAMP);
+	}
+	else
+	{
+		glEndQuery(convert_query_type(type));
+	}
+}
+void reshade::opengl::device_impl::copy_query_results(api::query_heap heap, api::query_type, uint32_t first, uint32_t count, api::resource dst, uint64_t dst_offset, uint32_t stride)
+{
+	for (uint32_t i = 0; i < count; ++i)
+	{
+		assert(dst_offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()));
+		glGetQueryBufferObjectui64v(reinterpret_cast<query_heap_impl *>(heap.handle)->queries[i + first], dst.handle & 0xFFFFFFFF, GL_QUERY_RESULT_NO_WAIT, static_cast<GLintptr>(dst_offset + i * stride));
+	}
 }
 
 void reshade::opengl::device_impl::begin_debug_event(const char *label, const float[4])

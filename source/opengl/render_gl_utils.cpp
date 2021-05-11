@@ -1058,6 +1058,20 @@ GLenum reshade::opengl::convert_primitive_topology(api::primitive_topology value
 		return GL_PATCHES;
 	}
 }
+GLenum reshade::opengl::convert_query_type(api::query_type value)
+{
+	switch (value)
+	{
+	case api::query_type::occlusion:
+	case api::query_type::binary_occlusion:
+		return GL_SAMPLES_PASSED;
+	case api::query_type::timestamp:
+		return GL_TIMESTAMP;
+	default:
+		assert(false);
+		return GL_NONE;
+	}
+}
 GLenum reshade::opengl::convert_shader_type(api::shader_stage type)
 {
 	switch (type)

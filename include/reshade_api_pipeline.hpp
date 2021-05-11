@@ -302,6 +302,17 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
+	/// The available query types.
+	/// </summary>
+	enum class query_type
+	{
+		occlusion,
+		binary_occlusion,
+		timestamp,
+		pipeline_statistics
+	};
+
+	/// <summary>
 	/// The available descriptor types.
 	/// </summary>
 	enum class descriptor_type
@@ -398,6 +409,12 @@ namespace reshade { namespace api
 	/// <para>Depending on the render API this is really a 'VkDescriptorSetLayout' handle.</para>
 	/// </summary>
 	RESHADE_DEFINE_HANDLE(descriptor_table_layout);
+
+	/// <summary>
+	/// An opaque handle to a query heap/pool.
+	/// <para>Depending on the render API this is really a pointer to a 'ID3D12QueryHeap' or a 'VkQueryPool' handle.</para>
+	/// </summary>
+	RESHADE_DEFINE_HANDLE(query_heap);
 
 	/// <summary>
 	/// Describes a pipeline state object.

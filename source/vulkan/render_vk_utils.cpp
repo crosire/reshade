@@ -397,11 +397,9 @@ auto reshade::vulkan::convert_usage_to_image_layout(api::resource_usage state) -
 		return VK_IMAGE_LAYOUT_GENERAL;
 	case api::resource_usage::copy_dest:
 	case api::resource_usage::resolve_dest:
-	case api::resource_usage::copy_dest | api::resource_usage::resolve_dest:
 		return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
 	case api::resource_usage::copy_source:
 	case api::resource_usage::resolve_source:
-	case api::resource_usage::copy_source | api::resource_usage::resolve_source:
 		return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
 	case api::resource_usage::present:
 		return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
@@ -1031,5 +1029,21 @@ auto reshade::vulkan::convert_primitive_topology(api::primitive_topology value) 
 	case api::primitive_topology::patch_list_31_cp:
 	case api::primitive_topology::patch_list_32_cp:
 		return VK_PRIMITIVE_TOPOLOGY_PATCH_LIST;
+	}
+}
+auto reshade::vulkan::convert_query_type(api::query_type type) -> VkQueryType
+{
+	switch (type)
+	{
+	case reshade::api::query_type::occlusion:
+	case reshade::api::query_type::binary_occlusion:
+		return VK_QUERY_TYPE_OCCLUSION;
+	case reshade::api::query_type::timestamp:
+		return VK_QUERY_TYPE_TIMESTAMP;
+	case reshade::api::query_type::pipeline_statistics:
+		return VK_QUERY_TYPE_PIPELINE_STATISTICS;
+	default:
+		assert(false);
+		return VK_QUERY_TYPE_MAX_ENUM;
 	}
 }
