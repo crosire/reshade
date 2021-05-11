@@ -209,9 +209,9 @@ static void clear_depth_impl(command_list *cmd_list, state_tracking &state, cons
 			state.best_copy_stats = counters.current_stats;
 
 		// A resource has to be in this state for a clear operation, so can assume it here
-		cmd_list->transition_state(depth_stencil, resource_usage::depth_stencil_write, resource_usage::copy_source);
+		cmd_list->insert_barrier(depth_stencil, resource_usage::depth_stencil_write, resource_usage::copy_source);
 		cmd_list->copy_resource(depth_stencil, device_state.backup_texture);
-		cmd_list->transition_state(depth_stencil, resource_usage::copy_source, resource_usage::depth_stencil_write);
+		cmd_list->insert_barrier(depth_stencil, resource_usage::copy_source, resource_usage::depth_stencil_write);
 
 		counters.copied_during_frame = true;
 	}
@@ -532,9 +532,9 @@ static void on_present(command_queue *, effect_runtime *runtime)
 			{
 				command_list *const cmd_list = queue->get_immediate_command_list();
 
-				cmd_list->transition_state(best_match, resource_usage::depth_stencil | resource_usage::shader_resource, resource_usage::copy_source);
+				cmd_list->insert_barrier(best_match, resource_usage::depth_stencil | resource_usage::shader_resource, resource_usage::copy_source);
 				cmd_list->copy_resource(best_match, device_state.backup_texture);
-				cmd_list->transition_state(best_match, resource_usage::copy_source, resource_usage::depth_stencil | resource_usage::shader_resource);
+				cmd_list->insert_barrier(best_match, resource_usage::copy_source, resource_usage::depth_stencil | resource_usage::shader_resource);
 			}
 		}
 
@@ -587,11 +587,11 @@ static void on_before_render_effects(effect_runtime *runtime, command_list *cmd_
 
 		if (resource == device_state.backup_texture)
 		{
-			cmd_list->transition_state(resource, resource_usage::copy_dest, resource_usage::shader_resource);
+			cmd_list->insert_barrier(resource, resource_usage::copy_dest, resource_usage::shader_resource);
 		}
 		else
 		{
-			cmd_list->transition_state(resource, resource_usage::depth_stencil | resource_usage::shader_resource, resource_usage::shader_resource);
+			cmd_list->insert_barrier(resource, resource_usage::depth_stencil | resource_usage::shader_resource, resource_usage::shader_resource);
 		}
 	}
 }
@@ -607,11 +607,11 @@ static void on_after_render_effects(effect_runtime *runtime, command_list *cmd_l
 
 		if (resource == device_state.backup_texture)
 		{
-			cmd_list->transition_state(resource, resource_usage::shader_resource, resource_usage::copy_dest);
+			cmd_list->insert_barrier(resource, resource_usage::shader_resource, resource_usage::copy_dest);
 		}
 		else
 		{
-			cmd_list->transition_state(resource, resource_usage::shader_resource, resource_usage::depth_stencil | resource_usage::shader_resource);
+			cmd_list->insert_barrier(resource, resource_usage::shader_resource, resource_usage::depth_stencil | resource_usage::shader_resource);
 		}
 	}
 }

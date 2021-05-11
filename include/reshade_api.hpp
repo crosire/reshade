@@ -212,7 +212,7 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <param name="desc">The description of the resource to create.</param>
 		/// <param name="initial_data">Data to upload to the resource after creation. This should point to an array of <see cref="mapped_subresource"/>, one for each subresource (mipmap levels and array layers).</param>
-		/// <param name="initial_state">Initial usage of the resource after creation. This can later be changed via <see cref="command_list::transition_state"/>.</param>
+		/// <param name="initial_state">Initial usage of the resource after creation. This can later be changed via <see cref="command_list::insert_barrier"/>.</param>
 		/// <param name="out">Pointer to a handle that is set to the handle of the created resource.</param>
 		/// <returns><c>true</c> if the resource was successfully created, <c>false</c> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
 		virtual bool create_resource(const resource_desc &desc, const subresource_data *initial_data, resource_usage initial_state, resource *out) = 0;
@@ -540,7 +540,7 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Marks the ending of a render pass. This must be preceeded by a call to <see cref="command_list::begin_render_pass"/>).
 		/// </summary>
-		virtual void   end_render_pass() = 0;
+		virtual void end_render_pass() = 0;
 
 		/// <summary>
 		/// Blits a region from the <paramref name="source"/> texture to a different region of the <paramref name="destination"/> texture.
@@ -649,7 +649,8 @@ namespace reshade { namespace api
 		/// Clears the resources referenced by the render target views.
 		/// <para>The resources the <paramref name="rtvs"/> views point to have to be in the <see cref="resource_usage::render_target"/> state.</para>
 		/// </summary>
-		/// <param name="rtvs">The view handles of the render targets.</param>
+		/// <param name="count">The number of render target views to clear.</param>
+		/// <param name="rtvs">A pointer to an array of render target view handles to clear.</param>
 		/// <param name="color">The value to clear the resources with.</param>
 		virtual void clear_render_target_views(uint32_t count, const resource_view *rtvs, const float color[4]) = 0;
 		/// <summary>
@@ -673,7 +674,15 @@ namespace reshade { namespace api
 		/// <param name="resource">The resource to transition.</param>
 		/// <param name="old_state">The usage flags describing how the resource was used before this barrier.</param>
 		/// <param name="new_state">The usage flags describing how the resource will be used after this barrier.</param>
-		virtual void transition_state(resource resource, resource_usage old_state, resource_usage new_state) = 0;
+		inline  void insert_barrier(resource resource, resource_usage old_state, resource_usage new_state) { insert_barriers(1, &resource, old_state, new_state); }
+		/// <summary>
+		/// Adds a transition barrier for the specified <paramref name="resources"/> to the command stream.
+		/// </summary>
+		/// <param name="count">The number of resources to transition.</param>
+		/// <param name="resources">A pointer to an array of resources to transition.</param>
+		/// <param name="old_state">The usage flags describing how the resources were used before this barrier.</param>
+		/// <param name="new_state">The usage flags describing how the resources will be used after this barrier.</param>
+		virtual void insert_barriers(uint32_t count, const resource *resources, resource_usage old_state, resource_usage new_state) = 0;
 
 		/// <summary>
 		/// Opens a debug marker region in the command list.
@@ -684,7 +693,7 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Closes the current debug marker region (the last one opened with <see cref="command_list::begin_debug_event"/>).
 		/// </summary>
-		virtual void   end_debug_event() = 0;
+		virtual void end_debug_event() = 0;
 		/// <summary>
 		/// Inserts a debug marker label into the command list.
 		/// </summary>

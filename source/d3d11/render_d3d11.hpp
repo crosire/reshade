@@ -100,7 +100,7 @@ namespace reshade::d3d11
 		void draw_or_dispatch_indirect(uint32_t, api::resource, uint64_t, uint32_t, uint32_t) final { assert(false); }
 
 		void begin_render_pass(uint32_t, const api::resource_view *, api::resource_view) final { assert(false); }
-		void   end_render_pass() final { assert(false); }
+		void end_render_pass() final { assert(false); }
 
 		void blit(api::resource, uint32_t, const int32_t[6], api::resource, uint32_t, const int32_t[6], api::texture_filter) final { assert(false); }
 		void resolve(api::resource, uint32_t, const int32_t[3], api::resource, uint32_t, const int32_t[3], const uint32_t[3], uint32_t) final { assert(false); }
@@ -115,10 +115,10 @@ namespace reshade::d3d11
 		void clear_unordered_access_view_uint(api::resource_view, const uint32_t[4]) final { assert(false); }
 		void clear_unordered_access_view_float(api::resource_view, const float[4]) final { assert(false); }
 
-		void transition_state(api::resource, api::resource_usage, api::resource_usage) final { assert(false); }
+		void insert_barriers(uint32_t, const api::resource *, api::resource_usage, api::resource_usage) final { assert(false); }
 
 		void begin_debug_event(const char *, const float[4]) final { assert(false); }
-		void   end_debug_event() final { assert(false); }
+		void end_debug_event() final { assert(false); }
 		void insert_debug_marker(const char *, const float[4]) final { assert(false); }
 
 	private:
@@ -161,7 +161,7 @@ namespace reshade::d3d11
 		void draw_or_dispatch_indirect(uint32_t type, api::resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride) final;
 
 		void begin_render_pass(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv) final;
-		void   end_render_pass() final;
+		void end_render_pass() final;
 
 		void blit(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], api::texture_filter filter) final;
 		void resolve(api::resource src, uint32_t src_subresource, const int32_t src_offset[3], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3], uint32_t format) final;
@@ -176,10 +176,10 @@ namespace reshade::d3d11
 		void clear_unordered_access_view_uint(api::resource_view uav, const uint32_t values[4]) final;
 		void clear_unordered_access_view_float(api::resource_view uav, const float values[4]) final;
 
-		void transition_state(api::resource, api::resource_usage, api::resource_usage) final { /* no-op */ }
+		void insert_barriers(uint32_t, const api::resource *, api::resource_usage, api::resource_usage) final { /* no-op */ }
 
 		void begin_debug_event(const char *label, const float color[4]) final;
-		void   end_debug_event() final;
+		void end_debug_event() final;
 		void insert_debug_marker(const char *label, const float color[4]) final;
 
 	protected:

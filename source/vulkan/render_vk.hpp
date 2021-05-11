@@ -227,7 +227,7 @@ namespace reshade::vulkan
 		void draw_or_dispatch_indirect(uint32_t type, api::resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride) final;
 
 		void begin_render_pass(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv) final;
-		void   end_render_pass() final;
+		void end_render_pass() final;
 
 		void blit(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], api::texture_filter filter) final;
 		void resolve(api::resource src, uint32_t src_subresource, const int32_t src_offset[3], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3], uint32_t format) final;
@@ -242,10 +242,10 @@ namespace reshade::vulkan
 		void clear_unordered_access_view_uint(api::resource_view uav, const uint32_t values[4]) final;
 		void clear_unordered_access_view_float(api::resource_view uav, const float values[4]) final;
 
-		void transition_state(api::resource resource, api::resource_usage old_state, api::resource_usage new_state) final;
+		void insert_barriers(uint32_t count, const api::resource *resources, api::resource_usage old_state, api::resource_usage new_state) final;
 
 		void begin_debug_event(const char *label, const float color[4]) final;
-		void   end_debug_event() final;
+		void end_debug_event() final;
 		void insert_debug_marker(const char *label, const float color[4]) final;
 
 		// State tracking for render passes

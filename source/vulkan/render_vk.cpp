@@ -263,7 +263,7 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 						const auto immediate_command_list = static_cast<command_list_immediate_impl *>(queue->get_immediate_command_list());
 						if (immediate_command_list != nullptr)
 						{
-							immediate_command_list->transition_state(*out, api::resource_usage::undefined, initial_state);
+							immediate_command_list->insert_barrier(*out, api::resource_usage::undefined, initial_state);
 							immediate_command_list->flush_and_wait((VkQueue)queue->get_native_object());
 							break;
 						}
@@ -1695,40 +1695,49 @@ void reshade::vulkan::command_list_impl::clear_unordered_access_view_float(api::
 	_device_impl->vk.CmdClearColorImage(_orig, uav_data.image_create_info.image, VK_IMAGE_LAYOUT_GENERAL, &clear_value, 1, &range);
 }
 
-void reshade::vulkan::command_list_impl::transition_state(api::resource resource, api::resource_usage old_state, api::resource_usage new_state)
+void reshade::vulkan::command_list_impl::insert_barriers(uint32_t count, const api::resource *resources, api::resource_usage old_state, api::resource_usage new_state)
 {
 	_has_commands = true;
 
-	assert(resource.handle != 0);
-	const resource_data &data = _device_impl->_resources.at(resource.handle);
+	std::vector<VkImageMemoryBarrier> image_barriers;
+	image_barriers.reserve(count);
+	std::vector<VkBufferMemoryBarrier> buffer_barriers;
+	buffer_barriers.reserve(count);
 
-	if (data.is_image())
+	for (uint32_t i = 0; i < count; ++i)
 	{
-		VkImageMemoryBarrier transition { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
-		transition.srcAccessMask = convert_usage_to_access(old_state);
-		transition.dstAccessMask = convert_usage_to_access(new_state);
-		transition.oldLayout = convert_usage_to_image_layout(old_state);
-		transition.newLayout = convert_usage_to_image_layout(new_state);
-		transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		transition.image = data.image;
-		transition.subresourceRange = { aspect_flags_from_format(data.image_create_info.format), 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
+		const resource_data &data = _device_impl->_resources.at(resources[i].handle);
 
-		_device_impl->vk.CmdPipelineBarrier(_orig, convert_usage_to_pipeline_stage(old_state), convert_usage_to_pipeline_stage(new_state), 0, 0, nullptr, 0, nullptr, 1, &transition);
-	}
-	else
-	{
-		VkBufferMemoryBarrier transition { VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER };
-		transition.srcAccessMask = convert_usage_to_access(old_state);
-		transition.dstAccessMask = convert_usage_to_access(new_state);
-		transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		transition.buffer = data.buffer;
-		transition.offset = 0;
-		transition.size = VK_WHOLE_SIZE;
+		if (data.is_image())
+		{
+			VkImageMemoryBarrier &transition = image_barriers.emplace_back();
+			transition = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+			transition.srcAccessMask = convert_usage_to_access(old_state);
+			transition.dstAccessMask = convert_usage_to_access(new_state);
+			transition.oldLayout = convert_usage_to_image_layout(old_state);
+			transition.newLayout = convert_usage_to_image_layout(new_state);
+			transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			transition.image = data.image;
+			transition.subresourceRange = { aspect_flags_from_format(data.image_create_info.format), 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
 
-		_device_impl->vk.CmdPipelineBarrier(_orig, convert_usage_to_pipeline_stage(old_state), convert_usage_to_pipeline_stage(new_state), 0, 0, nullptr, 1, &transition, 0, nullptr);
+			_device_impl->vk.CmdPipelineBarrier(_orig, convert_usage_to_pipeline_stage(old_state), convert_usage_to_pipeline_stage(new_state), 0, 0, nullptr, 0, nullptr, 1, &transition);
+		}
+		else
+		{
+			VkBufferMemoryBarrier &transition = buffer_barriers.emplace_back();
+			transition = { VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER };
+			transition.srcAccessMask = convert_usage_to_access(old_state);
+			transition.dstAccessMask = convert_usage_to_access(new_state);
+			transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			transition.buffer = data.buffer;
+			transition.offset = 0;
+			transition.size = VK_WHOLE_SIZE;
+		}
 	}
+
+	_device_impl->vk.CmdPipelineBarrier(_orig, convert_usage_to_pipeline_stage(old_state), convert_usage_to_pipeline_stage(new_state), 0, 0, nullptr, static_cast<uint32_t>(buffer_barriers.size()), buffer_barriers.data(), static_cast<uint32_t>(image_barriers.size()), image_barriers.data());
 }
 
 void reshade::vulkan::command_list_impl::begin_debug_event(const char *label, const float color[4])

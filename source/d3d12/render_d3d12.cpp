@@ -1322,19 +1322,21 @@ void reshade::d3d12::command_list_impl::clear_unordered_access_view_float(api::r
 	// _orig->ClearUnorderedAccessViewFloat(D3D12_GPU_DESCRIPTOR_HANDLE { 0 }, D3D12_CPU_DESCRIPTOR_HANDLE { uav.handle }, nullptr, values, 0, nullptr); // TODO
 }
 
-void reshade::d3d12::command_list_impl::transition_state(api::resource resource, api::resource_usage old_layout, api::resource_usage new_layout)
+void reshade::d3d12::command_list_impl::insert_barriers(uint32_t count, const api::resource *resources, api::resource_usage old_layout, api::resource_usage new_layout)
 {
 	_has_commands = true;
 
-	assert(resource.handle != 0);
+	const auto barriers = static_cast<D3D12_RESOURCE_BARRIER *>(alloca(sizeof(D3D12_RESOURCE_BARRIER) * count));
+	for (UINT i = 0; i < count; ++i)
+	{
+		barriers[i].Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+		barriers[i].Transition.pResource = reinterpret_cast<ID3D12Resource *>(resources[i].handle);
+		barriers[i].Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+		barriers[i].Transition.StateBefore = convert_resource_usage_to_states(old_layout);
+		barriers[i].Transition.StateAfter = convert_resource_usage_to_states(new_layout);
+	}
 
-	D3D12_RESOURCE_BARRIER transition = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
-	transition.Transition.pResource = reinterpret_cast<ID3D12Resource *>(resource.handle);
-	transition.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-	transition.Transition.StateBefore = convert_resource_usage_to_states(old_layout);
-	transition.Transition.StateAfter = convert_resource_usage_to_states(new_layout);
-
-	_orig->ResourceBarrier(1, &transition);
+	_orig->ResourceBarrier(count, barriers);
 }
 
 void reshade::d3d12::command_list_impl::begin_debug_event(const char *label, const float color[4])
