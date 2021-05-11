@@ -86,8 +86,19 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
+	/// A list of flags that describe additional parameters of resources.
+	/// </summary>
+	enum class resource_flags : uint32_t
+	{
+		none = 0,
+		shared = (1 << 0),
+		cube_compatible = (1 << 1)
+	};
+	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(resource_flags);
+
+	/// <summary>
 	/// A list of flags that specify how a resource is to be used.
-	/// This needs to be specified during creation and is also used to transition between different usages within a command stream.
+	/// This needs to be specified during creation and is also used to transition between different resource states within a command stream.
 	/// </summary>
 	enum class resource_usage : uint32_t
 	{
@@ -162,13 +173,13 @@ namespace reshade { namespace api
 	struct resource_desc
 	{
 		resource_desc() :
-			type(resource_type::unknown), texture(), heap(memory_heap::unknown), usage(resource_usage::undefined) {}
+			type(resource_type::unknown), texture(), heap(memory_heap::unknown), usage(resource_usage::undefined), flags(resource_flags::none) {}
 		resource_desc(uint64_t size, memory_heap heap, resource_usage usage) :
-			type(resource_type::buffer), buffer({ size }), heap(heap), usage(usage) {}
-		resource_desc(uint32_t width, uint32_t height, uint16_t layers, uint16_t levels, format format, uint16_t samples, memory_heap heap, resource_usage usage) :
-			type(resource_type::texture_2d), texture({ width, height, layers, levels, format, samples }), heap(heap), usage(usage) {}
-		resource_desc(resource_type type, uint32_t width, uint32_t height, uint16_t depth_or_layers, uint16_t levels, format format, uint16_t samples, memory_heap heap, resource_usage usage) :
-			type(type), texture({ width, height, depth_or_layers, levels, format, samples }), heap(heap), usage(usage) {}
+			type(resource_type::buffer), buffer({ size }), heap(heap), usage(usage), flags(resource_flags::none) {}
+		resource_desc(uint32_t width, uint32_t height, uint16_t layers, uint16_t levels, format format, uint16_t samples, memory_heap heap, resource_usage usage, resource_flags flags = resource_flags::none) :
+			type(resource_type::texture_2d), texture({ width, height, layers, levels, format, samples }), heap(heap), usage(usage), flags(flags) {}
+		resource_desc(resource_type type, uint32_t width, uint32_t height, uint16_t depth_or_layers, uint16_t levels, format format, uint16_t samples, memory_heap heap, resource_usage usage, resource_flags flags = resource_flags::none) :
+			type(type), texture({ width, height, depth_or_layers, levels, format, samples }), heap(heap), usage(usage), flags(flags) {}
 
 		// Type of the resource.
 		resource_type type;
@@ -203,6 +214,8 @@ namespace reshade { namespace api
 		memory_heap heap;
 		// Flags that specify how this resource may be used.
 		resource_usage usage;
+		// Flags that describe additional parameters.
+		resource_flags flags;
 	};
 
 	/// <summary>

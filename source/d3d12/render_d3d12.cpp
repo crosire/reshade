@@ -157,9 +157,10 @@ bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc
 
 	assert((desc.usage & initial_state) == initial_state || initial_state == api::resource_usage::cpu_access);
 
+	D3D12_HEAP_FLAGS heap_flags = D3D12_HEAP_FLAG_NONE;
 	D3D12_RESOURCE_DESC internal_desc = {};
 	D3D12_HEAP_PROPERTIES heap_props = {};
-	convert_resource_desc(desc, internal_desc, heap_props);
+	convert_resource_desc(desc, internal_desc, heap_props, heap_flags);
 	if (desc.type == api::resource_type::buffer)
 		internal_desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 
@@ -168,7 +169,7 @@ bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc
 		internal_desc.Width = (internal_desc.Width + D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT - 1u) & ~(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT - 1u);
 
 	if (com_ptr<ID3D12Resource> object;
-		SUCCEEDED(_orig->CreateCommittedResource(&heap_props, D3D12_HEAP_FLAG_NONE, &internal_desc, convert_resource_usage_to_states(initial_state), nullptr, IID_PPV_ARGS(&object))))
+		SUCCEEDED(_orig->CreateCommittedResource(&heap_props, heap_flags, &internal_desc, convert_resource_usage_to_states(initial_state), nullptr, IID_PPV_ARGS(&object))))
 	{
 		_resources.register_object(object.get());
 		*out = { reinterpret_cast<uintptr_t>(object.release()) };

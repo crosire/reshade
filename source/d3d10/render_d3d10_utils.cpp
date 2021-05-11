@@ -118,6 +118,28 @@ static void convert_bind_flags_to_resource_usage(UINT bind_flags, reshade::api::
 		usage |= api::resource_usage::constant_buffer;
 }
 
+static void convert_resource_flags_to_misc_flags(reshade::api::resource_flags flags, UINT &misc_flags)
+{
+	using namespace reshade;
+
+	if ((flags & api::resource_flags::shared) == api::resource_flags::shared && (misc_flags & (D3D10_RESOURCE_MISC_SHARED | D3D10_RESOURCE_MISC_SHARED_KEYEDMUTEX)) == 0)
+		misc_flags |= D3D10_RESOURCE_MISC_SHARED;
+
+	if ((flags & api::resource_flags::cube_compatible) == api::resource_flags::cube_compatible)
+		misc_flags |= D3D10_RESOURCE_MISC_TEXTURECUBE;
+	else
+		misc_flags &= ~D3D10_RESOURCE_MISC_TEXTURECUBE;
+}
+static void convert_misc_flags_to_resource_flags(UINT misc_flags, reshade::api::resource_flags &flags)
+{
+	using namespace reshade;
+
+	if ((misc_flags & (D3D10_RESOURCE_MISC_SHARED | D3D10_RESOURCE_MISC_SHARED_KEYEDMUTEX)) != 0)
+		flags |= api::resource_flags::shared;
+	if ((misc_flags & D3D10_RESOURCE_MISC_TEXTURECUBE) != 0)
+		flags |= api::resource_flags::cube_compatible;
+}
+
 void reshade::d3d10::convert_sampler_desc(const api::sampler_desc &desc, D3D10_SAMPLER_DESC &internal_desc)
 {
 	internal_desc.Filter = static_cast<D3D10_FILTER>(desc.filter);
@@ -155,6 +177,7 @@ void reshade::d3d10::convert_resource_desc(const api::resource_desc &desc, D3D10
 	internal_desc.ByteWidth = static_cast<UINT>(desc.buffer.size);
 	convert_memory_heap_to_d3d_usage(desc.heap, internal_desc.Usage, internal_desc.CPUAccessFlags);
 	convert_resource_usage_to_bind_flags(desc.usage, internal_desc.BindFlags);
+	convert_resource_flags_to_misc_flags(desc.flags, internal_desc.MiscFlags);
 }
 void reshade::d3d10::convert_resource_desc(const api::resource_desc &desc, D3D10_TEXTURE1D_DESC &internal_desc)
 {
@@ -167,6 +190,7 @@ void reshade::d3d10::convert_resource_desc(const api::resource_desc &desc, D3D10
 	assert(desc.texture.samples == 1);
 	convert_memory_heap_to_d3d_usage(desc.heap, internal_desc.Usage, internal_desc.CPUAccessFlags);
 	convert_resource_usage_to_bind_flags(desc.usage, internal_desc.BindFlags);
+	convert_resource_flags_to_misc_flags(desc.flags, internal_desc.MiscFlags);
 }
 void reshade::d3d10::convert_resource_desc(const api::resource_desc &desc, D3D10_TEXTURE2D_DESC &internal_desc)
 {
@@ -179,6 +203,7 @@ void reshade::d3d10::convert_resource_desc(const api::resource_desc &desc, D3D10
 	internal_desc.SampleDesc.Count = desc.texture.samples;
 	convert_memory_heap_to_d3d_usage(desc.heap, internal_desc.Usage, internal_desc.CPUAccessFlags);
 	convert_resource_usage_to_bind_flags(desc.usage, internal_desc.BindFlags);
+	convert_resource_flags_to_misc_flags(desc.flags, internal_desc.MiscFlags);
 }
 void reshade::d3d10::convert_resource_desc(const api::resource_desc &desc, D3D10_TEXTURE3D_DESC &internal_desc)
 {
@@ -191,6 +216,7 @@ void reshade::d3d10::convert_resource_desc(const api::resource_desc &desc, D3D10
 	assert(desc.texture.samples == 1);
 	convert_memory_heap_to_d3d_usage(desc.heap, internal_desc.Usage, internal_desc.CPUAccessFlags);
 	convert_resource_usage_to_bind_flags(desc.usage, internal_desc.BindFlags);
+	convert_resource_flags_to_misc_flags(desc.flags, internal_desc.MiscFlags);
 }
 reshade::api::resource_desc reshade::d3d10::convert_resource_desc(const D3D10_BUFFER_DESC &internal_desc)
 {
@@ -199,6 +225,7 @@ reshade::api::resource_desc reshade::d3d10::convert_resource_desc(const D3D10_BU
 	desc.buffer.size = internal_desc.ByteWidth;
 	convert_d3d_usage_to_memory_heap(internal_desc.Usage, desc.heap);
 	convert_bind_flags_to_resource_usage(internal_desc.BindFlags, desc.usage);
+	convert_misc_flags_to_resource_flags(internal_desc.MiscFlags, desc.flags);
 	return desc;
 }
 reshade::api::resource_desc reshade::d3d10::convert_resource_desc(const D3D10_TEXTURE1D_DESC &internal_desc)
@@ -215,6 +242,7 @@ reshade::api::resource_desc reshade::d3d10::convert_resource_desc(const D3D10_TE
 	desc.texture.samples = 1;
 	convert_d3d_usage_to_memory_heap(internal_desc.Usage, desc.heap);
 	convert_bind_flags_to_resource_usage(internal_desc.BindFlags, desc.usage);
+	convert_misc_flags_to_resource_flags(internal_desc.MiscFlags, desc.flags);
 	return desc;
 }
 reshade::api::resource_desc reshade::d3d10::convert_resource_desc(const D3D10_TEXTURE2D_DESC &internal_desc)
@@ -232,6 +260,7 @@ reshade::api::resource_desc reshade::d3d10::convert_resource_desc(const D3D10_TE
 	convert_d3d_usage_to_memory_heap(internal_desc.Usage, desc.heap);
 	convert_bind_flags_to_resource_usage(internal_desc.BindFlags, desc.usage);
 	desc.usage |= desc.texture.samples > 1 ? api::resource_usage::resolve_source : api::resource_usage::resolve_dest;
+	convert_misc_flags_to_resource_flags(internal_desc.MiscFlags, desc.flags);
 	return desc;
 }
 reshade::api::resource_desc reshade::d3d10::convert_resource_desc(const D3D10_TEXTURE3D_DESC &internal_desc)
@@ -248,6 +277,7 @@ reshade::api::resource_desc reshade::d3d10::convert_resource_desc(const D3D10_TE
 	desc.texture.samples = 1;
 	convert_d3d_usage_to_memory_heap(internal_desc.Usage, desc.heap);
 	convert_bind_flags_to_resource_usage(internal_desc.BindFlags, desc.usage);
+	convert_misc_flags_to_resource_flags(internal_desc.MiscFlags, desc.flags);
 	return desc;
 }
 

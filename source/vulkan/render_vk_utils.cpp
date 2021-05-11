@@ -755,6 +755,11 @@ void reshade::vulkan::convert_resource_desc(const api::resource_desc &desc, VkIm
 	create_info.mipLevels = desc.texture.levels;
 	create_info.samples = static_cast<VkSampleCountFlagBits>(desc.texture.samples);
 	convert_usage_to_image_usage_flags(desc.usage, create_info.usage);
+
+	if ((desc.flags & api::resource_flags::cube_compatible) == api::resource_flags::cube_compatible)
+		create_info.flags |= VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
+	else
+		create_info.flags &= ~VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
 }
 void reshade::vulkan::convert_resource_desc(const api::resource_desc &desc, VkBufferCreateInfo &create_info)
 {
@@ -807,6 +812,9 @@ reshade::api::resource_desc reshade::vulkan::convert_resource_desc(const VkImage
 	if (desc.type == api::resource_type::texture_2d && (
 		create_info.usage & (desc.texture.samples > 1 ? VK_IMAGE_USAGE_TRANSFER_SRC_BIT : VK_IMAGE_USAGE_TRANSFER_DST_BIT)) != 0)
 		desc.usage |= desc.texture.samples > 1 ? api::resource_usage::resolve_source : api::resource_usage::resolve_dest;
+
+	if ((create_info.flags & VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT) != 0)
+		desc.flags |= api::resource_flags::cube_compatible;
 
 	return desc;
 }

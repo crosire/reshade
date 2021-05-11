@@ -428,6 +428,8 @@ reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DSURFAC
 	convert_d3d_usage_to_resource_usage(internal_desc.Usage, desc.usage);
 	if (internal_desc.Type == D3DRTYPE_TEXTURE || internal_desc.Type == D3DRTYPE_CUBETEXTURE)
 		desc.usage |= api::resource_usage::shader_resource;
+	if (internal_desc.Type == D3DRTYPE_CUBETEXTURE)
+		desc.flags |= api::resource_flags::cube_compatible;
 
 	// Copying is restricted by limitations of 'IDirect3DDevice9::StretchRect' (see https://docs.microsoft.com/windows/win32/api/d3d9helper/nf-d3d9helper-idirect3ddevice9-stretchrect)
 	// or performing copy between two textures using rasterization pipeline (see 'device_impl::copy_resource' implementation)

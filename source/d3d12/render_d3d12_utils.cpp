@@ -73,7 +73,7 @@ reshade::api::sampler_desc reshade::d3d12::convert_sampler_desc(const D3D12_SAMP
 	return desc;
 }
 
-void reshade::d3d12::convert_resource_desc(const api::resource_desc &desc, D3D12_RESOURCE_DESC &internal_desc, D3D12_HEAP_PROPERTIES &heap_props)
+void reshade::d3d12::convert_resource_desc(const api::resource_desc &desc, D3D12_RESOURCE_DESC &internal_desc, D3D12_HEAP_PROPERTIES &heap_props, D3D12_HEAP_FLAGS &heap_flags)
 {
 	switch (desc.type)
 	{
@@ -146,8 +146,11 @@ void reshade::d3d12::convert_resource_desc(const api::resource_desc &desc, D3D12
 		internal_desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 	else
 		internal_desc.Flags &= ~D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+
+	if ((desc.flags & api::resource_flags::shared) == api::resource_flags::shared)
+		heap_flags |= D3D12_HEAP_FLAG_SHARED;
 }
-reshade::api::resource_desc reshade::d3d12::convert_resource_desc(const D3D12_RESOURCE_DESC &internal_desc, const D3D12_HEAP_PROPERTIES &heap_props)
+reshade::api::resource_desc reshade::d3d12::convert_resource_desc(const D3D12_RESOURCE_DESC &internal_desc, const D3D12_HEAP_PROPERTIES &heap_props, D3D12_HEAP_FLAGS heap_flags)
 {
 	api::resource_desc desc = {};
 	switch (internal_desc.Dimension)
@@ -218,6 +221,9 @@ reshade::api::resource_desc reshade::d3d12::convert_resource_desc(const D3D12_RE
 		desc.usage |= api::resource_usage::shader_resource;
 	if ((internal_desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) != 0)
 		desc.usage |= api::resource_usage::unordered_access;
+
+	if ((heap_flags & D3D12_HEAP_FLAG_SHARED) != 0)
+		desc.flags |= api::resource_flags::shared;
 
 	return desc;
 }

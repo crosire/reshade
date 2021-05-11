@@ -320,12 +320,27 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 			else if (internal_desc.Format == D3DFMT_UNKNOWN)
 				break;
 
-			if (com_ptr<IDirect3DTexture9> object;
-				SUCCEEDED(_orig->CreateTexture(internal_desc.Width, internal_desc.Height, levels, internal_desc.Usage, internal_desc.Format, internal_desc.Pool, &object, nullptr)))
+			if ((desc.flags & api::resource_flags::cube_compatible) != api::resource_flags::cube_compatible)
 			{
-				_resources.register_object(object.get());
-				*out = { reinterpret_cast<uintptr_t>(object.release()) };
-				return true;
+				if (com_ptr<IDirect3DTexture9> object;
+					SUCCEEDED(_orig->CreateTexture(internal_desc.Width, internal_desc.Height, levels, internal_desc.Usage, internal_desc.Format, internal_desc.Pool, &object, nullptr)))
+				{
+					_resources.register_object(object.get());
+					*out = { reinterpret_cast<uintptr_t>(object.release()) };
+					return true;
+				}
+			}
+			else
+			{
+				assert(internal_desc.Width == internal_desc.Height);
+
+				if (com_ptr<IDirect3DCubeTexture9> object;
+					SUCCEEDED(_orig->CreateCubeTexture(internal_desc.Width, levels, internal_desc.Usage, internal_desc.Format, internal_desc.Pool, &object, nullptr)))
+				{
+					_resources.register_object(object.get());
+					*out = { reinterpret_cast<uintptr_t>(object.release()) };
+					return true;
+				}
 			}
 			break;
 		}

@@ -3177,7 +3177,12 @@ HOOK_EXPORT void WINAPI glTexImage2D(GLenum target, GLint level, GLint internalf
 			if (!reshade::opengl::check_resource_desc(target, desc, reinterpret_cast<GLenum &>(internalformat)) || (unpack != 0 && initial_data != nullptr))
 				return false;
 			// Assumes that the row and depth pitch are equivalent to the 'format' and 'type' options
-			trampoline(target, level, internalformat, desc.texture.width, desc.texture.height, desc.texture.depth_or_layers, border, format, type, (unpack != 0) ? pixels : (initial_data != nullptr) ? initial_data->data : nullptr);
+			trampoline(
+				target, level, internalformat,
+				desc.texture.width, desc.texture.height,
+				(desc.flags & reshade::api::resource_flags::cube_compatible) != reshade::api::resource_flags::cube_compatible ? desc.texture.depth_or_layers : desc.texture.depth_or_layers / 6,
+				border, format, type,
+				(unpack != 0) ? pixels : (initial_data != nullptr) ? initial_data->data : nullptr);
 			return true;
 		}, g_current_runtime, reshade::opengl::convert_resource_desc(target, 1, 1, static_cast<GLenum>(internalformat), width, height, depth), (unpack == 0 && pixels != nullptr) ? &initial_data : nullptr, reshade::api::resource_usage::undefined);
 #else
@@ -3193,7 +3198,11 @@ HOOK_EXPORT void WINAPI glTexImage2D(GLenum target, GLint level, GLint internalf
 		[target, &internalformat, fixedsamplelocations](reshade::api::device *, const reshade::api::resource_desc &desc, const reshade::api::subresource_data *initial_data, reshade::api::resource_usage) {
 			if (!reshade::opengl::check_resource_desc(target, desc, internalformat) || initial_data != nullptr)
 				return false;
-			trampoline(target, desc.texture.samples, internalformat, desc.texture.width, desc.texture.height, desc.texture.depth_or_layers, fixedsamplelocations);
+			trampoline(
+				target, desc.texture.samples, internalformat,
+				desc.texture.width, desc.texture.height,
+				(desc.flags & reshade::api::resource_flags::cube_compatible) != reshade::api::resource_flags::cube_compatible ? desc.texture.depth_or_layers : desc.texture.depth_or_layers / 6,
+				fixedsamplelocations);
 			return true;
 		}, g_current_runtime, reshade::opengl::convert_resource_desc(target, 1, samples, internalformat, width, height, depth), nullptr, reshade::api::resource_usage::undefined);
 #else
@@ -3273,7 +3282,8 @@ HOOK_EXPORT void WINAPI glTexSubImage2D(GLenum target, GLint level, GLint xoffse
 			if (!reshade::opengl::check_resource_desc(target, desc, internalformat) || initial_data != nullptr)
 				return false;
 			static const auto trampoline = reshade::hooks::call(glTexStorage3D);
-			trampoline(target, desc.texture.levels, internalformat, desc.texture.width, desc.texture.height, desc.texture.depth_or_layers);
+			trampoline(target, desc.texture.levels, internalformat, desc.texture.width, desc.texture.height,
+				(desc.flags & reshade::api::resource_flags::cube_compatible) != reshade::api::resource_flags::cube_compatible ? desc.texture.depth_or_layers : desc.texture.depth_or_layers / 6);
 			return true;
 		}, g_current_runtime, reshade::opengl::convert_resource_desc(target, levels, 1, internalformat, width, height, depth), nullptr, reshade::api::resource_usage::undefined);
 }
@@ -3284,7 +3294,9 @@ HOOK_EXPORT void WINAPI glTexSubImage2D(GLenum target, GLint level, GLint xoffse
 			if (!reshade::opengl::check_resource_desc(GL_TEXTURE_1D, desc, internalformat) || initial_data != nullptr)
 				return false;
 			static const auto trampoline = reshade::hooks::call(glTexStorage3DMultisample);
-			trampoline(target, desc.texture.samples, internalformat, desc.texture.width, desc.texture.height, desc.texture.depth_or_layers, fixedsamplelocations);
+			trampoline(target, desc.texture.samples, internalformat, desc.texture.width, desc.texture.height,
+				(desc.flags & reshade::api::resource_flags::cube_compatible) != reshade::api::resource_flags::cube_compatible ? desc.texture.depth_or_layers : desc.texture.depth_or_layers / 6,
+				fixedsamplelocations);
 			return true;
 		}, g_current_runtime, reshade::opengl::convert_resource_desc(target, 1, samples, internalformat, width, height, depth), nullptr, reshade::api::resource_usage::undefined);
 }
@@ -3328,7 +3340,8 @@ HOOK_EXPORT void WINAPI glTexSubImage2D(GLenum target, GLint level, GLint xoffse
 			if (!reshade::opengl::check_resource_desc(GL_TEXTURE_3D, desc, internalformat) || initial_data != nullptr)
 				return false;
 			static const auto trampoline = reshade::hooks::call(glTextureStorage3D);
-			trampoline(texture, desc.texture.levels, internalformat, desc.texture.width, desc.texture.height, desc.texture.depth_or_layers);
+			trampoline(texture, desc.texture.levels, internalformat, desc.texture.width, desc.texture.height,
+				(desc.flags & reshade::api::resource_flags::cube_compatible) != reshade::api::resource_flags::cube_compatible ? desc.texture.depth_or_layers : desc.texture.depth_or_layers / 6);
 			return true;
 		}, g_current_runtime, reshade::opengl::convert_resource_desc(GL_TEXTURE_3D, levels, 1, internalformat, width, height, depth), nullptr, reshade::api::resource_usage::undefined);
 }
@@ -3339,7 +3352,9 @@ HOOK_EXPORT void WINAPI glTexSubImage2D(GLenum target, GLint level, GLint xoffse
 			if (!reshade::opengl::check_resource_desc(GL_TEXTURE_3D, desc, internalformat) || initial_data != nullptr)
 				return false;
 			static const auto trampoline = reshade::hooks::call(glTextureStorage3DMultisample);
-			trampoline(texture, desc.texture.samples, internalformat, desc.texture.width, desc.texture.height, desc.texture.depth_or_layers, fixedsamplelocations);
+			trampoline(texture, desc.texture.samples, internalformat, desc.texture.width, desc.texture.height,
+				(desc.flags & reshade::api::resource_flags::cube_compatible) != reshade::api::resource_flags::cube_compatible ? desc.texture.depth_or_layers : desc.texture.depth_or_layers / 6,
+				fixedsamplelocations);
 			return true;
 		}, g_current_runtime, reshade::opengl::convert_resource_desc(GL_TEXTURE_3D, 1, samples, internalformat, width, height, depth), nullptr, reshade::api::resource_usage::undefined);
 }

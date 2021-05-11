@@ -634,6 +634,13 @@ reshade::api::resource_desc reshade::opengl::convert_resource_desc(GLenum target
 	if (desc.type != api::resource_type::surface)
 		desc.usage |= api::resource_usage::shader_resource;
 
+	if (target == GL_TEXTURE_CUBE_MAP || target == GL_TEXTURE_CUBE_MAP_ARRAY ||
+		target == GL_PROXY_TEXTURE_CUBE_MAP || target == GL_PROXY_TEXTURE_CUBE_MAP_ARRAY)
+	{
+		desc.texture.depth_or_layers *= 6;
+		desc.flags |= api::resource_flags::cube_compatible;
+	}
+
 	return desc;
 }
 

@@ -500,7 +500,10 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 		target = desc.texture.depth_or_layers > 1 ? GL_TEXTURE_1D_ARRAY : GL_TEXTURE_1D;
 		break;
 	case api::resource_type::texture_2d:
-		target = desc.texture.depth_or_layers > 1 ? GL_TEXTURE_2D_ARRAY : GL_TEXTURE_2D;
+		if ((desc.flags & api::resource_flags::cube_compatible) != api::resource_flags::cube_compatible)
+			target = desc.texture.depth_or_layers > 1 ? GL_TEXTURE_2D_ARRAY : GL_TEXTURE_2D;
+		else
+			target = desc.texture.depth_or_layers > 6 ? GL_TEXTURE_CUBE_MAP_ARRAY : GL_TEXTURE_CUBE_MAP;
 		break;
 	case api::resource_type::texture_3d:
 		target = GL_TEXTURE_3D;
@@ -536,20 +539,28 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 		glGenTextures(1, &object);
 		glBindTexture(target, object);
 
+		GLuint depth_or_layers = desc.texture.depth_or_layers;
 		switch (target)
 		{
 		case GL_TEXTURE_1D:
 			glTexStorage1D(target, desc.texture.levels, internal_format, desc.texture.width);
 			break;
 		case GL_TEXTURE_1D_ARRAY:
-			glTexStorage2D(target, desc.texture.levels, internal_format, desc.texture.width, desc.texture.depth_or_layers);
+			glTexStorage2D(target, desc.texture.levels, internal_format, desc.texture.width, depth_or_layers);
 			break;
+		case GL_TEXTURE_CUBE_MAP:
+			assert(depth_or_layers == 6);
+			[[fallthrough]];
 		case GL_TEXTURE_2D:
 			glTexStorage2D(target, desc.texture.levels, internal_format, desc.texture.width, desc.texture.height);
 			break;
+		case GL_TEXTURE_CUBE_MAP_ARRAY:
+			assert((depth_or_layers % 6) == 0);
+			depth_or_layers /= 6;
+			[[fallthrough]];
 		case GL_TEXTURE_2D_ARRAY:
 		case GL_TEXTURE_3D:
-			glTexStorage3D(target, desc.texture.levels, internal_format, desc.texture.width, desc.texture.height, desc.texture.depth_or_layers);
+			glTexStorage3D(target, desc.texture.levels, internal_format, desc.texture.width, desc.texture.height, depth_or_layers);
 			break;
 		}
 
