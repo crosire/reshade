@@ -80,7 +80,7 @@ namespace reshade::vulkan
 		friend class command_queue_impl;
 
 	public:
-		device_impl(VkDevice device, VkPhysicalDevice physical_device, const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table);
+		device_impl(VkDevice device, VkPhysicalDevice physical_device, const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table, const VkPhysicalDeviceFeatures &enabled_features);
 		~device_impl();
 
 		api::device_api get_api() const final { return api::device_api::vulkan; }

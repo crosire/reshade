@@ -20,11 +20,9 @@ static inline VkImageSubresourceLayers convert_subresource(uint32_t subresource,
 	return result;
 }
 
-reshade::vulkan::device_impl::device_impl(VkDevice device, VkPhysicalDevice physical_device, const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table) :
-	api_object_impl(device), _physical_device(physical_device), _dispatch_table(device_table), _instance_dispatch_table(instance_table)
+reshade::vulkan::device_impl::device_impl(VkDevice device, VkPhysicalDevice physical_device, const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table, const VkPhysicalDeviceFeatures &enabled_features) :
+	api_object_impl(device), _physical_device(physical_device), _dispatch_table(device_table), _instance_dispatch_table(instance_table), _enabled_features(enabled_features)
 {
-	_instance_dispatch_table.GetPhysicalDeviceFeatures(physical_device, &_enabled_features);
-
 	{	VmaVulkanFunctions functions;
 		functions.vkGetPhysicalDeviceProperties = instance_table.GetPhysicalDeviceProperties;
 		functions.vkGetPhysicalDeviceMemoryProperties = instance_table.GetPhysicalDeviceMemoryProperties;
@@ -270,7 +268,8 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 						{
 							const api::resource_usage states[2] = { api::resource_usage::undefined, initial_state };
 							immediate_command_list->insert_barrier(1, out, &states[0], &states[1]);
-							immediate_command_list->flush_and_wait((VkQueue)queue->get_native_object());
+
+							queue->flush_immediate_command_list();
 							break;
 						}
 					}
@@ -306,7 +305,7 @@ bool reshade::vulkan::device_impl::create_resource_view(api::resource resource, 
 		// Shader resource views can never access stencil data (except for the explicit formats that do that), so remove that aspect flag for views created with a format that supports stencil
 		if (desc.format == api::format::x24_unorm_g8_uint || desc.format == api::format::x32_float_g8_uint)
 			create_info.subresourceRange.aspectMask &= ~VK_IMAGE_ASPECT_DEPTH_BIT;
-		else if ((usage_type & api::resource_usage::shader_resource) != api::resource_usage::shader_resource)
+		else if ((usage_type & api::resource_usage::shader_resource) != api::resource_usage::undefined)
 			create_info.subresourceRange.aspectMask &= ~VK_IMAGE_ASPECT_STENCIL_BIT;
 
 		VkImageView image_view = VK_NULL_HANDLE;
@@ -794,6 +793,23 @@ bool reshade::vulkan::device_impl::create_query_heap(api::query_type type, uint3
 	if (VkQueryPool pool = VK_NULL_HANDLE;
 		vk.CreateQueryPool(_orig, &create_info, nullptr, &pool) == VK_SUCCESS)
 	{
+		// Reset all queries for initial use
+#if 0
+		vk.ResetQueryPool(_orig, pool, 0, count);
+#else
+		for (command_queue_impl *const queue : _queues)
+		{
+			const auto immediate_command_list = static_cast<command_list_immediate_impl *>(queue->get_immediate_command_list());
+			if (immediate_command_list != nullptr)
+			{
+				vk.CmdResetQueryPool(immediate_command_list->_orig, pool, 0, count);
+
+				queue->flush_immediate_command_list();
+				break;
+			}
+		}
+#endif
+
 		*out = { (uint64_t)pool };
 		return true;
 	}
@@ -966,7 +982,21 @@ bool reshade::vulkan::device_impl::get_query_results(api::query_heap heap, uint3
 
 	if (vk.GetQueryPoolResults(_orig, (VkQueryPool)heap.handle, first, count, count * stride, results, stride, VK_QUERY_RESULT_64_BIT) == VK_SUCCESS)
 	{
+#if  0
 		vk.ResetQueryPool(_orig, (VkQueryPool)heap.handle, first, count);
+#else
+		for (command_queue_impl *const queue : _queues)
+		{
+			const auto immediate_command_list = static_cast<command_list_immediate_impl *>(queue->get_immediate_command_list());
+			if (immediate_command_list != nullptr)
+			{
+				vk.CmdResetQueryPool(immediate_command_list->_orig, (VkQueryPool)heap.handle, first, count);
+
+				queue->flush_immediate_command_list();
+				break;
+			}
+		}
+#endif
 		return true;
 	}
 	else
@@ -1731,6 +1761,9 @@ void reshade::vulkan::command_list_impl::copy_query_results(api::query_heap heap
 
 void reshade::vulkan::command_list_impl::insert_barrier(uint32_t count, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states)
 {
+	if (count == 0)
+		return;
+
 	_has_commands = true;
 
 	std::vector<VkImageMemoryBarrier> image_barriers;
@@ -1774,6 +1807,8 @@ void reshade::vulkan::command_list_impl::insert_barrier(uint32_t count, const ap
 		src_stage_mask |= convert_usage_to_pipeline_stage(old_states[i], _device_impl->_enabled_features.tessellationShader, _device_impl->_enabled_features.geometryShader);
 		dst_stage_mask |= convert_usage_to_pipeline_stage(new_states[i], _device_impl->_enabled_features.tessellationShader, _device_impl->_enabled_features.geometryShader);
 	}
+
+	assert(src_stage_mask != 0 && dst_stage_mask != 0);
 
 	_device_impl->vk.CmdPipelineBarrier(_orig, src_stage_mask, dst_stage_mask, 0, 0, nullptr, static_cast<uint32_t>(buffer_barriers.size()), buffer_barriers.data(), static_cast<uint32_t>(image_barriers.size()), image_barriers.data());
 }

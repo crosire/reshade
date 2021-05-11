@@ -319,7 +319,8 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		device,
 		physicalDevice,
 		g_instance_dispatch.at(dispatch_key_from_handle(physicalDevice)),
-		dispatch_table);
+		dispatch_table,
+		enabled_features);
 
 	device_impl->_graphics_queue_family_index = graphics_queue_family_index;
 
