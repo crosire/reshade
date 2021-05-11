@@ -24,17 +24,7 @@ namespace reshade { namespace api
 		all = 0x7FFFFFFF,
 		all_graphics = 0x1F
 	};
-
-	constexpr bool operator!=(shader_stage lhs, uint32_t rhs) { return static_cast<uint32_t>(lhs) != rhs; }
-	constexpr bool operator!=(uint32_t lhs, shader_stage rhs) { return lhs != static_cast<uint32_t>(rhs); }
-	constexpr bool operator==(shader_stage lhs, uint32_t rhs) { return static_cast<uint32_t>(lhs) == rhs; }
-	constexpr bool operator==(uint32_t lhs, shader_stage rhs) { return lhs == static_cast<uint32_t>(rhs); }
-	constexpr shader_stage operator^(shader_stage lhs, shader_stage rhs) { return static_cast<shader_stage>(static_cast<uint32_t>(lhs) ^ static_cast<uint32_t>(rhs)); }
-	constexpr shader_stage operator&(shader_stage lhs, shader_stage rhs) { return static_cast<shader_stage>(static_cast<uint32_t>(lhs) & static_cast<uint32_t>(rhs)); }
-	constexpr shader_stage operator|(shader_stage lhs, shader_stage rhs) { return static_cast<shader_stage>(static_cast<uint32_t>(lhs) | static_cast<uint32_t>(rhs)); }
-	constexpr shader_stage &operator^=(shader_stage &lhs, shader_stage rhs) { return lhs = static_cast<shader_stage>(static_cast<uint32_t>(lhs) ^ static_cast<uint32_t>(rhs)); }
-	constexpr shader_stage &operator&=(shader_stage &lhs, shader_stage rhs) { return lhs = static_cast<shader_stage>(static_cast<uint32_t>(lhs) & static_cast<uint32_t>(rhs)); }
-	constexpr shader_stage &operator|=(shader_stage &lhs, shader_stage rhs) { return lhs = static_cast<shader_stage>(static_cast<uint32_t>(lhs) | static_cast<uint32_t>(rhs)); }
+	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(shader_stage);
 
 	/// <summary>
 	/// The available shader source formats.
@@ -377,37 +367,37 @@ namespace reshade { namespace api
 	/// An opaque handle to a pipeline state object.
 	/// <para>Depending on the render API this is really a pointer to a 'ID3D12PipelineState' object or a 'VkPipeline' handle.</para>
 	/// </summary>
-	typedef struct { uint64_t handle; } pipeline;
+	RESHADE_DEFINE_HANDLE(pipeline);
 
 	/// <summary>
 	/// An opaque handle to a shader module.
 	/// <para>Depending on the render API this is really a pointer to a 'IDirect3D(...)Shader9', 'ID3D10(...)Shader', 'ID3D11(...)Shader' or a 'VkShaderModule'.</para>
 	/// </summary>
-	typedef struct { uint64_t handle; } shader_module;
+	RESHADE_DEFINE_HANDLE(shader_module);
 
 	/// <summary>
 	/// An opaque handle to a pipeline layout object.
 	/// <para>Depending on the render API this is really a pointer to a 'ID3D12RootSignature' object or a 'VkPipelineLayout' handle.</para>
 	/// </summary>
-	typedef struct { uint64_t handle; } pipeline_layout;
+	RESHADE_DEFINE_HANDLE(pipeline_layout);
 
 	/// <summary>
 	/// An opaque handle to a descriptor heap/pool.
 	/// <para>Depending on the render API this is really a pointer to a 'ID3D12DescriptorHeap' object or a 'VkDescriptorPool' handle.</para>
 	/// </summary>
-	typedef struct { uint64_t handle; } descriptor_heap;
+	RESHADE_DEFINE_HANDLE(descriptor_heap);
 
 	/// <summary>
 	/// An opaque handle to a descriptor table/set.
 	/// <para>Depending on the render API this is really a 'D3D12_GPU_DESCRIPTOR_HANDLE' or a 'VkDescriptorSet' handle.</para>
 	/// </summary>
-	typedef struct { uint64_t handle; } descriptor_table;
+	RESHADE_DEFINE_HANDLE(descriptor_table);
 
 	/// <summary>
 	/// An opaque handle to a descriptor table/set layout.
 	/// <para>Depending on the render API this is really a 'VkDescriptorSetLayout' handle.</para>
 	/// </summary>
-	typedef struct { uint64_t handle; } descriptor_table_layout;
+	RESHADE_DEFINE_HANDLE(descriptor_table_layout);
 
 	/// <summary>
 	/// Describes a pipeline state object.

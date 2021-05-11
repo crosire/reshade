@@ -220,7 +220,7 @@ bool reshade::d3d9::device_impl::check_capability(api::device_caps capability) c
 }
 bool reshade::d3d9::device_impl::check_format_support(api::format format, api::resource_usage usage) const
 {
-	if ((usage & api::resource_usage::unordered_access) != 0)
+	if ((usage & api::resource_usage::unordered_access) != api::resource_usage::undefined)
 		return false;
 
 	DWORD d3d_usage = 0;
@@ -230,13 +230,13 @@ bool reshade::d3d9::device_impl::check_format_support(api::format format, api::r
 	return d3d_format != D3DFMT_UNKNOWN && SUCCEEDED(_d3d->CheckDeviceFormat(_cp.AdapterOrdinal, _cp.DeviceType, D3DFMT_X8R8G8B8, d3d_usage, D3DRTYPE_TEXTURE, d3d_format));
 }
 
-bool reshade::d3d9::device_impl::check_resource_handle_valid(api::resource resource) const
+bool reshade::d3d9::device_impl::check_resource_handle_valid(api::resource handle) const
 {
-	return resource.handle != 0 && _resources.has_object(reinterpret_cast<IDirect3DResource9 *>(resource.handle));
+	return handle.handle != 0 && _resources.has_object(reinterpret_cast<IDirect3DResource9 *>(handle.handle));
 }
-bool reshade::d3d9::device_impl::check_resource_view_handle_valid(api::resource_view view) const
+bool reshade::d3d9::device_impl::check_resource_view_handle_valid(api::resource_view handle) const
 {
-	return view.handle != 0 && _resources.has_object(reinterpret_cast<IDirect3DResource9 *>(view.handle));
+	return handle.handle != 0 && _resources.has_object(reinterpret_cast<IDirect3DResource9 *>(handle.handle));
 }
 
 bool reshade::d3d9::device_impl::create_sampler(const api::sampler_desc &desc, api::sampler *out)
@@ -266,31 +266,36 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 	{
 		case api::resource_type::buffer:
 		{
-			if (desc.usage == api::resource_usage::index_buffer)
+			switch (desc.usage & (api::resource_usage::index_buffer | api::resource_usage::vertex_buffer | api::resource_usage::constant_buffer))
 			{
-				D3DINDEXBUFFER_DESC internal_desc = {};
-				convert_resource_desc(desc, internal_desc);
-				internal_desc.Format = D3DFMT_INDEX16; // TODO: Index format
-
-				if (com_ptr<IDirect3DIndexBuffer9> object;
-					SUCCEEDED(_orig->CreateIndexBuffer(internal_desc.Size, internal_desc.Usage, internal_desc.Format, internal_desc.Pool, &object, nullptr)))
+				case api::resource_usage::index_buffer:
 				{
-					_resources.register_object(object.get());
-					*out = { reinterpret_cast<uintptr_t>(object.release()) };
-					return true;
+					D3DINDEXBUFFER_DESC internal_desc = {};
+					convert_resource_desc(desc, internal_desc);
+					internal_desc.Format = D3DFMT_INDEX16; // TODO: Index format
+
+					if (com_ptr<IDirect3DIndexBuffer9> object;
+						SUCCEEDED(_orig->CreateIndexBuffer(internal_desc.Size, internal_desc.Usage, internal_desc.Format, internal_desc.Pool, &object, nullptr)))
+					{
+						_resources.register_object(object.get());
+						*out = { reinterpret_cast<uintptr_t>(object.release()) };
+						return true;
+					}
+					break;
 				}
-			}
-			if (desc.usage == api::resource_usage::vertex_buffer)
-			{
-				D3DVERTEXBUFFER_DESC internal_desc = {};
-				convert_resource_desc(desc, internal_desc);
-
-				if (com_ptr<IDirect3DVertexBuffer9> object;
-					SUCCEEDED(_orig->CreateVertexBuffer(internal_desc.Size, internal_desc.Usage, internal_desc.FVF, internal_desc.Pool, &object, nullptr)))
+				case api::resource_usage::vertex_buffer:
 				{
-					_resources.register_object(object.get());
-					*out = { reinterpret_cast<uintptr_t>(object.release()) };
-					return true;
+					D3DVERTEXBUFFER_DESC internal_desc = {};
+					convert_resource_desc(desc, internal_desc);
+
+					if (com_ptr<IDirect3DVertexBuffer9> object;
+						SUCCEEDED(_orig->CreateVertexBuffer(internal_desc.Size, internal_desc.Usage, internal_desc.FVF, internal_desc.Pool, &object, nullptr)))
+					{
+						_resources.register_object(object.get());
+						*out = { reinterpret_cast<uintptr_t>(object.release()) };
+						return true;
+					}
+					break;
 				}
 			}
 			break;
@@ -305,7 +310,15 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 			UINT levels = 0;
 			D3DSURFACE_DESC internal_desc = {};
 			convert_resource_desc(desc, internal_desc, &levels);
-			assert(internal_desc.Format != D3DFMT_UNKNOWN);
+
+			if (desc.texture.format == api::format::r8_typeless || desc.texture.format == api::format::r8_unorm ||
+				desc.texture.format == api::format::r8g8_typeless || desc.texture.format == api::format::r8g8_unorm)
+			{
+				// Use 4-component format so that unused components are returned as zero and alpha as one (to match behavior from other APIs)
+				internal_desc.Format = D3DFMT_X8R8G8B8;
+			}
+			else if (internal_desc.Format == D3DFMT_UNKNOWN)
+				break;
 
 			if (com_ptr<IDirect3DTexture9> object;
 				SUCCEEDED(_orig->CreateTexture(internal_desc.Width, internal_desc.Height, levels, internal_desc.Usage, internal_desc.Format, internal_desc.Pool, &object, nullptr)))
@@ -325,7 +338,15 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 			UINT levels = 0;
 			D3DVOLUME_DESC internal_desc = {};
 			convert_resource_desc(desc, internal_desc, &levels);
-			assert(internal_desc.Format != D3DFMT_UNKNOWN);
+
+			if (desc.texture.format == api::format::r8_typeless || desc.texture.format == api::format::r8_unorm ||
+				desc.texture.format == api::format::r8g8_typeless || desc.texture.format == api::format::r8g8_unorm)
+			{
+				// Use 4-component format so that unused components are returned as zero and alpha as one (to match behavior from other APIs)
+				internal_desc.Format = D3DFMT_X8R8G8B8;
+			}
+			else if (internal_desc.Format == D3DFMT_UNKNOWN)
+				break;
 
 			if (com_ptr<IDirect3DVolumeTexture9> object;
 				SUCCEEDED(_orig->CreateVolumeTexture(internal_desc.Width, internal_desc.Height, internal_desc.Depth, levels, internal_desc.Usage, internal_desc.Format, internal_desc.Pool, &object, nullptr)))
@@ -1050,15 +1071,16 @@ void reshade::d3d9::device_impl::bind_scissor_rects(uint32_t first, uint32_t cou
 
 void reshade::d3d9::device_impl::push_constants(api::shader_stage stage, api::pipeline_layout, uint32_t, uint32_t first, uint32_t count, const uint32_t *values)
 {
-	if ((stage & api::shader_stage::vertex) != 0)
+	if ((stage & api::shader_stage::vertex) != api::shader_stage::vertex)
 		_orig->SetVertexShaderConstantF(first / 4, reinterpret_cast<const float *>(values), count / 4);
-	if ((stage & api::shader_stage::pixel) != 0)
+	if ((stage & api::shader_stage::pixel) != api::shader_stage::pixel)
 		_orig->SetPixelShaderConstantF(first / 4, reinterpret_cast<const float *>(values), count / 4);
 }
 void reshade::d3d9::device_impl::push_descriptors(api::shader_stage stage, api::pipeline_layout layout, uint32_t layout_index, api::descriptor_type type, uint32_t first, uint32_t count, const void *descriptors)
 {
 	if ((stage & (api::shader_stage::vertex | api::shader_stage::pixel)) == (api::shader_stage::vertex | api::shader_stage::pixel))
 	{
+		// Call for each individual shader stage
 		push_descriptors(api::shader_stage::vertex, layout, layout_index, type, first, count, descriptors);
 		push_descriptors(api::shader_stage::pixel, layout, layout_index, type, first, count, descriptors);
 		return;

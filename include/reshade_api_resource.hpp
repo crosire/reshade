@@ -7,6 +7,27 @@
 
 #include "reshade_api_format.hpp"
 
+#ifndef RESHADE_DEFINE_HANDLE
+	#define RESHADE_DEFINE_HANDLE(name) \
+		typedef struct { uint64_t handle; } name; \
+		constexpr bool operator< (name lhs, name rhs) { return lhs.handle < rhs.handle; } \
+		constexpr bool operator!=(name lhs, name rhs) { return lhs.handle != rhs.handle; } \
+		constexpr bool operator!=(name lhs, uint64_t rhs) { return lhs.handle != rhs; } \
+		constexpr bool operator==(name lhs, name rhs) { return lhs.handle == rhs.handle; } \
+		constexpr bool operator==(name lhs, uint64_t rhs) { return lhs.handle == rhs; }
+#endif
+
+#ifndef RESHADE_DEFINE_ENUM_FLAG_OPERATORS
+	#define RESHADE_DEFINE_ENUM_FLAG_OPERATORS(type) \
+		constexpr type operator~(type a) { return static_cast<type>(~static_cast<uint32_t>(a)); } \
+		inline type &operator&=(type &a, type b) { return reinterpret_cast<type &>(reinterpret_cast<uint32_t &>(a) &= static_cast<uint32_t>(b)); } \
+		constexpr type operator&(type a, type b) { return static_cast<type>(static_cast<uint32_t>(a) & static_cast<uint32_t>(b)); } \
+		inline type &operator|=(type &a, type b) { return reinterpret_cast<type &>(reinterpret_cast<uint32_t &>(a) |= static_cast<uint32_t>(b)); } \
+		constexpr type operator|(type a, type b) { return static_cast<type>(static_cast<uint32_t>(a) | static_cast<uint32_t>(b)); } \
+		inline type &operator^=(type &a, type b) { return reinterpret_cast<type &>(reinterpret_cast<uint32_t &>(a) ^= static_cast<uint32_t>(b)); } \
+		constexpr type operator^(type a, type b) { return static_cast<type>(static_cast<uint32_t>(a) ^ static_cast<uint32_t>(b)); }
+#endif
+
 namespace reshade { namespace api
 {
 	/// <summary>
@@ -90,17 +111,7 @@ namespace reshade { namespace api
 		present = 0x80000000 | render_target | copy_source,
 		cpu_access = 0x80000000 | vertex_buffer | index_buffer | shader_resource | 0x200 | copy_source
 	};
-
-	constexpr bool operator!=(resource_usage lhs, uint32_t rhs) { return static_cast<uint32_t>(lhs) != rhs; }
-	constexpr bool operator!=(uint32_t lhs, resource_usage rhs) { return lhs != static_cast<uint32_t>(rhs); }
-	constexpr bool operator==(resource_usage lhs, uint32_t rhs) { return static_cast<uint32_t>(lhs) == rhs; }
-	constexpr bool operator==(uint32_t lhs, resource_usage rhs) { return lhs == static_cast<uint32_t>(rhs); }
-	constexpr resource_usage operator^(resource_usage lhs, resource_usage rhs) { return static_cast<resource_usage>(static_cast<uint32_t>(lhs) ^ static_cast<uint32_t>(rhs)); }
-	constexpr resource_usage operator&(resource_usage lhs, resource_usage rhs) { return static_cast<resource_usage>(static_cast<uint32_t>(lhs) & static_cast<uint32_t>(rhs)); }
-	constexpr resource_usage operator|(resource_usage lhs, resource_usage rhs) { return static_cast<resource_usage>(static_cast<uint32_t>(lhs) | static_cast<uint32_t>(rhs)); }
-	constexpr resource_usage &operator^=(resource_usage &lhs, resource_usage rhs) { return lhs = static_cast<resource_usage>(static_cast<uint32_t>(lhs) ^ static_cast<uint32_t>(rhs)); }
-	constexpr resource_usage &operator&=(resource_usage &lhs, resource_usage rhs) { return lhs = static_cast<resource_usage>(static_cast<uint32_t>(lhs) & static_cast<uint32_t>(rhs)); }
-	constexpr resource_usage &operator|=(resource_usage &lhs, resource_usage rhs) { return lhs = static_cast<resource_usage>(static_cast<uint32_t>(lhs) | static_cast<uint32_t>(rhs)); }
+	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(resource_usage);
 
 	/// <summary>
 	/// The available filtering types used for texture sampling operations.
@@ -258,7 +269,7 @@ namespace reshade { namespace api
 	/// An opaque handle to a sampler state object.
 	/// <para>Depending on the render API this is really a pointer to a 'ID3D10SamplerState', 'ID3D11SamplerState' or a 'D3D12_CPU_DESCRIPTOR_HANDLE' (to a sampler descriptor) or 'VkSampler' handle.</para>
 	/// </summary>
-	typedef struct { uint64_t handle; } sampler;
+	RESHADE_DEFINE_HANDLE(sampler);
 
 	/// <summary>
 	/// An opaque handle to a resource object (buffer, texture, ...).
@@ -266,15 +277,7 @@ namespace reshade { namespace api
 	/// If you want to use one outside that scope, first ensure the resource is still valid via <see cref="device::check_resource_handle_valid"/>.</para>
 	/// <para>Depending on the render API this is really a pointer to a 'IDirect3DResource9', 'ID3D10Resource', 'ID3D11Resource' or 'ID3D12Resource' object or a 'VkImage' handle.</para>
 	/// </summary>
-	typedef struct { uint64_t handle; } resource;
-
-	constexpr bool operator< (resource lhs, resource rhs) { return lhs.handle < rhs.handle; }
-	constexpr bool operator!=(resource lhs, uint64_t rhs) { return lhs.handle != rhs; }
-	constexpr bool operator!=(uint64_t lhs, resource rhs) { return lhs != rhs.handle; }
-	constexpr bool operator!=(resource lhs, resource rhs) { return lhs.handle != rhs.handle; }
-	constexpr bool operator==(resource lhs, uint64_t rhs) { return lhs.handle == rhs; }
-	constexpr bool operator==(uint64_t lhs, resource rhs) { return lhs == rhs.handle; }
-	constexpr bool operator==(resource lhs, resource rhs) { return lhs.handle == rhs.handle; }
+	RESHADE_DEFINE_HANDLE(resource);
 
 	/// <summary>
 	/// An opaque handle to a resource view object (depth-stencil, render target, shader resource view, ...).
@@ -282,13 +285,5 @@ namespace reshade { namespace api
 	/// If you want to use one outside that scope, first ensure the resource view is still valid via <see cref="device::check_resource_view_handle_valid"/>.</para>
 	/// <para>Depending on the render API this is really a pointer to a 'IDirect3DResource9', 'ID3D10View' or 'ID3D11View' object, or a 'D3D12_CPU_DESCRIPTOR_HANDLE' (to a view descriptor) or 'VkImageView' handle.</para>
 	/// </summary>
-	typedef struct { uint64_t handle; } resource_view;
-
-	constexpr bool operator< (resource_view lhs, resource_view rhs) { return lhs.handle < rhs.handle; }
-	constexpr bool operator!=(resource_view lhs, uint64_t rhs) { return lhs.handle != rhs; }
-	constexpr bool operator!=(uint64_t lhs, resource_view rhs) { return lhs != rhs.handle; }
-	constexpr bool operator!=(resource_view lhs, resource_view rhs) { return lhs.handle != rhs.handle; }
-	constexpr bool operator==(resource_view lhs, uint64_t rhs) { return lhs.handle == rhs; }
-	constexpr bool operator==(uint64_t lhs, resource_view rhs) { return lhs == rhs.handle; }
-	constexpr bool operator==(resource_view lhs, resource_view rhs) { return lhs.handle == rhs.handle; }
+	RESHADE_DEFINE_HANDLE(resource_view);
 } }

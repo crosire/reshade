@@ -13,7 +13,7 @@ namespace reshade::opengl
 {
 	inline api::resource make_resource_handle(GLenum target, GLuint object)
 	{
-		if (object == 0)
+		if (!object)
 			return { 0 };
 		return { (static_cast<uint64_t>(target) << 40) | object };
 	}
@@ -33,8 +33,8 @@ namespace reshade::opengl
 		bool check_capability(api::device_caps capability) const final;
 		bool check_format_support(api::format format, api::resource_usage usage) const final;
 
-		bool check_resource_handle_valid(api::resource resource) const final;
-		bool check_resource_view_handle_valid(api::resource_view view) const final;
+		bool check_resource_handle_valid(api::resource handle) const final;
+		bool check_resource_view_handle_valid(api::resource_view handle) const final;
 
 		bool create_sampler(const api::sampler_desc &desc, api::sampler *out) final;
 		bool create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage initial_state, api::resource *out) final;

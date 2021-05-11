@@ -94,36 +94,37 @@ bool reshade::d3d10::device_impl::check_capability(api::device_caps capability) 
 }
 bool reshade::d3d10::device_impl::check_format_support(api::format format, api::resource_usage usage) const
 {
-	if ((usage & api::resource_usage::unordered_access) != 0)
+	if ((usage & api::resource_usage::unordered_access) != api::resource_usage::undefined)
 		return false;
 
 	UINT support = 0;
 	if (FAILED(_orig->CheckFormatSupport(convert_format(format), &support)))
 		return false;
 
-	if ((usage & api::resource_usage::render_target) != 0 &&
-		(support & D3D10_FORMAT_SUPPORT_RENDER_TARGET) == 0)
-		return false;
-	if ((usage & api::resource_usage::depth_stencil) != 0 &&
+	if ((usage & api::resource_usage::depth_stencil) != api::resource_usage::undefined &&
 		(support & D3D10_FORMAT_SUPPORT_DEPTH_STENCIL) == 0)
 		return false;
-	if ((usage & api::resource_usage::shader_resource) != 0 &&
-		(support & D3D10_FORMAT_SUPPORT_SHADER_SAMPLE) == 0)
+	if ((usage & api::resource_usage::render_target) != api::resource_usage::undefined &&
+		(support & D3D10_FORMAT_SUPPORT_RENDER_TARGET) == 0)
 		return false;
-	if ((usage & (api::resource_usage::resolve_source | api::resource_usage::resolve_dest)) != 0 &&
+	if ((usage & api::resource_usage::shader_resource) != api::resource_usage::undefined &&
+		(support & (D3D10_FORMAT_SUPPORT_SHADER_LOAD | D3D10_FORMAT_SUPPORT_SHADER_SAMPLE)) == 0)
+		return false;
+
+	if ((usage & (api::resource_usage::resolve_source | api::resource_usage::resolve_dest)) != api::resource_usage::undefined &&
 		(support & D3D10_FORMAT_SUPPORT_MULTISAMPLE_RESOLVE) == 0)
 		return false;
 
 	return true;
 }
 
-bool reshade::d3d10::device_impl::check_resource_handle_valid(api::resource resource) const
+bool reshade::d3d10::device_impl::check_resource_handle_valid(api::resource handle) const
 {
-	return resource.handle != 0 && _resources.has_object(reinterpret_cast<ID3D10Resource *>(resource.handle));
+	return handle.handle != 0 && _resources.has_object(reinterpret_cast<ID3D10Resource *>(handle.handle));
 }
-bool reshade::d3d10::device_impl::check_resource_view_handle_valid(api::resource_view view) const
+bool reshade::d3d10::device_impl::check_resource_view_handle_valid(api::resource_view handle) const
 {
-	return view.handle != 0 && _views.has_object(reinterpret_cast<ID3D10View *>(view.handle));
+	return handle.handle != 0 && _views.has_object(reinterpret_cast<ID3D10View *>(handle.handle));
 }
 
 bool reshade::d3d10::device_impl::create_sampler(const api::sampler_desc &desc, api::sampler *out)
@@ -844,11 +845,11 @@ void reshade::d3d10::device_impl::bind_samplers(api::shader_stage stage, uint32_
 	const auto sampler_ptrs = reinterpret_cast<ID3D10SamplerState *const *>(samplers);
 #endif
 
-	if ((stage & api::shader_stage::vertex) != 0)
+	if ((stage & api::shader_stage::vertex) == api::shader_stage::vertex)
 		_orig->VSSetSamplers(first, count, sampler_ptrs);
-	if ((stage & api::shader_stage::geometry) != 0)
+	if ((stage & api::shader_stage::geometry) == api::shader_stage::geometry)
 		_orig->GSSetSamplers(first, count, sampler_ptrs);
-	if ((stage & api::shader_stage::pixel) != 0)
+	if ((stage & api::shader_stage::pixel) == api::shader_stage::pixel)
 		_orig->PSSetSamplers(first, count, sampler_ptrs);
 }
 void reshade::d3d10::device_impl::bind_shader_resource_views(api::shader_stage stage, uint32_t first, uint32_t count, const api::resource_view *views)
@@ -867,11 +868,11 @@ void reshade::d3d10::device_impl::bind_shader_resource_views(api::shader_stage s
 	const auto view_ptrs = reinterpret_cast<ID3D10ShaderResourceView *const *>(views);
 #endif
 
-	if ((stage & api::shader_stage::vertex) != 0)
+	if ((stage & api::shader_stage::vertex) == api::shader_stage::vertex)
 		_orig->VSSetShaderResources(first, count, view_ptrs);
-	if ((stage & api::shader_stage::geometry) != 0)
+	if ((stage & api::shader_stage::geometry) == api::shader_stage::geometry)
 		_orig->GSSetShaderResources(first, count, view_ptrs);
-	if ((stage & api::shader_stage::pixel) != 0)
+	if ((stage & api::shader_stage::pixel) == api::shader_stage::pixel)
 		_orig->PSSetShaderResources(first, count, view_ptrs);
 }
 void reshade::d3d10::device_impl::bind_constant_buffers(api::shader_stage stage, uint32_t first, uint32_t count, const api::resource *buffers)
@@ -890,11 +891,11 @@ void reshade::d3d10::device_impl::bind_constant_buffers(api::shader_stage stage,
 	const auto buffer_ptrs = reinterpret_cast<ID3D10Buffer *const *>(buffers);
 #endif
 
-	if ((stage & api::shader_stage::vertex) != 0)
+	if ((stage & api::shader_stage::vertex) == api::shader_stage::vertex)
 		_orig->VSSetConstantBuffers(first, count, buffer_ptrs);
-	if ((stage & api::shader_stage::geometry) != 0)
+	if ((stage & api::shader_stage::geometry) == api::shader_stage::geometry)
 		_orig->GSSetConstantBuffers(first, count, buffer_ptrs);
-	if ((stage & api::shader_stage::pixel) != 0)
+	if ((stage & api::shader_stage::pixel) == api::shader_stage::pixel)
 		_orig->PSSetConstantBuffers(first, count, buffer_ptrs);
 }
 
@@ -912,11 +913,11 @@ void reshade::d3d10::device_impl::push_constants(api::shader_stage stage, api::p
 		push_constants->Unmap();
 	}
 
-	if ((stage & api::shader_stage::vertex) != 0)
+	if ((stage & api::shader_stage::vertex) == api::shader_stage::vertex)
 		_orig->VSSetConstantBuffers(layout_impl->push_constants_binding, 1, &push_constants);
-	if ((stage & api::shader_stage::geometry) != 0)
+	if ((stage & api::shader_stage::geometry) == api::shader_stage::geometry)
 		_orig->GSSetConstantBuffers(layout_impl->push_constants_binding, 1, &push_constants);
-	if ((stage & api::shader_stage::pixel) != 0)
+	if ((stage & api::shader_stage::pixel) == api::shader_stage::pixel)
 		_orig->PSSetConstantBuffers(layout_impl->push_constants_binding, 1, &push_constants);
 }
 void reshade::d3d10::device_impl::push_descriptors(api::shader_stage stage, api::pipeline_layout layout, uint32_t layout_index, api::descriptor_type type, uint32_t first, uint32_t count, const void *descriptors)

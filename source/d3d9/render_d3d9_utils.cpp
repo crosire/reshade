@@ -20,26 +20,25 @@ auto reshade::d3d9::convert_format(api::format format, bool lockable) -> D3DFORM
 	case api::format::a8_unorm:
 		return D3DFMT_A8;
 	case api::format::r8_typeless:
+	case api::format::r8_unorm:
 	case api::format::r8_uint:
 	case api::format::r8_sint:
-	case api::format::r8_unorm:
 	case api::format::r8_snorm:
-		// Use 4-component format so that blue component is returned as zero and alpha as one (to match behavior from other APIs)
-		return D3DFMT_X8R8G8B8;
+		return D3DFMT_L8;
 	case api::format::r8g8_typeless:
 	case api::format::r8g8_unorm:
 	case api::format::r8g8_uint:
 	case api::format::r8g8_snorm:
 	case api::format::r8g8_sint:
-		// Use 4-component format so that green/blue components are returned as zero and alpha as one (to match behavior from other APIs)
-		return D3DFMT_X8R8G8B8;
+		break; // Unsupported
 	case api::format::r8g8b8a8_typeless:
-	case api::format::r8g8b8a8_uint:
-	case api::format::r8g8b8a8_sint:
 	case api::format::r8g8b8a8_unorm:
 	case api::format::r8g8b8a8_unorm_srgb:
-	case api::format::r8g8b8a8_snorm:
 		return D3DFMT_A8B8G8R8;
+	case api::format::r8g8b8a8_uint:
+	case api::format::r8g8b8a8_sint:
+	case api::format::r8g8b8a8_snorm:
+		break; // Unsupported
 	case api::format::b8g8r8a8_typeless:
 	case api::format::b8g8r8a8_unorm:
 	case api::format::b8g8r8a8_unorm_srgb:
@@ -112,10 +111,11 @@ auto reshade::d3d9::convert_format(api::format format, bool lockable) -> D3DFORM
 	case api::format::d16_unorm_s8_uint:
 		break; // Unsupported
 	case api::format::r24_g8_typeless:
-	case api::format::r24_unorm_x8_uint:
-	case api::format::x24_unorm_g8_uint:
 	case api::format::d24_unorm_s8_uint:
 		return D3DFMT_D24S8;
+	case api::format::r24_unorm_x8_uint:
+	case api::format::x24_unorm_g8_uint:
+		break; // Unsupported
 	case api::format::d32_float:
 		return lockable ? D3DFMT_D32F_LOCKABLE : D3DFMT_D32;
 	case api::format::r32_g8_typeless:
@@ -158,19 +158,15 @@ auto reshade::d3d9::convert_format(D3DFORMAT d3d_format) -> api::format
 	switch (static_cast<DWORD>(d3d_format))
 	{
 	default:
-		assert(false);
-		[[fallthrough]];
 	case D3DFMT_UNKNOWN:
 		return api::format::unknown;
 	case D3DFMT_A1:
 		return api::format::r1_unorm;
 	case D3DFMT_A8:
 		return api::format::a8_unorm;
-#if 0
-	case D3DFMT_P8:
 	case D3DFMT_L8:
 		return api::format::r8_unorm;
-	case D3DFMT_A8P8:
+#if 0
 	case D3DFMT_A8L8:
 		return api::format::r8g8_unorm;
 #endif
@@ -286,18 +282,18 @@ void reshade::d3d9::convert_resource_usage_to_d3d_usage(api::resource_usage usag
 {
 	// Copying textures is implemented using the rasterization pipeline (see 'device_impl::copy_resource' implementation), so needs render target usage
 	// When the destination in 'IDirect3DDevice9::StretchRect' is a texture surface, it too has to have render target usage (see https://docs.microsoft.com/windows/win32/api/d3d9helper/nf-d3d9helper-idirect3ddevice9-stretchrect)
-	if ((usage & (api::resource_usage::render_target | api::resource_usage::copy_dest | api::resource_usage::resolve_dest)) != 0)
+	if ((usage & (api::resource_usage::render_target | api::resource_usage::copy_dest | api::resource_usage::resolve_dest)) != api::resource_usage::undefined)
 		d3d_usage |= D3DUSAGE_RENDERTARGET;
 	else
 		d3d_usage &= ~D3DUSAGE_RENDERTARGET;
 
-	if ((usage & (api::resource_usage::depth_stencil)) != 0)
+	if ((usage & (api::resource_usage::depth_stencil)) != api::resource_usage::undefined)
 		d3d_usage |= D3DUSAGE_DEPTHSTENCIL;
 	else
 		d3d_usage &= ~D3DUSAGE_DEPTHSTENCIL;
 
 	// Unordered access is not supported in D3D9
-	assert((usage & api::resource_usage::unordered_access) == 0);
+	assert((usage & api::resource_usage::unordered_access) == api::resource_usage::undefined);
 }
 void reshade::d3d9::convert_d3d_usage_to_resource_usage(DWORD d3d_usage, api::resource_usage &usage)
 {

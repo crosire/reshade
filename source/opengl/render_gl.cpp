@@ -316,20 +316,36 @@ bool reshade::opengl::device_impl::check_format_support(api::format format, api:
 	GLint supported = GL_FALSE;
 	glGetInternalformativ(GL_TEXTURE_2D, internal_format, GL_INTERNALFORMAT_SUPPORTED, 1, &supported);
 
-	GLint supported_renderable = GL_CAVEAT_SUPPORT;
-	if ((usage & api::resource_usage::render_target) != 0)
-		glGetInternalformativ(GL_TEXTURE_2D, internal_format, GL_FRAMEBUFFER_RENDERABLE, 1, &supported_renderable);
+	GLint supported_depth = GL_TRUE;
+	GLint supported_stencil = GL_TRUE;
+	if ((usage & api::resource_usage::depth_stencil) != api::resource_usage::undefined)
+	{
+		glGetInternalformativ(GL_TEXTURE_2D, internal_format, GL_DEPTH_RENDERABLE, 1, &supported_depth);
+		glGetInternalformativ(GL_TEXTURE_2D, internal_format, GL_STENCIL_RENDERABLE, 1, &supported_stencil);
+	}
 
-	GLint supported_image_load = GL_CAVEAT_SUPPORT;
-	if ((usage & api::resource_usage::unordered_access) != 0)
-		glGetInternalformativ(GL_TEXTURE_2D, internal_format, GL_SHADER_IMAGE_LOAD, 1, &supported_image_load);
+	GLint supported_color_render = GL_TRUE;
+	GLint supported_render_target = GL_CAVEAT_SUPPORT;
+	if ((usage & api::resource_usage::render_target) != api::resource_usage::undefined)
+	{
+		glGetInternalformativ(GL_TEXTURE_2D, internal_format, GL_COLOR_RENDERABLE, 1, &supported_color_render);
+		glGetInternalformativ(GL_TEXTURE_2D, internal_format, GL_FRAMEBUFFER_RENDERABLE, 1, &supported_render_target);
+	}
 
-	return supported != GL_FALSE && supported_renderable != GL_NONE && supported_image_load != GL_NONE;
+	GLint supported_unordered_access_load = GL_CAVEAT_SUPPORT;
+	GLint supported_unordered_access_store = GL_CAVEAT_SUPPORT;
+	if ((usage & api::resource_usage::unordered_access) != api::resource_usage::undefined)
+	{
+		glGetInternalformativ(GL_TEXTURE_2D, internal_format, GL_SHADER_IMAGE_LOAD, 1, &supported_unordered_access_load);
+		glGetInternalformativ(GL_TEXTURE_2D, internal_format, GL_SHADER_IMAGE_STORE, 1, &supported_unordered_access_store);
+	}
+
+	return supported && (supported_depth || supported_stencil) && (supported_color_render && supported_render_target) && (supported_unordered_access_load && supported_unordered_access_store);
 }
 
-bool reshade::opengl::device_impl::check_resource_handle_valid(api::resource resource) const
+bool reshade::opengl::device_impl::check_resource_handle_valid(api::resource handle) const
 {
-	switch (resource.handle >> 40)
+	switch (handle.handle >> 40)
 	{
 	case GL_BUFFER:
 	case GL_ARRAY_BUFFER:
@@ -345,7 +361,7 @@ bool reshade::opengl::device_impl::check_resource_handle_valid(api::resource res
 	case GL_DISPATCH_INDIRECT_BUFFER:
 	case GL_QUERY_BUFFER:
 	case GL_ATOMIC_COUNTER_BUFFER:
-		return glIsBuffer(resource.handle & 0xFFFFFFFF) != GL_FALSE;
+		return glIsBuffer(handle.handle & 0xFFFFFFFF) != GL_FALSE;
 	case GL_TEXTURE:
 	case GL_TEXTURE_BUFFER:
 	case GL_TEXTURE_1D:
@@ -358,26 +374,26 @@ bool reshade::opengl::device_impl::check_resource_handle_valid(api::resource res
 	case GL_TEXTURE_CUBE_MAP:
 	case GL_TEXTURE_CUBE_MAP_ARRAY:
 	case GL_TEXTURE_RECTANGLE:
-		return glIsTexture(resource.handle & 0xFFFFFFFF) != GL_FALSE;
+		return glIsTexture(handle.handle & 0xFFFFFFFF) != GL_FALSE;
 	case GL_RENDERBUFFER:
-		return glIsRenderbuffer(resource.handle & 0xFFFFFFFF) != GL_FALSE;
+		return glIsRenderbuffer(handle.handle & 0xFFFFFFFF) != GL_FALSE;
 	case GL_FRAMEBUFFER_DEFAULT:
-		return (resource.handle & 0xFFFFFFFF) != GL_DEPTH_ATTACHMENT || _default_depth_format != GL_NONE;
+		return (handle.handle & 0xFFFFFFFF) != GL_DEPTH_ATTACHMENT || _default_depth_format != GL_NONE;
 	default:
 		return false;
 	}
 }
-bool reshade::opengl::device_impl::check_resource_view_handle_valid(api::resource_view view) const
+bool reshade::opengl::device_impl::check_resource_view_handle_valid(api::resource_view handle) const
 {
-	const GLenum attachment = view.handle >> 40;
+	const GLenum attachment = handle.handle >> 40;
 	if ((attachment >= GL_COLOR_ATTACHMENT0 && attachment <= GL_COLOR_ATTACHMENT31) || attachment == GL_DEPTH_ATTACHMENT || attachment == GL_STENCIL_ATTACHMENT)
 	{
-		const GLuint fbo = view.handle & 0xFFFFFFFF;
+		const GLuint fbo = handle.handle & 0xFFFFFFFF;
 		return fbo == 0 || glIsFramebuffer(fbo) != GL_FALSE;
 	}
 	else
 	{
-		return check_resource_handle_valid({ view.handle });
+		return check_resource_handle_valid({ handle.handle });
 	}
 }
 
@@ -464,12 +480,21 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 	switch (desc.type)
 	{
 	case api::resource_type::buffer:
-		     if ((desc.usage & api::resource_usage::index_buffer) != 0)
+		switch (desc.usage & (api::resource_usage::index_buffer | api::resource_usage::vertex_buffer | api::resource_usage::constant_buffer))
+		{
+		case api::resource_usage::index_buffer:
 			target = GL_ELEMENT_ARRAY_BUFFER;
-		else if ((desc.usage & api::resource_usage::vertex_buffer) != 0)
+			break;
+		case api::resource_usage::vertex_buffer:
 			target = GL_ARRAY_BUFFER;
-		else if ((desc.usage & api::resource_usage::constant_buffer) != 0)
+			break;
+		case api::resource_usage::constant_buffer:
 			target = GL_UNIFORM_BUFFER;
+			break;
+		default:
+			assert(false);
+			return false;
+		}
 		break;
 	case api::resource_type::texture_1d:
 		target = desc.texture.depth_or_layers > 1 ? GL_TEXTURE_1D_ARRAY : GL_TEXTURE_1D;

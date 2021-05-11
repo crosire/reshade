@@ -20,20 +20,22 @@ auto reshade::d3d11::convert_format(DXGI_FORMAT format) -> api::format
 
 static void convert_memory_heap_to_d3d_usage(reshade::api::memory_heap heap, D3D11_USAGE &usage, UINT &cpu_access_flags)
 {
+	using namespace reshade;
+
 	switch (heap)
 	{
-	case reshade::api::memory_heap::gpu_only:
+	case api::memory_heap::gpu_only:
 		usage = D3D11_USAGE_DEFAULT;
 		break;
-	case reshade::api::memory_heap::cpu_to_gpu:
+	case api::memory_heap::cpu_to_gpu:
 		usage = D3D11_USAGE_DYNAMIC;
 		cpu_access_flags |= D3D11_CPU_ACCESS_WRITE;
 		break;
-	case reshade::api::memory_heap::gpu_to_cpu:
+	case api::memory_heap::gpu_to_cpu:
 		usage = D3D11_USAGE_STAGING;
 		cpu_access_flags |= D3D11_CPU_ACCESS_READ;
 		break;
-	case reshade::api::memory_heap::cpu_only:
+	case api::memory_heap::cpu_only:
 		usage = D3D11_USAGE_STAGING;
 		cpu_access_flags |= D3D11_CPU_ACCESS_READ | D3D11_CPU_ACCESS_WRITE;
 		break;
@@ -41,78 +43,84 @@ static void convert_memory_heap_to_d3d_usage(reshade::api::memory_heap heap, D3D
 }
 static void convert_d3d_usage_to_memory_heap(D3D11_USAGE usage, reshade::api::memory_heap &heap)
 {
+	using namespace reshade;
+
 	switch (usage)
 	{
 	case D3D11_USAGE_DEFAULT:
 	case D3D11_USAGE_IMMUTABLE:
-		heap = reshade::api::memory_heap::gpu_only;
+		heap = api::memory_heap::gpu_only;
 		break;
 	case D3D11_USAGE_DYNAMIC:
-		heap = reshade::api::memory_heap::cpu_to_gpu;
+		heap = api::memory_heap::cpu_to_gpu;
 		break;
 	case D3D11_USAGE_STAGING:
-		heap = reshade::api::memory_heap::gpu_to_cpu;
+		heap = api::memory_heap::gpu_to_cpu;
 		break;
 	}
 }
 
 static void convert_resource_usage_to_bind_flags(reshade::api::resource_usage usage, UINT &bind_flags)
 {
-	if ((usage & reshade::api::resource_usage::render_target) != 0)
-		bind_flags |= D3D11_BIND_RENDER_TARGET;
-	else
-		bind_flags &= ~D3D11_BIND_RENDER_TARGET;
+	using namespace reshade;
 
-	if ((usage & reshade::api::resource_usage::depth_stencil) != 0)
+	if ((usage & api::resource_usage::depth_stencil) != api::resource_usage::undefined)
 		bind_flags |= D3D11_BIND_DEPTH_STENCIL;
 	else
 		bind_flags &= ~D3D11_BIND_DEPTH_STENCIL;
 
-	if ((usage & reshade::api::resource_usage::shader_resource) != 0)
+	if ((usage & api::resource_usage::render_target) != api::resource_usage::undefined)
+		bind_flags |= D3D11_BIND_RENDER_TARGET;
+	else
+		bind_flags &= ~D3D11_BIND_RENDER_TARGET;
+
+	if ((usage & api::resource_usage::shader_resource) != api::resource_usage::undefined)
 		bind_flags |= D3D11_BIND_SHADER_RESOURCE;
 	else
 		bind_flags &= ~D3D11_BIND_SHADER_RESOURCE;
 
-	if ((usage & reshade::api::resource_usage::unordered_access) != 0)
+	if ((usage & api::resource_usage::unordered_access) != api::resource_usage::undefined)
 		bind_flags |= D3D11_BIND_UNORDERED_ACCESS;
 	else
 		bind_flags &= ~D3D11_BIND_UNORDERED_ACCESS;
 
-	if ((usage & reshade::api::resource_usage::index_buffer) != 0)
+	if ((usage & api::resource_usage::index_buffer) != api::resource_usage::undefined)
 		bind_flags |= D3D11_BIND_INDEX_BUFFER;
 	else
 		bind_flags &= ~D3D11_BIND_INDEX_BUFFER;
 
-	if ((usage & reshade::api::resource_usage::vertex_buffer) != 0)
+	if ((usage & api::resource_usage::vertex_buffer) != api::resource_usage::undefined)
 		bind_flags |= D3D11_BIND_VERTEX_BUFFER;
 	else
 		bind_flags &= ~D3D11_BIND_VERTEX_BUFFER;
 
-	if ((usage & reshade::api::resource_usage::constant_buffer) != 0)
+	if ((usage & api::resource_usage::constant_buffer) != api::resource_usage::undefined)
 		bind_flags |= D3D11_BIND_CONSTANT_BUFFER;
 	else
 		bind_flags &= ~D3D11_BIND_CONSTANT_BUFFER;
 }
 static void convert_bind_flags_to_resource_usage(UINT bind_flags, reshade::api::resource_usage &usage)
 {
-	// Resources are generally copyable in D3D11
-	usage |= reshade::api::resource_usage::copy_dest | reshade::api::resource_usage::copy_source;
+	using namespace reshade;
 
-	if ((bind_flags & D3D11_BIND_RENDER_TARGET) != 0)
-		usage |= reshade::api::resource_usage::render_target;
+	// Resources are generally copyable in D3D11
+	usage |= api::resource_usage::copy_dest | api::resource_usage::copy_source;
+
 	if ((bind_flags & D3D11_BIND_DEPTH_STENCIL) != 0)
-		usage |= reshade::api::resource_usage::depth_stencil;
+		usage |= api::resource_usage::depth_stencil;
+	if ((bind_flags & D3D11_BIND_RENDER_TARGET) != 0)
+		usage |= api::resource_usage::render_target;
 	if ((bind_flags & D3D11_BIND_SHADER_RESOURCE) != 0)
-		usage |= reshade::api::resource_usage::shader_resource;
+		usage |= api::resource_usage::shader_resource;
 	if ((bind_flags & D3D11_BIND_UNORDERED_ACCESS) != 0)
-		usage |= reshade::api::resource_usage::unordered_access;
+		usage |= api::resource_usage::unordered_access;
 
 	if ((bind_flags & D3D11_BIND_INDEX_BUFFER) != 0)
-		usage |= reshade::api::resource_usage::index_buffer;
+		usage |= api::resource_usage::index_buffer;
 	if ((bind_flags & D3D11_BIND_VERTEX_BUFFER) != 0)
-		usage |= reshade::api::resource_usage::vertex_buffer;
+		usage |= api::resource_usage::vertex_buffer;
 	if ((bind_flags & D3D11_BIND_CONSTANT_BUFFER) != 0)
-		usage |= reshade::api::resource_usage::constant_buffer;
+		usage |= api::resource_usage::constant_buffer;
 }
 
 void reshade::d3d11::convert_sampler_desc(const api::sampler_desc &desc, D3D11_SAMPLER_DESC &internal_desc)

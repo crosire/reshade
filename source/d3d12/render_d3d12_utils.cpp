@@ -34,7 +34,7 @@ D3D12_RESOURCE_STATES reshade::d3d12::convert_resource_usage_to_states(api::reso
 	}
 
 	// The separate constant buffer state does not exist in D3D12, so replace it with the combined vertex/constant buffer one
-	if ((usage & api::resource_usage::constant_buffer) != 0)
+	if ((usage & api::resource_usage::constant_buffer) == api::resource_usage::constant_buffer)
 	{
 		result |= D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
 		result ^= static_cast<D3D12_RESOURCE_STATES>(api::resource_usage::constant_buffer);
@@ -127,22 +127,22 @@ void reshade::d3d12::convert_resource_desc(const api::resource_desc &desc, D3D12
 		break;
 	}
 
-	if ((desc.usage & api::resource_usage::render_target) != 0)
-		internal_desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
-	else
-		internal_desc.Flags &= ~D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
-
-	if ((desc.usage & api::resource_usage::depth_stencil) != 0)
+	if ((desc.usage & api::resource_usage::depth_stencil) != api::resource_usage::undefined)
 		internal_desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
 	else
 		internal_desc.Flags &= ~D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
 
-	if ((desc.usage & api::resource_usage::shader_resource) == 0 && (internal_desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL) != 0)
+	if ((desc.usage & api::resource_usage::render_target) != api::resource_usage::undefined)
+		internal_desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+	else
+		internal_desc.Flags &= ~D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+
+	if ((desc.usage & api::resource_usage::shader_resource) == api::resource_usage::undefined && (internal_desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL) != 0)
 		internal_desc.Flags |= D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
 	else
 		internal_desc.Flags &= ~D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
 
-	if ((desc.usage & api::resource_usage::unordered_access) != 0)
+	if ((desc.usage & api::resource_usage::unordered_access) != api::resource_usage::undefined)
 		internal_desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 	else
 		internal_desc.Flags &= ~D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
@@ -210,10 +210,10 @@ reshade::api::resource_desc reshade::d3d12::convert_resource_desc(const D3D12_RE
 	// Resources are generally copyable in D3D12
 	desc.usage |= api::resource_usage::copy_dest | api::resource_usage::copy_source;
 
-	if ((internal_desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET) != 0)
-		desc.usage |= api::resource_usage::render_target;
 	if ((internal_desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL) != 0)
 		desc.usage |= api::resource_usage::depth_stencil;
+	if ((internal_desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET) != 0)
+		desc.usage |= api::resource_usage::render_target;
 	if ((internal_desc.Flags & D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE) == 0)
 		desc.usage |= api::resource_usage::shader_resource;
 	if ((internal_desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) != 0)

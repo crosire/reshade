@@ -23,6 +23,8 @@ static inline VkImageSubresourceLayers convert_subresource(uint32_t subresource,
 reshade::vulkan::device_impl::device_impl(VkDevice device, VkPhysicalDevice physical_device, const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table) :
 	api_object_impl(device), _physical_device(physical_device), _dispatch_table(device_table), _instance_dispatch_table(instance_table)
 {
+	_instance_dispatch_table.GetPhysicalDeviceFeatures(physical_device, &_enabled_features);
+
 	{	VmaVulkanFunctions functions;
 		functions.vkGetPhysicalDeviceProperties = instance_table.GetPhysicalDeviceProperties;
 		functions.vkGetPhysicalDeviceMemoryProperties = instance_table.GetPhysicalDeviceMemoryProperties;
@@ -85,34 +87,31 @@ reshade::vulkan::device_impl::~device_impl()
 
 bool reshade::vulkan::device_impl::check_capability(api::device_caps capability) const
 {
-	VkPhysicalDeviceFeatures features = {};
-	_instance_dispatch_table.GetPhysicalDeviceFeatures(_physical_device, &features);
-
 	switch (capability)
 	{
 	case api::device_caps::compute_shader:
 		return true;
 	case api::device_caps::geometry_shader:
-		return features.geometryShader;
+		return _enabled_features.geometryShader;
 	case api::device_caps::tessellation_shaders:
-		return features.tessellationShader;
+		return _enabled_features.tessellationShader;
 	case api::device_caps::dual_src_blend:
-		return features.dualSrcBlend;
+		return _enabled_features.dualSrcBlend;
 	case api::device_caps::independent_blend:
-		return features.independentBlend;
+		return _enabled_features.independentBlend;
 	case api::device_caps::logic_op:
-		return features.logicOp;
+		return _enabled_features.logicOp;
 	case api::device_caps::draw_instanced:
 		return true;
 	case api::device_caps::draw_or_dispatch_indirect:
 		// Technically this only specifies whether multi-draw indirect is supported, not draw indirect as a whole
-		return features.multiDrawIndirect;
+		return _enabled_features.multiDrawIndirect;
 	case api::device_caps::fill_mode_non_solid:
-		return features.fillModeNonSolid;
+		return _enabled_features.fillModeNonSolid;
 	case api::device_caps::multi_viewport:
-		return features.multiViewport;
+		return _enabled_features.multiViewport;
 	case api::device_caps::sampler_anisotropy:
-		return features.samplerAnisotropy;
+		return _enabled_features.samplerAnisotropy;
 	case api::device_caps::push_descriptors:
 		return vk.CmdPushDescriptorSetKHR != nullptr;
 	case api::device_caps::descriptor_tables:
@@ -132,52 +131,54 @@ bool reshade::vulkan::device_impl::check_format_support(api::format format, api:
 	if (vk_format == VK_FORMAT_UNDEFINED)
 		return false;
 
-	VkFormatProperties props = {};
+	VkFormatProperties props;
+	props.optimalTilingFeatures = 0;
 	_instance_dispatch_table.GetPhysicalDeviceFormatProperties(_physical_device, vk_format, &props);
 
-	if ((usage & api::resource_usage::render_target) != 0 &&
-		(props.optimalTilingFeatures & VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT) == 0)
-		return false;
-	if ((usage & api::resource_usage::depth_stencil) != 0 &&
+	if ((usage & api::resource_usage::depth_stencil) != api::resource_usage::undefined &&
 		(props.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) == 0)
 		return false;
-	if ((usage & api::resource_usage::shader_resource) != 0 &&
+	if ((usage & api::resource_usage::render_target) != api::resource_usage::undefined &&
+		(props.optimalTilingFeatures & VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT) == 0)
+		return false;
+	if ((usage & api::resource_usage::shader_resource) != api::resource_usage::undefined &&
 		(props.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT) == 0)
 		return false;
-	if ((usage & api::resource_usage::unordered_access) != 0 &&
+	if ((usage & api::resource_usage::unordered_access) != api::resource_usage::undefined &&
 		(props.optimalTilingFeatures & VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT) == 0)
 		return false;
-	if ((usage & api::resource_usage::copy_dest) != 0 &&
+
+	if ((usage & (api::resource_usage::copy_dest | api::resource_usage::resolve_dest)) != api::resource_usage::undefined &&
 		(props.optimalTilingFeatures & VK_FORMAT_FEATURE_TRANSFER_DST_BIT) == 0)
 		return false;
-	if ((usage & api::resource_usage::copy_source) != 0 &&
+	if ((usage & (api::resource_usage::copy_source | api::resource_usage::resolve_source)) != api::resource_usage::undefined &&
 		(props.optimalTilingFeatures & VK_FORMAT_FEATURE_TRANSFER_SRC_BIT) == 0)
 		return false;
 
 	return true;
 }
 
-bool reshade::vulkan::device_impl::check_resource_handle_valid(api::resource resource) const
+bool reshade::vulkan::device_impl::check_resource_handle_valid(api::resource handle) const
 {
-	if (resource.handle == 0)
+	if (handle.handle == 0)
 		return false;
-	const resource_data &data = _resources.at(resource.handle);
+	const resource_data &data = _resources.at(handle.handle);
 
 	if (data.is_image())
-		return data.image == (VkImage)resource.handle;
+		return data.image == (VkImage)handle.handle;
 	else
-		return data.buffer == (VkBuffer)resource.handle;
+		return data.buffer == (VkBuffer)handle.handle;
 }
-bool reshade::vulkan::device_impl::check_resource_view_handle_valid(api::resource_view view) const
+bool reshade::vulkan::device_impl::check_resource_view_handle_valid(api::resource_view handle) const
 {
-	if (view.handle == 0)
+	if (handle.handle == 0)
 		return false;
-	const resource_view_data &data = _views.at(view.handle);
+	const resource_view_data &data = _views.at(handle.handle);
 
 	if (data.is_image_view())
-		return data.image_view == (VkImageView)view.handle;
+		return data.image_view == (VkImageView)handle.handle;
 	else
-		return data.buffer_view == (VkBufferView)view.handle;
+		return data.buffer_view == (VkBufferView)handle.handle;
 }
 
 bool reshade::vulkan::device_impl::create_sampler(const api::sampler_desc &desc, api::sampler *out)
@@ -247,7 +248,9 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 		{
 			VkImageCreateInfo create_info { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
 			convert_resource_desc(desc, create_info);
-			if ((desc.usage & (api::resource_usage::render_target | api::resource_usage::shader_resource)) != 0)
+
+			// A typeless format indicates that views with different typed formats can be created, so set mutable flag
+			if (desc.texture.format == api::format_to_typeless(desc.texture.format))
 				create_info.flags |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
 
 			if (VkImage object = VK_NULL_HANDLE;
@@ -290,11 +293,19 @@ bool reshade::vulkan::device_impl::create_resource_view(api::resource resource, 
 		VkImageViewCreateInfo create_info { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
 		convert_resource_view_desc(desc, create_info);
 		create_info.image = data.image;
-		create_info.components = { VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY };
 		create_info.subresourceRange.aspectMask = aspect_flags_from_format(create_info.format);
 
-		// Shader resource views can never access stencil data, so remove that aspect flag for views created with a format that supports stencil
-		if ((usage_type & api::resource_usage::shader_resource) != 0)
+		if (desc.format == api::format::a8_unorm)
+			create_info.components = { VK_COMPONENT_SWIZZLE_ZERO, VK_COMPONENT_SWIZZLE_ZERO, VK_COMPONENT_SWIZZLE_ZERO, VK_COMPONENT_SWIZZLE_R };
+		else if (desc.format == api::format::b8g8r8x8_unorm || desc.format == api::format::b8g8r8x8_unorm_srgb)
+			create_info.components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_ONE };
+		else
+			create_info.components = { VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY };
+
+		// Shader resource views can never access stencil data (except for the explicit formats that do that), so remove that aspect flag for views created with a format that supports stencil
+		if (desc.format == api::format::x24_unorm_g8_uint || desc.format == api::format::x32_float_g8_uint)
+			create_info.subresourceRange.aspectMask &= ~VK_IMAGE_ASPECT_DEPTH_BIT;
+		else if ((usage_type & api::resource_usage::shader_resource) != api::resource_usage::shader_resource)
 			create_info.subresourceRange.aspectMask &= ~VK_IMAGE_ASPECT_STENCIL_BIT;
 
 		VkImageView image_view = VK_NULL_HANDLE;
@@ -1642,8 +1653,8 @@ void reshade::vulkan::command_list_impl::insert_barrier(uint32_t count, const ap
 			transition.size = VK_WHOLE_SIZE;
 		}
 
-		src_stage_mask |= convert_usage_to_pipeline_stage(old_states[i]);
-		dst_stage_mask |= convert_usage_to_pipeline_stage(new_states[i]);
+		src_stage_mask |= convert_usage_to_pipeline_stage(old_states[i], _device_impl->_enabled_features.tessellationShader, _device_impl->_enabled_features.geometryShader);
+		dst_stage_mask |= convert_usage_to_pipeline_stage(new_states[i], _device_impl->_enabled_features.tessellationShader, _device_impl->_enabled_features.geometryShader);
 	}
 
 	_device_impl->vk.CmdPipelineBarrier(_orig, src_stage_mask, dst_stage_mask, 0, 0, nullptr, static_cast<uint32_t>(buffer_barriers.size()), buffer_barriers.data(), static_cast<uint32_t>(image_barriers.size()), image_barriers.data());
