@@ -205,10 +205,16 @@ namespace reshade::vulkan
 #endif
 		std::unordered_map<size_t, VkRenderPass> _render_pass_list_internal;
 		std::unordered_map<size_t, VkFramebuffer> _framebuffer_list_internal;
+
+#ifndef NDEBUG
+		mutable bool _wait_for_idle_happened = false;
+#endif
 	};
 
 	class command_list_impl : public api::api_object_impl<VkCommandBuffer, api::command_list>
 	{
+		friend class device_impl;
+
 	public:
 		command_list_impl(device_impl *device, VkCommandBuffer cmd_list);
 		~command_list_impl();

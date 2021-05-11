@@ -162,7 +162,7 @@ bool reshade::vulkan::runtime_impl::on_init(VkSwapchainKHR swapchain, const VkSw
 	// Create back buffer shader image
 	assert(_backbuffer_format != VK_FORMAT_UNDEFINED);
 	if (!_device_impl->create_resource(
-		{ _width, _height, 1, 1, convert_format(_backbuffer_format), 1, api::memory_heap::gpu_only, api::resource_usage::copy_dest | api::resource_usage::shader_resource },
+		{ _width, _height, 1, 1, api::format_to_typeless(convert_format(_backbuffer_format)), 1, api::memory_heap::gpu_only, api::resource_usage::copy_dest | api::resource_usage::shader_resource },
 		nullptr,
 		api::resource_usage::undefined,
 		reinterpret_cast<api::resource *>(&_backbuffer_image)))
@@ -451,7 +451,7 @@ void reshade::vulkan::runtime_impl::on_present(VkQueue queue, const uint32_t swa
 
 #ifndef NDEBUG
 	// Some operations force a wait for idle in ReShade, which invalidates the wait semaphores, so signal them again (keeps the validation layers happy)
-	if (_wait_for_idle_happened)
+	if (_device_impl->_wait_for_idle_happened)
 	{
 		VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
 		std::vector<VkPipelineStageFlags> wait_stages(wait.size(), VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
@@ -462,7 +462,7 @@ void reshade::vulkan::runtime_impl::on_present(VkQueue queue, const uint32_t swa
 		submit_info.pSignalSemaphores = wait.data();
 		vk.QueueSubmit(queue, 1, &submit_info, VK_NULL_HANDLE);
 
-		_wait_for_idle_happened = false;
+		_device_impl->_wait_for_idle_happened = false;
 	}
 #endif
 
@@ -618,10 +618,7 @@ bool reshade::vulkan::runtime_impl::capture_screenshot(uint8_t *buffer) const
 
 		// Wait for any rendering by the application finish before submitting
 		// It may have submitted that to a different queue, so simply wait for all to idle here
-		vk.DeviceWaitIdle(_device);
-#ifndef NDEBUG
-		_wait_for_idle_happened = true;
-#endif
+		_device_impl->wait_idle();
 
 		// Execute and wait for completion
 		_cmd_impl->flush_and_wait(_queue);
@@ -1571,7 +1568,7 @@ bool reshade::vulkan::runtime_impl::init_texture(texture &texture)
 	const api::format format_normal = convert_format(impl->formats[0]);
 
 	if (!_device_impl->create_resource(
-		{ texture.width, texture.height, 1, texture.levels, format_normal, 1, api::memory_heap::gpu_only, usage_flags },
+		{ texture.width, texture.height, 1, texture.levels, api::format_to_typeless(format_normal), 1, api::memory_heap::gpu_only, usage_flags },
 		nullptr,
 		api::resource_usage::undefined,
 		reinterpret_cast<api::resource *>(&impl->image)))
@@ -1958,10 +1955,7 @@ void reshade::vulkan::runtime_impl::render_technique(technique &technique)
 void reshade::vulkan::runtime_impl::wait_for_command_buffers()
 {
 	// Wait for all queues to finish to ensure no command buffers are in flight after this call
-	vk.DeviceWaitIdle(_device);
-#ifndef NDEBUG
-	_wait_for_idle_happened = true;
-#endif
+	_device_impl->wait_idle();
 
 	// Make sure any pending work gets executed here, so it is not enqueued later in 'on_present' (at which point the referenced objects may have been destroyed by the code calling this)
 	// Do this after waiting for idle, since it should run after all work by the application is done and is synchronous anyway

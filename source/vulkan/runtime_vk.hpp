@@ -58,9 +58,6 @@ namespace reshade::vulkan
 
 		uint32_t _queue_sync_index = 0;
 		VkSemaphore _queue_sync_semaphores[NUM_QUERY_FRAMES] = {};
-#ifndef NDEBUG
-		mutable bool _wait_for_idle_happened = false;
-#endif
 
 		uint32_t _swap_index = 0;
 		VkFormat _backbuffer_format = VK_FORMAT_UNDEFINED;

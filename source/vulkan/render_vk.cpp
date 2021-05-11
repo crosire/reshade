@@ -3,6 +3,7 @@
  * License: https://github.com/crosire/reshade#license
  */
 
+#include "dll_log.hpp"
 #include "render_vk.hpp"
 #include "render_vk_utils.hpp"
 #include "format_utils.hpp"
@@ -804,6 +805,7 @@ bool reshade::vulkan::device_impl::create_query_heap(api::query_type type, uint3
 			{
 				vk.CmdResetQueryPool(immediate_command_list->_orig, pool, 0, count);
 
+				immediate_command_list->_has_commands = true;
 				queue->flush_immediate_command_list();
 				break;
 			}
@@ -980,34 +982,16 @@ bool reshade::vulkan::device_impl::get_query_results(api::query_heap heap, uint3
 {
 	assert(stride >= sizeof(uint64_t));
 
-	if (vk.GetQueryPoolResults(_orig, (VkQueryPool)heap.handle, first, count, count * stride, results, stride, VK_QUERY_RESULT_64_BIT) == VK_SUCCESS)
-	{
-#if  0
-		vk.ResetQueryPool(_orig, (VkQueryPool)heap.handle, first, count);
-#else
-		for (command_queue_impl *const queue : _queues)
-		{
-			const auto immediate_command_list = static_cast<command_list_immediate_impl *>(queue->get_immediate_command_list());
-			if (immediate_command_list != nullptr)
-			{
-				vk.CmdResetQueryPool(immediate_command_list->_orig, (VkQueryPool)heap.handle, first, count);
-
-				queue->flush_immediate_command_list();
-				break;
-			}
-		}
-#endif
-		return true;
-	}
-	else
-	{
-		return false;
-	}
+	return vk.GetQueryPoolResults(_orig, (VkQueryPool)heap.handle, first, count, count * stride, results, stride, VK_QUERY_RESULT_64_BIT) == VK_SUCCESS;
 }
 
 void reshade::vulkan::device_impl::wait_idle() const
 {
 	vk.DeviceWaitIdle(_orig);
+
+#ifndef NDEBUG
+	_wait_for_idle_happened = true;
+#endif
 }
 
 void reshade::vulkan::device_impl::set_debug_name(api::resource resource, const char *name)
@@ -1741,6 +1725,7 @@ void reshade::vulkan::command_list_impl::begin_query(api::query_heap heap, api::
 {
 	_has_commands = true;
 
+	_device_impl->vk.CmdResetQueryPool(_orig, (VkQueryPool)heap.handle, index, 1);
 	_device_impl->vk.CmdBeginQuery(_orig, (VkQueryPool)heap.handle, index, 0);
 }
 void reshade::vulkan::command_list_impl::end_query(api::query_heap heap, api::query_type type, uint32_t index)
@@ -1748,9 +1733,14 @@ void reshade::vulkan::command_list_impl::end_query(api::query_heap heap, api::qu
 	_has_commands = true;
 
 	if (type == api::query_type::timestamp)
+	{
+		_device_impl->vk.CmdResetQueryPool(_orig, (VkQueryPool)heap.handle, index, 1);
 		_device_impl->vk.CmdWriteTimestamp(_orig, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, (VkQueryPool)heap.handle, index);
+	}
 	else
+	{
 		_device_impl->vk.CmdEndQuery(_orig, (VkQueryPool)heap.handle, index);
+	}
 }
 void reshade::vulkan::command_list_impl::copy_query_results(api::query_heap heap, api::query_type, uint32_t first, uint32_t count, api::resource dst, uint64_t dst_offset, uint32_t stride)
 {
@@ -1895,7 +1885,7 @@ reshade::vulkan::command_list_immediate_impl::command_list_immediate_impl(device
 			return;
 	}
 
-	// Command buffer is in an invalid state and ready for a reset
+	// Command buffer is in an invalid state after creation, so reset it to begin
 	VkCommandBufferBeginInfo begin_info { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
 	begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
@@ -1923,14 +1913,24 @@ bool reshade::vulkan::command_list_immediate_impl::flush(VkQueue queue, std::vec
 {
 	if (!_has_commands)
 		return true;
+	_has_commands = false;
 
 	// Submit all asynchronous commands in one batch to the current queue
-	if (_device_impl->vk.EndCommandBuffer(_cmd_buffers[_cmd_index]) != VK_SUCCESS)
+	if (_device_impl->vk.EndCommandBuffer(_orig) != VK_SUCCESS)
+	{
+		LOG(ERROR) << "Failed to close immediate command list!";
+
+		// Have to reset the command buffer when closing it was unsuccessfull
+		VkCommandBufferBeginInfo begin_info { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
+		begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+		_device_impl->vk.BeginCommandBuffer(_cmd_buffers[_cmd_index], 0);
 		return false;
+	}
 
 	VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
 	submit_info.commandBufferCount = 1;
-	submit_info.pCommandBuffers = &_cmd_buffers[_cmd_index];
+	submit_info.pCommandBuffers = &_orig;
 
 	std::vector<VkPipelineStageFlags> wait_stages(wait_semaphores.size(), VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
 	if (!wait_semaphores.empty())

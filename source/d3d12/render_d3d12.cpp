@@ -1485,13 +1485,14 @@ bool reshade::d3d12::command_list_immediate_impl::flush(ID3D12CommandQueue *queu
 {
 	if (!_has_commands)
 		return true;
+	_has_commands = false;
 
 	_current_root_signature[0] = nullptr;
 	_current_root_signature[1] = nullptr;
 
 	if (const HRESULT hr = _orig->Close(); FAILED(hr))
 	{
-		LOG(ERROR) << "Failed to close immediate command list! HRESULT is " << hr << '.';
+		LOG(ERROR) << "Failed to close immediate command list!" << " HRESULT is " << hr << '.';
 
 		// A command list that failed to close can never be reset, so destroy it and create a new one
 		_device_impl->wait_idle();
