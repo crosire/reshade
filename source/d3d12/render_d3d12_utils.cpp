@@ -631,7 +631,7 @@ auto reshade::d3d12::convert_blend_factor(api::blend_factor value) -> D3D12_BLEN
 	{
 	default:
 		assert(false);
-		// fall through
+		[[fallthrough]];
 	case api::blend_factor::zero:
 		return D3D12_BLEND_ZERO;
 	case api::blend_factor::one:
@@ -654,12 +654,12 @@ auto reshade::d3d12::convert_blend_factor(api::blend_factor value) -> D3D12_BLEN
 		return D3D12_BLEND_INV_DEST_ALPHA;
 	case api::blend_factor::constant_alpha:
 		assert(false);
-		// fall through
+		[[fallthrough]];
 	case api::blend_factor::constant_color:
 		return D3D12_BLEND_BLEND_FACTOR;
 	case api::blend_factor::inv_constant_alpha:
 		assert(false);
-		// fall through
+		[[fallthrough]];
 	case api::blend_factor::inv_constant_color:
 		return D3D12_BLEND_INV_BLEND_FACTOR;
 	case api::blend_factor::src_alpha_sat:
@@ -681,7 +681,7 @@ auto reshade::d3d12::convert_fill_mode(api::fill_mode value) -> D3D12_FILL_MODE
 	default:
 	case api::fill_mode::point:
 		assert(false);
-		// fall through
+		[[fallthrough]];
 	case api::fill_mode::solid:
 		return D3D12_FILL_MODE_SOLID;
 	case api::fill_mode::wireframe:
@@ -712,7 +712,7 @@ auto reshade::d3d12::convert_primitive_topology_type(api::primitive_topology val
 	{
 	default:
 		assert(false);
-		// fall through
+		[[fallthrough]];
 	case api::primitive_topology::undefined:
 		return D3D12_PRIMITIVE_TOPOLOGY_TYPE_UNDEFINED;
 	case api::primitive_topology::point_list:
@@ -770,7 +770,7 @@ auto reshade::d3d12::convert_descriptor_type(api::descriptor_type type) -> D3D12
 	{
 	default:
 		assert(false);
-		// fall through
+		[[fallthrough]];
 	case api::descriptor_type::shader_resource_view:
 		return D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 	case api::descriptor_type::unordered_access_view:
@@ -787,7 +787,7 @@ auto reshade::d3d12::convert_descriptor_type_to_heap_type(api::descriptor_type t
 	{
 	default:
 		assert(false);
-		// fall through
+		[[fallthrough]];
 	case api::descriptor_type::constant_buffer:
 	case api::descriptor_type::shader_resource_view:
 	case api::descriptor_type::unordered_access_view:

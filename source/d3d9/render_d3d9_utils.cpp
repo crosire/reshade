@@ -12,7 +12,7 @@ auto reshade::d3d9::convert_format(api::format format, bool lockable) -> D3DFORM
 	{
 	default:
 		assert(false);
-		// fall through
+		[[fallthrough]];
 	case api::format::unknown:
 		break;
 	case api::format::r1_unorm:
@@ -159,7 +159,7 @@ auto reshade::d3d9::convert_format(D3DFORMAT d3d_format) -> api::format
 	{
 	default:
 		assert(false);
-		// fall through
+		[[fallthrough]];
 	case D3DFMT_UNKNOWN:
 		return api::format::unknown;
 	case D3DFMT_A1:
@@ -506,7 +506,7 @@ auto reshade::d3d9::convert_blend_factor(api::blend_factor value) -> D3DBLEND
 	{
 	default:
 		assert(false);
-		// fall through
+		[[fallthrough]];
 	case api::blend_factor::zero:
 		return D3DBLEND_ZERO;
 	case api::blend_factor::one:
@@ -529,24 +529,24 @@ auto reshade::d3d9::convert_blend_factor(api::blend_factor value) -> D3DBLEND
 		return D3DBLEND_INVDESTALPHA;
 	case api::blend_factor::constant_alpha:
 		assert(false);
-		// fall through
+		[[fallthrough]];
 	case api::blend_factor::constant_color:
 		return D3DBLEND_BLENDFACTOR;
 	case api::blend_factor::inv_constant_alpha:
 		assert(false);
-		// fall through
+		[[fallthrough]];
 	case api::blend_factor::inv_constant_color:
 		return D3DBLEND_INVBLENDFACTOR;
 	case api::blend_factor::src_alpha_sat:
 		return D3DBLEND_SRCALPHASAT;
 	case api::blend_factor::src1_alpha:
 		assert(false);
-		// fall through
+		[[fallthrough]];
 	case api::blend_factor::src1_color:
 		return D3DBLEND_SRCCOLOR2;
 	case api::blend_factor::inv_src1_alpha:
 		assert(false);
-		// fall through
+		[[fallthrough]];
 	case api::blend_factor::inv_src1_color:
 		return D3DBLEND_INVSRCCOLOR2;
 	}
@@ -561,7 +561,7 @@ auto reshade::d3d9::convert_fill_mode(api::fill_mode value) -> D3DFILLMODE
 		return D3DFILL_WIREFRAME;
 	default:
 		assert(false);
-		// fall through
+		[[fallthrough]];
 	case api::fill_mode::solid:
 		return D3DFILL_SOLID;
 	}

@@ -414,7 +414,7 @@ void reshadefx::preprocessor::parse()
 		case tokenid::identifier:
 			if (evaluate_identifier_as_macro())
 				continue;
-			// fall through
+			[[fallthrough]];
 		default:
 			line += _current_token_raw_data;
 			break;

@@ -596,7 +596,7 @@ void reshade::vulkan::convert_sampler_desc(const api::sampler_desc &desc, VkSamp
 		{
 		default:
 			assert(false);
-			// fall through
+			[[fallthrough]];
 		case api::texture_address_mode::wrap:
 			return VK_SAMPLER_ADDRESS_MODE_REPEAT;
 		case api::texture_address_mode::mirror:
@@ -693,7 +693,7 @@ reshade::api::sampler_desc reshade::vulkan::convert_sampler_desc(const VkSampler
 		{
 		default:
 			assert(false);
-			// fall through
+			[[fallthrough]];
 		case VK_SAMPLER_ADDRESS_MODE_REPEAT:
 			return api::texture_address_mode::wrap;
 		case VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT:
@@ -931,7 +931,7 @@ auto reshade::vulkan::convert_fill_mode(api::fill_mode value) -> VkPolygonMode
 		return VK_POLYGON_MODE_LINE;
 	default:
 		assert(false);
-		// fall through
+		[[fallthrough]];
 	case api::fill_mode::solid:
 		return VK_POLYGON_MODE_FILL;
 	}
@@ -955,7 +955,6 @@ auto reshade::vulkan::convert_primitive_topology(api::primitive_topology value) 
 	default:
 	case api::primitive_topology::undefined:
 		assert(false);
-		// fall through
 		return VK_PRIMITIVE_TOPOLOGY_MAX_ENUM;
 	case api::primitive_topology::point_list:
 		return VK_PRIMITIVE_TOPOLOGY_POINT_LIST;

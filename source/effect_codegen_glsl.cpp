@@ -162,7 +162,7 @@ private:
 			}
 			else if constexpr (is_decl)
 				s += "mediump ";
-			// fall through
+			[[fallthrough]];
 		case type::t_int:
 			if (type.cols > 1)
 				s += "mat" + std::to_string(type.rows) + 'x' + std::to_string(type.cols);
@@ -183,7 +183,7 @@ private:
 			}
 			else if constexpr (is_decl)
 				s += "mediump ";
-			// fall through
+			[[fallthrough]];
 		case type::t_uint:
 			if (type.cols > 1)
 				s += "mat" + std::to_string(type.rows) + 'x' + std::to_string(type.cols);
@@ -204,7 +204,7 @@ private:
 			}
 			else if constexpr (is_decl)
 				s += "mediump ";
-			// fall through
+			[[fallthrough]];
 		case type::t_float:
 			if (type.cols > 1)
 				s += "mat" + std::to_string(type.rows) + 'x' + std::to_string(type.cols);

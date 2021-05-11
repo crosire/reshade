@@ -420,7 +420,7 @@ bool reshade::opengl::device_impl::create_sampler(const api::sampler_desc &desc,
 		break;
 	case api::texture_filter::anisotropic:
 		glSamplerParameterf(object, 0x84FE /* GL_TEXTURE_MAX_ANISOTROPY_EXT */, desc.max_anisotropy);
-		// fall through
+		[[fallthrough]];
 	case api::texture_filter::min_mag_mip_linear:
 		min_filter = GL_LINEAR_MIPMAP_LINEAR;
 		mag_filter = GL_LINEAR;

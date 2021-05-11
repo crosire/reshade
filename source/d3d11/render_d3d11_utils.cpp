@@ -812,7 +812,7 @@ auto reshade::d3d11::convert_blend_factor(api::blend_factor value) -> D3D11_BLEN
 	{
 	default:
 		assert(false);
-		// fall through
+		[[fallthrough]];
 	case api::blend_factor::zero:
 		return D3D11_BLEND_ZERO;
 	case api::blend_factor::one:
@@ -835,12 +835,12 @@ auto reshade::d3d11::convert_blend_factor(api::blend_factor value) -> D3D11_BLEN
 		return D3D11_BLEND_INV_DEST_ALPHA;
 	case api::blend_factor::constant_alpha:
 		assert(false);
-		// fall through
+		[[fallthrough]];
 	case api::blend_factor::constant_color:
 		return D3D11_BLEND_BLEND_FACTOR;
 	case api::blend_factor::inv_constant_alpha:
 		assert(false);
-		// fall through
+		[[fallthrough]];
 	case api::blend_factor::inv_constant_color:
 		return D3D11_BLEND_INV_BLEND_FACTOR;
 	case api::blend_factor::src_alpha_sat:
@@ -862,7 +862,7 @@ auto reshade::d3d11::convert_fill_mode(api::fill_mode value) -> D3D11_FILL_MODE
 	default:
 	case api::fill_mode::point:
 		assert(false);
-		// fall through
+		[[fallthrough]];
 	case api::fill_mode::solid:
 		return D3D11_FILL_SOLID;
 	case api::fill_mode::wireframe:

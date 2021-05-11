@@ -347,7 +347,7 @@ auto reshade::opengl::convert_attrib_format(api::format format, GLint &size, GLb
 	{
 	case api::format::r8g8b8a8_unorm:
 		normalized = GL_TRUE;
-		// fall through
+		[[fallthrough]];
 	case api::format::r8g8b8a8_uint:
 		size = 4;
 		return GL_UNSIGNED_BYTE;
@@ -357,19 +357,19 @@ auto reshade::opengl::convert_attrib_format(api::format format, GLint &size, GLb
 		return GL_UNSIGNED_BYTE;
 	case api::format::r10g10b10a2_unorm:
 		normalized = GL_TRUE;
-		// fall through
+		[[fallthrough]];
 	case api::format::r10g10b10a2_uint:
 		size = 4;
 		return GL_UNSIGNED_INT_2_10_10_10_REV;
 	case api::format::r16_unorm:
 		normalized = GL_TRUE;
-		// fall through
+		[[fallthrough]];
 	case api::format::r16_uint:
 		size = 1;
 		return GL_UNSIGNED_SHORT;
 	case api::format::r16_snorm:
 		normalized = GL_TRUE;
-		// fall through
+		[[fallthrough]];
 	case api::format::r16_sint:
 		size = 1;
 		return GL_SHORT;
@@ -378,13 +378,13 @@ auto reshade::opengl::convert_attrib_format(api::format format, GLint &size, GLb
 		return GL_HALF_FLOAT;
 	case api::format::r16g16_unorm:
 		normalized = GL_TRUE;
-		// fall through
+		[[fallthrough]];
 	case api::format::r16g16_uint:
 		size = 2;
 		return GL_UNSIGNED_SHORT;
 	case api::format::r16g16_snorm:
 		normalized = GL_TRUE;
-		// fall through
+		[[fallthrough]];
 	case api::format::r16g16_sint:
 		size = 2;
 		return GL_SHORT;
@@ -393,13 +393,13 @@ auto reshade::opengl::convert_attrib_format(api::format format, GLint &size, GLb
 		return GL_HALF_FLOAT;
 	case api::format::r16g16b16a16_unorm:
 		normalized = GL_TRUE;
-		// fall through
+		[[fallthrough]];
 	case api::format::r16g16b16a16_uint:
 		size = 4;
 		return GL_UNSIGNED_SHORT;
 	case api::format::r16g16b16a16_snorm:
 		normalized = GL_TRUE;
-		// fall through
+		[[fallthrough]];
 	case api::format::r16g16b16a16_sint:
 		size = 4;
 		return GL_SHORT;
@@ -845,7 +845,7 @@ GLenum reshade::opengl::convert_blend_op(api::blend_op value)
 	{
 	default:
 		assert(false);
-		// fall through
+		[[fallthrough]];
 	case api::blend_op::add:
 		return GL_FUNC_ADD;
 	case api::blend_op::subtract:
@@ -864,7 +864,7 @@ GLenum reshade::opengl::convert_blend_factor(api::blend_factor value)
 	{
 	default:
 		assert(false);
-		// fall through
+		[[fallthrough]];
 	case api::blend_factor::zero:
 		return GL_ZERO;
 	case api::blend_factor::one:
@@ -911,7 +911,7 @@ GLenum reshade::opengl::convert_fill_mode(api::fill_mode value)
 	{
 	default:
 		assert(false);
-		// fall through
+		[[fallthrough]];
 	case api::fill_mode::solid:
 		return GL_FILL;
 	case api::fill_mode::wireframe:
@@ -926,7 +926,7 @@ GLenum reshade::opengl::convert_cull_mode(api::cull_mode value)
 	{
 	default:
 		assert(false);
-		// fall through
+		[[fallthrough]];
 	case api::cull_mode::none:
 		return GL_NONE;
 	case api::cull_mode::front:
@@ -943,7 +943,7 @@ GLenum reshade::opengl::convert_compare_op(api::compare_op value)
 	{
 	default:
 		assert(false);
-		// fall through
+		[[fallthrough]];
 	case api::compare_op::never:
 		return GL_NEVER;
 	case api::compare_op::less:
@@ -968,7 +968,7 @@ GLenum reshade::opengl::convert_stencil_op(api::stencil_op value)
 	{
 	default:
 		assert(false);
-		// fall through
+		[[fallthrough]];
 	case api::stencil_op::keep:
 		return GL_KEEP;
 	case api::stencil_op::zero:
@@ -993,7 +993,7 @@ GLenum reshade::opengl::convert_primitive_topology(api::primitive_topology value
 	{
 	default:
 		assert(false);
-		// fall through
+		[[fallthrough]];
 	case api::primitive_topology::undefined:
 		return GL_NONE;
 	case api::primitive_topology::point_list:
