@@ -13,6 +13,7 @@ namespace
 	struct query_pool_impl
 	{
 		std::vector<com_ptr<IDirect3DQuery9>> queries;
+		reshade::api::query_type type;
 	};
 
 	struct pipeline_impl
@@ -30,6 +31,26 @@ namespace
 	{
 		UINT shader_register_base;
 	};
+
+	bool convert_format_internal(reshade::api::format format, D3DFORMAT &internal_format)
+	{
+		if (format == reshade::api::format::r8_typeless || format == reshade::api::format::r8_unorm ||
+			format == reshade::api::format::r8g8_typeless || format == reshade::api::format::r8g8_unorm)
+		{
+			// Use 4-component format so that unused components are returned as zero and alpha as one (to match behavior from other APIs)
+			internal_format = D3DFMT_X8R8G8B8;
+			return true;
+		}
+		if (format == reshade::api::format::r8g8b8a8_typeless || format == reshade::api::format::r8g8b8a8_unorm || format == reshade::api::format::r8g8b8a8_unorm_srgb)
+		{
+			// Use 'D3DFMT_A8R8G8B8' instead of 'D3DFMT_A8B8G8R8', since the later is not supported well
+			// This has to be mitiated in 'upload_texture_region' by flipping RGBA to BGRA
+			internal_format = D3DFMT_A8R8G8B8;
+			return true;
+		}
+
+		return internal_format != D3DFMT_UNKNOWN;
+	}
 }
 
 reshade::d3d9::device_impl::device_impl(IDirect3DDevice9 *device) :
@@ -317,13 +338,7 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 			D3DSURFACE_DESC internal_desc = {};
 			convert_resource_desc(desc, internal_desc, &levels);
 
-			if (desc.texture.format == api::format::r8_typeless || desc.texture.format == api::format::r8_unorm ||
-				desc.texture.format == api::format::r8g8_typeless || desc.texture.format == api::format::r8g8_unorm)
-			{
-				// Use 4-component format so that unused components are returned as zero and alpha as one (to match behavior from other APIs)
-				internal_desc.Format = D3DFMT_X8R8G8B8;
-			}
-			else if (internal_desc.Format == D3DFMT_UNKNOWN)
+			if (!convert_format_internal(desc.texture.format, internal_desc.Format))
 				break;
 
 			if ((desc.flags & api::resource_flags::cube_compatible) != api::resource_flags::cube_compatible)
@@ -360,13 +375,7 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 			D3DVOLUME_DESC internal_desc = {};
 			convert_resource_desc(desc, internal_desc, &levels);
 
-			if (desc.texture.format == api::format::r8_typeless || desc.texture.format == api::format::r8_unorm ||
-				desc.texture.format == api::format::r8g8_typeless || desc.texture.format == api::format::r8g8_unorm)
-			{
-				// Use 4-component format so that unused components are returned as zero and alpha as one (to match behavior from other APIs)
-				internal_desc.Format = D3DFMT_X8R8G8B8;
-			}
-			else if (internal_desc.Format == D3DFMT_UNKNOWN)
+			if (!convert_format_internal(desc.texture.format, internal_desc.Format))
 				break;
 
 			if (com_ptr<IDirect3DVolumeTexture9> object;
@@ -402,7 +411,8 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 
 				D3DSURFACE_DESC internal_desc;
 				static_cast<IDirect3DSurface9 *>(object)->GetDesc(&internal_desc);
-				if (const D3DFORMAT view_format = convert_format(desc.format);
+				if (D3DFORMAT view_format = convert_format(desc.format);
+					!convert_format_internal(desc.format, view_format) ||
 					internal_desc.Format != view_format)
 					break;
 
@@ -426,7 +436,8 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 
 				D3DSURFACE_DESC internal_desc;
 				static_cast<IDirect3DTexture9 *>(object)->GetLevelDesc(desc.texture.first_level, &internal_desc);
-				if (const D3DFORMAT view_format = convert_format(desc.format);
+				if (D3DFORMAT view_format = convert_format(desc.format);
+					!convert_format_internal(desc.format, view_format) ||
 					internal_desc.Format != view_format)
 					break;
 
@@ -441,7 +452,8 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 			{
 				D3DSURFACE_DESC internal_desc;
 				static_cast<IDirect3DTexture9 *>(object)->GetLevelDesc(0, &internal_desc);
-				if (const D3DFORMAT view_format = convert_format(desc.format);
+				if (D3DFORMAT view_format = convert_format(desc.format);
+					!convert_format_internal(desc.format, view_format) ||
 					internal_desc.Format != view_format)
 					break;
 
@@ -464,7 +476,8 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 
 				D3DSURFACE_DESC internal_desc;
 				static_cast<IDirect3DCubeTexture9 *>(object)->GetLevelDesc(desc.texture.first_level, &internal_desc);
-				if (const D3DFORMAT view_format = convert_format(desc.format);
+				if (D3DFORMAT view_format = convert_format(desc.format);
+					!convert_format_internal(desc.format, view_format) ||
 					internal_desc.Format != view_format)
 					break;
 
@@ -481,7 +494,8 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 
 				D3DSURFACE_DESC internal_desc;
 				static_cast<IDirect3DCubeTexture9 *>(object)->GetLevelDesc(0, &internal_desc);
-				if (const D3DFORMAT view_format = convert_format(desc.format);
+				if (D3DFORMAT view_format = convert_format(desc.format);
+					!convert_format_internal(desc.format, view_format) ||
 					internal_desc.Format != view_format)
 					break;
 
@@ -797,6 +811,7 @@ bool reshade::d3d9::device_impl::create_query_heap(api::query_type type, uint32_
 {
 	const auto result = new query_pool_impl();
 	result->queries.resize(count);
+	result->type = type;
 
 	for (UINT i = 0; i < count; ++i)
 	{
@@ -1074,6 +1089,13 @@ bool reshade::d3d9::device_impl::get_query_results(api::query_heap heap, uint32_
 	{
 		if (impl->queries[i + first]->GetData(static_cast<uint8_t *>(results) + i * stride, stride, 0) != S_OK)
 			return false;
+
+		if (impl->type == api::query_type::timestamp)
+		{
+			assert(stride >= sizeof(uint64_t));
+			// D3D9 timestamp queries seem to always have a resolution of 10ns (D3DQUERYTYPE_TIMESTAMPFREQ returns 100000000), so convert that to nanoseconds for consistency with other APIs
+			*reinterpret_cast<uint64_t *>(static_cast<uint8_t *>(results) + i * stride) *= 10;
+		}
 	}
 
 	return true;
@@ -1130,9 +1152,9 @@ void reshade::d3d9::device_impl::bind_scissor_rects(uint32_t first, uint32_t cou
 
 void reshade::d3d9::device_impl::push_constants(api::shader_stage stage, api::pipeline_layout, uint32_t, uint32_t first, uint32_t count, const uint32_t *values)
 {
-	if ((stage & api::shader_stage::vertex) != api::shader_stage::vertex)
+	if ((stage & api::shader_stage::vertex) == api::shader_stage::vertex)
 		_orig->SetVertexShaderConstantF(first / 4, reinterpret_cast<const float *>(values), count / 4);
-	if ((stage & api::shader_stage::pixel) != api::shader_stage::pixel)
+	if ((stage & api::shader_stage::pixel) == api::shader_stage::pixel)
 		_orig->SetPixelShaderConstantF(first / 4, reinterpret_cast<const float *>(values), count / 4);
 }
 void reshade::d3d9::device_impl::push_descriptors(api::shader_stage stage, api::pipeline_layout layout, uint32_t layout_index, api::descriptor_type type, uint32_t first, uint32_t count, const void *descriptors)
