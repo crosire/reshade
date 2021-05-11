@@ -568,7 +568,7 @@ namespace reshade { namespace api
 		/// <param name="dst_offset">A 3D offset to start resolving to. In D3D10, D3D11 and D3D12 this has to be <c>nullptr</c>.</param>
 		/// <param name="size">Width, height and depth of the texture region to resolve.</param>
 		/// <param name="format">The format of the resource data.</param>
-		virtual void resolve(resource source, uint32_t src_subresource, const int32_t src_offset[3], resource destination, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3], uint32_t format) = 0;
+		virtual void resolve(resource source, uint32_t src_subresource, const int32_t src_offset[3], resource destination, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3], api::format format) = 0;
 		/// <summary>
 		/// Copies the entire contents of the <paramref name="source"/> resource to the <paramref name="destination"/> resource.
 		/// <para>The <paramref name="source"/> resource has to be in the <see cref="resource_usage::copy_source"/> state.</para>
@@ -674,15 +674,15 @@ namespace reshade { namespace api
 		/// <param name="resource">The resource to transition.</param>
 		/// <param name="old_state">The usage flags describing how the resource was used before this barrier.</param>
 		/// <param name="new_state">The usage flags describing how the resource will be used after this barrier.</param>
-		inline  void insert_barrier(resource resource, resource_usage old_state, resource_usage new_state) { insert_barriers(1, &resource, old_state, new_state); }
+		inline  void insert_barrier(resource resource, resource_usage old_state, resource_usage new_state) { insert_barrier(1, &resource, &old_state, &new_state); }
 		/// <summary>
 		/// Adds a transition barrier for the specified <paramref name="resources"/> to the command stream.
 		/// </summary>
 		/// <param name="count">The number of resources to transition.</param>
 		/// <param name="resources">A pointer to an array of resources to transition.</param>
-		/// <param name="old_state">The usage flags describing how the resources were used before this barrier.</param>
-		/// <param name="new_state">The usage flags describing how the resources will be used after this barrier.</param>
-		virtual void insert_barriers(uint32_t count, const resource *resources, resource_usage old_state, resource_usage new_state) = 0;
+		/// <param name="old_state">A pointer to an array of usage flags describing how the resources were used before this barrier.</param>
+		/// <param name="new_state">A pointer to an array of usage flags describing how the resources will be used after this barrier.</param>
+		virtual void insert_barrier(uint32_t count, const resource *resources, const resource_usage *old_states, const resource_usage *new_states) = 0;
 
 		/// <summary>
 		/// Opens a debug marker region in the command list.

@@ -128,8 +128,9 @@ bool reshade::vulkan::device_impl::check_capability(api::device_caps capability)
 }
 bool reshade::vulkan::device_impl::check_format_support(api::format format, api::resource_usage usage) const
 {
-	VkFormat vk_format = VK_FORMAT_UNDEFINED;
-	convert_format_to_vk_format(format, vk_format);
+	const VkFormat vk_format = convert_format(format);
+	if (vk_format == VK_FORMAT_UNDEFINED)
+		return false;
 
 	VkFormatProperties props = {};
 	_instance_dispatch_table.GetPhysicalDeviceFormatProperties(_physical_device, vk_format, &props);
@@ -201,7 +202,7 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 	if (initial_data != nullptr)
 		return false;
 
-	assert((desc.usage & initial_state) == initial_state || initial_state == api::resource_usage::host);
+	assert((desc.usage & initial_state) == initial_state || initial_state == api::resource_usage::cpu_access);
 
 	VmaAllocation allocation = VK_NULL_HANDLE;
 	VmaAllocationCreateInfo alloc_info = {};
@@ -263,7 +264,8 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 						const auto immediate_command_list = static_cast<command_list_immediate_impl *>(queue->get_immediate_command_list());
 						if (immediate_command_list != nullptr)
 						{
-							immediate_command_list->insert_barrier(*out, api::resource_usage::undefined, initial_state);
+							const api::resource_usage states[2] = { api::resource_usage::undefined, initial_state };
+							immediate_command_list->insert_barrier(1, out, &states[0], &states[1]);
 							immediate_command_list->flush_and_wait((VkQueue)queue->get_native_object());
 							break;
 						}
@@ -417,14 +419,6 @@ bool reshade::vulkan::device_impl::create_pipeline_graphics_all(const api::pipel
 	{
 		switch (desc.graphics.dynamic_states[i])
 		{
-		default:
-			*out = { 0 };
-			return false;
-		case api::pipeline_state::depth_bias:
-		case api::pipeline_state::depth_bias_clamp:
-		case api::pipeline_state::depth_bias_slope_scaled:
-			dyn_states.push_back(VK_DYNAMIC_STATE_DEPTH_BIAS);
-			break;
 		case api::pipeline_state::blend_constant:
 			dyn_states.push_back(VK_DYNAMIC_STATE_BLEND_CONSTANTS);
 			break;
@@ -437,6 +431,9 @@ bool reshade::vulkan::device_impl::create_pipeline_graphics_all(const api::pipel
 		case api::pipeline_state::stencil_reference_value:
 			dyn_states.push_back(VK_DYNAMIC_STATE_STENCIL_REFERENCE);
 			break;
+		default:
+			*out = { 0 };
+			return false;
 		}
 	}
 
@@ -456,7 +453,7 @@ bool reshade::vulkan::device_impl::create_pipeline_graphics_all(const api::pipel
 		VkVertexInputAttributeDescription &attribute = vertex_attributes.emplace_back();
 		attribute.location = element.location;
 		attribute.binding = element.buffer_binding;
-		convert_format_to_vk_format(element.format, attribute.format);
+		attribute.format = convert_format(element.format);
 		attribute.offset = element.offset;
 
 		assert(element.instance_step_rate <= 1);
@@ -488,84 +485,15 @@ bool reshade::vulkan::device_impl::create_pipeline_graphics_all(const api::pipel
 	vertex_input_state_info.vertexAttributeDescriptionCount = static_cast<uint32_t>(vertex_attributes.size());
 	vertex_input_state_info.pVertexAttributeDescriptions = vertex_attributes.data();
 
-	VkPipelineTessellationStateCreateInfo tessellation_state_info { VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO };
-	create_info.pTessellationState = &tessellation_state_info;
-
 	VkPipelineInputAssemblyStateCreateInfo input_assembly_state_info { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
 	create_info.pInputAssemblyState = &input_assembly_state_info;
 	input_assembly_state_info.primitiveRestartEnable = VK_FALSE;
+	input_assembly_state_info.topology = convert_primitive_topology(desc.graphics.rasterizer_state.topology);
 
-	switch (desc.graphics.rasterizer_state.topology)
-	{
-	default:
-	case api::primitive_topology::undefined:
-		break;
-	case api::primitive_topology::point_list:
-		input_assembly_state_info.topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
-		break;
-	case api::primitive_topology::line_list:
-		input_assembly_state_info.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
-		break;
-	case api::primitive_topology::line_strip:
-		input_assembly_state_info.topology = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
-		break;
-	case api::primitive_topology::triangle_list:
-		input_assembly_state_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-		break;
-	case api::primitive_topology::triangle_strip:
-		input_assembly_state_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
-		break;
-	case api::primitive_topology::triangle_fan:
-		input_assembly_state_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN;
-		break;
-	case api::primitive_topology::line_list_adj:
-		input_assembly_state_info.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY;
-		break;
-	case api::primitive_topology::line_strip_adj:
-		input_assembly_state_info.topology = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP_WITH_ADJACENCY;
-		break;
-	case api::primitive_topology::triangle_list_adj:
-		input_assembly_state_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST_WITH_ADJACENCY;
-		break;
-	case api::primitive_topology::triangle_strip_adj:
-		input_assembly_state_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP_WITH_ADJACENCY;
-		break;
-	case api::primitive_topology::patch_list_01_cp:
-	case api::primitive_topology::patch_list_02_cp:
-	case api::primitive_topology::patch_list_03_cp:
-	case api::primitive_topology::patch_list_04_cp:
-	case api::primitive_topology::patch_list_05_cp:
-	case api::primitive_topology::patch_list_06_cp:
-	case api::primitive_topology::patch_list_07_cp:
-	case api::primitive_topology::patch_list_08_cp:
-	case api::primitive_topology::patch_list_09_cp:
-	case api::primitive_topology::patch_list_10_cp:
-	case api::primitive_topology::patch_list_11_cp:
-	case api::primitive_topology::patch_list_12_cp:
-	case api::primitive_topology::patch_list_13_cp:
-	case api::primitive_topology::patch_list_14_cp:
-	case api::primitive_topology::patch_list_15_cp:
-	case api::primitive_topology::patch_list_16_cp:
-	case api::primitive_topology::patch_list_17_cp:
-	case api::primitive_topology::patch_list_18_cp:
-	case api::primitive_topology::patch_list_19_cp:
-	case api::primitive_topology::patch_list_20_cp:
-	case api::primitive_topology::patch_list_21_cp:
-	case api::primitive_topology::patch_list_22_cp:
-	case api::primitive_topology::patch_list_23_cp:
-	case api::primitive_topology::patch_list_24_cp:
-	case api::primitive_topology::patch_list_25_cp:
-	case api::primitive_topology::patch_list_26_cp:
-	case api::primitive_topology::patch_list_27_cp:
-	case api::primitive_topology::patch_list_28_cp:
-	case api::primitive_topology::patch_list_29_cp:
-	case api::primitive_topology::patch_list_30_cp:
-	case api::primitive_topology::patch_list_31_cp:
-	case api::primitive_topology::patch_list_32_cp:
-		input_assembly_state_info.topology = VK_PRIMITIVE_TOPOLOGY_PATCH_LIST;
+	VkPipelineTessellationStateCreateInfo tessellation_state_info { VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO };
+	create_info.pTessellationState = &tessellation_state_info;
+	if (input_assembly_state_info.topology == VK_PRIMITIVE_TOPOLOGY_PATCH_LIST)
 		tessellation_state_info.patchControlPoints = static_cast<uint32_t>(desc.graphics.rasterizer_state.topology) - static_cast<uint32_t>(api::primitive_topology::patch_list_01_cp);
-		break;
-	}
 
 	VkPipelineViewportStateCreateInfo viewport_state_info { VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO };
 	create_info.pViewportState = &viewport_state_info;
@@ -576,29 +504,14 @@ bool reshade::vulkan::device_impl::create_pipeline_graphics_all(const api::pipel
 	create_info.pRasterizationState = &rasterization_state_info;
 	rasterization_state_info.depthClampEnable = !desc.graphics.rasterizer_state.depth_clip;
 	rasterization_state_info.rasterizerDiscardEnable = VK_FALSE;
-	rasterization_state_info.cullMode = static_cast<VkCullModeFlags>(desc.graphics.rasterizer_state.cull_mode);
+	rasterization_state_info.polygonMode = convert_fill_mode(desc.graphics.rasterizer_state.fill_mode);
+	rasterization_state_info.cullMode = convert_cull_mode(desc.graphics.rasterizer_state.cull_mode);
 	rasterization_state_info.frontFace = desc.graphics.rasterizer_state.front_counter_clockwise ? VK_FRONT_FACE_COUNTER_CLOCKWISE : VK_FRONT_FACE_CLOCKWISE;
 	rasterization_state_info.depthBiasEnable = desc.graphics.rasterizer_state.depth_bias != 0 || desc.graphics.rasterizer_state.depth_bias_clamp != 0 || desc.graphics.rasterizer_state.slope_scaled_depth_bias != 0;
 	rasterization_state_info.depthBiasConstantFactor = desc.graphics.rasterizer_state.depth_bias;
 	rasterization_state_info.depthBiasClamp = desc.graphics.rasterizer_state.depth_bias_clamp;
 	rasterization_state_info.depthBiasSlopeFactor = desc.graphics.rasterizer_state.slope_scaled_depth_bias;
 	rasterization_state_info.lineWidth = 1.0f;
-
-	switch (desc.graphics.rasterizer_state.fill_mode)
-	{
-	default:
-		assert(false);
-		break;
-	case api::fill_mode::point:
-		rasterization_state_info.polygonMode = VK_POLYGON_MODE_POINT;
-		break;
-	case api::fill_mode::wireframe:
-		rasterization_state_info.polygonMode = VK_POLYGON_MODE_LINE;
-		break;
-	case api::fill_mode::solid:
-		rasterization_state_info.polygonMode = VK_POLYGON_MODE_FILL;
-		break;
-	}
 
 	VkPipelineMultisampleStateCreateInfo multisample_state_info { VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
 	create_info.pMultisampleState = &multisample_state_info;
@@ -613,20 +526,20 @@ bool reshade::vulkan::device_impl::create_pipeline_graphics_all(const api::pipel
 	create_info.pDepthStencilState = &depth_stencil_state_info;
 	depth_stencil_state_info.depthTestEnable = desc.graphics.depth_stencil_state.depth_test;
 	depth_stencil_state_info.depthWriteEnable = desc.graphics.depth_stencil_state.depth_write_mask;
-	depth_stencil_state_info.depthCompareOp = static_cast<VkCompareOp>(desc.graphics.depth_stencil_state.depth_func);
+	depth_stencil_state_info.depthCompareOp = convert_compare_op(desc.graphics.depth_stencil_state.depth_func);
 	depth_stencil_state_info.depthBoundsTestEnable = VK_FALSE;
 	depth_stencil_state_info.stencilTestEnable = desc.graphics.depth_stencil_state.stencil_test;
-	depth_stencil_state_info.back.failOp = static_cast<VkStencilOp>(desc.graphics.depth_stencil_state.back_stencil_fail_op);
-	depth_stencil_state_info.back.passOp = static_cast<VkStencilOp>(desc.graphics.depth_stencil_state.back_stencil_pass_op);
-	depth_stencil_state_info.back.depthFailOp = static_cast<VkStencilOp>(desc.graphics.depth_stencil_state.back_stencil_depth_fail_op);
-	depth_stencil_state_info.back.compareOp = static_cast<VkCompareOp>(desc.graphics.depth_stencil_state.back_stencil_func);
+	depth_stencil_state_info.back.failOp = convert_stencil_op(desc.graphics.depth_stencil_state.back_stencil_fail_op);
+	depth_stencil_state_info.back.passOp = convert_stencil_op(desc.graphics.depth_stencil_state.back_stencil_pass_op);
+	depth_stencil_state_info.back.depthFailOp = convert_stencil_op(desc.graphics.depth_stencil_state.back_stencil_depth_fail_op);
+	depth_stencil_state_info.back.compareOp = convert_compare_op(desc.graphics.depth_stencil_state.back_stencil_func);
 	depth_stencil_state_info.back.compareMask = desc.graphics.depth_stencil_state.stencil_read_mask;
 	depth_stencil_state_info.back.writeMask = desc.graphics.depth_stencil_state.stencil_write_mask;
 	depth_stencil_state_info.back.reference = desc.graphics.depth_stencil_state.stencil_reference_value;
-	depth_stencil_state_info.front.failOp = static_cast<VkStencilOp>(desc.graphics.depth_stencil_state.front_stencil_fail_op);
-	depth_stencil_state_info.front.passOp = static_cast<VkStencilOp>(desc.graphics.depth_stencil_state.front_stencil_pass_op);
-	depth_stencil_state_info.front.depthFailOp = static_cast<VkStencilOp>(desc.graphics.depth_stencil_state.front_stencil_depth_fail_op);
-	depth_stencil_state_info.front.compareOp = static_cast<VkCompareOp>(desc.graphics.depth_stencil_state.front_stencil_func);
+	depth_stencil_state_info.front.failOp = convert_stencil_op(desc.graphics.depth_stencil_state.front_stencil_fail_op);
+	depth_stencil_state_info.front.passOp = convert_stencil_op(desc.graphics.depth_stencil_state.front_stencil_pass_op);
+	depth_stencil_state_info.front.depthFailOp = convert_stencil_op(desc.graphics.depth_stencil_state.front_stencil_depth_fail_op);
+	depth_stencil_state_info.front.compareOp = convert_compare_op(desc.graphics.depth_stencil_state.front_stencil_func);
 	depth_stencil_state_info.front.compareMask = desc.graphics.depth_stencil_state.stencil_read_mask;
 	depth_stencil_state_info.front.writeMask = desc.graphics.depth_stencil_state.stencil_write_mask;
 	depth_stencil_state_info.front.reference = desc.graphics.depth_stencil_state.stencil_reference_value;
@@ -637,12 +550,12 @@ bool reshade::vulkan::device_impl::create_pipeline_graphics_all(const api::pipel
 	for (uint32_t i = 0; i < 8; ++i)
 	{
 		attachment_info[i].blendEnable = desc.graphics.blend_state.blend_enable[i];
-		attachment_info[i].srcColorBlendFactor = static_cast<VkBlendFactor>(desc.graphics.blend_state.src_color_blend_factor[i]);
-		attachment_info[i].dstColorBlendFactor = static_cast<VkBlendFactor>(desc.graphics.blend_state.dst_color_blend_factor[i]);
-		attachment_info[i].colorBlendOp = static_cast<VkBlendOp>(desc.graphics.blend_state.color_blend_op[i]);
-		attachment_info[i].srcAlphaBlendFactor = static_cast<VkBlendFactor>(desc.graphics.blend_state.src_alpha_blend_factor[i]);
-		attachment_info[i].dstAlphaBlendFactor = static_cast<VkBlendFactor>(desc.graphics.blend_state.dst_alpha_blend_factor[i]);
-		attachment_info[i].alphaBlendOp = static_cast<VkBlendOp>(desc.graphics.blend_state.alpha_blend_op[i]);
+		attachment_info[i].srcColorBlendFactor = convert_blend_factor(desc.graphics.blend_state.src_color_blend_factor[i]);
+		attachment_info[i].dstColorBlendFactor = convert_blend_factor(desc.graphics.blend_state.dst_color_blend_factor[i]);
+		attachment_info[i].colorBlendOp = convert_blend_op(desc.graphics.blend_state.color_blend_op[i]);
+		attachment_info[i].srcAlphaBlendFactor = convert_blend_factor(desc.graphics.blend_state.src_alpha_blend_factor[i]);
+		attachment_info[i].dstAlphaBlendFactor = convert_blend_factor(desc.graphics.blend_state.dst_alpha_blend_factor[i]);
+		attachment_info[i].alphaBlendOp = convert_blend_op(desc.graphics.blend_state.alpha_blend_op[i]);
 		attachment_info[i].colorWriteMask = desc.graphics.blend_state.render_target_write_mask[i];
 	}
 
@@ -663,7 +576,7 @@ bool reshade::vulkan::device_impl::create_pipeline_graphics_all(const api::pipel
 
 	for (uint32_t i = 0; i < desc.graphics.blend_state.num_render_targets && i < 8; ++i)
 	{
-		convert_format_to_vk_format(desc.graphics.blend_state.render_target_format[i], attachment_desc[num_attachments].format);
+		attachment_desc[num_attachments].format = convert_format(desc.graphics.blend_state.render_target_format[i]);
 		attachment_desc[num_attachments].samples = static_cast<VkSampleCountFlagBits>(desc.graphics.multisample_state.sample_count);
 		attachment_desc[num_attachments].loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
 		attachment_desc[num_attachments].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -678,7 +591,7 @@ bool reshade::vulkan::device_impl::create_pipeline_graphics_all(const api::pipel
 
 	if (desc.graphics.depth_stencil_state.depth_stencil_format != api::format::unknown)
 	{
-		convert_format_to_vk_format(desc.graphics.depth_stencil_state.depth_stencil_format, attachment_desc[num_attachments].format);
+		attachment_desc[num_attachments].format = convert_format(desc.graphics.depth_stencil_state.depth_stencil_format);
 		attachment_desc[num_attachments].samples = static_cast<VkSampleCountFlagBits>(desc.graphics.multisample_state.sample_count);
 		attachment_desc[num_attachments].loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
 		attachment_desc[num_attachments].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -1174,17 +1087,6 @@ void reshade::vulkan::command_list_impl::bind_pipeline_states(uint32_t count, co
 	{
 		switch (states[i])
 		{
-		default:
-			assert(false);
-			break;
-		case api::pipeline_state::primitive_topology:
-			break;
-		case api::pipeline_state::depth_bias:
-		case api::pipeline_state::depth_bias_clamp:
-		case api::pipeline_state::depth_bias_slope_scaled:
-			// TODO: _device_impl->vk.CmdSetDepthBias(_orig);
-			assert(false);
-			break;
 		case api::pipeline_state::blend_constant:
 		{
 			float blend_constant[4];
@@ -1204,6 +1106,9 @@ void reshade::vulkan::command_list_impl::bind_pipeline_states(uint32_t count, co
 			break;
 		case api::pipeline_state::stencil_reference_value:
 			_device_impl->vk.CmdSetStencilReference(_orig, VK_STENCIL_FACE_FRONT_AND_BACK, values[i]);
+			break;
+		default:
+			assert(false);
 			break;
 		}
 	}
@@ -1437,7 +1342,7 @@ void reshade::vulkan::command_list_impl::blit(api::resource src, uint32_t src_su
 		1, &region,
 		filter == api::texture_filter::min_mag_mip_linear || filter == api::texture_filter::min_mag_linear_mip_point ? VK_FILTER_LINEAR : VK_FILTER_NEAREST);
 }
-void reshade::vulkan::command_list_impl::resolve(api::resource src, uint32_t src_subresource, const int32_t src_offset[3], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3], uint32_t)
+void reshade::vulkan::command_list_impl::resolve(api::resource src, uint32_t src_subresource, const int32_t src_offset[3], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3], api::format)
 {
 	_has_commands = true;
 
@@ -1695,7 +1600,7 @@ void reshade::vulkan::command_list_impl::clear_unordered_access_view_float(api::
 	_device_impl->vk.CmdClearColorImage(_orig, uav_data.image_create_info.image, VK_IMAGE_LAYOUT_GENERAL, &clear_value, 1, &range);
 }
 
-void reshade::vulkan::command_list_impl::insert_barriers(uint32_t count, const api::resource *resources, api::resource_usage old_state, api::resource_usage new_state)
+void reshade::vulkan::command_list_impl::insert_barrier(uint32_t count, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states)
 {
 	_has_commands = true;
 
@@ -1703,6 +1608,9 @@ void reshade::vulkan::command_list_impl::insert_barriers(uint32_t count, const a
 	image_barriers.reserve(count);
 	std::vector<VkBufferMemoryBarrier> buffer_barriers;
 	buffer_barriers.reserve(count);
+
+	VkPipelineStageFlags src_stage_mask = 0;
+	VkPipelineStageFlags dst_stage_mask = 0;
 
 	for (uint32_t i = 0; i < count; ++i)
 	{
@@ -1712,32 +1620,33 @@ void reshade::vulkan::command_list_impl::insert_barriers(uint32_t count, const a
 		{
 			VkImageMemoryBarrier &transition = image_barriers.emplace_back();
 			transition = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
-			transition.srcAccessMask = convert_usage_to_access(old_state);
-			transition.dstAccessMask = convert_usage_to_access(new_state);
-			transition.oldLayout = convert_usage_to_image_layout(old_state);
-			transition.newLayout = convert_usage_to_image_layout(new_state);
+			transition.srcAccessMask = convert_usage_to_access(old_states[i]);
+			transition.dstAccessMask = convert_usage_to_access(new_states[i]);
+			transition.oldLayout = convert_usage_to_image_layout(old_states[i]);
+			transition.newLayout = convert_usage_to_image_layout(new_states[i]);
 			transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 			transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 			transition.image = data.image;
 			transition.subresourceRange = { aspect_flags_from_format(data.image_create_info.format), 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
-
-			_device_impl->vk.CmdPipelineBarrier(_orig, convert_usage_to_pipeline_stage(old_state), convert_usage_to_pipeline_stage(new_state), 0, 0, nullptr, 0, nullptr, 1, &transition);
 		}
 		else
 		{
 			VkBufferMemoryBarrier &transition = buffer_barriers.emplace_back();
 			transition = { VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER };
-			transition.srcAccessMask = convert_usage_to_access(old_state);
-			transition.dstAccessMask = convert_usage_to_access(new_state);
+			transition.srcAccessMask = convert_usage_to_access(old_states[i]);
+			transition.dstAccessMask = convert_usage_to_access(new_states[i]);
 			transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 			transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 			transition.buffer = data.buffer;
 			transition.offset = 0;
 			transition.size = VK_WHOLE_SIZE;
 		}
+
+		src_stage_mask |= convert_usage_to_pipeline_stage(old_states[i]);
+		dst_stage_mask |= convert_usage_to_pipeline_stage(new_states[i]);
 	}
 
-	_device_impl->vk.CmdPipelineBarrier(_orig, convert_usage_to_pipeline_stage(old_state), convert_usage_to_pipeline_stage(new_state), 0, 0, nullptr, static_cast<uint32_t>(buffer_barriers.size()), buffer_barriers.data(), static_cast<uint32_t>(image_barriers.size()), image_barriers.data());
+	_device_impl->vk.CmdPipelineBarrier(_orig, src_stage_mask, dst_stage_mask, 0, 0, nullptr, static_cast<uint32_t>(buffer_barriers.size()), buffer_barriers.data(), static_cast<uint32_t>(image_barriers.size()), image_barriers.data());
 }
 
 void reshade::vulkan::command_list_impl::begin_debug_event(const char *label, const float color[4])

@@ -254,7 +254,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::ResolveSubresource(ID3D12Resour
 #if RESHADE_ADDON
 	if (reshade::invoke_addon_event<reshade::addon_event::resolve>(this,
 		reshade::api::resource { reinterpret_cast<uintptr_t>(pSrcResource) }, SrcSubresource, nullptr,
-		reshade::api::resource { reinterpret_cast<uintptr_t>(pDstResource) }, DstSubresource, nullptr, nullptr, static_cast<uint32_t>(Format)))
+		reshade::api::resource { reinterpret_cast<uintptr_t>(pDstResource) }, DstSubresource, nullptr, nullptr, reshade::d3d12::convert_format(Format)))
 		return;
 #endif
 	_orig->ResolveSubresource(pDstResource, DstSubresource, pSrcResource, SrcSubresource, Format);

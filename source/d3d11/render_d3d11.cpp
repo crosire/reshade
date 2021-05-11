@@ -113,7 +113,7 @@ bool reshade::d3d11::device_impl::check_capability(api::device_caps capability) 
 bool reshade::d3d11::device_impl::check_format_support(api::format format, api::resource_usage usage) const
 {
 	UINT support = 0;
-	if (FAILED(_orig->CheckFormatSupport(static_cast<DXGI_FORMAT>(format), &support)))
+	if (FAILED(_orig->CheckFormatSupport(convert_format(format), &support)))
 		return false;
 
 	if ((usage & api::resource_usage::render_target) != 0 &&
@@ -364,7 +364,7 @@ bool reshade::d3d11::device_impl::create_pipeline_graphics_all(const api::pipeli
 
 		internal_element.SemanticName = element.semantic;
 		internal_element.SemanticIndex = element.semantic_index;
-		internal_element.Format = static_cast<DXGI_FORMAT>(element.format);
+		internal_element.Format = convert_format(element.format);
 		internal_element.InputSlot = element.buffer_binding;
 		internal_element.AlignedByteOffset = element.offset;
 		internal_element.InputSlotClass = element.instance_step_rate > 0 ? D3D11_INPUT_PER_INSTANCE_DATA : D3D11_INPUT_PER_VERTEX_DATA;
@@ -425,19 +425,19 @@ bool reshade::d3d11::device_impl::create_pipeline_graphics_all(const api::pipeli
 }
 bool reshade::d3d11::device_impl::create_pipeline_graphics_blend_state(const api::pipeline_desc &desc, api::pipeline *out)
 {
-	D3D11_BLEND_DESC internal_desc = {};
+	D3D11_BLEND_DESC internal_desc;
 	internal_desc.AlphaToCoverageEnable = desc.graphics.multisample_state.alpha_to_coverage;
 	internal_desc.IndependentBlendEnable = TRUE;
 
 	for (UINT i = 0; i < 8; ++i)
 	{
 		internal_desc.RenderTarget[i].BlendEnable = desc.graphics.blend_state.blend_enable[i];
-		convert_blend_factor(desc.graphics.blend_state.src_color_blend_factor[i], internal_desc.RenderTarget[i].SrcBlend);
-		convert_blend_factor(desc.graphics.blend_state.dst_color_blend_factor[i], internal_desc.RenderTarget[i].DestBlend);
-		convert_blend_op(desc.graphics.blend_state.color_blend_op[i], internal_desc.RenderTarget[i].BlendOp);
-		convert_blend_factor(desc.graphics.blend_state.src_alpha_blend_factor[i], internal_desc.RenderTarget[i].SrcBlendAlpha);
-		convert_blend_factor(desc.graphics.blend_state.dst_alpha_blend_factor[i], internal_desc.RenderTarget[i].DestBlendAlpha);
-		convert_blend_op(desc.graphics.blend_state.alpha_blend_op[i], internal_desc.RenderTarget[i].BlendOpAlpha);
+		internal_desc.RenderTarget[i].SrcBlend = convert_blend_factor(desc.graphics.blend_state.src_color_blend_factor[i]);
+		internal_desc.RenderTarget[i].DestBlend = convert_blend_factor(desc.graphics.blend_state.dst_color_blend_factor[i]);
+		internal_desc.RenderTarget[i].BlendOp = convert_blend_op(desc.graphics.blend_state.color_blend_op[i]);
+		internal_desc.RenderTarget[i].SrcBlendAlpha = convert_blend_factor(desc.graphics.blend_state.src_alpha_blend_factor[i]);
+		internal_desc.RenderTarget[i].DestBlendAlpha = convert_blend_factor(desc.graphics.blend_state.dst_alpha_blend_factor[i]);
+		internal_desc.RenderTarget[i].BlendOpAlpha = convert_blend_op(desc.graphics.blend_state.alpha_blend_op[i]);
 		internal_desc.RenderTarget[i].RenderTargetWriteMask = desc.graphics.blend_state.render_target_write_mask[i];
 	}
 
@@ -455,9 +455,9 @@ bool reshade::d3d11::device_impl::create_pipeline_graphics_blend_state(const api
 }
 bool reshade::d3d11::device_impl::create_pipeline_graphics_rasterizer_state(const api::pipeline_desc &desc, api::pipeline *out)
 {
-	D3D11_RASTERIZER_DESC internal_desc = {};
-	convert_fill_mode(desc.graphics.rasterizer_state.fill_mode, internal_desc.FillMode);
-	convert_cull_mode(desc.graphics.rasterizer_state.cull_mode, internal_desc.CullMode);
+	D3D11_RASTERIZER_DESC internal_desc;
+	internal_desc.FillMode = convert_fill_mode(desc.graphics.rasterizer_state.fill_mode);
+	internal_desc.CullMode = convert_cull_mode(desc.graphics.rasterizer_state.cull_mode);
 	internal_desc.FrontCounterClockwise = desc.graphics.rasterizer_state.front_counter_clockwise;
 	internal_desc.DepthBias = static_cast<INT>(desc.graphics.rasterizer_state.depth_bias);
 	internal_desc.DepthBiasClamp = desc.graphics.rasterizer_state.depth_bias_clamp;
@@ -481,21 +481,21 @@ bool reshade::d3d11::device_impl::create_pipeline_graphics_rasterizer_state(cons
 }
 bool reshade::d3d11::device_impl::create_pipeline_graphics_depth_stencil_state(const api::pipeline_desc &desc, api::pipeline *out)
 {
-	D3D11_DEPTH_STENCIL_DESC internal_desc = {};
+	D3D11_DEPTH_STENCIL_DESC internal_desc;
 	internal_desc.DepthEnable = desc.graphics.depth_stencil_state.depth_test;
 	internal_desc.DepthWriteMask = desc.graphics.depth_stencil_state.depth_write_mask ? D3D11_DEPTH_WRITE_MASK_ALL : D3D11_DEPTH_WRITE_MASK_ZERO;
-	convert_compare_op(desc.graphics.depth_stencil_state.depth_func, internal_desc.DepthFunc);
+	internal_desc.DepthFunc = convert_compare_op(desc.graphics.depth_stencil_state.depth_func);
 	internal_desc.StencilEnable = desc.graphics.depth_stencil_state.stencil_test;
 	internal_desc.StencilReadMask = desc.graphics.depth_stencil_state.stencil_read_mask;
 	internal_desc.StencilWriteMask = desc.graphics.depth_stencil_state.stencil_write_mask;
-	convert_stencil_op(desc.graphics.depth_stencil_state.back_stencil_fail_op, internal_desc.BackFace.StencilFailOp);
-	convert_stencil_op(desc.graphics.depth_stencil_state.back_stencil_depth_fail_op, internal_desc.BackFace.StencilDepthFailOp);
-	convert_stencil_op(desc.graphics.depth_stencil_state.back_stencil_pass_op, internal_desc.BackFace.StencilPassOp);
-	convert_compare_op(desc.graphics.depth_stencil_state.back_stencil_func, internal_desc.BackFace.StencilFunc);
-	convert_stencil_op(desc.graphics.depth_stencil_state.front_stencil_fail_op, internal_desc.FrontFace.StencilFailOp);
-	convert_stencil_op(desc.graphics.depth_stencil_state.front_stencil_depth_fail_op, internal_desc.FrontFace.StencilDepthFailOp);
-	convert_stencil_op(desc.graphics.depth_stencil_state.front_stencil_pass_op, internal_desc.FrontFace.StencilPassOp);
-	convert_compare_op(desc.graphics.depth_stencil_state.front_stencil_func, internal_desc.FrontFace.StencilFunc);
+	internal_desc.BackFace.StencilFailOp = convert_stencil_op(desc.graphics.depth_stencil_state.back_stencil_fail_op);
+	internal_desc.BackFace.StencilDepthFailOp = convert_stencil_op(desc.graphics.depth_stencil_state.back_stencil_depth_fail_op);
+	internal_desc.BackFace.StencilPassOp = convert_stencil_op(desc.graphics.depth_stencil_state.back_stencil_pass_op);
+	internal_desc.BackFace.StencilFunc = convert_compare_op(desc.graphics.depth_stencil_state.back_stencil_func);
+	internal_desc.FrontFace.StencilFailOp = convert_stencil_op(desc.graphics.depth_stencil_state.front_stencil_fail_op);
+	internal_desc.FrontFace.StencilDepthFailOp = convert_stencil_op(desc.graphics.depth_stencil_state.front_stencil_depth_fail_op);
+	internal_desc.FrontFace.StencilPassOp = convert_stencil_op(desc.graphics.depth_stencil_state.front_stencil_pass_op);
+	internal_desc.FrontFace.StencilFunc = convert_compare_op(desc.graphics.depth_stencil_state.front_stencil_func);
 
 	if (com_ptr<ID3D11DepthStencilState> object;
 		SUCCEEDED(_orig->CreateDepthStencilState(&internal_desc, &object)))
@@ -838,9 +838,6 @@ void reshade::d3d11::device_context_impl::bind_pipeline(api::pipeline_type type,
 
 	switch (type)
 	{
-	default:
-		assert(false);
-		break;
 	case api::pipeline_type::compute:
 		_orig->CSSetShader(reinterpret_cast<ID3D11ComputeShader *>(pipeline.handle), nullptr, 0);
 		break;
@@ -856,6 +853,9 @@ void reshade::d3d11::device_context_impl::bind_pipeline(api::pipeline_type type,
 	case api::pipeline_type::graphics_depth_stencil_state:
 		_orig->OMSetDepthStencilState(reinterpret_cast<ID3D11DepthStencilState *>(pipeline.handle), 0);
 		break;
+	default:
+		assert(false);
+		break;
 	}
 }
 void reshade::d3d11::device_context_impl::bind_pipeline_states(uint32_t count, const api::pipeline_state *states, const uint32_t *values)
@@ -864,11 +864,11 @@ void reshade::d3d11::device_context_impl::bind_pipeline_states(uint32_t count, c
 	{
 		switch (states[i])
 		{
-		default:
-			assert(false);
-			break;
 		case api::pipeline_state::primitive_topology:
 			_orig->IASetPrimitiveTopology(convert_primitive_topology(static_cast<api::primitive_topology>(values[i])));
+			break;
+		default:
+			assert(false);
 			break;
 		}
 	}
@@ -1145,14 +1145,14 @@ void reshade::d3d11::device_context_impl::blit(api::resource, uint32_t, const in
 {
 	assert(false);
 }
-void reshade::d3d11::device_context_impl::resolve(api::resource src, uint32_t src_subresource, const int32_t src_offset[3], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3], uint32_t format)
+void reshade::d3d11::device_context_impl::resolve(api::resource src, uint32_t src_subresource, const int32_t src_offset[3], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3], api::format format)
 {
 	assert(src.handle != 0 && dst.handle != 0);
 	assert(src_offset == nullptr && dst_offset == nullptr && size == nullptr);
 
 	_orig->ResolveSubresource(
 		reinterpret_cast<ID3D11Resource *>(dst.handle), dst_subresource,
-		reinterpret_cast<ID3D11Resource *>(src.handle), src_subresource, static_cast<DXGI_FORMAT>(format));
+		reinterpret_cast<ID3D11Resource *>(src.handle), src_subresource, convert_format(format));
 }
 void reshade::d3d11::device_context_impl::copy_resource(api::resource src, api::resource dst)
 {

@@ -7,11 +7,449 @@
 #include "render_gl_utils.hpp"
 #include <cassert>
 
-using namespace reshade::api;
-
-bool reshade::opengl::is_depth_stencil_format(GLenum format, GLenum usage)
+auto reshade::opengl::convert_format(api::format format) -> GLenum
 {
 	switch (format)
+	{
+	default:
+	case api::format::unknown:
+		break;
+	case api::format::r1_unorm:
+		break; // Unsupported
+	case api::format::r8_uint:
+		return GL_R8UI;
+	case api::format::r8_sint:
+		return GL_R8I;
+	case api::format::r8_typeless:
+	case api::format::r8_unorm:
+	case api::format::a8_unorm:
+		return GL_R8;
+	case api::format::r8_snorm:
+		return GL_R8_SNORM;
+	case api::format::r8g8_uint:
+		return GL_RG8UI;
+	case api::format::r8g8_sint:
+		return GL_RG8I;
+	case api::format::r8g8_typeless:
+	case api::format::r8g8_unorm:
+		return GL_RG8;
+	case api::format::r8g8_snorm:
+		return GL_RG8_SNORM;
+	case api::format::r8g8b8a8_uint:
+		return GL_RGBA8UI;
+	case api::format::r8g8b8a8_sint:
+		return GL_RGBA8I;
+	case api::format::r8g8b8a8_typeless:
+	case api::format::r8g8b8a8_unorm:
+		return GL_RGBA8;
+	case api::format::r8g8b8a8_unorm_srgb:
+		return GL_SRGB8_ALPHA8;
+	case api::format::r8g8b8a8_snorm:
+		return GL_RGBA8_SNORM;
+	case api::format::b8g8r8a8_typeless:
+	case api::format::b8g8r8a8_unorm:
+	case api::format::b8g8r8a8_unorm_srgb:
+	case api::format::b8g8r8x8_typeless:
+	case api::format::b8g8r8x8_unorm:
+	case api::format::b8g8r8x8_unorm_srgb:
+		break; // Unsupported
+	case api::format::r10g10b10a2_uint:
+		return GL_RGB10_A2UI;
+	case api::format::r10g10b10a2_typeless:
+	case api::format::r10g10b10a2_unorm:
+		return GL_RGB10_A2;
+	case api::format::r10g10b10a2_xr_bias:
+		break; // Unsupported
+	case api::format::r16_uint:
+		return GL_R16UI;
+	case api::format::r16_sint:
+		return GL_R16I;
+	case api::format::r16_typeless:
+	case api::format::r16_float:
+		return GL_R16F;
+	case api::format::r16_unorm:
+		return GL_R16;
+	case api::format::r16_snorm:
+		return GL_R16_SNORM;
+	case api::format::r16g16_uint:
+		return GL_RG16UI;
+	case api::format::r16g16_sint:
+		return GL_RG16I;
+	case api::format::r16g16_typeless:
+	case api::format::r16g16_float:
+		return GL_RG16F;
+	case api::format::r16g16_unorm:
+		return GL_RG16;
+	case api::format::r16g16_snorm:
+		return GL_RG16_SNORM;
+	case api::format::r16g16b16a16_uint:
+		return GL_RGBA16UI;
+	case api::format::r16g16b16a16_sint:
+		return GL_RGBA16I;
+	case api::format::r16g16b16a16_typeless:
+	case api::format::r16g16b16a16_float:
+		return GL_RGBA16F;
+	case api::format::r16g16b16a16_unorm:
+		return GL_RGBA16;
+	case api::format::r16g16b16a16_snorm:
+		return GL_RGBA16_SNORM;
+	case api::format::r32_uint:
+		return GL_R32UI;
+	case api::format::r32_sint:
+		return GL_R32I;
+	case api::format::r32_typeless:
+	case api::format::r32_float:
+		return GL_R32F;
+	case api::format::r32g32_uint:
+		return GL_RG32UI;
+	case api::format::r32g32_sint:
+		return GL_RG32I;
+	case api::format::r32g32_typeless:
+	case api::format::r32g32_float:
+		return GL_RG32F;
+	case api::format::r32g32b32_uint:
+		return GL_RGB32UI;
+	case api::format::r32g32b32_sint:
+		return GL_RGB32I;
+	case api::format::r32g32b32_typeless:
+	case api::format::r32g32b32_float:
+		return GL_RGB32F;
+	case api::format::r32g32b32a32_uint:
+		return GL_RGBA32UI;
+	case api::format::r32g32b32a32_sint:
+		return GL_RGBA32I;
+	case api::format::r32g32b32a32_typeless:
+	case api::format::r32g32b32a32_float:
+		return GL_RGBA32F;
+	case api::format::r9g9b9e5:
+		return GL_RGB9_E5;
+	case api::format::r11g11b10_float:
+		return GL_R11F_G11F_B10F;
+	case api::format::b5g6r5_unorm:
+		return GL_RGB565;
+	case api::format::b5g5r5a1_unorm:
+		return GL_RGB5_A1;
+	case api::format::b4g4r4a4_unorm:
+		return GL_RGBA4;
+	case api::format::s8_uint:
+		return GL_STENCIL_INDEX8;
+	case api::format::d16_unorm:
+		return GL_DEPTH_COMPONENT16;
+	case api::format::d16_unorm_s8_uint:
+		break; // Unsupported
+	case api::format::r24_g8_typeless:
+	case api::format::r24_unorm_x8_uint:
+	case api::format::x24_unorm_g8_uint:
+	case api::format::d24_unorm_s8_uint:
+		return GL_DEPTH24_STENCIL8;
+	case api::format::d32_float:
+		return GL_DEPTH_COMPONENT32F;
+	case api::format::r32_g8_typeless:
+	case api::format::r32_float_x8_uint:
+	case api::format::x32_float_g8_uint:
+	case api::format::d32_float_s8_uint:
+		return GL_DEPTH32F_STENCIL8;
+	case api::format::bc1_typeless:
+	case api::format::bc1_unorm:
+		return GL_COMPRESSED_RGBA_S3TC_DXT1_EXT;
+	case api::format::bc1_unorm_srgb:
+		return 0x8C4D /* GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT */;
+	case api::format::bc2_typeless:
+	case api::format::bc2_unorm:
+		return GL_COMPRESSED_RGBA_S3TC_DXT3_EXT;
+	case api::format::bc2_unorm_srgb:
+		return 0x8C4E /* GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT */;
+	case api::format::bc3_typeless:
+	case api::format::bc3_unorm:
+		return GL_COMPRESSED_RGBA_S3TC_DXT5_EXT;
+	case api::format::bc3_unorm_srgb:
+		return 0x8C4F /* GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT */;
+	case api::format::bc4_typeless:
+	case api::format::bc4_unorm:
+		return GL_COMPRESSED_RED_RGTC1;
+	case api::format::bc4_snorm:
+		return GL_COMPRESSED_SIGNED_RED_RGTC1;
+	case api::format::bc5_typeless:
+	case api::format::bc5_unorm:
+		return GL_COMPRESSED_RG_RGTC2;
+	case api::format::bc5_snorm:
+		return GL_COMPRESSED_SIGNED_RG_RGTC2;
+	case api::format::bc6h_typeless:
+	case api::format::bc6h_ufloat:
+		return GL_COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT_ARB;
+	case api::format::bc6h_sfloat:
+		return GL_COMPRESSED_RGB_BPTC_SIGNED_FLOAT_ARB;
+	case api::format::bc7_typeless:
+	case api::format::bc7_unorm:
+		return GL_COMPRESSED_RGBA_BPTC_UNORM_ARB;
+	case api::format::bc7_unorm_srgb:
+		return GL_COMPRESSED_SRGB_ALPHA_BPTC_UNORM_ARB;
+	case api::format::r8g8_b8g8_unorm:
+	case api::format::g8r8_g8b8_unorm:
+		break; // Unsupported
+	}
+
+	return GL_NONE;
+}
+auto reshade::opengl::convert_format(GLenum internal_format) -> api::format
+{
+	switch (internal_format)
+	{
+	default:
+		return api::format::unknown;
+	case GL_R8UI:
+		return api::format::r8_uint;
+	case GL_R8I:
+		return api::format::r8_sint;
+	case GL_R8:
+		return api::format::r8_unorm;
+	case GL_R8_SNORM:
+		return api::format::r8_snorm;
+	case GL_RG8UI:
+		return api::format::r8g8_uint;
+	case GL_RG8I:
+		return api::format::r8g8_sint;
+	case GL_RG8:
+		return api::format::r8g8_unorm;
+	case GL_RG8_SNORM:
+		return api::format::r8g8_snorm;
+	case GL_RGBA8UI:
+		return api::format::r8g8b8a8_uint;
+	case GL_RGBA8I:
+		return api::format::r8g8b8a8_sint;
+	case GL_RGBA8:
+		return api::format::r8g8b8a8_unorm;
+	case GL_SRGB8_ALPHA8:
+		return api::format::r8g8b8a8_unorm_srgb;
+	case GL_RGBA8_SNORM:
+		return api::format::r8g8b8a8_snorm;
+	case GL_RGB10_A2UI:
+		return api::format::r10g10b10a2_uint;
+	case GL_RGB10_A2:
+		return api::format::r10g10b10a2_unorm;
+	case GL_R16UI:
+		return api::format::r16_uint;
+	case GL_R16I:
+		return api::format::r16_sint;
+	case GL_R16F:
+		return api::format::r16_float;
+	case GL_R16:
+		return api::format::r16_unorm;
+	case GL_R16_SNORM:
+		return api::format::r16_snorm;
+	case GL_RG16UI:
+		return api::format::r16g16_uint;
+	case GL_RG16I:
+		return api::format::r16g16_sint;
+	case GL_RG16F:
+		return api::format::r16g16_float;
+	case GL_RG16:
+		return api::format::r16g16_unorm;
+	case GL_RG16_SNORM:
+		return api::format::r16g16_snorm;
+	case GL_RGBA16UI:
+		return api::format::r16g16b16a16_uint;
+	case GL_RGBA16I:
+		return api::format::r16g16b16a16_sint;
+	case GL_RGBA16F:
+		return api::format::r16g16b16a16_float;
+	case GL_RGBA16:
+		return api::format::r16g16b16a16_unorm;
+	case GL_RGBA16_SNORM:
+		return api::format::r16g16b16a16_snorm;
+	case GL_R32UI:
+		return api::format::r32_uint;
+	case GL_R32I:
+		return api::format::r32_sint;
+	case GL_R32F:
+		return api::format::r32_float;
+	case GL_RG32UI:
+		return api::format::r32g32_uint;
+	case GL_RG32I:
+		return api::format::r32g32_sint;
+	case GL_RG32F:
+		return api::format::r32g32_float;
+	case GL_RGB32UI:
+		return api::format::r32g32b32_uint;
+	case GL_RGB32I:
+		return api::format::r32g32b32_sint;
+	case GL_RGB32F:
+		return api::format::r32g32b32_float;
+	case GL_RGBA32UI:
+		return api::format::r32g32b32a32_uint;
+	case GL_RGBA32I:
+		return api::format::r32g32b32a32_sint;
+	case GL_RGBA32F:
+		return api::format::r32g32b32a32_float;
+	case GL_RGB9_E5:
+		return api::format::r9g9b9e5;
+	case GL_R11F_G11F_B10F:
+		return api::format::r11g11b10_float;
+	case GL_RGB565:
+		return api::format::b5g6r5_unorm;
+	case GL_RGB5_A1:
+		return api::format::b5g5r5a1_unorm;
+	case GL_RGBA4:
+		return api::format::b4g4r4a4_unorm;
+	case GL_STENCIL_INDEX:
+	case GL_STENCIL_INDEX8:
+		return api::format::s8_uint;
+	case GL_DEPTH_COMPONENT:
+	case GL_DEPTH_COMPONENT16:
+		return api::format::d16_unorm;
+	case GL_DEPTH_COMPONENT24:
+	case GL_DEPTH_STENCIL:
+	case GL_DEPTH24_STENCIL8:
+		return api::format::d24_unorm_s8_uint;
+	case GL_DEPTH_COMPONENT32:
+	case GL_DEPTH_COMPONENT32F:
+	case GL_DEPTH_COMPONENT32F_NV:
+		return api::format::d32_float;
+	case GL_DEPTH32F_STENCIL8:
+	case GL_DEPTH32F_STENCIL8_NV:
+		return api::format::d32_float_s8_uint;
+	case GL_COMPRESSED_RGBA_S3TC_DXT1_EXT:
+		return api::format::bc1_unorm;
+	case 0x8C4D /* GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT */:
+		return api::format::bc1_unorm_srgb;
+	case GL_COMPRESSED_RGBA_S3TC_DXT3_EXT:
+		return api::format::bc2_unorm;
+	case 0x8C4E /* GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT */:
+		return api::format::bc2_unorm_srgb;
+	case GL_COMPRESSED_RGBA_S3TC_DXT5_EXT:
+		return api::format::bc3_unorm;
+	case 0x8C4F /* GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT */:
+		return api::format::bc3_unorm_srgb;
+	case GL_COMPRESSED_RED_RGTC1:
+		return api::format::bc4_unorm;
+	case GL_COMPRESSED_SIGNED_RED_RGTC1:
+		return api::format::bc4_snorm;
+	case GL_COMPRESSED_RG_RGTC2:
+		return api::format::bc5_unorm;
+	case GL_COMPRESSED_SIGNED_RG_RGTC2:
+		return api::format::bc5_snorm;
+	case GL_COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT_ARB:
+		return api::format::bc6h_ufloat;
+	case GL_COMPRESSED_RGB_BPTC_SIGNED_FLOAT_ARB:
+		return api::format::bc6h_sfloat;
+	case GL_COMPRESSED_RGBA_BPTC_UNORM_ARB:
+		return api::format::bc7_unorm;
+	case GL_COMPRESSED_SRGB_ALPHA_BPTC_UNORM_ARB:
+		return api::format::bc7_unorm_srgb;
+	}
+}
+auto reshade::opengl::convert_attrib_format(api::format format, GLint &size, GLboolean &normalized) -> GLenum
+{
+	size = 0;
+	normalized = GL_FALSE;
+
+	switch (format)
+	{
+	case api::format::r8g8b8a8_unorm:
+		normalized = GL_TRUE;
+		// fall through
+	case api::format::r8g8b8a8_uint:
+		size = 4;
+		return GL_UNSIGNED_BYTE;
+	case api::format::b8g8r8a8_unorm:
+		normalized = GL_TRUE;
+		size = GL_BGRA;
+		return GL_UNSIGNED_BYTE;
+	case api::format::r10g10b10a2_unorm:
+		normalized = GL_TRUE;
+		// fall through
+	case api::format::r10g10b10a2_uint:
+		size = 4;
+		return GL_UNSIGNED_INT_2_10_10_10_REV;
+	case api::format::r16_unorm:
+		normalized = GL_TRUE;
+		// fall through
+	case api::format::r16_uint:
+		size = 1;
+		return GL_UNSIGNED_SHORT;
+	case api::format::r16_snorm:
+		normalized = GL_TRUE;
+		// fall through
+	case api::format::r16_sint:
+		size = 1;
+		return GL_SHORT;
+	case api::format::r16_float:
+		size = 1;
+		return GL_HALF_FLOAT;
+	case api::format::r16g16_unorm:
+		normalized = GL_TRUE;
+		// fall through
+	case api::format::r16g16_uint:
+		size = 2;
+		return GL_UNSIGNED_SHORT;
+	case api::format::r16g16_snorm:
+		normalized = GL_TRUE;
+		// fall through
+	case api::format::r16g16_sint:
+		size = 2;
+		return GL_SHORT;
+	case api::format::r16g16_float:
+		size = 2;
+		return GL_HALF_FLOAT;
+	case api::format::r16g16b16a16_unorm:
+		normalized = GL_TRUE;
+		// fall through
+	case api::format::r16g16b16a16_uint:
+		size = 4;
+		return GL_UNSIGNED_SHORT;
+	case api::format::r16g16b16a16_snorm:
+		normalized = GL_TRUE;
+		// fall through
+	case api::format::r16g16b16a16_sint:
+		size = 4;
+		return GL_SHORT;
+	case api::format::r16g16b16a16_float:
+		size = 4;
+		return GL_HALF_FLOAT;
+	case api::format::r32_uint:
+		size = 1;
+		return GL_UNSIGNED_INT;
+	case api::format::r32_sint:
+		size = 1;
+		return GL_INT;
+	case api::format::r32_float:
+		size = 1;
+		return GL_FLOAT;
+	case api::format::r32g32_uint:
+		size = 2;
+		return GL_UNSIGNED_INT;
+	case api::format::r32g32_sint:
+		size = 2;
+		return GL_INT;
+	case api::format::r32g32_float:
+		size = 2;
+		return GL_FLOAT;
+	case api::format::r32g32b32_uint:
+		size = 3;
+		return GL_UNSIGNED_INT;
+	case api::format::r32g32b32_sint:
+		size = 3;
+		return GL_INT;
+	case api::format::r32g32b32_float:
+		size = 3;
+		return GL_FLOAT;
+	case api::format::r32g32b32a32_uint:
+		size = 4;
+		return GL_UNSIGNED_INT;
+	case api::format::r32g32b32a32_sint:
+		size = 4;
+		return GL_INT;
+	case api::format::r32g32b32a32_float:
+		size = 4;
+		return GL_FLOAT;
+	}
+
+	return GL_NONE;
+}
+
+bool reshade::opengl::is_depth_stencil_format(GLenum internal_format, GLenum usage)
+{
+	switch (internal_format)
 	{
 	case GL_DEPTH_COMPONENT:
 	case GL_DEPTH_COMPONENT16:
@@ -34,803 +472,17 @@ bool reshade::opengl::is_depth_stencil_format(GLenum format, GLenum usage)
 	}
 }
 
-GLuint reshade::opengl::get_index_type_size(GLenum type)
-{
-	switch (type)
-	{
-	default:
-		assert(false);
-		return 0;
-	case GL_UNSIGNED_BYTE:
-		return 1;
-	case GL_UNSIGNED_SHORT:
-		return 2;
-	case GL_UNSIGNED_INT:
-		return 4;
-	}
-}
-
-GLenum reshade::opengl::get_binding_for_target(GLenum target)
-{
-	switch (target)
-	{
-	default:
-		return GL_NONE;
-	case GL_ARRAY_BUFFER:
-		return GL_ARRAY_BUFFER_BINDING;
-	case GL_ELEMENT_ARRAY_BUFFER:
-		return GL_ELEMENT_ARRAY_BUFFER_BINDING;
-	case GL_PIXEL_PACK_BUFFER:
-		return GL_PIXEL_PACK_BUFFER_BINDING;
-	case GL_PIXEL_UNPACK_BUFFER:
-		return GL_PIXEL_UNPACK_BUFFER_BINDING;
-	case GL_UNIFORM_BUFFER:
-		return GL_UNIFORM_BUFFER_BINDING;
-	case GL_TEXTURE_BUFFER:
-		return GL_TEXTURE_BINDING_BUFFER;
-	case GL_TRANSFORM_FEEDBACK_BUFFER:
-		return GL_TRANSFORM_FEEDBACK_BUFFER_BINDING;
-	case GL_COPY_READ_BUFFER:
-		return GL_COPY_READ_BUFFER_BINDING;
-	case GL_COPY_WRITE_BUFFER:
-		return GL_COPY_WRITE_BUFFER_BINDING;
-	case GL_DRAW_INDIRECT_BUFFER:
-		return GL_DRAW_INDIRECT_BUFFER_BINDING;
-	case GL_SHADER_STORAGE_BUFFER:
-		return GL_SHADER_STORAGE_BUFFER_BINDING;
-	case GL_DISPATCH_INDIRECT_BUFFER:
-		return GL_DISPATCH_INDIRECT_BUFFER_BINDING;
-	case GL_QUERY_BUFFER:
-		return GL_QUERY_BUFFER_BINDING;
-	case GL_ATOMIC_COUNTER_BUFFER:
-		return GL_ATOMIC_COUNTER_BUFFER_BINDING;
-	case GL_TEXTURE_1D:
-		return GL_TEXTURE_BINDING_1D;
-	case GL_TEXTURE_1D_ARRAY:
-		return GL_TEXTURE_BINDING_1D_ARRAY;
-	case GL_TEXTURE_2D:
-		return GL_TEXTURE_BINDING_2D;
-	case GL_TEXTURE_2D_ARRAY:
-		return GL_TEXTURE_BINDING_2D_ARRAY;
-	case GL_TEXTURE_2D_MULTISAMPLE:
-		return GL_TEXTURE_BINDING_2D_MULTISAMPLE;
-	case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
-		return GL_TEXTURE_BINDING_2D_MULTISAMPLE_ARRAY;
-	case GL_TEXTURE_3D:
-		return GL_TEXTURE_BINDING_3D;
-	case GL_TEXTURE_CUBE_MAP:
-		return GL_TEXTURE_BINDING_CUBE_MAP;
-	case GL_TEXTURE_CUBE_MAP_ARRAY:
-		return GL_TEXTURE_BINDING_CUBE_MAP_ARRAY;
-	case GL_TEXTURE_RECTANGLE:
-		return GL_TEXTURE_BINDING_RECTANGLE;
-	}
-}
-
-GLenum reshade::opengl::convert_blend_op(api::blend_op value)
-{
-	switch (value)
-	{
-	default:
-	case reshade::api::blend_op::add:
-		return GL_FUNC_ADD;
-	case reshade::api::blend_op::subtract:
-		return GL_FUNC_SUBTRACT;
-	case reshade::api::blend_op::rev_subtract:
-		return GL_FUNC_REVERSE_SUBTRACT;
-	case reshade::api::blend_op::min:
-		return GL_MIN;
-	case reshade::api::blend_op::max:
-		return GL_MAX;
-	}
-}
-GLenum reshade::opengl::convert_blend_factor(api::blend_factor value)
-{
-	switch (value)
-	{
-	default:
-	case reshade::api::blend_factor::zero:
-		return GL_ZERO;
-	case reshade::api::blend_factor::one:
-		return GL_ONE;
-	case reshade::api::blend_factor::src_color:
-		return GL_SRC_COLOR;
-	case reshade::api::blend_factor::inv_src_color:
-		return GL_ONE_MINUS_SRC_COLOR;
-	case reshade::api::blend_factor::dst_color:
-		return GL_DST_COLOR;
-	case reshade::api::blend_factor::inv_dst_color:
-		return GL_ONE_MINUS_DST_COLOR;
-	case reshade::api::blend_factor::src_alpha:
-		return GL_SRC_ALPHA;
-	case reshade::api::blend_factor::inv_src_alpha:
-		return GL_ONE_MINUS_SRC_ALPHA;
-	case reshade::api::blend_factor::dst_alpha:
-		return GL_DST_ALPHA;
-	case reshade::api::blend_factor::inv_dst_alpha:
-		return GL_ONE_MINUS_DST_ALPHA;
-	case reshade::api::blend_factor::constant_color:
-		return GL_CONSTANT_COLOR;
-	case reshade::api::blend_factor::inv_constant_color:
-		return GL_ONE_MINUS_CONSTANT_COLOR;
-	case reshade::api::blend_factor::constant_alpha:
-		return GL_CONSTANT_ALPHA;
-	case reshade::api::blend_factor::inv_constant_alpha:
-		return GL_ONE_MINUS_CONSTANT_ALPHA;
-	case reshade::api::blend_factor::src_alpha_sat:
-		return GL_SRC_ALPHA_SATURATE;
-	case reshade::api::blend_factor::src1_color:
-		return GL_SRC1_COLOR;
-	case reshade::api::blend_factor::inv_src1_color:
-		return GL_ONE_MINUS_SRC1_COLOR;
-	case reshade::api::blend_factor::src1_alpha:
-		return GL_SRC1_ALPHA;
-	case reshade::api::blend_factor::inv_src1_alpha:
-		return GL_ONE_MINUS_SRC1_ALPHA;
-	}
-}
-GLenum reshade::opengl::convert_fill_mode(api::fill_mode value)
-{
-	switch (value)
-	{
-	default:
-	case reshade::api::fill_mode::solid:
-		return GL_FILL;
-	case reshade::api::fill_mode::wireframe:
-		return GL_LINE;
-	case reshade::api::fill_mode::point:
-		return GL_POINT;
-	}
-}
-GLenum reshade::opengl::convert_cull_mode(api::cull_mode value)
-{
-	switch (value)
-	{
-	default:
-	case reshade::api::cull_mode::none:
-		return GL_NONE;
-	case reshade::api::cull_mode::front:
-		return GL_FRONT;
-	case reshade::api::cull_mode::back:
-		return GL_BACK;
-	case reshade::api::cull_mode::front_and_back:
-		return GL_FRONT_AND_BACK;
-	}
-}
-GLenum reshade::opengl::convert_compare_op(api::compare_op value)
-{
-	switch (value)
-	{
-	default:
-	case reshade::api::compare_op::never:
-		return GL_NEVER;
-	case reshade::api::compare_op::less:
-		return GL_LESS;
-	case reshade::api::compare_op::equal:
-		return GL_EQUAL;
-	case reshade::api::compare_op::less_equal:
-		return GL_LEQUAL;
-	case reshade::api::compare_op::greater:
-		return GL_GREATER;
-	case reshade::api::compare_op::not_equal:
-		return GL_NOTEQUAL;
-	case reshade::api::compare_op::greater_equal:
-		return GL_GEQUAL;
-	case reshade::api::compare_op::always:
-		return GL_ALWAYS;
-	}
-}
-GLenum reshade::opengl::convert_stencil_op(api::stencil_op value)
-{
-	switch (value)
-	{
-	default:
-	case reshade::api::stencil_op::keep:
-		return GL_KEEP;
-	case reshade::api::stencil_op::zero:
-		return GL_ZERO;
-	case reshade::api::stencil_op::replace:
-		return GL_REPLACE;
-	case reshade::api::stencil_op::incr_sat:
-		return GL_INCR;
-	case reshade::api::stencil_op::decr_sat:
-		return GL_DECR;
-	case reshade::api::stencil_op::invert:
-		return GL_INVERT;
-	case reshade::api::stencil_op::incr:
-		return GL_INCR_WRAP;
-	case reshade::api::stencil_op::decr:
-		return GL_DECR_WRAP;
-	}
-}
-GLenum reshade::opengl::convert_primitive_topology(api::primitive_topology value)
-{
-	switch (value)
-	{
-	default:
-	case reshade::api::primitive_topology::undefined:
-		return GL_NONE;
-	case reshade::api::primitive_topology::point_list:
-		return GL_POINTS;
-	case reshade::api::primitive_topology::line_list:
-		return GL_LINES;
-	case reshade::api::primitive_topology::line_strip:
-		return GL_LINE_STRIP;
-	case reshade::api::primitive_topology::triangle_list:
-		return GL_TRIANGLES;
-	case reshade::api::primitive_topology::triangle_strip:
-		return GL_TRIANGLE_STRIP;
-	case reshade::api::primitive_topology::triangle_fan:
-		return GL_TRIANGLE_FAN;
-	case reshade::api::primitive_topology::line_list_adj:
-		return GL_LINES_ADJACENCY;
-	case reshade::api::primitive_topology::line_strip_adj:
-		return GL_LINE_STRIP_ADJACENCY;
-	case reshade::api::primitive_topology::triangle_list_adj:
-		return GL_TRIANGLES_ADJACENCY;
-	case reshade::api::primitive_topology::triangle_strip_adj:
-		return GL_TRIANGLE_STRIP_ADJACENCY;
-	case reshade::api::primitive_topology::patch_list_01_cp:
-	case reshade::api::primitive_topology::patch_list_02_cp:
-	case reshade::api::primitive_topology::patch_list_03_cp:
-	case reshade::api::primitive_topology::patch_list_04_cp:
-	case reshade::api::primitive_topology::patch_list_05_cp:
-	case reshade::api::primitive_topology::patch_list_06_cp:
-	case reshade::api::primitive_topology::patch_list_07_cp:
-	case reshade::api::primitive_topology::patch_list_08_cp:
-	case reshade::api::primitive_topology::patch_list_09_cp:
-	case reshade::api::primitive_topology::patch_list_10_cp:
-	case reshade::api::primitive_topology::patch_list_11_cp:
-	case reshade::api::primitive_topology::patch_list_12_cp:
-	case reshade::api::primitive_topology::patch_list_13_cp:
-	case reshade::api::primitive_topology::patch_list_14_cp:
-	case reshade::api::primitive_topology::patch_list_15_cp:
-	case reshade::api::primitive_topology::patch_list_16_cp:
-	case reshade::api::primitive_topology::patch_list_17_cp:
-	case reshade::api::primitive_topology::patch_list_18_cp:
-	case reshade::api::primitive_topology::patch_list_19_cp:
-	case reshade::api::primitive_topology::patch_list_20_cp:
-	case reshade::api::primitive_topology::patch_list_21_cp:
-	case reshade::api::primitive_topology::patch_list_22_cp:
-	case reshade::api::primitive_topology::patch_list_23_cp:
-	case reshade::api::primitive_topology::patch_list_24_cp:
-	case reshade::api::primitive_topology::patch_list_25_cp:
-	case reshade::api::primitive_topology::patch_list_26_cp:
-	case reshade::api::primitive_topology::patch_list_27_cp:
-	case reshade::api::primitive_topology::patch_list_28_cp:
-	case reshade::api::primitive_topology::patch_list_29_cp:
-	case reshade::api::primitive_topology::patch_list_30_cp:
-	case reshade::api::primitive_topology::patch_list_31_cp:
-	case reshade::api::primitive_topology::patch_list_32_cp:
-		return GL_PATCHES;
-	}
-}
-GLenum reshade::opengl::convert_shader_type(api::shader_stage type)
-{
-	switch (type)
-	{
-	default:
-		return GL_NONE;
-	case api::shader_stage::vertex:
-		return GL_VERTEX_SHADER;
-	case api::shader_stage::hull:
-		return GL_TESS_CONTROL_SHADER;
-	case api::shader_stage::domain:
-		return GL_TESS_EVALUATION_SHADER;
-	case api::shader_stage::geometry:
-		return GL_GEOMETRY_SHADER;
-	case api::shader_stage::pixel:
-		return GL_FRAGMENT_SHADER;
-	case api::shader_stage::compute:
-		return GL_COMPUTE_SHADER;
-	}
-}
-
-void reshade::opengl::convert_format_to_internal_format(format format, GLenum &internalformat)
-{
-	switch (format)
-	{
-	default:
-	case format::unknown:
-		break;
-	case format::r1_unorm:
-		// Unsupported
-		break;
-	case format::r8_uint:
-		internalformat = GL_R8UI;
-		break;
-	case format::r8_sint:
-		internalformat = GL_R8I;
-		break;
-	case format::r8_typeless:
-	case format::r8_unorm:
-	case format::a8_unorm:
-		internalformat = GL_R8;
-		break;
-	case format::r8_snorm:
-		internalformat = GL_R8_SNORM;
-		break;
-	case format::r8g8_uint:
-		internalformat = GL_RG8UI;
-		break;
-	case format::r8g8_sint:
-		internalformat = GL_RG8I;
-		break;
-	case format::r8g8_typeless:
-	case format::r8g8_unorm:
-		internalformat = GL_RG8;
-		break;
-	case format::r8g8_snorm:
-		internalformat = GL_RG8_SNORM;
-		break;
-	case format::r8g8b8a8_uint:
-		internalformat = GL_RGBA8UI;
-		break;
-	case format::r8g8b8a8_sint:
-		internalformat = GL_RGBA8I;
-		break;
-	case format::r8g8b8a8_typeless:
-	case format::r8g8b8a8_unorm:
-		internalformat = GL_RGBA8;
-		break;
-	case format::r8g8b8a8_unorm_srgb:
-		internalformat = GL_SRGB8_ALPHA8;
-		break;
-	case format::r8g8b8a8_snorm:
-		internalformat = GL_RGBA8_SNORM;
-		break;
-	case format::b8g8r8a8_typeless:
-	case format::b8g8r8a8_unorm:
-	case format::b8g8r8a8_unorm_srgb:
-	case format::b8g8r8x8_typeless:
-	case format::b8g8r8x8_unorm:
-	case format::b8g8r8x8_unorm_srgb:
-		// Unsupported
-		break;
-	case format::r10g10b10a2_uint:
-		internalformat = GL_RGB10_A2UI;
-		break;
-	case format::r10g10b10a2_typeless:
-	case format::r10g10b10a2_unorm:
-		internalformat = GL_RGB10_A2;
-		break;
-	case format::r10g10b10a2_xr_bias:
-		// Unsupported
-		break;
-	case format::r16_uint:
-		internalformat = GL_R16UI;
-		break;
-	case format::r16_sint:
-		internalformat = GL_R16I;
-		break;
-	case format::r16_typeless:
-	case format::r16_float:
-		internalformat = GL_R16F;
-		break;
-	case format::r16_unorm:
-		internalformat = GL_R16;
-		break;
-	case format::r16_snorm:
-		internalformat = GL_R16_SNORM;
-		break;
-	case format::r16g16_uint:
-		internalformat = GL_RG16UI;
-		break;
-	case format::r16g16_sint:
-		internalformat = GL_RG16I;
-		break;
-	case format::r16g16_typeless:
-	case format::r16g16_float:
-		internalformat = GL_RG16F;
-		break;
-	case format::r16g16_unorm:
-		internalformat = GL_RG16;
-		break;
-	case format::r16g16_snorm:
-		internalformat = GL_RG16_SNORM;
-		break;
-	case format::r16g16b16a16_uint:
-		internalformat = GL_RGBA16UI;
-		break;
-	case format::r16g16b16a16_sint:
-		internalformat = GL_RGBA16I;
-		break;
-	case format::r16g16b16a16_typeless:
-	case format::r16g16b16a16_float:
-		internalformat = GL_RGBA16F;
-		break;
-	case format::r16g16b16a16_unorm:
-		internalformat = GL_RGBA16;
-		break;
-	case format::r16g16b16a16_snorm:
-		internalformat = GL_RGBA16_SNORM;
-		break;
-	case format::r32_uint:
-		internalformat = GL_R32UI;
-		break;
-	case format::r32_sint:
-		internalformat = GL_R32I;
-		break;
-	case format::r32_typeless:
-	case format::r32_float:
-		internalformat = GL_R32F;
-		break;
-	case format::r32g32_uint:
-		internalformat = GL_RG32UI;
-		break;
-	case format::r32g32_sint:
-		internalformat = GL_RG32I;
-		break;
-	case format::r32g32_typeless:
-	case format::r32g32_float:
-		internalformat = GL_RG32F;
-		break;
-	case format::r32g32b32_uint:
-		internalformat = GL_RGB32UI;
-		break;
-	case format::r32g32b32_sint:
-		internalformat = GL_RGB32I;
-		break;
-	case format::r32g32b32_typeless:
-	case format::r32g32b32_float:
-		internalformat = GL_RGB32F;
-		break;
-	case format::r32g32b32a32_uint:
-		internalformat = GL_RGBA32UI;
-		break;
-	case format::r32g32b32a32_sint:
-		internalformat = GL_RGBA32I;
-		break;
-	case format::r32g32b32a32_typeless:
-	case format::r32g32b32a32_float:
-		internalformat = GL_RGBA32F;
-		break;
-	case format::r9g9b9e5:
-		internalformat = GL_RGB9_E5;
-		break;
-	case format::r11g11b10_float:
-		internalformat = GL_R11F_G11F_B10F;
-		break;
-	case format::b5g6r5_unorm:
-		internalformat = GL_RGB565;
-		break;
-	case format::b5g5r5a1_unorm:
-		internalformat = GL_RGB5_A1;
-		break;
-	case format::b4g4r4a4_unorm:
-		internalformat = GL_RGBA4;
-		break;
-	case format::s8_uint:
-		internalformat = GL_STENCIL_INDEX8;
-		break;
-	case format::d16_unorm:
-		internalformat = GL_DEPTH_COMPONENT16;
-		break;
-	case format::d16_unorm_s8_uint:
-		// Unsupported
-		break;
-	case format::r24_g8_typeless:
-	case format::r24_unorm_x8_uint:
-	case format::x24_unorm_g8_uint:
-	case format::d24_unorm_s8_uint:
-		internalformat = GL_DEPTH24_STENCIL8;
-		break;
-	case format::d32_float:
-		internalformat = GL_DEPTH_COMPONENT32F;
-		break;
-	case format::r32_g8_typeless:
-	case format::r32_float_x8_uint:
-	case format::x32_float_g8_uint:
-	case format::d32_float_s8_uint:
-		internalformat = GL_DEPTH32F_STENCIL8;
-		break;
-	case format::bc1_typeless:
-	case format::bc1_unorm:
-		internalformat = GL_COMPRESSED_RGBA_S3TC_DXT1_EXT;
-		break;
-	case format::bc1_unorm_srgb:
-		internalformat = 0x8C4D /* GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT */;
-		break;
-	case format::bc2_typeless:
-	case format::bc2_unorm:
-		internalformat = GL_COMPRESSED_RGBA_S3TC_DXT3_EXT;
-		break;
-	case format::bc2_unorm_srgb:
-		internalformat = 0x8C4E /* GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT */;
-		break;
-	case format::bc3_typeless:
-	case format::bc3_unorm:
-		internalformat = GL_COMPRESSED_RGBA_S3TC_DXT5_EXT;
-		break;
-	case format::bc3_unorm_srgb:
-		internalformat = 0x8C4F /* GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT */;
-		break;
-	case format::bc4_typeless:
-	case format::bc4_unorm:
-		internalformat = GL_COMPRESSED_RED_RGTC1;
-		break;
-	case format::bc4_snorm:
-		internalformat = GL_COMPRESSED_SIGNED_RED_RGTC1;
-		break;
-	case format::bc5_typeless:
-	case format::bc5_unorm:
-		internalformat = GL_COMPRESSED_RG_RGTC2;
-		break;
-	case format::bc5_snorm:
-		internalformat = GL_COMPRESSED_SIGNED_RG_RGTC2;
-		break;
-	case format::bc6h_typeless:
-	case format::bc6h_ufloat:
-		internalformat = GL_COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT_ARB;
-		break;
-	case format::bc6h_sfloat:
-		internalformat = GL_COMPRESSED_RGB_BPTC_SIGNED_FLOAT_ARB;
-		break;
-	case format::bc7_typeless:
-	case format::bc7_unorm:
-		internalformat = GL_COMPRESSED_RGBA_BPTC_UNORM_ARB;
-		break;
-	case format::bc7_unorm_srgb:
-		internalformat = GL_COMPRESSED_SRGB_ALPHA_BPTC_UNORM_ARB;
-		break;
-	case format::r8g8_b8g8_unorm:
-	case format::g8r8_g8b8_unorm:
-		// Unsupported
-		break;
-	}
-}
-void reshade::opengl::convert_internal_format_to_format(GLenum internalformat, format &format)
-{
-	switch (internalformat)
-	{
-	default:
-		format = format::unknown;
-		break;
-	case GL_R8UI:
-		format = format::r8_uint;
-		break;
-	case GL_R8I:
-		format = format::r8_sint;
-		break;
-	case GL_R8:
-		format = format::r8_unorm;
-		break;
-	case GL_R8_SNORM:
-		format = format::r8_snorm;
-		break;
-	case GL_RG8UI:
-		format = format::r8g8_uint;
-		break;
-	case GL_RG8I:
-		format = format::r8g8_sint;
-		break;
-	case GL_RG8:
-		format = format::r8g8_unorm;
-		break;
-	case GL_RG8_SNORM:
-		format = format::r8g8_snorm;
-		break;
-	case GL_RGBA8UI:
-		format = format::r8g8b8a8_uint;
-		break;
-	case GL_RGBA8I:
-		format = format::r8g8b8a8_sint;
-		break;
-	case GL_RGBA8:
-		format = format::r8g8b8a8_unorm;
-		break;
-	case GL_SRGB8_ALPHA8:
-		format = format::r8g8b8a8_unorm_srgb;
-		break;
-	case GL_RGBA8_SNORM:
-		format = format::r8g8b8a8_snorm;
-		break;
-	case GL_RGB10_A2UI:
-		format = format::r10g10b10a2_uint;
-		break;
-	case GL_RGB10_A2:
-		format = format::r10g10b10a2_unorm;
-		break;
-	case GL_R16UI:
-		format = format::r16_uint;
-		break;
-	case GL_R16I:
-		format = format::r16_sint;
-		break;
-	case GL_R16F:
-		format = format::r16_float;
-		break;
-	case GL_R16:
-		format = format::r16_unorm;
-		break;
-	case GL_R16_SNORM:
-		format = format::r16_snorm;
-		break;
-	case GL_RG16UI:
-		format = format::r16g16_uint;
-		break;
-	case GL_RG16I:
-		format = format::r16g16_sint;
-		break;
-	case GL_RG16F:
-		format = format::r16g16_float;
-		break;
-	case GL_RG16:
-		format = format::r16g16_unorm;
-		break;
-	case GL_RG16_SNORM:
-		format = format::r16g16_snorm;
-		break;
-	case GL_RGBA16UI:
-		format = format::r16g16b16a16_uint;
-		break;
-	case GL_RGBA16I:
-		format = format::r16g16b16a16_sint;
-		break;
-	case GL_RGBA16F:
-		format = format::r16g16b16a16_float;
-		break;
-	case GL_RGBA16:
-		format = format::r16g16b16a16_unorm;
-		break;
-	case GL_RGBA16_SNORM:
-		format = format::r16g16b16a16_snorm;
-		break;
-	case GL_R32UI:
-		format = format::r32_uint;
-		break;
-	case GL_R32I:
-		format = format::r32_sint;
-		break;
-	case GL_R32F:
-		format = format::r32_float;
-		break;
-	case GL_RG32UI:
-		format = format::r32g32_uint;
-		break;
-	case GL_RG32I:
-		format = format::r32g32_sint;
-		break;
-	case GL_RG32F:
-		format = format::r32g32_float;
-		break;
-	case GL_RGB32UI:
-		format = format::r32g32b32_uint;
-		break;
-	case GL_RGB32I:
-		format = format::r32g32b32_sint;
-		break;
-	case GL_RGB32F:
-		format = format::r32g32b32_float;
-		break;
-	case GL_RGBA32UI:
-		format = format::r32g32b32a32_uint;
-		break;
-	case GL_RGBA32I:
-		format = format::r32g32b32a32_sint;
-		break;
-	case GL_RGBA32F:
-		format = format::r32g32b32a32_float;
-		break;
-	case GL_RGB9_E5:
-		format = format::r9g9b9e5;
-		break;
-	case GL_R11F_G11F_B10F:
-		format = format::r11g11b10_float;
-		break;
-	case GL_RGB565:
-		format = format::b5g6r5_unorm;
-		break;
-	case GL_RGB5_A1:
-		format = format::b5g5r5a1_unorm;
-		break;
-	case GL_RGBA4:
-		format = format::b4g4r4a4_unorm;
-		break;
-	case GL_STENCIL_INDEX:
-	case GL_STENCIL_INDEX8:
-		format = format::s8_uint;
-		break;
-	case GL_DEPTH_COMPONENT:
-	case GL_DEPTH_COMPONENT16:
-		format = format::d16_unorm;
-		break;
-	case GL_DEPTH_COMPONENT24:
-	case GL_DEPTH_STENCIL:
-	case GL_DEPTH24_STENCIL8:
-		format = format::d24_unorm_s8_uint;
-		break;
-	case GL_DEPTH_COMPONENT32:
-	case GL_DEPTH_COMPONENT32F:
-	case GL_DEPTH_COMPONENT32F_NV:
-		format = format::d32_float;
-		break;
-	case GL_DEPTH32F_STENCIL8:
-	case GL_DEPTH32F_STENCIL8_NV:
-		format = format::d32_float_s8_uint;
-		break;
-	case GL_COMPRESSED_RGBA_S3TC_DXT1_EXT:
-		format = format::bc1_unorm;
-		break;
-	case 0x8C4D /* GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT */:
-		format = format::bc1_unorm_srgb;
-		break;
-	case GL_COMPRESSED_RGBA_S3TC_DXT3_EXT:
-		format = format::bc2_unorm;
-		break;
-	case 0x8C4E /* GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT */:
-		format = format::bc2_unorm_srgb;
-		break;
-	case GL_COMPRESSED_RGBA_S3TC_DXT5_EXT:
-		format = format::bc3_unorm;
-		break;
-	case 0x8C4F /* GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT */:
-		format = format::bc3_unorm_srgb;
-		break;
-	case GL_COMPRESSED_RED_RGTC1:
-		format = format::bc4_unorm;
-		break;
-	case GL_COMPRESSED_SIGNED_RED_RGTC1:
-		format = format::bc4_snorm;
-		break;
-	case GL_COMPRESSED_RG_RGTC2:
-		format = format::bc5_unorm;
-		break;
-	case GL_COMPRESSED_SIGNED_RG_RGTC2:
-		format = format::bc5_snorm;
-		break;
-	case GL_COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT_ARB:
-		format = format::bc6h_ufloat;
-		break;
-	case GL_COMPRESSED_RGB_BPTC_SIGNED_FLOAT_ARB:
-		format = format::bc6h_sfloat;
-		break;
-	case GL_COMPRESSED_RGBA_BPTC_UNORM_ARB:
-		format = format::bc7_unorm;
-		break;
-	case GL_COMPRESSED_SRGB_ALPHA_BPTC_UNORM_ARB:
-		format = format::bc7_unorm_srgb;
-		break;
-	}
-}
-
-memory_heap reshade::opengl::convert_memory_heap_from_usage(GLenum usage)
-{
-	switch (usage)
-	{
-	case GL_STATIC_DRAW:
-		return memory_heap::gpu_only;
-	case GL_STREAM_DRAW:
-	case GL_DYNAMIC_DRAW:
-		return memory_heap::cpu_to_gpu;
-	case GL_STREAM_READ:
-	case GL_STATIC_READ:
-	case GL_DYNAMIC_READ:
-		return memory_heap::gpu_to_cpu;
-	}
-	return memory_heap::unknown;
-}
-memory_heap reshade::opengl::convert_memory_heap_from_flags(GLbitfield flags)
-{
-	if ((flags & (GL_MAP_WRITE_BIT | GL_DYNAMIC_STORAGE_BIT)) != 0)
-		return memory_heap::cpu_to_gpu;
-	if ((flags & (GL_MAP_READ_BIT)) != 0)
-		return memory_heap::gpu_to_cpu;
-	if ((flags & (GL_CLIENT_STORAGE_BIT)) != 0)
-		return memory_heap::gpu_only;
-	return memory_heap::unknown;
-}
 void reshade::opengl::convert_memory_heap_to_usage(api::memory_heap heap, GLenum &usage)
 {
 	switch (heap)
 	{
-	case memory_heap::gpu_only:
+	case api::memory_heap::gpu_only:
 		usage = GL_STATIC_DRAW;
 		break;
-	case memory_heap::cpu_to_gpu:
+	case api::memory_heap::cpu_to_gpu:
 		usage = GL_DYNAMIC_DRAW;
 		break;
-	case memory_heap::gpu_to_cpu:
+	case api::memory_heap::gpu_to_cpu:
 		usage = GL_DYNAMIC_READ;
 		break;
 	}
@@ -839,24 +491,64 @@ void reshade::opengl::convert_memory_heap_to_flags(api::memory_heap heap, GLbitf
 {
 	switch (heap)
 	{
-	case memory_heap::gpu_only:
+	case api::memory_heap::gpu_only:
 		flags |= GL_CLIENT_STORAGE_BIT;
 		break;
-	case memory_heap::cpu_to_gpu:
+	case api::memory_heap::cpu_to_gpu:
 		flags |= GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT;
 		break;
-	case memory_heap::gpu_to_cpu:
+	case api::memory_heap::gpu_to_cpu:
 		flags |= GL_DYNAMIC_STORAGE_BIT | GL_MAP_READ_BIT;
 		break;
 	}
 }
+reshade::api::memory_heap reshade::opengl::convert_memory_heap_from_usage(GLenum usage)
+{
+	switch (usage)
+	{
+	case GL_STATIC_DRAW:
+		return api::memory_heap::gpu_only;
+	case GL_STREAM_DRAW:
+	case GL_DYNAMIC_DRAW:
+		return api::memory_heap::cpu_to_gpu;
+	case GL_STREAM_READ:
+	case GL_STATIC_READ:
+	case GL_DYNAMIC_READ:
+		return api::memory_heap::gpu_to_cpu;
+	default:
+		return api::memory_heap::unknown;
+	}
+}
+reshade::api::memory_heap reshade::opengl::convert_memory_heap_from_flags(GLbitfield flags)
+{
+	if ((flags & (GL_MAP_WRITE_BIT | GL_DYNAMIC_STORAGE_BIT)) != 0)
+		return api::memory_heap::cpu_to_gpu;
+	else if ((flags & (GL_MAP_READ_BIT)) != 0)
+		return api::memory_heap::gpu_to_cpu;
+	else if ((flags & (GL_CLIENT_STORAGE_BIT)) != 0)
+		return api::memory_heap::gpu_only;
+	else
+		return api::memory_heap::unknown;
+}
 
-resource_type reshade::opengl::convert_resource_type(GLenum target)
+bool reshade::opengl::check_resource_desc(GLenum target, const api::resource_desc &desc, GLenum &internal_format)
+{
+	const api::resource_type type = convert_resource_type(target);
+	if (desc.type != type)
+		return false;
+
+	assert(type != api::resource_type::buffer);
+
+	if (const GLenum new_internal_format = convert_format(desc.texture.format);
+		new_internal_format != GL_NONE)
+		internal_format = new_internal_format;
+
+	return true;
+}
+reshade::api::resource_type reshade::opengl::convert_resource_type(GLenum target)
 {
 	switch (target)
 	{
-	default:
-		return resource_type::unknown;
 	case GL_ARRAY_BUFFER:
 	case GL_ELEMENT_ARRAY_BUFFER:
 	case GL_PIXEL_PACK_BUFFER:
@@ -871,27 +563,27 @@ resource_type reshade::opengl::convert_resource_type(GLenum target)
 	case GL_DISPATCH_INDIRECT_BUFFER:
 	case GL_QUERY_BUFFER:
 	case GL_ATOMIC_COUNTER_BUFFER:
-		return resource_type::buffer;
+		return api::resource_type::buffer;
 	case GL_TEXTURE_1D:
 	case GL_TEXTURE_1D_ARRAY:
 	case GL_PROXY_TEXTURE_1D:
 	case GL_PROXY_TEXTURE_1D_ARRAY:
-		return resource_type::texture_1d;
+		return api::resource_type::texture_1d;
 	case GL_TEXTURE_2D:
 	case GL_TEXTURE_2D_ARRAY:
 	case GL_TEXTURE_RECTANGLE: // This is not technically compatible with 2D textures
 	case GL_PROXY_TEXTURE_2D:
 	case GL_PROXY_TEXTURE_2D_ARRAY:
 	case GL_PROXY_TEXTURE_RECTANGLE:
-		return resource_type::texture_2d;
+		return api::resource_type::texture_2d;
 	case GL_TEXTURE_2D_MULTISAMPLE:
 	case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
 	case GL_PROXY_TEXTURE_2D_MULTISAMPLE:
 	case GL_PROXY_TEXTURE_2D_MULTISAMPLE_ARRAY:
-		return resource_type::texture_2d;
+		return api::resource_type::texture_2d;
 	case GL_TEXTURE_3D:
 	case GL_PROXY_TEXTURE_3D:
-		return resource_type::texture_3d;
+		return api::resource_type::texture_3d;
 	case GL_TEXTURE_CUBE_MAP:
 	case GL_TEXTURE_CUBE_MAP_ARRAY:
 	case GL_PROXY_TEXTURE_CUBE_MAP:
@@ -902,25 +594,26 @@ resource_type reshade::opengl::convert_resource_type(GLenum target)
 	case GL_TEXTURE_CUBE_MAP_NEGATIVE_Y:
 	case GL_TEXTURE_CUBE_MAP_POSITIVE_Z:
 	case GL_TEXTURE_CUBE_MAP_NEGATIVE_Z:
-		return resource_type::texture_2d;
+		return api::resource_type::texture_2d;
 	case GL_RENDERBUFFER:
 	case GL_FRAMEBUFFER_DEFAULT:
-		return resource_type::surface;
+		return api::resource_type::surface;
+	default:
+		return api::resource_type::unknown;
 	}
 }
-
-resource_desc reshade::opengl::convert_resource_desc(GLenum target, GLsizeiptr buffer_size, memory_heap heap)
+reshade::api::resource_desc reshade::opengl::convert_resource_desc(GLenum target, GLsizeiptr buffer_size, api::memory_heap heap)
 {
-	resource_desc desc = {};
+	api::resource_desc desc = {};
 	desc.type = convert_resource_type(target);
 	desc.buffer.size = buffer_size;
 	desc.heap = heap;
-	desc.usage = resource_usage::shader_resource; // TODO: Only texture copy currently implemented in 'device_impl::copy_resource', so cannot add copy usage flags here
+	desc.usage = api::resource_usage::shader_resource; // TODO: Only texture copy currently implemented in 'device_impl::copy_resource', so cannot add copy usage flags here
 	return desc;
 }
-resource_desc reshade::opengl::convert_resource_desc(GLenum target, GLsizei levels, GLsizei samples, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth)
+reshade::api::resource_desc reshade::opengl::convert_resource_desc(GLenum target, GLsizei levels, GLsizei samples, GLenum internal_format, GLsizei width, GLsizei height, GLsizei depth)
 {
-	resource_desc desc = {};
+	api::resource_desc desc = {};
 	desc.type = convert_resource_type(target);
 	desc.texture.width = width;
 	desc.texture.height = height;
@@ -928,55 +621,82 @@ resource_desc reshade::opengl::convert_resource_desc(GLenum target, GLsizei leve
 	desc.texture.depth_or_layers = static_cast<uint16_t>(depth);
 	assert(levels <= std::numeric_limits<uint16_t>::max());
 	desc.texture.levels = static_cast<uint16_t>(levels);
-	convert_internal_format_to_format(internalformat, desc.texture.format);
+	desc.texture.format = convert_format(internal_format);
 	desc.texture.samples = static_cast<uint16_t>(samples);
 
-	desc.heap = memory_heap::gpu_only;
+	desc.heap = api::memory_heap::gpu_only;
 
-	desc.usage = resource_usage::copy_dest | resource_usage::copy_source;
-	if (is_depth_stencil_format(internalformat))
-		desc.usage |= resource_usage::depth_stencil;
-	if (desc.type == resource_type::texture_1d || desc.type == resource_type::texture_2d || desc.type == resource_type::surface)
-		desc.usage |= resource_usage::render_target;
-	if (desc.type != resource_type::surface)
-		desc.usage |= resource_usage::shader_resource;
+	desc.usage = api::resource_usage::copy_dest | api::resource_usage::copy_source;
+	if (is_depth_stencil_format(internal_format))
+		desc.usage |= api::resource_usage::depth_stencil;
+	if (desc.type == api::resource_type::texture_1d || desc.type == api::resource_type::texture_2d || desc.type == api::resource_type::surface)
+		desc.usage |= api::resource_usage::render_target;
+	if (desc.type != api::resource_type::surface)
+		desc.usage |= api::resource_usage::shader_resource;
 
 	return desc;
 }
 
-resource_view_type reshade::opengl::convert_resource_view_type(GLenum target)
+bool reshade::opengl::check_resource_view_desc(GLenum target, const api::resource_view_desc &desc, GLenum &internal_format)
+{
+	const api::resource_view_type type = convert_resource_view_type(target);
+	if (desc.type != type)
+		return false;
+
+	if (type == api::resource_view_type::buffer)
+	{
+		assert(desc.buffer.offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()));
+		assert(desc.buffer.size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
+	}
+
+	if (const GLenum new_internal_format = convert_format(desc.format);
+		new_internal_format != GL_NONE)
+		internal_format = new_internal_format;
+
+	return true;
+}
+reshade::api::resource_view_type reshade::opengl::convert_resource_view_type(GLenum target)
 {
 	switch (target)
 	{
-	default:
-		return resource_view_type::unknown;
 	case GL_TEXTURE_BUFFER:
-		return resource_view_type::buffer;
+		return api::resource_view_type::buffer;
 	case GL_TEXTURE_1D:
-		return resource_view_type::texture_1d;
+		return api::resource_view_type::texture_1d;
 	case GL_TEXTURE_1D_ARRAY:
-		return resource_view_type::texture_1d_array;
+		return api::resource_view_type::texture_1d_array;
 	case GL_TEXTURE_2D:
 	case GL_TEXTURE_RECTANGLE:
-		return resource_view_type::texture_2d;
+		return api::resource_view_type::texture_2d;
 	case GL_TEXTURE_2D_ARRAY:
-		return resource_view_type::texture_2d_array;
+		return api::resource_view_type::texture_2d_array;
 	case GL_TEXTURE_2D_MULTISAMPLE:
-		return resource_view_type::texture_2d_multisample;
+		return api::resource_view_type::texture_2d_multisample;
 	case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
-		return resource_view_type::texture_2d_multisample_array;
+		return api::resource_view_type::texture_2d_multisample_array;
 	case GL_TEXTURE_3D:
-		return resource_view_type::texture_3d;
+		return api::resource_view_type::texture_3d;
 	case GL_TEXTURE_CUBE_MAP:
-		return resource_view_type::texture_cube;
+		return api::resource_view_type::texture_cube;
 	case GL_TEXTURE_CUBE_MAP_ARRAY:
-		return resource_view_type::texture_cube_array;
+		return api::resource_view_type::texture_cube_array;
+	default:
+		return api::resource_view_type::unknown;
 	}
 }
-
-subresource_data reshade::opengl::convert_mapped_subresource(GLenum format, GLenum type, const GLvoid *pixels, GLsizei width, GLsizei height, GLsizei)
+reshade::api::resource_view_desc reshade::opengl::convert_resource_view_desc(GLenum target, GLenum internal_format, GLintptr offset, GLsizeiptr size)
 {
-	subresource_data result;
+	assert(convert_resource_view_type(target) == api::resource_view_type::buffer);
+	return api::resource_view_desc(convert_format(internal_format), offset, size);
+}
+reshade::api::resource_view_desc reshade::opengl::convert_resource_view_desc(GLenum target, GLenum internal_format, GLuint minlevel, GLuint numlevels, GLuint minlayer, GLuint numlayers)
+{
+	return api::resource_view_desc(convert_resource_view_type(target), convert_format(internal_format), minlevel, numlevels, minlayer, numlayers);
+}
+
+reshade::api::subresource_data reshade::opengl::convert_mapped_subresource(GLenum format, GLenum type, const GLvoid *pixels, GLsizei width, GLsizei height, GLsizei)
+{
+	api::subresource_data result;
 	result.data = pixels;
 
 	uint32_t bpp = 1;
@@ -1043,4 +763,312 @@ subresource_data reshade::opengl::convert_mapped_subresource(GLenum format, GLen
 	}
 
 	return result;
+}
+
+GLuint reshade::opengl::get_index_type_size(GLenum index_type)
+{
+	switch (index_type)
+	{
+	default:
+		assert(false);
+		return 0;
+	case GL_UNSIGNED_BYTE:
+		return 1;
+	case GL_UNSIGNED_SHORT:
+		return 2;
+	case GL_UNSIGNED_INT:
+		return 4;
+	}
+}
+
+GLenum reshade::opengl::get_binding_for_target(GLenum target)
+{
+	switch (target)
+	{
+	case GL_ARRAY_BUFFER:
+		return GL_ARRAY_BUFFER_BINDING;
+	case GL_ELEMENT_ARRAY_BUFFER:
+		return GL_ELEMENT_ARRAY_BUFFER_BINDING;
+	case GL_PIXEL_PACK_BUFFER:
+		return GL_PIXEL_PACK_BUFFER_BINDING;
+	case GL_PIXEL_UNPACK_BUFFER:
+		return GL_PIXEL_UNPACK_BUFFER_BINDING;
+	case GL_UNIFORM_BUFFER:
+		return GL_UNIFORM_BUFFER_BINDING;
+	case GL_TEXTURE_BUFFER:
+		return GL_TEXTURE_BINDING_BUFFER;
+	case GL_TRANSFORM_FEEDBACK_BUFFER:
+		return GL_TRANSFORM_FEEDBACK_BUFFER_BINDING;
+	case GL_COPY_READ_BUFFER:
+		return GL_COPY_READ_BUFFER_BINDING;
+	case GL_COPY_WRITE_BUFFER:
+		return GL_COPY_WRITE_BUFFER_BINDING;
+	case GL_DRAW_INDIRECT_BUFFER:
+		return GL_DRAW_INDIRECT_BUFFER_BINDING;
+	case GL_SHADER_STORAGE_BUFFER:
+		return GL_SHADER_STORAGE_BUFFER_BINDING;
+	case GL_DISPATCH_INDIRECT_BUFFER:
+		return GL_DISPATCH_INDIRECT_BUFFER_BINDING;
+	case GL_QUERY_BUFFER:
+		return GL_QUERY_BUFFER_BINDING;
+	case GL_ATOMIC_COUNTER_BUFFER:
+		return GL_ATOMIC_COUNTER_BUFFER_BINDING;
+	case GL_TEXTURE_1D:
+		return GL_TEXTURE_BINDING_1D;
+	case GL_TEXTURE_1D_ARRAY:
+		return GL_TEXTURE_BINDING_1D_ARRAY;
+	case GL_TEXTURE_2D:
+		return GL_TEXTURE_BINDING_2D;
+	case GL_TEXTURE_2D_ARRAY:
+		return GL_TEXTURE_BINDING_2D_ARRAY;
+	case GL_TEXTURE_2D_MULTISAMPLE:
+		return GL_TEXTURE_BINDING_2D_MULTISAMPLE;
+	case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
+		return GL_TEXTURE_BINDING_2D_MULTISAMPLE_ARRAY;
+	case GL_TEXTURE_3D:
+		return GL_TEXTURE_BINDING_3D;
+	case GL_TEXTURE_CUBE_MAP:
+		return GL_TEXTURE_BINDING_CUBE_MAP;
+	case GL_TEXTURE_CUBE_MAP_ARRAY:
+		return GL_TEXTURE_BINDING_CUBE_MAP_ARRAY;
+	case GL_TEXTURE_RECTANGLE:
+		return GL_TEXTURE_BINDING_RECTANGLE;
+	default:
+		assert(false);
+		return GL_NONE;
+	}
+}
+
+GLenum reshade::opengl::convert_blend_op(api::blend_op value)
+{
+	switch (value)
+	{
+	default:
+		assert(false);
+		// fall through
+	case api::blend_op::add:
+		return GL_FUNC_ADD;
+	case api::blend_op::subtract:
+		return GL_FUNC_SUBTRACT;
+	case api::blend_op::rev_subtract:
+		return GL_FUNC_REVERSE_SUBTRACT;
+	case api::blend_op::min:
+		return GL_MIN;
+	case api::blend_op::max:
+		return GL_MAX;
+	}
+}
+GLenum reshade::opengl::convert_blend_factor(api::blend_factor value)
+{
+	switch (value)
+	{
+	default:
+		assert(false);
+		// fall through
+	case api::blend_factor::zero:
+		return GL_ZERO;
+	case api::blend_factor::one:
+		return GL_ONE;
+	case api::blend_factor::src_color:
+		return GL_SRC_COLOR;
+	case api::blend_factor::inv_src_color:
+		return GL_ONE_MINUS_SRC_COLOR;
+	case api::blend_factor::dst_color:
+		return GL_DST_COLOR;
+	case api::blend_factor::inv_dst_color:
+		return GL_ONE_MINUS_DST_COLOR;
+	case api::blend_factor::src_alpha:
+		return GL_SRC_ALPHA;
+	case api::blend_factor::inv_src_alpha:
+		return GL_ONE_MINUS_SRC_ALPHA;
+	case api::blend_factor::dst_alpha:
+		return GL_DST_ALPHA;
+	case api::blend_factor::inv_dst_alpha:
+		return GL_ONE_MINUS_DST_ALPHA;
+	case api::blend_factor::constant_color:
+		return GL_CONSTANT_COLOR;
+	case api::blend_factor::inv_constant_color:
+		return GL_ONE_MINUS_CONSTANT_COLOR;
+	case api::blend_factor::constant_alpha:
+		return GL_CONSTANT_ALPHA;
+	case api::blend_factor::inv_constant_alpha:
+		return GL_ONE_MINUS_CONSTANT_ALPHA;
+	case api::blend_factor::src_alpha_sat:
+		return GL_SRC_ALPHA_SATURATE;
+	case api::blend_factor::src1_color:
+		return GL_SRC1_COLOR;
+	case api::blend_factor::inv_src1_color:
+		return GL_ONE_MINUS_SRC1_COLOR;
+	case api::blend_factor::src1_alpha:
+		return GL_SRC1_ALPHA;
+	case api::blend_factor::inv_src1_alpha:
+		return GL_ONE_MINUS_SRC1_ALPHA;
+	}
+}
+GLenum reshade::opengl::convert_fill_mode(api::fill_mode value)
+{
+	switch (value)
+	{
+	default:
+		assert(false);
+		// fall through
+	case api::fill_mode::solid:
+		return GL_FILL;
+	case api::fill_mode::wireframe:
+		return GL_LINE;
+	case api::fill_mode::point:
+		return GL_POINT;
+	}
+}
+GLenum reshade::opengl::convert_cull_mode(api::cull_mode value)
+{
+	switch (value)
+	{
+	default:
+		assert(false);
+		// fall through
+	case api::cull_mode::none:
+		return GL_NONE;
+	case api::cull_mode::front:
+		return GL_FRONT;
+	case api::cull_mode::back:
+		return GL_BACK;
+	case api::cull_mode::front_and_back:
+		return GL_FRONT_AND_BACK;
+	}
+}
+GLenum reshade::opengl::convert_compare_op(api::compare_op value)
+{
+	switch (value)
+	{
+	default:
+		assert(false);
+		// fall through
+	case api::compare_op::never:
+		return GL_NEVER;
+	case api::compare_op::less:
+		return GL_LESS;
+	case api::compare_op::equal:
+		return GL_EQUAL;
+	case api::compare_op::less_equal:
+		return GL_LEQUAL;
+	case api::compare_op::greater:
+		return GL_GREATER;
+	case api::compare_op::not_equal:
+		return GL_NOTEQUAL;
+	case api::compare_op::greater_equal:
+		return GL_GEQUAL;
+	case api::compare_op::always:
+		return GL_ALWAYS;
+	}
+}
+GLenum reshade::opengl::convert_stencil_op(api::stencil_op value)
+{
+	switch (value)
+	{
+	default:
+		assert(false);
+		// fall through
+	case api::stencil_op::keep:
+		return GL_KEEP;
+	case api::stencil_op::zero:
+		return GL_ZERO;
+	case api::stencil_op::replace:
+		return GL_REPLACE;
+	case api::stencil_op::incr_sat:
+		return GL_INCR;
+	case api::stencil_op::decr_sat:
+		return GL_DECR;
+	case api::stencil_op::invert:
+		return GL_INVERT;
+	case api::stencil_op::incr:
+		return GL_INCR_WRAP;
+	case api::stencil_op::decr:
+		return GL_DECR_WRAP;
+	}
+}
+GLenum reshade::opengl::convert_primitive_topology(api::primitive_topology value)
+{
+	switch (value)
+	{
+	default:
+		assert(false);
+		// fall through
+	case api::primitive_topology::undefined:
+		return GL_NONE;
+	case api::primitive_topology::point_list:
+		return GL_POINTS;
+	case api::primitive_topology::line_list:
+		return GL_LINES;
+	case api::primitive_topology::line_strip:
+		return GL_LINE_STRIP;
+	case api::primitive_topology::triangle_list:
+		return GL_TRIANGLES;
+	case api::primitive_topology::triangle_strip:
+		return GL_TRIANGLE_STRIP;
+	case api::primitive_topology::triangle_fan:
+		return GL_TRIANGLE_FAN;
+	case api::primitive_topology::line_list_adj:
+		return GL_LINES_ADJACENCY;
+	case api::primitive_topology::line_strip_adj:
+		return GL_LINE_STRIP_ADJACENCY;
+	case api::primitive_topology::triangle_list_adj:
+		return GL_TRIANGLES_ADJACENCY;
+	case api::primitive_topology::triangle_strip_adj:
+		return GL_TRIANGLE_STRIP_ADJACENCY;
+	case api::primitive_topology::patch_list_01_cp:
+	case api::primitive_topology::patch_list_02_cp:
+	case api::primitive_topology::patch_list_03_cp:
+	case api::primitive_topology::patch_list_04_cp:
+	case api::primitive_topology::patch_list_05_cp:
+	case api::primitive_topology::patch_list_06_cp:
+	case api::primitive_topology::patch_list_07_cp:
+	case api::primitive_topology::patch_list_08_cp:
+	case api::primitive_topology::patch_list_09_cp:
+	case api::primitive_topology::patch_list_10_cp:
+	case api::primitive_topology::patch_list_11_cp:
+	case api::primitive_topology::patch_list_12_cp:
+	case api::primitive_topology::patch_list_13_cp:
+	case api::primitive_topology::patch_list_14_cp:
+	case api::primitive_topology::patch_list_15_cp:
+	case api::primitive_topology::patch_list_16_cp:
+	case api::primitive_topology::patch_list_17_cp:
+	case api::primitive_topology::patch_list_18_cp:
+	case api::primitive_topology::patch_list_19_cp:
+	case api::primitive_topology::patch_list_20_cp:
+	case api::primitive_topology::patch_list_21_cp:
+	case api::primitive_topology::patch_list_22_cp:
+	case api::primitive_topology::patch_list_23_cp:
+	case api::primitive_topology::patch_list_24_cp:
+	case api::primitive_topology::patch_list_25_cp:
+	case api::primitive_topology::patch_list_26_cp:
+	case api::primitive_topology::patch_list_27_cp:
+	case api::primitive_topology::patch_list_28_cp:
+	case api::primitive_topology::patch_list_29_cp:
+	case api::primitive_topology::patch_list_30_cp:
+	case api::primitive_topology::patch_list_31_cp:
+	case api::primitive_topology::patch_list_32_cp:
+		return GL_PATCHES;
+	}
+}
+GLenum reshade::opengl::convert_shader_type(api::shader_stage type)
+{
+	switch (type)
+	{
+	case api::shader_stage::vertex:
+		return GL_VERTEX_SHADER;
+	case api::shader_stage::hull:
+		return GL_TESS_CONTROL_SHADER;
+	case api::shader_stage::domain:
+		return GL_TESS_EVALUATION_SHADER;
+	case api::shader_stage::geometry:
+		return GL_GEOMETRY_SHADER;
+	case api::shader_stage::pixel:
+		return GL_FRAGMENT_SHADER;
+	case api::shader_stage::compute:
+		return GL_COMPUTE_SHADER;
+	default:
+		assert(false);
+		return GL_NONE;
+	}
 }

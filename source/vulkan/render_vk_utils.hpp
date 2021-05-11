@@ -7,8 +7,8 @@
 
 namespace reshade::vulkan
 {
-	void convert_format_to_vk_format(api::format format, VkFormat &vk_format);
-	void convert_vk_format_to_format(VkFormat vk_format, api::format &format);
+	auto convert_format(api::format format) -> VkFormat;
+	auto convert_format(VkFormat vk_format) -> api::format;
 
 	auto convert_usage_to_access(api::resource_usage state) -> VkAccessFlags;
 	auto convert_usage_to_image_layout(api::resource_usage state) -> VkImageLayout;
@@ -29,4 +29,12 @@ namespace reshade::vulkan
 	void convert_resource_view_desc(const api::resource_view_desc &desc, VkBufferViewCreateInfo &create_info);
 	api::resource_view_desc convert_resource_view_desc(const VkImageViewCreateInfo &create_info);
 	api::resource_view_desc convert_resource_view_desc(const VkBufferViewCreateInfo &create_info);
+
+	auto convert_blend_op(api::blend_op value) -> VkBlendOp;
+	auto convert_blend_factor(api::blend_factor value) -> VkBlendFactor;
+	auto convert_fill_mode(api::fill_mode value) -> VkPolygonMode;
+	auto convert_cull_mode(api::cull_mode value) -> VkCullModeFlags;
+	auto convert_compare_op(api::compare_op value) -> VkCompareOp;
+	auto convert_stencil_op(api::stencil_op value) -> VkStencilOp;
+	auto convert_primitive_topology(api::primitive_topology value) -> VkPrimitiveTopology;
 }

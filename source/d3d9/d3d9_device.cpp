@@ -687,7 +687,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::StretchRect(IDirect3DSurface9 *pSourc
 			reshade::api::resource { reinterpret_cast<uintptr_t>(pSourceSurface) }, 0, (pSourceRect != nullptr) ? src_box : nullptr,
 			reshade::api::resource { reinterpret_cast<uintptr_t>(pDestSurface) }, 0, (pDestRect != nullptr) ? dst_box : nullptr,
 			extent,
-			static_cast<uint32_t>(desc.Format)))
+			reshade::d3d9::convert_format(desc.Format)))
 			return D3D_OK;
 	}
 #endif

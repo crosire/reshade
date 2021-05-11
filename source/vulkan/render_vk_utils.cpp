@@ -6,728 +6,584 @@
 #include "render_vk.hpp"
 #include "render_vk_utils.hpp"
 
-using namespace reshade::api;
-
-void reshade::vulkan::convert_format_to_vk_format(format format, VkFormat &vk_format)
+auto reshade::vulkan::convert_format(api::format format) -> VkFormat
 {
 	switch (format)
 	{
 	default:
-	case format::unknown:
+	case api::format::unknown:
 		break;
-	case format::r1_unorm:
-		// Unsupported
-		break;
-	case format::r8_uint:
-		vk_format = VK_FORMAT_R8_UINT;
-		break;
-	case format::r8_sint:
-		vk_format = VK_FORMAT_R8_SINT;
-		break;
-	case format::r8_typeless:
-	case format::r8_unorm:
-	case format::a8_unorm: // { VK_COMPONENT_SWIZZLE_ZERO, VK_COMPONENT_SWIZZLE_ZERO, VK_COMPONENT_SWIZZLE_ZERO, VK_COMPONENT_SWIZZLE_R }
-		vk_format = VK_FORMAT_R8_UNORM;
-		break;
-	case format::r8_snorm:
-		vk_format = VK_FORMAT_R8_SNORM;
-		break;
-	case format::r8g8_uint:
-		vk_format = VK_FORMAT_R8G8_UINT;
-		break;
-	case format::r8g8_sint:
-		vk_format = VK_FORMAT_R8G8_SINT;
-		break;
-	case format::r8g8_typeless:
-	case format::r8g8_unorm:
-		vk_format = VK_FORMAT_R8G8_UNORM;
-		break;
-	case format::r8g8_snorm:
-		vk_format = VK_FORMAT_R8G8_SNORM;
-		break;
-	case format::r8g8b8a8_uint:
-		vk_format = VK_FORMAT_R8G8B8A8_UINT;
-		break;
-	case format::r8g8b8a8_sint:
-		vk_format = VK_FORMAT_R8G8B8A8_SINT;
-		break;
-	case format::r8g8b8a8_typeless:
-	case format::r8g8b8a8_unorm:
-		vk_format = VK_FORMAT_R8G8B8A8_UNORM;
-		break;
-	case format::r8g8b8a8_unorm_srgb:
-		vk_format = VK_FORMAT_R8G8B8A8_SRGB;
-		break;
-	case format::r8g8b8a8_snorm:
-		vk_format = VK_FORMAT_R8G8B8A8_SNORM;
-		break;
-	case format::b8g8r8a8_typeless:
-	case format::b8g8r8a8_unorm:
-	case format::b8g8r8x8_typeless: // { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_ONE }
-	case format::b8g8r8x8_unorm:
-		vk_format = VK_FORMAT_B8G8R8A8_UNORM;
-		break;
-	case format::b8g8r8a8_unorm_srgb:
-	case format::b8g8r8x8_unorm_srgb:
-		vk_format = VK_FORMAT_B8G8R8A8_SRGB;
-		break;
-	case format::r10g10b10a2_uint:
-		vk_format = VK_FORMAT_A2B10G10R10_UINT_PACK32;
-		break;
-	case format::r10g10b10a2_typeless:
-	case format::r10g10b10a2_unorm:
-		vk_format = VK_FORMAT_A2B10G10R10_UNORM_PACK32;
-		break;
-	case format::r10g10b10a2_xr_bias:
-		// Unsupported
-		break;
-	case format::r16_sint:
-		vk_format = VK_FORMAT_R16_SINT;
-		break;
-	case format::r16_uint:
-		vk_format = VK_FORMAT_R16_UINT;
-		break;
-	case format::r16_typeless:
-	case format::r16_float:
-		vk_format = VK_FORMAT_R16_SFLOAT;
-		break;
-	case format::r16_unorm:
-		vk_format = VK_FORMAT_R16_UNORM;
-		break;
-	case format::r16_snorm:
-		vk_format = VK_FORMAT_R16_SNORM;
-		break;
-	case format::r16g16_uint:
-		vk_format = VK_FORMAT_R16G16_UINT;
-		break;
-	case format::r16g16_sint:
-		vk_format = VK_FORMAT_R16G16_SINT;
-		break;
-	case format::r16g16_typeless:
-	case format::r16g16_float:
-		vk_format = VK_FORMAT_R16G16_SFLOAT;
-		break;
-	case format::r16g16_unorm:
-		vk_format = VK_FORMAT_R16G16_UNORM;
-		break;
-	case format::r16g16_snorm:
-		vk_format = VK_FORMAT_R16G16_SNORM;
-		break;
-	case format::r16g16b16a16_uint:
-		vk_format = VK_FORMAT_R16G16B16A16_UINT;
-		break;
-	case format::r16g16b16a16_sint:
-		vk_format = VK_FORMAT_R16G16B16A16_SINT;
-		break;
-	case format::r16g16b16a16_typeless:
-	case format::r16g16b16a16_float:
-		vk_format = VK_FORMAT_R16G16B16A16_SFLOAT;
-		break;
-	case format::r16g16b16a16_unorm:
-		vk_format = VK_FORMAT_R16G16B16A16_UNORM;
-		break;
-	case format::r16g16b16a16_snorm:
-		vk_format = VK_FORMAT_R16G16B16A16_SNORM;
-		break;
-	case format::r32_uint:
-		vk_format = VK_FORMAT_R32_UINT;
-		break;
-	case format::r32_sint:
-		vk_format = VK_FORMAT_R32_SINT;
-		break;
-	case format::r32_typeless:
-	case format::r32_float:
-		vk_format = VK_FORMAT_R32_SFLOAT;
-		break;
-	case format::r32g32_uint:
-		vk_format = VK_FORMAT_R32G32_UINT;
-		break;
-	case format::r32g32_sint:
-		vk_format = VK_FORMAT_R32G32_SINT;
-		break;
-	case format::r32g32_typeless:
-	case format::r32g32_float:
-		vk_format = VK_FORMAT_R32G32_SFLOAT;
-		break;
-	case format::r32g32b32_uint:
-		vk_format = VK_FORMAT_R32G32B32_UINT;
-		break;
-	case format::r32g32b32_sint:
-		vk_format = VK_FORMAT_R32G32B32_SINT;
-		break;
-	case format::r32g32b32_typeless:
-	case format::r32g32b32_float:
-		vk_format = VK_FORMAT_R32G32B32_SFLOAT;
-		break;
-	case format::r32g32b32a32_uint:
-		vk_format = VK_FORMAT_R32G32B32A32_UINT;
-		break;
-	case format::r32g32b32a32_sint:
-		vk_format = VK_FORMAT_R32G32B32A32_SINT;
-		break;
-	case format::r32g32b32a32_typeless:
-	case format::r32g32b32a32_float:
-		vk_format = VK_FORMAT_R32G32B32A32_SFLOAT;
-		break;
-	case format::r9g9b9e5:
-		vk_format = VK_FORMAT_E5B9G9R9_UFLOAT_PACK32;
-		break;
-	case format::r11g11b10_float:
-		vk_format = VK_FORMAT_B10G11R11_UFLOAT_PACK32;
-		break;
-	case format::b5g6r5_unorm:
-		vk_format = VK_FORMAT_R5G6B5_UNORM_PACK16;
-		break;
-	case format::b5g5r5a1_unorm:
-		vk_format = VK_FORMAT_A1R5G5B5_UNORM_PACK16;
-		break;
+	case api::format::r1_unorm:
+		break; // Unsupported
+	case api::format::r8_uint:
+		return VK_FORMAT_R8_UINT;
+	case api::format::r8_sint:
+		return VK_FORMAT_R8_SINT;
+	case api::format::r8_typeless:
+	case api::format::r8_unorm:
+	case api::format::a8_unorm: // { VK_COMPONENT_SWIZZLE_ZERO, VK_COMPONENT_SWIZZLE_ZERO, VK_COMPONENT_SWIZZLE_ZERO, VK_COMPONENT_SWIZZLE_R }
+		return VK_FORMAT_R8_UNORM;
+	case api::format::r8_snorm:
+		return VK_FORMAT_R8_SNORM;
+	case api::format::r8g8_uint:
+		return VK_FORMAT_R8G8_UINT;
+	case api::format::r8g8_sint:
+		return VK_FORMAT_R8G8_SINT;
+	case api::format::r8g8_typeless:
+	case api::format::r8g8_unorm:
+		return VK_FORMAT_R8G8_UNORM;
+	case api::format::r8g8_snorm:
+		return VK_FORMAT_R8G8_SNORM;
+	case api::format::r8g8b8a8_uint:
+		return VK_FORMAT_R8G8B8A8_UINT;
+	case api::format::r8g8b8a8_sint:
+		return VK_FORMAT_R8G8B8A8_SINT;
+	case api::format::r8g8b8a8_typeless:
+	case api::format::r8g8b8a8_unorm:
+		return VK_FORMAT_R8G8B8A8_UNORM;
+	case api::format::r8g8b8a8_unorm_srgb:
+		return VK_FORMAT_R8G8B8A8_SRGB;
+	case api::format::r8g8b8a8_snorm:
+		return VK_FORMAT_R8G8B8A8_SNORM;
+	case api::format::b8g8r8a8_typeless:
+	case api::format::b8g8r8a8_unorm:
+	case api::format::b8g8r8x8_typeless: // { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_ONE }
+	case api::format::b8g8r8x8_unorm:
+		return VK_FORMAT_B8G8R8A8_UNORM;
+	case api::format::b8g8r8a8_unorm_srgb:
+	case api::format::b8g8r8x8_unorm_srgb:
+		return VK_FORMAT_B8G8R8A8_SRGB;
+	case api::format::r10g10b10a2_uint:
+		return VK_FORMAT_A2B10G10R10_UINT_PACK32;
+	case api::format::r10g10b10a2_typeless:
+	case api::format::r10g10b10a2_unorm:
+		return VK_FORMAT_A2B10G10R10_UNORM_PACK32;
+	case api::format::r10g10b10a2_xr_bias:
+		break; // Unsupported
+	case api::format::r16_sint:
+		return VK_FORMAT_R16_SINT;
+	case api::format::r16_uint:
+		return VK_FORMAT_R16_UINT;
+	case api::format::r16_typeless:
+	case api::format::r16_float:
+		return VK_FORMAT_R16_SFLOAT;
+	case api::format::r16_unorm:
+		return VK_FORMAT_R16_UNORM;
+	case api::format::r16_snorm:
+		return VK_FORMAT_R16_SNORM;
+	case api::format::r16g16_uint:
+		return VK_FORMAT_R16G16_UINT;
+	case api::format::r16g16_sint:
+		return VK_FORMAT_R16G16_SINT;
+	case api::format::r16g16_typeless:
+	case api::format::r16g16_float:
+		return VK_FORMAT_R16G16_SFLOAT;
+	case api::format::r16g16_unorm:
+		return VK_FORMAT_R16G16_UNORM;
+	case api::format::r16g16_snorm:
+		return VK_FORMAT_R16G16_SNORM;
+	case api::format::r16g16b16a16_uint:
+		return VK_FORMAT_R16G16B16A16_UINT;
+	case api::format::r16g16b16a16_sint:
+		return VK_FORMAT_R16G16B16A16_SINT;
+	case api::format::r16g16b16a16_typeless:
+	case api::format::r16g16b16a16_float:
+		return VK_FORMAT_R16G16B16A16_SFLOAT;
+	case api::format::r16g16b16a16_unorm:
+		return VK_FORMAT_R16G16B16A16_UNORM;
+	case api::format::r16g16b16a16_snorm:
+		return VK_FORMAT_R16G16B16A16_SNORM;
+	case api::format::r32_uint:
+		return VK_FORMAT_R32_UINT;
+	case api::format::r32_sint:
+		return VK_FORMAT_R32_SINT;
+	case api::format::r32_typeless:
+	case api::format::r32_float:
+		return VK_FORMAT_R32_SFLOAT;
+	case api::format::r32g32_uint:
+		return VK_FORMAT_R32G32_UINT;
+	case api::format::r32g32_sint:
+		return VK_FORMAT_R32G32_SINT;
+	case api::format::r32g32_typeless:
+	case api::format::r32g32_float:
+		return VK_FORMAT_R32G32_SFLOAT;
+	case api::format::r32g32b32_uint:
+		return VK_FORMAT_R32G32B32_UINT;
+	case api::format::r32g32b32_sint:
+		return VK_FORMAT_R32G32B32_SINT;
+	case api::format::r32g32b32_typeless:
+	case api::format::r32g32b32_float:
+		return VK_FORMAT_R32G32B32_SFLOAT;
+	case api::format::r32g32b32a32_uint:
+		return VK_FORMAT_R32G32B32A32_UINT;
+	case api::format::r32g32b32a32_sint:
+		return VK_FORMAT_R32G32B32A32_SINT;
+	case api::format::r32g32b32a32_typeless:
+	case api::format::r32g32b32a32_float:
+		return VK_FORMAT_R32G32B32A32_SFLOAT;
+	case api::format::r9g9b9e5:
+		return VK_FORMAT_E5B9G9R9_UFLOAT_PACK32;
+	case api::format::r11g11b10_float:
+		return VK_FORMAT_B10G11R11_UFLOAT_PACK32;
+	case api::format::b5g6r5_unorm:
+		return VK_FORMAT_R5G6B5_UNORM_PACK16;
+	case api::format::b5g5r5a1_unorm:
+		return VK_FORMAT_A1R5G5B5_UNORM_PACK16;
 #if 0
-	case format::b4g4r4a4_unorm:
-		vk_format = VK_FORMAT_A4R4G4B4_UNORM_PACK16_EXT;
-		break;
+	case api::format::b4g4r4a4_unorm:
+		return VK_FORMAT_A4R4G4B4_UNORM_PACK16_EXT;
 #endif
-	case format::s8_uint:
-		vk_format = VK_FORMAT_S8_UINT;
-		break;
-	case format::d16_unorm:
-		vk_format = VK_FORMAT_D16_UNORM;
-		break;
-	case format::d16_unorm_s8_uint:
-		vk_format = VK_FORMAT_D16_UNORM_S8_UINT;
-		break;
-	case format::r24_g8_typeless:
-	case format::r24_unorm_x8_uint:
-	case format::x24_unorm_g8_uint:
-	case format::d24_unorm_s8_uint:
-		vk_format = VK_FORMAT_D24_UNORM_S8_UINT;
-		break;
-	case format::d32_float:
-		vk_format = VK_FORMAT_D32_SFLOAT;
-		break;
-	case format::r32_g8_typeless:
-	case format::r32_float_x8_uint:
-	case format::x32_float_g8_uint:
-	case format::d32_float_s8_uint:
-		vk_format = VK_FORMAT_D32_SFLOAT_S8_UINT;
-		break;
-	case format::bc1_typeless:
-	case format::bc1_unorm:
-		vk_format = VK_FORMAT_BC1_RGBA_UNORM_BLOCK;
-		break;
-	case format::bc1_unorm_srgb:
-		vk_format = VK_FORMAT_BC1_RGBA_SRGB_BLOCK;
-		break;
-	case format::bc2_typeless:
-	case format::bc2_unorm:
-		vk_format = VK_FORMAT_BC2_UNORM_BLOCK;
-		break;
-	case format::bc2_unorm_srgb:
-		vk_format = VK_FORMAT_BC2_SRGB_BLOCK;
-		break;
-	case format::bc3_typeless:
-	case format::bc3_unorm:
-		vk_format = VK_FORMAT_BC3_UNORM_BLOCK;
-		break;
-	case format::bc3_unorm_srgb:
-		vk_format = VK_FORMAT_BC3_SRGB_BLOCK;
-		break;
-	case format::bc4_typeless:
-	case format::bc4_unorm:
-		vk_format = VK_FORMAT_BC4_UNORM_BLOCK;
-		break;
-	case format::bc4_snorm:
-		vk_format = VK_FORMAT_BC4_SNORM_BLOCK;
-		break;
-	case format::bc5_typeless:
-	case format::bc5_unorm:
-		vk_format = VK_FORMAT_BC5_UNORM_BLOCK;
-		break;
-	case format::bc5_snorm:
-		vk_format = VK_FORMAT_BC5_SNORM_BLOCK;
-		break;
-	case format::bc6h_typeless:
-	case format::bc6h_ufloat:
-		vk_format = VK_FORMAT_BC6H_UFLOAT_BLOCK;
-		break;
-	case format::bc6h_sfloat:
-		vk_format = VK_FORMAT_BC6H_SFLOAT_BLOCK;
-		break;
-	case format::bc7_typeless:
-	case format::bc7_unorm:
-		vk_format = VK_FORMAT_BC7_UNORM_BLOCK;
-		break;
-	case format::bc7_unorm_srgb:
-		vk_format = VK_FORMAT_BC7_SRGB_BLOCK;
-		break;
-	case format::r8g8_b8g8_unorm:
-		vk_format = VK_FORMAT_B8G8R8G8_422_UNORM;
-		break;
-	case format::g8r8_g8b8_unorm:
-		vk_format = VK_FORMAT_G8B8G8R8_422_UNORM;
-		break;
+	case api::format::s8_uint:
+		return VK_FORMAT_S8_UINT;
+	case api::format::d16_unorm:
+		return VK_FORMAT_D16_UNORM;
+	case api::format::d16_unorm_s8_uint:
+		return VK_FORMAT_D16_UNORM_S8_UINT;
+	case api::format::r24_g8_typeless:
+	case api::format::r24_unorm_x8_uint:
+	case api::format::x24_unorm_g8_uint:
+	case api::format::d24_unorm_s8_uint:
+		return VK_FORMAT_D24_UNORM_S8_UINT;
+	case api::format::d32_float:
+		return VK_FORMAT_D32_SFLOAT;
+	case api::format::r32_g8_typeless:
+	case api::format::r32_float_x8_uint:
+	case api::format::x32_float_g8_uint:
+	case api::format::d32_float_s8_uint:
+		return VK_FORMAT_D32_SFLOAT_S8_UINT;
+	case api::format::bc1_typeless:
+	case api::format::bc1_unorm:
+		return VK_FORMAT_BC1_RGBA_UNORM_BLOCK;
+	case api::format::bc1_unorm_srgb:
+		return VK_FORMAT_BC1_RGBA_SRGB_BLOCK;
+	case api::format::bc2_typeless:
+	case api::format::bc2_unorm:
+		return VK_FORMAT_BC2_UNORM_BLOCK;
+	case api::format::bc2_unorm_srgb:
+		return VK_FORMAT_BC2_SRGB_BLOCK;
+	case api::format::bc3_typeless:
+	case api::format::bc3_unorm:
+		return VK_FORMAT_BC3_UNORM_BLOCK;
+	case api::format::bc3_unorm_srgb:
+		return VK_FORMAT_BC3_SRGB_BLOCK;
+	case api::format::bc4_typeless:
+	case api::format::bc4_unorm:
+		return VK_FORMAT_BC4_UNORM_BLOCK;
+	case api::format::bc4_snorm:
+		return VK_FORMAT_BC4_SNORM_BLOCK;
+	case api::format::bc5_typeless:
+	case api::format::bc5_unorm:
+		return VK_FORMAT_BC5_UNORM_BLOCK;
+	case api::format::bc5_snorm:
+		return VK_FORMAT_BC5_SNORM_BLOCK;
+	case api::format::bc6h_typeless:
+	case api::format::bc6h_ufloat:
+		return VK_FORMAT_BC6H_UFLOAT_BLOCK;
+	case api::format::bc6h_sfloat:
+		return VK_FORMAT_BC6H_SFLOAT_BLOCK;
+	case api::format::bc7_typeless:
+	case api::format::bc7_unorm:
+		return VK_FORMAT_BC7_UNORM_BLOCK;
+	case api::format::bc7_unorm_srgb:
+		return VK_FORMAT_BC7_SRGB_BLOCK;
+	case api::format::r8g8_b8g8_unorm:
+		return VK_FORMAT_B8G8R8G8_422_UNORM;
+	case api::format::g8r8_g8b8_unorm:
+		return VK_FORMAT_G8B8G8R8_422_UNORM;
 	}
+
+	return VK_FORMAT_UNDEFINED;
 }
-void reshade::vulkan::convert_vk_format_to_format(VkFormat vk_format, format &format)
+auto reshade::vulkan::convert_format(VkFormat vk_format) -> api::format
 {
 	switch (vk_format)
 	{
 	default:
 	case VK_FORMAT_UNDEFINED:
-		format = format::unknown;
-		break;
+		return api::format::unknown;
 #if 0
 	case VK_FORMAT_A4R4G4B4_UNORM_PACK16_EXT:
-		format = format::b4g4r4a4_unorm;
-		break;
+		return api::format::b4g4r4a4_unorm;
 #endif
 	case VK_FORMAT_R5G6B5_UNORM_PACK16:
-		format = format::b5g6r5_unorm;
-		break;
+		return api::format::b5g6r5_unorm;
 	case VK_FORMAT_A1R5G5B5_UNORM_PACK16:
-		format = format::b5g5r5a1_unorm;
-		break;
+		return api::format::b5g5r5a1_unorm;
 	case VK_FORMAT_R8_UNORM:
-		format = format::r8_unorm;
-		break;
+		return api::format::r8_unorm;
 	case VK_FORMAT_R8_SNORM:
-		format = format::r8_snorm;
-		break;
+		return api::format::r8_snorm;
 	case VK_FORMAT_R8_UINT:
-		format = format::r8_uint;
-		break;
+		return api::format::r8_uint;
 	case VK_FORMAT_R8_SINT:
-		format = format::r8_sint;
-		break;
+		return api::format::r8_sint;
 	case VK_FORMAT_R8G8_UNORM:
-		format = format::r8g8_unorm;
-		break;
+		return api::format::r8g8_unorm;
 	case VK_FORMAT_R8G8_SNORM:
-		format = format::r8g8_snorm;
-		break;
+		return api::format::r8g8_snorm;
 	case VK_FORMAT_R8G8_UINT:
-		format = format::r8g8_uint;
-		break;
+		return api::format::r8g8_uint;
 	case VK_FORMAT_R8G8_SINT:
-		format = format::r8g8_sint;
-		break;
+		return api::format::r8g8_sint;
 	case VK_FORMAT_R8G8B8A8_UNORM:
-		format = format::r8g8b8a8_unorm;
-		break;
+		return api::format::r8g8b8a8_unorm;
 	case VK_FORMAT_R8G8B8A8_SNORM:
-		format = format::r8g8b8a8_snorm;
-		break;
+		return api::format::r8g8b8a8_snorm;
 	case VK_FORMAT_R8G8B8A8_UINT:
-		format = format::r8g8b8a8_uint;
-		break;
+		return api::format::r8g8b8a8_uint;
 	case VK_FORMAT_R8G8B8A8_SINT:
-		format = format::r8g8b8a8_sint;
-		break;
+		return api::format::r8g8b8a8_sint;
 	case VK_FORMAT_R8G8B8A8_SRGB:
-		format = format::r8g8b8a8_unorm_srgb;
-		break;
+		return api::format::r8g8b8a8_unorm_srgb;
 	case VK_FORMAT_B8G8R8A8_UNORM:
-		format = format::b8g8r8a8_unorm;
-		break;
+		return api::format::b8g8r8a8_unorm;
 	case VK_FORMAT_B8G8R8A8_SRGB:
-		format = format::b8g8r8a8_unorm_srgb;
-		break;
+		return api::format::b8g8r8a8_unorm_srgb;
 	case VK_FORMAT_A2B10G10R10_UNORM_PACK32:
-		format = format::r10g10b10a2_unorm;
-		break;
+		return api::format::r10g10b10a2_unorm;
 	case VK_FORMAT_A2B10G10R10_UINT_PACK32:
-		format = format::r10g10b10a2_uint;
-		break;
+		return api::format::r10g10b10a2_uint;
 	case VK_FORMAT_R16_UNORM:
-		format = format::r16_unorm;
-		break;
+		return api::format::r16_unorm;
 	case VK_FORMAT_R16_SNORM:
-		format = format::r16_snorm;
-		break;
+		return api::format::r16_snorm;
 	case VK_FORMAT_R16_UINT:
-		format = format::r16_uint;
-		break;
+		return api::format::r16_uint;
 	case VK_FORMAT_R16_SINT:
-		format = format::r16_sint;
-		break;
+		return api::format::r16_sint;
 	case VK_FORMAT_R16_SFLOAT:
-		format = format::r16_float;
-		break;
+		return api::format::r16_float;
 	case VK_FORMAT_R16G16_UNORM:
-		format = format::r16g16_unorm;
-		break;
+		return api::format::r16g16_unorm;
 	case VK_FORMAT_R16G16_SNORM:
-		format = format::r16g16_snorm;
-		break;
+		return api::format::r16g16_snorm;
 	case VK_FORMAT_R16G16_UINT:
-		format = format::r16g16_uint;
-		break;
+		return api::format::r16g16_uint;
 	case VK_FORMAT_R16G16_SINT:
-		format = format::r16g16_sint;
-		break;
+		return api::format::r16g16_sint;
 	case VK_FORMAT_R16G16_SFLOAT:
-		format = format::r16g16_float;
-		break;
+		return api::format::r16g16_float;
 	case VK_FORMAT_R16G16B16A16_UNORM:
-		format = format::r16g16b16a16_unorm;
-		break;
+		return api::format::r16g16b16a16_unorm;
 	case VK_FORMAT_R16G16B16A16_SNORM:
-		format = format::r16g16b16a16_snorm;
-		break;
+		return api::format::r16g16b16a16_snorm;
 	case VK_FORMAT_R16G16B16A16_UINT:
-		format = format::r16g16b16a16_uint;
-		break;
+		return api::format::r16g16b16a16_uint;
 	case VK_FORMAT_R16G16B16A16_SINT:
-		format = format::r16g16b16a16_sint;
-		break;
+		return api::format::r16g16b16a16_sint;
 	case VK_FORMAT_R16G16B16A16_SFLOAT:
-		format = format::r16g16b16a16_float;
-		break;
+		return api::format::r16g16b16a16_float;
 	case VK_FORMAT_R32_UINT:
-		format = format::r32_uint;
-		break;
+		return api::format::r32_uint;
 	case VK_FORMAT_R32_SINT:
-		format = format::r32_sint;
-		break;
+		return api::format::r32_sint;
 	case VK_FORMAT_R32_SFLOAT:
-		format = format::r32_float;
-		break;
+		return api::format::r32_float;
 	case VK_FORMAT_R32G32_UINT:
-		format = format::r32g32_uint;
-		break;
+		return api::format::r32g32_uint;
 	case VK_FORMAT_R32G32_SINT:
-		format = format::r32g32_sint;
-		break;
+		return api::format::r32g32_sint;
 	case VK_FORMAT_R32G32_SFLOAT:
-		format = format::r32g32_float;
-		break;
+		return api::format::r32g32_float;
 	case VK_FORMAT_R32G32B32_UINT:
-		format = format::r32g32b32_uint;
-		break;
+		return api::format::r32g32b32_uint;
 	case VK_FORMAT_R32G32B32_SINT:
-		format = format::r32g32b32_sint;
-		break;
+		return api::format::r32g32b32_sint;
 	case VK_FORMAT_R32G32B32_SFLOAT:
-		format = format::r32g32b32_float;
-		break;
+		return api::format::r32g32b32_float;
 	case VK_FORMAT_R32G32B32A32_UINT:
-		format = format::r32g32b32a32_uint;
-		break;
+		return api::format::r32g32b32a32_uint;
 	case VK_FORMAT_R32G32B32A32_SINT:
-		format = format::r32g32b32a32_sint;
-		break;
+		return api::format::r32g32b32a32_sint;
 	case VK_FORMAT_R32G32B32A32_SFLOAT:
-		format = format::r32g32b32a32_float;
-		break;
+		return api::format::r32g32b32a32_float;
 	case VK_FORMAT_B10G11R11_UFLOAT_PACK32:
-		format = format::r11g11b10_float;
-		break;
+		return api::format::r11g11b10_float;
 	case VK_FORMAT_E5B9G9R9_UFLOAT_PACK32:
-		format = format::r9g9b9e5;
-		break;
+		return api::format::r9g9b9e5;
 	case VK_FORMAT_D16_UNORM:
-		format = format::d16_unorm;
-		break;
+		return api::format::d16_unorm;
 	case VK_FORMAT_D32_SFLOAT:
-		format = format::d32_float;
-		break;
+		return api::format::d32_float;
 	case VK_FORMAT_S8_UINT:
-		format = format::s8_uint;
-		break;
+		return api::format::s8_uint;
 	case VK_FORMAT_D24_UNORM_S8_UINT:
-		format = format::d24_unorm_s8_uint;
-		break;
+		return api::format::d24_unorm_s8_uint;
 	case VK_FORMAT_D32_SFLOAT_S8_UINT:
-		format = format::d32_float_s8_uint;
-		break;
+		return api::format::d32_float_s8_uint;
 	case VK_FORMAT_BC1_RGBA_UNORM_BLOCK:
-		format = format::bc1_unorm;
-		break;
+		return api::format::bc1_unorm;
 	case VK_FORMAT_BC1_RGBA_SRGB_BLOCK:
-		format = format::bc1_unorm_srgb;
-		break;
+		return api::format::bc1_unorm_srgb;
 	case VK_FORMAT_BC2_UNORM_BLOCK:
-		format = format::bc2_unorm;
-		break;
+		return api::format::bc2_unorm;
 	case VK_FORMAT_BC2_SRGB_BLOCK:
-		format = format::bc2_unorm_srgb;
-		break;
+		return api::format::bc2_unorm_srgb;
 	case VK_FORMAT_BC3_UNORM_BLOCK:
-		format = format::bc3_unorm;
-		break;
+		return api::format::bc3_unorm;
 	case VK_FORMAT_BC3_SRGB_BLOCK:
-		format = format::bc3_unorm_srgb;
-		break;
+		return api::format::bc3_unorm_srgb;
 	case VK_FORMAT_BC4_UNORM_BLOCK:
-		format = format::bc4_unorm;
-		break;
+		return api::format::bc4_unorm;
 	case VK_FORMAT_BC4_SNORM_BLOCK:
-		format = format::bc4_snorm;
-		break;
+		return api::format::bc4_snorm;
 	case VK_FORMAT_BC5_UNORM_BLOCK:
-		format = format::bc5_unorm;
-		break;
+		return api::format::bc5_unorm;
 	case VK_FORMAT_BC5_SNORM_BLOCK:
-		format = format::bc5_snorm;
-		break;
+		return api::format::bc5_snorm;
 	case VK_FORMAT_BC6H_UFLOAT_BLOCK:
-		format = format::bc6h_ufloat;
-		break;
+		return api::format::bc6h_ufloat;
 	case VK_FORMAT_BC6H_SFLOAT_BLOCK:
-		format = format::bc6h_sfloat;
-		break;
+		return api::format::bc6h_sfloat;
 	case VK_FORMAT_BC7_UNORM_BLOCK:
-		format = format::bc7_unorm;
-		break;
+		return api::format::bc7_unorm;
 	case VK_FORMAT_BC7_SRGB_BLOCK:
-		format = format::bc7_unorm_srgb;
-		break;
+		return api::format::bc7_unorm_srgb;
 	case VK_FORMAT_G8B8G8R8_422_UNORM:
-		format = format::g8r8_g8b8_unorm;
-		break;
+		return api::format::g8r8_g8b8_unorm;
 	case VK_FORMAT_B8G8R8G8_422_UNORM:
-		format = format::r8g8_b8g8_unorm;
-		break;
+		return api::format::r8g8_b8g8_unorm;
 	}
 }
 
-auto reshade::vulkan::convert_usage_to_access(resource_usage state) -> VkAccessFlags
+auto reshade::vulkan::convert_usage_to_access(api::resource_usage state) -> VkAccessFlags
 {
-	if (state == resource_usage::host)
-		return VK_ACCESS_HOST_READ_BIT | VK_ACCESS_HOST_WRITE_BIT;
-	if (state == resource_usage::present)
+	if (state == api::resource_usage::present)
 		return 0;
+	if (state == api::resource_usage::cpu_access)
+		return VK_ACCESS_HOST_READ_BIT | VK_ACCESS_HOST_WRITE_BIT;
 
 	VkAccessFlags result = 0;
-	if ((state & resource_usage::depth_stencil_read) != 0)
+	if ((state & api::resource_usage::depth_stencil_read) != 0)
 		result |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
-	if ((state & resource_usage::depth_stencil_write) != 0)
+	if ((state & api::resource_usage::depth_stencil_write) != 0)
 		result |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-	if ((state & resource_usage::render_target) != 0)
+	if ((state & api::resource_usage::render_target) != 0)
 		result |= VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-	if ((state & resource_usage::shader_resource) != 0)
+	if ((state & api::resource_usage::shader_resource) != 0)
 		result |= VK_ACCESS_SHADER_READ_BIT;
-	if ((state & resource_usage::unordered_access) != 0)
+	if ((state & api::resource_usage::unordered_access) != 0)
 		result |= VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-	if ((state & (resource_usage::copy_dest | resource_usage::resolve_dest)) != 0)
+	if ((state & (api::resource_usage::copy_dest | api::resource_usage::resolve_dest)) != 0)
 		result |= VK_ACCESS_TRANSFER_WRITE_BIT;
-	if ((state & (resource_usage::copy_source | resource_usage::resolve_source)) != 0)
+	if ((state & (api::resource_usage::copy_source | api::resource_usage::resolve_source)) != 0)
 		result |= VK_ACCESS_TRANSFER_READ_BIT;
-	if ((state & resource_usage::index_buffer) != 0)
+	if ((state & api::resource_usage::index_buffer) != 0)
 		result |= VK_ACCESS_INDEX_READ_BIT;
-	if ((state & resource_usage::vertex_buffer) != 0)
+	if ((state & api::resource_usage::vertex_buffer) != 0)
 		result |= VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
-	if ((state & resource_usage::constant_buffer) != 0)
+	if ((state & api::resource_usage::constant_buffer) != 0)
 		result |= VK_ACCESS_UNIFORM_READ_BIT;
 	return result;
 }
-auto reshade::vulkan::convert_usage_to_image_layout(resource_usage state) -> VkImageLayout
+auto reshade::vulkan::convert_usage_to_image_layout(api::resource_usage state) -> VkImageLayout
 {
 	switch (state)
 	{
-	case resource_usage::undefined:
+	case api::resource_usage::undefined:
 		return VK_IMAGE_LAYOUT_UNDEFINED;
-	case resource_usage::depth_stencil:
-	case resource_usage::depth_stencil_read:
-	case resource_usage::depth_stencil_write:
+	case api::resource_usage::depth_stencil:
+	case api::resource_usage::depth_stencil_read:
+	case api::resource_usage::depth_stencil_write:
 		return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-	case resource_usage::render_target:
+	case api::resource_usage::render_target:
 		return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-	case resource_usage::shader_resource:
-	case resource_usage::shader_resource_pixel:
-	case resource_usage::shader_resource_non_pixel:
+	case api::resource_usage::shader_resource:
+	case api::resource_usage::shader_resource_pixel:
+	case api::resource_usage::shader_resource_non_pixel:
 		return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	default: // Default to general layout if multiple usage flags are specified
-	case resource_usage::unordered_access:
+	case api::resource_usage::unordered_access:
 		return VK_IMAGE_LAYOUT_GENERAL;
-	case resource_usage::copy_dest:
-	case resource_usage::resolve_dest:
+	case api::resource_usage::copy_dest:
+	case api::resource_usage::resolve_dest:
 		return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-	case resource_usage::copy_source:
-	case resource_usage::resolve_source:
+	case api::resource_usage::copy_source:
+	case api::resource_usage::resolve_source:
 		return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-	case resource_usage::present:
+	case api::resource_usage::present:
 		return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 	}
 }
-auto reshade::vulkan::convert_usage_to_pipeline_stage(resource_usage state) -> VkPipelineStageFlags
+auto reshade::vulkan::convert_usage_to_pipeline_stage(api::resource_usage state) -> VkPipelineStageFlags
 {
-	if (state == resource_usage::host)
-		return VK_PIPELINE_STAGE_HOST_BIT;
-	if (state == resource_usage::present)
+	if (state == api::resource_usage::present)
 		return VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-	if (state == resource_usage::undefined)
+	if (state == api::resource_usage::undefined)
 		return VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT; // Do not wait on any previous stage
+	if (state == api::resource_usage::cpu_access)
+		return VK_PIPELINE_STAGE_HOST_BIT;
 
 	VkPipelineStageFlags result = 0;
-	if ((state & resource_usage::depth_stencil_read) != 0)
+	if ((state & api::resource_usage::depth_stencil_read) != 0)
 		result |= VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-	if ((state & resource_usage::depth_stencil_write) != 0)
+	if ((state & api::resource_usage::depth_stencil_write) != 0)
 		result |= VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-	if ((state & resource_usage::render_target) != 0)
+	if ((state & api::resource_usage::render_target) != 0)
 		result |= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-	if ((state & (resource_usage::shader_resource_pixel | resource_usage::constant_buffer)) != 0)
+	if ((state & (api::resource_usage::shader_resource_pixel | api::resource_usage::constant_buffer)) != 0)
 		result |= VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-	if ((state & (resource_usage::shader_resource_non_pixel | resource_usage::constant_buffer)) != 0)
+	if ((state & (api::resource_usage::shader_resource_non_pixel | api::resource_usage::constant_buffer)) != 0)
 		result |= VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT | VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT | VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-	if ((state & resource_usage::unordered_access) != 0)
+	if ((state & api::resource_usage::unordered_access) != 0)
 		result |= VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-	if ((state & (resource_usage::copy_dest | resource_usage::copy_source | resource_usage::resolve_dest | resource_usage::resolve_source)) != 0)
+	if ((state & (api::resource_usage::copy_dest | api::resource_usage::copy_source | api::resource_usage::resolve_dest | api::resource_usage::resolve_source)) != 0)
 		result |= VK_PIPELINE_STAGE_TRANSFER_BIT;
-	if ((state & (resource_usage::index_buffer | resource_usage::vertex_buffer)) != 0)
+	if ((state & (api::resource_usage::index_buffer | api::resource_usage::vertex_buffer)) != 0)
 		result |= VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
 	return result;
 }
 
-void reshade::vulkan::convert_usage_to_image_usage_flags(resource_usage usage, VkImageUsageFlags &image_flags)
+void reshade::vulkan::convert_usage_to_image_usage_flags(api::resource_usage usage, VkImageUsageFlags &image_flags)
 {
-	if ((usage & resource_usage::render_target) != 0)
+	if ((usage & api::resource_usage::render_target) != 0)
 		// Add transfer destination usage as well to support clearing via 'vkCmdClearColorImage'
 		image_flags |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 	else
 		image_flags &= ~VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-	if ((usage & resource_usage::depth_stencil) != 0)
+	if ((usage & api::resource_usage::depth_stencil) != 0)
 		// Add transfer destination usage as well to support clearing via 'vkCmdClearDepthStencilImage'
 		image_flags |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 	else
 		image_flags &= ~VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 
-	if ((usage & resource_usage::shader_resource) != 0)
+	if ((usage & api::resource_usage::shader_resource) != 0)
 		image_flags |= VK_IMAGE_USAGE_SAMPLED_BIT;
 	else
 		image_flags &= ~VK_IMAGE_USAGE_SAMPLED_BIT;
 
-	if ((usage & resource_usage::unordered_access) != 0)
+	if ((usage & api::resource_usage::unordered_access) != 0)
 		image_flags |= VK_IMAGE_USAGE_STORAGE_BIT;
 	else
 		image_flags &= ~VK_IMAGE_USAGE_STORAGE_BIT;
 
-	if ((usage & (resource_usage::copy_dest | resource_usage::resolve_dest)) != 0)
+	if ((usage & (api::resource_usage::copy_dest | api::resource_usage::resolve_dest)) != 0)
 		image_flags |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 	else
 		image_flags &= ~VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 
-	if ((usage & (resource_usage::copy_source | resource_usage::resolve_source)) != 0)
+	if ((usage & (api::resource_usage::copy_source | api::resource_usage::resolve_source)) != 0)
 		image_flags |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 	else
 		image_flags &= ~VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 }
-static inline void convert_image_usage_flags_to_usage(const VkImageUsageFlags image_flags, resource_usage &usage)
+static inline void convert_image_usage_flags_to_usage(const VkImageUsageFlags image_flags, reshade::api::resource_usage &usage)
 {
 	if ((image_flags & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) != 0)
-		usage |= resource_usage::render_target;
+		usage |= reshade::api::resource_usage::render_target;
 	if ((image_flags & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) != 0)
-		usage |= resource_usage::depth_stencil;
+		usage |= reshade::api::resource_usage::depth_stencil;
 	if ((image_flags & VK_IMAGE_USAGE_SAMPLED_BIT) != 0)
-		usage |= resource_usage::shader_resource;
+		usage |= reshade::api::resource_usage::shader_resource;
 	if ((image_flags & VK_IMAGE_USAGE_STORAGE_BIT) != 0)
-		usage |= resource_usage::unordered_access;
+		usage |= reshade::api::resource_usage::unordered_access;
 	if ((image_flags & VK_IMAGE_USAGE_TRANSFER_DST_BIT) != 0)
-		usage |= resource_usage::copy_dest;
+		usage |= reshade::api::resource_usage::copy_dest;
 	if ((image_flags & VK_IMAGE_USAGE_TRANSFER_SRC_BIT) != 0)
-		usage |= resource_usage::copy_source;
+		usage |= reshade::api::resource_usage::copy_source;
 }
-void reshade::vulkan::convert_usage_to_buffer_usage_flags(resource_usage usage, VkBufferUsageFlags &buffer_flags)
+void reshade::vulkan::convert_usage_to_buffer_usage_flags(api::resource_usage usage, VkBufferUsageFlags &buffer_flags)
 {
-	if ((usage & resource_usage::index_buffer) != 0)
+	if ((usage & api::resource_usage::index_buffer) != 0)
 		buffer_flags |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
 	else
 		buffer_flags &= ~VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
 
-	if ((usage & resource_usage::vertex_buffer) != 0)
+	if ((usage & api::resource_usage::vertex_buffer) != 0)
 		buffer_flags |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
 	else
 		buffer_flags &= ~VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
 
-	if ((usage & resource_usage::constant_buffer) != 0)
+	if ((usage & api::resource_usage::constant_buffer) != 0)
 		buffer_flags |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
 	else
 		buffer_flags &= ~VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
 
-	if ((usage & resource_usage::unordered_access) != 0)
+	if ((usage & api::resource_usage::unordered_access) != 0)
 		buffer_flags |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
 	else
 		buffer_flags &= ~VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
 
-	if ((usage & resource_usage::copy_dest) != 0)
+	if ((usage & api::resource_usage::copy_dest) != 0)
 		buffer_flags |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 	else
 		buffer_flags &= ~VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 
-	if ((usage & resource_usage::copy_source) != 0)
+	if ((usage & api::resource_usage::copy_source) != 0)
 		buffer_flags |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 	else
 		buffer_flags &= ~VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 }
-static inline void convert_buffer_usage_flags_to_usage(const VkBufferUsageFlags buffer_flags, resource_usage &usage)
+static inline void convert_buffer_usage_flags_to_usage(const VkBufferUsageFlags buffer_flags, reshade::api::resource_usage &usage)
 {
 	if ((buffer_flags & VK_BUFFER_USAGE_INDEX_BUFFER_BIT) != 0)
-		usage |= resource_usage::index_buffer;
+		usage |= reshade::api::resource_usage::index_buffer;
 	if ((buffer_flags & VK_BUFFER_USAGE_VERTEX_BUFFER_BIT) != 0)
-		usage |= resource_usage::vertex_buffer;
+		usage |= reshade::api::resource_usage::vertex_buffer;
 	if ((buffer_flags & VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT) != 0)
-		usage |= resource_usage::constant_buffer;
+		usage |= reshade::api::resource_usage::constant_buffer;
 	if ((buffer_flags & VK_BUFFER_USAGE_STORAGE_BUFFER_BIT) != 0)
-		usage |= resource_usage::unordered_access;
+		usage |= reshade::api::resource_usage::unordered_access;
 	if ((buffer_flags & VK_BUFFER_USAGE_TRANSFER_DST_BIT) != 0)
-		usage |= resource_usage::copy_dest;
+		usage |= reshade::api::resource_usage::copy_dest;
 	if ((buffer_flags & VK_BUFFER_USAGE_TRANSFER_SRC_BIT) != 0)
-		usage |= resource_usage::copy_source;
+		usage |= reshade::api::resource_usage::copy_source;
 }
 
-void reshade::vulkan::convert_sampler_desc(const sampler_desc &desc, VkSamplerCreateInfo &create_info)
+void reshade::vulkan::convert_sampler_desc(const api::sampler_desc &desc, VkSamplerCreateInfo &create_info)
 {
 	switch (desc.filter)
 	{
-	case texture_filter::min_mag_mip_point:
+	case api::texture_filter::min_mag_mip_point:
 		create_info.minFilter = VK_FILTER_NEAREST;
 		create_info.magFilter = VK_FILTER_NEAREST;
 		create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
 		create_info.anisotropyEnable = VK_FALSE;
 		break;
-	case texture_filter::min_mag_point_mip_linear:
+	case api::texture_filter::min_mag_point_mip_linear:
 		create_info.magFilter = VK_FILTER_NEAREST;
 		create_info.minFilter = VK_FILTER_NEAREST;
 		create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
 		create_info.anisotropyEnable = VK_FALSE;
 		break;
-	case texture_filter::min_point_mag_linear_mip_point:
+	case api::texture_filter::min_point_mag_linear_mip_point:
 		create_info.magFilter = VK_FILTER_LINEAR;
 		create_info.minFilter = VK_FILTER_NEAREST;
 		create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
 		create_info.anisotropyEnable = VK_FALSE;
 		break;
-	case texture_filter::min_point_mag_mip_linear:
+	case api::texture_filter::min_point_mag_mip_linear:
 		create_info.magFilter = VK_FILTER_LINEAR;
 		create_info.minFilter = VK_FILTER_NEAREST;
 		create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
 		create_info.anisotropyEnable = VK_FALSE;
 		break;
-	case texture_filter::min_linear_mag_mip_point:
+	case api::texture_filter::min_linear_mag_mip_point:
 		create_info.magFilter = VK_FILTER_NEAREST;
 		create_info.minFilter = VK_FILTER_LINEAR;
 		create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
 		create_info.anisotropyEnable = VK_FALSE;
 		break;
-	case texture_filter::min_linear_mag_point_mip_linear:
+	case api::texture_filter::min_linear_mag_point_mip_linear:
 		create_info.magFilter = VK_FILTER_NEAREST;
 		create_info.minFilter = VK_FILTER_LINEAR;
 		create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
 		create_info.anisotropyEnable = VK_FALSE;
 		break;
-	case texture_filter::min_mag_linear_mip_point:
+	case api::texture_filter::min_mag_linear_mip_point:
 		create_info.magFilter = VK_FILTER_LINEAR;
 		create_info.minFilter = VK_FILTER_LINEAR;
 		create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
 		create_info.anisotropyEnable = VK_FALSE;
 		break;
-	case texture_filter::min_mag_mip_linear:
+	case api::texture_filter::min_mag_mip_linear:
 		create_info.magFilter = VK_FILTER_LINEAR;
 		create_info.minFilter = VK_FILTER_LINEAR;
 		create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
 		create_info.anisotropyEnable = VK_FALSE;
 		break;
-	case texture_filter::anisotropic:
+	case api::texture_filter::anisotropic:
 		create_info.magFilter = VK_FILTER_LINEAR;
 		create_info.minFilter = VK_FILTER_LINEAR;
 		create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
@@ -735,19 +591,21 @@ void reshade::vulkan::convert_sampler_desc(const sampler_desc &desc, VkSamplerCr
 		break;
 	}
 
-	const auto convert_address_mode = [](texture_address_mode mode) {
+	const auto convert_address_mode = [](api::texture_address_mode mode) {
 		switch (mode)
 		{
 		default:
-		case texture_address_mode::wrap:
+			assert(false);
+			// fall through
+		case api::texture_address_mode::wrap:
 			return VK_SAMPLER_ADDRESS_MODE_REPEAT;
-		case texture_address_mode::mirror:
+		case api::texture_address_mode::mirror:
 			return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
-		case texture_address_mode::clamp:
+		case api::texture_address_mode::clamp:
 			return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-		case texture_address_mode::border:
+		case api::texture_address_mode::border:
 			return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
-		case texture_address_mode::mirror_once:
+		case api::texture_address_mode::mirror_once:
 			return VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE;
 		}
 	};
@@ -762,12 +620,12 @@ void reshade::vulkan::convert_sampler_desc(const sampler_desc &desc, VkSamplerCr
 	create_info.minLod = desc.min_lod;
 	create_info.maxLod = desc.max_lod;
 }
-sampler_desc reshade::vulkan::convert_sampler_desc(const VkSamplerCreateInfo &create_info)
+reshade::api::sampler_desc reshade::vulkan::convert_sampler_desc(const VkSamplerCreateInfo &create_info)
 {
-	sampler_desc desc = {};
+	api::sampler_desc desc = {};
 	if (create_info.anisotropyEnable)
 	{
-		desc.filter = texture_filter::anisotropic;
+		desc.filter = api::texture_filter::anisotropic;
 	}
 	else
 	{
@@ -780,10 +638,10 @@ sampler_desc reshade::vulkan::convert_sampler_desc(const VkSamplerCreateInfo &cr
 				switch (create_info.mipmapMode)
 				{
 				case VK_SAMPLER_MIPMAP_MODE_NEAREST:
-					desc.filter = texture_filter::min_mag_mip_point;
+					desc.filter = api::texture_filter::min_mag_mip_point;
 					break;
 				case VK_SAMPLER_MIPMAP_MODE_LINEAR:
-					desc.filter = texture_filter::min_mag_point_mip_linear;
+					desc.filter = api::texture_filter::min_mag_point_mip_linear;
 					break;
 				}
 				break;
@@ -791,10 +649,10 @@ sampler_desc reshade::vulkan::convert_sampler_desc(const VkSamplerCreateInfo &cr
 				switch (create_info.mipmapMode)
 				{
 				case VK_SAMPLER_MIPMAP_MODE_NEAREST:
-					desc.filter = texture_filter::min_point_mag_linear_mip_point;
+					desc.filter = api::texture_filter::min_point_mag_linear_mip_point;
 					break;
 				case VK_SAMPLER_MIPMAP_MODE_LINEAR:
-					desc.filter = texture_filter::min_point_mag_mip_linear;
+					desc.filter = api::texture_filter::min_point_mag_mip_linear;
 					break;
 				}
 				break;
@@ -807,10 +665,10 @@ sampler_desc reshade::vulkan::convert_sampler_desc(const VkSamplerCreateInfo &cr
 				switch (create_info.mipmapMode)
 				{
 				case VK_SAMPLER_MIPMAP_MODE_NEAREST:
-					desc.filter = texture_filter::min_linear_mag_mip_point;
+					desc.filter = api::texture_filter::min_linear_mag_mip_point;
 					break;
 				case VK_SAMPLER_MIPMAP_MODE_LINEAR:
-					desc.filter = texture_filter::min_linear_mag_point_mip_linear;
+					desc.filter = api::texture_filter::min_linear_mag_point_mip_linear;
 					break;
 				}
 				break;
@@ -818,10 +676,10 @@ sampler_desc reshade::vulkan::convert_sampler_desc(const VkSamplerCreateInfo &cr
 				switch (create_info.mipmapMode)
 				{
 				case VK_SAMPLER_MIPMAP_MODE_NEAREST:
-					desc.filter = texture_filter::min_mag_linear_mip_point;
+					desc.filter = api::texture_filter::min_mag_linear_mip_point;
 					break;
 				case VK_SAMPLER_MIPMAP_MODE_LINEAR:
-					desc.filter = texture_filter::min_mag_mip_linear;
+					desc.filter = api::texture_filter::min_mag_mip_linear;
 					break;
 				}
 				break;
@@ -834,16 +692,18 @@ sampler_desc reshade::vulkan::convert_sampler_desc(const VkSamplerCreateInfo &cr
 		switch (mode)
 		{
 		default:
+			assert(false);
+			// fall through
 		case VK_SAMPLER_ADDRESS_MODE_REPEAT:
-			return texture_address_mode::wrap;
+			return api::texture_address_mode::wrap;
 		case VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT:
-			return texture_address_mode::mirror;
+			return api::texture_address_mode::mirror;
 		case VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE:
-			return texture_address_mode::clamp;
+			return api::texture_address_mode::clamp;
 		case VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER:
-			return texture_address_mode::border;
+			return api::texture_address_mode::border;
 		case VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE:
-			return texture_address_mode::mirror_once;
+			return api::texture_address_mode::mirror_once;
 		}
 	};
 
@@ -854,55 +714,60 @@ sampler_desc reshade::vulkan::convert_sampler_desc(const VkSamplerCreateInfo &cr
 	desc.max_anisotropy = create_info.maxAnisotropy;
 	desc.min_lod = create_info.minLod;
 	desc.max_lod = create_info.maxLod;
+
 	return desc;
 }
 
-void reshade::vulkan::convert_resource_desc(const resource_desc &desc, VkImageCreateInfo &create_info)
+void reshade::vulkan::convert_resource_desc(const api::resource_desc &desc, VkImageCreateInfo &create_info)
 {
 	switch (desc.type)
 	{
 	default:
 		assert(false);
 		break;
-	case resource_type::texture_1d:
+	case api::resource_type::texture_1d:
 		create_info.imageType = VK_IMAGE_TYPE_1D;
 		create_info.extent = { desc.texture.width, 1u, 1u };
 		create_info.arrayLayers = desc.texture.depth_or_layers;
 		break;
-	case resource_type::texture_2d:
+	case api::resource_type::texture_2d:
 		create_info.imageType = VK_IMAGE_TYPE_2D;
 		create_info.extent = { desc.texture.width, desc.texture.height, 1u };
 		create_info.arrayLayers = desc.texture.depth_or_layers;
 		break;
-	case resource_type::texture_3d:
+	case api::resource_type::texture_3d:
 		create_info.imageType = VK_IMAGE_TYPE_3D;
 		create_info.extent = { desc.texture.width, desc.texture.height, desc.texture.depth_or_layers };
 		create_info.arrayLayers = 1u;
 		break;
 	}
 
-	convert_format_to_vk_format(desc.texture.format, create_info.format);
+	if (const VkFormat format = convert_format(desc.texture.format);
+		format != VK_FORMAT_UNDEFINED)
+		create_info.format = format;
+
 	create_info.mipLevels = desc.texture.levels;
 	create_info.samples = static_cast<VkSampleCountFlagBits>(desc.texture.samples);
 	convert_usage_to_image_usage_flags(desc.usage, create_info.usage);
 }
-void reshade::vulkan::convert_resource_desc(const resource_desc &desc, VkBufferCreateInfo &create_info)
+void reshade::vulkan::convert_resource_desc(const api::resource_desc &desc, VkBufferCreateInfo &create_info)
 {
-	assert(desc.type == resource_type::buffer);
+	assert(desc.type == api::resource_type::buffer);
+
 	create_info.size = desc.buffer.size;
 	convert_usage_to_buffer_usage_flags(desc.usage, create_info.usage);
 }
-resource_desc reshade::vulkan::convert_resource_desc(const VkImageCreateInfo &create_info)
+reshade::api::resource_desc reshade::vulkan::convert_resource_desc(const VkImageCreateInfo &create_info)
 {
-	resource_desc desc = {};
+	api::resource_desc desc = {};
 	switch (create_info.imageType)
 	{
 	default:
 		assert(false);
-		desc.type = resource_type::unknown;
+		desc.type = api::resource_type::unknown;
 		break;
 	case VK_IMAGE_TYPE_1D:
-		desc.type = resource_type::texture_1d;
+		desc.type = api::resource_type::texture_1d;
 		desc.texture.width = create_info.extent.width;
 		assert(create_info.extent.height == 1 && create_info.extent.depth == 1);
 		desc.texture.height = 1;
@@ -910,7 +775,7 @@ resource_desc reshade::vulkan::convert_resource_desc(const VkImageCreateInfo &cr
 		desc.texture.depth_or_layers = static_cast<uint16_t>(create_info.arrayLayers);
 		break;
 	case VK_IMAGE_TYPE_2D:
-		desc.type = resource_type::texture_2d;
+		desc.type = api::resource_type::texture_2d;
 		desc.texture.width = create_info.extent.width;
 		desc.texture.height = create_info.extent.height;
 		assert(create_info.extent.depth == 1);
@@ -918,7 +783,7 @@ resource_desc reshade::vulkan::convert_resource_desc(const VkImageCreateInfo &cr
 		desc.texture.depth_or_layers = static_cast<uint16_t>(create_info.arrayLayers);
 		break;
 	case VK_IMAGE_TYPE_3D:
-		desc.type = resource_type::texture_3d;
+		desc.type = api::resource_type::texture_3d;
 		desc.texture.width = create_info.extent.width;
 		desc.texture.height = create_info.extent.height;
 		assert(create_info.extent.depth <= std::numeric_limits<uint16_t>::max());
@@ -929,102 +794,108 @@ resource_desc reshade::vulkan::convert_resource_desc(const VkImageCreateInfo &cr
 
 	assert(create_info.mipLevels <= std::numeric_limits<uint16_t>::max());
 	desc.texture.levels = static_cast<uint16_t>(create_info.mipLevels);
-	convert_vk_format_to_format(create_info.format, desc.texture.format);
+	desc.texture.format = convert_format(create_info.format);
 	desc.texture.samples = static_cast<uint16_t>(create_info.samples);
 
 	convert_image_usage_flags_to_usage(create_info.usage, desc.usage);
-	if (desc.type == resource_type::texture_2d && (
+	if (desc.type == api::resource_type::texture_2d && (
 		create_info.usage & (desc.texture.samples > 1 ? VK_IMAGE_USAGE_TRANSFER_SRC_BIT : VK_IMAGE_USAGE_TRANSFER_DST_BIT)) != 0)
-		desc.usage |= desc.texture.samples > 1 ? resource_usage::resolve_source : resource_usage::resolve_dest;
+		desc.usage |= desc.texture.samples > 1 ? api::resource_usage::resolve_source : api::resource_usage::resolve_dest;
 
 	return desc;
 }
-resource_desc reshade::vulkan::convert_resource_desc(const VkBufferCreateInfo &create_info)
+reshade::api::resource_desc reshade::vulkan::convert_resource_desc(const VkBufferCreateInfo &create_info)
 {
-	resource_desc desc = {};
-	desc.type = resource_type::buffer;
+	api::resource_desc desc = {};
+	desc.type = api::resource_type::buffer;
 	desc.buffer.size = create_info.size;
 	convert_buffer_usage_flags_to_usage(create_info.usage, desc.usage);
 	return desc;
 }
 
-void reshade::vulkan::convert_resource_view_desc(const resource_view_desc &desc, VkImageViewCreateInfo &create_info)
+void reshade::vulkan::convert_resource_view_desc(const api::resource_view_desc &desc, VkImageViewCreateInfo &create_info)
 {
 	switch (desc.type)
 	{
 	default:
 		assert(false);
 		break;
-	case resource_view_type::texture_1d:
+	case api::resource_view_type::texture_1d:
 		create_info.viewType = VK_IMAGE_VIEW_TYPE_1D;
 		break;
-	case resource_view_type::texture_1d_array:
+	case api::resource_view_type::texture_1d_array:
 		create_info.viewType = VK_IMAGE_VIEW_TYPE_1D_ARRAY;
 		break;
-	case resource_view_type::texture_2d:
+	case api::resource_view_type::texture_2d:
 		create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
 		break;
-	case resource_view_type::texture_2d_array:
+	case api::resource_view_type::texture_2d_array:
 		create_info.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
 		break;
-	case resource_view_type::texture_3d:
+	case api::resource_view_type::texture_3d:
 		create_info.viewType = VK_IMAGE_VIEW_TYPE_3D;
 		break;
-	case resource_view_type::texture_cube:
+	case api::resource_view_type::texture_cube:
 		create_info.viewType = VK_IMAGE_VIEW_TYPE_CUBE;
 		break;
-	case resource_view_type::texture_cube_array:
+	case api::resource_view_type::texture_cube_array:
 		create_info.viewType = VK_IMAGE_VIEW_TYPE_CUBE_ARRAY;
 		break;
 	}
 
-	convert_format_to_vk_format(desc.format, create_info.format);
+	if (const VkFormat format = convert_format(desc.format);
+		format != VK_FORMAT_UNDEFINED)
+		create_info.format = format;
+
 	create_info.subresourceRange.baseMipLevel = desc.texture.first_level;
 	create_info.subresourceRange.levelCount = desc.texture.levels;
 	create_info.subresourceRange.baseArrayLayer = desc.texture.first_layer;
 	create_info.subresourceRange.layerCount = desc.texture.layers;
 }
-void reshade::vulkan::convert_resource_view_desc(const resource_view_desc &desc, VkBufferViewCreateInfo &create_info)
+void reshade::vulkan::convert_resource_view_desc(const api::resource_view_desc &desc, VkBufferViewCreateInfo &create_info)
 {
-	assert(desc.type == resource_view_type::buffer);
+	assert(desc.type == api::resource_view_type::buffer);
 
-	convert_format_to_vk_format(desc.format, create_info.format);
+	if (const VkFormat format = convert_format(desc.format);
+		format != VK_FORMAT_UNDEFINED)
+		create_info.format = format;
+
 	create_info.offset = desc.buffer.offset;
 	create_info.range = desc.buffer.size;
 }
-resource_view_desc reshade::vulkan::convert_resource_view_desc(const VkImageViewCreateInfo &create_info)
+reshade::api::resource_view_desc reshade::vulkan::convert_resource_view_desc(const VkImageViewCreateInfo &create_info)
 {
-	resource_view_desc desc = {};
+	api::resource_view_desc desc = {};
 	switch (create_info.viewType)
 	{
 	default:
 		assert(false);
-		desc.type = resource_view_type::unknown;
+		desc.type = api::resource_view_type::unknown;
 		break;
 	case VK_IMAGE_VIEW_TYPE_1D:
-		desc.type = resource_view_type::texture_1d;
+		desc.type = api::resource_view_type::texture_1d;
 		break;
 	case VK_IMAGE_VIEW_TYPE_1D_ARRAY:
-		desc.type = resource_view_type::texture_1d_array;
+		desc.type = api::resource_view_type::texture_1d_array;
 		break;
 	case VK_IMAGE_VIEW_TYPE_2D:
-		desc.type = resource_view_type::texture_2d;
+		desc.type = api::resource_view_type::texture_2d;
 		break;
 	case VK_IMAGE_VIEW_TYPE_2D_ARRAY:
-		desc.type = resource_view_type::texture_2d_array;
+		desc.type = api::resource_view_type::texture_2d_array;
 		break;
 	case VK_IMAGE_VIEW_TYPE_3D:
-		desc.type = resource_view_type::texture_3d;
+		desc.type = api::resource_view_type::texture_3d;
 		break;
 	case VK_IMAGE_VIEW_TYPE_CUBE:
-		desc.type = resource_view_type::texture_cube;
+		desc.type = api::resource_view_type::texture_cube;
 		break;
 	case VK_IMAGE_VIEW_TYPE_CUBE_ARRAY:
-		desc.type = resource_view_type::texture_cube_array;
+		desc.type = api::resource_view_type::texture_cube_array;
 		break;
 	}
 
-	convert_vk_format_to_format(create_info.format, desc.format);
+	desc.format = convert_format(create_info.format);
 	desc.texture.first_level = create_info.subresourceRange.baseMipLevel;
 	desc.texture.levels = create_info.subresourceRange.levelCount;
 	desc.texture.first_layer = create_info.subresourceRange.baseArrayLayer;
@@ -1032,12 +903,112 @@ resource_view_desc reshade::vulkan::convert_resource_view_desc(const VkImageView
 
 	return desc;
 }
-resource_view_desc reshade::vulkan::convert_resource_view_desc(const VkBufferViewCreateInfo &create_info)
+reshade::api::resource_view_desc reshade::vulkan::convert_resource_view_desc(const VkBufferViewCreateInfo &create_info)
 {
-	resource_view_desc desc = {};
-	desc.type = resource_view_type::buffer;
-	convert_vk_format_to_format(create_info.format, desc.format);
+	api::resource_view_desc desc = {};
+	desc.type = api::resource_view_type::buffer;
+	desc.format = convert_format(create_info.format);
 	desc.buffer.offset = create_info.offset;
 	desc.buffer.size = create_info.sType;
 	return desc;
+}
+
+auto reshade::vulkan::convert_blend_op(api::blend_op value) -> VkBlendOp
+{
+	return static_cast<VkBlendOp>(value);
+}
+auto reshade::vulkan::convert_blend_factor(api::blend_factor value) -> VkBlendFactor
+{
+	return static_cast<VkBlendFactor>(value);
+}
+auto reshade::vulkan::convert_fill_mode(api::fill_mode value) -> VkPolygonMode
+{
+	switch (value)
+	{
+	case api::fill_mode::point:
+		return VK_POLYGON_MODE_POINT;
+	case api::fill_mode::wireframe:
+		return VK_POLYGON_MODE_LINE;
+	default:
+		assert(false);
+		// fall through
+	case api::fill_mode::solid:
+		return VK_POLYGON_MODE_FILL;
+	}
+}
+auto reshade::vulkan::convert_cull_mode(api::cull_mode value) -> VkCullModeFlags
+{
+	return static_cast<VkCullModeFlags>(value);
+}
+auto reshade::vulkan::convert_compare_op(api::compare_op value) -> VkCompareOp
+{
+	return static_cast<VkCompareOp>(value);
+}
+auto reshade::vulkan::convert_stencil_op(api::stencil_op value) -> VkStencilOp
+{
+	return static_cast<VkStencilOp>(value);
+}
+auto reshade::vulkan::convert_primitive_topology(api::primitive_topology value) -> VkPrimitiveTopology
+{
+	switch (value)
+	{
+	default:
+	case api::primitive_topology::undefined:
+		assert(false);
+		// fall through
+		return VK_PRIMITIVE_TOPOLOGY_MAX_ENUM;
+	case api::primitive_topology::point_list:
+		return VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
+	case api::primitive_topology::line_list:
+		return VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+	case api::primitive_topology::line_strip:
+		return VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
+	case api::primitive_topology::triangle_list:
+		return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+	case api::primitive_topology::triangle_strip:
+		return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
+	case api::primitive_topology::triangle_fan:
+		return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN;
+	case api::primitive_topology::line_list_adj:
+		return VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY;
+	case api::primitive_topology::line_strip_adj:
+		return VK_PRIMITIVE_TOPOLOGY_LINE_STRIP_WITH_ADJACENCY;
+	case api::primitive_topology::triangle_list_adj:
+		return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST_WITH_ADJACENCY;
+	case api::primitive_topology::triangle_strip_adj:
+		return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP_WITH_ADJACENCY;
+	case api::primitive_topology::patch_list_01_cp:
+	case api::primitive_topology::patch_list_02_cp:
+	case api::primitive_topology::patch_list_03_cp:
+	case api::primitive_topology::patch_list_04_cp:
+	case api::primitive_topology::patch_list_05_cp:
+	case api::primitive_topology::patch_list_06_cp:
+	case api::primitive_topology::patch_list_07_cp:
+	case api::primitive_topology::patch_list_08_cp:
+	case api::primitive_topology::patch_list_09_cp:
+	case api::primitive_topology::patch_list_10_cp:
+	case api::primitive_topology::patch_list_11_cp:
+	case api::primitive_topology::patch_list_12_cp:
+	case api::primitive_topology::patch_list_13_cp:
+	case api::primitive_topology::patch_list_14_cp:
+	case api::primitive_topology::patch_list_15_cp:
+	case api::primitive_topology::patch_list_16_cp:
+	case api::primitive_topology::patch_list_17_cp:
+	case api::primitive_topology::patch_list_18_cp:
+	case api::primitive_topology::patch_list_19_cp:
+	case api::primitive_topology::patch_list_20_cp:
+	case api::primitive_topology::patch_list_21_cp:
+	case api::primitive_topology::patch_list_22_cp:
+	case api::primitive_topology::patch_list_23_cp:
+	case api::primitive_topology::patch_list_24_cp:
+	case api::primitive_topology::patch_list_25_cp:
+	case api::primitive_topology::patch_list_26_cp:
+	case api::primitive_topology::patch_list_27_cp:
+	case api::primitive_topology::patch_list_28_cp:
+	case api::primitive_topology::patch_list_29_cp:
+	case api::primitive_topology::patch_list_30_cp:
+	case api::primitive_topology::patch_list_31_cp:
+	case api::primitive_topology::patch_list_32_cp:
+		return VK_PRIMITIVE_TOPOLOGY_PATCH_LIST;
+	}
 }

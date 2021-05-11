@@ -1593,7 +1593,7 @@ void     VKAPI_CALL vkCmdResolveImage(VkCommandBuffer commandBuffer, VkImage src
 			if (reshade::invoke_addon_event<reshade::addon_event::resolve>(
 				s_vulkan_command_buffers.at(commandBuffer),
 				reshade::api::resource { (uint64_t)srcImage }, device_impl->get_subresource_index(srcImage, region.srcSubresource, layer), &region.srcOffset.x,
-				reshade::api::resource { (uint64_t)dstImage }, device_impl->get_subresource_index(dstImage, region.dstSubresource, layer), &region.dstOffset.x, &region.extent.width, 0))
+				reshade::api::resource { (uint64_t)dstImage }, device_impl->get_subresource_index(dstImage, region.dstSubresource, layer), &region.dstOffset.x, &region.extent.width, reshade::api::format::unknown))
 				return; // TODO: This skips resolve of all regions, rather than just the one specified to this event call
 		}
 	}

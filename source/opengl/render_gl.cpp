@@ -309,8 +309,9 @@ bool reshade::opengl::device_impl::check_capability(api::device_caps capability)
 }
 bool reshade::opengl::device_impl::check_format_support(api::format format, api::resource_usage usage) const
 {
-	GLenum internal_format = GL_NONE;
-	convert_format_to_internal_format(format, internal_format);
+	const GLenum internal_format = convert_format(format);
+	if (internal_format == GL_NONE)
+		return false;
 
 	GLint supported = GL_FALSE;
 	glGetInternalformativ(GL_TEXTURE_2D, internal_format, GL_INTERNALFORMAT_SUPPORTED, 1, &supported);
@@ -330,8 +331,6 @@ bool reshade::opengl::device_impl::check_resource_handle_valid(api::resource res
 {
 	switch (resource.handle >> 40)
 	{
-	default:
-		return false;
 	case GL_BUFFER:
 	case GL_ARRAY_BUFFER:
 	case GL_ELEMENT_ARRAY_BUFFER:
@@ -364,6 +363,8 @@ bool reshade::opengl::device_impl::check_resource_handle_valid(api::resource res
 		return glIsRenderbuffer(resource.handle & 0xFFFFFFFF) != GL_FALSE;
 	case GL_FRAMEBUFFER_DEFAULT:
 		return (resource.handle & 0xFFFFFFFF) != GL_DEPTH_ATTACHMENT || _default_depth_format != GL_NONE;
+	default:
+		return false;
 	}
 }
 bool reshade::opengl::device_impl::check_resource_view_handle_valid(api::resource_view view) const
@@ -462,8 +463,6 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 	GLenum target = GL_NONE;
 	switch (desc.type)
 	{
-	default:
-		return false;
 	case api::resource_type::buffer:
 		     if ((desc.usage & api::resource_usage::index_buffer) != 0)
 			target = GL_ELEMENT_ARRAY_BUFFER;
@@ -481,6 +480,9 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 	case api::resource_type::texture_3d:
 		target = GL_TEXTURE_3D;
 		break;
+	default:
+		assert(false);
+		return false;
 	}
 
 	GLuint object = 0;
@@ -502,8 +504,7 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 	}
 	else
 	{
-		GLenum internal_format = GL_NONE;
-		convert_format_to_internal_format(desc.texture.format, internal_format);
+		const GLenum internal_format = convert_format(desc.texture.format);
 		if (internal_format == GL_NONE)
 			return false;
 
@@ -540,8 +541,6 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource resource, 
 	GLenum target = GL_NONE;
 	switch (desc.type)
 	{
-	default:
-		return false;
 	case api::resource_view_type::buffer:
 		target = GL_TEXTURE_BUFFER;
 		break;
@@ -572,10 +571,12 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource resource, 
 	case api::resource_view_type::texture_cube_array:
 		target = GL_TEXTURE_CUBE_MAP_ARRAY;
 		break;
+	default:
+		assert(false);
+		return false;
 	}
 
-	GLenum internal_format = GL_NONE;
-	convert_format_to_internal_format(desc.format, internal_format);
+	const GLenum internal_format = convert_format(desc.format);
 	if (internal_format == GL_NONE)
 		return false;
 
@@ -721,141 +722,8 @@ bool reshade::opengl::device_impl::create_pipeline_graphics(const api::pipeline_
 			glEnableVertexAttribArray(element.location);
 
 			GLint attrib_size = 0;
-			GLenum attrib_format = GL_NONE;
 			GLboolean normalized = GL_FALSE;
-			switch (element.format)
-			{
-			default:
-				assert(false);
-				glBindVertexArray(prev_vao);
-				glDeleteProgram(program);
-				glDeleteVertexArrays(1, &state->vao);
-				delete state;
-				*out = { 0 };
-				return false;
-			case api::format::r8g8b8a8_unorm:
-				normalized = GL_TRUE;
-				// fall through
-			case api::format::r8g8b8a8_uint:
-				attrib_size = 4;
-				attrib_format = GL_UNSIGNED_BYTE;
-				break;
-			case api::format::b8g8r8a8_unorm:
-				normalized = GL_TRUE;
-				attrib_size = GL_BGRA;
-				attrib_format = GL_UNSIGNED_BYTE;
-				break;
-			case api::format::r10g10b10a2_unorm:
-				normalized = GL_TRUE;
-				// fall through
-			case api::format::r10g10b10a2_uint:
-				attrib_size = 4;
-				attrib_format = GL_UNSIGNED_INT_2_10_10_10_REV;
-				break;
-			case api::format::r16_unorm:
-				normalized = GL_TRUE;
-				// fall through
-			case api::format::r16_uint:
-				attrib_size = 1;
-				attrib_format = GL_UNSIGNED_SHORT;
-				break;
-			case api::format::r16_snorm:
-				normalized = GL_TRUE;
-				// fall through
-			case api::format::r16_sint:
-				attrib_size = 1;
-				attrib_format = GL_SHORT;
-				break;
-			case api::format::r16_float:
-				attrib_size = 1;
-				attrib_format = GL_HALF_FLOAT;
-				break;
-			case api::format::r16g16_unorm:
-				normalized = GL_TRUE;
-				// fall through
-			case api::format::r16g16_uint:
-				attrib_size = 2;
-				attrib_format = GL_UNSIGNED_SHORT;
-				break;
-			case api::format::r16g16_snorm:
-				normalized = GL_TRUE;
-				// fall through
-			case api::format::r16g16_sint:
-				attrib_size = 2;
-				attrib_format = GL_SHORT;
-				break;
-			case api::format::r16g16_float:
-				attrib_size = 2;
-				attrib_format = GL_HALF_FLOAT;
-				break;
-			case api::format::r16g16b16a16_unorm:
-				normalized = GL_TRUE;
-				// fall through
-			case api::format::r16g16b16a16_uint:
-				attrib_size = 4;
-				attrib_format = GL_UNSIGNED_SHORT;
-				break;
-			case api::format::r16g16b16a16_snorm:
-				normalized = GL_TRUE;
-				// fall through
-			case api::format::r16g16b16a16_sint:
-				attrib_size = 4;
-				attrib_format = GL_SHORT;
-				break;
-			case api::format::r16g16b16a16_float:
-				attrib_size = 4;
-				attrib_format = GL_HALF_FLOAT;
-				break;
-			case api::format::r32_uint:
-				attrib_size = 1;
-				attrib_format = GL_UNSIGNED_INT;
-				break;
-			case api::format::r32_sint:
-				attrib_size = 1;
-				attrib_format = GL_INT;
-				break;
-			case api::format::r32_float:
-				attrib_size = 1;
-				attrib_format = GL_FLOAT;
-				break;
-			case api::format::r32g32_uint:
-				attrib_size = 2;
-				attrib_format = GL_UNSIGNED_INT;
-				break;
-			case api::format::r32g32_sint:
-				attrib_size = 2;
-				attrib_format = GL_INT;
-				break;
-			case api::format::r32g32_float:
-				attrib_size = 2;
-				attrib_format = GL_FLOAT;
-				break;
-			case api::format::r32g32b32_uint:
-				attrib_size = 3;
-				attrib_format = GL_UNSIGNED_INT;
-				break;
-			case api::format::r32g32b32_sint:
-				attrib_size = 3;
-				attrib_format = GL_INT;
-				break;
-			case api::format::r32g32b32_float:
-				attrib_size = 3;
-				attrib_format = GL_FLOAT;
-				break;
-			case api::format::r32g32b32a32_uint:
-				attrib_size = 4;
-				attrib_format = GL_UNSIGNED_INT;
-				break;
-			case api::format::r32g32b32a32_sint:
-				attrib_size = 4;
-				attrib_format = GL_INT;
-				break;
-			case api::format::r32g32b32a32_float:
-				attrib_size = 4;
-				attrib_format = GL_FLOAT;
-				break;
-			}
-
+			const GLenum attrib_format = convert_attrib_format(element.format, attrib_size, normalized);
 #if 1
 			glVertexAttribFormat(element.location, attrib_size, attrib_format, normalized, element.offset);
 			glVertexAttribBinding(element.location, element.buffer_binding);
@@ -1114,10 +982,6 @@ bool reshade::opengl::device_impl::map_resource(api::resource resource, uint32_t
 
 	switch (target)
 	{
-	default:
-		assert(false);
-		*mapped_ptr = nullptr;
-		break;
 	case GL_BUFFER:
 	case GL_ARRAY_BUFFER:
 	case GL_ELEMENT_ARRAY_BUFFER:
@@ -1147,6 +1011,10 @@ bool reshade::opengl::device_impl::map_resource(api::resource resource, uint32_t
 			glBindBuffer(target, prev_object);
 		}
 		break;
+	default:
+		assert(false);
+		*mapped_ptr = nullptr;
+		break;
 	}
 
 	return *mapped_ptr != nullptr;
@@ -1158,9 +1026,6 @@ void reshade::opengl::device_impl::unmap_resource(api::resource resource, uint32
 
 	switch (target)
 	{
-	default:
-		assert(false);
-		break;
 	case GL_BUFFER:
 	case GL_ARRAY_BUFFER:
 	case GL_ELEMENT_ARRAY_BUFFER:
@@ -1189,6 +1054,9 @@ void reshade::opengl::device_impl::unmap_resource(api::resource resource, uint32
 			glUnmapBuffer(target);
 			glBindBuffer(target, prev_object);
 		}
+		break;
+	default:
+		assert(false);
 		break;
 	}
 }
@@ -1261,9 +1129,6 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 
 	switch (target)
 	{
-	default:
-		assert(false);
-		break;
 	case GL_BUFFER:
 	case GL_ARRAY_BUFFER:
 	case GL_ELEMENT_ARRAY_BUFFER:
@@ -1310,6 +1175,9 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 		width = _default_fbo_width;
 		height = _default_fbo_height;
 		internal_format = (object == GL_DEPTH_ATTACHMENT) ? _default_depth_format : _default_color_format;
+		break;
+	default:
+		assert(false);
 		break;
 	}
 
@@ -1456,6 +1324,9 @@ void reshade::opengl::device_impl::bind_pipeline(api::pipeline_type type, api::p
 		glSampleMaski(0, state->sample_mask);
 		break;
 	}
+	default:
+		assert(false);
+		break;
 	}
 }
 void reshade::opengl::device_impl::bind_pipeline_states(uint32_t count, const api::pipeline_state *states, const uint32_t *values)
@@ -1464,11 +1335,11 @@ void reshade::opengl::device_impl::bind_pipeline_states(uint32_t count, const ap
 	{
 		switch (states[i])
 		{
-		default:
-			assert(false);
-			break;
 		case api::pipeline_state::primitive_topology:
 			_current_prim_mode = values[i];
+			break;
+		default:
+			assert(false);
 			break;
 		}
 	}
@@ -1651,9 +1522,6 @@ void reshade::opengl::device_impl::begin_render_pass(uint32_t count, const api::
 
 		switch (rtvs[i].handle >> 40)
 		{
-		default:
-			assert(false);
-			return;
 		case GL_TEXTURE:
 		case GL_TEXTURE_BUFFER:
 		case GL_TEXTURE_1D:
@@ -1672,6 +1540,9 @@ void reshade::opengl::device_impl::begin_render_pass(uint32_t count, const api::
 			glBindFramebuffer(GL_FRAMEBUFFER, 0);
 			glDrawBuffer(GL_BACK);
 			return;
+		default:
+			assert(false);
+			return;
 		}
 	}
 
@@ -1681,9 +1552,6 @@ void reshade::opengl::device_impl::begin_render_pass(uint32_t count, const api::
 	{
 		switch (dsv.handle >> 40)
 		{
-		default:
-			assert(false);
-			return;
 		case GL_TEXTURE:
 		case GL_TEXTURE_BUFFER:
 		case GL_TEXTURE_1D:
@@ -1700,6 +1568,9 @@ void reshade::opengl::device_impl::begin_render_pass(uint32_t count, const api::
 			break;
 		case GL_FRAMEBUFFER_DEFAULT:
 			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+			return;
+		default:
+			assert(false);
 			return;
 		}
 	}
@@ -1756,14 +1627,9 @@ void reshade::opengl::device_impl::blit(api::resource src, uint32_t src_subresou
 	glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &prev_read_fbo);
 	glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &prev_draw_fbo);
 
-	GLenum src_internal_format = GL_NONE;
-	convert_format_to_internal_format(src_desc.texture.format, src_internal_format);
-	const GLenum source_attachment = is_depth_stencil_format(src_internal_format, GL_DEPTH) ? GL_DEPTH_ATTACHMENT : GL_COLOR_ATTACHMENT0;
+	const GLenum source_attachment = is_depth_stencil_format(convert_format(src_desc.texture.format), GL_DEPTH) ? GL_DEPTH_ATTACHMENT : GL_COLOR_ATTACHMENT0;
 	switch (src_target)
 	{
-	default:
-		assert(false);
-		return;
 	case GL_TEXTURE:
 	case GL_TEXTURE_BUFFER:
 	case GL_TEXTURE_1D:
@@ -1796,16 +1662,14 @@ void reshade::opengl::device_impl::blit(api::resource src, uint32_t src_subresou
 		assert(src_object == source_attachment);
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
 		break;
-	}
-
-	GLenum dst_internal_format = GL_NONE;
-	convert_format_to_internal_format(dst_desc.texture.format, dst_internal_format);
-	const GLenum destination_attachment = is_depth_stencil_format(dst_internal_format, GL_DEPTH) ? GL_DEPTH_ATTACHMENT : GL_COLOR_ATTACHMENT0;
-	switch (dst_target)
-	{
 	default:
 		assert(false);
 		return;
+	}
+
+	const GLenum destination_attachment = is_depth_stencil_format(convert_format(dst_desc.texture.format), GL_DEPTH) ? GL_DEPTH_ATTACHMENT : GL_COLOR_ATTACHMENT0;
+	switch (dst_target)
+	{
 	case GL_TEXTURE:
 	case GL_TEXTURE_BUFFER:
 	case GL_TEXTURE_1D:
@@ -1838,6 +1702,9 @@ void reshade::opengl::device_impl::blit(api::resource src, uint32_t src_subresou
 		assert(dst_object == destination_attachment);
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 		break;
+	default:
+		assert(false);
+		return;
 	}
 
 	GLenum stretch_filter = GL_NONE;
@@ -1863,7 +1730,7 @@ void reshade::opengl::device_impl::blit(api::resource src, uint32_t src_subresou
 	glBindFramebuffer(GL_READ_FRAMEBUFFER, prev_read_fbo);
 	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, prev_draw_fbo);
 }
-void reshade::opengl::device_impl::resolve(api::resource src, uint32_t src_subresource, const int32_t src_offset[3], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3], uint32_t)
+void reshade::opengl::device_impl::resolve(api::resource src, uint32_t src_subresource, const int32_t src_offset[3], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3], api::format)
 {
 	int32_t src_box[6] = {};
 	if (src_offset != nullptr)

@@ -103,7 +103,7 @@ namespace reshade::d3d11
 		void end_render_pass() final { assert(false); }
 
 		void blit(api::resource, uint32_t, const int32_t[6], api::resource, uint32_t, const int32_t[6], api::texture_filter) final { assert(false); }
-		void resolve(api::resource, uint32_t, const int32_t[3], api::resource, uint32_t, const int32_t[3], const uint32_t[3], uint32_t) final { assert(false); }
+		void resolve(api::resource, uint32_t, const int32_t[3], api::resource, uint32_t, const int32_t[3], const uint32_t[3], api::format) final { assert(false); }
 		void copy_resource(api::resource, api::resource) final { assert(false); }
 		void copy_buffer_region(api::resource, uint64_t, api::resource, uint64_t, uint64_t) final { assert(false); }
 		void copy_buffer_to_texture(api::resource, uint64_t, uint32_t, uint32_t, api::resource, uint32_t, const int32_t[6]) final { assert(false); }
@@ -115,7 +115,7 @@ namespace reshade::d3d11
 		void clear_unordered_access_view_uint(api::resource_view, const uint32_t[4]) final { assert(false); }
 		void clear_unordered_access_view_float(api::resource_view, const float[4]) final { assert(false); }
 
-		void insert_barriers(uint32_t, const api::resource *, api::resource_usage, api::resource_usage) final { assert(false); }
+		void insert_barrier(uint32_t, const api::resource *, const api::resource_usage *, const api::resource_usage *) final { assert(false); }
 
 		void begin_debug_event(const char *, const float[4]) final { assert(false); }
 		void end_debug_event() final { assert(false); }
@@ -164,7 +164,7 @@ namespace reshade::d3d11
 		void end_render_pass() final;
 
 		void blit(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], api::texture_filter filter) final;
-		void resolve(api::resource src, uint32_t src_subresource, const int32_t src_offset[3], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3], uint32_t format) final;
+		void resolve(api::resource src, uint32_t src_subresource, const int32_t src_offset[3], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3], api::format format) final;
 		void copy_resource(api::resource src, api::resource dst) final;
 		void copy_buffer_region(api::resource src, uint64_t src_offset, api::resource dst, uint64_t dst_offset, uint64_t size) final;
 		void copy_buffer_to_texture(api::resource src, uint64_t src_offset, uint32_t row_length, uint32_t slice_height, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6]) final;
@@ -176,7 +176,7 @@ namespace reshade::d3d11
 		void clear_unordered_access_view_uint(api::resource_view uav, const uint32_t values[4]) final;
 		void clear_unordered_access_view_float(api::resource_view uav, const float values[4]) final;
 
-		void insert_barriers(uint32_t, const api::resource *, api::resource_usage, api::resource_usage) final { /* no-op */ }
+		void insert_barrier(uint32_t, const api::resource *, const api::resource_usage *, const api::resource_usage *) final { /* no-op */ }
 
 		void begin_debug_event(const char *label, const float color[4]) final;
 		void end_debug_event() final;

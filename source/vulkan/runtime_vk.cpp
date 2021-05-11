@@ -161,39 +161,31 @@ bool reshade::vulkan::runtime_impl::on_init(VkSwapchainKHR swapchain, const VkSw
 
 	// Create back buffer shader image
 	assert(_backbuffer_format != VK_FORMAT_UNDEFINED);
-	api::format backbuffer_format;
-	convert_vk_format_to_format(_backbuffer_format, backbuffer_format);
 	if (!_device_impl->create_resource(
-		{ _width, _height, 1, 1, backbuffer_format, 1, api::memory_heap::gpu_only, api::resource_usage::copy_dest | api::resource_usage::shader_resource },
+		{ _width, _height, 1, 1, convert_format(_backbuffer_format), 1, api::memory_heap::gpu_only, api::resource_usage::copy_dest | api::resource_usage::shader_resource },
 		nullptr,
 		api::resource_usage::undefined,
 		reinterpret_cast<api::resource *>(&_backbuffer_image)))
 		return false;
 	set_debug_name_image(_backbuffer_image, "ReShade back buffer");
 
-	api::format backbuffer_format_srgb;
-	convert_vk_format_to_format(make_format_srgb(_backbuffer_format), backbuffer_format_srgb);
 	if (!_device_impl->create_resource_view(
 		reinterpret_cast<api::resource &>(_backbuffer_image),
 		api::resource_usage::shader_resource,
-		{ backbuffer_format_srgb, 0, 1, 0, 1 },
+		{ convert_format(make_format_srgb(_backbuffer_format)), 0, 1, 0, 1 },
 		reinterpret_cast<api::resource_view *>(&_backbuffer_image_view[1])))
 		return false;
-	api::format backbuffer_format_normal;
-	convert_vk_format_to_format(make_format_normal(_backbuffer_format), backbuffer_format_normal);
 	if (!_device_impl->create_resource_view(
 		reinterpret_cast<api::resource &>(_backbuffer_image),
 		api::resource_usage::shader_resource,
-		{ backbuffer_format_normal, 0, 1, 0, 1 },
+		{ convert_format(make_format_normal(_backbuffer_format)), 0, 1, 0, 1 },
 		reinterpret_cast<api::resource_view *>(&_backbuffer_image_view[0])))
 		return false;
 
 	// Create effect depth-stencil resource
 	assert(_effect_stencil_format != VK_FORMAT_UNDEFINED);
-	api::format effect_stencil_format;
-	convert_vk_format_to_format(_effect_stencil_format, effect_stencil_format);
 	if (!_device_impl->create_resource(
-		{ _width, _height, 1, 1, effect_stencil_format, 1, api::memory_heap::gpu_only, api::resource_usage::copy_dest | api::resource_usage::depth_stencil },
+		{ _width, _height, 1, 1, convert_format(_effect_stencil_format), 1, api::memory_heap::gpu_only, api::resource_usage::copy_dest | api::resource_usage::depth_stencil },
 		nullptr,
 		api::resource_usage::undefined,
 		reinterpret_cast<api::resource *>(&_effect_stencil)))
@@ -203,7 +195,7 @@ bool reshade::vulkan::runtime_impl::on_init(VkSwapchainKHR swapchain, const VkSw
 	if (!_device_impl->create_resource_view(
 		reinterpret_cast<api::resource &>(_effect_stencil),
 		api::resource_usage::depth_stencil,
-		{ effect_stencil_format, 0, 1, 0, 1 },
+		{ convert_format(_effect_stencil_format), 0, 1, 0, 1 },
 		reinterpret_cast<api::resource_view *>(&_effect_stencil_view)))
 		return false;
 
@@ -287,13 +279,13 @@ bool reshade::vulkan::runtime_impl::on_init(VkSwapchainKHR swapchain, const VkSw
 		if (!_device_impl->create_resource_view(
 			reinterpret_cast<api::resource &>(_swapchain_images[i]),
 			api::resource_usage::render_target,
-			{ backbuffer_format_srgb, 0, 1, 0, 1 },
+			{ convert_format(make_format_srgb(_backbuffer_format)), 0, 1, 0, 1 },
 			reinterpret_cast<api::resource_view *>(&_swapchain_views[k + 1])))
 			return false;
 		if (!_device_impl->create_resource_view(
 			reinterpret_cast<api::resource &>(_swapchain_images[i]),
 			api::resource_usage::render_target,
-			{ backbuffer_format_normal, 0, 1, 0, 1 },
+			{ convert_format(make_format_normal(_backbuffer_format)), 0, 1, 0, 1 },
 			reinterpret_cast<api::resource_view *>(&_swapchain_views[k + 0])))
 			return false;
 
@@ -518,10 +510,8 @@ bool reshade::vulkan::runtime_impl::on_layer_submit(uint32_t eye, VkImage source
 
 		VkImage image = VK_NULL_HANDLE;
 
-		api::format format;
-		convert_vk_format_to_format(source_format, format);
 		if (!_device_impl->create_resource(
-			{ target_extent.width, target_extent.height, 1, 1, format, 1, api::memory_heap::gpu_only, api::resource_usage::render_target | api::resource_usage::copy_source | api::resource_usage::copy_dest },
+			{ target_extent.width, target_extent.height, 1, 1, convert_format(source_format), 1, api::memory_heap::gpu_only, api::resource_usage::render_target | api::resource_usage::copy_source | api::resource_usage::copy_dest },
 			nullptr,
 			api::resource_usage::undefined,
 			reinterpret_cast<api::resource *>(&image)))
@@ -1577,10 +1567,8 @@ bool reshade::vulkan::runtime_impl::init_texture(texture &texture)
 	if (impl->formats[1] == VK_FORMAT_UNDEFINED)
 		impl->formats[1]  = impl->formats[0];
 
-	api::format format_srgb;
-	convert_vk_format_to_format(impl->formats[1], format_srgb);
-	api::format format_normal;
-	convert_vk_format_to_format(impl->formats[0], format_normal);
+	const api::format format_srgb = convert_format(impl->formats[1]);
+	const api::format format_normal = convert_format(impl->formats[0]);
 
 	if (!_device_impl->create_resource(
 		{ texture.width, texture.height, 1, texture.levels, format_normal, 1, api::memory_heap::gpu_only, usage_flags },
