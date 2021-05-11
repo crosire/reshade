@@ -856,7 +856,7 @@ bool reshade::d3d12::device_impl::get_query_results(api::query_heap heap, uint32
 		{
 			for (UINT i = 0; i < count; ++i)
 			{
-				*reinterpret_cast<uint64_t *>((reinterpret_cast<uint8_t *>(results) + (i + first) * stride)) = static_cast<uint64_t *>(mapped_data)[i + first];
+				*reinterpret_cast<uint64_t *>(reinterpret_cast<uint8_t *>(results) + i * stride) = static_cast<uint64_t *>(mapped_data)[i + first];
 			}
 
 			readback_resource->Unmap(0, &write_range);
