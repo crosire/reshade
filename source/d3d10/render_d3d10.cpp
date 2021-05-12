@@ -10,17 +10,7 @@
 
 namespace
 {
-	struct query_pool_impl
-	{
-		std::vector<com_ptr<ID3D10Query>> queries;
-	};
-
-	struct pipeline_layout_impl
-	{
-		std::vector<UINT> shader_registers;
-	};
-
-	struct pipeline_graphics_impl
+	struct pipeline_impl
 	{
 		com_ptr<ID3D10VertexShader> vs;
 		com_ptr<ID3D10GeometryShader> gs;
@@ -35,6 +25,28 @@ namespace
 		UINT sample_mask;
 		UINT stencil_reference_value;
 		FLOAT blend_constant[4];
+
+		void apply(ID3D10Device *ctx) const
+		{
+			ctx->VSSetShader(vs.get());
+			ctx->GSSetShader(gs.get());
+			ctx->PSSetShader(ps.get());
+			ctx->IASetInputLayout(input_layout.get());
+			ctx->IASetPrimitiveTopology(topology);
+			ctx->OMSetBlendState(blend_state.get(), blend_constant, sample_mask);
+			ctx->RSSetState(rasterizer_state.get());
+			ctx->OMSetDepthStencilState(depth_stencil_state.get(), stencil_reference_value);
+		}
+	};
+
+	struct pipeline_layout_impl
+	{
+		std::vector<UINT> shader_registers;
+	};
+
+	struct query_pool_impl
+	{
+		std::vector<com_ptr<ID3D10Query>> queries;
 	};
 
 	const GUID vertex_shader_byte_code_guid = { 0xB2257A30, 0x4014, 0x46EA, { 0xBD, 0x88, 0xDE, 0xC2, 0x1D, 0xB6, 0xA0, 0x2B } };
@@ -358,7 +370,7 @@ bool reshade::d3d10::device_impl::create_pipeline_graphics_all(const api::pipeli
 		return false;
 	}
 
-	const auto state = new pipeline_graphics_impl();
+	const auto state = new pipeline_impl();
 
 	state->vs = reinterpret_cast<ID3D10VertexShader *>(desc.graphics.vertex_shader.handle);
 	state->gs = reinterpret_cast<ID3D10GeometryShader *>(desc.graphics.geometry_shader.handle);
@@ -595,7 +607,7 @@ void reshade::d3d10::device_impl::destroy_resource_view(api::resource_view handl
 void reshade::d3d10::device_impl::destroy_pipeline(api::pipeline_type type, api::pipeline handle)
 {
 	if (type == api::pipeline_type::graphics)
-		delete reinterpret_cast<pipeline_graphics_impl *>(handle.handle);
+		delete reinterpret_cast<pipeline_impl *>(handle.handle);
 	else if (handle.handle != 0)
 		reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }
@@ -628,20 +640,20 @@ void reshade::d3d10::device_impl::update_descriptor_tables(uint32_t, const api::
 
 bool reshade::d3d10::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access access, void **mapped_ptr)
 {
-	D3D10_MAP flags = static_cast<D3D10_MAP>(0);
+	D3D10_MAP map_type = static_cast<D3D10_MAP>(0);
 	switch (access)
 	{
 	case api::map_access::read_only:
-		flags = D3D10_MAP_READ;
+		map_type = D3D10_MAP_READ;
 		break;
 	case api::map_access::write_only:
-		flags = D3D10_MAP_WRITE;
+		map_type = D3D10_MAP_WRITE;
 		break;
 	case api::map_access::read_write:
-		flags = D3D10_MAP_READ_WRITE;
+		map_type = D3D10_MAP_READ_WRITE;
 		break;
 	case api::map_access::write_discard:
-		flags = D3D10_MAP_WRITE_DISCARD;
+		map_type = D3D10_MAP_WRITE_DISCARD;
 		break;
 	}
 
@@ -654,12 +666,12 @@ bool reshade::d3d10::device_impl::map_resource(api::resource resource, uint32_t 
 	{
 	case D3D10_RESOURCE_DIMENSION_BUFFER:
 		assert(subresource == 0);
-		return SUCCEEDED(static_cast<ID3D10Buffer *>(object)->Map(flags, 0, mapped_ptr));
+		return SUCCEEDED(static_cast<ID3D10Buffer *>(object)->Map(map_type, 0, mapped_ptr));
 	case D3D10_RESOURCE_DIMENSION_TEXTURE1D:
-		return SUCCEEDED(static_cast<ID3D10Texture1D *>(object)->Map(subresource, flags, 0, mapped_ptr));
+		return SUCCEEDED(static_cast<ID3D10Texture1D *>(object)->Map(subresource, map_type, 0, mapped_ptr));
 	case D3D10_RESOURCE_DIMENSION_TEXTURE2D:
 		if (D3D10_MAPPED_TEXTURE2D mapped;
-			SUCCEEDED(static_cast<ID3D10Texture2D *>(object)->Map(subresource, flags, 0, &mapped)))
+			SUCCEEDED(static_cast<ID3D10Texture2D *>(object)->Map(subresource, map_type, 0, &mapped)))
 		{
 			*mapped_ptr = mapped.pData;
 			return true;
@@ -667,7 +679,7 @@ bool reshade::d3d10::device_impl::map_resource(api::resource resource, uint32_t 
 		break;
 	case D3D10_RESOURCE_DIMENSION_TEXTURE3D:
 		if (D3D10_MAPPED_TEXTURE3D mapped;
-			SUCCEEDED(static_cast<ID3D10Texture3D *>(object)->Map(subresource, flags, 0, &mapped)))
+			SUCCEEDED(static_cast<ID3D10Texture3D *>(object)->Map(subresource, map_type, 0, &mapped)))
 		{
 			*mapped_ptr = mapped.pData;
 			return true;
@@ -703,17 +715,18 @@ void reshade::d3d10::device_impl::unmap_resource(api::resource resource, uint32_
 	}
 }
 
-void reshade::d3d10::device_impl::upload_buffer_region(api::resource dst, uint64_t dst_offset, const void *data, uint64_t size)
+void reshade::d3d10::device_impl::upload_buffer_region(const void *data, api::resource dst, uint64_t dst_offset, uint64_t size)
 {
 	assert(dst.handle != 0);
 	assert(dst_offset <= std::numeric_limits<UINT>::max() && size <= std::numeric_limits<UINT>::max());
 
 	const D3D10_BOX dst_box = { static_cast<UINT>(dst_offset), 0, 0, static_cast<UINT>(dst_offset + size), 1, 1 };
-	_orig->UpdateSubresource(reinterpret_cast<ID3D10Resource *>(dst.handle), 0, &dst_box, data, static_cast<UINT>(size), static_cast<UINT>(size));
+	_orig->UpdateSubresource(reinterpret_cast<ID3D10Resource *>(dst.handle), 0, &dst_box, data, static_cast<UINT>(size), 0);
 }
-void reshade::d3d10::device_impl::upload_texture_region(api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], const void *data, uint32_t row_pitch, uint32_t slice_pitch)
+void reshade::d3d10::device_impl::upload_texture_region(const void *data, uint32_t row_pitch, uint32_t slice_pitch, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6])
 {
 	assert(dst.handle != 0);
+
 	_orig->UpdateSubresource(reinterpret_cast<ID3D10Resource *>(dst.handle), dst_subresource, reinterpret_cast<const D3D10_BOX *>(dst_box), data, row_pitch, slice_pitch);
 }
 
@@ -735,11 +748,6 @@ reshade::api::resource_desc reshade::d3d10::device_impl::get_resource_desc(api::
 	object->GetType(&dimension);
 	switch (dimension)
 	{
-		default:
-		{
-			assert(false); // Not implemented
-			return api::resource_desc {};
-		}
 		case D3D10_RESOURCE_DIMENSION_BUFFER:
 		{
 			D3D10_BUFFER_DESC internal_desc;
@@ -765,6 +773,9 @@ reshade::api::resource_desc reshade::d3d10::device_impl::get_resource_desc(api::
 			return convert_resource_desc(internal_desc);
 		}
 	}
+
+	assert(false); // Not implemented
+	return api::resource_desc {};
 }
 
 bool reshade::d3d10::device_impl::get_query_results(api::query_heap heap, uint32_t first, uint32_t count, void *results, uint32_t stride)
@@ -797,18 +808,9 @@ void reshade::d3d10::device_impl::bind_pipeline(api::pipeline_type type, api::pi
 
 	switch (type)
 	{
-	case api::pipeline_type::graphics: {
-		const auto state = reinterpret_cast<pipeline_graphics_impl *>(pipeline.handle);
-		_orig->VSSetShader(state->vs.get());
-		_orig->GSSetShader(state->gs.get());
-		_orig->PSSetShader(state->ps.get());
-		_orig->IASetInputLayout(state->input_layout.get());
-		_orig->IASetPrimitiveTopology(state->topology);
-		_orig->OMSetBlendState(state->blend_state.get(), state->blend_constant, state->sample_mask);
-		_orig->RSSetState(state->rasterizer_state.get());
-		_orig->OMSetDepthStencilState(state->depth_stencil_state.get(), state->stencil_reference_value);
+	case api::pipeline_type::graphics:
+		reinterpret_cast<pipeline_impl *>(pipeline.handle)->apply(_orig);
 		break;
-	}
 	case api::pipeline_type::graphics_blend_state:
 		_orig->OMSetBlendState(reinterpret_cast<ID3D10BlendState *>(pipeline.handle), nullptr, D3D10_DEFAULT_SAMPLE_MASK);
 		break;

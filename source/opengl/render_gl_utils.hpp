@@ -10,6 +10,7 @@ namespace reshade::opengl
 	auto convert_format(api::format format) -> GLenum;
 	auto convert_format(GLenum internal_format) -> api::format;
 	auto convert_attrib_format(api::format format, GLint &size, GLboolean &normalized) -> GLenum;
+	auto convert_upload_format(GLenum internal_format, GLenum &type)->GLenum;
 
 	bool is_depth_stencil_format(GLenum internal_format, GLenum usage = GL_DEPTH_STENCIL);
 

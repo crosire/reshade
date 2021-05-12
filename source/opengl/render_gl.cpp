@@ -890,7 +890,7 @@ bool reshade::opengl::device_impl::create_shader_module(api::shader_stage type, 
 }
 bool reshade::opengl::device_impl::create_pipeline_layout(uint32_t num_table_layouts, const api::descriptor_table_layout *table_layouts, uint32_t num_constant_ranges, const api::constant_range *constant_ranges, api::pipeline_layout *out)
 {
-	if (num_table_layouts > 1 || num_constant_ranges > 1)
+	if (num_constant_ranges > 1)
 	{
 		*out = { 0 };
 		return false;
@@ -1164,13 +1164,156 @@ void reshade::opengl::device_impl::unmap_resource(api::resource resource, uint32
 	}
 }
 
-void reshade::opengl::device_impl::upload_buffer_region(api::resource dst, uint64_t dst_offset, const void *data, uint64_t size)
+void reshade::opengl::device_impl::upload_buffer_region(const void *data, api::resource dst, uint64_t dst_offset, uint64_t size)
 {
-	assert(false); // TODO
+	assert(dst.handle != 0);
+	assert(dst_offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()) && size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
+
+	const GLenum target = dst.handle >> 40;
+	const GLuint object = dst.handle & 0xFFFFFFFF;
+
+	// Get current state
+	GLint previous_buf = 0;
+	glGetIntegerv(get_binding_for_target(target), &previous_buf);
+
+	// Bind and upload buffer data
+	glBindBuffer(target, object);
+	glBufferSubData(target, static_cast<GLintptr>(dst_offset), static_cast<GLsizeiptr>(size), data);
+
+	// Restore previous state from application
+	glBindBuffer(target, previous_buf);
+
 }
-void reshade::opengl::device_impl::upload_texture_region(api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], const void *data, uint32_t row_pitch, uint32_t slice_pitch)
+void reshade::opengl::device_impl::upload_texture_region(const void *data, uint32_t, uint32_t slice_pitch, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6])
 {
-	assert(false);
+	assert(dst.handle != 0);
+	const GLenum target = dst.handle >> 40;
+	const GLuint object = dst.handle & 0xFFFFFFFF;
+
+	// Get current state
+	GLint previous_tex = 0;
+	GLint previous_unpack = 0;
+	GLint previous_unpack_lsb = GL_FALSE;
+	GLint previous_unpack_swap = GL_FALSE;
+	GLint previous_unpack_alignment = 0;
+	GLint previous_unpack_row_length = 0;
+	GLint previous_unpack_image_height = 0;
+	GLint previous_unpack_skip_rows = 0;
+	GLint previous_unpack_skip_pixels = 0;
+	GLint previous_unpack_skip_images = 0;
+	glGetIntegerv(get_binding_for_target(target), &previous_tex);
+	glGetIntegerv(GL_PIXEL_UNPACK_BUFFER_BINDING, &previous_unpack);
+	glGetIntegerv(GL_UNPACK_LSB_FIRST, &previous_unpack_lsb);
+	glGetIntegerv(GL_UNPACK_SWAP_BYTES, &previous_unpack_swap);
+	glGetIntegerv(GL_UNPACK_ALIGNMENT, &previous_unpack_alignment);
+	glGetIntegerv(GL_UNPACK_ROW_LENGTH, &previous_unpack_row_length);
+	glGetIntegerv(GL_UNPACK_IMAGE_HEIGHT, &previous_unpack_image_height);
+	glGetIntegerv(GL_UNPACK_SKIP_ROWS, &previous_unpack_skip_rows);
+	glGetIntegerv(GL_UNPACK_SKIP_PIXELS, &previous_unpack_skip_pixels);
+	glGetIntegerv(GL_UNPACK_SKIP_IMAGES, &previous_unpack_skip_images);
+
+	// Unset any existing unpack buffer so pointer is not interpreted as an offset
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+
+	// Clear pixel storage modes to defaults (texture uploads can break otherwise)
+	glPixelStorei(GL_UNPACK_LSB_FIRST, GL_FALSE);
+	glPixelStorei(GL_UNPACK_SWAP_BYTES, GL_FALSE);
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 4); // RGBA data is 4-byte aligned
+	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+	glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, 0);
+	glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
+	glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
+	glPixelStorei(GL_UNPACK_SKIP_IMAGES, 0);
+
+	// Bind and upload texture data
+	glBindTexture(target, object);
+
+	GLint levels = 1;
+	glGetTexParameteriv(target, GL_TEXTURE_IMMUTABLE_LEVELS, &levels);
+	const GLuint level = dst_subresource % levels;
+	const GLuint layer = dst_subresource / levels;
+
+	GLint format = GL_NONE; GLenum type;
+	glGetTexLevelParameteriv(target, level, GL_TEXTURE_INTERNAL_FORMAT, &format);
+	format = convert_upload_format(format, type);
+
+	GLint xoffset, yoffset, zoffset, width, height, depth;
+	if (dst_box != nullptr)
+	{
+		xoffset = dst_box[0];
+		yoffset = dst_box[1];
+		zoffset = dst_box[2];
+		width   = dst_box[3] - dst_box[0];
+		height  = dst_box[4] - dst_box[1];
+		depth   = dst_box[5] - dst_box[2];
+	}
+	else
+	{
+		xoffset = 0;
+		yoffset = 0;
+		zoffset = 0;
+		width   = get_tex_level_param(target, object, level, GL_TEXTURE_WIDTH);
+		height  = get_tex_level_param(target, object, level, GL_TEXTURE_HEIGHT);
+		depth   = get_tex_level_param(target, object, level, GL_TEXTURE_DEPTH);
+	}
+
+	switch (target)
+	{
+	case GL_TEXTURE_1D:
+		if (type != GL_COMPRESSED_TEXTURE_FORMATS)
+		{
+			glTexSubImage1D(target, level, xoffset, width, format, type, data);
+		}
+		else
+		{
+			glCompressedTexSubImage1D(target, level, xoffset, width, format, slice_pitch, data);
+		}
+		break;
+	case GL_TEXTURE_1D_ARRAY:
+		yoffset += layer;
+		[[fallthrough]];
+	case GL_TEXTURE_2D:
+	case GL_TEXTURE_CUBE_MAP_POSITIVE_X:
+	case GL_TEXTURE_CUBE_MAP_NEGATIVE_X:
+	case GL_TEXTURE_CUBE_MAP_POSITIVE_Y:
+	case GL_TEXTURE_CUBE_MAP_NEGATIVE_Y:
+	case GL_TEXTURE_CUBE_MAP_POSITIVE_Z:
+	case GL_TEXTURE_CUBE_MAP_NEGATIVE_Z:
+		if (type != GL_COMPRESSED_TEXTURE_FORMATS)
+		{
+			glTexSubImage2D(target, level, xoffset, yoffset, width, height, format, type, data);
+		}
+		else
+		{
+			glCompressedTexSubImage2D(target, level, xoffset, yoffset, width, height, format, slice_pitch * height, data);
+		}
+		break;
+	case GL_TEXTURE_2D_ARRAY:
+		zoffset += layer;
+		[[fallthrough]];
+	case GL_TEXTURE_3D:
+		if (type != GL_COMPRESSED_TEXTURE_FORMATS)
+		{
+			glTexSubImage3D(target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, data);
+		}
+		else
+		{
+			glCompressedTexSubImage3D(target, level, xoffset, yoffset, zoffset, width, height, depth, format, slice_pitch * depth, data);
+		}
+		break;
+	}
+
+	// Restore previous state from application
+	glBindTexture(target, previous_tex);
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, previous_unpack);
+	glPixelStorei(GL_UNPACK_LSB_FIRST, previous_unpack_lsb);
+	glPixelStorei(GL_UNPACK_SWAP_BYTES, previous_unpack_swap);
+	glPixelStorei(GL_UNPACK_ALIGNMENT, previous_unpack_alignment);
+	glPixelStorei(GL_UNPACK_ROW_LENGTH, previous_unpack_row_length);
+	glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, previous_unpack_image_height);
+	glPixelStorei(GL_UNPACK_SKIP_ROWS, previous_unpack_skip_rows);
+	glPixelStorei(GL_UNPACK_SKIP_PIXELS, previous_unpack_skip_pixels);
+	glPixelStorei(GL_UNPACK_SKIP_IMAGES, previous_unpack_skip_images);
 }
 
 reshade::api::resource_view reshade::opengl::device_impl::get_depth_stencil_from_fbo(GLuint fbo) const

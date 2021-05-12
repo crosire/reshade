@@ -77,7 +77,9 @@ bool reshade::d3d12::device_impl::check_capability(api::device_caps capability) 
 		_orig->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &options, sizeof(options));
 		return options.OutputMergerLogicOp;
 	case api::device_caps::draw_instanced:
+		return true;
 	case api::device_caps::draw_or_dispatch_indirect:
+		return false; // TODO: Not currently implemented
 	case api::device_caps::fill_mode_non_solid:
 	case api::device_caps::multi_viewport:
 	case api::device_caps::sampler_anisotropy:
@@ -781,10 +783,10 @@ void reshade::d3d12::device_impl::update_descriptor_tables(uint32_t num_updates,
 			{
 			case api::descriptor_type::shader_resource_view:
 			case api::descriptor_type::unordered_access_view:
-				src_range_start.ptr = updates[i].descriptor.view.handle;
+				src_range_start.ptr = static_cast<SIZE_T>(updates[i].descriptor.view.handle);
 				break;
 			case api::descriptor_type::sampler:
-				src_range_start.ptr = updates[i].descriptor.sampler.handle;
+				src_range_start.ptr = static_cast<SIZE_T>(updates[i].descriptor.sampler.handle);
 				break;
 			}
 
@@ -807,13 +809,141 @@ void reshade::d3d12::device_impl::unmap_resource(api::resource resource, uint32_
 	reinterpret_cast<ID3D12Resource *>(resource.handle)->Unmap(subresource, nullptr);
 }
 
-void reshade::d3d12::device_impl::upload_buffer_region(api::resource dst, uint64_t dst_offset, const void *data, uint64_t size)
+void reshade::d3d12::device_impl::upload_buffer_region(const void *data, api::resource dst, uint64_t dst_offset, uint64_t size)
 {
-	assert(false); // TODO
+	assert(dst.handle != 0);
+	const auto dst_resource = reinterpret_cast<ID3D12Resource *>(dst.handle);
+	const D3D12_RESOURCE_DESC dst_desc = dst_resource->GetDesc();
+
+	// Allocate host memory for upload
+	D3D12_RESOURCE_DESC intermediate_desc = { D3D12_RESOURCE_DIMENSION_BUFFER };
+	intermediate_desc.Width = size;
+	intermediate_desc.Height = 1;
+	intermediate_desc.DepthOrArraySize = 1;
+	intermediate_desc.MipLevels = 1;
+	intermediate_desc.SampleDesc = { 1, 0 };
+	intermediate_desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+
+	const D3D12_HEAP_PROPERTIES upload_heap_props = { D3D12_HEAP_TYPE_UPLOAD };
+
+	com_ptr<ID3D12Resource> intermediate;
+	if (FAILED(_orig->CreateCommittedResource(&upload_heap_props, D3D12_HEAP_FLAG_NONE, &intermediate_desc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&intermediate))))
+	{
+		LOG(ERROR) << "Failed to create upload buffer!";
+		LOG(DEBUG) << "> Details: Width = " << intermediate_desc.Width;
+		return;
+	}
+	intermediate->SetName(L"ReShade upload buffer");
+
+	// Fill upload buffer with pixel data
+	uint8_t *mapped_data;
+	if (FAILED(intermediate->Map(0, nullptr, reinterpret_cast<void **>(&mapped_data))))
+		return;
+
+	std::memcpy(mapped_data, data, static_cast<size_t>(size));
+
+	intermediate->Unmap(0, nullptr);
+
+	// Copy data from upload buffer into target texture using the first available immediate command list
+	for (command_queue_impl *const queue : _queues)
+	{
+		const auto immediate_command_list = static_cast<command_list_immediate_impl *>(queue->get_immediate_command_list());
+		if (immediate_command_list != nullptr)
+		{
+			immediate_command_list->copy_buffer_region(api::resource { reinterpret_cast<uintptr_t>(intermediate.get()) }, 0, dst, dst_offset, size);
+
+			// Wait for command to finish executing before destroying the upload buffer
+			immediate_command_list->flush_and_wait(queue->_orig);
+			break;
+		}
+	}
 }
-void reshade::d3d12::device_impl::upload_texture_region(api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], const void *data, uint32_t row_pitch, uint32_t depth_pitch)
+void reshade::d3d12::device_impl::upload_texture_region(const void *data, uint32_t src_row_pitch, uint32_t src_slice_pitch, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6])
 {
-	assert(false); // TODO
+	assert(dst.handle != 0);
+	const auto dst_resource = reinterpret_cast<ID3D12Resource *>(dst.handle);
+	const D3D12_RESOURCE_DESC dst_desc = dst_resource->GetDesc();
+
+	UINT row_length = 0;
+	UINT slice_count = 1;
+	UINT slice_height = 0;
+	UINT64 upload_size = 0;
+	UINT64 upload_row_pitch = 0;
+	UINT64 upload_slice_pitch = 0;
+
+	if (dst_box != nullptr)
+	{
+		row_length = dst_box[3] - dst_box[0];
+		slice_count = dst_box[5] - dst_box[2];
+		slice_height = dst_box[4] - dst_box[1];
+		upload_row_pitch = row_length * dxgi_format_bpp(dst_desc.Format);
+		upload_row_pitch = (upload_row_pitch + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u);
+		upload_slice_pitch = slice_height * upload_row_pitch;
+		upload_size = slice_count * upload_slice_pitch;
+	}
+	else
+	{
+		_orig->GetCopyableFootprints(&dst_desc, dst_subresource, 1, 0, nullptr, &slice_height, &upload_row_pitch, &upload_size);
+		row_length = static_cast<UINT>(dst_desc.Width);
+		upload_row_pitch = (upload_row_pitch + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u);
+		upload_slice_pitch = upload_size;
+	}
+
+	// Allocate host memory for upload
+	D3D12_RESOURCE_DESC intermediate_desc = { D3D12_RESOURCE_DIMENSION_BUFFER };
+	intermediate_desc.Width = upload_size;
+	intermediate_desc.Height = 1;
+	intermediate_desc.DepthOrArraySize = 1;
+	intermediate_desc.MipLevels = 1;
+	intermediate_desc.SampleDesc = { 1, 0 };
+	intermediate_desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+
+	const D3D12_HEAP_PROPERTIES upload_heap_props = { D3D12_HEAP_TYPE_UPLOAD };
+
+	com_ptr<ID3D12Resource> intermediate;
+	if (FAILED(_orig->CreateCommittedResource(&upload_heap_props, D3D12_HEAP_FLAG_NONE, &intermediate_desc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&intermediate))))
+	{
+		LOG(ERROR) << "Failed to create upload buffer!";
+		LOG(DEBUG) << "> Details: Width = " << intermediate_desc.Width;
+		return;
+	}
+	intermediate->SetName(L"ReShade upload buffer");
+
+	// Fill upload buffer with pixel data
+	uint8_t *mapped_data;
+	if (FAILED(intermediate->Map(0, nullptr, reinterpret_cast<void **>(&mapped_data))))
+		return;
+
+	for (UINT z = 0; z < slice_count; ++z)
+	{
+		const auto dst_slice = mapped_data + z * upload_slice_pitch;
+		const auto src_slice = static_cast<const uint8_t *>(data) + z * src_slice_pitch;
+
+		for (UINT y = 0; y < slice_height; ++y)
+		{
+			const size_t row_size = src_row_pitch < upload_row_pitch ?
+				src_row_pitch : static_cast<size_t>(upload_row_pitch);
+			std::memcpy(
+				dst_slice + y * upload_row_pitch,
+				src_slice + y * src_row_pitch, row_size);
+		}
+	}
+
+	intermediate->Unmap(0, nullptr);
+
+	// Copy data from upload buffer into target texture using the first available immediate command list
+	for (command_queue_impl *const queue : _queues)
+	{
+		const auto immediate_command_list = static_cast<command_list_immediate_impl *>(queue->get_immediate_command_list());
+		if (immediate_command_list != nullptr)
+		{
+			immediate_command_list->copy_buffer_to_texture(api::resource { reinterpret_cast<uintptr_t>(intermediate.get()) }, 0, row_length, slice_height, dst, dst_subresource, dst_box);
+
+			// Wait for command to finish executing before destroying the upload buffer
+			immediate_command_list->flush_and_wait(queue->_orig);
+			break;
+		}
+	}
 }
 
 void reshade::d3d12::device_impl::get_resource_from_view(api::resource_view view, api::resource *out_resource) const
@@ -881,9 +1011,9 @@ void reshade::d3d12::device_impl::wait_idle() const
 	const std::lock_guard<std::mutex> lock(_mutex);
 
 	UINT64 signal_value = 1;
-	for (ID3D12CommandQueue *const queue : _queues)
+	for (command_queue_impl *const queue : _queues)
 	{
-		queue->Signal(fence.get(), signal_value);
+		queue->_orig->Signal(fence.get(), signal_value);
 		fence->SetEventOnCompletion(signal_value, fence_event);
 		WaitForSingleObject(fence_event, 1000); // Use a fixed time out to ensure this does not hang indefinetly in case something went wrong
 		signal_value++;
@@ -1115,12 +1245,9 @@ void reshade::d3d12::command_list_impl::dispatch(uint32_t num_groups_x, uint32_t
 
 	_orig->Dispatch(num_groups_x, num_groups_y, num_groups_z);
 }
-void reshade::d3d12::command_list_impl::draw_or_dispatch_indirect(uint32_t type, api::resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride)
+void reshade::d3d12::command_list_impl::draw_or_dispatch_indirect(uint32_t, api::resource, uint64_t, uint32_t, uint32_t)
 {
-	_has_commands = true;
-
-	assert(false); // TODO
-	// _orig->ExecuteIndirect(nullptr, draw_count, reinterpret_cast<ID3D12Resource *>(buffer.handle), offset, nullptr, 0);
+	assert(false);
 }
 
 void reshade::d3d12::command_list_impl::begin_render_pass(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv)
@@ -1234,8 +1361,9 @@ void reshade::d3d12::command_list_impl::copy_buffer_to_texture(api::resource src
 	src_copy_location.PlacedFootprint.Footprint.Format = res_desc.Format;
 	src_copy_location.PlacedFootprint.Footprint.Width = row_length != 0 ? row_length : src_box.right - src_box.left;
 	src_copy_location.PlacedFootprint.Footprint.Height = slice_height != 0 ? slice_height : src_box.bottom - src_box.top;
-	src_copy_location.PlacedFootprint.Footprint.Depth = 1;
+	src_copy_location.PlacedFootprint.Footprint.Depth = src_box.back - src_box.front;
 	src_copy_location.PlacedFootprint.Footprint.RowPitch = src_copy_location.PlacedFootprint.Footprint.Width * dxgi_format_bpp(res_desc.Format);
+	src_copy_location.PlacedFootprint.Footprint.RowPitch = (src_copy_location.PlacedFootprint.Footprint.RowPitch + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u);
 
 	D3D12_TEXTURE_COPY_LOCATION dst_copy_location;
 	dst_copy_location.pResource = reinterpret_cast<ID3D12Resource *>(dst.handle);
@@ -1307,6 +1435,7 @@ void reshade::d3d12::command_list_impl::copy_texture_to_buffer(api::resource src
 	dst_copy_location.PlacedFootprint.Footprint.Height = slice_height != 0 ? slice_height : std::max(1u, res_desc.Height >> (src_subresource % res_desc.MipLevels));
 	dst_copy_location.PlacedFootprint.Footprint.Depth = 1;
 	dst_copy_location.PlacedFootprint.Footprint.RowPitch = dst_copy_location.PlacedFootprint.Footprint.Width * dxgi_format_bpp(res_desc.Format);
+	dst_copy_location.PlacedFootprint.Footprint.RowPitch = (dst_copy_location.PlacedFootprint.Footprint.RowPitch + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u);
 
 	_orig->CopyTextureRegion(
 		&dst_copy_location, 0, 0, 0,
@@ -1546,7 +1675,7 @@ reshade::d3d12::command_queue_impl::command_queue_impl(device_impl *device, ID3D
 {
 	// Register queue to device
 	{	const std::lock_guard<std::mutex> lock(_device_impl->_mutex);
-		_device_impl->_queues.push_back(_orig);
+		_device_impl->_queues.push_back(this);
 	}
 
 	// Only create an immediate command list for graphics queues (since the implemented commands do not work on other queue types)
@@ -1563,7 +1692,7 @@ reshade::d3d12::command_queue_impl::~command_queue_impl()
 
 	// Unregister queue from device
 	{	const std::lock_guard<std::mutex> lock(_device_impl->_mutex);
-		_device_impl->_queues.erase(std::find(_device_impl->_queues.begin(), _device_impl->_queues.end(), _orig));
+		_device_impl->_queues.erase(std::find(_device_impl->_queues.begin(), _device_impl->_queues.end(), this));
 	}
 }
 

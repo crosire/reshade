@@ -69,8 +69,8 @@ namespace reshade::opengl
 		bool map_resource(api::resource resource, uint32_t subresource, api::map_access access, void **mapped_ptr) final;
 		void unmap_resource(api::resource resource, uint32_t subresource) final;
 
-		void upload_buffer_region(api::resource dst, uint64_t dst_offset, const void *data, uint64_t size) final;
-		void upload_texture_region(api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], const void *data, uint32_t row_pitch, uint32_t slice_pitch) final;
+		void upload_buffer_region(const void *data, api::resource dst, uint64_t dst_offset, uint64_t size) final;
+		void upload_texture_region(const void *data, uint32_t row_pitch, uint32_t slice_pitch, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6]) final;
 
 		void get_resource_from_view(api::resource_view view, api::resource *out_resource) const final;
 		api::resource_desc get_resource_desc(api::resource resource) const final;

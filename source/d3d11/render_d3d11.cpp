@@ -10,17 +10,7 @@
 
 namespace
 {
-	struct query_pool_impl
-	{
-		std::vector<com_ptr<ID3D11Query>> queries;
-	};
-
-	struct pipeline_layout_impl
-	{
-		std::vector<UINT> shader_registers;
-	};
-
-	struct pipeline_graphics_impl
+	struct pipeline_impl
 	{
 		com_ptr<ID3D11VertexShader> vs;
 		com_ptr<ID3D11HullShader> hs;
@@ -51,6 +41,16 @@ namespace
 			ctx->RSSetState(rasterizer_state.get());
 			ctx->OMSetDepthStencilState(depth_stencil_state.get(), stencil_reference_value);
 		}
+	};
+
+	struct pipeline_layout_impl
+	{
+		std::vector<UINT> shader_registers;
+	};
+
+	struct query_pool_impl
+	{
+		std::vector<com_ptr<ID3D11Query>> queries;
 	};
 
 	const GUID vertex_shader_byte_code_guid = { 0xB2257A30, 0x4014, 0x46EA, { 0xBD, 0x88, 0xDE, 0xC2, 0x1D, 0xB6, 0xA0, 0x2B } };
@@ -403,7 +403,7 @@ bool reshade::d3d11::device_impl::create_pipeline_graphics_all(const api::pipeli
 		return false;
 	}
 
-	const auto state = new pipeline_graphics_impl();
+	const auto state = new pipeline_impl();
 
 	state->vs = reinterpret_cast<ID3D11VertexShader *>(desc.graphics.vertex_shader.handle);
 	state->hs = reinterpret_cast<ID3D11HullShader *>(desc.graphics.hull_shader.handle);
@@ -667,7 +667,7 @@ void reshade::d3d11::device_impl::destroy_resource_view(api::resource_view handl
 void reshade::d3d11::device_impl::destroy_pipeline(api::pipeline_type type, api::pipeline handle)
 {
 	if (type == api::pipeline_type::graphics)
-		delete reinterpret_cast<pipeline_graphics_impl *>(handle.handle);
+		delete reinterpret_cast<pipeline_impl *>(handle.handle);
 	else if (handle.handle != 0)
 		reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }
@@ -734,15 +734,15 @@ void reshade::d3d11::device_impl::unmap_resource(api::resource resource, uint32_
 	_immediate_context_orig->Unmap(reinterpret_cast<ID3D11Resource *>(resource.handle), subresource);
 }
 
-void reshade::d3d11::device_impl::upload_buffer_region(api::resource dst, uint64_t dst_offset, const void *data, uint64_t size)
+void reshade::d3d11::device_impl::upload_buffer_region(const void *data, api::resource dst, uint64_t dst_offset, uint64_t size)
 {
 	assert(dst.handle != 0);
 	assert(dst_offset <= std::numeric_limits<UINT>::max() && size <= std::numeric_limits<UINT>::max());
 
 	const D3D11_BOX dst_box = { static_cast<UINT>(dst_offset), 0, 0, static_cast<UINT>(dst_offset + size), 1, 1 };
-	_immediate_context_orig->UpdateSubresource(reinterpret_cast<ID3D11Resource *>(dst.handle), 0, nullptr, data, static_cast<UINT>(size), static_cast<UINT>(size));
+	_immediate_context_orig->UpdateSubresource(reinterpret_cast<ID3D11Resource *>(dst.handle), 0, &dst_box, data, static_cast<UINT>(size), 0);
 }
-void reshade::d3d11::device_impl::upload_texture_region(api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], const void *data, uint32_t row_pitch, uint32_t slice_pitch)
+void reshade::d3d11::device_impl::upload_texture_region(const void *data, uint32_t row_pitch, uint32_t slice_pitch, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6])
 {
 	assert(dst.handle != 0);
 
@@ -761,42 +761,40 @@ void reshade::d3d11::device_impl::get_resource_from_view(api::resource_view view
 reshade::api::resource_desc reshade::d3d11::device_impl::get_resource_desc(api::resource resource) const
 {
 	assert(resource.handle != 0);
-	const auto resource_object = reinterpret_cast<ID3D11Resource *>(resource.handle);
+	const auto object = reinterpret_cast<ID3D11Resource *>(resource.handle);
 
 	D3D11_RESOURCE_DIMENSION dimension;
-	resource_object->GetType(&dimension);
+	object->GetType(&dimension);
 	switch (dimension)
 	{
-		default:
-		{
-			assert(false); // Not implemented
-			return api::resource_desc {};
-		}
 		case D3D11_RESOURCE_DIMENSION_BUFFER:
 		{
 			D3D11_BUFFER_DESC internal_desc;
-			static_cast<ID3D11Buffer *>(resource_object)->GetDesc(&internal_desc);
+			static_cast<ID3D11Buffer *>(object)->GetDesc(&internal_desc);
 			return convert_resource_desc(internal_desc);
 		}
 		case D3D11_RESOURCE_DIMENSION_TEXTURE1D:
 		{
 			D3D11_TEXTURE1D_DESC internal_desc;
-			static_cast<ID3D11Texture1D *>(resource_object)->GetDesc(&internal_desc);
+			static_cast<ID3D11Texture1D *>(object)->GetDesc(&internal_desc);
 			return convert_resource_desc(internal_desc);
 		}
 		case D3D11_RESOURCE_DIMENSION_TEXTURE2D:
 		{
 			D3D11_TEXTURE2D_DESC internal_desc;
-			static_cast<ID3D11Texture2D *>(resource_object)->GetDesc(&internal_desc);
+			static_cast<ID3D11Texture2D *>(object)->GetDesc(&internal_desc);
 			return convert_resource_desc(internal_desc);
 		}
 		case D3D11_RESOURCE_DIMENSION_TEXTURE3D:
 		{
 			D3D11_TEXTURE3D_DESC internal_desc;
-			static_cast<ID3D11Texture3D *>(resource_object)->GetDesc(&internal_desc);
+			static_cast<ID3D11Texture3D *>(object)->GetDesc(&internal_desc);
 			return convert_resource_desc(internal_desc);
 		}
 	}
+
+	assert(false); // Not implemented
+	return api::resource_desc {};
 }
 
 bool reshade::d3d11::device_impl::get_query_results(api::query_heap heap, uint32_t first, uint32_t count, void *results, uint32_t stride)
@@ -863,7 +861,7 @@ void reshade::d3d11::device_context_impl::bind_pipeline(api::pipeline_type type,
 		_orig->CSSetShader(reinterpret_cast<ID3D11ComputeShader *>(pipeline.handle), nullptr, 0);
 		break;
 	case api::pipeline_type::graphics:
-		reinterpret_cast<pipeline_graphics_impl *>(pipeline.handle)->apply(_orig);
+		reinterpret_cast<pipeline_impl *>(pipeline.handle)->apply(_orig);
 		break;
 	case api::pipeline_type::graphics_blend_state:
 		_orig->OMSetBlendState(reinterpret_cast<ID3D11BlendState *>(pipeline.handle), nullptr, D3D11_DEFAULT_SAMPLE_MASK);

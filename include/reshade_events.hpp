@@ -79,7 +79,7 @@ namespace reshade
 
 		/// <summary>
 		/// Called before 'ID3D10Device::UpdateSubresource' or 'ID3D11DeviceContext::UpdateSubresource'.
-		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource dst, uint64_t dst_offset, const void *data, uint64_t size)</c></para>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, const void *data, api::resource dst, uint64_t dst_offset, uint64_t size)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// Destination resource will be in the <see cref="resource_usage::copy_dest"/> state.
@@ -87,7 +87,7 @@ namespace reshade
 		upload_buffer_region,
 		/// <summary>
 		/// Called before 'ID3D10Device::UpdateSubresource' or 'ID3D11DeviceContext::UpdateSubresource'.
-		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], const void *data, uint32_t row_pitch, uint32_t slice_pitch)</c></para>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, const void *data, uint32_t row_pitch, uint32_t slice_pitch, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6])</c></para>
 		/// </summary>
 		/// <remarks>
 		/// Destination resource will be in the <see cref="resource_usage::copy_dest"/> state.
@@ -378,8 +378,8 @@ namespace reshade
 	DEFINE_ADDON_EVENT_TYPE_3(addon_event::create_pipeline, api::device *device, const api::pipeline_desc &desc);
 	DEFINE_ADDON_EVENT_TYPE_3(addon_event::create_shader_module, api::device *device, api::shader_stage type, api::shader_format format, const char *entry_point, const void *code, size_t code_size);
 
-	DEFINE_ADDON_EVENT_TYPE_2(addon_event::upload_buffer_region, api::device *device, api::resource dst, uint64_t dst_offset, const void *data, uint64_t size);
-	DEFINE_ADDON_EVENT_TYPE_2(addon_event::upload_texture_region, api::device *device, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], const void *data, uint32_t row_pitch, uint32_t slice_pitch);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::upload_buffer_region, api::device *device, const void *data, api::resource dst, uint64_t dst_offset, uint64_t size);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::upload_texture_region, api::device *device, const void *data, uint32_t row_pitch, uint32_t slice_pitch, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6]);
 
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_pipeline, api::command_list *cmd_list, api::pipeline_type type, api::pipeline pipeline);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_pipeline_states, api::command_list *cmd_list, uint32_t count, const api::pipeline_state *states, const uint32_t *values);

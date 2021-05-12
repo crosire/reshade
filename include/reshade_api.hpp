@@ -363,18 +363,18 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Uploads data to a buffer resource.
 		/// </summary>
-		/// <param name="resource">The buffer resource to upload to.</param>
-		/// <param name="dst_offset">An offset (in bytes) into the buffer <paramref name="resource"/> to start uploading to.</param>
 		/// <param name="data">Pointer to the data to upload.</param>
-		virtual void upload_buffer_region(resource resource, uint64_t dst_offset, const void *data, uint64_t size) = 0;
+		/// <param name="destination">The buffer resource to upload to.</param>
+		/// <param name="dst_offset">An offset (in bytes) into the buffer <paramref name="resource"/> to start uploading to.</param>
+		virtual void upload_buffer_region(const void *data, resource destination, uint64_t dst_offset, uint64_t size) = 0;
 		/// <summary>
 		/// Uploads data to a texture resource.
 		/// </summary>
-		/// <param name="resource">The texture resource to upload to.</param>
+		/// <param name="data">Pointer to the data to upload.</param>
+		/// <param name="destination">The texture resource to upload to.</param>
 		/// <param name="dst_subresource">The subresource of the <paramref name="resource"/> to upload to.</param>
 		/// <param name="dst_box">A 3D box (or <c>nullptr</c> to reference the entire subresource) that defines the region in the <paramref name="resource"/> to upload to, in the format { left, top, front, right, bottom, back }.</param>
-		/// <param name="data">Pointer to the data to upload.</param>
-		virtual void upload_texture_region(resource resource, uint32_t dst_subresource, const int32_t dst_box[6], const void *data, uint32_t row_pitch, uint32_t slice_pitch) = 0;
+		virtual void upload_texture_region(const void *data, uint32_t row_pitch, uint32_t slice_pitch, resource destination, uint32_t dst_subresource, const int32_t dst_box[6] = nullptr) = 0;
 
 		/// <summary>
 		/// Gets the handle to the underlying resource the specified resource <paramref name="view"/> was created for.
@@ -631,7 +631,7 @@ namespace reshade { namespace api
 		/// <param name="destination">The texture to copy to.</param>
 		/// <param name="dst_subresource">The subresource of the <paramref name="destination"/> texture to copy to.</param>
 		/// <param name="dst_box">A 3D box (or <c>nullptr</c> to reference the entire subresource) that defines the region in the <paramref name="destination"/> texture to copy to, in the format { left, top, front, right, bottom, back }.</param>
-		virtual void copy_buffer_to_texture(resource source, uint64_t src_offset, uint32_t row_length, uint32_t slice_height, resource destination, uint32_t dst_subresource, const int32_t dst_box[6]) = 0;
+		virtual void copy_buffer_to_texture(resource source, uint64_t src_offset, uint32_t row_length, uint32_t slice_height, resource destination, uint32_t dst_subresource, const int32_t dst_box[6] = nullptr) = 0;
 		/// <summary>
 		/// Copies a texture region from the <paramref name="source"/> texture to the <paramref name="destination"/> texture.
 		/// <para>The <paramref name="source"/> resource has to be in the <see cref="resource_usage::copy_source"/> state.</para>

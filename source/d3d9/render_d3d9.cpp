@@ -819,9 +819,9 @@ bool reshade::d3d9::device_impl::create_shader_module(api::shader_stage type, ap
 }
 bool reshade::d3d9::device_impl::create_pipeline_layout(uint32_t, const api::descriptor_table_layout *, uint32_t, const api::constant_range *, api::pipeline_layout *out)
 {
-	const auto result = new pipeline_layout_impl();
+	const auto layout = new pipeline_layout_impl();
 
-	*out = { reinterpret_cast<uintptr_t>(result) };
+	*out = { reinterpret_cast<uintptr_t>(layout) };
 	return true;
 }
 bool reshade::d3d9::device_impl::create_descriptor_heap(uint32_t, uint32_t, const api::descriptor_heap_size *, api::descriptor_heap *out)
@@ -1012,7 +1012,7 @@ void reshade::d3d9::device_impl::unmap_resource(api::resource resource, uint32_t
 	}
 }
 
-void reshade::d3d9::device_impl::upload_buffer_region(api::resource dst, uint64_t dst_offset, const void *data, uint64_t size)
+void reshade::d3d9::device_impl::upload_buffer_region(const void *data, api::resource dst, uint64_t dst_offset, uint64_t size)
 {
 	assert(dst.handle != 0);
 	assert(dst_offset <= std::numeric_limits<UINT>::max() && size <= std::numeric_limits<UINT>::max());
@@ -1025,7 +1025,7 @@ void reshade::d3d9::device_impl::upload_buffer_region(api::resource dst, uint64_
 		if (void *mapped_ptr = nullptr;
 			SUCCEEDED(static_cast<IDirect3DVertexBuffer9 *>(object)->Lock(static_cast<UINT>(dst_offset), static_cast<UINT>(size), &mapped_ptr, 0)))
 		{
-			std::memcpy(mapped_ptr, data, size);
+			std::memcpy(mapped_ptr, data, static_cast<size_t>(size));
 			static_cast<IDirect3DVertexBuffer9 *>(object)->Unlock();
 		}
 		return;
@@ -1033,7 +1033,7 @@ void reshade::d3d9::device_impl::upload_buffer_region(api::resource dst, uint64_
 		if (void *mapped_ptr = nullptr;
 			SUCCEEDED(static_cast<IDirect3DIndexBuffer9 *>(object)->Lock(static_cast<UINT>(dst_offset), static_cast<UINT>(size), &mapped_ptr, 0)))
 		{
-			std::memcpy(mapped_ptr, data, size);
+			std::memcpy(mapped_ptr, data, static_cast<size_t>(size));
 			static_cast<IDirect3DIndexBuffer9 *>(object)->Unlock();
 		}
 		return;
@@ -1041,7 +1041,7 @@ void reshade::d3d9::device_impl::upload_buffer_region(api::resource dst, uint64_
 
 	assert(false); // Not implemented
 }
-void reshade::d3d9::device_impl::upload_texture_region(api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], const void *data, uint32_t row_pitch, uint32_t)
+void reshade::d3d9::device_impl::upload_texture_region(const void *data, uint32_t row_pitch, uint32_t, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6])
 {
 	assert(dst.handle != 0);
 
@@ -1061,7 +1061,7 @@ void reshade::d3d9::device_impl::upload_texture_region(api::resource dst, uint32
 			com_ptr<IDirect3DTexture9> intermediate;
 			if (FAILED(_orig->CreateTexture(width, height, 1, use_systemmem_texture ? 0 : D3DUSAGE_DYNAMIC, desc.Format, use_systemmem_texture ? D3DPOOL_SYSTEMMEM : D3DPOOL_DEFAULT, &intermediate, nullptr)))
 			{
-				LOG(ERROR) << "Failed to create system memory texture for uploading to texture!";
+				LOG(ERROR) << "Failed to create upload buffer!";
 				LOG(DEBUG) << "> Details: Width = " << width << ", Height = " << height << ", Levels = " << "1" << ", Usage = " << (use_systemmem_texture ? "0" : "D3DUSAGE_DYNAMIC") << ", Format = " << desc.Format;
 				return;
 			}

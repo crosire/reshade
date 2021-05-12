@@ -698,8 +698,10 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::UpdateSubresource(ID3D11Resource *
 		assert(DstSubresource == 0);
 
 		if (reshade::invoke_addon_event<reshade::addon_event::upload_buffer_region>(_device,
-			reshade::api::resource { reinterpret_cast<uintptr_t>(pDstResource) }, pDstBox != nullptr ? pDstBox->left : 0,
-			pSrcData, pDstBox != nullptr ? pDstBox->right - pDstBox->left : SrcRowPitch))
+			pSrcData,
+			reshade::api::resource { reinterpret_cast<uintptr_t>(pDstResource) },
+			pDstBox != nullptr ? pDstBox->left : 0,
+			pDstBox != nullptr ? pDstBox->right - pDstBox->left : SrcRowPitch))
 			return;
 	}
 	else
@@ -707,8 +709,8 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::UpdateSubresource(ID3D11Resource *
 		static_assert(sizeof(D3D11_BOX) == (sizeof(int32_t) * 6));
 
 		if (reshade::invoke_addon_event<reshade::addon_event::upload_texture_region>(_device,
-			reshade::api::resource { reinterpret_cast<uintptr_t>(pDstResource) }, DstSubresource, reinterpret_cast<const int32_t *>(pDstBox),
-			pSrcData, SrcRowPitch, SrcDepthPitch))
+			pSrcData, SrcRowPitch, SrcDepthPitch,
+			reshade::api::resource { reinterpret_cast<uintptr_t>(pDstResource) }, DstSubresource, reinterpret_cast<const int32_t *>(pDstBox)))
 			return;
 	}
 #endif
@@ -1286,8 +1288,10 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::UpdateSubresource1(ID3D11Resource 
 		assert(DstSubresource == 0);
 
 		if (reshade::invoke_addon_event<reshade::addon_event::upload_buffer_region>(_device,
-			reshade::api::resource { reinterpret_cast<uintptr_t>(pDstResource) }, pDstBox != nullptr ? pDstBox->left : 0,
-			pSrcData, pDstBox != nullptr ? pDstBox->right - pDstBox->left : SrcRowPitch))
+			pSrcData,
+			reshade::api::resource { reinterpret_cast<uintptr_t>(pDstResource) },
+			pDstBox != nullptr ? pDstBox->left : 0,
+			pDstBox != nullptr ? pDstBox->right - pDstBox->left : SrcRowPitch))
 			return;
 	}
 	else
@@ -1295,8 +1299,8 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::UpdateSubresource1(ID3D11Resource 
 		static_assert(sizeof(D3D11_BOX) == (sizeof(int32_t) * 6));
 
 		if (reshade::invoke_addon_event<reshade::addon_event::upload_texture_region>(_device,
-			reshade::api::resource { reinterpret_cast<uintptr_t>(pDstResource) }, DstSubresource, reinterpret_cast<const int32_t *>(pDstBox),
-			pSrcData, SrcRowPitch, SrcDepthPitch))
+			pSrcData, SrcRowPitch, SrcDepthPitch,
+			reshade::api::resource { reinterpret_cast<uintptr_t>(pDstResource) }, DstSubresource, reinterpret_cast<const int32_t *>(pDstBox)))
 			return;
 	}
 #endif
