@@ -300,18 +300,17 @@ bool reshade::d3d9::device_impl::check_resource_view_handle_valid(api::resource_
 
 bool reshade::d3d9::device_impl::create_sampler(const api::sampler_desc &desc, api::sampler *out)
 {
-	const auto data = new DWORD[12];
-	data[D3DSAMP_ADDRESSU] = static_cast<DWORD>(desc.address_u);
-	data[D3DSAMP_ADDRESSV] = static_cast<DWORD>(desc.address_v);
-	data[D3DSAMP_ADDRESSW] = static_cast<DWORD>(desc.address_w);
-	data[D3DSAMP_BORDERCOLOR] = 0;
-	data[D3DSAMP_MAGFILTER] = 1 + ((static_cast<DWORD>(desc.filter) & 0x0C) >> 2);
-	data[D3DSAMP_MINFILTER] = 1 + ((static_cast<DWORD>(desc.filter) & 0x30) >> 4);
-	data[D3DSAMP_MIPFILTER] = 1 + ((static_cast<DWORD>(desc.filter) & 0x03));
-	data[D3DSAMP_MIPMAPLODBIAS] = *reinterpret_cast<const DWORD *>(&desc.mip_lod_bias);
-	data[D3DSAMP_MAXMIPLEVEL] = desc.min_lod > 0 ? static_cast<DWORD>(desc.min_lod) : 0;
-	data[D3DSAMP_MAXANISOTROPY] = static_cast<DWORD>(desc.max_anisotropy);
-	data[D3DSAMP_SRGBTEXTURE] = FALSE;
+	const auto data = new DWORD[10];
+	data[D3DSAMP_ADDRESSU - 1] = static_cast<DWORD>(desc.address_u);
+	data[D3DSAMP_ADDRESSV - 1] = static_cast<DWORD>(desc.address_v);
+	data[D3DSAMP_ADDRESSW - 1] = static_cast<DWORD>(desc.address_w);
+	data[D3DSAMP_BORDERCOLOR - 1] = 0;
+	data[D3DSAMP_MAGFILTER - 1] = 1 + ((static_cast<DWORD>(desc.filter) & 0x0C) >> 2);
+	data[D3DSAMP_MINFILTER - 1] = 1 + ((static_cast<DWORD>(desc.filter) & 0x30) >> 4);
+	data[D3DSAMP_MIPFILTER - 1] = 1 + ((static_cast<DWORD>(desc.filter) & 0x03));
+	data[D3DSAMP_MIPMAPLODBIAS - 1] = *reinterpret_cast<const DWORD *>(&desc.mip_lod_bias);
+	data[D3DSAMP_MAXMIPLEVEL - 1] = desc.min_lod > 0 ? static_cast<DWORD>(desc.min_lod) : 0;
+	data[D3DSAMP_MAXANISOTROPY - 1] = static_cast<DWORD>(desc.max_anisotropy);
 
 	*out = { reinterpret_cast<uintptr_t>(data) };
 	return true;
@@ -429,6 +428,13 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 	assert(resource.handle != 0);
 	auto object = reinterpret_cast<IDirect3DResource9 *>(resource.handle);
 
+	// Set the first bit in the handle to indicate whether this view is using a sRGB format
+	// This requires the resource pointers to be at least 2-byte aligned, to ensure the first bit is always unused otherwise
+	static_assert(alignof(IDirect3DResource9) >= 2);
+	const uint64_t set_srgb_bit =
+		desc.format == api::format::r8g8b8a8_unorm_srgb || desc.format == api::format::b8g8r8a8_unorm_srgb || desc.format == api::format::b8g8r8x8_unorm_srgb ||
+		desc.format == api::format::bc1_unorm_srgb || desc.format == api::format::bc2_unorm_srgb || desc.format == api::format::bc3_unorm_srgb;
+
 	switch (object->GetType())
 	{
 		case D3DRTYPE_SURFACE:
@@ -450,7 +456,7 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 
 				object->AddRef();
 				{
-					*out = { reinterpret_cast<uintptr_t>(object) };
+					*out = { reinterpret_cast<uintptr_t>(object) | set_srgb_bit };
 					return true;
 				}
 			}
@@ -476,7 +482,7 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 				if (com_ptr<IDirect3DSurface9> surface;
 					SUCCEEDED(static_cast<IDirect3DTexture9 *>(object)->GetSurfaceLevel(desc.texture.first_level, &surface)))
 				{
-					*out = { reinterpret_cast<uintptr_t>(surface.release()) };
+					*out = { reinterpret_cast<uintptr_t>(surface.release()) | set_srgb_bit };
 					return true;
 				}
 			}
@@ -491,7 +497,7 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 
 				object->AddRef();
 				{
-					*out = { reinterpret_cast<uintptr_t>(object) };
+					*out = { reinterpret_cast<uintptr_t>(object) | set_srgb_bit };
 					return true;
 				}
 			}
@@ -516,7 +522,7 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 				if (com_ptr<IDirect3DSurface9> surface;
 					SUCCEEDED(static_cast<IDirect3DCubeTexture9 *>(object)->GetCubeMapSurface(static_cast<D3DCUBEMAP_FACES>(desc.texture.first_layer), desc.texture.first_level, &surface)))
 				{
-					*out = { reinterpret_cast<uintptr_t>(surface.release()) };
+					*out = { reinterpret_cast<uintptr_t>(surface.release()) | set_srgb_bit };
 					return true;
 				}
 			}
@@ -533,7 +539,7 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 
 				object->AddRef();
 				{
-					*out = { reinterpret_cast<uintptr_t>(object) };
+					*out = { reinterpret_cast<uintptr_t>(object) | set_srgb_bit };
 					return true;
 				}
 			}
@@ -877,7 +883,7 @@ void reshade::d3d9::device_impl::destroy_resource(api::resource handle)
 void reshade::d3d9::device_impl::destroy_resource_view(api::resource_view handle)
 {
 	if (handle.handle != 0)
-		reinterpret_cast<IUnknown *>(handle.handle)->Release();
+		reinterpret_cast<IUnknown *>(handle.handle & ~1ull)->Release();
 }
 
 void reshade::d3d9::device_impl::destroy_pipeline(api::pipeline_type type, api::pipeline handle)
@@ -1153,7 +1159,7 @@ void reshade::d3d9::device_impl::upload_texture_region(const void *data, uint32_
 void reshade::d3d9::device_impl::get_resource_from_view(api::resource_view view, api::resource *out_resource) const
 {
 	assert(view.handle != 0);
-	auto object = reinterpret_cast<IDirect3DResource9 *>(view.handle);
+	auto object = reinterpret_cast<IDirect3DResource9 *>(view.handle & ~1ull);
 
 	if (com_ptr<IDirect3DSurface9> surface;
 		SUCCEEDED(object->QueryInterface(IID_PPV_ARGS(&surface))))
@@ -1317,6 +1323,8 @@ void reshade::d3d9::device_impl::push_descriptors(api::shader_stage stage, api::
 	case api::shader_stage::vertex:
 		// See https://docs.microsoft.com/windows/win32/direct3d9/vertex-textures-in-vs-3-0
 		first += D3DVERTEXTEXTURESAMPLER0;
+		if ((first + count) > D3DVERTEXTEXTURESAMPLER3) // The vertex engine only contains four texture sampler stages
+			count = D3DVERTEXTEXTURESAMPLER3 - first;
 		break;
 	case api::shader_stage::pixel:
 		break;
@@ -1329,25 +1337,27 @@ void reshade::d3d9::device_impl::push_descriptors(api::shader_stage stage, api::
 		{
 			const auto &descriptor = static_cast<const api::sampler *>(descriptors)[i];
 
-			for (D3DSAMPLERSTATETYPE state = D3DSAMP_ADDRESSU; state <= D3DSAMP_SRGBTEXTURE; state = static_cast<D3DSAMPLERSTATETYPE>(state + 1))
-				_orig->SetSamplerState(i + first, state, reinterpret_cast<const DWORD *>(descriptor.handle)[state]);
+			for (D3DSAMPLERSTATETYPE state = D3DSAMP_ADDRESSU; state <= D3DSAMP_MAXANISOTROPY; state = static_cast<D3DSAMPLERSTATETYPE>(state + 1))
+				_orig->SetSamplerState(i + first, state, reinterpret_cast<const DWORD *>(descriptor.handle)[state - 1]);
 		}
 		break;
 	case api::descriptor_type::sampler_with_resource_view:
 		for (UINT i = 0; i < count; ++i)
 		{
 			const auto &descriptor = static_cast<const api::sampler_with_resource_view *>(descriptors)[i];
-			_orig->SetTexture(i + first, reinterpret_cast<IDirect3DBaseTexture9 *>(descriptor.view.handle));
+			_orig->SetTexture(i + first, reinterpret_cast<IDirect3DBaseTexture9 *>(descriptor.view.handle & ~1ull));
+			_orig->SetSamplerState(i + first, D3DSAMP_SRGBTEXTURE, descriptor.view.handle & 1);
 
-			for (D3DSAMPLERSTATETYPE state = D3DSAMP_ADDRESSU; state <= D3DSAMP_SRGBTEXTURE; state = static_cast<D3DSAMPLERSTATETYPE>(state + 1))
-				_orig->SetSamplerState(i + first, state, reinterpret_cast<const DWORD *>(descriptor.sampler.handle)[state]);
+			for (D3DSAMPLERSTATETYPE state = D3DSAMP_ADDRESSU; state <= D3DSAMP_MAXANISOTROPY; state = static_cast<D3DSAMPLERSTATETYPE>(state + 1))
+				_orig->SetSamplerState(i + first, state, reinterpret_cast<const DWORD *>(descriptor.sampler.handle)[state - 1]);
 		}
 		break;
 	case api::descriptor_type::shader_resource_view:
 		for (UINT i = 0; i < count; ++i)
 		{
 			const auto &descriptor = static_cast<const api::resource_view *>(descriptors)[i];
-			_orig->SetTexture(i + first, reinterpret_cast<IDirect3DBaseTexture9 *>(descriptor.handle));
+			_orig->SetTexture(i + first, reinterpret_cast<IDirect3DBaseTexture9 *>(descriptor.handle & ~1ull));
+			_orig->SetSamplerState(i + first, D3DSAMP_SRGBTEXTURE, descriptor.handle & 1);
 		}
 		break;
 	case api::descriptor_type::unordered_access_view:
@@ -1421,9 +1431,12 @@ void reshade::d3d9::device_impl::begin_render_pass(uint32_t count, const api::re
 	assert(count <= _caps.NumSimultaneousRTs);
 
 	for (UINT i = 0; i < count; ++i)
-		_orig->SetRenderTarget(i, reinterpret_cast<IDirect3DSurface9 *>(rtvs[i].handle));
+		_orig->SetRenderTarget(i, reinterpret_cast<IDirect3DSurface9 *>(rtvs[i].handle & ~1ull));
 	for (UINT i = count; i < _caps.NumSimultaneousRTs; ++i)
 		_orig->SetRenderTarget(i, nullptr);
+
+	if (count != 0)
+		_orig->SetRenderState(D3DRS_SRGBWRITEENABLE, rtvs[0].handle & 1);
 
 	_orig->SetDepthStencilSurface(reinterpret_cast<IDirect3DSurface9 *>(dsv.handle));
 }
@@ -1687,7 +1700,7 @@ void reshade::d3d9::device_impl::copy_texture_to_buffer(api::resource, uint32_t,
 void reshade::d3d9::device_impl::generate_mipmaps(api::resource_view srv)
 {
 	assert(srv.handle != 0);
-	const auto texture = reinterpret_cast<IDirect3DBaseTexture9 *>(srv.handle);
+	const auto texture = reinterpret_cast<IDirect3DBaseTexture9 *>(srv.handle & ~1ull);
 
 	texture->SetAutoGenFilterType(D3DTEXF_LINEAR);
 	texture->GenerateMipSubLevels();
@@ -1718,7 +1731,7 @@ void reshade::d3d9::device_impl::clear_render_target_views(uint32_t count, const
 	_backup_state.capture();
 
 	for (DWORD target = 0; target < count && target < _caps.NumSimultaneousRTs; ++target)
-		_orig->SetRenderTarget(target, reinterpret_cast<IDirect3DSurface9 *>(rtvs[target].handle));
+		_orig->SetRenderTarget(target, reinterpret_cast<IDirect3DSurface9 *>(rtvs[target].handle & ~1ull));
 	for (DWORD target = count; target < _caps.NumSimultaneousRTs; ++target)
 		_orig->SetRenderTarget(target, nullptr);
 
@@ -1730,7 +1743,7 @@ void reshade::d3d9::device_impl::clear_render_target_views(uint32_t count, const
 	{
 		assert(rtvs[i].handle != 0);
 
-		_orig->ColorFill(reinterpret_cast<IDirect3DSurface9 *>(rtvs[i].handle), nullptr, D3DCOLOR_COLORVALUE(color[0], color[1], color[2], color[3]));
+		_orig->ColorFill(reinterpret_cast<IDirect3DSurface9 *>(rtvs[i].handle & ~1ull), nullptr, D3DCOLOR_COLORVALUE(color[0], color[1], color[2], color[3]));
 	}
 #endif
 }
