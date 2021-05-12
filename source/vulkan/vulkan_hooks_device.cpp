@@ -751,7 +751,7 @@ VkResult VKAPI_CALL vkCreateImage(VkDevice device, const VkImageCreateInfo *pCre
 				LOG(WARN) << "vkCreateImage" << " failed with error code " << result << '.';
 				return false;
 			}
-		}, device_impl, reshade::vulkan::convert_resource_desc(create_info), nullptr, reshade::api::resource_usage::undefined);
+		}, device_impl, reshade::vulkan::convert_resource_desc(create_info), nullptr, create_info.initialLayout == VK_IMAGE_LAYOUT_PREINITIALIZED ? reshade::api::resource_usage::cpu_access : reshade::api::resource_usage::undefined);
 	return result;
 }
 void     VKAPI_CALL vkDestroyImage(VkDevice device, VkImage image, const VkAllocationCallbacks *pAllocator)

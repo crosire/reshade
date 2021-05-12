@@ -20,6 +20,11 @@ auto reshade::d3d12::convert_format(DXGI_FORMAT format) -> api::format
 
 D3D12_RESOURCE_STATES reshade::d3d12::convert_resource_usage_to_states(api::resource_usage usage)
 {
+	// Undefined usage does not exist in D3D12
+	assert(usage != api::resource_usage::undefined);
+
+	if (usage == api::resource_usage::general)
+		return D3D12_RESOURCE_STATE_COMMON;
 	if (usage == api::resource_usage::present)
 		return D3D12_RESOURCE_STATE_PRESENT;
 	if (usage == api::resource_usage::cpu_access)

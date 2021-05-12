@@ -393,6 +393,7 @@ auto reshade::vulkan::convert_usage_to_image_layout(api::resource_usage state) -
 	case api::resource_usage::shader_resource_non_pixel:
 		return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	default: // Default to general layout if multiple usage flags are specified
+	case api::resource_usage::general:
 	case api::resource_usage::unordered_access:
 		return VK_IMAGE_LAYOUT_GENERAL;
 	case api::resource_usage::copy_dest:
@@ -405,12 +406,13 @@ auto reshade::vulkan::convert_usage_to_image_layout(api::resource_usage state) -
 		return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 	}
 }
-auto reshade::vulkan::convert_usage_to_pipeline_stage(api::resource_usage state, bool tessellation_shaders_enabled, bool geometry_shader_enabled) -> VkPipelineStageFlags
+auto reshade::vulkan::convert_usage_to_pipeline_stage(api::resource_usage state, bool src_stage, const VkPhysicalDeviceFeatures &enabled_features) -> VkPipelineStageFlags
 {
-	if (state == api::resource_usage::present)
-		return VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-	if (state == api::resource_usage::undefined)
-		return VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT; // Do not wait on any previous stage
+	if (state == api::resource_usage::general)
+		return VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+	if (state == api::resource_usage::present || state == api::resource_usage::undefined)
+		// Do not introduce a execution dependency
+		return src_stage ? VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT : VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
 	if (state == api::resource_usage::cpu_access)
 		return VK_PIPELINE_STAGE_HOST_BIT;
 
@@ -424,7 +426,7 @@ auto reshade::vulkan::convert_usage_to_pipeline_stage(api::resource_usage state,
 	if ((state & (api::resource_usage::shader_resource_pixel | api::resource_usage::constant_buffer)) != api::resource_usage::undefined)
 		result |= VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
 	if ((state & (api::resource_usage::shader_resource_non_pixel | api::resource_usage::constant_buffer)) != api::resource_usage::undefined)
-		result |= VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | (tessellation_shaders_enabled ? VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT | VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT : 0) | (geometry_shader_enabled ? VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT : 0) | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+		result |= VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | (enabled_features.tessellationShader ? VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT | VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT : 0) | (enabled_features.geometryShader ? VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT : 0) | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
 	if ((state & api::resource_usage::unordered_access) != api::resource_usage::undefined)
 		result |= VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT; // TODO: Might have to add fragment shader bit too
 	if ((state & (api::resource_usage::copy_dest | api::resource_usage::copy_source | api::resource_usage::resolve_dest | api::resource_usage::resolve_source)) != api::resource_usage::undefined)

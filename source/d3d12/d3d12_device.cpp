@@ -516,7 +516,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource(const D3D12_HEAP_
 #endif
 				return false;
 			}
-		}, this, reshade::d3d12::convert_resource_desc(new_desc, heap_props, HeapFlags), nullptr, static_cast<reshade::api::resource_usage>(InitialResourceState));
+		}, this, reshade::d3d12::convert_resource_desc(new_desc, heap_props, HeapFlags), nullptr, InitialResourceState == D3D12_RESOURCE_STATE_COMMON ? reshade::api::resource_usage::general : static_cast<reshade::api::resource_usage>(InitialResourceState));
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateHeap(const D3D12_HEAP_DESC *pDesc, REFIID riid, void **ppvHeap)
@@ -574,7 +574,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePlacedResource(ID3D12Heap *pHeap, U
 #endif
 				return false;
 			}
-		}, this, reshade::d3d12::convert_resource_desc(new_desc), nullptr, static_cast<reshade::api::resource_usage>(InitialState));
+		}, this, reshade::d3d12::convert_resource_desc(new_desc), nullptr, InitialState == D3D12_RESOURCE_STATE_COMMON ? reshade::api::resource_usage::general : static_cast<reshade::api::resource_usage>(InitialState));
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource(const D3D12_RESOURCE_DESC *pDesc, D3D12_RESOURCE_STATES InitialState, const D3D12_CLEAR_VALUE *pOptimizedClearValue, REFIID riid, void **ppvResource)
@@ -621,7 +621,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource(const D3D12_RESOUR
 #endif
 				return false;
 			}
-		}, this, reshade::d3d12::convert_resource_desc(new_desc), nullptr, static_cast<reshade::api::resource_usage>(InitialState));
+		}, this, reshade::d3d12::convert_resource_desc(new_desc), nullptr, InitialState == D3D12_RESOURCE_STATE_COMMON ? reshade::api::resource_usage::general : static_cast<reshade::api::resource_usage>(InitialState));
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateSharedHandle(ID3D12DeviceChild *pObject, const SECURITY_ATTRIBUTES *pAttributes, DWORD Access, LPCWSTR Name, HANDLE *pHandle)
@@ -796,7 +796,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource1(const D3D12_HEAP
 #endif
 				return false;
 			}
-		}, this, reshade::d3d12::convert_resource_desc(new_desc, heap_props, HeapFlags), nullptr, static_cast<reshade::api::resource_usage>(InitialResourceState));
+		}, this, reshade::d3d12::convert_resource_desc(new_desc, heap_props, HeapFlags), nullptr, InitialResourceState == D3D12_RESOURCE_STATE_COMMON ? reshade::api::resource_usage::general : static_cast<reshade::api::resource_usage>(InitialResourceState));
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateHeap1(const D3D12_HEAP_DESC *pDesc, ID3D12ProtectedResourceSession *pProtectedSession, REFIID riid, void **ppvHeap)
@@ -849,7 +849,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource1(const D3D12_RESOU
 #endif
 				return false;
 			}
-		}, this, reshade::d3d12::convert_resource_desc(new_desc), nullptr, static_cast<reshade::api::resource_usage>(InitialState));
+		}, this, reshade::d3d12::convert_resource_desc(new_desc), nullptr, InitialState == D3D12_RESOURCE_STATE_COMMON ? reshade::api::resource_usage::general : static_cast<reshade::api::resource_usage>(InitialState));
 	return hr;
 }
 D3D12_RESOURCE_ALLOCATION_INFO STDMETHODCALLTYPE D3D12Device::GetResourceAllocationInfo1(UINT VisibleMask, UINT NumResourceDescs, const D3D12_RESOURCE_DESC *pResourceDescs, D3D12_RESOURCE_ALLOCATION_INFO1 *pResourceAllocationInfo1)
