@@ -77,6 +77,7 @@ namespace reshade::d3d11
 	protected:
 		com_object_list<ID3D11View> _views;
 		com_object_list<ID3D11Resource> _resources;
+		com_ptr<ID3D11DeviceContext> _immediate_context;
 	};
 
 	class command_list_impl : public api::api_object_impl<ID3D11CommandList *, api::command_list>
@@ -205,5 +206,8 @@ namespace reshade::d3d11
 
 	private:
 		device_impl *const _device_impl;
+		com_ptr<ID3DUserDefinedAnnotation> _annotations;
+		UINT _push_constants_size = 0;
+		com_ptr<ID3D11Buffer> _push_constants;
 	};
 }

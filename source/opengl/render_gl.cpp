@@ -22,13 +22,7 @@ namespace
 
 	struct pipeline_layout_impl
 	{
-		~pipeline_layout_impl()
-		{
-			glDeleteBuffers(1, &push_constants);
-		}
-
-		GLuint push_constants;
-		GLuint push_constants_binding;
+		std::vector<GLuint> bindings;
 	};
 
 	struct pipeline_compute_impl
@@ -246,6 +240,9 @@ reshade::opengl::device_impl::device_impl(HDC hdc, HGLRC hglrc) :
 	}, nullptr);
 #endif
 
+	// Generate push constants buffer name
+	glGenBuffers(1, &_push_constants);
+
 	// Create mipmap generation program used in the 'generate_mipmaps' function
 	{
 		const GLchar *mipmap_shader[] = {
@@ -299,6 +296,9 @@ reshade::opengl::device_impl::~device_impl()
 
 	// Destroy mipmap generation program
 	glDeleteProgram(_mipmap_program);
+
+	// Destroy push constants buffer
+	glDeleteBuffers(1, &_push_constants);
 }
 
 bool reshade::opengl::device_impl::check_capability(api::device_caps capability) const
@@ -897,28 +897,12 @@ bool reshade::opengl::device_impl::create_pipeline_layout(uint32_t num_table_lay
 	}
 
 	const auto layout = new pipeline_layout_impl();
+	layout->bindings.resize(num_table_layouts + num_constant_ranges);
 
 	if (num_constant_ranges == 1)
 	{
 		assert(constant_ranges[0].offset == 0);
-
-		GLuint prev_object = 0;
-		glGetIntegerv(GL_UNIFORM_BUFFER_BINDING, reinterpret_cast<GLint *>(&prev_object));
-
-		GLuint push_constants = 0;
-		glGenBuffers(1, &push_constants);
-
-		glBindBuffer(GL_UNIFORM_BUFFER, push_constants);
-		glBufferStorage(GL_UNIFORM_BUFFER, constant_ranges[0].count * 4, nullptr, GL_DYNAMIC_STORAGE_BIT);
-		glBindBuffer(GL_UNIFORM_BUFFER, prev_object);
-
-		layout->push_constants = push_constants;
-		layout->push_constants_binding = constant_ranges[0].dx_shader_register;
-	}
-	else
-	{
-		layout->push_constants = 0;
-		layout->push_constants_binding = std::numeric_limits<GLuint>::max();
+		layout->bindings[num_table_layouts] = constant_ranges[0].dx_shader_register;
 	}
 
 	*out = { reinterpret_cast<uintptr_t>(layout) };
@@ -1079,14 +1063,16 @@ bool reshade::opengl::device_impl::map_resource(api::resource resource, uint32_t
 	switch (access)
 	{
 	case api::map_access::read_only:
-		map_access = GL_READ_ONLY;
-		break;
-	case api::map_access::write_only:
-	case api::map_access::write_discard:
-		map_access = GL_WRITE_ONLY;
+		map_access = GL_MAP_READ_BIT;
 		break;
 	case api::map_access::read_write:
-		map_access = GL_READ_WRITE;
+		map_access = GL_MAP_READ_BIT | GL_MAP_WRITE_BIT;
+		break;
+	case api::map_access::write_only:
+		map_access = GL_MAP_WRITE_BIT;
+		break;
+	case api::map_access::write_discard:
+		map_access = GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT;
 		break;
 	}
 
@@ -1112,15 +1098,19 @@ bool reshade::opengl::device_impl::map_resource(api::resource resource, uint32_t
 		assert(subresource == 0);
 		if (gl3wProcs.gl.MapNamedBuffer != nullptr)
 		{
-			*mapped_ptr = glMapNamedBuffer(object, map_access);
+			const GLuint length = get_buf_param(target, object, GL_BUFFER_SIZE);
+
+			*mapped_ptr = glMapNamedBufferRange(object, 0, length, map_access);
 		}
 		else
 		{
+			const GLuint length = get_buf_param(target, object, GL_BUFFER_SIZE);
+
 			GLint prev_object = 0;
 			glGetIntegerv(get_binding_for_target(target), &prev_object);
 
 			glBindBuffer(target, object);
-			*mapped_ptr = glMapBuffer(target, map_access);
+			*mapped_ptr = glMapBufferRange(target, 0, length, map_access);
 			glBindBuffer(target, prev_object);
 		}
 		break;
@@ -1495,25 +1485,37 @@ void reshade::opengl::device_impl::bind_scissor_rects(uint32_t first, uint32_t c
 	}
 }
 
-void reshade::opengl::device_impl::push_constants(api::shader_stage, api::pipeline_layout layout, uint32_t, uint32_t first, uint32_t count, const uint32_t *values)
+void reshade::opengl::device_impl::push_constants(api::shader_stage, api::pipeline_layout layout, uint32_t layout_index, uint32_t first, uint32_t count, const uint32_t *values)
 {
-	const auto layout_impl = reinterpret_cast<pipeline_layout_impl *>(layout.handle);
+	const GLuint push_constants_binding = layout.handle != 0 ?
+		reinterpret_cast<pipeline_layout_impl *>(layout.handle)->bindings[layout_index] : 0;
 
-	if (gl3wProcs.gl.NamedBufferSubData != nullptr)
+	if (_push_constants == 0)
 	{
-		glNamedBufferSubData(layout_impl->push_constants, first * 4, count * 4, values);
-	}
-	else
-	{
-		GLint prev_object = 0;
-		glGetIntegerv(GL_COPY_WRITE_BUFFER_BINDING, &prev_object);
-
-		glBindBuffer(GL_COPY_WRITE_BUFFER, layout_impl->push_constants);
-		glBufferSubData(GL_COPY_WRITE_BUFFER, first * 4, count * 4, values);
-		glBindBuffer(GL_COPY_WRITE_BUFFER, prev_object);
+		glGenBuffers(1, &_push_constants);
 	}
 
-	glBindBufferBase(GL_UNIFORM_BUFFER, layout_impl->push_constants_binding, layout_impl->push_constants);
+	// Binds the push constant buffer to the requested indexed binding point as well as the generic binding point
+	glBindBufferBase(GL_UNIFORM_BUFFER, push_constants_binding, _push_constants);
+
+	// Recreate the buffer data store in case it is no longer large enough
+	if (count > _push_constants_size)
+	{
+		glBufferData(GL_UNIFORM_BUFFER, count * sizeof(uint32_t), first == 0 ? values : nullptr, GL_DYNAMIC_DRAW);
+		if (first != 0)
+			glBufferSubData(GL_UNIFORM_BUFFER, first * sizeof(uint32_t), count * sizeof(uint32_t), values);
+
+		set_debug_name(make_resource_handle(GL_BUFFER, _push_constants), "Push constants");
+
+		_push_constants_size = count;
+	}
+	// Otherwise discard the previous range (so driver can return a new memory region to avoid stalls) and update it with the new constants
+	else if (void *const data = glMapBufferRange(GL_UNIFORM_BUFFER, first * sizeof(uint32_t), count * sizeof(uint32_t), GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_RANGE_BIT);
+		data != nullptr)
+	{
+		std::memcpy(data, values, count * sizeof(uint32_t));
+		glUnmapBuffer(GL_UNIFORM_BUFFER);
+	}
 }
 void reshade::opengl::device_impl::push_descriptors(api::shader_stage, api::pipeline_layout layout, uint32_t layout_index, api::descriptor_type type, uint32_t first, uint32_t count, const void *descriptors)
 {

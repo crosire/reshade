@@ -3,6 +3,7 @@
  * License: https://github.com/crosire/reshade#license
  */
 
+#include "dll_log.hpp"
 #include "render_d3d10.hpp"
 #include "render_d3d10_utils.hpp"
 #include <algorithm>
@@ -16,8 +17,7 @@ namespace
 
 	struct pipeline_layout_impl
 	{
-		com_ptr<ID3D10Buffer> push_constants;
-		UINT push_constants_binding;
+		std::vector<UINT> shader_registers;
 	};
 
 	struct pipeline_graphics_impl
@@ -522,26 +522,12 @@ bool reshade::d3d10::device_impl::create_pipeline_layout(uint32_t num_table_layo
 	}
 
 	const auto layout = new pipeline_layout_impl();
+	layout->shader_registers.resize(num_table_layouts + num_constant_ranges);
 
 	if (num_constant_ranges == 1)
 	{
 		assert(constant_ranges[0].offset == 0);
-
-		D3D10_BUFFER_DESC desc = {};
-		desc.ByteWidth = constant_ranges[0].count * 4;
-		desc.Usage = D3D10_USAGE_DYNAMIC;
-		desc.BindFlags = D3D10_BIND_CONSTANT_BUFFER;
-		desc.CPUAccessFlags = D3D10_CPU_ACCESS_WRITE;
-
-		if (FAILED(_orig->CreateBuffer(&desc, nullptr, &layout->push_constants)))
-		{
-			delete layout;
-
-			*out = { 0 };
-			return false;
-		}
-
-		layout->push_constants_binding = constant_ranges[0].dx_shader_register;
+		layout->shader_registers[num_table_layouts] = constant_ranges[0].dx_shader_register;
 	}
 
 	*out = { reinterpret_cast<uintptr_t>(layout) };
@@ -952,26 +938,49 @@ void reshade::d3d10::device_impl::bind_constant_buffers(api::shader_stage stage,
 		_orig->PSSetConstantBuffers(first, count, buffer_ptrs);
 }
 
-void reshade::d3d10::device_impl::push_constants(api::shader_stage stage, api::pipeline_layout layout, uint32_t, uint32_t first, uint32_t count, const uint32_t *values)
+void reshade::d3d10::device_impl::push_constants(api::shader_stage stage, api::pipeline_layout layout, uint32_t layout_index, uint32_t first, uint32_t count, const uint32_t *values)
 {
-	assert(layout.handle != 0);
-	pipeline_layout_impl *const layout_impl = reinterpret_cast<pipeline_layout_impl *>(layout.handle);
-	const auto push_constants = layout_impl->push_constants.get();
+	assert(first == 0);
 
-	if (void *mapped_ptr;
-		SUCCEEDED(push_constants->Map(D3D10_MAP_WRITE_DISCARD, 0, &mapped_ptr))) // TODO: No discard
+	if (count > _push_constants_size)
 	{
-		std::memcpy(static_cast<uint32_t *>(mapped_ptr) + first, values, count * sizeof(uint32_t));
+		// Enlarge push constant buffer to fit new requirement
+		D3D10_BUFFER_DESC desc = {};
+		desc.ByteWidth = count * sizeof(uint32_t);
+		desc.Usage = D3D10_USAGE_DYNAMIC;
+		desc.BindFlags = D3D10_BIND_CONSTANT_BUFFER;
+		desc.CPUAccessFlags = D3D10_CPU_ACCESS_WRITE;
 
+		if (FAILED(_orig->CreateBuffer(&desc, nullptr, &_push_constants)))
+		{
+			LOG(ERROR) << "Failed to create push constant buffer!";
+			return;
+		}
+
+		set_debug_name({ reinterpret_cast<uintptr_t>(_push_constants.get()) }, "Push constants");
+
+		_push_constants_size = count;
+	}
+
+	const auto push_constants = _push_constants.get();
+
+	// Discard the buffer to so driver can return a new memory region to avoid stalls
+	if (uint32_t *mapped_data;
+		SUCCEEDED(push_constants->Map(D3D10_MAP_WRITE_DISCARD, 0, reinterpret_cast<void **>(&mapped_data))))
+	{
+		std::memcpy(mapped_data + first, values, count * sizeof(uint32_t));
 		push_constants->Unmap();
 	}
 
+	const UINT push_constants_slot = layout.handle != 0 ?
+		reinterpret_cast<pipeline_layout_impl *>(layout.handle)->shader_registers[layout_index] : 0;
+
 	if ((stage & api::shader_stage::vertex) == api::shader_stage::vertex)
-		_orig->VSSetConstantBuffers(layout_impl->push_constants_binding, 1, &push_constants);
+		_orig->VSSetConstantBuffers(push_constants_slot, 1, &push_constants);
 	if ((stage & api::shader_stage::geometry) == api::shader_stage::geometry)
-		_orig->GSSetConstantBuffers(layout_impl->push_constants_binding, 1, &push_constants);
+		_orig->GSSetConstantBuffers(push_constants_slot, 1, &push_constants);
 	if ((stage & api::shader_stage::pixel) == api::shader_stage::pixel)
-		_orig->PSSetConstantBuffers(layout_impl->push_constants_binding, 1, &push_constants);
+		_orig->PSSetConstantBuffers(push_constants_slot, 1, &push_constants);
 }
 void reshade::d3d10::device_impl::push_descriptors(api::shader_stage stage, api::pipeline_layout layout, uint32_t layout_index, api::descriptor_type type, uint32_t first, uint32_t count, const void *descriptors)
 {

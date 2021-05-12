@@ -17,8 +17,7 @@ namespace
 
 	struct pipeline_layout_impl
 	{
-		com_ptr<ID3D11Buffer> push_constants;
-		UINT push_constants_binding;
+		std::vector<UINT> shader_registers;
 	};
 
 	struct pipeline_graphics_impl
@@ -60,6 +59,8 @@ namespace
 reshade::d3d11::device_impl::device_impl(ID3D11Device *device) :
 	api_object_impl(device)
 {
+	device->GetImmediateContext(&_immediate_context);
+
 #if RESHADE_ADDON
 	addon::load_addons();
 #endif
@@ -591,26 +592,12 @@ bool reshade::d3d11::device_impl::create_pipeline_layout(uint32_t num_table_layo
 	}
 
 	const auto layout = new pipeline_layout_impl();
+	layout->shader_registers.resize(num_table_layouts + num_constant_ranges);
 
 	if (num_constant_ranges == 1)
 	{
 		assert(constant_ranges[0].offset == 0);
-
-		D3D11_BUFFER_DESC desc = {};
-		desc.ByteWidth = constant_ranges[0].count * 4;;
-		desc.Usage = D3D11_USAGE_DYNAMIC;
-		desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-		desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-
-		if (FAILED(_orig->CreateBuffer(&desc, nullptr, &layout->push_constants)))
-		{
-			delete layout;
-
-			*out = { 0 };
-			return false;
-		}
-
-		layout->push_constants_binding = constant_ranges[0].dx_shader_register;
+		layout->shader_registers[num_table_layouts] = constant_ranges[0].dx_shader_register;
 	}
 
 	*out = { reinterpret_cast<uintptr_t>(layout) };
@@ -728,11 +715,8 @@ bool reshade::d3d11::device_impl::map_resource(api::resource resource, uint32_t 
 		break;
 	}
 
-	com_ptr<ID3D11DeviceContext> ctx;
-	_orig->GetImmediateContext(&ctx);
-
 	if (D3D11_MAPPED_SUBRESOURCE mapped_resource;
-		SUCCEEDED(ctx->Map(reinterpret_cast<ID3D11Resource *>(resource.handle), subresource, map_type, 0, &mapped_resource)))
+		SUCCEEDED(_immediate_context->Map(reinterpret_cast<ID3D11Resource *>(resource.handle), subresource, map_type, 0, &mapped_resource)))
 	{
 		*mapped_ptr = mapped_resource.pData;
 		return true;
@@ -745,10 +729,7 @@ bool reshade::d3d11::device_impl::map_resource(api::resource resource, uint32_t 
 }
 void reshade::d3d11::device_impl::unmap_resource(api::resource resource, uint32_t subresource)
 {
-	com_ptr<ID3D11DeviceContext> ctx;
-	_orig->GetImmediateContext(&ctx);
-
-	ctx->Unmap(reinterpret_cast<ID3D11Resource *>(resource.handle), subresource);
+	_immediate_context->Unmap(reinterpret_cast<ID3D11Resource *>(resource.handle), subresource);
 }
 
 void reshade::d3d11::device_impl::upload_buffer_region(api::resource dst, uint64_t dst_offset, const void *data, uint64_t size)
@@ -756,20 +737,14 @@ void reshade::d3d11::device_impl::upload_buffer_region(api::resource dst, uint64
 	assert(dst.handle != 0);
 	assert(dst_offset <= std::numeric_limits<UINT>::max() && size <= std::numeric_limits<UINT>::max());
 
-	com_ptr<ID3D11DeviceContext> ctx;
-	_orig->GetImmediateContext(&ctx);
-
 	const D3D11_BOX dst_box = { static_cast<UINT>(dst_offset), 0, 0, static_cast<UINT>(dst_offset + size), 1, 1 };
-	ctx->UpdateSubresource(reinterpret_cast<ID3D11Resource *>(dst.handle), 0, nullptr, data, static_cast<UINT>(size), static_cast<UINT>(size));
+	_immediate_context->UpdateSubresource(reinterpret_cast<ID3D11Resource *>(dst.handle), 0, nullptr, data, static_cast<UINT>(size), static_cast<UINT>(size));
 }
 void reshade::d3d11::device_impl::upload_texture_region(api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], const void *data, uint32_t row_pitch, uint32_t slice_pitch)
 {
 	assert(dst.handle != 0);
 
-	com_ptr<ID3D11DeviceContext> ctx;
-	_orig->GetImmediateContext(&ctx);
-
-	ctx->UpdateSubresource(reinterpret_cast<ID3D11Resource *>(dst.handle), dst_subresource, reinterpret_cast<const D3D11_BOX *>(dst_box), data, row_pitch, slice_pitch);
+	_immediate_context->UpdateSubresource(reinterpret_cast<ID3D11Resource *>(dst.handle), dst_subresource, reinterpret_cast<const D3D11_BOX *>(dst_box), data, row_pitch, slice_pitch);
 }
 
 void reshade::d3d11::device_impl::get_resource_from_view(api::resource_view view, api::resource *out_resource) const
@@ -824,14 +799,11 @@ reshade::api::resource_desc reshade::d3d11::device_impl::get_resource_desc(api::
 
 bool reshade::d3d11::device_impl::get_query_results(api::query_heap heap, uint32_t first, uint32_t count, void *results, uint32_t stride)
 {
-	com_ptr<ID3D11DeviceContext> ctx;
-	_orig->GetImmediateContext(&ctx);
-
 	const auto impl = reinterpret_cast<query_pool_impl *>(heap.handle);
 
 	for (UINT i = 0; i < count; ++i)
 	{
-		if (FAILED(ctx->GetData(impl->queries[i + first].get(), static_cast<uint8_t *>(results) + i * stride, stride, D3D11_ASYNC_GETDATA_DONOTFLUSH)))
+		if (FAILED(_immediate_context->GetData(impl->queries[i + first].get(), static_cast<uint8_t *>(results) + i * stride, stride, D3D11_ASYNC_GETDATA_DONOTFLUSH)))
 			return false;
 	}
 
@@ -857,6 +829,8 @@ reshade::d3d11::command_list_impl::~command_list_impl()
 reshade::d3d11::device_context_impl::device_context_impl(device_impl *device, ID3D11DeviceContext *context) :
 	api_object_impl(context), _device_impl(device)
 {
+	context->QueryInterface(&_annotations);
+
 	if (_orig->GetType() != D3D11_DEVICE_CONTEXT_IMMEDIATE)
 		invoke_addon_event<addon_event::init_command_list>(this);
 	else
@@ -1040,32 +1014,55 @@ void reshade::d3d11::device_context_impl::bind_constant_buffers(api::shader_stag
 		_orig->CSSetConstantBuffers(first, count, buffer_ptrs);
 }
 
-void reshade::d3d11::device_context_impl::push_constants(api::shader_stage stage, api::pipeline_layout layout, uint32_t, uint32_t first, uint32_t count, const uint32_t *values)
+void reshade::d3d11::device_context_impl::push_constants(api::shader_stage stage, api::pipeline_layout layout, uint32_t layout_index, uint32_t first, uint32_t count, const uint32_t *values)
 {
-	pipeline_layout_impl *const layout_impl = reinterpret_cast<pipeline_layout_impl *>(layout.handle);
-	const auto push_constants = layout_impl->push_constants.get();
+	assert(first == 0);
 
-	if (D3D11_MAPPED_SUBRESOURCE mapped;
-		SUCCEEDED(_orig->Map(push_constants, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) // TODO: No discard
+	if (count > _push_constants_size)
 	{
-		assert(mapped.RowPitch <= count * sizeof(uint32_t));
-		std::memcpy(static_cast<uint32_t *>(mapped.pData) + first, values, count * sizeof(uint32_t));
+		// Enlarge push constant buffer to fit new requirement
+		D3D11_BUFFER_DESC desc = {};
+		desc.ByteWidth = count * sizeof(uint32_t);
+		desc.Usage = D3D11_USAGE_DYNAMIC;
+		desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+		desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
+		if (FAILED(_device_impl->_orig->CreateBuffer(&desc, nullptr, &_push_constants)))
+		{
+			LOG(ERROR) << "Failed to create push constant buffer!";
+			return;
+		}
+
+		_device_impl->set_debug_name({ reinterpret_cast<uintptr_t>(_push_constants.get()) }, "Push constants");
+
+		_push_constants_size = count;
+	}
+
+	const auto push_constants = _push_constants.get();
+
+	// Discard the buffer to so driver can return a new memory region to avoid stalls
+	if (D3D11_MAPPED_SUBRESOURCE mapped;
+		SUCCEEDED(_orig->Map(push_constants, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
+	{
+		std::memcpy(static_cast<uint32_t *>(mapped.pData) + first, values, count * sizeof(uint32_t));
 		_orig->Unmap(push_constants, 0);
 	}
 
+	const UINT push_constants_slot = layout.handle != 0 ?
+		reinterpret_cast<pipeline_layout_impl *>(layout.handle)->shader_registers[layout_index] : 0;
+
 	if ((stage & api::shader_stage::vertex) == api::shader_stage::vertex)
-		_orig->VSSetConstantBuffers(layout_impl->push_constants_binding, 1, &push_constants);
+		_orig->VSSetConstantBuffers(push_constants_slot, 1, &push_constants);
 	if ((stage & api::shader_stage::hull) == api::shader_stage::hull)
-		_orig->HSSetConstantBuffers(layout_impl->push_constants_binding, 1, &push_constants);
+		_orig->HSSetConstantBuffers(push_constants_slot, 1, &push_constants);
 	if ((stage & api::shader_stage::domain) == api::shader_stage::domain)
-		_orig->DSSetConstantBuffers(layout_impl->push_constants_binding, 1, &push_constants);
+		_orig->DSSetConstantBuffers(push_constants_slot, 1, &push_constants);
 	if ((stage & api::shader_stage::geometry) == api::shader_stage::geometry)
-		_orig->GSSetConstantBuffers(layout_impl->push_constants_binding, 1, &push_constants);
+		_orig->GSSetConstantBuffers(push_constants_slot, 1, &push_constants);
 	if ((stage & api::shader_stage::pixel) == api::shader_stage::pixel)
-		_orig->PSSetConstantBuffers(layout_impl->push_constants_binding, 1, &push_constants);
+		_orig->PSSetConstantBuffers(push_constants_slot, 1, &push_constants);
 	if ((stage & api::shader_stage::compute) == api::shader_stage::compute)
-		_orig->CSSetConstantBuffers(layout_impl->push_constants_binding, 1, &push_constants);
+		_orig->CSSetConstantBuffers(push_constants_slot, 1, &push_constants);
 }
 void reshade::d3d11::device_context_impl::push_descriptors(api::shader_stage stage, api::pipeline_layout layout, uint32_t layout_index, api::descriptor_type type, uint32_t first, uint32_t count, const void *descriptors)
 {
@@ -1311,35 +1308,32 @@ void reshade::d3d11::device_context_impl::copy_query_results(api::query_heap, ap
 
 void reshade::d3d11::device_context_impl::begin_debug_marker(const char *label, const float[4])
 {
-	com_ptr<ID3DUserDefinedAnnotation> annotation;
-	if (SUCCEEDED(_orig->QueryInterface(&annotation)))
-	{
-		const size_t label_len = strlen(label);
-		std::wstring label_wide;
-		label_wide.reserve(label_len + 1);
-		utf8::unchecked::utf8to16(label, label + label_len, std::back_inserter(label_wide));
+	if (_annotations == nullptr)
+		return;
 
-		annotation->BeginEvent(label_wide.c_str());
-	}
+	const size_t label_len = strlen(label);
+	std::wstring label_wide;
+	label_wide.reserve(label_len + 1);
+	utf8::unchecked::utf8to16(label, label + label_len, std::back_inserter(label_wide));
+
+	_annotations->BeginEvent(label_wide.c_str());
 }
 void reshade::d3d11::device_context_impl::end_debug_marker()
 {
-	com_ptr<ID3DUserDefinedAnnotation> annotation;
-	if (SUCCEEDED(_orig->QueryInterface(&annotation)))
-	{
-		annotation->EndEvent();
-	}
+	if (_annotations == nullptr)
+		return;
+
+	_annotations->EndEvent();
 }
 void reshade::d3d11::device_context_impl::insert_debug_marker(const char *label, const float[4])
 {
-	com_ptr<ID3DUserDefinedAnnotation> annotation;
-	if (SUCCEEDED(_orig->QueryInterface(&annotation)))
-	{
-		const size_t label_len = strlen(label);
-		std::wstring label_wide;
-		label_wide.reserve(label_len + 1);
-		utf8::unchecked::utf8to16(label, label + label_len, std::back_inserter(label_wide));
+	if (_annotations == nullptr)
+		return;
 
-		annotation->SetMarker(label_wide.c_str());
-	}
+	const size_t label_len = strlen(label);
+	std::wstring label_wide;
+	label_wide.reserve(label_len + 1);
+	utf8::unchecked::utf8to16(label, label + label_len, std::back_inserter(label_wide));
+
+	_annotations->SetMarker(label_wide.c_str());
 }

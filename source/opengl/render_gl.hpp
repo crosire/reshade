@@ -147,6 +147,8 @@ namespace reshade::opengl
 		GLuint _main_fbo = 0;
 		GLuint _copy_fbo[2] = {};
 		GLuint _mipmap_program = 0;
+		GLuint _push_constants = 0;
+		GLuint _push_constants_size = 0;
 
 	protected:
 		// Cached context information for quick access

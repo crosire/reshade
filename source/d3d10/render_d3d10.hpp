@@ -129,6 +129,10 @@ namespace reshade::d3d10
 		void end_debug_marker() final;
 		void insert_debug_marker(const char *label, const float color[4]) final;
 
+	private:
+		UINT _push_constants_size = 0;
+		com_ptr<ID3D10Buffer> _push_constants;
+
 	protected:
 		com_object_list<ID3D10View> _views;
 		com_object_list<ID3D10Resource> _resources;
