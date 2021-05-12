@@ -525,7 +525,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
 			glClear(GL_COLOR_BUFFER_BIT);
 
-			wglSwapLayerBuffers(hdc, WGL_SWAP_MAIN_PLANE);
+#if 1
+			wglSwapLayerBuffers(hdc, WGL_SWAP_MAIN_PLANE); // Call directly for RenderDoc compatibility
+#else
+			SwapBuffers(hdc);
+#endif
 		}
 
 		wglMakeCurrent(nullptr, nullptr);
