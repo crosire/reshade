@@ -166,10 +166,6 @@ auto reshade::d3d9::convert_format(D3DFORMAT d3d_format) -> api::format
 		return api::format::a8_unorm;
 	case D3DFMT_L8:
 		return api::format::r8_unorm;
-#if 0
-	case D3DFMT_A8L8:
-		return api::format::r8g8_unorm;
-#endif
 	case D3DFMT_A8B8G8R8:
 #if 0
 	case D3DFMT_X8B8G8R8:
@@ -180,7 +176,6 @@ auto reshade::d3d9::convert_format(D3DFORMAT d3d_format) -> api::format
 	case D3DFMT_X8R8G8B8:
 		return api::format::b8g8r8x8_unorm;
 	case D3DFMT_A2B10G10R10:
-	case D3DFMT_A2R10G10B10:
 		return api::format::r10g10b10a2_unorm;
 	case D3DFMT_A2B10G10R10_XR_BIAS:
 		return api::format::r10g10b10a2_xr_bias;
@@ -204,7 +199,9 @@ auto reshade::d3d9::convert_format(D3DFORMAT d3d_format) -> api::format
 		return api::format::r32g32b32a32_float;
 	case D3DFMT_R5G6B5:
 		return api::format::b5g6r5_unorm;
+#if 0
 	case D3DFMT_X1R5G5B5:
+#endif
 	case D3DFMT_A1R5G5B5:
 		return api::format::b5g5r5a1_unorm;
 	case D3DFMT_A4R4G4B4:

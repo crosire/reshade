@@ -128,6 +128,8 @@ namespace reshade::d3d9
 	private:
 		state_block _backup_state;
 		com_ptr<IDirect3DStateBlock9> _copy_state;
+		com_ptr<IDirect3DVertexBuffer9> _default_input_stream;
+		com_ptr<IDirect3DVertexDeclaration9> _default_input_layout;
 
 	protected:
 		void on_reset();
