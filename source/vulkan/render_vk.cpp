@@ -1873,6 +1873,19 @@ reshade::vulkan::command_list_immediate_impl::command_list_immediate_impl(device
 		// The validation layers expect the loader to have set the dispatch pointer, but this does not happen when calling down the layer chain from here, so fix it
 		*reinterpret_cast<void **>(_cmd_buffers[i]) = *reinterpret_cast<void **>(device->_orig);
 
+		if (_device_impl->vk.SetDebugUtilsObjectNameEXT != nullptr)
+		{
+			std::string debug_name = "ReShade immediate command list";
+			debug_name += " (" + std::to_string(i) + ')';
+
+			VkDebugUtilsObjectNameInfoEXT name_info { VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT };
+			name_info.objectType = VK_OBJECT_TYPE_COMMAND_BUFFER;
+			name_info.objectHandle = (uint64_t)_cmd_buffers[i];
+			name_info.pObjectName = debug_name.c_str();
+
+			_device_impl->vk.SetDebugUtilsObjectNameEXT(_device_impl->_orig, &name_info);
+		}
+
 		VkFenceCreateInfo create_info { VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
 		create_info.flags = VK_FENCE_CREATE_SIGNALED_BIT; // Create signaled so waiting on it when no commands where submitted succeeds
 

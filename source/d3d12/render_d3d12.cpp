@@ -885,7 +885,7 @@ void reshade::d3d12::device_impl::wait_idle() const
 	{
 		queue->Signal(fence.get(), signal_value);
 		fence->SetEventOnCompletion(signal_value, fence_event);
-		WaitForSingleObject(fence_event, INFINITE);
+		WaitForSingleObject(fence_event, 1000); // Use a fixed time out to ensure this does not hang indefinetly in case something went wrong
 		signal_value++;
 	}
 
@@ -1388,6 +1388,9 @@ void reshade::d3d12::command_list_impl::copy_query_results(api::query_heap heap,
 
 void reshade::d3d12::command_list_impl::insert_barrier(uint32_t count, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states)
 {
+	if (count == 0)
+		return;
+
 	_has_commands = true;
 
 	const auto barriers = static_cast<D3D12_RESOURCE_BARRIER *>(alloca(sizeof(D3D12_RESOURCE_BARRIER) * count));
@@ -1465,7 +1468,7 @@ reshade::d3d12::command_list_immediate_impl::command_list_immediate_impl(device_
 
 	// Create and open the command list for recording
 	if (SUCCEEDED(_device_impl->_orig->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, _cmd_alloc[_cmd_index].get(), nullptr, IID_PPV_ARGS(&_orig))))
-		_orig->SetName(L"ReShade command list");
+		_orig->SetName(L"ReShade immediate command list");
 
 	// Create auto-reset event and fences for synchronization
 	_fence_event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
@@ -1498,7 +1501,7 @@ bool reshade::d3d12::command_list_immediate_impl::flush(ID3D12CommandQueue *queu
 		_device_impl->wait_idle();
 		_orig->Release(); _orig = nullptr;
 		if (SUCCEEDED(_device_impl->_orig->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, _cmd_alloc[_cmd_index].get(), nullptr, IID_PPV_ARGS(&_orig))))
-			_orig->SetName(L"ReShade command list");
+			_orig->SetName(L"ReShade immediate command list");
 		return false;
 	}
 
