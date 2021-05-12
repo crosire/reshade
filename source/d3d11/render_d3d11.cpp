@@ -59,7 +59,9 @@ namespace
 reshade::d3d11::device_impl::device_impl(ID3D11Device *device) :
 	api_object_impl(device)
 {
-	device->GetImmediateContext(&_immediate_context);
+	device->GetImmediateContext(&_immediate_context_orig);
+	// Parent 'D3D11Device' object already holds a reference to this
+	_immediate_context_orig->Release();
 
 #if RESHADE_ADDON
 	addon::load_addons();
@@ -716,7 +718,7 @@ bool reshade::d3d11::device_impl::map_resource(api::resource resource, uint32_t 
 	}
 
 	if (D3D11_MAPPED_SUBRESOURCE mapped_resource;
-		SUCCEEDED(_immediate_context->Map(reinterpret_cast<ID3D11Resource *>(resource.handle), subresource, map_type, 0, &mapped_resource)))
+		SUCCEEDED(_immediate_context_orig->Map(reinterpret_cast<ID3D11Resource *>(resource.handle), subresource, map_type, 0, &mapped_resource)))
 	{
 		*mapped_ptr = mapped_resource.pData;
 		return true;
@@ -729,7 +731,7 @@ bool reshade::d3d11::device_impl::map_resource(api::resource resource, uint32_t 
 }
 void reshade::d3d11::device_impl::unmap_resource(api::resource resource, uint32_t subresource)
 {
-	_immediate_context->Unmap(reinterpret_cast<ID3D11Resource *>(resource.handle), subresource);
+	_immediate_context_orig->Unmap(reinterpret_cast<ID3D11Resource *>(resource.handle), subresource);
 }
 
 void reshade::d3d11::device_impl::upload_buffer_region(api::resource dst, uint64_t dst_offset, const void *data, uint64_t size)
@@ -738,13 +740,13 @@ void reshade::d3d11::device_impl::upload_buffer_region(api::resource dst, uint64
 	assert(dst_offset <= std::numeric_limits<UINT>::max() && size <= std::numeric_limits<UINT>::max());
 
 	const D3D11_BOX dst_box = { static_cast<UINT>(dst_offset), 0, 0, static_cast<UINT>(dst_offset + size), 1, 1 };
-	_immediate_context->UpdateSubresource(reinterpret_cast<ID3D11Resource *>(dst.handle), 0, nullptr, data, static_cast<UINT>(size), static_cast<UINT>(size));
+	_immediate_context_orig->UpdateSubresource(reinterpret_cast<ID3D11Resource *>(dst.handle), 0, nullptr, data, static_cast<UINT>(size), static_cast<UINT>(size));
 }
 void reshade::d3d11::device_impl::upload_texture_region(api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], const void *data, uint32_t row_pitch, uint32_t slice_pitch)
 {
 	assert(dst.handle != 0);
 
-	_immediate_context->UpdateSubresource(reinterpret_cast<ID3D11Resource *>(dst.handle), dst_subresource, reinterpret_cast<const D3D11_BOX *>(dst_box), data, row_pitch, slice_pitch);
+	_immediate_context_orig->UpdateSubresource(reinterpret_cast<ID3D11Resource *>(dst.handle), dst_subresource, reinterpret_cast<const D3D11_BOX *>(dst_box), data, row_pitch, slice_pitch);
 }
 
 void reshade::d3d11::device_impl::get_resource_from_view(api::resource_view view, api::resource *out_resource) const
@@ -803,7 +805,7 @@ bool reshade::d3d11::device_impl::get_query_results(api::query_heap heap, uint32
 
 	for (UINT i = 0; i < count; ++i)
 	{
-		if (FAILED(_immediate_context->GetData(impl->queries[i + first].get(), static_cast<uint8_t *>(results) + i * stride, stride, D3D11_ASYNC_GETDATA_DONOTFLUSH)))
+		if (FAILED(_immediate_context_orig->GetData(impl->queries[i + first].get(), static_cast<uint8_t *>(results) + i * stride, stride, D3D11_ASYNC_GETDATA_DONOTFLUSH)))
 			return false;
 	}
 

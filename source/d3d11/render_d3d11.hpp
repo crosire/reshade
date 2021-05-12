@@ -75,9 +75,9 @@ namespace reshade::d3d11
 		void set_debug_name(api::resource resource, const char *name) final;
 
 	protected:
+		ID3D11DeviceContext *_immediate_context_orig = nullptr;
 		com_object_list<ID3D11View> _views;
 		com_object_list<ID3D11Resource> _resources;
-		com_ptr<ID3D11DeviceContext> _immediate_context;
 	};
 
 	class command_list_impl : public api::api_object_impl<ID3D11CommandList *, api::command_list>
