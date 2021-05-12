@@ -450,7 +450,7 @@ HOOK_EXPORT void *   VR_CALLTYPE VR_GetGenericInterface(const char *pchInterface
 	if (unsigned int compositor_version = 0;
 		std::sscanf(pchInterfaceVersion, "IVRCompositor_%u", &compositor_version))
 	{
-		// The 'IVRCompositor::Submit' function definition has been stable and has had the same vtable index since the OpenVR 1.0 release (which was at 'IVRCompositor_015')
+		// The 'IVRCompositor::Submit' function definition has been stable and has had the same virtual function table index since the OpenVR 1.0 release (which was at 'IVRCompositor_015')
 		if (compositor_version >= 12)
 			reshade::hooks::install("IVRCompositor::Submit", vtable_from_instance(static_cast<vr::IVRCompositor *>(interface_instance)), 5, reinterpret_cast<reshade::hook::address>(IVRCompositor_Submit_012));
 		else if (compositor_version >= 9)
