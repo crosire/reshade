@@ -7,6 +7,7 @@
 
 #include "opengl.hpp"
 #include "addon_manager.hpp"
+#include <unordered_map>
 #include <unordered_set>
 
 namespace reshade::opengl
@@ -17,9 +18,9 @@ namespace reshade::opengl
 			return { 0 };
 		return { (static_cast<uint64_t>(target) << 40) | object };
 	}
-	inline api::resource_view make_resource_view_handle(GLenum target_or_attachment, GLuint object)
+	inline api::resource_view make_resource_view_handle(GLenum target, GLuint object, uint8_t extra_bits = 0)
 	{
-		return { (static_cast<uint64_t>(target_or_attachment) << 40) | object };
+		return { (static_cast<uint64_t>(target) << 40) | (static_cast<uint64_t>(extra_bits) << 32) | object };
 	}
 
 	class device_impl : public api::api_object_impl<HGLRC, api::device, api::command_queue, api::command_list>
@@ -84,6 +85,8 @@ namespace reshade::opengl
 		api::resource_view get_depth_stencil_from_fbo(GLuint fbo) const;
 		api::resource_view get_render_target_from_fbo(GLuint fbo, GLuint drawbuffer) const;
 
+		void request_framebuffer(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv, GLuint &fbo);
+
 		api::device *get_device() override { return this; }
 
 		api::command_list *get_immediate_command_list() final { return this; }
@@ -144,7 +147,6 @@ namespace reshade::opengl
 		GLuint _current_vertex_count = 0; // Used to calculate vertex count inside glBegin/glEnd pairs
 
 	private:
-		GLuint _main_fbo = 0;
 		GLuint _copy_fbo[2] = {};
 		GLuint _mipmap_program = 0;
 		GLuint _push_constants = 0;
@@ -156,5 +158,6 @@ namespace reshade::opengl
 		GLuint _default_fbo_height = 0;
 		GLenum _default_color_format = GL_NONE;
 		GLenum _default_depth_format = GL_NONE;
+		std::unordered_map<size_t, GLuint> _framebuffer_list_internal;
 	};
 }

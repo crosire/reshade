@@ -150,6 +150,10 @@ void reshade::opengl::runtime_impl::on_reset()
 {
 	runtime::on_reset();
 
+	for (const auto &it : _framebuffer_list_internal)
+		glDeleteFramebuffers(1, &it.second);
+	_framebuffer_list_internal.clear();
+
 	glDeleteBuffers(NUM_BUF, _buf);
 	glDeleteTextures(NUM_TEX, _tex);
 	glDeleteTextures(static_cast<GLsizei>(_reserved_texture_names.size()), _reserved_texture_names.data());
