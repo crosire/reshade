@@ -4,6 +4,7 @@
  */
 
 #include "dll_log.hpp"
+#include "dll_resources.hpp"
 #include "render_d3d12.hpp"
 #include "render_d3d12_utils.hpp"
 #include "dxgi/format_utils.hpp"
@@ -31,17 +32,78 @@ namespace
 }
 
 reshade::d3d12::device_impl::device_impl(ID3D12Device *device) :
-	api_object_impl(device)
+	api_object_impl(device),
+	_view_heap(device),
+	_sampler_heap(device),
+	_rtv_heap(device),
+	_dsv_heap(device),
+	_online_view_heap(device),
+	_online_sampler_heap(device)
 {
 	for (UINT type = 0; type < D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES; ++type)
 	{
 		_descriptor_handle_size[type] = device->GetDescriptorHandleIncrementSize(static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>(type));
+	}
 
-		D3D12_DESCRIPTOR_HEAP_DESC heap_desc = {};
-		heap_desc.Type = static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>(type);
-		heap_desc.NumDescriptors = 32;
-		_orig->CreateDescriptorHeap(&heap_desc, IID_PPV_ARGS(&_resource_view_pool[type]));
-		_resource_view_pool_state[type].resize(heap_desc.NumDescriptors);
+	// Create mipmap generation states
+	{
+		D3D12_DESCRIPTOR_RANGE srv_range = {};
+		srv_range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+		srv_range.NumDescriptors = 1;
+		srv_range.BaseShaderRegister = 0; // t0
+		D3D12_DESCRIPTOR_RANGE uav_range = {};
+		uav_range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+		uav_range.NumDescriptors = 1;
+		uav_range.BaseShaderRegister = 0; // u0
+
+		D3D12_ROOT_PARAMETER params[3] = {};
+		params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+		params[0].Constants.ShaderRegister = 0; // b0
+		params[0].Constants.Num32BitValues = 2;
+		params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+		params[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		params[1].DescriptorTable.NumDescriptorRanges = 1;
+		params[1].DescriptorTable.pDescriptorRanges = &srv_range;
+		params[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+		params[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		params[2].DescriptorTable.NumDescriptorRanges = 1;
+		params[2].DescriptorTable.pDescriptorRanges = &uav_range;
+		params[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+		D3D12_STATIC_SAMPLER_DESC samplers[1] = {};
+		samplers[0].Filter = D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT;
+		samplers[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		samplers[0].AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		samplers[0].AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		samplers[0].ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+		samplers[0].ShaderRegister = 0; // s0
+		samplers[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+		D3D12_ROOT_SIGNATURE_DESC desc = {};
+		desc.NumParameters = ARRAYSIZE(params);
+		desc.pParameters = params;
+		desc.NumStaticSamplers = ARRAYSIZE(samplers);
+		desc.pStaticSamplers = samplers;
+
+		if (com_ptr<ID3DBlob> signature_blob;
+			FAILED(D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &signature_blob, nullptr)) ||
+			FAILED(_orig->CreateRootSignature(0, signature_blob->GetBufferPointer(), signature_blob->GetBufferSize(), IID_PPV_ARGS(&_mipmap_signature))))
+		{
+			LOG(ERROR) << "Failed to create mipmap generation signature!";
+			return;
+		}
+
+		D3D12_COMPUTE_PIPELINE_STATE_DESC pso_desc = {};
+		pso_desc.pRootSignature = _mipmap_signature.get();
+
+		const resources::data_resource cs = resources::load_data_resource(IDR_MIPMAP_CS);
+		pso_desc.CS = { cs.data, cs.data_size };
+
+		if (FAILED(_orig->CreateComputePipelineState(&pso_desc, IID_PPV_ARGS(&_mipmap_pipeline))))
+		{
+			LOG(ERROR) << "Failed to create mipmap generation pipeline!";
+			return;
+		}
 	}
 
 #if RESHADE_ADDON
@@ -53,6 +115,10 @@ reshade::d3d12::device_impl::device_impl(ID3D12Device *device) :
 reshade::d3d12::device_impl::~device_impl()
 {
 	assert(_queues.empty()); // All queues should have been unregistered and destroyed by the application at this point
+
+	// Do not call add-on events if initialization failed
+	if (_mipmap_pipeline == nullptr)
+		return;
 
 	invoke_addon_event<addon_event::destroy_device>(this);
 
@@ -138,8 +204,8 @@ bool reshade::d3d12::device_impl::check_resource_view_handle_valid(api::resource
 
 bool reshade::d3d12::device_impl::create_sampler(const api::sampler_desc &desc, api::sampler *out)
 {
-	D3D12_CPU_DESCRIPTOR_HANDLE descriptor_handle = allocate_descriptor_handle(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
-	if (descriptor_handle.ptr == 0)
+	D3D12_CPU_DESCRIPTOR_HANDLE descriptor_handle;
+	if (!_sampler_heap.allocate(descriptor_handle))
 	{
 		*out = { 0 };
 		return false;
@@ -171,8 +237,13 @@ bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc
 	if ((desc.usage & api::resource_usage::constant_buffer) != api::resource_usage::undefined)
 		internal_desc.Width = (internal_desc.Width + D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT - 1u) & ~(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT - 1u);
 
+	// Use a default clear value of transparent black (all zeroes)
+	D3D12_CLEAR_VALUE default_clear_value = {};
+	default_clear_value.Format = make_dxgi_format_normal(internal_desc.Format);
+	const bool use_default_clear_value = (desc.usage & (api::resource_usage::depth_stencil | api::resource_usage::render_target)) != api::resource_usage::undefined;
+
 	if (com_ptr<ID3D12Resource> object;
-		SUCCEEDED(_orig->CreateCommittedResource(&heap_props, heap_flags, &internal_desc, convert_resource_usage_to_states(initial_state), nullptr, IID_PPV_ARGS(&object))))
+		SUCCEEDED(_orig->CreateCommittedResource(&heap_props, heap_flags, &internal_desc, convert_resource_usage_to_states(initial_state), use_default_clear_value ? &default_clear_value : nullptr, IID_PPV_ARGS(&object))))
 	{
 		_resources.register_object(object.get());
 		*out = { reinterpret_cast<uintptr_t>(object.release()) };
@@ -192,8 +263,8 @@ bool reshade::d3d12::device_impl::create_resource_view(api::resource resource, a
 	{
 		case api::resource_usage::depth_stencil:
 		{
-			D3D12_CPU_DESCRIPTOR_HANDLE descriptor_handle = allocate_descriptor_handle(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
-			if (descriptor_handle.ptr == 0)
+			D3D12_CPU_DESCRIPTOR_HANDLE descriptor_handle;
+			if (!_dsv_heap.allocate(descriptor_handle))
 				break; // No more space available in the descriptor heap
 
 			D3D12_DEPTH_STENCIL_VIEW_DESC internal_desc = {};
@@ -207,8 +278,8 @@ bool reshade::d3d12::device_impl::create_resource_view(api::resource resource, a
 		}
 		case api::resource_usage::render_target:
 		{
-			D3D12_CPU_DESCRIPTOR_HANDLE descriptor_handle = allocate_descriptor_handle(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-			if (descriptor_handle.ptr == 0)
+			D3D12_CPU_DESCRIPTOR_HANDLE descriptor_handle;
+			if (!_rtv_heap.allocate(descriptor_handle))
 				break;
 
 			D3D12_RENDER_TARGET_VIEW_DESC internal_desc = {};
@@ -222,8 +293,8 @@ bool reshade::d3d12::device_impl::create_resource_view(api::resource resource, a
 		}
 		case api::resource_usage::shader_resource:
 		{
-			D3D12_CPU_DESCRIPTOR_HANDLE descriptor_handle = allocate_descriptor_handle(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-			if (descriptor_handle.ptr == 0)
+			D3D12_CPU_DESCRIPTOR_HANDLE descriptor_handle;
+			if (!_view_heap.allocate(descriptor_handle))
 				break;
 
 			D3D12_SHADER_RESOURCE_VIEW_DESC internal_desc = {};
@@ -238,8 +309,8 @@ bool reshade::d3d12::device_impl::create_resource_view(api::resource resource, a
 		}
 		case api::resource_usage::unordered_access:
 		{
-			D3D12_CPU_DESCRIPTOR_HANDLE descriptor_handle = allocate_descriptor_handle(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-			if (descriptor_handle.ptr == 0)
+			D3D12_CPU_DESCRIPTOR_HANDLE descriptor_handle;
+			if (!_view_heap.allocate(descriptor_handle))
 				break;
 
 			D3D12_UNORDERED_ACCESS_VIEW_DESC internal_desc = {};
@@ -692,13 +763,7 @@ void reshade::d3d12::device_impl::destroy_sampler(api::sampler handle)
 		return;
 
 	const std::lock_guard<std::mutex> lock(_mutex);
-
-	const D3D12_CPU_DESCRIPTOR_HANDLE heap_start = _resource_view_pool[D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER]->GetCPUDescriptorHandleForHeapStart();
-	if (handle.handle >= heap_start.ptr && handle.handle < (heap_start.ptr + _resource_view_pool_state[D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER].size() * _descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER]))
-	{
-		const size_t index = static_cast<size_t>(handle.handle - heap_start.ptr) / _descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER];
-		_resource_view_pool_state[D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER][index] = false;
-	}
+	_sampler_heap.deallocate({ static_cast<SIZE_T>(handle.handle) });
 }
 void reshade::d3d12::device_impl::destroy_resource(api::resource handle)
 {
@@ -713,17 +778,10 @@ void reshade::d3d12::device_impl::destroy_resource_view(api::resource_view handl
 	const std::lock_guard<std::mutex> lock(_mutex);
 	_views.erase(handle.handle);
 
-	// Mark free slot in the descriptor heap
-	for (UINT type = 0; type < D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES; ++type)
-	{
-		const D3D12_CPU_DESCRIPTOR_HANDLE heap_start = _resource_view_pool[type]->GetCPUDescriptorHandleForHeapStart();
-		if (handle.handle >= heap_start.ptr && handle.handle < (heap_start.ptr + _resource_view_pool_state[type].size() * _descriptor_handle_size[type]))
-		{
-			const size_t index = static_cast<size_t>(handle.handle - heap_start.ptr) / _descriptor_handle_size[type];
-			_resource_view_pool_state[type][index] = false;
-			break;
-		}
-	}
+	_view_heap.deallocate({ static_cast<SIZE_T>(handle.handle) });
+	_sampler_heap.deallocate({ static_cast<SIZE_T>(handle.handle) });
+	_rtv_heap.deallocate({ static_cast<SIZE_T>(handle.handle) });
+	_dsv_heap.deallocate({ static_cast<SIZE_T>(handle.handle) });
 }
 
 void reshade::d3d12::device_impl::destroy_pipeline(api::pipeline_type, api::pipeline handle)
@@ -1014,27 +1072,6 @@ void reshade::d3d12::device_impl::set_debug_name(api::resource resource, const c
 	reinterpret_cast<ID3D12Resource *>(resource.handle)->SetName(debug_name_wide.c_str());
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE reshade::d3d12::device_impl::allocate_descriptor_handle(D3D12_DESCRIPTOR_HEAP_TYPE type)
-{
-	std::vector<bool> &state = _resource_view_pool_state[type];
-	// Find free entry in the descriptor heap
-	const std::lock_guard<std::mutex> lock(_mutex);
-	if (const auto it = std::find(state.begin(), state.end(), false);
-		it != state.end() && _resource_view_pool[type] != nullptr)
-	{
-		const size_t index = it - state.begin();
-		state[index] = true; // Mark this entry as being in use
-
-		D3D12_CPU_DESCRIPTOR_HANDLE descriptor_handle = _resource_view_pool[type]->GetCPUDescriptorHandleForHeapStart();
-		descriptor_handle.ptr += index * _descriptor_handle_size[type];
-		return descriptor_handle;
-	}
-	else
-	{
-		return D3D12_CPU_DESCRIPTOR_HANDLE { 0 };
-	}
-}
-
 reshade::d3d12::command_list_impl::command_list_impl(device_impl *device, ID3D12GraphicsCommandList *cmd_list) :
 	api_object_impl(cmd_list), _device_impl(device), _has_commands(cmd_list != nullptr)
 {
@@ -1143,6 +1180,9 @@ void reshade::d3d12::command_list_impl::bind_descriptor_heaps(uint32_t count, co
 #endif
 
 	_orig->SetDescriptorHeaps(count, heap_ptrs);
+
+	for (UINT i = 0; i < 2; ++i)
+		_current_descriptor_heaps[i] = i < count ? reinterpret_cast<ID3D12DescriptorHeap *>(heaps[i].handle) : nullptr;
 }
 void reshade::d3d12::command_list_impl::bind_descriptor_tables(api::pipeline_type type, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_table *tables)
 {
@@ -1426,7 +1466,87 @@ void reshade::d3d12::command_list_impl::copy_texture_to_buffer(api::resource src
 
 void reshade::d3d12::command_list_impl::generate_mipmaps(api::resource_view srv)
 {
-	assert(false); // TODO
+	assert(srv.handle != 0);
+	api::resource resource_handle;
+	_device_impl->get_resource_from_view(srv, &resource_handle);
+	assert(resource_handle.handle != 0);
+
+	const auto resource = reinterpret_cast<ID3D12Resource *>(resource_handle.handle);
+
+	const D3D12_RESOURCE_DESC desc = resource->GetDesc();
+
+	D3D12_CPU_DESCRIPTOR_HANDLE table_base;
+	D3D12_GPU_DESCRIPTOR_HANDLE table_base_gpu;
+	if (!_device_impl->_online_view_heap.allocate(desc.MipLevels * 2, table_base, table_base_gpu))
+		return;
+
+	for (uint32_t level = 0; level < desc.MipLevels; ++level, table_base.ptr += _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV])
+	{
+		D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc;
+		srv_desc.Format = make_dxgi_format_normal(desc.Format);
+		srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srv_desc.Texture2D.MipLevels = 1;
+		srv_desc.Texture2D.MostDetailedMip = level;
+		srv_desc.Texture2D.PlaneSlice = 0;
+		srv_desc.Texture2D.ResourceMinLODClamp = 0.0f;
+
+		_device_impl->_orig->CreateShaderResourceView(resource, &srv_desc, table_base);
+	}
+	for (uint32_t level = 1; level < desc.MipLevels; ++level, table_base.ptr += _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV])
+	{
+		D3D12_UNORDERED_ACCESS_VIEW_DESC uav_desc;
+		uav_desc.Format = make_dxgi_format_normal(desc.Format);
+		uav_desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+		uav_desc.Texture2D.MipSlice = level;
+		uav_desc.Texture2D.PlaneSlice = 0;
+
+		_device_impl->_orig->CreateUnorderedAccessView(resource, nullptr, &uav_desc, table_base);
+	}
+
+	const auto view_heap = _device_impl->_online_view_heap.get();
+	if (_current_descriptor_heaps[0] != view_heap && _current_descriptor_heaps[1] != view_heap)
+		_orig->SetDescriptorHeaps(1, &view_heap);
+
+	_orig->SetComputeRootSignature(_device_impl->_mipmap_signature.get());
+	_orig->SetPipelineState(_device_impl->_mipmap_pipeline.get());
+
+	D3D12_RESOURCE_BARRIER transition = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
+	transition.Transition.pResource = resource;
+	transition.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+	transition.Transition.StateBefore = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+	transition.Transition.StateAfter = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+	_orig->ResourceBarrier(1, &transition);
+
+	for (uint32_t level = 1; level < desc.MipLevels; ++level)
+	{
+		const uint32_t width = std::max(1u, static_cast<uint32_t>(desc.Width) >> level);
+		const uint32_t height = std::max(1u, desc.Height >> level);
+
+		const float dimensions[2] = { 1.0f / width, 1.0f / height };
+		_orig->SetComputeRoot32BitConstants(0, 2, dimensions, 0);
+
+		// Bind next higher mipmap level as input
+		_orig->SetComputeRootDescriptorTable(1, { table_base_gpu.ptr + _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV] * (level - 1) });
+		// There is no UAV for level 0, so substract one
+		_orig->SetComputeRootDescriptorTable(2, { table_base_gpu.ptr + _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV] * (desc.MipLevels + level - 1) });
+
+		_orig->Dispatch(std::max(1u, (width + 7) / 8), std::max(1u, (height + 7) / 8), 1);
+
+		// Wait for all accesses to be finished, since the result will be the input for the next mipmap
+		D3D12_RESOURCE_BARRIER barrier = { D3D12_RESOURCE_BARRIER_TYPE_UAV };
+		barrier.UAV.pResource = transition.Transition.pResource;
+		_orig->ResourceBarrier(1, &barrier);
+	}
+
+	std::swap(transition.Transition.StateBefore, transition.Transition.StateAfter);
+	_orig->ResourceBarrier(1, &transition);
+
+	// Reset root signature and descriptor heaps
+	_orig->SetComputeRootSignature(_current_root_signature[1]);
+
+	if (_current_descriptor_heaps[0] != view_heap && _current_descriptor_heaps[1] != view_heap && _current_descriptor_heaps[0] != nullptr)
+		_orig->SetDescriptorHeaps(_current_descriptor_heaps[1] != nullptr ? 2 : 1, _current_descriptor_heaps);
 }
 
 void reshade::d3d12::command_list_impl::clear_depth_stencil_view(api::resource_view dsv, uint32_t clear_flags, float depth, uint8_t stencil)
@@ -1453,18 +1573,52 @@ void reshade::d3d12::command_list_impl::clear_unordered_access_view_uint(api::re
 	_has_commands = true;
 
 	assert(uav.handle != 0);
+	api::resource resource_handle;
+	_device_impl->get_resource_from_view(uav, &resource_handle);
+	assert(resource_handle.handle != 0);
 
-	assert(false); // TODO
-	// _orig->ClearUnorderedAccessViewUint(D3D12_GPU_DESCRIPTOR_HANDLE { 0 }, D3D12_CPU_DESCRIPTOR_HANDLE { uav.handle }, nullptr, values, 0, nullptr); // TODO
+	const auto resource = reinterpret_cast<ID3D12Resource *>(resource_handle.handle);
+
+	D3D12_CPU_DESCRIPTOR_HANDLE table_base;
+	D3D12_GPU_DESCRIPTOR_HANDLE table_base_gpu;
+	if (!_device_impl->_online_view_heap.allocate(1, table_base, table_base_gpu))
+		return;
+
+	const auto view_heap = _device_impl->_online_view_heap.get();
+	if (_current_descriptor_heaps[0] != view_heap && _current_descriptor_heaps[1] != view_heap)
+		_orig->SetDescriptorHeaps(1, &view_heap);
+
+	_device_impl->_orig->CreateUnorderedAccessView(resource, nullptr, nullptr, table_base);
+	_orig->ClearUnorderedAccessViewUint(table_base_gpu, D3D12_CPU_DESCRIPTOR_HANDLE { uav.handle }, resource, values, 0, nullptr);
+
+	if (_current_descriptor_heaps[0] != view_heap && _current_descriptor_heaps[1] != view_heap && _current_descriptor_heaps[0] != nullptr)
+		_orig->SetDescriptorHeaps(_current_descriptor_heaps[1] != nullptr ? 2 : 1, _current_descriptor_heaps);
 }
 void reshade::d3d12::command_list_impl::clear_unordered_access_view_float(api::resource_view uav, const float values[4])
 {
 	_has_commands = true;
 
 	assert(uav.handle != 0);
+	api::resource resource_handle;
+	_device_impl->get_resource_from_view(uav, &resource_handle);
+	assert(resource_handle.handle != 0);
 
-	assert(false); // TODO
-	// _orig->ClearUnorderedAccessViewFloat(D3D12_GPU_DESCRIPTOR_HANDLE { 0 }, D3D12_CPU_DESCRIPTOR_HANDLE { uav.handle }, nullptr, values, 0, nullptr); // TODO
+	const auto resource = reinterpret_cast<ID3D12Resource *>(resource_handle.handle);
+
+	D3D12_CPU_DESCRIPTOR_HANDLE table_base;
+	D3D12_GPU_DESCRIPTOR_HANDLE table_base_gpu;
+	if (!_device_impl->_online_view_heap.allocate(1, table_base, table_base_gpu))
+		return;
+
+	const auto view_heap = _device_impl->_online_view_heap.get();
+	if (_current_descriptor_heaps[0] != view_heap && _current_descriptor_heaps[1] != view_heap)
+		_orig->SetDescriptorHeaps(1, &view_heap);
+
+	_device_impl->_orig->CreateUnorderedAccessView(resource, nullptr, nullptr, table_base);
+	_orig->ClearUnorderedAccessViewFloat(table_base_gpu, D3D12_CPU_DESCRIPTOR_HANDLE { uav.handle }, resource, values, 0, nullptr);
+
+	if (_current_descriptor_heaps[0] != view_heap && _current_descriptor_heaps[1] != view_heap && _current_descriptor_heaps[0] != nullptr)
+		_orig->SetDescriptorHeaps(_current_descriptor_heaps[1] != nullptr ? 2 : 1, _current_descriptor_heaps);
 }
 
 void reshade::d3d12::command_list_impl::begin_query(api::query_heap heap, api::query_type type, uint32_t index)
@@ -1605,6 +1759,8 @@ bool reshade::d3d12::command_list_immediate_impl::flush(ID3D12CommandQueue *queu
 
 	_current_root_signature[0] = nullptr;
 	_current_root_signature[1] = nullptr;
+	_current_descriptor_heaps[0] = nullptr;
+	_current_descriptor_heaps[1] = nullptr;
 
 	assert(_orig != nullptr);
 

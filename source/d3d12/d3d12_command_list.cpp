@@ -339,6 +339,9 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetDescriptorHeaps(UINT NumDesc
 {
 	_orig->SetDescriptorHeaps(NumDescriptorHeaps, ppDescriptorHeaps);
 
+	for (UINT i = 0; i < 2; ++i)
+		_current_descriptor_heaps[i] = i < NumDescriptorHeaps ? ppDescriptorHeaps[i] : nullptr;
+
 #if RESHADE_ADDON
 #ifndef WIN64
 	const auto heap_handles = static_cast<reshade::api::descriptor_heap *>(alloca(NumDescriptorHeaps * sizeof(reshade::api::descriptor_heap)));
@@ -356,17 +359,13 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootSignature(ID3D12R
 {
 	_orig->SetComputeRootSignature(pRootSignature);
 
-#if RESHADE_ADDON
 	_current_root_signature[1] = pRootSignature;
-#endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRootSignature(ID3D12RootSignature *pRootSignature)
 {
 	_orig->SetGraphicsRootSignature(pRootSignature);
 
-#if RESHADE_ADDON
 	_current_root_signature[0] = pRootSignature;
-#endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootDescriptorTable(UINT RootParameterIndex, D3D12_GPU_DESCRIPTOR_HANDLE BaseDescriptor)
 {

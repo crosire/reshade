@@ -14,8 +14,143 @@
 
 namespace reshade::d3d12
 {
+	template <D3D12_DESCRIPTOR_HEAP_TYPE type>
+	class descriptor_heap_cpu
+	{
+		struct heap_info
+		{
+			com_ptr<ID3D12DescriptorHeap> heap;
+			std::vector<bool> state;
+			SIZE_T heap_base;
+		};
+
+		const UINT pool_size = 1024;
+
+	public:
+		explicit descriptor_heap_cpu(ID3D12Device *device) :
+			_device(device)
+		{
+			_increment_size = device->GetDescriptorHandleIncrementSize(type);
+		}
+
+		bool allocate(D3D12_CPU_DESCRIPTOR_HANDLE &handle)
+		{
+			for (heap_info &heap_info : _heap_infos)
+			{
+				// Find free empty in the heap
+				if (const auto it = std::find(heap_info.state.begin(), heap_info.state.end(), false);
+					it != heap_info.state.end())
+				{
+					const size_t index = it - heap_info.state.begin();
+					heap_info.state[index] = true; // Mark this entry as being in use
+
+					handle.ptr = heap_info.heap_base + index * _increment_size;
+					return true;
+				}
+			}
+
+			// No more space available in the existing heaps, so create a new one and try again
+			return allocate_heap() && allocate(handle);
+		}
+
+		void deallocate(D3D12_CPU_DESCRIPTOR_HANDLE handle)
+		{
+			for (heap_info &heap_info : _heap_infos)
+			{
+				const SIZE_T heap_beg = heap_info.heap_base;
+				const SIZE_T heap_end = heap_info.heap_base + pool_size * _increment_size;
+
+				if (handle.ptr >= heap_beg && handle.ptr < heap_end)
+				{
+					const SIZE_T index = (handle.ptr - heap_beg) / _increment_size;
+
+					// Mark free slot in the descriptor heap
+					heap_info.state[index] = false;
+					break;
+				}
+			}
+		}
+
+	private:
+		bool allocate_heap()
+		{
+			heap_info &heap_info = _heap_infos.emplace_back();
+
+			D3D12_DESCRIPTOR_HEAP_DESC desc;
+			desc.Type = type;
+			desc.NumDescriptors = pool_size;
+			desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+			desc.NodeMask = 0;
+
+			if (FAILED(_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&heap_info.heap))))
+			{
+				_heap_infos.pop_back();
+				return false;
+			}
+
+			heap_info.heap_base = heap_info.heap->GetCPUDescriptorHandleForHeapStart().ptr;
+			heap_info.state.resize(pool_size);
+
+			return true;
+		}
+
+		ID3D12Device *const _device;
+		std::vector<heap_info> _heap_infos;
+		SIZE_T _increment_size;
+	};
+
+	template <D3D12_DESCRIPTOR_HEAP_TYPE type, UINT size>
+	class descriptor_heap_gpu
+	{
+	public:
+		explicit descriptor_heap_gpu(ID3D12Device *device, UINT node_mask = 0)
+		{
+			D3D12_DESCRIPTOR_HEAP_DESC desc;
+			desc.Type = type;
+			desc.NumDescriptors = size;
+			desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+			desc.NodeMask = node_mask;
+
+			if (FAILED(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&_heap))))
+				return;
+
+			_heap_base = _heap->GetCPUDescriptorHandleForHeapStart().ptr;
+			_heap_base_gpu = _heap->GetGPUDescriptorHandleForHeapStart().ptr;
+			_increment_size = device->GetDescriptorHandleIncrementSize(type);
+		}
+
+		bool allocate(UINT count, D3D12_CPU_DESCRIPTOR_HANDLE &base_handle, D3D12_GPU_DESCRIPTOR_HANDLE &base_handle_gpu)
+		{
+			if (_heap == nullptr)
+				return false;
+
+			UINT64 index = _current_tail_index % size;
+
+			// Allocations need to be contiguous
+			if (index + count > size)
+				_current_tail_index += size - index, index = 0;
+
+			const SIZE_T offset = index * _increment_size;
+			base_handle.ptr = _heap_base + offset;
+			base_handle_gpu.ptr = _heap_base_gpu + offset;
+
+			return true;
+		}
+
+		ID3D12DescriptorHeap *get() const { return _heap.get(); }
+
+	private:
+		com_ptr<ID3D12DescriptorHeap> _heap;
+		SIZE_T _heap_base;
+		SIZE_T _heap_base_gpu;
+		SIZE_T _increment_size;
+		UINT64 _current_tail_index = 0;
+	};
+
+
 	class device_impl : public api::api_object_impl<ID3D12Device *, api::device>
 	{
+		friend class command_list_impl;
 		friend class command_queue_impl;
 
 	public:
@@ -99,16 +234,24 @@ namespace reshade::d3d12
 		UINT _descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
 
 	private:
-		D3D12_CPU_DESCRIPTOR_HANDLE allocate_descriptor_handle(D3D12_DESCRIPTOR_HEAP_TYPE type);
-
 		mutable std::mutex _mutex;
 		std::vector<command_queue_impl *> _queues;
-		std::vector<bool> _resource_view_pool_state[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
-		com_ptr<ID3D12DescriptorHeap> _resource_view_pool[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
 		std::vector<std::pair<ID3D12Resource *, D3D12_GPU_VIRTUAL_ADDRESS_RANGE>> _buffer_gpu_addresses;
 
 		std::unordered_map<UINT64, D3D12_CPU_DESCRIPTOR_HANDLE> _descriptor_table_map;
 		std::unordered_map<ID3D12DescriptorHeap *, UINT> _descriptor_heap_offset;
+
+		com_ptr<ID3D12PipelineState> _mipmap_pipeline;
+		com_ptr<ID3D12RootSignature> _mipmap_signature;
+
+		descriptor_heap_cpu<D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV> _view_heap;
+		descriptor_heap_cpu<D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER> _sampler_heap;
+		descriptor_heap_cpu<D3D12_DESCRIPTOR_HEAP_TYPE_RTV> _rtv_heap;
+		descriptor_heap_cpu<D3D12_DESCRIPTOR_HEAP_TYPE_DSV> _dsv_heap;
+
+		descriptor_heap_gpu<D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 4096> _online_view_heap;
+		descriptor_heap_gpu<D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, 512> _online_sampler_heap;
+
 
 	protected:
 		inline void register_resource_view(ID3D12Resource *resource, D3D12_CPU_DESCRIPTOR_HANDLE handle)
@@ -188,7 +331,10 @@ namespace reshade::d3d12
 		device_impl *const _device_impl;
 		bool _has_commands = false;
 
+		// Currently bound root signature (graphics at index 0, compute at index 1)
 		ID3D12RootSignature *_current_root_signature[2] = {};
+		// Currently bound descriptor heaps (there can only be one of each shader visible type, so a maximum of two)
+		ID3D12DescriptorHeap *_current_descriptor_heaps[2] = {};
 	};
 
 	class command_list_immediate_impl : public command_list_impl
