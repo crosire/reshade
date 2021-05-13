@@ -438,6 +438,16 @@ auto reshade::vulkan::convert_usage_to_pipeline_stage(api::resource_usage state,
 
 void reshade::vulkan::convert_usage_to_image_usage_flags(api::resource_usage usage, VkImageUsageFlags &image_flags)
 {
+	if ((usage & (api::resource_usage::copy_dest | api::resource_usage::resolve_dest)) != api::resource_usage::undefined)
+		image_flags |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+	else
+		image_flags &= ~VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+
+	if ((usage & (api::resource_usage::copy_source | api::resource_usage::resolve_source)) != api::resource_usage::undefined)
+		image_flags |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+	else
+		image_flags &= ~VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+
 	if ((usage & api::resource_usage::depth_stencil) != api::resource_usage::undefined)
 		// Add transfer destination usage as well to support clearing via 'vkCmdClearDepthStencilImage'
 		image_flags |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
@@ -459,16 +469,6 @@ void reshade::vulkan::convert_usage_to_image_usage_flags(api::resource_usage usa
 		image_flags |= VK_IMAGE_USAGE_STORAGE_BIT;
 	else
 		image_flags &= ~VK_IMAGE_USAGE_STORAGE_BIT;
-
-	if ((usage & (api::resource_usage::copy_dest | api::resource_usage::resolve_dest)) != api::resource_usage::undefined)
-		image_flags |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-	else
-		image_flags &= ~VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-
-	if ((usage & (api::resource_usage::copy_source | api::resource_usage::resolve_source)) != api::resource_usage::undefined)
-		image_flags |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-	else
-		image_flags &= ~VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 }
 static inline void convert_image_usage_flags_to_usage(const VkImageUsageFlags image_flags, reshade::api::resource_usage &usage)
 {

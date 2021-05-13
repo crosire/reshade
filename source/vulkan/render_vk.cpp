@@ -1075,6 +1075,15 @@ void reshade::vulkan::device_impl::wait_idle() const
 {
 	vk.DeviceWaitIdle(_orig);
 
+	// Make sure any pending work gets executed here, so it is not enqueued later (at which point the referenced objects may have been destroyed by the code calling this)
+	// Do this after waiting for idle, since it should run after all work by the application is done and is synchronous anyway
+	for (command_queue_impl *const queue : _queues)
+	{
+		const auto immediate_command_list = static_cast<command_list_immediate_impl *>(queue->get_immediate_command_list());
+		if (immediate_command_list != nullptr)
+			immediate_command_list->flush_and_wait(queue->_orig);
+	}
+
 #ifndef NDEBUG
 	_wait_for_idle_happened = true;
 #endif
@@ -2015,6 +2024,8 @@ bool reshade::vulkan::command_list_immediate_impl::flush(VkQueue queue, std::vec
 		return true;
 	_has_commands = false;
 
+	assert(_orig != VK_NULL_HANDLE);
+
 	// Submit all asynchronous commands in one batch to the current queue
 	if (_device_impl->vk.EndCommandBuffer(_orig) != VK_SUCCESS)
 	{
@@ -2075,6 +2086,9 @@ bool reshade::vulkan::command_list_immediate_impl::flush(VkQueue queue, std::vec
 }
 bool reshade::vulkan::command_list_immediate_impl::flush_and_wait(VkQueue queue)
 {
+	if (!_has_commands)
+		return true;
+
 	// Index is updated during flush below, so keep track of the current one to wait on
 	const uint32_t cmd_index_to_wait_on = _cmd_index;
 
@@ -2096,6 +2110,14 @@ reshade::vulkan::command_queue_impl::command_queue_impl(device_impl *device, uin
 	if ((queue_family.queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0)
 	{
 		_immediate_cmd_list = new command_list_immediate_impl(device, queue_family_index);
+		// Ensure the immediate command list was initialized successfully, otherwise disable it
+		if (_immediate_cmd_list->_orig == VK_NULL_HANDLE)
+		{
+			LOG(ERROR) << "Failed to create immediate command list for queue " << _orig << '!';
+
+			delete _immediate_cmd_list;
+			_immediate_cmd_list = nullptr;
+		}
 	}
 
 	invoke_addon_event<addon_event::init_command_queue>(this);
@@ -2115,6 +2137,17 @@ void reshade::vulkan::command_queue_impl::flush_immediate_command_list() const
 	std::vector<VkSemaphore> wait_semaphores; // No semaphores to wait on
 	if (_immediate_cmd_list != nullptr)
 		_immediate_cmd_list->flush(_orig, wait_semaphores);
+}
+
+void reshade::vulkan::command_queue_impl::wait_idle() const
+{
+	flush_immediate_command_list();
+
+	_device_impl->vk.QueueWaitIdle(_orig);
+
+#ifndef NDEBUG
+	_device_impl->_wait_for_idle_happened = true;
+#endif
 }
 
 void reshade::vulkan::command_queue_impl::begin_debug_marker(const char *label, const float color[4])

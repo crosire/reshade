@@ -150,6 +150,8 @@ namespace reshade::d3d11
 
 		void flush_immediate_command_list() const final;
 
+		void wait_idle() const final { /* no-op */ }
+
 		void bind_pipeline(api::pipeline_type type, api::pipeline pipeline) final;
 		void bind_pipeline_states(uint32_t count, const api::pipeline_state *states, const uint32_t *values) final;
 		void bind_viewports(uint32_t first, uint32_t count, const float *viewports) final;

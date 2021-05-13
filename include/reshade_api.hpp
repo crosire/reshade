@@ -786,6 +786,12 @@ namespace reshade { namespace api
 		virtual void flush_immediate_command_list() const  = 0;
 
 		/// <summary>
+		/// Waits for all issued GPU operations on this queue to finish before returning.
+		/// This can be used to ensure that e.g. resources are no longer in use on the GPU before destroying them.
+		/// </summary>
+		virtual void wait_idle() const = 0;
+
+		/// <summary>
 		/// Opens a debug marker region in the command queue.
 		/// </summary>
 		/// <param name="label">A null-terminated string containing the label of the debug marker.</param>

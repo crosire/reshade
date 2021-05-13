@@ -1000,26 +1000,8 @@ bool reshade::d3d12::device_impl::get_query_results(api::query_heap heap, uint32
 
 void reshade::d3d12::device_impl::wait_idle() const
 {
-	com_ptr<ID3D12Fence> fence;
-	if (FAILED(_orig->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence))))
-		return;
-
-	const HANDLE fence_event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-	if (fence_event == nullptr)
-		return;
-
-	const std::lock_guard<std::mutex> lock(_mutex);
-
-	UINT64 signal_value = 1;
 	for (command_queue_impl *const queue : _queues)
-	{
-		queue->_orig->Signal(fence.get(), signal_value);
-		fence->SetEventOnCompletion(signal_value, fence_event);
-		WaitForSingleObject(fence_event, 1000); // Use a fixed time out to ensure this does not hang indefinetly in case something went wrong
-		signal_value++;
-	}
-
-	CloseHandle(fence_event);
+		queue->wait_idle();
 }
 
 void reshade::d3d12::device_impl::set_debug_name(api::resource resource, const char *name)
@@ -1589,18 +1571,20 @@ reshade::d3d12::command_list_immediate_impl::command_list_immediate_impl(device_
 	// Create multiple command allocators to buffer for multiple frames
 	for (UINT i = 0; i < NUM_COMMAND_FRAMES; ++i)
 	{
-		if (FAILED(_device_impl->_orig->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&_fence[i]))))
+		if (FAILED(_device_impl->_orig->CreateFence(_fence_value[i], D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&_fence[i]))))
 			return;
 		if (FAILED(_device_impl->_orig->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&_cmd_alloc[i]))))
 			return;
 	}
 
+	// Create auto-reset event for synchronization
+	_fence_event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+	if (_fence_event == nullptr)
+		return;
+
 	// Create and open the command list for recording
 	if (SUCCEEDED(_device_impl->_orig->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, _cmd_alloc[_cmd_index].get(), nullptr, IID_PPV_ARGS(&_orig))))
 		_orig->SetName(L"ReShade immediate command list");
-
-	// Create auto-reset event and fences for synchronization
-	_fence_event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
 }
 reshade::d3d12::command_list_immediate_impl::~command_list_immediate_impl()
 {
@@ -1621,6 +1605,8 @@ bool reshade::d3d12::command_list_immediate_impl::flush(ID3D12CommandQueue *queu
 
 	_current_root_signature[0] = nullptr;
 	_current_root_signature[1] = nullptr;
+
+	assert(_orig != nullptr);
 
 	if (const HRESULT hr = _orig->Close(); FAILED(hr))
 	{
@@ -1659,6 +1645,9 @@ bool reshade::d3d12::command_list_immediate_impl::flush(ID3D12CommandQueue *queu
 }
 bool reshade::d3d12::command_list_immediate_impl::flush_and_wait(ID3D12CommandQueue *queue)
 {
+	if (!_has_commands)
+		return true;
+
 	// Index is updated during flush below, so keep track of the current one to wait on
 	const UINT cmd_index_to_wait_on = _cmd_index;
 
@@ -1680,13 +1669,34 @@ reshade::d3d12::command_queue_impl::command_queue_impl(device_impl *device, ID3D
 
 	// Only create an immediate command list for graphics queues (since the implemented commands do not work on other queue types)
 	if (queue->GetDesc().Type == D3D12_COMMAND_LIST_TYPE_DIRECT)
+	{
 		_immediate_cmd_list = new command_list_immediate_impl(device);
+		// Ensure the immediate command list was initialized successfully, otherwise disable it
+		if (_immediate_cmd_list->_orig == nullptr)
+		{
+			LOG(ERROR) << "Failed to create immediate command list for queue " << _orig << '!';
+
+			delete _immediate_cmd_list;
+			_immediate_cmd_list = nullptr;
+		}
+	}
+
+	// Create auto-reset event and fence for wait for idle synchronization
+	_wait_idle_fence_event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+	if (_wait_idle_fence_event == nullptr ||
+		FAILED(_device_impl->_orig->CreateFence(_wait_idle_fence_value, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&_wait_idle_fence))))
+	{
+		LOG(ERROR) << "Failed to create wait for idle resources for queue " << _orig << '!';
+	}
 
 	invoke_addon_event<addon_event::init_command_queue>(this);
 }
 reshade::d3d12::command_queue_impl::~command_queue_impl()
 {
 	invoke_addon_event<addon_event::destroy_command_queue>(this);
+
+	if (_wait_idle_fence_event != nullptr)
+		CloseHandle(_wait_idle_fence_event);
 
 	delete _immediate_cmd_list;
 
@@ -1700,6 +1710,24 @@ void reshade::d3d12::command_queue_impl::flush_immediate_command_list() const
 {
 	if (_immediate_cmd_list != nullptr)
 		_immediate_cmd_list->flush(_orig);
+}
+
+void reshade::d3d12::command_queue_impl::wait_idle() const
+{
+	// Flush command list, to avoid it still referencing resources that may be destroyed after this call
+	flush_immediate_command_list();
+
+	assert(_wait_idle_fence != nullptr && _wait_idle_fence_event != nullptr);
+
+	// Increment fence value to ensure it has not been signaled before
+	if (const UINT64 sync_value = _wait_idle_fence_value + 1;
+		SUCCEEDED(_orig->Signal(_wait_idle_fence.get(), sync_value)))
+		_wait_idle_fence_value = sync_value;
+	else
+		return; // Cannot wait on fence if signaling was not successful
+
+	if (SUCCEEDED(_wait_idle_fence->SetEventOnCompletion(_wait_idle_fence_value, _wait_idle_fence_event)))
+		WaitForSingleObject(_wait_idle_fence_event, INFINITE);
 }
 
 void reshade::d3d12::command_queue_impl::begin_debug_marker(const char *label, const float color[4])

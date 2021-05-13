@@ -311,6 +311,8 @@ namespace reshade::vulkan
 
 		void flush_immediate_command_list() const final;
 
+		void wait_idle() const final;
+
 		void begin_debug_marker(const char *label, const float color[4]) final;
 		void end_debug_marker() final;
 		void insert_debug_marker(const char *label, const float color[4]) final;
