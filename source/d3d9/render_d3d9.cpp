@@ -259,10 +259,10 @@ bool reshade::d3d9::device_impl::check_capability(api::device_caps capability) c
 	case api::device_caps::multi_viewport:
 		return false;
 	case api::device_caps::sampler_anisotropy:
+	case api::device_caps::partial_push_constant_updates:
+	case api::device_caps::partial_push_descriptor_updates:
 		return true;
-	case api::device_caps::push_descriptors:
-		return true;
-	case api::device_caps::descriptor_tables:
+	case api::device_caps::descriptor_sets:
 		return false;
 	case api::device_caps::sampler_with_resource_view:
 		return true;
@@ -823,34 +823,27 @@ bool reshade::d3d9::device_impl::create_shader_module(api::shader_stage type, ap
 	*out = { 0 };
 	return false;
 }
-bool reshade::d3d9::device_impl::create_pipeline_layout(uint32_t, const api::descriptor_table_layout *, uint32_t, const api::constant_range *, api::pipeline_layout *out)
+bool reshade::d3d9::device_impl::create_pipeline_layout(uint32_t, const api::descriptor_set_layout *, uint32_t, const api::constant_range *, api::pipeline_layout *out)
 {
 	const auto layout = new pipeline_layout_impl();
 
 	*out = { reinterpret_cast<uintptr_t>(layout) };
 	return true;
 }
-bool reshade::d3d9::device_impl::create_descriptor_heap(uint32_t, uint32_t, const api::descriptor_heap_size *, api::descriptor_heap *out)
+bool reshade::d3d9::device_impl::create_descriptor_sets(api::descriptor_set_layout, uint32_t, api::descriptor_set *out)
 {
 	assert(false);
 
 	*out = { 0 };
 	return false;
 }
-bool reshade::d3d9::device_impl::create_descriptor_tables(api::descriptor_heap, api::descriptor_table_layout, uint32_t, api::descriptor_table *out)
-{
-	assert(false);
-
-	*out = { 0 };
-	return false;
-}
-bool reshade::d3d9::device_impl::create_descriptor_table_layout(uint32_t, const api::descriptor_range *, bool push_descriptors, api::descriptor_table_layout *out)
+bool reshade::d3d9::device_impl::create_descriptor_set_layout(uint32_t, const api::descriptor_range *, bool push_descriptors, api::descriptor_set_layout *out)
 {
 	*out = { 0 };
 	return push_descriptors;
 }
 
-bool reshade::d3d9::device_impl::create_query_heap(api::query_type type, uint32_t count, api::query_heap *out)
+bool reshade::d3d9::device_impl::create_query_pool(api::query_type type, uint32_t count, api::query_pool *out)
 {
 	const auto result = new query_pool_impl();
 	result->type = type;
@@ -901,20 +894,20 @@ void reshade::d3d9::device_impl::destroy_pipeline_layout(api::pipeline_layout ha
 {
 	delete reinterpret_cast<pipeline_layout_impl *>(handle.handle);
 }
-void reshade::d3d9::device_impl::destroy_descriptor_heap(api::descriptor_heap)
+void reshade::d3d9::device_impl::destroy_descriptor_sets(api::descriptor_set_layout, uint32_t count, const api::descriptor_set *sets)
 {
-	assert(false);
+	assert(count == 0 || sets[0].handle == 0);
 }
-void reshade::d3d9::device_impl::destroy_descriptor_table_layout(api::descriptor_table_layout)
+void reshade::d3d9::device_impl::destroy_descriptor_set_layout(api::descriptor_set_layout)
 {
 }
 
-void reshade::d3d9::device_impl::destroy_query_heap(api::query_heap handle)
+void reshade::d3d9::device_impl::destroy_query_pool(api::query_pool handle)
 {
 	delete reinterpret_cast<query_pool_impl *>(handle.handle);
 }
 
-void reshade::d3d9::device_impl::update_descriptor_tables(uint32_t, const api::descriptor_update *)
+void reshade::d3d9::device_impl::update_descriptor_sets(uint32_t, const api::descriptor_update *)
 {
 	assert(false);
 }
@@ -1047,7 +1040,7 @@ void reshade::d3d9::device_impl::upload_buffer_region(const void *data, api::res
 
 	assert(false); // Not implemented
 }
-void reshade::d3d9::device_impl::upload_texture_region(const void *data, uint32_t row_pitch, uint32_t, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6])
+void reshade::d3d9::device_impl::upload_texture_region(const api::subresource_data &data, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6])
 {
 	assert(dst.handle != 0);
 
@@ -1076,7 +1069,7 @@ void reshade::d3d9::device_impl::upload_texture_region(const void *data, uint32_
 			if (FAILED(intermediate->LockRect(0, &locked_rect, nullptr, 0)))
 				return;
 			auto mapped_data = static_cast<uint8_t *>(locked_rect.pBits);
-			auto upload_data = static_cast<const uint8_t *>(data);
+			auto upload_data = static_cast<const uint8_t *>(data.data);
 
 			// If format is one of these two, assume they were overwritten by 'convert_format_internal', so handle them accordingly
 			// TODO: Maybe store the original format as user data in the resource to avoid this hack
@@ -1084,7 +1077,7 @@ void reshade::d3d9::device_impl::upload_texture_region(const void *data, uint32_
 			{
 				for (uint32_t y = 0; y < height; ++y, mapped_data += locked_rect.Pitch)
 				{
-					switch (row_pitch / width)
+					switch (data.row_pitch / width)
 					{
 					case 1: // This is likely actually a r8 texture
 						for (uint32_t x = 0; x < width * 4; x += 4, upload_data += 1)
@@ -1115,9 +1108,9 @@ void reshade::d3d9::device_impl::upload_texture_region(const void *data, uint32_
 			}
 			else
 			{
-				for (uint32_t y = 0; y < height; ++y, mapped_data += locked_rect.Pitch, upload_data += row_pitch)
+				for (uint32_t y = 0; y < height; ++y, mapped_data += locked_rect.Pitch, upload_data += data.row_pitch)
 				{
-					std::memcpy(mapped_data, upload_data, row_pitch);
+					std::memcpy(mapped_data, upload_data, data.row_pitch);
 				}
 			}
 
@@ -1228,7 +1221,7 @@ reshade::api::resource_desc reshade::d3d9::device_impl::get_resource_desc(api::r
 	return api::resource_desc {};
 }
 
-bool reshade::d3d9::device_impl::get_query_results(api::query_heap heap, uint32_t first, uint32_t count, void *results, uint32_t stride)
+bool reshade::d3d9::device_impl::get_query_results(api::query_pool heap, uint32_t first, uint32_t count, void *results, uint32_t stride)
 {
 	assert(heap.handle != 0);
 	const auto impl = reinterpret_cast<query_pool_impl *>(heap.handle);
@@ -1298,12 +1291,12 @@ void reshade::d3d9::device_impl::bind_scissor_rects(uint32_t first, uint32_t cou
 	_orig->SetScissorRect(reinterpret_cast<const RECT *>(rects));
 }
 
-void reshade::d3d9::device_impl::push_constants(api::shader_stage stage, api::pipeline_layout, uint32_t, uint32_t first, uint32_t count, const uint32_t *values)
+void reshade::d3d9::device_impl::push_constants(api::shader_stage stage, api::pipeline_layout, uint32_t, uint32_t first, uint32_t count, const void *values)
 {
 	if ((stage & api::shader_stage::vertex) == api::shader_stage::vertex)
-		_orig->SetVertexShaderConstantF(first / 4, reinterpret_cast<const float *>(values), count / 4);
+		_orig->SetVertexShaderConstantF(first / 4, static_cast<const float *>(values), count / 4);
 	if ((stage & api::shader_stage::pixel) == api::shader_stage::pixel)
-		_orig->SetPixelShaderConstantF(first / 4, reinterpret_cast<const float *>(values), count / 4);
+		_orig->SetPixelShaderConstantF(first / 4, static_cast<const float *>(values), count / 4);
 }
 void reshade::d3d9::device_impl::push_descriptors(api::shader_stage stage, api::pipeline_layout layout, uint32_t layout_index, api::descriptor_type type, uint32_t first, uint32_t count, const void *descriptors)
 {
@@ -1366,11 +1359,7 @@ void reshade::d3d9::device_impl::push_descriptors(api::shader_stage stage, api::
 		break;
 	}
 }
-void reshade::d3d9::device_impl::bind_descriptor_heaps(uint32_t, const api::descriptor_heap *)
-{
-	assert(false);
-}
-void reshade::d3d9::device_impl::bind_descriptor_tables(api::pipeline_type, api::pipeline_layout, uint32_t, uint32_t, const api::descriptor_table *)
+void reshade::d3d9::device_impl::bind_descriptor_sets(api::pipeline_type, api::pipeline_layout, uint32_t, uint32_t, const api::descriptor_set *)
 {
 	assert(false);
 }
@@ -1756,17 +1745,17 @@ void reshade::d3d9::device_impl::clear_unordered_access_view_float(api::resource
 	assert(false);
 }
 
-void reshade::d3d9::device_impl::begin_query(api::query_heap heap, api::query_type, uint32_t index)
+void reshade::d3d9::device_impl::begin_query(api::query_pool pool, api::query_type, uint32_t index)
 {
-	assert(heap.handle != 0);
-	reinterpret_cast<query_pool_impl *>(heap.handle)->queries[index]->Issue(D3DISSUE_BEGIN);
+	assert(pool.handle != 0);
+	reinterpret_cast<query_pool_impl *>(pool.handle)->queries[index]->Issue(D3DISSUE_BEGIN);
 }
-void reshade::d3d9::device_impl::end_query(api::query_heap heap, api::query_type, uint32_t index)
+void reshade::d3d9::device_impl::end_query(api::query_pool pool, api::query_type, uint32_t index)
 {
-	assert(heap.handle != 0);
-	reinterpret_cast<query_pool_impl *>(heap.handle)->queries[index]->Issue(D3DISSUE_END);
+	assert(pool.handle != 0);
+	reinterpret_cast<query_pool_impl *>(pool.handle)->queries[index]->Issue(D3DISSUE_END);
 }
-void reshade::d3d9::device_impl::copy_query_results(api::query_heap, api::query_type, uint32_t, uint32_t, api::resource, uint64_t, uint32_t)
+void reshade::d3d9::device_impl::copy_query_results(api::query_pool, api::query_type, uint32_t, uint32_t, api::resource, uint64_t, uint32_t)
 {
 	assert(false);
 }

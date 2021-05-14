@@ -341,19 +341,6 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetDescriptorHeaps(UINT NumDesc
 
 	for (UINT i = 0; i < 2; ++i)
 		_current_descriptor_heaps[i] = i < NumDescriptorHeaps ? ppDescriptorHeaps[i] : nullptr;
-
-#if RESHADE_ADDON
-#ifndef WIN64
-	const auto heap_handles = static_cast<reshade::api::descriptor_heap *>(alloca(NumDescriptorHeaps * sizeof(reshade::api::descriptor_heap)));
-	for (UINT i = 0; i < NumDescriptorHeaps; ++i)
-		heap_handles[i] = { reinterpret_cast<uintptr_t>(ppDescriptorHeaps[i]) };
-#else
-	static_assert(sizeof(*ppDescriptorHeaps) == sizeof(reshade::api::descriptor_heap));
-	const auto heap_handles = reinterpret_cast<const reshade::api::descriptor_heap *>(ppDescriptorHeaps);
-#endif
-
-	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_heaps>(this, NumDescriptorHeaps, heap_handles);
-#endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootSignature(ID3D12RootSignature *pRootSignature)
 {
@@ -372,15 +359,15 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootDescriptorTable(U
 	_orig->SetComputeRootDescriptorTable(RootParameterIndex, BaseDescriptor);
 
 #if RESHADE_ADDON
-	static_assert(sizeof(BaseDescriptor) == sizeof(reshade::api::descriptor_table));
+	static_assert(sizeof(BaseDescriptor) == sizeof(reshade::api::descriptor_set));
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_tables>(
+	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_sets>(
 		this,
 		reshade::api::pipeline_type::compute,
 		reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(_current_root_signature[1]) },
 		RootParameterIndex,
 		1,
-		reinterpret_cast<const reshade::api::descriptor_table *>(&BaseDescriptor.ptr));
+		reinterpret_cast<const reshade::api::descriptor_set *>(&BaseDescriptor.ptr));
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRootDescriptorTable(UINT RootParameterIndex, D3D12_GPU_DESCRIPTOR_HANDLE BaseDescriptor)
@@ -388,15 +375,15 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRootDescriptorTable(
 	_orig->SetGraphicsRootDescriptorTable(RootParameterIndex, BaseDescriptor);
 
 #if RESHADE_ADDON
-	static_assert(sizeof(BaseDescriptor) == sizeof(reshade::api::descriptor_table));
+	static_assert(sizeof(BaseDescriptor) == sizeof(reshade::api::descriptor_set));
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_tables>(
+	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_sets>(
 		this,
 		reshade::api::pipeline_type::graphics,
 		reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(_current_root_signature[0]) },
 		RootParameterIndex,
 		1,
-		reinterpret_cast<const reshade::api::descriptor_table *>(&BaseDescriptor.ptr));
+		reinterpret_cast<const reshade::api::descriptor_set *>(&BaseDescriptor.ptr));
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRoot32BitConstant(UINT RootParameterIndex, UINT SrcData, UINT DestOffsetIn32BitValues)

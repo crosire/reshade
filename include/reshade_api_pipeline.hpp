@@ -340,29 +340,20 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
-	/// Specifies a range of descriptors in a descriptor table layout.
+	/// Specifies a range of descriptors in a descriptor set layout.
 	/// </summary>
 	struct descriptor_range
 	{
-		// The index in the descriptor table ("layout(binding=X)" in GLSL).
+		// The index in the descriptor set ("layout(binding=X)" in GLSL).
 		uint32_t binding;
 		// The D3D9/D3D10/D3D11/D3D12 shader register index ("register(xX)" in HLSL).
 		uint32_t dx_shader_register;
 		// The type of the descriptors in this range.
 		descriptor_type type;
-		// The number of descriptors in the table starting from the binding index.
+		// The number of descriptors in the set starting from the binding index.
 		uint32_t count;
 		// The shader pipeline stages that make use of the descriptors in this range.
 		shader_stage visibility;
-	};
-
-	/// <summary>
-	/// Specifies the number of descriptors of a specific type a descriptor heap should provide.
-	/// </summary>
-	struct descriptor_heap_size
-	{
-		descriptor_type type;
-		uint32_t count;
 	};
 
 	/// <summary>
@@ -393,28 +384,22 @@ namespace reshade { namespace api
 	RESHADE_DEFINE_HANDLE(pipeline_layout);
 
 	/// <summary>
-	/// An opaque handle to a descriptor heap/pool.
-	/// <para>Depending on the render API this is really a pointer to a 'ID3D12DescriptorHeap' object or a 'VkDescriptorPool' handle.</para>
-	/// </summary>
-	RESHADE_DEFINE_HANDLE(descriptor_heap);
-
-	/// <summary>
-	/// An opaque handle to a descriptor table/set.
-	/// <para>Depending on the render API this is really a 'D3D12_GPU_DESCRIPTOR_HANDLE' or a 'VkDescriptorSet' handle.</para>
-	/// </summary>
-	RESHADE_DEFINE_HANDLE(descriptor_table);
-
-	/// <summary>
-	/// An opaque handle to a descriptor table/set layout.
-	/// <para>Depending on the render API this is really a 'VkDescriptorSetLayout' handle.</para>
-	/// </summary>
-	RESHADE_DEFINE_HANDLE(descriptor_table_layout);
-
-	/// <summary>
-	/// An opaque handle to a query heap/pool.
+	/// An opaque handle to a query pool.
 	/// <para>Depending on the render API this is really a pointer to a 'ID3D12QueryHeap' or a 'VkQueryPool' handle.</para>
 	/// </summary>
-	RESHADE_DEFINE_HANDLE(query_heap);
+	RESHADE_DEFINE_HANDLE(query_pool);
+
+	/// <summary>
+	/// An opaque handle to a descriptor set.
+	/// <para>Depending on the render API this is really a 'D3D12_GPU_DESCRIPTOR_HANDLE' or a 'VkDescriptorSet' handle.</para>
+	/// </summary>
+	RESHADE_DEFINE_HANDLE(descriptor_set);
+
+	/// <summary>
+	/// An opaque handle to a descriptor set layout.
+	/// <para>Depending on the render API this is really a 'VkDescriptorSetLayout' handle.</para>
+	/// </summary>
+	RESHADE_DEFINE_HANDLE(descriptor_set_layout);
 
 	/// <summary>
 	/// Describes a pipeline state object.
@@ -516,11 +501,11 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
-	/// All information needed to update a single descriptor in a descriptor table.
+	/// All information needed to update a single descriptor in a descriptor set.
 	/// </summary>
 	struct descriptor_update
 	{
-		descriptor_table table;
+		descriptor_set set;
 		uint32_t binding;
 		descriptor_type type;
 

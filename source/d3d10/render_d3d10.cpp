@@ -94,9 +94,12 @@ bool reshade::d3d10::device_impl::check_capability(api::device_caps capability) 
 	case api::device_caps::fill_mode_non_solid:
 	case api::device_caps::multi_viewport:
 	case api::device_caps::sampler_anisotropy:
-	case api::device_caps::push_descriptors:
 		return true;
-	case api::device_caps::descriptor_tables:
+	case api::device_caps::partial_push_constant_updates:
+		return false;
+	case api::device_caps::partial_push_descriptor_updates:
+		return true;
+	case api::device_caps::descriptor_sets:
 	case api::device_caps::sampler_with_resource_view:
 	case api::device_caps::blit:
 	case api::device_caps::resolve_region:
@@ -525,7 +528,7 @@ bool reshade::d3d10::device_impl::create_shader_module(api::shader_stage type, a
 	*out = { 0 };
 	return false;
 }
-bool reshade::d3d10::device_impl::create_pipeline_layout(uint32_t num_table_layouts, const api::descriptor_table_layout *table_layouts, uint32_t num_constant_ranges, const api::constant_range *constant_ranges, api::pipeline_layout *out)
+bool reshade::d3d10::device_impl::create_pipeline_layout(uint32_t num_table_layouts, const api::descriptor_set_layout *table_layouts, uint32_t num_constant_ranges, const api::constant_range *constant_ranges, api::pipeline_layout *out)
 {
 	if (num_constant_ranges > 1)
 	{
@@ -545,27 +548,20 @@ bool reshade::d3d10::device_impl::create_pipeline_layout(uint32_t num_table_layo
 	*out = { reinterpret_cast<uintptr_t>(layout) };
 	return true;
 }
-bool reshade::d3d10::device_impl::create_descriptor_heap(uint32_t, uint32_t, const api::descriptor_heap_size *, api::descriptor_heap *out)
+bool reshade::d3d10::device_impl::create_descriptor_sets(api::descriptor_set_layout, uint32_t, api::descriptor_set *out)
 {
 	assert(false);
 
 	*out = { 0 };
 	return false;
 }
-bool reshade::d3d10::device_impl::create_descriptor_tables(api::descriptor_heap, api::descriptor_table_layout, uint32_t, api::descriptor_table *out)
-{
-	assert(false);
-
-	*out = { 0 };
-	return false;
-}
-bool reshade::d3d10::device_impl::create_descriptor_table_layout(uint32_t num_ranges, const api::descriptor_range *ranges, bool push_descriptors, api::descriptor_table_layout *out)
+bool reshade::d3d10::device_impl::create_descriptor_set_layout(uint32_t num_ranges, const api::descriptor_range *ranges, bool push_descriptors, api::descriptor_set_layout *out)
 {
 	*out = { 0 };
 	return push_descriptors;
 }
 
-bool reshade::d3d10::device_impl::create_query_heap(api::query_type type, uint32_t count, api::query_heap *out)
+bool reshade::d3d10::device_impl::create_query_pool(api::query_type type, uint32_t count, api::query_pool *out)
 {
 	const auto result = new query_pool_impl();
 	result->queries.resize(count);
@@ -620,20 +616,20 @@ void reshade::d3d10::device_impl::destroy_pipeline_layout(api::pipeline_layout h
 {
 	delete reinterpret_cast<pipeline_layout_impl *>(handle.handle);
 }
-void reshade::d3d10::device_impl::destroy_descriptor_heap(api::descriptor_heap)
+void reshade::d3d10::device_impl::destroy_descriptor_sets(api::descriptor_set_layout, uint32_t count, const api::descriptor_set *sets)
 {
-	assert(false);
+	assert(count == 0 || sets[0].handle == 0);
 }
-void reshade::d3d10::device_impl::destroy_descriptor_table_layout(api::descriptor_table_layout)
+void reshade::d3d10::device_impl::destroy_descriptor_set_layout(api::descriptor_set_layout)
 {
 }
 
-void reshade::d3d10::device_impl::destroy_query_heap(api::query_heap handle)
+void reshade::d3d10::device_impl::destroy_query_pool(api::query_pool handle)
 {
 	delete reinterpret_cast<query_pool_impl *>(handle.handle);
 }
 
-void reshade::d3d10::device_impl::update_descriptor_tables(uint32_t, const api::descriptor_update *)
+void reshade::d3d10::device_impl::update_descriptor_sets(uint32_t, const api::descriptor_update *)
 {
 	assert(false);
 }
@@ -723,11 +719,11 @@ void reshade::d3d10::device_impl::upload_buffer_region(const void *data, api::re
 	const D3D10_BOX dst_box = { static_cast<UINT>(dst_offset), 0, 0, static_cast<UINT>(dst_offset + size), 1, 1 };
 	_orig->UpdateSubresource(reinterpret_cast<ID3D10Resource *>(dst.handle), 0, &dst_box, data, static_cast<UINT>(size), 0);
 }
-void reshade::d3d10::device_impl::upload_texture_region(const void *data, uint32_t row_pitch, uint32_t slice_pitch, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6])
+void reshade::d3d10::device_impl::upload_texture_region(const api::subresource_data &data, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6])
 {
 	assert(dst.handle != 0);
 
-	_orig->UpdateSubresource(reinterpret_cast<ID3D10Resource *>(dst.handle), dst_subresource, reinterpret_cast<const D3D10_BOX *>(dst_box), data, row_pitch, slice_pitch);
+	_orig->UpdateSubresource(reinterpret_cast<ID3D10Resource *>(dst.handle), dst_subresource, reinterpret_cast<const D3D10_BOX *>(dst_box), data.data, data.row_pitch, data.slice_pitch);
 }
 
 void reshade::d3d10::device_impl::get_resource_from_view(api::resource_view view, api::resource *out_resource) const
@@ -778,9 +774,9 @@ reshade::api::resource_desc reshade::d3d10::device_impl::get_resource_desc(api::
 	return api::resource_desc {};
 }
 
-bool reshade::d3d10::device_impl::get_query_results(api::query_heap heap, uint32_t first, uint32_t count, void *results, uint32_t stride)
+bool reshade::d3d10::device_impl::get_query_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride)
 {
-	const auto impl = reinterpret_cast<query_pool_impl *>(heap.handle);
+	const auto impl = reinterpret_cast<query_pool_impl *>(pool.handle);
 
 	for (UINT i = 0; i < count; ++i)
 	{
@@ -940,7 +936,7 @@ void reshade::d3d10::device_impl::bind_constant_buffers(api::shader_stage stage,
 		_orig->PSSetConstantBuffers(first, count, buffer_ptrs);
 }
 
-void reshade::d3d10::device_impl::push_constants(api::shader_stage stage, api::pipeline_layout layout, uint32_t layout_index, uint32_t first, uint32_t count, const uint32_t *values)
+void reshade::d3d10::device_impl::push_constants(api::shader_stage stage, api::pipeline_layout layout, uint32_t layout_index, uint32_t first, uint32_t count, const void *values)
 {
 	assert(first == 0);
 
@@ -1007,11 +1003,7 @@ void reshade::d3d10::device_impl::push_descriptors(api::shader_stage stage, api:
 		break;
 	}
 }
-void reshade::d3d10::device_impl::bind_descriptor_heaps(uint32_t, const api::descriptor_heap *)
-{
-	assert(false);
-}
-void reshade::d3d10::device_impl::bind_descriptor_tables(api::pipeline_type, api::pipeline_layout, uint32_t, uint32_t, const api::descriptor_table *)
+void reshade::d3d10::device_impl::bind_descriptor_sets(api::pipeline_type, api::pipeline_layout, uint32_t, uint32_t, const api::descriptor_set *)
 {
 	assert(false);
 }
@@ -1193,15 +1185,15 @@ void reshade::d3d10::device_impl::clear_unordered_access_view_float(api::resourc
 	assert(false);
 }
 
-void reshade::d3d10::device_impl::begin_query(api::query_heap heap, api::query_type, uint32_t index)
+void reshade::d3d10::device_impl::begin_query(api::query_pool pool, api::query_type, uint32_t index)
 {
-	reinterpret_cast<query_pool_impl *>(heap.handle)->queries[index]->Begin();
+	reinterpret_cast<query_pool_impl *>(pool.handle)->queries[index]->Begin();
 }
-void reshade::d3d10::device_impl::end_query(api::query_heap heap, api::query_type, uint32_t index)
+void reshade::d3d10::device_impl::end_query(api::query_pool pool, api::query_type, uint32_t index)
 {
-	reinterpret_cast<query_pool_impl *>(heap.handle)->queries[index]->End();
+	reinterpret_cast<query_pool_impl *>(pool.handle)->queries[index]->End();
 }
-void reshade::d3d10::device_impl::copy_query_results(api::query_heap, api::query_type, uint32_t, uint32_t, api::resource, uint64_t, uint32_t)
+void reshade::d3d10::device_impl::copy_query_results(api::query_pool, api::query_type, uint32_t, uint32_t, api::resource, uint64_t, uint32_t)
 {
 	assert(false);
 }

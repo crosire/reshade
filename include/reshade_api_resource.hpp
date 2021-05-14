@@ -277,7 +277,7 @@ namespace reshade { namespace api
 		// The row pitch of the data (added to the data pointer to move between texture rows, unused for buffers and 1D textures).
 		uint32_t row_pitch;
 		// The depth pitch of the data (added to the data pointer to move between texture depth/array slices, unused for buffers and 1D/2D textures).
-		uint32_t depth_pitch;
+		uint32_t slice_pitch;
 	};
 
 	/// <summary>

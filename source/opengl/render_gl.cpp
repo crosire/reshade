@@ -333,9 +333,11 @@ bool reshade::opengl::device_impl::check_capability(api::device_caps capability)
 	case api::device_caps::sampler_anisotropy:
 		glGetIntegerv(GL_TEXTURE_MAX_ANISOTROPY, &value);
 		return value > 1;
-	case api::device_caps::push_descriptors:
+	case api::device_caps::partial_push_constant_updates:
+		return false;
+	case api::device_caps::partial_push_descriptor_updates:
 		return true;
-	case api::device_caps::descriptor_tables:
+	case api::device_caps::descriptor_sets:
 		return false;
 	case api::device_caps::sampler_with_resource_view:
 	case api::device_caps::blit:
@@ -882,7 +884,7 @@ bool reshade::opengl::device_impl::create_shader_module(api::shader_stage type, 
 		return false;
 	}
 }
-bool reshade::opengl::device_impl::create_pipeline_layout(uint32_t num_table_layouts, const api::descriptor_table_layout *table_layouts, uint32_t num_constant_ranges, const api::constant_range *constant_ranges, api::pipeline_layout *out)
+bool reshade::opengl::device_impl::create_pipeline_layout(uint32_t num_table_layouts, const api::descriptor_set_layout *table_layouts, uint32_t num_constant_ranges, const api::constant_range *constant_ranges, api::pipeline_layout *out)
 {
 	if (num_constant_ranges > 1)
 	{
@@ -902,27 +904,20 @@ bool reshade::opengl::device_impl::create_pipeline_layout(uint32_t num_table_lay
 	*out = { reinterpret_cast<uintptr_t>(layout) };
 	return true;
 }
-bool reshade::opengl::device_impl::create_descriptor_heap(uint32_t, uint32_t, const api::descriptor_heap_size *, api::descriptor_heap *out)
+bool reshade::opengl::device_impl::create_descriptor_sets(api::descriptor_set_layout, uint32_t, api::descriptor_set *out)
 {
 	assert(false);
 
 	*out = { 0 };
 	return false;
 }
-bool reshade::opengl::device_impl::create_descriptor_tables(api::descriptor_heap, api::descriptor_table_layout, uint32_t, api::descriptor_table *out)
-{
-	assert(false);
-
-	*out = { 0 };
-	return false;
-}
-bool reshade::opengl::device_impl::create_descriptor_table_layout(uint32_t num_ranges, const api::descriptor_range *ranges, bool push_descriptors, api::descriptor_table_layout *out)
+bool reshade::opengl::device_impl::create_descriptor_set_layout(uint32_t num_ranges, const api::descriptor_range *ranges, bool push_descriptors, api::descriptor_set_layout *out)
 {
 	*out = { 0 };
 	return push_descriptors;
 }
 
-bool reshade::opengl::device_impl::create_query_heap(api::query_type type, uint32_t count, api::query_heap *out)
+bool reshade::opengl::device_impl::create_query_pool(api::query_type type, uint32_t count, api::query_pool *out)
 {
 	if (type == api::query_type::pipeline_statistics)
 	{
@@ -1033,20 +1028,20 @@ void reshade::opengl::device_impl::destroy_pipeline_layout(api::pipeline_layout 
 {
 	delete reinterpret_cast<pipeline_layout_impl *>(handle.handle);
 }
-void reshade::opengl::device_impl::destroy_descriptor_heap(api::descriptor_heap)
+void reshade::opengl::device_impl::destroy_descriptor_sets(api::descriptor_set_layout, uint32_t count, const api::descriptor_set *sets)
 {
-	assert(false);
+	assert(count == 0 || sets[0].handle == 0);
 }
-void reshade::opengl::device_impl::destroy_descriptor_table_layout(api::descriptor_table_layout)
+void reshade::opengl::device_impl::destroy_descriptor_set_layout(api::descriptor_set_layout)
 {
 }
 
-void reshade::opengl::device_impl::destroy_query_heap(api::query_heap handle)
+void reshade::opengl::device_impl::destroy_query_pool(api::query_pool handle)
 {
 	delete reinterpret_cast<query_heap_impl *>(handle.handle);
 }
 
-void reshade::opengl::device_impl::update_descriptor_tables(uint32_t, const api::descriptor_update *)
+void reshade::opengl::device_impl::update_descriptor_sets(uint32_t, const api::descriptor_update *)
 {
 	assert(false);
 }
@@ -1178,7 +1173,7 @@ void reshade::opengl::device_impl::upload_buffer_region(const void *data, api::r
 	glBindBuffer(target, previous_buf);
 
 }
-void reshade::opengl::device_impl::upload_texture_region(const void *data, uint32_t, uint32_t slice_pitch, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6])
+void reshade::opengl::device_impl::upload_texture_region(const api::subresource_data &data, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6])
 {
 	assert(dst.handle != 0);
 	const GLenum target = dst.handle >> 40;
@@ -1256,11 +1251,11 @@ void reshade::opengl::device_impl::upload_texture_region(const void *data, uint3
 	case GL_TEXTURE_1D:
 		if (type != GL_COMPRESSED_TEXTURE_FORMATS)
 		{
-			glTexSubImage1D(target, level, xoffset, width, format, type, data);
+			glTexSubImage1D(target, level, xoffset, width, format, type, data.data);
 		}
 		else
 		{
-			glCompressedTexSubImage1D(target, level, xoffset, width, format, slice_pitch, data);
+			glCompressedTexSubImage1D(target, level, xoffset, width, format, data.slice_pitch, data.data);
 		}
 		break;
 	case GL_TEXTURE_1D_ARRAY:
@@ -1275,11 +1270,11 @@ void reshade::opengl::device_impl::upload_texture_region(const void *data, uint3
 	case GL_TEXTURE_CUBE_MAP_NEGATIVE_Z:
 		if (type != GL_COMPRESSED_TEXTURE_FORMATS)
 		{
-			glTexSubImage2D(target, level, xoffset, yoffset, width, height, format, type, data);
+			glTexSubImage2D(target, level, xoffset, yoffset, width, height, format, type, data.data);
 		}
 		else
 		{
-			glCompressedTexSubImage2D(target, level, xoffset, yoffset, width, height, format, slice_pitch * height, data);
+			glCompressedTexSubImage2D(target, level, xoffset, yoffset, width, height, format, data.slice_pitch * height, data.data);
 		}
 		break;
 	case GL_TEXTURE_2D_ARRAY:
@@ -1288,11 +1283,11 @@ void reshade::opengl::device_impl::upload_texture_region(const void *data, uint3
 	case GL_TEXTURE_3D:
 		if (type != GL_COMPRESSED_TEXTURE_FORMATS)
 		{
-			glTexSubImage3D(target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, data);
+			glTexSubImage3D(target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, data.data);
 		}
 		else
 		{
-			glCompressedTexSubImage3D(target, level, xoffset, yoffset, zoffset, width, height, depth, format, slice_pitch * depth, data);
+			glCompressedTexSubImage3D(target, level, xoffset, yoffset, zoffset, width, height, depth, format, data.slice_pitch * depth, data.data);
 		}
 		break;
 	}
@@ -1510,7 +1505,7 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 		return convert_resource_desc(target, levels, samples, internal_format, width, height, depth);
 }
 
-bool reshade::opengl::device_impl::get_query_results(api::query_heap heap, uint32_t first, uint32_t count, void *results, uint32_t stride)
+bool reshade::opengl::device_impl::get_query_results(api::query_pool heap, uint32_t first, uint32_t count, void *results, uint32_t stride)
 {
 	assert(stride >= sizeof(uint64_t));
 
@@ -1705,7 +1700,7 @@ void reshade::opengl::device_impl::bind_scissor_rects(uint32_t first, uint32_t c
 	}
 }
 
-void reshade::opengl::device_impl::push_constants(api::shader_stage, api::pipeline_layout layout, uint32_t layout_index, uint32_t first, uint32_t count, const uint32_t *values)
+void reshade::opengl::device_impl::push_constants(api::shader_stage, api::pipeline_layout layout, uint32_t layout_index, uint32_t first, uint32_t count, const void *values)
 {
 	const GLuint push_constants_binding = layout.handle != 0 ?
 		reinterpret_cast<pipeline_layout_impl *>(layout.handle)->bindings[layout_index] : 0;
@@ -1783,11 +1778,7 @@ void reshade::opengl::device_impl::push_descriptors(api::shader_stage, api::pipe
 		break;
 	}
 }
-void reshade::opengl::device_impl::bind_descriptor_heaps(uint32_t, const api::descriptor_heap *)
-{
-	assert(false);
-}
-void reshade::opengl::device_impl::bind_descriptor_tables(api::pipeline_type, api::pipeline_layout, uint32_t, uint32_t, const api::descriptor_table *)
+void reshade::opengl::device_impl::bind_descriptor_sets(api::pipeline_type, api::pipeline_layout, uint32_t, uint32_t, const api::descriptor_set *)
 {
 	assert(false);
 }
@@ -2305,11 +2296,11 @@ void reshade::opengl::device_impl::clear_unordered_access_view_float(api::resour
 	assert(false);
 }
 
-void reshade::opengl::device_impl::begin_query(api::query_heap heap, api::query_type type, uint32_t index)
+void reshade::opengl::device_impl::begin_query(api::query_pool heap, api::query_type type, uint32_t index)
 {
 	glBeginQuery(convert_query_type(type), reinterpret_cast<query_heap_impl *>(heap.handle)->queries[index]);
 }
-void reshade::opengl::device_impl::end_query(api::query_heap heap, api::query_type type, uint32_t index)
+void reshade::opengl::device_impl::end_query(api::query_pool heap, api::query_type type, uint32_t index)
 {
 	if (type == api::query_type::timestamp)
 	{
@@ -2320,7 +2311,7 @@ void reshade::opengl::device_impl::end_query(api::query_heap heap, api::query_ty
 		glEndQuery(convert_query_type(type));
 	}
 }
-void reshade::opengl::device_impl::copy_query_results(api::query_heap heap, api::query_type, uint32_t first, uint32_t count, api::resource dst, uint64_t dst_offset, uint32_t stride)
+void reshade::opengl::device_impl::copy_query_results(api::query_pool heap, api::query_type, uint32_t first, uint32_t count, api::resource dst, uint64_t dst_offset, uint32_t stride)
 {
 	for (uint32_t i = 0; i < count; ++i)
 	{

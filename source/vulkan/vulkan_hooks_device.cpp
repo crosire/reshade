@@ -623,6 +623,8 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 				runtime->on_present(queue, pPresentInfo->pImageIndices[i], wait_semaphores);
 			}
 		}
+
+		static_cast<reshade::vulkan::device_impl *>(queue_impl->get_device())->advance_transient_descriptor_pool();
 	}
 
 	// Override wait semaphores based on the last queue submit from above
@@ -1213,15 +1215,15 @@ void     VKAPI_CALL vkCmdBindDescriptorSets(VkCommandBuffer commandBuffer, VkPip
 	trampoline(commandBuffer, pipelineBindPoint, layout, firstSet, descriptorSetCount, pDescriptorSets, dynamicOffsetCount, pDynamicOffsets);
 
 #if RESHADE_ADDON
-	static_assert(sizeof(*pDescriptorSets) == sizeof(reshade::api::descriptor_table));
+	static_assert(sizeof(*pDescriptorSets) == sizeof(reshade::api::descriptor_set));
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_tables>(
+	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_sets>(
 		s_vulkan_command_buffers.at(commandBuffer),
 		pipelineBindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS ? reshade::api::pipeline_type::graphics : pipelineBindPoint == VK_PIPELINE_BIND_POINT_COMPUTE ? reshade::api::pipeline_type::compute : reshade::api::pipeline_type::unknown,
 		reshade::api::pipeline_layout { (uint64_t)layout },
 		firstSet,
 		descriptorSetCount,
-		reinterpret_cast<const reshade::api::descriptor_table *>(pDescriptorSets));
+		reinterpret_cast<const reshade::api::descriptor_set *>(pDescriptorSets));
 #endif
 }
 

@@ -14,7 +14,6 @@
 
 namespace reshade::d3d12
 {
-	template <D3D12_DESCRIPTOR_HEAP_TYPE type>
 	class descriptor_heap_cpu
 	{
 		struct heap_info
@@ -27,8 +26,8 @@ namespace reshade::d3d12
 		const UINT pool_size = 1024;
 
 	public:
-		explicit descriptor_heap_cpu(ID3D12Device *device) :
-			_device(device)
+		descriptor_heap_cpu(ID3D12Device *device, D3D12_DESCRIPTOR_HEAP_TYPE type) :
+			_device(device), _type(type)
 		{
 			_increment_size = device->GetDescriptorHandleIncrementSize(type);
 		}
@@ -77,7 +76,7 @@ namespace reshade::d3d12
 			heap_info &heap_info = _heap_infos.emplace_back();
 
 			D3D12_DESCRIPTOR_HEAP_DESC desc;
-			desc.Type = type;
+			desc.Type = _type;
 			desc.NumDescriptors = pool_size;
 			desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 			desc.NodeMask = 0;
@@ -97,56 +96,147 @@ namespace reshade::d3d12
 		ID3D12Device *const _device;
 		std::vector<heap_info> _heap_infos;
 		SIZE_T _increment_size;
+		D3D12_DESCRIPTOR_HEAP_TYPE _type;
 	};
 
-	template <D3D12_DESCRIPTOR_HEAP_TYPE type, UINT size>
+	template <D3D12_DESCRIPTOR_HEAP_TYPE type, UINT static_size, UINT transient_size>
 	class descriptor_heap_gpu
 	{
 	public:
 		explicit descriptor_heap_gpu(ID3D12Device *device, UINT node_mask = 0)
 		{
+			// Manage all descriptors in a single heap, to avoid costly descriptor heap switches during rendering
+			// The lower portion of the heap is reserved for static bindings, the upper portion for transient bindings (which change frequently and are managed like a ring buffer)
 			D3D12_DESCRIPTOR_HEAP_DESC desc;
 			desc.Type = type;
-			desc.NumDescriptors = size;
+			desc.NumDescriptors = static_size + transient_size;
 			desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 			desc.NodeMask = node_mask;
 
 			if (FAILED(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&_heap))))
 				return;
 
-			_heap_base = _heap->GetCPUDescriptorHandleForHeapStart().ptr;
-			_heap_base_gpu = _heap->GetGPUDescriptorHandleForHeapStart().ptr;
 			_increment_size = device->GetDescriptorHandleIncrementSize(type);
+			_static_heap_base = _heap->GetCPUDescriptorHandleForHeapStart().ptr;
+			_static_heap_base_gpu = _heap->GetGPUDescriptorHandleForHeapStart().ptr;
+			_transient_heap_base = _static_heap_base + static_size * _increment_size;
+			_transient_heap_base_gpu = _static_heap_base_gpu + static_size * _increment_size;
 		}
 
-		bool allocate(UINT count, D3D12_CPU_DESCRIPTOR_HANDLE &base_handle, D3D12_GPU_DESCRIPTOR_HANDLE &base_handle_gpu)
+		bool allocate_static(UINT count, D3D12_CPU_DESCRIPTOR_HANDLE &base_handle, D3D12_GPU_DESCRIPTOR_HANDLE &base_handle_gpu)
 		{
 			if (_heap == nullptr)
 				return false;
 
-			UINT64 index = _current_tail_index % size;
+			// First try to allocate from the list of freed blocks
+			for (auto block = _free_list.begin(); block != _free_list.end(); ++block)
+			{
+				if (count <= (block->second - block->first) / _increment_size)
+				{
+					base_handle.ptr = _static_heap_base + (block->first - _static_heap_base_gpu);
+					base_handle_gpu.ptr = block->first;
+
+					// Remove the allocated range from the freed block and optionally remove it from the free list if no space is left afterwards
+					block->first += count * _increment_size;
+					if (block->first == block->second)
+						_free_list.erase(block);
+
+					return true;
+				}
+			}
+
+			// Otherwise follow a linear allocation schema
+			if (_current_static_index + count > static_size)
+				return false; // The heap is full
+
+			const SIZE_T offset = _current_static_index * _increment_size;
+			base_handle.ptr = _static_heap_base + offset;
+			base_handle_gpu.ptr = _static_heap_base_gpu + offset;
+
+			_current_static_index += count;
+
+			return true;
+		}
+		bool allocate_transient(UINT count, D3D12_CPU_DESCRIPTOR_HANDLE &base_handle, D3D12_GPU_DESCRIPTOR_HANDLE &base_handle_gpu)
+		{
+			if (_heap == nullptr)
+				return false;
+
+			SIZE_T index = static_cast<SIZE_T>(_current_transient_tail % transient_size);
 
 			// Allocations need to be contiguous
-			if (index + count > size)
-				_current_tail_index += size - index, index = 0;
+			if (index + count > transient_size)
+				_current_transient_tail += transient_size - index, index = 0;
 
 			const SIZE_T offset = index * _increment_size;
-			base_handle.ptr = _heap_base + offset;
-			base_handle_gpu.ptr = _heap_base_gpu + offset;
+			base_handle.ptr = _transient_heap_base + offset;
+			base_handle_gpu.ptr = _transient_heap_base_gpu + offset;
+
+			_current_transient_tail += count;
 
 			return true;
 		}
 
-		ID3D12DescriptorHeap *get() const { return _heap.get(); }
+		void deallocate(D3D12_GPU_DESCRIPTOR_HANDLE handle, UINT count = 1)
+		{
+			// Ensure this handle falls into the static range of this heap
+			if (handle.ptr < _static_heap_base_gpu || handle.ptr >= _transient_heap_base_gpu)
+				return;
+
+			// First try to append to an existing freed block
+			for (auto block = _free_list.begin(); block != _free_list.end(); ++block)
+			{
+				if (handle.ptr == block->second)
+				{
+					block->second += count * _increment_size;
+
+					// Try and merge with other blocks that are adjacent
+					for (auto block_adj = _free_list.begin(); block_adj != _free_list.end(); ++block_adj)
+					{
+						if (block_adj->first == block->second)
+						{
+							block->second = block_adj->second;
+							_free_list.erase(block_adj);
+							break;
+						}
+					}
+					return;
+				}
+				if (handle.ptr == (block->first - (count * _increment_size)))
+				{
+					block->first -= count * _increment_size;
+
+					// Try and merge with other blocks that are adjacent
+					for (auto block_adj = _free_list.begin(); block_adj != _free_list.end(); ++block_adj)
+					{
+						if (block_adj->second == block->first)
+						{
+							block->first = block_adj->first;
+							_free_list.erase(block_adj);
+							break;
+						}
+					}
+					return;
+				}
+			}
+
+			// Otherwise add a new block to the free list
+			_free_list.emplace_back(handle.ptr, handle.ptr + count * _increment_size);
+		}
+
+		ID3D12DescriptorHeap *get() const { assert(_heap != nullptr); return _heap.get(); }
 
 	private:
 		com_ptr<ID3D12DescriptorHeap> _heap;
-		SIZE_T _heap_base;
-		SIZE_T _heap_base_gpu;
 		SIZE_T _increment_size;
-		UINT64 _current_tail_index = 0;
+		SIZE_T _static_heap_base;
+		SIZE_T _static_heap_base_gpu;
+		SIZE_T _transient_heap_base;
+		SIZE_T _transient_heap_base_gpu;
+		SIZE_T _current_static_index = 0;
+		UINT64 _current_transient_tail = 0;
+		std::vector<std::pair<SIZE_T, SIZE_T>> _free_list;
 	};
-
 
 	class device_impl : public api::api_object_impl<ID3D12Device *, api::device>
 	{
@@ -174,12 +264,10 @@ namespace reshade::d3d12
 		bool create_pipeline_graphics_all(const api::pipeline_desc &desc, api::pipeline *out);
 
 		bool create_shader_module(api::shader_stage type, api::shader_format format, const char *entry_point, const void *code, size_t code_size, api::shader_module *out) final;
-		bool create_pipeline_layout(uint32_t num_table_layouts, const api::descriptor_table_layout *table_layouts, uint32_t num_constant_ranges, const api::constant_range *constant_ranges, api::pipeline_layout *out) final;
-		bool create_descriptor_heap(uint32_t max_tables, uint32_t num_sizes, const api::descriptor_heap_size *sizes, api::descriptor_heap *out) final;
-		bool create_descriptor_tables(api::descriptor_heap heap, api::descriptor_table_layout layout, uint32_t count, api::descriptor_table *out) final;
-		bool create_descriptor_table_layout(uint32_t num_ranges, const api::descriptor_range *ranges, bool push_descriptors, api::descriptor_table_layout *out) final;
-
-		bool create_query_heap(api::query_type type, uint32_t count, api::query_heap *out) final;
+		bool create_pipeline_layout(uint32_t num_table_layouts, const api::descriptor_set_layout *table_layouts, uint32_t num_constant_ranges, const api::constant_range *constant_ranges, api::pipeline_layout *out) final;
+		bool create_query_pool(api::query_type type, uint32_t count, api::query_pool *out) final;
+		bool create_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, api::descriptor_set *out) final;
+		bool create_descriptor_set_layout(uint32_t num_ranges, const api::descriptor_range *ranges, bool push_descriptors, api::descriptor_set_layout *out) final;
 
 		void destroy_sampler(api::sampler handle) final;
 		void destroy_resource(api::resource handle) final;
@@ -188,23 +276,22 @@ namespace reshade::d3d12
 		void destroy_pipeline(api::pipeline_type type, api::pipeline handle) final;
 		void destroy_shader_module(api::shader_module handle) final;
 		void destroy_pipeline_layout(api::pipeline_layout handle) final;
-		void destroy_descriptor_heap(api::descriptor_heap handle) final;
-		void destroy_descriptor_table_layout(api::descriptor_table_layout handle) final;
+		void destroy_query_pool(api::query_pool handle) final;
+		void destroy_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, const api::descriptor_set *sets) final;
+		void destroy_descriptor_set_layout(api::descriptor_set_layout handle) final;
 
-		void destroy_query_heap(api::query_heap handle) final;
-
-		void update_descriptor_tables(uint32_t num_updates, const api::descriptor_update *updates) final;
+		void get_resource_from_view(api::resource_view view, api::resource *out_resource) const final;
+		api::resource_desc get_resource_desc(api::resource resource) const final;
 
 		bool map_resource(api::resource resource, uint32_t subresource, api::map_access access, void **mapped_ptr) final;
 		void unmap_resource(api::resource resource, uint32_t subresource) final;
 
 		void upload_buffer_region(const void *data, api::resource dst, uint64_t dst_offset, uint64_t size) final;
-		void upload_texture_region(const void *data, uint32_t row_pitch, uint32_t slice_pitch, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6]) final;
+		void upload_texture_region(const api::subresource_data &data, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6]) final;
 
-		void get_resource_from_view(api::resource_view view, api::resource *out_resource) const final;
-		api::resource_desc get_resource_desc(api::resource resource) const final;
+		void update_descriptor_sets(uint32_t num_updates, const api::descriptor_update *updates) final;
 
-		bool get_query_results(api::query_heap heap, uint32_t first, uint32_t count, void *results, uint32_t stride) final;
+		bool get_query_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride) final;
 
 		void wait_idle() const final;
 
@@ -239,18 +326,13 @@ namespace reshade::d3d12
 		std::vector<std::pair<ID3D12Resource *, D3D12_GPU_VIRTUAL_ADDRESS_RANGE>> _buffer_gpu_addresses;
 
 		std::unordered_map<UINT64, D3D12_CPU_DESCRIPTOR_HANDLE> _descriptor_table_map;
-		std::unordered_map<ID3D12DescriptorHeap *, UINT> _descriptor_heap_offset;
 
 		com_ptr<ID3D12PipelineState> _mipmap_pipeline;
 		com_ptr<ID3D12RootSignature> _mipmap_signature;
 
-		descriptor_heap_cpu<D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV> _view_heap;
-		descriptor_heap_cpu<D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER> _sampler_heap;
-		descriptor_heap_cpu<D3D12_DESCRIPTOR_HEAP_TYPE_RTV> _rtv_heap;
-		descriptor_heap_cpu<D3D12_DESCRIPTOR_HEAP_TYPE_DSV> _dsv_heap;
-
-		descriptor_heap_gpu<D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 4096> _online_view_heap;
-		descriptor_heap_gpu<D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, 512> _online_sampler_heap;
+		descriptor_heap_cpu _view_heaps[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
+		descriptor_heap_gpu<D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, 128, 128> _gpu_sampler_heap;
+		descriptor_heap_gpu<D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1024, 2048> _gpu_view_heap;
 
 
 	protected:
@@ -286,10 +368,9 @@ namespace reshade::d3d12
 		void bind_viewports(uint32_t first, uint32_t count, const float *viewports) final;
 		void bind_scissor_rects(uint32_t first, uint32_t count, const int32_t *rects) final;
 
-		void push_constants(api::shader_stage stage, api::pipeline_layout layout, uint32_t layout_index, uint32_t first, uint32_t count, const uint32_t *values) final;
+		void push_constants(api::shader_stage stage, api::pipeline_layout layout, uint32_t layout_index, uint32_t first, uint32_t count, const void *values) final;
 		void push_descriptors(api::shader_stage stage, api::pipeline_layout layout, uint32_t layout_index, api::descriptor_type type, uint32_t first, uint32_t count, const void *descriptors) final;
-		void bind_descriptor_heaps(uint32_t count, const api::descriptor_heap *heaps) final;
-		void bind_descriptor_tables(api::pipeline_type type, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_table *tables) final;
+		void bind_descriptor_sets(api::pipeline_type type, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_set *sets) final;
 
 		void bind_index_buffer(api::resource buffer, uint64_t offset, uint32_t index_size) final;
 		void bind_vertex_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *strides) final;
@@ -317,9 +398,9 @@ namespace reshade::d3d12
 		void clear_unordered_access_view_uint(api::resource_view uav, const uint32_t values[4]) final;
 		void clear_unordered_access_view_float(api::resource_view uav, const float values[4]) final;
 
-		void begin_query(api::query_heap heap, api::query_type type, uint32_t index) final;
-		void end_query(api::query_heap heap, api::query_type type, uint32_t index) final;
-		void copy_query_results(api::query_heap heap, api::query_type type, uint32_t first, uint32_t count, api::resource dst, uint64_t dst_offset, uint32_t stride) final;
+		void begin_query(api::query_pool pool, api::query_type type, uint32_t index) final;
+		void end_query(api::query_pool pool, api::query_type type, uint32_t index) final;
+		void copy_query_results(api::query_pool pool, api::query_type type, uint32_t first, uint32_t count, api::resource dst, uint64_t dst_offset, uint32_t stride) final;
 
 		void insert_barrier(uint32_t count, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states) final;
 

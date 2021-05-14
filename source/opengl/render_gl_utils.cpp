@@ -890,7 +890,7 @@ reshade::api::subresource_data reshade::opengl::convert_mapped_subresource(GLenu
 	}
 
 	result.row_pitch = bpp * width;
-	result.depth_pitch = bpp * width * height;
+	result.slice_pitch = bpp * width * height;
 
 	switch (format)
 	{
@@ -903,21 +903,21 @@ reshade::api::subresource_data reshade::opengl::convert_mapped_subresource(GLenu
 	case GL_RG_INTEGER:
 	case GL_DEPTH_STENCIL:
 		result.row_pitch *= 2;
-		result.depth_pitch *= 2;
+		result.slice_pitch *= 2;
 		break;
 	case GL_RGB:
 	case GL_RGB_INTEGER:
 	case GL_BGR:
 	case GL_BGR_INTEGER:
 		result.row_pitch *= 3;
-		result.depth_pitch *= 3;
+		result.slice_pitch *= 3;
 		break;
 	case GL_RGBA:
 	case GL_RGBA_INTEGER:
 	case GL_BGRA:
 	case GL_BGRA_INTEGER:
 		result.row_pitch *= 4;
-		result.depth_pitch *= 4;
+		result.slice_pitch *= 4;
 		break;
 	}
 

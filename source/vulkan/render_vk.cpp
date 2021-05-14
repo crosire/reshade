@@ -50,6 +50,42 @@ reshade::vulkan::device_impl::device_impl(VkDevice device, VkPhysicalDevice phys
 		vmaCreateAllocator(&create_info, &_alloc);
 	}
 
+	const VkDescriptorPoolSize pool_sizes[] = {
+		{ VK_DESCRIPTOR_TYPE_SAMPLER, 128 },
+		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1024 },
+		{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1024 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 512 },
+		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 128 }
+	};
+
+	{	VkDescriptorPoolCreateInfo create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
+		create_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+		create_info.maxSets = 512;
+		create_info.poolSizeCount = 5;
+		create_info.pPoolSizes = pool_sizes;
+
+		if (vk.CreateDescriptorPool(_orig, &create_info, nullptr, &_descriptor_pool) != VK_SUCCESS)
+		{
+			LOG(ERROR) << "Failed to create descriptor pool!";
+		}
+	}
+
+	if (vk.CmdPushDescriptorSetKHR == nullptr)
+	{
+		for (uint32_t i = 0; i < 4; ++i)
+		{
+			VkDescriptorPoolCreateInfo create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
+			create_info.maxSets = 32;
+			create_info.poolSizeCount = 5;
+			create_info.pPoolSizes = pool_sizes;
+
+			if (vk.CreateDescriptorPool(_orig, &create_info, nullptr, &_transient_descriptor_pool[i]) != VK_SUCCESS)
+			{
+				LOG(ERROR) << "Failed to create transient descriptor pool!";
+			}
+		}
+	}
+
 #if RESHADE_ADDON
 	addon::load_addons();
 #endif
@@ -71,7 +107,20 @@ reshade::vulkan::device_impl::~device_impl()
 	for (const auto &it : _framebuffer_list_internal)
 		vk.DestroyFramebuffer(_orig, it.second, nullptr);
 
+	vk.DestroyDescriptorPool(_orig, _descriptor_pool, nullptr);
+	for (uint32_t i = 0; i < 4; ++i)
+		vk.DestroyDescriptorPool(_orig, _transient_descriptor_pool[i], nullptr);
+
 	vmaDestroyAllocator(_alloc);
+}
+
+void reshade::vulkan::device_impl::advance_transient_descriptor_pool()
+{
+	if (vk.CmdPushDescriptorSetKHR != nullptr)
+		return;
+
+	const VkDescriptorPool next_pool = _transient_descriptor_pool[++_transient_index % 4];
+	vk.ResetDescriptorPool(_orig, next_pool, 0);
 }
 
 bool reshade::vulkan::device_impl::check_capability(api::device_caps capability) const
@@ -101,9 +150,11 @@ bool reshade::vulkan::device_impl::check_capability(api::device_caps capability)
 		return _enabled_features.multiViewport;
 	case api::device_caps::sampler_anisotropy:
 		return _enabled_features.samplerAnisotropy;
-	case api::device_caps::push_descriptors:
+	case api::device_caps::partial_push_constant_updates:
+		return true;
+	case api::device_caps::partial_push_descriptor_updates:
 		return vk.CmdPushDescriptorSetKHR != nullptr;
-	case api::device_caps::descriptor_tables:
+	case api::device_caps::descriptor_sets:
 	case api::device_caps::sampler_with_resource_view:
 	case api::device_caps::blit:
 	case api::device_caps::resolve_region:
@@ -665,7 +716,7 @@ bool reshade::vulkan::device_impl::create_shader_module(api::shader_stage, api::
 		return false;
 	}
 }
-bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t num_table_layouts, const api::descriptor_table_layout *table_layouts, uint32_t num_constant_ranges, const api::constant_range *constant_ranges, api::pipeline_layout *out)
+bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t num_table_layouts, const api::descriptor_set_layout *table_layouts, uint32_t num_constant_ranges, const api::constant_range *constant_ranges, api::pipeline_layout *out)
 {
 	static_assert(sizeof(*table_layouts) == sizeof(VkDescriptorSetLayout));
 
@@ -686,6 +737,8 @@ bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t num_table_lay
 	if (VkPipelineLayout object = VK_NULL_HANDLE;
 		vk.CreatePipelineLayout(_orig, &create_info, nullptr, &object) == VK_SUCCESS)
 	{
+		_pipeline_layout_list[object].assign(create_info.pSetLayouts, create_info.pSetLayouts + create_info.setLayoutCount);
+
 		*out = { (uint64_t)object };
 		return true;
 	}
@@ -695,50 +748,20 @@ bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t num_table_lay
 		return false;
 	}
 }
-bool reshade::vulkan::device_impl::create_descriptor_heap(uint32_t max_tables, uint32_t num_sizes, const api::descriptor_heap_size *sizes, api::descriptor_heap *out)
-{
-	static_assert(sizeof(*sizes) == sizeof(VkDescriptorPoolSize));
-
-	VkDescriptorPoolCreateInfo create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
-	create_info.maxSets = max_tables;
-	create_info.poolSizeCount = num_sizes;
-	create_info.pPoolSizes = reinterpret_cast<const VkDescriptorPoolSize *>(sizes);
-
-	if (VkDescriptorPool object = VK_NULL_HANDLE;
-		vk.CreateDescriptorPool(_orig, &create_info, nullptr, &object) == VK_SUCCESS)
-	{
-		*out = { (uint64_t)object };
-		return true;
-	}
-	else
-	{
-		*out = { 0 };
-		return false;
-	}
-}
-bool reshade::vulkan::device_impl::create_descriptor_tables(api::descriptor_heap heap, api::descriptor_table_layout layout, uint32_t count, api::descriptor_table *out)
+bool reshade::vulkan::device_impl::create_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, api::descriptor_set *out)
 {
 	static_assert(sizeof(*out) == sizeof(VkDescriptorSet));
 
 	std::vector<VkDescriptorSetLayout> set_layouts(count, (VkDescriptorSetLayout)layout.handle);
 
 	VkDescriptorSetAllocateInfo alloc_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
-	alloc_info.descriptorPool = (VkDescriptorPool)heap.handle;
+	alloc_info.descriptorPool = _descriptor_pool;
 	alloc_info.descriptorSetCount = count;
 	alloc_info.pSetLayouts = set_layouts.data();
 
-	if (vk.AllocateDescriptorSets(_orig, &alloc_info, reinterpret_cast<VkDescriptorSet *>(out)) == VK_SUCCESS)
-	{
-		return true;
-	}
-	else
-	{
-		for (uint32_t i = 0; i < count; ++i)
-			out[i] = { 0 };
-		return false;
-	}
+	return vk.AllocateDescriptorSets(_orig, &alloc_info, reinterpret_cast<VkDescriptorSet *>(out)) == VK_SUCCESS;
 }
-bool reshade::vulkan::device_impl::create_descriptor_table_layout(uint32_t num_ranges, const api::descriptor_range *ranges, bool push_descriptors, api::descriptor_table_layout *out)
+bool reshade::vulkan::device_impl::create_descriptor_set_layout(uint32_t num_ranges, const api::descriptor_range *ranges, bool push_descriptors, api::descriptor_set_layout *out)
 {
 	std::vector<VkDescriptorSetLayoutBinding> internal_bindings;
 	internal_bindings.reserve(num_ranges);
@@ -759,7 +782,7 @@ bool reshade::vulkan::device_impl::create_descriptor_table_layout(uint32_t num_r
 	set_create_info.bindingCount = static_cast<uint32_t>(internal_bindings.size());
 	set_create_info.pBindings = internal_bindings.data();
 
-	if (push_descriptors)
+	if (push_descriptors && vk.CmdPushDescriptorSetKHR != nullptr)
 		set_create_info.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
 
 	if (VkDescriptorSetLayout object = VK_NULL_HANDLE;
@@ -775,7 +798,7 @@ bool reshade::vulkan::device_impl::create_descriptor_table_layout(uint32_t num_r
 	}
 }
 
-bool reshade::vulkan::device_impl::create_query_heap(api::query_type type, uint32_t count, api::query_heap *out)
+bool reshade::vulkan::device_impl::create_query_pool(api::query_type type, uint32_t count, api::query_pool *out)
 {
 	VkQueryPoolCreateInfo create_info { VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO };
 	create_info.queryType = convert_query_type(type);
@@ -856,23 +879,25 @@ void reshade::vulkan::device_impl::destroy_shader_module(api::shader_module hand
 }
 void reshade::vulkan::device_impl::destroy_pipeline_layout(api::pipeline_layout handle)
 {
+	_pipeline_layout_list.erase((VkPipelineLayout)handle.handle);
+
 	vk.DestroyPipelineLayout(_orig, (VkPipelineLayout)handle.handle, nullptr);
 }
-void reshade::vulkan::device_impl::destroy_descriptor_heap(api::descriptor_heap handle)
+void reshade::vulkan::device_impl::destroy_descriptor_sets(api::descriptor_set_layout, uint32_t count, const api::descriptor_set *sets)
 {
-	vk.DestroyDescriptorPool(_orig, (VkDescriptorPool)handle.handle, nullptr);
+	vk.FreeDescriptorSets(_orig, _descriptor_pool, count, reinterpret_cast<const VkDescriptorSet *>(sets));
 }
-void reshade::vulkan::device_impl::destroy_descriptor_table_layout(api::descriptor_table_layout handle)
+void reshade::vulkan::device_impl::destroy_descriptor_set_layout(api::descriptor_set_layout handle)
 {
 	vk.DestroyDescriptorSetLayout(_orig, (VkDescriptorSetLayout)handle.handle, nullptr);
 }
 
-void reshade::vulkan::device_impl::destroy_query_heap(api::query_heap handle)
+void reshade::vulkan::device_impl::destroy_query_pool(api::query_pool handle)
 {
 	vk.DestroyQueryPool(_orig, (VkQueryPool)handle.handle, nullptr);
 }
 
-void reshade::vulkan::device_impl::update_descriptor_tables(uint32_t num_updates, const api::descriptor_update *updates)
+void reshade::vulkan::device_impl::update_descriptor_sets(uint32_t num_updates, const api::descriptor_update *updates)
 {
 	std::vector<VkWriteDescriptorSet> writes(num_updates);
 
@@ -882,7 +907,7 @@ void reshade::vulkan::device_impl::update_descriptor_tables(uint32_t num_updates
 	for (uint32_t i = 0; i < num_updates; ++i)
 	{
 		writes[i] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-		writes[i].dstSet = (VkDescriptorSet)updates[i].table.handle;
+		writes[i].dstSet = (VkDescriptorSet)updates[i].set.handle;
 		writes[i].dstBinding = updates[i].binding;
 		writes[i].dstArrayElement = 0;
 		writes[i].descriptorCount = 1;
@@ -988,7 +1013,7 @@ void reshade::vulkan::device_impl::upload_buffer_region(const void *data, api::r
 
 	vmaDestroyBuffer(_alloc, intermediate, intermediate_mem);
 }
-void reshade::vulkan::device_impl::upload_texture_region(const void *data, uint32_t, uint32_t slice_pitch, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6])
+void reshade::vulkan::device_impl::upload_texture_region(const api::subresource_data &data, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6])
 {
 	assert(dst.handle != 0);
 	const resource_data &dst_data = _resources.at(dst.handle);
@@ -999,7 +1024,7 @@ void reshade::vulkan::device_impl::upload_texture_region(const void *data, uint3
 	VmaAllocation intermediate_mem = VK_NULL_HANDLE;
 
 	{   VkBufferCreateInfo create_info { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
-		create_info.size = slice_pitch * dst_data.image_create_info.arrayLayers;
+		create_info.size = data.slice_pitch * dst_data.image_create_info.arrayLayers;
 		create_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 
 		VmaAllocationCreateInfo alloc_info = {};
@@ -1017,7 +1042,7 @@ void reshade::vulkan::device_impl::upload_texture_region(const void *data, uint3
 	uint8_t *mapped_data = nullptr;
 	if (vmaMapMemory(_alloc, intermediate_mem, reinterpret_cast<void **>(&mapped_data)) == VK_SUCCESS)
 	{
-		std::memcpy(mapped_data, data, slice_pitch * dst_data.image_create_info.arrayLayers);
+		std::memcpy(mapped_data, data.data, data.slice_pitch * dst_data.image_create_info.arrayLayers);
 
 		vmaUnmapMemory(_alloc, intermediate_mem);
 	}
@@ -1064,11 +1089,11 @@ reshade::api::resource_desc reshade::vulkan::device_impl::get_resource_desc(api:
 		return convert_resource_desc(data.buffer_create_info);
 }
 
-bool reshade::vulkan::device_impl::get_query_results(api::query_heap heap, uint32_t first, uint32_t count, void *results, uint32_t stride)
+bool reshade::vulkan::device_impl::get_query_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride)
 {
 	assert(stride >= sizeof(uint64_t));
 
-	return vk.GetQueryPoolResults(_orig, (VkQueryPool)heap.handle, first, count, count * stride, results, stride, VK_QUERY_RESULT_64_BIT) == VK_SUCCESS;
+	return vk.GetQueryPoolResults(_orig, (VkQueryPool)pool.handle, first, count, count * stride, results, stride, VK_QUERY_RESULT_64_BIT) == VK_SUCCESS;
 }
 
 void reshade::vulkan::device_impl::wait_idle() const
@@ -1291,7 +1316,7 @@ void reshade::vulkan::command_list_impl::bind_scissor_rects(uint32_t first, uint
 	_device_impl->vk.CmdSetScissor(_orig, first, count, rect_data);
 }
 
-void reshade::vulkan::command_list_impl::push_constants(api::shader_stage stage, api::pipeline_layout layout, uint32_t, uint32_t offset, uint32_t count, const uint32_t *values)
+void reshade::vulkan::command_list_impl::push_constants(api::shader_stage stage, api::pipeline_layout layout, uint32_t, uint32_t offset, uint32_t count, const void *values)
 {
 	assert(count != 0);
 
@@ -1362,21 +1387,40 @@ void reshade::vulkan::command_list_impl::push_descriptors(api::shader_stage stag
 		break;
 	}
 
-	_device_impl->vk.CmdPushDescriptorSetKHR(_orig,
-		stage == api::shader_stage::compute ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS,
-		(VkPipelineLayout)layout.handle, layout_index,
-		1, &write);
+	if (_device_impl->vk.CmdPushDescriptorSetKHR != nullptr)
+	{
+		_device_impl->vk.CmdPushDescriptorSetKHR(_orig,
+			stage == api::shader_stage::compute ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS,
+			(VkPipelineLayout)layout.handle, layout_index,
+			1, &write);
+	}
+	else
+	{
+		assert(first == 0);
+
+		VkDescriptorSetAllocateInfo alloc_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
+		alloc_info.descriptorPool = _device_impl->_transient_descriptor_pool[_device_impl->_transient_index % 4];
+		alloc_info.descriptorSetCount = 1;
+		alloc_info.pSetLayouts = &_device_impl->_pipeline_layout_list[(VkPipelineLayout)layout.handle][layout_index];
+
+		if (_device_impl->vk.AllocateDescriptorSets(_device_impl->_orig, &alloc_info, &write.dstSet) != VK_SUCCESS)
+			return;
+
+		_device_impl->vk.UpdateDescriptorSets(_device_impl->_orig, 1, &write, 0, nullptr);
+
+		_device_impl->vk.CmdBindDescriptorSets(_orig,
+			stage == api::shader_stage::compute ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS,
+			(VkPipelineLayout)layout.handle,
+			layout_index, 1, &write.dstSet,
+			0, nullptr);
+	}
 }
-void reshade::vulkan::command_list_impl::bind_descriptor_heaps(uint32_t, const api::descriptor_heap *)
-{
-	// No need to bind descriptor pool in Vulkan
-}
-void reshade::vulkan::command_list_impl::bind_descriptor_tables(api::pipeline_type type, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_table *tables)
+void reshade::vulkan::command_list_impl::bind_descriptor_sets(api::pipeline_type type, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_set *sets)
 {
 	_device_impl->vk.CmdBindDescriptorSets(_orig,
 		type == api::pipeline_type::compute ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS,
 		(VkPipelineLayout)layout.handle,
-		first, count, reinterpret_cast<const VkDescriptorSet *>(tables),
+		first, count, reinterpret_cast<const VkDescriptorSet *>(sets),
 		0, nullptr);
 }
 
@@ -1817,32 +1861,32 @@ void reshade::vulkan::command_list_impl::clear_unordered_access_view_float(api::
 	_device_impl->vk.CmdClearColorImage(_orig, uav_data.image_create_info.image, VK_IMAGE_LAYOUT_GENERAL, &clear_value, 1, &range);
 }
 
-void reshade::vulkan::command_list_impl::begin_query(api::query_heap heap, api::query_type, uint32_t index)
+void reshade::vulkan::command_list_impl::begin_query(api::query_pool pool, api::query_type, uint32_t index)
 {
 	_has_commands = true;
 
-	_device_impl->vk.CmdResetQueryPool(_orig, (VkQueryPool)heap.handle, index, 1);
-	_device_impl->vk.CmdBeginQuery(_orig, (VkQueryPool)heap.handle, index, 0);
+	_device_impl->vk.CmdResetQueryPool(_orig, (VkQueryPool)pool.handle, index, 1);
+	_device_impl->vk.CmdBeginQuery(_orig, (VkQueryPool)pool.handle, index, 0);
 }
-void reshade::vulkan::command_list_impl::end_query(api::query_heap heap, api::query_type type, uint32_t index)
+void reshade::vulkan::command_list_impl::end_query(api::query_pool pool, api::query_type type, uint32_t index)
 {
 	_has_commands = true;
 
 	if (type == api::query_type::timestamp)
 	{
-		_device_impl->vk.CmdResetQueryPool(_orig, (VkQueryPool)heap.handle, index, 1);
-		_device_impl->vk.CmdWriteTimestamp(_orig, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, (VkQueryPool)heap.handle, index);
+		_device_impl->vk.CmdResetQueryPool(_orig, (VkQueryPool)pool.handle, index, 1);
+		_device_impl->vk.CmdWriteTimestamp(_orig, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, (VkQueryPool)pool.handle, index);
 	}
 	else
 	{
-		_device_impl->vk.CmdEndQuery(_orig, (VkQueryPool)heap.handle, index);
+		_device_impl->vk.CmdEndQuery(_orig, (VkQueryPool)pool.handle, index);
 	}
 }
-void reshade::vulkan::command_list_impl::copy_query_results(api::query_heap heap, api::query_type, uint32_t first, uint32_t count, api::resource dst, uint64_t dst_offset, uint32_t stride)
+void reshade::vulkan::command_list_impl::copy_query_results(api::query_pool pool, api::query_type, uint32_t first, uint32_t count, api::resource dst, uint64_t dst_offset, uint32_t stride)
 {
 	_has_commands = true;
 
-	_device_impl->vk.CmdCopyQueryPoolResults(_orig, (VkQueryPool)heap.handle, first, count, (VkBuffer)dst.handle, dst_offset, stride, VK_QUERY_RESULT_64_BIT);
+	_device_impl->vk.CmdCopyQueryPoolResults(_orig, (VkQueryPool)pool.handle, first, count, (VkBuffer)dst.handle, dst_offset, stride, VK_QUERY_RESULT_64_BIT);
 }
 
 void reshade::vulkan::command_list_impl::insert_barrier(uint32_t count, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states)

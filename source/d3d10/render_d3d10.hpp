@@ -37,12 +37,10 @@ namespace reshade::d3d10
 		bool create_pipeline_graphics_depth_stencil_state(const api::pipeline_desc &desc, api::pipeline *out);
 
 		bool create_shader_module(api::shader_stage type, api::shader_format format, const char *entry_point, const void *data, size_t size, api::shader_module *out) final;
-		bool create_pipeline_layout(uint32_t num_table_layouts, const api::descriptor_table_layout *table_layouts, uint32_t num_constant_ranges, const api::constant_range *constant_ranges, api::pipeline_layout *out) final;
-		bool create_descriptor_heap(uint32_t max_tables, uint32_t num_sizes, const api::descriptor_heap_size *sizes, api::descriptor_heap *out) final;
-		bool create_descriptor_tables(api::descriptor_heap heap, api::descriptor_table_layout layout, uint32_t count, api::descriptor_table *out) final;
-		bool create_descriptor_table_layout(uint32_t num_ranges, const api::descriptor_range *ranges, bool push_descriptors, api::descriptor_table_layout *out) final;
-
-		bool create_query_heap(api::query_type type, uint32_t count, api::query_heap *out) final;
+		bool create_pipeline_layout(uint32_t num_table_layouts, const api::descriptor_set_layout *table_layouts, uint32_t num_constant_ranges, const api::constant_range *constant_ranges, api::pipeline_layout *out) final;
+		bool create_query_pool(api::query_type type, uint32_t count, api::query_pool *out) final;
+		bool create_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, api::descriptor_set *out) final;
+		bool create_descriptor_set_layout(uint32_t num_ranges, const api::descriptor_range *ranges, bool push_descriptors, api::descriptor_set_layout *out) final;
 
 		void destroy_sampler(api::sampler handle) final;
 		void destroy_resource(api::resource handle) final;
@@ -51,23 +49,22 @@ namespace reshade::d3d10
 		void destroy_pipeline(api::pipeline_type type, api::pipeline handle) final;
 		void destroy_shader_module(api::shader_module handle) final;
 		void destroy_pipeline_layout(api::pipeline_layout handle) final;
-		void destroy_descriptor_heap(api::descriptor_heap handle) final;
-		void destroy_descriptor_table_layout(api::descriptor_table_layout handle) final;
+		void destroy_query_pool(api::query_pool handle) final;
+		void destroy_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, const api::descriptor_set *sets) final;
+		void destroy_descriptor_set_layout(api::descriptor_set_layout handle) final;
 
-		void destroy_query_heap(api::query_heap handle) final;
-
-		void update_descriptor_tables(uint32_t num_updates, const api::descriptor_update *updates) final;
+		void get_resource_from_view(api::resource_view view, api::resource *out_resource) const final;
+		api::resource_desc get_resource_desc(api::resource resource) const final;
 
 		bool map_resource(api::resource resource, uint32_t subresource, api::map_access access, void **mapped_ptr) final;
 		void unmap_resource(api::resource resource, uint32_t subresource) final;
 
 		void upload_buffer_region(const void *data, api::resource dst, uint64_t dst_offset, uint64_t size) final;
-		void upload_texture_region(const void *data, uint32_t row_pitch, uint32_t slice_pitch, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6]) final;
+		void upload_texture_region(const api::subresource_data &data, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6]) final;
 
-		void get_resource_from_view(api::resource_view view, api::resource *out_resource) const final;
-		api::resource_desc get_resource_desc(api::resource resource) const final;
+		void update_descriptor_sets(uint32_t num_updates, const api::descriptor_update *updates) final;
 
-		bool get_query_results(api::query_heap heap, uint32_t first, uint32_t count, void *results, uint32_t stride) final;
+		bool get_query_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride) final;
 
 		void wait_idle() const final { /* no-op */ }
 
@@ -88,10 +85,9 @@ namespace reshade::d3d10
 		void bind_shader_resource_views(api::shader_stage stage, uint32_t first, uint32_t count, const api::resource_view *views);
 		void bind_constant_buffers(api::shader_stage stage, uint32_t first, uint32_t count, const api::resource *buffers);
 
-		void push_constants(api::shader_stage stage, api::pipeline_layout layout, uint32_t layout_index, uint32_t first, uint32_t count, const uint32_t *values) final;
+		void push_constants(api::shader_stage stage, api::pipeline_layout layout, uint32_t layout_index, uint32_t first, uint32_t count, const void *values) final;
 		void push_descriptors(api::shader_stage stage, api::pipeline_layout layout, uint32_t layout_index, api::descriptor_type type, uint32_t first, uint32_t count, const void *descriptors) final;
-		void bind_descriptor_heaps(uint32_t count, const api::descriptor_heap *heaps) final;
-		void bind_descriptor_tables(api::pipeline_type type, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_table *tables) final;
+		void bind_descriptor_sets(api::pipeline_type type, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_set *sets) final;
 
 		void bind_index_buffer(api::resource buffer, uint64_t offset, uint32_t index_size) final;
 		void bind_vertex_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *strides) final;
@@ -119,9 +115,9 @@ namespace reshade::d3d10
 		void clear_unordered_access_view_uint(api::resource_view uav, const uint32_t values[4]) final;
 		void clear_unordered_access_view_float(api::resource_view uav, const float values[4]) final;
 
-		void begin_query(api::query_heap heap, api::query_type type, uint32_t index) final;
-		void end_query(api::query_heap heap, api::query_type type, uint32_t index) final;
-		void copy_query_results(api::query_heap heap, api::query_type type, uint32_t first, uint32_t count, api::resource dst, uint64_t dst_offset, uint32_t stride) final;
+		void begin_query(api::query_pool pool, api::query_type type, uint32_t index) final;
+		void end_query(api::query_pool pool, api::query_type type, uint32_t index) final;
+		void copy_query_results(api::query_pool pool, api::query_type type, uint32_t first, uint32_t count, api::resource dst, uint64_t dst_offset, uint32_t stride) final;
 
 		void insert_barrier(uint32_t, const api::resource *, const api::resource_usage *, const api::resource_usage *) final { /* no-op */ }
 
