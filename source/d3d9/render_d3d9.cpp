@@ -18,6 +18,7 @@ namespace
 
 	struct pipeline_layout_impl
 	{
+		std::vector<UINT> shader_registers;
 	};
 
 	struct query_pool_impl
@@ -26,9 +27,16 @@ namespace
 		std::vector<com_ptr<IDirect3DQuery9>> queries;
 	};
 
-	struct descriptor_table_layout_impl
+	struct descriptor_set_impl
 	{
-		UINT shader_register_base;
+		reshade::api::descriptor_type type;
+		std::vector<uint64_t> descriptors;
+		std::vector<reshade::api::sampler_with_resource_view> sampler_with_resource_views;
+	};
+
+	struct descriptor_set_layout_impl
+	{
+		reshade::api::descriptor_range range;
 	};
 
 	inline bool convert_format_internal(reshade::api::format format, D3DFORMAT &internal_format)
@@ -261,9 +269,6 @@ bool reshade::d3d9::device_impl::check_capability(api::device_caps capability) c
 	case api::device_caps::sampler_anisotropy:
 	case api::device_caps::partial_push_constant_updates:
 	case api::device_caps::partial_push_descriptor_updates:
-		return true;
-	case api::device_caps::descriptor_sets:
-		return false;
 	case api::device_caps::sampler_with_resource_view:
 		return true;
 	case api::device_caps::blit:
@@ -853,24 +858,57 @@ bool reshade::d3d9::device_impl::create_shader_module(api::shader_stage type, ap
 	*out = { 0 };
 	return false;
 }
-bool reshade::d3d9::device_impl::create_pipeline_layout(uint32_t, const api::descriptor_set_layout *, uint32_t, const api::constant_range *, api::pipeline_layout *out)
+bool reshade::d3d9::device_impl::create_pipeline_layout(uint32_t num_set_layouts, const api::descriptor_set_layout *set_layouts, uint32_t num_constant_ranges, const api::constant_range *constant_ranges, api::pipeline_layout *out)
 {
-	const auto layout = new pipeline_layout_impl();
+	const auto layout_impl = new pipeline_layout_impl();
+	layout_impl->shader_registers.resize(num_set_layouts + num_constant_ranges);
 
-	*out = { reinterpret_cast<uintptr_t>(layout) };
+	for (UINT i = 0; i < num_set_layouts; ++i)
+	{
+		layout_impl->shader_registers[i] = reinterpret_cast<descriptor_set_layout_impl *>(set_layouts[i].handle)->range.dx_shader_register;
+	}
+
+	for (UINT i = 0; i < num_constant_ranges; ++i)
+	{
+		layout_impl->shader_registers[num_set_layouts + i] = constant_ranges[i].offset / 4;
+	}
+
+	*out = { reinterpret_cast<uintptr_t>(layout_impl) };
 	return true;
 }
-bool reshade::d3d9::device_impl::create_descriptor_sets(api::descriptor_set_layout, uint32_t, api::descriptor_set *out)
+bool reshade::d3d9::device_impl::create_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, api::descriptor_set *out)
 {
-	assert(false);
+	const auto layout_impl = reinterpret_cast<descriptor_set_layout_impl *>(layout.handle);
 
-	*out = { 0 };
-	return false;
+	for (UINT i = 0; i < count; ++i)
+	{
+		const auto set = new descriptor_set_impl();
+		set->type = layout_impl->range.type;
+
+		if (layout_impl->range.type != api::descriptor_type::sampler_with_resource_view)
+			set->descriptors.resize(layout_impl->range.count);
+		else
+			set->sampler_with_resource_views.resize(layout_impl->range.count);
+
+		out[i] = { reinterpret_cast<uintptr_t>(set) };
+	}
+
+	return true;
 }
-bool reshade::d3d9::device_impl::create_descriptor_set_layout(uint32_t, const api::descriptor_range *, bool push_descriptors, api::descriptor_set_layout *out)
+bool reshade::d3d9::device_impl::create_descriptor_set_layout(uint32_t num_ranges, const api::descriptor_range *ranges, bool, api::descriptor_set_layout *out)
 {
-	*out = { 0 };
-	return push_descriptors;
+	// Can only have descriptors of a single type in a descriptor set
+	if (num_ranges != 1)
+	{
+		*out = { 0 };
+		return false;
+	}
+
+	const auto layout_impl = new descriptor_set_layout_impl();
+	layout_impl->range = ranges[0];
+
+	*out = { reinterpret_cast<uintptr_t>(layout_impl) };
+	return true;
 }
 
 bool reshade::d3d9::device_impl::create_query_pool(api::query_type type, uint32_t count, api::query_pool *out)
@@ -926,10 +964,12 @@ void reshade::d3d9::device_impl::destroy_pipeline_layout(api::pipeline_layout ha
 }
 void reshade::d3d9::device_impl::destroy_descriptor_sets(api::descriptor_set_layout, uint32_t count, const api::descriptor_set *sets)
 {
-	assert(count == 0 || sets[0].handle == 0);
+	for (UINT i = 0; i < count; ++i)
+		delete reinterpret_cast<descriptor_set_impl *>(sets[i].handle);
 }
-void reshade::d3d9::device_impl::destroy_descriptor_set_layout(api::descriptor_set_layout)
+void reshade::d3d9::device_impl::destroy_descriptor_set_layout(api::descriptor_set_layout handle)
 {
+	delete reinterpret_cast<descriptor_set_layout_impl *>(handle.handle);
 }
 
 void reshade::d3d9::device_impl::destroy_query_pool(api::query_pool handle)
@@ -937,9 +977,29 @@ void reshade::d3d9::device_impl::destroy_query_pool(api::query_pool handle)
 	delete reinterpret_cast<query_pool_impl *>(handle.handle);
 }
 
-void reshade::d3d9::device_impl::update_descriptor_sets(uint32_t, const api::descriptor_update *)
+void reshade::d3d9::device_impl::update_descriptor_sets(uint32_t num_updates, const api::descriptor_update *updates)
 {
-	assert(false);
+	for (UINT i = 0; i < num_updates; ++i)
+	{
+		const auto set_impl = reinterpret_cast<descriptor_set_impl *>(updates[i].set.handle);
+
+		switch (updates[i].type)
+		{
+		case api::descriptor_type::sampler:
+			set_impl->descriptors[updates[i].binding] = updates[i].descriptor.sampler.handle;
+			break;
+		case api::descriptor_type::sampler_with_resource_view:
+			set_impl->sampler_with_resource_views[updates[i].binding] = updates[i].descriptor;
+			break;
+		case api::descriptor_type::shader_resource_view:
+			set_impl->descriptors[updates[i].binding] = updates[i].descriptor.view.handle;
+			break;
+		case api::descriptor_type::unordered_access_view:
+		case api::descriptor_type::constant_buffer:
+			assert(false);
+			break;
+		}
+	}
 }
 
 bool reshade::d3d9::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access access, void **mapped_ptr)
@@ -1336,6 +1396,9 @@ void reshade::d3d9::device_impl::push_descriptors(api::shader_stage stage, api::
 		return;
 	}
 
+	if (layout.handle != 0)
+		first += reinterpret_cast<pipeline_layout_impl *>(layout.handle)->shader_registers[layout_index];
+
 	switch (stage)
 	{
 	default:
@@ -1358,8 +1421,9 @@ void reshade::d3d9::device_impl::push_descriptors(api::shader_stage stage, api::
 		{
 			const auto &descriptor = static_cast<const api::sampler *>(descriptors)[i];
 
-			for (D3DSAMPLERSTATETYPE state = D3DSAMP_ADDRESSU; state <= D3DSAMP_MAXANISOTROPY; state = static_cast<D3DSAMPLERSTATETYPE>(state + 1))
-				_orig->SetSamplerState(i + first, state, reinterpret_cast<const DWORD *>(descriptor.handle)[state - 1]);
+			if (descriptor.handle != 0)
+				for (D3DSAMPLERSTATETYPE state = D3DSAMP_ADDRESSU; state <= D3DSAMP_MAXANISOTROPY; state = static_cast<D3DSAMPLERSTATETYPE>(state + 1))
+					_orig->SetSamplerState(i + first, state, reinterpret_cast<const DWORD *>(descriptor.handle)[state - 1]);
 		}
 		break;
 	case api::descriptor_type::sampler_with_resource_view:
@@ -1369,8 +1433,9 @@ void reshade::d3d9::device_impl::push_descriptors(api::shader_stage stage, api::
 			_orig->SetTexture(i + first, reinterpret_cast<IDirect3DBaseTexture9 *>(descriptor.view.handle & ~1ull));
 			_orig->SetSamplerState(i + first, D3DSAMP_SRGBTEXTURE, descriptor.view.handle & 1);
 
-			for (D3DSAMPLERSTATETYPE state = D3DSAMP_ADDRESSU; state <= D3DSAMP_MAXANISOTROPY; state = static_cast<D3DSAMPLERSTATETYPE>(state + 1))
-				_orig->SetSamplerState(i + first, state, reinterpret_cast<const DWORD *>(descriptor.sampler.handle)[state - 1]);
+			if (descriptor.sampler.handle != 0)
+				for (D3DSAMPLERSTATETYPE state = D3DSAMP_ADDRESSU; state <= D3DSAMP_MAXANISOTROPY; state = static_cast<D3DSAMPLERSTATETYPE>(state + 1))
+					_orig->SetSamplerState(i + first, state, reinterpret_cast<const DWORD *>(descriptor.sampler.handle)[state - 1]);
 		}
 		break;
 	case api::descriptor_type::shader_resource_view:
@@ -1387,9 +1452,37 @@ void reshade::d3d9::device_impl::push_descriptors(api::shader_stage stage, api::
 		break;
 	}
 }
-void reshade::d3d9::device_impl::bind_descriptor_sets(api::pipeline_type, api::pipeline_layout, uint32_t, uint32_t, const api::descriptor_set *)
+void reshade::d3d9::device_impl::bind_descriptor_sets(api::pipeline_type type, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_set *sets)
 {
-	assert(false);
+	assert(type == api::pipeline_type::graphics);
+
+	for (UINT i = 0; i < count; ++i)
+	{
+		const auto set_impl = reinterpret_cast<descriptor_set_impl *>(sets[i].handle);
+
+		if (set_impl->type != api::descriptor_type::sampler_with_resource_view)
+		{
+			push_descriptors(
+				api::shader_stage::all_graphics,
+				layout,
+				i + first,
+				set_impl->type,
+				0,
+				static_cast<uint32_t>(set_impl->descriptors.size()),
+				set_impl->descriptors.data());
+		}
+		else
+		{
+			push_descriptors(
+				api::shader_stage::all_graphics,
+				layout,
+				i + first,
+				set_impl->type,
+				0,
+				static_cast<uint32_t>(set_impl->sampler_with_resource_views.size()),
+				set_impl->sampler_with_resource_views.data());
+		}
+	}
 }
 
 void reshade::d3d9::device_impl::bind_index_buffer(api::resource buffer, uint64_t offset, uint32_t index_size)

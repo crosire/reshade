@@ -155,7 +155,6 @@ bool reshade::vulkan::device_impl::check_capability(api::device_caps capability)
 		return true;
 	case api::device_caps::partial_push_descriptor_updates:
 		return vk.CmdPushDescriptorSetKHR != nullptr;
-	case api::device_caps::descriptor_sets:
 	case api::device_caps::sampler_with_resource_view:
 	case api::device_caps::blit:
 	case api::device_caps::resolve_region:

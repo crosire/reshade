@@ -93,11 +93,6 @@ namespace reshade { namespace api
 		/// </summary>
 		partial_push_descriptor_updates,
 		/// <summary>
-		/// Specifies whether descriptor sets are supported.
-		/// If this feature is not present, <see cref="command_list::bind_descriptor_sets"/> must not be used.
-		/// </summary>
-		descriptor_sets,
-		/// <summary>
 		/// Specifies whether combined sampler and resource is supported.
 		/// If this feature is not present, <see cref="descriptor_type::sampler_with_resource_view"/> must not be used.
 		/// </summary>

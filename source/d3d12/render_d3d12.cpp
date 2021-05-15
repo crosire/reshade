@@ -154,9 +154,6 @@ bool reshade::d3d12::device_impl::check_capability(api::device_caps capability) 
 	case api::device_caps::partial_push_constant_updates:
 		return true;
 	case api::device_caps::partial_push_descriptor_updates:
-		return false;
-	case api::device_caps::descriptor_sets:
-		return true;
 	case api::device_caps::sampler_with_resource_view:
 	case api::device_caps::blit:
 	case api::device_caps::resolve_region:
