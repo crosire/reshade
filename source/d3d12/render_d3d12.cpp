@@ -224,9 +224,6 @@ bool reshade::d3d12::device_impl::create_sampler(const api::sampler_desc &desc, 
 }
 bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage initial_state, api::resource *out)
 {
-	if (initial_data != nullptr)
-		return false;
-
 	assert((desc.usage & initial_state) == initial_state || initial_state == api::resource_usage::cpu_access);
 
 	D3D12_HEAP_FLAGS heap_flags = D3D12_HEAP_FLAG_NONE;
@@ -250,6 +247,39 @@ bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc
 	{
 		_resources.register_object(object.get());
 		*out = { reinterpret_cast<uintptr_t>(object.release()) };
+
+		if (initial_data != nullptr)
+		{
+			assert(initial_state != api::resource_usage::undefined);
+
+			// Transition resource into the initial state using the first available immediate command list
+			for (command_queue_impl *const queue : _queues)
+			{
+				const auto immediate_command_list = static_cast<command_list_immediate_impl *>(queue->get_immediate_command_list());
+				if (immediate_command_list != nullptr)
+				{
+					const api::resource_usage states_upload[2] = { initial_state, api::resource_usage::copy_dest };
+					immediate_command_list->insert_barrier(1, out, &states_upload[0], &states_upload[1]);
+
+					if (desc.type == api::resource_type::buffer)
+					{
+						upload_buffer_region(initial_data->data, *out, 0, desc.buffer.size);
+					}
+					else
+					{
+						for (uint32_t subresource = 0; subresource < static_cast<uint32_t>(desc.texture.depth_or_layers) * desc.texture.levels; ++subresource)
+							upload_texture_region(initial_data[subresource], *out, subresource, nullptr);
+					}
+
+					const api::resource_usage states_finalize[2] = { api::resource_usage::copy_dest, initial_state };
+					immediate_command_list->insert_barrier(1, out, &states_finalize[0], &states_finalize[1]);
+
+					queue->flush_immediate_command_list();
+					break;
+				}
+			}
+		}
+
 		return true;
 	}
 	else

@@ -7,6 +7,7 @@
 #include "render_vk.hpp"
 #include "render_vk_utils.hpp"
 #include "format_utils.hpp"
+#include "reshade_api_format_utils.hpp"
 #include <algorithm>
 
 #define vk _dispatch_table
@@ -241,9 +242,6 @@ bool reshade::vulkan::device_impl::create_sampler(const api::sampler_desc &desc,
 }
 bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage initial_state, api::resource *out)
 {
-	if (initial_data != nullptr)
-		return false;
-
 	assert((desc.usage & initial_state) == initial_state || initial_state == api::resource_usage::cpu_access);
 
 	VmaAllocation allocation = VK_NULL_HANDLE;
@@ -290,6 +288,10 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 			VkImageCreateInfo create_info { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
 			convert_resource_desc(desc, create_info);
 
+			// Initial data upload requires the image to be transferable to
+			if (initial_data != nullptr)
+				create_info.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+
 			// A typeless format indicates that views with different typed formats can be created, so set mutable flag
 			if (desc.texture.format == api::format_to_typeless(desc.texture.format))
 				create_info.flags |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
@@ -300,6 +302,12 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 				register_image(object, create_info, allocation);
 				*out = { (uint64_t)object };
 
+				if (initial_data != nullptr)
+				{
+					// Only makes sense to upload initial data if it is not thrown away on the first layout transition
+					assert(initial_state != api::resource_usage::undefined);
+				}
+
 				if (initial_state != api::resource_usage::undefined)
 				{
 					// Transition resource into the initial state using the first available immediate command list
@@ -308,8 +316,22 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 						const auto immediate_command_list = static_cast<command_list_immediate_impl *>(queue->get_immediate_command_list());
 						if (immediate_command_list != nullptr)
 						{
-							const api::resource_usage states[2] = { api::resource_usage::undefined, initial_state };
-							immediate_command_list->insert_barrier(1, out, &states[0], &states[1]);
+							if (initial_data != nullptr)
+							{
+								const api::resource_usage states_upload[2] = { api::resource_usage::undefined, api::resource_usage::copy_dest };
+								immediate_command_list->insert_barrier(1, out, &states_upload[0], &states_upload[1]);
+
+								for (uint32_t subresource = 0; subresource < static_cast<uint32_t>(desc.texture.depth_or_layers) * desc.texture.levels; ++subresource)
+									upload_texture_region(initial_data[subresource], *out, subresource, nullptr);
+
+								const api::resource_usage states_finalize[2] = { api::resource_usage::copy_dest, initial_state };
+								immediate_command_list->insert_barrier(1, out, &states_finalize[0], &states_finalize[1]);
+							}
+							else
+							{
+								const api::resource_usage states_finalize[2] = { api::resource_usage::undefined, initial_state };
+								immediate_command_list->insert_barrier(1, out, &states_finalize[0], &states_finalize[1]);
+							}
 
 							queue->flush_immediate_command_list();
 							break;
@@ -1019,12 +1041,26 @@ void reshade::vulkan::device_impl::upload_texture_region(const api::subresource_
 	const resource_data &dst_data = _resources.at(dst.handle);
 	assert(dst_data.is_image());
 
+	VkExtent3D extent = dst_data.image_create_info.extent;
+	extent.depth *= dst_data.image_create_info.arrayLayers;
+
+	if (dst_box != nullptr)
+	{
+		extent.width  = dst_box[3] - dst_box[0];
+		extent.height = dst_box[4] - dst_box[1];
+		extent.depth  = dst_box[5] - dst_box[2];
+	}
+
+	const auto row_size_packed = extent.width * api::format_bpp(convert_format(dst_data.image_create_info.format));
+	const auto slice_size_packed = extent.height * row_size_packed;
+	const auto total_size = extent.depth * slice_size_packed;
+
 	// Allocate host memory for upload
 	VkBuffer intermediate = VK_NULL_HANDLE;
 	VmaAllocation intermediate_mem = VK_NULL_HANDLE;
 
 	{   VkBufferCreateInfo create_info { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
-		create_info.size = data.slice_pitch * dst_data.image_create_info.arrayLayers;
+		create_info.size = total_size;
 		create_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 
 		VmaAllocationCreateInfo alloc_info = {};
@@ -1042,13 +1078,20 @@ void reshade::vulkan::device_impl::upload_texture_region(const api::subresource_
 	uint8_t *mapped_data = nullptr;
 	if (vmaMapMemory(_alloc, intermediate_mem, reinterpret_cast<void **>(&mapped_data)) == VK_SUCCESS)
 	{
-		std::memcpy(mapped_data, data.data, data.slice_pitch * dst_data.image_create_info.arrayLayers);
+		if ((row_size_packed == data.row_pitch || extent.height == 1) &&
+			(slice_size_packed == data.slice_pitch || extent.depth == 1))
+		{
+			std::memcpy(mapped_data, data.data, total_size);
+		}
+		else
+		{
+			for (uint32_t z = 0; z < extent.depth; ++z)
+				for (uint32_t y = 0; y < extent.height; ++y, mapped_data += row_size_packed)
+					std::memcpy(mapped_data, static_cast<const uint8_t *>(data.data) + z * data.slice_pitch + y * data.row_pitch, row_size_packed);
+		}
 
 		vmaUnmapMemory(_alloc, intermediate_mem);
-	}
 
-	if (mapped_data != nullptr)
-	{
 		// Copy data from upload buffer into target texture using the first available immediate command list
 		for (command_queue_impl *const queue : _queues)
 		{

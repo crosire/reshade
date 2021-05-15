@@ -330,7 +330,6 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DSUR
 
 	internal_desc.Width = desc.texture.width;
 	internal_desc.Height = desc.texture.height;
-	assert(desc.texture.depth_or_layers == 1 || desc.texture.depth_or_layers == 6 /* D3DRTYPE_CUBETEXTURE */);
 
 	if (const D3DFORMAT format = convert_format(desc.texture.format);
 		format != D3DFMT_UNKNOWN)
@@ -345,6 +344,15 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DSUR
 	convert_resource_usage_to_d3d_usage(desc.usage, internal_desc.Usage);
 	if (desc.heap == api::memory_heap::cpu_to_gpu)
 		internal_desc.Usage |= D3DUSAGE_DYNAMIC;
+
+	if ((desc.flags & api::resource_flags::cube_compatible) == api::resource_flags::cube_compatible)
+	{
+		assert(desc.texture.depth_or_layers == 6); // D3DRTYPE_CUBETEXTURE
+	}
+	else
+	{
+		assert(desc.texture.depth_or_layers == 1);
+	}
 
 	if ((desc.flags & api::resource_flags::generate_mipmaps) == api::resource_flags::generate_mipmaps)
 	{

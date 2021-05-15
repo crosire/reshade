@@ -5,6 +5,7 @@
 
 #include "render_gl.hpp"
 #include "render_gl_utils.hpp"
+#include "reshade_api_format_utils.hpp"
 #include <cassert>
 #include <algorithm>
 
@@ -509,8 +510,7 @@ bool reshade::opengl::device_impl::create_sampler(const api::sampler_desc &desc,
 }
 bool reshade::opengl::device_impl::create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage, api::resource *out)
 {
-	if (initial_data != nullptr)
-		return false;
+	*out = { 0 };
 
 	GLenum target = GL_NONE;
 	switch (desc.type)
@@ -564,6 +564,11 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 		assert(desc.buffer.size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
 		glBufferStorage(target, static_cast<GLsizeiptr>(desc.buffer.size), nullptr, usage_flags);
 
+		if (initial_data != nullptr)
+		{
+			upload_buffer_region(initial_data->data, make_resource_handle(target, object), 0, desc.buffer.size);
+		}
+
 		glBindBuffer(target, prev_object);
 	}
 	else
@@ -598,6 +603,12 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 		case GL_TEXTURE_3D:
 			glTexStorage3D(target, desc.texture.levels, internal_format, desc.texture.width, desc.texture.height, depth_or_layers);
 			break;
+		}
+
+		if (initial_data != nullptr)
+		{
+			for (uint32_t subresource = 0; subresource < static_cast<uint32_t>(desc.texture.depth_or_layers) * desc.texture.levels; ++subresource)
+				upload_texture_region(initial_data[subresource], make_resource_handle(target, object), subresource, nullptr);
 		}
 
 		glBindTexture(target, prev_object);
@@ -1224,7 +1235,6 @@ void reshade::opengl::device_impl::upload_texture_region(const api::subresource_
 
 	GLint format = GL_NONE; GLenum type;
 	glGetTexLevelParameteriv(target, level, GL_TEXTURE_INTERNAL_FORMAT, &format);
-	format = convert_upload_format(format, type);
 
 	GLint xoffset, yoffset, zoffset, width, height, depth;
 	if (dst_box != nullptr)
@@ -1246,16 +1256,38 @@ void reshade::opengl::device_impl::upload_texture_region(const api::subresource_
 		depth   = get_tex_level_param(target, object, level, GL_TEXTURE_DEPTH);
 	}
 
+	const auto row_size_packed = width * api::format_bpp(convert_format(format));
+	const auto slice_size_packed = height * row_size_packed;
+	const auto total_size = depth * slice_size_packed;
+
+	format = convert_upload_format(format, type);
+
+	std::vector<uint8_t> temp_pixels;
+	const uint8_t *pixels = static_cast<const uint8_t *>(data.data);
+
+	if ((row_size_packed != data.row_pitch && height == 1) ||
+		(slice_size_packed != data.slice_pitch && depth == 1))
+	{
+		temp_pixels.resize(total_size);
+		uint8_t *dst_pixels = temp_pixels.data();
+
+		for (GLint z = 0; z < depth; ++z)
+			for (GLint y = 0; y < height; ++y, dst_pixels += row_size_packed)
+				std::memcpy(dst_pixels, pixels + z * data.slice_pitch + y * data.row_pitch, row_size_packed);
+
+		pixels = temp_pixels.data();
+	}
+
 	switch (target)
 	{
 	case GL_TEXTURE_1D:
 		if (type != GL_COMPRESSED_TEXTURE_FORMATS)
 		{
-			glTexSubImage1D(target, level, xoffset, width, format, type, data.data);
+			glTexSubImage1D(target, level, xoffset, width, format, type, pixels);
 		}
 		else
 		{
-			glCompressedTexSubImage1D(target, level, xoffset, width, format, data.slice_pitch, data.data);
+			glCompressedTexSubImage1D(target, level, xoffset, width, format, total_size, pixels);
 		}
 		break;
 	case GL_TEXTURE_1D_ARRAY:
@@ -1270,11 +1302,11 @@ void reshade::opengl::device_impl::upload_texture_region(const api::subresource_
 	case GL_TEXTURE_CUBE_MAP_NEGATIVE_Z:
 		if (type != GL_COMPRESSED_TEXTURE_FORMATS)
 		{
-			glTexSubImage2D(target, level, xoffset, yoffset, width, height, format, type, data.data);
+			glTexSubImage2D(target, level, xoffset, yoffset, width, height, format, type, pixels);
 		}
 		else
 		{
-			glCompressedTexSubImage2D(target, level, xoffset, yoffset, width, height, format, data.slice_pitch * height, data.data);
+			glCompressedTexSubImage2D(target, level, xoffset, yoffset, width, height, format, total_size, pixels);
 		}
 		break;
 	case GL_TEXTURE_2D_ARRAY:
@@ -1283,11 +1315,11 @@ void reshade::opengl::device_impl::upload_texture_region(const api::subresource_
 	case GL_TEXTURE_3D:
 		if (type != GL_COMPRESSED_TEXTURE_FORMATS)
 		{
-			glTexSubImage3D(target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, data.data);
+			glTexSubImage3D(target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, pixels);
 		}
 		else
 		{
-			glCompressedTexSubImage3D(target, level, xoffset, yoffset, zoffset, width, height, depth, format, data.slice_pitch * depth, data.data);
+			glCompressedTexSubImage3D(target, level, xoffset, yoffset, zoffset, width, height, depth, format, total_size, pixels);
 		}
 		break;
 	}

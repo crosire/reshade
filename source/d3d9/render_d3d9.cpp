@@ -317,9 +317,6 @@ bool reshade::d3d9::device_impl::create_sampler(const api::sampler_desc &desc, a
 }
 bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage, api::resource *out)
 {
-	if (initial_data != nullptr)
-		return false;
-
 	switch (desc.type)
 	{
 		case api::resource_type::buffer:
@@ -337,6 +334,12 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 					{
 						_resources.register_object(object.get());
 						*out = { reinterpret_cast<uintptr_t>(object.release()) };
+
+						if (initial_data != nullptr)
+						{
+							upload_buffer_region(initial_data->data, *out, 0, desc.buffer.size);
+						}
+
 						return true;
 					}
 					break;
@@ -351,6 +354,12 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 					{
 						_resources.register_object(object.get());
 						*out = { reinterpret_cast<uintptr_t>(object.release()) };
+
+						if (initial_data != nullptr)
+						{
+							upload_buffer_region(initial_data->data, *out, 0, desc.buffer.size);
+						}
+
 						return true;
 					}
 					break;
@@ -379,6 +388,13 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 				{
 					_resources.register_object(object.get());
 					*out = { reinterpret_cast<uintptr_t>(object.release()) };
+
+					if (initial_data != nullptr)
+					{
+						for (uint32_t subresource = 0; subresource < desc.texture.levels; ++subresource)
+							upload_texture_region(initial_data[subresource], *out, subresource, nullptr);
+					}
+
 					return true;
 				}
 			}
@@ -391,6 +407,13 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 				{
 					_resources.register_object(object.get());
 					*out = { reinterpret_cast<uintptr_t>(object.release()) };
+
+					if (initial_data != nullptr)
+					{
+						for (uint32_t subresource = 0; subresource < static_cast<uint32_t>(desc.texture.depth_or_layers) * desc.texture.levels; ++subresource)
+							upload_texture_region(initial_data[subresource], *out, subresource, nullptr);
+					}
+
 					return true;
 				}
 			}
@@ -414,6 +437,13 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 			{
 				_resources.register_object(object.get());
 				*out = { reinterpret_cast<uintptr_t>(object.release()) };
+
+				if (initial_data != nullptr)
+				{
+					for (uint32_t subresource = 0; subresource < static_cast<uint32_t>(desc.texture.depth_or_layers) * desc.texture.levels; ++subresource)
+						upload_texture_region(initial_data[subresource], *out, subresource, nullptr);
+				}
+
 				return true;
 			}
 			break;
@@ -1075,34 +1105,32 @@ void reshade::d3d9::device_impl::upload_texture_region(const api::subresource_da
 			// TODO: Maybe store the original format as user data in the resource to avoid this hack
 			if (desc.Format == D3DFMT_A8R8G8B8 || desc.Format == D3DFMT_X8R8G8B8)
 			{
-				for (uint32_t y = 0; y < height; ++y, mapped_data += locked_rect.Pitch)
+				for (uint32_t y = 0; y < height; ++y, mapped_data += locked_rect.Pitch, upload_data += data.row_pitch)
 				{
 					switch (data.row_pitch / width)
 					{
 					case 1: // This is likely actually a r8 texture
-						for (uint32_t x = 0; x < width * 4; x += 4, upload_data += 1)
+						for (uint32_t x = 0, i = 0; x < width * 4; x += 4, i += 1)
 							mapped_data[x + 0] = 0, // Set green and blue channel to zero
 							mapped_data[x + 1] = 0,
-							mapped_data[x + 2] = upload_data[0],
+							mapped_data[x + 2] = upload_data[i],
 							mapped_data[x + 3] = 0xFF;
 						break;
 					case 2: // This is likely actually a r8g8 texture
-						for (uint32_t x = 0; x < width * 4; x += 4, upload_data += 2)
+						for (uint32_t x = 0, i = 0; x < width * 4; x += 4, i += 2)
 							mapped_data[x + 0] = 0, // Set blue channel to zero
-							mapped_data[x + 1] = upload_data[1],
-							mapped_data[x + 2] = upload_data[0],
+							mapped_data[x + 1] = upload_data[i + 1],
+							mapped_data[x + 2] = upload_data[i + 0],
 							mapped_data[x + 3] = 0xFF;
 						break;
 					case 4: // This is likely actually a r8g8b8a8 texture
-						for (uint32_t x = 0; x < width * 4; x += 4, upload_data += 4)
-							mapped_data[x + 0] = upload_data[2], // Flip RGBA input to BGRA
-							mapped_data[x + 1] = upload_data[1],
-							mapped_data[x + 2] = upload_data[0],
-							mapped_data[x + 3] = upload_data[3];
-						break;
 					default:
-						assert(false);
-						return;
+						for (uint32_t x = 0, i = 0; x < width * 4; x += 4, i += 4)
+							mapped_data[x + 0] = upload_data[i + 2], // Flip RGBA input to BGRA
+							mapped_data[x + 1] = upload_data[i + 1],
+							mapped_data[x + 2] = upload_data[i + 0],
+							mapped_data[x + 3] = upload_data[i + 3];
+						break;
 					}
 				}
 			}
@@ -1110,7 +1138,7 @@ void reshade::d3d9::device_impl::upload_texture_region(const api::subresource_da
 			{
 				for (uint32_t y = 0; y < height; ++y, mapped_data += locked_rect.Pitch, upload_data += data.row_pitch)
 				{
-					std::memcpy(mapped_data, upload_data, data.row_pitch);
+					std::memcpy(mapped_data, upload_data, std::min(data.row_pitch, static_cast<uint32_t>(locked_rect.Pitch)));
 				}
 			}
 

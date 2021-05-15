@@ -10,6 +10,7 @@
 #include "dll_log.hpp"
 #include "dll_config.hpp"
 #include "reshade.hpp"
+#include "reshade_api_format_utils.hpp"
 #include "addon_manager.hpp"
 #include <vector>
 #include <unordered_map>
