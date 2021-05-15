@@ -739,6 +739,7 @@ bool reshade::d3d9::device_impl::create_pipeline(const api::pipeline_desc &desc,
 	_orig->SetRenderState(D3DRS_ZWRITEENABLE,
 		desc.graphics.depth_stencil_state.depth_write_mask);
 	_orig->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
+	_orig->SetRenderState(D3DRS_LASTPIXEL, TRUE);
 	_orig->SetRenderState(D3DRS_SRCBLEND,
 		convert_blend_factor(desc.graphics.blend_state.src_color_blend_factor[0]));
 	_orig->SetRenderState(D3DRS_DESTBLEND,
@@ -747,6 +748,7 @@ bool reshade::d3d9::device_impl::create_pipeline(const api::pipeline_desc &desc,
 		convert_cull_mode(desc.graphics.rasterizer_state.cull_mode, desc.graphics.rasterizer_state.front_counter_clockwise));
 	_orig->SetRenderState(D3DRS_ZFUNC,
 		convert_compare_op(desc.graphics.depth_stencil_state.depth_func));
+	_orig->SetRenderState(D3DRS_DITHERENABLE, FALSE);
 	_orig->SetRenderState(D3DRS_ALPHABLENDENABLE,
 		desc.graphics.blend_state.blend_enable[0]);
 	_orig->SetRenderState(D3DRS_FOGENABLE, FALSE);
@@ -769,6 +771,7 @@ bool reshade::d3d9::device_impl::create_pipeline(const api::pipeline_desc &desc,
 	_orig->SetRenderState(D3DRS_CLIPPING,
 		desc.graphics.rasterizer_state.depth_clip);
 	_orig->SetRenderState(D3DRS_LIGHTING, FALSE);
+	_orig->SetRenderState(D3DRS_VERTEXBLEND, D3DVBF_DISABLE);
 	_orig->SetRenderState(D3DRS_CLIPPLANEENABLE, 0);
 	_orig->SetRenderState(D3DRS_MULTISAMPLEANTIALIAS,
 		desc.graphics.multisample_state.multisample);
@@ -784,7 +787,13 @@ bool reshade::d3d9::device_impl::create_pipeline(const api::pipeline_desc &desc,
 		*reinterpret_cast<const DWORD *>(&desc.graphics.rasterizer_state.slope_scaled_depth_bias));
 	_orig->SetRenderState(D3DRS_ANTIALIASEDLINEENABLE,
 		desc.graphics.rasterizer_state.antialiased_line);
-	_orig->SetRenderState(D3DRS_TWOSIDEDSTENCILMODE, TRUE);
+	_orig->SetRenderState(D3DRS_ENABLEADAPTIVETESSELLATION, FALSE);
+	_orig->SetRenderState(D3DRS_TWOSIDEDSTENCILMODE,
+		desc.graphics.rasterizer_state.cull_mode == api::cull_mode::none && (
+		desc.graphics.depth_stencil_state.front_stencil_fail_op != desc.graphics.depth_stencil_state.back_stencil_fail_op ||
+		desc.graphics.depth_stencil_state.front_stencil_depth_fail_op != desc.graphics.depth_stencil_state.back_stencil_depth_fail_op ||
+		desc.graphics.depth_stencil_state.front_stencil_pass_op != desc.graphics.depth_stencil_state.back_stencil_pass_op ||
+		desc.graphics.depth_stencil_state.front_stencil_func != desc.graphics.depth_stencil_state.back_stencil_func));
 	_orig->SetRenderState(D3DRS_CCW_STENCILZFAIL,
 		convert_stencil_op(desc.graphics.rasterizer_state.front_counter_clockwise ? desc.graphics.depth_stencil_state.front_stencil_depth_fail_op : desc.graphics.depth_stencil_state.back_stencil_depth_fail_op));
 	_orig->SetRenderState(D3DRS_CCW_STENCILFAIL,
@@ -801,7 +810,6 @@ bool reshade::d3d9::device_impl::create_pipeline(const api::pipeline_desc &desc,
 		desc.graphics.blend_state.render_target_write_mask[3]);
 	_orig->SetRenderState(D3DRS_BLENDFACTOR,
 		desc.graphics.blend_state.blend_constant);
-	_orig->SetRenderState(D3DRS_SRGBWRITEENABLE, FALSE);
 	_orig->SetRenderState(D3DRS_DEPTHBIAS,
 		static_cast<INT>(desc.graphics.rasterizer_state.depth_bias));
 	_orig->SetRenderState(D3DRS_SEPARATEALPHABLENDENABLE, TRUE);
