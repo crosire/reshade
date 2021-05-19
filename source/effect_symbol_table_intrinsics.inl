@@ -1732,8 +1732,11 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2Dfetch, 1, {
 
 // ret tex2DgatherR(s, coords)
 // ret tex2DgatherR(s, coords, offset)
+// ret tex2DgatherR(s, coords, offset0, offset1, offset2, offset3)
+
 DEFINE_INTRINSIC(tex2DgatherR, 0, float4, sampler, float2)
 DEFINE_INTRINSIC(tex2DgatherR, 1, float4, sampler, float2, int2)
+DEFINE_INTRINSIC(tex2DgatherR, 2, float4, sampler, float2, int2, int2, int2, int2)
 IMPLEMENT_INTRINSIC_GLSL(tex2DgatherR, 0, {
 	code += "textureGather(" + id_to_name(args[0].base) + ", " +
 		id_to_name(args[1].base) + ", 0)";
@@ -1742,6 +1745,10 @@ IMPLEMENT_INTRINSIC_GLSL(tex2DgatherR, 1, {
 	code += "textureGatherOffset(" + id_to_name(args[0].base) + ", " +
 		id_to_name(args[1].base) + ", " +
 		id_to_name(args[2].base) + ", 0)";
+	})
+IMPLEMENT_INTRINSIC_GLSL(tex2DgatherR, 2, {
+	code += "textureGatherOffsets(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " +
+		"ivec2[]( " + id_to_name(args[2].base) + ", " + id_to_name(args[3].base) + ", " + id_to_name(args[4].base) + ", " + id_to_name(args[5].base) + "), 0)";
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2DgatherR, 0, {
 	const std::string s = id_to_name(args[0].base);
@@ -1779,6 +1786,24 @@ IMPLEMENT_INTRINSIC_HLSL(tex2DgatherR, 1, {
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[2].base) + " + float2(0, 0)) * " + s + ".pixelsize, 0, 0))." + 'r' + ')';
 	}
 	})
+IMPLEMENT_INTRINSIC_HLSL(tex2DgatherR, 2, {
+	const std::string s = id_to_name(args[0].base);
+	if (_shader_model >= 50) {
+		code += s + ".t.GatherRed(" + s + ".s, " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ", " + id_to_name(args[3].base) + ", " + id_to_name(args[4].base) + ", " + id_to_name(args[5].base) + ')';
+	} else if (_shader_model >= 40) {
+		code += "float4(" +
+			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[2].base) + ")." + 'r' + ", " +
+			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[3].base) + ")." + 'r' + ", " +
+			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[4].base) + ")." + 'r' + ", " +
+			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[5].base) + ")." + 'r' + ')';
+	} else {
+		code += "float4("
+			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[2].base) + ") * " + s + ".pixelsize, 0, 0))." + 'r' + ", "
+			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[3].base) + ") * " + s + ".pixelsize, 0, 0))." + 'r' + ", "
+			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[4].base) + ") * " + s + ".pixelsize, 0, 0))." + 'r' + ", "
+			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[5].base) + ") * " + s + ".pixelsize, 0, 0))." + 'r' + ')';
+	}
+	})
 IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherR, 0, {
 	const spv::Id component = emit_constant(0u);
 	return add_instruction(spv::OpImageGather, convert_type(res_type))
@@ -1801,10 +1826,27 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherR, 1, {
 		.add(args[2].base)
 		.result;
 	})
+IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherR, 2, {
+	add_capability(spv::CapabilityImageGatherExtended);
+
+	const spv::Id component = emit_constant(0u);
+	return add_instruction(spv::OpImageGather, convert_type(res_type))
+		.add(args[0].base)
+		.add(args[1].base)
+		.add(component)
+		.add(spv::ImageOperandsConstOffsetsMask)
+		.add(args[2].base)
+		.add(args[3].base)
+		.add(args[4].base)
+		.add(args[5].base)
+		.result;
+	})
 // ret tex2DgatherG(s, coords)
 // ret tex2DgatherG(s, coords, offset)
+// ret tex2DgatherG(s, coords, offset0, offset1, offset2, offset3)
 DEFINE_INTRINSIC(tex2DgatherG, 0, float4, sampler, float2)
 DEFINE_INTRINSIC(tex2DgatherG, 1, float4, sampler, float2, int2)
+DEFINE_INTRINSIC(tex2DgatherG, 2, float4, sampler, float2, int2, int2, int2, int2)
 IMPLEMENT_INTRINSIC_GLSL(tex2DgatherG, 0, {
 	code += "textureGather(" + id_to_name(args[0].base) + ", " +
 		id_to_name(args[1].base) + ", 1)";
@@ -1813,6 +1855,10 @@ IMPLEMENT_INTRINSIC_GLSL(tex2DgatherG, 1, {
 	code += "textureGatherOffset(" + id_to_name(args[0].base) + ", " +
 		id_to_name(args[1].base) + ", " +
 		id_to_name(args[2].base) + ", 1)";
+	})
+IMPLEMENT_INTRINSIC_GLSL(tex2DgatherG, 2, {
+	code += "textureGatherOffsets(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " +
+		"ivec2[]( " + id_to_name(args[2].base) + ", " + id_to_name(args[3].base) + ", " + id_to_name(args[4].base) + ", " + id_to_name(args[5].base) + "), 1)";
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2DgatherG, 0, {
 	const std::string s = id_to_name(args[0].base);
@@ -1850,6 +1896,24 @@ IMPLEMENT_INTRINSIC_HLSL(tex2DgatherG, 1, {
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[2].base) + " + float2(0, 0)) * " + s + ".pixelsize, 0, 0))." + 'g' + ')';
 	}
 	})
+IMPLEMENT_INTRINSIC_HLSL(tex2DgatherG, 2, {
+	const std::string s = id_to_name(args[0].base);
+	if (_shader_model >= 50) {
+		code += s + ".t.GatherGreen(" + s + ".s, " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ", " + id_to_name(args[3].base) + ", " + id_to_name(args[4].base) + ", " + id_to_name(args[5].base) + ')';
+	} else if (_shader_model >= 40) {
+		code += "float4(" +
+			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[2].base) + ")." + 'g' + ", " +
+			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[3].base) + ")." + 'g' + ", " +
+			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[4].base) + ")." + 'g' + ", " +
+			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[5].base) + ")." + 'g' + ')';
+	} else {
+		code += "float4("
+			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[2].base) + ") * " + s + ".pixelsize, 0, 0))." + 'g' + ", "
+			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[3].base) + ") * " + s + ".pixelsize, 0, 0))." + 'g' + ", "
+			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[4].base) + ") * " + s + ".pixelsize, 0, 0))." + 'g' + ", "
+			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[5].base) + ") * " + s + ".pixelsize, 0, 0))." + 'g' + ')';
+	}
+	})
 IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherG, 0, {
 	const spv::Id component = emit_constant(1u);
 	return add_instruction(spv::OpImageGather, convert_type(res_type))
@@ -1872,10 +1936,27 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherG, 1, {
 		.add(args[2].base)
 		.result;
 	})
+IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherG, 2, {
+	add_capability(spv::CapabilityImageGatherExtended);
+
+	const spv::Id component = emit_constant(1u);
+	return add_instruction(spv::OpImageGather, convert_type(res_type))
+		.add(args[0].base)
+		.add(args[1].base)
+		.add(component)
+		.add(spv::ImageOperandsConstOffsetsMask)
+		.add(args[2].base)
+		.add(args[3].base)
+		.add(args[4].base)
+		.add(args[5].base)
+		.result;
+	})
 // ret tex2DgatherB(s, coords)
 // ret tex2DgatherB(s, coords, offset)
+// ret tex2DgatherB(s, coords, offset0, offset1, offset2, offset3)
 DEFINE_INTRINSIC(tex2DgatherB, 0, float4, sampler, float2)
 DEFINE_INTRINSIC(tex2DgatherB, 1, float4, sampler, float2, int2)
+DEFINE_INTRINSIC(tex2DgatherB, 2, float4, sampler, float2, int2, int2, int2, int2)
 IMPLEMENT_INTRINSIC_GLSL(tex2DgatherB, 0, {
 	code += "textureGather(" + id_to_name(args[0].base) + ", " +
 		id_to_name(args[1].base) + ", 2)";
@@ -1884,6 +1965,10 @@ IMPLEMENT_INTRINSIC_GLSL(tex2DgatherB, 1, {
 	code += "textureGatherOffset(" + id_to_name(args[0].base) + ", " +
 		id_to_name(args[1].base) + ", " +
 		id_to_name(args[2].base) + ", 2)";
+	})
+IMPLEMENT_INTRINSIC_GLSL(tex2DgatherB, 2, {
+	code += "textureGatherOffsets(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " +
+		"ivec2[]( " + id_to_name(args[2].base) + ", " + id_to_name(args[3].base) + ", " + id_to_name(args[4].base) + ", " + id_to_name(args[5].base) + "), 2)";
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2DgatherB, 0, {
 	const std::string s = id_to_name(args[0].base);
@@ -1921,6 +2006,24 @@ IMPLEMENT_INTRINSIC_HLSL(tex2DgatherB, 1, {
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[2].base) + " + float2(0, 0)) * " + s + ".pixelsize, 0, 0))." + 'b' + ')';
 	}
 	})
+IMPLEMENT_INTRINSIC_HLSL(tex2DgatherB, 2, {
+	const std::string s = id_to_name(args[0].base);
+	if (_shader_model >= 50) {
+		code += s + ".t.GatherBlue(" + s + ".s, " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ", " + id_to_name(args[3].base) + ", " + id_to_name(args[4].base) + ", " + id_to_name(args[5].base) + ')';
+	} else if (_shader_model >= 40) {
+		code += "float4(" +
+			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[2].base) + ")." + 'b' + ", " +
+			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[3].base) + ")." + 'b' + ", " +
+			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[4].base) + ")." + 'b' + ", " +
+			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[5].base) + ")." + 'b' + ')';
+	} else {
+		code += "float4("
+			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[2].base) + ") * " + s + ".pixelsize, 0, 0))." + 'b' + ", "
+			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[3].base) + ") * " + s + ".pixelsize, 0, 0))." + 'b' + ", "
+			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[4].base) + ") * " + s + ".pixelsize, 0, 0))." + 'b' + ", "
+			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[5].base) + ") * " + s + ".pixelsize, 0, 0))." + 'b' + ')';
+	}
+	})
 IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherB, 0, {
 	const spv::Id component = emit_constant(2u);
 	return add_instruction(spv::OpImageGather, convert_type(res_type))
@@ -1943,10 +2046,27 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherB, 1, {
 		.add(args[2].base)
 		.result;
 	})
+IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherB, 2, {
+	add_capability(spv::CapabilityImageGatherExtended);
+
+	const spv::Id component = emit_constant(2u);
+	return add_instruction(spv::OpImageGather, convert_type(res_type))
+		.add(args[0].base)
+		.add(args[1].base)
+		.add(component)
+		.add(spv::ImageOperandsConstOffsetsMask)
+		.add(args[2].base)
+		.add(args[3].base)
+		.add(args[4].base)
+		.add(args[5].base)
+		.result;
+	})
 // ret tex2DgatherA(s, coords)
 // ret tex2DgatherA(s, coords, offset)
+// ret tex2DgatherA(s, coords, offset0, offset1, offset2, offset3)
 DEFINE_INTRINSIC(tex2DgatherA, 0, float4, sampler, float2)
 DEFINE_INTRINSIC(tex2DgatherA, 1, float4, sampler, float2, int2)
+DEFINE_INTRINSIC(tex2DgatherA, 2, float4, sampler, float2, int2, int2, int2, int2)
 IMPLEMENT_INTRINSIC_GLSL(tex2DgatherA, 0, {
 	code += "textureGather(" + id_to_name(args[0].base) + ", " +
 		id_to_name(args[1].base) + ", 3)";
@@ -1955,6 +2075,10 @@ IMPLEMENT_INTRINSIC_GLSL(tex2DgatherA, 1, {
 	code += "textureGatherOffset(" + id_to_name(args[0].base) + ", " +
 		id_to_name(args[1].base) + ", " +
 		id_to_name(args[2].base) + ", 3)";
+	})
+IMPLEMENT_INTRINSIC_GLSL(tex2DgatherA, 2, {
+	code += "textureGatherOffsets(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " +
+		"ivec2[]( " + id_to_name(args[2].base) + ", " + id_to_name(args[3].base) + ", " + id_to_name(args[4].base) + ", " + id_to_name(args[5].base) + "), 3)";
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2DgatherA, 0, {
 	const std::string s = id_to_name(args[0].base);
@@ -1992,6 +2116,24 @@ IMPLEMENT_INTRINSIC_HLSL(tex2DgatherA, 1, {
 			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[2].base) + " + float2(0, 0)) * " + s + ".pixelsize, 0, 0))." + 'a' + ')';
 	}
 	})
+IMPLEMENT_INTRINSIC_HLSL(tex2DgatherA, 2, {
+	const std::string s = id_to_name(args[0].base);
+	if (_shader_model >= 50) {
+		code += s + ".t.GatherAlpha(" + s + ".s, " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ", " + id_to_name(args[3].base) + ", " + id_to_name(args[4].base) + ", " + id_to_name(args[5].base) + ')';
+	} else if (_shader_model >= 40) {
+		code += "float4(" +
+			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[2].base) + ")." + 'a' + ", " +
+			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[3].base) + ")." + 'a' + ", " +
+			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[4].base) + ")." + 'a' + ", " +
+			s + ".t.SampleLevel(" + s + ".s, " + id_to_name(args[1].base) + ", 0, " + id_to_name(args[5].base) + ")." + 'a' + ')';
+	} else {
+		code += "float4("
+			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[2].base) + ") * " + s + ".pixelsize, 0, 0))." + 'a' + ", "
+			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[3].base) + ") * " + s + ".pixelsize, 0, 0))." + 'a' + ", "
+			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[4].base) + ") * " + s + ".pixelsize, 0, 0))." + 'a' + ", "
+			"tex2Dlod(" + s + ".s, float4(" + id_to_name(args[1].base) + " + (" + id_to_name(args[5].base) + ") * " + s + ".pixelsize, 0, 0))." + 'a' + ')';
+	}
+	})
 IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherA, 0, {
 	const spv::Id component = emit_constant(3u);
 	return add_instruction(spv::OpImageGather, convert_type(res_type))
@@ -2014,7 +2156,21 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherA, 1, {
 		.add(args[2].base)
 		.result;
 	})
+IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherA, 2, {
+	add_capability(spv::CapabilityImageGatherExtended);
 
+	const spv::Id component = emit_constant(3u);
+	return add_instruction(spv::OpImageGather, convert_type(res_type))
+		.add(args[0].base)
+		.add(args[1].base)
+		.add(component)
+		.add(spv::ImageOperandsConstOffsetsMask)
+		.add(args[2].base)
+		.add(args[3].base)
+		.add(args[4].base)
+		.add(args[5].base)
+		.result;
+	})
 // tex2Dstore(s, coords, value)
 DEFINE_INTRINSIC(tex2Dstore, 0, void, storage, int2, float4)
 IMPLEMENT_INTRINSIC_GLSL(tex2Dstore, 0, {
