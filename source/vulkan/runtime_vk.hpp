@@ -7,6 +7,7 @@
 
 #include "runtime.hpp"
 #include "render_vk.hpp"
+#include "render_vk_utils.hpp"
 
 namespace reshade::vulkan
 {
@@ -30,26 +31,13 @@ namespace reshade::vulkan
 
 		bool capture_screenshot(uint8_t *buffer) const final;
 
-		void update_texture_bindings(const char *semantic, api::resource_view srv) final;
+		bool compile_effect(effect &effect, api::shader_stage type, const std::string &entry_point, api::shader_module &out) final;
+
+		api::resource_view get_backbuffer(bool srgb) final { return { (uint64_t)_swapchain_views[_swap_index * 2 + (srgb ? 1 : 0)] }; }
+		api::resource get_backbuffer_resource() final { return { (uint64_t)_swapchain_images[_swap_index] }; }
+		api::format get_backbuffer_format() final { return convert_format(_backbuffer_format); }
 
 	private:
-		bool init_effect(size_t index) final;
-		void unload_effect(size_t index) final;
-		void unload_effects() final;
-
-		bool init_texture(texture &texture) final;
-		void upload_texture(const texture &texture, const uint8_t *pixels) final;
-		void destroy_texture(texture &texture) final;
-		void generate_mipmaps(const struct tex_data *impl);
-
-		void render_technique(technique &technique) final;
-
-		void wait_for_command_buffers();
-
-		void set_debug_name(uint64_t object, VkDebugReportObjectTypeEXT type, const char *name) const;
-		inline void set_debug_name_image(VkImage image, const char *name) const { set_debug_name((uint64_t)image, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT, name); }
-		inline void set_debug_name_buffer(VkBuffer buffer, const char *name) const { set_debug_name((uint64_t)buffer, VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT, name); }
-
 		device_impl *const _device_impl;
 		const VkDevice _device;
 		command_queue_impl *const _queue_impl;
@@ -61,46 +49,7 @@ namespace reshade::vulkan
 
 		uint32_t _swap_index = 0;
 		VkFormat _backbuffer_format = VK_FORMAT_UNDEFINED;
-		VkExtent2D _render_area = {};
-		VkRenderPass _default_render_pass[2] = {};
 		std::vector<VkImage> _swapchain_images;
 		std::vector<VkImageView> _swapchain_views;
-		std::vector<VkFramebuffer> _swapchain_frames;
-		VkImage _backbuffer_image = VK_NULL_HANDLE;
-		VkImageView _backbuffer_image_view[2] = {};
-
-		VkImage _empty_depth_image = VK_NULL_HANDLE;
-		VkImageView _empty_depth_image_view = VK_NULL_HANDLE;
-
-		VkImage _effect_stencil = VK_NULL_HANDLE;
-		VkFormat _effect_stencil_format = VK_FORMAT_UNDEFINED;
-		VkImageView _effect_stencil_view = VK_NULL_HANDLE;
-		std::vector<struct effect_data> _effect_data;
-		VkDescriptorPool _effect_descriptor_pool = VK_NULL_HANDLE;
-		VkDescriptorSetLayout _effect_descriptor_layout = VK_NULL_HANDLE;
-		std::unordered_map<size_t, VkSampler> _effect_sampler_states;
-
-		std::unordered_map<std::string, VkImageView> _texture_semantic_bindings;
-
-#if RESHADE_GUI
-		static const uint32_t NUM_IMGUI_BUFFERS = 4;
-
-		bool init_imgui_resources();
-		void render_imgui_draw_data(ImDrawData *draw_data) final;
-
-		struct imgui_resources
-		{
-			VkSampler sampler = VK_NULL_HANDLE;
-			VkPipeline pipeline = VK_NULL_HANDLE;
-			VkPipelineLayout pipeline_layout = VK_NULL_HANDLE;
-			VkDescriptorPool descriptor_pool = VK_NULL_HANDLE;
-			VkDescriptorSetLayout descriptor_layout = VK_NULL_HANDLE;
-
-			VkBuffer indices[NUM_IMGUI_BUFFERS] = {};
-			VkBuffer vertices[NUM_IMGUI_BUFFERS] = {};
-			int num_indices[NUM_IMGUI_BUFFERS] = {};
-			int num_vertices[NUM_IMGUI_BUFFERS] = {};
-		} _imgui;
-#endif
 	};
 }

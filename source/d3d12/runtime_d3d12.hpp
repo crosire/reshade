@@ -28,58 +28,24 @@ namespace reshade::d3d12
 
 		bool capture_screenshot(uint8_t *buffer) const final;
 
-		void update_texture_bindings(const char *semantic, api::resource_view srv) final;
+		bool compile_effect(effect &effect, api::shader_stage type, const std::string &entry_point, api::shader_module &out) final;
+
+		api::resource_view get_backbuffer(bool srgb) final { return { _backbuffer_rtvs->GetCPUDescriptorHandleForHeapStart().ptr + (_swap_index * 2 + (srgb ? 1 : 0)) * _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_RTV] }; }
+		api::resource get_backbuffer_resource() final { return { (uintptr_t)_backbuffers[_swap_index].get() }; }
+		api::format get_backbuffer_format() final { return (api::format)_backbuffer_format; }
 
 	private:
-		bool init_effect(size_t index) final;
-		void unload_effect(size_t index) final;
-		void unload_effects() final;
-
-		bool init_texture(texture &texture) final;
-		void upload_texture(const texture &texture, const uint8_t *pixels) final;
-		void destroy_texture(texture &texture) final;
-		void generate_mipmaps(const struct tex_data *impl);
-
-		void render_technique(technique &technique) final;
-
 		const com_ptr<ID3D12Device> _device;
 		const com_ptr<ID3D12CommandQueue> _cmd_queue;
 		device_impl *const _device_impl;
 		command_queue_impl *const _cmd_queue_impl;
 		command_list_immediate_impl *const _cmd_impl;
 
-		com_ptr<ID3D12PipelineState> _mipmap_pipeline;
-		com_ptr<ID3D12RootSignature> _mipmap_signature;
-
 		UINT _swap_index = 0;
 		DXGI_FORMAT _backbuffer_format = DXGI_FORMAT_UNKNOWN;
 		std::vector<com_ptr<ID3D12Resource>> _backbuffers;
-		com_ptr<ID3D12Resource> _backbuffer_texture;
 		com_ptr<ID3D12DescriptorHeap> _backbuffer_rtvs;
-		com_ptr<ID3D12DescriptorHeap> _depthstencil_dsvs;
 
 		HMODULE _d3d_compiler = nullptr;
-		com_ptr<ID3D12Resource> _effect_stencil;
-		std::vector<struct effect_data> _effect_data;
-
-		std::unordered_map<std::string, D3D12_CPU_DESCRIPTOR_HANDLE> _texture_semantic_bindings;
-
-#if RESHADE_GUI
-		static const uint32_t NUM_IMGUI_BUFFERS = 4;
-
-		bool init_imgui_resources();
-		void render_imgui_draw_data(ImDrawData *data) final;
-
-		struct imgui_resources
-		{
-			com_ptr<ID3D12PipelineState> pipeline;
-			com_ptr<ID3D12RootSignature> signature;
-
-			com_ptr<ID3D12Resource> indices[NUM_IMGUI_BUFFERS];
-			com_ptr<ID3D12Resource> vertices[NUM_IMGUI_BUFFERS];
-			int num_indices[NUM_IMGUI_BUFFERS] = {};
-			int num_vertices[NUM_IMGUI_BUFFERS] = {};
-		} _imgui;
-#endif
 	};
 }

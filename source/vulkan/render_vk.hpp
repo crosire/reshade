@@ -206,6 +206,7 @@ namespace reshade::vulkan
 		std::unordered_map<size_t, VkRenderPass> _render_pass_list_internal;
 		std::unordered_map<size_t, VkFramebuffer> _framebuffer_list_internal;
 		std::unordered_map<VkPipelineLayout, std::vector<VkDescriptorSetLayout>> _pipeline_layout_list;
+		std::unordered_map<VkShaderModule, std::string> _entry_point_names;
 
 #ifndef NDEBUG
 		mutable bool _wait_for_idle_happened = false;

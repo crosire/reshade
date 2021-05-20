@@ -54,11 +54,15 @@ IDR_COPY_PS             RCDATA                  "shaders\\copy_ps.cso"
 
 IDR_FULLSCREEN_VS       RCDATA                  "shaders\\fullscreen_vs.cso"
 
-IDR_IMGUI_PS            RCDATA                  "shaders\\imgui_ps.cso"
+IDR_IMGUI_PS_3_0        RCDATA                  "shaders\\imgui_ps_3_0.cso"
+
+IDR_IMGUI_PS_4_0        RCDATA                  "shaders\\imgui_ps_4_0.cso"
 
 IDR_IMGUI_PS_SPIRV      RCDATA                  "shaders\\imgui_ps.spv"
 
-IDR_IMGUI_VS            RCDATA                  "shaders\\imgui_vs.cso"
+IDR_IMGUI_VS_3_0        RCDATA                  "shaders\\imgui_vs_3_0.cso"
+
+IDR_IMGUI_VS_4_0        RCDATA                  "shaders\\imgui_vs_4_0.cso"
 
 IDR_IMGUI_VS_SPIRV      RCDATA                  "shaders\\imgui_vs.spv"
 

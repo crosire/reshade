@@ -917,6 +917,9 @@ bool reshade::opengl::device_impl::create_pipeline_layout(uint32_t num_set_layou
 
 	for (uint32_t i = 0; i < num_set_layouts; ++i)
 	{
+		if (set_layouts[i].handle == 0)
+			continue;
+
 		layout_impl->bindings[i] = reinterpret_cast<descriptor_set_layout_impl *>(set_layouts[i].handle)->range.binding;
 	}
 
@@ -1786,7 +1789,7 @@ void reshade::opengl::device_impl::bind_scissor_rects(uint32_t first, uint32_t c
 			rects[k + 0],
 			rects[k + 1],
 			rects[k + 2] - rects[k + 0],
-			rects[k + 3] > rects[k + 1] ? rects[k + 3] - rects[k + 1] : rects[k + 1] - rects[k + 3]);
+			rects[k + 3] - rects[k + 1]);
 	}
 }
 
@@ -1840,6 +1843,8 @@ void reshade::opengl::device_impl::push_descriptors(api::shader_stage, api::pipe
 		for (GLuint i = 0; i < count; ++i)
 		{
 			const auto &descriptor = static_cast<const api::sampler_with_resource_view *>(descriptors)[i];
+			if (descriptor.view.handle == 0)
+				continue;
 			glBindSampler(i + first, descriptor.sampler.handle & 0xFFFFFFFF);
 			glActiveTexture(GL_TEXTURE0 + i + first);
 			glBindTexture(descriptor.view.handle >> 40, descriptor.view.handle & 0xFFFFFFFF);
@@ -1849,6 +1854,8 @@ void reshade::opengl::device_impl::push_descriptors(api::shader_stage, api::pipe
 		for (GLuint i = 0; i < count; ++i)
 		{
 			const auto &descriptor = static_cast<const api::resource_view *>(descriptors)[i];
+			if (descriptor.handle == 0)
+				continue;
 			glActiveTexture(GL_TEXTURE0 + i + first);
 			glBindTexture(descriptor.handle >> 40, descriptor.handle & 0xFFFFFFFF);
 		}
@@ -1857,6 +1864,8 @@ void reshade::opengl::device_impl::push_descriptors(api::shader_stage, api::pipe
 		for (GLuint i = 0; i < count; ++i)
 		{
 			const auto &descriptor = static_cast<const api::resource_view *>(descriptors)[i];
+			if (descriptor.handle == 0)
+				continue;
 			glBindImageTexture(i + first, descriptor.handle & 0xFFFFFFFF, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA8); // TODO: Format
 		}
 		break;

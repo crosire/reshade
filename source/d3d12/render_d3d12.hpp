@@ -133,7 +133,7 @@ namespace reshade::d3d12
 			{
 				if (count <= (block->second - block->first) / _increment_size)
 				{
-					base_handle.ptr = _static_heap_base + (block->first - _static_heap_base_gpu);
+					base_handle.ptr = _static_heap_base + static_cast<SIZE_T>(block->first - _static_heap_base_gpu);
 					base_handle_gpu.ptr = block->first;
 
 					// Remove the allocated range from the freed block and optionally remove it from the free list if no space is left afterwards
@@ -230,12 +230,12 @@ namespace reshade::d3d12
 		com_ptr<ID3D12DescriptorHeap> _heap;
 		SIZE_T _increment_size;
 		SIZE_T _static_heap_base;
-		SIZE_T _static_heap_base_gpu;
+		UINT64 _static_heap_base_gpu;
 		SIZE_T _transient_heap_base;
-		SIZE_T _transient_heap_base_gpu;
+		UINT64 _transient_heap_base_gpu;
 		SIZE_T _current_static_index = 0;
 		UINT64 _current_transient_tail = 0;
-		std::vector<std::pair<SIZE_T, SIZE_T>> _free_list;
+		std::vector<std::pair<UINT64, UINT64>> _free_list;
 	};
 
 	class device_impl : public api::api_object_impl<ID3D12Device *, api::device>

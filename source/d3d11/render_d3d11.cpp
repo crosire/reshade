@@ -611,6 +611,9 @@ bool reshade::d3d11::device_impl::create_pipeline_layout(uint32_t num_set_layout
 
 	for (UINT i = 0; i < num_set_layouts; ++i)
 	{
+		if (set_layouts[i].handle == 0)
+			continue;
+
 		layout_impl->shader_registers[i] = reinterpret_cast<descriptor_set_layout_impl *>(set_layouts[i].handle)->range.dx_shader_register;
 	}
 
@@ -791,7 +794,7 @@ void reshade::d3d11::device_impl::upload_buffer_region(const void *data, api::re
 	assert(dst_offset <= std::numeric_limits<UINT>::max() && size <= std::numeric_limits<UINT>::max());
 
 	const D3D11_BOX dst_box = { static_cast<UINT>(dst_offset), 0, 0, static_cast<UINT>(dst_offset + size), 1, 1 };
-	_immediate_context_orig->UpdateSubresource(reinterpret_cast<ID3D11Resource *>(dst.handle), 0, &dst_box, data, static_cast<UINT>(size), 0);
+	_immediate_context_orig->UpdateSubresource(reinterpret_cast<ID3D11Resource *>(dst.handle), 0, dst_offset != 0 ? &dst_box : nullptr, data, static_cast<UINT>(size), 0);
 }
 void reshade::d3d11::device_impl::upload_texture_region(const api::subresource_data &data, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6])
 {
@@ -1241,6 +1244,14 @@ void reshade::d3d11::device_context_impl::end_render_pass()
 {
 	// Reset render targets
 	_orig->OMSetRenderTargets(0, nullptr, nullptr);
+
+	// Reset shader resources
+	ID3D11ShaderResourceView *null_srv[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = {};
+	_orig->VSSetShaderResources(0, ARRAYSIZE(null_srv), null_srv);
+	_orig->HSSetShaderResources(0, ARRAYSIZE(null_srv), null_srv);
+	_orig->DSSetShaderResources(0, ARRAYSIZE(null_srv), null_srv);
+	_orig->GSSetShaderResources(0, ARRAYSIZE(null_srv), null_srv);
+	_orig->PSSetShaderResources(0, ARRAYSIZE(null_srv), null_srv);
 }
 
 void reshade::d3d11::device_context_impl::blit(api::resource, uint32_t, const int32_t[6], api::resource, uint32_t, const int32_t[6], api::texture_filter)

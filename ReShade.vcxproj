@@ -388,7 +388,6 @@
     <ClCompile Include="source\d3d10\render_d3d10.cpp" />
     <ClCompile Include="source\d3d10\render_d3d10_utils.cpp" />
     <ClCompile Include="source\d3d10\runtime_d3d10.cpp" />
-    <ClCompile Include="source\d3d10\runtime_d3d10_gui.cpp" />
     <ClCompile Include="source\d3d10\state_block_d3d10.cpp" />
     <ClCompile Include="source\d3d11\d3d11.cpp" />
     <ClCompile Include="source\d3d11\d3d11_command_list.cpp" />
@@ -397,7 +396,6 @@
     <ClCompile Include="source\d3d11\render_d3d11.cpp" />
     <ClCompile Include="source\d3d11\render_d3d11_utils.cpp" />
     <ClCompile Include="source\d3d11\runtime_d3d11.cpp" />
-    <ClCompile Include="source\d3d11\runtime_d3d11_gui.cpp" />
     <ClCompile Include="source\d3d11\state_block_d3d11.cpp" />
     <ClCompile Include="source\d3d12\d3d12.cpp" />
     <ClCompile Include="source\d3d12\d3d12_command_list.cpp" />
@@ -408,7 +406,6 @@
     <ClCompile Include="source\d3d12\render_d3d12.cpp" />
     <ClCompile Include="source\d3d12\render_d3d12_utils.cpp" />
     <ClCompile Include="source\d3d12\runtime_d3d12.cpp" />
-    <ClCompile Include="source\d3d12\runtime_d3d12_gui.cpp" />
     <ClCompile Include="source\d3d9\d3d9.cpp" />
     <ClCompile Include="source\d3d9\d3d9_device.cpp" />
     <ClCompile Include="source\d3d9\d3d9_internal.cpp" />
@@ -417,7 +414,6 @@
     <ClCompile Include="source\d3d9\render_d3d9.cpp" />
     <ClCompile Include="source\d3d9\render_d3d9_utils.cpp" />
     <ClCompile Include="source\d3d9\runtime_d3d9.cpp" />
-    <ClCompile Include="source\d3d9\runtime_d3d9_gui.cpp" />
     <ClCompile Include="source\d3d9\state_block_d3d9.cpp" />
     <ClCompile Include="source\dll_config.cpp" />
     <ClCompile Include="source\dll_log.cpp" />
@@ -439,7 +435,6 @@
     <ClCompile Include="source\opengl\render_gl.cpp" />
     <ClCompile Include="source\opengl\render_gl_utils.cpp" />
     <ClCompile Include="source\opengl\runtime_gl.cpp" />
-    <ClCompile Include="source\opengl\runtime_gl_gui.cpp" />
     <ClCompile Include="source\opengl\state_block_gl.cpp" />
     <ClCompile Include="source\openvr\openvr.cpp" />
     <ClCompile Include="source\runtime.cpp" />
@@ -450,7 +445,6 @@
     <ClCompile Include="source\vulkan\runtime_vk.cpp">
       <PreprocessorDefinitions>VMA_IMPLEMENTATION;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
-    <ClCompile Include="source\vulkan\runtime_vk_gui.cpp" />
     <ClCompile Include="source\vulkan\vulkan_hooks.cpp" />
     <ClCompile Include="source\vulkan\vulkan_hooks_device.cpp" />
     <ClCompile Include="source\vulkan\vulkan_hooks_instance.cpp" />
@@ -479,7 +473,6 @@
     <ClInclude Include="source\d3d10\render_d3d10.hpp" />
     <ClInclude Include="source\d3d10\render_d3d10_utils.hpp" />
     <ClInclude Include="source\d3d10\runtime_d3d10.hpp" />
-    <ClInclude Include="source\d3d10\runtime_d3d10_objects.hpp" />
     <ClInclude Include="source\d3d10\state_block_d3d10.hpp" />
     <ClInclude Include="source\d3d11\d3d11_command_list.hpp" />
     <ClInclude Include="source\d3d11\d3d11_device.hpp" />
@@ -487,7 +480,6 @@
     <ClInclude Include="source\d3d11\render_d3d11.hpp" />
     <ClInclude Include="source\d3d11\render_d3d11_utils.hpp" />
     <ClInclude Include="source\d3d11\runtime_d3d11.hpp" />
-    <ClInclude Include="source\d3d11\runtime_d3d11_objects.hpp" />
     <ClInclude Include="source\d3d11\state_block_d3d11.hpp" />
     <ClInclude Include="source\d3d12\d3d12_command_list.hpp" />
     <ClInclude Include="source\d3d12\d3d12_command_queue.hpp" />
@@ -497,13 +489,11 @@
     <ClInclude Include="source\d3d12\render_d3d12.hpp" />
     <ClInclude Include="source\d3d12\render_d3d12_utils.hpp" />
     <ClInclude Include="source\d3d12\runtime_d3d12.hpp" />
-    <ClInclude Include="source\d3d12\runtime_d3d12_objects.hpp" />
     <ClInclude Include="source\d3d9\d3d9_device.hpp" />
     <ClInclude Include="source\d3d9\d3d9_swapchain.hpp" />
     <ClInclude Include="source\d3d9\render_d3d9.hpp" />
     <ClInclude Include="source\d3d9\render_d3d9_utils.hpp" />
     <ClInclude Include="source\d3d9\runtime_d3d9.hpp" />
-    <ClInclude Include="source\d3d9\runtime_d3d9_objects.hpp" />
     <ClInclude Include="source\d3d9\state_block_d3d9.hpp" />
     <ClInclude Include="source\dll_log.hpp" />
     <ClInclude Include="source\dll_resources.hpp" />
@@ -522,7 +512,6 @@
     <ClInclude Include="source\opengl\render_gl.hpp" />
     <ClInclude Include="source\opengl\render_gl_utils.hpp" />
     <ClInclude Include="source\opengl\runtime_gl.hpp" />
-    <ClInclude Include="source\opengl\runtime_gl_objects.hpp" />
     <ClInclude Include="source\opengl\state_block_gl.hpp" />
     <ClInclude Include="source\runtime.hpp" />
     <ClInclude Include="source\runtime_objects.hpp" />
@@ -530,7 +519,6 @@
     <ClInclude Include="source\vulkan\render_vk.hpp" />
     <ClInclude Include="source\vulkan\render_vk_utils.hpp" />
     <ClInclude Include="source\vulkan\runtime_vk.hpp" />
-    <ClInclude Include="source\vulkan\runtime_vk_objects.hpp" />
     <ClInclude Include="source\vulkan\vulkan_hooks.hpp" />
   </ItemGroup>
   <ItemGroup>
@@ -549,11 +537,21 @@
     <FxCompile Include="res\shaders\fullscreen_vs.hlsl">
       <ShaderType>Vertex</ShaderType>
     </FxCompile>
-    <FxCompile Include="res\shaders\imgui_ps.hlsl">
+    <FxCompile Include="res\shaders\imgui_ps_3_0.hlsl">
       <ShaderType>Pixel</ShaderType>
+      <ShaderModel>3.0</ShaderModel>
     </FxCompile>
-    <FxCompile Include="res\shaders\imgui_vs.hlsl">
+    <FxCompile Include="res\shaders\imgui_ps_4_0.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <ShaderModel>4.0</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="res\shaders\imgui_vs_3_0.hlsl">
       <ShaderType>Vertex</ShaderType>
+      <ShaderModel>3.0</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="res\shaders\imgui_vs_4_0.hlsl">
+      <ShaderType>Vertex</ShaderType>
+      <ShaderModel>4.0</ShaderModel>
     </FxCompile>
     <FxCompile Include="res\shaders\mipmap_cs.hlsl">
       <ShaderType>Compute</ShaderType>

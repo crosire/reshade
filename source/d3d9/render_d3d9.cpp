@@ -396,7 +396,11 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 
 					if (initial_data != nullptr)
 					{
-						for (uint32_t subresource = 0; subresource < desc.texture.levels; ++subresource)
+						// Cannot get level information for textures created with the 'generate_mipmaps' flag, so only upload to the base level
+						if (levels == 0)
+							levels  = 1;
+
+						for (uint32_t subresource = 0; subresource < levels; ++subresource)
 							upload_texture_region(initial_data[subresource], *out, subresource, nullptr);
 					}
 
@@ -873,6 +877,9 @@ bool reshade::d3d9::device_impl::create_pipeline_layout(uint32_t num_set_layouts
 
 	for (UINT i = 0; i < num_set_layouts; ++i)
 	{
+		if (set_layouts[i].handle == 0)
+			continue;
+
 		layout_impl->shader_registers[i] = reinterpret_cast<descriptor_set_layout_impl *>(set_layouts[i].handle)->range.dx_shader_register;
 	}
 

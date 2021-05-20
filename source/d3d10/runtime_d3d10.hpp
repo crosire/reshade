@@ -26,19 +26,13 @@ namespace reshade::d3d10
 
 		bool capture_screenshot(uint8_t *buffer) const final;
 
-		void update_texture_bindings(const char *semantic, api::resource_view srv) final;
+		bool compile_effect(effect &effect, api::shader_stage type, const std::string &entry_point, api::shader_module &out) final;
+
+		api::resource_view get_backbuffer(bool srgb) final { return { reinterpret_cast<uintptr_t>(_backbuffer_rtv[srgb ? 1 : 0].get()) }; }
+		api::resource get_backbuffer_resource() final { return { (uintptr_t)_backbuffer.get() }; }
+		api::format get_backbuffer_format() final { return (api::format)_backbuffer_format; }
 
 	private:
-		bool init_effect(size_t index) final;
-		void unload_effect(size_t index) final;
-		void unload_effects() final;
-
-		bool init_texture(texture &texture) final;
-		void upload_texture(const texture &texture, const uint8_t *pixels) final;
-		void destroy_texture(texture &texture) final;
-
-		void render_technique(technique &technique) final;
-
 		const com_ptr<ID3D10Device1> _device;
 		device_impl *const _device_impl;
 
@@ -53,36 +47,9 @@ namespace reshade::d3d10
 		com_ptr<ID3D10Texture2D> _backbuffer_resolved;
 		com_ptr<ID3D10RenderTargetView> _backbuffer_rtv[3];
 		com_ptr<ID3D10Texture2D> _backbuffer_texture;
-		com_ptr<ID3D10ShaderResourceView> _backbuffer_texture_srv[2];
+		com_ptr<ID3D10ShaderResourceView> _backbuffer_texture_srv;
 
 		HMODULE _d3d_compiler = nullptr;
 		com_ptr<ID3D10RasterizerState> _effect_rasterizer;
-		std::unordered_map<size_t, com_ptr<ID3D10SamplerState>> _effect_sampler_states;
-		std::vector<struct effect_data> _effect_data;
-		com_ptr<ID3D10DepthStencilView> _effect_stencil;
-
-		std::unordered_map<std::string, com_ptr<ID3D10ShaderResourceView>> _texture_semantic_bindings;
-
-#if RESHADE_GUI
-		bool init_imgui_resources();
-		void render_imgui_draw_data(ImDrawData *data) final;
-
-		struct imgui_resources
-		{
-			com_ptr<ID3D10Buffer> cb;
-			com_ptr<ID3D10VertexShader> vs;
-			com_ptr<ID3D10RasterizerState> rs;
-			com_ptr<ID3D10PixelShader> ps;
-			com_ptr<ID3D10SamplerState> ss;
-			com_ptr<ID3D10BlendState> bs;
-			com_ptr<ID3D10DepthStencilState> ds;
-			com_ptr<ID3D10InputLayout> layout;
-
-			com_ptr<ID3D10Buffer> indices;
-			com_ptr<ID3D10Buffer> vertices;
-			int num_indices = 0;
-			int num_vertices = 0;
-		} _imgui;
-#endif
 	};
 }

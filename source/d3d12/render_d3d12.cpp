@@ -8,6 +8,7 @@
 #include "render_d3d12.hpp"
 #include "render_d3d12_utils.hpp"
 #include "dxgi/format_utils.hpp"
+#include "reshade_api_format_utils.hpp"
 
 namespace
 {
@@ -21,7 +22,7 @@ namespace
 		D3D12_PRIMITIVE_TOPOLOGY topology;
 	};
 
-	struct descriptor_table_layout_impl
+	struct descriptor_set_layout_impl
 	{
 		D3D12_DESCRIPTOR_HEAP_TYPE heap_type;
 		UINT total_size;
@@ -546,19 +547,28 @@ bool reshade::d3d12::device_impl::create_shader_module(api::shader_stage, api::s
 		return false;
 	}
 }
-bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t num_table_layouts, const api::descriptor_set_layout *table_layouts, uint32_t num_constant_ranges, const api::constant_range *constant_ranges, api::pipeline_layout *out)
+bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t num_set_layouts, const api::descriptor_set_layout *set_layouts, uint32_t num_constant_ranges, const api::constant_range *constant_ranges, api::pipeline_layout *out)
 {
-	std::vector<D3D12_ROOT_PARAMETER> params(num_table_layouts + num_constant_ranges);
-	std::vector<std::vector<D3D12_DESCRIPTOR_RANGE>> ranges(num_table_layouts);
+	std::vector<D3D12_ROOT_PARAMETER> params(num_set_layouts + num_constant_ranges);
+	std::vector<std::vector<D3D12_DESCRIPTOR_RANGE>> ranges(num_set_layouts);
 
-	for (UINT i = 0; i < num_table_layouts; ++i)
+	for (UINT i = 0; i < num_set_layouts; ++i)
 	{
-		params[i] = reinterpret_cast<descriptor_table_layout_impl *>(table_layouts[i].handle)->param;
+		if (set_layouts[i].handle == 0)
+		{
+			// Dummy parameter (to prevent root signature creation from failing)
+			params[i].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+			params[i].Constants.RegisterSpace = 255;
+			params[i].Constants.Num32BitValues = 1;
+			continue;
+		}
+
+		params[i] = reinterpret_cast<descriptor_set_layout_impl *>(set_layouts[i].handle)->param;
 	}
 
 	for (UINT i = 0; i < num_constant_ranges; ++i)
 	{
-		D3D12_ROOT_PARAMETER &param = params[num_table_layouts + i];
+		D3D12_ROOT_PARAMETER &param = params[num_set_layouts + i];
 		param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
 		param.Constants.ShaderRegister = constant_ranges[i].dx_shader_register;
 		param.Constants.RegisterSpace = 0;
@@ -589,7 +599,7 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t num_table_layo
 
 	D3D12_ROOT_SIGNATURE_DESC internal_desc = {};
 	internal_desc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-	internal_desc.NumParameters = num_table_layouts + num_constant_ranges;
+	internal_desc.NumParameters = num_set_layouts + num_constant_ranges;
 	internal_desc.pParameters = params.data();
 
 	com_ptr<ID3DBlob> blob;
@@ -608,7 +618,7 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t num_table_layo
 }
 bool reshade::d3d12::device_impl::create_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, api::descriptor_set *out)
 {
-	const auto layout_impl = reinterpret_cast<const descriptor_table_layout_impl *>(layout.handle);
+	const auto layout_impl = reinterpret_cast<const descriptor_set_layout_impl *>(layout.handle);
 
 	for (UINT i = 0; i < count; ++i)
 	{
@@ -630,7 +640,7 @@ bool reshade::d3d12::device_impl::create_descriptor_set_layout(uint32_t num_rang
 {
 	uint32_t visibility_mask = 0;
 
-	const auto result = new descriptor_table_layout_impl();
+	const auto result = new descriptor_set_layout_impl();
 	result->heap_type = D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES;
 	result->total_size = 0;
 	result->ranges.resize(num_ranges);
@@ -771,7 +781,7 @@ void reshade::d3d12::device_impl::destroy_pipeline_layout(api::pipeline_layout h
 }
 void reshade::d3d12::device_impl::destroy_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, const api::descriptor_set *sets)
 {
-	const auto layout_impl = reinterpret_cast<descriptor_table_layout_impl *>(layout.handle);
+	const auto layout_impl = reinterpret_cast<descriptor_set_layout_impl *>(layout.handle);
 
 	for (UINT i = 0; i < count; ++i)
 	{
@@ -784,7 +794,7 @@ void reshade::d3d12::device_impl::destroy_descriptor_sets(api::descriptor_set_la
 }
 void reshade::d3d12::device_impl::destroy_descriptor_set_layout(api::descriptor_set_layout handle)
 {
-	delete reinterpret_cast<descriptor_table_layout_impl *>(handle.handle);
+	delete reinterpret_cast<descriptor_set_layout_impl *>(handle.handle);
 }
 
 void reshade::d3d12::device_impl::destroy_query_pool(api::query_pool handle)
@@ -901,34 +911,23 @@ void reshade::d3d12::device_impl::upload_texture_region(const api::subresource_d
 	const auto dst_resource = reinterpret_cast<ID3D12Resource *>(dst.handle);
 	const D3D12_RESOURCE_DESC dst_desc = dst_resource->GetDesc();
 
-	UINT row_length = 0;
-	UINT slice_count = 1;
-	UINT slice_height = 0;
-	UINT64 upload_size = 0;
-	UINT64 upload_row_pitch = 0;
-	UINT64 upload_slice_pitch = 0;
-
+	UINT width = static_cast<UINT>(dst_desc.Width);
+	UINT num_rows = dst_desc.Height;
+	UINT num_slices = dst_desc.DepthOrArraySize;
 	if (dst_box != nullptr)
 	{
-		row_length = dst_box[3] - dst_box[0];
-		slice_count = dst_box[5] - dst_box[2];
-		slice_height = dst_box[4] - dst_box[1];
-		upload_row_pitch = row_length * dxgi_format_bpp(dst_desc.Format);
-		upload_row_pitch = (upload_row_pitch + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u);
-		upload_slice_pitch = slice_height * upload_row_pitch;
-		upload_size = slice_count * upload_slice_pitch;
+		width = dst_box[3] - dst_box[0];
+		num_rows = dst_box[4] - dst_box[1];
+		num_slices = dst_box[5] - dst_box[2];
 	}
-	else
-	{
-		_orig->GetCopyableFootprints(&dst_desc, dst_subresource, 1, 0, nullptr, &slice_height, &upload_row_pitch, &upload_size);
-		row_length = static_cast<UINT>(dst_desc.Width);
-		upload_row_pitch = (upload_row_pitch + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u);
-		upload_slice_pitch = upload_size;
-	}
+
+	auto row_pitch = width * api::format_bpp(convert_format(dst_desc.Format));
+	row_pitch = (row_pitch + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u);
+	const auto slice_pitch = num_rows * row_pitch;
 
 	// Allocate host memory for upload
 	D3D12_RESOURCE_DESC intermediate_desc = { D3D12_RESOURCE_DIMENSION_BUFFER };
-	intermediate_desc.Width = upload_size;
+	intermediate_desc.Width = num_slices * slice_pitch;
 	intermediate_desc.Height = 1;
 	intermediate_desc.DepthOrArraySize = 1;
 	intermediate_desc.MipLevels = 1;
@@ -951,17 +950,17 @@ void reshade::d3d12::device_impl::upload_texture_region(const api::subresource_d
 	if (FAILED(intermediate->Map(0, nullptr, reinterpret_cast<void **>(&mapped_data))))
 		return;
 
-	for (UINT z = 0; z < slice_count; ++z)
+	for (UINT z = 0; z < num_slices; ++z)
 	{
-		const auto dst_slice = mapped_data + z * upload_slice_pitch;
+		const auto dst_slice = mapped_data + z * slice_pitch;
 		const auto src_slice = static_cast<const uint8_t *>(data.data) + z * data.slice_pitch;
 
-		for (UINT y = 0; y < slice_height; ++y)
+		for (UINT y = 0; y < num_rows; ++y)
 		{
-			const size_t row_size = data.row_pitch < upload_row_pitch ?
-				data.row_pitch : static_cast<size_t>(upload_row_pitch);
+			const size_t row_size = data.row_pitch < row_pitch ?
+				data.row_pitch : static_cast<size_t>(row_pitch);
 			std::memcpy(
-				dst_slice + y * upload_row_pitch,
+				dst_slice + y * row_pitch,
 				src_slice + y * data.row_pitch, row_size);
 		}
 	}
@@ -974,7 +973,7 @@ void reshade::d3d12::device_impl::upload_texture_region(const api::subresource_d
 		const auto immediate_command_list = static_cast<command_list_immediate_impl *>(queue->get_immediate_command_list());
 		if (immediate_command_list != nullptr)
 		{
-			immediate_command_list->copy_buffer_to_texture(api::resource { reinterpret_cast<uintptr_t>(intermediate.get()) }, 0, row_length, slice_height, dst, dst_subresource, dst_box);
+			immediate_command_list->copy_buffer_to_texture(api::resource { reinterpret_cast<uintptr_t>(intermediate.get()) }, 0, 0, 0, dst, dst_subresource, dst_box);
 
 			// Wait for command to finish executing before destroying the upload buffer
 			immediate_command_list->flush_and_wait(queue->_orig);
@@ -1635,7 +1634,7 @@ void reshade::d3d12::command_list_impl::clear_unordered_access_view_uint(api::re
 		_orig->SetDescriptorHeaps(1, &view_heap);
 
 	_device_impl->_orig->CreateUnorderedAccessView(resource, nullptr, nullptr, table_base);
-	_orig->ClearUnorderedAccessViewUint(table_base_gpu, D3D12_CPU_DESCRIPTOR_HANDLE { uav.handle }, resource, values, 0, nullptr);
+	_orig->ClearUnorderedAccessViewUint(table_base_gpu, D3D12_CPU_DESCRIPTOR_HANDLE { static_cast<SIZE_T>(uav.handle) }, resource, values, 0, nullptr);
 
 	if (_current_descriptor_heaps[0] != view_heap && _current_descriptor_heaps[1] != view_heap && _current_descriptor_heaps[0] != nullptr)
 		_orig->SetDescriptorHeaps(_current_descriptor_heaps[1] != nullptr ? 2 : 1, _current_descriptor_heaps);
@@ -1661,7 +1660,7 @@ void reshade::d3d12::command_list_impl::clear_unordered_access_view_float(api::r
 		_orig->SetDescriptorHeaps(1, &view_heap);
 
 	_device_impl->_orig->CreateUnorderedAccessView(resource, nullptr, nullptr, table_base);
-	_orig->ClearUnorderedAccessViewFloat(table_base_gpu, D3D12_CPU_DESCRIPTOR_HANDLE { uav.handle }, resource, values, 0, nullptr);
+	_orig->ClearUnorderedAccessViewFloat(table_base_gpu, D3D12_CPU_DESCRIPTOR_HANDLE { static_cast<SIZE_T>(uav.handle) }, resource, values, 0, nullptr);
 
 	if (_current_descriptor_heaps[0] != view_heap && _current_descriptor_heaps[1] != view_heap && _current_descriptor_heaps[0] != nullptr)
 		_orig->SetDescriptorHeaps(_current_descriptor_heaps[1] != nullptr ? 2 : 1, _current_descriptor_heaps);

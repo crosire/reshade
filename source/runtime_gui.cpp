@@ -224,20 +224,30 @@ void reshade::runtime::build_font_atlas()
 	unsigned char *pixels;
 	atlas->GetTexDataAsRGBA32(&pixels, &width, &height);
 
-	// Create font atlas texture and upload it
-	if (_imgui_font_atlas != nullptr)
-		destroy_texture(*_imgui_font_atlas);
-	if (_imgui_font_atlas == nullptr)
-		_imgui_font_atlas = std::make_unique<texture>();
+	api::device *const device = get_device();
 
-	_imgui_font_atlas->width = width;
-	_imgui_font_atlas->height = height;
-	_imgui_font_atlas->format = reshadefx::texture_format::rgba8;
-	_imgui_font_atlas->unique_name = "ImGUI Font Atlas";
-	if (init_texture(*_imgui_font_atlas))
-		upload_texture(*_imgui_font_atlas, pixels);
-	else
-		_imgui_font_atlas.reset();
+	device->destroy_resource(_imgui.font_atlas);
+	_imgui.font_atlas.handle = {};
+	device->destroy_resource_view(_imgui.font_atlas_view);
+	_imgui.font_atlas_view.handle = {};
+
+	const api::subresource_data initial_data = { pixels, static_cast<uint32_t>(width * 4), static_cast<uint32_t>(width * height * 4) };
+
+	// Create font atlas texture and upload it
+	if (!device->create_resource(
+		api::resource_desc(width, height, 1, 1, api::format::r8g8b8a8_unorm, 1, api::memory_heap::gpu_only, api::resource_usage::shader_resource | api::resource_usage::copy_dest),
+		&initial_data,
+		api::resource_usage::shader_resource,
+		&_imgui.font_atlas))
+		return;
+	if (!device->create_resource_view(
+		_imgui.font_atlas,
+		api::resource_usage::shader_resource,
+		api::resource_view_desc(api::format::r8g8b8a8_unorm, 0, 1, 0, 1),
+		&_imgui.font_atlas_view))
+		return;
+
+	device->set_debug_name(_imgui.font_atlas, "ImGui Font Atlas");
 }
 
 void reshade::runtime::load_custom_style()
@@ -548,7 +558,7 @@ void reshade::runtime::draw_gui()
 	_ignore_shortcuts = false;
 	_effects_expanded_state &= 2;
 
-	if (!show_splash && !show_stats_window && !_show_overlay && _preview_texture == nullptr)
+	if (!show_splash && !show_stats_window && !_show_overlay && _preview_texture.handle == 0)
 	{
 		_input->block_mouse_input(false);
 		_input->block_keyboard_input(false);
@@ -557,7 +567,7 @@ void reshade::runtime::draw_gui()
 
 	if (_rebuild_font_atlas)
 		build_font_atlas();
-	if (_imgui_font_atlas == nullptr)
+	if (_imgui.font_atlas_view.handle == 0 || _imgui.pipeline.handle == 0)
 		return; // Cannot render GUI without font atlas
 
 	ImGui::SetCurrentContext(_imgui_context);
@@ -568,7 +578,7 @@ void reshade::runtime::draw_gui()
 	imgui_io.MousePos.y = static_cast<float>(_input->mouse_position_y());
 	imgui_io.DisplaySize.x = static_cast<float>(_width);
 	imgui_io.DisplaySize.y = static_cast<float>(_height);
-	imgui_io.Fonts->TexID = _imgui_font_atlas->impl;
+	imgui_io.Fonts->TexID = _imgui.font_atlas_view.handle;
 
 	// Add wheel delta to the current absolute mouse wheel position
 	imgui_io.MouseWheel += _input->mouse_wheel_delta();
@@ -862,7 +872,7 @@ void reshade::runtime::draw_gui()
 		}
 	}
 
-	if (_preview_texture != nullptr && _effects_enabled)
+	if (_preview_texture.handle != 0 && _effects_enabled)
 	{
 		if (!_show_overlay)
 		{
@@ -899,7 +909,7 @@ void reshade::runtime::draw_gui()
 			preview_max.y = (preview_max.y * 0.5f) + (_preview_size[1] * 0.5f);
 		}
 
-		ImGui::FindWindowByName("Viewport")->DrawList->AddImage(_preview_texture, preview_min, preview_max, ImVec2(0, 0), ImVec2(1, 1), _preview_size[2]);
+		ImGui::FindWindowByName("Viewport")->DrawList->AddImage(_preview_texture.handle, preview_min, preview_max, ImVec2(0, 0), ImVec2(1, 1), _preview_size[2]);
 	}
 
 	// Disable keyboard shortcuts while typing into input boxes
@@ -1098,7 +1108,7 @@ void reshade::runtime::draw_gui_home()
 	{
 		std::string texture_list;
 		for (const texture &tex : _textures)
-			if (tex.impl != nullptr && !tex.loaded && !tex.annotation_as_string("source").empty())
+			if (tex.resource.handle != 0 && !tex.loaded && !tex.annotation_as_string("source").empty())
 				texture_list += ' ' + tex.unique_name + ',';
 
 		if (texture_list.empty())
@@ -1713,7 +1723,7 @@ void reshade::runtime::draw_gui_statistics()
 
 		for (const texture &tex : _textures)
 		{
-			if (tex.impl == nullptr || !tex.semantic.empty() || (tex.shared.size() <= 1 && !_effects[tex.effect_index].rendering))
+			if (tex.resource.handle == 0 || !tex.semantic.empty() || (tex.shared.size() <= 1 && !_effects[tex.effect_index].rendering))
 				continue;
 
 			ImGui::PushID(texture_index);
@@ -1828,16 +1838,16 @@ void reshade::runtime::draw_gui_statistics()
 				ImGui::EndPopup();
 			}
 
-			if (bool check = _preview_texture == tex.impl && _preview_size[0] == 0; ImGui::RadioButton("Preview scaled", check)) {
+			if (bool check = _preview_texture == tex.srv[0] && _preview_size[0] == 0; ImGui::RadioButton("Preview scaled", check)) {
 				_preview_size[0] = 0;
 				_preview_size[1] = 0;
-				_preview_texture = !check ? tex.impl : nullptr;
+				_preview_texture = !check ? tex.srv[0] : api::resource_view { 0 };
 			}
 			ImGui::SameLine();
-			if (bool check = _preview_texture == tex.impl && _preview_size[0] != 0; ImGui::RadioButton("Preview original", check)) {
+			if (bool check = _preview_texture == tex.srv[0] && _preview_size[0] != 0; ImGui::RadioButton("Preview original", check)) {
 				_preview_size[0] = tex.width;
 				_preview_size[1] = tex.height;
-				_preview_texture = !check ? tex.impl : nullptr;
+				_preview_texture = !check ? tex.srv[0] : api::resource_view { 0 };
 			}
 
 			bool r = (_preview_size[2] & 0x000000FF) != 0;
@@ -1864,7 +1874,7 @@ void reshade::runtime::draw_gui_statistics()
 			_preview_size[2] = (r ? 0x000000FF : 0) | (g ? 0x0000FF00 : 0) | (b ? 0x00FF0000 : 0) | 0xFF000000;
 
 			const float aspect_ratio = static_cast<float>(tex.width) / static_cast<float>(tex.height);
-			widgets::image_with_checkerboard_background(tex.impl, ImVec2(single_image_width, single_image_width / aspect_ratio), _preview_size[2]);
+			widgets::image_with_checkerboard_background(tex.srv[0].handle, ImVec2(single_image_width, single_image_width / aspect_ratio), _preview_size[2]);
 
 			ImGui::EndGroup();
 			ImGui::PopID();
@@ -3131,6 +3141,322 @@ void reshade::runtime::draw_code_editor(editor_instance &instance)
 		_imgui_context->IO.ConfigFlags &= ~ImGuiConfigFlags_NavEnableKeyboard;
 	else // Enable navigation again if focus is lost
 		_imgui_context->IO.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+}
+
+bool reshade::runtime::init_imgui_resources()
+{
+	api::device *const device = get_device();
+	const bool has_combined_sampler_and_view = device->check_capability(api::device_caps::sampler_with_resource_view);
+
+	if (_imgui.sampler_state.handle == 0)
+	{
+		api::sampler_desc desc = {};
+		desc.filter = api::texture_filter::min_mag_mip_linear;
+		desc.address_u = api::texture_address_mode::wrap;
+		desc.address_v = api::texture_address_mode::wrap;
+		desc.address_w = api::texture_address_mode::wrap;
+		desc.max_anisotropy = 1;
+		desc.min_lod = -FLT_MAX;
+		desc.max_lod = +FLT_MAX;
+
+		if (!device->create_sampler(desc, &_imgui.sampler_state))
+			return false;
+	}
+
+	if (_imgui.pipeline_layout.handle == 0)
+	{
+		api::descriptor_range range;
+		range.count = 1;
+		range.visibility = api::shader_stage::pixel;
+
+		if (has_combined_sampler_and_view)
+		{
+			range.type = api::descriptor_type::sampler_with_resource_view;
+			range.binding = 0;
+			range.dx_shader_register = 0; // s0
+			if (!device->create_descriptor_set_layout(1, &range, true, &_imgui.table_layouts[0]))
+				return false;
+		}
+		else
+		{
+			range.type = api::descriptor_type::sampler;
+			range.binding = 0;
+			range.dx_shader_register = 0; // s0
+			if (!device->create_descriptor_set_layout(1, &range, true, &_imgui.table_layouts[0]))
+				return false;
+
+			range.type = api::descriptor_type::shader_resource_view;
+			range.binding = 0;
+			range.dx_shader_register = 0; // t0
+			if (!device->create_descriptor_set_layout(1, &range, true, &_imgui.table_layouts[1]))
+				return false;
+		}
+
+		api::constant_range constant_range;
+		constant_range.offset = 0;
+		constant_range.dx_shader_register = 0; // b0
+		constant_range.count = 16;
+		constant_range.visibility = api::shader_stage::vertex;
+
+		if (!device->create_pipeline_layout(has_combined_sampler_and_view ? 1 : 2, _imgui.table_layouts, 1, &constant_range, &_imgui.pipeline_layout))
+			return false;
+	}
+
+	if (_imgui.pipeline.handle != 0)
+		return true;
+
+	api::pipeline_desc pso_desc = { api::pipeline_type::graphics };
+	pso_desc.layout = _imgui.pipeline_layout;
+
+	if ((_renderer_id & 0x30000) == 0)
+	{
+		const resources::data_resource vs_res = resources::load_data_resource(_renderer_id < 0xa000 ? IDR_IMGUI_VS_3_0 : IDR_IMGUI_VS_4_0);
+		if (!device->create_shader_module(api::shader_stage::vertex, api::shader_format::dxbc, nullptr, vs_res.data, vs_res.data_size, &pso_desc.graphics.vertex_shader))
+			return false;
+
+		const resources::data_resource ps_res = resources::load_data_resource(_renderer_id < 0xa000 ? IDR_IMGUI_PS_3_0 : IDR_IMGUI_PS_4_0);
+		if (!device->create_shader_module(api::shader_stage::pixel, api::shader_format::dxbc, nullptr, ps_res.data, ps_res.data_size, &pso_desc.graphics.pixel_shader))
+		{
+			device->destroy_shader_module(pso_desc.graphics.vertex_shader);
+			return false;
+		}
+	}
+	else
+	{
+		if (_renderer_id & 0x10000)
+		{
+			const char *vertex_shader =
+				"#version 430\n"
+				"layout(binding = 0) uniform Buf { mat4 proj; };\n"
+				"layout(location = 0) in vec2 pos;\n"
+				"layout(location = 1) in vec2 tex;\n"
+				"layout(location = 2) in vec4 col;\n"
+				"out vec4 frag_col;\n"
+				"out vec2 frag_tex;\n"
+				"void main()\n"
+				"{\n"
+				"	frag_col = col;\n"
+				"	frag_tex = tex;\n"
+				"	gl_Position = proj * vec4(pos.xy, 0, 1);\n"
+				"}\n";
+			const char *fragment_shader =
+				"#version 430\n"
+				"layout(binding = 0) uniform sampler2D s0;\n"
+				"in vec4 frag_col;\n"
+				"in vec2 frag_tex;\n"
+				"out vec4 col;\n"
+				"void main()\n"
+				"{\n"
+				"	col = frag_col * texture(s0, frag_tex.st);\n"
+				"}\n";
+
+			if (!device->create_shader_module(api::shader_stage::vertex, api::shader_format::glsl, "main", vertex_shader, strlen(vertex_shader), &pso_desc.graphics.vertex_shader))
+				return false;
+			if (!device->create_shader_module(api::shader_stage::pixel, api::shader_format::glsl, "main", fragment_shader, strlen(fragment_shader), &pso_desc.graphics.pixel_shader))
+			{
+				device->destroy_shader_module(pso_desc.graphics.vertex_shader);
+				return false;
+			}
+		}
+		else
+		{
+			const resources::data_resource vs_res = resources::load_data_resource(IDR_IMGUI_VS_SPIRV);
+			if (!device->create_shader_module(api::shader_stage::vertex, api::shader_format::spirv, "main", vs_res.data, vs_res.data_size, &pso_desc.graphics.vertex_shader))
+				return false;
+
+			const resources::data_resource ps_res = resources::load_data_resource(IDR_IMGUI_PS_SPIRV);
+			if (!device->create_shader_module(api::shader_stage::pixel, api::shader_format::spirv, "main", ps_res.data, ps_res.data_size, &pso_desc.graphics.pixel_shader))
+			{
+				device->destroy_shader_module(pso_desc.graphics.vertex_shader);
+				return false;
+			}
+		}
+	}
+
+	pso_desc.graphics.input_layout[0] = { 0, "POSITION", 0, api::format::r32g32_float,   0, offsetof(ImDrawVert, pos), sizeof(ImDrawVert), 0 };
+	pso_desc.graphics.input_layout[1] = { 1, "TEXCOORD", 0, api::format::r32g32_float,   0, offsetof(ImDrawVert, uv ), sizeof(ImDrawVert), 0 };
+	pso_desc.graphics.input_layout[2] = { 2, "COLOR",    0, api::format::r8g8b8a8_unorm, 0, offsetof(ImDrawVert, col), sizeof(ImDrawVert), 0 };
+
+	{	auto &blend_state = pso_desc.graphics.blend_state;
+		blend_state.num_viewports = 1;
+		blend_state.num_render_targets = 1;
+		blend_state.render_target_format[0] = get_backbuffer_format();
+		blend_state.blend_enable[0] = true;
+		blend_state.src_color_blend_factor[0] = api::blend_factor::src_alpha;
+		blend_state.dst_color_blend_factor[0] = api::blend_factor::inv_src_alpha;
+		blend_state.color_blend_op[0] = api::blend_op::add;
+		blend_state.src_alpha_blend_factor[0] = api::blend_factor::inv_src_alpha;
+		blend_state.dst_alpha_blend_factor[0] = api::blend_factor::zero;
+		blend_state.alpha_blend_op[0] = api::blend_op::add;
+		blend_state.render_target_write_mask[0] = 0xF;
+	}
+
+	{	auto &rasterizer_state = pso_desc.graphics.rasterizer_state;
+		rasterizer_state.topology = api::primitive_topology::triangle_list;
+		rasterizer_state.depth_clip = true;
+		rasterizer_state.scissor_test = true;
+	}
+
+	{	auto &multisample_state = pso_desc.graphics.multisample_state;
+		multisample_state.sample_mask = std::numeric_limits<uint32_t>::max();
+		multisample_state.sample_count = 1;
+	}
+
+	{	auto &depth_stencil_state = pso_desc.graphics.depth_stencil_state;
+		depth_stencil_state.depth_test = false;
+		depth_stencil_state.stencil_test = false;
+	}
+
+	const bool result = device->create_pipeline(pso_desc, &_imgui.pipeline);
+
+	device->destroy_shader_module(pso_desc.graphics.vertex_shader);
+	device->destroy_shader_module(pso_desc.graphics.pixel_shader);
+
+	return result;
+}
+void reshade::runtime::render_imgui_draw_data(ImDrawData *draw_data)
+{
+	api::device *const device = get_device();
+	const bool has_combined_sampler_and_view = device->check_capability(api::device_caps::sampler_with_resource_view);
+
+	// Need to multi-buffer vertex data so not to modify data below when the previous frame is still in flight
+	const unsigned int buffer_index = _framecount % NUM_IMGUI_BUFFERS;
+
+	// Create and grow vertex/index buffers if needed
+	if (_imgui.num_indices[buffer_index] < draw_data->TotalIdxCount)
+	{
+		device->wait_idle(); // Be safe and ensure nothing still uses this buffer
+
+		if (_imgui.indices[buffer_index].handle != 0)
+			device->destroy_resource(_imgui.indices[buffer_index]);
+
+		const int new_size = draw_data->TotalIdxCount + 10000;
+		if (!device->create_resource(api::resource_desc(new_size * sizeof(ImDrawIdx), api::memory_heap::cpu_to_gpu, api::resource_usage::index_buffer), nullptr, api::resource_usage::cpu_access, &_imgui.indices[buffer_index]))
+			return;
+		device->set_debug_name(_imgui.indices[buffer_index], "ImGui index buffer");
+
+		_imgui.num_indices[buffer_index] = new_size;
+	}
+	if (_imgui.num_vertices[buffer_index] < draw_data->TotalVtxCount)
+	{
+		device->wait_idle();
+
+		if (_imgui.vertices[buffer_index].handle != 0)
+			device->destroy_resource(_imgui.vertices[buffer_index]);
+
+		const int new_size = draw_data->TotalVtxCount + 5000;
+		if (!device->create_resource(api::resource_desc(new_size * sizeof(ImDrawVert), api::memory_heap::cpu_to_gpu, api::resource_usage::vertex_buffer), nullptr, api::resource_usage::cpu_access, &_imgui.vertices[buffer_index]))
+			return;
+		device->set_debug_name(_imgui.vertices[buffer_index], "ImGui vertex buffer");
+
+		_imgui.num_vertices[buffer_index] = new_size;
+	}
+
+	if (ImDrawIdx *idx_dst = nullptr;
+		device->map_resource(_imgui.indices[buffer_index], 0, api::map_access::write_discard, reinterpret_cast<void **>(&idx_dst)))
+	{
+		for (int n = 0; n < draw_data->CmdListsCount; ++n)
+		{
+			const ImDrawList *const draw_list = draw_data->CmdLists[n];
+			std::memcpy(idx_dst, draw_list->IdxBuffer.Data, draw_list->IdxBuffer.Size * sizeof(ImDrawIdx));
+			idx_dst += draw_list->IdxBuffer.Size;
+		}
+
+		device->unmap_resource(_imgui.indices[buffer_index], 0);
+	}
+	if (ImDrawVert *vtx_dst = nullptr;
+		device->map_resource(_imgui.vertices[buffer_index], 0, api::map_access::write_discard, reinterpret_cast<void **>(&vtx_dst)))
+	{
+		for (int n = 0; n < draw_data->CmdListsCount; ++n)
+		{
+			const ImDrawList *const draw_list = draw_data->CmdLists[n];
+			std::memcpy(vtx_dst, draw_list->VtxBuffer.Data, draw_list->VtxBuffer.Size * sizeof(ImDrawVert));
+			vtx_dst += draw_list->VtxBuffer.Size;
+		}
+
+		device->unmap_resource(_imgui.vertices[buffer_index], 0);
+	}
+
+	api::command_list *const cmd_list = get_command_queue()->get_immediate_command_list();
+
+	cmd_list->insert_barrier(get_backbuffer_resource(), api::resource_usage::present, api::resource_usage::render_target);
+
+	const api::resource_view rtv = get_backbuffer(false);
+	cmd_list->begin_render_pass(1, &rtv);
+
+	// Setup render state
+	cmd_list->bind_pipeline(api::pipeline_type::graphics, _imgui.pipeline);
+
+	cmd_list->bind_index_buffer(_imgui.indices[buffer_index], 0, sizeof(ImDrawIdx));
+	cmd_list->bind_vertex_buffer(0, _imgui.vertices[buffer_index], 0, sizeof(ImDrawVert));
+
+	const float viewport[6] = { 0, 0, draw_data->DisplaySize.x, draw_data->DisplaySize.y, 0.0f, 1.0f };
+	cmd_list->bind_viewports(0, 1, viewport);
+
+	// Setup orthographic projection matrix
+	const bool flip_y = (_renderer_id & 0x10000) != 0;// (_renderer_id & 0x20000) != 0;
+	const bool flip_y_scissor = false;// (_renderer_id & 0x10000) != 0;
+	const bool adjust_half_pixel = _renderer_id < 0xa000; // Bake half-pixel offset into matrix in D3D9
+	const bool depth_clip_zero_to_one = (_renderer_id & 0x10000) == 0;
+
+	const float ortho_projection[16] = {
+		2.0f / draw_data->DisplaySize.x, 0.0f, 0.0f, 0.0f,
+		0.0f, (flip_y ? 2.0f : -2.0f) / draw_data->DisplaySize.y, 0.0f, 0.0f,
+		0.0f,                            0.0f, depth_clip_zero_to_one ? 0.5f : -1.0f, 0.0f,
+		                   -(2 * draw_data->DisplayPos.x + draw_data->DisplaySize.x + (adjust_half_pixel ? 1.0f : 0.0f)) / draw_data->DisplaySize.x,
+		(flip_y ? -1 : 1) * (2 * draw_data->DisplayPos.y + draw_data->DisplaySize.y + (adjust_half_pixel ? 1.0f : 0.0f)) / draw_data->DisplaySize.y, depth_clip_zero_to_one ? 0.5f : 0.0f, 1.0f,
+	};
+
+	cmd_list->push_constants(api::shader_stage::vertex, _imgui.pipeline_layout, has_combined_sampler_and_view ? 1 : 2, 0, sizeof(ortho_projection) / 4, reinterpret_cast<const uint32_t *>(ortho_projection));
+
+	if (!has_combined_sampler_and_view)
+		cmd_list->push_descriptors(api::shader_stage::pixel, _imgui.pipeline_layout, 0, api::descriptor_type::sampler, 0, 1, &_imgui.sampler_state);
+
+	UINT vtx_offset = 0, idx_offset = 0;
+	for (int n = 0; n < draw_data->CmdListsCount; ++n)
+	{
+		const ImDrawList *const draw_list = draw_data->CmdLists[n];
+
+		for (const ImDrawCmd &cmd : draw_list->CmdBuffer)
+		{
+			assert(cmd.TextureId != 0);
+			assert(cmd.UserCallback == nullptr);
+
+			int32_t scissor_rect[4] = {
+				static_cast<int32_t>(cmd.ClipRect.x - draw_data->DisplayPos.x),
+				static_cast<int32_t>(cmd.ClipRect.y - draw_data->DisplayPos.y),
+				static_cast<int32_t>(cmd.ClipRect.z - draw_data->DisplayPos.x),
+				static_cast<int32_t>(cmd.ClipRect.w - draw_data->DisplayPos.y)
+			};
+			if (flip_y_scissor)
+			{
+				scissor_rect[1] = _height - scissor_rect[3];
+				scissor_rect[3] = _height - static_cast<int32_t>(cmd.ClipRect.y - draw_data->DisplayPos.y);
+			}
+
+			cmd_list->bind_scissor_rects(0, 1, scissor_rect);
+
+			const api::resource_view srv = { (uint64_t)cmd.TextureId };
+			if (has_combined_sampler_and_view)
+			{
+				api::sampler_with_resource_view sampler_and_view = { _imgui.sampler_state, srv };
+				cmd_list->push_descriptors(api::shader_stage::pixel, _imgui.pipeline_layout, 0, api::descriptor_type::sampler_with_resource_view, 0, 1, &sampler_and_view);
+			}
+			else
+			{
+				cmd_list->push_descriptors(api::shader_stage::pixel, _imgui.pipeline_layout, 1, api::descriptor_type::shader_resource_view, 0, 1, &srv);
+			}
+
+			cmd_list->draw_indexed(cmd.ElemCount, 1, cmd.IdxOffset + idx_offset, cmd.VtxOffset + vtx_offset, 0);
+		}
+
+		idx_offset += draw_list->IdxBuffer.Size;
+		vtx_offset += draw_list->VtxBuffer.Size;
+	}
+
+	cmd_list->end_render_pass();
+
+	cmd_list->insert_barrier(get_backbuffer_resource(), api::resource_usage::render_target, api::resource_usage::present);
 }
 
 #endif

@@ -91,10 +91,14 @@ namespace reshade
 			return width == desc.width && height == desc.height && levels == desc.levels && format == desc.format;
 		}
 
-		void *impl = nullptr;
 		size_t effect_index = std::numeric_limits<size_t>::max();
 		std::vector<size_t> shared;
 		bool loaded = false;
+
+		api::resource resource = {};
+		api::resource_view srv[2] = {};
+		api::resource_view rtv[2] = {};
+		api::resource_view uav = {};
 	};
 
 	struct uniform final : reshadefx::uniform_info
@@ -164,7 +168,6 @@ namespace reshade
 			return std::string_view(it->value.string_data);
 		}
 
-		void *impl = nullptr;
 		size_t effect_index = std::numeric_limits<size_t>::max();
 		bool hidden = false;
 		bool enabled = false;
@@ -172,6 +175,21 @@ namespace reshade
 		uint32_t toggle_key_data[4] = {};
 		moving_average<uint64_t, 60> average_cpu_duration;
 		moving_average<uint64_t, 60> average_gpu_duration;
+
+		struct pass_data
+		{
+			uint32_t num_render_targets = 0;
+			api::resource_view render_targets[8] = {};
+			api::pipeline pipeline = {};
+			std::vector<api::resource> modified_resources;
+			std::vector<api::resource_view> generate_mipmap_views;
+			api::descriptor_set texture_set = {};
+			api::descriptor_set storage_set = {};
+		};
+
+		bool has_compute_passes = false;
+		std::vector<pass_data> passes_data;
+		uint32_t query_base_index = 0;
 	};
 
 	struct effect final
@@ -190,5 +208,21 @@ namespace reshade
 		std::unordered_map<std::string, std::string> assembly;
 		std::vector<uniform> uniforms;
 		std::vector<unsigned char> uniform_data_storage;
+
+		struct binding_data
+		{
+			std::string semantic;
+			api::descriptor_set set;
+			uint32_t index;
+			api::sampler sampler;
+		};
+
+		api::resource cb = {};
+		api::pipeline_layout layout = {};
+		api::descriptor_set_layout set_layouts[4] = {};
+		api::descriptor_set cb_set = {};
+		api::descriptor_set sampler_set = {};
+		api::query_pool query_heap = {};
+		std::vector<binding_data> texture_semantic_to_binding;
 	};
 }
