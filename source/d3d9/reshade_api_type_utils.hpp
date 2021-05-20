@@ -7,6 +7,35 @@
 
 namespace reshade::d3d9
 {
+	struct pipeline_impl
+	{
+		com_ptr<IDirect3DStateBlock9> state_block;
+		D3DPRIMITIVETYPE prim_type;
+	};
+
+	struct pipeline_layout_impl
+	{
+		std::vector<UINT> shader_registers;
+	};
+
+	struct query_pool_impl
+	{
+		reshade::api::query_type type;
+		std::vector<com_ptr<IDirect3DQuery9>> queries;
+	};
+
+	struct descriptor_set_impl
+	{
+		reshade::api::descriptor_type type;
+		std::vector<uint64_t> descriptors;
+		std::vector<reshade::api::sampler_with_resource_view> sampler_with_resource_views;
+	};
+
+	struct descriptor_set_layout_impl
+	{
+		reshade::api::descriptor_range range;
+	};
+
 	auto convert_format(api::format format, bool lockable = false) -> D3DFORMAT;
 	auto convert_format(D3DFORMAT d3d_format) -> api::format;
 

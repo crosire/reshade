@@ -7,6 +7,56 @@
 
 namespace reshade::d3d10
 {
+	struct pipeline_impl
+	{
+		com_ptr<ID3D10VertexShader> vs;
+		com_ptr<ID3D10GeometryShader> gs;
+		com_ptr<ID3D10PixelShader> ps;
+
+		com_ptr<ID3D10InputLayout> input_layout;
+		com_ptr<ID3D10BlendState> blend_state;
+		com_ptr<ID3D10RasterizerState> rasterizer_state;
+		com_ptr<ID3D10DepthStencilState> depth_stencil_state;
+
+		D3D10_PRIMITIVE_TOPOLOGY topology;
+		UINT sample_mask;
+		UINT stencil_reference_value;
+		FLOAT blend_constant[4];
+
+		void apply(ID3D10Device *ctx) const
+		{
+			ctx->VSSetShader(vs.get());
+			ctx->GSSetShader(gs.get());
+			ctx->PSSetShader(ps.get());
+			ctx->IASetInputLayout(input_layout.get());
+			ctx->IASetPrimitiveTopology(topology);
+			ctx->OMSetBlendState(blend_state.get(), blend_constant, sample_mask);
+			ctx->RSSetState(rasterizer_state.get());
+			ctx->OMSetDepthStencilState(depth_stencil_state.get(), stencil_reference_value);
+		}
+	};
+
+	struct pipeline_layout_impl
+	{
+		std::vector<UINT> shader_registers;
+	};
+
+	struct query_pool_impl
+	{
+		std::vector<com_ptr<ID3D10Query>> queries;
+	};
+
+	struct descriptor_set_impl
+	{
+		reshade::api::descriptor_type type;
+		std::vector<uint64_t> descriptors;
+	};
+
+	struct descriptor_set_layout_impl
+	{
+		reshade::api::descriptor_range range;
+	};
+
 	auto convert_format(api::format format) -> DXGI_FORMAT;
 	auto convert_format(DXGI_FORMAT format) -> api::format;
 

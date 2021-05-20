@@ -8,7 +8,6 @@
 #include "vulkan_hooks.hpp"
 #include "lockfree_table.hpp"
 #include "runtime_vk.hpp"
-#include "render_vk_utils.hpp"
 #include "format_utils.hpp"
 
 lockfree_table<void *, reshade::vulkan::device_impl *, 16> g_vulkan_devices;

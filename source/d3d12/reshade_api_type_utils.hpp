@@ -7,6 +7,24 @@
 
 namespace reshade::d3d12
 {
+	struct shader_module_impl
+	{
+		std::vector<uint8_t> bytecode;
+	};
+
+	struct pipeline_graphics_impl
+	{
+		D3D12_PRIMITIVE_TOPOLOGY topology;
+	};
+
+	struct descriptor_set_layout_impl
+	{
+		D3D12_DESCRIPTOR_HEAP_TYPE heap_type;
+		UINT total_size;
+		D3D12_ROOT_PARAMETER param;
+		std::vector<D3D12_DESCRIPTOR_RANGE> ranges;
+	};
+
 	auto convert_format(api::format format) -> DXGI_FORMAT;
 	auto convert_format(DXGI_FORMAT format) -> api::format;
 

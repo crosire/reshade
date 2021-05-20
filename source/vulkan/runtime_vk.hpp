@@ -6,8 +6,9 @@
 #pragma once
 
 #include "runtime.hpp"
-#include "render_vk.hpp"
-#include "render_vk_utils.hpp"
+#include "reshade_api_device.hpp"
+#include "reshade_api_command_queue.hpp"
+#include "reshade_api_type_utils.hpp"
 
 namespace reshade::vulkan
 {

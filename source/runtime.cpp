@@ -986,6 +986,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 			break;
 		}
 
+		// TODO: Specialization constants in Vulkan
 		if (!compile_effect(effect, type, entry_point.name, shader_modules.entry_points[entry_point.name]))
 		{
 			LOG(ERROR) << "Failed to create shader module for effect file '" << effect.source_file << "' entry point '" << entry_point.name << "'!";
@@ -1422,6 +1423,8 @@ bool reshade::runtime::init_effect(size_t effect_index)
 					{
 						update.descriptor.view = texture.srv[info.srgb];
 					}
+
+					assert(update.descriptor.view.handle != 0);
 				}
 			}
 
@@ -1447,6 +1450,8 @@ bool reshade::runtime::init_effect(size_t effect_index)
 						if (texture.levels > 1)
 							pass_data.generate_mipmap_views.push_back(texture.srv[0]);
 					}
+
+					assert(update.descriptor.view.handle != 0);
 				}
 			}
 		}

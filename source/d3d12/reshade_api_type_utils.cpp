@@ -3,8 +3,8 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "render_d3d12.hpp"
-#include "render_d3d12_utils.hpp"
+#include "reshade_api_device.hpp"
+#include "reshade_api_type_utils.hpp"
 
 auto reshade::d3d12::convert_format(api::format format) -> DXGI_FORMAT
 {

@@ -6,7 +6,8 @@
 #pragma once
 
 #include "runtime.hpp"
-#include "render_d3d11.hpp"
+#include "reshade_api_device.hpp"
+#include "reshade_api_device_context.hpp"
 #include "state_block_d3d11.hpp"
 
 namespace reshade::d3d11

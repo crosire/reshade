@@ -8,7 +8,7 @@
 #include "d3d12_device_downlevel.hpp"
 #include "d3d12_command_list.hpp"
 #include "d3d12_command_queue.hpp"
-#include "render_d3d12_utils.hpp"
+#include "reshade_api_type_utils.hpp"
 
 D3D12Device::D3D12Device(ID3D12Device *original) :
 	device_impl(original),

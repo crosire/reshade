@@ -6,7 +6,7 @@
 #include "dll_log.hpp"
 #include "d3d10_device.hpp"
 #include "dxgi/dxgi_device.hpp"
-#include "render_d3d10_utils.hpp"
+#include "reshade_api_type_utils.hpp"
 
 D3D10Device::D3D10Device(IDXGIDevice1 *dxgi_device, ID3D10Device1 *original) :
 	device_impl(original),

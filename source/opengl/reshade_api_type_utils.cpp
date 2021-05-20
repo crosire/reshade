@@ -3,8 +3,8 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "render_gl.hpp"
-#include "render_gl_utils.hpp"
+#include "reshade_api_device.hpp"
+#include "reshade_api_type_utils.hpp"
 #include <cassert>
 
 auto reshade::opengl::convert_format(api::format format) -> GLenum

@@ -6,7 +6,8 @@
 #pragma once
 
 #include "runtime.hpp"
-#include "render_d3d12.hpp"
+#include "reshade_api_device.hpp"
+#include "reshade_api_command_queue.hpp"
 
 namespace reshade::d3d12
 {

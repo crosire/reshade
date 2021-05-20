@@ -7,7 +7,6 @@
 #include "runtime_vk.hpp"
 #include "runtime_objects.hpp"
 #include "format_utils.hpp"
-#include "render_vk_utils.hpp"
 
 static inline void transition_layout(const VkLayerDispatchTable &vk, VkCommandBuffer cmd_list, VkImage image, VkImageLayout old_layout, VkImageLayout new_layout,
 	const VkImageSubresourceRange &subresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS })

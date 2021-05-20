@@ -6,9 +6,9 @@
 #pragma once
 
 #include "runtime.hpp"
-#include "render_gl.hpp"
+#include "reshade_api_device.hpp"
+#include "reshade_api_type_utils.hpp"
 #include "state_block_gl.hpp"
-#include "render_gl_utils.hpp"
 
 namespace reshade::opengl
 {

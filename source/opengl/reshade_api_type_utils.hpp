@@ -7,6 +7,101 @@
 
 namespace reshade::opengl
 {
+	struct query_heap_impl
+	{
+		~query_heap_impl()
+		{
+			glDeleteQueries(static_cast<GLsizei>(queries.size()), queries.data());
+		}
+
+		std::vector<GLuint> queries;
+	};
+
+	struct pipeline_layout_impl
+	{
+		std::vector<GLuint> bindings;
+	};
+
+	struct pipeline_compute_impl
+	{
+		~pipeline_compute_impl()
+		{
+			glDeleteProgram(program);
+		}
+
+		GLuint program;
+	};
+	struct pipeline_graphics_impl
+	{
+		~pipeline_graphics_impl()
+		{
+			glDeleteProgram(program);
+			glDeleteVertexArrays(1, &vao);
+		}
+
+		GLuint program;
+		GLuint vao;
+
+		GLenum prim_mode;
+		GLuint patch_vertices;
+		GLenum front_face;
+		GLenum cull_mode;
+		GLenum polygon_mode;
+
+		GLenum blend_eq;
+		GLenum blend_eq_alpha;
+		GLenum blend_src;
+		GLenum blend_dst;
+		GLenum blend_src_alpha;
+		GLenum blend_dst_alpha;
+
+		GLenum back_stencil_op_fail;
+		GLenum back_stencil_op_depth_fail;
+		GLenum back_stencil_op_pass;
+		GLenum back_stencil_func;
+		GLenum front_stencil_op_fail;
+		GLenum front_stencil_op_depth_fail;
+		GLenum front_stencil_op_pass;
+		GLenum front_stencil_func;
+		GLuint stencil_read_mask;
+		GLuint stencil_write_mask;
+
+		GLboolean blend_enable;
+		GLboolean depth_test;
+		GLboolean depth_write_mask;
+		GLboolean stencil_test;
+		GLboolean scissor_test;
+		GLboolean multisample;
+		GLboolean sample_alpha_to_coverage;
+		GLbitfield sample_mask;
+
+		GLuint color_write_mask;
+		GLint stencil_reference_value;
+	};
+
+	struct descriptor_set_impl
+	{
+		reshade::api::descriptor_type type;
+		std::vector<uint64_t> descriptors;
+		std::vector<reshade::api::sampler_with_resource_view> sampler_with_resource_views;
+	};
+
+	struct descriptor_set_layout_impl
+	{
+		reshade::api::descriptor_range range;
+	};
+
+	inline api::resource make_resource_handle(GLenum target, GLuint object)
+	{
+		if (!object)
+			return { 0 };
+		return { (static_cast<uint64_t>(target) << 40) | object };
+	}
+	inline api::resource_view make_resource_view_handle(GLenum target, GLuint object, uint8_t extra_bits = 0)
+	{
+		return { (static_cast<uint64_t>(target) << 40) | (static_cast<uint64_t>(extra_bits) << 32) | object };
+	}
+
 	auto convert_format(api::format format) -> GLenum;
 	auto convert_format(GLenum internal_format) -> api::format;
 	auto convert_attrib_format(api::format format, GLint &size, GLboolean &normalized) -> GLenum;

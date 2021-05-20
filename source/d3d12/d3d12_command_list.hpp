@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "render_d3d12.hpp"
+#include "reshade_api_command_list.hpp"
 
 struct D3D12Device;
 

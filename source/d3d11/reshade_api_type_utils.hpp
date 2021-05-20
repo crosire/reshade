@@ -7,6 +7,60 @@
 
 namespace reshade::d3d11
 {
+	struct pipeline_impl
+	{
+		com_ptr<ID3D11VertexShader> vs;
+		com_ptr<ID3D11HullShader> hs;
+		com_ptr<ID3D11DomainShader> ds;
+		com_ptr<ID3D11GeometryShader> gs;
+		com_ptr<ID3D11PixelShader> ps;
+
+		com_ptr<ID3D11InputLayout> input_layout;
+		com_ptr<ID3D11BlendState> blend_state;
+		com_ptr<ID3D11RasterizerState> rasterizer_state;
+		com_ptr<ID3D11DepthStencilState> depth_stencil_state;
+
+		D3D11_PRIMITIVE_TOPOLOGY topology;
+		UINT sample_mask;
+		UINT stencil_reference_value;
+		FLOAT blend_constant[4];
+
+		void apply(ID3D11DeviceContext *ctx) const
+		{
+			ctx->VSSetShader(vs.get(), nullptr, 0);
+			ctx->HSSetShader(hs.get(), nullptr, 0);
+			ctx->DSSetShader(ds.get(), nullptr, 0);
+			ctx->GSSetShader(gs.get(), nullptr, 0);
+			ctx->PSSetShader(ps.get(), nullptr, 0);
+			ctx->IASetInputLayout(input_layout.get());
+			ctx->IASetPrimitiveTopology(topology);
+			ctx->OMSetBlendState(blend_state.get(), blend_constant, sample_mask);
+			ctx->RSSetState(rasterizer_state.get());
+			ctx->OMSetDepthStencilState(depth_stencil_state.get(), stencil_reference_value);
+		}
+	};
+
+	struct pipeline_layout_impl
+	{
+		std::vector<UINT> shader_registers;
+	};
+
+	struct query_pool_impl
+	{
+		std::vector<com_ptr<ID3D11Query>> queries;
+	};
+
+	struct descriptor_set_impl
+	{
+		reshade::api::descriptor_type type;
+		std::vector<uint64_t> descriptors;
+	};
+
+	struct descriptor_set_layout_impl
+	{
+		reshade::api::descriptor_range range;
+	};
+
 	auto convert_format(api::format format) -> DXGI_FORMAT;
 	auto convert_format(DXGI_FORMAT format) -> api::format;
 

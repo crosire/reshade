@@ -3,8 +3,8 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "render_vk.hpp"
-#include "render_vk_utils.hpp"
+#include "reshade_api_device.hpp"
+#include "reshade_api_type_utils.hpp"
 
 auto reshade::vulkan::convert_format(api::format format) -> VkFormat
 {

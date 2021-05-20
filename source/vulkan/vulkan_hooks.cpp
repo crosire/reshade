@@ -4,7 +4,7 @@
  */
 
 #include "vulkan_hooks.hpp"
-#include "render_vk.hpp"
+#include "reshade_api_device.hpp"
 
 extern lockfree_table<void *, VkLayerInstanceDispatchTable, 16> g_instance_dispatch;
 extern lockfree_table<void *, reshade::vulkan::device_impl *, 16>  g_vulkan_devices;
