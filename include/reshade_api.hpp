@@ -120,10 +120,15 @@ namespace reshade { namespace api
 		/// </summary>
 		partial_push_descriptor_updates,
 		/// <summary>
+		/// Specifies whether comparison sampling is supported.
+		/// If this feature is not present, the "compare_op" field of <see cref="sampler_desc"/> is ignored.
+		/// </summary>
+		sampler_compare_op,
+		/// <summary>
 		/// Specifies whether anisotropic filtering is supported.
 		/// If this feature is not present, <see cref="texture_filter::anisotropic"/> must not be used.
 		/// </summary>
-		sampler_anisotropy,
+		sampler_anisotropic_filtering,
 		/// <summary>
 		/// Specifies whether combined sampler and resource view descriptors are supported.
 		/// If this feature is not present, <see cref="descriptor_type::sampler_with_resource_view"/> must not be used.

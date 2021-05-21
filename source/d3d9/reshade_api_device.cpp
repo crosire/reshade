@@ -236,7 +236,10 @@ bool reshade::d3d9::device_impl::check_capability(api::device_caps capability) c
 		return false;
 	case api::device_caps::partial_push_constant_updates:
 	case api::device_caps::partial_push_descriptor_updates:
-	case api::device_caps::sampler_anisotropy:
+		return true;
+	case api::device_caps::sampler_compare_op:
+		return false;
+	case api::device_caps::sampler_anisotropic_filtering:
 	case api::device_caps::sampler_with_resource_view:
 		return true;
 	case api::device_caps::copy_buffer_region:
@@ -273,6 +276,13 @@ bool reshade::d3d9::device_impl::is_resource_view_handle_valid(api::resource_vie
 
 bool reshade::d3d9::device_impl::create_sampler(const api::sampler_desc &desc, api::sampler *out)
 {
+	// Comparison sampling is not supported in D3D9
+	if ((static_cast<uint32_t>(desc.filter) & 0x80) != 0)
+	{
+		*out = { 0 };
+		return false;
+	}
+
 	const auto data = new DWORD[10];
 	data[D3DSAMP_ADDRESSU - 1] = static_cast<DWORD>(desc.address_u);
 	data[D3DSAMP_ADDRESSV - 1] = static_cast<DWORD>(desc.address_v);

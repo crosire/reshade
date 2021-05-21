@@ -260,22 +260,6 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
-	/// The available comparion types.
-	/// Compatible with 'VkCompareOp'.
-	/// </summary>
-	enum class compare_op : uint32_t
-	{
-		never = 0,
-		less = 1,
-		equal = 2,
-		less_equal = 3,
-		greater = 4,
-		not_equal = 5,
-		greater_equal = 6,
-		always = 7
-	};
-
-	/// <summary>
 	/// Specifies how the pipeline interprets vertex data that is bound to the input-assembler stage and subsequently renders it.
 	/// Compatible with 'D3D_PRIMITIVE_TOPOLOGY'.
 	/// </summary>

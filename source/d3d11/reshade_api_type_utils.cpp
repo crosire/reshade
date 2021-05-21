@@ -160,11 +160,7 @@ void reshade::d3d11::convert_sampler_desc(const api::sampler_desc &desc, D3D11_S
 	internal_desc.AddressW = static_cast<D3D11_TEXTURE_ADDRESS_MODE>(desc.address_w);
 	internal_desc.MipLODBias = desc.mip_lod_bias;
 	internal_desc.MaxAnisotropy = static_cast<UINT>(desc.max_anisotropy);
-	internal_desc.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
-	internal_desc.BorderColor[0] = 0.0f;
-	internal_desc.BorderColor[1] = 0.0f;
-	internal_desc.BorderColor[2] = 0.0f;
-	internal_desc.BorderColor[3] = 0.0f;
+	internal_desc.ComparisonFunc = convert_compare_op(desc.compare_op);
 	internal_desc.MinLOD = desc.min_lod;
 	internal_desc.MaxLOD = desc.max_lod;
 }
@@ -177,6 +173,7 @@ reshade::api::sampler_desc reshade::d3d11::convert_sampler_desc(const D3D11_SAMP
 	desc.address_w = static_cast<api::texture_address_mode>(internal_desc.AddressW);
 	desc.mip_lod_bias = internal_desc.MipLODBias;
 	desc.max_anisotropy = static_cast<float>(internal_desc.MaxAnisotropy);
+	desc.compare_op = convert_compare_op(internal_desc.ComparisonFunc);
 	desc.min_lod = internal_desc.MinLOD;
 	desc.max_lod = internal_desc.MaxLOD;
 	return desc;
@@ -932,6 +929,10 @@ auto reshade::d3d11::convert_cull_mode(api::cull_mode value) -> D3D11_CULL_MODE
 auto reshade::d3d11::convert_compare_op(api::compare_op value) -> D3D11_COMPARISON_FUNC
 {
 	return static_cast<D3D11_COMPARISON_FUNC>(static_cast<uint32_t>(value) + 1);
+}
+auto reshade::d3d11::convert_compare_op(D3D11_COMPARISON_FUNC value) -> api::compare_op
+{
+	return static_cast<api::compare_op>(static_cast<uint32_t>(value) - 1);
 }
 auto reshade::d3d11::convert_stencil_op(api::stencil_op value) -> D3D11_STENCIL_OP
 {

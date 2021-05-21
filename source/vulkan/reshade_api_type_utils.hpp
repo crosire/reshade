@@ -34,6 +34,7 @@ namespace reshade::vulkan
 	auto convert_blend_factor(api::blend_factor value) -> VkBlendFactor;
 	auto convert_fill_mode(api::fill_mode value) -> VkPolygonMode;
 	auto convert_cull_mode(api::cull_mode value) -> VkCullModeFlags;
+	auto convert_compare_op(VkCompareOp value) -> api::compare_op;
 	auto convert_compare_op(api::compare_op value) -> VkCompareOp;
 	auto convert_stencil_op(api::stencil_op value) -> VkStencilOp;
 	auto convert_primitive_topology(api::primitive_topology value) -> VkPrimitiveTopology;

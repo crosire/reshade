@@ -258,9 +258,10 @@ bool reshade::opengl::device_impl::check_capability(api::device_caps capability)
 	case api::device_caps::partial_push_constant_updates:
 		return false;
 	case api::device_caps::partial_push_descriptor_updates:
+	case api::device_caps::sampler_compare_op:
 		return true;
-	case api::device_caps::sampler_anisotropy:
-		glGetIntegerv(GL_TEXTURE_MAX_ANISOTROPY, &value);
+	case api::device_caps::sampler_anisotropic_filtering:
+		glGetIntegerv(GL_TEXTURE_MAX_ANISOTROPY, &value); // Core in OpenGL 4.6
 		return value > 1;
 	case api::device_caps::sampler_with_resource_view:
 	case api::device_caps::copy_buffer_region:
@@ -367,37 +368,46 @@ bool reshade::opengl::device_impl::create_sampler(const api::sampler_desc &desc,
 	switch (desc.filter)
 	{
 	case api::texture_filter::min_mag_mip_point:
+	case api::texture_filter::compare_min_mag_mip_point:
 		min_filter = GL_NEAREST_MIPMAP_NEAREST;
 		mag_filter = GL_NEAREST;
 		break;
 	case api::texture_filter::min_mag_point_mip_linear:
+	case api::texture_filter::compare_min_mag_point_mip_linear:
 		min_filter = GL_NEAREST_MIPMAP_LINEAR;
 		mag_filter = GL_NEAREST;
 		break;
 	case api::texture_filter::min_point_mag_linear_mip_point:
+	case api::texture_filter::compare_min_point_mag_linear_mip_point:
 		min_filter = GL_NEAREST_MIPMAP_NEAREST;
 		mag_filter = GL_LINEAR;
 		break;
 	case api::texture_filter::min_point_mag_mip_linear:
+	case api::texture_filter::compare_min_point_mag_mip_linear:
 		min_filter = GL_NEAREST_MIPMAP_LINEAR;
 		mag_filter = GL_LINEAR;
 		break;
 	case api::texture_filter::min_linear_mag_mip_point:
+	case api::texture_filter::compare_min_linear_mag_mip_point:
 		min_filter = GL_LINEAR_MIPMAP_NEAREST;
 		mag_filter = GL_NEAREST;
 		break;
 	case api::texture_filter::min_linear_mag_point_mip_linear:
+	case api::texture_filter::compare_min_linear_mag_point_mip_linear:
 		min_filter = GL_LINEAR_MIPMAP_LINEAR;
 		mag_filter = GL_NEAREST;
 		break;
 	case api::texture_filter::min_mag_linear_mip_point:
+	case api::texture_filter::compare_min_mag_linear_mip_point:
 		min_filter = GL_LINEAR_MIPMAP_NEAREST;
 		mag_filter = GL_LINEAR;
 		break;
 	case api::texture_filter::anisotropic:
-		glSamplerParameterf(object, 0x84FE /* GL_TEXTURE_MAX_ANISOTROPY_EXT */, desc.max_anisotropy);
+	case api::texture_filter::compare_anisotropic:
+		glSamplerParameterf(object, GL_TEXTURE_MAX_ANISOTROPY, desc.max_anisotropy);
 		[[fallthrough]];
 	case api::texture_filter::min_mag_mip_linear:
+	case api::texture_filter::compare_min_mag_mip_linear:
 		min_filter = GL_LINEAR_MIPMAP_LINEAR;
 		mag_filter = GL_LINEAR;
 		break;
@@ -425,6 +435,8 @@ bool reshade::opengl::device_impl::create_sampler(const api::sampler_desc &desc,
 	glSamplerParameteri(object, GL_TEXTURE_WRAP_T, convert_address_mode(desc.address_v));
 	glSamplerParameteri(object, GL_TEXTURE_WRAP_R, convert_address_mode(desc.address_w));
 	glSamplerParameterf(object, GL_TEXTURE_LOD_BIAS, desc.mip_lod_bias);
+	glSamplerParameteri(object, GL_TEXTURE_COMPARE_MODE, (static_cast<uint32_t>(desc.filter) & 0x80) != 0 ? GL_COMPARE_REF_TO_TEXTURE : GL_NONE);
+	glSamplerParameteri(object, GL_TEXTURE_COMPARE_FUNC, convert_compare_op(desc.compare_op));
 	glSamplerParameterf(object, GL_TEXTURE_MIN_LOD, desc.min_lod);
 	glSamplerParameterf(object, GL_TEXTURE_MAX_LOD, desc.max_lod);
 

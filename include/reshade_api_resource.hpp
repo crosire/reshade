@@ -127,6 +127,22 @@ namespace reshade { namespace api
 	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(resource_usage);
 
 	/// <summary>
+	/// The available comparion types.
+	/// Compatible with 'VkCompareOp'.
+	/// </summary>
+	enum class compare_op : uint32_t
+	{
+		never = 0,
+		less = 1,
+		equal = 2,
+		less_equal = 3,
+		greater = 4,
+		not_equal = 5,
+		greater_equal = 6,
+		always = 7
+	};
+
+	/// <summary>
 	/// The available filtering types used for texture sampling operations.
 	/// </summary>
 	enum class texture_filter
@@ -139,7 +155,16 @@ namespace reshade { namespace api
 		min_linear_mag_point_mip_linear = 0x11,
 		min_mag_linear_mip_point = 0x14,
 		min_mag_mip_linear = 0x15,
-		anisotropic = 0x55
+		anisotropic = 0x55,
+		compare_min_mag_mip_point = 0x80,
+		compare_min_mag_point_mip_linear = 0x81,
+		compare_min_point_mag_linear_mip_point = 0x84,
+		compare_min_point_mag_mip_linear = 0x85,
+		compare_min_linear_mag_mip_point = 0x90,
+		compare_min_linear_mag_point_mip_linear = 0x91,
+		compare_min_mag_linear_mip_point = 0x94,
+		compare_min_mag_mip_linear = 0x95,
+		compare_anisotropic = 0xd5,
 	};
 
 	/// <summary>
@@ -165,6 +190,7 @@ namespace reshade { namespace api
 		texture_address_mode address_w;
 		float mip_lod_bias;
 		float max_anisotropy;
+		compare_op compare_op;
 		float min_lod;
 		float max_lod;
 	};

@@ -60,7 +60,8 @@ bool reshade::d3d11::device_impl::check_capability(api::device_caps capability) 
 	case api::device_caps::partial_push_constant_updates:
 		return false;
 	case api::device_caps::partial_push_descriptor_updates:
-	case api::device_caps::sampler_anisotropy:
+	case api::device_caps::sampler_compare_op:
+	case api::device_caps::sampler_anisotropic_filtering:
 		return true;
 	case api::device_caps::sampler_with_resource_view:
 		return false;
