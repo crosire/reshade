@@ -56,6 +56,11 @@ namespace reshade
 		destroy_effect_runtime,
 
 		/// <summary>
+		/// Called before 'ID3D10Device::CreateSamplerState', 'ID3D11Device::CreateSamplerState', 'ID3D12Device::CreateSampler' or 'vkCreateSampler'.
+		/// <para>Callback function signature: <c>bool (api::device *device, const api::sampler_desc &amp;desc)</c></para>
+		/// </summary>
+		create_sampler,
+		/// <summary>
 		/// Called before 'IDirect3Device9::Create(...)Buffer/Texture', 'IDirect3DDevice9::Create(...)Surface(Ex)', 'ID3D10Device::CreateBuffer/Texture(...)', 'ID3D11Device::CreateBuffer/Texture(...)', 'ID3D12Device::Create(...)Resource', 'gl(Named)Buffer/Tex(ture)Storage(...)(Multisample)', 'gl(Named)RenderbufferStorage(Multisample) or 'vkCreateBuffer/Image'.
 		/// <para>Callback function signature: <c>bool (api::device *device, const api::resource_desc &amp;desc, const api::subresource_data *initial_data, api::resource_usage initial_state)</c></para>
 		/// </summary>
@@ -218,8 +223,8 @@ namespace reshade
 		/// </remarks>
 		copy_texture_to_buffer,
 		/// <summary>
-		/// Called before 'IDirect3DDevice9::StretchRect', 'ID3D10Device::ResolveSubresource', 'ID3D11DeviceContext::ResolveSubresource', 'ID3D12GraphicsCommandList::ResolveSubresource', 'glBlit(Named)Framebuffer' or 'vkCmdResolveImage'.
-		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource src, uint32_t src_subresource, const int32_t src_offset[3], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3], api::format format)</c></para>
+		/// Called before 'IDirect3DDevice9::StretchRect', 'ID3D10Device::ResolveSubresource', 'ID3D11DeviceContext::ResolveSubresource', 'ID3D12GraphicsCommandList::ResolveSubresource', 'ID3D12GraphicsCommandList1::ResolveSubresourceRegion', 'glBlit(Named)Framebuffer' or 'vkCmdResolveImage'.
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], api::format format)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// Source resource will be in the <see cref="resource_usage::resolve_source"/> state. Destination resource will be in the <see cref="resource_usage::resolve_dest"/> state.
@@ -258,6 +263,22 @@ namespace reshade
 		/// Resource will be in the <see cref="resource_usage::unordered_access"/> state.
 		/// </remarks>
 		clear_unordered_access_view_float,
+
+		/// <summary>
+		/// Called before 'ID3D12GraphicsCommandList::BeginQuery' or 'vkCmdBeginQuery'.
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::query_pool pool, api::query_type type, uint32_t index)</c></para>
+		/// </summary>
+		begin_query,
+		/// <summary>
+		/// Called before 'ID3D12GraphicsCommandList::EndQuery', 'vkCmdEndQuery' or 'vkCmdWriteTimestamp'.
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::query_pool pool, api::query_type type, uint32_t index)</c></para>
+		/// </summary>
+		finish_query,
+		/// <summary>
+		/// Called before 'ID3D12GraphicsCommandList::ResolveQueryData' or 'vkCmdCopyQueryPoolResults'.
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::query_pool pool, api::query_type type, uint32_t first, uint32_t count, api::resource destination, uint64_t dst_offset, uint32_t stride)</c></para>
+		/// </summary>
+		copy_query_results,
 
 		/// <summary>
 		/// Called before 'ID3D12GraphicsCommandList::Reset' or 'vkBeginCommandBuffer'.
@@ -359,6 +380,7 @@ namespace reshade
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::init_effect_runtime, api::effect_runtime *runtime);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::destroy_effect_runtime, api::effect_runtime *runtime);
 
+	DEFINE_ADDON_EVENT_TYPE_3(addon_event::create_sampler, api::device *device, const api::sampler_desc &desc);
 	DEFINE_ADDON_EVENT_TYPE_3(addon_event::create_resource, api::device *device, const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage initial_state);
 	DEFINE_ADDON_EVENT_TYPE_3(addon_event::create_resource_view, api::device *device, api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc);
 
@@ -391,12 +413,16 @@ namespace reshade
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::copy_buffer_to_texture, api::command_list *cmd_list, api::resource src, uint64_t src_offset, uint32_t row_length, uint32_t slice_height, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6]);
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::copy_texture_region, api::command_list *cmd_list, api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], api::texture_filter filter);
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::copy_texture_to_buffer, api::command_list *cmd_list, api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint64_t dst_offset, uint32_t row_length, uint32_t slice_height);
-	DEFINE_ADDON_EVENT_TYPE_2(addon_event::resolve_texture_region, api::command_list *cmd_list, api::resource src, uint32_t src_subresource, const int32_t src_offset[3], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3], api::format format);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::resolve_texture_region, api::command_list *cmd_list, api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], api::format format);
 
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::clear_depth_stencil_view, api::command_list *cmd_list, api::resource_view dsv, uint32_t clear_flags, float depth, uint8_t stencil);
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::clear_render_target_views, api::command_list *cmd_list, uint32_t count, const api::resource_view *rtvs, const float color[4]);
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::clear_unordered_access_view_uint, api::command_list *cmd_list, api::resource_view uav, const uint32_t values[4]);
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::clear_unordered_access_view_float, api::command_list *cmd_list, api::resource_view uav, const float values[4]);
+
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::begin_query, api::command_list *cmd_list, api::query_pool pool, api::query_type type, uint32_t index);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::finish_query, api::command_list *cmd_list, api::query_pool pool, api::query_type type, uint32_t index);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::copy_query_results, api::command_list *cmd_list, api::query_pool pool, api::query_type type, uint32_t first, uint32_t count, api::resource destination, uint64_t dst_offset, uint32_t stride);
 
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::reset_command_list, api::command_list *cmd_list);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::execute_command_list, api::command_queue *queue, api::command_list *cmd_list);

@@ -527,7 +527,7 @@ void reshade::vulkan::command_list_impl::copy_texture_to_buffer(api::resource sr
 
 	vk.CmdCopyImageToBuffer(_orig, (VkImage)src.handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, (VkBuffer)dst.handle, 1, &region);
 }
-void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_offset[3], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3], api::format)
+void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], api::format)
 {
 	_has_commands = true;
 
@@ -538,8 +538,8 @@ void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource sr
 	VkImageResolve region;
 
 	convert_subresource(src_subresource, src_data.image_create_info, region.srcSubresource);
-	if (src_offset != nullptr)
-		std::copy_n(src_offset, 3, &region.srcOffset.x);
+	if (src_box != nullptr)
+		std::copy_n(src_box, 3, &region.srcOffset.x);
 	else
 		region.srcOffset = { 0, 0, 0 };
 
@@ -549,9 +549,11 @@ void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource sr
 	else
 		region.dstOffset = { 0, 0, 0 };
 
-	if (size != nullptr)
+	if (src_box != nullptr)
 	{
-		std::copy_n(size, 3, &region.extent.width);
+		region.extent.width  = src_box[3] - src_box[0];
+		region.extent.height = src_box[4] - src_box[1];
+		region.extent.depth  = src_box[5] - src_box[2];
 	}
 	else
 	{

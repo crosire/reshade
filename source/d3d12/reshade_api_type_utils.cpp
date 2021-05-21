@@ -785,20 +785,11 @@ auto reshade::d3d12::convert_primitive_topology_type(api::primitive_topology val
 
 auto reshade::d3d12::convert_query_type(api::query_type type) -> D3D12_QUERY_TYPE
 {
-	switch (type)
-	{
-	case api::query_type::occlusion:
-		return D3D12_QUERY_TYPE_OCCLUSION;
-	case api::query_type::binary_occlusion:
-		return D3D12_QUERY_TYPE_BINARY_OCCLUSION;
-	case api::query_type::timestamp:
-		return D3D12_QUERY_TYPE_TIMESTAMP;
-	case api::query_type::pipeline_statistics:
-		return D3D12_QUERY_TYPE_PIPELINE_STATISTICS;
-	default:
-		assert(false);
-		return static_cast<D3D12_QUERY_TYPE>(0xFFFFFFFF);
-	}
+	return static_cast<D3D12_QUERY_TYPE>(type);
+}
+auto reshade::d3d12::convert_query_type(D3D12_QUERY_TYPE type) -> api::query_type
+{
+	return static_cast<api::query_type>(type);
 }
 auto reshade::d3d12::convert_query_type_to_heap_type(api::query_type type) -> D3D12_QUERY_HEAP_TYPE
 {

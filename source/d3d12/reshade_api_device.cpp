@@ -142,8 +142,8 @@ bool reshade::d3d12::device_impl::check_capability(api::device_caps capability) 
 	case api::device_caps::copy_buffer_to_texture:
 		return true;
 	case api::device_caps::blit:
-	case api::device_caps::resolve_region:
 		return false;
+	case api::device_caps::resolve_region:
 	case api::device_caps::copy_query_results:
 		return true;
 	default:

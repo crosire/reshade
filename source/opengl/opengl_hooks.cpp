@@ -401,8 +401,7 @@ HOOK_EXPORT void WINAPI glBlendFunc(GLenum sfactor, GLenum dfactor)
 		else
 		{
 			// TODO: Ensure same extent
-			const uint32_t extent[3] = { static_cast<uint32_t>(srcX1 - srcX0), static_cast<uint32_t>(srcY1 - srcY0), 1 };
-			if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(g_current_runtime, src, 0, src_box, dst, 0, dst_box, extent, reshade::api::format::unknown))
+			if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(g_current_runtime, src, 0, src_box, dst, 0, dst_box, reshade::api::format::unknown))
 				return;
 		}
 	}
@@ -435,8 +434,7 @@ HOOK_EXPORT void WINAPI glBlendFunc(GLenum sfactor, GLenum dfactor)
 		else
 		{
 			// TODO: Ensure same extent
-			const uint32_t extent[3] = { static_cast<uint32_t>(srcX1 - srcX0), static_cast<uint32_t>(srcY1 - srcY0), 1 };
-			if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(g_current_runtime, src, 0, src_box, dst, 0, dst_box, extent, reshade::api::format::unknown))
+			if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(g_current_runtime, src, 0, src_box, dst, 0, dst_box, reshade::api::format::unknown))
 				return;
 		}
 	}

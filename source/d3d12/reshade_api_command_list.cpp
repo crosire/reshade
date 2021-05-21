@@ -483,16 +483,37 @@ void reshade::d3d12::command_list_impl::copy_texture_to_buffer(api::resource src
 		&dst_copy_location, 0, 0, 0,
 		&src_copy_location, reinterpret_cast<const D3D12_BOX *>(src_box));
 }
-void reshade::d3d12::command_list_impl::resolve_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_offset[3], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3], api::format format)
+void reshade::d3d12::command_list_impl::resolve_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], api::format format)
 {
 	_has_commands = true;
 
 	assert(src.handle != 0 && dst.handle != 0);
-	assert(src_offset == nullptr && dst_offset == nullptr && size == nullptr);
 
-	_orig->ResolveSubresource(
-		reinterpret_cast<ID3D12Resource *>(dst.handle), dst_subresource,
-		reinterpret_cast<ID3D12Resource *>(src.handle), src_subresource, convert_format(format));
+	if (src_box == nullptr && dst_offset == nullptr)
+	{
+		_orig->ResolveSubresource(
+			reinterpret_cast<ID3D12Resource *>(dst.handle), dst_subresource,
+			reinterpret_cast<ID3D12Resource *>(src.handle), src_subresource, convert_format(format));
+	}
+	else
+	{
+		com_ptr<ID3D12GraphicsCommandList1> cmd_list1;
+		if (SUCCEEDED(_orig->QueryInterface(&cmd_list1)))
+		{
+			assert(src_box == nullptr || (src_box[2] == 0 && src_box[5] == 1));
+			assert(dst_offset == nullptr || dst_offset[2] == 0);
+
+			D3D12_RECT src_rect = { src_box[0], src_box[1], src_box[3], src_box[4] };
+
+			cmd_list1->ResolveSubresourceRegion(
+				reinterpret_cast<ID3D12Resource *>(dst.handle), dst_subresource, dst_offset != nullptr ? dst_offset[0] : 0, dst_offset != nullptr ? dst_offset[1] : 0,
+				reinterpret_cast<ID3D12Resource *>(src.handle), src_subresource, &src_rect, convert_format(format), D3D12_RESOLVE_MODE_MIN);
+		}
+		else
+		{
+			assert(false);
+		}
+	}
 }
 
 void reshade::d3d12::command_list_impl::generate_mipmaps(api::resource_view srv)

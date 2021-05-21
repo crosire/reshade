@@ -448,7 +448,16 @@ void    STDMETHODCALLTYPE D3D12Device::CreateDepthStencilView(ID3D12Resource *pR
 }
 void    STDMETHODCALLTYPE D3D12Device::CreateSampler(const D3D12_SAMPLER_DESC *pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
 {
-	_orig->CreateSampler(pDesc, DestDescriptor);
+	assert(pDesc != nullptr);
+	D3D12_SAMPLER_DESC new_desc = *pDesc;
+
+	reshade::invoke_addon_event<reshade::addon_event::create_sampler>(
+		[this, &new_desc, DestDescriptor](reshade::api::device *, const reshade::api::sampler_desc &desc) {
+			reshade::d3d12::convert_sampler_desc(desc, new_desc);
+
+			_orig->CreateSampler(&new_desc, DestDescriptor);
+			return true;
+		}, this, reshade::d3d12::convert_sampler_desc(new_desc));
 }
 void    STDMETHODCALLTYPE D3D12Device::CopyDescriptors(UINT NumDestDescriptorRanges, const D3D12_CPU_DESCRIPTOR_HANDLE *pDestDescriptorRangeStarts, const UINT *pDestDescriptorRangeSizes, UINT NumSrcDescriptorRanges, const D3D12_CPU_DESCRIPTOR_HANDLE *pSrcDescriptorRangeStarts, const UINT *pSrcDescriptorRangeSizes, D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapsType)
 {

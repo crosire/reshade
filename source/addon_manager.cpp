@@ -35,6 +35,7 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(destroy_command_queue);
 		CASE(init_effect_runtime);
 		CASE(destroy_effect_runtime);
+		CASE(create_sampler);
 		CASE(create_resource);
 		CASE(create_resource_view);
 		CASE(create_pipeline);
@@ -66,6 +67,9 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(clear_render_target_views);
 		CASE(clear_unordered_access_view_uint);
 		CASE(clear_unordered_access_view_float);
+		CASE(begin_query);
+		CASE(finish_query);
+		CASE(copy_query_results);
 		CASE(reset_command_list);
 		CASE(execute_command_list);
 		CASE(execute_secondary_command_list);

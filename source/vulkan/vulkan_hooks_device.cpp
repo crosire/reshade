@@ -877,6 +877,42 @@ VkResult VKAPI_CALL vkCreateComputePipelines(VkDevice device, VkPipelineCache pi
 	return VK_SUCCESS;
 }
 
+VkResult VKAPI_CALL vkCreateSampler(VkDevice device, const VkSamplerCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkSampler *pSampler)
+{
+	assert(pCreateInfo != nullptr);
+
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
+	assert(device_impl != nullptr);
+	VkSamplerCreateInfo create_info = *pCreateInfo;
+
+	VkResult result = VK_ERROR_UNKNOWN;
+	reshade::invoke_addon_event<reshade::addon_event::create_sampler>(
+		[device_impl, &result, &create_info, pAllocator, pSampler](reshade::api::device *, const reshade::api::sampler_desc &desc) {
+			reshade::vulkan::convert_sampler_desc(desc, create_info);
+
+			GET_DISPATCH_PTR_FROM(CreateSampler, device_impl);
+			result = trampoline(device_impl->_orig, &create_info, pAllocator, pSampler);
+			if (result == VK_SUCCESS)
+			{
+				return true;
+			}
+			else
+			{
+				LOG(WARN) << "vkCreateSampler" << " failed with error code " << result << '.';
+				return false;
+			}
+		}, device_impl, reshade::vulkan::convert_sampler_desc(create_info));
+	return result;
+}
+void     VKAPI_CALL vkDestroySampler(VkDevice device, VkSampler sampler, const VkAllocationCallbacks *pAllocator)
+{
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
+	assert(device_impl != nullptr);
+
+	GET_DISPATCH_PTR_FROM(DestroySampler, device_impl);
+	trampoline(device, sampler, pAllocator);
+}
+
 VkResult VKAPI_CALL vkCreateRenderPass(VkDevice device, const VkRenderPassCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkRenderPass *pRenderPass)
 {
 	assert(pCreateInfo != nullptr && pRenderPass != nullptr);
@@ -1609,12 +1645,29 @@ void     VKAPI_CALL vkCmdResolveImage(VkCommandBuffer commandBuffer, VkImage src
 	{
 		const VkImageResolve &region = pRegions[i];
 
+		const int32_t src_box[6] = {
+			region.srcOffset.x,
+			region.srcOffset.y,
+			region.srcOffset.z,
+			region.srcOffset.x + static_cast<int32_t>(region.extent.width),
+			region.srcOffset.y + static_cast<int32_t>(region.extent.height),
+			region.srcOffset.z + static_cast<int32_t>(region.extent.depth)
+		};
+		const int32_t dst_box[6] = {
+			region.dstOffset.x,
+			region.dstOffset.y,
+			region.dstOffset.z,
+			region.dstOffset.x + static_cast<int32_t>(region.extent.width),
+			region.dstOffset.y + static_cast<int32_t>(region.extent.height),
+			region.dstOffset.z + static_cast<int32_t>(region.extent.depth)
+		};
+
 		for (uint32_t layer = 0; layer < region.srcSubresource.layerCount; ++layer)
 		{
 			if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(
 				s_vulkan_command_buffers.at(commandBuffer),
-				reshade::api::resource { (uint64_t)srcImage }, device_impl->get_subresource_index(srcImage, region.srcSubresource, layer), &region.srcOffset.x,
-				reshade::api::resource { (uint64_t)dstImage }, device_impl->get_subresource_index(dstImage, region.dstSubresource, layer), &region.dstOffset.x, &region.extent.width, reshade::api::format::unknown))
+				reshade::api::resource { (uint64_t)srcImage }, device_impl->get_subresource_index(srcImage, region.srcSubresource, layer), src_box,
+				reshade::api::resource { (uint64_t)dstImage }, device_impl->get_subresource_index(dstImage, region.dstSubresource, layer), dst_box, reshade::api::format::unknown))
 				return; // TODO: This skips resolve of all regions, rather than just the one specified to this event call
 		}
 	}
@@ -1622,6 +1675,67 @@ void     VKAPI_CALL vkCmdResolveImage(VkCommandBuffer commandBuffer, VkImage src
 
 	GET_DISPATCH_PTR_FROM(CmdResolveImage, device_impl);
 	trampoline(commandBuffer, srcImage, srcImageLayout, dstImage, dstImageLayout, regionCount, pRegions);
+}
+
+void     VKAPI_CALL vkCmdBeginQuery(VkCommandBuffer commandBuffer, VkQueryPool queryPool, uint32_t query, VkQueryControlFlags flags)
+{
+#if RESHADE_ADDON
+	if (!reshade::invoke_addon_event<reshade::addon_event::begin_query>(
+		s_vulkan_command_buffers.at(commandBuffer),
+		reshade::api::query_pool { (uint64_t)queryPool },
+		reshade::api::query_type::occlusion, // TODO: Figure out correct query type
+		query))
+		return;
+#endif
+
+	GET_DISPATCH_PTR(CmdBeginQuery, commandBuffer);
+	trampoline(commandBuffer, queryPool, query, flags);
+}
+void     VKAPI_CALL vkCmdEndQuery(VkCommandBuffer commandBuffer, VkQueryPool queryPool, uint32_t query)
+{
+#if RESHADE_ADDON
+	if (!reshade::invoke_addon_event<reshade::addon_event::finish_query>(
+		s_vulkan_command_buffers.at(commandBuffer),
+		reshade::api::query_pool { (uint64_t)queryPool },
+		reshade::api::query_type::occlusion,
+		query))
+		return;
+#endif
+
+	GET_DISPATCH_PTR(CmdEndQuery, commandBuffer);
+	trampoline(commandBuffer, queryPool, query);
+}
+void     VKAPI_CALL vkCmdWriteTimestamp(VkCommandBuffer commandBuffer, VkPipelineStageFlagBits pipelineStage, VkQueryPool queryPool, uint32_t query)
+{
+#if RESHADE_ADDON
+	if (!reshade::invoke_addon_event<reshade::addon_event::finish_query>(
+		s_vulkan_command_buffers.at(commandBuffer),
+		reshade::api::query_pool { (uint64_t)queryPool },
+		reshade::api::query_type::timestamp,
+		query))
+		return;
+#endif
+
+	GET_DISPATCH_PTR(CmdWriteTimestamp, commandBuffer);
+	trampoline(commandBuffer, pipelineStage, queryPool, query);
+}
+void     VKAPI_CALL vkCmdCopyQueryPoolResults(VkCommandBuffer commandBuffer, VkQueryPool queryPool, uint32_t firstQuery, uint32_t queryCount, VkBuffer dstBuffer, VkDeviceSize dstOffset, VkDeviceSize stride, VkQueryResultFlags flags)
+{
+#if RESHADE_ADDON
+	if (!reshade::invoke_addon_event<reshade::addon_event::copy_query_results>(
+		s_vulkan_command_buffers.at(commandBuffer),
+		reshade::api::query_pool { (uint64_t)queryPool },
+		reshade::api::query_type::occlusion,
+		firstQuery,
+		queryCount,
+		reshade::api::resource { (uint64_t)dstBuffer },
+		dstOffset,
+		static_cast<uint32_t>(stride)))
+		return;
+#endif
+
+	GET_DISPATCH_PTR(CmdCopyQueryPoolResults, commandBuffer);
+	trampoline(commandBuffer, queryPool, firstQuery, queryCount, dstBuffer, dstOffset, stride, flags);
 }
 
 void     VKAPI_CALL vkCmdPushConstants(VkCommandBuffer commandBuffer, VkPipelineLayout layout, VkShaderStageFlags stageFlags, uint32_t offset, uint32_t size, const void *pValues)

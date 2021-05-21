@@ -662,13 +662,12 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <param name="source">The texture to resolve from.</param>
 		/// <param name="src_subresource">The subresource of the <paramref name="source"/> texture to resolve from.</param>
-		/// <param name="src_offset">A 3D offset to start resolving at. In D3D10, D3D11 and D3D12 this has to be <c>nullptr</c>.</param>
+		/// <param name="src_box">A 2D rectangle (or <c>nullptr</c> to reference the entire subresource) that defines the region in the <paramref name="source"/> texture to resolve, in the format { left, top, front, right, bottom, back }. In D3D10 and D3D11 this has to be <c>nullptr</c>.</param>
 		/// <param name="destination">The texture to resolve to.</param>
 		/// <param name="dst_subresource">The subresource of the <paramref name="destination"/> texture to resolve to.</param>
-		/// <param name="dst_offset">A 3D offset to start resolving to. In D3D10, D3D11 and D3D12 this has to be <c>nullptr</c>.</param>
-		/// <param name="size">Width, height and depth of the texture region to resolve.</param>
+		/// <param name="dst_offset">An offset (in texels) that defines the region in the <paramref name="destination"/> texture to resolve to, in the format { left, top, front }. In D3D10 and D3D11 this has to be <c>nullptr</c>.</param>
 		/// <param name="format">The format of the resource data.</param>
-		virtual void resolve_texture_region(resource source, uint32_t src_subresource, const int32_t src_offset[3], resource destination, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3], api::format format) = 0;
+		virtual void resolve_texture_region(resource source, uint32_t src_subresource, const int32_t src_box[6], resource destination, uint32_t dst_subresource, const int32_t dst_offset[3], api::format format) = 0;
 
 		/// <summary>
 		/// Generates the lower mipmap levels for the specified shader resource view.

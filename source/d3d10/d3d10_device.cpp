@@ -610,7 +610,7 @@ void    STDMETHODCALLTYPE D3D10Device::ResolveSubresource(ID3D10Resource *pDstRe
 #if RESHADE_ADDON
 	if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(this,
 		reshade::api::resource { reinterpret_cast<uintptr_t>(pSrcResource) }, SrcSubresource, nullptr,
-		reshade::api::resource { reinterpret_cast<uintptr_t>(pDstResource) }, DstSubresource, nullptr, nullptr, reshade::d3d10::convert_format(Format)))
+		reshade::api::resource { reinterpret_cast<uintptr_t>(pDstResource) }, DstSubresource, nullptr, reshade::d3d10::convert_format(Format)))
 		return;
 #endif
 	_orig->ResolveSubresource(pDstResource, DstSubresource, pSrcResource, SrcSubresource, Format);
@@ -1103,7 +1103,27 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateRasterizerState(const D3D10_RASTERI
 }
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateSamplerState(const D3D10_SAMPLER_DESC *pSamplerDesc, ID3D10SamplerState **ppSamplerState)
 {
-	return _orig->CreateSamplerState(pSamplerDesc, ppSamplerState);
+	if (pSamplerDesc == nullptr)
+		return E_INVALIDARG;
+
+	D3D10_SAMPLER_DESC new_desc = *pSamplerDesc;
+
+	HRESULT hr = E_FAIL;
+	reshade::invoke_addon_event<reshade::addon_event::create_sampler>(
+		[this, &hr, &new_desc, ppSamplerState](reshade::api::device *, const reshade::api::sampler_desc &desc) {
+			reshade::d3d10::convert_sampler_desc(desc, new_desc);
+			hr = _orig->CreateSamplerState(&new_desc, ppSamplerState);
+			if (SUCCEEDED(hr))
+			{
+				return true;
+			}
+			else
+			{
+				LOG(WARN) << "ID3D10Device::CreateSamplerState" << " failed with error code " << hr << '.';
+				return false;
+			}
+		}, this, reshade::d3d10::convert_sampler_desc(new_desc));
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateQuery(const D3D10_QUERY_DESC *pQueryDesc, ID3D10Query **ppQuery)
 {

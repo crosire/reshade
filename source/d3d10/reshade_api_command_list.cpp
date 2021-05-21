@@ -347,10 +347,10 @@ void reshade::d3d10::device_impl::copy_texture_to_buffer(api::resource, uint32_t
 {
 	assert(false);
 }
-void reshade::d3d10::device_impl::resolve_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_offset[3], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3], api::format format)
+void reshade::d3d10::device_impl::resolve_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], api::format format)
 {
 	assert(src.handle != 0 && dst.handle != 0);
-	assert(src_offset == nullptr && dst_offset == nullptr && size == nullptr);
+	assert(src_box == nullptr && dst_offset == nullptr);
 
 	_orig->ResolveSubresource(
 		reinterpret_cast<ID3D10Resource *>(dst.handle), dst_subresource,

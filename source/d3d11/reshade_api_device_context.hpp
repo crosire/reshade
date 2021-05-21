@@ -48,7 +48,7 @@ namespace reshade::d3d11
 		void copy_buffer_to_texture(api::resource, uint64_t, uint32_t, uint32_t, api::resource, uint32_t, const int32_t[6]) final { assert(false); }
 		void copy_texture_region(api::resource, uint32_t, const int32_t[6], api::resource, uint32_t, const int32_t[6], api::texture_filter) final { assert(false); }
 		void copy_texture_to_buffer(api::resource, uint32_t, const int32_t[6], api::resource, uint64_t, uint32_t, uint32_t) final { assert(false); }
-		void resolve_texture_region(api::resource, uint32_t, const int32_t[3], api::resource, uint32_t, const int32_t[3], const uint32_t[3], api::format) final { assert(false); }
+		void resolve_texture_region(api::resource, uint32_t, const int32_t[6], api::resource, uint32_t, const int32_t[3], api::format) final { assert(false); }
 
 		void generate_mipmaps(api::resource_view) final { assert(false); }
 
@@ -115,7 +115,7 @@ namespace reshade::d3d11
 		void copy_buffer_to_texture(api::resource src, uint64_t src_offset, uint32_t row_length, uint32_t slice_height, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6]) final;
 		void copy_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], api::texture_filter filter) final;
 		void copy_texture_to_buffer(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint64_t dst_offset, uint32_t row_length, uint32_t slice_height) final;
-		void resolve_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_offset[3], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3], api::format format) final;
+		void resolve_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], api::format format) final;
 
 		void generate_mipmaps(api::resource_view srv) final;
 

@@ -570,7 +570,27 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRasterizerState(const D3D11_RASTERI
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateSamplerState(const D3D11_SAMPLER_DESC *pSamplerDesc, ID3D11SamplerState **ppSamplerState)
 {
-	return _orig->CreateSamplerState(pSamplerDesc, ppSamplerState);
+	if (pSamplerDesc == nullptr)
+		return E_INVALIDARG;
+
+	D3D11_SAMPLER_DESC new_desc = *pSamplerDesc;
+
+	HRESULT hr = E_FAIL;
+	reshade::invoke_addon_event<reshade::addon_event::create_sampler>(
+		[this, &hr, &new_desc, ppSamplerState](reshade::api::device *, const reshade::api::sampler_desc &desc) {
+			reshade::d3d11::convert_sampler_desc(desc, new_desc);
+			hr = _orig->CreateSamplerState(&new_desc, ppSamplerState);
+			if (SUCCEEDED(hr))
+			{
+				return true;
+			}
+			else
+			{
+				LOG(WARN) << "ID3D11Device::CreateSamplerState" << " failed with error code " << hr << '.';
+				return false;
+			}
+		}, this, reshade::d3d11::convert_sampler_desc(new_desc));
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateQuery(const D3D11_QUERY_DESC *pQueryDesc, ID3D11Query **ppQuery)
 {

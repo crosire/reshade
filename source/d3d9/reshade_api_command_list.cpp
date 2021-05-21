@@ -407,35 +407,17 @@ void reshade::d3d9::device_impl::copy_texture_to_buffer(api::resource, uint32_t,
 {
 	assert(false);
 }
-void reshade::d3d9::device_impl::resolve_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_offset[3], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3], api::format)
+void reshade::d3d9::device_impl::resolve_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], api::format)
 {
-	int32_t src_box[6] = {};
-	if (src_offset != nullptr)
-		std::copy_n(src_offset, 3, src_box);
-
-	if (size != nullptr)
-	{
-		src_box[3] = src_box[0] + size[0];
-		src_box[4] = src_box[1] + size[1];
-		src_box[5] = src_box[2] + size[2];
-	}
-	else
-	{
-		const api::resource_desc desc = get_resource_desc(src);
-		src_box[3] = src_box[0] + std::max(1u, desc.texture.width >> src_subresource);
-		src_box[4] = src_box[1] + std::max(1u, desc.texture.height >> src_subresource);
-		src_box[5] = src_box[2] + (desc.type == api::resource_type::texture_3d ? std::max(1u, static_cast<uint32_t>(desc.texture.depth_or_layers) >> src_subresource) : 1u);
-	}
-
 	int32_t dst_box[6] = {};
 	if (dst_offset != nullptr)
 		std::copy_n(dst_offset, 3, dst_box);
 
-	if (size != nullptr)
+	if (src_box != nullptr)
 	{
-		dst_box[3] = dst_box[0] + size[0];
-		dst_box[4] = dst_box[1] + size[1];
-		dst_box[5] = dst_box[2] + size[2];
+		dst_box[3] = dst_box[0] + src_box[3] - src_box[0];
+		dst_box[4] = dst_box[1] + src_box[4] - src_box[1];
+		dst_box[5] = dst_box[2] + src_box[5] - src_box[2];
 	}
 	else
 	{
