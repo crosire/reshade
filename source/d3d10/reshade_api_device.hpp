@@ -23,8 +23,8 @@ namespace reshade::d3d10
 		bool check_capability(api::device_caps capability) const final;
 		bool check_format_support(api::format format, api::resource_usage usage) const final;
 
-		bool check_resource_handle_valid(api::resource handle) const final;
-		bool check_resource_view_handle_valid(api::resource_view handle) const final;
+		bool is_resource_handle_valid(api::resource handle) const final;
+		bool is_resource_view_handle_valid(api::resource_view handle) const final;
 
 		bool create_sampler(const api::sampler_desc &desc, api::sampler *out) final;
 		bool create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage initial_state, api::resource *out) final;
@@ -36,11 +36,11 @@ namespace reshade::d3d10
 		bool create_pipeline_graphics_rasterizer_state(const api::pipeline_desc &desc, api::pipeline *out);
 		bool create_pipeline_graphics_depth_stencil_state(const api::pipeline_desc &desc, api::pipeline *out);
 
-		bool create_shader_module(api::shader_stage type, api::shader_format format, const char *entry_point, const void *data, size_t size, api::shader_module *out) final;
+		bool create_shader_module(api::shader_stage type, api::shader_format format, const void *data, size_t size, const char *entry_point, api::shader_module *out) final;
 		bool create_pipeline_layout(uint32_t num_set_layouts, const api::descriptor_set_layout *set_layouts, uint32_t num_constant_ranges, const api::constant_range *constant_ranges, api::pipeline_layout *out) final;
+		bool create_descriptor_set_layout(uint32_t num_ranges, const api::descriptor_range *ranges, bool push_descriptors, api::descriptor_set_layout *out) final;
 		bool create_query_pool(api::query_type type, uint32_t count, api::query_pool *out) final;
 		bool create_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, api::descriptor_set *out) final;
-		bool create_descriptor_set_layout(uint32_t num_ranges, const api::descriptor_range *ranges, bool push_descriptors, api::descriptor_set_layout *out) final;
 
 		void destroy_sampler(api::sampler handle) final;
 		void destroy_resource(api::resource handle) final;
@@ -49,14 +49,14 @@ namespace reshade::d3d10
 		void destroy_pipeline(api::pipeline_type type, api::pipeline handle) final;
 		void destroy_shader_module(api::shader_module handle) final;
 		void destroy_pipeline_layout(api::pipeline_layout handle) final;
+		void destroy_descriptor_set_layout(api::descriptor_set_layout handle) final;
 		void destroy_query_pool(api::query_pool handle) final;
 		void destroy_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, const api::descriptor_set *sets) final;
-		void destroy_descriptor_set_layout(api::descriptor_set_layout handle) final;
 
 		void get_resource_from_view(api::resource_view view, api::resource *out_resource) const final;
 		api::resource_desc get_resource_desc(api::resource resource) const final;
 
-		bool map_resource(api::resource resource, uint32_t subresource, api::map_access access, void **mapped_ptr) final;
+		bool map_resource(api::resource resource, uint32_t subresource, api::map_access access, void **data) final;
 		void unmap_resource(api::resource resource, uint32_t subresource) final;
 
 		void upload_buffer_region(const void *data, api::resource dst, uint64_t dst_offset, uint64_t size) final;
@@ -75,6 +75,8 @@ namespace reshade::d3d10
 		api::command_list *get_immediate_command_list() final { return this; }
 
 		void flush_immediate_command_list() const final;
+
+		void barrier(uint32_t, const api::resource *, const api::resource_usage *, const api::resource_usage *) final { /* no-op */ }
 
 		void bind_pipeline(api::pipeline_type type, api::pipeline pipeline) final;
 		void bind_pipeline_states(uint32_t count, const api::pipeline_state *states, const uint32_t *values) final;
@@ -98,15 +100,14 @@ namespace reshade::d3d10
 		void draw_or_dispatch_indirect(uint32_t type, api::resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride) final;
 
 		void begin_render_pass(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv) final;
-		void end_render_pass() final;
+		void finish_render_pass() final;
 
-		void blit(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], api::texture_filter filter) final;
-		void resolve(api::resource src, uint32_t src_subresource, const int32_t src_offset[3], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3], api::format format) final;
 		void copy_resource(api::resource src, api::resource dst) final;
 		void copy_buffer_region(api::resource src, uint64_t src_offset, api::resource dst, uint64_t dst_offset, uint64_t size) final;
 		void copy_buffer_to_texture(api::resource src, uint64_t src_offset, uint32_t row_length, uint32_t slice_height, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6]) final;
-		void copy_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_offset[3], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3]) final;
+		void copy_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], api::texture_filter filter) final;
 		void copy_texture_to_buffer(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint64_t dst_offset, uint32_t row_length, uint32_t slice_height) final;
+		void resolve_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_offset[3], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3], api::format format) final;
 
 		void generate_mipmaps(api::resource_view srv) final;
 
@@ -116,14 +117,12 @@ namespace reshade::d3d10
 		void clear_unordered_access_view_float(api::resource_view uav, const float values[4]) final;
 
 		void begin_query(api::query_pool pool, api::query_type type, uint32_t index) final;
-		void end_query(api::query_pool pool, api::query_type type, uint32_t index) final;
+		void finish_query(api::query_pool pool, api::query_type type, uint32_t index) final;
 		void copy_query_results(api::query_pool pool, api::query_type type, uint32_t first, uint32_t count, api::resource dst, uint64_t dst_offset, uint32_t stride) final;
 
-		void insert_barrier(uint32_t, const api::resource *, const api::resource_usage *, const api::resource_usage *) final { /* no-op */ }
-
-		void begin_debug_marker(const char *label, const float color[4]) final;
-		void end_debug_marker() final;
-		void insert_debug_marker(const char *label, const float color[4]) final;
+		void add_debug_marker(const char *, const float[4]) final { /* no-op */ }
+		void begin_debug_marker(const char *, const float[4]) final { /* no-op */ }
+		void finish_debug_marker() final { /* no-op */ }
 
 	private:
 		UINT _push_constants_size = 0;

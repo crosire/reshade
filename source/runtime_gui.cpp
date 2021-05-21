@@ -212,6 +212,8 @@ void reshade::runtime::build_font_atlas()
 		{
 			ImFontConfig cfg;
 			cfg.SizePixels = static_cast<float>(i == 0 ? _font_size : _editor_font_size);
+			//cfg.OversampleH = 6;
+			//cfg.OversampleV = 6;
 
 			atlas->AddFontDefault(&cfg);
 		}
@@ -235,7 +237,7 @@ void reshade::runtime::build_font_atlas()
 
 	// Create font atlas texture and upload it
 	if (!device->create_resource(
-		api::resource_desc(width, height, 1, 1, api::format::r8g8b8a8_unorm, 1, api::memory_heap::gpu_only, api::resource_usage::shader_resource | api::resource_usage::copy_dest),
+		api::resource_desc(width, height, 1, 1, api::format::r8g8b8a8_unorm, 1, api::memory_heap::gpu_only, api::resource_usage::shader_resource),
 		&initial_data,
 		api::resource_usage::shader_resource,
 		&_imgui.font_atlas))
@@ -3211,11 +3213,11 @@ bool reshade::runtime::init_imgui_resources()
 	if ((_renderer_id & 0x30000) == 0)
 	{
 		const resources::data_resource vs_res = resources::load_data_resource(_renderer_id < 0xa000 ? IDR_IMGUI_VS_3_0 : IDR_IMGUI_VS_4_0);
-		if (!device->create_shader_module(api::shader_stage::vertex, api::shader_format::dxbc, nullptr, vs_res.data, vs_res.data_size, &pso_desc.graphics.vertex_shader))
+		if (!device->create_shader_module(api::shader_stage::vertex, api::shader_format::dxbc, vs_res.data, vs_res.data_size, nullptr, &pso_desc.graphics.vertex_shader))
 			return false;
 
 		const resources::data_resource ps_res = resources::load_data_resource(_renderer_id < 0xa000 ? IDR_IMGUI_PS_3_0 : IDR_IMGUI_PS_4_0);
-		if (!device->create_shader_module(api::shader_stage::pixel, api::shader_format::dxbc, nullptr, ps_res.data, ps_res.data_size, &pso_desc.graphics.pixel_shader))
+		if (!device->create_shader_module(api::shader_stage::pixel, api::shader_format::dxbc, ps_res.data, ps_res.data_size, nullptr, &pso_desc.graphics.pixel_shader))
 		{
 			device->destroy_shader_module(pso_desc.graphics.vertex_shader);
 			return false;
@@ -3250,9 +3252,9 @@ bool reshade::runtime::init_imgui_resources()
 				"	col = frag_col * texture(s0, frag_tex.st);\n"
 				"}\n";
 
-			if (!device->create_shader_module(api::shader_stage::vertex, api::shader_format::glsl, "main", vertex_shader, strlen(vertex_shader), &pso_desc.graphics.vertex_shader))
+			if (!device->create_shader_module(api::shader_stage::vertex, api::shader_format::glsl, vertex_shader, strlen(vertex_shader), "main", &pso_desc.graphics.vertex_shader))
 				return false;
-			if (!device->create_shader_module(api::shader_stage::pixel, api::shader_format::glsl, "main", fragment_shader, strlen(fragment_shader), &pso_desc.graphics.pixel_shader))
+			if (!device->create_shader_module(api::shader_stage::pixel, api::shader_format::glsl, fragment_shader, strlen(fragment_shader), "main", &pso_desc.graphics.pixel_shader))
 			{
 				device->destroy_shader_module(pso_desc.graphics.vertex_shader);
 				return false;
@@ -3261,11 +3263,11 @@ bool reshade::runtime::init_imgui_resources()
 		else
 		{
 			const resources::data_resource vs_res = resources::load_data_resource(IDR_IMGUI_VS_SPIRV);
-			if (!device->create_shader_module(api::shader_stage::vertex, api::shader_format::spirv, "main", vs_res.data, vs_res.data_size, &pso_desc.graphics.vertex_shader))
+			if (!device->create_shader_module(api::shader_stage::vertex, api::shader_format::spirv, vs_res.data, vs_res.data_size, "main", &pso_desc.graphics.vertex_shader))
 				return false;
 
 			const resources::data_resource ps_res = resources::load_data_resource(IDR_IMGUI_PS_SPIRV);
-			if (!device->create_shader_module(api::shader_stage::pixel, api::shader_format::spirv, "main", ps_res.data, ps_res.data_size, &pso_desc.graphics.pixel_shader))
+			if (!device->create_shader_module(api::shader_stage::pixel, api::shader_format::spirv, ps_res.data, ps_res.data_size, "main", &pso_desc.graphics.pixel_shader))
 			{
 				device->destroy_shader_module(pso_desc.graphics.vertex_shader);
 				return false;
@@ -3379,7 +3381,7 @@ void reshade::runtime::render_imgui_draw_data(ImDrawData *draw_data)
 
 	api::command_list *const cmd_list = get_command_queue()->get_immediate_command_list();
 
-	cmd_list->insert_barrier(get_backbuffer_resource(), api::resource_usage::present, api::resource_usage::render_target);
+	cmd_list->barrier(get_backbuffer_resource(), api::resource_usage::present, api::resource_usage::render_target);
 
 	const api::resource_view rtv = get_backbuffer(false);
 	cmd_list->begin_render_pass(1, &rtv);
@@ -3454,9 +3456,9 @@ void reshade::runtime::render_imgui_draw_data(ImDrawData *draw_data)
 		vtx_offset += draw_list->VtxBuffer.Size;
 	}
 
-	cmd_list->end_render_pass();
+	cmd_list->finish_render_pass();
 
-	cmd_list->insert_barrier(get_backbuffer_resource(), api::resource_usage::render_target, api::resource_usage::present);
+	cmd_list->barrier(get_backbuffer_resource(), api::resource_usage::render_target, api::resource_usage::present);
 }
 
 #endif

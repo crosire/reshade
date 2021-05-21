@@ -85,6 +85,16 @@ void reshade::d3d12::command_queue_impl::wait_idle() const
 		WaitForSingleObject(_wait_idle_fence_event, INFINITE);
 }
 
+void reshade::d3d12::command_queue_impl::add_debug_marker(const char *label, const float color[4])
+{
+#if 0
+	_orig->SetMarker(1, label, static_cast<UINT>(strlen(label)));
+#else
+	UINT64 pix3blob[64];
+	encode_pix3blob(pix3blob, label, color);
+	_orig->SetMarker(2, pix3blob, sizeof(pix3blob));
+#endif
+}
 void reshade::d3d12::command_queue_impl::begin_debug_marker(const char *label, const float color[4])
 {
 #if 0
@@ -95,17 +105,7 @@ void reshade::d3d12::command_queue_impl::begin_debug_marker(const char *label, c
 	_orig->BeginEvent(2, pix3blob, sizeof(pix3blob));
 #endif
 }
-void reshade::d3d12::command_queue_impl::end_debug_marker()
+void reshade::d3d12::command_queue_impl::finish_debug_marker()
 {
 	_orig->EndEvent();
-}
-void reshade::d3d12::command_queue_impl::insert_debug_marker(const char *label, const float color[4])
-{
-#if 0
-	_orig->SetMarker(1, label, static_cast<UINT>(strlen(label)));
-#else
-	UINT64 pix3blob[64];
-	encode_pix3blob(pix3blob, label, color);
-	_orig->SetMarker(2, pix3blob, sizeof(pix3blob));
-#endif
 }

@@ -1344,12 +1344,30 @@ void     VKAPI_CALL vkCmdCopyImage(VkCommandBuffer commandBuffer, VkImage srcIma
 	{
 		const VkImageCopy &region = pRegions[i];
 
+		const int32_t src_box[6] = {
+			region.srcOffset.x,
+			region.srcOffset.y,
+			region.srcOffset.z,
+			region.srcOffset.x + static_cast<int32_t>(region.extent.width),
+			region.srcOffset.y + static_cast<int32_t>(region.extent.height),
+			region.srcOffset.z + static_cast<int32_t>(region.extent.depth)
+		};
+		const int32_t dst_box[6] = {
+			region.dstOffset.x,
+			region.dstOffset.y,
+			region.dstOffset.z,
+			region.dstOffset.x + static_cast<int32_t>(region.extent.width),
+			region.dstOffset.y + static_cast<int32_t>(region.extent.height),
+			region.dstOffset.z + static_cast<int32_t>(region.extent.depth)
+		};
+
 		for (uint32_t layer = 0; layer < region.srcSubresource.layerCount; ++layer)
 		{
 			if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(
 				s_vulkan_command_buffers.at(commandBuffer),
-				reshade::api::resource { (uint64_t)srcImage }, device_impl->get_subresource_index(srcImage, region.srcSubresource, layer), &region.srcOffset.x,
-				reshade::api::resource { (uint64_t)dstImage }, device_impl->get_subresource_index(dstImage, region.dstSubresource, layer), &region.dstOffset.x, &region.extent.width))
+				reshade::api::resource { (uint64_t)srcImage }, device_impl->get_subresource_index(srcImage, region.srcSubresource, layer), src_box,
+				reshade::api::resource { (uint64_t)dstImage }, device_impl->get_subresource_index(dstImage, region.dstSubresource, layer), dst_box,
+				reshade::api::texture_filter::min_mag_mip_point))
 				return; // TODO: This skips copy of all regions, rather than just the one specified to this event call
 		}
 	}
@@ -1370,7 +1388,7 @@ void     VKAPI_CALL vkCmdBlitImage(VkCommandBuffer commandBuffer, VkImage srcIma
 
 		for (uint32_t layer = 0; layer < region.srcSubresource.layerCount; ++layer)
 		{
-			if (reshade::invoke_addon_event<reshade::addon_event::blit>(
+			if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(
 				s_vulkan_command_buffers.at(commandBuffer),
 				reshade::api::resource { (uint64_t)srcImage }, device_impl->get_subresource_index(srcImage, region.srcSubresource, layer), &region.srcOffsets[0].x,
 				reshade::api::resource { (uint64_t)dstImage }, device_impl->get_subresource_index(dstImage, region.dstSubresource, layer), &region.dstOffsets[0].x,
@@ -1593,7 +1611,7 @@ void     VKAPI_CALL vkCmdResolveImage(VkCommandBuffer commandBuffer, VkImage src
 
 		for (uint32_t layer = 0; layer < region.srcSubresource.layerCount; ++layer)
 		{
-			if (reshade::invoke_addon_event<reshade::addon_event::resolve>(
+			if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(
 				s_vulkan_command_buffers.at(commandBuffer),
 				reshade::api::resource { (uint64_t)srcImage }, device_impl->get_subresource_index(srcImage, region.srcSubresource, layer), &region.srcOffset.x,
 				reshade::api::resource { (uint64_t)dstImage }, device_impl->get_subresource_index(dstImage, region.dstSubresource, layer), &region.dstOffset.x, &region.extent.width, reshade::api::format::unknown))
@@ -1738,7 +1756,7 @@ void     VKAPI_CALL vkCmdNextSubpass(VkCommandBuffer commandBuffer, VkSubpassCon
 	reshade::vulkan::command_list_impl *const cmd_impl = s_vulkan_command_buffers.at(commandBuffer);
 	if (cmd_impl != nullptr)
 	{
-		reshade::invoke_addon_event<reshade::addon_event::end_render_pass>(cmd_impl);
+		reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(cmd_impl);
 
 		cmd_impl->current_subpass++;
 		assert(cmd_impl->current_renderpass != VK_NULL_HANDLE);
@@ -1777,7 +1795,7 @@ void     VKAPI_CALL vkCmdEndRenderPass(VkCommandBuffer commandBuffer)
 	reshade::vulkan::command_list_impl *const cmd_impl = s_vulkan_command_buffers.at(commandBuffer);
 	if (cmd_impl != nullptr)
 	{
-		reshade::invoke_addon_event<reshade::addon_event::end_render_pass>(cmd_impl);
+		reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(cmd_impl);
 
 		cmd_impl->current_subpass = std::numeric_limits<uint32_t>::max();
 		cmd_impl->current_renderpass = VK_NULL_HANDLE;

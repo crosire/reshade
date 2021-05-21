@@ -18,7 +18,7 @@ namespace reshade::api
 		api_object_impl(const api_object_impl &) = delete;
 		api_object_impl &operator=(const api_object_impl &) = delete;
 
-		bool get_data(const uint8_t guid[16], void **ptr) const override
+		bool get_user_data(const uint8_t guid[16], void **ptr) const override
 		{
 			for (auto it = _data_entries.begin(); it != _data_entries.end(); ++it)
 			{
@@ -31,7 +31,7 @@ namespace reshade::api
 			}
 			return false;
 		}
-		void set_data(const uint8_t guid[16], void * const ptr) override
+		void set_user_data(const uint8_t guid[16], void * const ptr) override
 		{
 			for (auto it = _data_entries.begin(); it != _data_entries.end(); ++it)
 			{

@@ -38,7 +38,7 @@ bool reshade::d3d10::device_impl::check_capability(api::device_caps capability) 
 		return false;
 	case api::device_caps::geometry_shader:
 		return _orig->GetFeatureLevel() >= D3D_FEATURE_LEVEL_10_0;
-	case api::device_caps::tessellation_shaders:
+	case api::device_caps::hull_and_domain_shader:
 		return false;
 	case api::device_caps::dual_src_blend:
 		return true;
@@ -51,19 +51,19 @@ bool reshade::d3d10::device_impl::check_capability(api::device_caps capability) 
 		return false;
 	case api::device_caps::fill_mode_non_solid:
 	case api::device_caps::multi_viewport:
-	case api::device_caps::sampler_anisotropy:
 		return true;
 	case api::device_caps::partial_push_constant_updates:
 		return false;
 	case api::device_caps::partial_push_descriptor_updates:
+	case api::device_caps::sampler_anisotropy:
 		return true;
 	case api::device_caps::sampler_with_resource_view:
-	case api::device_caps::blit:
-	case api::device_caps::resolve_region:
 		return false;
 	case api::device_caps::copy_buffer_region:
 		return true;
 	case api::device_caps::copy_buffer_to_texture:
+	case api::device_caps::blit:
+	case api::device_caps::resolve_region:
 	case api::device_caps::copy_query_results:
 		return false;
 	default:
@@ -96,11 +96,11 @@ bool reshade::d3d10::device_impl::check_format_support(api::format format, api::
 	return true;
 }
 
-bool reshade::d3d10::device_impl::check_resource_handle_valid(api::resource handle) const
+bool reshade::d3d10::device_impl::is_resource_handle_valid(api::resource handle) const
 {
 	return handle.handle != 0 && _resources.has_object(reinterpret_cast<ID3D10Resource *>(handle.handle));
 }
-bool reshade::d3d10::device_impl::check_resource_view_handle_valid(api::resource_view handle) const
+bool reshade::d3d10::device_impl::is_resource_view_handle_valid(api::resource_view handle) const
 {
 	return handle.handle != 0 && _views.has_object(reinterpret_cast<ID3D10View *>(handle.handle));
 }
@@ -444,7 +444,7 @@ bool reshade::d3d10::device_impl::create_pipeline_graphics_depth_stencil_state(c
 	}
 }
 
-bool reshade::d3d10::device_impl::create_shader_module(api::shader_stage type, api::shader_format format, const char *entry_point, const void *code, size_t code_size, api::shader_module *out)
+bool reshade::d3d10::device_impl::create_shader_module(api::shader_stage type, api::shader_format format, const void *code, size_t code_size, const char *entry_point, api::shader_module *out)
 {
 	if (format == api::shader_format::dxbc)
 	{
@@ -513,21 +513,6 @@ bool reshade::d3d10::device_impl::create_pipeline_layout(uint32_t num_set_layout
 	*out = { reinterpret_cast<uintptr_t>(layout_impl) };
 	return true;
 }
-bool reshade::d3d10::device_impl::create_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, api::descriptor_set *out)
-{
-	const auto layout_impl = reinterpret_cast<descriptor_set_layout_impl *>(layout.handle);
-
-	for (UINT i = 0; i < count; ++i)
-	{
-		const auto set = new descriptor_set_impl();
-		set->type = layout_impl->range.type;
-		set->descriptors.resize(layout_impl->range.count);
-
-		out[i] = { reinterpret_cast<uintptr_t>(set) };
-	}
-
-	return true;
-}
 bool reshade::d3d10::device_impl::create_descriptor_set_layout(uint32_t num_ranges, const api::descriptor_range *ranges, bool, api::descriptor_set_layout *out)
 {
 	// Can only have descriptors of a single type in a descriptor set
@@ -543,7 +528,6 @@ bool reshade::d3d10::device_impl::create_descriptor_set_layout(uint32_t num_rang
 	*out = { reinterpret_cast<uintptr_t>(layout_impl) };
 	return true;
 }
-
 bool reshade::d3d10::device_impl::create_query_pool(api::query_type type, uint32_t count, api::query_pool *out)
 {
 	const auto result = new query_pool_impl();
@@ -564,6 +548,21 @@ bool reshade::d3d10::device_impl::create_query_pool(api::query_type type, uint32
 	}
 
 	*out = { reinterpret_cast<uintptr_t>(result) };
+	return true;
+}
+bool reshade::d3d10::device_impl::create_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, api::descriptor_set *out)
+{
+	const auto layout_impl = reinterpret_cast<descriptor_set_layout_impl *>(layout.handle);
+
+	for (UINT i = 0; i < count; ++i)
+	{
+		const auto set = new descriptor_set_impl();
+		set->type = layout_impl->range.type;
+		set->descriptors.resize(layout_impl->range.count);
+
+		out[i] = { reinterpret_cast<uintptr_t>(set) };
+	}
+
 	return true;
 }
 
@@ -599,19 +598,18 @@ void reshade::d3d10::device_impl::destroy_pipeline_layout(api::pipeline_layout h
 {
 	delete reinterpret_cast<pipeline_layout_impl *>(handle.handle);
 }
-void reshade::d3d10::device_impl::destroy_descriptor_sets(api::descriptor_set_layout, uint32_t count, const api::descriptor_set *sets)
-{
-	for (UINT i = 0; i < count; ++i)
-		delete reinterpret_cast<descriptor_set_impl *>(sets[i].handle);
-}
 void reshade::d3d10::device_impl::destroy_descriptor_set_layout(api::descriptor_set_layout handle)
 {
 	delete reinterpret_cast<descriptor_set_layout_impl *>(handle.handle);
 }
-
 void reshade::d3d10::device_impl::destroy_query_pool(api::query_pool handle)
 {
 	delete reinterpret_cast<query_pool_impl *>(handle.handle);
+}
+void reshade::d3d10::device_impl::destroy_descriptor_sets(api::descriptor_set_layout, uint32_t count, const api::descriptor_set *sets)
+{
+	for (UINT i = 0; i < count; ++i)
+		delete reinterpret_cast<descriptor_set_impl *>(sets[i].handle);
 }
 
 void reshade::d3d10::device_impl::update_descriptor_sets(uint32_t num_updates, const api::descriptor_update *updates)
@@ -641,7 +639,7 @@ void reshade::d3d10::device_impl::update_descriptor_sets(uint32_t num_updates, c
 	}
 }
 
-bool reshade::d3d10::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access access, void **mapped_ptr)
+bool reshade::d3d10::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access access, void **data)
 {
 	D3D10_MAP map_type = static_cast<D3D10_MAP>(0);
 	switch (access)
@@ -669,14 +667,14 @@ bool reshade::d3d10::device_impl::map_resource(api::resource resource, uint32_t 
 	{
 	case D3D10_RESOURCE_DIMENSION_BUFFER:
 		assert(subresource == 0);
-		return SUCCEEDED(static_cast<ID3D10Buffer *>(object)->Map(map_type, 0, mapped_ptr));
+		return SUCCEEDED(static_cast<ID3D10Buffer *>(object)->Map(map_type, 0, data));
 	case D3D10_RESOURCE_DIMENSION_TEXTURE1D:
-		return SUCCEEDED(static_cast<ID3D10Texture1D *>(object)->Map(subresource, map_type, 0, mapped_ptr));
+		return SUCCEEDED(static_cast<ID3D10Texture1D *>(object)->Map(subresource, map_type, 0, data));
 	case D3D10_RESOURCE_DIMENSION_TEXTURE2D:
 		if (D3D10_MAPPED_TEXTURE2D mapped;
 			SUCCEEDED(static_cast<ID3D10Texture2D *>(object)->Map(subresource, map_type, 0, &mapped)))
 		{
-			*mapped_ptr = mapped.pData;
+			*data = mapped.pData;
 			return true;
 		}
 		break;
@@ -684,13 +682,13 @@ bool reshade::d3d10::device_impl::map_resource(api::resource resource, uint32_t 
 		if (D3D10_MAPPED_TEXTURE3D mapped;
 			SUCCEEDED(static_cast<ID3D10Texture3D *>(object)->Map(subresource, map_type, 0, &mapped)))
 		{
-			*mapped_ptr = mapped.pData;
+			*data = mapped.pData;
 			return true;
 		}
 		break;
 	}
 
-	*mapped_ptr = 0;
+	*data = 0;
 	return false;
 }
 void reshade::d3d10::device_impl::unmap_resource(api::resource resource, uint32_t subresource)

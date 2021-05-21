@@ -486,5 +486,5 @@ bool reshade::d3d11::runtime_impl::compile_effect(effect &effect, api::shader_st
 		save_effect_cache(effect.source_file, entry_point, hash, cso, effect.assembly[entry_point]);
 	}
 
-	return _device_impl->create_shader_module(type, api::shader_format::dxbc, nullptr, cso.data(), cso.size(), &out);
+	return _device_impl->create_shader_module(type, api::shader_format::dxbc, cso.data(), cso.size(), nullptr, &out);
 }

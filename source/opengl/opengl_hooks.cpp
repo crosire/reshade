@@ -185,7 +185,7 @@ HOOK_EXPORT void WINAPI glBegin(GLenum mode)
 	if (g_current_runtime && (target == GL_FRAMEBUFFER || target == GL_DRAW_FRAMEBUFFER) &&
 		glCheckFramebufferStatus(target) == GL_FRAMEBUFFER_COMPLETE) // Skip incomplete frame buffer bindings (e.g. during set up)
 	{
-		reshade::invoke_addon_event<reshade::addon_event::end_render_pass>(g_current_runtime);
+		reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(g_current_runtime);
 
 		GLuint count = 0;
 		reshade::api::resource_view rtvs[8];
@@ -394,7 +394,7 @@ HOOK_EXPORT void WINAPI glBlendFunc(GLenum sfactor, GLenum dfactor)
 
 		if (g_current_runtime->get_resource_desc(src).texture.samples <= 1)
 		{
-			if (reshade::invoke_addon_event<reshade::addon_event::blit>(g_current_runtime, src, 0, src_box, dst, 0, dst_box,
+			if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(g_current_runtime, src, 0, src_box, dst, 0, dst_box,
 				filter == GL_NONE || filter == GL_NEAREST ? reshade::api::texture_filter::min_mag_mip_point : reshade::api::texture_filter::min_mag_mip_linear))
 				return;
 		}
@@ -402,7 +402,7 @@ HOOK_EXPORT void WINAPI glBlendFunc(GLenum sfactor, GLenum dfactor)
 		{
 			// TODO: Ensure same extent
 			const uint32_t extent[3] = { static_cast<uint32_t>(srcX1 - srcX0), static_cast<uint32_t>(srcY1 - srcY0), 1 };
-			if (reshade::invoke_addon_event<reshade::addon_event::resolve>(g_current_runtime, src, 0, src_box, dst, 0, dst_box, extent, reshade::api::format::unknown))
+			if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(g_current_runtime, src, 0, src_box, dst, 0, dst_box, extent, reshade::api::format::unknown))
 				return;
 		}
 	}
@@ -428,7 +428,7 @@ HOOK_EXPORT void WINAPI glBlendFunc(GLenum sfactor, GLenum dfactor)
 
 		if (g_current_runtime->get_resource_desc(src).texture.samples <= 1)
 		{
-			if (reshade::invoke_addon_event<reshade::addon_event::blit>(g_current_runtime, src, 0, src_box, dst, 0, dst_box,
+			if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(g_current_runtime, src, 0, src_box, dst, 0, dst_box,
 				filter == GL_NONE || filter == GL_NEAREST ? reshade::api::texture_filter::min_mag_mip_point : reshade::api::texture_filter::min_mag_mip_linear))
 				return;
 		}
@@ -436,7 +436,7 @@ HOOK_EXPORT void WINAPI glBlendFunc(GLenum sfactor, GLenum dfactor)
 		{
 			// TODO: Ensure same extent
 			const uint32_t extent[3] = { static_cast<uint32_t>(srcX1 - srcX0), static_cast<uint32_t>(srcY1 - srcY0), 1 };
-			if (reshade::invoke_addon_event<reshade::addon_event::resolve>(g_current_runtime, src, 0, src_box, dst, 0, dst_box, extent, reshade::api::format::unknown))
+			if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(g_current_runtime, src, 0, src_box, dst, 0, dst_box, extent, reshade::api::format::unknown))
 				return;
 		}
 	}

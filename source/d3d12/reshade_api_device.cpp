@@ -117,7 +117,7 @@ bool reshade::d3d12::device_impl::check_capability(api::device_caps capability) 
 	{
 	case api::device_caps::compute_shader:
 	case api::device_caps::geometry_shader:
-	case api::device_caps::tessellation_shaders:
+	case api::device_caps::hull_and_domain_shader:
 	case api::device_caps::dual_src_blend:
 	case api::device_caps::independent_blend:
 		return true;
@@ -130,16 +130,20 @@ bool reshade::d3d12::device_impl::check_capability(api::device_caps capability) 
 		return false; // TODO: Not currently implemented
 	case api::device_caps::fill_mode_non_solid:
 	case api::device_caps::multi_viewport:
-	case api::device_caps::sampler_anisotropy:
 	case api::device_caps::partial_push_constant_updates:
 		return true;
 	case api::device_caps::partial_push_descriptor_updates:
+		return false;
+	case api::device_caps::sampler_anisotropy:
+		return true;
 	case api::device_caps::sampler_with_resource_view:
-	case api::device_caps::blit:
-	case api::device_caps::resolve_region:
 		return false;
 	case api::device_caps::copy_buffer_region:
 	case api::device_caps::copy_buffer_to_texture:
+		return true;
+	case api::device_caps::blit:
+	case api::device_caps::resolve_region:
+		return false;
 	case api::device_caps::copy_query_results:
 		return true;
 	default:
@@ -172,11 +176,11 @@ bool reshade::d3d12::device_impl::check_format_support(api::format format, api::
 	return true;
 }
 
-bool reshade::d3d12::device_impl::check_resource_handle_valid(api::resource handle) const
+bool reshade::d3d12::device_impl::is_resource_handle_valid(api::resource handle) const
 {
 	return handle.handle != 0 && _resources.has_object(reinterpret_cast<ID3D12Resource *>(handle.handle));
 }
-bool reshade::d3d12::device_impl::check_resource_view_handle_valid(api::resource_view handle) const
+bool reshade::d3d12::device_impl::is_resource_view_handle_valid(api::resource_view handle) const
 {
 	const std::lock_guard<std::mutex> lock(_mutex);
 	return _views.find(handle.handle) != _views.end();
@@ -236,7 +240,7 @@ bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc
 				if (immediate_command_list != nullptr)
 				{
 					const api::resource_usage states_upload[2] = { initial_state, api::resource_usage::copy_dest };
-					immediate_command_list->insert_barrier(1, out, &states_upload[0], &states_upload[1]);
+					immediate_command_list->barrier(1, out, &states_upload[0], &states_upload[1]);
 
 					if (desc.type == api::resource_type::buffer)
 					{
@@ -249,7 +253,7 @@ bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc
 					}
 
 					const api::resource_usage states_finalize[2] = { api::resource_usage::copy_dest, initial_state };
-					immediate_command_list->insert_barrier(1, out, &states_finalize[0], &states_finalize[1]);
+					immediate_command_list->barrier(1, out, &states_finalize[0], &states_finalize[1]);
 
 					queue->flush_immediate_command_list();
 					break;
@@ -508,7 +512,7 @@ bool reshade::d3d12::device_impl::create_pipeline_graphics_all(const api::pipeli
 	}
 }
 
-bool reshade::d3d12::device_impl::create_shader_module(api::shader_stage, api::shader_format format, const char *entry_point, const void *code, size_t code_size, api::shader_module *out)
+bool reshade::d3d12::device_impl::create_shader_module(api::shader_stage, api::shader_format format, const void *code, size_t code_size, const char *entry_point, api::shader_module *out)
 {
 	if (format == api::shader_format::dxbc || format == api::shader_format::dxil)
 	{
@@ -595,26 +599,6 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t num_set_layout
 		return false;
 	}
 }
-bool reshade::d3d12::device_impl::create_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, api::descriptor_set *out)
-{
-	const auto layout_impl = reinterpret_cast<const descriptor_set_layout_impl *>(layout.handle);
-
-	for (UINT i = 0; i < count; ++i)
-	{
-		D3D12_CPU_DESCRIPTOR_HANDLE base_handle;
-		D3D12_GPU_DESCRIPTOR_HANDLE base_handle_gpu;
-
-		if (layout_impl->heap_type != D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER)
-			_gpu_view_heap.allocate_static(layout_impl->total_size, base_handle, base_handle_gpu);
-		else
-			_gpu_sampler_heap.allocate_static(layout_impl->total_size, base_handle, base_handle_gpu);
-
-		_descriptor_table_map[base_handle_gpu.ptr] = base_handle;
-		out[i] = { base_handle_gpu.ptr };
-	}
-
-	return true;
-}
 bool reshade::d3d12::device_impl::create_descriptor_set_layout(uint32_t num_ranges, const api::descriptor_range *ranges, bool, api::descriptor_set_layout *out)
 {
 	uint32_t visibility_mask = 0;
@@ -678,7 +662,6 @@ bool reshade::d3d12::device_impl::create_descriptor_set_layout(uint32_t num_rang
 	*out = { reinterpret_cast<uintptr_t>(result) };
 	return true;
 }
-
 bool reshade::d3d12::device_impl::create_query_pool(api::query_type type, uint32_t count, api::query_pool *out)
 {
 	com_ptr<ID3D12Resource> readback_resource;
@@ -717,6 +700,26 @@ bool reshade::d3d12::device_impl::create_query_pool(api::query_type type, uint32
 		*out = { 0 };
 		return false;
 	}
+}
+bool reshade::d3d12::device_impl::create_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, api::descriptor_set *out)
+{
+	const auto layout_impl = reinterpret_cast<const descriptor_set_layout_impl *>(layout.handle);
+
+	for (UINT i = 0; i < count; ++i)
+	{
+		D3D12_CPU_DESCRIPTOR_HANDLE base_handle;
+		D3D12_GPU_DESCRIPTOR_HANDLE base_handle_gpu;
+
+		if (layout_impl->heap_type != D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER)
+			_gpu_view_heap.allocate_static(layout_impl->total_size, base_handle, base_handle_gpu);
+		else
+			_gpu_sampler_heap.allocate_static(layout_impl->total_size, base_handle, base_handle_gpu);
+
+		_descriptor_table_map[base_handle_gpu.ptr] = base_handle;
+		out[i] = { base_handle_gpu.ptr };
+	}
+
+	return true;
 }
 
 void reshade::d3d12::device_impl::destroy_sampler(api::sampler handle)
@@ -758,6 +761,15 @@ void reshade::d3d12::device_impl::destroy_pipeline_layout(api::pipeline_layout h
 	if (handle.handle != 0)
 		reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }
+void reshade::d3d12::device_impl::destroy_descriptor_set_layout(api::descriptor_set_layout handle)
+{
+	delete reinterpret_cast<descriptor_set_layout_impl *>(handle.handle);
+}
+void reshade::d3d12::device_impl::destroy_query_pool(api::query_pool handle)
+{
+	if (handle.handle != 0)
+		reinterpret_cast<IUnknown *>(handle.handle)->Release();
+}
 void reshade::d3d12::device_impl::destroy_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, const api::descriptor_set *sets)
 {
 	const auto layout_impl = reinterpret_cast<descriptor_set_layout_impl *>(layout.handle);
@@ -770,16 +782,6 @@ void reshade::d3d12::device_impl::destroy_descriptor_sets(api::descriptor_set_la
 		_gpu_view_heap.deallocate({ static_cast<SIZE_T>(sets[i].handle) }, layout_impl->total_size);
 		_gpu_sampler_heap.deallocate({ static_cast<SIZE_T>(sets[i].handle) }, layout_impl->total_size);
 	}
-}
-void reshade::d3d12::device_impl::destroy_descriptor_set_layout(api::descriptor_set_layout handle)
-{
-	delete reinterpret_cast<descriptor_set_layout_impl *>(handle.handle);
-}
-
-void reshade::d3d12::device_impl::destroy_query_pool(api::query_pool handle)
-{
-	if (handle.handle != 0)
-		reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }
 
 void reshade::d3d12::device_impl::update_descriptor_sets(uint32_t num_updates, const api::descriptor_update *updates)
@@ -821,13 +823,13 @@ void reshade::d3d12::device_impl::update_descriptor_sets(uint32_t num_updates, c
 	}
 }
 
-bool reshade::d3d12::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access access, void **mapped_ptr)
+bool reshade::d3d12::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access access, void **data)
 {
 	const D3D12_RANGE no_read_range = { 0, 0 };
 
 	assert(resource.handle != 0);
 	return SUCCEEDED(reinterpret_cast<ID3D12Resource *>(resource.handle)->Map(
-		subresource, access == api::map_access::write_only || access == api::map_access::write_discard ? &no_read_range : nullptr, mapped_ptr));
+		subresource, access == api::map_access::write_only || access == api::map_access::write_discard ? &no_read_range : nullptr, data));
 }
 void reshade::d3d12::device_impl::unmap_resource(api::resource resource, uint32_t subresource)
 {

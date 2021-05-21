@@ -103,11 +103,11 @@ static GLint get_fbo_attachment_param(GLuint id, GLenum attachment, GLenum param
 	return value;
 }
 
-reshade::opengl::device_impl::device_impl(HDC hdc, HGLRC hglrc) :
+reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC hglrc) :
 	api_object_impl(hglrc)
 {
 	RECT window_rect = {};
-	GetClientRect(WindowFromDC(hdc), &window_rect);
+	GetClientRect(WindowFromDC(initial_hdc), &window_rect);
 
 	_default_fbo_width = window_rect.right - window_rect.left;
 	_default_fbo_height = window_rect.bottom - window_rect.top;
@@ -115,7 +115,7 @@ reshade::opengl::device_impl::device_impl(HDC hdc, HGLRC hglrc) :
 	// The pixel format has to be the same for all device contexts used with this rendering context, so can cache information about it here
 	// See https://docs.microsoft.com/windows/win32/api/wingdi/nf-wingdi-wglmakecurrent
 	PIXELFORMATDESCRIPTOR pfd = { sizeof(pfd) };
-	DescribePixelFormat(hdc, GetPixelFormat(hdc), sizeof(pfd), &pfd);
+	DescribePixelFormat(initial_hdc, GetPixelFormat(initial_hdc), sizeof(pfd), &pfd);
 
 	switch (pfd.cRedBits)
 	{
@@ -239,7 +239,7 @@ bool reshade::opengl::device_impl::check_capability(api::device_caps capability)
 		return true; // OpenGL 4.3
 	case api::device_caps::geometry_shader:
 		return true; // OpenGL 3.2
-	case api::device_caps::tessellation_shaders:
+	case api::device_caps::hull_and_domain_shader:
 		return true; // OpenGL 4.0
 	case api::device_caps::dual_src_blend:
 		return true; // OpenGL 3.3
@@ -255,19 +255,21 @@ bool reshade::opengl::device_impl::check_capability(api::device_caps capability)
 	case api::device_caps::fill_mode_non_solid:
 	case api::device_caps::multi_viewport:
 		return true;
-	case api::device_caps::sampler_anisotropy:
-		glGetIntegerv(GL_TEXTURE_MAX_ANISOTROPY, &value);
-		return value > 1;
 	case api::device_caps::partial_push_constant_updates:
 		return false;
 	case api::device_caps::partial_push_descriptor_updates:
+		return true;
+	case api::device_caps::sampler_anisotropy:
+		glGetIntegerv(GL_TEXTURE_MAX_ANISOTROPY, &value);
+		return value > 1;
 	case api::device_caps::sampler_with_resource_view:
-	case api::device_caps::blit:
-	case api::device_caps::resolve_region:
 	case api::device_caps::copy_buffer_region:
 		return true;
 	case api::device_caps::copy_buffer_to_texture:
 		return false;
+	case api::device_caps::blit:
+	case api::device_caps::resolve_region:
+		return true;
 	case api::device_caps::copy_query_results:
 		return gl3wProcs.gl.GetQueryBufferObjectui64v != nullptr; // OpenGL 4.5
 	default:
@@ -310,7 +312,7 @@ bool reshade::opengl::device_impl::check_format_support(api::format format, api:
 	return supported && (supported_depth || supported_stencil) && (supported_color_render && supported_render_target) && (supported_unordered_access_load && supported_unordered_access_store);
 }
 
-bool reshade::opengl::device_impl::check_resource_handle_valid(api::resource handle) const
+bool reshade::opengl::device_impl::is_resource_handle_valid(api::resource handle) const
 {
 	switch (handle.handle >> 40)
 	{
@@ -350,9 +352,9 @@ bool reshade::opengl::device_impl::check_resource_handle_valid(api::resource han
 		return false;
 	}
 }
-bool reshade::opengl::device_impl::check_resource_view_handle_valid(api::resource_view handle) const
+bool reshade::opengl::device_impl::is_resource_view_handle_valid(api::resource_view handle) const
 {
-	return check_resource_handle_valid({ handle.handle });
+	return is_resource_handle_valid({ handle.handle });
 }
 
 bool reshade::opengl::device_impl::create_sampler(const api::sampler_desc &desc, api::sampler *out)
@@ -780,7 +782,7 @@ bool reshade::opengl::device_impl::create_pipeline_graphics(const api::pipeline_
 	return true;
 }
 
-bool reshade::opengl::device_impl::create_shader_module(api::shader_stage type, api::shader_format format, const char *entry_point, const void *code, size_t code_size, api::shader_module *out)
+bool reshade::opengl::device_impl::create_shader_module(api::shader_stage type, api::shader_format format, const void *code, size_t code_size, const char *entry_point, api::shader_module *out)
 {
 	GLuint shader_object = glCreateShader(convert_shader_type(type));
 
@@ -844,25 +846,6 @@ bool reshade::opengl::device_impl::create_pipeline_layout(uint32_t num_set_layou
 	*out = { reinterpret_cast<uintptr_t>(layout_impl) };
 	return true;
 }
-bool reshade::opengl::device_impl::create_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, api::descriptor_set *out)
-{
-	const auto layout_impl = reinterpret_cast<descriptor_set_layout_impl *>(layout.handle);
-
-	for (uint32_t i = 0; i < count; ++i)
-	{
-		const auto set = new descriptor_set_impl();
-		set->type = layout_impl->range.type;
-
-		if (layout_impl->range.type != api::descriptor_type::sampler_with_resource_view)
-			set->descriptors.resize(layout_impl->range.count);
-		else
-			set->sampler_with_resource_views.resize(layout_impl->range.count);
-
-		out[i] = { reinterpret_cast<uintptr_t>(set) };
-	}
-
-	return true;
-}
 bool reshade::opengl::device_impl::create_descriptor_set_layout(uint32_t num_ranges, const api::descriptor_range *ranges, bool, api::descriptor_set_layout *out)
 {
 	// Can only have descriptors of a single type in a descriptor set
@@ -878,7 +861,6 @@ bool reshade::opengl::device_impl::create_descriptor_set_layout(uint32_t num_ran
 	*out = { reinterpret_cast<uintptr_t>(layout_impl) };
 	return true;
 }
-
 bool reshade::opengl::device_impl::create_query_pool(api::query_type type, uint32_t count, api::query_pool *out)
 {
 	if (type == api::query_type::pipeline_statistics)
@@ -908,6 +890,25 @@ bool reshade::opengl::device_impl::create_query_pool(api::query_type type, uint3
 	}
 
 	*out = { reinterpret_cast<uintptr_t>(result) };
+	return true;
+}
+bool reshade::opengl::device_impl::create_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, api::descriptor_set *out)
+{
+	const auto layout_impl = reinterpret_cast<descriptor_set_layout_impl *>(layout.handle);
+
+	for (uint32_t i = 0; i < count; ++i)
+	{
+		const auto set = new descriptor_set_impl();
+		set->type = layout_impl->range.type;
+
+		if (layout_impl->range.type != api::descriptor_type::sampler_with_resource_view)
+			set->descriptors.resize(layout_impl->range.count);
+		else
+			set->sampler_with_resource_views.resize(layout_impl->range.count);
+
+		out[i] = { reinterpret_cast<uintptr_t>(set) };
+	}
+
 	return true;
 }
 
@@ -990,19 +991,18 @@ void reshade::opengl::device_impl::destroy_pipeline_layout(api::pipeline_layout 
 {
 	delete reinterpret_cast<pipeline_layout_impl *>(handle.handle);
 }
-void reshade::opengl::device_impl::destroy_descriptor_sets(api::descriptor_set_layout, uint32_t count, const api::descriptor_set *sets)
-{
-	for (uint32_t i = 0; i < count; ++i)
-		delete reinterpret_cast<descriptor_set_impl *>(sets[i].handle);
-}
 void reshade::opengl::device_impl::destroy_descriptor_set_layout(api::descriptor_set_layout layout)
 {
 	delete reinterpret_cast<descriptor_set_layout_impl *>(layout.handle);
 }
-
 void reshade::opengl::device_impl::destroy_query_pool(api::query_pool handle)
 {
 	delete reinterpret_cast<query_heap_impl *>(handle.handle);
+}
+void reshade::opengl::device_impl::destroy_descriptor_sets(api::descriptor_set_layout, uint32_t count, const api::descriptor_set *sets)
+{
+	for (uint32_t i = 0; i < count; ++i)
+		delete reinterpret_cast<descriptor_set_impl *>(sets[i].handle);
 }
 
 void reshade::opengl::device_impl::update_descriptor_sets(uint32_t num_updates, const api::descriptor_update *updates)
@@ -1030,7 +1030,7 @@ void reshade::opengl::device_impl::update_descriptor_sets(uint32_t num_updates, 
 	}
 }
 
-bool reshade::opengl::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access access, void **mapped_ptr)
+bool reshade::opengl::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access access, void **data)
 {
 	GLenum map_access = 0;
 	switch (access)
@@ -1073,7 +1073,7 @@ bool reshade::opengl::device_impl::map_resource(api::resource resource, uint32_t
 		{
 			const GLuint length = get_buf_param(target, object, GL_BUFFER_SIZE);
 
-			*mapped_ptr = glMapNamedBufferRange(object, 0, length, map_access);
+			*data = glMapNamedBufferRange(object, 0, length, map_access);
 		}
 		else
 		{
@@ -1083,17 +1083,17 @@ bool reshade::opengl::device_impl::map_resource(api::resource resource, uint32_t
 			glGetIntegerv(get_binding_for_target(target), &prev_object);
 
 			glBindBuffer(target, object);
-			*mapped_ptr = glMapBufferRange(target, 0, length, map_access);
+			*data = glMapBufferRange(target, 0, length, map_access);
 			glBindBuffer(target, prev_object);
 		}
 		break;
 	default:
 		assert(false);
-		*mapped_ptr = nullptr;
+		*data = nullptr;
 		break;
 	}
 
-	return *mapped_ptr != nullptr;
+	return *data != nullptr;
 }
 void reshade::opengl::device_impl::unmap_resource(api::resource resource, uint32_t subresource)
 {

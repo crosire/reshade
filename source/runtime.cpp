@@ -932,9 +932,9 @@ void reshade::runtime::load_textures()
 		}
 
 		api::command_list *const cmd_list = get_command_queue()->get_immediate_command_list();
-		cmd_list->insert_barrier(texture.resource, api::resource_usage::shader_resource, api::resource_usage::copy_dest);
+		cmd_list->barrier(texture.resource, api::resource_usage::shader_resource, api::resource_usage::copy_dest);
 		get_device()->upload_texture_region({ resized.data(), row_pitch, row_pitch * texture.height }, texture.resource, 0);
-		cmd_list->insert_barrier(texture.resource, api::resource_usage::copy_dest, api::resource_usage::shader_resource);
+		cmd_list->barrier(texture.resource, api::resource_usage::copy_dest, api::resource_usage::shader_resource);
 
 		if (texture.levels > 1)
 			cmd_list->generate_mipmaps(texture.srv[0]);
@@ -2299,7 +2299,7 @@ void reshade::runtime::update_and_render_effects()
 	}
 
 	auto cmd_list = get_command_queue()->get_immediate_command_list();
-	cmd_list->insert_barrier(get_backbuffer_resource(), api::resource_usage::present, api::resource_usage::render_target);
+	cmd_list->barrier(get_backbuffer_resource(), api::resource_usage::present, api::resource_usage::render_target);
 
 	// Render all enabled techniques
 	for (technique &technique : _techniques)
@@ -2329,7 +2329,7 @@ void reshade::runtime::update_and_render_effects()
 		}
 	}
 
-	cmd_list->insert_barrier(get_backbuffer_resource(), api::resource_usage::render_target, api::resource_usage::present);
+	cmd_list->barrier(get_backbuffer_resource(), api::resource_usage::render_target, api::resource_usage::present);
 
 	if (_should_save_screenshot)
 		save_screenshot(std::wstring(), true);
@@ -2351,7 +2351,7 @@ void reshade::runtime::render_technique(technique &technique)
 			device->get_query_results(effect.query_heap, technique.query_base_index + ((_framecount + 1) % NUM_QUERY_FRAMES) * 2, 2, timestamps, sizeof(uint64_t)))
 			technique.average_gpu_duration.append(timestamps[1] - timestamps[0]);
 
-		cmd_list->end_query(effect.query_heap, api::query_type::timestamp, technique.query_base_index + (_framecount % NUM_QUERY_FRAMES) * 2);
+		cmd_list->finish_query(effect.query_heap, api::query_type::timestamp, technique.query_base_index + (_framecount % NUM_QUERY_FRAMES) * 2);
 	}
 
 #ifndef NDEBUG
@@ -2402,9 +2402,9 @@ void reshade::runtime::render_technique(technique &technique)
 			const api::resource_usage state_old[2] = { api::resource_usage::render_target, api::resource_usage::shader_resource };
 			const api::resource_usage state_new[2] = { api::resource_usage::copy_source, api::resource_usage::copy_dest };
 
-			cmd_list->insert_barrier(2, resources, state_old, state_new);
+			cmd_list->barrier(2, resources, state_old, state_new);
 			cmd_list->copy_resource(get_backbuffer_resource(), _backbuffer_texture);
-			cmd_list->insert_barrier(2, resources, state_new, state_old);
+			cmd_list->barrier(2, resources, state_new, state_old);
 		}
 
 		const reshadefx::pass_info &pass_info = technique.passes[pass_index];
@@ -2423,7 +2423,7 @@ void reshade::runtime::render_technique(technique &technique)
 
 			std::vector<api::resource_usage> state_old(pass_data.modified_resources.size(), api::resource_usage::shader_resource);
 			std::vector<api::resource_usage> state_new(pass_data.modified_resources.size(), api::resource_usage::unordered_access);
-			cmd_list->insert_barrier(static_cast<uint32_t>(pass_data.modified_resources.size()), pass_data.modified_resources.data(), state_old.data(), state_new.data());
+			cmd_list->barrier(static_cast<uint32_t>(pass_data.modified_resources.size()), pass_data.modified_resources.data(), state_old.data(), state_new.data());
 
 			if (pass_data.texture_set.handle != 0)
 				cmd_list->bind_descriptor_sets(api::pipeline_type::compute, effect.layout, sampler_with_resource_view ? 1 : 2, 1, &pass_data.texture_set);
@@ -2432,7 +2432,7 @@ void reshade::runtime::render_technique(technique &technique)
 
 			cmd_list->dispatch(pass_info.viewport_width, pass_info.viewport_height, pass_info.viewport_dispatch_z);
 
-			cmd_list->insert_barrier(static_cast<uint32_t>(pass_data.modified_resources.size()), pass_data.modified_resources.data(), state_new.data(), state_old.data());
+			cmd_list->barrier(static_cast<uint32_t>(pass_data.modified_resources.size()), pass_data.modified_resources.data(), state_new.data(), state_old.data());
 		}
 		else
 		{
@@ -2441,7 +2441,7 @@ void reshade::runtime::render_technique(technique &technique)
 			// Transition resource state for render targets
 			std::vector<api::resource_usage> state_old(pass_data.modified_resources.size(), api::resource_usage::shader_resource);
 			std::vector<api::resource_usage> state_new(pass_data.modified_resources.size(), api::resource_usage::render_target);
-			cmd_list->insert_barrier(static_cast<uint32_t>(pass_data.modified_resources.size()), pass_data.modified_resources.data(), state_old.data(), state_new.data());
+			cmd_list->barrier(static_cast<uint32_t>(pass_data.modified_resources.size()), pass_data.modified_resources.data(), state_old.data(), state_new.data());
 
 			// Setup render targets
 			if (pass_info.stencil_enable && !is_effect_stencil_cleared)
@@ -2510,10 +2510,10 @@ void reshade::runtime::render_technique(technique &technique)
 			// Draw primitives
 			cmd_list->draw(pass_info.num_vertices, 1, 0, 0);
 
-			cmd_list->end_render_pass();
+			cmd_list->finish_render_pass();
 
 			// Transition resource state back to shader access
-			cmd_list->insert_barrier(static_cast<uint32_t>(pass_data.modified_resources.size()), pass_data.modified_resources.data(), state_new.data(), state_old.data());
+			cmd_list->barrier(static_cast<uint32_t>(pass_data.modified_resources.size()), pass_data.modified_resources.data(), state_new.data(), state_old.data());
 		}
 
 		// Generate mipmaps for modified resources
@@ -2521,16 +2521,16 @@ void reshade::runtime::render_technique(technique &technique)
 			cmd_list->generate_mipmaps(modified_texture);
 
 #ifndef NDEBUG
-		cmd_list->end_debug_marker();
+		cmd_list->finish_debug_marker();
 #endif
 	}
 
 #ifndef NDEBUG
-	cmd_list->end_debug_marker();
+	cmd_list->finish_debug_marker();
 #endif
 
 	if (_gather_gpu_statistics)
-		cmd_list->end_query(effect.query_heap, api::query_type::timestamp, technique.query_base_index + (_framecount % NUM_QUERY_FRAMES) * 2 + 1);
+		cmd_list->finish_query(effect.query_heap, api::query_type::timestamp, technique.query_base_index + (_framecount % NUM_QUERY_FRAMES) * 2 + 1);
 
 	invoke_addon_event<addon_event::reshade_after_effects>(this, cmd_list);
 }

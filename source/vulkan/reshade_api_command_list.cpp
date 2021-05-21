@@ -11,6 +11,14 @@
 
 #define vk _device_impl->_dispatch_table
 
+static inline void convert_subresource(uint32_t subresource, const VkImageCreateInfo &create_info, VkImageSubresourceLayers &result)
+{
+	result.aspectMask = aspect_flags_from_format(create_info.format);
+	result.mipLevel = subresource % create_info.mipLevels;
+	result.baseArrayLayer = subresource / create_info.mipLevels;
+	result.layerCount = 1;
+}
+
 reshade::vulkan::command_list_impl::command_list_impl(device_impl *device, VkCommandBuffer cmd_list) :
 	api_object_impl(cmd_list), _device_impl(device), _has_commands(cmd_list != VK_NULL_HANDLE)
 {
@@ -26,6 +34,60 @@ reshade::vulkan::command_list_impl::~command_list_impl()
 reshade::api::device *reshade::vulkan::command_list_impl::get_device()
 {
 	return _device_impl;
+}
+
+void reshade::vulkan::command_list_impl::barrier(uint32_t count, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states)
+{
+	if (count == 0)
+		return;
+
+	_has_commands = true;
+
+	std::vector<VkImageMemoryBarrier> image_barriers;
+	image_barriers.reserve(count);
+	std::vector<VkBufferMemoryBarrier> buffer_barriers;
+	buffer_barriers.reserve(count);
+
+	VkPipelineStageFlags src_stage_mask = 0;
+	VkPipelineStageFlags dst_stage_mask = 0;
+
+	for (uint32_t i = 0; i < count; ++i)
+	{
+		const resource_data &data = _device_impl->_resources.at(resources[i].handle);
+
+		if (data.is_image())
+		{
+			VkImageMemoryBarrier &transition = image_barriers.emplace_back();
+			transition = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+			transition.srcAccessMask = convert_usage_to_access(old_states[i]);
+			transition.dstAccessMask = convert_usage_to_access(new_states[i]);
+			transition.oldLayout = convert_usage_to_image_layout(old_states[i]);
+			transition.newLayout = convert_usage_to_image_layout(new_states[i]);
+			transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			transition.image = data.image;
+			transition.subresourceRange = { aspect_flags_from_format(data.image_create_info.format), 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
+		}
+		else
+		{
+			VkBufferMemoryBarrier &transition = buffer_barriers.emplace_back();
+			transition = { VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER };
+			transition.srcAccessMask = convert_usage_to_access(old_states[i]);
+			transition.dstAccessMask = convert_usage_to_access(new_states[i]);
+			transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			transition.buffer = data.buffer;
+			transition.offset = 0;
+			transition.size = VK_WHOLE_SIZE;
+		}
+
+		src_stage_mask |= convert_usage_to_pipeline_stage(old_states[i], true, _device_impl->_enabled_features);
+		dst_stage_mask |= convert_usage_to_pipeline_stage(new_states[i], false, _device_impl->_enabled_features);
+	}
+
+	assert(src_stage_mask != 0 && dst_stage_mask != 0);
+
+	vk.CmdPipelineBarrier(_orig, src_stage_mask, dst_stage_mask, 0, 0, nullptr, static_cast<uint32_t>(buffer_barriers.size()), buffer_barriers.data(), static_cast<uint32_t>(image_barriers.size()), image_barriers.data());
 }
 
 void reshade::vulkan::command_list_impl::bind_pipeline(api::pipeline_type type, api::pipeline pipeline)
@@ -281,7 +343,7 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 	current_renderpass = begin_info.renderPass;
 	current_framebuffer = begin_info.framebuffer;
 }
-void reshade::vulkan::command_list_impl::end_render_pass()
+void reshade::vulkan::command_list_impl::finish_render_pass()
 {
 	vk.CmdEndRenderPass(_orig);
 
@@ -289,96 +351,6 @@ void reshade::vulkan::command_list_impl::end_render_pass()
 	current_framebuffer = VK_NULL_HANDLE;
 }
 
-static inline void convert_subresource(uint32_t subresource, const VkImageCreateInfo &create_info, VkImageSubresourceLayers &result)
-{
-	result.aspectMask = aspect_flags_from_format(create_info.format);
-	result.mipLevel = subresource % create_info.mipLevels;
-	result.baseArrayLayer = subresource / create_info.mipLevels;
-	result.layerCount = 1;
-}
-
-void reshade::vulkan::command_list_impl::blit(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], api::texture_filter filter)
-{
-	_has_commands = true;
-
-	const resource_data &src_data = _device_impl->_resources.at(src.handle);
-	const resource_data &dst_data = _device_impl->_resources.at(dst.handle);
-	assert(src_data.is_image() && dst_data.is_image());
-
-	VkImageBlit region;
-
-	convert_subresource(src_subresource, src_data.image_create_info, region.srcSubresource);
-	if (src_box != nullptr)
-	{
-		std::copy_n(src_box, 6, &region.srcOffsets[0].x);
-	}
-	else
-	{
-		region.srcOffsets[0] = { 0, 0, 0 };
-		region.srcOffsets[1] = {
-			static_cast<int32_t>(std::max(1u, src_data.image_create_info.extent.width  >> region.srcSubresource.mipLevel)),
-			static_cast<int32_t>(std::max(1u, src_data.image_create_info.extent.height >> region.srcSubresource.mipLevel)),
-			static_cast<int32_t>(std::max(1u, src_data.image_create_info.extent.depth  >> region.srcSubresource.mipLevel)) };
-	}
-
-	convert_subresource(dst_subresource, dst_data.image_create_info, region.dstSubresource);
-	if (dst_box != nullptr)
-	{
-		std::copy_n(dst_box, 6, &region.dstOffsets[0].x);
-	}
-	else
-	{
-		region.dstOffsets[0] = { 0, 0, 0 };
-		region.dstOffsets[1] = {
-			static_cast<int32_t>(std::max(1u, dst_data.image_create_info.extent.width  >> region.dstSubresource.mipLevel)),
-			static_cast<int32_t>(std::max(1u, dst_data.image_create_info.extent.height >> region.dstSubresource.mipLevel)),
-			static_cast<int32_t>(std::max(1u, dst_data.image_create_info.extent.depth  >> region.dstSubresource.mipLevel)) };
-	}
-
-	vk.CmdBlitImage(_orig,
-		(VkImage)src.handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-		(VkImage)dst.handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-		1, &region,
-		filter == api::texture_filter::min_mag_mip_linear || filter == api::texture_filter::min_mag_linear_mip_point ? VK_FILTER_LINEAR : VK_FILTER_NEAREST);
-}
-void reshade::vulkan::command_list_impl::resolve(api::resource src, uint32_t src_subresource, const int32_t src_offset[3], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3], api::format)
-{
-	_has_commands = true;
-
-	const resource_data &src_data = _device_impl->_resources.at(src.handle);
-	const resource_data &dst_data = _device_impl->_resources.at(dst.handle);
-	assert(src_data.is_image() && dst_data.is_image());
-
-	VkImageResolve region;
-
-	convert_subresource(src_subresource, src_data.image_create_info, region.srcSubresource);
-	if (src_offset != nullptr)
-		std::copy_n(src_offset, 3, &region.srcOffset.x);
-	else
-		region.srcOffset = { 0, 0, 0 };
-
-	convert_subresource(dst_subresource, dst_data.image_create_info, region.dstSubresource);
-	if (dst_offset != nullptr)
-		std::copy_n(dst_offset, 3, &region.dstOffset.x);
-	else
-		region.dstOffset = { 0, 0, 0 };
-
-	if (size != nullptr)
-	{
-		std::copy_n(size, 3, &region.extent.width);
-	}
-	else
-	{
-		region.extent.width  = std::max(1u, src_data.image_create_info.extent.width  >> region.srcSubresource.mipLevel);
-		region.extent.height = std::max(1u, src_data.image_create_info.extent.height >> region.srcSubresource.mipLevel);
-		region.extent.depth  = std::max(1u, src_data.image_create_info.extent.depth  >> region.srcSubresource.mipLevel);
-	}
-
-	vk.CmdResolveImage(_orig,
-		(VkImage)src.handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-		(VkImage)dst.handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-		1, &region);
-}
 void reshade::vulkan::command_list_impl::copy_resource(api::resource src, api::resource dst)
 {
 	const api::resource_desc desc = _device_impl->get_resource_desc(src);
@@ -389,13 +361,13 @@ void reshade::vulkan::command_list_impl::copy_resource(api::resource src, api::r
 	}
 	else
 	{
-		for (uint32_t layer = 0, layers = (desc.type != api::resource_type::texture_3d) ? desc.texture.depth_or_layers : 1; layer < layers; ++layer)
+		for (uint32_t layer = 0; layer < desc.texture.depth_or_layers; ++layer)
 		{
 			for (uint32_t level = 0; level < desc.texture.levels; ++level)
 			{
 				const uint32_t subresource = level + layer * desc.texture.levels;
 
-				copy_texture_region(src, subresource, nullptr, dst, subresource, nullptr, nullptr);
+				copy_texture_region(src, subresource, nullptr, dst, subresource, nullptr, api::texture_filter::min_mag_mip_point);
 			}
 		}
 	}
@@ -441,7 +413,7 @@ void reshade::vulkan::command_list_impl::copy_buffer_to_texture(api::resource sr
 
 	vk.CmdCopyBufferToImage(_orig, (VkBuffer)src.handle, (VkImage)dst.handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 }
-void reshade::vulkan::command_list_impl::copy_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_offset[3], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3])
+void reshade::vulkan::command_list_impl::copy_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], api::texture_filter filter)
 {
 	_has_commands = true;
 
@@ -449,32 +421,81 @@ void reshade::vulkan::command_list_impl::copy_texture_region(api::resource src, 
 	const resource_data &dst_data = _device_impl->_resources.at(dst.handle);
 	assert(src_data.is_image() && dst_data.is_image());
 
-	VkImageCopy region;
-
-	convert_subresource(src_subresource, src_data.image_create_info, region.srcSubresource);
-	if (src_offset != nullptr)
-		std::copy_n(src_offset, 3, &region.srcOffset.x);
-	else
-		region.srcOffset = { 0, 0, 0 };
-
-	convert_subresource(dst_subresource, dst_data.image_create_info, region.dstSubresource);
-	if (dst_offset != nullptr)
-		std::copy_n(dst_offset, 3, &region.dstOffset.x);
-	else
-		region.dstOffset = { 0, 0, 0 };
-
-	if (size != nullptr)
+	if ((src_box == nullptr && dst_box == nullptr) || (src_box != nullptr && dst_box != nullptr &&
+		(src_box[3] - src_box[0]) == (dst_box[3] - dst_box[0]) &&
+		(src_box[4] - src_box[1]) == (dst_box[4] - dst_box[1]) &&
+		(src_box[5] - src_box[2]) == (dst_box[5] - dst_box[2])))
 	{
-		std::copy_n(size, 3, &region.extent.width);
+		VkImageCopy region;
+
+		convert_subresource(src_subresource, src_data.image_create_info, region.srcSubresource);
+		if (src_box != nullptr)
+			std::copy_n(src_box, 3, &region.srcOffset.x);
+		else
+			region.srcOffset = { 0, 0, 0 };
+
+		convert_subresource(dst_subresource, dst_data.image_create_info, region.dstSubresource);
+		if (dst_box != nullptr)
+			std::copy_n(dst_box, 3, &region.dstOffset.x);
+		else
+			region.dstOffset = { 0, 0, 0 };
+
+		if (src_box != nullptr)
+		{
+			region.extent.width = src_box[3] - src_box[0];
+			region.extent.height = src_box[4] - src_box[1];
+			region.extent.depth = src_box[5] - src_box[2];
+		}
+		else
+		{
+			region.extent.width = std::max(1u, src_data.image_create_info.extent.width >> region.srcSubresource.mipLevel);
+			region.extent.height = std::max(1u, src_data.image_create_info.extent.height >> region.srcSubresource.mipLevel);
+			region.extent.depth = std::max(1u, src_data.image_create_info.extent.depth >> region.srcSubresource.mipLevel);
+		}
+
+		vk.CmdCopyImage(_orig,
+			(VkImage)src.handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+			(VkImage)dst.handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+			1, &region);
 	}
 	else
 	{
-		region.extent.width  = std::max(1u, src_data.image_create_info.extent.width  >> region.srcSubresource.mipLevel);
-		region.extent.height = std::max(1u, src_data.image_create_info.extent.height >> region.srcSubresource.mipLevel);
-		region.extent.depth  = std::max(1u, src_data.image_create_info.extent.depth  >> region.srcSubresource.mipLevel);
-	}
+		VkImageBlit region;
 
-	vk.CmdCopyImage(_orig, (VkImage)src.handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, (VkImage)dst.handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+		convert_subresource(src_subresource, src_data.image_create_info, region.srcSubresource);
+		if (src_box != nullptr)
+		{
+			std::copy_n(src_box, 6, &region.srcOffsets[0].x);
+		}
+		else
+		{
+			region.srcOffsets[0] = { 0, 0, 0 };
+			region.srcOffsets[1] = {
+				static_cast<int32_t>(std::max(1u, src_data.image_create_info.extent.width >> region.srcSubresource.mipLevel)),
+				static_cast<int32_t>(std::max(1u, src_data.image_create_info.extent.height >> region.srcSubresource.mipLevel)),
+				static_cast<int32_t>(std::max(1u, src_data.image_create_info.extent.depth >> region.srcSubresource.mipLevel)) };
+		}
+
+		convert_subresource(dst_subresource, dst_data.image_create_info, region.dstSubresource);
+		if (dst_box != nullptr)
+		{
+			std::copy_n(dst_box, 6, &region.dstOffsets[0].x);
+		}
+		else
+		{
+			region.dstOffsets[0] = { 0, 0, 0 };
+			region.dstOffsets[1] = {
+				static_cast<int32_t>(std::max(1u, dst_data.image_create_info.extent.width >> region.dstSubresource.mipLevel)),
+				static_cast<int32_t>(std::max(1u, dst_data.image_create_info.extent.height >> region.dstSubresource.mipLevel)),
+				static_cast<int32_t>(std::max(1u, dst_data.image_create_info.extent.depth >> region.dstSubresource.mipLevel)) };
+		}
+
+		vk.CmdBlitImage(_orig,
+			(VkImage)src.handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+			(VkImage)dst.handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+			1, &region,
+			filter == api::texture_filter::min_mag_mip_linear || filter == api::texture_filter::min_mag_linear_mip_point ? VK_FILTER_LINEAR : VK_FILTER_NEAREST);
+	}
 }
 void reshade::vulkan::command_list_impl::copy_texture_to_buffer(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint64_t dst_offset, uint32_t row_length, uint32_t slice_height)
 {
@@ -505,6 +526,44 @@ void reshade::vulkan::command_list_impl::copy_texture_to_buffer(api::resource sr
 	}
 
 	vk.CmdCopyImageToBuffer(_orig, (VkImage)src.handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, (VkBuffer)dst.handle, 1, &region);
+}
+void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_offset[3], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3], api::format)
+{
+	_has_commands = true;
+
+	const resource_data &src_data = _device_impl->_resources.at(src.handle);
+	const resource_data &dst_data = _device_impl->_resources.at(dst.handle);
+	assert(src_data.is_image() && dst_data.is_image());
+
+	VkImageResolve region;
+
+	convert_subresource(src_subresource, src_data.image_create_info, region.srcSubresource);
+	if (src_offset != nullptr)
+		std::copy_n(src_offset, 3, &region.srcOffset.x);
+	else
+		region.srcOffset = { 0, 0, 0 };
+
+	convert_subresource(dst_subresource, dst_data.image_create_info, region.dstSubresource);
+	if (dst_offset != nullptr)
+		std::copy_n(dst_offset, 3, &region.dstOffset.x);
+	else
+		region.dstOffset = { 0, 0, 0 };
+
+	if (size != nullptr)
+	{
+		std::copy_n(size, 3, &region.extent.width);
+	}
+	else
+	{
+		region.extent.width  = std::max(1u, src_data.image_create_info.extent.width  >> region.srcSubresource.mipLevel);
+		region.extent.height = std::max(1u, src_data.image_create_info.extent.height >> region.srcSubresource.mipLevel);
+		region.extent.depth  = std::max(1u, src_data.image_create_info.extent.depth  >> region.srcSubresource.mipLevel);
+	}
+
+	vk.CmdResolveImage(_orig,
+		(VkImage)src.handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+		(VkImage)dst.handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+		1, &region);
 }
 
 void reshade::vulkan::command_list_impl::generate_mipmaps(api::resource_view srv)
@@ -653,12 +712,16 @@ void reshade::vulkan::command_list_impl::begin_query(api::query_pool pool, api::
 {
 	_has_commands = true;
 
+	assert(pool.handle != 0);
+
 	vk.CmdResetQueryPool(_orig, (VkQueryPool)pool.handle, index, 1);
 	vk.CmdBeginQuery(_orig, (VkQueryPool)pool.handle, index, 0);
 }
-void reshade::vulkan::command_list_impl::end_query(api::query_pool pool, api::query_type type, uint32_t index)
+void reshade::vulkan::command_list_impl::finish_query(api::query_pool pool, api::query_type type, uint32_t index)
 {
 	_has_commands = true;
+
+	assert(pool.handle != 0);
 
 	if (type == api::query_type::timestamp)
 	{
@@ -674,63 +737,29 @@ void reshade::vulkan::command_list_impl::copy_query_results(api::query_pool pool
 {
 	_has_commands = true;
 
+	assert(pool.handle != 0);
+
 	vk.CmdCopyQueryPoolResults(_orig, (VkQueryPool)pool.handle, first, count, (VkBuffer)dst.handle, dst_offset, stride, VK_QUERY_RESULT_64_BIT);
 }
 
-void reshade::vulkan::command_list_impl::insert_barrier(uint32_t count, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states)
+void reshade::vulkan::command_list_impl::add_debug_marker(const char *label, const float color[4])
 {
-	if (count == 0)
+	if (vk.CmdInsertDebugUtilsLabelEXT == nullptr)
 		return;
 
-	_has_commands = true;
+	VkDebugUtilsLabelEXT label_info { VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT };
+	label_info.pLabelName = label;
 
-	std::vector<VkImageMemoryBarrier> image_barriers;
-	image_barriers.reserve(count);
-	std::vector<VkBufferMemoryBarrier> buffer_barriers;
-	buffer_barriers.reserve(count);
-
-	VkPipelineStageFlags src_stage_mask = 0;
-	VkPipelineStageFlags dst_stage_mask = 0;
-
-	for (uint32_t i = 0; i < count; ++i)
+	if (color != nullptr)
 	{
-		const resource_data &data = _device_impl->_resources.at(resources[i].handle);
-
-		if (data.is_image())
-		{
-			VkImageMemoryBarrier &transition = image_barriers.emplace_back();
-			transition = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
-			transition.srcAccessMask = convert_usage_to_access(old_states[i]);
-			transition.dstAccessMask = convert_usage_to_access(new_states[i]);
-			transition.oldLayout = convert_usage_to_image_layout(old_states[i]);
-			transition.newLayout = convert_usage_to_image_layout(new_states[i]);
-			transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-			transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-			transition.image = data.image;
-			transition.subresourceRange = { aspect_flags_from_format(data.image_create_info.format), 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
-		}
-		else
-		{
-			VkBufferMemoryBarrier &transition = buffer_barriers.emplace_back();
-			transition = { VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER };
-			transition.srcAccessMask = convert_usage_to_access(old_states[i]);
-			transition.dstAccessMask = convert_usage_to_access(new_states[i]);
-			transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-			transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-			transition.buffer = data.buffer;
-			transition.offset = 0;
-			transition.size = VK_WHOLE_SIZE;
-		}
-
-		src_stage_mask |= convert_usage_to_pipeline_stage(old_states[i], true, _device_impl->_enabled_features);
-		dst_stage_mask |= convert_usage_to_pipeline_stage(new_states[i], false, _device_impl->_enabled_features);
+		label_info.color[0] = color[0];
+		label_info.color[1] = color[1];
+		label_info.color[2] = color[2];
+		label_info.color[3] = color[3];
 	}
 
-	assert(src_stage_mask != 0 && dst_stage_mask != 0);
-
-	vk.CmdPipelineBarrier(_orig, src_stage_mask, dst_stage_mask, 0, 0, nullptr, static_cast<uint32_t>(buffer_barriers.size()), buffer_barriers.data(), static_cast<uint32_t>(image_barriers.size()), image_barriers.data());
+	vk.CmdInsertDebugUtilsLabelEXT(_orig, &label_info);
 }
-
 void reshade::vulkan::command_list_impl::begin_debug_marker(const char *label, const float color[4])
 {
 	if (vk.CmdBeginDebugUtilsLabelEXT == nullptr)
@@ -750,28 +779,10 @@ void reshade::vulkan::command_list_impl::begin_debug_marker(const char *label, c
 
 	vk.CmdBeginDebugUtilsLabelEXT(_orig, &label_info);
 }
-void reshade::vulkan::command_list_impl::end_debug_marker()
+void reshade::vulkan::command_list_impl::finish_debug_marker()
 {
 	if (vk.CmdEndDebugUtilsLabelEXT == nullptr)
 		return;
 
 	vk.CmdEndDebugUtilsLabelEXT(_orig);
-}
-void reshade::vulkan::command_list_impl::insert_debug_marker(const char *label, const float color[4])
-{
-	if (vk.CmdInsertDebugUtilsLabelEXT == nullptr)
-		return;
-
-	VkDebugUtilsLabelEXT label_info { VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT };
-	label_info.pLabelName = label;
-
-	if (color != nullptr)
-	{
-		label_info.color[0] = color[0];
-		label_info.color[1] = color[1];
-		label_info.color[2] = color[2];
-		label_info.color[3] = color[3];
-	}
-
-	vk.CmdInsertDebugUtilsLabelEXT(_orig, &label_info);
 }

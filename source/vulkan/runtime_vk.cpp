@@ -494,5 +494,5 @@ bool reshade::vulkan::runtime_impl::compile_effect(effect &effect, api::shader_s
 		inst += len;
 	}
 
-	return _device_impl->create_shader_module(type, api::shader_format::spirv, entry_point.c_str(), spirv.data(), spirv.size() * sizeof(uint32_t), &out);
+	return _device_impl->create_shader_module(type, api::shader_format::spirv, spirv.data(), spirv.size() * sizeof(uint32_t), entry_point.c_str(), &out);
 }

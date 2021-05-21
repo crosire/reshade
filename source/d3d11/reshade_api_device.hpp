@@ -23,8 +23,8 @@ namespace reshade::d3d11
 		bool check_capability(api::device_caps capability) const final;
 		bool check_format_support(api::format format, api::resource_usage usage) const final;
 
-		bool check_resource_handle_valid(api::resource handle) const final;
-		bool check_resource_view_handle_valid(api::resource_view handle) const final;
+		bool is_resource_handle_valid(api::resource handle) const final;
+		bool is_resource_view_handle_valid(api::resource_view handle) const final;
 
 		bool create_sampler(const api::sampler_desc &desc, api::sampler *out) final;
 		bool create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage initial_state, api::resource *out) final;
@@ -37,11 +37,11 @@ namespace reshade::d3d11
 		bool create_pipeline_graphics_rasterizer_state(const api::pipeline_desc &desc, api::pipeline *out);
 		bool create_pipeline_graphics_depth_stencil_state(const api::pipeline_desc &desc, api::pipeline *out);
 
-		bool create_shader_module(api::shader_stage type, api::shader_format format, const char *entry_point, const void *code, size_t code_size, api::shader_module *out) final;
+		bool create_shader_module(api::shader_stage type, api::shader_format format, const void *code, size_t code_size, const char *entry_point, api::shader_module *out) final;
 		bool create_pipeline_layout(uint32_t num_set_layouts, const api::descriptor_set_layout *set_layouts, uint32_t num_constant_ranges, const api::constant_range *constant_ranges, api::pipeline_layout *out) final;
+		bool create_descriptor_set_layout(uint32_t num_ranges, const api::descriptor_range *ranges, bool push_descriptors, api::descriptor_set_layout *out) final;
 		bool create_query_pool(api::query_type type, uint32_t count, api::query_pool *out) final;
 		bool create_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, api::descriptor_set *out) final;
-		bool create_descriptor_set_layout(uint32_t num_ranges, const api::descriptor_range *ranges, bool push_descriptors, api::descriptor_set_layout *out) final;
 
 		void destroy_sampler(api::sampler handle) final;
 		void destroy_resource(api::resource handle) final;
@@ -50,14 +50,14 @@ namespace reshade::d3d11
 		void destroy_pipeline(api::pipeline_type type, api::pipeline handle) final;
 		void destroy_shader_module(api::shader_module handle) final;
 		void destroy_pipeline_layout(api::pipeline_layout handle) final;
+		void destroy_descriptor_set_layout(api::descriptor_set_layout handle) final;
 		void destroy_query_pool(api::query_pool handle) final;
 		void destroy_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, const api::descriptor_set *sets) final;
-		void destroy_descriptor_set_layout(api::descriptor_set_layout handle) final;
 
 		void get_resource_from_view(api::resource_view view, api::resource *out_resource) const final;
 		api::resource_desc get_resource_desc(api::resource resource) const final;
 
-		bool map_resource(api::resource resource, uint32_t subresource, api::map_access access, void **mapped_ptr) final;
+		bool map_resource(api::resource resource, uint32_t subresource, api::map_access access, void **data) final;
 		void unmap_resource(api::resource resource, uint32_t subresource) final;
 
 		void upload_buffer_region(const void *data, api::resource dst, uint64_t dst_offset, uint64_t size) final;

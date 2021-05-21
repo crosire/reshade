@@ -210,9 +210,9 @@ static void clear_depth_impl(command_list *cmd_list, state_tracking &state, cons
 			state.best_copy_stats = counters.current_stats;
 
 		// A resource has to be in this state for a clear operation, so can assume it here
-		cmd_list->insert_barrier(depth_stencil, resource_usage::depth_stencil_write, resource_usage::copy_source);
+		cmd_list->barrier(depth_stencil, resource_usage::depth_stencil_write, resource_usage::copy_source);
 		cmd_list->copy_resource(depth_stencil, device_state.backup_texture);
-		cmd_list->insert_barrier(depth_stencil, resource_usage::copy_source, resource_usage::depth_stencil_write);
+		cmd_list->barrier(depth_stencil, resource_usage::copy_source, resource_usage::depth_stencil_write);
 
 		counters.copied_during_frame = true;
 	}
@@ -223,7 +223,7 @@ static void clear_depth_impl(command_list *cmd_list, state_tracking &state, cons
 
 static void on_init_device(device *device)
 {
-	state_tracking_context &device_state = device->create_data<state_tracking_context>(state_tracking_context::GUID);
+	state_tracking_context &device_state = device->create_user_data<state_tracking_context>(state_tracking_context::GUID);
 
 	const reshade::ini_file &config = reshade::global_config();
 	config.get("DEPTH", "DisableINTZ", s_disable_intz);
@@ -236,22 +236,22 @@ static void on_init_device(device *device)
 }
 static void on_destroy_device(device *device)
 {
-	state_tracking_context &device_state = device->get_data<state_tracking_context>(state_tracking_context::GUID);
+	state_tracking_context &device_state = device->get_user_data<state_tracking_context>(state_tracking_context::GUID);
 
 	if (device_state.backup_texture != 0)
 		device->destroy_resource(device_state.backup_texture);
 	if (device_state.selected_shader_resource != 0)
 		device->destroy_resource_view(device_state.selected_shader_resource);
 
-	device->destroy_data<state_tracking_context>(state_tracking_context::GUID);
+	device->destroy_user_data<state_tracking_context>(state_tracking_context::GUID);
 }
 static void on_init_queue_or_command_list(api_object *queue_or_cmd_list)
 {
-	queue_or_cmd_list->create_data<state_tracking>(state_tracking::GUID);
+	queue_or_cmd_list->create_user_data<state_tracking>(state_tracking::GUID);
 }
 static void on_destroy_queue_or_command_list(api_object *queue_or_cmd_list)
 {
-	queue_or_cmd_list->destroy_data<state_tracking>(state_tracking::GUID);
+	queue_or_cmd_list->destroy_user_data<state_tracking>(state_tracking::GUID);
 }
 
 static bool on_create_resource(
@@ -316,7 +316,7 @@ static bool on_create_resource_view(
 
 static bool on_draw(command_list *cmd_list, uint32_t vertices, uint32_t instances, uint32_t, uint32_t)
 {
-	auto &state = cmd_list->get_data<state_tracking>(state_tracking::GUID);
+	auto &state = cmd_list->get_user_data<state_tracking>(state_tracking::GUID);
 	if (state.current_depth_stencil == 0)
 		return false; // This is a draw call with no depth-stencil bound
 
@@ -353,7 +353,7 @@ static bool on_draw_indirect(command_list *cmd_list, uint32_t type, resource, ui
 		for (uint32_t i = 0; i < draw_count; ++i)
 			on_draw(cmd_list, 0, 0, 0, 0);
 
-		auto &state = cmd_list->get_data<state_tracking>(state_tracking::GUID);
+		auto &state = cmd_list->get_user_data<state_tracking>(state_tracking::GUID);
 		state.has_indirect_drawcalls = true;
 	}
 
@@ -364,13 +364,13 @@ static void on_bind_viewport(command_list *cmd_list, uint32_t first, uint32_t co
 	if (first != 0 || count == 0)
 		return; // Only interested in the main viewport
 
-	auto &state = cmd_list->get_data<state_tracking>(state_tracking::GUID);
+	auto &state = cmd_list->get_user_data<state_tracking>(state_tracking::GUID);
 	std::memcpy(state.current_viewport, viewport, 6 * sizeof(float));
 }
 static void on_bind_depth_stencil(command_list *cmd_list, uint32_t, const resource_view *, resource_view dsv)
 {
 	device *const device = cmd_list->get_device();
-	auto &state = cmd_list->get_data<state_tracking>(state_tracking::GUID);
+	auto &state = cmd_list->get_user_data<state_tracking>(state_tracking::GUID);
 
 	resource depth_stencil = { 0 };
 	if (dsv != 0)
@@ -381,7 +381,7 @@ static void on_bind_depth_stencil(command_list *cmd_list, uint32_t, const resour
 	// Make a backup of the depth texture before it is used differently, since in D3D12 or Vulkan the underlying memory may be aliased to a different resource, so cannot just access it at the end of the frame
 	if (depth_stencil != state.current_depth_stencil && state.current_depth_stencil != 0 && (device->get_api() == device_api::d3d12 || device->get_api() == device_api::vulkan))
 	{
-		clear_depth_impl(cmd_list, state, device->get_data<state_tracking_context>(state_tracking_context::GUID), state.current_depth_stencil, true);
+		clear_depth_impl(cmd_list, state, device->get_user_data<state_tracking_context>(state_tracking_context::GUID), state.current_depth_stencil, true);
 	}
 
 	state.current_depth_stencil = depth_stencil;
@@ -389,7 +389,7 @@ static void on_bind_depth_stencil(command_list *cmd_list, uint32_t, const resour
 static bool on_clear_depth_stencil(command_list *cmd_list, resource_view dsv, uint32_t clear_flags, float, uint8_t)
 {
 	device *const device = cmd_list->get_device();
-	const state_tracking_context &device_state = device->get_data<state_tracking_context>(state_tracking_context::GUID);
+	const state_tracking_context &device_state = device->get_user_data<state_tracking_context>(state_tracking_context::GUID);
 
 	// Ignore clears that do not affect the depth buffer (stencil clears)
 	if ((clear_flags & 0x1) != 0 && device_state.preserve_depth_buffers)
@@ -397,7 +397,7 @@ static bool on_clear_depth_stencil(command_list *cmd_list, resource_view dsv, ui
 		resource depth_stencil = { 0 };
 		device->get_resource_from_view(dsv, &depth_stencil);
 
-		clear_depth_impl(cmd_list, cmd_list->get_data<state_tracking>(state_tracking::GUID), device_state, depth_stencil, false);
+		clear_depth_impl(cmd_list, cmd_list->get_user_data<state_tracking>(state_tracking::GUID), device_state, depth_stencil, false);
 	}
 
 	return false;
@@ -405,13 +405,13 @@ static bool on_clear_depth_stencil(command_list *cmd_list, resource_view dsv, ui
 
 static void on_reset(command_list *cmd_list)
 {
-	auto &target_state = cmd_list->get_data<state_tracking>(state_tracking::GUID);
+	auto &target_state = cmd_list->get_user_data<state_tracking>(state_tracking::GUID);
 	target_state.reset();
 }
 static void on_execute(api_object *queue_or_cmd_list, command_list *cmd_list)
 {
-	auto &source_state = cmd_list->get_data<state_tracking>(state_tracking::GUID);
-	auto &target_state = queue_or_cmd_list->get_data<state_tracking>(state_tracking::GUID);
+	auto &source_state = cmd_list->get_user_data<state_tracking>(state_tracking::GUID);
+	auto &target_state = queue_or_cmd_list->get_user_data<state_tracking>(state_tracking::GUID);
 	target_state.merge(source_state);
 }
 
@@ -419,8 +419,8 @@ static void on_present(command_queue *, effect_runtime *runtime)
 {
 	device *const device = runtime->get_device();
 	command_queue *const queue = runtime->get_command_queue();
-	state_tracking &queue_state = queue->get_data<state_tracking>(state_tracking::GUID);
-	state_tracking_context &device_state = device->get_data<state_tracking_context>(state_tracking_context::GUID);
+	state_tracking &queue_state = queue->get_user_data<state_tracking>(state_tracking::GUID);
+	state_tracking_context &device_state = device->get_user_data<state_tracking_context>(state_tracking_context::GUID);
 
 #if RESHADE_GUI
 	device_state.current_depth_stencil_list.clear();
@@ -437,7 +437,7 @@ static void on_present(command_queue *, effect_runtime *runtime)
 	for (const auto &[depth_stencil_handle, snapshot] : queue_state.counters_per_used_depth_stencil)
 	{
 		resource const resource = { depth_stencil_handle };
-		if (!device->check_resource_handle_valid(resource))
+		if (!device->is_resource_handle_valid(resource))
 			continue; // Skip resources that were destroyed by the application
 
 #if RESHADE_GUI
@@ -468,7 +468,7 @@ static void on_present(command_queue *, effect_runtime *runtime)
 	}
 
 	if (device_state.override_depth_stencil != 0 &&
-		device->check_resource_handle_valid(device_state.override_depth_stencil))
+		device->is_resource_handle_valid(device_state.override_depth_stencil))
 	{
 		best_desc = device->get_resource_desc(device_state.override_depth_stencil);
 		best_match = device_state.override_depth_stencil;
@@ -534,9 +534,9 @@ static void on_present(command_queue *, effect_runtime *runtime)
 			{
 				command_list *const cmd_list = queue->get_immediate_command_list();
 
-				cmd_list->insert_barrier(best_match, resource_usage::depth_stencil | resource_usage::shader_resource, resource_usage::copy_source);
+				cmd_list->barrier(best_match, resource_usage::depth_stencil | resource_usage::shader_resource, resource_usage::copy_source);
 				cmd_list->copy_resource(best_match, device_state.backup_texture);
-				cmd_list->insert_barrier(best_match, resource_usage::copy_source, resource_usage::depth_stencil | resource_usage::shader_resource);
+				cmd_list->barrier(best_match, resource_usage::copy_source, resource_usage::depth_stencil | resource_usage::shader_resource);
 			}
 		}
 
@@ -569,7 +569,7 @@ static void on_present(command_queue *, effect_runtime *runtime)
 static void on_init_effect_runtime(effect_runtime *runtime)
 {
 	device *const device = runtime->get_device();
-	const state_tracking_context &device_state = device->get_data<state_tracking_context>(state_tracking_context::GUID);
+	const state_tracking_context &device_state = device->get_user_data<state_tracking_context>(state_tracking_context::GUID);
 
 	// Need to set texture binding again after a runtime was reset
 	runtime->update_texture_bindings("DEPTH", device_state.selected_shader_resource);
@@ -580,7 +580,7 @@ static void on_init_effect_runtime(effect_runtime *runtime)
 static void on_before_render_effects(effect_runtime *runtime, command_list *cmd_list)
 {
 	device *const device = runtime->get_device();
-	const state_tracking_context &device_state = device->get_data<state_tracking_context>(state_tracking_context::GUID);
+	const state_tracking_context &device_state = device->get_user_data<state_tracking_context>(state_tracking_context::GUID);
 
 	if (device_state.selected_shader_resource != 0)
 	{
@@ -589,18 +589,18 @@ static void on_before_render_effects(effect_runtime *runtime, command_list *cmd_
 
 		if (resource == device_state.backup_texture)
 		{
-			cmd_list->insert_barrier(resource, resource_usage::copy_dest, resource_usage::shader_resource);
+			cmd_list->barrier(resource, resource_usage::copy_dest, resource_usage::shader_resource);
 		}
 		else
 		{
-			cmd_list->insert_barrier(resource, resource_usage::depth_stencil | resource_usage::shader_resource, resource_usage::shader_resource);
+			cmd_list->barrier(resource, resource_usage::depth_stencil | resource_usage::shader_resource, resource_usage::shader_resource);
 		}
 	}
 }
 static void on_after_render_effects(effect_runtime *runtime, command_list *cmd_list)
 {
 	device *const device = runtime->get_device();
-	const state_tracking_context &device_state = device->get_data<state_tracking_context>(state_tracking_context::GUID);
+	const state_tracking_context &device_state = device->get_user_data<state_tracking_context>(state_tracking_context::GUID);
 
 	if (device_state.selected_shader_resource != 0)
 	{
@@ -609,11 +609,11 @@ static void on_after_render_effects(effect_runtime *runtime, command_list *cmd_l
 
 		if (resource == device_state.backup_texture)
 		{
-			cmd_list->insert_barrier(resource, resource_usage::shader_resource, resource_usage::copy_dest);
+			cmd_list->barrier(resource, resource_usage::shader_resource, resource_usage::copy_dest);
 		}
 		else
 		{
-			cmd_list->insert_barrier(resource, resource_usage::shader_resource, resource_usage::depth_stencil | resource_usage::shader_resource);
+			cmd_list->barrier(resource, resource_usage::shader_resource, resource_usage::depth_stencil | resource_usage::shader_resource);
 		}
 	}
 }
@@ -622,7 +622,7 @@ static void on_after_render_effects(effect_runtime *runtime, command_list *cmd_l
 static void draw_debug_menu(effect_runtime *runtime, void *)
 {
 	device *const device = runtime->get_device();
-	state_tracking_context &device_state = device->get_data<state_tracking_context>(state_tracking_context::GUID);
+	state_tracking_context &device_state = device->get_user_data<state_tracking_context>(state_tracking_context::GUID);
 
 	bool modified = false;
 	if (device->get_api() == device_api::d3d9)
@@ -655,7 +655,7 @@ static void draw_debug_menu(effect_runtime *runtime, void *)
 
 	for (const auto &[resource, snapshot] : device_state.current_depth_stencil_list)
 	{
-		if (!device->check_resource_handle_valid(resource))
+		if (!device->is_resource_handle_valid(resource))
 			continue;
 
 		if (auto it = device_state.display_count_per_depth_stencil.find(resource.handle);

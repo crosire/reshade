@@ -587,36 +587,32 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurface(UINT Width,
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::UpdateSurface(IDirect3DSurface9 *pSourceSurface, const RECT *pSourceRect, IDirect3DSurface9 *pDestinationSurface, const POINT *pDestPoint)
 {
 #if RESHADE_ADDON
-	int32_t src_offset[3];
-	uint32_t extent[3];
+	int32_t src_box[6];
+	int32_t dst_box[6];
 	if (pSourceRect != nullptr)
 	{
-		src_offset[0] = pSourceRect->left;
-		src_offset[1] = pSourceRect->top;
-		src_offset[2] = 0;
-		extent[0] = pSourceRect->right - pSourceRect->left;
-		extent[1] = pSourceRect->bottom - pSourceRect->top;
-		extent[2] = 1;
-	}
-	else
-	{
-		D3DSURFACE_DESC desc;
-		pDestinationSurface->GetDesc(&desc);
-		extent[0] = desc.Width;
-		extent[1] = desc.Height;
-		extent[2] = 1;
-	}
-	int32_t dst_offset[3];
-	if (pDestPoint != nullptr)
-	{
-		dst_offset[0] = pDestPoint->x;
-		dst_offset[1] = pDestPoint->y;
-		dst_offset[2] = 0;
+		src_box[0] = pSourceRect->left;
+		src_box[1] = pSourceRect->top;
+		src_box[2] = 0;
+		src_box[3] = pSourceRect->right;
+		src_box[4] = pSourceRect->bottom;
+		src_box[5] = 1;
+
+		if (pDestPoint != nullptr)
+		{
+			dst_box[0] = pDestPoint->x;
+			dst_box[1] = pDestPoint->y;
+			dst_box[2] = 0;
+			dst_box[3] = pDestPoint->x + pSourceRect->right - pSourceRect->left;
+			dst_box[4] = pDestPoint->y + pSourceRect->bottom - pSourceRect->top;
+			dst_box[5] = 1;
+		}
 	}
 
 	if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(this,
-		reshade::api::resource { reinterpret_cast<uintptr_t>(pSourceSurface) }, 0, (pSourceRect != nullptr) ? src_offset : nullptr,
-		reshade::api::resource { reinterpret_cast<uintptr_t>(pDestinationSurface) }, 0, (pDestPoint != nullptr) ? dst_offset : nullptr, extent))
+		reshade::api::resource { reinterpret_cast<uintptr_t>(pSourceSurface) }, 0, (pSourceRect != nullptr) ? src_box : nullptr,
+		reshade::api::resource { reinterpret_cast<uintptr_t>(pDestinationSurface) }, 0, (pSourceRect != nullptr && pDestPoint != nullptr) ? dst_box : nullptr,
+		reshade::api::texture_filter::min_mag_mip_point))
 		return D3D_OK;
 #endif
 	return _orig->UpdateSurface(pSourceSurface, pSourceRect, pDestinationSurface, pDestPoint);
@@ -647,6 +643,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::StretchRect(IDirect3DSurface9 *pSourc
 {
 #if RESHADE_ADDON
 	int32_t src_box[6];
+	int32_t dst_box[6];
 	if (pSourceRect != nullptr)
 	{
 		src_box[0] = pSourceRect->left;
@@ -656,7 +653,6 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::StretchRect(IDirect3DSurface9 *pSourc
 		src_box[4] = pSourceRect->bottom;
 		src_box[5] = 1;
 	}
-	int32_t dst_box[6];
 	if (pDestRect != nullptr)
 	{
 		dst_box[0] = pDestRect->left;
@@ -672,7 +668,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::StretchRect(IDirect3DSurface9 *pSourc
 
 	if (desc.MultiSampleType == D3DMULTISAMPLE_NONE)
 	{
-		if (reshade::invoke_addon_event<reshade::addon_event::blit>(this,
+		if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(this,
 			reshade::api::resource { reinterpret_cast<uintptr_t>(pSourceSurface) }, 0, (pSourceRect != nullptr) ? src_box : nullptr,
 			reshade::api::resource { reinterpret_cast<uintptr_t>(pDestSurface) }, 0, (pDestRect != nullptr) ? dst_box : nullptr,
 			Filter == D3DTEXF_NONE || Filter == D3DTEXF_POINT ? reshade::api::texture_filter::min_mag_mip_point : reshade::api::texture_filter::min_mag_mip_linear))
@@ -682,7 +678,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::StretchRect(IDirect3DSurface9 *pSourc
 	{
 		const uint32_t extent[3] = { desc.Width, desc.Height, 1 };
 
-		if (reshade::invoke_addon_event<reshade::addon_event::resolve>(this,
+		if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(this,
 			reshade::api::resource { reinterpret_cast<uintptr_t>(pSourceSurface) }, 0, (pSourceRect != nullptr) ? src_box : nullptr,
 			reshade::api::resource { reinterpret_cast<uintptr_t>(pDestSurface) }, 0, (pDestRect != nullptr) ? dst_box : nullptr,
 			extent,
@@ -712,7 +708,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetRenderTarget(DWORD RenderTargetInd
 {
 #if RESHADE_ADDON
 	if (RenderTargetIndex == 0)
-		reshade::invoke_addon_event<reshade::addon_event::end_render_pass>(this);
+		reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(this);
 #endif
 
 	const HRESULT hr = _orig->SetRenderTarget(RenderTargetIndex, pRenderTarget);
@@ -769,7 +765,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetRenderTarget(DWORD RenderTargetInd
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetDepthStencilSurface(IDirect3DSurface9 *pNewZStencil)
 {
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::end_render_pass>(this);
+	reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(this);
 #endif
 
 	const HRESULT hr = _orig->SetDepthStencilSurface(pNewZStencil);

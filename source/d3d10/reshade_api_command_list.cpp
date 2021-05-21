@@ -298,7 +298,7 @@ void reshade::d3d10::device_impl::begin_render_pass(uint32_t count, const api::r
 
 	_orig->OMSetRenderTargets(count, rtv_ptrs, reinterpret_cast<ID3D10DepthStencilView *>(dsv.handle));
 }
-void reshade::d3d10::device_impl::end_render_pass()
+void reshade::d3d10::device_impl::finish_render_pass()
 {
 	// Reset render targets
 	_orig->OMSetRenderTargets(0, nullptr, nullptr);
@@ -310,19 +310,6 @@ void reshade::d3d10::device_impl::end_render_pass()
 	_orig->PSSetShaderResources(0, ARRAYSIZE(null_srv), null_srv);
 }
 
-void reshade::d3d10::device_impl::blit(api::resource, uint32_t, const int32_t[6], api::resource, uint32_t, const int32_t[6], api::texture_filter)
-{
-	assert(false);
-}
-void reshade::d3d10::device_impl::resolve(api::resource src, uint32_t src_subresource, const int32_t src_offset[3], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3], api::format format)
-{
-	assert(src.handle != 0 && dst.handle != 0);
-	assert(src_offset == nullptr && dst_offset == nullptr && size == nullptr);
-
-	_orig->ResolveSubresource(
-		reinterpret_cast<ID3D10Resource *>(dst.handle), dst_subresource,
-		reinterpret_cast<ID3D10Resource *>(src.handle), src_subresource, convert_format(format));
-}
 void reshade::d3d10::device_impl::copy_resource(api::resource src, api::resource dst)
 {
 	assert(src.handle != 0 && dst.handle != 0);
@@ -344,45 +331,30 @@ void reshade::d3d10::device_impl::copy_buffer_to_texture(api::resource, uint64_t
 {
 	assert(false);
 }
-void reshade::d3d10::device_impl::copy_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_offset[3], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3])
+void reshade::d3d10::device_impl::copy_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], api::texture_filter)
 {
 	assert(src.handle != 0 && dst.handle != 0);
-
-	D3D10_BOX src_box;
-	if (src_offset != nullptr)
-	{
-		src_box.left = src_offset[0];
-		src_box.top = src_offset[1];
-		src_box.front = src_offset[2];
-	}
-	else
-	{
-		src_box.left = 0;
-		src_box.top = 0;
-		src_box.front = 0;
-	}
-
-	if (size != nullptr)
-	{
-		src_box.right = src_box.left + size[0];
-		src_box.bottom = src_box.top + size[1];
-		src_box.back = src_box.front + size[2];
-	}
-	else
-	{
-		const api::resource_desc desc = get_resource_desc(src);
-		src_box.right = src_box.left + std::max(1u, desc.texture.width >> (src_subresource % desc.texture.levels));
-		src_box.bottom = src_box.top + std::max(1u, desc.texture.height >> (src_subresource % desc.texture.levels));
-		src_box.back = src_box.front + (desc.type == api::resource_type::texture_3d ? std::max(1u, static_cast<uint32_t>(desc.texture.depth_or_layers) >> (src_subresource % desc.texture.levels)) : 1u);
-	}
+	assert((src_box == nullptr && dst_box == nullptr) || (src_box != nullptr && dst_box != nullptr &&
+		(dst_box[3] - dst_box[0]) == (src_box[3] - src_box[0]) && // Blit between different region dimensions is not supported
+		(dst_box[4] - dst_box[1]) == (src_box[4] - src_box[1]) &&
+		(dst_box[5] - dst_box[2]) == (src_box[5] - src_box[2])));
 
 	_orig->CopySubresourceRegion(
-		reinterpret_cast<ID3D10Resource *>(dst.handle), src_subresource, dst_offset != nullptr ? dst_offset[0] : 0, dst_offset != nullptr ? dst_offset[1] : 0, dst_offset != nullptr ? dst_offset[2] : 0,
-		reinterpret_cast<ID3D10Resource *>(src.handle), dst_subresource, &src_box);
+		reinterpret_cast<ID3D10Resource *>(dst.handle), src_subresource, dst_box != nullptr ? dst_box[0] : 0, dst_box != nullptr ? dst_box[1] : 0, dst_box != nullptr ? dst_box[2] : 0,
+		reinterpret_cast<ID3D10Resource *>(src.handle), dst_subresource, reinterpret_cast<const D3D10_BOX *>(src_box));
 }
 void reshade::d3d10::device_impl::copy_texture_to_buffer(api::resource, uint32_t, const int32_t[6], api::resource, uint64_t, uint32_t, uint32_t)
 {
 	assert(false);
+}
+void reshade::d3d10::device_impl::resolve_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_offset[3], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3], api::format format)
+{
+	assert(src.handle != 0 && dst.handle != 0);
+	assert(src_offset == nullptr && dst_offset == nullptr && size == nullptr);
+
+	_orig->ResolveSubresource(
+		reinterpret_cast<ID3D10Resource *>(dst.handle), dst_subresource,
+		reinterpret_cast<ID3D10Resource *>(src.handle), src_subresource, convert_format(format));
 }
 
 void reshade::d3d10::device_impl::generate_mipmaps(api::resource_view srv)
@@ -418,23 +390,17 @@ void reshade::d3d10::device_impl::clear_unordered_access_view_float(api::resourc
 
 void reshade::d3d10::device_impl::begin_query(api::query_pool pool, api::query_type, uint32_t index)
 {
+	assert(pool.handle != 0);
+
 	reinterpret_cast<query_pool_impl *>(pool.handle)->queries[index]->Begin();
 }
-void reshade::d3d10::device_impl::end_query(api::query_pool pool, api::query_type, uint32_t index)
+void reshade::d3d10::device_impl::finish_query(api::query_pool pool, api::query_type, uint32_t index)
 {
+	assert(pool.handle != 0);
+
 	reinterpret_cast<query_pool_impl *>(pool.handle)->queries[index]->End();
 }
 void reshade::d3d10::device_impl::copy_query_results(api::query_pool, api::query_type, uint32_t, uint32_t, api::resource, uint64_t, uint32_t)
 {
 	assert(false);
-}
-
-void reshade::d3d10::device_impl::begin_debug_marker(const char *, const float[4])
-{
-}
-void reshade::d3d10::device_impl::end_debug_marker()
-{
-}
-void reshade::d3d10::device_impl::insert_debug_marker(const char *, const float[4])
-{
 }

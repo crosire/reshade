@@ -254,7 +254,7 @@ bool reshade::opengl::runtime_impl::compile_effect(effect &effect, api::shader_s
 		assert(_renderer_id >= 0x14600); // Core since OpenGL 4.6 (see https://www.khronos.org/opengl/wiki/SPIR-V)
 		assert(gl3wProcs.gl.ShaderBinary != nullptr && gl3wProcs.gl.SpecializeShader != nullptr);
 
-		return create_shader_module(type, api::shader_format::spirv, entry_point.c_str(), effect.module.spirv.data(), effect.module.spirv.size() * sizeof(uint32_t), &out);
+		return create_shader_module(type, api::shader_format::spirv, effect.module.spirv.data(), effect.module.spirv.size() * sizeof(uint32_t), entry_point.c_str(), &out);
 	}
 	else
 	{
@@ -292,6 +292,6 @@ bool reshade::opengl::runtime_impl::compile_effect(effect &effect, api::shader_s
 		source += effect.preamble;
 		source += effect.module.hlsl;
 
-		return create_shader_module(type, api::shader_format::glsl, "main", source.data(), source.size(), &out);
+		return create_shader_module(type, api::shader_format::glsl, source.data(), source.size(), "main", &out);
 	}
 }

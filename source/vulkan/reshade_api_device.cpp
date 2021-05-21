@@ -133,7 +133,7 @@ bool reshade::vulkan::device_impl::check_capability(api::device_caps capability)
 		return true;
 	case api::device_caps::geometry_shader:
 		return _enabled_features.geometryShader;
-	case api::device_caps::tessellation_shaders:
+	case api::device_caps::hull_and_domain_shader:
 		return _enabled_features.tessellationShader;
 	case api::device_caps::dual_src_blend:
 		return _enabled_features.dualSrcBlend;
@@ -150,17 +150,17 @@ bool reshade::vulkan::device_impl::check_capability(api::device_caps capability)
 		return _enabled_features.fillModeNonSolid;
 	case api::device_caps::multi_viewport:
 		return _enabled_features.multiViewport;
-	case api::device_caps::sampler_anisotropy:
-		return _enabled_features.samplerAnisotropy;
 	case api::device_caps::partial_push_constant_updates:
 		return true;
 	case api::device_caps::partial_push_descriptor_updates:
 		return vk.CmdPushDescriptorSetKHR != nullptr;
+	case api::device_caps::sampler_anisotropy:
+		return _enabled_features.samplerAnisotropy;
 	case api::device_caps::sampler_with_resource_view:
-	case api::device_caps::blit:
-	case api::device_caps::resolve_region:
 	case api::device_caps::copy_buffer_region:
 	case api::device_caps::copy_buffer_to_texture:
+	case api::device_caps::blit:
+	case api::device_caps::resolve_region:
 	case api::device_caps::copy_query_results:
 		return true;
 	default:
@@ -200,7 +200,7 @@ bool reshade::vulkan::device_impl::check_format_support(api::format format, api:
 	return true;
 }
 
-bool reshade::vulkan::device_impl::check_resource_handle_valid(api::resource handle) const
+bool reshade::vulkan::device_impl::is_resource_handle_valid(api::resource handle) const
 {
 	if (handle.handle == 0)
 		return false;
@@ -211,7 +211,7 @@ bool reshade::vulkan::device_impl::check_resource_handle_valid(api::resource han
 	else
 		return data.buffer == (VkBuffer)handle.handle;
 }
-bool reshade::vulkan::device_impl::check_resource_view_handle_valid(api::resource_view handle) const
+bool reshade::vulkan::device_impl::is_resource_view_handle_valid(api::resource_view handle) const
 {
 	if (handle.handle == 0)
 		return false;
@@ -319,18 +319,18 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 							if (initial_data != nullptr)
 							{
 								const api::resource_usage states_upload[2] = { api::resource_usage::undefined, api::resource_usage::copy_dest };
-								immediate_command_list->insert_barrier(1, out, &states_upload[0], &states_upload[1]);
+								immediate_command_list->barrier(1, out, &states_upload[0], &states_upload[1]);
 
 								for (uint32_t subresource = 0; subresource < static_cast<uint32_t>(desc.texture.depth_or_layers) * desc.texture.levels; ++subresource)
 									upload_texture_region(initial_data[subresource], *out, subresource, nullptr);
 
 								const api::resource_usage states_finalize[2] = { api::resource_usage::copy_dest, initial_state };
-								immediate_command_list->insert_barrier(1, out, &states_finalize[0], &states_finalize[1]);
+								immediate_command_list->barrier(1, out, &states_finalize[0], &states_finalize[1]);
 							}
 							else
 							{
 								const api::resource_usage states_finalize[2] = { api::resource_usage::undefined, initial_state };
-								immediate_command_list->insert_barrier(1, out, &states_finalize[0], &states_finalize[1]);
+								immediate_command_list->barrier(1, out, &states_finalize[0], &states_finalize[1]);
 							}
 
 							queue->flush_immediate_command_list();
@@ -714,7 +714,7 @@ bool reshade::vulkan::device_impl::create_pipeline_graphics_all(const api::pipel
 	}
 }
 
-bool reshade::vulkan::device_impl::create_shader_module(api::shader_stage, api::shader_format format, const char *entry_point, const void *code, size_t code_size, api::shader_module *out)
+bool reshade::vulkan::device_impl::create_shader_module(api::shader_stage, api::shader_format format, const void *code, size_t code_size, const char *entry_point, api::shader_module *out)
 {
 	if (format != api::shader_format::spirv)
 	{
@@ -803,19 +803,6 @@ bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t num_set_layou
 		return false;
 	}
 }
-bool reshade::vulkan::device_impl::create_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, api::descriptor_set *out)
-{
-	static_assert(sizeof(*out) == sizeof(VkDescriptorSet));
-
-	std::vector<VkDescriptorSetLayout> set_layouts(count, (VkDescriptorSetLayout)layout.handle);
-
-	VkDescriptorSetAllocateInfo alloc_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
-	alloc_info.descriptorPool = _descriptor_pool;
-	alloc_info.descriptorSetCount = count;
-	alloc_info.pSetLayouts = set_layouts.data();
-
-	return vk.AllocateDescriptorSets(_orig, &alloc_info, reinterpret_cast<VkDescriptorSet *>(out)) == VK_SUCCESS;
-}
 bool reshade::vulkan::device_impl::create_descriptor_set_layout(uint32_t num_ranges, const api::descriptor_range *ranges, bool push_descriptors, api::descriptor_set_layout *out)
 {
 	std::vector<VkDescriptorSetLayoutBinding> internal_bindings;
@@ -852,7 +839,6 @@ bool reshade::vulkan::device_impl::create_descriptor_set_layout(uint32_t num_ran
 		return false;
 	}
 }
-
 bool reshade::vulkan::device_impl::create_query_pool(api::query_type type, uint32_t count, api::query_pool *out)
 {
 	VkQueryPoolCreateInfo create_info { VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO };
@@ -888,6 +874,19 @@ bool reshade::vulkan::device_impl::create_query_pool(api::query_type type, uint3
 		*out = { 0 };
 		return false;
 	}
+}
+bool reshade::vulkan::device_impl::create_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, api::descriptor_set *out)
+{
+	static_assert(sizeof(*out) == sizeof(VkDescriptorSet));
+
+	std::vector<VkDescriptorSetLayout> set_layouts(count, (VkDescriptorSetLayout)layout.handle);
+
+	VkDescriptorSetAllocateInfo alloc_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
+	alloc_info.descriptorPool = _descriptor_pool;
+	alloc_info.descriptorSetCount = count;
+	alloc_info.pSetLayouts = set_layouts.data();
+
+	return vk.AllocateDescriptorSets(_orig, &alloc_info, reinterpret_cast<VkDescriptorSet *>(out)) == VK_SUCCESS;
 }
 
 void reshade::vulkan::device_impl::destroy_sampler(api::sampler handle)
@@ -940,18 +939,17 @@ void reshade::vulkan::device_impl::destroy_pipeline_layout(api::pipeline_layout 
 
 	vk.DestroyPipelineLayout(_orig, (VkPipelineLayout)handle.handle, nullptr);
 }
-void reshade::vulkan::device_impl::destroy_descriptor_sets(api::descriptor_set_layout, uint32_t count, const api::descriptor_set *sets)
-{
-	vk.FreeDescriptorSets(_orig, _descriptor_pool, count, reinterpret_cast<const VkDescriptorSet *>(sets));
-}
 void reshade::vulkan::device_impl::destroy_descriptor_set_layout(api::descriptor_set_layout handle)
 {
 	vk.DestroyDescriptorSetLayout(_orig, (VkDescriptorSetLayout)handle.handle, nullptr);
 }
-
 void reshade::vulkan::device_impl::destroy_query_pool(api::query_pool handle)
 {
 	vk.DestroyQueryPool(_orig, (VkQueryPool)handle.handle, nullptr);
+}
+void reshade::vulkan::device_impl::destroy_descriptor_sets(api::descriptor_set_layout, uint32_t count, const api::descriptor_set *sets)
+{
+	vk.FreeDescriptorSets(_orig, _descriptor_pool, count, reinterpret_cast<const VkDescriptorSet *>(sets));
 }
 
 void reshade::vulkan::device_impl::update_descriptor_sets(uint32_t num_updates, const api::descriptor_update *updates)
@@ -991,31 +989,31 @@ void reshade::vulkan::device_impl::update_descriptor_sets(uint32_t num_updates, 
 	vk.UpdateDescriptorSets(_orig, num_updates, writes.data(), 0, nullptr);
 }
 
-bool reshade::vulkan::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access, void **mapped_ptr)
+bool reshade::vulkan::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access, void **data)
 {
 	assert(resource.handle != 0);
-	const resource_data &data = _resources.at(resource.handle);
+	const resource_data &res_data = _resources.at(resource.handle);
 
-	if (data.allocation != nullptr)
+	if (res_data.allocation != nullptr)
 	{
 		assert(subresource == 0);
-		return vmaMapMemory(_alloc, data.allocation, mapped_ptr) == VK_SUCCESS;
+		return vmaMapMemory(_alloc, res_data.allocation, data) == VK_SUCCESS;
 	}
 	else
 	{
-		*mapped_ptr = nullptr;
+		*data = nullptr;
 		return false;
 	}
 }
 void reshade::vulkan::device_impl::unmap_resource(api::resource resource, uint32_t subresource)
 {
 	assert(resource.handle != 0);
-	const resource_data &data = _resources.at(resource.handle);
+	const resource_data &res_data = _resources.at(resource.handle);
 
-	if (data.allocation != nullptr)
+	if (res_data.allocation != nullptr)
 	{
 		assert(subresource == 0);
-		vmaUnmapMemory(_alloc, data.allocation);
+		vmaUnmapMemory(_alloc, res_data.allocation);
 	}
 }
 

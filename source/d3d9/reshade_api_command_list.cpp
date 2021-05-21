@@ -228,11 +228,40 @@ void reshade::d3d9::device_impl::begin_render_pass(uint32_t count, const api::re
 
 	_orig->SetDepthStencilSurface(reinterpret_cast<IDirect3DSurface9 *>(dsv.handle));
 }
-void reshade::d3d9::device_impl::end_render_pass()
+void reshade::d3d9::device_impl::finish_render_pass()
 {
 }
 
-void reshade::d3d9::device_impl::blit(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], api::texture_filter filter)
+void reshade::d3d9::device_impl::copy_resource(api::resource src, api::resource dst)
+{
+	const api::resource_desc desc = get_resource_desc(src);
+
+	if (desc.type == api::resource_type::buffer)
+	{
+		copy_buffer_region(src, 0, dst, 0, ~0llu);
+	}
+	else
+	{
+		for (uint32_t layer = 0; layer < desc.texture.depth_or_layers; ++layer)
+		{
+			for (uint32_t level = 0; level < desc.texture.levels; ++level)
+			{
+				const uint32_t subresource = level + layer * desc.texture.levels;
+
+				copy_texture_region(src, subresource, nullptr, dst, subresource, nullptr, api::texture_filter::min_mag_mip_point);
+			}
+		}
+	}
+}
+void reshade::d3d9::device_impl::copy_buffer_region(api::resource, uint64_t, api::resource, uint64_t, uint64_t)
+{
+	assert(false);
+}
+void reshade::d3d9::device_impl::copy_buffer_to_texture(api::resource, uint64_t, uint32_t, uint32_t, api::resource, uint32_t, const int32_t[6])
+{
+	assert(false);
+}
+void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_box[3], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[3], api::texture_filter filter)
 {
 	assert(src.handle != 0 && dst.handle != 0);
 	const auto src_object = reinterpret_cast<IDirect3DResource9 *>(src.handle);
@@ -374,115 +403,49 @@ void reshade::d3d9::device_impl::blit(api::resource src, uint32_t src_subresourc
 
 	assert(false); // Not implemented
 }
-void reshade::d3d9::device_impl::resolve(api::resource src, uint32_t src_subresource, const int32_t src_offset[3], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3], api::format)
-{
-	int32_t src_box[6] = {};
-	if (src_offset != nullptr)
-		std::copy_n(src_offset, 3, src_box);
-
-	if (size != nullptr)
-	{
-		src_box[3] = src_box[0] + size[0];
-		src_box[4] = src_box[1] + size[1];
-		src_box[5] = src_box[2] + size[2];
-	}
-	else
-	{
-		const api::resource_desc desc = get_resource_desc(src);
-		src_box[3] = src_box[0] + std::max(1u, desc.texture.width >> src_subresource);
-		src_box[4] = src_box[1] + std::max(1u, desc.texture.height >> src_subresource);
-		src_box[5] = src_box[2] + (desc.type == api::resource_type::texture_3d ? std::max(1u, static_cast<uint32_t>(desc.texture.depth_or_layers) >> src_subresource) : 1u);
-	}
-
-	int32_t dst_box[6] = {};
-	if (dst_offset != nullptr)
-		std::copy_n(dst_offset, 3, dst_box);
-
-	if (size != nullptr)
-	{
-		dst_box[3] = dst_box[0] + size[0];
-		dst_box[4] = dst_box[1] + size[1];
-		dst_box[5] = dst_box[2] + size[2];
-	}
-	else
-	{
-		const api::resource_desc desc = get_resource_desc(dst);
-		dst_box[3] = dst_box[0] + std::max(1u, desc.texture.width >> dst_subresource);
-		dst_box[4] = dst_box[1] + std::max(1u, desc.texture.height >> dst_subresource);
-		dst_box[5] = dst_box[2] + (desc.type == api::resource_type::texture_3d ? std::max(1u, static_cast<uint32_t>(desc.texture.depth_or_layers) >> dst_subresource) : 1u);
-	}
-
-	blit(src, src_subresource, src_box, dst, dst_subresource, dst_box, api::texture_filter::min_mag_mip_point);
-}
-void reshade::d3d9::device_impl::copy_resource(api::resource src, api::resource dst)
-{
-	const api::resource_desc desc = get_resource_desc(src);
-
-	if (desc.type == api::resource_type::buffer)
-	{
-		copy_buffer_region(src, 0, dst, 0, ~0llu);
-	}
-	else
-	{
-		for (uint32_t level = 0; level < desc.texture.levels; ++level)
-		{
-			const uint32_t subresource = level;
-
-			copy_texture_region(src, subresource, nullptr, dst, subresource, nullptr, nullptr);
-		}
-	}
-}
-void reshade::d3d9::device_impl::copy_buffer_region(api::resource, uint64_t, api::resource, uint64_t, uint64_t)
-{
-	assert(false);
-}
-void reshade::d3d9::device_impl::copy_buffer_to_texture(api::resource, uint64_t, uint32_t, uint32_t, api::resource, uint32_t, const int32_t[6])
-{
-	assert(false);
-}
-void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_offset[3], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3])
-{
-	int32_t src_box[6] = {};
-	if (src_offset != nullptr)
-		std::copy_n(src_offset, 3, src_box);
-
-	if (size != nullptr)
-	{
-		src_box[3] = src_box[0] + size[0];
-		src_box[4] = src_box[1] + size[1];
-		src_box[5] = src_box[2] + size[2];
-	}
-	else
-	{
-		const api::resource_desc desc = get_resource_desc(src);
-		src_box[3] = src_box[0] + std::max(1u, desc.texture.width >> src_subresource);
-		src_box[4] = src_box[1] + std::max(1u, desc.texture.height >> src_subresource);
-		src_box[5] = src_box[2] + (desc.type == api::resource_type::texture_3d ? std::max(1u, static_cast<uint32_t>(desc.texture.depth_or_layers) >> src_subresource) : 1u);
-	}
-
-	int32_t dst_box[6] = {};
-	if (dst_offset != nullptr)
-		std::copy_n(dst_offset, 3, dst_box);
-
-	if (size != nullptr)
-	{
-		dst_box[3] = dst_box[0] + size[0];
-		dst_box[4] = dst_box[1] + size[1];
-		dst_box[5] = dst_box[2] + size[2];
-	}
-	else
-	{
-		const api::resource_desc desc = get_resource_desc(dst);
-		dst_box[3] = dst_box[0] + std::max(1u, desc.texture.width >> dst_subresource);
-		dst_box[4] = dst_box[1] + std::max(1u, desc.texture.height >> dst_subresource);
-		dst_box[5] = dst_box[2] + (desc.type == api::resource_type::texture_3d ? std::max(1u, static_cast<uint32_t>(desc.texture.depth_or_layers) >> dst_subresource) : 1u);
-	}
-
-	blit(src, src_subresource, src_box, dst, dst_subresource, dst_box, api::texture_filter::min_mag_mip_point);
-}
 void reshade::d3d9::device_impl::copy_texture_to_buffer(api::resource, uint32_t, const int32_t[6], api::resource, uint64_t, uint32_t, uint32_t)
 {
 	assert(false);
+}
+void reshade::d3d9::device_impl::resolve_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_offset[3], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3], api::format)
+{
+	int32_t src_box[6] = {};
+	if (src_offset != nullptr)
+		std::copy_n(src_offset, 3, src_box);
+
+	if (size != nullptr)
+	{
+		src_box[3] = src_box[0] + size[0];
+		src_box[4] = src_box[1] + size[1];
+		src_box[5] = src_box[2] + size[2];
+	}
+	else
+	{
+		const api::resource_desc desc = get_resource_desc(src);
+		src_box[3] = src_box[0] + std::max(1u, desc.texture.width >> src_subresource);
+		src_box[4] = src_box[1] + std::max(1u, desc.texture.height >> src_subresource);
+		src_box[5] = src_box[2] + (desc.type == api::resource_type::texture_3d ? std::max(1u, static_cast<uint32_t>(desc.texture.depth_or_layers) >> src_subresource) : 1u);
+	}
+
+	int32_t dst_box[6] = {};
+	if (dst_offset != nullptr)
+		std::copy_n(dst_offset, 3, dst_box);
+
+	if (size != nullptr)
+	{
+		dst_box[3] = dst_box[0] + size[0];
+		dst_box[4] = dst_box[1] + size[1];
+		dst_box[5] = dst_box[2] + size[2];
+	}
+	else
+	{
+		const api::resource_desc desc = get_resource_desc(dst);
+		dst_box[3] = dst_box[0] + std::max(1u, desc.texture.width >> dst_subresource);
+		dst_box[4] = dst_box[1] + std::max(1u, desc.texture.height >> dst_subresource);
+		dst_box[5] = dst_box[2] + (desc.type == api::resource_type::texture_3d ? std::max(1u, static_cast<uint32_t>(desc.texture.depth_or_layers) >> dst_subresource) : 1u);
+	}
+
+	copy_texture_region(src, src_subresource, src_box, dst, dst_subresource, dst_box, api::texture_filter::min_mag_mip_point);
 }
 
 void reshade::d3d9::device_impl::generate_mipmaps(api::resource_view srv)
@@ -549,7 +512,7 @@ void reshade::d3d9::device_impl::begin_query(api::query_pool pool, api::query_ty
 	assert(pool.handle != 0);
 	reinterpret_cast<query_pool_impl *>(pool.handle)->queries[index]->Issue(D3DISSUE_BEGIN);
 }
-void reshade::d3d9::device_impl::end_query(api::query_pool pool, api::query_type, uint32_t index)
+void reshade::d3d9::device_impl::finish_query(api::query_pool pool, api::query_type, uint32_t index)
 {
 	assert(pool.handle != 0);
 	reinterpret_cast<query_pool_impl *>(pool.handle)->queries[index]->Issue(D3DISSUE_END);
@@ -559,6 +522,15 @@ void reshade::d3d9::device_impl::copy_query_results(api::query_pool, api::query_
 	assert(false);
 }
 
+void reshade::d3d9::device_impl::add_debug_marker(const char *label, const float color[4])
+{
+	const size_t label_len = strlen(label);
+	std::wstring label_wide;
+	label_wide.reserve(label_len + 1);
+	utf8::unchecked::utf8to16(label, label + label_len, std::back_inserter(label_wide));
+
+	D3DPERF_SetMarker(color != nullptr ? D3DCOLOR_COLORVALUE(color[0], color[1], color[2], color[3]) : 0, label_wide.c_str());
+}
 void reshade::d3d9::device_impl::begin_debug_marker(const char *label, const float color[4])
 {
 	const size_t label_len = strlen(label);
@@ -568,16 +540,7 @@ void reshade::d3d9::device_impl::begin_debug_marker(const char *label, const flo
 
 	D3DPERF_BeginEvent(color != nullptr ? D3DCOLOR_COLORVALUE(color[0], color[1], color[2], color[3]) : 0, label_wide.c_str());
 }
-void reshade::d3d9::device_impl::end_debug_marker()
+void reshade::d3d9::device_impl::finish_debug_marker()
 {
 	D3DPERF_EndEvent();
-}
-void reshade::d3d9::device_impl::insert_debug_marker(const char *label, const float color[4])
-{
-	const size_t label_len = strlen(label);
-	std::wstring label_wide;
-	label_wide.reserve(label_len + 1);
-	utf8::unchecked::utf8to16(label, label + label_len, std::back_inserter(label_wide));
-
-	D3DPERF_SetMarker(color != nullptr ? D3DCOLOR_COLORVALUE(color[0], color[1], color[2], color[3]) : 0, label_wide.c_str());
 }

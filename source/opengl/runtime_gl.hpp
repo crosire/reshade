@@ -18,8 +18,8 @@ namespace reshade::opengl
 		runtime_impl(HDC hdc, HGLRC hglrc);
 		~runtime_impl();
 
-		bool get_data(const uint8_t guid[16], void **ptr) const final { return device_impl::get_data(guid, ptr); }
-		void set_data(const uint8_t guid[16], void *const ptr)  final { device_impl::set_data(guid, ptr); }
+		bool get_user_data(const uint8_t guid[16], void **ptr) const final { return device_impl::get_user_data(guid, ptr); }
+		void set_user_data(const uint8_t guid[16], void *const ptr)  final { device_impl::set_user_data(guid, ptr); }
 
 		uint64_t get_native_object() const final { return reinterpret_cast<uintptr_t>(*_hdcs.begin()); } // Simply return the first device context
 

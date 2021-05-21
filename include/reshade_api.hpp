@@ -39,17 +39,17 @@ namespace reshade { namespace api
 		/// </summary>
 		geometry_shader,
 		/// <summary>
-		/// Specifies whether hull and doman shaders are supported.
+		/// Specifies whether hull and domain shaders are supported.
 		/// If this feature is not present, the "hull_shader" and "domain_shader" pipeline state must not be used.
 		/// </summary>
-		tessellation_shaders,
+		hull_and_domain_shader,
 		/// <summary>
 		/// Specifies whether blend operations which take two sources are supported.
 		/// If this feature is not present, <see cref="blend_factor::src1_color"/>, <see cref="blend_factor::inv_src1_color"/>, <see cref="blend_factor::src1_alpha"/> and <see cref="blend_factor::inv_src1_alpha"/> must not be used.
 		/// </summary>
 		dual_src_blend,
 		/// <summary>
-		/// Specifies whehter blend state is controlled independently per render target.
+		/// Specifies whether blend state is controlled independently per render target.
 		/// If this feature is not present, the blend state settings for all render targets must be identical.
 		/// </summary>
 		independent_blend,
@@ -78,11 +78,6 @@ namespace reshade { namespace api
 		/// </summary>
 		multi_viewport,
 		/// <summary>
-		/// Specifies whether anisotropic filtering is supported.
-		/// If this feature is not present, <see cref="texture_filter::anisotropic"/> must not be used.
-		/// </summary>
-		sampler_anisotropy,
-		/// <summary>
 		/// Specifies whether partial push constant updates are supported.
 		/// If this feature is not present, the "first" parameter to <see cref="command_list::push_constants"/> must be 0 and "count" must cover the entire constant range.
 		/// </summary>
@@ -93,20 +88,15 @@ namespace reshade { namespace api
 		/// </summary>
 		partial_push_descriptor_updates,
 		/// <summary>
-		/// Specifies whether combined sampler and resource is supported.
+		/// Specifies whether anisotropic filtering is supported.
+		/// If this feature is not present, <see cref="texture_filter::anisotropic"/> must not be used.
+		/// </summary>
+		sampler_anisotropy,
+		/// <summary>
+		/// Specifies whether combined sampler and resource view descriptors are supported.
 		/// If this feature is not present, <see cref="descriptor_type::sampler_with_resource_view"/> must not be used.
 		/// </summary>
 		sampler_with_resource_view,
-		/// <summary>
-		/// Specifies whether blitting between resources is supported.
-		/// If this feature is not present, <see cref="command_list::blit"/> must not be used.
-		/// </summary>
-		blit,
-		/// <summary>
-		/// Specifies whether resolving a region of a resource rather than its entirety is supported.
-		/// If this feature is not present, the "src_offset", "dst_offset" and "size" parameters to <see cref="command_list::resolve"/> must be <c>nullptr</c>.
-		/// </summary>
-		resolve_region,
 		/// <summary>
 		/// Specifies whether copying between buffers is supported.
 		/// If this feature is not present, <see cref="command_list::copy_buffer_region"/> must not be used.
@@ -118,6 +108,16 @@ namespace reshade { namespace api
 		/// </summary>
 		copy_buffer_to_texture,
 		/// <summary>
+		/// Specifies whether blitting between resources is supported.
+		/// If this feature is not present, the "src_box" and "dst_box" parameters to <see cref="command_list::copy_texture_region"/> must have the same dimensions.
+		/// </summary>
+		blit,
+		/// <summary>
+		/// Specifies whether resolving a region of a resource rather than its entirety is supported.
+		/// If this feature is not present, the "src_offset", "dst_offset" and "size" parameters to <see cref="command_list::resolve"/> must be <c>nullptr</c>.
+		/// </summary>
+		resolve_region,
+		/// <summary>
 		/// Specifies whether copying query results to a buffer is supported.
 		/// If this feature is not present, <see cref="command_list::copy_query_results"/> must not be used.
 		/// </summary>
@@ -126,7 +126,7 @@ namespace reshade { namespace api
 
 	/// <summary>
 	/// The base class for objects provided by the ReShade API.
-	/// This lets you store and retrieve custom data with objects, to be able to communicate persistent data between event callbacks.
+	/// This lets you store and retrieve custom data with objects, e.g. to be able to communicate persistent information between event callbacks.
 	/// </summary>
 	struct __declspec(novtable) api_object
 	{
@@ -135,13 +135,13 @@ namespace reshade { namespace api
 		/// This function is not thread-safe!
 		/// </summary>
 		/// <returns><c>true</c> if a pointer was previously set with this <paramref name="guid"/>, <c>false</c> otherwise.</returns>
-		virtual bool get_data(const uint8_t guid[16], void **ptr) const = 0;
+		virtual bool get_user_data(const uint8_t guid[16], void **ptr) const = 0;
 		/// <summary>
 		/// Sets a custom data pointer associated with the specified <paramref name="guid"/> to the object.
 		/// You can call this with <paramref name="ptr"/> set to <c>nullptr</c> to remove the pointer associated with the provided <paramref name="guid"/> from this object.
 		/// This function is not thread-safe!
 		/// </summary>
-		virtual void set_data(const uint8_t guid[16], void * const ptr) = 0;
+		virtual void set_user_data(const uint8_t guid[16], void * const ptr) = 0;
 
 		/// <summary>
 		/// Gets the underlying native object for this API object.
@@ -153,24 +153,24 @@ namespace reshade { namespace api
 		virtual uint64_t get_native_object() const = 0;
 
 		// Helper templates to manage custom data creation and destruction:
-		template <typename T> inline T &get_data(const uint8_t guid[16]) const
+		template <typename T> inline T &get_user_data(const uint8_t guid[16]) const
 		{
 			T *res = nullptr;
-			get_data(guid, reinterpret_cast<void **>(&res));
+			get_user_data(guid, reinterpret_cast<void **>(&res));
 			return *res;
 		}
-		template <typename T> inline T &create_data(const uint8_t guid[16])
+		template <typename T> inline T &create_user_data(const uint8_t guid[16])
 		{
 			T *res = new T();
-			set_data(guid, res);
+			set_user_data(guid, res);
 			return *res;
 		}
-		template <typename T> inline void destroy_data(const uint8_t guid[16])
+		template <typename T> inline void destroy_user_data(const uint8_t guid[16])
 		{
 			T *res = nullptr;
-			get_data(guid, reinterpret_cast<void **>(&res));
+			get_user_data(guid, reinterpret_cast<void **>(&res));
 			delete res;
-			set_data(guid, nullptr);
+			set_user_data(guid, nullptr);
 		}
 	};
 
@@ -198,12 +198,12 @@ namespace reshade { namespace api
 		/// Checks whether the specified <paramref name="resource"/> handle points to a resource that is still alive and valid.
 		/// This function is thread-safe.
 		/// </summary>
-		virtual bool check_resource_handle_valid(resource handle) const = 0;
+		virtual bool is_resource_handle_valid(resource handle) const = 0;
 		/// <summary>
 		/// Checks whether the specified resource <paramref name="view"/> handle points to a resource view that is still alive and valid.
 		/// This function is thread-safe.
 		/// </summary>
-		virtual bool check_resource_view_handle_valid(resource_view handle) const = 0;
+		virtual bool is_resource_view_handle_valid(resource_view handle) const = 0;
 
 		/// <summary>
 		/// Creates a new sampler state object based on the specified <paramref name="desc"/>ription.
@@ -217,7 +217,7 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <param name="desc">The description of the resource to create.</param>
 		/// <param name="initial_data">Optional data to upload to the resource after creation. This should point to an array of <see cref="mapped_subresource"/>, one for each subresource (mipmap levels and array layers). Can be <c>nullptr</c> to indicate no initial data to upload.</param>
-		/// <param name="initial_state">Initial usage of the resource after creation. This can later be changed via <see cref="command_list::insert_barrier"/>.</param>
+		/// <param name="initial_state">Initial usage of the resource after creation. This can later be changed via <see cref="command_list::barrier"/>.</param>
 		/// <param name="out">Pointer to a handle that is set to the handle of the created resource.</param>
 		/// <returns><c>true</c> if the resource was successfully created, <c>false</c> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
 		virtual bool create_resource(const resource_desc &desc, const subresource_data *initial_data, resource_usage initial_state, resource *out) = 0;
@@ -248,13 +248,22 @@ namespace reshade { namespace api
 		/// <param name="code_size">The size (in bytes) of the shader source.</param>
 		/// <param name="out">Pointer to a handle that is set to the handle of the created shader module.</param>
 		/// <returns><c>true</c> if the shader module was successfully compiled and created, <c>false</c> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
-		virtual bool create_shader_module(shader_stage type, shader_format format, const char *entry_point, const void *code, size_t code_size, shader_module *out) = 0;
+		virtual bool create_shader_module(shader_stage type, shader_format format, const void *code, size_t code_size, const char *entry_point, shader_module *out) = 0;
 		/// <summary>
 		/// Creates a new pipeline layout.
 		/// </summary>
 		/// <param name="out">Pointer to a handle that is set to the handle of the created pipeline layout.</param>
 		/// <returns><c>true</c> if the pipeline layout was successfully created, <c>false</c> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
 		virtual bool create_pipeline_layout(uint32_t num_set_layouts, const descriptor_set_layout *set_layouts, uint32_t num_constant_ranges, const constant_range *constant_ranges, pipeline_layout *out) = 0;
+		/// <summary>
+		/// Creates a new descriptor set layout.
+		/// </summary>
+		/// <param name="num_ranges">The number of descriptor ranges.</param>
+		/// <param name="ranges">A pointer to an array of descriptor ranges contained in the descriptor set this layout describes.</param>
+		/// <param name="push_descriptors"><c>true</c> if this layout is later used with <see cref="command_list::push_descriptors"/>, <c>false</c> if not.</param>
+		/// <param name="out">Pointer to a handle that is set to the handle of the created descriptor set layout.</param>
+		/// <returns><c>true</c> if the descriptor set layout was successfully created, <c>false</c> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
+		virtual bool create_descriptor_set_layout(uint32_t num_ranges, const descriptor_range *ranges, bool push_descriptors, descriptor_set_layout *out) = 0;
 		/// <summary>
 		/// Creates a new query pool.
 		/// </summary>
@@ -271,15 +280,6 @@ namespace reshade { namespace api
 		/// <param name="out">Pointer to an array of handles with at least <paramref name="count"/> elements that is filles with the handles of the created descriptor sets.</param>
 		/// <returns><c>true</c> if the descriptor sets were successfully created, <c>false</c> otherwise (in this case <paramref name="out"/> is filles with zeroes).</returns>
 		virtual bool create_descriptor_sets(descriptor_set_layout layout, uint32_t count, descriptor_set *out) = 0;
-		/// <summary>
-		/// Creates a new descriptor set layout.
-		/// </summary>
-		/// <param name="num_ranges">The number of descriptor ranges.</param>
-		/// <param name="ranges">A pointer to an array of descriptor ranges contained in the descriptor set this layout describes.</param>
-		/// <param name="push_descriptors"><c>true</c> if this layout is later used with <see cref="command_list::push_descriptors"/>, <c>false</c> if not.</param>
-		/// <param name="out">Pointer to a handle that is set to the handle of the created descriptor set layout.</param>
-		/// <returns><c>true</c> if the descriptor set layout was successfully created, <c>false</c> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
-		virtual bool create_descriptor_set_layout(uint32_t num_ranges, const descriptor_range *ranges, bool push_descriptors, descriptor_set_layout *out) = 0;
 
 		/// <summary>
 		/// Instantly destroys a sampler that was previously created via <see cref="create_sampler"/>.
@@ -309,6 +309,10 @@ namespace reshade { namespace api
 		/// </summary>
 		virtual void destroy_pipeline_layout(pipeline_layout handle) = 0;
 		/// <summary>
+		/// Instantly destroys a descriptor set layout that was previously created via <see cref="create_descriptor_set_layout"/>.
+		/// </summary>
+		virtual void destroy_descriptor_set_layout(descriptor_set_layout handle) = 0;
+		/// <summary>
 		/// Instantly destroys a query pool that was previously created via <see cref="create_query_pool"/>.
 		/// </summary>
 		virtual void destroy_query_pool(query_pool handle) = 0;
@@ -316,16 +320,12 @@ namespace reshade { namespace api
 		/// Frees one or more descriptor sets that were previously created via <see cref"create_descriptor_sets"/>.
 		/// </summary>
 		virtual void destroy_descriptor_sets(descriptor_set_layout layout, uint32_t count, const descriptor_set *sets) = 0;
-		/// <summary>
-		/// Instantly destroys a descriptor set layout that was previously created via <see cref="create_descriptor_set_layout"/>.
-		/// </summary>
-		virtual void destroy_descriptor_set_layout(descriptor_set_layout handle) = 0;
 
 		/// <summary>
 		/// Gets the handle to the underlying resource the specified resource <paramref name="view"/> was created for.
 		/// This function is thread-safe.
 		/// </summary>
-		virtual void get_resource_from_view(resource_view view, resource *result) const = 0;
+		virtual void get_resource_from_view(resource_view view, resource *resource) const = 0;
 		/// <summary>
 		/// Gets the description of the specified <paramref name="resource"/>.
 		/// This function is thread-safe.
@@ -338,9 +338,9 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <param name="resource">The resource to map.</param>
 		/// <param name="subresource">The index of the subresource.</param>
-		/// <param name="mapped_ptr">Pointer to a pointer that is set to a pointer to the memory of the resource.</param>
-		/// <returns><c>true</c> if the memory of the resource was successfully mapped, <c>false</c> otherwise (in this case <paramref name="mapped_ptr"/> is set to <c>nullptr</c>).</returns>
-		virtual bool map_resource(resource resource, uint32_t subresource, map_access access, void **mapped_ptr) = 0;
+		/// <param name="data">Pointer to a pointer that is set to a pointer to the memory of the resource.</param>
+		/// <returns><c>true</c> if the memory of the resource was successfully mapped, <c>false</c> otherwise (in this case <paramref name="data"/> is set to <c>nullptr</c>).</returns>
+		virtual bool map_resource(resource resource, uint32_t subresource, map_access access, void **data) = 0;
 		/// <summary>
 		/// Unmaps a previously mapped resource.
 		/// </summary>
@@ -413,6 +413,23 @@ namespace reshade { namespace api
 	/// </summary>
 	struct __declspec(novtable) command_list : public device_object
 	{
+		/// <summary>
+		/// Adds a barrier for the specified <paramref name="resource"/> to the command stream.
+		/// When both <paramref name="old_state"/> and <paramref name="new_state"/> are <see cref="resource_usage::unordered_access"/> a UAV barrier is added, otherwise a state transition is performed.
+		/// </summary>
+		/// <param name="resource">The resource to transition.</param>
+		/// <param name="old_state">The usage flags describing how the resource was used before this barrier.</param>
+		/// <param name="new_state">The usage flags describing how the resource will be used after this barrier.</param>
+		inline  void barrier(resource resource, resource_usage old_state, resource_usage new_state) { barrier(1, &resource, &old_state, &new_state); }
+		/// <summary>
+		/// Adds a barrier for the specified <paramref name="resources"/> to the command stream.
+		/// </summary>
+		/// <param name="count">The number of resources to transition.</param>
+		/// <param name="resources">A pointer to an array of resources to transition.</param>
+		/// <param name="old_state">A pointer to an array of usage flags describing how the resources were used before this barrier.</param>
+		/// <param name="new_state">A pointer to an array of usage flags describing how the resources will be used after this barrier.</param>
+		virtual void barrier(uint32_t count, const resource *resources, const resource_usage *old_states, const resource_usage *new_states) = 0;
+
 		/// <summary>
 		/// Binds a pipeline state object.
 		/// </summary>
@@ -545,37 +562,10 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Marks the ending of a render pass. This must be preceeded by a call to <see cref="command_list::begin_render_pass"/>).
 		/// </summary>
-		virtual void end_render_pass() = 0;
+		virtual void finish_render_pass() = 0;
 
 		/// <summary>
-		/// Blits a region from the <paramref name="source"/> texture to a different region of the <paramref name="destination"/> texture.
-		/// <para>The <paramref name="source"/> resource has to be in the <see cref="resource_usage::copy_source"/> state.</para>
-		/// <para>The <paramref name="destination"/> resource has to be in the <see cref="resource_usage::copy_dest"/> state.</para>
-		/// </summary>
-		/// <param name="source">The texture resource to blit from.</param>
-		/// <param name="src_subresource">The subresource of the <paramref name="source"/> texture to blit from.</param>
-		/// <param name="src_box">A 3D box (or <c>nullptr</c> to reference the entire subresource) that defines the region in the <paramref name="source"/> resource to blit from, in the format { left, top, front, right, bottom, back }.</param>
-		/// <param name="destination">The texture resource to blit to.</param>
-		/// <param name="dst_subresource">The subresource of the <paramref name="destination"/> texture to blit to.</param>
-		/// <param name="dst_box">A 3D box (or <c>nullptr</c> to reference the entire subresource) that defines the region in the <paramref name="destination"/> resource to blit to, in the format { left, top, front, right, bottom, back }.</param>
-		/// <param name="filter">The filter to apply when blit requires scaling.</param>
-		virtual void blit(resource source, uint32_t src_subresource, const int32_t src_box[6], resource destination, uint32_t dst_subresource, const int32_t dst_box[6], texture_filter filter) = 0;
-		/// <summary>
-		/// Copies a region from the multisampled <paramref name="source"/> texture to the non-multisampled <paramref name="destination"/> texture.
-		/// <para>The <paramref name="source"/> resource has to be in the <see cref="resource_usage::resolve_source"/> state.</para>
-		/// <para>The <paramref name="destination"/> resource has to be in the <see cref="resource_usage::resolve_dest"/> state.</para>
-		/// </summary>
-		/// <param name="source">The texture to resolve from.</param>
-		/// <param name="src_subresource">The subresource of the <paramref name="source"/> texture to resolve from.</param>
-		/// <param name="src_offset">A 3D offset to start resolving at. In D3D10, D3D11 and D3D12 this has to be <c>nullptr</c>.</param>
-		/// <param name="destination">The texture to resolve to.</param>
-		/// <param name="dst_subresource">The subresource of the <paramref name="destination"/> texture to resolve to.</param>
-		/// <param name="dst_offset">A 3D offset to start resolving to. In D3D10, D3D11 and D3D12 this has to be <c>nullptr</c>.</param>
-		/// <param name="size">Width, height and depth of the texture region to resolve.</param>
-		/// <param name="format">The format of the resource data.</param>
-		virtual void resolve(resource source, uint32_t src_subresource, const int32_t src_offset[3], resource destination, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3], api::format format) = 0;
-		/// <summary>
-		/// Copies the entire contents of the <paramref name="source"/> resource to the <paramref name="destination"/> resource.
+		/// Copies the entire contents of the <paramref name="source"/> resource to the <paramref name="destination"/> resource. Dimensions of the two resources need to match.
 		/// <para>The <paramref name="source"/> resource has to be in the <see cref="resource_usage::copy_source"/> state.</para>
 		/// <para>The <paramref name="destination"/> resource has to be in the <see cref="resource_usage::copy_dest"/> state.</para>
 		/// </summary>
@@ -608,18 +598,18 @@ namespace reshade { namespace api
 		/// <param name="dst_box">A 3D box (or <c>nullptr</c> to reference the entire subresource) that defines the region in the <paramref name="destination"/> texture to copy to, in the format { left, top, front, right, bottom, back }.</param>
 		virtual void copy_buffer_to_texture(resource source, uint64_t src_offset, uint32_t row_length, uint32_t slice_height, resource destination, uint32_t dst_subresource, const int32_t dst_box[6] = nullptr) = 0;
 		/// <summary>
-		/// Copies a texture region from the <paramref name="source"/> texture to the <paramref name="destination"/> texture.
+		/// Copies or blits a texture region from the <paramref name="source"/> texture to the <paramref name="destination"/> texture.
 		/// <para>The <paramref name="source"/> resource has to be in the <see cref="resource_usage::copy_source"/> state.</para>
 		/// <para>The <paramref name="destination"/> resource has to be in the <see cref="resource_usage::copy_dest"/> state.</para>
 		/// </summary>
 		/// <param name="source">The texture to copy from.</param>
 		/// <param name="src_subresource">The subresource of the <paramref name="source"/> texture to copy from.</param>
-		/// <param name="src_offset">A 3D offset to start copying at.</param>
+		/// <param name="src_box">A 3D box (or <c>nullptr</c> to reference the entire subresource) that defines the region in the <paramref name="source"/> resource to blit from, in the format { left, top, front, right, bottom, back }.</param>
 		/// <param name="destination">The texture to copy to.</param>
 		/// <param name="dst_subresource">The subresource of the <paramref name="destination"/> texture to copy to.</param>
-		/// <param name="dst_offset">A 3D offset to start copying to.</param>
-		/// <param name="size">Width, height and depth of the texture region to copy.</param>
-		virtual void copy_texture_region(resource source, uint32_t src_subresource, const int32_t src_offset[3], resource destination, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3]) = 0;
+		/// <param name="dst_box">A 3D box (or <c>nullptr</c> to reference the entire subresource) that defines the region in the <paramref name="destination"/> resource to blit to, in the format { left, top, front, right, bottom, back }.</param>
+		/// <param name="filter">The filter to apply when copy requires scaling.</param>
+		virtual void copy_texture_region(resource source, uint32_t src_subresource, const int32_t src_box[6], resource destination, uint32_t dst_subresource, const int32_t dst_box[6], texture_filter filter = texture_filter::min_mag_mip_point) = 0;
 		/// <summary>
 		/// Copies a texture region from the <paramref name="source"/> texture to the <paramref name="destination"/> buffer.
 		/// <para>The <paramref name="source"/> resource has to be in the <see cref="resource_usage::copy_source"/> state.</para>
@@ -633,6 +623,20 @@ namespace reshade { namespace api
 		/// <param name="row_length">The number of pixels from one row to the next (in the buffer), or zero if data is tightly packed.</param>
 		/// <param name="slice_height">The number of rows from one slice to the next (in the buffer), or zero if data is tightly packed.</param>
 		virtual void copy_texture_to_buffer(resource source, uint32_t src_subresource, const int32_t src_box[6], resource destination, uint64_t dst_offset, uint32_t row_length = 0, uint32_t slice_height = 0) = 0;
+		/// <summary>
+		/// Copies a region from the multisampled <paramref name="source"/> texture to the non-multisampled <paramref name="destination"/> texture.
+		/// <para>The <paramref name="source"/> resource has to be in the <see cref="resource_usage::resolve_source"/> state.</para>
+		/// <para>The <paramref name="destination"/> resource has to be in the <see cref="resource_usage::resolve_dest"/> state.</para>
+		/// </summary>
+		/// <param name="source">The texture to resolve from.</param>
+		/// <param name="src_subresource">The subresource of the <paramref name="source"/> texture to resolve from.</param>
+		/// <param name="src_offset">A 3D offset to start resolving at. In D3D10, D3D11 and D3D12 this has to be <c>nullptr</c>.</param>
+		/// <param name="destination">The texture to resolve to.</param>
+		/// <param name="dst_subresource">The subresource of the <paramref name="destination"/> texture to resolve to.</param>
+		/// <param name="dst_offset">A 3D offset to start resolving to. In D3D10, D3D11 and D3D12 this has to be <c>nullptr</c>.</param>
+		/// <param name="size">Width, height and depth of the texture region to resolve.</param>
+		/// <param name="format">The format of the resource data.</param>
+		virtual void resolve_texture_region(resource source, uint32_t src_subresource, const int32_t src_offset[3], resource destination, uint32_t dst_subresource, const int32_t dst_offset[3], const uint32_t size[3], api::format format) = 0;
 
 		/// <summary>
 		/// Generates the lower mipmap levels for the specified shader resource view.
@@ -694,7 +698,7 @@ namespace reshade { namespace api
 		/// <param name="pool">The query pool that will manage the results of the query.</param>
 		/// <param name="type">The type of the query end.</param>
 		/// <param name="index">The index of the query in the pool.</param>
-		virtual void end_query(query_pool pool, query_type type, uint32_t index) = 0;
+		virtual void finish_query(query_pool pool, query_type type, uint32_t index) = 0;
 		/// <summary>
 		/// Copy the results of queries in a query pool to a buffer resource.
 		/// <para>The <paramref name="destination"/> resource has to be in the <see cref="resource_usage::copy_dest"/> state.</para>
@@ -709,22 +713,11 @@ namespace reshade { namespace api
 		virtual void copy_query_results(query_pool pool, query_type type, uint32_t first, uint32_t count, resource destination, uint64_t dst_offset, uint32_t stride) = 0;
 
 		/// <summary>
-		/// Adds a barrier for the specified <paramref name="resource"/> to the command stream.
-		/// When both <paramref name="old_state"/> and <paramref name="new_state"/> are <see cref="resource_usage::unordered_access"/> a UAV barrier is added, otherwise a state transition is performed.
+		/// Inserts a debug marker into the command list.
 		/// </summary>
-		/// <param name="resource">The resource to transition.</param>
-		/// <param name="old_state">The usage flags describing how the resource was used before this barrier.</param>
-		/// <param name="new_state">The usage flags describing how the resource will be used after this barrier.</param>
-		inline  void insert_barrier(resource resource, resource_usage old_state, resource_usage new_state) { insert_barrier(1, &resource, &old_state, &new_state); }
-		/// <summary>
-		/// Adds a barrier for the specified <paramref name="resources"/> to the command stream.
-		/// </summary>
-		/// <param name="count">The number of resources to transition.</param>
-		/// <param name="resources">A pointer to an array of resources to transition.</param>
-		/// <param name="old_state">A pointer to an array of usage flags describing how the resources were used before this barrier.</param>
-		/// <param name="new_state">A pointer to an array of usage flags describing how the resources will be used after this barrier.</param>
-		virtual void insert_barrier(uint32_t count, const resource *resources, const resource_usage *old_states, const resource_usage *new_states) = 0;
-
+		/// <param name="label">A null-terminated string containing the label of the debug marker.</param>
+		/// <param name="color">An optional RGBA color value associated with the debug marker.</param>
+		virtual void add_debug_marker(const char *label, const float color[4] = nullptr) = 0;
 		/// <summary>
 		/// Opens a debug marker region in the command list.
 		/// </summary>
@@ -734,13 +727,7 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Closes the current debug marker region (the last one opened with <see cref="command_list::begin_debug_marker"/>).
 		/// </summary>
-		virtual void end_debug_marker() = 0;
-		/// <summary>
-		/// Inserts a debug marker into the command list.
-		/// </summary>
-		/// <param name="label">A null-terminated string containing the label of the debug marker.</param>
-		/// <param name="color">An optional RGBA color value associated with the debug marker.</param>
-		virtual void insert_debug_marker(const char *label, const float color[4] = nullptr) = 0;
+		virtual void finish_debug_marker() = 0;
 	};
 
 	/// <summary>
@@ -767,6 +754,12 @@ namespace reshade { namespace api
 		virtual void wait_idle() const = 0;
 
 		/// <summary>
+		/// Inserts a debug marker into the command queue.
+		/// </summary>
+		/// <param name="label">A null-terminated string containing the label of the debug marker.</param>
+		/// <param name="color">An optional RGBA color value associated with the debug marker.</param>
+		virtual void add_debug_marker(const char *label, const float color[4] = nullptr) = 0;
+		/// <summary>
 		/// Opens a debug marker region in the command queue.
 		/// </summary>
 		/// <param name="label">A null-terminated string containing the label of the debug marker.</param>
@@ -775,13 +768,7 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Closes the current debug marker region (the last one opened with <see cref="command_queue::begin_debug_marker"/>).
 		/// </summary>
-		virtual void end_debug_marker() = 0;
-		/// <summary>
-		/// Inserts a debug marker into the command queue.
-		/// </summary>
-		/// <param name="label">A null-terminated string containing the label of the debug marker.</param>
-		/// <param name="color">An optional RGBA color value associated with the debug marker.</param>
-		virtual void insert_debug_marker(const char *label, const float color[4] = nullptr) = 0;
+		virtual void finish_debug_marker() = 0;
 	};
 
 	/// <summary>
