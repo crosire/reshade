@@ -122,6 +122,8 @@ unsigned int reshadefx::type::rank(const type &src, const type &dst)
 		return src.definition == dst.definition ? 32 : 0; // Structs are only compatible if they are the same type
 	if (!src.is_numeric() || !dst.is_numeric())
 		return src.base == dst.base ? 32 : 0; // Numeric values are not compatible with other types
+	if (src.is_matrix() && (!dst.is_matrix() || src.cols != dst.cols || src.rows != dst.rows))
+		return 0; // matrix trunc or dimention not match
 
 	// This table is based on the following rules:
 	//  - Floating point has a higher rank than integer types

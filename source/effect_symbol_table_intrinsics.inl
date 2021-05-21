@@ -1221,7 +1221,13 @@ IMPLEMENT_INTRINSIC_SPIRV(normalize, 0, {
 
 // ret transpose(x)
 DEFINE_INTRINSIC(transpose, 0, float2x2, float2x2)
+DEFINE_INTRINSIC(transpose, 0, float2x3, float3x2)
+DEFINE_INTRINSIC(transpose, 0, float2x4, float4x2)
+DEFINE_INTRINSIC(transpose, 0, float3x2, float2x3)
 DEFINE_INTRINSIC(transpose, 0, float3x3, float3x3)
+DEFINE_INTRINSIC(transpose, 0, float3x4, float4x3)
+DEFINE_INTRINSIC(transpose, 0, float4x2, float2x4)
+DEFINE_INTRINSIC(transpose, 0, float4x3, float3x4)
 DEFINE_INTRINSIC(transpose, 0, float4x4, float4x4)
 IMPLEMENT_INTRINSIC_GLSL(transpose, 0, {
 	code += "transpose(" + id_to_name(args[0].base) + ')';
@@ -1353,7 +1359,7 @@ IMPLEMENT_INTRINSIC_SPIRV(mul, 1, {
 
 DEFINE_INTRINSIC(mul, 2, int2x2, int, int2x2)
 DEFINE_INTRINSIC(mul, 2, int2x3, int, int2x3)
-DEFINE_INTRINSIC(mul, 2, int2x3, int, int2x3)
+DEFINE_INTRINSIC(mul, 2, int2x4, int, int2x4)
 DEFINE_INTRINSIC(mul, 2, int3x2, int, int3x2)
 DEFINE_INTRINSIC(mul, 2, int3x3, int, int3x3)
 DEFINE_INTRINSIC(mul, 2, int3x4, int, int3x4)
@@ -1362,7 +1368,7 @@ DEFINE_INTRINSIC(mul, 2, int4x3, int, int4x3)
 DEFINE_INTRINSIC(mul, 2, int4x4, int, int4x4)
 DEFINE_INTRINSIC(mul, 2, float2x2, float, float2x2)
 DEFINE_INTRINSIC(mul, 2, float2x3, float, float2x3)
-DEFINE_INTRINSIC(mul, 2, float2x3, float, float2x3)
+DEFINE_INTRINSIC(mul, 2, float2x4, float, float2x4)
 DEFINE_INTRINSIC(mul, 2, float3x2, float, float3x2)
 DEFINE_INTRINSIC(mul, 2, float3x3, float, float3x3)
 DEFINE_INTRINSIC(mul, 2, float3x4, float, float3x4)
