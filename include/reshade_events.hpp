@@ -57,18 +57,18 @@ namespace reshade
 
 		/// <summary>
 		/// Called before 'IDirect3Device9::Create(...)Buffer/Texture', 'IDirect3DDevice9::Create(...)Surface(Ex)', 'ID3D10Device::CreateBuffer/Texture(...)', 'ID3D11Device::CreateBuffer/Texture(...)', 'ID3D12Device::Create(...)Resource', 'gl(Named)Buffer/Tex(ture)Storage(...)(Multisample)', 'gl(Named)RenderbufferStorage(Multisample) or 'vkCreateBuffer/Image'.
-		/// <para>Callback function signature: <c>bool (api::device *device, const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage initial_state)</c></para>
+		/// <para>Callback function signature: <c>bool (api::device *device, const api::resource_desc &amp;desc, const api::subresource_data *initial_data, api::resource_usage initial_state)</c></para>
 		/// </summary>
 		create_resource,
 		/// <summary>
 		/// Called before 'IDirect3DDevice9::Create(...)Surface(Ex)', 'ID3D10Device::Create(...)View', 'ID3D11Device::Create(...)View', 'ID3D12Device::Create(...)View', 'glTex(ture)Buffer', 'glTextureView(...)' or 'vkCreateBuffer/ImageView'.
-		/// <para>Callback function signature: <c>bool (api::device *device, api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc)</c></para>
+		/// <para>Callback function signature: <c>bool (api::device *device, api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &amp;desc)</c></para>
 		/// </summary>
 		create_resource_view,
 
 		/// <summary>
 		/// Called before 'ID3D10Device::Create(...)State', 'ID3D11Device::Create(...)State', 'ID3D12Device::Create(...)PipelineState' or 'vkCreate(...)Pipelines'.
-		/// <para>Callback function signature: <c>bool (api::device *device, const api::pipeline_desc &desc)</c></para>
+		/// <para>Callback function signature: <c>bool (api::device *device, const api::pipeline_desc &amp;desc)</c></para>
 		/// </summary>
 		create_pipeline,
 		/// <summary>

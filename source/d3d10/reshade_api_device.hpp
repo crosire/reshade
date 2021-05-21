@@ -120,9 +120,9 @@ namespace reshade::d3d10
 		void finish_query(api::query_pool pool, api::query_type type, uint32_t index) final;
 		void copy_query_results(api::query_pool pool, api::query_type type, uint32_t first, uint32_t count, api::resource dst, uint64_t dst_offset, uint32_t stride) final;
 
-		void add_debug_marker(const char *, const float[4]) final { /* no-op */ }
-		void begin_debug_marker(const char *, const float[4]) final { /* no-op */ }
-		void finish_debug_marker() final { /* no-op */ }
+		void add_debug_marker(const char *, const float[4]) final {}
+		void begin_debug_marker(const char *, const float[4]) final {}
+		void finish_debug_marker() final {}
 
 	private:
 		UINT _push_constants_size = 0;

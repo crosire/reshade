@@ -135,7 +135,7 @@ namespace reshade { namespace api
 	}
 
 	/// <summary>
-	/// Converts the specified format <paramref name="value"/> to its equivalent typed variant.
+	/// Converts the specified format <paramref name="value"/> to its equivalent typed variant ("unorm" or "float").
 	/// </summary>
 	inline format format_to_default_typed(format value)
 	{
@@ -201,7 +201,7 @@ namespace reshade { namespace api
 	}
 
 	/// <summary>
-	/// Converts the specified format <paramref name="value"/> to its equivalent typed sRGB variant.
+	/// Converts the specified format <paramref name="value"/> to its equivalent typed sRGB variant ("unorm_srgb" or "float").
 	/// </summary>
 	inline format format_to_default_typed_srgb(format value)
 	{

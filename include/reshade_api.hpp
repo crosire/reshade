@@ -8,6 +8,14 @@
 #include "reshade_api_pipeline.hpp"
 #include "reshade_api_resource.hpp"
 
+#ifndef DECLSPEC_NOVTABLE
+	#if (_MSC_VER >= 1100) && defined(__cplusplus)
+		#define DECLSPEC_NOVTABLE __declspec(novtable)
+	#else
+		#define DECLSPEC_NOVTABLE
+	#endif
+#endif
+
 namespace reshade { namespace api
 {
 	/// <summary>
@@ -15,11 +23,35 @@ namespace reshade { namespace api
 	/// </summary>
 	enum class device_api
 	{
+		/// <summary>
+		/// Direct3D 9
+		/// </summary>
+		/// <remarks>https://docs.microsoft.com/windows/win32/direct3d9</remarks>
 		d3d9 = 0x9000,
+		/// <summary>
+		/// Direct3D 10
+		/// </summary>
+		/// <remarks>https://docs.microsoft.com/windows/win32/direct3d10</remarks>
 		d3d10 = 0xa000,
+		/// <summary>
+		/// Direct3D 11
+		/// </summary>
+		/// <remarks>https://docs.microsoft.com/windows/win32/direct3d11</remarks>
 		d3d11 = 0xb000,
+		/// <summary>
+		/// Direct3D 12
+		/// </summary>
+		/// <remarks>https://docs.microsoft.com/windows/win32/direct3d12</remarks>
 		d3d12 = 0xc000,
+		/// <summary>
+		/// OpenGL
+		/// </summary>
+		/// <remarks>https://www.khronos.org/opengl/</remarks>
 		opengl = 0x10000,
+		/// <summary>
+		/// Vulkan
+		/// </summary>
+		/// <remarks>https://www.khronos.org/vulkan/</remarks>
 		vulkan = 0x20000
 	};
 
@@ -126,12 +158,12 @@ namespace reshade { namespace api
 
 	/// <summary>
 	/// The base class for objects provided by the ReShade API.
-	/// This lets you store and retrieve custom data with objects, e.g. to be able to communicate persistent information between event callbacks.
+	/// <para>This lets you store and retrieve custom data with objects, e.g. to be able to communicate persistent information between event callbacks.</para>
 	/// </summary>
-	struct __declspec(novtable) api_object
+	struct DECLSPEC_NOVTABLE api_object
 	{
 		/// <summary>
-		/// Gets a custom data pointer from the object that was previously set via <see cref="api_object::set_data"/>.
+		/// Gets a custom data pointer from the object that was previously set via <see cref="set_user_data"/>.
 		/// This function is not thread-safe!
 		/// </summary>
 		/// <returns><c>true</c> if a pointer was previously set with this <paramref name="guid"/>, <c>false</c> otherwise.</returns>
@@ -145,10 +177,12 @@ namespace reshade { namespace api
 
 		/// <summary>
 		/// Gets the underlying native object for this API object.
-		/// <para>For <see cref="device"/>s this will be be a pointer to a 'IDirect3DDevice9', 'ID3D10Device', 'ID3D11Device' or 'ID3D12Device' object or a 'HGLRC' or 'VkDevice' handle.</para>
-		/// <para>For <see cref="command_list"/>s this will be a pointer to a 'ID3D11DeviceContext' (when recording), 'ID3D11CommandList' (when executing) or 'ID3D12GraphicsCommandList' object or a 'VkCommandBuffer' handle.</para>
-		/// <para>For <see cref="command_queue"/>s this will be a pointer to a 'ID3D11DeviceContext' or 'ID3D12CommandQueue' object or a 'VkQueue' handle.</para>
-		/// <para>For <see cref="effect_runtime"/>s this will be a pointer to a 'IDirect3DSwapChain9' or 'IDXGISwapChain' object or a 'HDC' or 'VkSwapchainKHR' handle.</para>
+		/// <para>
+		/// For <see cref="device"/> this will be be a pointer to a 'IDirect3DDevice9', 'ID3D10Device', 'ID3D11Device' or 'ID3D12Device' object or a 'HGLRC' or 'VkDevice' handle.<br/>
+		/// For <see cref="command_list"/> this will be a pointer to a 'ID3D11DeviceContext' (when recording), 'ID3D11CommandList' (when executing) or 'ID3D12GraphicsCommandList' object or a 'VkCommandBuffer' handle.<br/>
+		/// For <see cref="command_queue"/> this will be a pointer to a 'ID3D11DeviceContext' or 'ID3D12CommandQueue' object or a 'VkQueue' handle.<br/>
+		/// For <see cref="effect_runtime"/> this will be a pointer to a 'IDirect3DSwapChain9' or 'IDXGISwapChain' object or a 'HDC' or 'VkSwapchainKHR' handle.
+		/// </para>
 		/// </summary>
 		virtual uint64_t get_native_object() const = 0;
 
@@ -176,9 +210,9 @@ namespace reshade { namespace api
 
 	/// <summary>
 	/// A logical render device, used for resource creation and global operations.
-	/// Functionally equivalent to a 'IDirect3DDevice9', 'ID3D10Device', 'ID3D11Device', 'ID3D12Device', 'HGLRC' or 'VkDevice'.
+	/// <para>Functionally equivalent to a 'IDirect3DDevice9', 'ID3D10Device', 'ID3D11Device', 'ID3D12Device', 'HGLRC' or 'VkDevice'.</para>
 	/// </summary>
-	struct __declspec(novtable) device : public api_object
+	struct DECLSPEC_NOVTABLE device : public api_object
 	{
 		/// <summary>
 		/// Gets the underlying render API used by this device.
@@ -196,12 +230,10 @@ namespace reshade { namespace api
 
 		/// <summary>
 		/// Checks whether the specified <paramref name="resource"/> handle points to a resource that is still alive and valid.
-		/// This function is thread-safe.
 		/// </summary>
 		virtual bool is_resource_handle_valid(resource handle) const = 0;
 		/// <summary>
 		/// Checks whether the specified resource <paramref name="view"/> handle points to a resource view that is still alive and valid.
-		/// This function is thread-safe.
 		/// </summary>
 		virtual bool is_resource_view_handle_valid(resource_view handle) const = 0;
 
@@ -217,7 +249,7 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <param name="desc">The description of the resource to create.</param>
 		/// <param name="initial_data">Optional data to upload to the resource after creation. This should point to an array of <see cref="mapped_subresource"/>, one for each subresource (mipmap levels and array layers). Can be <c>nullptr</c> to indicate no initial data to upload.</param>
-		/// <param name="initial_state">Initial usage of the resource after creation. This can later be changed via <see cref="command_list::barrier"/>.</param>
+		/// <param name="initial_state">Initial state of the resource after creation. This can later be changed via <see cref="command_list::barrier"/>.</param>
 		/// <param name="out">Pointer to a handle that is set to the handle of the created resource.</param>
 		/// <returns><c>true</c> if the resource was successfully created, <c>false</c> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
 		virtual bool create_resource(const resource_desc &desc, const subresource_data *initial_data, resource_usage initial_state, resource *out) = 0;
@@ -243,9 +275,9 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <param name="type">The shader type.</param>
 		/// <param name="format">The shader source format of the input <paramref name="data"/>.</param>
-		/// <param name="entry_point">Optional entry point name if the shader source contains multiple entry points.</param>
 		/// <param name="code">The shader source.</param>
 		/// <param name="code_size">The size (in bytes) of the shader source.</param>
+		/// <param name="entry_point">Optional entry point name if the shader source contains multiple entry points. Can be <c>nullptr</c> if it does not.</param>
 		/// <param name="out">Pointer to a handle that is set to the handle of the created shader module.</param>
 		/// <returns><c>true</c> if the shader module was successfully compiled and created, <c>false</c> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
 		virtual bool create_shader_module(shader_stage type, shader_format format, const void *code, size_t code_size, const char *entry_point, shader_module *out) = 0;
@@ -287,7 +319,7 @@ namespace reshade { namespace api
 		virtual void destroy_sampler(sampler handle) = 0;
 		/// <summary>
 		/// Instantly destroys a resource that was previously created via <see cref="create_resource"/> and frees its memory.
-		/// Make sure it is no longer in use on the GPU (via any command list that may reference it and is still being executed) before doing this and never try to destroy resources created by the application!
+		/// <para>Make sure it is no longer in use on the GPU (via any command list that may reference it and is still being executed) before doing this and never try to destroy resources created by the application!</para>
 		/// </summary>
 		virtual void destroy_resource(resource handle) = 0;
 		/// <summary>
@@ -317,18 +349,16 @@ namespace reshade { namespace api
 		/// </summary>
 		virtual void destroy_query_pool(query_pool handle) = 0;
 		/// <summary>
-		/// Frees one or more descriptor sets that were previously created via <see cref"create_descriptor_sets"/>.
+		/// Frees one or more descriptor sets that were previously created via <see cref="create_descriptor_sets"/>.
 		/// </summary>
 		virtual void destroy_descriptor_sets(descriptor_set_layout layout, uint32_t count, const descriptor_set *sets) = 0;
 
 		/// <summary>
 		/// Gets the handle to the underlying resource the specified resource <paramref name="view"/> was created for.
-		/// This function is thread-safe.
 		/// </summary>
 		virtual void get_resource_from_view(resource_view view, resource *resource) const = 0;
 		/// <summary>
 		/// Gets the description of the specified <paramref name="resource"/>.
-		/// This function is thread-safe.
 		/// </summary>
 		/// <param name="resource">The resource to get the description from.</param>
 		virtual resource_desc get_resource_desc(resource resource) const = 0;
@@ -354,6 +384,7 @@ namespace reshade { namespace api
 		/// <param name="data">Pointer to the data to upload.</param>
 		/// <param name="destination">The buffer resource to upload to.</param>
 		/// <param name="dst_offset">An offset (in bytes) into the buffer <paramref name="resource"/> to start uploading to.</param>
+		/// <param name="size">The number of bytes to upload.</param>
 		virtual void upload_buffer_region(const void *data, resource destination, uint64_t dst_offset, uint64_t size) = 0;
 		/// <summary>
 		/// Uploads data to a texture resource.
@@ -378,8 +409,8 @@ namespace reshade { namespace api
 		/// <param name="first">The index of the first query in the pool to copy the result from.</param>
 		/// <param name="count">The number of query results to copy.</param>
 		/// <param name="results">Pointer to an array that is filled with the results.</param>
-		/// <param name="stride">The size (in bytes) of the each result element.</param>
-		/// <returns></returns>
+		/// <param name="stride">The size (in bytes) of each result element.</param>
+		/// <returns><c>true</c> if the query results were successfully downloaded from the GPU, <c>false</c> otherwise.</returns>
 		virtual bool get_query_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride) = 0;
 
 		/// <summary>
@@ -399,7 +430,7 @@ namespace reshade { namespace api
 	/// <summary>
 	/// The base class for objects that are children to a logical render <see cref="device"/>.
 	/// </summary>
-	struct __declspec(novtable) device_object : public api_object
+	struct DECLSPEC_NOVTABLE device_object : public api_object
 	{
 		/// <summary>
 		/// Gets the parent device for this object.
@@ -409,9 +440,9 @@ namespace reshade { namespace api
 
 	/// <summary>
 	/// A command list, used to enqueue render commands on the CPU, before later executing them in a command queue.
-	/// Functionally equivalent to a 'ID3D11CommandList', 'ID3D12CommandList' or 'VkCommandBuffer'.
+	/// <para>Functionally equivalent to a 'ID3D11CommandList', 'ID3D12CommandList' or 'VkCommandBuffer'.</para>
 	/// </summary>
-	struct __declspec(novtable) command_list : public device_object
+	struct DECLSPEC_NOVTABLE command_list : public device_object
 	{
 		/// <summary>
 		/// Adds a barrier for the specified <paramref name="resource"/> to the command stream.
@@ -426,14 +457,14 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <param name="count">The number of resources to transition.</param>
 		/// <param name="resources">A pointer to an array of resources to transition.</param>
-		/// <param name="old_state">A pointer to an array of usage flags describing how the resources were used before this barrier.</param>
-		/// <param name="new_state">A pointer to an array of usage flags describing how the resources will be used after this barrier.</param>
+		/// <param name="old_states">A pointer to an array of usage flags describing how the resources were used before this barrier.</param>
+		/// <param name="new_states">A pointer to an array of usage flags describing how the resources will be used after this barrier.</param>
 		virtual void barrier(uint32_t count, const resource *resources, const resource_usage *old_states, const resource_usage *new_states) = 0;
 
 		/// <summary>
 		/// Binds a pipeline state object.
 		/// </summary>
-		/// <param name="stage">The pipeline state object type to bind.</param>
+		/// <param name="type">The pipeline state object type to bind.</param>
 		/// <param name="pipeline">The pipeline state object to bind.</param>
 		virtual void bind_pipeline(pipeline_type type, pipeline pipeline) = 0;
 		/// <summary>
@@ -560,7 +591,8 @@ namespace reshade { namespace api
 		/// <param name="dsv">The resource view that represents the depth-stencil buffer to bind (or zero to bind none). The resource this points to must have been created with the <see cref="resource_usage::depth_stencil"/> usage.</param>
 		virtual void begin_render_pass(uint32_t count, const resource_view *rtvs, resource_view dsv = { 0 }) = 0;
 		/// <summary>
-		/// Marks the ending of a render pass. This must be preceeded by a call to <see cref="command_list::begin_render_pass"/>).
+		/// Marks the ending of a render pass.
+		/// This must be preceeded by a call to <see cref="begin_render_pass"/>). Render passes cannot be nested.
 		/// </summary>
 		virtual void finish_render_pass() = 0;
 
@@ -583,7 +615,7 @@ namespace reshade { namespace api
 		/// <param name="destination">The buffer to copy to.</param>
 		/// <param name="dst_offset">An offset (in bytes) into the <paramref name="destination"/> buffer to start copying to.</param>
 		/// <param name="size">The number of bytes to copy.</param>
-		virtual void copy_buffer_region(resource source, uint64_t src_offset, resource dst, uint64_t dst_offset, uint64_t size) = 0;
+		virtual void copy_buffer_region(resource source, uint64_t src_offset, resource destination, uint64_t dst_offset, uint64_t size) = 0;
 		/// <summary>
 		/// Copies a texture region from the <paramref name="source"/> buffer to the <paramref name="destination"/> texture.
 		/// <para>The <paramref name="source"/> resource has to be in the <see cref="resource_usage::copy_source"/> state.</para>
@@ -709,7 +741,7 @@ namespace reshade { namespace api
 		/// <param name="count">The number of query results to copy.</param>
 		/// <param name="destination">The buffer to copy to.</param>
 		/// <param name="dst_offset">An offset (in bytes) into the <paramref name="destination"/> buffer to start copying to.</param>
-		/// <param name="stride">The size (in bytes) of the each result element.</param>
+		/// <param name="stride">The size (in bytes) of each result element.</param>
 		virtual void copy_query_results(query_pool pool, query_type type, uint32_t first, uint32_t count, resource destination, uint64_t dst_offset, uint32_t stride) = 0;
 
 		/// <summary>
@@ -725,16 +757,16 @@ namespace reshade { namespace api
 		/// <param name="color">An optional RGBA color value associated with the debug marker.</param>
 		virtual void begin_debug_marker(const char *label, const float color[4] = nullptr) = 0;
 		/// <summary>
-		/// Closes the current debug marker region (the last one opened with <see cref="command_list::begin_debug_marker"/>).
+		/// Closes the current debug marker region (the last one opened with <see cref="begin_debug_marker"/>).
 		/// </summary>
 		virtual void finish_debug_marker() = 0;
 	};
 
 	/// <summary>
 	/// A command queue, used to execute command lists on the GPU.
-	/// Functionally equivalent to the immediate 'ID3D11DeviceContext' or a 'ID3D12CommandQueue' or 'VkQueue'.
+	/// <para>Functionally equivalent to the immediate 'ID3D11DeviceContext' or a 'ID3D12CommandQueue' or 'VkQueue'.</para>
 	/// </summary>
-	struct __declspec(novtable) command_queue : public device_object
+	struct DECLSPEC_NOVTABLE command_queue : public device_object
 	{
 		/// <summary>
 		/// Gets a special command list, on which all issued commands are executed as soon as possible (or right before the application executes its next command list on this queue).
@@ -742,7 +774,7 @@ namespace reshade { namespace api
 		virtual command_list *get_immediate_command_list() = 0;
 
 		/// <summary>
-		/// Flushes and executes the special immediate command list returned by <see cref="command_queue::get_immediate_command_list"/> immediately.
+		/// Flushes and executes the special immediate command list returned by <see cref="get_immediate_command_list"/> immediately.
 		/// This can be used to force commands to execute right away instead of waiting for the runtime to flush it automatically at some point.
 		/// </summary>
 		virtual void flush_immediate_command_list() const  = 0;
@@ -766,15 +798,16 @@ namespace reshade { namespace api
 		/// <param name="color">An optional RGBA color value associated with the debug marker.</param>
 		virtual void begin_debug_marker(const char *label, const float color[4] = nullptr) = 0;
 		/// <summary>
-		/// Closes the current debug marker region (the last one opened with <see cref="command_queue::begin_debug_marker"/>).
+		/// Closes the current debug marker region (the last one opened with <see cref="begin_debug_marker"/>).
 		/// </summary>
 		virtual void finish_debug_marker() = 0;
 	};
 
 	/// <summary>
-	/// A ReShade effect runtime, used to control effects. A separate runtime is instantiated for every swap chain ('IDirect3DSwapChain9', 'IDXGISwapChain', 'HDC' or 'VkSwapchainKHR').
+	/// A ReShade effect runtime, used to control effects.
+	/// <para>A separate runtime is instantiated for every swap chain ('IDirect3DSwapChain9', 'IDXGISwapChain', 'HDC' or 'VkSwapchainKHR').</para>
 	/// </summary>
-	struct __declspec(novtable) effect_runtime : public device_object
+	struct DECLSPEC_NOVTABLE effect_runtime : public device_object
 	{
 		/// <summary>
 		/// Gets the main graphics command queue associated with this effect runtime.
