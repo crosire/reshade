@@ -22,13 +22,17 @@ static inline void convert_subresource(uint32_t subresource, const VkImageCreate
 reshade::vulkan::command_list_impl::command_list_impl(device_impl *device, VkCommandBuffer cmd_list) :
 	api_object_impl(cmd_list), _device_impl(device), _has_commands(cmd_list != VK_NULL_HANDLE)
 {
+#if RESHADE_ADDON
 	if (_has_commands) // Do not call add-on event for immediate command list
 		invoke_addon_event<addon_event::init_command_list>(this);
+#endif
 }
 reshade::vulkan::command_list_impl::~command_list_impl()
 {
+#if RESHADE_ADDON
 	if (_has_commands)
 		invoke_addon_event<addon_event::destroy_command_list>(this);
+#endif
 }
 
 reshade::api::device *reshade::vulkan::command_list_impl::get_device()

@@ -90,9 +90,9 @@ reshade::d3d12::device_impl::device_impl(ID3D12Device *device) :
 
 #if RESHADE_ADDON
 	addon::load_addons();
-#endif
 
 	invoke_addon_event<addon_event::init_device>(this);
+#endif
 }
 reshade::d3d12::device_impl::~device_impl()
 {
@@ -102,9 +102,9 @@ reshade::d3d12::device_impl::~device_impl()
 	if (_mipmap_pipeline == nullptr)
 		return;
 
+#if RESHADE_ADDON
 	invoke_addon_event<addon_event::destroy_device>(this);
 
-#if RESHADE_ADDON
 	addon::unload_addons();
 #endif
 }

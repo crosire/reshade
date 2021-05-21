@@ -15,17 +15,17 @@ reshade::d3d10::device_impl::device_impl(ID3D10Device1 *device) :
 {
 #if RESHADE_ADDON
 	addon::load_addons();
-#endif
 
 	invoke_addon_event<addon_event::init_device>(this);
 	invoke_addon_event<addon_event::init_command_queue>(this);
+#endif
 }
 reshade::d3d10::device_impl::~device_impl()
 {
+#if RESHADE_ADDON
 	invoke_addon_event<addon_event::destroy_command_queue>(this);
 	invoke_addon_event<addon_event::destroy_device>(this);
 
-#if RESHADE_ADDON
 	addon::unload_addons();
 #endif
 }

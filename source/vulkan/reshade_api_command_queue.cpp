@@ -29,11 +29,15 @@ reshade::vulkan::command_queue_impl::command_queue_impl(device_impl *device, uin
 		}
 	}
 
+#if RESHADE_ADDON
 	invoke_addon_event<addon_event::init_command_queue>(this);
+#endif
 }
 reshade::vulkan::command_queue_impl::~command_queue_impl()
 {
+#if RESHADE_ADDON
 	invoke_addon_event<addon_event::destroy_command_queue>(this);
+#endif
 
 	delete _immediate_cmd_list;
 

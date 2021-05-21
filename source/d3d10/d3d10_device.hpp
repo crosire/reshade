@@ -123,6 +123,14 @@ struct DECLSPEC_UUID("88399375-734F-4892-A95F-70DD42CE7CDD") D3D10Device final :
 
 	bool check_and_upgrade_interface(REFIID riid);
 
+#if RESHADE_ADDON
+	void invoke_bind_render_targets_event(UINT count, ID3D10RenderTargetView *const *targets, ID3D10DepthStencilView *dsv);
+	void invoke_bind_vertex_buffers_event(UINT first, UINT count, ID3D10Buffer *const *buffers, const UINT *strides, const UINT *offsets);
+	void invoke_bind_samplers_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D10SamplerState *const *objects);
+	void invoke_bind_shader_resource_views_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D10ShaderResourceView *const *objects);
+	void invoke_bind_constant_buffers_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D10Buffer *const *objects);
+#endif
+
 	LONG _ref = 1;
 	DXGIDevice *const _dxgi_device;
 };

@@ -195,12 +195,10 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC hglrc) :
 
 #if RESHADE_ADDON
 	addon::load_addons();
-#endif
 
 	invoke_addon_event<addon_event::init_device>(this);
 	invoke_addon_event<addon_event::init_command_queue>(this);
 
-#if RESHADE_ADDON
 	// Communicate default state to add-ons
 	const api::resource_view default_depth_stencil = get_depth_stencil_from_fbo(0);
 	const api::resource_view default_render_target = get_render_target_from_fbo(0, 0);
@@ -209,10 +207,10 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC hglrc) :
 }
 reshade::opengl::device_impl::~device_impl()
 {
+#if RESHADE_ADDON
 	invoke_addon_event<addon_event::destroy_command_queue>(this);
 	invoke_addon_event<addon_event::destroy_device>(this);
 
-#if RESHADE_ADDON
 	addon::unload_addons();
 #endif
 

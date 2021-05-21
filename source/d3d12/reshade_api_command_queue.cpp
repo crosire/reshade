@@ -39,11 +39,15 @@ reshade::d3d12::command_queue_impl::command_queue_impl(device_impl *device, ID3D
 		LOG(ERROR) << "Failed to create wait for idle resources for queue " << _orig << '!';
 	}
 
+#if RESHADE_ADDON
 	invoke_addon_event<addon_event::init_command_queue>(this);
+#endif
 }
 reshade::d3d12::command_queue_impl::~command_queue_impl()
 {
+#if RESHADE_ADDON
 	invoke_addon_event<addon_event::destroy_command_queue>(this);
+#endif
 
 	if (_wait_idle_fence_event != nullptr)
 		CloseHandle(_wait_idle_fence_event);

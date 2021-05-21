@@ -1412,7 +1412,9 @@ HOOK_EXPORT void WINAPI glEnd()
 
 	if (g_current_runtime)
 	{
+#if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::draw>(g_current_runtime, g_current_runtime->_current_vertex_count, 1, 0, 0); // Cannot be skipped
+#endif
 
 		g_current_runtime->_current_vertex_count = 0;
 	}

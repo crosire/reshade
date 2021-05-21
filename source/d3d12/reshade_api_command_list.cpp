@@ -23,13 +23,17 @@ void encode_pix3blob(UINT64(&pix3blob)[64], const char *label, const float color
 reshade::d3d12::command_list_impl::command_list_impl(device_impl *device, ID3D12GraphicsCommandList *cmd_list) :
 	api_object_impl(cmd_list), _device_impl(device), _has_commands(cmd_list != nullptr)
 {
+#if RESHADE_ADDON
 	if (_has_commands) // Do not call add-on event for immediate command list
 		invoke_addon_event<addon_event::init_command_list>(this);
+#endif
 }
 reshade::d3d12::command_list_impl::~command_list_impl()
 {
+#if RESHADE_ADDON
 	if (_has_commands)
 		invoke_addon_event<addon_event::destroy_command_list>(this);
+#endif
 }
 
 reshade::api::device *reshade::d3d12::command_list_impl::get_device()

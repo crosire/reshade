@@ -223,7 +223,9 @@ bool reshade::runtime::on_init(input::window_handle window)
 		return false;
 #endif
 
+#if RESHADE_ADDON
 	invoke_addon_event<addon_event::init_effect_runtime>(this);
+#endif
 
 	LOG(INFO) << "Recreated runtime environment on runtime " << this << '.';
 
@@ -291,7 +293,9 @@ void reshade::runtime::on_reset()
 	_imgui.table_layouts[1] = {};
 #endif
 
+#if RESHADE_ADDON
 	invoke_addon_event<addon_event::destroy_effect_runtime>(this);
+#endif
 
 	LOG(INFO) << "Destroyed runtime environment on runtime " << this << '.';
 }
@@ -2342,7 +2346,9 @@ void reshade::runtime::render_technique(technique &technique)
 	api::device *const device = get_device();
 	api::command_list *const cmd_list = get_command_queue()->get_immediate_command_list();
 
+#if RESHADE_ADDON
 	invoke_addon_event<addon_event::reshade_before_effects>(this, cmd_list);
+#endif
 
 	if (_gather_gpu_statistics)
 	{
@@ -2532,7 +2538,9 @@ void reshade::runtime::render_technique(technique &technique)
 	if (_gather_gpu_statistics)
 		cmd_list->finish_query(effect.query_heap, api::query_type::timestamp, technique.query_base_index + (_framecount % NUM_QUERY_FRAMES) * 2 + 1);
 
+#if RESHADE_ADDON
 	invoke_addon_event<addon_event::reshade_after_effects>(this, cmd_list);
+#endif
 }
 
 void reshade::runtime::enable_technique(technique &technique)

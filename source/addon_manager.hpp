@@ -7,11 +7,11 @@
 
 #include "addon_impl.hpp"
 #include "reshade_events.hpp"
-#include <string>
+
+#if RESHADE_ADDON
 
 namespace reshade
 {
-#if RESHADE_ADDON
 	template <addon_event ev, typename F, typename RArgs = addon_event_traits<ev>::decl>
 	struct addon_event_call_chain;
 	template <addon_event ev, typename F, typename R, typename... Args>
@@ -36,40 +36,30 @@ namespace reshade
 				});
 		}
 	};
-#endif
 
 	template <addon_event ev, typename... Args>
 	inline std::enable_if_t<addon_event_traits<ev>::type == 1, void> invoke_addon_event(Args... args)
 	{
-#if RESHADE_ADDON
 		std::vector<void *> &event_list = addon::event_list[static_cast<size_t>(ev)];
 		for (size_t cb = 0, count = event_list.size(); cb < count; ++cb) // Generates better code than ranged-based for loop
 			reinterpret_cast<typename reshade::addon_event_traits<ev>::decl>(event_list[cb])(std::forward<Args>(args)...);
-#endif
 	}
 	template <addon_event ev, typename... Args>
 	inline std::enable_if_t<addon_event_traits<ev>::type == 2, bool> invoke_addon_event(Args... args)
 	{
 		bool skip = false;
-#if RESHADE_ADDON
 		std::vector<void *> &event_list = addon::event_list[static_cast<size_t>(ev)];
 		for (size_t cb = 0, count = event_list.size(); cb < count; ++cb)
 			skip |= reinterpret_cast<typename reshade::addon_event_traits<ev>::decl>(event_list[cb])(std::forward<Args>(args)...);
-#endif
 		return skip;
 	}
 	template <addon_event ev, typename F, typename... Args>
 	inline std::enable_if_t< addon_event_traits<ev>::type == 3, void> invoke_addon_event(F &&terminator, Args... args)
 	{
-#if RESHADE_ADDON
 		addon_event_call_chain<ev, F>(std::move(terminator))(std::forward<Args>(args)...);
-#else
-		terminator(std::forward<Args>(args)...);
-#endif
 	}
 }
 
-#if RESHADE_ADDON
 namespace reshade::addon
 {
 	struct info
@@ -111,4 +101,5 @@ namespace reshade::addon
 	/// </summary>
 	void enable_or_disable_addons(bool enabled);
 }
+
 #endif

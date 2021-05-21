@@ -19,15 +19,15 @@ reshade::d3d11::device_impl::device_impl(ID3D11Device *device) :
 
 #if RESHADE_ADDON
 	addon::load_addons();
-#endif
 
 	invoke_addon_event<reshade::addon_event::init_device>(this);
+#endif
 }
 reshade::d3d11::device_impl::~device_impl()
 {
+#if RESHADE_ADDON
 	invoke_addon_event<reshade::addon_event::destroy_device>(this);
 
-#if RESHADE_ADDON
 	addon::unload_addons();
 #endif
 }
