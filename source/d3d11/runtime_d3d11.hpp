@@ -29,7 +29,7 @@ namespace reshade::d3d11
 
 		bool capture_screenshot(uint8_t *buffer) const final;
 
-		bool compile_effect(effect &effect, api::shader_stage type, const std::string &entry_point, api::shader_module &out) final;
+		bool compile_effect(effect &effect, api::shader_stage type, const std::string &entry_point, std::vector<char> &cso) final;
 
 		api::resource_view get_backbuffer(bool srgb) final { return { reinterpret_cast<uintptr_t>(_backbuffer_rtv[srgb ? 1 : 0].get()) }; }
 		api::resource get_backbuffer_resource() final { return { (uintptr_t)_backbuffer_resolved.get() }; }

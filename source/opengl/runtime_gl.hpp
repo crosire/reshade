@@ -33,7 +33,7 @@ namespace reshade::opengl
 
 		bool capture_screenshot(uint8_t *buffer) const final;
 
-		bool compile_effect(effect &effect, api::shader_stage type, const std::string &entry_point, api::shader_module &out) final;
+		bool compile_effect(effect &effect, api::shader_stage type, const std::string &entry_point, std::vector<char> &out) final;
 
 		api::resource_view get_backbuffer(bool srgb) final { return make_resource_view_handle(GL_RENDERBUFFER, _rbo, srgb ? 0x2 : 0); }
 		api::resource get_backbuffer_resource() final { return make_resource_handle(GL_RENDERBUFFER, _rbo);	}

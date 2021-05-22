@@ -29,7 +29,7 @@ namespace reshade::d3d12
 
 		bool capture_screenshot(uint8_t *buffer) const final;
 
-		bool compile_effect(effect &effect, api::shader_stage type, const std::string &entry_point, api::shader_module &out) final;
+		bool compile_effect(effect &effect, api::shader_stage type, const std::string &entry_point, std::vector<char> &cso) final;
 
 		api::resource_view get_backbuffer(bool srgb) final { return { _backbuffer_rtvs->GetCPUDescriptorHandleForHeapStart().ptr + (_swap_index * 2 + (srgb ? 1 : 0)) * _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_RTV] }; }
 		api::resource get_backbuffer_resource() final { return { (uintptr_t)_backbuffers[_swap_index].get() }; }

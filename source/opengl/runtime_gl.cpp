@@ -247,14 +247,16 @@ bool reshade::opengl::runtime_impl::capture_screenshot(uint8_t *buffer) const
 	return true;
 }
 
-bool reshade::opengl::runtime_impl::compile_effect(effect &effect, api::shader_stage type, const std::string &entry_point, api::shader_module &out)
+bool reshade::opengl::runtime_impl::compile_effect(effect &effect, api::shader_stage type, const std::string &entry_point, std::vector<char> &out)
 {
 	if (!effect.module.spirv.empty())
 	{
 		assert(_renderer_id >= 0x14600); // Core since OpenGL 4.6 (see https://www.khronos.org/opengl/wiki/SPIR-V)
 		assert(gl3wProcs.gl.ShaderBinary != nullptr && gl3wProcs.gl.SpecializeShader != nullptr);
 
-		return create_shader_module(type, api::shader_format::spirv, effect.module.spirv.data(), effect.module.spirv.size() * sizeof(uint32_t), entry_point.c_str(), &out);
+		out.resize(effect.module.spirv.size() * sizeof(uint32_t));
+		std::memcpy(out.data(), effect.module.spirv.data(), out.size());
+		return true;
 	}
 	else
 	{
@@ -292,6 +294,8 @@ bool reshade::opengl::runtime_impl::compile_effect(effect &effect, api::shader_s
 		source += effect.preamble;
 		source += effect.module.hlsl;
 
-		return create_shader_module(type, api::shader_format::glsl, source.data(), source.size(), "main", &out);
+		out.resize(source.size());
+		std::memcpy(out.data(), source.data(), out.size());
+		return true;
 	}
 }

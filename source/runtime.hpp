@@ -210,7 +210,7 @@ namespace reshade
 
 		void update_texture_bindings(const char *semantic, api::resource_view srv) final;
 
-		virtual bool compile_effect(effect &effect, api::shader_stage type, const std::string &entry_point, api::shader_module &out) = 0;
+		virtual bool compile_effect(effect &effect, api::shader_stage type, const std::string &entry_point, std::vector<char> &out) = 0;
 
 		virtual api::resource_view get_backbuffer(bool) { return { 0 }; }
 		virtual api::resource get_backbuffer_resource() { return { 0 }; }

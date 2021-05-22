@@ -72,15 +72,10 @@ namespace reshade
 		create_resource_view,
 
 		/// <summary>
-		/// Called before 'ID3D10Device::Create(...)State', 'ID3D11Device::Create(...)State', 'ID3D12Device::Create(...)PipelineState' or 'vkCreate(...)Pipelines'.
+		/// Called before 'IDirect3DDevice9::Create(...)Shader', 'ID3D10Device::Create(...)(Shader/State)', 'ID3D11Device::Create(...)(Shader/State)', 'ID3D12Device::Create(...)PipelineState' or 'vkCreate(...)Pipelines'.
 		/// <para>Callback function signature: <c>bool (api::device *device, const api::pipeline_desc &amp;desc)</c></para>
 		/// </summary>
 		create_pipeline,
-		/// <summary>
-		/// Called before 'IDirect3DDevice9::Create(...)Shader', 'ID3D10Device::Create(...)Shader', 'ID3D11Device::Create(...)Shader', 'ID3D12Device::Create(...)PipelineState', 'glShaderSource' or 'vkCreateShaderModule'.
-		/// <para>Callback function signature: <c>bool (api::device *device, api::shader_type type, api::shader_format format, const void *code, size_t code_size, const char *entry_point)</c></para>
-		/// </summary>
-		create_shader_module,
 
 		/// <summary>
 		/// Called before 'ID3D10Device::UpdateSubresource' or 'ID3D11DeviceContext::UpdateSubresource'.
@@ -385,7 +380,6 @@ namespace reshade
 	DEFINE_ADDON_EVENT_TYPE_3(addon_event::create_resource_view, api::device *device, api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc);
 
 	DEFINE_ADDON_EVENT_TYPE_3(addon_event::create_pipeline, api::device *device, const api::pipeline_desc &desc);
-	DEFINE_ADDON_EVENT_TYPE_3(addon_event::create_shader_module, api::device *device, api::shader_stage type, api::shader_format format, const char *entry_point, const void *code, size_t code_size);
 
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::upload_buffer_region, api::device *device, const void *data, api::resource dst, uint64_t dst_offset, uint64_t size);
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::upload_texture_region, api::device *device, const void *data, uint32_t row_pitch, uint32_t slice_pitch, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6]);

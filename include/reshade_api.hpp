@@ -277,17 +277,6 @@ namespace reshade { namespace api
 		/// <returns><c>true</c> if the pipeline state object was successfully created, <c>false</c> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
 		virtual bool create_pipeline(const pipeline_desc &desc, pipeline *out) = 0;
 		/// <summary>
-		/// Creates a new shader module that can be referenced in a pipeline state object.
-		/// </summary>
-		/// <param name="type">The shader type.</param>
-		/// <param name="format">The shader source format of the input <paramref name="data"/>.</param>
-		/// <param name="code">The shader source.</param>
-		/// <param name="code_size">The size (in bytes) of the shader source.</param>
-		/// <param name="entry_point">Optional entry point name if the shader source contains multiple entry points. Can be <c>nullptr</c> if it does not.</param>
-		/// <param name="out">Pointer to a handle that is set to the handle of the created shader module.</param>
-		/// <returns><c>true</c> if the shader module was successfully compiled and created, <c>false</c> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
-		virtual bool create_shader_module(shader_stage type, shader_format format, const void *code, size_t code_size, const char *entry_point, shader_module *out) = 0;
-		/// <summary>
 		/// Creates a new pipeline layout.
 		/// </summary>
 		/// <param name="out">Pointer to a handle that is set to the handle of the created pipeline layout.</param>
@@ -306,7 +295,7 @@ namespace reshade { namespace api
 		/// Creates a new query pool.
 		/// </summary>
 		/// <param name="type">The type of queries that will be used with this pool.</param>
-		/// <param name="count">The number of queries to allocate.</param>
+		/// <param name="count">The number of queries to allocate in the pool.</param>
 		/// <param name="out">Pointer to a handle that is set to the handle of the created query pool.</param>
 		/// <returns><c>true</c> if the query pool was successfully created, <c>false</c> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
 		virtual bool create_query_pool(query_type type, uint32_t count, query_pool *out) = 0;
@@ -325,7 +314,7 @@ namespace reshade { namespace api
 		virtual void destroy_sampler(sampler handle) = 0;
 		/// <summary>
 		/// Instantly destroys a resource that was previously created via <see cref="create_resource"/> and frees its memory.
-		/// <para>Make sure it is no longer in use on the GPU (via any command list that may reference it and is still being executed) before doing this and never try to destroy resources created by the application!</para>
+		/// <para>Make sure the resource is no longer in use on the GPU (via any command list that may reference it and is still being executed) before doing this and never try to destroy resources created by the application!</para>
 		/// </summary>
 		virtual void destroy_resource(resource handle) = 0;
 		/// <summary>
@@ -338,10 +327,6 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <param name="type">The type of the pipeline state object.</param>
 		virtual void destroy_pipeline(pipeline_type type, pipeline handle) = 0;
-		/// <summary>
-		/// Instantly destroys a shader module that was previously created via <see cref="create_shader_module"/>.
-		/// </summary>
-		virtual void destroy_shader_module(shader_module handle) = 0;
 		/// <summary>
 		/// Instantly destroys a pipeline layout that was previously created via <see cref="create_pipeline_layout"/>.
 		/// </summary>
@@ -374,6 +359,7 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <param name="resource">The resource to map.</param>
 		/// <param name="subresource">The index of the subresource.</param>
+		/// <param name="access">A hint on how the returned data pointer will be accessed.</param>
 		/// <param name="data">Pointer to a pointer that is set to a pointer to the memory of the resource.</param>
 		/// <returns><c>true</c> if the memory of the resource was successfully mapped, <c>false</c> otherwise (in this case <paramref name="data"/> is set to <c>nullptr</c>).</returns>
 		virtual bool map_resource(resource resource, uint32_t subresource, map_access access, void **data) = 0;
@@ -417,7 +403,7 @@ namespace reshade { namespace api
 		/// <param name="results">Pointer to an array that is filled with the results.</param>
 		/// <param name="stride">The size (in bytes) of each result element.</param>
 		/// <returns><c>true</c> if the query results were successfully downloaded from the GPU, <c>false</c> otherwise.</returns>
-		virtual bool get_query_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride) = 0;
+		virtual bool get_query_results(query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride) = 0;
 
 		/// <summary>
 		/// Waits for all issued GPU operations to finish before returning.
@@ -426,10 +412,10 @@ namespace reshade { namespace api
 		virtual void wait_idle() const = 0;
 
 		/// <summary>
-		/// Associates a name with a resource, which is used by debugging tools to better identify it.
+		/// Associates a name with a resource, which is used by debugging tools.
 		/// </summary>
 		/// <param name="resource">The resource to set the debug name for.</param>
-		/// <param name="name">The null-terminated debug name string.</param>
+		/// <param name="name">A null-terminated debug name string.</param>
 		virtual void set_debug_name(resource resource, const char *name) = 0;
 	};
 
@@ -673,7 +659,7 @@ namespace reshade { namespace api
 		/// <param name="dst_subresource">The subresource of the <paramref name="destination"/> texture to resolve to.</param>
 		/// <param name="dst_offset">An offset (in texels) that defines the region in the <paramref name="destination"/> texture to resolve to, in the format { left, top, front }. In D3D10 and D3D11 this has to be <c>nullptr</c>.</param>
 		/// <param name="format">The format of the resource data.</param>
-		virtual void resolve_texture_region(resource source, uint32_t src_subresource, const int32_t src_box[6], resource destination, uint32_t dst_subresource, const int32_t dst_offset[3], api::format format) = 0;
+		virtual void resolve_texture_region(resource source, uint32_t src_subresource, const int32_t src_box[6], resource destination, uint32_t dst_subresource, const int32_t dst_offset[3], format format) = 0;
 
 		/// <summary>
 		/// Generates the lower mipmap levels for the specified shader resource view.

@@ -8,8 +8,6 @@
 #include <cassert>
 #include <algorithm>
 
-void reshade::opengl::device_impl::bind_pipeline(api::pipeline_type type, api::pipeline pipeline)
-{
 #define glEnableOrDisable(cap, enable) \
 	if (enable) { \
 		glEnable(cap); \
@@ -18,91 +16,97 @@ void reshade::opengl::device_impl::bind_pipeline(api::pipeline_type type, api::p
 		glDisable(cap); \
 	}
 
+void reshade::opengl::pipeline_impl::apply_compute() const
+{
+	glUseProgram(program);
+}
+void reshade::opengl::pipeline_impl::apply_graphics() const
+{
+	if (prim_mode == GL_PATCHES)
+	{
+		glPatchParameteri(GL_PATCH_VERTICES, patch_vertices);
+	}
+
+	glUseProgram(program);
+	glBindVertexArray(vao);
+
+	glFrontFace(front_face);
+
+	if (cull_mode != GL_NONE)
+	{
+		glEnable(GL_CULL_FACE);
+		glCullFace(cull_mode);
+	}
+	else
+	{
+		glDisable(GL_CULL_FACE);
+	}
+
+	glPolygonMode(GL_FRONT_AND_BACK, polygon_mode);
+
+	if (blend_enable)
+	{
+		glEnable(GL_BLEND);
+		glBlendFuncSeparate(blend_src, blend_dst, blend_src_alpha, blend_dst_alpha);
+		glBlendEquationSeparate(blend_eq, blend_eq_alpha);
+	}
+	else
+	{
+		glDisable(GL_BLEND);
+	}
+
+	if (logic_op_enable)
+	{
+		glEnable(GL_COLOR_LOGIC_OP);
+		glLogicOp(logic_op);
+	}
+	else
+	{
+		glDisable(GL_COLOR_LOGIC_OP);
+	}
+
+	glColorMask(
+		(color_write_mask & (1 << 0)) != 0,
+		(color_write_mask & (1 << 1)) != 0,
+		(color_write_mask & (1 << 2)) != 0,
+		(color_write_mask & (1 << 3)) != 0);
+
+	glEnableOrDisable(GL_DEPTH_TEST, depth_test);
+	glDepthMask(depth_write_mask);
+
+	if (stencil_test)
+	{
+		glEnable(GL_STENCIL_TEST);
+		glStencilOpSeparate(GL_BACK, back_stencil_op_fail, back_stencil_op_depth_fail, back_stencil_op_pass);
+		glStencilOpSeparate(GL_FRONT, front_stencil_op_fail, front_stencil_op_depth_fail, front_stencil_op_pass);
+		glStencilMask(stencil_write_mask);
+		glStencilFuncSeparate(GL_BACK, back_stencil_func, stencil_reference_value, stencil_read_mask);
+		glStencilFuncSeparate(GL_FRONT, front_stencil_func, stencil_reference_value, stencil_read_mask);
+	}
+	else
+	{
+		glDisable(GL_STENCIL_TEST);
+	}
+
+	glEnableOrDisable(GL_SCISSOR_TEST, scissor_test);
+	glEnableOrDisable(GL_MULTISAMPLE, multisample);
+	glEnableOrDisable(GL_SAMPLE_ALPHA_TO_COVERAGE, sample_alpha_to_coverage);
+	glSampleMaski(0, sample_mask);
+}
+
+void reshade::opengl::device_impl::bind_pipeline(api::pipeline_type type, api::pipeline pipeline)
+{
 	assert(pipeline.handle != 0);
 
 	switch (type)
 	{
-	case api::pipeline_type::compute: {
-		const auto state = reinterpret_cast<pipeline_compute_impl *>(pipeline.handle);
-
-		glUseProgram(state->program);
+	case api::pipeline_type::compute:
+		reinterpret_cast<pipeline_impl *>(pipeline.handle)->apply_compute();
 		break;
-	}
-	case api::pipeline_type::graphics: {
-		const auto state = reinterpret_cast<pipeline_graphics_impl *>(pipeline.handle);
-		_current_prim_mode = state->prim_mode;
-
-		if (state->prim_mode == GL_PATCHES)
-		{
-			glPatchParameteri(GL_PATCH_VERTICES, state->patch_vertices);
-		}
-
-		glUseProgram(state->program);
-		glBindVertexArray(state->vao);
-
-		glFrontFace(state->front_face);
-
-		if (state->cull_mode != GL_NONE) {
-			glEnable(GL_CULL_FACE);
-			glCullFace(state->cull_mode);
-		}
-		else {
-			glDisable(GL_CULL_FACE);
-		}
-
-		glPolygonMode(GL_FRONT_AND_BACK, state->polygon_mode);
-
-		if (state->blend_enable) {
-			glEnable(GL_BLEND);
-			glBlendFuncSeparate(state->blend_src, state->blend_dst, state->blend_src_alpha, state->blend_dst_alpha);
-			glBlendEquationSeparate(state->blend_eq, state->blend_eq_alpha);
-		}
-		else {
-			glDisable(GL_BLEND);
-		}
-
-		if (state->logic_op_enable) {
-			glEnable(GL_COLOR_LOGIC_OP);
-			glLogicOp(state->logic_op);
-		}
-		else {
-			glDisable(GL_COLOR_LOGIC_OP);
-		}
-
-		glColorMask(
-			(state->color_write_mask & (1 << 0)) != 0,
-			(state->color_write_mask & (1 << 1)) != 0,
-			(state->color_write_mask & (1 << 2)) != 0,
-			(state->color_write_mask & (1 << 3)) != 0);
-
-		if (state->depth_test) {
-			glEnable(GL_DEPTH_TEST);
-		}
-		else {
-			glDisable(GL_DEPTH_TEST);
-		}
-
-		glDepthMask(state->depth_write_mask);
-
-		if (state->stencil_test) {
-			glEnable(GL_STENCIL_TEST);
-			glStencilOpSeparate(GL_BACK, state->back_stencil_op_fail, state->back_stencil_op_depth_fail, state->back_stencil_op_pass);
-			glStencilOpSeparate(GL_FRONT, state->front_stencil_op_fail, state->front_stencil_op_depth_fail, state->front_stencil_op_pass);
-			glStencilMask(state->stencil_write_mask);
-			glStencilFuncSeparate(GL_BACK, state->back_stencil_func, state->stencil_reference_value, state->stencil_read_mask);
-			glStencilFuncSeparate(GL_FRONT, state->front_stencil_func, state->stencil_reference_value, state->stencil_read_mask);
-		}
-		else {
-			glDisable(GL_STENCIL_TEST);
-		}
-
-		glEnableOrDisable(GL_SCISSOR_TEST, state->scissor_test);
-		glEnableOrDisable(GL_MULTISAMPLE, state->multisample);
-		glEnableOrDisable(GL_SAMPLE_ALPHA_TO_COVERAGE, state->sample_alpha_to_coverage);
-
-		glSampleMaski(0, state->sample_mask);
+	case api::pipeline_type::graphics:
+		reinterpret_cast<pipeline_impl *>(pipeline.handle)->apply_graphics();
+		_current_prim_mode = reinterpret_cast<pipeline_impl *>(pipeline.handle)->prim_mode;
 		break;
-	}
 	default:
 		assert(false);
 		break;

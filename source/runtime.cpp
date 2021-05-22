@@ -955,19 +955,9 @@ bool reshade::runtime::init_effect(size_t effect_index)
 
 	effect &effect = _effects[effect_index];
 
-	// Load shader modules
-	struct shader_modules
-	{
-		api::device *const device;
-		std::unordered_map<std::string, api::shader_module> entry_points;
-
-		explicit shader_modules(api::device *device) : device(device) {}
-		~shader_modules()
-		{
-			for (const auto &it : entry_points)
-				device->destroy_shader_module(it.second);
-		}
-	} shader_modules(device);
+	// Compile shader modules
+	api::shader_format shader_format = _renderer_id & 0x10000 ? api::shader_format::glsl : _renderer_id & 0x20000 ? api::shader_format::spirv : api::shader_format::dxbc;
+	std::unordered_map<std::string, std::vector<char>> entry_points;
 
 	for (const reshadefx::entry_point &entry_point : effect.module.entry_points)
 	{
@@ -990,12 +980,21 @@ bool reshade::runtime::init_effect(size_t effect_index)
 			break;
 		}
 
-		// TODO: Specialization constants in Vulkan
-		if (!compile_effect(effect, type, entry_point.name, shader_modules.entry_points[entry_point.name]))
+		if (!compile_effect(effect, type, entry_point.name, entry_points[entry_point.name]))
 		{
 			LOG(ERROR) << "Failed to create shader module for effect file '" << effect.source_file << "' entry point '" << entry_point.name << "'!";
 			return false;
 		}
+	}
+
+	// Build specialization constants
+	std::vector<uint32_t> spec_data;
+	std::vector<uint32_t> spec_constants;
+	for (const reshadefx::uniform_info &constant : effect.module.spec_constants)
+	{
+		const uint32_t id = static_cast<uint32_t>(spec_constants.size());
+		spec_data.push_back(constant.initializer_value.as_uint[0]);
+		spec_constants.push_back(id);
 	}
 
 	// Create query pool for time measurements
@@ -1178,7 +1177,17 @@ bool reshade::runtime::init_effect(size_t effect_index)
 				api::pipeline_desc desc = { api::pipeline_type::compute };
 				desc.layout = effect.layout;
 
-				desc.compute.shader = shader_modules.entry_points.at(pass_info.cs_entry_point);
+				const auto &cs = entry_points.at(pass_info.cs_entry_point);
+				desc.compute.shader.code = cs.data();
+				desc.compute.shader.code_size = cs.size();
+				desc.compute.shader.format = shader_format;
+				if (shader_format == api::shader_format::spirv)
+				{
+					desc.compute.shader.entry_point = pass_info.cs_entry_point.c_str();
+					desc.compute.shader.num_spec_constants = static_cast<uint32_t>(effect.module.spec_constants.size());
+					desc.compute.shader.spec_constant_ids = spec_constants.data();
+					desc.compute.shader.spec_constant_values = spec_data.data();
+				}
 
 				if (!device->create_pipeline(desc, &pass_data.pipeline))
 				{
@@ -1191,8 +1200,29 @@ bool reshade::runtime::init_effect(size_t effect_index)
 				api::pipeline_desc desc = { api::pipeline_type::graphics };
 				desc.layout = effect.layout;
 
-				desc.graphics.vertex_shader = shader_modules.entry_points.at(pass_info.vs_entry_point);
-				desc.graphics.pixel_shader = shader_modules.entry_points.at(pass_info.ps_entry_point);
+				const auto &vs = entry_points.at(pass_info.vs_entry_point);
+				desc.graphics.vertex_shader.code = vs.data();
+				desc.graphics.vertex_shader.code_size = vs.size();
+				desc.graphics.vertex_shader.format = shader_format;
+				if (shader_format == api::shader_format::spirv)
+				{
+					desc.graphics.vertex_shader.entry_point = pass_info.vs_entry_point.c_str();
+					desc.graphics.vertex_shader.num_spec_constants = static_cast<uint32_t>(effect.module.spec_constants.size());
+					desc.graphics.vertex_shader.spec_constant_ids = spec_constants.data();
+					desc.graphics.vertex_shader.spec_constant_values = spec_data.data();
+				}
+
+				const auto &ps = entry_points.at(pass_info.ps_entry_point);
+				desc.graphics.pixel_shader.code = ps.data();
+				desc.graphics.pixel_shader.code_size = ps.size();
+				desc.graphics.pixel_shader.format = shader_format;
+				if (shader_format == api::shader_format::spirv)
+				{
+					desc.graphics.pixel_shader.entry_point = pass_info.ps_entry_point.c_str();
+					desc.graphics.pixel_shader.num_spec_constants = static_cast<uint32_t>(effect.module.spec_constants.size());
+					desc.graphics.pixel_shader.spec_constant_ids = spec_constants.data();
+					desc.graphics.pixel_shader.spec_constant_values = spec_data.data();
+				}
 
 				desc.graphics.num_viewports = 1;
 

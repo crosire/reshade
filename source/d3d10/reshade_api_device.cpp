@@ -8,8 +8,6 @@
 #include "reshade_api_type_utils.hpp"
 #include <algorithm>
 
-static const GUID vertex_shader_byte_code_guid = { 0xB2257A30, 0x4014, 0x46EA, { 0xBD, 0x88, 0xDE, 0xC2, 0x1D, 0xB6, 0xA0, 0x2B } };
-
 reshade::d3d10::device_impl::device_impl(ID3D10Device1 *device) :
 	api_object_impl(device)
 {
@@ -252,7 +250,15 @@ bool reshade::d3d10::device_impl::create_pipeline(const api::pipeline_desc &desc
 		*out = { 0 };
 		return false;
 	case api::pipeline_type::graphics:
-		return create_pipeline_graphics_all(desc, out);
+		return create_pipeline_graphics(desc, out);
+	case api::pipeline_type::graphics_vertex_shader:
+		return create_pipeline_graphics_vertex_shader(desc, out);
+	case api::pipeline_type::graphics_geometry_shader:
+		return create_pipeline_graphics_geometry_shader(desc, out);
+	case api::pipeline_type::graphics_pixel_shader:
+		return create_pipeline_graphics_pixel_shader(desc, out);
+	case api::pipeline_type::graphics_input_layout:
+		return create_pipeline_graphics_input_layout(desc, out);
 	case api::pipeline_type::graphics_blend_state:
 		return create_pipeline_graphics_blend_state(desc, out);
 	case api::pipeline_type::graphics_rasterizer_state:
@@ -261,10 +267,10 @@ bool reshade::d3d10::device_impl::create_pipeline(const api::pipeline_desc &desc
 		return create_pipeline_graphics_depth_stencil_state(desc, out);
 	}
 }
-bool reshade::d3d10::device_impl::create_pipeline_graphics_all(const api::pipeline_desc &desc, api::pipeline *out)
+bool reshade::d3d10::device_impl::create_pipeline_graphics(const api::pipeline_desc &desc, api::pipeline *out)
 {
-	if (desc.graphics.hull_shader.handle != 0 ||
-		desc.graphics.domain_shader.handle != 0 ||
+	if (desc.graphics.hull_shader.code_size != 0 ||
+		desc.graphics.domain_shader.code_size != 0 ||
 		desc.graphics.blend_state.logic_op_enable[0] ||
 		desc.graphics.num_dynamic_states != 0)
 	{
@@ -272,77 +278,34 @@ bool reshade::d3d10::device_impl::create_pipeline_graphics_all(const api::pipeli
 		return false;
 	}
 
-	api::pipeline blend_state;
-	if (!create_pipeline_graphics_blend_state(desc, &blend_state))
-	{
-		*out = { 0 };
-		return false;
-	}
-	api::pipeline rasterizer_state;
-	if (!create_pipeline_graphics_rasterizer_state(desc, &rasterizer_state))
-	{
-		*out = { 0 };
-		destroy_pipeline(api::pipeline_type::graphics_blend_state, blend_state);
-		return false;
-	}
-	api::pipeline depth_stencil_state;
-	if (!create_pipeline_graphics_depth_stencil_state(desc, &depth_stencil_state))
-	{
-		*out = { 0 };
-		destroy_pipeline(api::pipeline_type::graphics_blend_state, blend_state);
-		destroy_pipeline(api::pipeline_type::graphics_rasterizer_state, rasterizer_state);
-		return false;
-	}
+#define create_state_object(name, type, extra_check) \
+	api::pipeline name##_handle = { 0 }; \
+	if (extra_check && !create_pipeline_graphics_##name(desc, &name##_handle)) { \
+		*out = { 0 }; \
+		return false; \
+	} \
+	com_ptr<type> name(reinterpret_cast<type *>(name##_handle.handle), true)
 
-	std::vector<D3D10_INPUT_ELEMENT_DESC> internal_elements;
-	internal_elements.reserve(16);
-	for (UINT i = 0; i < 16 && desc.graphics.input_layout[i].format != api::format::unknown; ++i)
-	{
-		const auto &element = desc.graphics.input_layout[i];
-		D3D10_INPUT_ELEMENT_DESC &internal_element = internal_elements.emplace_back();
+	create_state_object(vertex_shader, ID3D10VertexShader, desc.graphics.vertex_shader.code_size != 0);
+	create_state_object(geometry_shader, ID3D10GeometryShader, desc.graphics.geometry_shader.code_size != 0);
+	create_state_object(pixel_shader, ID3D10PixelShader, desc.graphics.pixel_shader.code_size != 0);
 
-		internal_element.SemanticName = element.semantic;
-		internal_element.SemanticIndex = element.semantic_index;
-		internal_element.Format = convert_format(element.format);
-		internal_element.InputSlot = element.buffer_binding;
-		internal_element.AlignedByteOffset = element.offset;
-		internal_element.InputSlotClass = element.instance_step_rate > 0 ? D3D10_INPUT_PER_INSTANCE_DATA : D3D10_INPUT_PER_VERTEX_DATA;
-		internal_element.InstanceDataStepRate = element.instance_step_rate;
-	}
-
-	std::vector<uint8_t> bytecode;
-	if (desc.graphics.vertex_shader.handle != 0)
-	{
-		const auto vertex_shader = reinterpret_cast<ID3D10VertexShader *>(desc.graphics.vertex_shader.handle);
-
-		UINT bytecode_len = 0;
-		vertex_shader->GetPrivateData(vertex_shader_byte_code_guid, &bytecode_len, nullptr);
-		bytecode.resize(bytecode_len);
-		vertex_shader->GetPrivateData(vertex_shader_byte_code_guid, &bytecode_len, bytecode.data());
-	}
-
-	com_ptr<ID3D10InputLayout> input_layout;
-	if (!internal_elements.empty() &&
-		FAILED(_orig->CreateInputLayout(internal_elements.data(), static_cast<UINT>(internal_elements.size()), bytecode.data(), bytecode.size(), &input_layout)))
-	{
-		*out = { 0 };
-		destroy_pipeline(api::pipeline_type::graphics_blend_state, blend_state);
-		destroy_pipeline(api::pipeline_type::graphics_rasterizer_state, rasterizer_state);
-		destroy_pipeline(api::pipeline_type::graphics_depth_stencil_state, depth_stencil_state);
-		return false;
-	}
+	create_state_object(input_layout, ID3D10InputLayout, true);
+	create_state_object(blend_state, ID3D10BlendState, true);
+	create_state_object(rasterizer_state, ID3D10RasterizerState, true);
+	create_state_object(depth_stencil_state, ID3D10DepthStencilState, true);
 
 	const auto state = new pipeline_impl();
 
-	state->vs = reinterpret_cast<ID3D10VertexShader *>(desc.graphics.vertex_shader.handle);
-	state->gs = reinterpret_cast<ID3D10GeometryShader *>(desc.graphics.geometry_shader.handle);
-	state->ps = reinterpret_cast<ID3D10PixelShader *>(desc.graphics.pixel_shader.handle);
+	state->vs = std::move(vertex_shader);
+	state->gs = std::move(geometry_shader);
+	state->ps = std::move(pixel_shader);
 
 	state->input_layout = std::move(input_layout);
 
-	state->blend_state = reinterpret_cast<ID3D10BlendState *>(blend_state.handle);
-	state->rasterizer_state = reinterpret_cast<ID3D10RasterizerState *>(rasterizer_state.handle);
-	state->depth_stencil_state = reinterpret_cast<ID3D10DepthStencilState *>(depth_stencil_state.handle);
+	state->blend_state = std::move(blend_state);
+	state->rasterizer_state = std::move(rasterizer_state);
+	state->depth_stencil_state = std::move(depth_stencil_state);
 
 	state->topology = static_cast<D3D10_PRIMITIVE_TOPOLOGY>(desc.graphics.topology);
 	state->sample_mask = desc.graphics.sample_mask;
@@ -353,12 +316,94 @@ bool reshade::d3d10::device_impl::create_pipeline_graphics_all(const api::pipeli
 	state->blend_constant[2] = ((desc.graphics.blend_state.blend_constant >>  8) & 0xFF) / 255.0f;
 	state->blend_constant[3] = ((desc.graphics.blend_state.blend_constant >> 12) & 0xFF) / 255.0f;
 
-	destroy_pipeline(api::pipeline_type::graphics_blend_state, blend_state);
-	destroy_pipeline(api::pipeline_type::graphics_rasterizer_state, rasterizer_state);
-	destroy_pipeline(api::pipeline_type::graphics_depth_stencil_state, depth_stencil_state);
-
 	*out = { reinterpret_cast<uintptr_t>(state) };
 	return true;
+}
+
+bool reshade::d3d10::device_impl::create_pipeline_graphics_vertex_shader(const api::pipeline_desc &desc, api::pipeline *out)
+{
+	if (com_ptr<ID3D10VertexShader> object;
+		desc.graphics.vertex_shader.format == api::shader_format::dxbc &&
+		SUCCEEDED(_orig->CreateVertexShader(desc.graphics.vertex_shader.code, desc.graphics.vertex_shader.code_size, &object)))
+	{
+		assert(desc.graphics.vertex_shader.entry_point == nullptr);
+		assert(desc.graphics.vertex_shader.num_spec_constants == 0);
+
+		*out = { reinterpret_cast<uintptr_t>(object.release()) };
+		return true;
+	}
+	else
+	{
+		*out = { 0 };
+		return false;
+	}
+}
+bool reshade::d3d10::device_impl::create_pipeline_graphics_geometry_shader(const api::pipeline_desc &desc, api::pipeline *out)
+{
+	if (com_ptr<ID3D10GeometryShader> object;
+		desc.graphics.geometry_shader.format == api::shader_format::dxbc &&
+		SUCCEEDED(_orig->CreateGeometryShader(desc.graphics.geometry_shader.code, desc.graphics.geometry_shader.code_size, &object)))
+	{
+		assert(desc.graphics.geometry_shader.entry_point == nullptr);
+		assert(desc.graphics.geometry_shader.num_spec_constants == 0);
+
+		*out = { reinterpret_cast<uintptr_t>(object.release()) };
+		return true;
+	}
+	else
+	{
+		*out = { 0 };
+		return false;
+	}
+}
+bool reshade::d3d10::device_impl::create_pipeline_graphics_pixel_shader(const api::pipeline_desc &desc, api::pipeline *out)
+{
+	if (com_ptr<ID3D10PixelShader> object;
+		desc.graphics.pixel_shader.format == api::shader_format::dxbc &&
+		SUCCEEDED(_orig->CreatePixelShader(desc.graphics.pixel_shader.code, desc.graphics.pixel_shader.code_size, &object)))
+	{
+		assert(desc.graphics.pixel_shader.entry_point == nullptr);
+		assert(desc.graphics.pixel_shader.num_spec_constants == 0);
+
+		*out = { reinterpret_cast<uintptr_t>(object.release()) };
+		return true;
+	}
+	else
+	{
+		*out = { 0 };
+		return false;
+	}
+}
+bool reshade::d3d10::device_impl::create_pipeline_graphics_input_layout(const api::pipeline_desc &desc, api::pipeline *out)
+{
+	std::vector<D3D10_INPUT_ELEMENT_DESC> internal_elements;
+	internal_elements.reserve(16);
+
+	for (UINT i = 0; i < 16 && desc.graphics.input_layout[i].format != api::format::unknown; ++i)
+	{
+		const api::input_layout_element &element = desc.graphics.input_layout[i];
+
+		D3D10_INPUT_ELEMENT_DESC &internal_element = internal_elements.emplace_back();
+		internal_element.SemanticName = element.semantic;
+		internal_element.SemanticIndex = element.semantic_index;
+		internal_element.Format = convert_format(element.format);
+		internal_element.InputSlot = element.buffer_binding;
+		internal_element.AlignedByteOffset = element.offset;
+		internal_element.InputSlotClass = element.instance_step_rate > 0 ? D3D10_INPUT_PER_INSTANCE_DATA : D3D10_INPUT_PER_VERTEX_DATA;
+		internal_element.InstanceDataStepRate = element.instance_step_rate;
+	}
+
+	if (com_ptr<ID3D10InputLayout> object;
+		internal_elements.empty() || SUCCEEDED(_orig->CreateInputLayout(internal_elements.data(), static_cast<UINT>(internal_elements.size()), desc.graphics.vertex_shader.code, desc.graphics.vertex_shader.code_size, &object)))
+	{
+		*out = { reinterpret_cast<uintptr_t>(object.release()) };
+		return true;
+	}
+	else
+	{
+		*out = { 0 };
+		return false;
+	}
 }
 bool reshade::d3d10::device_impl::create_pipeline_graphics_blend_state(const api::pipeline_desc &desc, api::pipeline *out)
 {
@@ -446,47 +491,6 @@ bool reshade::d3d10::device_impl::create_pipeline_graphics_depth_stencil_state(c
 	}
 }
 
-bool reshade::d3d10::device_impl::create_shader_module(api::shader_stage type, api::shader_format format, const void *code, size_t code_size, const char *entry_point, api::shader_module *out)
-{
-	if (format == api::shader_format::dxbc)
-	{
-		assert(entry_point == nullptr);
-
-		switch (type)
-		{
-		case api::shader_stage::vertex:
-			if (com_ptr<ID3D10VertexShader> object;
-				SUCCEEDED(_orig->CreateVertexShader(code, code_size, &object)))
-			{
-				assert(code_size <= std::numeric_limits<UINT>::max());
-				object->SetPrivateData(vertex_shader_byte_code_guid, static_cast<UINT>(code_size), code);
-
-				*out = { reinterpret_cast<uintptr_t>(object.release()) };
-				return true;
-			}
-			break;
-		case api::shader_stage::geometry:
-			if (com_ptr<ID3D10GeometryShader> object;
-				SUCCEEDED(_orig->CreateGeometryShader(code, code_size, &object)))
-			{
-				*out = { reinterpret_cast<uintptr_t>(object.release()) };
-				return true;
-			}
-			break;
-		case api::shader_stage::pixel:
-			if (com_ptr<ID3D10PixelShader> object;
-				SUCCEEDED(_orig->CreatePixelShader(code, code_size, &object)))
-			{
-				*out = { reinterpret_cast<uintptr_t>(object.release()) };
-				return true;
-			}
-			break;
-		}
-	}
-
-	*out = { 0 };
-	return false;
-}
 bool reshade::d3d10::device_impl::create_pipeline_layout(uint32_t num_set_layouts, const api::descriptor_set_layout *set_layouts, uint32_t num_constant_ranges, const api::constant_range *constant_ranges, api::pipeline_layout *out)
 {
 	if (num_constant_ranges > 1)
@@ -589,11 +593,6 @@ void reshade::d3d10::device_impl::destroy_pipeline(api::pipeline_type type, api:
 	if (type == api::pipeline_type::graphics)
 		delete reinterpret_cast<pipeline_impl *>(handle.handle);
 	else if (handle.handle != 0)
-		reinterpret_cast<IUnknown *>(handle.handle)->Release();
-}
-void reshade::d3d10::device_impl::destroy_shader_module(api::shader_module handle)
-{
-	if (handle.handle != 0)
 		reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }
 void reshade::d3d10::device_impl::destroy_pipeline_layout(api::pipeline_layout handle)

@@ -18,22 +18,22 @@ namespace reshade::d3d9
 		std::vector<UINT> shader_registers;
 	};
 
+	struct descriptor_set_layout_impl
+	{
+		api::descriptor_range range;
+	};
+
 	struct query_pool_impl
 	{
-		reshade::api::query_type type;
+		api::query_type type;
 		std::vector<com_ptr<IDirect3DQuery9>> queries;
 	};
 
 	struct descriptor_set_impl
 	{
-		reshade::api::descriptor_type type;
+		api::descriptor_type type;
 		std::vector<uint64_t> descriptors;
-		std::vector<reshade::api::sampler_with_resource_view> sampler_with_resource_views;
-	};
-
-	struct descriptor_set_layout_impl
-	{
-		reshade::api::descriptor_range range;
+		std::vector<api::sampler_with_resource_view> sampler_with_resource_views;
 	};
 
 	auto convert_format(api::format format, bool lockable = false) -> D3DFORMAT;

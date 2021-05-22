@@ -1220,15 +1220,18 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexShader(const DWORD *pFunc
 	if (pFunction == nullptr)
 		return D3DERR_INVALIDCALL;
 
+	reshade::api::pipeline_desc desc = { reshade::api::pipeline_type::graphics_vertex_shader };
+	desc.graphics.vertex_shader.code = pFunction;
 	// Total size is at byte offset 24 (see http://timjones.io/blog/archive/2015/09/02/parsing-direct3d-shader-bytecode)
-	const DWORD total_size = pFunction[6];
+	desc.graphics.vertex_shader.code_size = pFunction[6];
+	desc.graphics.vertex_shader.format = reshade::api::shader_format::dxbc;
 
 	HRESULT hr = E_FAIL;
-	reshade::invoke_addon_event<reshade::addon_event::create_shader_module>(
-		[this, &hr, ppShader](reshade::api::device *, reshade::api::shader_stage type, reshade::api::shader_format format, const char *, const void *code, size_t) {
-			if (type != reshade::api::shader_stage::vertex || format != reshade::api::shader_format::dxbc)
+	reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(
+		[this, &hr, ppShader](reshade::api::device *, const reshade::api::pipeline_desc &desc) {
+			if (desc.type != reshade::api::pipeline_type::graphics_vertex_shader || desc.graphics.vertex_shader.format != reshade::api::shader_format::dxbc)
 				return false;
-			hr = _orig->CreateVertexShader(static_cast<const DWORD *>(code), ppShader);
+			hr = _orig->CreateVertexShader(static_cast<const DWORD *>(desc.graphics.vertex_shader.code), ppShader);
 			if (SUCCEEDED(hr))
 			{
 				return true;
@@ -1238,7 +1241,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexShader(const DWORD *pFunc
 				LOG(WARN) << "IDirect3DDevice9::CreateVertexShader" << " failed with error code " << hr << '.';
 				return false;
 			}
-		}, this, reshade::api::shader_stage::vertex, reshade::api::shader_format::dxbc, nullptr, pFunction, total_size);
+		}, this, desc);
 	return hr;
 #else
 	return _orig->CreateVertexShader(pFunction, ppShader);
@@ -1363,15 +1366,18 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreatePixelShader(const DWORD *pFunct
 	if (pFunction == nullptr)
 		return D3DERR_INVALIDCALL;
 
+	reshade::api::pipeline_desc desc = { reshade::api::pipeline_type::graphics_pixel_shader };
+	desc.graphics.pixel_shader.code = pFunction;
 	// Total size is at byte offset 24 (see http://timjones.io/blog/archive/2015/09/02/parsing-direct3d-shader-bytecode)
-	const DWORD total_size = pFunction[6];
+	desc.graphics.pixel_shader.code_size = pFunction[6];
+	desc.graphics.pixel_shader.format = reshade::api::shader_format::dxbc;
 
 	HRESULT hr = E_FAIL;
-	reshade::invoke_addon_event<reshade::addon_event::create_shader_module>(
-		[this, &hr, ppShader](reshade::api::device *, reshade::api::shader_stage type, reshade::api::shader_format format, const char *, const void *code, size_t) {
-			if (type != reshade::api::shader_stage::vertex || format != reshade::api::shader_format::dxbc)
+	reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(
+		[this, &hr, ppShader](reshade::api::device *, const reshade::api::pipeline_desc &desc) {
+			if (desc.type != reshade::api::pipeline_type::graphics_pixel_shader || desc.graphics.pixel_shader.format != reshade::api::shader_format::dxbc)
 				return false;
-			hr = _orig->CreatePixelShader(static_cast<const DWORD *>(code), ppShader);
+			hr = _orig->CreatePixelShader(static_cast<const DWORD *>(desc.graphics.pixel_shader.code), ppShader);
 			if (SUCCEEDED(hr))
 			{
 				return true;
@@ -1381,7 +1387,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreatePixelShader(const DWORD *pFunct
 				LOG(WARN) << "IDirect3DDevice9::CreatePixelShader" << " failed with error code " << hr << '.';
 				return false;
 			}
-		}, this, reshade::api::shader_stage::pixel, reshade::api::shader_format::dxbc, nullptr, pFunction, total_size);
+		}, this, desc);
 	return hr;
 #else
 	return _orig->CreatePixelShader(pFunction, ppShader);

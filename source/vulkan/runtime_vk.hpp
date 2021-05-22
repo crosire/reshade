@@ -32,7 +32,7 @@ namespace reshade::vulkan
 
 		bool capture_screenshot(uint8_t *buffer) const final;
 
-		bool compile_effect(effect &effect, api::shader_stage type, const std::string &entry_point, api::shader_module &out) final;
+		bool compile_effect(effect &effect, api::shader_stage type, const std::string &entry_point, std::vector<char> &out) final;
 
 		api::resource_view get_backbuffer(bool srgb) final { return { (uint64_t)_swapchain_views[_swap_index * 2 + (srgb ? 1 : 0)] }; }
 		api::resource get_backbuffer_resource() final { return { (uint64_t)_swapchain_images[_swap_index] }; }

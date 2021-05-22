@@ -93,9 +93,8 @@ namespace reshade::vulkan
 
 		bool create_pipeline(const api::pipeline_desc &desc, api::pipeline *out) final;
 		bool create_pipeline_compute(const api::pipeline_desc &desc, api::pipeline *out);
-		bool create_pipeline_graphics_all(const api::pipeline_desc &desc, api::pipeline *out);
+		bool create_pipeline_graphics(const api::pipeline_desc &desc, api::pipeline *out);
 
-		bool create_shader_module(api::shader_stage type, api::shader_format format, const void *code, size_t code_size, const char *entry_point, api::shader_module *out) final;
 		bool create_pipeline_layout(uint32_t num_table_layouts, const api::descriptor_set_layout *table_layouts, uint32_t num_constant_ranges, const api::constant_range *constant_ranges, api::pipeline_layout *out) final;
 		bool create_descriptor_set_layout(uint32_t num_ranges, const api::descriptor_range *ranges, bool push_descriptors, api::descriptor_set_layout *out) final;
 		bool create_query_pool(api::query_type type, uint32_t count, api::query_pool *out) final;
@@ -106,7 +105,6 @@ namespace reshade::vulkan
 		void destroy_resource_view(api::resource_view handle) final;
 
 		void destroy_pipeline(api::pipeline_type type, api::pipeline handle) final;
-		void destroy_shader_module(api::shader_module handle) final;
 		void destroy_pipeline_layout(api::pipeline_layout handle) final;
 		void destroy_descriptor_set_layout(api::descriptor_set_layout handle) final;
 		void destroy_query_pool(api::query_pool handle) final;
@@ -181,8 +179,6 @@ namespace reshade::vulkan
 		void unregister_buffer(VkBuffer buffer) { _resources.erase((uint64_t)buffer); }
 		void unregister_buffer_view(VkBufferView buffer_view) { _views.erase((uint64_t)buffer_view); }
 
-		bool request_render_pass_and_framebuffer(uint32_t count, const reshade::api::resource_view *rtvs, reshade::api::resource_view dsv, VkRenderPass &out_pass, VkFramebuffer &out_fbo);
-
 		const VkPhysicalDevice _physical_device;
 		const VkLayerDispatchTable _dispatch_table;
 		const VkLayerInstanceDispatchTable _instance_dispatch_table;
@@ -195,10 +191,6 @@ namespace reshade::vulkan
 		lockfree_table<uint64_t, resource_data, 4096> _resources;
 		lockfree_table<uint64_t, resource_view_data, 4096> _views;
 
-		VkDescriptorPool _descriptor_pool = VK_NULL_HANDLE;
-		VkDescriptorPool _transient_descriptor_pool[4] = {};
-		uint32_t _transient_index = 0;
-
 #if RESHADE_ADDON
 		lockfree_table<VkRenderPass, render_pass_data, 4096> _render_pass_list;
 		lockfree_table<VkFramebuffer, std::vector<api::resource_view>, 4096> _framebuffer_list;
@@ -206,10 +198,17 @@ namespace reshade::vulkan
 		std::unordered_map<size_t, VkRenderPass> _render_pass_list_internal;
 		std::unordered_map<size_t, VkFramebuffer> _framebuffer_list_internal;
 		std::unordered_map<VkPipelineLayout, std::vector<VkDescriptorSetLayout>> _pipeline_layout_list;
-		std::unordered_map<VkShaderModule, std::string> _entry_point_names;
 
 #ifndef NDEBUG
 		mutable bool _wait_for_idle_happened = false;
 #endif
+
+	private:
+		bool create_shader_module(VkShaderStageFlagBits stage, const api::shader_desc &desc, VkPipelineShaderStageCreateInfo &stage_info, VkSpecializationInfo &spec_info, std::vector<VkSpecializationMapEntry> &spec_map);
+		bool request_render_pass_and_framebuffer(uint32_t count, const reshade::api::resource_view *rtvs, reshade::api::resource_view dsv, VkRenderPass &out_pass, VkFramebuffer &out_fbo);
+
+		VkDescriptorPool _descriptor_pool = VK_NULL_HANDLE;
+		VkDescriptorPool _transient_descriptor_pool[4] = {};
+		uint32_t _transient_index = 0;
 	};
 }

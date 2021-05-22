@@ -10,11 +10,24 @@
 
 void reshade::d3d9::device_impl::bind_pipeline(api::pipeline_type type, api::pipeline pipeline)
 {
-	assert(type == api::pipeline_type::graphics && pipeline.handle != 0);
-	const auto impl = reinterpret_cast<pipeline_impl *>(pipeline.handle);
+	assert(pipeline.handle != 0);
 
-	impl->state_block->Apply();
-	_current_prim_type = impl->prim_type;
+	switch (type)
+	{
+	case api::pipeline_type::graphics:
+		reinterpret_cast<pipeline_impl *>(pipeline.handle)->state_block->Apply();
+		_current_prim_type = reinterpret_cast<pipeline_impl *>(pipeline.handle)->prim_type;
+		break;
+	case api::pipeline_type::graphics_vertex_shader:
+		_orig->SetVertexShader(reinterpret_cast<IDirect3DVertexShader9 *>(pipeline.handle));
+		break;
+	case api::pipeline_type::graphics_pixel_shader:
+		_orig->SetPixelShader(reinterpret_cast<IDirect3DPixelShader9 *>(pipeline.handle));
+		break;
+	default:
+		assert(false);
+		break;
+	}
 }
 void reshade::d3d9::device_impl::bind_pipeline_states(uint32_t count, const api::pipeline_state *states, const uint32_t *values)
 {

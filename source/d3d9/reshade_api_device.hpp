@@ -31,7 +31,11 @@ namespace reshade::d3d9
 		bool create_resource_view(api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view *out) final;
 
 		bool create_pipeline(const api::pipeline_desc &desc, api::pipeline *out) final;
-		bool create_shader_module(api::shader_stage type, api::shader_format format, const void *code, size_t code_size, const char *entry_point, api::shader_module *out) final;
+		bool create_pipeline_graphics(const api::pipeline_desc &desc, api::pipeline *out);
+		bool create_pipeline_graphics_vertex_shader(const api::pipeline_desc &desc, api::pipeline *out);
+		bool create_pipeline_graphics_pixel_shader(const api::pipeline_desc &desc, api::pipeline *out);
+		bool create_pipeline_graphics_input_layout(const api::pipeline_desc &desc, api::pipeline *out);
+
 		bool create_pipeline_layout(uint32_t num_set_layouts, const api::descriptor_set_layout *set_layouts, uint32_t num_constant_ranges, const api::constant_range *constant_ranges, api::pipeline_layout *out) final;
 		bool create_descriptor_set_layout(uint32_t num_ranges, const api::descriptor_range *ranges, bool push_descriptors, api::descriptor_set_layout *out) final;
 		bool create_query_pool(api::query_type type, uint32_t count, api::query_pool *out) final;
@@ -42,7 +46,6 @@ namespace reshade::d3d9
 		void destroy_resource_view(api::resource_view handle) final;
 
 		void destroy_pipeline(api::pipeline_type type, api::pipeline handle) final;
-		void destroy_shader_module(api::shader_module handle) final;
 		void destroy_pipeline_layout(api::pipeline_layout handle) final;
 		void destroy_descriptor_set_layout(api::descriptor_set_layout handle) final;
 		void destroy_query_pool(api::query_pool handle) final;

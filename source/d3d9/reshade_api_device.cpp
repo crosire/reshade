@@ -572,143 +572,61 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 
 bool reshade::d3d9::device_impl::create_pipeline(const api::pipeline_desc &desc, api::pipeline *out)
 {
+	switch (desc.type)
+	{
+	default:
+		*out = { 0 };
+		return false;
+	case api::pipeline_type::graphics:
+		return create_pipeline_graphics(desc, out);
+	case api::pipeline_type::graphics_vertex_shader:
+		return create_pipeline_graphics_vertex_shader(desc, out);
+	case api::pipeline_type::graphics_pixel_shader:
+		return create_pipeline_graphics_pixel_shader(desc, out);
+	case api::pipeline_type::graphics_input_layout:
+		return create_pipeline_graphics_input_layout(desc, out);
+	}
+}
+bool reshade::d3d9::device_impl::create_pipeline_graphics(const api::pipeline_desc &desc, api::pipeline *out)
+{
 	// Check for unsupported states
-	if (desc.type != api::pipeline_type::graphics ||
-		desc.graphics.num_viewports > 1 ||
-		desc.graphics.num_render_targets > _caps.NumSimultaneousRTs ||
+	if (desc.graphics.hull_shader.code_size != 0 ||
+		desc.graphics.domain_shader.code_size != 0 ||
+		desc.graphics.geometry_shader.code_size != 0 ||
 		desc.graphics.blend_state.alpha_to_coverage ||
 		desc.graphics.blend_state.logic_op_enable[0] ||
-		desc.graphics.hull_shader.handle != 0 ||
-		desc.graphics.domain_shader.handle != 0 ||
-		desc.graphics.geometry_shader.handle != 0 ||
-		FAILED(_orig->BeginStateBlock()))
+		desc.graphics.num_viewports > 1 ||
+		desc.graphics.num_render_targets > _caps.NumSimultaneousRTs)
 	{
 		*out = { 0 };
 		return false;
 	}
 
-	com_ptr<IDirect3DVertexDeclaration9> decl;
-	if (desc.graphics.input_layout[0].format != api::format::unknown)
+#define create_state_object(name, type, extra_check) \
+	api::pipeline name##_handle = { 0 }; \
+	if (extra_check && !create_pipeline_graphics_##name(desc, &name##_handle)) { \
+		*out = { 0 }; \
+		return false; \
+	} \
+	com_ptr<type> name(reinterpret_cast<type *>(name##_handle.handle), true)
+
+	create_state_object(vertex_shader, IDirect3DVertexShader9, desc.graphics.vertex_shader.code_size != 0);
+	create_state_object(pixel_shader, IDirect3DPixelShader9, desc.graphics.pixel_shader.code_size != 0);
+
+	create_state_object(input_layout, IDirect3DVertexDeclaration9, true);
+
+	if (FAILED(_orig->BeginStateBlock()))
 	{
-		std::vector<D3DVERTEXELEMENT9> internal_elements;
-		internal_elements.reserve(16 + 1);
-		for (UINT i = 0; i < 16 && desc.graphics.input_layout[i].format != api::format::unknown; ++i)
-		{
-			const auto &element = desc.graphics.input_layout[i];
-			D3DVERTEXELEMENT9 &internal_element = internal_elements.emplace_back();
-
-			assert(element.buffer_binding <= std::numeric_limits<WORD>::max());
-			internal_element.Stream = static_cast<WORD>(element.buffer_binding);
-			assert(element.offset <= std::numeric_limits<WORD>::max());
-			internal_element.Offset = static_cast<WORD>(element.offset);
-
-			switch (element.format)
-			{
-			default:
-				assert(false);
-				*out = { 0 };
-				return false;
-			case api::format::r8g8b8a8_uint:
-				internal_element.Type = D3DDECLTYPE_UBYTE4;
-				break;
-			case api::format::r8g8b8a8_unorm:
-				internal_element.Type = D3DDECLTYPE_UBYTE4N;
-				break;
-			case api::format::b8g8r8a8_unorm:
-				internal_element.Type = D3DDECLTYPE_D3DCOLOR;
-				break;
-			case api::format::r10g10b10a2_uint:
-				internal_element.Type = D3DDECLTYPE_UDEC3;
-				break;
-			case api::format::r10g10b10a2_unorm:
-				internal_element.Type = D3DDECLTYPE_DEC3N;
-				break;
-			case api::format::r16g16_sint:
-				internal_element.Type = D3DDECLTYPE_SHORT2;
-				break;
-			case api::format::r16g16_float:
-				internal_element.Type = D3DDECLTYPE_FLOAT16_2;
-				break;
-			case api::format::r16g16_unorm:
-				internal_element.Type = D3DDECLTYPE_USHORT2N;
-				break;
-			case api::format::r16g16_snorm:
-				internal_element.Type = D3DDECLTYPE_SHORT2N;
-				break;
-			case api::format::r16g16b16a16_sint:
-				internal_element.Type = D3DDECLTYPE_SHORT4;
-				break;
-			case api::format::r16g16b16a16_float:
-				internal_element.Type = D3DDECLTYPE_FLOAT16_4;
-				break;
-			case api::format::r16g16b16a16_unorm:
-				internal_element.Type = D3DDECLTYPE_USHORT4N;
-				break;
-			case api::format::r16g16b16a16_snorm:
-				internal_element.Type = D3DDECLTYPE_SHORT4N;
-				break;
-			case api::format::r32_float:
-				internal_element.Type = D3DDECLTYPE_FLOAT1;
-				break;
-			case api::format::r32g32_float:
-				internal_element.Type = D3DDECLTYPE_FLOAT2;
-				break;
-			case api::format::r32g32b32_float:
-				internal_element.Type = D3DDECLTYPE_FLOAT3;
-				break;
-			case api::format::r32g32b32a32_float:
-				internal_element.Type = D3DDECLTYPE_FLOAT4;
-				break;
-			}
-
-			if (strcmp(element.semantic, "POSITION") == 0)
-				internal_element.Usage = D3DDECLUSAGE_POSITION;
-			else if (strcmp(element.semantic, "BLENDWEIGHT") == 0)
-				internal_element.Usage = D3DDECLUSAGE_BLENDWEIGHT;
-			else if (strcmp(element.semantic, "BLENDINDICES") == 0)
-				internal_element.Usage = D3DDECLUSAGE_BLENDINDICES;
-			else if (strcmp(element.semantic, "NORMAL") == 0)
-				internal_element.Usage = D3DDECLUSAGE_NORMAL;
-			else if (strcmp(element.semantic, "PSIZE") == 0)
-				internal_element.Usage = D3DDECLUSAGE_PSIZE;
-			else if (strcmp(element.semantic, "TANGENT") == 0)
-				internal_element.Usage = D3DDECLUSAGE_TANGENT;
-			else if (strcmp(element.semantic, "BINORMAL") == 0)
-				internal_element.Usage = D3DDECLUSAGE_BINORMAL;
-			else if (strcmp(element.semantic, "TESSFACTOR") == 0)
-				internal_element.Usage = D3DDECLUSAGE_TESSFACTOR;
-			else if (strcmp(element.semantic, "POSITIONT") == 0)
-				internal_element.Usage = D3DDECLUSAGE_POSITIONT;
-			else if (strcmp(element.semantic, "COLOR") == 0)
-				internal_element.Usage = D3DDECLUSAGE_COLOR;
-			else if (strcmp(element.semantic, "FOG") == 0)
-				internal_element.Usage = D3DDECLUSAGE_FOG;
-			else if (strcmp(element.semantic, "DEPTH") == 0)
-				internal_element.Usage = D3DDECLUSAGE_DEPTH;
-			else if (strcmp(element.semantic, "SAMPLE") == 0)
-				internal_element.Usage = D3DDECLUSAGE_SAMPLE;
-			else
-				internal_element.Usage = D3DDECLUSAGE_TEXCOORD;
-
-			assert(element.semantic_index <= 256);
-			internal_element.UsageIndex = static_cast<BYTE>(element.semantic_index);
-		}
-
-		internal_elements.push_back(D3DDECL_END());
-
-		if (FAILED(_orig->CreateVertexDeclaration(internal_elements.data(), &decl)))
-		{
-			*out = { 0 };
-			return false;
-		}
+		*out = { 0 };
+		return false;
 	}
 
-	_orig->SetPixelShader(reinterpret_cast<IDirect3DPixelShader9 *>(desc.graphics.pixel_shader.handle));
-	_orig->SetVertexShader(reinterpret_cast<IDirect3DVertexShader9 *>(desc.graphics.vertex_shader.handle));
+	_orig->SetVertexShader(vertex_shader.get());
+	_orig->SetPixelShader(pixel_shader.get());
 
-	if (decl != nullptr)
+	if (input_layout != nullptr)
 	{
-		_orig->SetVertexDeclaration(decl.get());
+		_orig->SetVertexDeclaration(input_layout.get());
 	}
 	else
 	{
@@ -821,36 +739,163 @@ bool reshade::d3d9::device_impl::create_pipeline(const api::pipeline_desc &desc,
 		return false;
 	}
 }
-bool reshade::d3d9::device_impl::create_shader_module(api::shader_stage type, api::shader_format format, const void *code, size_t, const char *entry_point, api::shader_module *out)
-{
-	if (format == api::shader_format::dxbc)
-	{
-		assert(entry_point == nullptr);
 
-		switch (type)
+bool reshade::d3d9::device_impl::create_pipeline_graphics_vertex_shader(const api::pipeline_desc &desc, api::pipeline *out)
+{
+	if (com_ptr<IDirect3DVertexShader9> object;
+		desc.graphics.vertex_shader.format == api::shader_format::dxbc &&
+		SUCCEEDED(_orig->CreateVertexShader(static_cast<const DWORD *>(desc.graphics.vertex_shader.code), &object)))
+	{
+		assert(desc.graphics.vertex_shader.num_spec_constants == 0);
+
+		*out = { reinterpret_cast<uintptr_t>(object.release()) };
+		return true;
+	}
+	else
+	{
+		*out = { 0 };
+		return false;
+	}
+}
+bool reshade::d3d9::device_impl::create_pipeline_graphics_pixel_shader(const api::pipeline_desc &desc, api::pipeline *out)
+{
+	if (com_ptr<IDirect3DPixelShader9> object;
+		desc.graphics.pixel_shader.format == api::shader_format::dxbc &&
+		SUCCEEDED(_orig->CreatePixelShader(static_cast<const DWORD *>(desc.graphics.pixel_shader.code), &object)))
+	{
+		assert(desc.graphics.pixel_shader.num_spec_constants == 0);
+
+		*out = { reinterpret_cast<uintptr_t>(object.release()) };
+		return true;
+	}
+	else
+	{
+		*out = { 0 };
+		return false;
+	}
+}
+bool reshade::d3d9::device_impl::create_pipeline_graphics_input_layout(const api::pipeline_desc &desc, api::pipeline *out)
+{
+	std::vector<D3DVERTEXELEMENT9> internal_elements;
+	internal_elements.reserve(16 + 1);
+
+	for (UINT i = 0; i < 16 && desc.graphics.input_layout[i].format != api::format::unknown; ++i)
+	{
+		const api::input_layout_element &element = desc.graphics.input_layout[i];
+
+		D3DVERTEXELEMENT9 &internal_element = internal_elements.emplace_back();
+		assert(element.buffer_binding <= std::numeric_limits<WORD>::max());
+		internal_element.Stream = static_cast<WORD>(element.buffer_binding);
+		assert(element.offset <= std::numeric_limits<WORD>::max());
+		internal_element.Offset = static_cast<WORD>(element.offset);
+
+		switch (element.format)
 		{
-		case api::shader_stage::vertex:
-			if (com_ptr<IDirect3DVertexShader9> shader;
-				SUCCEEDED(_orig->CreateVertexShader(static_cast<const DWORD *>(code), &shader)))
-			{
-				*out = { reinterpret_cast<uintptr_t>(shader.release()) };
-				return true;
-			}
+		case api::format::r8g8b8a8_uint:
+			internal_element.Type = D3DDECLTYPE_UBYTE4;
 			break;
-		case api::shader_stage::pixel:
-			if (com_ptr<IDirect3DPixelShader9> shader;
-				SUCCEEDED(_orig->CreatePixelShader(static_cast<const DWORD *>(code), &shader)))
-			{
-				*out = { reinterpret_cast<uintptr_t>(shader.release()) };
-				return true;
-			}
+		case api::format::r8g8b8a8_unorm:
+			internal_element.Type = D3DDECLTYPE_UBYTE4N;
 			break;
+		case api::format::b8g8r8a8_unorm:
+			internal_element.Type = D3DDECLTYPE_D3DCOLOR;
+			break;
+		case api::format::r10g10b10a2_uint:
+			internal_element.Type = D3DDECLTYPE_UDEC3;
+			break;
+		case api::format::r10g10b10a2_unorm:
+			internal_element.Type = D3DDECLTYPE_DEC3N;
+			break;
+		case api::format::r16g16_sint:
+			internal_element.Type = D3DDECLTYPE_SHORT2;
+			break;
+		case api::format::r16g16_float:
+			internal_element.Type = D3DDECLTYPE_FLOAT16_2;
+			break;
+		case api::format::r16g16_unorm:
+			internal_element.Type = D3DDECLTYPE_USHORT2N;
+			break;
+		case api::format::r16g16_snorm:
+			internal_element.Type = D3DDECLTYPE_SHORT2N;
+			break;
+		case api::format::r16g16b16a16_sint:
+			internal_element.Type = D3DDECLTYPE_SHORT4;
+			break;
+		case api::format::r16g16b16a16_float:
+			internal_element.Type = D3DDECLTYPE_FLOAT16_4;
+			break;
+		case api::format::r16g16b16a16_unorm:
+			internal_element.Type = D3DDECLTYPE_USHORT4N;
+			break;
+		case api::format::r16g16b16a16_snorm:
+			internal_element.Type = D3DDECLTYPE_SHORT4N;
+			break;
+		case api::format::r32_float:
+			internal_element.Type = D3DDECLTYPE_FLOAT1;
+			break;
+		case api::format::r32g32_float:
+			internal_element.Type = D3DDECLTYPE_FLOAT2;
+			break;
+		case api::format::r32g32b32_float:
+			internal_element.Type = D3DDECLTYPE_FLOAT3;
+			break;
+		case api::format::r32g32b32a32_float:
+			internal_element.Type = D3DDECLTYPE_FLOAT4;
+			break;
+		default:
+			assert(false);
+			*out = { 0 };
+			return false;
 		}
+
+		if (strcmp(element.semantic, "POSITION") == 0)
+			internal_element.Usage = D3DDECLUSAGE_POSITION;
+		else if (strcmp(element.semantic, "BLENDWEIGHT") == 0)
+			internal_element.Usage = D3DDECLUSAGE_BLENDWEIGHT;
+		else if (strcmp(element.semantic, "BLENDINDICES") == 0)
+			internal_element.Usage = D3DDECLUSAGE_BLENDINDICES;
+		else if (strcmp(element.semantic, "NORMAL") == 0)
+			internal_element.Usage = D3DDECLUSAGE_NORMAL;
+		else if (strcmp(element.semantic, "PSIZE") == 0)
+			internal_element.Usage = D3DDECLUSAGE_PSIZE;
+		else if (strcmp(element.semantic, "TANGENT") == 0)
+			internal_element.Usage = D3DDECLUSAGE_TANGENT;
+		else if (strcmp(element.semantic, "BINORMAL") == 0)
+			internal_element.Usage = D3DDECLUSAGE_BINORMAL;
+		else if (strcmp(element.semantic, "TESSFACTOR") == 0)
+			internal_element.Usage = D3DDECLUSAGE_TESSFACTOR;
+		else if (strcmp(element.semantic, "POSITIONT") == 0)
+			internal_element.Usage = D3DDECLUSAGE_POSITIONT;
+		else if (strcmp(element.semantic, "COLOR") == 0)
+			internal_element.Usage = D3DDECLUSAGE_COLOR;
+		else if (strcmp(element.semantic, "FOG") == 0)
+			internal_element.Usage = D3DDECLUSAGE_FOG;
+		else if (strcmp(element.semantic, "DEPTH") == 0)
+			internal_element.Usage = D3DDECLUSAGE_DEPTH;
+		else if (strcmp(element.semantic, "SAMPLE") == 0)
+			internal_element.Usage = D3DDECLUSAGE_SAMPLE;
+		else
+			internal_element.Usage = D3DDECLUSAGE_TEXCOORD;
+
+		assert(element.semantic_index <= 256);
+		internal_element.UsageIndex = static_cast<BYTE>(element.semantic_index);
 	}
 
-	*out = { 0 };
-	return false;
+	internal_elements.push_back(D3DDECL_END());
+
+	if (com_ptr<IDirect3DVertexDeclaration9> object;
+		internal_elements.size() == 1 || SUCCEEDED(_orig->CreateVertexDeclaration(internal_elements.data(), &object)))
+	{
+		*out = { reinterpret_cast<uintptr_t>(object.release()) };
+		return true;
+	}
+	else
+	{
+		*out = { 0 };
+		return false;
+	}
 }
+
 bool reshade::d3d9::device_impl::create_pipeline_layout(uint32_t num_set_layouts, const api::descriptor_set_layout *set_layouts, uint32_t num_constant_ranges, const api::constant_range *constant_ranges, api::pipeline_layout *out)
 {
 	const auto layout_impl = new pipeline_layout_impl();
@@ -944,13 +989,9 @@ void reshade::d3d9::device_impl::destroy_resource_view(api::resource_view handle
 
 void reshade::d3d9::device_impl::destroy_pipeline(api::pipeline_type type, api::pipeline handle)
 {
-	assert(type == api::pipeline_type::graphics);
-
-	delete reinterpret_cast<pipeline_impl *>(handle.handle);
-}
-void reshade::d3d9::device_impl::destroy_shader_module(api::shader_module handle)
-{
-	if (handle.handle != 0)
+	if (type == api::pipeline_type::graphics)
+		delete reinterpret_cast<pipeline_impl *>(handle.handle);
+	else if (handle.handle != 0)
 		reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }
 void reshade::d3d9::device_impl::destroy_pipeline_layout(api::pipeline_layout handle)

@@ -830,33 +830,9 @@ VkResult VKAPI_CALL vkCreateShaderModule(VkDevice device, const VkShaderModuleCr
 	GET_DISPATCH_PTR_FROM(CreateShaderModule, device_impl);
 
 #if RESHADE_ADDON
-	assert(pCreateInfo != nullptr);
-	VkShaderModuleCreateInfo create_info = *pCreateInfo;
-
-	VkResult result = VK_ERROR_UNKNOWN;
-	reshade::invoke_addon_event<reshade::addon_event::create_shader_module>(
-		[device_impl, trampoline, &result, &create_info, pAllocator, pShaderModule](reshade::api::device *, reshade::api::shader_stage, reshade::api::shader_format format, const char *, const void *code, size_t code_size) {
-			if (format != reshade::api::shader_format::spirv)
-				return false;
-
-			create_info.pCode = static_cast<const uint32_t *>(code);
-			create_info.codeSize = code_size;
-
-			result = trampoline(device_impl->_orig, &create_info, pAllocator, pShaderModule);
-			if (result == VK_SUCCESS)
-			{
-				return true;
-			}
-			else
-			{
-				LOG(WARN) << "vkCreateShaderModule" << " failed with error code " << result << '.';
-				return false;
-			}
-		}, device_impl, reshade::api::shader_stage::all, reshade::api::shader_format::spirv, nullptr, create_info.pCode, create_info.codeSize);
-	return result;
-#else
-	return trampoline(device, pCreateInfo, pAllocator, pShaderModule);
 #endif
+
+	return trampoline(device, pCreateInfo, pAllocator, pShaderModule);
 }
 
 VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache pipelineCache, uint32_t createInfoCount, const VkGraphicsPipelineCreateInfo *pCreateInfos, const VkAllocationCallbacks *pAllocator, VkPipeline *pPipelines)

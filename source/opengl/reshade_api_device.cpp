@@ -642,6 +642,46 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource resource, 
 	}
 }
 
+static bool create_shader_module(GLenum type, const reshade::api::shader_desc &desc, GLuint &shader_object)
+{
+	shader_object = 0;
+
+	if (desc.code_size == 0)
+		return false;
+
+	shader_object = glCreateShader(type);
+
+	if (desc.format == reshade::api::shader_format::glsl)
+	{
+		assert(desc.entry_point == nullptr || strcmp(desc.entry_point, "main") == 0);
+		assert(desc.num_spec_constants == 0);
+
+		const auto source = static_cast<const GLchar *>(desc.code);
+		const auto source_len = static_cast<GLint>(desc.code_size);
+		glShaderSource(shader_object, 1, &source, &source_len);
+		glCompileShader(shader_object);
+	}
+	else if (desc.format == reshade::api::shader_format::spirv)
+	{
+		assert(desc.code_size <= static_cast<size_t>(std::numeric_limits<GLsizei>::max()));
+
+		glShaderBinary(1, &shader_object, GL_SPIR_V_BINARY, desc.code, static_cast<GLsizei>(desc.code_size));
+		glSpecializeShader(shader_object, desc.entry_point, desc.num_spec_constants, desc.spec_constant_ids, desc.spec_constant_values);
+	}
+
+	GLint status = GL_FALSE;
+	glGetShaderiv(shader_object, GL_COMPILE_STATUS, &status);
+	if (GL_FALSE != status)
+	{
+		return true;
+	}
+	else
+	{
+		glDeleteShader(shader_object);
+		return false;
+	}
+}
+
 bool reshade::opengl::device_impl::create_pipeline(const api::pipeline_desc &desc, api::pipeline *out)
 {
 	switch (desc.type)
@@ -657,19 +697,23 @@ bool reshade::opengl::device_impl::create_pipeline(const api::pipeline_desc &des
 }
 bool reshade::opengl::device_impl::create_pipeline_compute(const api::pipeline_desc &desc, api::pipeline *out)
 {
+	GLuint cs;
 	const GLuint program = glCreateProgram();
 
-	if (desc.compute.shader.handle != 0)
-		glAttachShader(program, static_cast<GLuint>(desc.compute.shader.handle));
+	if (create_shader_module(GL_COMPUTE_SHADER, desc.compute.shader, cs))
+		glAttachShader(program, cs);
 
 	glLinkProgram(program);
 
-	if (desc.compute.shader.handle != 0)
-		glDetachShader(program, static_cast<GLuint>(desc.compute.shader.handle));
+	if (cs != 0)
+		glDetachShader(program, cs);
+
+	glDeleteShader(cs)
 
 	GLint status = GL_FALSE;
 	glGetProgramiv(program, GL_LINK_STATUS, &status);
-	if (GL_FALSE == status)
+	if (GL_FALSE == status ||
+		(desc.compute.shader.code_size != 0 && cs == 0))
 	{
 		glDeleteProgram(program);
 
@@ -677,7 +721,7 @@ bool reshade::opengl::device_impl::create_pipeline_compute(const api::pipeline_d
 		return false;
 	}
 
-	const auto state = new pipeline_compute_impl();
+	const auto state = new pipeline_impl();
 	state->program = program;
 
 	*out = { reinterpret_cast<uintptr_t>(state) };
@@ -685,35 +729,48 @@ bool reshade::opengl::device_impl::create_pipeline_compute(const api::pipeline_d
 }
 bool reshade::opengl::device_impl::create_pipeline_graphics(const api::pipeline_desc &desc, api::pipeline *out)
 {
+	GLuint vs, hs, ds, gs, ps;
 	const GLuint program = glCreateProgram();
 
-	if (desc.graphics.vertex_shader.handle != 0)
-		glAttachShader(program, static_cast<GLuint>(desc.graphics.vertex_shader.handle));
-	if (desc.graphics.hull_shader.handle != 0)
-		glAttachShader(program, static_cast<GLuint>(desc.graphics.hull_shader.handle));
-	if (desc.graphics.domain_shader.handle != 0)
-		glAttachShader(program, static_cast<GLuint>(desc.graphics.domain_shader.handle));
-	if (desc.graphics.geometry_shader.handle != 0)
-		glAttachShader(program, static_cast<GLuint>(desc.graphics.geometry_shader.handle));
-	if (desc.graphics.pixel_shader.handle != 0)
-		glAttachShader(program, static_cast<GLuint>(desc.graphics.pixel_shader.handle));
+	if (create_shader_module(GL_VERTEX_SHADER, desc.graphics.vertex_shader, vs))
+		glAttachShader(program, vs);
+	if (create_shader_module(GL_TESS_CONTROL_SHADER, desc.graphics.hull_shader, hs))
+		glAttachShader(program, hs);
+	if (create_shader_module(GL_TESS_EVALUATION_SHADER, desc.graphics.domain_shader, ds))
+		glAttachShader(program, ds);
+	if (create_shader_module(GL_GEOMETRY_SHADER, desc.graphics.geometry_shader, gs))
+		glAttachShader(program, gs);
+	if (create_shader_module(GL_FRAGMENT_SHADER, desc.graphics.pixel_shader, ps))
+		glAttachShader(program, ps);
 
 	glLinkProgram(program);
 
-	if (desc.graphics.vertex_shader.handle != 0)
-		glDetachShader(program, static_cast<GLuint>(desc.graphics.vertex_shader.handle));
-	if (desc.graphics.hull_shader.handle != 0)
-		glDetachShader(program, static_cast<GLuint>(desc.graphics.hull_shader.handle));
-	if (desc.graphics.domain_shader.handle != 0)
-		glDetachShader(program, static_cast<GLuint>(desc.graphics.domain_shader.handle));
-	if (desc.graphics.geometry_shader.handle != 0)
-		glDetachShader(program, static_cast<GLuint>(desc.graphics.geometry_shader.handle));
-	if (desc.graphics.pixel_shader.handle != 0)
-		glDetachShader(program, static_cast<GLuint>(desc.graphics.pixel_shader.handle));
+	if (vs != 0)
+		glDetachShader(program, vs);
+	if (hs != 0)
+		glDetachShader(program, hs);
+	if (ds != 0)
+		glDetachShader(program, ds);
+	if (gs != 0)
+		glDetachShader(program, gs);
+	if (ps != 0)
+		glDetachShader(program, ps);
+
+	glDeleteShader(vs);
+	glDeleteShader(hs);
+	glDeleteShader(ds);
+	glDeleteShader(gs);
+	glDeleteShader(ps);
 
 	GLint status = GL_FALSE;
 	glGetProgramiv(program, GL_LINK_STATUS, &status);
-	if (GL_FALSE == status)
+
+	if (GL_FALSE == status ||
+		(desc.graphics.vertex_shader.code_size != 0 && vs == 0) ||
+		(desc.graphics.hull_shader.code_size != 0 && hs == 0) ||
+		(desc.graphics.domain_shader.code_size != 0 && ds == 0) ||
+		(desc.graphics.geometry_shader.code_size != 0 && gs == 0) ||
+		(desc.graphics.pixel_shader.code_size != 0 && ps == 0))
 	{
 		glDeleteProgram(program);
 
@@ -721,7 +778,7 @@ bool reshade::opengl::device_impl::create_pipeline_graphics(const api::pipeline_
 		return false;
 	}
 
-	const auto state = new pipeline_graphics_impl();
+	const auto state = new pipeline_impl();
 	state->program = program;
 
 	{
@@ -794,42 +851,6 @@ bool reshade::opengl::device_impl::create_pipeline_graphics(const api::pipeline_
 	return true;
 }
 
-bool reshade::opengl::device_impl::create_shader_module(api::shader_stage type, api::shader_format format, const void *code, size_t code_size, const char *entry_point, api::shader_module *out)
-{
-	GLuint shader_object = glCreateShader(convert_shader_type(type));
-
-	if (format == api::shader_format::glsl)
-	{
-		assert(entry_point == nullptr || strcmp(entry_point, "main") == 0);
-
-		const auto source = static_cast<const GLchar *>(code);
-		const auto source_len = static_cast<GLint>(code_size);
-		glShaderSource(shader_object, 1, &source, &source_len);
-		glCompileShader(shader_object);
-	}
-	else if (format == api::shader_format::spirv)
-	{
-		assert(code_size <= static_cast<size_t>(std::numeric_limits<GLsizei>::max()));
-
-		glShaderBinary(1, &shader_object, GL_SPIR_V_BINARY, code, static_cast<GLsizei>(code_size));
-		glSpecializeShader(shader_object, entry_point, 0, nullptr, nullptr);
-	}
-
-	GLint status = GL_FALSE;
-	glGetShaderiv(shader_object, GL_COMPILE_STATUS, &status);
-	if (GL_FALSE != status)
-	{
-		*out = { shader_object };
-		return true;
-	}
-	else
-	{
-		glDeleteShader(shader_object);
-
-		*out = { 0 };
-		return false;
-	}
-}
 bool reshade::opengl::device_impl::create_pipeline_layout(uint32_t num_set_layouts, const api::descriptor_set_layout *set_layouts, uint32_t num_constant_ranges, const api::constant_range *constant_ranges, api::pipeline_layout *out)
 {
 	if (num_constant_ranges > 1)
@@ -983,21 +1004,9 @@ void reshade::opengl::device_impl::destroy_resource_view(api::resource_view hand
 		destroy_resource({ handle.handle });
 }
 
-void reshade::opengl::device_impl::destroy_pipeline(api::pipeline_type type, api::pipeline handle)
+void reshade::opengl::device_impl::destroy_pipeline(api::pipeline_type, api::pipeline handle)
 {
-	switch (type)
-	{
-	case api::pipeline_type::compute:
-		delete reinterpret_cast<pipeline_compute_impl *>(handle.handle);
-		break;
-	case api::pipeline_type::graphics:
-		delete reinterpret_cast<pipeline_graphics_impl *>(handle.handle);
-		break;
-	}
-}
-void reshade::opengl::device_impl::destroy_shader_module(api::shader_module handle)
-{
-	glDeleteShader(static_cast<GLuint>(handle.handle));
+	delete reinterpret_cast<pipeline_impl *>(handle.handle);
 }
 void reshade::opengl::device_impl::destroy_pipeline_layout(api::pipeline_layout handle)
 {

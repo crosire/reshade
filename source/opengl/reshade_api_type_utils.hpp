@@ -7,33 +7,9 @@
 
 namespace reshade::opengl
 {
-	struct query_heap_impl
+	struct pipeline_impl
 	{
-		~query_heap_impl()
-		{
-			glDeleteQueries(static_cast<GLsizei>(queries.size()), queries.data());
-		}
-
-		std::vector<GLuint> queries;
-	};
-
-	struct pipeline_layout_impl
-	{
-		std::vector<GLuint> bindings;
-	};
-
-	struct pipeline_compute_impl
-	{
-		~pipeline_compute_impl()
-		{
-			glDeleteProgram(program);
-		}
-
-		GLuint program;
-	};
-	struct pipeline_graphics_impl
-	{
-		~pipeline_graphics_impl()
+		~pipeline_impl()
 		{
 			glDeleteProgram(program);
 			glDeleteVertexArrays(1, &vao);
@@ -79,18 +55,36 @@ namespace reshade::opengl
 
 		GLuint color_write_mask;
 		GLint stencil_reference_value;
+
+		void apply_compute() const;
+		void apply_graphics() const;
 	};
 
-	struct descriptor_set_impl
+	struct pipeline_layout_impl
 	{
-		reshade::api::descriptor_type type;
-		std::vector<uint64_t> descriptors;
-		std::vector<reshade::api::sampler_with_resource_view> sampler_with_resource_views;
+		std::vector<GLuint> bindings;
 	};
 
 	struct descriptor_set_layout_impl
 	{
-		reshade::api::descriptor_range range;
+		api::descriptor_range range;
+	};
+
+	struct query_heap_impl
+	{
+		~query_heap_impl()
+		{
+			glDeleteQueries(static_cast<GLsizei>(queries.size()), queries.data());
+		}
+
+		std::vector<GLuint> queries;
+	};
+
+	struct descriptor_set_impl
+	{
+		api::descriptor_type type;
+		std::vector<uint64_t> descriptors;
+		std::vector<api::sampler_with_resource_view> sampler_with_resource_views;
 	};
 
 	inline api::resource make_resource_handle(GLenum target, GLuint object)

@@ -3213,66 +3213,65 @@ bool reshade::runtime::init_imgui_resources()
 	if ((_renderer_id & 0x30000) == 0)
 	{
 		const resources::data_resource vs_res = resources::load_data_resource(_renderer_id < 0xa000 ? IDR_IMGUI_VS_3_0 : IDR_IMGUI_VS_4_0);
-		if (!device->create_shader_module(api::shader_stage::vertex, api::shader_format::dxbc, vs_res.data, vs_res.data_size, nullptr, &pso_desc.graphics.vertex_shader))
-			return false;
+		pso_desc.graphics.vertex_shader.code = vs_res.data;
+		pso_desc.graphics.vertex_shader.code_size = vs_res.data_size;
+		pso_desc.graphics.vertex_shader.format = api::shader_format::dxbc;
 
 		const resources::data_resource ps_res = resources::load_data_resource(_renderer_id < 0xa000 ? IDR_IMGUI_PS_3_0 : IDR_IMGUI_PS_4_0);
-		if (!device->create_shader_module(api::shader_stage::pixel, api::shader_format::dxbc, ps_res.data, ps_res.data_size, nullptr, &pso_desc.graphics.pixel_shader))
-		{
-			device->destroy_shader_module(pso_desc.graphics.vertex_shader);
-			return false;
-		}
+		pso_desc.graphics.pixel_shader.code = ps_res.data;
+		pso_desc.graphics.pixel_shader.code_size = ps_res.data_size;
+		pso_desc.graphics.pixel_shader.format = api::shader_format::dxbc;
+	}
+	else if ((_renderer_id & 0x10000) != 0)
+	{
+		static const char vertex_shader[] =
+			"#version 430\n"
+			"layout(binding = 0) uniform Buf { mat4 proj; };\n"
+			"layout(location = 0) in vec2 pos;\n"
+			"layout(location = 1) in vec2 tex;\n"
+			"layout(location = 2) in vec4 col;\n"
+			"out vec4 frag_col;\n"
+			"out vec2 frag_tex;\n"
+			"void main()\n"
+			"{\n"
+			"	frag_col = col;\n"
+			"	frag_tex = tex;\n"
+			"	gl_Position = proj * vec4(pos.xy, 0, 1);\n"
+			"}\n";
+		static const char fragment_shader[] =
+			"#version 430\n"
+			"layout(binding = 0) uniform sampler2D s0;\n"
+			"in vec4 frag_col;\n"
+			"in vec2 frag_tex;\n"
+			"out vec4 col;\n"
+			"void main()\n"
+			"{\n"
+			"	col = frag_col * texture(s0, frag_tex.st);\n"
+			"}\n";
+
+		pso_desc.graphics.vertex_shader.code = vertex_shader;
+		pso_desc.graphics.vertex_shader.code_size = sizeof(vertex_shader);
+		pso_desc.graphics.vertex_shader.format = api::shader_format::glsl;
+		pso_desc.graphics.vertex_shader.entry_point = "main";
+
+		pso_desc.graphics.pixel_shader.code = fragment_shader;
+		pso_desc.graphics.pixel_shader.code_size = sizeof(fragment_shader);
+		pso_desc.graphics.pixel_shader.format = api::shader_format::glsl;
+		pso_desc.graphics.pixel_shader.entry_point = "main";
 	}
 	else
 	{
-		if (_renderer_id & 0x10000)
-		{
-			const char *vertex_shader =
-				"#version 430\n"
-				"layout(binding = 0) uniform Buf { mat4 proj; };\n"
-				"layout(location = 0) in vec2 pos;\n"
-				"layout(location = 1) in vec2 tex;\n"
-				"layout(location = 2) in vec4 col;\n"
-				"out vec4 frag_col;\n"
-				"out vec2 frag_tex;\n"
-				"void main()\n"
-				"{\n"
-				"	frag_col = col;\n"
-				"	frag_tex = tex;\n"
-				"	gl_Position = proj * vec4(pos.xy, 0, 1);\n"
-				"}\n";
-			const char *fragment_shader =
-				"#version 430\n"
-				"layout(binding = 0) uniform sampler2D s0;\n"
-				"in vec4 frag_col;\n"
-				"in vec2 frag_tex;\n"
-				"out vec4 col;\n"
-				"void main()\n"
-				"{\n"
-				"	col = frag_col * texture(s0, frag_tex.st);\n"
-				"}\n";
+		const resources::data_resource vs_res = resources::load_data_resource(IDR_IMGUI_VS_SPIRV);
+		pso_desc.graphics.vertex_shader.code = vs_res.data;
+		pso_desc.graphics.vertex_shader.code_size = vs_res.data_size;
+		pso_desc.graphics.vertex_shader.format = api::shader_format::spirv;
+		pso_desc.graphics.vertex_shader.entry_point = "main";
 
-			if (!device->create_shader_module(api::shader_stage::vertex, api::shader_format::glsl, vertex_shader, strlen(vertex_shader), "main", &pso_desc.graphics.vertex_shader))
-				return false;
-			if (!device->create_shader_module(api::shader_stage::pixel, api::shader_format::glsl, fragment_shader, strlen(fragment_shader), "main", &pso_desc.graphics.pixel_shader))
-			{
-				device->destroy_shader_module(pso_desc.graphics.vertex_shader);
-				return false;
-			}
-		}
-		else
-		{
-			const resources::data_resource vs_res = resources::load_data_resource(IDR_IMGUI_VS_SPIRV);
-			if (!device->create_shader_module(api::shader_stage::vertex, api::shader_format::spirv, vs_res.data, vs_res.data_size, "main", &pso_desc.graphics.vertex_shader))
-				return false;
-
-			const resources::data_resource ps_res = resources::load_data_resource(IDR_IMGUI_PS_SPIRV);
-			if (!device->create_shader_module(api::shader_stage::pixel, api::shader_format::spirv, ps_res.data, ps_res.data_size, "main", &pso_desc.graphics.pixel_shader))
-			{
-				device->destroy_shader_module(pso_desc.graphics.vertex_shader);
-				return false;
-			}
-		}
+		const resources::data_resource ps_res = resources::load_data_resource(IDR_IMGUI_PS_SPIRV);
+		pso_desc.graphics.pixel_shader.code = ps_res.data;
+		pso_desc.graphics.pixel_shader.code_size = ps_res.data_size;
+		pso_desc.graphics.pixel_shader.format = api::shader_format::spirv;
+		pso_desc.graphics.pixel_shader.entry_point = "main";
 	}
 
 	pso_desc.graphics.input_layout[0] = { 0, "POSITION", 0, api::format::r32g32_float,   0, offsetof(ImDrawVert, pos), sizeof(ImDrawVert), 0 };
@@ -3309,12 +3308,7 @@ bool reshade::runtime::init_imgui_resources()
 	pso_desc.graphics.num_render_targets = 1;
 	pso_desc.graphics.render_target_format[0] = get_backbuffer_format();
 
-	const bool result = device->create_pipeline(pso_desc, &_imgui.pipeline);
-
-	device->destroy_shader_module(pso_desc.graphics.vertex_shader);
-	device->destroy_shader_module(pso_desc.graphics.pixel_shader);
-
-	return result;
+	return device->create_pipeline(pso_desc, &_imgui.pipeline);
 }
 void reshade::runtime::render_imgui_draw_data(ImDrawData *draw_data)
 {

@@ -9,11 +9,6 @@ namespace reshade::d3d12
 {
 	extern const GUID pipeline_extra_data_guid;
 
-	struct shader_module_impl
-	{
-		std::vector<uint8_t> bytecode;
-	};
-
 	struct pipeline_graphics_impl
 	{
 		D3D12_PRIMITIVE_TOPOLOGY topology;

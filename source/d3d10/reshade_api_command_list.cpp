@@ -8,6 +8,18 @@
 #include "reshade_api_type_utils.hpp"
 #include <algorithm>
 
+void reshade::d3d10::pipeline_impl::apply(ID3D10Device *ctx) const
+{
+	ctx->VSSetShader(vs.get());
+	ctx->GSSetShader(gs.get());
+	ctx->PSSetShader(ps.get());
+	ctx->IASetInputLayout(input_layout.get());
+	ctx->IASetPrimitiveTopology(topology);
+	ctx->OMSetBlendState(blend_state.get(), blend_constant, sample_mask);
+	ctx->RSSetState(rasterizer_state.get());
+	ctx->OMSetDepthStencilState(depth_stencil_state.get(), stencil_reference_value);
+}
+
 void reshade::d3d10::device_impl::bind_pipeline(api::pipeline_type type, api::pipeline pipeline)
 {
 	assert(pipeline.handle != 0);
@@ -16,6 +28,15 @@ void reshade::d3d10::device_impl::bind_pipeline(api::pipeline_type type, api::pi
 	{
 	case api::pipeline_type::graphics:
 		reinterpret_cast<pipeline_impl *>(pipeline.handle)->apply(_orig);
+		break;
+	case api::pipeline_type::graphics_vertex_shader:
+		_orig->VSSetShader(reinterpret_cast<ID3D10VertexShader *>(pipeline.handle));
+		break;
+	case api::pipeline_type::graphics_geometry_shader:
+		_orig->GSSetShader(reinterpret_cast<ID3D10GeometryShader *>(pipeline.handle));
+		break;
+	case api::pipeline_type::graphics_pixel_shader:
+		_orig->PSSetShader(reinterpret_cast<ID3D10PixelShader *>(pipeline.handle));
 		break;
 	case api::pipeline_type::graphics_blend_state:
 		_orig->OMSetBlendState(reinterpret_cast<ID3D10BlendState *>(pipeline.handle), nullptr, D3D10_DEFAULT_SAMPLE_MASK);

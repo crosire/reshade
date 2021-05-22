@@ -421,7 +421,7 @@ bool reshade::vulkan::runtime_impl::capture_screenshot(uint8_t *buffer) const
 	return mapped_data != nullptr;
 }
 
-bool reshade::vulkan::runtime_impl::compile_effect(effect &effect, api::shader_stage type, const std::string &entry_point, api::shader_module &out)
+bool reshade::vulkan::runtime_impl::compile_effect(effect &effect, api::shader_stage, const std::string &entry_point, std::vector<char> &out)
 {
 	// There are various issues with SPIR-V modules that have multiple entry points on all major GPU vendors.
 	// On AMD for instance creating a graphics pipeline just fails with a generic VK_ERROR_OUT_OF_HOST_MEMORY. On NVIDIA artifacts occur on some driver versions.
@@ -494,5 +494,7 @@ bool reshade::vulkan::runtime_impl::compile_effect(effect &effect, api::shader_s
 		inst += len;
 	}
 
-	return _device_impl->create_shader_module(type, api::shader_format::spirv, spirv.data(), spirv.size() * sizeof(uint32_t), entry_point.c_str(), &out);
+	out.resize(spirv.size() * sizeof(uint32_t));
+	std::memcpy(out.data(), spirv.data(), out.size());
+	return true;
 }

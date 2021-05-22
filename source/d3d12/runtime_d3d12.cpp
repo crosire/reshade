@@ -401,7 +401,7 @@ bool reshade::d3d12::runtime_impl::capture_screenshot(uint8_t *buffer) const
 	return true;
 }
 
-bool reshade::d3d12::runtime_impl::compile_effect(effect &effect, api::shader_stage type, const std::string &entry_point, api::shader_module &out)
+bool reshade::d3d12::runtime_impl::compile_effect(effect &effect, api::shader_stage type, const std::string &entry_point, std::vector<char> &cso)
 {
 	if (_d3d_compiler == nullptr)
 		_d3d_compiler = LoadLibraryW(L"d3dcompiler_47.dll");
@@ -444,7 +444,6 @@ bool reshade::d3d12::runtime_impl::compile_effect(effect &effect, api::shader_st
 	attributes += "flags=" + std::to_string(compile_flags) + ';';
 
 	const size_t hash = std::hash<std::string_view>()(attributes) ^ std::hash<std::string_view>()(hlsl);
-	std::vector<char> cso;
 	if (!load_effect_cache(effect.source_file, entry_point, hash, cso, effect.assembly[entry_point]))
 	{
 		com_ptr<ID3DBlob> d3d_compiled, d3d_errors;
@@ -472,5 +471,5 @@ bool reshade::d3d12::runtime_impl::compile_effect(effect &effect, api::shader_st
 		save_effect_cache(effect.source_file, entry_point, hash, cso, effect.assembly[entry_point]);
 	}
 
-	return _device_impl->create_shader_module(type, api::shader_format::dxbc, cso.data(), cso.size(), nullptr, &out);
+	return true;
 }

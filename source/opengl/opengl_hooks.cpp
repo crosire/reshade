@@ -2713,32 +2713,6 @@ HOOK_EXPORT void WINAPI glShadeModel(GLenum mode)
 #if RESHADE_ADDON
 	if (g_current_runtime)
 	{
-		GLint type = GL_NONE;
-		glGetShaderiv(shader, GL_SHADER_TYPE, &type);
-
-		reshade::api::shader_stage shader_stage = reshade::api::shader_stage::all;
-		switch (type)
-		{
-		case GL_VERTEX_SHADER:
-			shader_stage = reshade::api::shader_stage::vertex;
-			break;
-		case GL_TESS_CONTROL_SHADER:
-			shader_stage = reshade::api::shader_stage::hull;
-			break;
-		case GL_TESS_EVALUATION_SHADER:
-			shader_stage = reshade::api::shader_stage::domain;
-			break;
-		case GL_GEOMETRY_SHADER:
-			shader_stage = reshade::api::shader_stage::geometry;
-			break;
-		case GL_FRAGMENT_SHADER:
-			shader_stage = reshade::api::shader_stage::pixel;
-			break;
-		case GL_COMPUTE_SHADER:
-			shader_stage = reshade::api::shader_stage::compute;
-			break;
-		}
-
 		std::string combined_source;
 		if (length != nullptr)
 		{
@@ -2752,11 +2726,74 @@ HOOK_EXPORT void WINAPI glShadeModel(GLenum mode)
 				combined_source.append(string[i]);
 		}
 
-		reshade::invoke_addon_event<reshade::addon_event::create_shader_module>(
-			[shader, count, string, length, shader_stage, &combined_source](reshade::api::device *, reshade::api::shader_stage type, reshade::api::shader_format format, const char *, const void *code, size_t code_size) {
-				if (type != shader_stage || format != reshade::api::shader_format::glsl)
-					return false;
-				if (code == combined_source.c_str() && code_size == combined_source.size())
+		GLint type = GL_NONE;
+		glGetShaderiv(shader, GL_SHADER_TYPE, &type);
+
+		reshade::api::shader_desc *shader_desc = nullptr;
+		reshade::api::pipeline_desc desc = {};
+		switch (type)
+		{
+		case GL_VERTEX_SHADER:
+			desc.type = reshade::api::pipeline_type::graphics_vertex_shader;
+			shader_desc = &desc.graphics.vertex_shader;
+			break;
+		case GL_TESS_CONTROL_SHADER:
+			desc.type = reshade::api::pipeline_type::graphics_hull_shader;
+			shader_desc = &desc.graphics.hull_shader;
+			break;
+		case GL_TESS_EVALUATION_SHADER:
+			desc.type = reshade::api::pipeline_type::graphics_domain_shader;
+			shader_desc = &desc.graphics.domain_shader;
+			break;
+		case GL_GEOMETRY_SHADER:
+			desc.type = reshade::api::pipeline_type::graphics_geometry_shader;
+			shader_desc = &desc.graphics.geometry_shader;
+			break;
+		case GL_FRAGMENT_SHADER:
+			desc.type = reshade::api::pipeline_type::graphics_pixel_shader;
+			shader_desc = &desc.graphics.pixel_shader;
+			break;
+		case GL_COMPUTE_SHADER:
+			desc.type = reshade::api::pipeline_type::compute;
+			shader_desc = &desc.compute.shader;
+			break;
+		default:
+			assert(false);
+			break;
+		}
+
+		shader_desc->code = combined_source.data();
+		shader_desc->code_size = combined_source.size();
+		shader_desc->format = reshade::api::shader_format::glsl;
+		shader_desc->entry_point = "main";
+
+		reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(
+			[shader, count, string, length, &combined_source, type](reshade::api::device *, const reshade::api::pipeline_desc &desc) {
+				const reshade::api::shader_desc *shader_desc = nullptr;
+				switch (type)
+				{
+				case GL_VERTEX_SHADER:
+					shader_desc = &desc.graphics.vertex_shader;
+					break;
+				case GL_TESS_CONTROL_SHADER:
+					shader_desc = &desc.graphics.hull_shader;
+					break;
+				case GL_TESS_EVALUATION_SHADER:
+					shader_desc = &desc.graphics.domain_shader;
+					break;
+				case GL_GEOMETRY_SHADER:
+					shader_desc = &desc.graphics.geometry_shader;
+					break;
+				case GL_FRAGMENT_SHADER:
+					shader_desc = &desc.graphics.pixel_shader;
+					break;
+				case GL_COMPUTE_SHADER:
+					shader_desc = &desc.compute.shader;
+					break;
+				}
+
+				if (shader_desc->code == combined_source.c_str() &&
+					shader_desc->code_size == combined_source.size())
 				{
 					const auto combined_source_p = combined_source.c_str();
 					const auto combined_source_length = static_cast<GLint>(combined_source.size());
@@ -2767,7 +2804,7 @@ HOOK_EXPORT void WINAPI glShadeModel(GLenum mode)
 					trampoline(shader, count, string, length);
 				}
 				return true;
-			}, g_current_runtime, shader_stage, reshade::api::shader_format::glsl, "main", combined_source.data(), combined_source.size());
+			}, g_current_runtime, desc);
 		return;
 	}
 #endif

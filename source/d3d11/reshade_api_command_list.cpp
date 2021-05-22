@@ -27,6 +27,20 @@ reshade::api::device *reshade::d3d11::command_list_impl::get_device()
 	return _device_impl;
 }
 
+void reshade::d3d11::pipeline_impl::apply(ID3D11DeviceContext *ctx) const
+{
+	ctx->VSSetShader(vs.get(), nullptr, 0);
+	ctx->HSSetShader(hs.get(), nullptr, 0);
+	ctx->DSSetShader(ds.get(), nullptr, 0);
+	ctx->GSSetShader(gs.get(), nullptr, 0);
+	ctx->PSSetShader(ps.get(), nullptr, 0);
+	ctx->IASetInputLayout(input_layout.get());
+	ctx->IASetPrimitiveTopology(topology);
+	ctx->OMSetBlendState(blend_state.get(), blend_constant, sample_mask);
+	ctx->RSSetState(rasterizer_state.get());
+	ctx->OMSetDepthStencilState(depth_stencil_state.get(), stencil_reference_value);
+}
+
 void reshade::d3d11::device_context_impl::bind_pipeline(api::pipeline_type type, api::pipeline pipeline)
 {
 	assert(pipeline.handle != 0);
@@ -38,6 +52,21 @@ void reshade::d3d11::device_context_impl::bind_pipeline(api::pipeline_type type,
 		break;
 	case api::pipeline_type::graphics:
 		reinterpret_cast<pipeline_impl *>(pipeline.handle)->apply(_orig);
+		break;
+	case api::pipeline_type::graphics_vertex_shader:
+		_orig->VSSetShader(reinterpret_cast<ID3D11VertexShader *>(pipeline.handle), nullptr, 0);
+		break;
+	case api::pipeline_type::graphics_hull_shader:
+		_orig->HSSetShader(reinterpret_cast<ID3D11HullShader *>(pipeline.handle), nullptr, 0);
+		break;
+	case api::pipeline_type::graphics_domain_shader:
+		_orig->DSSetShader(reinterpret_cast<ID3D11DomainShader *>(pipeline.handle), nullptr, 0);
+		break;
+	case api::pipeline_type::graphics_geometry_shader:
+		_orig->GSSetShader(reinterpret_cast<ID3D11GeometryShader *>(pipeline.handle), nullptr, 0);
+		break;
+	case api::pipeline_type::graphics_pixel_shader:
+		_orig->PSSetShader(reinterpret_cast<ID3D11PixelShader *>(pipeline.handle), nullptr, 0);
 		break;
 	case api::pipeline_type::graphics_blend_state:
 		_orig->OMSetBlendState(reinterpret_cast<ID3D11BlendState *>(pipeline.handle), nullptr, D3D11_DEFAULT_SAMPLE_MASK);

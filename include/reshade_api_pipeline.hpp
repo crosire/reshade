@@ -462,15 +462,9 @@ namespace reshade { namespace api
 
 	/// <summary>
 	/// An opaque handle to a pipeline state object.
-	/// <para>Depending on the render API this is really a pointer to a 'ID3D12PipelineState' object or a 'VkPipeline' handle.</para>
+	/// <para>Depending on the render API this is really a pointer to a 'IDirect3D(...)Shader', 'ID3D10(...)(Shader/State)', 'ID3D11(...)(Shader/State)', 'ID3D12PipelineState' object or a 'VkPipeline' handle.</para>
 	/// </summary>
 	RESHADE_DEFINE_HANDLE(pipeline);
-
-	/// <summary>
-	/// An opaque handle to a shader module.
-	/// <para>Depending on the render API this is really a pointer to a 'IDirect3D(...)Shader9', 'ID3D10(...)Shader', 'ID3D11(...)Shader' or a 'VkShaderModule'.</para>
-	/// </summary>
-	RESHADE_DEFINE_HANDLE(shader_module);
 
 	/// <summary>
 	/// An opaque handle to a pipeline layout object.
@@ -497,6 +491,42 @@ namespace reshade { namespace api
 	RESHADE_DEFINE_HANDLE(descriptor_set);
 
 	/// <summary>
+	/// Describes a shader module.
+	/// </summary>
+	struct shader_desc
+	{
+		/// <summary>
+		/// The shader source code.
+		/// </summary>
+		const void *code;
+		/// <summary>
+		/// The size (in bytes) of the shader source code.
+		/// </summary>
+		size_t code_size;
+		/// <summary>
+		/// The format of the shader source <see cref="code"/>.
+		/// </summary>
+		shader_format format;
+		/// <summary>
+		/// Optional entry point name if the shader source code contains multiple entry points. Can be <c>nullptr</c> if it does not.
+		/// </summary>
+		const char *entry_point;
+		/// <summary>
+		/// The number of entries in the <see cref="spec_constant_ids"/> and <see cref="spec_constant_values"/> arrays.
+		/// This is meaningful only when <see cref="format"/> is <see cref="shader_format::spirv"/> and is ignored otherwise.
+		/// </summary>
+		uint32_t num_spec_constants;
+		/// <summary>
+		/// Pointer to an array of specialization constant indices.
+		/// </summary>
+		const uint32_t *spec_constant_ids;
+		/// <summary>
+		/// Pointer to an array of constant values, one for each specialization constant index in <see cref="spec_constant_ids"/>.
+		/// </summary>
+		const uint32_t *spec_constant_values;
+	};
+
+	/// <summary>
 	/// Describes a pipeline state object.
 	/// </summary>
 	struct pipeline_desc
@@ -518,9 +548,10 @@ namespace reshade { namespace api
 			struct
 			{
 				/// <summary>
-				/// The compute shader module (of type <see cref="shader_stage::compute"/>) to use.
+				/// The compute shader module to use.
 				/// </summary>
-				shader_module shader;
+				/// <seealso cref="shader_stage::compute"/>
+				shader_desc shader;
 			} compute;
 
 			/// <summary>
@@ -529,25 +560,35 @@ namespace reshade { namespace api
 			struct
 			{
 				/// <summary>
-				/// The vertex shader module (of type <see cref="shader_stage::vertex"/>) to use.
+				/// The vertex shader module to use.
 				/// </summary>
-				shader_module vertex_shader;
+				/// <seealso cref="shader_stage::vertex"/>
+				/// <seealso cref="pipeline_type::graphics_vertex_shader"/>
+				shader_desc vertex_shader;
 				/// <summary>
-				/// The optional hull shader module (of type <see cref="shader_stage::hull"/>) to use, or zero.
+				/// The optional hull shader module to use.
 				/// </summary>
-				shader_module hull_shader;
+				/// <seealso cref="shader_stage::hull"/>
+				/// <seealso cref="pipeline_type::graphics_hull_shader"/>
+				shader_desc hull_shader;
 				/// <summary>
-				/// The optional domain shader module (of type <see cref="shader_stage::domain"/>) to use, or zero.
+				/// The optional domain shader module to use.
 				/// </summary>
-				shader_module domain_shader;
+				/// <seealso cref="shader_stage::domain"/>
+				/// <seealso cref="pipeline_type::graphics_domain_shader"/>
+				shader_desc domain_shader;
 				/// <summary>
-				/// The optional geometry shader module (of type <see cref="shader_stage::geometry"/>) to use, or zero.
+				/// The optional geometry shader module to use.
 				/// </summary>
-				shader_module geometry_shader;
+				/// <seealso cref="shader_stage::geometry"/>
+				/// <seealso cref="pipeline_type::graphics_geometry_shader"/>
+				shader_desc geometry_shader;
 				/// <summary>
-				/// The pixel shader module (of type <see cref="shader_stage::pixel"/>) to use.
+				/// The pixel shader module to use.
 				/// </summary>
-				shader_module pixel_shader;
+				/// <seealso cref="shader_stage::pixel"/>
+				/// <seealso cref="pipeline_type::graphics_pixel_shader"/>
+				shader_desc pixel_shader;
 
 				/// <summary>
 				/// Describes the layout of the vertex buffer data for the input-assembler stage. 

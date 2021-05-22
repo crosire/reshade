@@ -39,7 +39,6 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(create_resource);
 		CASE(create_resource_view);
 		CASE(create_pipeline);
-		CASE(create_shader_module);
 		CASE(upload_buffer_region);
 		CASE(upload_texture_region);
 		CASE(bind_pipeline);

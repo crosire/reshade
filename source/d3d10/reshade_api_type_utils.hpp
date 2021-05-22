@@ -23,22 +23,17 @@ namespace reshade::d3d10
 		UINT stencil_reference_value;
 		FLOAT blend_constant[4];
 
-		void apply(ID3D10Device *ctx) const
-		{
-			ctx->VSSetShader(vs.get());
-			ctx->GSSetShader(gs.get());
-			ctx->PSSetShader(ps.get());
-			ctx->IASetInputLayout(input_layout.get());
-			ctx->IASetPrimitiveTopology(topology);
-			ctx->OMSetBlendState(blend_state.get(), blend_constant, sample_mask);
-			ctx->RSSetState(rasterizer_state.get());
-			ctx->OMSetDepthStencilState(depth_stencil_state.get(), stencil_reference_value);
-		}
+		void apply(ID3D10Device *ctx) const;
 	};
 
 	struct pipeline_layout_impl
 	{
 		std::vector<UINT> shader_registers;
+	};
+
+	struct descriptor_set_layout_impl
+	{
+		api::descriptor_range range;
 	};
 
 	struct query_pool_impl
@@ -48,13 +43,8 @@ namespace reshade::d3d10
 
 	struct descriptor_set_impl
 	{
-		reshade::api::descriptor_type type;
+		api::descriptor_type type;
 		std::vector<uint64_t> descriptors;
-	};
-
-	struct descriptor_set_layout_impl
-	{
-		reshade::api::descriptor_range range;
 	};
 
 	auto convert_format(api::format format) -> DXGI_FORMAT;

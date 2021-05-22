@@ -132,13 +132,13 @@ namespace reshade::d3d11
 		void begin_debug_marker(const char *label, const float color[4]) final;
 		void finish_debug_marker() final;
 
-	protected:
-		bool _has_open_render_pass = false;
-
 	private:
 		device_impl *const _device_impl;
 		com_ptr<ID3DUserDefinedAnnotation> _annotations;
 		UINT _push_constants_size = 0;
 		com_ptr<ID3D11Buffer> _push_constants;
+
+	protected:
+		bool _has_open_render_pass = false;
 	};
 }

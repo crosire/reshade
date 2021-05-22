@@ -964,12 +964,17 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateInputLayout(const D3D10_INPUT_ELEME
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateVertexShader(const void *pShaderBytecode, SIZE_T BytecodeLength, ID3D10VertexShader **ppVertexShader)
 {
 #if RESHADE_ADDON
+	reshade::api::pipeline_desc desc = { reshade::api::pipeline_type::graphics_vertex_shader };
+	desc.graphics.vertex_shader.code = pShaderBytecode;
+	desc.graphics.vertex_shader.code_size = BytecodeLength;
+	desc.graphics.vertex_shader.format = reshade::api::shader_format::dxbc;
+
 	HRESULT hr = E_FAIL;
-	reshade::invoke_addon_event<reshade::addon_event::create_shader_module>(
-		[this, &hr, ppVertexShader](reshade::api::device *, reshade::api::shader_stage type, reshade::api::shader_format format, const char *, const void *code, size_t code_size) {
-			if (type != reshade::api::shader_stage::vertex || format != reshade::api::shader_format::dxbc)
+	reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(
+		[this, &hr, ppVertexShader](reshade::api::device *, const reshade::api::pipeline_desc &desc) {
+			if (desc.type != reshade::api::pipeline_type::graphics_vertex_shader || desc.graphics.vertex_shader.format != reshade::api::shader_format::dxbc)
 				return false;
-			hr = _orig->CreateVertexShader(code, code_size, ppVertexShader);
+			hr = _orig->CreateVertexShader(desc.graphics.vertex_shader.code, desc.graphics.vertex_shader.code_size, ppVertexShader);
 			if (SUCCEEDED(hr))
 			{
 				return true;
@@ -979,7 +984,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateVertexShader(const void *pShaderByt
 				LOG(WARN) << "ID3D10Device::CreateVertexShader" << " failed with error code " << hr << '.';
 				return false;
 			}
-		}, this, reshade::api::shader_stage::vertex, reshade::api::shader_format::dxbc, nullptr, pShaderBytecode, BytecodeLength);
+		}, this, desc);
 	return hr;
 #else
 	return _orig->CreateVertexShader(pShaderBytecode, BytecodeLength, ppVertexShader);
@@ -988,12 +993,17 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateVertexShader(const void *pShaderByt
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateGeometryShader(const void *pShaderBytecode, SIZE_T BytecodeLength, ID3D10GeometryShader **ppGeometryShader)
 {
 #if RESHADE_ADDON
+	reshade::api::pipeline_desc desc = { reshade::api::pipeline_type::graphics_geometry_shader };
+	desc.graphics.geometry_shader.code = pShaderBytecode;
+	desc.graphics.geometry_shader.code_size = BytecodeLength;
+	desc.graphics.geometry_shader.format = reshade::api::shader_format::dxbc;
+
 	HRESULT hr = E_FAIL;
-	reshade::invoke_addon_event<reshade::addon_event::create_shader_module>(
-		[this, &hr, ppGeometryShader](reshade::api::device *, reshade::api::shader_stage type, reshade::api::shader_format format, const char *, const void *code, size_t code_size) {
-			if (type != reshade::api::shader_stage::geometry || format != reshade::api::shader_format::dxbc)
+	reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(
+		[this, &hr, ppGeometryShader](reshade::api::device *, const reshade::api::pipeline_desc &desc) {
+			if (desc.type != reshade::api::pipeline_type::graphics_geometry_shader || desc.graphics.geometry_shader.format != reshade::api::shader_format::dxbc)
 				return false;
-			hr = _orig->CreateGeometryShader(code, code_size, ppGeometryShader);
+			hr = _orig->CreateGeometryShader(desc.graphics.geometry_shader.code, desc.graphics.geometry_shader.code_size, ppGeometryShader);
 			if (SUCCEEDED(hr))
 			{
 				return true;
@@ -1003,7 +1013,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateGeometryShader(const void *pShaderB
 				LOG(WARN) << "ID3D10Device::CreateGeometryShader" << " failed with error code " << hr << '.';
 				return false;
 			}
-		}, this, reshade::api::shader_stage::geometry, reshade::api::shader_format::dxbc, nullptr, pShaderBytecode, BytecodeLength);
+		}, this, desc);
 	return hr;
 #else
 	return _orig->CreateGeometryShader(pShaderBytecode, BytecodeLength, ppGeometryShader);
@@ -1012,12 +1022,17 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateGeometryShader(const void *pShaderB
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateGeometryShaderWithStreamOutput(const void *pShaderBytecode, SIZE_T BytecodeLength, const D3D10_SO_DECLARATION_ENTRY *pSODeclaration, UINT NumEntries, UINT OutputStreamStride, ID3D10GeometryShader **ppGeometryShader)
 {
 #if RESHADE_ADDON
+	reshade::api::pipeline_desc desc = { reshade::api::pipeline_type::graphics_geometry_shader };
+	desc.graphics.geometry_shader.code = pShaderBytecode;
+	desc.graphics.geometry_shader.code_size = BytecodeLength;
+	desc.graphics.geometry_shader.format = reshade::api::shader_format::dxbc;
+
 	HRESULT hr = E_FAIL;
-	reshade::invoke_addon_event<reshade::addon_event::create_shader_module>(
-		[this, &hr, pSODeclaration, NumEntries, OutputStreamStride, ppGeometryShader](reshade::api::device *, reshade::api::shader_stage type, reshade::api::shader_format format, const char *, const void *code, size_t code_size) {
-			if (type != reshade::api::shader_stage::geometry || format != reshade::api::shader_format::dxbc)
+	reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(
+		[this, &hr, pSODeclaration, NumEntries, OutputStreamStride, ppGeometryShader](reshade::api::device *, const reshade::api::pipeline_desc &desc) {
+			if (desc.type != reshade::api::pipeline_type::graphics_geometry_shader || desc.graphics.geometry_shader.format != reshade::api::shader_format::dxbc)
 				return false;
-			hr = _orig->CreateGeometryShaderWithStreamOutput(code, code_size, pSODeclaration, NumEntries, OutputStreamStride, ppGeometryShader);
+			hr = _orig->CreateGeometryShaderWithStreamOutput(desc.graphics.geometry_shader.code, desc.graphics.geometry_shader.code_size, pSODeclaration, NumEntries, OutputStreamStride, ppGeometryShader);
 			if (SUCCEEDED(hr))
 			{
 				return true;
@@ -1027,7 +1042,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateGeometryShaderWithStreamOutput(cons
 				LOG(WARN) << "ID3D10Device::CreateGeometryShaderWithStreamOutput" << " failed with error code " << hr << '.';
 				return false;
 			}
-		}, this, reshade::api::shader_stage::geometry, reshade::api::shader_format::dxbc, nullptr, pShaderBytecode, BytecodeLength);
+		}, this, desc);
 	return hr;
 #else
 	return _orig->CreateGeometryShaderWithStreamOutput(pShaderBytecode, BytecodeLength, pSODeclaration, NumEntries, OutputStreamStride, ppGeometryShader);
@@ -1036,12 +1051,17 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateGeometryShaderWithStreamOutput(cons
 HRESULT STDMETHODCALLTYPE D3D10Device::CreatePixelShader(const void *pShaderBytecode, SIZE_T BytecodeLength, ID3D10PixelShader **ppPixelShader)
 {
 #if RESHADE_ADDON
+	reshade::api::pipeline_desc desc = { reshade::api::pipeline_type::graphics_pixel_shader };
+	desc.graphics.pixel_shader.code = pShaderBytecode;
+	desc.graphics.pixel_shader.code_size = BytecodeLength;
+	desc.graphics.pixel_shader.format = reshade::api::shader_format::dxbc;
+
 	HRESULT hr = E_FAIL;
-	reshade::invoke_addon_event<reshade::addon_event::create_shader_module>(
-		[this, &hr, ppPixelShader](reshade::api::device *, reshade::api::shader_stage type, reshade::api::shader_format format, const char *, const void *code, size_t code_size) {
-			if (type != reshade::api::shader_stage::pixel || format != reshade::api::shader_format::dxbc)
+	reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(
+		[this, &hr, ppPixelShader](reshade::api::device *, const reshade::api::pipeline_desc &desc) {
+			if (desc.type != reshade::api::pipeline_type::graphics_pixel_shader || desc.graphics.pixel_shader.format != reshade::api::shader_format::dxbc)
 				return false;
-			hr = _orig->CreatePixelShader(code, code_size, ppPixelShader);
+			hr = _orig->CreatePixelShader(desc.graphics.pixel_shader.code, desc.graphics.pixel_shader.code_size, ppPixelShader);
 			if (SUCCEEDED(hr))
 			{
 				return true;
@@ -1051,7 +1071,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreatePixelShader(const void *pShaderByte
 				LOG(WARN) << "ID3D10Device::CreatePixelShader" << " failed with error code " << hr << '.';
 				return false;
 			}
-		}, this, reshade::api::shader_stage::pixel, reshade::api::shader_format::dxbc, nullptr, pShaderBytecode, BytecodeLength);
+		}, this, desc);
 	return hr;
 #else
 	return _orig->CreatePixelShader(pShaderBytecode, BytecodeLength, ppPixelShader);

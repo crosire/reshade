@@ -353,7 +353,7 @@ bool reshade::d3d12::device_impl::create_pipeline(const api::pipeline_desc &desc
 	case api::pipeline_type::compute:
 		return create_pipeline_compute(desc, out);
 	case api::pipeline_type::graphics:
-		return create_pipeline_graphics_all(desc, out);
+		return create_pipeline_graphics(desc, out);
 	}
 }
 bool reshade::d3d12::device_impl::create_pipeline_compute(const api::pipeline_desc &desc, api::pipeline *out)
@@ -361,11 +361,10 @@ bool reshade::d3d12::device_impl::create_pipeline_compute(const api::pipeline_de
 	D3D12_COMPUTE_PIPELINE_STATE_DESC internal_desc = {};
 	internal_desc.pRootSignature = reinterpret_cast<ID3D12RootSignature *>(desc.layout.handle);
 
-	if (desc.compute.shader.handle != 0)
-	{
-		const auto cs_module = reinterpret_cast<const shader_module_impl *>(desc.compute.shader.handle);
-		internal_desc.CS = { cs_module->bytecode.data(), cs_module->bytecode.size() };
-	}
+	assert(desc.compute.shader.code_size == 0 || (desc.compute.shader.format == api::shader_format::dxbc || desc.compute.shader.format == api::shader_format::dxil));
+	assert(desc.compute.shader.entry_point == nullptr && desc.compute.shader.num_spec_constants == 0);
+	internal_desc.CS.pShaderBytecode = desc.compute.shader.code;
+	internal_desc.CS.BytecodeLength = desc.compute.shader.code_size;
 
 	if (com_ptr<ID3D12PipelineState> pipeline;
 		SUCCEEDED(_orig->CreateComputePipelineState(&internal_desc, IID_PPV_ARGS(&pipeline))))
@@ -379,7 +378,7 @@ bool reshade::d3d12::device_impl::create_pipeline_compute(const api::pipeline_de
 		return false;
 	}
 }
-bool reshade::d3d12::device_impl::create_pipeline_graphics_all(const api::pipeline_desc &desc, api::pipeline *out)
+bool reshade::d3d12::device_impl::create_pipeline_graphics(const api::pipeline_desc &desc, api::pipeline *out)
 {
 	for (UINT i = 0; i < desc.graphics.num_dynamic_states; ++i)
 	{
@@ -395,31 +394,30 @@ bool reshade::d3d12::device_impl::create_pipeline_graphics_all(const api::pipeli
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC internal_desc = {};
 	internal_desc.pRootSignature = reinterpret_cast<ID3D12RootSignature *>(desc.layout.handle);
 
-	if (desc.graphics.vertex_shader.handle != 0)
-	{
-		const auto vs_module = reinterpret_cast<const shader_module_impl *>(desc.graphics.vertex_shader.handle);
-		internal_desc.VS = { vs_module->bytecode.data(), vs_module->bytecode.size() };
-	}
-	if (desc.graphics.hull_shader.handle != 0)
-	{
-		const auto hs_module = reinterpret_cast<const shader_module_impl *>(desc.graphics.hull_shader.handle);
-		internal_desc.HS = { hs_module->bytecode.data(), hs_module->bytecode.size() };
-	}
-	if (desc.graphics.domain_shader.handle != 0)
-	{
-		const auto ds_module = reinterpret_cast<const shader_module_impl *>(desc.graphics.domain_shader.handle);
-		internal_desc.DS = { ds_module->bytecode.data(), ds_module->bytecode.size() };
-	}
-	if (desc.graphics.geometry_shader.handle != 0)
-	{
-		const auto gs_module = reinterpret_cast<const shader_module_impl *>(desc.graphics.geometry_shader.handle);
-		internal_desc.GS = { gs_module->bytecode.data(), gs_module->bytecode.size() };
-	}
-	if (desc.graphics.pixel_shader.handle != 0)
-	{
-		const auto ps_module = reinterpret_cast<const shader_module_impl *>(desc.graphics.pixel_shader.handle);
-		internal_desc.PS = { ps_module->bytecode.data(), ps_module->bytecode.size() };
-	}
+	assert(desc.graphics.vertex_shader.code_size == 0 || (desc.graphics.vertex_shader.format == api::shader_format::dxbc || desc.graphics.vertex_shader.format == api::shader_format::dxil));
+	assert(desc.graphics.vertex_shader.entry_point == nullptr && desc.graphics.vertex_shader.num_spec_constants == 0);
+	internal_desc.VS.pShaderBytecode = desc.graphics.vertex_shader.code;
+	internal_desc.VS.BytecodeLength = desc.graphics.vertex_shader.code_size;
+
+	assert(desc.graphics.hull_shader.code_size == 0 || (desc.graphics.hull_shader.format == api::shader_format::dxbc || desc.graphics.hull_shader.format == api::shader_format::dxil));
+	assert(desc.graphics.hull_shader.entry_point == nullptr && desc.graphics.hull_shader.num_spec_constants == 0);
+	internal_desc.HS.pShaderBytecode = desc.graphics.hull_shader.code;
+	internal_desc.HS.BytecodeLength = desc.graphics.hull_shader.code_size;
+
+	assert(desc.graphics.domain_shader.code_size == 0 || (desc.graphics.domain_shader.format == api::shader_format::dxbc || desc.graphics.domain_shader.format == api::shader_format::dxil));
+	assert(desc.graphics.domain_shader.entry_point == nullptr && desc.graphics.domain_shader.num_spec_constants == 0);
+	internal_desc.DS.pShaderBytecode = desc.graphics.domain_shader.code;
+	internal_desc.DS.BytecodeLength = desc.graphics.domain_shader.code_size;
+
+	assert(desc.graphics.geometry_shader.code_size == 0 || (desc.graphics.geometry_shader.format == api::shader_format::dxbc || desc.graphics.geometry_shader.format == api::shader_format::dxil));
+	assert(desc.graphics.geometry_shader.entry_point == nullptr && desc.graphics.geometry_shader.num_spec_constants == 0);
+	internal_desc.GS.pShaderBytecode = desc.graphics.geometry_shader.code;
+	internal_desc.GS.BytecodeLength = desc.graphics.geometry_shader.code_size;
+
+	assert(desc.graphics.pixel_shader.code_size == 0 || (desc.graphics.pixel_shader.format == api::shader_format::dxbc || desc.graphics.pixel_shader.format == api::shader_format::dxil));
+	assert(desc.graphics.pixel_shader.entry_point == nullptr && desc.graphics.pixel_shader.num_spec_constants == 0);
+	internal_desc.PS.pShaderBytecode = desc.graphics.pixel_shader.code;
+	internal_desc.PS.BytecodeLength = desc.graphics.pixel_shader.code_size;
 
 	internal_desc.BlendState.AlphaToCoverageEnable = desc.graphics.blend_state.alpha_to_coverage;
 	internal_desc.BlendState.IndependentBlendEnable = TRUE;
@@ -439,6 +437,7 @@ bool reshade::d3d12::device_impl::create_pipeline_graphics_all(const api::pipeli
 	}
 
 	internal_desc.SampleMask = desc.graphics.sample_mask;
+	internal_desc.SampleDesc.Count = desc.graphics.sample_count;
 
 	internal_desc.RasterizerState.FillMode = convert_fill_mode(desc.graphics.rasterizer_state.fill_mode);
 	internal_desc.RasterizerState.CullMode = convert_cull_mode(desc.graphics.rasterizer_state.cull_mode);
@@ -471,9 +470,9 @@ bool reshade::d3d12::device_impl::create_pipeline_graphics_all(const api::pipeli
 	internal_elements.reserve(16);
 	for (UINT i = 0; i < 16 && desc.graphics.input_layout[i].format != api::format::unknown; ++i)
 	{
-		const auto &element = desc.graphics.input_layout[i];
-		D3D12_INPUT_ELEMENT_DESC &internal_element = internal_elements.emplace_back();
+		const api::input_layout_element &element = desc.graphics.input_layout[i];
 
+		D3D12_INPUT_ELEMENT_DESC &internal_element = internal_elements.emplace_back();
 		internal_element.SemanticName = element.semantic;
 		internal_element.SemanticIndex = element.semantic_index;
 		internal_element.Format = convert_format(element.format);
@@ -493,8 +492,6 @@ bool reshade::d3d12::device_impl::create_pipeline_graphics_all(const api::pipeli
 		internal_desc.RTVFormats[i] = convert_format(desc.graphics.render_target_format[i]);
 	internal_desc.DSVFormat = convert_format(desc.graphics.depth_stencil_format);
 
-	internal_desc.SampleDesc.Count = desc.graphics.sample_count;
-
 	if (com_ptr<ID3D12PipelineState> pipeline;
 		SUCCEEDED(_orig->CreateGraphicsPipelineState(&internal_desc, IID_PPV_ARGS(&pipeline))))
 	{
@@ -513,24 +510,6 @@ bool reshade::d3d12::device_impl::create_pipeline_graphics_all(const api::pipeli
 	}
 }
 
-bool reshade::d3d12::device_impl::create_shader_module(api::shader_stage, api::shader_format format, const void *code, size_t code_size, const char *entry_point, api::shader_module *out)
-{
-	if (format == api::shader_format::dxbc || format == api::shader_format::dxil)
-	{
-		assert(entry_point == nullptr);
-
-		const auto result = new shader_module_impl();
-		result->bytecode.assign(static_cast<const uint8_t *>(code), static_cast<const uint8_t *>(code) + code_size);
-
-		*out = { reinterpret_cast<uintptr_t>(result) };
-		return true;
-	}
-	else
-	{
-		*out = { 0 };
-		return false;
-	}
-}
 bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t num_set_layouts, const api::descriptor_set_layout *set_layouts, uint32_t num_constant_ranges, const api::constant_range *constant_ranges, api::pipeline_layout *out)
 {
 	std::vector<D3D12_ROOT_PARAMETER> params(num_set_layouts + num_constant_ranges);
@@ -542,6 +521,7 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t num_set_layout
 		{
 			// Dummy parameter (to prevent root signature creation from failing)
 			params[i].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+			params[i].Constants.ShaderRegister = i;
 			params[i].Constants.RegisterSpace = 255;
 			params[i].Constants.Num32BitValues = 1;
 			continue;
@@ -752,10 +732,6 @@ void reshade::d3d12::device_impl::destroy_pipeline(api::pipeline_type, api::pipe
 {
 	if (handle.handle != 0)
 		reinterpret_cast<IUnknown *>(handle.handle)->Release();
-}
-void reshade::d3d12::device_impl::destroy_shader_module(api::shader_module handle)
-{
-	delete reinterpret_cast<shader_module_impl *>(handle.handle);
 }
 void reshade::d3d12::device_impl::destroy_pipeline_layout(api::pipeline_layout handle)
 {
