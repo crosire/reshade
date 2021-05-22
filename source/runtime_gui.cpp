@@ -3280,9 +3280,6 @@ bool reshade::runtime::init_imgui_resources()
 	pso_desc.graphics.input_layout[2] = { 2, "COLOR",    0, api::format::r8g8b8a8_unorm, 0, offsetof(ImDrawVert, col), sizeof(ImDrawVert), 0 };
 
 	{	auto &blend_state = pso_desc.graphics.blend_state;
-		blend_state.num_viewports = 1;
-		blend_state.num_render_targets = 1;
-		blend_state.render_target_format[0] = get_backbuffer_format();
 		blend_state.blend_enable[0] = true;
 		blend_state.src_color_blend_factor[0] = api::blend_factor::src_alpha;
 		blend_state.dst_color_blend_factor[0] = api::blend_factor::inv_src_alpha;
@@ -3293,21 +3290,24 @@ bool reshade::runtime::init_imgui_resources()
 		blend_state.render_target_write_mask[0] = 0xF;
 	}
 
+	pso_desc.graphics.sample_mask = std::numeric_limits<uint32_t>::max();
+	pso_desc.graphics.sample_count = 1;
+
 	{	auto &rasterizer_state = pso_desc.graphics.rasterizer_state;
-		rasterizer_state.topology = api::primitive_topology::triangle_list;
 		rasterizer_state.depth_clip = true;
 		rasterizer_state.scissor_test = true;
-	}
-
-	{	auto &multisample_state = pso_desc.graphics.multisample_state;
-		multisample_state.sample_mask = std::numeric_limits<uint32_t>::max();
-		multisample_state.sample_count = 1;
 	}
 
 	{	auto &depth_stencil_state = pso_desc.graphics.depth_stencil_state;
 		depth_stencil_state.depth_test = false;
 		depth_stencil_state.stencil_test = false;
 	}
+
+	pso_desc.graphics.topology = api::primitive_topology::triangle_list;
+
+	pso_desc.graphics.num_viewports = 1;
+	pso_desc.graphics.num_render_targets = 1;
+	pso_desc.graphics.render_target_format[0] = get_backbuffer_format();
 
 	const bool result = device->create_pipeline(pso_desc, &_imgui.pipeline);
 

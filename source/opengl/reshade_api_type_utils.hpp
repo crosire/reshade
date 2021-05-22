@@ -54,6 +54,7 @@ namespace reshade::opengl
 		GLenum blend_dst;
 		GLenum blend_src_alpha;
 		GLenum blend_dst_alpha;
+		GLenum logic_op;
 
 		GLenum back_stencil_op_fail;
 		GLenum back_stencil_op_depth_fail;
@@ -67,6 +68,7 @@ namespace reshade::opengl
 		GLuint stencil_write_mask;
 
 		GLboolean blend_enable;
+		GLboolean logic_op_enable;
 		GLboolean depth_test;
 		GLboolean depth_write_mask;
 		GLboolean stencil_test;
@@ -130,6 +132,7 @@ namespace reshade::opengl
 
 	GLenum get_binding_for_target(GLenum target);
 
+	GLenum convert_logic_op(api::logic_op value);
 	GLenum convert_blend_op(api::blend_op value);
 	GLenum convert_blend_factor(api::blend_factor value);
 	GLenum convert_fill_mode(api::fill_mode value);

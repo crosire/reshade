@@ -61,6 +61,14 @@ void reshade::opengl::device_impl::bind_pipeline(api::pipeline_type type, api::p
 			glDisable(GL_BLEND);
 		}
 
+		if (state->logic_op_enable) {
+			glEnable(GL_COLOR_LOGIC_OP);
+			glLogicOp(state->logic_op);
+		}
+		else {
+			glDisable(GL_COLOR_LOGIC_OP);
+		}
+
 		glColorMask(
 			(state->color_write_mask & (1 << 0)) != 0,
 			(state->color_write_mask & (1 << 1)) != 0,

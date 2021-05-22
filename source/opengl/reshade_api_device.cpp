@@ -752,8 +752,8 @@ bool reshade::opengl::device_impl::create_pipeline_graphics(const api::pipeline_
 		glBindVertexArray(prev_vao);
 	}
 
-	state->prim_mode = convert_primitive_topology(desc.graphics.rasterizer_state.topology);
-	state->patch_vertices = state->prim_mode == GL_PATCHES ? static_cast<uint32_t>(desc.graphics.rasterizer_state.topology) - static_cast<uint32_t>(api::primitive_topology::patch_list_01_cp) : 0; 
+	state->prim_mode = convert_primitive_topology(desc.graphics.topology);
+	state->patch_vertices = state->prim_mode == GL_PATCHES ? static_cast<uint32_t>(desc.graphics.topology) - static_cast<uint32_t>(api::primitive_topology::patch_list_01_cp) : 0; 
 	state->front_face = desc.graphics.rasterizer_state.front_counter_clockwise ? GL_CCW : GL_CW;
 	state->cull_mode = convert_cull_mode(desc.graphics.rasterizer_state.cull_mode);
 	state->polygon_mode = convert_fill_mode(desc.graphics.rasterizer_state.fill_mode);
@@ -764,6 +764,7 @@ bool reshade::opengl::device_impl::create_pipeline_graphics(const api::pipeline_
 	state->blend_dst = convert_blend_factor(desc.graphics.blend_state.dst_color_blend_factor[0]);
 	state->blend_src_alpha = convert_blend_factor(desc.graphics.blend_state.src_alpha_blend_factor[0]);
 	state->blend_dst_alpha = convert_blend_factor(desc.graphics.blend_state.dst_alpha_blend_factor[0]);
+	state->logic_op = convert_logic_op(desc.graphics.blend_state.logic_op[0]);
 
 	state->back_stencil_op_fail = convert_stencil_op(desc.graphics.depth_stencil_state.back_stencil_fail_op);
 	state->back_stencil_op_depth_fail = convert_stencil_op(desc.graphics.depth_stencil_state.back_stencil_depth_fail_op);
@@ -780,13 +781,14 @@ bool reshade::opengl::device_impl::create_pipeline_graphics(const api::pipeline_
 	state->color_write_mask = desc.graphics.blend_state.render_target_write_mask[0];
 
 	state->blend_enable = desc.graphics.blend_state.blend_enable[0];
+	state->logic_op_enable = desc.graphics.blend_state.logic_op_enable[0];
 	state->depth_test = desc.graphics.depth_stencil_state.depth_test;
 	state->depth_write_mask = desc.graphics.depth_stencil_state.depth_write_mask;
 	state->stencil_test = desc.graphics.depth_stencil_state.stencil_test;
 	state->scissor_test = desc.graphics.rasterizer_state.scissor_test;
-	state->multisample = desc.graphics.multisample_state.multisample;
-	state->sample_alpha_to_coverage = desc.graphics.multisample_state.alpha_to_coverage;
-	state->sample_mask = desc.graphics.multisample_state.sample_mask;
+	state->multisample = desc.graphics.rasterizer_state.multisample;
+	state->sample_alpha_to_coverage = desc.graphics.blend_state.alpha_to_coverage;
+	state->sample_mask = desc.graphics.sample_mask;
 
 	*out = { reinterpret_cast<uintptr_t>(state) };
 	return true;

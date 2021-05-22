@@ -265,6 +265,7 @@ bool reshade::d3d10::device_impl::create_pipeline_graphics_all(const api::pipeli
 {
 	if (desc.graphics.hull_shader.handle != 0 ||
 		desc.graphics.domain_shader.handle != 0 ||
+		desc.graphics.blend_state.logic_op_enable[0] ||
 		desc.graphics.num_dynamic_states != 0)
 	{
 		*out = { 0 };
@@ -343,8 +344,8 @@ bool reshade::d3d10::device_impl::create_pipeline_graphics_all(const api::pipeli
 	state->rasterizer_state = reinterpret_cast<ID3D10RasterizerState *>(rasterizer_state.handle);
 	state->depth_stencil_state = reinterpret_cast<ID3D10DepthStencilState *>(depth_stencil_state.handle);
 
-	state->topology = static_cast<D3D10_PRIMITIVE_TOPOLOGY>(desc.graphics.rasterizer_state.topology);
-	state->sample_mask = desc.graphics.multisample_state.sample_mask;
+	state->topology = static_cast<D3D10_PRIMITIVE_TOPOLOGY>(desc.graphics.topology);
+	state->sample_mask = desc.graphics.sample_mask;
 	state->stencil_reference_value = desc.graphics.depth_stencil_state.stencil_reference_value;
 
 	state->blend_constant[0] = ((desc.graphics.blend_state.blend_constant      ) & 0xFF) / 255.0f;
@@ -362,7 +363,7 @@ bool reshade::d3d10::device_impl::create_pipeline_graphics_all(const api::pipeli
 bool reshade::d3d10::device_impl::create_pipeline_graphics_blend_state(const api::pipeline_desc &desc, api::pipeline *out)
 {
 	D3D10_BLEND_DESC internal_desc;
-	internal_desc.AlphaToCoverageEnable = desc.graphics.multisample_state.alpha_to_coverage;
+	internal_desc.AlphaToCoverageEnable = desc.graphics.blend_state.alpha_to_coverage;
 	internal_desc.SrcBlend = convert_blend_factor(desc.graphics.blend_state.src_color_blend_factor[0]);
 	internal_desc.DestBlend = convert_blend_factor(desc.graphics.blend_state.dst_color_blend_factor[0]);
 	internal_desc.BlendOp = convert_blend_op(desc.graphics.blend_state.color_blend_op[0]);
@@ -399,7 +400,7 @@ bool reshade::d3d10::device_impl::create_pipeline_graphics_rasterizer_state(cons
 	internal_desc.SlopeScaledDepthBias = desc.graphics.rasterizer_state.slope_scaled_depth_bias;
 	internal_desc.DepthClipEnable = desc.graphics.rasterizer_state.depth_clip;
 	internal_desc.ScissorEnable = desc.graphics.rasterizer_state.scissor_test;
-	internal_desc.MultisampleEnable = desc.graphics.multisample_state.multisample;
+	internal_desc.MultisampleEnable = desc.graphics.rasterizer_state.multisample;
 	internal_desc.AntialiasedLineEnable = desc.graphics.rasterizer_state.antialiased_line;
 
 	if (com_ptr<ID3D10RasterizerState> object;

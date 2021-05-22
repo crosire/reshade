@@ -216,7 +216,9 @@ namespace reshade { namespace api
 
 		union
 		{
-			// Used when resource type is a buffer.
+			/// <summary>
+			/// Used when resource type is a buffer.
+			/// </summary>
 			struct
 			{
 				/// <summary>
@@ -224,7 +226,10 @@ namespace reshade { namespace api
 				/// </summary>
 				uint64_t size;
 			} buffer;
-			// Used when resource type is a texture or surface.
+
+			/// <summary>
+			/// Used when resource type is a texture or surface.
+			/// </summary>
 			struct
 			{
 				/// <summary>
@@ -294,7 +299,9 @@ namespace reshade { namespace api
 
 		union
 		{
-			// Used when view type is a buffer.
+			/// <summary>
+			/// Used when view type is a buffer.
+			/// </summary>
 			struct
 			{
 				/// <summary>
@@ -306,7 +313,10 @@ namespace reshade { namespace api
 				/// </summary>
 				uint64_t size;
 			} buffer;
-			// Used when view type is a texture.
+
+			/// <summary>
+			/// Used when view type is a texture.
+			/// </summary>
 			struct
 			{
 				/// <summary>

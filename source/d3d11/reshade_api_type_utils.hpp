@@ -91,6 +91,7 @@ namespace reshade::d3d11
 	api::resource_view_desc convert_resource_view_desc(const D3D11_UNORDERED_ACCESS_VIEW_DESC &internal_desc);
 	api::resource_view_desc convert_resource_view_desc(const D3D11_UNORDERED_ACCESS_VIEW_DESC1 &internal_desc);
 
+	auto convert_logic_op(api::logic_op value) -> D3D11_LOGIC_OP;
 	auto convert_blend_op(api::blend_op value) -> D3D11_BLEND_OP;
 	auto convert_blend_factor(api::blend_factor value) -> D3D11_BLEND;
 	auto convert_fill_mode(api::fill_mode value) -> D3D11_FILL_MODE;

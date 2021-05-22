@@ -87,6 +87,7 @@ namespace reshade { namespace api
 		independent_blend,
 		/// <summary>
 		/// Specifies whether logic operations are available in the blend state.
+		/// If this feature is not present, the "logic_op_enable" and "logic_op" fields of <see cref="pipeline_desc"/> are ignored.
 		/// </summary>
 		logic_op,
 		/// <summary>

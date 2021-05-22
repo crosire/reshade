@@ -1194,7 +1194,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 				desc.graphics.vertex_shader = shader_modules.entry_points.at(pass_info.vs_entry_point);
 				desc.graphics.pixel_shader = shader_modules.entry_points.at(pass_info.ps_entry_point);
 
-				desc.graphics.blend_state.num_viewports = 1;
+				desc.graphics.num_viewports = 1;
 
 				for (uint32_t k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k)
 				{
@@ -1212,14 +1212,14 @@ bool reshade::runtime::init_effect(size_t effect_index)
 
 					pass_data.render_targets[k] = texture.rtv[pass_info.srgb_write_enable];
 
-					desc.graphics.blend_state.num_render_targets = pass_data.num_render_targets = k + 1;
-					desc.graphics.blend_state.render_target_format[k] = rtv_desc.format;
+					desc.graphics.num_render_targets = pass_data.num_render_targets = k + 1;
+					desc.graphics.render_target_format[k] = rtv_desc.format;
 				}
 
 				if (pass_info.render_target_names[0].empty())
 				{
-					desc.graphics.blend_state.num_render_targets = 1;
-					desc.graphics.blend_state.render_target_format[0] =
+					desc.graphics.num_render_targets = 1;
+					desc.graphics.render_target_format[0] =
 						pass_info.srgb_write_enable ? api::format_to_default_typed_srgb(get_backbuffer_format()) : api::format_to_default_typed(get_backbuffer_format());
 
 					pass_info.viewport_width = _width;
@@ -1231,34 +1231,32 @@ bool reshade::runtime::init_effect(size_t effect_index)
 					pass_info.viewport_width == _width &&
 					pass_info.viewport_height == _height)
 				{
-					desc.graphics.depth_stencil_state.depth_stencil_format = _effect_stencil_format;
+					desc.graphics.depth_stencil_format = _effect_stencil_format;
 				}
 				else
 				{
-					desc.graphics.depth_stencil_state.depth_stencil_format = api::format::unknown;
+					desc.graphics.depth_stencil_format = api::format::unknown;
 				}
 
-				desc.graphics.multisample_state.multisample = false;
-				desc.graphics.multisample_state.alpha_to_coverage = false;
-				desc.graphics.multisample_state.sample_mask = std::numeric_limits<uint32_t>::max();
-				desc.graphics.multisample_state.sample_count = 1;
+				desc.graphics.sample_mask = std::numeric_limits<uint32_t>::max();
+				desc.graphics.sample_count = 1;
 
 				switch (pass_info.topology)
 				{
 				case reshadefx::primitive_topology::point_list:
-					desc.graphics.rasterizer_state.topology = api::primitive_topology::point_list;
+					desc.graphics.topology = api::primitive_topology::point_list;
 					break;
 				case reshadefx::primitive_topology::line_list:
-					desc.graphics.rasterizer_state.topology = api::primitive_topology::line_list;
+					desc.graphics.topology = api::primitive_topology::line_list;
 					break;
 				case reshadefx::primitive_topology::line_strip:
-					desc.graphics.rasterizer_state.topology = api::primitive_topology::line_strip;
+					desc.graphics.topology = api::primitive_topology::line_strip;
 					break;
 				case reshadefx::primitive_topology::triangle_list:
-					desc.graphics.rasterizer_state.topology = api::primitive_topology::triangle_list;
+					desc.graphics.topology = api::primitive_topology::triangle_list;
 					break;
 				case reshadefx::primitive_topology::triangle_strip:
-					desc.graphics.rasterizer_state.topology = api::primitive_topology::triangle_strip;
+					desc.graphics.topology = api::primitive_topology::triangle_strip;
 					break;
 				}
 
@@ -1379,6 +1377,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 						desc.address_w = static_cast<api::texture_address_mode>(info.address_w);
 						desc.mip_lod_bias = info.lod_bias;
 						desc.max_anisotropy = 1;
+						desc.compare_op = api::compare_op::never;
 						desc.min_lod = info.min_lod;
 						desc.max_lod = info.max_lod;
 

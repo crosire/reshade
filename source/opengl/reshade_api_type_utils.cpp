@@ -998,6 +998,47 @@ GLenum reshade::opengl::get_binding_for_target(GLenum target)
 	}
 }
 
+GLenum reshade::opengl::convert_logic_op(api::logic_op value)
+{
+	switch (value)
+	{
+	default:
+		assert(false);
+		[[fallthrough]];
+	case reshade::api::logic_op::clear:
+		return GL_CLEAR;
+	case reshade::api::logic_op::and:
+		return GL_AND;
+	case reshade::api::logic_op::and_reverse:
+		return GL_AND_REVERSE;
+	case reshade::api::logic_op::copy:
+		return GL_COPY;
+	case reshade::api::logic_op::and_inverted:
+		return GL_AND_INVERTED;
+	case reshade::api::logic_op::noop:
+		return GL_NOOP;
+	case reshade::api::logic_op::xor:
+		return GL_XOR;
+	case reshade::api::logic_op::or:
+		return GL_OR;
+	case reshade::api::logic_op::nor:
+		return GL_NOR;
+	case reshade::api::logic_op::equivalent:
+		return GL_EQUIV;
+	case reshade::api::logic_op::invert:
+		return GL_INVERT;
+	case reshade::api::logic_op::or_reverse:
+		return GL_OR_REVERSE;
+	case reshade::api::logic_op::copy_inverted:
+		return GL_COPY_INVERTED;
+	case reshade::api::logic_op::or_inverted:
+		return GL_OR_INVERTED;
+	case reshade::api::logic_op::nand:
+		return GL_NAND;
+	case reshade::api::logic_op::set:
+		return GL_SET;
+	}
+}
 GLenum reshade::opengl::convert_blend_op(api::blend_op value)
 {
 	switch (value)

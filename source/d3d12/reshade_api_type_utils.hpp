@@ -47,6 +47,7 @@ namespace reshade::d3d12
 	api::resource_view_desc convert_resource_view_desc(const D3D12_SHADER_RESOURCE_VIEW_DESC &internal_desc);
 	api::resource_view_desc convert_resource_view_desc(const D3D12_UNORDERED_ACCESS_VIEW_DESC &internal_desc);
 
+	auto convert_logic_op(api::logic_op value) -> D3D12_LOGIC_OP;
 	auto convert_blend_op(api::blend_op value) -> D3D12_BLEND_OP;
 	auto convert_blend_factor(api::blend_factor value) -> D3D12_BLEND;
 	auto convert_fill_mode(api::fill_mode value) -> D3D12_FILL_MODE;

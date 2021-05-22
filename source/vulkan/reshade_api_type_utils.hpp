@@ -30,6 +30,7 @@ namespace reshade::vulkan
 	api::resource_view_desc convert_resource_view_desc(const VkImageViewCreateInfo &create_info);
 	api::resource_view_desc convert_resource_view_desc(const VkBufferViewCreateInfo &create_info);
 
+	auto convert_logic_op(api::logic_op value) -> VkLogicOp;
 	auto convert_blend_op(api::blend_op value) -> VkBlendOp;
 	auto convert_blend_factor(api::blend_factor value) -> VkBlendFactor;
 	auto convert_fill_mode(api::fill_mode value) -> VkPolygonMode;

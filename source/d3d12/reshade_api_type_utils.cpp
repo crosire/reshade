@@ -637,6 +637,47 @@ reshade::api::resource_view_desc reshade::d3d12::convert_resource_view_desc(cons
 }
 
 
+auto reshade::d3d12::convert_logic_op(api::logic_op value) -> D3D12_LOGIC_OP
+{
+	switch (value)
+	{
+	default:
+		assert(false);
+		[[fallthrough]];
+	case reshade::api::logic_op::clear:
+		return D3D12_LOGIC_OP_CLEAR;
+	case reshade::api::logic_op::and:
+		return D3D12_LOGIC_OP_AND;
+	case reshade::api::logic_op::and_reverse:
+		return D3D12_LOGIC_OP_AND_REVERSE;
+	case reshade::api::logic_op::copy:
+		return D3D12_LOGIC_OP_COPY;
+	case reshade::api::logic_op::and_inverted:
+		return D3D12_LOGIC_OP_AND_INVERTED;
+	case reshade::api::logic_op::noop:
+		return D3D12_LOGIC_OP_NOOP;
+	case reshade::api::logic_op::xor:
+		return D3D12_LOGIC_OP_XOR;
+	case reshade::api::logic_op:: or :
+		return D3D12_LOGIC_OP_OR;
+	case reshade::api::logic_op::nor:
+		return D3D12_LOGIC_OP_NOR;
+	case reshade::api::logic_op::equivalent:
+		return D3D12_LOGIC_OP_EQUIV;
+	case reshade::api::logic_op::invert:
+		return D3D12_LOGIC_OP_INVERT;
+	case reshade::api::logic_op::or_reverse:
+		return D3D12_LOGIC_OP_OR_REVERSE;
+	case reshade::api::logic_op::copy_inverted:
+		return D3D12_LOGIC_OP_COPY_INVERTED;
+	case reshade::api::logic_op::or_inverted:
+		return D3D12_LOGIC_OP_OR_INVERTED;
+	case reshade::api::logic_op::nand:
+		return D3D12_LOGIC_OP_NAND;
+	case reshade::api::logic_op::set:
+		return D3D12_LOGIC_OP_SET;
+	}
+}
 auto reshade::d3d12::convert_blend_op(api::blend_op value) -> D3D12_BLEND_OP
 {
 	return static_cast<D3D12_BLEND_OP>(static_cast<uint32_t>(value) + 1);

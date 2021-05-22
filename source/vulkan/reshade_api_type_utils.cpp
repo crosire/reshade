@@ -964,6 +964,10 @@ reshade::api::resource_view_desc reshade::vulkan::convert_resource_view_desc(con
 	return desc;
 }
 
+auto reshade::vulkan::convert_logic_op(api::logic_op value) -> VkLogicOp
+{
+	return static_cast<VkLogicOp>(value);
+}
 auto reshade::vulkan::convert_blend_op(api::blend_op value) -> VkBlendOp
 {
 	return static_cast<VkBlendOp>(value);

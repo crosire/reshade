@@ -574,9 +574,10 @@ bool reshade::d3d9::device_impl::create_pipeline(const api::pipeline_desc &desc,
 {
 	// Check for unsupported states
 	if (desc.type != api::pipeline_type::graphics ||
-		desc.graphics.blend_state.num_viewports > 1 ||
-		desc.graphics.blend_state.num_render_targets > _caps.NumSimultaneousRTs ||
-		desc.graphics.multisample_state.alpha_to_coverage ||
+		desc.graphics.num_viewports > 1 ||
+		desc.graphics.num_render_targets > _caps.NumSimultaneousRTs ||
+		desc.graphics.blend_state.alpha_to_coverage ||
+		desc.graphics.blend_state.logic_op_enable[0] ||
 		desc.graphics.hull_shader.handle != 0 ||
 		desc.graphics.domain_shader.handle != 0 ||
 		desc.graphics.geometry_shader.handle != 0 ||
@@ -758,9 +759,9 @@ bool reshade::d3d9::device_impl::create_pipeline(const api::pipeline_desc &desc,
 	_orig->SetRenderState(D3DRS_VERTEXBLEND, D3DVBF_DISABLE);
 	_orig->SetRenderState(D3DRS_CLIPPLANEENABLE, 0);
 	_orig->SetRenderState(D3DRS_MULTISAMPLEANTIALIAS,
-		desc.graphics.multisample_state.multisample);
+		desc.graphics.rasterizer_state.multisample);
 	_orig->SetRenderState(D3DRS_MULTISAMPLEMASK,
-		desc.graphics.multisample_state.sample_mask);
+		desc.graphics.sample_mask);
 	_orig->SetRenderState(D3DRS_COLORWRITEENABLE,
 		desc.graphics.blend_state.render_target_write_mask[0]);
 	_orig->SetRenderState(D3DRS_BLENDOP,
@@ -808,7 +809,7 @@ bool reshade::d3d9::device_impl::create_pipeline(const api::pipeline_desc &desc,
 		SUCCEEDED(_orig->EndStateBlock(&state_block)))
 	{
 		const auto result = new pipeline_impl();
-		result->prim_type = convert_primitive_topology(desc.graphics.rasterizer_state.topology);
+		result->prim_type = convert_primitive_topology(desc.graphics.topology);
 		result->state_block = std::move(state_block);
 
 		*out = { reinterpret_cast<uintptr_t>(result) };

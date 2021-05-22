@@ -421,24 +421,24 @@ bool reshade::d3d12::device_impl::create_pipeline_graphics_all(const api::pipeli
 		internal_desc.PS = { ps_module->bytecode.data(), ps_module->bytecode.size() };
 	}
 
-	internal_desc.BlendState.AlphaToCoverageEnable = desc.graphics.multisample_state.alpha_to_coverage;
+	internal_desc.BlendState.AlphaToCoverageEnable = desc.graphics.blend_state.alpha_to_coverage;
 	internal_desc.BlendState.IndependentBlendEnable = TRUE;
 
 	for (UINT i = 0; i < 8; ++i)
 	{
 		internal_desc.BlendState.RenderTarget[i].BlendEnable = desc.graphics.blend_state.blend_enable[i];
-		internal_desc.BlendState.RenderTarget[i].LogicOpEnable = FALSE;
+		internal_desc.BlendState.RenderTarget[i].LogicOpEnable = desc.graphics.blend_state.logic_op_enable[i];
 		internal_desc.BlendState.RenderTarget[i].SrcBlend = convert_blend_factor(desc.graphics.blend_state.src_color_blend_factor[i]);
 		internal_desc.BlendState.RenderTarget[i].DestBlend = convert_blend_factor(desc.graphics.blend_state.dst_color_blend_factor[i]);
 		internal_desc.BlendState.RenderTarget[i].BlendOp = convert_blend_op(desc.graphics.blend_state.color_blend_op[i]);
 		internal_desc.BlendState.RenderTarget[i].SrcBlendAlpha = convert_blend_factor(desc.graphics.blend_state.src_alpha_blend_factor[i]);
 		internal_desc.BlendState.RenderTarget[i].DestBlendAlpha = convert_blend_factor(desc.graphics.blend_state.dst_alpha_blend_factor[i]);
 		internal_desc.BlendState.RenderTarget[i].BlendOpAlpha = convert_blend_op(desc.graphics.blend_state.alpha_blend_op[i]);
-		internal_desc.BlendState.RenderTarget[i].LogicOp = D3D12_LOGIC_OP_CLEAR;
+		internal_desc.BlendState.RenderTarget[i].LogicOp = convert_logic_op(desc.graphics.blend_state.logic_op[i]);
 		internal_desc.BlendState.RenderTarget[i].RenderTargetWriteMask = desc.graphics.blend_state.render_target_write_mask[i];
 	}
 
-	internal_desc.SampleMask = desc.graphics.multisample_state.sample_mask;
+	internal_desc.SampleMask = desc.graphics.sample_mask;
 
 	internal_desc.RasterizerState.FillMode = convert_fill_mode(desc.graphics.rasterizer_state.fill_mode);
 	internal_desc.RasterizerState.CullMode = convert_cull_mode(desc.graphics.rasterizer_state.cull_mode);
@@ -447,7 +447,7 @@ bool reshade::d3d12::device_impl::create_pipeline_graphics_all(const api::pipeli
 	internal_desc.RasterizerState.DepthBiasClamp = desc.graphics.rasterizer_state.depth_bias_clamp;
 	internal_desc.RasterizerState.SlopeScaledDepthBias = desc.graphics.rasterizer_state.slope_scaled_depth_bias;
 	internal_desc.RasterizerState.DepthClipEnable = desc.graphics.rasterizer_state.depth_clip;
-	internal_desc.RasterizerState.MultisampleEnable = desc.graphics.multisample_state.multisample;
+	internal_desc.RasterizerState.MultisampleEnable = desc.graphics.rasterizer_state.multisample;
 	internal_desc.RasterizerState.AntialiasedLineEnable = desc.graphics.rasterizer_state.antialiased_line;
 	internal_desc.RasterizerState.ForcedSampleCount = 0;
 	internal_desc.RasterizerState.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
@@ -486,20 +486,20 @@ bool reshade::d3d12::device_impl::create_pipeline_graphics_all(const api::pipeli
 	internal_desc.InputLayout.NumElements = static_cast<UINT>(internal_elements.size());
 	internal_desc.InputLayout.pInputElementDescs = internal_elements.data();
 
-	internal_desc.PrimitiveTopologyType = convert_primitive_topology_type(desc.graphics.rasterizer_state.topology);
+	internal_desc.PrimitiveTopologyType = convert_primitive_topology_type(desc.graphics.topology);
 
-	internal_desc.NumRenderTargets = desc.graphics.blend_state.num_render_targets;
+	internal_desc.NumRenderTargets = desc.graphics.num_render_targets;
 	for (UINT i = 0; i < 8; ++i)
-		internal_desc.RTVFormats[i] = convert_format(desc.graphics.blend_state.render_target_format[i]);
-	internal_desc.DSVFormat = convert_format(desc.graphics.depth_stencil_state.depth_stencil_format);
+		internal_desc.RTVFormats[i] = convert_format(desc.graphics.render_target_format[i]);
+	internal_desc.DSVFormat = convert_format(desc.graphics.depth_stencil_format);
 
-	internal_desc.SampleDesc.Count = desc.graphics.multisample_state.sample_count;
+	internal_desc.SampleDesc.Count = desc.graphics.sample_count;
 
 	if (com_ptr<ID3D12PipelineState> pipeline;
 		SUCCEEDED(_orig->CreateGraphicsPipelineState(&internal_desc, IID_PPV_ARGS(&pipeline))))
 	{
 		pipeline_graphics_impl extra_data;
-		extra_data.topology = convert_primitive_topology(desc.graphics.rasterizer_state.topology);
+		extra_data.topology = convert_primitive_topology(desc.graphics.topology);
 
 		pipeline->SetPrivateData(pipeline_extra_data_guid, sizeof(extra_data), &extra_data);
 

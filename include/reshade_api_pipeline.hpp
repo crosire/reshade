@@ -204,6 +204,30 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
+	/// The available logic operations.
+	/// Compatible with 'VkLogicOp'.
+	/// </summary>
+	enum class logic_op : uint32_t
+	{
+		clear = 0,
+		set = 15,
+		copy = 3,
+		copy_inverted = 12,
+		noop = 5,
+		invert = 10,
+		and = 1,
+		nand = 14,
+		or = 7,
+		nor = 8,
+		xor = 6,
+		equivalent = 9,
+		and_reverse = 2,
+		and_inverted = 4,
+		or_reverse = 11,
+		or_inverted = 13
+	};
+
+	/// <summary>
 	/// The available color or alpha blending operations.
 	/// Compatible with 'VkBlendOp'.
 	/// </summary>
@@ -488,7 +512,9 @@ namespace reshade { namespace api
 
 		union
 		{
-			// Used when pipeline type is <see cref="pipeline_type::compute"/>.
+			/// <summary>
+			/// Used when pipeline type is <see cref="pipeline_type::compute"/>.
+			/// </summary>
 			struct
 			{
 				/// <summary>
@@ -496,7 +522,10 @@ namespace reshade { namespace api
 				/// </summary>
 				shader_module shader;
 			} compute;
-			// Used when pipeline type is <see cref="pipeline_type::graphics"/> or any other graphics type.
+
+			/// <summary>
+			/// Used when pipeline type is <see cref="pipeline_type::graphics"/> or any other graphics type.
+			/// </summary>
 			struct
 			{
 				/// <summary>
@@ -526,67 +555,197 @@ namespace reshade { namespace api
 				/// </summary>
 				input_layout_element input_layout[16];
 
-				// Describes the blend state of the output-merger stage.
+				/// <summary>
+				/// Describes the blend state of the output-merger stage.
+				/// </summary>
+				/// <seealso cref="pipeline_type::graphics_blend_state"/>
 				struct
 				{
-					uint32_t num_viewports;
-					uint32_t num_render_targets;
-					format render_target_format[8];
+					/// <summary>
+					/// Specifies whether to use alpha-to-coverage as a multisampling technique when setting a pixel to a render target.
+					/// </summary>
+					bool alpha_to_coverage;
+					/// <summary>
+					/// Specifies whether to enable (or disable) blending for each render target.
+					/// </summary>
 					bool blend_enable[8];
+					/// <summary>
+					/// Specifies whether to enable (or disable) a logical operation for each render target.
+					/// </summary>
+					bool logic_op_enable[8];
+					/// <summary>
+					/// The constant value used when <see cref="src_color_blend_factor"/> or <see cref="dst_color_blend_factor"/> is <see cref="blend_factor::constant_color"/>.
+					/// </summary>
 					uint32_t blend_constant;
+					/// <summary>
+					/// Specifies the operation to perform on the RGB value that the pixel shader outputs.
+					/// </summary>
 					blend_factor src_color_blend_factor[8];
+					/// <summary>
+					/// Specifies the operation to perform on the current RGB value in the render target.
+					/// </summary>
 					blend_factor dst_color_blend_factor[8];
+					/// <summary>
+					/// Defines how to combine the <see cref="src_color_blend_factor"/> and <see cref="dst_color_blend_factor"/> operations.
+					/// </summary>
 					blend_op color_blend_op[8];
+					/// <summary>
+					/// Specifies the operation to perform on the alpha value that the pixel shader outputs.
+					/// </summary>
 					blend_factor src_alpha_blend_factor[8];
+					/// <summary>
+					/// Specifies the operation to perform on the current alpha value in the render target.
+					/// </summary>
 					blend_factor dst_alpha_blend_factor[8];
+					/// <summary>
+					/// Defines how to combine the <see cref="src_alpha_blend_factor"/> and <see cref="dst_alpha_blend_factor"/> operations.
+					/// </summary>
 					blend_op alpha_blend_op[8];
+					/// <summary>
+					/// Specifies the logical operation to configure for each render target. Ignored if <see cref="logic_op_enable"/> is <c>false</c>.
+					/// </summary>
+					logic_op logic_op[8];
+					/// <summary>
+					/// A write mask specifying which color components are written to each render target.
+					/// Combination of <c>0x1</c> for red, <c>0x2</c> for green, <c>0x4</c> for blue and <c>0x8</c> for alpha.
+					/// </summary>
 					uint8_t render_target_write_mask[8];
 				} blend_state;
 
-				// Describes the rasterizer state of the rasterizer stage.
+				/// <summary>
+				/// The sample mask for the blend state.
+				/// </summary>
+				uint32_t sample_mask;
+				/// <summary>
+				/// The number of samples per pixel.
+				/// </summary>
+				uint32_t sample_count;
+
+				/// <summary>
+				/// Describes the rasterizer state of the rasterizer stage.
+				/// </summary>
+				/// <seealso cref="pipeline_type::graphics_rasterizer_state"/>
 				struct
 				{
+					/// <summary>
+					/// Specifies the fill mode to use when rendering.
+					/// </summary>
 					fill_mode fill_mode;
+					/// <summary>
+					/// Specifies that triangles facing the specified direction are not drawn.
+					/// </summary>
 					cull_mode cull_mode;
-					primitive_topology topology;
+					/// <summary>
+					/// Determines if a triangle is front or back-facing.
+					/// </summary>
 					bool front_counter_clockwise;
+					/// <summary>
+					/// Depth value added to a given pixel.
+					/// </summary>
 					float depth_bias;
+					/// <summary>
+					/// Maximum depth bias of a pixel.
+					/// </summary>
 					float depth_bias_clamp;
+					/// <summary>
+					/// Scalar on the slope of a given pixel.
+					/// </summary>
 					float slope_scaled_depth_bias;
+					/// <summary>
+					/// Specifies whether to enable clipping based on distance.
+					/// </summary>
 					bool depth_clip;
+					/// <summary>
+					/// Specifies whether to enable scissor rectangle culling.
+					/// </summary>
 					bool scissor_test;
+					/// <summary>
+					/// Specifies whether to use the quadrilateral or alpha line anti-aliasing algorithm on multisample antialiasing render targets.
+					/// </summary>
+					bool multisample;
+					/// <summary>
+					/// Specifies whether to enable line antialiasing. Only applies if doing line drawing and <see cref="multisample"/> is <c>false</c>.
+					/// </summary>
 					bool antialiased_line;
 				} rasterizer_state;
 
-				// Describes the multisampling state.
+				/// <summary>
+				/// Describes the depth-stencil state of the output-merger stage.
+				/// </summary>
+				/// <seealso cref="pipeline_type::graphics_depth_stencil_state"/>
 				struct
 				{
-					bool multisample;
-					bool alpha_to_coverage;
-					uint32_t sample_mask;
-					uint32_t sample_count;
-				} multisample_state;
-
-				// Describes the depth-stencil state of the output-merger stage.
-				struct
-				{
-					format depth_stencil_format;
+					/// <summary>
+					/// Specifies whether to enable depth testing.
+					/// </summary>
 					bool depth_test;
+					/// <summary>
+					/// Specifies whether writes to the depth-stencil buffer are enabled.
+					/// </summary>
 					bool depth_write_mask;
+					/// <summary>
+					/// Specifies the function that compares depth data against existing depth data.
+					/// </summary>
 					compare_op depth_func;
+					/// <summary>
+					/// Specifies whether to enable stencil testing.
+					/// </summary>
 					bool stencil_test;
+					/// <summary>
+					/// A mask applied when reading stencil data from the depth-stencil buffer.
+					/// </summary>
 					uint8_t stencil_read_mask;
+					/// <summary>
+					/// A mask applied when writing stencil data to the depth-stencil buffer.
+					/// </summary>
 					uint8_t stencil_write_mask;
+					/// <summary>
+					/// Reference value to perform against when doing stencil testing.
+					/// </summary>
 					uint8_t stencil_reference_value;
+					/// <summary>
+					/// Specifies the stencil operation to perform when stencil testing fails for pixels whose surface normal is facing away from the camera.
+					/// </summary>
 					stencil_op back_stencil_fail_op;
+					/// <summary>
+					/// Specifies the stencil operation to perform when stencil testing passes and depth testing fails for pixels whose surface normal is facing away from the camera.
+					/// </summary>
 					stencil_op back_stencil_depth_fail_op;
+					/// <summary>
+					/// Specifies the stencil operation to perform when stencil testing and depth testing both pass for pixels whose surface normal is facing away from the camera.
+					/// </summary>
 					stencil_op back_stencil_pass_op;
+					/// <summary>
+					/// Specifies the function that compares stencil data against existing stencil data for pixels whose surface normal is facing away from the camera.
+					/// </summary>
 					compare_op back_stencil_func;
+					/// <summary>
+					/// Specifies the stencil operation to perform when stencil testing fails for pixels whose surface normal is towards the camera.
+					/// </summary>
 					stencil_op front_stencil_fail_op;
+					/// <summary>
+					/// Specifies the stencil operation to perform when stencil testing passes and depth testing fails for pixels whose surface normal is facing towards the camera.
+					/// </summary>
 					stencil_op front_stencil_depth_fail_op;
+					/// <summary>
+					/// Specifies the stencil operation to perform when stencil testing and depth testing both pass for pixels whose surface normal is facing towards the camera.
+					/// </summary>
 					stencil_op front_stencil_pass_op;
+					/// <summary>
+					/// Specifies the function that compares stencil data against existing stencil data for pixels whose surface normal is facing towards the camera.
+					/// </summary>
 					compare_op front_stencil_func;
 				} depth_stencil_state;
+
+				/// <summary>
+				/// The primitive topology to use when rendering.
+				/// </summary>
+				primitive_topology topology;
+
+				uint32_t num_viewports;
+				uint32_t num_render_targets;
+				format depth_stencil_format;
+				format render_target_format[8];
 
 				// A list of all pipeline states that are dynamically set via "command_list::set_pipeline_states".
 				uint32_t num_dynamic_states;
