@@ -1151,8 +1151,8 @@ private:
 
 		enum
 		{
-#define IMPLEMENT_INTRINSIC_HLSL(name, i, code) name##i,
-#include "effect_symbol_table_intrinsics.inl"
+		#define IMPLEMENT_INTRINSIC_HLSL(name, i, code) name##i,
+			#include "effect_symbol_table_intrinsics.inl"
 		};
 
 		if (_shader_model >= 40 && (
@@ -1174,8 +1174,8 @@ private:
 
 		switch (intrinsic)
 		{
-#define IMPLEMENT_INTRINSIC_HLSL(name, i, code) case name##i: code break;
-#include "effect_symbol_table_intrinsics.inl"
+		#define IMPLEMENT_INTRINSIC_HLSL(name, i, code) case name##i: code break;
+			#include "effect_symbol_table_intrinsics.inl"
 		default:
 			assert(false);
 		}

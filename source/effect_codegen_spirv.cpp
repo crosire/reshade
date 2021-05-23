@@ -1950,14 +1950,14 @@ private:
 
 		enum
 		{
-#define IMPLEMENT_INTRINSIC_SPIRV(name, i, code) name##i,
-#include "effect_symbol_table_intrinsics.inl"
+		#define IMPLEMENT_INTRINSIC_SPIRV(name, i, code) name##i,
+			#include "effect_symbol_table_intrinsics.inl"
 		};
 
 		switch (intrinsic)
 		{
-#define IMPLEMENT_INTRINSIC_SPIRV(name, i, code) case name##i: code
-#include "effect_symbol_table_intrinsics.inl"
+		#define IMPLEMENT_INTRINSIC_SPIRV(name, i, code) case name##i: code
+			#include "effect_symbol_table_intrinsics.inl"
 		default:
 			return assert(false), 0;
 		}

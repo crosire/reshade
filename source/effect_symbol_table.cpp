@@ -26,9 +26,10 @@ struct intrinsic
 };
 
 // Import intrinsic callback functions
+enum
+{
 #define IMPLEMENT_INTRINSIC_SPIRV(name, i, code) name##i,
-enum {
-#include "effect_symbol_table_intrinsics.inl"
+	#include "effect_symbol_table_intrinsics.inl"
 };
 
 #define void { reshadefx::type::t_void }
@@ -80,9 +81,10 @@ enum {
 #define storage { reshadefx::type::t_storage }
 
 // Import intrinsic function definitions
+static const intrinsic s_intrinsics[] =
+{
 #define DEFINE_INTRINSIC(name, i, ret_type, ...) intrinsic(#name, name##i, ret_type, { __VA_ARGS__ }),
-static const intrinsic s_intrinsics[] = {
-#include "effect_symbol_table_intrinsics.inl"
+	#include "effect_symbol_table_intrinsics.inl"
 };
 
 #undef void

@@ -1466,14 +1466,14 @@ private:
 
 		enum
 		{
-#define IMPLEMENT_INTRINSIC_GLSL(name, i, code) name##i,
-#include "effect_symbol_table_intrinsics.inl"
+		#define IMPLEMENT_INTRINSIC_GLSL(name, i, code) name##i,
+			#include "effect_symbol_table_intrinsics.inl"
 		};
 
 		switch (intrinsic)
 		{
-#define IMPLEMENT_INTRINSIC_GLSL(name, i, code) case name##i: code break;
-#include "effect_symbol_table_intrinsics.inl"
+		#define IMPLEMENT_INTRINSIC_GLSL(name, i, code) case name##i: code break;
+			#include "effect_symbol_table_intrinsics.inl"
 		default:
 			assert(false);
 		}
