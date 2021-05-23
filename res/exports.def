@@ -427,14 +427,8 @@ EXPORTS
 	wglUseFontOutlinesA PRIVATE
 	wglUseFontOutlinesW PRIVATE
 
-	; openvr_api[64].dll
-	VR_Init PRIVATE
-	VR_InitInternal PRIVATE
-	VR_InitInternal2 PRIVATE
-	VR_Shutdown PRIVATE
-	VR_ShutdownInternal PRIVATE
-	VR_GetGenericInterface PRIVATE
-	VRCompositor PRIVATE
+	; vrclient[_x64].dll
+	VRClientCoreFactory PRIVATE
 
 	; vulkan-1.dll
 	vkCreateDevice PRIVATE

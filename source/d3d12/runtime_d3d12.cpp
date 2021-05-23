@@ -242,6 +242,9 @@ bool reshade::d3d12::runtime_impl::on_layer_submit(UINT eye, ID3D12Resource *sou
 	const UINT target_width = region_width * 2;
 	const UINT region_height = source_region.bottom - source_region.top;
 
+	if (region_width == 0 || region_height == 0)
+		return false;
+
 	if (target_width != _width || region_height != _height || source_desc.Format != _backbuffer_format)
 	{
 		on_reset();

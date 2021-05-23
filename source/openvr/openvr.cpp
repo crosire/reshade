@@ -15,6 +15,7 @@
 #include "vulkan/vulkan_hooks.hpp"
 #include "vulkan/runtime_vk.hpp"
 #include <openvr.h>
+#include <ivrclientcore.h>
 
 // There can only be a single global effect runtime in OpenVR (since its API is based on singletons)
 static std::pair<reshade::runtime *, vr::ETextureType> s_vr_runtime = { nullptr, vr::TextureType_Invalid };
@@ -259,37 +260,31 @@ static vr::EVRCompositorError on_submit_vulkan(vr::EVREye eye, const vr::VRVulka
 }
 
 #ifdef WIN64
-	#define IVRCompositor_Submit_Impl(vtable_offset, interface_version, impl) \
-		static vr::EVRCompositorError IVRCompositor_Submit_##interface_version(vr::IVRCompositor *pCompositor, IVRCompositor_Submit_##interface_version##_ArgTypes) \
+	#define VR_Interface_Impl(type, method_name, vtable_offset, interface_version, impl, return_type, ...) \
+		static return_type type##_##method_name##_##interface_version(vr::type *pThis, ##__VA_ARGS__) \
 		{ \
-			static const auto trampoline = reshade::hooks::call(IVRCompositor_Submit_##interface_version, vtable_from_instance(pCompositor) + vtable_offset); \
-			if (pTexture != nullptr) \
-				impl \
-			return vr::VRCompositorError_InvalidTexture; \
+			static const auto trampoline = reshade::hooks::call(type##_##method_name##_##interface_version, vtable_from_instance(pThis) + vtable_offset); \
+			impl \
 		}
-	#define IVRCompositor_Submit_Call(...) trampoline(pCompositor, __VA_ARGS__)
+	#define VR_Interface_Call(...) trampoline(pThis, ##__VA_ARGS__)
 #else
-	// The 'IVRCompositor' functions use the __thiscall calling convention on x86, so need to emulate that with __fastcall and a dummy second argument which passes along the EDX register value
-	#define IVRCompositor_Submit_Impl(vtable_offset, interface_version, impl) \
-		static vr::EVRCompositorError __fastcall IVRCompositor_Submit_##interface_version(vr::IVRCompositor *pCompositor, void *EDX, IVRCompositor_Submit_##interface_version##_ArgTypes) \
+	// The OpenVR interface functions use the __thiscall calling convention on x86, so need to emulate that with __fastcall and a dummy second argument which passes along the EDX register value
+	#define VR_Interface_Impl(type, method_name, vtable_offset, interface_version, impl, return_type, ...) \
+		static return_type __fastcall type##_##method_name##_##interface_version(vr::type *pThis, void *EDX, ##__VA_ARGS__) \
 		{ \
-			static const auto trampoline = reshade::hooks::call(IVRCompositor_Submit_##interface_version, vtable_from_instance(pCompositor) + vtable_offset); \
-			if (pTexture != nullptr) \
-				impl \
-			return vr::VRCompositorError_InvalidTexture; \
+			static const auto trampoline = reshade::hooks::call(type##_##method_name##_##interface_version, vtable_from_instance(pThis) + vtable_offset); \
+			impl \
 		}
-	#define IVRCompositor_Submit_Call(...) trampoline(pCompositor, EDX, __VA_ARGS__)
+	#define VR_Interface_Call(...) trampoline(pThis, EDX, ##__VA_ARGS__)
 #endif
 
-#define IVRCompositor_Submit_007_ArgTypes /* vr::Hmd_Eye */ vr::EVREye eEye, /* vr::GraphicsAPIConvention */ unsigned int eTextureType, void *pTexture, const vr::VRTextureBounds_t *pBounds
-#define IVRCompositor_Submit_008_ArgTypes /* vr::Hmd_Eye */ vr::EVREye eEye, /* vr::GraphicsAPIConvention */ unsigned int eTextureType, void *pTexture, const vr::VRTextureBounds_t *pBounds, /* vr::VRSubmitFlags_t */ vr::EVRSubmitFlags nSubmitFlags
-#define IVRCompositor_Submit_009_ArgTypes vr::EVREye eEye, const vr::Texture_t *pTexture, const vr::VRTextureBounds_t *pBounds, vr::EVRSubmitFlags nSubmitFlags
-#define IVRCompositor_Submit_012_ArgTypes vr::EVREye eEye, const vr::Texture_t *pTexture, const vr::VRTextureBounds_t *pBounds, vr::EVRSubmitFlags nSubmitFlags
+VR_Interface_Impl(IVRCompositor, Submit, 6, 007, {
+	if (pTexture == nullptr)
+		return vr::VRCompositorError_InvalidTexture;
 
-IVRCompositor_Submit_Impl(6, 007, {
 	const auto submit_lambda = [&](vr::EVREye eye, void *handle, const vr::VRTextureBounds_t *bounds, vr::EVRSubmitFlags flags) {
 		assert(flags == vr::Submit_Default);
-		return IVRCompositor_Submit_Call(eye, eTextureType, handle, bounds);
+		return VR_Interface_Call(eye, eTextureType, handle, bounds);
 	};
 
 	switch (eTextureType)
@@ -298,11 +293,17 @@ IVRCompositor_Submit_Impl(6, 007, {
 		return on_submit_d3d11(eEye, static_cast<ID3D11Texture2D *>(pTexture), pBounds, vr::Submit_Default, submit_lambda);
 	case 1: // API_OpenGL
 		return submit_lambda(eEye, pTexture, pBounds, vr::Submit_Default); // Unsupported because overwritting would require the 'vr::Submit_GlRenderBuffer' flag, which did not yet exist in this OpenVR version
+	default:
+		return vr::VRCompositorError_InvalidTexture;
 	}
-})
-IVRCompositor_Submit_Impl(6, 008, {
+}, vr::EVRCompositorError, /* vr::Hmd_Eye */ vr::EVREye eEye, /* vr::GraphicsAPIConvention */ unsigned int eTextureType, void *pTexture, const vr::VRTextureBounds_t *pBounds)
+
+VR_Interface_Impl(IVRCompositor, Submit, 6, 008, {
+	if (pTexture == nullptr)
+		return vr::VRCompositorError_InvalidTexture;
+
 	const auto submit_lambda = [&](vr::EVREye eye, void *handle, const vr::VRTextureBounds_t *bounds, vr::EVRSubmitFlags flags) {
-		return IVRCompositor_Submit_Call(eye, eTextureType, handle, bounds, flags);
+		return VR_Interface_Call(eye, eTextureType, handle, bounds, flags);
 	};
 
 	switch (eTextureType)
@@ -311,10 +312,13 @@ IVRCompositor_Submit_Impl(6, 008, {
 		return on_submit_d3d11(eEye, static_cast<ID3D11Texture2D *>(pTexture), pBounds, nSubmitFlags, submit_lambda);
 	case 1: // API_OpenGL
 		return on_submit_opengl(eEye, static_cast<GLuint>(reinterpret_cast<uintptr_t>(pTexture)), pBounds, nSubmitFlags, submit_lambda);
+	default:
+		return vr::VRCompositorError_InvalidTexture;
 	}
-})
-IVRCompositor_Submit_Impl(4, 009, {
-	if (pTexture->handle == nullptr)
+}, vr::EVRCompositorError, /* vr::Hmd_Eye */ vr::EVREye eEye, /* vr::GraphicsAPIConvention */ unsigned int eTextureType, void *pTexture, const vr::VRTextureBounds_t *pBounds, /* vr::VRSubmitFlags_t */ vr::EVRSubmitFlags nSubmitFlags)
+
+VR_Interface_Impl(IVRCompositor, Submit, 4, 009, {
+	if (pTexture == nullptr || pTexture->handle == nullptr)
 		return vr::VRCompositorError_InvalidTexture;
 
 	const auto submit_lambda = [&](vr::EVREye eye, void *handle, const vr::VRTextureBounds_t *bounds, vr::EVRSubmitFlags flags) {
@@ -323,7 +327,7 @@ IVRCompositor_Submit_Impl(4, 009, {
 		texture.handle = handle;
 		texture.eType = pTexture->eType;
 		texture.eColorSpace = pTexture->eColorSpace;
-		return IVRCompositor_Submit_Call(eye, &texture, bounds, flags);
+		return VR_Interface_Call(eye, &texture, bounds, flags);
 	};
 
 	switch (pTexture->eType)
@@ -332,10 +336,13 @@ IVRCompositor_Submit_Impl(4, 009, {
 		return on_submit_d3d11(eEye, static_cast<ID3D11Texture2D *>(pTexture->handle), pBounds, nSubmitFlags, submit_lambda);
 	case vr::TextureType_OpenGL:
 		return on_submit_opengl(eEye, static_cast<GLuint>(reinterpret_cast<uintptr_t>(pTexture->handle)), pBounds, nSubmitFlags, submit_lambda);
+	default:
+		return vr::VRCompositorError_InvalidTexture;
 	}
-})
-IVRCompositor_Submit_Impl(5, 012, {
-	if (pTexture->handle == nullptr)
+}, vr::EVRCompositorError, vr::EVREye eEye, const vr::Texture_t *pTexture, const vr::VRTextureBounds_t *pBounds, vr::EVRSubmitFlags nSubmitFlags)
+
+VR_Interface_Impl(IVRCompositor, Submit, 5, 012, {
+	if (pTexture == nullptr || pTexture->handle == nullptr)
 		return vr::VRCompositorError_InvalidTexture;
 
 	// Keep track of pose and depth information of both eyes, so that it can all be send in one step after application submitted both
@@ -362,7 +369,7 @@ IVRCompositor_Submit_Impl(5, 012, {
 		// Use the pose and/or depth information that was previously stored during submission, but overwrite the texture handle
 		vr::VRTextureWithPoseAndDepth_t texture = s_last_texture[eye];
 		texture.handle = handle;
-		return IVRCompositor_Submit_Call(eye, &texture, bounds, flags);
+		return VR_Interface_Call(eye, &texture, bounds, flags);
 	};
 
 	switch (pTexture->eType)
@@ -375,31 +382,13 @@ IVRCompositor_Submit_Impl(5, 012, {
 		return on_submit_opengl(eEye, static_cast<GLuint>(reinterpret_cast<uintptr_t>(pTexture->handle)), pBounds, nSubmitFlags, submit_lambda);
 	case vr::TextureType_Vulkan:
 		return on_submit_vulkan(eEye, static_cast<const vr::VRVulkanTextureData_t *>(pTexture->handle), pBounds, nSubmitFlags, submit_lambda);
+	default:
+		return vr::VRCompositorError_InvalidTexture;
 	}
-})
+}, vr::EVRCompositorError, vr::EVREye eEye, const vr::Texture_t *pTexture, const vr::VRTextureBounds_t *pBounds, vr::EVRSubmitFlags nSubmitFlags)
 
-HOOK_EXPORT vr::IVRSystem *VR_CALLTYPE VR_Init(vr::EVRInitError *peError, vr::EVRApplicationType eApplicationType)
-{
-	LOG(INFO) << "Redirecting " << "VR_Init" << '(' << "peError = " << peError << ", eApplicationType = " << eApplicationType << ')' << " ...";
-
-	return reshade::hooks::call(VR_Init)(peError, eApplicationType);
-}
-HOOK_EXPORT uint32_t VR_CALLTYPE VR_InitInternal(vr::EVRInitError *peError, vr::EVRApplicationType eApplicationType)
-{
-	LOG(INFO) << "Redirecting " << "VR_InitInternal" << '(' << "peError = " << peError << ", eApplicationType = " << eApplicationType << ')' << " ...";
-
-	return reshade::hooks::call(VR_InitInternal)(peError, eApplicationType);
-}
-HOOK_EXPORT uint32_t VR_CALLTYPE VR_InitInternal2(vr::EVRInitError *peError, vr::EVRApplicationType eApplicationType, const char *pStartupInfo)
-{
-	LOG(INFO) << "Redirecting " << "VR_InitInternal2" << '(' << "peError = " << peError << ", eApplicationType = " << eApplicationType << ", pStartupInfo = " << (pStartupInfo != nullptr ? pStartupInfo : "0") << ')' << " ...";
-
-	return reshade::hooks::call(VR_InitInternal2)(peError, eApplicationType, pStartupInfo);
-}
-
-HOOK_EXPORT void     VR_CALLTYPE VR_ShutdownInternal()
-{
-	LOG(INFO) << "Redirecting " << "VR_ShutdownInternal" << '(' << ')' << " ...";
+VR_Interface_Impl(IVRClientCore, Cleanup, 1, 001, {
+	LOG(INFO) << "Redirecting " << "IVRClientCore::Cleanup" << '(' << "this = " << pThis << ')' << " ...";
 
 	switch (s_vr_runtime.second)
 	{
@@ -417,46 +406,23 @@ HOOK_EXPORT void     VR_CALLTYPE VR_ShutdownInternal()
 		break;
 	}
 
-	s_vr_runtime = { nullptr, vr::TextureType_Invalid };
+	s_vr_runtime.first = nullptr;
+	s_vr_runtime.second = vr::TextureType_Invalid;
 
-	reshade::hooks::call(VR_ShutdownInternal)();
-}
+	VR_Interface_Call();
+}, void)
 
-HOOK_EXPORT void     VR_CALLTYPE VR_Shutdown()
-{
-	LOG(INFO) << "Redirecting " << "VR_Shutdown" << '(' << ')' << " ...";
+VR_Interface_Impl(IVRClientCore, GetGenericInterface, 3, 001, {
+	assert(pchNameAndVersion != nullptr);
 
-	switch (s_vr_runtime.second)
-	{
-	case vr::TextureType_DirectX:
-		delete static_cast<reshade::d3d11::runtime_impl*>(s_vr_runtime.first);
-		break;
-	case vr::TextureType_DirectX12:
-		delete static_cast<reshade::d3d12::runtime_impl*>(s_vr_runtime.first);
-		break;
-	case vr::TextureType_OpenGL:
-		delete static_cast<reshade::opengl::runtime_impl*>(s_vr_runtime.first);
-		break;
-	case vr::TextureType_Vulkan:
-		delete static_cast<reshade::vulkan::runtime_impl*>(s_vr_runtime.first);
-		break;
-	}
+	LOG(INFO) << "Redirecting " << "IVRClientCore::GetGenericInterface" << '(' << "this = " << pThis << ", pchNameAndVersion = " << pchNameAndVersion << ')' << " ...";
 
-	s_vr_runtime = { nullptr, vr::TextureType_Invalid };
+	void *const interface_instance = VR_Interface_Call(pchNameAndVersion, peError);
 
-	reshade::hooks::call(VR_Shutdown)();
-}
-
-HOOK_EXPORT void *   VR_CALLTYPE VR_GetGenericInterface(const char *pchInterfaceVersion, vr::EVRInitError *peError)
-{
-	assert(pchInterfaceVersion != nullptr);
-
-	LOG(INFO) << "Redirecting " << "VR_GetGenericInterface" << '(' << "pchInterfaceVersion = " << pchInterfaceVersion << ", peError = " << peError << ')' << " ...";
-
-	void *const interface_instance = reshade::hooks::call(VR_GetGenericInterface)(pchInterfaceVersion, peError);
-
-	if (unsigned int compositor_version = 0;
-		std::sscanf(pchInterfaceVersion, "IVRCompositor_%u", &compositor_version))
+	// Only install hooks once, for the first compositor interface version encountered to avoid duplicated hooks
+	// This is necessary because vrclient.dll may create an internal compositor instance with a different version than the application to translate older versions, which with hooks installed for both would cause an infinite loop
+	if (static unsigned int compositor_version = 0;
+		compositor_version == 0 && std::sscanf(pchNameAndVersion, "IVRCompositor_%u", &compositor_version))
 	{
 		// The 'IVRCompositor::Submit' function definition has been stable and has had the same virtual function table index since the OpenVR 1.0 release (which was at 'IVRCompositor_015')
 		if (compositor_version >= 12)
@@ -468,22 +434,23 @@ HOOK_EXPORT void *   VR_CALLTYPE VR_GetGenericInterface(const char *pchInterface
 		else if (compositor_version == 7)
 			reshade::hooks::install("IVRCompositor::Submit", vtable_from_instance(static_cast<vr::IVRCompositor *>(interface_instance)), 6, reinterpret_cast<reshade::hook::address>(IVRCompositor_Submit_007));
 	}
-	
+
 	return interface_instance;
-}
+}, void *, const char *pchNameAndVersion, vr::EVRInitError *peError)
 
-HOOK_EXPORT vr::IVRCompositor *VR_CALLTYPE VRCompositor()
+HOOK_EXPORT void *VR_CALLTYPE VRClientCoreFactory(const char *pInterfaceName, int *pReturnCode)
 {
-	static vr::IVRCompositor *last_compositor_instance = nullptr;
+	LOG(INFO) << "Redirecting " << "VRClientCoreFactory" << '(' << "pInterfaceName = " << pInterfaceName << ')' << " ...";
 
-	const auto compositor_instance = static_cast<vr::IVRCompositor *>(reshade::hooks::call(VRCompositor)());
-	if (compositor_instance != last_compositor_instance)
+	void *const interface_instance = reshade::hooks::call(VRClientCoreFactory)(pInterfaceName, pReturnCode);
+
+	if (static unsigned int client_core_version = 0;
+		client_core_version == 0 && std::sscanf(pInterfaceName, "IVRClientCore_%u", &client_core_version))
 	{
-		// This is specifically for ProjectCARS2 / AMS2 which use compositor version IVRCompositor_010
-		// Need a way to work out what the Compositor version is. VR_GetGenericInterface isn't called so don't get to hook it there.
-		reshade::hooks::install("IVRCompositor::Submit", vtable_from_instance(static_cast<vr::IVRCompositor*>(compositor_instance)), 4, reinterpret_cast<reshade::hook::address>(IVRCompositor_Submit_009));
-		last_compositor_instance = compositor_instance;
+		// The 'IVRClientCore::Cleanup' and 'IVRClientCore::GetGenericInterface' functions did not change between 'IVRClientCore_001' and 'IVRClientCore_003'
+		reshade::hooks::install("IVRClientCore::Cleanup", vtable_from_instance(static_cast<vr::IVRClientCore *>(interface_instance)), 1, reinterpret_cast<reshade::hook::address>(IVRClientCore_Cleanup_001));
+		reshade::hooks::install("IVRClientCore::GetGenericInterface", vtable_from_instance(static_cast<vr::IVRClientCore *>(interface_instance)), 3, reinterpret_cast<reshade::hook::address>(IVRClientCore_GetGenericInterface_001));
 	}
 
-	return compositor_instance;
+	return interface_instance;
 }
