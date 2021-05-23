@@ -186,7 +186,7 @@ namespace reshade
 		/// </remarks>
 		copy_resource,
 		/// <summary>
-		/// Called before 'ID3D12GraphicsCommandList::CopyBufferRegion' or 'vkCmdCopyBuffer'.
+		/// Called before 'ID3D12GraphicsCommandList::CopyBufferRegion', 'glCopy(Named)BufferSubData' or 'vkCmdCopyBuffer'.
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource src, uint64_t src_offset, api::resource dst, uint64_t dst_offset, uint64_t size)</c></para>
 		/// </summary>
 		/// <remarks>
@@ -202,7 +202,7 @@ namespace reshade
 		/// </remarks>
 		copy_buffer_to_texture,
 		/// <summary>
-		/// Called before 'IDirect3DDevice9::UpdateSurface', 'IDirect3DDevice9::StretchRect', 'ID3D10Device::CopySubresourceRegion', 'ID3D11DeviceContext::CopySubresourceRegion', 'ID3D12GraphicsCommandList::CopyTextureRegion', 'glBlit(Named)Framebuffer', 'vkCmdBlitImage' or 'vkCmdCopyImage'.
+		/// Called before 'IDirect3DDevice9::UpdateSurface', 'IDirect3DDevice9::StretchRect', 'ID3D10Device::CopySubresourceRegion', 'ID3D11DeviceContext::CopySubresourceRegion', 'ID3D12GraphicsCommandList::CopyTextureRegion', 'glBlit(Named)Framebuffer', 'glCopyImageSubData', 'glCopyTex(ture)(Sub)Image(...)', 'vkCmdBlitImage' or 'vkCmdCopyImage'.
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], api::texture_filter filter)</c></para>
 		/// </summary>
 		/// <remarks>

@@ -63,6 +63,12 @@ extern "C" void WINAPI glClearDepth(GLclampd depth);
 extern "C" void WINAPI glClearStencil(GLint s);
 #undef glColorMask
 extern "C" void WINAPI glColorMask(GLboolean red, GLboolean green, GLboolean blue, GLboolean alpha);
+#undef glCopyBufferSubData
+extern "C" void WINAPI glCopyBufferSubData(GLenum readTarget, GLenum writeTarget, GLintptr readOffset, GLintptr writeOffset, GLsizeiptr size);
+#undef glCopyImageSubData
+extern "C" void WINAPI glCopyImageSubData(GLuint srcName, GLenum srcTarget, GLint srcLevel, GLint srcX, GLint srcY, GLint srcZ, GLuint dstName, GLenum dstTarget, GLint dstLevel, GLint dstX, GLint dstY, GLint dstZ, GLsizei srcWidth, GLsizei srcHeight, GLsizei srcDepth);
+#undef glCopyNamedBufferSubData
+extern "C" void WINAPI glCopyNamedBufferSubData(GLuint readBuffer, GLuint writeBuffer, GLintptr readOffset, GLintptr writeOffset, GLsizeiptr size);
 #undef glCopyTexImage1D
 extern "C" void WINAPI glCopyTexImage1D(GLenum target, GLint level, GLenum internalFormat, GLint x, GLint y, GLsizei width, GLint border);
 #undef glCopyTexImage2D
@@ -71,6 +77,14 @@ extern "C" void WINAPI glCopyTexImage2D(GLenum target, GLint level, GLenum inter
 extern "C" void WINAPI glCopyTexSubImage1D(GLenum target, GLint level, GLint xoffset, GLint x, GLint y, GLsizei width);
 #undef glCopyTexSubImage2D
 extern "C" void WINAPI glCopyTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint x, GLint y, GLsizei width, GLsizei height);
+#undef glCopyTexSubImage3D
+extern "C" void WINAPI glCopyTexSubImage3D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLint x, GLint y, GLsizei width, GLsizei height);
+#undef glCopyTextureSubImage1D
+extern "C" void WINAPI glCopyTextureSubImage1D(GLuint texture, GLint level, GLint xoffset, GLint x, GLint y, GLsizei width);
+#undef glCopyTextureSubImage2D
+extern "C" void WINAPI glCopyTextureSubImage2D(GLuint texture, GLint level, GLint xoffset, GLint yoffset, GLint x, GLint y, GLsizei width, GLsizei height);
+#undef glCopyTextureSubImage3D
+extern "C" void WINAPI glCopyTextureSubImage3D(GLuint texture, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLint x, GLint y, GLsizei width, GLsizei height);
 #undef glCullFace
 extern "C" void WINAPI glCullFace(GLenum mode);
 #undef glDeleteTextures
