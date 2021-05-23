@@ -133,7 +133,7 @@ bool reshade::d3d11::runtime_impl::on_init(const DXGI_SWAP_CHAIN_DESC &swap_desc
 	_device_impl->set_debug_name({ reinterpret_cast<uintptr_t>(_backbuffer_texture.get()) }, "ReShade back buffer");
 
 	D3D11_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
-	srv_desc.Format = _backbuffer_format;
+	srv_desc.Format = convert_format(api::format_to_default_typed(convert_format(tex_desc.Format)));
 	srv_desc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 	srv_desc.Texture2D.MipLevels = tex_desc.MipLevels;
 	if (FAILED(_device->CreateShaderResourceView(_backbuffer_texture.get(), &srv_desc, &_backbuffer_texture_srv)))

@@ -123,7 +123,7 @@ bool reshade::d3d10::runtime_impl::on_init()
 		return false;
 
 	D3D10_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
-	srv_desc.Format = _backbuffer_format;
+	srv_desc.Format = convert_format(api::format_to_default_typed(convert_format(tex_desc.Format)));
 	srv_desc.ViewDimension = D3D10_SRV_DIMENSION_TEXTURE2D;
 	srv_desc.Texture2D.MipLevels = tex_desc.MipLevels;
 	if (FAILED(_device->CreateShaderResourceView(_backbuffer_texture.get(), &srv_desc, &_backbuffer_texture_srv)))
