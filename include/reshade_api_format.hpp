@@ -428,11 +428,11 @@ namespace reshade { namespace api
 		if (value == format::unknown)
 			return 0;
 		if (value <= format::r32g32b32a32_sint)
-			return 32;
-		if (value <= format::r32g32b32_sint)
-			return 24;
-		if (value <= format::x32_float_g8_uint)
 			return 16;
+		if (value <= format::r32g32b32_sint)
+			return 12;
+		if (value <= format::x32_float_g8_uint)
+			return 8;
 		if (value <= format::x24_unorm_g8_uint || value == format::b5g6r5_unorm || value == format::b5g5r5a1_unorm)
 			return 4;
 		if (value <= format::r16_sint)
@@ -440,7 +440,7 @@ namespace reshade { namespace api
 		if (value <= format::a8_unorm)
 			return 1;
 		if (value <= format::g8r8_g8b8_unorm || (value >= format::b8g8r8a8_unorm && value <= format::b8g8r8x8_unorm_srgb))
-			return 8;
+			return 4;
 		// TODO: Block compressed formats
 		return 0;
 	}
