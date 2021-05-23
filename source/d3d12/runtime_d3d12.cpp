@@ -308,10 +308,16 @@ bool reshade::d3d12::runtime_impl::on_layer_submit(UINT eye, ID3D12Resource *sou
 	transitions[1].Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
 	cmd_list->ResourceBarrier(2, transitions);
 
-	// Copy region of the source texture
-	const D3D12_TEXTURE_COPY_LOCATION src_location = { source, D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX };
-	const D3D12_TEXTURE_COPY_LOCATION dest_location = { _backbuffers[0].get(), D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX };
-	cmd_list->CopyTextureRegion(&dest_location, eye * region_width, 0, 0, &src_location, &source_region);
+	// Copy region of the source texture (in case of an array texture, copy from the layer corresponding to the current eye)
+	D3D12_TEXTURE_COPY_LOCATION src_location;
+	src_location.pResource = source;
+	src_location.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+	src_location.SubresourceIndex = source_desc.DepthOrArraySize == 2 ? eye : 0;
+	D3D12_TEXTURE_COPY_LOCATION dst_location;
+	dst_location.pResource = _backbuffers[0].get();
+	dst_location.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+	dst_location.SubresourceIndex = 0;
+	cmd_list->CopyTextureRegion(&dst_location, eye * region_width, 0, 0, &src_location, &source_region);
 
 	std::swap(transitions[0].Transition.StateBefore, transitions[0].Transition.StateAfter);
 	std::swap(transitions[1].Transition.StateBefore, transitions[1].Transition.StateAfter);

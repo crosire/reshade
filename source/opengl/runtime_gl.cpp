@@ -203,7 +203,7 @@ bool reshade::opengl::runtime_impl::on_layer_submit(uint32_t eye, GLuint source_
 		glFramebufferRenderbuffer(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, source_object);
 	}
 	else if (is_array) {
-		glFramebufferTextureLayer(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, source_object, 0, 0);
+		glFramebufferTextureLayer(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, source_object, 0, eye);
 	}
 	else {
 		glFramebufferTexture(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, source_object, 0);

@@ -323,8 +323,8 @@ bool reshade::d3d11::runtime_impl::on_layer_submit(UINT eye, ID3D11Texture2D *so
 		}
 	}
 
-	// Copy region of the source texture
-	_immediate_context->CopySubresourceRegion(_backbuffer.get(), 0, eye * region_width, 0, 0, source, 0, &source_region);
+	// Copy region of the source texture (in case of an array texture, copy from the layer corresponding to the current eye)
+	_immediate_context->CopySubresourceRegion(_backbuffer.get(), 0, eye * region_width, 0, 0, source, source_desc.ArraySize == 2 ? eye : 0, &source_region);
 
 	*target = _backbuffer.get();
 
