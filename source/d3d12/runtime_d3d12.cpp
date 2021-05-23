@@ -7,9 +7,11 @@
 #include "dll_resources.hpp"
 #include "runtime_d3d12.hpp"
 #include "runtime_objects.hpp"
-#include "dxgi/format_utils.hpp"
+#include "reshade_api_type_utils.hpp"
 #include <CoreWindow.h>
 #include <d3dcompiler.h>
+
+extern const char *dxgi_format_to_string(DXGI_FORMAT format);
 
 reshade::d3d12::runtime_impl::runtime_impl(device_impl *device, command_queue_impl *queue, IDXGISwapChain3 *swapchain) :
 	api_object_impl(swapchain),
@@ -76,8 +78,27 @@ bool reshade::d3d12::runtime_impl::on_init(const DXGI_SWAP_CHAIN_DESC &swap_desc
 
 	_width = _window_width = swap_desc.BufferDesc.Width;
 	_height = _window_height = swap_desc.BufferDesc.Height;
-	_color_bit_depth = dxgi_format_color_depth(swap_desc.BufferDesc.Format);
 	_backbuffer_format = swap_desc.BufferDesc.Format;
+
+	// Only need to handle swap chain formats
+	switch (_backbuffer_format)
+	{
+	case DXGI_FORMAT_R8G8B8A8_UNORM:
+	case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+	case DXGI_FORMAT_B8G8R8A8_UNORM:
+	case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
+	case DXGI_FORMAT_B8G8R8X8_UNORM:
+	case DXGI_FORMAT_B8G8R8X8_UNORM_SRGB:
+		_color_bit_depth = 8;
+		break;
+	case DXGI_FORMAT_R10G10B10A2_UNORM:
+	case DXGI_FORMAT_R10G10B10_XR_BIAS_A2_UNORM:
+		_color_bit_depth = 10;
+		break;
+	case DXGI_FORMAT_R16G16B16A16_FLOAT:
+		_color_bit_depth = 16;
+		break;
+	}
 
 	if (swap_desc.OutputWindow != nullptr)
 	{
@@ -112,8 +133,8 @@ bool reshade::d3d12::runtime_impl::on_init(const DXGI_SWAP_CHAIN_DESC &swap_desc
 			{
 				D3D12_RENDER_TARGET_VIEW_DESC rtv_desc = {};
 				rtv_desc.Format = srgb_write_enable ?
-					make_dxgi_format_srgb(_backbuffer_format) :
-					make_dxgi_format_normal(_backbuffer_format);
+					convert_format(api::format_to_default_typed_srgb(convert_format(_backbuffer_format))) :
+					convert_format(api::format_to_default_typed(convert_format(_backbuffer_format)));
 				rtv_desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 
 				_device->CreateRenderTargetView(_backbuffers[i].get(), &rtv_desc, rtv_handle);
@@ -188,8 +209,8 @@ bool reshade::d3d12::runtime_impl::on_present(ID3D12Resource *source, HWND hwnd)
 		{
 			D3D12_RENDER_TARGET_VIEW_DESC rtv_desc = {};
 			rtv_desc.Format = srgb_write_enable ?
-				make_dxgi_format_srgb(_backbuffer_format) :
-				make_dxgi_format_normal(_backbuffer_format);
+				convert_format(api::format_to_default_typed_srgb(convert_format(_backbuffer_format))) :
+				convert_format(api::format_to_default_typed(convert_format(_backbuffer_format)));
 			rtv_desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 
 			_device->CreateRenderTargetView(source, &rtv_desc, rtv_handle);
@@ -244,7 +265,7 @@ bool reshade::d3d12::runtime_impl::on_layer_submit(UINT eye, ID3D12Resource *sou
 		source_desc.Height = region_height;
 		source_desc.DepthOrArraySize = 1;
 		source_desc.MipLevels = 1;
-		source_desc.Format = make_dxgi_format_typeless(source_desc.Format);
+		source_desc.Format = convert_format(api::format_to_typeless(convert_format(source_desc.Format)));
 
 		const D3D12_HEAP_PROPERTIES heap_props = { D3D12_HEAP_TYPE_DEFAULT };
 
@@ -261,8 +282,8 @@ bool reshade::d3d12::runtime_impl::on_layer_submit(UINT eye, ID3D12Resource *sou
 		{
 			D3D12_RENDER_TARGET_VIEW_DESC rtv_desc = {};
 			rtv_desc.Format = srgb_write_enable ?
-				make_dxgi_format_srgb(_backbuffer_format) :
-				make_dxgi_format_normal(_backbuffer_format);
+				convert_format(api::format_to_default_typed_srgb(convert_format(_backbuffer_format))) :
+				convert_format(api::format_to_default_typed(convert_format(_backbuffer_format)));
 			rtv_desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 
 			_device->CreateRenderTargetView(_backbuffers[0].get(), &rtv_desc, rtv_handle);
@@ -302,7 +323,7 @@ bool reshade::d3d12::runtime_impl::capture_screenshot(uint8_t *buffer) const
 {
 	if (_color_bit_depth != 8 && _color_bit_depth != 10)
 	{
-		if (const char *format_string = format_to_string(_backbuffer_format); format_string != nullptr)
+		if (const char *format_string = dxgi_format_to_string(_backbuffer_format); format_string != nullptr)
 			LOG(ERROR) << "Screenshots are not supported for back buffer format " << format_string << '!';
 		else
 			LOG(ERROR) << "Screenshots are not supported for back buffer format " << _backbuffer_format << '!';
@@ -350,7 +371,7 @@ bool reshade::d3d12::runtime_impl::capture_screenshot(uint8_t *buffer) const
 		dst_location.PlacedFootprint.Footprint.Width = _width;
 		dst_location.PlacedFootprint.Footprint.Height = _height;
 		dst_location.PlacedFootprint.Footprint.Depth = 1;
-		dst_location.PlacedFootprint.Footprint.Format = make_dxgi_format_normal(_backbuffer_format);
+		dst_location.PlacedFootprint.Footprint.Format = convert_format(api::format_to_default_typed(convert_format(_backbuffer_format)));
 		dst_location.PlacedFootprint.Footprint.RowPitch = download_pitch;
 
 		cmd_list->CopyTextureRegion(&dst_location, 0, 0, 0, &src_location, nullptr);

@@ -14,7 +14,6 @@
 #include "effect_preprocessor.hpp"
 #include "input.hpp"
 #include "input_freepie.hpp"
-#include "reshade_api_format_utils.hpp"
 #include <set>
 #include <thread>
 #include <algorithm>

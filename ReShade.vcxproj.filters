@@ -329,9 +329,6 @@
     <ClInclude Include="include\reshade_api_format.hpp">
       <Filter>core\api</Filter>
     </ClInclude>
-    <ClInclude Include="include\reshade_api_format_utils.hpp">
-      <Filter>core\api</Filter>
-    </ClInclude>
     <ClInclude Include="include\reshade_api_pipeline.hpp">
       <Filter>core\api</Filter>
     </ClInclude>
@@ -470,9 +467,6 @@
     <ClInclude Include="source\dxgi\dxgi_swapchain.hpp">
       <Filter>hooks\dxgi</Filter>
     </ClInclude>
-    <ClInclude Include="source\dxgi\format_utils.hpp">
-      <Filter>hooks\dxgi</Filter>
-    </ClInclude>
     <ClInclude Include="source\opengl\opengl.hpp">
       <Filter>hooks\opengl</Filter>
     </ClInclude>
@@ -490,9 +484,6 @@
     </ClInclude>
     <ClInclude Include="source\opengl\state_block_gl.hpp">
       <Filter>hooks\opengl</Filter>
-    </ClInclude>
-    <ClInclude Include="source\vulkan\format_utils.hpp">
-      <Filter>hooks\vulkan</Filter>
     </ClInclude>
     <ClInclude Include="source\lockfree_table.hpp">
       <Filter>hooks\vulkan</Filter>

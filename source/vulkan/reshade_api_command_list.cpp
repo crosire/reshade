@@ -6,10 +6,11 @@
 #include "reshade_api_device.hpp"
 #include "reshade_api_command_list.hpp"
 #include "reshade_api_type_utils.hpp"
-#include "format_utils.hpp"
 #include <algorithm>
 
 #define vk _device_impl->_dispatch_table
+
+extern VkImageAspectFlags aspect_flags_from_format(VkFormat format);
 
 static inline void convert_subresource(uint32_t subresource, const VkImageCreateInfo &create_info, VkImageSubresourceLayers &result)
 {

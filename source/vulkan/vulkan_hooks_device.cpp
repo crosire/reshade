@@ -8,7 +8,6 @@
 #include "vulkan_hooks.hpp"
 #include "lockfree_table.hpp"
 #include "runtime_vk.hpp"
-#include "format_utils.hpp"
 
 lockfree_table<void *, reshade::vulkan::device_impl *, 16> g_vulkan_devices;
 static lockfree_table<VkQueue, reshade::vulkan::command_queue_impl *, 16> s_vulkan_queues;
@@ -25,6 +24,29 @@ static lockfree_table<VkSwapchainKHR, reshade::vulkan::runtime_impl *, 16> s_vul
 	assert(trampoline != nullptr)
 #define INIT_DISPATCH_PTR(name) \
 	dispatch_table.name = reinterpret_cast<PFN_vk##name>(get_device_proc(device, "vk" #name))
+
+static inline const char *vk_format_to_string(VkFormat format)
+{
+	switch (format)
+	{
+	case VK_FORMAT_UNDEFINED:
+		return "VK_FORMAT_UNDEFINED";
+	case VK_FORMAT_R8G8B8A8_UNORM:
+		return "VK_FORMAT_R8G8B8A8_UNORM";
+	case VK_FORMAT_R8G8B8A8_SRGB:
+		return "VK_FORMAT_R8G8B8A8_SRGB";
+	case VK_FORMAT_B8G8R8A8_UNORM:
+		return "VK_FORMAT_B8G8R8A8_UNORM";
+	case VK_FORMAT_B8G8R8A8_SRGB:
+		return "VK_FORMAT_B8G8R8A8_SRGB";
+	case VK_FORMAT_A2R10G10B10_UNORM_PACK32:
+		return "VK_FORMAT_A2R10G10B10_UNORM_PACK32";
+	case VK_FORMAT_R16G16B16A16_SFLOAT:
+		return "VK_FORMAT_R16G16B16A16_SFLOAT";
+	default:
+		return nullptr;
+	}
+}
 
 VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDeviceCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkDevice *pDevice)
 {
@@ -403,8 +425,10 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		create_info.imageUsage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 
 		// Add required formats, so views with different formats can be created for the swap chain images
-		format_list.push_back(make_format_srgb(create_info.imageFormat));
-		format_list.push_back(make_format_normal(create_info.imageFormat));
+		format_list.push_back(reshade::vulkan::convert_format(
+			reshade::api::format_to_default_typed(reshade::vulkan::convert_format(create_info.imageFormat))));
+		format_list.push_back(reshade::vulkan::convert_format(
+			reshade::api::format_to_default_typed_srgb(reshade::vulkan::convert_format(create_info.imageFormat))));
 
 		// Only have to make format mutable if they are actually different
 		if (format_list[0] != format_list[1])
@@ -456,7 +480,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	LOG(INFO) << "  | flags                                   | " << std::setw(39) << std::hex << create_info.flags << std::dec << " |";
 	LOG(INFO) << "  | surface                                 | " << std::setw(39) << create_info.surface << " |";
 	LOG(INFO) << "  | minImageCount                           | " << std::setw(39) << create_info.minImageCount << " |";
-	if (const char *format_string = format_to_string(create_info.imageFormat); format_string != nullptr)
+	if (const char *format_string = vk_format_to_string(create_info.imageFormat); format_string != nullptr)
 		LOG(INFO) << "  | imageFormat                             | " << std::setw(39) << format_string << " |";
 	else
 		LOG(INFO) << "  | imageFormat                             | " << std::setw(39) << create_info.imageFormat << " |";

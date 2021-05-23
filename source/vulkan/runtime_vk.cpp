@@ -6,7 +6,6 @@
 #include "dll_log.hpp"
 #include "runtime_vk.hpp"
 #include "runtime_objects.hpp"
-#include "format_utils.hpp"
 
 static inline void transition_layout(const VkLayerDispatchTable &vk, VkCommandBuffer cmd_list, VkImage image, VkImageLayout old_layout, VkImageLayout new_layout,
 	const VkImageSubresourceRange &subresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS })
@@ -142,8 +141,8 @@ bool reshade::vulkan::runtime_impl::on_init(VkSwapchainKHR swapchain, const VkSw
 
 	assert(desc.imageUsage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
 
-	const api::format backbuffer_format_srgb = convert_format(make_format_srgb(_backbuffer_format));
-	const api::format backbuffer_format_normal = convert_format(make_format_normal(_backbuffer_format));
+	const api::format backbuffer_format = api::format_to_default_typed(convert_format(_backbuffer_format));
+	const api::format backbuffer_format_srgb = api::format_to_default_typed_srgb(convert_format(_backbuffer_format));
 
 	_swapchain_views.resize(num_images * 2);
 
@@ -152,14 +151,14 @@ bool reshade::vulkan::runtime_impl::on_init(VkSwapchainKHR swapchain, const VkSw
 		if (!_device_impl->create_resource_view(
 			reinterpret_cast<api::resource &>(_swapchain_images[i]),
 			api::resource_usage::render_target,
-			{ convert_format(make_format_srgb(_backbuffer_format)), 0, 1, 0, 1 },
-			reinterpret_cast<api::resource_view *>(&_swapchain_views[k + 1])))
+			{ backbuffer_format, 0, 1, 0, 1 },
+			reinterpret_cast<api::resource_view *>(&_swapchain_views[k + 0])))
 			return false;
 		if (!_device_impl->create_resource_view(
 			reinterpret_cast<api::resource &>(_swapchain_images[i]),
 			api::resource_usage::render_target,
-			{ convert_format(make_format_normal(_backbuffer_format)), 0, 1, 0, 1 },
-			reinterpret_cast<api::resource_view *>(&_swapchain_views[k + 0])))
+			{ backbuffer_format_srgb, 0, 1, 0, 1 },
+			reinterpret_cast<api::resource_view *>(&_swapchain_views[k + 1])))
 			return false;
 	}
 

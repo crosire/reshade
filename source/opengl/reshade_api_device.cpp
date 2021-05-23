@@ -5,7 +5,6 @@
 
 #include "reshade_api_device.hpp"
 #include "reshade_api_type_utils.hpp"
-#include "reshade_api_format_utils.hpp"
 #include <cassert>
 
 static GLint get_rbo_param(GLuint id, GLenum param)

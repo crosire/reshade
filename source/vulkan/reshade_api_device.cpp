@@ -7,11 +7,20 @@
 #include "reshade_api_device.hpp"
 #include "reshade_api_command_queue.hpp"
 #include "reshade_api_type_utils.hpp"
-#include "reshade_api_format_utils.hpp"
-#include "format_utils.hpp"
 #include <algorithm>
 
 #define vk _dispatch_table
+
+inline VkImageAspectFlags aspect_flags_from_format(VkFormat format)
+{
+	if (format >= VK_FORMAT_D16_UNORM && format <= VK_FORMAT_D32_SFLOAT)
+		return VK_IMAGE_ASPECT_DEPTH_BIT;
+	if (format == VK_FORMAT_S8_UINT)
+		return VK_IMAGE_ASPECT_STENCIL_BIT;
+	if (format >= VK_FORMAT_D16_UNORM_S8_UINT && format <= VK_FORMAT_D32_SFLOAT_S8_UINT)
+		return VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+	return VK_IMAGE_ASPECT_COLOR_BIT;
+}
 
 reshade::vulkan::device_impl::device_impl(VkDevice device, VkPhysicalDevice physical_device, const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table, const VkPhysicalDeviceFeatures &enabled_features) :
 	api_object_impl(device), _physical_device(physical_device), _dispatch_table(device_table), _instance_dispatch_table(instance_table), _enabled_features(enabled_features)

@@ -10,16 +10,38 @@
 #include "d3d10/d3d10_device.hpp"
 #include "d3d11/d3d11_device.hpp"
 #include "d3d12/d3d12_command_queue.hpp"
-#include "format_utils.hpp"
 
 extern bool is_windows7();
 
 // Needs to be set whenever a DXGI call can end up in 'CDXGISwapChain::EnsureChildDeviceInternal', to avoid hooking internal D3D device creation
 extern thread_local bool g_in_dxgi_runtime;
 
+inline const char *dxgi_format_to_string(DXGI_FORMAT format)
+{
+	switch (format)
+	{
+	case DXGI_FORMAT_UNKNOWN:
+		return "DXGI_FORMAT_UNKNOWN";
+	case DXGI_FORMAT_R8G8B8A8_UNORM:
+		return "DXGI_FORMAT_R8G8B8A8_UNORM";
+	case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+		return "DXGI_FORMAT_R8G8B8A8_UNORM_SRGB";
+	case DXGI_FORMAT_B8G8R8A8_UNORM:
+		return "DXGI_FORMAT_B8G8R8A8_UNORM";
+	case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
+		return "DXGI_FORMAT_B8G8R8A8_UNORM_SRGB";
+	case DXGI_FORMAT_R10G10B10A2_UNORM:
+		return "DXGI_FORMAT_R10G10B10A2_UNORM";
+	case DXGI_FORMAT_R16G16B16A16_FLOAT:
+		return "DXGI_FORMAT_R16G16B16A16_FLOAT";
+	default:
+		return nullptr;
+	}
+}
+
 static void dump_format(DXGI_FORMAT format)
 {
-	if (const char *format_string = format_to_string(format); format_string != nullptr)
+	if (const char *format_string = dxgi_format_to_string(format); format_string != nullptr)
 		LOG(INFO) << "  | Format                                  | " << std::setw(39) << format_string << " |";
 	else
 		LOG(INFO) << "  | Format                                  | " << std::setw(39) << format << " |";

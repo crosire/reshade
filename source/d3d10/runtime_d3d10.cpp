@@ -7,10 +7,12 @@
 #include "dll_resources.hpp"
 #include "runtime_d3d10.hpp"
 #include "runtime_objects.hpp"
-#include "dxgi/format_utils.hpp"
+#include "reshade_api_type_utils.hpp"
 #include <d3dcompiler.h>
 
 extern bool is_windows7();
+
+extern const char *dxgi_format_to_string(DXGI_FORMAT format);
 
 reshade::d3d10::runtime_impl::runtime_impl(device_impl *device, IDXGISwapChain *swapchain) :
 	api_object_impl(swapchain),
@@ -55,8 +57,27 @@ bool reshade::d3d10::runtime_impl::on_init()
 
 	_width = _window_width = swap_desc.BufferDesc.Width;
 	_height = _window_height = swap_desc.BufferDesc.Height;
-	_color_bit_depth = dxgi_format_color_depth(swap_desc.BufferDesc.Format);
 	_backbuffer_format = swap_desc.BufferDesc.Format;
+
+	// Only need to handle swap chain formats
+	switch (_backbuffer_format)
+	{
+	case DXGI_FORMAT_R8G8B8A8_UNORM:
+	case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+	case DXGI_FORMAT_B8G8R8A8_UNORM:
+	case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
+	case DXGI_FORMAT_B8G8R8X8_UNORM:
+	case DXGI_FORMAT_B8G8R8X8_UNORM_SRGB:
+		_color_bit_depth = 8;
+		break;
+	case DXGI_FORMAT_R10G10B10A2_UNORM:
+	case DXGI_FORMAT_R10G10B10_XR_BIAS_A2_UNORM:
+		_color_bit_depth = 10;
+		break;
+	case DXGI_FORMAT_R16G16B16A16_FLOAT:
+		_color_bit_depth = 16;
+		break;
+	}
 
 	if (swap_desc.OutputWindow != nullptr)
 	{
@@ -76,14 +97,14 @@ bool reshade::d3d10::runtime_impl::on_init()
 	tex_desc.Height = _height;
 	tex_desc.MipLevels = 1;
 	tex_desc.ArraySize = 1;
-	tex_desc.Format = make_dxgi_format_typeless(_backbuffer_format);
+	tex_desc.Format = convert_format(api::format_to_typeless(convert_format(_backbuffer_format)));
 	tex_desc.SampleDesc = { 1, 0 };
 	tex_desc.Usage = D3D10_USAGE_DEFAULT;
 	tex_desc.BindFlags = D3D10_BIND_RENDER_TARGET;
 
 	// Creating a render target view for the back buffer fails on Windows 8+, so use a intermediate texture there
 	if (swap_desc.SampleDesc.Count > 1 ||
-		make_dxgi_format_normal(_backbuffer_format) != _backbuffer_format ||
+		convert_format(api::format_to_default_typed(convert_format(_backbuffer_format))) != _backbuffer_format ||
 		!is_windows7())
 	{
 		if (FAILED(_device->CreateTexture2D(&tex_desc, nullptr, &_backbuffer_resolved)))
@@ -109,11 +130,11 @@ bool reshade::d3d10::runtime_impl::on_init()
 		return false;
 
 	D3D10_RENDER_TARGET_VIEW_DESC rtv_desc = {};
-	rtv_desc.Format = make_dxgi_format_normal(tex_desc.Format);
+	rtv_desc.Format = convert_format(api::format_to_default_typed(convert_format(tex_desc.Format)));
 	rtv_desc.ViewDimension = D3D10_RTV_DIMENSION_TEXTURE2D;
 	if (FAILED(_device->CreateRenderTargetView(_backbuffer_resolved.get(), &rtv_desc, &_backbuffer_rtv[0])))
 		return false;
-	rtv_desc.Format = make_dxgi_format_srgb(tex_desc.Format);
+	rtv_desc.Format = convert_format(api::format_to_default_typed_srgb(convert_format(tex_desc.Format)));
 	if (FAILED(_device->CreateRenderTargetView(_backbuffer_resolved.get(), &rtv_desc, &_backbuffer_rtv[1])))
 		return false;
 
@@ -219,7 +240,7 @@ bool reshade::d3d10::runtime_impl::capture_screenshot(uint8_t *buffer) const
 {
 	if (_color_bit_depth != 8 && _color_bit_depth != 10)
 	{
-		if (const char *format_string = format_to_string(_backbuffer_format); format_string != nullptr)
+		if (const char *format_string = dxgi_format_to_string(_backbuffer_format); format_string != nullptr)
 			LOG(ERROR) << "Screenshots are not supported for back buffer format " << format_string << '!';
 		else
 			LOG(ERROR) << "Screenshots are not supported for back buffer format " << _backbuffer_format << '!';
