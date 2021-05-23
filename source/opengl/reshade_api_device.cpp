@@ -312,6 +312,7 @@ bool reshade::opengl::device_impl::check_format_support(api::format format, api:
 
 bool reshade::opengl::device_impl::is_resource_handle_valid(api::resource handle) const
 {
+	const GLuint object = handle.handle & 0xFFFFFFFF;
 	switch (handle.handle >> 40)
 	{
 	case GL_BUFFER:
@@ -328,7 +329,7 @@ bool reshade::opengl::device_impl::is_resource_handle_valid(api::resource handle
 	case GL_DISPATCH_INDIRECT_BUFFER:
 	case GL_QUERY_BUFFER:
 	case GL_ATOMIC_COUNTER_BUFFER:
-		return glIsBuffer(handle.handle & 0xFFFFFFFF) != GL_FALSE;
+		return glIsBuffer(object) != GL_FALSE;
 	case GL_TEXTURE:
 	case GL_TEXTURE_BUFFER:
 	case GL_TEXTURE_1D:
@@ -341,11 +342,11 @@ bool reshade::opengl::device_impl::is_resource_handle_valid(api::resource handle
 	case GL_TEXTURE_CUBE_MAP:
 	case GL_TEXTURE_CUBE_MAP_ARRAY:
 	case GL_TEXTURE_RECTANGLE:
-		return glIsTexture(handle.handle & 0xFFFFFFFF) != GL_FALSE;
+		return glIsTexture(object) != GL_FALSE;
 	case GL_RENDERBUFFER:
-		return glIsRenderbuffer(handle.handle & 0xFFFFFFFF) != GL_FALSE;
+		return glIsRenderbuffer(object) != GL_FALSE;
 	case GL_FRAMEBUFFER_DEFAULT:
-		return (handle.handle & 0xFFFFFFFF) != GL_DEPTH_ATTACHMENT || _default_depth_format != GL_NONE;
+		return (object != GL_DEPTH_STENCIL_ATTACHMENT && object != GL_DEPTH_ATTACHMENT && object != GL_STENCIL_ATTACHMENT) || _default_depth_format != GL_NONE;
 	default:
 		return false;
 	}
@@ -1517,7 +1518,7 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 	case GL_FRAMEBUFFER_DEFAULT:
 		width = _default_fbo_width;
 		height = _default_fbo_height;
-		internal_format = (object == GL_DEPTH_ATTACHMENT) ? _default_depth_format : _default_color_format;
+		internal_format = (object == GL_DEPTH_STENCIL_ATTACHMENT || object == GL_DEPTH_ATTACHMENT || object == GL_STENCIL_ATTACHMENT) ? _default_depth_format : _default_color_format;
 		break;
 	default:
 		assert(false);

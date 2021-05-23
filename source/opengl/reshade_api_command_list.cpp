@@ -495,7 +495,7 @@ void reshade::opengl::device_impl::copy_texture_region(api::resource src, uint32
 		glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &prev_read_fbo);
 		glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &prev_draw_fbo);
 
-		const GLenum source_attachment = is_depth_stencil_format(convert_format(src_desc.texture.format), GL_DEPTH) ? GL_DEPTH_ATTACHMENT : GL_COLOR_ATTACHMENT0;
+		const GLenum src_attachment = is_depth_stencil_format(convert_format(src_desc.texture.format), GL_DEPTH) ? GL_DEPTH_ATTACHMENT : GL_COLOR_ATTACHMENT0;
 		switch (src_target)
 		{
 		case GL_TEXTURE:
@@ -510,24 +510,24 @@ void reshade::opengl::device_impl::copy_texture_region(api::resource src, uint32
 			glBindFramebuffer(GL_READ_FRAMEBUFFER, _copy_fbo[0]);
 			if (src_desc.texture.depth_or_layers > 1)
 			{
-				glFramebufferTextureLayer(GL_READ_FRAMEBUFFER, source_attachment, src_object, src_subresource % src_desc.texture.levels, src_subresource / src_desc.texture.levels);
+				glFramebufferTextureLayer(GL_READ_FRAMEBUFFER, src_attachment, src_object, src_subresource % src_desc.texture.levels, src_subresource / src_desc.texture.levels);
 			}
 			else
 			{
 				assert((src_subresource % src_desc.texture.levels) == 0);
-				glFramebufferTexture(GL_READ_FRAMEBUFFER, source_attachment, src_object, src_subresource);
+				glFramebufferTexture(GL_READ_FRAMEBUFFER, src_attachment, src_object, src_subresource);
 			}
 			assert(glCheckFramebufferStatus(GL_READ_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 			break;
 		case GL_RENDERBUFFER:
 			assert(src_subresource == 0);
 			glBindFramebuffer(GL_READ_FRAMEBUFFER, _copy_fbo[0]);
-			glFramebufferRenderbuffer(GL_READ_FRAMEBUFFER, source_attachment, GL_RENDERBUFFER, src_object);
+			glFramebufferRenderbuffer(GL_READ_FRAMEBUFFER, src_attachment, GL_RENDERBUFFER, src_object);
 			assert(glCheckFramebufferStatus(GL_READ_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 			break;
 		case GL_FRAMEBUFFER_DEFAULT:
 			assert(src_subresource == 0);
-			assert(src_object == source_attachment);
+			assert(src_object == src_attachment || (src_object == GL_DEPTH_STENCIL_ATTACHMENT && src_attachment == GL_DEPTH_ATTACHMENT));
 			glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
 			break;
 		default:
@@ -535,7 +535,7 @@ void reshade::opengl::device_impl::copy_texture_region(api::resource src, uint32
 			return;
 		}
 
-		const GLenum destination_attachment = is_depth_stencil_format(convert_format(dst_desc.texture.format), GL_DEPTH) ? GL_DEPTH_ATTACHMENT : GL_COLOR_ATTACHMENT0;
+		const GLenum dst_attachment = is_depth_stencil_format(convert_format(dst_desc.texture.format), GL_DEPTH) ? GL_DEPTH_ATTACHMENT : GL_COLOR_ATTACHMENT0;
 		switch (dst_target)
 		{
 		case GL_TEXTURE:
@@ -550,24 +550,24 @@ void reshade::opengl::device_impl::copy_texture_region(api::resource src, uint32
 			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _copy_fbo[1]);
 			if (dst_desc.texture.depth_or_layers > 1)
 			{
-				glFramebufferTextureLayer(GL_DRAW_FRAMEBUFFER, destination_attachment, dst_object, dst_subresource % dst_desc.texture.levels, dst_subresource / dst_desc.texture.levels);
+				glFramebufferTextureLayer(GL_DRAW_FRAMEBUFFER, dst_attachment, dst_object, dst_subresource % dst_desc.texture.levels, dst_subresource / dst_desc.texture.levels);
 			}
 			else
 			{
 				assert((dst_subresource % dst_desc.texture.levels) == 0);
-				glFramebufferTexture(GL_DRAW_FRAMEBUFFER, destination_attachment, dst_object, dst_subresource);
+				glFramebufferTexture(GL_DRAW_FRAMEBUFFER, dst_attachment, dst_object, dst_subresource);
 			}
 			assert(glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 			break;
 		case GL_RENDERBUFFER:
 			assert(dst_subresource == 0);
 			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _copy_fbo[1]);
-			glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, destination_attachment, GL_RENDERBUFFER, dst_object);
+			glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, dst_attachment, GL_RENDERBUFFER, dst_object);
 			assert(glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 			break;
 		case GL_FRAMEBUFFER_DEFAULT:
 			assert(dst_subresource == 0);
-			assert(dst_object == destination_attachment);
+			assert(dst_object == dst_attachment || (dst_object == GL_DEPTH_STENCIL_ATTACHMENT && dst_attachment == GL_DEPTH_ATTACHMENT));
 			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 			break;
 		default:
@@ -589,11 +589,11 @@ void reshade::opengl::device_impl::copy_texture_region(api::resource src, uint32
 		}
 
 		assert(src_region[2] == 0 && dst_region[2] == 0 && src_region[5] == 1 && dst_region[5] == 1);
-		assert(source_attachment == destination_attachment);
+		assert(src_attachment == dst_attachment);
 		glBlitFramebuffer(
 			src_region[0], src_region[1], src_region[3], src_region[4],
 			dst_region[0], dst_region[4], dst_region[3], dst_region[1],
-			source_attachment == GL_DEPTH_ATTACHMENT ? GL_DEPTH_BUFFER_BIT : GL_COLOR_BUFFER_BIT, stretch_filter);
+			src_attachment == GL_DEPTH_ATTACHMENT ? GL_DEPTH_BUFFER_BIT : GL_COLOR_BUFFER_BIT, stretch_filter);
 
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, prev_read_fbo);
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, prev_draw_fbo);
