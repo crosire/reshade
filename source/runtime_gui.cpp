@@ -3390,8 +3390,7 @@ void reshade::runtime::render_imgui_draw_data(ImDrawData *draw_data)
 	cmd_list->bind_viewports(0, 1, viewport);
 
 	// Setup orthographic projection matrix
-	const bool flip_y = (_renderer_id & 0x10000) != 0;// (_renderer_id & 0x20000) != 0;
-	const bool flip_y_scissor = false;// (_renderer_id & 0x10000) != 0;
+	const bool flip_y = (_renderer_id & 0x10000) != 0;
 	const bool adjust_half_pixel = _renderer_id < 0xa000; // Bake half-pixel offset into matrix in D3D9
 	const bool depth_clip_zero_to_one = (_renderer_id & 0x10000) == 0;
 
@@ -3424,11 +3423,6 @@ void reshade::runtime::render_imgui_draw_data(ImDrawData *draw_data)
 				static_cast<int32_t>(cmd.ClipRect.z - draw_data->DisplayPos.x),
 				static_cast<int32_t>(cmd.ClipRect.w - draw_data->DisplayPos.y)
 			};
-			if (flip_y_scissor)
-			{
-				scissor_rect[1] = _height - scissor_rect[3];
-				scissor_rect[3] = _height - static_cast<int32_t>(cmd.ClipRect.y - draw_data->DisplayPos.y);
-			}
 
 			cmd_list->bind_scissor_rects(0, 1, scissor_rect);
 

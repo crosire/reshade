@@ -386,7 +386,6 @@ namespace reshade { namespace api
 		/// <param name="dst_subresource">The subresource of the <paramref name="resource"/> to upload to.</param>
 		/// <param name="dst_box">A 3D box (or <c>nullptr</c> to reference the entire subresource) that defines the region in the <paramref name="resource"/> to upload to, in the format { left, top, front, right, bottom, back }.</param>
 		virtual void upload_texture_region(const subresource_data &data, resource destination, uint32_t dst_subresource, const int32_t dst_box[6] = nullptr) = 0;
-
 		/// <summary>
 		/// Updates the contents of descriptor sets with the specified descriptors.
 		/// </summary>

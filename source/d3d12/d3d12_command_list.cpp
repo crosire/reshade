@@ -627,26 +627,14 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::DiscardResource(ID3D12Resource 
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::BeginQuery(ID3D12QueryHeap *pQueryHeap, D3D12_QUERY_TYPE Type, UINT Index)
 {
-#if RESHADE_ADDON
-	if (reshade::invoke_addon_event<reshade::addon_event::begin_query>(this, reshade::api::query_pool { reinterpret_cast<uintptr_t>(pQueryHeap) }, reshade::d3d12::convert_query_type(Type), Index))
-		return;
-#endif
 	_orig->BeginQuery(pQueryHeap, Type, Index);
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::EndQuery(ID3D12QueryHeap *pQueryHeap, D3D12_QUERY_TYPE Type, UINT Index)
 {
-#if RESHADE_ADDON
-	if (reshade::invoke_addon_event<reshade::addon_event::finish_query>(this, reshade::api::query_pool { reinterpret_cast<uintptr_t>(pQueryHeap) }, reshade::d3d12::convert_query_type(Type), Index))
-		return;
-#endif
 	_orig->EndQuery(pQueryHeap, Type, Index);
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ResolveQueryData(ID3D12QueryHeap *pQueryHeap, D3D12_QUERY_TYPE Type, UINT StartIndex, UINT NumQueries, ID3D12Resource *pDestinationBuffer, UINT64 AlignedDestinationBufferOffset)
 {
-#if RESHADE_ADDON
-	if (reshade::invoke_addon_event<reshade::addon_event::copy_query_results>(this, reshade::api::query_pool { reinterpret_cast<uintptr_t>(pQueryHeap) }, reshade::d3d12::convert_query_type(Type), StartIndex, NumQueries, reshade::api::resource { reinterpret_cast<uintptr_t>(pDestinationBuffer) }, AlignedDestinationBufferOffset, 0))
-		return;
-#endif
 	_orig->ResolveQueryData(pQueryHeap, Type, StartIndex, NumQueries, pDestinationBuffer, AlignedDestinationBufferOffset);
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetPredication(ID3D12Resource *pBuffer, UINT64 AlignedBufferOffset, D3D12_PREDICATION_OP Operation)

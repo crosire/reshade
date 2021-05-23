@@ -383,9 +383,10 @@ auto reshade::vulkan::convert_usage_to_image_layout(api::resource_usage state) -
 	case api::resource_usage::undefined:
 		return VK_IMAGE_LAYOUT_UNDEFINED;
 	case api::resource_usage::depth_stencil:
-	case api::resource_usage::depth_stencil_read:
 	case api::resource_usage::depth_stencil_write:
 		return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+	case api::resource_usage::depth_stencil_read:
+		return VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
 	case api::resource_usage::render_target:
 		return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 	case api::resource_usage::shader_resource:

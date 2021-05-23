@@ -1653,67 +1653,6 @@ void     VKAPI_CALL vkCmdResolveImage(VkCommandBuffer commandBuffer, VkImage src
 	trampoline(commandBuffer, srcImage, srcImageLayout, dstImage, dstImageLayout, regionCount, pRegions);
 }
 
-void     VKAPI_CALL vkCmdBeginQuery(VkCommandBuffer commandBuffer, VkQueryPool queryPool, uint32_t query, VkQueryControlFlags flags)
-{
-#if RESHADE_ADDON
-	if (!reshade::invoke_addon_event<reshade::addon_event::begin_query>(
-		s_vulkan_command_buffers.at(commandBuffer),
-		reshade::api::query_pool { (uint64_t)queryPool },
-		reshade::api::query_type::occlusion, // TODO: Figure out correct query type
-		query))
-		return;
-#endif
-
-	GET_DISPATCH_PTR(CmdBeginQuery, commandBuffer);
-	trampoline(commandBuffer, queryPool, query, flags);
-}
-void     VKAPI_CALL vkCmdEndQuery(VkCommandBuffer commandBuffer, VkQueryPool queryPool, uint32_t query)
-{
-#if RESHADE_ADDON
-	if (!reshade::invoke_addon_event<reshade::addon_event::finish_query>(
-		s_vulkan_command_buffers.at(commandBuffer),
-		reshade::api::query_pool { (uint64_t)queryPool },
-		reshade::api::query_type::occlusion,
-		query))
-		return;
-#endif
-
-	GET_DISPATCH_PTR(CmdEndQuery, commandBuffer);
-	trampoline(commandBuffer, queryPool, query);
-}
-void     VKAPI_CALL vkCmdWriteTimestamp(VkCommandBuffer commandBuffer, VkPipelineStageFlagBits pipelineStage, VkQueryPool queryPool, uint32_t query)
-{
-#if RESHADE_ADDON
-	if (!reshade::invoke_addon_event<reshade::addon_event::finish_query>(
-		s_vulkan_command_buffers.at(commandBuffer),
-		reshade::api::query_pool { (uint64_t)queryPool },
-		reshade::api::query_type::timestamp,
-		query))
-		return;
-#endif
-
-	GET_DISPATCH_PTR(CmdWriteTimestamp, commandBuffer);
-	trampoline(commandBuffer, pipelineStage, queryPool, query);
-}
-void     VKAPI_CALL vkCmdCopyQueryPoolResults(VkCommandBuffer commandBuffer, VkQueryPool queryPool, uint32_t firstQuery, uint32_t queryCount, VkBuffer dstBuffer, VkDeviceSize dstOffset, VkDeviceSize stride, VkQueryResultFlags flags)
-{
-#if RESHADE_ADDON
-	if (!reshade::invoke_addon_event<reshade::addon_event::copy_query_results>(
-		s_vulkan_command_buffers.at(commandBuffer),
-		reshade::api::query_pool { (uint64_t)queryPool },
-		reshade::api::query_type::occlusion,
-		firstQuery,
-		queryCount,
-		reshade::api::resource { (uint64_t)dstBuffer },
-		dstOffset,
-		static_cast<uint32_t>(stride)))
-		return;
-#endif
-
-	GET_DISPATCH_PTR(CmdCopyQueryPoolResults, commandBuffer);
-	trampoline(commandBuffer, queryPool, firstQuery, queryCount, dstBuffer, dstOffset, stride, flags);
-}
-
 void     VKAPI_CALL vkCmdPushConstants(VkCommandBuffer commandBuffer, VkPipelineLayout layout, VkShaderStageFlags stageFlags, uint32_t offset, uint32_t size, const void *pValues)
 {
 	GET_DISPATCH_PTR(CmdPushConstants, commandBuffer);

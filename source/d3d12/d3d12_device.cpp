@@ -187,29 +187,11 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandAllocator(D3D12_COMMAND_LIST
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateGraphicsPipelineState(const D3D12_GRAPHICS_PIPELINE_STATE_DESC *pDesc, REFIID riid, void **ppPipelineState)
 {
-#if RESHADE_ADDON
-	if (pDesc == nullptr)
-		return E_INVALIDARG;
-
-	D3D12_GRAPHICS_PIPELINE_STATE_DESC new_desc = *pDesc;
-
-	return _orig->CreateGraphicsPipelineState(&new_desc, riid, ppPipelineState);
-#else
 	return _orig->CreateGraphicsPipelineState(pDesc, riid, ppPipelineState);
-#endif
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateComputePipelineState(const D3D12_COMPUTE_PIPELINE_STATE_DESC *pDesc, REFIID riid, void **ppPipelineState)
 {
-#if RESHADE_ADDON
-	if (pDesc == nullptr)
-		return E_INVALIDARG;
-
-	D3D12_COMPUTE_PIPELINE_STATE_DESC new_desc = *pDesc;
-
-	return _orig->CreateComputePipelineState(&new_desc, riid, ppPipelineState);
-#else
 	return _orig->CreateComputePipelineState(pDesc, riid, ppPipelineState);
-#endif
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandList(UINT nodeMask, D3D12_COMMAND_LIST_TYPE type, ID3D12CommandAllocator *pCommandAllocator, ID3D12PipelineState *pInitialState, REFIID riid, void **ppCommandList)
 {

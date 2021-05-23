@@ -627,7 +627,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::UpdateSubresource(ID3D11Resource *
 		static_assert(sizeof(D3D11_BOX) == (sizeof(int32_t) * 6));
 
 		if (reshade::invoke_addon_event<reshade::addon_event::upload_texture_region>(_device,
-			pSrcData, SrcRowPitch, SrcDepthPitch,
+			reshade::api::subresource_data { pSrcData, SrcRowPitch, SrcDepthPitch },
 			reshade::api::resource { reinterpret_cast<uintptr_t>(pDstResource) }, DstSubresource, reinterpret_cast<const int32_t *>(pDstBox)))
 			return;
 	}
@@ -1072,7 +1072,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::UpdateSubresource1(ID3D11Resource 
 		static_assert(sizeof(D3D11_BOX) == (sizeof(int32_t) * 6));
 
 		if (reshade::invoke_addon_event<reshade::addon_event::upload_texture_region>(_device,
-			pSrcData, SrcRowPitch, SrcDepthPitch,
+			reshade::api::subresource_data { pSrcData, SrcRowPitch, SrcDepthPitch },
 			reshade::api::resource { reinterpret_cast<uintptr_t>(pDstResource) }, DstSubresource, reinterpret_cast<const int32_t *>(pDstBox)))
 			return;
 	}
