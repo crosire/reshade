@@ -31,7 +31,8 @@ bool resolve_path(std::filesystem::path &path)
 	std::error_code ec;
 	// First convert path to an absolute path
 	// Ignore the working directory and instead start relative paths at the DLL location
-	path = std::filesystem::absolute(g_reshade_base_path / path, ec);
+	if (!path.is_absolute())
+		path = std::filesystem::absolute(g_reshade_base_path / path, ec);
 	// Finally try to canonicalize the path too
 	if (auto canonical_path = std::filesystem::canonical(path, ec); !ec)
 		path = std::move(canonical_path);
