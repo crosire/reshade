@@ -167,6 +167,9 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC hglrc) :
 	// Generate push constants buffer name
 	glGenBuffers(1, &_push_constants);
 
+	// Generate copy framebuffers
+	glGenFramebuffers(2, _copy_fbo);
+
 	// Create mipmap generation program used in the 'generate_mipmaps' function
 	{
 		const GLchar *mipmap_shader[] = {
@@ -216,11 +219,11 @@ reshade::opengl::device_impl::~device_impl()
 	for (const auto &it : _framebuffer_list_internal)
 		glDeleteFramebuffers(1, &it.second);
 
-	// Destroy framebuffers used in 'copy_resource' implementation
-	glDeleteFramebuffers(2, _copy_fbo);
-
 	// Destroy mipmap generation program
 	glDeleteProgram(_mipmap_program);
+
+	// Destroy framebuffers used in 'copy_resource' implementation
+	glDeleteFramebuffers(2, _copy_fbo);
 
 	// Destroy push constants buffer
 	glDeleteBuffers(1, &_push_constants);
@@ -262,9 +265,7 @@ bool reshade::opengl::device_impl::check_capability(api::device_caps capability)
 		return value > 1;
 	case api::device_caps::sampler_with_resource_view:
 	case api::device_caps::copy_buffer_region:
-		return true;
 	case api::device_caps::copy_buffer_to_texture:
-		return false;
 	case api::device_caps::blit:
 	case api::device_caps::resolve_region:
 		return true;
@@ -461,6 +462,16 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 			target = GL_UNIFORM_BUFFER;
 			break;
 		default:
+			if (desc.heap == api::memory_heap::gpu_to_cpu)
+			{
+				target = GL_PIXEL_PACK_BUFFER;
+				break;
+			}
+			if (desc.heap == api::memory_heap::cpu_to_gpu)
+			{
+				target = GL_PIXEL_UNPACK_BUFFER;
+				break;
+			}
 			assert(false);
 			return false;
 		}
@@ -1212,7 +1223,7 @@ void reshade::opengl::device_impl::upload_texture_region(const api::subresource_
 	// Clear pixel storage modes to defaults (texture uploads can break otherwise)
 	glPixelStorei(GL_UNPACK_LSB_FIRST, GL_FALSE);
 	glPixelStorei(GL_UNPACK_SWAP_BYTES, GL_FALSE);
-	glPixelStorei(GL_UNPACK_ALIGNMENT, 4); // RGBA data is 4-byte aligned
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 	glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, 0);
 	glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
@@ -1363,7 +1374,7 @@ reshade::api::resource_view reshade::opengl::device_impl::get_depth_stencil_from
 reshade::api::resource_view reshade::opengl::device_impl::get_render_target_from_fbo(GLuint fbo, GLuint drawbuffer) const
 {
 	if (fbo == 0)
-		return make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_COLOR_ATTACHMENT0);
+		return make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_BACK);
 
 	GLenum target = get_fbo_attachment_param(fbo, GL_COLOR_ATTACHMENT0 + drawbuffer, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE);
 	if (target == GL_NONE)

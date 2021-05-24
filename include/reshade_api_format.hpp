@@ -46,6 +46,9 @@ namespace reshade { namespace api
 		r10g10b10a2_uint = 25,
 		r10g10b10a2_unorm = 24,
 		r10g10b10a2_xr_bias = 89,
+		b10g10r10a2_typeless = 0x42475330,
+		b10g10r10a2_uint = 0x42475332,
+		b10g10r10a2_unorm = 0x42475331,
 		r16_typeless = 53,
 		r16_uint = 57,
 		r16_sint = 59,
@@ -175,6 +178,10 @@ namespace reshade { namespace api
 		case format::r10g10b10a2_unorm:
 		case format::r10g10b10a2_xr_bias:
 			return format::r10g10b10a2_typeless;
+		case format::b10g10r10a2_typeless:
+		case format::b10g10r10a2_uint:
+		case format::b10g10r10a2_unorm:
+			return format::b10g10r10a2_typeless;
 		case format::d16_unorm:
 		case format::r16_typeless:
 		case format::r16_uint:
@@ -283,6 +290,8 @@ namespace reshade { namespace api
 			return format::b8g8r8x8_unorm;
 		case format::r10g10b10a2_typeless:
 			return format::r10g10b10a2_unorm;
+		case format::b10g10r10a2_typeless:
+			return format::b10g10r10a2_unorm;
 		case format::d16_unorm:
 			return format::r16_unorm;
 		case format::r16g16_typeless:
@@ -349,6 +358,8 @@ namespace reshade { namespace api
 			return format::b8g8r8x8_unorm_srgb;
 		case format::r10g10b10a2_typeless:
 			return format::r10g10b10a2_unorm;
+		case format::b10g10r10a2_typeless:
+			return format::b10g10r10a2_unorm;
 		case format::d16_unorm:
 		case format::r16_typeless:
 			return format::r16_unorm;

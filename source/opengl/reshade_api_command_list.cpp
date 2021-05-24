@@ -417,9 +417,150 @@ void reshade::opengl::device_impl::copy_buffer_region(api::resource src, uint64_
 		glBindBuffer(GL_COPY_WRITE_BUFFER, prev_write_buf);
 	}
 }
-void reshade::opengl::device_impl::copy_buffer_to_texture(api::resource, uint64_t, uint32_t, uint32_t, api::resource, uint32_t, const int32_t[6])
+void reshade::opengl::device_impl::copy_buffer_to_texture(api::resource src, uint64_t src_offset, uint32_t row_length, uint32_t slice_height, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6])
 {
-	assert(false);
+	const GLenum dst_target = dst.handle >> 40;
+	const GLuint dst_object = dst.handle & 0xFFFFFFFF;
+
+	// Get current state
+	GLint previous_unpack = 0;
+	GLint previous_unpack_lsb = GL_FALSE;
+	GLint previous_unpack_swap = GL_FALSE;
+	GLint previous_unpack_alignment = 0;
+	GLint previous_unpack_row_length = 0;
+	GLint previous_unpack_image_height = 0;
+	GLint previous_unpack_skip_rows = 0;
+	GLint previous_unpack_skip_pixels = 0;
+	GLint previous_unpack_skip_images = 0;
+	glGetIntegerv(GL_PIXEL_UNPACK_BUFFER_BINDING, &previous_unpack);
+	glGetIntegerv(GL_UNPACK_LSB_FIRST, &previous_unpack_lsb);
+	glGetIntegerv(GL_UNPACK_SWAP_BYTES, &previous_unpack_swap);
+	glGetIntegerv(GL_UNPACK_ALIGNMENT, &previous_unpack_alignment);
+	glGetIntegerv(GL_UNPACK_ROW_LENGTH, &previous_unpack_row_length);
+	glGetIntegerv(GL_UNPACK_IMAGE_HEIGHT, &previous_unpack_image_height);
+	glGetIntegerv(GL_UNPACK_SKIP_ROWS, &previous_unpack_skip_rows);
+	glGetIntegerv(GL_UNPACK_SKIP_PIXELS, &previous_unpack_skip_pixels);
+	glGetIntegerv(GL_UNPACK_SKIP_IMAGES, &previous_unpack_skip_images);
+
+	// Bind source buffer
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, src.handle & 0xFFFFFFFF);
+
+	// Set up pixel storage configuration
+	glPixelStorei(GL_UNPACK_LSB_FIRST, GL_FALSE);
+	glPixelStorei(GL_UNPACK_SWAP_BYTES, GL_FALSE);
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+	glPixelStorei(GL_UNPACK_ROW_LENGTH, row_length);
+	glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, slice_height);
+	glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
+	glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
+	glPixelStorei(GL_UNPACK_SKIP_IMAGES, 0);
+
+	GLint x = 0;
+	GLint y = 0;
+	GLint z = 0;
+	GLint w = 0;
+	GLint h = 0;
+	GLint d = 1;
+	if (dst_box != nullptr)
+	{
+		x = dst_box[0];
+		y = dst_box[1];
+		z = dst_box[2];
+		w = dst_box[3] - dst_box[0];
+		h = dst_box[4] - dst_box[1];
+		d = dst_box[5] - dst_box[2];
+	}
+
+	if (dst_target == GL_FRAMEBUFFER_DEFAULT)
+	{
+		assert(false);
+	}
+	else if (dst_target == GL_RENDERBUFFER)
+	{
+		assert(false);
+	}
+	else
+	{
+		glBindTexture(dst_target, dst_object);
+
+		GLint levels = 1;
+		glGetTexParameteriv(dst_target, GL_TEXTURE_IMMUTABLE_LEVELS, &levels);
+		const GLuint level = dst_subresource % levels;
+		const GLuint layer = dst_subresource / levels;
+
+		GLenum format = GL_NONE, type;
+		glGetTexLevelParameteriv(dst_target, level, GL_TEXTURE_INTERNAL_FORMAT, reinterpret_cast<GLint *>(&format));
+
+		if (dst_box == nullptr)
+		{
+			glGetTexLevelParameteriv(dst_target, level, GL_TEXTURE_WIDTH,  &w);
+			glGetTexLevelParameteriv(dst_target, level, GL_TEXTURE_HEIGHT, &h);
+			glGetTexLevelParameteriv(dst_target, level, GL_TEXTURE_DEPTH,  &d);
+		}
+
+		const auto row_size_packed = (row_length != 0 ? row_length : w) * api::format_bpp(convert_format(format));
+		const auto slice_size_packed = (slice_height != 0 ? slice_height : h) * row_size_packed;
+		const auto total_size = d * slice_size_packed;
+
+		format = convert_upload_format(format, type);
+
+		switch (dst_target)
+		{
+		case GL_TEXTURE_1D:
+			if (type != GL_COMPRESSED_TEXTURE_FORMATS)
+			{
+				glTexSubImage1D(dst_target, level, x, w, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(src_offset)));
+			}
+			else
+			{
+				glCompressedTexSubImage1D(dst_target, level, x, w, format, total_size, reinterpret_cast<void *>(static_cast<uintptr_t>(src_offset)));
+			}
+			break;
+		case GL_TEXTURE_1D_ARRAY:
+			y += layer;
+			[[fallthrough]];
+		case GL_TEXTURE_2D:
+		case GL_TEXTURE_CUBE_MAP_POSITIVE_X:
+		case GL_TEXTURE_CUBE_MAP_NEGATIVE_X:
+		case GL_TEXTURE_CUBE_MAP_POSITIVE_Y:
+		case GL_TEXTURE_CUBE_MAP_NEGATIVE_Y:
+		case GL_TEXTURE_CUBE_MAP_POSITIVE_Z:
+		case GL_TEXTURE_CUBE_MAP_NEGATIVE_Z:
+			if (type != GL_COMPRESSED_TEXTURE_FORMATS)
+			{
+				glTexSubImage2D(dst_target, level, x, y, w, h, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(src_offset)));
+			}
+			else
+			{
+				glCompressedTexSubImage2D(dst_target, level, x, y, w, h, format, total_size, reinterpret_cast<void *>(static_cast<uintptr_t>(src_offset)));
+			}
+			break;
+		case GL_TEXTURE_2D_ARRAY:
+			z += layer;
+			[[fallthrough]];
+		case GL_TEXTURE_3D:
+			if (type != GL_COMPRESSED_TEXTURE_FORMATS)
+			{
+				glTexSubImage3D(dst_target, level, x, y, z, w, h, d, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(src_offset)));
+			}
+			else
+			{
+				glCompressedTexSubImage3D(dst_target, level, x, y, z, w, h, d, format, total_size, reinterpret_cast<void *>(static_cast<uintptr_t>(src_offset)));
+			}
+			break;
+		}
+	}
+
+	// Restore previous state from application
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, previous_unpack);
+	glPixelStorei(GL_UNPACK_LSB_FIRST, previous_unpack_lsb);
+	glPixelStorei(GL_UNPACK_SWAP_BYTES, previous_unpack_swap);
+	glPixelStorei(GL_UNPACK_ALIGNMENT, previous_unpack_alignment);
+	glPixelStorei(GL_UNPACK_ROW_LENGTH, previous_unpack_row_length);
+	glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, previous_unpack_image_height);
+	glPixelStorei(GL_UNPACK_SKIP_ROWS, previous_unpack_skip_rows);
+	glPixelStorei(GL_UNPACK_SKIP_PIXELS, previous_unpack_skip_pixels);
+	glPixelStorei(GL_UNPACK_SKIP_IMAGES, previous_unpack_skip_images);
 }
 void reshade::opengl::device_impl::copy_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], api::texture_filter filter)
 {
@@ -485,11 +626,6 @@ void reshade::opengl::device_impl::copy_texture_region(api::resource src, uint32
 			dst_region[5] = static_cast<GLint>((dst_desc.type == api::resource_type::texture_3d ? std::max(1u, static_cast<uint32_t>(dst_desc.texture.depth_or_layers) >> (dst_subresource % dst_desc.texture.levels)) : 1u));
 		}
 
-		if (_copy_fbo[0] == 0 || _copy_fbo[1] == 0)
-		{
-			glGenFramebuffers(2, _copy_fbo);
-		}
-
 		GLint prev_read_fbo = 0;
 		GLint prev_draw_fbo = 0;
 		glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &prev_read_fbo);
@@ -527,7 +663,6 @@ void reshade::opengl::device_impl::copy_texture_region(api::resource src, uint32
 			break;
 		case GL_FRAMEBUFFER_DEFAULT:
 			assert(src_subresource == 0);
-			assert(src_object == src_attachment || (src_object == GL_DEPTH_STENCIL_ATTACHMENT && src_attachment == GL_DEPTH_ATTACHMENT));
 			glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
 			break;
 		default:
@@ -567,7 +702,6 @@ void reshade::opengl::device_impl::copy_texture_region(api::resource src, uint32
 			break;
 		case GL_FRAMEBUFFER_DEFAULT:
 			assert(dst_subresource == 0);
-			assert(dst_object == dst_attachment || (dst_object == GL_DEPTH_STENCIL_ATTACHMENT && dst_attachment == GL_DEPTH_ATTACHMENT));
 			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 			break;
 		default:
@@ -599,9 +733,153 @@ void reshade::opengl::device_impl::copy_texture_region(api::resource src, uint32
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, prev_draw_fbo);
 	}
 }
-void reshade::opengl::device_impl::copy_texture_to_buffer(api::resource, uint32_t, const int32_t[6], api::resource, uint64_t, uint32_t, uint32_t)
+void reshade::opengl::device_impl::copy_texture_to_buffer(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint64_t dst_offset, uint32_t row_length, uint32_t slice_height)
 {
-	assert(false);
+	const GLenum src_target = src.handle >> 40;
+	const GLuint src_object = src.handle & 0xFFFFFFFF;
+
+	// Get current state
+	GLint previous_pack = 0;
+	GLint previous_pack_lsb = GL_FALSE;
+	GLint previous_pack_swap = GL_FALSE;
+	GLint previous_pack_alignment = 0;
+	GLint previous_pack_row_length = 0;
+	GLint previous_pack_image_height = 0;
+	GLint previous_pack_skip_rows = 0;
+	GLint previous_pack_skip_pixels = 0;
+	GLint previous_pack_skip_images = 0;
+	glGetIntegerv(GL_PIXEL_PACK_BUFFER_BINDING, &previous_pack);
+	glGetIntegerv(GL_PACK_LSB_FIRST, &previous_pack_lsb);
+	glGetIntegerv(GL_PACK_SWAP_BYTES, &previous_pack_swap);
+	glGetIntegerv(GL_PACK_ALIGNMENT, &previous_pack_alignment);
+	glGetIntegerv(GL_PACK_ROW_LENGTH, &previous_pack_row_length);
+	glGetIntegerv(GL_PACK_IMAGE_HEIGHT, &previous_pack_image_height);
+	glGetIntegerv(GL_PACK_SKIP_ROWS, &previous_pack_skip_rows);
+	glGetIntegerv(GL_PACK_SKIP_PIXELS, &previous_pack_skip_pixels);
+	glGetIntegerv(GL_PACK_SKIP_IMAGES, &previous_pack_skip_images);
+
+	// Bind destination buffer
+	glBindBuffer(GL_PIXEL_PACK_BUFFER, dst.handle & 0xFFFFFFFF);
+
+	// Set up pixel storage configuration
+	glPixelStorei(GL_PACK_LSB_FIRST, GL_FALSE);
+	glPixelStorei(GL_PACK_SWAP_BYTES, GL_FALSE);
+	glPixelStorei(GL_PACK_ALIGNMENT, 1);
+	glPixelStorei(GL_PACK_ROW_LENGTH, row_length);
+	glPixelStorei(GL_PACK_IMAGE_HEIGHT, slice_height);
+	glPixelStorei(GL_PACK_SKIP_ROWS, 0);
+	glPixelStorei(GL_PACK_SKIP_PIXELS, 0);
+	glPixelStorei(GL_PACK_SKIP_IMAGES, 0);
+
+	GLint x = 0;
+	GLint y = 0;
+	GLint z = 0;
+	GLint w = 0;
+	GLint h = 0;
+	GLint d = 1;
+	if (src_box != nullptr)
+	{
+		x = src_box[0];
+		y = src_box[1];
+		z = src_box[2];
+		w = src_box[3] - src_box[0];
+		h = src_box[4] - src_box[1];
+		d = src_box[5] - src_box[2];
+	}
+
+	if (src_target == GL_FRAMEBUFFER_DEFAULT)
+	{
+		assert(src_subresource == 0);
+		assert(z == 0 && d == 1);
+
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+		glReadBuffer(src_object);
+
+		if (src_box == nullptr)
+		{
+			w = _default_fbo_width;
+			h = _default_fbo_height;
+		}
+
+		GLenum format = src_object == GL_BACK ? _default_color_format : _default_depth_format, type;
+		format = convert_upload_format(format, type);
+
+		glReadPixels(x, y, w, h, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(dst_offset)));
+	}
+	else if (src_target == GL_RENDERBUFFER)
+	{
+		assert(src_subresource == 0);
+
+		glBindRenderbuffer(GL_RENDERBUFFER, src_object);
+
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, _copy_fbo[0]);
+		glFramebufferRenderbuffer(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, src_object);
+		assert(glCheckFramebufferStatus(GL_READ_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+		glReadBuffer(GL_COLOR_ATTACHMENT0);
+
+		GLenum format = GL_NONE, type;
+		glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_INTERNAL_FORMAT, reinterpret_cast<GLint *>(&format));
+
+		if (src_box == nullptr)
+		{
+			glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_WIDTH, &w);
+			glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_HEIGHT, &h);
+		}
+
+		format = convert_upload_format(format, type);
+
+		glReadPixels(x, y, w, h, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(dst_offset)));
+	}
+	else
+	{
+		glBindTexture(src_target, src_object);
+
+		GLint levels = 1;
+		glGetTexParameteriv(src_target, GL_TEXTURE_IMMUTABLE_LEVELS, &levels);
+		const GLuint level = src_subresource % levels;
+		const GLuint layer = src_subresource / levels;
+
+		GLenum format = GL_NONE, type;
+		glGetTexLevelParameteriv(src_target, 0, GL_TEXTURE_INTERNAL_FORMAT, reinterpret_cast<GLint *>(&format));
+
+		const auto row_size_packed = (row_length != 0 ? row_length : w) * api::format_bpp(convert_format(format));
+		const auto slice_size_packed = (slice_height != 0 ? slice_height : h) * row_size_packed;
+		const auto total_size = d * slice_size_packed;
+
+		format = convert_upload_format(format, type);
+
+		if (src_box == nullptr)
+		{
+			glGetTexImage(src_target, level, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(dst_offset)));
+		}
+		else
+		{
+			switch (src_target)
+			{
+			case GL_TEXTURE_1D_ARRAY:
+				y += layer;
+				break;
+			case GL_TEXTURE_2D_ARRAY:
+				z += layer;
+				break;
+			}
+
+			assert(gl3wProcs.gl.GetTextureSubImage != nullptr);
+
+			glGetTextureSubImage(src_object, level, x, y, z, w, h, d, format, type, total_size, reinterpret_cast<void *>(static_cast<uintptr_t>(dst_offset)));
+		}
+	}
+
+	// Restore previous state from application
+	glBindBuffer(GL_PIXEL_PACK_BUFFER, previous_pack);
+	glPixelStorei(GL_PACK_LSB_FIRST, previous_pack_lsb);
+	glPixelStorei(GL_PACK_SWAP_BYTES, previous_pack_swap);
+	glPixelStorei(GL_PACK_ALIGNMENT, previous_pack_alignment);
+	glPixelStorei(GL_PACK_ROW_LENGTH, previous_pack_row_length);
+	glPixelStorei(GL_PACK_IMAGE_HEIGHT, previous_pack_image_height);
+	glPixelStorei(GL_PACK_SKIP_ROWS, previous_pack_skip_rows);
+	glPixelStorei(GL_PACK_SKIP_PIXELS, previous_pack_skip_pixels);
+	glPixelStorei(GL_PACK_SKIP_IMAGES, previous_pack_skip_images);
 }
 void reshade::opengl::device_impl::resolve_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], api::format)
 {

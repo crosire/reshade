@@ -915,7 +915,7 @@ HOOK_EXPORT void WINAPI glCopyTexImage1D(GLenum target, GLint level, GLenum inte
 		const int32_t dst_box[6] = { 0, 0, 0, width, 1, 1 };
 
 		if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(g_current_runtime,
-			reshade::opengl::make_resource_handle(GL_FRAMEBUFFER_DEFAULT, GL_COLOR_ATTACHMENT0), 0, src_box,
+			reshade::opengl::make_resource_handle(GL_FRAMEBUFFER_DEFAULT, GL_BACK), 0, src_box,
 			reshade::opengl::make_resource_handle(target, dst_object), level, dst_box,
 			reshade::api::texture_filter::min_mag_mip_point))
 			return;
@@ -939,7 +939,7 @@ HOOK_EXPORT void WINAPI glCopyTexImage2D(GLenum target, GLint level, GLenum inte
 		const int32_t dst_box[6] = { 0, 0, 0, width, height, 1 };
 
 		if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(g_current_runtime,
-			reshade::opengl::make_resource_handle(GL_FRAMEBUFFER_DEFAULT, GL_COLOR_ATTACHMENT0), 0, src_box,
+			reshade::opengl::make_resource_handle(GL_FRAMEBUFFER_DEFAULT, GL_BACK), 0, src_box,
 			reshade::opengl::make_resource_handle(target, dst_object), level, dst_box,
 			reshade::api::texture_filter::min_mag_mip_point))
 			return;
@@ -962,7 +962,7 @@ HOOK_EXPORT void WINAPI glCopyTexSubImage1D(GLenum target, GLint level, GLint xo
 		const int32_t dst_box[6] = { xoffset, 0, 0, xoffset + width, 1, 1 };
 
 		if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(g_current_runtime,
-			reshade::opengl::make_resource_handle(GL_FRAMEBUFFER_DEFAULT, GL_COLOR_ATTACHMENT0), 0, src_box,
+			reshade::opengl::make_resource_handle(GL_FRAMEBUFFER_DEFAULT, GL_BACK), 0, src_box,
 			reshade::opengl::make_resource_handle(target, dst_object), level, dst_box,
 			reshade::api::texture_filter::min_mag_mip_point))
 			return;
@@ -985,7 +985,7 @@ HOOK_EXPORT void WINAPI glCopyTexSubImage2D(GLenum target, GLint level, GLint xo
 		const int32_t dst_box[6] = { xoffset, yoffset, 0, xoffset + width, yoffset + height, 1 };
 
 		if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(g_current_runtime,
-			reshade::opengl::make_resource_handle(GL_FRAMEBUFFER_DEFAULT, GL_COLOR_ATTACHMENT0), 0, src_box,
+			reshade::opengl::make_resource_handle(GL_FRAMEBUFFER_DEFAULT, GL_BACK), 0, src_box,
 			reshade::opengl::make_resource_handle(target, dst_object), level, dst_box,
 			reshade::api::texture_filter::min_mag_mip_point))
 			return;
@@ -1008,7 +1008,7 @@ HOOK_EXPORT void WINAPI glCopyTexSubImage2D(GLenum target, GLint level, GLint xo
 		const int32_t dst_box[6] = { xoffset, yoffset, zoffset, xoffset + width, yoffset + height, zoffset + 1 };
 
 		if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(g_current_runtime,
-			reshade::opengl::make_resource_handle(GL_FRAMEBUFFER_DEFAULT, GL_COLOR_ATTACHMENT0), 0, src_box,
+			reshade::opengl::make_resource_handle(GL_FRAMEBUFFER_DEFAULT, GL_BACK), 0, src_box,
 			reshade::opengl::make_resource_handle(target, dst_object), level, dst_box,
 			reshade::api::texture_filter::min_mag_mip_point))
 			return;
@@ -1028,7 +1028,7 @@ HOOK_EXPORT void WINAPI glCopyTexSubImage2D(GLenum target, GLint level, GLint xo
 		const int32_t dst_box[6] = { xoffset, 0, 0, xoffset + width, 1, 1 };
 
 		if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(g_current_runtime,
-			reshade::opengl::make_resource_handle(GL_FRAMEBUFFER_DEFAULT, GL_COLOR_ATTACHMENT0), 0, src_box,
+			reshade::opengl::make_resource_handle(GL_FRAMEBUFFER_DEFAULT, GL_BACK), 0, src_box,
 			reshade::opengl::make_resource_handle(GL_TEXTURE, texture), level, dst_box,
 			reshade::api::texture_filter::min_mag_mip_point))
 			return;
@@ -1048,7 +1048,7 @@ HOOK_EXPORT void WINAPI glCopyTexSubImage2D(GLenum target, GLint level, GLint xo
 		const int32_t dst_box[6] = { xoffset, yoffset, 0, xoffset + width, yoffset + height, 1 };
 
 		if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(g_current_runtime,
-			reshade::opengl::make_resource_handle(GL_FRAMEBUFFER_DEFAULT, GL_COLOR_ATTACHMENT0), 0, src_box,
+			reshade::opengl::make_resource_handle(GL_FRAMEBUFFER_DEFAULT, GL_BACK), 0, src_box,
 			reshade::opengl::make_resource_handle(GL_TEXTURE, texture), level, dst_box,
 			reshade::api::texture_filter::min_mag_mip_point))
 			return;
@@ -1068,7 +1068,7 @@ HOOK_EXPORT void WINAPI glCopyTexSubImage2D(GLenum target, GLint level, GLint xo
 		const int32_t dst_box[6] = { xoffset, yoffset, zoffset, xoffset + width, yoffset + height, zoffset + 1 };
 
 		if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(g_current_runtime,
-			reshade::opengl::make_resource_handle(GL_FRAMEBUFFER_DEFAULT, GL_COLOR_ATTACHMENT0), 0, src_box,
+			reshade::opengl::make_resource_handle(GL_FRAMEBUFFER_DEFAULT, GL_BACK), 0, src_box,
 			reshade::opengl::make_resource_handle(GL_TEXTURE, texture), level, dst_box,
 			reshade::api::texture_filter::min_mag_mip_point))
 			return;

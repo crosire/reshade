@@ -655,6 +655,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::UpdateTexture(IDirect3DBaseTexture9 *
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetRenderTargetData(IDirect3DSurface9 *pRenderTarget, IDirect3DSurface9 *pDestSurface)
 {
+#if RESHADE_ADDON
+	if (reshade::invoke_addon_event<reshade::addon_event::copy_resource>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(pRenderTarget) }, reshade::api::resource { reinterpret_cast<uintptr_t>(pDestSurface) }))
+		return D3D_OK;
+#endif
 	return _orig->GetRenderTargetData(pRenderTarget, pDestSurface);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetFrontBufferData(UINT iSwapChain, IDirect3DSurface9 *pDestSurface)

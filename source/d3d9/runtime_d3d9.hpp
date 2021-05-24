@@ -25,8 +25,6 @@ namespace reshade::d3d9
 		void on_reset();
 		void on_present();
 
-		bool capture_screenshot(uint8_t *buffer) const final;
-
 		bool compile_effect(effect &effect, api::shader_stage type, const std::string &entry_point, std::vector<char> &cso) final;
 
 		api::resource_view get_backbuffer(bool srgb) final { return { reinterpret_cast<uintptr_t>(_backbuffer_resolved.get()) | (srgb ? 1 : 0) }; }

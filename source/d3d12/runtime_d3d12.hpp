@@ -27,8 +27,6 @@ namespace reshade::d3d12
 		bool on_present(ID3D12Resource *source, HWND hwnd);
 		bool on_layer_submit(UINT eye, ID3D12Resource *source, const float bounds[4], ID3D12Resource **target);
 
-		bool capture_screenshot(uint8_t *buffer) const final;
-
 		bool compile_effect(effect &effect, api::shader_stage type, const std::string &entry_point, std::vector<char> &cso) final;
 
 		api::resource_view get_backbuffer(bool srgb) final { return { _backbuffer_rtvs->GetCPUDescriptorHandleForHeapStart().ptr + (_swap_index * 2 + (srgb ? 1 : 0)) * _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_RTV] }; }

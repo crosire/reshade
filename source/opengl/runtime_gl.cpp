@@ -218,35 +218,6 @@ bool reshade::opengl::runtime_impl::on_layer_submit(uint32_t eye, GLuint source_
 	return true;
 }
 
-bool reshade::opengl::runtime_impl::capture_screenshot(uint8_t *buffer) const
-{
-	assert(_app_state.has_state);
-
-	glBindFramebuffer(GL_READ_FRAMEBUFFER, _current_fbo);
-	glReadBuffer(_current_fbo == 0 ? GL_BACK : GL_COLOR_ATTACHMENT0);
-	glReadPixels(0, 0, GLsizei(_width), GLsizei(_height), GL_RGBA, GL_UNSIGNED_BYTE, buffer);
-
-	// Flip image vertically (unless it came from the RBO, which is already upside down)
-	if (_current_fbo == 0)
-	{
-		for (unsigned int y = 0, pitch = _width * 4; y * 2 < _height; ++y)
-		{
-			const auto i1 = y * pitch;
-			const auto i2 = (_height - 1 - y) * pitch;
-
-			for (unsigned int x = 0; x < pitch; x += 4)
-			{
-				std::swap(buffer[i1 + x + 0], buffer[i2 + x + 0]);
-				std::swap(buffer[i1 + x + 1], buffer[i2 + x + 1]);
-				std::swap(buffer[i1 + x + 2], buffer[i2 + x + 2]);
-				std::swap(buffer[i1 + x + 3], buffer[i2 + x + 3]);
-			}
-		}
-	}
-
-	return true;
-}
-
 bool reshade::opengl::runtime_impl::compile_effect(effect &effect, api::shader_stage type, const std::string &entry_point, std::vector<char> &out)
 {
 	if (!effect.module.spirv.empty())

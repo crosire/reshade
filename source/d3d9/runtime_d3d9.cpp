@@ -150,66 +150,6 @@ void reshade::d3d9::runtime_impl::on_present()
 	_device->EndScene();
 }
 
-bool reshade::d3d9::runtime_impl::capture_screenshot(uint8_t *buffer) const
-{
-	if (_color_bit_depth != 8 && _color_bit_depth != 10)
-	{
-		LOG(ERROR) << "Screenshots are not supported for back buffer format " << _backbuffer_format << '!';
-		return false;
-	}
-
-	// Create a surface in system memory, copy back buffer data into it and lock it for reading
-	com_ptr<IDirect3DSurface9> intermediate;
-	if (HRESULT hr = _device->CreateOffscreenPlainSurface(_width, _height, _backbuffer_format, D3DPOOL_SYSTEMMEM, &intermediate, nullptr); FAILED(hr))
-	{
-		LOG(ERROR) << "Failed to create system memory texture for screenshot capture! HRESULT is " << hr << '.';
-		LOG(DEBUG) << "> Details: Width = " << _width << ", Height = " << _height << ", Format = " << _backbuffer_format;
-		return false;
-	}
-
-	if (FAILED(_device->GetRenderTargetData(_backbuffer_resolved.get(), intermediate.get())))
-		return false;
-
-	D3DLOCKED_RECT mapped;
-	if (FAILED(intermediate->LockRect(&mapped, nullptr, D3DLOCK_READONLY)))
-		return false;
-	auto mapped_data = static_cast<const uint8_t *>(mapped.pBits);
-
-	for (uint32_t y = 0, pitch = _width * 4; y < _height; y++, buffer += pitch, mapped_data += mapped.Pitch)
-	{
-		if (_color_bit_depth == 10)
-		{
-			for (uint32_t x = 0; x < pitch; x += 4)
-			{
-				const uint32_t rgba = *reinterpret_cast<const uint32_t *>(mapped_data + x);
-				// Divide by 4 to get 10-bit range (0-1023) into 8-bit range (0-255)
-				buffer[x + 0] = ( (rgba & 0x000003FF)        /  4) & 0xFF;
-				buffer[x + 1] = (((rgba & 0x000FFC00) >> 10) /  4) & 0xFF;
-				buffer[x + 2] = (((rgba & 0x3FF00000) >> 20) /  4) & 0xFF;
-				buffer[x + 3] = (((rgba & 0xC0000000) >> 30) * 85) & 0xFF;
-				if (_backbuffer_format == D3DFMT_A2R10G10B10)
-					std::swap(buffer[x + 0], buffer[x + 2]);
-			}
-		}
-		else
-		{
-			std::memcpy(buffer, mapped_data, pitch);
-
-			if (_backbuffer_format == D3DFMT_A8R8G8B8 ||
-				_backbuffer_format == D3DFMT_X8R8G8B8)
-			{
-				// Format is BGRA, but output should be RGBA, so flip channels
-				for (uint32_t x = 0; x < pitch; x += 4)
-					std::swap(buffer[x + 0], buffer[x + 2]);
-			}
-		}
-	}
-
-	intermediate->UnlockRect();
-
-	return true;
-}
-
 bool reshade::d3d9::runtime_impl::compile_effect(effect &effect, api::shader_stage type, const std::string &entry_point, std::vector<char> &cso)
 {
 	if (_d3d_compiler == nullptr)

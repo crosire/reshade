@@ -60,6 +60,11 @@ auto reshade::vulkan::convert_format(api::format format) -> VkFormat
 		return VK_FORMAT_A2B10G10R10_UNORM_PACK32;
 	case api::format::r10g10b10a2_xr_bias:
 		break; // Unsupported
+	case api::format::b10g10r10a2_uint:
+		return VK_FORMAT_A2R10G10B10_UINT_PACK32;
+	case api::format::b10g10r10a2_typeless:
+	case api::format::b10g10r10a2_unorm:
+		return VK_FORMAT_A2R10G10B10_UNORM_PACK32;
 	case api::format::r16_sint:
 		return VK_FORMAT_R16_SINT;
 	case api::format::r16_uint:
@@ -243,6 +248,10 @@ auto reshade::vulkan::convert_format(VkFormat vk_format) -> api::format
 		return api::format::r10g10b10a2_unorm;
 	case VK_FORMAT_A2B10G10R10_UINT_PACK32:
 		return api::format::r10g10b10a2_uint;
+	case VK_FORMAT_A2R10G10B10_UNORM_PACK32:
+		return api::format::b10g10r10a2_unorm;
+	case VK_FORMAT_A2R10G10B10_UINT_PACK32:
+		return api::format::b10g10r10a2_uint;
 	case VK_FORMAT_R16_UNORM:
 		return api::format::r16_unorm;
 	case VK_FORMAT_R16_SNORM:

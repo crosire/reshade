@@ -59,6 +59,9 @@ auto reshade::opengl::convert_format(api::format format) -> GLenum
 	case api::format::r10g10b10a2_unorm:
 		return GL_RGB10_A2;
 	case api::format::r10g10b10a2_xr_bias:
+	case api::format::b10g10r10a2_typeless:
+	case api::format::b10g10r10a2_uint:
+	case api::format::b10g10r10a2_unorm:
 		break; // Unsupported
 	case api::format::r16_uint:
 		return GL_R16UI;

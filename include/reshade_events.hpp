@@ -178,7 +178,7 @@ namespace reshade
 		finish_render_pass,
 
 		/// <summary>
-		/// Called before 'IDirect3DDevice9::UpdateTexture', 'ID3D10Device::CopyResource', 'ID3D11DeviceContext::CopyResource' or 'ID3D12GraphicsCommandList::CopyResource'.
+		/// Called before 'IDirect3DDevice9::UpdateTexture', 'IDirect3DDevice9::GetRenderTargetData', 'ID3D10Device::CopyResource', 'ID3D11DeviceContext::CopyResource' or 'ID3D12GraphicsCommandList::CopyResource'.
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource src, api::resource dst)</c></para>
 		/// </summary>
 		/// <remarks>

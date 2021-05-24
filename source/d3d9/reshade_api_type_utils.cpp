@@ -53,6 +53,10 @@ auto reshade::d3d9::convert_format(api::format format, bool lockable) -> D3DFORM
 		return D3DFMT_A2B10G10R10;
 	case api::format::r10g10b10a2_xr_bias:
 		return D3DFMT_A2B10G10R10_XR_BIAS;
+	case api::format::b10g10r10a2_typeless:
+	case api::format::b10g10r10a2_uint:
+	case api::format::b10g10r10a2_unorm:
+		return D3DFMT_A2R10G10B10;
 	case api::format::r16_uint:
 	case api::format::r16_sint:
 	case api::format::r16_unorm:
@@ -179,6 +183,8 @@ auto reshade::d3d9::convert_format(D3DFORMAT d3d_format) -> api::format
 		return api::format::r10g10b10a2_unorm;
 	case D3DFMT_A2B10G10R10_XR_BIAS:
 		return api::format::r10g10b10a2_xr_bias;
+	case D3DFMT_A2R10G10B10:
+		return api::format::b10g10r10a2_unorm;
 	case D3DFMT_L16:
 		return api::format::r16_uint;
 	case D3DFMT_R16F:
@@ -251,6 +257,7 @@ void reshade::d3d9::convert_memory_heap_to_d3d_pool(api::memory_heap heap, D3DPO
 		d3d_pool = D3DPOOL_DEFAULT;
 		break;
 	case api::memory_heap::cpu_to_gpu:
+	case api::memory_heap::gpu_to_cpu:
 		d3d_pool = D3DPOOL_SYSTEMMEM;
 		break;
 	case api::memory_heap::cpu_only:
@@ -315,7 +322,8 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DVOL
 	assert(desc.texture.samples == 1);
 
 	convert_memory_heap_to_d3d_pool(desc.heap, internal_desc.Pool);
-	convert_resource_usage_to_d3d_usage(desc.usage, internal_desc.Usage);
+	if (internal_desc.Pool != D3DPOOL_SYSTEMMEM)
+		convert_resource_usage_to_d3d_usage(desc.usage, internal_desc.Usage);
 	if (desc.heap == api::memory_heap::cpu_to_gpu)
 		internal_desc.Usage |= D3DUSAGE_DYNAMIC;
 
@@ -341,7 +349,9 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DSUR
 		internal_desc.MultiSampleType = D3DMULTISAMPLE_NONE;
 
 	convert_memory_heap_to_d3d_pool(desc.heap, internal_desc.Pool);
-	convert_resource_usage_to_d3d_usage(desc.usage, internal_desc.Usage);
+	// System memory textures cannot have render target or depth-stencil usage
+	if (internal_desc.Pool != D3DPOOL_SYSTEMMEM)
+		convert_resource_usage_to_d3d_usage(desc.usage, internal_desc.Usage);
 	if (desc.heap == api::memory_heap::cpu_to_gpu)
 		internal_desc.Usage |= D3DUSAGE_DYNAMIC;
 

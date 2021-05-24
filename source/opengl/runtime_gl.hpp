@@ -31,8 +31,6 @@ namespace reshade::opengl
 		void on_present(bool default_fbo = true);
 		bool on_layer_submit(uint32_t eye, GLuint source_object, bool is_rbo, bool is_array, const float bounds[4], GLuint *target_rbo);
 
-		bool capture_screenshot(uint8_t *buffer) const final;
-
 		bool compile_effect(effect &effect, api::shader_stage type, const std::string &entry_point, std::vector<char> &out) final;
 
 		api::resource_view get_backbuffer(bool srgb) final { return make_resource_view_handle(GL_RENDERBUFFER, _rbo, srgb ? 0x2 : 0); }

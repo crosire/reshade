@@ -3059,6 +3059,102 @@ void reshade::runtime::save_screenshot(const std::wstring &postfix, const bool s
 		std::error_code ec; std::filesystem::copy_file(_current_preset_path, screenshot_path.replace_extension(L".ini"), std::filesystem::copy_options::overwrite_existing, ec);
 	}
 }
+bool reshade::runtime::capture_screenshot(uint8_t *buffer)
+{
+	if (_color_bit_depth != 8 && _color_bit_depth != 10)
+	{
+		LOG(ERROR) << "Screenshots are not supported for back buffer format " << static_cast<uint32_t>(get_backbuffer_format()) << '!';
+		return false;
+	}
+
+	api::device *const device = get_device();
+
+	const size_t data_pitch = _width * 4;
+	size_t texture_pitch = data_pitch;
+
+	// Texture data rows are 256-byte aligned in D3D10/11/12
+	if (device->get_api() == api::device_api::d3d10 || device->get_api() == api::device_api::d3d11 || device->get_api() == api::device_api::d3d12)
+		texture_pitch = (texture_pitch + 255) & ~255;
+
+	// Copy back buffer data into system memory buffer
+	api::resource intermediate;
+	if (device->check_capability(api::device_caps::copy_buffer_to_texture))
+	{
+		if (!device->create_resource(api::resource_desc(texture_pitch * _height, api::memory_heap::gpu_to_cpu, api::resource_usage::copy_dest), nullptr, api::resource_usage::copy_dest, &intermediate))
+		{
+			LOG(ERROR) << "Failed to create system memory buffer for screenshot capture!";
+			return false;
+		}
+		device->set_debug_name(intermediate, "ReShade screenshot buffer");
+
+		const auto cmd_list = get_command_queue()->get_immediate_command_list();
+
+		cmd_list->barrier(get_backbuffer_resource(), api::resource_usage::present, api::resource_usage::copy_source);
+		cmd_list->copy_texture_to_buffer(get_backbuffer_resource(), 0, nullptr, intermediate, 0, _width, _height);
+		cmd_list->barrier(get_backbuffer_resource(), api::resource_usage::copy_source, api::resource_usage::present);
+	}
+	else
+	{
+		if (!device->create_resource(api::resource_desc(_width, _height, 1, 1, get_backbuffer_format(), 1, api::memory_heap::gpu_to_cpu, api::resource_usage::copy_dest), nullptr, api::resource_usage::copy_dest, &intermediate))
+		{
+			LOG(ERROR) << "Failed to create system memory texture for screenshot capture!";
+			return false;
+		}
+		device->set_debug_name(intermediate, "ReShade screenshot texture");
+
+		const auto cmd_list = get_command_queue()->get_immediate_command_list();
+
+		cmd_list->barrier(get_backbuffer_resource(), api::resource_usage::present, api::resource_usage::copy_source);
+		cmd_list->copy_resource(get_backbuffer_resource(), intermediate);
+		cmd_list->barrier(get_backbuffer_resource(), api::resource_usage::copy_source, api::resource_usage::present);
+	}
+
+	// Wait for any rendering by the application finish before submitting
+	// It may have submitted that to a different queue, so simply wait for all to idle here
+	device->wait_idle();
+
+	// Copy data from intermediate image into output buffer
+	uint8_t *mapped_data = nullptr;
+	if (device->map_resource(intermediate, 0, api::map_access::read_only, reinterpret_cast<void **>(&mapped_data)))
+	{
+		for (uint32_t y = 0; y < _height; y++, buffer += data_pitch, mapped_data += texture_pitch)
+		{
+			if (_color_bit_depth == 10)
+			{
+				for (uint32_t x = 0; x < data_pitch; x += 4)
+				{
+					const uint32_t rgba = *reinterpret_cast<const uint32_t *>(mapped_data + x);
+					// Divide by 4 to get 10-bit range (0-1023) into 8-bit range (0-255)
+					buffer[x + 0] = (( rgba & 0x000003FF)        /  4) & 0xFF;
+					buffer[x + 1] = (((rgba & 0x000FFC00) >> 10) /  4) & 0xFF;
+					buffer[x + 2] = (((rgba & 0x3FF00000) >> 20) /  4) & 0xFF;
+					buffer[x + 3] = (((rgba & 0xC0000000) >> 30) * 85) & 0xFF;
+					if (get_backbuffer_format() >= api::format::b10g10r10a2_typeless &&
+						get_backbuffer_format() <= api::format::b10g10r10a2_uint)
+						std::swap(buffer[x + 0], buffer[x + 2]);
+				}
+			}
+			else
+			{
+				std::memcpy(buffer, mapped_data, data_pitch);
+
+				if (get_backbuffer_format() >= api::format::b8g8r8a8_unorm &&
+					get_backbuffer_format() <= api::format::b8g8r8a8_unorm_srgb)
+				{
+					// Format is BGRA, but output should be RGBA, so flip channels
+					for (uint32_t x = 0; x < data_pitch; x += 4)
+						std::swap(buffer[x + 0], buffer[x + 2]);
+				}
+			}
+		}
+
+		device->unmap_resource(intermediate, 0);
+	}
+
+	device->destroy_resource(intermediate);
+
+	return mapped_data != nullptr;
+}
 
 static inline bool force_floating_point_value(const reshadefx::type &type, uint32_t renderer_id)
 {

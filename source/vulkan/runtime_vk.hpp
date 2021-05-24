@@ -30,8 +30,6 @@ namespace reshade::vulkan
 		void on_present(VkQueue queue, const uint32_t swapchain_image_index, std::vector<VkSemaphore> &wait);
 		bool on_layer_submit(uint32_t eye, VkImage source, const VkExtent2D &source_extent, VkFormat source_format, VkSampleCountFlags source_samples, uint32_t source_layer_index, const float bounds[4], VkImage *target_image);
 
-		bool capture_screenshot(uint8_t *buffer) const final;
-
 		bool compile_effect(effect &effect, api::shader_stage type, const std::string &entry_point, std::vector<char> &out) final;
 
 		api::resource_view get_backbuffer(bool srgb) final { return { (uint64_t)_swapchain_views[_swap_index * 2 + (srgb ? 1 : 0)] }; }
