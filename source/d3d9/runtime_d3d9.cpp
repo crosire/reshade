@@ -6,11 +6,11 @@
 #include "dll_log.hpp"
 #include "runtime_d3d9.hpp"
 #include "runtime_objects.hpp"
+#include "reshade_api_type_utils.hpp"
 #include <d3dcompiler.h>
 
 reshade::d3d9::runtime_impl::runtime_impl(device_impl *device, IDirect3DSwapChain9 *swapchain) :
 	api_object_impl(swapchain),
-	_device(device->_orig),
 	_device_impl(device),
 	_app_state(device->_orig)
 {
@@ -54,30 +54,7 @@ bool reshade::d3d9::runtime_impl::on_init()
 	_height = pp.BackBufferHeight;
 	_window_width = window_rect.right;
 	_window_height = window_rect.bottom;
-	_backbuffer_format = pp.BackBufferFormat;
-
-	switch (_backbuffer_format)
-	{
-	default:
-		_color_bit_depth = 0;
-		break;
-	case D3DFMT_R5G6B5:
-	case D3DFMT_X1R5G5B5:
-	case D3DFMT_A1R5G5B5:
-		_color_bit_depth = 5;
-		break;
-	case D3DFMT_A8R8G8B8:
-	case D3DFMT_X8R8G8B8:
-	case D3DFMT_A8B8G8R8:
-	case D3DFMT_X8B8G8R8:
-		_color_bit_depth = 8;
-		break;
-	case D3DFMT_A2B10G10R10:
-	case D3DFMT_A2R10G10B10:
-	case D3DFMT_A2B10G10R10_XR_BIAS:
-		_color_bit_depth = 10;
-		break;
-	}
+	_backbuffer_format = convert_format(pp.BackBufferFormat);
 
 	// Get back buffer surface
 	HRESULT hr = _orig->GetBackBuffer(0, D3DBACKBUFFER_TYPE_MONO, &_backbuffer);
@@ -88,15 +65,15 @@ bool reshade::d3d9::runtime_impl::on_init()
 		// Some effects rely on there being an alpha channel available, so create custom back buffer in case that is not the case
 		switch (_backbuffer_format)
 		{
-		case D3DFMT_X8R8G8B8:
-			_backbuffer_format = D3DFMT_A8R8G8B8;
+		case api::format::r8g8b8x8_unorm:
+			_backbuffer_format = api::format::r8g8b8a8_unorm;
 			break;
-		case D3DFMT_X8B8G8R8:
-			_backbuffer_format = D3DFMT_A8B8G8R8;
+		case api::format::b8g8r8x8_unorm:
+			_backbuffer_format = api::format::b8g8r8a8_unorm;
 			break;
 		}
 
-		if (FAILED(_device->CreateRenderTarget(_width, _height, _backbuffer_format, D3DMULTISAMPLE_NONE, 0, FALSE, &_backbuffer_resolved, nullptr)))
+		if (FAILED(_device_impl->_orig->CreateRenderTarget(_width, _height, convert_format(_backbuffer_format), D3DMULTISAMPLE_NONE, 0, FALSE, &_backbuffer_resolved, nullptr)))
 			return false;
 	}
 	else
@@ -122,32 +99,32 @@ void reshade::d3d9::runtime_impl::on_reset()
 
 void reshade::d3d9::runtime_impl::on_present()
 {
-	if (!_is_initialized || FAILED(_device->BeginScene()))
+	if (!_is_initialized || FAILED(_device_impl->_orig->BeginScene()))
 		return;
 
 	_app_state.capture();
 	BOOL software_rendering_enabled = FALSE;
 	if ((_device_impl->_cp.BehaviorFlags & D3DCREATE_MIXED_VERTEXPROCESSING) != 0)
-		software_rendering_enabled = _device->GetSoftwareVertexProcessing(),
-		_device->SetSoftwareVertexProcessing(FALSE); // Disable software vertex processing since it is incompatible with programmable shaders
+		software_rendering_enabled = _device_impl->_orig->GetSoftwareVertexProcessing(),
+		_device_impl->_orig->SetSoftwareVertexProcessing(FALSE); // Disable software vertex processing since it is incompatible with programmable shaders
 
 	// Resolve MSAA back buffer if MSAA is active
 	if (_backbuffer_resolved != _backbuffer)
-		_device->StretchRect(_backbuffer.get(), nullptr, _backbuffer_resolved.get(), nullptr, D3DTEXF_NONE);
+		_device_impl->_orig->StretchRect(_backbuffer.get(), nullptr, _backbuffer_resolved.get(), nullptr, D3DTEXF_NONE);
 
 	update_and_render_effects();
 	runtime::on_present();
 
 	// Stretch main render target back into MSAA back buffer if MSAA is active
 	if (_backbuffer_resolved != _backbuffer)
-		_device->StretchRect(_backbuffer_resolved.get(), nullptr, _backbuffer.get(), nullptr, D3DTEXF_NONE);
+		_device_impl->_orig->StretchRect(_backbuffer_resolved.get(), nullptr, _backbuffer.get(), nullptr, D3DTEXF_NONE);
 
 	// Apply previous state from application
 	_app_state.apply_and_release();
 	if ((_device_impl->_cp.BehaviorFlags & D3DCREATE_MIXED_VERTEXPROCESSING) != 0)
-		_device->SetSoftwareVertexProcessing(software_rendering_enabled);
+		_device_impl->_orig->SetSoftwareVertexProcessing(software_rendering_enabled);
 
-	_device->EndScene();
+	_device_impl->_orig->EndScene();
 }
 
 bool reshade::d3d9::runtime_impl::compile_effect(effect &effect, api::shader_stage type, const std::string &entry_point, std::vector<char> &cso)

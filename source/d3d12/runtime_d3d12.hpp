@@ -31,17 +31,12 @@ namespace reshade::d3d12
 
 		api::resource_view get_backbuffer(bool srgb) final { return { _backbuffer_rtvs->GetCPUDescriptorHandleForHeapStart().ptr + (_swap_index * 2 + (srgb ? 1 : 0)) * _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_RTV] }; }
 		api::resource get_backbuffer_resource() final { return { (uintptr_t)_backbuffers[_swap_index].get() }; }
-		api::format get_backbuffer_format() final { return (api::format)_backbuffer_format; }
 
 	private:
-		const com_ptr<ID3D12Device> _device;
-		const com_ptr<ID3D12CommandQueue> _cmd_queue;
 		device_impl *const _device_impl;
 		command_queue_impl *const _cmd_queue_impl;
-		command_list_immediate_impl *const _cmd_impl;
 
 		UINT _swap_index = 0;
-		DXGI_FORMAT _backbuffer_format = DXGI_FORMAT_UNKNOWN;
 		std::vector<com_ptr<ID3D12Resource>> _backbuffers;
 		com_ptr<ID3D12DescriptorHeap> _backbuffer_rtvs;
 

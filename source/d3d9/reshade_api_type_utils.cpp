@@ -39,6 +39,10 @@ auto reshade::d3d9::convert_format(api::format format, bool lockable) -> D3DFORM
 	case api::format::r8g8b8a8_sint:
 	case api::format::r8g8b8a8_snorm:
 		break; // Unsupported
+	case api::format::r8g8b8x8_typeless:
+	case api::format::r8g8b8x8_unorm:
+	case api::format::r8g8b8x8_unorm_srgb:
+		return D3DFMT_X8B8G8R8;
 	case api::format::b8g8r8a8_typeless:
 	case api::format::b8g8r8a8_unorm:
 	case api::format::b8g8r8a8_unorm_srgb:
@@ -106,6 +110,8 @@ auto reshade::d3d9::convert_format(api::format format, bool lockable) -> D3DFORM
 		return D3DFMT_R5G6B5;
 	case api::format::b5g5r5a1_unorm:
 		return D3DFMT_A1R5G5B5;
+	case api::format::b5g5r5x1_unorm:
+		return D3DFMT_X1R5G5B5;
 	case api::format::b4g4r4a4_unorm:
 		return D3DFMT_A4R4G4B4;
 	case api::format::s8_uint:
@@ -171,10 +177,9 @@ auto reshade::d3d9::convert_format(D3DFORMAT d3d_format) -> api::format
 	case D3DFMT_L8:
 		return api::format::r8_unorm;
 	case D3DFMT_A8B8G8R8:
-#if 0
-	case D3DFMT_X8B8G8R8:
-#endif
 		return api::format::r8g8b8a8_unorm;
+	case D3DFMT_X8B8G8R8:
+		return api::format::r8g8b8x8_unorm;
 	case D3DFMT_A8R8G8B8:
 		return api::format::b8g8r8a8_unorm;
 	case D3DFMT_X8R8G8B8:
@@ -205,11 +210,10 @@ auto reshade::d3d9::convert_format(D3DFORMAT d3d_format) -> api::format
 		return api::format::r32g32b32a32_float;
 	case D3DFMT_R5G6B5:
 		return api::format::b5g6r5_unorm;
-#if 0
-	case D3DFMT_X1R5G5B5:
-#endif
 	case D3DFMT_A1R5G5B5:
 		return api::format::b5g5r5a1_unorm;
+	case D3DFMT_X1R5G5B5:
+		return api::format::b5g5r5x1_unorm;
 	case D3DFMT_A4R4G4B4:
 		return api::format::b4g4r4a4_unorm;
 	case D3DFMT_S8_LOCKABLE:

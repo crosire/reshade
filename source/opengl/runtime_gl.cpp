@@ -31,18 +31,7 @@ reshade::opengl::runtime_impl::runtime_impl(HDC hdc, HGLRC hglrc) : device_impl(
 		}
 	}
 
-	switch (_default_color_format)
-	{
-	case GL_RGBA8:
-		_color_bit_depth = 8;
-		break;
-	case GL_RGB10_A2:
-		_color_bit_depth = 10;
-		break;
-	case GL_RGBA16F:
-		_color_bit_depth = 16;
-		break;
-	}
+	_backbuffer_format = convert_format(_default_color_format);
 
 	subscribe_to_load_config([this](const ini_file &config) {
 		// Reserve a fixed amount of texture names by default to work around issues in old OpenGL games (which will use a compatibility context)

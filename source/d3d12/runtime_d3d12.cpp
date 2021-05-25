@@ -15,11 +15,8 @@ extern const char *dxgi_format_to_string(DXGI_FORMAT format);
 
 reshade::d3d12::runtime_impl::runtime_impl(device_impl *device, command_queue_impl *queue, IDXGISwapChain3 *swapchain) :
 	api_object_impl(swapchain),
-	_device(device->_orig),
-	_cmd_queue(queue->_orig),
 	_device_impl(device),
-	_cmd_queue_impl(queue),
-	_cmd_impl(static_cast<command_list_immediate_impl *>(queue->get_immediate_command_list()))
+	_cmd_queue_impl(queue)
 {
 	_renderer_id = D3D_FEATURE_LEVEL_12_0;
 
@@ -27,7 +24,7 @@ reshade::d3d12::runtime_impl::runtime_impl(device_impl *device, command_queue_im
 	if (com_ptr<IDXGIFactory4> factory;
 		_orig != nullptr && SUCCEEDED(_orig->GetParent(IID_PPV_ARGS(&factory))))
 	{
-		const LUID luid = _device->GetAdapterLuid();
+		const LUID luid = _device_impl->_orig->GetAdapterLuid();
 
 		if (com_ptr<IDXGIAdapter> dxgi_adapter;
 			SUCCEEDED(factory->EnumAdapterByLuid(luid, IID_PPV_ARGS(&dxgi_adapter))))
@@ -78,27 +75,7 @@ bool reshade::d3d12::runtime_impl::on_init(const DXGI_SWAP_CHAIN_DESC &swap_desc
 
 	_width = _window_width = swap_desc.BufferDesc.Width;
 	_height = _window_height = swap_desc.BufferDesc.Height;
-	_backbuffer_format = swap_desc.BufferDesc.Format;
-
-	// Only need to handle swap chain formats
-	switch (_backbuffer_format)
-	{
-	case DXGI_FORMAT_R8G8B8A8_UNORM:
-	case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
-	case DXGI_FORMAT_B8G8R8A8_UNORM:
-	case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
-	case DXGI_FORMAT_B8G8R8X8_UNORM:
-	case DXGI_FORMAT_B8G8R8X8_UNORM_SRGB:
-		_color_bit_depth = 8;
-		break;
-	case DXGI_FORMAT_R10G10B10A2_UNORM:
-	case DXGI_FORMAT_R10G10B10_XR_BIAS_A2_UNORM:
-		_color_bit_depth = 10;
-		break;
-	case DXGI_FORMAT_R16G16B16A16_FLOAT:
-		_color_bit_depth = 16;
-		break;
-	}
+	_backbuffer_format = convert_format(swap_desc.BufferDesc.Format);
 
 	if (swap_desc.OutputWindow != nullptr)
 	{
@@ -113,7 +90,7 @@ bool reshade::d3d12::runtime_impl::on_init(const DXGI_SWAP_CHAIN_DESC &swap_desc
 	{   D3D12_DESCRIPTOR_HEAP_DESC desc = { D3D12_DESCRIPTOR_HEAP_TYPE_RTV };
 		desc.NumDescriptors = swap_desc.BufferCount * 2;
 
-		if (FAILED(_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&_backbuffer_rtvs))))
+		if (FAILED(_device_impl->_orig->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&_backbuffer_rtvs))))
 			return false;
 		_backbuffer_rtvs->SetName(L"ReShade RTV heap");
 	}
@@ -133,11 +110,11 @@ bool reshade::d3d12::runtime_impl::on_init(const DXGI_SWAP_CHAIN_DESC &swap_desc
 			{
 				D3D12_RENDER_TARGET_VIEW_DESC rtv_desc = {};
 				rtv_desc.Format = srgb_write_enable ?
-					convert_format(api::format_to_default_typed_srgb(convert_format(_backbuffer_format))) :
-					convert_format(api::format_to_default_typed(convert_format(_backbuffer_format)));
+					convert_format(api::format_to_default_typed_srgb(_backbuffer_format)) :
+					convert_format(api::format_to_default_typed(_backbuffer_format));
 				rtv_desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 
-				_device->CreateRenderTargetView(_backbuffers[i].get(), &rtv_desc, rtv_handle);
+				_device_impl->_orig->CreateRenderTargetView(_backbuffers[i].get(), &rtv_desc, rtv_handle);
 			}
 		}
 	}
@@ -149,7 +126,7 @@ void reshade::d3d12::runtime_impl::on_reset()
 	runtime::on_reset();
 
 	// Make sure none of the resources below are currently in use (provided the runtime was initialized previously)
-	_cmd_impl->flush_and_wait(_cmd_queue.get());
+	_cmd_queue_impl->wait_idle();
 
 	_backbuffers.clear();
 	_backbuffer_rtvs.reset();
@@ -166,8 +143,6 @@ void reshade::d3d12::runtime_impl::on_present()
 
 	update_and_render_effects();
 	runtime::on_present();
-
-	_cmd_impl->flush(_cmd_queue.get());
 }
 bool reshade::d3d12::runtime_impl::on_present(ID3D12Resource *source, HWND hwnd)
 {
@@ -175,7 +150,7 @@ bool reshade::d3d12::runtime_impl::on_present(ID3D12Resource *source, HWND hwnd)
 
 	// Reinitialize runtime when the source texture dimensions changes
 	const D3D12_RESOURCE_DESC source_desc = source->GetDesc();
-	if (source_desc.Width != _width || source_desc.Height != _height || source_desc.Format != _backbuffer_format)
+	if (source_desc.Width != _width || source_desc.Height != _height || convert_format(source_desc.Format) != _backbuffer_format)
 	{
 		on_reset();
 
@@ -209,11 +184,11 @@ bool reshade::d3d12::runtime_impl::on_present(ID3D12Resource *source, HWND hwnd)
 		{
 			D3D12_RENDER_TARGET_VIEW_DESC rtv_desc = {};
 			rtv_desc.Format = srgb_write_enable ?
-				convert_format(api::format_to_default_typed_srgb(convert_format(_backbuffer_format))) :
-				convert_format(api::format_to_default_typed(convert_format(_backbuffer_format)));
+				convert_format(api::format_to_default_typed_srgb(_backbuffer_format)) :
+				convert_format(api::format_to_default_typed(_backbuffer_format));
 			rtv_desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 
-			_device->CreateRenderTargetView(source, &rtv_desc, rtv_handle);
+			_device_impl->_orig->CreateRenderTargetView(source, &rtv_desc, rtv_handle);
 		}
 	}
 
@@ -245,7 +220,7 @@ bool reshade::d3d12::runtime_impl::on_layer_submit(UINT eye, ID3D12Resource *sou
 	if (region_width == 0 || region_height == 0)
 		return false;
 
-	if (target_width != _width || region_height != _height || source_desc.Format != _backbuffer_format)
+	if (target_width != _width || region_height != _height || convert_format(source_desc.Format) != _backbuffer_format)
 	{
 		on_reset();
 
@@ -272,7 +247,7 @@ bool reshade::d3d12::runtime_impl::on_layer_submit(UINT eye, ID3D12Resource *sou
 
 		const D3D12_HEAP_PROPERTIES heap_props = { D3D12_HEAP_TYPE_DEFAULT };
 
-		if (HRESULT hr = _device->CreateCommittedResource(&heap_props, D3D12_HEAP_FLAG_NONE, &source_desc, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&_backbuffers[0])); FAILED(hr))
+		if (HRESULT hr = _device_impl->_orig->CreateCommittedResource(&heap_props, D3D12_HEAP_FLAG_NONE, &source_desc, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&_backbuffers[0])); FAILED(hr))
 		{
 			LOG(ERROR) << "Failed to create region texture!" << " HRESULT is " << hr << '.';
 			LOG(DEBUG) << "> Details: Width = " << source_desc.Width << ", Height = " << source_desc.Height << ", Format = " << source_desc.Format << ", Flags = " << std::hex << source_desc.Flags << std::dec;
@@ -285,15 +260,15 @@ bool reshade::d3d12::runtime_impl::on_layer_submit(UINT eye, ID3D12Resource *sou
 		{
 			D3D12_RENDER_TARGET_VIEW_DESC rtv_desc = {};
 			rtv_desc.Format = srgb_write_enable ?
-				convert_format(api::format_to_default_typed_srgb(convert_format(_backbuffer_format))) :
-				convert_format(api::format_to_default_typed(convert_format(_backbuffer_format)));
+				convert_format(api::format_to_default_typed_srgb(_backbuffer_format)) :
+				convert_format(api::format_to_default_typed(_backbuffer_format));
 			rtv_desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 
-			_device->CreateRenderTargetView(_backbuffers[0].get(), &rtv_desc, rtv_handle);
+			_device_impl->_orig->CreateRenderTargetView(_backbuffers[0].get(), &rtv_desc, rtv_handle);
 		}
 	}
 
-	ID3D12GraphicsCommandList *const cmd_list = _cmd_impl->begin_commands();
+	ID3D12GraphicsCommandList *const cmd_list = static_cast<command_list_immediate_impl *>(_cmd_queue_impl->get_immediate_command_list())->begin_commands();
 
 	D3D12_RESOURCE_BARRIER transitions[2];
 	transitions[0] = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };

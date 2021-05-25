@@ -35,7 +35,6 @@ namespace reshade::opengl
 
 		api::resource_view get_backbuffer(bool srgb) final { return make_resource_view_handle(GL_RENDERBUFFER, _rbo, srgb ? 0x2 : 0); }
 		api::resource get_backbuffer_resource() final { return make_resource_handle(GL_RENDERBUFFER, _rbo);	}
-		api::format get_backbuffer_format() final { return convert_format(_default_color_format); }
 
 	private:
 		state_block _app_state;

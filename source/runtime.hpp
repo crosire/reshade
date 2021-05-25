@@ -214,7 +214,6 @@ namespace reshade
 
 		virtual api::resource_view get_backbuffer(bool) { return { 0 }; }
 		virtual api::resource get_backbuffer_resource() { return { 0 }; }
-		virtual api::format get_backbuffer_format() { return api::format::unknown; }
 
 		/// <summary>
 		/// Returns the texture object corresponding to the passed <paramref name="unique_name"/>.
@@ -233,6 +232,7 @@ namespace reshade
 		unsigned int _device_id = 0;
 		unsigned int _renderer_id = 0;
 		unsigned int _color_bit_depth = 8;
+		api::format  _backbuffer_format = api::format::unknown;
 
 		uint64_t _framecount = 0;
 

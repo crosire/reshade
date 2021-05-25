@@ -31,11 +31,8 @@ namespace reshade::d3d11
 
 		api::resource_view get_backbuffer(bool srgb) final { return { reinterpret_cast<uintptr_t>(_backbuffer_rtv[srgb ? 1 : 0].get()) }; }
 		api::resource get_backbuffer_resource() final { return { (uintptr_t)_backbuffer_resolved.get() }; }
-		api::format get_backbuffer_format() final { return (api::format)_backbuffer_format; }
 
 	private:
-		const com_ptr<ID3D11Device> _device;
-		const com_ptr<ID3D11DeviceContext> _immediate_context;
 		device_impl *const _device_impl;
 		device_context_impl *const _immediate_context_impl;
 
@@ -45,7 +42,6 @@ namespace reshade::d3d11
 		com_ptr<ID3D11VertexShader> _copy_vertex_shader;
 		com_ptr<ID3D11SamplerState> _copy_sampler_state;
 
-		DXGI_FORMAT _backbuffer_format = DXGI_FORMAT_UNKNOWN;
 		com_ptr<ID3D11Texture2D> _backbuffer;
 		com_ptr<ID3D11Texture2D> _backbuffer_resolved;
 		com_ptr<ID3D11RenderTargetView> _backbuffer_rtv[3];

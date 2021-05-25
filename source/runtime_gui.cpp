@@ -3306,7 +3306,7 @@ bool reshade::runtime::init_imgui_resources()
 
 	pso_desc.graphics.num_viewports = 1;
 	pso_desc.graphics.num_render_targets = 1;
-	pso_desc.graphics.render_target_format[0] = get_backbuffer_format();
+	pso_desc.graphics.render_target_format[0] = _backbuffer_format;
 
 	return device->create_pipeline(pso_desc, &_imgui.pipeline);
 }

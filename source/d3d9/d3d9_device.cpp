@@ -7,6 +7,7 @@
 #include "d3d9_device.hpp"
 #include "d3d9_swapchain.hpp"
 #include "runtime_d3d9.hpp"
+#include "reshade_api_type_utils.hpp"
 
 extern void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d3d, UINT adapter_index);
 extern void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, D3DDISPLAYMODEEX &fullscreen_desc, IDirect3D9 *d3d, UINT adapter_index);

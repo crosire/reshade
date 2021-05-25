@@ -6,6 +6,7 @@
 #include "dll_log.hpp"
 #include "runtime_vk.hpp"
 #include "runtime_objects.hpp"
+#include "reshade_api_type_utils.hpp"
 
 static inline void transition_layout(const VkLayerDispatchTable &vk, VkCommandBuffer cmd_list, VkImage image, VkImageLayout old_layout, VkImageLayout new_layout,
 	const VkImageSubresourceRange &subresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS })
@@ -77,10 +78,8 @@ static inline void transition_layout(const VkLayerDispatchTable &vk, VkCommandBu
 reshade::vulkan::runtime_impl::runtime_impl(device_impl *device, command_queue_impl *graphics_queue) :
 	api_object_impl(VK_NULL_HANDLE), // Swap chain object is later set in 'on_init' below
 	_device_impl(device),
-	_device(device->_orig),
 	_queue_impl(graphics_queue),
-	_queue(graphics_queue->_orig),
-	_cmd_impl(static_cast<command_list_immediate_impl *>(graphics_queue->get_immediate_command_list()))
+	_queue(graphics_queue->_orig)
 {
 	VkPhysicalDeviceProperties device_props = {};
 	device->_instance_dispatch_table.GetPhysicalDeviceProperties(device->_physical_device, &device_props);
@@ -108,8 +107,7 @@ bool reshade::vulkan::runtime_impl::on_init(VkSwapchainKHR swapchain, const VkSw
 
 	_width = _window_width = desc.imageExtent.width;
 	_height = _window_height = desc.imageExtent.height;
-	_color_bit_depth = desc.imageFormat >= VK_FORMAT_A2R10G10B10_UNORM_PACK32 && desc.imageFormat <= VK_FORMAT_A2B10G10R10_SINT_PACK32 ? 10 : 8;
-	_backbuffer_format = desc.imageFormat;
+	_backbuffer_format = convert_format(desc.imageFormat);
 
 	if (hwnd != nullptr)
 	{
@@ -127,11 +125,26 @@ bool reshade::vulkan::runtime_impl::on_init(VkSwapchainKHR swapchain, const VkSw
 	if (swapchain != VK_NULL_HANDLE)
 	{
 		// Get back buffer images
-		if (vk.GetSwapchainImagesKHR(_device, swapchain, &num_images, nullptr) != VK_SUCCESS)
+		if (vk.GetSwapchainImagesKHR(_device_impl->_orig, swapchain, &num_images, nullptr) != VK_SUCCESS)
 			return false;
 		_swapchain_images.resize(num_images);
-		if (vk.GetSwapchainImagesKHR(_device, swapchain, &num_images, _swapchain_images.data()) != VK_SUCCESS)
+		if (vk.GetSwapchainImagesKHR(_device_impl->_orig, swapchain, &num_images, _swapchain_images.data()) != VK_SUCCESS)
 			return false;
+
+		// Add swap chain images to the image list
+		VkImageCreateInfo image_create_info { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
+		image_create_info.imageType = VK_IMAGE_TYPE_2D;
+		image_create_info.format = desc.imageFormat;
+		image_create_info.extent = { desc.imageExtent.width, desc.imageExtent.height, 1 };
+		image_create_info.mipLevels = 1;
+		image_create_info.arrayLayers = desc.imageArrayLayers;
+		image_create_info.samples = VK_SAMPLE_COUNT_1_BIT;
+		image_create_info.usage = desc.imageUsage;
+		image_create_info.sharingMode = desc.imageSharingMode;
+		image_create_info.initialLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+		for (uint32_t i = 0; i < num_images; ++i)
+			_device_impl->register_image(_swapchain_images[i], image_create_info);
 	}
 	else
 	{
@@ -141,8 +154,8 @@ bool reshade::vulkan::runtime_impl::on_init(VkSwapchainKHR swapchain, const VkSw
 
 	assert(desc.imageUsage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
 
-	const api::format backbuffer_format = api::format_to_default_typed(convert_format(_backbuffer_format));
-	const api::format backbuffer_format_srgb = api::format_to_default_typed_srgb(convert_format(_backbuffer_format));
+	const api::format backbuffer_format = api::format_to_default_typed(_backbuffer_format);
+	const api::format backbuffer_format_srgb = api::format_to_default_typed_srgb(_backbuffer_format);
 
 	_swapchain_views.resize(num_images * 2);
 
@@ -166,7 +179,7 @@ bool reshade::vulkan::runtime_impl::on_init(VkSwapchainKHR swapchain, const VkSw
 	{
 		VkSemaphoreCreateInfo sem_create_info { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
 
-		if (vk.CreateSemaphore(_device, &sem_create_info, nullptr, &_queue_sync_semaphores[i]) != VK_SUCCESS)
+		if (vk.CreateSemaphore(_device_impl->_orig, &sem_create_info, nullptr, &_queue_sync_semaphores[i]) != VK_SUCCESS)
 			return false;
 	}
 
@@ -183,10 +196,14 @@ void reshade::vulkan::runtime_impl::on_reset()
 	if (_orig == VK_NULL_HANDLE)
 		for (VkImage image : _swapchain_images)
 			_device_impl->destroy_resource(reinterpret_cast<api::resource &>(image));
+	else
+		// Remove swap chain images from the image list
+		for (VkImage image : _swapchain_images)
+			_device_impl->unregister_image(image);
 	_swapchain_images.clear();
 
 	for (VkSemaphore &semaphore : _queue_sync_semaphores)
-		vk.DestroySemaphore(_device, semaphore, nullptr),
+		vk.DestroySemaphore(_device_impl->_orig, semaphore, nullptr),
 		semaphore = VK_NULL_HANDLE;
 }
 
@@ -232,9 +249,9 @@ void reshade::vulkan::runtime_impl::on_present(VkQueue queue, const uint32_t swa
 		wait.push_back(submit_info.pSignalSemaphores[0]);
 
 		_queue_sync_index = (_queue_sync_index + 1) % NUM_QUERY_FRAMES;
-	}
 
-	_cmd_impl->flush(_queue, wait);
+		_queue_impl->flush_immediate_command_list(wait);
+	}
 }
 bool reshade::vulkan::runtime_impl::on_layer_submit(uint32_t eye, VkImage source, const VkExtent2D &source_extent, VkFormat source_format, VkSampleCountFlags source_samples, uint32_t source_layer_index, const float bounds[4], VkImage *target_image)
 {
@@ -255,7 +272,7 @@ bool reshade::vulkan::runtime_impl::on_layer_submit(uint32_t eye, VkImage source
 
 	VkCommandBuffer cmd_list = VK_NULL_HANDLE;
 
-	if (target_extent.width != _width || target_extent.height != _height || source_format != _backbuffer_format)
+	if (target_extent.width != _width || target_extent.height != _height || convert_format(source_format) != _backbuffer_format)
 	{
 		on_reset();
 
@@ -286,12 +303,13 @@ bool reshade::vulkan::runtime_impl::on_layer_submit(uint32_t eye, VkImage source
 			return false;
 		}
 
-		cmd_list = _cmd_impl->begin_commands();
+		cmd_list = static_cast<command_list_immediate_impl *>(_queue_impl->get_immediate_command_list())->begin_commands();
 		transition_layout(vk, cmd_list, _swapchain_images[0], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 	}
 	else
 	{
-		cmd_list = _cmd_impl->begin_commands();
+
+		cmd_list = static_cast<command_list_immediate_impl *>(_queue_impl->get_immediate_command_list())->begin_commands();
 		transition_layout(vk, cmd_list, _swapchain_images[0], VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 	}
 

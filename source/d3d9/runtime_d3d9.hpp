@@ -7,7 +7,6 @@
 
 #include "runtime.hpp"
 #include "reshade_api_device.hpp"
-#include "reshade_api_type_utils.hpp"
 #include "state_block_d3d9.hpp"
 
 namespace reshade::d3d9
@@ -29,15 +28,12 @@ namespace reshade::d3d9
 
 		api::resource_view get_backbuffer(bool srgb) final { return { reinterpret_cast<uintptr_t>(_backbuffer_resolved.get()) | (srgb ? 1 : 0) }; }
 		api::resource get_backbuffer_resource() final { return { reinterpret_cast<uintptr_t>(_backbuffer_resolved.get()) }; }
-		api::format get_backbuffer_format() final { return convert_format(_backbuffer_format); }
 
 	private:
-		const com_ptr<IDirect3DDevice9> _device;
 		device_impl *const _device_impl;
 
 		state_block _app_state;
 
-		D3DFORMAT _backbuffer_format = D3DFMT_UNKNOWN;
 		com_ptr<IDirect3DSurface9> _backbuffer;
 		com_ptr<IDirect3DSurface9> _backbuffer_resolved;
 

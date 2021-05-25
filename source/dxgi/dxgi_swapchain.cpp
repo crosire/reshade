@@ -134,20 +134,26 @@ void DXGISwapChain::runtime_present(UINT flags)
 	// This is necessary because Resident Evil 3 calls DXGI functions simultaneously from multiple threads (which is technically illegal)
 	const std::lock_guard<std::mutex> lock(_runtime_mutex);
 
-#if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::present>(_runtime->get_command_queue(), _runtime);
-#endif
-
 	switch (_direct3d_version)
 	{
 	case 10:
+#if RESHADE_ADDON
+		reshade::invoke_addon_event<reshade::addon_event::present>(static_cast<D3D10Device *>(_direct3d_device), _runtime);
+#endif
 		static_cast<reshade::d3d10::runtime_impl *>(_runtime)->on_present();
 		break;
 	case 11:
+#if RESHADE_ADDON
+		reshade::invoke_addon_event<reshade::addon_event::present>(static_cast<D3D11Device *>(_direct3d_device)->_immediate_context, _runtime);
+#endif
 		static_cast<reshade::d3d11::runtime_impl *>(_runtime)->on_present();
 		break;
 	case 12:
+#if RESHADE_ADDON
+		reshade::invoke_addon_event<reshade::addon_event::present>(static_cast<D3D12CommandQueue *>(_direct3d_command_queue), _runtime);
+#endif
 		static_cast<reshade::d3d12::runtime_impl *>(_runtime)->on_present();
+		static_cast<D3D12CommandQueue *>(_direct3d_command_queue)->flush_immediate_command_list();
 		break;
 	}
 }

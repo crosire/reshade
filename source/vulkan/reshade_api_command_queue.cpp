@@ -56,6 +56,11 @@ void reshade::vulkan::command_queue_impl::flush_immediate_command_list() const
 	if (_immediate_cmd_list != nullptr)
 		_immediate_cmd_list->flush(_orig, wait_semaphores);
 }
+void reshade::vulkan::command_queue_impl::flush_immediate_command_list(std::vector<VkSemaphore> &wait_semaphores) const
+{
+	if (_immediate_cmd_list != nullptr)
+		_immediate_cmd_list->flush(_orig, wait_semaphores);
+}
 
 void reshade::vulkan::command_queue_impl::wait_idle() const
 {

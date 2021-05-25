@@ -451,7 +451,8 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 	// This requires the resource pointers to be at least 2-byte aligned, to ensure the first bit is always unused otherwise
 	static_assert(alignof(IDirect3DResource9) >= 2);
 	const uint64_t set_srgb_bit =
-		desc.format == api::format::r8g8b8a8_unorm_srgb || desc.format == api::format::b8g8r8a8_unorm_srgb || desc.format == api::format::b8g8r8x8_unorm_srgb ||
+		desc.format == api::format::r8g8b8a8_unorm_srgb || desc.format == api::format::r8g8b8x8_unorm_srgb ||
+		desc.format == api::format::b8g8r8a8_unorm_srgb || desc.format == api::format::b8g8r8x8_unorm_srgb ||
 		desc.format == api::format::bc1_unorm_srgb || desc.format == api::format::bc2_unorm_srgb || desc.format == api::format::bc3_unorm_srgb;
 
 	switch (object->GetType())

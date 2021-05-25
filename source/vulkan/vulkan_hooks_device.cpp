@@ -8,6 +8,7 @@
 #include "vulkan_hooks.hpp"
 #include "lockfree_table.hpp"
 #include "runtime_vk.hpp"
+#include "reshade_api_type_utils.hpp"
 
 lockfree_table<void *, reshade::vulkan::device_impl *, 16> g_vulkan_devices;
 static lockfree_table<VkQueue, reshade::vulkan::command_queue_impl *, 16> s_vulkan_queues;
@@ -505,26 +506,6 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		return result;
 	}
 
-	// Add swap chain images to the image list
-	uint32_t num_swapchain_images = 0;
-	device_impl->_dispatch_table.GetSwapchainImagesKHR(device, *pSwapchain, &num_swapchain_images, nullptr);
-	std::vector<VkImage> swapchain_images(num_swapchain_images);
-	device_impl->_dispatch_table.GetSwapchainImagesKHR(device, *pSwapchain, &num_swapchain_images, swapchain_images.data());
-
-	VkImageCreateInfo image_create_info { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
-	image_create_info.imageType = VK_IMAGE_TYPE_2D;
-	image_create_info.format = create_info.imageFormat;
-	image_create_info.extent = { create_info.imageExtent.width, create_info.imageExtent.height, 1 };
-	image_create_info.mipLevels = 1;
-	image_create_info.arrayLayers = create_info.imageArrayLayers;
-	image_create_info.samples = VK_SAMPLE_COUNT_1_BIT;
-	image_create_info.usage = create_info.imageUsage;
-	image_create_info.sharingMode = create_info.imageSharingMode;
-	image_create_info.initialLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-
-	for (uint32_t i = 0; i < num_swapchain_images; ++i)
-		device_impl->register_image(swapchain_images[i], image_create_info);
-
 	reshade::vulkan::command_queue_impl *queue_impl = nullptr;
 	if (device_impl->_graphics_queue_family_index != std::numeric_limits<uint32_t>::max())
 	{
@@ -587,15 +568,6 @@ void     VKAPI_CALL vkDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapch
 	// Remove runtime from global list
 	delete s_vulkan_runtimes.erase(swapchain);
 
-	// Remove swap chain images from the image list
-	uint32_t num_swapchain_images = 0;
-	device_impl->_dispatch_table.GetSwapchainImagesKHR(device, swapchain, &num_swapchain_images, nullptr);
-	std::vector<VkImage> swapchain_images(num_swapchain_images);
-	device_impl->_dispatch_table.GetSwapchainImagesKHR(device, swapchain, &num_swapchain_images, swapchain_images.data());
-
-	for (uint32_t i = 0; i < num_swapchain_images; ++i)
-		device_impl->unregister_image(swapchain_images[i]);
-
 	GET_DISPATCH_PTR_FROM(DestroySwapchainKHR, device_impl);
 	trampoline(device, swapchain, pAllocator);
 }
@@ -608,8 +580,6 @@ VkResult VKAPI_CALL vkQueueSubmit(VkQueue queue, uint32_t submitCount, const VkS
 	reshade::vulkan::command_queue_impl *const queue_impl = s_vulkan_queues.at(queue);
 	if (queue_impl != nullptr)
 	{
-		queue_impl->flush_immediate_command_list();
-
 		for (uint32_t i = 0; i < submitCount; ++i)
 		{
 			for (uint32_t k = 0; k < pSubmits[i].commandBufferCount; ++k)
@@ -620,6 +590,8 @@ VkResult VKAPI_CALL vkQueueSubmit(VkQueue queue, uint32_t submitCount, const VkS
 					queue_impl, s_vulkan_command_buffers.at(pSubmits[i].pCommandBuffers[k]));
 			}
 		}
+
+		queue_impl->flush_immediate_command_list();
 	}
 #endif
 
@@ -649,6 +621,8 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 				runtime->on_present(queue, pPresentInfo->pImageIndices[i], wait_semaphores);
 			}
 		}
+
+		queue_impl->flush_immediate_command_list(wait_semaphores);
 
 		static_cast<reshade::vulkan::device_impl *>(queue_impl->get_device())->advance_transient_descriptor_pool();
 	}

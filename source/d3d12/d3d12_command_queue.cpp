@@ -147,8 +147,6 @@ void    STDMETHODCALLTYPE D3D12CommandQueue::CopyTileMappings(ID3D12Resource *pD
 }
 void    STDMETHODCALLTYPE D3D12CommandQueue::ExecuteCommandLists(UINT NumCommandLists, ID3D12CommandList *const *ppCommandLists)
 {
-	flush_immediate_command_list();
-
 	std::vector<ID3D12CommandList *> command_lists(NumCommandLists);
 	for (UINT i = 0; i < NumCommandLists; i++)
 	{
@@ -170,6 +168,8 @@ void    STDMETHODCALLTYPE D3D12CommandQueue::ExecuteCommandLists(UINT NumCommand
 			command_lists[i] = ppCommandLists[i];
 		}
 	}
+
+	flush_immediate_command_list();
 
 	_orig->ExecuteCommandLists(NumCommandLists, command_lists.data());
 }

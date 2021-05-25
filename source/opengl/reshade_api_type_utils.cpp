@@ -46,6 +46,9 @@ auto reshade::opengl::convert_format(api::format format) -> GLenum
 		return GL_SRGB8_ALPHA8;
 	case api::format::r8g8b8a8_snorm:
 		return GL_RGBA8_SNORM;
+	case api::format::r8g8b8x8_typeless:
+	case api::format::r8g8b8x8_unorm:
+	case api::format::r8g8b8x8_unorm_srgb:
 	case api::format::b8g8r8a8_typeless:
 	case api::format::b8g8r8a8_unorm:
 	case api::format::b8g8r8a8_unorm_srgb:
@@ -132,6 +135,8 @@ auto reshade::opengl::convert_format(api::format format) -> GLenum
 		return GL_RGB565;
 	case api::format::b5g5r5a1_unorm:
 		return GL_RGB5_A1;
+	case api::format::b5g5r5x1_unorm:
+		break; // Unsupported
 	case api::format::b4g4r4a4_unorm:
 		return GL_RGBA4;
 	case api::format::s8_uint:

@@ -20,6 +20,7 @@ namespace reshade::vulkan
 		api::command_list *get_immediate_command_list() final { return _immediate_cmd_list; }
 
 		void flush_immediate_command_list() const final;
+		void flush_immediate_command_list(std::vector<VkSemaphore> &wait_semaphores) const;
 
 		void wait_idle() const final;
 

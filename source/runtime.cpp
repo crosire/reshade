@@ -133,13 +133,40 @@ bool reshade::runtime::on_init(input::window_handle window)
 	_preset_save_success = true;
 	_screenshot_save_success = true;
 
+	// Only need to handle swap chain formats
+	switch (_backbuffer_format)
+	{
+	case api::format::b5g6r5_unorm:
+	case api::format::b5g5r5a1_unorm:
+		_color_bit_depth = 5;
+		break;
+	case api::format::r8g8b8a8_unorm:
+	case api::format::r8g8b8a8_unorm_srgb:
+	case api::format::r8g8b8x8_unorm:
+	case api::format::r8g8b8x8_unorm_srgb:
+	case api::format::b8g8r8a8_unorm:
+	case api::format::b8g8r8a8_unorm_srgb:
+	case api::format::b8g8r8x8_unorm:
+	case api::format::b8g8r8x8_unorm_srgb:
+		_color_bit_depth = 8;
+		break;
+	case api::format::r10g10b10a2_unorm:
+	case api::format::r10g10b10a2_xr_bias:
+	case api::format::b10g10r10a2_unorm:
+		_color_bit_depth = 10;
+		break;
+	case api::format::r16g16b16a16_float:
+		_color_bit_depth = 16;
+		break;
+	}
+
 	api::device *const device = get_device();
 
 	// Create back buffer shader resource
 	if (_backbuffer_texture.handle == 0)
 	{
 		if (!device->create_resource(
-			api::resource_desc(_width, _height, 1, 1, api::format_to_typeless(get_backbuffer_format()), 1, api::memory_heap::gpu_only, api::resource_usage::copy_dest | api::resource_usage::shader_resource),
+			api::resource_desc(_width, _height, 1, 1, api::format_to_typeless(_backbuffer_format), 1, api::memory_heap::gpu_only, api::resource_usage::copy_dest | api::resource_usage::shader_resource),
 			nullptr,
 			api::resource_usage::shader_resource,
 			&_backbuffer_texture))
@@ -149,13 +176,13 @@ bool reshade::runtime::on_init(input::window_handle window)
 		if (!device->create_resource_view(
 			_backbuffer_texture,
 			api::resource_usage::shader_resource,
-			api::resource_view_desc(api::format_to_default_typed(get_backbuffer_format()), 0, 1, 0, 1),
+			api::resource_view_desc(api::format_to_default_typed(_backbuffer_format), 0, 1, 0, 1),
 			&_backbuffer_texture_view[0]))
 			return false;
 		if (!device->create_resource_view(
 			_backbuffer_texture,
 			api::resource_usage::shader_resource,
-			api::resource_view_desc(api::format_to_default_typed_srgb(get_backbuffer_format()), 0, 1, 0, 1),
+			api::resource_view_desc(api::format_to_default_typed_srgb(_backbuffer_format), 0, 1, 0, 1),
 			&_backbuffer_texture_view[1]))
 			return false;
 	}
@@ -1250,7 +1277,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 				{
 					desc.graphics.num_render_targets = 1;
 					desc.graphics.render_target_format[0] =
-						pass_info.srgb_write_enable ? api::format_to_default_typed_srgb(get_backbuffer_format()) : api::format_to_default_typed(get_backbuffer_format());
+						pass_info.srgb_write_enable ? api::format_to_default_typed_srgb(_backbuffer_format) : api::format_to_default_typed(_backbuffer_format);
 
 					pass_info.viewport_width = _width;
 					pass_info.viewport_height = _height;
@@ -3063,7 +3090,7 @@ bool reshade::runtime::capture_screenshot(uint8_t *buffer)
 {
 	if (_color_bit_depth != 8 && _color_bit_depth != 10)
 	{
-		LOG(ERROR) << "Screenshots are not supported for back buffer format " << static_cast<uint32_t>(get_backbuffer_format()) << '!';
+		LOG(ERROR) << "Screenshots are not supported for back buffer format " << static_cast<uint32_t>(_backbuffer_format) << '!';
 		return false;
 	}
 
@@ -3095,7 +3122,7 @@ bool reshade::runtime::capture_screenshot(uint8_t *buffer)
 	}
 	else
 	{
-		if (!device->create_resource(api::resource_desc(_width, _height, 1, 1, get_backbuffer_format(), 1, api::memory_heap::gpu_to_cpu, api::resource_usage::copy_dest), nullptr, api::resource_usage::copy_dest, &intermediate))
+		if (!device->create_resource(api::resource_desc(_width, _height, 1, 1, _backbuffer_format, 1, api::memory_heap::gpu_to_cpu, api::resource_usage::copy_dest), nullptr, api::resource_usage::copy_dest, &intermediate))
 		{
 			LOG(ERROR) << "Failed to create system memory texture for screenshot capture!";
 			return false;
@@ -3129,8 +3156,8 @@ bool reshade::runtime::capture_screenshot(uint8_t *buffer)
 					buffer[x + 1] = (((rgba & 0x000FFC00) >> 10) /  4) & 0xFF;
 					buffer[x + 2] = (((rgba & 0x3FF00000) >> 20) /  4) & 0xFF;
 					buffer[x + 3] = (((rgba & 0xC0000000) >> 30) * 85) & 0xFF;
-					if (get_backbuffer_format() >= api::format::b10g10r10a2_typeless &&
-						get_backbuffer_format() <= api::format::b10g10r10a2_uint)
+					if (_backbuffer_format >= api::format::b10g10r10a2_typeless &&
+						_backbuffer_format <= api::format::b10g10r10a2_uint)
 						std::swap(buffer[x + 0], buffer[x + 2]);
 				}
 			}
@@ -3138,8 +3165,8 @@ bool reshade::runtime::capture_screenshot(uint8_t *buffer)
 			{
 				std::memcpy(buffer, mapped_data, data_pitch);
 
-				if (get_backbuffer_format() >= api::format::b8g8r8a8_unorm &&
-					get_backbuffer_format() <= api::format::b8g8r8a8_unorm_srgb)
+				if (_backbuffer_format >= api::format::b8g8r8a8_unorm &&
+					_backbuffer_format <= api::format::b8g8r8a8_unorm_srgb)
 				{
 					// Format is BGRA, but output should be RGBA, so flip channels
 					for (uint32_t x = 0; x < data_pitch; x += 4)

@@ -40,8 +40,11 @@ auto reshade::vulkan::convert_format(api::format format) -> VkFormat
 		return VK_FORMAT_R8G8B8A8_SINT;
 	case api::format::r8g8b8a8_typeless:
 	case api::format::r8g8b8a8_unorm:
+	case api::format::r8g8b8x8_typeless:
+	case api::format::r8g8b8x8_unorm:
 		return VK_FORMAT_R8G8B8A8_UNORM;
 	case api::format::r8g8b8a8_unorm_srgb:
+	case api::format::r8g8b8x8_unorm_srgb:
 		return VK_FORMAT_R8G8B8A8_SRGB;
 	case api::format::r8g8b8a8_snorm:
 		return VK_FORMAT_R8G8B8A8_SNORM;
@@ -133,6 +136,7 @@ auto reshade::vulkan::convert_format(api::format format) -> VkFormat
 	case api::format::b5g6r5_unorm:
 		return VK_FORMAT_R5G6B5_UNORM_PACK16;
 	case api::format::b5g5r5a1_unorm:
+	case api::format::b5g5r5x1_unorm:
 		return VK_FORMAT_A1R5G5B5_UNORM_PACK16;
 #if 0
 	case api::format::b4g4r4a4_unorm:
