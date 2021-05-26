@@ -24,15 +24,21 @@ namespace reshade::vulkan
 		api::device *get_device() final { return _device_impl; }
 		api::command_queue *get_command_queue() final { return _queue_impl; }
 
+		void get_current_back_buffer(api::resource *out) final
+		{
+			*out = { (uint64_t)_swapchain_images[_swap_index] };
+		}
+		void get_current_back_buffer_target(bool srgb, api::resource_view *out) final
+		{
+			*out = { (uint64_t)_swapchain_views[_swap_index * 2 + (srgb ? 1 : 0)] };
+		}
+
 		bool on_init(VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &desc, HWND hwnd);
 		void on_reset();
 		void on_present(VkQueue queue, const uint32_t swapchain_image_index, std::vector<VkSemaphore> &wait);
 		bool on_layer_submit(uint32_t eye, VkImage source, const VkExtent2D &source_extent, VkFormat source_format, VkSampleCountFlags source_samples, uint32_t source_layer_index, const float bounds[4], VkImage *target_image);
 
 		bool compile_effect(effect &effect, api::shader_stage type, const std::string &entry_point, std::vector<char> &out) final;
-
-		api::resource_view get_backbuffer(bool srgb) final { return { (uint64_t)_swapchain_views[_swap_index * 2 + (srgb ? 1 : 0)] }; }
-		api::resource get_backbuffer_resource() final { return { (uint64_t)_swapchain_images[_swap_index] }; }
 
 	private:
 		device_impl *const _device_impl;

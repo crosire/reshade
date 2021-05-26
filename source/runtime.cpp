@@ -2358,8 +2358,11 @@ void reshade::runtime::update_and_render_effects()
 		}
 	}
 
+	api::resource backbuffer;
+	get_current_back_buffer(&backbuffer);
+
 	auto cmd_list = get_command_queue()->get_immediate_command_list();
-	cmd_list->barrier(get_backbuffer_resource(), api::resource_usage::present, api::resource_usage::render_target);
+	cmd_list->barrier(backbuffer, api::resource_usage::present, api::resource_usage::render_target);
 
 	// Render all enabled techniques
 	for (technique &technique : _techniques)
@@ -2389,7 +2392,7 @@ void reshade::runtime::update_and_render_effects()
 		}
 	}
 
-	cmd_list->barrier(get_backbuffer_resource(), api::resource_usage::render_target, api::resource_usage::present);
+	cmd_list->barrier(backbuffer, api::resource_usage::render_target, api::resource_usage::present);
 
 	if (_should_save_screenshot)
 		save_screenshot(std::wstring(), true);
@@ -2401,6 +2404,9 @@ void reshade::runtime::render_technique(technique &technique)
 
 	api::device *const device = get_device();
 	api::command_list *const cmd_list = get_command_queue()->get_immediate_command_list();
+
+	api::resource backbuffer;
+	get_current_back_buffer(&backbuffer);
 
 #if RESHADE_ADDON
 	invoke_addon_event<addon_event::reshade_before_effects>(this, cmd_list);
@@ -2460,12 +2466,12 @@ void reshade::runtime::render_technique(technique &technique)
 		if (needs_implicit_backbuffer_copy)
 		{
 			// Save back buffer of previous pass
-			const api::resource resources[2] = { get_backbuffer_resource(), _backbuffer_texture };
+			const api::resource resources[2] = { backbuffer, _backbuffer_texture };
 			const api::resource_usage state_old[2] = { api::resource_usage::render_target, api::resource_usage::shader_resource };
 			const api::resource_usage state_new[2] = { api::resource_usage::copy_source, api::resource_usage::copy_dest };
 
 			cmd_list->barrier(2, resources, state_old, state_new);
-			cmd_list->copy_resource(get_backbuffer_resource(), _backbuffer_texture);
+			cmd_list->copy_resource(backbuffer, _backbuffer_texture);
 			cmd_list->barrier(2, resources, state_new, state_old);
 		}
 
@@ -2519,7 +2525,8 @@ void reshade::runtime::render_technique(technique &technique)
 			{
 				needs_implicit_backbuffer_copy = true;
 
-				const api::resource_view rtv = get_backbuffer(pass_info.srgb_write_enable);
+				api::resource_view rtv;
+				get_current_back_buffer_target(pass_info.srgb_write_enable, &rtv);
 
 				if (pass_info.clear_render_targets)
 					cmd_list->clear_render_target_view(rtv, clear_color);
@@ -3096,6 +3103,9 @@ bool reshade::runtime::capture_screenshot(uint8_t *buffer)
 
 	api::device *const device = get_device();
 
+	api::resource backbuffer;
+	get_current_back_buffer(&backbuffer);
+
 	const size_t data_pitch = _width * 4;
 	size_t texture_pitch = data_pitch;
 
@@ -3116,9 +3126,9 @@ bool reshade::runtime::capture_screenshot(uint8_t *buffer)
 
 		const auto cmd_list = get_command_queue()->get_immediate_command_list();
 
-		cmd_list->barrier(get_backbuffer_resource(), api::resource_usage::present, api::resource_usage::copy_source);
-		cmd_list->copy_texture_to_buffer(get_backbuffer_resource(), 0, nullptr, intermediate, 0, _width, _height);
-		cmd_list->barrier(get_backbuffer_resource(), api::resource_usage::copy_source, api::resource_usage::present);
+		cmd_list->barrier(backbuffer, api::resource_usage::present, api::resource_usage::copy_source);
+		cmd_list->copy_texture_to_buffer(backbuffer, 0, nullptr, intermediate, 0, _width, _height);
+		cmd_list->barrier(backbuffer, api::resource_usage::copy_source, api::resource_usage::present);
 	}
 	else
 	{
@@ -3131,9 +3141,9 @@ bool reshade::runtime::capture_screenshot(uint8_t *buffer)
 
 		const auto cmd_list = get_command_queue()->get_immediate_command_list();
 
-		cmd_list->barrier(get_backbuffer_resource(), api::resource_usage::present, api::resource_usage::copy_source);
-		cmd_list->copy_resource(get_backbuffer_resource(), intermediate);
-		cmd_list->barrier(get_backbuffer_resource(), api::resource_usage::copy_source, api::resource_usage::present);
+		cmd_list->barrier(backbuffer, api::resource_usage::present, api::resource_usage::copy_source);
+		cmd_list->copy_resource(backbuffer, intermediate);
+		cmd_list->barrier(backbuffer, api::resource_usage::copy_source, api::resource_usage::present);
 	}
 
 	// Wait for any rendering by the application finish before submitting

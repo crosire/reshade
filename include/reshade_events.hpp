@@ -45,6 +45,16 @@ namespace reshade
 		/// </summary>
 		destroy_command_queue,
 		/// <summary>
+		/// Called after 'IDirect3D9::CreateDevice(Ex)', 'IDirect3D9Device::CreateAdditionalSwapChain', 'IDXGIFactory(2)::CreateSwapChain(...)', 'glMakeCurrent' or 'vkCreateSwapchainKHR'.
+		/// <para>Callback function signature: <c>void (api::swapchain *swapchain)</c></para>
+		/// </summary>
+		init_swapchain,
+		/// <summary>
+		/// Called on swapchain destruction, before last 'IDirect3DSwapChain9::Release', 'IDXGISwapChain::Release' or 'vkDestroySwapchainKHR'.
+		/// <para>Callback function signature: <c>void (api::swapchain *swapchain)</c></para>
+		/// </summary>
+		destroy_swapchain,
+		/// <summary>
 		/// Called after effect runtime initialization (which happens after swap chain creation or a swap chain buffer resize).
 		/// <para>Callback function signature: <c>void (api::effect_runtime *runtime)</c></para>
 		/// </summary>
@@ -277,12 +287,12 @@ namespace reshade
 
 		/// <summary>
 		/// Called before 'IDXGISwapChain::ResizeBuffers' or after existing swap chain was updated via 'vkCreateSwapchainKHR'.
-		/// <para>Callback function signature: <c>void (api::effect_runtime *runtime, uint32_t width, uint32_t height)</c></para>
+		/// <para>Callback function signature: <c>void (api::swapchain *swapchain, uint32_t width, uint32_t height)</c></para>
 		/// </summary>
 		resize,
 		/// <summary>
 		/// Called before 'IDirect3DDevice9::Present(Ex)', 'IDirect3DSwapChain9::Present', 'IDXGISwapChain::Present(1)', 'wglSwapBuffers' or 'vkQueuePresentKHR'.
-		/// <para>Callback function signature: <c>void (api::command_queue *present_queue, api::effect_runtime *runtime)</c></para>
+		/// <para>Callback function signature: <c>void (api::command_queue *queue, api::swapchain *swapchain)</c></para>
 		/// </summary>
 		present,
 
@@ -356,6 +366,8 @@ namespace reshade
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::destroy_command_list, api::command_list *cmd_list);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::init_command_queue, api::command_queue *queue);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::destroy_command_queue, api::command_queue *queue);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::init_swapchain, api::swapchain *swapchain);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::destroy_swapchain, api::swapchain *swapchain);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::init_effect_runtime, api::effect_runtime *runtime);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::destroy_effect_runtime, api::effect_runtime *runtime);
 
@@ -402,8 +414,8 @@ namespace reshade
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::execute_command_list, api::command_queue *queue, api::command_list *cmd_list);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::execute_secondary_command_list, api::command_list *cmd_list, api::command_list *secondary_cmd_list);
 
-	DEFINE_ADDON_EVENT_TYPE_1(addon_event::resize, api::effect_runtime *runtime, uint32_t width, uint32_t height);
-	DEFINE_ADDON_EVENT_TYPE_1(addon_event::present, api::command_queue *present_queue, api::effect_runtime *runtime);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::resize, api::swapchain *swapchain, uint32_t width, uint32_t height);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::present, api::command_queue *queue, api::swapchain *swapchain);
 
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::reshade_after_effects, api::effect_runtime *runtime, api::command_list *cmd_list);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::reshade_before_effects, api::effect_runtime *runtime, api::command_list *cmd_list);

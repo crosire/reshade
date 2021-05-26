@@ -12,7 +12,7 @@ Here is a very basic code example of an add-on that registers a callback that ge
 #define RESHADE_ADDON_IMPL // Define this before including the ReShade header in exactly one source file
 #include <reshade.hpp>
 
-static void on_present(reshade::api::command_queue *, reshade::api::effect_runtime *runtime)
+static void on_present(reshade::api::command_queue *, reshade::api::swapchain *swapchain)
 {
 	// ...
 }

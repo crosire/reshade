@@ -3375,9 +3375,13 @@ void reshade::runtime::render_imgui_draw_data(ImDrawData *draw_data)
 
 	api::command_list *const cmd_list = get_command_queue()->get_immediate_command_list();
 
-	cmd_list->barrier(get_backbuffer_resource(), api::resource_usage::present, api::resource_usage::render_target);
+	api::resource backbuffer;
+	get_current_back_buffer(&backbuffer);
+	cmd_list->barrier(backbuffer, api::resource_usage::present, api::resource_usage::render_target);
 
-	const api::resource_view rtv = get_backbuffer(false);
+	api::resource_view rtv;
+	get_current_back_buffer_target(false, &rtv);
+
 	cmd_list->begin_render_pass(1, &rtv);
 
 	// Setup render state
@@ -3446,7 +3450,7 @@ void reshade::runtime::render_imgui_draw_data(ImDrawData *draw_data)
 
 	cmd_list->finish_render_pass();
 
-	cmd_list->barrier(get_backbuffer_resource(), api::resource_usage::render_target, api::resource_usage::present);
+	cmd_list->barrier(backbuffer, api::resource_usage::render_target, api::resource_usage::present);
 }
 
 #endif

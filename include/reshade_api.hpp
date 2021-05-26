@@ -794,10 +794,29 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
-	/// A ReShade effect runtime, used to control effects.
-	/// <para>A separate runtime is instantiated for every swap chain ('IDirect3DSwapChain9', 'IDXGISwapChain', 'HDC' or 'VkSwapchainKHR').</para>
+	/// A swap chain, used to present images to the screen.
+	/// <para>Functionally equivalent to a 'IDirect3DSwapChain9', 'IDXGISwapChain', 'HDC' or 'VkSwapchainKHR'.</para>
 	/// </summary>
-	struct DECLSPEC_NOVTABLE effect_runtime : public device_object
+	struct DECLSPEC_NOVTABLE swapchain : public device_object
+	{
+		/// <summary>
+		/// Gets the current back buffer resource.
+		/// </summary>
+		/// <param name="out">Pointer to a handle that is set to the handle of the back buffer resource.</param>
+		virtual void get_current_back_buffer(resource *out) = 0;
+		/// <summary>
+		/// Gets a render target for the current back buffer resource.
+		/// </summary>
+		/// <param name="srgb"><c>true</c> to get a view using the sRGB variant of the format, <c>false</c> for the default.</param>
+		/// <param name="out">Pointer to a handle that is set to the handle of the back buffer render target.</param>
+		virtual void get_current_back_buffer_target(bool srgb, resource_view *out) = 0;
+	};
+
+	/// <summary>
+	/// A ReShade effect runtime, used to control effects.
+	/// <para>A separate runtime is instantiated for every swap chain.</para>
+	/// </summary>
+	struct DECLSPEC_NOVTABLE effect_runtime : public swapchain
 	{
 		/// <summary>
 		/// Gets the main graphics command queue associated with this effect runtime.

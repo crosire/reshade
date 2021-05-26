@@ -26,15 +26,29 @@ namespace reshade::opengl
 		api::device *get_device() final { return this; }
 		api::command_queue *get_command_queue() final { return this; }
 
+		void get_current_back_buffer(api::resource *out) final
+		{
+#if 0
+			*out = make_resource_handle(GL_FRAMEBUFFER_DEFAULT, GL_BACK);
+#else
+			*out = make_resource_handle(GL_RENDERBUFFER, _rbo);
+#endif
+		}
+		void get_current_back_buffer_target(bool srgb, api::resource_view *out) final
+		{
+#if 0
+			*out = make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_BACK, srgb ? 0x2 : 0);
+#else
+			*out = make_resource_view_handle(GL_RENDERBUFFER, _rbo, srgb ? 0x2 : 0);
+#endif
+		}
+
 		bool on_init(HWND hwnd, unsigned int width, unsigned int height);
 		void on_reset();
 		void on_present(bool default_fbo = true);
 		bool on_layer_submit(uint32_t eye, GLuint source_object, bool is_rbo, bool is_array, const float bounds[4], GLuint *target_rbo);
 
 		bool compile_effect(effect &effect, api::shader_stage type, const std::string &entry_point, std::vector<char> &out) final;
-
-		api::resource_view get_backbuffer(bool srgb) final { return make_resource_view_handle(GL_RENDERBUFFER, _rbo, srgb ? 0x2 : 0); }
-		api::resource get_backbuffer_resource() final { return make_resource_handle(GL_RENDERBUFFER, _rbo);	}
 
 	private:
 		state_block _app_state;

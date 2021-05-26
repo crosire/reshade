@@ -21,6 +21,15 @@ namespace reshade::d3d11
 		api::device *get_device() final { return _device_impl; }
 		api::command_queue *get_command_queue() final { return _immediate_context_impl; }
 
+		void get_current_back_buffer(api::resource *out) final
+		{
+			*out = { (uintptr_t)_backbuffer_resolved.get() };
+		}
+		void get_current_back_buffer_target(bool srgb, api::resource_view *out) final
+		{
+			*out = { reinterpret_cast<uintptr_t>(_backbuffer_rtv[srgb ? 1 : 0].get()) };
+		}
+
 		bool on_init();
 		bool on_init(const DXGI_SWAP_CHAIN_DESC &desc);
 		void on_reset();
@@ -28,9 +37,6 @@ namespace reshade::d3d11
 		bool on_layer_submit(UINT eye, ID3D11Texture2D *source, const float bounds[4], ID3D11Texture2D **target);
 
 		bool compile_effect(effect &effect, api::shader_stage type, const std::string &entry_point, std::vector<char> &cso) final;
-
-		api::resource_view get_backbuffer(bool srgb) final { return { reinterpret_cast<uintptr_t>(_backbuffer_rtv[srgb ? 1 : 0].get()) }; }
-		api::resource get_backbuffer_resource() final { return { (uintptr_t)_backbuffer_resolved.get() }; }
 
 	private:
 		device_impl *const _device_impl;

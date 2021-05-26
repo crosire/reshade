@@ -20,6 +20,15 @@ namespace reshade::d3d12
 		api::device *get_device() final { return _device_impl; }
 		api::command_queue *get_command_queue() final { return _cmd_queue_impl; }
 
+		void get_current_back_buffer(api::resource *out) final
+		{
+			*out = { (uintptr_t)_backbuffers[_swap_index].get() };
+		}
+		void get_current_back_buffer_target(bool srgb, api::resource_view *out) final
+		{
+			*out = { _backbuffer_rtvs->GetCPUDescriptorHandleForHeapStart().ptr + (_swap_index * 2 + (srgb ? 1 : 0)) * _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_RTV] };
+		}
+
 		bool on_init();
 		bool on_init(const DXGI_SWAP_CHAIN_DESC &desc);
 		void on_reset();
@@ -28,9 +37,6 @@ namespace reshade::d3d12
 		bool on_layer_submit(UINT eye, ID3D12Resource *source, const float bounds[4], ID3D12Resource **target);
 
 		bool compile_effect(effect &effect, api::shader_stage type, const std::string &entry_point, std::vector<char> &cso) final;
-
-		api::resource_view get_backbuffer(bool srgb) final { return { _backbuffer_rtvs->GetCPUDescriptorHandleForHeapStart().ptr + (_swap_index * 2 + (srgb ? 1 : 0)) * _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_RTV] }; }
-		api::resource get_backbuffer_resource() final { return { (uintptr_t)_backbuffers[_swap_index].get() }; }
 
 	private:
 		device_impl *const _device_impl;

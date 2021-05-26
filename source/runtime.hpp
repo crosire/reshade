@@ -32,7 +32,7 @@ namespace reshade
 	/// Platform independent base class for the main ReShade runtime.
 	/// This class needs to be implemented for all supported rendering APIs.
 	/// </summary>
-	class runtime : public api::effect_runtime
+	class DECLSPEC_NOVTABLE runtime : public api::effect_runtime
 	{
 	public:
 		/// <summary>
@@ -211,9 +211,6 @@ namespace reshade
 		void update_texture_bindings(const char *semantic, api::resource_view srv) final;
 
 		virtual bool compile_effect(effect &effect, api::shader_stage type, const std::string &entry_point, std::vector<char> &out) = 0;
-
-		virtual api::resource_view get_backbuffer(bool) { return { 0 }; }
-		virtual api::resource get_backbuffer_resource() { return { 0 }; }
 
 		/// <summary>
 		/// Returns the texture object corresponding to the passed <paramref name="unique_name"/>.
