@@ -3283,8 +3283,8 @@ bool reshade::runtime::init_imgui_resources()
 		blend_state.src_color_blend_factor[0] = api::blend_factor::src_alpha;
 		blend_state.dst_color_blend_factor[0] = api::blend_factor::inv_src_alpha;
 		blend_state.color_blend_op[0] = api::blend_op::add;
-		blend_state.src_alpha_blend_factor[0] = api::blend_factor::inv_src_alpha;
-		blend_state.dst_alpha_blend_factor[0] = api::blend_factor::zero;
+		blend_state.src_alpha_blend_factor[0] = api::blend_factor::one;
+		blend_state.dst_alpha_blend_factor[0] = api::blend_factor::inv_src_alpha;
 		blend_state.alpha_blend_op[0] = api::blend_op::add;
 		blend_state.render_target_write_mask[0] = 0xF;
 	}
