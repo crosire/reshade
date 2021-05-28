@@ -11,6 +11,7 @@
 #define IDR_IMGUI_VS_4_0                107
 #define IDR_IMGUI_VS_SPIRV              108
 #define IDR_MIPMAP_CS                   109
+#define IDB_MAIN_ICON                   110
 #define IDR_LICENSE_GL3W                701
 #define IDR_LICENSE_IMGUI               702
 #define IDR_LICENSE_MINHOOK             703
@@ -22,10 +23,10 @@
 #define IDR_LICENSE_VULKAN              709
 
 // Next default values for new objects
-//
+// 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        110
+#define _APS_NEXT_RESOURCE_VALUE        111
 #define _APS_NEXT_COMMAND_VALUE         40001
 #define _APS_NEXT_CONTROL_VALUE         1001
 #define _APS_NEXT_SYMED_VALUE           102

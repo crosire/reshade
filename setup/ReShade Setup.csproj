@@ -7,7 +7,7 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <OutputType>WinExe</OutputType>
     <AssemblyName>ReShade Setup</AssemblyName>
-    <ApplicationIcon>Properties\Icon.ico</ApplicationIcon>
+    <ApplicationIcon>..\res\main_icon.ico</ApplicationIcon>
     <OutputPath>$(SolutionDir)\bin\$(Platform)\$(Configuration)\</OutputPath>
     <IntermediateOutputPath>$(SolutionDir)\intermediate\$(AssemblyName)\$(Platform)\$(Configuration)\</IntermediateOutputPath>
     <AppDesignerFolder>Properties</AppDesignerFolder>
@@ -117,9 +117,6 @@
     <None Include="ReShade64.json" />
     <EmbeddedResource Condition="Exists('Config\Compatibility.ini')" Include="Config\Compatibility.ini" />
     <EmbeddedResource Condition="Exists('Config\EffectPackages.ini')" Include="Config\EffectPackages.ini" />
-  </ItemGroup>
-  <ItemGroup>
-    <Content Include="Properties\Icon.ico" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.WindowsSDK.props" />
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Common.props" />
