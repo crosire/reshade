@@ -129,6 +129,8 @@ static vr::EVRCompositorError on_submit_d3d12(vr::EVREye eye, const vr::D3D12Tex
 
 		runtime->on_present();
 
+		runtime->get_command_queue()->flush_immediate_command_list();
+
 		const vr::VRTextureBounds_t left_bounds = calc_side_by_side_bounds(vr::Eye_Left, bounds);
 		submit(vr::Eye_Left, &target_texture, &left_bounds, flags);
 		const vr::VRTextureBounds_t right_bounds = calc_side_by_side_bounds(vr::Eye_Right, bounds);
@@ -243,6 +245,8 @@ static vr::EVRCompositorError on_submit_vulkan(vr::EVREye eye, const vr::VRVulka
 
 		std::vector<VkSemaphore> wait_semaphores;
 		runtime->on_present(texture->m_pQueue, 0, wait_semaphores);
+
+		runtime->get_command_queue()->flush_immediate_command_list();
 
 		auto target_texture = *texture;
 		target_texture.m_nImage = (uint64_t)target_image;

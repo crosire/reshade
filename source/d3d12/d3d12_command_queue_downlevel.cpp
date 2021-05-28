@@ -51,6 +51,8 @@ HRESULT STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Present(ID3D12GraphicsComm
 	assert(pSourceTex2D != nullptr);
 	runtime_impl::on_present(pSourceTex2D, hWindow);
 
+	_parent_queue->flush_immediate_command_list();
+
 	// Get original command list pointer from proxy object
 	if (com_ptr<D3D12GraphicsCommandList> command_list_proxy;
 		SUCCEEDED(pOpenCommandList->QueryInterface(&command_list_proxy)))
