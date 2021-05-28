@@ -2008,7 +2008,7 @@ void reshade::runtime::clear_effect_cache()
 void reshade::runtime::update_and_render_effects()
 {
 	// Delay first load to the first render call to avoid loading while the application is still initializing
-	if (_framecount == 0 && !_no_reload_on_init)
+	if (_framecount == 0 && !_no_reload_on_init && !(_no_reload_for_non_vr && !_is_vr))
 		reload_effects();
 
 	if (_reload_remaining_effects == 0)
@@ -2156,7 +2156,7 @@ void reshade::runtime::update_and_render_effects()
 		save_screenshot(_effects_enabled ? L" original" : std::wstring(), !_effects_enabled);
 
 	// Nothing to do here if effects are disabled globally
-	if (!_effects_enabled)
+	if (!_effects_enabled || _techniques.empty())
 		return;
 
 	// Update special uniform variables
@@ -2675,6 +2675,7 @@ void reshade::runtime::load_config()
 	config.get("GENERAL", "NoDebugInfo", _no_debug_info);
 	config.get("GENERAL", "NoEffectCache", _no_effect_cache);
 	config.get("GENERAL", "NoReloadOnInit", _no_reload_on_init);
+	config.get("GENERAL", "NoReloadOnInitForNonVR", _no_reload_for_non_vr);
 
 	config.get("GENERAL", "EffectSearchPaths", _effect_search_paths);
 	config.get("GENERAL", "PerformanceMode", _performance_mode);
@@ -2727,6 +2728,7 @@ void reshade::runtime::save_config() const
 	config.set("GENERAL", "NoDebugInfo", _no_debug_info);
 	config.set("GENERAL", "NoEffectCache", _no_effect_cache);
 	config.set("GENERAL", "NoReloadOnInit", _no_reload_on_init);
+	config.set("GENERAL", "NoReloadOnInitForNonVR", _no_reload_for_non_vr);
 
 	config.set("GENERAL", "EffectSearchPaths", _effect_search_paths);
 	config.set("GENERAL", "PerformanceMode", _performance_mode);

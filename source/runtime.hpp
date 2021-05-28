@@ -310,6 +310,7 @@ namespace reshade
 		bool _no_debug_info = 0;
 		bool _no_effect_cache = false;
 		bool _no_reload_on_init = false;
+		bool _no_reload_for_non_vr = false;
 		bool _effect_load_skipping = false;
 		bool _load_option_disable_skipping = false;
 		std::atomic<int> _last_reload_successfull = true;
