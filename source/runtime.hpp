@@ -221,6 +221,7 @@ namespace reshade
 		bool _is_initialized = false;
 		bool _performance_mode = false;
 		bool _gather_gpu_statistics = true;
+		bool _is_vr = false;
 		unsigned int _width = 0;
 		unsigned int _height = 0;
 		unsigned int _window_width = 0;
@@ -388,6 +389,10 @@ namespace reshade
 		void draw_gui_addons();
 #endif
 
+		void init_gui_vr();
+		void deinit_gui_vr();
+		void draw_gui_vr();
+
 		void draw_variable_editor();
 		void draw_technique_editor();
 
@@ -397,7 +402,7 @@ namespace reshade
 		void draw_code_editor(editor_instance &instance);
 
 		bool init_imgui_resources();
-		void render_imgui_draw_data(ImDrawData *draw_data);
+		void render_imgui_draw_data(ImDrawData *draw_data, api::resource_view target);
 
 		static const uint32_t NUM_IMGUI_BUFFERS = 4;
 
@@ -417,6 +422,9 @@ namespace reshade
 			api::resource vertices[NUM_IMGUI_BUFFERS] = {};
 			int num_indices[NUM_IMGUI_BUFFERS] = {};
 			int num_vertices[NUM_IMGUI_BUFFERS] = {};
+
+			api::resource overlay_texture = {};
+			api::resource_view overlay_target = {};
 		} _imgui;
 
 		// === User Interface ===
@@ -435,6 +443,7 @@ namespace reshade
 		int _fps_pos = 1;
 		int _clock_format = 0;
 		int _input_processing_mode = 2;
+		size_t _selected_menu = 0;
 
 		// === User Interface - Home ===
 		char _effect_filter[64] = {};

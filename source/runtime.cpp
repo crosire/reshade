@@ -248,6 +248,8 @@ bool reshade::runtime::on_init(input::window_handle window)
 #if RESHADE_GUI
 	if (!init_imgui_resources())
 		return false;
+	if (_is_vr)
+		init_gui_vr();
 #endif
 
 #if RESHADE_ADDON
@@ -292,6 +294,9 @@ void reshade::runtime::on_reset()
 	_empty_texture_view = {};
 
 #if RESHADE_GUI
+	if (_is_vr)
+		deinit_gui_vr();
+
 	device->destroy_resource(_imgui.font_atlas);
 	_imgui.font_atlas = {};
 	device->destroy_resource_view(_imgui.font_atlas_view);
@@ -340,7 +345,10 @@ void reshade::runtime::on_present()
 
 #if RESHADE_GUI
 	// Draw overlay
-	draw_gui();
+	if (_is_vr)
+		draw_gui_vr();
+	else
+		draw_gui();
 
 	if (_should_save_screenshot && _screenshot_save_gui && (_show_overlay || (_preview_texture.handle != 0 && _effects_enabled)))
 		save_screenshot(L" overlay");

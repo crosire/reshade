@@ -224,6 +224,8 @@ bool reshade::d3d12::runtime_impl::on_layer_submit(UINT eye, ID3D12Resource *sou
 	{
 		on_reset();
 
+		_is_vr = true;
+
 		DXGI_SWAP_CHAIN_DESC swap_desc = {};
 		swap_desc.BufferDesc.Width = target_width;
 		swap_desc.BufferDesc.Height = region_height;

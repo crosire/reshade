@@ -410,6 +410,8 @@ HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory2(UINT Flags, REFIID riid, void **pp
 	// IDXGIFactory2 {50C83A1C-E072-4C48-87B0-3630FA36A6D0}
 	// IDXGIFactory3 {25483823-CD46-4C7D-86CA-47AA95B837BD}
 	// IDXGIFactory4 {1BC6EA02-EF36-464F-BF0C-21CA39E5168A}
+	// IDXGIFactory5 {7632E1f5-EE65-4DCA-87FD-84CD75F8838D}
+	// IDXGIFactory6 {C1B6694F-FF09-44A9-B03C-77900A0A1D17}
 
 	LOG(INFO) << "Redirecting " << "CreateDXGIFactory2" << '(' << "Flags = " << std::hex << Flags << std::dec << ", riid = " << riid << ", ppFactory = " << ppFactory << ')' << " ...";
 

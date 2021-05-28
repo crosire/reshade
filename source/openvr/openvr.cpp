@@ -438,6 +438,8 @@ VR_Interface_Impl(IVRClientCore, GetGenericInterface, 3, 001, {
 	return interface_instance;
 }, void *, const char *pchNameAndVersion, vr::EVRInitError *peError)
 
+vr::IVRClientCore *g_client_core = nullptr;
+
 HOOK_EXPORT void *VR_CALLTYPE VRClientCoreFactory(const char *pInterfaceName, int *pReturnCode)
 {
 	LOG(INFO) << "Redirecting " << "VRClientCoreFactory" << '(' << "pInterfaceName = " << pInterfaceName << ')' << " ...";
@@ -447,6 +449,8 @@ HOOK_EXPORT void *VR_CALLTYPE VRClientCoreFactory(const char *pInterfaceName, in
 	if (static unsigned int client_core_version = 0;
 		client_core_version == 0 && std::sscanf(pInterfaceName, "IVRClientCore_%u", &client_core_version))
 	{
+		g_client_core = static_cast<vr::IVRClientCore *>(interface_instance);
+
 		// The 'IVRClientCore::Cleanup' and 'IVRClientCore::GetGenericInterface' functions did not change between 'IVRClientCore_001' and 'IVRClientCore_003'
 		reshade::hooks::install("IVRClientCore::Cleanup", vtable_from_instance(static_cast<vr::IVRClientCore *>(interface_instance)), 1, reinterpret_cast<reshade::hook::address>(IVRClientCore_Cleanup_001));
 		reshade::hooks::install("IVRClientCore::GetGenericInterface", vtable_from_instance(static_cast<vr::IVRClientCore *>(interface_instance)), 3, reinterpret_cast<reshade::hook::address>(IVRClientCore_GetGenericInterface_001));

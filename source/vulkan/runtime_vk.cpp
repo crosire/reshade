@@ -276,6 +276,8 @@ bool reshade::vulkan::runtime_impl::on_layer_submit(uint32_t eye, VkImage source
 	{
 		on_reset();
 
+		_is_vr = true;
+
 		VkImage image = VK_NULL_HANDLE;
 
 		if (!_device_impl->create_resource(

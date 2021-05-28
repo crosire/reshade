@@ -931,7 +931,20 @@ void reshade::runtime::draw_gui()
 
 	if (ImDrawData *const draw_data = ImGui::GetDrawData();
 		draw_data != nullptr && draw_data->CmdListsCount != 0 && draw_data->TotalVtxCount != 0)
-		render_imgui_draw_data(draw_data);
+	{
+		api::command_list *const cmd_list = get_command_queue()->get_immediate_command_list();
+
+		api::resource backbuffer;
+		get_current_back_buffer(&backbuffer);
+		cmd_list->barrier(backbuffer, api::resource_usage::present, api::resource_usage::render_target);
+
+		api::resource_view backbuffer_target;
+		get_current_back_buffer_target(false, &backbuffer_target);
+
+		render_imgui_draw_data(draw_data, backbuffer_target);
+
+		cmd_list->barrier(backbuffer, api::resource_usage::render_target, api::resource_usage::present);
+	}
 }
 
 void reshade::runtime::draw_gui_home()
@@ -3310,7 +3323,7 @@ bool reshade::runtime::init_imgui_resources()
 
 	return device->create_pipeline(pso_desc, &_imgui.pipeline);
 }
-void reshade::runtime::render_imgui_draw_data(ImDrawData *draw_data)
+void reshade::runtime::render_imgui_draw_data(ImDrawData *draw_data, api::resource_view target)
 {
 	api::device *const device = get_device();
 	const bool has_combined_sampler_and_view = device->check_capability(api::device_caps::sampler_with_resource_view);
@@ -3375,14 +3388,7 @@ void reshade::runtime::render_imgui_draw_data(ImDrawData *draw_data)
 
 	api::command_list *const cmd_list = get_command_queue()->get_immediate_command_list();
 
-	api::resource backbuffer;
-	get_current_back_buffer(&backbuffer);
-	cmd_list->barrier(backbuffer, api::resource_usage::present, api::resource_usage::render_target);
-
-	api::resource_view rtv;
-	get_current_back_buffer_target(false, &rtv);
-
-	cmd_list->begin_render_pass(1, &rtv);
+	cmd_list->begin_render_pass(1, &target);
 
 	// Setup render state
 	cmd_list->bind_pipeline(api::pipeline_type::graphics, _imgui.pipeline);
@@ -3394,7 +3400,7 @@ void reshade::runtime::render_imgui_draw_data(ImDrawData *draw_data)
 	cmd_list->bind_viewports(0, 1, viewport);
 
 	// Setup orthographic projection matrix
-	const bool flip_y = (_renderer_id & 0x10000) != 0;
+	const bool flip_y = (_renderer_id & 0x10000) != 0 && !_is_vr;
 	const bool adjust_half_pixel = _renderer_id < 0xa000; // Bake half-pixel offset into matrix in D3D9
 	const bool depth_clip_zero_to_one = (_renderer_id & 0x10000) == 0;
 
@@ -3449,8 +3455,6 @@ void reshade::runtime::render_imgui_draw_data(ImDrawData *draw_data)
 	}
 
 	cmd_list->finish_render_pass();
-
-	cmd_list->barrier(backbuffer, api::resource_usage::render_target, api::resource_usage::present);
 }
 
 #endif

@@ -449,6 +449,7 @@
     <ClCompile Include="source\openvr\openvr.cpp" />
     <ClCompile Include="source\runtime.cpp" />
     <ClCompile Include="source\runtime_gui.cpp" />
+    <ClCompile Include="source\runtime_gui_vr.cpp" />
     <ClCompile Include="source\runtime_update_check.cpp" />
     <ClCompile Include="source\vulkan\reshade_api_command_list.cpp" />
     <ClCompile Include="source\vulkan\reshade_api_command_list_immediate.cpp" />

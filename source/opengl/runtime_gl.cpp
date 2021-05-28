@@ -174,6 +174,8 @@ bool reshade::opengl::runtime_impl::on_layer_submit(uint32_t eye, GLuint source_
 	{
 		on_reset();
 
+		_is_vr = true;
+
 		if (!on_init(nullptr, object_desc.texture.width, object_desc.texture.height))
 		{
 			LOG(ERROR) << "Failed to initialize OpenGL runtime environment on runtime " << this << '!';
