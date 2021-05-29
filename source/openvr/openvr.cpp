@@ -38,15 +38,15 @@ static inline vr::VRTextureBounds_t calc_side_by_side_bounds(vr::EVREye eye, con
 static vr::EVRCompositorError on_submit_d3d11(vr::EVREye eye, ID3D11Texture2D *texture, const vr::VRTextureBounds_t *bounds, vr::EVRSubmitFlags flags,
 	std::function<vr::EVRCompositorError(vr::EVREye eye, void *texture, const vr::VRTextureBounds_t *bounds, vr::EVRSubmitFlags flags)> submit)
 {
+	com_ptr<ID3D11Device> device;
+	D3D11Device *device_proxy = nullptr; // Was set via 'SetPrivateData', so do not use a 'com_ptr' here, since 'GetPrivateData' will not add a reference
+	texture->GetDevice(&device);
+	if (UINT data_size = sizeof(device_proxy);
+		FAILED(device->GetPrivateData(__uuidof(D3D11Device), &data_size, reinterpret_cast<void *>(&device_proxy))))
+		goto normal_submit; // No proxy device found, so just submit normally
+
 	if (s_vr_swapchain.first == nullptr)
 	{
-		com_ptr<ID3D11Device> device;
-		D3D11Device *device_proxy = nullptr; // Was set via 'SetPrivateData', so do not use a 'com_ptr' here, since 'GetPrivateData' will not add a reference
-		texture->GetDevice(&device);
-		if (UINT data_size = sizeof(device_proxy);
-			FAILED(device->GetPrivateData(__uuidof(D3D11Device), &data_size, reinterpret_cast<void *>(&device_proxy))))
-			goto normal_submit; // No proxy device found, so just submit normally
-
 		s_vr_swapchain = { new reshade::d3d11::swapchain_impl(device_proxy, device_proxy->_immediate_context, nullptr), vr::TextureType_DirectX };
 	}
 
@@ -77,7 +77,7 @@ static vr::EVRCompositorError on_submit_d3d11(vr::EVREye eye, ID3D11Texture2D *t
 	else
 	{
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::present>(runtime->get_command_queue(), runtime);
+		reshade::invoke_addon_event<reshade::addon_event::present>(device_proxy->_immediate_context, runtime);
 #endif
 
 		runtime->on_present();
@@ -92,12 +92,12 @@ static vr::EVRCompositorError on_submit_d3d11(vr::EVREye eye, ID3D11Texture2D *t
 static vr::EVRCompositorError on_submit_d3d12(vr::EVREye eye, const vr::D3D12TextureData_t *texture, const vr::VRTextureBounds_t *bounds, vr::EVRSubmitFlags flags,
 	std::function<vr::EVRCompositorError(vr::EVREye eye, void *texture, const vr::VRTextureBounds_t *bounds, vr::EVRSubmitFlags flags)> submit)
 {
+	com_ptr<D3D12CommandQueue> command_queue_proxy;
+	if (FAILED(texture->m_pCommandQueue->QueryInterface(IID_PPV_ARGS(&command_queue_proxy))))
+		goto normal_submit; // No proxy command queue found, so just submit normally
+
 	if (s_vr_swapchain.first == nullptr)
 	{
-		com_ptr<D3D12CommandQueue> command_queue_proxy;
-		if (FAILED(texture->m_pCommandQueue->QueryInterface(IID_PPV_ARGS(&command_queue_proxy))))
-			goto normal_submit; // No proxy command queue found, so just submit normally
-
 		s_vr_swapchain = { new reshade::d3d12::swapchain_impl(command_queue_proxy->_device, command_queue_proxy.get(), nullptr), vr::TextureType_DirectX12 };
 	}
 
@@ -127,12 +127,12 @@ static vr::EVRCompositorError on_submit_d3d12(vr::EVREye eye, const vr::D3D12Tex
 	else
 	{
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::present>(runtime->get_command_queue(), runtime);
+		reshade::invoke_addon_event<reshade::addon_event::present>(command_queue_proxy.get(), runtime);
 #endif
 
 		runtime->on_present();
 
-		runtime->get_command_queue()->flush_immediate_command_list();
+		command_queue_proxy->flush_immediate_command_list();
 
 		const vr::VRTextureBounds_t left_bounds = calc_side_by_side_bounds(vr::Eye_Left, bounds);
 		submit(vr::Eye_Left, &target_texture, &left_bounds, flags);
@@ -178,7 +178,7 @@ static vr::EVRCompositorError on_submit_opengl(vr::EVREye eye, GLuint object, co
 	else
 	{
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::present>(runtime->get_command_queue(), runtime);
+		reshade::invoke_addon_event<reshade::addon_event::present>(runtime, runtime);
 #endif
 
 		// Skip copy, data was already copied in 'on_layer_submit' above
@@ -249,7 +249,7 @@ static vr::EVRCompositorError on_submit_vulkan(vr::EVREye eye, const vr::VRVulka
 		std::vector<VkSemaphore> wait_semaphores;
 		runtime->on_present(texture->m_pQueue, 0, wait_semaphores);
 
-		runtime->get_command_queue()->flush_immediate_command_list();
+		(*queue_it)->flush_immediate_command_list();
 
 		auto target_texture = *texture;
 		target_texture.m_nImage = (uint64_t)target_image;

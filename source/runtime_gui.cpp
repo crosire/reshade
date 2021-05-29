@@ -144,30 +144,28 @@ void reshade::runtime::build_font_atlas()
 	unsigned char *pixels;
 	atlas->GetTexDataAsRGBA32(&pixels, &width, &height);
 
-	api::device *const device = get_device();
-
-	device->destroy_resource(_font_atlas);
+	_device->destroy_resource(_font_atlas);
 	_font_atlas.handle = {};
-	device->destroy_resource_view(_font_atlas_srv);
+	_device->destroy_resource_view(_font_atlas_srv);
 	_font_atlas_srv.handle = {};
 
 	const api::subresource_data initial_data = { pixels, static_cast<uint32_t>(width * 4), static_cast<uint32_t>(width * height * 4) };
 
 	// Create font atlas texture and upload it
-	if (!device->create_resource(
+	if (!_device->create_resource(
 		api::resource_desc(width, height, 1, 1, api::format::r8g8b8a8_unorm, 1, api::memory_heap::gpu_only, api::resource_usage::shader_resource),
 		&initial_data,
 		api::resource_usage::shader_resource,
 		&_font_atlas))
 		return;
-	if (!device->create_resource_view(
+	if (!_device->create_resource_view(
 		_font_atlas,
 		api::resource_usage::shader_resource,
 		api::resource_view_desc(api::format::r8g8b8a8_unorm, 0, 1, 0, 1),
 		&_font_atlas_srv))
 		return;
 
-	device->set_debug_name(_font_atlas, "ImGui Font Atlas");
+	_device->set_debug_name(_font_atlas, "ImGui Font Atlas");
 }
 
 void reshade::runtime::load_config_gui(const ini_file &config)
@@ -941,7 +939,7 @@ void reshade::runtime::draw_gui()
 	if (ImDrawData *const draw_data = ImGui::GetDrawData();
 		draw_data != nullptr && draw_data->CmdListsCount != 0 && draw_data->TotalVtxCount != 0)
 	{
-		api::command_list *const cmd_list = get_command_queue()->get_immediate_command_list();
+		api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
 
 		api::resource backbuffer;
 		get_current_back_buffer(&backbuffer);
@@ -3170,8 +3168,7 @@ void reshade::runtime::draw_code_editor(editor_instance &instance)
 
 bool reshade::runtime::init_imgui_resources()
 {
-	api::device *const device = get_device();
-	const bool has_combined_sampler_and_view = device->check_capability(api::device_caps::sampler_with_resource_view);
+	const bool has_combined_sampler_and_view = _device->check_capability(api::device_caps::sampler_with_resource_view);
 
 	if (_imgui_sampler_state.handle == 0)
 	{
@@ -3184,7 +3181,7 @@ bool reshade::runtime::init_imgui_resources()
 		desc.min_lod = -FLT_MAX;
 		desc.max_lod = +FLT_MAX;
 
-		if (!device->create_sampler(desc, &_imgui_sampler_state))
+		if (!_device->create_sampler(desc, &_imgui_sampler_state))
 			return false;
 	}
 
@@ -3199,7 +3196,7 @@ bool reshade::runtime::init_imgui_resources()
 			range.type = api::descriptor_type::sampler_with_resource_view;
 			range.binding = 0;
 			range.dx_shader_register = 0; // s0
-			if (!device->create_descriptor_set_layout(1, &range, true, &_imgui_set_layouts[0]))
+			if (!_device->create_descriptor_set_layout(1, &range, true, &_imgui_set_layouts[0]))
 				return false;
 		}
 		else
@@ -3207,13 +3204,13 @@ bool reshade::runtime::init_imgui_resources()
 			range.type = api::descriptor_type::sampler;
 			range.binding = 0;
 			range.dx_shader_register = 0; // s0
-			if (!device->create_descriptor_set_layout(1, &range, true, &_imgui_set_layouts[0]))
+			if (!_device->create_descriptor_set_layout(1, &range, true, &_imgui_set_layouts[0]))
 				return false;
 
 			range.type = api::descriptor_type::shader_resource_view;
 			range.binding = 0;
 			range.dx_shader_register = 0; // t0
-			if (!device->create_descriptor_set_layout(1, &range, true, &_imgui_set_layouts[1]))
+			if (!_device->create_descriptor_set_layout(1, &range, true, &_imgui_set_layouts[1]))
 				return false;
 		}
 
@@ -3223,7 +3220,7 @@ bool reshade::runtime::init_imgui_resources()
 		constant_range.count = 16;
 		constant_range.visibility = api::shader_stage::vertex;
 
-		if (!device->create_pipeline_layout(has_combined_sampler_and_view ? 1 : 2, _imgui_set_layouts, 1, &constant_range, &_imgui_pipeline_layout))
+		if (!_device->create_pipeline_layout(has_combined_sampler_and_view ? 1 : 2, _imgui_set_layouts, 1, &constant_range, &_imgui_pipeline_layout))
 			return false;
 	}
 
@@ -3331,12 +3328,11 @@ bool reshade::runtime::init_imgui_resources()
 	pso_desc.graphics.num_render_targets = 1;
 	pso_desc.graphics.render_target_format[0] = _backbuffer_format;
 
-	return device->create_pipeline(pso_desc, &_imgui_pipeline);
+	return _device->create_pipeline(pso_desc, &_imgui_pipeline);
 }
 void reshade::runtime::render_imgui_draw_data(ImDrawData *draw_data, api::resource_view target)
 {
-	api::device *const device = get_device();
-	const bool has_combined_sampler_and_view = device->check_capability(api::device_caps::sampler_with_resource_view);
+	const bool has_combined_sampler_and_view = _device->check_capability(api::device_caps::sampler_with_resource_view);
 
 	// Need to multi-buffer vertex data so not to modify data below when the previous frame is still in flight
 	const unsigned int buffer_index = _framecount % static_cast<unsigned int>(std::size(_imgui_vertices));
@@ -3344,35 +3340,35 @@ void reshade::runtime::render_imgui_draw_data(ImDrawData *draw_data, api::resour
 	// Create and grow vertex/index buffers if needed
 	if (_imgui_num_indices[buffer_index] < draw_data->TotalIdxCount)
 	{
-		device->wait_idle(); // Be safe and ensure nothing still uses this buffer
+		_device->wait_idle(); // Be safe and ensure nothing still uses this buffer
 
 		if (_imgui_indices[buffer_index].handle != 0)
-			device->destroy_resource(_imgui_indices[buffer_index]);
+			_device->destroy_resource(_imgui_indices[buffer_index]);
 
 		const int new_size = draw_data->TotalIdxCount + 10000;
-		if (!device->create_resource(api::resource_desc(new_size * sizeof(ImDrawIdx), api::memory_heap::cpu_to_gpu, api::resource_usage::index_buffer), nullptr, api::resource_usage::cpu_access, &_imgui_indices[buffer_index]))
+		if (!_device->create_resource(api::resource_desc(new_size * sizeof(ImDrawIdx), api::memory_heap::cpu_to_gpu, api::resource_usage::index_buffer), nullptr, api::resource_usage::cpu_access, &_imgui_indices[buffer_index]))
 			return;
-		device->set_debug_name(_imgui_indices[buffer_index], "ImGui index buffer");
+		_device->set_debug_name(_imgui_indices[buffer_index], "ImGui index buffer");
 
 		_imgui_num_indices[buffer_index] = new_size;
 	}
 	if (_imgui_num_vertices[buffer_index] < draw_data->TotalVtxCount)
 	{
-		device->wait_idle();
+		_device->wait_idle();
 
 		if (_imgui_vertices[buffer_index].handle != 0)
-			device->destroy_resource(_imgui_vertices[buffer_index]);
+			_device->destroy_resource(_imgui_vertices[buffer_index]);
 
 		const int new_size = draw_data->TotalVtxCount + 5000;
-		if (!device->create_resource(api::resource_desc(new_size * sizeof(ImDrawVert), api::memory_heap::cpu_to_gpu, api::resource_usage::vertex_buffer), nullptr, api::resource_usage::cpu_access, &_imgui_vertices[buffer_index]))
+		if (!_device->create_resource(api::resource_desc(new_size * sizeof(ImDrawVert), api::memory_heap::cpu_to_gpu, api::resource_usage::vertex_buffer), nullptr, api::resource_usage::cpu_access, &_imgui_vertices[buffer_index]))
 			return;
-		device->set_debug_name(_imgui_vertices[buffer_index], "ImGui vertex buffer");
+		_device->set_debug_name(_imgui_vertices[buffer_index], "ImGui vertex buffer");
 
 		_imgui_num_vertices[buffer_index] = new_size;
 	}
 
 	if (ImDrawIdx *idx_dst = nullptr;
-		device->map_resource(_imgui_indices[buffer_index], 0, api::map_access::write_discard, reinterpret_cast<void **>(&idx_dst)))
+		_device->map_resource(_imgui_indices[buffer_index], 0, api::map_access::write_discard, reinterpret_cast<void **>(&idx_dst)))
 	{
 		for (int n = 0; n < draw_data->CmdListsCount; ++n)
 		{
@@ -3381,10 +3377,10 @@ void reshade::runtime::render_imgui_draw_data(ImDrawData *draw_data, api::resour
 			idx_dst += draw_list->IdxBuffer.Size;
 		}
 
-		device->unmap_resource(_imgui_indices[buffer_index], 0);
+		_device->unmap_resource(_imgui_indices[buffer_index], 0);
 	}
 	if (ImDrawVert *vtx_dst = nullptr;
-		device->map_resource(_imgui_vertices[buffer_index], 0, api::map_access::write_discard, reinterpret_cast<void **>(&vtx_dst)))
+		_device->map_resource(_imgui_vertices[buffer_index], 0, api::map_access::write_discard, reinterpret_cast<void **>(&vtx_dst)))
 	{
 		for (int n = 0; n < draw_data->CmdListsCount; ++n)
 		{
@@ -3393,10 +3389,10 @@ void reshade::runtime::render_imgui_draw_data(ImDrawData *draw_data, api::resour
 			vtx_dst += draw_list->VtxBuffer.Size;
 		}
 
-		device->unmap_resource(_imgui_vertices[buffer_index], 0);
+		_device->unmap_resource(_imgui_vertices[buffer_index], 0);
 	}
 
-	api::command_list *const cmd_list = get_command_queue()->get_immediate_command_list();
+	api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
 
 	cmd_list->begin_render_pass(1, &target);
 
@@ -3468,33 +3464,31 @@ void reshade::runtime::render_imgui_draw_data(ImDrawData *draw_data, api::resour
 }
 void reshade::runtime::destroy_imgui_resources()
 {
-	api::device *const device = get_device();
-
-	device->destroy_resource(_font_atlas);
+	_device->destroy_resource(_font_atlas);
 	_font_atlas = {};
-	device->destroy_resource_view(_font_atlas_srv);
+	_device->destroy_resource_view(_font_atlas_srv);
 	_font_atlas_srv = {};
 	_rebuild_font_atlas = true;
 
 	for (unsigned int i = 0; i < std::size(_imgui_vertices); ++i)
 	{
-		device->destroy_resource(_imgui_indices[i]);
+		_device->destroy_resource(_imgui_indices[i]);
 		_imgui_indices[i] = {};
 		_imgui_num_indices[i] = 0;
-		device->destroy_resource(_imgui_vertices[i]);
+		_device->destroy_resource(_imgui_vertices[i]);
 		_imgui_vertices[i] = {};
 		_imgui_num_vertices[i] = 0;
 	}
 
-	device->destroy_sampler(_imgui_sampler_state);
+	_device->destroy_sampler(_imgui_sampler_state);
 	_imgui_sampler_state = {};
-	device->destroy_pipeline(api::pipeline_type::graphics, _imgui_pipeline);
+	_device->destroy_pipeline(api::pipeline_type::graphics, _imgui_pipeline);
 	_imgui_pipeline = {};
-	device->destroy_pipeline_layout(_imgui_pipeline_layout);
+	_device->destroy_pipeline_layout(_imgui_pipeline_layout);
 	_imgui_pipeline_layout = {};
-	device->destroy_descriptor_set_layout(_imgui_set_layouts[0]);
+	_device->destroy_descriptor_set_layout(_imgui_set_layouts[0]);
 	_imgui_set_layouts[0] = {};
-	device->destroy_descriptor_set_layout(_imgui_set_layouts[1]);
+	_device->destroy_descriptor_set_layout(_imgui_set_layouts[1]);
 	_imgui_set_layouts[1] = {};
 }
 

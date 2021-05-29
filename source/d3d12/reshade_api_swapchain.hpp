@@ -18,9 +18,6 @@ namespace reshade::d3d12
 		swapchain_impl(device_impl *device, command_queue_impl *queue, IDXGISwapChain3 *swapchain);
 		~swapchain_impl();
 
-		api::device *get_device() final;
-		api::command_queue *get_command_queue() final;
-
 		void get_current_back_buffer(api::resource *out) final;
 		void get_current_back_buffer_target(bool srgb, api::resource_view *out) final;
 
@@ -32,9 +29,6 @@ namespace reshade::d3d12
 		bool on_layer_submit(UINT eye, ID3D12Resource *source, const float bounds[4], ID3D12Resource **target);
 
 	private:
-		device_impl *const _device_impl;
-		command_queue_impl *const _cmd_queue_impl;
-
 		UINT _swap_index = 0;
 		std::vector<com_ptr<ID3D12Resource>> _backbuffers;
 		com_ptr<ID3D12DescriptorHeap> _backbuffer_rtvs;

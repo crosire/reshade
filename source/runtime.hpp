@@ -106,8 +106,11 @@ namespace reshade
 		void update_uniform_variables(const char *source, const uint32_t *values, size_t count, size_t array_index) final;
 
 	protected:
-		runtime();
+		runtime(api::device *device, api::command_queue *graphics_queue);
 		~runtime();
+
+		api::device *get_device() final { return _device; }
+		api::command_queue *get_command_queue() final { return _graphics_queue; }
 
 		/// <summary>
 		/// Callback function called when the runtime is initialized.
@@ -123,6 +126,8 @@ namespace reshade
 		/// </summary>
 		void on_present();
 
+		api::device *const _device;
+		api::command_queue *const _graphics_queue;
 		unsigned int _width = 0;
 		unsigned int _height = 0;
 		unsigned int _vendor_id = 0;

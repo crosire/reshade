@@ -14,7 +14,8 @@ namespace reshade::api
 	class api_object_impl : public api_object_base...
 	{
 	public:
-		explicit api_object_impl(T orig) : _orig(orig) {}
+		template <typename... Args>
+		explicit api_object_impl(T orig, Args... args) : api_object_base(std::forward<Args>(args)...)..., _orig(orig) {}
 
 		api_object_impl(const api_object_impl &) = delete;
 		api_object_impl &operator=(const api_object_impl &) = delete;

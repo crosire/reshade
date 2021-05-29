@@ -7,7 +7,8 @@
 #include "reshade_api_swapchain.hpp"
 #include "reshade_api_type_convert.hpp"
 
-reshade::opengl::swapchain_impl::swapchain_impl(HDC hdc, HGLRC hglrc) : device_impl(hdc, hglrc)
+reshade::opengl::swapchain_impl::swapchain_impl(HDC hdc, HGLRC hglrc) :
+	device_impl(hdc, hglrc), runtime(this, this)
 {
 	GLint major = 0, minor = 0;
 	glGetIntegerv(GL_MAJOR_VERSION, &major);
@@ -43,15 +44,6 @@ reshade::opengl::swapchain_impl::~swapchain_impl()
 #if RESHADE_ADDON
 	reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(this);
 #endif
-}
-
-reshade::api::device *reshade::opengl::swapchain_impl::get_device()
-{
-	return this;
-}
-reshade::api::command_queue *reshade::opengl::swapchain_impl::get_command_queue()
-{
-	return this;
 }
 
 void reshade::opengl::swapchain_impl::get_current_back_buffer(api::resource *out)

@@ -11,18 +11,14 @@
 
 extern bool is_windows7();
 
-extern const char *dxgi_format_to_string(DXGI_FORMAT format);
-
 reshade::d3d11::swapchain_impl::swapchain_impl(device_impl *device, device_context_impl *immediate_context, IDXGISwapChain *swapchain) :
-	api_object_impl(swapchain),
-	_device_impl(device),
-	_immediate_context_impl(immediate_context),
+	api_object_impl(swapchain, device, immediate_context),
 	_app_state(device->_orig)
 {
-	_renderer_id = _device_impl->_orig->GetFeatureLevel();
+	_renderer_id = device->_orig->GetFeatureLevel();
 
 	if (com_ptr<IDXGIDevice> dxgi_device;
-		SUCCEEDED(_device_impl->_orig->QueryInterface(&dxgi_device)))
+		SUCCEEDED(device->_orig->QueryInterface(&dxgi_device)))
 	{
 		if (com_ptr<IDXGIAdapter> dxgi_adapter;
 			SUCCEEDED(dxgi_device->GetAdapter(&dxgi_adapter)))
@@ -51,15 +47,6 @@ reshade::d3d11::swapchain_impl::~swapchain_impl()
 #if RESHADE_ADDON
 	reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(this);
 #endif
-}
-
-reshade::api::device *reshade::d3d11::swapchain_impl::get_device()
-{
-	return _device_impl;
-}
-reshade::api::command_queue *reshade::d3d11::swapchain_impl::get_command_queue()
-{
-	return _immediate_context_impl;
 }
 
 void reshade::d3d11::swapchain_impl::get_current_back_buffer(api::resource *out)
@@ -108,9 +95,9 @@ bool reshade::d3d11::swapchain_impl::on_init(const DXGI_SWAP_CHAIN_DESC &swap_de
 		api::format_to_default_typed(_backbuffer_format) != _backbuffer_format ||
 		!is_windows7()))
 	{
-		if (FAILED(_device_impl->_orig->CreateTexture2D(&tex_desc, nullptr, &_backbuffer_resolved)))
+		if (FAILED(static_cast<device_impl *>(_device)->_orig->CreateTexture2D(&tex_desc, nullptr, &_backbuffer_resolved)))
 			return false;
-		if (FAILED(_device_impl->_orig->CreateRenderTargetView(_backbuffer.get(), nullptr, &_backbuffer_rtv[2])))
+		if (FAILED(static_cast<device_impl *>(_device)->_orig->CreateRenderTargetView(_backbuffer.get(), nullptr, &_backbuffer_rtv[2])))
 			return false;
 	}
 	else
@@ -120,24 +107,24 @@ bool reshade::d3d11::swapchain_impl::on_init(const DXGI_SWAP_CHAIN_DESC &swap_de
 
 	// Create back buffer shader texture
 	tex_desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-	if (FAILED(_device_impl->_orig->CreateTexture2D(&tex_desc, nullptr, &_backbuffer_texture)))
+	if (FAILED(static_cast<device_impl *>(_device)->_orig->CreateTexture2D(&tex_desc, nullptr, &_backbuffer_texture)))
 		return false;
-	_device_impl->set_debug_name({ reinterpret_cast<uintptr_t>(_backbuffer_texture.get()) }, "ReShade back buffer");
+	static_cast<device_impl *>(_device)->set_debug_name({ reinterpret_cast<uintptr_t>(_backbuffer_texture.get()) }, "ReShade back buffer");
 
 	D3D11_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
 	srv_desc.Format = convert_format(api::format_to_default_typed(_backbuffer_format));
 	srv_desc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 	srv_desc.Texture2D.MipLevels = tex_desc.MipLevels;
-	if (FAILED(_device_impl->_orig->CreateShaderResourceView(_backbuffer_texture.get(), &srv_desc, &_backbuffer_texture_srv)))
+	if (FAILED(static_cast<device_impl *>(_device)->_orig->CreateShaderResourceView(_backbuffer_texture.get(), &srv_desc, &_backbuffer_texture_srv)))
 		return false;
 
 	D3D11_RENDER_TARGET_VIEW_DESC rtv_desc = {};
 	rtv_desc.Format = convert_format(api::format_to_default_typed(_backbuffer_format));
 	rtv_desc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
-	if (FAILED(_device_impl->_orig->CreateRenderTargetView(_backbuffer_resolved.get(), &rtv_desc, &_backbuffer_rtv[0])))
+	if (FAILED(static_cast<device_impl *>(_device)->_orig->CreateRenderTargetView(_backbuffer_resolved.get(), &rtv_desc, &_backbuffer_rtv[0])))
 		return false;
 	rtv_desc.Format = convert_format(api::format_to_default_typed_srgb(_backbuffer_format));
-	if (FAILED(_device_impl->_orig->CreateRenderTargetView(_backbuffer_resolved.get(), &rtv_desc, &_backbuffer_rtv[1])))
+	if (FAILED(static_cast<device_impl *>(_device)->_orig->CreateRenderTargetView(_backbuffer_resolved.get(), &rtv_desc, &_backbuffer_rtv[1])))
 		return false;
 
 	// Clear reference to make Unreal Engine 4 happy (which checks the reference count)
@@ -178,7 +165,7 @@ void reshade::d3d11::swapchain_impl::on_present()
 	if (!is_initialized())
 		return;
 
-	ID3D11DeviceContext *const immediate_context = _immediate_context_impl->_orig;
+	ID3D11DeviceContext *const immediate_context = static_cast<device_context_impl *>(_graphics_queue)->_orig;
 	_app_state.capture(immediate_context);
 
 	// Resolve MSAA back buffer if MSAA is active
@@ -196,12 +183,12 @@ void reshade::d3d11::swapchain_impl::on_present()
 		const uintptr_t null = 0;
 		immediate_context->IASetVertexBuffers(0, 1, reinterpret_cast<ID3D11Buffer *const *>(&null), reinterpret_cast<const UINT *>(&null), reinterpret_cast<const UINT *>(&null));
 		immediate_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		immediate_context->VSSetShader(_device_impl->_copy_vert_shader.get(), nullptr, 0);
+		immediate_context->VSSetShader(static_cast<device_impl *>(_device)->_copy_vert_shader.get(), nullptr, 0);
 		immediate_context->HSSetShader(nullptr, nullptr, 0);
 		immediate_context->DSSetShader(nullptr, nullptr, 0);
 		immediate_context->GSSetShader(nullptr, nullptr, 0);
-		immediate_context->PSSetShader(_device_impl->_copy_pixel_shader.get(), nullptr, 0);
-		ID3D11SamplerState *const samplers[] = { _device_impl->_copy_sampler_state.get() };
+		immediate_context->PSSetShader(static_cast<device_impl *>(_device)->_copy_pixel_shader.get(), nullptr, 0);
+		ID3D11SamplerState *const samplers[] = { static_cast<device_impl *>(_device)->_copy_sampler_state.get() };
 		immediate_context->PSSetSamplers(0, ARRAYSIZE(samplers), samplers);
 		ID3D11ShaderResourceView *const srvs[] = { _backbuffer_texture_srv.get() };
 		immediate_context->PSSetShaderResources(0, ARRAYSIZE(srvs), srvs);
@@ -265,7 +252,7 @@ bool reshade::d3d11::swapchain_impl::on_layer_submit(UINT eye, ID3D11Texture2D *
 		source_desc.Format = convert_format(api::format_to_typeless(convert_format(source_desc.Format)));
 		source_desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
 
-		if (HRESULT hr = _device_impl->_orig->CreateTexture2D(&source_desc, nullptr, &_backbuffer); FAILED(hr))
+		if (HRESULT hr = static_cast<device_impl *>(_device)->_orig->CreateTexture2D(&source_desc, nullptr, &_backbuffer); FAILED(hr))
 		{
 			LOG(ERROR) << "Failed to create region texture!" << " HRESULT is " << hr << '.';
 			LOG(DEBUG) << "> Details: Width = " << source_desc.Width << ", Height = " << source_desc.Height << ", Format = " << source_desc.Format;
@@ -280,7 +267,7 @@ bool reshade::d3d11::swapchain_impl::on_layer_submit(UINT eye, ID3D11Texture2D *
 	}
 
 	// Copy region of the source texture (in case of an array texture, copy from the layer corresponding to the current eye)
-	_immediate_context_impl->_orig->CopySubresourceRegion(_backbuffer.get(), 0, eye * region_width, 0, 0, source, source_desc.ArraySize == 2 ? eye : 0, &source_region);
+	static_cast<device_context_impl *>(_graphics_queue)->_orig->CopySubresourceRegion(_backbuffer.get(), 0, eye * region_width, 0, 0, source, source_desc.ArraySize == 2 ? eye : 0, &source_region);
 
 	*target = _backbuffer.get();
 

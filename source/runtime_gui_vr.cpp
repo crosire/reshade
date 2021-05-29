@@ -65,14 +65,12 @@ void reshade::runtime::init_gui_vr()
 	s_overlay->SetOverlayWidthInMeters(s_main_handle, 1.5f);
 	s_overlay->SetOverlayFlag(s_main_handle, vr::VROverlayFlags_SendVRSmoothScrollEvents, true);
 
-	api::device *const device = get_device();
-
-	if (!device->create_resource(api::resource_desc(OVERLAY_WIDTH, OVERLAY_HEIGHT, 1, 1, api::format::r8g8b8a8_unorm, 1, api::memory_heap::gpu_only, api::resource_usage::render_target | api::resource_usage::shader_resource), nullptr, api::resource_usage::shader_resource_pixel, &_vr_overlay_texture))
+	if (!_device->create_resource(api::resource_desc(OVERLAY_WIDTH, OVERLAY_HEIGHT, 1, 1, api::format::r8g8b8a8_unorm, 1, api::memory_heap::gpu_only, api::resource_usage::render_target | api::resource_usage::shader_resource), nullptr, api::resource_usage::shader_resource_pixel, &_vr_overlay_texture))
 	{
 		LOG(ERROR) << "Failed to create VR dashboard overlay texture.";
 		return;
 	}
-	if (!device->create_resource_view(_vr_overlay_texture, api::resource_usage::render_target, api::resource_view_desc(api::format::r8g8b8a8_unorm, 0, 1, 0, 1), &_vr_overlay_target))
+	if (!_device->create_resource_view(_vr_overlay_texture, api::resource_usage::render_target, api::resource_view_desc(api::format::r8g8b8a8_unorm, 0, 1, 0, 1), &_vr_overlay_target))
 	{
 		LOG(ERROR) << "Failed to create VR dashboard overlay render target.";
 		return;
@@ -84,11 +82,9 @@ void reshade::runtime::deinit_gui_vr()
 	if (s_main_handle == vr::k_ulOverlayHandleInvalid)
 		return;
 
-	api::device *const device = get_device();
-
-	device->destroy_resource_view(_vr_overlay_target);
+	_device->destroy_resource_view(_vr_overlay_target);
 	_vr_overlay_target = {};
-	device->destroy_resource(_vr_overlay_texture);
+	_device->destroy_resource(_vr_overlay_texture);
 	_vr_overlay_texture = {};
 
 	s_overlay->DestroyOverlay(s_main_handle);
@@ -108,8 +104,6 @@ void reshade::runtime::draw_gui_vr()
 		build_font_atlas();
 	if (_font_atlas_srv.handle == 0 || _imgui_pipeline.handle == 0)
 		return; // Cannot render GUI without font atlas
-
-	api::device *const device = get_device();
 
 	ImGui::SetCurrentContext(_imgui_context);
 	auto &imgui_io = ImGui::GetIO();
@@ -225,7 +219,7 @@ void reshade::runtime::draw_gui_vr()
 	if (ImDrawData *const draw_data = ImGui::GetDrawData();
 		draw_data != nullptr && draw_data->CmdListsCount != 0 && draw_data->TotalVtxCount != 0)
 	{
-		api::command_list *const cmd_list = get_command_queue()->get_immediate_command_list();
+		api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
 
 		cmd_list->barrier(_vr_overlay_texture, api::resource_usage::shader_resource_pixel, api::resource_usage::render_target);
 		render_imgui_draw_data(draw_data, _vr_overlay_target);
@@ -236,7 +230,7 @@ void reshade::runtime::draw_gui_vr()
 	texture.eColorSpace = vr::ColorSpace_Auto;
 	vr::VRVulkanTextureData_t vulkan_data;
 
-	switch (device->get_api())
+	switch (_device->get_api())
 	{
 	case api::device_api::d3d11:
 		texture.handle = reinterpret_cast<void *>(_vr_overlay_texture.handle);
@@ -251,12 +245,12 @@ void reshade::runtime::draw_gui_vr()
 		texture.eType = vr::TextureType_OpenGL;
 		break;
 	case api::device_api::vulkan:
-		const auto device_impl = static_cast<vulkan::device_impl *>(device);
+		const auto device_impl = static_cast<vulkan::device_impl *>(_device);
 		vulkan_data.m_nImage = _vr_overlay_texture.handle;
-		vulkan_data.m_pDevice = reinterpret_cast<VkDevice_T *>(device->get_native_object());
+		vulkan_data.m_pDevice = reinterpret_cast<VkDevice_T *>(device_impl->_orig);
 		vulkan_data.m_pPhysicalDevice = device_impl->_physical_device;
 		vulkan_data.m_pInstance = VK_NULL_HANDLE;
-		vulkan_data.m_pQueue = reinterpret_cast<VkQueue_T *>(get_command_queue()->get_native_object());
+		vulkan_data.m_pQueue = reinterpret_cast<VkQueue_T *>(_graphics_queue->get_native_object());
 		vulkan_data.m_nQueueFamilyIndex = device_impl->_graphics_queue_family_index;
 		vulkan_data.m_nWidth = 800;
 		vulkan_data.m_nHeight = 600;

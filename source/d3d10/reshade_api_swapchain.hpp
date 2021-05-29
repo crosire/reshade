@@ -18,9 +18,6 @@ namespace reshade::d3d10
 		swapchain_impl(device_impl *device, IDXGISwapChain *swapchain);
 		~swapchain_impl();
 
-		api::device *get_device() final;
-		api::command_queue *get_command_queue() final;
-
 		void get_current_back_buffer(api::resource *out) final;
 		void get_current_back_buffer_target(bool srgb, api::resource_view *out) final;
 
@@ -29,8 +26,6 @@ namespace reshade::d3d10
 		void on_present();
 
 	private:
-		device_impl *const _device_impl;
-
 		state_block _app_state;
 
 		com_ptr<ID3D10Texture2D> _backbuffer;

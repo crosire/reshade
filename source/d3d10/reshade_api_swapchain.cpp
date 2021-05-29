@@ -10,17 +10,14 @@
 
 extern bool is_windows7();
 
-extern const char *dxgi_format_to_string(DXGI_FORMAT format);
-
 reshade::d3d10::swapchain_impl::swapchain_impl(device_impl *device, IDXGISwapChain *swapchain) :
-	api_object_impl(swapchain),
-	_device_impl(device),
+	api_object_impl(swapchain, device, device),
 	_app_state(device->_orig)
 {
-	_renderer_id = _device_impl->_orig->GetFeatureLevel();
+	_renderer_id = device->_orig->GetFeatureLevel();
 
 	if (com_ptr<IDXGIDevice> dxgi_device;
-		SUCCEEDED(_device_impl->_orig->QueryInterface(&dxgi_device)))
+		SUCCEEDED(device->_orig->QueryInterface(&dxgi_device)))
 	{
 		if (com_ptr<IDXGIAdapter> dxgi_adapter;
 			SUCCEEDED(dxgi_device->GetAdapter(&dxgi_adapter)))
@@ -49,15 +46,6 @@ reshade::d3d10::swapchain_impl::~swapchain_impl()
 #if RESHADE_ADDON
 	reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(this);
 #endif
-}
-
-reshade::api::device *reshade::d3d10::swapchain_impl::get_device()
-{
-	return _device_impl;
-}
-reshade::api::command_queue *reshade::d3d10::swapchain_impl::get_command_queue()
-{
-	return _device_impl;
 }
 
 void reshade::d3d10::swapchain_impl::get_current_back_buffer(api::resource *out)
@@ -98,9 +86,9 @@ bool reshade::d3d10::swapchain_impl::on_init()
 		api::format_to_default_typed(_backbuffer_format) != _backbuffer_format ||
 		!is_windows7())
 	{
-		if (FAILED(_device_impl->_orig->CreateTexture2D(&tex_desc, nullptr, &_backbuffer_resolved)))
+		if (FAILED(static_cast<device_impl *>(_device)->_orig->CreateTexture2D(&tex_desc, nullptr, &_backbuffer_resolved)))
 			return false;
-		if (FAILED(_device_impl->_orig->CreateRenderTargetView(_backbuffer.get(), nullptr, &_backbuffer_rtv[2])))
+		if (FAILED(static_cast<device_impl *>(_device)->_orig->CreateRenderTargetView(_backbuffer.get(), nullptr, &_backbuffer_rtv[2])))
 			return false;
 	}
 	else
@@ -110,23 +98,23 @@ bool reshade::d3d10::swapchain_impl::on_init()
 
 	// Create back buffer shader texture
 	tex_desc.BindFlags = D3D10_BIND_SHADER_RESOURCE;
-	if (FAILED(_device_impl->_orig->CreateTexture2D(&tex_desc, nullptr, &_backbuffer_texture)))
+	if (FAILED(static_cast<device_impl *>(_device)->_orig->CreateTexture2D(&tex_desc, nullptr, &_backbuffer_texture)))
 		return false;
 
 	D3D10_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
 	srv_desc.Format = convert_format(api::format_to_default_typed(_backbuffer_format));
 	srv_desc.ViewDimension = D3D10_SRV_DIMENSION_TEXTURE2D;
 	srv_desc.Texture2D.MipLevels = tex_desc.MipLevels;
-	if (FAILED(_device_impl->_orig->CreateShaderResourceView(_backbuffer_texture.get(), &srv_desc, &_backbuffer_texture_srv)))
+	if (FAILED(static_cast<device_impl *>(_device)->_orig->CreateShaderResourceView(_backbuffer_texture.get(), &srv_desc, &_backbuffer_texture_srv)))
 		return false;
 
 	D3D10_RENDER_TARGET_VIEW_DESC rtv_desc = {};
 	rtv_desc.Format = convert_format(api::format_to_default_typed(_backbuffer_format));
 	rtv_desc.ViewDimension = D3D10_RTV_DIMENSION_TEXTURE2D;
-	if (FAILED(_device_impl->_orig->CreateRenderTargetView(_backbuffer_resolved.get(), &rtv_desc, &_backbuffer_rtv[0])))
+	if (FAILED(static_cast<device_impl *>(_device)->_orig->CreateRenderTargetView(_backbuffer_resolved.get(), &rtv_desc, &_backbuffer_rtv[0])))
 		return false;
 	rtv_desc.Format = convert_format(api::format_to_default_typed_srgb(_backbuffer_format));
-	if (FAILED(_device_impl->_orig->CreateRenderTargetView(_backbuffer_resolved.get(), &rtv_desc, &_backbuffer_rtv[1])))
+	if (FAILED(static_cast<device_impl *>(_device)->_orig->CreateRenderTargetView(_backbuffer_resolved.get(), &rtv_desc, &_backbuffer_rtv[1])))
 		return false;
 
 	return runtime::on_init(swap_desc.OutputWindow);
@@ -149,7 +137,7 @@ void reshade::d3d10::swapchain_impl::on_present()
 	if (!is_initialized())
 		return;
 
-	ID3D10Device *const immediate_context = _device_impl->_orig;
+	ID3D10Device *const immediate_context = static_cast<device_impl *>(_graphics_queue)->_orig;
 	_app_state.capture();
 
 	// Resolve MSAA back buffer if MSAA is active
@@ -167,10 +155,10 @@ void reshade::d3d10::swapchain_impl::on_present()
 		const uintptr_t null = 0;
 		immediate_context->IASetVertexBuffers(0, 1, reinterpret_cast<ID3D10Buffer *const *>(&null), reinterpret_cast<const UINT *>(&null), reinterpret_cast<const UINT *>(&null));
 		immediate_context->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		immediate_context->VSSetShader(_device_impl->_copy_vert_shader.get());
+		immediate_context->VSSetShader(static_cast<device_impl *>(_device)->_copy_vert_shader.get());
 		immediate_context->GSSetShader(nullptr);
-		immediate_context->PSSetShader(_device_impl->_copy_pixel_shader.get());
-		ID3D10SamplerState *const samplers[] = { _device_impl->_copy_sampler_state.get() };
+		immediate_context->PSSetShader(static_cast<device_impl *>(_device)->_copy_pixel_shader.get());
+		ID3D10SamplerState *const samplers[] = { static_cast<device_impl *>(_device)->_copy_sampler_state.get() };
 		immediate_context->PSSetSamplers(0, ARRAYSIZE(samplers), samplers);
 		ID3D10ShaderResourceView *const srvs[] = { _backbuffer_texture_srv.get() };
 		immediate_context->PSSetShaderResources(0, ARRAYSIZE(srvs), srvs);

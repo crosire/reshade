@@ -74,12 +74,10 @@ static inline void transition_layout(const VkLayerDispatchTable &vk, VkCommandBu
 	vk.CmdPipelineBarrier(cmd_list, layout_to_stage(old_layout), layout_to_stage(new_layout), 0, 0, nullptr, 0, nullptr, 1, &transition);
 }
 
-#define vk _device_impl->_dispatch_table
+#define vk static_cast<device_impl *>(_device)->_dispatch_table
 
 reshade::vulkan::swapchain_impl::swapchain_impl(device_impl *device, command_queue_impl *graphics_queue) :
-	api_object_impl(VK_NULL_HANDLE), // Swap chain object is later set in 'on_init' below
-	_device_impl(device),
-	_queue_impl(graphics_queue),
+	api_object_impl(VK_NULL_HANDLE, device, graphics_queue), // Swap chain object is later set in 'on_init' below
 	_queue(graphics_queue->_orig)
 {
 	VkPhysicalDeviceProperties device_props = {};
@@ -110,15 +108,6 @@ reshade::vulkan::swapchain_impl::~swapchain_impl()
 #endif
 }
 
-reshade::api::device *reshade::vulkan::swapchain_impl::get_device()
-{
-	return _device_impl;
-}
-reshade::api::command_queue *reshade::vulkan::swapchain_impl::get_command_queue()
-{
-	return _queue_impl;
-}
-
 void reshade::vulkan::swapchain_impl::get_current_back_buffer(api::resource *out)
 {
 	*out = { (uint64_t)_swapchain_images[_swap_index] };
@@ -143,10 +132,10 @@ bool reshade::vulkan::swapchain_impl::on_init(VkSwapchainKHR swapchain, const Vk
 	if (swapchain != VK_NULL_HANDLE)
 	{
 		// Get back buffer images
-		if (vk.GetSwapchainImagesKHR(_device_impl->_orig, swapchain, &num_images, nullptr) != VK_SUCCESS)
+		if (vk.GetSwapchainImagesKHR(static_cast<device_impl *>(_device)->_orig, swapchain, &num_images, nullptr) != VK_SUCCESS)
 			return false;
 		_swapchain_images.resize(num_images);
-		if (vk.GetSwapchainImagesKHR(_device_impl->_orig, swapchain, &num_images, _swapchain_images.data()) != VK_SUCCESS)
+		if (vk.GetSwapchainImagesKHR(static_cast<device_impl *>(_device)->_orig, swapchain, &num_images, _swapchain_images.data()) != VK_SUCCESS)
 			return false;
 
 		// Add swap chain images to the image list
@@ -162,7 +151,7 @@ bool reshade::vulkan::swapchain_impl::on_init(VkSwapchainKHR swapchain, const Vk
 		image_create_info.initialLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
 		for (uint32_t i = 0; i < num_images; ++i)
-			_device_impl->register_image(_swapchain_images[i], image_create_info);
+			static_cast<device_impl *>(_device)->register_image(_swapchain_images[i], image_create_info);
 	}
 	else
 	{
@@ -179,13 +168,13 @@ bool reshade::vulkan::swapchain_impl::on_init(VkSwapchainKHR swapchain, const Vk
 
 	for (uint32_t i = 0, k = 0; i < num_images; ++i, k += 2)
 	{
-		if (!_device_impl->create_resource_view(
+		if (!static_cast<device_impl *>(_device)->create_resource_view(
 			reinterpret_cast<api::resource &>(_swapchain_images[i]),
 			api::resource_usage::render_target,
 			{ backbuffer_format, 0, 1, 0, 1 },
 			reinterpret_cast<api::resource_view *>(&_swapchain_views[k + 0])))
 			return false;
-		if (!_device_impl->create_resource_view(
+		if (!static_cast<device_impl *>(_device)->create_resource_view(
 			reinterpret_cast<api::resource &>(_swapchain_images[i]),
 			api::resource_usage::render_target,
 			{ backbuffer_format_srgb, 0, 1, 0, 1 },
@@ -193,11 +182,11 @@ bool reshade::vulkan::swapchain_impl::on_init(VkSwapchainKHR swapchain, const Vk
 			return false;
 	}
 
-	for (uint32_t i = 0; i < NUM_QUERY_FRAMES; ++i)
+	for (uint32_t i = 0; i < NUM_SYNC_SEMAPHORES; ++i)
 	{
 		VkSemaphoreCreateInfo sem_create_info { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
 
-		if (vk.CreateSemaphore(_device_impl->_orig, &sem_create_info, nullptr, &_queue_sync_semaphores[i]) != VK_SUCCESS)
+		if (vk.CreateSemaphore(static_cast<device_impl *>(_device)->_orig, &sem_create_info, nullptr, &_queue_sync_semaphores[i]) != VK_SUCCESS)
 			return false;
 	}
 
@@ -208,20 +197,20 @@ void reshade::vulkan::swapchain_impl::on_reset()
 	runtime::on_reset();
 
 	for (VkImageView view : _swapchain_views)
-		_device_impl->destroy_resource_view(reinterpret_cast<api::resource_view &>(view));
+		static_cast<device_impl *>(_device)->destroy_resource_view(reinterpret_cast<api::resource_view &>(view));
 	_swapchain_views.clear();
 
 	if (_orig == VK_NULL_HANDLE)
 		for (VkImage image : _swapchain_images)
-			_device_impl->destroy_resource(reinterpret_cast<api::resource &>(image));
+			static_cast<device_impl *>(_device)->destroy_resource(reinterpret_cast<api::resource &>(image));
 	else
 		// Remove swap chain images from the image list
 		for (VkImage image : _swapchain_images)
-			_device_impl->unregister_image(image);
+			static_cast<device_impl *>(_device)->unregister_image(image);
 	_swapchain_images.clear();
 
 	for (VkSemaphore &semaphore : _queue_sync_semaphores)
-		vk.DestroySemaphore(_device_impl->_orig, semaphore, nullptr),
+		vk.DestroySemaphore(static_cast<device_impl *>(_device)->_orig, semaphore, nullptr),
 		semaphore = VK_NULL_HANDLE;
 }
 
@@ -236,7 +225,7 @@ void reshade::vulkan::swapchain_impl::on_present(VkQueue queue, const uint32_t s
 
 #ifndef NDEBUG
 	// Some operations force a wait for idle in ReShade, which invalidates the wait semaphores, so signal them again (keeps the validation layers happy)
-	if (_device_impl->_wait_for_idle_happened)
+	if (static_cast<device_impl *>(_device)->_wait_for_idle_happened)
 	{
 		VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
 		std::vector<VkPipelineStageFlags> wait_stages(wait.size(), VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
@@ -247,7 +236,7 @@ void reshade::vulkan::swapchain_impl::on_present(VkQueue queue, const uint32_t s
 		submit_info.pSignalSemaphores = wait.data();
 		vk.QueueSubmit(queue, 1, &submit_info, VK_NULL_HANDLE);
 
-		_device_impl->_wait_for_idle_happened = false;
+		static_cast<device_impl *>(_device)->_wait_for_idle_happened = false;
 	}
 #endif
 
@@ -265,9 +254,9 @@ void reshade::vulkan::swapchain_impl::on_present(VkQueue queue, const uint32_t s
 		// Wait on that semaphore before the immediate command list flush below
 		wait.push_back(submit_info.pSignalSemaphores[0]);
 
-		_queue_sync_index = (_queue_sync_index + 1) % NUM_QUERY_FRAMES;
+		_queue_sync_index = (_queue_sync_index + 1) % NUM_SYNC_SEMAPHORES;
 
-		_queue_impl->flush_immediate_command_list(wait);
+		static_cast<command_queue_impl *>(_graphics_queue)->flush_immediate_command_list(wait);
 	}
 }
 bool reshade::vulkan::swapchain_impl::on_layer_submit(uint32_t eye, VkImage source, const VkExtent2D &source_extent, VkFormat source_format, VkSampleCountFlags source_samples, uint32_t source_layer_index, const float bounds[4], VkImage *target_image)
@@ -297,7 +286,7 @@ bool reshade::vulkan::swapchain_impl::on_layer_submit(uint32_t eye, VkImage sour
 
 		VkImage image = VK_NULL_HANDLE;
 
-		if (!_device_impl->create_resource(
+		if (!static_cast<device_impl *>(_device)->create_resource(
 			{ target_extent.width, target_extent.height, 1, 1, convert_format(source_format), 1, api::memory_heap::gpu_only, api::resource_usage::render_target | api::resource_usage::copy_source | api::resource_usage::copy_dest },
 			nullptr,
 			api::resource_usage::undefined,
@@ -322,13 +311,13 @@ bool reshade::vulkan::swapchain_impl::on_layer_submit(uint32_t eye, VkImage sour
 			return false;
 		}
 
-		cmd_list = static_cast<command_list_immediate_impl *>(_queue_impl->get_immediate_command_list())->begin_commands();
+		cmd_list = static_cast<command_list_immediate_impl *>(static_cast<command_queue_impl *>(_graphics_queue)->get_immediate_command_list())->begin_commands();
 		transition_layout(vk, cmd_list, _swapchain_images[0], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 	}
 	else
 	{
 
-		cmd_list = static_cast<command_list_immediate_impl *>(_queue_impl->get_immediate_command_list())->begin_commands();
+		cmd_list = static_cast<command_list_immediate_impl *>(static_cast<command_queue_impl *>(_graphics_queue)->get_immediate_command_list())->begin_commands();
 		transition_layout(vk, cmd_list, _swapchain_images[0], VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 	}
 

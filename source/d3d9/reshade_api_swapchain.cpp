@@ -9,14 +9,13 @@
 #include "reshade_api_type_convert.hpp"
 
 reshade::d3d9::swapchain_impl::swapchain_impl(device_impl *device, IDirect3DSwapChain9 *swapchain) :
-	api_object_impl(swapchain),
-	_device_impl(device),
+	api_object_impl(swapchain, device, device),
 	_app_state(device->_orig)
 {
 	_renderer_id = 0x9000;
 
 	if (D3DADAPTER_IDENTIFIER9 adapter_desc;
-		SUCCEEDED(_device_impl->_d3d->GetAdapterIdentifier(_device_impl->_cp.AdapterOrdinal, 0, &adapter_desc)))
+		SUCCEEDED(device->_d3d->GetAdapterIdentifier(device->_cp.AdapterOrdinal, 0, &adapter_desc)))
 	{
 		_vendor_id = adapter_desc.VendorId;
 		_device_id = adapter_desc.DeviceId;
@@ -41,16 +40,6 @@ reshade::d3d9::swapchain_impl::~swapchain_impl()
 #if RESHADE_ADDON
 	reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(this);
 #endif
-}
-
-reshade::api::device *reshade::d3d9::swapchain_impl::get_device()
-{
-	return _device_impl;
-}
-
-reshade::api::command_queue *reshade::d3d9::swapchain_impl::get_command_queue()
-{
-	return _device_impl;
 }
 
 void reshade::d3d9::swapchain_impl::get_current_back_buffer(api::resource *out)
@@ -94,7 +83,7 @@ bool reshade::d3d9::swapchain_impl::on_init()
 			break;
 		}
 
-		if (FAILED(_device_impl->_orig->CreateRenderTarget(_width, _height, convert_format(_backbuffer_format), D3DMULTISAMPLE_NONE, 0, FALSE, &_backbuffer_resolved, nullptr)))
+		if (FAILED(static_cast<device_impl *>(_device)->_orig->CreateRenderTarget(_width, _height, convert_format(_backbuffer_format), D3DMULTISAMPLE_NONE, 0, FALSE, &_backbuffer_resolved, nullptr)))
 			return false;
 	}
 	else
@@ -120,29 +109,31 @@ void reshade::d3d9::swapchain_impl::on_reset()
 
 void reshade::d3d9::swapchain_impl::on_present()
 {
-	if (!is_initialized() || FAILED(_device_impl->_orig->BeginScene()))
+	const auto device_impl = static_cast<reshade::d3d9::device_impl *>(_device);
+
+	if (!is_initialized() || FAILED(device_impl->_orig->BeginScene()))
 		return;
 
 	_app_state.capture();
 	BOOL software_rendering_enabled = FALSE;
-	if ((_device_impl->_cp.BehaviorFlags & D3DCREATE_MIXED_VERTEXPROCESSING) != 0)
-		software_rendering_enabled = _device_impl->_orig->GetSoftwareVertexProcessing(),
-		_device_impl->_orig->SetSoftwareVertexProcessing(FALSE); // Disable software vertex processing since it is incompatible with programmable shaders
+	if ((device_impl->_cp.BehaviorFlags & D3DCREATE_MIXED_VERTEXPROCESSING) != 0)
+		software_rendering_enabled = device_impl->_orig->GetSoftwareVertexProcessing(),
+		device_impl->_orig->SetSoftwareVertexProcessing(FALSE); // Disable software vertex processing since it is incompatible with programmable shaders
 
 	// Resolve MSAA back buffer if MSAA is active
 	if (_backbuffer_resolved != _backbuffer)
-		_device_impl->_orig->StretchRect(_backbuffer.get(), nullptr, _backbuffer_resolved.get(), nullptr, D3DTEXF_NONE);
+		device_impl->_orig->StretchRect(_backbuffer.get(), nullptr, _backbuffer_resolved.get(), nullptr, D3DTEXF_NONE);
 
 	runtime::on_present();
 
 	// Stretch main render target back into MSAA back buffer if MSAA is active
 	if (_backbuffer_resolved != _backbuffer)
-		_device_impl->_orig->StretchRect(_backbuffer_resolved.get(), nullptr, _backbuffer.get(), nullptr, D3DTEXF_NONE);
+		device_impl->_orig->StretchRect(_backbuffer_resolved.get(), nullptr, _backbuffer.get(), nullptr, D3DTEXF_NONE);
 
 	// Apply previous state from application
 	_app_state.apply_and_release();
-	if ((_device_impl->_cp.BehaviorFlags & D3DCREATE_MIXED_VERTEXPROCESSING) != 0)
-		_device_impl->_orig->SetSoftwareVertexProcessing(software_rendering_enabled);
+	if ((device_impl->_cp.BehaviorFlags & D3DCREATE_MIXED_VERTEXPROCESSING) != 0)
+		device_impl->_orig->SetSoftwareVertexProcessing(software_rendering_enabled);
 
-	_device_impl->_orig->EndScene();
+	device_impl->_orig->EndScene();
 }

@@ -11,12 +11,8 @@
 #include "reshade_api_type_convert.hpp"
 #include <CoreWindow.h>
 
-extern const char *dxgi_format_to_string(DXGI_FORMAT format);
-
 reshade::d3d12::swapchain_impl::swapchain_impl(device_impl *device, command_queue_impl *queue, IDXGISwapChain3 *swapchain) :
-	api_object_impl(swapchain),
-	_device_impl(device),
-	_cmd_queue_impl(queue)
+	api_object_impl(swapchain, device, queue)
 {
 	_renderer_id = D3D_FEATURE_LEVEL_12_0;
 
@@ -24,7 +20,7 @@ reshade::d3d12::swapchain_impl::swapchain_impl(device_impl *device, command_queu
 	if (com_ptr<IDXGIFactory4> factory;
 		_orig != nullptr && SUCCEEDED(_orig->GetParent(IID_PPV_ARGS(&factory))))
 	{
-		const LUID luid = _device_impl->_orig->GetAdapterLuid();
+		const LUID luid = device->_orig->GetAdapterLuid();
 
 		if (com_ptr<IDXGIAdapter> dxgi_adapter;
 			SUCCEEDED(factory->EnumAdapterByLuid(luid, IID_PPV_ARGS(&dxgi_adapter))))
@@ -55,22 +51,13 @@ reshade::d3d12::swapchain_impl::~swapchain_impl()
 #endif
 }
 
-reshade::api::device *reshade::d3d12::swapchain_impl::get_device()
-{
-	return _device_impl;
-}
-reshade::api::command_queue *reshade::d3d12::swapchain_impl::get_command_queue()
-{
-	return _cmd_queue_impl;
-}
-
 void reshade::d3d12::swapchain_impl::get_current_back_buffer(api::resource *out)
 {
 	*out = { (uintptr_t)_backbuffers[_swap_index].get() };
 }
 void reshade::d3d12::swapchain_impl::get_current_back_buffer_target(bool srgb, api::resource_view *out)
 {
-	*out = { _backbuffer_rtvs->GetCPUDescriptorHandleForHeapStart().ptr + (_swap_index * 2 + (srgb ? 1 : 0)) * _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_RTV] };
+	*out = { _backbuffer_rtvs->GetCPUDescriptorHandleForHeapStart().ptr + (_swap_index * 2 + (srgb ? 1 : 0)) * static_cast<device_impl *>(_device)->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_RTV] };
 }
 
 bool reshade::d3d12::swapchain_impl::on_init()
@@ -104,7 +91,7 @@ bool reshade::d3d12::swapchain_impl::on_init(const DXGI_SWAP_CHAIN_DESC &swap_de
 	{   D3D12_DESCRIPTOR_HEAP_DESC desc = { D3D12_DESCRIPTOR_HEAP_TYPE_RTV };
 		desc.NumDescriptors = swap_desc.BufferCount * 2;
 
-		if (FAILED(_device_impl->_orig->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&_backbuffer_rtvs))))
+		if (FAILED(static_cast<device_impl *>(_device)->_orig->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&_backbuffer_rtvs))))
 			return false;
 		_backbuffer_rtvs->SetName(L"ReShade RTV heap");
 	}
@@ -120,7 +107,7 @@ bool reshade::d3d12::swapchain_impl::on_init(const DXGI_SWAP_CHAIN_DESC &swap_de
 			if (FAILED(_orig->GetBuffer(i, IID_PPV_ARGS(&_backbuffers[i]))))
 				return false;
 
-			for (int srgb_write_enable = 0; srgb_write_enable < 2; ++srgb_write_enable, rtv_handle.ptr += _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_RTV])
+			for (int srgb_write_enable = 0; srgb_write_enable < 2; ++srgb_write_enable, rtv_handle.ptr += static_cast<device_impl *>(_device)->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_RTV])
 			{
 				D3D12_RENDER_TARGET_VIEW_DESC rtv_desc = {};
 				rtv_desc.Format = srgb_write_enable ?
@@ -128,7 +115,7 @@ bool reshade::d3d12::swapchain_impl::on_init(const DXGI_SWAP_CHAIN_DESC &swap_de
 					convert_format(api::format_to_default_typed(_backbuffer_format));
 				rtv_desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 
-				_device_impl->_orig->CreateRenderTargetView(_backbuffers[i].get(), &rtv_desc, rtv_handle);
+				static_cast<device_impl *>(_device)->_orig->CreateRenderTargetView(_backbuffers[i].get(), &rtv_desc, rtv_handle);
 			}
 		}
 	}
@@ -140,7 +127,7 @@ void reshade::d3d12::swapchain_impl::on_reset()
 	runtime::on_reset();
 
 	// Make sure none of the resources below are currently in use (provided the runtime was initialized previously)
-	_cmd_queue_impl->wait_idle();
+	static_cast<device_impl *>(_device)->wait_idle();
 
 	_backbuffers.clear();
 	_backbuffer_rtvs.reset();
@@ -191,9 +178,9 @@ bool reshade::d3d12::swapchain_impl::on_present(ID3D12Resource *source, HWND hwn
 		_backbuffers[_swap_index]  = source;
 
 		D3D12_CPU_DESCRIPTOR_HANDLE rtv_handle = _backbuffer_rtvs->GetCPUDescriptorHandleForHeapStart();
-		rtv_handle.ptr += _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_RTV] * 2 * _swap_index;
+		rtv_handle.ptr += static_cast<device_impl *>(_device)->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_RTV] * 2 * _swap_index;
 
-		for (int srgb_write_enable = 0; srgb_write_enable < 2; ++srgb_write_enable, rtv_handle.ptr += _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_RTV])
+		for (int srgb_write_enable = 0; srgb_write_enable < 2; ++srgb_write_enable, rtv_handle.ptr += static_cast<device_impl *>(_device)->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_RTV])
 		{
 			D3D12_RENDER_TARGET_VIEW_DESC rtv_desc = {};
 			rtv_desc.Format = srgb_write_enable ?
@@ -201,7 +188,7 @@ bool reshade::d3d12::swapchain_impl::on_present(ID3D12Resource *source, HWND hwn
 				convert_format(api::format_to_default_typed(_backbuffer_format));
 			rtv_desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 
-			_device_impl->_orig->CreateRenderTargetView(source, &rtv_desc, rtv_handle);
+			static_cast<device_impl *>(_device)->_orig->CreateRenderTargetView(source, &rtv_desc, rtv_handle);
 		}
 	}
 
@@ -262,7 +249,7 @@ bool reshade::d3d12::swapchain_impl::on_layer_submit(UINT eye, ID3D12Resource *s
 
 		const D3D12_HEAP_PROPERTIES heap_props = { D3D12_HEAP_TYPE_DEFAULT };
 
-		if (HRESULT hr = _device_impl->_orig->CreateCommittedResource(&heap_props, D3D12_HEAP_FLAG_NONE, &source_desc, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&_backbuffers[0])); FAILED(hr))
+		if (HRESULT hr = static_cast<device_impl *>(_device)->_orig->CreateCommittedResource(&heap_props, D3D12_HEAP_FLAG_NONE, &source_desc, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&_backbuffers[0])); FAILED(hr))
 		{
 			LOG(ERROR) << "Failed to create region texture!" << " HRESULT is " << hr << '.';
 			LOG(DEBUG) << "> Details: Width = " << source_desc.Width << ", Height = " << source_desc.Height << ", Format = " << source_desc.Format << ", Flags = " << std::hex << source_desc.Flags << std::dec;
@@ -271,7 +258,7 @@ bool reshade::d3d12::swapchain_impl::on_layer_submit(UINT eye, ID3D12Resource *s
 
 		D3D12_CPU_DESCRIPTOR_HANDLE rtv_handle = _backbuffer_rtvs->GetCPUDescriptorHandleForHeapStart();
 
-		for (int srgb_write_enable = 0; srgb_write_enable < 2; ++srgb_write_enable, rtv_handle.ptr += _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_RTV])
+		for (int srgb_write_enable = 0; srgb_write_enable < 2; ++srgb_write_enable, rtv_handle.ptr += static_cast<device_impl *>(_device)->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_RTV])
 		{
 			D3D12_RENDER_TARGET_VIEW_DESC rtv_desc = {};
 			rtv_desc.Format = srgb_write_enable ?
@@ -279,11 +266,11 @@ bool reshade::d3d12::swapchain_impl::on_layer_submit(UINT eye, ID3D12Resource *s
 				convert_format(api::format_to_default_typed(_backbuffer_format));
 			rtv_desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 
-			_device_impl->_orig->CreateRenderTargetView(_backbuffers[0].get(), &rtv_desc, rtv_handle);
+			static_cast<device_impl *>(_device)->_orig->CreateRenderTargetView(_backbuffers[0].get(), &rtv_desc, rtv_handle);
 		}
 	}
 
-	ID3D12GraphicsCommandList *const cmd_list = static_cast<command_list_immediate_impl *>(_cmd_queue_impl->get_immediate_command_list())->begin_commands();
+	ID3D12GraphicsCommandList *const cmd_list = static_cast<command_list_immediate_impl *>(static_cast<command_queue_impl *>(_graphics_queue)->get_immediate_command_list())->begin_commands();
 
 	D3D12_RESOURCE_BARRIER transitions[2];
 	transitions[0] = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };

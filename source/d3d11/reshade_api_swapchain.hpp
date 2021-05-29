@@ -19,9 +19,6 @@ namespace reshade::d3d11
 		swapchain_impl(device_impl *device, device_context_impl *immediate_context, IDXGISwapChain *swapchain);
 		~swapchain_impl();
 
-		api::device *get_device() final;
-		api::command_queue *get_command_queue() final;
-
 		void get_current_back_buffer(api::resource *out) final;
 		void get_current_back_buffer_target(bool srgb, api::resource_view *out) final;
 
@@ -32,9 +29,6 @@ namespace reshade::d3d11
 		bool on_layer_submit(UINT eye, ID3D11Texture2D *source, const float bounds[4], ID3D11Texture2D **target);
 
 	private:
-		device_impl *const _device_impl;
-		device_context_impl *const _immediate_context_impl;
-
 		state_block _app_state;
 
 		com_ptr<ID3D11Texture2D> _backbuffer;

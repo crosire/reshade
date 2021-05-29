@@ -74,7 +74,9 @@ static std::vector<std::filesystem::path> find_files(const std::vector<std::file
 	return files;
 }
 
-reshade::runtime::runtime() :
+reshade::runtime::runtime(api::device *device, api::command_queue *graphics_queue) :
+	_device(device),
+	_graphics_queue(graphics_queue),
 	_start_time(std::chrono::high_resolution_clock::now()),
 	_last_present_time(std::chrono::high_resolution_clock::now()),
 	_last_frame_duration(std::chrono::milliseconds(1)),
@@ -89,6 +91,8 @@ reshade::runtime::runtime() :
 	_config_path(g_reshade_base_path / L"ReShade.ini"),
 	_screenshot_path(g_reshade_base_path)
 {
+	assert(device != nullptr && graphics_queue != nullptr);
+
 	_needs_update = check_for_update(_latest_version);
 
 	// Default shortcut PrtScrn
@@ -163,26 +167,24 @@ bool reshade::runtime::on_init(input::window_handle window)
 		break;
 	}
 
-	api::device *const device = get_device();
-
 	// Create back buffer shader resource
 	if (_backbuffer_texture.handle == 0)
 	{
-		if (!device->create_resource(
+		if (!_device->create_resource(
 			api::resource_desc(_width, _height, 1, 1, api::format_to_typeless(_backbuffer_format), 1, api::memory_heap::gpu_only, api::resource_usage::copy_dest | api::resource_usage::shader_resource),
 			nullptr,
 			api::resource_usage::shader_resource,
 			&_backbuffer_texture))
 			return false;
-		device->set_debug_name(_backbuffer_texture, "ReShade back buffer");
+		_device->set_debug_name(_backbuffer_texture, "ReShade back buffer");
 
-		if (!device->create_resource_view(
+		if (!_device->create_resource_view(
 			_backbuffer_texture,
 			api::resource_usage::shader_resource,
 			api::resource_view_desc(api::format_to_default_typed(_backbuffer_format), 0, 1, 0, 1),
 			&_backbuffer_texture_view[0]))
 			return false;
-		if (!device->create_resource_view(
+		if (!_device->create_resource_view(
 			_backbuffer_texture,
 			api::resource_usage::shader_resource,
 			api::resource_view_desc(api::format_to_default_typed_srgb(_backbuffer_format), 0, 1, 0, 1),
@@ -203,7 +205,7 @@ bool reshade::runtime::on_init(input::window_handle window)
 
 		for (const api::format format : possible_stencil_formats)
 		{
-			if (device->check_format_support(format, api::resource_usage::depth_stencil))
+			if (_device->check_format_support(format, api::resource_usage::depth_stencil))
 			{
 				_effect_stencil_format = format;
 				break;
@@ -212,15 +214,15 @@ bool reshade::runtime::on_init(input::window_handle window)
 
 		assert(_effect_stencil_format != api::format::unknown);
 
-		if (!device->create_resource(
+		if (!_device->create_resource(
 			api::resource_desc(_width, _height, 1, 1, _effect_stencil_format, 1, api::memory_heap::gpu_only, api::resource_usage::depth_stencil),
 			nullptr,
 			api::resource_usage::depth_stencil_write,
 			&_effect_stencil))
 			return false;
-		device->set_debug_name(_effect_stencil, "ReShade stencil buffer");
+		_device->set_debug_name(_effect_stencil, "ReShade stencil buffer");
 
-		if (!device->create_resource_view(
+		if (!_device->create_resource_view(
 			_effect_stencil,
 			api::resource_usage::depth_stencil,
 			api::resource_view_desc(_effect_stencil_format, 0, 1, 0, 1),
@@ -232,15 +234,15 @@ bool reshade::runtime::on_init(input::window_handle window)
 	// Use VK_FORMAT_R16_SFLOAT format, since it is mandatory according to the spec (see https://www.khronos.org/registry/vulkan/specs/1.1/html/vkspec.html#features-required-format-support)
 	if (_empty_texture.handle == 0)
 	{
-		if (!device->create_resource(
+		if (!_device->create_resource(
 			api::resource_desc(1, 1, 1, 1, api::format::r16_float, 1, api::memory_heap::gpu_only, api::resource_usage::shader_resource),
 			nullptr,
 			api::resource_usage::shader_resource,
 			&_empty_texture))
 			return false;
-		device->set_debug_name(_empty_texture, "ReShade empty texture");
+		_device->set_debug_name(_empty_texture, "ReShade empty texture");
 
-		if (!device->create_resource_view(
+		if (!_device->create_resource_view(
 			_empty_texture,
 			api::resource_usage::shader_resource,
 			api::resource_view_desc(api::format::r16_float, 0, 1, 0, 1),
@@ -290,25 +292,23 @@ void reshade::runtime::on_reset()
 
 	_width = _height = 0;
 
-	api::device *const device = get_device();
+	_device->wait_idle();
 
-	device->wait_idle();
-
-	device->destroy_resource(_backbuffer_texture);
+	_device->destroy_resource(_backbuffer_texture);
 	_backbuffer_texture = {};
-	device->destroy_resource_view(_backbuffer_texture_view[0]);
+	_device->destroy_resource_view(_backbuffer_texture_view[0]);
 	_backbuffer_texture_view[0] = {};
-	device->destroy_resource_view(_backbuffer_texture_view[1]);
+	_device->destroy_resource_view(_backbuffer_texture_view[1]);
 	_backbuffer_texture_view[1] = {};
 
-	device->destroy_resource(_effect_stencil);
+	_device->destroy_resource(_effect_stencil);
 	_effect_stencil = {};
-	device->destroy_resource_view(_effect_stencil_view);
+	_device->destroy_resource_view(_effect_stencil_view);
 	_effect_stencil_view = {};
 
-	device->destroy_resource(_empty_texture);
+	_device->destroy_resource(_empty_texture);
 	_empty_texture = {};
-	device->destroy_resource_view(_empty_texture_view);
+	_device->destroy_resource_view(_empty_texture_view);
 	_empty_texture_view = {};
 
 #if RESHADE_GUI
@@ -965,9 +965,9 @@ void reshade::runtime::load_textures()
 			continue;
 		}
 
-		api::command_list *const cmd_list = get_command_queue()->get_immediate_command_list();
+		api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
 		cmd_list->barrier(texture.resource, api::resource_usage::shader_resource, api::resource_usage::copy_dest);
-		get_device()->upload_texture_region({ resized.data(), row_pitch, row_pitch * texture.height }, texture.resource, 0);
+		_device->upload_texture_region({ resized.data(), row_pitch, row_pitch * texture.height }, texture.resource, 0);
 		cmd_list->barrier(texture.resource, api::resource_usage::copy_dest, api::resource_usage::shader_resource);
 
 		if (texture.levels > 1)
@@ -981,8 +981,6 @@ void reshade::runtime::load_textures()
 
 bool reshade::runtime::init_effect(size_t effect_index)
 {
-	api::device *const device = get_device();
-
 	effect &effect = _effects[effect_index];
 
 	// Compile shader modules
@@ -1002,7 +1000,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 			break;
 		case reshadefx::shader_type::cs:
 			type = api::shader_stage::compute;
-			if (!device->check_capability(api::device_caps::compute_shader))
+			if (!_device->check_capability(api::device_caps::compute_shader))
 			{
 				effect.errors += "Compute shaders are not supported in D3D9.";
 				return false;
@@ -1254,7 +1252,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 	}
 
 	// Create query pool for time measurements
-	if (!device->create_query_pool(api::query_type::timestamp, static_cast<uint32_t>(effect.module.techniques.size() * 2 * 4), &effect.query_heap))
+	if (!_device->create_query_pool(api::query_type::timestamp, static_cast<uint32_t>(effect.module.techniques.size() * 2 * 4), &effect.query_heap))
 		return false;
 
 	uint32_t total_passes = 0;
@@ -1265,7 +1263,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 	// Create global constant buffer (except in D3D9, which does not have constant buffers)
 	if (_renderer_id != 0x9000 && !effect.uniform_data_storage.empty())
 	{
-		if (!device->create_resource(
+		if (!_device->create_resource(
 			api::resource_desc(effect.uniform_data_storage.size(), api::memory_heap::cpu_to_gpu, api::resource_usage::constant_buffer),
 			nullptr,
 			api::resource_usage::cpu_access,
@@ -1275,7 +1273,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 			return false;
 		}
 
-		device->set_debug_name(effect.cb, "ReShade constant buffer");
+		_device->set_debug_name(effect.cb, "ReShade constant buffer");
 
 		api::descriptor_range range;
 		range.binding = 0;
@@ -1283,10 +1281,10 @@ bool reshade::runtime::init_effect(size_t effect_index)
 		range.type = api::descriptor_type::constant_buffer;
 		range.count = 1;
 		range.visibility = api::shader_stage::all;
-		if (!device->create_descriptor_set_layout(1, &range, false, &effect.set_layouts[0]))
+		if (!_device->create_descriptor_set_layout(1, &range, false, &effect.set_layouts[0]))
 			return false;
 
-		if (!device->create_descriptor_sets(effect.set_layouts[0], 1, &effect.cb_set))
+		if (!_device->create_descriptor_sets(effect.set_layouts[0], 1, &effect.cb_set))
 			return false;
 
 		api::descriptor_update &update = descriptor_updates.emplace_back();
@@ -1299,7 +1297,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 	// Initialize sampler and storage bindings
 	std::vector<api::descriptor_set> texture_tables;
 	std::vector<api::descriptor_set> storage_tables;
-	const bool sampler_with_resource_view = device->check_capability(api::device_caps::sampler_with_resource_view);
+	const bool sampler_with_resource_view = _device->check_capability(api::device_caps::sampler_with_resource_view);
 
 	if (effect.module.num_sampler_bindings != 0)
 	{
@@ -1309,18 +1307,18 @@ bool reshade::runtime::init_effect(size_t effect_index)
 		range.type = sampler_with_resource_view ? api::descriptor_type::sampler_with_resource_view : api::descriptor_type::sampler;
 		range.count = effect.module.num_sampler_bindings;
 		range.visibility = api::shader_stage::all;
-		if (!device->create_descriptor_set_layout(1, &range, false, &effect.set_layouts[1]))
+		if (!_device->create_descriptor_set_layout(1, &range, false, &effect.set_layouts[1]))
 			return false;
 
 		if (sampler_with_resource_view)
 		{
 			texture_tables.resize(total_passes);
-			if (!device->create_descriptor_sets(effect.set_layouts[1], total_passes, texture_tables.data()))
+			if (!_device->create_descriptor_sets(effect.set_layouts[1], total_passes, texture_tables.data()))
 				return false;
 		}
 		else
 		{
-			if (!device->create_descriptor_sets(effect.set_layouts[1], 1, &effect.sampler_set))
+			if (!_device->create_descriptor_sets(effect.set_layouts[1], 1, &effect.sampler_set))
 				return false;
 
 			uint16_t sampler_list = 0;
@@ -1359,7 +1357,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 				}
 				else
 				{
-					if (!device->create_sampler(desc, &update.descriptor.sampler))
+					if (!_device->create_sampler(desc, &update.descriptor.sampler))
 						return false;
 
 					_effect_sampler_states.emplace(desc_hash, update.descriptor.sampler);
@@ -1378,11 +1376,11 @@ bool reshade::runtime::init_effect(size_t effect_index)
 		range.type = api::descriptor_type::shader_resource_view;
 		range.count = effect.module.num_texture_bindings;
 		range.visibility = api::shader_stage::all;
-		if (!device->create_descriptor_set_layout(1, &range, false, &effect.set_layouts[2]))
+		if (!_device->create_descriptor_set_layout(1, &range, false, &effect.set_layouts[2]))
 			return false;
 
 		texture_tables.resize(total_passes);
-		if (!device->create_descriptor_sets(effect.set_layouts[2], total_passes, texture_tables.data()))
+		if (!_device->create_descriptor_sets(effect.set_layouts[2], total_passes, texture_tables.data()))
 			return false;
 	}
 
@@ -1394,16 +1392,16 @@ bool reshade::runtime::init_effect(size_t effect_index)
 		range.type = api::descriptor_type::unordered_access_view;
 		range.count = effect.module.num_storage_bindings;
 		range.visibility = api::shader_stage::all;
-		if (!device->create_descriptor_set_layout(1, &range, false, &effect.set_layouts[sampler_with_resource_view ? 2 : 3]))
+		if (!_device->create_descriptor_set_layout(1, &range, false, &effect.set_layouts[sampler_with_resource_view ? 2 : 3]))
 			return false;
 
 		storage_tables.resize(total_passes);
-		if (!device->create_descriptor_sets(effect.set_layouts[sampler_with_resource_view ? 2 : 3], total_passes, storage_tables.data()))
+		if (!_device->create_descriptor_sets(effect.set_layouts[sampler_with_resource_view ? 2 : 3], total_passes, storage_tables.data()))
 			return false;
 	}
 
 	// Initialize pipeline layout
-	if (!device->create_pipeline_layout(4, effect.set_layouts, 0, nullptr, &effect.layout))
+	if (!_device->create_pipeline_layout(4, effect.set_layouts, 0, nullptr, &effect.layout))
 	{
 		LOG(ERROR) << "Failed to create pipeline layout for effect file '" << effect.source_file << "'!";
 		return false;
@@ -1445,7 +1443,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 					desc.compute.shader.spec_constant_values = spec_data.data();
 				}
 
-				if (!device->create_pipeline(desc, &pass_data.pipeline))
+				if (!_device->create_pipeline(desc, &pass_data.pipeline))
 				{
 					LOG(ERROR) << "Failed to create compute pipeline for pass " << pass_index << " in technique '" << technique.name << "'!";
 					return false;
@@ -1492,7 +1490,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 						pass_data.generate_mipmap_views.push_back(texture.srv[pass_info.srgb_write_enable]);
 
 					const api::resource_desc res_desc(
-						device->get_resource_desc(texture.resource));
+						_device->get_resource_desc(texture.resource));
 					const api::resource_view_desc rtv_desc(
 						pass_info.srgb_write_enable ? api::format_to_default_typed_srgb(res_desc.texture.format) : api::format_to_default_typed(res_desc.texture.format), 0, 1, 0, 1);
 
@@ -1635,7 +1633,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 				depth_stencil_state.front_stencil_pass_op = depth_stencil_state.back_stencil_pass_op;
 				depth_stencil_state.front_stencil_func = depth_stencil_state.back_stencil_func;
 
-				if (!device->create_pipeline(desc, &pass_data.pipeline))
+				if (!_device->create_pipeline(desc, &pass_data.pipeline))
 				{
 					LOG(ERROR) << "Failed to create graphics pipeline for pass " << pass_index << " in technique '" << technique.name << "'!";
 					return false;
@@ -1679,7 +1677,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 						}
 						else
 						{
-							if (!device->create_sampler(desc, &update.descriptor.sampler))
+							if (!_device->create_sampler(desc, &update.descriptor.sampler))
 								return false;
 
 							_effect_sampler_states.emplace(desc_hash, update.descriptor.sampler);
@@ -1747,14 +1745,12 @@ bool reshade::runtime::init_effect(size_t effect_index)
 	}
 
 	if (!descriptor_updates.empty())
-		device->update_descriptor_sets(static_cast<uint32_t>(descriptor_updates.size()), descriptor_updates.data());
+		_device->update_descriptor_sets(static_cast<uint32_t>(descriptor_updates.size()), descriptor_updates.data());
 
 	return true;
 }
 bool reshade::runtime::init_texture(texture &tex)
 {
-	api::device *const device = get_device();
-
 	// Do not create resource if it is a special reference, those are set in 'render_technique' and 'update_texture_bindings'
 	if (!tex.semantic.empty())
 		return true;
@@ -1829,18 +1825,18 @@ bool reshade::runtime::init_texture(texture &tex)
 		initial_data[level].row_pitch = width * 16;
 	}
 
-	if (!device->create_resource(api::resource_desc(tex.width, tex.height, 1, tex.levels, format, 1, api::memory_heap::gpu_only, usage, flags), initial_data.data(), api::resource_usage::shader_resource, &tex.resource))
+	if (!_device->create_resource(api::resource_desc(tex.width, tex.height, 1, tex.levels, format, 1, api::memory_heap::gpu_only, usage, flags), initial_data.data(), api::resource_usage::shader_resource, &tex.resource))
 	{
 		LOG(ERROR) << "Failed to create texture '" << tex.unique_name << "'!";
 		LOG(DEBUG) << "> Details: Width = " << tex.width << ", Height = " << tex.height << ", Levels = " << tex.levels << ", Format = " << static_cast<uint32_t>(format) << ", Usage = " << std::hex << static_cast<uint32_t>(usage) << std::dec;
 		return false;
 	}
 
-	device->set_debug_name(tex.resource, tex.unique_name.c_str());
+	_device->set_debug_name(tex.resource, tex.unique_name.c_str());
 
 	// Always create shader resource views
 	{
-		if (!device->create_resource_view(tex.resource, api::resource_usage::shader_resource, api::resource_view_desc(view_format, 0, tex.levels, 0, 1), &tex.srv[0]))
+		if (!_device->create_resource_view(tex.resource, api::resource_usage::shader_resource, api::resource_view_desc(view_format, 0, tex.levels, 0, 1), &tex.srv[0]))
 		{
 			LOG(ERROR) << "Failed to create shader resource view for texture '" << tex.unique_name << "'!";
 			LOG(DEBUG) << "> Details: Format = " << static_cast<uint32_t>(view_format) << ", Levels = " << tex.levels;
@@ -1850,7 +1846,7 @@ bool reshade::runtime::init_texture(texture &tex)
 		{
 			tex.srv[1] = tex.srv[0];
 		}
-		else if (!device->create_resource_view(tex.resource, api::resource_usage::shader_resource, api::resource_view_desc(view_format_srgb, 0, tex.levels, 0, 1), &tex.srv[1]))
+		else if (!_device->create_resource_view(tex.resource, api::resource_usage::shader_resource, api::resource_view_desc(view_format_srgb, 0, tex.levels, 0, 1), &tex.srv[1]))
 		{
 			LOG(ERROR) << "Failed to create shader resource view for texture '" << tex.unique_name << "'!";
 			LOG(DEBUG) << "> Details: Format = " << static_cast<uint32_t>(view_format_srgb) << ", Levels = " << tex.levels;
@@ -1861,7 +1857,7 @@ bool reshade::runtime::init_texture(texture &tex)
 	// Create render target views (with a single level)
 	if (tex.render_target)
 	{
-		if (!device->create_resource_view(tex.resource, api::resource_usage::render_target, api::resource_view_desc(view_format, 0, 1, 0, 1), &tex.rtv[0]))
+		if (!_device->create_resource_view(tex.resource, api::resource_usage::render_target, api::resource_view_desc(view_format, 0, 1, 0, 1), &tex.rtv[0]))
 		{
 			LOG(ERROR) << "Failed to create render target view for texture '" << tex.unique_name << "'!";
 			LOG(DEBUG) << "> Details: Format = " << static_cast<uint32_t>(view_format);
@@ -1871,7 +1867,7 @@ bool reshade::runtime::init_texture(texture &tex)
 		{
 			tex.rtv[1] = tex.rtv[0];
 		}
-		else if (!device->create_resource_view(tex.resource, api::resource_usage::render_target, api::resource_view_desc(view_format_srgb, 0, 1, 0, 1), &tex.rtv[1]))
+		else if (!_device->create_resource_view(tex.resource, api::resource_usage::render_target, api::resource_view_desc(view_format_srgb, 0, 1, 0, 1), &tex.rtv[1]))
 		{
 			LOG(ERROR) << "Failed to create render target view for texture '" << tex.unique_name << "'!";
 			LOG(DEBUG) << "> Details: Format = " << static_cast<uint32_t>(view_format_srgb);
@@ -1881,7 +1877,7 @@ bool reshade::runtime::init_texture(texture &tex)
 
 	if (tex.storage_access && _renderer_id >= 0xb000)
 	{
-		if (!device->create_resource_view(tex.resource, api::resource_usage::unordered_access, api::resource_view_desc(view_format, 0, 1, 0, 1), &tex.uav))
+		if (!_device->create_resource_view(tex.resource, api::resource_usage::unordered_access, api::resource_view_desc(view_format, 0, 1, 0, 1), &tex.uav))
 		{
 			LOG(ERROR) << "Failed to create unordered access view for texture '" << tex.unique_name << "'!";
 			LOG(DEBUG) << "> Details: Format = " << static_cast<uint32_t>(view_format);
@@ -1896,10 +1892,8 @@ void reshade::runtime::unload_effect(size_t effect_index)
 {
 	assert(effect_index < _effects.size());
 
-	api::device *const device = get_device();
-
 	// Make sure no effect resources are currently in use
-	device->wait_idle();
+	_device->wait_idle();
 
 	for (technique &tech : _techniques)
 	{
@@ -1908,10 +1902,10 @@ void reshade::runtime::unload_effect(size_t effect_index)
 
 		for (size_t pass_index = 0; pass_index < tech.passes_data.size(); ++pass_index)
 		{
-			device->destroy_pipeline(tech.passes[pass_index].cs_entry_point.empty() ? api::pipeline_type::graphics : api::pipeline_type::compute, tech.passes_data[pass_index].pipeline);
+			_device->destroy_pipeline(tech.passes[pass_index].cs_entry_point.empty() ? api::pipeline_type::graphics : api::pipeline_type::compute, tech.passes_data[pass_index].pipeline);
 
-			device->destroy_descriptor_sets(_effects[effect_index].set_layouts[2], 1, &tech.passes_data[pass_index].texture_set);
-			device->destroy_descriptor_sets(_effects[effect_index].set_layouts[3], 1, &tech.passes_data[pass_index].storage_set);
+			_device->destroy_descriptor_sets(_effects[effect_index].set_layouts[2], 1, &tech.passes_data[pass_index].texture_set);
+			_device->destroy_descriptor_sets(_effects[effect_index].set_layouts[3], 1, &tech.passes_data[pass_index].storage_set);
 		}
 
 		tech.passes_data.clear();
@@ -1919,25 +1913,25 @@ void reshade::runtime::unload_effect(size_t effect_index)
 
 	{	effect &effect = _effects[effect_index];
 
-		device->destroy_resource(effect.cb);
+		_device->destroy_resource(effect.cb);
 		effect.cb = {};
 
-		device->destroy_pipeline_layout(effect.layout);
+		_device->destroy_pipeline_layout(effect.layout);
 		effect.layout = {};
 
-		device->destroy_descriptor_sets(effect.set_layouts[0], 1, &effect.cb_set);
+		_device->destroy_descriptor_sets(effect.set_layouts[0], 1, &effect.cb_set);
 		effect.cb_set = {};
 
-		device->destroy_descriptor_sets(effect.set_layouts[1], 1, &effect.sampler_set);
+		_device->destroy_descriptor_sets(effect.set_layouts[1], 1, &effect.sampler_set);
 		effect.sampler_set = {};
 
 		for (uint32_t i = 0; i < 4; ++i)
 		{
-			device->destroy_descriptor_set_layout(effect.set_layouts[i]);
+			_device->destroy_descriptor_set_layout(effect.set_layouts[i]);
 			effect.set_layouts[i] = {};
 		}
 
-		device->destroy_query_pool(effect.query_heap);
+		_device->destroy_query_pool(effect.query_heap);
 		effect.query_heap = {};
 	}
 
@@ -1969,19 +1963,17 @@ void reshade::runtime::unload_effect(size_t effect_index)
 }
 void reshade::runtime::unload_effects()
 {
-	api::device *const device = get_device();
-
 	// Make sure no effect resources are currently in use
-	device->wait_idle();
+	_device->wait_idle();
 
 	for (technique &tech : _techniques)
 	{
 		for (size_t pass_index = 0; pass_index < tech.passes_data.size(); ++pass_index)
 		{
-			device->destroy_pipeline(tech.passes[pass_index].cs_entry_point.empty() ? api::pipeline_type::graphics : api::pipeline_type::compute, tech.passes_data[pass_index].pipeline);
+			_device->destroy_pipeline(tech.passes[pass_index].cs_entry_point.empty() ? api::pipeline_type::graphics : api::pipeline_type::compute, tech.passes_data[pass_index].pipeline);
 
-			device->destroy_descriptor_sets(_effects[tech.effect_index].set_layouts[2], 1, &tech.passes_data[pass_index].texture_set);
-			device->destroy_descriptor_sets(_effects[tech.effect_index].set_layouts[3], 1, &tech.passes_data[pass_index].storage_set);
+			_device->destroy_descriptor_sets(_effects[tech.effect_index].set_layouts[2], 1, &tech.passes_data[pass_index].texture_set);
+			_device->destroy_descriptor_sets(_effects[tech.effect_index].set_layouts[3], 1, &tech.passes_data[pass_index].storage_set);
 		}
 
 		tech.passes_data.clear();
@@ -1989,20 +1981,20 @@ void reshade::runtime::unload_effects()
 
 	for (const effect &effect : _effects)
 	{
-		device->destroy_resource(effect.cb);
+		_device->destroy_resource(effect.cb);
 
-		device->destroy_descriptor_sets(effect.set_layouts[0], 1, &effect.cb_set);
-		device->destroy_descriptor_sets(effect.set_layouts[1], 1, &effect.sampler_set);
+		_device->destroy_descriptor_sets(effect.set_layouts[0], 1, &effect.cb_set);
+		_device->destroy_descriptor_sets(effect.set_layouts[1], 1, &effect.sampler_set);
 
-		device->destroy_pipeline_layout(effect.layout);
+		_device->destroy_pipeline_layout(effect.layout);
 		for (uint32_t i = 0; i < 4; ++i)
-			device->destroy_descriptor_set_layout(effect.set_layouts[i]);
+			_device->destroy_descriptor_set_layout(effect.set_layouts[i]);
 
-		device->destroy_query_pool(effect.query_heap);
+		_device->destroy_query_pool(effect.query_heap);
 	}
 
 	for (auto &[hash, sampler] : _effect_sampler_states)
-		device->destroy_sampler(sampler);
+		_device->destroy_sampler(sampler);
 	_effect_sampler_states.clear();
 
 #if RESHADE_GUI
@@ -2029,24 +2021,22 @@ void reshade::runtime::unload_effects()
 }
 void reshade::runtime::destroy_texture(texture &tex)
 {
-	api::device *const device = get_device();
-
-	device->destroy_resource(tex.resource);
+	_device->destroy_resource(tex.resource);
 	tex.resource = {};
 
-	device->destroy_resource_view(tex.srv[0]);
+	_device->destroy_resource_view(tex.srv[0]);
 	if (tex.srv[1] != tex.srv[0])
-		device->destroy_resource_view(tex.srv[1]);
+		_device->destroy_resource_view(tex.srv[1]);
 	tex.srv[0] = {};
 	tex.srv[1] = {};
 
-	device->destroy_resource_view(tex.rtv[0]);
+	_device->destroy_resource_view(tex.rtv[0]);
 	if (tex.rtv[1] != tex.rtv[0])
-		device->destroy_resource_view(tex.rtv[1]);
+		_device->destroy_resource_view(tex.rtv[1]);
 	tex.rtv[0] = {};
 	tex.rtv[1] = {};
 
-	device->destroy_resource_view(tex.uav);
+	_device->destroy_resource_view(tex.uav);
 	tex.uav = {};
 }
 
@@ -2555,7 +2545,7 @@ void reshade::runtime::update_and_render_effects()
 	api::resource backbuffer;
 	get_current_back_buffer(&backbuffer);
 
-	auto cmd_list = get_command_queue()->get_immediate_command_list();
+	api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
 	cmd_list->barrier(backbuffer, api::resource_usage::present, api::resource_usage::render_target);
 
 	// Render all enabled techniques
@@ -2596,8 +2586,7 @@ void reshade::runtime::render_technique(technique &technique)
 {
 	const effect &effect = _effects[technique.effect_index];
 
-	api::device *const device = get_device();
-	api::command_list *const cmd_list = get_command_queue()->get_immediate_command_list();
+	api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
 
 	api::resource backbuffer;
 	get_current_back_buffer(&backbuffer);
@@ -2611,7 +2600,7 @@ void reshade::runtime::render_technique(technique &technique)
 	{
 		// Evaluate queries from oldest frame in queue
 		if (uint64_t timestamps[2];
-			device->get_query_results(effect.query_heap, technique.query_base_index + ((_framecount + 1) % 4) * 2, 2, timestamps, sizeof(uint64_t)))
+			_device->get_query_results(effect.query_heap, technique.query_base_index + ((_framecount + 1) % 4) * 2, 2, timestamps, sizeof(uint64_t)))
 			technique.average_gpu_duration.append(timestamps[1] - timestamps[0]);
 
 		cmd_list->finish_query(effect.query_heap, api::query_type::timestamp, technique.query_base_index + (_framecount % 4) * 2);
@@ -2627,10 +2616,10 @@ void reshade::runtime::render_technique(technique &technique)
 	if (effect.cb.handle != 0)
 	{
 		if (void *mapped_ptr;
-			device->map_resource(effect.cb, 0, api::map_access::write_discard, &mapped_ptr))
+			_device->map_resource(effect.cb, 0, api::map_access::write_discard, &mapped_ptr))
 		{
 			std::memcpy(mapped_ptr, effect.uniform_data_storage.data(), effect.uniform_data_storage.size());
-			device->unmap_resource(effect.cb, 0);
+			_device->unmap_resource(effect.cb, 0);
 		}
 
 		cmd_list->bind_descriptor_sets(api::pipeline_type::graphics, effect.layout, 0, 1, &effect.cb_set);
@@ -2642,7 +2631,7 @@ void reshade::runtime::render_technique(technique &technique)
 		cmd_list->push_constants(api::shader_stage::all, effect.layout, 0, 0, static_cast<uint32_t>(effect.uniform_data_storage.size() / sizeof(uint32_t)), reinterpret_cast<const uint32_t *>(effect.uniform_data_storage.data()));
 	}
 
-	const bool sampler_with_resource_view = device->check_capability(api::device_caps::sampler_with_resource_view);
+	const bool sampler_with_resource_view = _device->check_capability(api::device_caps::sampler_with_resource_view);
 
 	// Setup samplers
 	if (effect.sampler_set.handle != 0)
@@ -3240,8 +3229,7 @@ bool reshade::runtime::take_screenshot(uint8_t *buffer)
 		}
 		device->set_debug_name(intermediate, "ReShade screenshot buffer");
 
-		const auto cmd_list = get_command_queue()->get_immediate_command_list();
-
+		api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
 		cmd_list->barrier(backbuffer, api::resource_usage::present, api::resource_usage::copy_source);
 		cmd_list->copy_texture_to_buffer(backbuffer, 0, nullptr, intermediate, 0, _width, _height);
 		cmd_list->barrier(backbuffer, api::resource_usage::copy_source, api::resource_usage::present);
@@ -3255,8 +3243,7 @@ bool reshade::runtime::take_screenshot(uint8_t *buffer)
 		}
 		device->set_debug_name(intermediate, "ReShade screenshot texture");
 
-		const auto cmd_list = get_command_queue()->get_immediate_command_list();
-
+		api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
 		cmd_list->barrier(backbuffer, api::resource_usage::present, api::resource_usage::copy_source);
 		cmd_list->copy_resource(backbuffer, intermediate);
 		cmd_list->barrier(backbuffer, api::resource_usage::copy_source, api::resource_usage::present);
