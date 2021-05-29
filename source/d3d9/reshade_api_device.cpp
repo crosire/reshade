@@ -1038,7 +1038,7 @@ void reshade::d3d9::device_impl::update_descriptor_sets(uint32_t num_updates, co
 	}
 }
 
-bool reshade::d3d9::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access access, void **data)
+bool reshade::d3d9::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access access, void **data, uint32_t *row_pitch, uint32_t *slice_pitch)
 {
 	DWORD flags = 0;
 	switch (access)
@@ -1062,6 +1062,10 @@ bool reshade::d3d9::device_impl::map_resource(api::resource resource, uint32_t s
 			SUCCEEDED(static_cast<IDirect3DSurface9 *>(object)->LockRect(&locked_rect, nullptr, flags)))
 		{
 			*data = locked_rect.pBits;
+			if (row_pitch != nullptr)
+				*row_pitch = locked_rect.Pitch;
+			if (slice_pitch != nullptr)
+				*slice_pitch = 0;
 			return true;
 		}
 		break;
@@ -1070,6 +1074,10 @@ bool reshade::d3d9::device_impl::map_resource(api::resource resource, uint32_t s
 			SUCCEEDED(static_cast<IDirect3DTexture9 *>(object)->LockRect(subresource, &locked_rect, nullptr, flags)))
 		{
 			*data = locked_rect.pBits;
+			if (row_pitch != nullptr)
+				*row_pitch = locked_rect.Pitch;
+			if (slice_pitch != nullptr)
+				*slice_pitch = 0;
 			return true;
 		}
 		break;
@@ -1078,26 +1086,49 @@ bool reshade::d3d9::device_impl::map_resource(api::resource resource, uint32_t s
 			SUCCEEDED(static_cast<IDirect3DVolumeTexture9 *>(object)->LockBox(subresource, &locked_box, nullptr, flags)))
 		{
 			*data = locked_box.pBits;
+			if (row_pitch != nullptr)
+				*row_pitch = locked_box.RowPitch;
+			if (slice_pitch != nullptr)
+				*slice_pitch = locked_box.SlicePitch;
 			return true;
 		}
 		break;
 	case D3DRTYPE_CUBETEXTURE: {
 		const UINT levels = static_cast<IDirect3DCubeTexture9 *>(object)->GetLevelCount();
-
 		if (D3DLOCKED_RECT locked_rect;
 			SUCCEEDED(static_cast<IDirect3DCubeTexture9 *>(object)->LockRect(static_cast<D3DCUBEMAP_FACES>(subresource / levels), subresource % levels, &locked_rect, nullptr, flags)))
 		{
 			*data = locked_rect.pBits;
+			if (row_pitch != nullptr)
+				*row_pitch = locked_rect.Pitch;
+			if (slice_pitch != nullptr)
+				*slice_pitch = 0;
 			return true;
 		}
 		break;
 	}
 	case D3DRTYPE_VERTEXBUFFER:
 		assert(subresource == 0);
-		return SUCCEEDED(static_cast<IDirect3DVertexBuffer9 *>(object)->Lock(0, 0, data, flags));
+		if (SUCCEEDED(static_cast<IDirect3DVertexBuffer9 *>(object)->Lock(0, 0, data, flags)))
+		{
+			if (row_pitch != nullptr)
+				*row_pitch = 0;
+			if (slice_pitch != nullptr)
+				*slice_pitch = 0;
+			return true;
+		}
+		break;
 	case D3DRTYPE_INDEXBUFFER:
 		assert(subresource == 0);
-		return SUCCEEDED(static_cast<IDirect3DIndexBuffer9 *>(object)->Lock(0, 0, data, flags));
+		if (SUCCEEDED(static_cast<IDirect3DIndexBuffer9 *>(object)->Lock(0, 0, data, flags)))
+		{
+			if (row_pitch != nullptr)
+				*row_pitch = 0;
+			if (slice_pitch != nullptr)
+				*slice_pitch = 0;
+			return true;
+		}
+		break;
 	}
 
 	*data = nullptr;

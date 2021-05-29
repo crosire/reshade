@@ -360,9 +360,11 @@ namespace reshade { namespace api
 		/// <param name="resource">The resource to map.</param>
 		/// <param name="subresource">The index of the subresource.</param>
 		/// <param name="access">A hint on how the returned data pointer will be accessed.</param>
-		/// <param name="data">Pointer to a pointer that is set to a pointer to the memory of the resource.</param>
+		/// <param name="data">Pointer to a variable that is set to a pointer to the memory of the resource.</param>
+		/// <param name="row_pitch">Optional pointer to a variable that is set to the row pitch of the <paramref name="data"/> (only set for textures).</param>
+		/// <param name="slice_pitch">Optional pointer to a variable that is set to the slice pitch of the <paramref name="data"/> (only set for textures).</param>
 		/// <returns><c>true</c> if the memory of the resource was successfully mapped, <c>false</c> otherwise (in this case <paramref name="data"/> is set to <c>nullptr</c>).</returns>
-		virtual bool map_resource(resource resource, uint32_t subresource, map_access access, void **data) = 0;
+		virtual bool map_resource(resource resource, uint32_t subresource, map_access access, void **data, uint32_t *row_pitch = nullptr, uint32_t *slice_pitch = nullptr) = 0;
 		/// <summary>
 		/// Unmaps a previously mapped resource.
 		/// </summary>

@@ -659,7 +659,7 @@ void reshade::d3d10::device_impl::update_descriptor_sets(uint32_t num_updates, c
 	}
 }
 
-bool reshade::d3d10::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access access, void **data)
+bool reshade::d3d10::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access access, void **data, uint32_t *row_pitch, uint32_t *slice_pitch)
 {
 	D3D10_MAP map_type = static_cast<D3D10_MAP>(0);
 	switch (access)
@@ -687,14 +687,34 @@ bool reshade::d3d10::device_impl::map_resource(api::resource resource, uint32_t 
 	{
 	case D3D10_RESOURCE_DIMENSION_BUFFER:
 		assert(subresource == 0);
-		return SUCCEEDED(static_cast<ID3D10Buffer *>(object)->Map(map_type, 0, data));
+		if (SUCCEEDED(static_cast<ID3D10Buffer *>(object)->Map(map_type, 0, data)))
+		{
+			if (row_pitch != nullptr)
+				*row_pitch = 0;
+			if (slice_pitch != nullptr)
+				*slice_pitch = 0;
+			return true;
+		}
+		break;
 	case D3D10_RESOURCE_DIMENSION_TEXTURE1D:
-		return SUCCEEDED(static_cast<ID3D10Texture1D *>(object)->Map(subresource, map_type, 0, data));
+		if (SUCCEEDED(static_cast<ID3D10Texture1D *>(object)->Map(subresource, map_type, 0, data)))
+		{
+			if (row_pitch != nullptr)
+				*row_pitch = 0;
+			if (slice_pitch != nullptr)
+				*slice_pitch = 0;
+			return true;
+		}
+		break;
 	case D3D10_RESOURCE_DIMENSION_TEXTURE2D:
 		if (D3D10_MAPPED_TEXTURE2D mapped;
 			SUCCEEDED(static_cast<ID3D10Texture2D *>(object)->Map(subresource, map_type, 0, &mapped)))
 		{
 			*data = mapped.pData;
+			if (row_pitch != nullptr)
+				*row_pitch = mapped.RowPitch;
+			if (slice_pitch != nullptr)
+				*slice_pitch = 0;
 			return true;
 		}
 		break;
@@ -703,6 +723,10 @@ bool reshade::d3d10::device_impl::map_resource(api::resource resource, uint32_t 
 			SUCCEEDED(static_cast<ID3D10Texture3D *>(object)->Map(subresource, map_type, 0, &mapped)))
 		{
 			*data = mapped.pData;
+			if (row_pitch != nullptr)
+				*row_pitch = mapped.RowPitch;
+			if (slice_pitch != nullptr)
+				*slice_pitch = mapped.DepthPitch;
 			return true;
 		}
 		break;

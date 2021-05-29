@@ -799,8 +799,13 @@ void reshade::d3d12::device_impl::update_descriptor_sets(uint32_t num_updates, c
 	}
 }
 
-bool reshade::d3d12::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access access, void **data)
+bool reshade::d3d12::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access access, void **data, uint32_t *row_pitch, uint32_t *slice_pitch)
 {
+	if (row_pitch != nullptr)
+		*row_pitch = 0;
+	if (slice_pitch != nullptr)
+		*slice_pitch = 0;
+
 	const D3D12_RANGE no_read_range = { 0, 0 };
 
 	assert(resource.handle != 0);

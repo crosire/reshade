@@ -767,7 +767,7 @@ void reshade::d3d11::device_impl::update_descriptor_sets(uint32_t num_updates, c
 	}
 }
 
-bool reshade::d3d11::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access access, void **data)
+bool reshade::d3d11::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access access, void **data, uint32_t *row_pitch, uint32_t *slice_pitch)
 {
 	D3D11_MAP map_type = static_cast<D3D11_MAP>(0);
 	switch (access)
@@ -786,10 +786,14 @@ bool reshade::d3d11::device_impl::map_resource(api::resource resource, uint32_t 
 		break;
 	}
 
-	if (D3D11_MAPPED_SUBRESOURCE mapped_resource;
-		SUCCEEDED(_immediate_context_orig->Map(reinterpret_cast<ID3D11Resource *>(resource.handle), subresource, map_type, 0, &mapped_resource)))
+	if (D3D11_MAPPED_SUBRESOURCE mapped;
+		SUCCEEDED(_immediate_context_orig->Map(reinterpret_cast<ID3D11Resource *>(resource.handle), subresource, map_type, 0, &mapped)))
 	{
-		*data = mapped_resource.pData;
+		*data = mapped.pData;
+		if (row_pitch != nullptr)
+			*row_pitch = mapped.RowPitch;
+		if (slice_pitch != nullptr)
+			*slice_pitch = mapped.DepthPitch;
 		return true;
 	}
 	else

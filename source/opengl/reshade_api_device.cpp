@@ -1075,8 +1075,13 @@ void reshade::opengl::device_impl::update_descriptor_sets(uint32_t num_updates, 
 	}
 }
 
-bool reshade::opengl::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access access, void **data)
+bool reshade::opengl::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access access, void **data, uint32_t *row_pitch, uint32_t *slice_pitch)
 {
+	if (row_pitch != nullptr)
+		*row_pitch = 0;
+	if (slice_pitch != nullptr)
+		*slice_pitch = 0;
+
 	GLenum map_access = 0;
 	switch (access)
 	{

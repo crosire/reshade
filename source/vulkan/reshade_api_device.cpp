@@ -1000,8 +1000,13 @@ void reshade::vulkan::device_impl::update_descriptor_sets(uint32_t num_updates, 
 	vk.UpdateDescriptorSets(_orig, num_updates, writes.data(), 0, nullptr);
 }
 
-bool reshade::vulkan::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access, void **data)
+bool reshade::vulkan::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access, void **data, uint32_t *row_pitch, uint32_t *slice_pitch)
 {
+	if (row_pitch != nullptr)
+		*row_pitch = 0;
+	if (slice_pitch != nullptr)
+		*slice_pitch = 0;
+
 	assert(resource.handle != 0);
 	const resource_data &res_data = _resources.at(resource.handle);
 

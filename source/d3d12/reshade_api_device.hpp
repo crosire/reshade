@@ -56,7 +56,7 @@ namespace reshade::d3d12
 		void get_resource_from_view(api::resource_view view, api::resource *out_resource) const final;
 		api::resource_desc get_resource_desc(api::resource resource) const final;
 
-		bool map_resource(api::resource resource, uint32_t subresource, api::map_access access, void **data) final;
+		bool map_resource(api::resource resource, uint32_t subresource, api::map_access access, void **data, uint32_t *row_pitch, uint32_t *slice_pitch) final;
 		void unmap_resource(api::resource resource, uint32_t subresource) final;
 
 		void upload_buffer_region(const void *data, api::resource dst, uint64_t dst_offset, uint64_t size) final;

@@ -3275,11 +3275,9 @@ bool reshade::runtime::take_screenshot(uint8_t *buffer)
 	api::resource backbuffer;
 	get_current_back_buffer(&backbuffer);
 
-	const size_t data_pitch = _width * 4;
-	size_t texture_pitch = data_pitch;
-
-	// Texture data rows are 256-byte aligned in D3D10/11/12
-	if (device->get_api() == api::device_api::d3d10 || device->get_api() == api::device_api::d3d11 || device->get_api() == api::device_api::d3d12)
+	const uint32_t data_pitch = _width * 4;
+	uint32_t texture_pitch = data_pitch, mapped_pitch = 0;
+	if (device->get_api() == api::device_api::d3d12) // See D3D12_TEXTURE_DATA_PITCH_ALIGNMENT
 		texture_pitch = (texture_pitch + 255) & ~255;
 
 	// Copy back buffer data into system memory buffer
@@ -3321,8 +3319,11 @@ bool reshade::runtime::take_screenshot(uint8_t *buffer)
 
 	// Copy data from intermediate image into output buffer
 	uint8_t *mapped_data = nullptr;
-	if (device->map_resource(intermediate, 0, api::map_access::read_only, reinterpret_cast<void **>(&mapped_data)))
+	if (device->map_resource(intermediate, 0, api::map_access::read_only, reinterpret_cast<void **>(&mapped_data), &mapped_pitch))
 	{
+		if (mapped_pitch != 0)
+			texture_pitch = mapped_pitch;
+
 		for (uint32_t y = 0; y < _height; y++, buffer += data_pitch, mapped_data += texture_pitch)
 		{
 			if (_color_bit_depth == 10)
