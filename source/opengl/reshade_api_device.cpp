@@ -701,6 +701,7 @@ static bool create_shader_module(GLenum type, const reshade::api::shader_desc &d
 	else
 	{
 		glDeleteShader(shader_object);
+		shader_object = 0;
 		return false;
 	}
 }

@@ -490,7 +490,7 @@ static void on_present(command_queue *, swapchain *swapchain)
 			device_state.selected_shader_resource = { 0 };
 
 			// Create two-dimensional resource view to the first level and layer of the depth-stencil resource
-			resource_view_desc srv_desc(format_to_default_typed(best_desc.texture.format), 0, 1, 0, 1);
+			resource_view_desc srv_desc(format_to_default_typed(best_desc.texture.format));
 
 			// Need to create backup texture only if doing backup copies or original resource does not support shader access (which is necessary for binding it to effects)
 			// Also always create a backup texture in D3D12 or Vulkan to circument problems in case application makes use of resource aliasing

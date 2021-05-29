@@ -130,8 +130,6 @@ void reshade::runtime::build_font_atlas()
 		{
 			ImFontConfig cfg;
 			cfg.SizePixels = static_cast<float>(i == 0 ? _font_size : _editor_font_size);
-			//cfg.OversampleH = 6;
-			//cfg.OversampleV = 6;
 
 			atlas->AddFontDefault(&cfg);
 		}
@@ -154,16 +152,16 @@ void reshade::runtime::build_font_atlas()
 	// Create font atlas texture and upload it
 	if (!_device->create_resource(
 		api::resource_desc(width, height, 1, 1, api::format::r8g8b8a8_unorm, 1, api::memory_heap::gpu_only, api::resource_usage::shader_resource),
-		&initial_data,
-		api::resource_usage::shader_resource,
-		&_font_atlas))
+		&initial_data, api::resource_usage::shader_resource, &_font_atlas))
+	{
+		LOG(ERROR) << "Failed to create front atlas resource!";
 		return;
-	if (!_device->create_resource_view(
-		_font_atlas,
-		api::resource_usage::shader_resource,
-		api::resource_view_desc(api::format::r8g8b8a8_unorm, 0, 1, 0, 1),
-		&_font_atlas_srv))
+	}
+	if (!_device->create_resource_view(_font_atlas, api::resource_usage::shader_resource, api::resource_view_desc(api::format::r8g8b8a8_unorm), &_font_atlas_srv))
+	{
+		LOG(ERROR) << "Failed to create font atlas resource view!";
 		return;
+	}
 
 	_device->set_debug_name(_font_atlas, "ImGui Font Atlas");
 }
@@ -3182,7 +3180,10 @@ bool reshade::runtime::init_imgui_resources()
 		desc.max_lod = +FLT_MAX;
 
 		if (!_device->create_sampler(desc, &_imgui_sampler_state))
+		{
+			LOG(ERROR) << "Failed to create ImGui sampler object!";
 			return false;
+		}
 	}
 
 	if (_imgui_pipeline_layout.handle == 0)
@@ -3197,7 +3198,10 @@ bool reshade::runtime::init_imgui_resources()
 			range.binding = 0;
 			range.dx_shader_register = 0; // s0
 			if (!_device->create_descriptor_set_layout(1, &range, true, &_imgui_set_layouts[0]))
+			{
+				LOG(ERROR) << "Failed to create ImGui descriptor set layout!";
 				return false;
+			}
 		}
 		else
 		{
@@ -3205,13 +3209,19 @@ bool reshade::runtime::init_imgui_resources()
 			range.binding = 0;
 			range.dx_shader_register = 0; // s0
 			if (!_device->create_descriptor_set_layout(1, &range, true, &_imgui_set_layouts[0]))
+			{
+				LOG(ERROR) << "Failed to create ImGui descriptor set layout!";
 				return false;
+			}
 
 			range.type = api::descriptor_type::shader_resource_view;
 			range.binding = 0;
 			range.dx_shader_register = 0; // t0
 			if (!_device->create_descriptor_set_layout(1, &range, true, &_imgui_set_layouts[1]))
+			{
+				LOG(ERROR) << "Failed to create ImGui descriptor set layout!";
 				return false;
+			}
 		}
 
 		api::constant_range constant_range;
@@ -3221,7 +3231,10 @@ bool reshade::runtime::init_imgui_resources()
 		constant_range.visibility = api::shader_stage::vertex;
 
 		if (!_device->create_pipeline_layout(has_combined_sampler_and_view ? 1 : 2, _imgui_set_layouts, 1, &constant_range, &_imgui_pipeline_layout))
+		{
+			LOG(ERROR) << "Failed to create ImGui pipeline layout!";
 			return false;
+		}
 	}
 
 	if (_imgui_pipeline.handle != 0)
@@ -3328,7 +3341,15 @@ bool reshade::runtime::init_imgui_resources()
 	pso_desc.graphics.num_render_targets = 1;
 	pso_desc.graphics.render_target_format[0] = _backbuffer_format;
 
-	return _device->create_pipeline(pso_desc, &_imgui_pipeline);
+	if (_device->create_pipeline(pso_desc, &_imgui_pipeline))
+	{
+		return true;
+	}
+	else
+	{
+		LOG(ERROR) << "Failed to create ImGui pipeline!";
+		return false;
+	}
 }
 void reshade::runtime::render_imgui_draw_data(ImDrawData *draw_data, api::resource_view target)
 {
@@ -3347,7 +3368,10 @@ void reshade::runtime::render_imgui_draw_data(ImDrawData *draw_data, api::resour
 
 		const int new_size = draw_data->TotalIdxCount + 10000;
 		if (!_device->create_resource(api::resource_desc(new_size * sizeof(ImDrawIdx), api::memory_heap::cpu_to_gpu, api::resource_usage::index_buffer), nullptr, api::resource_usage::cpu_access, &_imgui_indices[buffer_index]))
+		{
+			LOG(ERROR) << "Failed to create ImGui index buffer!";
 			return;
+		}
 		_device->set_debug_name(_imgui_indices[buffer_index], "ImGui index buffer");
 
 		_imgui_num_indices[buffer_index] = new_size;
@@ -3361,7 +3385,10 @@ void reshade::runtime::render_imgui_draw_data(ImDrawData *draw_data, api::resour
 
 		const int new_size = draw_data->TotalVtxCount + 5000;
 		if (!_device->create_resource(api::resource_desc(new_size * sizeof(ImDrawVert), api::memory_heap::cpu_to_gpu, api::resource_usage::vertex_buffer), nullptr, api::resource_usage::cpu_access, &_imgui_vertices[buffer_index]))
+		{
+			LOG(ERROR) << "Failed to create ImGui vertex buffer!";
 			return;
+		}
 		_device->set_debug_name(_imgui_vertices[buffer_index], "ImGui vertex buffer");
 
 		_imgui_num_vertices[buffer_index] = new_size;

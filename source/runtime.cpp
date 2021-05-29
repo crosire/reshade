@@ -126,19 +126,113 @@ bool reshade::runtime::on_init(input::window_handle window)
 {
 	assert(!_is_initialized);
 
+	// Create back buffer shader resource
+	if (_backbuffer_texture.handle == 0)
+	{
+		if (!_device->create_resource(
+			api::resource_desc(_width, _height, 1, 1, api::format_to_typeless(_backbuffer_format), 1, api::memory_heap::gpu_only, api::resource_usage::copy_dest | api::resource_usage::shader_resource),
+			nullptr, api::resource_usage::shader_resource, &_backbuffer_texture))
+		{
+			LOG(ERROR) << "Failed to create back buffer resource!";
+			goto exit_failure;
+		}
+
+		_device->set_debug_name(_backbuffer_texture, "ReShade back buffer");
+
+		if (!_device->create_resource_view(_backbuffer_texture, api::resource_usage::shader_resource, api::resource_view_desc(api::format_to_default_typed(_backbuffer_format)), &_backbuffer_texture_view[0]) ||
+			!_device->create_resource_view(_backbuffer_texture, api::resource_usage::shader_resource, api::resource_view_desc(api::format_to_default_typed_srgb(_backbuffer_format)), &_backbuffer_texture_view[1]))
+		{
+			LOG(ERROR) << "Failed to create back buffer resource view!";
+			goto exit_failure;
+		}
+	}
+
+	// Create effect stencil buffer
+	if (_effect_stencil.handle == 0)
+	{
+		// Find a supported stencil format
+		constexpr api::format possible_stencil_formats[] = {
+			api::format::s8_uint,
+			api::format::d16_unorm_s8_uint,
+			api::format::d24_unorm_s8_uint,
+			api::format::d32_float_s8_uint
+		};
+
+		for (const api::format format : possible_stencil_formats)
+		{
+			if (_device->check_format_support(format, api::resource_usage::depth_stencil))
+			{
+				_effect_stencil_format = format;
+				break;
+			}
+		}
+
+		assert(_effect_stencil_format != api::format::unknown);
+
+		if (!_device->create_resource(
+			api::resource_desc(_width, _height, 1, 1, _effect_stencil_format, 1, api::memory_heap::gpu_only, api::resource_usage::depth_stencil),
+			nullptr, api::resource_usage::depth_stencil_write, &_effect_stencil))
+		{
+			LOG(ERROR) << "Failed to create effect stencil buffer resource!";
+			goto exit_failure;
+		}
+
+		_device->set_debug_name(_effect_stencil, "ReShade stencil buffer");
+
+		if (!_device->create_resource_view(_effect_stencil, api::resource_usage::depth_stencil, api::resource_view_desc(_effect_stencil_format), &_effect_stencil_view))
+		{
+			LOG(ERROR) << "Failed to create effect stencil buffer resource view!";
+			goto exit_failure;
+		}
+	}
+
+	// Create an empty texture, which is used when no depth buffer was detected (since you cannot bind nothing to a descriptor in Vulkan)
+	// Use VK_FORMAT_R16_SFLOAT format, since it is mandatory according to the spec (see https://www.khronos.org/registry/vulkan/specs/1.1/html/vkspec.html#features-required-format-support)
+	if (_empty_texture.handle == 0)
+	{
+		if (!_device->create_resource(
+			api::resource_desc(1, 1, 1, 1, api::format::r16_float, 1, api::memory_heap::gpu_only, api::resource_usage::shader_resource),
+			nullptr, api::resource_usage::shader_resource, &_empty_texture))
+		{
+			LOG(ERROR) << "Failed to create empty texture resource!";
+			goto exit_failure;
+		}
+
+		_device->set_debug_name(_empty_texture, "ReShade empty texture");
+
+		if (!_device->create_resource_view(_empty_texture, api::resource_usage::shader_resource, api::resource_view_desc(api::format::r16_float), &_empty_texture_view))
+		{
+			LOG(ERROR) << "Failed to create empty texture resource view!";
+			goto exit_failure;
+		}
+	}
+
+#if RESHADE_GUI
 	if (window != nullptr)
+	{
+		RECT window_rect = {};
+		GetClientRect(static_cast<HWND>(window), &window_rect);
+
+		_window_width = window_rect.right;
+		_window_height = window_rect.bottom;
+	}
+	else
+	{
+		_window_width = _width;
+		_window_height = _height;
+	}
+
+	if (!init_imgui_resources())
+		goto exit_failure;
+
+	if (_is_vr)
+		init_gui_vr();
+#endif
+
+	if (window != nullptr && !_is_vr)
 		_input = input::register_window(window);
 	else
 		_input = std::make_shared<input>(nullptr);
-
-	// Reset frame count to zero so effects are loaded in 'update_and_render_effects'
-	_framecount = 0;
-
-	_is_initialized = true;
-	_last_reload_time = std::chrono::high_resolution_clock::now();
-
-	_preset_save_success = true;
-	_screenshot_save_success = true;
 
 	// Only need to handle swap chain formats
 	switch (_backbuffer_format)
@@ -167,111 +261,14 @@ bool reshade::runtime::on_init(input::window_handle window)
 		break;
 	}
 
-	// Create back buffer shader resource
-	if (_backbuffer_texture.handle == 0)
-	{
-		if (!_device->create_resource(
-			api::resource_desc(_width, _height, 1, 1, api::format_to_typeless(_backbuffer_format), 1, api::memory_heap::gpu_only, api::resource_usage::copy_dest | api::resource_usage::shader_resource),
-			nullptr,
-			api::resource_usage::shader_resource,
-			&_backbuffer_texture))
-			return false;
-		_device->set_debug_name(_backbuffer_texture, "ReShade back buffer");
+	// Reset frame count to zero so effects are loaded in 'update_and_render_effects'
+	_framecount = 0;
 
-		if (!_device->create_resource_view(
-			_backbuffer_texture,
-			api::resource_usage::shader_resource,
-			api::resource_view_desc(api::format_to_default_typed(_backbuffer_format), 0, 1, 0, 1),
-			&_backbuffer_texture_view[0]))
-			return false;
-		if (!_device->create_resource_view(
-			_backbuffer_texture,
-			api::resource_usage::shader_resource,
-			api::resource_view_desc(api::format_to_default_typed_srgb(_backbuffer_format), 0, 1, 0, 1),
-			&_backbuffer_texture_view[1]))
-			return false;
-	}
+	_is_initialized = true;
+	_last_reload_time = std::chrono::high_resolution_clock::now();
 
-	// Create effect depth-stencil resource
-	if (_effect_stencil.handle == 0)
-	{
-		// Find a supported stencil format
-		api::format possible_stencil_formats[] = {
-			api::format::s8_uint,
-			api::format::d16_unorm_s8_uint,
-			api::format::d24_unorm_s8_uint,
-			api::format::d32_float_s8_uint
-		};
-
-		for (const api::format format : possible_stencil_formats)
-		{
-			if (_device->check_format_support(format, api::resource_usage::depth_stencil))
-			{
-				_effect_stencil_format = format;
-				break;
-			}
-		}
-
-		assert(_effect_stencil_format != api::format::unknown);
-
-		if (!_device->create_resource(
-			api::resource_desc(_width, _height, 1, 1, _effect_stencil_format, 1, api::memory_heap::gpu_only, api::resource_usage::depth_stencil),
-			nullptr,
-			api::resource_usage::depth_stencil_write,
-			&_effect_stencil))
-			return false;
-		_device->set_debug_name(_effect_stencil, "ReShade stencil buffer");
-
-		if (!_device->create_resource_view(
-			_effect_stencil,
-			api::resource_usage::depth_stencil,
-			api::resource_view_desc(_effect_stencil_format, 0, 1, 0, 1),
-			&_effect_stencil_view))
-			return false;
-	}
-
-	// Create an empty image, which is used when no depth buffer was detected (since you cannot bind nothing to a descriptor in Vulkan)
-	// Use VK_FORMAT_R16_SFLOAT format, since it is mandatory according to the spec (see https://www.khronos.org/registry/vulkan/specs/1.1/html/vkspec.html#features-required-format-support)
-	if (_empty_texture.handle == 0)
-	{
-		if (!_device->create_resource(
-			api::resource_desc(1, 1, 1, 1, api::format::r16_float, 1, api::memory_heap::gpu_only, api::resource_usage::shader_resource),
-			nullptr,
-			api::resource_usage::shader_resource,
-			&_empty_texture))
-			return false;
-		_device->set_debug_name(_empty_texture, "ReShade empty texture");
-
-		if (!_device->create_resource_view(
-			_empty_texture,
-			api::resource_usage::shader_resource,
-			api::resource_view_desc(api::format::r16_float, 0, 1, 0, 1),
-			&_empty_texture_view))
-			return false;
-	}
-
-#if RESHADE_GUI
-	if (window != nullptr)
-	{
-		RECT window_rect = {};
-		GetClientRect(static_cast<HWND>(window), &window_rect);
-
-		_window_width = window_rect.right;
-		_window_height = window_rect.bottom;
-	}
-	else
-	{
-		_window_width = _width;
-		_window_height = _height;
-	}
-
-	if (!init_imgui_resources())
-		return false;
-
-	if (_is_vr)
-		init_gui_vr();
-#endif
-
+	_preset_save_success = true;
+	_screenshot_save_success = true;
 #if RESHADE_ADDON
 	invoke_addon_event<addon_event::init_effect_runtime>(this);
 #endif
@@ -279,6 +276,30 @@ bool reshade::runtime::on_init(input::window_handle window)
 	LOG(INFO) << "Recreated runtime environment on runtime " << this << '.';
 
 	return true;
+
+exit_failure:
+	_device->destroy_resource(_backbuffer_texture);
+	_backbuffer_texture = {};
+	_device->destroy_resource_view(_backbuffer_texture_view[0]);
+	_backbuffer_texture_view[0] = {};
+	_device->destroy_resource_view(_backbuffer_texture_view[1]);
+	_backbuffer_texture_view[1] = {};
+
+	_device->destroy_resource(_effect_stencil);
+	_effect_stencil = {};
+	_device->destroy_resource_view(_effect_stencil_view);
+	_effect_stencil_view = {};
+
+	_device->destroy_resource(_empty_texture);
+	_empty_texture = {};
+	_device->destroy_resource_view(_empty_texture_view);
+	_empty_texture_view = {};
+
+#if RESHADE_GUI
+	destroy_imgui_resources();
+#endif
+
+	return false;
 }
 void reshade::runtime::on_reset()
 {
@@ -288,11 +309,9 @@ void reshade::runtime::on_reset()
 	else
 		return; // Nothing to do if the runtime was already destroyed or not successfully initialized in the first place
 
-	unload_effects();
+	unload_effects(); // Already performs a wait for idle, so no need to do it again before destroying resources below
 
 	_width = _height = 0;
-
-	_device->wait_idle();
 
 	_device->destroy_resource(_backbuffer_texture);
 	_backbuffer_texture = {};
@@ -1253,7 +1272,10 @@ bool reshade::runtime::init_effect(size_t effect_index)
 
 	// Create query pool for time measurements
 	if (!_device->create_query_pool(api::query_type::timestamp, static_cast<uint32_t>(effect.module.techniques.size() * 2 * 4), &effect.query_heap))
+	{
+		LOG(ERROR) << "Failed to create query pool for effect file '" << effect.source_file << "'!";
 		return false;
+	}
 
 	uint32_t total_passes = 0;
 	std::vector<api::descriptor_update> descriptor_updates;
@@ -1265,9 +1287,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 	{
 		if (!_device->create_resource(
 			api::resource_desc(effect.uniform_data_storage.size(), api::memory_heap::cpu_to_gpu, api::resource_usage::constant_buffer),
-			nullptr,
-			api::resource_usage::cpu_access,
-			&effect.cb))
+			nullptr, api::resource_usage::cpu_access, &effect.cb))
 		{
 			LOG(ERROR) << "Failed to create constant buffer for effect file '" << effect.source_file << "'!";
 			return false;
@@ -1282,10 +1302,16 @@ bool reshade::runtime::init_effect(size_t effect_index)
 		range.count = 1;
 		range.visibility = api::shader_stage::all;
 		if (!_device->create_descriptor_set_layout(1, &range, false, &effect.set_layouts[0]))
+		{
+			LOG(ERROR) << "Failed to create constant buffer descriptor set layout for effect file '" << effect.source_file << "'!";
 			return false;
+		}
 
 		if (!_device->create_descriptor_sets(effect.set_layouts[0], 1, &effect.cb_set))
+		{
+			LOG(ERROR) << "Failed to create constant buffer descriptor set for effect file '" << effect.source_file << "'!";
 			return false;
+		}
 
 		api::descriptor_update &update = descriptor_updates.emplace_back();
 		update.set = effect.cb_set;
@@ -1308,18 +1334,27 @@ bool reshade::runtime::init_effect(size_t effect_index)
 		range.count = effect.module.num_sampler_bindings;
 		range.visibility = api::shader_stage::all;
 		if (!_device->create_descriptor_set_layout(1, &range, false, &effect.set_layouts[1]))
+		{
+			LOG(ERROR) << "Failed to create sampler descriptor set layout for effect file '" << effect.source_file << "'!";
 			return false;
+		}
 
 		if (sampler_with_resource_view)
 		{
 			texture_tables.resize(total_passes);
 			if (!_device->create_descriptor_sets(effect.set_layouts[1], total_passes, texture_tables.data()))
+			{
+				LOG(ERROR) << "Failed to create sampler descriptor set for effect file '" << effect.source_file << "'!";
 				return false;
+			}
 		}
 		else
 		{
 			if (!_device->create_descriptor_sets(effect.set_layouts[1], 1, &effect.sampler_set))
+			{
+				LOG(ERROR) << "Failed to create sampler descriptor set for effect file '" << effect.source_file << "'!";
 				return false;
+			}
 
 			uint16_t sampler_list = 0;
 			for (const reshadefx::sampler_info &info : effect.module.samplers)
@@ -1358,7 +1393,10 @@ bool reshade::runtime::init_effect(size_t effect_index)
 				else
 				{
 					if (!_device->create_sampler(desc, &update.descriptor.sampler))
+					{
+						LOG(ERROR) << "Failed to create sampler object '" << info.unique_name << "' for effect file '" << effect.source_file << "'!";
 						return false;
+					}
 
 					_effect_sampler_states.emplace(desc_hash, update.descriptor.sampler);
 				}
@@ -1377,11 +1415,17 @@ bool reshade::runtime::init_effect(size_t effect_index)
 		range.count = effect.module.num_texture_bindings;
 		range.visibility = api::shader_stage::all;
 		if (!_device->create_descriptor_set_layout(1, &range, false, &effect.set_layouts[2]))
+		{
+			LOG(ERROR) << "Failed to create texture descriptor set layout for effect file '" << effect.source_file << "'!";
 			return false;
+		}
 
 		texture_tables.resize(total_passes);
 		if (!_device->create_descriptor_sets(effect.set_layouts[2], total_passes, texture_tables.data()))
+		{
+			LOG(ERROR) << "Failed to create texture descriptor set for effect file '" << effect.source_file << "'!";
 			return false;
+		}
 	}
 
 	if (effect.module.num_storage_bindings != 0)
@@ -1393,11 +1437,17 @@ bool reshade::runtime::init_effect(size_t effect_index)
 		range.count = effect.module.num_storage_bindings;
 		range.visibility = api::shader_stage::all;
 		if (!_device->create_descriptor_set_layout(1, &range, false, &effect.set_layouts[sampler_with_resource_view ? 2 : 3]))
+		{
+			LOG(ERROR) << "Failed to create storage descriptor set layout for effect file '" << effect.source_file << "'!";
 			return false;
+		}
 
 		storage_tables.resize(total_passes);
 		if (!_device->create_descriptor_sets(effect.set_layouts[sampler_with_resource_view ? 2 : 3], total_passes, storage_tables.data()))
+		{
+			LOG(ERROR) << "Failed to create storage descriptor set for effect file '" << effect.source_file << "'!";
 			return false;
+		}
 	}
 
 	// Initialize pipeline layout
@@ -1492,7 +1542,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 					const api::resource_desc res_desc(
 						_device->get_resource_desc(texture.resource));
 					const api::resource_view_desc rtv_desc(
-						pass_info.srgb_write_enable ? api::format_to_default_typed_srgb(res_desc.texture.format) : api::format_to_default_typed(res_desc.texture.format), 0, 1, 0, 1);
+						pass_info.srgb_write_enable ? api::format_to_default_typed_srgb(res_desc.texture.format) : api::format_to_default_typed(res_desc.texture.format));
 
 					pass_data.render_targets[k] = texture.rtv[pass_info.srgb_write_enable];
 
@@ -1678,7 +1728,10 @@ bool reshade::runtime::init_effect(size_t effect_index)
 						else
 						{
 							if (!_device->create_sampler(desc, &update.descriptor.sampler))
+							{
+								LOG(ERROR) << "Failed to create sampler object '" << info.unique_name << "' for effect file '" << effect.source_file << "'!";
 								return false;
+							}
 
 							_effect_sampler_states.emplace(desc_hash, update.descriptor.sampler);
 						}
@@ -1857,7 +1910,7 @@ bool reshade::runtime::init_texture(texture &tex)
 	// Create render target views (with a single level)
 	if (tex.render_target)
 	{
-		if (!_device->create_resource_view(tex.resource, api::resource_usage::render_target, api::resource_view_desc(view_format, 0, 1, 0, 1), &tex.rtv[0]))
+		if (!_device->create_resource_view(tex.resource, api::resource_usage::render_target, api::resource_view_desc(view_format), &tex.rtv[0]))
 		{
 			LOG(ERROR) << "Failed to create render target view for texture '" << tex.unique_name << "'!";
 			LOG(DEBUG) << "> Details: Format = " << static_cast<uint32_t>(view_format);
@@ -1867,7 +1920,7 @@ bool reshade::runtime::init_texture(texture &tex)
 		{
 			tex.rtv[1] = tex.rtv[0];
 		}
-		else if (!_device->create_resource_view(tex.resource, api::resource_usage::render_target, api::resource_view_desc(view_format_srgb, 0, 1, 0, 1), &tex.rtv[1]))
+		else if (!_device->create_resource_view(tex.resource, api::resource_usage::render_target, api::resource_view_desc(view_format_srgb), &tex.rtv[1]))
 		{
 			LOG(ERROR) << "Failed to create render target view for texture '" << tex.unique_name << "'!";
 			LOG(DEBUG) << "> Details: Format = " << static_cast<uint32_t>(view_format_srgb);
@@ -1877,7 +1930,7 @@ bool reshade::runtime::init_texture(texture &tex)
 
 	if (tex.storage_access && _renderer_id >= 0xb000)
 	{
-		if (!_device->create_resource_view(tex.resource, api::resource_usage::unordered_access, api::resource_view_desc(view_format, 0, 1, 0, 1), &tex.uav))
+		if (!_device->create_resource_view(tex.resource, api::resource_usage::unordered_access, api::resource_view_desc(view_format), &tex.uav))
 		{
 			LOG(ERROR) << "Failed to create unordered access view for texture '" << tex.unique_name << "'!";
 			LOG(DEBUG) << "> Details: Format = " << static_cast<uint32_t>(view_format);
@@ -1902,7 +1955,8 @@ void reshade::runtime::unload_effect(size_t effect_index)
 
 		for (size_t pass_index = 0; pass_index < tech.passes_data.size(); ++pass_index)
 		{
-			_device->destroy_pipeline(tech.passes[pass_index].cs_entry_point.empty() ? api::pipeline_type::graphics : api::pipeline_type::compute, tech.passes_data[pass_index].pipeline);
+			const bool is_compute_pass = !tech.passes[pass_index].cs_entry_point.empty();
+			_device->destroy_pipeline(is_compute_pass ? api::pipeline_type::compute : api::pipeline_type::graphics, tech.passes_data[pass_index].pipeline);
 
 			_device->destroy_descriptor_sets(_effects[effect_index].set_layouts[2], 1, &tech.passes_data[pass_index].texture_set);
 			_device->destroy_descriptor_sets(_effects[effect_index].set_layouts[3], 1, &tech.passes_data[pass_index].storage_set);
@@ -1970,7 +2024,8 @@ void reshade::runtime::unload_effects()
 	{
 		for (size_t pass_index = 0; pass_index < tech.passes_data.size(); ++pass_index)
 		{
-			_device->destroy_pipeline(tech.passes[pass_index].cs_entry_point.empty() ? api::pipeline_type::graphics : api::pipeline_type::compute, tech.passes_data[pass_index].pipeline);
+			const bool is_compute_pass = !tech.passes[pass_index].cs_entry_point.empty();
+			_device->destroy_pipeline(is_compute_pass ? api::pipeline_type::compute : api::pipeline_type::graphics, tech.passes_data[pass_index].pipeline);
 
 			_device->destroy_descriptor_sets(_effects[tech.effect_index].set_layouts[2], 1, &tech.passes_data[pass_index].texture_set);
 			_device->destroy_descriptor_sets(_effects[tech.effect_index].set_layouts[3], 1, &tech.passes_data[pass_index].storage_set);
@@ -2072,14 +2127,15 @@ bool reshade::runtime::load_effect_cache(const std::filesystem::path &source_fil
 	std::filesystem::path path = g_reshade_base_path / _intermediate_cache_path;
 	path /= std::filesystem::u8path("reshade-" + source_file.stem().u8string() + '-' + std::to_string(_renderer_id) + '-' + std::to_string(hash) + ".i");
 
-	const HANDLE file = CreateFileW(path.c_str(), FILE_GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
-	if (file == INVALID_HANDLE_VALUE)
-		return false;
-	DWORD size = GetFileSize(file, nullptr);
-	source.resize(size);
-	const BOOL result = ReadFile(file, source.data(), size, &size, nullptr);
-	CloseHandle(file);
-	return result != FALSE;
+	{	const HANDLE file = CreateFileW(path.c_str(), FILE_GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
+		if (file == INVALID_HANDLE_VALUE)
+			return false;
+		DWORD size = GetFileSize(file, nullptr);
+		source.resize(size);
+		const BOOL result = ReadFile(file, source.data(), size, &size, nullptr);
+		CloseHandle(file);
+		return result != FALSE;
+	}
 }
 bool reshade::runtime::load_effect_cache(const std::filesystem::path &source_file, const std::string &entry_point, const size_t hash, std::vector<char> &cso, std::string &dasm) const
 {
@@ -2123,13 +2179,14 @@ bool reshade::runtime::save_effect_cache(const std::filesystem::path &source_fil
 	std::filesystem::path path = g_reshade_base_path / _intermediate_cache_path;
 	path /= std::filesystem::u8path("reshade-" + source_file.stem().u8string() + '-' + std::to_string(_renderer_id) + '-' + std::to_string(hash) + ".i");
 
-	const HANDLE file = CreateFileW(path.c_str(), FILE_GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_NEW, FILE_ATTRIBUTE_ARCHIVE | FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
-	if (file == INVALID_HANDLE_VALUE)
-		return false;
-	DWORD size = static_cast<DWORD>(source.size());
-	const BOOL result = WriteFile(file, source.data(), size, &size, nullptr);
-	CloseHandle(file);
-	return result != FALSE;
+	{	const HANDLE file = CreateFileW(path.c_str(), FILE_GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_NEW, FILE_ATTRIBUTE_ARCHIVE | FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
+		if (file == INVALID_HANDLE_VALUE)
+			return false;
+		DWORD size = static_cast<DWORD>(source.size());
+		const BOOL result = WriteFile(file, source.data(), size, &size, nullptr);
+		CloseHandle(file);
+		return result != FALSE;
+	}
 }
 bool reshade::runtime::save_effect_cache(const std::filesystem::path &source_file, const std::string &entry_point, const size_t hash, const std::vector<char> &cso, const std::string &dasm) const
 {
@@ -3227,6 +3284,7 @@ bool reshade::runtime::take_screenshot(uint8_t *buffer)
 			LOG(ERROR) << "Failed to create system memory buffer for screenshot capture!";
 			return false;
 		}
+
 		device->set_debug_name(intermediate, "ReShade screenshot buffer");
 
 		api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
@@ -3241,6 +3299,7 @@ bool reshade::runtime::take_screenshot(uint8_t *buffer)
 			LOG(ERROR) << "Failed to create system memory texture for screenshot capture!";
 			return false;
 		}
+
 		device->set_debug_name(intermediate, "ReShade screenshot texture");
 
 		api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();

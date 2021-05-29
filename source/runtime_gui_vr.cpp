@@ -70,7 +70,7 @@ void reshade::runtime::init_gui_vr()
 		LOG(ERROR) << "Failed to create VR dashboard overlay texture.";
 		return;
 	}
-	if (!_device->create_resource_view(_vr_overlay_texture, api::resource_usage::render_target, api::resource_view_desc(api::format::r8g8b8a8_unorm, 0, 1, 0, 1), &_vr_overlay_target))
+	if (!_device->create_resource_view(_vr_overlay_texture, api::resource_usage::render_target, api::resource_view_desc(api::format::r8g8b8a8_unorm), &_vr_overlay_target))
 	{
 		LOG(ERROR) << "Failed to create VR dashboard overlay render target.";
 		return;

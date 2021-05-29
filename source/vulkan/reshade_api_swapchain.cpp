@@ -9,71 +9,6 @@
 #include "reshade_api_swapchain.hpp"
 #include "reshade_api_type_convert.hpp"
 
-static inline void transition_layout(const VkLayerDispatchTable &vk, VkCommandBuffer cmd_list, VkImage image, VkImageLayout old_layout, VkImageLayout new_layout,
-	const VkImageSubresourceRange &subresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS })
-{
-	const auto layout_to_access = [](VkImageLayout layout) -> VkAccessFlags {
-		switch (layout)
-		{
-		default:
-		case VK_IMAGE_LAYOUT_UNDEFINED:
-			return 0; // No prending writes to flush
-		case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
-			return VK_ACCESS_TRANSFER_READ_BIT;
-		case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
-			return VK_ACCESS_TRANSFER_WRITE_BIT;
-		case VK_IMAGE_LAYOUT_GENERAL:
-			return VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-		case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-			return VK_ACCESS_SHADER_READ_BIT;
-		case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
-			return VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
-		case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
-		case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL:
-		case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL:
-			return VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-		case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
-		case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
-			return VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-		}
-	};
-	const auto layout_to_stage = [](VkImageLayout layout) -> VkPipelineStageFlags {
-		switch (layout)
-		{
-		default:
-		case VK_IMAGE_LAYOUT_UNDEFINED:
-			return VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT; // Do not wait on any previous stage
-		case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
-		case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
-			return VK_PIPELINE_STAGE_TRANSFER_BIT;
-		case VK_IMAGE_LAYOUT_GENERAL:
-			return VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-		case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-			return VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-		case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
-		case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
-		case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL:
-		case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL:
-			return VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-		case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR: // Can use color attachment output here, since the semaphores wait on that stage
-		case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
-			return VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-		}
-	};
-
-	VkImageMemoryBarrier transition { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
-	transition.srcAccessMask = layout_to_access(old_layout);
-	transition.dstAccessMask = layout_to_access(new_layout);
-	transition.oldLayout = old_layout;
-	transition.newLayout = new_layout;
-	transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	transition.image = image;
-	transition.subresourceRange = subresource;
-
-	vk.CmdPipelineBarrier(cmd_list, layout_to_stage(old_layout), layout_to_stage(new_layout), 0, 0, nullptr, 0, nullptr, 1, &transition);
-}
-
 #define vk static_cast<device_impl *>(_device)->_dispatch_table
 
 reshade::vulkan::swapchain_impl::swapchain_impl(device_impl *device, command_queue_impl *graphics_queue) :
@@ -114,7 +49,7 @@ void reshade::vulkan::swapchain_impl::get_current_back_buffer(api::resource *out
 }
 void reshade::vulkan::swapchain_impl::get_current_back_buffer_target(bool srgb, api::resource_view *out)
 {
-	*out = { (uint64_t)_swapchain_views[_swap_index * 2 + (srgb ? 1 : 0)] };
+	*out = _swapchain_views[_swap_index * 2 + (srgb ? 1 : 0)];
 }
 
 bool reshade::vulkan::swapchain_impl::on_init(VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &desc, HWND hwnd)
@@ -168,17 +103,10 @@ bool reshade::vulkan::swapchain_impl::on_init(VkSwapchainKHR swapchain, const Vk
 
 	for (uint32_t i = 0, k = 0; i < num_images; ++i, k += 2)
 	{
-		if (!static_cast<device_impl *>(_device)->create_resource_view(
-			reinterpret_cast<api::resource &>(_swapchain_images[i]),
-			api::resource_usage::render_target,
-			{ backbuffer_format, 0, 1, 0, 1 },
-			reinterpret_cast<api::resource_view *>(&_swapchain_views[k + 0])))
-			return false;
-		if (!static_cast<device_impl *>(_device)->create_resource_view(
-			reinterpret_cast<api::resource &>(_swapchain_images[i]),
-			api::resource_usage::render_target,
-			{ backbuffer_format_srgb, 0, 1, 0, 1 },
-			reinterpret_cast<api::resource_view *>(&_swapchain_views[k + 1])))
+		const api::resource image = reinterpret_cast<api::resource &>(_swapchain_images[i]);
+
+		if (!static_cast<device_impl *>(_device)->create_resource_view(image, api::resource_usage::render_target, api::resource_view_desc(backbuffer_format), &_swapchain_views[k + 0]) ||
+			!static_cast<device_impl *>(_device)->create_resource_view(image, api::resource_usage::render_target, api::resource_view_desc(backbuffer_format_srgb), &_swapchain_views[k + 1]))
 			return false;
 	}
 
@@ -196,8 +124,8 @@ void reshade::vulkan::swapchain_impl::on_reset()
 {
 	runtime::on_reset();
 
-	for (VkImageView view : _swapchain_views)
-		static_cast<device_impl *>(_device)->destroy_resource_view(reinterpret_cast<api::resource_view &>(view));
+	for (api::resource_view view : _swapchain_views)
+		static_cast<device_impl *>(_device)->destroy_resource_view(view);
 	_swapchain_views.clear();
 
 	if (_orig == VK_NULL_HANDLE)
@@ -284,13 +212,10 @@ bool reshade::vulkan::swapchain_impl::on_layer_submit(uint32_t eye, VkImage sour
 
 		_is_vr = true;
 
-		VkImage image = VK_NULL_HANDLE;
-
+		api::resource image = {};
 		if (!static_cast<device_impl *>(_device)->create_resource(
-			{ target_extent.width, target_extent.height, 1, 1, convert_format(source_format), 1, api::memory_heap::gpu_only, api::resource_usage::render_target | api::resource_usage::copy_source | api::resource_usage::copy_dest },
-			nullptr,
-			api::resource_usage::undefined,
-			reinterpret_cast<api::resource *>(&image)))
+			api::resource_desc(target_extent.width, target_extent.height, 1, 1, convert_format(source_format), 1, api::memory_heap::gpu_only, api::resource_usage::render_target | api::resource_usage::copy_source | api::resource_usage::copy_dest),
+			nullptr, api::resource_usage::undefined, &image))
 		{
 			LOG(ERROR) << "Failed to create region texture!";
 			LOG(DEBUG) << "> Details: Width = " << target_extent.width << ", Height = " << target_extent.height << ", Format = " << source_format;
@@ -298,7 +223,7 @@ bool reshade::vulkan::swapchain_impl::on_layer_submit(uint32_t eye, VkImage sour
 		}
 
 		_swapchain_images.resize(1);
-		_swapchain_images[0] = image;
+		_swapchain_images[0] = (VkImage)image.handle;
 
 		VkSwapchainCreateInfoKHR desc = { VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR };
 		desc.imageExtent = target_extent;
@@ -312,13 +237,32 @@ bool reshade::vulkan::swapchain_impl::on_layer_submit(uint32_t eye, VkImage sour
 		}
 
 		cmd_list = static_cast<command_list_immediate_impl *>(static_cast<command_queue_impl *>(_graphics_queue)->get_immediate_command_list())->begin_commands();
-		transition_layout(vk, cmd_list, _swapchain_images[0], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+		VkImageMemoryBarrier transition { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+		transition.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		transition.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		transition.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+		transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		transition.image = _swapchain_images[0];
+		transition.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
+
+		vk.CmdPipelineBarrier(cmd_list, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
 	}
 	else
 	{
-
 		cmd_list = static_cast<command_list_immediate_impl *>(static_cast<command_queue_impl *>(_graphics_queue)->get_immediate_command_list())->begin_commands();
-		transition_layout(vk, cmd_list, _swapchain_images[0], VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+		VkImageMemoryBarrier transition { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+		transition.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		transition.oldLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+		transition.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+		transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		transition.image = _swapchain_images[0];
+		transition.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
+
+		vk.CmdPipelineBarrier(cmd_list, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
 	}
 
 	// Copy region of the source texture
@@ -339,7 +283,18 @@ bool reshade::vulkan::swapchain_impl::on_layer_submit(uint32_t eye, VkImage sour
 		vk.CmdResolveImage(cmd_list, source, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, _swapchain_images[0], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &resolve_region);
 	}
 
-	transition_layout(vk, cmd_list, _swapchain_images[0], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+	{
+		VkImageMemoryBarrier transition { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+		transition.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		transition.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+		transition.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+		transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		transition.image = _swapchain_images[0];
+		transition.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
+
+		vk.CmdPipelineBarrier(cmd_list, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
+	}
 
 	*target_image = _swapchain_images[0];
 

@@ -35,6 +35,6 @@ namespace reshade::vulkan
 
 		uint32_t _swap_index = 0;
 		std::vector<VkImage> _swapchain_images;
-		std::vector<VkImageView> _swapchain_views;
+		std::vector<api::resource_view> _swapchain_views;
 	};
 }

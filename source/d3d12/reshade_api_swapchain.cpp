@@ -92,7 +92,11 @@ bool reshade::d3d12::swapchain_impl::on_init(const DXGI_SWAP_CHAIN_DESC &swap_de
 		desc.NumDescriptors = swap_desc.BufferCount * 2;
 
 		if (FAILED(static_cast<device_impl *>(_device)->_orig->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&_backbuffer_rtvs))))
+		{
+			LOG(ERROR) << "Failed to create back buffer descriptor heap.";
 			return false;
+		}
+
 		_backbuffer_rtvs->SetName(L"ReShade RTV heap");
 	}
 

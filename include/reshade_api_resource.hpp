@@ -286,6 +286,8 @@ namespace reshade { namespace api
 			type(resource_view_type::texture_2d), format(format), texture({ first_level, levels, first_layer, layers }) {}
 		resource_view_desc(resource_view_type type, format format, uint32_t first_level, uint32_t levels, uint32_t first_layer, uint32_t layers) :
 			type(type), format(format), texture({ first_level, levels, first_layer, layers }) {}
+		explicit resource_view_desc(format format) :
+			type(resource_view_type::texture_2d), format(format), texture({ 0, 1, 0, 1 }) {}
 
 		/// <summary>
 		/// Type of the view. Identifies how the view should interpret the resource data.

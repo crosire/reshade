@@ -79,6 +79,9 @@ bool reshade::d3d11::swapchain_impl::on_init(const DXGI_SWAP_CHAIN_DESC &swap_de
 		return false;
 	assert(_backbuffer != nullptr);
 
+	// Clear reference to make Unreal Engine 4 happy (which checks the reference count)
+	_backbuffer->Release();
+
 	D3D11_TEXTURE2D_DESC tex_desc = {};
 	tex_desc.Width = _width;
 	tex_desc.Height = _height;
@@ -127,9 +130,6 @@ bool reshade::d3d11::swapchain_impl::on_init(const DXGI_SWAP_CHAIN_DESC &swap_de
 	if (FAILED(static_cast<device_impl *>(_device)->_orig->CreateRenderTargetView(_backbuffer_resolved.get(), &rtv_desc, &_backbuffer_rtv[1])))
 		return false;
 
-	// Clear reference to make Unreal Engine 4 happy (which checks the reference count)
-	_backbuffer->Release();
-
 	return runtime::on_init(swap_desc.OutputWindow);
 }
 void reshade::d3d11::swapchain_impl::on_reset()
@@ -142,7 +142,7 @@ void reshade::d3d11::swapchain_impl::on_reset()
 		if (_backbuffer.ref_count() == 0)
 			add_references = _backbuffer == _backbuffer_resolved ? 2 : 1;
 		// Add the reference back that was released because of Unreal Engine 4
-		else if (is_initialized())
+		else
 			add_references = 1;
 
 		for (unsigned int i = 0; i < add_references; ++i)
