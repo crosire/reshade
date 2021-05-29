@@ -558,6 +558,7 @@ void reshade::runtime::draw_gui()
 		_show_overlay = !_show_overlay;
 
 	_ignore_shortcuts = false;
+	_gather_gpu_statistics = false;
 	_effects_expanded_state &= 2;
 
 	if (!show_splash && !show_stats_window && !_show_overlay && _preview_texture.handle == 0)
@@ -1608,11 +1609,10 @@ void reshade::runtime::draw_gui_statistics()
 		}
 	}
 
-	if (ImGui::Checkbox("Gather GPU statistics", &_gather_gpu_statistics))
-		save_config();
-
 	if (ImGui::CollapsingHeader("General", ImGuiTreeNodeFlags_DefaultOpen))
 	{
+		_gather_gpu_statistics = true;
+
 		ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x);
 		ImGui::PlotLines("##framerate",
 			_imgui_context->FramerateSecPerFrame, 120,
@@ -1666,6 +1666,8 @@ void reshade::runtime::draw_gui_statistics()
 
 	if (ImGui::CollapsingHeader("Techniques", ImGuiTreeNodeFlags_DefaultOpen) && !is_loading() && _effects_enabled)
 	{
+		_gather_gpu_statistics = true;
+
 		ImGui::BeginGroup();
 
 		for (const auto &technique : _techniques)

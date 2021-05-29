@@ -220,7 +220,6 @@ namespace reshade
 
 		bool _is_initialized = false;
 		bool _performance_mode = false;
-		bool _gather_gpu_statistics = true;
 		bool _is_vr = false;
 		unsigned int _width = 0;
 		unsigned int _height = 0;
@@ -440,6 +439,7 @@ namespace reshade
 		bool _show_screenshot_message = true;
 		bool _no_font_scaling = false;
 		bool _rebuild_font_atlas = true;
+		bool _gather_gpu_statistics = false;
 		unsigned int _reload_count = 0;
 		unsigned int _overlay_key_data[4];
 		int _fps_pos = 1;

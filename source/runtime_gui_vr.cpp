@@ -99,6 +99,8 @@ void reshade::runtime::deinit_gui_vr()
 
 void reshade::runtime::draw_gui_vr()
 {
+	_gather_gpu_statistics = false;
+
 	if (s_main_handle == vr::k_ulOverlayHandleInvalid || !s_overlay->IsOverlayVisible(s_main_handle))
 		return;
 

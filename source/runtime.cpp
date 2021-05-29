@@ -2659,6 +2659,7 @@ void reshade::runtime::render_technique(technique &technique)
 	invoke_addon_event<addon_event::reshade_before_effects>(this, cmd_list);
 #endif
 
+#if RESHADE_GUI
 	if (_gather_gpu_statistics)
 	{
 		// Evaluate queries from oldest frame in queue
@@ -2668,6 +2669,7 @@ void reshade::runtime::render_technique(technique &technique)
 
 		cmd_list->finish_query(effect.query_heap, api::query_type::timestamp, technique.query_base_index + (_framecount % NUM_QUERY_FRAMES) * 2);
 	}
+#endif
 
 #ifndef NDEBUG
 	const float debug_event_col[4] = { 1.0f, 0.8f, 0.8f, 1.0f };
@@ -2845,8 +2847,10 @@ void reshade::runtime::render_technique(technique &technique)
 	cmd_list->finish_debug_marker();
 #endif
 
+#if RESHADE_GUI
 	if (_gather_gpu_statistics)
 		cmd_list->finish_query(effect.query_heap, api::query_type::timestamp, technique.query_base_index + (_framecount % NUM_QUERY_FRAMES) * 2 + 1);
+#endif
 
 #if RESHADE_ADDON
 	invoke_addon_event<addon_event::reshade_after_effects>(this, cmd_list);
@@ -2926,8 +2930,6 @@ void reshade::runtime::load_config()
 	config.get("GENERAL", "PresetPath", _current_preset_path);
 	config.get("GENERAL", "PresetTransitionDelay", _preset_transition_delay);
 
-	config.get("GENERAL", "GatherGPUStatistics", _gather_gpu_statistics);
-
 	// Fall back to temp directory if cache path does not exist
 	if (_intermediate_cache_path.empty() || !resolve_path(_intermediate_cache_path))
 	{
@@ -2984,8 +2986,6 @@ void reshade::runtime::save_config() const
 		relative_preset_path = L"." / relative_preset_path;
 	config.set("GENERAL", "PresetPath", relative_preset_path);
 	config.set("GENERAL", "PresetTransitionDelay", _preset_transition_delay);
-
-	config.set("GENERAL", "GatherGPUStatistics", _gather_gpu_statistics);
 
 	config.set("SCREENSHOT", "ClearAlpha", _screenshot_clear_alpha);
 	config.set("SCREENSHOT", "FileFormat", _screenshot_format);
