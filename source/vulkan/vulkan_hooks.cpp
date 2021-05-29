@@ -3,6 +3,7 @@
  * License: https://github.com/crosire/reshade#license
  */
 
+#include "hook_manager.hpp"
 #include "vulkan_hooks.hpp"
 #include "reshade_api_device.hpp"
 
@@ -85,10 +86,14 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	// See https://github.com/KhronosGroup/Vulkan-Loader/blob/master/loader/LoaderAndLayerInterface.md#layer-conventions-and-rules
 	HOOK_PROC(GetDeviceProcAddr);
 
+#ifdef RESHADE_TEST_APPLICATION
+	const auto trampoline = reshade::hooks::call(vkGetDeviceProcAddr);
+#else
 	if (device == VK_NULL_HANDLE)
 		return nullptr;
 
 	const auto trampoline = g_vulkan_devices.at(dispatch_key_from_handle(device))->_dispatch_table.GetDeviceProcAddr;
+#endif
 	return trampoline(device, pName);
 }
 
@@ -104,9 +109,13 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr(VkInstance i
 	// Self-intercept here as well to stay consistent with 'vkGetDeviceProcAddr' implementation
 	HOOK_PROC(GetInstanceProcAddr);
 
+#ifdef RESHADE_TEST_APPLICATION
+	const auto trampoline = reshade::hooks::call(vkGetInstanceProcAddr);
+#else
 	if (instance == VK_NULL_HANDLE)
 		return nullptr;
 
 	const auto trampoline = g_instance_dispatch.at(dispatch_key_from_handle(instance)).GetInstanceProcAddr;
+#endif
 	return trampoline(instance, pName);
 }

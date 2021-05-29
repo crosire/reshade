@@ -60,7 +60,10 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	for (uint32_t i = 0; i < pCreateInfo->enabledExtensionCount; ++i)
 		LOG(INFO) << "  " << pCreateInfo->ppEnabledExtensionNames[i];
 
-	auto enum_instance_extensions = reinterpret_cast<PFN_vkEnumerateInstanceExtensionProperties>(get_instance_proc(nullptr, "vkEnumerateInstanceExtensionProperties"));
+	// 'vkEnumerateInstanceExtensionProperties' is not included in the next 'vkGetInstanceProcAddr' from the call chain, so use global one instead (this may only be called without an instance though)
+	auto get_instance_proc_global = reinterpret_cast<PFN_vkGetInstanceProcAddr>(GetProcAddress(GetModuleHandleW(L"vulkan-1.dll"), "vkGetInstanceProcAddr"));
+	assert(get_instance_proc_global != nullptr);
+	auto enum_instance_extensions = reinterpret_cast<PFN_vkEnumerateInstanceExtensionProperties>(get_instance_proc_global(nullptr, "vkEnumerateInstanceExtensionProperties"));
 	assert(enum_instance_extensions != nullptr);
 
 	std::vector<const char *> enabled_extensions;
