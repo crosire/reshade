@@ -2676,19 +2676,12 @@ void reshade::runtime::render_technique(technique &tech)
 	cmd_list->begin_debug_marker(tech.name.c_str(), debug_event_col);
 #endif
 
-	// Setup shader constants
-	if (effect.cb.handle != 0)
+	// Update shader constants
+	if (void *mapped_ptr; effect.cb.handle != 0 &&
+		_device->map_resource(effect.cb, 0, api::map_access::write_discard, &mapped_ptr))
 	{
-		if (void *mapped_ptr;
-			_device->map_resource(effect.cb, 0, api::map_access::write_discard, &mapped_ptr))
-		{
-			std::memcpy(mapped_ptr, effect.uniform_data_storage.data(), effect.uniform_data_storage.size());
-			_device->unmap_resource(effect.cb, 0);
-		}
-
-		cmd_list->bind_descriptor_sets(api::pipeline_type::graphics, effect.layout, 0, 1, &effect.cb_set);
-		if (tech.has_compute_passes)
-			cmd_list->bind_descriptor_sets(api::pipeline_type::compute, effect.layout, 0, 1, &effect.cb_set);
+		std::memcpy(mapped_ptr, effect.uniform_data_storage.data(), effect.uniform_data_storage.size());
+		_device->unmap_resource(effect.cb, 0);
 	}
 	else if (_renderer_id == 0x9000)
 	{
@@ -2696,16 +2689,6 @@ void reshade::runtime::render_technique(technique &tech)
 	}
 
 	const bool sampler_with_resource_view = _device->check_capability(api::device_caps::sampler_with_resource_view);
-
-	// Setup samplers
-	if (effect.sampler_set.handle != 0)
-	{
-		assert(!sampler_with_resource_view);
-
-		cmd_list->bind_descriptor_sets(api::pipeline_type::graphics, effect.layout, 1, 1, &effect.sampler_set);
-		if (tech.has_compute_passes)
-			cmd_list->bind_descriptor_sets(api::pipeline_type::compute, effect.layout, 1, 1, &effect.sampler_set);
-	}
 
 	bool is_effect_stencil_cleared = false;
 	bool needs_implicit_backbuffer_copy = true; // First pass always needs the back buffer updated
@@ -2730,6 +2713,23 @@ void reshade::runtime::render_technique(technique &tech)
 #ifndef NDEBUG
 		cmd_list->begin_debug_marker((pass_info.name.empty() ? "Pass " + std::to_string(pass_index) : pass_info.name).c_str(), debug_event_col);
 #endif
+
+		// Reset bindings on every pass (since they get invalidated by the call to 'generate_mipmaps' below)
+		if (effect.cb.handle != 0)
+		{
+			cmd_list->bind_descriptor_sets(api::pipeline_type::graphics, effect.layout, 0, 1, &effect.cb_set);
+			if (tech.has_compute_passes)
+				cmd_list->bind_descriptor_sets(api::pipeline_type::compute, effect.layout, 0, 1, &effect.cb_set);
+		}
+
+		if (effect.sampler_set.handle != 0)
+		{
+			assert(!sampler_with_resource_view);
+
+			cmd_list->bind_descriptor_sets(api::pipeline_type::graphics, effect.layout, 1, 1, &effect.sampler_set);
+			if (tech.has_compute_passes)
+				cmd_list->bind_descriptor_sets(api::pipeline_type::compute, effect.layout, 1, 1, &effect.sampler_set);
+		}
 
 		if (!pass_info.cs_entry_point.empty())
 		{
