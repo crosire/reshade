@@ -26,12 +26,20 @@ reshade::d3d9::swapchain_impl::swapchain_impl(device_impl *device, IDirect3DSwap
 		LOG(INFO) << "Running on " << adapter_desc.Description << " Driver " << (driver_version / 100) << '.' << (driver_version % 100);
 	}
 
+#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::init_swapchain>(this);
+#endif
+
 	if (!on_init())
 		LOG(ERROR) << "Failed to initialize Direct3D 9 runtime environment on runtime " << this << '!';
 }
 reshade::d3d9::swapchain_impl::~swapchain_impl()
 {
 	on_reset();
+
+#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(this);
+#endif
 }
 
 bool reshade::d3d9::swapchain_impl::on_init()

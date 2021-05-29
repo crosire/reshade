@@ -38,10 +38,18 @@ reshade::opengl::swapchain_impl::swapchain_impl(HDC hdc, HGLRC hglrc) : device_i
 		config.get("APP", "ReserveTextureNames", num_reserve_texture_names);
 		_reserved_texture_names.resize(num_reserve_texture_names);
 	});
+
+#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::init_swapchain>(this);
+#endif
 }
 reshade::opengl::swapchain_impl::~swapchain_impl()
 {
 	on_reset();
+
+#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(this);
+#endif
 }
 
 bool reshade::opengl::swapchain_impl::on_init(HWND hwnd, unsigned int width, unsigned int height)
