@@ -252,7 +252,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			desc.Windowed = true;
 			desc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
 
-			HR_CHECK(D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, D3D11_CREATE_DEVICE_DEBUG, nullptr, 0, D3D11_SDK_VERSION, &desc, &swapchain, &device, nullptr, &immediate_context));
+#  ifndef NDEBUG
+			const UINT flags = D3D11_CREATE_DEVICE_DEBUG;
+#  else
+			const UINT flags = 0;
+#  endif
+			HR_CHECK(D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, flags, nullptr, 0, D3D11_SDK_VERSION, &desc, &swapchain, &device, nullptr, &immediate_context));
 		}
 
 		com_ptr<ID3D11Texture2D> backbuffer;
@@ -304,11 +309,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 		reshade::hooks::register_module(L"dxgi.dll");
 		reshade::hooks::register_module(L"d3d12.dll");
 
+#  ifndef NDEBUG
 		// Enable D3D debug layer if it is available
 		{   com_ptr<ID3D12Debug> debug_iface;
 			if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debug_iface))))
 				debug_iface->EnableDebugLayer();
 		}
+#  endif
 
 		// Initialize Direct3D 12
 		com_ptr<ID3D12Device> device;
@@ -576,8 +583,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 
 			VkInstanceCreateInfo create_info { VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO };
 			create_info.pApplicationInfo = &app_info;
+#  ifndef NDEBUG
 			create_info.enabledLayerCount = ARRAYSIZE(enabled_layers);
 			create_info.ppEnabledLayerNames = enabled_layers;
+#  endif
 			create_info.enabledExtensionCount = ARRAYSIZE(enabled_extensions);
 			create_info.ppEnabledExtensionNames = enabled_extensions;
 
@@ -616,8 +625,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			VkDeviceCreateInfo create_info { VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
 			create_info.queueCreateInfoCount = 1;
 			create_info.pQueueCreateInfos = &queue_info;
+#  ifndef NDEBUG
 			create_info.enabledLayerCount = ARRAYSIZE(enabled_layers);
 			create_info.ppEnabledLayerNames = enabled_layers;
+#  endif
 			create_info.enabledExtensionCount = ARRAYSIZE(enabled_extensions);
 			create_info.ppEnabledExtensionNames = enabled_extensions;
 
