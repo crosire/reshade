@@ -4,7 +4,8 @@
  */
 
 #include "hook_manager.hpp"
-#include <d3d9.h>
+#include <Windows.h>
+#include <d3d9types.h>
 
 HOOK_EXPORT int WINAPI D3DPERF_BeginEvent(D3DCOLOR col, LPCWSTR wszName)
 {

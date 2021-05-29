@@ -6,6 +6,7 @@
 #include "dll_log.hpp"
 #include "hook_manager.hpp"
 #include "reshade_api_swapchain.hpp"
+#include "reshade_api_type_convert.hpp"
 #include "opengl_hooks.hpp" // Fix name clashes with gl3w
 
 struct DrawArraysIndirectCommand

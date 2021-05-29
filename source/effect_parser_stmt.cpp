@@ -12,7 +12,7 @@
 struct on_scope_exit
 {
 	template <typename F>
-	on_scope_exit(F lambda) : leave(lambda) { }
+	explicit on_scope_exit(F lambda) : leave(lambda) { }
 	~on_scope_exit() { leave(); }
 	std::function<void()> leave;
 };

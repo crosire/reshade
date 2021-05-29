@@ -4,6 +4,8 @@
  */
 
 #include "dll_log.hpp"
+#include "reshade_api_device.hpp"
+#include "reshade_api_command_queue.hpp"
 #include "reshade_api_swapchain.hpp"
 #include "reshade_api_type_convert.hpp"
 
@@ -108,22 +110,31 @@ reshade::vulkan::swapchain_impl::~swapchain_impl()
 #endif
 }
 
+reshade::api::device *reshade::vulkan::swapchain_impl::get_device()
+{
+	return _device_impl;
+}
+reshade::api::command_queue *reshade::vulkan::swapchain_impl::get_command_queue()
+{
+	return _queue_impl;
+}
+
+void reshade::vulkan::swapchain_impl::get_current_back_buffer(api::resource *out)
+{
+	*out = { (uint64_t)_swapchain_images[_swap_index] };
+}
+void reshade::vulkan::swapchain_impl::get_current_back_buffer_target(bool srgb, api::resource_view *out)
+{
+	*out = { (uint64_t)_swapchain_views[_swap_index * 2 + (srgb ? 1 : 0)] };
+}
+
 bool reshade::vulkan::swapchain_impl::on_init(VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &desc, HWND hwnd)
 {
 	_orig = swapchain;
 
-	_width = _window_width = desc.imageExtent.width;
-	_height = _window_height = desc.imageExtent.height;
+	_width = desc.imageExtent.width;
+	_height = desc.imageExtent.height;
 	_backbuffer_format = convert_format(desc.imageFormat);
-
-	if (hwnd != nullptr)
-	{
-		RECT window_rect = {};
-		GetClientRect(hwnd, &window_rect);
-
-		_window_width = window_rect.right;
-		_window_height = window_rect.bottom;
-	}
 
 	if (_queue == VK_NULL_HANDLE)
 		return false;
@@ -216,12 +227,11 @@ void reshade::vulkan::swapchain_impl::on_reset()
 
 void reshade::vulkan::swapchain_impl::on_present(VkQueue queue, const uint32_t swapchain_image_index, std::vector<VkSemaphore> &wait)
 {
-	if (!_is_initialized)
+	if (!is_initialized())
 		return;
 
 	_swap_index = swapchain_image_index;
 
-	update_and_render_effects();
 	runtime::on_present();
 
 #ifndef NDEBUG

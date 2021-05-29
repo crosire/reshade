@@ -5,7 +5,6 @@
 
 #pragma once
 
-#include "com_ptr.hpp"
 #include "reshade_api_command_list.hpp"
 
 namespace reshade::d3d12

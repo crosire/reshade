@@ -85,88 +85,6 @@ void reshade::runtime::init_gui()
 	_menu_callables.emplace_back("Statistics", [this]() { draw_gui_statistics(); });
 	_menu_callables.emplace_back("Log", [this]() { draw_gui_log(); });
 	_menu_callables.emplace_back("About", [this]() { draw_gui_about(); });
-
-	_load_config_callables.push_back([this, &imgui_io, &imgui_style](const ini_file &config) {
-		config.get("INPUT", "KeyOverlay", _overlay_key_data);
-		config.get("INPUT", "InputProcessing", _input_processing_mode);
-
-		config.get("OVERLAY", "ClockFormat", _clock_format);
-		config.get("OVERLAY", "FPSPosition", _fps_pos);
-		config.get("OVERLAY", "NoFontScaling", _no_font_scaling);
-		config.get("OVERLAY", "ShowClock", _show_clock);
-		config.get("OVERLAY", "ShowForceLoadEffectsButton", _show_force_load_effects_button);
-		config.get("OVERLAY", "ShowFPS", _show_fps);
-		config.get("OVERLAY", "ShowFrameTime", _show_frametime);
-		config.get("OVERLAY", "ShowScreenshotMessage", _show_screenshot_message);
-		config.get("OVERLAY", "TutorialProgress", _tutorial_index);
-		config.get("OVERLAY", "VariableListHeight", _variable_editor_height);
-		config.get("OVERLAY", "VariableListUseTabs", _variable_editor_tabs);
-
-		bool save_imgui_window_state = false;
-		config.get("OVERLAY", "SaveWindowState", save_imgui_window_state);
-		imgui_io.IniFilename = save_imgui_window_state ? s_window_state_path.c_str() : nullptr;
-
-		config.get("STYLE", "Alpha", imgui_style.Alpha);
-		config.get("STYLE", "ChildRounding", imgui_style.ChildRounding);
-		config.get("STYLE", "ColFPSText", _fps_col);
-		config.get("STYLE", "EditorFont", _editor_font);
-		config.get("STYLE", "EditorFontSize", _editor_font_size);
-		config.get("STYLE", "EditorStyleIndex", _editor_style_index);
-		config.get("STYLE", "Font", _font);
-		config.get("STYLE", "FontSize", _font_size);
-		config.get("STYLE", "FPSScale", _fps_scale);
-		config.get("STYLE", "FrameRounding", imgui_style.FrameRounding);
-		config.get("STYLE", "GrabRounding", imgui_style.GrabRounding);
-		config.get("STYLE", "PopupRounding", imgui_style.PopupRounding);
-		config.get("STYLE", "ScrollbarRounding", imgui_style.ScrollbarRounding);
-		config.get("STYLE", "StyleIndex", _style_index);
-		config.get("STYLE", "TabRounding", imgui_style.TabRounding);
-		config.get("STYLE", "WindowRounding", imgui_style.WindowRounding);
-
-		// For compatibility with older versions, set the alpha value if it is missing
-		if (_fps_col[3] == 0.0f)
-			_fps_col[3]  = 1.0f;
-
-		load_custom_style();
-	});
-	_save_config_callables.push_back([this, &imgui_io, &imgui_style](ini_file &config) {
-		config.set("INPUT", "KeyOverlay", _overlay_key_data);
-		config.set("INPUT", "InputProcessing", _input_processing_mode);
-
-		config.set("OVERLAY", "ClockFormat", _clock_format);
-		config.set("OVERLAY", "FPSPosition", _fps_pos);
-		config.set("OVERLAY", "NoFontScaling", _no_font_scaling);
-		config.set("OVERLAY", "ShowClock", _show_clock);
-		config.set("OVERLAY", "ShowForceLoadEffectsButton", _show_force_load_effects_button);
-		config.set("OVERLAY", "ShowFPS", _show_fps);
-		config.set("OVERLAY", "ShowFrameTime", _show_frametime);
-		config.set("OVERLAY", "ShowScreenshotMessage", _show_screenshot_message);
-		config.set("OVERLAY", "TutorialProgress", _tutorial_index);
-		config.set("OVERLAY", "VariableListHeight", _variable_editor_height);
-		config.set("OVERLAY", "VariableListUseTabs", _variable_editor_tabs);
-
-		const bool save_imgui_window_state = imgui_io.IniFilename != nullptr;
-		config.set("OVERLAY", "SaveWindowState", save_imgui_window_state);
-
-		config.set("STYLE", "Alpha", imgui_style.Alpha);
-		config.set("STYLE", "ChildRounding", imgui_style.ChildRounding);
-		config.set("STYLE", "ColFPSText", _fps_col);
-		config.set("STYLE", "EditorFont", _editor_font);
-		config.set("STYLE", "EditorFontSize", _editor_font_size);
-		config.set("STYLE", "EditorStyleIndex", _editor_style_index);
-		config.set("STYLE", "Font", _font);
-		config.set("STYLE", "FontSize", _font_size);
-		config.set("STYLE", "FPSScale", _fps_scale);
-		config.set("STYLE", "FrameRounding", imgui_style.FrameRounding);
-		config.set("STYLE", "GrabRounding", imgui_style.GrabRounding);
-		config.set("STYLE", "PopupRounding", imgui_style.PopupRounding);
-		config.set("STYLE", "ScrollbarRounding", imgui_style.ScrollbarRounding);
-		config.set("STYLE", "StyleIndex", _style_index);
-		config.set("STYLE", "TabRounding", imgui_style.TabRounding);
-		config.set("STYLE", "WindowRounding", imgui_style.WindowRounding);
-
-		// Do not save custom style colors by default, only when actually used and edited
-	});
 }
 void reshade::runtime::deinit_gui()
 {
@@ -228,10 +146,10 @@ void reshade::runtime::build_font_atlas()
 
 	api::device *const device = get_device();
 
-	device->destroy_resource(_imgui.font_atlas);
-	_imgui.font_atlas.handle = {};
-	device->destroy_resource_view(_imgui.font_atlas_view);
-	_imgui.font_atlas_view.handle = {};
+	device->destroy_resource(_font_atlas);
+	_font_atlas.handle = {};
+	device->destroy_resource_view(_font_atlas_srv);
+	_font_atlas_srv.handle = {};
 
 	const api::subresource_data initial_data = { pixels, static_cast<uint32_t>(width * 4), static_cast<uint32_t>(width * height * 4) };
 
@@ -240,16 +158,106 @@ void reshade::runtime::build_font_atlas()
 		api::resource_desc(width, height, 1, 1, api::format::r8g8b8a8_unorm, 1, api::memory_heap::gpu_only, api::resource_usage::shader_resource),
 		&initial_data,
 		api::resource_usage::shader_resource,
-		&_imgui.font_atlas))
+		&_font_atlas))
 		return;
 	if (!device->create_resource_view(
-		_imgui.font_atlas,
+		_font_atlas,
 		api::resource_usage::shader_resource,
 		api::resource_view_desc(api::format::r8g8b8a8_unorm, 0, 1, 0, 1),
-		&_imgui.font_atlas_view))
+		&_font_atlas_srv))
 		return;
 
-	device->set_debug_name(_imgui.font_atlas, "ImGui Font Atlas");
+	device->set_debug_name(_font_atlas, "ImGui Font Atlas");
+}
+
+void reshade::runtime::load_config_gui(const ini_file &config)
+{
+	auto &imgui_io = _imgui_context->IO;
+	auto &imgui_style = _imgui_context->Style;
+
+	config.get("INPUT", "KeyOverlay", _overlay_key_data);
+	config.get("INPUT", "InputProcessing", _input_processing_mode);
+
+	config.get("OVERLAY", "ClockFormat", _clock_format);
+	config.get("OVERLAY", "FPSPosition", _fps_pos);
+	config.get("OVERLAY", "NoFontScaling", _no_font_scaling);
+	config.get("OVERLAY", "ShowClock", _show_clock);
+	config.get("OVERLAY", "ShowForceLoadEffectsButton", _show_force_load_effects_button);
+	config.get("OVERLAY", "ShowFPS", _show_fps);
+	config.get("OVERLAY", "ShowFrameTime", _show_frametime);
+	config.get("OVERLAY", "ShowScreenshotMessage", _show_screenshot_message);
+	config.get("OVERLAY", "TutorialProgress", _tutorial_index);
+	config.get("OVERLAY", "VariableListHeight", _variable_editor_height);
+	config.get("OVERLAY", "VariableListUseTabs", _variable_editor_tabs);
+
+	bool save_imgui_window_state = false;
+	config.get("OVERLAY", "SaveWindowState", save_imgui_window_state);
+	imgui_io.IniFilename = save_imgui_window_state ? s_window_state_path.c_str() : nullptr;
+
+	config.get("STYLE", "Alpha", imgui_style.Alpha);
+	config.get("STYLE", "ChildRounding", imgui_style.ChildRounding);
+	config.get("STYLE", "ColFPSText", _fps_col);
+	config.get("STYLE", "EditorFont", _editor_font);
+	config.get("STYLE", "EditorFontSize", _editor_font_size);
+	config.get("STYLE", "EditorStyleIndex", _editor_style_index);
+	config.get("STYLE", "Font", _font);
+	config.get("STYLE", "FontSize", _font_size);
+	config.get("STYLE", "FPSScale", _fps_scale);
+	config.get("STYLE", "FrameRounding", imgui_style.FrameRounding);
+	config.get("STYLE", "GrabRounding", imgui_style.GrabRounding);
+	config.get("STYLE", "PopupRounding", imgui_style.PopupRounding);
+	config.get("STYLE", "ScrollbarRounding", imgui_style.ScrollbarRounding);
+	config.get("STYLE", "StyleIndex", _style_index);
+	config.get("STYLE", "TabRounding", imgui_style.TabRounding);
+	config.get("STYLE", "WindowRounding", imgui_style.WindowRounding);
+
+	// For compatibility with older versions, set the alpha value if it is missing
+	if (_fps_col[3] == 0.0f)
+		_fps_col[3] = 1.0f;
+
+	load_custom_style();
+}
+void reshade::runtime::save_config_gui(ini_file &config) const
+{
+	const auto &imgui_io = _imgui_context->IO;
+	const auto &imgui_style = _imgui_context->Style;
+
+	config.set("INPUT", "KeyOverlay", _overlay_key_data);
+	config.set("INPUT", "InputProcessing", _input_processing_mode);
+
+	config.set("OVERLAY", "ClockFormat", _clock_format);
+	config.set("OVERLAY", "FPSPosition", _fps_pos);
+	config.set("OVERLAY", "NoFontScaling", _no_font_scaling);
+	config.set("OVERLAY", "ShowClock", _show_clock);
+	config.set("OVERLAY", "ShowForceLoadEffectsButton", _show_force_load_effects_button);
+	config.set("OVERLAY", "ShowFPS", _show_fps);
+	config.set("OVERLAY", "ShowFrameTime", _show_frametime);
+	config.set("OVERLAY", "ShowScreenshotMessage", _show_screenshot_message);
+	config.set("OVERLAY", "TutorialProgress", _tutorial_index);
+	config.set("OVERLAY", "VariableListHeight", _variable_editor_height);
+	config.set("OVERLAY", "VariableListUseTabs", _variable_editor_tabs);
+
+	const bool save_imgui_window_state = imgui_io.IniFilename != nullptr;
+	config.set("OVERLAY", "SaveWindowState", save_imgui_window_state);
+
+	config.set("STYLE", "Alpha", imgui_style.Alpha);
+	config.set("STYLE", "ChildRounding", imgui_style.ChildRounding);
+	config.set("STYLE", "ColFPSText", _fps_col);
+	config.set("STYLE", "EditorFont", _editor_font);
+	config.set("STYLE", "EditorFontSize", _editor_font_size);
+	config.set("STYLE", "EditorStyleIndex", _editor_style_index);
+	config.set("STYLE", "Font", _font);
+	config.set("STYLE", "FontSize", _font_size);
+	config.set("STYLE", "FPSScale", _fps_scale);
+	config.set("STYLE", "FrameRounding", imgui_style.FrameRounding);
+	config.set("STYLE", "GrabRounding", imgui_style.GrabRounding);
+	config.set("STYLE", "PopupRounding", imgui_style.PopupRounding);
+	config.set("STYLE", "ScrollbarRounding", imgui_style.ScrollbarRounding);
+	config.set("STYLE", "StyleIndex", _style_index);
+	config.set("STYLE", "TabRounding", imgui_style.TabRounding);
+	config.set("STYLE", "WindowRounding", imgui_style.WindowRounding);
+
+	// Do not save custom style colors by default, only when actually used and edited
 }
 
 void reshade::runtime::load_custom_style()
@@ -521,7 +529,7 @@ void reshade::runtime::load_custom_style()
 		break;
 	}
 }
-void reshade::runtime::save_custom_style()
+void reshade::runtime::save_custom_style() const
 {
 	ini_file &config = ini_file::load_cache(_config_path);
 
@@ -570,7 +578,7 @@ void reshade::runtime::draw_gui()
 
 	if (_rebuild_font_atlas)
 		build_font_atlas();
-	if (_imgui.font_atlas_view.handle == 0 || _imgui.pipeline.handle == 0)
+	if (_font_atlas_srv.handle == 0 || _imgui_pipeline.handle == 0)
 		return; // Cannot render GUI without font atlas
 
 	ImGui::SetCurrentContext(_imgui_context);
@@ -581,7 +589,7 @@ void reshade::runtime::draw_gui()
 	imgui_io.MousePos.y = static_cast<float>(_input->mouse_position_y());
 	imgui_io.DisplaySize.x = static_cast<float>(_width);
 	imgui_io.DisplaySize.y = static_cast<float>(_height);
-	imgui_io.Fonts->TexID = _imgui.font_atlas_view.handle;
+	imgui_io.Fonts->TexID = _font_atlas_srv.handle;
 
 	// Add wheel delta to the current absolute mouse wheel position
 	imgui_io.MouseWheel += _input->mouse_wheel_delta();
@@ -3165,7 +3173,7 @@ bool reshade::runtime::init_imgui_resources()
 	api::device *const device = get_device();
 	const bool has_combined_sampler_and_view = device->check_capability(api::device_caps::sampler_with_resource_view);
 
-	if (_imgui.sampler_state.handle == 0)
+	if (_imgui_sampler_state.handle == 0)
 	{
 		api::sampler_desc desc = {};
 		desc.filter = api::texture_filter::min_mag_mip_linear;
@@ -3176,11 +3184,11 @@ bool reshade::runtime::init_imgui_resources()
 		desc.min_lod = -FLT_MAX;
 		desc.max_lod = +FLT_MAX;
 
-		if (!device->create_sampler(desc, &_imgui.sampler_state))
+		if (!device->create_sampler(desc, &_imgui_sampler_state))
 			return false;
 	}
 
-	if (_imgui.pipeline_layout.handle == 0)
+	if (_imgui_pipeline_layout.handle == 0)
 	{
 		api::descriptor_range range;
 		range.count = 1;
@@ -3191,7 +3199,7 @@ bool reshade::runtime::init_imgui_resources()
 			range.type = api::descriptor_type::sampler_with_resource_view;
 			range.binding = 0;
 			range.dx_shader_register = 0; // s0
-			if (!device->create_descriptor_set_layout(1, &range, true, &_imgui.table_layouts[0]))
+			if (!device->create_descriptor_set_layout(1, &range, true, &_imgui_set_layouts[0]))
 				return false;
 		}
 		else
@@ -3199,13 +3207,13 @@ bool reshade::runtime::init_imgui_resources()
 			range.type = api::descriptor_type::sampler;
 			range.binding = 0;
 			range.dx_shader_register = 0; // s0
-			if (!device->create_descriptor_set_layout(1, &range, true, &_imgui.table_layouts[0]))
+			if (!device->create_descriptor_set_layout(1, &range, true, &_imgui_set_layouts[0]))
 				return false;
 
 			range.type = api::descriptor_type::shader_resource_view;
 			range.binding = 0;
 			range.dx_shader_register = 0; // t0
-			if (!device->create_descriptor_set_layout(1, &range, true, &_imgui.table_layouts[1]))
+			if (!device->create_descriptor_set_layout(1, &range, true, &_imgui_set_layouts[1]))
 				return false;
 		}
 
@@ -3215,15 +3223,15 @@ bool reshade::runtime::init_imgui_resources()
 		constant_range.count = 16;
 		constant_range.visibility = api::shader_stage::vertex;
 
-		if (!device->create_pipeline_layout(has_combined_sampler_and_view ? 1 : 2, _imgui.table_layouts, 1, &constant_range, &_imgui.pipeline_layout))
+		if (!device->create_pipeline_layout(has_combined_sampler_and_view ? 1 : 2, _imgui_set_layouts, 1, &constant_range, &_imgui_pipeline_layout))
 			return false;
 	}
 
-	if (_imgui.pipeline.handle != 0)
+	if (_imgui_pipeline.handle != 0)
 		return true;
 
 	api::pipeline_desc pso_desc = { api::pipeline_type::graphics };
-	pso_desc.layout = _imgui.pipeline_layout;
+	pso_desc.layout = _imgui_pipeline_layout;
 
 	if ((_renderer_id & 0x30000) == 0)
 	{
@@ -3323,7 +3331,7 @@ bool reshade::runtime::init_imgui_resources()
 	pso_desc.graphics.num_render_targets = 1;
 	pso_desc.graphics.render_target_format[0] = _backbuffer_format;
 
-	return device->create_pipeline(pso_desc, &_imgui.pipeline);
+	return device->create_pipeline(pso_desc, &_imgui_pipeline);
 }
 void reshade::runtime::render_imgui_draw_data(ImDrawData *draw_data, api::resource_view target)
 {
@@ -3331,40 +3339,40 @@ void reshade::runtime::render_imgui_draw_data(ImDrawData *draw_data, api::resour
 	const bool has_combined_sampler_and_view = device->check_capability(api::device_caps::sampler_with_resource_view);
 
 	// Need to multi-buffer vertex data so not to modify data below when the previous frame is still in flight
-	const unsigned int buffer_index = _framecount % NUM_IMGUI_BUFFERS;
+	const unsigned int buffer_index = _framecount % static_cast<unsigned int>(std::size(_imgui_vertices));
 
 	// Create and grow vertex/index buffers if needed
-	if (_imgui.num_indices[buffer_index] < draw_data->TotalIdxCount)
+	if (_imgui_num_indices[buffer_index] < draw_data->TotalIdxCount)
 	{
 		device->wait_idle(); // Be safe and ensure nothing still uses this buffer
 
-		if (_imgui.indices[buffer_index].handle != 0)
-			device->destroy_resource(_imgui.indices[buffer_index]);
+		if (_imgui_indices[buffer_index].handle != 0)
+			device->destroy_resource(_imgui_indices[buffer_index]);
 
 		const int new_size = draw_data->TotalIdxCount + 10000;
-		if (!device->create_resource(api::resource_desc(new_size * sizeof(ImDrawIdx), api::memory_heap::cpu_to_gpu, api::resource_usage::index_buffer), nullptr, api::resource_usage::cpu_access, &_imgui.indices[buffer_index]))
+		if (!device->create_resource(api::resource_desc(new_size * sizeof(ImDrawIdx), api::memory_heap::cpu_to_gpu, api::resource_usage::index_buffer), nullptr, api::resource_usage::cpu_access, &_imgui_indices[buffer_index]))
 			return;
-		device->set_debug_name(_imgui.indices[buffer_index], "ImGui index buffer");
+		device->set_debug_name(_imgui_indices[buffer_index], "ImGui index buffer");
 
-		_imgui.num_indices[buffer_index] = new_size;
+		_imgui_num_indices[buffer_index] = new_size;
 	}
-	if (_imgui.num_vertices[buffer_index] < draw_data->TotalVtxCount)
+	if (_imgui_num_vertices[buffer_index] < draw_data->TotalVtxCount)
 	{
 		device->wait_idle();
 
-		if (_imgui.vertices[buffer_index].handle != 0)
-			device->destroy_resource(_imgui.vertices[buffer_index]);
+		if (_imgui_vertices[buffer_index].handle != 0)
+			device->destroy_resource(_imgui_vertices[buffer_index]);
 
 		const int new_size = draw_data->TotalVtxCount + 5000;
-		if (!device->create_resource(api::resource_desc(new_size * sizeof(ImDrawVert), api::memory_heap::cpu_to_gpu, api::resource_usage::vertex_buffer), nullptr, api::resource_usage::cpu_access, &_imgui.vertices[buffer_index]))
+		if (!device->create_resource(api::resource_desc(new_size * sizeof(ImDrawVert), api::memory_heap::cpu_to_gpu, api::resource_usage::vertex_buffer), nullptr, api::resource_usage::cpu_access, &_imgui_vertices[buffer_index]))
 			return;
-		device->set_debug_name(_imgui.vertices[buffer_index], "ImGui vertex buffer");
+		device->set_debug_name(_imgui_vertices[buffer_index], "ImGui vertex buffer");
 
-		_imgui.num_vertices[buffer_index] = new_size;
+		_imgui_num_vertices[buffer_index] = new_size;
 	}
 
 	if (ImDrawIdx *idx_dst = nullptr;
-		device->map_resource(_imgui.indices[buffer_index], 0, api::map_access::write_discard, reinterpret_cast<void **>(&idx_dst)))
+		device->map_resource(_imgui_indices[buffer_index], 0, api::map_access::write_discard, reinterpret_cast<void **>(&idx_dst)))
 	{
 		for (int n = 0; n < draw_data->CmdListsCount; ++n)
 		{
@@ -3373,10 +3381,10 @@ void reshade::runtime::render_imgui_draw_data(ImDrawData *draw_data, api::resour
 			idx_dst += draw_list->IdxBuffer.Size;
 		}
 
-		device->unmap_resource(_imgui.indices[buffer_index], 0);
+		device->unmap_resource(_imgui_indices[buffer_index], 0);
 	}
 	if (ImDrawVert *vtx_dst = nullptr;
-		device->map_resource(_imgui.vertices[buffer_index], 0, api::map_access::write_discard, reinterpret_cast<void **>(&vtx_dst)))
+		device->map_resource(_imgui_vertices[buffer_index], 0, api::map_access::write_discard, reinterpret_cast<void **>(&vtx_dst)))
 	{
 		for (int n = 0; n < draw_data->CmdListsCount; ++n)
 		{
@@ -3385,7 +3393,7 @@ void reshade::runtime::render_imgui_draw_data(ImDrawData *draw_data, api::resour
 			vtx_dst += draw_list->VtxBuffer.Size;
 		}
 
-		device->unmap_resource(_imgui.vertices[buffer_index], 0);
+		device->unmap_resource(_imgui_vertices[buffer_index], 0);
 	}
 
 	api::command_list *const cmd_list = get_command_queue()->get_immediate_command_list();
@@ -3393,10 +3401,10 @@ void reshade::runtime::render_imgui_draw_data(ImDrawData *draw_data, api::resour
 	cmd_list->begin_render_pass(1, &target);
 
 	// Setup render state
-	cmd_list->bind_pipeline(api::pipeline_type::graphics, _imgui.pipeline);
+	cmd_list->bind_pipeline(api::pipeline_type::graphics, _imgui_pipeline);
 
-	cmd_list->bind_index_buffer(_imgui.indices[buffer_index], 0, sizeof(ImDrawIdx));
-	cmd_list->bind_vertex_buffer(0, _imgui.vertices[buffer_index], 0, sizeof(ImDrawVert));
+	cmd_list->bind_index_buffer(_imgui_indices[buffer_index], 0, sizeof(ImDrawIdx));
+	cmd_list->bind_vertex_buffer(0, _imgui_vertices[buffer_index], 0, sizeof(ImDrawVert));
 
 	const float viewport[6] = { 0, 0, draw_data->DisplaySize.x, draw_data->DisplaySize.y, 0.0f, 1.0f };
 	cmd_list->bind_viewports(0, 1, viewport);
@@ -3414,10 +3422,10 @@ void reshade::runtime::render_imgui_draw_data(ImDrawData *draw_data, api::resour
 		(flip_y ? -1 : 1) * (2 * draw_data->DisplayPos.y + draw_data->DisplaySize.y + (adjust_half_pixel ? 1.0f : 0.0f)) / draw_data->DisplaySize.y, depth_clip_zero_to_one ? 0.5f : 0.0f, 1.0f,
 	};
 
-	cmd_list->push_constants(api::shader_stage::vertex, _imgui.pipeline_layout, has_combined_sampler_and_view ? 1 : 2, 0, sizeof(ortho_projection) / 4, reinterpret_cast<const uint32_t *>(ortho_projection));
+	cmd_list->push_constants(api::shader_stage::vertex, _imgui_pipeline_layout, has_combined_sampler_and_view ? 1 : 2, 0, sizeof(ortho_projection) / 4, reinterpret_cast<const uint32_t *>(ortho_projection));
 
 	if (!has_combined_sampler_and_view)
-		cmd_list->push_descriptors(api::shader_stage::pixel, _imgui.pipeline_layout, 0, api::descriptor_type::sampler, 0, 1, &_imgui.sampler_state);
+		cmd_list->push_descriptors(api::shader_stage::pixel, _imgui_pipeline_layout, 0, api::descriptor_type::sampler, 0, 1, &_imgui_sampler_state);
 
 	UINT vtx_offset = 0, idx_offset = 0;
 	for (int n = 0; n < draw_data->CmdListsCount; ++n)
@@ -3441,12 +3449,12 @@ void reshade::runtime::render_imgui_draw_data(ImDrawData *draw_data, api::resour
 			const api::resource_view srv = { (uint64_t)cmd.TextureId };
 			if (has_combined_sampler_and_view)
 			{
-				api::sampler_with_resource_view sampler_and_view = { _imgui.sampler_state, srv };
-				cmd_list->push_descriptors(api::shader_stage::pixel, _imgui.pipeline_layout, 0, api::descriptor_type::sampler_with_resource_view, 0, 1, &sampler_and_view);
+				api::sampler_with_resource_view sampler_and_view = { _imgui_sampler_state, srv };
+				cmd_list->push_descriptors(api::shader_stage::pixel, _imgui_pipeline_layout, 0, api::descriptor_type::sampler_with_resource_view, 0, 1, &sampler_and_view);
 			}
 			else
 			{
-				cmd_list->push_descriptors(api::shader_stage::pixel, _imgui.pipeline_layout, 1, api::descriptor_type::shader_resource_view, 0, 1, &srv);
+				cmd_list->push_descriptors(api::shader_stage::pixel, _imgui_pipeline_layout, 1, api::descriptor_type::shader_resource_view, 0, 1, &srv);
 			}
 
 			cmd_list->draw_indexed(cmd.ElemCount, 1, cmd.IdxOffset + idx_offset, cmd.VtxOffset + vtx_offset, 0);
@@ -3457,6 +3465,37 @@ void reshade::runtime::render_imgui_draw_data(ImDrawData *draw_data, api::resour
 	}
 
 	cmd_list->finish_render_pass();
+}
+void reshade::runtime::destroy_imgui_resources()
+{
+	api::device *const device = get_device();
+
+	device->destroy_resource(_font_atlas);
+	_font_atlas = {};
+	device->destroy_resource_view(_font_atlas_srv);
+	_font_atlas_srv = {};
+	_rebuild_font_atlas = true;
+
+	for (unsigned int i = 0; i < std::size(_imgui_vertices); ++i)
+	{
+		device->destroy_resource(_imgui_indices[i]);
+		_imgui_indices[i] = {};
+		_imgui_num_indices[i] = 0;
+		device->destroy_resource(_imgui_vertices[i]);
+		_imgui_vertices[i] = {};
+		_imgui_num_vertices[i] = 0;
+	}
+
+	device->destroy_sampler(_imgui_sampler_state);
+	_imgui_sampler_state = {};
+	device->destroy_pipeline(api::pipeline_type::graphics, _imgui_pipeline);
+	_imgui_pipeline = {};
+	device->destroy_pipeline_layout(_imgui_pipeline_layout);
+	_imgui_pipeline_layout = {};
+	device->destroy_descriptor_set_layout(_imgui_set_layouts[0]);
+	_imgui_set_layouts[0] = {};
+	device->destroy_descriptor_set_layout(_imgui_set_layouts[1]);
+	_imgui_set_layouts[1] = {};
 }
 
 #endif

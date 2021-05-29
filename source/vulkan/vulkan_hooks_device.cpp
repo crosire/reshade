@@ -7,6 +7,8 @@
 #include "hook_manager.hpp"
 #include "vulkan_hooks.hpp"
 #include "lockfree_table.hpp"
+#include "reshade_api_device.hpp"
+#include "reshade_api_command_queue.hpp"
 #include "reshade_api_swapchain.hpp"
 #include "reshade_api_type_convert.hpp"
 

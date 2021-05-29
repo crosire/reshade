@@ -93,7 +93,10 @@ bool reshade::input::handle_window_message(const void *message_data)
 
 	// Remove any expired entry from the list
 	for (auto it = s_windows.begin(); it != s_windows.end();)
-		it->second.expired() ? it = s_windows.erase(it) : ++it;
+		if (it->second.expired())
+			it = s_windows.erase(it);
+		else
+			++it;
 
 	// Look up the window in the list of known input windows
 	auto input_window = s_windows.find(details.hwnd);

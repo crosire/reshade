@@ -7,14 +7,14 @@
     <Filter Include="core\api">
       <UniqueIdentifier>{5e3746df-351a-4572-8ce2-039053bab857}</UniqueIdentifier>
     </Filter>
-    <Filter Include="core\api\addon">
-      <UniqueIdentifier>{0def8993-de0e-4d32-8464-9cc89e2c30a6}</UniqueIdentifier>
-    </Filter>
     <Filter Include="core\hook">
       <UniqueIdentifier>{ed3eb34b-86ef-4bb0-b071-44f1163953bf}</UniqueIdentifier>
     </Filter>
     <Filter Include="core\runtime">
       <UniqueIdentifier>{ecdb23a8-21dc-4334-b5cf-2ea57d27001d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="core\runtime\addon">
+      <UniqueIdentifier>{0def8993-de0e-4d32-8464-9cc89e2c30a6}</UniqueIdentifier>
     </Filter>
     <Filter Include="hooks">
       <UniqueIdentifier>{3c3eb495-1eeb-4c7c-b58f-3bbcf24758f6}</UniqueIdentifier>
@@ -73,10 +73,10 @@
       <Filter>core</Filter>
     </ClCompile>
     <ClCompile Include="source\addon_manager.cpp">
-      <Filter>core\api</Filter>
+      <Filter>core\runtime</Filter>
     </ClCompile>
     <ClCompile Include="source\addon\generic_depth.cpp">
-      <Filter>core\api\addon</Filter>
+      <Filter>core\runtime\addon</Filter>
     </ClCompile>
     <ClCompile Include="source\hook.cpp">
       <Filter>core\hook</Filter>
@@ -308,21 +308,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="source\dll_config.hpp">
-      <Filter>core</Filter>
-    </ClInclude>
-    <ClInclude Include="source\dll_log.hpp">
-      <Filter>core</Filter>
-    </ClInclude>
-    <ClInclude Include="source\dll_resources.hpp">
-      <Filter>core</Filter>
-    </ClInclude>
-    <ClInclude Include="source\addon_impl.hpp">
-      <Filter>core\api</Filter>
-    </ClInclude>
-    <ClInclude Include="source\addon_manager.hpp">
-      <Filter>core\api</Filter>
-    </ClInclude>
     <ClInclude Include="include\reshade.hpp">
       <Filter>core\api</Filter>
     </ClInclude>
@@ -344,11 +329,26 @@
     <ClInclude Include="include\reshade_overlay.hpp">
       <Filter>core\api</Filter>
     </ClInclude>
+    <ClInclude Include="source\dll_config.hpp">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="source\dll_log.hpp">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="source\dll_resources.hpp">
+      <Filter>core</Filter>
+    </ClInclude>
     <ClInclude Include="source\hook.hpp">
       <Filter>core\hook</Filter>
     </ClInclude>
     <ClInclude Include="source\hook_manager.hpp">
       <Filter>core\hook</Filter>
+    </ClInclude>
+    <ClInclude Include="source\addon_impl.hpp">
+      <Filter>core\runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="source\addon_manager.hpp">
+      <Filter>core\runtime</Filter>
     </ClInclude>
     <ClInclude Include="source\imgui_code_editor.hpp">
       <Filter>core\runtime</Filter>

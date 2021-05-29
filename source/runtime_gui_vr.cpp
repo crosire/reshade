@@ -67,12 +67,12 @@ void reshade::runtime::init_gui_vr()
 
 	api::device *const device = get_device();
 
-	if (!device->create_resource(api::resource_desc(OVERLAY_WIDTH, OVERLAY_HEIGHT, 1, 1, api::format::r8g8b8a8_unorm, 1, api::memory_heap::gpu_only, api::resource_usage::render_target | api::resource_usage::shader_resource), nullptr, api::resource_usage::shader_resource_pixel, &_imgui.overlay_texture))
+	if (!device->create_resource(api::resource_desc(OVERLAY_WIDTH, OVERLAY_HEIGHT, 1, 1, api::format::r8g8b8a8_unorm, 1, api::memory_heap::gpu_only, api::resource_usage::render_target | api::resource_usage::shader_resource), nullptr, api::resource_usage::shader_resource_pixel, &_vr_overlay_texture))
 	{
 		LOG(ERROR) << "Failed to create VR dashboard overlay texture.";
 		return;
 	}
-	if (!device->create_resource_view(_imgui.overlay_texture, api::resource_usage::render_target, api::resource_view_desc(api::format::r8g8b8a8_unorm, 0, 1, 0, 1), &_imgui.overlay_target))
+	if (!device->create_resource_view(_vr_overlay_texture, api::resource_usage::render_target, api::resource_view_desc(api::format::r8g8b8a8_unorm, 0, 1, 0, 1), &_vr_overlay_target))
 	{
 		LOG(ERROR) << "Failed to create VR dashboard overlay render target.";
 		return;
@@ -86,10 +86,10 @@ void reshade::runtime::deinit_gui_vr()
 
 	api::device *const device = get_device();
 
-	device->destroy_resource_view(_imgui.overlay_target);
-	_imgui.overlay_target = {};
-	device->destroy_resource(_imgui.overlay_texture);
-	_imgui.overlay_texture = {};
+	device->destroy_resource_view(_vr_overlay_target);
+	_vr_overlay_target = {};
+	device->destroy_resource(_vr_overlay_texture);
+	_vr_overlay_texture = {};
 
 	s_overlay->DestroyOverlay(s_main_handle);
 	s_main_handle = vr::k_ulOverlayHandleInvalid;
@@ -106,7 +106,7 @@ void reshade::runtime::draw_gui_vr()
 
 	if (_rebuild_font_atlas)
 		build_font_atlas();
-	if (_imgui.font_atlas_view.handle == 0 || _imgui.pipeline.handle == 0)
+	if (_font_atlas_srv.handle == 0 || _imgui_pipeline.handle == 0)
 		return; // Cannot render GUI without font atlas
 
 	api::device *const device = get_device();
@@ -116,7 +116,7 @@ void reshade::runtime::draw_gui_vr()
 	imgui_io.DeltaTime = _last_frame_duration.count() * 1e-9f;
 	imgui_io.DisplaySize.x = static_cast<float>(OVERLAY_WIDTH);
 	imgui_io.DisplaySize.y = static_cast<float>(OVERLAY_HEIGHT);
-	imgui_io.Fonts->TexID = _imgui.font_atlas_view.handle;
+	imgui_io.Fonts->TexID = _font_atlas_srv.handle;
 
 	imgui_io.KeysDown[0x08] = false;
 	imgui_io.KeysDown[0x09] = false;
@@ -227,9 +227,9 @@ void reshade::runtime::draw_gui_vr()
 	{
 		api::command_list *const cmd_list = get_command_queue()->get_immediate_command_list();
 
-		cmd_list->barrier(_imgui.overlay_texture, api::resource_usage::shader_resource_pixel, api::resource_usage::render_target);
-		render_imgui_draw_data(draw_data, _imgui.overlay_target);
-		cmd_list->barrier(_imgui.overlay_texture, api::resource_usage::render_target, api::resource_usage::shader_resource_pixel);
+		cmd_list->barrier(_vr_overlay_texture, api::resource_usage::shader_resource_pixel, api::resource_usage::render_target);
+		render_imgui_draw_data(draw_data, _vr_overlay_target);
+		cmd_list->barrier(_vr_overlay_texture, api::resource_usage::render_target, api::resource_usage::shader_resource_pixel);
 	}
 
 	vr::Texture_t texture;
@@ -239,20 +239,20 @@ void reshade::runtime::draw_gui_vr()
 	switch (device->get_api())
 	{
 	case api::device_api::d3d11:
-		texture.handle = reinterpret_cast<void *>(_imgui.overlay_texture.handle);
+		texture.handle = reinterpret_cast<void *>(_vr_overlay_texture.handle);
 		texture.eType = vr::TextureType_DirectX;
 		break;
 	case api::device_api::d3d12:
-		texture.handle = reinterpret_cast<void *>(_imgui.overlay_texture.handle);
+		texture.handle = reinterpret_cast<void *>(_vr_overlay_texture.handle);
 		texture.eType = vr::TextureType_DirectX12;
 		break;
 	case api::device_api::opengl:
-		texture.handle = reinterpret_cast<void *>(_imgui.overlay_texture.handle & 0xFFFFFFFF);
+		texture.handle = reinterpret_cast<void *>(_vr_overlay_texture.handle & 0xFFFFFFFF);
 		texture.eType = vr::TextureType_OpenGL;
 		break;
 	case api::device_api::vulkan:
 		const auto device_impl = static_cast<vulkan::device_impl *>(device);
-		vulkan_data.m_nImage = _imgui.overlay_texture.handle;
+		vulkan_data.m_nImage = _vr_overlay_texture.handle;
 		vulkan_data.m_pDevice = reinterpret_cast<VkDevice_T *>(device->get_native_object());
 		vulkan_data.m_pPhysicalDevice = device_impl->_physical_device;
 		vulkan_data.m_pInstance = VK_NULL_HANDLE;

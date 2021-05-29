@@ -1004,11 +1004,13 @@ private:
 		// Translate function parameters to input/output variables
 		for (const struct_member_info &param : func.parameter_list)
 		{
-			spv::Id param_var = create_varying_param(param), param_value = 0;
+			spv::Id param_var = create_varying_param(param);
 
 			// Create separate input/output variables for "inout" parameters
 			if (param.type.has(type::q_in))
 			{
+				spv::Id param_value = 0;
+
 				// Flatten structure parameters
 				if (param.type.is_struct())
 				{

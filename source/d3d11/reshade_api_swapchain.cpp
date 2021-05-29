@@ -4,6 +4,8 @@
  */
 
 #include "dll_log.hpp"
+#include "reshade_api_device.hpp"
+#include "reshade_api_device_context.hpp"
 #include "reshade_api_swapchain.hpp"
 #include "reshade_api_type_convert.hpp"
 
@@ -51,6 +53,24 @@ reshade::d3d11::swapchain_impl::~swapchain_impl()
 #endif
 }
 
+reshade::api::device *reshade::d3d11::swapchain_impl::get_device()
+{
+	return _device_impl;
+}
+reshade::api::command_queue *reshade::d3d11::swapchain_impl::get_command_queue()
+{
+	return _immediate_context_impl;
+}
+
+void reshade::d3d11::swapchain_impl::get_current_back_buffer(api::resource *out)
+{
+	*out = { (uintptr_t)_backbuffer_resolved.get() };
+}
+void reshade::d3d11::swapchain_impl::get_current_back_buffer_target(bool srgb, api::resource_view *out)
+{
+	*out = { reinterpret_cast<uintptr_t>(_backbuffer_rtv[srgb ? 1 : 0].get()) };
+}
+
 bool reshade::d3d11::swapchain_impl::on_init()
 {
 	assert(_orig != nullptr);
@@ -63,17 +83,9 @@ bool reshade::d3d11::swapchain_impl::on_init()
 }
 bool reshade::d3d11::swapchain_impl::on_init(const DXGI_SWAP_CHAIN_DESC &swap_desc)
 {
-	_width = _window_width = swap_desc.BufferDesc.Width;
-	_height = _window_height = swap_desc.BufferDesc.Height;
+	_width = swap_desc.BufferDesc.Width;
+	_height = swap_desc.BufferDesc.Height;
 	_backbuffer_format = convert_format(swap_desc.BufferDesc.Format);
-
-	if (swap_desc.OutputWindow != nullptr)
-	{
-		RECT window_rect = {};
-		GetClientRect(swap_desc.OutputWindow, &window_rect);
-		_window_width = window_rect.right;
-		_window_height = window_rect.bottom;
-	}
 
 	// Get back buffer texture (skip when there is no swap chain, in which case it should already have been set in 'on_present')
 	if (_orig != nullptr && FAILED(_orig->GetBuffer(0, IID_PPV_ARGS(&_backbuffer))))
@@ -143,7 +155,7 @@ void reshade::d3d11::swapchain_impl::on_reset()
 		if (_backbuffer.ref_count() == 0)
 			add_references = _backbuffer == _backbuffer_resolved ? 2 : 1;
 		// Add the reference back that was released because of Unreal Engine 4
-		else if (_is_initialized)
+		else if (is_initialized())
 			add_references = 1;
 
 		for (unsigned int i = 0; i < add_references; ++i)
@@ -163,7 +175,7 @@ void reshade::d3d11::swapchain_impl::on_reset()
 
 void reshade::d3d11::swapchain_impl::on_present()
 {
-	if (!_is_initialized)
+	if (!is_initialized())
 		return;
 
 	ID3D11DeviceContext *const immediate_context = _immediate_context_impl->_orig;
@@ -173,7 +185,6 @@ void reshade::d3d11::swapchain_impl::on_present()
 	if (_backbuffer_resolved != _backbuffer)
 		immediate_context->ResolveSubresource(_backbuffer_resolved.get(), 0, _backbuffer.get(), 0, convert_format(_backbuffer_format));
 
-	update_and_render_effects();
 	runtime::on_present();
 
 	// Stretch main render target back into MSAA back buffer if MSAA is active

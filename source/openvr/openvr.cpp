@@ -14,6 +14,8 @@
 #include "opengl/opengl_hooks.hpp"
 #include "opengl/reshade_api_swapchain.hpp"
 #include "vulkan/vulkan_hooks.hpp"
+#include "vulkan/reshade_api_device.hpp"
+#include "vulkan/reshade_api_command_queue.hpp"
 #include "vulkan/reshade_api_swapchain.hpp"
 #include <openvr.h>
 #include <ivrclientcore.h>

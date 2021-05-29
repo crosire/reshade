@@ -6,28 +6,23 @@
 #pragma once
 
 #include "runtime.hpp"
-#include "reshade_api_device.hpp"
-#include "reshade_api_command_queue.hpp"
 
 namespace reshade::d3d12
 {
+	class device_impl;
+	class command_queue_impl;
+
 	class swapchain_impl : public api::api_object_impl<IDXGISwapChain3 *, runtime>
 	{
 	public:
 		swapchain_impl(device_impl *device, command_queue_impl *queue, IDXGISwapChain3 *swapchain);
 		~swapchain_impl();
 
-		api::device *get_device() final { return _device_impl; }
-		api::command_queue *get_command_queue() final { return _cmd_queue_impl; }
+		api::device *get_device() final;
+		api::command_queue *get_command_queue() final;
 
-		void get_current_back_buffer(api::resource *out) final
-		{
-			*out = { (uintptr_t)_backbuffers[_swap_index].get() };
-		}
-		void get_current_back_buffer_target(bool srgb, api::resource_view *out) final
-		{
-			*out = { _backbuffer_rtvs->GetCPUDescriptorHandleForHeapStart().ptr + (_swap_index * 2 + (srgb ? 1 : 0)) * _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_RTV] };
-		}
+		void get_current_back_buffer(api::resource *out) final;
+		void get_current_back_buffer_target(bool srgb, api::resource_view *out) final;
 
 		bool on_init();
 		bool on_init(const DXGI_SWAP_CHAIN_DESC &desc);

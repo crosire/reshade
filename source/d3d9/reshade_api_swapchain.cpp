@@ -4,6 +4,7 @@
  */
 
 #include "dll_log.hpp"
+#include "reshade_api_device.hpp"
 #include "reshade_api_swapchain.hpp"
 #include "reshade_api_type_convert.hpp"
 
@@ -42,6 +43,25 @@ reshade::d3d9::swapchain_impl::~swapchain_impl()
 #endif
 }
 
+reshade::api::device *reshade::d3d9::swapchain_impl::get_device()
+{
+	return _device_impl;
+}
+
+reshade::api::command_queue *reshade::d3d9::swapchain_impl::get_command_queue()
+{
+	return _device_impl;
+}
+
+void reshade::d3d9::swapchain_impl::get_current_back_buffer(api::resource *out)
+{
+	*out = { reinterpret_cast<uintptr_t>(_backbuffer_resolved.get()) };
+}
+void reshade::d3d9::swapchain_impl::get_current_back_buffer_target(bool srgb, api::resource_view *out)
+{
+	*out = { reinterpret_cast<uintptr_t>(_backbuffer_resolved.get()) | (srgb ? 1 : 0) };
+}
+
 bool reshade::d3d9::swapchain_impl::on_init()
 {
 	// Retrieve present parameters here, instead using the ones passed in during creation, to get correct values for 'BackBufferWidth' and 'BackBufferHeight'
@@ -55,8 +75,6 @@ bool reshade::d3d9::swapchain_impl::on_init()
 
 	_width = pp.BackBufferWidth;
 	_height = pp.BackBufferHeight;
-	_window_width = window_rect.right;
-	_window_height = window_rect.bottom;
 	_backbuffer_format = convert_format(pp.BackBufferFormat);
 
 	// Get back buffer surface
@@ -102,7 +120,7 @@ void reshade::d3d9::swapchain_impl::on_reset()
 
 void reshade::d3d9::swapchain_impl::on_present()
 {
-	if (!_is_initialized || FAILED(_device_impl->_orig->BeginScene()))
+	if (!is_initialized() || FAILED(_device_impl->_orig->BeginScene()))
 		return;
 
 	_app_state.capture();
@@ -115,7 +133,6 @@ void reshade::d3d9::swapchain_impl::on_present()
 	if (_backbuffer_resolved != _backbuffer)
 		_device_impl->_orig->StretchRect(_backbuffer.get(), nullptr, _backbuffer_resolved.get(), nullptr, D3DTEXF_NONE);
 
-	update_and_render_effects();
 	runtime::on_present();
 
 	// Stretch main render target back into MSAA back buffer if MSAA is active

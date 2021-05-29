@@ -6,28 +6,23 @@
 #pragma once
 
 #include "runtime.hpp"
-#include "reshade_api_device.hpp"
 #include "state_block.hpp"
 
 namespace reshade::d3d10
 {
+	class device_impl;
+
 	class swapchain_impl : public api::api_object_impl<IDXGISwapChain *, runtime>
 	{
 	public:
 		swapchain_impl(device_impl *device, IDXGISwapChain *swapchain);
 		~swapchain_impl();
 
-		api::device *get_device() final { return _device_impl; }
-		api::command_queue *get_command_queue() final { return _device_impl; }
+		api::device *get_device() final;
+		api::command_queue *get_command_queue() final;
 
-		void get_current_back_buffer(api::resource *out) final
-		{
-			*out = { (uintptr_t)_backbuffer.get() };
-		}
-		void get_current_back_buffer_target(bool srgb, api::resource_view *out) final
-		{
-			*out = { reinterpret_cast<uintptr_t>(_backbuffer_rtv[srgb ? 1 : 0].get()) };
-		}
+		void get_current_back_buffer(api::resource *out) final;
+		void get_current_back_buffer_target(bool srgb, api::resource_view *out) final;
 
 		bool on_init();
 		void on_reset();

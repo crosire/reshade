@@ -5,6 +5,8 @@
 
 #include "dll_log.hpp"
 #include "dll_resources.hpp"
+#include "reshade_api_device.hpp"
+#include "reshade_api_command_queue.hpp"
 #include "reshade_api_swapchain.hpp"
 #include "reshade_api_type_convert.hpp"
 #include <CoreWindow.h>
@@ -53,6 +55,24 @@ reshade::d3d12::swapchain_impl::~swapchain_impl()
 #endif
 }
 
+reshade::api::device *reshade::d3d12::swapchain_impl::get_device()
+{
+	return _device_impl;
+}
+reshade::api::command_queue *reshade::d3d12::swapchain_impl::get_command_queue()
+{
+	return _cmd_queue_impl;
+}
+
+void reshade::d3d12::swapchain_impl::get_current_back_buffer(api::resource *out)
+{
+	*out = { (uintptr_t)_backbuffers[_swap_index].get() };
+}
+void reshade::d3d12::swapchain_impl::get_current_back_buffer_target(bool srgb, api::resource_view *out)
+{
+	*out = { _backbuffer_rtvs->GetCPUDescriptorHandleForHeapStart().ptr + (_swap_index * 2 + (srgb ? 1 : 0)) * _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_RTV] };
+}
+
 bool reshade::d3d12::swapchain_impl::on_init()
 {
 	assert(_orig != nullptr);
@@ -76,18 +96,9 @@ bool reshade::d3d12::swapchain_impl::on_init(const DXGI_SWAP_CHAIN_DESC &swap_de
 	if (swap_desc.SampleDesc.Count > 1)
 		return false; // Multisampled swap chains are not currently supported
 
-	_width = _window_width = swap_desc.BufferDesc.Width;
-	_height = _window_height = swap_desc.BufferDesc.Height;
+	_width = swap_desc.BufferDesc.Width;
+	_height = swap_desc.BufferDesc.Height;
 	_backbuffer_format = convert_format(swap_desc.BufferDesc.Format);
-
-	if (swap_desc.OutputWindow != nullptr)
-	{
-		RECT window_rect = {};
-		GetClientRect(swap_desc.OutputWindow, &window_rect);
-
-		_window_width = window_rect.right;
-		_window_height = window_rect.bottom;
-	}
 
 	// Allocate descriptor heaps
 	{   D3D12_DESCRIPTOR_HEAP_DESC desc = { D3D12_DESCRIPTOR_HEAP_TYPE_RTV };
@@ -137,14 +148,13 @@ void reshade::d3d12::swapchain_impl::on_reset()
 
 void reshade::d3d12::swapchain_impl::on_present()
 {
-	if (!_is_initialized)
+	if (!is_initialized())
 		return;
 
 	// There is no swap chain in d3d12on7
 	if (_orig != nullptr)
 		_swap_index = _orig->GetCurrentBackBufferIndex();
 
-	update_and_render_effects();
 	runtime::on_present();
 }
 bool reshade::d3d12::swapchain_impl::on_present(ID3D12Resource *source, HWND hwnd)

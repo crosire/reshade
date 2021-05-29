@@ -5,6 +5,7 @@
 
 #include "dll_log.hpp"
 #include "reshade_api_swapchain.hpp"
+#include "reshade_api_type_convert.hpp"
 
 reshade::opengl::swapchain_impl::swapchain_impl(HDC hdc, HGLRC hglrc) : device_impl(hdc, hglrc)
 {
@@ -44,18 +45,39 @@ reshade::opengl::swapchain_impl::~swapchain_impl()
 #endif
 }
 
+reshade::api::device *reshade::opengl::swapchain_impl::get_device()
+{
+	return this;
+}
+reshade::api::command_queue *reshade::opengl::swapchain_impl::get_command_queue()
+{
+	return this;
+}
+
+void reshade::opengl::swapchain_impl::get_current_back_buffer(api::resource *out)
+{
+#if 0
+	*out = make_resource_handle(GL_FRAMEBUFFER_DEFAULT, GL_BACK);
+#else
+	*out = make_resource_handle(GL_RENDERBUFFER, _rbo);
+#endif
+}
+void reshade::opengl::swapchain_impl::get_current_back_buffer_target(bool srgb, api::resource_view *out)
+{
+#if 0
+	*out = make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_BACK, srgb ? 0x2 : 0);
+#else
+	*out = make_resource_view_handle(GL_RENDERBUFFER, _rbo, srgb ? 0x2 : 0);
+#endif
+}
+
 bool reshade::opengl::swapchain_impl::on_init(HWND hwnd, unsigned int width, unsigned int height)
 {
-	_width = _window_width = width;
-	_height = _window_height = height;
+	_width = width;
+	_height = height;
 
 	if (hwnd != nullptr)
 	{
-		RECT window_rect = {};
-		GetClientRect(hwnd, &window_rect);
-
-		_window_width = window_rect.right;
-		_window_height = window_rect.bottom;
 		_default_fbo_width = width;
 		_default_fbo_height = height;
 	}
@@ -94,7 +116,7 @@ void reshade::opengl::swapchain_impl::on_reset()
 
 void reshade::opengl::swapchain_impl::on_present(bool default_fbo)
 {
-	if (!_is_initialized)
+	if (!is_initialized())
 		return;
 
 	_app_state.capture(_compatibility_context);
@@ -119,8 +141,6 @@ void reshade::opengl::swapchain_impl::on_present(bool default_fbo)
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _current_fbo = _fbo[0]);
 		glDrawBuffer(GL_COLOR_ATTACHMENT0);
 	}
-
-	update_and_render_effects();
 
 	runtime::on_present();
 

@@ -44,7 +44,7 @@ public:
 
 	operator bool() const
 	{
-		return handle && handle != INVALID_HANDLE_VALUE;
+		return handle != NULL && handle != INVALID_HANDLE_VALUE;
 	}
 
 private:

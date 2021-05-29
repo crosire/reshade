@@ -5,9 +5,6 @@
 
 #pragma once
 
-#include "addon_manager.hpp"
-#include <vulkan/vulkan.hpp>
-
 namespace reshade::vulkan
 {
 	class device_impl;
