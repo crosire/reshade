@@ -1022,12 +1022,15 @@ void reshade::d3d9::device_impl::update_descriptor_sets(uint32_t num_updates, co
 		switch (updates[i].type)
 		{
 		case api::descriptor_type::sampler:
+			assert(updates[i].descriptor.sampler.handle != 0);
 			set_impl->descriptors[updates[i].binding] = updates[i].descriptor.sampler.handle;
 			break;
 		case api::descriptor_type::sampler_with_resource_view:
+			assert(updates[i].descriptor.sampler.handle != 0 && updates[i].descriptor.view.handle != 0);
 			set_impl->sampler_with_resource_views[updates[i].binding] = updates[i].descriptor;
 			break;
 		case api::descriptor_type::shader_resource_view:
+			assert(updates[i].descriptor.view.handle != 0);
 			set_impl->descriptors[updates[i].binding] = updates[i].descriptor.view.handle;
 			break;
 		case api::descriptor_type::unordered_access_view:

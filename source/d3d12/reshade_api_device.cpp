@@ -771,6 +771,7 @@ void reshade::d3d12::device_impl::update_descriptor_sets(uint32_t num_updates, c
 
 		if (updates[i].type == api::descriptor_type::constant_buffer)
 		{
+			assert(updates[i].descriptor.resource.handle != 0);
 			const auto buffer = reinterpret_cast<ID3D12Resource *>(updates[i].descriptor.resource.handle);
 
 			D3D12_CONSTANT_BUFFER_VIEW_DESC view_desc;
@@ -787,9 +788,11 @@ void reshade::d3d12::device_impl::update_descriptor_sets(uint32_t num_updates, c
 			{
 			case api::descriptor_type::shader_resource_view:
 			case api::descriptor_type::unordered_access_view:
+				assert(updates[i].descriptor.view.handle != 0);
 				src_range_start.ptr = static_cast<SIZE_T>(updates[i].descriptor.view.handle);
 				break;
 			case api::descriptor_type::sampler:
+				assert(updates[i].descriptor.sampler.handle != 0);
 				src_range_start.ptr = static_cast<SIZE_T>(updates[i].descriptor.sampler.handle);
 				break;
 			}

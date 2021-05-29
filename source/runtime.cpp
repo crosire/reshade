@@ -3270,27 +3270,25 @@ bool reshade::runtime::take_screenshot(uint8_t *buffer)
 		return false;
 	}
 
-	api::device *const device = get_device();
-
 	api::resource backbuffer;
 	get_current_back_buffer(&backbuffer);
 
 	const uint32_t data_pitch = _width * 4;
 	uint32_t texture_pitch = data_pitch, mapped_pitch = 0;
-	if (device->get_api() == api::device_api::d3d12) // See D3D12_TEXTURE_DATA_PITCH_ALIGNMENT
+	if (_device->get_api() == api::device_api::d3d12) // See D3D12_TEXTURE_DATA_PITCH_ALIGNMENT
 		texture_pitch = (texture_pitch + 255) & ~255;
 
 	// Copy back buffer data into system memory buffer
 	api::resource intermediate;
-	if (device->check_capability(api::device_caps::copy_buffer_to_texture))
+	if (_device->check_capability(api::device_caps::copy_buffer_to_texture))
 	{
-		if (!device->create_resource(api::resource_desc(texture_pitch * _height, api::memory_heap::gpu_to_cpu, api::resource_usage::copy_dest), nullptr, api::resource_usage::copy_dest, &intermediate))
+		if (!_device->create_resource(api::resource_desc(texture_pitch * _height, api::memory_heap::gpu_to_cpu, api::resource_usage::copy_dest), nullptr, api::resource_usage::copy_dest, &intermediate))
 		{
 			LOG(ERROR) << "Failed to create system memory buffer for screenshot capture!";
 			return false;
 		}
 
-		device->set_debug_name(intermediate, "ReShade screenshot buffer");
+		_device->set_debug_name(intermediate, "ReShade screenshot buffer");
 
 		api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
 		cmd_list->barrier(backbuffer, api::resource_usage::present, api::resource_usage::copy_source);
@@ -3299,13 +3297,13 @@ bool reshade::runtime::take_screenshot(uint8_t *buffer)
 	}
 	else
 	{
-		if (!device->create_resource(api::resource_desc(_width, _height, 1, 1, _backbuffer_format, 1, api::memory_heap::gpu_to_cpu, api::resource_usage::copy_dest), nullptr, api::resource_usage::copy_dest, &intermediate))
+		if (!_device->create_resource(api::resource_desc(_width, _height, 1, 1, _backbuffer_format, 1, api::memory_heap::gpu_to_cpu, api::resource_usage::copy_dest), nullptr, api::resource_usage::copy_dest, &intermediate))
 		{
 			LOG(ERROR) << "Failed to create system memory texture for screenshot capture!";
 			return false;
 		}
 
-		device->set_debug_name(intermediate, "ReShade screenshot texture");
+		_device->set_debug_name(intermediate, "ReShade screenshot texture");
 
 		api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
 		cmd_list->barrier(backbuffer, api::resource_usage::present, api::resource_usage::copy_source);
@@ -3315,11 +3313,11 @@ bool reshade::runtime::take_screenshot(uint8_t *buffer)
 
 	// Wait for any rendering by the application finish before submitting
 	// It may have submitted that to a different queue, so simply wait for all to idle here
-	device->wait_idle();
+	_device->wait_idle();
 
 	// Copy data from intermediate image into output buffer
 	uint8_t *mapped_data = nullptr;
-	if (device->map_resource(intermediate, 0, api::map_access::read_only, reinterpret_cast<void **>(&mapped_data), &mapped_pitch))
+	if (_device->map_resource(intermediate, 0, api::map_access::read_only, reinterpret_cast<void **>(&mapped_data), &mapped_pitch))
 	{
 		if (mapped_pitch != 0)
 			texture_pitch = mapped_pitch;
@@ -3355,10 +3353,10 @@ bool reshade::runtime::take_screenshot(uint8_t *buffer)
 			}
 		}
 
-		device->unmap_resource(intermediate, 0);
+		_device->unmap_resource(intermediate, 0);
 	}
 
-	device->destroy_resource(intermediate);
+	_device->destroy_resource(intermediate);
 
 	return mapped_data != nullptr;
 }
@@ -3659,14 +3657,19 @@ void reshade::runtime::reset_uniform_value(uniform &variable)
 void reshade::runtime::update_texture_bindings(const char *semantic, api::resource_view srv)
 {
 	if (srv.handle != 0)
+	{
 		_texture_semantic_bindings[semantic] = srv;
+	}
 	else
+	{
 		_texture_semantic_bindings.erase(semantic);
 
-	api::device *const device = get_device();
+		// Overwrite with empty texture, since it is not valid to bind a zero handle
+		srv = _empty_texture_view;
+	}
 
 	// Make sure all previous frames have finished before freeing the image view and updating descriptors (since they may be in use otherwise)
-	device->wait_idle();
+	_device->wait_idle();
 
 	// Update texture bindings
 	std::vector<api::descriptor_update> updates;
@@ -3687,7 +3690,7 @@ void reshade::runtime::update_texture_bindings(const char *semantic, api::resour
 		}
 	}
 
-	device->update_descriptor_sets(static_cast<uint32_t>(updates.size()), updates.data());
+	_device->update_descriptor_sets(static_cast<uint32_t>(updates.size()), updates.data());
 }
 
 void reshade::runtime::update_uniform_variables(const char *source, const bool *values, size_t count, size_t array_index)

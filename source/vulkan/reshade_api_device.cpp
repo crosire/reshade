@@ -983,6 +983,7 @@ void reshade::vulkan::device_impl::update_descriptor_sets(uint32_t num_updates, 
 		{
 			writes[i].pBufferInfo = &buffer_info[i];
 
+			assert(updates[i].descriptor.resource.handle != 0);
 			buffer_info[i].buffer = (VkBuffer)updates[i].descriptor.resource.handle;
 			buffer_info[i].offset = 0;
 			buffer_info[i].range = VK_WHOLE_SIZE;
@@ -991,6 +992,8 @@ void reshade::vulkan::device_impl::update_descriptor_sets(uint32_t num_updates, 
 		{
 			writes[i].pImageInfo = &image_info[i];
 
+			assert(updates[i].descriptor.view.handle != 0 || (updates[i].type == api::descriptor_type::sampler));
+			assert(updates[i].descriptor.sampler.handle != 0 || (updates[i].type != api::descriptor_type::sampler && updates[i].type != api::descriptor_type::sampler_with_resource_view));
 			image_info[i].sampler = (VkSampler)updates[i].descriptor.sampler.handle;
 			image_info[i].imageView = (VkImageView)updates[i].descriptor.view.handle;
 			image_info[i].imageLayout = updates[i].type == api::descriptor_type::unordered_access_view ? VK_IMAGE_LAYOUT_GENERAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
