@@ -52,6 +52,5 @@ namespace reshade::opengl
 		state_block _app_state;
 		GLuint _rbo = 0;
 		GLuint _fbo[2] = {}, _current_fbo = 0;
-		std::vector<GLuint> _reserved_texture_names;
 	};
 }

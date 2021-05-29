@@ -3,6 +3,7 @@
  * License: https://github.com/crosire/reshade#license
  */
 
+#include "dll_config.hpp"
 #include "reshade_api_device.hpp"
 #include "reshade_api_type_convert.hpp"
 #include <cassert>
@@ -164,6 +165,14 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC hglrc) :
 	}, nullptr);
 #endif
 
+	// Some games (like Hot Wheels Velocity X) use fixed texture names, which can clash with the ones ReShade generates below, since most implementations will return values linearly
+	// Reserve a configurable range of texture names in old OpenGL games (which will use a compatibility context) to work around this
+	auto num_reserve_texture_names = _compatibility_context ? 512u : 0u;
+	reshade::global_config().get("APP", "ReserveTextureNames", num_reserve_texture_names);
+	_reserved_texture_names.resize(num_reserve_texture_names);
+	if (!_reserved_texture_names.empty())
+		glGenTextures(static_cast<GLsizei>(_reserved_texture_names.size()), _reserved_texture_names.data());
+
 	// Generate push constants buffer name
 	glGenBuffers(1, &_push_constants);
 
@@ -227,6 +236,9 @@ reshade::opengl::device_impl::~device_impl()
 
 	// Destroy push constants buffer
 	glDeleteBuffers(1, &_push_constants);
+
+	// Free range of reserved texture names
+	glDeleteTextures(static_cast<GLsizei>(_reserved_texture_names.size()), _reserved_texture_names.data());
 }
 
 bool reshade::opengl::device_impl::check_capability(api::device_caps capability) const

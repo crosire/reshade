@@ -129,6 +129,7 @@ namespace reshade::opengl
 		GLuint _current_vertex_count = 0; // Used to calculate vertex count inside glBegin/glEnd pairs
 
 	private:
+		std::vector<GLuint> _reserved_texture_names;
 		GLuint _copy_fbo[2] = {};
 		GLuint _mipmap_program = 0;
 		GLuint _push_constants = 0;

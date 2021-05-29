@@ -4,7 +4,6 @@
  */
 
 #include "dll_log.hpp"
-#include "dll_config.hpp"
 #include "reshade_api_swapchain.hpp"
 
 reshade::opengl::swapchain_impl::swapchain_impl(HDC hdc, HGLRC hglrc) : device_impl(hdc, hglrc)
@@ -31,13 +30,6 @@ reshade::opengl::swapchain_impl::swapchain_impl(HDC hdc, HGLRC hglrc) : device_i
 	}
 
 	_backbuffer_format = convert_format(_default_color_format);
-
-	subscribe_to_load_config([this](const ini_file &config) {
-		// Reserve a fixed amount of texture names by default to work around issues in old OpenGL games (which will use a compatibility context)
-		auto num_reserve_texture_names = _compatibility_context ? 512u : 0u;
-		config.get("APP", "ReserveTextureNames", num_reserve_texture_names);
-		_reserved_texture_names.resize(num_reserve_texture_names);
-	});
 
 #if RESHADE_ADDON
 	reshade::invoke_addon_event<reshade::addon_event::init_swapchain>(this);
@@ -71,11 +63,6 @@ bool reshade::opengl::swapchain_impl::on_init(HWND hwnd, unsigned int width, uns
 	// Capture and later restore so that the resource creation code below does not affect the application state
 	_app_state.capture(_compatibility_context);
 
-	// Some games (like Hot Wheels Velocity X) use fixed texture names, which can clash with the ones ReShade generates below, since most implementations will return values linearly
-	// Reserve a configurable range of names for those games to work around this
-	if (!_reserved_texture_names.empty())
-		glGenTextures(static_cast<GLsizei>(_reserved_texture_names.size()), _reserved_texture_names.data());
-
 	glGenFramebuffers(2, _fbo);
 	glGenRenderbuffers(1, &_rbo);
 
@@ -98,7 +85,6 @@ void reshade::opengl::swapchain_impl::on_reset()
 		glDeleteFramebuffers(1, &it.second);
 	_framebuffer_list_internal.clear();
 
-	glDeleteTextures(static_cast<GLsizei>(_reserved_texture_names.size()), _reserved_texture_names.data());
 	glDeleteFramebuffers(2, _fbo);
 	glDeleteRenderbuffers(1, &_rbo);
 
