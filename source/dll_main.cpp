@@ -140,6 +140,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 
 	reshade::hooks::register_module(L"user32.dll");
 
+	extern void init_message_queue_trampolines();
+	init_message_queue_trampolines();
+
 	static UINT s_resize_w = 0, s_resize_h = 0;
 
 	// Register window class
@@ -934,6 +937,10 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 #  else
 		reshade::hooks::register_module(L"vrclient.dll");
 #  endif
+
+		// user32.dll will always be loaded at this point, so can safely initialize trampoline pointers
+		extern void init_message_queue_trampolines();
+		init_message_queue_trampolines();
 
 		LOG(INFO) << "Initialized.";
 		break;

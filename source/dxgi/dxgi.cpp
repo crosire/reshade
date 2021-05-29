@@ -452,7 +452,7 @@ HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory2(UINT Flags, REFIID riid, void **pp
 
 HOOK_EXPORT HRESULT WINAPI DXGIGetDebugInterface1(UINT Flags, REFIID riid, void **pDebug)
 {
-	static const auto trampoline = reshade::hooks::call(DXGIGetDebugInterface1);
+	const auto trampoline = reshade::hooks::call(DXGIGetDebugInterface1);
 
 	// DXGIGetDebugInterface1 is not available on Windows 7, so act as if Windows SDK is not installed
 	if (trampoline == nullptr)
@@ -463,7 +463,7 @@ HOOK_EXPORT HRESULT WINAPI DXGIGetDebugInterface1(UINT Flags, REFIID riid, void 
 
 HOOK_EXPORT HRESULT WINAPI DXGIDeclareAdapterRemovalSupport()
 {
-	static const auto trampoline = reshade::hooks::call(DXGIDeclareAdapterRemovalSupport);
+	const auto trampoline = reshade::hooks::call(DXGIDeclareAdapterRemovalSupport);
 
 	// DXGIDeclareAdapterRemovalSupport is supported on Windows 10 version 1803 and up, silently ignore on older systems
 	if (trampoline == nullptr)
