@@ -677,7 +677,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 
 			if (old_swapchain != VK_NULL_HANDLE)
 				VK_CALL_DEVICE(vkDestroySwapchainKHR, device, old_swapchain, nullptr);
-			VK_CALL_DEVICE(vkFreeCommandBuffers, device, cmd_alloc, uint32_t(cmd_list.size()), cmd_list.data());
+			if (!cmd_list.empty())
+				VK_CALL_DEVICE(vkFreeCommandBuffers, device, cmd_alloc, uint32_t(cmd_list.size()), cmd_list.data());
 
 			uint32_t num_swapchain_images = 0;
 			VK_CHECK(VK_CALL_DEVICE(vkGetSwapchainImagesKHR, device, swapchain, &num_swapchain_images, nullptr));
