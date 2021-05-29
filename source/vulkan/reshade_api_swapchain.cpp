@@ -4,8 +4,7 @@
  */
 
 #include "dll_log.hpp"
-#include "runtime_vk.hpp"
-#include "runtime_objects.hpp"
+#include "reshade_api_swapchain.hpp"
 #include "reshade_api_type_utils.hpp"
 
 static inline void transition_layout(const VkLayerDispatchTable &vk, VkCommandBuffer cmd_list, VkImage image, VkImageLayout old_layout, VkImageLayout new_layout,
@@ -75,7 +74,7 @@ static inline void transition_layout(const VkLayerDispatchTable &vk, VkCommandBu
 
 #define vk _device_impl->_dispatch_table
 
-reshade::vulkan::runtime_impl::runtime_impl(device_impl *device, command_queue_impl *graphics_queue) :
+reshade::vulkan::swapchain_impl::swapchain_impl(device_impl *device, command_queue_impl *graphics_queue) :
 	api_object_impl(VK_NULL_HANDLE), // Swap chain object is later set in 'on_init' below
 	_device_impl(device),
 	_queue_impl(graphics_queue),
@@ -96,12 +95,12 @@ reshade::vulkan::runtime_impl::runtime_impl(device_impl *device, command_queue_i
 		(device_props.driverVersion >> 14) & 0xFF : VK_VERSION_MINOR(device_props.driverVersion);
 	LOG(INFO) << "Running on " << device_props.deviceName << " Driver " << VK_VERSION_MAJOR(device_props.driverVersion) << '.' << driver_minor_version;
 }
-reshade::vulkan::runtime_impl::~runtime_impl()
+reshade::vulkan::swapchain_impl::~swapchain_impl()
 {
 	on_reset();
 }
 
-bool reshade::vulkan::runtime_impl::on_init(VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &desc, HWND hwnd)
+bool reshade::vulkan::swapchain_impl::on_init(VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &desc, HWND hwnd)
 {
 	_orig = swapchain;
 
@@ -185,7 +184,7 @@ bool reshade::vulkan::runtime_impl::on_init(VkSwapchainKHR swapchain, const VkSw
 
 	return runtime::on_init(hwnd);
 }
-void reshade::vulkan::runtime_impl::on_reset()
+void reshade::vulkan::swapchain_impl::on_reset()
 {
 	runtime::on_reset();
 
@@ -207,7 +206,7 @@ void reshade::vulkan::runtime_impl::on_reset()
 		semaphore = VK_NULL_HANDLE;
 }
 
-void reshade::vulkan::runtime_impl::on_present(VkQueue queue, const uint32_t swapchain_image_index, std::vector<VkSemaphore> &wait)
+void reshade::vulkan::swapchain_impl::on_present(VkQueue queue, const uint32_t swapchain_image_index, std::vector<VkSemaphore> &wait)
 {
 	if (!_is_initialized)
 		return;
@@ -253,7 +252,7 @@ void reshade::vulkan::runtime_impl::on_present(VkQueue queue, const uint32_t swa
 		_queue_impl->flush_immediate_command_list(wait);
 	}
 }
-bool reshade::vulkan::runtime_impl::on_layer_submit(uint32_t eye, VkImage source, const VkExtent2D &source_extent, VkFormat source_format, VkSampleCountFlags source_samples, uint32_t source_layer_index, const float bounds[4], VkImage *target_image)
+bool reshade::vulkan::swapchain_impl::on_layer_submit(uint32_t eye, VkImage source, const VkExtent2D &source_extent, VkFormat source_format, VkSampleCountFlags source_samples, uint32_t source_layer_index, const float bounds[4], VkImage *target_image)
 {
 	assert(eye < 2 && source != VK_NULL_HANDLE);
 
@@ -337,83 +336,5 @@ bool reshade::vulkan::runtime_impl::on_layer_submit(uint32_t eye, VkImage source
 
 	*target_image = _swapchain_images[0];
 
-	return true;
-}
-
-bool reshade::vulkan::runtime_impl::compile_effect(effect &effect, api::shader_stage, const std::string &entry_point, std::vector<char> &out)
-{
-	// There are various issues with SPIR-V modules that have multiple entry points on all major GPU vendors.
-	// On AMD for instance creating a graphics pipeline just fails with a generic VK_ERROR_OUT_OF_HOST_MEMORY. On NVIDIA artifacts occur on some driver versions.
-	// To work around these problems, create a separate shader module for every entry point and rewrite the SPIR-V module for each to removes all but a single entry point (and associated functions/variables).
-	uint32_t current_function = 0, current_function_offset = 0;
-	std::vector<uint32_t> spirv = effect.module.spirv;
-	std::vector<uint32_t> functions_to_remove, variables_to_remove;
-
-	for (uint32_t inst = 5 /* Skip SPIR-V header information */; inst < spirv.size();)
-	{
-		const uint32_t op = spirv[inst] & 0xFFFF;
-		const uint32_t len = (spirv[inst] >> 16) & 0xFFFF;
-		assert(len != 0);
-
-		switch (op)
-		{
-		case 15: // OpEntryPoint
-			// Look for any non-matching entry points
-			if (entry_point != reinterpret_cast<const char *>(&spirv[inst + 3]))
-			{
-				functions_to_remove.push_back(spirv[inst + 2]);
-
-				// Get interface variables
-				for (size_t k = inst + 3 + ((strlen(reinterpret_cast<const char *>(&spirv[inst + 3])) + 4) / 4); k < inst + len; ++k)
-					variables_to_remove.push_back(spirv[k]);
-
-				// Remove this entry point from the module
-				spirv.erase(spirv.begin() + inst, spirv.begin() + inst + len);
-				continue;
-			}
-			break;
-		case 16: // OpExecutionMode
-			if (std::find(functions_to_remove.begin(), functions_to_remove.end(), spirv[inst + 1]) != functions_to_remove.end())
-			{
-				spirv.erase(spirv.begin() + inst, spirv.begin() + inst + len);
-				continue;
-			}
-			break;
-		case 59: // OpVariable
-			// Remove all declarations of the interface variables for non-matching entry points
-			if (std::find(variables_to_remove.begin(), variables_to_remove.end(), spirv[inst + 2]) != variables_to_remove.end())
-			{
-				spirv.erase(spirv.begin() + inst, spirv.begin() + inst + len);
-				continue;
-			}
-			break;
-		case 71: // OpDecorate
-			// Remove all decorations targeting any of the interface variables for non-matching entry points
-			if (std::find(variables_to_remove.begin(), variables_to_remove.end(), spirv[inst + 1]) != variables_to_remove.end())
-			{
-				spirv.erase(spirv.begin() + inst, spirv.begin() + inst + len);
-				continue;
-			}
-			break;
-		case 54: // OpFunction
-			current_function = spirv[inst + 2];
-			current_function_offset = inst;
-			break;
-		case 56: // OpFunctionEnd
-			// Remove all function definitions for non-matching entry points
-			if (std::find(functions_to_remove.begin(), functions_to_remove.end(), current_function) != functions_to_remove.end())
-			{
-				spirv.erase(spirv.begin() + current_function_offset, spirv.begin() + inst + len);
-				inst = current_function_offset;
-				continue;
-			}
-			break;
-		}
-
-		inst += len;
-	}
-
-	out.resize(spirv.size() * sizeof(uint32_t));
-	std::memcpy(out.data(), spirv.data(), out.size());
 	return true;
 }

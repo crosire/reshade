@@ -4,12 +4,11 @@
  */
 
 #include "dll_log.hpp"
-#include "runtime_d3d9.hpp"
-#include "runtime_objects.hpp"
+#include "reshade_api_swapchain.hpp"
 #include "reshade_api_type_utils.hpp"
 #include <d3dcompiler.h>
 
-reshade::d3d9::runtime_impl::runtime_impl(device_impl *device, IDirect3DSwapChain9 *swapchain) :
+reshade::d3d9::swapchain_impl::swapchain_impl(device_impl *device, IDirect3DSwapChain9 *swapchain) :
 	api_object_impl(swapchain),
 	_device_impl(device),
 	_app_state(device->_orig)
@@ -31,15 +30,12 @@ reshade::d3d9::runtime_impl::runtime_impl(device_impl *device, IDirect3DSwapChai
 	if (!on_init())
 		LOG(ERROR) << "Failed to initialize Direct3D 9 runtime environment on runtime " << this << '!';
 }
-reshade::d3d9::runtime_impl::~runtime_impl()
+reshade::d3d9::swapchain_impl::~swapchain_impl()
 {
 	on_reset();
-
-	if (_d3d_compiler != nullptr)
-		FreeLibrary(_d3d_compiler);
 }
 
-bool reshade::d3d9::runtime_impl::on_init()
+bool reshade::d3d9::swapchain_impl::on_init()
 {
 	// Retrieve present parameters here, instead using the ones passed in during creation, to get correct values for 'BackBufferWidth' and 'BackBufferHeight'
 	// They may otherwise still be set to zero (which is valid for creation)
@@ -87,7 +83,7 @@ bool reshade::d3d9::runtime_impl::on_init()
 
 	return runtime::on_init(pp.hDeviceWindow);
 }
-void reshade::d3d9::runtime_impl::on_reset()
+void reshade::d3d9::swapchain_impl::on_reset()
 {
 	runtime::on_reset();
 
@@ -97,7 +93,7 @@ void reshade::d3d9::runtime_impl::on_reset()
 	_backbuffer_resolved.reset();
 }
 
-void reshade::d3d9::runtime_impl::on_present()
+void reshade::d3d9::swapchain_impl::on_present()
 {
 	if (!_is_initialized || FAILED(_device_impl->_orig->BeginScene()))
 		return;
@@ -125,89 +121,4 @@ void reshade::d3d9::runtime_impl::on_present()
 		_device_impl->_orig->SetSoftwareVertexProcessing(software_rendering_enabled);
 
 	_device_impl->_orig->EndScene();
-}
-
-bool reshade::d3d9::runtime_impl::compile_effect(effect &effect, api::shader_stage type, const std::string &entry_point, std::vector<char> &cso)
-{
-	if (_d3d_compiler == nullptr)
-		_d3d_compiler = LoadLibraryW(L"d3dcompiler_47.dll");
-	if (_d3d_compiler == nullptr)
-		_d3d_compiler = LoadLibraryW(L"d3dcompiler_43.dll");
-
-	if (_d3d_compiler == nullptr)
-	{
-		LOG(ERROR) << "Unable to load HLSL compiler (\"d3dcompiler_47.dll\")!" << " Make sure you have the DirectX end-user runtime (June 2010) installed or a newer version of the library in the application directory.";
-		return false;
-	}
-
-	const auto D3DCompile = reinterpret_cast<pD3DCompile>(GetProcAddress(_d3d_compiler, "D3DCompile"));
-	const auto D3DDisassemble = reinterpret_cast<pD3DDisassemble>(GetProcAddress(_d3d_compiler, "D3DDisassemble"));
-
-	// Add specialization constant defines to source code
-	const std::string hlsl =
-		"#define COLOR_PIXEL_SIZE 1.0 / " + std::to_string(_width) + ", 1.0 / " + std::to_string(_height) + "\n"
-		"#define DEPTH_PIXEL_SIZE COLOR_PIXEL_SIZE\n"
-		"#define SV_DEPTH_PIXEL_SIZE DEPTH_PIXEL_SIZE\n"
-		"#define SV_TARGET_PIXEL_SIZE COLOR_PIXEL_SIZE\n"
-		"#line 1\n" + // Reset line number, so it matches what is shown when viewing the generated code
-		effect.preamble +
-		effect.module.hlsl;
-
-	// Overwrite position semantic in pixel shaders
-	const D3D_SHADER_MACRO ps_defines[] = {
-		{ "POSITION", "VPOS" }, { nullptr, nullptr }
-	};
-
-	HRESULT hr = E_FAIL;
-
-	std::string profile;
-	com_ptr<ID3DBlob> compiled, d3d_errors;
-
-	switch (type)
-	{
-	case api::shader_stage::vertex:
-		profile = "vs_3_0";
-		break;
-	case api::shader_stage::pixel:
-		profile = "ps_3_0";
-		break;
-	case api::shader_stage::compute:
-		assert(false);
-		return false;
-	}
-
-	std::string attributes;
-	attributes += "entrypoint=" + entry_point + ';';
-	attributes += "profile=" + profile + ';';
-	attributes += "flags=" + std::to_string(_performance_mode ? D3DCOMPILE_OPTIMIZATION_LEVEL3 : D3DCOMPILE_OPTIMIZATION_LEVEL1) + ';';
-
-	const size_t hash = std::hash<std::string_view>()(attributes) ^ std::hash<std::string_view>()(hlsl);
-	if (!load_effect_cache(effect.source_file, entry_point, hash, cso, effect.assembly[entry_point]))
-	{
-		hr = D3DCompile(
-			hlsl.data(), hlsl.size(), nullptr,
-			type == api::shader_stage::pixel ? ps_defines : nullptr,
-			nullptr,
-			entry_point.c_str(),
-			profile.c_str(),
-			_performance_mode ? D3DCOMPILE_OPTIMIZATION_LEVEL3 : D3DCOMPILE_OPTIMIZATION_LEVEL1, 0,
-			&compiled, &d3d_errors);
-
-		if (d3d_errors != nullptr) // Append warnings to the output error string as well
-			effect.errors.append(static_cast<const char *>(d3d_errors->GetBufferPointer()), d3d_errors->GetBufferSize() - 1); // Subtracting one to not append the null-terminator as well
-
-		// No need to setup resources if any of the shaders failed to compile
-		if (FAILED(hr))
-			return false;
-
-		cso.resize(compiled->GetBufferSize());
-		std::memcpy(cso.data(), compiled->GetBufferPointer(), cso.size());
-
-		if (com_ptr<ID3DBlob> disassembled; SUCCEEDED(D3DDisassemble(cso.data(), cso.size(), 0, nullptr, &disassembled)))
-			effect.assembly[entry_point].assign(static_cast<const char *>(disassembled->GetBufferPointer()), disassembled->GetBufferSize() - 1);
-
-		save_effect_cache(effect.source_file, entry_point, hash, cso, effect.assembly[entry_point]);
-	}
-
-	return true;
 }

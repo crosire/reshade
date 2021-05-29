@@ -11,15 +11,15 @@
 
 namespace reshade::vulkan
 {
-	class runtime_impl : public api::api_object_impl<VkSwapchainKHR, runtime>
+	class swapchain_impl : public api::api_object_impl<VkSwapchainKHR, runtime>
 	{
 		static const uint32_t NUM_QUERY_FRAMES = 4;
 		static const uint32_t MAX_IMAGE_DESCRIPTOR_SETS = 128; // TODO: Check if these limits are enough
 		static const uint32_t MAX_EFFECT_DESCRIPTOR_SETS = 50 * 2 * 4; // 50 resources, 4 passes
 
 	public:
-		runtime_impl(device_impl *device, command_queue_impl *graphics_queue);
-		~runtime_impl();
+		swapchain_impl(device_impl *device, command_queue_impl *graphics_queue);
+		~swapchain_impl();
 
 		api::device *get_device() final { return _device_impl; }
 		api::command_queue *get_command_queue() final { return _queue_impl; }
@@ -37,8 +37,6 @@ namespace reshade::vulkan
 		void on_reset();
 		void on_present(VkQueue queue, const uint32_t swapchain_image_index, std::vector<VkSemaphore> &wait);
 		bool on_layer_submit(uint32_t eye, VkImage source, const VkExtent2D &source_extent, VkFormat source_format, VkSampleCountFlags source_samples, uint32_t source_layer_index, const float bounds[4], VkImage *target_image);
-
-		bool compile_effect(effect &effect, api::shader_stage type, const std::string &entry_point, std::vector<char> &out) final;
 
 	private:
 		device_impl *const _device_impl;

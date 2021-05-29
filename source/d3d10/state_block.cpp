@@ -3,7 +3,7 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "state_block_d3d10.hpp"
+#include "state_block.hpp"
 
 template <typename T>
 static inline void safe_release(T *&object)

@@ -5,8 +5,7 @@
 
 #include "dll_log.hpp"
 #include "dll_resources.hpp"
-#include "runtime_d3d11.hpp"
-#include "runtime_objects.hpp"
+#include "reshade_api_swapchain.hpp"
 #include "reshade_api_type_utils.hpp"
 #include <d3dcompiler.h>
 
@@ -14,7 +13,7 @@ extern bool is_windows7();
 
 extern const char *dxgi_format_to_string(DXGI_FORMAT format);
 
-reshade::d3d11::runtime_impl::runtime_impl(device_impl *device, device_context_impl *immediate_context, IDXGISwapChain *swapchain) :
+reshade::d3d11::swapchain_impl::swapchain_impl(device_impl *device, device_context_impl *immediate_context, IDXGISwapChain *swapchain) :
 	api_object_impl(swapchain),
 	_device_impl(device),
 	_immediate_context_impl(immediate_context),
@@ -41,15 +40,12 @@ reshade::d3d11::runtime_impl::runtime_impl(device_impl *device, device_context_i
 	if (_orig != nullptr && !on_init())
 		LOG(ERROR) << "Failed to initialize Direct3D 11 runtime environment on runtime " << this << '!';
 }
-reshade::d3d11::runtime_impl::~runtime_impl()
+reshade::d3d11::swapchain_impl::~swapchain_impl()
 {
 	on_reset();
-
-	if (_d3d_compiler != nullptr)
-		FreeLibrary(_d3d_compiler);
 }
 
-bool reshade::d3d11::runtime_impl::on_init()
+bool reshade::d3d11::swapchain_impl::on_init()
 {
 	assert(_orig != nullptr);
 
@@ -59,7 +55,7 @@ bool reshade::d3d11::runtime_impl::on_init()
 
 	return on_init(swap_desc);
 }
-bool reshade::d3d11::runtime_impl::on_init(const DXGI_SWAP_CHAIN_DESC &swap_desc)
+bool reshade::d3d11::swapchain_impl::on_init(const DXGI_SWAP_CHAIN_DESC &swap_desc)
 {
 	_width = _window_width = swap_desc.BufferDesc.Width;
 	_height = _window_height = swap_desc.BufferDesc.Height;
@@ -169,7 +165,7 @@ bool reshade::d3d11::runtime_impl::on_init(const DXGI_SWAP_CHAIN_DESC &swap_desc
 
 	return runtime::on_init(swap_desc.OutputWindow);
 }
-void reshade::d3d11::runtime_impl::on_reset()
+void reshade::d3d11::swapchain_impl::on_reset()
 {
 	if (_backbuffer != nullptr)
 	{
@@ -197,7 +193,7 @@ void reshade::d3d11::runtime_impl::on_reset()
 	_backbuffer_texture_srv.reset();
 }
 
-void reshade::d3d11::runtime_impl::on_present()
+void reshade::d3d11::swapchain_impl::on_present()
 {
 	if (!_is_initialized)
 		return;
@@ -244,7 +240,7 @@ void reshade::d3d11::runtime_impl::on_present()
 	// Apply previous state from application
 	_app_state.apply_and_release();
 }
-bool reshade::d3d11::runtime_impl::on_layer_submit(UINT eye, ID3D11Texture2D *source, const float bounds[4], ID3D11Texture2D **target)
+bool reshade::d3d11::swapchain_impl::on_layer_submit(UINT eye, ID3D11Texture2D *source, const float bounds[4], ID3D11Texture2D **target)
 {
 	assert(eye < 2 && source != nullptr);
 
@@ -308,102 +304,6 @@ bool reshade::d3d11::runtime_impl::on_layer_submit(UINT eye, ID3D11Texture2D *so
 	_immediate_context_impl->_orig->CopySubresourceRegion(_backbuffer.get(), 0, eye * region_width, 0, 0, source, source_desc.ArraySize == 2 ? eye : 0, &source_region);
 
 	*target = _backbuffer.get();
-
-	return true;
-}
-
-bool reshade::d3d11::runtime_impl::compile_effect(effect &effect, api::shader_stage type, const std::string &entry_point, std::vector<char> &cso)
-{
-	if (_d3d_compiler == nullptr)
-		_d3d_compiler = LoadLibraryW(L"d3dcompiler_47.dll");
-	if (_d3d_compiler == nullptr)
-		_d3d_compiler = LoadLibraryW(L"d3dcompiler_43.dll");
-
-	if (_d3d_compiler == nullptr)
-	{
-		LOG(ERROR) << "Unable to load HLSL compiler (\"d3dcompiler_47.dll\")!" << " Make sure you have the DirectX end-user runtime (June 2010) installed or a newer version of the library in the application directory.";
-		return false;
-	}
-
-	const auto D3DCompile = reinterpret_cast<pD3DCompile>(GetProcAddress(_d3d_compiler, "D3DCompile"));
-	const auto D3DDisassemble = reinterpret_cast<pD3DDisassemble>(GetProcAddress(_d3d_compiler, "D3DDisassemble"));
-
-	const std::string hlsl = effect.preamble + effect.module.hlsl;
-	HRESULT hr = E_FAIL;
-
-	std::string profile;
-	switch (type)
-	{
-	case api::shader_stage::vertex:
-		profile = "vs";
-		break;
-	case api::shader_stage::pixel:
-		profile = "ps";
-		break;
-	case api::shader_stage::compute:
-		profile = "cs";
-		break;
-	}
-
-	switch (_renderer_id)
-	{
-	default:
-	case D3D_FEATURE_LEVEL_11_0:
-		profile += "_5_0";
-		break;
-	case D3D_FEATURE_LEVEL_10_1:
-		profile += "_4_1";
-		break;
-	case D3D_FEATURE_LEVEL_10_0:
-		profile += "_4_0";
-		break;
-	case D3D_FEATURE_LEVEL_9_1:
-	case D3D_FEATURE_LEVEL_9_2:
-		profile += "_4_0_level_9_1";
-		break;
-	case D3D_FEATURE_LEVEL_9_3:
-		profile += "_4_0_level_9_3";
-		break;
-	}
-
-	UINT compile_flags = D3DCOMPILE_ENABLE_STRICTNESS;
-	compile_flags |= (_performance_mode ? D3DCOMPILE_OPTIMIZATION_LEVEL3 : D3DCOMPILE_OPTIMIZATION_LEVEL1);
-#ifndef NDEBUG
-	compile_flags |= D3DCOMPILE_DEBUG;
-#endif
-
-	std::string attributes;
-	attributes += "entrypoint=" + entry_point + ';';
-	attributes += "profile=" + profile + ';';
-	attributes += "flags=" + std::to_string(compile_flags) + ';';
-
-	const size_t hash = std::hash<std::string_view>()(attributes) ^ std::hash<std::string_view>()(hlsl);
-	if (!load_effect_cache(effect.source_file, entry_point, hash, cso, effect.assembly[entry_point]))
-	{
-		com_ptr<ID3DBlob> d3d_compiled, d3d_errors;
-		hr = D3DCompile(
-			hlsl.data(), hlsl.size(),
-			nullptr, nullptr, nullptr,
-			entry_point.c_str(),
-			profile.c_str(),
-			compile_flags, 0,
-			&d3d_compiled, &d3d_errors);
-
-		if (d3d_errors != nullptr) // Append warnings to the output error string as well
-			effect.errors.append(static_cast<const char *>(d3d_errors->GetBufferPointer()), d3d_errors->GetBufferSize() - 1); // Subtracting one to not append the null-terminator as well
-
-		// No need to setup resources if any of the shaders failed to compile
-		if (FAILED(hr))
-			return false;
-
-		cso.resize(d3d_compiled->GetBufferSize());
-		std::memcpy(cso.data(), d3d_compiled->GetBufferPointer(), cso.size());
-
-		if (com_ptr<ID3DBlob> d3d_disassembled; SUCCEEDED(D3DDisassemble(cso.data(), cso.size(), 0, nullptr, &d3d_disassembled)))
-			effect.assembly[entry_point].assign(static_cast<const char *>(d3d_disassembled->GetBufferPointer()), d3d_disassembled->GetBufferSize() - 1);
-
-		save_effect_cache(effect.source_file, entry_point, hash, cso, effect.assembly[entry_point]);
-	}
 
 	return true;
 }

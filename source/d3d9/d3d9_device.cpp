@@ -6,7 +6,6 @@
 #include "dll_log.hpp"
 #include "d3d9_device.hpp"
 #include "d3d9_swapchain.hpp"
-#include "runtime_d3d9.hpp"
 #include "reshade_api_type_utils.hpp"
 
 extern void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d3d, UINT adapter_index);
@@ -222,7 +221,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 
 	device_impl::on_after_reset(pp);
 	if (!_implicit_swapchain->on_init())
-		LOG(ERROR) << "Failed to recreate Direct3D 9 runtime environment on runtime " << static_cast<reshade::d3d9::runtime_impl *>(_implicit_swapchain) << '!';
+		LOG(ERROR) << "Failed to recreate Direct3D 9 runtime environment on runtime " << static_cast<reshade::d3d9::swapchain_impl *>(_implicit_swapchain) << '!';
 
 	return hr;
 }
@@ -1673,7 +1672,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 
 	device_impl::on_after_reset(pp);
 	if (!_implicit_swapchain->on_init())
-		LOG(ERROR) << "Failed to recreate Direct3D 9 runtime environment on runtime " << static_cast<reshade::d3d9::runtime_impl *>(_implicit_swapchain) << '!';
+		LOG(ERROR) << "Failed to recreate Direct3D 9 runtime environment on runtime " << static_cast<reshade::d3d9::swapchain_impl *>(_implicit_swapchain) << '!';
 
 	return hr;
 }

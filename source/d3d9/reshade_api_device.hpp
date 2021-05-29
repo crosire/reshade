@@ -8,7 +8,7 @@
 #include "com_ptr.hpp"
 #include "com_tracking.hpp"
 #include "addon_manager.hpp"
-#include "state_block_d3d9.hpp"
+#include "state_block.hpp"
 
 namespace reshade::d3d9
 {

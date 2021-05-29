@@ -7,7 +7,7 @@
 #include "hook_manager.hpp"
 #include "vulkan_hooks.hpp"
 #include "lockfree_table.hpp"
-#include "runtime_vk.hpp"
+#include "reshade_api_swapchain.hpp"
 #include "reshade_api_type_utils.hpp"
 
 lockfree_table<void *, reshade::vulkan::device_impl *, 16> g_vulkan_devices;
@@ -15,7 +15,7 @@ static lockfree_table<VkQueue, reshade::vulkan::command_queue_impl *, 16> s_vulk
 static lockfree_table<VkCommandBuffer, reshade::vulkan::command_list_impl *, 4096> s_vulkan_command_buffers;
 extern lockfree_table<void *, VkLayerInstanceDispatchTable, 16> g_instance_dispatch;
 extern lockfree_table<VkSurfaceKHR, HWND, 16> g_surface_windows;
-static lockfree_table<VkSwapchainKHR, reshade::vulkan::runtime_impl *, 16> s_vulkan_runtimes;
+static lockfree_table<VkSwapchainKHR, reshade::vulkan::swapchain_impl *, 16> s_vulkan_runtimes;
 
 #define GET_DISPATCH_PTR(name, object) \
 	GET_DISPATCH_PTR_FROM(name, g_vulkan_devices.at(dispatch_key_from_handle(object)))
@@ -184,7 +184,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		enabled_features.shaderStorageImageWriteWithoutFormat = true;
 
 		// Enable extensions that ReShade requires
-		add_extension(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME, false); // This is optional, see imgui code in 'runtime_impl'
+		add_extension(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME, false); // This is optional, see imgui code in 'swapchain_impl'
 		add_extension(VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME, true);
 		add_extension(VK_KHR_SWAPCHAIN_MUTABLE_FORMAT_EXTENSION_NAME, true);
 	}
@@ -521,7 +521,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	if (queue_impl != nullptr)
 	{
 		// Remove old swap chain from the list so that a call to 'vkDestroySwapchainKHR' won't reset the runtime again
-		reshade::vulkan::runtime_impl *runtime = s_vulkan_runtimes.erase(create_info.oldSwapchain);
+		reshade::vulkan::swapchain_impl *runtime = s_vulkan_runtimes.erase(create_info.oldSwapchain);
 		if (runtime != nullptr)
 		{
 			assert(create_info.oldSwapchain != VK_NULL_HANDLE);
@@ -536,7 +536,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		}
 		else
 		{
-			runtime = new reshade::vulkan::runtime_impl(device_impl, queue_impl);
+			runtime = new reshade::vulkan::swapchain_impl(device_impl, queue_impl);
 		}
 
 		// Look up window handle from surface

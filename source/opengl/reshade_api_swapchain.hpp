@@ -8,15 +8,15 @@
 #include "runtime.hpp"
 #include "reshade_api_device.hpp"
 #include "reshade_api_type_utils.hpp"
-#include "state_block_gl.hpp"
+#include "state_block.hpp"
 
 namespace reshade::opengl
 {
-	class runtime_impl : public runtime, public device_impl
+	class swapchain_impl : public runtime, public device_impl
 	{
 	public:
-		runtime_impl(HDC hdc, HGLRC hglrc);
-		~runtime_impl();
+		swapchain_impl(HDC hdc, HGLRC hglrc);
+		~swapchain_impl();
 
 		bool get_user_data(const uint8_t guid[16], void **ptr) const final { return device_impl::get_user_data(guid, ptr); }
 		void set_user_data(const uint8_t guid[16], void *const ptr)  final { device_impl::set_user_data(guid, ptr); }
@@ -47,8 +47,6 @@ namespace reshade::opengl
 		void on_reset();
 		void on_present(bool default_fbo = true);
 		bool on_layer_submit(uint32_t eye, GLuint source_object, bool is_rbo, bool is_array, const float bounds[4], GLuint *target_rbo);
-
-		bool compile_effect(effect &effect, api::shader_stage type, const std::string &entry_point, std::vector<char> &out) final;
 
 	private:
 		state_block _app_state;

@@ -7,15 +7,15 @@
 
 #include "runtime.hpp"
 #include "reshade_api_device.hpp"
-#include "state_block_d3d10.hpp"
+#include "state_block.hpp"
 
 namespace reshade::d3d10
 {
-	class runtime_impl : public api::api_object_impl<IDXGISwapChain *, runtime>
+	class swapchain_impl : public api::api_object_impl<IDXGISwapChain *, runtime>
 	{
 	public:
-		runtime_impl(device_impl *device, IDXGISwapChain *swapchain);
-		~runtime_impl();
+		swapchain_impl(device_impl *device, IDXGISwapChain *swapchain);
+		~swapchain_impl();
 
 		api::device *get_device() final { return _device_impl; }
 		api::command_queue *get_command_queue() final { return _device_impl; }
@@ -33,8 +33,6 @@ namespace reshade::d3d10
 		void on_reset();
 		void on_present();
 
-		bool compile_effect(effect &effect, api::shader_stage type, const std::string &entry_point, std::vector<char> &cso) final;
-
 	private:
 		device_impl *const _device_impl;
 
@@ -50,7 +48,6 @@ namespace reshade::d3d10
 		com_ptr<ID3D10Texture2D> _backbuffer_texture;
 		com_ptr<ID3D10ShaderResourceView> _backbuffer_texture_srv;
 
-		HMODULE _d3d_compiler = nullptr;
 		com_ptr<ID3D10RasterizerState> _effect_rasterizer;
 	};
 }

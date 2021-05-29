@@ -7,15 +7,15 @@
 
 #include "runtime.hpp"
 #include "reshade_api_device.hpp"
-#include "state_block_d3d9.hpp"
+#include "state_block.hpp"
 
 namespace reshade::d3d9
 {
-	class runtime_impl : public api::api_object_impl<IDirect3DSwapChain9 *, runtime>
+	class swapchain_impl : public api::api_object_impl<IDirect3DSwapChain9 *, runtime>
 	{
 	public:
-		runtime_impl(device_impl *device, IDirect3DSwapChain9 *swapchain);
-		~runtime_impl();
+		swapchain_impl(device_impl *device, IDirect3DSwapChain9 *swapchain);
+		~swapchain_impl();
 
 		api::device *get_device() final { return _device_impl; }
 		api::command_queue *get_command_queue() final { return _device_impl; }
@@ -33,8 +33,6 @@ namespace reshade::d3d9
 		void on_reset();
 		void on_present();
 
-		bool compile_effect(effect &effect, api::shader_stage type, const std::string &entry_point, std::vector<char> &cso) final;
-
 	private:
 		device_impl *const _device_impl;
 
@@ -42,7 +40,5 @@ namespace reshade::d3d9
 
 		com_ptr<IDirect3DSurface9> _backbuffer;
 		com_ptr<IDirect3DSurface9> _backbuffer_resolved;
-
-		HMODULE _d3d_compiler = nullptr;
 	};
 }

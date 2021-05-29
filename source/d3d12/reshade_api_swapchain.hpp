@@ -11,11 +11,11 @@
 
 namespace reshade::d3d12
 {
-	class runtime_impl : public api::api_object_impl<IDXGISwapChain3 *, runtime>
+	class swapchain_impl : public api::api_object_impl<IDXGISwapChain3 *, runtime>
 	{
 	public:
-		runtime_impl(device_impl *device, command_queue_impl *queue, IDXGISwapChain3 *swapchain);
-		~runtime_impl();
+		swapchain_impl(device_impl *device, command_queue_impl *queue, IDXGISwapChain3 *swapchain);
+		~swapchain_impl();
 
 		api::device *get_device() final { return _device_impl; }
 		api::command_queue *get_command_queue() final { return _cmd_queue_impl; }
@@ -36,8 +36,6 @@ namespace reshade::d3d12
 		bool on_present(ID3D12Resource *source, HWND hwnd);
 		bool on_layer_submit(UINT eye, ID3D12Resource *source, const float bounds[4], ID3D12Resource **target);
 
-		bool compile_effect(effect &effect, api::shader_stage type, const std::string &entry_point, std::vector<char> &cso) final;
-
 	private:
 		device_impl *const _device_impl;
 		command_queue_impl *const _cmd_queue_impl;
@@ -45,7 +43,5 @@ namespace reshade::d3d12
 		UINT _swap_index = 0;
 		std::vector<com_ptr<ID3D12Resource>> _backbuffers;
 		com_ptr<ID3D12DescriptorHeap> _backbuffer_rtvs;
-
-		HMODULE _d3d_compiler = nullptr;
 	};
 }

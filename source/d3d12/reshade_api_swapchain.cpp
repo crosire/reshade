@@ -5,15 +5,14 @@
 
 #include "dll_log.hpp"
 #include "dll_resources.hpp"
-#include "runtime_d3d12.hpp"
-#include "runtime_objects.hpp"
+#include "reshade_api_swapchain.hpp"
 #include "reshade_api_type_utils.hpp"
 #include <CoreWindow.h>
 #include <d3dcompiler.h>
 
 extern const char *dxgi_format_to_string(DXGI_FORMAT format);
 
-reshade::d3d12::runtime_impl::runtime_impl(device_impl *device, command_queue_impl *queue, IDXGISwapChain3 *swapchain) :
+reshade::d3d12::swapchain_impl::swapchain_impl(device_impl *device, command_queue_impl *queue, IDXGISwapChain3 *swapchain) :
 	api_object_impl(swapchain),
 	_device_impl(device),
 	_cmd_queue_impl(queue)
@@ -42,15 +41,12 @@ reshade::d3d12::runtime_impl::runtime_impl(device_impl *device, command_queue_im
 	if (_orig != nullptr && !on_init())
 		LOG(ERROR) << "Failed to initialize Direct3D 12 runtime environment on runtime " << this << '!';
 }
-reshade::d3d12::runtime_impl::~runtime_impl()
+reshade::d3d12::swapchain_impl::~swapchain_impl()
 {
 	on_reset();
-
-	if (_d3d_compiler != nullptr)
-		FreeLibrary(_d3d_compiler);
 }
 
-bool reshade::d3d12::runtime_impl::on_init()
+bool reshade::d3d12::swapchain_impl::on_init()
 {
 	assert(_orig != nullptr);
 
@@ -68,7 +64,7 @@ bool reshade::d3d12::runtime_impl::on_init()
 
 	return on_init(swap_desc);
 }
-bool reshade::d3d12::runtime_impl::on_init(const DXGI_SWAP_CHAIN_DESC &swap_desc)
+bool reshade::d3d12::swapchain_impl::on_init(const DXGI_SWAP_CHAIN_DESC &swap_desc)
 {
 	if (swap_desc.SampleDesc.Count > 1)
 		return false; // Multisampled swap chains are not currently supported
@@ -121,7 +117,7 @@ bool reshade::d3d12::runtime_impl::on_init(const DXGI_SWAP_CHAIN_DESC &swap_desc
 
 	return runtime::on_init(swap_desc.OutputWindow);
 }
-void reshade::d3d12::runtime_impl::on_reset()
+void reshade::d3d12::swapchain_impl::on_reset()
 {
 	runtime::on_reset();
 
@@ -132,7 +128,7 @@ void reshade::d3d12::runtime_impl::on_reset()
 	_backbuffer_rtvs.reset();
 }
 
-void reshade::d3d12::runtime_impl::on_present()
+void reshade::d3d12::swapchain_impl::on_present()
 {
 	if (!_is_initialized)
 		return;
@@ -144,7 +140,7 @@ void reshade::d3d12::runtime_impl::on_present()
 	update_and_render_effects();
 	runtime::on_present();
 }
-bool reshade::d3d12::runtime_impl::on_present(ID3D12Resource *source, HWND hwnd)
+bool reshade::d3d12::swapchain_impl::on_present(ID3D12Resource *source, HWND hwnd)
 {
 	assert(source != nullptr);
 
@@ -195,7 +191,7 @@ bool reshade::d3d12::runtime_impl::on_present(ID3D12Resource *source, HWND hwnd)
 	on_present();
 	return true;
 }
-bool reshade::d3d12::runtime_impl::on_layer_submit(UINT eye, ID3D12Resource *source, const float bounds[4], ID3D12Resource **target)
+bool reshade::d3d12::swapchain_impl::on_layer_submit(UINT eye, ID3D12Resource *source, const float bounds[4], ID3D12Resource **target)
 {
 	assert(eye < 2 && source != nullptr);
 
@@ -301,79 +297,6 @@ bool reshade::d3d12::runtime_impl::on_layer_submit(UINT eye, ID3D12Resource *sou
 	cmd_list->ResourceBarrier(2, transitions);
 
 	*target = _backbuffers[0].get();
-
-	return true;
-}
-
-bool reshade::d3d12::runtime_impl::compile_effect(effect &effect, api::shader_stage type, const std::string &entry_point, std::vector<char> &cso)
-{
-	if (_d3d_compiler == nullptr)
-		_d3d_compiler = LoadLibraryW(L"d3dcompiler_47.dll");
-
-	if (_d3d_compiler == nullptr)
-	{
-		LOG(ERROR) << "Unable to load HLSL compiler (\"d3dcompiler_47.dll\")!";
-		return false;
-	}
-
-	const auto D3DCompile = reinterpret_cast<pD3DCompile>(GetProcAddress(_d3d_compiler, "D3DCompile"));
-	const auto D3DDisassemble = reinterpret_cast<pD3DDisassemble>(GetProcAddress(_d3d_compiler, "D3DDisassemble"));
-
-	HRESULT hr = E_FAIL;
-	const std::string hlsl = effect.preamble + effect.module.hlsl;
-
-	std::string profile;
-	switch (type)
-	{
-	case api::shader_stage::vertex:
-		profile = "vs_5_0";
-		break;
-	case api::shader_stage::pixel:
-		profile = "ps_5_0";
-		break;
-	case api::shader_stage::compute:
-		profile = "cs_5_0";
-		break;
-	}
-
-	UINT compile_flags = D3DCOMPILE_ENABLE_STRICTNESS;
-	compile_flags |= (_performance_mode ? D3DCOMPILE_OPTIMIZATION_LEVEL3 : D3DCOMPILE_OPTIMIZATION_LEVEL1);
-#ifndef NDEBUG
-	compile_flags |= D3DCOMPILE_DEBUG;
-#endif
-
-	std::string attributes;
-	attributes += "entrypoint=" + entry_point + ';';
-	attributes += "profile=" + profile + ';';
-	attributes += "flags=" + std::to_string(compile_flags) + ';';
-
-	const size_t hash = std::hash<std::string_view>()(attributes) ^ std::hash<std::string_view>()(hlsl);
-	if (!load_effect_cache(effect.source_file, entry_point, hash, cso, effect.assembly[entry_point]))
-	{
-		com_ptr<ID3DBlob> d3d_compiled, d3d_errors;
-		hr = D3DCompile(
-			hlsl.data(), hlsl.size(),
-			nullptr, nullptr, nullptr,
-			entry_point.c_str(),
-			profile.c_str(),
-			compile_flags, 0,
-			&d3d_compiled, &d3d_errors);
-
-		if (d3d_errors != nullptr) // Append warnings to the output error string as well
-			effect.errors.append(static_cast<const char *>(d3d_errors->GetBufferPointer()), d3d_errors->GetBufferSize() - 1); // Subtracting one to not append the null-terminator as well
-
-		// No need to setup resources if any of the shaders failed to compile
-		if (FAILED(hr))
-			return false;
-
-		cso.resize(d3d_compiled->GetBufferSize());
-		std::memcpy(cso.data(), d3d_compiled->GetBufferPointer(), cso.size());
-
-		if (com_ptr<ID3DBlob> d3d_disassembled; SUCCEEDED(D3DDisassemble(cso.data(), cso.size(), 0, nullptr, &d3d_disassembled)))
-			effect.assembly[entry_point].assign(static_cast<const char *>(d3d_disassembled->GetBufferPointer()), d3d_disassembled->GetBufferSize() - 1);
-
-		save_effect_cache(effect.source_file, entry_point, hash, cso, effect.assembly[entry_point]);
-	}
 
 	return true;
 }

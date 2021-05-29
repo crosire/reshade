@@ -210,7 +210,7 @@ namespace reshade
 
 		void update_texture_bindings(const char *semantic, api::resource_view srv) final;
 
-		virtual bool compile_effect(effect &effect, api::shader_stage type, const std::string &entry_point, std::vector<char> &out) = 0;
+		bool compile_effect(effect &effect, api::shader_stage type, const std::string &entry_point, std::vector<char> &out);
 
 		/// <summary>
 		/// Returns the texture object corresponding to the passed <paramref name="unique_name"/>.
@@ -328,6 +328,7 @@ namespace reshade
 		std::vector<std::filesystem::path> _texture_search_paths;
 		std::filesystem::path _intermediate_cache_path;
 		std::chrono::high_resolution_clock::time_point _last_reload_time;
+		void *_d3d_compiler = nullptr;
 
 		// === Screenshots ===
 		bool _should_save_screenshot = false;

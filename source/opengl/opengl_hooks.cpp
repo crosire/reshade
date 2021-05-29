@@ -5,7 +5,7 @@
 
 #include "dll_log.hpp"
 #include "hook_manager.hpp"
-#include "runtime_gl.hpp"
+#include "reshade_api_swapchain.hpp"
 #include "opengl_hooks.hpp" // Fix name clashes with gl3w
 
 struct DrawArraysIndirectCommand
@@ -24,7 +24,7 @@ struct DrawElementsIndirectCommand
 	GLuint baseinstance;
 };
 
-extern thread_local reshade::opengl::runtime_impl *g_current_runtime;
+extern thread_local reshade::opengl::swapchain_impl *g_current_runtime;
 
 HOOK_EXPORT void WINAPI glAccum(GLenum op, GLfloat value)
 {

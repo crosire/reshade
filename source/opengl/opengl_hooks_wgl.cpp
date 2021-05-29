@@ -5,7 +5,7 @@
 
 #include "dll_log.hpp"
 #include "hook_manager.hpp"
-#include "runtime_gl.hpp"
+#include "reshade_api_swapchain.hpp"
 #include "opengl_hooks.hpp"
 #include <mutex>
 #include <unordered_map>
@@ -18,8 +18,8 @@ static std::mutex s_global_mutex;
 static std::unordered_set<HDC> s_pbuffer_device_contexts;
 static std::unordered_set<HGLRC> s_legacy_contexts;
 static std::unordered_map<HGLRC, HGLRC> s_shared_contexts;
-static std::unordered_map<HGLRC, reshade::opengl::runtime_impl *> s_opengl_runtimes;
-thread_local reshade::opengl::runtime_impl *g_current_runtime = nullptr;
+static std::unordered_map<HGLRC, reshade::opengl::swapchain_impl *> s_opengl_runtimes;
+thread_local reshade::opengl::swapchain_impl *g_current_runtime = nullptr;
 
 HOOK_EXPORT int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPTOR *ppfd)
 {
@@ -793,7 +793,7 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 			gl3wProcs.gl.ViewportIndexedfv = reshade::hooks::call(glViewportIndexedfv);
 #endif
 
-			const auto runtime = new reshade::opengl::runtime_impl(hdc, hglrc);
+			const auto runtime = new reshade::opengl::swapchain_impl(hdc, hglrc);
 			runtime->_hdcs.insert(hdc);
 
 			// Always set compatibility context flag on contexts that were created with 'wglCreateContext' instead of 'wglCreateContextAttribsARB'
@@ -954,12 +954,12 @@ HOOK_EXPORT BOOL  WINAPI wglSwapBuffers(HDC hdc)
 {
 	static const auto trampoline = reshade::hooks::call(wglSwapBuffers);
 
-	reshade::opengl::runtime_impl *runtime = g_current_runtime;
+	reshade::opengl::swapchain_impl *runtime = g_current_runtime;
 	if (runtime == nullptr || runtime->_hdcs.find(hdc) == runtime->_hdcs.end())
 	{
 		// Find the runtime that is associated with this device context
 		const auto it = std::find_if(s_opengl_runtimes.begin(), s_opengl_runtimes.end(),
-			[hdc](const std::pair<HGLRC, reshade::opengl::runtime_impl *> &it) { return it.second->_hdcs.find(hdc) != it.second->_hdcs.end(); });
+			[hdc](const std::pair<HGLRC, reshade::opengl::swapchain_impl *> &it) { return it.second->_hdcs.find(hdc) != it.second->_hdcs.end(); });
 		runtime = (it != s_opengl_runtimes.end()) ? it->second : nullptr;
 	}
 

@@ -8,15 +8,15 @@
 #include "runtime.hpp"
 #include "reshade_api_device.hpp"
 #include "reshade_api_device_context.hpp"
-#include "state_block_d3d11.hpp"
+#include "state_block.hpp"
 
 namespace reshade::d3d11
 {
-	class runtime_impl : public api::api_object_impl<IDXGISwapChain *, runtime>
+	class swapchain_impl : public api::api_object_impl<IDXGISwapChain *, runtime>
 	{
 	public:
-		runtime_impl(device_impl *device, device_context_impl *immediate_context, IDXGISwapChain *swapchain);
-		~runtime_impl();
+		swapchain_impl(device_impl *device, device_context_impl *immediate_context, IDXGISwapChain *swapchain);
+		~swapchain_impl();
 
 		api::device *get_device() final { return _device_impl; }
 		api::command_queue *get_command_queue() final { return _immediate_context_impl; }
@@ -36,8 +36,6 @@ namespace reshade::d3d11
 		void on_present();
 		bool on_layer_submit(UINT eye, ID3D11Texture2D *source, const float bounds[4], ID3D11Texture2D **target);
 
-		bool compile_effect(effect &effect, api::shader_stage type, const std::string &entry_point, std::vector<char> &cso) final;
-
 	private:
 		device_impl *const _device_impl;
 		device_context_impl *const _immediate_context_impl;
@@ -54,7 +52,6 @@ namespace reshade::d3d11
 		com_ptr<ID3D11Texture2D> _backbuffer_texture;
 		com_ptr<ID3D11ShaderResourceView> _backbuffer_texture_srv;
 
-		HMODULE _d3d_compiler = nullptr;
 		com_ptr<ID3D11RasterizerState> _effect_rasterizer;
 	};
 }

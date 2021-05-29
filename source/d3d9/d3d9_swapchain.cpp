@@ -8,14 +8,14 @@
 #include "d3d9_swapchain.hpp"
 
 Direct3DSwapChain9::Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9   *original) :
-	runtime_impl(device, original),
+	swapchain_impl(device, original),
 	_extended_interface(0),
 	_device(device)
 {
 	assert(_orig != nullptr && _device != nullptr);
 }
 Direct3DSwapChain9::Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9Ex *original) :
-	runtime_impl(device, original),
+	swapchain_impl(device, original),
 	_extended_interface(1),
 	_device(device)
 {
@@ -112,7 +112,7 @@ HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::Present(const RECT *pSourceRect, c
 
 	// Only call into runtime if the entire surface is presented, to avoid partial updates messing up effects and the GUI
 	if (is_presenting_entire_surface(pSourceRect, hDestWindowOverride))
-		runtime_impl::on_present();
+		swapchain_impl::on_present();
 
 	return _orig->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
 }

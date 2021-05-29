@@ -456,7 +456,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			}
 			else
 			{
-				// Synchronization is handled in "runtime_impl::on_present"
+				// Synchronization is handled in "swapchain_impl::on_present"
 				HR_CHECK(swapchain->Present(1, 0));
 			}
 		}

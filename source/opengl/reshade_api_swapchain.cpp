@@ -5,10 +5,9 @@
 
 #include "dll_log.hpp"
 #include "dll_config.hpp"
-#include "runtime_gl.hpp"
-#include "runtime_objects.hpp"
+#include "reshade_api_swapchain.hpp"
 
-reshade::opengl::runtime_impl::runtime_impl(HDC hdc, HGLRC hglrc) : device_impl(hdc, hglrc)
+reshade::opengl::swapchain_impl::swapchain_impl(HDC hdc, HGLRC hglrc) : device_impl(hdc, hglrc)
 {
 	GLint major = 0, minor = 0;
 	glGetIntegerv(GL_MAJOR_VERSION, &major);
@@ -40,12 +39,12 @@ reshade::opengl::runtime_impl::runtime_impl(HDC hdc, HGLRC hglrc) : device_impl(
 		_reserved_texture_names.resize(num_reserve_texture_names);
 	});
 }
-reshade::opengl::runtime_impl::~runtime_impl()
+reshade::opengl::swapchain_impl::~swapchain_impl()
 {
 	on_reset();
 }
 
-bool reshade::opengl::runtime_impl::on_init(HWND hwnd, unsigned int width, unsigned int height)
+bool reshade::opengl::swapchain_impl::on_init(HWND hwnd, unsigned int width, unsigned int height)
 {
 	_width = _window_width = width;
 	_height = _window_height = height;
@@ -83,7 +82,7 @@ bool reshade::opengl::runtime_impl::on_init(HWND hwnd, unsigned int width, unsig
 
 	return runtime::on_init(hwnd);
 }
-void reshade::opengl::runtime_impl::on_reset()
+void reshade::opengl::swapchain_impl::on_reset()
 {
 	runtime::on_reset();
 
@@ -99,7 +98,7 @@ void reshade::opengl::runtime_impl::on_reset()
 	std::memset(_fbo, 0, sizeof(_fbo));
 }
 
-void reshade::opengl::runtime_impl::on_present(bool default_fbo)
+void reshade::opengl::swapchain_impl::on_present(bool default_fbo)
 {
 	if (!_is_initialized)
 		return;
@@ -151,7 +150,7 @@ void reshade::opengl::runtime_impl::on_present(bool default_fbo)
 	// Apply previous state from application
 	_app_state.apply(_compatibility_context);
 }
-bool reshade::opengl::runtime_impl::on_layer_submit(uint32_t eye, GLuint source_object, bool is_rbo, bool is_array, const float bounds[4], GLuint *target_rbo)
+bool reshade::opengl::swapchain_impl::on_layer_submit(uint32_t eye, GLuint source_object, bool is_rbo, bool is_array, const float bounds[4], GLuint *target_rbo)
 {
 	assert(eye < 2 && source_object != 0);
 
@@ -207,57 +206,4 @@ bool reshade::opengl::runtime_impl::on_layer_submit(uint32_t eye, GLuint source_
 	*target_rbo = _rbo;
 
 	return true;
-}
-
-bool reshade::opengl::runtime_impl::compile_effect(effect &effect, api::shader_stage type, const std::string &entry_point, std::vector<char> &out)
-{
-	if (!effect.module.spirv.empty())
-	{
-		assert(_renderer_id >= 0x14600); // Core since OpenGL 4.6 (see https://www.khronos.org/opengl/wiki/SPIR-V)
-		assert(gl3wProcs.gl.ShaderBinary != nullptr && gl3wProcs.gl.SpecializeShader != nullptr);
-
-		out.resize(effect.module.spirv.size() * sizeof(uint32_t));
-		std::memcpy(out.data(), effect.module.spirv.data(), out.size());
-		return true;
-	}
-	else
-	{
-		std::string source = "#version 430\n";
-		source += "#define ENTRY_POINT_" + entry_point + " 1\n";
-
-		if (type == api::shader_stage::vertex)
-		{
-			// OpenGL does not allow using 'discard' in the vertex shader profile
-			source += "#define discard\n";
-			// 'dFdx', 'dFdx' and 'fwidth' too are only available in fragment shaders
-			source += "#define dFdx(x) x\n";
-			source += "#define dFdy(y) y\n";
-			source += "#define fwidth(p) p\n";
-		}
-		if (type != api::shader_stage::compute)
-		{
-			// OpenGL does not allow using 'shared' in vertex/fragment shader profile
-			source += "#define shared\n";
-			source += "#define atomicAdd(a, b) a\n";
-			source += "#define atomicAnd(a, b) a\n";
-			source += "#define atomicOr(a, b) a\n";
-			source += "#define atomicXor(a, b) a\n";
-			source += "#define atomicMin(a, b) a\n";
-			source += "#define atomicMax(a, b) a\n";
-			source += "#define atomicExchange(a, b) a\n";
-			source += "#define atomicCompSwap(a, b, c) a\n";
-			// Barrier intrinsics are only available in compute shaders
-			source += "#define barrier()\n";
-			source += "#define memoryBarrier()\n";
-			source += "#define groupMemoryBarrier()\n";
-		}
-
-		source += "#line 1 0\n"; // Reset line number, so it matches what is shown when viewing the generated code
-		source += effect.preamble;
-		source += effect.module.hlsl;
-
-		out.resize(source.size());
-		std::memcpy(out.data(), source.data(), out.size());
-		return true;
-	}
 }
