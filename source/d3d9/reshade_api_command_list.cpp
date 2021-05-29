@@ -406,8 +406,8 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 			float vertices[3][5] = {
 				// x      y      z      tu     tv
 				{ -1.0f,  1.0f,  0.0f,  0.0f,  0.0f },
-				{ -1.0f, -3.0f,  0.0f,  0.0f,  2.0f },
 				{  3.0f,  1.0f,  0.0f,  2.0f,  0.0f },
+				{ -1.0f, -3.0f,  0.0f,  0.0f,  2.0f },
 			};
 
 			if (src_box != nullptr)

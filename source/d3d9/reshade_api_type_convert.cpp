@@ -325,11 +325,14 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DVOL
 
 	assert(desc.texture.samples == 1);
 
-	convert_memory_heap_to_d3d_pool(desc.heap, internal_desc.Pool);
-	if (internal_desc.Pool != D3DPOOL_SYSTEMMEM)
-		convert_resource_usage_to_d3d_usage(desc.usage, internal_desc.Usage);
-	if (desc.heap == api::memory_heap::cpu_to_gpu)
-		internal_desc.Usage |= D3DUSAGE_DYNAMIC;
+	if (internal_desc.Pool != D3DPOOL_MANAGED)
+	{
+		convert_memory_heap_to_d3d_pool(desc.heap, internal_desc.Pool);
+		if (internal_desc.Pool != D3DPOOL_SYSTEMMEM)
+			convert_resource_usage_to_d3d_usage(desc.usage, internal_desc.Usage);
+		if (desc.heap == api::memory_heap::cpu_to_gpu)
+			internal_desc.Usage |= D3DUSAGE_DYNAMIC;
+	}
 
 	if (levels != nullptr)
 		*levels = desc.texture.levels;
@@ -352,12 +355,15 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DSUR
 	else
 		internal_desc.MultiSampleType = D3DMULTISAMPLE_NONE;
 
-	convert_memory_heap_to_d3d_pool(desc.heap, internal_desc.Pool);
-	// System memory textures cannot have render target or depth-stencil usage
-	if (internal_desc.Pool != D3DPOOL_SYSTEMMEM)
-		convert_resource_usage_to_d3d_usage(desc.usage, internal_desc.Usage);
-	if (desc.heap == api::memory_heap::cpu_to_gpu)
-		internal_desc.Usage |= D3DUSAGE_DYNAMIC;
+	if (internal_desc.Pool != D3DPOOL_MANAGED)
+	{
+		convert_memory_heap_to_d3d_pool(desc.heap, internal_desc.Pool);
+		// System memory textures cannot have render target or depth-stencil usage
+		if (internal_desc.Pool != D3DPOOL_SYSTEMMEM)
+			convert_resource_usage_to_d3d_usage(desc.usage, internal_desc.Usage);
+		if (desc.heap == api::memory_heap::cpu_to_gpu)
+			internal_desc.Usage |= D3DUSAGE_DYNAMIC;
+	}
 
 	if ((desc.flags & api::resource_flags::cube_compatible) == api::resource_flags::cube_compatible)
 	{
@@ -389,13 +395,16 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DIND
 	assert(desc.buffer.size <= std::numeric_limits<UINT>::max());
 	internal_desc.Size = static_cast<UINT>(desc.buffer.size);
 
-	convert_memory_heap_to_d3d_pool(desc.heap, internal_desc.Pool);
-	assert((desc.usage & (api::resource_usage::vertex_buffer | api::resource_usage::index_buffer)) == api::resource_usage::index_buffer);
-	convert_resource_usage_to_d3d_usage(desc.usage, internal_desc.Usage);
-	if (desc.heap == api::memory_heap::gpu_only)
-		internal_desc.Usage |= D3DUSAGE_WRITEONLY;
-	else if (desc.heap == api::memory_heap::cpu_to_gpu)
-		internal_desc.Usage |= D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC;
+	if (internal_desc.Pool != D3DPOOL_MANAGED)
+	{
+		convert_memory_heap_to_d3d_pool(desc.heap, internal_desc.Pool);
+		assert((desc.usage & (api::resource_usage::vertex_buffer | api::resource_usage::index_buffer)) == api::resource_usage::index_buffer);
+		convert_resource_usage_to_d3d_usage(desc.usage, internal_desc.Usage);
+		if (desc.heap == api::memory_heap::gpu_only)
+			internal_desc.Usage |= D3DUSAGE_WRITEONLY;
+		else if (desc.heap == api::memory_heap::cpu_to_gpu)
+			internal_desc.Usage |= D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC;
+	}
 }
 void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DVERTEXBUFFER_DESC &internal_desc)
 {
@@ -404,13 +413,16 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DVER
 	assert(desc.buffer.size <= std::numeric_limits<UINT>::max());
 	internal_desc.Size = static_cast<UINT>(desc.buffer.size);
 
-	convert_memory_heap_to_d3d_pool(desc.heap, internal_desc.Pool);
-	assert((desc.usage & (api::resource_usage::vertex_buffer | api::resource_usage::index_buffer)) == api::resource_usage::vertex_buffer);
-	convert_resource_usage_to_d3d_usage(desc.usage, internal_desc.Usage);
-	if (desc.heap == api::memory_heap::gpu_only)
-		internal_desc.Usage |= D3DUSAGE_WRITEONLY;
-	else if (desc.heap == api::memory_heap::cpu_to_gpu)
-		internal_desc.Usage |= D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC;
+	if (internal_desc.Pool != D3DPOOL_MANAGED)
+	{
+		convert_memory_heap_to_d3d_pool(desc.heap, internal_desc.Pool);
+		assert((desc.usage & (api::resource_usage::vertex_buffer | api::resource_usage::index_buffer)) == api::resource_usage::vertex_buffer);
+		convert_resource_usage_to_d3d_usage(desc.usage, internal_desc.Usage);
+		if (desc.heap == api::memory_heap::gpu_only)
+			internal_desc.Usage |= D3DUSAGE_WRITEONLY;
+		else if (desc.heap == api::memory_heap::cpu_to_gpu)
+			internal_desc.Usage |= D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC;
+	}
 }
 reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DVOLUME_DESC &internal_desc, UINT levels)
 {
