@@ -100,9 +100,7 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 		};
 
 		// Enable extensions that ReShade requires
-#ifndef NDEBUG
 		add_extension(VK_EXT_DEBUG_UTILS_EXTENSION_NAME, false);
-#endif
 	}
 
 	VkApplicationInfo app_info { VK_STRUCTURE_TYPE_APPLICATION_INFO };
