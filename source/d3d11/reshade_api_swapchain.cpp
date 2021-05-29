@@ -9,8 +9,6 @@
 #include "reshade_api_swapchain.hpp"
 #include "reshade_api_type_convert.hpp"
 
-extern bool is_windows7();
-
 reshade::d3d11::swapchain_impl::swapchain_impl(device_impl *device, device_context_impl *immediate_context, IDXGISwapChain *swapchain) :
 	api_object_impl(swapchain, device, immediate_context),
 	_app_state(device->_orig)
@@ -92,11 +90,9 @@ bool reshade::d3d11::swapchain_impl::on_init(const DXGI_SWAP_CHAIN_DESC &swap_de
 	tex_desc.Usage = D3D11_USAGE_DEFAULT;
 	tex_desc.BindFlags = D3D11_BIND_RENDER_TARGET;
 
-	// Creating a render target view for the back buffer fails on Windows 8+, so use a intermediate texture there
 	if (_orig != nullptr && (
 		swap_desc.SampleDesc.Count > 1 ||
-		api::format_to_default_typed(_backbuffer_format) != _backbuffer_format ||
-		!is_windows7()))
+		api::format_to_default_typed(_backbuffer_format) != _backbuffer_format))
 	{
 		if (FAILED(static_cast<device_impl *>(_device)->_orig->CreateTexture2D(&tex_desc, nullptr, &_backbuffer_resolved)))
 			return false;
@@ -105,6 +101,8 @@ bool reshade::d3d11::swapchain_impl::on_init(const DXGI_SWAP_CHAIN_DESC &swap_de
 	}
 	else
 	{
+		assert(swap_desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT);
+
 		_backbuffer_resolved = _backbuffer;
 	}
 

@@ -141,7 +141,7 @@ HOOK_EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter
 		hr = adapter->GetParent(IID_PPV_ARGS(&factory));
 		assert(SUCCEEDED(hr));
 
-		LOG(INFO) << "> Calling " << "IDXGIFactory::CreateSwapChain" << ':';
+		LOG(INFO) << "Calling " << "IDXGIFactory::CreateSwapChain" << ':';
 
 		hr = factory->CreateSwapChain(device, pSwapChainDesc, ppSwapChain);
 	}

@@ -81,7 +81,10 @@ bool reshade::d3d12::swapchain_impl::on_init()
 bool reshade::d3d12::swapchain_impl::on_init(const DXGI_SWAP_CHAIN_DESC &swap_desc)
 {
 	if (swap_desc.SampleDesc.Count > 1)
-		return false; // Multisampled swap chains are not currently supported
+	{
+		LOG(WARN) << "Multisampled swap chains are unsupported with D3D12.";
+		return false;
+	}
 
 	_width = swap_desc.BufferDesc.Width;
 	_height = swap_desc.BufferDesc.Height;
@@ -104,6 +107,8 @@ bool reshade::d3d12::swapchain_impl::on_init(const DXGI_SWAP_CHAIN_DESC &swap_de
 	_backbuffers.resize(swap_desc.BufferCount);
 	if (_orig != nullptr)
 	{
+		assert(swap_desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT);
+
 		D3D12_CPU_DESCRIPTOR_HANDLE rtv_handle = _backbuffer_rtvs->GetCPUDescriptorHandleForHeapStart();
 
 		for (unsigned int i = 0; i < swap_desc.BufferCount; ++i)
