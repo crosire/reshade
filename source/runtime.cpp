@@ -296,6 +296,9 @@ exit_failure:
 	_empty_texture_view = {};
 
 #if RESHADE_GUI
+	if (_is_vr)
+		deinit_gui_vr();
+
 	destroy_imgui_resources();
 #endif
 
@@ -345,6 +348,8 @@ void reshade::runtime::on_reset()
 }
 void reshade::runtime::on_present()
 {
+	assert(is_initialized());
+
 	update_and_render_effects();
 
 	_framecount++;
@@ -980,7 +985,7 @@ void reshade::runtime::load_textures()
 			row_pitch *= 4;
 			break;
 		default:
-			LOG(ERROR) << "Texture upload is not supported for format " << static_cast<unsigned int>(texture.format) << " of texture '" << texture.unique_name << "'!";
+			LOG(ERROR) << "Texture upload is not supported for format " << static_cast<int>(texture.format) << " of texture '" << texture.unique_name << "'!";
 			continue;
 		}
 
@@ -1055,7 +1060,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 						functions_to_remove.push_back(spirv[inst + 2]);
 
 						// Get interface variables
-						for (size_t k = inst + 3 + ((strlen(reinterpret_cast<const char *>(&spirv[inst + 3])) + 4) / 4); k < inst + len; ++k)
+						for (uint32_t k = inst + 3 + static_cast<uint32_t>((strlen(reinterpret_cast<const char *>(&spirv[inst + 3])) + 4) / 4); k < inst + len; ++k)
 							variables_to_remove.push_back(spirv[k]);
 
 						// Remove this entry point from the module
@@ -1265,7 +1270,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 	std::vector<uint32_t> spec_constants;
 	for (const reshadefx::uniform_info &constant : effect.module.spec_constants)
 	{
-		const uint32_t id = static_cast<uint32_t>(spec_constants.size());
+		uint32_t id = static_cast<uint32_t>(spec_constants.size());
 		spec_data.push_back(constant.initializer_value.as_uint[0]);
 		spec_constants.push_back(id);
 	}
@@ -1277,10 +1282,10 @@ bool reshade::runtime::init_effect(size_t effect_index)
 		return false;
 	}
 
-	uint32_t total_passes = 0;
+	size_t total_passes = 0;
 	std::vector<api::descriptor_update> descriptor_updates;
 	for (const reshadefx::technique_info &info : effect.module.techniques)
-		total_passes += static_cast<uint32_t>(info.passes.size());
+		total_passes += info.passes.size();
 
 	// Create global constant buffer (except in D3D9, which does not have constant buffers)
 	if (_renderer_id != 0x9000 && !effect.uniform_data_storage.empty())
@@ -1342,7 +1347,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 		if (sampler_with_resource_view)
 		{
 			texture_tables.resize(total_passes);
-			if (!_device->create_descriptor_sets(effect.set_layouts[1], total_passes, texture_tables.data()))
+			if (!_device->create_descriptor_sets(effect.set_layouts[1], static_cast<uint32_t>(total_passes), texture_tables.data()))
 			{
 				LOG(ERROR) << "Failed to create sampler descriptor set for effect file '" << effect.source_file << "'!";
 				return false;
@@ -1377,7 +1382,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 
 				// Generate hash for sampler description
 				size_t desc_hash = 2166136261;
-				for (size_t i = 0; i < sizeof(desc); ++i)
+				for (int i = 0; i < sizeof(desc); ++i)
 					desc_hash = (desc_hash * 16777619) ^ reinterpret_cast<const uint8_t *>(&desc)[i];
 
 				api::descriptor_update &update = descriptor_updates.emplace_back();
@@ -1421,7 +1426,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 		}
 
 		texture_tables.resize(total_passes);
-		if (!_device->create_descriptor_sets(effect.set_layouts[2], total_passes, texture_tables.data()))
+		if (!_device->create_descriptor_sets(effect.set_layouts[2], static_cast<uint32_t>(total_passes), texture_tables.data()))
 		{
 			LOG(ERROR) << "Failed to create texture descriptor set for effect file '" << effect.source_file << "'!";
 			return false;
@@ -1443,7 +1448,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 		}
 
 		storage_tables.resize(total_passes);
-		if (!_device->create_descriptor_sets(effect.set_layouts[sampler_with_resource_view ? 2 : 3], total_passes, storage_tables.data()))
+		if (!_device->create_descriptor_sets(effect.set_layouts[sampler_with_resource_view ? 2 : 3], static_cast<uint32_t>(total_passes), storage_tables.data()))
 		{
 			LOG(ERROR) << "Failed to create storage descriptor set for effect file '" << effect.source_file << "'!";
 			return false;
@@ -1459,24 +1464,24 @@ bool reshade::runtime::init_effect(size_t effect_index)
 
 	uint32_t technique_index = 0;
 	uint32_t total_pass_index = 0;
-	for (technique &technique : _techniques)
+	for (technique &tech : _techniques)
 	{
-		if (!technique.passes_data.empty() || technique.effect_index != effect_index)
+		if (!tech.passes_data.empty() || tech.effect_index != effect_index)
 			continue;
 
-		technique.passes_data.resize(technique.passes.size());
+		tech.passes_data.resize(tech.passes.size());
 
 		// Offset index so that a query exists for each command frame and two subsequent ones are used for before/after stamps
-		technique.query_base_index = technique_index++ * 2 * 4;
+		tech.query_base_index = technique_index++ * 2 * 4;
 
-		for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index, ++total_pass_index)
+		for (size_t pass_index = 0; pass_index < tech.passes.size(); ++pass_index, ++total_pass_index)
 		{
-			reshadefx::pass_info &pass_info = technique.passes[pass_index];
-			technique::pass_data &pass_data = technique.passes_data[pass_index];
+			reshadefx::pass_info &pass_info = tech.passes[pass_index];
+			technique::pass_data &pass_data = tech.passes_data[pass_index];
 
 			if (!pass_info.cs_entry_point.empty())
 			{
-				technique.has_compute_passes = true;
+				tech.has_compute_passes = true;
 
 				api::pipeline_desc desc = { api::pipeline_type::compute };
 				desc.layout = effect.layout;
@@ -1495,7 +1500,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 
 				if (!_device->create_pipeline(desc, &pass_data.pipeline))
 				{
-					LOG(ERROR) << "Failed to create compute pipeline for pass " << pass_index << " in technique '" << technique.name << "'!";
+					LOG(ERROR) << "Failed to create compute pipeline for pass " << pass_index << " in technique '" << tech.name << "'!";
 					return false;
 				}
 			}
@@ -1530,7 +1535,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 
 				desc.graphics.num_viewports = 1;
 
-				for (uint32_t k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k)
+				for (int k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k)
 				{
 					texture &texture = look_up_texture_by_name(pass_info.render_target_names[k]);
 
@@ -1622,7 +1627,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 				};
 
 				auto &blend_state = desc.graphics.blend_state;
-				for (uint32_t i = 0; i < 8; ++i)
+				for (int i = 0; i < 8; ++i)
 				{
 					blend_state.blend_enable[i] = pass_info.blend_enable;
 					blend_state.src_color_blend_factor[i] = convert_blend_func(pass_info.src_blend);
@@ -1685,7 +1690,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 
 				if (!_device->create_pipeline(desc, &pass_data.pipeline))
 				{
-					LOG(ERROR) << "Failed to create graphics pipeline for pass " << pass_index << " in technique '" << technique.name << "'!";
+					LOG(ERROR) << "Failed to create graphics pipeline for pass " << pass_index << " in technique '" << tech.name << "'!";
 					return false;
 				}
 			}
@@ -1717,7 +1722,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 
 						// Generate hash for sampler description
 						size_t desc_hash = 2166136261;
-						for (size_t i = 0; i < sizeof(desc); ++i)
+						for (int i = 0; i < sizeof(desc); ++i)
 							desc_hash = (desc_hash * 16777619) ^ reinterpret_cast<const uint8_t *>(&desc)[i];
 
 						if (const auto it = _effect_sampler_states.find(desc_hash);
@@ -1953,13 +1958,13 @@ void reshade::runtime::unload_effect(size_t effect_index)
 		if (tech.effect_index != effect_index)
 			continue;
 
-		for (size_t pass_index = 0; pass_index < tech.passes_data.size(); ++pass_index)
+		for (size_t i = 0; i < tech.passes_data.size(); ++i)
 		{
-			const bool is_compute_pass = !tech.passes[pass_index].cs_entry_point.empty();
-			_device->destroy_pipeline(is_compute_pass ? api::pipeline_type::compute : api::pipeline_type::graphics, tech.passes_data[pass_index].pipeline);
+			const bool is_compute_pass = !tech.passes[i].cs_entry_point.empty();
+			_device->destroy_pipeline(is_compute_pass ? api::pipeline_type::compute : api::pipeline_type::graphics, tech.passes_data[i].pipeline);
 
-			_device->destroy_descriptor_sets(_effects[effect_index].set_layouts[2], 1, &tech.passes_data[pass_index].texture_set);
-			_device->destroy_descriptor_sets(_effects[effect_index].set_layouts[3], 1, &tech.passes_data[pass_index].storage_set);
+			_device->destroy_descriptor_sets(_effects[effect_index].set_layouts[2], 1, &tech.passes_data[i].texture_set);
+			_device->destroy_descriptor_sets(_effects[effect_index].set_layouts[3], 1, &tech.passes_data[i].storage_set);
 		}
 
 		tech.passes_data.clear();
@@ -1975,11 +1980,10 @@ void reshade::runtime::unload_effect(size_t effect_index)
 
 		_device->destroy_descriptor_sets(effect.set_layouts[0], 1, &effect.cb_set);
 		effect.cb_set = {};
-
 		_device->destroy_descriptor_sets(effect.set_layouts[1], 1, &effect.sampler_set);
 		effect.sampler_set = {};
 
-		for (uint32_t i = 0; i < 4; ++i)
+		for (size_t i = 0; i < std::size(effect.set_layouts); ++i)
 		{
 			_device->destroy_descriptor_set_layout(effect.set_layouts[i]);
 			effect.set_layouts[i] = {};
@@ -2022,13 +2026,13 @@ void reshade::runtime::unload_effects()
 
 	for (technique &tech : _techniques)
 	{
-		for (size_t pass_index = 0; pass_index < tech.passes_data.size(); ++pass_index)
+		for (size_t i = 0; i < tech.passes_data.size(); ++i)
 		{
-			const bool is_compute_pass = !tech.passes[pass_index].cs_entry_point.empty();
-			_device->destroy_pipeline(is_compute_pass ? api::pipeline_type::compute : api::pipeline_type::graphics, tech.passes_data[pass_index].pipeline);
+			const bool is_compute_pass = !tech.passes[i].cs_entry_point.empty();
+			_device->destroy_pipeline(is_compute_pass ? api::pipeline_type::compute : api::pipeline_type::graphics, tech.passes_data[i].pipeline);
 
-			_device->destroy_descriptor_sets(_effects[tech.effect_index].set_layouts[2], 1, &tech.passes_data[pass_index].texture_set);
-			_device->destroy_descriptor_sets(_effects[tech.effect_index].set_layouts[3], 1, &tech.passes_data[pass_index].storage_set);
+			_device->destroy_descriptor_sets(_effects[tech.effect_index].set_layouts[2], 1, &tech.passes_data[i].texture_set);
+			_device->destroy_descriptor_sets(_effects[tech.effect_index].set_layouts[3], 1, &tech.passes_data[i].storage_set);
 		}
 
 		tech.passes_data.clear();
@@ -2038,12 +2042,15 @@ void reshade::runtime::unload_effects()
 	{
 		_device->destroy_resource(effect.cb);
 
+		_device->destroy_pipeline_layout(effect.layout);
+
 		_device->destroy_descriptor_sets(effect.set_layouts[0], 1, &effect.cb_set);
 		_device->destroy_descriptor_sets(effect.set_layouts[1], 1, &effect.sampler_set);
 
-		_device->destroy_pipeline_layout(effect.layout);
-		for (uint32_t i = 0; i < 4; ++i)
+		for (size_t i = 0; i < std::size(effect.set_layouts); ++i)
+		{
 			_device->destroy_descriptor_set_layout(effect.set_layouts[i]);
+		}
 
 		_device->destroy_query_pool(effect.query_heap);
 	}
@@ -2606,30 +2613,30 @@ void reshade::runtime::update_and_render_effects()
 	cmd_list->barrier(backbuffer, api::resource_usage::present, api::resource_usage::render_target);
 
 	// Render all enabled techniques
-	for (technique &technique : _techniques)
+	for (technique &tech : _techniques)
 	{
-		if (!_ignore_shortcuts && _input->is_key_pressed(technique.toggle_key_data, _force_shortcut_modifiers))
+		if (!_ignore_shortcuts && _input->is_key_pressed(tech.toggle_key_data, _force_shortcut_modifiers))
 		{
-			if (!technique.enabled)
-				enable_technique(technique);
+			if (!tech.enabled)
+				enable_technique(tech);
 			else
-				disable_technique(technique);
+				disable_technique(tech);
 		}
 
-		if (technique.passes_data.empty() || !technique.enabled)
+		if (tech.passes_data.empty() || !tech.enabled)
 			continue; // Ignore techniques that are not fully loaded or currently disabled
 
 		const auto time_technique_started = std::chrono::high_resolution_clock::now();
-		render_technique(technique);
+		render_technique(tech);
 		const auto time_technique_finished = std::chrono::high_resolution_clock::now();
 
-		technique.average_cpu_duration.append(std::chrono::duration_cast<std::chrono::nanoseconds>(time_technique_finished - time_technique_started).count());
+		tech.average_cpu_duration.append(std::chrono::duration_cast<std::chrono::nanoseconds>(time_technique_finished - time_technique_started).count());
 
-		if (technique.time_left > 0)
+		if (tech.time_left > 0)
 		{
-			technique.time_left -= std::chrono::duration_cast<std::chrono::milliseconds>(_last_frame_duration).count();
-			if (technique.time_left <= 0)
-				disable_technique(technique);
+			tech.time_left -= std::chrono::duration_cast<std::chrono::milliseconds>(_last_frame_duration).count();
+			if (tech.time_left <= 0)
+				disable_technique(tech);
 		}
 	}
 
@@ -2639,9 +2646,9 @@ void reshade::runtime::update_and_render_effects()
 		save_screenshot(std::wstring(), true);
 }
 
-void reshade::runtime::render_technique(technique &technique)
+void reshade::runtime::render_technique(technique &tech)
 {
-	const effect &effect = _effects[technique.effect_index];
+	const effect &effect = _effects[tech.effect_index];
 
 	api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
 
@@ -2657,16 +2664,16 @@ void reshade::runtime::render_technique(technique &technique)
 	{
 		// Evaluate queries from oldest frame in queue
 		if (uint64_t timestamps[2];
-			_device->get_query_results(effect.query_heap, technique.query_base_index + ((_framecount + 1) % 4) * 2, 2, timestamps, sizeof(uint64_t)))
-			technique.average_gpu_duration.append(timestamps[1] - timestamps[0]);
+			_device->get_query_results(effect.query_heap, tech.query_base_index + ((_framecount + 1) % 4) * 2, 2, timestamps, sizeof(uint64_t)))
+			tech.average_gpu_duration.append(timestamps[1] - timestamps[0]);
 
-		cmd_list->finish_query(effect.query_heap, api::query_type::timestamp, technique.query_base_index + (_framecount % 4) * 2);
+		cmd_list->finish_query(effect.query_heap, api::query_type::timestamp, tech.query_base_index + (_framecount % 4) * 2);
 	}
 #endif
 
 #ifndef NDEBUG
 	const float debug_event_col[4] = { 1.0f, 0.8f, 0.8f, 1.0f };
-	cmd_list->begin_debug_marker(technique.name.c_str(), debug_event_col);
+	cmd_list->begin_debug_marker(tech.name.c_str(), debug_event_col);
 #endif
 
 	// Setup shader constants
@@ -2680,7 +2687,7 @@ void reshade::runtime::render_technique(technique &technique)
 		}
 
 		cmd_list->bind_descriptor_sets(api::pipeline_type::graphics, effect.layout, 0, 1, &effect.cb_set);
-		if (technique.has_compute_passes)
+		if (tech.has_compute_passes)
 			cmd_list->bind_descriptor_sets(api::pipeline_type::compute, effect.layout, 0, 1, &effect.cb_set);
 	}
 	else if (_renderer_id == 0x9000)
@@ -2696,14 +2703,14 @@ void reshade::runtime::render_technique(technique &technique)
 		assert(!sampler_with_resource_view);
 
 		cmd_list->bind_descriptor_sets(api::pipeline_type::graphics, effect.layout, 1, 1, &effect.sampler_set);
-		if (technique.has_compute_passes)
+		if (tech.has_compute_passes)
 			cmd_list->bind_descriptor_sets(api::pipeline_type::compute, effect.layout, 1, 1, &effect.sampler_set);
 	}
 
 	bool is_effect_stencil_cleared = false;
 	bool needs_implicit_backbuffer_copy = true; // First pass always needs the back buffer updated
 
-	for (size_t pass_index = 0; pass_index < technique.passes.size(); ++pass_index)
+	for (size_t pass_index = 0; pass_index < tech.passes.size(); ++pass_index)
 	{
 		if (needs_implicit_backbuffer_copy)
 		{
@@ -2717,8 +2724,8 @@ void reshade::runtime::render_technique(technique &technique)
 			cmd_list->barrier(2, resources, state_new, state_old);
 		}
 
-		const reshadefx::pass_info &pass_info = technique.passes[pass_index];
-		const technique::pass_data &pass_data = technique.passes_data[pass_index];
+		const reshadefx::pass_info &pass_info = tech.passes[pass_index];
+		const technique::pass_data &pass_data = tech.passes_data[pass_index];
 
 #ifndef NDEBUG
 		cmd_list->begin_debug_marker((pass_info.name.empty() ? "Pass " + std::to_string(pass_index) : pass_info.name).c_str(), debug_event_col);
@@ -2815,7 +2822,7 @@ void reshade::runtime::render_technique(technique &technique)
 					-1.0f / pass_info.viewport_width,
 					 1.0f / pass_info.viewport_height
 				};
-				cmd_list->push_constants(api::shader_stage::vertex, effect.layout, 0, 255 * 4, 4, reinterpret_cast<const uint32_t *>(texel_size));
+				cmd_list->push_constants(api::shader_stage::vertex, effect.layout, 0, 255 * 4, 4, texel_size);
 			}
 
 			// Draw primitives
@@ -2842,7 +2849,7 @@ void reshade::runtime::render_technique(technique &technique)
 
 #if RESHADE_GUI
 	if (_gather_gpu_statistics)
-		cmd_list->finish_query(effect.query_heap, api::query_type::timestamp, technique.query_base_index + (_framecount % 4) * 2 + 1);
+		cmd_list->finish_query(effect.query_heap, api::query_type::timestamp, tech.query_base_index + (_framecount % 4) * 2 + 1);
 #endif
 
 #if RESHADE_ADDON
@@ -2850,37 +2857,37 @@ void reshade::runtime::render_technique(technique &technique)
 #endif
 }
 
-void reshade::runtime::enable_technique(technique &technique)
+void reshade::runtime::enable_technique(technique &tech)
 {
-	assert(technique.effect_index < _effects.size());
+	assert(tech.effect_index < _effects.size());
 
-	if (!_effects[technique.effect_index].compiled)
+	if (!_effects[tech.effect_index].compiled)
 		return; // Cannot enable techniques that failed to compile
 
-	const bool status_changed = !technique.enabled;
-	technique.enabled = true;
-	technique.time_left = technique.annotation_as_int("timeout");
+	const bool status_changed = !tech.enabled;
+	tech.enabled = true;
+	tech.time_left = tech.annotation_as_int("timeout");
 
 	// Queue effect file for compilation if it was not fully loaded yet
-	if (technique.passes_data.empty() && // Avoid adding the same effect multiple times to the queue if it contains multiple techniques that were enabled simultaneously
-		std::find(_reload_compile_queue.begin(), _reload_compile_queue.end(), technique.effect_index) == _reload_compile_queue.end())
-		_reload_compile_queue.push_back(technique.effect_index);
+	if (tech.passes_data.empty() && // Avoid adding the same effect multiple times to the queue if it contains multiple techniques that were enabled simultaneously
+		std::find(_reload_compile_queue.begin(), _reload_compile_queue.end(), tech.effect_index) == _reload_compile_queue.end())
+		_reload_compile_queue.push_back(tech.effect_index);
 
 	if (status_changed) // Increase rendering reference count
-		_effects[technique.effect_index].rendering++;
+		_effects[tech.effect_index].rendering++;
 }
-void reshade::runtime::disable_technique(technique &technique)
+void reshade::runtime::disable_technique(technique &tech)
 {
-	assert(technique.effect_index < _effects.size());
+	assert(tech.effect_index < _effects.size());
 
-	const bool status_changed =  technique.enabled;
-	technique.enabled = false;
-	technique.time_left = 0;
-	technique.average_cpu_duration.clear();
-	technique.average_gpu_duration.clear();
+	const bool status_changed =  tech.enabled;
+	tech.enabled = false;
+	tech.time_left = 0;
+	tech.average_cpu_duration.clear();
+	tech.average_gpu_duration.clear();
 
 	if (status_changed) // Decrease rendering reference count
-		_effects[technique.effect_index].rendering--;
+		_effects[tech.effect_index].rendering--;
 }
 
 void reshade::runtime::load_config()
@@ -3002,11 +3009,11 @@ void reshade::runtime::load_current_preset()
 			return; // Preset values are loaded in 'update_and_render_effects' during effect loading
 		}
 
-		if (std::find_if(technique_list.begin(), technique_list.end(), [this](const std::string &technique) {
-				if (const size_t at_pos = technique.find('@'); at_pos == std::string::npos)
+		if (std::find_if(technique_list.begin(), technique_list.end(), [this](const std::string &technique_name) {
+				if (const size_t at_pos = technique_name.find('@'); at_pos == std::string::npos)
 					return true;
 				else if (const auto it = std::find_if(_effects.begin(), _effects.end(),
-					[effect_name = static_cast<std::string_view>(technique).substr(at_pos + 1)](const effect &effect) { return effect_name == effect.source_file.filename().u8string(); }); it == _effects.end())
+					[effect_name = static_cast<std::string_view>(technique_name).substr(at_pos + 1)](const effect &effect) { return effect_name == effect.source_file.filename().u8string(); }); it == _effects.end())
 					return true;
 				else
 					return it->skipped; }) != technique_list.end())
@@ -3092,26 +3099,26 @@ void reshade::runtime::load_current_preset()
 		}
 	}
 
-	for (technique &technique : _techniques)
+	for (technique &tech : _techniques)
 	{
 		const std::string unique_name =
-			technique.name + '@' + _effects[technique.effect_index].source_file.filename().u8string();
+			tech.name + '@' + _effects[tech.effect_index].source_file.filename().u8string();
 
 		// Ignore preset if "enabled" annotation is set
-		if (technique.annotation_as_int("enabled") ||
+		if (tech.annotation_as_int("enabled") ||
 			std::find(technique_list.begin(), technique_list.end(), unique_name) != technique_list.end() ||
-			std::find(technique_list.begin(), technique_list.end(), technique.name) != technique_list.end())
-			enable_technique(technique);
+			std::find(technique_list.begin(), technique_list.end(), tech.name) != technique_list.end())
+			enable_technique(tech);
 		else
-			disable_technique(technique);
+			disable_technique(tech);
 
-		if (!preset.get({}, "Key" + unique_name, technique.toggle_key_data) &&
-			!preset.get({}, "Key" + technique.name, technique.toggle_key_data))
+		if (!preset.get({}, "Key" + unique_name, tech.toggle_key_data) &&
+			!preset.get({}, "Key" + tech.name, tech.toggle_key_data))
 		{
-			technique.toggle_key_data[0] = technique.annotation_as_int("toggle");
-			technique.toggle_key_data[1] = technique.annotation_as_int("togglectrl");
-			technique.toggle_key_data[2] = technique.annotation_as_int("toggleshift");
-			technique.toggle_key_data[3] = technique.annotation_as_int("togglealt");
+			tech.toggle_key_data[0] = tech.annotation_as_int("toggle");
+			tech.toggle_key_data[1] = tech.annotation_as_int("togglectrl");
+			tech.toggle_key_data[2] = tech.annotation_as_int("toggleshift");
+			tech.toggle_key_data[3] = tech.annotation_as_int("togglealt");
 		}
 	}
 
@@ -3129,22 +3136,22 @@ void reshade::runtime::save_current_preset() const
 	technique_list.reserve(_techniques.size());
 	sorted_technique_list.reserve(_techniques.size());
 
-	for (const technique &technique : _techniques)
+	for (const technique &tech : _techniques)
 	{
 		const std::string unique_name =
-			technique.name + '@' + _effects[technique.effect_index].source_file.filename().u8string();
+			tech.name + '@' + _effects[tech.effect_index].source_file.filename().u8string();
 
-		if (technique.enabled)
+		if (tech.enabled)
 			technique_list.push_back(unique_name);
-		if (technique.enabled || technique.toggle_key_data[0] != 0)
-			effect_list.insert(technique.effect_index);
+		if (tech.enabled || tech.toggle_key_data[0] != 0)
+			effect_list.insert(tech.effect_index);
 
 		// Keep track of the order of all techniques and not just the enabled ones
 		sorted_technique_list.push_back(unique_name);
 
-		if (technique.toggle_key_data[0] != 0)
-			preset.set({}, "Key" + unique_name, technique.toggle_key_data);
-		else if (technique.annotation_as_int("toggle") != 0)
+		if (tech.toggle_key_data[0] != 0)
+			preset.set({}, "Key" + unique_name, tech.toggle_key_data);
+		else if (tech.annotation_as_int("toggle") != 0)
 			preset.set({}, "Key" + unique_name, 0); // Overwrite default toggle key to none
 		else
 			preset.remove_key({}, "Key" + unique_name);

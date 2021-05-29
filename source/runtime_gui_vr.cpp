@@ -82,10 +82,10 @@ void reshade::runtime::deinit_gui_vr()
 	if (s_main_handle == vr::k_ulOverlayHandleInvalid)
 		return;
 
-	_device->destroy_resource_view(_vr_overlay_target);
-	_vr_overlay_target = {};
 	_device->destroy_resource(_vr_overlay_texture);
 	_vr_overlay_texture = {};
+	_device->destroy_resource_view(_vr_overlay_target);
+	_vr_overlay_target = {};
 
 	s_overlay->DestroyOverlay(s_main_handle);
 	s_main_handle = vr::k_ulOverlayHandleInvalid;
@@ -102,7 +102,7 @@ void reshade::runtime::draw_gui_vr()
 
 	if (_rebuild_font_atlas)
 		build_font_atlas();
-	if (_font_atlas_srv.handle == 0 || _imgui_pipeline.handle == 0)
+	if (_font_atlas_srv.handle == 0)
 		return; // Cannot render GUI without font atlas
 
 	ImGui::SetCurrentContext(_imgui_context);

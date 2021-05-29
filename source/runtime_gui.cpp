@@ -97,7 +97,7 @@ void reshade::runtime::build_font_atlas()
 	// Remove any existing fonts from atlas first
 	atlas->Clear();
 
-	for (unsigned int i = 0; i < 2; ++i)
+	for (int i = 0; i < 2; ++i)
 	{
 		ImFontConfig cfg;
 		cfg.SizePixels = static_cast<float>(i == 0 ? _font_size : _editor_font_size);
@@ -113,7 +113,7 @@ void reshade::runtime::build_font_atlas()
 			icon_config.MergeMode = true;
 			icon_config.PixelSnapH = true;
 			icon_config.GlyphOffset = ImVec2(0.0f, 0.1f * _font_size);
-			const ImWchar icon_ranges[] = { ICON_MIN_FK, ICON_MAX_FK, 0 }; // Zero-terminated list
+			constexpr ImWchar icon_ranges[] = { ICON_MIN_FK, ICON_MAX_FK, 0 }; // Zero-terminated list
 			atlas->AddFontFromMemoryCompressedBase85TTF(FONT_ICON_BUFFER_NAME_FK, cfg.SizePixels, &icon_config, icon_ranges);
 		}
 	}
@@ -126,7 +126,7 @@ void reshade::runtime::build_font_atlas()
 
 		atlas->Clear();
 
-		for (unsigned int i = 0; i < 2; ++i)
+		for (int i = 0; i < 2; ++i)
 		{
 			ImFontConfig cfg;
 			cfg.SizePixels = static_cast<float>(i == 0 ? _font_size : _editor_font_size);
@@ -574,7 +574,7 @@ void reshade::runtime::draw_gui()
 
 	if (_rebuild_font_atlas)
 		build_font_atlas();
-	if (_font_atlas_srv.handle == 0 || _imgui_pipeline.handle == 0)
+	if (_font_atlas_srv.handle == 0)
 		return; // Cannot render GUI without font atlas
 
 	ImGui::SetCurrentContext(_imgui_context);
@@ -1150,13 +1150,13 @@ void reshade::runtime::draw_gui_home()
 			_effects_expanded_state = 3;
 			const std::string_view filter_view = _effect_filter;
 
-			for (technique &technique : _techniques)
+			for (technique &tech : _techniques)
 			{
-				std::string_view label = technique.annotation_as_string("ui_label");
+				std::string_view label = tech.annotation_as_string("ui_label");
 				if (label.empty())
-					label = technique.name;
+					label = tech.name;
 
-				technique.hidden = technique.annotation_as_int("hidden") != 0 || (
+				tech.hidden = tech.annotation_as_int("hidden") != 0 || (
 					!filter_view.empty() && // Reset visibility state if filter is empty
 					std::search(label.begin(), label.end(), filter_view.begin(), filter_view.end(), // Search case insensitive
 						[](const char c1, const char c2) { return (('a' <= c1 && c1 <= 'z') ? static_cast<char>(c1 - ' ') : c1) == (('a' <= c2 && c2 <= 'z') ? static_cast<char>(c2 - ' ') : c2); }) == label.end());
@@ -1604,12 +1604,12 @@ void reshade::runtime::draw_gui_statistics()
 
 	if (!is_loading() && _effects_enabled)
 	{
-		for (const auto &technique : _techniques)
+		for (const technique &tech : _techniques)
 		{
-			cpu_digits = std::max(cpu_digits, technique.average_cpu_duration >= 100'000'000 ? 3u : technique.average_cpu_duration >= 10'000'000 ? 2u : 1u);
-			post_processing_time_cpu += technique.average_cpu_duration;
-			gpu_digits = std::max(gpu_digits, technique.average_gpu_duration >= 100'000'000 ? 3u : technique.average_gpu_duration >= 10'000'000 ? 2u : 1u);
-			post_processing_time_gpu += technique.average_gpu_duration;
+			cpu_digits = std::max(cpu_digits, tech.average_cpu_duration >= 100'000'000 ? 3u : tech.average_cpu_duration >= 10'000'000 ? 2u : 1u);
+			post_processing_time_cpu += tech.average_cpu_duration;
+			gpu_digits = std::max(gpu_digits, tech.average_gpu_duration >= 100'000'000 ? 3u : tech.average_gpu_duration >= 10'000'000 ? 2u : 1u);
+			post_processing_time_gpu += tech.average_gpu_duration;
 		}
 	}
 
@@ -1674,28 +1674,28 @@ void reshade::runtime::draw_gui_statistics()
 
 		ImGui::BeginGroup();
 
-		for (const auto &technique : _techniques)
+		for (const technique &tech : _techniques)
 		{
-			if (!technique.enabled)
+			if (!tech.enabled)
 				continue;
 
-			if (technique.passes.size() > 1)
-				ImGui::Text("%s (%zu passes)", technique.name.c_str(), technique.passes.size());
+			if (tech.passes.size() > 1)
+				ImGui::Text("%s (%zu passes)", tech.name.c_str(), tech.passes.size());
 			else
-				ImGui::TextUnformatted(technique.name.c_str());
+				ImGui::TextUnformatted(tech.name.c_str());
 		}
 
 		ImGui::EndGroup();
 		ImGui::SameLine(ImGui::GetWindowWidth() * 0.33333333f);
 		ImGui::BeginGroup();
 
-		for (const auto &technique : _techniques)
+		for (const technique &tech : _techniques)
 		{
-			if (!technique.enabled)
+			if (!tech.enabled)
 				continue;
 
-			if (technique.average_cpu_duration != 0)
-				ImGui::Text("%*.3f ms CPU", cpu_digits + 4, technique.average_cpu_duration * 1e-6f);
+			if (tech.average_cpu_duration != 0)
+				ImGui::Text("%*.3f ms CPU", cpu_digits + 4, tech.average_cpu_duration * 1e-6f);
 			else
 				ImGui::NewLine();
 		}
@@ -1704,14 +1704,14 @@ void reshade::runtime::draw_gui_statistics()
 		ImGui::SameLine(ImGui::GetWindowWidth() * 0.66666666f);
 		ImGui::BeginGroup();
 
-		for (const auto &technique : _techniques)
+		for (const technique &tech : _techniques)
 		{
-			if (!technique.enabled)
+			if (!tech.enabled)
 				continue;
 
 			// GPU timings are not available for all APIs
-			if (_gather_gpu_statistics && technique.average_gpu_duration != 0)
-				ImGui::Text("%*.3f ms GPU", gpu_digits + 4, technique.average_gpu_duration * 1e-6f);
+			if (_gather_gpu_statistics && tech.average_gpu_duration != 0)
+				ImGui::Text("%*.3f ms GPU", gpu_digits + 4, tech.average_gpu_duration * 1e-6f);
 			else
 				ImGui::NewLine();
 		}
@@ -1725,15 +1725,15 @@ void reshade::runtime::draw_gui_statistics()
 			"unknown",
 			"R8", "R16F", "R32F", "RG8", "RG16", "RG16F", "RG32F", "RGBA8", "RGBA16", "RGBA16F", "RGBA32F", "RGB10A2"
 		};
-		const unsigned int pixel_sizes[] = {
+		constexpr uint32_t pixel_sizes[] = {
 			0,
 			1 /*R8*/, 2 /*R16F*/, 4 /*R32F*/, 2 /*RG8*/, 4 /*RG16*/, 4 /*RG16F*/, 8 /*RG32F*/, 4 /*RGBA8*/, 8 /*RGBA16*/, 8 /*RGBA16F*/, 16 /*RGBA32F*/, 4 /*RGB10A2*/
 		};
 
-		static_assert(std::size(texture_formats) - 1 == static_cast<size_t>(reshadefx::texture_format::rgb10a2));
+		static_assert((std::size(texture_formats) - 1) == static_cast<size_t>(reshadefx::texture_format::rgb10a2));
 
 		const float total_width = ImGui::GetWindowContentRegionWidth();
-		unsigned int texture_index = 0;
+		int texture_index = 0;
 		const unsigned int num_columns = static_cast<unsigned int>(std::ceilf(total_width / (50.0f * _font_size)));
 		const float single_image_width = (total_width / num_columns) - 5.0f;
 
@@ -1752,7 +1752,7 @@ void reshade::runtime::draw_gui_statistics()
 
 			int64_t memory_size = 0;
 			for (uint32_t level = 0, width = tex.width, height = tex.height; level < tex.levels; ++level, width /= 2, height /= 2)
-				memory_size += width * height * pixel_sizes[static_cast<unsigned int>(tex.format)];
+				memory_size += width * height * pixel_sizes[static_cast<int>(tex.format)];
 
 			post_processing_memory_size += memory_size;
 
@@ -1771,7 +1771,7 @@ void reshade::runtime::draw_gui_statistics()
 				tex.width,
 				tex.height,
 				tex.levels - 1,
-				texture_formats[static_cast<unsigned int>(tex.format)],
+				texture_formats[static_cast<int>(tex.format)],
 				memory_view.quot, memory_view.rem, memory_size_unit);
 
 			size_t num_referenced_passes = 0;
@@ -2089,16 +2089,16 @@ void reshade::runtime::draw_gui_addons()
 
 	ImGui::Spacing();
 
-	for (size_t index = 0; index < addon::loaded_info.size(); ++index)
+	for (size_t i = 0; i < addon::loaded_info.size(); ++i)
 	{
-		const addon::info &info = addon::loaded_info[index];
+		const addon::info &info = addon::loaded_info[i];
 
 		if (!filter_view.empty() &&
 			std::search(info.name.begin(), info.name.end(), filter_view.begin(), filter_view.end(), // Search case insensitive
 				[](const char c1, const char c2) { return (('a' <= c1 && c1 <= 'z') ? static_cast<char>(c1 - ' ') : c1) == (('a' <= c2 && c2 <= 'z') ? static_cast<char>(c2 - ' ') : c2); }) == info.name.end())
 			continue;
 
-		ImGui::PushID(static_cast<int>(index + 1));
+		ImGui::PushID(static_cast<int>(i));
 
 		const ImVec2 spacing = ImGui::GetStyle().ItemSpacing;
 		ImGui::BeginGroup();
@@ -2111,9 +2111,9 @@ void reshade::runtime::draw_gui_addons()
 		ImGui::GetCurrentWindow()->InnerRect.Max.x -= spacing.x;
 		ImGui::GetCurrentWindow()->ContentRegionRect.Max.x -= spacing.x;
 
-		bool open = _open_addon_index == static_cast<int>(index + 1);
+		const bool open = _open_addon_index == i;
 		if (ImGui::ArrowButton("addon_open", open ? ImGuiDir_Down : ImGuiDir_Right))
-			_open_addon_index = open ? 0 : static_cast<int>(index + 1);
+			_open_addon_index = open ? std::numeric_limits<size_t>::max() : i;
 		ImGui::SameLine();
 		ImGui::TextUnformatted(info.name.c_str());
 
@@ -3257,7 +3257,7 @@ bool reshade::runtime::init_imgui_resources()
 	}
 	else if ((_renderer_id & 0x10000) != 0)
 	{
-		static const char vertex_shader[] =
+		constexpr char vertex_shader[] =
 			"#version 430\n"
 			"layout(binding = 0) uniform Buf { mat4 proj; };\n"
 			"layout(location = 0) in vec2 pos;\n"
@@ -3271,7 +3271,7 @@ bool reshade::runtime::init_imgui_resources()
 			"	frag_tex = tex;\n"
 			"	gl_Position = proj * vec4(pos.xy, 0, 1);\n"
 			"}\n";
-		static const char fragment_shader[] =
+		constexpr char fragment_shader[] =
 			"#version 430\n"
 			"layout(binding = 0) uniform sampler2D s0;\n"
 			"in vec4 frag_col;\n"
@@ -3353,10 +3353,8 @@ bool reshade::runtime::init_imgui_resources()
 }
 void reshade::runtime::render_imgui_draw_data(ImDrawData *draw_data, api::resource_view target)
 {
-	const bool has_combined_sampler_and_view = _device->check_capability(api::device_caps::sampler_with_resource_view);
-
 	// Need to multi-buffer vertex data so not to modify data below when the previous frame is still in flight
-	const unsigned int buffer_index = _framecount % static_cast<unsigned int>(std::size(_imgui_vertices));
+	const size_t buffer_index = _framecount % std::size(_imgui_vertices);
 
 	// Create and grow vertex/index buffers if needed
 	if (_imgui_num_indices[buffer_index] < draw_data->TotalIdxCount)
@@ -3445,8 +3443,8 @@ void reshade::runtime::render_imgui_draw_data(ImDrawData *draw_data, api::resour
 		(flip_y ? -1 : 1) * (2 * draw_data->DisplayPos.y + draw_data->DisplaySize.y + (adjust_half_pixel ? 1.0f : 0.0f)) / draw_data->DisplaySize.y, depth_clip_zero_to_one ? 0.5f : 0.0f, 1.0f,
 	};
 
-	cmd_list->push_constants(api::shader_stage::vertex, _imgui_pipeline_layout, has_combined_sampler_and_view ? 1 : 2, 0, sizeof(ortho_projection) / 4, reinterpret_cast<const uint32_t *>(ortho_projection));
-
+	const bool has_combined_sampler_and_view = _device->check_capability(api::device_caps::sampler_with_resource_view);
+	cmd_list->push_constants(api::shader_stage::vertex, _imgui_pipeline_layout, has_combined_sampler_and_view ? 1 : 2, 0, sizeof(ortho_projection) / 4, ortho_projection);
 	if (!has_combined_sampler_and_view)
 		cmd_list->push_descriptors(api::shader_stage::pixel, _imgui_pipeline_layout, 0, api::descriptor_type::sampler, 0, 1, &_imgui_sampler_state);
 
@@ -3497,7 +3495,7 @@ void reshade::runtime::destroy_imgui_resources()
 	_font_atlas_srv = {};
 	_rebuild_font_atlas = true;
 
-	for (unsigned int i = 0; i < std::size(_imgui_vertices); ++i)
+	for (size_t i = 0; i < std::size(_imgui_vertices); ++i)
 	{
 		_device->destroy_resource(_imgui_indices[i]);
 		_imgui_indices[i] = {};
