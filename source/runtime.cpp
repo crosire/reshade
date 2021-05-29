@@ -1481,8 +1481,6 @@ bool reshade::runtime::init_effect(size_t effect_index)
 
 			if (!pass_info.cs_entry_point.empty())
 			{
-				tech.has_compute_passes = true;
-
 				api::pipeline_desc desc = { api::pipeline_type::compute };
 				desc.layout = effect.layout;
 
@@ -2714,23 +2712,6 @@ void reshade::runtime::render_technique(technique &tech)
 		cmd_list->begin_debug_marker((pass_info.name.empty() ? "Pass " + std::to_string(pass_index) : pass_info.name).c_str(), debug_event_col);
 #endif
 
-		// Reset bindings on every pass (since they get invalidated by the call to 'generate_mipmaps' below)
-		if (effect.cb.handle != 0)
-		{
-			cmd_list->bind_descriptor_sets(api::pipeline_type::graphics, effect.layout, 0, 1, &effect.cb_set);
-			if (tech.has_compute_passes)
-				cmd_list->bind_descriptor_sets(api::pipeline_type::compute, effect.layout, 0, 1, &effect.cb_set);
-		}
-
-		if (effect.sampler_set.handle != 0)
-		{
-			assert(!sampler_with_resource_view);
-
-			cmd_list->bind_descriptor_sets(api::pipeline_type::graphics, effect.layout, 1, 1, &effect.sampler_set);
-			if (tech.has_compute_passes)
-				cmd_list->bind_descriptor_sets(api::pipeline_type::compute, effect.layout, 1, 1, &effect.sampler_set);
-		}
-
 		if (!pass_info.cs_entry_point.empty())
 		{
 			// Compute shaders do not write to the back buffer, so no update necessary
@@ -2742,6 +2723,12 @@ void reshade::runtime::render_technique(technique &tech)
 			std::vector<api::resource_usage> state_new(pass_data.modified_resources.size(), api::resource_usage::unordered_access);
 			cmd_list->barrier(static_cast<uint32_t>(pass_data.modified_resources.size()), pass_data.modified_resources.data(), state_old.data(), state_new.data());
 
+			// Reset bindings on every pass (since they get invalidated by the call to 'generate_mipmaps' below)
+			if (effect.cb.handle != 0)
+				cmd_list->bind_descriptor_sets(api::pipeline_type::compute, effect.layout, 0, 1, &effect.cb_set);
+			if (effect.sampler_set.handle != 0)
+				assert(!sampler_with_resource_view),
+				cmd_list->bind_descriptor_sets(api::pipeline_type::compute, effect.layout, 1, 1, &effect.sampler_set);
 			if (pass_data.texture_set.handle != 0)
 				cmd_list->bind_descriptor_sets(api::pipeline_type::compute, effect.layout, sampler_with_resource_view ? 1 : 2, 1, &pass_data.texture_set);
 			if (pass_data.storage_set.handle != 0)
@@ -2796,6 +2783,12 @@ void reshade::runtime::render_technique(technique &tech)
 					pass_info.stencil_enable && pass_info.viewport_width == _width && pass_info.viewport_height == _height ? _effect_stencil_view : api::resource_view { 0 });
 			}
 
+			// Reset bindings on every pass (since they get invalidated by the call to 'generate_mipmaps' below)
+			if (effect.cb.handle != 0)
+				cmd_list->bind_descriptor_sets(api::pipeline_type::graphics, effect.layout, 0, 1, &effect.cb_set);
+			if (effect.sampler_set.handle != 0)
+				assert(!sampler_with_resource_view),
+				cmd_list->bind_descriptor_sets(api::pipeline_type::graphics, effect.layout, 1, 1, &effect.sampler_set);
 			// Setup shader resources after binding render targets, to ensure any OM bindings by the application are unset at this point
 			// Otherwise a slot referencing a resource still bound to the OM would be filled with NULL, which can happen with the depth buffer (https://docs.microsoft.com/windows/win32/api/d3d11/nf-d3d11-id3d11devicecontext-pssetshaderresources)
 			if (pass_data.texture_set.handle != 0)

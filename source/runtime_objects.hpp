@@ -187,7 +187,6 @@ namespace reshade
 			api::descriptor_set storage_set = {};
 		};
 
-		bool has_compute_passes = false;
 		std::vector<pass_data> passes_data;
 		uint32_t query_base_index = 0;
 	};
