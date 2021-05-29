@@ -119,7 +119,7 @@ void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 
 	if (FAILED(hr))
 	{
-		LOG(ERROR) << "Failed to create copy state block!";
+		LOG(ERROR) << "Failed to create copy pipeline!";
 		return;
 	}
 

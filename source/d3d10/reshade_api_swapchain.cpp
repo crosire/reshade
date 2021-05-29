@@ -4,7 +4,6 @@
  */
 
 #include "dll_log.hpp"
-#include "dll_resources.hpp"
 #include "reshade_api_swapchain.hpp"
 #include "reshade_api_type_utils.hpp"
 #include <d3dcompiler.h>
@@ -113,44 +112,6 @@ bool reshade::d3d10::swapchain_impl::on_init()
 	if (FAILED(_device_impl->_orig->CreateRenderTargetView(_backbuffer_resolved.get(), &rtv_desc, &_backbuffer_rtv[1])))
 		return false;
 
-	// Create copy states
-	if (_copy_pixel_shader == nullptr)
-	{
-		const resources::data_resource ps = resources::load_data_resource(IDR_COPY_PS);
-		if (FAILED(_device_impl->_orig->CreatePixelShader(ps.data, ps.data_size, &_copy_pixel_shader)))
-			return false;
-	}
-	if (_copy_vertex_shader == nullptr)
-	{
-		const resources::data_resource vs = resources::load_data_resource(IDR_FULLSCREEN_VS);
-		if (FAILED(_device_impl->_orig->CreateVertexShader(vs.data, vs.data_size, &_copy_vertex_shader)))
-			return false;
-	}
-
-	if (_copy_sampler_state == nullptr)
-	{
-		D3D10_SAMPLER_DESC desc = {};
-		desc.Filter = D3D10_FILTER_MIN_MAG_MIP_POINT;
-		desc.AddressU = D3D10_TEXTURE_ADDRESS_CLAMP;
-		desc.AddressV = D3D10_TEXTURE_ADDRESS_CLAMP;
-		desc.AddressW = D3D10_TEXTURE_ADDRESS_CLAMP;
-
-		if (FAILED(_device_impl->_orig->CreateSamplerState(&desc, &_copy_sampler_state)))
-			return false;
-	}
-
-	// Create effect states
-	if (_effect_rasterizer == nullptr)
-	{
-		D3D10_RASTERIZER_DESC desc = {};
-		desc.FillMode = D3D10_FILL_SOLID;
-		desc.CullMode = D3D10_CULL_NONE;
-		desc.DepthClipEnable = TRUE;
-
-		if (FAILED(_device_impl->_orig->CreateRasterizerState(&desc, &_effect_rasterizer)))
-			return false;
-	}
-
 	return runtime::on_init(swap_desc.OutputWindow);
 }
 void reshade::d3d10::swapchain_impl::on_reset()
@@ -190,14 +151,14 @@ void reshade::d3d10::swapchain_impl::on_present()
 		const uintptr_t null = 0;
 		immediate_context->IASetVertexBuffers(0, 1, reinterpret_cast<ID3D10Buffer *const *>(&null), reinterpret_cast<const UINT *>(&null), reinterpret_cast<const UINT *>(&null));
 		immediate_context->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		immediate_context->VSSetShader(_copy_vertex_shader.get());
+		immediate_context->VSSetShader(_device_impl->_copy_vert_shader.get());
 		immediate_context->GSSetShader(nullptr);
-		immediate_context->PSSetShader(_copy_pixel_shader.get());
-		ID3D10SamplerState *const samplers[] = { _copy_sampler_state.get() };
+		immediate_context->PSSetShader(_device_impl->_copy_pixel_shader.get());
+		ID3D10SamplerState *const samplers[] = { _device_impl->_copy_sampler_state.get() };
 		immediate_context->PSSetSamplers(0, ARRAYSIZE(samplers), samplers);
 		ID3D10ShaderResourceView *const srvs[] = { _backbuffer_texture_srv.get() };
 		immediate_context->PSSetShaderResources(0, ARRAYSIZE(srvs), srvs);
-		immediate_context->RSSetState(_effect_rasterizer.get());
+		immediate_context->RSSetState(nullptr);
 		const D3D10_VIEWPORT viewport = { 0, 0, _width, _height, 0.0f, 1.0f };
 		immediate_context->RSSetViewports(1, &viewport);
 		immediate_context->OMSetBlendState(nullptr, nullptr, D3D10_DEFAULT_SAMPLE_MASK);

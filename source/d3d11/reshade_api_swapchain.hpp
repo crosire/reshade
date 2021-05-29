@@ -42,16 +42,10 @@ namespace reshade::d3d11
 
 		state_block _app_state;
 
-		com_ptr<ID3D11PixelShader> _copy_pixel_shader;
-		com_ptr<ID3D11VertexShader> _copy_vertex_shader;
-		com_ptr<ID3D11SamplerState> _copy_sampler_state;
-
 		com_ptr<ID3D11Texture2D> _backbuffer;
 		com_ptr<ID3D11Texture2D> _backbuffer_resolved;
 		com_ptr<ID3D11RenderTargetView> _backbuffer_rtv[3];
 		com_ptr<ID3D11Texture2D> _backbuffer_texture;
 		com_ptr<ID3D11ShaderResourceView> _backbuffer_texture_srv;
-
-		com_ptr<ID3D11RasterizerState> _effect_rasterizer;
 	};
 }

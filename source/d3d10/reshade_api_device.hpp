@@ -14,6 +14,8 @@ namespace reshade::d3d10
 {
 	class device_impl : public api::api_object_impl<ID3D10Device1 *, api::device, api::command_queue, api::command_list>
 	{
+		friend class swapchain_impl;
+
 	public:
 		explicit device_impl(ID3D10Device1 *device);
 		~device_impl();
@@ -127,6 +129,10 @@ namespace reshade::d3d10
 		void finish_debug_marker() final {}
 
 	private:
+		com_ptr<ID3D10VertexShader> _copy_vert_shader;
+		com_ptr<ID3D10PixelShader>  _copy_pixel_shader;
+		com_ptr<ID3D10SamplerState> _copy_sampler_state;
+
 		UINT _push_constants_size = 0;
 		com_ptr<ID3D10Buffer> _push_constants;
 

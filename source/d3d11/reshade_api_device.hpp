@@ -14,6 +14,8 @@ namespace reshade::d3d11
 {
 	class device_impl : public api::api_object_impl<ID3D11Device *, api::device>
 	{
+		friend class swapchain_impl;
+
 	public:
 		explicit device_impl(ID3D11Device *device);
 		~device_impl();
@@ -75,8 +77,13 @@ namespace reshade::d3d11
 
 		void set_debug_name(api::resource resource, const char *name) final;
 
-	protected:
+	private:
 		ID3D11DeviceContext *_immediate_context_orig = nullptr;
+		com_ptr<ID3D11VertexShader> _copy_vert_shader;
+		com_ptr<ID3D11PixelShader>  _copy_pixel_shader;
+		com_ptr<ID3D11SamplerState> _copy_sampler_state;
+
+	protected:
 		com_object_list<ID3D11View> _views;
 		com_object_list<ID3D11Resource> _resources;
 	};

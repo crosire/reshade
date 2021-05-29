@@ -4,6 +4,7 @@
  */
 
 #include "dll_log.hpp"
+#include "dll_resources.hpp"
 #include "reshade_api_device.hpp"
 #include "reshade_api_type_utils.hpp"
 #include <algorithm>
@@ -11,6 +12,24 @@
 reshade::d3d10::device_impl::device_impl(ID3D10Device1 *device) :
 	api_object_impl(device)
 {
+	// Create copy pipeline
+	{
+		D3D10_SAMPLER_DESC desc = {};
+		desc.Filter = D3D10_FILTER_MIN_MAG_MIP_POINT;
+		desc.AddressU = D3D10_TEXTURE_ADDRESS_CLAMP;
+		desc.AddressV = D3D10_TEXTURE_ADDRESS_CLAMP;
+		desc.AddressW = D3D10_TEXTURE_ADDRESS_CLAMP;
+
+		const resources::data_resource vs = resources::load_data_resource(IDR_FULLSCREEN_VS);
+		const resources::data_resource ps = resources::load_data_resource(IDR_COPY_PS);
+		if (FAILED(_orig->CreateVertexShader(vs.data, vs.data_size, &_copy_vert_shader)) ||
+			FAILED(_orig->CreatePixelShader(ps.data, ps.data_size, &_copy_pixel_shader)) ||
+			FAILED(_orig->CreateSamplerState(&desc, &_copy_sampler_state)))
+		{
+			LOG(ERROR) << "Failed to create copy pipeline!";
+		}
+	}
+
 #if RESHADE_ADDON
 	addon::load_addons();
 
