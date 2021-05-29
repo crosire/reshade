@@ -5,7 +5,7 @@
 
 #include "reshade_api_device.hpp"
 #include "reshade_api_command_list.hpp"
-#include "reshade_api_type_utils.hpp"
+#include "reshade_api_type_convert.hpp"
 #include <algorithm>
 
 #define vk _device_impl->_dispatch_table

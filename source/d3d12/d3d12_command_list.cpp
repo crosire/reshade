@@ -6,7 +6,7 @@
 #include "dll_log.hpp"
 #include "d3d12_device.hpp"
 #include "d3d12_command_list.hpp"
-#include "reshade_api_type_utils.hpp"
+#include "reshade_api_type_convert.hpp"
 
 D3D12GraphicsCommandList::D3D12GraphicsCommandList(D3D12Device *device, ID3D12GraphicsCommandList *original) :
 	command_list_impl(device, original),

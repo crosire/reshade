@@ -18,8 +18,8 @@ static std::mutex s_global_mutex;
 static std::unordered_set<HDC> s_pbuffer_device_contexts;
 static std::unordered_set<HGLRC> s_legacy_contexts;
 static std::unordered_map<HGLRC, HGLRC> s_shared_contexts;
-static std::unordered_map<HGLRC, reshade::opengl::swapchain_impl *> s_opengl_runtimes;
-thread_local reshade::opengl::swapchain_impl *g_current_runtime = nullptr;
+static std::unordered_map<HGLRC, reshade::opengl::swapchain_impl *> s_opengl_contexts;
+thread_local reshade::opengl::swapchain_impl *g_current_context = nullptr;
 
 HOOK_EXPORT int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPTOR *ppfd)
 {
@@ -496,8 +496,8 @@ HOOK_EXPORT BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 {
 	LOG(INFO) << "Redirecting " << "wglDeleteContext" << '(' << "hglrc = " << hglrc << ')' << " ...";
 
-	if (const auto it = s_opengl_runtimes.find(hglrc);
-		it != s_opengl_runtimes.end())
+	if (const auto it = s_opengl_contexts.find(hglrc);
+		it != s_opengl_contexts.end())
 	{
 #if RESHADE_VERBOSE_LOG
 		LOG(DEBUG) << "> Cleaning up runtime " << it->second << " ...";
@@ -543,11 +543,11 @@ HOOK_EXPORT BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 				DestroyWindow(dummy_window_handle);
 		}
 
-		// Ensure the runtime is not still current after deleting
-		if (it->second == g_current_runtime)
-			g_current_runtime = nullptr;
+		// Ensure the effect runtime is not still current after deleting
+		if (it->second == g_current_context)
+			g_current_context = nullptr;
 
-		s_opengl_runtimes.erase(it);
+		s_opengl_contexts.erase(it);
 	}
 
 	{ const std::lock_guard<std::mutex> lock(s_global_mutex);
@@ -619,7 +619,7 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 	}
 	else if (hglrc == nullptr)
 	{
-		g_current_runtime = nullptr;
+		g_current_context = nullptr;
 
 		return TRUE;
 	}
@@ -636,12 +636,12 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 #endif
 	}
 
-	if (const auto it = s_opengl_runtimes.find(hglrc);
-		it != s_opengl_runtimes.end())
+	if (const auto it = s_opengl_contexts.find(hglrc);
+		it != s_opengl_contexts.end())
 	{
-		if (it->second != g_current_runtime)
+		if (it->second != g_current_context)
 		{
-			g_current_runtime = it->second;
+			g_current_context = it->second;
 
 #if RESHADE_VERBOSE_LOG
 			LOG(DEBUG) << "Switched to existing runtime " << it->second << '.';
@@ -649,7 +649,7 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		}
 
 		// Keep track of all device contexts that were used with this render context
-		// Do this outside the above if statement since the application may change the device context without changing the render context and thus the current runtime
+		// Do this outside the above if statement since the application may change the device context without changing the render context and thus the current effect runtime
 		it->second->_hdcs.insert(hdc);
 	}
 	else
@@ -658,7 +658,7 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 		if (hwnd == nullptr || s_pbuffer_device_contexts.find(hdc) != s_pbuffer_device_contexts.end())
 		{
-			g_current_runtime = nullptr;
+			g_current_context = nullptr;
 
 			LOG(DEBUG) << "Skipping render context " << hglrc << " because there is no window associated with its device context " << hdc << '.';
 			return TRUE;
@@ -683,7 +683,7 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 #if RESHADE_ADDON
 			assert(s_hooks_installed);
 
-			// Get trampoline pointers to any hooked functions, so that runtime always calls into original OpenGL functions
+			// Get trampoline pointers to any hooked functions, so that effect runtime always calls into original OpenGL functions
 			gl3wProcs.gl.BindBuffer = reshade::hooks::call(glBindBuffer);
 			gl3wProcs.gl.BindBufferBase = reshade::hooks::call(glBindBufferBase);
 			gl3wProcs.gl.BindBufferRange = reshade::hooks::call(glBindBufferRange);
@@ -801,7 +801,7 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 			if (s_legacy_contexts.find(hglrc) != s_legacy_contexts.end())
 				runtime->_compatibility_context = true;
 
-			g_current_runtime = s_opengl_runtimes[hglrc] = runtime;
+			g_current_context = s_opengl_contexts[hglrc] = runtime;
 
 #if RESHADE_VERBOSE_LOG
 			LOG(DEBUG) << "Switched to new runtime " << runtime << '.';
@@ -811,7 +811,7 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		{
 			LOG(ERROR) << "Your graphics card does not seem to support OpenGL 4.3. Initialization failed.";
 
-			g_current_runtime = nullptr;
+			g_current_context = nullptr;
 		}
 	}
 
@@ -954,13 +954,13 @@ HOOK_EXPORT BOOL  WINAPI wglSwapBuffers(HDC hdc)
 {
 	static const auto trampoline = reshade::hooks::call(wglSwapBuffers);
 
-	reshade::opengl::swapchain_impl *runtime = g_current_runtime;
+	reshade::opengl::swapchain_impl *runtime = g_current_context;
 	if (runtime == nullptr || runtime->_hdcs.find(hdc) == runtime->_hdcs.end())
 	{
 		// Find the runtime that is associated with this device context
-		const auto it = std::find_if(s_opengl_runtimes.begin(), s_opengl_runtimes.end(),
+		const auto it = std::find_if(s_opengl_contexts.begin(), s_opengl_contexts.end(),
 			[hdc](const std::pair<HGLRC, reshade::opengl::swapchain_impl *> &it) { return it.second->_hdcs.find(hdc) != it.second->_hdcs.end(); });
-		runtime = (it != s_opengl_runtimes.end()) ? it->second : nullptr;
+		runtime = (it != s_opengl_contexts.end()) ? it->second : nullptr;
 	}
 
 	// The window handle can be invalid if the window was already destroyed

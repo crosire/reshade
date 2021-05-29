@@ -85,7 +85,7 @@ struct DECLSPEC_UUID("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8") DXGISwapChain final
 	void runtime_reset(UINT width, UINT height);
 	void runtime_resize();
 	void runtime_present(UINT flags);
-	void handle_runtime_loss(HRESULT hr);
+	void handle_device_loss(HRESULT hr);
 
 	bool check_and_upgrade_interface(REFIID riid);
 
@@ -95,8 +95,8 @@ struct DECLSPEC_UUID("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8") DXGISwapChain final
 	IUnknown *const _direct3d_device;
 	IUnknown *const _direct3d_command_queue;
 	const unsigned int _direct3d_version;
-	std::mutex _runtime_mutex;
-	reshade::runtime *const _runtime;
+	std::mutex _impl_mutex;
+	reshade::runtime *const _impl;
 	bool _force_vsync = false;
 	bool _force_10_bit_format = false;
 	unsigned int _force_resolution[2] = { 0, 0 };

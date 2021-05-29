@@ -5,7 +5,7 @@
 
 #include "dll_log.hpp"
 #include "reshade_api_device.hpp"
-#include "reshade_api_type_utils.hpp"
+#include "reshade_api_type_convert.hpp"
 #include <algorithm>
 
 void reshade::d3d9::device_impl::bind_pipeline(api::pipeline_type type, api::pipeline pipeline)

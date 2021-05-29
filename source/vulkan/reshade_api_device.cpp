@@ -6,7 +6,7 @@
 #include "dll_log.hpp"
 #include "reshade_api_device.hpp"
 #include "reshade_api_command_queue.hpp"
-#include "reshade_api_type_utils.hpp"
+#include "reshade_api_type_convert.hpp"
 #include <algorithm>
 
 #define vk _dispatch_table
@@ -50,7 +50,7 @@ reshade::vulkan::device_impl::device_impl(VkDevice device, VkPhysicalDevice phys
 		functions.vkGetPhysicalDeviceMemoryProperties2KHR = instance_table.GetPhysicalDeviceMemoryProperties2;
 
 		VmaAllocatorCreateInfo create_info = {};
-		// The runtime runs in a single thread, so no synchronization necessary
+		// The effect runtime runs in a single thread, so no synchronization necessary
 		create_info.flags = VMA_ALLOCATOR_CREATE_EXTERNALLY_SYNCHRONIZED_BIT;
 		create_info.physicalDevice = physical_device;
 		create_info.device = device;

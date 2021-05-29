@@ -4,7 +4,7 @@
  */
 
 #include "reshade_api_device.hpp"
-#include "reshade_api_type_utils.hpp"
+#include "reshade_api_type_convert.hpp"
 #include <cassert>
 
 static GLint get_rbo_param(GLuint id, GLenum param)
@@ -719,7 +719,7 @@ bool reshade::opengl::device_impl::create_pipeline_compute(const api::pipeline_d
 	if (cs != 0)
 		glDetachShader(program, cs);
 
-	glDeleteShader(cs)
+	glDeleteShader(cs);
 
 	GLint status = GL_FALSE;
 	glGetProgramiv(program, GL_LINK_STATUS, &status);

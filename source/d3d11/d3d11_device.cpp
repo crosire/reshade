@@ -7,7 +7,7 @@
 #include "d3d11_device.hpp"
 #include "d3d11_device_context.hpp"
 #include "dxgi/dxgi_device.hpp"
-#include "reshade_api_type_utils.hpp"
+#include "reshade_api_type_convert.hpp"
 
 D3D11Device::D3D11Device(IDXGIDevice1 *dxgi_device, ID3D11Device *original) :
 	device_impl(original),

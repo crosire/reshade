@@ -138,7 +138,7 @@
     <ClCompile Include="source\d3d9\reshade_api_swapchain.cpp">
       <Filter>hooks\d3d9</Filter>
     </ClCompile>
-    <ClCompile Include="source\d3d9\reshade_api_type_utils.cpp">
+    <ClCompile Include="source\d3d9\reshade_api_type_convert.cpp">
       <Filter>hooks\d3d9</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d9\state_block.cpp">
@@ -162,7 +162,7 @@
     <ClCompile Include="source\d3d10\reshade_api_swapchain.cpp">
       <Filter>hooks\d3d10</Filter>
     </ClCompile>
-    <ClCompile Include="source\d3d10\reshade_api_type_utils.cpp">
+    <ClCompile Include="source\d3d10\reshade_api_type_convert.cpp">
       <Filter>hooks\d3d10</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d10\state_block.cpp">
@@ -192,7 +192,7 @@
     <ClCompile Include="source\d3d11\reshade_api_swapchain.cpp">
       <Filter>hooks\d3d11</Filter>
     </ClCompile>
-    <ClCompile Include="source\d3d11\reshade_api_type_utils.cpp">
+    <ClCompile Include="source\d3d11\reshade_api_type_convert.cpp">
       <Filter>hooks\d3d11</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d11\state_block.cpp">
@@ -231,7 +231,7 @@
     <ClCompile Include="source\d3d12\reshade_api_swapchain.cpp">
       <Filter>hooks\d3d12</Filter>
     </ClCompile>
-    <ClCompile Include="source\d3d12\reshade_api_type_utils.cpp">
+    <ClCompile Include="source\d3d12\reshade_api_type_convert.cpp">
       <Filter>hooks\d3d12</Filter>
     </ClCompile>
     <ClCompile Include="source\dxgi\dxgi.cpp">
@@ -264,7 +264,7 @@
     <ClCompile Include="source\opengl\reshade_api_swapchain.cpp">
       <Filter>hooks\opengl</Filter>
     </ClCompile>
-    <ClCompile Include="source\opengl\reshade_api_type_utils.cpp">
+    <ClCompile Include="source\opengl\reshade_api_type_convert.cpp">
       <Filter>hooks\opengl</Filter>
     </ClCompile>
     <ClCompile Include="source\opengl\state_block.cpp">
@@ -288,7 +288,7 @@
     <ClCompile Include="source\vulkan\reshade_api_swapchain.cpp">
       <Filter>hooks\vulkan</Filter>
     </ClCompile>
-    <ClCompile Include="source\vulkan\reshade_api_type_utils.cpp">
+    <ClCompile Include="source\vulkan\reshade_api_type_convert.cpp">
       <Filter>hooks\vulkan</Filter>
     </ClCompile>
     <ClCompile Include="source\vulkan\vulkan_hooks.cpp">
@@ -383,7 +383,7 @@
     <ClInclude Include="source\d3d9\reshade_api_swapchain.hpp">
       <Filter>hooks\d3d9</Filter>
     </ClInclude>
-    <ClInclude Include="source\d3d9\reshade_api_type_utils.hpp">
+    <ClInclude Include="source\d3d9\reshade_api_type_convert.hpp">
       <Filter>hooks\d3d9</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d9\state_block.hpp">
@@ -398,7 +398,7 @@
     <ClInclude Include="source\d3d10\reshade_api_swapchain.hpp">
       <Filter>hooks\d3d10</Filter>
     </ClInclude>
-    <ClInclude Include="source\d3d10\reshade_api_type_utils.hpp">
+    <ClInclude Include="source\d3d10\reshade_api_type_convert.hpp">
       <Filter>hooks\d3d10</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d10\state_block.hpp">
@@ -422,7 +422,7 @@
     <ClInclude Include="source\d3d11\reshade_api_swapchain.hpp">
       <Filter>hooks\d3d11</Filter>
     </ClInclude>
-    <ClInclude Include="source\d3d11\reshade_api_type_utils.hpp">
+    <ClInclude Include="source\d3d11\reshade_api_type_convert.hpp">
       <Filter>hooks\d3d11</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d11\state_block.hpp">
@@ -461,7 +461,7 @@
     <ClInclude Include="source\d3d12\reshade_api_swapchain.hpp">
       <Filter>hooks\d3d12</Filter>
     </ClInclude>
-    <ClInclude Include="source\d3d12\reshade_api_type_utils.hpp">
+    <ClInclude Include="source\d3d12\reshade_api_type_convert.hpp">
       <Filter>hooks\d3d12</Filter>
     </ClInclude>
     <ClInclude Include="source\dxgi\dxgi_device.hpp">
@@ -482,7 +482,7 @@
     <ClInclude Include="source\opengl\reshade_api_swapchain.hpp">
       <Filter>hooks\opengl</Filter>
     </ClInclude>
-    <ClInclude Include="source\opengl\reshade_api_type_utils.hpp">
+    <ClInclude Include="source\opengl\reshade_api_type_convert.hpp">
       <Filter>hooks\opengl</Filter>
     </ClInclude>
     <ClInclude Include="source\opengl\state_block.hpp">
@@ -506,7 +506,7 @@
     <ClInclude Include="source\vulkan\reshade_api_swapchain.hpp">
       <Filter>hooks\vulkan</Filter>
     </ClInclude>
-    <ClInclude Include="source\vulkan\reshade_api_type_utils.hpp">
+    <ClInclude Include="source\vulkan\reshade_api_type_convert.hpp">
       <Filter>hooks\vulkan</Filter>
     </ClInclude>
     <ClInclude Include="source\vulkan\vulkan_hooks.hpp">

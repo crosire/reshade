@@ -8,14 +8,14 @@
 #include "vulkan_hooks.hpp"
 #include "lockfree_table.hpp"
 #include "reshade_api_swapchain.hpp"
-#include "reshade_api_type_utils.hpp"
+#include "reshade_api_type_convert.hpp"
 
 lockfree_table<void *, reshade::vulkan::device_impl *, 16> g_vulkan_devices;
 static lockfree_table<VkQueue, reshade::vulkan::command_queue_impl *, 16> s_vulkan_queues;
 static lockfree_table<VkCommandBuffer, reshade::vulkan::command_list_impl *, 4096> s_vulkan_command_buffers;
 extern lockfree_table<void *, VkLayerInstanceDispatchTable, 16> g_instance_dispatch;
 extern lockfree_table<VkSurfaceKHR, HWND, 16> g_surface_windows;
-static lockfree_table<VkSwapchainKHR, reshade::vulkan::swapchain_impl *, 16> s_vulkan_runtimes;
+static lockfree_table<VkSwapchainKHR, reshade::vulkan::swapchain_impl *, 16> s_vulkan_swapchains;
 
 #define GET_DISPATCH_PTR(name, object) \
 	GET_DISPATCH_PTR_FROM(name, g_vulkan_devices.at(dispatch_key_from_handle(object)))
@@ -510,7 +510,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	if (device_impl->_graphics_queue_family_index != std::numeric_limits<uint32_t>::max())
 	{
 		// Get the main graphics queue for command submission
-		// There has to be at least one queue, or else this runtime would not have been created with this queue family index, so it is safe to get the first one here
+		// There has to be at least one queue, or else this effect runtime would not have been created with this queue family index, so it is safe to get the first one here
 		VkQueue graphics_queue = VK_NULL_HANDLE;
 		device_impl->_dispatch_table.GetDeviceQueue(device, device_impl->_graphics_queue_family_index, 0, &graphics_queue);
 		assert(VK_NULL_HANDLE != graphics_queue);
@@ -520,37 +520,37 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 
 	if (queue_impl != nullptr)
 	{
-		// Remove old swap chain from the list so that a call to 'vkDestroySwapchainKHR' won't reset the runtime again
-		reshade::vulkan::swapchain_impl *runtime = s_vulkan_runtimes.erase(create_info.oldSwapchain);
-		if (runtime != nullptr)
+		// Remove old swap chain from the list so that a call to 'vkDestroySwapchainKHR' won't reset the effect runtime again
+		reshade::vulkan::swapchain_impl *swapchain_impl = s_vulkan_swapchains.erase(create_info.oldSwapchain);
+		if (swapchain_impl != nullptr)
 		{
 			assert(create_info.oldSwapchain != VK_NULL_HANDLE);
 
 #if RESHADE_ADDON
 			reshade::invoke_addon_event<reshade::addon_event::resize>(
-				runtime, create_info.imageExtent.width, create_info.imageExtent.height);
+				swapchain_impl, create_info.imageExtent.width, create_info.imageExtent.height);
 #endif
 
-			// Re-use the existing runtime if this swap chain was not created from scratch, but reset it before initializing again below
-			runtime->on_reset();
+			// Re-use the existing effect runtime if this swap chain was not created from scratch, but reset it before initializing again below
+			swapchain_impl->on_reset();
 		}
 		else
 		{
-			runtime = new reshade::vulkan::swapchain_impl(device_impl, queue_impl);
+			swapchain_impl = new reshade::vulkan::swapchain_impl(device_impl, queue_impl);
 		}
 
 		// Look up window handle from surface
 		const HWND hwnd = g_surface_windows.at(create_info.surface);
 
-		if (!runtime->on_init(*pSwapchain, create_info, hwnd))
-			LOG(ERROR) << "Failed to initialize Vulkan runtime environment on runtime " << runtime << '.';
+		if (!swapchain_impl->on_init(*pSwapchain, create_info, hwnd))
+			LOG(ERROR) << "Failed to initialize Vulkan runtime environment on runtime " << swapchain_impl << '.';
 
-		if (!s_vulkan_runtimes.emplace(*pSwapchain, runtime))
-			delete runtime;
+		if (!s_vulkan_swapchains.emplace(*pSwapchain, swapchain_impl))
+			delete swapchain_impl;
 	}
 	else
 	{
-		s_vulkan_runtimes.emplace(*pSwapchain, nullptr);
+		s_vulkan_swapchains.emplace(*pSwapchain, nullptr);
 	}
 
 #if RESHADE_VERBOSE_LOG
@@ -565,8 +565,8 @@ void     VKAPI_CALL vkDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapch
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
 	assert(device_impl != nullptr);
 
-	// Remove runtime from global list
-	delete s_vulkan_runtimes.erase(swapchain);
+	// Remove swap chain from global list
+	delete s_vulkan_swapchains.erase(swapchain);
 
 	GET_DISPATCH_PTR_FROM(DestroySwapchainKHR, device_impl);
 	trampoline(device, swapchain, pAllocator);
@@ -611,14 +611,14 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 	{
 		for (uint32_t i = 0; i < pPresentInfo->swapchainCount; ++i)
 		{
-			if (const auto runtime = s_vulkan_runtimes.at(pPresentInfo->pSwapchains[i]);
-				runtime != nullptr)
+			reshade::vulkan::swapchain_impl *const swapchain_impl = s_vulkan_swapchains.at(pPresentInfo->pSwapchains[i]);
+			if (swapchain_impl != nullptr)
 			{
 #if RESHADE_ADDON
-				reshade::invoke_addon_event<reshade::addon_event::present>(queue_impl, runtime);
+				reshade::invoke_addon_event<reshade::addon_event::present>(queue_impl, swapchain_impl);
 #endif
 
-				runtime->on_present(queue, pPresentInfo->pImageIndices[i], wait_semaphores);
+				swapchain_impl->on_present(queue, pPresentInfo->pImageIndices[i], wait_semaphores);
 			}
 		}
 

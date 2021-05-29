@@ -87,7 +87,7 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	HOOK_PROC(GetDeviceProcAddr);
 
 #ifdef RESHADE_TEST_APPLICATION
-	const auto trampoline = reshade::hooks::call(vkGetDeviceProcAddr);
+	static const auto trampoline = reshade::hooks::call(vkGetDeviceProcAddr);
 #else
 	if (device == VK_NULL_HANDLE)
 		return nullptr;
@@ -110,7 +110,7 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr(VkInstance i
 	HOOK_PROC(GetInstanceProcAddr);
 
 #ifdef RESHADE_TEST_APPLICATION
-	const auto trampoline = reshade::hooks::call(vkGetInstanceProcAddr);
+	static const auto trampoline = reshade::hooks::call(vkGetInstanceProcAddr);
 #else
 	if (instance == VK_NULL_HANDLE)
 		return nullptr;

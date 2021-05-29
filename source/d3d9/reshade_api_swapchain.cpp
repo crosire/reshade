@@ -5,8 +5,7 @@
 
 #include "dll_log.hpp"
 #include "reshade_api_swapchain.hpp"
-#include "reshade_api_type_utils.hpp"
-#include <d3dcompiler.h>
+#include "reshade_api_type_convert.hpp"
 
 reshade::d3d9::swapchain_impl::swapchain_impl(device_impl *device, IDirect3DSwapChain9 *swapchain) :
 	api_object_impl(swapchain),

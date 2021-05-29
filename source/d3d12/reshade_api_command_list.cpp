@@ -5,7 +5,7 @@
 
 #include "reshade_api_device.hpp"
 #include "reshade_api_command_list.hpp"
-#include "reshade_api_type_utils.hpp"
+#include "reshade_api_type_convert.hpp"
 #include <algorithm>
 
 void encode_pix3blob(UINT64(&pix3blob)[64], const char *label, const float color[4])

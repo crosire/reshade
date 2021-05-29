@@ -19,7 +19,7 @@
 #include <ivrclientcore.h>
 
 // There can only be a single global effect runtime in OpenVR (since its API is based on singletons)
-static std::pair<reshade::runtime *, vr::ETextureType> s_vr_runtime = { nullptr, vr::TextureType_Invalid };
+static std::pair<reshade::api::swapchain *, vr::ETextureType> s_vr_swapchain = { nullptr, vr::TextureType_Invalid };
 
 static inline vr::VRTextureBounds_t calc_side_by_side_bounds(vr::EVREye eye, const vr::VRTextureBounds_t *orig_bounds)
 {
@@ -36,7 +36,7 @@ static inline vr::VRTextureBounds_t calc_side_by_side_bounds(vr::EVREye eye, con
 static vr::EVRCompositorError on_submit_d3d11(vr::EVREye eye, ID3D11Texture2D *texture, const vr::VRTextureBounds_t *bounds, vr::EVRSubmitFlags flags,
 	std::function<vr::EVRCompositorError(vr::EVREye eye, void *texture, const vr::VRTextureBounds_t *bounds, vr::EVRSubmitFlags flags)> submit)
 {
-	if (s_vr_runtime.first == nullptr)
+	if (s_vr_swapchain.first == nullptr)
 	{
 		com_ptr<ID3D11Device> device;
 		D3D11Device *device_proxy = nullptr; // Was set via 'SetPrivateData', so do not use a 'com_ptr' here, since 'GetPrivateData' will not add a reference
@@ -45,16 +45,16 @@ static vr::EVRCompositorError on_submit_d3d11(vr::EVREye eye, ID3D11Texture2D *t
 			FAILED(device->GetPrivateData(__uuidof(D3D11Device), &data_size, reinterpret_cast<void *>(&device_proxy))))
 			goto normal_submit; // No proxy device found, so just submit normally
 
-		s_vr_runtime = { new reshade::d3d11::swapchain_impl(device_proxy, device_proxy->_immediate_context, nullptr), vr::TextureType_DirectX };
+		s_vr_swapchain = { new reshade::d3d11::swapchain_impl(device_proxy, device_proxy->_immediate_context, nullptr), vr::TextureType_DirectX };
 	}
 
 	// It is not valid to switch the texture type once submitted for the first time
-	if (s_vr_runtime.second != vr::TextureType_DirectX)
+	if (s_vr_swapchain.second != vr::TextureType_DirectX)
 		return vr::VRCompositorError_InvalidTexture;
 
 	ID3D11Texture2D *target_texture = nullptr;
 
-	const auto runtime = static_cast<reshade::d3d11::swapchain_impl *>(s_vr_runtime.first);
+	const auto runtime = static_cast<reshade::d3d11::swapchain_impl *>(s_vr_swapchain.first);
 	// Copy current eye texture to single side-by-side texture for use by the effect runtime
 	if (!runtime->on_layer_submit(
 		static_cast<UINT>(eye),
@@ -63,7 +63,7 @@ static vr::EVRCompositorError on_submit_d3d11(vr::EVREye eye, ID3D11Texture2D *t
 		&target_texture))
 	{
 	normal_submit:
-		// Failed to initialize runtime or copy the eye texture, so submit normally without applying effects
+		// Failed to initialize effect runtime or copy the eye texture, so submit normally without applying effects
 		return submit(eye, texture, bounds, flags);
 	}
 
@@ -90,21 +90,21 @@ static vr::EVRCompositorError on_submit_d3d11(vr::EVREye eye, ID3D11Texture2D *t
 static vr::EVRCompositorError on_submit_d3d12(vr::EVREye eye, const vr::D3D12TextureData_t *texture, const vr::VRTextureBounds_t *bounds, vr::EVRSubmitFlags flags,
 	std::function<vr::EVRCompositorError(vr::EVREye eye, void *texture, const vr::VRTextureBounds_t *bounds, vr::EVRSubmitFlags flags)> submit)
 {
-	if (s_vr_runtime.first == nullptr)
+	if (s_vr_swapchain.first == nullptr)
 	{
 		com_ptr<D3D12CommandQueue> command_queue_proxy;
 		if (FAILED(texture->m_pCommandQueue->QueryInterface(IID_PPV_ARGS(&command_queue_proxy))))
 			goto normal_submit; // No proxy command queue found, so just submit normally
 
-		s_vr_runtime = { new reshade::d3d12::swapchain_impl(command_queue_proxy->_device, command_queue_proxy.get(), nullptr), vr::TextureType_DirectX12 };
+		s_vr_swapchain = { new reshade::d3d12::swapchain_impl(command_queue_proxy->_device, command_queue_proxy.get(), nullptr), vr::TextureType_DirectX12 };
 	}
 
-	if (s_vr_runtime.second != vr::TextureType_DirectX12)
+	if (s_vr_swapchain.second != vr::TextureType_DirectX12)
 		return vr::VRCompositorError_InvalidTexture;
 
 	vr::D3D12TextureData_t target_texture = *texture;
 
-	const auto runtime = static_cast<reshade::d3d12::swapchain_impl *>(s_vr_runtime.first);
+	const auto runtime = static_cast<reshade::d3d12::swapchain_impl *>(s_vr_swapchain.first);
 	// Copy current eye texture to single side-by-side texture for use by the effect runtime
 	if (!runtime->on_layer_submit(
 		static_cast<UINT>(eye),
@@ -113,7 +113,7 @@ static vr::EVRCompositorError on_submit_d3d12(vr::EVREye eye, const vr::D3D12Tex
 		&target_texture.m_pResource))
 	{
 	normal_submit:
-		// Failed to initialize runtime or copy the eye texture, so submit normally without applying effects
+		// Failed to initialize effect runtime or copy the eye texture, so submit normally without applying effects
 		return submit(eye, (void *)texture, bounds, flags);
 	}
 
@@ -141,20 +141,20 @@ static vr::EVRCompositorError on_submit_d3d12(vr::EVREye eye, const vr::D3D12Tex
 static vr::EVRCompositorError on_submit_opengl(vr::EVREye eye, GLuint object, const vr::VRTextureBounds_t *bounds, vr::EVRSubmitFlags flags,
 	std::function<vr::EVRCompositorError(vr::EVREye eye, void *texture, const vr::VRTextureBounds_t *bounds, vr::EVRSubmitFlags flags)> submit)
 {
-	if (s_vr_runtime.first == nullptr)
+	if (s_vr_swapchain.first == nullptr)
 	{
 		const HDC device_context = wglGetCurrentDC();
 		const HGLRC render_context = wglGetCurrentContext();
 
-		s_vr_runtime = { new reshade::opengl::swapchain_impl(device_context, render_context), vr::TextureType_OpenGL };
+		s_vr_swapchain = { new reshade::opengl::swapchain_impl(device_context, render_context), vr::TextureType_OpenGL };
 	}
 
-	if (s_vr_runtime.second != vr::TextureType_OpenGL)
+	if (s_vr_swapchain.second != vr::TextureType_OpenGL)
 		return vr::VRCompositorError_InvalidTexture;
 
 	GLuint target_rbo = 0;
 
-	const auto runtime = static_cast<reshade::opengl::swapchain_impl *>(s_vr_runtime.first);
+	const auto runtime = static_cast<reshade::opengl::swapchain_impl *>(s_vr_swapchain.first);
 	// Copy current eye texture to single side-by-side texture for use by the effect runtime
 	if (!runtime->on_layer_submit(
 		static_cast<uint32_t>(eye),
@@ -164,7 +164,7 @@ static vr::EVRCompositorError on_submit_opengl(vr::EVREye eye, GLuint object, co
 		reinterpret_cast<const float *>(bounds),
 		&target_rbo))
 	{
-		// Failed to initialize runtime or copy the eye texture, so submit normally without applying effects
+		// Failed to initialize effect runtime or copy the eye texture, so submit normally without applying effects
 		return submit(eye, reinterpret_cast<void *>(static_cast<uintptr_t>(object)), bounds, flags);
 	}
 
@@ -205,18 +205,18 @@ static vr::EVRCompositorError on_submit_vulkan(vr::EVREye eye, const vr::VRVulka
 	if (queue_it == device->_queues.end())
 		goto normal_submit;
 
-	if (s_vr_runtime.first == nullptr)
+	if (s_vr_swapchain.first == nullptr)
 	{
 		// OpenVR requires the passed in queue to be a graphics queue, so can safely use it
-		s_vr_runtime = { new reshade::vulkan::swapchain_impl(device, *queue_it), vr::TextureType_Vulkan };
+		s_vr_swapchain = { new reshade::vulkan::swapchain_impl(device, *queue_it), vr::TextureType_Vulkan };
 	}
 
-	if (s_vr_runtime.second != vr::TextureType_Vulkan)
+	if (s_vr_swapchain.second != vr::TextureType_Vulkan)
 		return vr::VRCompositorError_InvalidTexture;
 
 	VkImage target_image = VK_NULL_HANDLE;
 
-	const auto runtime = static_cast<reshade::vulkan::swapchain_impl *>(s_vr_runtime.first);
+	const auto runtime = static_cast<reshade::vulkan::swapchain_impl *>(s_vr_swapchain.first);
 	// Copy current eye texture to single side-by-side texture for use by the effect runtime
 	if (!runtime->on_layer_submit(
 		static_cast<uint32_t>(eye),
@@ -229,7 +229,7 @@ static vr::EVRCompositorError on_submit_vulkan(vr::EVREye eye, const vr::VRVulka
 		&target_image))
 	{
 	normal_submit:
-		// Failed to initialize runtime or copy the eye texture, so submit normally without applying effects
+		// Failed to initialize effect runtime or copy the eye texture, so submit normally without applying effects
 		return submit(eye, (void *)texture, bounds, flags);
 	}
 
@@ -395,24 +395,24 @@ VR_Interface_Impl(IVRCompositor, Submit, 5, 012, {
 VR_Interface_Impl(IVRClientCore, Cleanup, 1, 001, {
 	LOG(INFO) << "Redirecting " << "IVRClientCore::Cleanup" << '(' << "this = " << pThis << ')' << " ...";
 
-	switch (s_vr_runtime.second)
+	switch (s_vr_swapchain.second)
 	{
 	case vr::TextureType_DirectX:
-		delete static_cast<reshade::d3d11::swapchain_impl *>(s_vr_runtime.first);
+		delete static_cast<reshade::d3d11::swapchain_impl *>(s_vr_swapchain.first);
 		break;
 	case vr::TextureType_DirectX12:
-		delete static_cast<reshade::d3d12::swapchain_impl *>(s_vr_runtime.first);
+		delete static_cast<reshade::d3d12::swapchain_impl *>(s_vr_swapchain.first);
 		break;
 	case vr::TextureType_OpenGL:
-		delete static_cast<reshade::opengl::swapchain_impl *>(s_vr_runtime.first);
+		delete static_cast<reshade::opengl::swapchain_impl *>(s_vr_swapchain.first);
 		break;
 	case vr::TextureType_Vulkan:
-		delete static_cast<reshade::vulkan::swapchain_impl *>(s_vr_runtime.first);
+		delete static_cast<reshade::vulkan::swapchain_impl *>(s_vr_swapchain.first);
 		break;
 	}
 
-	s_vr_runtime.first = nullptr;
-	s_vr_runtime.second = vr::TextureType_Invalid;
+	s_vr_swapchain.first = nullptr;
+	s_vr_swapchain.second = vr::TextureType_Invalid;
 
 	VR_Interface_Call();
 }, void)

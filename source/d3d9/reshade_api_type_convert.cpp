@@ -4,7 +4,7 @@
  */
 
 #include "reshade_api_device.hpp"
-#include "reshade_api_type_utils.hpp"
+#include "reshade_api_type_convert.hpp"
 
 auto reshade::d3d9::convert_format(api::format format, bool lockable) -> D3DFORMAT
 {

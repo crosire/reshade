@@ -5,7 +5,7 @@
 
 #include "dll_log.hpp"
 #include "reshade_api_device.hpp"
-#include "reshade_api_type_utils.hpp"
+#include "reshade_api_type_convert.hpp"
 #include <algorithm>
 
 static inline bool convert_format_internal(reshade::api::format format, D3DFORMAT &internal_format)

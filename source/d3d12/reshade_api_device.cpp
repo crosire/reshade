@@ -7,7 +7,7 @@
 #include "dll_resources.hpp"
 #include "reshade_api_device.hpp"
 #include "reshade_api_command_queue.hpp"
-#include "reshade_api_type_utils.hpp"
+#include "reshade_api_type_convert.hpp"
 
 const GUID reshade::d3d12::pipeline_extra_data_guid = { 0xB2257A30, 0x4014, 0x46EA, { 0xBD, 0x88, 0xDE, 0xC2, 0x1D, 0xB6, 0xA0, 0x2B } };
 

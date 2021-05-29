@@ -6,7 +6,7 @@
 #include "dll_log.hpp"
 #include "dll_resources.hpp"
 #include "reshade_api_device.hpp"
-#include "reshade_api_type_utils.hpp"
+#include "reshade_api_type_convert.hpp"
 #include <algorithm>
 
 reshade::d3d10::device_impl::device_impl(ID3D10Device1 *device) :

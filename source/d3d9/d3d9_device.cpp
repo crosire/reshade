@@ -6,7 +6,7 @@
 #include "dll_log.hpp"
 #include "d3d9_device.hpp"
 #include "d3d9_swapchain.hpp"
-#include "reshade_api_type_utils.hpp"
+#include "reshade_api_type_convert.hpp"
 
 extern void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d3d, UINT adapter_index);
 extern void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, D3DDISPLAYMODEEX &fullscreen_desc, IDirect3D9 *d3d, UINT adapter_index);
@@ -231,7 +231,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Present(const RECT *pSourceRect, cons
 	reshade::invoke_addon_event<reshade::addon_event::present>(this, _implicit_swapchain);
 #endif
 
-	// Only call into runtime if the entire surface is presented, to avoid partial updates messing up effects and the GUI
+	// Only call into the effect runtime if the entire surface is presented, to avoid partial updates messing up effects and the GUI
 	if (Direct3DSwapChain9::is_presenting_entire_surface(pSourceRect, hDestWindowOverride))
 		_implicit_swapchain->on_present();
 

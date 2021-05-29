@@ -5,8 +5,7 @@
 
 #include "dll_log.hpp"
 #include "reshade_api_swapchain.hpp"
-#include "reshade_api_type_utils.hpp"
-#include <d3dcompiler.h>
+#include "reshade_api_type_convert.hpp"
 
 extern bool is_windows7();
 

@@ -6,9 +6,8 @@
 #include "dll_log.hpp"
 #include "dll_resources.hpp"
 #include "reshade_api_swapchain.hpp"
-#include "reshade_api_type_utils.hpp"
+#include "reshade_api_type_convert.hpp"
 #include <CoreWindow.h>
-#include <d3dcompiler.h>
 
 extern const char *dxgi_format_to_string(DXGI_FORMAT format);
 

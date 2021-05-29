@@ -97,7 +97,7 @@ ULONG   STDMETHODCALLTYPE Direct3DSwapChain9::Release()
 #endif
 	delete this;
 
-	// Only release internal reference after the runtime has been destroyed, so any references it held are cleaned up at this point
+	// Only release internal reference after the effect runtime has been destroyed, so any references it held are cleaned up at this point
 	const ULONG ref_orig = orig->Release();
 	if (ref_orig != 0) // Verify internal reference count
 		LOG(WARN) << "Reference count for " << "IDirect3DSwapChain9" << (extended_interface ? "Ex" : "") << " object " << this << " (" << orig << ") is inconsistent (" << ref_orig << ").";
@@ -110,7 +110,7 @@ HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::Present(const RECT *pSourceRect, c
 	reshade::invoke_addon_event<reshade::addon_event::present>(_device, this);
 #endif
 
-	// Only call into runtime if the entire surface is presented, to avoid partial updates messing up effects and the GUI
+	// Only call into the effect runtime if the entire surface is presented, to avoid partial updates messing up effects and the GUI
 	if (is_presenting_entire_surface(pSourceRect, hDestWindowOverride))
 		swapchain_impl::on_present();
 

@@ -6,7 +6,7 @@
 #include "dll_log.hpp"
 #include "reshade_api_device.hpp"
 #include "reshade_api_device_context.hpp"
-#include "reshade_api_type_utils.hpp"
+#include "reshade_api_type_convert.hpp"
 
 reshade::d3d11::command_list_impl::command_list_impl(device_impl *device, ID3D11CommandList *cmd_list) :
 	api_object_impl(cmd_list), _device_impl(device)

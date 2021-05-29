@@ -4,7 +4,7 @@
  */
 
 #include "reshade_api_device.hpp"
-#include "reshade_api_type_utils.hpp"
+#include "reshade_api_type_convert.hpp"
 #include <cassert>
 #include <algorithm>
 
