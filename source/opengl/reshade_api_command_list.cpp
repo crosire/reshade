@@ -388,7 +388,7 @@ void reshade::opengl::device_impl::copy_resource(api::resource src, api::resourc
 			{
 				const uint32_t subresource = level + layer * desc.texture.levels;
 
-				copy_texture_region(src, subresource, nullptr, dst, subresource, nullptr, api::texture_filter::min_mag_mip_linear);
+				copy_texture_region(src, subresource, nullptr, dst, subresource, nullptr, api::texture_filter::min_mag_mip_point);
 			}
 		}
 	}
@@ -709,25 +709,14 @@ void reshade::opengl::device_impl::copy_texture_region(api::resource src, uint32
 			return;
 		}
 
-		GLenum stretch_filter = GL_NONE;
-		switch (filter)
-		{
-		case api::texture_filter::min_mag_mip_point:
-		case api::texture_filter::min_mag_point_mip_linear:
-			stretch_filter = GL_NEAREST;
-			break;
-		case api::texture_filter::min_mag_mip_linear:
-		case api::texture_filter::min_mag_linear_mip_point:
-			stretch_filter = GL_LINEAR;
-			break;
-		}
-
 		assert(src_region[2] == 0 && dst_region[2] == 0 && src_region[5] == 1 && dst_region[5] == 1);
 		assert(src_attachment == dst_attachment);
 		glBlitFramebuffer(
 			src_region[0], src_region[1], src_region[3], src_region[4],
 			dst_region[0], dst_region[4], dst_region[3], dst_region[1],
-			src_attachment == GL_DEPTH_ATTACHMENT ? GL_DEPTH_BUFFER_BIT : GL_COLOR_BUFFER_BIT, stretch_filter);
+			src_attachment == GL_DEPTH_ATTACHMENT ? GL_DEPTH_BUFFER_BIT : GL_COLOR_BUFFER_BIT,
+			// Must be nearest filtering for depth or stencil attachments
+			src_attachment != GL_DEPTH_ATTACHMENT && (filter == api::texture_filter::min_mag_mip_linear || filter == api::texture_filter::min_mag_linear_mip_point) ? GL_LINEAR : GL_NEAREST);
 
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, prev_read_fbo);
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, prev_draw_fbo);
@@ -901,7 +890,7 @@ void reshade::opengl::device_impl::resolve_texture_region(api::resource src, uin
 		dst_box[5] = dst_box[2] + (desc.type == api::resource_type::texture_3d ? std::max(1u, static_cast<uint32_t>(desc.texture.depth_or_layers) >> (dst_subresource % desc.texture.levels)) : 1u);
 	}
 
-	copy_texture_region(src, src_subresource, src_box, dst, dst_subresource, dst_box, api::texture_filter::min_mag_mip_linear);
+	copy_texture_region(src, src_subresource, src_box, dst, dst_subresource, dst_box, api::texture_filter::min_mag_mip_point);
 }
 
 void reshade::opengl::device_impl::generate_mipmaps(api::resource_view srv)

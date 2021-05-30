@@ -261,6 +261,7 @@ void reshade::d3d9::device_impl::copy_resource(api::resource src, api::resource 
 			{
 				const uint32_t subresource = level + layer * desc.texture.levels;
 
+				// Default to linear filtering to work around artifacts that otherwise occur when copying depth data
 				copy_texture_region(src, subresource, nullptr, dst, subresource, nullptr, api::texture_filter::min_mag_mip_linear);
 			}
 		}

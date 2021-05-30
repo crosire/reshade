@@ -1375,9 +1375,9 @@ reshade::api::resource_view reshade::opengl::device_impl::get_depth_stencil_from
 			return make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_DEPTH_STENCIL_ATTACHMENT);
 	}
 
-	const GLenum attachments[3] = { GL_DEPTH_STENCIL_ATTACHMENT, GL_DEPTH_ATTACHMENT, GL_STENCIL_ATTACHMENT };
+	const GLenum attachments[2] = { GL_DEPTH_ATTACHMENT, GL_STENCIL_ATTACHMENT };
 
-	for (unsigned int attempt = 0; attempt < 3; ++attempt)
+	for (int attempt = 0; attempt < 2; ++attempt)
 	{
 		GLenum target = get_fbo_attachment_param(fbo, attachments[attempt], GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE);
 		if (target == GL_NONE)
