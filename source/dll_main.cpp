@@ -956,7 +956,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		g_module_handle = nullptr;
 		// This duration has to be slightly larger than the timeout in 'HookGetMessage' to ensure success
 		// It should also be large enough to cover any potential other calls to previous hooks that may still be in flight from other threads
-		Sleep(1050);
+		Sleep(1000);
 
 #  ifndef NDEBUG
 		RemoveVectoredExceptionHandler(g_exception_handler_handle);

@@ -481,9 +481,9 @@ HOOK_EXPORT BOOL WINAPI HookGetMessageA(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterM
 #if 1
 	// Implement 'GetMessage' with a timeout (see also DLL_PROCESS_DETACH in dllmain.cpp for more explanation)
 	while (!PeekMessageA(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax, PM_REMOVE) && g_module_handle != nullptr)
-		MsgWaitForMultipleObjects(0, nullptr, FALSE, 1000, QS_ALLINPUT);
+		MsgWaitForMultipleObjects(0, nullptr, FALSE, 500, QS_ALLINPUT);
 
-	if (g_module_handle == nullptr)
+	if (g_module_handle == nullptr && lpMsg->message != WM_QUIT)
 		std::memset(lpMsg, 0, sizeof(MSG)); // Clear message structure, so application does not process it
 #else
 	static const auto trampoline = reshade::hooks::call(HookGetMessageA);
@@ -509,9 +509,9 @@ HOOK_EXPORT BOOL WINAPI HookGetMessageW(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterM
 {
 #if 1
 	while (!PeekMessageW(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax, PM_REMOVE) && g_module_handle != nullptr)
-		MsgWaitForMultipleObjects(0, nullptr, FALSE, 1000, QS_ALLINPUT);
+		MsgWaitForMultipleObjects(0, nullptr, FALSE, 500, QS_ALLINPUT);
 
-	if (g_module_handle == nullptr)
+	if (g_module_handle == nullptr && lpMsg->message != WM_QUIT)
 		std::memset(lpMsg, 0, sizeof(MSG));
 #else
 	static const auto trampoline = reshade::hooks::call(HookGetMessageW);
