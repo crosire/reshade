@@ -200,7 +200,8 @@ static void clear_depth_impl(command_list *cmd_list, state_tracking &state, cons
 	// Make a backup copy of the depth texture before it is cleared
 	if (device_state.force_clear_index == 0 ?
 		// If clear index override is set to zero, always copy any suitable buffers
-		fullscreen_draw_call || counters.current_stats.vertices > state.best_copy_stats.vertices :
+		// Use greater equals operator here to handle case where the same scene is first rendered into a shadow map and then for real (e.g. Mirror's Edge)
+		fullscreen_draw_call || counters.current_stats.vertices >= state.best_copy_stats.vertices :
 		// This is not really correct, since clears may accumulate over multiple command lists, but it's unlikely that the same depth-stencil is used in more than one
 		counters.clears.size() == device_state.force_clear_index)
 	{
