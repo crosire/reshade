@@ -742,7 +742,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetRenderTarget(DWORD RenderTargetInd
 
 	const HRESULT hr = _orig->SetRenderTarget(RenderTargetIndex, pRenderTarget);
 #if RESHADE_ADDON
-	if (SUCCEEDED(hr))
+	if (SUCCEEDED(hr) && RenderTargetIndex == 0 && (
+		!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::begin_render_pass)].empty() ||
+		!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_viewports)].empty()))
 	{
 		DWORD count = 0;
 		com_ptr<IDirect3DSurface9> surface;
@@ -762,8 +764,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetRenderTarget(DWORD RenderTargetInd
 			dsv = { reinterpret_cast<uintptr_t>(surface.get()) };
 		}
 
-		if (RenderTargetIndex == 0)
-			reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, count, rtvs, dsv);
+		reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, count, rtvs, dsv);
 
 		if (pRenderTarget != nullptr)
 		{
@@ -799,7 +800,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetDepthStencilSurface(IDirect3DSurfa
 
 	const HRESULT hr = _orig->SetDepthStencilSurface(pNewZStencil);
 #if RESHADE_ADDON
-	if (SUCCEEDED(hr))
+	if (SUCCEEDED(hr) && !reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::begin_render_pass)].empty())
 	{
 		DWORD count = 0;
 		com_ptr<IDirect3DSurface9> surface;
@@ -833,7 +834,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::EndScene()
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::Clear(DWORD Count, const D3DRECT *pRects, DWORD Flags, D3DCOLOR Color, float Z, DWORD Stencil)
 {
 #if RESHADE_ADDON
-	if (Flags & (D3DCLEAR_TARGET))
+	if ((Flags & (D3DCLEAR_TARGET)) != 0 && !reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::clear_render_target_views)].empty())
 	{
 		const float color[4] = { ((Color >> 16) & 0xFF) / 255.0f, ((Color >> 8) & 0xFF) / 255.0f, (Color & 0xFF) / 255.0f, ((Color >> 24) & 0xFF) / 255.0f };
 
@@ -852,7 +853,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Clear(DWORD Count, const D3DRECT *pRe
 		if (reshade::invoke_addon_event<reshade::addon_event::clear_render_target_views>(this, count, rtvs, color))
 			Flags &= ~(D3DCLEAR_TARGET);
 	}
-	if (Flags & (D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL))
+	if ((Flags & (D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL)) != 0 && !reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::clear_depth_stencil_view)].empty())
 	{
 		com_ptr<IDirect3DSurface9> surface;
 		_orig->GetDepthStencilSurface(&surface);
@@ -882,7 +883,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetViewport(const D3DVIEWPORT9 *pView
 {
 	const HRESULT hr = _orig->SetViewport(pViewport);
 #if RESHADE_ADDON
-	if (SUCCEEDED(hr))
+	if (SUCCEEDED(hr) && !reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_viewports)].empty())
 	{
 		const float viewport_data[6] = {
 			static_cast<float>(pViewport->X),
@@ -1017,7 +1018,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetTexture(DWORD Stage, IDirect3DBase
 {
 	const HRESULT hr = _orig->SetTexture(Stage, pTexture);
 #if RESHADE_ADDON
-	if (SUCCEEDED(hr))
+	if (SUCCEEDED(hr) && !reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::push_descriptors)].empty())
 	{
 		reshade::api::shader_stage shader_stage = reshade::api::shader_stage::pixel;
 		if (Stage >= D3DVERTEXTEXTURESAMPLER0)
@@ -1052,7 +1053,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetSamplerState(DWORD Sampler, D3DSAM
 {
 	const HRESULT hr = _orig->SetSamplerState(Sampler, Type, Value);
 #if RESHADE_ADDON
-	if (SUCCEEDED(hr))
+	if (SUCCEEDED(hr) && !reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::push_descriptors)].empty())
 	{
 		reshade::api::shader_stage shader_stage = reshade::api::shader_stage::pixel;
 		if (Sampler >= D3DVERTEXTEXTURESAMPLER0)
