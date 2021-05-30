@@ -1089,8 +1089,8 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRenderTargetView1(ID3D11Resource *p
 	HRESULT hr = E_FAIL;
 	reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(
 		[this, &hr, &new_desc, ppRTView1](reshade::api::device *, reshade::api::resource resource, reshade::api::resource_usage usage_type, const reshade::api::resource_view_desc &desc) {
-		if (usage_type != reshade::api::resource_usage::render_target)
-			return false;
+			if (usage_type != reshade::api::resource_usage::render_target)
+				return false;
 			reshade::d3d11::convert_resource_view_desc(desc, new_desc);
 
 			hr = static_cast<ID3D11Device3 *>(_orig)->CreateRenderTargetView1(reinterpret_cast<ID3D11Resource *>(resource.handle), new_desc.ViewDimension != D3D11_RTV_DIMENSION_UNKNOWN ? &new_desc : nullptr, ppRTView1);

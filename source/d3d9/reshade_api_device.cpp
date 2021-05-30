@@ -174,7 +174,7 @@ void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 			[this, &auto_depth_stencil, &old_desc, &new_desc](api::device *, const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage) {
 				if (desc.type != api::resource_type::surface || desc.heap != api::memory_heap::gpu_only || initial_data != nullptr)
 					return false;
-				convert_resource_desc(desc, new_desc);
+				convert_resource_desc(desc, new_desc, nullptr, _caps);
 
 				// Need to replace auto depth stencil if add-on modified the description
 				if (com_ptr<IDirect3DSurface9> auto_depth_stencil_replacement;
@@ -361,7 +361,7 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 
 			UINT levels = 0;
 			D3DSURFACE_DESC internal_desc = {};
-			convert_resource_desc(desc, internal_desc, &levels);
+			convert_resource_desc(desc, internal_desc, &levels, _caps);
 
 			if (!convert_format_internal(desc.texture.format, internal_desc.Format))
 				break;

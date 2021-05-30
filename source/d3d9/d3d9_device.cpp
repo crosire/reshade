@@ -292,7 +292,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateTexture(UINT Width, UINT Height
 			if (desc.type != reshade::api::resource_type::texture_2d || initial_data != nullptr)
 				return false;
 			UINT levels = 0;
-			reshade::d3d9::convert_resource_desc(desc, new_desc, &levels);
+			reshade::d3d9::convert_resource_desc(desc, new_desc, &levels, _caps);
 
 			hr = _orig->CreateTexture(new_desc.Width, new_desc.Height, levels, new_desc.Usage, new_desc.Format, new_desc.Pool, ppTexture, pSharedHandle);
 			if (SUCCEEDED(hr))
@@ -390,7 +390,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateCubeTexture(UINT EdgeLength, UI
 			if (desc.type != reshade::api::resource_type::texture_2d || desc.texture.width != desc.texture.height || desc.texture.depth_or_layers != 6 || initial_data != nullptr)
 				return false;
 			UINT levels = 0;
-			reshade::d3d9::convert_resource_desc(desc, new_desc, &levels);
+			reshade::d3d9::convert_resource_desc(desc, new_desc, &levels, _caps);
 
 			hr = _orig->CreateCubeTexture(new_desc.Width, levels, new_desc.Usage, new_desc.Format, new_desc.Pool, ppCubeTexture, pSharedHandle);
 			if (SUCCEEDED(hr))
@@ -530,7 +530,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTarget(UINT Width, UINT H
 		[this, &hr, &new_desc, Lockable, ppSurface, pSharedHandle](reshade::api::device *, const reshade::api::resource_desc &desc, const reshade::api::subresource_data *initial_data, reshade::api::resource_usage) {
 			if (desc.type != reshade::api::resource_type::surface || desc.heap != reshade::api::memory_heap::gpu_only || (desc.usage & reshade::api::resource_usage::render_target) == reshade::api::resource_usage::undefined || initial_data != nullptr)
 				return false;
-			reshade::d3d9::convert_resource_desc(desc, new_desc);
+			reshade::d3d9::convert_resource_desc(desc, new_desc, nullptr, _caps);
 
 #if RESHADE_ADDON
 			// Need to replace surface with a texture if an add-on requested shader access
@@ -577,7 +577,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurface(UINT Width,
 		[this, &hr, &new_desc, Discard, ppSurface, pSharedHandle](reshade::api::device *, const reshade::api::resource_desc &desc, const reshade::api::subresource_data *initial_data, reshade::api::resource_usage) {
 			if (desc.type != reshade::api::resource_type::surface || desc.heap != reshade::api::memory_heap::gpu_only || (desc.usage & reshade::api::resource_usage::depth_stencil) == reshade::api::resource_usage::undefined || initial_data != nullptr)
 				return false;
-			reshade::d3d9::convert_resource_desc(desc, new_desc);
+			reshade::d3d9::convert_resource_desc(desc, new_desc, nullptr, _caps);
 
 			// Need to replace surface with a texture if an add-on requested shader access
 			if ((desc.usage & reshade::api::resource_usage::shader_resource) != reshade::api::resource_usage::undefined)
@@ -1553,7 +1553,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTargetEx(UINT Width, UINT
 		[this, &hr, &new_desc, Lockable, ppSurface, pSharedHandle](reshade::api::device *, const reshade::api::resource_desc &desc, const reshade::api::subresource_data *initial_data, reshade::api::resource_usage) {
 			if (desc.type != reshade::api::resource_type::surface || desc.heap != reshade::api::memory_heap::gpu_only || (desc.usage & reshade::api::resource_usage::render_target) == reshade::api::resource_usage::undefined || initial_data != nullptr)
 				return false;
-			reshade::d3d9::convert_resource_desc(desc, new_desc);
+			reshade::d3d9::convert_resource_desc(desc, new_desc, nullptr, _caps);
 
 			// Need to replace surface with a texture if an add-on requested shader access
 			if ((desc.usage & reshade::api::resource_usage::shader_resource) != reshade::api::resource_usage::undefined)
@@ -1605,7 +1605,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurfaceEx(UINT Widt
 		[this, &hr, &new_desc, Discard, ppSurface, pSharedHandle](reshade::api::device *,const reshade::api::resource_desc &desc, const reshade::api::subresource_data *initial_data, reshade::api::resource_usage) {
 			if (desc.type != reshade::api::resource_type::surface || desc.heap != reshade::api::memory_heap::gpu_only || (desc.usage & reshade::api::resource_usage::depth_stencil) == reshade::api::resource_usage::undefined || initial_data != nullptr)
 				return false;
-			reshade::d3d9::convert_resource_desc(desc, new_desc);
+			reshade::d3d9::convert_resource_desc(desc, new_desc, nullptr, _caps);
 
 			// Need to replace surface with a texture if an add-on requested shader access
 			if ((desc.usage & reshade::api::resource_usage::shader_resource) != reshade::api::resource_usage::undefined)

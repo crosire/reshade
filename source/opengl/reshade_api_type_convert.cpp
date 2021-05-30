@@ -801,6 +801,10 @@ reshade::api::resource_desc reshade::opengl::convert_resource_desc(GLenum target
 		desc.flags |= api::resource_flags::cube_compatible;
 	}
 
+	// Mipmap generation is supported for all textures
+	if (levels > 1 && desc.type == api::resource_type::texture_2d)
+		desc.flags |= api::resource_flags::generate_mipmaps;
+
 	return desc;
 }
 

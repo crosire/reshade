@@ -303,10 +303,6 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 			if (initial_data != nullptr)
 				create_info.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 
-			// A typeless format indicates that views with different typed formats can be created, so set mutable flag
-			if (desc.texture.format == api::format_to_typeless(desc.texture.format))
-				create_info.flags |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
-
 			if (VkImage object = VK_NULL_HANDLE;
 				vmaCreateImage(_alloc, &create_info, &alloc_info, &object, &allocation, nullptr) == VK_SUCCESS)
 			{

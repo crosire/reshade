@@ -799,12 +799,17 @@ void reshade::vulkan::convert_resource_desc(const api::resource_desc &desc, VkIm
 	create_info.samples = static_cast<VkSampleCountFlagBits>(desc.texture.samples);
 	convert_usage_to_image_usage_flags(desc.usage, create_info.usage);
 
+	// A typeless format indicates that views with different typed formats can be created, so set mutable flag
+	if (desc.texture.format == api::format_to_typeless(desc.texture.format) &&
+		desc.texture.format != api::format_to_default_typed(desc.texture.format))
+		create_info.flags |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
+
 	if ((desc.flags & api::resource_flags::cube_compatible) == api::resource_flags::cube_compatible)
 		create_info.flags |= VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
 	else
 		create_info.flags &= ~VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
 
-	// Mipmap generation is using 'vkCmdBlitImage' and therefore needs transfer usage flags (see 'generate_mipmaps' implementation)
+	// Mipmap generation is using 'vkCmdBlitImage' and therefore needs transfer usage flags (see 'command_list_impl::generate_mipmaps')
 	if ((desc.flags & api::resource_flags::generate_mipmaps) == api::resource_flags::generate_mipmaps)
 		create_info.usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 }
@@ -859,6 +864,9 @@ reshade::api::resource_desc reshade::vulkan::convert_resource_desc(const VkImage
 	if (desc.type == api::resource_type::texture_2d && (
 		create_info.usage & (desc.texture.samples > 1 ? VK_IMAGE_USAGE_TRANSFER_SRC_BIT : VK_IMAGE_USAGE_TRANSFER_DST_BIT)) != 0)
 		desc.usage |= desc.texture.samples > 1 ? api::resource_usage::resolve_source : api::resource_usage::resolve_dest;
+
+	if ((create_info.flags & VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT) != 0)
+		desc.texture.format = api::format_to_typeless(desc.texture.format);
 
 	if ((create_info.flags & VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT) != 0)
 		desc.flags |= api::resource_flags::cube_compatible;

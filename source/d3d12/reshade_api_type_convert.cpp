@@ -144,7 +144,7 @@ void reshade::d3d12::convert_resource_desc(const api::resource_desc &desc, D3D12
 	else
 		internal_desc.Flags &= ~D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
 
-	// Mipmap generation is using compute shaders and therefore needs unordered access flag (see 'generate_mipmaps' implementation)
+	// Mipmap generation is using compute shaders and therefore needs unordered access flag (see 'command_list_impl::generate_mipmaps')
 	if ((desc.usage & api::resource_usage::unordered_access) != api::resource_usage::undefined ||
 		(desc.flags & api::resource_flags::generate_mipmaps) == api::resource_flags::generate_mipmaps)
 		internal_desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
