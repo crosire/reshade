@@ -372,7 +372,7 @@ void reshade::vulkan::command_list_impl::copy_resource(api::resource src, api::r
 			{
 				const uint32_t subresource = level + layer * desc.texture.levels;
 
-				copy_texture_region(src, subresource, nullptr, dst, subresource, nullptr, api::texture_filter::min_mag_mip_point);
+				copy_texture_region(src, subresource, nullptr, dst, subresource, nullptr, api::texture_filter::min_mag_mip_linear);
 			}
 		}
 	}

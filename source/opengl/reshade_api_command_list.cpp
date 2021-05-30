@@ -388,7 +388,7 @@ void reshade::opengl::device_impl::copy_resource(api::resource src, api::resourc
 			{
 				const uint32_t subresource = level + layer * desc.texture.levels;
 
-				copy_texture_region(src, subresource, nullptr, dst, subresource, nullptr, api::texture_filter::min_mag_mip_point);
+				copy_texture_region(src, subresource, nullptr, dst, subresource, nullptr, api::texture_filter::min_mag_mip_linear);
 			}
 		}
 	}
@@ -901,7 +901,7 @@ void reshade::opengl::device_impl::resolve_texture_region(api::resource src, uin
 		dst_box[5] = dst_box[2] + (desc.type == api::resource_type::texture_3d ? std::max(1u, static_cast<uint32_t>(desc.texture.depth_or_layers) >> (dst_subresource % desc.texture.levels)) : 1u);
 	}
 
-	copy_texture_region(src, src_subresource, src_box, dst, dst_subresource, dst_box, api::texture_filter::min_mag_mip_point);
+	copy_texture_region(src, src_subresource, src_box, dst, dst_subresource, dst_box, api::texture_filter::min_mag_mip_linear);
 }
 
 void reshade::opengl::device_impl::generate_mipmaps(api::resource_view srv)
