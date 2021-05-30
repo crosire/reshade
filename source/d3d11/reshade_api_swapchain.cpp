@@ -77,9 +77,6 @@ bool reshade::d3d11::swapchain_impl::on_init(const DXGI_SWAP_CHAIN_DESC &swap_de
 		return false;
 	assert(_backbuffer != nullptr);
 
-	// Clear reference to make Unreal Engine 4 happy (which checks the reference count)
-	_backbuffer->Release();
-
 	D3D11_TEXTURE2D_DESC tex_desc = {};
 	tex_desc.Width = _width;
 	tex_desc.Height = _height;
@@ -104,6 +101,10 @@ bool reshade::d3d11::swapchain_impl::on_init(const DXGI_SWAP_CHAIN_DESC &swap_de
 		assert(swap_desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT);
 
 		_backbuffer_resolved = _backbuffer;
+
+		// Clear reference to make Unreal Engine 4 happy (https://github.com/EpicGames/UnrealEngine/blob/4.7/Engine/Source/Runtime/Windows/D3D11RHI/Private/D3D11Viewport.cpp#L195)
+		_backbuffer->Release();
+		assert(_backbuffer.ref_count() == 1);
 	}
 
 	// Create back buffer shader texture
@@ -140,7 +141,7 @@ void reshade::d3d11::swapchain_impl::on_reset()
 		if (_backbuffer.ref_count() == 0)
 			add_references = _backbuffer == _backbuffer_resolved ? 2 : 1;
 		// Add the reference back that was released because of Unreal Engine 4
-		else
+		else if (_backbuffer == _backbuffer_resolved)
 			add_references = 1;
 
 		for (unsigned int i = 0; i < add_references; ++i)
