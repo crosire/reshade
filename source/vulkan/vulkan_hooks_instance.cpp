@@ -5,8 +5,8 @@
 
 #include "dll_log.hpp"
 #include "hook_manager.hpp"
-#include "vulkan_hooks.hpp"
 #include "lockfree_table.hpp"
+#include "vulkan_hooks.hpp"
 
 lockfree_table<void *, VkLayerInstanceDispatchTable, 16> g_instance_dispatch;
 lockfree_table<VkSurfaceKHR, HWND, 16> g_surface_windows;

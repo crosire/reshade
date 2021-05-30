@@ -53,7 +53,7 @@ reshade::d3d12::swapchain_impl::~swapchain_impl()
 
 void reshade::d3d12::swapchain_impl::get_current_back_buffer(api::resource *out)
 {
-	*out = { (uintptr_t)_backbuffers[_swap_index].get() };
+	*out = { reinterpret_cast<uintptr_t>(_backbuffers[_swap_index].get()) };
 }
 void reshade::d3d12::swapchain_impl::get_current_back_buffer_target(bool srgb, api::resource_view *out)
 {

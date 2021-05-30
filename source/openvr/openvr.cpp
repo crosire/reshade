@@ -5,6 +5,7 @@
 
 #include "dll_log.hpp"
 #include "hook_manager.hpp"
+#include "lockfree_table.hpp"
 #include "d3d11/d3d11_device.hpp"
 #include "d3d11/d3d11_device_context.hpp"
 #include "d3d11/reshade_api_swapchain.hpp"
@@ -198,19 +199,21 @@ static vr::EVRCompositorError on_submit_vulkan(vr::EVREye eye, const vr::VRVulka
 {
 	extern lockfree_table<void *, reshade::vulkan::device_impl *, 16> g_vulkan_devices;
 	reshade::vulkan::device_impl *const device = g_vulkan_devices.at(dispatch_key_from_handle(texture->m_pDevice));
-	std::vector<reshade::vulkan::command_queue_impl *>::iterator queue_it;
+	reshade::vulkan::command_queue_impl *queue = nullptr;
 	if (device == nullptr)
 		goto normal_submit;
 
-	queue_it = std::find_if(device->_queues.begin(), device->_queues.end(),
+	if (const auto queue_it = std::find_if(device->_queues.begin(), device->_queues.end(),
 		[texture](reshade::vulkan::command_queue_impl *queue) { return queue->_orig == texture->m_pQueue; });
-	if (queue_it == device->_queues.end())
+		queue_it != device->_queues.end())
+		queue = *queue_it;
+	else
 		goto normal_submit;
 
 	if (s_vr_swapchain.first == nullptr)
 	{
 		// OpenVR requires the passed in queue to be a graphics queue, so can safely use it
-		s_vr_swapchain = { new reshade::vulkan::swapchain_impl(device, *queue_it), vr::TextureType_Vulkan };
+		s_vr_swapchain = { new reshade::vulkan::swapchain_impl(device, queue), vr::TextureType_Vulkan };
 	}
 
 	if (s_vr_swapchain.second != vr::TextureType_Vulkan)
@@ -243,13 +246,13 @@ static vr::EVRCompositorError on_submit_vulkan(vr::EVREye eye, const vr::VRVulka
 	else
 	{
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::present>(*queue_it, runtime);
+		reshade::invoke_addon_event<reshade::addon_event::present>(queue, runtime);
 #endif
 
 		std::vector<VkSemaphore> wait_semaphores;
 		runtime->on_present(texture->m_pQueue, 0, wait_semaphores);
 
-		(*queue_it)->flush_immediate_command_list();
+		queue->flush_immediate_command_list();
 
 		auto target_texture = *texture;
 		target_texture.m_nImage = (uint64_t)target_image;

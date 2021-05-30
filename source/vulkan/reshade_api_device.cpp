@@ -215,7 +215,7 @@ bool reshade::vulkan::device_impl::is_resource_handle_valid(api::resource handle
 {
 	if (handle.handle == 0)
 		return false;
-	const resource_data &data = _resources.at(handle.handle);
+	const resource_data data = lookup_resource(handle);
 
 	if (data.is_image())
 		return data.image == (VkImage)handle.handle;
@@ -226,7 +226,7 @@ bool reshade::vulkan::device_impl::is_resource_view_handle_valid(api::resource_v
 {
 	if (handle.handle == 0)
 		return false;
-	const resource_view_data &data = _views.at(handle.handle);
+	const resource_view_data data = lookup_resource_view(handle);
 
 	if (data.is_image_view())
 		return data.image_view == (VkImageView)handle.handle;
@@ -360,8 +360,7 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 }
 bool reshade::vulkan::device_impl::create_resource_view(api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view *out)
 {
-	assert(resource.handle != 0);
-	const resource_data &data = _resources.at(resource.handle);
+	const resource_data data = lookup_resource(resource);
 
 	if (data.is_image())
 	{
@@ -914,7 +913,7 @@ void reshade::vulkan::device_impl::destroy_resource(api::resource handle)
 {
 	if (handle.handle == 0)
 		return;
-	const resource_data &data = _resources.at(handle.handle);
+	const resource_data data = lookup_resource(handle);
 
 	// Can only destroy resources that were allocated via 'create_resource' previously
 	assert(data.allocation != nullptr);
@@ -924,19 +923,21 @@ void reshade::vulkan::device_impl::destroy_resource(api::resource handle)
 	else
 		vmaDestroyBuffer(_alloc, data.buffer, data.allocation);
 
+	const std::lock_guard<std::mutex> lock(_mutex);
 	_resources.erase(handle.handle);
 }
 void reshade::vulkan::device_impl::destroy_resource_view(api::resource_view handle)
 {
 	if (handle.handle == 0)
 		return;
-	const resource_view_data &data = _views.at(handle.handle);
+	const resource_view_data data = lookup_resource_view(handle);
 
 	if (data.is_image_view())
 		vk.DestroyImageView(_orig, data.image_view, nullptr);
 	else
 		vk.DestroyBufferView(_orig, data.buffer_view, nullptr);
 
+	const std::lock_guard<std::mutex> lock(_mutex);
 	_views.erase(handle.handle);
 }
 
@@ -1010,8 +1011,7 @@ bool reshade::vulkan::device_impl::map_resource(api::resource resource, uint32_t
 	if (slice_pitch != nullptr)
 		*slice_pitch = 0;
 
-	assert(resource.handle != 0);
-	const resource_data &res_data = _resources.at(resource.handle);
+	const resource_data res_data = lookup_resource(resource);
 
 	if (res_data.allocation != nullptr)
 	{
@@ -1026,8 +1026,7 @@ bool reshade::vulkan::device_impl::map_resource(api::resource resource, uint32_t
 }
 void reshade::vulkan::device_impl::unmap_resource(api::resource resource, uint32_t subresource)
 {
-	assert(resource.handle != 0);
-	const resource_data &res_data = _resources.at(resource.handle);
+	const resource_data res_data = lookup_resource(resource);
 
 	if (res_data.allocation != nullptr)
 	{
@@ -1056,8 +1055,7 @@ void reshade::vulkan::device_impl::upload_buffer_region(const void *data, api::r
 }
 void reshade::vulkan::device_impl::upload_texture_region(const api::subresource_data &data, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6])
 {
-	assert(dst.handle != 0);
-	const resource_data &dst_data = _resources.at(dst.handle);
+	const resource_data dst_data = lookup_resource(dst);
 	assert(dst_data.is_image());
 
 	VkExtent3D extent = dst_data.image_create_info.extent;
@@ -1131,8 +1129,7 @@ void reshade::vulkan::device_impl::upload_texture_region(const api::subresource_
 
 void reshade::vulkan::device_impl::get_resource_from_view(api::resource_view view, api::resource *out_resource) const
 {
-	assert(view.handle != 0);
-	const resource_view_data &data = _views.at(view.handle);
+	const resource_view_data data = lookup_resource_view(view);
 
 	if (data.is_image_view())
 		*out_resource = { (uint64_t)data.image_create_info.image };
@@ -1142,8 +1139,7 @@ void reshade::vulkan::device_impl::get_resource_from_view(api::resource_view vie
 
 reshade::api::resource_desc reshade::vulkan::device_impl::get_resource_desc(api::resource resource) const
 {
-	assert(resource.handle != 0);
-	const resource_data &data = _resources.at(resource.handle);
+	const resource_data data = lookup_resource(resource);
 
 	if (data.is_image())
 		return convert_resource_desc(data.image_create_info);
@@ -1181,7 +1177,7 @@ void reshade::vulkan::device_impl::set_debug_name(api::resource resource, const 
 	if (vk.SetDebugUtilsObjectNameEXT == nullptr)
 		return;
 
-	const resource_data &data = _resources.at(resource.handle);
+	const resource_data data = lookup_resource(resource);
 
 	VkDebugUtilsObjectNameInfoEXT name_info { VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT };
 	name_info.objectType = data.is_image() ? VK_OBJECT_TYPE_IMAGE : VK_OBJECT_TYPE_BUFFER;
@@ -1199,6 +1195,8 @@ bool reshade::vulkan::device_impl::request_render_pass_and_framebuffer(uint32_t 
 	if (dsv.handle != 0)
 		hash ^= std::hash<uint64_t>()(dsv.handle);
 
+	std::unique_lock<std::mutex> lock(_mutex);
+
 	if (const auto it = _render_pass_list_internal.find(hash);
 		it != _render_pass_list_internal.end())
 	{
@@ -1206,6 +1204,8 @@ bool reshade::vulkan::device_impl::request_render_pass_and_framebuffer(uint32_t 
 	}
 	else
 	{
+		lock.unlock();
+
 		std::vector<VkAttachmentReference> attachment_refs;
 		std::vector<VkAttachmentDescription> attachment_descs;
 
@@ -1215,8 +1215,8 @@ bool reshade::vulkan::device_impl::request_render_pass_and_framebuffer(uint32_t 
 			ref.attachment = i;
 			ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-			const auto &rtv_info = _views.at(rtvs[i].handle);
-			const auto &rt_resource_info = _resources.at((uint64_t)rtv_info.image_create_info.image);
+			const auto rtv_info = lookup_resource_view(rtvs[i]);
+			const auto rt_resource_info = lookup_resource({ (uint64_t)rtv_info.image_create_info.image });
 
 			VkAttachmentDescription &attach = attachment_descs.emplace_back();
 			attach.format = rtv_info.image_create_info.format;
@@ -1233,8 +1233,8 @@ bool reshade::vulkan::device_impl::request_render_pass_and_framebuffer(uint32_t 
 			ref.attachment = count;
 			ref.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-			const auto &dsv_info = _views.at(dsv.handle);
-			const auto &ds_resource_info = _resources.at((uint64_t)dsv_info.image_create_info.image);
+			const auto dsv_info = lookup_resource_view(dsv);
+			const auto ds_resource_info = lookup_resource({ (uint64_t)dsv_info.image_create_info.image });
 
 			VkAttachmentDescription &attach = attachment_descs.emplace_back();
 			attach.format = dsv_info.image_create_info.format;
@@ -1273,6 +1273,8 @@ bool reshade::vulkan::device_impl::request_render_pass_and_framebuffer(uint32_t 
 		if (vk.CreateRenderPass(_orig, &create_info, nullptr, &pass) != VK_SUCCESS)
 			return false;
 
+		lock.lock();
+
 		_render_pass_list_internal.emplace(hash, pass);
 	}
 
@@ -1283,8 +1285,10 @@ bool reshade::vulkan::device_impl::request_render_pass_and_framebuffer(uint32_t 
 	}
 	else
 	{
-		const auto &rtv_info = _views.at(count != 0 ? rtvs[0].handle : dsv.handle);
-		const auto &rt_resource_info = _resources.at((uint64_t)rtv_info.image_create_info.image);
+		lock.unlock();
+
+		const auto rtv_info = lookup_resource_view(count != 0 ? rtvs[0] : dsv);
+		const auto rt_resource_info = lookup_resource({ (uint64_t)rtv_info.image_create_info.image });
 
 		std::vector<VkImageView> views;
 		views.reserve(count + 1);
@@ -1303,6 +1307,8 @@ bool reshade::vulkan::device_impl::request_render_pass_and_framebuffer(uint32_t 
 
 		if (vk.CreateFramebuffer(_orig, &create_info, nullptr, &fbo) != VK_SUCCESS)
 			return false;
+
+		lock.lock();
 
 		_framebuffer_list_internal.emplace(hash, fbo);
 	}

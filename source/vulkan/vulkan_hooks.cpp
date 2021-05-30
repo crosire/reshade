@@ -4,6 +4,7 @@
  */
 
 #include "hook_manager.hpp"
+#include "lockfree_table.hpp"
 #include "vulkan_hooks.hpp"
 #include "reshade_api_device.hpp"
 

@@ -6,12 +6,13 @@
 #pragma once
 
 #include "addon_manager.hpp"
-#include "lockfree_table.hpp"
 #pragma warning(push)
 #pragma warning(disable: 4100 4127 4324 4703) // Disable a bunch of warnings thrown by VMA code
 #include <vk_mem_alloc.h>
 #pragma warning(pop)
 #include <vk_layer_dispatch_table.h>
+#include <mutex>
+#include <cassert>
 #include <unordered_map>
 
 namespace reshade::vulkan
@@ -132,6 +133,7 @@ namespace reshade::vulkan
 #if RESHADE_ADDON
 		uint32_t get_subresource_index(VkImage image, const VkImageSubresourceLayers &layers, uint32_t layer = 0) const
 		{
+			const std::lock_guard<std::mutex> lock(_mutex);
 			return layers.mipLevel + (layers.baseArrayLayer + layer) * _resources.at((uint64_t)image).image_create_info.mipLevels;
 		}
 
@@ -143,20 +145,37 @@ namespace reshade::vulkan
 			return { (uint64_t)image };
 		}
 #endif
+		resource_data lookup_resource(api::resource resource) const
+		{
+			assert(resource.handle != 0);
+			const std::lock_guard<std::mutex> lock(_mutex);
+			return _resources.at(resource.handle);
+		}
+		resource_view_data lookup_resource_view(api::resource_view view) const
+		{
+			assert(view.handle != 0);
+			const std::lock_guard<std::mutex> lock(_mutex);
+			return _views.at(view.handle);
+		}
+
 		void register_image(VkImage image, const VkImageCreateInfo &create_info, VmaAllocation allocation = nullptr)
 		{
 			resource_data data;
 			data.image = image;
 			data.image_create_info = create_info;
 			data.allocation = allocation;
-			_resources.emplace((uint64_t)image, data);
+
+			const std::lock_guard<std::mutex> lock(_mutex);
+			_resources.emplace((uint64_t)image, std::move(data));
 		}
 		void register_image_view(VkImageView image_view, const VkImageViewCreateInfo &create_info)
 		{
 			resource_view_data data;
 			data.image_view = image_view;
 			data.image_create_info = create_info;
-			_views.emplace((uint64_t)image_view, data);
+
+			const std::lock_guard<std::mutex> lock(_mutex);
+			_views.emplace((uint64_t)image_view, std::move(data));
 		}
 		void register_buffer(VkBuffer buffer, const VkBufferCreateInfo &create_info, VmaAllocation allocation = nullptr)
 		{
@@ -164,20 +183,40 @@ namespace reshade::vulkan
 			data.buffer = buffer;
 			data.buffer_create_info = create_info;
 			data.allocation = allocation;
-			_resources.emplace((uint64_t)buffer, data);
+
+			const std::lock_guard<std::mutex> lock(_mutex);
+			_resources.emplace((uint64_t)buffer, std::move(data));
 		}
 		void register_buffer_view(VkBufferView buffer_view, const VkBufferViewCreateInfo &create_info)
 		{
 			resource_view_data data;
 			data.buffer_view = buffer_view;
 			data.buffer_create_info = create_info;
-			_views.emplace((uint64_t)buffer_view, data);
+
+			const std::lock_guard<std::mutex> lock(_mutex);
+			_views.emplace((uint64_t)buffer_view, std::move(data));
 		}
 
-		void unregister_image(VkImage image) { _resources.erase((uint64_t)image); }
-		void unregister_image_view(VkImageView image_view) { _views.erase((uint64_t)image_view); }
-		void unregister_buffer(VkBuffer buffer) { _resources.erase((uint64_t)buffer); }
-		void unregister_buffer_view(VkBufferView buffer_view) { _views.erase((uint64_t)buffer_view); }
+		void unregister_image(VkImage image)
+		{
+			const std::lock_guard<std::mutex> lock(_mutex);
+			_resources.erase((uint64_t)image);
+		}
+		void unregister_image_view(VkImageView image_view)
+		{
+			const std::lock_guard<std::mutex> lock(_mutex);
+			_views.erase((uint64_t)image_view);
+		}
+		void unregister_buffer(VkBuffer buffer)
+		{
+			const std::lock_guard<std::mutex> lock(_mutex);
+			_resources.erase((uint64_t)buffer);
+		}
+		void unregister_buffer_view(VkBufferView buffer_view)
+		{
+			const std::lock_guard<std::mutex> lock(_mutex);
+			_views.erase((uint64_t)buffer_view);
+		}
 
 		const VkPhysicalDevice _physical_device;
 		const VkLayerDispatchTable _dispatch_table;
@@ -188,12 +227,13 @@ namespace reshade::vulkan
 		VkPhysicalDeviceFeatures _enabled_features = {};
 
 		VmaAllocator _alloc = nullptr;
-		lockfree_table<uint64_t, resource_data, 4096> _resources;
-		lockfree_table<uint64_t, resource_view_data, 4096> _views;
+		mutable std::mutex _mutex;
+		std::unordered_map<uint64_t, resource_data> _resources;
+		std::unordered_map<uint64_t, resource_view_data> _views;
 
 #if RESHADE_ADDON
-		lockfree_table<VkRenderPass, render_pass_data, 4096> _render_pass_list;
-		lockfree_table<VkFramebuffer, std::vector<api::resource_view>, 4096> _framebuffer_list;
+		std::unordered_map<VkRenderPass, render_pass_data> _render_pass_list;
+		std::unordered_map<VkFramebuffer, std::vector<api::resource_view>> _framebuffer_list;
 #endif
 		std::unordered_map<size_t, VkRenderPass> _render_pass_list_internal;
 		std::unordered_map<size_t, VkFramebuffer> _framebuffer_list_internal;

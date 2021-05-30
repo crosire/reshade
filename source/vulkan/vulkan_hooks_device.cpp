@@ -5,8 +5,8 @@
 
 #include "dll_log.hpp"
 #include "hook_manager.hpp"
-#include "vulkan_hooks.hpp"
 #include "lockfree_table.hpp"
+#include "vulkan_hooks.hpp"
 #include "reshade_api_device.hpp"
 #include "reshade_api_command_queue.hpp"
 #include "reshade_api_swapchain.hpp"
@@ -917,7 +917,7 @@ VkResult VKAPI_CALL vkCreateRenderPass(VkDevice device, const VkRenderPassCreate
 	}
 
 #if RESHADE_ADDON
-	auto &renderpass_data = device_impl->_render_pass_list.emplace(*pRenderPass);
+	reshade::vulkan::render_pass_data renderpass_data;
 	renderpass_data.subpasses.reserve(pCreateInfo->subpassCount);
 	renderpass_data.cleared_attachments.reserve(pCreateInfo->attachmentCount);
 
@@ -953,6 +953,9 @@ VkResult VKAPI_CALL vkCreateRenderPass(VkDevice device, const VkRenderPassCreate
 		if (clear_flags != 0)
 			renderpass_data.cleared_attachments.push_back({ clear_flags, attachment, pCreateInfo->pAttachments[attachment].initialLayout });
 	}
+
+	const std::lock_guard<std::mutex> lock(device_impl->_mutex);
+	device_impl->_render_pass_list.emplace(*pRenderPass, std::move(renderpass_data));
 #endif
 
 	return VK_SUCCESS;
@@ -972,7 +975,7 @@ VkResult VKAPI_CALL vkCreateRenderPass2(VkDevice device, const VkRenderPassCreat
 	}
 
 #if RESHADE_ADDON
-	auto &renderpass_data = device_impl->_render_pass_list.emplace(*pRenderPass);
+	reshade::vulkan::render_pass_data renderpass_data;
 	renderpass_data.subpasses.reserve(pCreateInfo->subpassCount);
 	renderpass_data.cleared_attachments.reserve(pCreateInfo->attachmentCount);
 
@@ -1008,6 +1011,9 @@ VkResult VKAPI_CALL vkCreateRenderPass2(VkDevice device, const VkRenderPassCreat
 		if (clear_flags != 0)
 			renderpass_data.cleared_attachments.push_back({ clear_flags, attachment, pCreateInfo->pAttachments[attachment].initialLayout });
 	}
+
+	const std::lock_guard<std::mutex> lock(device_impl->_mutex);
+	device_impl->_render_pass_list.emplace(*pRenderPass, std::move(renderpass_data));
 #endif
 
 	return VK_SUCCESS;
@@ -1038,10 +1044,12 @@ VkResult VKAPI_CALL vkCreateFramebuffer(VkDevice device, const VkFramebufferCrea
 
 #if RESHADE_ADDON
 	// Keep track of the frame buffer attachments
-	auto &attachments = device_impl->_framebuffer_list.emplace(*pFramebuffer);
-	attachments.resize(pCreateInfo->attachmentCount);
+	std::vector<reshade::api::resource_view> attachments(pCreateInfo->attachmentCount);
 	for (uint32_t i = 0; i < pCreateInfo->attachmentCount; ++i)
 		attachments[i] = { (uint64_t)pCreateInfo->pAttachments[i] };
+
+	const std::lock_guard<std::mutex> lock(device_impl->_mutex);
+	device_impl->_framebuffer_list.emplace(*pFramebuffer, std::move(attachments));
 #endif
 
 	return VK_SUCCESS;
@@ -1683,6 +1691,8 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 		cmd_impl->current_renderpass = pRenderPassBegin->renderPass;
 		cmd_impl->current_framebuffer = pRenderPassBegin->framebuffer;
 
+		std::unique_lock<std::mutex> lock(device_impl->_mutex);
+
 		const auto &attachments = device_impl->_framebuffer_list.at(cmd_impl->current_framebuffer);
 		const auto &renderpass_data = device_impl->_render_pass_list.at(cmd_impl->current_renderpass);
 		const auto &renderpass_data_subpass = renderpass_data.subpasses[0];
@@ -1756,12 +1766,15 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 #if RESHADE_ADDON
 	if (cmd_impl != nullptr)
 	{
+		std::unique_lock<std::mutex> lock(device_impl->_mutex);
+
 		const auto &attachments = device_impl->_framebuffer_list.at(cmd_impl->current_framebuffer);
 		const auto &renderpass_data = device_impl->_render_pass_list.at(cmd_impl->current_renderpass);
 		const auto &renderpass_data_subpass = renderpass_data.subpasses[0];
 
-		auto rtvs = static_cast<reshade::api::resource_view *>(alloca(sizeof(reshade::api::resource_view) * renderpass_data_subpass.color_attachments.size()));
-		for (uint32_t i = 0; i < renderpass_data_subpass.color_attachments.size(); ++i)
+		const uint32_t num_rtvs = static_cast<uint32_t>(renderpass_data_subpass.color_attachments.size());
+		auto rtvs = static_cast<reshade::api::resource_view *>(alloca(sizeof(reshade::api::resource_view) * num_rtvs));
+		for (uint32_t i = 0; i < num_rtvs; ++i)
 			if (renderpass_data_subpass.color_attachments[i].attachment != VK_ATTACHMENT_UNUSED)
 				rtvs[i] = attachments[renderpass_data_subpass.color_attachments[i].attachment];
 			else
@@ -1771,7 +1784,9 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 		if (renderpass_data_subpass.depth_stencil_attachment.attachment != VK_ATTACHMENT_UNUSED)
 			dsv = attachments[renderpass_data_subpass.depth_stencil_attachment.attachment];
 
-		reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(cmd_impl, static_cast<uint32_t>(renderpass_data_subpass.color_attachments.size()), rtvs, dsv);
+		lock.unlock();
+
+		reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(cmd_impl, num_rtvs, rtvs, dsv);
 	}
 #endif
 }
@@ -1797,12 +1812,15 @@ void     VKAPI_CALL vkCmdNextSubpass(VkCommandBuffer commandBuffer, VkSubpassCon
 #if RESHADE_ADDON
 	if (cmd_impl != nullptr)
 	{
+		std::unique_lock<std::mutex> lock(device_impl->_mutex);
+
 		const auto &attachments = device_impl->_framebuffer_list.at(cmd_impl->current_framebuffer);
 		const auto &renderpass_data = device_impl->_render_pass_list.at(cmd_impl->current_renderpass);
 		const auto &renderpass_data_subpass = renderpass_data.subpasses[cmd_impl->current_subpass];
 
-		auto rtvs = static_cast<reshade::api::resource_view *>(alloca(sizeof(reshade::api::resource_view) * renderpass_data_subpass.color_attachments.size()));
-		for (uint32_t i = 0; i < renderpass_data_subpass.color_attachments.size(); ++i)
+		const uint32_t num_rtvs = static_cast<uint32_t>(renderpass_data_subpass.color_attachments.size());
+		auto rtvs = static_cast<reshade::api::resource_view *>(alloca(sizeof(reshade::api::resource_view) * num_rtvs));
+		for (uint32_t i = 0; i < num_rtvs; ++i)
 			if (renderpass_data_subpass.color_attachments[i].attachment != VK_ATTACHMENT_UNUSED)
 				rtvs[i] = attachments[renderpass_data_subpass.color_attachments[i].attachment];
 			else
@@ -1812,7 +1830,9 @@ void     VKAPI_CALL vkCmdNextSubpass(VkCommandBuffer commandBuffer, VkSubpassCon
 		if (renderpass_data_subpass.depth_stencil_attachment.attachment != VK_ATTACHMENT_UNUSED)
 			dsv = attachments[renderpass_data_subpass.depth_stencil_attachment.attachment];
 
-		reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(cmd_impl, static_cast<uint32_t>(renderpass_data_subpass.color_attachments.size()), rtvs, dsv);
+		lock.unlock();
+
+		reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(cmd_impl, num_rtvs, rtvs, dsv);
 	}
 #endif
 }
