@@ -79,8 +79,7 @@ bool reshade::d3d10::swapchain_impl::on_init()
 	tex_desc.Usage = D3D10_USAGE_DEFAULT;
 	tex_desc.BindFlags = D3D10_BIND_RENDER_TARGET;
 
-	if (swap_desc.SampleDesc.Count > 1 ||
-		api::format_to_default_typed(_backbuffer_format) != _backbuffer_format)
+	if (swap_desc.SampleDesc.Count > 1)
 	{
 		if (FAILED(static_cast<device_impl *>(_device)->_orig->CreateTexture2D(&tex_desc, nullptr, &_backbuffer_resolved)))
 			return false;
@@ -107,11 +106,11 @@ bool reshade::d3d10::swapchain_impl::on_init()
 		return false;
 
 	D3D10_RENDER_TARGET_VIEW_DESC rtv_desc = {};
-	rtv_desc.Format = convert_format(api::format_to_default_typed(_backbuffer_format));
+	rtv_desc.Format = convert_format(api::format_to_default_typed(_backbuffer_format, 0));
 	rtv_desc.ViewDimension = D3D10_RTV_DIMENSION_TEXTURE2D;
 	if (FAILED(static_cast<device_impl *>(_device)->_orig->CreateRenderTargetView(_backbuffer_resolved.get(), &rtv_desc, &_backbuffer_rtv[0])))
 		return false;
-	rtv_desc.Format = convert_format(api::format_to_default_typed_srgb(_backbuffer_format));
+	rtv_desc.Format = convert_format(api::format_to_default_typed(_backbuffer_format, 1));
 	if (FAILED(static_cast<device_impl *>(_device)->_orig->CreateRenderTargetView(_backbuffer_resolved.get(), &rtv_desc, &_backbuffer_rtv[1])))
 		return false;
 

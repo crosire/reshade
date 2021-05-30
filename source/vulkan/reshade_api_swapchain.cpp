@@ -96,8 +96,8 @@ bool reshade::vulkan::swapchain_impl::on_init(VkSwapchainKHR swapchain, const Vk
 
 	assert(desc.imageUsage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
 
-	const api::format backbuffer_format = api::format_to_default_typed(_backbuffer_format);
-	const api::format backbuffer_format_srgb = api::format_to_default_typed_srgb(_backbuffer_format);
+	const api::format backbuffer_format = api::format_to_default_typed(_backbuffer_format, 0);
+	const api::format backbuffer_format_srgb = api::format_to_default_typed(_backbuffer_format, 1);
 
 	_swapchain_views.resize(num_images * 2);
 

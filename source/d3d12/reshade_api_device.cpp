@@ -219,9 +219,14 @@ bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc
 		internal_desc.Width = (internal_desc.Width + D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT - 1u) & ~(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT - 1u);
 
 	// Use a default clear value of transparent black (all zeroes)
+	bool use_default_clear_value = true;
 	D3D12_CLEAR_VALUE default_clear_value = {};
-	default_clear_value.Format = convert_format(api::format_to_typeless(desc.texture.format) == desc.texture.format ? api::format_to_default_typed(desc.texture.format) : desc.texture.format);
-	const bool use_default_clear_value = (desc.usage & (api::resource_usage::depth_stencil | api::resource_usage::render_target)) != api::resource_usage::undefined;
+	if ((desc.usage & api::resource_usage::render_target) != api::resource_usage::undefined)
+		default_clear_value.Format = convert_format(api::format_to_default_typed(desc.texture.format));
+	else if ((desc.usage & api::resource_usage::depth_stencil) != api::resource_usage::undefined)
+		default_clear_value.Format = convert_format(api::format_to_depth_stencil_typed(desc.texture.format));
+	else
+		use_default_clear_value = false;
 
 	if (com_ptr<ID3D12Resource> object;
 		SUCCEEDED(_orig->CreateCommittedResource(&heap_props, heap_flags, &internal_desc, convert_resource_usage_to_states(initial_state), use_default_clear_value ? &default_clear_value : nullptr, IID_PPV_ARGS(&object))))

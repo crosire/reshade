@@ -275,7 +275,8 @@ namespace reshade { namespace api
 	/// <summary>
 	/// Converts the specified format <paramref name="value"/> to its equivalent typed variant ("unorm" or "float").
 	/// </summary>
-	inline format format_to_default_typed(format value)
+	/// <param name="srgb">Set to 1 to get sRGB variant, 0 to get non-sRGB variant and -1 to preserve existing variant.</param>
+	inline format format_to_default_typed(format value, int srgb = -1)
 	{
 		switch (value)
 		{
@@ -284,17 +285,25 @@ namespace reshade { namespace api
 		case format::r8g8_typeless:
 			return format::r8g8_unorm;
 		case format::r8g8b8a8_typeless:
+		case format::r8g8b8a8_unorm:
+			return srgb == 1 ? format::r8g8b8a8_unorm_srgb : format::r8g8b8a8_unorm;
 		case format::r8g8b8a8_unorm_srgb:
-			return format::r8g8b8a8_unorm;
+			return srgb != 0 ? format::r8g8b8a8_unorm_srgb : format::r8g8b8a8_unorm;
 		case format::r8g8b8x8_typeless:
+		case format::r8g8b8x8_unorm:
+			return srgb == 1 ? format::r8g8b8x8_unorm_srgb : format::r8g8b8x8_unorm;
 		case format::r8g8b8x8_unorm_srgb:
-			return format::r8g8b8x8_unorm;
+			return srgb != 0 ? format::r8g8b8x8_unorm_srgb : format::r8g8b8x8_unorm;
 		case format::b8g8r8a8_typeless:
+		case format::b8g8r8a8_unorm:
+			return srgb == 1 ? format::b8g8r8a8_unorm_srgb : format::b8g8r8a8_unorm;
 		case format::b8g8r8a8_unorm_srgb:
-			return format::b8g8r8a8_unorm;
+			return srgb != 0 ? format::b8g8r8a8_unorm_srgb : format::b8g8r8a8_unorm;
 		case format::b8g8r8x8_typeless:
+		case format::b8g8r8x8_unorm:
+			return srgb == 1 ? format::b8g8r8x8_unorm_srgb : format::b8g8r8x8_unorm;
 		case format::b8g8r8x8_unorm_srgb:
-			return format::b8g8r8x8_unorm;
+			return srgb != 0 ? format::b8g8r8x8_unorm_srgb : format::b8g8r8x8_unorm;
 		case format::r10g10b10a2_typeless:
 			return format::r10g10b10a2_unorm;
 		case format::b10g10r10a2_typeless:
@@ -321,14 +330,20 @@ namespace reshade { namespace api
 		case format::r24_g8_typeless:
 			return format::r24_unorm_x8_uint;
 		case format::bc1_typeless:
+		case format::bc1_unorm:
+			return srgb == 1 ? format::bc1_unorm_srgb : format::bc1_unorm;
 		case format::bc1_unorm_srgb:
-			return format::bc1_unorm;
+			return srgb != 0 ? format::bc1_unorm_srgb : format::bc1_unorm;
 		case format::bc2_typeless:
+		case format::bc2_unorm:
+			return srgb == 1 ? format::bc2_unorm_srgb : format::bc2_unorm;
 		case format::bc2_unorm_srgb:
-			return format::bc2_unorm;
+			return srgb != 0 ? format::bc2_unorm_srgb : format::bc2_unorm;
 		case format::bc3_typeless:
+		case format::bc3_unorm:
+			return srgb == 1 ? format::bc3_unorm_srgb : format::bc3_unorm;
 		case format::bc3_unorm_srgb:
-			return format::bc2_unorm;
+			return srgb != 0 ? format::bc3_unorm_srgb : format::bc3_unorm;
 		case format::bc4_typeless:
 			return format::bc4_unorm;
 		case format::bc5_typeless:
@@ -336,46 +351,12 @@ namespace reshade { namespace api
 		case format::bc6h_typeless:
 			return format::bc6h_ufloat;
 		case format::bc7_typeless:
+		case format::bc7_unorm:
+			return srgb == 1 ? format::bc7_unorm_srgb : format::bc7_unorm;
 		case format::bc7_unorm_srgb:
-			return format::bc7_unorm;
+			return srgb != 0 ? format::bc7_unorm_srgb : format::bc7_unorm;
 		default:
 			return value;
-		}
-	}
-
-	/// <summary>
-	/// Converts the specified format <paramref name="value"/> to its equivalent typed sRGB variant ("unorm_srgb" or "float").
-	/// </summary>
-	inline format format_to_default_typed_srgb(format value)
-	{
-		switch (value)
-		{
-		case format::r8g8b8a8_typeless:
-		case format::r8g8b8a8_unorm:
-			return format::r8g8b8a8_unorm_srgb;
-		case format::r8g8b8x8_typeless:
-		case format::r8g8b8x8_unorm:
-			return format::r8g8b8x8_unorm_srgb;
-		case format::b8g8r8a8_typeless:
-		case format::b8g8r8a8_unorm:
-			return format::b8g8r8a8_unorm_srgb;
-		case format::b8g8r8x8_typeless:
-		case format::b8g8r8x8_unorm:
-			return format::b8g8r8x8_unorm_srgb;
-		case format::bc1_typeless:
-		case format::bc1_unorm:
-			return format::bc1_unorm_srgb;
-		case format::bc2_typeless:
-		case format::bc2_unorm:
-			return format::bc2_unorm_srgb;
-		case format::bc3_typeless:
-		case format::bc3_unorm:
-			return format::bc2_unorm_srgb;
-		case format::bc7_typeless:
-		case format::bc7_unorm:
-			return format::bc7_unorm_srgb;
-		default:
-			return format_to_default_typed(value);
 		}
 	}
 

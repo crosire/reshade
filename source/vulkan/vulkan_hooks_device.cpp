@@ -429,9 +429,9 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 
 		// Add required formats, so views with different formats can be created for the swap chain images
 		format_list.push_back(reshade::vulkan::convert_format(
-			reshade::api::format_to_default_typed(reshade::vulkan::convert_format(create_info.imageFormat))));
+			reshade::api::format_to_default_typed(reshade::vulkan::convert_format(create_info.imageFormat), 0)));
 		format_list.push_back(reshade::vulkan::convert_format(
-			reshade::api::format_to_default_typed_srgb(reshade::vulkan::convert_format(create_info.imageFormat))));
+			reshade::api::format_to_default_typed(reshade::vulkan::convert_format(create_info.imageFormat), 1)));
 
 		// Only have to make format mutable if they are actually different
 		if (format_list[0] != format_list[1])

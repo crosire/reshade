@@ -139,8 +139,8 @@ bool reshade::runtime::on_init(input::window_handle window)
 
 		_device->set_debug_name(_backbuffer_texture, "ReShade back buffer");
 
-		if (!_device->create_resource_view(_backbuffer_texture, api::resource_usage::shader_resource, api::resource_view_desc(api::format_to_default_typed(_backbuffer_format)), &_backbuffer_texture_view[0]) ||
-			!_device->create_resource_view(_backbuffer_texture, api::resource_usage::shader_resource, api::resource_view_desc(api::format_to_default_typed_srgb(_backbuffer_format)), &_backbuffer_texture_view[1]))
+		if (!_device->create_resource_view(_backbuffer_texture, api::resource_usage::shader_resource, api::resource_view_desc(api::format_to_default_typed(_backbuffer_format, 0)), &_backbuffer_texture_view[0]) ||
+			!_device->create_resource_view(_backbuffer_texture, api::resource_usage::shader_resource, api::resource_view_desc(api::format_to_default_typed(_backbuffer_format, 1)), &_backbuffer_texture_view[1]))
 		{
 			LOG(ERROR) << "Failed to create back buffer resource view!";
 			goto exit_failure;
@@ -1542,22 +1542,18 @@ bool reshade::runtime::init_effect(size_t effect_index)
 					if (texture.levels > 1)
 						pass_data.generate_mipmap_views.push_back(texture.srv[pass_info.srgb_write_enable]);
 
-					const api::resource_desc res_desc(
-						_device->get_resource_desc(texture.resource));
-					const api::resource_view_desc rtv_desc(
-						pass_info.srgb_write_enable ? api::format_to_default_typed_srgb(res_desc.texture.format) : api::format_to_default_typed(res_desc.texture.format));
-
 					pass_data.render_targets[k] = texture.rtv[pass_info.srgb_write_enable];
 
+					const api::resource_desc res_desc = _device->get_resource_desc(texture.resource);
+
 					desc.graphics.num_render_targets = pass_data.num_render_targets = k + 1;
-					desc.graphics.render_target_format[k] = rtv_desc.format;
+					desc.graphics.render_target_format[k] = api::format_to_default_typed(res_desc.texture.format, pass_info.srgb_write_enable);
 				}
 
 				if (pass_info.render_target_names[0].empty())
 				{
 					desc.graphics.num_render_targets = 1;
-					desc.graphics.render_target_format[0] =
-						pass_info.srgb_write_enable ? api::format_to_default_typed_srgb(_backbuffer_format) : api::format_to_default_typed(_backbuffer_format);
+					desc.graphics.render_target_format[0] = api::format_to_default_typed(_backbuffer_format, pass_info.srgb_write_enable);
 
 					pass_info.viewport_width = _width;
 					pass_info.viewport_height = _height;
@@ -2791,8 +2787,7 @@ void reshade::runtime::render_technique(technique &tech)
 			if (effect.sampler_set.handle != 0)
 				assert(!sampler_with_resource_view),
 				cmd_list->bind_descriptor_sets(api::pipeline_type::graphics, effect.layout, 1, 1, &effect.sampler_set);
-			// Setup shader resources after binding render targets, to ensure any OM bindings by the application are unset at this point
-			// Otherwise a slot referencing a resource still bound to the OM would be filled with NULL, which can happen with the depth buffer (https://docs.microsoft.com/windows/win32/api/d3d11/nf-d3d11-id3d11devicecontext-pssetshaderresources)
+			// Setup shader resources after binding render targets, to ensure any OM bindings by the application are unset at this point (e.g. a depth buffer that was bound to the OM and is now bound as shader resource)
 			if (pass_data.texture_set.handle != 0)
 				cmd_list->bind_descriptor_sets(api::pipeline_type::graphics, effect.layout, sampler_with_resource_view ? 1 : 2, 1, &pass_data.texture_set);
 

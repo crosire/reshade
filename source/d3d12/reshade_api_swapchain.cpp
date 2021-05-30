@@ -119,9 +119,7 @@ bool reshade::d3d12::swapchain_impl::on_init(const DXGI_SWAP_CHAIN_DESC &swap_de
 			for (int srgb_write_enable = 0; srgb_write_enable < 2; ++srgb_write_enable, rtv_handle.ptr += static_cast<device_impl *>(_device)->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_RTV])
 			{
 				D3D12_RENDER_TARGET_VIEW_DESC rtv_desc = {};
-				rtv_desc.Format = srgb_write_enable ?
-					convert_format(api::format_to_default_typed_srgb(_backbuffer_format)) :
-					convert_format(api::format_to_default_typed(_backbuffer_format));
+				rtv_desc.Format = convert_format(api::format_to_default_typed(_backbuffer_format, srgb_write_enable));
 				rtv_desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 
 				static_cast<device_impl *>(_device)->_orig->CreateRenderTargetView(_backbuffers[i].get(), &rtv_desc, rtv_handle);
@@ -192,9 +190,7 @@ bool reshade::d3d12::swapchain_impl::on_present(ID3D12Resource *source, HWND hwn
 		for (int srgb_write_enable = 0; srgb_write_enable < 2; ++srgb_write_enable, rtv_handle.ptr += static_cast<device_impl *>(_device)->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_RTV])
 		{
 			D3D12_RENDER_TARGET_VIEW_DESC rtv_desc = {};
-			rtv_desc.Format = srgb_write_enable ?
-				convert_format(api::format_to_default_typed_srgb(_backbuffer_format)) :
-				convert_format(api::format_to_default_typed(_backbuffer_format));
+			rtv_desc.Format = convert_format(api::format_to_default_typed(_backbuffer_format, srgb_write_enable));
 			rtv_desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 
 			static_cast<device_impl *>(_device)->_orig->CreateRenderTargetView(source, &rtv_desc, rtv_handle);
@@ -270,9 +266,7 @@ bool reshade::d3d12::swapchain_impl::on_layer_submit(UINT eye, ID3D12Resource *s
 		for (int srgb_write_enable = 0; srgb_write_enable < 2; ++srgb_write_enable, rtv_handle.ptr += static_cast<device_impl *>(_device)->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_RTV])
 		{
 			D3D12_RENDER_TARGET_VIEW_DESC rtv_desc = {};
-			rtv_desc.Format = srgb_write_enable ?
-				convert_format(api::format_to_default_typed_srgb(_backbuffer_format)) :
-				convert_format(api::format_to_default_typed(_backbuffer_format));
+			rtv_desc.Format = convert_format(api::format_to_default_typed(_backbuffer_format, srgb_write_enable));
 			rtv_desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 
 			static_cast<device_impl *>(_device)->_orig->CreateRenderTargetView(_backbuffers[0].get(), &rtv_desc, rtv_handle);
