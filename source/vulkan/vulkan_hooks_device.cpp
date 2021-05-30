@@ -919,7 +919,7 @@ VkResult VKAPI_CALL vkCreateRenderPass(VkDevice device, const VkRenderPassCreate
 #if RESHADE_ADDON
 	reshade::vulkan::render_pass_data renderpass_data;
 	renderpass_data.subpasses.reserve(pCreateInfo->subpassCount);
-	renderpass_data.cleared_attachments.reserve(pCreateInfo->attachmentCount);
+	renderpass_data.attachments.reserve(pCreateInfo->attachmentCount);
 
 	for (uint32_t subpass = 0; subpass < pCreateInfo->subpassCount; ++subpass)
 	{
@@ -950,8 +950,7 @@ VkResult VKAPI_CALL vkCreateRenderPass(VkDevice device, const VkRenderPassCreate
 			(pCreateInfo->pAttachments[attachment].loadOp == VK_ATTACHMENT_LOAD_OP_CLEAR ? 0x1 : 0x0) |
 			(pCreateInfo->pAttachments[attachment].stencilLoadOp == VK_ATTACHMENT_LOAD_OP_CLEAR ? 0x2 : 0x0);
 
-		if (clear_flags != 0)
-			renderpass_data.cleared_attachments.push_back({ clear_flags, attachment, pCreateInfo->pAttachments[attachment].initialLayout });
+		renderpass_data.attachments.push_back({ clear_flags, attachment, pCreateInfo->pAttachments[attachment].initialLayout });
 	}
 
 	const std::lock_guard<std::mutex> lock(device_impl->_mutex);
@@ -977,7 +976,7 @@ VkResult VKAPI_CALL vkCreateRenderPass2(VkDevice device, const VkRenderPassCreat
 #if RESHADE_ADDON
 	reshade::vulkan::render_pass_data renderpass_data;
 	renderpass_data.subpasses.reserve(pCreateInfo->subpassCount);
-	renderpass_data.cleared_attachments.reserve(pCreateInfo->attachmentCount);
+	renderpass_data.attachments.reserve(pCreateInfo->attachmentCount);
 
 	for (uint32_t subpass = 0; subpass < pCreateInfo->subpassCount; ++subpass)
 	{
@@ -1008,8 +1007,7 @@ VkResult VKAPI_CALL vkCreateRenderPass2(VkDevice device, const VkRenderPassCreat
 			(pCreateInfo->pAttachments[attachment].loadOp == VK_ATTACHMENT_LOAD_OP_CLEAR ? 0x1 : 0x0) |
 			(pCreateInfo->pAttachments[attachment].stencilLoadOp == VK_ATTACHMENT_LOAD_OP_CLEAR ? 0x2 : 0x0);
 
-		if (clear_flags != 0)
-			renderpass_data.cleared_attachments.push_back({ clear_flags, attachment, pCreateInfo->pAttachments[attachment].initialLayout });
+		renderpass_data.attachments.push_back({ clear_flags, attachment, pCreateInfo->pAttachments[attachment].initialLayout });
 	}
 
 	const std::lock_guard<std::mutex> lock(device_impl->_mutex);
@@ -1697,32 +1695,35 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 		const auto &renderpass_data = device_impl->_render_pass_list.at(cmd_impl->current_renderpass);
 		const auto &renderpass_data_subpass = renderpass_data.subpasses[0];
 
-		assert(renderpass_data.cleared_attachments.size() == pRenderPassBegin->clearValueCount);
-		for (uint32_t i = 0; i < renderpass_data.cleared_attachments.size() && i < pRenderPassBegin->clearValueCount; ++i)
+		assert(pRenderPassBegin->clearValueCount <= renderpass_data.attachments.size());
+		for (uint32_t i = 0; i < pRenderPassBegin->clearValueCount; ++i)
 		{
+			if (renderpass_data.attachments[i].clear_flags == 0)
+				continue; // Only elements corresponding to cleared attachments are used. Other elements are ignored.
+
 			const VkClearValue &clear_value = pRenderPassBegin->pClearValues[i];
 
-			if (renderpass_data.cleared_attachments[i].index != renderpass_data_subpass.depth_stencil_attachment.attachment)
+			if (renderpass_data.attachments[i].index != renderpass_data_subpass.depth_stencil_attachment.attachment)
 			{
 				if (!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::clear_render_target_views)].empty())
 				{
 					reshade::api::resource image = { 0 };
-					device_impl->get_resource_from_view(attachments[renderpass_data.cleared_attachments[i].index], &image);
+					device_impl->get_resource_from_view(attachments[renderpass_data.attachments[i].index], &image);
 
 					VkImageMemoryBarrier transition { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
-					transition.oldLayout = renderpass_data.cleared_attachments[i].initial_layout;
+					transition.oldLayout = renderpass_data.attachments[i].initial_layout;
 					transition.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 					transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 					transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 					transition.image = (VkImage)image.handle;
 					transition.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
 
-					assert(renderpass_data.cleared_attachments[i].clear_flags == 0x1);
+					assert(renderpass_data.attachments[i].clear_flags == 0x1);
 
 					device_impl->_dispatch_table.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
 
 					reshade::invoke_addon_event<reshade::addon_event::clear_render_target_views>( // Cannot be skipped
-						cmd_impl, 1, &attachments[renderpass_data.cleared_attachments[i].index], clear_value.color.float32);
+						cmd_impl, 1, &attachments[renderpass_data.attachments[i].index], clear_value.color.float32);
 
 					std::swap(transition.oldLayout, transition.newLayout);
 					device_impl->_dispatch_table.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
@@ -1733,25 +1734,25 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 				if (!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::clear_depth_stencil_view)].empty())
 				{
 					reshade::api::resource image = { 0 };
-					device_impl->get_resource_from_view(attachments[renderpass_data.cleared_attachments[i].index], &image);
+					device_impl->get_resource_from_view(attachments[renderpass_data.attachments[i].index], &image);
 
 					VkImageMemoryBarrier transition { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
-					transition.oldLayout = renderpass_data.cleared_attachments[i].initial_layout;
+					transition.oldLayout = renderpass_data.attachments[i].initial_layout;
 					transition.newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 					transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 					transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 					transition.image = (VkImage)image.handle;
 					transition.subresourceRange = { 0, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
 
-					if ((renderpass_data.cleared_attachments[i].clear_flags & 0x1) == 0x1)
+					if ((renderpass_data.attachments[i].clear_flags & 0x1) == 0x1)
 						transition.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_DEPTH_BIT;
-					if ((renderpass_data.cleared_attachments[i].clear_flags & 0x2) == 0x2)
+					if ((renderpass_data.attachments[i].clear_flags & 0x2) == 0x2)
 						transition.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
 
 					device_impl->_dispatch_table.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
 
 					reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>( // Cannot be skipped
-						cmd_impl, attachments[renderpass_data.cleared_attachments[i].index], renderpass_data.cleared_attachments[i].clear_flags, clear_value.depthStencil.depth, static_cast<uint8_t>(clear_value.depthStencil.stencil));
+						cmd_impl, attachments[renderpass_data.attachments[i].index], renderpass_data.attachments[i].clear_flags, clear_value.depthStencil.depth, static_cast<uint8_t>(clear_value.depthStencil.stencil));
 
 					std::swap(transition.oldLayout, transition.newLayout);
 					device_impl->_dispatch_table.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);

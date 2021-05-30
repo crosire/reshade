@@ -32,7 +32,7 @@ namespace reshade::vulkan
 		};
 
 		std::vector<subpass> subpasses;
-		std::vector<cleared_attachment> cleared_attachments;
+		std::vector<cleared_attachment> attachments;
 	};
 
 	struct resource_data
