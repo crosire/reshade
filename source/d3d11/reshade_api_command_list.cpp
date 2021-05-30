@@ -390,6 +390,16 @@ void reshade::d3d11::device_context_impl::begin_render_pass(uint32_t count, cons
 #endif
 
 	_orig->OMSetRenderTargets(count, rtv_ptrs, reinterpret_cast<ID3D11DepthStencilView *>(dsv.handle));
+
+	// Reset other output bindings
+	const D3D_FEATURE_LEVEL feature_level = _device_impl->_orig->GetFeatureLevel();
+	const UINT max_uav_bindings =
+		feature_level >= D3D_FEATURE_LEVEL_11_1 ? D3D11_1_UAV_SLOT_COUNT :
+		feature_level == D3D_FEATURE_LEVEL_11_0 ? D3D11_PS_CS_UAV_REGISTER_COUNT :
+		feature_level >= D3D_FEATURE_LEVEL_10_0 ? D3D11_CS_4_X_UAV_REGISTER_COUNT : 0;
+
+	ID3D11UnorderedAccessView *null_uav[D3D11_1_UAV_SLOT_COUNT] = {};
+	_orig->CSSetUnorderedAccessViews(0, max_uav_bindings, null_uav, nullptr);
 }
 void reshade::d3d11::device_context_impl::finish_render_pass()
 {
