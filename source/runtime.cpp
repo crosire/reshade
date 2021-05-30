@@ -1989,6 +1989,8 @@ void reshade::runtime::unload_effect(size_t effect_index)
 
 		_device->destroy_query_pool(effect.query_heap);
 		effect.query_heap = {};
+
+		effect.texture_semantic_to_binding.clear();
 	}
 
 #if RESHADE_GUI
