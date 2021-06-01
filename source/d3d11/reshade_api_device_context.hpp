@@ -79,7 +79,7 @@ namespace reshade::d3d11
 
 		void wait_idle() const final { /* no-op */ }
 
-		void barrier(uint32_t, const api::resource *, const api::resource_usage *, const api::resource_usage *) final { /* no-op */ }
+		void barrier(uint32_t count, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states) final;
 
 		void bind_pipeline(api::pipeline_type type, api::pipeline pipeline) final;
 		void bind_pipeline_states(uint32_t count, const api::pipeline_state *states, const uint32_t *values) final;

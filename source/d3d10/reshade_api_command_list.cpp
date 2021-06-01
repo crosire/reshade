@@ -20,6 +20,26 @@ void reshade::d3d10::pipeline_impl::apply(ID3D10Device *ctx) const
 	ctx->OMSetDepthStencilState(depth_stencil_state.get(), stencil_reference_value);
 }
 
+void reshade::d3d10::device_impl::barrier(uint32_t count, const api::resource *, const api::resource_usage *old_states, const api::resource_usage *new_states)
+{
+	bool transitions_away_from_shader_resource_usage = false;
+	for (UINT i = 0; i < count; ++i)
+	{
+		if ((old_states[i] & api::resource_usage::shader_resource) != api::resource_usage::undefined &&
+			(new_states[i] & api::resource_usage::shader_resource) == api::resource_usage::undefined)
+			transitions_away_from_shader_resource_usage = true;
+	}
+
+	// TODO: This should really only unbind the specific resources passed to this barrier command
+	if (transitions_away_from_shader_resource_usage)
+	{
+		ID3D10ShaderResourceView *null_srv[D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = {};
+		_orig->VSSetShaderResources(0, ARRAYSIZE(null_srv), null_srv);
+		_orig->GSSetShaderResources(0, ARRAYSIZE(null_srv), null_srv);
+		_orig->PSSetShaderResources(0, ARRAYSIZE(null_srv), null_srv);
+	}
+}
+
 void reshade::d3d10::device_impl::bind_pipeline(api::pipeline_type type, api::pipeline pipeline)
 {
 	assert(pipeline.handle != 0);
@@ -323,12 +343,6 @@ void reshade::d3d10::device_impl::finish_render_pass()
 {
 	// Reset render targets
 	_orig->OMSetRenderTargets(0, nullptr, nullptr);
-
-	// Reset shader resources
-	ID3D10ShaderResourceView *null_srv[D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = {};
-	_orig->VSSetShaderResources(0, ARRAYSIZE(null_srv), null_srv);
-	_orig->GSSetShaderResources(0, ARRAYSIZE(null_srv), null_srv);
-	_orig->PSSetShaderResources(0, ARRAYSIZE(null_srv), null_srv);
 }
 
 void reshade::d3d10::device_impl::copy_resource(api::resource src, api::resource dst)

@@ -8,6 +8,20 @@
 #include "reshade_api_device_context.hpp"
 #include "reshade_api_type_convert.hpp"
 
+void reshade::d3d11::pipeline_impl::apply(ID3D11DeviceContext *ctx) const
+{
+	ctx->VSSetShader(vs.get(), nullptr, 0);
+	ctx->HSSetShader(hs.get(), nullptr, 0);
+	ctx->DSSetShader(ds.get(), nullptr, 0);
+	ctx->GSSetShader(gs.get(), nullptr, 0);
+	ctx->PSSetShader(ps.get(), nullptr, 0);
+	ctx->IASetInputLayout(input_layout.get());
+	ctx->IASetPrimitiveTopology(topology);
+	ctx->OMSetBlendState(blend_state.get(), blend_constant, sample_mask);
+	ctx->RSSetState(rasterizer_state.get());
+	ctx->OMSetDepthStencilState(depth_stencil_state.get(), stencil_reference_value);
+}
+
 reshade::d3d11::command_list_impl::command_list_impl(device_impl *device, ID3D11CommandList *cmd_list) :
 	api_object_impl(cmd_list), _device_impl(device)
 {
@@ -27,18 +41,42 @@ reshade::api::device *reshade::d3d11::command_list_impl::get_device()
 	return _device_impl;
 }
 
-void reshade::d3d11::pipeline_impl::apply(ID3D11DeviceContext *ctx) const
+void reshade::d3d11::device_context_impl::barrier(uint32_t count, const api::resource *, const api::resource_usage *old_states, const api::resource_usage *new_states)
 {
-	ctx->VSSetShader(vs.get(), nullptr, 0);
-	ctx->HSSetShader(hs.get(), nullptr, 0);
-	ctx->DSSetShader(ds.get(), nullptr, 0);
-	ctx->GSSetShader(gs.get(), nullptr, 0);
-	ctx->PSSetShader(ps.get(), nullptr, 0);
-	ctx->IASetInputLayout(input_layout.get());
-	ctx->IASetPrimitiveTopology(topology);
-	ctx->OMSetBlendState(blend_state.get(), blend_constant, sample_mask);
-	ctx->RSSetState(rasterizer_state.get());
-	ctx->OMSetDepthStencilState(depth_stencil_state.get(), stencil_reference_value);
+	bool transitions_away_from_shader_resource_usage = false;
+	bool transitions_away_from_unordered_access_usage = false;
+	for (UINT i = 0; i < count; ++i)
+	{
+		if ((old_states[i] & api::resource_usage::shader_resource) != api::resource_usage::undefined &&
+			(new_states[i] & api::resource_usage::shader_resource) == api::resource_usage::undefined)
+			transitions_away_from_shader_resource_usage = true;
+		if ((old_states[i] & api::resource_usage::unordered_access) != api::resource_usage::undefined &&
+			(new_states[i] & api::resource_usage::unordered_access) == api::resource_usage::undefined)
+			transitions_away_from_unordered_access_usage = true;
+	}
+
+	// TODO: This should really only unbind the specific resources passed to this barrier command
+	if (transitions_away_from_shader_resource_usage)
+	{
+		ID3D11ShaderResourceView *null_srv[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = {};
+		_orig->VSSetShaderResources(0, ARRAYSIZE(null_srv), null_srv);
+		_orig->HSSetShaderResources(0, ARRAYSIZE(null_srv), null_srv);
+		_orig->DSSetShaderResources(0, ARRAYSIZE(null_srv), null_srv);
+		_orig->GSSetShaderResources(0, ARRAYSIZE(null_srv), null_srv);
+		_orig->PSSetShaderResources(0, ARRAYSIZE(null_srv), null_srv);
+		_orig->CSSetShaderResources(0, ARRAYSIZE(null_srv), null_srv);
+	}
+	if (transitions_away_from_unordered_access_usage)
+	{
+		const D3D_FEATURE_LEVEL feature_level = _device_impl->_orig->GetFeatureLevel();
+		const UINT max_uav_bindings =
+			feature_level >= D3D_FEATURE_LEVEL_11_1 ? D3D11_1_UAV_SLOT_COUNT :
+			feature_level == D3D_FEATURE_LEVEL_11_0 ? D3D11_PS_CS_UAV_REGISTER_COUNT :
+			feature_level >= D3D_FEATURE_LEVEL_10_0 ? D3D11_CS_4_X_UAV_REGISTER_COUNT : 0;
+
+		ID3D11UnorderedAccessView *null_uav[D3D11_1_UAV_SLOT_COUNT] = {};
+		_orig->CSSetUnorderedAccessViews(0, max_uav_bindings, null_uav, nullptr);
+	}
 }
 
 void reshade::d3d11::device_context_impl::bind_pipeline(api::pipeline_type type, api::pipeline pipeline)
@@ -390,29 +428,11 @@ void reshade::d3d11::device_context_impl::begin_render_pass(uint32_t count, cons
 #endif
 
 	_orig->OMSetRenderTargets(count, rtv_ptrs, reinterpret_cast<ID3D11DepthStencilView *>(dsv.handle));
-
-	// Reset other output bindings
-	const D3D_FEATURE_LEVEL feature_level = _device_impl->_orig->GetFeatureLevel();
-	const UINT max_uav_bindings =
-		feature_level >= D3D_FEATURE_LEVEL_11_1 ? D3D11_1_UAV_SLOT_COUNT :
-		feature_level == D3D_FEATURE_LEVEL_11_0 ? D3D11_PS_CS_UAV_REGISTER_COUNT :
-		feature_level >= D3D_FEATURE_LEVEL_10_0 ? D3D11_CS_4_X_UAV_REGISTER_COUNT : 0;
-
-	ID3D11UnorderedAccessView *null_uav[D3D11_1_UAV_SLOT_COUNT] = {};
-	_orig->CSSetUnorderedAccessViews(0, max_uav_bindings, null_uav, nullptr);
 }
 void reshade::d3d11::device_context_impl::finish_render_pass()
 {
 	// Reset render targets
 	_orig->OMSetRenderTargets(0, nullptr, nullptr);
-
-	// Reset shader resources
-	ID3D11ShaderResourceView *null_srv[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = {};
-	_orig->VSSetShaderResources(0, ARRAYSIZE(null_srv), null_srv);
-	_orig->HSSetShaderResources(0, ARRAYSIZE(null_srv), null_srv);
-	_orig->DSSetShaderResources(0, ARRAYSIZE(null_srv), null_srv);
-	_orig->GSSetShaderResources(0, ARRAYSIZE(null_srv), null_srv);
-	_orig->PSSetShaderResources(0, ARRAYSIZE(null_srv), null_srv);
 }
 
 void reshade::d3d11::device_context_impl::copy_resource(api::resource src, api::resource dst)
