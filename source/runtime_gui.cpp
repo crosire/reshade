@@ -3168,7 +3168,7 @@ bool reshade::runtime::init_imgui_resources()
 	if (_imgui_sampler_state.handle == 0)
 	{
 		api::sampler_desc desc = {};
-		desc.filter = api::texture_filter::min_mag_mip_linear;
+		desc.filter = api::filter_type::min_mag_mip_linear;
 		desc.address_u = api::texture_address_mode::wrap;
 		desc.address_v = api::texture_address_mode::wrap;
 		desc.address_w = api::texture_address_mode::wrap;
@@ -3237,7 +3237,7 @@ bool reshade::runtime::init_imgui_resources()
 	if (_imgui_pipeline.handle != 0)
 		return true;
 
-	api::pipeline_desc pso_desc = { api::pipeline_type::graphics };
+	api::pipeline_desc pso_desc = { api::pipeline_stage::all_graphics };
 	pso_desc.layout = _imgui_pipeline_layout;
 
 	if ((_renderer_id & 0x30000) == 0)
@@ -3323,19 +3323,19 @@ bool reshade::runtime::init_imgui_resources()
 	pso_desc.graphics.sample_count = 1;
 
 	{	auto &rasterizer_state = pso_desc.graphics.rasterizer_state;
-		rasterizer_state.depth_clip = true;
-		rasterizer_state.scissor_test = true;
+		rasterizer_state.depth_clip_enable = true;
+		rasterizer_state.scissor_enable = true;
 	}
 
 	{	auto &depth_stencil_state = pso_desc.graphics.depth_stencil_state;
-		depth_stencil_state.depth_test = false;
-		depth_stencil_state.stencil_test = false;
+		depth_stencil_state.depth_enable = false;
+		depth_stencil_state.stencil_enable = false;
 	}
 
 	pso_desc.graphics.topology = api::primitive_topology::triangle_list;
 
-	pso_desc.graphics.num_viewports = 1;
-	pso_desc.graphics.num_render_targets = 1;
+	pso_desc.graphics.viewport_count = 1;
+	pso_desc.graphics.render_target_count = 1;
 	pso_desc.graphics.depth_stencil_format = _effect_stencil_format;
 	pso_desc.graphics.render_target_format[0] = _backbuffer_format;
 
@@ -3420,7 +3420,7 @@ void reshade::runtime::render_imgui_draw_data(ImDrawData *draw_data, api::frameb
 	cmd_list->begin_render_pass(fbo);
 
 	// Setup render state
-	cmd_list->bind_pipeline(api::pipeline_type::graphics, _imgui_pipeline);
+	cmd_list->bind_pipeline(api::pipeline_stage::all_graphics, _imgui_pipeline);
 
 	cmd_list->bind_index_buffer(_imgui_indices[buffer_index], 0, sizeof(ImDrawIdx));
 	cmd_list->bind_vertex_buffer(0, _imgui_vertices[buffer_index], 0, sizeof(ImDrawVert));
@@ -3505,7 +3505,7 @@ void reshade::runtime::destroy_imgui_resources()
 
 	_device->destroy_sampler(_imgui_sampler_state);
 	_imgui_sampler_state = {};
-	_device->destroy_pipeline(api::pipeline_type::graphics, _imgui_pipeline);
+	_device->destroy_pipeline(api::pipeline_stage::all_graphics, _imgui_pipeline);
 	_imgui_pipeline = {};
 	_device->destroy_pipeline_layout(_imgui_pipeline_layout);
 	_imgui_pipeline_layout = {};

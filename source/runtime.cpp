@@ -1409,7 +1409,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 				sampler_list |= (1 << info.binding); // Maximum sampler slot count is 16, so a 16-bit integer is enough to hold all bindings
 
 				api::sampler_desc desc;
-				desc.filter = static_cast<api::texture_filter>(info.filter);
+				desc.filter = static_cast<api::filter_type>(info.filter);
 				desc.address_u = static_cast<api::texture_address_mode>(info.address_u);
 				desc.address_v = static_cast<api::texture_address_mode>(info.address_v);
 				desc.address_w = static_cast<api::texture_address_mode>(info.address_w);
@@ -1519,7 +1519,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 
 			if (!pass_info.cs_entry_point.empty())
 			{
-				api::pipeline_desc desc = { api::pipeline_type::compute };
+				api::pipeline_desc desc = { api::pipeline_stage::all_compute };
 				desc.layout = effect.layout;
 
 				const auto &cs = entry_points.at(pass_info.cs_entry_point);
@@ -1542,7 +1542,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 			}
 			else
 			{
-				api::pipeline_desc desc = { api::pipeline_type::graphics };
+				api::pipeline_desc desc = { api::pipeline_stage::all_graphics };
 				desc.layout = effect.layout;
 
 				const auto &vs = entry_points.at(pass_info.vs_entry_point);
@@ -1569,11 +1569,11 @@ bool reshade::runtime::init_effect(size_t effect_index)
 					desc.graphics.pixel_shader.spec_constant_values = spec_data.data();
 				}
 
-				desc.graphics.num_viewports = 1;
+				desc.graphics.viewport_count = 1;
 
 				if (pass_info.render_target_names[0].empty())
 				{
-					desc.graphics.num_render_targets = 1;
+					desc.graphics.render_target_count = 1;
 					desc.graphics.depth_stencil_format = _effect_stencil_format;
 					desc.graphics.render_target_format[0] = api::format_to_default_typed(_backbuffer_format, pass_info.srgb_write_enable);
 
@@ -1583,7 +1583,6 @@ bool reshade::runtime::init_effect(size_t effect_index)
 				else
 				{
 					api::resource_view rtvs[8] = {};
-
 					for (int k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k)
 					{
 						texture &texture = look_up_texture_by_name(pass_info.render_target_names[k]);
@@ -1597,7 +1596,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 
 						const api::resource_desc res_desc = _device->get_resource_desc(texture.resource);
 
-						desc.graphics.num_render_targets = k + 1;
+						desc.graphics.render_target_count = k + 1;
 						desc.graphics.render_target_format[k] = api::format_to_default_typed(res_desc.texture.format, pass_info.srgb_write_enable);
 					}
 
@@ -1605,16 +1604,10 @@ bool reshade::runtime::init_effect(size_t effect_index)
 					if (pass_info.stencil_enable &&
 						pass_info.viewport_width == _width &&
 						pass_info.viewport_height == _height)
-					{
 						desc.graphics.depth_stencil_format = _effect_stencil_format;
-					}
-					else
-					{
-						desc.graphics.depth_stencil_format = api::format::unknown;
-					}
 
 					if (!_device->create_framebuffer(
-						desc.graphics.num_render_targets,
+						desc.graphics.render_target_count,
 						rtvs,
 						desc.graphics.depth_stencil_format != api::format::unknown ? _effect_stencil_view : api::resource_view { 0 },
 						&pass_data.fbo))
@@ -1689,7 +1682,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 				auto &rasterizer_state = desc.graphics.rasterizer_state;
 				rasterizer_state.fill_mode = api::fill_mode::solid;
 				rasterizer_state.cull_mode = api::cull_mode::none;
-				rasterizer_state.depth_clip = true;
+				rasterizer_state.depth_clip_enable = true;
 
 				const auto convert_stencil_op = [](reshadefx::pass_stencil_op value) {
 					switch (value) {
@@ -1720,10 +1713,10 @@ bool reshade::runtime::init_effect(size_t effect_index)
 				};
 
 				auto &depth_stencil_state = desc.graphics.depth_stencil_state;
-				depth_stencil_state.depth_test = false;
+				depth_stencil_state.depth_enable = false;
 				depth_stencil_state.depth_write_mask = false;
 				depth_stencil_state.depth_func = api::compare_op::always;
-				depth_stencil_state.stencil_test = pass_info.stencil_enable;
+				depth_stencil_state.stencil_enable = pass_info.stencil_enable;
 				depth_stencil_state.stencil_read_mask = pass_info.stencil_read_mask;
 				depth_stencil_state.stencil_write_mask = pass_info.stencil_write_mask;
 				depth_stencil_state.back_stencil_fail_op = convert_stencil_op(pass_info.stencil_op_fail);
@@ -1757,7 +1750,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 						update.type = api::descriptor_type::sampler_with_resource_view;
 
 						api::sampler_desc desc;
-						desc.filter = static_cast<api::texture_filter>(info.filter);
+						desc.filter = static_cast<api::filter_type>(info.filter);
 						desc.address_u = static_cast<api::texture_address_mode>(info.address_u);
 						desc.address_v = static_cast<api::texture_address_mode>(info.address_v);
 						desc.address_w = static_cast<api::texture_address_mode>(info.address_w);
@@ -2010,7 +2003,7 @@ void reshade::runtime::unload_effect(size_t effect_index)
 			_device->destroy_framebuffer(tech.passes_data[i].fbo);
 
 			const bool is_compute_pass = !tech.passes[i].cs_entry_point.empty();
-			_device->destroy_pipeline(is_compute_pass ? api::pipeline_type::compute : api::pipeline_type::graphics, tech.passes_data[i].pipeline);
+			_device->destroy_pipeline(is_compute_pass ? api::pipeline_stage::all_compute : api::pipeline_stage::all_graphics, tech.passes_data[i].pipeline);
 
 			_device->destroy_descriptor_sets(_effects[effect_index].set_layouts[2], 1, &tech.passes_data[i].texture_set);
 			_device->destroy_descriptor_sets(_effects[effect_index].set_layouts[3], 1, &tech.passes_data[i].storage_set);
@@ -2082,7 +2075,7 @@ void reshade::runtime::unload_effects()
 			_device->destroy_framebuffer(tech.passes_data[i].fbo);
 
 			const bool is_compute_pass = !tech.passes[i].cs_entry_point.empty();
-			_device->destroy_pipeline(is_compute_pass ? api::pipeline_type::compute : api::pipeline_type::graphics, tech.passes_data[i].pipeline);
+			_device->destroy_pipeline(is_compute_pass ? api::pipeline_stage::all_compute : api::pipeline_stage::all_graphics, tech.passes_data[i].pipeline);
 
 			_device->destroy_descriptor_sets(_effects[tech.effect_index].set_layouts[2], 1, &tech.passes_data[i].texture_set);
 			_device->destroy_descriptor_sets(_effects[tech.effect_index].set_layouts[3], 1, &tech.passes_data[i].storage_set);
@@ -2772,7 +2765,7 @@ void reshade::runtime::render_technique(technique &tech)
 			// Compute shaders do not write to the back buffer, so no update necessary
 			needs_implicit_backbuffer_copy = false;
 
-			cmd_list->bind_pipeline(api::pipeline_type::compute, pass_data.pipeline);
+			cmd_list->bind_pipeline(api::pipeline_stage::all_compute, pass_data.pipeline);
 
 			std::vector<api::resource_usage> state_old(pass_data.modified_resources.size(), api::resource_usage::shader_resource);
 			std::vector<api::resource_usage> state_new(pass_data.modified_resources.size(), api::resource_usage::unordered_access);
@@ -2780,14 +2773,14 @@ void reshade::runtime::render_technique(technique &tech)
 
 			// Reset bindings on every pass (since they get invalidated by the call to 'generate_mipmaps' below)
 			if (effect.cb.handle != 0)
-				cmd_list->bind_descriptor_sets(api::pipeline_type::compute, effect.layout, 0, 1, &effect.cb_set);
+				cmd_list->bind_descriptor_sets(api::shader_stage::all_compute, effect.layout, 0, 1, &effect.cb_set);
 			if (effect.sampler_set.handle != 0)
 				assert(!sampler_with_resource_view),
-				cmd_list->bind_descriptor_sets(api::pipeline_type::compute, effect.layout, 1, 1, &effect.sampler_set);
+				cmd_list->bind_descriptor_sets(api::shader_stage::all_compute, effect.layout, 1, 1, &effect.sampler_set);
 			if (pass_data.texture_set.handle != 0)
-				cmd_list->bind_descriptor_sets(api::pipeline_type::compute, effect.layout, sampler_with_resource_view ? 1 : 2, 1, &pass_data.texture_set);
+				cmd_list->bind_descriptor_sets(api::shader_stage::all_compute, effect.layout, sampler_with_resource_view ? 1 : 2, 1, &pass_data.texture_set);
 			if (pass_data.storage_set.handle != 0)
-				cmd_list->bind_descriptor_sets(api::pipeline_type::compute, effect.layout, sampler_with_resource_view ? 2 : 3, 1, &pass_data.storage_set);
+				cmd_list->bind_descriptor_sets(api::shader_stage::all_compute, effect.layout, sampler_with_resource_view ? 2 : 3, 1, &pass_data.storage_set);
 
 			cmd_list->dispatch(pass_info.viewport_width, pass_info.viewport_height, pass_info.viewport_dispatch_z);
 
@@ -2795,7 +2788,7 @@ void reshade::runtime::render_technique(technique &tech)
 		}
 		else
 		{
-			cmd_list->bind_pipeline(api::pipeline_type::graphics, pass_data.pipeline);
+			cmd_list->bind_pipeline(api::pipeline_stage::all_graphics, pass_data.pipeline);
 
 			// Transition resource state for render targets
 			std::vector<api::resource_usage> state_old(pass_data.modified_resources.size(), api::resource_usage::shader_resource);
@@ -2821,7 +2814,7 @@ void reshade::runtime::render_technique(technique &tech)
 			if (pass_info.clear_render_targets)
 			{
 				constexpr float clear_color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-				cmd_list->clear_attachments(api::format_aspect::color, clear_color, 0, 0);
+				cmd_list->clear_attachments(api::attachment_type::color, clear_color, 0, 0);
 			}
 
 			// First pass to use the stencil buffer should clear it
@@ -2829,18 +2822,18 @@ void reshade::runtime::render_technique(technique &tech)
 			{
 				is_effect_stencil_cleared = true;
 
-				cmd_list->clear_attachments(api::format_aspect::stencil, nullptr, 1.0f, 0x0);
+				cmd_list->clear_attachments(api::attachment_type::stencil, nullptr, 1.0f, 0x0);
 			}
 
 			// Reset bindings on every pass (since they get invalidated by the call to 'generate_mipmaps' below)
 			if (effect.cb.handle != 0)
-				cmd_list->bind_descriptor_sets(api::pipeline_type::graphics, effect.layout, 0, 1, &effect.cb_set);
+				cmd_list->bind_descriptor_sets(api::shader_stage::all_graphics, effect.layout, 0, 1, &effect.cb_set);
 			if (effect.sampler_set.handle != 0)
 				assert(!sampler_with_resource_view),
-				cmd_list->bind_descriptor_sets(api::pipeline_type::graphics, effect.layout, 1, 1, &effect.sampler_set);
+				cmd_list->bind_descriptor_sets(api::shader_stage::all_graphics, effect.layout, 1, 1, &effect.sampler_set);
 			// Setup shader resources after binding render targets, to ensure any OM bindings by the application are unset at this point (e.g. a depth buffer that was bound to the OM and is now bound as shader resource)
 			if (pass_data.texture_set.handle != 0)
-				cmd_list->bind_descriptor_sets(api::pipeline_type::graphics, effect.layout, sampler_with_resource_view ? 1 : 2, 1, &pass_data.texture_set);
+				cmd_list->bind_descriptor_sets(api::shader_stage::all_graphics, effect.layout, sampler_with_resource_view ? 1 : 2, 1, &pass_data.texture_set);
 
 			const float viewport[6] = {
 				0.0f, 0.0f,

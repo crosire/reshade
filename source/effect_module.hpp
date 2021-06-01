@@ -34,7 +34,7 @@ namespace reshadefx
 	/// <summary>
 	/// A filtering type used for texture lookups.
 	/// </summary>
-	enum class texture_filter
+	enum class filter_mode
 	{
 		min_mag_mip_point = 0,
 		min_mag_point_mip_linear = 0x1,
@@ -190,7 +190,7 @@ namespace reshadefx
 		std::string unique_name;
 		std::string texture_name;
 		std::vector<annotation> annotations;
-		texture_filter filter = texture_filter::min_mag_mip_linear;
+		filter_mode filter = filter_mode::min_mag_mip_linear;
 		texture_address_mode address_u = texture_address_mode::clamp;
 		texture_address_mode address_v = texture_address_mode::clamp;
 		texture_address_mode address_w = texture_address_mode::clamp;

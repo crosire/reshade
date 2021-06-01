@@ -10,7 +10,8 @@
 namespace reshade { namespace api
 {
 	/// <summary>
-	/// The available data and texture formats. This is mostly compatible with 'DXGI_FORMAT'.
+	/// The available data and texture formats.
+	/// This is mostly compatible with 'DXGI_FORMAT'.
 	/// </summary>
 	enum class format : uint32_t
 	{
@@ -146,6 +147,7 @@ namespace reshade { namespace api
 	/// <summary>
 	/// Converts the specified format <paramref name="value"/> to its equivalent typeless variant.
 	/// </summary>
+	/// <param name="value">The format to convert.</param>
 	inline format format_to_typeless(format value)
 	{
 		switch (value)
@@ -275,6 +277,7 @@ namespace reshade { namespace api
 	/// <summary>
 	/// Converts the specified format <paramref name="value"/> to its equivalent typed variant ("unorm" or "float").
 	/// </summary>
+	/// <param name="value">The format to convert.</param>
 	/// <param name="srgb">Set to 1 to get sRGB variant, 0 to get non-sRGB variant and -1 to preserve existing variant.</param>
 	inline format format_to_default_typed(format value, int srgb = -1)
 	{
@@ -363,6 +366,7 @@ namespace reshade { namespace api
 	/// <summary>
 	/// Converts the specified format <paramref name="value"/> to its equivalent depth-stencil variant.
 	/// </summary>
+	/// <param name="value">The format to convert.</param>
 	inline format format_to_depth_stencil_typed(format value)
 	{
 		switch (value)

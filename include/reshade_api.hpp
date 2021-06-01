@@ -127,7 +127,7 @@ namespace reshade { namespace api
 		sampler_compare_op,
 		/// <summary>
 		/// Specifies whether anisotropic filtering is supported.
-		/// If this feature is not present, <see cref="texture_filter::anisotropic"/> must not be used.
+		/// If this feature is not present, <see cref="filter_type::anisotropic"/> must not be used.
 		/// </summary>
 		sampler_anisotropic_filtering,
 		/// <summary>
@@ -335,7 +335,7 @@ namespace reshade { namespace api
 		/// Instantly destroys a pipeline state object that was previously created via <see cref="create_pipeline"/>.
 		/// </summary>
 		/// <param name="type">The type of the pipeline state object.</param>
-		virtual void destroy_pipeline(pipeline_type type, pipeline handle) = 0;
+		virtual void destroy_pipeline(pipeline_stage type, pipeline handle) = 0;
 		/// <summary>
 		/// Instantly destroys a pipeline layout that was previously created via <see cref="create_pipeline_layout"/>.
 		/// </summary>
@@ -370,7 +370,7 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Gets the attachment of the specfied <paramref name="type"/> at the specified <paramref name="index"/> in the specified framebuffer object.
 		/// </summary>
-		virtual bool get_framebuffer_attachment(framebuffer fbo, format_aspect type, uint32_t index, resource_view *attachment) const = 0;
+		virtual bool get_framebuffer_attachment(framebuffer fbo, attachment_type type, uint32_t index, resource_view *attachment) const = 0;
 
 		/// <summary>
 		/// Maps the memory of a resource into application address space.
@@ -473,18 +473,29 @@ namespace reshade { namespace api
 		virtual void barrier(uint32_t count, const resource *resources, const resource_usage *old_states, const resource_usage *new_states) = 0;
 
 		/// <summary>
+		/// Marks the beginning of a render pass by binding one or more render targets and an optional depth-stencil buffer.
+		/// </summary>
+		virtual void begin_render_pass(framebuffer fbo) = 0;
+		/// <summary>
+		/// Marks the ending of a render pass.
+		/// This must be preceeded by a call to <see cref="begin_render_pass"/>). Render passes cannot be nested.
+		/// </summary>
+		virtual void finish_render_pass() = 0;
+
+		/// <summary>
 		/// Binds a pipeline state object.
 		/// </summary>
 		/// <param name="type">The pipeline state object type to bind.</param>
 		/// <param name="pipeline">The pipeline state object to bind.</param>
-		virtual void bind_pipeline(pipeline_type type, pipeline pipeline) = 0;
+		virtual void bind_pipeline(pipeline_stage type, pipeline pipeline) = 0;
 		/// <summary>
-		/// Directly sets individual dynamic pipeline states to the specified values.
+		/// Updates the specfified pipeline <paramref name="states"/> to the specified values.
+		/// This is only valid for states that have been listed in <see cref="pipeline_desc::graphics::dynamic_states"/> of the currently bound pipeline state object.
 		/// </summary>
-		/// <param name="count">The number of pipeline states to set.</param>
-		/// <param name="states">A pointer to an array of pipeline states to set.</param>
+		/// <param name="count">The number of pipeline states to update.</param>
+		/// <param name="states">A pointer to an array of pipeline states to update.</param>
 		/// <param name="values">A pointer to an array of pipeline state values, with one for each state in <paramref name="states"/>.</param>
-		virtual void bind_pipeline_states(uint32_t count, const pipeline_state *states, const uint32_t *values) = 0;
+		virtual void bind_pipeline_states(uint32_t count, const dynamic_state *states, const uint32_t *values) = 0;
 		/// <summary>
 		/// Binds an array of viewports to the rasterizer stage.
 		/// </summary>
@@ -504,34 +515,34 @@ namespace reshade { namespace api
 		/// Directly updates constant values in the specified shader pipeline stage.
 		/// <para>In D3D9 this updates the values of uniform registers, in D3D10/11 and OpenGL the constant buffer specified in the pipeline layout, in D3D12 it sets root constants and in Vulkan push constants.</para>
 		/// </summary>
-		/// <param name="stage">The shader stages that will use the updated constants.</param>
+		/// <param name="stages">The shader stages that will use the updated constants.</param>
 		/// <param name="layout">The pipeline layout that describes where the constants are located.</param>
 		/// <param name="layout_index">The index of the constant range in the pipeline <paramref name="layout"/>.</param>
 		/// <param name="first">The start offset (in 32-bit values) to the first constant in the constant range to begin updating.</param>
 		/// <param name="count">The number of 32-bit values to update.</param>
 		/// <param name="values">A pointer to an array of 32-bit values to set the constants to. These can be floating-point, integer or boolean depending on what the shader is expecting.</param>
-		virtual void push_constants(shader_stage stage, pipeline_layout layout, uint32_t layout_index, uint32_t first, uint32_t count, const void *values) = 0;
+		virtual void push_constants(shader_stage stages, pipeline_layout layout, uint32_t layout_index, uint32_t first, uint32_t count, const void *values) = 0;
 		/// <summary>
 		/// Directly updates a descriptor set for the specfified shader pipeline stage with an array of descriptors.
 		/// </summary>
-		/// <param name="stage">The shader stages that will use the updated descriptors.</param>
+		/// <param name="stages">The shader stages that will use the updated descriptors.</param>
 		/// <param name="layout">The pipeline layout that describes the descriptors.</param>
 		/// <param name="layout_index">The index of the descriptor set in the pipeline <paramref name="layout"/>.</param>
 		/// <param name="type">The type of descriptors to bind.</param>
 		/// <param name="first">The first binding in the descriptor set to update.</param>
 		/// <param name="count">The number of descriptors to update.</param>
 		/// <param name="descriptors">A pointer to an array of descriptors to update in the set. Depending on the descriptor <paramref name="type"/> this should pointer to an array of <see cref="resource"/>, <see cref="resource_view"/>, <see cref="sampler"/> or <see cref="sampler_with_resource_view"/>.</param>
-		virtual void push_descriptors(shader_stage stage, pipeline_layout layout, uint32_t layout_index, descriptor_type type, uint32_t first, uint32_t count, const void *descriptors) = 0;
+		virtual void push_descriptors(shader_stage stages, pipeline_layout layout, uint32_t layout_index, descriptor_type type, uint32_t first, uint32_t count, const void *descriptors) = 0;
 		/// <summary>
 		/// Binds an array of descriptor sets.
 		/// <para>This is not supported (and will do nothing) in D3D9, D3D10, D3D11 and OpenGL.</para>
 		/// </summary>
-		/// <param name="type">The pipeline type that will use the descriptors.</param>
+		/// <param name="stages">The shader stages that will use the descriptors.</param>
 		/// <param name="layout">The pipeline layout that describes the descriptors.</param>
 		/// <param name="first">The index of the first descriptor set in the pipeline <paramref name="layout"/> to bind.</param>
 		/// <param name="count">The number of descriptor sets to bind.</param>
 		/// <param name="sets">A pointer to an array of descriptor sets to bind.</param>
-		virtual void bind_descriptor_sets(pipeline_type type, pipeline_layout layout, uint32_t first, uint32_t count, const descriptor_set *sets) = 0;
+		virtual void bind_descriptor_sets(shader_stage stages, pipeline_layout layout, uint32_t first, uint32_t count, const descriptor_set *sets) = 0;
 
 		/// <summary>
 		/// Binds an index buffer to the input-assembler stage.
@@ -595,16 +606,6 @@ namespace reshade { namespace api
 		virtual void draw_or_dispatch_indirect(uint32_t type, resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride) = 0;
 
 		/// <summary>
-		/// Marks the beginning of a render pass by binding one or more render targets and the depth-stencil buffer to the output-merger stage.
-		/// </summary>
-		virtual void begin_render_pass(framebuffer fbo) = 0;
-		/// <summary>
-		/// Marks the ending of a render pass.
-		/// This must be preceeded by a call to <see cref="begin_render_pass"/>). Render passes cannot be nested.
-		/// </summary>
-		virtual void finish_render_pass() = 0;
-
-		/// <summary>
 		/// Copies the entire contents of the <paramref name="source"/> resource to the <paramref name="destination"/> resource. Dimensions of the two resources need to match.
 		/// <para>The <paramref name="source"/> resource has to be in the <see cref="resource_usage::copy_source"/> state.</para>
 		/// <para>The <paramref name="destination"/> resource has to be in the <see cref="resource_usage::copy_dest"/> state.</para>
@@ -649,7 +650,7 @@ namespace reshade { namespace api
 		/// <param name="dst_subresource">The subresource of the <paramref name="destination"/> texture to copy to.</param>
 		/// <param name="dst_box">A 3D box (or <c>nullptr</c> to reference the entire subresource) that defines the region in the <paramref name="destination"/> resource to blit to, in the format { left, top, front, right, bottom, back }.</param>
 		/// <param name="filter">The filter to apply when copy requires scaling.</param>
-		virtual void copy_texture_region(resource source, uint32_t src_subresource, const int32_t src_box[6], resource destination, uint32_t dst_subresource, const int32_t dst_box[6], texture_filter filter = texture_filter::min_mag_mip_point) = 0;
+		virtual void copy_texture_region(resource source, uint32_t src_subresource, const int32_t src_box[6], resource destination, uint32_t dst_subresource, const int32_t dst_box[6], filter_type filter = filter_type::min_mag_mip_point) = 0;
 		/// <summary>
 		/// Copies a texture region from the <paramref name="source"/> texture to the <paramref name="destination"/> buffer.
 		/// <para>The <paramref name="source"/> resource has to be in the <see cref="resource_usage::copy_source"/> state.</para>
@@ -693,7 +694,7 @@ namespace reshade { namespace api
 		/// <param name="color">The value to clear render targets with.</param>
 		/// <param name="depth">The value to clear the depth buffer with.</param>
 		/// <param name="stencil">The value to clear the stencil buffer with.</param>
-		virtual void clear_attachments(format_aspect clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t num_rects = 0, const int32_t *rects = nullptr) = 0;
+		virtual void clear_attachments(attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t num_rects = 0, const int32_t *rects = nullptr) = 0;
 		/// <summary>
 		/// Clears the resource referenced by the depth-stencil view.
 		/// <para>The resource the <paramref name="dsv"/> view points to has to be in the <see cref="resource_usage::depth_stencil_write"/> state.</para>
@@ -702,7 +703,7 @@ namespace reshade { namespace api
 		/// <param name="clear_flags">A combination of flags to identify which attachment types to clear.</param>
 		/// <param name="depth">The value to clear the depth buffer with.</param>
 		/// <param name="stencil">The value to clear the stencil buffer with.</param>
-		virtual void clear_depth_stencil_view(resource_view dsv, format_aspect clear_flags, float depth, uint8_t stencil, uint32_t num_rects = 0, const int32_t *rects = nullptr) = 0;
+		virtual void clear_depth_stencil_view(resource_view dsv, attachment_type clear_flags, float depth, uint8_t stencil, uint32_t num_rects = 0, const int32_t *rects = nullptr) = 0;
 		/// <summary>
 		/// Clears the resources referenced by the render target view.
 		/// <para>The resource the <paramref name="rtv"/> view point to has to be in the <see cref="resource_usage::render_target"/> state.</para>
@@ -759,13 +760,13 @@ namespace reshade { namespace api
 		/// <param name="color">An optional RGBA color value associated with the debug marker.</param>
 		virtual void add_debug_marker(const char *label, const float color[4] = nullptr) = 0;
 		/// <summary>
-		/// Opens a debug marker region in the command list.
+		/// Opens a debug event region in the command list.
 		/// </summary>
-		/// <param name="label">A null-terminated string containing the label of the debug marker.</param>
-		/// <param name="color">An optional RGBA color value associated with the debug marker.</param>
+		/// <param name="label">A null-terminated string containing the label of the event.</param>
+		/// <param name="color">An optional RGBA color value associated with the event.</param>
 		virtual void begin_debug_marker(const char *label, const float color[4] = nullptr) = 0;
 		/// <summary>
-		/// Closes the current debug marker region (the last one opened with <see cref="begin_debug_marker"/>).
+		/// Closes the current debug event region (the last one opened with <see cref="begin_debug_marker"/>).
 		/// </summary>
 		virtual void finish_debug_marker() = 0;
 	};
@@ -800,13 +801,13 @@ namespace reshade { namespace api
 		/// <param name="color">An optional RGBA color value associated with the debug marker.</param>
 		virtual void add_debug_marker(const char *label, const float color[4] = nullptr) = 0;
 		/// <summary>
-		/// Opens a debug marker region in the command queue.
+		/// Opens a debug event region in the command queue.
 		/// </summary>
-		/// <param name="label">A null-terminated string containing the label of the debug marker.</param>
-		/// <param name="color">An optional RGBA color value associated with the debug marker.</param>
+		/// <param name="label">A null-terminated string containing the label of the event.</param>
+		/// <param name="color">An optional RGBA color value associated with the event.</param>
 		virtual void begin_debug_marker(const char *label, const float color[4] = nullptr) = 0;
 		/// <summary>
-		/// Closes the current debug marker region (the last one opened with <see cref="begin_debug_marker"/>).
+		/// Closes the current debug event region (the last one opened with <see cref="begin_debug_marker"/>).
 		/// </summary>
 		virtual void finish_debug_marker() = 0;
 	};

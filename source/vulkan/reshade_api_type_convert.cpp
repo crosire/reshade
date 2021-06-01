@@ -557,82 +557,82 @@ void reshade::vulkan::convert_sampler_desc(const api::sampler_desc &desc, VkSamp
 
 	switch (desc.filter)
 	{
-	case api::texture_filter::compare_min_mag_mip_point:
+	case api::filter_type::compare_min_mag_mip_point:
 		create_info.compareEnable = VK_TRUE;
 		[[fallthrough]];
-	case api::texture_filter::min_mag_mip_point:
+	case api::filter_type::min_mag_mip_point:
 		create_info.minFilter = VK_FILTER_NEAREST;
 		create_info.magFilter = VK_FILTER_NEAREST;
 		create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
 		create_info.anisotropyEnable = VK_FALSE;
 		break;
-	case api::texture_filter::compare_min_mag_point_mip_linear:
+	case api::filter_type::compare_min_mag_point_mip_linear:
 		create_info.compareEnable = VK_TRUE;
 		[[fallthrough]];
-	case api::texture_filter::min_mag_point_mip_linear:
+	case api::filter_type::min_mag_point_mip_linear:
 		create_info.magFilter = VK_FILTER_NEAREST;
 		create_info.minFilter = VK_FILTER_NEAREST;
 		create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
 		create_info.anisotropyEnable = VK_FALSE;
 		break;
-	case api::texture_filter::compare_min_point_mag_linear_mip_point:
+	case api::filter_type::compare_min_point_mag_linear_mip_point:
 		create_info.compareEnable = VK_TRUE;
 		[[fallthrough]];
-	case api::texture_filter::min_point_mag_linear_mip_point:
+	case api::filter_type::min_point_mag_linear_mip_point:
 		create_info.magFilter = VK_FILTER_LINEAR;
 		create_info.minFilter = VK_FILTER_NEAREST;
 		create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
 		create_info.anisotropyEnable = VK_FALSE;
 		break;
-	case api::texture_filter::compare_min_point_mag_mip_linear:
+	case api::filter_type::compare_min_point_mag_mip_linear:
 		create_info.compareEnable = VK_TRUE;
 		[[fallthrough]];
-	case api::texture_filter::min_point_mag_mip_linear:
+	case api::filter_type::min_point_mag_mip_linear:
 		create_info.magFilter = VK_FILTER_LINEAR;
 		create_info.minFilter = VK_FILTER_NEAREST;
 		create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
 		create_info.anisotropyEnable = VK_FALSE;
 		break;
-	case api::texture_filter::compare_min_linear_mag_mip_point:
+	case api::filter_type::compare_min_linear_mag_mip_point:
 		create_info.compareEnable = VK_TRUE;
 		[[fallthrough]];
-	case api::texture_filter::min_linear_mag_mip_point:
+	case api::filter_type::min_linear_mag_mip_point:
 		create_info.magFilter = VK_FILTER_NEAREST;
 		create_info.minFilter = VK_FILTER_LINEAR;
 		create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
 		create_info.anisotropyEnable = VK_FALSE;
 		break;
-	case api::texture_filter::compare_min_linear_mag_point_mip_linear:
+	case api::filter_type::compare_min_linear_mag_point_mip_linear:
 		create_info.compareEnable = VK_TRUE;
 		[[fallthrough]];
-	case api::texture_filter::min_linear_mag_point_mip_linear:
+	case api::filter_type::min_linear_mag_point_mip_linear:
 		create_info.magFilter = VK_FILTER_NEAREST;
 		create_info.minFilter = VK_FILTER_LINEAR;
 		create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
 		create_info.anisotropyEnable = VK_FALSE;
 		break;
-	case api::texture_filter::compare_min_mag_linear_mip_point:
+	case api::filter_type::compare_min_mag_linear_mip_point:
 		create_info.compareEnable = VK_TRUE;
 		[[fallthrough]];
-	case api::texture_filter::min_mag_linear_mip_point:
+	case api::filter_type::min_mag_linear_mip_point:
 		create_info.magFilter = VK_FILTER_LINEAR;
 		create_info.minFilter = VK_FILTER_LINEAR;
 		create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
 		create_info.anisotropyEnable = VK_FALSE;
 		break;
-	case api::texture_filter::compare_min_mag_mip_linear:
+	case api::filter_type::compare_min_mag_mip_linear:
 		create_info.compareEnable = VK_TRUE;
 		[[fallthrough]];
-	case api::texture_filter::min_mag_mip_linear:
+	case api::filter_type::min_mag_mip_linear:
 		create_info.magFilter = VK_FILTER_LINEAR;
 		create_info.minFilter = VK_FILTER_LINEAR;
 		create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
 		create_info.anisotropyEnable = VK_FALSE;
 		break;
-	case api::texture_filter::compare_anisotropic:
+	case api::filter_type::compare_anisotropic:
 		create_info.compareEnable = VK_TRUE;
 		[[fallthrough]];
-	case api::texture_filter::anisotropic:
+	case api::filter_type::anisotropic:
 		create_info.magFilter = VK_FILTER_LINEAR;
 		create_info.minFilter = VK_FILTER_LINEAR;
 		create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
@@ -673,7 +673,7 @@ reshade::api::sampler_desc reshade::vulkan::convert_sampler_desc(const VkSampler
 	api::sampler_desc desc = {};
 	if (create_info.anisotropyEnable)
 	{
-		desc.filter = api::texture_filter::anisotropic;
+		desc.filter = api::filter_type::anisotropic;
 	}
 	else
 	{
@@ -686,10 +686,10 @@ reshade::api::sampler_desc reshade::vulkan::convert_sampler_desc(const VkSampler
 				switch (create_info.mipmapMode)
 				{
 				case VK_SAMPLER_MIPMAP_MODE_NEAREST:
-					desc.filter = create_info.compareEnable ? api::texture_filter::compare_min_mag_mip_point : api::texture_filter::min_mag_mip_point;
+					desc.filter = create_info.compareEnable ? api::filter_type::compare_min_mag_mip_point : api::filter_type::min_mag_mip_point;
 					break;
 				case VK_SAMPLER_MIPMAP_MODE_LINEAR:
-					desc.filter = create_info.compareEnable ? api::texture_filter::compare_min_mag_point_mip_linear : api::texture_filter::min_mag_point_mip_linear;
+					desc.filter = create_info.compareEnable ? api::filter_type::compare_min_mag_point_mip_linear : api::filter_type::min_mag_point_mip_linear;
 					break;
 				}
 				break;
@@ -697,10 +697,10 @@ reshade::api::sampler_desc reshade::vulkan::convert_sampler_desc(const VkSampler
 				switch (create_info.mipmapMode)
 				{
 				case VK_SAMPLER_MIPMAP_MODE_NEAREST:
-					desc.filter = create_info.compareEnable ? api::texture_filter::compare_min_point_mag_linear_mip_point : api::texture_filter::min_point_mag_linear_mip_point;
+					desc.filter = create_info.compareEnable ? api::filter_type::compare_min_point_mag_linear_mip_point : api::filter_type::min_point_mag_linear_mip_point;
 					break;
 				case VK_SAMPLER_MIPMAP_MODE_LINEAR:
-					desc.filter = create_info.compareEnable ? api::texture_filter::compare_min_point_mag_mip_linear : api::texture_filter::min_point_mag_mip_linear;
+					desc.filter = create_info.compareEnable ? api::filter_type::compare_min_point_mag_mip_linear : api::filter_type::min_point_mag_mip_linear;
 					break;
 				}
 				break;
@@ -713,10 +713,10 @@ reshade::api::sampler_desc reshade::vulkan::convert_sampler_desc(const VkSampler
 				switch (create_info.mipmapMode)
 				{
 				case VK_SAMPLER_MIPMAP_MODE_NEAREST:
-					desc.filter = create_info.compareEnable ? api::texture_filter::compare_min_linear_mag_mip_point : api::texture_filter::min_linear_mag_mip_point;
+					desc.filter = create_info.compareEnable ? api::filter_type::compare_min_linear_mag_mip_point : api::filter_type::min_linear_mag_mip_point;
 					break;
 				case VK_SAMPLER_MIPMAP_MODE_LINEAR:
-					desc.filter = create_info.compareEnable ? api::texture_filter::compare_min_linear_mag_point_mip_linear : api::texture_filter::min_linear_mag_point_mip_linear;
+					desc.filter = create_info.compareEnable ? api::filter_type::compare_min_linear_mag_point_mip_linear : api::filter_type::min_linear_mag_point_mip_linear;
 					break;
 				}
 				break;
@@ -724,10 +724,10 @@ reshade::api::sampler_desc reshade::vulkan::convert_sampler_desc(const VkSampler
 				switch (create_info.mipmapMode)
 				{
 				case VK_SAMPLER_MIPMAP_MODE_NEAREST:
-					desc.filter = create_info.compareEnable ? api::texture_filter::compare_min_mag_linear_mip_point : api::texture_filter::min_mag_linear_mip_point;
+					desc.filter = create_info.compareEnable ? api::filter_type::compare_min_mag_linear_mip_point : api::filter_type::min_mag_linear_mip_point;
 					break;
 				case VK_SAMPLER_MIPMAP_MODE_LINEAR:
-					desc.filter = create_info.compareEnable ? api::texture_filter::compare_min_mag_mip_linear : api::texture_filter::min_mag_mip_linear;
+					desc.filter = create_info.compareEnable ? api::filter_type::compare_min_mag_mip_linear : api::filter_type::min_mag_mip_linear;
 					break;
 				}
 				break;

@@ -354,9 +354,9 @@ bool reshade::d3d12::device_impl::create_pipeline(const api::pipeline_desc &desc
 	default:
 		*out = { 0 };
 		return false;
-	case api::pipeline_type::compute:
+	case api::pipeline_stage::all_compute:
 		return create_pipeline_compute(desc, out);
-	case api::pipeline_type::graphics:
+	case api::pipeline_stage::all_graphics:
 		return create_pipeline_graphics(desc, out);
 	}
 }
@@ -384,11 +384,11 @@ bool reshade::d3d12::device_impl::create_pipeline_compute(const api::pipeline_de
 }
 bool reshade::d3d12::device_impl::create_pipeline_graphics(const api::pipeline_desc &desc, api::pipeline *out)
 {
-	for (UINT i = 0; i < desc.graphics.num_dynamic_states; ++i)
+	for (UINT i = 0; i < ARRAYSIZE(desc.graphics.dynamic_states) && desc.graphics.dynamic_states[i] != api::dynamic_state::unknown; ++i)
 	{
-		if (desc.graphics.dynamic_states[i] != api::pipeline_state::stencil_reference_value &&
-			desc.graphics.dynamic_states[i] != api::pipeline_state::blend_constant &&
-			desc.graphics.dynamic_states[i] != api::pipeline_state::primitive_topology)
+		if (desc.graphics.dynamic_states[i] != api::dynamic_state::stencil_reference_value &&
+			desc.graphics.dynamic_states[i] != api::dynamic_state::blend_constant &&
+			desc.graphics.dynamic_states[i] != api::dynamic_state::primitive_topology)
 		{
 			*out = { 0 };
 			return false;
@@ -423,7 +423,7 @@ bool reshade::d3d12::device_impl::create_pipeline_graphics(const api::pipeline_d
 	internal_desc.PS.pShaderBytecode = desc.graphics.pixel_shader.code;
 	internal_desc.PS.BytecodeLength = desc.graphics.pixel_shader.code_size;
 
-	internal_desc.BlendState.AlphaToCoverageEnable = desc.graphics.blend_state.alpha_to_coverage;
+	internal_desc.BlendState.AlphaToCoverageEnable = desc.graphics.blend_state.alpha_to_coverage_enable;
 	internal_desc.BlendState.IndependentBlendEnable = TRUE;
 
 	for (UINT i = 0; i < 8; ++i)
@@ -449,16 +449,17 @@ bool reshade::d3d12::device_impl::create_pipeline_graphics(const api::pipeline_d
 	internal_desc.RasterizerState.DepthBias = static_cast<INT>(desc.graphics.rasterizer_state.depth_bias);
 	internal_desc.RasterizerState.DepthBiasClamp = desc.graphics.rasterizer_state.depth_bias_clamp;
 	internal_desc.RasterizerState.SlopeScaledDepthBias = desc.graphics.rasterizer_state.slope_scaled_depth_bias;
-	internal_desc.RasterizerState.DepthClipEnable = desc.graphics.rasterizer_state.depth_clip;
-	internal_desc.RasterizerState.MultisampleEnable = desc.graphics.rasterizer_state.multisample;
-	internal_desc.RasterizerState.AntialiasedLineEnable = desc.graphics.rasterizer_state.antialiased_line;
+	internal_desc.RasterizerState.DepthClipEnable = desc.graphics.rasterizer_state.depth_clip_enable;
+	// Note: Scissor testing is always enabled in D3D12, so "desc.graphics.rasterizer_state.scissor_enable" is ignored
+	internal_desc.RasterizerState.MultisampleEnable = desc.graphics.rasterizer_state.multisample_enable;
+	internal_desc.RasterizerState.AntialiasedLineEnable = desc.graphics.rasterizer_state.antialiased_line_enable;
 	internal_desc.RasterizerState.ForcedSampleCount = 0;
 	internal_desc.RasterizerState.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
 
-	internal_desc.DepthStencilState.DepthEnable = desc.graphics.depth_stencil_state.depth_test;
+	internal_desc.DepthStencilState.DepthEnable = desc.graphics.depth_stencil_state.depth_enable;
 	internal_desc.DepthStencilState.DepthWriteMask = desc.graphics.depth_stencil_state.depth_write_mask ? D3D12_DEPTH_WRITE_MASK_ALL : D3D12_DEPTH_WRITE_MASK_ZERO;
 	internal_desc.DepthStencilState.DepthFunc = convert_compare_op(desc.graphics.depth_stencil_state.depth_func);
-	internal_desc.DepthStencilState.StencilEnable = desc.graphics.depth_stencil_state.stencil_test;
+	internal_desc.DepthStencilState.StencilEnable = desc.graphics.depth_stencil_state.stencil_enable;
 	internal_desc.DepthStencilState.StencilReadMask = desc.graphics.depth_stencil_state.stencil_read_mask;
 	internal_desc.DepthStencilState.StencilWriteMask = desc.graphics.depth_stencil_state.stencil_write_mask;
 	internal_desc.DepthStencilState.BackFace.StencilFailOp = convert_stencil_op(desc.graphics.depth_stencil_state.back_stencil_fail_op);
@@ -491,7 +492,7 @@ bool reshade::d3d12::device_impl::create_pipeline_graphics(const api::pipeline_d
 
 	internal_desc.PrimitiveTopologyType = convert_primitive_topology_type(desc.graphics.topology);
 
-	internal_desc.NumRenderTargets = desc.graphics.num_render_targets;
+	internal_desc.NumRenderTargets = desc.graphics.render_target_count;
 	for (UINT i = 0; i < 8; ++i)
 		internal_desc.RTVFormats[i] = convert_format(desc.graphics.render_target_format[i]);
 	internal_desc.DSVFormat = convert_format(desc.graphics.depth_stencil_format);
@@ -750,7 +751,7 @@ void reshade::d3d12::device_impl::destroy_resource_view(api::resource_view handl
 		_view_heaps[i].deallocate({ static_cast<SIZE_T>(handle.handle) });
 }
 
-void reshade::d3d12::device_impl::destroy_pipeline(api::pipeline_type, api::pipeline handle)
+void reshade::d3d12::device_impl::destroy_pipeline(api::pipeline_stage, api::pipeline handle)
 {
 	if (handle.handle != 0)
 		reinterpret_cast<IUnknown *>(handle.handle)->Release();
@@ -996,12 +997,12 @@ reshade::api::resource_desc reshade::d3d12::device_impl::get_resource_desc(api::
 	return convert_resource_desc(reinterpret_cast<ID3D12Resource *>(resource.handle)->GetDesc(), heap_props);
 }
 
-bool reshade::d3d12::device_impl::get_framebuffer_attachment(api::framebuffer fbo, api::format_aspect type, uint32_t index, api::resource_view *out) const
+bool reshade::d3d12::device_impl::get_framebuffer_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index, api::resource_view *out) const
 {
 	assert(fbo.handle != 0);
 	const auto fbo_impl = reinterpret_cast<const framebuffer_impl *>(fbo.handle);
 
-	if (type == api::format_aspect::color)
+	if (type == api::attachment_type::color)
 	{
 		if (index < fbo_impl->count)
 		{

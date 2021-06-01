@@ -287,27 +287,27 @@ bool reshade::d3d11::device_impl::create_pipeline(const api::pipeline_desc &desc
 	default:
 		*out = { 0 };
 		return false;
-	case api::pipeline_type::compute:
+	case api::pipeline_stage::all_compute:
 		return create_pipeline_compute(desc, out);
-	case api::pipeline_type::graphics:
+	case api::pipeline_stage::all_graphics:
 		return create_pipeline_graphics(desc, out);
-	case api::pipeline_type::graphics_vertex_shader:
+	case api::pipeline_stage::vertex_shader:
 		return create_pipeline_graphics_vertex_shader(desc, out);
-	case api::pipeline_type::graphics_hull_shader:
+	case api::pipeline_stage::hull_shader:
 		return create_pipeline_graphics_hull_shader(desc, out);
-	case api::pipeline_type::graphics_domain_shader:
+	case api::pipeline_stage::domain_shader:
 		return create_pipeline_graphics_domain_shader(desc, out);
-	case api::pipeline_type::graphics_geometry_shader:
+	case api::pipeline_stage::geometry_shader:
 		return create_pipeline_graphics_geometry_shader(desc, out);
-	case api::pipeline_type::graphics_pixel_shader:
+	case api::pipeline_stage::pixel_shader:
 		return create_pipeline_graphics_pixel_shader(desc, out);
-	case api::pipeline_type::graphics_input_layout:
+	case api::pipeline_stage::vertex_input:
 		return create_pipeline_graphics_input_layout(desc, out);
-	case api::pipeline_type::graphics_blend_state:
+	case api::pipeline_stage::blend_and_render_target_output:
 		return create_pipeline_graphics_blend_state(desc, out);
-	case api::pipeline_type::graphics_rasterizer_state:
+	case api::pipeline_stage::rasterizer:
 		return create_pipeline_graphics_rasterizer_state(desc, out);
-	case api::pipeline_type::graphics_depth_stencil_state:
+	case api::pipeline_stage::depth_stencil:
 		return create_pipeline_graphics_depth_stencil_state(desc, out);
 	}
 }
@@ -331,7 +331,7 @@ bool reshade::d3d11::device_impl::create_pipeline_compute(const api::pipeline_de
 }
 bool reshade::d3d11::device_impl::create_pipeline_graphics(const api::pipeline_desc &desc, api::pipeline *out)
 {
-	if (desc.graphics.num_dynamic_states != 0)
+	if (desc.graphics.dynamic_states[0] != api::dynamic_state::unknown)
 	{
 		*out = { 0 };
 		return false;
@@ -510,7 +510,7 @@ bool reshade::d3d11::device_impl::create_pipeline_graphics_blend_state(const api
 	if (SUCCEEDED(_orig->QueryInterface(&device1)))
 	{
 		D3D11_BLEND_DESC1 internal_desc;
-		internal_desc.AlphaToCoverageEnable = desc.graphics.blend_state.alpha_to_coverage;
+		internal_desc.AlphaToCoverageEnable = desc.graphics.blend_state.alpha_to_coverage_enable;
 		internal_desc.IndependentBlendEnable = TRUE;
 
 		for (UINT i = 0; i < 8; ++i)
@@ -537,7 +537,7 @@ bool reshade::d3d11::device_impl::create_pipeline_graphics_blend_state(const api
 	else
 	{
 		D3D11_BLEND_DESC internal_desc;
-		internal_desc.AlphaToCoverageEnable = desc.graphics.blend_state.alpha_to_coverage;
+		internal_desc.AlphaToCoverageEnable = desc.graphics.blend_state.alpha_to_coverage_enable;
 		internal_desc.IndependentBlendEnable = TRUE;
 
 		for (UINT i = 0; i < 8; ++i)
@@ -572,10 +572,10 @@ bool reshade::d3d11::device_impl::create_pipeline_graphics_rasterizer_state(cons
 	internal_desc.DepthBias = static_cast<INT>(desc.graphics.rasterizer_state.depth_bias);
 	internal_desc.DepthBiasClamp = desc.graphics.rasterizer_state.depth_bias_clamp;
 	internal_desc.SlopeScaledDepthBias = desc.graphics.rasterizer_state.slope_scaled_depth_bias;
-	internal_desc.DepthClipEnable = desc.graphics.rasterizer_state.depth_clip;
-	internal_desc.ScissorEnable = desc.graphics.rasterizer_state.scissor_test;
-	internal_desc.MultisampleEnable = desc.graphics.rasterizer_state.multisample;
-	internal_desc.AntialiasedLineEnable = desc.graphics.rasterizer_state.antialiased_line;
+	internal_desc.DepthClipEnable = desc.graphics.rasterizer_state.depth_clip_enable;
+	internal_desc.ScissorEnable = desc.graphics.rasterizer_state.scissor_enable;
+	internal_desc.MultisampleEnable = desc.graphics.rasterizer_state.multisample_enable;
+	internal_desc.AntialiasedLineEnable = desc.graphics.rasterizer_state.antialiased_line_enable;
 
 	if (com_ptr<ID3D11RasterizerState> object;
 		SUCCEEDED(_orig->CreateRasterizerState(&internal_desc, &object)))
@@ -592,10 +592,10 @@ bool reshade::d3d11::device_impl::create_pipeline_graphics_rasterizer_state(cons
 bool reshade::d3d11::device_impl::create_pipeline_graphics_depth_stencil_state(const api::pipeline_desc &desc, api::pipeline *out)
 {
 	D3D11_DEPTH_STENCIL_DESC internal_desc;
-	internal_desc.DepthEnable = desc.graphics.depth_stencil_state.depth_test;
+	internal_desc.DepthEnable = desc.graphics.depth_stencil_state.depth_enable;
 	internal_desc.DepthWriteMask = desc.graphics.depth_stencil_state.depth_write_mask ? D3D11_DEPTH_WRITE_MASK_ALL : D3D11_DEPTH_WRITE_MASK_ZERO;
 	internal_desc.DepthFunc = convert_compare_op(desc.graphics.depth_stencil_state.depth_func);
-	internal_desc.StencilEnable = desc.graphics.depth_stencil_state.stencil_test;
+	internal_desc.StencilEnable = desc.graphics.depth_stencil_state.stencil_enable;
 	internal_desc.StencilReadMask = desc.graphics.depth_stencil_state.stencil_read_mask;
 	internal_desc.StencilWriteMask = desc.graphics.depth_stencil_state.stencil_write_mask;
 	internal_desc.BackFace.StencilFailOp = convert_stencil_op(desc.graphics.depth_stencil_state.back_stencil_fail_op);
@@ -734,9 +734,9 @@ void reshade::d3d11::device_impl::destroy_resource_view(api::resource_view handl
 		reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }
 
-void reshade::d3d11::device_impl::destroy_pipeline(api::pipeline_type type, api::pipeline handle)
+void reshade::d3d11::device_impl::destroy_pipeline(api::pipeline_stage type, api::pipeline handle)
 {
-	if (type == api::pipeline_type::graphics)
+	if (type == api::pipeline_stage::all_graphics)
 		delete reinterpret_cast<pipeline_impl *>(handle.handle);
 	else if (handle.handle != 0)
 		reinterpret_cast<IUnknown *>(handle.handle)->Release();
@@ -894,12 +894,12 @@ reshade::api::resource_desc reshade::d3d11::device_impl::get_resource_desc(api::
 	return api::resource_desc {};
 }
 
-bool reshade::d3d11::device_impl::get_framebuffer_attachment(api::framebuffer fbo, api::format_aspect type, uint32_t index, api::resource_view *out) const
+bool reshade::d3d11::device_impl::get_framebuffer_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index, api::resource_view *out) const
 {
 	assert(fbo.handle != 0);
 	const auto fbo_impl = reinterpret_cast<const framebuffer_impl *>(fbo.handle);
 
-	if (type == api::format_aspect::color)
+	if (type == api::attachment_type::color)
 	{
 		if (index < fbo_impl->count)
 		{

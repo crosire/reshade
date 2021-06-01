@@ -1091,7 +1091,7 @@ void     VKAPI_CALL vkCmdBindPipeline(VkCommandBuffer commandBuffer, VkPipelineB
 #if RESHADE_ADDON
 	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(
 		s_vulkan_command_buffers.at(commandBuffer),
-		pipelineBindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS ? reshade::api::pipeline_type::graphics : pipelineBindPoint == VK_PIPELINE_BIND_POINT_COMPUTE ? reshade::api::pipeline_type::compute : reshade::api::pipeline_type::unknown,
+		pipelineBindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS ? reshade::api::pipeline_stage::all_graphics : pipelineBindPoint == VK_PIPELINE_BIND_POINT_COMPUTE ? reshade::api::pipeline_stage::all_compute : static_cast<reshade::api::pipeline_stage>(0),
 		reshade::api::pipeline { (uint64_t)pipeline });
 #endif
 }
@@ -1134,7 +1134,7 @@ void     VKAPI_CALL vkCmdSetDepthBias(VkCommandBuffer commandBuffer, float depth
 	trampoline(commandBuffer, depthBiasConstantFactor, depthBiasClamp, depthBiasSlopeFactor);
 
 #if RESHADE_ADDON
-	const reshade::api::pipeline_state states[3] = { reshade::api::pipeline_state::depth_bias, reshade::api::pipeline_state::depth_bias_clamp, reshade::api::pipeline_state::depth_bias_slope_scaled };
+	const reshade::api::dynamic_state states[3] = { reshade::api::dynamic_state::depth_bias, reshade::api::dynamic_state::depth_bias_clamp, reshade::api::dynamic_state::depth_bias_slope_scaled };
 	const uint32_t values[3] = { static_cast<uint32_t>(static_cast<int32_t>(depthBiasConstantFactor)), *reinterpret_cast<const uint32_t *>(&depthBiasClamp), *reinterpret_cast<const uint32_t *>(&depthBiasSlopeFactor) };
 
 	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(
@@ -1147,7 +1147,7 @@ void     VKAPI_CALL vkCmdSetBlendConstants(VkCommandBuffer commandBuffer, const 
 	trampoline(commandBuffer, blendConstants);
 
 #if RESHADE_ADDON
-	const reshade::api::pipeline_state state = reshade::api::pipeline_state::blend_constant;
+	const reshade::api::dynamic_state state = reshade::api::dynamic_state::blend_constant;
 	const uint32_t value =
 		((static_cast<uint32_t>(blendConstants[0] * 255.f) & 0xFF)      ) |
 		((static_cast<uint32_t>(blendConstants[1] * 255.f) & 0xFF) <<  8) |
@@ -1167,7 +1167,7 @@ void     VKAPI_CALL vkCmdSetStencilCompareMask(VkCommandBuffer commandBuffer, Vk
 	if (faceMask != VK_STENCIL_FACE_FRONT_AND_BACK)
 		return;
 
-	const reshade::api::pipeline_state state = reshade::api::pipeline_state::stencil_read_mask;
+	const reshade::api::dynamic_state state = reshade::api::dynamic_state::stencil_read_mask;
 
 	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(
 		s_vulkan_command_buffers.at(commandBuffer), 1, &state, &compareMask);
@@ -1182,7 +1182,7 @@ void     VKAPI_CALL vkCmdSetStencilWriteMask(VkCommandBuffer commandBuffer, VkSt
 	if (faceMask != VK_STENCIL_FACE_FRONT_AND_BACK)
 		return;
 
-	const reshade::api::pipeline_state state = reshade::api::pipeline_state::stencil_write_mask;
+	const reshade::api::dynamic_state state = reshade::api::dynamic_state::stencil_write_mask;
 
 	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(
 		s_vulkan_command_buffers.at(commandBuffer), 1, &state, &writeMask);
@@ -1197,7 +1197,7 @@ void     VKAPI_CALL vkCmdSetStencilReference(VkCommandBuffer commandBuffer, VkSt
 	if (faceMask != VK_STENCIL_FACE_FRONT_AND_BACK)
 		return;
 
-	const reshade::api::pipeline_state state = reshade::api::pipeline_state::stencil_reference_value;
+	const reshade::api::dynamic_state state = reshade::api::dynamic_state::stencil_reference_value;
 
 	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(
 		s_vulkan_command_buffers.at(commandBuffer), 1, &state, &reference);
@@ -1214,7 +1214,7 @@ void     VKAPI_CALL vkCmdBindDescriptorSets(VkCommandBuffer commandBuffer, VkPip
 
 	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_sets>(
 		s_vulkan_command_buffers.at(commandBuffer),
-		pipelineBindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS ? reshade::api::pipeline_type::graphics : pipelineBindPoint == VK_PIPELINE_BIND_POINT_COMPUTE ? reshade::api::pipeline_type::compute : reshade::api::pipeline_type::unknown,
+		pipelineBindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS ? reshade::api::shader_stage::all_graphics : pipelineBindPoint == VK_PIPELINE_BIND_POINT_COMPUTE ? reshade::api::shader_stage::all_compute : static_cast<reshade::api::shader_stage>(0),
 		reshade::api::pipeline_layout { (uint64_t)layout },
 		firstSet,
 		descriptorSetCount,
@@ -1363,7 +1363,7 @@ void     VKAPI_CALL vkCmdCopyImage(VkCommandBuffer commandBuffer, VkImage srcIma
 				s_vulkan_command_buffers.at(commandBuffer),
 				reshade::api::resource { (uint64_t)srcImage }, device_impl->get_subresource_index(srcImage, region.srcSubresource, layer), src_box,
 				reshade::api::resource { (uint64_t)dstImage }, device_impl->get_subresource_index(dstImage, region.dstSubresource, layer), dst_box,
-				reshade::api::texture_filter::min_mag_mip_point))
+				reshade::api::filter_type::min_mag_mip_point))
 				return; // TODO: This skips copy of all regions, rather than just the one specified to this event call
 		}
 	}
@@ -1388,7 +1388,7 @@ void     VKAPI_CALL vkCmdBlitImage(VkCommandBuffer commandBuffer, VkImage srcIma
 				s_vulkan_command_buffers.at(commandBuffer),
 				reshade::api::resource { (uint64_t)srcImage }, device_impl->get_subresource_index(srcImage, region.srcSubresource, layer), &region.srcOffsets[0].x,
 				reshade::api::resource { (uint64_t)dstImage }, device_impl->get_subresource_index(dstImage, region.dstSubresource, layer), &region.dstOffsets[0].x,
-				filter == VK_FILTER_NEAREST ? reshade::api::texture_filter::min_mag_mip_point : reshade::api::texture_filter::min_mag_mip_linear))
+				filter == VK_FILTER_NEAREST ? reshade::api::filter_type::min_mag_mip_point : reshade::api::filter_type::min_mag_mip_linear))
 				return; // TODO: This skips copy of all regions, rather than just the one specified to this event call
 		}
 	}
@@ -1529,7 +1529,7 @@ void     VKAPI_CALL vkCmdClearDepthStencilImage(VkCommandBuffer commandBuffer, V
 	const bool skip = reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(
 		s_vulkan_command_buffers.at(commandBuffer),
 		device_impl->get_default_view(image),
-		static_cast<reshade::api::format_aspect>(transition.subresourceRange.aspectMask),
+		static_cast<reshade::api::attachment_type>(transition.subresourceRange.aspectMask),
 		pDepthStencil->depth,
 		static_cast<uint8_t>(pDepthStencil->stencil),
 		0, nullptr);
@@ -1576,7 +1576,7 @@ void     VKAPI_CALL vkCmdClearAttachments(VkCommandBuffer commandBuffer, uint32_
 		}
 
 		if (reshade::invoke_addon_event<reshade::addon_event::clear_attachments>(cmd_impl,
-			static_cast<reshade::api::format_aspect>(combined_aspect_mask),
+			static_cast<reshade::api::attachment_type>(combined_aspect_mask),
 			clear_color.float32,
 			clear_depth_stencil.depth,
 			static_cast<uint8_t>(clear_depth_stencil.stencil),
@@ -1689,7 +1689,7 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 		// This is a bit hacky, since technically there should be a "begin_render_pass" event before calling the "clear_attachments" event
 		// But the "clear_attachments" event should be called before the clear is executed, and the "begin_render_pass" event after the render pass begun, so cannot satisfy both
 		reshade::invoke_addon_event<reshade::addon_event::clear_attachments>(cmd_impl,
-			static_cast<reshade::api::format_aspect>(combined_aspect_mask),
+			static_cast<reshade::api::attachment_type>(combined_aspect_mask),
 			clear_color.float32,
 			clear_depth_stencil.depth,
 			static_cast<uint8_t>(clear_depth_stencil.stencil),

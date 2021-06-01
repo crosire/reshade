@@ -94,16 +94,16 @@ void reshade::opengl::pipeline_impl::apply_graphics() const
 	glSampleMaski(0, sample_mask);
 }
 
-void reshade::opengl::device_impl::bind_pipeline(api::pipeline_type type, api::pipeline pipeline)
+void reshade::opengl::device_impl::bind_pipeline(api::pipeline_stage type, api::pipeline pipeline)
 {
 	assert(pipeline.handle != 0);
 
 	switch (type)
 	{
-	case api::pipeline_type::compute:
+	case api::pipeline_stage::all_compute:
 		reinterpret_cast<pipeline_impl *>(pipeline.handle)->apply_compute();
 		break;
-	case api::pipeline_type::graphics:
+	case api::pipeline_stage::all_graphics:
 		reinterpret_cast<pipeline_impl *>(pipeline.handle)->apply_graphics();
 		_current_prim_mode = reinterpret_cast<pipeline_impl *>(pipeline.handle)->prim_mode;
 		break;
@@ -112,14 +112,50 @@ void reshade::opengl::device_impl::bind_pipeline(api::pipeline_type type, api::p
 		break;
 	}
 }
-void reshade::opengl::device_impl::bind_pipeline_states(uint32_t count, const api::pipeline_state *states, const uint32_t *values)
+void reshade::opengl::device_impl::bind_pipeline_states(uint32_t count, const api::dynamic_state *states, const uint32_t *values)
 {
 	for (GLuint i = 0; i < count; ++i)
 	{
 		switch (states[i])
 		{
-		case api::pipeline_state::primitive_topology:
+		case api::dynamic_state::primitive_topology:
 			_current_prim_mode = values[i];
+			break;
+		case api::dynamic_state::alpha_test_enable:
+			glEnableOrDisable(GL_ALPHA_TEST, values[i]);
+			break;
+		case api::dynamic_state::blend_enable:
+			glEnableOrDisable(GL_BLEND, values[i]);
+			break;
+		case api::dynamic_state::cull_mode:
+			glEnableOrDisable(GL_CULL_FACE, values[i]);
+			break;
+		case api::dynamic_state::depth_clip_enable:
+			glEnableOrDisable(GL_DEPTH_CLAMP, !values[i]);
+			break;
+		case api::dynamic_state::depth_enable:
+			glEnableOrDisable(GL_DEPTH_TEST, values[i]);
+			break;
+		case api::dynamic_state::srgb_write_enable:
+			glEnableOrDisable(GL_FRAMEBUFFER_SRGB, values[i]);
+			break;
+		case api::dynamic_state::antialiased_line_enable:
+			glEnableOrDisable(GL_LINE_SMOOTH, values[i]);
+			break;
+		case api::dynamic_state::multisample_enable:
+			glEnableOrDisable(GL_MULTISAMPLE, values[i]);
+			break;
+		case api::dynamic_state::alpha_to_coverage_enable:
+			glEnableOrDisable(GL_SAMPLE_ALPHA_TO_COVERAGE, values[i]);
+			break;
+		case api::dynamic_state::scissor_enable:
+			glEnableOrDisable(GL_SCISSOR_TEST, values[i]);
+			break;
+		case api::dynamic_state::stencil_enable:
+			glEnableOrDisable(GL_STENCIL_TEST, values[i]);
+			break;
+		case api::dynamic_state::logic_op_enable:
+			glEnableOrDisable(GL_COLOR_LOGIC_OP, values[i]);
 			break;
 		default:
 			assert(false);
@@ -231,7 +267,7 @@ void reshade::opengl::device_impl::push_descriptors(api::shader_stage, api::pipe
 		break;
 	}
 }
-void reshade::opengl::device_impl::bind_descriptor_sets(api::pipeline_type type, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_set *sets)
+void reshade::opengl::device_impl::bind_descriptor_sets(api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_set *sets)
 {
 	for (uint32_t i = 0; i < count; ++i)
 	{
@@ -240,7 +276,7 @@ void reshade::opengl::device_impl::bind_descriptor_sets(api::pipeline_type type,
 		if (set_impl->type != api::descriptor_type::sampler_with_resource_view)
 		{
 			push_descriptors(
-				type == api::pipeline_type::compute ? api::shader_stage::compute : api::shader_stage::all_graphics,
+				stages,
 				layout,
 				i + first,
 				set_impl->type,
@@ -251,7 +287,7 @@ void reshade::opengl::device_impl::bind_descriptor_sets(api::pipeline_type type,
 		else
 		{
 			push_descriptors(
-				api::shader_stage::all_graphics,
+				stages,
 				layout,
 				i + first,
 				set_impl->type,
@@ -387,7 +423,7 @@ void reshade::opengl::device_impl::copy_resource(api::resource src, api::resourc
 			{
 				const uint32_t subresource = level + layer * desc.texture.levels;
 
-				copy_texture_region(src, subresource, nullptr, dst, subresource, nullptr, api::texture_filter::min_mag_mip_point);
+				copy_texture_region(src, subresource, nullptr, dst, subresource, nullptr, api::filter_type::min_mag_mip_point);
 			}
 		}
 	}
@@ -561,7 +597,7 @@ void reshade::opengl::device_impl::copy_buffer_to_texture(api::resource src, uin
 	glPixelStorei(GL_UNPACK_SKIP_PIXELS, previous_unpack_skip_pixels);
 	glPixelStorei(GL_UNPACK_SKIP_IMAGES, previous_unpack_skip_images);
 }
-void reshade::opengl::device_impl::copy_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], api::texture_filter filter)
+void reshade::opengl::device_impl::copy_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], api::filter_type filter)
 {
 	assert(src.handle != 0 && dst.handle != 0);
 
@@ -715,7 +751,7 @@ void reshade::opengl::device_impl::copy_texture_region(api::resource src, uint32
 			dst_region[0], dst_region[4], dst_region[3], dst_region[1],
 			src_attachment == GL_DEPTH_ATTACHMENT ? GL_DEPTH_BUFFER_BIT : GL_COLOR_BUFFER_BIT,
 			// Must be nearest filtering for depth or stencil attachments
-			src_attachment != GL_DEPTH_ATTACHMENT && (filter == api::texture_filter::min_mag_mip_linear || filter == api::texture_filter::min_mag_linear_mip_point) ? GL_LINEAR : GL_NEAREST);
+			src_attachment != GL_DEPTH_ATTACHMENT && (filter == api::filter_type::min_mag_mip_linear || filter == api::filter_type::min_mag_linear_mip_point) ? GL_LINEAR : GL_NEAREST);
 
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, prev_read_fbo);
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, prev_draw_fbo);
@@ -889,7 +925,7 @@ void reshade::opengl::device_impl::resolve_texture_region(api::resource src, uin
 		dst_box[5] = dst_box[2] + (desc.type == api::resource_type::texture_3d ? std::max(1u, static_cast<uint32_t>(desc.texture.depth_or_layers) >> (dst_subresource % desc.texture.levels)) : 1u);
 	}
 
-	copy_texture_region(src, src_subresource, src_box, dst, dst_subresource, dst_box, api::texture_filter::min_mag_mip_point);
+	copy_texture_region(src, src_subresource, src_box, dst, dst_subresource, dst_box, api::filter_type::min_mag_mip_point);
 }
 
 void reshade::opengl::device_impl::generate_mipmaps(api::resource_view srv)
@@ -930,7 +966,7 @@ void reshade::opengl::device_impl::generate_mipmaps(api::resource_view srv)
 #endif
 }
 
-void reshade::opengl::device_impl::clear_attachments(api::format_aspect clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t num_rects, const int32_t *)
+void reshade::opengl::device_impl::clear_attachments(api::attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t num_rects, const int32_t *)
 {
 	assert(num_rects == 0);
 
@@ -941,52 +977,13 @@ void reshade::opengl::device_impl::clear_attachments(api::format_aspect clear_fl
 
 	glClear(convert_aspect_to_buffer_bits(clear_flags));
 }
-void reshade::opengl::device_impl::clear_depth_stencil_view(api::resource_view dsv, api::format_aspect clear_flags, float depth, uint8_t stencil, uint32_t num_rects, const int32_t *)
+void reshade::opengl::device_impl::clear_depth_stencil_view(api::resource_view, api::attachment_type, float, uint8_t, uint32_t, const int32_t *)
 {
-	assert(dsv.handle != 0);
-	assert(num_rects == 0);
-
-	assert(false); // TODO
-#if 0
-	GLint prev_binding = 0;
-	glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prev_binding);
-
-	glBindFramebuffer(GL_FRAMEBUFFER, _copy_fbo[0]);
-
-	const GLint stencil_value = stencil;
-
-	switch (clear_flags)
-	{
-	case api::format_aspect::depth:
-		glClearBufferfv(GL_DEPTH, 0, &depth);
-		break;
-	case api::format_aspect::stencil:
-		glClearBufferiv(GL_STENCIL, 0, &stencil_value);
-		break;
-	case api::format_aspect::depth_stencil:
-		glClearBufferfi(GL_DEPTH_STENCIL, 0, depth, stencil_value);
-		break;
-	}
-
-	glBindFramebuffer(GL_FRAMEBUFFER, prev_binding);
-#endif
+	assert(false);
 }
-void reshade::opengl::device_impl::clear_render_target_view(api::resource_view rtv, const float color[4], uint32_t num_rects, const int32_t *)
+void reshade::opengl::device_impl::clear_render_target_view(api::resource_view, const float[4], uint32_t, const int32_t *)
 {
-	assert(rtv.handle != 0);
-	assert(num_rects == 0);
-
-	assert(false); // TODO
-#if 0
-	GLint prev_binding = 0;
-	glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prev_binding);
-
-	glBindFramebuffer(GL_FRAMEBUFFER, _copy_fbo[0]);
-
-	glClearBufferfv(GL_COLOR, 0, color);
-
-	glBindFramebuffer(GL_FRAMEBUFFER, prev_binding);
-#endif
+	assert(false);
 }
 void reshade::opengl::device_impl::clear_unordered_access_view_uint(api::resource_view, const uint32_t[4], uint32_t, const int32_t *)
 {

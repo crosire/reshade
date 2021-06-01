@@ -86,7 +86,7 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
-	/// A list of flags that describe additional parameters of resources.
+	/// A list of flags that describe additional parameters of a resource.
 	/// </summary>
 	enum class resource_flags : uint32_t
 	{
@@ -127,8 +127,8 @@ namespace reshade { namespace api
 	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(resource_usage);
 
 	/// <summary>
-	/// The available comparion types.
-	/// Compatible with 'VkCompareOp'.
+	/// The available comparison types.
+	/// This is compatible with 'VkCompareOp'.
 	/// </summary>
 	enum class compare_op : uint32_t
 	{
@@ -145,7 +145,7 @@ namespace reshade { namespace api
 	/// <summary>
 	/// The available filtering types used for texture sampling operations.
 	/// </summary>
-	enum class texture_filter
+	enum class filter_type : uint32_t
 	{
 		min_mag_mip_point = 0,
 		min_mag_point_mip_linear = 0x1,
@@ -170,7 +170,7 @@ namespace reshade { namespace api
 	/// <summary>
 	/// Specifies behavior of sampling with texture coordinates outside a texture resource.
 	/// </summary>
-	enum class texture_address_mode
+	enum class texture_address_mode : uint32_t
 	{
 		wrap = 1,
 		mirror = 2,
@@ -184,7 +184,7 @@ namespace reshade { namespace api
 	/// </summary>
 	struct sampler_desc
 	{
-		texture_filter filter;
+		filter_type filter;
 		texture_address_mode address_u;
 		texture_address_mode address_v;
 		texture_address_mode address_w;

@@ -435,9 +435,9 @@ bool reshade::vulkan::device_impl::create_pipeline(const api::pipeline_desc &des
 	default:
 		*out = { 0 };
 		return false;
-	case api::pipeline_type::compute:
+	case api::pipeline_stage::all_compute:
 		return create_pipeline_compute(desc, out);
-	case api::pipeline_type::graphics:
+	case api::pipeline_stage::all_graphics:
 		return create_pipeline_graphics(desc, out);
 	}
 }
@@ -519,25 +519,25 @@ bool reshade::vulkan::device_impl::create_pipeline_graphics(const api::pipeline_
 
 	{
 		std::vector<VkDynamicState> dyn_states;
-		dyn_states.reserve(2 + desc.graphics.num_dynamic_states);
+		dyn_states.reserve(2 + ARRAYSIZE(desc.graphics.dynamic_states));
 		// Always make scissor rectangles and viewports dynamic
 		dyn_states.push_back(VK_DYNAMIC_STATE_SCISSOR);
 		dyn_states.push_back(VK_DYNAMIC_STATE_VIEWPORT);
 
-		for (uint32_t i = 0; i < desc.graphics.num_dynamic_states; ++i)
+		for (uint32_t i = 0; i < ARRAYSIZE(desc.graphics.dynamic_states) && desc.graphics.dynamic_states[i] != api::dynamic_state::unknown; ++i)
 		{
 			switch (desc.graphics.dynamic_states[i])
 			{
-			case api::pipeline_state::blend_constant:
+			case api::dynamic_state::blend_constant:
 				dyn_states.push_back(VK_DYNAMIC_STATE_BLEND_CONSTANTS);
 				break;
-			case api::pipeline_state::stencil_read_mask:
+			case api::dynamic_state::stencil_read_mask:
 				dyn_states.push_back(VK_DYNAMIC_STATE_STENCIL_COMPARE_MASK);
 				break;
-			case api::pipeline_state::stencil_write_mask:
+			case api::dynamic_state::stencil_write_mask:
 				dyn_states.push_back(VK_DYNAMIC_STATE_STENCIL_WRITE_MASK);
 				break;
-			case api::pipeline_state::stencil_reference_value:
+			case api::dynamic_state::stencil_reference_value:
 				dyn_states.push_back(VK_DYNAMIC_STATE_STENCIL_REFERENCE);
 				break;
 			default:
@@ -556,7 +556,7 @@ bool reshade::vulkan::device_impl::create_pipeline_graphics(const api::pipeline_
 
 		for (uint32_t i = 0; i < 16 && desc.graphics.input_layout[i].format != api::format::unknown; ++i)
 		{
-			const auto &element = desc.graphics.input_layout[i];
+			const api::input_layout_element &element = desc.graphics.input_layout[i];
 
 			VkVertexInputAttributeDescription &attribute = vertex_attributes.emplace_back();
 			attribute.location = element.location;
@@ -602,12 +602,12 @@ bool reshade::vulkan::device_impl::create_pipeline_graphics(const api::pipeline_
 
 		VkPipelineViewportStateCreateInfo viewport_state_info { VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO };
 		create_info.pViewportState = &viewport_state_info;
-		viewport_state_info.scissorCount = desc.graphics.num_viewports;
-		viewport_state_info.viewportCount = desc.graphics.num_viewports;
+		viewport_state_info.scissorCount = desc.graphics.viewport_count;
+		viewport_state_info.viewportCount = desc.graphics.viewport_count;
 
 		VkPipelineRasterizationStateCreateInfo rasterization_state_info { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
 		create_info.pRasterizationState = &rasterization_state_info;
-		rasterization_state_info.depthClampEnable = !desc.graphics.rasterizer_state.depth_clip;
+		rasterization_state_info.depthClampEnable = !desc.graphics.rasterizer_state.depth_clip_enable;
 		rasterization_state_info.rasterizerDiscardEnable = VK_FALSE;
 		rasterization_state_info.polygonMode = convert_fill_mode(desc.graphics.rasterizer_state.fill_mode);
 		rasterization_state_info.cullMode = convert_cull_mode(desc.graphics.rasterizer_state.cull_mode);
@@ -623,17 +623,17 @@ bool reshade::vulkan::device_impl::create_pipeline_graphics(const api::pipeline_
 		multisample_state_info.rasterizationSamples = static_cast<VkSampleCountFlagBits>(desc.graphics.sample_count);
 		multisample_state_info.sampleShadingEnable = VK_FALSE;
 		multisample_state_info.minSampleShading = 0.0f;
-		multisample_state_info.alphaToCoverageEnable = desc.graphics.blend_state.alpha_to_coverage;
+		multisample_state_info.alphaToCoverageEnable = desc.graphics.blend_state.alpha_to_coverage_enable;
 		multisample_state_info.alphaToOneEnable = VK_FALSE;
 		multisample_state_info.pSampleMask = &desc.graphics.sample_mask;
 
 		VkPipelineDepthStencilStateCreateInfo depth_stencil_state_info { VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
 		create_info.pDepthStencilState = &depth_stencil_state_info;
-		depth_stencil_state_info.depthTestEnable = desc.graphics.depth_stencil_state.depth_test;
+		depth_stencil_state_info.depthTestEnable = desc.graphics.depth_stencil_state.depth_enable;
 		depth_stencil_state_info.depthWriteEnable = desc.graphics.depth_stencil_state.depth_write_mask;
 		depth_stencil_state_info.depthCompareOp = convert_compare_op(desc.graphics.depth_stencil_state.depth_func);
 		depth_stencil_state_info.depthBoundsTestEnable = VK_FALSE;
-		depth_stencil_state_info.stencilTestEnable = desc.graphics.depth_stencil_state.stencil_test;
+		depth_stencil_state_info.stencilTestEnable = desc.graphics.depth_stencil_state.stencil_enable;
 		depth_stencil_state_info.back.failOp = convert_stencil_op(desc.graphics.depth_stencil_state.back_stencil_fail_op);
 		depth_stencil_state_info.back.passOp = convert_stencil_op(desc.graphics.depth_stencil_state.back_stencil_pass_op);
 		depth_stencil_state_info.back.depthFailOp = convert_stencil_op(desc.graphics.depth_stencil_state.back_stencil_depth_fail_op);
@@ -668,7 +668,7 @@ bool reshade::vulkan::device_impl::create_pipeline_graphics(const api::pipeline_
 		create_info.pColorBlendState = &color_blend_state_info;
 		color_blend_state_info.logicOpEnable = desc.graphics.blend_state.logic_op_enable[0];
 		color_blend_state_info.logicOp = convert_logic_op(desc.graphics.blend_state.logic_op[0]);
-		color_blend_state_info.attachmentCount = desc.graphics.num_render_targets;
+		color_blend_state_info.attachmentCount = desc.graphics.render_target_count;
 		color_blend_state_info.pAttachments = attachment_info;
 		color_blend_state_info.blendConstants[0] = ((desc.graphics.blend_state.blend_constant) & 0xFF) / 255.0f;
 		color_blend_state_info.blendConstants[1] = ((desc.graphics.blend_state.blend_constant >> 4) & 0xFF) / 255.0f;
@@ -679,7 +679,7 @@ bool reshade::vulkan::device_impl::create_pipeline_graphics(const api::pipeline_
 		VkAttachmentReference attachment_refs[8 + 1] = {};
 		VkAttachmentDescription attachment_desc[8 + 1] = {};
 
-		for (uint32_t i = 0; i < desc.graphics.num_render_targets && i < 8; ++i)
+		for (uint32_t i = 0; i < desc.graphics.render_target_count && i < 8; ++i)
 		{
 			attachment_desc[num_attachments].format = convert_format(desc.graphics.render_target_format[i]);
 			attachment_desc[num_attachments].samples = static_cast<VkSampleCountFlagBits>(desc.graphics.sample_count);
@@ -716,7 +716,7 @@ bool reshade::vulkan::device_impl::create_pipeline_graphics(const api::pipeline_
 
 		VkSubpassDescription subpass_desc = {};
 		subpass_desc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-		subpass_desc.colorAttachmentCount = desc.graphics.num_render_targets;
+		subpass_desc.colorAttachmentCount = desc.graphics.render_target_count;
 		subpass_desc.pColorAttachments = attachment_refs;
 		subpass_desc.pDepthStencilAttachment = &attachment_refs[8];
 
@@ -989,7 +989,7 @@ void reshade::vulkan::device_impl::destroy_resource_view(api::resource_view hand
 	_views.erase(handle.handle);
 }
 
-void reshade::vulkan::device_impl::destroy_pipeline(api::pipeline_type, api::pipeline handle)
+void reshade::vulkan::device_impl::destroy_pipeline(api::pipeline_stage, api::pipeline handle)
 {
 	vk.DestroyPipeline(_orig, (VkPipeline)handle.handle, nullptr);
 }
@@ -1199,7 +1199,7 @@ reshade::api::resource_desc reshade::vulkan::device_impl::get_resource_desc(api:
 		return convert_resource_desc(data.buffer_create_info);
 }
 
-bool reshade::vulkan::device_impl::get_framebuffer_attachment(api::framebuffer fbo, api::format_aspect type, uint32_t index, api::resource_view *out) const
+bool reshade::vulkan::device_impl::get_framebuffer_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index, api::resource_view *out) const
 {
 	std::lock_guard<std::mutex> lock(_mutex);
 	const auto &info = _framebuffer_list.at((VkFramebuffer)fbo.handle);

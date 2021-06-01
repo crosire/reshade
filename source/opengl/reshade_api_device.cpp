@@ -373,47 +373,47 @@ bool reshade::opengl::device_impl::create_sampler(const api::sampler_desc &desc,
 	GLenum mag_filter = GL_NONE;
 	switch (desc.filter)
 	{
-	case api::texture_filter::min_mag_mip_point:
-	case api::texture_filter::compare_min_mag_mip_point:
+	case api::filter_type::min_mag_mip_point:
+	case api::filter_type::compare_min_mag_mip_point:
 		min_filter = GL_NEAREST_MIPMAP_NEAREST;
 		mag_filter = GL_NEAREST;
 		break;
-	case api::texture_filter::min_mag_point_mip_linear:
-	case api::texture_filter::compare_min_mag_point_mip_linear:
+	case api::filter_type::min_mag_point_mip_linear:
+	case api::filter_type::compare_min_mag_point_mip_linear:
 		min_filter = GL_NEAREST_MIPMAP_LINEAR;
 		mag_filter = GL_NEAREST;
 		break;
-	case api::texture_filter::min_point_mag_linear_mip_point:
-	case api::texture_filter::compare_min_point_mag_linear_mip_point:
+	case api::filter_type::min_point_mag_linear_mip_point:
+	case api::filter_type::compare_min_point_mag_linear_mip_point:
 		min_filter = GL_NEAREST_MIPMAP_NEAREST;
 		mag_filter = GL_LINEAR;
 		break;
-	case api::texture_filter::min_point_mag_mip_linear:
-	case api::texture_filter::compare_min_point_mag_mip_linear:
+	case api::filter_type::min_point_mag_mip_linear:
+	case api::filter_type::compare_min_point_mag_mip_linear:
 		min_filter = GL_NEAREST_MIPMAP_LINEAR;
 		mag_filter = GL_LINEAR;
 		break;
-	case api::texture_filter::min_linear_mag_mip_point:
-	case api::texture_filter::compare_min_linear_mag_mip_point:
+	case api::filter_type::min_linear_mag_mip_point:
+	case api::filter_type::compare_min_linear_mag_mip_point:
 		min_filter = GL_LINEAR_MIPMAP_NEAREST;
 		mag_filter = GL_NEAREST;
 		break;
-	case api::texture_filter::min_linear_mag_point_mip_linear:
-	case api::texture_filter::compare_min_linear_mag_point_mip_linear:
+	case api::filter_type::min_linear_mag_point_mip_linear:
+	case api::filter_type::compare_min_linear_mag_point_mip_linear:
 		min_filter = GL_LINEAR_MIPMAP_LINEAR;
 		mag_filter = GL_NEAREST;
 		break;
-	case api::texture_filter::min_mag_linear_mip_point:
-	case api::texture_filter::compare_min_mag_linear_mip_point:
+	case api::filter_type::min_mag_linear_mip_point:
+	case api::filter_type::compare_min_mag_linear_mip_point:
 		min_filter = GL_LINEAR_MIPMAP_NEAREST;
 		mag_filter = GL_LINEAR;
 		break;
-	case api::texture_filter::anisotropic:
-	case api::texture_filter::compare_anisotropic:
+	case api::filter_type::anisotropic:
+	case api::filter_type::compare_anisotropic:
 		glSamplerParameterf(object, GL_TEXTURE_MAX_ANISOTROPY, desc.max_anisotropy);
 		[[fallthrough]];
-	case api::texture_filter::min_mag_mip_linear:
-	case api::texture_filter::compare_min_mag_mip_linear:
+	case api::filter_type::min_mag_mip_linear:
+	case api::filter_type::compare_min_mag_mip_linear:
 		min_filter = GL_LINEAR_MIPMAP_LINEAR;
 		mag_filter = GL_LINEAR;
 		break;
@@ -719,9 +719,9 @@ bool reshade::opengl::device_impl::create_pipeline(const api::pipeline_desc &des
 	default:
 		*out = { 0 };
 		return false;
-	case api::pipeline_type::compute:
+	case api::pipeline_stage::all_compute:
 		return create_pipeline_compute(desc, out);
-	case api::pipeline_type::graphics:
+	case api::pipeline_stage::all_graphics:
 		return create_pipeline_graphics(desc, out);
 	}
 }
@@ -869,12 +869,12 @@ bool reshade::opengl::device_impl::create_pipeline_graphics(const api::pipeline_
 
 	state->blend_enable = desc.graphics.blend_state.blend_enable[0];
 	state->logic_op_enable = desc.graphics.blend_state.logic_op_enable[0];
-	state->depth_test = desc.graphics.depth_stencil_state.depth_test;
+	state->depth_test = desc.graphics.depth_stencil_state.depth_enable;
 	state->depth_write_mask = desc.graphics.depth_stencil_state.depth_write_mask;
-	state->stencil_test = desc.graphics.depth_stencil_state.stencil_test;
-	state->scissor_test = desc.graphics.rasterizer_state.scissor_test;
-	state->multisample = desc.graphics.rasterizer_state.multisample;
-	state->sample_alpha_to_coverage = desc.graphics.blend_state.alpha_to_coverage;
+	state->stencil_test = desc.graphics.depth_stencil_state.stencil_enable;
+	state->scissor_test = desc.graphics.rasterizer_state.scissor_enable;
+	state->multisample = desc.graphics.rasterizer_state.multisample_enable;
+	state->sample_alpha_to_coverage = desc.graphics.blend_state.alpha_to_coverage_enable;
 	state->sample_mask = desc.graphics.sample_mask;
 
 	*out = { reinterpret_cast<uintptr_t>(state) };
@@ -1127,7 +1127,7 @@ void reshade::opengl::device_impl::destroy_resource_view(api::resource_view hand
 		destroy_resource({ handle.handle });
 }
 
-void reshade::opengl::device_impl::destroy_pipeline(api::pipeline_type, api::pipeline handle)
+void reshade::opengl::device_impl::destroy_pipeline(api::pipeline_stage, api::pipeline handle)
 {
 	delete reinterpret_cast<pipeline_impl *>(handle.handle);
 }
@@ -1543,14 +1543,14 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 		return convert_resource_desc(target, levels, samples, internal_format, width, height, depth);
 }
 
-bool reshade::opengl::device_impl::get_framebuffer_attachment(api::framebuffer fbo, api::format_aspect type, uint32_t index, api::resource_view *out) const
+bool reshade::opengl::device_impl::get_framebuffer_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index, api::resource_view *out) const
 {
 	const GLuint fbo_object = fbo.handle & 0xFFFFFFFF;
 
 	// Zero is valid too, in which case the default frame buffer is referenced, instead of a FBO
 	if (fbo_object == 0)
 	{
-		if (type == api::format_aspect::color)
+		if (type == api::attachment_type::color)
 		{
 			*out = make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_BACK);
 			return true;
@@ -1570,21 +1570,26 @@ bool reshade::opengl::device_impl::get_framebuffer_attachment(api::framebuffer f
 	GLenum attachment = GL_NONE;
 	switch (type)
 	{
-	case api::format_aspect::color:
+	case api::attachment_type::color:
 		attachment = GL_COLOR_ATTACHMENT0 + index;
 		break;
-	case api::format_aspect::depth:
+	case api::attachment_type::depth:
 		attachment = GL_DEPTH_ATTACHMENT;
 		break;
-	case api::format_aspect::stencil:
+	case api::attachment_type::stencil:
 		attachment = GL_STENCIL_ATTACHMENT;
 		break;
-	case api::format_aspect::depth_stencil:
-		attachment = GL_DEPTH_STENCIL_ATTACHMENT;
-		break;
 	default:
-		*out = make_resource_view_handle(0, 0);
-		return false;
+		if (type == (api::attachment_type::depth | api::attachment_type::stencil))
+		{
+			attachment = GL_DEPTH_STENCIL_ATTACHMENT;
+			break;
+		}
+		else
+		{
+			*out = make_resource_view_handle(0, 0);
+			return false;
+		}
 	}
 
 	GLenum target = get_fbo_attachment_param(fbo_object, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE);

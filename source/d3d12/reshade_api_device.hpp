@@ -48,7 +48,7 @@ namespace reshade::d3d12
 		void destroy_resource(api::resource handle) final;
 		void destroy_resource_view(api::resource_view handle) final;
 
-		void destroy_pipeline(api::pipeline_type type, api::pipeline handle) final;
+		void destroy_pipeline(api::pipeline_stage type, api::pipeline handle) final;
 		void destroy_pipeline_layout(api::pipeline_layout handle) final;
 		void destroy_descriptor_set_layout(api::descriptor_set_layout handle) final;
 		void destroy_query_pool(api::query_pool handle) final;
@@ -58,7 +58,7 @@ namespace reshade::d3d12
 		void get_resource_from_view(api::resource_view view, api::resource *out) const final;
 		api::resource_desc get_resource_desc(api::resource resource) const final;
 
-		bool get_framebuffer_attachment(api::framebuffer fbo, api::format_aspect type, uint32_t index, api::resource_view *out) const final;
+		bool get_framebuffer_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index, api::resource_view *out) const final;
 
 		bool map_resource(api::resource resource, uint32_t subresource, api::map_access access, void **data, uint32_t *row_pitch, uint32_t *slice_pitch) final;
 		void unmap_resource(api::resource resource, uint32_t subresource) final;

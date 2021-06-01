@@ -63,7 +63,7 @@ void reshade::d3d12::convert_sampler_desc(const api::sampler_desc &desc, D3D12_S
 reshade::api::sampler_desc reshade::d3d12::convert_sampler_desc(const D3D12_SAMPLER_DESC &internal_desc)
 {
 	api::sampler_desc desc = {};
-	desc.filter = static_cast<api::texture_filter>(internal_desc.Filter);
+	desc.filter = static_cast<api::filter_type>(internal_desc.Filter);
 	desc.address_u = static_cast<api::texture_address_mode>(internal_desc.AddressU);
 	desc.address_v = static_cast<api::texture_address_mode>(internal_desc.AddressV);
 	desc.address_w = static_cast<api::texture_address_mode>(internal_desc.AddressW);

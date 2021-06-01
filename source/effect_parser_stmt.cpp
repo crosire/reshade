@@ -1368,11 +1368,11 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 					else if (property_name == "AddressW")
 						sampler_info.address_w = static_cast<texture_address_mode>(value);
 					else if (property_name == "MinFilter")
-						sampler_info.filter = static_cast<texture_filter>((uint32_t(sampler_info.filter) & 0x0F) | ((value << 4) & 0x30)); // Combine sampler filter components into a single filter enumeration value
+						sampler_info.filter = static_cast<filter_mode>((uint32_t(sampler_info.filter) & 0x0F) | ((value << 4) & 0x30)); // Combine sampler filter components into a single filter enumeration value
 					else if (property_name == "MagFilter")
-						sampler_info.filter = static_cast<texture_filter>((uint32_t(sampler_info.filter) & 0x33) | ((value << 2) & 0x0C));
+						sampler_info.filter = static_cast<filter_mode>((uint32_t(sampler_info.filter) & 0x33) | ((value << 2) & 0x0C));
 					else if (property_name == "MipFilter")
-						sampler_info.filter = static_cast<texture_filter>((uint32_t(sampler_info.filter) & 0x3C) |  (value       & 0x03));
+						sampler_info.filter = static_cast<filter_mode>((uint32_t(sampler_info.filter) & 0x3C) |  (value       & 0x03));
 					else if (property_name == "MinLOD" || property_name == "MaxMipLevel")
 						sampler_info.min_lod = static_cast<float>(value);
 					else if (property_name == "MaxLOD")

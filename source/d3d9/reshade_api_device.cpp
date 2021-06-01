@@ -357,7 +357,7 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 		case api::resource_type::texture_1d:
 		case api::resource_type::texture_2d:
 		{
-			// Array or multisample textures are not supported in Direct3D 9
+			// Array or multisample_enable textures are not supported in Direct3D 9
 			if (desc.texture.depth_or_layers != 1 || desc.texture.samples != 1)
 				break;
 
@@ -580,13 +580,13 @@ bool reshade::d3d9::device_impl::create_pipeline(const api::pipeline_desc &desc,
 	default:
 		*out = { 0 };
 		return false;
-	case api::pipeline_type::graphics:
+	case api::pipeline_stage::all_graphics:
 		return create_pipeline_graphics(desc, out);
-	case api::pipeline_type::graphics_vertex_shader:
+	case api::pipeline_stage::vertex_shader:
 		return create_pipeline_graphics_vertex_shader(desc, out);
-	case api::pipeline_type::graphics_pixel_shader:
+	case api::pipeline_stage::pixel_shader:
 		return create_pipeline_graphics_pixel_shader(desc, out);
-	case api::pipeline_type::graphics_input_layout:
+	case api::pipeline_stage::vertex_input:
 		return create_pipeline_graphics_input_layout(desc, out);
 	}
 }
@@ -596,10 +596,10 @@ bool reshade::d3d9::device_impl::create_pipeline_graphics(const api::pipeline_de
 	if (desc.graphics.hull_shader.code_size != 0 ||
 		desc.graphics.domain_shader.code_size != 0 ||
 		desc.graphics.geometry_shader.code_size != 0 ||
-		desc.graphics.blend_state.alpha_to_coverage ||
+		desc.graphics.blend_state.alpha_to_coverage_enable ||
 		desc.graphics.blend_state.logic_op_enable[0] ||
-		desc.graphics.num_viewports > 1 ||
-		desc.graphics.num_render_targets > _caps.NumSimultaneousRTs)
+		desc.graphics.viewport_count > 1 ||
+		desc.graphics.render_target_count > _caps.NumSimultaneousRTs)
 	{
 		*out = { 0 };
 		return false;
@@ -639,7 +639,7 @@ bool reshade::d3d9::device_impl::create_pipeline_graphics(const api::pipeline_de
 	}
 
 	_orig->SetRenderState(D3DRS_ZENABLE,
-		desc.graphics.depth_stencil_state.depth_test);
+		desc.graphics.depth_stencil_state.depth_enable);
 	_orig->SetRenderState(D3DRS_FILLMODE,
 		convert_fill_mode(desc.graphics.rasterizer_state.fill_mode));
 	_orig->SetRenderState(D3DRS_ZWRITEENABLE,
@@ -659,7 +659,7 @@ bool reshade::d3d9::device_impl::create_pipeline_graphics(const api::pipeline_de
 		desc.graphics.blend_state.blend_enable[0]);
 	_orig->SetRenderState(D3DRS_FOGENABLE, FALSE);
 	_orig->SetRenderState(D3DRS_STENCILENABLE,
-		desc.graphics.depth_stencil_state.stencil_test);
+		desc.graphics.depth_stencil_state.stencil_enable);
 	_orig->SetRenderState(D3DRS_STENCILZFAIL,
 		convert_stencil_op(desc.graphics.rasterizer_state.front_counter_clockwise ? desc.graphics.depth_stencil_state.back_stencil_depth_fail_op : desc.graphics.depth_stencil_state.front_stencil_depth_fail_op));
 	_orig->SetRenderState(D3DRS_STENCILFAIL,
@@ -675,12 +675,12 @@ bool reshade::d3d9::device_impl::create_pipeline_graphics(const api::pipeline_de
 	_orig->SetRenderState(D3DRS_STENCILWRITEMASK,
 		desc.graphics.depth_stencil_state.stencil_write_mask);
 	_orig->SetRenderState(D3DRS_CLIPPING,
-		desc.graphics.rasterizer_state.depth_clip);
+		desc.graphics.rasterizer_state.depth_clip_enable);
 	_orig->SetRenderState(D3DRS_LIGHTING, FALSE);
 	_orig->SetRenderState(D3DRS_VERTEXBLEND, D3DVBF_DISABLE);
 	_orig->SetRenderState(D3DRS_CLIPPLANEENABLE, 0);
 	_orig->SetRenderState(D3DRS_MULTISAMPLEANTIALIAS,
-		desc.graphics.rasterizer_state.multisample);
+		desc.graphics.rasterizer_state.multisample_enable);
 	_orig->SetRenderState(D3DRS_MULTISAMPLEMASK,
 		desc.graphics.sample_mask);
 	_orig->SetRenderState(D3DRS_COLORWRITEENABLE,
@@ -688,11 +688,11 @@ bool reshade::d3d9::device_impl::create_pipeline_graphics(const api::pipeline_de
 	_orig->SetRenderState(D3DRS_BLENDOP,
 		convert_blend_op(desc.graphics.blend_state.color_blend_op[0]));
 	_orig->SetRenderState(D3DRS_SCISSORTESTENABLE,
-		desc.graphics.rasterizer_state.scissor_test);
+		desc.graphics.rasterizer_state.scissor_enable);
 	_orig->SetRenderState(D3DRS_SLOPESCALEDEPTHBIAS,
 		*reinterpret_cast<const DWORD *>(&desc.graphics.rasterizer_state.slope_scaled_depth_bias));
 	_orig->SetRenderState(D3DRS_ANTIALIASEDLINEENABLE,
-		desc.graphics.rasterizer_state.antialiased_line);
+		desc.graphics.rasterizer_state.antialiased_line_enable);
 	_orig->SetRenderState(D3DRS_ENABLEADAPTIVETESSELLATION, FALSE);
 	_orig->SetRenderState(D3DRS_TWOSIDEDSTENCILMODE,
 		desc.graphics.rasterizer_state.cull_mode == api::cull_mode::none && (
@@ -1008,9 +1008,9 @@ void reshade::d3d9::device_impl::destroy_resource_view(api::resource_view handle
 		reinterpret_cast<IUnknown *>(handle.handle & ~1ull)->Release();
 }
 
-void reshade::d3d9::device_impl::destroy_pipeline(api::pipeline_type type, api::pipeline handle)
+void reshade::d3d9::device_impl::destroy_pipeline(api::pipeline_stage type, api::pipeline handle)
 {
-	if (type == api::pipeline_type::graphics)
+	if (type == api::pipeline_stage::all_graphics)
 		delete reinterpret_cast<pipeline_impl *>(handle.handle);
 	else if (handle.handle != 0)
 		reinterpret_cast<IUnknown *>(handle.handle)->Release();
@@ -1403,12 +1403,12 @@ reshade::api::resource_desc reshade::d3d9::device_impl::get_resource_desc(api::r
 	return api::resource_desc {};
 }
 
-bool reshade::d3d9::device_impl::get_framebuffer_attachment(api::framebuffer fbo, api::format_aspect type, uint32_t index, api::resource_view *out) const
+bool reshade::d3d9::device_impl::get_framebuffer_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index, api::resource_view *out) const
 {
 	assert(fbo.handle != 0);
 	const auto fbo_impl = reinterpret_cast<const framebuffer_impl *>(fbo.handle);
 
-	if (type == api::format_aspect::color)
+	if (type == api::attachment_type::color)
 	{
 		if (index < fbo_impl->count)
 		{

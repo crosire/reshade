@@ -95,19 +95,21 @@ void reshade::vulkan::command_list_impl::barrier(uint32_t count, const api::reso
 	vk.CmdPipelineBarrier(_orig, src_stage_mask, dst_stage_mask, 0, 0, nullptr, static_cast<uint32_t>(buffer_barriers.size()), buffer_barriers.data(), static_cast<uint32_t>(image_barriers.size()), image_barriers.data());
 }
 
-void reshade::vulkan::command_list_impl::bind_pipeline(api::pipeline_type type, api::pipeline pipeline)
+void reshade::vulkan::command_list_impl::bind_pipeline(api::pipeline_stage type, api::pipeline pipeline)
 {
+	assert(type == api::pipeline_stage::all_compute || type == api::pipeline_stage::all_graphics);
+
 	vk.CmdBindPipeline(_orig,
-		type == api::pipeline_type::compute ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS,
+		type == api::pipeline_stage::all_compute ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS,
 		(VkPipeline)pipeline.handle);
 }
-void reshade::vulkan::command_list_impl::bind_pipeline_states(uint32_t count, const api::pipeline_state *states, const uint32_t *values)
+void reshade::vulkan::command_list_impl::bind_pipeline_states(uint32_t count, const api::dynamic_state *states, const uint32_t *values)
 {
 	for (uint32_t i = 0; i < count; ++i)
 	{
 		switch (states[i])
 		{
-		case api::pipeline_state::blend_constant:
+		case api::dynamic_state::blend_constant:
 		{
 			float blend_constant[4];
 			blend_constant[0] = ((values[i]      ) & 0xFF) / 255.0f;
@@ -118,13 +120,13 @@ void reshade::vulkan::command_list_impl::bind_pipeline_states(uint32_t count, co
 			vk.CmdSetBlendConstants(_orig, blend_constant);
 			break;
 		}
-		case api::pipeline_state::stencil_read_mask:
+		case api::dynamic_state::stencil_read_mask:
 			vk.CmdSetStencilCompareMask(_orig, VK_STENCIL_FACE_FRONT_AND_BACK, values[i]);
 			break;
-		case api::pipeline_state::stencil_write_mask:
+		case api::dynamic_state::stencil_write_mask:
 			vk.CmdSetStencilWriteMask(_orig, VK_STENCIL_FACE_FRONT_AND_BACK, values[i]);
 			break;
-		case api::pipeline_state::stencil_reference_value:
+		case api::dynamic_state::stencil_reference_value:
 			vk.CmdSetStencilReference(_orig, VK_STENCIL_FACE_FRONT_AND_BACK, values[i]);
 			break;
 		default:
@@ -171,16 +173,16 @@ void reshade::vulkan::command_list_impl::bind_scissor_rects(uint32_t first, uint
 	vk.CmdSetScissor(_orig, first, count, rect_data);
 }
 
-void reshade::vulkan::command_list_impl::push_constants(api::shader_stage stage, api::pipeline_layout layout, uint32_t, uint32_t offset, uint32_t count, const void *values)
+void reshade::vulkan::command_list_impl::push_constants(api::shader_stage stages, api::pipeline_layout layout, uint32_t, uint32_t offset, uint32_t count, const void *values)
 {
 	assert(count != 0);
 
 	vk.CmdPushConstants(_orig,
 		(VkPipelineLayout)layout.handle,
-		static_cast<VkShaderStageFlags>(stage),
+		static_cast<VkShaderStageFlags>(stages),
 		offset * 4, count * 4, values);
 }
-void reshade::vulkan::command_list_impl::push_descriptors(api::shader_stage stage, api::pipeline_layout layout, uint32_t layout_index, api::descriptor_type type, uint32_t first, uint32_t count, const void *descriptors)
+void reshade::vulkan::command_list_impl::push_descriptors(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_index, api::descriptor_type type, uint32_t first, uint32_t count, const void *descriptors)
 {
 	assert(count != 0);
 
@@ -245,7 +247,7 @@ void reshade::vulkan::command_list_impl::push_descriptors(api::shader_stage stag
 	if (vk.CmdPushDescriptorSetKHR != nullptr)
 	{
 		vk.CmdPushDescriptorSetKHR(_orig,
-			stage == api::shader_stage::compute ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS,
+			stages == api::shader_stage::compute ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS,
 			(VkPipelineLayout)layout.handle, layout_index,
 			1, &write);
 	}
@@ -264,16 +266,16 @@ void reshade::vulkan::command_list_impl::push_descriptors(api::shader_stage stag
 		vk.UpdateDescriptorSets(_device_impl->_orig, 1, &write, 0, nullptr);
 
 		vk.CmdBindDescriptorSets(_orig,
-			stage == api::shader_stage::compute ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS,
+			stages == api::shader_stage::compute ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS,
 			(VkPipelineLayout)layout.handle,
 			layout_index, 1, &write.dstSet,
 			0, nullptr);
 	}
 }
-void reshade::vulkan::command_list_impl::bind_descriptor_sets(api::pipeline_type type, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_set *sets)
+void reshade::vulkan::command_list_impl::bind_descriptor_sets(api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_set *sets)
 {
 	vk.CmdBindDescriptorSets(_orig,
-		type == api::pipeline_type::compute ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS,
+		stages == api::shader_stage::compute ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS,
 		(VkPipelineLayout)layout.handle,
 		first, count, reinterpret_cast<const VkDescriptorSet *>(sets),
 		0, nullptr);
@@ -369,7 +371,7 @@ void reshade::vulkan::command_list_impl::copy_resource(api::resource src, api::r
 			{
 				const uint32_t subresource = level + layer * desc.texture.levels;
 
-				copy_texture_region(src, subresource, nullptr, dst, subresource, nullptr, api::texture_filter::min_mag_mip_point);
+				copy_texture_region(src, subresource, nullptr, dst, subresource, nullptr, api::filter_type::min_mag_mip_point);
 			}
 		}
 	}
@@ -415,7 +417,7 @@ void reshade::vulkan::command_list_impl::copy_buffer_to_texture(api::resource sr
 
 	vk.CmdCopyBufferToImage(_orig, (VkBuffer)src.handle, (VkImage)dst.handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 }
-void reshade::vulkan::command_list_impl::copy_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], api::texture_filter filter)
+void reshade::vulkan::command_list_impl::copy_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], api::filter_type filter)
 {
 	_has_commands = true;
 
@@ -496,7 +498,7 @@ void reshade::vulkan::command_list_impl::copy_texture_region(api::resource src, 
 			(VkImage)src.handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
 			(VkImage)dst.handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 			1, &region,
-			filter == api::texture_filter::min_mag_mip_linear || filter == api::texture_filter::min_mag_linear_mip_point ? VK_FILTER_LINEAR : VK_FILTER_NEAREST);
+			filter == api::filter_type::min_mag_mip_linear || filter == api::filter_type::min_mag_linear_mip_point ? VK_FILTER_LINEAR : VK_FILTER_NEAREST);
 	}
 }
 void reshade::vulkan::command_list_impl::copy_texture_to_buffer(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint64_t dst_offset, uint32_t row_length, uint32_t slice_height)
@@ -626,7 +628,7 @@ void reshade::vulkan::command_list_impl::generate_mipmaps(api::resource_view srv
 	vk.CmdPipelineBarrier(_orig, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 }
 
-void reshade::vulkan::command_list_impl::clear_attachments(api::format_aspect clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t num_rects, const int32_t *rects)
+void reshade::vulkan::command_list_impl::clear_attachments(api::attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t num_rects, const int32_t *rects)
 {
 	_has_commands = true;
 
@@ -686,7 +688,7 @@ void reshade::vulkan::command_list_impl::clear_attachments(api::format_aspect cl
 		vk.CmdClearAttachments(_orig, num_clear_attachments, clear_attachments, num_rects, clear_rects);
 	}
 }
-void reshade::vulkan::command_list_impl::clear_depth_stencil_view(api::resource_view dsv, api::format_aspect clear_flags, float depth, uint8_t stencil, uint32_t num_rects, const int32_t *)
+void reshade::vulkan::command_list_impl::clear_depth_stencil_view(api::resource_view dsv, api::attachment_type clear_flags, float depth, uint8_t stencil, uint32_t num_rects, const int32_t *)
 {
 	_has_commands = true;
 

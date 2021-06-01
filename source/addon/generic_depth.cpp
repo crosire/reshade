@@ -389,17 +389,17 @@ static void on_bind_depth_stencil(command_list *cmd_list, resource_view dsv)
 static void on_begin_render_pass(command_list *cmd_list, framebuffer fbo)
 {
 	resource_view dsv = { 0 };
-	cmd_list->get_device()->get_framebuffer_attachment(fbo, format_aspect::depth, 0, &dsv);
+	cmd_list->get_device()->get_framebuffer_attachment(fbo, attachment_type::depth, 0, &dsv);
 
 	on_bind_depth_stencil(cmd_list, dsv);
 }
-static bool on_clear_depth_stencil(command_list *cmd_list, resource_view dsv, format_aspect flags, float, uint8_t, uint32_t, const int32_t *)
+static bool on_clear_depth_stencil(command_list *cmd_list, resource_view dsv, attachment_type flags, float, uint8_t, uint32_t, const int32_t *)
 {
 	device *const device = cmd_list->get_device();
 	const state_tracking_context &device_state = device->get_user_data<state_tracking_context>(state_tracking_context::GUID);
 
 	// Ignore clears that do not affect the depth buffer (stencil clears)
-	if ((flags & format_aspect::depth) != format_aspect::none && device_state.preserve_depth_buffers)
+	if ((flags & attachment_type::depth) == attachment_type::depth && device_state.preserve_depth_buffers)
 	{
 		resource depth_stencil = { 0 };
 		device->get_resource_from_view(dsv, &depth_stencil);

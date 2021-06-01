@@ -79,40 +79,40 @@ void reshade::d3d11::device_context_impl::barrier(uint32_t count, const api::res
 	}
 }
 
-void reshade::d3d11::device_context_impl::bind_pipeline(api::pipeline_type type, api::pipeline pipeline)
+void reshade::d3d11::device_context_impl::bind_pipeline(api::pipeline_stage type, api::pipeline pipeline)
 {
 	assert(pipeline.handle != 0);
 
 	switch (type)
 	{
-	case api::pipeline_type::compute:
-		_orig->CSSetShader(reinterpret_cast<ID3D11ComputeShader *>(pipeline.handle), nullptr, 0);
-		break;
-	case api::pipeline_type::graphics:
+	case api::pipeline_stage::all_graphics:
 		reinterpret_cast<pipeline_impl *>(pipeline.handle)->apply(_orig);
 		break;
-	case api::pipeline_type::graphics_vertex_shader:
+	case api::pipeline_stage::vertex_shader:
 		_orig->VSSetShader(reinterpret_cast<ID3D11VertexShader *>(pipeline.handle), nullptr, 0);
 		break;
-	case api::pipeline_type::graphics_hull_shader:
+	case api::pipeline_stage::hull_shader:
 		_orig->HSSetShader(reinterpret_cast<ID3D11HullShader *>(pipeline.handle), nullptr, 0);
 		break;
-	case api::pipeline_type::graphics_domain_shader:
+	case api::pipeline_stage::domain_shader:
 		_orig->DSSetShader(reinterpret_cast<ID3D11DomainShader *>(pipeline.handle), nullptr, 0);
 		break;
-	case api::pipeline_type::graphics_geometry_shader:
+	case api::pipeline_stage::geometry_shader:
 		_orig->GSSetShader(reinterpret_cast<ID3D11GeometryShader *>(pipeline.handle), nullptr, 0);
 		break;
-	case api::pipeline_type::graphics_pixel_shader:
+	case api::pipeline_stage::pixel_shader:
 		_orig->PSSetShader(reinterpret_cast<ID3D11PixelShader *>(pipeline.handle), nullptr, 0);
 		break;
-	case api::pipeline_type::graphics_blend_state:
+	case api::pipeline_stage::compute_shader:
+		_orig->CSSetShader(reinterpret_cast<ID3D11ComputeShader *>(pipeline.handle), nullptr, 0);
+		break;
+	case api::pipeline_stage::blend_and_render_target_output:
 		_orig->OMSetBlendState(reinterpret_cast<ID3D11BlendState *>(pipeline.handle), nullptr, D3D11_DEFAULT_SAMPLE_MASK);
 		break;
-	case api::pipeline_type::graphics_rasterizer_state:
+	case api::pipeline_stage::rasterizer:
 		_orig->RSSetState(reinterpret_cast<ID3D11RasterizerState *>(pipeline.handle));
 		break;
-	case api::pipeline_type::graphics_depth_stencil_state:
+	case api::pipeline_stage::depth_stencil:
 		_orig->OMSetDepthStencilState(reinterpret_cast<ID3D11DepthStencilState *>(pipeline.handle), 0);
 		break;
 	default:
@@ -120,13 +120,13 @@ void reshade::d3d11::device_context_impl::bind_pipeline(api::pipeline_type type,
 		break;
 	}
 }
-void reshade::d3d11::device_context_impl::bind_pipeline_states(uint32_t count, const api::pipeline_state *states, const uint32_t *values)
+void reshade::d3d11::device_context_impl::bind_pipeline_states(uint32_t count, const api::dynamic_state *states, const uint32_t *values)
 {
 	for (UINT i = 0; i < count; ++i)
 	{
 		switch (states[i])
 		{
-		case api::pipeline_state::primitive_topology:
+		case api::dynamic_state::primitive_topology:
 			_orig->IASetPrimitiveTopology(convert_primitive_topology(static_cast<api::primitive_topology>(values[i])));
 			break;
 		default:
@@ -148,7 +148,7 @@ void reshade::d3d11::device_context_impl::bind_scissor_rects(uint32_t first, uin
 	_orig->RSSetScissorRects(count, reinterpret_cast<const D3D10_RECT *>(rects));
 }
 
-void reshade::d3d11::device_context_impl::bind_samplers(api::shader_stage stage, uint32_t first, uint32_t count, const api::sampler *samplers)
+void reshade::d3d11::device_context_impl::bind_samplers(api::shader_stage stages, uint32_t first, uint32_t count, const api::sampler *samplers)
 {
 	if (count > D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT)
 	{
@@ -164,20 +164,20 @@ void reshade::d3d11::device_context_impl::bind_samplers(api::shader_stage stage,
 	const auto sampler_ptrs = reinterpret_cast<ID3D11SamplerState *const *>(samplers);
 #endif
 
-	if ((stage & api::shader_stage::vertex) == api::shader_stage::vertex)
+	if ((stages & api::shader_stage::vertex) == api::shader_stage::vertex)
 		_orig->VSSetSamplers(first, count, sampler_ptrs);
-	if ((stage & api::shader_stage::hull) == api::shader_stage::hull)
+	if ((stages & api::shader_stage::hull) == api::shader_stage::hull)
 		_orig->HSSetSamplers(first, count, sampler_ptrs);
-	if ((stage & api::shader_stage::domain) == api::shader_stage::domain)
+	if ((stages & api::shader_stage::domain) == api::shader_stage::domain)
 		_orig->DSSetSamplers(first, count, sampler_ptrs);
-	if ((stage & api::shader_stage::geometry) == api::shader_stage::geometry)
+	if ((stages & api::shader_stage::geometry) == api::shader_stage::geometry)
 		_orig->GSSetSamplers(first, count, sampler_ptrs);
-	if ((stage & api::shader_stage::pixel) == api::shader_stage::pixel)
+	if ((stages & api::shader_stage::pixel) == api::shader_stage::pixel)
 		_orig->PSSetSamplers(first, count, sampler_ptrs);
-	if ((stage & api::shader_stage::compute) == api::shader_stage::compute)
+	if ((stages & api::shader_stage::compute) == api::shader_stage::compute)
 		_orig->CSSetSamplers(first, count, sampler_ptrs);
 }
-void reshade::d3d11::device_context_impl::bind_shader_resource_views(api::shader_stage stage, uint32_t first, uint32_t count, const api::resource_view *views)
+void reshade::d3d11::device_context_impl::bind_shader_resource_views(api::shader_stage stages, uint32_t first, uint32_t count, const api::resource_view *views)
 {
 	if (count > D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT)
 	{
@@ -193,20 +193,20 @@ void reshade::d3d11::device_context_impl::bind_shader_resource_views(api::shader
 	const auto view_ptrs = reinterpret_cast<ID3D11ShaderResourceView *const *>(views);
 #endif
 
-	if ((stage & api::shader_stage::vertex) == api::shader_stage::vertex)
+	if ((stages & api::shader_stage::vertex) == api::shader_stage::vertex)
 		_orig->VSSetShaderResources(first, count, view_ptrs);
-	if ((stage & api::shader_stage::hull) == api::shader_stage::hull)
+	if ((stages & api::shader_stage::hull) == api::shader_stage::hull)
 		_orig->HSSetShaderResources(first, count, view_ptrs);
-	if ((stage & api::shader_stage::domain) == api::shader_stage::domain)
+	if ((stages & api::shader_stage::domain) == api::shader_stage::domain)
 		_orig->DSSetShaderResources(first, count, view_ptrs);
-	if ((stage & api::shader_stage::geometry) == api::shader_stage::geometry)
+	if ((stages & api::shader_stage::geometry) == api::shader_stage::geometry)
 		_orig->GSSetShaderResources(first, count, view_ptrs);
-	if ((stage & api::shader_stage::pixel) == api::shader_stage::pixel)
+	if ((stages & api::shader_stage::pixel) == api::shader_stage::pixel)
 		_orig->PSSetShaderResources(first, count, view_ptrs);
-	if ((stage & api::shader_stage::compute) == api::shader_stage::compute)
+	if ((stages & api::shader_stage::compute) == api::shader_stage::compute)
 		_orig->CSSetShaderResources(first, count, view_ptrs);
 }
-void reshade::d3d11::device_context_impl::bind_unordered_access_views(api::shader_stage stage, uint32_t first, uint32_t count, const api::resource_view *views)
+void reshade::d3d11::device_context_impl::bind_unordered_access_views(api::shader_stage stages, uint32_t first, uint32_t count, const api::resource_view *views)
 {
 	if (count > D3D11_1_UAV_SLOT_COUNT)
 	{
@@ -222,12 +222,12 @@ void reshade::d3d11::device_context_impl::bind_unordered_access_views(api::shade
 	const auto view_ptrs = reinterpret_cast<ID3D11UnorderedAccessView *const *>(views);
 #endif
 
-	if ((stage & api::shader_stage::pixel) == api::shader_stage::pixel)
+	if ((stages & api::shader_stage::pixel) == api::shader_stage::pixel)
 		_orig->OMSetRenderTargetsAndUnorderedAccessViews(0, nullptr, nullptr, first, count, view_ptrs, nullptr);
-	if ((stage & api::shader_stage::compute) == api::shader_stage::compute)
+	if ((stages & api::shader_stage::compute) == api::shader_stage::compute)
 		_orig->CSSetUnorderedAccessViews(first, count, view_ptrs, nullptr);
 }
-void reshade::d3d11::device_context_impl::bind_constant_buffers(api::shader_stage stage, uint32_t first, uint32_t count, const api::resource *buffers)
+void reshade::d3d11::device_context_impl::bind_constant_buffers(api::shader_stage stages, uint32_t first, uint32_t count, const api::resource *buffers)
 {
 	if (count > D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT)
 	{
@@ -243,21 +243,21 @@ void reshade::d3d11::device_context_impl::bind_constant_buffers(api::shader_stag
 	const auto buffer_ptrs = reinterpret_cast<ID3D11Buffer *const *>(buffers);
 #endif
 
-	if ((stage & api::shader_stage::vertex) == api::shader_stage::vertex)
+	if ((stages & api::shader_stage::vertex) == api::shader_stage::vertex)
 		_orig->VSSetConstantBuffers(first, count, buffer_ptrs);
-	if ((stage & api::shader_stage::hull) == api::shader_stage::hull)
+	if ((stages & api::shader_stage::hull) == api::shader_stage::hull)
 		_orig->HSSetConstantBuffers(first, count, buffer_ptrs);
-	if ((stage & api::shader_stage::domain) == api::shader_stage::domain)
+	if ((stages & api::shader_stage::domain) == api::shader_stage::domain)
 		_orig->DSSetConstantBuffers(first, count, buffer_ptrs);
-	if ((stage & api::shader_stage::geometry) == api::shader_stage::geometry)
+	if ((stages & api::shader_stage::geometry) == api::shader_stage::geometry)
 		_orig->GSSetConstantBuffers(first, count, buffer_ptrs);
-	if ((stage & api::shader_stage::pixel) == api::shader_stage::pixel)
+	if ((stages & api::shader_stage::pixel) == api::shader_stage::pixel)
 		_orig->PSSetConstantBuffers(first, count, buffer_ptrs);
-	if ((stage & api::shader_stage::compute) == api::shader_stage::compute)
+	if ((stages & api::shader_stage::compute) == api::shader_stage::compute)
 		_orig->CSSetConstantBuffers(first, count, buffer_ptrs);
 }
 
-void reshade::d3d11::device_context_impl::push_constants(api::shader_stage stage, api::pipeline_layout layout, uint32_t layout_index, uint32_t first, uint32_t count, const void *values)
+void reshade::d3d11::device_context_impl::push_constants(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_index, uint32_t first, uint32_t count, const void *values)
 {
 	assert(first == 0);
 
@@ -294,20 +294,20 @@ void reshade::d3d11::device_context_impl::push_constants(api::shader_stage stage
 	const UINT push_constants_slot = layout.handle != 0 ?
 		reinterpret_cast<pipeline_layout_impl *>(layout.handle)->shader_registers[layout_index] : 0;
 
-	if ((stage & api::shader_stage::vertex) == api::shader_stage::vertex)
+	if ((stages & api::shader_stage::vertex) == api::shader_stage::vertex)
 		_orig->VSSetConstantBuffers(push_constants_slot, 1, &push_constants);
-	if ((stage & api::shader_stage::hull) == api::shader_stage::hull)
+	if ((stages & api::shader_stage::hull) == api::shader_stage::hull)
 		_orig->HSSetConstantBuffers(push_constants_slot, 1, &push_constants);
-	if ((stage & api::shader_stage::domain) == api::shader_stage::domain)
+	if ((stages & api::shader_stage::domain) == api::shader_stage::domain)
 		_orig->DSSetConstantBuffers(push_constants_slot, 1, &push_constants);
-	if ((stage & api::shader_stage::geometry) == api::shader_stage::geometry)
+	if ((stages & api::shader_stage::geometry) == api::shader_stage::geometry)
 		_orig->GSSetConstantBuffers(push_constants_slot, 1, &push_constants);
-	if ((stage & api::shader_stage::pixel) == api::shader_stage::pixel)
+	if ((stages & api::shader_stage::pixel) == api::shader_stage::pixel)
 		_orig->PSSetConstantBuffers(push_constants_slot, 1, &push_constants);
-	if ((stage & api::shader_stage::compute) == api::shader_stage::compute)
+	if ((stages & api::shader_stage::compute) == api::shader_stage::compute)
 		_orig->CSSetConstantBuffers(push_constants_slot, 1, &push_constants);
 }
-void reshade::d3d11::device_context_impl::push_descriptors(api::shader_stage stage, api::pipeline_layout layout, uint32_t layout_index, api::descriptor_type type, uint32_t first, uint32_t count, const void *descriptors)
+void reshade::d3d11::device_context_impl::push_descriptors(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_index, api::descriptor_type type, uint32_t first, uint32_t count, const void *descriptors)
 {
 	if (layout.handle != 0)
 		first += reinterpret_cast<pipeline_layout_impl *>(layout.handle)->shader_registers[layout_index];
@@ -315,30 +315,30 @@ void reshade::d3d11::device_context_impl::push_descriptors(api::shader_stage sta
 	switch (type)
 	{
 	case api::descriptor_type::sampler:
-		bind_samplers(stage, first, count, static_cast<const api::sampler *>(descriptors));
+		bind_samplers(stages, first, count, static_cast<const api::sampler *>(descriptors));
 		break;
 	case api::descriptor_type::sampler_with_resource_view:
 		assert(false);
 		break;
 	case api::descriptor_type::shader_resource_view:
-		bind_shader_resource_views(stage, first, count, static_cast<const api::resource_view *>(descriptors));
+		bind_shader_resource_views(stages, first, count, static_cast<const api::resource_view *>(descriptors));
 		break;
 	case api::descriptor_type::unordered_access_view:
-		bind_unordered_access_views(stage, first, count, static_cast<const api::resource_view *>(descriptors));
+		bind_unordered_access_views(stages, first, count, static_cast<const api::resource_view *>(descriptors));
 		break;
 	case api::descriptor_type::constant_buffer:
-		bind_constant_buffers(stage, first, count, static_cast<const api::resource *>(descriptors));
+		bind_constant_buffers(stages, first, count, static_cast<const api::resource *>(descriptors));
 		break;
 	}
 }
-void reshade::d3d11::device_context_impl::bind_descriptor_sets(api::pipeline_type type, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_set *sets)
+void reshade::d3d11::device_context_impl::bind_descriptor_sets(api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_set *sets)
 {
 	for (UINT i = 0; i < count; ++i)
 	{
 		const auto set_impl = reinterpret_cast<descriptor_set_impl *>(sets[i].handle);
 
 		push_descriptors(
-			type == api::pipeline_type::compute ? api::shader_stage::compute : api::shader_stage::all_graphics,
+			stages,
 			layout,
 			i + first,
 			set_impl->type,
@@ -456,7 +456,7 @@ void reshade::d3d11::device_context_impl::copy_buffer_to_texture(api::resource, 
 {
 	assert(false);
 }
-void reshade::d3d11::device_context_impl::copy_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], api::texture_filter)
+void reshade::d3d11::device_context_impl::copy_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], api::filter_type)
 {
 	assert(src.handle != 0 && dst.handle != 0);
 	assert((src_box == nullptr && dst_box == nullptr) || (src_box != nullptr && dst_box != nullptr &&
@@ -489,18 +489,18 @@ void reshade::d3d11::device_context_impl::generate_mipmaps(api::resource_view sr
 	_orig->GenerateMips(reinterpret_cast<ID3D11ShaderResourceView *>(srv.handle));
 }
 
-void reshade::d3d11::device_context_impl::clear_attachments(api::format_aspect clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t num_rects, const int32_t *)
+void reshade::d3d11::device_context_impl::clear_attachments(api::attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t num_rects, const int32_t *)
 {
 	assert(num_rects == 0);
 	assert(_has_open_render_pass);
 
-	if ((clear_flags & api::format_aspect::color) != api::format_aspect::none)
+	if (static_cast<UINT>(clear_flags & (api::attachment_type::color)) != 0)
 		for (UINT i = 0; i < _current_fbo->count; ++i)
 			_orig->ClearRenderTargetView(_current_fbo->rtv[i], color);
-	if ((clear_flags & api::format_aspect::depth_stencil) != api::format_aspect::none)
+	if (static_cast<UINT>(clear_flags & (api::attachment_type::depth | api::attachment_type::stencil)) != 0)
 		_orig->ClearDepthStencilView(_current_fbo->dsv, static_cast<UINT>(clear_flags) >> 1, depth, stencil);
 }
-void reshade::d3d11::device_context_impl::clear_depth_stencil_view(api::resource_view dsv, api::format_aspect clear_flags, float depth, uint8_t stencil, uint32_t num_rects, const int32_t *)
+void reshade::d3d11::device_context_impl::clear_depth_stencil_view(api::resource_view dsv, api::attachment_type clear_flags, float depth, uint8_t stencil, uint32_t num_rects, const int32_t *)
 {
 	assert(dsv.handle != 0 && num_rects == 0);
 
