@@ -411,28 +411,28 @@ void reshade::d3d11::device_context_impl::draw_or_dispatch_indirect(uint32_t typ
 	}
 }
 
-void reshade::d3d11::device_context_impl::begin_render_pass(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv)
+void reshade::d3d11::device_context_impl::begin_render_pass(api::framebuffer fbo)
 {
-	if (count > D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT)
-	{
-		assert(false);
-		count = D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT;
-	}
+	assert(fbo.handle != 0);
 
-#ifndef WIN64
-	ID3D11RenderTargetView *rtv_ptrs[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
-	for (UINT i = 0; i < count; ++i)
-		rtv_ptrs[i] = reinterpret_cast<ID3D11RenderTargetView *>(rtvs[i].handle);
-#else
-	const auto rtv_ptrs = reinterpret_cast<ID3D11RenderTargetView *const *>(rtvs);
-#endif
+	const auto fbo_impl = reinterpret_cast<const framebuffer_impl *>(fbo.handle);
+	_orig->OMSetRenderTargets(fbo_impl->count, fbo_impl->rtv, fbo_impl->dsv);
 
-	_orig->OMSetRenderTargets(count, rtv_ptrs, reinterpret_cast<ID3D11DepthStencilView *>(dsv.handle));
+	_current_fbo[0] = *fbo_impl;
+
+	assert(!_has_open_render_pass);
+	_has_open_render_pass = true;
 }
 void reshade::d3d11::device_context_impl::finish_render_pass()
 {
 	// Reset render targets
 	_orig->OMSetRenderTargets(0, nullptr, nullptr);
+
+	_current_fbo->count = 0;
+	_current_fbo->dsv = nullptr;
+
+	assert( _has_open_render_pass);
+	_has_open_render_pass = false;
 }
 
 void reshade::d3d11::device_context_impl::copy_resource(api::resource src, api::resource dst)
@@ -489,30 +489,38 @@ void reshade::d3d11::device_context_impl::generate_mipmaps(api::resource_view sr
 	_orig->GenerateMips(reinterpret_cast<ID3D11ShaderResourceView *>(srv.handle));
 }
 
-void reshade::d3d11::device_context_impl::clear_depth_stencil_view(api::resource_view dsv, uint32_t clear_flags, float depth, uint8_t stencil)
+void reshade::d3d11::device_context_impl::clear_attachments(api::format_aspect clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t num_rects, const int32_t *)
 {
-	assert(dsv.handle != 0);
+	assert(num_rects == 0);
+	assert(_has_open_render_pass);
 
-	_orig->ClearDepthStencilView(reinterpret_cast<ID3D11DepthStencilView *>(dsv.handle), clear_flags, depth, stencil);
+	if ((clear_flags & api::format_aspect::color) != api::format_aspect::none)
+		for (UINT i = 0; i < _current_fbo->count; ++i)
+			_orig->ClearRenderTargetView(_current_fbo->rtv[i], color);
+	if ((clear_flags & api::format_aspect::depth_stencil) != api::format_aspect::none)
+		_orig->ClearDepthStencilView(_current_fbo->dsv, static_cast<UINT>(clear_flags) >> 1, depth, stencil);
 }
-void reshade::d3d11::device_context_impl::clear_render_target_views(uint32_t count, const api::resource_view *rtvs, const float color[4])
+void reshade::d3d11::device_context_impl::clear_depth_stencil_view(api::resource_view dsv, api::format_aspect clear_flags, float depth, uint8_t stencil, uint32_t num_rects, const int32_t *)
 {
-	for (UINT i = 0; i < count; ++i)
-	{
-		assert(rtvs[i].handle != 0);
+	assert(dsv.handle != 0 && num_rects == 0);
 
-		_orig->ClearRenderTargetView(reinterpret_cast<ID3D11RenderTargetView *>(rtvs[i].handle), color);
-	}
+	_orig->ClearDepthStencilView(reinterpret_cast<ID3D11DepthStencilView *>(dsv.handle), static_cast<UINT>(clear_flags) >> 1, depth, stencil);
 }
-void reshade::d3d11::device_context_impl::clear_unordered_access_view_uint(api::resource_view uav, const uint32_t values[4])
+void reshade::d3d11::device_context_impl::clear_render_target_view(api::resource_view rtv, const float color[4], uint32_t num_rects, const int32_t *)
 {
-	assert(uav.handle != 0);
+	assert(rtv.handle != 0 && num_rects == 0);
+
+	_orig->ClearRenderTargetView(reinterpret_cast<ID3D11RenderTargetView *>(rtv.handle), color);
+}
+void reshade::d3d11::device_context_impl::clear_unordered_access_view_uint(api::resource_view uav, const uint32_t values[4], uint32_t num_rects, const int32_t *)
+{
+	assert(uav.handle != 0 && num_rects == 0);
 
 	_orig->ClearUnorderedAccessViewUint(reinterpret_cast<ID3D11UnorderedAccessView *>(uav.handle), values);
 }
-void reshade::d3d11::device_context_impl::clear_unordered_access_view_float(api::resource_view uav, const float values[4])
+void reshade::d3d11::device_context_impl::clear_unordered_access_view_float(api::resource_view uav, const float values[4], uint32_t num_rects, const int32_t *)
 {
-	assert(uav.handle != 0);
+	assert(uav.handle != 0 && num_rects == 0);
 
 	_orig->ClearUnorderedAccessViewFloat(reinterpret_cast<ID3D11UnorderedAccessView *>(uav.handle), values);
 }

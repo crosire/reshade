@@ -943,10 +943,7 @@ void reshade::runtime::draw_gui()
 		get_current_back_buffer(&backbuffer);
 		cmd_list->barrier(backbuffer, api::resource_usage::present, api::resource_usage::render_target);
 
-		api::resource_view backbuffer_target;
-		get_current_back_buffer_target(false, &backbuffer_target);
-
-		render_imgui_draw_data(draw_data, backbuffer_target);
+		render_imgui_draw_data(draw_data, _backbuffer_fbos[get_current_back_buffer_index() * 2]);
 
 		cmd_list->barrier(backbuffer, api::resource_usage::render_target, api::resource_usage::present);
 	}
@@ -3339,6 +3336,7 @@ bool reshade::runtime::init_imgui_resources()
 
 	pso_desc.graphics.num_viewports = 1;
 	pso_desc.graphics.num_render_targets = 1;
+	pso_desc.graphics.depth_stencil_format = _effect_stencil_format;
 	pso_desc.graphics.render_target_format[0] = _backbuffer_format;
 
 	if (_device->create_pipeline(pso_desc, &_imgui_pipeline))
@@ -3351,7 +3349,7 @@ bool reshade::runtime::init_imgui_resources()
 		return false;
 	}
 }
-void reshade::runtime::render_imgui_draw_data(ImDrawData *draw_data, api::resource_view target)
+void reshade::runtime::render_imgui_draw_data(ImDrawData *draw_data, api::framebuffer fbo)
 {
 	// Need to multi-buffer vertex data so not to modify data below when the previous frame is still in flight
 	const size_t buffer_index = _framecount % std::size(_imgui_vertices);
@@ -3419,7 +3417,7 @@ void reshade::runtime::render_imgui_draw_data(ImDrawData *draw_data, api::resour
 
 	api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
 
-	cmd_list->begin_render_pass(1, &target);
+	cmd_list->begin_render_pass(fbo);
 
 	// Setup render state
 	cmd_list->bind_pipeline(api::pipeline_type::graphics, _imgui_pipeline);

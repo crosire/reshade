@@ -325,35 +325,32 @@ void reshade::vulkan::command_list_impl::draw_or_dispatch_indirect(uint32_t type
 	}
 }
 
-void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv)
+void reshade::vulkan::command_list_impl::begin_render_pass(api::framebuffer fbo)
 {
 	_has_commands = true;
 
 	VkRenderPassBeginInfo begin_info { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
+	begin_info.renderPass = VK_NULL_HANDLE;
+	begin_info.framebuffer = (VkFramebuffer)fbo.handle;
 
-	if (!_device_impl->request_render_pass_and_framebuffer(count, rtvs, dsv, begin_info.renderPass, begin_info.framebuffer))
-		return;
-
-	assert(current_renderpass == VK_NULL_HANDLE);
-
-	const auto &rtv_info = _device_impl->_views.at(count != 0 ? rtvs[0].handle : dsv.handle);
-	const auto &rt_resource_info = _device_impl->_resources.at((uint64_t)rtv_info.image_create_info.image);
-
-	begin_info.renderArea.extent.width = rt_resource_info.image_create_info.extent.width;
-	begin_info.renderArea.extent.height = rt_resource_info.image_create_info.extent.height;
+	{
+		std::lock_guard<std::mutex> lock(_device_impl->_mutex);
+		const auto &fbo_info = _device_impl->_framebuffer_list.at(begin_info.framebuffer);
+		begin_info.renderPass = fbo_info.render_pass;
+		begin_info.renderArea = fbo_info.render_area;
+		_current_fbo = fbo_info;
+	}
 
 	vk.CmdBeginRenderPass(_orig, &begin_info, VK_SUBPASS_CONTENTS_INLINE);
-
-	current_subpass = 0;
-	current_renderpass = begin_info.renderPass;
-	current_framebuffer = begin_info.framebuffer;
 }
 void reshade::vulkan::command_list_impl::finish_render_pass()
 {
 	vk.CmdEndRenderPass(_orig);
 
-	current_renderpass = VK_NULL_HANDLE;
-	current_framebuffer = VK_NULL_HANDLE;
+#ifndef NDEBUG
+	_current_fbo.attachments.clear();
+	_current_fbo.attachment_types.clear();
+#endif
 }
 
 void reshade::vulkan::command_list_impl::copy_resource(api::resource src, api::resource dst)
@@ -629,18 +626,73 @@ void reshade::vulkan::command_list_impl::generate_mipmaps(api::resource_view srv
 	vk.CmdPipelineBarrier(_orig, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 }
 
-void reshade::vulkan::command_list_impl::clear_depth_stencil_view(api::resource_view dsv, uint32_t clear_flags, float depth, uint8_t stencil)
+void reshade::vulkan::command_list_impl::clear_attachments(api::format_aspect clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t num_rects, const int32_t *rects)
 {
 	_has_commands = true;
 
-	const resource_view_data &dsv_data = _device_impl->_views.at(dsv.handle);
-	assert(dsv_data.is_image_view()); // Has to be an image
+	assert(!_current_fbo.attachment_types.empty());
 
-	VkImageAspectFlags aspect_flags = 0;
-	if ((clear_flags & 0x1) != 0)
-		aspect_flags |= VK_IMAGE_ASPECT_DEPTH_BIT;
-	if ((clear_flags & 0x2) != 0)
-		aspect_flags |= VK_IMAGE_ASPECT_STENCIL_BIT;
+	uint32_t num_clear_attachments = 0;
+	VkClearAttachment clear_attachments[9];
+	const VkImageAspectFlags aspect_mask = static_cast<VkImageAspectFlags>(clear_flags);
+
+	if (aspect_mask & (VK_IMAGE_ASPECT_COLOR_BIT))
+	{
+		for (uint32_t i = 0; i < _current_fbo.attachment_types.size(); ++i)
+		{
+			if (_current_fbo.attachment_types[i] == VK_IMAGE_ASPECT_COLOR_BIT)
+			{
+				clear_attachments[num_clear_attachments].aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+				clear_attachments[num_clear_attachments].colorAttachment = i;
+				std::memcpy(clear_attachments[num_clear_attachments].clearValue.color.float32, color, 4 * sizeof(float));
+				++num_clear_attachments;
+			}
+		}
+	}
+
+	if (aspect_mask & (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT))
+	{
+		clear_attachments[num_clear_attachments].aspectMask = aspect_mask & (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT);
+		clear_attachments[num_clear_attachments].clearValue.depthStencil.depth = depth;
+		clear_attachments[num_clear_attachments].clearValue.depthStencil.stencil = stencil;
+		++num_clear_attachments;
+	}
+
+	assert(num_clear_attachments != 0);
+
+	if (num_rects == 0)
+	{
+		VkClearRect clear_rect;
+		clear_rect.rect = _current_fbo.render_area;
+		clear_rect.baseArrayLayer = 0;
+		clear_rect.layerCount = 1;
+
+		vk.CmdClearAttachments(_orig, num_clear_attachments, clear_attachments, 1, &clear_rect);
+	}
+	else
+	{
+		const auto clear_rects = static_cast<VkClearRect *>(alloca(sizeof(VkClearRect) * num_rects));
+
+		for (uint32_t i = 0, k = 0; i < num_rects; ++i, k += 4)
+		{
+			clear_rects[i].rect.offset.x = rects[k + 0];
+			clear_rects[i].rect.offset.y = rects[k + 1];
+			clear_rects[i].rect.extent.width = rects[k + 2] - rects[k + 0];
+			clear_rects[i].rect.extent.height = rects[k + 3] - rects[k + 1];
+			clear_rects[i].baseArrayLayer = 0;
+			clear_rects[i].layerCount = 1;
+		}
+
+		vk.CmdClearAttachments(_orig, num_clear_attachments, clear_attachments, num_rects, clear_rects);
+	}
+}
+void reshade::vulkan::command_list_impl::clear_depth_stencil_view(api::resource_view dsv, api::format_aspect clear_flags, float depth, uint8_t stencil, uint32_t num_rects, const int32_t *)
+{
+	_has_commands = true;
+
+	assert(num_rects == 0);
+	const resource_view_data dsv_data = _device_impl->lookup_resource_view(dsv);
+	assert(dsv_data.is_image_view()); // Has to be an image
 
 	// Transition state to VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL (since it will be in 'resource_usage::depth_stencil_write' at this point)
 	VkImageMemoryBarrier transition { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
@@ -649,7 +701,7 @@ void reshade::vulkan::command_list_impl::clear_depth_stencil_view(api::resource_
 	transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 	transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 	transition.image = dsv_data.image_create_info.image;
-	transition.subresourceRange = { aspect_flags, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
+	transition.subresourceRange = { static_cast<VkImageAspectFlags>(clear_flags), 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
 	vk.CmdPipelineBarrier(_orig, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
 
 	const VkClearDepthStencilValue clear_value = { depth, stencil };
@@ -658,39 +710,38 @@ void reshade::vulkan::command_list_impl::clear_depth_stencil_view(api::resource_
 	std::swap(transition.oldLayout, transition.newLayout);
 	vk.CmdPipelineBarrier(_orig, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
 }
-void reshade::vulkan::command_list_impl::clear_render_target_views(uint32_t count, const api::resource_view *rtvs, const float color[4])
+void reshade::vulkan::command_list_impl::clear_render_target_view(api::resource_view rtv, const float color[4], uint32_t num_rects, const int32_t *)
 {
 	_has_commands = true;
 
-	for (uint32_t i = 0; i < count; ++i)
-	{
-		const resource_view_data &rtv_data = _device_impl->_views.at(rtvs[i].handle);
-		assert(rtv_data.is_image_view()); // Has to be an image
+	assert(num_rects == 0);
+	const resource_view_data rtv_data = _device_impl->lookup_resource_view(rtv);
+	assert(rtv_data.is_image_view()); // Has to be an image
 
-		// Transition state to VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL (since it will be in 'resource_usage::render_target' at this point)
-		VkImageMemoryBarrier transition { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
-		transition.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-		transition.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-		transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		transition.image = rtv_data.image_create_info.image;
-		transition.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
-		vk.CmdPipelineBarrier(_orig, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
+	// Transition state to VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL (since it will be in 'resource_usage::render_target' at this point)
+	VkImageMemoryBarrier transition { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+	transition.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	transition.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+	transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	transition.image = rtv_data.image_create_info.image;
+	transition.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
+	vk.CmdPipelineBarrier(_orig, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
 
-		VkClearColorValue clear_value;
-		std::memcpy(clear_value.float32, color, 4 * sizeof(float));
+	VkClearColorValue clear_value;
+	std::memcpy(clear_value.float32, color, 4 * sizeof(float));
 
-		vk.CmdClearColorImage(_orig, rtv_data.image_create_info.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear_value, 1, &transition.subresourceRange);
+	vk.CmdClearColorImage(_orig, rtv_data.image_create_info.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear_value, 1, &transition.subresourceRange);
 
-		std::swap(transition.oldLayout, transition.newLayout);
-		vk.CmdPipelineBarrier(_orig, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
-	}
+	std::swap(transition.oldLayout, transition.newLayout);
+	vk.CmdPipelineBarrier(_orig, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
 }
-void reshade::vulkan::command_list_impl::clear_unordered_access_view_uint(api::resource_view uav, const uint32_t values[4])
+void reshade::vulkan::command_list_impl::clear_unordered_access_view_uint(api::resource_view uav, const uint32_t values[4], uint32_t num_rects, const int32_t *)
 {
 	_has_commands = true;
 
-	const resource_view_data &uav_data = _device_impl->_views.at(uav.handle);
+	assert(num_rects == 0);
+	const resource_view_data uav_data = _device_impl->lookup_resource_view(uav);
 	assert(uav_data.is_image_view()); // Has to be an image
 
 	const VkImageSubresourceRange range = { VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
@@ -700,11 +751,12 @@ void reshade::vulkan::command_list_impl::clear_unordered_access_view_uint(api::r
 
 	vk.CmdClearColorImage(_orig, uav_data.image_create_info.image, VK_IMAGE_LAYOUT_GENERAL, &clear_value, 1, &range);
 }
-void reshade::vulkan::command_list_impl::clear_unordered_access_view_float(api::resource_view uav, const float values[4])
+void reshade::vulkan::command_list_impl::clear_unordered_access_view_float(api::resource_view uav, const float values[4], uint32_t num_rects, const int32_t *)
 {
 	_has_commands = true;
 
-	const resource_view_data &uav_data = _device_impl->_views.at(uav.handle);
+	assert(num_rects == 0);
+	const resource_view_data &uav_data = _device_impl->lookup_resource_view(uav);
 	assert(uav_data.is_image_view()); // Has to be an image
 
 	const VkImageSubresourceRange range = { VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };

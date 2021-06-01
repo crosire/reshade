@@ -41,6 +41,7 @@ namespace reshade::d3d12
 		bool create_pipeline_layout(uint32_t num_table_layouts, const api::descriptor_set_layout *table_layouts, uint32_t num_constant_ranges, const api::constant_range *constant_ranges, api::pipeline_layout *out) final;
 		bool create_descriptor_set_layout(uint32_t num_ranges, const api::descriptor_range *ranges, bool push_descriptors, api::descriptor_set_layout *out) final;
 		bool create_query_pool(api::query_type type, uint32_t count, api::query_pool *out) final;
+		bool create_framebuffer(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv, api::framebuffer *out) final;
 		bool create_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, api::descriptor_set *out) final;
 
 		void destroy_sampler(api::sampler handle) final;
@@ -51,10 +52,13 @@ namespace reshade::d3d12
 		void destroy_pipeline_layout(api::pipeline_layout handle) final;
 		void destroy_descriptor_set_layout(api::descriptor_set_layout handle) final;
 		void destroy_query_pool(api::query_pool handle) final;
+		void destroy_framebuffer(api::framebuffer handle) final;
 		void destroy_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, const api::descriptor_set *sets) final;
 
-		void get_resource_from_view(api::resource_view view, api::resource *out_resource) const final;
+		void get_resource_from_view(api::resource_view view, api::resource *out) const final;
 		api::resource_desc get_resource_desc(api::resource resource) const final;
+
+		bool get_framebuffer_attachment(api::framebuffer fbo, api::format_aspect type, uint32_t index, api::resource_view *out) const final;
 
 		bool map_resource(api::resource resource, uint32_t subresource, api::map_access access, void **data, uint32_t *row_pitch, uint32_t *slice_pitch) final;
 		void unmap_resource(api::resource resource, uint32_t subresource) final;

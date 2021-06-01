@@ -389,6 +389,19 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
+	/// The framebuffer attachment types that can be cleared by <see cref="command_list_impl::clear_attachments"/>.
+	/// </summary>
+	enum class format_aspect
+	{
+		none = 0,
+		color = 0x1,
+		depth = 0x2,
+		stencil = 0x4,
+		depth_stencil = depth | stencil
+	};
+	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(format_aspect);
+
+	/// <summary>
 	/// The available descriptor types.
 	/// Mostly compatible with 'VkDescriptorType'.
 	/// </summary>
@@ -483,6 +496,12 @@ namespace reshade { namespace api
 	/// <para>Depending on the render API this is really a pointer to a 'ID3D12QueryHeap' or a 'VkQueryPool' handle.</para>
 	/// </summary>
 	RESHADE_DEFINE_HANDLE(query_pool);
+
+	/// <summary>
+	/// An opaque handle to a framebuffer object.
+	/// <para>Depending on the render API this is really a 'VkFramebuffer' handle.</para>
+	/// </summary>
+	RESHADE_DEFINE_HANDLE(framebuffer);
 
 	/// <summary>
 	/// An opaque handle to a descriptor set.

@@ -43,13 +43,18 @@ reshade::vulkan::swapchain_impl::~swapchain_impl()
 #endif
 }
 
-void reshade::vulkan::swapchain_impl::get_current_back_buffer(api::resource *out)
+void reshade::vulkan::swapchain_impl::get_back_buffer(uint32_t index, api::resource *out)
 {
-	*out = { (uint64_t)_swapchain_images[_swap_index] };
+	*out = { (uint64_t)_swapchain_images[index] };
 }
-void reshade::vulkan::swapchain_impl::get_current_back_buffer_target(bool srgb, api::resource_view *out)
+
+uint32_t reshade::vulkan::swapchain_impl::get_back_buffer_count() const
 {
-	*out = _swapchain_views[_swap_index * 2 + (srgb ? 1 : 0)];
+	return static_cast<uint32_t>(_swapchain_images.size());
+}
+uint32_t reshade::vulkan::swapchain_impl::get_current_back_buffer_index() const
+{
+	return _swap_index;
 }
 
 bool reshade::vulkan::swapchain_impl::on_init(VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &desc, HWND hwnd)
@@ -96,20 +101,6 @@ bool reshade::vulkan::swapchain_impl::on_init(VkSwapchainKHR swapchain, const Vk
 
 	assert(desc.imageUsage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
 
-	const api::format backbuffer_format = api::format_to_default_typed(_backbuffer_format, 0);
-	const api::format backbuffer_format_srgb = api::format_to_default_typed(_backbuffer_format, 1);
-
-	_swapchain_views.resize(num_images * 2);
-
-	for (uint32_t i = 0, k = 0; i < num_images; ++i, k += 2)
-	{
-		const api::resource image = reinterpret_cast<api::resource &>(_swapchain_images[i]);
-
-		if (!static_cast<device_impl *>(_device)->create_resource_view(image, api::resource_usage::render_target, api::resource_view_desc(backbuffer_format), &_swapchain_views[k + 0]) ||
-			!static_cast<device_impl *>(_device)->create_resource_view(image, api::resource_usage::render_target, api::resource_view_desc(backbuffer_format_srgb), &_swapchain_views[k + 1]))
-			return false;
-	}
-
 	for (uint32_t i = 0; i < NUM_SYNC_SEMAPHORES; ++i)
 	{
 		VkSemaphoreCreateInfo sem_create_info { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
@@ -123,10 +114,6 @@ bool reshade::vulkan::swapchain_impl::on_init(VkSwapchainKHR swapchain, const Vk
 void reshade::vulkan::swapchain_impl::on_reset()
 {
 	runtime::on_reset();
-
-	for (api::resource_view view : _swapchain_views)
-		static_cast<device_impl *>(_device)->destroy_resource_view(view);
-	_swapchain_views.clear();
 
 	if (_orig == VK_NULL_HANDLE)
 		for (VkImage image : _swapchain_images)

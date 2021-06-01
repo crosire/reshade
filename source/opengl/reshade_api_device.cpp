@@ -211,9 +211,7 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC hglrc) :
 	invoke_addon_event<addon_event::init_command_queue>(this);
 
 	// Communicate default state to add-ons
-	const api::resource_view default_depth_stencil = get_depth_stencil_from_fbo(0);
-	const api::resource_view default_render_target = get_render_target_from_fbo(0, 0);
-	invoke_addon_event<addon_event::begin_render_pass>(this, 1, &default_render_target, default_depth_stencil);
+	invoke_addon_event<addon_event::begin_render_pass>(this, make_framebuffer_handle(0, 1));
 #endif
 }
 reshade::opengl::device_impl::~device_impl()
@@ -224,9 +222,6 @@ reshade::opengl::device_impl::~device_impl()
 
 	addon::unload_addons();
 #endif
-
-	for (const auto &it : _framebuffer_list_internal)
-		glDeleteFramebuffers(1, &it.second);
 
 	// Destroy mipmap generation program
 	glDeleteProgram(_mipmap_program);
@@ -577,6 +572,17 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource resource, 
 {
 	assert(resource.handle != 0);
 
+	const bool is_srgb_format =
+		desc.format != api::format_to_default_typed(desc.format, 0) &&
+		desc.format == api::format_to_default_typed(desc.format, 1);
+
+	const GLenum resource_target = resource.handle >> 40;
+	if (resource_target == GL_RENDERBUFFER || resource_target == GL_FRAMEBUFFER_DEFAULT)
+	{
+		*out = make_resource_view_handle(resource_target, resource.handle & 0xFFFFFFFF, 0x1 | (is_srgb_format ? 0x2 : 0));
+		return true;
+	}
+
 	GLenum target = GL_NONE;
 	switch (desc.type)
 	{
@@ -619,14 +625,14 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource resource, 
 	if (internal_format == GL_NONE)
 		return false;
 
-	if (target == (resource.handle >> 40) &&
+	if (target == resource_target &&
 		desc.texture.first_level == 0 && desc.texture.first_layer == 0 &&
 		static_cast<GLenum>(get_tex_level_param(target, resource.handle & 0xFFFFFFFF, 0, GL_TEXTURE_INTERNAL_FORMAT)) == internal_format)
 	{
 		assert(target != GL_TEXTURE_BUFFER);
 
 		// No need to create a view, so use resource directly, but set a bit so to not destroy it twice via 'destroy_resource_view'
-		*out = make_resource_view_handle(target, resource.handle & 0xFFFFFFFF, 0x1);
+		*out = make_resource_view_handle(target, resource.handle & 0xFFFFFFFF, 0x1 | (is_srgb_format ? 0x2 : 0));
 		return true;
 	}
 	else
@@ -660,7 +666,7 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource resource, 
 			glBindTexture(target, prev_object);
 		}
 
-		*out = make_resource_view_handle(target, object);
+		*out = make_resource_view_handle(target, object, is_srgb_format ? 0x2 : 0);
 		return true;
 	}
 }
@@ -949,6 +955,99 @@ bool reshade::opengl::device_impl::create_query_pool(api::query_type type, uint3
 	*out = { reinterpret_cast<uintptr_t>(result) };
 	return true;
 }
+bool reshade::opengl::device_impl::create_framebuffer(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv, api::framebuffer *out)
+{
+	if (count == 1 && (rtvs[0].handle >> 40) == GL_FRAMEBUFFER_DEFAULT)
+	{
+		// Can only use both the color and depth-stencil attachments of the default framebuffer together, not bind them individually
+		assert(dsv.handle == 0 || (dsv.handle >> 40) == GL_FRAMEBUFFER_DEFAULT);
+		*out = make_framebuffer_handle(0, 1);
+		return true;
+	}
+
+	GLint prev_fbo = 0;
+	glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prev_fbo);
+
+	GLuint fbo_object = 0;
+	glGenFramebuffers(1, &fbo_object);
+	glBindFramebuffer(GL_FRAMEBUFFER, fbo_object);
+
+	bool srgb = false;
+
+	for (GLuint i = 0; i < count; ++i)
+	{
+		switch (rtvs[i].handle >> 40)
+		{
+		case GL_TEXTURE:
+		case GL_TEXTURE_BUFFER:
+		case GL_TEXTURE_1D:
+		case GL_TEXTURE_1D_ARRAY:
+		case GL_TEXTURE_2D:
+		case GL_TEXTURE_2D_ARRAY:
+		case GL_TEXTURE_2D_MULTISAMPLE:
+		case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
+		case GL_TEXTURE_RECTANGLE:
+			glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, rtvs[i].handle & 0xFFFFFFFF, 0);
+			break;
+		case GL_RENDERBUFFER:
+			glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_RENDERBUFFER, rtvs[i].handle & 0xFFFFFFFF);
+			break;
+		default:
+			assert(false);
+			glBindFramebuffer(GL_FRAMEBUFFER, prev_fbo);
+			glDeleteFramebuffers(1, &fbo_object);
+			*out = make_framebuffer_handle(0, 0);
+			return false;
+		}
+
+		if (rtvs[i].handle & 0x200000000)
+			srgb = true;
+	}
+
+	if (dsv.handle != 0)
+	{
+		switch (dsv.handle >> 40)
+		{
+		case GL_TEXTURE:
+		case GL_TEXTURE_BUFFER:
+		case GL_TEXTURE_1D:
+		case GL_TEXTURE_1D_ARRAY:
+		case GL_TEXTURE_2D:
+		case GL_TEXTURE_2D_ARRAY:
+		case GL_TEXTURE_2D_MULTISAMPLE:
+		case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
+		case GL_TEXTURE_RECTANGLE:
+			glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, dsv.handle & 0xFFFFFFFF, 0);
+			break;
+		case GL_RENDERBUFFER:
+			glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, dsv.handle & 0xFFFFFFFF);
+			break;
+		default:
+			assert(false);
+			glBindFramebuffer(GL_FRAMEBUFFER, prev_fbo);
+			glDeleteFramebuffers(1, &fbo_object);
+			*out = make_framebuffer_handle(0, 0);
+			return false;
+		}
+	}
+
+	const GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, prev_fbo);
+
+	if (status == GL_FRAMEBUFFER_COMPLETE)
+	{
+		*out = make_framebuffer_handle(fbo_object, count, srgb ? 0x2 : 0);
+		return true;
+	}
+	else
+	{
+		glDeleteFramebuffers(1, &fbo_object);
+
+		*out = make_framebuffer_handle(0, 0);
+		return false;
+	}
+}
 bool reshade::opengl::device_impl::create_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, api::descriptor_set *out)
 {
 	const auto layout_impl = reinterpret_cast<descriptor_set_layout_impl *>(layout.handle);
@@ -1043,6 +1142,11 @@ void reshade::opengl::device_impl::destroy_descriptor_set_layout(api::descriptor
 void reshade::opengl::device_impl::destroy_query_pool(api::query_pool handle)
 {
 	delete reinterpret_cast<query_heap_impl *>(handle.handle);
+}
+void reshade::opengl::device_impl::destroy_framebuffer(api::framebuffer handle)
+{
+	const GLuint object = handle.handle & 0xFFFFFFFF;
+	glDeleteFramebuffers(1, &object);
 }
 void reshade::opengl::device_impl::destroy_descriptor_sets(api::descriptor_set_layout, uint32_t count, const api::descriptor_set *sets)
 {
@@ -1364,137 +1468,12 @@ void reshade::opengl::device_impl::upload_texture_region(const api::subresource_
 	glPixelStorei(GL_UNPACK_SKIP_IMAGES, previous_unpack_skip_images);
 }
 
-reshade::api::resource_view reshade::opengl::device_impl::get_depth_stencil_from_fbo(GLuint fbo) const
-{
-	// Zero is valid too, in which case the default frame buffer is referenced, instead of a FBO
-	if (fbo == 0)
-	{
-		if (_default_depth_format == GL_NONE)
-			return make_resource_view_handle(0, 0); // No default depth buffer exists
-		else
-			return make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_DEPTH_STENCIL_ATTACHMENT);
-	}
-
-	const GLenum attachments[2] = { GL_DEPTH_ATTACHMENT, GL_STENCIL_ATTACHMENT };
-
-	for (int attempt = 0; attempt < 2; ++attempt)
-	{
-		GLenum target = get_fbo_attachment_param(fbo, attachments[attempt], GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE);
-		if (target == GL_NONE)
-			continue;
-
-		const GLenum object = get_fbo_attachment_param(fbo, attachments[attempt], GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME);
-		if (target == GL_TEXTURE)
-			target  = get_tex_param(target, object, GL_TEXTURE_TARGET);
-
-		return make_resource_view_handle(target, object);
-	}
-
-	// FBO does not have this attachment
-	return make_resource_view_handle(0, 0);
-}
-reshade::api::resource_view reshade::opengl::device_impl::get_render_target_from_fbo(GLuint fbo, GLuint drawbuffer) const
-{
-	if (fbo == 0)
-		return make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_BACK);
-
-	GLenum target = get_fbo_attachment_param(fbo, GL_COLOR_ATTACHMENT0 + drawbuffer, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE);
-	if (target == GL_NONE)
-		return make_resource_view_handle(0, 0); // FBO does not have this attachment
-
-	const GLenum object = get_fbo_attachment_param(fbo, GL_COLOR_ATTACHMENT0 + drawbuffer, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME);
-	if (target == GL_TEXTURE)
-		target  = get_tex_param(target, object, GL_TEXTURE_TARGET);
-
-	return make_resource_view_handle(target, object);
-}
-
-void reshade::opengl::device_impl::request_framebuffer(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv, GLuint &fbo)
-{
-	if (count == 1 && (rtvs[0].handle >> 40) == GL_FRAMEBUFFER_DEFAULT)
-	{
-		// Can only use both the color and depth-stencil attachments of the default framebuffer together, not bind them individually
-		assert(dsv.handle == 0 || (dsv.handle >> 40) == GL_FRAMEBUFFER_DEFAULT);
-		fbo = 0;
-		return;
-	}
-
-	size_t hash = 0xFFFFFFFF;
-	for (uint32_t i = 0; i < count; ++i)
-		hash ^= std::hash<uint64_t>()(rtvs[i].handle);
-	if (dsv.handle != 0)
-		hash ^= std::hash<uint64_t>()(dsv.handle);
-
-	if (const auto it = _framebuffer_list_internal.find(hash);
-		it != _framebuffer_list_internal.end())
-	{
-		fbo = it->second;
-	}
-	else 
-	{
-		glGenFramebuffers(1, &fbo);
-
-		glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-
-		for (GLuint i = 0; i < count; ++i)
-		{
-			switch (rtvs[i].handle >> 40)
-			{
-			case GL_TEXTURE:
-			case GL_TEXTURE_BUFFER:
-			case GL_TEXTURE_1D:
-			case GL_TEXTURE_1D_ARRAY:
-			case GL_TEXTURE_2D:
-			case GL_TEXTURE_2D_ARRAY:
-			case GL_TEXTURE_2D_MULTISAMPLE:
-			case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
-			case GL_TEXTURE_RECTANGLE:
-				glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, rtvs[i].handle & 0xFFFFFFFF, 0);
-				break;
-			case GL_RENDERBUFFER:
-				glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_RENDERBUFFER, rtvs[i].handle & 0xFFFFFFFF);
-				break;
-			default:
-				assert(false);
-				return;
-			}
-		}
-
-		if (dsv.handle != 0)
-		{
-			switch (dsv.handle >> 40)
-			{
-			case GL_TEXTURE:
-			case GL_TEXTURE_BUFFER:
-			case GL_TEXTURE_1D:
-			case GL_TEXTURE_1D_ARRAY:
-			case GL_TEXTURE_2D:
-			case GL_TEXTURE_2D_ARRAY:
-			case GL_TEXTURE_2D_MULTISAMPLE:
-			case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
-			case GL_TEXTURE_RECTANGLE:
-				glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, dsv.handle & 0xFFFFFFFF, 0);
-				break;
-			case GL_RENDERBUFFER:
-				glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, dsv.handle & 0xFFFFFFFF);
-				break;
-			default:
-				assert(false);
-				return;
-			}
-		}
-
-		assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
-
-		_framebuffer_list_internal.emplace(hash, fbo);
-	}
-}
-
-void reshade::opengl::device_impl::get_resource_from_view(api::resource_view view, api::resource *out_resource) const
+void reshade::opengl::device_impl::get_resource_from_view(api::resource_view view, api::resource *out) const
 {
 	assert(view.handle != 0);
 
-	*out_resource = { view.handle };
+	// Remove extra bits from view
+	*out = { view.handle & 0xFFFFFF00FFFFFFFF };
 }
 
 reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api::resource resource) const
@@ -1562,6 +1541,67 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 		return convert_resource_desc(target, buffer_size, api::memory_heap::unknown);
 	else
 		return convert_resource_desc(target, levels, samples, internal_format, width, height, depth);
+}
+
+bool reshade::opengl::device_impl::get_framebuffer_attachment(api::framebuffer fbo, api::format_aspect type, uint32_t index, api::resource_view *out) const
+{
+	const GLuint fbo_object = fbo.handle & 0xFFFFFFFF;
+
+	// Zero is valid too, in which case the default frame buffer is referenced, instead of a FBO
+	if (fbo_object == 0)
+	{
+		if (type == api::format_aspect::color)
+		{
+			*out = make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_BACK);
+			return true;
+		}
+		if (_default_depth_format != GL_NONE)
+		{
+			*out = make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_DEPTH_STENCIL_ATTACHMENT);
+			return true;
+		}
+		else
+		{
+			*out = make_resource_view_handle(0, 0); // No default depth buffer exists
+			return false;
+		}
+	}
+
+	GLenum attachment = GL_NONE;
+	switch (type)
+	{
+	case api::format_aspect::color:
+		attachment = GL_COLOR_ATTACHMENT0 + index;
+		break;
+	case api::format_aspect::depth:
+		attachment = GL_DEPTH_ATTACHMENT;
+		break;
+	case api::format_aspect::stencil:
+		attachment = GL_STENCIL_ATTACHMENT;
+		break;
+	case api::format_aspect::depth_stencil:
+		attachment = GL_DEPTH_STENCIL_ATTACHMENT;
+		break;
+	default:
+		*out = make_resource_view_handle(0, 0);
+		return false;
+	}
+
+	GLenum target = get_fbo_attachment_param(fbo_object, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE);
+	if (target != GL_NONE)
+	{
+		const GLenum object = get_fbo_attachment_param(fbo_object, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME);
+		if (target == GL_TEXTURE)
+			target  = get_tex_param(target, object, GL_TEXTURE_TARGET);
+
+		*out = make_resource_view_handle(target, object);
+		return true;
+	}
+	else
+	{
+		*out = make_resource_view_handle(0, 0); // FBO does not have this attachment
+		return false;
+	}
 }
 
 bool reshade::opengl::device_impl::get_query_results(api::query_pool heap, uint32_t first, uint32_t count, void *results, uint32_t stride)

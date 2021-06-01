@@ -62,8 +62,9 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(copy_texture_region);
 		CASE(copy_texture_to_buffer);
 		CASE(resolve_texture_region);
+		CASE(clear_attachments);
 		CASE(clear_depth_stencil_view);
-		CASE(clear_render_target_views);
+		CASE(clear_render_target_view);
 		CASE(clear_unordered_access_view_uint);
 		CASE(clear_unordered_access_view_float);
 		CASE(reset_command_list);

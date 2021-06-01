@@ -46,20 +46,13 @@ reshade::opengl::swapchain_impl::~swapchain_impl()
 #endif
 }
 
-void reshade::opengl::swapchain_impl::get_current_back_buffer(api::resource *out)
+void reshade::opengl::swapchain_impl::get_back_buffer(uint32_t index, api::resource *out)
 {
+	assert(index == 0);
 #if 0
 	*out = make_resource_handle(GL_FRAMEBUFFER_DEFAULT, GL_BACK);
 #else
 	*out = make_resource_handle(GL_RENDERBUFFER, _rbo);
-#endif
-}
-void reshade::opengl::swapchain_impl::get_current_back_buffer_target(bool srgb, api::resource_view *out)
-{
-#if 0
-	*out = make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_BACK, srgb ? 0x2 : 0);
-#else
-	*out = make_resource_view_handle(GL_RENDERBUFFER, _rbo, srgb ? 0x2 : 0);
 #endif
 }
 
@@ -94,10 +87,6 @@ bool reshade::opengl::swapchain_impl::on_init(HWND hwnd, unsigned int width, uns
 void reshade::opengl::swapchain_impl::on_reset()
 {
 	runtime::on_reset();
-
-	for (const auto &it : _framebuffer_list_internal)
-		glDeleteFramebuffers(1, &it.second);
-	_framebuffer_list_internal.clear();
 
 	glDeleteFramebuffers(2, _fbo);
 	glDeleteRenderbuffers(1, &_rbo);

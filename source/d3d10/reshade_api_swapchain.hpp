@@ -18,8 +18,10 @@ namespace reshade::d3d10
 		swapchain_impl(device_impl *device, IDXGISwapChain *swapchain);
 		~swapchain_impl();
 
-		void get_current_back_buffer(api::resource *out) final;
-		void get_current_back_buffer_target(bool srgb, api::resource_view *out) final;
+		void get_back_buffer(uint32_t index, api::resource *out) final;
+
+		uint32_t get_back_buffer_count() const final { return 1; }
+		uint32_t get_current_back_buffer_index() const final { return 0; }
 
 		bool on_init();
 		void on_reset();
@@ -30,8 +32,7 @@ namespace reshade::d3d10
 
 		com_ptr<ID3D10Texture2D> _backbuffer;
 		com_ptr<ID3D10Texture2D> _backbuffer_resolved;
-		com_ptr<ID3D10RenderTargetView> _backbuffer_rtv[3];
-		com_ptr<ID3D10Texture2D> _backbuffer_texture;
-		com_ptr<ID3D10ShaderResourceView> _backbuffer_texture_srv;
+		com_ptr<ID3D10RenderTargetView> _backbuffer_rtv;
+		com_ptr<ID3D10ShaderResourceView> _backbuffer_resolved_srv;
 	};
 }

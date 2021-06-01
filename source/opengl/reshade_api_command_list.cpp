@@ -329,12 +329,11 @@ void reshade::opengl::device_impl::draw_or_dispatch_indirect(uint32_t type, api:
 	}
 }
 
-void reshade::opengl::device_impl::begin_render_pass(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv)
+void reshade::opengl::device_impl::begin_render_pass(api::framebuffer fbo)
 {
-	GLuint fbo = 0;
-	request_framebuffer(count, rtvs, dsv, fbo);
+	glBindFramebuffer(GL_FRAMEBUFFER, fbo.handle & 0xFFFFFFFF);
 
-	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+	const auto count = static_cast<uint32_t>(fbo.handle >> 40);
 
 	if (count == 0)
 	{
@@ -344,7 +343,7 @@ void reshade::opengl::device_impl::begin_render_pass(uint32_t count, const api::
 	{
 		glDrawBuffer(GL_BACK);
 
-		if (rtvs[0].handle & 0x200000000)
+		if (fbo.handle & 0x200000000)
 		{
 			glEnable(GL_FRAMEBUFFER_SRGB);
 		}
@@ -358,7 +357,7 @@ void reshade::opengl::device_impl::begin_render_pass(uint32_t count, const api::
 		const GLenum draw_buffers[8] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3, GL_COLOR_ATTACHMENT4, GL_COLOR_ATTACHMENT5, GL_COLOR_ATTACHMENT6, GL_COLOR_ATTACHMENT7 };
 		glDrawBuffers(count, draw_buffers);
 
-		if (rtvs[0].handle & 0x200000000)
+		if (fbo.handle & 0x200000000)
 		{
 			glEnable(GL_FRAMEBUFFER_SRGB);
 		}
@@ -931,53 +930,69 @@ void reshade::opengl::device_impl::generate_mipmaps(api::resource_view srv)
 #endif
 }
 
-void reshade::opengl::device_impl::clear_depth_stencil_view(api::resource_view dsv, uint32_t clear_flags, float depth, uint8_t stencil)
+void reshade::opengl::device_impl::clear_attachments(api::format_aspect clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t num_rects, const int32_t *)
+{
+	assert(num_rects == 0);
+
+	if (color != nullptr)
+		glClearColor(color[0], color[1], color[2], color[3]);
+	glClearDepth(depth);
+	glClearStencil(stencil);
+
+	glClear(convert_aspect_to_buffer_bits(clear_flags));
+}
+void reshade::opengl::device_impl::clear_depth_stencil_view(api::resource_view dsv, api::format_aspect clear_flags, float depth, uint8_t stencil, uint32_t num_rects, const int32_t *)
 {
 	assert(dsv.handle != 0);
+	assert(num_rects == 0);
 
+	assert(false); // TODO
+#if 0
 	GLint prev_binding = 0;
 	glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prev_binding);
 
-	begin_render_pass(0, nullptr, dsv);
+	glBindFramebuffer(GL_FRAMEBUFFER, _copy_fbo[0]);
 
 	const GLint stencil_value = stencil;
 
 	switch (clear_flags)
 	{
-	case 0x1:
+	case api::format_aspect::depth:
 		glClearBufferfv(GL_DEPTH, 0, &depth);
 		break;
-	case 0x2:
+	case api::format_aspect::stencil:
 		glClearBufferiv(GL_STENCIL, 0, &stencil_value);
 		break;
-	case 0x3:
+	case api::format_aspect::depth_stencil:
 		glClearBufferfi(GL_DEPTH_STENCIL, 0, depth, stencil_value);
 		break;
 	}
 
 	glBindFramebuffer(GL_FRAMEBUFFER, prev_binding);
+#endif
 }
-void reshade::opengl::device_impl::clear_render_target_views(uint32_t count, const api::resource_view *rtvs, const float color[4])
+void reshade::opengl::device_impl::clear_render_target_view(api::resource_view rtv, const float color[4], uint32_t num_rects, const int32_t *)
 {
+	assert(rtv.handle != 0);
+	assert(num_rects == 0);
+
+	assert(false); // TODO
+#if 0
 	GLint prev_binding = 0;
 	glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prev_binding);
 
-	begin_render_pass(count, rtvs, { 0 });
+	glBindFramebuffer(GL_FRAMEBUFFER, _copy_fbo[0]);
 
-	for (GLuint i = 0; i < count; ++i)
-	{
-		assert(rtvs[i].handle != 0);
-
-		glClearBufferfv(GL_COLOR, i, color);
-	}
+	glClearBufferfv(GL_COLOR, 0, color);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, prev_binding);
+#endif
 }
-void reshade::opengl::device_impl::clear_unordered_access_view_uint(api::resource_view, const uint32_t[4])
+void reshade::opengl::device_impl::clear_unordered_access_view_uint(api::resource_view, const uint32_t[4], uint32_t, const int32_t *)
 {
 	assert(false);
 }
-void reshade::opengl::device_impl::clear_unordered_access_view_float(api::resource_view, const float[4])
+void reshade::opengl::device_impl::clear_unordered_access_view_float(api::resource_view, const float[4], uint32_t, const int32_t *)
 {
 	assert(false);
 }

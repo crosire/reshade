@@ -22,8 +22,10 @@ namespace reshade::opengl
 
 		uint64_t get_native_object() const final { return reinterpret_cast<uintptr_t>(*_hdcs.begin()); } // Simply return the first device context
 
-		void get_current_back_buffer(api::resource *out) final;
-		void get_current_back_buffer_target(bool srgb, api::resource_view *out) final;
+		void get_back_buffer(uint32_t index, api::resource *out) final;
+
+		uint32_t get_back_buffer_count() const final { return 1; }
+		uint32_t get_current_back_buffer_index() const final { return 0; }
 
 		bool on_init(HWND hwnd, unsigned int width, unsigned int height);
 		void on_reset();

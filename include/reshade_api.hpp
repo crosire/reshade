@@ -247,7 +247,7 @@ namespace reshade { namespace api
 		/// Creates a new sampler state object based on the specified <paramref name="desc"/>ription.
 		/// </summary>
 		/// <param name="desc">The description of the sampler to create.</param>
-		/// <param name="out">Pointer to a handle that is set to the handle of the created sampler.</param>
+		/// <param name="out">Pointer to a variable that is set to the handle of the created sampler.</param>
 		/// <returns><c>true</c> if the sampler was successfully created, <c>false</c> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
 		virtual bool create_sampler(const sampler_desc &desc, sampler *out) = 0;
 		/// <summary>
@@ -256,7 +256,7 @@ namespace reshade { namespace api
 		/// <param name="desc">The description of the resource to create.</param>
 		/// <param name="initial_data">Optional data to upload to the resource after creation. This should point to an array of <see cref="mapped_subresource"/>, one for each subresource (mipmap levels and array layers). Can be <c>nullptr</c> to indicate no initial data to upload.</param>
 		/// <param name="initial_state">Initial state of the resource after creation. This can later be changed via <see cref="command_list::barrier"/>.</param>
-		/// <param name="out">Pointer to a handle that is set to the handle of the created resource.</param>
+		/// <param name="out">Pointer to a variable that is set to the handle of the created resource.</param>
 		/// <returns><c>true</c> if the resource was successfully created, <c>false</c> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
 		virtual bool create_resource(const resource_desc &desc, const subresource_data *initial_data, resource_usage initial_state, resource *out) = 0;
 		/// <summary>
@@ -265,7 +265,7 @@ namespace reshade { namespace api
 		/// <param name="resource">The resource the view is created for.</param>
 		/// <param name="usage_type">The usage type of the resource view to create. Set to <see cref="resource_usage::shader_resource"/> to create a shader resource view, <see cref="resource_usage::depth_stencil"/> for a depth-stencil view, <see cref="resource_usage::render_target"/> for a render target etc.</param>
 		/// <param name="desc">The description of the resource to create.</param>
-		/// <param name="out">Pointer to a handle that is set to the handle of the created resource view.</param>
+		/// <param name="out">Pointer to a variable that is set to the handle of the created resource view.</param>
 		/// <returns><c>true</c> if the resource view was successfully created, <c>false</c> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
 		virtual bool create_resource_view(resource resource, resource_usage usage_type, const resource_view_desc &desc, resource_view *out) = 0;
 
@@ -273,13 +273,13 @@ namespace reshade { namespace api
 		/// Creates a new pipeline state object based on the specified <paramref name="desc"/>ription.
 		/// </summary>
 		/// <param name="desc">The description of the pipeline state object to create.</param>
-		/// <param name="out">Pointer to a handle that is set to the handle of the created pipeline state object.</param>
+		/// <param name="out">Pointer to a variable that is set to the handle of the created pipeline state object.</param>
 		/// <returns><c>true</c> if the pipeline state object was successfully created, <c>false</c> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
 		virtual bool create_pipeline(const pipeline_desc &desc, pipeline *out) = 0;
 		/// <summary>
 		/// Creates a new pipeline layout.
 		/// </summary>
-		/// <param name="out">Pointer to a handle that is set to the handle of the created pipeline layout.</param>
+		/// <param name="out">Pointer to a variable that is set to the handle of the created pipeline layout.</param>
 		/// <returns><c>true</c> if the pipeline layout was successfully created, <c>false</c> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
 		virtual bool create_pipeline_layout(uint32_t num_set_layouts, const descriptor_set_layout *set_layouts, uint32_t num_constant_ranges, const constant_range *constant_ranges, pipeline_layout *out) = 0;
 		/// <summary>
@@ -288,7 +288,7 @@ namespace reshade { namespace api
 		/// <param name="num_ranges">The number of descriptor ranges.</param>
 		/// <param name="ranges">A pointer to an array of descriptor ranges contained in the descriptor set this layout describes.</param>
 		/// <param name="push_descriptors"><c>true</c> if this layout is later used with <see cref="command_list::push_descriptors"/>, <c>false</c> if not.</param>
-		/// <param name="out">Pointer to a handle that is set to the handle of the created descriptor set layout.</param>
+		/// <param name="out">Pointer to a variable that is set to the handle of the created descriptor set layout.</param>
 		/// <returns><c>true</c> if the descriptor set layout was successfully created, <c>false</c> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
 		virtual bool create_descriptor_set_layout(uint32_t num_ranges, const descriptor_range *ranges, bool push_descriptors, descriptor_set_layout *out) = 0;
 		/// <summary>
@@ -296,9 +296,18 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <param name="type">The type of queries that will be used with this pool.</param>
 		/// <param name="count">The number of queries to allocate in the pool.</param>
-		/// <param name="out">Pointer to a handle that is set to the handle of the created query pool.</param>
+		/// <param name="out">Pointer to a variable that is set to the handle of the created query pool.</param>
 		/// <returns><c>true</c> if the query pool was successfully created, <c>false</c> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
 		virtual bool create_query_pool(query_type type, uint32_t count, query_pool *out) = 0;
+		/// <summary>
+		/// Creates a framebuffer object.
+		/// </summary>
+		/// <param name="count">The number of render targets to bind.</param>
+		/// <param name="rtvs">A pointer to an array of resource views that represent the render targets to bind. The resources these point to must have been created with the <see cref="resource_usage::render_target"/> usage.</param>
+		/// <param name="dsv">The resource view that represents the depth-stencil buffer to bind (or zero to bind none). The resource this points to must have been created with the <see cref="resource_usage::depth_stencil"/> usage.</param>
+		/// <param name="out">Pointer to a variable that is set to the handle of the created framebuffer object.</param>
+		/// <returns><c>true</c> if the framebuffer object was successfully created, <c>false</c> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
+		virtual bool create_framebuffer(uint32_t count, const resource_view *rtvs, resource_view dsv, framebuffer *out) = 0;
 		/// <summary>
 		/// Allocates one or more descriptor sets.
 		/// </summary>
@@ -340,6 +349,10 @@ namespace reshade { namespace api
 		/// </summary>
 		virtual void destroy_query_pool(query_pool handle) = 0;
 		/// <summary>
+		/// Instantly destroys a framebuffer object that was previously created via <see cref="create_framebuffer"/>.
+		/// </summary>
+		virtual void destroy_framebuffer(framebuffer handle) = 0;
+		/// <summary>
 		/// Frees one or more descriptor sets that were previously created via <see cref="create_descriptor_sets"/>.
 		/// </summary>
 		virtual void destroy_descriptor_sets(descriptor_set_layout layout, uint32_t count, const descriptor_set *sets) = 0;
@@ -353,6 +366,11 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <param name="resource">The resource to get the description from.</param>
 		virtual resource_desc get_resource_desc(resource resource) const = 0;
+
+		/// <summary>
+		/// Gets the attachment of the specfied <paramref name="type"/> at the specified <paramref name="index"/> in the specified framebuffer object.
+		/// </summary>
+		virtual bool get_framebuffer_attachment(framebuffer fbo, format_aspect type, uint32_t index, resource_view *attachment) const = 0;
 
 		/// <summary>
 		/// Maps the memory of a resource into application address space.
@@ -579,10 +597,7 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Marks the beginning of a render pass by binding one or more render targets and the depth-stencil buffer to the output-merger stage.
 		/// </summary>
-		/// <param name="count">The number of render targets to bind.</param>
-		/// <param name="rtvs">A pointer to an array of resource views that represent the render targets to bind. The resources these point to must have been created with the <see cref="resource_usage::render_target"/> usage.</param>
-		/// <param name="dsv">The resource view that represents the depth-stencil buffer to bind (or zero to bind none). The resource this points to must have been created with the <see cref="resource_usage::depth_stencil"/> usage.</param>
-		virtual void begin_render_pass(uint32_t count, const resource_view *rtvs, resource_view dsv = { 0 }) = 0;
+		virtual void begin_render_pass(framebuffer fbo) = 0;
 		/// <summary>
 		/// Marks the ending of a render pass.
 		/// This must be preceeded by a call to <see cref="begin_render_pass"/>). Render passes cannot be nested.
@@ -672,43 +687,43 @@ namespace reshade { namespace api
 		virtual void generate_mipmaps(resource_view srv) = 0;
 
 		/// <summary>
+		/// Clears all attachments of the current framebuffer object. Can only be called between <see cref="begin_render_pass"/> and <see cref="finish_render_pass"/>.
+		/// </summary>
+		/// <param name="clear_flags">A combination of flags to identify which attachment types to clear.</param>
+		/// <param name="color">The value to clear render targets with.</param>
+		/// <param name="depth">The value to clear the depth buffer with.</param>
+		/// <param name="stencil">The value to clear the stencil buffer with.</param>
+		virtual void clear_attachments(format_aspect clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t num_rects = 0, const int32_t *rects = nullptr) = 0;
+		/// <summary>
 		/// Clears the resource referenced by the depth-stencil view.
 		/// <para>The resource the <paramref name="dsv"/> view points to has to be in the <see cref="resource_usage::depth_stencil_write"/> state.</para>
 		/// </summary>
 		/// <param name="dsv">The view handle of the depth-stencil.</param>
-		/// <param name="clear_flags">A combination of flags to identify which types of data to clear: <c>0x1</c> for depth, <c>0x2</c> for stencil</param>
+		/// <param name="clear_flags">A combination of flags to identify which attachment types to clear.</param>
 		/// <param name="depth">The value to clear the depth buffer with.</param>
 		/// <param name="stencil">The value to clear the stencil buffer with.</param>
-		virtual void clear_depth_stencil_view(resource_view dsv, uint32_t clear_flags, float depth, uint8_t stencil) = 0;
+		virtual void clear_depth_stencil_view(resource_view dsv, format_aspect clear_flags, float depth, uint8_t stencil, uint32_t num_rects = 0, const int32_t *rects = nullptr) = 0;
 		/// <summary>
 		/// Clears the resources referenced by the render target view.
 		/// <para>The resource the <paramref name="rtv"/> view point to has to be in the <see cref="resource_usage::render_target"/> state.</para>
 		/// </summary>
 		/// <param name="rtv">The view handle of the render target.</param>
 		/// <param name="color">The value to clear the resource with.</param>
-		inline  void clear_render_target_view(resource_view rtv, const float color[4]) { clear_render_target_views(1, &rtv, color); }
-		/// <summary>
-		/// Clears the resources referenced by the render target views.
-		/// <para>The resources the <paramref name="rtvs"/> views point to have to be in the <see cref="resource_usage::render_target"/> state.</para>
-		/// </summary>
-		/// <param name="count">The number of render target views to clear.</param>
-		/// <param name="rtvs">A pointer to an array of render target view handles to clear.</param>
-		/// <param name="color">The value to clear the resources with.</param>
-		virtual void clear_render_target_views(uint32_t count, const resource_view *rtvs, const float color[4]) = 0;
+		virtual void clear_render_target_view(resource_view rtv, const float color[4], uint32_t num_rects = 0, const int32_t *rects = nullptr) = 0;
 		/// <summary>
 		/// Clears the resource referenced by the unordered access view.
 		/// <para>The resources the <paramref name="uav"/> view points to has to be in the <see cref="resource_usage::unordered_access"/> state.</para>
 		/// </summary>
 		/// <param name="uav">The view handle of the resource.</param>
 		/// <param name="values">The value to clear the resources with.</param>
-		virtual void clear_unordered_access_view_uint(resource_view uav, const uint32_t values[4]) = 0;
+		virtual void clear_unordered_access_view_uint(resource_view uav, const uint32_t values[4], uint32_t num_rects = 0, const int32_t *rects = nullptr) = 0;
 		/// <summary>
 		/// Clears the resource referenced by the unordered access view.
 		/// <para>The resources the <paramref name="uav"/> view points to has to be in the <see cref="resource_usage::unordered_access"/> state.</para>
 		/// </summary>
 		/// <param name="uav">The view handle of the resource.</param>
 		/// <param name="values">The value to clear the resources with.</param>
-		virtual void clear_unordered_access_view_float(resource_view uav, const float values[4]) = 0;
+		virtual void clear_unordered_access_view_float(resource_view uav, const float values[4], uint32_t num_rects = 0, const int32_t *rects = nullptr) = 0;
 
 		/// <summary>
 		/// Begins a query.
@@ -803,16 +818,26 @@ namespace reshade { namespace api
 	struct DECLSPEC_NOVTABLE swapchain : public device_object
 	{
 		/// <summary>
+		/// Gets the back buffer resource at the specified <paramref name="index"/> in this swap chain.
+		/// </summary>
+		/// <param name="index">The index of the back buffer. This has to be between zero and the value returned by <see cref="get_back_buffer_count"/>.</param>
+		/// <param name="out">Pointer to a variable that is set to the handle of the back buffer resource.</param>
+		virtual void get_back_buffer(uint32_t index, resource *out) = 0;
+		/// <summary>
 		/// Gets the current back buffer resource.
 		/// </summary>
-		/// <param name="out">Pointer to a handle that is set to the handle of the back buffer resource.</param>
-		virtual void get_current_back_buffer(resource *out) = 0;
+		/// <param name="out">Pointer to a variable that is set to the handle of the back buffer resource.</param>
+		inline  void get_current_back_buffer(resource *out) { get_back_buffer(get_current_back_buffer_index(), out); }
+
 		/// <summary>
-		/// Gets a render target for the current back buffer resource.
+		/// Gets the number of back buffer resources in this swap chain.
 		/// </summary>
-		/// <param name="srgb"><c>true</c> to get a view using the sRGB variant of the format, <c>false</c> for the default.</param>
-		/// <param name="out">Pointer to a handle that is set to the handle of the back buffer render target.</param>
-		virtual void get_current_back_buffer_target(bool srgb, resource_view *out) = 0;
+		virtual uint32_t get_back_buffer_count() const = 0;
+
+		/// <summary>
+		/// Gets the index of the back buffer resource that can currently be rendered into.
+		/// </summary>
+		virtual uint32_t get_current_back_buffer_index() const = 0;
 	};
 
 	/// <summary>

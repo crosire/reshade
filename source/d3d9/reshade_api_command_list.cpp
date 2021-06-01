@@ -227,19 +227,21 @@ void reshade::d3d9::device_impl::draw_or_dispatch_indirect(uint32_t, api::resour
 	assert(false);
 }
 
-void reshade::d3d9::device_impl::begin_render_pass(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv)
+void reshade::d3d9::device_impl::begin_render_pass(api::framebuffer fbo)
 {
-	assert(count <= _caps.NumSimultaneousRTs);
+	assert(fbo.handle != 0);
+	const auto fbo_impl = reinterpret_cast<const framebuffer_impl *>(fbo.handle);
 
-	for (UINT i = 0; i < count; ++i)
-		_orig->SetRenderTarget(i, reinterpret_cast<IDirect3DSurface9 *>(rtvs[i].handle & ~1ull));
-	for (UINT i = count; i < _caps.NumSimultaneousRTs; ++i)
+	assert(fbo_impl->count <= _caps.NumSimultaneousRTs);
+
+	for (UINT i = 0; i < fbo_impl->count; ++i)
+		_orig->SetRenderTarget(i, fbo_impl->rtv[i]);
+	for (UINT i = fbo_impl->count; i < _caps.NumSimultaneousRTs; ++i)
 		_orig->SetRenderTarget(i, nullptr);
 
-	if (count != 0)
-		_orig->SetRenderState(D3DRS_SRGBWRITEENABLE, rtvs[0].handle & 1);
+	_orig->SetRenderState(D3DRS_SRGBWRITEENABLE, fbo_impl->srgb_write_enable);
 
-	_orig->SetDepthStencilSurface(reinterpret_cast<IDirect3DSurface9 *>(dsv.handle));
+	_orig->SetDepthStencilSurface(fbo_impl->dsv);
 }
 void reshade::d3d9::device_impl::finish_render_pass()
 {
@@ -495,52 +497,34 @@ void reshade::d3d9::device_impl::generate_mipmaps(api::resource_view srv)
 	texture->GenerateMipSubLevels();
 }
 
-void reshade::d3d9::device_impl::clear_depth_stencil_view(api::resource_view dsv, uint32_t clear_flags, float depth, uint8_t stencil)
+void reshade::d3d9::device_impl::clear_attachments(api::format_aspect clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t num_rects, const int32_t *rects)
 {
-	assert(dsv.handle != 0);
+	_orig->Clear(num_rects, reinterpret_cast<const D3DRECT *>(rects), static_cast<DWORD>(clear_flags), color != nullptr ? D3DCOLOR_COLORVALUE(color[0], color[1], color[2], color[3]) : 0, depth, stencil);
+}
+void reshade::d3d9::device_impl::clear_depth_stencil_view(api::resource_view dsv, api::format_aspect clear_flags, float depth, uint8_t stencil, uint32_t num_rects, const int32_t *)
+{
+	assert(dsv.handle != 0 && num_rects == 0);
 
 	_backup_state.capture();
 
 	_orig->SetDepthStencilSurface(reinterpret_cast<IDirect3DSurface9 *>(dsv.handle));
 
-	_orig->Clear(
-		0, nullptr,
-		((clear_flags & 0x1) != 0 ? D3DCLEAR_ZBUFFER : 0) |
-		((clear_flags & 0x2) != 0 ? D3DCLEAR_STENCIL : 0),
-		0, depth, stencil);
+	_orig->Clear(0, nullptr, static_cast<DWORD>(clear_flags), 0, depth, stencil);
 
 	_backup_state.apply_and_release();
 }
-void reshade::d3d9::device_impl::clear_render_target_views(uint32_t count, const api::resource_view *rtvs, const float color[4])
+void reshade::d3d9::device_impl::clear_render_target_view(api::resource_view rtv, const float color[4], uint32_t num_rects, const int32_t *rects)
 {
-	assert(color != nullptr);
-#if 0
-	assert(count <= _caps.NumSimultaneousRTs);
+	assert(rtv.handle != 0 && color != nullptr);
 
-	_backup_state.capture();
-
-	for (DWORD target = 0; target < count && target < _caps.NumSimultaneousRTs; ++target)
-		_orig->SetRenderTarget(target, reinterpret_cast<IDirect3DSurface9 *>(rtvs[target].handle & ~1ull));
-	for (DWORD target = count; target < _caps.NumSimultaneousRTs; ++target)
-		_orig->SetRenderTarget(target, nullptr);
-
-	_orig->Clear(0, nullptr, D3DCLEAR_TARGET, D3DCOLOR_COLORVALUE(color[0], color[1], color[2], color[3]), 0.0f, 0);
-
-	_backup_state.apply_and_release();
-#else
-	for (UINT i = 0; i < count; ++i)
-	{
-		assert(rtvs[i].handle != 0);
-
-		_orig->ColorFill(reinterpret_cast<IDirect3DSurface9 *>(rtvs[i].handle & ~1ull), nullptr, D3DCOLOR_COLORVALUE(color[0], color[1], color[2], color[3]));
-	}
-#endif
+	for (UINT i = 0; i < std::max(num_rects, 1u); ++i)
+		_orig->ColorFill(reinterpret_cast<IDirect3DSurface9 *>(rtv.handle & ~1ull), reinterpret_cast<const RECT *>(rects + i * 4), D3DCOLOR_COLORVALUE(color[0], color[1], color[2], color[3]));
 }
-void reshade::d3d9::device_impl::clear_unordered_access_view_uint(api::resource_view, const uint32_t[4])
+void reshade::d3d9::device_impl::clear_unordered_access_view_uint(api::resource_view, const uint32_t[4], uint32_t, const int32_t *)
 {
 	assert(false);
 }
-void reshade::d3d9::device_impl::clear_unordered_access_view_float(api::resource_view, const float[4])
+void reshade::d3d9::device_impl::clear_unordered_access_view_float(api::resource_view, const float[4], uint32_t, const int32_t *)
 {
 	assert(false);
 }

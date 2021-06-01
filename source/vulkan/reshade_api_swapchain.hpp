@@ -20,8 +20,10 @@ namespace reshade::vulkan
 		swapchain_impl(device_impl *device, command_queue_impl *graphics_queue);
 		~swapchain_impl();
 
-		void get_current_back_buffer(api::resource *out) final;
-		void get_current_back_buffer_target(bool srgb, api::resource_view *out) final;
+		void get_back_buffer(uint32_t index, api::resource *out) final;
+
+		uint32_t get_back_buffer_count() const final;
+		uint32_t get_current_back_buffer_index() const final;
 
 		bool on_init(VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &desc, HWND hwnd);
 		void on_reset();
@@ -35,6 +37,5 @@ namespace reshade::vulkan
 
 		uint32_t _swap_index = 0;
 		std::vector<VkImage> _swapchain_images;
-		std::vector<api::resource_view> _swapchain_views;
 	};
 }

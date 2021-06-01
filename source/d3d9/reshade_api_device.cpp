@@ -36,7 +36,9 @@ reshade::d3d9::device_impl::device_impl(IDirect3DDevice9 *device) :
 	_orig->GetCreationParameters(&_cp);
 
 	// Maximum simultaneous number of render targets is typically 4 in D3D9
-	assert(_caps.NumSimultaneousRTs <= 8);
+	assert(_caps.NumSimultaneousRTs <= ARRAYSIZE(framebuffer_impl::rtv));
+
+	_current_fbo = new framebuffer_impl();
 
 #if RESHADE_ADDON
 	addon::load_addons();
@@ -57,6 +59,8 @@ reshade::d3d9::device_impl::~device_impl()
 #if RESHADE_ADDON
 	addon::unload_addons();
 #endif
+
+	delete _current_fbo;
 }
 
 void reshade::d3d9::device_impl::on_reset()
@@ -193,13 +197,11 @@ void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 				return true;
 			}, this, convert_resource_desc(old_desc, 1, _caps), nullptr, api::resource_usage::depth_stencil);
 
-		// Communicate default state to add-ons
-		invoke_addon_event<addon_event::begin_render_pass>(this, 0, nullptr, api::resource_view { reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) });
+		_current_fbo->dsv = auto_depth_stencil.get();
 	}
-	else
-	{
-		invoke_addon_event<addon_event::begin_render_pass>(this, 0, nullptr, api::resource_view { 0 });
-	}
+
+	// Communicate default state to add-ons
+	invoke_addon_event<addon_event::begin_render_pass>(this, reshade::api::framebuffer { reinterpret_cast<uintptr_t>(_current_fbo) });
 #else
 	UNREFERENCED_PARAMETER(pp);
 #endif
@@ -953,6 +955,24 @@ bool reshade::d3d9::device_impl::create_query_pool(api::query_type type, uint32_
 	*out = { reinterpret_cast<uintptr_t>(result) };
 	return true;
 }
+bool reshade::d3d9::device_impl::create_framebuffer(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv, api::framebuffer *out)
+{
+	if (count >= _caps.NumSimultaneousRTs || count >= ARRAYSIZE(framebuffer_impl::rtv))
+	{
+		*out = { 0 };
+		return false;
+	}
+
+	const auto result = new framebuffer_impl();
+	result->count = count;
+	for (UINT i = 0; i < count; ++i)
+		result->rtv[i] = reinterpret_cast<IDirect3DSurface9 *>(rtvs[i].handle & ~1ull);
+	result->dsv = reinterpret_cast<IDirect3DSurface9 *>(dsv.handle);
+	result->srgb_write_enable = count != 0 && (rtvs[0].handle & 1) == 1;
+
+	*out = { reinterpret_cast<uintptr_t>(result) };
+	return true;
+}
 bool reshade::d3d9::device_impl::create_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, api::descriptor_set *out)
 {
 	const auto layout_impl = reinterpret_cast<descriptor_set_layout_impl *>(layout.handle);
@@ -1006,6 +1026,10 @@ void reshade::d3d9::device_impl::destroy_descriptor_set_layout(api::descriptor_s
 void reshade::d3d9::device_impl::destroy_query_pool(api::query_pool handle)
 {
 	delete reinterpret_cast<query_pool_impl *>(handle.handle);
+}
+void reshade::d3d9::device_impl::destroy_framebuffer(api::framebuffer handle)
+{
+	delete reinterpret_cast<framebuffer_impl *>(handle.handle);
 }
 void reshade::d3d9::device_impl::destroy_descriptor_sets(api::descriptor_set_layout, uint32_t count, const api::descriptor_set *sets)
 {
@@ -1307,7 +1331,7 @@ void reshade::d3d9::device_impl::upload_texture_region(const api::subresource_da
 	assert(false); // Not implemented
 }
 
-void reshade::d3d9::device_impl::get_resource_from_view(api::resource_view view, api::resource *out_resource) const
+void reshade::d3d9::device_impl::get_resource_from_view(api::resource_view view, api::resource *out) const
 {
 	assert(view.handle != 0);
 	auto object = reinterpret_cast<IDirect3DResource9 *>(view.handle & ~1ull);
@@ -1318,13 +1342,13 @@ void reshade::d3d9::device_impl::get_resource_from_view(api::resource_view view,
 		if (com_ptr<IDirect3DResource9> resource;
 			SUCCEEDED(surface->GetContainer(IID_PPV_ARGS(&resource))))
 		{
-			*out_resource = { reinterpret_cast<uintptr_t>(resource.get()) };
+			*out = { reinterpret_cast<uintptr_t>(resource.get()) };
 			return;
 		}
 	}
 
 	// If unable to get container, just return the resource directly
-	*out_resource = { reinterpret_cast<uintptr_t>(object) };
+	*out = { reinterpret_cast<uintptr_t>(object) };
 }
 
 reshade::api::resource_desc reshade::d3d9::device_impl::get_resource_desc(api::resource resource) const
@@ -1377,6 +1401,41 @@ reshade::api::resource_desc reshade::d3d9::device_impl::get_resource_desc(api::r
 
 	assert(false); // Not implemented
 	return api::resource_desc {};
+}
+
+bool reshade::d3d9::device_impl::get_framebuffer_attachment(api::framebuffer fbo, api::format_aspect type, uint32_t index, api::resource_view *out) const
+{
+	assert(fbo.handle != 0);
+	const auto fbo_impl = reinterpret_cast<const framebuffer_impl *>(fbo.handle);
+
+	if (type == api::format_aspect::color)
+	{
+		if (index < fbo_impl->count)
+		{
+			const uint64_t set_srgb_bit = fbo_impl->srgb_write_enable;
+
+			*out = { reinterpret_cast<uintptr_t>(fbo_impl->rtv[index]) | set_srgb_bit };
+			return true;
+		}
+		else
+		{
+			*out = { 0 };
+			return false;
+		}
+	}
+	else
+	{
+		if (fbo_impl->dsv != nullptr)
+		{
+			*out = { reinterpret_cast<uintptr_t>(fbo_impl->dsv) };
+			return true;
+		}
+		else
+		{
+			*out = { 0 };
+			return false;
+		}
+	}
 }
 
 bool reshade::d3d9::device_impl::get_query_results(api::query_pool heap, uint32_t first, uint32_t count, void *results, uint32_t stride)

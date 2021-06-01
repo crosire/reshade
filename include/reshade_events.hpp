@@ -177,8 +177,8 @@ namespace reshade
 		draw_or_dispatch_indirect,
 
 		/// <summary>
-		/// Called after 'IDirect3DDevice9::SetRenderTarget', 'IDirect3DDevice9::SetDepthStencilSurface', 'ID3D10Device::OMSetRenderTargets', 'ID3D11DeviceContext::OMSetRenderTargets(AndUnorderedAccessViews)', 'ID3D12GraphicsCommandList::OMSetRenderTargets', 'ID3D12GraphicsCommandList::BeginRenderPass', 'glBindFramebuffer', 'vkCmdBeginRenderPass' or 'vkCmdNextSubpass'.
-		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, uint32_t count, const api::resource_view *rtvs, api::resource_view dsv)</c></para>
+		/// Called after 'IDirect3DDevice9::SetRenderTarget', 'IDirect3DDevice9::SetDepthStencilSurface', 'ID3D10Device::OMSetRenderTargets', 'ID3D11DeviceContext::OMSetRenderTargets(AndUnorderedAccessViews)', 'ID3D12GraphicsCommandList::OMSetRenderTargets', 'ID3D12GraphicsCommandList::BeginRenderPass', 'glBindFramebuffer' or 'vkCmdBeginRenderPass'.
+		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::framebuffer fbo)</c></para>
 		/// </summary>
 		begin_render_pass,
 		/// <summary>
@@ -237,24 +237,29 @@ namespace reshade
 		resolve_texture_region,
 
 		/// <summary>
-		/// Called before 'IDirect3DDevice9::Clear', 'ID3D10Device::ClearDepthStencilView', 'ID3D11DeviceContext::ClearDepthStencilView', 'ID3D12GraphicsCommandList::ClearDepthStencilView', 'glClear(...) ', 'vkCmdBeginRenderPass', 'vkCmdClearAttachments' or 'vkCmdClearDepthStencilImage'.
-		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view dsv, uint32_t clear_flags, float depth, uint8_t stencil)</c></para>
+		/// Called before 'IDirect3DDevice9::Clear', 'glClear', 'vkCmdBeginRenderPass' or 'vkCmdClearAttachments'.
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::format_aspect clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t num_rects, const int32_t *rects)</c></para>
+		/// </summary>
+		clear_attachments,
+		/// <summary>
+		/// Called before 'ID3D10Device::ClearDepthStencilView', 'ID3D11DeviceContext::ClearDepthStencilView', 'ID3D12GraphicsCommandList::ClearDepthStencilView', 'glClear(NamedFrame)Bufferfi' or 'vkCmdClearDepthStencilImage'.
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view dsv, api::format_aspect clear_flags, float depth, uint8_t stencil, uint32_t num_rects, const int32_t *rects)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// Resource will be in the <see cref="resource_usage::depth_stencil_write"/> state.
 		/// </remarks>
 		clear_depth_stencil_view,
 		/// <summary>
-		/// Called before 'IDirect3DDevice9::Clear', 'ID3D10Device::ClearRenderTargetView', 'ID3D11DeviceContext::ClearRenderTargetView', 'ID3D12GraphicsCommandList::ClearRenderTargetView', 'glClear(...)', 'vkCmdBeginRenderPass', 'vkCmdClearAttachments' or 'vkCmdClearColorImage'.
-		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, uint32_t count, const api::resource_view *rtvs, const float color[4])</c></para>
+		/// Called before 'ID3D10Device::ClearRenderTargetView', 'ID3D11DeviceContext::ClearRenderTargetView', 'ID3D12GraphicsCommandList::ClearRenderTargetView', 'glClear(NamedFrame)Bufferfv' or 'vkCmdClearColorImage'.
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view rtv, const float color[4], uint32_t num_rects, const int32_t *rects)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// Resources will be in the <see cref="resource_usage::render_target"/> state.
 		/// </remarks>
-		clear_render_target_views,
+		clear_render_target_view,
 		/// <summary>
 		/// Called before 'ID3D11DeviceContext::ClearUnorderedAccessViewUint' or 'ID3D12GraphicsCommandList::ClearUnorderedAccessViewUint'.
-		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view uav, const uint32_t values[4])</c></para>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view uav, const uint32_t values[4], uint32_t num_rects, const int32_t *rects)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// Resource will be in the <see cref="resource_usage::unordered_access"/> state.
@@ -262,7 +267,7 @@ namespace reshade
 		clear_unordered_access_view_uint,
 		/// <summary>
 		/// Called before 'ID3D11DeviceContext::ClearUnorderedAccessViewFloat', 'ID3D11DeviceContext1::ClearView' or 'ID3D12GraphicsCommandList::ClearUnorderedAccessViewFloat'.
-		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view uav, const float values[4])</c></para>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view uav, const float values[4], uint32_t num_rects, const int32_t *rects)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// Resource will be in the <see cref="resource_usage::unordered_access"/> state.
@@ -395,7 +400,7 @@ namespace reshade
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::dispatch, api::command_list *cmd_list, uint32_t num_groups_x, uint32_t num_groups_y, uint32_t num_groups_z);
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::draw_or_dispatch_indirect, api::command_list *cmd_list, uint32_t type, api::resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride);
 
-	DEFINE_ADDON_EVENT_TYPE_1(addon_event::begin_render_pass, api::command_list *cmd_list, uint32_t count, const api::resource_view *rtvs, api::resource_view dsv);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::begin_render_pass, api::command_list *cmd_list, api::framebuffer fbo);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::finish_render_pass, api::command_list *cmd_list);
 
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::copy_resource, api::command_list *cmd_list, api::resource src, api::resource dst);
@@ -405,10 +410,11 @@ namespace reshade
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::copy_texture_to_buffer, api::command_list *cmd_list, api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint64_t dst_offset, uint32_t row_length, uint32_t slice_height);
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::resolve_texture_region, api::command_list *cmd_list, api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], api::format format);
 
-	DEFINE_ADDON_EVENT_TYPE_2(addon_event::clear_depth_stencil_view, api::command_list *cmd_list, api::resource_view dsv, uint32_t clear_flags, float depth, uint8_t stencil);
-	DEFINE_ADDON_EVENT_TYPE_2(addon_event::clear_render_target_views, api::command_list *cmd_list, uint32_t count, const api::resource_view *rtvs, const float color[4]);
-	DEFINE_ADDON_EVENT_TYPE_2(addon_event::clear_unordered_access_view_uint, api::command_list *cmd_list, api::resource_view uav, const uint32_t values[4]);
-	DEFINE_ADDON_EVENT_TYPE_2(addon_event::clear_unordered_access_view_float, api::command_list *cmd_list, api::resource_view uav, const float values[4]);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::clear_attachments, api::command_list *cmd_list, api::format_aspect clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t num_rects, const int32_t *rects);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::clear_depth_stencil_view, api::command_list *cmd_list, api::resource_view dsv, api::format_aspect clear_flags, float depth, uint8_t stencil, uint32_t num_rects, const int32_t *rects);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::clear_render_target_view, api::command_list *cmd_list, api::resource_view rtv, const float color[4], uint32_t num_rects, const int32_t *rects);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::clear_unordered_access_view_uint, api::command_list *cmd_list, api::resource_view uav, const uint32_t values[4], uint32_t num_rects, const int32_t *rects);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::clear_unordered_access_view_float, api::command_list *cmd_list, api::resource_view uav, const float values[4], uint32_t num_rects, const int32_t *rects);
 
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::reset_command_list, api::command_list *cmd_list);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::execute_command_list, api::command_queue *queue, api::command_list *cmd_list);

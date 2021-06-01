@@ -42,13 +42,11 @@ reshade::d3d9::swapchain_impl::~swapchain_impl()
 #endif
 }
 
-void reshade::d3d9::swapchain_impl::get_current_back_buffer(api::resource *out)
+void reshade::d3d9::swapchain_impl::get_back_buffer(uint32_t index, api::resource *out)
 {
+	assert(index == 0);
+
 	*out = { reinterpret_cast<uintptr_t>(_backbuffer_resolved.get()) };
-}
-void reshade::d3d9::swapchain_impl::get_current_back_buffer_target(bool srgb, api::resource_view *out)
-{
-	*out = { reinterpret_cast<uintptr_t>(_backbuffer_resolved.get()) | (srgb ? 1 : 0) };
 }
 
 bool reshade::d3d9::swapchain_impl::on_init()

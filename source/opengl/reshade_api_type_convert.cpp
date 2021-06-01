@@ -1298,3 +1298,26 @@ GLenum reshade::opengl::convert_shader_type(api::shader_stage type)
 		return GL_NONE;
 	}
 }
+
+auto   reshade::opengl::convert_buffer_bits_to_aspect(GLbitfield mask) -> api::format_aspect
+{
+	api::format_aspect result = api::format_aspect::none;
+	if (mask & GL_COLOR_BUFFER_BIT)
+		result |= api::format_aspect::color;
+	if (mask & GL_DEPTH_BUFFER_BIT)
+		result |= api::format_aspect::depth;
+	if (mask & GL_STENCIL_BUFFER_BIT)
+		result |= api::format_aspect::stencil;
+	return result;
+}
+auto   reshade::opengl::convert_aspect_to_buffer_bits(api::format_aspect mask) -> GLbitfield
+{
+	GLbitfield result = 0;
+	if ((mask & api::format_aspect::color) != api::format_aspect::none)
+		result |= GL_COLOR_BUFFER_BIT;
+	if ((mask & api::format_aspect::depth) != api::format_aspect::none)
+		result |= GL_DEPTH_BUFFER_BIT;
+	if ((mask & api::format_aspect::stencil) != api::format_aspect::none)
+		result |= GL_STENCIL_BUFFER_BIT;
+	return result;
+}

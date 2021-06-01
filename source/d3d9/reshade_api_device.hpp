@@ -39,6 +39,7 @@ namespace reshade::d3d9
 		bool create_pipeline_layout(uint32_t num_set_layouts, const api::descriptor_set_layout *set_layouts, uint32_t num_constant_ranges, const api::constant_range *constant_ranges, api::pipeline_layout *out) final;
 		bool create_descriptor_set_layout(uint32_t num_ranges, const api::descriptor_range *ranges, bool push_descriptors, api::descriptor_set_layout *out) final;
 		bool create_query_pool(api::query_type type, uint32_t count, api::query_pool *out) final;
+		bool create_framebuffer(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv, api::framebuffer *out) final;
 		bool create_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, api::descriptor_set *out) final;
 
 		void destroy_sampler(api::sampler handle) final;
@@ -49,10 +50,13 @@ namespace reshade::d3d9
 		void destroy_pipeline_layout(api::pipeline_layout handle) final;
 		void destroy_descriptor_set_layout(api::descriptor_set_layout handle) final;
 		void destroy_query_pool(api::query_pool handle) final;
+		void destroy_framebuffer(api::framebuffer handle) final;
 		void destroy_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, const api::descriptor_set *sets) final;
 
-		void get_resource_from_view(api::resource_view view, api::resource *out_resource) const final;
+		void get_resource_from_view(api::resource_view view, api::resource *out) const final;
 		api::resource_desc get_resource_desc(api::resource resource) const final;
+
+		bool get_framebuffer_attachment(api::framebuffer fbo, api::format_aspect type, uint32_t index, api::resource_view *out) const final;
 
 		bool map_resource(api::resource resource, uint32_t subresource, api::map_access access, void **data, uint32_t *row_pitch, uint32_t *slice_pitch) final;
 		void unmap_resource(api::resource resource, uint32_t subresource) final;
@@ -93,7 +97,7 @@ namespace reshade::d3d9
 		void dispatch(uint32_t num_groups_x, uint32_t num_groups_y, uint32_t num_groups_z) final;
 		void draw_or_dispatch_indirect(uint32_t type, api::resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride) final;
 
-		void begin_render_pass(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv) final;
+		void begin_render_pass(api::framebuffer fbo) final;
 		void finish_render_pass() final;
 
 		void copy_resource(api::resource src, api::resource dst) final;
@@ -105,10 +109,11 @@ namespace reshade::d3d9
 
 		void generate_mipmaps(api::resource_view srv) final;
 
-		void clear_depth_stencil_view(api::resource_view dsv, uint32_t clear_flags, float depth, uint8_t stencil) final;
-		void clear_render_target_views(uint32_t count, const api::resource_view *rtvs, const float color[4]) final;
-		void clear_unordered_access_view_uint(api::resource_view uav, const uint32_t values[4]) final;
-		void clear_unordered_access_view_float(api::resource_view uav, const float values[4]) final;
+		void clear_attachments(api::format_aspect clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t num_rects, const int32_t *rects) final;
+		void clear_depth_stencil_view(api::resource_view dsv, api::format_aspect clear_flags, float depth, uint8_t stencil, uint32_t num_rects, const int32_t *rects) final;
+		void clear_render_target_view(api::resource_view rtv, const float color[4], uint32_t num_rects, const int32_t *rects) final;
+		void clear_unordered_access_view_uint(api::resource_view uav, const uint32_t values[4], uint32_t num_rects, const int32_t *rects) final;
+		void clear_unordered_access_view_float(api::resource_view uav, const float values[4], uint32_t num_rects, const int32_t *rects) final;
 
 		void begin_query(api::query_pool pool, api::query_type type, uint32_t index) final;
 		void finish_query(api::query_pool pool, api::query_type type, uint32_t index) final;
@@ -137,5 +142,6 @@ namespace reshade::d3d9
 
 		com_object_list<IDirect3DResource9, true> _resources;
 		D3DPRIMITIVETYPE _current_prim_type = static_cast<D3DPRIMITIVETYPE>(0);
+		struct framebuffer_impl *_current_fbo;
 	};
 }

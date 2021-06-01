@@ -685,6 +685,23 @@ bool reshade::d3d11::device_impl::create_query_pool(api::query_type type, uint32
 	*out = { reinterpret_cast<uintptr_t>(result) };
 	return true;
 }
+bool reshade::d3d11::device_impl::create_framebuffer(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv, api::framebuffer *out)
+{
+	if (count > D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT)
+	{
+		*out = { 0 };
+		return false;
+	}
+
+	const auto result = new framebuffer_impl();
+	result->count = count;
+	for (UINT i = 0; i < count; ++i)
+		result->rtv[i] = reinterpret_cast<ID3D11RenderTargetView *>(rtvs[i].handle);
+	result->dsv = reinterpret_cast<ID3D11DepthStencilView *>(dsv.handle);
+
+	*out = { reinterpret_cast<uintptr_t>(result) };
+	return true;
+}
 bool reshade::d3d11::device_impl::create_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, api::descriptor_set *out)
 {
 	const auto layout_impl = reinterpret_cast<descriptor_set_layout_impl *>(layout.handle);
@@ -735,6 +752,10 @@ void reshade::d3d11::device_impl::destroy_descriptor_set_layout(api::descriptor_
 void reshade::d3d11::device_impl::destroy_query_pool(api::query_pool handle)
 {
 	delete reinterpret_cast<query_pool_impl *>(handle.handle);
+}
+void reshade::d3d11::device_impl::destroy_framebuffer(api::framebuffer handle)
+{
+	delete reinterpret_cast<framebuffer_impl *>(handle.handle);
 }
 void reshade::d3d11::device_impl::destroy_descriptor_sets(api::descriptor_set_layout, uint32_t count, const api::descriptor_set *sets)
 {
@@ -825,13 +846,13 @@ void reshade::d3d11::device_impl::upload_texture_region(const api::subresource_d
 	_immediate_context_orig->UpdateSubresource(reinterpret_cast<ID3D11Resource *>(dst.handle), dst_subresource, reinterpret_cast<const D3D11_BOX *>(dst_box), data.data, data.row_pitch, data.slice_pitch);
 }
 
-void reshade::d3d11::device_impl::get_resource_from_view(api::resource_view view, api::resource *out_resource) const
+void reshade::d3d11::device_impl::get_resource_from_view(api::resource_view view, api::resource *out) const
 {
 	assert(view.handle != 0);
 	com_ptr<ID3D11Resource> resource;
 	reinterpret_cast<ID3D11View *>(view.handle)->GetResource(&resource);
 
-	*out_resource = { reinterpret_cast<uintptr_t>(resource.get()) };
+	*out = { reinterpret_cast<uintptr_t>(resource.get()) };
 }
 
 reshade::api::resource_desc reshade::d3d11::device_impl::get_resource_desc(api::resource resource) const
@@ -871,6 +892,39 @@ reshade::api::resource_desc reshade::d3d11::device_impl::get_resource_desc(api::
 
 	assert(false); // Not implemented
 	return api::resource_desc {};
+}
+
+bool reshade::d3d11::device_impl::get_framebuffer_attachment(api::framebuffer fbo, api::format_aspect type, uint32_t index, api::resource_view *out) const
+{
+	assert(fbo.handle != 0);
+	const auto fbo_impl = reinterpret_cast<const framebuffer_impl *>(fbo.handle);
+
+	if (type == api::format_aspect::color)
+	{
+		if (index < fbo_impl->count)
+		{
+			*out = { reinterpret_cast<uintptr_t>(fbo_impl->rtv[index]) };
+			return true;
+		}
+		else
+		{
+			*out = { 0 };
+			return false;
+		}
+	}
+	else
+	{
+		if (fbo_impl->dsv != nullptr)
+		{
+			*out = { reinterpret_cast<uintptr_t>(fbo_impl->dsv) };
+			return true;
+		}
+		else
+		{
+			*out = { 0 };
+			return false;
+		}
+	}
 }
 
 bool reshade::d3d11::device_impl::get_query_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride)

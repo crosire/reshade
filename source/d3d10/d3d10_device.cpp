@@ -35,21 +35,15 @@ void D3D10Device::invoke_bind_render_targets_event(UINT count, ID3D10RenderTarge
 {
 	assert(count <= D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT);
 
-	if ((count == 0 && dsv == nullptr) ||
-		reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::begin_render_pass)].empty())
+	_current_fbo->count = count;
+	std::memcpy(_current_fbo->rtv, targets, count * sizeof(ID3D10RenderTargetView *));
+	_current_fbo->dsv = dsv;
+
+	if (count == 0 && dsv == nullptr)
 		return;
 
-#ifndef WIN64
-	reshade::api::resource_view rtvs[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
-	for (UINT i = 0; i < count; ++i)
-		rtvs[i] = { reinterpret_cast<uintptr_t>(targets[i]) };
-#else
-	static_assert(sizeof(*targets) == sizeof(reshade::api::resource_view));
-	const auto rtvs = reinterpret_cast<const reshade::api::resource_view *>(targets);
-#endif
-
 	_has_open_render_pass = true;
-	reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, count, rtvs, reshade::api::resource_view { reinterpret_cast<uintptr_t>(dsv) });
+	reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::framebuffer { reinterpret_cast<uintptr_t>(_current_fbo) });
 }
 void D3D10Device::invoke_bind_vertex_buffers_event(UINT first, UINT count, ID3D10Buffer *const *buffers, const UINT *strides, const UINT *offsets)
 {
@@ -511,8 +505,7 @@ void    STDMETHODCALLTYPE D3D10Device::UpdateSubresource(ID3D10Resource *pDstRes
 void    STDMETHODCALLTYPE D3D10Device::ClearRenderTargetView(ID3D10RenderTargetView *pRenderTargetView, const FLOAT ColorRGBA[4])
 {
 #if RESHADE_ADDON
-	if (const reshade::api::resource_view rtv = { reinterpret_cast<uintptr_t>(pRenderTargetView) };
-		reshade::invoke_addon_event<reshade::addon_event::clear_render_target_views>(this, 1, &rtv, ColorRGBA))
+	if (reshade::invoke_addon_event<reshade::addon_event::clear_render_target_view>(this, reshade::api::resource_view { reinterpret_cast<uintptr_t>(pRenderTargetView) }, ColorRGBA, 0, nullptr))
 		return;
 #endif
 	_orig->ClearRenderTargetView(pRenderTargetView, ColorRGBA);
@@ -520,7 +513,11 @@ void    STDMETHODCALLTYPE D3D10Device::ClearRenderTargetView(ID3D10RenderTargetV
 void    STDMETHODCALLTYPE D3D10Device::ClearDepthStencilView(ID3D10DepthStencilView *pDepthStencilView, UINT ClearFlags, FLOAT Depth, UINT8 Stencil)
 {
 #if RESHADE_ADDON
-	if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(this, reshade::api::resource_view { reinterpret_cast<uintptr_t>(pDepthStencilView) }, ClearFlags, Depth, Stencil))
+	static_assert(
+		(UINT)reshade::api::format_aspect::depth == (D3D10_CLEAR_DEPTH << 1) &&
+		(UINT)reshade::api::format_aspect::stencil == (D3D10_CLEAR_STENCIL << 1));
+
+	if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(this, reshade::api::resource_view { reinterpret_cast<uintptr_t>(pDepthStencilView) }, static_cast<reshade::api::format_aspect>(ClearFlags << 1), Depth, Stencil, 0, nullptr))
 		return;
 #endif
 	_orig->ClearDepthStencilView(pDepthStencilView, ClearFlags, Depth, Stencil);

@@ -367,7 +367,7 @@ static void on_bind_viewport(command_list *cmd_list, uint32_t first, uint32_t co
 	auto &state = cmd_list->get_user_data<state_tracking>(state_tracking::GUID);
 	std::memcpy(state.current_viewport, viewport, 6 * sizeof(float));
 }
-static void on_bind_depth_stencil(command_list *cmd_list, uint32_t, const resource_view *, resource_view dsv)
+static void on_bind_depth_stencil(command_list *cmd_list, resource_view dsv)
 {
 	device *const device = cmd_list->get_device();
 	auto &state = cmd_list->get_user_data<state_tracking>(state_tracking::GUID);
@@ -386,13 +386,20 @@ static void on_bind_depth_stencil(command_list *cmd_list, uint32_t, const resour
 
 	state.current_depth_stencil = depth_stencil;
 }
-static bool on_clear_depth_stencil(command_list *cmd_list, resource_view dsv, uint32_t clear_flags, float, uint8_t)
+static void on_begin_render_pass(command_list *cmd_list, framebuffer fbo)
+{
+	resource_view dsv = { 0 };
+	cmd_list->get_device()->get_framebuffer_attachment(fbo, format_aspect::depth, 0, &dsv);
+
+	on_bind_depth_stencil(cmd_list, dsv);
+}
+static bool on_clear_depth_stencil(command_list *cmd_list, resource_view dsv, format_aspect flags, float, uint8_t, uint32_t, const int32_t *)
 {
 	device *const device = cmd_list->get_device();
 	const state_tracking_context &device_state = device->get_user_data<state_tracking_context>(state_tracking_context::GUID);
 
 	// Ignore clears that do not affect the depth buffer (stencil clears)
-	if ((clear_flags & 0x1) != 0 && device_state.preserve_depth_buffers)
+	if ((flags & format_aspect::depth) != format_aspect::none && device_state.preserve_depth_buffers)
 	{
 		resource depth_stencil = { 0 };
 		device->get_resource_from_view(dsv, &depth_stencil);
@@ -774,7 +781,7 @@ void register_builtin_addon_depth(reshade::addon::info &info)
 	reshade::register_event<reshade::addon_event::draw_indexed>(on_draw_indexed);
 	reshade::register_event<reshade::addon_event::draw_or_dispatch_indirect>(on_draw_indirect);
 	reshade::register_event<reshade::addon_event::bind_viewports>(on_bind_viewport);
-	reshade::register_event<reshade::addon_event::begin_render_pass>(on_bind_depth_stencil);
+	reshade::register_event<reshade::addon_event::begin_render_pass>(on_begin_render_pass);
 	reshade::register_event<reshade::addon_event::clear_depth_stencil_view>(on_clear_depth_stencil);
 
 	reshade::register_event<reshade::addon_event::reset_command_list>(on_reset);
@@ -807,7 +814,7 @@ void unregister_builtin_addon_depth()
 	reshade::unregister_event<reshade::addon_event::draw_indexed>(on_draw_indexed);
 	reshade::unregister_event<reshade::addon_event::draw_or_dispatch_indirect>(on_draw_indirect);
 	reshade::unregister_event<reshade::addon_event::bind_viewports>(on_bind_viewport);
-	reshade::unregister_event<reshade::addon_event::begin_render_pass>(on_bind_depth_stencil);
+	reshade::unregister_event<reshade::addon_event::begin_render_pass>(on_begin_render_pass);
 	reshade::unregister_event<reshade::addon_event::clear_depth_stencil_view>(on_clear_depth_stencil);
 
 	reshade::unregister_event<reshade::addon_event::reset_command_list>(on_reset);

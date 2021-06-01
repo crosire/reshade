@@ -39,7 +39,7 @@ namespace reshade::d3d12
 		void dispatch(uint32_t num_groups_x, uint32_t num_groups_y, uint32_t num_groups_z) final;
 		void draw_or_dispatch_indirect(uint32_t type, api::resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride) final;
 
-		void begin_render_pass(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv) final;
+		void begin_render_pass(api::framebuffer fbo) final;
 		void finish_render_pass() final;
 
 		void copy_resource(api::resource src, api::resource dst) final;
@@ -51,10 +51,11 @@ namespace reshade::d3d12
 
 		void generate_mipmaps(api::resource_view srv) final;
 
-		void clear_depth_stencil_view(api::resource_view dsv, uint32_t clear_flags, float depth, uint8_t stencil) final;
-		void clear_render_target_views(uint32_t count, const api::resource_view *rtvs, const float color[4]) final;
-		void clear_unordered_access_view_uint(api::resource_view uav, const uint32_t values[4]) final;
-		void clear_unordered_access_view_float(api::resource_view uav, const float values[4]) final;
+		void clear_attachments(api::format_aspect clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t num_rects, const int32_t *rects) final;
+		void clear_depth_stencil_view(api::resource_view dsv, api::format_aspect clear_flags, float depth, uint8_t stencil, uint32_t num_rects, const int32_t *rects) final;
+		void clear_render_target_view(api::resource_view rtv, const float color[4], uint32_t num_rects, const int32_t *rects) final;
+		void clear_unordered_access_view_uint(api::resource_view uav, const uint32_t values[4], uint32_t num_rects, const int32_t *rects) final;
+		void clear_unordered_access_view_float(api::resource_view uav, const float values[4], uint32_t num_rects, const int32_t *rects) final;
 
 		void begin_query(api::query_pool pool, api::query_type type, uint32_t index) final;
 		void finish_query(api::query_pool pool, api::query_type type, uint32_t index) final;
@@ -72,5 +73,7 @@ namespace reshade::d3d12
 		ID3D12RootSignature *_current_root_signature[2] = {};
 		// Currently bound descriptor heaps (there can only be one of each shader visible type, so a maximum of two)
 		ID3D12DescriptorHeap *_current_descriptor_heaps[2] = {};
+		// Currently bound render target and depth-stencil views
+		struct framebuffer_impl *_current_fbo;
 	};
 }

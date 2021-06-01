@@ -36,7 +36,7 @@ namespace reshade::d3d11
 		void dispatch(uint32_t, uint32_t, uint32_t) final { assert(false); }
 		void draw_or_dispatch_indirect(uint32_t, api::resource, uint64_t, uint32_t, uint32_t) final { assert(false); }
 
-		void begin_render_pass(uint32_t, const api::resource_view *, api::resource_view) final { assert(false); }
+		void begin_render_pass(api::framebuffer) final { assert(false); }
 		void finish_render_pass() final { assert(false); }
 
 		void copy_resource(api::resource, api::resource) final { assert(false); }
@@ -48,10 +48,11 @@ namespace reshade::d3d11
 
 		void generate_mipmaps(api::resource_view) final { assert(false); }
 
-		void clear_depth_stencil_view(api::resource_view, uint32_t, float, uint8_t) final { assert(false); }
-		void clear_render_target_views(uint32_t, const api::resource_view *, const float[4]) final { assert(false); }
-		void clear_unordered_access_view_uint(api::resource_view, const uint32_t[4]) final { assert(false); }
-		void clear_unordered_access_view_float(api::resource_view, const float[4]) final { assert(false); }
+		void clear_attachments(api::format_aspect, const float[4], float, uint8_t, uint32_t, const int32_t *) final { assert(false); }
+		void clear_depth_stencil_view(api::resource_view, api::format_aspect, float, uint8_t, uint32_t, const int32_t *) final { assert(false); }
+		void clear_render_target_view(api::resource_view, const float[4], uint32_t, const int32_t *) final { assert(false); }
+		void clear_unordered_access_view_uint(api::resource_view, const uint32_t[4], uint32_t, const int32_t *) final { assert(false); }
+		void clear_unordered_access_view_float(api::resource_view, const float[4], uint32_t, const int32_t *) final { assert(false); }
 
 		void begin_query(api::query_pool, api::query_type, uint32_t) final { assert(false); }
 		void finish_query(api::query_pool, api::query_type, uint32_t) final { assert(false); }
@@ -103,7 +104,7 @@ namespace reshade::d3d11
 		void dispatch(uint32_t num_groups_x, uint32_t num_groups_y, uint32_t num_groups_z) final;
 		void draw_or_dispatch_indirect(uint32_t type, api::resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride) final;
 
-		void begin_render_pass(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv) final;
+		void begin_render_pass(api::framebuffer fbo) final;
 		void finish_render_pass() final;
 
 		void copy_resource(api::resource src, api::resource dst) final;
@@ -115,10 +116,11 @@ namespace reshade::d3d11
 
 		void generate_mipmaps(api::resource_view srv) final;
 
-		void clear_depth_stencil_view(api::resource_view dsv, uint32_t clear_flags, float depth, uint8_t stencil) final;
-		void clear_render_target_views(uint32_t count, const api::resource_view *rtvs, const float color[4]) final;
-		void clear_unordered_access_view_uint(api::resource_view uav, const uint32_t values[4]) final;
-		void clear_unordered_access_view_float(api::resource_view uav, const float values[4]) final;
+		void clear_attachments(api::format_aspect clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t num_rects, const int32_t *rects) final;
+		void clear_depth_stencil_view(api::resource_view dsv, api::format_aspect clear_flags, float depth, uint8_t stencil, uint32_t num_rects, const int32_t *rects) final;
+		void clear_render_target_view(api::resource_view rtv, const float color[4], uint32_t num_rects, const int32_t *rects) final;
+		void clear_unordered_access_view_uint(api::resource_view uav, const uint32_t values[4], uint32_t num_rects, const int32_t *rects) final;
+		void clear_unordered_access_view_float(api::resource_view uav, const float values[4], uint32_t num_rects, const int32_t *rects) final;
 
 		void begin_query(api::query_pool pool, api::query_type type, uint32_t index) final;
 		void finish_query(api::query_pool pool, api::query_type type, uint32_t index) final;
@@ -136,5 +138,6 @@ namespace reshade::d3d11
 
 	protected:
 		bool _has_open_render_pass = false;
+		struct framebuffer_impl *_current_fbo;
 	};
 }

@@ -187,14 +187,7 @@ HOOK_EXPORT void WINAPI glBegin(GLenum mode)
 		glCheckFramebufferStatus(target) == GL_FRAMEBUFFER_COMPLETE) // Skip incomplete frame buffer bindings (e.g. during set up)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(g_current_context);
-
-		GLuint count = 0;
-		reshade::api::resource_view rtvs[8];
-		while (count < 8 && (rtvs[count] = g_current_context->get_render_target_from_fbo(framebuffer, count)) != 0)
-			++count;
-		const reshade::api::resource_view dsv = g_current_context->get_depth_stencil_from_fbo(framebuffer);
-
-		reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(g_current_context, count, rtvs, dsv);
+		reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(g_current_context, reshade::opengl::make_framebuffer_handle(framebuffer, framebuffer != 0 ? 8 : 1));
 	}
 #endif
 }
@@ -383,12 +376,16 @@ HOOK_EXPORT void WINAPI glBlendFunc(GLenum sfactor, GLenum dfactor)
 		GLint dst_fbo = 0;
 		glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &dst_fbo);
 
+		const reshade::api::format_aspect type = reshade::opengl::convert_buffer_bits_to_aspect(mask);
+
+		reshade::api::resource_view srv_view = { 0 };
 		reshade::api::resource src = { 0 };
-		g_current_context->get_resource_from_view(
-			g_current_context->get_render_target_from_fbo(src_fbo, 0), &src);
+		g_current_context->get_framebuffer_attachment(reshade::opengl::make_framebuffer_handle(src_fbo, src_fbo != 0 ? 8 : 1), type, 0, &srv_view);
+		g_current_context->get_resource_from_view(srv_view, &src);
+		reshade::api::resource_view dst_view = { 0 };
 		reshade::api::resource dst = { 0 };
-		g_current_context->get_resource_from_view(
-			g_current_context->get_render_target_from_fbo(dst_fbo, 0), &dst);
+		g_current_context->get_framebuffer_attachment(reshade::opengl::make_framebuffer_handle(dst_fbo, dst_fbo != 0 ? 8 : 1), type, 0, &dst_view);
+		g_current_context->get_resource_from_view(dst_view, &dst);
 
 		const int32_t src_box[6] = { srcX0, srcY0, 0, srcX1, srcY1, 1 };
 		const int32_t dst_box[6] = { dstX0, dstY0, 0, dstX1, dstY1, 1 };
@@ -416,12 +413,16 @@ HOOK_EXPORT void WINAPI glBlendFunc(GLenum sfactor, GLenum dfactor)
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
+		const reshade::api::format_aspect type = reshade::opengl::convert_buffer_bits_to_aspect(mask);
+
+		reshade::api::resource_view srv_view = { 0 };
 		reshade::api::resource src = { 0 };
-		g_current_context->get_resource_from_view(
-			g_current_context->get_render_target_from_fbo(readFramebuffer, 0), &src);
+		g_current_context->get_framebuffer_attachment(reshade::opengl::make_framebuffer_handle(readFramebuffer, readFramebuffer != 0 ? 8 : 1), type, 0, &srv_view);
+		g_current_context->get_resource_from_view(srv_view, &src);
+		reshade::api::resource_view dst_view = { 0 };
 		reshade::api::resource dst = { 0 };
-		g_current_context->get_resource_from_view(
-			g_current_context->get_render_target_from_fbo(drawFramebuffer, 0), &dst);
+		g_current_context->get_framebuffer_attachment(reshade::opengl::make_framebuffer_handle(drawFramebuffer, drawFramebuffer != 0 ? 8 : 1), type, 0, &dst_view);
+		g_current_context->get_resource_from_view(dst_view, &dst);
 
 		const int32_t src_box[6] = { srcX0, srcY0, 0, srcX1, srcY1, 1 };
 		const int32_t dst_box[6] = { dstX0, dstY0, 0, dstX1, dstY1, 1 };
@@ -511,42 +512,14 @@ HOOK_EXPORT void WINAPI glClear(GLbitfield mask)
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
-		GLint fbo = 0;
-		glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &fbo);
+		GLfloat color_value[4] = {};
+		glGetFloatv(GL_COLOR_CLEAR_VALUE, color_value);
+		GLfloat depth_value = 0.0f;
+		glGetFloatv(GL_DEPTH_CLEAR_VALUE, &depth_value);
+		GLint   stencil_value = 0;
+		glGetIntegerv(GL_STENCIL_CLEAR_VALUE, &stencil_value);
 
-		if (mask & (GL_COLOR_BUFFER_BIT))
-		{
-			GLfloat color_value[4] = {};
-			glGetFloatv(GL_COLOR_CLEAR_VALUE, color_value);
-
-			GLuint count = 0;
-			reshade::api::resource_view rtvs[8];
-			while (count < 8 && (rtvs[count] = g_current_context->get_render_target_from_fbo(fbo, count)) != 0)
-				++count;
-
-			if (reshade::invoke_addon_event<reshade::addon_event::clear_render_target_views>(g_current_context, count, rtvs, color_value))
-				mask &= ~(GL_COLOR_BUFFER_BIT);
-		}
-		if (mask & (GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT))
-		{
-			GLfloat depth_value = 0.0f;
-			glGetFloatv(GL_DEPTH_CLEAR_VALUE, &depth_value);
-			GLint   stencil_value = 0;
-			glGetIntegerv(GL_STENCIL_CLEAR_VALUE, &stencil_value);
-
-			uint32_t clear_flags = 0;
-			if ((mask & GL_DEPTH_BUFFER_BIT) != 0)
-				clear_flags |= 0x1;
-			if ((mask & GL_STENCIL_BUFFER_BIT) != 0)
-				clear_flags |= 0x2;
-
-			const reshade::api::resource_view dsv = g_current_context->get_depth_stencil_from_fbo(fbo);
-
-			if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, dsv, clear_flags, depth_value, static_cast<uint8_t>(stencil_value)))
-				mask &= ~(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-		}
-
-		if (mask == 0)
+		if (reshade::invoke_addon_event<reshade::addon_event::clear_attachments>(g_current_context, reshade::opengl::convert_buffer_bits_to_aspect(mask), color_value, depth_value, static_cast<uint8_t>(stencil_value), 0, nullptr))
 			return;
 	}
 #endif
@@ -562,8 +535,10 @@ HOOK_EXPORT void WINAPI glClear(GLbitfield mask)
 		GLint fbo = 0;
 		glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &fbo);
 
-		if (const reshade::api::resource_view rtv = g_current_context->get_render_target_from_fbo(fbo, drawbuffer);
-			reshade::invoke_addon_event<reshade::addon_event::clear_render_target_views>(g_current_context, 1, &rtv, value))
+		reshade::api::resource_view view = { 0 };
+		g_current_context->get_framebuffer_attachment(reshade::opengl::make_framebuffer_handle(fbo, fbo != 0 ? 8 : 1), reshade::api::format_aspect::color, drawbuffer, &view);
+
+		if (reshade::invoke_addon_event<reshade::addon_event::clear_render_target_view>(g_current_context, view, value, 0, nullptr))
 			return;
 	}
 #endif
@@ -581,7 +556,10 @@ HOOK_EXPORT void WINAPI glClear(GLbitfield mask)
 		GLint fbo = 0;
 		glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &fbo);
 
-		if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, g_current_context->get_depth_stencil_from_fbo(fbo), 0x3, depth, static_cast<uint8_t>(stencil)))
+		reshade::api::resource_view view = { 0 };
+		g_current_context->get_framebuffer_attachment(reshade::opengl::make_framebuffer_handle(fbo, fbo != 0 ? 8 : 1), reshade::api::format_aspect::depth_stencil, drawbuffer, &view);
+
+		if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, view, reshade::api::format_aspect::depth_stencil, depth, static_cast<uint8_t>(stencil), 0, nullptr))
 			return;
 	}
 #endif
@@ -594,8 +572,10 @@ HOOK_EXPORT void WINAPI glClear(GLbitfield mask)
 #if RESHADE_ADDON
 	if (g_current_context && buffer == GL_COLOR)
 	{
-		if (const reshade::api::resource_view rtv = g_current_context->get_render_target_from_fbo(framebuffer, drawbuffer);
-			reshade::invoke_addon_event<reshade::addon_event::clear_render_target_views>(g_current_context, 1, &rtv, value))
+		reshade::api::resource_view view = { 0 };
+		g_current_context->get_framebuffer_attachment(reshade::opengl::make_framebuffer_handle(framebuffer, framebuffer != 0 ? 8 : 1), reshade::api::format_aspect::color, drawbuffer, &view);
+
+		if (reshade::invoke_addon_event<reshade::addon_event::clear_render_target_view>(g_current_context, view, value, 0, nullptr))
 			return;
 	}
 #endif
@@ -610,7 +590,10 @@ HOOK_EXPORT void WINAPI glClear(GLbitfield mask)
 #if RESHADE_ADDON
 	if (g_current_context && buffer == GL_DEPTH_STENCIL)
 	{
-		if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, g_current_context->get_depth_stencil_from_fbo(framebuffer), 0x3, depth, static_cast<uint8_t>(stencil)))
+		reshade::api::resource_view view = { 0 };
+		g_current_context->get_framebuffer_attachment(reshade::opengl::make_framebuffer_handle(framebuffer, framebuffer != 0 ? 8 : 1), reshade::api::format_aspect::depth_stencil, drawbuffer, &view);
+
+		if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, view, reshade::api::format_aspect::depth_stencil, depth, static_cast<uint8_t>(stencil), 0, nullptr))
 			return;
 	}
 #endif

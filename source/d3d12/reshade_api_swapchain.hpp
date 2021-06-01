@@ -18,11 +18,12 @@ namespace reshade::d3d12
 		swapchain_impl(device_impl *device, command_queue_impl *queue, IDXGISwapChain3 *swapchain);
 		~swapchain_impl();
 
-		void get_current_back_buffer(api::resource *out) final;
-		void get_current_back_buffer_target(bool srgb, api::resource_view *out) final;
+		void get_back_buffer(uint32_t index, api::resource *out) final;
+
+		uint32_t get_back_buffer_count() const final;
+		uint32_t get_current_back_buffer_index() const final;
 
 		bool on_init();
-		bool on_init(const DXGI_SWAP_CHAIN_DESC &desc);
 		void on_reset();
 		void on_present();
 		bool on_present(ID3D12Resource *source, HWND hwnd);
@@ -31,6 +32,5 @@ namespace reshade::d3d12
 	private:
 		UINT _swap_index = 0;
 		std::vector<com_ptr<ID3D12Resource>> _backbuffers;
-		com_ptr<ID3D12DescriptorHeap> _backbuffer_rtvs;
 	};
 }

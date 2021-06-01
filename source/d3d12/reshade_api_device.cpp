@@ -686,6 +686,24 @@ bool reshade::d3d12::device_impl::create_query_pool(api::query_type type, uint32
 		return false;
 	}
 }
+bool reshade::d3d12::device_impl::create_framebuffer(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv, api::framebuffer *out)
+{
+	if (count >= D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT)
+	{
+		*out = { 0 };
+		return false;
+	}
+
+	const auto result = new framebuffer_impl();
+	result->count = count;
+	for (UINT i = 0; i < count; ++i)
+		result->rtv[i] = { static_cast<SIZE_T>(rtvs[i].handle) };
+	result->dsv = { static_cast<SIZE_T>(dsv.handle) };
+	result->rtv_is_single_handle_to_range = FALSE;
+
+	*out = { reinterpret_cast<uintptr_t>(result) };
+	return true;
+}
 bool reshade::d3d12::device_impl::create_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, api::descriptor_set *out)
 {
 	const auto layout_impl = reinterpret_cast<const descriptor_set_layout_impl *>(layout.handle);
@@ -750,6 +768,10 @@ void reshade::d3d12::device_impl::destroy_query_pool(api::query_pool handle)
 {
 	if (handle.handle != 0)
 		reinterpret_cast<IUnknown *>(handle.handle)->Release();
+}
+void reshade::d3d12::device_impl::destroy_framebuffer(api::framebuffer handle)
+{
+	delete reinterpret_cast<framebuffer_impl *>(handle.handle);
 }
 void reshade::d3d12::device_impl::destroy_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, const api::descriptor_set *sets)
 {
@@ -952,15 +974,15 @@ void reshade::d3d12::device_impl::upload_texture_region(const api::subresource_d
 	}
 }
 
-void reshade::d3d12::device_impl::get_resource_from_view(api::resource_view view, api::resource *out_resource) const
+void reshade::d3d12::device_impl::get_resource_from_view(api::resource_view view, api::resource *out) const
 {
 	assert(view.handle != 0);
 
 	const std::lock_guard<std::mutex> lock(_mutex);
 	if (const auto it = _views.find(view.handle); it != _views.end())
-		*out_resource = { reinterpret_cast<uintptr_t>(it->second) };
+		*out = { reinterpret_cast<uintptr_t>(it->second) };
 	else
-		*out_resource = { 0 };
+		*out = { 0 };
 }
 
 reshade::api::resource_desc reshade::d3d12::device_impl::get_resource_desc(api::resource resource) const
@@ -972,6 +994,42 @@ reshade::api::resource_desc reshade::d3d12::device_impl::get_resource_desc(api::
 	reinterpret_cast<ID3D12Resource *>(resource.handle)->GetHeapProperties(&heap_props, &heap_flags);
 
 	return convert_resource_desc(reinterpret_cast<ID3D12Resource *>(resource.handle)->GetDesc(), heap_props);
+}
+
+bool reshade::d3d12::device_impl::get_framebuffer_attachment(api::framebuffer fbo, api::format_aspect type, uint32_t index, api::resource_view *out) const
+{
+	assert(fbo.handle != 0);
+	const auto fbo_impl = reinterpret_cast<const framebuffer_impl *>(fbo.handle);
+
+	if (type == api::format_aspect::color)
+	{
+		if (index < fbo_impl->count)
+		{
+			if (fbo_impl->rtv_is_single_handle_to_range)
+				*out = { fbo_impl->rtv->ptr + index * _descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_RTV] };
+			else
+				*out = { fbo_impl->rtv[index].ptr };
+			return true;
+		}
+		else
+		{
+			*out = { 0 };
+			return false;
+		}
+	}
+	else
+	{
+		if (fbo_impl->dsv.ptr != 0)
+		{
+			*out = { fbo_impl->dsv.ptr };
+			return true;
+		}
+		else
+		{
+			*out = { 0 };
+			return false;
+		}
+	}
 }
 
 bool reshade::d3d12::device_impl::get_query_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride)

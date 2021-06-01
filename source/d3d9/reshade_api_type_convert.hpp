@@ -29,6 +29,14 @@ namespace reshade::d3d9
 		std::vector<com_ptr<IDirect3DQuery9>> queries;
 	};
 
+	struct framebuffer_impl
+	{
+		UINT count = 0;
+		IDirect3DSurface9 *rtv[8];
+		IDirect3DSurface9 *dsv = nullptr;
+		BOOL srgb_write_enable = FALSE;
+	};
+
 	struct descriptor_set_impl
 	{
 		api::descriptor_type type;

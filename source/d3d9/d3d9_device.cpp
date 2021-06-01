@@ -722,8 +722,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ColorFill(IDirect3DSurface9 *pSurface
 #if RESHADE_ADDON
 	const float color[4] = { ((Color >> 16) & 0xFF) / 255.0f, ((Color >> 8) & 0xFF) / 255.0f, (Color & 0xFF) / 255.0f, ((Color >> 24) & 0xFF) / 255.0f };
 
-	if (const reshade::api::resource_view rtv = { reinterpret_cast<uintptr_t>(pSurface) };
-		reshade::invoke_addon_event<reshade::addon_event::clear_render_target_views>(this, 1, &rtv, color))
+	if (reshade::invoke_addon_event<reshade::addon_event::clear_render_target_view>(this, reshade::api::resource_view { reinterpret_cast<uintptr_t>(pSurface) }, color, pRect != nullptr ? 1 : 0, reinterpret_cast<const int32_t *>(pRect)))
 		return D3D_OK;
 #endif
 	return _orig->ColorFill(pSurface, pRect, Color);
@@ -742,29 +741,19 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetRenderTarget(DWORD RenderTargetInd
 
 	const HRESULT hr = _orig->SetRenderTarget(RenderTargetIndex, pRenderTarget);
 #if RESHADE_ADDON
-	if (SUCCEEDED(hr) && RenderTargetIndex == 0 && (
+	if (SUCCEEDED(hr) && (
 		!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::begin_render_pass)].empty() ||
 		!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_viewports)].empty()))
 	{
-		DWORD count = 0;
-		com_ptr<IDirect3DSurface9> surface;
-		reshade::api::resource_view rtvs[8], dsv = { 0 };
-		for (DWORD i = 0; i < _caps.NumSimultaneousRTs; ++i, surface.reset())
-		{
-			if (FAILED(_orig->GetRenderTarget(i, &surface)))
-				continue;
+		_current_fbo->rtv[RenderTargetIndex] = pRenderTarget;
+		_current_fbo->count = 0;
+		while (_current_fbo->count < _caps.NumSimultaneousRTs && _current_fbo->rtv[_current_fbo->count] != nullptr)
+			_current_fbo->count++;
 
-			// All surfaces that can be used as render target should be registered at this point
-			rtvs[i] = { reinterpret_cast<uintptr_t>(surface.get()) };
-			count = i + 1;
-		}
-		if (SUCCEEDED(_orig->GetDepthStencilSurface(&surface)))
+		if (RenderTargetIndex == 0)
 		{
-			// All surfaces that can be used as depth-stencil should be registered at this point
-			dsv = { reinterpret_cast<uintptr_t>(surface.get()) };
+			reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::framebuffer { reinterpret_cast<uintptr_t>(_current_fbo) });
 		}
-
-		reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, count, rtvs, dsv);
 
 		if (pRenderTarget != nullptr)
 		{
@@ -802,19 +791,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetDepthStencilSurface(IDirect3DSurfa
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr) && !reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::begin_render_pass)].empty())
 	{
-		DWORD count = 0;
-		com_ptr<IDirect3DSurface9> surface;
-		reshade::api::resource_view rtvs[8];
-		for (DWORD i = 0; i < _caps.NumSimultaneousRTs; ++i, surface.reset())
-		{
-			if (FAILED(_orig->GetRenderTarget(i, &surface)))
-				continue;
+		_current_fbo->dsv = pNewZStencil;
 
-			rtvs[i] = { reinterpret_cast<uintptr_t>(surface.get()) };
-			count = i + 1;
-		}
-
-		reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, count, rtvs, reshade::api::resource_view { reinterpret_cast<uintptr_t>(pNewZStencil) });
+		reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::framebuffer { reinterpret_cast<uintptr_t>(_current_fbo) });
 	}
 #endif
 	return hr;
@@ -834,35 +813,15 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::EndScene()
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::Clear(DWORD Count, const D3DRECT *pRects, DWORD Flags, D3DCOLOR Color, float Z, DWORD Stencil)
 {
 #if RESHADE_ADDON
-	if ((Flags & (D3DCLEAR_TARGET)) != 0 && !reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::clear_render_target_views)].empty())
-	{
-		const float color[4] = { ((Color >> 16) & 0xFF) / 255.0f, ((Color >> 8) & 0xFF) / 255.0f, (Color & 0xFF) / 255.0f, ((Color >> 24) & 0xFF) / 255.0f };
+	static_assert(
+		(DWORD)reshade::api::format_aspect::color   == D3DCLEAR_TARGET &&
+		(DWORD)reshade::api::format_aspect::depth   == D3DCLEAR_ZBUFFER &&
+		(DWORD)reshade::api::format_aspect::stencil == D3DCLEAR_STENCIL);
+	static_assert(sizeof(*pRects) == (sizeof(int32_t) * 4));
 
-		DWORD count = 0;
-		com_ptr<IDirect3DSurface9> surface;
-		reshade::api::resource_view rtvs[8];
-		for (DWORD i = 0; i < _caps.NumSimultaneousRTs; ++i, surface.reset())
-		{
-			if (FAILED(_orig->GetRenderTarget(i, &surface)))
-				continue;
+	const float color[4] = { ((Color >> 16) & 0xFF) / 255.0f, ((Color >> 8) & 0xFF) / 255.0f, (Color & 0xFF) / 255.0f, ((Color >> 24) & 0xFF) / 255.0f };
 
-			rtvs[i] = { reinterpret_cast<uintptr_t>(surface.get()) };
-			count = i + 1;
-		}
-
-		if (reshade::invoke_addon_event<reshade::addon_event::clear_render_target_views>(this, count, rtvs, color))
-			Flags &= ~(D3DCLEAR_TARGET);
-	}
-	if ((Flags & (D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL)) != 0 && !reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::clear_depth_stencil_view)].empty())
-	{
-		com_ptr<IDirect3DSurface9> surface;
-		_orig->GetDepthStencilSurface(&surface);
-
-		if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(this, reshade::api::resource_view { reinterpret_cast<uintptr_t>(surface.get()) }, Flags >> 1, Z, static_cast<uint8_t>(Stencil)))
-			Flags &= ~(D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL);
-	}
-
-	if (Flags == 0) // Nothing to clear, so skip D3D call
+	if (reshade::invoke_addon_event<reshade::addon_event::clear_attachments>(this, static_cast<reshade::api::format_aspect>(Flags), color, Z, static_cast<uint8_t>(Stencil), Count, reinterpret_cast<const int32_t *>(pRects)))
 		return D3D_OK;
 #endif
 	return _orig->Clear(Count, pRects, Flags, Color, Z, Stencil);

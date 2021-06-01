@@ -115,8 +115,6 @@ reshade::vulkan::device_impl::~device_impl()
 
 	for (const auto &it : _render_pass_list_internal)
 		vk.DestroyRenderPass(_orig, it.second, nullptr);
-	for (const auto &it : _framebuffer_list_internal)
-		vk.DestroyFramebuffer(_orig, it.second, nullptr);
 
 	vk.DestroyDescriptorPool(_orig, _descriptor_pool, nullptr);
 	for (uint32_t i = 0; i < 4; ++i)
@@ -887,6 +885,60 @@ bool reshade::vulkan::device_impl::create_query_pool(api::query_type type, uint3
 		return false;
 	}
 }
+bool reshade::vulkan::device_impl::create_framebuffer(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv, api::framebuffer *out)
+{
+	const auto rtv_info = lookup_resource_view(count != 0 ? rtvs[0] : dsv);
+	const auto rt_resource_info = lookup_resource({ (uint64_t)rtv_info.image_create_info.image });
+
+	std::vector<VkImageView> views;
+	views.reserve(count + 1);
+	for (uint32_t i = 0; i < count; ++i)
+		views.push_back((VkImageView)rtvs[i].handle);
+	if (dsv.handle != 0)
+		views.push_back((VkImageView)dsv.handle);
+
+	VkFramebufferCreateInfo create_info { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
+	create_info.attachmentCount = count + (dsv.handle != 0 ? 1 : 0);
+	create_info.pAttachments = views.data();
+	create_info.width = rt_resource_info.image_create_info.extent.width;
+	create_info.height = rt_resource_info.image_create_info.extent.height;
+	create_info.layers = rt_resource_info.image_create_info.arrayLayers;
+
+	if (!request_render_pass(count, rtvs, dsv, create_info.renderPass))
+	{
+		*out = { 0 };
+		return false;
+	}
+
+	framebuffer_data data;
+	data.render_area.offset.x = 0;
+	data.render_area.offset.y = 0;
+	data.render_area.extent.width = create_info.width;
+	data.render_area.extent.height = create_info.height;
+	data.render_pass = create_info.renderPass;
+	data.attachments.assign(rtvs, rtvs + count);
+	data.attachment_types.assign(count, VK_IMAGE_ASPECT_COLOR_BIT);
+	if (dsv.handle != 0)
+	{
+		data.attachments.push_back(dsv);
+		data.attachment_types.push_back(VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT);
+	}
+
+	if (VkFramebuffer object = VK_NULL_HANDLE;
+		vk.CreateFramebuffer(_orig, &create_info, nullptr, &object) == VK_SUCCESS)
+	{
+		const std::lock_guard<std::mutex> lock(_mutex);
+		_framebuffer_list.emplace(object, std::move(data));
+
+		*out = { (uint64_t)object };
+		return true;
+	}
+	else
+	{
+		*out = { 0 };
+		return false;
+	}
+}
 bool reshade::vulkan::device_impl::create_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, api::descriptor_set *out)
 {
 	static_assert(sizeof(*out) == sizeof(VkDescriptorSet));
@@ -954,6 +1006,10 @@ void reshade::vulkan::device_impl::destroy_descriptor_set_layout(api::descriptor
 void reshade::vulkan::device_impl::destroy_query_pool(api::query_pool handle)
 {
 	vk.DestroyQueryPool(_orig, (VkQueryPool)handle.handle, nullptr);
+}
+void reshade::vulkan::device_impl::destroy_framebuffer(api::framebuffer handle)
+{
+	vk.DestroyFramebuffer(_orig, (VkFramebuffer)handle.handle, nullptr);
 }
 void reshade::vulkan::device_impl::destroy_descriptor_sets(api::descriptor_set_layout, uint32_t count, const api::descriptor_set *sets)
 {
@@ -1123,14 +1179,14 @@ void reshade::vulkan::device_impl::upload_texture_region(const api::subresource_
 	vmaDestroyBuffer(_alloc, intermediate, intermediate_mem);
 }
 
-void reshade::vulkan::device_impl::get_resource_from_view(api::resource_view view, api::resource *out_resource) const
+void reshade::vulkan::device_impl::get_resource_from_view(api::resource_view view, api::resource *out) const
 {
 	const resource_view_data data = lookup_resource_view(view);
 
 	if (data.is_image_view())
-		*out_resource = { (uint64_t)data.image_create_info.image };
+		*out = { (uint64_t)data.image_create_info.image };
 	else
-		*out_resource = { (uint64_t)data.buffer_create_info.buffer };
+		*out = { (uint64_t)data.buffer_create_info.buffer };
 }
 
 reshade::api::resource_desc reshade::vulkan::device_impl::get_resource_desc(api::resource resource) const
@@ -1141,6 +1197,28 @@ reshade::api::resource_desc reshade::vulkan::device_impl::get_resource_desc(api:
 		return convert_resource_desc(data.image_create_info);
 	else
 		return convert_resource_desc(data.buffer_create_info);
+}
+
+bool reshade::vulkan::device_impl::get_framebuffer_attachment(api::framebuffer fbo, api::format_aspect type, uint32_t index, api::resource_view *out) const
+{
+	std::lock_guard<std::mutex> lock(_mutex);
+	const auto &info = _framebuffer_list.at((VkFramebuffer)fbo.handle);
+	const auto &pass_info = _render_pass_list.at(info.render_pass);
+
+	for (uint32_t i = 0; i < pass_info.attachments.size(); ++i)
+	{
+		if (pass_info.attachments[i].format_flags == static_cast<VkImageAspectFlags>(type))
+		{
+			if (index-- == 0)
+			{
+				*out = info.attachments[i];
+				return true;
+			}
+		}
+	}
+
+	*out = { 0 };
+	return false;
 }
 
 bool reshade::vulkan::device_impl::get_query_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride)
@@ -1183,7 +1261,7 @@ void reshade::vulkan::device_impl::set_debug_name(api::resource resource, const 
 	vk.SetDebugUtilsObjectNameEXT(_orig, &name_info);
 }
 
-bool reshade::vulkan::device_impl::request_render_pass_and_framebuffer(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv, VkRenderPass &pass, VkFramebuffer &fbo)
+bool reshade::vulkan::device_impl::request_render_pass(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv, VkRenderPass &pass)
 {
 	size_t hash = 0xFFFFFFFF;
 	for (uint32_t i = 0; i < count; ++i)
@@ -1201,6 +1279,8 @@ bool reshade::vulkan::device_impl::request_render_pass_and_framebuffer(uint32_t 
 	else
 	{
 		lock.unlock();
+
+		render_pass_data pass_info;
 
 		std::vector<VkAttachmentReference> attachment_refs;
 		std::vector<VkAttachmentDescription> attachment_descs;
@@ -1221,6 +1301,10 @@ bool reshade::vulkan::device_impl::request_render_pass_and_framebuffer(uint32_t 
 			attach.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 			attach.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 			attach.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+			auto &attach_info = pass_info.attachments.emplace_back();
+			attach_info.initial_layout = attach.initialLayout;
+			attach_info.format_flags = VK_IMAGE_ASPECT_COLOR_BIT;
 		}
 
 		if (dsv.handle != 0)
@@ -1241,6 +1325,10 @@ bool reshade::vulkan::device_impl::request_render_pass_and_framebuffer(uint32_t 
 			attach.stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
 			attach.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 			attach.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+			auto &attach_info = pass_info.attachments.emplace_back();
+			attach_info.initial_layout = attach.initialLayout;
+			attach_info.format_flags = aspect_flags_from_format(attach.format);
 		}
 
 		// Synchronize any writes to render targets in previous passes with reads from them in this pass
@@ -1271,42 +1359,8 @@ bool reshade::vulkan::device_impl::request_render_pass_and_framebuffer(uint32_t 
 
 		lock.lock();
 
+		_render_pass_list.emplace(pass, std::move(pass_info));
 		_render_pass_list_internal.emplace(hash, pass);
-	}
-
-	if (const auto it = _framebuffer_list_internal.find(hash);
-		it != _framebuffer_list_internal.end())
-	{
-		fbo = it->second;
-	}
-	else
-	{
-		lock.unlock();
-
-		const auto rtv_info = lookup_resource_view(count != 0 ? rtvs[0] : dsv);
-		const auto rt_resource_info = lookup_resource({ (uint64_t)rtv_info.image_create_info.image });
-
-		std::vector<VkImageView> views;
-		views.reserve(count + 1);
-		for (uint32_t i = 0; i < count; ++i)
-			views.push_back((VkImageView)rtvs[i].handle);
-		if (dsv.handle != 0)
-			views.push_back((VkImageView)dsv.handle);
-
-		VkFramebufferCreateInfo create_info { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
-		create_info.renderPass = pass;
-		create_info.attachmentCount = count + (dsv.handle != 0 ? 1 : 0);
-		create_info.pAttachments = views.data();
-		create_info.width = rt_resource_info.image_create_info.extent.width;
-		create_info.height = rt_resource_info.image_create_info.extent.height;
-		create_info.layers = rt_resource_info.image_create_info.arrayLayers;
-
-		if (vk.CreateFramebuffer(_orig, &create_info, nullptr, &fbo) != VK_SUCCESS)
-			return false;
-
-		lock.lock();
-
-		_framebuffer_list_internal.emplace(hash, fbo);
 	}
 
 	return true;

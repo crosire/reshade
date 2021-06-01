@@ -178,8 +178,7 @@ namespace reshade
 
 		struct pass_data
 		{
-			uint32_t num_render_targets = 0;
-			api::resource_view render_targets[8] = {};
+			api::framebuffer fbo = {};
 			api::pipeline pipeline = {};
 			std::vector<api::resource> modified_resources;
 			std::vector<api::resource_view> generate_mipmap_views;

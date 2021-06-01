@@ -87,21 +87,25 @@ namespace reshade::opengl
 		std::vector<api::sampler_with_resource_view> sampler_with_resource_views;
 	};
 
-	inline api::resource make_resource_handle(GLenum target, GLuint object)
+	inline auto make_resource_handle(GLenum target, GLuint object) -> api::resource
 	{
 		if (!object)
 			return { 0 };
 		return { (static_cast<uint64_t>(target) << 40) | object };
 	}
-	inline api::resource_view make_resource_view_handle(GLenum target, GLuint object, uint8_t extra_bits = 0)
+	inline auto make_resource_view_handle(GLenum target, GLuint object, uint8_t extra_bits = 0) -> api::resource_view
 	{
 		return { (static_cast<uint64_t>(target) << 40) | (static_cast<uint64_t>(extra_bits) << 32) | object };
+	}
+	inline auto make_framebuffer_handle(GLuint object, uint32_t num_color_attachments, uint8_t extra_bits = 0) -> api::framebuffer
+	{
+		return { (static_cast<uint64_t>(num_color_attachments) << 40) | (static_cast<uint64_t>(extra_bits) << 32) | object };
 	}
 
 	auto convert_format(api::format format) -> GLenum;
 	auto convert_format(GLenum internal_format) -> api::format;
 	auto convert_attrib_format(api::format format, GLint &size, GLboolean &normalized) -> GLenum;
-	auto convert_upload_format(GLenum internal_format, GLenum &type)->GLenum;
+	auto convert_upload_format(GLenum internal_format, GLenum &type) -> GLenum;
 
 	bool is_depth_stencil_format(GLenum internal_format, GLenum usage = GL_DEPTH_STENCIL);
 
@@ -136,4 +140,7 @@ namespace reshade::opengl
 	GLenum convert_primitive_topology(api::primitive_topology value);
 	GLenum convert_query_type(api::query_type type);
 	GLenum convert_shader_type(api::shader_stage type);
+
+	auto   convert_buffer_bits_to_aspect(GLbitfield mask) -> api::format_aspect;
+	auto   convert_aspect_to_buffer_bits(api::format_aspect mask) -> GLbitfield;
 }

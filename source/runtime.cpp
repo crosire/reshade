@@ -207,6 +207,30 @@ bool reshade::runtime::on_init(input::window_handle window)
 		}
 	}
 
+	// Create framebuffer objects for the back buffer
+	for (uint32_t i = 0; i < get_back_buffer_count(); ++i)
+	{
+		api::resource backbuffer = { 0 };
+		get_back_buffer(i, &backbuffer);
+
+		if (!_device->create_resource_view(backbuffer, api::resource_usage::render_target, api::resource_view_desc(api::format_to_default_typed(_backbuffer_format, 0)), &_backbuffer_rtvs.emplace_back()) ||
+			!_device->create_resource_view(backbuffer, api::resource_usage::render_target, api::resource_view_desc(api::format_to_default_typed(_backbuffer_format, 1)), &_backbuffer_rtvs.emplace_back()))
+		{
+			LOG(ERROR) << "Failed to create back buffer render target!";
+			goto exit_failure;
+		}
+
+		const api::resource_view backbuffer_target = _backbuffer_rtvs[_backbuffer_rtvs.size() - 2];
+		const api::resource_view backbuffer_target_srgb = _backbuffer_rtvs[_backbuffer_rtvs.size() - 1];
+
+		if (!_device->create_framebuffer(1, &backbuffer_target, _effect_stencil_view, &_backbuffer_fbos.emplace_back()) ||
+			!_device->create_framebuffer(1, &backbuffer_target_srgb, _effect_stencil_view, &_backbuffer_fbos.emplace_back()))
+		{
+			LOG(ERROR) << "Failed to create back buffer framebuffer object!";
+			goto exit_failure;
+		}
+	}
+
 #if RESHADE_GUI
 	if (window != nullptr)
 	{
@@ -278,6 +302,13 @@ bool reshade::runtime::on_init(input::window_handle window)
 	return true;
 
 exit_failure:
+	for (api::framebuffer fbo : _backbuffer_fbos)
+		_device->destroy_framebuffer(fbo);
+	_backbuffer_fbos.clear();
+	for (api::resource_view rtv : _backbuffer_rtvs)
+		_device->destroy_resource_view(rtv);
+	_backbuffer_rtvs.clear();
+
 	_device->destroy_resource(_backbuffer_texture);
 	_backbuffer_texture = {};
 	_device->destroy_resource_view(_backbuffer_texture_view[0]);
@@ -315,6 +346,13 @@ void reshade::runtime::on_reset()
 	unload_effects(); // Already performs a wait for idle, so no need to do it again before destroying resources below
 
 	_width = _height = 0;
+
+	for (api::framebuffer fbo : _backbuffer_fbos)
+		_device->destroy_framebuffer(fbo);
+	_backbuffer_fbos.clear();
+	for (api::resource_view rtv : _backbuffer_rtvs)
+		_device->destroy_resource_view(rtv);
+	_backbuffer_rtvs.clear();
 
 	_device->destroy_resource(_backbuffer_texture);
 	_backbuffer_texture = {};
@@ -1533,42 +1571,57 @@ bool reshade::runtime::init_effect(size_t effect_index)
 
 				desc.graphics.num_viewports = 1;
 
-				for (int k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k)
-				{
-					texture &texture = look_up_texture_by_name(pass_info.render_target_names[k]);
-
-					pass_data.modified_resources.push_back(texture.resource);
-
-					if (texture.levels > 1)
-						pass_data.generate_mipmap_views.push_back(texture.srv[pass_info.srgb_write_enable]);
-
-					pass_data.render_targets[k] = texture.rtv[pass_info.srgb_write_enable];
-
-					const api::resource_desc res_desc = _device->get_resource_desc(texture.resource);
-
-					desc.graphics.num_render_targets = pass_data.num_render_targets = k + 1;
-					desc.graphics.render_target_format[k] = api::format_to_default_typed(res_desc.texture.format, pass_info.srgb_write_enable);
-				}
-
 				if (pass_info.render_target_names[0].empty())
 				{
 					desc.graphics.num_render_targets = 1;
+					desc.graphics.depth_stencil_format = _effect_stencil_format;
 					desc.graphics.render_target_format[0] = api::format_to_default_typed(_backbuffer_format, pass_info.srgb_write_enable);
 
 					pass_info.viewport_width = _width;
 					pass_info.viewport_height = _height;
 				}
-
-				// Only need to attach stencil if stencil is actually used in this pass
-				if (pass_info.stencil_enable &&
-					pass_info.viewport_width == _width &&
-					pass_info.viewport_height == _height)
-				{
-					desc.graphics.depth_stencil_format = _effect_stencil_format;
-				}
 				else
 				{
-					desc.graphics.depth_stencil_format = api::format::unknown;
+					api::resource_view rtvs[8] = {};
+
+					for (int k = 0; k < 8 && !pass_info.render_target_names[k].empty(); ++k)
+					{
+						texture &texture = look_up_texture_by_name(pass_info.render_target_names[k]);
+
+						pass_data.modified_resources.push_back(texture.resource);
+
+						if (texture.levels > 1)
+							pass_data.generate_mipmap_views.push_back(texture.srv[pass_info.srgb_write_enable]);
+
+						rtvs[k] = texture.rtv[pass_info.srgb_write_enable];
+
+						const api::resource_desc res_desc = _device->get_resource_desc(texture.resource);
+
+						desc.graphics.num_render_targets = k + 1;
+						desc.graphics.render_target_format[k] = api::format_to_default_typed(res_desc.texture.format, pass_info.srgb_write_enable);
+					}
+
+					// Only need to attach stencil if stencil is actually used in this pass
+					if (pass_info.stencil_enable &&
+						pass_info.viewport_width == _width &&
+						pass_info.viewport_height == _height)
+					{
+						desc.graphics.depth_stencil_format = _effect_stencil_format;
+					}
+					else
+					{
+						desc.graphics.depth_stencil_format = api::format::unknown;
+					}
+
+					if (!_device->create_framebuffer(
+						desc.graphics.num_render_targets,
+						rtvs,
+						desc.graphics.depth_stencil_format != api::format::unknown ? _effect_stencil_view : api::resource_view { 0 },
+						&pass_data.fbo))
+					{
+						LOG(ERROR) << "Failed to create framebuffer for pass " << pass_index << " in technique '" << tech.name << "'!";
+						return false;
+					}
 				}
 
 				desc.graphics.sample_mask = std::numeric_limits<uint32_t>::max();
@@ -1954,6 +2007,8 @@ void reshade::runtime::unload_effect(size_t effect_index)
 
 		for (size_t i = 0; i < tech.passes_data.size(); ++i)
 		{
+			_device->destroy_framebuffer(tech.passes_data[i].fbo);
+
 			const bool is_compute_pass = !tech.passes[i].cs_entry_point.empty();
 			_device->destroy_pipeline(is_compute_pass ? api::pipeline_type::compute : api::pipeline_type::graphics, tech.passes_data[i].pipeline);
 
@@ -2024,6 +2079,8 @@ void reshade::runtime::unload_effects()
 	{
 		for (size_t i = 0; i < tech.passes_data.size(); ++i)
 		{
+			_device->destroy_framebuffer(tech.passes_data[i].fbo);
+
 			const bool is_compute_pass = !tech.passes[i].cs_entry_point.empty();
 			_device->destroy_pipeline(is_compute_pass ? api::pipeline_type::compute : api::pipeline_type::graphics, tech.passes_data[i].pipeline);
 
@@ -2746,39 +2803,33 @@ void reshade::runtime::render_technique(technique &tech)
 			cmd_list->barrier(static_cast<uint32_t>(pass_data.modified_resources.size()), pass_data.modified_resources.data(), state_old.data(), state_new.data());
 
 			// Setup render targets
-			if (pass_info.stencil_enable && !is_effect_stencil_cleared)
-			{
-				is_effect_stencil_cleared = true;
-
-				cmd_list->clear_depth_stencil_view(_effect_stencil_view, 0x2, 1.0f, 0);
-			}
-
-			const float clear_color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-
-			if (pass_data.num_render_targets == 0)
+			if (pass_info.render_target_names[0].empty())
 			{
 				needs_implicit_backbuffer_copy = true;
 
-				api::resource_view rtv;
-				get_current_back_buffer_target(pass_info.srgb_write_enable, &rtv);
-
-				if (pass_info.clear_render_targets)
-					cmd_list->clear_render_target_view(rtv, clear_color);
-
-				cmd_list->begin_render_pass(
-					1, &rtv,
-					pass_info.stencil_enable ? _effect_stencil_view : api::resource_view { 0 });
+				uint32_t index = get_current_back_buffer_index();
+				index = (index * 2) + pass_info.srgb_write_enable;
+				cmd_list->begin_render_pass(_backbuffer_fbos[index]);
 			}
 			else
 			{
 				needs_implicit_backbuffer_copy = false;
 
-				if (pass_info.clear_render_targets)
-					cmd_list->clear_render_target_views(pass_data.num_render_targets, pass_data.render_targets, clear_color);
+				cmd_list->begin_render_pass(pass_data.fbo);
+			}
 
-				cmd_list->begin_render_pass(
-					pass_data.num_render_targets, pass_data.render_targets,
-					pass_info.stencil_enable && pass_info.viewport_width == _width && pass_info.viewport_height == _height ? _effect_stencil_view : api::resource_view { 0 });
+			if (pass_info.clear_render_targets)
+			{
+				constexpr float clear_color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+				cmd_list->clear_attachments(api::format_aspect::color, clear_color, 0, 0);
+			}
+
+			// First pass to use the stencil buffer should clear it
+			if (pass_info.stencil_enable && !is_effect_stencil_cleared)
+			{
+				is_effect_stencil_cleared = true;
+
+				cmd_list->clear_attachments(api::format_aspect::stencil, nullptr, 1.0f, 0x0);
 			}
 
 			// Reset bindings on every pass (since they get invalidated by the call to 'generate_mipmaps' below)

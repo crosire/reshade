@@ -41,6 +41,13 @@ namespace reshade::d3d10
 		std::vector<com_ptr<ID3D10Query>> queries;
 	};
 
+	struct framebuffer_impl
+	{
+		UINT count;
+		ID3D10RenderTargetView *rtv[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
+		ID3D10DepthStencilView *dsv;
+	};
+
 	struct descriptor_set_impl
 	{
 		api::descriptor_type type;

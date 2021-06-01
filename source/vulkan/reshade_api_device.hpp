@@ -19,20 +19,22 @@ namespace reshade::vulkan
 {
 	struct render_pass_data
 	{
-		struct subpass
+		struct attachment
 		{
-			std::vector<VkAttachmentReference> color_attachments;
-			VkAttachmentReference depth_stencil_attachment;
-		};
-		struct cleared_attachment
-		{
-			uint32_t index;
-			uint32_t clear_flags;
 			VkImageLayout initial_layout;
+			VkImageAspectFlags clear_flags;
+			VkImageAspectFlags format_flags;
 		};
 
-		std::vector<subpass> subpasses;
-		std::vector<cleared_attachment> attachments;
+		std::vector<attachment> attachments;
+	};
+
+	struct framebuffer_data
+	{
+		VkRect2D render_area;
+		VkRenderPass render_pass;
+		std::vector<api::resource_view> attachments;
+		std::vector<VkImageAspectFlags> attachment_types;
 	};
 
 	struct resource_data
@@ -99,6 +101,7 @@ namespace reshade::vulkan
 		bool create_pipeline_layout(uint32_t num_table_layouts, const api::descriptor_set_layout *table_layouts, uint32_t num_constant_ranges, const api::constant_range *constant_ranges, api::pipeline_layout *out) final;
 		bool create_descriptor_set_layout(uint32_t num_ranges, const api::descriptor_range *ranges, bool push_descriptors, api::descriptor_set_layout *out) final;
 		bool create_query_pool(api::query_type type, uint32_t count, api::query_pool *out) final;
+		bool create_framebuffer(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv, api::framebuffer *out) final;
 		bool create_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, api::descriptor_set *out) final;
 
 		void destroy_sampler(api::sampler handle) final;
@@ -109,10 +112,13 @@ namespace reshade::vulkan
 		void destroy_pipeline_layout(api::pipeline_layout handle) final;
 		void destroy_descriptor_set_layout(api::descriptor_set_layout handle) final;
 		void destroy_query_pool(api::query_pool handle) final;
+		void destroy_framebuffer(api::framebuffer handle) final;
 		void destroy_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, const api::descriptor_set *sets) final;
 
-		void get_resource_from_view(api::resource_view view, api::resource *out_resource) const final;
+		void get_resource_from_view(api::resource_view view, api::resource *out) const final;
 		api::resource_desc get_resource_desc(api::resource resource) const final;
+
+		bool get_framebuffer_attachment(api::framebuffer fbo, api::format_aspect type, uint32_t index, api::resource_view *out) const final;
 
 		bool map_resource(api::resource resource, uint32_t subresource, api::map_access access, void **data, uint32_t *row_pitch, uint32_t *slice_pitch) final;
 		void unmap_resource(api::resource resource, uint32_t subresource) final;
@@ -233,10 +239,9 @@ namespace reshade::vulkan
 
 #if RESHADE_ADDON
 		std::unordered_map<VkRenderPass, render_pass_data> _render_pass_list;
-		std::unordered_map<VkFramebuffer, std::vector<api::resource_view>> _framebuffer_list;
+		std::unordered_map<VkFramebuffer, framebuffer_data> _framebuffer_list;
 #endif
 		std::unordered_map<size_t, VkRenderPass> _render_pass_list_internal;
-		std::unordered_map<size_t, VkFramebuffer> _framebuffer_list_internal;
 		std::unordered_map<VkPipelineLayout, std::vector<VkDescriptorSetLayout>> _pipeline_layout_list;
 
 #ifndef NDEBUG
@@ -245,7 +250,7 @@ namespace reshade::vulkan
 
 	private:
 		bool create_shader_module(VkShaderStageFlagBits stage, const api::shader_desc &desc, VkPipelineShaderStageCreateInfo &stage_info, VkSpecializationInfo &spec_info, std::vector<VkSpecializationMapEntry> &spec_map);
-		bool request_render_pass_and_framebuffer(uint32_t count, const reshade::api::resource_view *rtvs, reshade::api::resource_view dsv, VkRenderPass &out_pass, VkFramebuffer &out_fbo);
+		bool request_render_pass(uint32_t count, const reshade::api::resource_view *rtvs, reshade::api::resource_view dsv, VkRenderPass &out_pass);
 
 		VkDescriptorPool _descriptor_pool = VK_NULL_HANDLE;
 		VkDescriptorPool _transient_descriptor_pool[4] = {};
