@@ -393,6 +393,21 @@ static void on_begin_render_pass(command_list *cmd_list, framebuffer fbo)
 
 	on_bind_depth_stencil(cmd_list, dsv);
 }
+static bool on_clear_attachments(command_list *cmd_list, attachment_type flags, const float[4], float, uint8_t, uint32_t, const int32_t *)
+{
+	device *const device = cmd_list->get_device();
+	const state_tracking_context &device_state = device->get_user_data<state_tracking_context>(state_tracking_context::GUID);
+
+	// Ignore clears that do not affect the depth buffer (stencil clears)
+	if ((flags & attachment_type::depth) == attachment_type::depth && device_state.preserve_depth_buffers)
+	{
+		auto &state = cmd_list->get_user_data<state_tracking>(state_tracking::GUID);
+
+		clear_depth_impl(cmd_list, state, device_state, state.current_depth_stencil, false);
+	}
+
+	return false;
+}
 static bool on_clear_depth_stencil(command_list *cmd_list, resource_view dsv, attachment_type flags, float, uint8_t, uint32_t, const int32_t *)
 {
 	device *const device = cmd_list->get_device();
@@ -401,10 +416,12 @@ static bool on_clear_depth_stencil(command_list *cmd_list, resource_view dsv, at
 	// Ignore clears that do not affect the depth buffer (stencil clears)
 	if ((flags & attachment_type::depth) == attachment_type::depth && device_state.preserve_depth_buffers)
 	{
+		auto &state = cmd_list->get_user_data<state_tracking>(state_tracking::GUID);
+
 		resource depth_stencil = { 0 };
 		device->get_resource_from_view(dsv, &depth_stencil);
 
-		clear_depth_impl(cmd_list, cmd_list->get_user_data<state_tracking>(state_tracking::GUID), device_state, depth_stencil, false);
+		clear_depth_impl(cmd_list, state, device_state, depth_stencil, false);
 	}
 
 	return false;
@@ -782,6 +799,7 @@ void register_builtin_addon_depth(reshade::addon::info &info)
 	reshade::register_event<reshade::addon_event::draw_or_dispatch_indirect>(on_draw_indirect);
 	reshade::register_event<reshade::addon_event::bind_viewports>(on_bind_viewport);
 	reshade::register_event<reshade::addon_event::begin_render_pass>(on_begin_render_pass);
+	reshade::register_event<reshade::addon_event::clear_attachments>(on_clear_attachments);
 	reshade::register_event<reshade::addon_event::clear_depth_stencil_view>(on_clear_depth_stencil);
 
 	reshade::register_event<reshade::addon_event::reset_command_list>(on_reset);
@@ -815,6 +833,7 @@ void unregister_builtin_addon_depth()
 	reshade::unregister_event<reshade::addon_event::draw_or_dispatch_indirect>(on_draw_indirect);
 	reshade::unregister_event<reshade::addon_event::bind_viewports>(on_bind_viewport);
 	reshade::unregister_event<reshade::addon_event::begin_render_pass>(on_begin_render_pass);
+	reshade::unregister_event<reshade::addon_event::clear_attachments>(on_clear_attachments);
 	reshade::unregister_event<reshade::addon_event::clear_depth_stencil_view>(on_clear_depth_stencil);
 
 	reshade::unregister_event<reshade::addon_event::reset_command_list>(on_reset);
