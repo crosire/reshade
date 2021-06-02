@@ -12,6 +12,21 @@
 
 namespace reshade::opengl
 {
+	inline auto make_resource_handle(GLenum target, GLuint object) -> api::resource
+	{
+		if (!object)
+			return { 0 };
+		return { (static_cast<uint64_t>(target) << 40) | object };
+	}
+	inline auto make_resource_view_handle(GLenum target, GLuint object, uint8_t extra_bits = 0) -> api::resource_view
+	{
+		return { (static_cast<uint64_t>(target) << 40) | (static_cast<uint64_t>(extra_bits) << 32) | object };
+	}
+	inline auto make_framebuffer_handle(GLuint object, uint32_t num_color_attachments, uint8_t extra_bits = 0) -> api::framebuffer
+	{
+		return { (static_cast<uint64_t>(num_color_attachments) << 40) | (static_cast<uint64_t>(extra_bits) << 32) | object };
+	}
+
 	class device_impl : public api::api_object_impl<HGLRC, api::device, api::command_queue, api::command_list>
 	{
 	public:

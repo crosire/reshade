@@ -228,6 +228,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::Present(const RECT *pSourceRect, const RECT *pDestRect, HWND hDestWindowOverride, const RGNDATA *pDirtyRegion)
 {
 #if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(this);
 	reshade::invoke_addon_event<reshade::addon_event::present>(this, _implicit_swapchain);
 #endif
 
@@ -235,7 +236,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Present(const RECT *pSourceRect, cons
 	if (Direct3DSwapChain9::is_presenting_entire_surface(pSourceRect, hDestWindowOverride))
 		_implicit_swapchain->on_present();
 
-	return _orig->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
+	const HRESULT hr = _orig->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
+
+#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::framebuffer { reinterpret_cast<uintptr_t>(_current_fbo) });
+#endif
+
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetBackBuffer(UINT iSwapChain, UINT iBackBuffer, D3DBACKBUFFER_TYPE Type, IDirect3DSurface9 **ppBackBuffer)
 {
@@ -1459,6 +1466,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ComposeRects(IDirect3DSurface9 *pSrc,
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::PresentEx(const RECT *pSourceRect, const RECT *pDestRect, HWND hDestWindowOverride, const RGNDATA *pDirtyRegion, DWORD dwFlags)
 {
 #if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(this);
 	reshade::invoke_addon_event<reshade::addon_event::present>(this, _implicit_swapchain);
 #endif
 
@@ -1466,7 +1474,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::PresentEx(const RECT *pSourceRect, co
 		_implicit_swapchain->on_present();
 
 	assert(_extended_interface);
-	return static_cast<IDirect3DDevice9Ex *>(_orig)->PresentEx(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
+	const HRESULT hr = static_cast<IDirect3DDevice9Ex *>(_orig)->PresentEx(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
+
+#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::framebuffer { reinterpret_cast<uintptr_t>(_current_fbo) });
+#endif
+
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetGPUThreadPriority(INT *pPriority)
 {

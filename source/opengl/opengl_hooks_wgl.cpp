@@ -970,6 +970,10 @@ HOOK_EXPORT BOOL  WINAPI wglSwapBuffers(HDC hdc)
 		RECT rect = { 0, 0, 0, 0 };
 		GetClientRect(hwnd, &rect);
 
+#if RESHADE_ADDON
+		reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(runtime);
+#endif
+
 		uint32_t runtime_width = 0, runtime_height = 0;
 		runtime->get_frame_width_and_height(&runtime_width, &runtime_height);
 
@@ -996,6 +1000,12 @@ HOOK_EXPORT BOOL  WINAPI wglSwapBuffers(HDC hdc)
 
 		// Assume that the correct OpenGL context is still current here
 		runtime->on_present();
+
+#if RESHADE_ADDON
+		GLint fbo = 0;
+		glGetIntegerv(GL_FRAMEBUFFER_BINDING, &fbo);
+		reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(runtime, reshade::opengl::make_framebuffer_handle(fbo, fbo != 0 ? 8 : 1));
+#endif
 	}
 
 	return trampoline(hdc);
