@@ -3,6 +3,7 @@
  * License: https://github.com/crosire/reshade#license
  */
 
+#include "dll_log.hpp"
 #include "dll_config.hpp"
 #include "reshade_api_device.hpp"
 #include "reshade_api_type_convert.hpp"
@@ -703,7 +704,15 @@ static bool create_shader_module(GLenum type, const reshade::api::shader_desc &d
 	}
 	else
 	{
+		GLint log_size = 0;
+		glGetShaderiv(shader_object, GL_INFO_LOG_LENGTH, &log_size);
+		std::vector<char> log(log_size);
+		glGetShaderInfoLog(shader_object, log_size, nullptr, log.data());
+
+		LOG(ERROR) << "Failed to compile GLSL shader: " << log.data();
+
 		glDeleteShader(shader_object);
+
 		shader_object = 0;
 		return false;
 	}
@@ -742,6 +751,13 @@ bool reshade::opengl::device_impl::create_compute_pipeline(const api::pipeline_d
 	if (GL_FALSE == status ||
 		(desc.compute.shader.code_size != 0 && cs == 0))
 	{
+		GLint log_size = 0;
+		glGetProgramiv(program, GL_INFO_LOG_LENGTH, &log_size);
+		std::vector<char> log(log_size);
+		glGetProgramInfoLog(program, log_size, nullptr, log.data());
+
+		LOG(ERROR) << "Failed to link GLSL program:\n" << log.data();
+
 		glDeleteProgram(program);
 
 		*out = { 0 };
@@ -799,6 +815,13 @@ bool reshade::opengl::device_impl::create_graphics_pipeline(const api::pipeline_
 		(desc.graphics.geometry_shader.code_size != 0 && gs == 0) ||
 		(desc.graphics.pixel_shader.code_size != 0 && ps == 0))
 	{
+		GLint log_size = 0;
+		glGetProgramiv(program, GL_INFO_LOG_LENGTH, &log_size);
+		std::vector<char> log(log_size);
+		glGetProgramInfoLog(program, log_size, nullptr, log.data());
+
+		LOG(ERROR) << "Failed to link GLSL program: " << log.data();
+
 		glDeleteProgram(program);
 
 		*out = { 0 };

@@ -1718,11 +1718,11 @@ void reshade::runtime::draw_gui_statistics()
 
 	if (ImGui::CollapsingHeader("Render Targets & Textures", ImGuiTreeNodeFlags_DefaultOpen) && !is_loading())
 	{
-		const char *texture_formats[] = {
+		static const char *texture_formats[] = {
 			"unknown",
 			"R8", "R16F", "R32F", "RG8", "RG16", "RG16F", "RG32F", "RGBA8", "RGBA16", "RGBA16F", "RGBA32F", "RGB10A2"
 		};
-		constexpr uint32_t pixel_sizes[] = {
+		static constexpr uint32_t pixel_sizes[] = {
 			0,
 			1 /*R8*/, 2 /*R16F*/, 4 /*R32F*/, 2 /*RG8*/, 4 /*RG16*/, 4 /*RG16F*/, 8 /*RG32F*/, 4 /*RGBA8*/, 8 /*RGBA16*/, 8 /*RGBA16F*/, 16 /*RGBA32F*/, 4 /*RGB10A2*/
 		};
@@ -3254,7 +3254,8 @@ bool reshade::runtime::init_imgui_resources()
 	}
 	else if ((_renderer_id & 0x10000) != 0)
 	{
-		constexpr char vertex_shader[] =
+		// These need to be static so that the shader source memory doesn't fall out of scope before pipeline creation below
+		static constexpr char vertex_shader[] =
 			"#version 430\n"
 			"layout(binding = 0) uniform Buf { mat4 proj; };\n"
 			"layout(location = 0) in vec2 pos;\n"
@@ -3268,7 +3269,7 @@ bool reshade::runtime::init_imgui_resources()
 			"	frag_tex = tex;\n"
 			"	gl_Position = proj * vec4(pos.xy, 0, 1);\n"
 			"}\n";
-		constexpr char fragment_shader[] =
+		static constexpr char fragment_shader[] =
 			"#version 430\n"
 			"layout(binding = 0) uniform sampler2D s0;\n"
 			"in vec4 frag_col;\n"
