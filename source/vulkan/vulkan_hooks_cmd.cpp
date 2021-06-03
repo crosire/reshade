@@ -647,8 +647,10 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 
 		std::unique_lock<std::mutex> lock(device_impl->_mutex);
 
-		const auto &renderpass_data = device_impl->_render_pass_list.at(pRenderPassBegin->renderPass);
-		const auto &framebuffer_data = device_impl->_framebuffer_list.at(pRenderPassBegin->framebuffer);
+		const auto renderpass_data = device_impl->_render_pass_list.at(pRenderPassBegin->renderPass);
+		const auto framebuffer_data = device_impl->_framebuffer_list.at(pRenderPassBegin->framebuffer);
+
+		lock.unlock();
 
 		assert(pRenderPassBegin->clearValueCount <= renderpass_data.attachments.size());
 
