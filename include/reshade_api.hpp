@@ -191,17 +191,11 @@ namespace reshade { namespace api
 		/// </summary>
 		virtual uint64_t get_native_object() const = 0;
 
-		// Helper templates to manage custom data creation and destruction:
-		template <typename T> inline T &get_user_data(const uint8_t guid[16]) const
+		template <typename T> inline T &get_user_data(const uint8_t guid[16])
 		{
 			T *res = nullptr;
-			get_user_data(guid, reinterpret_cast<void **>(&res));
-			return *res;
-		}
-		template <typename T> inline T &create_user_data(const uint8_t guid[16])
-		{
-			T *res = new T();
-			set_user_data(guid, res);
+			if (!get_user_data(guid, reinterpret_cast<void **>(&res)))
+				 set_user_data(guid, res = new T());
 			return *res;
 		}
 		template <typename T> inline void destroy_user_data(const uint8_t guid[16])
@@ -299,7 +293,7 @@ namespace reshade { namespace api
 		/// <returns><c>true</c> if the query pool was successfully created, <c>false</c> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
 		virtual bool create_query_pool(query_type type, uint32_t size, query_pool *out) = 0;
 		/// <summary>
-		/// Creates a render pass based on the specified <paramref name="desc"/>ription.
+		/// Creates a new render pass based on the specified <paramref name="desc"/>ription.
 		/// </summary>
 		/// <param name="desc">The description of the render pass to create.</param>
 		/// <param name="out">Pointer to a variable that is set to the handle of the created render pass.</param>
@@ -356,7 +350,7 @@ namespace reshade { namespace api
 		virtual void destroy_descriptor_sets(descriptor_set_layout layout, uint32_t count, const descriptor_set *sets) = 0;
 
 		/// <summary>
-		/// Gets the handle to the attachment view of the specfied <paramref name="type"/> in the specified render <paramref name="pass"/>.
+		/// Gets the handle to the resource view of the specfied <paramref name="type"/> in the render pass.
 		/// </summary>
 		virtual bool get_attachment(render_pass pass, attachment_type type, uint32_t index, resource_view *attachment) const = 0;
 		/// <summary>
@@ -366,7 +360,6 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Gets the description of the specified <paramref name="resource"/>.
 		/// </summary>
-		/// <param name="resource">The resource to get the description from.</param>
 		virtual resource_desc get_resource_desc(resource resource) const = 0;
 
 		/// <summary>

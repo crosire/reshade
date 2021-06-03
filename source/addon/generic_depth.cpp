@@ -223,7 +223,7 @@ static void clear_depth_impl(command_list *cmd_list, state_tracking &state, cons
 
 static void on_init_device(device *device)
 {
-	state_tracking_context &device_state = device->create_user_data<state_tracking_context>(state_tracking_context::GUID);
+	state_tracking_context &device_state = device->get_user_data<state_tracking_context>(state_tracking_context::GUID);
 
 	const reshade::ini_file &config = reshade::global_config();
 	config.get("DEPTH", "DisableINTZ", s_disable_intz);
@@ -244,10 +244,6 @@ static void on_destroy_device(device *device)
 		device->destroy_resource_view(device_state.selected_shader_resource);
 
 	device->destroy_user_data<state_tracking_context>(state_tracking_context::GUID);
-}
-static void on_init_queue_or_command_list(api_object *queue_or_cmd_list)
-{
-	queue_or_cmd_list->create_user_data<state_tracking>(state_tracking::GUID);
 }
 static void on_destroy_queue_or_command_list(api_object *queue_or_cmd_list)
 {
@@ -780,9 +776,7 @@ void register_builtin_addon_depth(reshade::addon::info &info)
 
 	reshade::register_event<reshade::addon_event::init_device>(on_init_device);
 	reshade::register_event<reshade::addon_event::destroy_device>(on_destroy_device);
-	reshade::register_event<reshade::addon_event::init_command_list>(reinterpret_cast<void(*)(command_list *)>(on_init_queue_or_command_list));
 	reshade::register_event<reshade::addon_event::destroy_command_list>(reinterpret_cast<void(*)(command_list *)>(on_destroy_queue_or_command_list));
-	reshade::register_event<reshade::addon_event::init_command_queue>(reinterpret_cast<void(*)(command_queue *)>(on_init_queue_or_command_list));
 	reshade::register_event<reshade::addon_event::destroy_command_queue>(reinterpret_cast<void(*)(command_queue *)>(on_destroy_queue_or_command_list));
 	reshade::register_event<reshade::addon_event::init_effect_runtime>(on_init_effect_runtime);
 
@@ -814,9 +808,7 @@ void unregister_builtin_addon_depth()
 
 	reshade::unregister_event<reshade::addon_event::init_device>(on_init_device);
 	reshade::unregister_event<reshade::addon_event::destroy_device>(on_destroy_device);
-	reshade::unregister_event<reshade::addon_event::init_command_list>(reinterpret_cast<void(*)(command_list *)>(on_init_queue_or_command_list));
 	reshade::unregister_event<reshade::addon_event::destroy_command_list>(reinterpret_cast<void(*)(command_list *)>(on_destroy_queue_or_command_list));
-	reshade::unregister_event<reshade::addon_event::init_command_queue>(reinterpret_cast<void(*)(command_queue *)>(on_init_queue_or_command_list));
 	reshade::unregister_event<reshade::addon_event::destroy_command_queue>(reinterpret_cast<void(*)(command_queue *)>(on_destroy_queue_or_command_list));
 	reshade::unregister_event<reshade::addon_event::init_effect_runtime>(on_init_effect_runtime);
 
