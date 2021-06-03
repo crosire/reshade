@@ -859,43 +859,55 @@ bool reshade::opengl::device_impl::create_graphics_pipeline(const api::pipeline_
 		glBindVertexArray(prev_vao);
 	}
 
-	state->prim_mode = convert_primitive_topology(desc.graphics.topology);
-	state->patch_vertices = state->prim_mode == GL_PATCHES ? static_cast<uint32_t>(desc.graphics.topology) - static_cast<uint32_t>(api::primitive_topology::patch_list_01_cp) : 0; 
-	state->front_face = desc.graphics.rasterizer_state.front_counter_clockwise ? GL_CCW : GL_CW;
-	state->cull_mode = convert_cull_mode(desc.graphics.rasterizer_state.cull_mode);
-	state->polygon_mode = convert_fill_mode(desc.graphics.rasterizer_state.fill_mode);
-
-	state->blend_eq = convert_blend_op(desc.graphics.blend_state.color_blend_op[0]);
-	state->blend_eq_alpha = convert_blend_op(desc.graphics.blend_state.alpha_blend_op[0]);
+	state->sample_alpha_to_coverage = desc.graphics.blend_state.alpha_to_coverage_enable;
+	state->blend_enable = desc.graphics.blend_state.blend_enable[0];
+	state->logic_op_enable = desc.graphics.blend_state.logic_op_enable[0];
 	state->blend_src = convert_blend_factor(desc.graphics.blend_state.src_color_blend_factor[0]);
 	state->blend_dst = convert_blend_factor(desc.graphics.blend_state.dst_color_blend_factor[0]);
 	state->blend_src_alpha = convert_blend_factor(desc.graphics.blend_state.src_alpha_blend_factor[0]);
 	state->blend_dst_alpha = convert_blend_factor(desc.graphics.blend_state.dst_alpha_blend_factor[0]);
+	state->blend_eq = convert_blend_op(desc.graphics.blend_state.color_blend_op[0]);
+	state->blend_eq_alpha = convert_blend_op(desc.graphics.blend_state.alpha_blend_op[0]);
 	state->logic_op = convert_logic_op(desc.graphics.blend_state.logic_op[0]);
+	state->blend_constant[0] = ((desc.graphics.blend_state.blend_constant      ) & 0xFF) / 255.0f;
+	state->blend_constant[1] = ((desc.graphics.blend_state.blend_constant >>  4) & 0xFF) / 255.0f;
+	state->blend_constant[2] = ((desc.graphics.blend_state.blend_constant >>  8) & 0xFF) / 255.0f;
+	state->blend_constant[3] = ((desc.graphics.blend_state.blend_constant >> 12) & 0xFF) / 255.0f;
+	state->color_write_mask[0] = (desc.graphics.blend_state.render_target_write_mask[0] & (1 << 0)) != 0;
+	state->color_write_mask[1] = (desc.graphics.blend_state.render_target_write_mask[0] & (1 << 1)) != 0;
+	state->color_write_mask[2] = (desc.graphics.blend_state.render_target_write_mask[0] & (1 << 2)) != 0;
+	state->color_write_mask[3] = (desc.graphics.blend_state.render_target_write_mask[0] & (1 << 3)) != 0;
 
-	state->back_stencil_op_fail = convert_stencil_op(desc.graphics.depth_stencil_state.back_stencil_fail_op);
-	state->back_stencil_op_depth_fail = convert_stencil_op(desc.graphics.depth_stencil_state.back_stencil_depth_fail_op);
-	state->back_stencil_op_pass = convert_stencil_op(desc.graphics.depth_stencil_state.back_stencil_pass_op);
-	state->back_stencil_func = convert_compare_op(desc.graphics.depth_stencil_state.back_stencil_func);
+	state->polygon_mode = convert_fill_mode(desc.graphics.rasterizer_state.fill_mode);
+	state->cull_mode = convert_cull_mode(desc.graphics.rasterizer_state.cull_mode);
+	state->front_face = desc.graphics.rasterizer_state.front_counter_clockwise ? GL_CCW : GL_CW;
+	state->polygon_offset = desc.graphics.rasterizer_state.depth_bias != 0 || desc.graphics.rasterizer_state.slope_scaled_depth_bias != 0;
+	state->polygon_offset_factor = desc.graphics.rasterizer_state.slope_scaled_depth_bias;
+	state->polygon_offset_units = desc.graphics.rasterizer_state.depth_bias;
+	state->depth_clamp = !desc.graphics.rasterizer_state.depth_clip_enable;
+	state->scissor_test = desc.graphics.rasterizer_state.scissor_enable;
+	state->multisample = desc.graphics.rasterizer_state.multisample_enable;
+	state->line_smooth = desc.graphics.rasterizer_state.antialiased_line_enable;
+
+	state->depth_test = desc.graphics.depth_stencil_state.depth_enable;
+	state->depth_mask = desc.graphics.depth_stencil_state.depth_write_mask;
+	state->depth_func = convert_compare_op(desc.graphics.depth_stencil_state.depth_func);
+	state->stencil_test = desc.graphics.depth_stencil_state.stencil_enable;
+	state->stencil_read_mask = desc.graphics.depth_stencil_state.stencil_read_mask;
+	state->stencil_write_mask = desc.graphics.depth_stencil_state.stencil_write_mask;
+	state->stencil_reference_value = static_cast<GLint>(desc.graphics.depth_stencil_state.stencil_reference_value);
 	state->front_stencil_op_fail = convert_stencil_op(desc.graphics.depth_stencil_state.front_stencil_fail_op);
 	state->front_stencil_op_depth_fail = convert_stencil_op(desc.graphics.depth_stencil_state.front_stencil_depth_fail_op);
 	state->front_stencil_op_pass = convert_stencil_op(desc.graphics.depth_stencil_state.front_stencil_pass_op);
 	state->front_stencil_func = convert_compare_op(desc.graphics.depth_stencil_state.front_stencil_func);
-	state->stencil_read_mask = desc.graphics.depth_stencil_state.stencil_read_mask;
-	state->stencil_write_mask = desc.graphics.depth_stencil_state.stencil_write_mask;
-	state->stencil_reference_value = static_cast<GLint>(desc.graphics.depth_stencil_state.stencil_reference_value);
+	state->back_stencil_op_fail = convert_stencil_op(desc.graphics.depth_stencil_state.back_stencil_fail_op);
+	state->back_stencil_op_depth_fail = convert_stencil_op(desc.graphics.depth_stencil_state.back_stencil_depth_fail_op);
+	state->back_stencil_op_pass = convert_stencil_op(desc.graphics.depth_stencil_state.back_stencil_pass_op);
+	state->back_stencil_func = convert_compare_op(desc.graphics.depth_stencil_state.back_stencil_func);
 
-	state->color_write_mask = desc.graphics.blend_state.render_target_write_mask[0];
-
-	state->blend_enable = desc.graphics.blend_state.blend_enable[0];
-	state->logic_op_enable = desc.graphics.blend_state.logic_op_enable[0];
-	state->depth_test = desc.graphics.depth_stencil_state.depth_enable;
-	state->depth_write_mask = desc.graphics.depth_stencil_state.depth_write_mask;
-	state->stencil_test = desc.graphics.depth_stencil_state.stencil_enable;
-	state->scissor_test = desc.graphics.rasterizer_state.scissor_enable;
-	state->multisample = desc.graphics.rasterizer_state.multisample_enable;
-	state->sample_alpha_to_coverage = desc.graphics.blend_state.alpha_to_coverage_enable;
 	state->sample_mask = desc.graphics.sample_mask;
+	state->prim_mode = convert_primitive_topology(desc.graphics.topology);
+	state->patch_vertices = state->prim_mode == GL_PATCHES ? static_cast<uint32_t>(desc.graphics.topology) - static_cast<uint32_t>(api::primitive_topology::patch_list_01_cp) : 0;
 
 	*out = { reinterpret_cast<uintptr_t>(state) };
 	return true;
@@ -986,14 +998,14 @@ bool reshade::opengl::device_impl::create_render_pass(const api::render_pass_des
 		return true;
 	}
 
-	GLint prev_fbo = 0;
-	glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prev_fbo);
+	GLuint prev_fbo = 0;
+	glGetIntegerv(GL_FRAMEBUFFER_BINDING, reinterpret_cast<GLint *>(&prev_fbo));
 
 	GLuint fbo_object = 0;
 	glGenFramebuffers(1, &fbo_object);
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo_object);
 
-	bool srgb = false;
+	bool has_srgb_attachment = false;
 	uint32_t num_color_attachments = 0;
 
 	for (GLuint i = 0; i < 8 && desc.render_targets[i].handle != 0; ++i, ++num_color_attachments)
@@ -1018,12 +1030,12 @@ bool reshade::opengl::device_impl::create_render_pass(const api::render_pass_des
 			assert(false);
 			glBindFramebuffer(GL_FRAMEBUFFER, prev_fbo);
 			glDeleteFramebuffers(1, &fbo_object);
-			*out = make_render_pass_handle(0, 0);
+			*out = { 0 };
 			return false;
 		}
 
 		if (desc.render_targets[i].handle & 0x200000000)
-			srgb = true;
+			has_srgb_attachment = true;
 	}
 
 	if (desc.depth_stencil.handle != 0)
@@ -1048,7 +1060,7 @@ bool reshade::opengl::device_impl::create_render_pass(const api::render_pass_des
 			assert(false);
 			glBindFramebuffer(GL_FRAMEBUFFER, prev_fbo);
 			glDeleteFramebuffers(1, &fbo_object);
-			*out = make_render_pass_handle(0, 0);
+			*out = { 0 };
 			return false;
 		}
 	}
@@ -1059,14 +1071,14 @@ bool reshade::opengl::device_impl::create_render_pass(const api::render_pass_des
 
 	if (status == GL_FRAMEBUFFER_COMPLETE)
 	{
-		*out = make_render_pass_handle(fbo_object, num_color_attachments, srgb ? 0x2 : 0);
+		*out = make_render_pass_handle(fbo_object, num_color_attachments, has_srgb_attachment ? 0x2 : 0);
 		return true;
 	}
 	else
 	{
 		glDeleteFramebuffers(1, &fbo_object);
 
-		*out = make_render_pass_handle(0, 0);
+		*out = { 0 };
 		return false;
 	}
 }

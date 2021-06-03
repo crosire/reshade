@@ -22,33 +22,17 @@ void reshade::opengl::pipeline_impl::apply_compute() const
 }
 void reshade::opengl::pipeline_impl::apply_graphics() const
 {
-	if (prim_mode == GL_PATCHES)
-	{
-		glPatchParameteri(GL_PATCH_VERTICES, patch_vertices);
-	}
-
 	glUseProgram(program);
 	glBindVertexArray(vao);
 
-	glFrontFace(front_face);
-
-	if (cull_mode != GL_NONE)
-	{
-		glEnable(GL_CULL_FACE);
-		glCullFace(cull_mode);
-	}
-	else
-	{
-		glDisable(GL_CULL_FACE);
-	}
-
-	glPolygonMode(GL_FRONT_AND_BACK, polygon_mode);
+	glEnableOrDisable(GL_SAMPLE_ALPHA_TO_COVERAGE, sample_alpha_to_coverage);
 
 	if (blend_enable)
 	{
 		glEnable(GL_BLEND);
 		glBlendFuncSeparate(blend_src, blend_dst, blend_src_alpha, blend_dst_alpha);
 		glBlendEquationSeparate(blend_eq, blend_eq_alpha);
+		glBlendColor(blend_constant[0], blend_constant[1], blend_constant[2], blend_constant[3]);
 	}
 	else
 	{
@@ -65,21 +49,49 @@ void reshade::opengl::pipeline_impl::apply_graphics() const
 		glDisable(GL_COLOR_LOGIC_OP);
 	}
 
-	glColorMask(
-		(color_write_mask & (1 << 0)) != 0,
-		(color_write_mask & (1 << 1)) != 0,
-		(color_write_mask & (1 << 2)) != 0,
-		(color_write_mask & (1 << 3)) != 0);
+	glColorMask(color_write_mask[0], color_write_mask[1], color_write_mask[2], color_write_mask[3]);
 
-	glEnableOrDisable(GL_DEPTH_TEST, depth_test);
-	glDepthMask(depth_write_mask);
+	glPolygonMode(GL_FRONT_AND_BACK, polygon_mode);
+
+	if (cull_mode != GL_NONE)
+	{
+		glEnable(GL_CULL_FACE);
+		glCullFace(cull_mode);
+	}
+	else
+	{
+		glDisable(GL_CULL_FACE);
+	}
+
+	glFrontFace(front_face);
+
+#if 0
+	glEnableOrDisable(GL_POLYGON_OFFSET_FILL, polygon_offset);
+	glPolygonOffset(polygon_offset_factor, polygon_offset_units);
+#endif
+
+	glEnableOrDisable(GL_DEPTH_CLAMP, depth_clamp);
+	glEnableOrDisable(GL_SCISSOR_TEST, scissor_test);
+	glEnableOrDisable(GL_MULTISAMPLE, multisample);
+	glEnableOrDisable(GL_LINE_SMOOTH, line_smooth);
+
+	if (depth_test)
+	{
+		glEnable(GL_DEPTH_TEST);
+		glDepthMask(depth_mask);
+		glDepthFunc(depth_func);
+	}
+	else
+	{
+		glDisable(GL_DEPTH_TEST);
+	}
 
 	if (stencil_test)
 	{
 		glEnable(GL_STENCIL_TEST);
+		glStencilMask(stencil_write_mask);
 		glStencilOpSeparate(GL_BACK, back_stencil_op_fail, back_stencil_op_depth_fail, back_stencil_op_pass);
 		glStencilOpSeparate(GL_FRONT, front_stencil_op_fail, front_stencil_op_depth_fail, front_stencil_op_pass);
-		glStencilMask(stencil_write_mask);
 		glStencilFuncSeparate(GL_BACK, back_stencil_func, stencil_reference_value, stencil_read_mask);
 		glStencilFuncSeparate(GL_FRONT, front_stencil_func, stencil_reference_value, stencil_read_mask);
 	}
@@ -88,49 +100,36 @@ void reshade::opengl::pipeline_impl::apply_graphics() const
 		glDisable(GL_STENCIL_TEST);
 	}
 
-	glEnableOrDisable(GL_SCISSOR_TEST, scissor_test);
-	glEnableOrDisable(GL_MULTISAMPLE, multisample);
-	glEnableOrDisable(GL_SAMPLE_ALPHA_TO_COVERAGE, sample_alpha_to_coverage);
 	glSampleMaski(0, sample_mask);
+
+	if (prim_mode == GL_PATCHES)
+	{
+		glPatchParameteri(GL_PATCH_VERTICES, patch_vertices);
+	}
 }
 
 void reshade::opengl::device_impl::begin_render_pass(api::render_pass pass)
 {
-	glBindFramebuffer(GL_FRAMEBUFFER, pass.handle & 0xFFFFFFFF);
+	const GLuint fbo_object = pass.handle & 0xFFFFFFFF;
+	const GLuint num_color_attachments = static_cast<uint32_t>(pass.handle >> 40);
 
-	const auto count = static_cast<uint32_t>(pass.handle >> 40);
+	glBindFramebuffer(GL_FRAMEBUFFER, fbo_object);
 
-	if (count == 0)
+	if (num_color_attachments == 0)
 	{
 		glDrawBuffer(GL_NONE);
 	}
-	else if (pass == 0)
+	else if (fbo_object == 0)
 	{
 		glDrawBuffer(GL_BACK);
-
-		if (pass.handle & 0x200000000)
-		{
-			glEnable(GL_FRAMEBUFFER_SRGB);
-		}
-		else
-		{
-			glDisable(GL_FRAMEBUFFER_SRGB);
-		}
 	}
 	else
 	{
 		const GLenum draw_buffers[8] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3, GL_COLOR_ATTACHMENT4, GL_COLOR_ATTACHMENT5, GL_COLOR_ATTACHMENT6, GL_COLOR_ATTACHMENT7 };
-		glDrawBuffers(count, draw_buffers);
-
-		if (pass.handle & 0x200000000)
-		{
-			glEnable(GL_FRAMEBUFFER_SRGB);
-		}
-		else
-		{
-			glDisable(GL_FRAMEBUFFER_SRGB);
-		}
+		glDrawBuffers(num_color_attachments, draw_buffers);
 	}
+
+	glEnableOrDisable(GL_FRAMEBUFFER_SRGB, (pass.handle & 0x200000000) != 0);
 }
 void reshade::opengl::device_impl::finish_render_pass()
 {
@@ -163,14 +162,23 @@ void reshade::opengl::device_impl::bind_pipeline_states(uint32_t count, const ap
 	{
 		switch (states[i])
 		{
-		case api::dynamic_state::primitive_topology:
-			_current_prim_mode = values[i];
-			break;
 		case api::dynamic_state::alpha_test_enable:
 			glEnableOrDisable(GL_ALPHA_TEST, values[i]);
 			break;
+		case api::dynamic_state::srgb_write_enable:
+			glEnableOrDisable(GL_FRAMEBUFFER_SRGB, values[i]);
+			break;
+		case api::dynamic_state::primitive_topology:
+			_current_prim_mode = values[i];
+			break;
+		case api::dynamic_state::alpha_to_coverage_enable:
+			glEnableOrDisable(GL_SAMPLE_ALPHA_TO_COVERAGE, values[i]);
+			break;
 		case api::dynamic_state::blend_enable:
 			glEnableOrDisable(GL_BLEND, values[i]);
+			break;
+		case api::dynamic_state::logic_op_enable:
+			glEnableOrDisable(GL_COLOR_LOGIC_OP, values[i]);
 			break;
 		case api::dynamic_state::cull_mode:
 			glEnableOrDisable(GL_CULL_FACE, values[i]);
@@ -178,29 +186,20 @@ void reshade::opengl::device_impl::bind_pipeline_states(uint32_t count, const ap
 		case api::dynamic_state::depth_clip_enable:
 			glEnableOrDisable(GL_DEPTH_CLAMP, !values[i]);
 			break;
-		case api::dynamic_state::depth_enable:
-			glEnableOrDisable(GL_DEPTH_TEST, values[i]);
-			break;
-		case api::dynamic_state::srgb_write_enable:
-			glEnableOrDisable(GL_FRAMEBUFFER_SRGB, values[i]);
-			break;
-		case api::dynamic_state::antialiased_line_enable:
-			glEnableOrDisable(GL_LINE_SMOOTH, values[i]);
+		case api::dynamic_state::scissor_enable:
+			glEnableOrDisable(GL_SCISSOR_TEST, values[i]);
 			break;
 		case api::dynamic_state::multisample_enable:
 			glEnableOrDisable(GL_MULTISAMPLE, values[i]);
 			break;
-		case api::dynamic_state::alpha_to_coverage_enable:
-			glEnableOrDisable(GL_SAMPLE_ALPHA_TO_COVERAGE, values[i]);
+		case api::dynamic_state::antialiased_line_enable:
+			glEnableOrDisable(GL_LINE_SMOOTH, values[i]);
 			break;
-		case api::dynamic_state::scissor_enable:
-			glEnableOrDisable(GL_SCISSOR_TEST, values[i]);
+		case api::dynamic_state::depth_enable:
+			glEnableOrDisable(GL_DEPTH_TEST, values[i]);
 			break;
 		case api::dynamic_state::stencil_enable:
 			glEnableOrDisable(GL_STENCIL_TEST, values[i]);
-			break;
-		case api::dynamic_state::logic_op_enable:
-			glEnableOrDisable(GL_COLOR_LOGIC_OP, values[i]);
 			break;
 		default:
 			assert(false);
