@@ -137,6 +137,10 @@ extern "C" void WINAPI glFinish();
 extern "C" void WINAPI glFlush();
 #undef glFrontFace
 extern "C" void WINAPI glFrontFace(GLenum mode);
+#undef glGenerateMipmap
+extern "C" void WINAPI glGenerateMipmap(GLenum target);
+#undef glGenerateTextureMipmap
+extern "C" void WINAPI glGenerateTextureMipmap(GLuint texture);
 #undef glGenTextures
 extern "C" void WINAPI glGenTextures(GLsizei n, GLuint *textures);
 #undef glGetBooleanv

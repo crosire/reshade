@@ -730,6 +730,8 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 			gl3wProcs.gl.DrawElementsInstancedBaseVertexBaseInstance = reshade::hooks::call(glDrawElementsInstancedBaseVertexBaseInstance);
 			gl3wProcs.gl.DrawRangeElements = reshade::hooks::call(glDrawRangeElements);
 			gl3wProcs.gl.DrawRangeElementsBaseVertex = reshade::hooks::call(glDrawRangeElementsBaseVertex);
+			gl3wProcs.gl.GenerateMipmap = reshade::hooks::call(glGenerateMipmap);
+			gl3wProcs.gl.GenerateTextureMipmap = reshade::hooks::call(glGenerateTextureMipmap);
 			gl3wProcs.gl.MultiDrawArrays = reshade::hooks::call(glMultiDrawArrays);
 			gl3wProcs.gl.MultiDrawArraysIndirect = reshade::hooks::call(glMultiDrawArraysIndirect);
 			gl3wProcs.gl.MultiDrawElements = reshade::hooks::call(glMultiDrawElements);
@@ -1282,6 +1284,8 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glDrawElementsInstancedBaseVertexBaseInstance);
 		HOOK_PROC(glDrawRangeElements);
 		HOOK_PROC(glDrawRangeElementsBaseVertex);
+		HOOK_PROC(glGenerateMipmap);
+		HOOK_PROC(glGenerateTextureMipmap);
 		HOOK_PROC(glMultiDrawArrays);
 		HOOK_PROC(glMultiDrawArraysIndirect);
 		HOOK_PROC(glMultiDrawElements);

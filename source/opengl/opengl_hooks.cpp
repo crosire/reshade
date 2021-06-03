@@ -1757,6 +1757,36 @@ HOOK_EXPORT void WINAPI glFrustum(GLdouble left, GLdouble right, GLdouble bottom
 	trampoline(left, right, bottom, top, zNear, zFar);
 }
 
+			void WINAPI glGenerateMipmap(GLenum target)
+{
+#if RESHADE_ADDON
+	if (g_current_context)
+	{
+		GLint object = 0;
+		glGetIntegerv(reshade::opengl::get_binding_for_target(target), &object);
+
+		if (reshade::invoke_addon_event<reshade::addon_event::generate_mipmaps>(g_current_context, reshade::opengl::make_resource_view_handle(target, object)))
+			return;
+	}
+#endif
+
+	static const auto trampoline = reshade::hooks::call(glGenerateMipmap);
+	trampoline(target);
+}
+			void WINAPI glGenerateTextureMipmap(GLuint texture)
+{
+#if RESHADE_ADDON
+	if (g_current_context)
+	{
+		if (reshade::invoke_addon_event<reshade::addon_event::generate_mipmaps>(g_current_context, reshade::opengl::make_resource_view_handle(GL_TEXTURE, texture)))
+			return;
+	}
+#endif
+
+	static const auto trampoline = reshade::hooks::call(glGenerateTextureMipmap);
+	trampoline(texture);
+}
+
 HOOK_EXPORT auto WINAPI glGenLists(GLsizei range) -> GLuint
 {
 	static const auto trampoline = reshade::hooks::call(glGenLists);

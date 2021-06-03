@@ -687,6 +687,10 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::ClearDepthStencilView(ID3D11DepthS
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::GenerateMips(ID3D11ShaderResourceView *pShaderResourceView)
 {
+#if RESHADE_ADDON
+	if (reshade::invoke_addon_event<reshade::addon_event::generate_mipmaps>(this, reshade::api::resource_view { reinterpret_cast<uintptr_t>(pShaderResourceView) }))
+		return;
+#endif
 	_orig->GenerateMips(pShaderResourceView);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::SetResourceMinLOD(ID3D11Resource *pResource, FLOAT MinLOD)
