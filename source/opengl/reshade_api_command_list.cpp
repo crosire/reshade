@@ -94,6 +94,48 @@ void reshade::opengl::pipeline_impl::apply_graphics() const
 	glSampleMaski(0, sample_mask);
 }
 
+void reshade::opengl::device_impl::begin_render_pass(api::render_pass pass)
+{
+	glBindFramebuffer(GL_FRAMEBUFFER, pass.handle & 0xFFFFFFFF);
+
+	const auto count = static_cast<uint32_t>(pass.handle >> 40);
+
+	if (count == 0)
+	{
+		glDrawBuffer(GL_NONE);
+	}
+	else if (pass == 0)
+	{
+		glDrawBuffer(GL_BACK);
+
+		if (pass.handle & 0x200000000)
+		{
+			glEnable(GL_FRAMEBUFFER_SRGB);
+		}
+		else
+		{
+			glDisable(GL_FRAMEBUFFER_SRGB);
+		}
+	}
+	else
+	{
+		const GLenum draw_buffers[8] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3, GL_COLOR_ATTACHMENT4, GL_COLOR_ATTACHMENT5, GL_COLOR_ATTACHMENT6, GL_COLOR_ATTACHMENT7 };
+		glDrawBuffers(count, draw_buffers);
+
+		if (pass.handle & 0x200000000)
+		{
+			glEnable(GL_FRAMEBUFFER_SRGB);
+		}
+		else
+		{
+			glDisable(GL_FRAMEBUFFER_SRGB);
+		}
+	}
+}
+void reshade::opengl::device_impl::finish_render_pass()
+{
+}
+
 void reshade::opengl::device_impl::bind_pipeline(api::pipeline_stage type, api::pipeline pipeline)
 {
 	assert(pipeline.handle != 0);
@@ -363,48 +405,6 @@ void reshade::opengl::device_impl::draw_or_dispatch_indirect(uint32_t type, api:
 		}
 		break;
 	}
-}
-
-void reshade::opengl::device_impl::begin_render_pass(api::framebuffer fbo)
-{
-	glBindFramebuffer(GL_FRAMEBUFFER, fbo.handle & 0xFFFFFFFF);
-
-	const auto count = static_cast<uint32_t>(fbo.handle >> 40);
-
-	if (count == 0)
-	{
-		glDrawBuffer(GL_NONE);
-	}
-	else if (fbo == 0)
-	{
-		glDrawBuffer(GL_BACK);
-
-		if (fbo.handle & 0x200000000)
-		{
-			glEnable(GL_FRAMEBUFFER_SRGB);
-		}
-		else
-		{
-			glDisable(GL_FRAMEBUFFER_SRGB);
-		}
-	}
-	else
-	{
-		const GLenum draw_buffers[8] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3, GL_COLOR_ATTACHMENT4, GL_COLOR_ATTACHMENT5, GL_COLOR_ATTACHMENT6, GL_COLOR_ATTACHMENT7 };
-		glDrawBuffers(count, draw_buffers);
-
-		if (fbo.handle & 0x200000000)
-		{
-			glEnable(GL_FRAMEBUFFER_SRGB);
-		}
-		else
-		{
-			glDisable(GL_FRAMEBUFFER_SRGB);
-		}
-	}
-}
-void reshade::opengl::device_impl::finish_render_pass()
-{
 }
 
 void reshade::opengl::device_impl::copy_resource(api::resource src, api::resource dst)

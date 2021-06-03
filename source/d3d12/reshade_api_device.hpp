@@ -35,13 +35,14 @@ namespace reshade::d3d12
 		bool create_resource_view(api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view *out) final;
 
 		bool create_pipeline(const api::pipeline_desc &desc, api::pipeline *out) final;
-		bool create_pipeline_compute(const api::pipeline_desc &desc, api::pipeline *out);
-		bool create_pipeline_graphics(const api::pipeline_desc &desc, api::pipeline *out);
+		bool create_compute_pipeline(const api::pipeline_desc &desc, api::pipeline *out);
+		bool create_graphics_pipeline(const api::pipeline_desc &desc, api::pipeline *out);
 
-		bool create_pipeline_layout(uint32_t num_table_layouts, const api::descriptor_set_layout *table_layouts, uint32_t num_constant_ranges, const api::constant_range *constant_ranges, api::pipeline_layout *out) final;
-		bool create_descriptor_set_layout(uint32_t num_ranges, const api::descriptor_range *ranges, bool push_descriptors, api::descriptor_set_layout *out) final;
-		bool create_query_pool(api::query_type type, uint32_t count, api::query_pool *out) final;
-		bool create_framebuffer(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv, api::framebuffer *out) final;
+		bool create_pipeline_layout(const api::pipeline_layout_desc &desc, api::pipeline_layout *out) final;
+		bool create_descriptor_set_layout(const api::descriptor_set_layout_desc &desc, api::descriptor_set_layout *out) final;
+
+		bool create_query_pool(api::query_type type, uint32_t size, api::query_pool *out) final;
+		bool create_render_pass(const api::render_pass_desc &desc, api::render_pass *out) final;
 		bool create_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, api::descriptor_set *out) final;
 
 		void destroy_sampler(api::sampler handle) final;
@@ -51,14 +52,14 @@ namespace reshade::d3d12
 		void destroy_pipeline(api::pipeline_stage type, api::pipeline handle) final;
 		void destroy_pipeline_layout(api::pipeline_layout handle) final;
 		void destroy_descriptor_set_layout(api::descriptor_set_layout handle) final;
+
 		void destroy_query_pool(api::query_pool handle) final;
-		void destroy_framebuffer(api::framebuffer handle) final;
+		void destroy_render_pass(api::render_pass handle) final;
 		void destroy_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, const api::descriptor_set *sets) final;
 
+		bool get_attachment(api::render_pass fbo, api::attachment_type type, uint32_t index, api::resource_view *out) const final;
 		void get_resource_from_view(api::resource_view view, api::resource *out) const final;
 		api::resource_desc get_resource_desc(api::resource resource) const final;
-
-		bool get_framebuffer_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index, api::resource_view *out) const final;
 
 		bool map_resource(api::resource resource, uint32_t subresource, api::map_access access, void **data, uint32_t *row_pitch, uint32_t *slice_pitch) final;
 		void unmap_resource(api::resource resource, uint32_t subresource) final;

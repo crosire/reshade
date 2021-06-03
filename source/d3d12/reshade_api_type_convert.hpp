@@ -9,12 +9,14 @@ namespace reshade::d3d12
 {
 	extern const GUID pipeline_extra_data_guid;
 
-	struct framebuffer_impl
+	struct render_pass_impl
 	{
 		UINT count;
 		D3D12_CPU_DESCRIPTOR_HANDLE rtv[D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT];
 		D3D12_CPU_DESCRIPTOR_HANDLE dsv;
 		BOOL rtv_is_single_handle_to_range;
+		DXGI_FORMAT rtv_format[D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT];
+		DXGI_FORMAT dsv_format;
 	};
 
 	struct pipeline_graphics_impl

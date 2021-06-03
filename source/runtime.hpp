@@ -319,13 +319,13 @@ namespace reshade
 
 		// === Effect Rendering ===
 
-		std::vector<api::framebuffer> _backbuffer_fbos;
-		std::vector<api::resource_view> _backbuffer_rtvs;
+		std::vector<api::render_pass> _backbuffer_passes;
+		std::vector<api::resource_view> _backbuffer_targets;
 		api::resource _backbuffer_texture = {};
 		api::resource_view _backbuffer_texture_view[2] = {};
 		api::format _effect_stencil_format = api::format::unknown;
 		api::resource _effect_stencil = {};
-		api::resource_view _effect_stencil_view = {};
+		api::resource_view _effect_stencil_target = {};
 		api::resource _empty_texture = {};
 		api::resource_view _empty_texture_view = {};
 		std::unordered_map<size_t, api::sampler> _effect_sampler_states;
@@ -376,7 +376,7 @@ namespace reshade
 		void draw_gui_vr();
 
 		bool init_imgui_resources();
-		void render_imgui_draw_data(ImDrawData *draw_data, api::framebuffer fbo);
+		void render_imgui_draw_data(ImDrawData *draw_data, api::render_pass pass);
 		void destroy_imgui_resources();
 
 		ImGuiContext *_imgui_context = nullptr;
@@ -393,8 +393,8 @@ namespace reshade
 		int _imgui_num_vertices[4] = {};
 
 		api::resource _vr_overlay_texture = {};
+		api::render_pass _vr_overlay_pass = {};
 		api::resource_view _vr_overlay_target = {};
-		api::framebuffer _vr_overlay_fbo = {};
 
 		// === User Interface ===
 

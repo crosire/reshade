@@ -130,7 +130,7 @@ namespace reshade { namespace api
 		/// The pipeline stage where vertex and index buffers are consumed.
 		/// Corresponds to <see cref="pipeline_desc::graphics::input_layout"/>.
 		/// </summary>
-		vertex_input = 0x00000004,
+		input_assembler = 0x00000004,
 		/// <summary>
 		/// The vertex shader stage.
 		/// Corresponds to <see cref="pipeline_desc::graphics::vertex_shader"/>.
@@ -175,7 +175,7 @@ namespace reshade { namespace api
 		/// The pipeline stage where the final color values are output from the pipeline and written to the render targets.
 		/// Corresponds to <see cref="pipeline_desc::graphics::blend_state"/>.
 		/// </summary>
-		blend_and_render_target_output = 0x00000400,
+		output_merger = 0x00000400,
 		/// <summary>
 		/// The compute shader stage.
 		/// Corresponds to <see cref="pipeline_desc::compute::shader"/>.
@@ -184,11 +184,11 @@ namespace reshade { namespace api
 		compute_shader = 0x00000800,
 
 		/// <summary>
-		/// Full compute pipeline state
+		/// Full compute pipeline state.
 		/// </summary>
 		all_compute = compute_shader,
 		/// <summary>
-		/// Full graphics pipeline state
+		/// Full graphics pipeline state.
 		/// </summary>
 		all_graphics = 0x00008000,
 	};
@@ -215,6 +215,7 @@ namespace reshade { namespace api
 		back = 2,
 		front_and_back = 3
 	};
+	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(cull_mode);
 
 	/// <summary>
 	/// The available logic operations.
@@ -361,7 +362,7 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
-	/// The framebuffer attachment types that can be cleared by <see cref="command_list_impl::clear_attachments"/>.
+	/// The render pass attachment types that can be cleared by <see cref="command_list_impl::clear_attachments"/>.
 	/// This is compatible with 'VkImageAspectFlags'.
 	/// </summary>
 	enum class attachment_type
@@ -436,47 +437,37 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
-	/// A combined sampler and resource view descriptor.
-	/// </summary>
-	struct sampler_with_resource_view
-	{
-		sampler sampler;
-		resource_view view;
-	};
-
-	/// <summary>
 	/// An opaque handle to a pipeline state object.
-	/// <para>Depending on the render API this is really a pointer to a 'IDirect3D(...)Shader', 'ID3D10(...)(Shader/State)', 'ID3D11(...)(Shader/State)', 'ID3D12PipelineState' object or a 'VkPipeline' handle.</para>
+	/// <para>Depending on the render API this can be a pointer to a 'IDirect3D(...)Shader', 'ID3D10(...)(Shader/State)', 'ID3D11(...)(Shader/State)', 'ID3D12PipelineState' object or a 'VkPipeline' handle.</para>
 	/// </summary>
 	RESHADE_DEFINE_HANDLE(pipeline);
 
 	/// <summary>
 	/// An opaque handle to a pipeline layout object.
-	/// <para>Depending on the render API this is really a pointer to a 'ID3D12RootSignature' object or a 'VkPipelineLayout' handle.</para>
+	/// <para>Depending on the render API this can be a pointer to a 'ID3D12RootSignature' object or a 'VkPipelineLayout' handle.</para>
 	/// </summary>
 	RESHADE_DEFINE_HANDLE(pipeline_layout);
 
 	/// <summary>
 	/// An opaque handle to a descriptor set layout object.
-	/// <para>Depending on the render API this is really a 'VkDescriptorSetLayout' handle.</para>
+	/// <para>Depending on the render API this can be a 'VkDescriptorSetLayout' handle.</para>
 	/// </summary>
 	RESHADE_DEFINE_HANDLE(descriptor_set_layout);
 
 	/// <summary>
 	/// An opaque handle to a query pool.
-	/// <para>Depending on the render API this is really a pointer to a 'ID3D12QueryHeap' or a 'VkQueryPool' handle.</para>
+	/// <para>Depending on the render API this can be a pointer to a 'ID3D12QueryHeap' or a 'VkQueryPool' handle.</para>
 	/// </summary>
 	RESHADE_DEFINE_HANDLE(query_pool);
 
 	/// <summary>
-	/// An opaque handle to a framebuffer object.
-	/// <para>Depending on the render API this is really a 'VkFramebuffer' handle.</para>
+	/// An opaque handle to a render pass.
 	/// </summary>
-	RESHADE_DEFINE_HANDLE(framebuffer);
+	RESHADE_DEFINE_HANDLE(render_pass);
 
 	/// <summary>
 	/// An opaque handle to a descriptor set.
-	/// <para>Depending on the render API this is really a 'D3D12_GPU_DESCRIPTOR_HANDLE' or a 'VkDescriptorSet' handle.</para>
+	/// <para>Depending on the render API this can be a 'D3D12_GPU_DESCRIPTOR_HANDLE' or a 'VkDescriptorSet' handle.</para>
 	/// </summary>
 	RESHADE_DEFINE_HANDLE(descriptor_set);
 
@@ -795,13 +786,13 @@ namespace reshade { namespace api
 				/// Describes the layout of the vertex buffer data for the vertex input stage. 
 				/// Elements following one with the format set to <see cref="format::unknown"/> will be ignored (which is used to terminate this list).
 				/// </summary>
-				/// <seealso cref="pipeline_stage::vertex_input"/>
+				/// <seealso cref="pipeline_stage::input_assembler"/>
 				input_layout_element input_layout[16];
 
 				/// <summary>
 				/// Describes the blend state of the output stage.
 				/// </summary>
-				/// <seealso cref="pipeline_stage::blend_and_render_target_output"/>
+				/// <seealso cref="pipeline_stage::output_merger"/>
 				blend_desc blend_state;
 
 				/// <summary>
@@ -831,21 +822,14 @@ namespace reshade { namespace api
 				primitive_topology topology;
 
 				/// <summary>
-				/// The maximum number of viewports that may be bound via <see cref="command_list::bind_viewports"/> when this pipeline is used.
+				/// The maximum number of viewports that may be bound via <see cref="command_list::bind_viewports"/> with this pipeline.
 				/// </summary>
 				uint32_t viewport_count;
+
 				/// <summary>
-				/// The maximum number of render targets that may be bound via <see cref="command_list::begin_render_pass"/> when this pipeline is used.
+				/// A render pass that describes the format of the render target and depth-stencil views that may be used with this pipeline.
 				/// </summary>
-				uint32_t render_target_count;
-				/// <summary>
-				/// The format of the depth-stencil view that will be bound when this pipeline is used (or <see cref="format::unknown"/> if there is none).
-				/// </summary>
-				format   depth_stencil_format;
-				/// <summary>
-				/// The format of the render target views that will be bound when this pipeline is used (or <see cref="format::unknown"/> for unused bindings).
-				/// </summary>
-				format   render_target_format[8];
+				render_pass render_pass_template;
 
 				/// <summary>
 				/// A list of all pipeline states that may be dynamically updated via <see cref="command_list::bind_pipeline_states"/>.
@@ -857,6 +841,56 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
+	/// Describes the data structure returned by <see cref="query_type::pipeline_statistics"/> queries.
+	/// </summary>
+	struct pipeline_statistics
+	{
+		uint64_t input_assembler_vertices;
+		uint64_t input_assembler_primitives;
+		uint64_t vertex_shader_invocations;
+		uint64_t geometry_shader_invocations;
+		uint64_t geometry_shader_primitives;
+		uint64_t clipping_invocations;
+		uint64_t clipping_primitives;
+		uint64_t pixel_shader_invocations;
+		uint64_t hull_shader_invocations;
+		uint64_t domain_shader_invocations;
+		uint64_t compute_shader_invocations;
+	};
+
+	/// <summary>
+	/// Describes a pipeline layout.
+	/// </summary>
+	struct pipeline_layout_desc
+	{
+		uint32_t num_set_layouts;
+		const descriptor_set_layout *set_layouts;
+		uint32_t num_constant_ranges;
+		const constant_range *constant_ranges;
+	};
+
+	/// <summary>
+	/// Describes a descriptor set layout.
+	/// </summary>
+	struct descriptor_set_layout_desc
+	{
+		uint32_t num_ranges;
+		const descriptor_range *ranges;
+		bool push_descriptors;
+	};
+
+	/// <summary>
+	/// Describes a render pass.
+	/// </summary>
+	struct render_pass_desc
+	{
+		resource_view depth_stencil;
+		resource_view render_targets[8];
+		format depth_stencil_format;
+		format render_targets_format[8];
+	};
+
+	/// <summary>
 	/// All information needed to update a single descriptor in a descriptor set.
 	/// </summary>
 	struct descriptor_update
@@ -865,9 +899,20 @@ namespace reshade { namespace api
 		uint32_t binding;
 		descriptor_type type;
 
-		struct : public sampler_with_resource_view
+		struct
 		{
+			sampler sampler;
+			resource_view view;
 			resource resource;
 		} descriptor;
+	};
+
+	/// <summary>
+	/// A combined sampler and resource view descriptor.
+	/// </summary>
+	struct sampler_with_resource_view
+	{
+		sampler sampler;
+		resource_view view;
 	};
 } }

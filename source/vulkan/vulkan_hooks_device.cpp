@@ -925,12 +925,14 @@ VkResult VKAPI_CALL vkCreateRenderPass(VkDevice device, const VkRenderPassCreate
 	for (uint32_t attachment = 0; attachment < pCreateInfo->attachmentCount; ++attachment)
 	{
 		VkImageAspectFlags clear_flags = aspect_flags_from_format(pCreateInfo->pAttachments[attachment].format);
+		const VkImageAspectFlags format_flags = clear_flags;
+
 		if (pCreateInfo->pAttachments[attachment].loadOp != VK_ATTACHMENT_LOAD_OP_CLEAR)
 			clear_flags &= ~(VK_IMAGE_ASPECT_COLOR_BIT | VK_IMAGE_ASPECT_DEPTH_BIT);
 		if (pCreateInfo->pAttachments[attachment].stencilLoadOp != VK_ATTACHMENT_LOAD_OP_CLEAR)
 			clear_flags &= ~(VK_IMAGE_ASPECT_STENCIL_BIT);
 
-		renderpass_data.attachments.push_back({ pCreateInfo->pAttachments[attachment].initialLayout, clear_flags });
+		renderpass_data.attachments.push_back({ pCreateInfo->pAttachments[attachment].initialLayout, clear_flags, format_flags });
 	}
 
 	const std::lock_guard<std::mutex> lock(device_impl->_mutex);
@@ -959,8 +961,9 @@ VkResult VKAPI_CALL vkCreateRenderPass2(VkDevice device, const VkRenderPassCreat
 
 	for (uint32_t attachment = 0; attachment < pCreateInfo->attachmentCount; ++attachment)
 	{
-		const VkImageAspectFlags format_flags = aspect_flags_from_format(pCreateInfo->pAttachments[attachment].format);
-		VkImageAspectFlags clear_flags = format_flags;
+		VkImageAspectFlags clear_flags = aspect_flags_from_format(pCreateInfo->pAttachments[attachment].format);
+		const VkImageAspectFlags format_flags = clear_flags;
+
 		if (pCreateInfo->pAttachments[attachment].loadOp != VK_ATTACHMENT_LOAD_OP_CLEAR)
 			clear_flags &= ~(VK_IMAGE_ASPECT_COLOR_BIT | VK_IMAGE_ASPECT_DEPTH_BIT);
 		if (pCreateInfo->pAttachments[attachment].stencilLoadOp != VK_ATTACHMENT_LOAD_OP_CLEAR)
@@ -1005,11 +1008,6 @@ VkResult VKAPI_CALL vkCreateFramebuffer(VkDevice device, const VkFramebufferCrea
 
 	// Keep track of the frame buffer attachments
 	reshade::vulkan::framebuffer_data data;
-	data.render_pass = pCreateInfo->renderPass;
-	data.render_area.offset.x = 0;
-	data.render_area.offset.y = 0;
-	data.render_area.extent.width = pCreateInfo->width;
-	data.render_area.extent.height = pCreateInfo->height;
 	data.attachments.resize(pCreateInfo->attachmentCount);
 	data.attachment_types.resize(pCreateInfo->attachmentCount);
 	for (uint32_t i = 0; i < pCreateInfo->attachmentCount; ++i)
@@ -1725,7 +1723,15 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 #if RESHADE_ADDON
 	if (cmd_impl != nullptr)
 	{
-		reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(cmd_impl, reshade::api::framebuffer { (uint64_t)pRenderPassBegin->framebuffer });
+		reshade::vulkan::render_pass_impl pass_impl;
+		pass_impl.fbo = pRenderPassBegin->framebuffer;
+		pass_impl.render_area = pRenderPassBegin->renderArea;
+		pass_impl.render_pass = pRenderPassBegin->renderPass;
+
+		cmd_impl->_current_fbo = pRenderPassBegin->framebuffer;
+		cmd_impl->_current_render_area = pRenderPassBegin->renderArea;
+
+		reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(cmd_impl, reshade::api::render_pass { reinterpret_cast<uintptr_t>(&pass_impl) });
 	}
 #endif
 }
@@ -1736,6 +1742,10 @@ void     VKAPI_CALL vkCmdEndRenderPass(VkCommandBuffer commandBuffer)
 	if (cmd_impl != nullptr)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(cmd_impl);
+
+#ifndef NDEBUG
+		cmd_impl->_current_fbo = VK_NULL_HANDLE;
+#endif
 	}
 #endif
 

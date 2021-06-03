@@ -95,6 +95,33 @@ void reshade::vulkan::command_list_impl::barrier(uint32_t count, const api::reso
 	vk.CmdPipelineBarrier(_orig, src_stage_mask, dst_stage_mask, 0, 0, nullptr, static_cast<uint32_t>(buffer_barriers.size()), buffer_barriers.data(), static_cast<uint32_t>(image_barriers.size()), image_barriers.data());
 }
 
+void reshade::vulkan::command_list_impl::begin_render_pass(api::render_pass pass)
+{
+	_has_commands = true;
+
+	assert(pass.handle != 0);
+
+	const auto pass_impl = reinterpret_cast<const render_pass_impl *>(pass.handle);
+
+	VkRenderPassBeginInfo begin_info { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
+	begin_info.renderPass = pass_impl->render_pass;
+	begin_info.framebuffer = pass_impl->fbo;
+	begin_info.renderArea = pass_impl->render_area;
+
+	vk.CmdBeginRenderPass(_orig, &begin_info, VK_SUBPASS_CONTENTS_INLINE);
+
+	_current_fbo = pass_impl->fbo;
+	_current_render_area = pass_impl->render_area;
+}
+void reshade::vulkan::command_list_impl::finish_render_pass()
+{
+	vk.CmdEndRenderPass(_orig);
+
+#ifndef NDEBUG
+	_current_fbo = VK_NULL_HANDLE;
+#endif
+}
+
 void reshade::vulkan::command_list_impl::bind_pipeline(api::pipeline_stage type, api::pipeline pipeline)
 {
 	assert(type == api::pipeline_stage::all_compute || type == api::pipeline_stage::all_graphics);
@@ -325,34 +352,6 @@ void reshade::vulkan::command_list_impl::draw_or_dispatch_indirect(uint32_t type
 			vk.CmdDispatchIndirect(_orig, (VkBuffer)buffer.handle, offset + i * stride);
 		break;
 	}
-}
-
-void reshade::vulkan::command_list_impl::begin_render_pass(api::framebuffer fbo)
-{
-	_has_commands = true;
-
-	VkRenderPassBeginInfo begin_info { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
-	begin_info.renderPass = VK_NULL_HANDLE;
-	begin_info.framebuffer = (VkFramebuffer)fbo.handle;
-
-	{
-		std::lock_guard<std::mutex> lock(_device_impl->_mutex);
-		const auto &fbo_info = _device_impl->_framebuffer_list.at(begin_info.framebuffer);
-		begin_info.renderPass = fbo_info.render_pass;
-		begin_info.renderArea = fbo_info.render_area;
-		_current_fbo = fbo_info;
-	}
-
-	vk.CmdBeginRenderPass(_orig, &begin_info, VK_SUBPASS_CONTENTS_INLINE);
-}
-void reshade::vulkan::command_list_impl::finish_render_pass()
-{
-	vk.CmdEndRenderPass(_orig);
-
-#ifndef NDEBUG
-	_current_fbo.attachments.clear();
-	_current_fbo.attachment_types.clear();
-#endif
 }
 
 void reshade::vulkan::command_list_impl::copy_resource(api::resource src, api::resource dst)
@@ -632,7 +631,7 @@ void reshade::vulkan::command_list_impl::clear_attachments(api::attachment_type 
 {
 	_has_commands = true;
 
-	assert(!_current_fbo.attachment_types.empty());
+	assert(_current_fbo != VK_NULL_HANDLE);
 
 	uint32_t num_clear_attachments = 0;
 	VkClearAttachment clear_attachments[9];
@@ -640,15 +639,18 @@ void reshade::vulkan::command_list_impl::clear_attachments(api::attachment_type 
 
 	if (aspect_mask & (VK_IMAGE_ASPECT_COLOR_BIT))
 	{
-		for (uint32_t i = 0; i < _current_fbo.attachment_types.size(); ++i)
+		const auto &framebuffer_data = _device_impl->_framebuffer_list.at(_current_fbo);
+
+		uint32_t index = 0;
+		for (VkImageAspectFlags format_flags : framebuffer_data.attachment_types)
 		{
-			if (_current_fbo.attachment_types[i] == VK_IMAGE_ASPECT_COLOR_BIT)
-			{
-				clear_attachments[num_clear_attachments].aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-				clear_attachments[num_clear_attachments].colorAttachment = i;
-				std::memcpy(clear_attachments[num_clear_attachments].clearValue.color.float32, color, 4 * sizeof(float));
-				++num_clear_attachments;
-			}
+			if (format_flags != VK_IMAGE_ASPECT_COLOR_BIT)
+				continue;
+
+			clear_attachments[num_clear_attachments].aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			clear_attachments[num_clear_attachments].colorAttachment = index++;
+			std::memcpy(clear_attachments[num_clear_attachments].clearValue.color.float32, color, 4 * sizeof(float));
+			++num_clear_attachments;
 		}
 	}
 
@@ -665,7 +667,7 @@ void reshade::vulkan::command_list_impl::clear_attachments(api::attachment_type 
 	if (num_rects == 0)
 	{
 		VkClearRect clear_rect;
-		clear_rect.rect = _current_fbo.render_area;
+		clear_rect.rect = _current_render_area;
 		clear_rect.baseArrayLayer = 0;
 		clear_rect.layerCount = 1;
 

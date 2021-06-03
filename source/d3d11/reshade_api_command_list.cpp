@@ -79,6 +79,30 @@ void reshade::d3d11::device_context_impl::barrier(uint32_t count, const api::res
 	}
 }
 
+void reshade::d3d11::device_context_impl::begin_render_pass(api::render_pass pass)
+{
+	assert(pass.handle != 0);
+
+	const auto pass_impl = reinterpret_cast<const render_pass_impl *>(pass.handle);
+	_orig->OMSetRenderTargets(pass_impl->count, pass_impl->rtv, pass_impl->dsv);
+
+	_current_pass[0] = *pass_impl;
+
+	assert(!_has_open_render_pass);
+	_has_open_render_pass = true;
+}
+void reshade::d3d11::device_context_impl::finish_render_pass()
+{
+	// Reset render targets
+	_orig->OMSetRenderTargets(0, nullptr, nullptr);
+
+	_current_pass->count = 0;
+	_current_pass->dsv = nullptr;
+
+	assert(_has_open_render_pass);
+	_has_open_render_pass = false;
+}
+
 void reshade::d3d11::device_context_impl::bind_pipeline(api::pipeline_stage type, api::pipeline pipeline)
 {
 	assert(pipeline.handle != 0);
@@ -87,6 +111,9 @@ void reshade::d3d11::device_context_impl::bind_pipeline(api::pipeline_stage type
 	{
 	case api::pipeline_stage::all_graphics:
 		reinterpret_cast<pipeline_impl *>(pipeline.handle)->apply(_orig);
+		break;
+	case api::pipeline_stage::input_assembler:
+		_orig->IASetInputLayout(reinterpret_cast<ID3D11InputLayout *>(pipeline.handle));
 		break;
 	case api::pipeline_stage::vertex_shader:
 		_orig->VSSetShader(reinterpret_cast<ID3D11VertexShader *>(pipeline.handle), nullptr, 0);
@@ -106,14 +133,14 @@ void reshade::d3d11::device_context_impl::bind_pipeline(api::pipeline_stage type
 	case api::pipeline_stage::compute_shader:
 		_orig->CSSetShader(reinterpret_cast<ID3D11ComputeShader *>(pipeline.handle), nullptr, 0);
 		break;
-	case api::pipeline_stage::blend_and_render_target_output:
-		_orig->OMSetBlendState(reinterpret_cast<ID3D11BlendState *>(pipeline.handle), nullptr, D3D11_DEFAULT_SAMPLE_MASK);
-		break;
 	case api::pipeline_stage::rasterizer:
 		_orig->RSSetState(reinterpret_cast<ID3D11RasterizerState *>(pipeline.handle));
 		break;
 	case api::pipeline_stage::depth_stencil:
 		_orig->OMSetDepthStencilState(reinterpret_cast<ID3D11DepthStencilState *>(pipeline.handle), 0);
+		break;
+	case api::pipeline_stage::output_merger:
+		_orig->OMSetBlendState(reinterpret_cast<ID3D11BlendState *>(pipeline.handle), nullptr, D3D11_DEFAULT_SAMPLE_MASK);
 		break;
 	default:
 		assert(false);
@@ -411,30 +438,6 @@ void reshade::d3d11::device_context_impl::draw_or_dispatch_indirect(uint32_t typ
 	}
 }
 
-void reshade::d3d11::device_context_impl::begin_render_pass(api::framebuffer fbo)
-{
-	assert(fbo.handle != 0);
-
-	const auto fbo_impl = reinterpret_cast<const framebuffer_impl *>(fbo.handle);
-	_orig->OMSetRenderTargets(fbo_impl->count, fbo_impl->rtv, fbo_impl->dsv);
-
-	_current_fbo[0] = *fbo_impl;
-
-	assert(!_has_open_render_pass);
-	_has_open_render_pass = true;
-}
-void reshade::d3d11::device_context_impl::finish_render_pass()
-{
-	// Reset render targets
-	_orig->OMSetRenderTargets(0, nullptr, nullptr);
-
-	_current_fbo->count = 0;
-	_current_fbo->dsv = nullptr;
-
-	assert( _has_open_render_pass);
-	_has_open_render_pass = false;
-}
-
 void reshade::d3d11::device_context_impl::copy_resource(api::resource src, api::resource dst)
 {
 	assert(src.handle != 0 && dst.handle != 0);
@@ -495,10 +498,10 @@ void reshade::d3d11::device_context_impl::clear_attachments(api::attachment_type
 	assert(_has_open_render_pass);
 
 	if (static_cast<UINT>(clear_flags & (api::attachment_type::color)) != 0)
-		for (UINT i = 0; i < _current_fbo->count; ++i)
-			_orig->ClearRenderTargetView(_current_fbo->rtv[i], color);
+		for (UINT i = 0; i < _current_pass->count; ++i)
+			_orig->ClearRenderTargetView(_current_pass->rtv[i], color);
 	if (static_cast<UINT>(clear_flags & (api::attachment_type::depth | api::attachment_type::stencil)) != 0)
-		_orig->ClearDepthStencilView(_current_fbo->dsv, static_cast<UINT>(clear_flags) >> 1, depth, stencil);
+		_orig->ClearDepthStencilView(_current_pass->dsv, static_cast<UINT>(clear_flags) >> 1, depth, stencil);
 }
 void reshade::d3d11::device_context_impl::clear_depth_stencil_view(api::resource_view dsv, api::attachment_type clear_flags, float depth, uint8_t stencil, uint32_t num_rects, const int32_t *)
 {

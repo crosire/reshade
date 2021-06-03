@@ -943,7 +943,7 @@ void reshade::runtime::draw_gui()
 		get_current_back_buffer(&backbuffer);
 		cmd_list->barrier(backbuffer, api::resource_usage::present, api::resource_usage::render_target);
 
-		render_imgui_draw_data(draw_data, _backbuffer_fbos[get_current_back_buffer_index() * 2]);
+		render_imgui_draw_data(draw_data, _backbuffer_passes[get_current_back_buffer_index() * 2]);
 
 		cmd_list->barrier(backbuffer, api::resource_usage::render_target, api::resource_usage::present);
 	}
@@ -3194,7 +3194,7 @@ bool reshade::runtime::init_imgui_resources()
 			range.type = api::descriptor_type::sampler_with_resource_view;
 			range.binding = 0;
 			range.dx_shader_register = 0; // s0
-			if (!_device->create_descriptor_set_layout(1, &range, true, &_imgui_set_layouts[0]))
+			if (!_device->create_descriptor_set_layout({ 1, &range, true }, &_imgui_set_layouts[0]))
 			{
 				LOG(ERROR) << "Failed to create ImGui descriptor set layout!";
 				return false;
@@ -3205,7 +3205,7 @@ bool reshade::runtime::init_imgui_resources()
 			range.type = api::descriptor_type::sampler;
 			range.binding = 0;
 			range.dx_shader_register = 0; // s0
-			if (!_device->create_descriptor_set_layout(1, &range, true, &_imgui_set_layouts[0]))
+			if (!_device->create_descriptor_set_layout({ 1, &range, true }, &_imgui_set_layouts[0]))
 			{
 				LOG(ERROR) << "Failed to create ImGui descriptor set layout!";
 				return false;
@@ -3214,7 +3214,7 @@ bool reshade::runtime::init_imgui_resources()
 			range.type = api::descriptor_type::shader_resource_view;
 			range.binding = 0;
 			range.dx_shader_register = 0; // t0
-			if (!_device->create_descriptor_set_layout(1, &range, true, &_imgui_set_layouts[1]))
+			if (!_device->create_descriptor_set_layout({ 1, &range, true }, &_imgui_set_layouts[1]))
 			{
 				LOG(ERROR) << "Failed to create ImGui descriptor set layout!";
 				return false;
@@ -3227,7 +3227,7 @@ bool reshade::runtime::init_imgui_resources()
 		constant_range.count = 16;
 		constant_range.visibility = api::shader_stage::vertex;
 
-		if (!_device->create_pipeline_layout(has_combined_sampler_and_view ? 1 : 2, _imgui_set_layouts, 1, &constant_range, &_imgui_pipeline_layout))
+		if (!_device->create_pipeline_layout({ has_combined_sampler_and_view ? 1u : 2u, _imgui_set_layouts, 1u, &constant_range }, &_imgui_pipeline_layout))
 		{
 			LOG(ERROR) << "Failed to create ImGui pipeline layout!";
 			return false;
@@ -3335,9 +3335,7 @@ bool reshade::runtime::init_imgui_resources()
 	pso_desc.graphics.topology = api::primitive_topology::triangle_list;
 
 	pso_desc.graphics.viewport_count = 1;
-	pso_desc.graphics.render_target_count = 1;
-	pso_desc.graphics.depth_stencil_format = _effect_stencil_format;
-	pso_desc.graphics.render_target_format[0] = _backbuffer_format;
+	pso_desc.graphics.render_pass_template = _backbuffer_passes[0];
 
 	if (_device->create_pipeline(pso_desc, &_imgui_pipeline))
 	{
@@ -3349,7 +3347,7 @@ bool reshade::runtime::init_imgui_resources()
 		return false;
 	}
 }
-void reshade::runtime::render_imgui_draw_data(ImDrawData *draw_data, api::framebuffer fbo)
+void reshade::runtime::render_imgui_draw_data(ImDrawData *draw_data, api::render_pass pass)
 {
 	// Need to multi-buffer vertex data so not to modify data below when the previous frame is still in flight
 	const size_t buffer_index = _framecount % std::size(_imgui_vertices);
@@ -3417,7 +3415,7 @@ void reshade::runtime::render_imgui_draw_data(ImDrawData *draw_data, api::frameb
 
 	api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
 
-	cmd_list->begin_render_pass(fbo);
+	cmd_list->begin_render_pass(pass);
 
 	// Setup render state
 	cmd_list->bind_pipeline(api::pipeline_stage::all_graphics, _imgui_pipeline);

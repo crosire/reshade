@@ -67,17 +67,24 @@ void reshade::runtime::init_gui_vr()
 
 	if (!_device->create_resource(api::resource_desc(OVERLAY_WIDTH, OVERLAY_HEIGHT, 1, 1, api::format::r8g8b8a8_unorm, 1, api::memory_heap::gpu_only, api::resource_usage::render_target | api::resource_usage::shader_resource), nullptr, api::resource_usage::shader_resource_pixel, &_vr_overlay_texture))
 	{
-		LOG(ERROR) << "Failed to create VR dashboard overlay texture.";
+		LOG(ERROR) << "Failed to create VR dashboard overlay texture!";
 		return;
 	}
 	if (!_device->create_resource_view(_vr_overlay_texture, api::resource_usage::render_target, api::resource_view_desc(api::format::r8g8b8a8_unorm), &_vr_overlay_target))
 	{
-		LOG(ERROR) << "Failed to create VR dashboard overlay render target.";
+		LOG(ERROR) << "Failed to create VR dashboard overlay render target!";
 		return;
 	}
-	if (!_device->create_framebuffer(1, &_vr_overlay_target, _effect_stencil_view, &_vr_overlay_fbo))
+
+	api::render_pass_desc pass_desc = {};
+	pass_desc.depth_stencil = _effect_stencil_target;
+	pass_desc.depth_stencil_format = _effect_stencil_format;
+	pass_desc.render_targets[0] = _vr_overlay_target;
+	pass_desc.render_targets_format[0] = api::format::r8g8b8a8_unorm;
+
+	if (!_device->create_render_pass(pass_desc, &_vr_overlay_pass))
 	{
-		LOG(ERROR) << "Failed to create VR dashboard overlay framebuffer object.";
+		LOG(ERROR) << "Failed to create VR dashboard overlay render pass!";
 		return;
 	}
 }
@@ -91,8 +98,8 @@ void reshade::runtime::deinit_gui_vr()
 	_vr_overlay_texture = {};
 	_device->destroy_resource_view(_vr_overlay_target);
 	_vr_overlay_target = {};
-	_device->destroy_framebuffer(_vr_overlay_fbo);
-	_vr_overlay_fbo = {};
+	_device->destroy_render_pass(_vr_overlay_pass);
+	_vr_overlay_pass = {};
 
 	s_overlay->DestroyOverlay(s_main_handle);
 	s_main_handle = vr::k_ulOverlayHandleInvalid;
@@ -229,7 +236,7 @@ void reshade::runtime::draw_gui_vr()
 		api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
 
 		cmd_list->barrier(_vr_overlay_texture, api::resource_usage::shader_resource_pixel, api::resource_usage::render_target);
-		render_imgui_draw_data(draw_data, _vr_overlay_fbo);
+		render_imgui_draw_data(draw_data, _vr_overlay_pass);
 		cmd_list->barrier(_vr_overlay_texture, api::resource_usage::render_target, api::resource_usage::shader_resource_pixel);
 	}
 

@@ -19,6 +19,9 @@ namespace reshade::d3d11
 
 		void barrier(uint32_t, const api::resource *, const api::resource_usage *, const api::resource_usage *) final { assert(false); }
 
+		void begin_render_pass(api::render_pass) final { assert(false); }
+		void finish_render_pass() final { assert(false); }
+
 		void bind_pipeline(api::pipeline_stage, api::pipeline) final { assert(false); }
 		void bind_pipeline_states(uint32_t, const api::dynamic_state *, const uint32_t *) final { assert(false); }
 		void bind_viewports(uint32_t, uint32_t, const float *) final { assert(false); }
@@ -35,9 +38,6 @@ namespace reshade::d3d11
 		void draw_indexed(uint32_t, uint32_t, uint32_t, int32_t, uint32_t) final { assert(false); }
 		void dispatch(uint32_t, uint32_t, uint32_t) final { assert(false); }
 		void draw_or_dispatch_indirect(uint32_t, api::resource, uint64_t, uint32_t, uint32_t) final { assert(false); }
-
-		void begin_render_pass(api::framebuffer) final { assert(false); }
-		void finish_render_pass() final { assert(false); }
 
 		void copy_resource(api::resource, api::resource) final { assert(false); }
 		void copy_buffer_region(api::resource, uint64_t, api::resource, uint64_t, uint64_t) final { assert(false); }
@@ -84,6 +84,9 @@ namespace reshade::d3d11
 
 		void barrier(uint32_t count, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states) final;
 
+		void begin_render_pass(api::render_pass pass) final;
+		void finish_render_pass() final;
+
 		void bind_pipeline(api::pipeline_stage type, api::pipeline pipeline) final;
 		void bind_pipeline_states(uint32_t count, const api::dynamic_state *states, const uint32_t *values) final;
 		void bind_viewports(uint32_t first, uint32_t count, const float *viewports) final;
@@ -105,9 +108,6 @@ namespace reshade::d3d11
 		void draw_indexed(uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance) final;
 		void dispatch(uint32_t num_groups_x, uint32_t num_groups_y, uint32_t num_groups_z) final;
 		void draw_or_dispatch_indirect(uint32_t type, api::resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride) final;
-
-		void begin_render_pass(api::framebuffer fbo) final;
-		void finish_render_pass() final;
 
 		void copy_resource(api::resource src, api::resource dst) final;
 		void copy_buffer_region(api::resource src, uint64_t src_offset, api::resource dst, uint64_t dst_offset, uint64_t size) final;
@@ -140,6 +140,6 @@ namespace reshade::d3d11
 
 	protected:
 		bool _has_open_render_pass = false;
-		struct framebuffer_impl *_current_fbo;
+		struct render_pass_impl *_current_pass;
 	};
 }

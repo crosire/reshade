@@ -21,6 +21,9 @@ namespace reshade::vulkan
 
 		void barrier(uint32_t count, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states) final;
 
+		void begin_render_pass(api::render_pass pass) final;
+		void finish_render_pass() final;
+
 		void bind_pipeline(api::pipeline_stage type, api::pipeline pipeline) final;
 		void bind_pipeline_states(uint32_t count, const api::dynamic_state *states, const uint32_t *values) final;
 		void bind_viewports(uint32_t first, uint32_t count, const float *viewports) final;
@@ -37,9 +40,6 @@ namespace reshade::vulkan
 		void draw_indexed(uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance) final;
 		void dispatch(uint32_t num_groups_x, uint32_t num_groups_y, uint32_t num_groups_z) final;
 		void draw_or_dispatch_indirect(uint32_t type, api::resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride) final;
-
-		void begin_render_pass(api::framebuffer fbo) final;
-		void finish_render_pass() final;
 
 		void copy_resource(api::resource src, api::resource dst) final;
 		void copy_buffer_region(api::resource src, uint64_t src_offset, api::resource dst, uint64_t dst_offset, uint64_t size) final;
@@ -64,9 +64,11 @@ namespace reshade::vulkan
 		void begin_debug_marker(const char *label, const float color[4]) final;
 		void finish_debug_marker() final;
 
+		VkRect2D _current_render_area = {};
+		VkFramebuffer _current_fbo = VK_NULL_HANDLE;
+
 	protected:
 		device_impl *const _device_impl;
 		bool _has_commands = false;
-		framebuffer_data _current_fbo = {};
 	};
 }

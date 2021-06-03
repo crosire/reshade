@@ -113,9 +113,6 @@ reshade::vulkan::device_impl::~device_impl()
 	addon::unload_addons();
 #endif
 
-	for (const auto &it : _render_pass_list_internal)
-		vk.DestroyRenderPass(_orig, it.second, nullptr);
-
 	vk.DestroyDescriptorPool(_orig, _descriptor_pool, nullptr);
 	for (uint32_t i = 0; i < 4; ++i)
 		vk.DestroyDescriptorPool(_orig, _transient_descriptor_pool[i], nullptr);
@@ -436,12 +433,12 @@ bool reshade::vulkan::device_impl::create_pipeline(const api::pipeline_desc &des
 		*out = { 0 };
 		return false;
 	case api::pipeline_stage::all_compute:
-		return create_pipeline_compute(desc, out);
+		return create_compute_pipeline(desc, out);
 	case api::pipeline_stage::all_graphics:
-		return create_pipeline_graphics(desc, out);
+		return create_graphics_pipeline(desc, out);
 	}
 }
-bool reshade::vulkan::device_impl::create_pipeline_compute(const api::pipeline_desc &desc, api::pipeline *out)
+bool reshade::vulkan::device_impl::create_compute_pipeline(const api::pipeline_desc &desc, api::pipeline *out)
 {
 	VkComputePipelineCreateInfo create_info { VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO };
 	create_info.layout = (VkPipelineLayout)desc.layout.handle;
@@ -470,8 +467,14 @@ exit_failure:
 	*out = { 0 };
 	return false;
 }
-bool reshade::vulkan::device_impl::create_pipeline_graphics(const api::pipeline_desc &desc, api::pipeline *out)
+bool reshade::vulkan::device_impl::create_graphics_pipeline(const api::pipeline_desc &desc, api::pipeline *out)
 {
+	if (desc.graphics.render_pass_template.handle == 0)
+	{
+		*out = { 0 };
+		return false;
+	}
+
 	VkGraphicsPipelineCreateInfo create_info { VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
 	create_info.layout = (VkPipelineLayout)desc.layout.handle;
 
@@ -664,83 +667,38 @@ bool reshade::vulkan::device_impl::create_pipeline_graphics(const api::pipeline_
 			attachment_info[i].colorWriteMask = desc.graphics.blend_state.render_target_write_mask[i];
 		}
 
+		const auto pass_impl = reinterpret_cast<const render_pass_impl *>(desc.graphics.render_pass_template.handle);
+
+		uint32_t num_color_attachments = 0;
+		{
+			const std::lock_guard<std::mutex> lock(_mutex);
+			const auto &framebuffer_data = _framebuffer_list.at(pass_impl->fbo);
+			for (VkImageAspectFlags format_flags : framebuffer_data.attachment_types)
+				if (format_flags == VK_IMAGE_ASPECT_COLOR_BIT)
+					num_color_attachments++;
+		}
+
 		VkPipelineColorBlendStateCreateInfo color_blend_state_info { VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
 		create_info.pColorBlendState = &color_blend_state_info;
 		color_blend_state_info.logicOpEnable = desc.graphics.blend_state.logic_op_enable[0];
 		color_blend_state_info.logicOp = convert_logic_op(desc.graphics.blend_state.logic_op[0]);
-		color_blend_state_info.attachmentCount = desc.graphics.render_target_count;
+		color_blend_state_info.attachmentCount = num_color_attachments;
 		color_blend_state_info.pAttachments = attachment_info;
 		color_blend_state_info.blendConstants[0] = ((desc.graphics.blend_state.blend_constant) & 0xFF) / 255.0f;
 		color_blend_state_info.blendConstants[1] = ((desc.graphics.blend_state.blend_constant >> 4) & 0xFF) / 255.0f;
 		color_blend_state_info.blendConstants[2] = ((desc.graphics.blend_state.blend_constant >> 8) & 0xFF) / 255.0f;
 		color_blend_state_info.blendConstants[3] = ((desc.graphics.blend_state.blend_constant >> 12) & 0xFF) / 255.0f;
 
-		uint32_t num_attachments = 0;
-		VkAttachmentReference attachment_refs[8 + 1] = {};
-		VkAttachmentDescription attachment_desc[8 + 1] = {};
-
-		for (uint32_t i = 0; i < desc.graphics.render_target_count && i < 8; ++i)
-		{
-			attachment_desc[num_attachments].format = convert_format(desc.graphics.render_target_format[i]);
-			attachment_desc[num_attachments].samples = static_cast<VkSampleCountFlagBits>(desc.graphics.sample_count);
-			attachment_desc[num_attachments].loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-			attachment_desc[num_attachments].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-			attachment_desc[num_attachments].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-			attachment_desc[num_attachments].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-			attachment_desc[num_attachments].initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-			attachment_desc[num_attachments].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-			attachment_refs[i].attachment = num_attachments++;
-			attachment_refs[i].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-		}
-
-		if (desc.graphics.depth_stencil_format != api::format::unknown)
-		{
-			attachment_desc[num_attachments].format = convert_format(desc.graphics.depth_stencil_format);
-			attachment_desc[num_attachments].samples = static_cast<VkSampleCountFlagBits>(desc.graphics.sample_count);
-			attachment_desc[num_attachments].loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-			attachment_desc[num_attachments].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-			attachment_desc[num_attachments].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-			attachment_desc[num_attachments].stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
-			attachment_desc[num_attachments].initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-			attachment_desc[num_attachments].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-			attachment_refs[8].attachment = num_attachments++;
-			attachment_refs[8].layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-		}
-		else
-		{
-			attachment_refs[8].attachment = VK_ATTACHMENT_UNUSED;
-			attachment_refs[8].layout = VK_IMAGE_LAYOUT_UNDEFINED;
-		}
-
-		VkSubpassDescription subpass_desc = {};
-		subpass_desc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-		subpass_desc.colorAttachmentCount = desc.graphics.render_target_count;
-		subpass_desc.pColorAttachments = attachment_refs;
-		subpass_desc.pDepthStencilAttachment = &attachment_refs[8];
-
-		VkRenderPassCreateInfo render_pass_info { VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO };
-		render_pass_info.attachmentCount = num_attachments;
-		render_pass_info.pAttachments = attachment_desc;
-		render_pass_info.subpassCount = 1;
-		render_pass_info.pSubpasses = &subpass_desc;
+		create_info.renderPass = pass_impl->render_pass;
 
 		if (VkPipeline object = VK_NULL_HANDLE;
-			vk.CreateRenderPass(_orig, &render_pass_info, nullptr, &create_info.renderPass) == VK_SUCCESS &&
 			vk.CreateGraphicsPipelines(_orig, VK_NULL_HANDLE, 1, &create_info, nullptr, &object) == VK_SUCCESS)
 		{
-			vk.DestroyRenderPass(_orig, create_info.renderPass, nullptr);
-
 			for (uint32_t stage_index = 0; stage_index < create_info.stageCount; ++stage_index)
 				vk.DestroyShaderModule(_orig, create_info.pStages[stage_index].module, nullptr);
 
 			*out = { (uint64_t)object };
 			return true;
-		}
-		else
-		{
-			vk.DestroyRenderPass(_orig, create_info.renderPass, nullptr);
 		}
 	}
 
@@ -752,14 +710,14 @@ exit_failure:
 	return false;
 }
 
-bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t num_set_layouts, const api::descriptor_set_layout *set_layouts, uint32_t num_constant_ranges, const api::constant_range *constant_ranges, api::pipeline_layout *out)
+bool reshade::vulkan::device_impl::create_pipeline_layout(const api::pipeline_layout_desc &desc, api::pipeline_layout *out)
 {
 	VkDescriptorSetLayout dummy_layout = VK_NULL_HANDLE;
 
-	std::vector<VkDescriptorSetLayout> internal_set_layouts(num_set_layouts);
-	for (uint32_t i = 0; i < num_set_layouts; ++i)
+	std::vector<VkDescriptorSetLayout> internal_set_layouts(desc.num_set_layouts);
+	for (uint32_t i = 0; i < desc.num_set_layouts; ++i)
 	{
-		if (set_layouts[i].handle == 0)
+		if (desc.set_layouts[i].handle == 0)
 		{
 			if (dummy_layout == VK_NULL_HANDLE)
 			{
@@ -777,22 +735,22 @@ bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t num_set_layou
 		}
 		else
 		{
-			internal_set_layouts[i] = (VkDescriptorSetLayout)set_layouts[i].handle;
+			internal_set_layouts[i] = (VkDescriptorSetLayout)desc.set_layouts[i].handle;
 		}
 	}
 
-	std::vector<VkPushConstantRange> push_constant_ranges(num_constant_ranges);
-	for (uint32_t i = 0; i < num_constant_ranges; ++i)
+	std::vector<VkPushConstantRange> push_constant_ranges(desc.num_constant_ranges);
+	for (uint32_t i = 0; i < desc.num_constant_ranges; ++i)
 	{
-		push_constant_ranges[i].stageFlags = static_cast<VkShaderStageFlagBits>(constant_ranges[i].visibility);
-		push_constant_ranges[i].offset = constant_ranges[i].offset * 4;
-		push_constant_ranges[i].size = constant_ranges[i].count * 4;
+		push_constant_ranges[i].stageFlags = static_cast<VkShaderStageFlagBits>(desc.constant_ranges[i].visibility);
+		push_constant_ranges[i].offset = desc.constant_ranges[i].offset * 4;
+		push_constant_ranges[i].size = desc.constant_ranges[i].count * 4;
 	}
 
 	VkPipelineLayoutCreateInfo create_info { VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
-	create_info.setLayoutCount = num_set_layouts;
+	create_info.setLayoutCount = desc.num_set_layouts;
 	create_info.pSetLayouts = internal_set_layouts.data();
-	create_info.pushConstantRangeCount = num_constant_ranges;
+	create_info.pushConstantRangeCount = desc.num_constant_ranges;
 	create_info.pPushConstantRanges = push_constant_ranges.data();
 
 	if (VkPipelineLayout object = VK_NULL_HANDLE;
@@ -813,19 +771,19 @@ bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t num_set_layou
 		return false;
 	}
 }
-bool reshade::vulkan::device_impl::create_descriptor_set_layout(uint32_t num_ranges, const api::descriptor_range *ranges, bool push_descriptors, api::descriptor_set_layout *out)
+bool reshade::vulkan::device_impl::create_descriptor_set_layout(const api::descriptor_set_layout_desc &desc, api::descriptor_set_layout *out)
 {
 	std::vector<VkDescriptorSetLayoutBinding> internal_bindings;
-	internal_bindings.reserve(num_ranges);
-	for (uint32_t i = 0; i < num_ranges; ++i)
+	internal_bindings.reserve(desc.num_ranges);
+	for (uint32_t i = 0; i < desc.num_ranges; ++i)
 	{
-		for (uint32_t k = 0; k < ranges[i].count; ++k)
+		for (uint32_t k = 0; k < desc.ranges[i].count; ++k)
 		{
 			VkDescriptorSetLayoutBinding &internal_binding = internal_bindings.emplace_back();
-			internal_binding.binding = ranges[i].binding + k;
-			internal_binding.descriptorType = static_cast<VkDescriptorType>(ranges[i].type);
+			internal_binding.binding = desc.ranges[i].binding + k;
+			internal_binding.descriptorType = static_cast<VkDescriptorType>(desc.ranges[i].type);
 			internal_binding.descriptorCount = 1;
-			internal_binding.stageFlags = static_cast<VkShaderStageFlags>(ranges[i].visibility);
+			internal_binding.stageFlags = static_cast<VkShaderStageFlags>(desc.ranges[i].visibility);
 			internal_binding.pImmutableSamplers = nullptr;
 		}
 	}
@@ -834,7 +792,7 @@ bool reshade::vulkan::device_impl::create_descriptor_set_layout(uint32_t num_ran
 	set_create_info.bindingCount = static_cast<uint32_t>(internal_bindings.size());
 	set_create_info.pBindings = internal_bindings.data();
 
-	if (push_descriptors && vk.CmdPushDescriptorSetKHR != nullptr)
+	if (desc.push_descriptors && vk.CmdPushDescriptorSetKHR != nullptr)
 		set_create_info.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
 
 	if (VkDescriptorSetLayout object = VK_NULL_HANDLE;
@@ -849,11 +807,28 @@ bool reshade::vulkan::device_impl::create_descriptor_set_layout(uint32_t num_ran
 		return false;
 	}
 }
+
 bool reshade::vulkan::device_impl::create_query_pool(api::query_type type, uint32_t count, api::query_pool *out)
 {
 	VkQueryPoolCreateInfo create_info { VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO };
 	create_info.queryType = convert_query_type(type);
 	create_info.queryCount = count;
+
+	if (type == api::query_type::pipeline_statistics)
+	{
+		create_info.pipelineStatistics =
+			VK_QUERY_PIPELINE_STATISTIC_INPUT_ASSEMBLY_VERTICES_BIT |
+			VK_QUERY_PIPELINE_STATISTIC_INPUT_ASSEMBLY_PRIMITIVES_BIT |
+			VK_QUERY_PIPELINE_STATISTIC_VERTEX_SHADER_INVOCATIONS_BIT |
+			VK_QUERY_PIPELINE_STATISTIC_GEOMETRY_SHADER_INVOCATIONS_BIT |
+			VK_QUERY_PIPELINE_STATISTIC_GEOMETRY_SHADER_PRIMITIVES_BIT |
+			VK_QUERY_PIPELINE_STATISTIC_CLIPPING_INVOCATIONS_BIT |
+			VK_QUERY_PIPELINE_STATISTIC_CLIPPING_PRIMITIVES_BIT |
+			VK_QUERY_PIPELINE_STATISTIC_FRAGMENT_SHADER_INVOCATIONS_BIT |
+			VK_QUERY_PIPELINE_STATISTIC_TESSELLATION_CONTROL_SHADER_PATCHES_BIT |
+			VK_QUERY_PIPELINE_STATISTIC_TESSELLATION_EVALUATION_SHADER_INVOCATIONS_BIT |
+			VK_QUERY_PIPELINE_STATISTIC_COMPUTE_SHADER_INVOCATIONS_BIT;
+	}
 
 	if (VkQueryPool pool = VK_NULL_HANDLE;
 		vk.CreateQueryPool(_orig, &create_info, nullptr, &pool) == VK_SUCCESS)
@@ -885,59 +860,136 @@ bool reshade::vulkan::device_impl::create_query_pool(api::query_type type, uint3
 		return false;
 	}
 }
-bool reshade::vulkan::device_impl::create_framebuffer(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv, api::framebuffer *out)
+bool reshade::vulkan::device_impl::create_render_pass(const api::render_pass_desc &desc, api::render_pass *out)
 {
-	const auto rtv_info = lookup_resource_view(count != 0 ? rtvs[0] : dsv);
-	const auto rt_resource_info = lookup_resource({ (uint64_t)rtv_info.image_create_info.image });
+	uint32_t num_layers = std::numeric_limits<uint32_t>::max();
+	uint32_t num_color_attachments = 0;
+	render_pass_impl pass_impl;
+	pass_impl.render_area.extent.width = std::numeric_limits<uint32_t>::max();
+	pass_impl.render_area.extent.height = std::numeric_limits<uint32_t>::max();
 
-	std::vector<VkImageView> views;
-	views.reserve(count + 1);
-	for (uint32_t i = 0; i < count; ++i)
-		views.push_back((VkImageView)rtvs[i].handle);
-	if (dsv.handle != 0)
-		views.push_back((VkImageView)dsv.handle);
+	render_pass_data pass_data;
+	framebuffer_data fbo_data;
 
-	VkFramebufferCreateInfo create_info { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
-	create_info.attachmentCount = count + (dsv.handle != 0 ? 1 : 0);
-	create_info.pAttachments = views.data();
-	create_info.width = rt_resource_info.image_create_info.extent.width;
-	create_info.height = rt_resource_info.image_create_info.extent.height;
-	create_info.layers = rt_resource_info.image_create_info.arrayLayers;
+	std::vector<VkAttachmentReference> attachment_refs;
+	std::vector<VkAttachmentDescription> attachment_descs;
 
-	if (!request_render_pass(count, rtvs, dsv, create_info.renderPass))
+	for (uint32_t i = 0; i < 8 && desc.render_targets[i].handle != 0; ++i, ++num_color_attachments)
 	{
-		*out = { 0 };
-		return false;
+		VkAttachmentReference &ref = attachment_refs.emplace_back();
+		ref.attachment = i;
+		ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+		const auto rtv_info = lookup_resource_view(desc.render_targets[i]);
+		const auto rt_resource_info = lookup_resource({ (uint64_t)rtv_info.image_create_info.image });
+
+		VkAttachmentDescription &attach = attachment_descs.emplace_back();
+		attach.format = convert_format(desc.render_targets_format[i]);
+		attach.samples = rt_resource_info.image_create_info.samples;
+		attach.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+		attach.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+		attach.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+		attach.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+		pass_impl.render_area.extent.width = std::min(rt_resource_info.image_create_info.extent.width, pass_impl.render_area.extent.width);
+		pass_impl.render_area.extent.height = std::min(rt_resource_info.image_create_info.extent.height, pass_impl.render_area.extent.height);
+		num_layers = std::min(rt_resource_info.image_create_info.arrayLayers, num_layers);
+
+		fbo_data.attachments.push_back(desc.render_targets[i]);
+		fbo_data.attachment_types.push_back(VK_IMAGE_ASPECT_COLOR_BIT);
+		pass_data.attachments.push_back({ attach.initialLayout, 0, aspect_flags_from_format(attach.format) });
 	}
 
-	framebuffer_data data;
-	data.render_area.offset.x = 0;
-	data.render_area.offset.y = 0;
-	data.render_area.extent.width = create_info.width;
-	data.render_area.extent.height = create_info.height;
-	data.render_pass = create_info.renderPass;
-	data.attachments.assign(rtvs, rtvs + count);
-	data.attachment_types.assign(count, VK_IMAGE_ASPECT_COLOR_BIT);
-	if (dsv.handle != 0)
+	if (desc.depth_stencil.handle != 0)
 	{
-		data.attachments.push_back(dsv);
-		data.attachment_types.push_back(VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT);
+		VkAttachmentReference &ref = attachment_refs.emplace_back();
+		ref.attachment = num_color_attachments;
+		ref.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+		const auto dsv_info = lookup_resource_view(desc.depth_stencil);
+		const auto ds_resource_info = lookup_resource({ (uint64_t)dsv_info.image_create_info.image });
+
+		VkAttachmentDescription &attach = attachment_descs.emplace_back();
+		attach.format = convert_format(desc.depth_stencil_format);
+		attach.samples = ds_resource_info.image_create_info.samples;
+		attach.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+		attach.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+		attach.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+		attach.stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
+		attach.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+		attach.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+		pass_impl.render_area.extent.width = std::min(ds_resource_info.image_create_info.extent.width, pass_impl.render_area.extent.width);
+		pass_impl.render_area.extent.height = std::min(ds_resource_info.image_create_info.extent.height, pass_impl.render_area.extent.height);
+		num_layers = std::min(ds_resource_info.image_create_info.arrayLayers, num_layers);
+
+		fbo_data.attachments.push_back(desc.depth_stencil);
+		fbo_data.attachment_types.push_back(aspect_flags_from_format(attach.format));
+		pass_data.attachments.push_back({ attach.initialLayout, 0, aspect_flags_from_format(attach.format) });
 	}
 
-	if (VkFramebuffer object = VK_NULL_HANDLE;
-		vk.CreateFramebuffer(_orig, &create_info, nullptr, &object) == VK_SUCCESS)
 	{
-		const std::lock_guard<std::mutex> lock(_mutex);
-		_framebuffer_list.emplace(object, std::move(data));
+		// Synchronize any writes to render targets in previous passes with reads from them in this pass
+		VkSubpassDependency subdep = {};
+		subdep.srcSubpass = VK_SUBPASS_EXTERNAL;
+		subdep.dstSubpass = 0;
+		subdep.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+		subdep.dstStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
+		subdep.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+		subdep.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 
-		*out = { (uint64_t)object };
-		return true;
+		VkSubpassDescription subpass = {};
+		subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+		subpass.colorAttachmentCount = num_color_attachments;
+		subpass.pColorAttachments = attachment_refs.data();
+		subpass.pDepthStencilAttachment = desc.depth_stencil.handle != 0 ? &attachment_refs.back() : nullptr;
+
+		VkRenderPassCreateInfo create_info { VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO };
+		create_info.attachmentCount = static_cast<uint32_t>(attachment_descs.size());
+		create_info.pAttachments = attachment_descs.data();
+		create_info.subpassCount = 1;
+		create_info.pSubpasses = &subpass;
+		create_info.dependencyCount = 1;
+		create_info.pDependencies = &subdep;
+
+		if (vk.CreateRenderPass(_orig, &create_info, nullptr, &pass_impl.render_pass) != VK_SUCCESS)
+		{
+			*out = { 0 };
+			return false;
+		}
 	}
-	else
+
 	{
-		*out = { 0 };
-		return false;
+		std::vector<VkImageView> views;
+		views.reserve(num_color_attachments + 1);
+		for (uint32_t i = 0; i < num_color_attachments; ++i)
+			views.push_back((VkImageView)desc.render_targets[i].handle);
+		if (desc.depth_stencil.handle != 0)
+			views.push_back((VkImageView)desc.depth_stencil.handle);
+
+		VkFramebufferCreateInfo create_info { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
+		create_info.renderPass = pass_impl.render_pass;
+		create_info.attachmentCount = static_cast<uint32_t>(views.size());
+		create_info.pAttachments = views.data();
+		create_info.width = pass_impl.render_area.extent.width;
+		create_info.height = pass_impl.render_area.extent.height;
+		create_info.layers = num_layers;
+
+		if (vk.CreateFramebuffer(_orig, &create_info, nullptr, &pass_impl.fbo) != VK_SUCCESS)
+		{
+			vk.DestroyRenderPass(_orig, pass_impl.render_pass, nullptr);
+
+			*out = { 0 };
+			return false;
+		}
 	}
+
+	std::lock_guard<std::mutex> lock(_mutex);
+	_render_pass_list.emplace(pass_impl.render_pass, std::move(pass_data));
+	_framebuffer_list.emplace(pass_impl.fbo, std::move(fbo_data));
+
+	*out = { reinterpret_cast<uintptr_t>(new render_pass_impl(std::move(pass_impl))) };
+	return true;
 }
 bool reshade::vulkan::device_impl::create_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, api::descriptor_set *out)
 {
@@ -1003,13 +1055,25 @@ void reshade::vulkan::device_impl::destroy_descriptor_set_layout(api::descriptor
 {
 	vk.DestroyDescriptorSetLayout(_orig, (VkDescriptorSetLayout)handle.handle, nullptr);
 }
+
 void reshade::vulkan::device_impl::destroy_query_pool(api::query_pool handle)
 {
 	vk.DestroyQueryPool(_orig, (VkQueryPool)handle.handle, nullptr);
 }
-void reshade::vulkan::device_impl::destroy_framebuffer(api::framebuffer handle)
+void reshade::vulkan::device_impl::destroy_render_pass(api::render_pass handle)
 {
-	vk.DestroyFramebuffer(_orig, (VkFramebuffer)handle.handle, nullptr);
+	if (handle.handle == 0)
+		return;
+	const auto pass_impl = reinterpret_cast<const render_pass_impl *>(handle.handle);
+
+	vk.DestroyRenderPass(_orig, pass_impl->render_pass, nullptr);
+	vk.DestroyFramebuffer(_orig, pass_impl->fbo, nullptr);
+
+	const std::lock_guard<std::mutex> lock(_mutex);
+	_render_pass_list.erase(pass_impl->render_pass);
+	_framebuffer_list.erase(pass_impl->fbo);
+
+	delete pass_impl;
 }
 void reshade::vulkan::device_impl::destroy_descriptor_sets(api::descriptor_set_layout, uint32_t count, const api::descriptor_set *sets)
 {
@@ -1179,6 +1243,37 @@ void reshade::vulkan::device_impl::upload_texture_region(const api::subresource_
 	vmaDestroyBuffer(_alloc, intermediate, intermediate_mem);
 }
 
+bool reshade::vulkan::device_impl::get_attachment(api::render_pass pass, api::attachment_type type, uint32_t index, api::resource_view *out) const
+{
+	assert(pass.handle != 0);
+	const auto pass_impl = reinterpret_cast<const render_pass_impl *>(pass.handle);
+
+	std::lock_guard<std::mutex> lock(_mutex);
+	const auto &info = _framebuffer_list.at(pass_impl->fbo);
+	const auto &pass_info = _render_pass_list.at(pass_impl->render_pass);
+
+	assert(index <= pass_info.attachments.size());
+
+	for (uint32_t i = 0; i < pass_info.attachments.size(); ++i)
+	{
+		if (pass_info.attachments[i].format_flags & static_cast<VkImageAspectFlags>(type))
+		{
+			if (index == 0)
+			{
+				*out = info.attachments[i];
+				return true;
+			}
+			else
+			{
+				index -= 1;
+			}
+		}
+	}
+
+	*out = { 0 };
+	return false;
+}
+
 void reshade::vulkan::device_impl::get_resource_from_view(api::resource_view view, api::resource *out) const
 {
 	const resource_view_data data = lookup_resource_view(view);
@@ -1197,28 +1292,6 @@ reshade::api::resource_desc reshade::vulkan::device_impl::get_resource_desc(api:
 		return convert_resource_desc(data.image_create_info);
 	else
 		return convert_resource_desc(data.buffer_create_info);
-}
-
-bool reshade::vulkan::device_impl::get_framebuffer_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index, api::resource_view *out) const
-{
-	std::lock_guard<std::mutex> lock(_mutex);
-	const auto &info = _framebuffer_list.at((VkFramebuffer)fbo.handle);
-	const auto &pass_info = _render_pass_list.at(info.render_pass);
-
-	for (uint32_t i = 0; i < pass_info.attachments.size(); ++i)
-	{
-		if (pass_info.attachments[i].format_flags == static_cast<VkImageAspectFlags>(type))
-		{
-			if (index-- == 0)
-			{
-				*out = info.attachments[i];
-				return true;
-			}
-		}
-	}
-
-	*out = { 0 };
-	return false;
 }
 
 bool reshade::vulkan::device_impl::get_query_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride)
@@ -1259,109 +1332,4 @@ void reshade::vulkan::device_impl::set_debug_name(api::resource resource, const 
 	name_info.pObjectName = name;
 
 	vk.SetDebugUtilsObjectNameEXT(_orig, &name_info);
-}
-
-bool reshade::vulkan::device_impl::request_render_pass(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv, VkRenderPass &pass)
-{
-	size_t hash = 0xFFFFFFFF;
-	for (uint32_t i = 0; i < count; ++i)
-		hash ^= std::hash<uint64_t>()(rtvs[i].handle);
-	if (dsv.handle != 0)
-		hash ^= std::hash<uint64_t>()(dsv.handle);
-
-	std::unique_lock<std::mutex> lock(_mutex);
-
-	if (const auto it = _render_pass_list_internal.find(hash);
-		it != _render_pass_list_internal.end())
-	{
-		pass = it->second;
-	}
-	else
-	{
-		lock.unlock();
-
-		render_pass_data pass_info;
-
-		std::vector<VkAttachmentReference> attachment_refs;
-		std::vector<VkAttachmentDescription> attachment_descs;
-
-		for (uint32_t i = 0; i < count; ++i)
-		{
-			VkAttachmentReference &ref = attachment_refs.emplace_back();
-			ref.attachment = i;
-			ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-			const auto rtv_info = lookup_resource_view(rtvs[i]);
-			const auto rt_resource_info = lookup_resource({ (uint64_t)rtv_info.image_create_info.image });
-
-			VkAttachmentDescription &attach = attachment_descs.emplace_back();
-			attach.format = rtv_info.image_create_info.format;
-			attach.samples = rt_resource_info.image_create_info.samples;
-			attach.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-			attach.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-			attach.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-			attach.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-			auto &attach_info = pass_info.attachments.emplace_back();
-			attach_info.initial_layout = attach.initialLayout;
-			attach_info.format_flags = VK_IMAGE_ASPECT_COLOR_BIT;
-		}
-
-		if (dsv.handle != 0)
-		{
-			VkAttachmentReference &ref = attachment_refs.emplace_back();
-			ref.attachment = count;
-			ref.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-			const auto dsv_info = lookup_resource_view(dsv);
-			const auto ds_resource_info = lookup_resource({ (uint64_t)dsv_info.image_create_info.image });
-
-			VkAttachmentDescription &attach = attachment_descs.emplace_back();
-			attach.format = dsv_info.image_create_info.format;
-			attach.samples = ds_resource_info.image_create_info.samples;
-			attach.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-			attach.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-			attach.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-			attach.stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
-			attach.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-			attach.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-			auto &attach_info = pass_info.attachments.emplace_back();
-			attach_info.initial_layout = attach.initialLayout;
-			attach_info.format_flags = aspect_flags_from_format(attach.format);
-		}
-
-		// Synchronize any writes to render targets in previous passes with reads from them in this pass
-		VkSubpassDependency subdep = {};
-		subdep.srcSubpass = VK_SUBPASS_EXTERNAL;
-		subdep.dstSubpass = 0;
-		subdep.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-		subdep.dstStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
-		subdep.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-		subdep.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-
-		VkSubpassDescription subpass = {};
-		subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-		subpass.colorAttachmentCount = count;
-		subpass.pColorAttachments = attachment_refs.data();
-		subpass.pDepthStencilAttachment = dsv.handle != 0 ? &attachment_refs[count] : nullptr;
-
-		VkRenderPassCreateInfo create_info { VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO };
-		create_info.attachmentCount = static_cast<uint32_t>(attachment_descs.size());
-		create_info.pAttachments = attachment_descs.data();
-		create_info.subpassCount = 1;
-		create_info.pSubpasses = &subpass;
-		create_info.dependencyCount = 1;
-		create_info.pDependencies = &subdep;
-
-		if (vk.CreateRenderPass(_orig, &create_info, nullptr, &pass) != VK_SUCCESS)
-			return false;
-
-		lock.lock();
-
-		_render_pass_list.emplace(pass, std::move(pass_info));
-		_render_pass_list_internal.emplace(hash, pass);
-	}
-
-	return true;
 }

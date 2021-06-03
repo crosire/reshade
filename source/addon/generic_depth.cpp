@@ -359,6 +359,7 @@ static bool on_draw_indirect(command_list *cmd_list, uint32_t type, resource, ui
 
 	return false;
 }
+
 static void on_bind_viewport(command_list *cmd_list, uint32_t first, uint32_t count, const float *viewport)
 {
 	if (first != 0 || count == 0)
@@ -367,15 +368,16 @@ static void on_bind_viewport(command_list *cmd_list, uint32_t first, uint32_t co
 	auto &state = cmd_list->get_user_data<state_tracking>(state_tracking::GUID);
 	std::memcpy(state.current_viewport, viewport, 6 * sizeof(float));
 }
-static void on_bind_depth_stencil(command_list *cmd_list, resource_view dsv)
+static void on_bind_depth_stencil(command_list *cmd_list, render_pass pass)
 {
 	device *const device = cmd_list->get_device();
 	auto &state = cmd_list->get_user_data<state_tracking>(state_tracking::GUID);
 
 	resource depth_stencil = { 0 };
-	if (dsv != 0)
+	resource_view depth_stencil_view = { 0 };
+	if (device->get_attachment(pass, attachment_type::depth, 0, &depth_stencil_view))
 	{
-		device->get_resource_from_view(dsv, &depth_stencil);
+		device->get_resource_from_view(depth_stencil_view, &depth_stencil);
 	}
 
 	// Make a backup of the depth texture before it is used differently, since in D3D12 or Vulkan the underlying memory may be aliased to a different resource, so cannot just access it at the end of the frame
@@ -386,14 +388,7 @@ static void on_bind_depth_stencil(command_list *cmd_list, resource_view dsv)
 
 	state.current_depth_stencil = depth_stencil;
 }
-static void on_begin_render_pass(command_list *cmd_list, framebuffer fbo)
-{
-	resource_view dsv = { 0 };
-	cmd_list->get_device()->get_framebuffer_attachment(fbo, attachment_type::depth, 0, &dsv);
-
-	on_bind_depth_stencil(cmd_list, dsv);
-}
-static bool on_clear_attachments(command_list *cmd_list, attachment_type flags, const float[4], float, uint8_t, uint32_t, const int32_t *)
+static bool on_clear_depth_stencil_attachment(command_list *cmd_list, attachment_type flags, const float[4], float, uint8_t, uint32_t, const int32_t *)
 {
 	device *const device = cmd_list->get_device();
 	const state_tracking_context &device_state = device->get_user_data<state_tracking_context>(state_tracking_context::GUID);
@@ -798,8 +793,8 @@ void register_builtin_addon_depth(reshade::addon::info &info)
 	reshade::register_event<reshade::addon_event::draw_indexed>(on_draw_indexed);
 	reshade::register_event<reshade::addon_event::draw_or_dispatch_indirect>(on_draw_indirect);
 	reshade::register_event<reshade::addon_event::bind_viewports>(on_bind_viewport);
-	reshade::register_event<reshade::addon_event::begin_render_pass>(on_begin_render_pass);
-	reshade::register_event<reshade::addon_event::clear_attachments>(on_clear_attachments);
+	reshade::register_event<reshade::addon_event::begin_render_pass>(on_bind_depth_stencil);
+	reshade::register_event<reshade::addon_event::clear_attachments>(on_clear_depth_stencil_attachment);
 	reshade::register_event<reshade::addon_event::clear_depth_stencil_view>(on_clear_depth_stencil);
 
 	reshade::register_event<reshade::addon_event::reset_command_list>(on_reset);
@@ -832,8 +827,8 @@ void unregister_builtin_addon_depth()
 	reshade::unregister_event<reshade::addon_event::draw_indexed>(on_draw_indexed);
 	reshade::unregister_event<reshade::addon_event::draw_or_dispatch_indirect>(on_draw_indirect);
 	reshade::unregister_event<reshade::addon_event::bind_viewports>(on_bind_viewport);
-	reshade::unregister_event<reshade::addon_event::begin_render_pass>(on_begin_render_pass);
-	reshade::unregister_event<reshade::addon_event::clear_attachments>(on_clear_attachments);
+	reshade::unregister_event<reshade::addon_event::begin_render_pass>(on_bind_depth_stencil);
+	reshade::unregister_event<reshade::addon_event::clear_attachments>(on_clear_depth_stencil_attachment);
 	reshade::unregister_event<reshade::addon_event::clear_depth_stencil_view>(on_clear_depth_stencil);
 
 	reshade::unregister_event<reshade::addon_event::reset_command_list>(on_reset);

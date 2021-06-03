@@ -239,7 +239,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Present(const RECT *pSourceRect, cons
 	const HRESULT hr = _orig->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::framebuffer { reinterpret_cast<uintptr_t>(_current_fbo) });
+	reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::render_pass { reinterpret_cast<uintptr_t>(_current_pass) });
 #endif
 
 	return hr;
@@ -752,14 +752,14 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetRenderTarget(DWORD RenderTargetInd
 		!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::begin_render_pass)].empty() ||
 		!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_viewports)].empty()))
 	{
-		_current_fbo->rtv[RenderTargetIndex] = pRenderTarget;
-		_current_fbo->count = 0;
-		while (_current_fbo->count < _caps.NumSimultaneousRTs && _current_fbo->rtv[_current_fbo->count] != nullptr)
-			_current_fbo->count++;
+		_current_pass->rtv[RenderTargetIndex] = pRenderTarget;
+		_current_pass->count = 0;
+		while (_current_pass->count < _caps.NumSimultaneousRTs && _current_pass->rtv[_current_pass->count] != nullptr)
+			_current_pass->count++;
 
 		if (RenderTargetIndex == 0)
 		{
-			reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::framebuffer { reinterpret_cast<uintptr_t>(_current_fbo) });
+			reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::render_pass { reinterpret_cast<uintptr_t>(_current_pass) });
 		}
 
 		if (pRenderTarget != nullptr)
@@ -798,9 +798,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetDepthStencilSurface(IDirect3DSurfa
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr) && !reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::begin_render_pass)].empty())
 	{
-		_current_fbo->dsv = pNewZStencil;
+		_current_pass->dsv = pNewZStencil;
 
-		reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::framebuffer { reinterpret_cast<uintptr_t>(_current_fbo) });
+		reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::render_pass { reinterpret_cast<uintptr_t>(_current_pass) });
 	}
 #endif
 	return hr;
@@ -1176,7 +1176,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetVertexDeclaration(IDirect3DVertexD
 	if (SUCCEEDED(hr))
 	{
 		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(this,
-			reshade::api::pipeline_stage::vertex_input, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pDecl) });
+			reshade::api::pipeline_stage::input_assembler, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pDecl) });
 	}
 #endif
 	return hr;
@@ -1477,7 +1477,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::PresentEx(const RECT *pSourceRect, co
 	const HRESULT hr = static_cast<IDirect3DDevice9Ex *>(_orig)->PresentEx(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::framebuffer { reinterpret_cast<uintptr_t>(_current_fbo) });
+	reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::render_pass { reinterpret_cast<uintptr_t>(_current_pass) });
 #endif
 
 	return hr;

@@ -18,13 +18,15 @@ namespace reshade::opengl
 			return { 0 };
 		return { (static_cast<uint64_t>(target) << 40) | object };
 	}
+	inline auto make_render_pass_handle(GLuint object, uint32_t num_color_attachments = 8, uint8_t extra_bits = 0) -> api::render_pass
+	{
+		if (object == 0)
+			num_color_attachments = 1;
+		return { (static_cast<uint64_t>(num_color_attachments) << 40) | (static_cast<uint64_t>(extra_bits) << 32) | object };
+	}
 	inline auto make_resource_view_handle(GLenum target, GLuint object, uint8_t extra_bits = 0) -> api::resource_view
 	{
 		return { (static_cast<uint64_t>(target) << 40) | (static_cast<uint64_t>(extra_bits) << 32) | object };
-	}
-	inline auto make_framebuffer_handle(GLuint object, uint32_t num_color_attachments, uint8_t extra_bits = 0) -> api::framebuffer
-	{
-		return { (static_cast<uint64_t>(num_color_attachments) << 40) | (static_cast<uint64_t>(extra_bits) << 32) | object };
 	}
 
 	class device_impl : public api::api_object_impl<HGLRC, api::device, api::command_queue, api::command_list>
@@ -46,13 +48,14 @@ namespace reshade::opengl
 		bool create_resource_view(api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view *out) final;
 
 		bool create_pipeline(const api::pipeline_desc &desc, api::pipeline *out) final;
-		bool create_pipeline_compute(const api::pipeline_desc &desc, api::pipeline *out);
-		bool create_pipeline_graphics(const api::pipeline_desc &desc, api::pipeline *out);
+		bool create_compute_pipeline(const api::pipeline_desc &desc, api::pipeline *out);
+		bool create_graphics_pipeline(const api::pipeline_desc &desc, api::pipeline *out);
 
-		bool create_pipeline_layout(uint32_t num_set_layouts, const api::descriptor_set_layout *set_layouts, uint32_t num_constant_ranges, const api::constant_range *constant_ranges, api::pipeline_layout *out) final;
-		bool create_descriptor_set_layout(uint32_t num_ranges, const api::descriptor_range *ranges, bool push_descriptors, api::descriptor_set_layout *out) final;
-		bool create_query_pool(api::query_type type, uint32_t count, api::query_pool *out) final;
-		bool create_framebuffer(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv, api::framebuffer *out) final;
+		bool create_pipeline_layout(const api::pipeline_layout_desc &desc, api::pipeline_layout *out) final;
+		bool create_descriptor_set_layout(const api::descriptor_set_layout_desc &desc, api::descriptor_set_layout *out) final;
+
+		bool create_query_pool(api::query_type type, uint32_t size, api::query_pool *out) final;
+		bool create_render_pass(const api::render_pass_desc &desc, api::render_pass *out) final;
 		bool create_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, api::descriptor_set *out) final;
 
 		void destroy_sampler(api::sampler handle) final;
@@ -62,14 +65,14 @@ namespace reshade::opengl
 		void destroy_pipeline(api::pipeline_stage type, api::pipeline handle) final;
 		void destroy_pipeline_layout(api::pipeline_layout handle) final;
 		void destroy_descriptor_set_layout(api::descriptor_set_layout handle) final;
+
 		void destroy_query_pool(api::query_pool handle) final;
-		void destroy_framebuffer(api::framebuffer handle) final;
+		void destroy_render_pass(api::render_pass handle) final;
 		void destroy_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, const api::descriptor_set *sets) final;
 
+		bool get_attachment(api::render_pass pass, api::attachment_type type, uint32_t index, api::resource_view *out) const final;
 		void get_resource_from_view(api::resource_view view, api::resource *out) const final;
 		api::resource_desc get_resource_desc(api::resource resource) const final;
-
-		bool get_framebuffer_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index, api::resource_view *out) const final;
 
 		bool map_resource(api::resource resource, uint32_t subresource, api::map_access access, void **data, uint32_t *row_pitch, uint32_t *slice_pitch) final;
 		void unmap_resource(api::resource resource, uint32_t subresource) final;
@@ -93,6 +96,9 @@ namespace reshade::opengl
 
 		void barrier(uint32_t, const api::resource *, const api::resource_usage *, const api::resource_usage *) final { /* no-op */ }
 
+		void begin_render_pass(api::render_pass pass) final;
+		void finish_render_pass() final;
+
 		void bind_pipeline(api::pipeline_stage type, api::pipeline pipeline) final;
 		void bind_pipeline_states(uint32_t count, const api::dynamic_state *states, const uint32_t *values) final;
 		void bind_viewports(uint32_t first, uint32_t count, const float *viewports) final;
@@ -109,9 +115,6 @@ namespace reshade::opengl
 		void draw_indexed(uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance) final;
 		void dispatch(uint32_t num_groups_x, uint32_t num_groups_y, uint32_t num_groups_z) final;
 		void draw_or_dispatch_indirect(uint32_t type, api::resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride) final;
-
-		void begin_render_pass(api::framebuffer fbo) final;
-		void finish_render_pass() final;
 
 		void copy_resource(api::resource src, api::resource dst) final;
 		void copy_buffer_region(api::resource src, uint64_t src_offset, api::resource dst, uint64_t dst_offset, uint64_t size) final;

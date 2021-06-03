@@ -35,15 +35,15 @@ void D3D10Device::invoke_bind_render_targets_event(UINT count, ID3D10RenderTarge
 {
 	assert(count <= D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT);
 
-	_current_fbo->count = count;
-	std::memcpy(_current_fbo->rtv, targets, count * sizeof(ID3D10RenderTargetView *));
-	_current_fbo->dsv = dsv;
+	_current_pass->count = count;
+	std::memcpy(_current_pass->rtv, targets, count * sizeof(ID3D10RenderTargetView *));
+	_current_pass->dsv = dsv;
 
 	if (count == 0 && dsv == nullptr)
 		return;
 
 	_has_open_render_pass = true;
-	reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::framebuffer { reinterpret_cast<uintptr_t>(_current_fbo) });
+	reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::render_pass { reinterpret_cast<uintptr_t>(_current_pass) });
 }
 void D3D10Device::invoke_bind_vertex_buffers_event(UINT first, UINT count, ID3D10Buffer *const *buffers, const UINT *strides, const UINT *offsets)
 {
@@ -238,7 +238,7 @@ void    STDMETHODCALLTYPE D3D10Device::IASetInputLayout(ID3D10InputLayout *pInpu
 {
 	_orig->IASetInputLayout(pInputLayout);
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(this, reshade::api::pipeline_stage::vertex_input, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pInputLayout) });
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(this, reshade::api::pipeline_stage::input_assembler, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pInputLayout) });
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::IASetVertexBuffers(UINT StartSlot, UINT NumBuffers, ID3D10Buffer *const *ppVertexBuffers, const UINT *pStrides, const UINT *pOffsets)
@@ -348,7 +348,7 @@ void    STDMETHODCALLTYPE D3D10Device::OMSetBlendState(ID3D10BlendState *pBlendS
 
 #if RESHADE_ADDON
 	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(this,
-		reshade::api::pipeline_stage::blend_and_render_target_output, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pBlendState) });
+		reshade::api::pipeline_stage::output_merger, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pBlendState) });
 
 	const reshade::api::dynamic_state states[2] = { reshade::api::dynamic_state::blend_constant, reshade::api::dynamic_state::sample_mask };
 	const uint32_t values[2] = {

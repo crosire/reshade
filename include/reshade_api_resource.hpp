@@ -364,7 +364,7 @@ namespace reshade { namespace api
 
 	/// <summary>
 	/// An opaque handle to a sampler state object.
-	/// <para>Depending on the render API this is really a pointer to a 'ID3D10SamplerState', 'ID3D11SamplerState' or a 'D3D12_CPU_DESCRIPTOR_HANDLE' (to a sampler descriptor) or 'VkSampler' handle.</para>
+	/// <para>Depending on the render API this can be a pointer to a 'ID3D10SamplerState', 'ID3D11SamplerState' or a 'D3D12_CPU_DESCRIPTOR_HANDLE' (to a sampler descriptor) or 'VkSampler' handle.</para>
 	/// </summary>
 	RESHADE_DEFINE_HANDLE(sampler);
 
@@ -372,7 +372,7 @@ namespace reshade { namespace api
 	/// An opaque handle to a resource object (buffer, texture, ...).
 	/// <para>Resources created by the application are only guaranteed to be valid during event callbacks.
 	/// If you want to use one outside that scope, first ensure the resource is still valid via <see cref="device::check_resource_handle_valid"/>.</para>
-	/// <para>Depending on the render API this is really a pointer to a 'IDirect3DResource9', 'ID3D10Resource', 'ID3D11Resource' or 'ID3D12Resource' object or a 'VkImage' handle.</para>
+	/// <para>Depending on the render API this can be a pointer to a 'IDirect3DResource9', 'ID3D10Resource', 'ID3D11Resource' or 'ID3D12Resource' object or a 'VkImage' handle.</para>
 	/// </summary>
 	RESHADE_DEFINE_HANDLE(resource);
 
@@ -380,7 +380,7 @@ namespace reshade { namespace api
 	/// An opaque handle to a resource view object (depth-stencil, render target, shader resource view, ...).
 	/// <para>Resource views created by the application are only guaranteed to be valid during event callbacks.
 	/// If you want to use one outside that scope, first ensure the resource view is still valid via <see cref="device::is_resource_view_handle_valid"/>.</para>
-	/// <para>Depending on the render API this is really a pointer to a 'IDirect3DResource9', 'ID3D10View' or 'ID3D11View' object, or a 'D3D12_CPU_DESCRIPTOR_HANDLE' (to a view descriptor) or 'VkImageView' handle.</para>
+	/// <para>Depending on the render API this can be a pointer to a 'IDirect3DResource9', 'ID3D10View' or 'ID3D11View' object, or a 'D3D12_CPU_DESCRIPTOR_HANDLE' (to a view descriptor) or 'VkImageView' handle.</para>
 	/// </summary>
 	RESHADE_DEFINE_HANDLE(resource_view);
 } }

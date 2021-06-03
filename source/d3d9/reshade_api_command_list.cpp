@@ -8,6 +8,28 @@
 #include "reshade_api_type_convert.hpp"
 #include <algorithm>
 
+void reshade::d3d9::device_impl::begin_render_pass(api::render_pass pass)
+{
+	assert(pass.handle != 0);
+	const auto pass_impl = reinterpret_cast<const render_pass_impl *>(pass.handle);
+
+	assert(pass_impl->count <= _caps.NumSimultaneousRTs);
+
+	for (UINT i = 0; i < pass_impl->count; ++i)
+		_orig->SetRenderTarget(i, pass_impl->rtv[i]);
+	for (UINT i = pass_impl->count; i < _caps.NumSimultaneousRTs; ++i)
+		_orig->SetRenderTarget(i, nullptr);
+
+	_orig->SetRenderState(D3DRS_SRGBWRITEENABLE, pass_impl->srgb_write_enable);
+
+	_orig->SetDepthStencilSurface(pass_impl->dsv);
+
+	_current_pass[0] = *pass_impl;
+}
+void reshade::d3d9::device_impl::finish_render_pass()
+{
+}
+
 void reshade::d3d9::device_impl::bind_pipeline(api::pipeline_stage type, api::pipeline pipeline)
 {
 	assert(pipeline.handle != 0);
@@ -18,14 +40,14 @@ void reshade::d3d9::device_impl::bind_pipeline(api::pipeline_stage type, api::pi
 		reinterpret_cast<pipeline_impl *>(pipeline.handle)->state_block->Apply();
 		_current_prim_type = reinterpret_cast<pipeline_impl *>(pipeline.handle)->prim_type;
 		break;
+	case api::pipeline_stage::input_assembler:
+		_orig->SetVertexDeclaration(reinterpret_cast<IDirect3DVertexDeclaration9 *>(pipeline.handle));
+		break;
 	case api::pipeline_stage::vertex_shader:
 		_orig->SetVertexShader(reinterpret_cast<IDirect3DVertexShader9 *>(pipeline.handle));
 		break;
 	case api::pipeline_stage::pixel_shader:
 		_orig->SetPixelShader(reinterpret_cast<IDirect3DPixelShader9 *>(pipeline.handle));
-		break;
-	case api::pipeline_stage::vertex_input:
-		_orig->SetVertexDeclaration(reinterpret_cast<IDirect3DVertexDeclaration9 *>(pipeline.handle));
 		break;
 	default:
 		assert(false);
@@ -227,26 +249,6 @@ void reshade::d3d9::device_impl::dispatch(uint32_t, uint32_t, uint32_t)
 void reshade::d3d9::device_impl::draw_or_dispatch_indirect(uint32_t, api::resource, uint64_t, uint32_t, uint32_t)
 {
 	assert(false);
-}
-
-void reshade::d3d9::device_impl::begin_render_pass(api::framebuffer fbo)
-{
-	assert(fbo.handle != 0);
-	const auto fbo_impl = reinterpret_cast<const framebuffer_impl *>(fbo.handle);
-
-	assert(fbo_impl->count <= _caps.NumSimultaneousRTs);
-
-	for (UINT i = 0; i < fbo_impl->count; ++i)
-		_orig->SetRenderTarget(i, fbo_impl->rtv[i]);
-	for (UINT i = fbo_impl->count; i < _caps.NumSimultaneousRTs; ++i)
-		_orig->SetRenderTarget(i, nullptr);
-
-	_orig->SetRenderState(D3DRS_SRGBWRITEENABLE, fbo_impl->srgb_write_enable);
-
-	_orig->SetDepthStencilSurface(fbo_impl->dsv);
-}
-void reshade::d3d9::device_impl::finish_render_pass()
-{
 }
 
 void reshade::d3d9::device_impl::copy_resource(api::resource src, api::resource dst)

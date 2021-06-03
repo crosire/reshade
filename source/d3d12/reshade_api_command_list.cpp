@@ -22,7 +22,7 @@ void encode_pix3blob(UINT64(&pix3blob)[64], const char *label, const float color
 reshade::d3d12::command_list_impl::command_list_impl(device_impl *device, ID3D12GraphicsCommandList *cmd_list) :
 	api_object_impl(cmd_list), _device_impl(device), _has_commands(cmd_list != nullptr)
 {
-	_current_fbo = new framebuffer_impl();
+	_current_pass = new render_pass_impl();
 
 #if RESHADE_ADDON
 	if (_has_commands) // Do not call add-on event for immediate command list
@@ -36,7 +36,7 @@ reshade::d3d12::command_list_impl::~command_list_impl()
 		invoke_addon_event<addon_event::destroy_command_list>(this);
 #endif
 
-	delete _current_fbo;
+	delete _current_pass;
 }
 
 reshade::api::device *reshade::d3d12::command_list_impl::get_device()
@@ -72,6 +72,22 @@ void reshade::d3d12::command_list_impl::barrier(uint32_t count, const api::resou
 	}
 
 	_orig->ResourceBarrier(count, barriers);
+}
+
+void reshade::d3d12::command_list_impl::begin_render_pass(api::render_pass pass)
+{
+	assert(pass.handle != 0);
+	const auto pass_impl = reinterpret_cast<const render_pass_impl *>(pass.handle);
+
+	// It is not allowed to call "ClearRenderTargetView", "ClearDepthStencilView" etc. inside a render pass, which would break the "command_impl::clear_attachments" implementation, so use plain old "OMSetRenderTargets" instead of render pass API
+	_orig->OMSetRenderTargets(pass_impl->count, pass_impl->rtv, pass_impl->rtv_is_single_handle_to_range, pass_impl->dsv.ptr != 0 ? &pass_impl->dsv : nullptr);
+
+	_current_pass[0] = *pass_impl;
+}
+void reshade::d3d12::command_list_impl::finish_render_pass()
+{
+	_current_pass->count = 0;
+	_current_pass->dsv.ptr = 0;
 }
 
 void reshade::d3d12::command_list_impl::bind_pipeline(api::pipeline_stage, api::pipeline pipeline)
@@ -331,22 +347,6 @@ void reshade::d3d12::command_list_impl::draw_or_dispatch_indirect(uint32_t, api:
 	assert(false);
 }
 
-void reshade::d3d12::command_list_impl::begin_render_pass(api::framebuffer fbo)
-{
-	assert(fbo.handle != 0);
-	const auto fbo_impl = reinterpret_cast<const framebuffer_impl *>(fbo.handle);
-
-	// It is not allowed to call "ClearRenderTargetView", "ClearDepthStencilView" etc. inside a render pass, which would break the "command_impl::clear_attachments" implementation, so use plain old "OMSetRenderTargets" instead of render pass API
-	_orig->OMSetRenderTargets(fbo_impl->count, fbo_impl->rtv, fbo_impl->rtv_is_single_handle_to_range, fbo_impl->dsv.ptr != 0 ? &fbo_impl->dsv : nullptr);
-
-	_current_fbo[0] = *fbo_impl;
-}
-void reshade::d3d12::command_list_impl::finish_render_pass()
-{
-	_current_fbo->count = 0;
-	_current_fbo->dsv.ptr = 0;
-}
-
 void reshade::d3d12::command_list_impl::copy_resource(api::resource src, api::resource dst)
 {
 	_has_commands = true;
@@ -580,10 +580,10 @@ void reshade::d3d12::command_list_impl::clear_attachments(api::attachment_type c
 	_has_commands = true;
 
 	if (static_cast<UINT>(clear_flags & (api::attachment_type::color)) != 0)
-		for (UINT i = 0; i < _current_fbo->count; ++i)
-			_orig->ClearRenderTargetView(_current_fbo->rtv[i], color, num_rects, reinterpret_cast<const D3D12_RECT *>(rects));
+		for (UINT i = 0; i < _current_pass->count; ++i)
+			_orig->ClearRenderTargetView(_current_pass->rtv[i], color, num_rects, reinterpret_cast<const D3D12_RECT *>(rects));
 	if (static_cast<UINT>(clear_flags & (api::attachment_type::depth | api::attachment_type::stencil)) != 0)
-		_orig->ClearDepthStencilView(_current_fbo->dsv, static_cast<D3D12_CLEAR_FLAGS>(static_cast<UINT>(clear_flags) >> 1), depth, stencil, num_rects, reinterpret_cast<const D3D12_RECT *>(rects));
+		_orig->ClearDepthStencilView(_current_pass->dsv, static_cast<D3D12_CLEAR_FLAGS>(static_cast<UINT>(clear_flags) >> 1), depth, stencil, num_rects, reinterpret_cast<const D3D12_RECT *>(rects));
 }
 void reshade::d3d12::command_list_impl::clear_depth_stencil_view(api::resource_view dsv, api::attachment_type clear_flags, float depth, uint8_t stencil, uint32_t num_rects, const int32_t *rects)
 {

@@ -36,9 +36,9 @@ reshade::d3d9::device_impl::device_impl(IDirect3DDevice9 *device) :
 	_orig->GetCreationParameters(&_cp);
 
 	// Maximum simultaneous number of render targets is typically 4 in D3D9
-	assert(_caps.NumSimultaneousRTs <= ARRAYSIZE(framebuffer_impl::rtv));
+	assert(_caps.NumSimultaneousRTs <= ARRAYSIZE(render_pass_impl::rtv));
 
-	_current_fbo = new framebuffer_impl();
+	_current_pass = new render_pass_impl();
 
 #if RESHADE_ADDON
 	addon::load_addons();
@@ -60,7 +60,7 @@ reshade::d3d9::device_impl::~device_impl()
 	addon::unload_addons();
 #endif
 
-	delete _current_fbo;
+	delete _current_pass;
 }
 
 void reshade::d3d9::device_impl::on_reset()
@@ -197,11 +197,11 @@ void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 				return true;
 			}, this, convert_resource_desc(old_desc, 1, _caps), nullptr, api::resource_usage::depth_stencil);
 
-		_current_fbo->dsv = auto_depth_stencil.get();
+		_current_pass->dsv = auto_depth_stencil.get();
 	}
 
 	// Communicate default state to add-ons
-	invoke_addon_event<addon_event::begin_render_pass>(this, reshade::api::framebuffer { reinterpret_cast<uintptr_t>(_current_fbo) });
+	invoke_addon_event<addon_event::begin_render_pass>(this, reshade::api::render_pass { reinterpret_cast<uintptr_t>(_current_pass) });
 #else
 	UNREFERENCED_PARAMETER(pp);
 #endif
@@ -582,12 +582,12 @@ bool reshade::d3d9::device_impl::create_pipeline(const api::pipeline_desc &desc,
 		return false;
 	case api::pipeline_stage::all_graphics:
 		return create_pipeline_graphics(desc, out);
+	case api::pipeline_stage::input_assembler:
+		return create_pipeline_graphics_input_layout(desc, out);
 	case api::pipeline_stage::vertex_shader:
 		return create_pipeline_graphics_vertex_shader(desc, out);
 	case api::pipeline_stage::pixel_shader:
 		return create_pipeline_graphics_pixel_shader(desc, out);
-	case api::pipeline_stage::vertex_input:
-		return create_pipeline_graphics_input_layout(desc, out);
 	}
 }
 bool reshade::d3d9::device_impl::create_pipeline_graphics(const api::pipeline_desc &desc, api::pipeline *out)
@@ -598,8 +598,7 @@ bool reshade::d3d9::device_impl::create_pipeline_graphics(const api::pipeline_de
 		desc.graphics.geometry_shader.code_size != 0 ||
 		desc.graphics.blend_state.alpha_to_coverage_enable ||
 		desc.graphics.blend_state.logic_op_enable[0] ||
-		desc.graphics.viewport_count > 1 ||
-		desc.graphics.render_target_count > _caps.NumSimultaneousRTs)
+		desc.graphics.viewport_count > 1)
 	{
 		*out = { 0 };
 		return false;
@@ -899,49 +898,50 @@ bool reshade::d3d9::device_impl::create_pipeline_graphics_input_layout(const api
 	}
 }
 
-bool reshade::d3d9::device_impl::create_pipeline_layout(uint32_t num_set_layouts, const api::descriptor_set_layout *set_layouts, uint32_t num_constant_ranges, const api::constant_range *constant_ranges, api::pipeline_layout *out)
+bool reshade::d3d9::device_impl::create_pipeline_layout(const api::pipeline_layout_desc &desc, api::pipeline_layout *out)
 {
 	const auto layout_impl = new pipeline_layout_impl();
-	layout_impl->shader_registers.resize(num_set_layouts + num_constant_ranges);
+	layout_impl->shader_registers.resize(desc.num_set_layouts + desc.num_constant_ranges);
 
-	for (UINT i = 0; i < num_set_layouts; ++i)
+	for (UINT i = 0; i < desc.num_set_layouts; ++i)
 	{
-		if (set_layouts[i].handle == 0)
+		if (desc.set_layouts[i].handle == 0)
 			continue;
 
-		layout_impl->shader_registers[i] = reinterpret_cast<descriptor_set_layout_impl *>(set_layouts[i].handle)->range.dx_shader_register;
+		layout_impl->shader_registers[i] = reinterpret_cast<descriptor_set_layout_impl *>(desc.set_layouts[i].handle)->range.dx_shader_register;
 	}
 
-	for (UINT i = 0; i < num_constant_ranges; ++i)
+	for (UINT i = 0; i < desc.num_constant_ranges; ++i)
 	{
-		layout_impl->shader_registers[num_set_layouts + i] = constant_ranges[i].offset / 4;
+		layout_impl->shader_registers[desc.num_set_layouts + i] = desc.constant_ranges[i].offset / 4;
 	}
 
 	*out = { reinterpret_cast<uintptr_t>(layout_impl) };
 	return true;
 }
-bool reshade::d3d9::device_impl::create_descriptor_set_layout(uint32_t num_ranges, const api::descriptor_range *ranges, bool, api::descriptor_set_layout *out)
+bool reshade::d3d9::device_impl::create_descriptor_set_layout(const api::descriptor_set_layout_desc &desc, api::descriptor_set_layout *out)
 {
 	// Can only have descriptors of a single type in a descriptor set
-	if (num_ranges != 1)
+	if (desc.num_ranges != 1)
 	{
 		*out = { 0 };
 		return false;
 	}
 
 	const auto layout_impl = new descriptor_set_layout_impl();
-	layout_impl->range = ranges[0];
+	layout_impl->range = desc.ranges[0];
 
 	*out = { reinterpret_cast<uintptr_t>(layout_impl) };
 	return true;
 }
-bool reshade::d3d9::device_impl::create_query_pool(api::query_type type, uint32_t count, api::query_pool *out)
+
+bool reshade::d3d9::device_impl::create_query_pool(api::query_type type, uint32_t size, api::query_pool *out)
 {
 	const auto result = new query_pool_impl();
 	result->type = type;
-	result->queries.resize(count);
+	result->queries.resize(size);
 
-	for (UINT i = 0; i < count; ++i)
+	for (UINT i = 0; i < size; ++i)
 	{
 		if (FAILED(_orig->CreateQuery(convert_query_type(type), &result->queries[i])))
 		{
@@ -955,20 +955,25 @@ bool reshade::d3d9::device_impl::create_query_pool(api::query_type type, uint32_
 	*out = { reinterpret_cast<uintptr_t>(result) };
 	return true;
 }
-bool reshade::d3d9::device_impl::create_framebuffer(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv, api::framebuffer *out)
+bool reshade::d3d9::device_impl::create_render_pass(const api::render_pass_desc &desc, api::render_pass *out)
 {
-	if (count >= _caps.NumSimultaneousRTs || count >= ARRAYSIZE(framebuffer_impl::rtv))
+	const auto result = new render_pass_impl();
+
+	for (UINT i = 0; i < 8 && desc.render_targets[i].handle != 0; ++i, ++result->count)
 	{
-		*out = { 0 };
-		return false;
+		if (i >= _caps.NumSimultaneousRTs)
+		{
+			delete result;
+
+			*out = { 0 };
+			return false;
+		}
+
+		result->rtv[i] = reinterpret_cast<IDirect3DSurface9 *>(desc.render_targets[i].handle & ~1ull);
+		result->srgb_write_enable |= (desc.render_targets[i].handle & 1);
 	}
 
-	const auto result = new framebuffer_impl();
-	result->count = count;
-	for (UINT i = 0; i < count; ++i)
-		result->rtv[i] = reinterpret_cast<IDirect3DSurface9 *>(rtvs[i].handle & ~1ull);
-	result->dsv = reinterpret_cast<IDirect3DSurface9 *>(dsv.handle);
-	result->srgb_write_enable = count != 0 && (rtvs[0].handle & 1) == 1;
+	result->dsv = reinterpret_cast<IDirect3DSurface9 *>(desc.depth_stencil.handle);
 
 	*out = { reinterpret_cast<uintptr_t>(result) };
 	return true;
@@ -1023,13 +1028,14 @@ void reshade::d3d9::device_impl::destroy_descriptor_set_layout(api::descriptor_s
 {
 	delete reinterpret_cast<descriptor_set_layout_impl *>(handle.handle);
 }
+
 void reshade::d3d9::device_impl::destroy_query_pool(api::query_pool handle)
 {
 	delete reinterpret_cast<query_pool_impl *>(handle.handle);
 }
-void reshade::d3d9::device_impl::destroy_framebuffer(api::framebuffer handle)
+void reshade::d3d9::device_impl::destroy_render_pass(api::render_pass handle)
 {
-	delete reinterpret_cast<framebuffer_impl *>(handle.handle);
+	delete reinterpret_cast<render_pass_impl *>(handle.handle);
 }
 void reshade::d3d9::device_impl::destroy_descriptor_sets(api::descriptor_set_layout, uint32_t count, const api::descriptor_set *sets)
 {
@@ -1051,7 +1057,8 @@ void reshade::d3d9::device_impl::update_descriptor_sets(uint32_t num_updates, co
 			break;
 		case api::descriptor_type::sampler_with_resource_view:
 			assert(updates[i].descriptor.sampler.handle != 0 && updates[i].descriptor.view.handle != 0);
-			set_impl->sampler_with_resource_views[updates[i].binding] = updates[i].descriptor;
+			set_impl->sampler_with_resource_views[updates[i].binding].sampler = updates[i].descriptor.sampler;
+			set_impl->sampler_with_resource_views[updates[i].binding].view = updates[i].descriptor.view;
 			break;
 		case api::descriptor_type::shader_resource_view:
 			assert(updates[i].descriptor.view.handle != 0);
@@ -1331,6 +1338,41 @@ void reshade::d3d9::device_impl::upload_texture_region(const api::subresource_da
 	assert(false); // Not implemented
 }
 
+bool reshade::d3d9::device_impl::get_attachment(api::render_pass pass, api::attachment_type type, uint32_t index, api::resource_view *out) const
+{
+	assert(pass.handle != 0);
+	const auto pass_impl = reinterpret_cast<const render_pass_impl *>(pass.handle);
+
+	if (type == api::attachment_type::color)
+	{
+		if (index < pass_impl->count)
+		{
+			const uint64_t set_srgb_bit = pass_impl->srgb_write_enable;
+
+			*out = { reinterpret_cast<uintptr_t>(pass_impl->rtv[index]) | set_srgb_bit };
+			return true;
+		}
+		else
+		{
+			*out = { 0 };
+			return false;
+		}
+	}
+	else
+	{
+		if (pass_impl->dsv != nullptr)
+		{
+			*out = { reinterpret_cast<uintptr_t>(pass_impl->dsv) };
+			return true;
+		}
+		else
+		{
+			*out = { 0 };
+			return false;
+		}
+	}
+}
+
 void reshade::d3d9::device_impl::get_resource_from_view(api::resource_view view, api::resource *out) const
 {
 	assert(view.handle != 0);
@@ -1401,41 +1443,6 @@ reshade::api::resource_desc reshade::d3d9::device_impl::get_resource_desc(api::r
 
 	assert(false); // Not implemented
 	return api::resource_desc {};
-}
-
-bool reshade::d3d9::device_impl::get_framebuffer_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index, api::resource_view *out) const
-{
-	assert(fbo.handle != 0);
-	const auto fbo_impl = reinterpret_cast<const framebuffer_impl *>(fbo.handle);
-
-	if (type == api::attachment_type::color)
-	{
-		if (index < fbo_impl->count)
-		{
-			const uint64_t set_srgb_bit = fbo_impl->srgb_write_enable;
-
-			*out = { reinterpret_cast<uintptr_t>(fbo_impl->rtv[index]) | set_srgb_bit };
-			return true;
-		}
-		else
-		{
-			*out = { 0 };
-			return false;
-		}
-	}
-	else
-	{
-		if (fbo_impl->dsv != nullptr)
-		{
-			*out = { reinterpret_cast<uintptr_t>(fbo_impl->dsv) };
-			return true;
-		}
-		else
-		{
-			*out = { 0 };
-			return false;
-		}
-	}
 }
 
 bool reshade::d3d9::device_impl::get_query_results(api::query_pool heap, uint32_t first, uint32_t count, void *results, uint32_t stride)

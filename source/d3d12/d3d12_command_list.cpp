@@ -578,15 +578,15 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::OMSetRenderTargets(UINT NumRend
 #if RESHADE_ADDON
 	assert(NumRenderTargetDescriptors <= D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT);
 
-	_current_fbo->count = NumRenderTargetDescriptors;
-	std::memcpy(_current_fbo->rtv, pRenderTargetDescriptors, (RTsSingleHandleToDescriptorRange ? 1 : NumRenderTargetDescriptors) * sizeof(D3D12_CPU_DESCRIPTOR_HANDLE));
-	_current_fbo->dsv = pDepthStencilDescriptor != nullptr ? *pDepthStencilDescriptor : D3D12_CPU_DESCRIPTOR_HANDLE { 0 };
-	_current_fbo->rtv_is_single_handle_to_range = RTsSingleHandleToDescriptorRange;
+	_current_pass->count = NumRenderTargetDescriptors;
+	std::memcpy(_current_pass->rtv, pRenderTargetDescriptors, (RTsSingleHandleToDescriptorRange ? 1 : NumRenderTargetDescriptors) * sizeof(D3D12_CPU_DESCRIPTOR_HANDLE));
+	_current_pass->dsv = pDepthStencilDescriptor != nullptr ? *pDepthStencilDescriptor : D3D12_CPU_DESCRIPTOR_HANDLE { 0 };
+	_current_pass->rtv_is_single_handle_to_range = RTsSingleHandleToDescriptorRange;
 
 	if (NumRenderTargetDescriptors == 0 && pDepthStencilDescriptor == nullptr)
 		return;
 
-	reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::framebuffer { reinterpret_cast<uintptr_t>(_current_fbo) });
+	reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::render_pass { reinterpret_cast<uintptr_t>(_current_pass) });
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearDepthStencilView(D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilView, D3D12_CLEAR_FLAGS ClearFlags, FLOAT Depth, UINT8 Stencil, UINT NumRects, const D3D12_RECT *pRects)
@@ -777,13 +777,13 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::BeginRenderPass(UINT NumRenderT
 #if RESHADE_ADDON
 	assert(NumRenderTargets <= D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT);
 
-	_current_fbo->count = NumRenderTargets;
+	_current_pass->count = NumRenderTargets;
 	for (UINT i = 0; i < NumRenderTargets; ++i)
-		_current_fbo->rtv[i] = { pRenderTargets->cpuDescriptor.ptr + i * _device->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_RTV] };
-	_current_fbo->dsv = (pDepthStencil != nullptr) ? pDepthStencil->cpuDescriptor : D3D12_CPU_DESCRIPTOR_HANDLE { 0 };
-	_current_fbo->rtv_is_single_handle_to_range = FALSE;
+		_current_pass->rtv[i] = { pRenderTargets->cpuDescriptor.ptr + i * _device->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_RTV] };
+	_current_pass->dsv = (pDepthStencil != nullptr) ? pDepthStencil->cpuDescriptor : D3D12_CPU_DESCRIPTOR_HANDLE { 0 };
+	_current_pass->rtv_is_single_handle_to_range = FALSE;
 
-	reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::framebuffer { reinterpret_cast<uintptr_t>(_current_fbo) });
+	reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::render_pass { reinterpret_cast<uintptr_t>(_current_pass) });
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::EndRenderPass(void)

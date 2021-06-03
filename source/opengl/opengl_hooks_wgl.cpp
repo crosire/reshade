@@ -1004,7 +1004,7 @@ HOOK_EXPORT BOOL  WINAPI wglSwapBuffers(HDC hdc)
 #if RESHADE_ADDON
 		GLint fbo = 0;
 		glGetIntegerv(GL_FRAMEBUFFER_BINDING, &fbo);
-		reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(runtime, reshade::opengl::make_framebuffer_handle(fbo, fbo != 0 ? 8 : 1));
+		reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(runtime, reshade::opengl::make_render_pass_handle(fbo));
 #endif
 	}
 
