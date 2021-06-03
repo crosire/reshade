@@ -146,6 +146,9 @@ void reshade::opengl::device_impl::bind_pipeline(api::pipeline_stage type, api::
 		reinterpret_cast<pipeline_impl *>(pipeline.handle)->apply_compute();
 		break;
 	case api::pipeline_stage::all_graphics:
+		// Always disable alpha test in case the application set that (fixes broken GUI rendering in Quake)
+		if (_compatibility_context)
+			glDisable(GL_ALPHA_TEST);
 		reinterpret_cast<pipeline_impl *>(pipeline.handle)->apply_graphics();
 		_current_prim_mode = reinterpret_cast<pipeline_impl *>(pipeline.handle)->prim_mode;
 		break;
