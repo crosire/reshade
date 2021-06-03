@@ -641,8 +641,8 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 		const int32_t rect_data[4] = {
 			pRenderPassBegin->renderArea.offset.x,
 			pRenderPassBegin->renderArea.offset.y,
-			static_cast<int32_t>(pRenderPassBegin->renderArea.offset.x + pRenderPassBegin->renderArea.extent.width),
-			static_cast<int32_t>(pRenderPassBegin->renderArea.offset.y + pRenderPassBegin->renderArea.extent.height),
+			pRenderPassBegin->renderArea.offset.x + static_cast<int32_t>(pRenderPassBegin->renderArea.extent.width),
+			pRenderPassBegin->renderArea.offset.y + static_cast<int32_t>(pRenderPassBegin->renderArea.extent.height),
 		};
 
 		std::unique_lock<std::mutex> lock(device_impl->_mutex);
@@ -675,26 +675,28 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 			{
 				transition.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-				device_impl->_dispatch_table.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
+				if (transition.oldLayout != VK_IMAGE_LAYOUT_UNDEFINED)
+					device_impl->_dispatch_table.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
 
 				// Cannot be skipped
 				reshade::invoke_addon_event<reshade::addon_event::clear_render_target_view>(
 					cmd_impl, framebuffer_data.attachments[i], clear_value.color.float32, 1, rect_data);
-
-				std::swap(transition.oldLayout, transition.newLayout);
-				device_impl->_dispatch_table.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
 			}
 			else
 			{
 				// There may be multiple depth-stencil attachments if this render pass has multiple subpasses
 				transition.newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-				device_impl->_dispatch_table.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
+				if (transition.oldLayout != VK_IMAGE_LAYOUT_UNDEFINED)
+					device_impl->_dispatch_table.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
 
 				// Cannot be skipped
 				reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(
 					cmd_impl, framebuffer_data.attachments[i], static_cast<reshade::api::attachment_type>(renderpass_data.attachments[i].clear_flags), clear_value.depthStencil.depth, static_cast<uint8_t>(clear_value.depthStencil.stencil), 1, rect_data);
+			}
 
+			if (transition.oldLayout != VK_IMAGE_LAYOUT_UNDEFINED)
+			{
 				std::swap(transition.oldLayout, transition.newLayout);
 				device_impl->_dispatch_table.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
 			}

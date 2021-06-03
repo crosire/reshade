@@ -161,7 +161,7 @@ struct state_tracking_context
 
 		if (device->get_api() == device_api::d3d9)
 			desc.texture.format = format::r32_float; // D3DFMT_R32F, size INTZ does not support D3DUSAGE_RENDERTARGET which is required for copying
-		else
+		else if (device->get_api() != device_api::vulkan) // Use depth format as-is in Vulkan, since those are valid for shader resource views there
 			desc.texture.format = format_to_typeless(desc.texture.format);
 
 		if (!device->create_resource(desc, nullptr, resource_usage::copy_dest, &backup_texture))
@@ -390,7 +390,8 @@ static bool on_clear_depth_stencil_attachment(command_list *cmd_list, attachment
 	const state_tracking_context &device_state = device->get_user_data<state_tracking_context>(state_tracking_context::GUID);
 
 	// Ignore clears that do not affect the depth buffer (stencil clears)
-	if ((flags & attachment_type::depth) == attachment_type::depth && device_state.preserve_depth_buffers)
+	// Also cannot preserve depth buffers here in Vulkan, since it is not valid to issue copy commands inside a render pass (and since this is event being called from 'vkCmdClearAttachments' always is inside one)
+	if ((flags & attachment_type::depth) == attachment_type::depth && device_state.preserve_depth_buffers && device->get_api() != device_api::vulkan)
 	{
 		auto &state = cmd_list->get_user_data<state_tracking>(state_tracking::GUID);
 
@@ -506,7 +507,7 @@ static void on_present(command_queue *, swapchain *swapchain)
 			device_state.selected_shader_resource = { 0 };
 
 			// Create two-dimensional resource view to the first level and layer of the depth-stencil resource
-			resource_view_desc srv_desc(format_to_default_typed(best_desc.texture.format));
+			resource_view_desc srv_desc(device->get_api() != device_api::vulkan ? format_to_default_typed(best_desc.texture.format) : best_desc.texture.format);
 
 			// Need to create backup texture only if doing backup copies or original resource does not support shader access (which is necessary for binding it to effects)
 			// Also always create a backup texture in D3D12 or Vulkan to circument problems in case application makes use of resource aliasing

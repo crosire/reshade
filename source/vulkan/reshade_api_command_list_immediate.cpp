@@ -124,10 +124,14 @@ bool reshade::vulkan::command_list_immediate_impl::flush(VkQueue queue, std::vec
 	if (vk.QueueSubmit(queue, 1, &submit_info, _cmd_fences[_cmd_index]) != VK_SUCCESS)
 		return false;
 
-	// This queue submit now waits on the requested wait semaphores
-	// The next queue submit should therefore wait on the semaphore that was signaled by this submit
-	wait_semaphores.clear();
-	wait_semaphores.push_back(_cmd_semaphores[_cmd_index]);
+	// Only signal and wait on a semaphore if the submit this flush is executed in originally did
+	if (!wait_semaphores.empty())
+	{
+		// This queue submit now waits on the requested wait semaphores
+		// The next queue submit should therefore wait on the semaphore that was signaled by this submit
+		wait_semaphores.clear();
+		wait_semaphores.push_back(_cmd_semaphores[_cmd_index]);
+	}
 
 	// Continue with next command buffer now that the current one was submitted
 	_cmd_index = (_cmd_index + 1) % NUM_COMMAND_FRAMES;
