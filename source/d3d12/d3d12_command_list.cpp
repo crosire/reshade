@@ -339,6 +339,39 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetPipelineState(ID3D12Pipeline
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ResourceBarrier(UINT NumBarriers, const D3D12_RESOURCE_BARRIER *pBarriers)
 {
 	_orig->ResourceBarrier(NumBarriers, pBarriers);
+
+#if RESHADE_ADDON
+	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::barrier)].empty())
+		return;
+
+	const auto resources = static_cast<reshade::api::resource *>(alloca(NumBarriers * (sizeof(reshade::api::resource) + 2 * sizeof(reshade::api::resource_usage))));
+	const auto old_states = reinterpret_cast<reshade::api::resource_usage *>(resources + NumBarriers);
+	const auto new_states = old_states + NumBarriers;
+
+	for (UINT i = 0; i < NumBarriers; ++i)
+	{
+		switch (pBarriers[i].Type)
+		{
+		case D3D12_RESOURCE_BARRIER_TYPE_TRANSITION:
+			resources[i] = { reinterpret_cast<uintptr_t>(pBarriers[i].Transition.pResource) };
+			old_states[i] = static_cast<reshade::api::resource_usage>(pBarriers[i].Transition.StateBefore);
+			new_states[i] = static_cast<reshade::api::resource_usage>(pBarriers[i].Transition.StateAfter);
+			break;
+		case D3D12_RESOURCE_BARRIER_TYPE_ALIASING:
+			resources[i] = { reinterpret_cast<uintptr_t>(pBarriers[i].Aliasing.pResourceAfter != nullptr ? pBarriers[i].Aliasing.pResourceAfter : pBarriers[i].Aliasing.pResourceBefore) };
+			old_states[i] = reshade::api::resource_usage::general;
+			new_states[i] = reshade::api::resource_usage::general;
+			break;
+		case D3D12_RESOURCE_BARRIER_TYPE_UAV:
+			resources[i] = { reinterpret_cast<uintptr_t>(pBarriers[i].UAV.pResource) };
+			old_states[i] = reshade::api::resource_usage::unordered_access;
+			new_states[i] = reshade::api::resource_usage::unordered_access;
+			break;
+		}
+	}
+
+	reshade::invoke_addon_event<reshade::addon_event::barrier>(this, NumBarriers, resources, old_states, new_states);
+#endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ExecuteBundle(ID3D12GraphicsCommandList *pCommandList)
 {

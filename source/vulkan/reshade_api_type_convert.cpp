@@ -359,6 +359,60 @@ auto reshade::vulkan::convert_format(VkFormat vk_format) -> api::format
 	}
 }
 
+auto reshade::vulkan::convert_access_to_usage(VkAccessFlags flags) -> api::resource_usage
+{
+	api::resource_usage result = api::resource_usage::undefined;
+	if ((flags & VK_ACCESS_SHADER_READ_BIT) != 0)
+		result |= api::resource_usage::shader_resource;
+	if ((flags & VK_ACCESS_SHADER_WRITE_BIT) != 0)
+		result |= api::resource_usage::unordered_access;
+	if ((flags & VK_ACCESS_TRANSFER_WRITE_BIT) != 0)
+		result |= api::resource_usage::copy_dest;
+	if ((flags & VK_ACCESS_TRANSFER_READ_BIT) != 0)
+		result |= api::resource_usage::copy_source;
+	if ((flags & VK_ACCESS_INDEX_READ_BIT) != 0)
+		result |= api::resource_usage::index_buffer;
+	if ((flags & VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT) != 0)
+		result |= api::resource_usage::vertex_buffer;
+	if ((flags & VK_ACCESS_UNIFORM_READ_BIT) != 0)
+		result |= api::resource_usage::constant_buffer;
+	return result;
+}
+auto reshade::vulkan::convert_image_layout_to_usage(VkImageLayout layout) -> api::resource_usage
+{
+	switch (layout)
+	{
+	case VK_IMAGE_LAYOUT_UNDEFINED:
+		return api::resource_usage::undefined;
+	default:
+	case VK_IMAGE_LAYOUT_GENERAL:
+		return api::resource_usage::general;
+	case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+		return api::resource_usage::render_target;
+	case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+	case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL:
+	case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL:
+	case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL:
+	case VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL:
+		return api::resource_usage::depth_stencil;
+	case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
+	case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL:
+	case VK_IMAGE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL:
+		return api::resource_usage::depth_stencil_read;
+	case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+		return api::resource_usage::shader_resource;
+	case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+		return api::resource_usage::copy_source;
+	case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+		return api::resource_usage::copy_dest;
+	case VK_IMAGE_LAYOUT_PREINITIALIZED:
+		return api::resource_usage::cpu_access;
+	case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
+	case VK_IMAGE_LAYOUT_SHARED_PRESENT_KHR:
+		return api::resource_usage::present;
+	}
+}
+
 auto reshade::vulkan::convert_usage_to_access(api::resource_usage state) -> VkAccessFlags
 {
 	if (state == api::resource_usage::present)

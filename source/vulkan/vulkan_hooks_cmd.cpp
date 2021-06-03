@@ -569,6 +569,46 @@ void     VKAPI_CALL vkCmdResolveImage(VkCommandBuffer commandBuffer, VkImage src
 	trampoline(commandBuffer, srcImage, srcImageLayout, dstImage, dstImageLayout, regionCount, pRegions);
 }
 
+void     VKAPI_CALL vkCmdPipelineBarrier(VkCommandBuffer commandBuffer, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask, VkDependencyFlags dependencyFlags, uint32_t memoryBarrierCount, const VkMemoryBarrier *pMemoryBarriers, uint32_t bufferMemoryBarrierCount, const VkBufferMemoryBarrier *pBufferMemoryBarriers, uint32_t imageMemoryBarrierCount, const VkImageMemoryBarrier *pImageMemoryBarriers)
+{
+	GET_DISPATCH_PTR(CmdPipelineBarrier, commandBuffer);
+	trampoline(commandBuffer, srcStageMask, dstStageMask, dependencyFlags, memoryBarrierCount, pMemoryBarriers, bufferMemoryBarrierCount, pBufferMemoryBarriers, imageMemoryBarrierCount, pImageMemoryBarriers);
+
+#if RESHADE_ADDON
+	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::barrier)].empty())
+		return;
+
+	const uint32_t num_barriers = bufferMemoryBarrierCount + imageMemoryBarrierCount;
+	if (num_barriers == 0)
+		return;
+
+	const auto resources = static_cast<reshade::api::resource *>(alloca(num_barriers * (sizeof(reshade::api::resource) + sizeof(reshade::api::resource_usage) * 2)));
+	const auto old_states = reinterpret_cast<reshade::api::resource_usage *>(resources + num_barriers);
+	const auto new_states = old_states + num_barriers;
+
+	for (uint32_t i = 0; i < bufferMemoryBarrierCount; ++i)
+	{
+		const VkBufferMemoryBarrier &barrier = pBufferMemoryBarriers[i];
+
+		resources[i] = { (uint64_t)barrier.buffer };
+		old_states[i] = reshade::vulkan::convert_access_to_usage(barrier.srcAccessMask);
+		new_states[i] = reshade::vulkan::convert_access_to_usage(barrier.dstAccessMask);
+	}
+	for (uint32_t i = 0, k = bufferMemoryBarrierCount; i < imageMemoryBarrierCount; ++i, ++k)
+	{
+		const VkImageMemoryBarrier &barrier = pImageMemoryBarriers[i];
+
+		resources[k] = { (uint64_t)barrier.image };
+		old_states[k] = reshade::vulkan::convert_image_layout_to_usage(barrier.oldLayout);
+		new_states[k] = reshade::vulkan::convert_image_layout_to_usage(barrier.newLayout);
+	}
+
+	reshade::invoke_addon_event<reshade::addon_event::barrier>(
+		s_vulkan_command_buffers.at(commandBuffer),
+		num_barriers, resources, old_states, new_states);
+#endif
+}
+
 void     VKAPI_CALL vkCmdPushConstants(VkCommandBuffer commandBuffer, VkPipelineLayout layout, VkShaderStageFlags stageFlags, uint32_t offset, uint32_t size, const void *pValues)
 {
 	GET_DISPATCH_PTR(CmdPushConstants, commandBuffer);

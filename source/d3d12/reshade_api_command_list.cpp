@@ -577,9 +577,7 @@ void reshade::d3d12::command_list_impl::generate_mipmaps(api::resource_view srv)
 	std::swap(transition.Transition.StateBefore, transition.Transition.StateAfter);
 	_orig->ResourceBarrier(1, &transition);
 
-	// Reset root signature and descriptor heaps
-	_orig->SetComputeRootSignature(_current_root_signature[1]);
-
+	// Reset descriptor heaps
 	if (_current_descriptor_heaps[0] != view_heap && _current_descriptor_heaps[1] != view_heap && _current_descriptor_heaps[0] != nullptr)
 		_orig->SetDescriptorHeaps(_current_descriptor_heaps[1] != nullptr ? 2 : 1, _current_descriptor_heaps);
 }

@@ -17,6 +17,9 @@ namespace reshade::vulkan
 	auto convert_format(api::format format) -> VkFormat;
 	auto convert_format(VkFormat vk_format) -> api::format;
 
+	auto convert_access_to_usage(VkAccessFlags flags) -> api::resource_usage;
+	auto convert_image_layout_to_usage(VkImageLayout layout) -> api::resource_usage;
+
 	auto convert_usage_to_access(api::resource_usage state) -> VkAccessFlags;
 	auto convert_usage_to_image_layout(api::resource_usage state) -> VkImageLayout;
 	auto convert_usage_to_pipeline_stage(api::resource_usage state, bool src_stage, const VkPhysicalDeviceFeatures &enabled_features) -> VkPipelineStageFlags;

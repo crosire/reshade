@@ -105,6 +105,12 @@ namespace reshade
 		upload_texture_region,
 
 		/// <summary>
+		/// Called after 'ID3D12GraphicsCommandList::ResourceBarrier' or 'vkCmdPipelineBarrier'.
+		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, uint32_t num_resources, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states)</c></para>
+		/// </summary>
+		barrier,
+
+		/// <summary>
 		/// Called after 'IDirect3DDevice9::SetRenderTarget', 'IDirect3DDevice9::SetDepthStencilSurface', 'ID3D10Device::OMSetRenderTargets', 'ID3D11DeviceContext::OMSetRenderTargets(AndUnorderedAccessViews)', 'ID3D12GraphicsCommandList::OMSetRenderTargets', 'ID3D12GraphicsCommandList::BeginRenderPass', 'glBindFramebuffer' or 'vkCmdBeginRenderPass'.
 		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::render_pass pass)</c></para>
 		/// </summary>
@@ -390,6 +396,8 @@ namespace reshade
 
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::upload_buffer_region, api::device *device, const void *data, api::resource dst, uint64_t dst_offset, uint64_t size);
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::upload_texture_region, api::device *device, const api::subresource_data &data, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6]);
+
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::barrier, api::command_list *cmd_list, uint32_t num_resources, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states);
 
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::begin_render_pass, api::command_list *cmd_list, api::render_pass pass);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::finish_render_pass, api::command_list *cmd_list);
