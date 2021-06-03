@@ -2559,7 +2559,7 @@ HOOK_EXPORT void WINAPI glPolygonOffset(GLfloat factor, GLfloat units)
 	if (g_current_context)
 	{
 		const reshade::api::dynamic_state states[2] = { reshade::api::dynamic_state::depth_bias_slope_scaled, reshade::api::dynamic_state::depth_bias };
-		const uint32_t values[2] = { *reinterpret_cast<const uint32_t *>(&factor), static_cast<uint32_t>(static_cast<int32_t>(units)) };
+		const uint32_t values[2] = { *reinterpret_cast<const uint32_t *>(&factor), *reinterpret_cast<const uint32_t *>(&units) };
 
 		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 2, states, values);
 	}

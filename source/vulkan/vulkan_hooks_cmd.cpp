@@ -73,7 +73,7 @@ void     VKAPI_CALL vkCmdSetDepthBias(VkCommandBuffer commandBuffer, float depth
 
 #if RESHADE_ADDON
 	const reshade::api::dynamic_state states[3] = { reshade::api::dynamic_state::depth_bias, reshade::api::dynamic_state::depth_bias_clamp, reshade::api::dynamic_state::depth_bias_slope_scaled };
-	const uint32_t values[3] = { static_cast<uint32_t>(static_cast<int32_t>(depthBiasConstantFactor)), *reinterpret_cast<const uint32_t *>(&depthBiasClamp), *reinterpret_cast<const uint32_t *>(&depthBiasSlopeFactor) };
+	const uint32_t values[3] = { *reinterpret_cast<const uint32_t *>(&depthBiasConstantFactor), *reinterpret_cast<const uint32_t *>(&depthBiasClamp), *reinterpret_cast<const uint32_t *>(&depthBiasSlopeFactor) };
 
 	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(
 		s_vulkan_command_buffers.at(commandBuffer), 3, states, values);
@@ -85,6 +85,8 @@ void     VKAPI_CALL vkCmdSetBlendConstants(VkCommandBuffer commandBuffer, const 
 	trampoline(commandBuffer, blendConstants);
 
 #if RESHADE_ADDON
+	assert(blendConstants != nullptr);
+
 	const reshade::api::dynamic_state state = reshade::api::dynamic_state::blend_constant;
 	const uint32_t value =
 		((static_cast<uint32_t>(blendConstants[0] * 255.f) & 0xFF)      ) |
@@ -167,7 +169,7 @@ void     VKAPI_CALL vkCmdBindIndexBuffer(VkCommandBuffer commandBuffer, VkBuffer
 
 #if RESHADE_ADDON
 	reshade::invoke_addon_event<reshade::addon_event::bind_index_buffer>(
-		s_vulkan_command_buffers.at(commandBuffer), reshade::api::resource { (uint64_t)buffer }, offset, buffer == VK_NULL_HANDLE ? 0 : indexType == VK_INDEX_TYPE_UINT8_EXT ? 1 : indexType == VK_INDEX_TYPE_UINT16 ? 2 : 4);
+		s_vulkan_command_buffers.at(commandBuffer), reshade::api::resource { (uint64_t)buffer }, offset, indexType == VK_INDEX_TYPE_UINT8_EXT ? 1 : indexType == VK_INDEX_TYPE_UINT16 ? 2 : 4);
 #endif
 }
 void     VKAPI_CALL vkCmdBindVertexBuffers(VkCommandBuffer commandBuffer, uint32_t firstBinding, uint32_t bindingCount, const VkBuffer *pBuffers, const VkDeviceSize *pOffsets)

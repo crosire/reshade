@@ -716,7 +716,7 @@ bool reshade::d3d9::device_impl::create_pipeline_graphics(const api::pipeline_de
 	_orig->SetRenderState(D3DRS_BLENDFACTOR,
 		desc.graphics.blend_state.blend_constant);
 	_orig->SetRenderState(D3DRS_DEPTHBIAS,
-		static_cast<INT>(desc.graphics.rasterizer_state.depth_bias));
+		*reinterpret_cast<const DWORD *>(&desc.graphics.rasterizer_state.depth_bias));
 	_orig->SetRenderState(D3DRS_SEPARATEALPHABLENDENABLE, TRUE);
 	_orig->SetRenderState(D3DRS_SRCBLENDALPHA,
 		convert_blend_factor(desc.graphics.blend_state.src_alpha_blend_factor[0]));
