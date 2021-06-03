@@ -1200,11 +1200,11 @@ bool reshade::opengl::device_impl::map_resource(api::resource resource, uint32_t
 	case api::map_access::read_only:
 		map_access = GL_MAP_READ_BIT;
 		break;
-	case api::map_access::read_write:
-		map_access = GL_MAP_READ_BIT | GL_MAP_WRITE_BIT;
-		break;
 	case api::map_access::write_only:
 		map_access = GL_MAP_WRITE_BIT;
+		break;
+	case api::map_access::read_write:
+		map_access = GL_MAP_READ_BIT | GL_MAP_WRITE_BIT;
 		break;
 	case api::map_access::write_discard:
 		map_access = GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT;

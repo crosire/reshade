@@ -691,7 +691,8 @@ bool reshade::d3d10::device_impl::map_resource(api::resource resource, uint32_t 
 		map_type = D3D10_MAP_READ;
 		break;
 	case api::map_access::write_only:
-		map_type = D3D10_MAP_WRITE;
+		// Use no overwrite flag to simulate D3D12 behavior of there only being one allocation that backs a buffer (instead of the runtime managing multiple ones behind the scenes)
+		map_type = D3D10_MAP_WRITE_NO_OVERWRITE;
 		break;
 	case api::map_access::read_write:
 		map_type = D3D10_MAP_READ_WRITE;
