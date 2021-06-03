@@ -805,25 +805,7 @@ void reshade::vulkan::command_list_impl::copy_query_results(api::query_pool pool
 	vk.CmdCopyQueryPoolResults(_orig, (VkQueryPool)pool.handle, first, count, (VkBuffer)dst.handle, dst_offset, stride, VK_QUERY_RESULT_64_BIT);
 }
 
-void reshade::vulkan::command_list_impl::add_debug_marker(const char *label, const float color[4])
-{
-	if (vk.CmdInsertDebugUtilsLabelEXT == nullptr)
-		return;
-
-	VkDebugUtilsLabelEXT label_info { VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT };
-	label_info.pLabelName = label;
-
-	if (color != nullptr)
-	{
-		label_info.color[0] = color[0];
-		label_info.color[1] = color[1];
-		label_info.color[2] = color[2];
-		label_info.color[3] = color[3];
-	}
-
-	vk.CmdInsertDebugUtilsLabelEXT(_orig, &label_info);
-}
-void reshade::vulkan::command_list_impl::begin_debug_marker(const char *label, const float color[4])
+void reshade::vulkan::command_list_impl::begin_debug_event(const char *label, const float color[4])
 {
 	if (vk.CmdBeginDebugUtilsLabelEXT == nullptr)
 		return;
@@ -842,10 +824,28 @@ void reshade::vulkan::command_list_impl::begin_debug_marker(const char *label, c
 
 	vk.CmdBeginDebugUtilsLabelEXT(_orig, &label_info);
 }
-void reshade::vulkan::command_list_impl::finish_debug_marker()
+void reshade::vulkan::command_list_impl::finish_debug_event()
 {
 	if (vk.CmdEndDebugUtilsLabelEXT == nullptr)
 		return;
 
 	vk.CmdEndDebugUtilsLabelEXT(_orig);
+}
+void reshade::vulkan::command_list_impl::insert_debug_marker(const char *label, const float color[4])
+{
+	if (vk.CmdInsertDebugUtilsLabelEXT == nullptr)
+		return;
+
+	VkDebugUtilsLabelEXT label_info { VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT };
+	label_info.pLabelName = label;
+
+	if (color != nullptr)
+	{
+		label_info.color[0] = color[0];
+		label_info.color[1] = color[1];
+		label_info.color[2] = color[2];
+		label_info.color[3] = color[3];
+	}
+
+	vk.CmdInsertDebugUtilsLabelEXT(_orig, &label_info);
 }

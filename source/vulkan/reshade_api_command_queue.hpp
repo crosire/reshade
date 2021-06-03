@@ -24,9 +24,9 @@ namespace reshade::vulkan
 
 		void wait_idle() const final;
 
-		void add_debug_marker(const char *label, const float color[4]) final;
-		void begin_debug_marker(const char *label, const float color[4]) final;
-		void finish_debug_marker() final;
+		void begin_debug_event(const char *label, const float color[4]) final;
+		void finish_debug_event() final;
+		void insert_debug_marker(const char *label, const float color[4]) final;
 
 	private:
 		device_impl *const _device_impl;

@@ -2724,7 +2724,7 @@ void reshade::runtime::render_technique(technique &tech)
 
 #ifndef NDEBUG
 	const float debug_event_col[4] = { 1.0f, 0.8f, 0.8f, 1.0f };
-	cmd_list->begin_debug_marker(tech.name.c_str(), debug_event_col);
+	cmd_list->begin_debug_event(tech.name.c_str(), debug_event_col);
 #endif
 
 	// Update shader constants
@@ -2762,7 +2762,7 @@ void reshade::runtime::render_technique(technique &tech)
 		const technique::pass_data &pass_data = tech.passes_data[pass_index];
 
 #ifndef NDEBUG
-		cmd_list->begin_debug_marker((pass_info.name.empty() ? "Pass " + std::to_string(pass_index) : pass_info.name).c_str(), debug_event_col);
+		cmd_list->begin_debug_event((pass_info.name.empty() ? "Pass " + std::to_string(pass_index) : pass_info.name).c_str(), debug_event_col);
 #endif
 
 		if (!pass_info.cs_entry_point.empty())
@@ -2878,12 +2878,12 @@ void reshade::runtime::render_technique(technique &tech)
 			cmd_list->generate_mipmaps(modified_texture);
 
 #ifndef NDEBUG
-		cmd_list->finish_debug_marker();
+		cmd_list->finish_debug_event();
 #endif
 	}
 
 #ifndef NDEBUG
-	cmd_list->finish_debug_marker();
+	cmd_list->finish_debug_event();
 #endif
 
 #if RESHADE_GUI

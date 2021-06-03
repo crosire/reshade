@@ -265,9 +265,9 @@ bool reshade::opengl::device_impl::check_capability(api::device_caps capability)
 	case api::device_caps::partial_push_constant_updates:
 		return false;
 	case api::device_caps::partial_push_descriptor_updates:
-	case api::device_caps::sampler_compare_op:
+	case api::device_caps::sampler_compare:
 		return true;
-	case api::device_caps::sampler_anisotropic_filtering:
+	case api::device_caps::sampler_anisotropic:
 		glGetIntegerv(GL_TEXTURE_MAX_ANISOTROPY, &value); // Core in OpenGL 4.6
 		return value > 1;
 	case api::device_caps::sampler_with_resource_view:

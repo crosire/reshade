@@ -158,9 +158,9 @@ bool reshade::vulkan::device_impl::check_capability(api::device_caps capability)
 		return true;
 	case api::device_caps::partial_push_descriptor_updates:
 		return vk.CmdPushDescriptorSetKHR != nullptr;
-	case api::device_caps::sampler_compare_op:
+	case api::device_caps::sampler_compare:
 		return true;
-	case api::device_caps::sampler_anisotropic_filtering:
+	case api::device_caps::sampler_anisotropic:
 		return _enabled_features.samplerAnisotropy;
 	case api::device_caps::sampler_with_resource_view:
 	case api::device_caps::copy_buffer_region:

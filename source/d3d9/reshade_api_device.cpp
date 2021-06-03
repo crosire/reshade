@@ -241,9 +241,9 @@ bool reshade::d3d9::device_impl::check_capability(api::device_caps capability) c
 	case api::device_caps::partial_push_constant_updates:
 	case api::device_caps::partial_push_descriptor_updates:
 		return true;
-	case api::device_caps::sampler_compare_op:
+	case api::device_caps::sampler_compare:
 		return false;
-	case api::device_caps::sampler_anisotropic_filtering:
+	case api::device_caps::sampler_anisotropic:
 	case api::device_caps::sampler_with_resource_view:
 		return true;
 	case api::device_caps::copy_buffer_region:

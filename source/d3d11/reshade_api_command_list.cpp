@@ -545,19 +545,7 @@ void reshade::d3d11::device_context_impl::copy_query_results(api::query_pool, ap
 	assert(false);
 }
 
-void reshade::d3d11::device_context_impl::add_debug_marker(const char *label, const float[4])
-{
-	if (_annotations == nullptr)
-		return;
-
-	const size_t label_len = strlen(label);
-	std::wstring label_wide;
-	label_wide.reserve(label_len + 1);
-	utf8::unchecked::utf8to16(label, label + label_len, std::back_inserter(label_wide));
-
-	_annotations->SetMarker(label_wide.c_str());
-}
-void reshade::d3d11::device_context_impl::begin_debug_marker(const char *label, const float[4])
+void reshade::d3d11::device_context_impl::begin_debug_event(const char *label, const float[4])
 {
 	if (_annotations == nullptr)
 		return;
@@ -569,10 +557,22 @@ void reshade::d3d11::device_context_impl::begin_debug_marker(const char *label, 
 
 	_annotations->BeginEvent(label_wide.c_str());
 }
-void reshade::d3d11::device_context_impl::finish_debug_marker()
+void reshade::d3d11::device_context_impl::finish_debug_event()
 {
 	if (_annotations == nullptr)
 		return;
 
 	_annotations->EndEvent();
+}
+void reshade::d3d11::device_context_impl::insert_debug_marker(const char *label, const float[4])
+{
+	if (_annotations == nullptr)
+		return;
+
+	const size_t label_len = strlen(label);
+	std::wstring label_wide;
+	label_wide.reserve(label_len + 1);
+	utf8::unchecked::utf8to16(label, label + label_len, std::back_inserter(label_wide));
+
+	_annotations->SetMarker(label_wide.c_str());
 }

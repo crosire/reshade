@@ -60,9 +60,9 @@ namespace reshade::vulkan
 		void finish_query(api::query_pool pool, api::query_type type, uint32_t index) final;
 		void copy_query_results(api::query_pool pool, api::query_type type, uint32_t first, uint32_t count, api::resource dst, uint64_t dst_offset, uint32_t stride) final;
 
-		void add_debug_marker(const char *label, const float color[4]) final;
-		void begin_debug_marker(const char *label, const float color[4]) final;
-		void finish_debug_marker() final;
+		void begin_debug_event(const char *label, const float color[4]) final;
+		void finish_debug_event() final;
+		void insert_debug_marker(const char *label, const float color[4]) final;
 
 		VkRect2D _current_render_area = {};
 		VkFramebuffer _current_fbo = VK_NULL_HANDLE;

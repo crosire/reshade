@@ -548,16 +548,7 @@ void reshade::d3d9::device_impl::copy_query_results(api::query_pool, api::query_
 	assert(false);
 }
 
-void reshade::d3d9::device_impl::add_debug_marker(const char *label, const float color[4])
-{
-	const size_t label_len = strlen(label);
-	std::wstring label_wide;
-	label_wide.reserve(label_len + 1);
-	utf8::unchecked::utf8to16(label, label + label_len, std::back_inserter(label_wide));
-
-	D3DPERF_SetMarker(color != nullptr ? D3DCOLOR_COLORVALUE(color[0], color[1], color[2], color[3]) : 0, label_wide.c_str());
-}
-void reshade::d3d9::device_impl::begin_debug_marker(const char *label, const float color[4])
+void reshade::d3d9::device_impl::begin_debug_event(const char *label, const float color[4])
 {
 	const size_t label_len = strlen(label);
 	std::wstring label_wide;
@@ -566,7 +557,16 @@ void reshade::d3d9::device_impl::begin_debug_marker(const char *label, const flo
 
 	D3DPERF_BeginEvent(color != nullptr ? D3DCOLOR_COLORVALUE(color[0], color[1], color[2], color[3]) : 0, label_wide.c_str());
 }
-void reshade::d3d9::device_impl::finish_debug_marker()
+void reshade::d3d9::device_impl::finish_debug_event()
 {
 	D3DPERF_EndEvent();
+}
+void reshade::d3d9::device_impl::insert_debug_marker(const char *label, const float color[4])
+{
+	const size_t label_len = strlen(label);
+	std::wstring label_wide;
+	label_wide.reserve(label_len + 1);
+	utf8::unchecked::utf8to16(label, label + label_len, std::back_inserter(label_wide));
+
+	D3DPERF_SetMarker(color != nullptr ? D3DCOLOR_COLORVALUE(color[0], color[1], color[2], color[3]) : 0, label_wide.c_str());
 }

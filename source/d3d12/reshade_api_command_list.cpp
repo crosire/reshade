@@ -689,17 +689,7 @@ void reshade::d3d12::command_list_impl::copy_query_results(api::query_pool pool,
 	_orig->ResolveQueryData(reinterpret_cast<ID3D12QueryHeap *>(pool.handle), convert_query_type(type), first, count, reinterpret_cast<ID3D12Resource *>(dst.handle), dst_offset);
 }
 
-void reshade::d3d12::command_list_impl::add_debug_marker(const char *label, const float color[4])
-{
-#if 0
-	_orig->SetMarker(1, label, static_cast<UINT>(strlen(label)));
-#else
-	UINT64 pix3blob[64];
-	encode_pix3blob(pix3blob, label, color);
-	_orig->SetMarker(2, pix3blob, sizeof(pix3blob));
-#endif
-}
-void reshade::d3d12::command_list_impl::begin_debug_marker(const char *label, const float color[4])
+void reshade::d3d12::command_list_impl::begin_debug_event(const char *label, const float color[4])
 {
 #if 0
 	// Metadata is WINPIX_EVENT_ANSI_VERSION
@@ -711,7 +701,17 @@ void reshade::d3d12::command_list_impl::begin_debug_marker(const char *label, co
 	_orig->BeginEvent(2, pix3blob, sizeof(pix3blob));
 #endif
 }
-void reshade::d3d12::command_list_impl::finish_debug_marker()
+void reshade::d3d12::command_list_impl::finish_debug_event()
 {
 	_orig->EndEvent();
+}
+void reshade::d3d12::command_list_impl::insert_debug_marker(const char *label, const float color[4])
+{
+#if 0
+	_orig->SetMarker(1, label, static_cast<UINT>(strlen(label)));
+#else
+	UINT64 pix3blob[64];
+	encode_pix3blob(pix3blob, label, color);
+	_orig->SetMarker(2, pix3blob, sizeof(pix3blob));
+#endif
 }

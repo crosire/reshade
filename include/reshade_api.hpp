@@ -61,17 +61,17 @@ namespace reshade { namespace api
 	{
 		/// <summary>
 		/// Specifies whether compute shaders are supported.
-		/// If this feature is not present, the "compute_shader" pipeline state must not be used.
+		/// If this feature is not present, the <see cref="pipeline_stage::compute_shader"/> stage must not be used.
 		/// </summary>
 		compute_shader = 1,
 		/// <summary>
 		/// Specifies whether geometry shaders are supported.
-		/// If this feature is not present, the "geometry_shader" pipeline state must not be used.
+		/// If this feature is not present, the <see cref="pipeline_stage::geometry_shader"/>  stage must not be used.
 		/// </summary>
 		geometry_shader,
 		/// <summary>
 		/// Specifies whether hull and domain shaders are supported.
-		/// If this feature is not present, the "hull_shader" and "domain_shader" pipeline state must not be used.
+		/// If this feature is not present, the <see cref="pipeline_stage::hull_shader"/> and <see cref="pipeline_stage::domain_shader"/> stages must not be used.
 		/// </summary>
 		hull_and_domain_shader,
 		/// <summary>
@@ -86,7 +86,7 @@ namespace reshade { namespace api
 		independent_blend,
 		/// <summary>
 		/// Specifies whether logic operations are available in the blend state.
-		/// If this feature is not present, the "logic_op_enable" and "logic_op" fields of <see cref="pipeline_desc"/> are ignored.
+		/// If this feature is not present, the "logic_op_enable" and "logic_op" fields of <see cref="blend_desc"/> are ignored.
 		/// </summary>
 		logic_op,
 		/// <summary>
@@ -121,14 +121,14 @@ namespace reshade { namespace api
 		partial_push_descriptor_updates,
 		/// <summary>
 		/// Specifies whether comparison sampling is supported.
-		/// If this feature is not present, the "compare_op" field of <see cref="sampler_desc"/> is ignored.
+		/// If this feature is not present, the "compare_op" field of <see cref="sampler_desc"/> is ignored and the compare filter types have no effect.
 		/// </summary>
-		sampler_compare_op,
+		sampler_compare,
 		/// <summary>
 		/// Specifies whether anisotropic filtering is supported.
 		/// If this feature is not present, <see cref="filter_type::anisotropic"/> must not be used.
 		/// </summary>
-		sampler_anisotropic_filtering,
+		sampler_anisotropic,
 		/// <summary>
 		/// Specifies whether combined sampler and resource view descriptors are supported.
 		/// If this feature is not present, <see cref="descriptor_type::sampler_with_resource_view"/> must not be used.
@@ -751,21 +751,21 @@ namespace reshade { namespace api
 		virtual void copy_query_results(query_pool pool, query_type type, uint32_t first, uint32_t count, resource destination, uint64_t dst_offset, uint32_t stride) = 0;
 
 		/// <summary>
-		/// Inserts a debug marker into the command list.
-		/// </summary>
-		/// <param name="label">A null-terminated string containing the label of the debug marker.</param>
-		/// <param name="color">An optional RGBA color value associated with the debug marker.</param>
-		virtual void add_debug_marker(const char *label, const float color[4] = nullptr) = 0;
-		/// <summary>
 		/// Opens a debug event region in the command list.
 		/// </summary>
 		/// <param name="label">A null-terminated string containing the label of the event.</param>
 		/// <param name="color">An optional RGBA color value associated with the event.</param>
-		virtual void begin_debug_marker(const char *label, const float color[4] = nullptr) = 0;
+		virtual void begin_debug_event(const char *label, const float color[4] = nullptr) = 0;
 		/// <summary>
-		/// Closes the current debug event region (the last one opened with <see cref="begin_debug_marker"/>).
+		/// Closes the current debug event region (the last one opened with <see cref="begin_debug_event"/>).
 		/// </summary>
-		virtual void finish_debug_marker() = 0;
+		virtual void finish_debug_event() = 0;
+		/// <summary>
+		/// Inserts a debug marker into the command list.
+		/// </summary>
+		/// <param name="label">A null-terminated string containing the label of the debug marker.</param>
+		/// <param name="color">An optional RGBA color value associated with the debug marker.</param>
+		virtual void insert_debug_marker(const char *label, const float color[4] = nullptr) = 0;
 	};
 
 	/// <summary>
@@ -792,21 +792,21 @@ namespace reshade { namespace api
 		virtual void wait_idle() const = 0;
 
 		/// <summary>
-		/// Inserts a debug marker into the command queue.
-		/// </summary>
-		/// <param name="label">A null-terminated string containing the label of the debug marker.</param>
-		/// <param name="color">An optional RGBA color value associated with the debug marker.</param>
-		virtual void add_debug_marker(const char *label, const float color[4] = nullptr) = 0;
-		/// <summary>
 		/// Opens a debug event region in the command queue.
 		/// </summary>
 		/// <param name="label">A null-terminated string containing the label of the event.</param>
 		/// <param name="color">An optional RGBA color value associated with the event.</param>
-		virtual void begin_debug_marker(const char *label, const float color[4] = nullptr) = 0;
+		virtual void begin_debug_event(const char *label, const float color[4] = nullptr) = 0;
 		/// <summary>
-		/// Closes the current debug event region (the last one opened with <see cref="begin_debug_marker"/>).
+		/// Closes the current debug event region (the last one opened with <see cref="begin_debug_event"/>).
 		/// </summary>
-		virtual void finish_debug_marker() = 0;
+		virtual void finish_debug_event() = 0;
+		/// <summary>
+		/// Inserts a debug marker into the command queue.
+		/// </summary>
+		/// <param name="label">A null-terminated string containing the label of the debug marker.</param>
+		/// <param name="color">An optional RGBA color value associated with the debug marker.</param>
+		virtual void insert_debug_marker(const char *label, const float color[4] = nullptr) = 0;
 	};
 
 	/// <summary>

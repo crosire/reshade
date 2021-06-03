@@ -1024,15 +1024,15 @@ void reshade::opengl::device_impl::copy_query_results(api::query_pool pool, api:
 	}
 }
 
-void reshade::opengl::device_impl::add_debug_marker(const char *label, const float[4])
-{
-	glDebugMessageInsert(GL_DEBUG_SOURCE_THIRD_PARTY, GL_DEBUG_TYPE_MARKER, 0, GL_DEBUG_SEVERITY_NOTIFICATION, -1, label);
-}
-void reshade::opengl::device_impl::begin_debug_marker(const char *label, const float[4])
+void reshade::opengl::device_impl::begin_debug_event(const char *label, const float[4])
 {
 	glPushDebugGroup(GL_DEBUG_SOURCE_THIRD_PARTY, 0, -1, label);
 }
-void reshade::opengl::device_impl::finish_debug_marker()
+void reshade::opengl::device_impl::finish_debug_event()
 {
 	glPopDebugGroup();
+}
+void reshade::opengl::device_impl::insert_debug_marker(const char *label, const float[4])
+{
+	glDebugMessageInsert(GL_DEBUG_SOURCE_THIRD_PARTY, GL_DEBUG_TYPE_MARKER, 0, GL_DEBUG_SEVERITY_NOTIFICATION, -1, label);
 }
