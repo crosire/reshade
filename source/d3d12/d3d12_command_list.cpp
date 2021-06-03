@@ -124,6 +124,14 @@ D3D12_COMMAND_LIST_TYPE STDMETHODCALLTYPE D3D12GraphicsCommandList::GetType()
 
 HRESULT STDMETHODCALLTYPE D3D12GraphicsCommandList::Close()
 {
+#if RESHADE_ADDON
+	if (_has_open_render_pass)
+	{
+		reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(this);
+		_has_open_render_pass = false;
+	}
+#endif
+
 	return _orig->Close();
 }
 HRESULT STDMETHODCALLTYPE D3D12GraphicsCommandList::Reset(ID3D12CommandAllocator *pAllocator, ID3D12PipelineState *pInitialState)
@@ -131,13 +139,16 @@ HRESULT STDMETHODCALLTYPE D3D12GraphicsCommandList::Reset(ID3D12CommandAllocator
 #if RESHADE_ADDON
 	reshade::invoke_addon_event<reshade::addon_event::reset_command_list>(this);
 #endif
+
+	_current_root_signature[0] = nullptr;
+	_current_root_signature[1] = nullptr;
+	_current_descriptor_heaps[0] = nullptr;
+	_current_descriptor_heaps[1] = nullptr;
+
 	const HRESULT hr = _orig->Reset(pAllocator, pInitialState);
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
-		_current_root_signature[0] = nullptr;
-		_current_root_signature[1] = nullptr;
-
 		// TODO: Figure out if this is compute or graphics pipeline state object
 		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(this, reshade::api::pipeline_stage::all_graphics, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pInitialState) });
 	}
@@ -199,6 +210,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::CopyTextureRegion(const D3D12_T
 		}
 		else
 		{
+			// TODO: Destination box size is not implemented (would have to get it from the resource)
 			assert(DstX == 0 && DstY == 0 && DstZ == 0);
 		}
 
@@ -345,6 +357,8 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetDescriptorHeaps(UINT NumDesc
 {
 	_orig->SetDescriptorHeaps(NumDescriptorHeaps, ppDescriptorHeaps);
 
+	assert(NumDescriptorHeaps <= 2);
+
 	for (UINT i = 0; i < 2; ++i)
 		_current_descriptor_heaps[i] = i < NumDescriptorHeaps ? ppDescriptorHeaps[i] : nullptr;
 }
@@ -430,7 +444,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRoot32BitConstants(UI
 	reshade::invoke_addon_event<reshade::addon_event::push_constants>(
 		this,
 		reshade::api::shader_stage::all_compute,
-		reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(_current_root_signature[0]) },
+		reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(_current_root_signature[1]) },
 		RootParameterIndex,
 		DestOffsetIn32BitValues,
 		Num32BitValuesToSet,
@@ -460,11 +474,11 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootConstantBufferVie
 	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::push_descriptors)].empty())
 		return;
 
+	reshade::api::resource buffer = { 0 };
 	uint64_t offset = 0;
-	ID3D12Resource *resource = nullptr;
-	_device_impl->resolve_gpu_address(BufferLocation, &resource, &offset);
-	const reshade::api::resource buffer = { reinterpret_cast<uintptr_t>(resource) };
+	_device_impl->resolve_gpu_address(BufferLocation, &buffer, &offset);
 
+	// TODO: Constant buffer offset
 	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
 		this,
 		reshade::api::shader_stage::all_compute,
@@ -484,10 +498,9 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRootConstantBufferVi
 	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::push_descriptors)].empty())
 		return;
 
+	reshade::api::resource buffer = { 0 };
 	uint64_t offset = 0;
-	ID3D12Resource *resource = nullptr;
-	_device_impl->resolve_gpu_address(BufferLocation, &resource, &offset);
-	const reshade::api::resource buffer = { reinterpret_cast<uintptr_t>(resource) };
+	_device_impl->resolve_gpu_address(BufferLocation, &buffer, &offset);
 
 	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
 		this,
@@ -529,9 +542,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::IASetIndexBuffer(const D3D12_IN
 	uint32_t index_size = 0;
 	if (pView != nullptr)
 	{
-		ID3D12Resource *resource = nullptr;
-		_device_impl->resolve_gpu_address(pView->BufferLocation, &resource, &offset);
-		buffer = { reinterpret_cast<uintptr_t>(resource) };
+		_device_impl->resolve_gpu_address(pView->BufferLocation, &buffer, &offset);
 		index_size = pView->Format == DXGI_FORMAT_R16_UINT ? 2 : 4;
 	}
 
@@ -544,7 +555,6 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::IASetVertexBuffers(UINT StartSl
 
 #if RESHADE_ADDON
 	assert(NumViews <= D3D12_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT);
-	assert(pViews != nullptr || NumViews == 0);
 
 	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_vertex_buffers)].empty())
 		return;
@@ -554,9 +564,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::IASetVertexBuffers(UINT StartSl
 	uint32_t strides[D3D12_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
 	for (UINT i = 0; i < NumViews; ++i)
 	{
-		ID3D12Resource *resource = nullptr;
-		_device_impl->resolve_gpu_address(pViews[i].BufferLocation, &resource, &offsets[i]);
-		buffers[i] = { reinterpret_cast<uintptr_t>(resource) };
+		_device_impl->resolve_gpu_address(pViews[i].BufferLocation, &buffers[i], &offsets[i]);
 		strides[i] = pViews[i].StrideInBytes;
 	}
 
@@ -570,7 +578,11 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SOSetTargets(UINT StartSlot, UI
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::OMSetRenderTargets(UINT NumRenderTargetDescriptors, const D3D12_CPU_DESCRIPTOR_HANDLE *pRenderTargetDescriptors, BOOL RTsSingleHandleToDescriptorRange, D3D12_CPU_DESCRIPTOR_HANDLE const *pDepthStencilDescriptor)
 {
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(this);
+	if (_has_open_render_pass)
+	{
+		reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(this);
+		_has_open_render_pass = false;
+	}
 #endif
 
 	_orig->OMSetRenderTargets(NumRenderTargetDescriptors, pRenderTargetDescriptors, RTsSingleHandleToDescriptorRange, pDepthStencilDescriptor);
@@ -583,10 +595,11 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::OMSetRenderTargets(UINT NumRend
 	_current_pass->dsv = pDepthStencilDescriptor != nullptr ? *pDepthStencilDescriptor : D3D12_CPU_DESCRIPTOR_HANDLE { 0 };
 	_current_pass->rtv_is_single_handle_to_range = RTsSingleHandleToDescriptorRange;
 
-	if (NumRenderTargetDescriptors == 0 && pDepthStencilDescriptor == nullptr)
-		return;
-
-	reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::render_pass { reinterpret_cast<uintptr_t>(_current_pass) });
+	if (NumRenderTargetDescriptors != 0 || pDepthStencilDescriptor != nullptr)
+	{
+		_has_open_render_pass = true;
+		reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::render_pass { reinterpret_cast<uintptr_t>(_current_pass) });
+	}
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearDepthStencilView(D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilView, D3D12_CLEAR_FLAGS ClearFlags, FLOAT Depth, UINT8 Stencil, UINT NumRects, const D3D12_RECT *pRects)
@@ -732,6 +745,11 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetProtectedResourceSession(ID3
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::BeginRenderPass(UINT NumRenderTargets, const D3D12_RENDER_PASS_RENDER_TARGET_DESC *pRenderTargets, const D3D12_RENDER_PASS_DEPTH_STENCIL_DESC *pDepthStencil, D3D12_RENDER_PASS_FLAGS Flags)
 {
 #if RESHADE_ADDON
+	if (_has_open_render_pass)
+	{
+		reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(this);
+	}
+
 	// Use clear events with explicit resource view references here, since this is invoked before render pass begin
 	if (!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::clear_depth_stencil_view)].empty() ||
 		!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::clear_render_target_view)].empty())
@@ -783,6 +801,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::BeginRenderPass(UINT NumRenderT
 	_current_pass->dsv = (pDepthStencil != nullptr) ? pDepthStencil->cpuDescriptor : D3D12_CPU_DESCRIPTOR_HANDLE { 0 };
 	_current_pass->rtv_is_single_handle_to_range = FALSE;
 
+	_has_open_render_pass = true;
 	reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::render_pass { reinterpret_cast<uintptr_t>(_current_pass) });
 #endif
 }
@@ -790,6 +809,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::EndRenderPass(void)
 {
 #if RESHADE_ADDON
 	reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(this);
+	_has_open_render_pass = false;
 #endif
 
 	assert(_interface_version >= 4);

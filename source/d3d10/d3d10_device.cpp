@@ -31,20 +31,6 @@ bool D3D10Device::check_and_upgrade_interface(REFIID riid)
 }
 
 #if RESHADE_ADDON
-void D3D10Device::invoke_bind_render_targets_event(UINT count, ID3D10RenderTargetView *const *targets, ID3D10DepthStencilView *dsv)
-{
-	assert(count <= D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT);
-
-	_current_pass->count = count;
-	std::memcpy(_current_pass->rtv, targets, count * sizeof(ID3D10RenderTargetView *));
-	_current_pass->dsv = dsv;
-
-	if (count == 0 && dsv == nullptr)
-		return;
-
-	_has_open_render_pass = true;
-	reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::render_pass { reinterpret_cast<uintptr_t>(_current_pass) });
-}
 void D3D10Device::invoke_bind_vertex_buffers_event(UINT first, UINT count, ID3D10Buffer *const *buffers, const UINT *strides, const UINT *offsets)
 {
 	assert(count <= D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT);
@@ -252,7 +238,7 @@ void    STDMETHODCALLTYPE D3D10Device::IASetIndexBuffer(ID3D10Buffer *pIndexBuff
 {
 	_orig->IASetIndexBuffer(pIndexBuffer, Format, Offset);
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::bind_index_buffer>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(pIndexBuffer) }, Offset, pIndexBuffer == nullptr ? 0 : Format == DXGI_FORMAT_R16_UINT ? 2 : 4);
+	reshade::invoke_addon_event<reshade::addon_event::bind_index_buffer>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(pIndexBuffer) }, Offset, Format == DXGI_FORMAT_R16_UINT ? 2 : 4);
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::DrawIndexedInstanced(UINT IndexCountPerInstance, UINT InstanceCount, UINT StartIndexLocation, INT BaseVertexLocation, UINT StartInstanceLocation)
@@ -339,7 +325,17 @@ void    STDMETHODCALLTYPE D3D10Device::OMSetRenderTargets(UINT NumViews, ID3D10R
 	_orig->OMSetRenderTargets(NumViews, ppRenderTargetViews, pDepthStencilView);
 
 #if RESHADE_ADDON
-	invoke_bind_render_targets_event(NumViews, ppRenderTargetViews, pDepthStencilView);
+	assert(NumViews <= D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT);
+
+	_current_pass->count = NumViews;
+	std::memcpy(_current_pass->rtv, ppRenderTargetViews, NumViews * sizeof(ID3D10RenderTargetView *));
+	_current_pass->dsv = pDepthStencilView;
+
+	if (NumViews != 0 || pDepthStencilView != nullptr)
+	{
+		_has_open_render_pass = true;
+		reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::render_pass { reinterpret_cast<uintptr_t>(_current_pass) });
+	}
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::OMSetBlendState(ID3D10BlendState *pBlendState, const FLOAT BlendFactor[4], UINT SampleMask)
@@ -440,7 +436,7 @@ void    STDMETHODCALLTYPE D3D10Device::CopySubresourceRegion(ID3D10Resource *pDs
 
 		if (reshade::invoke_addon_event<reshade::addon_event::copy_buffer_region>(this,
 			reshade::api::resource { reinterpret_cast<uintptr_t>(pSrcResource) }, pSrcBox != nullptr ? pSrcBox->left : 0,
-			reshade::api::resource { reinterpret_cast<uintptr_t>(pDstResource) }, DstX, pSrcBox != nullptr ? pSrcBox->right - pSrcBox->left : ~0ull))
+			reshade::api::resource { reinterpret_cast<uintptr_t>(pDstResource) }, DstX, pSrcBox != nullptr ? pSrcBox->right - pSrcBox->left : std::numeric_limits<uint64_t>::max()))
 			return;
 	}
 	else
@@ -454,6 +450,7 @@ void    STDMETHODCALLTYPE D3D10Device::CopySubresourceRegion(ID3D10Resource *pDs
 		}
 		else
 		{
+			// TODO: Destination box size is not implemented (would have to get it from the resource)
 			assert(DstX == 0 && DstY == 0 && DstZ == 0);
 		}
 

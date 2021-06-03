@@ -413,7 +413,7 @@ void reshade::opengl::device_impl::copy_resource(api::resource src, api::resourc
 
 	if (desc.type == api::resource_type::buffer)
 	{
-		copy_buffer_region(src, 0, dst, 0, ~0llu);
+		copy_buffer_region(src, 0, dst, 0, std::numeric_limits<uint64_t>::max());
 	}
 	else
 	{
@@ -431,11 +431,27 @@ void reshade::opengl::device_impl::copy_resource(api::resource src, api::resourc
 void reshade::opengl::device_impl::copy_buffer_region(api::resource src, uint64_t src_offset, api::resource dst, uint64_t dst_offset, uint64_t size)
 {
 	assert(src.handle != 0 && dst.handle != 0);
+
+	const GLuint src_target = src.handle >> 40;
+	const GLuint src_object = src.handle & 0xFFFFFFFF;
+	const GLuint dst_object = dst.handle & 0xFFFFFFFF;
+
+	if (size == std::numeric_limits<uint64_t>::max())
+	{
+		GLint buffer_size = 0;
+		GLint prev_binding = 0;
+		glGetIntegerv(reshade::opengl::get_binding_for_target(src_target), &prev_binding);
+		glBindBuffer(src_target, src_object);
+		glGetBufferParameteriv(src_target, GL_BUFFER_SIZE, &buffer_size);
+		glBindBuffer(src_target, prev_binding);
+		size  = buffer_size;
+	}
+
 	assert(src_offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()) && dst_offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()) && size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
 
 	if (gl3wProcs.gl.CopyNamedBufferSubData != nullptr)
 	{
-		glCopyNamedBufferSubData(src.handle & 0xFFFFFFFF, dst.handle & 0xFFFFFFFF, static_cast<GLintptr>(src_offset), static_cast<GLintptr>(dst_offset), static_cast<GLsizeiptr>(size));
+		glCopyNamedBufferSubData(src_object, dst_object, static_cast<GLintptr>(src_offset), static_cast<GLintptr>(dst_offset), static_cast<GLsizeiptr>(size));
 	}
 	else
 	{
@@ -444,8 +460,8 @@ void reshade::opengl::device_impl::copy_buffer_region(api::resource src, uint64_
 		glGetIntegerv(GL_COPY_READ_BUFFER, &prev_read_buf);
 		glGetIntegerv(GL_COPY_WRITE_BUFFER, &prev_write_buf);
 
-		glBindBuffer(GL_COPY_READ_BUFFER, src.handle & 0xFFFFFFFF);
-		glBindBuffer(GL_COPY_WRITE_BUFFER, dst.handle & 0xFFFFFFFF);
+		glBindBuffer(GL_COPY_READ_BUFFER, src_object);
+		glBindBuffer(GL_COPY_WRITE_BUFFER, dst_object);
 		glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, static_cast<GLintptr>(src_offset), static_cast<GLintptr>(dst_offset), static_cast<GLsizeiptr>(size));
 
 		glBindBuffer(GL_COPY_READ_BUFFER, prev_read_buf);

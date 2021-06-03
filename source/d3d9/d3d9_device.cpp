@@ -643,6 +643,11 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::UpdateSurface(IDirect3DSurface9 *pSou
 			dst_box[5] = 1;
 		}
 	}
+	else
+	{
+		// TODO: Destination box size is not implemented (would have to get it from the resource)
+		assert(pDestPoint == nullptr);
+	}
 
 	if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(this,
 		reshade::api::resource { reinterpret_cast<uintptr_t>(pSourceSurface) }, 0, (pSourceRect != nullptr) ? src_box : nullptr,
@@ -748,9 +753,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetRenderTarget(DWORD RenderTargetInd
 
 	const HRESULT hr = _orig->SetRenderTarget(RenderTargetIndex, pRenderTarget);
 #if RESHADE_ADDON
-	if (SUCCEEDED(hr) && (
-		!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::begin_render_pass)].empty() ||
-		!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_viewports)].empty()))
+	if (SUCCEEDED(hr))
 	{
 		_current_pass->rtv[RenderTargetIndex] = pRenderTarget;
 		_current_pass->count = 0;
@@ -758,9 +761,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetRenderTarget(DWORD RenderTargetInd
 			_current_pass->count++;
 
 		if (RenderTargetIndex == 0)
-		{
 			reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::render_pass { reinterpret_cast<uintptr_t>(_current_pass) });
-		}
 
 		if (pRenderTarget != nullptr)
 		{
@@ -796,7 +797,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetDepthStencilSurface(IDirect3DSurfa
 
 	const HRESULT hr = _orig->SetDepthStencilSurface(pNewZStencil);
 #if RESHADE_ADDON
-	if (SUCCEEDED(hr) && !reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::begin_render_pass)].empty())
+	if (SUCCEEDED(hr))
 	{
 		_current_pass->dsv = pNewZStencil;
 
@@ -824,7 +825,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Clear(DWORD Count, const D3DRECT *pRe
 		(DWORD)reshade::api::attachment_type::color   == D3DCLEAR_TARGET &&
 		(DWORD)reshade::api::attachment_type::depth   == D3DCLEAR_ZBUFFER &&
 		(DWORD)reshade::api::attachment_type::stencil == D3DCLEAR_STENCIL);
-	static_assert(sizeof(*pRects) == (sizeof(int32_t) * 4));
+	static_assert(sizeof(D3DRECT) == (sizeof(int32_t) * 4));
 
 	const float color[4] = { ((Color >> 16) & 0xFF) / 255.0f, ((Color >> 8) & 0xFF) / 255.0f, (Color & 0xFF) / 255.0f, ((Color >> 24) & 0xFF) / 255.0f };
 

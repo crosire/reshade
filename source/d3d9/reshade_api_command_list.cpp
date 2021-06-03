@@ -257,7 +257,7 @@ void reshade::d3d9::device_impl::copy_resource(api::resource src, api::resource 
 
 	if (desc.type == api::resource_type::buffer)
 	{
-		copy_buffer_region(src, 0, dst, 0, ~0llu);
+		copy_buffer_region(src, 0, dst, 0, std::numeric_limits<uint64_t>::max());
 	}
 	else
 	{

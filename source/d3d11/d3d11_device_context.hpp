@@ -183,7 +183,6 @@ struct DECLSPEC_UUID("27B0246B-2152-4D42-AD11-32489472238F") D3D11DeviceContext 
 	bool check_and_upgrade_interface(REFIID riid);
 
 #if RESHADE_ADDON
-	void invoke_bind_render_targets_event(UINT count, ID3D11RenderTargetView *const *targets, ID3D11DepthStencilView *dsv);
 	void invoke_bind_vertex_buffers_event(UINT first, UINT count, ID3D11Buffer *const *buffers, const UINT *strides, const UINT *offsets);
 	void invoke_bind_samplers_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D11SamplerState *const *objects);
 	void invoke_bind_shader_resource_views_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D11ShaderResourceView *const *objects);

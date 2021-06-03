@@ -34,9 +34,6 @@ static GLint get_buf_param(GLenum target, GLuint id, GLenum param)
 	}
 	else
 	{
-		if (GL_TEXTURE == target)
-			target = GL_TEXTURE_2D;
-
 		GLint prev_binding = 0;
 		glGetIntegerv(reshade::opengl::get_binding_for_target(target), &prev_binding);
 		glBindBuffer(target, id);

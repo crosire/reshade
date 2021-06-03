@@ -76,7 +76,7 @@ namespace reshade::d3d12
 		void set_debug_name(api::resource resource, const char *name) final;
 
 #if RESHADE_ADDON
-		bool resolve_gpu_address(D3D12_GPU_VIRTUAL_ADDRESS address, ID3D12Resource **out_resource, UINT64 *out_offset)
+		bool resolve_gpu_address(D3D12_GPU_VIRTUAL_ADDRESS address, api::resource *out_resource, uint64_t *out_offset)
 		{
 			const std::lock_guard<std::mutex> lock(_mutex);
 			for (const auto &buffer_info : _buffer_gpu_addresses)
@@ -87,7 +87,7 @@ namespace reshade::d3d12
 				if (address_offset < buffer_info.second.SizeInBytes)
 				{
 					*out_offset = address_offset;
-					*out_resource = buffer_info.first;
+					*out_resource = { reinterpret_cast<uintptr_t>(buffer_info.first) };
 					return true;
 				}
 			}

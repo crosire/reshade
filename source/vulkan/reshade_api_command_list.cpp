@@ -58,7 +58,7 @@ void reshade::vulkan::command_list_impl::barrier(uint32_t count, const api::reso
 
 	for (uint32_t i = 0; i < count; ++i)
 	{
-		const resource_data &data = _device_impl->_resources.at(resources[i].handle);
+		const resource_data data = _device_impl->lookup_resource(resources[i]);
 
 		if (data.is_image())
 		{
@@ -379,6 +379,12 @@ void reshade::vulkan::command_list_impl::copy_buffer_region(api::resource src, u
 {
 	_has_commands = true;
 
+	if (size == std::numeric_limits<uint64_t>::max())
+	{
+		const resource_data src_data = _device_impl->lookup_resource(src);
+		size  = src_data.buffer_create_info.size;
+	}
+
 	VkBufferCopy region;
 	region.srcOffset = src_offset;
 	region.dstOffset = dst_offset;
@@ -390,7 +396,7 @@ void reshade::vulkan::command_list_impl::copy_buffer_to_texture(api::resource sr
 {
 	_has_commands = true;
 
-	const resource_data &dst_data = _device_impl->_resources.at(dst.handle);
+	const resource_data dst_data = _device_impl->lookup_resource(dst);
 	assert(dst_data.is_image());
 
 	VkBufferImageCopy region;
@@ -420,8 +426,8 @@ void reshade::vulkan::command_list_impl::copy_texture_region(api::resource src, 
 {
 	_has_commands = true;
 
-	const resource_data &src_data = _device_impl->_resources.at(src.handle);
-	const resource_data &dst_data = _device_impl->_resources.at(dst.handle);
+	const resource_data src_data = _device_impl->lookup_resource(src);
+	const resource_data dst_data = _device_impl->lookup_resource(dst);
 	assert(src_data.is_image() && dst_data.is_image());
 
 	if ((src_box == nullptr && dst_box == nullptr) || (src_box != nullptr && dst_box != nullptr &&
@@ -504,7 +510,7 @@ void reshade::vulkan::command_list_impl::copy_texture_to_buffer(api::resource sr
 {
 	_has_commands = true;
 
-	const resource_data &src_data = _device_impl->_resources.at(src.handle);
+	const resource_data src_data = _device_impl->lookup_resource(src);
 	assert(src_data.is_image());
 
 	VkBufferImageCopy region;
@@ -534,8 +540,8 @@ void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource sr
 {
 	_has_commands = true;
 
-	const resource_data &src_data = _device_impl->_resources.at(src.handle);
-	const resource_data &dst_data = _device_impl->_resources.at(dst.handle);
+	const resource_data src_data = _device_impl->lookup_resource(src);
+	const resource_data dst_data = _device_impl->lookup_resource(dst);
 	assert(src_data.is_image() && dst_data.is_image());
 
 	VkImageResolve region;
@@ -574,9 +580,9 @@ void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource sr
 void reshade::vulkan::command_list_impl::generate_mipmaps(api::resource_view srv)
 {
 	assert(srv.handle != 0);
-	const resource_view_data &view_data = _device_impl->_views.at(srv.handle);
+	const resource_view_data view_data = _device_impl->lookup_resource_view(srv);
 	assert(view_data.is_image_view());
-	const resource_data &res_data = _device_impl->_resources.at((uint64_t)view_data.image_create_info.image);
+	const resource_data res_data = _device_impl->lookup_resource({ (uint64_t)view_data.image_create_info.image });
 
 	VkImageMemoryBarrier barrier = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
 	barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
@@ -639,6 +645,8 @@ void reshade::vulkan::command_list_impl::clear_attachments(api::attachment_type 
 
 	if (aspect_mask & (VK_IMAGE_ASPECT_COLOR_BIT))
 	{
+		std::unique_lock<std::mutex> lock(_device_impl->_mutex);
+
 		const auto &framebuffer_data = _device_impl->_framebuffer_list.at(_current_fbo);
 
 		uint32_t index = 0;

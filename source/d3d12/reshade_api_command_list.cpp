@@ -83,11 +83,17 @@ void reshade::d3d12::command_list_impl::begin_render_pass(api::render_pass pass)
 	_orig->OMSetRenderTargets(pass_impl->count, pass_impl->rtv, pass_impl->rtv_is_single_handle_to_range, pass_impl->dsv.ptr != 0 ? &pass_impl->dsv : nullptr);
 
 	_current_pass[0] = *pass_impl;
+
+	assert(!_has_open_render_pass);
+	_has_open_render_pass = true;
 }
 void reshade::d3d12::command_list_impl::finish_render_pass()
 {
 	_current_pass->count = 0;
 	_current_pass->dsv.ptr = 0;
+
+	assert( _has_open_render_pass);
+	_has_open_render_pass = false;
 }
 
 void reshade::d3d12::command_list_impl::bind_pipeline(api::pipeline_stage, api::pipeline pipeline)
@@ -360,6 +366,9 @@ void reshade::d3d12::command_list_impl::copy_buffer_region(api::resource src, ui
 	_has_commands = true;
 
 	assert(src.handle != 0 && dst.handle != 0);
+
+	if (size == std::numeric_limits<uint64_t>::max())
+		size  = reinterpret_cast<ID3D12Resource *>(src.handle)->GetDesc().Width;
 
 	_orig->CopyBufferRegion(reinterpret_cast<ID3D12Resource *>(dst.handle), dst_offset, reinterpret_cast<ID3D12Resource *>(src.handle), src_offset, size);
 }

@@ -60,7 +60,7 @@ void reshade::d3d10::device_impl::finish_render_pass()
 	_current_pass->count = 0;
 	_current_pass->dsv = nullptr;
 
-	assert(_has_open_render_pass);
+	assert( _has_open_render_pass);
 	_has_open_render_pass = false;
 }
 
@@ -355,6 +355,14 @@ void reshade::d3d10::device_impl::copy_resource(api::resource src, api::resource
 void reshade::d3d10::device_impl::copy_buffer_region(api::resource src, uint64_t src_offset, api::resource dst, uint64_t dst_offset, uint64_t size)
 {
 	assert(src.handle != 0 && dst.handle != 0);
+
+	if (size == std::numeric_limits<uint64_t>::max())
+	{
+		D3D10_BUFFER_DESC desc;
+		reinterpret_cast<ID3D10Buffer *>(src.handle)->GetDesc(&desc);
+		size  = desc.ByteWidth;
+	}
+
 	assert(src_offset <= std::numeric_limits<UINT>::max() && dst_offset <= std::numeric_limits<UINT>::max() && size <= std::numeric_limits<UINT>::max());
 
 	const D3D10_BOX src_box = { static_cast<UINT>(src_offset), 0, 0, static_cast<UINT>(src_offset + size), 1, 1 };
