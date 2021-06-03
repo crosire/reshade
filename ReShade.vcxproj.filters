@@ -294,6 +294,9 @@
     <ClCompile Include="source\vulkan\vulkan_hooks.cpp">
       <Filter>hooks\vulkan</Filter>
     </ClCompile>
+    <ClCompile Include="source\vulkan\vulkan_hooks_cmd.cpp">
+      <Filter>hooks\vulkan</Filter>
+    </ClCompile>
     <ClCompile Include="source\vulkan\vulkan_hooks_device.cpp">
       <Filter>hooks\vulkan</Filter>
     </ClCompile>

@@ -460,6 +460,7 @@
     <ClCompile Include="source\vulkan\reshade_api_swapchain.cpp" />
     <ClCompile Include="source\vulkan\reshade_api_type_convert.cpp" />
     <ClCompile Include="source\vulkan\vulkan_hooks.cpp" />
+    <ClCompile Include="source\vulkan\vulkan_hooks_cmd.cpp" />
     <ClCompile Include="source\vulkan\vulkan_hooks_device.cpp" />
     <ClCompile Include="source\vulkan\vulkan_hooks_instance.cpp" />
     <ClCompile Include="source\windows\user32.cpp" />
