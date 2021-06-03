@@ -366,16 +366,9 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DSUR
 		// System memory textures cannot have render target or depth-stencil usage
 		if (desc.heap == api::memory_heap::gpu_only)
 			convert_resource_usage_to_d3d_usage(desc.usage, internal_desc.Usage);
-		// Dynamic usage flag is only valid on textures, not surfaces
-		if (desc.heap == api::memory_heap::cpu_to_gpu && desc.type == api::resource_type::texture_2d && (caps.Caps2 & D3DCAPS2_DYNAMICTEXTURES) != 0)
-		{
-			// Dynamic mipmaps, cubes, and volumes are not recommended because of the additional overhead in locking every level
-			// See https://docs.microsoft.com/windows/win32/direct3d9/performance-optimizations#using-dynamic-textures
-			if (desc.texture.levels == 1)
-				internal_desc.Pool = D3DPOOL_DEFAULT;
-
-			internal_desc.Usage |= D3DUSAGE_DYNAMIC;
-		}
+		// Keep dynamic textures in the default pool
+		if (desc.heap == api::memory_heap::cpu_to_gpu && (caps.Caps2 & D3DCAPS2_DYNAMICTEXTURES) != 0 && (internal_desc.Usage & D3DUSAGE_DYNAMIC) != 0)
+			internal_desc.Pool = D3DPOOL_DEFAULT;
 	}
 
 	if ((desc.flags & api::resource_flags::cube_compatible) == api::resource_flags::cube_compatible)

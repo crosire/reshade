@@ -645,13 +645,23 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::UpdateSurface(IDirect3DSurface9 *pSou
 	}
 	else
 	{
-		// TODO: Destination box size is not implemented (would have to get it from the resource)
-		assert(pDestPoint == nullptr);
+		if (pDestPoint != nullptr)
+		{
+			D3DSURFACE_DESC desc;
+			pSourceSurface->GetDesc(&desc);
+
+			dst_box[0] = pDestPoint->x;
+			dst_box[1] = pDestPoint->y;
+			dst_box[2] = 0;
+			dst_box[3] = pDestPoint->x + desc.Width;
+			dst_box[4] = pDestPoint->y + desc.Height;
+			dst_box[5] = 1;
+		}
 	}
 
 	if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(this,
 		reshade::api::resource { reinterpret_cast<uintptr_t>(pSourceSurface) }, 0, (pSourceRect != nullptr) ? src_box : nullptr,
-		reshade::api::resource { reinterpret_cast<uintptr_t>(pDestinationSurface) }, 0, (pSourceRect != nullptr && pDestPoint != nullptr) ? dst_box : nullptr,
+		reshade::api::resource { reinterpret_cast<uintptr_t>(pDestinationSurface) }, 0, (pDestPoint != nullptr) ? dst_box : nullptr,
 		reshade::api::filter_type::min_mag_mip_point))
 		return D3D_OK;
 #endif

@@ -267,8 +267,7 @@ void reshade::d3d9::device_impl::copy_resource(api::resource src, api::resource 
 			{
 				const uint32_t subresource = level + layer * desc.texture.levels;
 
-				// Default to linear filtering to work around artifacts that otherwise occur when copying depth data
-				copy_texture_region(src, subresource, nullptr, dst, subresource, nullptr, api::filter_type::min_mag_mip_linear);
+				copy_texture_region(src, subresource, nullptr, dst, subresource, nullptr, api::filter_type::min_mag_mip_point);
 			}
 		}
 	}
@@ -314,7 +313,9 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 	{
 	case api::filter_type::min_mag_mip_point:
 	case api::filter_type::min_mag_point_mip_linear:
-		stretch_filter = D3DTEXF_POINT;
+		// Default to no filtering if not stretching needs to be performed (prevents artifacts when copying depth data)
+		if (src_box != nullptr || dst_box != nullptr)
+			stretch_filter = D3DTEXF_POINT;
 		break;
 	case api::filter_type::min_mag_mip_linear:
 	case api::filter_type::min_mag_linear_mip_point:
@@ -489,7 +490,7 @@ void reshade::d3d9::device_impl::resolve_texture_region(api::resource src, uint3
 		dst_box[5] = dst_box[2] + (desc.type == api::resource_type::texture_3d ? std::max(1u, static_cast<uint32_t>(desc.texture.depth_or_layers) >> dst_subresource) : 1u);
 	}
 
-	copy_texture_region(src, src_subresource, src_box, dst, dst_subresource, dst_box, api::filter_type::min_mag_mip_linear);
+	copy_texture_region(src, src_subresource, src_box, dst, dst_subresource, dst_box, api::filter_type::min_mag_mip_point);
 }
 
 void reshade::d3d9::device_impl::generate_mipmaps(api::resource_view srv)
