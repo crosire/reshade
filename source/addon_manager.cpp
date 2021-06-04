@@ -6,7 +6,7 @@
 #if RESHADE_ADDON
 
 #include "dll_log.hpp"
-#include "dll_config.hpp"
+#include "ini_file.hpp"
 #include "addon_manager.hpp"
 #include <Windows.h>
 

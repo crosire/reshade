@@ -423,7 +423,6 @@
     <ClCompile Include="source\d3d9\reshade_api_swapchain.cpp" />
     <ClCompile Include="source\d3d9\reshade_api_type_convert.cpp" />
     <ClCompile Include="source\d3d9\state_block.cpp" />
-    <ClCompile Include="source\dll_config.cpp" />
     <ClCompile Include="source\dll_log.cpp" />
     <ClCompile Include="source\dll_main.cpp" />
     <ClCompile Include="source\dll_resources.cpp" />
@@ -436,6 +435,7 @@
     <ClCompile Include="source\imgui_code_editor.cpp" />
     <ClCompile Include="source\imgui_function_table.cpp" />
     <ClCompile Include="source\imgui_widgets.cpp" />
+    <ClCompile Include="source\ini_file.cpp" />
     <ClCompile Include="source\input.cpp" />
     <ClCompile Include="source\input_freepie.cpp" />
     <ClCompile Include="source\opengl\opengl_hooks.cpp" />
@@ -482,7 +482,6 @@
     <ClInclude Include="source\addon_manager.hpp" />
     <ClInclude Include="source\com_ptr.hpp" />
     <ClInclude Include="source\com_tracking.hpp" />
-    <ClInclude Include="source\dll_config.hpp" />
     <ClInclude Include="source\d3d10\d3d10_device.hpp" />
     <ClInclude Include="source\d3d10\reshade_api_device.hpp" />
     <ClInclude Include="source\d3d10\reshade_api_swapchain.hpp" />
@@ -522,6 +521,7 @@
     <ClInclude Include="source\hook_manager.hpp" />
     <ClInclude Include="source\imgui_code_editor.hpp" />
     <ClInclude Include="source\imgui_widgets.hpp" />
+    <ClInclude Include="source\ini_file.hpp" />
     <ClInclude Include="source\input.hpp" />
     <ClInclude Include="source\input_freepie.hpp" />
     <ClInclude Include="source\lockfree_table.hpp" />

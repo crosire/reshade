@@ -7,8 +7,8 @@
 
 #include "version.h"
 #include "dll_log.hpp"
-#include "dll_config.hpp"
 #include "dll_resources.hpp"
+#include "ini_file.hpp"
 #include "addon_manager.hpp"
 #include "runtime.hpp"
 #include "runtime_objects.hpp"

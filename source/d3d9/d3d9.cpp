@@ -4,7 +4,7 @@
  */
 
 #include "dll_log.hpp"
-#include "dll_config.hpp"
+#include "ini_file.hpp"
 #include "hook_manager.hpp"
 #include "d3d9_device.hpp"
 #include "d3d9_swapchain.hpp"

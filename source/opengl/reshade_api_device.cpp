@@ -4,7 +4,7 @@
  */
 
 #include "dll_log.hpp"
-#include "dll_config.hpp"
+#include "ini_file.hpp"
 #include "reshade_api_device.hpp"
 #include "reshade_api_type_convert.hpp"
 #include <cassert>

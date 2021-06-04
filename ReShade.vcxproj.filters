@@ -60,29 +60,17 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="source\dll_config.cpp">
-      <Filter>core</Filter>
-    </ClCompile>
-    <ClCompile Include="source\dll_log.cpp">
-      <Filter>core</Filter>
-    </ClCompile>
-    <ClCompile Include="source\dll_main.cpp">
-      <Filter>core</Filter>
-    </ClCompile>
-    <ClCompile Include="source\dll_resources.cpp">
-      <Filter>core</Filter>
-    </ClCompile>
-    <ClCompile Include="source\addon_manager.cpp">
-      <Filter>core\runtime</Filter>
-    </ClCompile>
-    <ClCompile Include="source\addon\generic_depth.cpp">
-      <Filter>core\runtime\addon</Filter>
-    </ClCompile>
     <ClCompile Include="source\hook.cpp">
       <Filter>core\hook</Filter>
     </ClCompile>
     <ClCompile Include="source\hook_manager.cpp">
       <Filter>core\hook</Filter>
+    </ClCompile>
+    <ClCompile Include="source\addon\generic_depth.cpp">
+      <Filter>core\runtime\addon</Filter>
+    </ClCompile>
+    <ClCompile Include="source\addon_manager.cpp">
+      <Filter>core\runtime</Filter>
     </ClCompile>
     <ClCompile Include="source\imgui_code_editor.cpp">
       <Filter>core\runtime</Filter>
@@ -110,6 +98,18 @@
     </ClCompile>
     <ClCompile Include="source\runtime_update_check.cpp">
       <Filter>core\runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="source\dll_log.cpp">
+      <Filter>core</Filter>
+    </ClCompile>
+    <ClCompile Include="source\dll_main.cpp">
+      <Filter>core</Filter>
+    </ClCompile>
+    <ClCompile Include="source\dll_resources.cpp">
+      <Filter>core</Filter>
+    </ClCompile>
+    <ClCompile Include="source\ini_file.cpp">
+      <Filter>core</Filter>
     </ClCompile>
     <ClCompile Include="source\d2d1\d2d1.cpp">
       <Filter>hooks\d2d1</Filter>
@@ -332,15 +332,6 @@
     <ClInclude Include="include\reshade_overlay.hpp">
       <Filter>core\api</Filter>
     </ClInclude>
-    <ClInclude Include="source\dll_config.hpp">
-      <Filter>core</Filter>
-    </ClInclude>
-    <ClInclude Include="source\dll_log.hpp">
-      <Filter>core</Filter>
-    </ClInclude>
-    <ClInclude Include="source\dll_resources.hpp">
-      <Filter>core</Filter>
-    </ClInclude>
     <ClInclude Include="source\hook.hpp">
       <Filter>core\hook</Filter>
     </ClInclude>
@@ -373,6 +364,15 @@
     </ClInclude>
     <ClInclude Include="source\runtime_objects.hpp">
       <Filter>core\runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="source\dll_log.hpp">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="source\dll_resources.hpp">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="source\ini_file.hpp">
+      <Filter>core</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d9\d3d9_device.hpp">
       <Filter>hooks\d3d9</Filter>

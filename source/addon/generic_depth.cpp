@@ -8,7 +8,7 @@
 #define g_reshade_module_handle g_module_handle
 
 #include "dll_log.hpp"
-#include "dll_config.hpp"
+#include "ini_file.hpp"
 #include "reshade.hpp"
 #include "addon_manager.hpp"
 #include <vector>
