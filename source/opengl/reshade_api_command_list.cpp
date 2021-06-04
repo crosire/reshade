@@ -289,7 +289,25 @@ void reshade::opengl::device_impl::push_descriptors(api::shader_stage, api::pipe
 			const auto &descriptor = static_cast<const api::resource_view *>(descriptors)[i];
 			if (descriptor.handle == 0)
 				continue;
-			glBindImageTexture(i + first, descriptor.handle & 0xFFFFFFFF, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA8); // TODO: Format
+
+			const GLenum target = descriptor.handle >> 40;
+			const GLuint object = descriptor.handle & 0xFFFFFFFF;
+
+			GLint internal_format = 0;
+			if (gl3wProcs.gl.GetTextureLevelParameteriv != nullptr)
+			{
+				glGetTextureLevelParameteriv(object, 0, GL_TEXTURE_INTERNAL_FORMAT, &internal_format);
+			}
+			else
+			{
+				GLint prev_binding = 0;
+				glGetIntegerv(reshade::opengl::get_binding_for_target(target), &prev_binding);
+				glBindTexture(target, object);
+				glGetTexLevelParameteriv(target, 0, GL_TEXTURE_INTERNAL_FORMAT, &internal_format);
+				glBindTexture(target, prev_binding);
+			}
+
+			glBindImageTexture(i + first, descriptor.handle & 0xFFFFFFFF, 0, GL_FALSE, 0, GL_READ_WRITE, internal_format);
 		}
 		break;
 	case api::descriptor_type::constant_buffer:

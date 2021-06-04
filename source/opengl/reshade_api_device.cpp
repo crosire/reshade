@@ -1414,9 +1414,9 @@ void reshade::opengl::device_impl::upload_texture_region(const api::subresource_
 		xoffset = 0;
 		yoffset = 0;
 		zoffset = 0;
-		width   = get_tex_level_param(target, object, level, GL_TEXTURE_WIDTH);
-		height  = get_tex_level_param(target, object, level, GL_TEXTURE_HEIGHT);
-		depth   = get_tex_level_param(target, object, level, GL_TEXTURE_DEPTH);
+		glGetTexLevelParameteriv(target, level, GL_TEXTURE_WIDTH,  &width);
+		glGetTexLevelParameteriv(target, level, GL_TEXTURE_HEIGHT, &height);
+		glGetTexLevelParameteriv(target, level, GL_TEXTURE_DEPTH,  &depth);
 	}
 
 	const auto row_size_packed = width * api::format_bpp(convert_format(format));
