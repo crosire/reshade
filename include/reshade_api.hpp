@@ -669,15 +669,6 @@ namespace reshade { namespace api
 		virtual void resolve_texture_region(resource source, uint32_t src_subresource, const int32_t src_box[6], resource destination, uint32_t dst_subresource, const int32_t dst_offset[3], format format) = 0;
 
 		/// <summary>
-		/// Generates the lower mipmap levels for the specified shader resource view.
-		/// Uses the largest mipmap level of the view to recursively generate the lower levels of the mip and stops with the smallest level that is specified by the view.
-		/// <para>The resource the <paramref name="srv"/> view points to has to be in the <see cref="resource_usage::shader_resource"/> state and has to have been created with the <see cref="resource_flags::generate_mipmaps"/> flag.</para>
-		/// </summary>
-		/// <remarks>This will invalidate all previous descriptor bindings, which will need to be reset by calls to <see cref="bind_descriptor_sets"/> or <see cref="push_descriptors"/>.</remarks>
-		/// <param name="srv">The shader resource view to update.</param>
-		virtual void generate_mipmaps(resource_view srv) = 0;
-
-		/// <summary>
 		/// Clears all attachments of the current render pass. Can only be called between <see cref="begin_render_pass"/> and <see cref="finish_render_pass"/>.
 		/// </summary>
 		/// <param name="clear_flags">A combination of flags to identify which attachment types to clear.</param>
@@ -715,6 +706,15 @@ namespace reshade { namespace api
 		/// <param name="uav">The view handle of the resource.</param>
 		/// <param name="values">The value to clear the resources with.</param>
 		virtual void clear_unordered_access_view_float(resource_view uav, const float values[4], uint32_t num_rects = 0, const int32_t *rects = nullptr) = 0;
+
+		/// <summary>
+		/// Generates the lower mipmap levels for the specified shader resource view.
+		/// Uses the largest mipmap level of the view to recursively generate the lower levels of the mip and stops with the smallest level that is specified by the view.
+		/// <para>The resource the <paramref name="srv"/> view points to has to be in the <see cref="resource_usage::shader_resource"/> state and has to have been created with the <see cref="resource_flags::generate_mipmaps"/> flag.</para>
+		/// </summary>
+		/// <remarks>This will invalidate all previous descriptor bindings, which will need to be reset by calls to <see cref="bind_descriptor_sets"/> or <see cref="push_descriptors"/>.</remarks>
+		/// <param name="srv">The shader resource view to update.</param>
+		virtual void generate_mipmaps(resource_view srv) = 0;
 
 		/// <summary>
 		/// Begins a query.

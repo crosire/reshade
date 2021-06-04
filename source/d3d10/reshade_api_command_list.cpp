@@ -401,13 +401,6 @@ void reshade::d3d10::device_impl::resolve_texture_region(api::resource src, uint
 		reinterpret_cast<ID3D10Resource *>(src.handle), src_subresource, convert_format(format));
 }
 
-void reshade::d3d10::device_impl::generate_mipmaps(api::resource_view srv)
-{
-	assert(srv.handle != 0);
-
-	_orig->GenerateMips(reinterpret_cast<ID3D10ShaderResourceView *>(srv.handle));
-}
-
 void reshade::d3d10::device_impl::clear_attachments(api::attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t num_rects, const int32_t *)
 {
 	assert(num_rects == 0);
@@ -438,6 +431,13 @@ void reshade::d3d10::device_impl::clear_unordered_access_view_uint(api::resource
 void reshade::d3d10::device_impl::clear_unordered_access_view_float(api::resource_view, const float[4], uint32_t, const int32_t *)
 {
 	assert(false);
+}
+
+void reshade::d3d10::device_impl::generate_mipmaps(api::resource_view srv)
+{
+	assert(srv.handle != 0);
+
+	_orig->GenerateMips(reinterpret_cast<ID3D10ShaderResourceView *>(srv.handle));
 }
 
 void reshade::d3d10::device_impl::begin_query(api::query_pool pool, api::query_type, uint32_t index)

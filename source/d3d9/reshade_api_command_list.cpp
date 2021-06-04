@@ -493,15 +493,6 @@ void reshade::d3d9::device_impl::resolve_texture_region(api::resource src, uint3
 	copy_texture_region(src, src_subresource, src_box, dst, dst_subresource, dst_box, api::filter_type::min_mag_mip_point);
 }
 
-void reshade::d3d9::device_impl::generate_mipmaps(api::resource_view srv)
-{
-	assert(srv.handle != 0);
-	const auto texture = reinterpret_cast<IDirect3DBaseTexture9 *>(srv.handle & ~1ull);
-
-	texture->SetAutoGenFilterType(D3DTEXF_LINEAR);
-	texture->GenerateMipSubLevels();
-}
-
 void reshade::d3d9::device_impl::clear_attachments(api::attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t num_rects, const int32_t *rects)
 {
 	_orig->Clear(num_rects, reinterpret_cast<const D3DRECT *>(rects), static_cast<DWORD>(clear_flags), color != nullptr ? D3DCOLOR_COLORVALUE(color[0], color[1], color[2], color[3]) : 0, depth, stencil);
@@ -532,6 +523,15 @@ void reshade::d3d9::device_impl::clear_unordered_access_view_uint(api::resource_
 void reshade::d3d9::device_impl::clear_unordered_access_view_float(api::resource_view, const float[4], uint32_t, const int32_t *)
 {
 	assert(false);
+}
+
+void reshade::d3d9::device_impl::generate_mipmaps(api::resource_view srv)
+{
+	assert(srv.handle != 0);
+	const auto texture = reinterpret_cast<IDirect3DBaseTexture9 *>(srv.handle & ~1ull);
+
+	texture->SetAutoGenFilterType(D3DTEXF_LINEAR);
+	texture->GenerateMipSubLevels();
 }
 
 void reshade::d3d9::device_impl::begin_query(api::query_pool pool, api::query_type, uint32_t index)

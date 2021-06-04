@@ -577,62 +577,6 @@ void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource sr
 		1, &region);
 }
 
-void reshade::vulkan::command_list_impl::generate_mipmaps(api::resource_view srv)
-{
-	assert(srv.handle != 0);
-	const resource_view_data view_data = _device_impl->lookup_resource_view(srv);
-	assert(view_data.is_image_view());
-	const resource_data res_data = _device_impl->lookup_resource({ (uint64_t)view_data.image_create_info.image });
-
-	VkImageMemoryBarrier barrier = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
-	barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
-	barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-	barrier.oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-	barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	barrier.image = view_data.image_create_info.image;
-	barrier.subresourceRange = view_data.image_create_info.subresourceRange;
-	vk.CmdPipelineBarrier(_orig, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
-
-	int32_t width = res_data.image_create_info.extent.width >> view_data.image_create_info.subresourceRange.baseMipLevel;
-	int32_t height = res_data.image_create_info.extent.height >> view_data.image_create_info.subresourceRange.baseMipLevel;
-
-	for (uint32_t level = view_data.image_create_info.subresourceRange.baseMipLevel + 1; level < res_data.image_create_info.mipLevels; ++level, width /= 2, height /= 2)
-	{
-		barrier.subresourceRange.baseMipLevel = level;
-		barrier.subresourceRange.levelCount = 1;
-
-		barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-		barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-		barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-		barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-		vk.CmdPipelineBarrier(_orig, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
-
-		VkImageBlit blit;
-		blit.srcOffsets[0] = { 0, 0, 0 };
-		blit.srcOffsets[1] = { width, height, 1 };
-		blit.srcSubresource = { barrier.subresourceRange.aspectMask, level - 1, barrier.subresourceRange.baseArrayLayer, barrier.subresourceRange.layerCount };
-		blit.dstOffsets[0] = { 0, 0, 0 };
-		blit.dstOffsets[1] = { width > 1 ? width / 2 : 1, height > 1 ? height / 2 : 1, 1 };
-		blit.dstSubresource = { barrier.subresourceRange.aspectMask, level, barrier.subresourceRange.baseArrayLayer, barrier.subresourceRange.layerCount };
-		vk.CmdBlitImage(_orig, view_data.image_create_info.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, view_data.image_create_info.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit, VK_FILTER_LINEAR);
-
-		barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-		barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-		barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-		barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-		vk.CmdPipelineBarrier(_orig, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
-	}
-
-	barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-	barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-	barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-	barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	barrier.subresourceRange = view_data.image_create_info.subresourceRange;
-	vk.CmdPipelineBarrier(_orig, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
-}
-
 void reshade::vulkan::command_list_impl::clear_attachments(api::attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t num_rects, const int32_t *rects)
 {
 	_has_commands = true;
@@ -777,6 +721,62 @@ void reshade::vulkan::command_list_impl::clear_unordered_access_view_float(api::
 	std::memcpy(clear_value.float32, values, 4 * sizeof(float));
 
 	vk.CmdClearColorImage(_orig, uav_data.image_create_info.image, VK_IMAGE_LAYOUT_GENERAL, &clear_value, 1, &range);
+}
+
+void reshade::vulkan::command_list_impl::generate_mipmaps(api::resource_view srv)
+{
+	assert(srv.handle != 0);
+	const resource_view_data view_data = _device_impl->lookup_resource_view(srv);
+	assert(view_data.is_image_view());
+	const resource_data res_data = _device_impl->lookup_resource({ (uint64_t)view_data.image_create_info.image });
+
+	VkImageMemoryBarrier barrier = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+	barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+	barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+	barrier.oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+	barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	barrier.image = view_data.image_create_info.image;
+	barrier.subresourceRange = view_data.image_create_info.subresourceRange;
+	vk.CmdPipelineBarrier(_orig, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+
+	int32_t width = res_data.image_create_info.extent.width >> view_data.image_create_info.subresourceRange.baseMipLevel;
+	int32_t height = res_data.image_create_info.extent.height >> view_data.image_create_info.subresourceRange.baseMipLevel;
+
+	for (uint32_t level = view_data.image_create_info.subresourceRange.baseMipLevel + 1; level < res_data.image_create_info.mipLevels; ++level, width /= 2, height /= 2)
+	{
+		barrier.subresourceRange.baseMipLevel = level;
+		barrier.subresourceRange.levelCount = 1;
+
+		barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+		barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+		barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+		vk.CmdPipelineBarrier(_orig, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+
+		VkImageBlit blit;
+		blit.srcOffsets[0] = { 0, 0, 0 };
+		blit.srcOffsets[1] = { width, height, 1 };
+		blit.srcSubresource = { barrier.subresourceRange.aspectMask, level - 1, barrier.subresourceRange.baseArrayLayer, barrier.subresourceRange.layerCount };
+		blit.dstOffsets[0] = { 0, 0, 0 };
+		blit.dstOffsets[1] = { width > 1 ? width / 2 : 1, height > 1 ? height / 2 : 1, 1 };
+		blit.dstSubresource = { barrier.subresourceRange.aspectMask, level, barrier.subresourceRange.baseArrayLayer, barrier.subresourceRange.layerCount };
+		vk.CmdBlitImage(_orig, view_data.image_create_info.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, view_data.image_create_info.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit, VK_FILTER_LINEAR);
+
+		barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+		barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+		barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+		vk.CmdPipelineBarrier(_orig, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+	}
+
+	barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+	barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+	barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+	barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	barrier.subresourceRange = view_data.image_create_info.subresourceRange;
+	vk.CmdPipelineBarrier(_orig, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 }
 
 void reshade::vulkan::command_list_impl::begin_query(api::query_pool pool, api::query_type, uint32_t index)

@@ -946,6 +946,34 @@ void reshade::opengl::device_impl::resolve_texture_region(api::resource src, uin
 	copy_texture_region(src, src_subresource, src_box, dst, dst_subresource, dst_box, api::filter_type::min_mag_mip_point);
 }
 
+void reshade::opengl::device_impl::clear_attachments(api::attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t num_rects, const int32_t *)
+{
+	assert(num_rects == 0);
+
+	if (color != nullptr)
+		glClearColor(color[0], color[1], color[2], color[3]);
+	glClearDepth(depth);
+	glClearStencil(stencil);
+
+	glClear(convert_aspect_to_buffer_bits(clear_flags));
+}
+void reshade::opengl::device_impl::clear_depth_stencil_view(api::resource_view, api::attachment_type, float, uint8_t, uint32_t, const int32_t *)
+{
+	assert(false);
+}
+void reshade::opengl::device_impl::clear_render_target_view(api::resource_view, const float[4], uint32_t, const int32_t *)
+{
+	assert(false);
+}
+void reshade::opengl::device_impl::clear_unordered_access_view_uint(api::resource_view, const uint32_t[4], uint32_t, const int32_t *)
+{
+	assert(false);
+}
+void reshade::opengl::device_impl::clear_unordered_access_view_float(api::resource_view, const float[4], uint32_t, const int32_t *)
+{
+	assert(false);
+}
+
 void reshade::opengl::device_impl::generate_mipmaps(api::resource_view srv)
 {
 	assert(srv.handle != 0);
@@ -982,34 +1010,6 @@ void reshade::opengl::device_impl::generate_mipmaps(api::resource_view srv)
 		glDispatchCompute(std::max(1u, (width + 7) / 8), std::max(1u, (height + 7) / 8), 1);
 	}
 #endif
-}
-
-void reshade::opengl::device_impl::clear_attachments(api::attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t num_rects, const int32_t *)
-{
-	assert(num_rects == 0);
-
-	if (color != nullptr)
-		glClearColor(color[0], color[1], color[2], color[3]);
-	glClearDepth(depth);
-	glClearStencil(stencil);
-
-	glClear(convert_aspect_to_buffer_bits(clear_flags));
-}
-void reshade::opengl::device_impl::clear_depth_stencil_view(api::resource_view, api::attachment_type, float, uint8_t, uint32_t, const int32_t *)
-{
-	assert(false);
-}
-void reshade::opengl::device_impl::clear_render_target_view(api::resource_view, const float[4], uint32_t, const int32_t *)
-{
-	assert(false);
-}
-void reshade::opengl::device_impl::clear_unordered_access_view_uint(api::resource_view, const uint32_t[4], uint32_t, const int32_t *)
-{
-	assert(false);
-}
-void reshade::opengl::device_impl::clear_unordered_access_view_float(api::resource_view, const float[4], uint32_t, const int32_t *)
-{
-	assert(false);
 }
 
 void reshade::opengl::device_impl::begin_query(api::query_pool pool, api::query_type type, uint32_t index)

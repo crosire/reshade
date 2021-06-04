@@ -243,12 +243,6 @@ namespace reshade
 		resolve_texture_region,
 
 		/// <summary>
-		/// Called before 'ID3D10Device::GenerateMips', 'ID3D11DeviceContext::GenerateMips' or 'glGenerate(Texture)Mipmap'.
-		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view srv)</c></para>
-		/// </summary>
-		generate_mipmaps,
-
-		/// <summary>
 		/// Called before 'IDirect3DDevice9::Clear', 'glClear' or 'vkCmdClearAttachments'.
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t num_rects, const int32_t *rects)</c></para>
 		/// </summary>
@@ -285,6 +279,12 @@ namespace reshade
 		/// Resource will be in the <see cref="resource_usage::unordered_access"/> state.
 		/// </remarks>
 		clear_unordered_access_view_float,
+
+		/// <summary>
+		/// Called before 'ID3D10Device::GenerateMips', 'ID3D11DeviceContext::GenerateMips' or 'glGenerate(Texture)Mipmap'.
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view srv)</c></para>
+		/// </summary>
+		generate_mipmaps,
 
 		/// <summary>
 		/// Called before 'ID3D12GraphicsCommandList::Reset' or 'vkBeginCommandBuffer'.
@@ -424,13 +424,13 @@ namespace reshade
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::copy_texture_to_buffer, api::command_list *cmd_list, api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint64_t dst_offset, uint32_t row_length, uint32_t slice_height);
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::resolve_texture_region, api::command_list *cmd_list, api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], api::format format);
 
-	DEFINE_ADDON_EVENT_TYPE_2(addon_event::generate_mipmaps, api::command_list *cmd_list, api::resource_view srv);
-
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::clear_attachments, api::command_list *cmd_list, api::attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t num_rects, const int32_t *rects);
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::clear_depth_stencil_view, api::command_list *cmd_list, api::resource_view dsv, api::attachment_type clear_flags, float depth, uint8_t stencil, uint32_t num_rects, const int32_t *rects);
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::clear_render_target_view, api::command_list *cmd_list, api::resource_view rtv, const float color[4], uint32_t num_rects, const int32_t *rects);
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::clear_unordered_access_view_uint, api::command_list *cmd_list, api::resource_view uav, const uint32_t values[4], uint32_t num_rects, const int32_t *rects);
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::clear_unordered_access_view_float, api::command_list *cmd_list, api::resource_view uav, const float values[4], uint32_t num_rects, const int32_t *rects);
+
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::generate_mipmaps, api::command_list *cmd_list, api::resource_view srv);
 
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::reset_command_list, api::command_list *cmd_list);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::execute_command_list, api::command_queue *queue, api::command_list *cmd_list);

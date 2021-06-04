@@ -493,13 +493,6 @@ void reshade::d3d11::device_context_impl::resolve_texture_region(api::resource s
 		reinterpret_cast<ID3D11Resource *>(src.handle), src_subresource, convert_format(format));
 }
 
-void reshade::d3d11::device_context_impl::generate_mipmaps(api::resource_view srv)
-{
-	assert(srv.handle != 0);
-
-	_orig->GenerateMips(reinterpret_cast<ID3D11ShaderResourceView *>(srv.handle));
-}
-
 void reshade::d3d11::device_context_impl::clear_attachments(api::attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t num_rects, const int32_t *)
 {
 	assert(num_rects == 0);
@@ -534,6 +527,13 @@ void reshade::d3d11::device_context_impl::clear_unordered_access_view_float(api:
 	assert(uav.handle != 0 && num_rects == 0);
 
 	_orig->ClearUnorderedAccessViewFloat(reinterpret_cast<ID3D11UnorderedAccessView *>(uav.handle), values);
+}
+
+void reshade::d3d11::device_context_impl::generate_mipmaps(api::resource_view srv)
+{
+	assert(srv.handle != 0);
+
+	_orig->GenerateMips(reinterpret_cast<ID3D11ShaderResourceView *>(srv.handle));
 }
 
 void reshade::d3d11::device_context_impl::begin_query(api::query_pool pool, api::query_type, uint32_t index)
