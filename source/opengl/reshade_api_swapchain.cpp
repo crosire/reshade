@@ -92,6 +92,8 @@ void reshade::opengl::swapchain_impl::on_reset()
 	glDeleteRenderbuffers(1, &_rbo);
 
 	_rbo = 0;
+	_fbo[0] = 0;
+	_fbo[1] = 0;
 	std::memset(_fbo, 0, sizeof(_fbo));
 }
 
@@ -112,14 +114,14 @@ void reshade::opengl::swapchain_impl::on_present(bool default_fbo)
 		glDisable(GL_SCISSOR_TEST);
 		glDisable(GL_FRAMEBUFFER_SRGB);
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
-		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _current_fbo = _fbo[0]);
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _fbo[0]);
 		glReadBuffer(GL_BACK);
 		glDrawBuffer(GL_COLOR_ATTACHMENT0);
 		glBlitFramebuffer(0, 0, _width, _height, 0, _height, _width, 0, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 	}
 	else
 	{
-		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _current_fbo = _fbo[0]);
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _fbo[0]);
 		glDrawBuffer(GL_COLOR_ATTACHMENT0);
 	}
 
@@ -131,14 +133,14 @@ void reshade::opengl::swapchain_impl::on_present(bool default_fbo)
 		glDisable(GL_SCISSOR_TEST);
 		glDisable(GL_FRAMEBUFFER_SRGB);
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, _fbo[0]);
-		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _current_fbo = 0);
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 		glReadBuffer(GL_COLOR_ATTACHMENT0);
 		glDrawBuffer(GL_BACK);
 		glBlitFramebuffer(0, 0, _width, _height, 0, _height, _width, 0, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 	}
 	else
 	{
-		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _current_fbo = _fbo[0]);
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _fbo[0]);
 		glDrawBuffer(GL_COLOR_ATTACHMENT0);
 	}
 
@@ -181,7 +183,7 @@ bool reshade::opengl::swapchain_impl::on_layer_submit(uint32_t eye, GLuint sourc
 	glDisable(GL_SCISSOR_TEST);
 	glDisable(GL_FRAMEBUFFER_SRGB);
 	glBindFramebuffer(GL_READ_FRAMEBUFFER, _fbo[1]); // Use clear FBO here, since it is reset on every use anyway
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _current_fbo = _fbo[0]);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _fbo[0]);
 
 	if (is_rbo) {
 		// TODO: This or the second blit below will fail if RBO is multisampled

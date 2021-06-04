@@ -35,6 +35,6 @@ namespace reshade::opengl
 	private:
 		state_block _app_state;
 		GLuint _rbo = 0;
-		GLuint _fbo[2] = {}, _current_fbo = 0;
+		GLuint _fbo[2] = {};
 	};
 }

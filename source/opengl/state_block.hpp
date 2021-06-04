@@ -17,10 +17,6 @@ namespace reshade::opengl
 		void capture(bool compatibility);
 		void apply(bool compatibility) const;
 
-#ifndef NDEBUG
-		mutable bool has_state = false;
-#endif
-
 	private:
 		GLint _vao;
 		GLint _vbo;
@@ -29,30 +25,52 @@ namespace reshade::opengl
 		GLint _program;
 		GLint _textures2d[32], _samplers[32];
 		GLint _active_texture;
-		GLint _viewport[4];
-		GLint _scissor_rect[4];
-		GLint _scissor_test;
-		GLint _blend;
-		GLint _blend_src, _blend_dest;
-		GLint _blend_eq_color, _blend_eq_alpha;
-		GLint _alpha_test;
-		GLint _depth_test;
-		GLboolean _depth_mask;
-		GLint _depth_func;
-		GLint _stencil_test;
-		GLint _stencil_ref;
-		GLint _stencil_func;
-		GLint _stencil_op_fail, _stencil_op_zfail, _stencil_op_zpass;
-		GLint _stencil_read_mask, _stencil_mask;
-		GLint _polygon_mode, _frontface;
-		GLint _cullface, _cullface_mode;
+
 		GLint _read_fbo;
 		GLint _draw_fbo;
-		GLint _srgb;
-		GLint clip_origin;
-		GLint clip_depthmode;
-		GLboolean _color_mask[4];
+		GLint _viewport[4];
 		GLint _read_buffer;
 		GLint _draw_buffers[8];
+
+		GLboolean _srgb_enable;
+		GLboolean _alpha_test;
+
+		GLboolean _sample_alpha_to_coverage;
+		GLboolean _blend_enable;
+		GLboolean _logic_op_enable;
+		GLint _blend_src;
+		GLint _blend_dst;
+		GLint _blend_src_alpha;
+		GLint _blend_dst_alpha;
+		GLint _blend_eq;
+		GLint _blend_eq_alpha;
+		GLint _logic_op;
+		GLfloat _blend_constant[4];
+		GLboolean _color_write_mask[4];
+
+		GLint _polygon_mode;
+		GLboolean _cull_enable;
+		GLint _cull_mode;
+		GLint _front_face;
+		GLboolean _depth_clamp;
+		GLboolean _scissor_test;
+		GLint _scissor_rect[4];
+		GLboolean _multisample_enable;
+		GLboolean _line_smooth_enable;
+
+		GLboolean _depth_test;
+		GLboolean _depth_mask;
+		GLint _depth_func;
+		GLboolean _stencil_test;
+		GLint _stencil_func;
+		GLint _stencil_read_mask;
+		GLint _stencil_write_mask;
+		GLint _stencil_reference_value;
+		GLint _stencil_op_fail;
+		GLint _stencil_op_depth_fail;
+		GLint _stencil_op_depth_pass;
+
+		GLint _clip_origin;
+		GLint _clip_depthmode;
 	};
 }

@@ -36,8 +36,8 @@ namespace reshade::opengl
 		GLenum front_face;
 		GLboolean depth_clamp;
 		GLboolean scissor_test;
-		GLboolean multisample;
-		GLboolean line_smooth;
+		GLboolean multisample_enable;
+		GLboolean line_smooth_enable;
 
 		GLboolean depth_test;
 		GLboolean depth_mask;

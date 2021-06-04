@@ -67,8 +67,8 @@ void reshade::opengl::pipeline_impl::apply_graphics() const
 
 	glEnableOrDisable(GL_DEPTH_CLAMP, depth_clamp);
 	glEnableOrDisable(GL_SCISSOR_TEST, scissor_test);
-	glEnableOrDisable(GL_MULTISAMPLE, multisample);
-	glEnableOrDisable(GL_LINE_SMOOTH, line_smooth);
+	glEnableOrDisable(GL_MULTISAMPLE, multisample_enable);
+	glEnableOrDisable(GL_LINE_SMOOTH, line_smooth_enable);
 
 	if (depth_test)
 	{

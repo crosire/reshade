@@ -883,8 +883,8 @@ bool reshade::opengl::device_impl::create_graphics_pipeline(const api::pipeline_
 	state->front_face = desc.graphics.rasterizer_state.front_counter_clockwise ? GL_CCW : GL_CW;
 	state->depth_clamp = !desc.graphics.rasterizer_state.depth_clip_enable;
 	state->scissor_test = desc.graphics.rasterizer_state.scissor_enable;
-	state->multisample = desc.graphics.rasterizer_state.multisample_enable;
-	state->line_smooth = desc.graphics.rasterizer_state.antialiased_line_enable;
+	state->multisample_enable = desc.graphics.rasterizer_state.multisample_enable;
+	state->line_smooth_enable = desc.graphics.rasterizer_state.antialiased_line_enable;
 
 	// Polygon offset is not currently implemented
 	assert(desc.graphics.rasterizer_state.depth_bias == 0 && desc.graphics.rasterizer_state.depth_bias_clamp == 0 && desc.graphics.rasterizer_state.slope_scaled_depth_bias == 0);
