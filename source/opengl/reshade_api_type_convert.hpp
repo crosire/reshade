@@ -34,9 +34,6 @@ namespace reshade::opengl
 		GLenum polygon_mode;
 		GLenum cull_mode;
 		GLenum front_face;
-		GLboolean polygon_offset;
-		GLfloat polygon_offset_factor;
-		GLfloat polygon_offset_units;
 		GLboolean depth_clamp;
 		GLboolean scissor_test;
 		GLboolean multisample;

@@ -65,11 +65,6 @@ void reshade::opengl::pipeline_impl::apply_graphics() const
 
 	glFrontFace(front_face);
 
-#if 0
-	glEnableOrDisable(GL_POLYGON_OFFSET_FILL, polygon_offset);
-	glPolygonOffset(polygon_offset_factor, polygon_offset_units);
-#endif
-
 	glEnableOrDisable(GL_DEPTH_CLAMP, depth_clamp);
 	glEnableOrDisable(GL_SCISSOR_TEST, scissor_test);
 	glEnableOrDisable(GL_MULTISAMPLE, multisample);
@@ -230,11 +225,6 @@ void reshade::opengl::device_impl::push_constants(api::shader_stage, api::pipeli
 {
 	const GLuint push_constants_binding = layout.handle != 0 ?
 		reinterpret_cast<pipeline_layout_impl *>(layout.handle)->bindings[layout_index] : 0;
-
-	if (_push_constants == 0)
-	{
-		glGenBuffers(1, &_push_constants);
-	}
 
 	// Binds the push constant buffer to the requested indexed binding point as well as the generic binding point
 	glBindBufferBase(GL_UNIFORM_BUFFER, push_constants_binding, _push_constants);
@@ -462,7 +452,7 @@ void reshade::opengl::device_impl::copy_buffer_to_texture(api::resource src, uin
 	const GLuint dst_object = dst.handle & 0xFFFFFFFF;
 
 	// Get current state
-	GLint previous_unpack = 0;
+	GLint previous_unpack_binding = 0;
 	GLint previous_unpack_lsb = GL_FALSE;
 	GLint previous_unpack_swap = GL_FALSE;
 	GLint previous_unpack_alignment = 0;
@@ -471,7 +461,7 @@ void reshade::opengl::device_impl::copy_buffer_to_texture(api::resource src, uin
 	GLint previous_unpack_skip_rows = 0;
 	GLint previous_unpack_skip_pixels = 0;
 	GLint previous_unpack_skip_images = 0;
-	glGetIntegerv(GL_PIXEL_UNPACK_BUFFER_BINDING, &previous_unpack);
+	glGetIntegerv(GL_PIXEL_UNPACK_BUFFER_BINDING, &previous_unpack_binding);
 	glGetIntegerv(GL_UNPACK_LSB_FIRST, &previous_unpack_lsb);
 	glGetIntegerv(GL_UNPACK_SWAP_BYTES, &previous_unpack_swap);
 	glGetIntegerv(GL_UNPACK_ALIGNMENT, &previous_unpack_alignment);
@@ -520,6 +510,9 @@ void reshade::opengl::device_impl::copy_buffer_to_texture(api::resource src, uin
 	}
 	else
 	{
+		GLint previous_tex = 0;
+		glGetIntegerv(get_binding_for_target(dst_target), &previous_tex);
+
 		glBindTexture(dst_target, dst_object);
 
 		GLint levels = 1;
@@ -588,10 +581,12 @@ void reshade::opengl::device_impl::copy_buffer_to_texture(api::resource src, uin
 			}
 			break;
 		}
+
+		glBindTexture(dst_target, previous_tex);
 	}
 
 	// Restore previous state from application
-	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, previous_unpack);
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, previous_unpack_binding);
 	glPixelStorei(GL_UNPACK_LSB_FIRST, previous_unpack_lsb);
 	glPixelStorei(GL_UNPACK_SWAP_BYTES, previous_unpack_swap);
 	glPixelStorei(GL_UNPACK_ALIGNMENT, previous_unpack_alignment);
@@ -767,7 +762,7 @@ void reshade::opengl::device_impl::copy_texture_to_buffer(api::resource src, uin
 	const GLuint src_object = src.handle & 0xFFFFFFFF;
 
 	// Get current state
-	GLint previous_pack = 0;
+	GLint previous_pack_binding = 0;
 	GLint previous_pack_lsb = GL_FALSE;
 	GLint previous_pack_swap = GL_FALSE;
 	GLint previous_pack_alignment = 0;
@@ -776,7 +771,7 @@ void reshade::opengl::device_impl::copy_texture_to_buffer(api::resource src, uin
 	GLint previous_pack_skip_rows = 0;
 	GLint previous_pack_skip_pixels = 0;
 	GLint previous_pack_skip_images = 0;
-	glGetIntegerv(GL_PIXEL_PACK_BUFFER_BINDING, &previous_pack);
+	glGetIntegerv(GL_PIXEL_PACK_BUFFER_BINDING, &previous_pack_binding);
 	glGetIntegerv(GL_PACK_LSB_FIRST, &previous_pack_lsb);
 	glGetIntegerv(GL_PACK_SWAP_BYTES, &previous_pack_swap);
 	glGetIntegerv(GL_PACK_ALIGNMENT, &previous_pack_alignment);
@@ -820,6 +815,9 @@ void reshade::opengl::device_impl::copy_texture_to_buffer(api::resource src, uin
 		assert(src_subresource == 0);
 		assert(z == 0 && d == 1);
 
+		GLint previous_fbo = 0;
+		glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &previous_fbo);
+
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
 		glReadBuffer(src_object);
 
@@ -833,10 +831,17 @@ void reshade::opengl::device_impl::copy_texture_to_buffer(api::resource src, uin
 		format = convert_upload_format(format, type);
 
 		glReadPixels(x, y, w, h, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(dst_offset)));
+
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, previous_fbo);
 	}
 	else if (src_target == GL_RENDERBUFFER)
 	{
 		assert(src_subresource == 0);
+
+		GLint previous_rbo = 0;
+		glGetIntegerv(GL_RENDERBUFFER_BINDING, &previous_rbo);
+		GLint previous_fbo = 0;
+		glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &previous_fbo);
 
 		glBindRenderbuffer(GL_RENDERBUFFER, src_object);
 
@@ -857,9 +862,15 @@ void reshade::opengl::device_impl::copy_texture_to_buffer(api::resource src, uin
 		format = convert_upload_format(format, type);
 
 		glReadPixels(x, y, w, h, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(dst_offset)));
+
+		glBindRenderbuffer(GL_RENDERBUFFER, previous_rbo);
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, previous_fbo);
 	}
 	else
 	{
+		GLint previous_tex = 0;
+		glGetIntegerv(get_binding_for_target(src_target), &previous_tex);
+
 		glBindTexture(src_target, src_object);
 
 		GLint levels = 1;
@@ -896,10 +907,12 @@ void reshade::opengl::device_impl::copy_texture_to_buffer(api::resource src, uin
 
 			glGetTextureSubImage(src_object, level, x, y, z, w, h, d, format, type, total_size, reinterpret_cast<void *>(static_cast<uintptr_t>(dst_offset)));
 		}
+
+		glBindTexture(src_target, previous_tex);
 	}
 
 	// Restore previous state from application
-	glBindBuffer(GL_PIXEL_PACK_BUFFER, previous_pack);
+	glBindBuffer(GL_PIXEL_PACK_BUFFER, previous_pack_binding);
 	glPixelStorei(GL_PACK_LSB_FIRST, previous_pack_lsb);
 	glPixelStorei(GL_PACK_SWAP_BYTES, previous_pack_swap);
 	glPixelStorei(GL_PACK_ALIGNMENT, previous_pack_alignment);
@@ -936,12 +949,27 @@ void reshade::opengl::device_impl::clear_attachments(api::attachment_type clear_
 {
 	assert(num_rects == 0);
 
+	// Get current state
+	GLfloat prev_col[4];
+	glGetFloatv(GL_COLOR_CLEAR_VALUE, prev_col);
+	GLfloat prev_depth;
+	glGetFloatv(GL_DEPTH_CLEAR_VALUE, &prev_depth);
+	GLint   prev_stencil;
+	glGetIntegerv(GL_STENCIL_CLEAR_VALUE, &prev_stencil);
+
+	// Set up clear values before clear
 	if (color != nullptr)
 		glClearColor(color[0], color[1], color[2], color[3]);
 	glClearDepth(depth);
 	glClearStencil(stencil);
 
 	glClear(convert_aspect_to_buffer_bits(clear_flags));
+
+	// Restore previous state from application
+	if (color != nullptr)
+		glClearColor(prev_col[0], prev_col[1], prev_col[2], prev_col[3]);
+	glClearDepth(prev_depth);
+	glClearStencil(prev_stencil);
 }
 void reshade::opengl::device_impl::clear_depth_stencil_view(api::resource_view, api::attachment_type, float, uint8_t, uint32_t, const int32_t *)
 {
