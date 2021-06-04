@@ -2663,6 +2663,10 @@ void reshade::runtime::update_and_render_effects()
 	api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
 	cmd_list->barrier(backbuffer, api::resource_usage::present, api::resource_usage::render_target);
 
+#if RESHADE_ADDON
+	invoke_addon_event<addon_event::reshade_begin_effects>(this, cmd_list);
+#endif
+
 	// Render all enabled techniques
 	for (technique &tech : _techniques)
 	{
@@ -2691,6 +2695,10 @@ void reshade::runtime::update_and_render_effects()
 		}
 	}
 
+#if RESHADE_ADDON
+	invoke_addon_event<addon_event::reshade_finish_effects>(this, cmd_list);
+#endif
+
 	cmd_list->barrier(backbuffer, api::resource_usage::render_target, api::resource_usage::present);
 
 	if (_should_save_screenshot)
@@ -2705,10 +2713,6 @@ void reshade::runtime::render_technique(technique &tech)
 
 	api::resource backbuffer;
 	get_current_back_buffer(&backbuffer);
-
-#if RESHADE_ADDON
-	invoke_addon_event<addon_event::reshade_before_effects>(this, cmd_list);
-#endif
 
 #if RESHADE_GUI
 	if (_gather_gpu_statistics)
@@ -2889,10 +2893,6 @@ void reshade::runtime::render_technique(technique &tech)
 #if RESHADE_GUI
 	if (_gather_gpu_statistics)
 		cmd_list->finish_query(effect.query_heap, api::query_type::timestamp, tech.query_base_index + (_framecount % 4) * 2 + 1);
-#endif
-
-#if RESHADE_ADDON
-	invoke_addon_event<addon_event::reshade_after_effects>(this, cmd_list);
 #endif
 }
 

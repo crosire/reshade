@@ -594,7 +594,7 @@ static void on_init_effect_runtime(effect_runtime *runtime)
 	const bool bufready_depth_value = device_state.selected_shader_resource != 0;
 	runtime->update_uniform_variables("bufready_depth", &bufready_depth_value, 1);
 }
-static void on_before_render_effects(effect_runtime *runtime, command_list *cmd_list)
+static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_list)
 {
 	device *const device = runtime->get_device();
 	const state_tracking_context &device_state = device->get_user_data<state_tracking_context>(state_tracking_context::GUID);
@@ -614,7 +614,7 @@ static void on_before_render_effects(effect_runtime *runtime, command_list *cmd_
 		}
 	}
 }
-static void on_after_render_effects(effect_runtime *runtime, command_list *cmd_list)
+static void on_finish_render_effects(effect_runtime *runtime, command_list *cmd_list)
 {
 	device *const device = runtime->get_device();
 	const state_tracking_context &device_state = device->get_user_data<state_tracking_context>(state_tracking_context::GUID);
@@ -798,8 +798,8 @@ void register_builtin_addon_depth(reshade::addon::info &info)
 
 	reshade::register_event<reshade::addon_event::present>(on_present);
 
-	reshade::register_event<reshade::addon_event::reshade_before_effects>(on_before_render_effects);
-	reshade::register_event<reshade::addon_event::reshade_after_effects>(on_after_render_effects);
+	reshade::register_event<reshade::addon_event::reshade_begin_effects>(on_begin_render_effects);
+	reshade::register_event<reshade::addon_event::reshade_finish_effects>(on_finish_render_effects);
 }
 void unregister_builtin_addon_depth()
 {
@@ -830,8 +830,8 @@ void unregister_builtin_addon_depth()
 
 	reshade::unregister_event<reshade::addon_event::present>(on_present);
 
-	reshade::unregister_event<reshade::addon_event::reshade_before_effects>(on_before_render_effects);
-	reshade::unregister_event<reshade::addon_event::reshade_after_effects>(on_after_render_effects);
+	reshade::unregister_event<reshade::addon_event::reshade_begin_effects>(on_begin_render_effects);
+	reshade::unregister_event<reshade::addon_event::reshade_finish_effects>(on_finish_render_effects);
 }
 
 #endif

@@ -41,6 +41,9 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(create_pipeline);
 		CASE(upload_buffer_region);
 		CASE(upload_texture_region);
+		CASE(barrier);
+		CASE(begin_render_pass);
+		CASE(finish_render_pass);
 		CASE(bind_pipeline);
 		CASE(bind_pipeline_states);
 		CASE(bind_viewports);
@@ -54,14 +57,13 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(draw_indexed);
 		CASE(dispatch);
 		CASE(draw_or_dispatch_indirect);
-		CASE(begin_render_pass);
-		CASE(finish_render_pass);
 		CASE(copy_resource);
 		CASE(copy_buffer_region);
 		CASE(copy_buffer_to_texture);
 		CASE(copy_texture_region);
 		CASE(copy_texture_to_buffer);
 		CASE(resolve_texture_region);
+		CASE(generate_mipmaps);
 		CASE(clear_attachments);
 		CASE(clear_depth_stencil_view);
 		CASE(clear_render_target_view);
@@ -72,8 +74,8 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(execute_secondary_command_list);
 		CASE(resize);
 		CASE(present);
-		CASE(reshade_after_effects);
-		CASE(reshade_before_effects);
+		CASE(reshade_begin_effects);
+		CASE(reshade_finish_effects);
 	}
 #undef  CASE
 	return "unknown";

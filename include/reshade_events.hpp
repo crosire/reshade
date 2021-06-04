@@ -249,12 +249,12 @@ namespace reshade
 		generate_mipmaps,
 
 		/// <summary>
-		/// Called before 'IDirect3DDevice9::Clear', 'glClear', 'vkCmdBeginRenderPass' or 'vkCmdClearAttachments'.
+		/// Called before 'IDirect3DDevice9::Clear', 'glClear' or 'vkCmdClearAttachments'.
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t num_rects, const int32_t *rects)</c></para>
 		/// </summary>
 		clear_attachments,
 		/// <summary>
-		/// Called before 'ID3D10Device::ClearDepthStencilView', 'ID3D11DeviceContext::ClearDepthStencilView', 'ID3D12GraphicsCommandList::ClearDepthStencilView', 'glClear(NamedFrame)Bufferfi' or 'vkCmdClearDepthStencilImage'.
+		/// Called before 'ID3D10Device::ClearDepthStencilView', 'ID3D11DeviceContext::ClearDepthStencilView', 'ID3D11DeviceContext1::ClearView', 'ID3D12GraphicsCommandList::ClearDepthStencilView', 'ID3D12GraphicsCommandList::BeginRenderPass', 'glClear(NamedFrame)Bufferfi', 'vkCmdClearDepthStencilImage' or 'vkCmdBeginRenderPass'.
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view dsv, api::attachment_type clear_flags, float depth, uint8_t stencil, uint32_t num_rects, const int32_t *rects)</c></para>
 		/// </summary>
 		/// <remarks>
@@ -262,7 +262,7 @@ namespace reshade
 		/// </remarks>
 		clear_depth_stencil_view,
 		/// <summary>
-		/// Called before 'ID3D10Device::ClearRenderTargetView', 'ID3D11DeviceContext::ClearRenderTargetView', 'ID3D12GraphicsCommandList::ClearRenderTargetView', 'glClear(NamedFrame)Bufferfv' or 'vkCmdClearColorImage'.
+		/// Called before 'ID3D10Device::ClearRenderTargetView', 'ID3D11DeviceContext::ClearRenderTargetView', 'ID3D11DeviceContext1::ClearView', 'ID3D12GraphicsCommandList::ClearRenderTargetView', 'ID3D12GraphicsCommandList::BeginRenderPass', 'glClear(NamedFrame)Bufferfv', 'vkCmdClearColorImage' or 'vkCmdBeginRenderPass'.
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view rtv, const float color[4], uint32_t num_rects, const int32_t *rects)</c></para>
 		/// </summary>
 		/// <remarks>
@@ -308,21 +308,21 @@ namespace reshade
 		/// </summary>
 		resize,
 		/// <summary>
-		/// Called before 'IDirect3DDevice9::Present(Ex)', 'IDirect3DSwapChain9::Present', 'IDXGISwapChain::Present(1)', 'wglSwapBuffers' or 'vkQueuePresentKHR'.
+		/// Called before 'IDirect3DDevice9::Present(Ex)', 'IDirect3DSwapChain9::Present', 'IDXGISwapChain::Present(1)', 'D3D12CommandQueueDownlevel::Present', 'wglSwapBuffers' or 'vkQueuePresentKHR'.
 		/// <para>Callback function signature: <c>void (api::command_queue *queue, api::swapchain *swapchain)</c></para>
 		/// </summary>
 		present,
 
 		/// <summary>
-		/// Called right after ReShade effects were rendered.
-		/// <para>Callback function signature: <c>void (api::effect_runtime *runtime, api::command_list *cmd_list)</c></para>
-		/// </summary>
-		reshade_after_effects,
-		/// <summary>
 		/// Called right before ReShade effects are rendered.
 		/// <para>Callback function signature: <c>void (api::effect_runtime *runtime, api::command_list *cmd_list)</c></para>
 		/// </summary>
-		reshade_before_effects,
+		reshade_begin_effects,
+		/// <summary>
+		/// Called right after ReShade effects were rendered.
+		/// <para>Callback function signature: <c>void (api::effect_runtime *runtime, api::command_list *cmd_list)</c></para>
+		/// </summary>
+		reshade_finish_effects,
 
 #ifdef RESHADE_ADDON
 		max // Last value used internally by ReShade to determine number of events in this enum
@@ -439,8 +439,8 @@ namespace reshade
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::resize, api::swapchain *swapchain, uint32_t width, uint32_t height);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::present, api::command_queue *queue, api::swapchain *swapchain);
 
-	DEFINE_ADDON_EVENT_TYPE_1(addon_event::reshade_after_effects, api::effect_runtime *runtime, api::command_list *cmd_list);
-	DEFINE_ADDON_EVENT_TYPE_1(addon_event::reshade_before_effects, api::effect_runtime *runtime, api::command_list *cmd_list);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::reshade_begin_effects, api::effect_runtime *runtime, api::command_list *cmd_list);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::reshade_finish_effects, api::effect_runtime *runtime, api::command_list *cmd_list);
 
 #undef DEFINE_ADDON_EVENT_TYPE_1
 #undef DEFINE_ADDON_EVENT_TYPE_2
