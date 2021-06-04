@@ -14,7 +14,7 @@
 
 lockfree_table<void *, reshade::vulkan::device_impl *, 16> g_vulkan_devices;
 static lockfree_table<VkQueue, reshade::vulkan::command_queue_impl *, 16> s_vulkan_queues;
-extern lockfree_table<VkCommandBuffer, reshade::vulkan::command_list_impl *, 4096> s_vulkan_command_buffers;
+extern lockfree_table<VkCommandBuffer, reshade::vulkan::command_list_impl *, 4096> g_vulkan_command_buffers;
 extern lockfree_table<void *, VkLayerInstanceDispatchTable, 16> g_instance_dispatch;
 extern lockfree_table<VkSurfaceKHR, HWND, 16> g_surface_windows;
 static lockfree_table<VkSwapchainKHR, reshade::vulkan::swapchain_impl *, 16> s_vulkan_swapchains;
@@ -384,7 +384,7 @@ void     VKAPI_CALL vkDestroyDevice(VkDevice device, const VkAllocationCallbacks
 {
 	LOG(INFO) << "Redirecting " << "vkDestroyDevice" << '(' << "device = " << device << ", pAllocator = " << pAllocator << ')' << " ...";
 
-	s_vulkan_command_buffers.clear(); // Reset all command buffer data
+	g_vulkan_command_buffers.clear(); // Reset all command buffer data
 
 	// Remove from device dispatch table since this device is being destroyed
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.erase(dispatch_key_from_handle(device));
@@ -579,8 +579,7 @@ VkResult VKAPI_CALL vkQueueSubmit(VkQueue queue, uint32_t submitCount, const VkS
 	assert(pSubmits != nullptr);
 
 #if RESHADE_ADDON
-	reshade::vulkan::command_queue_impl *const queue_impl = s_vulkan_queues.at(queue);
-	if (queue_impl != nullptr)
+	if (reshade::vulkan::command_queue_impl *const queue_impl = s_vulkan_queues.at(queue); queue_impl != nullptr)
 	{
 		for (uint32_t i = 0; i < submitCount; ++i)
 		{
@@ -588,8 +587,10 @@ VkResult VKAPI_CALL vkQueueSubmit(VkQueue queue, uint32_t submitCount, const VkS
 			{
 				assert(pSubmits[i].pCommandBuffers[k] != VK_NULL_HANDLE);
 
-				reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(
-					queue_impl, s_vulkan_command_buffers.at(pSubmits[i].pCommandBuffers[k]));
+				if (reshade::vulkan::command_list_impl *const cmd_impl = g_vulkan_command_buffers.at(pSubmits[i].pCommandBuffers[k]); cmd_impl != nullptr)
+				{
+					reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(queue_impl, cmd_impl);
+				}
 			}
 		}
 
@@ -608,8 +609,7 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 	std::vector<VkSemaphore> wait_semaphores(
 		pPresentInfo->pWaitSemaphores, pPresentInfo->pWaitSemaphores + pPresentInfo->waitSemaphoreCount);
 
-	reshade::vulkan::command_queue_impl *const queue_impl = s_vulkan_queues.at(queue);
-	if (queue_impl != nullptr)
+	if (reshade::vulkan::command_queue_impl *const queue_impl = s_vulkan_queues.at(queue); queue_impl != nullptr)
 	{
 		for (uint32_t i = 0; i < pPresentInfo->swapchainCount; ++i)
 		{
@@ -1049,7 +1049,7 @@ VkResult VKAPI_CALL vkAllocateCommandBuffers(VkDevice device, const VkCommandBuf
 	for (uint32_t i = 0; i < pAllocateInfo->commandBufferCount; ++i)
 	{
 		const auto cmd_impl = new reshade::vulkan::command_list_impl(device_impl, pCommandBuffers[i]);
-		if (!s_vulkan_command_buffers.emplace(pCommandBuffers[i], cmd_impl))
+		if (!g_vulkan_command_buffers.emplace(pCommandBuffers[i], cmd_impl))
 			delete cmd_impl;
 	}
 #endif
@@ -1061,22 +1061,10 @@ void     VKAPI_CALL vkFreeCommandBuffers(VkDevice device, VkCommandPool commandP
 #if RESHADE_ADDON
 	for (uint32_t i = 0; i < commandBufferCount; ++i)
 	{
-		delete s_vulkan_command_buffers.erase(pCommandBuffers[i]);
+		delete g_vulkan_command_buffers.erase(pCommandBuffers[i]);
 	}
 #endif
 
 	GET_DISPATCH_PTR(FreeCommandBuffers, device);
 	trampoline(device, commandPool, commandBufferCount, pCommandBuffers);
-}
-
-VkResult VKAPI_CALL vkBeginCommandBuffer(VkCommandBuffer commandBuffer, const VkCommandBufferBeginInfo *pBeginInfo)
-{
-#if RESHADE_ADDON
-	// Begin does perform an implicit reset if command pool was created with 'VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT'
-	reshade::invoke_addon_event<reshade::addon_event::reset_command_list>(
-		s_vulkan_command_buffers.at(commandBuffer));
-#endif
-
-	GET_DISPATCH_PTR(BeginCommandBuffer, commandBuffer);
-	return trampoline(commandBuffer, pBeginInfo);
 }
