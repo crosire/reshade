@@ -295,14 +295,20 @@ static void install_delayed_hooks(const std::filesystem::path &loaded_path)
 
 static reshade::hook find_internal(reshade::hook::address target, reshade::hook::address replacement)
 {
+	assert(target != nullptr || replacement != nullptr);
+
 	// Protect access to hook list with a mutex
 	const std::lock_guard<std::mutex> lock(s_hooks_mutex);
 
 	// Enumerate list of installed hooks and find matching one
 	const auto it = std::find_if(s_hooks.cbegin(), s_hooks.cend(),
 		[target, replacement](const named_hook &hook) {
+			// If only a target address is provided, find the matching hook
+			if (replacement == nullptr)
+				return hook.target == target;
+			// Otherwise search with the replacement function address (since the target address may not be known inside a replacement function)
 			return hook.replacement == replacement &&
-				// Optionally compare the target address too (do not do this if it is unknown)
+				// Optionally compare the target address too, in case the replacement function is used to hook multiple targets (do not do this if it is unknown)
 				(target == nullptr || hook.target == target);
 		});
 
@@ -479,6 +485,11 @@ void reshade::hooks::ensure_export_module_loaded()
 			LOG(ERROR) << "Failed to load " << s_export_hook_path << '!';
 		}
 	}
+}
+
+bool reshade::hooks::is_hooked(hook::address target)
+{
+	return find_internal(target, nullptr).valid();
 }
 
 reshade::hook::address reshade::hooks::call(hook::address replacement, hook::address target)

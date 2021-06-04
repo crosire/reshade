@@ -58,6 +58,12 @@ namespace reshade::hooks
 	void ensure_export_module_loaded();
 
 	/// <summary>
+	/// Checks whether the specified function was hooked.
+	/// </summary>
+	/// <param name="target">The original target address of a function.</param>
+	bool is_hooked(hook::address target);
+
+	/// <summary>
 	/// Calls the original/trampoline function for the specified hook.
 	/// </summary>
 	/// <param name="target">The original target address of the hooked function (optional).</param>
