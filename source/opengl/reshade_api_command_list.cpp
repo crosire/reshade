@@ -317,28 +317,14 @@ void reshade::opengl::device_impl::bind_descriptor_sets(api::shader_stage stages
 	{
 		const auto set_impl = reinterpret_cast<descriptor_set_impl *>(sets[i].handle);
 
-		if (set_impl->type != api::descriptor_type::sampler_with_resource_view)
-		{
-			push_descriptors(
-				stages,
-				layout,
-				i + first,
-				set_impl->type,
-				0,
-				static_cast<uint32_t>(set_impl->descriptors.size()),
-				set_impl->descriptors.data());
-		}
-		else
-		{
-			push_descriptors(
-				stages,
-				layout,
-				i + first,
-				set_impl->type,
-				0,
-				static_cast<uint32_t>(set_impl->sampler_with_resource_views.size()),
-				set_impl->sampler_with_resource_views.data());
-		}
+		push_descriptors(
+			stages,
+			layout,
+			i + first,
+			set_impl->type,
+			0,
+			static_cast<uint32_t>(set_impl->descriptors.size()) / (set_impl->type == api::descriptor_type::sampler_with_resource_view ? 2 : 1),
+			set_impl->descriptors.data());
 	}
 }
 

@@ -77,7 +77,7 @@ void reshade::d3d9::device_impl::bind_pipeline_states(uint32_t count, const api:
 }
 void reshade::d3d9::device_impl::bind_viewports(uint32_t first, uint32_t count, const float *viewports)
 {
-	assert(first == 0 && count == 1);
+	assert(first == 0 && count == 1 && viewports != nullptr);
 
 	D3DVIEWPORT9 d3d_viewport;
 	d3d_viewport.X = static_cast<DWORD>(viewports[0]);
@@ -91,7 +91,7 @@ void reshade::d3d9::device_impl::bind_viewports(uint32_t first, uint32_t count, 
 }
 void reshade::d3d9::device_impl::bind_scissor_rects(uint32_t first, uint32_t count, const int32_t *rects)
 {
-	assert(first == 0 && count == 1);
+	assert(first == 0 && count == 1 && rects != nullptr);
 
 	_orig->SetScissorRect(reinterpret_cast<const RECT *>(rects));
 }
@@ -105,68 +105,68 @@ void reshade::d3d9::device_impl::push_constants(api::shader_stage stages, api::p
 }
 void reshade::d3d9::device_impl::push_descriptors(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_index, api::descriptor_type type, uint32_t first, uint32_t count, const void *descriptors)
 {
-	if ((stages & (api::shader_stage::vertex | api::shader_stage::pixel)) == (api::shader_stage::vertex | api::shader_stage::pixel))
-	{
-		// Call for each individual shader stage
-		push_descriptors(api::shader_stage::vertex, layout, layout_index, type, first, count, descriptors);
-		push_descriptors( api::shader_stage::pixel, layout, layout_index, type, first, count, descriptors);
-		return;
-	}
-
 	if (layout.handle != 0)
 		first += reinterpret_cast<pipeline_layout_impl *>(layout.handle)->shader_registers[layout_index];
 
-	switch (stages)
+	// Set for each individual shader stage (pixel stage first, since vertex stage modifies the the binding offset)
+	constexpr api::shader_stage stages_to_iterate[] = { api::shader_stage::pixel, api::shader_stage::vertex };
+	for (api::shader_stage stage : stages_to_iterate)
 	{
-	default:
-		assert(false);
-		return;
-	case api::shader_stage::vertex:
-		// See https://docs.microsoft.com/windows/win32/direct3d9/vertex-textures-in-vs-3-0
-		first += D3DVERTEXTEXTURESAMPLER0;
-		if ((first + count) > D3DVERTEXTEXTURESAMPLER3) // The vertex engine only contains four texture sampler stages
-			count = D3DVERTEXTEXTURESAMPLER3 - first;
-		break;
-	case api::shader_stage::pixel:
-		break;
-	}
+		if ((stages & stage) != stage)
+			continue;
 
-	switch (type)
-	{
-	case api::descriptor_type::sampler:
-		for (UINT i = 0; i < count; ++i)
+		switch (stage)
 		{
-			const auto &descriptor = static_cast<const api::sampler *>(descriptors)[i];
+		default:
+			assert(false);
+			return;
+		case api::shader_stage::vertex:
+			// See https://docs.microsoft.com/windows/win32/direct3d9/vertex-textures-in-vs-3-0
+			first += D3DVERTEXTEXTURESAMPLER0;
+			if ((first + count) > D3DVERTEXTEXTURESAMPLER3) // The vertex engine only contains four texture sampler stages
+				count = D3DVERTEXTEXTURESAMPLER3 - first;
+			break;
+		case api::shader_stage::pixel:
+			break;
+		}
 
-			if (descriptor.handle != 0)
-				for (D3DSAMPLERSTATETYPE state = D3DSAMP_ADDRESSU; state <= D3DSAMP_MAXANISOTROPY; state = static_cast<D3DSAMPLERSTATETYPE>(state + 1))
-					_orig->SetSamplerState(i + first, state, reinterpret_cast<const DWORD *>(descriptor.handle)[state - 1]);
-		}
-		break;
-	case api::descriptor_type::sampler_with_resource_view:
-		for (UINT i = 0; i < count; ++i)
+		switch (type)
 		{
-			const auto &descriptor = static_cast<const api::sampler_with_resource_view *>(descriptors)[i];
-			_orig->SetTexture(i + first, reinterpret_cast<IDirect3DBaseTexture9 *>(descriptor.view.handle & ~1ull));
-			_orig->SetSamplerState(i + first, D3DSAMP_SRGBTEXTURE, descriptor.view.handle & 1);
+		case api::descriptor_type::sampler:
+			for (UINT i = 0; i < count; ++i)
+			{
+				const auto &descriptor = static_cast<const api::sampler *>(descriptors)[i];
 
-			if (descriptor.sampler.handle != 0)
-				for (D3DSAMPLERSTATETYPE state = D3DSAMP_ADDRESSU; state <= D3DSAMP_MAXANISOTROPY; state = static_cast<D3DSAMPLERSTATETYPE>(state + 1))
-					_orig->SetSamplerState(i + first, state, reinterpret_cast<const DWORD *>(descriptor.sampler.handle)[state - 1]);
+				if (descriptor.handle != 0)
+					for (D3DSAMPLERSTATETYPE state = D3DSAMP_ADDRESSU; state <= D3DSAMP_MAXANISOTROPY; state = static_cast<D3DSAMPLERSTATETYPE>(state + 1))
+						_orig->SetSamplerState(i + first, state, reinterpret_cast<const DWORD *>(descriptor.handle)[state - 1]);
+			}
+			break;
+		case api::descriptor_type::sampler_with_resource_view:
+			for (UINT i = 0; i < count; ++i)
+			{
+				const auto &descriptor = static_cast<const api::sampler_with_resource_view *>(descriptors)[i];
+				_orig->SetTexture(i + first, reinterpret_cast<IDirect3DBaseTexture9 *>(descriptor.view.handle & ~1ull));
+				_orig->SetSamplerState(i + first, D3DSAMP_SRGBTEXTURE, descriptor.view.handle & 1);
+
+				if (descriptor.sampler.handle != 0)
+					for (D3DSAMPLERSTATETYPE state = D3DSAMP_ADDRESSU; state <= D3DSAMP_MAXANISOTROPY; state = static_cast<D3DSAMPLERSTATETYPE>(state + 1))
+						_orig->SetSamplerState(i + first, state, reinterpret_cast<const DWORD *>(descriptor.sampler.handle)[state - 1]);
+			}
+			break;
+		case api::descriptor_type::shader_resource_view:
+			for (UINT i = 0; i < count; ++i)
+			{
+				const auto &descriptor = static_cast<const api::resource_view *>(descriptors)[i];
+				_orig->SetTexture(i + first, reinterpret_cast<IDirect3DBaseTexture9 *>(descriptor.handle & ~1ull));
+				_orig->SetSamplerState(i + first, D3DSAMP_SRGBTEXTURE, descriptor.handle & 1);
+			}
+			break;
+		case api::descriptor_type::unordered_access_view:
+		case api::descriptor_type::constant_buffer:
+			assert(false);
+			break;
 		}
-		break;
-	case api::descriptor_type::shader_resource_view:
-		for (UINT i = 0; i < count; ++i)
-		{
-			const auto &descriptor = static_cast<const api::resource_view *>(descriptors)[i];
-			_orig->SetTexture(i + first, reinterpret_cast<IDirect3DBaseTexture9 *>(descriptor.handle & ~1ull));
-			_orig->SetSamplerState(i + first, D3DSAMP_SRGBTEXTURE, descriptor.handle & 1);
-		}
-		break;
-	case api::descriptor_type::unordered_access_view:
-	case api::descriptor_type::constant_buffer:
-		assert(false);
-		break;
 	}
 }
 void reshade::d3d9::device_impl::bind_descriptor_sets(api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_set *sets)
@@ -175,28 +175,14 @@ void reshade::d3d9::device_impl::bind_descriptor_sets(api::shader_stage stages, 
 	{
 		const auto set_impl = reinterpret_cast<descriptor_set_impl *>(sets[i].handle);
 
-		if (set_impl->type != api::descriptor_type::sampler_with_resource_view)
-		{
-			push_descriptors(
-				stages,
-				layout,
-				i + first,
-				set_impl->type,
-				0,
-				static_cast<uint32_t>(set_impl->descriptors.size()),
-				set_impl->descriptors.data());
-		}
-		else
-		{
-			push_descriptors(
-				stages,
-				layout,
-				i + first,
-				set_impl->type,
-				0,
-				static_cast<uint32_t>(set_impl->sampler_with_resource_views.size()),
-				set_impl->sampler_with_resource_views.data());
-		}
+		push_descriptors(
+			stages,
+			layout,
+			i + first,
+			set_impl->type,
+			0,
+			static_cast<uint32_t>(set_impl->descriptors.size()) / (set_impl->type == api::descriptor_type::sampler_with_resource_view ? 2 : 1),
+			set_impl->descriptors.data());
 	}
 }
 
@@ -313,7 +299,7 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 	{
 	case api::filter_type::min_mag_mip_point:
 	case api::filter_type::min_mag_point_mip_linear:
-		// Default to no filtering if not stretching needs to be performed (prevents artifacts when copying depth data)
+		// Default to no filtering if no stretching needs to be performed (prevents artifacts when copying depth data)
 		if (src_box != nullptr || dst_box != nullptr)
 			stretch_filter = D3DTEXF_POINT;
 		break;

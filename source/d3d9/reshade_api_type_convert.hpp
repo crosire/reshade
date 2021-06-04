@@ -41,7 +41,6 @@ namespace reshade::d3d9
 	{
 		api::descriptor_type type;
 		std::vector<uint64_t> descriptors;
-		std::vector<api::sampler_with_resource_view> sampler_with_resource_views;
 	};
 
 	auto convert_format(api::format format, bool lockable = false) -> D3DFORMAT;

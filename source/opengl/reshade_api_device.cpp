@@ -1090,11 +1090,7 @@ bool reshade::opengl::device_impl::create_descriptor_sets(api::descriptor_set_la
 	{
 		const auto set = new descriptor_set_impl();
 		set->type = layout_impl->range.type;
-
-		if (layout_impl->range.type != api::descriptor_type::sampler_with_resource_view)
-			set->descriptors.resize(layout_impl->range.count);
-		else
-			set->sampler_with_resource_views.resize(layout_impl->range.count);
+		set->descriptors.resize(layout_impl->range.count * (set->type == api::descriptor_type::sampler_with_resource_view ? 2 : 1));
 
 		out[i] = { reinterpret_cast<uintptr_t>(set) };
 	}
@@ -1203,8 +1199,8 @@ void reshade::opengl::device_impl::update_descriptor_sets(uint32_t num_updates, 
 			break;
 		case api::descriptor_type::sampler_with_resource_view:
 			assert(updates[i].descriptor.sampler.handle != 0 && updates[i].descriptor.view.handle != 0);
-			set_impl->sampler_with_resource_views[updates[i].binding].sampler = updates[i].descriptor.sampler;
-			set_impl->sampler_with_resource_views[updates[i].binding].view = updates[i].descriptor.view;
+			set_impl->descriptors[updates[i].binding * 2 + 0] = updates[i].descriptor.sampler.handle;
+			set_impl->descriptors[updates[i].binding * 2 + 1] = updates[i].descriptor.view.handle;
 			break;
 		case api::descriptor_type::shader_resource_view:
 		case api::descriptor_type::unordered_access_view:
