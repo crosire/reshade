@@ -16,6 +16,9 @@
     <Filter Include="core\runtime\addon">
       <UniqueIdentifier>{0def8993-de0e-4d32-8464-9cc89e2c30a6}</UniqueIdentifier>
     </Filter>
+    <Filter Include="core\runtime\widgets">
+      <UniqueIdentifier>{ea5f4e2d-9d3f-4db7-8343-08b97e53a2dc}</UniqueIdentifier>
+    </Filter>
     <Filter Include="hooks">
       <UniqueIdentifier>{3c3eb495-1eeb-4c7c-b58f-3bbcf24758f6}</UniqueIdentifier>
     </Filter>
@@ -25,14 +28,26 @@
     <Filter Include="hooks\d3d9">
       <UniqueIdentifier>{63356f14-45b5-4047-9be1-e7e6e8a3f3e5}</UniqueIdentifier>
     </Filter>
+    <Filter Include="hooks\d3d9\impl">
+      <UniqueIdentifier>{a0b247a2-383c-4fcc-b79a-42190f06d506}</UniqueIdentifier>
+    </Filter>
     <Filter Include="hooks\d3d10">
       <UniqueIdentifier>{d61375df-0b47-4eb2-b2b9-ed8034d7d180}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="hooks\d3d10\impl">
+      <UniqueIdentifier>{1d4ca3e1-f35a-4f1c-b209-b1969f60b54c}</UniqueIdentifier>
     </Filter>
     <Filter Include="hooks\d3d11">
       <UniqueIdentifier>{2ed46921-48e6-4996-a11c-0a246bd56a86}</UniqueIdentifier>
     </Filter>
+    <Filter Include="hooks\d3d11\impl">
+      <UniqueIdentifier>{54c4bd1a-9506-4795-bc57-e713e330ca6c}</UniqueIdentifier>
+    </Filter>
     <Filter Include="hooks\d3d12">
       <UniqueIdentifier>{e905e357-66ed-4246-a0a9-d3b4c84c2d7f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="hooks\d3d12\impl">
+      <UniqueIdentifier>{d8fc41be-787d-4ce9-8173-e040d5672d27}</UniqueIdentifier>
     </Filter>
     <Filter Include="hooks\dxgi">
       <UniqueIdentifier>{4d42777e-6ba3-4965-b0dc-88186095f1a9}</UniqueIdentifier>
@@ -40,11 +55,17 @@
     <Filter Include="hooks\opengl">
       <UniqueIdentifier>{78832e2a-8fda-4ae5-aecb-a4e0f5a0df02}</UniqueIdentifier>
     </Filter>
+    <Filter Include="hooks\opengl\impl">
+      <UniqueIdentifier>{3e3fc26a-9d97-485f-b15b-2c883c2dd879}</UniqueIdentifier>
+    </Filter>
     <Filter Include="hooks\openvr">
       <UniqueIdentifier>{d33c801e-4764-4584-b168-66dde19a6f57}</UniqueIdentifier>
     </Filter>
     <Filter Include="hooks\vulkan">
       <UniqueIdentifier>{40ae025e-f912-4ebf-9a43-69d7c1a96d3e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="hooks\vulkan\impl">
+      <UniqueIdentifier>{e0bf568b-77f4-4372-8467-ff8febf396e4}</UniqueIdentifier>
     </Filter>
     <Filter Include="hooks\windows">
       <UniqueIdentifier>{ab5a23b3-e97e-4a41-99a1-89c6f1d54b16}</UniqueIdentifier>
@@ -60,26 +81,23 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="source\dll_log.cpp">
+      <Filter>core</Filter>
+    </ClCompile>
+    <ClCompile Include="source\dll_main.cpp">
+      <Filter>core</Filter>
+    </ClCompile>
+    <ClCompile Include="source\dll_resources.cpp">
+      <Filter>core</Filter>
+    </ClCompile>
+    <ClCompile Include="source\ini_file.cpp">
+      <Filter>core</Filter>
+    </ClCompile>
     <ClCompile Include="source\hook.cpp">
       <Filter>core\hook</Filter>
     </ClCompile>
     <ClCompile Include="source\hook_manager.cpp">
       <Filter>core\hook</Filter>
-    </ClCompile>
-    <ClCompile Include="source\addon\generic_depth.cpp">
-      <Filter>core\runtime\addon</Filter>
-    </ClCompile>
-    <ClCompile Include="source\addon_manager.cpp">
-      <Filter>core\runtime</Filter>
-    </ClCompile>
-    <ClCompile Include="source\imgui_code_editor.cpp">
-      <Filter>core\runtime</Filter>
-    </ClCompile>
-    <ClCompile Include="source\imgui_function_table.cpp">
-      <Filter>core\runtime</Filter>
-    </ClCompile>
-    <ClCompile Include="source\imgui_widgets.cpp">
-      <Filter>core\runtime</Filter>
     </ClCompile>
     <ClCompile Include="source\input.cpp">
       <Filter>core\runtime</Filter>
@@ -99,17 +117,20 @@
     <ClCompile Include="source\runtime_update_check.cpp">
       <Filter>core\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="source\dll_log.cpp">
-      <Filter>core</Filter>
+    <ClCompile Include="source\addon_manager.cpp">
+      <Filter>core\runtime\addon</Filter>
     </ClCompile>
-    <ClCompile Include="source\dll_main.cpp">
-      <Filter>core</Filter>
+    <ClCompile Include="source\addon\generic_depth.cpp">
+      <Filter>core\runtime\addon</Filter>
     </ClCompile>
-    <ClCompile Include="source\dll_resources.cpp">
-      <Filter>core</Filter>
+    <ClCompile Include="source\imgui_code_editor.cpp">
+      <Filter>core\runtime\widgets</Filter>
     </ClCompile>
-    <ClCompile Include="source\ini_file.cpp">
-      <Filter>core</Filter>
+    <ClCompile Include="source\imgui_function_table.cpp">
+      <Filter>core\runtime\widgets</Filter>
+    </ClCompile>
+    <ClCompile Include="source\imgui_widgets.cpp">
+      <Filter>core\runtime\widgets</Filter>
     </ClCompile>
     <ClCompile Include="source\d2d1\d2d1.cpp">
       <Filter>hooks\d2d1</Filter>
@@ -130,19 +151,19 @@
       <Filter>hooks\d3d9</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d9\reshade_api_command_list.cpp">
-      <Filter>hooks\d3d9</Filter>
+      <Filter>hooks\d3d9\impl</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d9\reshade_api_device.cpp">
-      <Filter>hooks\d3d9</Filter>
+      <Filter>hooks\d3d9\impl</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d9\reshade_api_swapchain.cpp">
-      <Filter>hooks\d3d9</Filter>
+      <Filter>hooks\d3d9\impl</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d9\reshade_api_type_convert.cpp">
-      <Filter>hooks\d3d9</Filter>
+      <Filter>hooks\d3d9\impl</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d9\state_block.cpp">
-      <Filter>hooks\d3d9</Filter>
+      <Filter>hooks\d3d9\impl</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d10\d3d10.cpp">
       <Filter>hooks\d3d10</Filter>
@@ -151,22 +172,22 @@
       <Filter>hooks\d3d10</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d10\reshade_api_command_list.cpp">
-      <Filter>hooks\d3d10</Filter>
+      <Filter>hooks\d3d10\impl</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d10\reshade_api_command_queue.cpp">
-      <Filter>hooks\d3d10</Filter>
+      <Filter>hooks\d3d10\impl</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d10\reshade_api_device.cpp">
-      <Filter>hooks\d3d10</Filter>
+      <Filter>hooks\d3d10\impl</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d10\reshade_api_swapchain.cpp">
-      <Filter>hooks\d3d10</Filter>
+      <Filter>hooks\d3d10\impl</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d10\reshade_api_type_convert.cpp">
-      <Filter>hooks\d3d10</Filter>
+      <Filter>hooks\d3d10\impl</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d10\state_block.cpp">
-      <Filter>hooks\d3d10</Filter>
+      <Filter>hooks\d3d10\impl</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d11\d3d11.cpp">
       <Filter>hooks\d3d11</Filter>
@@ -181,22 +202,22 @@
       <Filter>hooks\d3d11</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d11\reshade_api_command_list.cpp">
-      <Filter>hooks\d3d11</Filter>
+      <Filter>hooks\d3d11\impl</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d11\reshade_api_command_queue.cpp">
-      <Filter>hooks\d3d11</Filter>
+      <Filter>hooks\d3d11\impl</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d11\reshade_api_device.cpp">
-      <Filter>hooks\d3d11</Filter>
+      <Filter>hooks\d3d11\impl</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d11\reshade_api_swapchain.cpp">
-      <Filter>hooks\d3d11</Filter>
+      <Filter>hooks\d3d11\impl</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d11\reshade_api_type_convert.cpp">
-      <Filter>hooks\d3d11</Filter>
+      <Filter>hooks\d3d11\impl</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d11\state_block.cpp">
-      <Filter>hooks\d3d11</Filter>
+      <Filter>hooks\d3d11\impl</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d12\d3d12.cpp">
       <Filter>hooks\d3d12</Filter>
@@ -217,22 +238,22 @@
       <Filter>hooks\d3d12</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d12\reshade_api_command_list.cpp">
-      <Filter>hooks\d3d12</Filter>
+      <Filter>hooks\d3d12\impl</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d12\reshade_api_command_list_immediate.cpp">
-      <Filter>hooks\d3d12</Filter>
+      <Filter>hooks\d3d12\impl</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d12\reshade_api_command_queue.cpp">
-      <Filter>hooks\d3d12</Filter>
+      <Filter>hooks\d3d12\impl</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d12\reshade_api_device.cpp">
-      <Filter>hooks\d3d12</Filter>
+      <Filter>hooks\d3d12\impl</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d12\reshade_api_swapchain.cpp">
-      <Filter>hooks\d3d12</Filter>
+      <Filter>hooks\d3d12\impl</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d12\reshade_api_type_convert.cpp">
-      <Filter>hooks\d3d12</Filter>
+      <Filter>hooks\d3d12\impl</Filter>
     </ClCompile>
     <ClCompile Include="source\dxgi\dxgi.cpp">
       <Filter>hooks\dxgi</Filter>
@@ -253,43 +274,25 @@
       <Filter>hooks\opengl</Filter>
     </ClCompile>
     <ClCompile Include="source\opengl\reshade_api_command_list.cpp">
-      <Filter>hooks\opengl</Filter>
+      <Filter>hooks\opengl\impl</Filter>
     </ClCompile>
     <ClCompile Include="source\opengl\reshade_api_command_queue.cpp">
-      <Filter>hooks\opengl</Filter>
+      <Filter>hooks\opengl\impl</Filter>
     </ClCompile>
     <ClCompile Include="source\opengl\reshade_api_device.cpp">
-      <Filter>hooks\opengl</Filter>
+      <Filter>hooks\opengl\impl</Filter>
     </ClCompile>
     <ClCompile Include="source\opengl\reshade_api_swapchain.cpp">
-      <Filter>hooks\opengl</Filter>
+      <Filter>hooks\opengl\impl</Filter>
     </ClCompile>
     <ClCompile Include="source\opengl\reshade_api_type_convert.cpp">
-      <Filter>hooks\opengl</Filter>
+      <Filter>hooks\opengl\impl</Filter>
     </ClCompile>
     <ClCompile Include="source\opengl\state_block.cpp">
-      <Filter>hooks\opengl</Filter>
+      <Filter>hooks\opengl\impl</Filter>
     </ClCompile>
     <ClCompile Include="source\openvr\openvr.cpp">
       <Filter>hooks\openvr</Filter>
-    </ClCompile>
-    <ClCompile Include="source\vulkan\reshade_api_command_list.cpp">
-      <Filter>hooks\vulkan</Filter>
-    </ClCompile>
-    <ClCompile Include="source\vulkan\reshade_api_command_list_immediate.cpp">
-      <Filter>hooks\vulkan</Filter>
-    </ClCompile>
-    <ClCompile Include="source\vulkan\reshade_api_command_queue.cpp">
-      <Filter>hooks\vulkan</Filter>
-    </ClCompile>
-    <ClCompile Include="source\vulkan\reshade_api_device.cpp">
-      <Filter>hooks\vulkan</Filter>
-    </ClCompile>
-    <ClCompile Include="source\vulkan\reshade_api_swapchain.cpp">
-      <Filter>hooks\vulkan</Filter>
-    </ClCompile>
-    <ClCompile Include="source\vulkan\reshade_api_type_convert.cpp">
-      <Filter>hooks\vulkan</Filter>
     </ClCompile>
     <ClCompile Include="source\vulkan\vulkan_hooks.cpp">
       <Filter>hooks\vulkan</Filter>
@@ -303,6 +306,24 @@
     <ClCompile Include="source\vulkan\vulkan_hooks_instance.cpp">
       <Filter>hooks\vulkan</Filter>
     </ClCompile>
+    <ClCompile Include="source\vulkan\reshade_api_command_list.cpp">
+      <Filter>hooks\vulkan\impl</Filter>
+    </ClCompile>
+    <ClCompile Include="source\vulkan\reshade_api_command_list_immediate.cpp">
+      <Filter>hooks\vulkan\impl</Filter>
+    </ClCompile>
+    <ClCompile Include="source\vulkan\reshade_api_command_queue.cpp">
+      <Filter>hooks\vulkan\impl</Filter>
+    </ClCompile>
+    <ClCompile Include="source\vulkan\reshade_api_device.cpp">
+      <Filter>hooks\vulkan\impl</Filter>
+    </ClCompile>
+    <ClCompile Include="source\vulkan\reshade_api_swapchain.cpp">
+      <Filter>hooks\vulkan\impl</Filter>
+    </ClCompile>
+    <ClCompile Include="source\vulkan\reshade_api_type_convert.cpp">
+      <Filter>hooks\vulkan\impl</Filter>
+    </ClCompile>
     <ClCompile Include="source\windows\user32.cpp">
       <Filter>hooks\windows</Filter>
     </ClCompile>
@@ -311,6 +332,15 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="source\dll_log.hpp">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="source\dll_resources.hpp">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="source\ini_file.hpp">
+      <Filter>core</Filter>
+    </ClInclude>
     <ClInclude Include="include\reshade.hpp">
       <Filter>core\api</Filter>
     </ClInclude>
@@ -338,21 +368,6 @@
     <ClInclude Include="source\hook_manager.hpp">
       <Filter>core\hook</Filter>
     </ClInclude>
-    <ClInclude Include="source\addon_impl.hpp">
-      <Filter>core\runtime</Filter>
-    </ClInclude>
-    <ClInclude Include="source\addon_manager.hpp">
-      <Filter>core\runtime</Filter>
-    </ClInclude>
-    <ClInclude Include="source\imgui_code_editor.hpp">
-      <Filter>core\runtime</Filter>
-    </ClInclude>
-    <ClInclude Include="include\imgui_function_table.hpp">
-      <Filter>core\runtime</Filter>
-    </ClInclude>
-    <ClInclude Include="source\imgui_widgets.hpp">
-      <Filter>core\runtime</Filter>
-    </ClInclude>
     <ClInclude Include="source\input.hpp">
       <Filter>core\runtime</Filter>
     </ClInclude>
@@ -365,14 +380,20 @@
     <ClInclude Include="source\runtime_objects.hpp">
       <Filter>core\runtime</Filter>
     </ClInclude>
-    <ClInclude Include="source\dll_log.hpp">
-      <Filter>core</Filter>
+    <ClInclude Include="source\addon_impl.hpp">
+      <Filter>core\runtime\addon</Filter>
     </ClInclude>
-    <ClInclude Include="source\dll_resources.hpp">
-      <Filter>core</Filter>
+    <ClInclude Include="source\addon_manager.hpp">
+      <Filter>core\runtime\addon</Filter>
     </ClInclude>
-    <ClInclude Include="source\ini_file.hpp">
-      <Filter>core</Filter>
+    <ClInclude Include="source\imgui_code_editor.hpp">
+      <Filter>core\runtime\widgets</Filter>
+    </ClInclude>
+    <ClInclude Include="include\imgui_function_table.hpp">
+      <Filter>core\runtime\widgets</Filter>
+    </ClInclude>
+    <ClInclude Include="source\imgui_widgets.hpp">
+      <Filter>core\runtime\widgets</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d9\d3d9_device.hpp">
       <Filter>hooks\d3d9</Filter>
@@ -381,31 +402,31 @@
       <Filter>hooks\d3d9</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d9\reshade_api_device.hpp">
-      <Filter>hooks\d3d9</Filter>
+      <Filter>hooks\d3d9\impl</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d9\reshade_api_swapchain.hpp">
-      <Filter>hooks\d3d9</Filter>
+      <Filter>hooks\d3d9\impl</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d9\reshade_api_type_convert.hpp">
-      <Filter>hooks\d3d9</Filter>
+      <Filter>hooks\d3d9\impl</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d9\state_block.hpp">
-      <Filter>hooks\d3d9</Filter>
+      <Filter>hooks\d3d9\impl</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d10\d3d10_device.hpp">
       <Filter>hooks\d3d10</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d10\reshade_api_device.hpp">
-      <Filter>hooks\d3d10</Filter>
+      <Filter>hooks\d3d10\impl</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d10\reshade_api_swapchain.hpp">
-      <Filter>hooks\d3d10</Filter>
+      <Filter>hooks\d3d10\impl</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d10\reshade_api_type_convert.hpp">
-      <Filter>hooks\d3d10</Filter>
+      <Filter>hooks\d3d10\impl</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d10\state_block.hpp">
-      <Filter>hooks\d3d10</Filter>
+      <Filter>hooks\d3d10\impl</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d11\d3d11_command_list.hpp">
       <Filter>hooks\d3d11</Filter>
@@ -417,19 +438,19 @@
       <Filter>hooks\d3d11</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d11\reshade_api_device.hpp">
-      <Filter>hooks\d3d11</Filter>
+      <Filter>hooks\d3d11\impl</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d11\reshade_api_device_context.hpp">
-      <Filter>hooks\d3d11</Filter>
+      <Filter>hooks\d3d11\impl</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d11\reshade_api_swapchain.hpp">
-      <Filter>hooks\d3d11</Filter>
+      <Filter>hooks\d3d11\impl</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d11\reshade_api_type_convert.hpp">
-      <Filter>hooks\d3d11</Filter>
+      <Filter>hooks\d3d11\impl</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d11\state_block.hpp">
-      <Filter>hooks\d3d11</Filter>
+      <Filter>hooks\d3d11\impl</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d12\d3d12_command_list.hpp">
       <Filter>hooks\d3d12</Filter>
@@ -447,25 +468,25 @@
       <Filter>hooks\d3d12</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d12\descriptor_heap.hpp">
-      <Filter>hooks\d3d12</Filter>
+      <Filter>hooks\d3d12\impl</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d12\reshade_api_command_list.hpp">
-      <Filter>hooks\d3d12</Filter>
+      <Filter>hooks\d3d12\impl</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d12\reshade_api_command_list_immediate.hpp">
-      <Filter>hooks\d3d12</Filter>
+      <Filter>hooks\d3d12\impl</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d12\reshade_api_command_queue.hpp">
-      <Filter>hooks\d3d12</Filter>
+      <Filter>hooks\d3d12\impl</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d12\reshade_api_device.hpp">
-      <Filter>hooks\d3d12</Filter>
+      <Filter>hooks\d3d12\impl</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d12\reshade_api_swapchain.hpp">
-      <Filter>hooks\d3d12</Filter>
+      <Filter>hooks\d3d12\impl</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d12\reshade_api_type_convert.hpp">
-      <Filter>hooks\d3d12</Filter>
+      <Filter>hooks\d3d12\impl</Filter>
     </ClInclude>
     <ClInclude Include="source\dxgi\dxgi_device.hpp">
       <Filter>hooks\dxgi</Filter>
@@ -480,40 +501,40 @@
       <Filter>hooks\opengl</Filter>
     </ClInclude>
     <ClInclude Include="source\opengl\reshade_api_device.hpp">
-      <Filter>hooks\opengl</Filter>
+      <Filter>hooks\opengl\impl</Filter>
     </ClInclude>
     <ClInclude Include="source\opengl\reshade_api_swapchain.hpp">
-      <Filter>hooks\opengl</Filter>
+      <Filter>hooks\opengl\impl</Filter>
     </ClInclude>
     <ClInclude Include="source\opengl\reshade_api_type_convert.hpp">
-      <Filter>hooks\opengl</Filter>
+      <Filter>hooks\opengl\impl</Filter>
     </ClInclude>
     <ClInclude Include="source\opengl\state_block.hpp">
-      <Filter>hooks\opengl</Filter>
-    </ClInclude>
-    <ClInclude Include="source\lockfree_table.hpp">
-      <Filter>hooks\vulkan</Filter>
-    </ClInclude>
-    <ClInclude Include="source\vulkan\reshade_api_command_list.hpp">
-      <Filter>hooks\vulkan</Filter>
-    </ClInclude>
-    <ClInclude Include="source\vulkan\reshade_api_command_list_immediate.hpp">
-      <Filter>hooks\vulkan</Filter>
-    </ClInclude>
-    <ClInclude Include="source\vulkan\reshade_api_command_queue.hpp">
-      <Filter>hooks\vulkan</Filter>
-    </ClInclude>
-    <ClInclude Include="source\vulkan\reshade_api_device.hpp">
-      <Filter>hooks\vulkan</Filter>
-    </ClInclude>
-    <ClInclude Include="source\vulkan\reshade_api_swapchain.hpp">
-      <Filter>hooks\vulkan</Filter>
-    </ClInclude>
-    <ClInclude Include="source\vulkan\reshade_api_type_convert.hpp">
-      <Filter>hooks\vulkan</Filter>
+      <Filter>hooks\opengl\impl</Filter>
     </ClInclude>
     <ClInclude Include="source\vulkan\vulkan_hooks.hpp">
       <Filter>hooks\vulkan</Filter>
+    </ClInclude>
+    <ClInclude Include="source\lockfree_table.hpp">
+      <Filter>hooks\vulkan\impl</Filter>
+    </ClInclude>
+    <ClInclude Include="source\vulkan\reshade_api_command_list.hpp">
+      <Filter>hooks\vulkan\impl</Filter>
+    </ClInclude>
+    <ClInclude Include="source\vulkan\reshade_api_command_list_immediate.hpp">
+      <Filter>hooks\vulkan\impl</Filter>
+    </ClInclude>
+    <ClInclude Include="source\vulkan\reshade_api_command_queue.hpp">
+      <Filter>hooks\vulkan\impl</Filter>
+    </ClInclude>
+    <ClInclude Include="source\vulkan\reshade_api_device.hpp">
+      <Filter>hooks\vulkan\impl</Filter>
+    </ClInclude>
+    <ClInclude Include="source\vulkan\reshade_api_swapchain.hpp">
+      <Filter>hooks\vulkan\impl</Filter>
+    </ClInclude>
+    <ClInclude Include="source\vulkan\reshade_api_type_convert.hpp">
+      <Filter>hooks\vulkan\impl</Filter>
     </ClInclude>
     <ClInclude Include="source\com_ptr.hpp">
       <Filter>hooks\windows</Filter>
