@@ -433,7 +433,7 @@ static void on_execute(api_object *queue_or_cmd_list, command_list *cmd_list)
 
 static void on_present(command_queue *, swapchain *swapchain)
 {
-	effect_runtime *const runtime = static_cast<effect_runtime *>(swapchain);
+	effect_runtime *const runtime = swapchain->get_effect_runtime();
 	device *const device = runtime->get_device();
 	command_queue *const queue = runtime->get_command_queue();
 	state_tracking &queue_state = queue->get_user_data<state_tracking>(state_tracking::GUID);

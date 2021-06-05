@@ -829,6 +829,11 @@ namespace reshade { namespace api
 		/// Gets the index of the back buffer resource that can currently be rendered into.
 		/// </summary>
 		virtual uint32_t get_current_back_buffer_index() const = 0;
+
+		/// <summary>
+		/// Gets the effect runtime associated with this swap chain.
+		/// </summary>
+		inline  struct effect_runtime *get_effect_runtime() { return reinterpret_cast<effect_runtime *>(this); }
 	};
 
 	/// <summary>
