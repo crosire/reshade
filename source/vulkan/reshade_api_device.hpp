@@ -17,24 +17,6 @@
 
 namespace reshade::vulkan
 {
-	struct render_pass_data
-	{
-		struct attachment
-		{
-			VkImageLayout initial_layout;
-			VkImageAspectFlags clear_flags;
-			VkImageAspectFlags format_flags;
-		};
-
-		std::vector<attachment> attachments;
-	};
-
-	struct framebuffer_data
-	{
-		std::vector<api::resource_view> attachments;
-		std::vector<VkImageAspectFlags> attachment_types;
-	};
-
 	struct resource_data
 	{
 		bool is_image() const { return type != VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO; }
@@ -235,8 +217,9 @@ namespace reshade::vulkan
 		mutable std::mutex _mutex;
 		std::unordered_map<uint64_t, resource_data> _resources;
 		std::unordered_map<uint64_t, resource_view_data> _views;
-		std::unordered_map<VkRenderPass, render_pass_data> _render_pass_list;
-		std::unordered_map<VkFramebuffer, framebuffer_data> _framebuffer_list;
+
+		std::unordered_map<VkRenderPass, struct render_pass_data> _render_pass_list;
+		std::unordered_map<VkFramebuffer, struct framebuffer_data> _framebuffer_list;
 		std::unordered_map<VkPipelineLayout, std::vector<VkDescriptorSetLayout>> _pipeline_layout_list;
 
 #ifndef NDEBUG

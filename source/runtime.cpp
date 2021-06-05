@@ -2977,7 +2977,9 @@ void reshade::runtime::load_config()
 	config.get("SCREENSHOT", "SavePath", _screenshot_path);
 	config.get("SCREENSHOT", "SavePresetFile", _screenshot_include_preset);
 
+#if RESHADE_GUI
 	load_config_gui(config);
+#endif
 }
 void reshade::runtime::save_config() const
 {
@@ -3021,7 +3023,9 @@ void reshade::runtime::save_config() const
 	config.set("SCREENSHOT", "SavePath", _screenshot_path);
 	config.set("SCREENSHOT", "SavePresetFile", _screenshot_include_preset);
 
+#if RESHADE_GUI
 	save_config_gui(config);
+#endif
 }
 
 void reshade::runtime::load_current_preset()
