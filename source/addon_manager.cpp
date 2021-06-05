@@ -109,9 +109,13 @@ void reshade::addon::load_addons()
 
 		LOG(INFO) << "Loading add-on from " << path << " ...";
 
-		const HMODULE handle = LoadLibraryW(path.c_str());
+		// Use 'LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR' to temporarily add add-on search path to the list of directories "LoadLibraryEx" will use to resolve DLL dependencies
+		const HMODULE handle = LoadLibraryExW(path.c_str(), nullptr, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
 		if (handle == nullptr)
+		{
+			LOG(WARN) << "Failed to load add-on from " << path << " with error code " << GetLastError() << '.';
 			continue;
+		}
 
 		reshade::addon::info info;
 		info.name = path.stem().u8string();
