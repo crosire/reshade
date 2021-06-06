@@ -390,7 +390,7 @@ static bool on_clear_depth_stencil_attachment(command_list *cmd_list, attachment
 	const state_tracking_context &device_state = device->get_user_data<state_tracking_context>(state_tracking_context::GUID);
 
 	// Ignore clears that do not affect the depth buffer (stencil clears)
-	// Also cannot preserve depth buffers here in Vulkan, since it is not valid to issue copy commands inside a render pass (and since this is event being called from 'vkCmdClearAttachments' always is inside one)
+	// Also cannot preserve depth buffers here in Vulkan, since it is not valid to issue copy commands inside a render pass (and since this event is being called from 'vkCmdClearAttachments' always is inside one)
 	if ((flags & attachment_type::depth) == attachment_type::depth && device_state.preserve_depth_buffers && device->get_api() != device_api::vulkan)
 	{
 		auto &state = cmd_list->get_user_data<state_tracking>(state_tracking::GUID);

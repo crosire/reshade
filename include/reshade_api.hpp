@@ -8,11 +8,7 @@
 #include "reshade_api_pipeline.hpp"
 
 #ifndef DECLSPEC_NOVTABLE
-	#if (_MSC_VER >= 1100) && defined(__cplusplus)
-		#define DECLSPEC_NOVTABLE __declspec(novtable)
-	#else
-		#define DECLSPEC_NOVTABLE
-	#endif
+	#define DECLSPEC_NOVTABLE __declspec(novtable)
 #endif
 
 namespace reshade { namespace api
@@ -191,12 +187,16 @@ namespace reshade { namespace api
 		/// </summary>
 		virtual uint64_t get_native_object() const = 0;
 
-		template <typename T> inline T &get_user_data(const uint8_t guid[16])
+		template <typename T> inline T &get_user_data(const uint8_t guid[16]) // Need to call 'destroy_user_data' for this custom data before object is destroyed
 		{
 			T *res = nullptr;
 			if (!get_user_data(guid, reinterpret_cast<void **>(&res)))
 				 set_user_data(guid, res = new T());
 			return *res;
+		}
+		template <typename T> inline T &create_user_data(const uint8_t guid[16])
+		{
+			return get_user_data<T>(guid);
 		}
 		template <typename T> inline void destroy_user_data(const uint8_t guid[16])
 		{
@@ -507,7 +507,7 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <param name="stages">The shader stages that will use the updated constants.</param>
 		/// <param name="layout">The pipeline layout that describes where the constants are located.</param>
-		/// <param name="layout_index">The index of the constant range in the pipeline <paramref name="layout"/>.</param>
+		/// <param name="layout_index">The index of the constant range in the pipeline <paramref name="layout"/> (root parameter index in D3D12).</param>
 		/// <param name="first">The start offset (in 32-bit values) to the first constant in the constant range to begin updating.</param>
 		/// <param name="count">The number of 32-bit values to update.</param>
 		/// <param name="values">A pointer to an array of 32-bit values to set the constants to. These can be floating-point, integer or boolean depending on what the shader is expecting.</param>
@@ -517,7 +517,7 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <param name="stages">The shader stages that will use the updated descriptors.</param>
 		/// <param name="layout">The pipeline layout that describes the descriptors.</param>
-		/// <param name="layout_index">The index of the descriptor set in the pipeline <paramref name="layout"/>.</param>
+		/// <param name="layout_index">The index of the descriptor set in the pipeline <paramref name="layout"/> (root parameter index in D3D12, descriptor set index in Vulkan).</param>
 		/// <param name="type">The type of descriptors to bind.</param>
 		/// <param name="first">The first binding in the descriptor set to update.</param>
 		/// <param name="count">The number of descriptors to update.</param>
@@ -687,7 +687,7 @@ namespace reshade { namespace api
 		virtual void clear_depth_stencil_view(resource_view dsv, attachment_type clear_flags, float depth, uint8_t stencil, uint32_t num_rects = 0, const int32_t *rects = nullptr) = 0;
 		/// <summary>
 		/// Clears the resources referenced by the render target view.
-		/// <para>The resource the <paramref name="rtv"/> view point to has to be in the <see cref="resource_usage::render_target"/> state.</para>
+		/// <para>The resource the <paramref name="rtv"/> view points to has to be in the <see cref="resource_usage::render_target"/> state.</para>
 		/// </summary>
 		/// <param name="rtv">The view handle of the render target.</param>
 		/// <param name="color">The value to clear the resource with.</param>

@@ -182,6 +182,11 @@ void reshade::addon::enable_or_disable_addons(bool enabled)
 
 extern "C" __declspec(dllexport) void ReShadeRegisterEvent(reshade::addon_event ev, void *callback)
 {
+	if (ev >= reshade::addon_event::max)
+		return;
+
+	assert(callback != nullptr);
+
 	auto &event_list = reshade::addon::event_list[static_cast<size_t>(ev)];
 	event_list.push_back(callback);
 
@@ -191,6 +196,11 @@ extern "C" __declspec(dllexport) void ReShadeRegisterEvent(reshade::addon_event 
 }
 extern "C" __declspec(dllexport) void ReShadeUnregisterEvent(reshade::addon_event ev, void *callback)
 {
+	if (ev >= reshade::addon_event::max)
+		return;
+
+	assert(callback != nullptr);
+
 	auto &event_list = reshade::addon::event_list[static_cast<size_t>(ev)];
 	event_list.erase(std::remove(event_list.begin(), event_list.end(), callback), event_list.end());
 
@@ -202,6 +212,8 @@ extern "C" __declspec(dllexport) void ReShadeUnregisterEvent(reshade::addon_even
 #if RESHADE_GUI
 extern "C" __declspec(dllexport) void ReShadeRegisterOverlay(const char *title, void(*callback)(reshade::api::effect_runtime *runtime, void *imgui_context))
 {
+	assert(callback != nullptr);
+
 	auto &overlay_list = reshade::addon::overlay_list;
 	overlay_list.emplace_back(title, callback);
 
