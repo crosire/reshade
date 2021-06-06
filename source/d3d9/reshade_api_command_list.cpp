@@ -13,12 +13,8 @@ void reshade::d3d9::device_impl::begin_render_pass(api::render_pass pass)
 	assert(pass.handle != 0);
 	const auto pass_impl = reinterpret_cast<const render_pass_impl *>(pass.handle);
 
-	assert(pass_impl->count <= _caps.NumSimultaneousRTs);
-
-	for (UINT i = 0; i < pass_impl->count; ++i)
+	for (UINT i = 0; i < _caps.NumSimultaneousRTs; ++i)
 		_orig->SetRenderTarget(i, pass_impl->rtv[i]);
-	for (UINT i = pass_impl->count; i < _caps.NumSimultaneousRTs; ++i)
-		_orig->SetRenderTarget(i, nullptr);
 
 	_orig->SetRenderState(D3DRS_SRGBWRITEENABLE, pass_impl->srgb_write_enable);
 

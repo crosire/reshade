@@ -960,7 +960,7 @@ bool reshade::d3d9::device_impl::create_render_pass(const api::render_pass_desc 
 {
 	const auto result = new render_pass_impl();
 
-	for (UINT i = 0; i < 8 && desc.render_targets[i].handle != 0; ++i, ++result->count)
+	for (UINT i = 0; i < 8 && desc.render_targets[i].handle != 0; ++i)
 	{
 		if (i >= _caps.NumSimultaneousRTs)
 		{
@@ -1342,7 +1342,7 @@ bool reshade::d3d9::device_impl::get_attachment(api::render_pass pass, api::atta
 
 	if (type == api::attachment_type::color)
 	{
-		if (index < pass_impl->count)
+		if (index < _caps.NumSimultaneousRTs && pass_impl->rtv[index] != nullptr)
 		{
 			const uint64_t set_srgb_bit = pass_impl->srgb_write_enable;
 

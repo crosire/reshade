@@ -314,24 +314,22 @@ void    STDMETHODCALLTYPE D3D10Device::GSSetSamplers(UINT StartSlot, UINT NumSam
 }
 void    STDMETHODCALLTYPE D3D10Device::OMSetRenderTargets(UINT NumViews, ID3D10RenderTargetView *const *ppRenderTargetViews, ID3D10DepthStencilView *pDepthStencilView)
 {
-#if RESHADE_ADDON
-	if (_has_open_render_pass)
-	{
-		reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(this);
-		_has_open_render_pass = false;
-	}
-#endif
-
 	_orig->OMSetRenderTargets(NumViews, ppRenderTargetViews, pDepthStencilView);
 
 #if RESHADE_ADDON
 	assert(NumViews <= D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT);
 
+	if (_has_open_render_pass)
+	{
+		_has_open_render_pass = false;
+		reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(this);
+	}
+
 	_current_pass->count = NumViews;
 	std::memcpy(_current_pass->rtv, ppRenderTargetViews, NumViews * sizeof(ID3D10RenderTargetView *));
 	_current_pass->dsv = pDepthStencilView;
 
-	if (NumViews != 0 || pDepthStencilView != nullptr)
+	if ((NumViews != 0 && *ppRenderTargetViews != nullptr) || pDepthStencilView != nullptr)
 	{
 		_has_open_render_pass = true;
 		reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::render_pass { reinterpret_cast<uintptr_t>(_current_pass) });

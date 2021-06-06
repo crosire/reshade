@@ -756,25 +756,23 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateOffscreenPlainSurface(UINT Widt
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetRenderTarget(DWORD RenderTargetIndex, IDirect3DSurface9 *pRenderTarget)
 {
-#if RESHADE_ADDON
-	if (RenderTargetIndex == 0)
-		reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(this);
-#endif
-
 	const HRESULT hr = _orig->SetRenderTarget(RenderTargetIndex, pRenderTarget);
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
-		_current_pass->rtv[RenderTargetIndex] = pRenderTarget;
-		_current_pass->count = 0;
-		while (_current_pass->count < _caps.NumSimultaneousRTs && _current_pass->rtv[_current_pass->count] != nullptr)
-			_current_pass->count++;
-
-		if (RenderTargetIndex == 0)
-			reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::render_pass { reinterpret_cast<uintptr_t>(_current_pass) });
-
-		if (pRenderTarget != nullptr)
+		if (_current_pass->rtv[RenderTargetIndex] != nullptr)
 		{
+			if (RenderTargetIndex == 0)
+				reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(this);
+		}
+
+		_current_pass->rtv[RenderTargetIndex] = pRenderTarget;
+
+		if (_current_pass->rtv[RenderTargetIndex] != nullptr)
+		{
+			if (RenderTargetIndex == 0)
+				reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::render_pass { reinterpret_cast<uintptr_t>(_current_pass) });
+
 			// Setting a new render target will cause the viewport to be set to the full size of the new render target
 			// See https://docs.microsoft.com/windows/win32/api/d3d9helper/nf-d3d9helper-idirect3ddevice9-setrendertarget
 			D3DSURFACE_DESC desc;
@@ -801,14 +799,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetRenderTarget(DWORD RenderTargetInd
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetDepthStencilSurface(IDirect3DSurface9 *pNewZStencil)
 {
-#if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(this);
-#endif
-
 	const HRESULT hr = _orig->SetDepthStencilSurface(pNewZStencil);
 #if RESHADE_ADDON
-	if (SUCCEEDED(hr))
+	if (SUCCEEDED(hr) && pNewZStencil != _current_pass->dsv)
 	{
+		reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(this);
+
 		_current_pass->dsv = pNewZStencil;
 
 		reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::render_pass { reinterpret_cast<uintptr_t>(_current_pass) });

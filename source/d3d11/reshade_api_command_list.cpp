@@ -407,10 +407,14 @@ void reshade::d3d11::device_context_impl::bind_vertex_buffers(uint32_t first, ui
 
 void reshade::d3d11::device_context_impl::draw(uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance)
 {
+	assert(_has_open_render_pass);
+
 	_orig->DrawInstanced(vertices, instances, first_vertex, first_instance);
 }
 void reshade::d3d11::device_context_impl::draw_indexed(uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)
 {
+	assert(_has_open_render_pass);
+
 	_orig->DrawIndexedInstanced(indices, instances, first_index, vertex_offset, first_instance);
 }
 void reshade::d3d11::device_context_impl::dispatch(uint32_t num_groups_x, uint32_t num_groups_y, uint32_t num_groups_z)

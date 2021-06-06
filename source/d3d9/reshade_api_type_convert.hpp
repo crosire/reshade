@@ -31,8 +31,7 @@ namespace reshade::d3d9
 
 	struct render_pass_impl
 	{
-		UINT count = 0;
-		IDirect3DSurface9 *rtv[8];
+		IDirect3DSurface9 *rtv[8] = {};
 		IDirect3DSurface9 *dsv = nullptr;
 		BOOL srgb_write_enable = FALSE;
 	};

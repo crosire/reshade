@@ -816,19 +816,18 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 }
 void     VKAPI_CALL vkCmdEndRenderPass(VkCommandBuffer commandBuffer)
 {
+	GET_DISPATCH_PTR(CmdEndRenderPass, commandBuffer);
+	trampoline(commandBuffer);
+
 #if RESHADE_ADDON
 	if (reshade::vulkan::command_list_impl *const cmd_impl = g_vulkan_command_buffers.at(commandBuffer); cmd_impl != nullptr)
 	{
-		reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(cmd_impl);
-
 #ifndef NDEBUG
 		cmd_impl->_current_fbo = VK_NULL_HANDLE;
 #endif
+		reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(cmd_impl);
 	}
 #endif
-
-	GET_DISPATCH_PTR(CmdEndRenderPass, commandBuffer);
-	trampoline(commandBuffer);
 }
 
 void     VKAPI_CALL vkCmdExecuteCommands(VkCommandBuffer commandBuffer, uint32_t commandBufferCount, const VkCommandBuffer *pCommandBuffers)

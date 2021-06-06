@@ -127,8 +127,8 @@ HRESULT STDMETHODCALLTYPE D3D12GraphicsCommandList::Close()
 #if RESHADE_ADDON
 	if (_has_open_render_pass)
 	{
-		reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(this);
 		_has_open_render_pass = false;
+		reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(this);
 	}
 #endif
 
@@ -610,25 +610,23 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SOSetTargets(UINT StartSlot, UI
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::OMSetRenderTargets(UINT NumRenderTargetDescriptors, const D3D12_CPU_DESCRIPTOR_HANDLE *pRenderTargetDescriptors, BOOL RTsSingleHandleToDescriptorRange, D3D12_CPU_DESCRIPTOR_HANDLE const *pDepthStencilDescriptor)
 {
-#if RESHADE_ADDON
-	if (_has_open_render_pass)
-	{
-		reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(this);
-		_has_open_render_pass = false;
-	}
-#endif
-
 	_orig->OMSetRenderTargets(NumRenderTargetDescriptors, pRenderTargetDescriptors, RTsSingleHandleToDescriptorRange, pDepthStencilDescriptor);
 
 #if RESHADE_ADDON
 	assert(NumRenderTargetDescriptors <= D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT);
+
+	if (_has_open_render_pass)
+	{
+		_has_open_render_pass = false;
+		reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(this);
+	}
 
 	_current_pass->count = NumRenderTargetDescriptors;
 	std::memcpy(_current_pass->rtv, pRenderTargetDescriptors, (RTsSingleHandleToDescriptorRange ? 1 : NumRenderTargetDescriptors) * sizeof(D3D12_CPU_DESCRIPTOR_HANDLE));
 	_current_pass->dsv = pDepthStencilDescriptor != nullptr ? *pDepthStencilDescriptor : D3D12_CPU_DESCRIPTOR_HANDLE { 0 };
 	_current_pass->rtv_is_single_handle_to_range = RTsSingleHandleToDescriptorRange;
 
-	if (NumRenderTargetDescriptors != 0 || pDepthStencilDescriptor != nullptr)
+	if ((NumRenderTargetDescriptors != 0 && pRenderTargetDescriptors->ptr != 0) || pDepthStencilDescriptor != nullptr)
 	{
 		_has_open_render_pass = true;
 		reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::render_pass { reinterpret_cast<uintptr_t>(_current_pass) });
@@ -780,6 +778,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::BeginRenderPass(UINT NumRenderT
 #if RESHADE_ADDON
 	if (_has_open_render_pass)
 	{
+		_has_open_render_pass = false;
 		reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(this);
 	}
 
@@ -840,13 +839,13 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::BeginRenderPass(UINT NumRenderT
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::EndRenderPass(void)
 {
-#if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(this);
-	_has_open_render_pass = false;
-#endif
-
 	assert(_interface_version >= 4);
 	static_cast<ID3D12GraphicsCommandList4 *>(_orig)->EndRenderPass();
+
+#if RESHADE_ADDON
+	_has_open_render_pass = false;
+	reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(this);
+#endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::InitializeMetaCommand(ID3D12MetaCommand *pMetaCommand, const void *pInitializationParametersData, SIZE_T InitializationParametersDataSizeInBytes)
 {

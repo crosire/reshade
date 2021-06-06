@@ -321,11 +321,15 @@ void reshade::vulkan::command_list_impl::draw(uint32_t vertices, uint32_t instan
 {
 	_has_commands = true;
 
+	assert(_current_fbo != VK_NULL_HANDLE);
+
 	vk.CmdDraw(_orig, vertices, instances, first_vertex, first_instance);
 }
 void reshade::vulkan::command_list_impl::draw_indexed(uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)
 {
 	_has_commands = true;
+
+	assert(_current_fbo != VK_NULL_HANDLE);
 
 	vk.CmdDrawIndexed(_orig, indices, instances, first_index, vertex_offset, first_instance);
 }

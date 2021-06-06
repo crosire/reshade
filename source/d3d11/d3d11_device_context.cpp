@@ -405,24 +405,22 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::GSSetSamplers(UINT StartSlot, UINT
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargets(UINT NumViews, ID3D11RenderTargetView *const *ppRenderTargetViews, ID3D11DepthStencilView *pDepthStencilView)
 {
-#if RESHADE_ADDON
-	if (_has_open_render_pass)
-	{
-		reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(this);
-		_has_open_render_pass = false;
-	}
-#endif
-
 	_orig->OMSetRenderTargets(NumViews, ppRenderTargetViews, pDepthStencilView);
 
 #if RESHADE_ADDON
 	assert(NumViews <= D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT);
 
+	if (_has_open_render_pass)
+	{
+		_has_open_render_pass = false;
+		reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(this);
+	}
+
 	_current_pass->count = NumViews;
 	std::memcpy(_current_pass->rtv, ppRenderTargetViews, NumViews * sizeof(ID3D11RenderTargetView *));
 	_current_pass->dsv = pDepthStencilView;
 
-	if (NumViews != 0 || pDepthStencilView != nullptr)
+	if ((NumViews != 0 && *ppRenderTargetViews != nullptr) || pDepthStencilView != nullptr)
 	{
 		_has_open_render_pass = true;
 		reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::render_pass { reinterpret_cast<uintptr_t>(_current_pass) });
@@ -431,24 +429,22 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargets(UINT NumViews, 
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargetsAndUnorderedAccessViews(UINT NumRTVs, ID3D11RenderTargetView *const *ppRenderTargetViews, ID3D11DepthStencilView *pDepthStencilView, UINT UAVStartSlot, UINT NumUAVs, ID3D11UnorderedAccessView *const *ppUnorderedAccessViews, const UINT *pUAVInitialCounts)
 {
-#if RESHADE_ADDON
-	if (_has_open_render_pass)
-	{
-		reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(this);
-		_has_open_render_pass = false;
-	}
-#endif
-
 	_orig->OMSetRenderTargetsAndUnorderedAccessViews(NumRTVs, ppRenderTargetViews, pDepthStencilView, UAVStartSlot, NumUAVs, ppUnorderedAccessViews, pUAVInitialCounts);
 
 #if RESHADE_ADDON
 	assert(NumRTVs <= D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT);
 
+	if (_has_open_render_pass)
+	{
+		_has_open_render_pass = false;
+		reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(this);
+	}
+
 	_current_pass->count = NumRTVs;
 	std::memcpy(_current_pass->rtv, ppRenderTargetViews, NumRTVs * sizeof(ID3D11RenderTargetView *));
 	_current_pass->dsv = pDepthStencilView;
 
-	if (NumRTVs != 0 || pDepthStencilView != nullptr)
+	if ((NumRTVs != 0 && *ppRenderTargetViews != nullptr) || pDepthStencilView != nullptr)
 	{
 		_has_open_render_pass = true;
 		reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::render_pass { reinterpret_cast<uintptr_t>(_current_pass) });
@@ -995,8 +991,8 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::FinishCommandList(BOOL RestoreDefe
 	const bool had_open_render_pass = _has_open_render_pass;
 	if (_has_open_render_pass)
 	{
-		reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(this);
 		_has_open_render_pass = false;
+		reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(this);
 	}
 #endif
 

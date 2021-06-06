@@ -334,11 +334,15 @@ void reshade::d3d12::command_list_impl::draw(uint32_t vertices, uint32_t instanc
 {
 	_has_commands = true;
 
+	assert(_has_open_render_pass);
+
 	_orig->DrawInstanced(vertices, instances, first_vertex, first_instance);
 }
 void reshade::d3d12::command_list_impl::draw_indexed(uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)
 {
 	_has_commands = true;
+
+	assert(_has_open_render_pass);
 
 	_orig->DrawIndexedInstanced(indices, instances, first_index, vertex_offset, first_instance);
 }
