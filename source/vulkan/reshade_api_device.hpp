@@ -53,6 +53,24 @@ namespace reshade::vulkan
 		};
 	};
 
+	struct render_pass_data
+	{
+		struct attachment
+		{
+			VkImageLayout initial_layout;
+			VkImageAspectFlags clear_flags;
+			VkImageAspectFlags format_flags;
+		};
+
+		std::vector<attachment> attachments;
+	};
+
+	struct framebuffer_data
+	{
+		std::vector<api::resource_view> attachments;
+		std::vector<VkImageAspectFlags> attachment_types;
+	};
+
 	class device_impl : public api::api_object_impl<VkDevice, api::device>
 	{
 		friend class command_list_impl;
@@ -144,6 +162,16 @@ namespace reshade::vulkan
 			const std::lock_guard<std::mutex> lock(_mutex);
 			return _views.at(view.handle);
 		}
+		render_pass_data lookup_render_pass(VkRenderPass pass) const
+		{
+			const std::lock_guard<std::mutex> lock(_mutex);
+			return _render_pass_list.at(pass);
+		}
+		framebuffer_data lookup_framebuffer(VkFramebuffer fbo) const
+		{
+			const std::lock_guard<std::mutex> lock(_mutex);
+			return _framebuffer_list.at(fbo);
+		}
 
 		void register_image(VkImage image, const VkImageCreateInfo &create_info, VmaAllocation allocation = nullptr)
 		{
@@ -183,6 +211,16 @@ namespace reshade::vulkan
 			const std::lock_guard<std::mutex> lock(_mutex);
 			_views.emplace((uint64_t)buffer_view, std::move(data));
 		}
+		void register_render_pass(VkRenderPass pass, render_pass_data &&data)
+		{
+			const std::lock_guard<std::mutex> lock(_mutex);
+			_render_pass_list.emplace(pass, std::move(data));
+		}
+		void register_framebuffer(VkFramebuffer fbo, framebuffer_data &&data)
+		{
+			const std::lock_guard<std::mutex> lock(_mutex);
+			_framebuffer_list.emplace(fbo, std::move(data));
+		}
 
 		void unregister_image(VkImage image)
 		{
@@ -204,6 +242,16 @@ namespace reshade::vulkan
 			const std::lock_guard<std::mutex> lock(_mutex);
 			_views.erase((uint64_t)buffer_view);
 		}
+		void unregister_render_pass(VkRenderPass pass)
+		{
+			const std::lock_guard<std::mutex> lock(_mutex);
+			_render_pass_list.erase(pass);
+		}
+		void unregister_framebuffer(VkFramebuffer fbo)
+		{
+			const std::lock_guard<std::mutex> lock(_mutex);
+			_framebuffer_list.erase(fbo);
+		}
 
 		const VkPhysicalDevice _physical_device;
 		const VkLayerDispatchTable _dispatch_table;
@@ -213,21 +261,22 @@ namespace reshade::vulkan
 		std::vector<command_queue_impl *> _queues;
 		VkPhysicalDeviceFeatures _enabled_features = {};
 
-		VmaAllocator _alloc = nullptr;
-		mutable std::mutex _mutex;
-		std::unordered_map<uint64_t, resource_data> _resources;
-		std::unordered_map<uint64_t, resource_view_data> _views;
-
-		std::unordered_map<VkRenderPass, struct render_pass_data> _render_pass_list;
-		std::unordered_map<VkFramebuffer, struct framebuffer_data> _framebuffer_list;
-		std::unordered_map<VkPipelineLayout, std::vector<VkDescriptorSetLayout>> _pipeline_layout_list;
-
 #ifndef NDEBUG
 		mutable bool _wait_for_idle_happened = false;
 #endif
 
 	private:
 		bool create_shader_module(VkShaderStageFlagBits stage, const api::shader_desc &desc, VkPipelineShaderStageCreateInfo &stage_info, VkSpecializationInfo &spec_info, std::vector<VkSpecializationMapEntry> &spec_map);
+
+		mutable std::mutex _mutex;
+
+		VmaAllocator _alloc = nullptr;
+		std::unordered_map<uint64_t, resource_data> _resources;
+		std::unordered_map<uint64_t, resource_view_data> _views;
+
+		std::unordered_map<VkRenderPass, render_pass_data> _render_pass_list;
+		std::unordered_map<VkFramebuffer, framebuffer_data> _framebuffer_list;
+		std::unordered_map<VkPipelineLayout, std::vector<VkDescriptorSetLayout>> _pipeline_layout_list;
 
 		VkDescriptorPool _descriptor_pool = VK_NULL_HANDLE;
 		VkDescriptorPool _transient_descriptor_pool[4] = {};

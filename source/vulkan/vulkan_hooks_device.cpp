@@ -934,8 +934,7 @@ VkResult VKAPI_CALL vkCreateRenderPass(VkDevice device, const VkRenderPassCreate
 		renderpass_data.attachments.push_back({ pCreateInfo->pAttachments[attachment].initialLayout, clear_flags, format_flags });
 	}
 
-	const std::lock_guard<std::mutex> lock(device_impl->_mutex);
-	device_impl->_render_pass_list.emplace(*pRenderPass, std::move(renderpass_data));
+	device_impl->register_render_pass(*pRenderPass, std::move(renderpass_data));
 #endif
 
 	return VK_SUCCESS;
@@ -972,8 +971,7 @@ VkResult VKAPI_CALL vkCreateRenderPass2(VkDevice device, const VkRenderPassCreat
 		renderpass_data.attachments.push_back({ pCreateInfo->pAttachments[attachment].initialLayout, clear_flags, format_flags });
 	}
 
-	const std::lock_guard<std::mutex> lock(device_impl->_mutex);
-	device_impl->_render_pass_list.emplace(*pRenderPass, std::move(renderpass_data));
+	device_impl->register_render_pass(*pRenderPass, std::move(renderpass_data));
 #endif
 
 	return VK_SUCCESS;
@@ -984,7 +982,7 @@ void     VKAPI_CALL vkDestroyRenderPass(VkDevice device, VkRenderPass renderPass
 	GET_DISPATCH_PTR_FROM(DestroyRenderPass, device_impl);
 
 #if RESHADE_ADDON
-	device_impl->_render_pass_list.erase(renderPass);
+	device_impl->unregister_render_pass(renderPass);
 #endif
 
 	trampoline(device, renderPass, pAllocator);
@@ -1003,8 +1001,7 @@ VkResult VKAPI_CALL vkCreateFramebuffer(VkDevice device, const VkFramebufferCrea
 	}
 
 #if RESHADE_ADDON
-	const std::lock_guard<std::mutex> lock(device_impl->_mutex);
-	const auto &render_pass_info = device_impl->_render_pass_list.at(pCreateInfo->renderPass);
+	const auto render_pass_info = device_impl->lookup_render_pass(pCreateInfo->renderPass);
 
 	// Keep track of the frame buffer attachments
 	reshade::vulkan::framebuffer_data data;
@@ -1016,7 +1013,7 @@ VkResult VKAPI_CALL vkCreateFramebuffer(VkDevice device, const VkFramebufferCrea
 		data.attachment_types[i] = render_pass_info.attachments[i].format_flags;
 	}
 
-	device_impl->_framebuffer_list.emplace(*pFramebuffer, std::move(data));
+	device_impl->register_framebuffer(*pFramebuffer, std::move(data));
 #endif
 
 	return VK_SUCCESS;
@@ -1027,7 +1024,7 @@ void     VKAPI_CALL vkDestroyFramebuffer(VkDevice device, VkFramebuffer framebuf
 	GET_DISPATCH_PTR_FROM(DestroyFramebuffer, device_impl);
 
 #if RESHADE_ADDON
-	device_impl->_framebuffer_list.erase(framebuffer);
+	device_impl->unregister_framebuffer(framebuffer);
 #endif
 
 	trampoline(device, framebuffer, pAllocator);

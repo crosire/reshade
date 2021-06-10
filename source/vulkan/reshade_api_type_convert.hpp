@@ -14,24 +14,6 @@ namespace reshade::vulkan
 		VkRenderPass render_pass;
 	};
 
-	struct render_pass_data
-	{
-		struct attachment
-		{
-			VkImageLayout initial_layout;
-			VkImageAspectFlags clear_flags;
-			VkImageAspectFlags format_flags;
-		};
-
-		std::vector<attachment> attachments;
-	};
-
-	struct framebuffer_data
-	{
-		std::vector<api::resource_view> attachments;
-		std::vector<VkImageAspectFlags> attachment_types;
-	};
-
 	auto convert_format(api::format format) -> VkFormat;
 	auto convert_format(VkFormat vk_format) -> api::format;
 
