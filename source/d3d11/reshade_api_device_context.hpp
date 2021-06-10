@@ -56,7 +56,7 @@ namespace reshade::d3d11
 
 		void begin_query(api::query_pool, api::query_type, uint32_t) final { assert(false); }
 		void finish_query(api::query_pool, api::query_type, uint32_t) final { assert(false); }
-		void copy_query_results(api::query_pool, api::query_type, uint32_t, uint32_t, api::resource, uint64_t, uint32_t) final { assert(false); }
+		void copy_query_pool_results(api::query_pool, api::query_type, uint32_t, uint32_t, api::resource, uint64_t, uint32_t) final { assert(false); }
 
 		void begin_debug_event(const char *, const float[4]) final { assert(false); }
 		void finish_debug_event() final { assert(false); }
@@ -126,7 +126,7 @@ namespace reshade::d3d11
 
 		void begin_query(api::query_pool pool, api::query_type type, uint32_t index) final;
 		void finish_query(api::query_pool pool, api::query_type type, uint32_t index) final;
-		void copy_query_results(api::query_pool pool, api::query_type type, uint32_t first, uint32_t count, api::resource dst, uint64_t dst_offset, uint32_t stride) final;
+		void copy_query_pool_results(api::query_pool pool, api::query_type type, uint32_t first, uint32_t count, api::resource dst, uint64_t dst_offset, uint32_t stride) final;
 
 		void begin_debug_event(const char *label, const float color[4]) final;
 		void finish_debug_event() final;

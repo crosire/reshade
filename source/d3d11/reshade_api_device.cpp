@@ -87,7 +87,7 @@ bool reshade::d3d11::device_impl::check_capability(api::device_caps capability) 
 	case api::device_caps::copy_buffer_to_texture:
 	case api::device_caps::blit:
 	case api::device_caps::resolve_region:
-	case api::device_caps::copy_query_results:
+	case api::device_caps::copy_query_pool_results:
 		return false;
 	default:
 		return false;
@@ -923,7 +923,7 @@ reshade::api::resource_desc reshade::d3d11::device_impl::get_resource_desc(api::
 	return api::resource_desc {};
 }
 
-bool reshade::d3d11::device_impl::get_query_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride)
+bool reshade::d3d11::device_impl::get_query_pool_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride)
 {
 	const auto impl = reinterpret_cast<query_pool_impl *>(pool.handle);
 
@@ -936,7 +936,7 @@ bool reshade::d3d11::device_impl::get_query_results(api::query_pool pool, uint32
 	return true;
 }
 
-void reshade::d3d11::device_impl::set_debug_name(api::resource resource, const char *name)
+void reshade::d3d11::device_impl::set_resource_name(api::resource resource, const char *name)
 {
 	const GUID debug_object_name_guid = { 0x429b8c22, 0x9188, 0x4b0c, { 0x87, 0x42, 0xac, 0xb0, 0xbf, 0x85, 0xc2, 0x00} }; // WKPDID_D3DDebugObjectName
 	reinterpret_cast<ID3D11Resource *>(resource.handle)->SetPrivateData(debug_object_name_guid, static_cast<UINT>(strlen(name)), name);

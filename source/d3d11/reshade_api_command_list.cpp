@@ -303,7 +303,7 @@ void reshade::d3d11::device_context_impl::push_constants(api::shader_stage stage
 			return;
 		}
 
-		_device_impl->set_debug_name({ reinterpret_cast<uintptr_t>(_push_constants.get()) }, "Push constants");
+		_device_impl->set_resource_name({ reinterpret_cast<uintptr_t>(_push_constants.get()) }, "Push constants");
 
 		_push_constants_size = count;
 	}
@@ -552,7 +552,7 @@ void reshade::d3d11::device_context_impl::finish_query(api::query_pool pool, api
 
 	_orig->End(reinterpret_cast<query_pool_impl *>(pool.handle)->queries[index].get());
 }
-void reshade::d3d11::device_context_impl::copy_query_results(api::query_pool, api::query_type, uint32_t, uint32_t, api::resource, uint64_t, uint32_t)
+void reshade::d3d11::device_context_impl::copy_query_pool_results(api::query_pool, api::query_type, uint32_t, uint32_t, api::resource, uint64_t, uint32_t)
 {
 	assert(false);
 }

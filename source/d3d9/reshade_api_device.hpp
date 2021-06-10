@@ -67,11 +67,11 @@ namespace reshade::d3d9
 
 		void update_descriptor_sets(uint32_t num_updates, const api::descriptor_update *updates) final;
 
-		bool get_query_results(api::query_pool heap, uint32_t first, uint32_t count, void *results, uint32_t stride) final;
+		bool get_query_pool_results(api::query_pool heap, uint32_t first, uint32_t count, void *results, uint32_t stride) final;
 
 		void wait_idle() const final { /* no-op */ }
 
-		void set_debug_name(api::resource, const char *) final {}
+		void set_resource_name(api::resource, const char *) final {}
 
 		api::device *get_device() final { return this; }
 
@@ -118,7 +118,7 @@ namespace reshade::d3d9
 
 		void begin_query(api::query_pool pool, api::query_type type, uint32_t index) final;
 		void finish_query(api::query_pool pool, api::query_type type, uint32_t index) final;
-		void copy_query_results(api::query_pool pool, api::query_type type, uint32_t first, uint32_t count, api::resource dst, uint64_t dst_offset, uint32_t stride) final;
+		void copy_query_pool_results(api::query_pool pool, api::query_type type, uint32_t first, uint32_t count, api::resource dst, uint64_t dst_offset, uint32_t stride) final;
 
 		void begin_debug_event(const char *label, const float color[4]) final;
 		void finish_debug_event() final;

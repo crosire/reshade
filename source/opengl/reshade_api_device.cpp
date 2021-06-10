@@ -274,7 +274,7 @@ bool reshade::opengl::device_impl::check_capability(api::device_caps capability)
 	case api::device_caps::blit:
 	case api::device_caps::resolve_region:
 		return true;
-	case api::device_caps::copy_query_results:
+	case api::device_caps::copy_query_pool_results:
 		return gl3wProcs.gl.GetQueryBufferObjectui64v != nullptr; // OpenGL 4.5
 	default:
 		return false;
@@ -1100,7 +1100,7 @@ bool reshade::opengl::device_impl::create_descriptor_sets(api::descriptor_set_la
 
 void reshade::opengl::device_impl::destroy_sampler(api::sampler handle)
 {
-	assert((handle.handle >> 40) == GL_SAMPLER);
+	assert(handle.handle == 0 || (handle.handle >> 40) == GL_SAMPLER);
 
 	const GLuint object = handle.handle & 0xFFFFFFFF;
 	glDeleteSamplers(1, &object);
@@ -1502,6 +1502,7 @@ void reshade::opengl::device_impl::upload_texture_region(const api::subresource_
 
 bool reshade::opengl::device_impl::get_attachment(api::render_pass pass, api::attachment_type type, uint32_t index, api::resource_view *out) const
 {
+	assert(pass.handle != 0);
 	const GLuint fbo_object = pass.handle & 0xFFFFFFFF;
 
 	// Zero is valid too, in which case the default frame buffer is referenced, instead of a FBO
@@ -1646,7 +1647,7 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 		return convert_resource_desc(target, levels, samples, internal_format, width, height, depth);
 }
 
-bool reshade::opengl::device_impl::get_query_results(api::query_pool heap, uint32_t first, uint32_t count, void *results, uint32_t stride)
+bool reshade::opengl::device_impl::get_query_pool_results(api::query_pool heap, uint32_t first, uint32_t count, void *results, uint32_t stride)
 {
 	assert(stride >= sizeof(uint64_t));
 
@@ -1670,7 +1671,7 @@ void reshade::opengl::device_impl::wait_idle() const
 	glFinish();
 }
 
-void reshade::opengl::device_impl::set_debug_name(api::resource resource, const char *name)
+void reshade::opengl::device_impl::set_resource_name(api::resource resource, const char *name)
 {
 	GLenum id = resource.handle >> 40;
 	switch (id)

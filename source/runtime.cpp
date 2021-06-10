@@ -137,7 +137,7 @@ bool reshade::runtime::on_init(input::window_handle window)
 			goto exit_failure;
 		}
 
-		_device->set_debug_name(_backbuffer_texture, "ReShade back buffer");
+		_device->set_resource_name(_backbuffer_texture, "ReShade back buffer");
 
 		if (!_device->create_resource_view(_backbuffer_texture, api::resource_usage::shader_resource, api::resource_view_desc(api::format_to_default_typed(_backbuffer_format, 0)), &_backbuffer_texture_view[0]) ||
 			!_device->create_resource_view(_backbuffer_texture, api::resource_usage::shader_resource, api::resource_view_desc(api::format_to_default_typed(_backbuffer_format, 1)), &_backbuffer_texture_view[1]))
@@ -177,7 +177,7 @@ bool reshade::runtime::on_init(input::window_handle window)
 			goto exit_failure;
 		}
 
-		_device->set_debug_name(_effect_stencil, "ReShade stencil buffer");
+		_device->set_resource_name(_effect_stencil, "ReShade stencil buffer");
 
 		if (!_device->create_resource_view(_effect_stencil, api::resource_usage::depth_stencil, api::resource_view_desc(_effect_stencil_format), &_effect_stencil_target))
 		{
@@ -198,7 +198,7 @@ bool reshade::runtime::on_init(input::window_handle window)
 			goto exit_failure;
 		}
 
-		_device->set_debug_name(_empty_texture, "ReShade empty texture");
+		_device->set_resource_name(_empty_texture, "ReShade empty texture");
 
 		if (!_device->create_resource_view(_empty_texture, api::resource_usage::shader_resource, api::resource_view_desc(api::format::r16_float), &_empty_texture_view))
 		{
@@ -1343,7 +1343,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 			return false;
 		}
 
-		_device->set_debug_name(effect.cb, "ReShade constant buffer");
+		_device->set_resource_name(effect.cb, "ReShade constant buffer");
 
 		api::descriptor_range range;
 		range.binding = 0;
@@ -1935,7 +1935,7 @@ bool reshade::runtime::init_texture(texture &tex)
 		return false;
 	}
 
-	_device->set_debug_name(tex.resource, tex.unique_name.c_str());
+	_device->set_resource_name(tex.resource, tex.unique_name.c_str());
 
 	// Always create shader resource views
 	{
@@ -2719,7 +2719,7 @@ void reshade::runtime::render_technique(technique &tech)
 	{
 		// Evaluate queries from oldest frame in queue
 		if (uint64_t timestamps[2];
-			_device->get_query_results(effect.query_heap, tech.query_base_index + ((_framecount + 1) % 4) * 2, 2, timestamps, sizeof(uint64_t)))
+			_device->get_query_pool_results(effect.query_heap, tech.query_base_index + ((_framecount + 1) % 4) * 2, 2, timestamps, sizeof(uint64_t)))
 			tech.average_gpu_duration.append(timestamps[1] - timestamps[0]);
 
 		cmd_list->finish_query(effect.query_heap, api::query_type::timestamp, tech.query_base_index + (_framecount % 4) * 2);
@@ -3331,7 +3331,7 @@ bool reshade::runtime::take_screenshot(uint8_t *buffer)
 			return false;
 		}
 
-		_device->set_debug_name(intermediate, "ReShade screenshot buffer");
+		_device->set_resource_name(intermediate, "ReShade screenshot buffer");
 
 		api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
 		cmd_list->barrier(backbuffer, api::resource_usage::present, api::resource_usage::copy_source);
@@ -3346,7 +3346,7 @@ bool reshade::runtime::take_screenshot(uint8_t *buffer)
 			return false;
 		}
 
-		_device->set_debug_name(intermediate, "ReShade screenshot texture");
+		_device->set_resource_name(intermediate, "ReShade screenshot texture");
 
 		api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
 		cmd_list->barrier(backbuffer, api::resource_usage::present, api::resource_usage::copy_source);

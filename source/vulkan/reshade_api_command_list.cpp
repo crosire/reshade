@@ -808,7 +808,7 @@ void reshade::vulkan::command_list_impl::finish_query(api::query_pool pool, api:
 		vk.CmdEndQuery(_orig, (VkQueryPool)pool.handle, index);
 	}
 }
-void reshade::vulkan::command_list_impl::copy_query_results(api::query_pool pool, api::query_type, uint32_t first, uint32_t count, api::resource dst, uint64_t dst_offset, uint32_t stride)
+void reshade::vulkan::command_list_impl::copy_query_pool_results(api::query_pool pool, api::query_type, uint32_t first, uint32_t count, api::resource dst, uint64_t dst_offset, uint32_t stride)
 {
 	_has_commands = true;
 

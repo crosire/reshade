@@ -144,7 +144,7 @@ bool reshade::d3d12::device_impl::check_capability(api::device_caps capability) 
 	case api::device_caps::blit:
 		return false;
 	case api::device_caps::resolve_region:
-	case api::device_caps::copy_query_results:
+	case api::device_caps::copy_query_pool_results:
 		return true;
 	default:
 		return false;
@@ -1042,7 +1042,7 @@ reshade::api::resource_desc reshade::d3d12::device_impl::get_resource_desc(api::
 	return convert_resource_desc(reinterpret_cast<ID3D12Resource *>(resource.handle)->GetDesc(), heap_props);
 }
 
-bool reshade::d3d12::device_impl::get_query_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride)
+bool reshade::d3d12::device_impl::get_query_pool_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride)
 {
 	assert(stride >= sizeof(uint64_t));
 
@@ -1078,7 +1078,7 @@ void reshade::d3d12::device_impl::wait_idle() const
 		queue->wait_idle();
 }
 
-void reshade::d3d12::device_impl::set_debug_name(api::resource resource, const char *name)
+void reshade::d3d12::device_impl::set_resource_name(api::resource resource, const char *name)
 {
 	const size_t debug_name_len = strlen(name);
 	std::wstring debug_name_wide;

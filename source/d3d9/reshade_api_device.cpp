@@ -253,7 +253,7 @@ bool reshade::d3d9::device_impl::check_capability(api::device_caps capability) c
 	case api::device_caps::blit:
 	case api::device_caps::resolve_region:
 		return true;
-	case api::device_caps::copy_query_results:
+	case api::device_caps::copy_query_pool_results:
 	default:
 		return false;
 	}
@@ -1442,7 +1442,7 @@ reshade::api::resource_desc reshade::d3d9::device_impl::get_resource_desc(api::r
 	return api::resource_desc {};
 }
 
-bool reshade::d3d9::device_impl::get_query_results(api::query_pool heap, uint32_t first, uint32_t count, void *results, uint32_t stride)
+bool reshade::d3d9::device_impl::get_query_pool_results(api::query_pool heap, uint32_t first, uint32_t count, void *results, uint32_t stride)
 {
 	assert(heap.handle != 0);
 	const auto impl = reinterpret_cast<query_pool_impl *>(heap.handle);

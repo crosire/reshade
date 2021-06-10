@@ -163,7 +163,7 @@ void reshade::runtime::build_font_atlas()
 		return;
 	}
 
-	_device->set_debug_name(_font_atlas, "ImGui Font Atlas");
+	_device->set_resource_name(_font_atlas, "ImGui Font Atlas");
 }
 
 void reshade::runtime::load_config_gui(const ini_file &config)
@@ -3367,7 +3367,7 @@ void reshade::runtime::render_imgui_draw_data(ImDrawData *draw_data, api::render
 			LOG(ERROR) << "Failed to create ImGui index buffer!";
 			return;
 		}
-		_device->set_debug_name(_imgui_indices[buffer_index], "ImGui index buffer");
+		_device->set_resource_name(_imgui_indices[buffer_index], "ImGui index buffer");
 
 		_imgui_num_indices[buffer_index] = new_size;
 	}
@@ -3384,7 +3384,7 @@ void reshade::runtime::render_imgui_draw_data(ImDrawData *draw_data, api::render
 			LOG(ERROR) << "Failed to create ImGui vertex buffer!";
 			return;
 		}
-		_device->set_debug_name(_imgui_vertices[buffer_index], "ImGui vertex buffer");
+		_device->set_resource_name(_imgui_vertices[buffer_index], "ImGui vertex buffer");
 
 		_imgui_num_vertices[buffer_index] = new_size;
 	}

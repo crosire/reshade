@@ -76,11 +76,11 @@ namespace reshade::d3d11
 
 		void update_descriptor_sets(uint32_t num_updates, const api::descriptor_update *updates) final;
 
-		bool get_query_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride) final;
+		bool get_query_pool_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride) final;
 
 		void wait_idle() const final { /* no-op */ }
 
-		void set_debug_name(api::resource resource, const char *name) final;
+		void set_resource_name(api::resource resource, const char *name) final;
 
 	private:
 		ID3D11DeviceContext *_immediate_context_orig = nullptr;

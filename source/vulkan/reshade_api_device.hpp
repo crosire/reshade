@@ -109,11 +109,11 @@ namespace reshade::vulkan
 
 		void update_descriptor_sets(uint32_t num_updates, const api::descriptor_update *updates) final;
 
-		bool get_query_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride) final;
+		bool get_query_pool_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride) final;
 
 		void wait_idle() const final;
 
-		void set_debug_name(api::resource resource, const char *name) final;
+		void set_resource_name(api::resource resource, const char *name) final;
 
 		void advance_transient_descriptor_pool();
 

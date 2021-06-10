@@ -236,7 +236,7 @@ void reshade::opengl::device_impl::push_constants(api::shader_stage, api::pipeli
 		if (first != 0)
 			glBufferSubData(GL_UNIFORM_BUFFER, first * sizeof(uint32_t), count * sizeof(uint32_t), values);
 
-		set_debug_name(make_resource_handle(GL_BUFFER, _push_constants), "Push constants");
+		set_resource_name(make_resource_handle(GL_BUFFER, _push_constants), "Push constants");
 
 		_push_constants_size = count;
 	}
@@ -1063,7 +1063,7 @@ void reshade::opengl::device_impl::finish_query(api::query_pool pool, api::query
 		glEndQuery(convert_query_type(type));
 	}
 }
-void reshade::opengl::device_impl::copy_query_results(api::query_pool pool, api::query_type, uint32_t first, uint32_t count, api::resource dst, uint64_t dst_offset, uint32_t stride)
+void reshade::opengl::device_impl::copy_query_pool_results(api::query_pool pool, api::query_type, uint32_t first, uint32_t count, api::resource dst, uint64_t dst_offset, uint32_t stride)
 {
 	assert(pool.handle != 0);
 

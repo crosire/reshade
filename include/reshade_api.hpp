@@ -152,9 +152,9 @@ namespace reshade { namespace api
 		resolve_region,
 		/// <summary>
 		/// Specifies whether copying query results to a buffer is supported.
-		/// If this feature is not present, <see cref="command_list::copy_query_results"/> must not be used.
+		/// If this feature is not present, <see cref="command_list::copy_query_pool_results"/> must not be used.
 		/// </summary>
-		copy_query_results,
+		copy_query_pool_results,
 	};
 
 	/// <summary>
@@ -412,7 +412,7 @@ namespace reshade { namespace api
 		/// <param name="results">Pointer to an array that is filled with the results.</param>
 		/// <param name="stride">The size (in bytes) of each result element.</param>
 		/// <returns><c>true</c> if the query results were successfully downloaded from the GPU, <c>false</c> otherwise.</returns>
-		virtual bool get_query_results(query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride) = 0;
+		virtual bool get_query_pool_results(query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride) = 0;
 
 		/// <summary>
 		/// Waits for all issued GPU operations to finish before returning.
@@ -421,11 +421,11 @@ namespace reshade { namespace api
 		virtual void wait_idle() const = 0;
 
 		/// <summary>
-		/// Associates a name with a resource, which is used by debugging tools.
+		/// Associates a name with a resource, for easier debugging in external tools.
 		/// </summary>
-		/// <param name="resource">The resource to set the debug name for.</param>
-		/// <param name="name">A null-terminated debug name string.</param>
-		virtual void set_debug_name(resource resource, const char *name) = 0;
+		/// <param name="resource">The resource to set the name for.</param>
+		/// <param name="name">A null-terminated name string.</param>
+		virtual void set_resource_name(resource resource, const char *name) = 0;
 	};
 
 	/// <summary>
@@ -741,7 +741,7 @@ namespace reshade { namespace api
 		/// <param name="destination">The buffer to copy to.</param>
 		/// <param name="dst_offset">An offset (in bytes) into the <paramref name="destination"/> buffer to start copying to.</param>
 		/// <param name="stride">The size (in bytes) of each result element.</param>
-		virtual void copy_query_results(query_pool pool, query_type type, uint32_t first, uint32_t count, resource destination, uint64_t dst_offset, uint32_t stride) = 0;
+		virtual void copy_query_pool_results(query_pool pool, query_type type, uint32_t first, uint32_t count, resource destination, uint64_t dst_offset, uint32_t stride) = 0;
 
 		/// <summary>
 		/// Opens a debug event region in the command list.
