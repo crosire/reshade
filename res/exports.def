@@ -461,3 +461,6 @@ EXPORTS
 	WSASendTo = HookWSASendTo @99 PRIVATE
 	WSARecv = HookWSARecv @91 PRIVATE
 	WSARecvFrom = HookWSARecvFrom @93 PRIVATE
+
+	; dinput8.dll
+	DirectInput8Create PRIVATE

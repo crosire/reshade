@@ -380,6 +380,7 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="dinput8.cpp" />
     <ClCompile Include="source\addon_manager.cpp" />
     <ClCompile Include="source\addon\generic_depth.cpp" />
     <ClCompile Include="source\d2d1\d2d1.cpp" />
