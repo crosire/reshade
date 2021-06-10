@@ -210,23 +210,17 @@ bool reshade::vulkan::device_impl::is_resource_handle_valid(api::resource handle
 {
 	if (handle.handle == 0)
 		return false;
-	const resource_data data = lookup_resource(handle);
 
-	if (data.is_image())
-		return data.image == (VkImage)handle.handle;
-	else
-		return data.buffer == (VkBuffer)handle.handle;
+	const std::lock_guard<std::mutex> lock(_mutex);
+	return _resources.find(handle.handle) != _resources.end();
 }
 bool reshade::vulkan::device_impl::is_resource_view_handle_valid(api::resource_view handle) const
 {
 	if (handle.handle == 0)
 		return false;
-	const resource_view_data data = lookup_resource_view(handle);
 
-	if (data.is_image_view())
-		return data.image_view == (VkImageView)handle.handle;
-	else
-		return data.buffer_view == (VkBufferView)handle.handle;
+	const std::lock_guard<std::mutex> lock(_mutex);
+	return _views.find(handle.handle) != _views.end();
 }
 
 bool reshade::vulkan::device_impl::create_sampler(const api::sampler_desc &desc, api::sampler *out)
