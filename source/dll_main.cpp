@@ -932,14 +932,15 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		reshade::hooks::register_module(get_system_path() / L"opengl32.dll");
 		// Do not register Vulkan hooks, since Vulkan layering mechanism is used instead
 
-		// Register DirectInput hook as an alternative to load ReShade
-		reshade::hooks::register_module(get_system_path() / L"dinput8.dll");
-
 #  ifdef WIN64
 		reshade::hooks::register_module(L"vrclient_x64.dll");
 #  else
 		reshade::hooks::register_module(L"vrclient.dll");
 #  endif
+
+		// Register DirectInput module in case it was used to load ReShade (but ignore otherwise)
+		if (_wcsicmp(g_reshade_dll_path.stem().c_str(), L"dinput8") == 0)
+			reshade::hooks::register_module(get_system_path() / L"dinput8.dll");
 
 		// user32.dll will always be loaded at this point, so can safely initialize trampoline pointers
 		extern void init_message_queue_trampolines();
