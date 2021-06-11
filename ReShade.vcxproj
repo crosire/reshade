@@ -380,7 +380,6 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="dinput8.cpp" />
     <ClCompile Include="source\addon_manager.cpp" />
     <ClCompile Include="source\addon\generic_depth.cpp" />
     <ClCompile Include="source\d2d1\d2d1.cpp" />
@@ -464,6 +463,7 @@
     <ClCompile Include="source\vulkan\vulkan_hooks_cmd.cpp" />
     <ClCompile Include="source\vulkan\vulkan_hooks_device.cpp" />
     <ClCompile Include="source\vulkan\vulkan_hooks_instance.cpp" />
+    <ClCompile Include="source\windows\dinput8.cpp" />
     <ClCompile Include="source\windows\user32.cpp" />
     <ClCompile Include="source\windows\ws2_32.cpp" />
   </ItemGroup>

@@ -79,9 +79,6 @@
     <Filter Include="resources\shaders">
       <UniqueIdentifier>{9232c43b-559d-4435-b309-c8bbf4e6477b}</UniqueIdentifier>
     </Filter>
-    <Filter Include="hooks\dinput8">
-      <UniqueIdentifier>{8e92326a-f04b-435a-adf3-3ef057e783c8}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="source\dll_log.cpp">
@@ -327,14 +324,14 @@
     <ClCompile Include="source\vulkan\reshade_api_type_convert.cpp">
       <Filter>hooks\vulkan\impl</Filter>
     </ClCompile>
+    <ClCompile Include="source\windows\dinput8.cpp">
+      <Filter>hooks\windows</Filter>
+    </ClCompile>
     <ClCompile Include="source\windows\user32.cpp">
       <Filter>hooks\windows</Filter>
     </ClCompile>
     <ClCompile Include="source\windows\ws2_32.cpp">
       <Filter>hooks\windows</Filter>
-    </ClCompile>
-    <ClCompile Include="dinput8.cpp">
-      <Filter>hooks\dinput8</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

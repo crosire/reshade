@@ -922,9 +922,6 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		reshade::hooks::register_module(get_system_path() / L"d3d10_1.dll");
 		reshade::hooks::register_module(get_system_path() / L"d3d11.dll");
 
-		//register direct input as alternative to load reshade with and load the original dll later
-		reshade::hooks::register_module(get_system_path() / L"dinput8.dll");
-
 		// On Windows 7 the d3d12on7 module is not in the system path, so register to hook any d3d12.dll loaded instead
 		if (is_windows7() && _wcsicmp(g_reshade_dll_path.stem().c_str(), L"d3d12") != 0)
 			reshade::hooks::register_module(L"d3d12.dll");
@@ -934,6 +931,9 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		reshade::hooks::register_module(get_system_path() / L"dxgi.dll");
 		reshade::hooks::register_module(get_system_path() / L"opengl32.dll");
 		// Do not register Vulkan hooks, since Vulkan layering mechanism is used instead
+
+		// Register DirectInput hook as an alternative to load ReShade
+		reshade::hooks::register_module(get_system_path() / L"dinput8.dll");
 
 #  ifdef WIN64
 		reshade::hooks::register_module(L"vrclient_x64.dll");
