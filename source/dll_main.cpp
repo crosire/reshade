@@ -932,6 +932,9 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		reshade::hooks::register_module(get_system_path() / L"opengl32.dll");
 		// Do not register Vulkan hooks, since Vulkan layering mechanism is used instead
 
+		// Register DirectInput hook as an alternative to load ReShade
+		reshade::hooks::register_module(get_system_path() / L"dinput8.dll");
+
 #  ifdef WIN64
 		reshade::hooks::register_module(L"vrclient_x64.dll");
 #  else

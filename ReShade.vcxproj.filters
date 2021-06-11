@@ -324,6 +324,9 @@
     <ClCompile Include="source\vulkan\reshade_api_type_convert.cpp">
       <Filter>hooks\vulkan\impl</Filter>
     </ClCompile>
+    <ClCompile Include="source\windows\dinput8.cpp">
+      <Filter>hooks\windows</Filter>
+    </ClCompile>
     <ClCompile Include="source\windows\user32.cpp">
       <Filter>hooks\windows</Filter>
     </ClCompile>
