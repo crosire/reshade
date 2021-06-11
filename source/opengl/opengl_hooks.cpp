@@ -1215,7 +1215,7 @@ HOOK_EXPORT void WINAPI glDisableClientState(GLenum array)
 	if (0 != indirect_buffer_binding)
 	{
 		if (g_current_context &&
-			reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(g_current_context, 3, reshade::opengl::make_resource_handle(GL_DISPATCH_INDIRECT_BUFFER, indirect_buffer_binding), indirect, 1, 0))
+			reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(g_current_context, reshade::api::indirect_command::dispatch, reshade::opengl::make_resource_handle(GL_DISPATCH_INDIRECT_BUFFER, indirect_buffer_binding), indirect, 1, 0))
 			return;
 	}
 	else
@@ -1249,7 +1249,7 @@ HOOK_EXPORT void WINAPI glDrawArrays(GLenum mode, GLint first, GLsizei count)
 	if (0 != indirect_buffer_binding)
 	{
 		if (g_current_context &&
-			reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(g_current_context, 1, reshade::opengl::make_resource_handle(GL_DRAW_INDIRECT_BUFFER, indirect_buffer_binding), reinterpret_cast<uintptr_t>(indirect), 1, 0))
+			reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(g_current_context, reshade::api::indirect_command::draw, reshade::opengl::make_resource_handle(GL_DRAW_INDIRECT_BUFFER, indirect_buffer_binding), reinterpret_cast<uintptr_t>(indirect), 1, 0))
 			return;
 	}
 	else
@@ -1362,7 +1362,7 @@ HOOK_EXPORT void WINAPI glDrawElements(GLenum mode, GLsizei count, GLenum type, 
 			g_current_context->_current_prim_mode = mode;
 			g_current_context->_current_index_type = type;
 
-			if (reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(g_current_context, 2, reshade::opengl::make_resource_handle(GL_DRAW_INDIRECT_BUFFER, indirect_buffer_binding), reinterpret_cast<uintptr_t>(indirect), 1, 0))
+			if (reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(g_current_context, reshade::api::indirect_command::draw_indexed, reshade::opengl::make_resource_handle(GL_DRAW_INDIRECT_BUFFER, indirect_buffer_binding), reinterpret_cast<uintptr_t>(indirect), 1, 0))
 				return;
 		}
 	}
@@ -2244,7 +2244,7 @@ HOOK_EXPORT void WINAPI glMultMatrixf(const GLfloat *m)
 	if (0 != indirect_buffer_binding)
 	{
 		if (g_current_context &&
-			reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(g_current_context, 1, reshade::opengl::make_resource_handle(GL_DRAW_INDIRECT_BUFFER, indirect_buffer_binding), reinterpret_cast<uintptr_t>(indirect), drawcount, stride))
+			reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(g_current_context, reshade::api::indirect_command::draw, reshade::opengl::make_resource_handle(GL_DRAW_INDIRECT_BUFFER, indirect_buffer_binding), reinterpret_cast<uintptr_t>(indirect), drawcount, stride))
 			return;
 	}
 	else
@@ -2300,7 +2300,7 @@ HOOK_EXPORT void WINAPI glMultMatrixf(const GLfloat *m)
 			g_current_context->_current_prim_mode = mode;
 			g_current_context->_current_index_type = type;
 
-			if (reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(g_current_context, 2, reshade::opengl::make_resource_handle(GL_DRAW_INDIRECT_BUFFER, indirect_buffer_binding), reinterpret_cast<uintptr_t>(indirect), drawcount, stride))
+			if (reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(g_current_context, reshade::api::indirect_command::draw_indexed, reshade::opengl::make_resource_handle(GL_DRAW_INDIRECT_BUFFER, indirect_buffer_binding), reinterpret_cast<uintptr_t>(indirect), drawcount, stride))
 				return;
 		}
 	}

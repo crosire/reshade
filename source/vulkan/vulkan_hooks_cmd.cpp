@@ -262,7 +262,7 @@ void     VKAPI_CALL vkCmdDrawIndirect(VkCommandBuffer commandBuffer, VkBuffer bu
 	if (reshade::vulkan::command_list_impl *const cmd_impl = g_vulkan_command_buffers.at(commandBuffer); cmd_impl != nullptr)
 	{
 		if (reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(
-			cmd_impl, 1, reshade::api::resource { (uint64_t)buffer }, offset, drawCount, stride))
+			cmd_impl, reshade::api::indirect_command::draw, reshade::api::resource { (uint64_t)buffer }, offset, drawCount, stride))
 			return;
 	}
 #endif
@@ -276,7 +276,7 @@ void     VKAPI_CALL vkCmdDrawIndexedIndirect(VkCommandBuffer commandBuffer, VkBu
 	if (reshade::vulkan::command_list_impl *const cmd_impl = g_vulkan_command_buffers.at(commandBuffer); cmd_impl != nullptr)
 	{
 		if (reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(
-			cmd_impl, 2, reshade::api::resource { (uint64_t)buffer }, offset, drawCount, stride))
+			cmd_impl, reshade::api::indirect_command::draw_indexed, reshade::api::resource { (uint64_t)buffer }, offset, drawCount, stride))
 			return;
 	}
 #endif
@@ -304,7 +304,7 @@ void     VKAPI_CALL vkCmdDispatchIndirect(VkCommandBuffer commandBuffer, VkBuffe
 	if (reshade::vulkan::command_list_impl *const cmd_impl = g_vulkan_command_buffers.at(commandBuffer); cmd_impl != nullptr)
 	{
 		if (reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(
-			cmd_impl, 3, reshade::api::resource { (uint64_t)buffer }, offset, 1, 0))
+			cmd_impl, reshade::api::indirect_command::dispatch, reshade::api::resource { (uint64_t)buffer }, offset, 1, 0))
 			return;
 	}
 #endif

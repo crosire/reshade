@@ -339,19 +339,19 @@ void reshade::vulkan::command_list_impl::dispatch(uint32_t num_groups_x, uint32_
 
 	vk.CmdDispatch(_orig, num_groups_x, num_groups_y, num_groups_z);
 }
-void reshade::vulkan::command_list_impl::draw_or_dispatch_indirect(uint32_t type, api::resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride)
+void reshade::vulkan::command_list_impl::draw_or_dispatch_indirect(api::indirect_command type, api::resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride)
 {
 	_has_commands = true;
 
 	switch (type)
 	{
-	case 1:
+	case api::indirect_command::draw:
 		vk.CmdDrawIndirect(_orig, (VkBuffer)buffer.handle, offset, draw_count, stride);
 		break;
-	case 2:
+	case api::indirect_command::draw_indexed:
 		vk.CmdDrawIndexedIndirect(_orig, (VkBuffer)buffer.handle, offset, draw_count, stride);
 		break;
-	case 3:
+	case api::indirect_command::dispatch:
 		for (uint32_t i = 0; i < draw_count; ++i)
 			vk.CmdDispatchIndirect(_orig, (VkBuffer)buffer.handle, offset + i * stride);
 		break;

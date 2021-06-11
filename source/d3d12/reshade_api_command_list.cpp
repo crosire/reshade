@@ -352,7 +352,7 @@ void reshade::d3d12::command_list_impl::dispatch(uint32_t num_groups_x, uint32_t
 
 	_orig->Dispatch(num_groups_x, num_groups_y, num_groups_z);
 }
-void reshade::d3d12::command_list_impl::draw_or_dispatch_indirect(uint32_t, api::resource, uint64_t, uint32_t, uint32_t)
+void reshade::d3d12::command_list_impl::draw_or_dispatch_indirect(api::indirect_command, api::resource, uint64_t, uint32_t, uint32_t)
 {
 	assert(false);
 }

@@ -228,7 +228,7 @@ void reshade::d3d9::device_impl::dispatch(uint32_t, uint32_t, uint32_t)
 {
 	assert(false);
 }
-void reshade::d3d9::device_impl::draw_or_dispatch_indirect(uint32_t, api::resource, uint64_t, uint32_t, uint32_t)
+void reshade::d3d9::device_impl::draw_or_dispatch_indirect(api::indirect_command, api::resource, uint64_t, uint32_t, uint32_t)
 {
 	assert(false);
 }

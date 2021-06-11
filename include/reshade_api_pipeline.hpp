@@ -387,6 +387,17 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
+	/// The available indirect command types.
+	/// </summary>
+	enum class indirect_command
+	{
+		unknown,
+		draw,
+		draw_indexed,
+		dispatch
+	};
+
+	/// <summary>
 	/// Specifies a range of constants in a pipeline layout.
 	/// </summary>
 	struct constant_range

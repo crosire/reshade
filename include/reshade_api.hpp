@@ -588,12 +588,12 @@ namespace reshade { namespace api
 		/// Executes indirect draw or dispatch commands.
 		/// This is not supported (and will do nothing) in D3D9 and D3D10.
 		/// </summary>
-		/// <param name="type">Specifies whether this is an indirect draw, indexed draw or dispatch command: <c>1</c> for draw commands, <c>2</c> for indexed draw commands and <c>3</c> for dispatch commands</param>
+		/// <param name="type">Specifies whether this is an indirect draw, indexed draw or dispatch command.</param>
 		/// <param name="buffer">The buffer that contains command arguments.</param>
 		/// <param name="offset">Offset (in bytes) from the start of the argument buffer to the first argument to use.</param>
 		/// <param name="draw_count">The number of commands to execute.</param>
 		/// <param name="stride">The stride between commands in the argument buffer.</param>
-		virtual void draw_or_dispatch_indirect(uint32_t type, resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride) = 0;
+		virtual void draw_or_dispatch_indirect(indirect_command type, resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride) = 0;
 
 		/// <summary>
 		/// Copies the entire contents of the <paramref name="source"/> resource to the <paramref name="destination"/> resource. Dimensions of the two resources need to match.

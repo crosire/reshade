@@ -498,7 +498,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::DrawAuto()
 void    STDMETHODCALLTYPE D3D11DeviceContext::DrawIndexedInstancedIndirect(ID3D11Buffer *pBufferForArgs, UINT AlignedByteOffsetForArgs)
 {
 #if RESHADE_ADDON
-	if (reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(this, 2, reshade::api::resource { reinterpret_cast<uintptr_t>(pBufferForArgs) }, AlignedByteOffsetForArgs, 1, 0))
+	if (reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(this, reshade::api::indirect_command::draw_indexed, reshade::api::resource { reinterpret_cast<uintptr_t>(pBufferForArgs) }, AlignedByteOffsetForArgs, 1, 0))
 		return;
 #endif
 	_orig->DrawIndexedInstancedIndirect(pBufferForArgs, AlignedByteOffsetForArgs);
@@ -506,7 +506,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::DrawIndexedInstancedIndirect(ID3D1
 void    STDMETHODCALLTYPE D3D11DeviceContext::DrawInstancedIndirect(ID3D11Buffer *pBufferForArgs, UINT AlignedByteOffsetForArgs)
 {
 #if RESHADE_ADDON
-	if (reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(this, 1, reshade::api::resource { reinterpret_cast<uintptr_t>(pBufferForArgs) }, AlignedByteOffsetForArgs, 1, 0))
+	if (reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(this, reshade::api::indirect_command::draw, reshade::api::resource { reinterpret_cast<uintptr_t>(pBufferForArgs) }, AlignedByteOffsetForArgs, 1, 0))
 		return;
 #endif
 	_orig->DrawInstancedIndirect(pBufferForArgs, AlignedByteOffsetForArgs);
@@ -522,7 +522,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::Dispatch(UINT ThreadGroupCountX, U
 void    STDMETHODCALLTYPE D3D11DeviceContext::DispatchIndirect(ID3D11Buffer *pBufferForArgs, UINT AlignedByteOffsetForArgs)
 {
 #if RESHADE_ADDON
-	if (reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(this, 3, reshade::api::resource { reinterpret_cast<uintptr_t>(pBufferForArgs) }, AlignedByteOffsetForArgs, 1, 0))
+	if (reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(this, reshade::api::indirect_command::dispatch, reshade::api::resource { reinterpret_cast<uintptr_t>(pBufferForArgs) }, AlignedByteOffsetForArgs, 1, 0))
 		return;
 #endif
 	_orig->DispatchIndirect(pBufferForArgs, AlignedByteOffsetForArgs);

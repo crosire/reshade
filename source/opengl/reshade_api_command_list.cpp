@@ -380,19 +380,19 @@ void reshade::opengl::device_impl::dispatch(uint32_t num_groups_x, uint32_t num_
 {
 	glDispatchCompute(num_groups_x, num_groups_y, num_groups_z);
 }
-void reshade::opengl::device_impl::draw_or_dispatch_indirect(uint32_t type, api::resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride)
+void reshade::opengl::device_impl::draw_or_dispatch_indirect(api::indirect_command type, api::resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride)
 {
 	switch (type)
 	{
-	case 1:
+	case api::indirect_command::draw:
 		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, buffer.handle & 0xFFFFFFFF);
 		glMultiDrawArraysIndirect(_current_prim_mode, reinterpret_cast<const void *>(static_cast<uintptr_t>(offset)), static_cast<GLsizei>(draw_count), static_cast<GLsizei>(stride));
 		break;
-	case 2:
+	case api::indirect_command::draw_indexed:
 		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, buffer.handle & 0xFFFFFFFF);
 		glMultiDrawElementsIndirect(_current_prim_mode, _current_index_type, reinterpret_cast<const void *>(static_cast<uintptr_t>(offset)), static_cast<GLsizei>(draw_count), static_cast<GLsizei>(stride));
 		break;
-	case 3:
+	case api::indirect_command::dispatch:
 		glBindBuffer(GL_DISPATCH_INDIRECT_BUFFER, buffer.handle & 0xFFFFFFFF);
 		for (GLuint i = 0; i < draw_count; ++i)
 		{

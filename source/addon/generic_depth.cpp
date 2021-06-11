@@ -342,9 +342,9 @@ static bool on_draw_indexed(command_list *cmd_list, uint32_t indices, uint32_t i
 
 	return false;
 }
-static bool on_draw_indirect(command_list *cmd_list, uint32_t type, resource, uint64_t, uint32_t draw_count, uint32_t)
+static bool on_draw_indirect(command_list *cmd_list, indirect_command type, resource, uint64_t, uint32_t draw_count, uint32_t)
 {
-	if (type != 3)
+	if (type != indirect_command::dispatch)
 	{
 		for (uint32_t i = 0; i < draw_count; ++i)
 			on_draw(cmd_list, 0, 0, 0, 0);

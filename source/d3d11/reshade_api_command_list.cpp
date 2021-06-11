@@ -421,21 +421,21 @@ void reshade::d3d11::device_context_impl::dispatch(uint32_t num_groups_x, uint32
 {
 	_orig->Dispatch(num_groups_x, num_groups_y, num_groups_z);
 }
-void reshade::d3d11::device_context_impl::draw_or_dispatch_indirect(uint32_t type, api::resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride)
+void reshade::d3d11::device_context_impl::draw_or_dispatch_indirect(api::indirect_command type, api::resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride)
 {
 	assert(offset <= std::numeric_limits<UINT>::max());
 
 	switch (type)
 	{
-	case 1:
+	case api::indirect_command::draw:
 		for (UINT i = 0; i < draw_count; ++i)
 			_orig->DrawInstancedIndirect(reinterpret_cast<ID3D11Buffer *>(buffer.handle), static_cast<UINT>(offset + i * stride));
 		break;
-	case 2:
+	case api::indirect_command::draw_indexed:
 		for (UINT i = 0; i < draw_count; ++i)
 			_orig->DrawIndexedInstancedIndirect(reinterpret_cast<ID3D11Buffer *>(buffer.handle), static_cast<UINT>(offset + i * stride));
 		break;
-	case 3:
+	case api::indirect_command::dispatch:
 		for (UINT i = 0; i < draw_count; ++i)
 			_orig->DispatchIndirect(reinterpret_cast<ID3D11Buffer *>(buffer.handle), static_cast<UINT>(offset + i * stride));
 		break;

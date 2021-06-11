@@ -902,6 +902,48 @@ void     VKAPI_CALL vkDestroySampler(VkDevice device, VkSampler sampler, const V
 	trampoline(device, sampler, pAllocator);
 }
 
+VkResult VKAPI_CALL vkCreateFramebuffer(VkDevice device, const VkFramebufferCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkFramebuffer *pFramebuffer)
+{
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
+	GET_DISPATCH_PTR_FROM(CreateFramebuffer, device_impl);
+
+	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pFramebuffer);
+	if (result != VK_SUCCESS)
+	{
+		LOG(WARN) << "vkCreateFramebuffer" << " failed with error code " << result << '.';
+		return result;
+	}
+
+#if RESHADE_ADDON
+	const auto render_pass_info = device_impl->lookup_render_pass(pCreateInfo->renderPass);
+
+	// Keep track of the frame buffer attachments
+	reshade::vulkan::framebuffer_data data;
+	data.attachments.resize(pCreateInfo->attachmentCount);
+	data.attachment_types.resize(pCreateInfo->attachmentCount);
+	for (uint32_t i = 0; i < pCreateInfo->attachmentCount; ++i)
+	{
+		data.attachments[i] = { (uint64_t)pCreateInfo->pAttachments[i] };
+		data.attachment_types[i] = render_pass_info.attachments[i].format_flags;
+	}
+
+	device_impl->register_framebuffer(*pFramebuffer, std::move(data));
+#endif
+
+	return VK_SUCCESS;
+}
+void     VKAPI_CALL vkDestroyFramebuffer(VkDevice device, VkFramebuffer framebuffer, const VkAllocationCallbacks *pAllocator)
+{
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
+	GET_DISPATCH_PTR_FROM(DestroyFramebuffer, device_impl);
+
+#if RESHADE_ADDON
+	device_impl->unregister_framebuffer(framebuffer);
+#endif
+
+	trampoline(device, framebuffer, pAllocator);
+}
+
 VkResult VKAPI_CALL vkCreateRenderPass(VkDevice device, const VkRenderPassCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkRenderPass *pRenderPass)
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
@@ -986,48 +1028,6 @@ void     VKAPI_CALL vkDestroyRenderPass(VkDevice device, VkRenderPass renderPass
 #endif
 
 	trampoline(device, renderPass, pAllocator);
-}
-
-VkResult VKAPI_CALL vkCreateFramebuffer(VkDevice device, const VkFramebufferCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkFramebuffer *pFramebuffer)
-{
-	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
-	GET_DISPATCH_PTR_FROM(CreateFramebuffer, device_impl);
-
-	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pFramebuffer);
-	if (result != VK_SUCCESS)
-	{
-		LOG(WARN) << "vkCreateFramebuffer" << " failed with error code " << result << '.';
-		return result;
-	}
-
-#if RESHADE_ADDON
-	const auto render_pass_info = device_impl->lookup_render_pass(pCreateInfo->renderPass);
-
-	// Keep track of the frame buffer attachments
-	reshade::vulkan::framebuffer_data data;
-	data.attachments.resize(pCreateInfo->attachmentCount);
-	data.attachment_types.resize(pCreateInfo->attachmentCount);
-	for (uint32_t i = 0; i < pCreateInfo->attachmentCount; ++i)
-	{
-		data.attachments[i] = { (uint64_t)pCreateInfo->pAttachments[i] };
-		data.attachment_types[i] = render_pass_info.attachments[i].format_flags;
-	}
-
-	device_impl->register_framebuffer(*pFramebuffer, std::move(data));
-#endif
-
-	return VK_SUCCESS;
-}
-void     VKAPI_CALL vkDestroyFramebuffer(VkDevice device, VkFramebuffer framebuffer, const VkAllocationCallbacks *pAllocator)
-{
-	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
-	GET_DISPATCH_PTR_FROM(DestroyFramebuffer, device_impl);
-
-#if RESHADE_ADDON
-	device_impl->unregister_framebuffer(framebuffer);
-#endif
-
-	trampoline(device, framebuffer, pAllocator);
 }
 
 VkResult VKAPI_CALL vkAllocateCommandBuffers(VkDevice device, const VkCommandBufferAllocateInfo *pAllocateInfo, VkCommandBuffer *pCommandBuffers)
