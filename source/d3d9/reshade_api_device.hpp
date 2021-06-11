@@ -14,6 +14,8 @@ namespace reshade::d3d9
 {
 	class device_impl : public api::api_object_impl<IDirect3DDevice9 *, api::device, api::command_queue, api::command_list>
 	{
+		friend class swapchain_impl;
+
 	public:
 		explicit device_impl(IDirect3DDevice9 *device);
 		~device_impl();
@@ -56,6 +58,8 @@ namespace reshade::d3d9
 		void destroy_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, const api::descriptor_set *sets) final;
 
 		bool get_attachment(api::render_pass pass, api::attachment_type type, uint32_t index, api::resource_view *out) const final;
+		uint32_t get_attachment_count(api::render_pass pass, api::attachment_type type) const final;
+
 		void get_resource_from_view(api::resource_view view, api::resource *out) const final;
 		api::resource_desc get_resource_desc(api::resource resource) const final;
 

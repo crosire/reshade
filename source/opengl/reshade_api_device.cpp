@@ -1571,6 +1571,15 @@ bool reshade::opengl::device_impl::get_attachment(api::render_pass pass, api::at
 		return false;
 	}
 }
+uint32_t reshade::opengl::device_impl::get_attachment_count(api::render_pass pass, api::attachment_type type) const
+{
+	assert(pass.handle != 0);
+
+	if (type == api::attachment_type::color)
+		return pass.handle >> 40;
+	else
+		return 1;
+}
 
 void reshade::opengl::device_impl::get_resource_from_view(api::resource_view view, api::resource *out) const
 {

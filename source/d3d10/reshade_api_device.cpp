@@ -831,6 +831,16 @@ bool reshade::d3d10::device_impl::get_attachment(api::render_pass pass, api::att
 		}
 	}
 }
+uint32_t reshade::d3d10::device_impl::get_attachment_count(api::render_pass pass, api::attachment_type type) const
+{
+	assert(pass.handle != 0);
+	const auto pass_impl = reinterpret_cast<const render_pass_impl *>(pass.handle);
+
+	if (type == api::attachment_type::color)
+		return pass_impl->count;
+	else
+		return pass_impl->dsv != nullptr ? 1 : 0;
+}
 
 void reshade::d3d10::device_impl::get_resource_from_view(api::resource_view view, api::resource *out) const
 {

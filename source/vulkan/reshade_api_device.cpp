@@ -1267,6 +1267,21 @@ bool reshade::vulkan::device_impl::get_attachment(api::render_pass pass, api::at
 	*out = { 0 };
 	return false;
 }
+uint32_t reshade::vulkan::device_impl::get_attachment_count(api::render_pass pass, api::attachment_type type) const
+{
+	assert(pass.handle != 0);
+	const auto pass_impl = reinterpret_cast<const render_pass_impl *>(pass.handle);
+
+	std::lock_guard<std::mutex> lock(_mutex);
+	const auto &pass_info = _render_pass_list.at(pass_impl->render_pass);
+
+	uint32_t count = 0;
+	for (uint32_t i = 0; i < pass_info.attachments.size(); ++i)
+		if (pass_info.attachments[i].format_flags & static_cast<VkImageAspectFlags>(type))
+			count++;
+
+	return count;
+}
 
 void reshade::vulkan::device_impl::get_resource_from_view(api::resource_view view, api::resource *out) const
 {

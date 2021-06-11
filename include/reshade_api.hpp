@@ -354,6 +354,11 @@ namespace reshade { namespace api
 		/// </summary>
 		virtual bool get_attachment(render_pass pass, attachment_type type, uint32_t index, resource_view *attachment) const = 0;
 		/// <summary>
+		/// Gets the number of attachments of the specified <paramref name="type"/> in the render pass.
+		/// </summary>
+		virtual uint32_t get_attachment_count(render_pass pass, attachment_type type) const = 0;
+
+		/// <summary>
 		/// Gets the handle to the underlying resource the specified resource <paramref name="view"/> was created for.
 		/// </summary>
 		virtual void get_resource_from_view(resource_view view, resource *resource) const = 0;
