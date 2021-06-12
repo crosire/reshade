@@ -1098,8 +1098,8 @@ void reshade::vulkan::device_impl::update_descriptor_sets(uint32_t num_writes, c
 
 			assert(info.descriptor.resource.handle != 0);
 			buffer_info[i].buffer = (VkBuffer)info.descriptor.resource.handle;
-			buffer_info[i].offset = 0;
-			buffer_info[i].range = VK_WHOLE_SIZE;
+			buffer_info[i].offset = info.descriptor.offset;
+			buffer_info[i].range = info.descriptor.size;
 		}
 		else
 		{

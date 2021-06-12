@@ -105,6 +105,12 @@ namespace reshade
 		upload_texture_region,
 
 		/// <summary>
+		/// Called before 'ID3D12Device::Create(...)View', 'ID3D12Device::CopyDescriptors(Simple)' or 'vkUpdateDescriptorSets'.
+		/// <para>Callback function signature: <c>bool (api::device *device, uint32_t num_writes, const api::descriptor_set_write *writes, uint32_t num_copies, const api::descriptor_set_copy *copies)</c></para>
+		/// </summary>
+		update_descriptor_sets,
+
+		/// <summary>
 		/// Called after 'ID3D12GraphicsCommandList::ResourceBarrier' or 'vkCmdPipelineBarrier'.
 		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, uint32_t num_resources, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states)</c></para>
 		/// </summary>
@@ -395,6 +401,8 @@ namespace reshade
 
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::upload_buffer_region, api::device *device, const void *data, api::resource dst, uint64_t dst_offset, uint64_t size);
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::upload_texture_region, api::device *device, const api::subresource_data &data, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6]);
+
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::update_descriptor_sets, api::device *device, uint32_t num_writes, const api::descriptor_set_write *writes, uint32_t num_copies, const api::descriptor_set_copy *copies);
 
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::barrier, api::command_list *cmd_list, uint32_t num_resources, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states);
 

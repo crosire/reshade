@@ -678,6 +678,7 @@ void reshade::d3d10::device_impl::update_descriptor_sets(uint32_t num_writes, co
 			break;
 		case api::descriptor_type::constant_buffer:
 			assert(info.descriptor.resource.handle != 0);
+			assert(info.descriptor.offset == 0);
 			set_impl->descriptors[info.binding] = info.descriptor.resource.handle;
 			break;
 		}

@@ -902,6 +902,64 @@ void     VKAPI_CALL vkDestroySampler(VkDevice device, VkSampler sampler, const V
 	trampoline(device, sampler, pAllocator);
 }
 
+void     VKAPI_CALL vkUpdateDescriptorSets(VkDevice device, uint32_t descriptorWriteCount, const VkWriteDescriptorSet *pDescriptorWrites, uint32_t descriptorCopyCount, const VkCopyDescriptorSet *pDescriptorCopies)
+{
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
+	GET_DISPATCH_PTR_FROM(UpdateDescriptorSets, device_impl);
+
+#if RESHADE_ADDON
+	std::vector<reshade::api::descriptor_set_copy> copies(descriptorCopyCount);
+	std::vector<reshade::api::descriptor_set_write> writes(descriptorWriteCount);
+
+	for (uint32_t i = 0; i < descriptorWriteCount; ++i)
+	{
+		const VkWriteDescriptorSet &write = pDescriptorWrites[i];
+
+		writes[i].set = { (uint64_t)write.dstSet };
+		writes[i].binding = write.dstBinding;
+		writes[i].array_offset = write.dstArrayElement;
+		// TODO: writes[i].count = write.descriptorCount;
+		writes[i].type = static_cast<reshade::api::descriptor_type>(write.descriptorType);
+
+		switch (write.descriptorType)
+		{
+		case VK_DESCRIPTOR_TYPE_SAMPLER:
+			writes[i].descriptor.sampler = { (uint64_t)write.pImageInfo[0].sampler };
+			break;
+		case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+			writes[i].descriptor.view = { (uint64_t)write.pImageInfo[0].imageView };
+			writes[i].descriptor.sampler = { (uint64_t)write.pImageInfo[0].sampler };
+			break;
+		case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+		case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
+			writes[i].descriptor.view = { (uint64_t)write.pImageInfo[0].imageView };
+			break;
+		case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+			writes[i].descriptor.resource = { (uint64_t)write.pBufferInfo[0].buffer };
+			break;
+		}
+	}
+	for (uint32_t i = 0; i < descriptorCopyCount; ++i)
+	{
+		const VkCopyDescriptorSet &copy = pDescriptorCopies[i];
+
+		copies[i].src_set = { (uint64_t)copy.srcSet };
+		copies[i].src_binding = copy.srcBinding;
+		copies[i].src_array_offset = copy.srcArrayElement;
+		copies[i].dst_set = { (uint64_t)copy.dstSet };
+		copies[i].dst_binding = copy.dstBinding;
+		copies[i].dst_array_offset = copy.dstArrayElement;
+		copies[i].count = copy.descriptorCount;
+		// TODO: copies[i].type = reshade::api::descriptor_type::constant_buffer;
+	}
+
+	if (reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(device_impl, descriptorWriteCount, writes.data(), descriptorCopyCount, copies.data()))
+		return;
+#endif
+
+	trampoline(device, descriptorWriteCount, pDescriptorWrites, descriptorCopyCount, pDescriptorCopies);
+}
+
 VkResult VKAPI_CALL vkCreateFramebuffer(VkDevice device, const VkFramebufferCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkFramebuffer *pFramebuffer)
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));

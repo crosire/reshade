@@ -931,6 +931,8 @@ namespace reshade { namespace api
 			sampler sampler;
 			resource_view view;
 			resource resource;
+			uint64_t offset;
+			uint64_t size;
 		} descriptor;
 	};
 

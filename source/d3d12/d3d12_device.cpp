@@ -236,6 +236,21 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateRootSignature(UINT nodeMask, const 
 }
 void    STDMETHODCALLTYPE D3D12Device::CreateConstantBufferView(const D3D12_CONSTANT_BUFFER_VIEW_DESC *pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
 {
+#if RESHADE_ADDON
+	assert(pDesc != nullptr);
+
+	reshade::api::descriptor_set_write write;
+	write.set = { DestDescriptor.ptr };
+	write.binding = 0;
+	write.array_offset = 0;
+	write.type = reshade::api::descriptor_type::constant_buffer;
+	write.descriptor.size = pDesc->SizeInBytes;
+
+	resolve_gpu_address(pDesc->BufferLocation, &write.descriptor.resource, &write.descriptor.offset);
+
+	reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(this, 1, &write, 0, nullptr);
+#endif
+
 	_orig->CreateConstantBufferView(pDesc, DestDescriptor);
 }
 void    STDMETHODCALLTYPE D3D12Device::CreateShaderResourceView(ID3D12Resource *pResource, const D3D12_SHADER_RESOURCE_VIEW_DESC *pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
@@ -257,6 +272,15 @@ void    STDMETHODCALLTYPE D3D12Device::CreateShaderResourceView(ID3D12Resource *
 				register_resource_view(reinterpret_cast<ID3D12Resource *>(resource.handle), DestDescriptor);
 				return true;
 			}, this, reshade::api::resource { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_usage::shader_resource, reshade::d3d12::convert_resource_view_desc(new_desc));
+
+		reshade::api::descriptor_set_write write;
+		write.set = { DestDescriptor.ptr };
+		write.binding = 0;
+		write.array_offset = 0;
+		write.type = reshade::api::descriptor_type::shader_resource_view;
+		write.descriptor.view.handle = DestDescriptor.ptr;
+
+		reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(this, 1, &write, 0, nullptr);
 	}
 	else
 #endif
@@ -282,6 +306,15 @@ void    STDMETHODCALLTYPE D3D12Device::CreateUnorderedAccessView(ID3D12Resource 
 				register_resource_view(reinterpret_cast<ID3D12Resource *>(resource.handle), DestDescriptor);
 				return true;
 			}, this, reshade::api::resource { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_usage::unordered_access, reshade::d3d12::convert_resource_view_desc(new_desc));
+
+		reshade::api::descriptor_set_write write;
+		write.set = { DestDescriptor.ptr };
+		write.binding = 0;
+		write.array_offset = 0;
+		write.type = reshade::api::descriptor_type::unordered_access_view;
+		write.descriptor.view.handle = DestDescriptor.ptr;
+
+		reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(this, 1, &write, 0, nullptr);
 	}
 	else
 #endif
@@ -351,16 +384,79 @@ void    STDMETHODCALLTYPE D3D12Device::CreateSampler(const D3D12_SAMPLER_DESC *p
 			_orig->CreateSampler(&new_desc, DestDescriptor);
 			return true;
 		}, this, reshade::d3d12::convert_sampler_desc(new_desc));
+
+	reshade::api::descriptor_set_write write;
+	write.set = { DestDescriptor.ptr };
+	write.binding = 0;
+	write.array_offset = 0;
+	write.type = reshade::api::descriptor_type::sampler;
+	write.descriptor.sampler.handle = DestDescriptor.ptr;
+
+	reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(this, 1, &write, 0, nullptr);
 #else
 	_orig->CreateSampler(pDesc, DestDescriptor);
 #endif
 }
 void    STDMETHODCALLTYPE D3D12Device::CopyDescriptors(UINT NumDestDescriptorRanges, const D3D12_CPU_DESCRIPTOR_HANDLE *pDestDescriptorRangeStarts, const UINT *pDestDescriptorRangeSizes, UINT NumSrcDescriptorRanges, const D3D12_CPU_DESCRIPTOR_HANDLE *pSrcDescriptorRangeStarts, const UINT *pSrcDescriptorRangeSizes, D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapsType)
 {
+#if RESHADE_ADDON
+	if (DescriptorHeapsType <= D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER)
+	{
+		reshade::api::descriptor_set_copy copy;
+		copy.dst_set.handle = pDestDescriptorRangeStarts[0].ptr;
+		copy.dst_binding = 0;
+		copy.dst_array_offset = 0;
+		copy.type = DescriptorHeapsType == D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER ? reshade::api::descriptor_type::sampler : reshade::api::descriptor_type::shader_resource_view;
+		copy.count = 1;
+
+		std::vector<reshade::api::descriptor_set_copy> copies;
+		copies.reserve(std::max(NumDestDescriptorRanges, NumSrcDescriptorRanges));
+
+		for (UINT i = 0, j = 0; i < NumSrcDescriptorRanges; ++i)
+		{
+			copy.src_set.handle = pSrcDescriptorRangeStarts[i].ptr;
+			copy.src_binding = 0;
+			copy.src_array_offset = 0;
+
+			for (UINT k = 0; k < pSrcDescriptorRangeSizes[i]; ++k, ++copy.src_binding, ++copy.dst_binding)
+			{
+				if (copy.dst_binding >= pDestDescriptorRangeSizes[j])
+				{
+					copy.dst_set.handle = pDestDescriptorRangeStarts[++j].ptr;
+					copy.dst_binding = 0;
+					copy.dst_array_offset = 0;
+				}
+
+				copies.push_back(copy);
+			}
+		}
+
+		if (reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(this, 0, nullptr, static_cast<uint32_t>(copies.size()), copies.data()))
+			return;
+	}
+#endif
+
 	_orig->CopyDescriptors(NumDestDescriptorRanges, pDestDescriptorRangeStarts, pDestDescriptorRangeSizes, NumSrcDescriptorRanges, pSrcDescriptorRangeStarts, pSrcDescriptorRangeSizes, DescriptorHeapsType);
 }
 void    STDMETHODCALLTYPE D3D12Device::CopyDescriptorsSimple(UINT NumDescriptors, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptorRangeStart, D3D12_CPU_DESCRIPTOR_HANDLE SrcDescriptorRangeStart, D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapsType)
 {
+#if RESHADE_ADDON
+	if (DescriptorHeapsType <= D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER)
+	{
+		reshade::api::descriptor_set_copy copy;
+		copy.src_set = { SrcDescriptorRangeStart.ptr };
+		copy.src_binding = 0;
+		copy.src_array_offset = 0;
+		copy.dst_set = { DestDescriptorRangeStart.ptr };
+		copy.dst_binding = 0;
+		copy.dst_array_offset = 0;
+		copy.count = NumDescriptors;
+
+		if (reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(this, 0, nullptr, 1, &copy))
+			return;
+	}
+#endif
+
 	_orig->CopyDescriptorsSimple(NumDescriptors, DestDescriptorRangeStart, SrcDescriptorRangeStart, DescriptorHeapsType);
 }
 D3D12_RESOURCE_ALLOCATION_INFO STDMETHODCALLTYPE D3D12Device::GetResourceAllocationInfo(UINT visibleMask, UINT numResourceDescs, const D3D12_RESOURCE_DESC *pResourceDescs)

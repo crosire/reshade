@@ -814,8 +814,8 @@ void reshade::d3d12::device_impl::update_descriptor_sets(uint32_t num_writes, co
 			const auto buffer = reinterpret_cast<ID3D12Resource *>(info.descriptor.resource.handle);
 
 			D3D12_CONSTANT_BUFFER_VIEW_DESC view_desc;
-			view_desc.BufferLocation = buffer->GetGPUVirtualAddress();
-			view_desc.SizeInBytes = static_cast<UINT>(buffer->GetDesc().Width);
+			view_desc.BufferLocation = buffer->GetGPUVirtualAddress() + info.descriptor.offset;
+			view_desc.SizeInBytes = info.descriptor.size == std::numeric_limits<uint64_t>::max() ? static_cast<UINT>(buffer->GetDesc().Width) : info.descriptor.size;
 
 			_orig->CreateConstantBufferView(&view_desc, dst_range_start);
 		}

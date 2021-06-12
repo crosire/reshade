@@ -1368,6 +1368,8 @@ bool reshade::runtime::init_effect(size_t effect_index)
 		write.binding = 0;
 		write.type = api::descriptor_type::constant_buffer;
 		write.descriptor.resource = effect.cb;
+		write.descriptor.offset = 0;
+		write.descriptor.size = std::numeric_limits<uint64_t>::max();
 	}
 
 	// Initialize sampler and storage bindings
