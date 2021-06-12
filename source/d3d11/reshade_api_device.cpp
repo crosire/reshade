@@ -758,29 +758,55 @@ void reshade::d3d11::device_impl::destroy_descriptor_sets(api::descriptor_set_la
 		delete reinterpret_cast<descriptor_set_impl *>(sets[i].handle);
 }
 
-void reshade::d3d11::device_impl::update_descriptor_sets(uint32_t num_updates, const api::descriptor_update *updates)
+void reshade::d3d11::device_impl::update_descriptor_sets(uint32_t num_writes, const api::descriptor_set_write *writes, uint32_t num_copies, const api::descriptor_set_copy *copies)
 {
-	for (UINT i = 0; i < num_updates; ++i)
+	for (uint32_t i = 0; i < num_writes; ++i)
 	{
-		const auto set_impl = reinterpret_cast<descriptor_set_impl *>(updates[i].set.handle);
+		const auto set_impl = reinterpret_cast<descriptor_set_impl *>(writes[i].set.handle);
 
-		switch (updates[i].type)
+		const api::descriptor_set_write &info = writes[i];
+
+		switch (info.type)
 		{
 		case api::descriptor_type::sampler:
-			assert(updates[i].descriptor.sampler.handle != 0);
-			set_impl->descriptors[updates[i].binding] = updates[i].descriptor.sampler.handle;
+			assert(info.descriptor.sampler.handle != 0);
+			set_impl->descriptors[info.binding] = info.descriptor.sampler.handle;
 			break;
 		case api::descriptor_type::sampler_with_resource_view:
 			assert(false);
 			break;
 		case api::descriptor_type::shader_resource_view:
 		case api::descriptor_type::unordered_access_view:
-			assert(updates[i].descriptor.view.handle != 0);
-			set_impl->descriptors[updates[i].binding] = updates[i].descriptor.view.handle;
+			assert(info.descriptor.view.handle != 0);
+			set_impl->descriptors[info.binding] = info.descriptor.view.handle;
 			break;
 		case api::descriptor_type::constant_buffer:
-			assert(updates[i].descriptor.resource.handle != 0);
-			set_impl->descriptors[updates[i].binding] = updates[i].descriptor.resource.handle;
+			assert(info.descriptor.resource.handle != 0);
+			set_impl->descriptors[info.binding] = info.descriptor.resource.handle;
+			break;
+		}
+	}
+
+	for (uint32_t i = 0; i < num_copies; ++i)
+	{
+		const auto src_set_impl = reinterpret_cast<descriptor_set_impl *>(copies[i].src_set.handle);
+		const auto dst_set_impl = reinterpret_cast<descriptor_set_impl *>(copies[i].dst_set.handle);
+
+		const api::descriptor_set_copy &info = copies[i];
+
+		switch (info.type)
+		{
+		case api::descriptor_type::sampler:
+		case api::descriptor_type::shader_resource_view:
+		case api::descriptor_type::unordered_access_view:
+		case api::descriptor_type::constant_buffer:
+			for (uint32_t k = 0; k < info.count; ++k)
+			{
+				dst_set_impl->descriptors[info.dst_binding + k] = src_set_impl->descriptors[info.src_binding + k];
+			}
+			break;
+		case api::descriptor_type::sampler_with_resource_view:
+			assert(false);
 			break;
 		}
 	}
@@ -935,6 +961,7 @@ reshade::api::resource_desc reshade::d3d11::device_impl::get_resource_desc(api::
 
 bool reshade::d3d11::device_impl::get_query_pool_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride)
 {
+	assert(pool.handle != 0);
 	const auto impl = reinterpret_cast<query_pool_impl *>(pool.handle);
 
 	for (UINT i = 0; i < count; ++i)
@@ -948,6 +975,8 @@ bool reshade::d3d11::device_impl::get_query_pool_results(api::query_pool pool, u
 
 void reshade::d3d11::device_impl::set_resource_name(api::resource resource, const char *name)
 {
-	const GUID debug_object_name_guid = { 0x429b8c22, 0x9188, 0x4b0c, { 0x87, 0x42, 0xac, 0xb0, 0xbf, 0x85, 0xc2, 0x00} }; // WKPDID_D3DDebugObjectName
+	assert(resource.handle != 0);
+
+	constexpr GUID debug_object_name_guid = { 0x429b8c22, 0x9188, 0x4b0c, { 0x87, 0x42, 0xac, 0xb0, 0xbf, 0x85, 0xc2, 0x00} }; // WKPDID_D3DDebugObjectName
 	reinterpret_cast<ID3D11Resource *>(resource.handle)->SetPrivateData(debug_object_name_guid, static_cast<UINT>(strlen(name)), name);
 }

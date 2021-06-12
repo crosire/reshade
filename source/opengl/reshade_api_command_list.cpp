@@ -1048,7 +1048,7 @@ void reshade::opengl::device_impl::begin_query(api::query_pool pool, api::query_
 {
 	assert(pool.handle != 0);
 
-	glBeginQuery(convert_query_type(type), reinterpret_cast<query_heap_impl *>(pool.handle)->queries[index]);
+	glBeginQuery(convert_query_type(type), reinterpret_cast<query_pool_impl *>(pool.handle)->queries[index]);
 }
 void reshade::opengl::device_impl::finish_query(api::query_pool pool, api::query_type type, uint32_t index)
 {
@@ -1056,7 +1056,7 @@ void reshade::opengl::device_impl::finish_query(api::query_pool pool, api::query
 
 	if (type == api::query_type::timestamp)
 	{
-		glQueryCounter(reinterpret_cast<query_heap_impl *>(pool.handle)->queries[index], GL_TIMESTAMP);
+		glQueryCounter(reinterpret_cast<query_pool_impl *>(pool.handle)->queries[index], GL_TIMESTAMP);
 	}
 	else
 	{
@@ -1070,7 +1070,7 @@ void reshade::opengl::device_impl::copy_query_pool_results(api::query_pool pool,
 	for (uint32_t i = 0; i < count; ++i)
 	{
 		assert(dst_offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()));
-		glGetQueryBufferObjectui64v(reinterpret_cast<query_heap_impl *>(pool.handle)->queries[i + first], dst.handle & 0xFFFFFFFF, GL_QUERY_RESULT_NO_WAIT, static_cast<GLintptr>(dst_offset + i * stride));
+		glGetQueryBufferObjectui64v(reinterpret_cast<query_pool_impl *>(pool.handle)->queries[i + first], dst.handle & 0xFFFFFFFF, GL_QUERY_RESULT_NO_WAIT, static_cast<GLintptr>(dst_offset + i * stride));
 	}
 }
 

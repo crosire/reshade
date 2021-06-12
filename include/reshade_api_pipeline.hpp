@@ -902,12 +902,28 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
-	/// All information needed to update a single descriptor in a descriptor set.
+	/// All information needed to copy descriptors between descriptor sets.
 	/// </summary>
-	struct descriptor_update
+	struct descriptor_set_copy
+	{
+		descriptor_set src_set;
+		uint32_t src_binding;
+		uint32_t src_array_offset;
+		descriptor_set dst_set;
+		uint32_t dst_binding;
+		uint32_t dst_array_offset;
+		uint32_t count;
+		descriptor_type type;
+	};
+
+	/// <summary>
+	/// All information needed to update descriptors in a single descriptor set.
+	/// </summary>
+	struct descriptor_set_write
 	{
 		descriptor_set set;
 		uint32_t binding;
+		uint32_t array_offset;
 		descriptor_type type;
 
 		struct

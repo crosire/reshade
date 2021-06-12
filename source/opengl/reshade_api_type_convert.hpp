@@ -73,9 +73,9 @@ namespace reshade::opengl
 		api::descriptor_range range;
 	};
 
-	struct query_heap_impl
+	struct query_pool_impl
 	{
-		~query_heap_impl()
+		~query_pool_impl()
 		{
 			glDeleteQueries(static_cast<GLsizei>(queries.size()), queries.data());
 		}

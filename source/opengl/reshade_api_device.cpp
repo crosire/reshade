@@ -965,7 +965,7 @@ bool reshade::opengl::device_impl::create_query_pool(api::query_type type, uint3
 		return false;
 	}
 
-	const auto result = new query_heap_impl();
+	const auto result = new query_pool_impl();
 	result->queries.resize(size);
 
 	glGenQueries(static_cast<GLsizei>(size), result->queries.data());
@@ -1172,7 +1172,7 @@ void reshade::opengl::device_impl::destroy_descriptor_set_layout(api::descriptor
 
 void reshade::opengl::device_impl::destroy_query_pool(api::query_pool handle)
 {
-	delete reinterpret_cast<query_heap_impl *>(handle.handle);
+	delete reinterpret_cast<query_pool_impl *>(handle.handle);
 }
 void reshade::opengl::device_impl::destroy_render_pass(api::render_pass handle)
 {
@@ -1185,31 +1185,64 @@ void reshade::opengl::device_impl::destroy_descriptor_sets(api::descriptor_set_l
 		delete reinterpret_cast<descriptor_set_impl *>(sets[i].handle);
 }
 
-void reshade::opengl::device_impl::update_descriptor_sets(uint32_t num_updates, const api::descriptor_update *updates)
+void reshade::opengl::device_impl::update_descriptor_sets(uint32_t num_writes, const api::descriptor_set_write *writes, uint32_t num_copies, const api::descriptor_set_copy *copies)
 {
-	for (uint32_t i = 0; i < num_updates; ++i)
+	for (uint32_t i = 0; i < num_writes; ++i)
 	{
-		const auto set_impl = reinterpret_cast<descriptor_set_impl *>(updates[i].set.handle);
+		const auto set_impl = reinterpret_cast<descriptor_set_impl *>(writes[i].set.handle);
 
-		switch (updates[i].type)
+		const api::descriptor_set_write &info = writes[i];
+
+		switch (info.type)
 		{
 		case api::descriptor_type::sampler:
-			assert(updates[i].descriptor.sampler.handle != 0);
-			set_impl->descriptors[updates[i].binding] = updates[i].descriptor.sampler.handle;
+			assert(info.descriptor.sampler.handle != 0);
+			set_impl->descriptors[info.binding] = info.descriptor.sampler.handle;
 			break;
 		case api::descriptor_type::sampler_with_resource_view:
-			assert(updates[i].descriptor.sampler.handle != 0 && updates[i].descriptor.view.handle != 0);
-			set_impl->descriptors[updates[i].binding * 2 + 0] = updates[i].descriptor.sampler.handle;
-			set_impl->descriptors[updates[i].binding * 2 + 1] = updates[i].descriptor.view.handle;
+			assert(info.descriptor.sampler.handle != 0);
+			set_impl->descriptors[info.binding * 2 + 0] = info.descriptor.sampler.handle;
+			assert(info.descriptor.view.handle != 0);
+			set_impl->descriptors[info.binding * 2 + 1] = info.descriptor.view.handle;
 			break;
 		case api::descriptor_type::shader_resource_view:
 		case api::descriptor_type::unordered_access_view:
-			assert(updates[i].descriptor.view.handle != 0);
-			set_impl->descriptors[updates[i].binding] = updates[i].descriptor.view.handle;
+			assert(info.descriptor.view.handle != 0);
+			set_impl->descriptors[info.binding] = info.descriptor.view.handle;
 			break;
 		case api::descriptor_type::constant_buffer:
-			assert(updates[i].descriptor.resource.handle != 0);
-			set_impl->descriptors[updates[i].binding] = updates[i].descriptor.resource.handle;
+			assert(info.descriptor.resource.handle != 0);
+			set_impl->descriptors[info.binding] = info.descriptor.resource.handle;
+			break;
+		}
+	}
+
+	for (uint32_t i = 0; i < num_copies; ++i)
+	{
+		const auto src_set_impl = reinterpret_cast<descriptor_set_impl *>(copies[i].src_set.handle);
+		const auto dst_set_impl = reinterpret_cast<descriptor_set_impl *>(copies[i].dst_set.handle);
+
+		const api::descriptor_set_copy &info = copies[i];
+
+		switch (info.type)
+		{
+		case api::descriptor_type::sampler:
+		case api::descriptor_type::shader_resource_view:
+		case api::descriptor_type::unordered_access_view:
+		case api::descriptor_type::constant_buffer:
+			for (uint32_t k = 0; k < info.count; ++k)
+			{
+				dst_set_impl->descriptors[info.dst_binding + k] = src_set_impl->descriptors[info.src_binding + k];
+			}
+			break;
+		case api::descriptor_type::sampler_with_resource_view:
+			for (uint32_t k = 0; k < info.count; ++k)
+			{
+				const uint32_t src_binding = (info.src_binding + k) * 2;
+				const uint32_t dst_binding = (info.dst_binding + k) * 2;
+				dst_set_impl->descriptors[dst_binding + 0] = src_set_impl->descriptors[src_binding + 0];
+				dst_set_impl->descriptors[dst_binding + 1] = src_set_impl->descriptors[src_binding + 1];
+			}
 			break;
 		}
 	}
@@ -1656,11 +1689,12 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 		return convert_resource_desc(target, levels, samples, internal_format, width, height, depth);
 }
 
-bool reshade::opengl::device_impl::get_query_pool_results(api::query_pool heap, uint32_t first, uint32_t count, void *results, uint32_t stride)
+bool reshade::opengl::device_impl::get_query_pool_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride)
 {
+	assert(pool.handle != 0);
 	assert(stride >= sizeof(uint64_t));
 
-	const auto impl = reinterpret_cast<query_heap_impl *>(heap.handle);
+	const auto impl = reinterpret_cast<query_pool_impl *>(pool.handle);
 
 	for (uint32_t i = 0; i < count; ++i)
 	{
