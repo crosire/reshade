@@ -863,8 +863,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 				++dump_index < 100)
 			{
 				// Call into the original "LoadLibrary" directly, to avoid failing memory corruption checks
-				extern HMODULE WINAPI HookLoadLibraryW(LPCWSTR lpFileName);
-				const auto ll = reshade::hooks::call(HookLoadLibraryW);
+				const auto ll = reshade::hooks::call<decltype(&LoadLibraryW)>(nullptr, LoadLibraryW);
 				if (ll == nullptr)
 					goto continue_search;
 
