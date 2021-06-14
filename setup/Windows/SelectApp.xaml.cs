@@ -94,27 +94,47 @@ namespace ReShade.Setup.Dialogs
 						searchPaths.Enqueue(epicGamesInstallPath);
 					}
 				}
-#else
-				foreach (var name in new string[] {
-					"Software\\Classes\\Local Settings\\Software\\Microsoft\\Windows\\Shell\\MuiCache",
-					"Software\\Microsoft\\Windows\\ShellNoRoam\\MUICache",
-					"Software\\Microsoft\\Windows NT\\CurrentVersion\\AppCompatFlags\\Compatibility Assistant\\Persisted",
-					"Software\\Microsoft\\Windows NT\\CurrentVersion\\AppCompatFlags\\Compatibility Assistant\\Store" })
+
+				// Add GOG Galaxy install locations
+				try
 				{
-					try
+					var gogGamesKey = Registry.LocalMachine.OpenSubKey(@"Software\Wow6432Node\GOG.com\Games");
+					if (gogGamesKey != null)
 					{
-						string[] values = Registry.CurrentUser.OpenSubKey(name)?.GetValueNames();
-						if (values != null)
+						foreach (var gogGame in gogGamesKey.GetSubKeyNames())
 						{
-							files.AddRange(values);
+							string gameDir = gogGamesKey?.OpenSubKey(gogGame)?.GetValue("path") as string;
+							if (!string.IsNullOrEmpty(gameDir) && Directory.Exists(gameDir))
+							{
+								searchPaths.Enqueue(gameDir);
+							}
+
 						}
-					}
-					catch
-					{
-						// Ignore permission errors
-						continue;
+
 					}
 				}
+				catch { }
+#else
+                foreach (var name in new string[] {
+                    "Software\\Classes\\Local Settings\\Software\\Microsoft\\Windows\\Shell\\MuiCache",
+                    "Software\\Microsoft\\Windows\\ShellNoRoam\\MUICache",
+                    "Software\\Microsoft\\Windows NT\\CurrentVersion\\AppCompatFlags\\Compatibility Assistant\\Persisted",
+                    "Software\\Microsoft\\Windows NT\\CurrentVersion\\AppCompatFlags\\Compatibility Assistant\\Store" })
+                {
+                    try
+                    {
+                        string[] values = Registry.CurrentUser.OpenSubKey(name)?.GetValueNames();
+                        if (values != null)
+                        {
+                            files.AddRange(values);
+                        }
+                    }
+                    catch
+                    {
+                        // Ignore permission errors
+                        continue;
+                    }
+                }
 #endif
 
 				const int SPLIT_SIZE = 50;
