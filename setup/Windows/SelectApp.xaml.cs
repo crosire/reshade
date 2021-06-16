@@ -103,7 +103,7 @@ namespace ReShade.Setup.Dialogs
 					{
 						foreach (var gogGame in gogGamesKey.GetSubKeyNames())
 						{
-							string gameDir = gogGamesKey?.OpenSubKey(gogGame)?.GetValue("path") as string;
+							string gameDir = gogGamesKey.OpenSubKey(gogGame)?.GetValue("path") as string;
 							if (!string.IsNullOrEmpty(gameDir) && Directory.Exists(gameDir))
 							{
 								searchPaths.Enqueue(gameDir);
