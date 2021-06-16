@@ -30,6 +30,22 @@ static class StringExtensionMethods
 	}
 }
 
+static class HashSetExtensionMethods
+{
+	public static T Dequeue<T>(this HashSet<T> items)
+	{
+
+		if (items.Count == 0)
+		{
+			throw new InvalidOperationException();
+		}
+
+		var item = items.First();
+		items.Remove(item);
+		return item;
+	}
+}
+
 namespace ReShade.Setup.Dialogs
 {
 	public partial class SelectAppDialog : Window
@@ -44,7 +60,7 @@ namespace ReShade.Setup.Dialogs
 			{
 				var files = new List<string>();
 #if !RESHADE_SETUP_USE_MUI_CACHE
-				var searchPaths = new Queue<string>();
+				var searchPaths = new HashSet<string>();
 
 				// Add Steam install locations
 				try
@@ -52,12 +68,12 @@ namespace ReShade.Setup.Dialogs
 					string steamInstallPath = Registry.LocalMachine.OpenSubKey(@"Software\Wow6432Node\Valve\Steam")?.GetValue("InstallPath") as string;
 					if (!string.IsNullOrEmpty(steamInstallPath) && Directory.Exists(steamInstallPath))
 					{
-						searchPaths.Enqueue(Path.Combine(steamInstallPath, "steamapps", "common"));
+						searchPaths.Add(Path.Combine(steamInstallPath, "steamapps", "common"));
 
 						string steamConfig = File.ReadAllText(Path.Combine(steamInstallPath, "config", "config.vdf"));
 						foreach (Match match in new Regex("\"BaseInstallFolder_[1-9]\"\\s+\"(.+)\"").Matches(steamConfig))
 						{
-							searchPaths.Enqueue(Path.Combine(match.Groups[1].Value.Replace("\\\\", "\\"), "steamapps", "common"));
+							searchPaths.Add(Path.Combine(match.Groups[1].Value.Replace("\\\\", "\\"), "steamapps", "common"));
 						}
 					}
 				}
@@ -79,7 +95,7 @@ namespace ReShade.Setup.Dialogs
 							// Avoid adding short paths to the search paths so not to scan the entire drive
 							if (searchPath.Length > 25)
 							{
-								searchPaths.Enqueue(searchPath);
+								searchPaths.Add(searchPath);
 							}
 						}
 					}
@@ -91,7 +107,7 @@ namespace ReShade.Setup.Dialogs
 					string epicGamesInstallPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Epic Games");
 					if (Directory.Exists(epicGamesInstallPath))
 					{
-						searchPaths.Enqueue(epicGamesInstallPath);
+						searchPaths.Add(epicGamesInstallPath);
 					}
 				}
 
@@ -106,7 +122,7 @@ namespace ReShade.Setup.Dialogs
 							string gameDir = gogGamesKey.OpenSubKey(gogGame)?.GetValue("path") as string;
 							if (!string.IsNullOrEmpty(gameDir) && Directory.Exists(gameDir))
 							{
-								searchPaths.Enqueue(gameDir);
+								searchPaths.Add(gameDir);
 							}
 
 						}
@@ -232,7 +248,7 @@ namespace ReShade.Setup.Dialogs
 					// Continue searching in sub-directories
 					foreach (var path in Directory.GetDirectories(searchPath))
 					{
-						searchPaths.Enqueue(path);
+						searchPaths.Add(path);
 					}
 				}
 #endif
