@@ -34,6 +34,7 @@ namespace reshade::vulkan
 		};
 
 		VmaAllocation allocation;
+		bool owned;
 	};
 
 	struct resource_view_data
@@ -51,6 +52,8 @@ namespace reshade::vulkan
 			VkImageViewCreateInfo image_create_info;
 			VkBufferViewCreateInfo buffer_create_info;
 		};
+
+		bool owned;
 	};
 
 	struct render_pass_data
@@ -175,40 +178,44 @@ namespace reshade::vulkan
 			return _framebuffer_list.at(fbo);
 		}
 
-		void register_image(VkImage image, const VkImageCreateInfo &create_info, VmaAllocation allocation = nullptr)
+		void register_image(VkImage image, const VkImageCreateInfo &create_info, VmaAllocation allocation = VK_NULL_HANDLE, bool owned = false)
 		{
 			resource_data data;
 			data.image = image;
 			data.image_create_info = create_info;
 			data.allocation = allocation;
+			data.owned = owned;
 
 			const std::lock_guard<std::mutex> lock(_mutex);
 			_resources.emplace((uint64_t)image, std::move(data));
 		}
-		void register_image_view(VkImageView image_view, const VkImageViewCreateInfo &create_info)
+		void register_image_view(VkImageView image_view, const VkImageViewCreateInfo &create_info, bool owned = false)
 		{
 			resource_view_data data;
 			data.image_view = image_view;
 			data.image_create_info = create_info;
+			data.owned = owned;
 
 			const std::lock_guard<std::mutex> lock(_mutex);
 			_views.emplace((uint64_t)image_view, std::move(data));
 		}
-		void register_buffer(VkBuffer buffer, const VkBufferCreateInfo &create_info, VmaAllocation allocation = nullptr)
+		void register_buffer(VkBuffer buffer, const VkBufferCreateInfo &create_info, VmaAllocation allocation = VK_NULL_HANDLE, bool owned = false)
 		{
 			resource_data data;
 			data.buffer = buffer;
 			data.buffer_create_info = create_info;
 			data.allocation = allocation;
+			data.owned = owned;
 
 			const std::lock_guard<std::mutex> lock(_mutex);
 			_resources.emplace((uint64_t)buffer, std::move(data));
 		}
-		void register_buffer_view(VkBufferView buffer_view, const VkBufferViewCreateInfo &create_info)
+		void register_buffer_view(VkBufferView buffer_view, const VkBufferViewCreateInfo &create_info, bool owned = false)
 		{
 			resource_view_data data;
 			data.buffer_view = buffer_view;
 			data.buffer_create_info = create_info;
+			data.owned = owned;
 
 			const std::lock_guard<std::mutex> lock(_mutex);
 			_views.emplace((uint64_t)buffer_view, std::move(data));

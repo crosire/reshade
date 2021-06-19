@@ -247,11 +247,11 @@ bool reshade::d3d10::device_impl::create_resource_view(api::resource resource, a
 		}
 		case api::resource_usage::shader_resource:
 		{
-			D3D10_SHADER_RESOURCE_VIEW_DESC internal_desc = {};
+			D3D10_SHADER_RESOURCE_VIEW_DESC1 internal_desc = {};
 			convert_resource_view_desc(desc, internal_desc);
 
-			if (com_ptr<ID3D10ShaderResourceView> object;
-				SUCCEEDED(_orig->CreateShaderResourceView(reinterpret_cast<ID3D10Resource *>(resource.handle), &internal_desc, &object)))
+			if (com_ptr<ID3D10ShaderResourceView1> object;
+				SUCCEEDED(_orig->CreateShaderResourceView1(reinterpret_cast<ID3D10Resource *>(resource.handle), &internal_desc, &object)))
 			{
 				_views.register_object(object.get());
 				*out = { reinterpret_cast<uintptr_t>(object.release()) };

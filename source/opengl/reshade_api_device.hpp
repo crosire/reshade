@@ -147,6 +147,7 @@ namespace reshade::opengl
 		GLenum _current_prim_mode = GL_NONE;
 		GLenum _current_index_type = GL_UNSIGNED_INT;
 		GLuint _current_vertex_count = 0; // Used to calculate vertex count inside glBegin/glEnd pairs
+		void * _current_event_handle = nullptr;
 
 	private:
 		std::vector<GLuint> _reserved_texture_names;

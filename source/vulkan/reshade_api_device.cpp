@@ -273,9 +273,11 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 			convert_resource_desc(desc, create_info);
 
 			if (VkBuffer object = VK_NULL_HANDLE;
-				vmaCreateBuffer(_alloc, &create_info, &alloc_info, &object, &allocation, nullptr) == VK_SUCCESS)
+				(desc.heap == api::memory_heap::unknown ?
+				 vk.CreateBuffer(_orig, &create_info, nullptr, &object) :
+				 vmaCreateBuffer(_alloc, &create_info, &alloc_info, &object, &allocation, nullptr)) == VK_SUCCESS)
 			{
-				register_buffer(object, create_info, allocation);
+				register_buffer(object, create_info, allocation, true);
 				*out = { (uint64_t)object };
 				return true;
 			}
@@ -293,9 +295,11 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 				create_info.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 
 			if (VkImage object = VK_NULL_HANDLE;
-				vmaCreateImage(_alloc, &create_info, &alloc_info, &object, &allocation, nullptr) == VK_SUCCESS)
+				(desc.heap == api::memory_heap::unknown ?
+				 vk.CreateImage(_orig, &create_info, nullptr, &object) :
+				 vmaCreateImage(_alloc, &create_info, &alloc_info, &object, &allocation, nullptr)) == VK_SUCCESS)
 			{
-				register_image(object, create_info, allocation);
+				register_image(object, create_info, allocation, true);
 				*out = { (uint64_t)object };
 
 				if (initial_data != nullptr)
@@ -372,7 +376,7 @@ bool reshade::vulkan::device_impl::create_resource_view(api::resource resource, 
 		VkImageView image_view = VK_NULL_HANDLE;
 		if (vk.CreateImageView(_orig, &create_info, nullptr, &image_view) == VK_SUCCESS)
 		{
-			register_image_view(image_view, create_info);
+			register_image_view(image_view, create_info, true);
 			*out = { (uint64_t)image_view };
 			return true;
 		}
@@ -386,7 +390,7 @@ bool reshade::vulkan::device_impl::create_resource_view(api::resource resource, 
 		VkBufferView buffer_view = VK_NULL_HANDLE;
 		if (vk.CreateBufferView(_orig, &create_info, nullptr, &buffer_view) == VK_SUCCESS)
 		{
-			register_buffer_view(buffer_view, create_info);
+			register_buffer_view(buffer_view, create_info, true);
 			*out = { (uint64_t)buffer_view };
 			return true;
 		}
@@ -1008,14 +1012,22 @@ void reshade::vulkan::device_impl::destroy_resource(api::resource handle)
 	if (handle.handle == 0)
 		return;
 	const resource_data data = lookup_resource(handle);
+	assert(data.owned);
 
-	// Can only destroy resources that were allocated via 'create_resource' previously
-	assert(data.allocation != nullptr);
-
-	if (data.is_image())
-		vmaDestroyImage(_alloc, data.image, data.allocation);
+	if (data.allocation == VK_NULL_HANDLE)
+	{
+		if (data.is_image())
+			vk.DestroyImage(_orig, data.image, nullptr);
+		else
+			vk.DestroyBuffer(_orig, data.buffer, nullptr);
+	}
 	else
-		vmaDestroyBuffer(_alloc, data.buffer, data.allocation);
+	{
+		if (data.is_image())
+			vmaDestroyImage(_alloc, data.image, data.allocation);
+		else
+			vmaDestroyBuffer(_alloc, data.buffer, data.allocation);
+	}
 
 	const std::lock_guard<std::mutex> lock(_mutex);
 	_resources.erase(handle.handle);
@@ -1025,6 +1037,7 @@ void reshade::vulkan::device_impl::destroy_resource_view(api::resource_view hand
 	if (handle.handle == 0)
 		return;
 	const resource_view_data data = lookup_resource_view(handle);
+	assert(data.owned);
 
 	if (data.is_image_view())
 		vk.DestroyImageView(_orig, data.image_view, nullptr);

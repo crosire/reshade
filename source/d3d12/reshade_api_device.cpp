@@ -815,7 +815,7 @@ void reshade::d3d12::device_impl::update_descriptor_sets(uint32_t num_writes, co
 
 			D3D12_CONSTANT_BUFFER_VIEW_DESC view_desc;
 			view_desc.BufferLocation = buffer->GetGPUVirtualAddress() + info.descriptor.offset;
-			view_desc.SizeInBytes = info.descriptor.size == std::numeric_limits<uint64_t>::max() ? static_cast<UINT>(buffer->GetDesc().Width) : info.descriptor.size;
+			view_desc.SizeInBytes = static_cast<UINT>(info.descriptor.size == std::numeric_limits<uint64_t>::max() ? buffer->GetDesc().Width : info.descriptor.size);
 
 			_orig->CreateConstantBufferView(&view_desc, dst_range_start);
 		}
@@ -1061,11 +1061,11 @@ reshade::api::resource_desc reshade::d3d12::device_impl::get_resource_desc(api::
 {
 	assert(resource.handle != 0);
 
-	D3D12_HEAP_FLAGS heap_flags;
+	D3D12_HEAP_FLAGS heap_flags = D3D12_HEAP_FLAG_NONE;
 	D3D12_HEAP_PROPERTIES heap_props = {};
 	reinterpret_cast<ID3D12Resource *>(resource.handle)->GetHeapProperties(&heap_props, &heap_flags);
 
-	return convert_resource_desc(reinterpret_cast<ID3D12Resource *>(resource.handle)->GetDesc(), heap_props);
+	return convert_resource_desc(reinterpret_cast<ID3D12Resource *>(resource.handle)->GetDesc(), heap_props, heap_flags);
 }
 
 bool reshade::d3d12::device_impl::get_query_pool_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride)

@@ -127,6 +127,9 @@ void reshade::d3d12::convert_resource_desc(const api::resource_desc &desc, D3D12
 	case api::memory_heap::gpu_to_cpu:
 		heap_props.Type = D3D12_HEAP_TYPE_READBACK;
 		break;
+	case api::memory_heap::custom:
+		heap_props.Type = D3D12_HEAP_TYPE_CUSTOM;
+		break;
 	}
 
 	if ((desc.usage & api::resource_usage::depth_stencil) != api::resource_usage::undefined)
@@ -211,6 +214,9 @@ reshade::api::resource_desc reshade::d3d12::convert_resource_desc(const D3D12_RE
 		break;
 	case D3D12_HEAP_TYPE_READBACK:
 		desc.heap = api::memory_heap::gpu_to_cpu;
+		break;
+	case D3D12_HEAP_TYPE_CUSTOM:
+		desc.heap = api::memory_heap::custom;
 		break;
 	}
 

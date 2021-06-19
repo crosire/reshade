@@ -41,7 +41,7 @@ namespace reshade { namespace api
 		texture_1d,
 		texture_2d,
 		texture_3d,
-		surface // Special type for resources that are implicitly both resource and render target view. These cannot be created via the API, but may be referenced by the application.
+		surface // Special type for resources that are implicitly both resource and resource view.
 	};
 
 	/// <summary>
@@ -78,11 +78,12 @@ namespace reshade { namespace api
 	/// </summary>
 	enum class memory_heap : uint32_t
 	{
-		unknown,
+		unknown, // Used to indicate a resource that is reserved, but not yet bound to any memory.
 		gpu_only,
 		cpu_to_gpu,
 		gpu_to_cpu,
-		cpu_only
+		cpu_only,
+		custom
 	};
 
 	/// <summary>

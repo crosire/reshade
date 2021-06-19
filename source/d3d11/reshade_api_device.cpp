@@ -181,29 +181,63 @@ bool reshade::d3d11::device_impl::create_resource(const api::resource_desc &desc
 		}
 		case api::resource_type::texture_2d:
 		{
-			D3D11_TEXTURE2D_DESC internal_desc = {};
-			convert_resource_desc(desc, internal_desc);
-
-			if (com_ptr<ID3D11Texture2D> object;
-				SUCCEEDED(_orig->CreateTexture2D(&internal_desc, reinterpret_cast<const D3D11_SUBRESOURCE_DATA *>(initial_data), &object)))
+			com_ptr<ID3D11Device3> device3;
+			if (FAILED(_orig->QueryInterface(&device3)))
 			{
-				_resources.register_object(object.get());
-				*out = { reinterpret_cast<uintptr_t>(object.release()) };
-				return true;
+				D3D11_TEXTURE2D_DESC internal_desc = {};
+				convert_resource_desc(desc, internal_desc);
+
+				if (com_ptr<ID3D11Texture2D> object;
+					SUCCEEDED(_orig->CreateTexture2D(&internal_desc, reinterpret_cast<const D3D11_SUBRESOURCE_DATA *>(initial_data), &object)))
+				{
+					_resources.register_object(object.get());
+					*out = { reinterpret_cast<uintptr_t>(object.release()) };
+					return true;
+				}
+			}
+			else
+			{
+				D3D11_TEXTURE2D_DESC1 internal_desc = {};
+				convert_resource_desc(desc, reinterpret_cast<D3D11_TEXTURE2D_DESC &>(internal_desc));
+
+				if (com_ptr<ID3D11Texture2D1> object;
+					SUCCEEDED(device3->CreateTexture2D1(&internal_desc, reinterpret_cast<const D3D11_SUBRESOURCE_DATA *>(initial_data), &object)))
+				{
+					_resources.register_object(object.get());
+					*out = { reinterpret_cast<uintptr_t>(object.release()) };
+					return true;
+				}
 			}
 			break;
 		}
 		case api::resource_type::texture_3d:
 		{
-			D3D11_TEXTURE3D_DESC internal_desc = {};
-			convert_resource_desc(desc, internal_desc);
-
-			if (com_ptr<ID3D11Texture3D> object;
-				SUCCEEDED(_orig->CreateTexture3D(&internal_desc, reinterpret_cast<const D3D11_SUBRESOURCE_DATA *>(initial_data), &object)))
+			com_ptr<ID3D11Device3> device3;
+			if (FAILED(_orig->QueryInterface(&device3)))
 			{
-				_resources.register_object(object.get());
-				*out = { reinterpret_cast<uintptr_t>(object.release()) };
-				return true;
+				D3D11_TEXTURE3D_DESC internal_desc = {};
+				convert_resource_desc(desc, internal_desc);
+
+				if (com_ptr<ID3D11Texture3D> object;
+					SUCCEEDED(_orig->CreateTexture3D(&internal_desc, reinterpret_cast<const D3D11_SUBRESOURCE_DATA *>(initial_data), &object)))
+				{
+					_resources.register_object(object.get());
+					*out = { reinterpret_cast<uintptr_t>(object.release()) };
+					return true;
+				}
+			}
+			else
+			{
+				D3D11_TEXTURE3D_DESC1 internal_desc = {};
+				convert_resource_desc(desc, reinterpret_cast<D3D11_TEXTURE3D_DESC &>(internal_desc));
+
+				if (com_ptr<ID3D11Texture3D1> object;
+					SUCCEEDED(device3->CreateTexture3D1(&internal_desc, reinterpret_cast<const D3D11_SUBRESOURCE_DATA *>(initial_data), &object)))
+				{
+					_resources.register_object(object.get());
+					*out = { reinterpret_cast<uintptr_t>(object.release()) };
+					return true;
+				}
 			}
 			break;
 		}
@@ -234,43 +268,94 @@ bool reshade::d3d11::device_impl::create_resource_view(api::resource resource, a
 		}
 		case api::resource_usage::render_target:
 		{
-			D3D11_RENDER_TARGET_VIEW_DESC internal_desc = {};
-			convert_resource_view_desc(desc, internal_desc);
-
-			if (com_ptr<ID3D11RenderTargetView> object;
-				SUCCEEDED(_orig->CreateRenderTargetView(reinterpret_cast<ID3D11Resource *>(resource.handle), &internal_desc, &object)))
+			com_ptr<ID3D11Device3> device3;
+			if (FAILED(_orig->QueryInterface(&device3)))
 			{
-				_views.register_object(object.get());
-				*out = { reinterpret_cast<uintptr_t>(object.release()) };
-				return true;
+				D3D11_RENDER_TARGET_VIEW_DESC internal_desc = {};
+				convert_resource_view_desc(desc, internal_desc);
+
+				if (com_ptr<ID3D11RenderTargetView> object;
+					SUCCEEDED(_orig->CreateRenderTargetView(reinterpret_cast<ID3D11Resource *>(resource.handle), &internal_desc, &object)))
+				{
+					_views.register_object(object.get());
+					*out = { reinterpret_cast<uintptr_t>(object.release()) };
+					return true;
+				}
+			}
+			else
+			{
+				D3D11_RENDER_TARGET_VIEW_DESC1 internal_desc = {};
+				convert_resource_view_desc(desc, internal_desc);
+
+				if (com_ptr<ID3D11RenderTargetView1> object;
+					SUCCEEDED(device3->CreateRenderTargetView1(reinterpret_cast<ID3D11Resource *>(resource.handle), &internal_desc, &object)))
+				{
+					_views.register_object(object.get());
+					*out = { reinterpret_cast<uintptr_t>(object.release()) };
+					return true;
+				}
 			}
 			break;
 		}
 		case api::resource_usage::shader_resource:
 		{
-			D3D11_SHADER_RESOURCE_VIEW_DESC internal_desc = {};
-			convert_resource_view_desc(desc, internal_desc);
-
-			if (com_ptr<ID3D11ShaderResourceView> object;
-				SUCCEEDED(_orig->CreateShaderResourceView(reinterpret_cast<ID3D11Resource *>(resource.handle), &internal_desc, &object)))
+			com_ptr<ID3D11Device3> device3;
+			if (FAILED(_orig->QueryInterface(&device3)))
 			{
-				_views.register_object(object.get());
-				*out = { reinterpret_cast<uintptr_t>(object.release()) };
-				return true;
+				D3D11_SHADER_RESOURCE_VIEW_DESC internal_desc = {};
+				convert_resource_view_desc(desc, internal_desc);
+
+				if (com_ptr<ID3D11ShaderResourceView> object;
+					SUCCEEDED(_orig->CreateShaderResourceView(reinterpret_cast<ID3D11Resource *>(resource.handle), &internal_desc, &object)))
+				{
+					_views.register_object(object.get());
+					*out = { reinterpret_cast<uintptr_t>(object.release()) };
+					return true;
+				}
+			}
+			else
+			{
+				D3D11_SHADER_RESOURCE_VIEW_DESC1 internal_desc = {};
+				convert_resource_view_desc(desc, internal_desc);
+
+				if (com_ptr<ID3D11ShaderResourceView1> object;
+					SUCCEEDED(device3->CreateShaderResourceView1(reinterpret_cast<ID3D11Resource *>(resource.handle), &internal_desc, &object)))
+				{
+					_views.register_object(object.get());
+					*out = { reinterpret_cast<uintptr_t>(object.release()) };
+					return true;
+				}
 			}
 			break;
 		}
 		case api::resource_usage::unordered_access:
 		{
-			D3D11_UNORDERED_ACCESS_VIEW_DESC internal_desc = {};
-			convert_resource_view_desc(desc, internal_desc);
-
-			if (com_ptr<ID3D11UnorderedAccessView> object;
-				SUCCEEDED(_orig->CreateUnorderedAccessView(reinterpret_cast<ID3D11Resource *>(resource.handle), &internal_desc, &object)))
+			com_ptr<ID3D11Device3> device3;
+			if (FAILED(_orig->QueryInterface(&device3)))
 			{
-				_views.register_object(object.get());
-				*out = { reinterpret_cast<uintptr_t>(object.release()) };
-				return true;
+				D3D11_UNORDERED_ACCESS_VIEW_DESC internal_desc = {};
+				convert_resource_view_desc(desc, internal_desc);
+
+				if (com_ptr<ID3D11UnorderedAccessView> object;
+					SUCCEEDED(_orig->CreateUnorderedAccessView(reinterpret_cast<ID3D11Resource *>(resource.handle), &internal_desc, &object)))
+				{
+					_views.register_object(object.get());
+					*out = { reinterpret_cast<uintptr_t>(object.release()) };
+					return true;
+				}
+			}
+			else
+			{
+				D3D11_UNORDERED_ACCESS_VIEW_DESC1 internal_desc = {};
+				convert_resource_view_desc(desc, internal_desc);
+
+				if (com_ptr<ID3D11UnorderedAccessView1> object;
+					SUCCEEDED(device3->CreateUnorderedAccessView1(reinterpret_cast<ID3D11Resource *>(resource.handle), &internal_desc, &object)))
+				{
+					_views.register_object(object.get());
+					*out = { reinterpret_cast<uintptr_t>(object.release()) };
+					return true;
+				}
 			}
 			break;
 		}

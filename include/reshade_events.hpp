@@ -67,25 +67,49 @@ namespace reshade
 
 		/// <summary>
 		/// Called before 'ID3D10Device::CreateSamplerState', 'ID3D11Device::CreateSamplerState', 'ID3D12Device::CreateSampler' or 'vkCreateSampler'.
-		/// <para>Callback function signature: <c>bool (api::device *device, const api::sampler_desc &amp;desc)</c></para>
+		/// To overwrite the sampler with a custom one, call <c>device->create_sampler(..., sampler)</c> in the callback and return <c>true</c>.
+		/// <para>Callback function signature: <c>bool (api::device *device, const api::sampler_desc &amp;desc, api::sampler *sampler)</c></para>
 		/// </summary>
 		create_sampler,
 		/// <summary>
-		/// Called before 'IDirect3Device9::Create(...)Buffer/Texture', 'IDirect3DDevice9::Create(...)Surface(Ex)', 'ID3D10Device::CreateBuffer/Texture(...)', 'ID3D11Device::CreateBuffer/Texture(...)', 'ID3D12Device::Create(...)Resource', 'gl(Named)Buffer/Tex(ture)Storage(...)(Multisample)', 'gl(Named)RenderbufferStorage(Multisample) or 'vkCreateBuffer/Image'.
-		/// <para>Callback function signature: <c>bool (api::device *device, const api::resource_desc &amp;desc, const api::subresource_data *initial_data, api::resource_usage initial_state)</c></para>
+		/// Called after successfull sampler creation from 'ID3D10Device::CreateSamplerState', 'ID3D11Device::CreateSamplerState', 'ID3D12Device::CreateSampler' or 'vkCreateSampler'.
+		/// <para>Callback function signature: <c>void (api::device *device, const api::sampler_desc &amp;desc, api::sampler  sampler)</c></para>
+		/// </summary>
+		init_sampler,
+		/// <summary>
+		/// Called before 'IDirect3Device9::Create(...)Buffer/Texture/Surface(Ex)', 'ID3D10Device::CreateBuffer/Texture(...)', 'ID3D11Device::CreateBuffer/Texture(...)', 'ID3D12Device::Create(...)Resource(...)', 'gl(Named)Buffer/Tex(ture)/RenderbufferStorage(...)(Multisample)' or 'vkCreateBuffer/Image'.
+		/// To overwrite the resource with a custom one, call <c>device->create_resource(..., resource)</c> in the callback and return <c>true</c>.
+		/// <para>Callback function signature: <c>bool (api::device *device, const api::resource_desc &amp;desc, const api::subresource_data *initial_data, api::resource_usage initial_state, api::resource *resource)</c></para>
 		/// </summary>
 		create_resource,
 		/// <summary>
-		/// Called before 'IDirect3DDevice9::Create(...)Surface(Ex)', 'ID3D10Device::Create(...)View', 'ID3D11Device::Create(...)View', 'ID3D12Device::Create(...)View', 'glTex(ture)Buffer', 'glTextureView(...)' or 'vkCreateBuffer/ImageView'.
-		/// <para>Callback function signature: <c>bool (api::device *device, api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &amp;desc)</c></para>
+		/// Called after successfull resource creation from 'IDirect3Device9::Create(...)Buffer/Texture/Surface(Ex)', 'ID3D10Device::CreateBuffer/Texture(...)', 'ID3D11Device::CreateBuffer/Texture(...)', 'ID3D12Device::Create(...)Resource(...)', 'gl(Named)Buffer/Tex(ture)/RenderbufferStorage(...)(Multisample)' or 'vkCreateBuffer/Image'.
+		/// <para>Callback function signature: <c>void (api::device *device, const api::resource_desc &amp;desc, const api::subresource_data *initial_data, api::resource_usage initial_state, api::resource  resource)</c></para>
+		/// </summary>
+		init_resource,
+		/// <summary>
+		/// Called before 'IDirect3DDevice9::Create(...)Surface(Ex)', 'ID3D10Device::Create(...)View(1)', 'ID3D11Device::Create(...)View(1)', 'ID3D12Device::Create(...)View', 'glTex(ture)Buffer', 'glTextureView(...)' or 'vkCreateBuffer/ImageView'.
+		/// To overwrite the resource view with a custom one, call <c>device->create_resource_view(..., view)</c> in the callback and return <c>true</c>.
+		/// <para>Callback function signature: <c>bool (api::device *device, api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &amp;desc, api::resource_view *view)</c></para>
 		/// </summary>
 		create_resource_view,
+		/// <summary>
+		/// Called after successfull resource view creation from 'IDirect3DDevice9::Create(...)Surface(Ex)', 'ID3D10Device::Create(...)View(1)', 'ID3D11Device::Create(...)View(1)', 'ID3D12Device::Create(...)View', 'glTex(ture)Buffer', 'glTextureView(...)' or 'vkCreateBuffer/ImageView'.
+		/// <para>Callback function signature: <c>void (api::device *device, api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &amp;desc, api::resource_view  view)</c></para>
+		/// </summary>
+		init_resource_view,
 
 		/// <summary>
 		/// Called before 'IDirect3DDevice9::Create(...)Shader', 'ID3D10Device::Create(...)(Shader/State)', 'ID3D11Device::Create(...)(Shader/State)', 'ID3D12Device::Create(...)PipelineState' or 'vkCreate(...)Pipelines'.
-		/// <para>Callback function signature: <c>bool (api::device *device, const api::pipeline_desc &amp;desc)</c></para>
+		/// To overwrite the pipeline with a custom one, call <c>device->create_pipeline(..., pipeline)</c> in the callback and return <c>true</c>.
+		/// <para>Callback function signature: <c>bool (api::device *device, const api::pipeline_desc &amp;desc, api::pipeline *pipeline)</c></para>
 		/// </summary>
 		create_pipeline,
+		/// <summary>
+		/// Called after successfull pipeline creation from 'IDirect3DDevice9::Create(...)Shader', 'ID3D10Device::Create(...)(Shader/State)', 'ID3D11Device::Create(...)(Shader/State)', 'ID3D12Device::Create(...)PipelineState' or 'vkCreate(...)Pipelines'.
+		/// <para>Callback function signature: <c>void (api::device *device, const api::pipeline_desc &amp;desc, api::pipeline  pipeline)</c></para>
+		/// </summary>
+		init_pipeline,
 
 		/// <summary>
 		/// Called before 'ID3D10Device::UpdateSubresource' or 'ID3D11DeviceContext::UpdateSubresource'.
@@ -336,25 +360,6 @@ namespace reshade
 
 	template <addon_event ev>
 	struct addon_event_traits;
-	template <addon_event ev>
-	class  addon_event_trampoline;
-	template <typename F>
-	class  addon_event_trampoline_data;
-	template <typename R, typename... Args>
-	class  addon_event_trampoline_data<R(Args...)>
-	{
-	public:
-		inline R operator()(Args... args) {
-			return (next_callback != last_callback ? *next_callback++ : term_callback)(*this, std::forward<Args>(args)...);
-		}
-
-	protected:
-		using callback_type = R(*)(addon_event_trampoline_data &, Args...);
-
-		callback_type *next_callback; // Pointer to the next function in the call chain to execute
-		callback_type *last_callback; // Pointer to the last function in the call chain
-		callback_type  term_callback; // Terminator function that is called by the last function in the chain
-	};
 
 	// Define callback event
 #define DEFINE_ADDON_EVENT_TYPE_1(ev, ...) \
@@ -372,16 +377,6 @@ namespace reshade
 		static const int type = 2; \
 	}
 
-	// Define event with a call chain (first argument points to the next function in the chain that should be called)
-#define DEFINE_ADDON_EVENT_TYPE_3(ev, ...) \
-	template <> \
-	struct addon_event_traits<ev> { \
-		using decl = bool(*)(addon_event_trampoline<ev> &next, __VA_ARGS__); \
-		static const int type = 3; \
-	}; \
-	template <> \
-	class  addon_event_trampoline<ev> : public addon_event_trampoline_data<bool(__VA_ARGS__)> {}
-
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::init_device, api::device *device);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::destroy_device, api::device *device);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::init_command_list, api::command_list *cmd_list);
@@ -393,11 +388,15 @@ namespace reshade
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::init_effect_runtime, api::effect_runtime *runtime);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::destroy_effect_runtime, api::effect_runtime *runtime);
 
-	DEFINE_ADDON_EVENT_TYPE_3(addon_event::create_sampler, api::device *device, const api::sampler_desc &desc);
-	DEFINE_ADDON_EVENT_TYPE_3(addon_event::create_resource, api::device *device, const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage initial_state);
-	DEFINE_ADDON_EVENT_TYPE_3(addon_event::create_resource_view, api::device *device, api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::create_sampler, api::device *device, const api::sampler_desc &desc, api::sampler *sampler);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::init_sampler, api::device *device, const api::sampler_desc &desc, api::sampler sampler);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::create_resource, api::device *device, const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage initial_state, api::resource *resource);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::init_resource, api::device *device, const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage initial_state, api::resource resource);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::create_resource_view, api::device *device, api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view *view);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::init_resource_view, api::device *device, api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view view);
 
-	DEFINE_ADDON_EVENT_TYPE_3(addon_event::create_pipeline, api::device *device, const api::pipeline_desc &desc);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::create_pipeline, api::device *device, const api::pipeline_desc &desc, api::pipeline *pipeline);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::init_pipeline, api::device *device, const api::pipeline_desc &desc, api::pipeline pipeline);
 
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::upload_buffer_region, api::device *device, const void *data, api::resource dst, uint64_t dst_offset, uint64_t size);
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::upload_texture_region, api::device *device, const api::subresource_data &data, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6]);
@@ -451,5 +450,4 @@ namespace reshade
 
 #undef DEFINE_ADDON_EVENT_TYPE_1
 #undef DEFINE_ADDON_EVENT_TYPE_2
-#undef DEFINE_ADDON_EVENT_TYPE_3
 }
