@@ -632,63 +632,74 @@ bool reshade::opengl::is_depth_stencil_format(GLenum internal_format, GLenum usa
 	}
 }
 
-void reshade::opengl::convert_memory_heap_to_usage(api::memory_heap heap, GLenum &usage)
+void reshade::opengl::convert_memory_heap_to_usage(const api::resource_desc &desc, GLenum &usage)
 {
-	switch (heap)
+	switch (desc.heap)
 	{
 	case api::memory_heap::gpu_only:
 		usage = GL_STATIC_DRAW;
 		break;
 	case api::memory_heap::cpu_to_gpu:
-		usage = GL_DYNAMIC_DRAW;
+		usage = (desc.flags & api::resource_flags::dynamic) == api::resource_flags::dynamic ? GL_DYNAMIC_DRAW : GL_STREAM_DRAW;
 		break;
 	case api::memory_heap::gpu_to_cpu:
-		usage = GL_DYNAMIC_READ;
+		usage = (desc.flags & api::resource_flags::dynamic) == api::resource_flags::dynamic ? GL_DYNAMIC_READ : GL_STREAM_READ;
 		break;
 	}
 }
-void reshade::opengl::convert_memory_heap_to_flags(api::memory_heap heap, GLbitfield &flags)
+void reshade::opengl::convert_memory_heap_to_flags(const api::resource_desc &desc, GLbitfield &flags)
 {
-	switch (heap)
+	switch (desc.heap)
 	{
 	case api::memory_heap::gpu_only:
 		flags |= GL_CLIENT_STORAGE_BIT;
 		break;
 	case api::memory_heap::cpu_to_gpu:
-		flags |= GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT;
+		flags |= GL_MAP_WRITE_BIT;
 		break;
 	case api::memory_heap::gpu_to_cpu:
-		flags |= GL_DYNAMIC_STORAGE_BIT | GL_MAP_READ_BIT;
+		flags |= GL_MAP_READ_BIT;
 		break;
 	}
+
+	if ((desc.flags & api::resource_flags::dynamic) == api::resource_flags::dynamic)
+		flags |= GL_DYNAMIC_STORAGE_BIT;
 }
-reshade::api::memory_heap reshade::opengl::convert_memory_heap_from_usage(GLenum usage)
+void reshade::opengl::convert_memory_heap_from_usage(api::resource_desc &desc, GLenum usage)
 {
 	switch (usage)
 	{
 	case GL_STATIC_DRAW:
-		return api::memory_heap::gpu_only;
+		desc.heap = api::memory_heap::gpu_only;
+		break;
 	case GL_STREAM_DRAW:
+		desc.heap = api::memory_heap::cpu_to_gpu;
+		break;
 	case GL_DYNAMIC_DRAW:
-		return api::memory_heap::cpu_to_gpu;
+		desc.heap = api::memory_heap::cpu_to_gpu;
+		desc.flags |= api::resource_flags::dynamic;
+		break;
 	case GL_STREAM_READ:
 	case GL_STATIC_READ:
+		desc.heap = api::memory_heap::gpu_to_cpu;
+		break;
 	case GL_DYNAMIC_READ:
-		return api::memory_heap::gpu_to_cpu;
-	default:
-		return api::memory_heap::unknown;
+		desc.heap = api::memory_heap::gpu_to_cpu;
+		desc.flags |= api::resource_flags::dynamic;
+		break;
 	}
 }
-reshade::api::memory_heap reshade::opengl::convert_memory_heap_from_flags(GLbitfield flags)
+void reshade::opengl::convert_memory_heap_from_flags(api::resource_desc &desc, GLbitfield flags)
 {
-	if ((flags & (GL_MAP_WRITE_BIT | GL_DYNAMIC_STORAGE_BIT)) != 0)
-		return api::memory_heap::cpu_to_gpu;
-	else if ((flags & (GL_MAP_READ_BIT)) != 0)
-		return api::memory_heap::gpu_to_cpu;
-	else if ((flags & (GL_CLIENT_STORAGE_BIT)) != 0)
-		return api::memory_heap::gpu_only;
-	else
-		return api::memory_heap::unknown;
+	if ((flags & GL_MAP_WRITE_BIT) != 0)
+		desc.heap = api::memory_heap::cpu_to_gpu;
+	else if ((flags & GL_MAP_READ_BIT) != 0)
+		desc.heap = api::memory_heap::gpu_to_cpu;
+	else if ((flags & GL_CLIENT_STORAGE_BIT) != 0)
+		desc.heap = api::memory_heap::gpu_only;
+
+	if ((flags & GL_DYNAMIC_STORAGE_BIT) != 0)
+		desc.flags |= api::resource_flags::dynamic;
 }
 
 bool reshade::opengl::check_resource_desc(GLenum target, const api::resource_desc &desc, GLenum &internal_format)
@@ -762,12 +773,11 @@ reshade::api::resource_type reshade::opengl::convert_resource_type(GLenum target
 		return api::resource_type::unknown;
 	}
 }
-reshade::api::resource_desc reshade::opengl::convert_resource_desc(GLenum target, GLsizeiptr buffer_size, api::memory_heap heap)
+reshade::api::resource_desc reshade::opengl::convert_resource_desc(GLenum target, GLsizeiptr buffer_size)
 {
 	api::resource_desc desc = {};
 	desc.type = convert_resource_type(target);
 	desc.buffer.size = buffer_size;
-	desc.heap = heap;
 	desc.usage = api::resource_usage::shader_resource | api::resource_usage::copy_dest | api::resource_usage::copy_source;
 	return desc;
 }

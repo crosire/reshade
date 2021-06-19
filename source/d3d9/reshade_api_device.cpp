@@ -412,7 +412,7 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 
 			UINT levels = 0;
 			D3DVOLUME_DESC internal_desc = {};
-			convert_resource_desc(desc, internal_desc, &levels);
+			convert_resource_desc(desc, internal_desc, &levels, _caps);
 
 			if (!convert_format_internal(desc.texture.format, internal_desc.Format))
 				break;

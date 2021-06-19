@@ -866,6 +866,9 @@ void reshade::vulkan::convert_resource_desc(const api::resource_desc &desc, VkIm
 	// Mipmap generation is using 'vkCmdBlitImage' and therefore needs transfer usage flags (see 'command_list_impl::generate_mipmaps')
 	if ((desc.flags & api::resource_flags::generate_mipmaps) == api::resource_flags::generate_mipmaps)
 		create_info.usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+
+	// Dynamic resources do not exist in Vulkan
+	assert((desc.flags & api::resource_flags::dynamic) != api::resource_flags::dynamic);
 }
 void reshade::vulkan::convert_resource_desc(const api::resource_desc &desc, VkBufferCreateInfo &create_info)
 {
@@ -873,6 +876,9 @@ void reshade::vulkan::convert_resource_desc(const api::resource_desc &desc, VkBu
 
 	create_info.size = desc.buffer.size;
 	convert_usage_to_buffer_usage_flags(desc.usage, create_info.usage);
+
+	// Dynamic resources do not exist in Vulkan
+	assert((desc.flags & api::resource_flags::dynamic) != api::resource_flags::dynamic);
 }
 reshade::api::resource_desc reshade::vulkan::convert_resource_desc(const VkImageCreateInfo &create_info)
 {

@@ -93,8 +93,9 @@ namespace reshade { namespace api
 	{
 		none = 0,
 		shared = (1 << 0),
-		cube_compatible = (1 << 1),
-		generate_mipmaps = (1 << 2)
+		dynamic = (1 << 1),
+		cube_compatible = (1 << 2),
+		generate_mipmaps = (1 << 3)
 	};
 	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(resource_flags);
 

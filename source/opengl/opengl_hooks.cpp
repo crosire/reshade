@@ -452,7 +452,8 @@ HOOK_EXPORT void WINAPI glBlendFunc(GLenum sfactor, GLenum dfactor)
 	GLint object = 0;
 	glGetIntegerv(reshade::opengl::get_binding_for_target(target), &object);
 
-	const reshade::api::resource_desc desc = reshade::opengl::convert_resource_desc(target, size, reshade::opengl::convert_memory_heap_from_usage(usage));
+	reshade::api::resource_desc desc = reshade::opengl::convert_resource_desc(target, size);
+	reshade::opengl::convert_memory_heap_from_usage(desc, usage);
 	const reshade::api::subresource_data initial_data = { data }; // Row and depth pitch are unused for buffer data
 
 	if (reshade::api::resource overwrite = reshade::opengl::make_resource_handle(target, object);
@@ -491,7 +492,8 @@ HOOK_EXPORT void WINAPI glBlendFunc(GLenum sfactor, GLenum dfactor)
 	GLint object = 0;
 	glGetIntegerv(reshade::opengl::get_binding_for_target(target), &object);
 
-	const reshade::api::resource_desc desc = reshade::opengl::convert_resource_desc(target, size, reshade::opengl::convert_memory_heap_from_flags(flags));
+	reshade::api::resource_desc desc = reshade::opengl::convert_resource_desc(target, size);
+	reshade::opengl::convert_memory_heap_from_flags(desc, flags);
 	const reshade::api::subresource_data initial_data = { data };
 
 	if (reshade::api::resource overwrite = reshade::opengl::make_resource_handle(target, object);
@@ -2448,7 +2450,8 @@ HOOK_EXPORT void WINAPI glMultMatrixf(const GLfloat *m)
 			void WINAPI glNamedBufferData(GLuint buffer, GLsizeiptr size, const void *data, GLenum usage)
 {
 #if RESHADE_ADDON
-	const reshade::api::resource_desc desc = reshade::opengl::convert_resource_desc(GL_BUFFER, size, reshade::opengl::convert_memory_heap_from_usage(usage));
+	reshade::api::resource_desc desc = reshade::opengl::convert_resource_desc(GL_BUFFER, size);
+	reshade::opengl::convert_memory_heap_from_usage(desc, usage);
 	const reshade::api::subresource_data initial_data = { data };
 
 	if (reshade::api::resource overwrite = reshade::opengl::make_resource_handle(GL_BUFFER, buffer);
@@ -2484,7 +2487,8 @@ HOOK_EXPORT void WINAPI glMultMatrixf(const GLfloat *m)
 			void WINAPI glNamedBufferStorage(GLuint buffer, GLsizeiptr size, const void *data, GLbitfield flags)
 {
 #if RESHADE_ADDON
-	const reshade::api::resource_desc desc = reshade::opengl::convert_resource_desc(GL_BUFFER, size, reshade::opengl::convert_memory_heap_from_flags(flags));
+	reshade::api::resource_desc desc = reshade::opengl::convert_resource_desc(GL_BUFFER, size);
+	reshade::opengl::convert_memory_heap_from_flags(desc, flags);
 	const reshade::api::subresource_data initial_data = { data };
 
 	if (reshade::api::resource overwrite = reshade::opengl::make_resource_handle(GL_BUFFER, buffer);
@@ -2520,7 +2524,8 @@ HOOK_EXPORT void WINAPI glMultMatrixf(const GLfloat *m)
 			void WINAPI glNamedRenderbufferStorage(GLuint renderbuffer, GLenum internalformat, GLsizei width, GLsizei height)
 {
 #if RESHADE_ADDON
-	const reshade::api::resource_desc desc = reshade::opengl::convert_resource_desc(GL_RENDERBUFFER, 1, 1, internalformat, width, height);
+	const reshade::api::resource_desc desc =
+		reshade::opengl::convert_resource_desc(GL_RENDERBUFFER, 1, 1, internalformat, width, height);
 
 	if (reshade::api::resource overwrite = reshade::opengl::make_resource_handle(GL_RENDERBUFFER, renderbuffer);
 		g_current_context &&
@@ -2554,7 +2559,8 @@ HOOK_EXPORT void WINAPI glMultMatrixf(const GLfloat *m)
 			void WINAPI glNamedRenderbufferStorageMultisample(GLuint renderbuffer, GLsizei samples, GLenum internalformat, GLsizei width, GLsizei height)
 {
 #if RESHADE_ADDON
-	const reshade::api::resource_desc desc = reshade::opengl::convert_resource_desc(GL_RENDERBUFFER, 1, samples, internalformat, width, height);
+	const reshade::api::resource_desc desc =
+		reshade::opengl::convert_resource_desc(GL_RENDERBUFFER, 1, samples, internalformat, width, height);
 
 	if (reshade::api::resource overwrite = reshade::opengl::make_resource_handle(GL_RENDERBUFFER, renderbuffer);
 		g_current_context &&

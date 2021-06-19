@@ -250,6 +250,10 @@ reshade::api::resource_desc reshade::d3d11::convert_resource_desc(const D3D11_BU
 	convert_d3d_usage_to_memory_heap(internal_desc.Usage, internal_desc.CPUAccessFlags, desc.heap);
 	convert_bind_flags_to_resource_usage(internal_desc.BindFlags, desc.usage);
 	convert_misc_flags_to_resource_flags(internal_desc.MiscFlags, desc.flags);
+
+	if (internal_desc.Usage == D3D11_USAGE_DYNAMIC)
+		desc.flags |= api::resource_flags::dynamic;
+
 	return desc;
 }
 reshade::api::resource_desc reshade::d3d11::convert_resource_desc(const D3D11_TEXTURE1D_DESC &internal_desc)
@@ -267,6 +271,10 @@ reshade::api::resource_desc reshade::d3d11::convert_resource_desc(const D3D11_TE
 	convert_d3d_usage_to_memory_heap(internal_desc.Usage, internal_desc.CPUAccessFlags, desc.heap);
 	convert_bind_flags_to_resource_usage(internal_desc.BindFlags, desc.usage);
 	convert_misc_flags_to_resource_flags(internal_desc.MiscFlags, desc.flags);
+
+	if (internal_desc.Usage == D3D11_USAGE_DYNAMIC)
+		desc.flags |= api::resource_flags::dynamic;
+
 	return desc;
 }
 reshade::api::resource_desc reshade::d3d11::convert_resource_desc(const D3D11_TEXTURE2D_DESC &internal_desc)
@@ -285,6 +293,10 @@ reshade::api::resource_desc reshade::d3d11::convert_resource_desc(const D3D11_TE
 	convert_bind_flags_to_resource_usage(internal_desc.BindFlags, desc.usage);
 	desc.usage |= desc.texture.samples > 1 ? api::resource_usage::resolve_source : api::resource_usage::resolve_dest;
 	convert_misc_flags_to_resource_flags(internal_desc.MiscFlags, desc.flags);
+
+	if (internal_desc.Usage == D3D11_USAGE_DYNAMIC)
+		desc.flags |= api::resource_flags::dynamic;
+
 	return desc;
 }
 reshade::api::resource_desc reshade::d3d11::convert_resource_desc(const D3D11_TEXTURE3D_DESC &internal_desc)
@@ -302,6 +314,10 @@ reshade::api::resource_desc reshade::d3d11::convert_resource_desc(const D3D11_TE
 	convert_d3d_usage_to_memory_heap(internal_desc.Usage, internal_desc.CPUAccessFlags, desc.heap);
 	convert_bind_flags_to_resource_usage(internal_desc.BindFlags, desc.usage);
 	convert_misc_flags_to_resource_flags(internal_desc.MiscFlags, desc.flags);
+
+	if (internal_desc.Usage == D3D11_USAGE_DYNAMIC)
+		desc.flags |= api::resource_flags::dynamic;
+
 	return desc;
 }
 

@@ -96,14 +96,14 @@ namespace reshade::opengl
 
 	bool is_depth_stencil_format(GLenum internal_format, GLenum usage = GL_DEPTH_STENCIL);
 
-	void convert_memory_heap_to_usage(api::memory_heap heap, GLenum &usage);
-	void convert_memory_heap_to_flags(api::memory_heap heap, GLbitfield &flags);
-	api::memory_heap convert_memory_heap_from_usage(GLenum usage);
-	api::memory_heap convert_memory_heap_from_flags(GLbitfield flags);
+	void convert_memory_heap_to_usage(const api::resource_desc &desc, GLenum &usage);
+	void convert_memory_heap_to_flags(const api::resource_desc &desc, GLbitfield &flags);
+	void convert_memory_heap_from_usage(api::resource_desc &desc, GLenum usage);
+	void convert_memory_heap_from_flags(api::resource_desc &desc, GLbitfield flags);
 
 	bool check_resource_desc(GLenum target, const api::resource_desc &desc, GLenum &internal_format);
 	api::resource_type convert_resource_type(GLenum target);
-	api::resource_desc convert_resource_desc(GLenum target, GLsizeiptr buffer_size, api::memory_heap heap);
+	api::resource_desc convert_resource_desc(GLenum target, GLsizeiptr buffer_size);
 	api::resource_desc convert_resource_desc(GLenum target, GLsizei levels, GLsizei samples, GLenum internal_format, GLsizei width, GLsizei height = 1, GLsizei depth = 1);
 
 	bool check_resource_view_desc(GLenum target, const api::resource_view_desc &desc, GLenum &internal_format);

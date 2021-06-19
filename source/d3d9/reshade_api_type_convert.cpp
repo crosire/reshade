@@ -316,7 +316,7 @@ void reshade::d3d9::convert_d3d_usage_to_resource_usage(DWORD d3d_usage, api::re
 		usage |= api::resource_usage::depth_stencil;
 }
 
-void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DVOLUME_DESC &internal_desc, UINT *levels)
+void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DVOLUME_DESC &internal_desc, UINT *levels, const D3DCAPS9 &caps)
 {
 	assert(desc.type == api::resource_type::texture_3d);
 
@@ -335,6 +335,15 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DVOL
 		convert_memory_heap_to_d3d_pool(desc.heap, internal_desc.Pool);
 		// Volume textures cannot have render target or depth-stencil usage, so do not call 'convert_resource_usage_to_d3d_usage'
 		// See https://docs.microsoft.com/en-us/windows/win32/direct3d9/d3dusage
+
+		if ((desc.flags & api::resource_flags::dynamic) == api::resource_flags::dynamic && (caps.Caps2 & D3DCAPS2_DYNAMICTEXTURES) != 0)
+		{
+			internal_desc.Usage |= D3DUSAGE_DYNAMIC;
+
+			// Keep dynamic textures in the default pool
+			if (desc.heap == api::memory_heap::cpu_to_gpu)
+				internal_desc.Pool = D3DPOOL_DEFAULT;
+		}
 	}
 
 	assert((desc.flags & api::resource_flags::generate_mipmaps) != api::resource_flags::generate_mipmaps);
@@ -366,9 +375,15 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DSUR
 		// System memory textures cannot have render target or depth-stencil usage
 		if (desc.heap == api::memory_heap::gpu_only)
 			convert_resource_usage_to_d3d_usage(desc.usage, internal_desc.Usage);
-		// Keep dynamic textures in the default pool
-		if (desc.heap == api::memory_heap::cpu_to_gpu && (caps.Caps2 & D3DCAPS2_DYNAMICTEXTURES) != 0 && (internal_desc.Usage & D3DUSAGE_DYNAMIC) != 0)
-			internal_desc.Pool = D3DPOOL_DEFAULT;
+
+		if (desc.type == api::resource_type::texture_2d && (desc.flags & api::resource_flags::dynamic) == api::resource_flags::dynamic && (caps.Caps2 & D3DCAPS2_DYNAMICTEXTURES) != 0)
+		{
+			internal_desc.Usage |= D3DUSAGE_DYNAMIC;
+
+			// Keep dynamic textures in the default pool
+			if (desc.heap == api::memory_heap::cpu_to_gpu)
+				internal_desc.Pool = D3DPOOL_DEFAULT;
+		}
 	}
 
 	if ((desc.flags & api::resource_flags::cube_compatible) == api::resource_flags::cube_compatible)
@@ -415,7 +430,7 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DIND
 		if (desc.heap == api::memory_heap::gpu_to_cpu)
 		{
 			internal_desc.Pool = D3DPOOL_DEFAULT;
-			assert((internal_desc.Pool & D3DUSAGE_WRITEONLY) == 0);
+			assert((internal_desc.Usage & D3DUSAGE_WRITEONLY) == 0);
 		}
 		else
 		{
@@ -424,6 +439,15 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DIND
 				internal_desc.Usage |= D3DUSAGE_WRITEONLY;
 			else if (desc.heap == api::memory_heap::cpu_to_gpu)
 				internal_desc.Usage |= D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC;
+		}
+
+		if ((desc.flags & api::resource_flags::dynamic) == api::resource_flags::dynamic)
+		{
+			internal_desc.Usage |= D3DUSAGE_DYNAMIC;
+
+			// Keep dynamic buffers in the default pool
+			if (desc.heap == api::memory_heap::cpu_to_gpu)
+				internal_desc.Pool = D3DPOOL_DEFAULT;
 		}
 	}
 }
@@ -441,7 +465,7 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DVER
 		if (desc.heap == api::memory_heap::gpu_to_cpu)
 		{
 			internal_desc.Pool = D3DPOOL_DEFAULT;
-			assert((internal_desc.Pool & D3DUSAGE_WRITEONLY) == 0);
+			assert((internal_desc.Usage & D3DUSAGE_WRITEONLY) == 0);
 		}
 		else
 		{
@@ -450,6 +474,15 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DVER
 				internal_desc.Usage |= D3DUSAGE_WRITEONLY;
 			else if (desc.heap == api::memory_heap::cpu_to_gpu)
 				internal_desc.Usage |= D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC;
+		}
+
+		if ((desc.flags & api::resource_flags::dynamic) == api::resource_flags::dynamic)
+		{
+			internal_desc.Usage |= D3DUSAGE_DYNAMIC;
+
+			// Keep dynamic buffers in the default pool
+			if (desc.heap == api::memory_heap::cpu_to_gpu)
+				internal_desc.Pool = D3DPOOL_DEFAULT;
 		}
 	}
 }
@@ -568,6 +601,8 @@ reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DSURFAC
 
 	if (internal_desc.Type == D3DRTYPE_CUBETEXTURE)
 		desc.flags |= api::resource_flags::cube_compatible;
+	if ((internal_desc.Usage & D3DUSAGE_DYNAMIC) != 0)
+		desc.flags |= api::resource_flags::dynamic;
 	if ((internal_desc.Usage & D3DUSAGE_AUTOGENMIPMAP) != 0)
 		desc.flags |= api::resource_flags::generate_mipmaps;
 
@@ -583,6 +618,13 @@ reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DINDEXB
 	else
 		convert_d3d_pool_to_memory_heap(internal_desc.Pool, desc.heap);
 	desc.usage = api::resource_usage::index_buffer;
+
+	if ((internal_desc.Usage & D3DUSAGE_DYNAMIC) != 0)
+	{
+		desc.heap = api::memory_heap::cpu_to_gpu;
+		desc.flags |= api::resource_flags::dynamic;
+	}
+
 	return desc;
 }
 reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DVERTEXBUFFER_DESC &internal_desc)
@@ -595,6 +637,13 @@ reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DVERTEX
 	else
 		convert_d3d_pool_to_memory_heap(internal_desc.Pool, desc.heap);
 	desc.usage = api::resource_usage::vertex_buffer;
+
+	if ((internal_desc.Usage & D3DUSAGE_DYNAMIC) != 0)
+	{
+		desc.heap = api::memory_heap::cpu_to_gpu;
+		desc.flags |= api::resource_flags::dynamic;
+	}
+
 	return desc;
 }
 
