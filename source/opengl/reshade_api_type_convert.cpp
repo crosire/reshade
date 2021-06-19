@@ -1028,6 +1028,47 @@ GLenum reshade::opengl::get_binding_for_target(GLenum target)
 	}
 }
 
+auto   reshade::opengl::convert_logic_op(GLenum value) -> api::logic_op
+{
+	switch (value)
+	{
+	default:
+		assert(false);
+		[[fallthrough]];
+	case GL_CLEAR:
+		return reshade::api::logic_op::clear;
+	case GL_AND:
+		return reshade::api::logic_op::and;
+	case GL_AND_REVERSE:
+		return reshade::api::logic_op::and_reverse;
+	case GL_COPY:
+		return reshade::api::logic_op::copy;
+	case GL_AND_INVERTED:
+		return reshade::api::logic_op::and_inverted;
+	case GL_NOOP:
+		return reshade::api::logic_op::noop;
+	case GL_XOR:
+		return reshade::api::logic_op::xor;
+	case GL_OR:
+		return reshade::api::logic_op::or;
+	case GL_NOR:
+		return reshade::api::logic_op::nor;
+	case GL_EQUIV:
+		return reshade::api::logic_op::equivalent;
+	case GL_INVERT:
+		return reshade::api::logic_op::invert;
+	case GL_OR_REVERSE:
+		return reshade::api::logic_op::or_reverse;
+	case GL_COPY_INVERTED:
+		return reshade::api::logic_op::copy_inverted;
+	case GL_OR_INVERTED:
+		return reshade::api::logic_op::or_inverted;
+	case GL_NAND:
+		return reshade::api::logic_op::nand;
+	case GL_SET:
+		return reshade::api::logic_op::set;
+	}
+}
 GLenum reshade::opengl::convert_logic_op(api::logic_op value)
 {
 	switch (value)
@@ -1069,6 +1110,25 @@ GLenum reshade::opengl::convert_logic_op(api::logic_op value)
 		return GL_SET;
 	}
 }
+auto   reshade::opengl::convert_blend_op(GLenum value) -> api::blend_op
+{
+	switch (value)
+	{
+	default:
+		assert(false);
+		[[fallthrough]];
+	case GL_FUNC_ADD:
+		return api::blend_op::add;
+	case GL_FUNC_SUBTRACT:
+		return api::blend_op::subtract;
+	case GL_FUNC_REVERSE_SUBTRACT:
+		return api::blend_op::rev_subtract;
+	case GL_MIN:
+		return api::blend_op::min;
+	case GL_MAX:
+		return api::blend_op::max;
+	}
+}
 GLenum reshade::opengl::convert_blend_op(api::blend_op value)
 {
 	switch (value)
@@ -1086,6 +1146,53 @@ GLenum reshade::opengl::convert_blend_op(api::blend_op value)
 		return GL_MIN;
 	case api::blend_op::max:
 		return GL_MAX;
+	}
+}
+auto   reshade::opengl::convert_blend_factor(GLenum value) -> api::blend_factor
+{
+	switch (value)
+	{
+	default:
+		assert(false);
+		[[fallthrough]];
+	case GL_ZERO:
+		return api::blend_factor::zero;
+	case GL_ONE:
+		return api::blend_factor::one;
+	case GL_SRC_COLOR:
+		return api::blend_factor::src_color;
+	case GL_ONE_MINUS_SRC_COLOR:
+		return api::blend_factor::inv_src_color;
+	case GL_DST_COLOR:
+		return api::blend_factor::dst_color;
+	case GL_ONE_MINUS_DST_COLOR:
+		return api::blend_factor::inv_dst_color;
+	case GL_SRC_ALPHA:
+		return api::blend_factor::src_alpha;
+	case GL_ONE_MINUS_SRC_ALPHA:
+		return api::blend_factor::inv_src_alpha;
+	case GL_DST_ALPHA:
+		return api::blend_factor::dst_alpha;
+	case GL_ONE_MINUS_DST_ALPHA:
+		return api::blend_factor::inv_dst_alpha;
+	case GL_CONSTANT_COLOR:
+		return api::blend_factor::constant_color;
+	case GL_ONE_MINUS_CONSTANT_COLOR:
+		return api::blend_factor::inv_constant_color;
+	case GL_CONSTANT_ALPHA:
+		return api::blend_factor::constant_alpha;
+	case GL_ONE_MINUS_CONSTANT_ALPHA:
+		return api::blend_factor::inv_constant_alpha;
+	case GL_SRC_ALPHA_SATURATE:
+		return api::blend_factor::src_alpha_sat;
+	case GL_SRC1_COLOR:
+		return api::blend_factor::src1_color;
+	case GL_ONE_MINUS_SRC1_COLOR:
+		return api::blend_factor::inv_src1_color;
+	case GL_SRC1_ALPHA:
+		return api::blend_factor::src1_alpha;
+	case GL_ONE_MINUS_SRC1_ALPHA:
+		return api::blend_factor::inv_src1_alpha;
 	}
 }
 GLenum reshade::opengl::convert_blend_factor(api::blend_factor value)
@@ -1135,6 +1242,21 @@ GLenum reshade::opengl::convert_blend_factor(api::blend_factor value)
 		return GL_ONE_MINUS_SRC1_ALPHA;
 	}
 }
+auto   reshade::opengl::convert_fill_mode(GLenum value) -> api::fill_mode
+{
+	switch (value)
+	{
+	default:
+		assert(false);
+		[[fallthrough]];
+	case GL_FILL:
+		return api::fill_mode::solid;
+	case GL_LINE:
+		return api::fill_mode::wireframe;
+	case GL_POINT:
+		return api::fill_mode::point;
+	}
+}
 GLenum reshade::opengl::convert_fill_mode(api::fill_mode value)
 {
 	switch (value)
@@ -1148,6 +1270,23 @@ GLenum reshade::opengl::convert_fill_mode(api::fill_mode value)
 		return GL_LINE;
 	case api::fill_mode::point:
 		return GL_POINT;
+	}
+}
+auto   reshade::opengl::convert_cull_mode(GLenum value) -> api::cull_mode
+{
+	switch (value)
+	{
+	default:
+		assert(false);
+		[[fallthrough]];
+	case GL_NONE:
+		return api::cull_mode::none;
+	case GL_FRONT:
+		return api::cull_mode::front;
+	case GL_BACK:
+		return api::cull_mode::back;
+	case GL_FRONT_AND_BACK:
+		return api::cull_mode::front_and_back;
 	}
 }
 GLenum reshade::opengl::convert_cull_mode(api::cull_mode value)
@@ -1165,6 +1304,31 @@ GLenum reshade::opengl::convert_cull_mode(api::cull_mode value)
 		return GL_BACK;
 	case api::cull_mode::front_and_back:
 		return GL_FRONT_AND_BACK;
+	}
+}
+auto   reshade::opengl::convert_compare_op(GLenum value) -> api::compare_op
+{
+	switch (value)
+	{
+	default:
+		assert(false);
+		[[fallthrough]];
+	case GL_NEVER:
+		return api::compare_op::never;
+	case GL_LESS:
+		return api::compare_op::less;
+	case GL_EQUAL:
+		return api::compare_op::equal;
+	case GL_LEQUAL:
+		return api::compare_op::less_equal;
+	case GL_GREATER:
+		return api::compare_op::greater;
+	case GL_NOTEQUAL:
+		return api::compare_op::not_equal;
+	case GL_GEQUAL:
+		return api::compare_op::greater_equal;
+	case GL_ALWAYS:
+		return api::compare_op::always;
 	}
 }
 GLenum reshade::opengl::convert_compare_op(api::compare_op value)
@@ -1192,6 +1356,31 @@ GLenum reshade::opengl::convert_compare_op(api::compare_op value)
 		return GL_ALWAYS;
 	}
 }
+auto   reshade::opengl::convert_stencil_op(GLenum value) -> api::stencil_op
+{
+	switch (value)
+	{
+	default:
+		assert(false);
+		[[fallthrough]];
+	case GL_KEEP:
+		return api::stencil_op::keep;
+	case GL_ZERO:
+		return api::stencil_op::zero;
+	case GL_REPLACE:
+		return api::stencil_op::replace;
+	case GL_INCR:
+		return api::stencil_op::incr_sat;
+	case GL_DECR:
+		return api::stencil_op::decr_sat;
+	case GL_INVERT:
+		return api::stencil_op::invert;
+	case GL_INCR_WRAP:
+		return api::stencil_op::incr;
+	case GL_DECR_WRAP:
+		return api::stencil_op::decr;
+	}
+}
 GLenum reshade::opengl::convert_stencil_op(api::stencil_op value)
 {
 	switch (value)
@@ -1217,6 +1406,39 @@ GLenum reshade::opengl::convert_stencil_op(api::stencil_op value)
 		return GL_DECR_WRAP;
 	}
 }
+auto   reshade::opengl::convert_primitive_topology(GLenum value) -> api::primitive_topology
+{
+	switch (value)
+	{
+	default:
+		assert(false);
+		[[fallthrough]];
+	case GL_POINTS:
+		return api::primitive_topology::point_list;
+	case GL_LINES:
+		return api::primitive_topology::line_list;
+	case GL_LINE_STRIP:
+		return api::primitive_topology::line_strip;
+	case GL_TRIANGLES:
+		return api::primitive_topology::triangle_list;
+	case GL_TRIANGLE_STRIP:
+		return api::primitive_topology::triangle_strip;
+	case GL_TRIANGLE_FAN:
+		return api::primitive_topology::triangle_fan;
+	case GL_LINES_ADJACENCY:
+		return api::primitive_topology::line_list_adj;
+	case GL_LINE_STRIP_ADJACENCY:
+		return api::primitive_topology::line_strip_adj;
+	case GL_TRIANGLES_ADJACENCY:
+		return api::primitive_topology::triangle_list_adj;
+	case GL_TRIANGLE_STRIP_ADJACENCY:
+		return api::primitive_topology::triangle_strip_adj;
+	case GL_PATCHES:
+		GLint cps = 1;
+		glGetIntegerv(GL_PATCH_VERTICES, &cps);
+		return static_cast<api::primitive_topology>(static_cast<uint32_t>(api::primitive_topology::patch_list_01_cp) + cps - 1);
+	}
+}
 GLenum reshade::opengl::convert_primitive_topology(api::primitive_topology value)
 {
 	switch (value)
@@ -1224,8 +1446,6 @@ GLenum reshade::opengl::convert_primitive_topology(api::primitive_topology value
 	default:
 		assert(false);
 		[[fallthrough]];
-	case api::primitive_topology::undefined:
-		return GL_NONE;
 	case api::primitive_topology::point_list:
 		return GL_POINTS;
 	case api::primitive_topology::line_list:

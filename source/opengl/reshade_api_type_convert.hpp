@@ -117,13 +117,21 @@ namespace reshade::opengl
 
 	GLenum get_binding_for_target(GLenum target);
 
+	auto   convert_logic_op(GLenum value) -> api::logic_op;
 	GLenum convert_logic_op(api::logic_op value);
+	auto   convert_blend_op(GLenum value) -> api::blend_op;
 	GLenum convert_blend_op(api::blend_op value);
+	auto   convert_blend_factor(GLenum value) -> api::blend_factor;
 	GLenum convert_blend_factor(api::blend_factor value);
+	auto   convert_fill_mode(GLenum value) -> api::fill_mode;
 	GLenum convert_fill_mode(api::fill_mode value);
+	auto   convert_cull_mode(GLenum value) -> api::cull_mode;
 	GLenum convert_cull_mode(api::cull_mode value);
+	auto   convert_compare_op(GLenum value) -> api::compare_op;
 	GLenum convert_compare_op(api::compare_op value);
+	auto   convert_stencil_op(GLenum value) -> api::stencil_op;
 	GLenum convert_stencil_op(api::stencil_op value);
+	auto   convert_primitive_topology(GLenum value) -> api::primitive_topology;
 	GLenum convert_primitive_topology(api::primitive_topology value);
 	GLenum convert_query_type(api::query_type type);
 	GLenum convert_shader_type(api::shader_stage type);

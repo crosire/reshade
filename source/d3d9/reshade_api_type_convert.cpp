@@ -647,9 +647,52 @@ reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DVERTEX
 	return desc;
 }
 
+auto reshade::d3d9::convert_blend_op(D3DBLENDOP value) -> api::blend_op
+{
+	return static_cast<api::blend_op>(static_cast<uint32_t>(value) - 1);
+}
 auto reshade::d3d9::convert_blend_op(api::blend_op value) -> D3DBLENDOP
 {
 	return static_cast<D3DBLENDOP>(static_cast<uint32_t>(value) + 1);
+}
+auto reshade::d3d9::convert_blend_factor(D3DBLEND value) -> api::blend_factor
+{
+	switch (value)
+	{
+	default:
+		assert(false);
+		[[fallthrough]];
+	case D3DBLEND_ZERO:
+		return api::blend_factor::zero;
+	case D3DBLEND_ONE:
+		return api::blend_factor::one;
+	case D3DBLEND_SRCCOLOR:
+		return api::blend_factor::src_color;
+	case D3DBLEND_INVSRCCOLOR:
+		return api::blend_factor::inv_src_color;
+	case D3DBLEND_DESTCOLOR:
+		return api::blend_factor::dst_color;
+	case D3DBLEND_INVDESTCOLOR:
+		return api::blend_factor::inv_dst_color;
+	case D3DBLEND_SRCALPHA:
+		return api::blend_factor::src_alpha;
+	case D3DBLEND_INVSRCALPHA:
+		return api::blend_factor::inv_src_alpha;
+	case D3DBLEND_DESTALPHA:
+		return api::blend_factor::dst_alpha;
+	case D3DBLEND_INVDESTALPHA:
+		return api::blend_factor::inv_dst_alpha;
+	case D3DBLEND_BLENDFACTOR:
+		return api::blend_factor::constant_color;
+	case D3DBLEND_INVBLENDFACTOR:
+		return api::blend_factor::inv_constant_color;
+	case D3DBLEND_SRCALPHASAT:
+		return api::blend_factor::src_alpha_sat;
+	case D3DBLEND_SRCCOLOR2:
+		return api::blend_factor::src1_color;
+	case D3DBLEND_INVSRCCOLOR2:
+		return api::blend_factor::inv_src1_color;
+	}
 }
 auto reshade::d3d9::convert_blend_factor(api::blend_factor value) -> D3DBLEND
 {
@@ -702,6 +745,21 @@ auto reshade::d3d9::convert_blend_factor(api::blend_factor value) -> D3DBLEND
 		return D3DBLEND_INVSRCCOLOR2;
 	}
 }
+auto reshade::d3d9::convert_fill_mode(D3DFILLMODE value) -> api::fill_mode
+{
+	switch (value)
+	{
+	case D3DFILL_POINT:
+		return api::fill_mode::point;
+	case D3DFILL_WIREFRAME:
+		return api::fill_mode::wireframe;
+	default:
+		assert(false);
+		[[fallthrough]];
+	case D3DFILL_SOLID:
+		return api::fill_mode::solid;
+	}
+}
 auto reshade::d3d9::convert_fill_mode(api::fill_mode value) -> D3DFILLMODE
 {
 	switch (value)
@@ -717,15 +775,29 @@ auto reshade::d3d9::convert_fill_mode(api::fill_mode value) -> D3DFILLMODE
 		return D3DFILL_SOLID;
 	}
 }
+auto reshade::d3d9::convert_cull_mode(D3DCULL value, bool front_counter_clockwise) -> api::cull_mode
+{
+	if (value == D3DCULL_NONE)
+		return api::cull_mode::none;
+	return (value == D3DCULL_CCW && front_counter_clockwise) ? api::cull_mode::front : api::cull_mode::back;
+}
 auto reshade::d3d9::convert_cull_mode(api::cull_mode value, bool front_counter_clockwise) -> D3DCULL
 {
 	if (value == api::cull_mode::none)
 		return D3DCULL_NONE;
 	return (value == api::cull_mode::front) == front_counter_clockwise ? D3DCULL_CCW : D3DCULL_CW;
 }
+auto reshade::d3d9::convert_compare_op(D3DCMPFUNC value) -> api::compare_op
+{
+	return static_cast<api::compare_op>(static_cast<uint32_t>(value) - 1);
+}
 auto reshade::d3d9::convert_compare_op(api::compare_op value) -> D3DCMPFUNC
 {
 	return static_cast<D3DCMPFUNC>(static_cast<uint32_t>(value) + 1);
+}
+auto reshade::d3d9::convert_stencil_op(D3DSTENCILOP value) -> api::stencil_op
+{
+	return static_cast<api::stencil_op>(static_cast<uint32_t>(value) - 1);
 }
 auto reshade::d3d9::convert_stencil_op(api::stencil_op value) -> D3DSTENCILOP
 {

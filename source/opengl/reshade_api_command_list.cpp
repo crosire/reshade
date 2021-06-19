@@ -175,8 +175,20 @@ void reshade::opengl::device_impl::bind_pipeline_states(uint32_t count, const ap
 		case api::dynamic_state::logic_op_enable:
 			glEnableOrDisable(GL_COLOR_LOGIC_OP, values[i]);
 			break;
+		case api::dynamic_state::logic_op:
+			glLogicOp(convert_logic_op(static_cast<api::logic_op>(values[i])));
+			break;
+		case api::dynamic_state::render_target_write_mask:
+			glColorMask(values[i] & 0x1, (values[i] >> 1) & 0x1, (values[i] >> 2) & 0x1, (values[i] >> 3) & 0x1);
+			break;
+		case api::dynamic_state::fill_mode:
+			glPolygonMode(GL_FRONT_AND_BACK, convert_fill_mode(static_cast<api::fill_mode>(values[i])));
+			break;
 		case api::dynamic_state::cull_mode:
-			glEnableOrDisable(GL_CULL_FACE, values[i]);
+			glEnableOrDisable(GL_CULL_FACE, convert_cull_mode(static_cast<api::cull_mode>(values[i])));
+			break;
+		case api::dynamic_state::front_counter_clockwise:
+			glFrontFace(values[i] ? GL_CCW : GL_CW);
 			break;
 		case api::dynamic_state::depth_clip_enable:
 			glEnableOrDisable(GL_DEPTH_CLAMP, !values[i]);
@@ -192,6 +204,9 @@ void reshade::opengl::device_impl::bind_pipeline_states(uint32_t count, const ap
 			break;
 		case api::dynamic_state::depth_enable:
 			glEnableOrDisable(GL_DEPTH_TEST, values[i]);
+			break;
+		case api::dynamic_state::depth_write_mask:
+			glDepthMask(values[i]);
 			break;
 		case api::dynamic_state::stencil_enable:
 			glEnableOrDisable(GL_STENCIL_TEST, values[i]);

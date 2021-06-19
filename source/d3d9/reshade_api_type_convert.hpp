@@ -60,11 +60,17 @@ namespace reshade::d3d9
 	api::resource_desc convert_resource_desc(const D3DINDEXBUFFER_DESC &internal_desc);
 	api::resource_desc convert_resource_desc(const D3DVERTEXBUFFER_DESC &internal_desc);
 
+	auto convert_blend_op(D3DBLENDOP value) -> api::blend_op;
 	auto convert_blend_op(api::blend_op value) -> D3DBLENDOP;
+	auto convert_blend_factor(D3DBLEND value) -> api::blend_factor;
 	auto convert_blend_factor(api::blend_factor value) -> D3DBLEND;
+	auto convert_fill_mode(D3DFILLMODE value) ->api::fill_mode;
 	auto convert_fill_mode(api::fill_mode value) -> D3DFILLMODE;
+	auto convert_cull_mode(D3DCULL value, bool front_counter_clockwise) -> api::cull_mode;
 	auto convert_cull_mode(api::cull_mode value, bool front_counter_clockwise) -> D3DCULL;
+	auto convert_compare_op(D3DCMPFUNC value) -> api::compare_op;
 	auto convert_compare_op(api::compare_op value) -> D3DCMPFUNC;
+	auto convert_stencil_op(D3DSTENCILOP value) -> api::stencil_op;
 	auto convert_stencil_op(api::stencil_op value) -> D3DSTENCILOP;
 	auto convert_primitive_topology(api::primitive_topology value) -> D3DPRIMITIVETYPE;
 	auto convert_query_type(api::query_type value) -> D3DQUERYTYPE;

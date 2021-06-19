@@ -42,7 +42,7 @@ HOOK_EXPORT void WINAPI glAlphaFunc(GLenum func, GLclampf ref)
 	if (g_current_context)
 	{
 		const reshade::api::dynamic_state states[2] = { reshade::api::dynamic_state::alpha_func, reshade::api::dynamic_state::alpha_reference_value };
-		const uint32_t values[2] = { func, *reinterpret_cast<const uint32_t *>(&ref) };
+		const uint32_t values[2] = { static_cast<uint32_t>(reshade::opengl::convert_compare_op(func)), *reinterpret_cast<const uint32_t *>(&ref) };
 
 		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 2, states, values);
 	}
@@ -83,12 +83,12 @@ HOOK_EXPORT void WINAPI glBegin(GLenum mode)
 
 		switch (target)
 		{
-		case GL_ARRAY_BUFFER:
-			reshade::invoke_addon_event<reshade::addon_event::bind_vertex_buffers>(g_current_context, 0, 1, &resource, &offset, &stride);
-			return;
 		case GL_ELEMENT_ARRAY_BUFFER:
 			// The index format is provided to 'glDrawElements' and is unknown at this point, so call with index size set to zero
 			reshade::invoke_addon_event<reshade::addon_event::bind_index_buffer>(g_current_context, resource, offset, 0);
+			return;
+		case GL_ARRAY_BUFFER:
+			reshade::invoke_addon_event<reshade::addon_event::bind_vertex_buffers>(g_current_context, 0, 1, &resource, &offset, &stride);
 			return;
 		}
 	}
@@ -107,7 +107,8 @@ HOOK_EXPORT void WINAPI glBegin(GLenum mode)
 		switch (target)
 		{
 		case GL_UNIFORM_BUFFER:
-			reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 0, reshade::api::descriptor_type::constant_buffer, index, 1, &resource);
+			reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
+				g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 0, reshade::api::descriptor_type::constant_buffer, index, 1, &resource);
 			break;
 		}
 	}
@@ -127,7 +128,8 @@ HOOK_EXPORT void WINAPI glBegin(GLenum mode)
 		switch (target)
 		{
 		case GL_UNIFORM_BUFFER:
-			reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 0, reshade::api::descriptor_type::constant_buffer, index, 1, &resource);
+			reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
+				g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 0, reshade::api::descriptor_type::constant_buffer, index, 1, &resource);
 			break;
 		}
 	}
@@ -148,7 +150,8 @@ HOOK_EXPORT void WINAPI glBegin(GLenum mode)
 		switch (target)
 		{
 		case GL_UNIFORM_BUFFER:
-			reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 0, reshade::api::descriptor_type::constant_buffer, first, count, buffer_handles);
+			reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
+				g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 0, reshade::api::descriptor_type::constant_buffer, first, count, buffer_handles);
 			break;
 		}
 	}
@@ -170,7 +173,8 @@ HOOK_EXPORT void WINAPI glBegin(GLenum mode)
 		switch (target)
 		{
 		case GL_UNIFORM_BUFFER:
-			reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 0, reshade::api::descriptor_type::constant_buffer, first, count, buffer_handles);
+			reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
+				g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 0, reshade::api::descriptor_type::constant_buffer, first, count, buffer_handles);
 			break;
 		}
 	}
@@ -187,7 +191,7 @@ HOOK_EXPORT void WINAPI glBegin(GLenum mode)
 		glCheckFramebufferStatus(target) == GL_FRAMEBUFFER_COMPLETE) // Skip incomplete frame buffer bindings (e.g. during set up)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(g_current_context);
-		reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(g_current_context, reshade::opengl::make_render_pass_handle(framebuffer));
+		reshade::invoke_addon_event< reshade::addon_event::begin_render_pass>(g_current_context, reshade::opengl::make_render_pass_handle(framebuffer));
 	}
 #endif
 }
@@ -202,7 +206,8 @@ HOOK_EXPORT void WINAPI glBegin(GLenum mode)
 	{
 		const reshade::api::resource_view view = reshade::opengl::make_resource_view_handle(GL_TEXTURE, texture);
 
-		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 0, reshade::api::descriptor_type::unordered_access_view, unit, 1, &view);
+		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
+			g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 0, reshade::api::descriptor_type::unordered_access_view, unit, 1, &view);
 	}
 #endif
 }
@@ -218,7 +223,8 @@ HOOK_EXPORT void WINAPI glBegin(GLenum mode)
 		for (GLsizei i = 0; i < count; ++i)
 			view_handles[i] = textures != nullptr ? reshade::opengl::make_resource_view_handle(GL_TEXTURE, textures[i]) : reshade::api::resource_view { 0 };
 
-		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 0, reshade::api::descriptor_type::unordered_access_view, first, count, view_handles);
+		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
+			g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 0, reshade::api::descriptor_type::unordered_access_view, first, count, view_handles);
 	}
 #endif
 }
@@ -233,7 +239,8 @@ HOOK_EXPORT void WINAPI glBegin(GLenum mode)
 	{
 		const reshade::api::sampler sampler_handle = { sampler };
 
-		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 0, reshade::api::descriptor_type::sampler, unit, 1, &sampler_handle);
+		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
+			g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 0, reshade::api::descriptor_type::sampler, unit, 1, &sampler_handle);
 	}
 #endif
 }
@@ -249,7 +256,8 @@ HOOK_EXPORT void WINAPI glBegin(GLenum mode)
 		for (GLsizei i = 0; i < count; ++i)
 			sampler_handles[i] = { samplers != nullptr ? samplers[i] : 0 };
 
-		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 0, reshade::api::descriptor_type::sampler, first, count, sampler_handles);
+		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
+			g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 0, reshade::api::descriptor_type::sampler, first, count, sampler_handles);
 	}
 #endif
 }
@@ -268,7 +276,8 @@ HOOK_EXPORT void WINAPI glBindTexture(GLenum target, GLuint texture)
 
 		const reshade::api::resource_view view = reshade::opengl::make_resource_view_handle(target, texture);
 
-		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 0, reshade::api::descriptor_type::shader_resource_view, unit, 1, &view);
+		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
+			g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 0, reshade::api::descriptor_type::shader_resource_view, unit, 1, &view);
 	}
 #endif
 }
@@ -282,7 +291,8 @@ HOOK_EXPORT void WINAPI glBindTexture(GLenum target, GLuint texture)
 	{
 		const reshade::api::resource_view view = reshade::opengl::make_resource_view_handle(GL_TEXTURE, texture);
 
-		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 0, reshade::api::descriptor_type::shader_resource_view, unit, 1, &view);
+		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
+			g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 0, reshade::api::descriptor_type::shader_resource_view, unit, 1, &view);
 	}
 #endif
 }
@@ -298,7 +308,8 @@ HOOK_EXPORT void WINAPI glBindTexture(GLenum target, GLuint texture)
 		for (GLsizei i = 0; i < count; ++i)
 			view_handles[i] = textures != nullptr ? reshade::opengl::make_resource_view_handle(GL_TEXTURE, textures[i]) : reshade::api::resource_view { 0 };
 
-		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 0, reshade::api::descriptor_type::shader_resource_view, first, count, view_handles);
+		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
+			g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 0, reshade::api::descriptor_type::shader_resource_view, first, count, view_handles);
 	}
 #endif
 }
@@ -359,7 +370,7 @@ HOOK_EXPORT void WINAPI glBlendFunc(GLenum sfactor, GLenum dfactor)
 	if (g_current_context)
 	{
 		const reshade::api::dynamic_state states[2] = { reshade::api::dynamic_state::src_color_blend_factor, reshade::api::dynamic_state::dst_color_blend_factor };
-		const uint32_t values[2] = { sfactor, dfactor };
+		const uint32_t values[2] = { static_cast<uint32_t>(reshade::opengl::convert_blend_factor(sfactor)), static_cast<uint32_t>(reshade::opengl::convert_blend_factor(dfactor)) };
 
 		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 2, states, values);
 	}
@@ -378,12 +389,12 @@ HOOK_EXPORT void WINAPI glBlendFunc(GLenum sfactor, GLenum dfactor)
 
 		const reshade::api::attachment_type type = reshade::opengl::convert_buffer_bits_to_aspect(mask);
 
-		reshade::api::resource_view srv_view = { 0 };
 		reshade::api::resource src = { 0 };
+		reshade::api::resource_view srv_view = { 0 };
 		g_current_context->get_attachment(reshade::opengl::make_render_pass_handle(src_fbo), type, 0, &srv_view);
 		g_current_context->get_resource_from_view(srv_view, &src);
-		reshade::api::resource_view dst_view = { 0 };
 		reshade::api::resource dst = { 0 };
+		reshade::api::resource_view dst_view = { 0 };
 		g_current_context->get_attachment(reshade::opengl::make_render_pass_handle(dst_fbo), type, 0, &dst_view);
 		g_current_context->get_resource_from_view(dst_view, &dst);
 
@@ -415,12 +426,12 @@ HOOK_EXPORT void WINAPI glBlendFunc(GLenum sfactor, GLenum dfactor)
 	{
 		const reshade::api::attachment_type type = reshade::opengl::convert_buffer_bits_to_aspect(mask);
 
-		reshade::api::resource_view srv_view = { 0 };
 		reshade::api::resource src = { 0 };
+		reshade::api::resource_view srv_view = { 0 };
 		g_current_context->get_attachment(reshade::opengl::make_render_pass_handle(readFramebuffer), type, 0, &srv_view);
 		g_current_context->get_resource_from_view(srv_view, &src);
-		reshade::api::resource_view dst_view = { 0 };
 		reshade::api::resource dst = { 0 };
+		reshade::api::resource_view dst_view = { 0 };
 		g_current_context->get_attachment(reshade::opengl::make_render_pass_handle(drawFramebuffer), type, 0, &dst_view);
 		g_current_context->get_resource_from_view(dst_view, &dst);
 
@@ -549,7 +560,7 @@ HOOK_EXPORT void WINAPI glClear(GLbitfield mask)
 		GLint   stencil_value = 0;
 		glGetIntegerv(GL_STENCIL_CLEAR_VALUE, &stencil_value);
 
-		if (reshade::invoke_addon_event<reshade::addon_event::clear_attachments>(g_current_context, reshade::opengl::convert_buffer_bits_to_aspect(mask), color_value, depth_value, static_cast<uint8_t>(stencil_value), 0, nullptr))
+		if (reshade::invoke_addon_event<reshade::addon_event::clear_attachments>(g_current_context, reshade::opengl::convert_buffer_bits_to_aspect(mask), color_value, depth_value, static_cast<uint8_t>(stencil_value & 0xFF), 0, nullptr))
 			return;
 	}
 #endif
@@ -583,7 +594,7 @@ HOOK_EXPORT void WINAPI glClear(GLbitfield mask)
 	{
 		assert(drawbuffer == 0);
 
-		const auto type = reshade::opengl::convert_buffer_type_to_aspect(buffer);
+		const reshade::api::attachment_type type = reshade::opengl::convert_buffer_type_to_aspect(buffer);
 
 		GLint fbo = 0;
 		glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &fbo);
@@ -591,7 +602,7 @@ HOOK_EXPORT void WINAPI glClear(GLbitfield mask)
 		reshade::api::resource_view view = { 0 };
 		g_current_context->get_attachment(reshade::opengl::make_render_pass_handle(fbo), type, drawbuffer, &view);
 
-		if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, view, type, depth, static_cast<uint8_t>(stencil), 0, nullptr))
+		if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, view, type, depth, static_cast<uint8_t>(stencil & 0xFF), 0, nullptr))
 			return;
 	}
 #endif
@@ -622,7 +633,7 @@ HOOK_EXPORT void WINAPI glClear(GLbitfield mask)
 	{
 		assert(drawbuffer == 0);
 
-		const auto type = reshade::opengl::convert_buffer_type_to_aspect(buffer);
+		const reshade::api::attachment_type type = reshade::opengl::convert_buffer_type_to_aspect(buffer);
 
 		reshade::api::resource_view view = { 0 };
 		g_current_context->get_attachment(reshade::opengl::make_render_pass_handle(framebuffer), type, drawbuffer, &view);
@@ -1206,7 +1217,7 @@ HOOK_EXPORT void WINAPI glCullFace(GLenum mode)
 	if (g_current_context)
 	{
 		const reshade::api::dynamic_state states[1] = { reshade::api::dynamic_state::cull_mode };
-		const uint32_t values[1] = { mode };
+		const uint32_t values[1] = { static_cast<uint32_t>(reshade::opengl::convert_cull_mode(mode)) };
 
 		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 1, states, values);
 	}
@@ -1234,7 +1245,7 @@ HOOK_EXPORT void WINAPI glDepthFunc(GLenum func)
 	if (g_current_context)
 	{
 		const reshade::api::dynamic_state states[1] = { reshade::api::dynamic_state::depth_func };
-		const uint32_t values[1] = { func };
+		const uint32_t values[1] = { static_cast<uint32_t>(reshade::opengl::convert_compare_op(func)) };
 
 		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 1, states, values);
 	}
@@ -1269,7 +1280,7 @@ HOOK_EXPORT void WINAPI glDisable(GLenum cap)
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
-		uint32_t value = 0;
+		uint32_t value = GL_FALSE;
 		reshade::api::dynamic_state state = reshade::api::dynamic_state::unknown;
 		switch (cap)
 		{
@@ -1283,7 +1294,7 @@ HOOK_EXPORT void WINAPI glDisable(GLenum cap)
 			state = reshade::api::dynamic_state::cull_mode;
 			break;
 		case GL_DEPTH_CLAMP:
-			value = 1;
+			value = GL_TRUE;
 			state = reshade::api::dynamic_state::depth_clip_enable;
 			break;
 		case GL_DEPTH_TEST:
@@ -1349,7 +1360,6 @@ HOOK_EXPORT void WINAPI glDisableClientState(GLenum array)
 	else
 	{
 		assert(false);
-		return;
 	}
 #endif
 
@@ -1382,6 +1392,7 @@ HOOK_EXPORT void WINAPI glDrawArrays(GLenum mode, GLint first, GLsizei count)
 	}
 	else
 	{
+		// Redirect to non-indirect draw call so proper event is invoked
 		const auto cmd = static_cast<const DrawArraysIndirectCommand *>(indirect);
 		glDrawArraysInstancedBaseInstance(mode, cmd->first, cmd->count, cmd->primcount, cmd->baseinstance);
 		return;
@@ -1429,7 +1440,8 @@ HOOK_EXPORT void WINAPI glDrawElements(GLenum mode, GLsizei count, GLenum type, 
 		if (mode != g_current_context->_current_prim_mode)
 		{
 			const reshade::api::dynamic_state state = reshade::api::dynamic_state::primitive_topology;
-			reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 1, &state, &mode);
+			const uint32_t value = static_cast<uint32_t>(reshade::opengl::convert_primitive_topology(mode));
+			reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 1, &state, &value);
 		}
 
 		g_current_context->_current_prim_mode = mode;
@@ -1454,7 +1466,8 @@ HOOK_EXPORT void WINAPI glDrawElements(GLenum mode, GLsizei count, GLenum type, 
 		if (mode != g_current_context->_current_prim_mode)
 		{
 			const reshade::api::dynamic_state state = reshade::api::dynamic_state::primitive_topology;
-			reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 1, &state, &mode);
+			const uint32_t value = static_cast<uint32_t>(reshade::opengl::convert_primitive_topology(mode));
+			reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 1, &state, &value);
 		}
 
 		g_current_context->_current_prim_mode = mode;
@@ -1484,7 +1497,8 @@ HOOK_EXPORT void WINAPI glDrawElements(GLenum mode, GLsizei count, GLenum type, 
 			if (mode != g_current_context->_current_prim_mode)
 			{
 				const reshade::api::dynamic_state state = reshade::api::dynamic_state::primitive_topology;
-				reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 1, &state, &mode);
+				const uint32_t value = static_cast<uint32_t>(reshade::opengl::convert_primitive_topology(mode));
+				reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 1, &state, &value);
 			}
 
 			g_current_context->_current_prim_mode = mode;
@@ -1496,6 +1510,7 @@ HOOK_EXPORT void WINAPI glDrawElements(GLenum mode, GLsizei count, GLenum type, 
 	}
 	else
 	{
+		// Redirect to non-indirect draw call so proper event is invoked
 		const auto cmd = static_cast<const DrawElementsIndirectCommand *>(indirect);
 		glDrawElementsInstancedBaseVertexBaseInstance(mode, cmd->count, type, reinterpret_cast<const GLvoid *>(static_cast<uintptr_t>(cmd->firstindex * reshade::opengl::get_index_type_size(type))), cmd->primcount, cmd->basevertex, cmd->baseinstance);
 		return;
@@ -1513,7 +1528,8 @@ HOOK_EXPORT void WINAPI glDrawElements(GLenum mode, GLsizei count, GLenum type, 
 		if (mode != g_current_context->_current_prim_mode)
 		{
 			const reshade::api::dynamic_state state = reshade::api::dynamic_state::primitive_topology;
-			reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 1, &state, &mode);
+			const uint32_t value = static_cast<uint32_t>(reshade::opengl::convert_primitive_topology(mode));
+			reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 1, &state, &value);
 		}
 
 		g_current_context->_current_prim_mode = mode;
@@ -1538,7 +1554,8 @@ HOOK_EXPORT void WINAPI glDrawElements(GLenum mode, GLsizei count, GLenum type, 
 		if (mode != g_current_context->_current_prim_mode)
 		{
 			const reshade::api::dynamic_state state = reshade::api::dynamic_state::primitive_topology;
-			reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 1, &state, &mode);
+			const uint32_t value = static_cast<uint32_t>(reshade::opengl::convert_primitive_topology(mode));
+			reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 1, &state, &value);
 		}
 
 		g_current_context->_current_prim_mode = mode;
@@ -1563,7 +1580,8 @@ HOOK_EXPORT void WINAPI glDrawElements(GLenum mode, GLsizei count, GLenum type, 
 		if (mode != g_current_context->_current_prim_mode)
 		{
 			const reshade::api::dynamic_state state = reshade::api::dynamic_state::primitive_topology;
-			reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 1, &state, &mode);
+			const uint32_t value = static_cast<uint32_t>(reshade::opengl::convert_primitive_topology(mode));
+			reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 1, &state, &value);
 		}
 
 		g_current_context->_current_prim_mode = mode;
@@ -1588,7 +1606,8 @@ HOOK_EXPORT void WINAPI glDrawElements(GLenum mode, GLsizei count, GLenum type, 
 		if (mode != g_current_context->_current_prim_mode)
 		{
 			const reshade::api::dynamic_state state = reshade::api::dynamic_state::primitive_topology;
-			reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 1, &state, &mode);
+			const uint32_t value = static_cast<uint32_t>(reshade::opengl::convert_primitive_topology(mode));
+			reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 1, &state, &value);
 		}
 
 		g_current_context->_current_prim_mode = mode;
@@ -1620,7 +1639,8 @@ HOOK_EXPORT void WINAPI glDrawPixels(GLsizei width, GLsizei height, GLenum forma
 		if (mode != g_current_context->_current_prim_mode)
 		{
 			const reshade::api::dynamic_state state = reshade::api::dynamic_state::primitive_topology;
-			reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 1, &state, &mode);
+			const uint32_t value = static_cast<uint32_t>(reshade::opengl::convert_primitive_topology(mode));
+			reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 1, &state, &value);
 		}
 
 		g_current_context->_current_prim_mode = mode;
@@ -1645,7 +1665,8 @@ HOOK_EXPORT void WINAPI glDrawPixels(GLsizei width, GLsizei height, GLenum forma
 		if (mode != g_current_context->_current_prim_mode)
 		{
 			const reshade::api::dynamic_state state = reshade::api::dynamic_state::primitive_topology;
-			reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 1, &state, &mode);
+			const uint32_t value = static_cast<uint32_t>(reshade::opengl::convert_primitive_topology(mode));
+			reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 1, &state, &value);
 		}
 
 		g_current_context->_current_prim_mode = mode;
@@ -1687,7 +1708,7 @@ HOOK_EXPORT void WINAPI glEnable(GLenum cap)
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
-		uint32_t value = 1;
+		uint32_t value = GL_TRUE;
 		reshade::api::dynamic_state state = { reshade::api::dynamic_state::unknown };
 		switch (cap)
 		{
@@ -1701,7 +1722,7 @@ HOOK_EXPORT void WINAPI glEnable(GLenum cap)
 			state = reshade::api::dynamic_state::cull_mode;
 			break;
 		case GL_DEPTH_CLAMP:
-			value = 0;
+			value = GL_FALSE;
 			state = reshade::api::dynamic_state::depth_clip_enable;
 			break;
 		case GL_DEPTH_TEST:
@@ -1751,7 +1772,6 @@ HOOK_EXPORT void WINAPI glEnd()
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::draw>(g_current_context, g_current_context->_current_vertex_count, 1, 0, 0); // Cannot be skipped
 #endif
-
 		g_current_context->_current_vertex_count = 0;
 	}
 }
@@ -2270,6 +2290,16 @@ HOOK_EXPORT void WINAPI glLogicOp(GLenum opcode)
 {
 	static const auto trampoline = reshade::hooks::call(glLogicOp);
 	trampoline(opcode);
+
+#if RESHADE_ADDON
+	if (g_current_context)
+	{
+		const reshade::api::dynamic_state states[1] = { reshade::api::dynamic_state::logic_op };
+		const uint32_t values[1] = { static_cast<uint32_t>(reshade::opengl::convert_logic_op(opcode)) };
+
+		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 1, states, values);
+	}
+#endif
 }
 
 HOOK_EXPORT void WINAPI glMap1d(GLenum target, GLdouble u1, GLdouble u2, GLint stride, GLint order, const GLdouble *points)
@@ -2377,6 +2407,7 @@ HOOK_EXPORT void WINAPI glMultMatrixf(const GLfloat *m)
 	}
 	else
 	{
+		// Redirect to non-indirect draw calls so proper events are invoked
 		for (GLsizei i = 0; i < drawcount; ++i)
 		{
 			const auto cmd = reinterpret_cast<const DrawArraysIndirectCommand *>(static_cast<const uint8_t *>(indirect) + i * (stride != 0 ? stride : sizeof(DrawArraysIndirectCommand)));
@@ -2422,7 +2453,8 @@ HOOK_EXPORT void WINAPI glMultMatrixf(const GLfloat *m)
 			if (mode != g_current_context->_current_prim_mode)
 			{
 				const reshade::api::dynamic_state state = reshade::api::dynamic_state::primitive_topology;
-				reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 1, &state, &mode);
+				const uint32_t value = static_cast<uint32_t>(reshade::opengl::convert_primitive_topology(mode));
+				reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 1, &state, &value);
 			}
 
 			g_current_context->_current_prim_mode = mode;
@@ -2434,6 +2466,7 @@ HOOK_EXPORT void WINAPI glMultMatrixf(const GLfloat *m)
 	}
 	else
 	{
+		// Redirect to non-indirect draw calls so proper events are invoked
 		for (GLsizei i = 0; i < drawcount; ++i)
 		{
 			const auto cmd = reinterpret_cast<const DrawElementsIndirectCommand *>(static_cast<const uint8_t *>(indirect) + i * (stride != 0 ? stride : sizeof(DrawElementsIndirectCommand)));
@@ -2726,7 +2759,7 @@ HOOK_EXPORT void WINAPI glPolygonMode(GLenum face, GLenum mode)
 	if (g_current_context && face == GL_FRONT_AND_BACK)
 	{
 		const reshade::api::dynamic_state states[1] = { reshade::api::dynamic_state::fill_mode };
-		const uint32_t values[1] = { mode };
+		const uint32_t values[1] = { static_cast<uint32_t>(reshade::opengl::convert_fill_mode(mode)) };
 
 		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 1, states, values);
 	}
@@ -3259,7 +3292,7 @@ HOOK_EXPORT void WINAPI glStencilFunc(GLenum func, GLint ref, GLuint mask)
 	if (g_current_context)
 	{
 		const reshade::api::dynamic_state states[4] = { reshade::api::dynamic_state::front_stencil_func, reshade::api::dynamic_state::back_stencil_func, reshade::api::dynamic_state::stencil_reference_value, reshade::api::dynamic_state::stencil_read_mask };
-		const uint32_t values[4] = { func, func, static_cast<uint32_t>(ref), mask };
+		const uint32_t values[4] = { static_cast<uint32_t>(reshade::opengl::convert_compare_op(func)), static_cast<uint32_t>(reshade::opengl::convert_compare_op(func)), static_cast<uint32_t>(ref), mask };
 
 		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 4, states, values);
 	}
@@ -3289,7 +3322,7 @@ HOOK_EXPORT void WINAPI glStencilOp(GLenum fail, GLenum zfail, GLenum zpass)
 	if (g_current_context)
 	{
 		const reshade::api::dynamic_state states[6] = { reshade::api::dynamic_state::front_stencil_fail_op, reshade::api::dynamic_state::back_stencil_fail_op, reshade::api::dynamic_state::front_stencil_depth_fail_op, reshade::api::dynamic_state::back_stencil_depth_fail_op, reshade::api::dynamic_state::front_stencil_pass_op, reshade::api::dynamic_state::back_stencil_pass_op };
-		const uint32_t values[6] = { fail, fail, zfail, zfail, zpass, zpass };
+		const uint32_t values[6] = { static_cast<uint32_t>(reshade::opengl::convert_stencil_op(fail)), static_cast<uint32_t>(reshade::opengl::convert_stencil_op(fail)), static_cast<uint32_t>(reshade::opengl::convert_stencil_op(zfail)), static_cast<uint32_t>(reshade::opengl::convert_stencil_op(zfail)), static_cast<uint32_t>(reshade::opengl::convert_stencil_op(zpass)), static_cast<uint32_t>(reshade::opengl::convert_stencil_op(zpass)) };
 
 		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 6, states, values);
 	}
@@ -4386,7 +4419,8 @@ HOOK_EXPORT void WINAPI glTranslatef(GLfloat x, GLfloat y, GLfloat z)
 	if (g_current_context)
 	{
 		const GLfloat v[1] = { v0 };
-		reshade::invoke_addon_event<reshade::addon_event::push_constants>(g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 0, location, 1, reinterpret_cast<const uint32_t *>(v));
+		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
+			g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 0, location, 1, reinterpret_cast<const uint32_t *>(v));
 	}
 #endif
 }
@@ -4399,7 +4433,8 @@ HOOK_EXPORT void WINAPI glTranslatef(GLfloat x, GLfloat y, GLfloat z)
 	if (g_current_context)
 	{
 		const GLfloat v[2] = { v0, v1 };
-		reshade::invoke_addon_event<reshade::addon_event::push_constants>(g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 0, location, 2, reinterpret_cast<const uint32_t *>(v));
+		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
+			g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 0, location, 2, reinterpret_cast<const uint32_t *>(v));
 	}
 #endif
 }
@@ -4412,7 +4447,8 @@ HOOK_EXPORT void WINAPI glTranslatef(GLfloat x, GLfloat y, GLfloat z)
 	if (g_current_context)
 	{
 		const GLfloat v[3] = { v0, v1, v2 };
-		reshade::invoke_addon_event<reshade::addon_event::push_constants>(g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 0, location, 3, reinterpret_cast<const uint32_t *>(v));
+		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
+			g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 0, location, 3, reinterpret_cast<const uint32_t *>(v));
 	}
 #endif
 }
@@ -4425,7 +4461,8 @@ HOOK_EXPORT void WINAPI glTranslatef(GLfloat x, GLfloat y, GLfloat z)
 	if (g_current_context)
 	{
 		const GLfloat v[4] = { v0, v1, v2, v3 };
-		reshade::invoke_addon_event<reshade::addon_event::push_constants>(g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 0, location, 4, reinterpret_cast<const uint32_t *>(v));
+		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
+			g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 0, location, 4, reinterpret_cast<const uint32_t *>(v));
 	}
 #endif
 }
@@ -4438,7 +4475,8 @@ HOOK_EXPORT void WINAPI glTranslatef(GLfloat x, GLfloat y, GLfloat z)
 	if (g_current_context)
 	{
 		const GLint v[1] = { v0 };
-		reshade::invoke_addon_event<reshade::addon_event::push_constants>(g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 1, location, 1, reinterpret_cast<const uint32_t *>(v));
+		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
+			g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 1, location, 1, reinterpret_cast<const uint32_t *>(v));
 	}
 #endif
 }
@@ -4451,7 +4489,8 @@ HOOK_EXPORT void WINAPI glTranslatef(GLfloat x, GLfloat y, GLfloat z)
 	if (g_current_context)
 	{
 		const GLint v[2] = { v0, v1 };
-		reshade::invoke_addon_event<reshade::addon_event::push_constants>(g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 1, location, 2, reinterpret_cast<const uint32_t *>(v));
+		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
+			g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 1, location, 2, reinterpret_cast<const uint32_t *>(v));
 	}
 #endif
 }
@@ -4464,7 +4503,8 @@ HOOK_EXPORT void WINAPI glTranslatef(GLfloat x, GLfloat y, GLfloat z)
 	if (g_current_context)
 	{
 		const GLint v[3] = { v0, v1, v2 };
-		reshade::invoke_addon_event<reshade::addon_event::push_constants>(g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 1, location, 3, reinterpret_cast<const uint32_t *>(v));
+		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
+			g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 1, location, 3, reinterpret_cast<const uint32_t *>(v));
 	}
 #endif
 }
@@ -4477,7 +4517,8 @@ HOOK_EXPORT void WINAPI glTranslatef(GLfloat x, GLfloat y, GLfloat z)
 	if (g_current_context)
 	{
 		const GLint v[4] = { v0, v1, v2, v3 };
-		reshade::invoke_addon_event<reshade::addon_event::push_constants>(g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 1, location, 4, reinterpret_cast<const uint32_t *>(v));
+		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
+			g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 1, location, 4, reinterpret_cast<const uint32_t *>(v));
 	}
 #endif
 }
@@ -4490,7 +4531,8 @@ HOOK_EXPORT void WINAPI glTranslatef(GLfloat x, GLfloat y, GLfloat z)
 	if (g_current_context)
 	{
 		const GLuint v[1] = { v0 };
-		reshade::invoke_addon_event<reshade::addon_event::push_constants>(g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 1, location, 1, v);
+		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
+			g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 1, location, 1, v);
 	}
 #endif
 }
@@ -4503,7 +4545,8 @@ HOOK_EXPORT void WINAPI glTranslatef(GLfloat x, GLfloat y, GLfloat z)
 	if (g_current_context)
 	{
 		const GLuint v[2] = { v0, v1 };
-		reshade::invoke_addon_event<reshade::addon_event::push_constants>(g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 1, location, 2, v);
+		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
+			g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 1, location, 2, v);
 	}
 #endif
 }
@@ -4516,7 +4559,8 @@ HOOK_EXPORT void WINAPI glTranslatef(GLfloat x, GLfloat y, GLfloat z)
 	if (g_current_context)
 	{
 		const GLuint v[3] = { v0, v1, v2 };
-		reshade::invoke_addon_event<reshade::addon_event::push_constants>(g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 1, location, 3, v);
+		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
+			g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 1, location, 3, v);
 	}
 #endif
 }
@@ -4529,7 +4573,8 @@ HOOK_EXPORT void WINAPI glTranslatef(GLfloat x, GLfloat y, GLfloat z)
 	if (g_current_context)
 	{
 		const GLuint v[4] = { v0, v1, v2, v3 };
-		reshade::invoke_addon_event<reshade::addon_event::push_constants>(g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 1, location, 4, v);
+		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
+			g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 1, location, 4, v);
 	}
 #endif
 }
@@ -4541,7 +4586,8 @@ HOOK_EXPORT void WINAPI glTranslatef(GLfloat x, GLfloat y, GLfloat z)
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
-		reshade::invoke_addon_event<reshade::addon_event::push_constants>(g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 0, location, 1 * count, reinterpret_cast<const uint32_t *>(v));
+		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
+			g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 0, location, 1 * count, reinterpret_cast<const uint32_t *>(v));
 	}
 #endif
 }
@@ -4553,7 +4599,8 @@ HOOK_EXPORT void WINAPI glTranslatef(GLfloat x, GLfloat y, GLfloat z)
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
-		reshade::invoke_addon_event<reshade::addon_event::push_constants>(g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 0, location, 2 * count, reinterpret_cast<const uint32_t *>(v));
+		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
+			g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 0, location, 2 * count, reinterpret_cast<const uint32_t *>(v));
 	}
 #endif
 }
@@ -4565,7 +4612,8 @@ HOOK_EXPORT void WINAPI glTranslatef(GLfloat x, GLfloat y, GLfloat z)
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
-		reshade::invoke_addon_event<reshade::addon_event::push_constants>(g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 0, location, 3 * count, reinterpret_cast<const uint32_t *>(v));
+		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
+			g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 0, location, 3 * count, reinterpret_cast<const uint32_t *>(v));
 	}
 #endif
 }
@@ -4577,7 +4625,8 @@ HOOK_EXPORT void WINAPI glTranslatef(GLfloat x, GLfloat y, GLfloat z)
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
-		reshade::invoke_addon_event<reshade::addon_event::push_constants>(g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 0, location, 4 * count, reinterpret_cast<const uint32_t *>(v));
+		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
+			g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 0, location, 4 * count, reinterpret_cast<const uint32_t *>(v));
 	}
 #endif
 }
@@ -4589,7 +4638,8 @@ HOOK_EXPORT void WINAPI glTranslatef(GLfloat x, GLfloat y, GLfloat z)
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
-		reshade::invoke_addon_event<reshade::addon_event::push_constants>(g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 1, location, 1 * count, reinterpret_cast<const uint32_t *>(v));
+		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
+			g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 1, location, 1 * count, reinterpret_cast<const uint32_t *>(v));
 	}
 #endif
 }
@@ -4601,7 +4651,8 @@ HOOK_EXPORT void WINAPI glTranslatef(GLfloat x, GLfloat y, GLfloat z)
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
-		reshade::invoke_addon_event<reshade::addon_event::push_constants>(g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 1, location, 2 * count, reinterpret_cast<const uint32_t *>(v));
+		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
+			g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 1, location, 2 * count, reinterpret_cast<const uint32_t *>(v));
 	}
 #endif
 }
@@ -4613,7 +4664,8 @@ HOOK_EXPORT void WINAPI glTranslatef(GLfloat x, GLfloat y, GLfloat z)
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
-		reshade::invoke_addon_event<reshade::addon_event::push_constants>(g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 1, location, 3 * count, reinterpret_cast<const uint32_t *>(v));
+		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
+			g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 1, location, 3 * count, reinterpret_cast<const uint32_t *>(v));
 	}
 #endif
 }
@@ -4625,7 +4677,8 @@ HOOK_EXPORT void WINAPI glTranslatef(GLfloat x, GLfloat y, GLfloat z)
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
-		reshade::invoke_addon_event<reshade::addon_event::push_constants>(g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 1, location, 4 * count, reinterpret_cast<const uint32_t *>(v));
+		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
+			g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 1, location, 4 * count, reinterpret_cast<const uint32_t *>(v));
 	}
 #endif
 }
@@ -4637,7 +4690,8 @@ HOOK_EXPORT void WINAPI glTranslatef(GLfloat x, GLfloat y, GLfloat z)
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
-		reshade::invoke_addon_event<reshade::addon_event::push_constants>(g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 1, location, 1 * count, v);
+		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
+			g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 1, location, 1 * count, v);
 	}
 #endif
 }
@@ -4649,7 +4703,8 @@ HOOK_EXPORT void WINAPI glTranslatef(GLfloat x, GLfloat y, GLfloat z)
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
-		reshade::invoke_addon_event<reshade::addon_event::push_constants>(g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 1, location, 2 * count, v);
+		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
+			g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 1, location, 2 * count, v);
 	}
 #endif
 }
@@ -4661,7 +4716,8 @@ HOOK_EXPORT void WINAPI glTranslatef(GLfloat x, GLfloat y, GLfloat z)
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
-		reshade::invoke_addon_event<reshade::addon_event::push_constants>(g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 1, location, 3 * count, v);
+		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
+			g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 1, location, 3 * count, v);
 	}
 #endif
 }
@@ -4673,7 +4729,8 @@ HOOK_EXPORT void WINAPI glTranslatef(GLfloat x, GLfloat y, GLfloat z)
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
-		reshade::invoke_addon_event<reshade::addon_event::push_constants>(g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 1, location, 4 * count, v);
+		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
+			g_current_context, reshade::api::shader_stage::all, reshade::api::pipeline_layout { 0 }, 1, location, 4 * count, v);
 	}
 #endif
 }
@@ -4686,7 +4743,8 @@ HOOK_EXPORT void WINAPI glTranslatef(GLfloat x, GLfloat y, GLfloat z)
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
-		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(g_current_context,
+		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(
+			g_current_context,
 			reshade::api::pipeline_stage::vertex_shader | reshade::api::pipeline_stage::hull_shader | reshade::api::pipeline_stage::domain_shader | reshade::api::pipeline_stage::geometry_shader | reshade::api::pipeline_stage::pixel_shader | reshade::api::pipeline_stage::compute_shader,
 			reshade::api::pipeline { program });
 	}

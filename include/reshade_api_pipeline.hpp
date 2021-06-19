@@ -86,6 +86,7 @@ namespace reshade { namespace api
 		alpha_blend_op = 209,
 		src_alpha_blend_factor = 207,
 		dst_alpha_blend_factor = 208,
+		logic_op = 1005,
 		blend_constant = 193,
 		render_target_write_mask = 168,
 

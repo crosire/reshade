@@ -986,6 +986,40 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetRenderState(D3DRENDERSTATETYPE Sta
 			(DWORD)reshade::api::dynamic_state::alpha_blend_op              == D3DRS_BLENDOPALPHA);
 		static_assert(sizeof(State) == sizeof(reshade::api::dynamic_state) && sizeof(Value) == sizeof(uint32_t));
 
+		switch (State)
+		{
+		case D3DRS_FILLMODE:
+			Value = static_cast<uint32_t>(reshade::d3d9::convert_fill_mode(static_cast<D3DFILLMODE>(Value)));
+			break;
+		case D3DRS_SRCBLEND:
+		case D3DRS_DESTBLEND:
+		case D3DRS_SRCBLENDALPHA:
+		case D3DRS_DESTBLENDALPHA:
+			Value = static_cast<uint32_t>(reshade::d3d9::convert_blend_factor(static_cast<D3DBLEND>(Value)));
+			break;
+		case D3DRS_CULLMODE:
+			Value = static_cast<uint32_t>(reshade::d3d9::convert_cull_mode(static_cast<D3DCULL>(Value), false));
+			break;
+		case D3DRS_ZFUNC:
+		case D3DRS_ALPHAFUNC:
+		case D3DRS_STENCILFUNC:
+		case D3DRS_CCW_STENCILFUNC:
+			Value = static_cast<uint32_t>(reshade::d3d9::convert_compare_op(static_cast<D3DCMPFUNC>(Value)));
+			break;
+		case D3DRS_STENCILFAIL:
+		case D3DRS_STENCILZFAIL:
+		case D3DRS_STENCILPASS:
+		case D3DRS_CCW_STENCILFAIL:
+		case D3DRS_CCW_STENCILZFAIL:
+		case D3DRS_CCW_STENCILPASS:
+			Value = static_cast<uint32_t>(reshade::d3d9::convert_stencil_op(static_cast<D3DSTENCILOP>(Value)));
+			break;
+		case D3DRS_BLENDOP:
+		case D3DRS_BLENDOPALPHA:
+			Value = static_cast<uint32_t>(reshade::d3d9::convert_blend_op(static_cast<D3DBLENDOP>(Value)));
+			break;
+		}
+
 		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 1, reinterpret_cast<const reshade::api::dynamic_state *>(&State), reinterpret_cast<const uint32_t *>(&Value));
 	}
 #endif
@@ -1142,6 +1176,14 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawPrimitive(D3DPRIMITIVETYPE Primit
 	if (PrimitiveType != _current_prim_type)
 	{
 		_current_prim_type = PrimitiveType;
+
+		static_assert(
+			(DWORD)reshade::api::primitive_topology::point_list == D3DPT_POINTLIST &&
+			(DWORD)reshade::api::primitive_topology::line_list == D3DPT_LINELIST &&
+			(DWORD)reshade::api::primitive_topology::line_strip == D3DPT_LINESTRIP &&
+			(DWORD)reshade::api::primitive_topology::triangle_list == D3DPT_TRIANGLELIST &&
+			(DWORD)reshade::api::primitive_topology::triangle_strip == D3DPT_TRIANGLESTRIP &&
+			(DWORD)reshade::api::primitive_topology::triangle_fan == D3DPT_TRIANGLEFAN);
 
 		const reshade::api::dynamic_state state = reshade::api::dynamic_state::primitive_topology;
 		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 1, &state, reinterpret_cast<const uint32_t *>(&PrimitiveType));
