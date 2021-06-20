@@ -36,3 +36,6 @@ Thumbs.db
 /res/[Vv]ersion.h
 /setup/Config/*.ini
 /setup/Properties/AssemblyInfo.cs
+
+# JetBrains IDEA project files
+.idea/
