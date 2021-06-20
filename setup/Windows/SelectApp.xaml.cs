@@ -34,7 +34,6 @@ static class HashSetExtensionMethods
 {
 	public static T Dequeue<T>(this HashSet<T> items)
 	{
-
 		if (items.Count == 0)
 		{
 			throw new InvalidOperationException();
@@ -124,33 +123,31 @@ namespace ReShade.Setup.Dialogs
 							{
 								searchPaths.Add(gameDir);
 							}
-
 						}
-
 					}
 				}
 				catch { }
 #else
-                foreach (var name in new string[] {
-                    "Software\\Classes\\Local Settings\\Software\\Microsoft\\Windows\\Shell\\MuiCache",
-                    "Software\\Microsoft\\Windows\\ShellNoRoam\\MUICache",
-                    "Software\\Microsoft\\Windows NT\\CurrentVersion\\AppCompatFlags\\Compatibility Assistant\\Persisted",
-                    "Software\\Microsoft\\Windows NT\\CurrentVersion\\AppCompatFlags\\Compatibility Assistant\\Store" })
-                {
-                    try
-                    {
-                        string[] values = Registry.CurrentUser.OpenSubKey(name)?.GetValueNames();
-                        if (values != null)
-                        {
-                            files.AddRange(values);
-                        }
-                    }
-                    catch
-                    {
-                        // Ignore permission errors
-                        continue;
-                    }
-                }
+				foreach (var name in new string[] {
+					"Software\\Classes\\Local Settings\\Software\\Microsoft\\Windows\\Shell\\MuiCache",
+					"Software\\Microsoft\\Windows\\ShellNoRoam\\MUICache",
+					"Software\\Microsoft\\Windows NT\\CurrentVersion\\AppCompatFlags\\Compatibility Assistant\\Persisted",
+					"Software\\Microsoft\\Windows NT\\CurrentVersion\\AppCompatFlags\\Compatibility Assistant\\Store" })
+				{
+					try
+					{
+						string[] values = Registry.CurrentUser.OpenSubKey(name)?.GetValueNames();
+						if (values != null)
+						{
+							files.AddRange(values);
+						}
+					}
+					catch
+					{
+						// Ignore permission errors
+						continue;
+					}
+				}
 #endif
 
 				const int SPLIT_SIZE = 50;
