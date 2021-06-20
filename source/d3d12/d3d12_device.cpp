@@ -569,8 +569,9 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePlacedResource(ID3D12Heap *pHeap, U
 		return E_INVALIDARG;
 
 #if RESHADE_ADDON
-	const reshade::api::resource_desc desc = reshade::d3d12::convert_resource_desc(*pDesc, D3D12_HEAP_PROPERTIES {}, pHeap->GetDesc().Flags);
-	assert(desc.heap == reshade::api::memory_heap::unknown);
+	const D3D12_HEAP_DESC heap_desc = pHeap->GetDesc();
+	const reshade::api::resource_desc desc = reshade::d3d12::convert_resource_desc(*pDesc, heap_desc.Properties, heap_desc.Flags);
+	assert(desc.heap != reshade::api::memory_heap::unknown);
 
 	if (ppvResource != nullptr)
 	{

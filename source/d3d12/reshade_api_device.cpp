@@ -229,7 +229,9 @@ bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc
 		use_default_clear_value = false;
 
 	if (com_ptr<ID3D12Resource> object;
-		SUCCEEDED(_orig->CreateCommittedResource(&heap_props, heap_flags, &internal_desc, convert_resource_usage_to_states(initial_state), use_default_clear_value ? &default_clear_value : nullptr, IID_PPV_ARGS(&object))))
+		SUCCEEDED(desc.heap == api::memory_heap::unknown ?
+		_orig->CreateReservedResource(&internal_desc, convert_resource_usage_to_states(initial_state), use_default_clear_value ? &default_clear_value : nullptr, IID_PPV_ARGS(&object)) :
+		_orig->CreateCommittedResource(&heap_props, heap_flags, &internal_desc, convert_resource_usage_to_states(initial_state), use_default_clear_value ? &default_clear_value : nullptr, IID_PPV_ARGS(&object))))
 	{
 		_resources.register_object(object.get());
 		*out = { reinterpret_cast<uintptr_t>(object.release()) };
@@ -1061,6 +1063,7 @@ reshade::api::resource_desc reshade::d3d12::device_impl::get_resource_desc(api::
 {
 	assert(resource.handle != 0);
 
+	// This will retrieve the heap properties for placed and comitted resources, not for reserved resources (which will then be translated to 'memory_heap::unknown')
 	D3D12_HEAP_FLAGS heap_flags = D3D12_HEAP_FLAG_NONE;
 	D3D12_HEAP_PROPERTIES heap_props = {};
 	reinterpret_cast<ID3D12Resource *>(resource.handle)->GetHeapProperties(&heap_props, &heap_flags);
