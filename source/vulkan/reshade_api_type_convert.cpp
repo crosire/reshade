@@ -858,6 +858,11 @@ void reshade::vulkan::convert_resource_desc(const api::resource_desc &desc, VkIm
 		desc.texture.format != api::format_to_default_typed(desc.texture.format))
 		create_info.flags |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
 
+	if ((desc.flags & api::resource_flags::sparse_binding) == api::resource_flags::sparse_binding)
+		create_info.flags |= VK_IMAGE_CREATE_SPARSE_BINDING_BIT | VK_IMAGE_CREATE_SPARSE_RESIDENCY_BIT;
+	else
+		create_info.flags &= ~(VK_IMAGE_CREATE_SPARSE_BINDING_BIT | VK_IMAGE_CREATE_SPARSE_RESIDENCY_BIT);
+
 	if ((desc.flags & api::resource_flags::cube_compatible) == api::resource_flags::cube_compatible)
 		create_info.flags |= VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
 	else
@@ -924,6 +929,9 @@ reshade::api::resource_desc reshade::vulkan::convert_resource_desc(const VkImage
 	if (desc.type == api::resource_type::texture_2d && (
 		create_info.usage & (desc.texture.samples > 1 ? VK_IMAGE_USAGE_TRANSFER_SRC_BIT : VK_IMAGE_USAGE_TRANSFER_DST_BIT)) != 0)
 		desc.usage |= desc.texture.samples > 1 ? api::resource_usage::resolve_source : api::resource_usage::resolve_dest;
+
+	if ((create_info.flags & VK_IMAGE_CREATE_SPARSE_BINDING_BIT) != 0)
+		desc.flags |= api::resource_flags::sparse_binding;
 
 	if ((create_info.flags & VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT) != 0)
 		desc.texture.format = api::format_to_typeless(desc.texture.format);

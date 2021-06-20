@@ -208,6 +208,8 @@ reshade::api::resource_desc reshade::d3d12::convert_resource_desc(const D3D12_RE
 	{
 	default:
 		desc.heap = api::memory_heap::unknown;
+		// This is a resource created with 'CreateReservedResource' which are always sparse
+		desc.flags |= api::resource_flags::sparse_binding;
 		break;
 	case D3D12_HEAP_TYPE_DEFAULT:
 		desc.heap = api::memory_heap::gpu_only;

@@ -144,6 +144,11 @@ static void convert_resource_flags_to_misc_flags(reshade::api::resource_flags fl
 		misc_flags |= D3D11_RESOURCE_MISC_GENERATE_MIPS;
 	else
 		misc_flags &= ~D3D11_RESOURCE_MISC_GENERATE_MIPS;
+
+	if ((flags & api::resource_flags::sparse_binding) == api::resource_flags::sparse_binding)
+		misc_flags |= D3D11_RESOURCE_MISC_TILED;
+	else
+		misc_flags &= ~D3D11_RESOURCE_MISC_TILED;
 }
 static void convert_misc_flags_to_resource_flags(UINT misc_flags, reshade::api::resource_flags &flags)
 {
@@ -153,8 +158,10 @@ static void convert_misc_flags_to_resource_flags(UINT misc_flags, reshade::api::
 		flags |= api::resource_flags::shared;
 	if ((misc_flags & D3D11_RESOURCE_MISC_TEXTURECUBE) != 0)
 		flags |= api::resource_flags::cube_compatible;
-	if ((misc_flags & D3D10_RESOURCE_MISC_GENERATE_MIPS) != 0)
+	if ((misc_flags & D3D11_RESOURCE_MISC_GENERATE_MIPS) != 0)
 		flags |= api::resource_flags::generate_mipmaps;
+	if ((misc_flags & D3D11_RESOURCE_MISC_TILED) != 0)
+		flags |= api::resource_flags::sparse_binding;
 }
 
 void reshade::d3d11::convert_sampler_desc(const api::sampler_desc &desc, D3D11_SAMPLER_DESC &internal_desc)
