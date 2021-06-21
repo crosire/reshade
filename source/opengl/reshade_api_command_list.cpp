@@ -206,7 +206,7 @@ void reshade::opengl::device_impl::bind_pipeline_states(uint32_t count, const ap
 			glEnableOrDisable(GL_DEPTH_TEST, values[i]);
 			break;
 		case api::dynamic_state::depth_write_mask:
-			glDepthMask(values[i]);
+			glDepthMask(values[i] ? GL_TRUE : GL_FALSE);
 			break;
 		case api::dynamic_state::stencil_enable:
 			glEnableOrDisable(GL_STENCIL_TEST, values[i]);

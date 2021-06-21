@@ -517,7 +517,7 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 		glBindBuffer(target, object);
 
 		GLbitfield usage_flags = GL_NONE;
-		convert_memory_heap_to_flags(desc.heap, usage_flags);
+		convert_memory_heap_to_flags(desc, usage_flags);
 
 		assert(desc.buffer.size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
 		glBufferStorage(target, static_cast<GLsizeiptr>(desc.buffer.size), nullptr, usage_flags);
@@ -1732,7 +1732,7 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 	}
 
 	if (buffer_size != 0)
-		return convert_resource_desc(target, buffer_size, api::memory_heap::unknown);
+		return convert_resource_desc(target, buffer_size); // TODO: Memory heap
 	else
 		return convert_resource_desc(target, levels, samples, internal_format, width, height, depth);
 }
