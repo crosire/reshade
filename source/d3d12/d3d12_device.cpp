@@ -156,27 +156,28 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandQueue(const D3D12_COMMAND_QU
 	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 
 	const HRESULT hr = _orig->CreateCommandQueue(pDesc, riid, ppCommandQueue);
-	if (FAILED(hr))
+	if (SUCCEEDED(hr))
+	{
+		assert(ppCommandQueue != nullptr);
+
+		const auto command_queue_proxy = new D3D12CommandQueue(this, static_cast<ID3D12CommandQueue *>(*ppCommandQueue));
+
+		// Upgrade to the actual interface version requested here
+		if (command_queue_proxy->check_and_upgrade_interface(riid))
+		{
+#if RESHADE_VERBOSE_LOG
+			LOG(INFO) << "> Returning ID3D12CommandQueue" << command_queue_proxy->_interface_version << " object " << command_queue_proxy << '.';
+#endif
+			*ppCommandQueue = command_queue_proxy;
+		}
+		else // Do not hook object if we do not support the requested interface
+		{
+			delete command_queue_proxy; // Delete instead of release to keep reference count untouched
+		}
+	}
+	else
 	{
 		LOG(WARN) << "ID3D12Device::CreateCommandQueue" << " failed with error code " << hr << '.';
-		return hr;
-	}
-
-	assert(ppCommandQueue != nullptr);
-
-	const auto command_queue_proxy = new D3D12CommandQueue(this, static_cast<ID3D12CommandQueue *>(*ppCommandQueue));
-
-	// Upgrade to the actual interface version requested here
-	if (command_queue_proxy->check_and_upgrade_interface(riid))
-	{
-#if RESHADE_VERBOSE_LOG
-		LOG(INFO) << "> Returning ID3D12CommandQueue" << command_queue_proxy->_interface_version << " object " << command_queue_proxy << '.';
-#endif
-		*ppCommandQueue = command_queue_proxy;
-	}
-	else // Do not hook object if we do not support the requested interface
-	{
-		delete command_queue_proxy; // Delete instead of release to keep reference count untouched
 	}
 
 	return hr;
@@ -187,33 +188,104 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandAllocator(D3D12_COMMAND_LIST
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateGraphicsPipelineState(const D3D12_GRAPHICS_PIPELINE_STATE_DESC *pDesc, REFIID riid, void **ppPipelineState)
 {
-	return _orig->CreateGraphicsPipelineState(pDesc, riid, ppPipelineState);
+	if (pDesc == nullptr)
+		return E_INVALIDARG;
+
+#if RESHADE_ADDON
+	reshade::api::pipeline_desc desc = { reshade::api::pipeline_stage::all_graphics };
+	if (ppPipelineState != nullptr)
+	{
+		desc = reshade::d3d12::convert_pipeline_desc(*pDesc);
+
+		if (reshade::api::pipeline overwrite = { 0 };
+			reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, desc, &overwrite))
+		{
+			assert(overwrite.handle != 0 && SUCCEEDED(reinterpret_cast<IUnknown *>(overwrite.handle)->QueryInterface(riid, ppPipelineState)) && static_cast<IUnknown *>(*ppPipelineState)->Release() == 1);
+
+			*ppPipelineState = reinterpret_cast<IUnknown *>(overwrite.handle);
+			return S_OK;
+		}
+	}
+#endif
+
+	const HRESULT hr = _orig->CreateGraphicsPipelineState(pDesc, riid, ppPipelineState);
+	if (SUCCEEDED(hr))
+	{
+#if RESHADE_ADDON
+		if (ppPipelineState != nullptr)
+		{
+			reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, desc, reshade::api::pipeline { reinterpret_cast<uintptr_t>(*ppPipelineState) });
+		}
+#endif
+	}
+	else
+	{
+		LOG(WARN) << "ID3D12Device::CreateGraphicsPipelineState" << " failed with error code " << hr << '.';
+	}
+
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateComputePipelineState(const D3D12_COMPUTE_PIPELINE_STATE_DESC *pDesc, REFIID riid, void **ppPipelineState)
 {
-	return _orig->CreateComputePipelineState(pDesc, riid, ppPipelineState);
+	if (pDesc == nullptr)
+		return E_INVALIDARG;
+
+#if RESHADE_ADDON
+	reshade::api::pipeline_desc desc = { reshade::api::pipeline_stage::all_compute };
+	if (ppPipelineState != nullptr)
+	{
+		desc = reshade::d3d12::convert_pipeline_desc(*pDesc);
+
+		if (reshade::api::pipeline overwrite = { 0 };
+			reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, desc, &overwrite))
+		{
+			assert(overwrite.handle != 0 && SUCCEEDED(reinterpret_cast<IUnknown *>(overwrite.handle)->QueryInterface(riid, ppPipelineState)) && static_cast<IUnknown *>(*ppPipelineState)->Release() == 1);
+
+			*ppPipelineState = reinterpret_cast<IUnknown *>(overwrite.handle);
+			return S_OK;
+		}
+	}
+#endif
+
+	const HRESULT hr = _orig->CreateComputePipelineState(pDesc, riid, ppPipelineState);
+	if (SUCCEEDED(hr))
+	{
+#if RESHADE_ADDON
+		if (ppPipelineState != nullptr)
+		{
+			reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, desc, reshade::api::pipeline { reinterpret_cast<uintptr_t>(*ppPipelineState) });
+		}
+#endif
+	}
+	else
+	{
+		LOG(WARN) << "ID3D12Device::CreateComputePipelineState" << " failed with error code " << hr << '.';
+	}
+
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandList(UINT nodeMask, D3D12_COMMAND_LIST_TYPE type, ID3D12CommandAllocator *pCommandAllocator, ID3D12PipelineState *pInitialState, REFIID riid, void **ppCommandList)
 {
 	const HRESULT hr = _orig->CreateCommandList(nodeMask, type, pCommandAllocator, pInitialState, riid, ppCommandList);
-	if (FAILED(hr))
+	if (SUCCEEDED(hr))
+	{
+		assert(ppCommandList != nullptr);
+
+		const auto command_list_proxy = new D3D12GraphicsCommandList(this, static_cast<ID3D12GraphicsCommandList *>(*ppCommandList));
+
+		// Upgrade to the actual interface version requested here (and only hook graphics command lists)
+		if (command_list_proxy->check_and_upgrade_interface(riid))
+		{
+			*ppCommandList = command_list_proxy;
+		}
+		else // Do not hook object if we do not support the requested interface
+		{
+			delete command_list_proxy; // Delete instead of release to keep reference count untouched
+		}
+	}
+	else
 	{
 		LOG(WARN) << "ID3D12Device::CreateCommandList" << " failed with error code " << hr << '.';
-		return hr;
-	}
-
-	assert(ppCommandList != nullptr);
-
-	const auto command_list_proxy = new D3D12GraphicsCommandList(this, static_cast<ID3D12GraphicsCommandList *>(*ppCommandList));
-
-	// Upgrade to the actual interface version requested here (and only hook graphics command lists)
-	if (command_list_proxy->check_and_upgrade_interface(riid))
-	{
-		*ppCommandList = command_list_proxy;
-	}
-	else // Do not hook object if we do not support the requested interface
-	{
-		delete command_list_proxy; // Delete instead of release to keep reference count untouched
 	}
 
 	return hr;
@@ -502,11 +574,12 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource(const D3D12_HEAP_
 		return E_INVALIDARG;
 
 #if RESHADE_ADDON
-	const reshade::api::resource_desc desc = reshade::d3d12::convert_resource_desc(*pDesc, *pHeapProperties, HeapFlags);
-	assert(desc.heap != reshade::api::memory_heap::unknown);
-
+	reshade::api::resource_desc desc;
 	if (ppvResource != nullptr)
 	{
+		desc = reshade::d3d12::convert_resource_desc(*pDesc, *pHeapProperties, HeapFlags);
+		assert(desc.heap != reshade::api::memory_heap::unknown);
+
 		if (reshade::api::resource overwrite = { 0 };
 			reshade::invoke_addon_event<reshade::addon_event::create_resource>(
 				this, desc, nullptr, InitialResourceState == D3D12_RESOURCE_STATE_COMMON ? reshade::api::resource_usage::general : static_cast<reshade::api::resource_usage>(InitialResourceState), &overwrite))
@@ -569,12 +642,14 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePlacedResource(ID3D12Heap *pHeap, U
 		return E_INVALIDARG;
 
 #if RESHADE_ADDON
-	const D3D12_HEAP_DESC heap_desc = pHeap->GetDesc();
-	const reshade::api::resource_desc desc = reshade::d3d12::convert_resource_desc(*pDesc, heap_desc.Properties, heap_desc.Flags);
-	assert(desc.heap != reshade::api::memory_heap::unknown);
-
+	reshade::api::resource_desc desc;
 	if (ppvResource != nullptr)
 	{
+		const D3D12_HEAP_DESC heap_desc = pHeap->GetDesc();
+
+		desc = reshade::d3d12::convert_resource_desc(*pDesc, heap_desc.Properties, heap_desc.Flags);
+		assert(desc.heap != reshade::api::memory_heap::unknown);
+
 		if (reshade::api::resource overwrite = { 0 };
 			reshade::invoke_addon_event<reshade::addon_event::create_resource>(
 				this, desc, nullptr, InitialState == D3D12_RESOURCE_STATE_COMMON ? reshade::api::resource_usage::general : static_cast<reshade::api::resource_usage>(InitialState), &overwrite))
@@ -633,11 +708,12 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource(const D3D12_RESOUR
 		return E_INVALIDARG;
 
 #if RESHADE_ADDON
-	const reshade::api::resource_desc desc = reshade::d3d12::convert_resource_desc(*pDesc, D3D12_HEAP_PROPERTIES {}, D3D12_HEAP_FLAG_NONE);
-	assert(desc.heap == reshade::api::memory_heap::unknown);
-
+	reshade::api::resource_desc desc;
 	if (ppvResource != nullptr)
 	{
+		desc = reshade::d3d12::convert_resource_desc(*pDesc);
+		assert(desc.heap == reshade::api::memory_heap::unknown);
+
 		if (reshade::api::resource overwrite = { 0 };
 			reshade::invoke_addon_event<reshade::addon_event::create_resource>(
 				this, desc, nullptr, InitialState == D3D12_RESOURCE_STATE_COMMON ? reshade::api::resource_usage::general : static_cast<reshade::api::resource_usage>(InitialState), &overwrite))
@@ -781,22 +857,23 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandList1(UINT NodeMask, D3D12_C
 {
 	assert(_interface_version >= 4);
 	const HRESULT hr = static_cast<ID3D12Device4 *>(_orig)->CreateCommandList1(NodeMask, Type, Flags, riid, ppCommandList);
-	if (FAILED(hr))
+	if (SUCCEEDED(hr))
+	{
+		const auto command_list_proxy = new D3D12GraphicsCommandList(this, static_cast<ID3D12GraphicsCommandList *>(*ppCommandList));
+
+		// Upgrade to the actual interface version requested here (and only hook graphics command lists)
+		if (command_list_proxy->check_and_upgrade_interface(riid))
+		{
+			*ppCommandList = command_list_proxy;
+		}
+		else // Do not hook object if we do not support the requested interface or this is a compute command list
+		{
+			delete command_list_proxy; // Delete instead of release to keep reference count untouched
+		}
+	}
+	else
 	{
 		LOG(WARN) << "ID3D12Device4::CreateCommandList1" << " failed with error code " << hr << '.';
-		return hr;
-	}
-
-	const auto command_list_proxy = new D3D12GraphicsCommandList(this, static_cast<ID3D12GraphicsCommandList *>(*ppCommandList));
-
-	// Upgrade to the actual interface version requested here (and only hook graphics command lists)
-	if (command_list_proxy->check_and_upgrade_interface(riid))
-	{
-		*ppCommandList = command_list_proxy;
-	}
-	else // Do not hook object if we do not support the requested interface or this is a compute command list
-	{
-		delete command_list_proxy; // Delete instead of release to keep reference count untouched
 	}
 
 	return hr;
@@ -813,11 +890,12 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource1(const D3D12_HEAP
 		return E_INVALIDARG;
 
 #if RESHADE_ADDON
-	const reshade::api::resource_desc desc = reshade::d3d12::convert_resource_desc(*pDesc, *pHeapProperties, HeapFlags);
-	assert(desc.heap != reshade::api::memory_heap::unknown);
-
+	reshade::api::resource_desc desc;
 	if (ppvResource != nullptr)
 	{
+		desc = reshade::d3d12::convert_resource_desc(*pDesc, *pHeapProperties, HeapFlags);
+		assert(desc.heap != reshade::api::memory_heap::unknown);
+
 		if (reshade::api::resource overwrite = { 0 };
 			reshade::invoke_addon_event<reshade::addon_event::create_resource>(
 				this, desc, nullptr, InitialResourceState == D3D12_RESOURCE_STATE_COMMON ? reshade::api::resource_usage::general : static_cast<reshade::api::resource_usage>(InitialResourceState), &overwrite))
@@ -882,11 +960,12 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource1(const D3D12_RESOU
 		return E_INVALIDARG;
 
 #if RESHADE_ADDON
-	const reshade::api::resource_desc desc = reshade::d3d12::convert_resource_desc(*pDesc, D3D12_HEAP_PROPERTIES {}, D3D12_HEAP_FLAG_NONE);
-	assert(desc.heap == reshade::api::memory_heap::unknown);
-
+	reshade::api::resource_desc desc;
 	if (ppvResource != nullptr)
 	{
+		desc = reshade::d3d12::convert_resource_desc(*pDesc);
+		assert(desc.heap == reshade::api::memory_heap::unknown);
+
 		if (reshade::api::resource overwrite = { 0 };
 			reshade::invoke_addon_event<reshade::addon_event::create_resource>(
 				this, desc, nullptr, InitialState == D3D12_RESOURCE_STATE_COMMON ? reshade::api::resource_usage::general : static_cast<reshade::api::resource_usage>(InitialState), &overwrite))

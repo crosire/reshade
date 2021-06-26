@@ -198,7 +198,7 @@ bool reshade::d3d11::device_impl::create_resource(const api::resource_desc &desc
 			else
 			{
 				D3D11_TEXTURE2D_DESC1 internal_desc = {};
-				convert_resource_desc(desc, reinterpret_cast<D3D11_TEXTURE2D_DESC &>(internal_desc));
+				convert_resource_desc(desc, internal_desc);
 
 				if (com_ptr<ID3D11Texture2D1> object;
 					SUCCEEDED(device3->CreateTexture2D1(&internal_desc, reinterpret_cast<const D3D11_SUBRESOURCE_DATA *>(initial_data), &object)))
@@ -229,7 +229,7 @@ bool reshade::d3d11::device_impl::create_resource(const api::resource_desc &desc
 			else
 			{
 				D3D11_TEXTURE3D_DESC1 internal_desc = {};
-				convert_resource_desc(desc, reinterpret_cast<D3D11_TEXTURE3D_DESC &>(internal_desc));
+				convert_resource_desc(desc, internal_desc);
 
 				if (com_ptr<ID3D11Texture3D1> object;
 					SUCCEEDED(device3->CreateTexture3D1(&internal_desc, reinterpret_cast<const D3D11_SUBRESOURCE_DATA *>(initial_data), &object)))
@@ -396,6 +396,7 @@ bool reshade::d3d11::device_impl::create_pipeline(const api::pipeline_desc &desc
 		return create_blend_state(desc, out);
 	}
 }
+
 bool reshade::d3d11::device_impl::create_graphics_pipeline(const api::pipeline_desc &desc, api::pipeline *out)
 {
 	if (desc.graphics.dynamic_states[0] != api::dynamic_state::unknown)
@@ -594,23 +595,8 @@ bool reshade::d3d11::device_impl::create_blend_state(const api::pipeline_desc &d
 	com_ptr<ID3D11Device1> device1;
 	if (SUCCEEDED(_orig->QueryInterface(&device1)))
 	{
-		D3D11_BLEND_DESC1 internal_desc;
-		internal_desc.AlphaToCoverageEnable = desc.graphics.blend_state.alpha_to_coverage_enable;
-		internal_desc.IndependentBlendEnable = TRUE;
-
-		for (UINT i = 0; i < 8; ++i)
-		{
-			internal_desc.RenderTarget[i].BlendEnable = desc.graphics.blend_state.blend_enable[i];
-			internal_desc.RenderTarget[i].LogicOpEnable = desc.graphics.blend_state.logic_op_enable[i];
-			internal_desc.RenderTarget[i].SrcBlend = convert_blend_factor(desc.graphics.blend_state.src_color_blend_factor[i]);
-			internal_desc.RenderTarget[i].DestBlend = convert_blend_factor(desc.graphics.blend_state.dst_color_blend_factor[i]);
-			internal_desc.RenderTarget[i].BlendOp = convert_blend_op(desc.graphics.blend_state.color_blend_op[i]);
-			internal_desc.RenderTarget[i].SrcBlendAlpha = convert_blend_factor(desc.graphics.blend_state.src_alpha_blend_factor[i]);
-			internal_desc.RenderTarget[i].DestBlendAlpha = convert_blend_factor(desc.graphics.blend_state.dst_alpha_blend_factor[i]);
-			internal_desc.RenderTarget[i].BlendOpAlpha = convert_blend_op(desc.graphics.blend_state.alpha_blend_op[i]);
-			internal_desc.RenderTarget[i].LogicOp = convert_logic_op(desc.graphics.blend_state.logic_op[i]);
-			internal_desc.RenderTarget[i].RenderTargetWriteMask = desc.graphics.blend_state.render_target_write_mask[i];
-		}
+		D3D11_BLEND_DESC1 internal_desc = {};
+		convert_pipeline_desc(desc, internal_desc);
 
 		if (com_ptr<ID3D11BlendState1> object;
 			SUCCEEDED(device1->CreateBlendState1(&internal_desc, &object)))
@@ -621,21 +607,8 @@ bool reshade::d3d11::device_impl::create_blend_state(const api::pipeline_desc &d
 	}
 	else
 	{
-		D3D11_BLEND_DESC internal_desc;
-		internal_desc.AlphaToCoverageEnable = desc.graphics.blend_state.alpha_to_coverage_enable;
-		internal_desc.IndependentBlendEnable = TRUE;
-
-		for (UINT i = 0; i < 8; ++i)
-		{
-			internal_desc.RenderTarget[i].BlendEnable = desc.graphics.blend_state.blend_enable[i];
-			internal_desc.RenderTarget[i].SrcBlend = convert_blend_factor(desc.graphics.blend_state.src_color_blend_factor[i]);
-			internal_desc.RenderTarget[i].DestBlend = convert_blend_factor(desc.graphics.blend_state.dst_color_blend_factor[i]);
-			internal_desc.RenderTarget[i].BlendOp = convert_blend_op(desc.graphics.blend_state.color_blend_op[i]);
-			internal_desc.RenderTarget[i].SrcBlendAlpha = convert_blend_factor(desc.graphics.blend_state.src_alpha_blend_factor[i]);
-			internal_desc.RenderTarget[i].DestBlendAlpha = convert_blend_factor(desc.graphics.blend_state.dst_alpha_blend_factor[i]);
-			internal_desc.RenderTarget[i].BlendOpAlpha = convert_blend_op(desc.graphics.blend_state.alpha_blend_op[i]);
-			internal_desc.RenderTarget[i].RenderTargetWriteMask = desc.graphics.blend_state.render_target_write_mask[i];
-		}
+		D3D11_BLEND_DESC internal_desc = {};
+		convert_pipeline_desc(desc, internal_desc);
 
 		if (com_ptr<ID3D11BlendState> object;
 			SUCCEEDED(_orig->CreateBlendState(&internal_desc, &object)))
@@ -650,17 +623,8 @@ bool reshade::d3d11::device_impl::create_blend_state(const api::pipeline_desc &d
 }
 bool reshade::d3d11::device_impl::create_rasterizer_state(const api::pipeline_desc &desc, api::pipeline *out)
 {
-	D3D11_RASTERIZER_DESC internal_desc;
-	internal_desc.FillMode = convert_fill_mode(desc.graphics.rasterizer_state.fill_mode);
-	internal_desc.CullMode = convert_cull_mode(desc.graphics.rasterizer_state.cull_mode);
-	internal_desc.FrontCounterClockwise = desc.graphics.rasterizer_state.front_counter_clockwise;
-	internal_desc.DepthBias = static_cast<INT>(desc.graphics.rasterizer_state.depth_bias);
-	internal_desc.DepthBiasClamp = desc.graphics.rasterizer_state.depth_bias_clamp;
-	internal_desc.SlopeScaledDepthBias = desc.graphics.rasterizer_state.slope_scaled_depth_bias;
-	internal_desc.DepthClipEnable = desc.graphics.rasterizer_state.depth_clip_enable;
-	internal_desc.ScissorEnable = desc.graphics.rasterizer_state.scissor_enable;
-	internal_desc.MultisampleEnable = desc.graphics.rasterizer_state.multisample_enable;
-	internal_desc.AntialiasedLineEnable = desc.graphics.rasterizer_state.antialiased_line_enable;
+	D3D11_RASTERIZER_DESC internal_desc = {};
+	convert_pipeline_desc(desc, internal_desc);
 
 	if (com_ptr<ID3D11RasterizerState> object;
 		SUCCEEDED(_orig->CreateRasterizerState(&internal_desc, &object)))
@@ -676,21 +640,8 @@ bool reshade::d3d11::device_impl::create_rasterizer_state(const api::pipeline_de
 }
 bool reshade::d3d11::device_impl::create_depth_stencil_state(const api::pipeline_desc &desc, api::pipeline *out)
 {
-	D3D11_DEPTH_STENCIL_DESC internal_desc;
-	internal_desc.DepthEnable = desc.graphics.depth_stencil_state.depth_enable;
-	internal_desc.DepthWriteMask = desc.graphics.depth_stencil_state.depth_write_mask ? D3D11_DEPTH_WRITE_MASK_ALL : D3D11_DEPTH_WRITE_MASK_ZERO;
-	internal_desc.DepthFunc = convert_compare_op(desc.graphics.depth_stencil_state.depth_func);
-	internal_desc.StencilEnable = desc.graphics.depth_stencil_state.stencil_enable;
-	internal_desc.StencilReadMask = desc.graphics.depth_stencil_state.stencil_read_mask;
-	internal_desc.StencilWriteMask = desc.graphics.depth_stencil_state.stencil_write_mask;
-	internal_desc.BackFace.StencilFailOp = convert_stencil_op(desc.graphics.depth_stencil_state.back_stencil_fail_op);
-	internal_desc.BackFace.StencilDepthFailOp = convert_stencil_op(desc.graphics.depth_stencil_state.back_stencil_depth_fail_op);
-	internal_desc.BackFace.StencilPassOp = convert_stencil_op(desc.graphics.depth_stencil_state.back_stencil_pass_op);
-	internal_desc.BackFace.StencilFunc = convert_compare_op(desc.graphics.depth_stencil_state.back_stencil_func);
-	internal_desc.FrontFace.StencilFailOp = convert_stencil_op(desc.graphics.depth_stencil_state.front_stencil_fail_op);
-	internal_desc.FrontFace.StencilDepthFailOp = convert_stencil_op(desc.graphics.depth_stencil_state.front_stencil_depth_fail_op);
-	internal_desc.FrontFace.StencilPassOp = convert_stencil_op(desc.graphics.depth_stencil_state.front_stencil_pass_op);
-	internal_desc.FrontFace.StencilFunc = convert_compare_op(desc.graphics.depth_stencil_state.front_stencil_func);
+	D3D11_DEPTH_STENCIL_DESC internal_desc = {};
+	convert_pipeline_desc(desc, internal_desc);
 
 	if (com_ptr<ID3D11DepthStencilState> object;
 		SUCCEEDED(_orig->CreateDepthStencilState(&internal_desc, &object)))

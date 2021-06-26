@@ -204,7 +204,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 
 	// Continue calling down the chain
 	const VkResult result = trampoline(physicalDevice, &create_info, pAllocator, pDevice);
-	if (result != VK_SUCCESS)
+	if (result < VK_SUCCESS)
 	{
 		LOG(WARN) << "vkCreateDevice" << " failed with error code " << result << '.';
 		return result;
@@ -378,7 +378,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 #if RESHADE_VERBOSE_LOG
 	LOG(INFO) << "Returning Vulkan device " << device << '.';
 #endif
-	return VK_SUCCESS;
+	return result;
 }
 void     VKAPI_CALL vkDestroyDevice(VkDevice device, const VkAllocationCallbacks *pAllocator)
 {
@@ -502,7 +502,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 
 	GET_DISPATCH_PTR_FROM(CreateSwapchainKHR, device_impl);
 	const VkResult result = trampoline(device, &create_info, pAllocator, pSwapchain);
-	if (result != VK_SUCCESS)
+	if (result < VK_SUCCESS)
 	{
 		LOG(WARN) << "vkCreateSwapchainKHR" << " failed with error code " << result << '.';
 		return result;
@@ -558,7 +558,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 #if RESHADE_VERBOSE_LOG
 	LOG(INFO) << "Returning Vulkan swapchain " << *pSwapchain << '.';
 #endif
-	return VK_SUCCESS;
+	return result;
 }
 void     VKAPI_CALL vkDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapchain, const VkAllocationCallbacks *pAllocator)
 {
@@ -658,7 +658,7 @@ VkResult VKAPI_CALL vkCreateBuffer(VkDevice device, const VkBufferCreateInfo *pC
 #endif
 
 	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pBuffer);
-	if (result == VK_SUCCESS)
+	if (result >= VK_SUCCESS)
 	{
 #if RESHADE_ADDON
 		device_impl->register_buffer(*pBuffer, *pCreateInfo);
@@ -713,7 +713,7 @@ VkResult VKAPI_CALL vkCreateBufferView(VkDevice device, const VkBufferViewCreate
 #endif
 
 	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pView);;
-	if (result == VK_SUCCESS)
+	if (result >= VK_SUCCESS)
 	{
 #if RESHADE_ADDON
 		device_impl->register_buffer_view(*pView, *pCreateInfo);
@@ -769,7 +769,7 @@ VkResult VKAPI_CALL vkCreateImage(VkDevice device, const VkImageCreateInfo *pCre
 #endif
 
 	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pImage);
-	if (result == VK_SUCCESS)
+	if (result >= VK_SUCCESS)
 	{
 #if RESHADE_ADDON
 		device_impl->register_image(*pImage, *pCreateInfo);
@@ -824,7 +824,7 @@ VkResult VKAPI_CALL vkCreateImageView(VkDevice device, const VkImageViewCreateIn
 #endif
 
 	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pView);
-	if (result == VK_SUCCESS)
+	if (result >= VK_SUCCESS)
 	{
 #if RESHADE_ADDON
 		device_impl->register_image_view(*pView, *pCreateInfo);
@@ -875,32 +875,87 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
 	GET_DISPATCH_PTR_FROM(CreateGraphicsPipelines, device_impl);
 
-	const VkResult result = trampoline(device, pipelineCache, createInfoCount, pCreateInfos, pAllocator, pPipelines);
-	if (result == VK_SUCCESS)
+#if RESHADE_ADDON
+	VkResult result = VK_SUCCESS;
+	for (uint32_t i = 0; i < createInfoCount; ++i)
 	{
-	}
-	else
-	{
-		LOG(WARN) << "vkCreateGraphicsPipelines" << " failed with error code " << result << '.';
+		const reshade::api::pipeline_desc desc = reshade::vulkan::convert_pipeline_desc(pCreateInfos[i]);
+
+		if (reshade::api::pipeline overwrite = { 0 };
+			reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(device_impl, desc, &overwrite))
+		{
+			pPipelines[i] = (VkPipeline)overwrite.handle;
+			continue;
+		}
+
+		result = trampoline(device, pipelineCache, 1, &pCreateInfos[i], pAllocator, &pPipelines[i]);
+		if (result >= VK_SUCCESS)
+		{
+			reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(device_impl, desc, reshade::api::pipeline { (uint64_t)pPipelines[i] });
+		}
+		else
+		{
+			LOG(WARN) << "vkCreateGraphicsPipelines" << " failed with error code " << result << '.';
+
+			for (uint32_t k = 0; k < i; ++k)
+				vkDestroyPipeline(device, pPipelines[k], pAllocator);
+			for (uint32_t k = 0; k < createInfoCount; ++k)
+				pPipelines[k] = VK_NULL_HANDLE;
+			break;
+		}
 	}
 
 	return result;
+#else
+	return trampoline(device, pipelineCache, createInfoCount, pCreateInfos, pAllocator, pPipelines);
+#endif
 }
 VkResult VKAPI_CALL vkCreateComputePipelines(VkDevice device, VkPipelineCache pipelineCache, uint32_t createInfoCount, const VkComputePipelineCreateInfo *pCreateInfos, const VkAllocationCallbacks *pAllocator, VkPipeline *pPipelines)
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
 	GET_DISPATCH_PTR_FROM(CreateComputePipelines, device_impl);
 
-	const VkResult result = trampoline(device, pipelineCache, createInfoCount, pCreateInfos, pAllocator, pPipelines);
-	if (result == VK_SUCCESS)
+#if RESHADE_ADDON
+	VkResult result = VK_SUCCESS;
+	for (uint32_t i = 0; i < createInfoCount; ++i)
 	{
-	}
-	else
-	{
-		LOG(WARN) << "vkCreateComputePipelines" << " failed with error code " << result << '.';
+		const reshade::api::pipeline_desc desc = reshade::vulkan::convert_pipeline_desc(pCreateInfos[i]);
+
+		if (reshade::api::pipeline overwrite = { 0 };
+			reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(device_impl, desc, &overwrite))
+		{
+			pPipelines[i] = (VkPipeline)overwrite.handle;
+			continue;
+		}
+
+		result = trampoline(device, pipelineCache, 1, &pCreateInfos[i], pAllocator, &pPipelines[i]);
+		if (result >= VK_SUCCESS)
+		{
+			reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(device_impl, desc, reshade::api::pipeline { (uint64_t)pPipelines[i] });
+		}
+		else
+		{
+			LOG(WARN) << "vkCreateComputePipelines" << " failed with error code " << result << '.';
+
+			for (uint32_t k = 0; k < i; ++k)
+				vkDestroyPipeline(device, pPipelines[k], pAllocator);
+			for (uint32_t k = 0; k < createInfoCount; ++k)
+				pPipelines[k] = VK_NULL_HANDLE;
+			break;
+		}
 	}
 
 	return result;
+#else
+	return trampoline(device, pipelineCache, createInfoCount, pCreateInfos, pAllocator, pPipelines);
+#endif
+}
+void     VKAPI_CALL vkDestroyPipeline(VkDevice device, VkPipeline pipeline, const VkAllocationCallbacks *pAllocator)
+{
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
+	GET_DISPATCH_PTR_FROM(DestroyPipeline, device_impl);
+
+	trampoline(device, pipeline, pAllocator);
 }
 
 VkResult VKAPI_CALL vkCreateSampler(VkDevice device, const VkSamplerCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkSampler *pSampler)
@@ -923,7 +978,7 @@ VkResult VKAPI_CALL vkCreateSampler(VkDevice device, const VkSamplerCreateInfo *
 #endif
 
 	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pSampler);
-	if (result == VK_SUCCESS)
+	if (result >= VK_SUCCESS)
 	{
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::init_sampler>(
@@ -1009,7 +1064,7 @@ VkResult VKAPI_CALL vkCreateFramebuffer(VkDevice device, const VkFramebufferCrea
 	GET_DISPATCH_PTR_FROM(CreateFramebuffer, device_impl);
 
 	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pFramebuffer);
-	if (result == VK_SUCCESS)
+	if (result >= VK_SUCCESS)
 	{
 #if RESHADE_ADDON
 		const auto render_pass_info = device_impl->lookup_render_pass(pCreateInfo->renderPass);
@@ -1054,7 +1109,7 @@ VkResult VKAPI_CALL vkCreateRenderPass(VkDevice device, const VkRenderPassCreate
 	assert(pCreateInfo != nullptr && pRenderPass != nullptr);
 
 	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pRenderPass);
-	if (result == VK_SUCCESS)
+	if (result >= VK_SUCCESS)
 	{
 #if RESHADE_ADDON
 		reshade::vulkan::render_pass_data renderpass_data;
@@ -1092,7 +1147,7 @@ VkResult VKAPI_CALL vkCreateRenderPass2(VkDevice device, const VkRenderPassCreat
 	assert(pCreateInfo != nullptr && pRenderPass != nullptr);
 
 	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pRenderPass);
-	if (result == VK_SUCCESS)
+	if (result >= VK_SUCCESS)
 	{
 #if RESHADE_ADDON
 		reshade::vulkan::render_pass_data renderpass_data;
@@ -1140,7 +1195,7 @@ VkResult VKAPI_CALL vkAllocateCommandBuffers(VkDevice device, const VkCommandBuf
 	GET_DISPATCH_PTR_FROM(AllocateCommandBuffers, device_impl);
 
 	const VkResult result = trampoline(device, pAllocateInfo, pCommandBuffers);
-	if (result == VK_SUCCESS)
+	if (result >= VK_SUCCESS)
 	{
 #if RESHADE_ADDON
 		for (uint32_t i = 0; i < pAllocateInfo->commandBufferCount; ++i)

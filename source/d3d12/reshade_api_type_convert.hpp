@@ -47,7 +47,7 @@ namespace reshade::d3d12
 		D3D12_HEAP_PROPERTIES dummy_heap_props;
 		convert_resource_desc(desc, internal_desc, dummy_heap_props, dummy_heap_flags);
 	}
-	api::resource_desc convert_resource_desc(const D3D12_RESOURCE_DESC &internal_desc, const D3D12_HEAP_PROPERTIES &heap_props, D3D12_HEAP_FLAGS heap_flags);
+	api::resource_desc convert_resource_desc(const D3D12_RESOURCE_DESC &internal_desc, const D3D12_HEAP_PROPERTIES &heap_props = {}, D3D12_HEAP_FLAGS heap_flags = D3D12_HEAP_FLAG_NONE);
 
 	void convert_resource_view_desc(const api::resource_view_desc &desc, D3D12_DEPTH_STENCIL_VIEW_DESC &internal_desc);
 	void convert_resource_view_desc(const api::resource_view_desc &desc, D3D12_RENDER_TARGET_VIEW_DESC &internal_desc);
@@ -58,16 +58,28 @@ namespace reshade::d3d12
 	api::resource_view_desc convert_resource_view_desc(const D3D12_SHADER_RESOURCE_VIEW_DESC &internal_desc);
 	api::resource_view_desc convert_resource_view_desc(const D3D12_UNORDERED_ACCESS_VIEW_DESC &internal_desc);
 
+	void convert_pipeline_desc(const api::pipeline_desc &desc, D3D12_COMPUTE_PIPELINE_STATE_DESC &internal_desc);
+	void convert_pipeline_desc(const api::pipeline_desc &desc, D3D12_GRAPHICS_PIPELINE_STATE_DESC &internal_desc);
+	api::pipeline_desc convert_pipeline_desc(const D3D12_COMPUTE_PIPELINE_STATE_DESC &internal_desc);
+	api::pipeline_desc convert_pipeline_desc(const D3D12_GRAPHICS_PIPELINE_STATE_DESC &internal_desc);
+
 	auto convert_logic_op(api::logic_op value) -> D3D12_LOGIC_OP;
+	auto convert_logic_op(D3D12_LOGIC_OP value) ->api::logic_op;
 	auto convert_blend_op(api::blend_op value) -> D3D12_BLEND_OP;
+	auto convert_blend_op(D3D12_BLEND_OP value) ->api::blend_op;
 	auto convert_blend_factor(api::blend_factor value) -> D3D12_BLEND;
+	auto convert_blend_factor(D3D12_BLEND value) -> api::blend_factor;
 	auto convert_fill_mode(api::fill_mode value) -> D3D12_FILL_MODE;
+	auto convert_fill_mode(D3D12_FILL_MODE value) ->api::fill_mode;
 	auto convert_cull_mode(api::cull_mode value) -> D3D12_CULL_MODE;
+	auto convert_cull_mode(D3D12_CULL_MODE value) -> api::cull_mode;
 	auto convert_compare_op(api::compare_op value) -> D3D12_COMPARISON_FUNC;
 	auto convert_compare_op(D3D12_COMPARISON_FUNC value) -> api::compare_op;
 	auto convert_stencil_op(api::stencil_op value) -> D3D12_STENCIL_OP;
+	auto convert_stencil_op(D3D12_STENCIL_OP value) -> api::stencil_op;
 	auto convert_primitive_topology(api::primitive_topology value) -> D3D12_PRIMITIVE_TOPOLOGY;
 	auto convert_primitive_topology_type(api::primitive_topology value) -> D3D12_PRIMITIVE_TOPOLOGY_TYPE;
+	auto convert_primitive_topology_type(D3D12_PRIMITIVE_TOPOLOGY_TYPE value) -> api::primitive_topology;
 
 	auto convert_query_type(api::query_type type) -> D3D12_QUERY_TYPE;
 	auto convert_query_type(D3D12_QUERY_TYPE type) -> api::query_type;

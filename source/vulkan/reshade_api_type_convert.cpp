@@ -1054,17 +1054,265 @@ reshade::api::resource_view_desc reshade::vulkan::convert_resource_view_desc(con
 	return desc;
 }
 
+reshade::api::pipeline_desc reshade::vulkan::convert_pipeline_desc(const VkComputePipelineCreateInfo &create_info)
+{
+	api::pipeline_desc desc = { api::pipeline_stage::all_compute };
+	desc.layout = { (uint64_t)create_info.layout };
+
+	assert(create_info.stage.stage == VK_SHADER_STAGE_COMPUTE_BIT);
+	desc.compute.shader.format = api::shader_format::spirv;
+	desc.compute.shader.entry_point = create_info.stage.pName;
+
+	return desc;
+}
+reshade::api::pipeline_desc reshade::vulkan::convert_pipeline_desc(const VkGraphicsPipelineCreateInfo &create_info)
+{
+	api::pipeline_desc desc = { api::pipeline_stage::all_graphics };
+	desc.layout = { (uint64_t)create_info.layout };
+
+	for (uint32_t i = 0; i < create_info.stageCount; ++i)
+	{
+		const VkPipelineShaderStageCreateInfo &stage = create_info.pStages[i];
+
+		switch (stage.stage)
+		{
+		case VK_SHADER_STAGE_VERTEX_BIT:
+			desc.graphics.vertex_shader.format = api::shader_format::spirv;
+			desc.graphics.vertex_shader.entry_point = stage.pName;
+			break;
+		case VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT:
+			desc.graphics.hull_shader.format = api::shader_format::spirv;
+			desc.graphics.hull_shader.entry_point = stage.pName;
+			break;
+		case VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT:
+			desc.graphics.domain_shader.format = api::shader_format::spirv;
+			desc.graphics.domain_shader.entry_point = stage.pName;
+			break;
+		case VK_SHADER_STAGE_GEOMETRY_BIT:
+			desc.graphics.geometry_shader.format = api::shader_format::spirv;
+			desc.graphics.geometry_shader.entry_point = stage.pName;
+			break;
+		case VK_SHADER_STAGE_FRAGMENT_BIT:
+			desc.graphics.pixel_shader.format = api::shader_format::spirv;
+			desc.graphics.pixel_shader.entry_point = stage.pName;
+			break;
+		}
+	}
+
+	if (create_info.pVertexInputState != nullptr)
+	{
+		const VkPipelineVertexInputStateCreateInfo &vertex_input_state_info = *create_info.pVertexInputState;
+
+		for (uint32_t a = 0; a < vertex_input_state_info.vertexAttributeDescriptionCount; ++a)
+		{
+			const VkVertexInputAttributeDescription &attribute = vertex_input_state_info.pVertexAttributeDescriptions[a];
+
+			desc.graphics.input_layout[a].location = attribute.location;
+			desc.graphics.input_layout[a].format = convert_format(attribute.format);
+			desc.graphics.input_layout[a].buffer_binding = attribute.binding;
+			desc.graphics.input_layout[a].offset = attribute.offset;
+
+			for (uint32_t b = 0; b < vertex_input_state_info.vertexBindingDescriptionCount; ++b)
+			{
+				const VkVertexInputBindingDescription &binding = vertex_input_state_info.pVertexBindingDescriptions[b];
+
+				if (binding.binding == attribute.binding)
+				{
+					desc.graphics.input_layout[a].stride = binding.stride;
+					desc.graphics.input_layout[a].instance_step_rate = binding.inputRate != VK_VERTEX_INPUT_RATE_VERTEX ? 1 : 0;
+					break;
+				}
+			}
+		}
+	}
+
+	if (create_info.pInputAssemblyState != nullptr)
+	{
+		const VkPipelineInputAssemblyStateCreateInfo &input_assembly_state_info = *create_info.pInputAssemblyState;
+
+		desc.graphics.topology = convert_primitive_topology(input_assembly_state_info.topology);
+	}
+
+	if (create_info.pTessellationState != nullptr)
+	{
+		const VkPipelineTessellationStateCreateInfo &tessellation_state_info = *create_info.pTessellationState;
+
+		assert(desc.graphics.topology == api::primitive_topology::patch_list_01_cp);
+		desc.graphics.topology = static_cast<api::primitive_topology>(static_cast<uint32_t>(api::primitive_topology::patch_list_01_cp) + tessellation_state_info.patchControlPoints - 1);
+	}
+
+	if (create_info.pViewportState != nullptr)
+	{
+		const VkPipelineViewportStateCreateInfo &viewport_state_info = *create_info.pViewportState;
+
+		desc.graphics.viewport_count = viewport_state_info.viewportCount;
+	}
+
+	if (create_info.pRasterizationState != nullptr)
+	{
+		const VkPipelineRasterizationStateCreateInfo &rasterization_state_info = *create_info.pRasterizationState;
+
+		desc.graphics.rasterizer_state.fill_mode = convert_fill_mode(rasterization_state_info.polygonMode);
+		desc.graphics.rasterizer_state.cull_mode = convert_cull_mode(rasterization_state_info.cullMode);
+		desc.graphics.rasterizer_state.front_counter_clockwise = rasterization_state_info.frontFace == VK_FRONT_FACE_COUNTER_CLOCKWISE;
+		desc.graphics.rasterizer_state.depth_bias = rasterization_state_info.depthBiasConstantFactor;
+		desc.graphics.rasterizer_state.depth_bias_clamp = rasterization_state_info.depthBiasClamp;
+		desc.graphics.rasterizer_state.slope_scaled_depth_bias = rasterization_state_info.depthBiasSlopeFactor;
+		desc.graphics.rasterizer_state.depth_clip_enable = !rasterization_state_info.depthClampEnable;
+		desc.graphics.rasterizer_state.scissor_enable = true;
+	}
+
+	if (create_info.pMultisampleState != nullptr)
+	{
+		const VkPipelineMultisampleStateCreateInfo &multisample_state_info = *create_info.pMultisampleState;
+
+		desc.graphics.sample_count = static_cast<uint32_t>(multisample_state_info.rasterizationSamples);
+		desc.graphics.blend_state.alpha_to_coverage_enable = multisample_state_info.alphaToCoverageEnable;
+		desc.graphics.rasterizer_state.multisample_enable = multisample_state_info.rasterizationSamples != VK_SAMPLE_COUNT_1_BIT;
+
+		if (multisample_state_info.pSampleMask != nullptr)
+			desc.graphics.sample_mask = *multisample_state_info.pSampleMask;
+		else
+			desc.graphics.sample_mask = std::numeric_limits<uint32_t>::max();
+	}
+
+	if (create_info.pDepthStencilState != nullptr)
+	{
+		const VkPipelineDepthStencilStateCreateInfo &depth_stencil_state_info = *create_info.pDepthStencilState;
+
+		desc.graphics.depth_stencil_state.depth_enable = depth_stencil_state_info.depthTestEnable;
+		desc.graphics.depth_stencil_state.depth_write_mask = depth_stencil_state_info.depthWriteEnable;
+		desc.graphics.depth_stencil_state.depth_func = convert_compare_op(depth_stencil_state_info.depthCompareOp);
+		desc.graphics.depth_stencil_state.stencil_enable = depth_stencil_state_info.stencilTestEnable;
+		desc.graphics.depth_stencil_state.stencil_read_mask = depth_stencil_state_info.back.compareMask & 0xFF;
+		desc.graphics.depth_stencil_state.stencil_write_mask = depth_stencil_state_info.back.writeMask & 0xFF;
+		desc.graphics.depth_stencil_state.stencil_reference_value = depth_stencil_state_info.back.reference & 0xFF;
+		desc.graphics.depth_stencil_state.back_stencil_fail_op = convert_stencil_op(depth_stencil_state_info.back.failOp);
+		desc.graphics.depth_stencil_state.back_stencil_pass_op = convert_stencil_op(depth_stencil_state_info.back.passOp);
+		desc.graphics.depth_stencil_state.back_stencil_depth_fail_op = convert_stencil_op(depth_stencil_state_info.back.depthFailOp);
+		desc.graphics.depth_stencil_state.back_stencil_func = convert_compare_op(depth_stencil_state_info.back.compareOp);
+		desc.graphics.depth_stencil_state.front_stencil_fail_op = convert_stencil_op(depth_stencil_state_info.front.failOp);
+		desc.graphics.depth_stencil_state.front_stencil_pass_op = convert_stencil_op(depth_stencil_state_info.front.passOp);
+		desc.graphics.depth_stencil_state.front_stencil_depth_fail_op = convert_stencil_op(depth_stencil_state_info.front.depthFailOp);
+		desc.graphics.depth_stencil_state.front_stencil_func = convert_compare_op(depth_stencil_state_info.front.compareOp);
+	}
+
+	if (create_info.pColorBlendState != nullptr)
+	{
+		const VkPipelineColorBlendStateCreateInfo &color_blend_state_info = *create_info.pColorBlendState;
+
+		desc.graphics.blend_state.blend_constant =
+			(static_cast<uint32_t>(color_blend_state_info.blendConstants[0] * 255)) |
+			(static_cast<uint32_t>(color_blend_state_info.blendConstants[1] * 255) << 4) |
+			(static_cast<uint32_t>(color_blend_state_info.blendConstants[2] * 255) << 8) |
+			(static_cast<uint32_t>(color_blend_state_info.blendConstants[3] * 255) << 12);
+
+		for (uint32_t a = 0; a < color_blend_state_info.attachmentCount; ++a)
+		{
+			const VkPipelineColorBlendAttachmentState &attachment = color_blend_state_info.pAttachments[a];
+
+			desc.graphics.blend_state.blend_enable[a] = attachment.blendEnable;
+			desc.graphics.blend_state.logic_op_enable[a] = color_blend_state_info.logicOpEnable;
+			desc.graphics.blend_state.color_blend_op[a] = convert_blend_op(attachment.colorBlendOp);
+			desc.graphics.blend_state.src_color_blend_factor[a] = convert_blend_factor(attachment.srcColorBlendFactor);
+			desc.graphics.blend_state.dst_color_blend_factor[a] = convert_blend_factor(attachment.dstColorBlendFactor);
+			desc.graphics.blend_state.alpha_blend_op[a] = convert_blend_op(attachment.alphaBlendOp);
+			desc.graphics.blend_state.src_alpha_blend_factor[a] = convert_blend_factor(attachment.srcAlphaBlendFactor);
+			desc.graphics.blend_state.dst_alpha_blend_factor[a] = convert_blend_factor(attachment.dstAlphaBlendFactor);
+			desc.graphics.blend_state.logic_op[a] = convert_logic_op(color_blend_state_info.logicOp);
+			desc.graphics.blend_state.render_target_write_mask[a] = static_cast<uint8_t>(attachment.colorWriteMask);
+		}
+	}
+
+	if (create_info.pDynamicState != nullptr)
+	{
+		const VkPipelineDynamicStateCreateInfo &dynamic_state_info = *create_info.pDynamicState;
+
+		for (uint32_t i = 0, k = 0; i < dynamic_state_info.dynamicStateCount && k < 32; ++i)
+		{
+			switch (dynamic_state_info.pDynamicStates[i])
+			{
+			case VK_DYNAMIC_STATE_DEPTH_BIAS:
+				desc.graphics.dynamic_states[k++] = api::dynamic_state::depth_bias;
+				desc.graphics.dynamic_states[k++] = api::dynamic_state::depth_bias_clamp;
+				desc.graphics.dynamic_states[k++] = api::dynamic_state::depth_bias_slope_scaled;
+				break;
+			case VK_DYNAMIC_STATE_BLEND_CONSTANTS:
+				desc.graphics.dynamic_states[k++] = api::dynamic_state::blend_constant;
+				break;
+			case VK_DYNAMIC_STATE_STENCIL_COMPARE_MASK:
+				desc.graphics.dynamic_states[k++] = api::dynamic_state::stencil_read_mask;
+				break;
+			case VK_DYNAMIC_STATE_STENCIL_WRITE_MASK:
+				desc.graphics.dynamic_states[k++] = api::dynamic_state::stencil_write_mask;
+				break;
+			case VK_DYNAMIC_STATE_STENCIL_REFERENCE:
+				desc.graphics.dynamic_states[k++] = api::dynamic_state::stencil_reference_value;
+				break;
+			case VK_DYNAMIC_STATE_CULL_MODE_EXT:
+				desc.graphics.dynamic_states[k++] = api::dynamic_state::cull_mode;
+				break;
+			case VK_DYNAMIC_STATE_FRONT_FACE_EXT:
+				desc.graphics.dynamic_states[k++] = api::dynamic_state::front_counter_clockwise;
+				break;
+			case VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY_EXT:
+				desc.graphics.dynamic_states[k++] = api::dynamic_state::primitive_topology;
+				break;
+			case VK_DYNAMIC_STATE_DEPTH_TEST_ENABLE_EXT:
+				desc.graphics.dynamic_states[k++] = api::dynamic_state::depth_enable;
+				break;
+			case VK_DYNAMIC_STATE_DEPTH_WRITE_ENABLE_EXT:
+				desc.graphics.dynamic_states[k++] = api::dynamic_state::depth_write_mask;
+				break;
+			case VK_DYNAMIC_STATE_DEPTH_COMPARE_OP_EXT:
+				desc.graphics.dynamic_states[k++] = api::dynamic_state::depth_func;
+				break;
+			case VK_DYNAMIC_STATE_DEPTH_BOUNDS_TEST_ENABLE_EXT:
+				desc.graphics.dynamic_states[k++] = api::dynamic_state::depth_clip_enable;
+				break;
+			case VK_DYNAMIC_STATE_STENCIL_TEST_ENABLE_EXT:
+				desc.graphics.dynamic_states[k++] = api::dynamic_state::stencil_enable;
+				break;
+			case VK_DYNAMIC_STATE_STENCIL_OP_EXT:
+				desc.graphics.dynamic_states[k++] = api::dynamic_state::back_stencil_func;
+				desc.graphics.dynamic_states[k++] = api::dynamic_state::front_stencil_func;
+				break;
+			case VK_DYNAMIC_STATE_LOGIC_OP_EXT:
+				desc.graphics.dynamic_states[k++] = api::dynamic_state::logic_op;
+				break;
+			case VK_DYNAMIC_STATE_COLOR_WRITE_ENABLE_EXT:
+				desc.graphics.dynamic_states[k++] = api::dynamic_state::render_target_write_mask;
+				break;
+			}
+		}
+	}
+
+	return desc;
+}
+
 auto reshade::vulkan::convert_logic_op(api::logic_op value) -> VkLogicOp
 {
 	return static_cast<VkLogicOp>(value);
+}
+auto reshade::vulkan::convert_logic_op(VkLogicOp value) -> api::logic_op
+{
+	return static_cast<api::logic_op>(value);
 }
 auto reshade::vulkan::convert_blend_op(api::blend_op value) -> VkBlendOp
 {
 	return static_cast<VkBlendOp>(value);
 }
+auto reshade::vulkan::convert_blend_op(VkBlendOp value) -> api::blend_op
+{
+	return static_cast<api::blend_op>(value);
+}
 auto reshade::vulkan::convert_blend_factor(api::blend_factor value) -> VkBlendFactor
 {
 	return static_cast<VkBlendFactor>(value);
+}
+auto reshade::vulkan::convert_blend_factor(VkBlendFactor value) -> api::blend_factor
+{
+	return static_cast<api::blend_factor>(value);
 }
 auto reshade::vulkan::convert_fill_mode(api::fill_mode value) -> VkPolygonMode
 {
@@ -1081,21 +1329,44 @@ auto reshade::vulkan::convert_fill_mode(api::fill_mode value) -> VkPolygonMode
 		return VK_POLYGON_MODE_FILL;
 	}
 }
+auto reshade::vulkan::convert_fill_mode(VkPolygonMode value) -> api::fill_mode
+{
+	switch (value)
+	{
+	default:
+		assert(false);
+		[[fallthrough]];
+	case VK_POLYGON_MODE_FILL:
+		return api::fill_mode::solid;
+	case VK_POLYGON_MODE_LINE:
+		return api::fill_mode::wireframe;
+	case VK_POLYGON_MODE_POINT:
+		return api::fill_mode::point;
+	}
+}
 auto reshade::vulkan::convert_cull_mode(api::cull_mode value) -> VkCullModeFlags
 {
 	return static_cast<VkCullModeFlags>(value);
 }
-auto reshade::vulkan::convert_compare_op(VkCompareOp value) -> api::compare_op
+auto reshade::vulkan::convert_cull_mode(VkCullModeFlags value) -> api::cull_mode
 {
-	return static_cast<api::compare_op>(value);
+	return static_cast<api::cull_mode>(value);
 }
 auto reshade::vulkan::convert_compare_op(api::compare_op value) -> VkCompareOp
 {
 	return static_cast<VkCompareOp>(value);
 }
+auto reshade::vulkan::convert_compare_op(VkCompareOp value) -> api::compare_op
+{
+	return static_cast<api::compare_op>(value);
+}
 auto reshade::vulkan::convert_stencil_op(api::stencil_op value) -> VkStencilOp
 {
 	return static_cast<VkStencilOp>(value);
+}
+auto reshade::vulkan::convert_stencil_op(VkStencilOp value) -> api::stencil_op
+{
+	return static_cast<api::stencil_op>(value);
 }
 auto reshade::vulkan::convert_primitive_topology(api::primitive_topology value) -> VkPrimitiveTopology
 {
@@ -1158,6 +1429,38 @@ auto reshade::vulkan::convert_primitive_topology(api::primitive_topology value) 
 	case api::primitive_topology::patch_list_31_cp:
 	case api::primitive_topology::patch_list_32_cp:
 		return VK_PRIMITIVE_TOPOLOGY_PATCH_LIST;
+	}
+}
+auto reshade::vulkan::convert_primitive_topology(VkPrimitiveTopology value) -> api::primitive_topology
+{
+	switch (value)
+	{
+	default:
+	case VK_PRIMITIVE_TOPOLOGY_MAX_ENUM:
+		assert(false);
+		return api::primitive_topology::undefined;
+	case VK_PRIMITIVE_TOPOLOGY_POINT_LIST:
+		return api::primitive_topology::point_list;
+	case VK_PRIMITIVE_TOPOLOGY_LINE_LIST:
+		return api::primitive_topology::line_list;
+	case VK_PRIMITIVE_TOPOLOGY_LINE_STRIP:
+		return api::primitive_topology::line_strip;
+	case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST:
+		return api::primitive_topology::triangle_list;
+	case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP:
+		return api::primitive_topology::triangle_strip;
+	case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN:
+		return api::primitive_topology::triangle_fan;
+	case VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY:
+		return api::primitive_topology::line_list_adj;
+	case VK_PRIMITIVE_TOPOLOGY_LINE_STRIP_WITH_ADJACENCY:
+		return api::primitive_topology::line_strip_adj;
+	case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST_WITH_ADJACENCY:
+		return api::primitive_topology::triangle_list_adj;
+	case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP_WITH_ADJACENCY:
+		return api::primitive_topology::triangle_strip_adj;
+	case VK_PRIMITIVE_TOPOLOGY_PATCH_LIST:
+		return api::primitive_topology::patch_list_01_cp;
 	}
 }
 auto reshade::vulkan::convert_query_type(api::query_type type) -> VkQueryType

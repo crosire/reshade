@@ -78,13 +78,28 @@ namespace reshade::d3d10
 	api::resource_view_desc convert_resource_view_desc(const D3D10_SHADER_RESOURCE_VIEW_DESC &internal_desc);
 	api::resource_view_desc convert_resource_view_desc(const D3D10_SHADER_RESOURCE_VIEW_DESC1 &internal_desc);
 
+	void convert_pipeline_desc(const api::pipeline_desc &desc, D3D10_BLEND_DESC &internal_desc);
+	void convert_pipeline_desc(const api::pipeline_desc &desc, D3D10_BLEND_DESC1 &internal_desc);
+	void convert_pipeline_desc(const api::pipeline_desc &desc, D3D10_RASTERIZER_DESC &internal_desc);
+	void convert_pipeline_desc(const api::pipeline_desc &desc, D3D10_DEPTH_STENCIL_DESC &internal_desc);
+	api::pipeline_desc convert_pipeline_desc(const D3D10_INPUT_ELEMENT_DESC *element_desc, UINT num_elements);
+	api::pipeline_desc convert_pipeline_desc(const D3D10_BLEND_DESC *internal_desc);
+	api::pipeline_desc convert_pipeline_desc(const D3D10_BLEND_DESC1 *internal_desc);
+	api::pipeline_desc convert_pipeline_desc(const D3D10_RASTERIZER_DESC *internal_desc);
+	api::pipeline_desc convert_pipeline_desc(const D3D10_DEPTH_STENCIL_DESC *internal_desc);
+
 	auto convert_blend_op(api::blend_op value) -> D3D10_BLEND_OP;
+	auto convert_blend_op(D3D10_BLEND_OP value) -> api::blend_op;
 	auto convert_blend_factor(api::blend_factor value) -> D3D10_BLEND;
+	auto convert_blend_factor(D3D10_BLEND value) ->api::blend_factor;
 	auto convert_fill_mode(api::fill_mode value) -> D3D10_FILL_MODE;
+	auto convert_fill_mode(D3D10_FILL_MODE value) -> api::fill_mode;
 	auto convert_cull_mode(api::cull_mode value) -> D3D10_CULL_MODE;
+	auto convert_cull_mode(D3D10_CULL_MODE value) -> api::cull_mode;
 	auto convert_compare_op(api::compare_op value) -> D3D10_COMPARISON_FUNC;
-	auto convert_compare_op(D3D10_COMPARISON_FUNC value) -> api::compare_op;
+	auto convert_compare_op(D3D10_COMPARISON_FUNC value) ->api::compare_op;
 	auto convert_stencil_op(api::stencil_op value) -> D3D10_STENCIL_OP;
+	auto convert_stencil_op(D3D10_STENCIL_OP value) -> api::stencil_op;
 	auto convert_primitive_topology(api::primitive_topology value) -> D3D10_PRIMITIVE_TOPOLOGY;
 	auto convert_query_type(api::query_type value) -> D3D10_QUERY;
 }
