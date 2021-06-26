@@ -1328,7 +1328,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 	}
 
 	size_t total_passes = 0;
-	std::vector<api::descriptor_update> descriptor_updates;
+	std::vector<api::descriptor_set_write> descriptor_writes;
 	for (const reshadefx::technique_info &info : effect.module.techniques)
 		total_passes += info.passes.size();
 
@@ -1363,11 +1363,13 @@ bool reshade::runtime::init_effect(size_t effect_index)
 			return false;
 		}
 
-		api::descriptor_update &update = descriptor_updates.emplace_back();
-		update.set = effect.cb_set;
-		update.binding = 0;
-		update.type = api::descriptor_type::constant_buffer;
-		update.descriptor.resource = effect.cb;
+		api::descriptor_set_write &write = descriptor_writes.emplace_back();
+		write.set = effect.cb_set;
+		write.binding = 0;
+		write.type = api::descriptor_type::constant_buffer;
+		write.descriptor.resource = effect.cb;
+		write.descriptor.offset = 0;
+		write.descriptor.size = std::numeric_limits<uint64_t>::max();
 	}
 
 	// Initialize sampler and storage bindings
@@ -1430,25 +1432,25 @@ bool reshade::runtime::init_effect(size_t effect_index)
 				for (int i = 0; i < sizeof(desc); ++i)
 					desc_hash = (desc_hash * 16777619) ^ reinterpret_cast<const uint8_t *>(&desc)[i];
 
-				api::descriptor_update &update = descriptor_updates.emplace_back();
-				update.set = effect.sampler_set;
-				update.binding = info.binding;
-				update.type = api::descriptor_type::sampler;
+				api::descriptor_set_write &write = descriptor_writes.emplace_back();
+				write.set = effect.sampler_set;
+				write.binding = info.binding;
+				write.type = api::descriptor_type::sampler;
 
 				if (const auto it = _effect_sampler_states.find(desc_hash);
 					it != _effect_sampler_states.end())
 				{
-					update.descriptor.sampler = it->second;
+					write.descriptor.sampler = it->second;
 				}
 				else
 				{
-					if (!_device->create_sampler(desc, &update.descriptor.sampler))
+					if (!_device->create_sampler(desc, &write.descriptor.sampler))
 					{
 						LOG(ERROR) << "Failed to create sampler object '" << info.unique_name << "' for effect file '" << effect.source_file << "'!";
 						return false;
 					}
 
-					_effect_sampler_states.emplace(desc_hash, update.descriptor.sampler);
+					_effect_sampler_states.emplace(desc_hash, write.descriptor.sampler);
 				}
 			}
 		}
@@ -1746,13 +1748,13 @@ bool reshade::runtime::init_effect(size_t effect_index)
 
 				for (const reshadefx::sampler_info &info : pass_info.samplers)
 				{
-					api::descriptor_update &update = descriptor_updates.emplace_back();
-					update.set = pass_data.texture_set;
+					api::descriptor_set_write &write = descriptor_writes.emplace_back();
+					write.set = pass_data.texture_set;
 
 					if (sampler_with_resource_view)
 					{
-						update.binding = info.binding;
-						update.type = api::descriptor_type::sampler_with_resource_view;
+						write.binding = info.binding;
+						write.type = api::descriptor_type::sampler_with_resource_view;
 
 						api::sampler_desc desc;
 						desc.filter = static_cast<api::filter_type>(info.filter);
@@ -1773,48 +1775,48 @@ bool reshade::runtime::init_effect(size_t effect_index)
 						if (const auto it = _effect_sampler_states.find(desc_hash);
 							it != _effect_sampler_states.end())
 						{
-							update.descriptor.sampler = it->second;
+							write.descriptor.sampler = it->second;
 						}
 						else
 						{
-							if (!_device->create_sampler(desc, &update.descriptor.sampler))
+							if (!_device->create_sampler(desc, &write.descriptor.sampler))
 							{
 								LOG(ERROR) << "Failed to create sampler object '" << info.unique_name << "' for effect file '" << effect.source_file << "'!";
 								return false;
 							}
 
-							_effect_sampler_states.emplace(desc_hash, update.descriptor.sampler);
+							_effect_sampler_states.emplace(desc_hash, write.descriptor.sampler);
 						}
 					}
 					else
 					{
-						update.binding = info.texture_binding;
-						update.type = api::descriptor_type::shader_resource_view;
+						write.binding = info.texture_binding;
+						write.type = api::descriptor_type::shader_resource_view;
 					}
 
 					const texture &texture = look_up_texture_by_name(info.texture_name);
 
 					if (texture.semantic == "COLOR")
 					{
-						update.descriptor.view = _backbuffer_texture_view[info.srgb];
+						write.descriptor.view = _backbuffer_texture_view[info.srgb];
 					}
 					else if (!texture.semantic.empty())
 					{
 						if (const auto it = _texture_semantic_bindings.find(texture.semantic);
 							it != _texture_semantic_bindings.end())
-							update.descriptor.view = it->second;
+							write.descriptor.view = it->second;
 						else
-							update.descriptor.view = _empty_texture_view;
+							write.descriptor.view = _empty_texture_view;
 
 						// Keep track of the texture descriptor to simplify updating it
-						effect.texture_semantic_to_binding.push_back({ texture.semantic, update.set, update.binding, update.descriptor.sampler });
+						effect.texture_semantic_to_binding.push_back({ texture.semantic, write.set, write.binding, write.descriptor.sampler });
 					}
 					else
 					{
-						update.descriptor.view = texture.srv[info.srgb];
+						write.descriptor.view = texture.srv[info.srgb];
 					}
 
-					assert(update.descriptor.view.handle != 0);
+					assert(write.descriptor.view.handle != 0);
 				}
 			}
 
@@ -1824,16 +1826,16 @@ bool reshade::runtime::init_effect(size_t effect_index)
 
 				for (const reshadefx::storage_info &info : pass_info.storages)
 				{
-					api::descriptor_update &update = descriptor_updates.emplace_back();
-					update.set = pass_data.storage_set;
-					update.binding = info.binding;
-					update.type = api::descriptor_type::unordered_access_view;
+					api::descriptor_set_write &write = descriptor_writes.emplace_back();
+					write.set = pass_data.storage_set;
+					write.binding = info.binding;
+					write.type = api::descriptor_type::unordered_access_view;
 
 					const texture &texture = look_up_texture_by_name(info.texture_name);
 
 					assert(texture.semantic.empty());
 					{
-						update.descriptor.view = texture.uav;
+						write.descriptor.view = texture.uav;
 
 						pass_data.modified_resources.push_back(texture.resource);
 
@@ -1841,14 +1843,14 @@ bool reshade::runtime::init_effect(size_t effect_index)
 							pass_data.generate_mipmap_views.push_back(texture.srv[0]);
 					}
 
-					assert(update.descriptor.view.handle != 0);
+					assert(write.descriptor.view.handle != 0);
 				}
 			}
 		}
 	}
 
-	if (!descriptor_updates.empty())
-		_device->update_descriptor_sets(static_cast<uint32_t>(descriptor_updates.size()), descriptor_updates.data());
+	if (!descriptor_writes.empty())
+		_device->update_descriptor_sets(static_cast<uint32_t>(descriptor_writes.size()), descriptor_writes.data());
 
 	return true;
 }
@@ -3715,7 +3717,7 @@ void reshade::runtime::update_texture_bindings(const char *semantic, api::resour
 	_device->wait_idle();
 
 	// Update texture bindings
-	std::vector<api::descriptor_update> updates;
+	std::vector<api::descriptor_set_write> descriptor_writes;
 
 	for (effect &effect_data : _effects)
 	{
@@ -3724,16 +3726,16 @@ void reshade::runtime::update_texture_bindings(const char *semantic, api::resour
 			if (binding.semantic != semantic)
 				continue;
 
-			api::descriptor_update &update = updates.emplace_back();
-			update.set = binding.set;
-			update.binding = binding.index;
-			update.type = binding.sampler.handle != 0 ? api::descriptor_type::sampler_with_resource_view : api::descriptor_type::shader_resource_view;
-			update.descriptor.sampler = binding.sampler;
-			update.descriptor.view = srv;
+			api::descriptor_set_write &write = descriptor_writes.emplace_back();
+			write.set = binding.set;
+			write.binding = binding.index;
+			write.type = binding.sampler.handle != 0 ? api::descriptor_type::sampler_with_resource_view : api::descriptor_type::shader_resource_view;
+			write.descriptor.sampler = binding.sampler;
+			write.descriptor.view = srv;
 		}
 	}
 
-	_device->update_descriptor_sets(static_cast<uint32_t>(updates.size()), updates.data());
+	_device->update_descriptor_sets(static_cast<uint32_t>(descriptor_writes.size()), descriptor_writes.data());
 }
 
 void reshade::runtime::update_uniform_variables(const char *source, const bool *values, size_t count, size_t array_index)

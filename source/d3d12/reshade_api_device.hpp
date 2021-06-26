@@ -69,7 +69,7 @@ namespace reshade::d3d12
 		void upload_buffer_region(const void *data, api::resource dst, uint64_t dst_offset, uint64_t size) final;
 		void upload_texture_region(const api::subresource_data &data, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6]) final;
 
-		void update_descriptor_sets(uint32_t num_updates, const api::descriptor_update *updates) final;
+		void update_descriptor_sets(uint32_t num_writes, const api::descriptor_set_write *writes, uint32_t num_copies, const api::descriptor_set_copy *copies) final;
 
 		bool get_query_pool_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride) final;
 
@@ -105,7 +105,7 @@ namespace reshade::d3d12
 		std::vector<command_queue_impl *> _queues;
 		std::vector<std::pair<ID3D12Resource *, D3D12_GPU_VIRTUAL_ADDRESS_RANGE>> _buffer_gpu_addresses;
 
-		std::unordered_map<UINT64, D3D12_CPU_DESCRIPTOR_HANDLE> _descriptor_table_map;
+		std::unordered_map<UINT64, D3D12_CPU_DESCRIPTOR_HANDLE> _descriptor_set_map;
 
 		com_ptr<ID3D12PipelineState> _mipmap_pipeline;
 		com_ptr<ID3D12RootSignature> _mipmap_signature;

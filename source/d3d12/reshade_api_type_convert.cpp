@@ -127,6 +127,9 @@ void reshade::d3d12::convert_resource_desc(const api::resource_desc &desc, D3D12
 	case api::memory_heap::gpu_to_cpu:
 		heap_props.Type = D3D12_HEAP_TYPE_READBACK;
 		break;
+	case api::memory_heap::custom:
+		heap_props.Type = D3D12_HEAP_TYPE_CUSTOM;
+		break;
 	}
 
 	if ((desc.usage & api::resource_usage::depth_stencil) != api::resource_usage::undefined)
@@ -153,6 +156,9 @@ void reshade::d3d12::convert_resource_desc(const api::resource_desc &desc, D3D12
 
 	if ((desc.flags & api::resource_flags::shared) == api::resource_flags::shared)
 		heap_flags |= D3D12_HEAP_FLAG_SHARED;
+
+	// Dynamic resources do not exist in D3D12
+	assert((desc.flags & api::resource_flags::dynamic) != api::resource_flags::dynamic);
 }
 reshade::api::resource_desc reshade::d3d12::convert_resource_desc(const D3D12_RESOURCE_DESC &internal_desc, const D3D12_HEAP_PROPERTIES &heap_props, D3D12_HEAP_FLAGS heap_flags)
 {
@@ -202,6 +208,8 @@ reshade::api::resource_desc reshade::d3d12::convert_resource_desc(const D3D12_RE
 	{
 	default:
 		desc.heap = api::memory_heap::unknown;
+		// This is a resource created with 'CreateReservedResource' which are always sparse
+		desc.flags |= api::resource_flags::sparse_binding;
 		break;
 	case D3D12_HEAP_TYPE_DEFAULT:
 		desc.heap = api::memory_heap::gpu_only;
@@ -211,6 +219,9 @@ reshade::api::resource_desc reshade::d3d12::convert_resource_desc(const D3D12_RE
 		break;
 	case D3D12_HEAP_TYPE_READBACK:
 		desc.heap = api::memory_heap::gpu_to_cpu;
+		break;
+	case D3D12_HEAP_TYPE_CUSTOM:
+		desc.heap = api::memory_heap::custom;
 		break;
 	}
 

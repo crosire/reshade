@@ -449,8 +449,6 @@ bool reshade::opengl::device_impl::create_sampler(const api::sampler_desc &desc,
 }
 bool reshade::opengl::device_impl::create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage, api::resource *out)
 {
-	*out = { 0 };
-
 	GLenum target = GL_NONE;
 	switch (desc.type)
 	{
@@ -477,6 +475,7 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 				target = GL_PIXEL_UNPACK_BUFFER;
 				break;
 			}
+			*out = { 0 };
 			assert(false);
 			return false;
 		}
@@ -494,6 +493,7 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 		target = GL_TEXTURE_3D;
 		break;
 	default:
+		*out = { 0 };
 		assert(false);
 		return false;
 	}
@@ -504,11 +504,20 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 
 	if (desc.type == api::resource_type::buffer)
 	{
-		glGenBuffers(1, &object);
+		if (out != _current_event_handle)
+		{
+			glGenBuffers(1, &object);
+		}
+		else
+		{
+			assert((out->handle >> 40) == target);
+			object = out->handle & 0xFFFFFFFF;
+		}
+
 		glBindBuffer(target, object);
 
 		GLbitfield usage_flags = GL_NONE;
-		convert_memory_heap_to_flags(desc.heap, usage_flags);
+		convert_memory_heap_to_flags(desc, usage_flags);
 
 		assert(desc.buffer.size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
 		glBufferStorage(target, static_cast<GLsizeiptr>(desc.buffer.size), nullptr, usage_flags);
@@ -524,9 +533,21 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 	{
 		const GLenum internal_format = convert_format(desc.texture.format);
 		if (internal_format == GL_NONE)
+		{
+			*out = { 0 };
 			return false;
+		}
 
-		glGenTextures(1, &object);
+		if (out != _current_event_handle)
+		{
+			glGenTextures(1, &object);
+		}
+		else
+		{
+			assert((out->handle >> 40) == target);
+			object = out->handle & 0xFFFFFFFF;
+		}
+
 		glBindTexture(target, object);
 
 		GLuint depth_or_layers = desc.texture.depth_or_layers;
@@ -637,7 +658,16 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource resource, 
 	{
 		GLuint object = 0;
 		GLuint prev_object = 0;
-		glGenTextures(1, &object);
+
+		if (out != _current_event_handle)
+		{
+			glGenTextures(1, &object);
+		}
+		else
+		{
+			assert((out->handle >> 40) == target);
+			object = out->handle & 0xFFFFFFFF;
+		}
 
 		if (target != GL_TEXTURE_BUFFER)
 		{
@@ -669,14 +699,16 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource resource, 
 	}
 }
 
-static bool create_shader_module(GLenum type, const reshade::api::shader_desc &desc, GLuint &shader_object)
+static bool create_shader_module(GLenum type, const reshade::api::shader_desc &desc, GLuint &shader_object, bool existing_shader_object = false)
 {
-	shader_object = 0;
+	if (!existing_shader_object)
+		shader_object = 0;
 
 	if (desc.code_size == 0)
 		return false;
 
-	shader_object = glCreateShader(type);
+	if (!existing_shader_object)
+		shader_object = glCreateShader(type);
 
 	if (desc.format == reshade::api::shader_format::glsl)
 	{
@@ -720,15 +752,30 @@ static bool create_shader_module(GLenum type, const reshade::api::shader_desc &d
 
 bool reshade::opengl::device_impl::create_pipeline(const api::pipeline_desc &desc, api::pipeline *out)
 {
+	if (out != _current_event_handle)
+		*out = { 0 };
+
 	switch (desc.type)
 	{
 	default:
 		*out = { 0 };
 		return false;
-	case api::pipeline_stage::all_compute:
-		return create_compute_pipeline(desc, out);
 	case api::pipeline_stage::all_graphics:
 		return create_graphics_pipeline(desc, out);
+	case api::pipeline_stage::vertex_shader:
+		return create_shader_module(GL_VERTEX_SHADER, desc.graphics.vertex_shader, *reinterpret_cast<GLuint *>(out), out == _current_event_handle);
+	case api::pipeline_stage::hull_shader:
+		return create_shader_module(GL_TESS_CONTROL_SHADER, desc.graphics.hull_shader, *reinterpret_cast<GLuint *>(out), out == _current_event_handle);
+	case api::pipeline_stage::domain_shader:
+		return create_shader_module(GL_TESS_EVALUATION_SHADER, desc.graphics.domain_shader, *reinterpret_cast<GLuint *>(out), out == _current_event_handle);
+	case api::pipeline_stage::geometry_shader:
+		return create_shader_module(GL_GEOMETRY_SHADER, desc.graphics.geometry_shader, *reinterpret_cast<GLuint *>(out), out == _current_event_handle);
+	case api::pipeline_stage::pixel_shader:
+		return create_shader_module(GL_FRAGMENT_SHADER, desc.graphics.pixel_shader, *reinterpret_cast<GLuint *>(out), out == _current_event_handle);
+	case api::pipeline_stage::compute_shader:
+		if (out == _current_event_handle)
+			return create_shader_module(GL_COMPUTE_SHADER, desc.compute.shader, *reinterpret_cast<GLuint *>(out), true);
+		return create_compute_pipeline(desc, out);
 	}
 }
 bool reshade::opengl::device_impl::create_compute_pipeline(const api::pipeline_desc &desc, api::pipeline *out)
@@ -965,7 +1012,7 @@ bool reshade::opengl::device_impl::create_query_pool(api::query_type type, uint3
 		return false;
 	}
 
-	const auto result = new query_heap_impl();
+	const auto result = new query_pool_impl();
 	result->queries.resize(size);
 
 	glGenQueries(static_cast<GLsizei>(size), result->queries.data());
@@ -1172,7 +1219,7 @@ void reshade::opengl::device_impl::destroy_descriptor_set_layout(api::descriptor
 
 void reshade::opengl::device_impl::destroy_query_pool(api::query_pool handle)
 {
-	delete reinterpret_cast<query_heap_impl *>(handle.handle);
+	delete reinterpret_cast<query_pool_impl *>(handle.handle);
 }
 void reshade::opengl::device_impl::destroy_render_pass(api::render_pass handle)
 {
@@ -1185,31 +1232,65 @@ void reshade::opengl::device_impl::destroy_descriptor_sets(api::descriptor_set_l
 		delete reinterpret_cast<descriptor_set_impl *>(sets[i].handle);
 }
 
-void reshade::opengl::device_impl::update_descriptor_sets(uint32_t num_updates, const api::descriptor_update *updates)
+void reshade::opengl::device_impl::update_descriptor_sets(uint32_t num_writes, const api::descriptor_set_write *writes, uint32_t num_copies, const api::descriptor_set_copy *copies)
 {
-	for (uint32_t i = 0; i < num_updates; ++i)
+	for (uint32_t i = 0; i < num_writes; ++i)
 	{
-		const auto set_impl = reinterpret_cast<descriptor_set_impl *>(updates[i].set.handle);
+		const auto set_impl = reinterpret_cast<descriptor_set_impl *>(writes[i].set.handle);
 
-		switch (updates[i].type)
+		const api::descriptor_set_write &info = writes[i];
+
+		switch (info.type)
 		{
 		case api::descriptor_type::sampler:
-			assert(updates[i].descriptor.sampler.handle != 0);
-			set_impl->descriptors[updates[i].binding] = updates[i].descriptor.sampler.handle;
+			assert(info.descriptor.sampler.handle != 0);
+			set_impl->descriptors[info.binding] = info.descriptor.sampler.handle;
 			break;
 		case api::descriptor_type::sampler_with_resource_view:
-			assert(updates[i].descriptor.sampler.handle != 0 && updates[i].descriptor.view.handle != 0);
-			set_impl->descriptors[updates[i].binding * 2 + 0] = updates[i].descriptor.sampler.handle;
-			set_impl->descriptors[updates[i].binding * 2 + 1] = updates[i].descriptor.view.handle;
+			assert(info.descriptor.sampler.handle != 0);
+			set_impl->descriptors[info.binding * 2 + 0] = info.descriptor.sampler.handle;
+			assert(info.descriptor.view.handle != 0);
+			set_impl->descriptors[info.binding * 2 + 1] = info.descriptor.view.handle;
 			break;
 		case api::descriptor_type::shader_resource_view:
 		case api::descriptor_type::unordered_access_view:
-			assert(updates[i].descriptor.view.handle != 0);
-			set_impl->descriptors[updates[i].binding] = updates[i].descriptor.view.handle;
+			assert(info.descriptor.view.handle != 0);
+			set_impl->descriptors[info.binding] = info.descriptor.view.handle;
 			break;
 		case api::descriptor_type::constant_buffer:
-			assert(updates[i].descriptor.resource.handle != 0);
-			set_impl->descriptors[updates[i].binding] = updates[i].descriptor.resource.handle;
+			assert(info.descriptor.resource.handle != 0);
+			assert(info.descriptor.offset == 0);
+			set_impl->descriptors[info.binding] = info.descriptor.resource.handle;
+			break;
+		}
+	}
+
+	for (uint32_t i = 0; i < num_copies; ++i)
+	{
+		const auto src_set_impl = reinterpret_cast<descriptor_set_impl *>(copies[i].src_set.handle);
+		const auto dst_set_impl = reinterpret_cast<descriptor_set_impl *>(copies[i].dst_set.handle);
+
+		const api::descriptor_set_copy &info = copies[i];
+
+		switch (info.type)
+		{
+		case api::descriptor_type::sampler:
+		case api::descriptor_type::shader_resource_view:
+		case api::descriptor_type::unordered_access_view:
+		case api::descriptor_type::constant_buffer:
+			for (uint32_t k = 0; k < info.count; ++k)
+			{
+				dst_set_impl->descriptors[info.dst_binding + k] = src_set_impl->descriptors[info.src_binding + k];
+			}
+			break;
+		case api::descriptor_type::sampler_with_resource_view:
+			for (uint32_t k = 0; k < info.count; ++k)
+			{
+				const uint32_t src_binding = (info.src_binding + k) * 2;
+				const uint32_t dst_binding = (info.dst_binding + k) * 2;
+				dst_set_impl->descriptors[dst_binding + 0] = src_set_impl->descriptors[src_binding + 0];
+				dst_set_impl->descriptors[dst_binding + 1] = src_set_impl->descriptors[src_binding + 1];
+			}
 			break;
 		}
 	}
@@ -1651,16 +1732,17 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 	}
 
 	if (buffer_size != 0)
-		return convert_resource_desc(target, buffer_size, api::memory_heap::unknown);
+		return convert_resource_desc(target, buffer_size); // TODO: Memory heap
 	else
 		return convert_resource_desc(target, levels, samples, internal_format, width, height, depth);
 }
 
-bool reshade::opengl::device_impl::get_query_pool_results(api::query_pool heap, uint32_t first, uint32_t count, void *results, uint32_t stride)
+bool reshade::opengl::device_impl::get_query_pool_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride)
 {
+	assert(pool.handle != 0);
 	assert(stride >= sizeof(uint64_t));
 
-	const auto impl = reinterpret_cast<query_heap_impl *>(heap.handle);
+	const auto impl = reinterpret_cast<query_pool_impl *>(pool.handle);
 
 	for (uint32_t i = 0; i < count; ++i)
 	{

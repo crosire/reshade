@@ -73,9 +73,9 @@ namespace reshade::opengl
 		api::descriptor_range range;
 	};
 
-	struct query_heap_impl
+	struct query_pool_impl
 	{
-		~query_heap_impl()
+		~query_pool_impl()
 		{
 			glDeleteQueries(static_cast<GLsizei>(queries.size()), queries.data());
 		}
@@ -96,14 +96,14 @@ namespace reshade::opengl
 
 	bool is_depth_stencil_format(GLenum internal_format, GLenum usage = GL_DEPTH_STENCIL);
 
-	void convert_memory_heap_to_usage(api::memory_heap heap, GLenum &usage);
-	void convert_memory_heap_to_flags(api::memory_heap heap, GLbitfield &flags);
-	api::memory_heap convert_memory_heap_from_usage(GLenum usage);
-	api::memory_heap convert_memory_heap_from_flags(GLbitfield flags);
+	void convert_memory_heap_to_usage(const api::resource_desc &desc, GLenum &usage);
+	void convert_memory_heap_to_flags(const api::resource_desc &desc, GLbitfield &flags);
+	void convert_memory_heap_from_usage(api::resource_desc &desc, GLenum usage);
+	void convert_memory_heap_from_flags(api::resource_desc &desc, GLbitfield flags);
 
 	bool check_resource_desc(GLenum target, const api::resource_desc &desc, GLenum &internal_format);
 	api::resource_type convert_resource_type(GLenum target);
-	api::resource_desc convert_resource_desc(GLenum target, GLsizeiptr buffer_size, api::memory_heap heap);
+	api::resource_desc convert_resource_desc(GLenum target, GLsizeiptr buffer_size);
 	api::resource_desc convert_resource_desc(GLenum target, GLsizei levels, GLsizei samples, GLenum internal_format, GLsizei width, GLsizei height = 1, GLsizei depth = 1);
 
 	bool check_resource_view_desc(GLenum target, const api::resource_view_desc &desc, GLenum &internal_format);
@@ -117,13 +117,21 @@ namespace reshade::opengl
 
 	GLenum get_binding_for_target(GLenum target);
 
+	auto   convert_logic_op(GLenum value) -> api::logic_op;
 	GLenum convert_logic_op(api::logic_op value);
+	auto   convert_blend_op(GLenum value) -> api::blend_op;
 	GLenum convert_blend_op(api::blend_op value);
+	auto   convert_blend_factor(GLenum value) -> api::blend_factor;
 	GLenum convert_blend_factor(api::blend_factor value);
+	auto   convert_fill_mode(GLenum value) -> api::fill_mode;
 	GLenum convert_fill_mode(api::fill_mode value);
+	auto   convert_cull_mode(GLenum value) -> api::cull_mode;
 	GLenum convert_cull_mode(api::cull_mode value);
+	auto   convert_compare_op(GLenum value) -> api::compare_op;
 	GLenum convert_compare_op(api::compare_op value);
+	auto   convert_stencil_op(GLenum value) -> api::stencil_op;
 	GLenum convert_stencil_op(api::stencil_op value);
+	auto   convert_primitive_topology(GLenum value) -> api::primitive_topology;
 	GLenum convert_primitive_topology(api::primitive_topology value);
 	GLenum convert_query_type(api::query_type type);
 	GLenum convert_shader_type(api::shader_stage type);

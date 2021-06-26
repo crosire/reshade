@@ -41,7 +41,13 @@ namespace reshade::d3d12
 	api::sampler_desc convert_sampler_desc(const D3D12_SAMPLER_DESC &internal_desc);
 
 	void convert_resource_desc(const api::resource_desc &desc, D3D12_RESOURCE_DESC &internal_desc, D3D12_HEAP_PROPERTIES &heap_props, D3D12_HEAP_FLAGS &heap_flags);
-	api::resource_desc convert_resource_desc(const D3D12_RESOURCE_DESC &internal_desc, const D3D12_HEAP_PROPERTIES &heap_props = { D3D12_HEAP_TYPE_CUSTOM }, D3D12_HEAP_FLAGS heap_flags = D3D12_HEAP_FLAG_NONE);
+	inline void convert_resource_desc(const api::resource_desc &desc, D3D12_RESOURCE_DESC &internal_desc)
+	{
+		D3D12_HEAP_FLAGS dummy_heap_flags;
+		D3D12_HEAP_PROPERTIES dummy_heap_props;
+		convert_resource_desc(desc, internal_desc, dummy_heap_props, dummy_heap_flags);
+	}
+	api::resource_desc convert_resource_desc(const D3D12_RESOURCE_DESC &internal_desc, const D3D12_HEAP_PROPERTIES &heap_props, D3D12_HEAP_FLAGS heap_flags);
 
 	void convert_resource_view_desc(const api::resource_view_desc &desc, D3D12_DEPTH_STENCIL_VIEW_DESC &internal_desc);
 	void convert_resource_view_desc(const api::resource_view_desc &desc, D3D12_RENDER_TARGET_VIEW_DESC &internal_desc);

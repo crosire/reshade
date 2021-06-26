@@ -63,6 +63,7 @@ void reshade::d3d9::device_impl::bind_pipeline_states(uint32_t count, const api:
 		case api::dynamic_state::depth_bias_clamp:
 		case api::dynamic_state::alpha_to_coverage_enable:
 		case api::dynamic_state::logic_op_enable:
+		case api::dynamic_state::logic_op:
 			assert(false);
 			break;
 		default:
