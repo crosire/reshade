@@ -1,11 +1,11 @@
 /*
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
+ * Copyright (C) 2021 Patrick Mours. All rights reserved.
  * License: https://github.com/crosire/reshade#license
  */
 
 #include "dll_log.hpp"
 #include "hook_manager.hpp"
-#include <dinput.h>
+#include <Windows.h>
 
 HOOK_EXPORT HRESULT WINAPI DirectInput8Create(HINSTANCE hinst, DWORD dwVersion, REFIID riidltf, LPVOID *ppvOut, LPUNKNOWN punkOuter)
 {

@@ -175,28 +175,21 @@ void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 		auto_depth_stencil->GetDesc(&old_desc);
 		D3DSURFACE_DESC new_desc = old_desc;
 
-		invoke_addon_event<addon_event::create_resource>(
-			[this, &auto_depth_stencil, &old_desc, &new_desc](api::device *, const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage) {
-				if (desc.type != api::resource_type::surface || desc.heap != api::memory_heap::gpu_only || initial_data != nullptr)
-					return false;
-				convert_resource_desc(desc, new_desc, nullptr, _caps);
+		if (reshade::api::resource auto_depth_stencil_replacement_handle = { 0 };
+			invoke_addon_event<addon_event::create_resource>(
+				this, convert_resource_desc(old_desc, 1, _caps), nullptr, api::resource_usage::depth_stencil, &auto_depth_stencil_replacement_handle))
+		{
+			com_ptr<IDirect3DSurface9> auto_depth_stencil_replacement(reinterpret_cast<IDirect3DSurface9 *>(auto_depth_stencil_replacement_handle.handle), true);
 
-				// Need to replace auto depth stencil if add-on modified the description
-				if (com_ptr<IDirect3DSurface9> auto_depth_stencil_replacement;
-					std::memcmp(&old_desc, &new_desc, sizeof(D3DSURFACE_DESC)) != 0 &&
-					create_surface_replacement(new_desc, &auto_depth_stencil_replacement))
-				{
-					// The device will hold a reference to the surface after binding it, so can release this one afterwards
-					_orig->SetDepthStencilSurface(auto_depth_stencil_replacement.get());
+			// The device will hold a reference to the surface after binding it, so can release this one afterwards
+			_orig->SetDepthStencilSurface(auto_depth_stencil_replacement.get());
 
-					auto_depth_stencil = std::move(auto_depth_stencil_replacement);
-				}
-				else
-				{
-					_resources.register_object(auto_depth_stencil.get());
-				}
-				return true;
-			}, this, convert_resource_desc(old_desc, 1, _caps), nullptr, api::resource_usage::depth_stencil);
+			auto_depth_stencil = std::move(auto_depth_stencil_replacement);
+		}
+		else
+		{
+			_resources.register_object(auto_depth_stencil.get());
+		}
 
 		_current_pass->dsv = auto_depth_stencil.get();
 	}
@@ -358,7 +351,7 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 		case api::resource_type::texture_1d:
 		case api::resource_type::texture_2d:
 		{
-			// Array or multisample_enable textures are not supported in Direct3D 9
+			// Array or multisample textures are not supported in Direct3D 9
 			if (desc.texture.depth_or_layers != 1 || desc.texture.samples != 1)
 				break;
 
@@ -419,7 +412,7 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 
 			UINT levels = 0;
 			D3DVOLUME_DESC internal_desc = {};
-			convert_resource_desc(desc, internal_desc, &levels);
+			convert_resource_desc(desc, internal_desc, &levels, _caps);
 
 			if (!convert_format_internal(desc.texture.format, internal_desc.Format))
 				break;
@@ -437,6 +430,55 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 				}
 
 				return true;
+			}
+			break;
+		}
+		case api::resource_type::surface:
+		{
+			// Surfaces can never be arrays or have mipmap levels
+			if (desc.texture.depth_or_layers != 1 || desc.texture.levels != 1)
+				break;
+
+			assert(initial_data == nullptr);
+
+			switch (desc.usage & (api::resource_usage::depth_stencil | api::resource_usage::render_target))
+			{
+				case api::resource_usage::depth_stencil:
+				case api::resource_usage::depth_stencil_read:
+				case api::resource_usage::depth_stencil_write:
+				{
+					D3DSURFACE_DESC internal_desc = {};
+					convert_resource_desc(desc, internal_desc, nullptr, _caps);
+					assert(internal_desc.Usage == D3DUSAGE_DEPTHSTENCIL);
+
+					if (com_ptr<IDirect3DSurface9> object;
+						((desc.usage & reshade::api::resource_usage::shader_resource) != reshade::api::resource_usage::undefined) ?
+						create_surface_replacement(internal_desc, &object, nullptr) :
+						SUCCEEDED(_orig->CreateDepthStencilSurface(internal_desc.Width, internal_desc.Height, internal_desc.Format, internal_desc.MultiSampleType, internal_desc.MultiSampleQuality, FALSE, &object, nullptr)))
+					{
+						_resources.register_object(object.get());
+						*out = { reinterpret_cast<uintptr_t>(object.release()) };
+						return true;
+					}
+					break;
+				}
+				case api::resource_usage::render_target:
+				{
+					D3DSURFACE_DESC internal_desc = {};
+					convert_resource_desc(desc, internal_desc, nullptr, _caps);
+					assert(internal_desc.Usage == D3DUSAGE_RENDERTARGET);
+
+					if (com_ptr<IDirect3DSurface9> object;
+						((desc.usage & reshade::api::resource_usage::shader_resource) != reshade::api::resource_usage::undefined) ?
+						create_surface_replacement(internal_desc, &object, nullptr) :
+						SUCCEEDED(_orig->CreateRenderTarget(internal_desc.Width, internal_desc.Height, internal_desc.Format, internal_desc.MultiSampleType, internal_desc.MultiSampleQuality, FALSE, &object, nullptr)))
+					{
+						_resources.register_object(object.get());
+						*out = { reinterpret_cast<uintptr_t>(object.release()) };
+						return true;
+					}
+					break;
+				}
 			}
 			break;
 		}
@@ -1040,29 +1082,64 @@ void reshade::d3d9::device_impl::destroy_descriptor_sets(api::descriptor_set_lay
 		delete reinterpret_cast<descriptor_set_impl *>(sets[i].handle);
 }
 
-void reshade::d3d9::device_impl::update_descriptor_sets(uint32_t num_updates, const api::descriptor_update *updates)
+void reshade::d3d9::device_impl::update_descriptor_sets(uint32_t num_writes, const api::descriptor_set_write *writes, uint32_t num_copies, const api::descriptor_set_copy *copies)
 {
-	for (UINT i = 0; i < num_updates; ++i)
+	for (uint32_t i = 0; i < num_writes; ++i)
 	{
-		const auto set_impl = reinterpret_cast<descriptor_set_impl *>(updates[i].set.handle);
+		const auto set_impl = reinterpret_cast<descriptor_set_impl *>(writes[i].set.handle);
 
-		switch (updates[i].type)
+		const api::descriptor_set_write &info = writes[i];
+
+		switch (info.type)
 		{
 		case api::descriptor_type::sampler:
-			assert(updates[i].descriptor.sampler.handle != 0);
-			set_impl->descriptors[updates[i].binding] = updates[i].descriptor.sampler.handle;
+			assert(info.descriptor.sampler.handle != 0);
+			set_impl->descriptors[info.binding] = info.descriptor.sampler.handle;
 			break;
 		case api::descriptor_type::sampler_with_resource_view:
-			assert(updates[i].descriptor.sampler.handle != 0 && updates[i].descriptor.view.handle != 0);
-			set_impl->descriptors[updates[i].binding * 2 + 0] = updates[i].descriptor.sampler.handle;
-			set_impl->descriptors[updates[i].binding * 2 + 1] = updates[i].descriptor.view.handle;
+			assert(info.descriptor.sampler.handle != 0);
+			set_impl->descriptors[info.binding * 2 + 0] = info.descriptor.sampler.handle;
+			assert(info.descriptor.view.handle != 0);
+			set_impl->descriptors[info.binding * 2 + 1] = info.descriptor.view.handle;
 			break;
 		case api::descriptor_type::shader_resource_view:
-			assert(updates[i].descriptor.view.handle != 0);
-			set_impl->descriptors[updates[i].binding] = updates[i].descriptor.view.handle;
+			assert(info.descriptor.view.handle != 0);
+			set_impl->descriptors[info.binding] = info.descriptor.view.handle;
 			break;
 		case api::descriptor_type::unordered_access_view:
 		case api::descriptor_type::constant_buffer:
+			assert(false);
+			break;
+		}
+	}
+
+	for (uint32_t i = 0; i < num_copies; ++i)
+	{
+		const auto src_set_impl = reinterpret_cast<descriptor_set_impl *>(copies[i].src_set.handle);
+		const auto dst_set_impl = reinterpret_cast<descriptor_set_impl *>(copies[i].dst_set.handle);
+
+		const api::descriptor_set_copy &info = copies[i];
+
+		switch (info.type)
+		{
+		case api::descriptor_type::sampler:
+		case api::descriptor_type::shader_resource_view:
+		case api::descriptor_type::constant_buffer:
+			for (uint32_t k = 0; k < info.count; ++k)
+			{
+				dst_set_impl->descriptors[info.dst_binding + k] = src_set_impl->descriptors[info.src_binding + k];
+			}
+			break;
+		case api::descriptor_type::sampler_with_resource_view:
+			for (uint32_t k = 0; k < info.count; ++k)
+			{
+				const uint32_t src_binding = (info.src_binding + k * 2);
+				const uint32_t dst_binding = (info.dst_binding + k * 2);
+				dst_set_impl->descriptors[dst_binding + 0] = src_set_impl->descriptors[src_binding + 0];
+				dst_set_impl->descriptors[dst_binding + 1] = src_set_impl->descriptors[src_binding + 1];
+			}
+			break;
+		case api::descriptor_type::unordered_access_view:
 			assert(false);
 			break;
 		}
@@ -1459,10 +1536,10 @@ reshade::api::resource_desc reshade::d3d9::device_impl::get_resource_desc(api::r
 	return api::resource_desc {};
 }
 
-bool reshade::d3d9::device_impl::get_query_pool_results(api::query_pool heap, uint32_t first, uint32_t count, void *results, uint32_t stride)
+bool reshade::d3d9::device_impl::get_query_pool_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride)
 {
-	assert(heap.handle != 0);
-	const auto impl = reinterpret_cast<query_pool_impl *>(heap.handle);
+	assert(pool.handle != 0);
+	const auto impl = reinterpret_cast<query_pool_impl *>(pool.handle);
 
 	for (UINT i = 0; i < count; ++i)
 	{

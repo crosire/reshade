@@ -175,8 +175,20 @@ void reshade::opengl::device_impl::bind_pipeline_states(uint32_t count, const ap
 		case api::dynamic_state::logic_op_enable:
 			glEnableOrDisable(GL_COLOR_LOGIC_OP, values[i]);
 			break;
+		case api::dynamic_state::logic_op:
+			glLogicOp(convert_logic_op(static_cast<api::logic_op>(values[i])));
+			break;
+		case api::dynamic_state::render_target_write_mask:
+			glColorMask(values[i] & 0x1, (values[i] >> 1) & 0x1, (values[i] >> 2) & 0x1, (values[i] >> 3) & 0x1);
+			break;
+		case api::dynamic_state::fill_mode:
+			glPolygonMode(GL_FRONT_AND_BACK, convert_fill_mode(static_cast<api::fill_mode>(values[i])));
+			break;
 		case api::dynamic_state::cull_mode:
-			glEnableOrDisable(GL_CULL_FACE, values[i]);
+			glEnableOrDisable(GL_CULL_FACE, convert_cull_mode(static_cast<api::cull_mode>(values[i])));
+			break;
+		case api::dynamic_state::front_counter_clockwise:
+			glFrontFace(values[i] ? GL_CCW : GL_CW);
 			break;
 		case api::dynamic_state::depth_clip_enable:
 			glEnableOrDisable(GL_DEPTH_CLAMP, !values[i]);
@@ -192,6 +204,9 @@ void reshade::opengl::device_impl::bind_pipeline_states(uint32_t count, const ap
 			break;
 		case api::dynamic_state::depth_enable:
 			glEnableOrDisable(GL_DEPTH_TEST, values[i]);
+			break;
+		case api::dynamic_state::depth_write_mask:
+			glDepthMask(values[i] ? GL_TRUE : GL_FALSE);
 			break;
 		case api::dynamic_state::stencil_enable:
 			glEnableOrDisable(GL_STENCIL_TEST, values[i]);
@@ -1048,7 +1063,7 @@ void reshade::opengl::device_impl::begin_query(api::query_pool pool, api::query_
 {
 	assert(pool.handle != 0);
 
-	glBeginQuery(convert_query_type(type), reinterpret_cast<query_heap_impl *>(pool.handle)->queries[index]);
+	glBeginQuery(convert_query_type(type), reinterpret_cast<query_pool_impl *>(pool.handle)->queries[index]);
 }
 void reshade::opengl::device_impl::finish_query(api::query_pool pool, api::query_type type, uint32_t index)
 {
@@ -1056,7 +1071,7 @@ void reshade::opengl::device_impl::finish_query(api::query_pool pool, api::query
 
 	if (type == api::query_type::timestamp)
 	{
-		glQueryCounter(reinterpret_cast<query_heap_impl *>(pool.handle)->queries[index], GL_TIMESTAMP);
+		glQueryCounter(reinterpret_cast<query_pool_impl *>(pool.handle)->queries[index], GL_TIMESTAMP);
 	}
 	else
 	{
@@ -1070,7 +1085,7 @@ void reshade::opengl::device_impl::copy_query_pool_results(api::query_pool pool,
 	for (uint32_t i = 0; i < count; ++i)
 	{
 		assert(dst_offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()));
-		glGetQueryBufferObjectui64v(reinterpret_cast<query_heap_impl *>(pool.handle)->queries[i + first], dst.handle & 0xFFFFFFFF, GL_QUERY_RESULT_NO_WAIT, static_cast<GLintptr>(dst_offset + i * stride));
+		glGetQueryBufferObjectui64v(reinterpret_cast<query_pool_impl *>(pool.handle)->queries[i + first], dst.handle & 0xFFFFFFFF, GL_QUERY_RESULT_NO_WAIT, static_cast<GLintptr>(dst_offset + i * stride));
 	}
 }
 

@@ -41,6 +41,7 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(create_pipeline);
 		CASE(upload_buffer_region);
 		CASE(upload_texture_region);
+		CASE(update_descriptor_sets);
 		CASE(barrier);
 		CASE(begin_render_pass);
 		CASE(finish_render_pass);

@@ -273,9 +273,11 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 			convert_resource_desc(desc, create_info);
 
 			if (VkBuffer object = VK_NULL_HANDLE;
-				vmaCreateBuffer(_alloc, &create_info, &alloc_info, &object, &allocation, nullptr) == VK_SUCCESS)
+				(desc.heap == api::memory_heap::unknown ?
+				 vk.CreateBuffer(_orig, &create_info, nullptr, &object) :
+				 vmaCreateBuffer(_alloc, &create_info, &alloc_info, &object, &allocation, nullptr)) == VK_SUCCESS)
 			{
-				register_buffer(object, create_info, allocation);
+				register_buffer(object, create_info, allocation, true);
 				*out = { (uint64_t)object };
 				return true;
 			}
@@ -293,9 +295,11 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 				create_info.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 
 			if (VkImage object = VK_NULL_HANDLE;
-				vmaCreateImage(_alloc, &create_info, &alloc_info, &object, &allocation, nullptr) == VK_SUCCESS)
+				(desc.heap == api::memory_heap::unknown ?
+				 vk.CreateImage(_orig, &create_info, nullptr, &object) :
+				 vmaCreateImage(_alloc, &create_info, &alloc_info, &object, &allocation, nullptr)) == VK_SUCCESS)
 			{
-				register_image(object, create_info, allocation);
+				register_image(object, create_info, allocation, true);
 				*out = { (uint64_t)object };
 
 				if (initial_data != nullptr)
@@ -372,7 +376,7 @@ bool reshade::vulkan::device_impl::create_resource_view(api::resource resource, 
 		VkImageView image_view = VK_NULL_HANDLE;
 		if (vk.CreateImageView(_orig, &create_info, nullptr, &image_view) == VK_SUCCESS)
 		{
-			register_image_view(image_view, create_info);
+			register_image_view(image_view, create_info, true);
 			*out = { (uint64_t)image_view };
 			return true;
 		}
@@ -386,7 +390,7 @@ bool reshade::vulkan::device_impl::create_resource_view(api::resource resource, 
 		VkBufferView buffer_view = VK_NULL_HANDLE;
 		if (vk.CreateBufferView(_orig, &create_info, nullptr, &buffer_view) == VK_SUCCESS)
 		{
-			register_buffer_view(buffer_view, create_info);
+			register_buffer_view(buffer_view, create_info, true);
 			*out = { (uint64_t)buffer_view };
 			return true;
 		}
@@ -1008,14 +1012,22 @@ void reshade::vulkan::device_impl::destroy_resource(api::resource handle)
 	if (handle.handle == 0)
 		return;
 	const resource_data data = lookup_resource(handle);
+	assert(data.owned);
 
-	// Can only destroy resources that were allocated via 'create_resource' previously
-	assert(data.allocation != nullptr);
-
-	if (data.is_image())
-		vmaDestroyImage(_alloc, data.image, data.allocation);
+	if (data.allocation == VK_NULL_HANDLE)
+	{
+		if (data.is_image())
+			vk.DestroyImage(_orig, data.image, nullptr);
+		else
+			vk.DestroyBuffer(_orig, data.buffer, nullptr);
+	}
 	else
-		vmaDestroyBuffer(_alloc, data.buffer, data.allocation);
+	{
+		if (data.is_image())
+			vmaDestroyImage(_alloc, data.image, data.allocation);
+		else
+			vmaDestroyBuffer(_alloc, data.buffer, data.allocation);
+	}
 
 	const std::lock_guard<std::mutex> lock(_mutex);
 	_resources.erase(handle.handle);
@@ -1025,6 +1037,7 @@ void reshade::vulkan::device_impl::destroy_resource_view(api::resource_view hand
 	if (handle.handle == 0)
 		return;
 	const resource_view_data data = lookup_resource_view(handle);
+	assert(data.owned);
 
 	if (data.is_image_view())
 		vk.DestroyImageView(_orig, data.image_view, nullptr);
@@ -1074,44 +1087,60 @@ void reshade::vulkan::device_impl::destroy_descriptor_sets(api::descriptor_set_l
 	vk.FreeDescriptorSets(_orig, _descriptor_pool, count, reinterpret_cast<const VkDescriptorSet *>(sets));
 }
 
-void reshade::vulkan::device_impl::update_descriptor_sets(uint32_t num_updates, const api::descriptor_update *updates)
+void reshade::vulkan::device_impl::update_descriptor_sets(uint32_t num_writes, const api::descriptor_set_write *writes, uint32_t num_copies, const api::descriptor_set_copy *copies)
 {
-	std::vector<VkWriteDescriptorSet> writes(num_updates);
+	std::vector<VkWriteDescriptorSet> writes_internal(num_writes);
 
-	std::vector<VkDescriptorImageInfo> image_info(num_updates);
-	std::vector<VkDescriptorBufferInfo> buffer_info(num_updates);
+	std::vector<VkDescriptorImageInfo> image_info(num_writes);
+	std::vector<VkDescriptorBufferInfo> buffer_info(num_writes);
 
-	for (uint32_t i = 0; i < num_updates; ++i)
+	for (uint32_t i = 0; i < num_writes; ++i)
 	{
-		writes[i] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-		writes[i].dstSet = (VkDescriptorSet)updates[i].set.handle;
-		writes[i].dstBinding = updates[i].binding;
-		writes[i].dstArrayElement = 0;
-		writes[i].descriptorCount = 1;
-		writes[i].descriptorType = static_cast<VkDescriptorType>(updates[i].type);
+		const api::descriptor_set_write &info = writes[i];
 
-		if (updates[i].type == api::descriptor_type::constant_buffer)
+		writes_internal[i] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+		writes_internal[i].dstSet = (VkDescriptorSet)info.set.handle;
+		writes_internal[i].dstBinding = info.binding;
+		writes_internal[i].dstArrayElement = info.array_offset;
+		writes_internal[i].descriptorCount = 1;
+		writes_internal[i].descriptorType = static_cast<VkDescriptorType>(info.type);
+
+		if (info.type == api::descriptor_type::constant_buffer)
 		{
-			writes[i].pBufferInfo = &buffer_info[i];
+			writes_internal[i].pBufferInfo = &buffer_info[i];
 
-			assert(updates[i].descriptor.resource.handle != 0);
-			buffer_info[i].buffer = (VkBuffer)updates[i].descriptor.resource.handle;
-			buffer_info[i].offset = 0;
-			buffer_info[i].range = VK_WHOLE_SIZE;
+			assert(info.descriptor.resource.handle != 0);
+			buffer_info[i].buffer = (VkBuffer)info.descriptor.resource.handle;
+			buffer_info[i].offset = info.descriptor.offset;
+			buffer_info[i].range = info.descriptor.size;
 		}
 		else
 		{
-			writes[i].pImageInfo = &image_info[i];
+			writes_internal[i].pImageInfo = &image_info[i];
 
-			assert(updates[i].descriptor.view.handle != 0 || (updates[i].type == api::descriptor_type::sampler));
-			assert(updates[i].descriptor.sampler.handle != 0 || (updates[i].type != api::descriptor_type::sampler && updates[i].type != api::descriptor_type::sampler_with_resource_view));
-			image_info[i].sampler = (VkSampler)updates[i].descriptor.sampler.handle;
-			image_info[i].imageView = (VkImageView)updates[i].descriptor.view.handle;
-			image_info[i].imageLayout = updates[i].type == api::descriptor_type::unordered_access_view ? VK_IMAGE_LAYOUT_GENERAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			assert(info.descriptor.view.handle != 0 || (info.type == api::descriptor_type::sampler));
+			assert(info.descriptor.sampler.handle != 0 || (info.type != api::descriptor_type::sampler && info.type != api::descriptor_type::sampler_with_resource_view));
+			image_info[i].sampler = (VkSampler)info.descriptor.sampler.handle;
+			image_info[i].imageView = (VkImageView)info.descriptor.view.handle;
+			image_info[i].imageLayout = info.type == api::descriptor_type::unordered_access_view ? VK_IMAGE_LAYOUT_GENERAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 		}
 	}
 
-	vk.UpdateDescriptorSets(_orig, num_updates, writes.data(), 0, nullptr);
+	std::vector<VkCopyDescriptorSet> copies_internal(num_copies);
+
+	for (uint32_t i = 0; i < num_copies; ++i)
+	{
+		copies_internal[i] = { VK_STRUCTURE_TYPE_COPY_DESCRIPTOR_SET };
+		copies_internal[i].srcSet = (VkDescriptorSet)copies[i].src_set.handle;
+		copies_internal[i].srcBinding = copies[i].src_binding;
+		copies_internal[i].srcArrayElement = copies[i].src_array_offset;
+		copies_internal[i].dstSet = (VkDescriptorSet)copies[i].dst_set.handle;
+		copies_internal[i].dstBinding = copies[i].dst_binding;
+		copies_internal[i].dstArrayElement = copies[i].dst_array_offset;
+		copies_internal[i].descriptorCount = copies[i].count;
+	}
+
+	vk.UpdateDescriptorSets(_orig, num_writes, writes_internal.data(), num_copies, copies_internal.data());
 }
 
 bool reshade::vulkan::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access, void **data, uint32_t *row_pitch, uint32_t *slice_pitch)
@@ -1305,6 +1334,7 @@ reshade::api::resource_desc reshade::vulkan::device_impl::get_resource_desc(api:
 
 bool reshade::vulkan::device_impl::get_query_pool_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride)
 {
+	assert(pool.handle != 0);
 	assert(stride >= sizeof(uint64_t));
 
 	return vk.GetQueryPoolResults(_orig, (VkQueryPool)pool.handle, first, count, count * stride, results, stride, VK_QUERY_RESULT_64_BIT) == VK_SUCCESS;

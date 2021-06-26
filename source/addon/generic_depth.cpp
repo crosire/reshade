@@ -250,64 +250,64 @@ static void on_destroy_queue_or_command_list(api_object *queue_or_cmd_list)
 	queue_or_cmd_list->destroy_user_data<state_tracking>(state_tracking::GUID);
 }
 
-static bool on_create_resource(
-	reshade::addon_event_trampoline<reshade::addon_event::create_resource> &call_next, device *device, const resource_desc &desc, const reshade::api::subresource_data *initial_data, resource_usage initial_state)
+static bool on_create_resource(device *device, const resource_desc &desc, const reshade::api::subresource_data *initial_data, resource_usage initial_state, resource *out)
 {
+	if (device->get_api() == device_api::d3d12)
+		return false; // No need to modify resources in D3D12, since backup texture is used always
+	if (desc.type != resource_type::surface && desc.type != resource_type::texture_2d)
+		return false; // Skip resources that are not 2D textures
+	if (desc.texture.samples != 1)
+		return false; // Skip MSAA textures
+
+	// Allow shader access to images that are used as depth-stencil attachments
+	if ((desc.usage & resource_usage::depth_stencil) == resource_usage::undefined ||
+		(desc.usage & resource_usage::shader_resource) != resource_usage::undefined)
+		return false;
+
 	resource_desc new_desc = desc;
+	if (device->get_api() == device_api::d3d9 && !s_disable_intz)
+		new_desc.texture.format = format::intz;
+	if (device->get_api() >= device_api::d3d10 && device->get_api() <= device_api::d3d12)
+		new_desc.texture.format = format_to_typeless(desc.texture.format);
 
-	// No need to modify resources in D3D12, since backup texture is used always
-	if ((device->get_api() != device_api::d3d12) && (
-		// Skip MSAA textures and resources that are not 2D textures
-		(desc.type == resource_type::surface || desc.type == resource_type::texture_2d) && desc.texture.samples == 1) && (
-		// Allow shader access to images that are used as depth-stencil attachments
-		(desc.usage & resource_usage::depth_stencil) != resource_usage::undefined &&
-		(desc.usage & resource_usage::shader_resource) == resource_usage::undefined))
-	{
-		if (device->get_api() == device_api::d3d9 && !s_disable_intz)
-			new_desc.texture.format = format::intz;
-		if (device->get_api() >= device_api::d3d10 && device->get_api() <= device_api::d3d12)
-			new_desc.texture.format = format_to_typeless(desc.texture.format);
+	new_desc.usage |= resource_usage::shader_resource;
 
-		new_desc.usage |= resource_usage::shader_resource;
-	}
-
-	return call_next(device, new_desc, initial_data, initial_state);
+	return device->create_resource(new_desc, initial_data, initial_state, out);
 }
-static bool on_create_resource_view(
-	reshade::addon_event_trampoline<reshade::addon_event::create_resource_view> &call_next, device *device, resource resource, resource_usage usage_type, const resource_view_desc &desc)
+static bool on_create_resource_view(device *device, resource resource, resource_usage usage_type, const resource_view_desc &desc, resource_view *out)
 {
+	// A view cannot be created with a typeless format (which was set in 'on_create_resource' above), so fix it in case defaults are used
+	if ((device->get_api() != device_api::d3d10 && device->get_api() != device_api::d3d11) || desc.format != format::unknown)
+		return false;
+
+	const resource_desc texture_desc = device->get_resource_desc(resource);
+	// Only non-MSAA textures where modified, so skip all others
+	if (texture_desc.texture.samples != 1 || (texture_desc.usage & resource_usage::depth_stencil) == resource_usage::undefined)
+		return false;
+
 	resource_view_desc new_desc = desc;
 
-	// A view cannot be created with a typeless format (which was set in 'on_create_resource' above), so fix it in case defaults are used
-	if (desc.format == format::unknown && (device->get_api() >= device_api::d3d10 && device->get_api() <= device_api::d3d11))
+	switch (usage_type)
 	{
-		const resource_desc texture_desc = device->get_resource_desc(resource);
-		// Only non-MSAA textures where modified, so skip all others
-		if (texture_desc.texture.samples == 1 && (texture_desc.usage & resource_usage::depth_stencil) != resource_usage::undefined)
-		{
-			switch (usage_type)
-			{
-			case resource_usage::depth_stencil:
-				new_desc.format = format_to_depth_stencil_typed(texture_desc.texture.format);
-				break;
-			case resource_usage::shader_resource:
-				new_desc.format = format_to_default_typed(texture_desc.texture.format);
-				break;
-			}
-
-			// Only need to set the rest of the fields if the application did not pass in a valid description already
-			if (desc.type == resource_view_type::unknown)
-			{
-				new_desc.type = texture_desc.texture.depth_or_layers > 1 ? resource_view_type::texture_2d_array : resource_view_type::texture_2d;
-				new_desc.texture.first_level = 0;
-				new_desc.texture.levels = (usage_type == resource_usage::shader_resource) ? 0xFFFFFFFF : 1;
-				new_desc.texture.first_layer = 0;
-				new_desc.texture.layers = (usage_type == resource_usage::shader_resource) ? 0xFFFFFFFF : 1;
-			}
-		}
+	case resource_usage::depth_stencil:
+		new_desc.format = format_to_depth_stencil_typed(texture_desc.texture.format);
+		break;
+	case resource_usage::shader_resource:
+		new_desc.format = format_to_default_typed(texture_desc.texture.format);
+		break;
 	}
 
-	return call_next(device, resource, usage_type, new_desc);
+	// Only need to set the rest of the fields if the application did not pass in a valid description already
+	if (desc.type == resource_view_type::unknown)
+	{
+		new_desc.type = texture_desc.texture.depth_or_layers > 1 ? resource_view_type::texture_2d_array : resource_view_type::texture_2d;
+		new_desc.texture.first_level = 0;
+		new_desc.texture.levels = (usage_type == resource_usage::shader_resource) ? 0xFFFFFFFF : 1;
+		new_desc.texture.first_layer = 0;
+		new_desc.texture.layers = (usage_type == resource_usage::shader_resource) ? 0xFFFFFFFF : 1;
+	}
+
+	return device->create_resource_view(resource, usage_type, new_desc, out);
 }
 
 static bool on_draw(command_list *cmd_list, uint32_t vertices, uint32_t instances, uint32_t, uint32_t)
