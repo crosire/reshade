@@ -3,9 +3,12 @@
  * License: https://github.com/crosire/reshade#license
  */
 
+// Set version to DirectInput 8 to avoid warning
+#define DIRECTINPUT_VERSION 0x0800
+
 #include "dll_log.hpp"
 #include "hook_manager.hpp"
-#include <Windows.h>
+#include <dinput.h>
 
 HOOK_EXPORT HRESULT WINAPI DirectInput8Create(HINSTANCE hinst, DWORD dwVersion, REFIID riidltf, LPVOID *ppvOut, LPUNKNOWN punkOuter)
 {
@@ -18,4 +21,10 @@ HOOK_EXPORT HRESULT WINAPI DirectInput8Create(HINSTANCE hinst, DWORD dwVersion, 
 	}
 
 	return hr;
+}
+
+HOOK_EXPORT LPCDIDATAFORMAT WINAPI GetdfDIJoystick()
+{
+	static const auto trampoline = reshade::hooks::call(GetdfDIJoystick);
+	return trampoline();
 }

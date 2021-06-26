@@ -464,3 +464,4 @@ EXPORTS
 
 	; dinput8.dll
 	DirectInput8Create PRIVATE
+	GetdfDIJoystick PRIVATE
