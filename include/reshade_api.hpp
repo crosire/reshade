@@ -244,6 +244,11 @@ namespace reshade { namespace api
 		/// <returns><c>true</c> if the sampler was successfully created, <c>false</c> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
 		virtual bool create_sampler(const sampler_desc &desc, sampler *out) = 0;
 		/// <summary>
+		/// Instantly destroys a sampler that was previously created via <see cref="create_sampler"/>.
+		/// </summary>
+		virtual void destroy_sampler(sampler handle) = 0;
+
+		/// <summary>
 		/// Allocates and creates a new resource based on the specified <paramref name="desc"/>ription.
 		/// </summary>
 		/// <param name="desc">The description of the resource to create.</param>
@@ -253,6 +258,12 @@ namespace reshade { namespace api
 		/// <returns><c>true</c> if the resource was successfully created, <c>false</c> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
 		virtual bool create_resource(const resource_desc &desc, const subresource_data *initial_data, resource_usage initial_state, resource *out) = 0;
 		/// <summary>
+		/// Instantly destroys a resource that was previously created via <see cref="create_resource"/> and frees its memory.
+		/// <para>Make sure the resource is no longer in use on the GPU (via any command list that may reference it and is still being executed) before doing this and never try to destroy resources created by the application!</para>
+		/// </summary>
+		virtual void destroy_resource(resource handle) = 0;
+
+		/// <summary>
 		/// Creates a new resource view for the specified <paramref name="resource"/> based on the specified <paramref name="desc"/>ription.
 		/// </summary>
 		/// <param name="resource">The resource the view is created for.</param>
@@ -261,6 +272,10 @@ namespace reshade { namespace api
 		/// <param name="out">Pointer to a variable that is set to the handle of the created resource view.</param>
 		/// <returns><c>true</c> if the resource view was successfully created, <c>false</c> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
 		virtual bool create_resource_view(resource resource, resource_usage usage_type, const resource_view_desc &desc, resource_view *out) = 0;
+		/// <summary>
+		/// Instantly destroys a resource view that was previously created via <see cref="create_resource_view"/>.
+		/// </summary>
+		virtual void destroy_resource_view(resource_view handle) = 0;
 
 		/// <summary>
 		/// Creates a new pipeline state object based on the specified <paramref name="desc"/>ription.
@@ -270,6 +285,12 @@ namespace reshade { namespace api
 		/// <returns><c>true</c> if the pipeline state object was successfully created, <c>false</c> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
 		virtual bool create_pipeline(const pipeline_desc &desc, pipeline *out) = 0;
 		/// <summary>
+		/// Instantly destroys a pipeline state object that was previously created via <see cref="create_pipeline"/>.
+		/// </summary>
+		/// <param name="type">The type of the pipeline state object.</param>
+		virtual void destroy_pipeline(pipeline_stage type, pipeline handle) = 0;
+
+		/// <summary>
 		/// Creates a new pipeline layout based on the specified <paramref name="desc"/>ription.
 		/// </summary>
 		/// <param name="desc">The description of the pipeline layout to create.</param>
@@ -277,12 +298,21 @@ namespace reshade { namespace api
 		/// <returns><c>true</c> if the pipeline layout was successfully created, <c>false</c> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
 		virtual bool create_pipeline_layout(const pipeline_layout_desc &desc, pipeline_layout *out) = 0;
 		/// <summary>
+		/// Instantly destroys a pipeline layout that was previously created via <see cref="create_pipeline_layout"/>.
+		/// </summary>
+		virtual void destroy_pipeline_layout(pipeline_layout handle) = 0;
+
+		/// <summary>
 		/// Creates a new descriptor set layout based on the specified <paramref name="desc"/>ription.
 		/// </summary>
 		/// <param name="desc">The description of the descriptor set layout to create.</param>
 		/// <param name="out">Pointer to a variable that is set to the handle of the created descriptor set layout.</param>
 		/// <returns><c>true</c> if the descriptor set layout was successfully created, <c>false</c> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
 		virtual bool create_descriptor_set_layout(const descriptor_set_layout_desc &desc, descriptor_set_layout *out) = 0;
+		/// <summary>
+		/// Instantly destroys a descriptor set layout that was previously created via <see cref="create_descriptor_set_layout"/>.
+		/// </summary>
+		virtual void destroy_descriptor_set_layout(descriptor_set_layout handle) = 0;
 
 		/// <summary>
 		/// Creates a new query pool.
@@ -293,12 +323,22 @@ namespace reshade { namespace api
 		/// <returns><c>true</c> if the query pool was successfully created, <c>false</c> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
 		virtual bool create_query_pool(query_type type, uint32_t size, query_pool *out) = 0;
 		/// <summary>
+		/// Instantly destroys a query pool that was previously created via <see cref="create_query_pool"/>.
+		/// </summary>
+		virtual void destroy_query_pool(query_pool handle) = 0;
+
+		/// <summary>
 		/// Creates a new render pass based on the specified <paramref name="desc"/>ription.
 		/// </summary>
 		/// <param name="desc">The description of the render pass to create.</param>
 		/// <param name="out">Pointer to a variable that is set to the handle of the created render pass.</param>
 		/// <returns><c>true</c> if the render pass was successfully created, <c>false</c> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
 		virtual bool create_render_pass(const render_pass_desc &desc, render_pass *out) = 0;
+		/// <summary>
+		/// Instantly destroys a render pass that was previously created via <see cref="create_render_pass"/>.
+		/// </summary>
+		virtual void destroy_render_pass(render_pass handle) = 0;
+
 		/// <summary>
 		/// Allocates one or more descriptor sets.
 		/// </summary>
@@ -307,43 +347,6 @@ namespace reshade { namespace api
 		/// <param name="out">Pointer to an array of handles with at least <paramref name="count"/> elements that is filles with the handles of the created descriptor sets.</param>
 		/// <returns><c>true</c> if the descriptor sets were successfully created, <c>false</c> otherwise (in this case <paramref name="out"/> is filles with zeroes).</returns>
 		virtual bool create_descriptor_sets(descriptor_set_layout layout, uint32_t count, descriptor_set *out) = 0;
-
-		/// <summary>
-		/// Instantly destroys a sampler that was previously created via <see cref="create_sampler"/>.
-		/// </summary>
-		virtual void destroy_sampler(sampler handle) = 0;
-		/// <summary>
-		/// Instantly destroys a resource that was previously created via <see cref="create_resource"/> and frees its memory.
-		/// <para>Make sure the resource is no longer in use on the GPU (via any command list that may reference it and is still being executed) before doing this and never try to destroy resources created by the application!</para>
-		/// </summary>
-		virtual void destroy_resource(resource handle) = 0;
-		/// <summary>
-		/// Instantly destroys a resource view that was previously created via <see cref="create_resource_view"/>.
-		/// </summary>
-		virtual void destroy_resource_view(resource_view handle) = 0;
-
-		/// <summary>
-		/// Instantly destroys a pipeline state object that was previously created via <see cref="create_pipeline"/>.
-		/// </summary>
-		/// <param name="type">The type of the pipeline state object.</param>
-		virtual void destroy_pipeline(pipeline_stage type, pipeline handle) = 0;
-		/// <summary>
-		/// Instantly destroys a pipeline layout that was previously created via <see cref="create_pipeline_layout"/>.
-		/// </summary>
-		virtual void destroy_pipeline_layout(pipeline_layout handle) = 0;
-		/// <summary>
-		/// Instantly destroys a descriptor set layout that was previously created via <see cref="create_descriptor_set_layout"/>.
-		/// </summary>
-		virtual void destroy_descriptor_set_layout(descriptor_set_layout handle) = 0;
-
-		/// <summary>
-		/// Instantly destroys a query pool that was previously created via <see cref="create_query_pool"/>.
-		/// </summary>
-		virtual void destroy_query_pool(query_pool handle) = 0;
-		/// <summary>
-		/// Instantly destroys a render pass that was previously created via <see cref="create_render_pass"/>.
-		/// </summary>
-		virtual void destroy_render_pass(render_pass handle) = 0;
 		/// <summary>
 		/// Frees one or more descriptor sets that were previously created via <see cref="create_descriptor_sets"/>.
 		/// </summary>

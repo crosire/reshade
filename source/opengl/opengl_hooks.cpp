@@ -1224,14 +1224,63 @@ HOOK_EXPORT void WINAPI glCullFace(GLenum mode)
 #endif
 }
 
+			void WINAPI glDeleteBuffers(GLsizei n, const GLuint *buffers)
+{
+#if RESHADE_ADDON
+	if (g_current_context)
+	{
+		for (int i = 0; i < n; ++i)
+			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(g_current_context, reshade::opengl::make_resource_handle(GL_BUFFER, buffers[i]));
+	}
+#endif
+
+	static const auto trampoline = reshade::hooks::call(glDeleteBuffers);
+	trampoline(n, buffers);
+}
+
 HOOK_EXPORT void WINAPI glDeleteLists(GLuint list, GLsizei range)
 {
 	static const auto trampoline = reshade::hooks::call(glDeleteLists);
 	trampoline(list, range);
 }
 
+			void WINAPI glDeleteSamplers(GLsizei n, const GLuint *samplers)
+{
+#if RESHADE_ADDON
+	if (g_current_context)
+	{
+		for (int i = 0; i < n; ++i)
+			reshade::invoke_addon_event<reshade::addon_event::destroy_sampler>(g_current_context, reshade::api::sampler { samplers[i] });
+	}
+#endif
+
+	static const auto trampoline = reshade::hooks::call(glDeleteSamplers);
+	trampoline(n, samplers);
+}
+
+			void WINAPI glDeleteShader(GLuint shader)
+{
+#if RESHADE_ADDON
+	if (g_current_context)
+	{
+		reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(g_current_context, reshade::api::pipeline { shader });
+	}
+#endif
+
+	static const auto trampoline = reshade::hooks::call(glDeleteShader);
+	trampoline(shader);
+}
+
 HOOK_EXPORT void WINAPI glDeleteTextures(GLsizei n, const GLuint *textures)
 {
+#if RESHADE_ADDON
+	if (g_current_context)
+	{
+		for (int i = 0; i < n; ++i)
+			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(g_current_context, reshade::opengl::make_resource_handle(GL_TEXTURE, textures[i]));
+	}
+#endif
+
 	static const auto trampoline = reshade::hooks::call(glDeleteTextures);
 	trampoline(n, textures);
 }

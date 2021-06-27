@@ -87,6 +87,12 @@ extern "C" void WINAPI glCopyTextureSubImage2D(GLuint texture, GLint level, GLin
 extern "C" void WINAPI glCopyTextureSubImage3D(GLuint texture, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLint x, GLint y, GLsizei width, GLsizei height);
 #undef glCullFace
 extern "C" void WINAPI glCullFace(GLenum mode);
+#undef glDeleteBuffers
+extern "C" void WINAPI glDeleteBuffers(GLsizei n, const GLuint *buffers);
+#undef glDeleteSamplers
+extern "C" void WINAPI glDeleteSamplers(GLsizei n, const GLuint *samplers);
+#undef glDeleteShader
+extern "C" void WINAPI glDeleteShader(GLuint shader);
 #undef glDeleteTextures
 extern "C" void WINAPI glDeleteTextures(GLsizei n, const GLuint *textures);
 #undef glDepthFunc

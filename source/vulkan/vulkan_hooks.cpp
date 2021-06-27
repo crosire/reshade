@@ -34,17 +34,20 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	HOOK_PROC(CreateImageView);
 	HOOK_PROC(DestroyImageView);
 	HOOK_PROC(CreateShaderModule);
+	HOOK_PROC(DestroyShaderModule);
 	HOOK_PROC(CreateGraphicsPipelines);
 	HOOK_PROC(CreateComputePipelines);
+	HOOK_PROC(DestroyPipeline);
 	HOOK_PROC(CreateSampler);
 	HOOK_PROC(DestroySampler);
+	HOOK_PROC(UpdateDescriptorSets);
+	HOOK_PROC(CreateFramebuffer);
+	HOOK_PROC(DestroyFramebuffer);
 	HOOK_PROC(CreateRenderPass);
 	HOOK_PROC(CreateRenderPass2);
 	if (0 == strcmp(pName, "vkCreateRenderPass2KHR"))
 		return reinterpret_cast<PFN_vkVoidFunction>(vkCreateRenderPass2);
 	HOOK_PROC(DestroyRenderPass);
-	HOOK_PROC(CreateFramebuffer);
-	HOOK_PROC(DestroyFramebuffer);
 
 	HOOK_PROC(AllocateCommandBuffers);
 	HOOK_PROC(FreeCommandBuffers);

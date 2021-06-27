@@ -712,6 +712,8 @@ void     VKAPI_CALL vkDestroyBuffer(VkDevice device, VkBuffer buffer, const VkAl
 		return;
 	}
 
+	reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(device_impl, reshade::api::resource { (uint64_t)buffer });
+
 	device_impl->unregister_buffer(buffer);
 #endif
 
@@ -768,6 +770,8 @@ void     VKAPI_CALL vkDestroyBufferView(VkDevice device, VkBufferView bufferView
 		device_impl->destroy_resource_view({ (uint64_t)bufferView });
 		return;
 	}
+
+	reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(device_impl, reshade::api::resource_view { (uint64_t)bufferView });
 
 	device_impl->unregister_buffer_view(bufferView);
 #endif
@@ -827,6 +831,8 @@ void     VKAPI_CALL vkDestroyImage(VkDevice device, VkImage image, const VkAlloc
 		return;
 	}
 
+	reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(device_impl, reshade::api::resource { (uint64_t)image });
+
 	device_impl->unregister_image(image);
 #endif
 
@@ -884,6 +890,8 @@ void     VKAPI_CALL vkDestroyImageView(VkDevice device, VkImageView imageView, c
 		return;
 	}
 
+	reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(device_impl, reshade::api::resource_view { (uint64_t)imageView });
+
 	device_impl->unregister_image_view(imageView);
 #endif
 
@@ -895,10 +903,32 @@ VkResult VKAPI_CALL vkCreateShaderModule(VkDevice device, const VkShaderModuleCr
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
 	GET_DISPATCH_PTR_FROM(CreateShaderModule, device_impl);
 
+	assert(pCreateInfo != nullptr && pShaderModule != nullptr);
+
+	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pShaderModule);
+	if (result >= VK_SUCCESS)
+	{
+#if RESHADE_ADDON
+#endif
+	}
+	else
+	{
+#if RESHADE_VERBOSE_LOG
+		LOG(WARN) << "vkCreateShaderModule" << " failed with error code " << result << '.';
+#endif
+	}
+
+	return result;
+}
+void     VKAPI_CALL vkDestroyShaderModule(VkDevice device, VkShaderModule shaderModule, const VkAllocationCallbacks *pAllocator)
+{
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
+	GET_DISPATCH_PTR_FROM(DestroyShaderModule, device_impl);
+
 #if RESHADE_ADDON
 #endif
 
-	return trampoline(device, pCreateInfo, pAllocator, pShaderModule);
+	trampoline(device, shaderModule, pAllocator);
 }
 
 VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache pipelineCache, uint32_t createInfoCount, const VkGraphicsPipelineCreateInfo *pCreateInfos, const VkAllocationCallbacks *pAllocator, VkPipeline *pPipelines)
@@ -990,6 +1020,10 @@ void     VKAPI_CALL vkDestroyPipeline(VkDevice device, VkPipeline pipeline, cons
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
 	GET_DISPATCH_PTR_FROM(DestroyPipeline, device_impl);
 
+#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(device_impl, reshade::api::pipeline { (uint64_t)pipeline });
+#endif
+
 	trampoline(device, pipeline, pAllocator);
 }
 
@@ -1004,8 +1038,7 @@ VkResult VKAPI_CALL vkCreateSampler(VkDevice device, const VkSamplerCreateInfo *
 	const reshade::api::sampler_desc desc = reshade::vulkan::convert_sampler_desc(*pCreateInfo);
 
 	if (reshade::api::sampler replacement = { 0 };
-		reshade::invoke_addon_event<reshade::addon_event::create_sampler>(
-			device_impl, desc, &replacement))
+		reshade::invoke_addon_event<reshade::addon_event::create_sampler>(device_impl, desc, &replacement))
 	{
 		*pSampler = (VkSampler)replacement.handle;
 		return VK_SUCCESS;
@@ -1033,6 +1066,10 @@ void     VKAPI_CALL vkDestroySampler(VkDevice device, VkSampler sampler, const V
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
 	GET_DISPATCH_PTR_FROM(DestroySampler, device_impl);
+
+#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::destroy_sampler>(device_impl, reshade::api::sampler { (uint64_t)sampler });
+#endif
 
 	trampoline(device, sampler, pAllocator);
 }
