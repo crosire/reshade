@@ -290,6 +290,7 @@ bool reshade::d3d10::device_impl::create_pipeline(const api::pipeline_desc &desc
 		return create_blend_state(desc, out);
 	}
 }
+
 bool reshade::d3d10::device_impl::create_graphics_pipeline(const api::pipeline_desc &desc, api::pipeline *out)
 {
 	if (desc.graphics.hull_shader.code_size != 0 ||
@@ -430,23 +431,11 @@ bool reshade::d3d10::device_impl::create_pixel_shader(const api::pipeline_desc &
 }
 bool reshade::d3d10::device_impl::create_blend_state(const api::pipeline_desc &desc, api::pipeline *out)
 {
-	D3D10_BLEND_DESC internal_desc;
-	internal_desc.AlphaToCoverageEnable = desc.graphics.blend_state.alpha_to_coverage_enable;
-	internal_desc.SrcBlend = convert_blend_factor(desc.graphics.blend_state.src_color_blend_factor[0]);
-	internal_desc.DestBlend = convert_blend_factor(desc.graphics.blend_state.dst_color_blend_factor[0]);
-	internal_desc.BlendOp = convert_blend_op(desc.graphics.blend_state.color_blend_op[0]);
-	internal_desc.SrcBlendAlpha = convert_blend_factor(desc.graphics.blend_state.src_alpha_blend_factor[0]);
-	internal_desc.DestBlendAlpha = convert_blend_factor(desc.graphics.blend_state.dst_alpha_blend_factor[0]);
-	internal_desc.BlendOpAlpha = convert_blend_op(desc.graphics.blend_state.alpha_blend_op[0]);
+	D3D10_BLEND_DESC1 internal_desc = {};
+	convert_pipeline_desc(desc, internal_desc);
 
-	for (UINT i = 0; i < 8; ++i)
-	{
-		internal_desc.BlendEnable[i] = desc.graphics.blend_state.blend_enable[i];
-		internal_desc.RenderTargetWriteMask[i] = desc.graphics.blend_state.render_target_write_mask[i];
-	}
-
-	if (com_ptr<ID3D10BlendState> object;
-		SUCCEEDED(_orig->CreateBlendState(&internal_desc, &object)))
+	if (com_ptr<ID3D10BlendState1> object;
+		SUCCEEDED(_orig->CreateBlendState1(&internal_desc, &object)))
 	{
 		*out = { reinterpret_cast<uintptr_t>(object.release()) };
 		return true;
@@ -459,17 +448,8 @@ bool reshade::d3d10::device_impl::create_blend_state(const api::pipeline_desc &d
 }
 bool reshade::d3d10::device_impl::create_rasterizer_state(const api::pipeline_desc &desc, api::pipeline *out)
 {
-	D3D10_RASTERIZER_DESC internal_desc;
-	internal_desc.FillMode = convert_fill_mode(desc.graphics.rasterizer_state.fill_mode);
-	internal_desc.CullMode = convert_cull_mode(desc.graphics.rasterizer_state.cull_mode);
-	internal_desc.FrontCounterClockwise = desc.graphics.rasterizer_state.front_counter_clockwise;
-	internal_desc.DepthBias = static_cast<INT>(desc.graphics.rasterizer_state.depth_bias);
-	internal_desc.DepthBiasClamp = desc.graphics.rasterizer_state.depth_bias_clamp;
-	internal_desc.SlopeScaledDepthBias = desc.graphics.rasterizer_state.slope_scaled_depth_bias;
-	internal_desc.DepthClipEnable = desc.graphics.rasterizer_state.depth_clip_enable;
-	internal_desc.ScissorEnable = desc.graphics.rasterizer_state.scissor_enable;
-	internal_desc.MultisampleEnable = desc.graphics.rasterizer_state.multisample_enable;
-	internal_desc.AntialiasedLineEnable = desc.graphics.rasterizer_state.antialiased_line_enable;
+	D3D10_RASTERIZER_DESC internal_desc = {};
+	convert_pipeline_desc(desc, internal_desc);
 
 	if (com_ptr<ID3D10RasterizerState> object;
 		SUCCEEDED(_orig->CreateRasterizerState(&internal_desc, &object)))
@@ -485,21 +465,8 @@ bool reshade::d3d10::device_impl::create_rasterizer_state(const api::pipeline_de
 }
 bool reshade::d3d10::device_impl::create_depth_stencil_state(const api::pipeline_desc &desc, api::pipeline *out)
 {
-	D3D10_DEPTH_STENCIL_DESC internal_desc;
-	internal_desc.DepthEnable = desc.graphics.depth_stencil_state.depth_enable;
-	internal_desc.DepthWriteMask = desc.graphics.depth_stencil_state.depth_write_mask ? D3D10_DEPTH_WRITE_MASK_ALL : D3D10_DEPTH_WRITE_MASK_ZERO;
-	internal_desc.DepthFunc = convert_compare_op(desc.graphics.depth_stencil_state.depth_func);
-	internal_desc.StencilEnable = desc.graphics.depth_stencil_state.stencil_enable;
-	internal_desc.StencilReadMask = desc.graphics.depth_stencil_state.stencil_read_mask;
-	internal_desc.StencilWriteMask = desc.graphics.depth_stencil_state.stencil_write_mask;
-	internal_desc.BackFace.StencilFailOp = convert_stencil_op(desc.graphics.depth_stencil_state.back_stencil_fail_op);
-	internal_desc.BackFace.StencilDepthFailOp = convert_stencil_op(desc.graphics.depth_stencil_state.back_stencil_depth_fail_op);
-	internal_desc.BackFace.StencilPassOp = convert_stencil_op(desc.graphics.depth_stencil_state.back_stencil_pass_op);
-	internal_desc.BackFace.StencilFunc = convert_compare_op(desc.graphics.depth_stencil_state.back_stencil_func);
-	internal_desc.FrontFace.StencilFailOp = convert_stencil_op(desc.graphics.depth_stencil_state.front_stencil_fail_op);
-	internal_desc.FrontFace.StencilDepthFailOp = convert_stencil_op(desc.graphics.depth_stencil_state.front_stencil_depth_fail_op);
-	internal_desc.FrontFace.StencilPassOp = convert_stencil_op(desc.graphics.depth_stencil_state.front_stencil_pass_op);
-	internal_desc.FrontFace.StencilFunc = convert_compare_op(desc.graphics.depth_stencil_state.front_stencil_func);
+	D3D10_DEPTH_STENCIL_DESC internal_desc = {};
+	convert_pipeline_desc(desc, internal_desc);
 
 	if (com_ptr<ID3D10DepthStencilState> object;
 		SUCCEEDED(_orig->CreateDepthStencilState(&internal_desc, &object)))

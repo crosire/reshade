@@ -40,14 +40,24 @@ namespace reshade::vulkan
 	api::resource_view_desc convert_resource_view_desc(const VkImageViewCreateInfo &create_info);
 	api::resource_view_desc convert_resource_view_desc(const VkBufferViewCreateInfo &create_info);
 
+	api::pipeline_desc convert_pipeline_desc(const VkComputePipelineCreateInfo &create_info);
+	api::pipeline_desc convert_pipeline_desc(const VkGraphicsPipelineCreateInfo &create_info);
+
 	auto convert_logic_op(api::logic_op value) -> VkLogicOp;
+	auto convert_logic_op(VkLogicOp value) -> api::logic_op;
 	auto convert_blend_op(api::blend_op value) -> VkBlendOp;
+	auto convert_blend_op(VkBlendOp value) -> api::blend_op;
 	auto convert_blend_factor(api::blend_factor value) -> VkBlendFactor;
+	auto convert_blend_factor(VkBlendFactor value) -> api::blend_factor;
 	auto convert_fill_mode(api::fill_mode value) -> VkPolygonMode;
+	auto convert_fill_mode(VkPolygonMode value) -> api::fill_mode;
 	auto convert_cull_mode(api::cull_mode value) -> VkCullModeFlags;
-	auto convert_compare_op(VkCompareOp value) -> api::compare_op;
+	auto convert_cull_mode(VkCullModeFlags value) -> api::cull_mode;
 	auto convert_compare_op(api::compare_op value) -> VkCompareOp;
+	auto convert_compare_op(VkCompareOp value) -> api::compare_op;
 	auto convert_stencil_op(api::stencil_op value) -> VkStencilOp;
+	auto convert_stencil_op(VkStencilOp value) -> api::stencil_op;
 	auto convert_primitive_topology(api::primitive_topology value) -> VkPrimitiveTopology;
+	auto convert_primitive_topology(VkPrimitiveTopology value) -> api::primitive_topology;
 	auto convert_query_type(api::query_type value) -> VkQueryType;
 }

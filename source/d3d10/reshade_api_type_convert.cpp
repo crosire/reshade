@@ -629,9 +629,241 @@ reshade::api::resource_view_desc reshade::d3d10::convert_resource_view_desc(cons
 	}
 }
 
+void reshade::d3d10::convert_pipeline_desc(const api::pipeline_desc &desc, D3D10_BLEND_DESC &internal_desc)
+{
+	assert(desc.type == api::pipeline_stage::output_merger);
+	internal_desc.AlphaToCoverageEnable = desc.graphics.blend_state.alpha_to_coverage_enable;
+	internal_desc.SrcBlend = convert_blend_factor(desc.graphics.blend_state.src_color_blend_factor[0]);
+	internal_desc.DestBlend = convert_blend_factor(desc.graphics.blend_state.dst_color_blend_factor[0]);
+	internal_desc.BlendOp = convert_blend_op(desc.graphics.blend_state.color_blend_op[0]);
+	internal_desc.SrcBlendAlpha = convert_blend_factor(desc.graphics.blend_state.src_alpha_blend_factor[0]);
+	internal_desc.DestBlendAlpha = convert_blend_factor(desc.graphics.blend_state.dst_alpha_blend_factor[0]);
+	internal_desc.BlendOpAlpha = convert_blend_op(desc.graphics.blend_state.alpha_blend_op[0]);
+
+	for (UINT i = 0; i < 8; ++i)
+	{
+		internal_desc.BlendEnable[i] = desc.graphics.blend_state.blend_enable[i];
+		internal_desc.RenderTargetWriteMask[i] = desc.graphics.blend_state.render_target_write_mask[i];
+	}
+}
+void reshade::d3d10::convert_pipeline_desc(const api::pipeline_desc &desc, D3D10_BLEND_DESC1 &internal_desc)
+{
+	assert(desc.type == api::pipeline_stage::output_merger);
+	internal_desc.AlphaToCoverageEnable = desc.graphics.blend_state.alpha_to_coverage_enable;
+	internal_desc.IndependentBlendEnable = TRUE;
+
+	for (UINT i = 0; i < 8; ++i)
+	{
+		internal_desc.RenderTarget[i].BlendEnable = desc.graphics.blend_state.blend_enable[i];
+		internal_desc.RenderTarget[i].SrcBlend = convert_blend_factor(desc.graphics.blend_state.src_color_blend_factor[i]);
+		internal_desc.RenderTarget[i].DestBlend = convert_blend_factor(desc.graphics.blend_state.dst_color_blend_factor[i]);
+		internal_desc.RenderTarget[i].BlendOp = convert_blend_op(desc.graphics.blend_state.color_blend_op[i]);
+		internal_desc.RenderTarget[i].SrcBlendAlpha = convert_blend_factor(desc.graphics.blend_state.src_alpha_blend_factor[i]);
+		internal_desc.RenderTarget[i].DestBlendAlpha = convert_blend_factor(desc.graphics.blend_state.dst_alpha_blend_factor[i]);
+		internal_desc.RenderTarget[i].BlendOpAlpha = convert_blend_op(desc.graphics.blend_state.alpha_blend_op[i]);
+		internal_desc.RenderTarget[i].RenderTargetWriteMask = desc.graphics.blend_state.render_target_write_mask[i];
+	}
+}
+void reshade::d3d10::convert_pipeline_desc(const api::pipeline_desc &desc, D3D10_RASTERIZER_DESC &internal_desc)
+{
+	assert(desc.type == api::pipeline_stage::rasterizer);
+	internal_desc.FillMode = convert_fill_mode(desc.graphics.rasterizer_state.fill_mode);
+	internal_desc.CullMode = convert_cull_mode(desc.graphics.rasterizer_state.cull_mode);
+	internal_desc.FrontCounterClockwise = desc.graphics.rasterizer_state.front_counter_clockwise;
+	internal_desc.DepthBias = static_cast<INT>(desc.graphics.rasterizer_state.depth_bias);
+	internal_desc.DepthBiasClamp = desc.graphics.rasterizer_state.depth_bias_clamp;
+	internal_desc.SlopeScaledDepthBias = desc.graphics.rasterizer_state.slope_scaled_depth_bias;
+	internal_desc.DepthClipEnable = desc.graphics.rasterizer_state.depth_clip_enable;
+	internal_desc.ScissorEnable = desc.graphics.rasterizer_state.scissor_enable;
+	internal_desc.MultisampleEnable = desc.graphics.rasterizer_state.multisample_enable;
+	internal_desc.AntialiasedLineEnable = desc.graphics.rasterizer_state.antialiased_line_enable;
+}
+void reshade::d3d10::convert_pipeline_desc(const api::pipeline_desc &desc, D3D10_DEPTH_STENCIL_DESC &internal_desc)
+{
+	assert(desc.type == api::pipeline_stage::depth_stencil);
+	internal_desc.DepthEnable = desc.graphics.depth_stencil_state.depth_enable;
+	internal_desc.DepthWriteMask = desc.graphics.depth_stencil_state.depth_write_mask ? D3D10_DEPTH_WRITE_MASK_ALL : D3D10_DEPTH_WRITE_MASK_ZERO;
+	internal_desc.DepthFunc = convert_compare_op(desc.graphics.depth_stencil_state.depth_func);
+	internal_desc.StencilEnable = desc.graphics.depth_stencil_state.stencil_enable;
+	internal_desc.StencilReadMask = desc.graphics.depth_stencil_state.stencil_read_mask;
+	internal_desc.StencilWriteMask = desc.graphics.depth_stencil_state.stencil_write_mask;
+	internal_desc.BackFace.StencilFailOp = convert_stencil_op(desc.graphics.depth_stencil_state.back_stencil_fail_op);
+	internal_desc.BackFace.StencilDepthFailOp = convert_stencil_op(desc.graphics.depth_stencil_state.back_stencil_depth_fail_op);
+	internal_desc.BackFace.StencilPassOp = convert_stencil_op(desc.graphics.depth_stencil_state.back_stencil_pass_op);
+	internal_desc.BackFace.StencilFunc = convert_compare_op(desc.graphics.depth_stencil_state.back_stencil_func);
+	internal_desc.FrontFace.StencilFailOp = convert_stencil_op(desc.graphics.depth_stencil_state.front_stencil_fail_op);
+	internal_desc.FrontFace.StencilDepthFailOp = convert_stencil_op(desc.graphics.depth_stencil_state.front_stencil_depth_fail_op);
+	internal_desc.FrontFace.StencilPassOp = convert_stencil_op(desc.graphics.depth_stencil_state.front_stencil_pass_op);
+	internal_desc.FrontFace.StencilFunc = convert_compare_op(desc.graphics.depth_stencil_state.front_stencil_func);
+}
+reshade::api::pipeline_desc reshade::d3d10::convert_pipeline_desc(const D3D10_INPUT_ELEMENT_DESC *element_desc, UINT num_elements)
+{
+	api::pipeline_desc desc = { api::pipeline_stage::input_assembler };
+
+	for (UINT i = 0; i < num_elements && i < 16; ++i)
+	{
+		desc.graphics.input_layout[i].semantic = element_desc[i].SemanticName;
+		desc.graphics.input_layout[i].semantic_index = element_desc[i].SemanticIndex;
+		desc.graphics.input_layout[i].format = convert_format(element_desc[i].Format);
+		desc.graphics.input_layout[i].buffer_binding = element_desc[i].InputSlot;
+		desc.graphics.input_layout[i].offset = element_desc[i].AlignedByteOffset;
+		desc.graphics.input_layout[i].instance_step_rate = element_desc[i].InstanceDataStepRate;
+	}
+
+	return desc;
+}
+reshade::api::pipeline_desc reshade::d3d10::convert_pipeline_desc(const D3D10_BLEND_DESC *internal_desc)
+{
+	api::pipeline_desc desc = { api::pipeline_stage::output_merger };
+
+	if (internal_desc != nullptr)
+	{
+		desc.graphics.blend_state.alpha_to_coverage_enable = internal_desc->AlphaToCoverageEnable;
+
+		for (UINT i = 0; i < 8; ++i)
+		{
+			desc.graphics.blend_state.blend_enable[i] = internal_desc->BlendEnable[i];
+			desc.graphics.blend_state.src_color_blend_factor[i] = convert_blend_factor(internal_desc->SrcBlend);
+			desc.graphics.blend_state.dst_color_blend_factor[i] = convert_blend_factor(internal_desc->DestBlend);
+			desc.graphics.blend_state.color_blend_op[i] = convert_blend_op(internal_desc->BlendOp);
+			desc.graphics.blend_state.src_alpha_blend_factor[i] = convert_blend_factor(internal_desc->SrcBlendAlpha);
+			desc.graphics.blend_state.dst_alpha_blend_factor[i] = convert_blend_factor(internal_desc->DestBlendAlpha);
+			desc.graphics.blend_state.alpha_blend_op[i] = convert_blend_op(internal_desc->BlendOpAlpha);
+			desc.graphics.blend_state.render_target_write_mask[i] = internal_desc->RenderTargetWriteMask[i];
+		}
+	}
+	else
+	{
+		// Default blend state (https://docs.microsoft.com/windows/win32/api/d3d10/ns-d3d10-d3d10_blend_desc)
+		for (UINT i = 0; i < 8; ++i)
+		{
+			desc.graphics.blend_state.src_color_blend_factor[i] = api::blend_factor::one;
+			desc.graphics.blend_state.dst_color_blend_factor[i] = api::blend_factor::zero;
+			desc.graphics.blend_state.color_blend_op[i] = api::blend_op::add;
+			desc.graphics.blend_state.src_alpha_blend_factor[i] = api::blend_factor::one;
+			desc.graphics.blend_state.dst_alpha_blend_factor[i] = api::blend_factor::zero;
+			desc.graphics.blend_state.alpha_blend_op[i] = api::blend_op::add;
+			desc.graphics.blend_state.render_target_write_mask[i] = D3D10_COLOR_WRITE_ENABLE_ALL;
+		}
+	}
+
+	return desc;
+}
+reshade::api::pipeline_desc reshade::d3d10::convert_pipeline_desc(const D3D10_BLEND_DESC1 *internal_desc)
+{
+	api::pipeline_desc desc = { api::pipeline_stage::output_merger };
+
+	if (internal_desc != nullptr)
+	{
+		desc.graphics.blend_state.alpha_to_coverage_enable = internal_desc->AlphaToCoverageEnable;
+
+		for (UINT i = 0; i < 8; ++i)
+		{
+			const D3D10_RENDER_TARGET_BLEND_DESC1 &target = internal_desc->RenderTarget[internal_desc->IndependentBlendEnable ? i : 0];
+
+			desc.graphics.blend_state.blend_enable[i] = target.BlendEnable;
+			desc.graphics.blend_state.src_color_blend_factor[i] = convert_blend_factor(target.SrcBlend);
+			desc.graphics.blend_state.dst_color_blend_factor[i] = convert_blend_factor(target.DestBlend);
+			desc.graphics.blend_state.color_blend_op[i] = convert_blend_op(target.BlendOp);
+			desc.graphics.blend_state.src_alpha_blend_factor[i] = convert_blend_factor(target.SrcBlendAlpha);
+			desc.graphics.blend_state.dst_alpha_blend_factor[i] = convert_blend_factor(target.DestBlendAlpha);
+			desc.graphics.blend_state.alpha_blend_op[i] = convert_blend_op(target.BlendOpAlpha);
+			desc.graphics.blend_state.render_target_write_mask[i] = target.RenderTargetWriteMask;
+		}
+	}
+	else
+	{
+		// Default blend state (https://docs.microsoft.com/windows/win32/api/d3d10_1/ns-d3d10_1-d3d10_blend_desc1)
+		for (UINT i = 0; i < 8; ++i)
+		{
+			desc.graphics.blend_state.src_color_blend_factor[i] = api::blend_factor::one;
+			desc.graphics.blend_state.dst_color_blend_factor[i] = api::blend_factor::zero;
+			desc.graphics.blend_state.color_blend_op[i] = api::blend_op::add;
+			desc.graphics.blend_state.src_alpha_blend_factor[i] = api::blend_factor::one;
+			desc.graphics.blend_state.dst_alpha_blend_factor[i] = api::blend_factor::zero;
+			desc.graphics.blend_state.alpha_blend_op[i] = api::blend_op::add;
+			desc.graphics.blend_state.render_target_write_mask[i] = D3D10_COLOR_WRITE_ENABLE_ALL;
+		}
+	}
+
+	return desc;
+}
+reshade::api::pipeline_desc reshade::d3d10::convert_pipeline_desc(const D3D10_RASTERIZER_DESC *internal_desc)
+{
+	api::pipeline_desc desc = { api::pipeline_stage::rasterizer };
+
+	if (internal_desc != nullptr)
+	{
+		desc.graphics.rasterizer_state.fill_mode = convert_fill_mode(internal_desc->FillMode);
+		desc.graphics.rasterizer_state.cull_mode = convert_cull_mode(internal_desc->CullMode);
+		desc.graphics.rasterizer_state.front_counter_clockwise = internal_desc->FrontCounterClockwise;
+		desc.graphics.rasterizer_state.depth_bias = static_cast<float>(internal_desc->DepthBias);
+		desc.graphics.rasterizer_state.depth_bias_clamp = internal_desc->DepthBiasClamp;
+		desc.graphics.rasterizer_state.slope_scaled_depth_bias = internal_desc->SlopeScaledDepthBias;
+		desc.graphics.rasterizer_state.depth_clip_enable = internal_desc->DepthClipEnable;
+		desc.graphics.rasterizer_state.scissor_enable = internal_desc->ScissorEnable;
+		desc.graphics.rasterizer_state.multisample_enable = internal_desc->MultisampleEnable;
+		desc.graphics.rasterizer_state.antialiased_line_enable = internal_desc->AntialiasedLineEnable;
+	}
+	else
+	{
+		// Default rasterizer state (https://docs.microsoft.com/windows/win32/api/d3d10/ns-d3d10-d3d10_rasterizer_desc)
+		desc.graphics.rasterizer_state.fill_mode = api::fill_mode::solid;
+		desc.graphics.rasterizer_state.cull_mode = api::cull_mode::back;
+		desc.graphics.rasterizer_state.depth_clip_enable = true;
+	}
+
+	return desc;
+}
+reshade::api::pipeline_desc reshade::d3d10::convert_pipeline_desc(const D3D10_DEPTH_STENCIL_DESC *internal_desc)
+{
+	api::pipeline_desc desc = { api::pipeline_stage::depth_stencil };
+
+	if (internal_desc != nullptr)
+	{
+		desc.graphics.depth_stencil_state.depth_enable = internal_desc->DepthEnable;
+		desc.graphics.depth_stencil_state.depth_write_mask = internal_desc->DepthWriteMask != D3D10_DEPTH_WRITE_MASK_ZERO;
+		desc.graphics.depth_stencil_state.depth_func = convert_compare_op(internal_desc->DepthFunc);
+		desc.graphics.depth_stencil_state.stencil_enable = internal_desc->StencilEnable;
+		desc.graphics.depth_stencil_state.stencil_read_mask = internal_desc->StencilReadMask;
+		desc.graphics.depth_stencil_state.stencil_write_mask = internal_desc->StencilWriteMask;
+		desc.graphics.depth_stencil_state.back_stencil_fail_op = convert_stencil_op(internal_desc->BackFace.StencilFailOp);
+		desc.graphics.depth_stencil_state.back_stencil_depth_fail_op = convert_stencil_op(internal_desc->BackFace.StencilDepthFailOp);
+		desc.graphics.depth_stencil_state.back_stencil_pass_op = convert_stencil_op(internal_desc->BackFace.StencilPassOp);
+		desc.graphics.depth_stencil_state.back_stencil_func = convert_compare_op(internal_desc->BackFace.StencilFunc);
+		desc.graphics.depth_stencil_state.front_stencil_fail_op = convert_stencil_op(internal_desc->FrontFace.StencilFailOp);
+		desc.graphics.depth_stencil_state.front_stencil_depth_fail_op = convert_stencil_op(internal_desc->FrontFace.StencilDepthFailOp);
+		desc.graphics.depth_stencil_state.front_stencil_pass_op = convert_stencil_op(internal_desc->FrontFace.StencilPassOp);
+		desc.graphics.depth_stencil_state.front_stencil_func = convert_compare_op(internal_desc->FrontFace.StencilFunc);
+	}
+	else
+	{
+		// Default depth-stencil state (https://docs.microsoft.com/windows/win32/api/d3d10/ns-d3d10-d3d10_depth_stencil_desc)
+		desc.graphics.depth_stencil_state.depth_enable = true;
+		desc.graphics.depth_stencil_state.depth_write_mask = true;
+		desc.graphics.depth_stencil_state.depth_func = api::compare_op::less;
+		desc.graphics.depth_stencil_state.stencil_read_mask = D3D10_DEFAULT_STENCIL_READ_MASK;
+		desc.graphics.depth_stencil_state.stencil_write_mask = D3D10_DEFAULT_STENCIL_WRITE_MASK;
+		desc.graphics.depth_stencil_state.back_stencil_fail_op = api::stencil_op::keep;
+		desc.graphics.depth_stencil_state.back_stencil_depth_fail_op = api::stencil_op::keep;
+		desc.graphics.depth_stencil_state.back_stencil_pass_op = api::stencil_op::keep;
+		desc.graphics.depth_stencil_state.back_stencil_func = api::compare_op::always;
+		desc.graphics.depth_stencil_state.front_stencil_fail_op = api::stencil_op::keep;
+		desc.graphics.depth_stencil_state.front_stencil_depth_fail_op = api::stencil_op::keep;
+		desc.graphics.depth_stencil_state.front_stencil_pass_op = api::stencil_op::keep;
+		desc.graphics.depth_stencil_state.front_stencil_func = api::compare_op::always;
+	}
+
+	return desc;
+}
+
 auto reshade::d3d10::convert_blend_op(api::blend_op value) -> D3D10_BLEND_OP
 {
 	return static_cast<D3D10_BLEND_OP>(static_cast<uint32_t>(value) + 1);
+}
+auto reshade::d3d10::convert_blend_op(D3D10_BLEND_OP value) -> api::blend_op
+{
+	return static_cast<api::blend_op>(static_cast<uint32_t>(value) - 1);
 }
 auto reshade::d3d10::convert_blend_factor(api::blend_factor value) -> D3D10_BLEND
 {
@@ -682,6 +914,49 @@ auto reshade::d3d10::convert_blend_factor(api::blend_factor value) -> D3D10_BLEN
 		return D3D10_BLEND_INV_SRC1_ALPHA;
 	}
 }
+auto reshade::d3d10::convert_blend_factor(D3D10_BLEND value) -> api::blend_factor
+{
+	switch (value)
+	{
+	default:
+		assert(false);
+		[[fallthrough]];
+	case D3D10_BLEND_ZERO:
+		return api::blend_factor::zero;
+	case D3D10_BLEND_ONE:
+		return api::blend_factor::one;
+	case D3D10_BLEND_SRC_COLOR:
+		return api::blend_factor::src_color;
+	case D3D10_BLEND_INV_SRC_COLOR:
+		return api::blend_factor::inv_src_color;
+	case D3D10_BLEND_DEST_COLOR:
+		return api::blend_factor::dst_color;
+	case D3D10_BLEND_INV_DEST_COLOR:
+		return api::blend_factor::inv_dst_color;
+	case D3D10_BLEND_SRC_ALPHA:
+		return api::blend_factor::src_alpha;
+	case D3D10_BLEND_INV_SRC_ALPHA:
+		return api::blend_factor::inv_src_alpha;
+	case D3D10_BLEND_DEST_ALPHA:
+		return api::blend_factor::dst_alpha;
+	case D3D10_BLEND_INV_DEST_ALPHA:
+		return api::blend_factor::inv_dst_alpha;
+	case D3D10_BLEND_BLEND_FACTOR:
+		return api::blend_factor::constant_color;
+	case D3D10_BLEND_INV_BLEND_FACTOR:
+		return api::blend_factor::inv_constant_color;
+	case D3D10_BLEND_SRC_ALPHA_SAT:
+		return api::blend_factor::src_alpha_sat;
+	case D3D10_BLEND_SRC1_COLOR:
+		return api::blend_factor::src1_color;
+	case D3D10_BLEND_INV_SRC1_COLOR:
+		return api::blend_factor::inv_src1_color;
+	case D3D10_BLEND_SRC1_ALPHA:
+		return api::blend_factor::src1_alpha;
+	case D3D10_BLEND_INV_SRC1_ALPHA:
+		return api::blend_factor::inv_src1_alpha;
+	}
+}
 auto reshade::d3d10::convert_fill_mode(api::fill_mode value) -> D3D10_FILL_MODE
 {
 	switch (value)
@@ -696,10 +971,25 @@ auto reshade::d3d10::convert_fill_mode(api::fill_mode value) -> D3D10_FILL_MODE
 		return D3D10_FILL_WIREFRAME;
 	}
 }
+auto reshade::d3d10::convert_fill_mode(D3D10_FILL_MODE value) -> api::fill_mode
+{
+	switch (value)
+	{
+	default:
+	case D3D10_FILL_SOLID:
+		return api::fill_mode::solid;
+	case D3D10_FILL_WIREFRAME:
+		return api::fill_mode::wireframe;
+	}
+}
 auto reshade::d3d10::convert_cull_mode(api::cull_mode value) -> D3D10_CULL_MODE
 {
 	assert(value != api::cull_mode::front_and_back);
 	return static_cast<D3D10_CULL_MODE>(static_cast<uint32_t>(value) + 1);
+}
+auto reshade::d3d10::convert_cull_mode(D3D10_CULL_MODE value) -> api::cull_mode
+{
+	return static_cast<api::cull_mode>(static_cast<uint32_t>(value) - 1);
 }
 auto reshade::d3d10::convert_compare_op(api::compare_op value) -> D3D10_COMPARISON_FUNC
 {
@@ -712,6 +1002,10 @@ auto reshade::d3d10::convert_compare_op(D3D10_COMPARISON_FUNC value) -> api::com
 auto reshade::d3d10::convert_stencil_op(api::stencil_op value) -> D3D10_STENCIL_OP
 {
 	return static_cast<D3D10_STENCIL_OP>(static_cast<uint32_t>(value) + 1);
+}
+auto reshade::d3d10::convert_stencil_op(D3D10_STENCIL_OP value) -> api::stencil_op
+{
+	return static_cast<api::stencil_op>(static_cast<uint32_t>(value) - 1);
 }
 auto reshade::d3d10::convert_primitive_topology(api::primitive_topology value) -> D3D10_PRIMITIVE_TOPOLOGY
 {
