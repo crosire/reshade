@@ -10,7 +10,6 @@
 
 D3D12GraphicsCommandList::D3D12GraphicsCommandList(D3D12Device *device, ID3D12GraphicsCommandList *original) :
 	command_list_impl(device, original),
-	_interface_version(0),
 	_device(device)
 {
 	assert(_orig != nullptr && _device != nullptr);
@@ -149,8 +148,18 @@ HRESULT STDMETHODCALLTYPE D3D12GraphicsCommandList::Reset(ID3D12CommandAllocator
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
-		// TODO: Figure out if this is compute or graphics pipeline state object
-		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(this, reshade::api::pipeline_stage::all_graphics, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pInitialState) });
+		reshade::api::pipeline_stage type = static_cast<reshade::api::pipeline_stage>(0);
+		if (pInitialState != nullptr)
+		{
+			type = reshade::api::pipeline_stage::all_compute;
+
+			reshade::d3d12::pipeline_graphics_impl extra_data;
+			UINT extra_data_size = sizeof(extra_data);
+			if (SUCCEEDED(pInitialState->GetPrivateData(reshade::d3d12::pipeline_extra_data_guid, &extra_data_size, &extra_data)))
+				type = reshade::api::pipeline_stage::all_graphics;
+		}
+
+		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(this, type, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pInitialState) });
 	}
 #endif
 	return hr;
@@ -332,7 +341,17 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetPipelineState(ID3D12Pipeline
 	_orig->SetPipelineState(pPipelineState);
 
 #if RESHADE_ADDON
-	// TODO: Figure out if this is compute or graphics pipeline state object
+	reshade::api::pipeline_stage type = static_cast<reshade::api::pipeline_stage>(0);
+	if (pPipelineState != nullptr)
+	{
+		type = reshade::api::pipeline_stage::all_compute;
+
+		reshade::d3d12::pipeline_graphics_impl extra_data;
+		UINT extra_data_size = sizeof(extra_data);
+		if (SUCCEEDED(pPipelineState->GetPrivateData(reshade::d3d12::pipeline_extra_data_guid, &extra_data_size, &extra_data)))
+			type = reshade::api::pipeline_stage::all_graphics;
+	}
+
 	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(this, reshade::api::pipeline_stage::all_graphics, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pPipelineState) });
 #endif
 }

@@ -210,7 +210,14 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateGraphicsPipelineState(const D3D12_G
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, desc, reshade::api::pipeline { reinterpret_cast<uintptr_t>(*ppPipelineState) });
+		const auto pipeline = static_cast<ID3D12PipelineState *>(*ppPipelineState);
+
+		reshade::d3d12::pipeline_graphics_impl extra_data;
+		extra_data.topology = D3D_PRIMITIVE_TOPOLOGY_UNDEFINED;
+
+		pipeline->SetPrivateData(reshade::d3d12::pipeline_extra_data_guid, sizeof(extra_data), &extra_data);
+
+		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, desc, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pipeline) });
 #endif
 	}
 	else

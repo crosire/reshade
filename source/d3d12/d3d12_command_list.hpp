@@ -112,6 +112,6 @@ struct DECLSPEC_UUID("479B29E3-9A2C-11D0-B696-00A0C903487A") D3D12GraphicsComman
 	bool check_and_upgrade_interface(REFIID riid);
 
 	ULONG _ref = 1;
-	unsigned int _interface_version;
+	unsigned int _interface_version = 0;
 	D3D12Device *const _device;
 };
