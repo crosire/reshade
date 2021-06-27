@@ -681,7 +681,35 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateSharedHandle(ID3D12DeviceChild *pOb
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::OpenSharedHandle(HANDLE NTHandle, REFIID riid, void **ppvObj)
 {
-	return _orig->OpenSharedHandle(NTHandle, riid, ppvObj);
+	const HRESULT hr = _orig->OpenSharedHandle(NTHandle, riid, ppvObj);
+	if (SUCCEEDED(hr))
+	{
+#if RESHADE_ADDON
+		if (riid == __uuidof(ID3D12Resource) ||
+			riid == __uuidof(ID3D12Resource1))
+		{
+			const auto resource = static_cast<ID3D12Resource *>(*ppvObj);
+
+			D3D12_HEAP_FLAGS heap_flags = D3D12_HEAP_FLAG_NONE;
+			D3D12_HEAP_PROPERTIES heap_props = {};
+			resource->GetHeapProperties(&heap_props, &heap_flags);
+			assert((heap_flags & D3D12_HEAP_FLAG_SHARED) != 0);
+
+			const reshade::api::resource_desc desc =
+				reshade::d3d12::convert_resource_desc(resource->GetDesc(), heap_props, heap_flags);
+
+			reshade::invoke_addon_event<reshade::addon_event::init_resource>(this, desc, nullptr, reshade::api::resource_usage::general, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
+		}
+#endif
+	}
+	else
+	{
+#if RESHADE_VERBOSE_LOG
+		LOG(WARN) << "ID3D12Device::OpenSharedHandle" << " failed with error code " << hr << '.';
+#endif
+	}
+
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::OpenSharedHandleByName(LPCWSTR Name, DWORD Access, HANDLE *pNTHandle)
 {

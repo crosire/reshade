@@ -1291,7 +1291,55 @@ UINT    STDMETHODCALLTYPE D3D10Device::GetCreationFlags()
 }
 HRESULT STDMETHODCALLTYPE D3D10Device::OpenSharedResource(HANDLE hResource, REFIID ReturnedInterface, void **ppResource)
 {
-	return _orig->OpenSharedResource(hResource, ReturnedInterface, ppResource);
+	const HRESULT hr = _orig->OpenSharedResource(hResource, ReturnedInterface, ppResource);
+	if (SUCCEEDED(hr))
+	{
+#if RESHADE_ADDON
+		const auto resource = static_cast<ID3D10Resource *>(*ppResource);
+		reshade::api::resource_desc desc;
+
+		if (com_ptr<ID3D10Buffer> resource_impl;
+			SUCCEEDED(resource->QueryInterface(&resource_impl)))
+		{
+			D3D10_BUFFER_DESC internal_desc;
+			resource_impl->GetDesc(&internal_desc);
+			desc = reshade::d3d10::convert_resource_desc(internal_desc);
+		}
+		if (com_ptr<ID3D10Texture1D> resource_impl;
+			SUCCEEDED(resource->QueryInterface(&resource_impl)))
+		{
+			D3D10_TEXTURE1D_DESC internal_desc;
+			resource_impl->GetDesc(&internal_desc);
+			desc = reshade::d3d10::convert_resource_desc(internal_desc);
+		}
+		if (com_ptr<ID3D10Texture2D> resource_impl;
+			SUCCEEDED(resource->QueryInterface(&resource_impl)))
+		{
+			D3D10_TEXTURE2D_DESC internal_desc;
+			resource_impl->GetDesc(&internal_desc);
+			desc = reshade::d3d10::convert_resource_desc(internal_desc);
+		}
+		if (com_ptr<ID3D10Texture3D> resource_impl;
+			SUCCEEDED(resource->QueryInterface(&resource_impl)))
+		{
+			D3D10_TEXTURE3D_DESC internal_desc;
+			resource_impl->GetDesc(&internal_desc);
+			desc = reshade::d3d10::convert_resource_desc(internal_desc);
+		}
+
+		assert((desc.flags & reshade::api::resource_flags::shared) == reshade::api::resource_flags::shared);
+
+		reshade::invoke_addon_event<reshade::addon_event::init_resource>(this, desc, nullptr, reshade::api::resource_usage::general, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
+#endif
+	}
+	else
+	{
+#if RESHADE_VERBOSE_LOG
+		LOG(WARN) << "ID3D10Device::OpenSharedResource" << " failed with error code " << hr << '.';
+#endif
+	}
+
+	return hr;
 }
 void    STDMETHODCALLTYPE D3D10Device::SetTextFilterSize(UINT Width, UINT Height)
 {
