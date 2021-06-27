@@ -467,16 +467,16 @@ HOOK_EXPORT void WINAPI glBlendFunc(GLenum sfactor, GLenum dfactor)
 	reshade::opengl::convert_memory_heap_from_usage(desc, usage);
 	const reshade::api::subresource_data initial_data = { data }; // Row and depth pitch are unused for buffer data
 
-	if (reshade::api::resource overwrite = reshade::opengl::make_resource_handle(target, object);
+	if (reshade::api::resource replacement = reshade::opengl::make_resource_handle(target, object);
 		g_current_context &&
 		reshade::invoke_addon_event<reshade::addon_event::create_resource>(
 			g_current_context,
 			desc,
 			(data != nullptr) ? &initial_data : nullptr,
 			reshade::api::resource_usage::general,
-			static_cast<reshade::api::resource *>(g_current_context->_current_event_handle = &overwrite)))
+			static_cast<reshade::api::resource *>(g_current_context->_current_event_handle = &replacement)))
 	{
-		assert((overwrite.handle >> 40) == target && (overwrite.handle & 0xFFFFFFFF) == object);
+		assert((replacement.handle >> 40) == target && (replacement.handle & 0xFFFFFFFF) == object);
 		return;
 	}
 #endif
@@ -507,16 +507,16 @@ HOOK_EXPORT void WINAPI glBlendFunc(GLenum sfactor, GLenum dfactor)
 	reshade::opengl::convert_memory_heap_from_flags(desc, flags);
 	const reshade::api::subresource_data initial_data = { data };
 
-	if (reshade::api::resource overwrite = reshade::opengl::make_resource_handle(target, object);
+	if (reshade::api::resource replacement = reshade::opengl::make_resource_handle(target, object);
 		g_current_context &&
 		reshade::invoke_addon_event<reshade::addon_event::create_resource>(
 			g_current_context,
 			desc,
 			(data != nullptr) ? &initial_data : nullptr,
 			reshade::api::resource_usage::general,
-			static_cast<reshade::api::resource *>(g_current_context->_current_event_handle = &overwrite)))
+			static_cast<reshade::api::resource *>(g_current_context->_current_event_handle = &replacement)))
 	{
-		assert((overwrite.handle >> 40) == target && (overwrite.handle & 0xFFFFFFFF) == object);
+		assert((replacement.handle >> 40) == target && (replacement.handle & 0xFFFFFFFF) == object);
 		return;
 	}
 #endif
@@ -2487,16 +2487,16 @@ HOOK_EXPORT void WINAPI glMultMatrixf(const GLfloat *m)
 	reshade::opengl::convert_memory_heap_from_usage(desc, usage);
 	const reshade::api::subresource_data initial_data = { data };
 
-	if (reshade::api::resource overwrite = reshade::opengl::make_resource_handle(GL_BUFFER, buffer);
+	if (reshade::api::resource replacement = reshade::opengl::make_resource_handle(GL_BUFFER, buffer);
 		g_current_context &&
 		reshade::invoke_addon_event<reshade::addon_event::create_resource>(
 			g_current_context,
 			desc,
 			(data != nullptr) ? &initial_data : nullptr,
 			reshade::api::resource_usage::general,
-			static_cast<reshade::api::resource *>(g_current_context->_current_event_handle = &overwrite)))
+			static_cast<reshade::api::resource *>(g_current_context->_current_event_handle = &replacement)))
 	{
-		assert((overwrite.handle & 0xFFFFFFFF) == buffer);
+		assert((replacement.handle & 0xFFFFFFFF) == buffer);
 		return;
 	}
 #endif
@@ -2524,16 +2524,16 @@ HOOK_EXPORT void WINAPI glMultMatrixf(const GLfloat *m)
 	reshade::opengl::convert_memory_heap_from_flags(desc, flags);
 	const reshade::api::subresource_data initial_data = { data };
 
-	if (reshade::api::resource overwrite = reshade::opengl::make_resource_handle(GL_BUFFER, buffer);
+	if (reshade::api::resource replacement = reshade::opengl::make_resource_handle(GL_BUFFER, buffer);
 		g_current_context &&
 		reshade::invoke_addon_event<reshade::addon_event::create_resource>(
 			g_current_context,
 			desc,
 			(data != nullptr) ? &initial_data : nullptr,
 			reshade::api::resource_usage::general,
-			static_cast<reshade::api::resource *>(g_current_context->_current_event_handle = &overwrite)))
+			static_cast<reshade::api::resource *>(g_current_context->_current_event_handle = &replacement)))
 	{
-		assert((overwrite.handle & 0xFFFFFFFF) == buffer);
+		assert((replacement.handle & 0xFFFFFFFF) == buffer);
 		return;
 	}
 #endif
@@ -2560,16 +2560,16 @@ HOOK_EXPORT void WINAPI glMultMatrixf(const GLfloat *m)
 	const reshade::api::resource_desc desc =
 		reshade::opengl::convert_resource_desc(GL_RENDERBUFFER, 1, 1, internalformat, width, height);
 
-	if (reshade::api::resource overwrite = reshade::opengl::make_resource_handle(GL_RENDERBUFFER, renderbuffer);
+	if (reshade::api::resource replacement = reshade::opengl::make_resource_handle(GL_RENDERBUFFER, renderbuffer);
 		g_current_context &&
 		reshade::invoke_addon_event<reshade::addon_event::create_resource>(
 			g_current_context,
 			desc,
 			nullptr,
 			reshade::api::resource_usage::general,
-			static_cast<reshade::api::resource *>(g_current_context->_current_event_handle = &overwrite)))
+			static_cast<reshade::api::resource *>(g_current_context->_current_event_handle = &replacement)))
 	{
-		assert((overwrite.handle & 0xFFFFFFFF) == renderbuffer);
+		assert((replacement.handle & 0xFFFFFFFF) == renderbuffer);
 		return;
 	}
 #endif
@@ -2595,16 +2595,16 @@ HOOK_EXPORT void WINAPI glMultMatrixf(const GLfloat *m)
 	const reshade::api::resource_desc desc =
 		reshade::opengl::convert_resource_desc(GL_RENDERBUFFER, 1, samples, internalformat, width, height);
 
-	if (reshade::api::resource overwrite = reshade::opengl::make_resource_handle(GL_RENDERBUFFER, renderbuffer);
+	if (reshade::api::resource replacement = reshade::opengl::make_resource_handle(GL_RENDERBUFFER, renderbuffer);
 		g_current_context &&
 		reshade::invoke_addon_event<reshade::addon_event::create_resource>(
 			g_current_context,
 			desc,
 			nullptr,
 			reshade::api::resource_usage::general,
-			static_cast<reshade::api::resource *>(g_current_context->_current_event_handle = &overwrite)))
+			static_cast<reshade::api::resource *>(g_current_context->_current_event_handle = &replacement)))
 	{
-		assert((overwrite.handle & 0xFFFFFFFF) == renderbuffer);
+		assert((replacement.handle & 0xFFFFFFFF) == renderbuffer);
 		return;
 	}
 #endif
@@ -3022,16 +3022,16 @@ HOOK_EXPORT void WINAPI glRectsv(const GLshort *v1, const GLshort *v2)
 	const reshade::api::resource_desc desc =
 		reshade::opengl::convert_resource_desc(target, 1, 1, internalformat, width, height);
 
-	if (reshade::api::resource overwrite = reshade::opengl::make_resource_handle(target, object);
+	if (reshade::api::resource replacement = reshade::opengl::make_resource_handle(target, object);
 		g_current_context &&
 		reshade::invoke_addon_event<reshade::addon_event::create_resource>(
 			g_current_context,
 			desc,
 			nullptr,
 			reshade::api::resource_usage::general,
-			static_cast<reshade::api::resource *>(g_current_context->_current_event_handle = &overwrite)))
+			static_cast<reshade::api::resource *>(g_current_context->_current_event_handle = &replacement)))
 	{
-		assert((overwrite.handle >> 40) == target && (overwrite.handle & 0xFFFFFFFF) == object);
+		assert((replacement.handle >> 40) == target && (replacement.handle & 0xFFFFFFFF) == object);
 		return;
 	}
 #endif
@@ -3060,16 +3060,16 @@ HOOK_EXPORT void WINAPI glRectsv(const GLshort *v1, const GLshort *v2)
 	const reshade::api::resource_desc desc =
 		reshade::opengl::convert_resource_desc(target, 1, samples, internalformat, width, height);
 
-	if (reshade::api::resource overwrite = reshade::opengl::make_resource_handle(target, object);
+	if (reshade::api::resource replacement = reshade::opengl::make_resource_handle(target, object);
 		g_current_context &&
 		reshade::invoke_addon_event<reshade::addon_event::create_resource>(
 			g_current_context,
 			desc,
 			nullptr,
 			reshade::api::resource_usage::general,
-			static_cast<reshade::api::resource *>(g_current_context->_current_event_handle = &overwrite)))
+			static_cast<reshade::api::resource *>(g_current_context->_current_event_handle = &replacement)))
 	{
-		assert((overwrite.handle >> 40) == target && (overwrite.handle & 0xFFFFFFFF) == object);
+		assert((replacement.handle >> 40) == target && (replacement.handle & 0xFFFFFFFF) == object);
 		return;
 	}
 #endif
@@ -3267,13 +3267,13 @@ HOOK_EXPORT void WINAPI glShadeModel(GLenum mode)
 		}
 
 
-		if (reshade::api::pipeline overwrite = { shader };
+		if (reshade::api::pipeline replacement = { shader };
 			reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(
 				g_current_context,
 				desc,
-				static_cast<reshade::api::pipeline *>(g_current_context->_current_event_handle = &overwrite)))
+				static_cast<reshade::api::pipeline *>(g_current_context->_current_event_handle = &replacement)))
 		{
-			assert((overwrite.handle & 0xFFFFFFFF) == shader);
+			assert((replacement.handle & 0xFFFFFFFF) == shader);
 			return;
 		}
 	}
@@ -3338,7 +3338,7 @@ HOOK_EXPORT void WINAPI glStencilOp(GLenum fail, GLenum zfail, GLenum zpass)
 	const reshade::api::resource_view_desc desc =
 		reshade::opengl::convert_resource_view_desc(target, internalformat, 0, 0);
 
-	if (reshade::api::resource_view overwrite = reshade::opengl::make_resource_view_handle(target, object);
+	if (reshade::api::resource_view replacement = reshade::opengl::make_resource_view_handle(target, object);
 		g_current_context &&
 		reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(
 			g_current_context,
@@ -3346,9 +3346,9 @@ HOOK_EXPORT void WINAPI glStencilOp(GLenum fail, GLenum zfail, GLenum zpass)
 			reshade::opengl::make_resource_handle(GL_BUFFER, buffer),
 			reshade::api::resource_usage::undefined,
 			desc,
-			static_cast<reshade::api::resource_view *>(g_current_context->_current_event_handle = &overwrite)))
+			static_cast<reshade::api::resource_view *>(g_current_context->_current_event_handle = &replacement)))
 	{
-		assert((overwrite.handle >> 40) == target && (overwrite.handle & 0xFFFFFFFF) == object);
+		assert((replacement.handle >> 40) == target && (replacement.handle & 0xFFFFFFFF) == object);
 		return;
 	}
 #endif
@@ -3374,16 +3374,16 @@ HOOK_EXPORT void WINAPI glStencilOp(GLenum fail, GLenum zfail, GLenum zpass)
 	const reshade::api::resource_view_desc desc =
 		reshade::opengl::convert_resource_view_desc(GL_TEXTURE_BUFFER, internalformat, 0, 0);
 
-	if (reshade::api::resource_view overwrite = reshade::opengl::make_resource_view_handle(GL_TEXTURE_BUFFER, texture);
+	if (reshade::api::resource_view replacement = reshade::opengl::make_resource_view_handle(GL_TEXTURE_BUFFER, texture);
 		g_current_context &&
 		reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(
 			g_current_context,
 			reshade::opengl::make_resource_handle(GL_BUFFER, buffer),
 			reshade::api::resource_usage::undefined,
 			desc,
-			static_cast<reshade::api::resource_view *>(g_current_context->_current_event_handle = &overwrite)))
+			static_cast<reshade::api::resource_view *>(g_current_context->_current_event_handle = &replacement)))
 	{
-		assert((overwrite.handle & 0xFFFFFFFF) == texture);
+		assert((replacement.handle & 0xFFFFFFFF) == texture);
 		return;
 	}
 #endif
@@ -3413,16 +3413,16 @@ HOOK_EXPORT void WINAPI glStencilOp(GLenum fail, GLenum zfail, GLenum zpass)
 	const reshade::api::resource_view_desc desc =
 		reshade::opengl::convert_resource_view_desc(target, internalformat, offset, size);
 
-	if (reshade::api::resource_view overwrite = reshade::opengl::make_resource_view_handle(target, object);
+	if (reshade::api::resource_view replacement = reshade::opengl::make_resource_view_handle(target, object);
 		g_current_context &&
 		reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(
 			g_current_context,
 			reshade::opengl::make_resource_handle(GL_BUFFER, buffer),
 			reshade::api::resource_usage::undefined,
 			desc,
-			static_cast<reshade::api::resource_view *>(g_current_context->_current_event_handle = &overwrite)))
+			static_cast<reshade::api::resource_view *>(g_current_context->_current_event_handle = &replacement)))
 	{
-		assert((overwrite.handle >> 40) == target && (overwrite.handle & 0xFFFFFFFF) == object);
+		assert((replacement.handle >> 40) == target && (replacement.handle & 0xFFFFFFFF) == object);
 		return;
 	}
 #endif
@@ -3448,16 +3448,16 @@ HOOK_EXPORT void WINAPI glStencilOp(GLenum fail, GLenum zfail, GLenum zpass)
 	const reshade::api::resource_view_desc desc =
 		reshade::opengl::convert_resource_view_desc(GL_TEXTURE_BUFFER, internalformat, offset, size);
 
-	if (reshade::api::resource_view overwrite = reshade::opengl::make_resource_view_handle(GL_TEXTURE_BUFFER, texture);
+	if (reshade::api::resource_view replacement = reshade::opengl::make_resource_view_handle(GL_TEXTURE_BUFFER, texture);
 		g_current_context &&
 		reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(
 			g_current_context,
 			reshade::opengl::make_resource_handle(GL_BUFFER, buffer),
 			reshade::api::resource_usage::undefined,
 			desc,
-			static_cast<reshade::api::resource_view *>(g_current_context->_current_event_handle = &overwrite)))
+			static_cast<reshade::api::resource_view *>(g_current_context->_current_event_handle = &replacement)))
 	{
-		assert((overwrite.handle & 0xFFFFFFFF) == texture);
+		assert((replacement.handle & 0xFFFFFFFF) == texture);
 		return;
 	}
 #endif
@@ -3731,16 +3731,16 @@ HOOK_EXPORT void WINAPI glTexImage1D(GLenum target, GLint level, GLint internalf
 	const reshade::api::resource_desc desc = reshade::opengl::convert_resource_desc(target, 1, 1, static_cast<GLenum>(internalformat), width);
 	const reshade::api::subresource_data initial_data = reshade::opengl::convert_mapped_subresource(format, type, pixels, width);
 
-	if (reshade::api::resource overwrite = reshade::opengl::make_resource_handle(target, object);
+	if (reshade::api::resource replacement = reshade::opengl::make_resource_handle(target, object);
 		g_current_context &&
 		reshade::invoke_addon_event<reshade::addon_event::create_resource>(
 			g_current_context,
 			desc,
 			(unpack == 0 && pixels != nullptr) ? &initial_data : nullptr,
 			reshade::api::resource_usage::general,
-			static_cast<reshade::api::resource *>(g_current_context->_current_event_handle = &overwrite)))
+			static_cast<reshade::api::resource *>(g_current_context->_current_event_handle = &replacement)))
 	{
-		assert((overwrite.handle >> 40) == target && (overwrite.handle & 0xFFFFFFFF) == object);
+		assert((replacement.handle >> 40) == target && (replacement.handle & 0xFFFFFFFF) == object);
 		return;
 	}
 #endif
@@ -3795,16 +3795,16 @@ HOOK_EXPORT void WINAPI glTexImage2D(GLenum target, GLint level, GLint internalf
 	const reshade::api::subresource_data initial_data = reshade::opengl::convert_mapped_subresource(format, type, pixels, width, height);
 
 	// TODO: This handles every mipmap of a texture initialized via multiple calls to 'glTexImage2D' as a separate resource, which is not technically correct
-	if (reshade::api::resource overwrite = reshade::opengl::make_resource_handle(target, object);
+	if (reshade::api::resource replacement = reshade::opengl::make_resource_handle(target, object);
 		g_current_context &&
 		reshade::invoke_addon_event<reshade::addon_event::create_resource>(
 			g_current_context,
 			desc,
 			(unpack == 0 && pixels != nullptr) ? &initial_data : nullptr,
 			reshade::api::resource_usage::general,
-			static_cast<reshade::api::resource *>(g_current_context->_current_event_handle = &overwrite)))
+			static_cast<reshade::api::resource *>(g_current_context->_current_event_handle = &replacement)))
 	{
-		assert((overwrite.handle >> 40) == target && (overwrite.handle & 0xFFFFFFFF) == object);
+		assert((replacement.handle >> 40) == target && (replacement.handle & 0xFFFFFFFF) == object);
 		return;
 	}
 #endif
@@ -3833,16 +3833,16 @@ HOOK_EXPORT void WINAPI glTexImage2D(GLenum target, GLint level, GLint internalf
 	const reshade::api::resource_desc desc =
 		reshade::opengl::convert_resource_desc(target, 1, samples, internalformat, width, height);
 
-	if (reshade::api::resource overwrite = reshade::opengl::make_resource_handle(target, object);
+	if (reshade::api::resource replacement = reshade::opengl::make_resource_handle(target, object);
 		g_current_context &&
 		reshade::invoke_addon_event<reshade::addon_event::create_resource>(
 			g_current_context,
 			desc,
 			nullptr,
 			reshade::api::resource_usage::general,
-			static_cast<reshade::api::resource *>(g_current_context->_current_event_handle = &overwrite)))
+			static_cast<reshade::api::resource *>(g_current_context->_current_event_handle = &replacement)))
 	{
-		assert((overwrite.handle >> 40) == target && (overwrite.handle & 0xFFFFFFFF) == object);
+		assert((replacement.handle >> 40) == target && (replacement.handle & 0xFFFFFFFF) == object);
 		return;
 	}
 #endif
@@ -3896,16 +3896,16 @@ HOOK_EXPORT void WINAPI glTexImage2D(GLenum target, GLint level, GLint internalf
 	const reshade::api::resource_desc desc = reshade::opengl::convert_resource_desc(target, 1, 1, static_cast<GLenum>(internalformat), width, height, depth);
 	const reshade::api::subresource_data initial_data = reshade::opengl::convert_mapped_subresource(format, type, pixels, width, height, depth);
 
-	if (reshade::api::resource overwrite = reshade::opengl::make_resource_handle(target, object);
+	if (reshade::api::resource replacement = reshade::opengl::make_resource_handle(target, object);
 		g_current_context &&
 		reshade::invoke_addon_event<reshade::addon_event::create_resource>(
 			g_current_context,
 			desc,
 			(unpack == 0 && pixels != nullptr) ? &initial_data : nullptr,
 			reshade::api::resource_usage::general,
-			static_cast<reshade::api::resource *>(g_current_context->_current_event_handle = &overwrite)))
+			static_cast<reshade::api::resource *>(g_current_context->_current_event_handle = &replacement)))
 	{
-		assert((overwrite.handle >> 40) == target && (overwrite.handle & 0xFFFFFFFF) == object);
+		assert((replacement.handle >> 40) == target && (replacement.handle & 0xFFFFFFFF) == object);
 		return;
 	}
 #endif
@@ -3934,16 +3934,16 @@ HOOK_EXPORT void WINAPI glTexImage2D(GLenum target, GLint level, GLint internalf
 	const reshade::api::resource_desc desc =
 		reshade::opengl::convert_resource_desc(target, 1, samples, internalformat, width, height, depth);
 
-	if (reshade::api::resource overwrite = reshade::opengl::make_resource_handle(target, object);
+	if (reshade::api::resource replacement = reshade::opengl::make_resource_handle(target, object);
 		g_current_context &&
 		reshade::invoke_addon_event<reshade::addon_event::create_resource>(
 			g_current_context,
 			desc,
 			nullptr,
 			reshade::api::resource_usage::general,
-			static_cast<reshade::api::resource *>(g_current_context->_current_event_handle = &overwrite)))
+			static_cast<reshade::api::resource *>(g_current_context->_current_event_handle = &replacement)))
 	{
-		assert((overwrite.handle >> 40) == target && (overwrite.handle & 0xFFFFFFFF) == object);
+		assert((replacement.handle >> 40) == target && (replacement.handle & 0xFFFFFFFF) == object);
 		return;
 	}
 #endif
@@ -4005,16 +4005,16 @@ HOOK_EXPORT void WINAPI glTexSubImage2D(GLenum target, GLint level, GLint xoffse
 	const reshade::api::resource_desc desc =
 		reshade::opengl::convert_resource_desc(target, levels, 1, internalformat, width);
 
-	if (reshade::api::resource overwrite = reshade::opengl::make_resource_handle(target, object);
+	if (reshade::api::resource replacement = reshade::opengl::make_resource_handle(target, object);
 		g_current_context &&
 		reshade::invoke_addon_event<reshade::addon_event::create_resource>(
 			g_current_context,
 			desc,
 			nullptr,
 			reshade::api::resource_usage::general,
-			static_cast<reshade::api::resource *>(g_current_context->_current_event_handle = &overwrite)))
+			static_cast<reshade::api::resource *>(g_current_context->_current_event_handle = &replacement)))
 	{
-		assert((overwrite.handle >> 40) == target && (overwrite.handle & 0xFFFFFFFF) == object);
+		assert((replacement.handle >> 40) == target && (replacement.handle & 0xFFFFFFFF) == object);
 		return;
 	}
 #endif
@@ -4043,16 +4043,16 @@ HOOK_EXPORT void WINAPI glTexSubImage2D(GLenum target, GLint level, GLint xoffse
 	const reshade::api::resource_desc desc =
 		reshade::opengl::convert_resource_desc(target, levels, 1, internalformat, width, height);
 
-	if (reshade::api::resource overwrite = reshade::opengl::make_resource_handle(target, object);
+	if (reshade::api::resource replacement = reshade::opengl::make_resource_handle(target, object);
 		g_current_context &&
 		reshade::invoke_addon_event<reshade::addon_event::create_resource>(
 			g_current_context,
 			desc,
 			nullptr,
 			reshade::api::resource_usage::general,
-			static_cast<reshade::api::resource *>(g_current_context->_current_event_handle = &overwrite)))
+			static_cast<reshade::api::resource *>(g_current_context->_current_event_handle = &replacement)))
 	{
-		assert((overwrite.handle >> 40) == target && (overwrite.handle & 0xFFFFFFFF) == object);
+		assert((replacement.handle >> 40) == target && (replacement.handle & 0xFFFFFFFF) == object);
 		return;
 	}
 #endif
@@ -4081,16 +4081,16 @@ HOOK_EXPORT void WINAPI glTexSubImage2D(GLenum target, GLint level, GLint xoffse
 	const reshade::api::resource_desc desc =
 		reshade::opengl::convert_resource_desc(target, 1, samples, internalformat, width, height);
 
-	if (reshade::api::resource overwrite = reshade::opengl::make_resource_handle(target, object);
+	if (reshade::api::resource replacement = reshade::opengl::make_resource_handle(target, object);
 		g_current_context &&
 		reshade::invoke_addon_event<reshade::addon_event::create_resource>(
 			g_current_context,
 			desc,
 			nullptr,
 			reshade::api::resource_usage::general,
-			static_cast<reshade::api::resource *>(g_current_context->_current_event_handle = &overwrite)))
+			static_cast<reshade::api::resource *>(g_current_context->_current_event_handle = &replacement)))
 	{
-		assert((overwrite.handle >> 40) == target && (overwrite.handle & 0xFFFFFFFF) == object);
+		assert((replacement.handle >> 40) == target && (replacement.handle & 0xFFFFFFFF) == object);
 		return;
 	}
 #endif
@@ -4119,16 +4119,16 @@ HOOK_EXPORT void WINAPI glTexSubImage2D(GLenum target, GLint level, GLint xoffse
 	const reshade::api::resource_desc desc =
 		reshade::opengl::convert_resource_desc(target, levels, 1, internalformat, width, height, depth);
 
-	if (reshade::api::resource overwrite = reshade::opengl::make_resource_handle(target, object);
+	if (reshade::api::resource replacement = reshade::opengl::make_resource_handle(target, object);
 		g_current_context &&
 		reshade::invoke_addon_event<reshade::addon_event::create_resource>(
 			g_current_context,
 			desc,
 			nullptr,
 			reshade::api::resource_usage::general,
-			static_cast<reshade::api::resource *>(g_current_context->_current_event_handle = &overwrite)))
+			static_cast<reshade::api::resource *>(g_current_context->_current_event_handle = &replacement)))
 	{
-		assert((overwrite.handle >> 40) == target && (overwrite.handle & 0xFFFFFFFF) == object);
+		assert((replacement.handle >> 40) == target && (replacement.handle & 0xFFFFFFFF) == object);
 		return;
 	}
 #endif
@@ -4157,16 +4157,16 @@ HOOK_EXPORT void WINAPI glTexSubImage2D(GLenum target, GLint level, GLint xoffse
 	const reshade::api::resource_desc desc =
 		reshade::opengl::convert_resource_desc(target, 1, samples, internalformat, width, height, depth);
 
-	if (reshade::api::resource overwrite = reshade::opengl::make_resource_handle(target, object);
+	if (reshade::api::resource replacement = reshade::opengl::make_resource_handle(target, object);
 		g_current_context &&
 		reshade::invoke_addon_event<reshade::addon_event::create_resource>(
 			g_current_context,
 			desc,
 			nullptr,
 			reshade::api::resource_usage::general,
-			static_cast<reshade::api::resource *>(g_current_context->_current_event_handle = &overwrite)))
+			static_cast<reshade::api::resource *>(g_current_context->_current_event_handle = &replacement)))
 	{
-		assert((overwrite.handle >> 40) == target && (overwrite.handle & 0xFFFFFFFF) == object);
+		assert((replacement.handle >> 40) == target && (replacement.handle & 0xFFFFFFFF) == object);
 		return;
 	}
 #endif
@@ -4192,16 +4192,16 @@ HOOK_EXPORT void WINAPI glTexSubImage2D(GLenum target, GLint level, GLint xoffse
 	const reshade::api::resource_desc desc =
 		reshade::opengl::convert_resource_desc(GL_TEXTURE_1D, levels, 1, internalformat, width);
 
-	if (reshade::api::resource overwrite = reshade::opengl::make_resource_handle(GL_TEXTURE_1D, texture);
+	if (reshade::api::resource replacement = reshade::opengl::make_resource_handle(GL_TEXTURE_1D, texture);
 		g_current_context &&
 		reshade::invoke_addon_event<reshade::addon_event::create_resource>(
 			g_current_context,
 			desc,
 			nullptr,
 			reshade::api::resource_usage::general,
-			static_cast<reshade::api::resource *>(g_current_context->_current_event_handle = &overwrite)))
+			static_cast<reshade::api::resource *>(g_current_context->_current_event_handle = &replacement)))
 	{
-		assert((overwrite.handle & 0xFFFFFFFF) == texture);
+		assert((replacement.handle & 0xFFFFFFFF) == texture);
 		return;
 	}
 #endif
@@ -4227,16 +4227,16 @@ HOOK_EXPORT void WINAPI glTexSubImage2D(GLenum target, GLint level, GLint xoffse
 	const reshade::api::resource_desc desc =
 		reshade::opengl::convert_resource_desc(GL_TEXTURE_2D, levels, 1, internalformat, width, height);
 
-	if (reshade::api::resource overwrite = reshade::opengl::make_resource_handle(GL_TEXTURE_2D, texture);
+	if (reshade::api::resource replacement = reshade::opengl::make_resource_handle(GL_TEXTURE_2D, texture);
 		g_current_context &&
 		reshade::invoke_addon_event<reshade::addon_event::create_resource>(
 			g_current_context,
 			desc,
 			nullptr,
 			reshade::api::resource_usage::general,
-			static_cast<reshade::api::resource *>(g_current_context->_current_event_handle = &overwrite)))
+			static_cast<reshade::api::resource *>(g_current_context->_current_event_handle = &replacement)))
 	{
-		assert((overwrite.handle & 0xFFFFFFFF) == texture);
+		assert((replacement.handle & 0xFFFFFFFF) == texture);
 		return;
 	}
 #endif
@@ -4262,16 +4262,16 @@ HOOK_EXPORT void WINAPI glTexSubImage2D(GLenum target, GLint level, GLint xoffse
 	const reshade::api::resource_desc desc =
 		reshade::opengl::convert_resource_desc(GL_TEXTURE_2D, 1, samples, internalformat, width, height);
 
-	if (reshade::api::resource overwrite = reshade::opengl::make_resource_handle(GL_TEXTURE_2D, texture);
+	if (reshade::api::resource replacement = reshade::opengl::make_resource_handle(GL_TEXTURE_2D, texture);
 		g_current_context &&
 		reshade::invoke_addon_event<reshade::addon_event::create_resource>(
 			g_current_context,
 			desc,
 			nullptr,
 			reshade::api::resource_usage::general,
-			static_cast<reshade::api::resource *>(g_current_context->_current_event_handle = &overwrite)))
+			static_cast<reshade::api::resource *>(g_current_context->_current_event_handle = &replacement)))
 	{
-		assert((overwrite.handle & 0xFFFFFFFF) == texture);
+		assert((replacement.handle & 0xFFFFFFFF) == texture);
 		return;
 	}
 #endif
@@ -4297,16 +4297,16 @@ HOOK_EXPORT void WINAPI glTexSubImage2D(GLenum target, GLint level, GLint xoffse
 	const reshade::api::resource_desc desc =
 		reshade::opengl::convert_resource_desc(GL_TEXTURE_3D, levels, 1, internalformat, width, height, depth);
 
-	if (reshade::api::resource overwrite = reshade::opengl::make_resource_handle(GL_TEXTURE_3D, texture);
+	if (reshade::api::resource replacement = reshade::opengl::make_resource_handle(GL_TEXTURE_3D, texture);
 		g_current_context &&
 		reshade::invoke_addon_event<reshade::addon_event::create_resource>(
 			g_current_context,
 			desc,
 			nullptr,
 			reshade::api::resource_usage::general,
-			static_cast<reshade::api::resource *>(g_current_context->_current_event_handle = &overwrite)))
+			static_cast<reshade::api::resource *>(g_current_context->_current_event_handle = &replacement)))
 	{
-		assert((overwrite.handle & 0xFFFFFFFF) == texture);
+		assert((replacement.handle & 0xFFFFFFFF) == texture);
 		return;
 	}
 #endif
@@ -4332,16 +4332,16 @@ HOOK_EXPORT void WINAPI glTexSubImage2D(GLenum target, GLint level, GLint xoffse
 	const reshade::api::resource_desc desc =
 		reshade::opengl::convert_resource_desc(GL_TEXTURE_3D, 1, samples, internalformat, width, height, depth);
 
-	if (reshade::api::resource overwrite = reshade::opengl::make_resource_handle(GL_TEXTURE_3D, texture);
+	if (reshade::api::resource replacement = reshade::opengl::make_resource_handle(GL_TEXTURE_3D, texture);
 		g_current_context &&
 		reshade::invoke_addon_event<reshade::addon_event::create_resource>(
 			g_current_context,
 			desc,
 			nullptr,
 			reshade::api::resource_usage::general,
-			static_cast<reshade::api::resource *>(g_current_context->_current_event_handle = &overwrite)))
+			static_cast<reshade::api::resource *>(g_current_context->_current_event_handle = &replacement)))
 	{
-		assert((overwrite.handle & 0xFFFFFFFF) == texture);
+		assert((replacement.handle & 0xFFFFFFFF) == texture);
 		return;
 	}
 #endif
@@ -4368,7 +4368,7 @@ HOOK_EXPORT void WINAPI glTexSubImage2D(GLenum target, GLint level, GLint xoffse
 	const reshade::api::resource_view_desc desc =
 		reshade::opengl::convert_resource_view_desc(target, internalformat, minlevel, numlevels, minlayer, numlayers);
 
-	if (reshade::api::resource_view overwrite = reshade::opengl::make_resource_view_handle(target, texture);
+	if (reshade::api::resource_view replacement = reshade::opengl::make_resource_view_handle(target, texture);
 		g_current_context &&
 		reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(
 			g_current_context,
@@ -4376,9 +4376,9 @@ HOOK_EXPORT void WINAPI glTexSubImage2D(GLenum target, GLint level, GLint xoffse
 			reshade::opengl::make_resource_handle(GL_TEXTURE, origtexture),
 			reshade::api::resource_usage::undefined,
 			desc,
-			static_cast<reshade::api::resource_view *>(g_current_context->_current_event_handle = &overwrite)))
+			static_cast<reshade::api::resource_view *>(g_current_context->_current_event_handle = &replacement)))
 	{
-		assert((overwrite.handle >> 40) == target && (overwrite.handle & 0xFFFFFFFF) == texture);
+		assert((replacement.handle >> 40) == target && (replacement.handle & 0xFFFFFFFF) == texture);
 		return;
 	}
 #endif

@@ -648,11 +648,11 @@ VkResult VKAPI_CALL vkCreateBuffer(VkDevice device, const VkBufferCreateInfo *pC
 	const reshade::api::resource_desc desc = reshade::vulkan::convert_resource_desc(*pCreateInfo);
 	assert(desc.heap == reshade::api::memory_heap::unknown);
 
-	if (reshade::api::resource overwrite = { 0 };
+	if (reshade::api::resource replacement = { 0 };
 		reshade::invoke_addon_event<reshade::addon_event::create_resource>(
-			device_impl, desc, nullptr, reshade::api::resource_usage::undefined, &overwrite))
+			device_impl, desc, nullptr, reshade::api::resource_usage::undefined, &replacement))
 	{
-		*pBuffer = (VkBuffer)overwrite.handle;
+		*pBuffer = (VkBuffer)replacement.handle;
 		return VK_SUCCESS;
 	}
 #endif
@@ -669,7 +669,9 @@ VkResult VKAPI_CALL vkCreateBuffer(VkDevice device, const VkBufferCreateInfo *pC
 	}
 	else
 	{
+#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "vkCreateBuffer" << " failed with error code " << result << '.';
+#endif
 	}
 
 	return result;
@@ -703,11 +705,11 @@ VkResult VKAPI_CALL vkCreateBufferView(VkDevice device, const VkBufferViewCreate
 #if RESHADE_ADDON
 	const reshade::api::resource_view_desc desc = reshade::vulkan::convert_resource_view_desc(*pCreateInfo);
 
-	if (reshade::api::resource_view overwrite = { 0 };
+	if (reshade::api::resource_view replacement = { 0 };
 		reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(
-			device_impl, reshade::api::resource { (uint64_t)pCreateInfo->buffer }, reshade::api::resource_usage::undefined, desc, &overwrite))
+			device_impl, reshade::api::resource { (uint64_t)pCreateInfo->buffer }, reshade::api::resource_usage::undefined, desc, &replacement))
 	{
-		*pView = (VkBufferView)overwrite.handle;
+		*pView = (VkBufferView)replacement.handle;
 		return VK_SUCCESS;
 	}
 #endif
@@ -724,7 +726,9 @@ VkResult VKAPI_CALL vkCreateBufferView(VkDevice device, const VkBufferViewCreate
 	}
 	else
 	{
+#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "vkCreateBufferView" << " failed with error code " << result << '.';
+#endif
 	}
 
 	return result;
@@ -759,11 +763,11 @@ VkResult VKAPI_CALL vkCreateImage(VkDevice device, const VkImageCreateInfo *pCre
 	const reshade::api::resource_desc desc = reshade::vulkan::convert_resource_desc(*pCreateInfo);
 	assert(desc.heap == reshade::api::memory_heap::unknown);
 
-	if (reshade::api::resource overwrite = { 0 };
+	if (reshade::api::resource replacement = { 0 };
 		reshade::invoke_addon_event<reshade::addon_event::create_resource>(
-			device_impl, desc, nullptr, pCreateInfo->initialLayout == VK_IMAGE_LAYOUT_PREINITIALIZED ? reshade::api::resource_usage::cpu_access : reshade::api::resource_usage::undefined, &overwrite))
+			device_impl, desc, nullptr, pCreateInfo->initialLayout == VK_IMAGE_LAYOUT_PREINITIALIZED ? reshade::api::resource_usage::cpu_access : reshade::api::resource_usage::undefined, &replacement))
 	{
-		*pImage = (VkImage)overwrite.handle;
+		*pImage = (VkImage)replacement.handle;
 		return VK_SUCCESS;
 	}
 #endif
@@ -780,7 +784,9 @@ VkResult VKAPI_CALL vkCreateImage(VkDevice device, const VkImageCreateInfo *pCre
 	}
 	else
 	{
+#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "vkCreateImage" << " failed with error code " << result << '.';
+#endif
 	}
 
 	return result;
@@ -814,11 +820,11 @@ VkResult VKAPI_CALL vkCreateImageView(VkDevice device, const VkImageViewCreateIn
 #if RESHADE_ADDON
 	const reshade::api::resource_view_desc desc = reshade::vulkan::convert_resource_view_desc(*pCreateInfo);
 
-	if (reshade::api::resource_view overwrite = { 0 };
+	if (reshade::api::resource_view replacement = { 0 };
 		reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(
-			device_impl, reshade::api::resource { (uint64_t)pCreateInfo->image }, reshade::api::resource_usage::undefined, desc, &overwrite))
+			device_impl, reshade::api::resource { (uint64_t)pCreateInfo->image }, reshade::api::resource_usage::undefined, desc, &replacement))
 	{
-		*pView = (VkImageView)overwrite.handle;
+		*pView = (VkImageView)replacement.handle;
 		return VK_SUCCESS;
 	}
 #endif
@@ -835,7 +841,9 @@ VkResult VKAPI_CALL vkCreateImageView(VkDevice device, const VkImageViewCreateIn
 	}
 	else
 	{
+#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "vkCreateImageView" << " failed with error code " << result << '.';
+#endif
 	}
 
 	return result;
@@ -881,10 +889,10 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 	{
 		const reshade::api::pipeline_desc desc = reshade::vulkan::convert_pipeline_desc(pCreateInfos[i]);
 
-		if (reshade::api::pipeline overwrite = { 0 };
-			reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(device_impl, desc, &overwrite))
+		if (reshade::api::pipeline replacement = { 0 };
+			reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(device_impl, desc, &replacement))
 		{
-			pPipelines[i] = (VkPipeline)overwrite.handle;
+			pPipelines[i] = (VkPipeline)replacement.handle;
 			continue;
 		}
 
@@ -895,7 +903,9 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 		}
 		else
 		{
+#if RESHADE_VERBOSE_LOG
 			LOG(WARN) << "vkCreateGraphicsPipelines" << " failed with error code " << result << '.';
+#endif
 
 			for (uint32_t k = 0; k < i; ++k)
 				vkDestroyPipeline(device, pPipelines[k], pAllocator);
@@ -921,10 +931,10 @@ VkResult VKAPI_CALL vkCreateComputePipelines(VkDevice device, VkPipelineCache pi
 	{
 		const reshade::api::pipeline_desc desc = reshade::vulkan::convert_pipeline_desc(pCreateInfos[i]);
 
-		if (reshade::api::pipeline overwrite = { 0 };
-			reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(device_impl, desc, &overwrite))
+		if (reshade::api::pipeline replacement = { 0 };
+			reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(device_impl, desc, &replacement))
 		{
-			pPipelines[i] = (VkPipeline)overwrite.handle;
+			pPipelines[i] = (VkPipeline)replacement.handle;
 			continue;
 		}
 
@@ -935,7 +945,9 @@ VkResult VKAPI_CALL vkCreateComputePipelines(VkDevice device, VkPipelineCache pi
 		}
 		else
 		{
+#if RESHADE_VERBOSE_LOG
 			LOG(WARN) << "vkCreateComputePipelines" << " failed with error code " << result << '.';
+#endif
 
 			for (uint32_t k = 0; k < i; ++k)
 				vkDestroyPipeline(device, pPipelines[k], pAllocator);
@@ -968,11 +980,11 @@ VkResult VKAPI_CALL vkCreateSampler(VkDevice device, const VkSamplerCreateInfo *
 #if RESHADE_ADDON
 	const reshade::api::sampler_desc desc = reshade::vulkan::convert_sampler_desc(*pCreateInfo);
 
-	if (reshade::api::sampler overwrite = { 0 };
+	if (reshade::api::sampler replacement = { 0 };
 		reshade::invoke_addon_event<reshade::addon_event::create_sampler>(
-			device_impl, desc, &overwrite))
+			device_impl, desc, &replacement))
 	{
-		*pSampler = (VkSampler)overwrite.handle;
+		*pSampler = (VkSampler)replacement.handle;
 		return VK_SUCCESS;
 	}
 #endif
@@ -987,7 +999,9 @@ VkResult VKAPI_CALL vkCreateSampler(VkDevice device, const VkSamplerCreateInfo *
 	}
 	else
 	{
+#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "vkCreateSampler" << " failed with error code " << result << '.';
+#endif
 	}
 
 	return result;
@@ -1084,7 +1098,9 @@ VkResult VKAPI_CALL vkCreateFramebuffer(VkDevice device, const VkFramebufferCrea
 	}
 	else
 	{
+#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "vkCreateFramebuffer" << " failed with error code " << result << '.';
+#endif
 	}
 
 	return result;
@@ -1134,7 +1150,9 @@ VkResult VKAPI_CALL vkCreateRenderPass(VkDevice device, const VkRenderPassCreate
 	}
 	else
 	{
+#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "vkCreateRenderPass" << " failed with error code " << result << '.';
+#endif
 	}
 
 	return result;
@@ -1172,7 +1190,9 @@ VkResult VKAPI_CALL vkCreateRenderPass2(VkDevice device, const VkRenderPassCreat
 	}
 	else
 	{
+#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "vkCreateRenderPass2" << " failed with error code " << result << '.';
+#endif
 	}
 
 	return result;
@@ -1208,7 +1228,9 @@ VkResult VKAPI_CALL vkAllocateCommandBuffers(VkDevice device, const VkCommandBuf
 	}
 	else
 	{
+#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "vkAllocateCommandBuffers" << " failed with error code " << result << '.';
+#endif
 	}
 
 	return result;
