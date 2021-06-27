@@ -50,6 +50,12 @@ namespace reshade
 		/// </summary>
 		init_swapchain,
 		/// <summary>
+		/// Called before 'IDirect3D9::CreateDevice(Ex)', 'IDirect3D9Device::CreateAdditionalSwapChain', 'IDXGIFactory(2)::CreateSwapChain(...)', 'glMakeCurrent' or 'vkCreateSwapchainKHR'.
+		/// To overwrite the swap chain description, modify <c>buffer_desc</c> in the callback and return <c>true</c>.
+		/// <para>Callback function signature: <c>bool (api::resource_desc *buffer_desc)</c></para>
+		/// </summary>
+		create_swapchain,
+		/// <summary>
 		/// Called on swapchain destruction, before last 'IDirect3DSwapChain9::Release', 'IDXGISwapChain::Release' or 'vkDestroySwapchainKHR'.
 		/// <para>Callback function signature: <c>void (api::swapchain *swapchain)</c></para>
 		/// </summary>
@@ -379,12 +385,17 @@ namespace reshade
 
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::init_device, api::device *device);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::destroy_device, api::device *device);
+
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::init_command_list, api::command_list *cmd_list);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::destroy_command_list, api::command_list *cmd_list);
+
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::init_command_queue, api::command_queue *queue);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::destroy_command_queue, api::command_queue *queue);
+
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::init_swapchain, api::swapchain *swapchain);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::create_swapchain, api::resource_desc *buffer_desc);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::destroy_swapchain, api::swapchain *swapchain);
+
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::init_effect_runtime, api::effect_runtime *runtime);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::destroy_effect_runtime, api::effect_runtime *runtime);
 

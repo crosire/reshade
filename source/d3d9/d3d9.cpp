@@ -8,6 +8,7 @@
 #include "hook_manager.hpp"
 #include "d3d9_device.hpp"
 #include "d3d9_swapchain.hpp"
+#include "reshade_api_type_convert.hpp"
 
 // These are defined in d3d9.h, but we want to use them as function names below
 #undef IDirect3D9_CreateDevice
@@ -61,6 +62,35 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d
 	LOG(INFO) << "  | FullScreen_RefreshRateInHz              | " << std::setw(39) << pp.FullScreen_RefreshRateInHz << " |";
 	LOG(INFO) << "  | PresentationInterval                    | " << std::setw(39) << std::hex << pp.PresentationInterval << std::dec << " |";
 	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+
+#if RESHADE_ADDON
+	reshade::api::resource_desc buffer_desc = {};
+	buffer_desc.type = reshade::api::resource_type::surface;
+	buffer_desc.texture.width = pp.BackBufferWidth;
+	buffer_desc.texture.height = pp.BackBufferHeight;
+	buffer_desc.texture.depth_or_layers = 1;
+	buffer_desc.texture.levels = 1;
+	buffer_desc.texture.format = reshade::d3d9::convert_format(pp.BackBufferFormat);
+	buffer_desc.heap = reshade::api::memory_heap::gpu_only;
+	buffer_desc.usage = reshade::api::resource_usage::render_target;
+
+	if (pp.MultiSampleType >= D3DMULTISAMPLE_2_SAMPLES)
+		buffer_desc.texture.samples = static_cast<uint16_t>(pp.MultiSampleType);
+	else
+		buffer_desc.texture.samples = 1;
+
+	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(&buffer_desc))
+	{
+		pp.BackBufferWidth = buffer_desc.texture.width;
+		pp.BackBufferHeight = buffer_desc.texture.height;
+		pp.BackBufferFormat = reshade::d3d9::convert_format(buffer_desc.texture.format);
+
+		if (buffer_desc.texture.samples > 1)
+			pp.MultiSampleType = static_cast<D3DMULTISAMPLE_TYPE>(buffer_desc.texture.samples);
+		else
+			pp.MultiSampleType = D3DMULTISAMPLE_NONE;
+	}
+#endif
 
 	if (reshade::global_config().get("APP", "ForceVSync"))
 	{

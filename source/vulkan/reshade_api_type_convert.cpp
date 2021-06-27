@@ -538,7 +538,7 @@ void reshade::vulkan::convert_usage_to_image_usage_flags(api::resource_usage usa
 	else
 		image_flags &= ~VK_IMAGE_USAGE_STORAGE_BIT;
 }
-static inline void convert_image_usage_flags_to_usage(const VkImageUsageFlags image_flags, reshade::api::resource_usage &usage)
+void reshade::vulkan::convert_image_usage_flags_to_usage(const VkImageUsageFlags image_flags, reshade::api::resource_usage &usage)
 {
 	using namespace reshade;
 
@@ -587,7 +587,7 @@ void reshade::vulkan::convert_usage_to_buffer_usage_flags(api::resource_usage us
 	else
 		buffer_flags &= ~VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 }
-static inline void convert_buffer_usage_flags_to_usage(const VkBufferUsageFlags buffer_flags, reshade::api::resource_usage &usage)
+void reshade::vulkan::convert_buffer_usage_flags_to_usage(const VkBufferUsageFlags buffer_flags, reshade::api::resource_usage &usage)
 {
 	using namespace reshade;
 

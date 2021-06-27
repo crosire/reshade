@@ -19,6 +19,8 @@ namespace reshade::vulkan
 
 	auto convert_access_to_usage(VkAccessFlags flags) -> api::resource_usage;
 	auto convert_image_layout_to_usage(VkImageLayout layout) -> api::resource_usage;
+	void convert_image_usage_flags_to_usage(const VkImageUsageFlags image_flags, api::resource_usage &usage);
+	void convert_buffer_usage_flags_to_usage(const VkBufferUsageFlags buffer_flags, api::resource_usage &usage);
 
 	auto convert_usage_to_access(api::resource_usage state) -> VkAccessFlags;
 	auto convert_usage_to_image_layout(api::resource_usage state) -> VkImageLayout;
