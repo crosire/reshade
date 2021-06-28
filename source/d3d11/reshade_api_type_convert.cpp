@@ -902,7 +902,7 @@ reshade::api::resource_view_desc reshade::d3d11::convert_resource_view_desc(cons
 
 void reshade::d3d11::convert_pipeline_desc(const api::pipeline_desc &desc, D3D11_BLEND_DESC &internal_desc)
 {
-	assert(desc.type == api::pipeline_stage::output_merger);
+	assert(desc.type == api::pipeline_stage::all_graphics || desc.type == api::pipeline_stage::output_merger);
 	internal_desc.AlphaToCoverageEnable = desc.graphics.blend_state.alpha_to_coverage_enable;
 	internal_desc.IndependentBlendEnable = TRUE;
 
@@ -920,7 +920,7 @@ void reshade::d3d11::convert_pipeline_desc(const api::pipeline_desc &desc, D3D11
 }
 void reshade::d3d11::convert_pipeline_desc(const api::pipeline_desc &desc, D3D11_BLEND_DESC1 &internal_desc)
 {
-	assert(desc.type == api::pipeline_stage::output_merger);
+	assert(desc.type == api::pipeline_stage::all_graphics || desc.type == api::pipeline_stage::output_merger);
 	internal_desc.AlphaToCoverageEnable = desc.graphics.blend_state.alpha_to_coverage_enable;
 	internal_desc.IndependentBlendEnable = TRUE;
 
@@ -940,7 +940,7 @@ void reshade::d3d11::convert_pipeline_desc(const api::pipeline_desc &desc, D3D11
 }
 void reshade::d3d11::convert_pipeline_desc(const api::pipeline_desc &desc, D3D11_RASTERIZER_DESC &internal_desc)
 {
-	assert(desc.type == api::pipeline_stage::rasterizer);
+	assert(desc.type == api::pipeline_stage::all_graphics || desc.type == api::pipeline_stage::rasterizer);
 	internal_desc.FillMode = convert_fill_mode(desc.graphics.rasterizer_state.fill_mode);
 	internal_desc.CullMode = convert_cull_mode(desc.graphics.rasterizer_state.cull_mode);
 	internal_desc.FrontCounterClockwise = desc.graphics.rasterizer_state.front_counter_clockwise;
@@ -954,7 +954,7 @@ void reshade::d3d11::convert_pipeline_desc(const api::pipeline_desc &desc, D3D11
 }
 void reshade::d3d11::convert_pipeline_desc(const api::pipeline_desc &desc, D3D11_DEPTH_STENCIL_DESC &internal_desc)
 {
-	assert(desc.type == api::pipeline_stage::depth_stencil);
+	assert(desc.type == api::pipeline_stage::all_graphics || desc.type == api::pipeline_stage::depth_stencil);
 	internal_desc.DepthEnable = desc.graphics.depth_stencil_state.depth_enable;
 	internal_desc.DepthWriteMask = desc.graphics.depth_stencil_state.depth_write_mask ? D3D11_DEPTH_WRITE_MASK_ALL : D3D11_DEPTH_WRITE_MASK_ZERO;
 	internal_desc.DepthFunc = convert_compare_op(desc.graphics.depth_stencil_state.depth_func);

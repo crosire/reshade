@@ -786,7 +786,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDepthStencilState(const D3D11_DEPTH
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateRasterizerState(const D3D11_RASTERIZER_DESC *pRasterizerDesc, ID3D11RasterizerState **ppRasterizerState)
 {
 #if RESHADE_ADDON
-	if (ppRasterizerState != nullptr) // This can happen when application only wants to validate input parameters
+	if (ppRasterizerState == nullptr) // This can happen when application only wants to validate input parameters
 		return _orig->CreateRasterizerState(pRasterizerDesc, nullptr);
 
 	const reshade::api::pipeline_desc desc = reshade::d3d11::convert_pipeline_desc(pRasterizerDesc);
