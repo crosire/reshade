@@ -225,7 +225,7 @@ static void on_init_device(device *device)
 {
 	state_tracking_context &device_state = device->get_user_data<state_tracking_context>(state_tracking_context::GUID);
 
-	const reshade::ini_file &config = reshade::global_config();
+	const ini_file &config = reshade::global_config();
 	config.get("DEPTH", "DisableINTZ", s_disable_intz);
 	config.get("DEPTH", "DepthCopyBeforeClears", device_state.preserve_depth_buffers);
 	config.get("DEPTH", "DepthCopyAtClearIndex", device_state.force_clear_index);
@@ -758,7 +758,7 @@ static void draw_debug_menu(effect_runtime *runtime, void *)
 
 		on_init_effect_runtime(runtime);
 
-		reshade::ini_file &config = reshade::global_config();
+		ini_file &config = reshade::global_config();
 		config.set("DEPTH", "DisableINTZ", s_disable_intz);
 		config.set("DEPTH", "DepthCopyBeforeClears", device_state.preserve_depth_buffers);
 		config.set("DEPTH", "DepthCopyAtClearIndex", device_state.force_clear_index);

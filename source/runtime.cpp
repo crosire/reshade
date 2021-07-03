@@ -46,7 +46,7 @@ bool resolve_preset_path(std::filesystem::path &path)
 		return false;
 	// A non-existent path is valid for a new preset
 	// Otherwise ensure the file has a technique list, which should make it a preset
-	return !resolve_path(path) || reshade::ini_file::load_cache(path).has({}, "Techniques");
+	return !resolve_path(path) || ini_file::load_cache(path).has({}, "Techniques");
 }
 
 static bool find_file(const std::vector<std::filesystem::path> &search_paths, std::filesystem::path &path)
@@ -487,7 +487,7 @@ void reshade::runtime::on_present()
 	g_network_traffic = 0;
 }
 
-bool reshade::runtime::load_effect(const std::filesystem::path &source_file, const reshade::ini_file &preset, size_t effect_index, bool preprocess_required)
+bool reshade::runtime::load_effect(const std::filesystem::path &source_file, const ini_file &preset, size_t effect_index, bool preprocess_required)
 {
 	std::string attributes;
 	attributes += "app=" + g_target_executable_path.stem().u8string() + ';';

@@ -20,9 +20,11 @@ struct ImGuiContext;
 #include <functional>
 #include <filesystem>
 
+class ini_file;
+
 namespace reshade
 {
-	class ini_file; // Forward declarations to avoid excessive #include
+	// Forward declarations to avoid excessive #include
 	struct effect;
 	struct uniform;
 	struct texture;
@@ -192,7 +194,7 @@ namespace reshade
 		/// <param name="source_file">The path to an effect source code file.</param>
 		/// <param name="preset">The preset to be used to fill specialization constants or check whether loading can be skipped.</param>
 		/// <param name="effect_index">The ID of the effect.</param>
-		bool load_effect(const std::filesystem::path &source_file, const reshade::ini_file &preset, size_t effect_index, bool preprocess_required = false);
+		bool load_effect(const std::filesystem::path &source_file, const ini_file &preset, size_t effect_index, bool preprocess_required = false);
 		/// <summary>
 		/// Load all effects found in the effect search paths.
 		/// </summary>
