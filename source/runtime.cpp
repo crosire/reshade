@@ -525,7 +525,8 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	}
 
 	std::vector<std::string> preprocessor_definitions = _global_preprocessor_definitions;
-	preprocessor_definitions.insert(preprocessor_definitions.end(), _preset_preprocessor_definitions.begin(), _preset_preprocessor_definitions.end());
+	// Insert preset preprocessor definitions before global ones, so that if there are duplicates, the preset ones are used (since 'add_macro_definition' succeeds only for the first occurance)
+	preprocessor_definitions.insert(preprocessor_definitions.begin(), _preset_preprocessor_definitions.begin(), _preset_preprocessor_definitions.end());
 	for (const std::string &definition : preprocessor_definitions)
 		attributes += definition + ';';
 
