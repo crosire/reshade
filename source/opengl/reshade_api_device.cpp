@@ -209,7 +209,7 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC hglrc) :
 	invoke_addon_event<addon_event::init_command_queue>(this);
 
 	// Communicate default state to add-ons
-	invoke_addon_event<addon_event::begin_render_pass>(this, make_render_pass_handle(0));
+	invoke_addon_event<addon_event::begin_render_pass>(this, reshade::api::render_pass { 0 }, make_framebuffer_handle(0));
 #endif
 }
 reshade::opengl::device_impl::~device_impl()
@@ -1035,13 +1035,18 @@ bool reshade::opengl::device_impl::create_query_pool(api::query_type type, uint3
 	*out = { reinterpret_cast<uintptr_t>(result) };
 	return true;
 }
-bool reshade::opengl::device_impl::create_render_pass(const api::render_pass_desc &desc, api::render_pass *out)
+bool reshade::opengl::device_impl::create_render_pass(const api::render_pass_desc &, api::render_pass *out)
+{
+	*out = { 0 };
+	return true;
+}
+bool reshade::opengl::device_impl::create_framebuffer(const api::framebuffer_desc &desc, api::framebuffer *out)
 {
 	if ((desc.render_targets[0].handle >> 40) == GL_FRAMEBUFFER_DEFAULT && (
 		// Can only use both the color and depth-stencil attachments of the default framebuffer together, not bind them individually
 		(desc.depth_stencil.handle == 0 || (desc.depth_stencil.handle >> 40) == GL_FRAMEBUFFER_DEFAULT)))
 	{
-		*out = make_render_pass_handle(0);
+		*out = make_framebuffer_handle(0);
 		return true;
 	}
 
@@ -1118,7 +1123,7 @@ bool reshade::opengl::device_impl::create_render_pass(const api::render_pass_des
 
 	if (status == GL_FRAMEBUFFER_COMPLETE)
 	{
-		*out = make_render_pass_handle(fbo_object, num_color_attachments, has_srgb_attachment ? 0x2 : 0);
+		*out = make_framebuffer_handle(fbo_object, num_color_attachments, has_srgb_attachment ? 0x2 : 0);
 		return true;
 	}
 	else
@@ -1222,6 +1227,10 @@ void reshade::opengl::device_impl::destroy_query_pool(api::query_pool handle)
 	delete reinterpret_cast<query_pool_impl *>(handle.handle);
 }
 void reshade::opengl::device_impl::destroy_render_pass(api::render_pass handle)
+{
+	assert(handle.handle == 0);
+}
+void reshade::opengl::device_impl::destroy_framebuffer(api::framebuffer handle)
 {
 	const GLuint object = handle.handle & 0xFFFFFFFF;
 	glDeleteFramebuffers(1, &object);
@@ -1581,10 +1590,10 @@ void reshade::opengl::device_impl::upload_texture_region(const api::subresource_
 	glPixelStorei(GL_UNPACK_SKIP_IMAGES, previous_unpack_skip_images);
 }
 
-bool reshade::opengl::device_impl::get_attachment(api::render_pass pass, api::attachment_type type, uint32_t index, api::resource_view *out) const
+bool reshade::opengl::device_impl::get_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index, api::resource_view *out) const
 {
-	assert(pass.handle != 0);
-	const GLuint fbo_object = pass.handle & 0xFFFFFFFF;
+	assert(fbo.handle != 0);
+	const GLuint fbo_object = fbo.handle & 0xFFFFFFFF;
 
 	// Zero is valid too, in which case the default frame buffer is referenced, instead of a FBO
 	if (fbo_object == 0)
@@ -1611,7 +1620,7 @@ bool reshade::opengl::device_impl::get_attachment(api::render_pass pass, api::at
 	{
 	case api::attachment_type::color:
 		attachment = GL_COLOR_ATTACHMENT0 + index;
-		if (index >= (pass.handle >> 40))
+		if (index >= (fbo.handle >> 40))
 		{
 			*out = make_resource_view_handle(0, 0);
 			return false;
@@ -1652,12 +1661,12 @@ bool reshade::opengl::device_impl::get_attachment(api::render_pass pass, api::at
 		return false;
 	}
 }
-uint32_t reshade::opengl::device_impl::get_attachment_count(api::render_pass pass, api::attachment_type type) const
+uint32_t reshade::opengl::device_impl::get_attachment_count(api::framebuffer fbo, api::attachment_type type) const
 {
-	assert(pass.handle != 0);
+	assert(fbo.handle != 0);
 
 	if (type == api::attachment_type::color)
-		return pass.handle >> 40;
+		return fbo.handle >> 40;
 	else
 		return 1;
 }

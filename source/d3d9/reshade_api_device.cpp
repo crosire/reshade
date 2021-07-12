@@ -36,9 +36,9 @@ reshade::d3d9::device_impl::device_impl(IDirect3DDevice9 *device) :
 	_orig->GetCreationParameters(&_cp);
 
 	// Maximum simultaneous number of render targets is typically 4 in D3D9
-	assert(_caps.NumSimultaneousRTs <= ARRAYSIZE(render_pass_impl::rtv));
+	assert(_caps.NumSimultaneousRTs <= ARRAYSIZE(framebuffer_impl::rtv));
 
-	_current_pass = new render_pass_impl();
+	_current_fbo = new framebuffer_impl();
 
 #if RESHADE_ADDON
 	addon::load_addons();
@@ -60,7 +60,7 @@ reshade::d3d9::device_impl::~device_impl()
 	addon::unload_addons();
 #endif
 
-	delete _current_pass;
+	delete _current_fbo;
 }
 
 void reshade::d3d9::device_impl::on_reset()
@@ -175,7 +175,7 @@ void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 		auto_depth_stencil->GetDesc(&old_desc);
 		D3DSURFACE_DESC new_desc = old_desc;
 
-		if (reshade::api::resource auto_depth_stencil_replacement_handle = { 0 };
+		if (api::resource auto_depth_stencil_replacement_handle = { 0 };
 			invoke_addon_event<addon_event::create_resource>(
 				this, convert_resource_desc(old_desc, 1, _caps), nullptr, api::resource_usage::depth_stencil, &auto_depth_stencil_replacement_handle))
 		{
@@ -191,11 +191,11 @@ void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 			_resources.register_object(auto_depth_stencil.get());
 		}
 
-		_current_pass->dsv = auto_depth_stencil.get();
+		_current_fbo->dsv = auto_depth_stencil.get();
 	}
 
 	// Communicate default state to add-ons
-	invoke_addon_event<addon_event::begin_render_pass>(this, reshade::api::render_pass { reinterpret_cast<uintptr_t>(_current_pass) });
+	invoke_addon_event<addon_event::begin_render_pass>(this, reshade::api::render_pass { 0 }, reshade::api::framebuffer { reinterpret_cast<uintptr_t>(_current_fbo) });
 #else
 	UNREFERENCED_PARAMETER(pp);
 #endif
@@ -998,9 +998,14 @@ bool reshade::d3d9::device_impl::create_query_pool(api::query_type type, uint32_
 	*out = { reinterpret_cast<uintptr_t>(result) };
 	return true;
 }
-bool reshade::d3d9::device_impl::create_render_pass(const api::render_pass_desc &desc, api::render_pass *out)
+bool reshade::d3d9::device_impl::create_render_pass(const api::render_pass_desc &, api::render_pass *out)
 {
-	const auto result = new render_pass_impl();
+	*out = { 0 };
+	return true;
+}
+bool reshade::d3d9::device_impl::create_framebuffer(const api::framebuffer_desc &desc, api::framebuffer *out)
+{
+	const auto result = new framebuffer_impl();
 
 	for (UINT i = 0; i < 8 && desc.render_targets[i].handle != 0; ++i)
 	{
@@ -1074,7 +1079,11 @@ void reshade::d3d9::device_impl::destroy_query_pool(api::query_pool handle)
 }
 void reshade::d3d9::device_impl::destroy_render_pass(api::render_pass handle)
 {
-	delete reinterpret_cast<render_pass_impl *>(handle.handle);
+	assert(handle.handle == 0);
+}
+void reshade::d3d9::device_impl::destroy_framebuffer(api::framebuffer handle)
+{
+	delete reinterpret_cast<framebuffer_impl *>(handle.handle);
 }
 void reshade::d3d9::device_impl::destroy_descriptor_sets(api::descriptor_set_layout, uint32_t count, const api::descriptor_set *sets)
 {
@@ -1412,10 +1421,10 @@ void reshade::d3d9::device_impl::upload_texture_region(const api::subresource_da
 	assert(false); // Not implemented
 }
 
-bool reshade::d3d9::device_impl::get_attachment(api::render_pass pass, api::attachment_type type, uint32_t index, api::resource_view *out) const
+bool reshade::d3d9::device_impl::get_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index, api::resource_view *out) const
 {
-	assert(pass.handle != 0);
-	const auto pass_impl = reinterpret_cast<const render_pass_impl *>(pass.handle);
+	assert(fbo.handle != 0);
+	const auto pass_impl = reinterpret_cast<const framebuffer_impl *>(fbo.handle);
 
 	if (type == api::attachment_type::color)
 	{
@@ -1446,10 +1455,10 @@ bool reshade::d3d9::device_impl::get_attachment(api::render_pass pass, api::atta
 		}
 	}
 }
-uint32_t reshade::d3d9::device_impl::get_attachment_count(api::render_pass pass, api::attachment_type type) const
+uint32_t reshade::d3d9::device_impl::get_attachment_count(api::framebuffer fbo, api::attachment_type type) const
 {
-	assert(pass.handle != 0);
-	const auto pass_impl = reinterpret_cast<const render_pass_impl *>(pass.handle);
+	assert(fbo.handle != 0);
+	const auto pass_impl = reinterpret_cast<const framebuffer_impl *>(fbo.handle);
 
 	if (type == api::attachment_type::color)
 	{

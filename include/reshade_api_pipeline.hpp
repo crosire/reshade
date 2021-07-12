@@ -450,41 +450,48 @@ namespace reshade { namespace api
 
 	/// <summary>
 	/// An opaque handle to a pipeline state object.
-	/// <para>Depending on the render API this can be a pointer to a 'IDirect3D(...)Shader', 'ID3D10(...)(Shader/State)', 'ID3D11(...)(Shader/State)', 'ID3D12PipelineState' object or a 'VkPipeline' handle.</para>
+	/// <para>In D3D9, D3D10, D3D11 or D3D12 this is a pointer to a 'IDirect3D(...)Shader', 'ID3D10(...)(Shader/State)', 'ID3D11(...)(Shader/State)' or 'ID3D12PipelineState' object, in Vulkan a 'VkPipeline' handle.</para>
 	/// </summary>
 	RESHADE_DEFINE_HANDLE(pipeline);
 
 	/// <summary>
 	/// An opaque handle to a pipeline layout object.
-	/// <para>Depending on the render API this can be a pointer to a 'ID3D12RootSignature' object or a 'VkPipelineLayout' handle.</para>
+	/// <para>In D3D12 this is a pointer to a 'ID3D12RootSignature' object, in Vulkan a 'VkPipelineLayout' handle.</para>
 	/// </summary>
 	RESHADE_DEFINE_HANDLE(pipeline_layout);
 
 	/// <summary>
 	/// An opaque handle to a descriptor set layout object.
-	/// <para>Depending on the render API this can be a 'VkDescriptorSetLayout' handle.</para>
+	/// <para>In Vulkan this is a 'VkDescriptorSetLayout' handle.</para>
 	/// </summary>
 	RESHADE_DEFINE_HANDLE(descriptor_set_layout);
 
 	/// <summary>
 	/// An opaque handle to a query pool.
-	/// <para>Depending on the render API this can be a pointer to a 'ID3D12QueryHeap' or a 'VkQueryPool' handle.</para>
+	/// <para>In D3D12 this is a pointer to a 'ID3D12QueryHeap' object, in Vulkan a 'VkQueryPool' handle.</para>
 	/// </summary>
 	RESHADE_DEFINE_HANDLE(query_pool);
 
 	/// <summary>
 	/// An opaque handle to a render pass.
+	/// <para>In Vulkan this is a 'VkRenderPass' handle.</para>
 	/// </summary>
 	RESHADE_DEFINE_HANDLE(render_pass);
 
 	/// <summary>
+	/// An opaque handle to a framebuffer object.
+	/// <para>In OpenGL this is FBO handle, in Vulkan a 'VkFramebuffer' handle.</para>
+	/// </summary>
+	RESHADE_DEFINE_HANDLE(framebuffer);
+
+	/// <summary>
 	/// An opaque handle to a descriptor set.
-	/// <para>Depending on the render API this can be a 'D3D12_GPU_DESCRIPTOR_HANDLE' or a 'VkDescriptorSet' handle.</para>
+	/// <para>In D3D12 this is a 'D3D12_GPU_DESCRIPTOR_HANDLE', in Vulkan a 'VkDescriptorSet' handle.</para>
 	/// </summary>
 	RESHADE_DEFINE_HANDLE(descriptor_set);
 
 	/// <summary>
-	/// Describes the blend state of the output stage.
+	/// Describes the color blend state of the output stage.
 	/// </summary>
 	struct blend_desc
 	{
@@ -587,7 +594,7 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
-	/// Describes the state of the depth-stencil stage.
+	/// Describes the depth-stencil state of the output stage.
 	/// </summary>
 	struct depth_stencil_desc
 	{
@@ -896,10 +903,19 @@ namespace reshade { namespace api
 	/// </summary>
 	struct render_pass_desc
 	{
-		resource_view depth_stencil;
-		resource_view render_targets[8];
 		format depth_stencil_format;
 		format render_targets_format[8];
+		uint16_t samples;
+	};
+
+	/// <summary>
+	/// Describes a framebuffer object.
+	/// </summary>
+	struct framebuffer_desc
+	{
+		render_pass render_pass_template;
+		resource_view depth_stencil;
+		resource_view render_targets[8];
 	};
 
 	/// <summary>

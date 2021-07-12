@@ -47,6 +47,7 @@ namespace reshade::d3d10
 
 		bool create_query_pool(api::query_type type, uint32_t size, api::query_pool *out) final;
 		bool create_render_pass(const api::render_pass_desc &desc, api::render_pass *out) final;
+		bool create_framebuffer(const api::framebuffer_desc &desc, api::framebuffer *out) final;
 		bool create_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, api::descriptor_set *out) final;
 
 		void destroy_sampler(api::sampler handle) final;
@@ -59,10 +60,11 @@ namespace reshade::d3d10
 
 		void destroy_query_pool(api::query_pool handle) final;
 		void destroy_render_pass(api::render_pass handle) final;
+		void destroy_framebuffer(api::framebuffer handle) final;
 		void destroy_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, const api::descriptor_set *sets) final;
 
-		bool get_attachment(api::render_pass fbo, api::attachment_type type, uint32_t index, api::resource_view *out) const final;
-		uint32_t get_attachment_count(api::render_pass pass, api::attachment_type type) const final;
+		bool get_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index, api::resource_view *out) const final;
+		uint32_t get_attachment_count(api::framebuffer fbo, api::attachment_type type) const final;
 
 		void get_resource_from_view(api::resource_view view, api::resource *out) const final;
 		api::resource_desc get_resource_desc(api::resource resource) const final;
@@ -89,7 +91,7 @@ namespace reshade::d3d10
 
 		void barrier(uint32_t count, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states) final;
 
-		void begin_render_pass(api::render_pass pass) final;
+		void begin_render_pass(api::render_pass pass, api::framebuffer fbo) final;
 		void finish_render_pass() final;
 
 		void bind_pipeline(api::pipeline_stage type, api::pipeline pipeline) final;
@@ -148,6 +150,6 @@ namespace reshade::d3d10
 		com_object_list<ID3D10View> _views;
 		com_object_list<ID3D10Resource> _resources;
 		bool _has_open_render_pass = false;
-		struct render_pass_impl *_current_pass;
+		struct framebuffer_impl *_current_fbo;
 	};
 }

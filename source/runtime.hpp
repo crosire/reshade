@@ -321,6 +321,7 @@ namespace reshade
 
 		// === Effect Rendering ===
 
+		std::vector<api::framebuffer> _backbuffer_fbos;
 		std::vector<api::render_pass> _backbuffer_passes;
 		std::vector<api::resource_view> _backbuffer_targets;
 		api::resource _backbuffer_texture = {};
@@ -378,7 +379,7 @@ namespace reshade
 		void draw_gui_vr();
 
 		bool init_imgui_resources();
-		void render_imgui_draw_data(ImDrawData *draw_data, api::render_pass pass);
+		void render_imgui_draw_data(ImDrawData *draw_data, api::render_pass pass, api::framebuffer fbo);
 		void destroy_imgui_resources();
 
 		ImGuiContext *_imgui_context = nullptr;
@@ -395,6 +396,7 @@ namespace reshade
 		int _imgui_num_vertices[4] = {};
 
 		api::resource _vr_overlay_texture = {};
+		api::framebuffer _vr_overlay_fbo = {};
 		api::render_pass _vr_overlay_pass = {};
 		api::resource_view _vr_overlay_target = {};
 

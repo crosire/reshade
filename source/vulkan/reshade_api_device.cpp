@@ -665,14 +665,12 @@ bool reshade::vulkan::device_impl::create_graphics_pipeline(const api::pipeline_
 			attachment_info[i].colorWriteMask = desc.graphics.blend_state.render_target_write_mask[i];
 		}
 
-		const auto pass_impl = reinterpret_cast<const render_pass_impl *>(desc.graphics.render_pass_template.handle);
-
 		uint32_t num_color_attachments = 0;
 		{
 			const std::lock_guard<std::mutex> lock(_mutex);
-			const auto &framebuffer_data = _framebuffer_list.at(pass_impl->fbo);
-			for (VkImageAspectFlags format_flags : framebuffer_data.attachment_types)
-				if (format_flags == VK_IMAGE_ASPECT_COLOR_BIT)
+			const auto &render_pass_data = _render_pass_list.at((VkRenderPass)desc.graphics.render_pass_template.handle);
+			for (const auto &attachment : render_pass_data.attachments)
+				if (attachment.format_flags == VK_IMAGE_ASPECT_COLOR_BIT)
 					num_color_attachments++;
 		}
 
@@ -687,7 +685,7 @@ bool reshade::vulkan::device_impl::create_graphics_pipeline(const api::pipeline_
 		color_blend_state_info.blendConstants[2] = ((desc.graphics.blend_state.blend_constant >> 8) & 0xFF) / 255.0f;
 		color_blend_state_info.blendConstants[3] = ((desc.graphics.blend_state.blend_constant >> 12) & 0xFF) / 255.0f;
 
-		create_info.renderPass = pass_impl->render_pass;
+		create_info.renderPass = (VkRenderPass)desc.graphics.render_pass_template.handle;
 
 		if (VkPipeline object = VK_NULL_HANDLE;
 			vk.CreateGraphicsPipelines(_orig, VK_NULL_HANDLE, 1, &create_info, nullptr, &object) == VK_SUCCESS)
@@ -860,56 +858,38 @@ bool reshade::vulkan::device_impl::create_query_pool(api::query_type type, uint3
 }
 bool reshade::vulkan::device_impl::create_render_pass(const api::render_pass_desc &desc, api::render_pass *out)
 {
-	uint32_t num_layers = std::numeric_limits<uint32_t>::max();
 	uint32_t num_color_attachments = 0;
-	render_pass_impl pass_impl;
-	pass_impl.render_area.extent.width = std::numeric_limits<uint32_t>::max();
-	pass_impl.render_area.extent.height = std::numeric_limits<uint32_t>::max();
-
 	render_pass_data pass_data;
-	framebuffer_data fbo_data;
 
 	std::vector<VkAttachmentReference> attachment_refs;
 	std::vector<VkAttachmentDescription> attachment_descs;
 
-	for (uint32_t i = 0; i < 8 && desc.render_targets[i].handle != 0; ++i, ++num_color_attachments)
+	for (uint32_t i = 0; i < 8 && desc.render_targets_format[i] != api::format::unknown; ++i, ++num_color_attachments)
 	{
 		VkAttachmentReference &ref = attachment_refs.emplace_back();
 		ref.attachment = i;
 		ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-		const auto rtv_info = lookup_resource_view(desc.render_targets[i]);
-		const auto rt_resource_info = lookup_resource({ (uint64_t)rtv_info.image_create_info.image });
-
 		VkAttachmentDescription &attach = attachment_descs.emplace_back();
 		attach.format = convert_format(desc.render_targets_format[i]);
-		attach.samples = rt_resource_info.image_create_info.samples;
+		attach.samples = static_cast<VkSampleCountFlagBits>(desc.samples);
 		attach.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
 		attach.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 		attach.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 		attach.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-		pass_impl.render_area.extent.width = std::min(rt_resource_info.image_create_info.extent.width, pass_impl.render_area.extent.width);
-		pass_impl.render_area.extent.height = std::min(rt_resource_info.image_create_info.extent.height, pass_impl.render_area.extent.height);
-		num_layers = std::min(rt_resource_info.image_create_info.arrayLayers, num_layers);
-
-		fbo_data.attachments.push_back(desc.render_targets[i]);
-		fbo_data.attachment_types.push_back(VK_IMAGE_ASPECT_COLOR_BIT);
 		pass_data.attachments.push_back({ attach.initialLayout, 0, aspect_flags_from_format(attach.format) });
 	}
 
-	if (desc.depth_stencil.handle != 0)
+	if (desc.depth_stencil_format != api::format::unknown)
 	{
 		VkAttachmentReference &ref = attachment_refs.emplace_back();
 		ref.attachment = num_color_attachments;
 		ref.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-		const auto dsv_info = lookup_resource_view(desc.depth_stencil);
-		const auto ds_resource_info = lookup_resource({ (uint64_t)dsv_info.image_create_info.image });
-
 		VkAttachmentDescription &attach = attachment_descs.emplace_back();
 		attach.format = convert_format(desc.depth_stencil_format);
-		attach.samples = ds_resource_info.image_create_info.samples;
+		attach.samples = static_cast<VkSampleCountFlagBits>(desc.samples);
 		attach.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
 		attach.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 		attach.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
@@ -917,77 +897,114 @@ bool reshade::vulkan::device_impl::create_render_pass(const api::render_pass_des
 		attach.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 		attach.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-		pass_impl.render_area.extent.width = std::min(ds_resource_info.image_create_info.extent.width, pass_impl.render_area.extent.width);
-		pass_impl.render_area.extent.height = std::min(ds_resource_info.image_create_info.extent.height, pass_impl.render_area.extent.height);
-		num_layers = std::min(ds_resource_info.image_create_info.arrayLayers, num_layers);
-
-		fbo_data.attachments.push_back(desc.depth_stencil);
-		fbo_data.attachment_types.push_back(aspect_flags_from_format(attach.format));
 		pass_data.attachments.push_back({ attach.initialLayout, 0, aspect_flags_from_format(attach.format) });
 	}
 
+	// Synchronize any writes to render targets in previous passes with reads from them in this pass
+	VkSubpassDependency subdep = {};
+	subdep.srcSubpass = VK_SUBPASS_EXTERNAL;
+	subdep.dstSubpass = 0;
+	subdep.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	subdep.dstStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
+	subdep.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	subdep.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+	VkSubpassDescription subpass = {};
+	subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+	subpass.colorAttachmentCount = num_color_attachments;
+	subpass.pColorAttachments = attachment_refs.data();
+	subpass.pDepthStencilAttachment = desc.depth_stencil_format != api::format::unknown ? &attachment_refs.back() : nullptr;
+
+	VkRenderPassCreateInfo create_info { VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO };
+	create_info.attachmentCount = static_cast<uint32_t>(attachment_descs.size());
+	create_info.pAttachments = attachment_descs.data();
+	create_info.subpassCount = 1;
+	create_info.pSubpasses = &subpass;
+	create_info.dependencyCount = 1;
+	create_info.pDependencies = &subdep;
+
+	if (VkRenderPass object = VK_NULL_HANDLE;
+		vk.CreateRenderPass(_orig, &create_info, nullptr, &object) == VK_SUCCESS)
 	{
-		// Synchronize any writes to render targets in previous passes with reads from them in this pass
-		VkSubpassDependency subdep = {};
-		subdep.srcSubpass = VK_SUBPASS_EXTERNAL;
-		subdep.dstSubpass = 0;
-		subdep.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-		subdep.dstStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
-		subdep.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-		subdep.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+		*out = { (uint64_t)object };
 
-		VkSubpassDescription subpass = {};
-		subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-		subpass.colorAttachmentCount = num_color_attachments;
-		subpass.pColorAttachments = attachment_refs.data();
-		subpass.pDepthStencilAttachment = desc.depth_stencil.handle != 0 ? &attachment_refs.back() : nullptr;
+		const std::lock_guard<std::mutex> lock(_mutex);
+		_render_pass_list.emplace(object, std::move(pass_data));
 
-		VkRenderPassCreateInfo create_info { VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO };
-		create_info.attachmentCount = static_cast<uint32_t>(attachment_descs.size());
-		create_info.pAttachments = attachment_descs.data();
-		create_info.subpassCount = 1;
-		create_info.pSubpasses = &subpass;
-		create_info.dependencyCount = 1;
-		create_info.pDependencies = &subdep;
+		return true;
+	}
+	else
+	{
+		*out = { 0 };
+		return false;
+	}
+}
+bool reshade::vulkan::device_impl::create_framebuffer(const api::framebuffer_desc &desc, api::framebuffer *out)
+{
+	uint32_t width = std::numeric_limits<uint32_t>::max();
+	uint32_t height = std::numeric_limits<uint32_t>::max();
+	uint32_t num_layers = std::numeric_limits<uint32_t>::max();
+	framebuffer_data fbo_data;
 
-		if (vk.CreateRenderPass(_orig, &create_info, nullptr, &pass_impl.render_pass) != VK_SUCCESS)
-		{
-			*out = { 0 };
-			return false;
-		}
+	for (uint32_t i = 0; i < 8 && desc.render_targets[i].handle != 0; ++i)
+	{
+		const auto rtv_info = lookup_resource_view(desc.render_targets[i]);
+		const auto rt_resource_info = lookup_resource({ (uint64_t)rtv_info.image_create_info.image });
+
+		width = std::min(rt_resource_info.image_create_info.extent.width, width);
+		height = std::min(rt_resource_info.image_create_info.extent.height, height);
+		num_layers = std::min(rt_resource_info.image_create_info.arrayLayers, num_layers);
+
+		fbo_data.attachments.push_back(desc.render_targets[i]);
+		fbo_data.attachment_types.push_back(VK_IMAGE_ASPECT_COLOR_BIT);
 	}
 
+	if (desc.depth_stencil.handle != 0)
 	{
-		std::vector<VkImageView> views;
-		views.reserve(num_color_attachments + 1);
-		for (uint32_t i = 0; i < num_color_attachments; ++i)
-			views.push_back((VkImageView)desc.render_targets[i].handle);
-		if (desc.depth_stencil.handle != 0)
-			views.push_back((VkImageView)desc.depth_stencil.handle);
+		const auto dsv_info = lookup_resource_view(desc.depth_stencil);
+		const auto ds_resource_info = lookup_resource({ (uint64_t)dsv_info.image_create_info.image });
 
-		VkFramebufferCreateInfo create_info { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
-		create_info.renderPass = pass_impl.render_pass;
-		create_info.attachmentCount = static_cast<uint32_t>(views.size());
-		create_info.pAttachments = views.data();
-		create_info.width = pass_impl.render_area.extent.width;
-		create_info.height = pass_impl.render_area.extent.height;
-		create_info.layers = num_layers;
+		width = std::min(ds_resource_info.image_create_info.extent.width, width);
+		height = std::min(ds_resource_info.image_create_info.extent.height, height);
+		num_layers = std::min(ds_resource_info.image_create_info.arrayLayers, num_layers);
 
-		if (vk.CreateFramebuffer(_orig, &create_info, nullptr, &pass_impl.fbo) != VK_SUCCESS)
-		{
-			vk.DestroyRenderPass(_orig, pass_impl.render_pass, nullptr);
-
-			*out = { 0 };
-			return false;
-		}
+		fbo_data.attachments.push_back(desc.depth_stencil);
+		fbo_data.attachment_types.push_back(aspect_flags_from_format(ds_resource_info.image_create_info.format));
 	}
 
-	std::lock_guard<std::mutex> lock(_mutex);
-	_render_pass_list.emplace(pass_impl.render_pass, std::move(pass_data));
-	_framebuffer_list.emplace(pass_impl.fbo, std::move(fbo_data));
+	std::vector<VkImageView> views;
+	views.reserve(8 + 1);
+	for (uint32_t i = 0; i < 8 && desc.render_targets[i].handle != 0; ++i)
+		views.push_back((VkImageView)desc.render_targets[i].handle);
+	if (desc.depth_stencil.handle != 0)
+		views.push_back((VkImageView)desc.depth_stencil.handle);
 
-	*out = { reinterpret_cast<uintptr_t>(new render_pass_impl(std::move(pass_impl))) };
-	return true;
+	VkFramebufferCreateInfo create_info { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
+	create_info.renderPass = (VkRenderPass)desc.render_pass_template.handle;
+	create_info.attachmentCount = static_cast<uint32_t>(views.size());
+	create_info.pAttachments = views.data();
+	create_info.width = width;
+	create_info.height = height;
+	create_info.layers = num_layers;
+
+	fbo_data.area.width = width;
+	fbo_data.area.height = height;
+
+	if (VkFramebuffer object = VK_NULL_HANDLE;
+		vk.CreateFramebuffer(_orig, &create_info, nullptr, &object) == VK_SUCCESS)
+	{
+		*out = { (uint64_t)object };
+
+		const std::lock_guard<std::mutex> lock(_mutex);
+		_framebuffer_list.emplace(object, std::move(fbo_data));
+
+		return true;
+	}
+	else
+	{
+		*out = { 0 };
+		return false;
+	}
 }
 bool reshade::vulkan::device_impl::create_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, api::descriptor_set *out)
 {
@@ -1069,18 +1086,17 @@ void reshade::vulkan::device_impl::destroy_query_pool(api::query_pool handle)
 }
 void reshade::vulkan::device_impl::destroy_render_pass(api::render_pass handle)
 {
-	if (handle.handle == 0)
-		return;
-	const auto pass_impl = reinterpret_cast<const render_pass_impl *>(handle.handle);
-
-	vk.DestroyRenderPass(_orig, pass_impl->render_pass, nullptr);
-	vk.DestroyFramebuffer(_orig, pass_impl->fbo, nullptr);
+	vk.DestroyRenderPass(_orig, (VkRenderPass)handle.handle, nullptr);
 
 	const std::lock_guard<std::mutex> lock(_mutex);
-	_render_pass_list.erase(pass_impl->render_pass);
-	_framebuffer_list.erase(pass_impl->fbo);
+	_render_pass_list.erase((VkRenderPass)handle.handle);
+}
+void reshade::vulkan::device_impl::destroy_framebuffer(api::framebuffer handle)
+{
+	vk.DestroyFramebuffer(_orig, (VkFramebuffer)handle.handle, nullptr);
 
-	delete pass_impl;
+	const std::lock_guard<std::mutex> lock(_mutex);
+	_framebuffer_list.erase((VkFramebuffer)handle.handle);
 }
 void reshade::vulkan::device_impl::destroy_descriptor_sets(api::descriptor_set_layout, uint32_t count, const api::descriptor_set *sets)
 {
@@ -1266,20 +1282,18 @@ void reshade::vulkan::device_impl::upload_texture_region(const api::subresource_
 	vmaDestroyBuffer(_alloc, intermediate, intermediate_mem);
 }
 
-bool reshade::vulkan::device_impl::get_attachment(api::render_pass pass, api::attachment_type type, uint32_t index, api::resource_view *out) const
+bool reshade::vulkan::device_impl::get_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index, api::resource_view *out) const
 {
-	assert(pass.handle != 0);
-	const auto pass_impl = reinterpret_cast<const render_pass_impl *>(pass.handle);
+	assert(fbo.handle != 0);
 
 	std::lock_guard<std::mutex> lock(_mutex);
-	const auto &info = _framebuffer_list.at(pass_impl->fbo);
-	const auto &pass_info = _render_pass_list.at(pass_impl->render_pass);
+	const auto &info = _framebuffer_list.at((VkFramebuffer)fbo.handle);
 
-	assert(index <= pass_info.attachments.size());
+	assert(index <= info.attachments.size());
 
-	for (uint32_t i = 0; i < pass_info.attachments.size(); ++i)
+	for (uint32_t i = 0; i < info.attachments.size(); ++i)
 	{
-		if (pass_info.attachments[i].format_flags & static_cast<VkImageAspectFlags>(type))
+		if (info.attachment_types[i] & static_cast<VkImageAspectFlags>(type))
 		{
 			if (index == 0)
 			{
@@ -1296,17 +1310,16 @@ bool reshade::vulkan::device_impl::get_attachment(api::render_pass pass, api::at
 	*out = { 0 };
 	return false;
 }
-uint32_t reshade::vulkan::device_impl::get_attachment_count(api::render_pass pass, api::attachment_type type) const
+uint32_t reshade::vulkan::device_impl::get_attachment_count(api::framebuffer fbo, api::attachment_type type) const
 {
-	assert(pass.handle != 0);
-	const auto pass_impl = reinterpret_cast<const render_pass_impl *>(pass.handle);
+	assert(fbo.handle != 0);
 
 	std::lock_guard<std::mutex> lock(_mutex);
-	const auto &pass_info = _render_pass_list.at(pass_impl->render_pass);
+	const auto &info = _framebuffer_list.at((VkFramebuffer)fbo.handle);
 
 	uint32_t count = 0;
-	for (uint32_t i = 0; i < pass_info.attachments.size(); ++i)
-		if (pass_info.attachments[i].format_flags & static_cast<VkImageAspectFlags>(type))
+	for (uint32_t i = 0; i < info.attachments.size(); ++i)
+		if (info.attachment_types[i] & static_cast<VkImageAspectFlags>(type))
 			count++;
 
 	return count;

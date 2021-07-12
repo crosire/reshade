@@ -8,19 +8,19 @@
 #include "reshade_api_type_convert.hpp"
 #include <algorithm>
 
-void reshade::d3d9::device_impl::begin_render_pass(api::render_pass pass)
+void reshade::d3d9::device_impl::begin_render_pass(api::render_pass, api::framebuffer fbo)
 {
-	assert(pass.handle != 0);
-	const auto pass_impl = reinterpret_cast<const render_pass_impl *>(pass.handle);
+	assert(fbo.handle != 0);
+	const auto fbo_impl = reinterpret_cast<const framebuffer_impl *>(fbo.handle);
 
 	for (UINT i = 0; i < _caps.NumSimultaneousRTs; ++i)
-		_orig->SetRenderTarget(i, pass_impl->rtv[i]);
+		_orig->SetRenderTarget(i, fbo_impl->rtv[i]);
 
-	_orig->SetRenderState(D3DRS_SRGBWRITEENABLE, pass_impl->srgb_write_enable);
+	_orig->SetRenderState(D3DRS_SRGBWRITEENABLE, fbo_impl->srgb_write_enable);
 
-	_orig->SetDepthStencilSurface(pass_impl->dsv);
+	_orig->SetDepthStencilSurface(fbo_impl->dsv);
 
-	_current_pass[0] = *pass_impl;
+	_current_fbo[0] = *fbo_impl;
 }
 void reshade::d3d9::device_impl::finish_render_pass()
 {

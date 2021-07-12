@@ -19,7 +19,7 @@ namespace reshade::d3d11
 
 		void barrier(uint32_t, const api::resource *, const api::resource_usage *, const api::resource_usage *) final { assert(false); }
 
-		void begin_render_pass(api::render_pass) final { assert(false); }
+		void begin_render_pass(api::render_pass, api::framebuffer) final { assert(false); }
 		void finish_render_pass() final { assert(false); }
 
 		void bind_pipeline(api::pipeline_stage, api::pipeline) final { assert(false); }
@@ -84,7 +84,7 @@ namespace reshade::d3d11
 
 		void barrier(uint32_t count, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states) final;
 
-		void begin_render_pass(api::render_pass pass) final;
+		void begin_render_pass(api::render_pass pass, api::framebuffer fbo) final;
 		void finish_render_pass() final;
 
 		void bind_pipeline(api::pipeline_stage type, api::pipeline pipeline) final;
@@ -140,6 +140,6 @@ namespace reshade::d3d11
 
 	protected:
 		bool _has_open_render_pass = false;
-		struct render_pass_impl *_current_pass;
+		struct framebuffer_impl *_current_fbo;
 	};
 }

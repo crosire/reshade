@@ -427,14 +427,14 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargets(UINT NumViews, 
 		reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(this);
 	}
 
-	_current_pass->count = NumViews;
-	std::memcpy(_current_pass->rtv, ppRenderTargetViews, NumViews * sizeof(ID3D11RenderTargetView *));
-	_current_pass->dsv = pDepthStencilView;
+	_current_fbo->count = NumViews;
+	std::memcpy(_current_fbo->rtv, ppRenderTargetViews, NumViews * sizeof(ID3D11RenderTargetView *));
+	_current_fbo->dsv = pDepthStencilView;
 
 	if ((NumViews != 0 && *ppRenderTargetViews != nullptr) || pDepthStencilView != nullptr)
 	{
 		_has_open_render_pass = true;
-		reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::render_pass { reinterpret_cast<uintptr_t>(_current_pass) });
+		reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::render_pass { 0 }, reshade::api::framebuffer { reinterpret_cast<uintptr_t>(_current_fbo) });
 	}
 #endif
 }
@@ -451,14 +451,14 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargetsAndUnorderedAcce
 		reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(this);
 	}
 
-	_current_pass->count = NumRTVs;
-	std::memcpy(_current_pass->rtv, ppRenderTargetViews, NumRTVs * sizeof(ID3D11RenderTargetView *));
-	_current_pass->dsv = pDepthStencilView;
+	_current_fbo->count = NumRTVs;
+	std::memcpy(_current_fbo->rtv, ppRenderTargetViews, NumRTVs * sizeof(ID3D11RenderTargetView *));
+	_current_fbo->dsv = pDepthStencilView;
 
 	if ((NumRTVs != 0 && *ppRenderTargetViews != nullptr) || pDepthStencilView != nullptr)
 	{
 		_has_open_render_pass = true;
-		reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::render_pass { reinterpret_cast<uintptr_t>(_current_pass) });
+		reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::render_pass { 0 }, reshade::api::framebuffer { reinterpret_cast<uintptr_t>(_current_fbo) });
 	}
 
 	invoke_bind_unordered_access_views_event(reshade::api::shader_stage::pixel, UAVStartSlot, NumUAVs, ppUnorderedAccessViews);
@@ -1025,7 +1025,7 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::FinishCommandList(BOOL RestoreDefe
 	if (RestoreDeferredContextState && had_open_render_pass)
 	{
 		_has_open_render_pass = true;
-		reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::render_pass { reinterpret_cast<uintptr_t>(_current_pass) });
+		reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::render_pass { 0 }, reshade::api::framebuffer { reinterpret_cast<uintptr_t>(_current_fbo) });
 	}
 #endif
 

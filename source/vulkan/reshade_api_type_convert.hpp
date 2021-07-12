@@ -7,13 +7,6 @@
 
 namespace reshade::vulkan
 {
-	struct render_pass_impl
-	{
-		VkFramebuffer fbo;
-		VkRect2D render_area = {};
-		VkRenderPass render_pass;
-	};
-
 	auto convert_format(api::format format) -> VkFormat;
 	auto convert_format(VkFormat vk_format) -> api::format;
 

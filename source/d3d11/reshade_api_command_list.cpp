@@ -79,14 +79,13 @@ void reshade::d3d11::device_context_impl::barrier(uint32_t count, const api::res
 	}
 }
 
-void reshade::d3d11::device_context_impl::begin_render_pass(api::render_pass pass)
+void reshade::d3d11::device_context_impl::begin_render_pass(api::render_pass, api::framebuffer fbo)
 {
-	assert(pass.handle != 0);
+	assert(fbo.handle != 0);
+	const auto fbo_impl = reinterpret_cast<const framebuffer_impl *>(fbo.handle);
+	_orig->OMSetRenderTargets(fbo_impl->count, fbo_impl->rtv, fbo_impl->dsv);
 
-	const auto pass_impl = reinterpret_cast<const render_pass_impl *>(pass.handle);
-	_orig->OMSetRenderTargets(pass_impl->count, pass_impl->rtv, pass_impl->dsv);
-
-	_current_pass[0] = *pass_impl;
+	_current_fbo[0] = *fbo_impl;
 
 	assert(!_has_open_render_pass);
 	_has_open_render_pass = true;
@@ -96,8 +95,8 @@ void reshade::d3d11::device_context_impl::finish_render_pass()
 	// Reset render targets
 	_orig->OMSetRenderTargets(0, nullptr, nullptr);
 
-	_current_pass->count = 0;
-	_current_pass->dsv = nullptr;
+	_current_fbo->count = 0;
+	_current_fbo->dsv = nullptr;
 
 	assert( _has_open_render_pass);
 	_has_open_render_pass = false;
@@ -503,10 +502,10 @@ void reshade::d3d11::device_context_impl::clear_attachments(api::attachment_type
 	assert(_has_open_render_pass);
 
 	if (static_cast<UINT>(clear_flags & (api::attachment_type::color)) != 0)
-		for (UINT i = 0; i < _current_pass->count; ++i)
-			_orig->ClearRenderTargetView(_current_pass->rtv[i], color);
+		for (UINT i = 0; i < _current_fbo->count; ++i)
+			_orig->ClearRenderTargetView(_current_fbo->rtv[i], color);
 	if (static_cast<UINT>(clear_flags & (api::attachment_type::depth | api::attachment_type::stencil)) != 0)
-		_orig->ClearDepthStencilView(_current_pass->dsv, static_cast<UINT>(clear_flags) >> 1, depth, stencil);
+		_orig->ClearDepthStencilView(_current_fbo->dsv, static_cast<UINT>(clear_flags) >> 1, depth, stencil);
 }
 void reshade::d3d11::device_context_impl::clear_depth_stencil_view(api::resource_view dsv, api::attachment_type clear_flags, float depth, uint8_t stencil, uint32_t num_rects, const int32_t *)
 {

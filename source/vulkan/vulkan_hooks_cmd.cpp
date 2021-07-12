@@ -797,16 +797,9 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 #if RESHADE_ADDON
 	if (cmd_impl != nullptr)
 	{
-		// TODO: Maybe put this into the command list object, so that it stays valid for the duration of the render pass (may cause problems with add-ons that assume that otherwise)
-		reshade::vulkan::render_pass_impl pass_impl;
-		pass_impl.fbo = pRenderPassBegin->framebuffer;
-		pass_impl.render_area = pRenderPassBegin->renderArea;
-		pass_impl.render_pass = pRenderPassBegin->renderPass;
-
 		cmd_impl->_current_fbo = pRenderPassBegin->framebuffer;
-		cmd_impl->_current_render_area = pRenderPassBegin->renderArea;
 
-		reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(cmd_impl, reshade::api::render_pass { reinterpret_cast<uintptr_t>(&pass_impl) });
+		reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(cmd_impl, reshade::api::render_pass { (uint64_t)pRenderPassBegin->renderPass }, reshade::api::framebuffer { (uint64_t)pRenderPassBegin->framebuffer });
 	}
 #endif
 }

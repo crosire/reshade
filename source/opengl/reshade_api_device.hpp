@@ -18,7 +18,7 @@ namespace reshade::opengl
 			return { 0 };
 		return { (static_cast<uint64_t>(target) << 40) | object };
 	}
-	inline auto make_render_pass_handle(GLuint object, uint32_t num_color_attachments = 8, uint8_t extra_bits = 0) -> api::render_pass
+	inline auto make_framebuffer_handle(GLuint object, uint32_t num_color_attachments = 8, uint8_t extra_bits = 0) -> api::framebuffer
 	{
 		if (object == 0)
 			num_color_attachments = 1;
@@ -56,6 +56,7 @@ namespace reshade::opengl
 
 		bool create_query_pool(api::query_type type, uint32_t size, api::query_pool *out) final;
 		bool create_render_pass(const api::render_pass_desc &desc, api::render_pass *out) final;
+		bool create_framebuffer(const api::framebuffer_desc &desc, api::framebuffer *out) final;
 		bool create_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, api::descriptor_set *out) final;
 
 		void destroy_sampler(api::sampler handle) final;
@@ -68,10 +69,11 @@ namespace reshade::opengl
 
 		void destroy_query_pool(api::query_pool handle) final;
 		void destroy_render_pass(api::render_pass handle) final;
+		void destroy_framebuffer(api::framebuffer handle) final;
 		void destroy_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, const api::descriptor_set *sets) final;
 
-		bool get_attachment(api::render_pass pass, api::attachment_type type, uint32_t index, api::resource_view *out) const final;
-		uint32_t get_attachment_count(api::render_pass pass, api::attachment_type type) const final;
+		bool get_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index, api::resource_view *out) const final;
+		uint32_t get_attachment_count(api::framebuffer fbo, api::attachment_type type) const final;
 
 		void get_resource_from_view(api::resource_view view, api::resource *out) const final;
 		api::resource_desc get_resource_desc(api::resource resource) const final;
@@ -98,7 +100,7 @@ namespace reshade::opengl
 
 		void barrier(uint32_t, const api::resource *, const api::resource_usage *, const api::resource_usage *) final { /* no-op */ }
 
-		void begin_render_pass(api::render_pass pass) final;
+		void begin_render_pass(api::render_pass pass, api::framebuffer fbo) final;
 		void finish_render_pass() final;
 
 		void bind_pipeline(api::pipeline_stage type, api::pipeline pipeline) final;

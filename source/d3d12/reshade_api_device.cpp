@@ -624,14 +624,26 @@ bool reshade::d3d12::device_impl::create_render_pass(const api::render_pass_desc
 {
 	const auto result = new render_pass_impl();
 
-	for (UINT i = 0; i < 8 && desc.render_targets[i].handle != 0; ++i, ++result->count)
+	for (UINT i = 0; i < 8 && desc.render_targets_format[i] != api::format::unknown; ++i, ++result->count)
 	{
-		result->rtv[i] = { static_cast<SIZE_T>(desc.render_targets[i].handle) };
 		result->rtv_format[i] = convert_format(desc.render_targets_format[i]);
 	}
 
-	result->dsv = { static_cast<SIZE_T>(desc.depth_stencil.handle) };
 	result->dsv_format = convert_format(desc.depth_stencil_format);
+
+	*out = { reinterpret_cast<uintptr_t>(result) };
+	return true;
+}
+bool reshade::d3d12::device_impl::create_framebuffer(const api::framebuffer_desc &desc, api::framebuffer *out)
+{
+	const auto result = new framebuffer_impl();
+
+	for (UINT i = 0; i < 8 && desc.render_targets[i].handle != 0; ++i, ++result->count)
+	{
+		result->rtv[i] = { static_cast<SIZE_T>(desc.render_targets[i].handle) };
+	}
+
+	result->dsv = { static_cast<SIZE_T>(desc.depth_stencil.handle) };
 	result->rtv_is_single_handle_to_range = FALSE;
 
 	*out = { reinterpret_cast<uintptr_t>(result) };
@@ -706,6 +718,10 @@ void reshade::d3d12::device_impl::destroy_query_pool(api::query_pool handle)
 void reshade::d3d12::device_impl::destroy_render_pass(api::render_pass handle)
 {
 	delete reinterpret_cast<render_pass_impl *>(handle.handle);
+}
+void reshade::d3d12::device_impl::destroy_framebuffer(api::framebuffer handle)
+{
+	delete reinterpret_cast<framebuffer_impl *>(handle.handle);
 }
 void reshade::d3d12::device_impl::destroy_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, const api::descriptor_set *sets)
 {
@@ -924,19 +940,19 @@ void reshade::d3d12::device_impl::upload_texture_region(const api::subresource_d
 	}
 }
 
-bool reshade::d3d12::device_impl::get_attachment(api::render_pass pass, api::attachment_type type, uint32_t index, api::resource_view *out) const
+bool reshade::d3d12::device_impl::get_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index, api::resource_view *out) const
 {
-	assert(pass.handle != 0);
-	const auto pass_impl = reinterpret_cast<const render_pass_impl *>(pass.handle);
+	assert(fbo.handle != 0);
+	const auto fbo_impl = reinterpret_cast<const framebuffer_impl *>(fbo.handle);
 
 	if (type == api::attachment_type::color)
 	{
-		if (index < pass_impl->count)
+		if (index < fbo_impl->count)
 		{
-			if (pass_impl->rtv_is_single_handle_to_range)
-				*out = { pass_impl->rtv->ptr + index * _descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_RTV] };
+			if (fbo_impl->rtv_is_single_handle_to_range)
+				*out = { fbo_impl->rtv->ptr + index * _descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_RTV] };
 			else
-				*out = { pass_impl->rtv[index].ptr };
+				*out = { fbo_impl->rtv[index].ptr };
 			return true;
 		}
 		else
@@ -947,9 +963,9 @@ bool reshade::d3d12::device_impl::get_attachment(api::render_pass pass, api::att
 	}
 	else
 	{
-		if (pass_impl->dsv.ptr != 0)
+		if (fbo_impl->dsv.ptr != 0)
 		{
-			*out = { pass_impl->dsv.ptr };
+			*out = { fbo_impl->dsv.ptr };
 			return true;
 		}
 		else
@@ -959,15 +975,15 @@ bool reshade::d3d12::device_impl::get_attachment(api::render_pass pass, api::att
 		}
 	}
 }
-uint32_t reshade::d3d12::device_impl::get_attachment_count(api::render_pass pass, api::attachment_type type) const
+uint32_t reshade::d3d12::device_impl::get_attachment_count(api::framebuffer fbo, api::attachment_type type) const
 {
-	assert(pass.handle != 0);
-	const auto pass_impl = reinterpret_cast<const render_pass_impl *>(pass.handle);
+	assert(fbo.handle != 0);
+	const auto fbo_impl = reinterpret_cast<const framebuffer_impl *>(fbo.handle);
 
 	if (type == api::attachment_type::color)
-		return pass_impl->count;
+		return fbo_impl->count;
 	else
-		return pass_impl->dsv.ptr != 0 ? 1 : 0;
+		return fbo_impl->dsv.ptr != 0 ? 1 : 0;
 }
 
 void reshade::d3d12::device_impl::get_resource_from_view(api::resource_view view, api::resource *out) const

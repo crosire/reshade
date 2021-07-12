@@ -214,11 +214,18 @@ bool reshade::runtime::on_init(input::window_handle window)
 		get_back_buffer(i, &backbuffer);
 
 		api::render_pass_desc pass_desc = {};
-		pass_desc.depth_stencil = _effect_stencil_target;
 		pass_desc.depth_stencil_format = _effect_stencil_format;
 		pass_desc.render_targets_format[0] = api::format_to_default_typed(_backbuffer_format, 0);
+		pass_desc.samples = 1;
 		api::render_pass_desc pass_desc_srgb = pass_desc;
 		pass_desc_srgb.render_targets_format[0] = api::format_to_default_typed(_backbuffer_format, 1);
+
+		if (!_device->create_render_pass(pass_desc, &_backbuffer_passes.emplace_back()) ||
+			!_device->create_render_pass(pass_desc_srgb, &_backbuffer_passes.emplace_back()))
+		{
+			LOG(ERROR) << "Failed to create back buffer render passes!";
+			goto exit_failure;
+		}
 
 		if (!_device->create_resource_view(backbuffer, api::resource_usage::render_target, api::resource_view_desc(pass_desc.render_targets_format[0]), &_backbuffer_targets.emplace_back()) ||
 			!_device->create_resource_view(backbuffer, api::resource_usage::render_target, api::resource_view_desc(pass_desc_srgb.render_targets_format[0]), &_backbuffer_targets.emplace_back()))
@@ -227,11 +234,16 @@ bool reshade::runtime::on_init(input::window_handle window)
 			goto exit_failure;
 		}
 
-		pass_desc.render_targets[0] = _backbuffer_targets[_backbuffer_targets.size() - 2];
-		pass_desc_srgb.render_targets[0] = _backbuffer_targets[_backbuffer_targets.size() - 1];
+		api::framebuffer_desc fbo_desc = {};
+		fbo_desc.render_pass_template = _backbuffer_passes[_backbuffer_passes.size() - 2];
+		fbo_desc.depth_stencil = _effect_stencil_target;
+		fbo_desc.render_targets[0] = _backbuffer_targets[_backbuffer_targets.size() - 2];
+		api::framebuffer_desc fbo_desc_srgb = fbo_desc;
+		fbo_desc_srgb.render_pass_template = _backbuffer_passes[_backbuffer_passes.size() - 1];
+		fbo_desc_srgb.render_targets[0] = _backbuffer_targets[_backbuffer_targets.size() - 1];
 
-		if (!_device->create_render_pass(pass_desc, &_backbuffer_passes.emplace_back()) ||
-			!_device->create_render_pass(pass_desc_srgb, &_backbuffer_passes.emplace_back()))
+		if (!_device->create_framebuffer(fbo_desc, &_backbuffer_fbos.emplace_back()) ||
+			!_device->create_framebuffer(fbo_desc_srgb, &_backbuffer_fbos.emplace_back()))
 		{
 			LOG(ERROR) << "Failed to create back buffer render passes!";
 			goto exit_failure;
@@ -309,6 +321,9 @@ bool reshade::runtime::on_init(input::window_handle window)
 	return true;
 
 exit_failure:
+	for (api::framebuffer fbo : _backbuffer_fbos)
+		_device->destroy_framebuffer(fbo);
+	_backbuffer_fbos.clear();
 	for (api::render_pass pass : _backbuffer_passes)
 		_device->destroy_render_pass(pass);
 	_backbuffer_passes.clear();
@@ -354,6 +369,9 @@ void reshade::runtime::on_reset()
 
 	_width = _height = 0;
 
+	for (api::framebuffer fbo : _backbuffer_fbos)
+		_device->destroy_framebuffer(fbo);
+	_backbuffer_fbos.clear();
 	for (api::render_pass pass : _backbuffer_passes)
 		_device->destroy_render_pass(pass);
 	_backbuffer_passes.clear();
@@ -1590,14 +1608,16 @@ bool reshade::runtime::init_effect(size_t effect_index)
 				}
 				else
 				{
+					api::framebuffer_desc fbo_desc = {};
 					api::render_pass_desc pass_desc = {};
+					pass_desc.samples = 1;
 
 					// Only need to attach stencil if stencil is actually used in this pass
 					if (pass_info.stencil_enable &&
 						pass_info.viewport_width == _width &&
 						pass_info.viewport_height == _height)
 					{
-						pass_desc.depth_stencil = _effect_stencil_target;
+						fbo_desc.depth_stencil = _effect_stencil_target;
 						pass_desc.depth_stencil_format = _effect_stencil_format;
 					}
 
@@ -1612,7 +1632,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 
 						const api::resource_desc res_desc = _device->get_resource_desc(texture.resource);
 
-						pass_desc.render_targets[k] = texture.rtv[pass_info.srgb_write_enable];
+						fbo_desc.render_targets[k] = texture.rtv[pass_info.srgb_write_enable];
 						pass_desc.render_targets_format[k] = api::format_to_default_typed(res_desc.texture.format, pass_info.srgb_write_enable);
 					}
 
@@ -1622,7 +1642,14 @@ bool reshade::runtime::init_effect(size_t effect_index)
 						return false;
 					}
 
+					fbo_desc.render_pass_template = pass_data.pass;
 					desc.graphics.render_pass_template = pass_data.pass;
+
+					if (!_device->create_framebuffer(fbo_desc, &pass_data.fbo))
+					{
+						LOG(ERROR) << "Failed to create framebuffer for pass " << pass_index << " in technique '" << tech.name << "'!";
+						return false;
+					}
 				}
 
 				desc.graphics.sample_mask = std::numeric_limits<uint32_t>::max();
@@ -2008,6 +2035,7 @@ void reshade::runtime::unload_effect(size_t effect_index)
 
 		for (size_t i = 0; i < tech.passes_data.size(); ++i)
 		{
+			_device->destroy_framebuffer(tech.passes_data[i].fbo);
 			_device->destroy_render_pass(tech.passes_data[i].pass);
 
 			const bool is_compute_pass = !tech.passes[i].cs_entry_point.empty();
@@ -2080,6 +2108,7 @@ void reshade::runtime::unload_effects()
 	{
 		for (size_t i = 0; i < tech.passes_data.size(); ++i)
 		{
+			_device->destroy_framebuffer(tech.passes_data[i].fbo);
 			_device->destroy_render_pass(tech.passes_data[i].pass);
 
 			const bool is_compute_pass = !tech.passes[i].cs_entry_point.empty();
@@ -2817,13 +2846,13 @@ void reshade::runtime::render_technique(technique &tech)
 
 				uint32_t index = get_current_back_buffer_index();
 				index = (index * 2) + pass_info.srgb_write_enable;
-				cmd_list->begin_render_pass(_backbuffer_passes[index]);
+				cmd_list->begin_render_pass(_backbuffer_passes[index], _backbuffer_fbos[index]);
 			}
 			else
 			{
 				needs_implicit_backbuffer_copy = false;
 
-				cmd_list->begin_render_pass(pass_data.pass);
+				cmd_list->begin_render_pass(pass_data.pass, pass_data.fbo);
 			}
 
 			if (pass_info.clear_render_targets)

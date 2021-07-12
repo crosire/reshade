@@ -242,7 +242,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Present(const RECT *pSourceRect, cons
 	const HRESULT hr = _orig->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::render_pass { reinterpret_cast<uintptr_t>(_current_pass) });
+	reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::render_pass { 0 }, reshade::api::framebuffer { reinterpret_cast<uintptr_t>(_current_fbo) });
 #endif
 
 	return hr;
@@ -726,18 +726,18 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetRenderTarget(DWORD RenderTargetInd
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
-		if (_current_pass->rtv[RenderTargetIndex] != nullptr)
+		if (_current_fbo->rtv[RenderTargetIndex] != nullptr)
 		{
 			if (RenderTargetIndex == 0)
 				reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(this);
 		}
 
-		_current_pass->rtv[RenderTargetIndex] = pRenderTarget;
+		_current_fbo->rtv[RenderTargetIndex] = pRenderTarget;
 
-		if (_current_pass->rtv[RenderTargetIndex] != nullptr)
+		if (_current_fbo->rtv[RenderTargetIndex] != nullptr)
 		{
 			if (RenderTargetIndex == 0)
-				reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::render_pass { reinterpret_cast<uintptr_t>(_current_pass) });
+				reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::render_pass { 0 }, reshade::api::framebuffer { reinterpret_cast<uintptr_t>(_current_fbo) });
 
 			// Setting a new render target will cause the viewport to be set to the full size of the new render target
 			// See https://docs.microsoft.com/windows/win32/api/d3d9helper/nf-d3d9helper-idirect3ddevice9-setrendertarget
@@ -767,13 +767,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetDepthStencilSurface(IDirect3DSurfa
 {
 	const HRESULT hr = _orig->SetDepthStencilSurface(pNewZStencil);
 #if RESHADE_ADDON
-	if (SUCCEEDED(hr) && pNewZStencil != _current_pass->dsv)
+	if (SUCCEEDED(hr) && pNewZStencil != _current_fbo->dsv)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(this);
 
-		_current_pass->dsv = pNewZStencil;
+		_current_fbo->dsv = pNewZStencil;
 
-		reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::render_pass { reinterpret_cast<uintptr_t>(_current_pass) });
+		reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::render_pass { 0 }, reshade::api::framebuffer { reinterpret_cast<uintptr_t>(_current_fbo) });
 	}
 #endif
 	return hr;
@@ -1503,7 +1503,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::PresentEx(const RECT *pSourceRect, co
 	const HRESULT hr = static_cast<IDirect3DDevice9Ex *>(_orig)->PresentEx(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::render_pass { reinterpret_cast<uintptr_t>(_current_pass) });
+	reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::render_pass { 0 }, reshade::api::framebuffer { reinterpret_cast<uintptr_t>(_current_fbo) });
 #endif
 
 	return hr;

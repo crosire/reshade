@@ -339,14 +339,14 @@ void    STDMETHODCALLTYPE D3D10Device::OMSetRenderTargets(UINT NumViews, ID3D10R
 		reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(this);
 	}
 
-	_current_pass->count = NumViews;
-	std::memcpy(_current_pass->rtv, ppRenderTargetViews, NumViews * sizeof(ID3D10RenderTargetView *));
-	_current_pass->dsv = pDepthStencilView;
+	_current_fbo->count = NumViews;
+	std::memcpy(_current_fbo->rtv, ppRenderTargetViews, NumViews * sizeof(ID3D10RenderTargetView *));
+	_current_fbo->dsv = pDepthStencilView;
 
 	if ((NumViews != 0 && *ppRenderTargetViews != nullptr) || pDepthStencilView != nullptr)
 	{
 		_has_open_render_pass = true;
-		reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::render_pass { reinterpret_cast<uintptr_t>(_current_pass) });
+		reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::render_pass { 0 }, reshade::api::framebuffer { reinterpret_cast<uintptr_t>(_current_fbo) });
 	}
 #endif
 }

@@ -1145,6 +1145,8 @@ VkResult VKAPI_CALL vkCreateFramebuffer(VkDevice device, const VkFramebufferCrea
 
 		// Keep track of the frame buffer attachments
 		reshade::vulkan::framebuffer_data data;
+		data.area.width = pCreateInfo->width;
+		data.area.height = pCreateInfo->height;
 		data.attachments.resize(pCreateInfo->attachmentCount);
 		data.attachment_types.resize(pCreateInfo->attachmentCount);
 		for (uint32_t i = 0; i < pCreateInfo->attachmentCount; ++i)

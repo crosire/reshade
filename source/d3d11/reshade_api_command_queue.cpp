@@ -12,7 +12,7 @@ reshade::d3d11::device_context_impl::device_context_impl(device_impl *device, ID
 {
 	context->QueryInterface(&_annotations);
 
-	_current_pass = new render_pass_impl();
+	_current_fbo = new framebuffer_impl();
 
 #if RESHADE_ADDON
 	if (_orig->GetType() != D3D11_DEVICE_CONTEXT_IMMEDIATE)
@@ -30,7 +30,7 @@ reshade::d3d11::device_context_impl::~device_context_impl()
 		invoke_addon_event<addon_event::destroy_command_queue>(this);
 #endif
 
-	delete _current_pass;
+	delete _current_fbo;
 }
 
 reshade::api::device *reshade::d3d11::device_context_impl::get_device()

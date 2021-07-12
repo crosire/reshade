@@ -43,7 +43,7 @@ namespace reshade::d3d11
 		std::vector<com_ptr<ID3D11Query>> queries;
 	};
 
-	struct render_pass_impl
+	struct framebuffer_impl
 	{
 		UINT count;
 		ID3D11RenderTargetView *rtv[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];

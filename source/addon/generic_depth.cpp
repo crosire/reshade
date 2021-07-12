@@ -364,14 +364,14 @@ static void on_bind_viewport(command_list *cmd_list, uint32_t first, uint32_t co
 	auto &state = cmd_list->get_user_data<state_tracking>(state_tracking::GUID);
 	std::memcpy(state.current_viewport, viewport, 6 * sizeof(float));
 }
-static void on_bind_depth_stencil(command_list *cmd_list, render_pass pass)
+static void on_bind_depth_stencil(command_list *cmd_list, render_pass, framebuffer fbo)
 {
 	device *const device = cmd_list->get_device();
 	auto &state = cmd_list->get_user_data<state_tracking>(state_tracking::GUID);
 
 	resource depth_stencil = { 0 };
 	resource_view depth_stencil_view = { 0 };
-	if (device->get_attachment(pass, attachment_type::depth, 0, &depth_stencil_view))
+	if (device->get_attachment(fbo, attachment_type::depth, 0, &depth_stencil_view))
 	{
 		device->get_resource_from_view(depth_stencil_view, &depth_stencil);
 	}

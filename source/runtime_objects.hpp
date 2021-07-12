@@ -178,6 +178,7 @@ namespace reshade
 
 		struct pass_data
 		{
+			api::framebuffer fbo = {};
 			api::render_pass pass = {};
 			api::pipeline pipeline = {};
 			std::vector<api::resource> modified_resources;

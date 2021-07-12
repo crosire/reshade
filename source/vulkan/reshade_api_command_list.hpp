@@ -21,7 +21,7 @@ namespace reshade::vulkan
 
 		void barrier(uint32_t count, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states) final;
 
-		void begin_render_pass(api::render_pass pass) final;
+		void begin_render_pass(api::render_pass pass, api::framebuffer fbo) final;
 		void finish_render_pass() final;
 
 		void bind_pipeline(api::pipeline_stage type, api::pipeline pipeline) final;
@@ -64,7 +64,6 @@ namespace reshade::vulkan
 		void finish_debug_event() final;
 		void insert_debug_marker(const char *label, const float color[4]) final;
 
-		VkRect2D _current_render_area = {};
 		VkFramebuffer _current_fbo = VK_NULL_HANDLE;
 
 	protected:

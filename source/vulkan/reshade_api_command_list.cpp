@@ -95,23 +95,23 @@ void reshade::vulkan::command_list_impl::barrier(uint32_t count, const api::reso
 	vk.CmdPipelineBarrier(_orig, src_stage_mask, dst_stage_mask, 0, 0, nullptr, static_cast<uint32_t>(buffer_barriers.size()), buffer_barriers.data(), static_cast<uint32_t>(image_barriers.size()), image_barriers.data());
 }
 
-void reshade::vulkan::command_list_impl::begin_render_pass(api::render_pass pass)
+void reshade::vulkan::command_list_impl::begin_render_pass(api::render_pass pass, api::framebuffer fbo)
 {
 	_has_commands = true;
 
-	assert(pass.handle != 0);
-
-	const auto pass_impl = reinterpret_cast<const render_pass_impl *>(pass.handle);
+	assert(pass.handle != 0 && fbo.handle != 0);
 
 	VkRenderPassBeginInfo begin_info { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
-	begin_info.renderPass = pass_impl->render_pass;
-	begin_info.framebuffer = pass_impl->fbo;
-	begin_info.renderArea = pass_impl->render_area;
+	begin_info.renderPass = (VkRenderPass)pass.handle;
+	begin_info.framebuffer = (VkFramebuffer)fbo.handle;
+
+	{	const std::lock_guard<std::mutex> lock(_device_impl->_mutex);
+		begin_info.renderArea.extent = _device_impl->_framebuffer_list.at(begin_info.framebuffer).area;
+	}
 
 	vk.CmdBeginRenderPass(_orig, &begin_info, VK_SUBPASS_CONTENTS_INLINE);
 
-	_current_fbo = pass_impl->fbo;
-	_current_render_area = pass_impl->render_area;
+	_current_fbo = begin_info.framebuffer;
 }
 void reshade::vulkan::command_list_impl::finish_render_pass()
 {
@@ -591,14 +591,16 @@ void reshade::vulkan::command_list_impl::clear_attachments(api::attachment_type 
 	VkClearAttachment clear_attachments[9];
 	const VkImageAspectFlags aspect_mask = static_cast<VkImageAspectFlags>(clear_flags);
 
+	framebuffer_data fbo_data;
+	{
+		const std::lock_guard<std::mutex> lock(_device_impl->_mutex);
+		fbo_data = _device_impl->_framebuffer_list.at(_current_fbo);
+	}
+
 	if (aspect_mask & (VK_IMAGE_ASPECT_COLOR_BIT))
 	{
-		std::unique_lock<std::mutex> lock(_device_impl->_mutex);
-
-		const auto &framebuffer_data = _device_impl->_framebuffer_list.at(_current_fbo);
-
 		uint32_t index = 0;
-		for (VkImageAspectFlags format_flags : framebuffer_data.attachment_types)
+		for (VkImageAspectFlags format_flags : fbo_data.attachment_types)
 		{
 			if (format_flags != VK_IMAGE_ASPECT_COLOR_BIT)
 				continue;
@@ -623,7 +625,8 @@ void reshade::vulkan::command_list_impl::clear_attachments(api::attachment_type 
 	if (num_rects == 0)
 	{
 		VkClearRect clear_rect;
-		clear_rect.rect = _current_render_area;
+		clear_rect.rect.offset = { 0, 0 };
+		clear_rect.rect.extent = fbo_data.area;
 		clear_rect.baseArrayLayer = 0;
 		clear_rect.layerCount = 1;
 

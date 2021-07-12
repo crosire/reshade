@@ -53,7 +53,7 @@ namespace reshade
 		/// </summary>
 		init_swapchain,
 		/// <summary>
-		/// Called before 'IDirect3D9::CreateDevice(Ex)', 'IDirect3D9Device::CreateAdditionalSwapChain', 'IDXGIFactory(2)::CreateSwapChain(...)', 'glMakeCurrent' or 'vkCreateSwapchainKHR'.
+		/// Called before 'IDirect3D9::CreateDevice(Ex)', 'IDirect3D9Device::CreateAdditionalSwapChain', 'IDXGIFactory(2)::CreateSwapChain(...)' or 'vkCreateSwapchainKHR'.
 		/// To overwrite the swap chain description, modify <c>buffer_desc</c> in the callback and return <c>true</c>.
 		/// <para>Callback function signature: <c>bool (api::resource_desc *buffer_desc)</c></para>
 		/// </summary>
@@ -172,7 +172,7 @@ namespace reshade
 		/// </summary>
 		create_descriptor_set_layout,
 		/// <summary>
-		/// Called on descriptor set layout descriptor, before 'vkDestroyDescriptorSetLayout'.
+		/// Called on descriptor set layout destruction, before 'vkDestroyDescriptorSetLayout'.
 		/// <para>Callback function signature: <c>void (api::device *device, api::descriptor_set_layout layout)</c></para>
 		/// </summary>
 		destroy_descriptor_set_layout,
@@ -208,7 +208,7 @@ namespace reshade
 
 		/// <summary>
 		/// Called after 'ID3D12GraphicsCommandList::BeginRenderPass', 'vkCmdBeginRenderPass' or after render targets were set via 'IDirect3DDevice9::SetRenderTarget', 'IDirect3DDevice9::SetDepthStencilSurface', 'ID3D10Device::OMSetRenderTargets', 'ID3D11DeviceContext::OMSetRenderTargets(AndUnorderedAccessViews)', 'ID3D12GraphicsCommandList::OMSetRenderTargets' or 'glBindFramebuffer'.
-		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::render_pass pass)</c></para>
+		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::render_pass pass, api::render_pass fbo)</c></para>
 		/// </summary>
 		begin_render_pass,
 		/// <summary>
@@ -490,7 +490,7 @@ namespace reshade
 
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::barrier, api::command_list *cmd_list, uint32_t num_resources, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states);
 
-	DEFINE_ADDON_EVENT_TYPE_1(addon_event::begin_render_pass, api::command_list *cmd_list, api::render_pass pass);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::begin_render_pass, api::command_list *cmd_list, api::render_pass pass, api::framebuffer fbo);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::finish_render_pass, api::command_list *cmd_list);
 
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_pipeline, api::command_list *cmd_list, api::pipeline_stage type, api::pipeline pipeline);

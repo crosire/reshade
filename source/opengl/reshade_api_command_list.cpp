@@ -103,10 +103,10 @@ void reshade::opengl::pipeline_impl::apply_graphics() const
 	}
 }
 
-void reshade::opengl::device_impl::begin_render_pass(api::render_pass pass)
+void reshade::opengl::device_impl::begin_render_pass(api::render_pass, api::framebuffer fbo)
 {
-	const GLuint fbo_object = pass.handle & 0xFFFFFFFF;
-	const GLuint num_color_attachments = static_cast<uint32_t>(pass.handle >> 40);
+	const GLuint fbo_object = fbo.handle & 0xFFFFFFFF;
+	const GLuint num_color_attachments = static_cast<uint32_t>(fbo.handle >> 40);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo_object);
 
@@ -124,7 +124,7 @@ void reshade::opengl::device_impl::begin_render_pass(api::render_pass pass)
 		glDrawBuffers(num_color_attachments, draw_buffers);
 	}
 
-	glEnableOrDisable(GL_FRAMEBUFFER_SRGB, (pass.handle & 0x200000000) != 0);
+	glEnableOrDisable(GL_FRAMEBUFFER_SRGB, (fbo.handle & 0x200000000) != 0);
 }
 void reshade::opengl::device_impl::finish_render_pass()
 {

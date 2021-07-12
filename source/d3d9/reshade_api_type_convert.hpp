@@ -29,7 +29,7 @@ namespace reshade::d3d9
 		std::vector<com_ptr<IDirect3DQuery9>> queries;
 	};
 
-	struct render_pass_impl
+	struct framebuffer_impl
 	{
 		IDirect3DSurface9 *rtv[8] = {};
 		IDirect3DSurface9 *dsv = nullptr;

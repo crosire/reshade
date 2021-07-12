@@ -340,6 +340,16 @@ namespace reshade { namespace api
 		virtual void destroy_render_pass(render_pass handle) = 0;
 
 		/// <summary>
+		/// Creates a new framebuffer object based on the specified <paramref name="desc"/>ription.
+		/// </summary>
+		/// <returns><c>true</c> if the framebuffer object was successfully created, <c>false</c> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
+		virtual bool create_framebuffer(const framebuffer_desc &desc, framebuffer *out) = 0;
+		/// <summary>
+		/// Instantly destroys a framebuffer object that was previously created via <see cref="create_framebuffer"/>.
+		/// </summary>
+		virtual void destroy_framebuffer(framebuffer handle) = 0;
+
+		/// <summary>
 		/// Allocates one or more descriptor sets.
 		/// </summary>
 		/// <param name="layout">The layout of the descriptor sets.</param>
@@ -353,13 +363,13 @@ namespace reshade { namespace api
 		virtual void destroy_descriptor_sets(descriptor_set_layout layout, uint32_t count, const descriptor_set *sets) = 0;
 
 		/// <summary>
-		/// Gets the handle to the resource view of the specfied <paramref name="type"/> in the render pass.
+		/// Gets the handle to the resource view of the specfied <paramref name="type"/> in the framebuffer object.
 		/// </summary>
-		virtual bool get_attachment(render_pass pass, attachment_type type, uint32_t index, resource_view *attachment) const = 0;
+		virtual bool get_attachment(framebuffer fbo, attachment_type type, uint32_t index, resource_view *attachment) const = 0;
 		/// <summary>
-		/// Gets the number of attachments of the specified <paramref name="type"/> in the render pass.
+		/// Gets the number of attachments of the specified <paramref name="type"/> in the framebuffer object.
 		/// </summary>
-		virtual uint32_t get_attachment_count(render_pass pass, attachment_type type) const = 0;
+		virtual uint32_t get_attachment_count(framebuffer fbo, attachment_type type) const = 0;
 
 		/// <summary>
 		/// Gets the handle to the underlying resource the specified resource <paramref name="view"/> was created for.
@@ -482,7 +492,7 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Begins a render pass by binding its render targets and depth-stencil buffer.
 		/// </summary>
-		virtual void begin_render_pass(render_pass pass) = 0;
+		virtual void begin_render_pass(render_pass pass, framebuffer fbo) = 0;
 		/// <summary>
 		/// Ends a render pass.
 		/// This must be preceeded by a call to <see cref="begin_render_pass"/>). Render passes cannot be nested.

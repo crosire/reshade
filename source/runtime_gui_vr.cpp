@@ -77,14 +77,24 @@ void reshade::runtime::init_gui_vr()
 	}
 
 	api::render_pass_desc pass_desc = {};
-	pass_desc.depth_stencil = _effect_stencil_target;
 	pass_desc.depth_stencil_format = _effect_stencil_format;
-	pass_desc.render_targets[0] = _vr_overlay_target;
 	pass_desc.render_targets_format[0] = api::format::r8g8b8a8_unorm;
+	pass_desc.samples = 1;
 
 	if (!_device->create_render_pass(pass_desc, &_vr_overlay_pass))
 	{
 		LOG(ERROR) << "Failed to create VR dashboard overlay render pass!";
+		return;
+	}
+
+	api::framebuffer_desc fbo_desc = {};
+	fbo_desc.render_pass_template = _vr_overlay_pass;
+	fbo_desc.depth_stencil = _effect_stencil_target;
+	fbo_desc.render_targets[0] = _vr_overlay_target;
+
+	if (!_device->create_framebuffer(fbo_desc, &_vr_overlay_fbo))
+	{
+		LOG(ERROR) << "Failed to create VR dashboard overlay framebuffer!";
 		return;
 	}
 }
@@ -236,7 +246,7 @@ void reshade::runtime::draw_gui_vr()
 		api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
 
 		cmd_list->barrier(_vr_overlay_texture, api::resource_usage::shader_resource_pixel, api::resource_usage::render_target);
-		render_imgui_draw_data(draw_data, _vr_overlay_pass);
+		render_imgui_draw_data(draw_data, _vr_overlay_pass, _vr_overlay_fbo);
 		cmd_list->barrier(_vr_overlay_texture, api::resource_usage::render_target, api::resource_usage::shader_resource_pixel);
 	}
 
