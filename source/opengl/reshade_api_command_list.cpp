@@ -129,6 +129,10 @@ void reshade::opengl::device_impl::begin_render_pass(api::render_pass, api::fram
 void reshade::opengl::device_impl::finish_render_pass()
 {
 }
+void reshade::opengl::device_impl::bind_render_targets_and_depth_stencil(uint32_t, const api::resource_view *, api::resource_view)
+{
+	assert(false);
+}
 
 void reshade::opengl::device_impl::bind_pipeline(api::pipeline_stage type, api::pipeline pipeline)
 {

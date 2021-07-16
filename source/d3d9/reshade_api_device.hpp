@@ -85,6 +85,7 @@ namespace reshade::d3d9
 
 		void begin_render_pass(api::render_pass pass, api::framebuffer fbo) final;
 		void finish_render_pass() final;
+		void bind_render_targets_and_depth_stencil(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv) final;
 
 		void bind_pipeline(api::pipeline_stage type, api::pipeline pipeline) final;
 		void bind_pipeline_states(uint32_t count, const api::dynamic_state *states, const uint32_t *values) final;
@@ -144,6 +145,5 @@ namespace reshade::d3d9
 		bool create_surface_replacement(const D3DSURFACE_DESC &new_desc, IDirect3DSurface9 **out_surface, HANDLE *out_shared_handle = nullptr);
 
 		D3DPRIMITIVETYPE _current_prim_type = static_cast<D3DPRIMITIVETYPE>(0);
-		struct framebuffer_impl *_current_fbo;
 	};
 }

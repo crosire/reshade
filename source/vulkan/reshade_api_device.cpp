@@ -169,6 +169,7 @@ bool reshade::vulkan::device_impl::check_capability(api::device_caps capability)
 	case api::device_caps::resolve_region:
 	case api::device_caps::copy_query_pool_results:
 		return true;
+	case api::device_caps::bind_render_targets_and_depth_stencil:
 	default:
 		return false;
 	}

@@ -215,6 +215,8 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC hglrc) :
 reshade::opengl::device_impl::~device_impl()
 {
 #if RESHADE_ADDON
+	invoke_addon_event<addon_event::finish_render_pass>(this);
+
 	invoke_addon_event<addon_event::destroy_command_queue>(this);
 	invoke_addon_event<addon_event::destroy_device>(this);
 
@@ -276,6 +278,7 @@ bool reshade::opengl::device_impl::check_capability(api::device_caps capability)
 		return true;
 	case api::device_caps::copy_query_pool_results:
 		return gl3wProcs.gl.GetQueryBufferObjectui64v != nullptr; // OpenGL 4.5
+	case api::device_caps::bind_render_targets_and_depth_stencil:
 	default:
 		return false;
 	}

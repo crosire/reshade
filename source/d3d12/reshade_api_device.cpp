@@ -145,6 +145,7 @@ bool reshade::d3d12::device_impl::check_capability(api::device_caps capability) 
 		return false;
 	case api::device_caps::resolve_region:
 	case api::device_caps::copy_query_pool_results:
+	case api::device_caps::bind_render_targets_and_depth_stencil:
 		return true;
 	default:
 		return false;

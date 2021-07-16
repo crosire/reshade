@@ -30,8 +30,6 @@ reshade::d3d10::device_impl::device_impl(ID3D10Device1 *device) :
 		}
 	}
 
-	_current_fbo = new framebuffer_impl();
-
 #if RESHADE_ADDON
 	load_addons();
 
@@ -47,8 +45,6 @@ reshade::d3d10::device_impl::~device_impl()
 
 	unload_addons();
 #endif
-
-	delete _current_fbo;
 }
 
 bool reshade::d3d10::device_impl::check_capability(api::device_caps capability) const
@@ -88,6 +84,8 @@ bool reshade::d3d10::device_impl::check_capability(api::device_caps capability) 
 	case api::device_caps::resolve_region:
 	case api::device_caps::copy_query_pool_results:
 		return false;
+	case api::device_caps::bind_render_targets_and_depth_stencil:
+		return true;
 	default:
 		return false;
 	}
@@ -531,7 +529,7 @@ bool reshade::d3d10::device_impl::create_query_pool(api::query_type type, uint32
 	*out = { reinterpret_cast<uintptr_t>(result) };
 	return true;
 }
-bool reshade::d3d10::device_impl::create_render_pass(const api::render_pass_desc &desc, api::render_pass *out)
+bool reshade::d3d10::device_impl::create_render_pass(const api::render_pass_desc &, api::render_pass *out)
 {
 	*out = { 0 };
 	return true;

@@ -333,21 +333,19 @@ void    STDMETHODCALLTYPE D3D10Device::OMSetRenderTargets(UINT NumViews, ID3D10R
 #if RESHADE_ADDON
 	assert(NumViews <= D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT);
 
-	if (_has_open_render_pass)
-	{
-		_has_open_render_pass = false;
-		reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(this);
-	}
+	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_render_targets_and_depth_stencil)].empty())
+		return;
 
-	_current_fbo->count = NumViews;
-	std::memcpy(_current_fbo->rtv, ppRenderTargetViews, NumViews * sizeof(ID3D10RenderTargetView *));
-	_current_fbo->dsv = pDepthStencilView;
+#ifndef WIN64
+	reshade::api::resource_view rtvs[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
+	for (UINT i = 0; i < NumViews; ++i)
+		rtvs[i] = { reinterpret_cast<uintptr_t>(ppRenderTargetViews[i]) };
+#else
+	static_assert(sizeof(*ppRenderTargetViews) == sizeof(reshade::api::resource_view));
+	const auto rtvs = reinterpret_cast<const reshade::api::resource_view *>(ppRenderTargetViews);
+#endif
 
-	if ((NumViews != 0 && *ppRenderTargetViews != nullptr) || pDepthStencilView != nullptr)
-	{
-		_has_open_render_pass = true;
-		reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::render_pass { 0 }, reshade::api::framebuffer { reinterpret_cast<uintptr_t>(_current_fbo) });
-	}
+	reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(this, NumViews, rtvs, reshade::api::resource_view { reinterpret_cast<uintptr_t>(pDepthStencilView) });
 #endif
 }
 void    STDMETHODCALLTYPE D3D10Device::OMSetBlendState(ID3D10BlendState *pBlendState, const FLOAT BlendFactor[4], UINT SampleMask)

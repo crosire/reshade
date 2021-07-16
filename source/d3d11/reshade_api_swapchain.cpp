@@ -130,15 +130,6 @@ void reshade::d3d11::swapchain_impl::on_reset()
 
 void reshade::d3d11::swapchain_impl::on_present()
 {
-	// Close any render pass that is still open at the end of a frame
-	if (static_cast<device_context_impl *>(_graphics_queue)->_has_open_render_pass)
-	{
-#if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(static_cast<device_context_impl *>(_graphics_queue));
-#endif
-		static_cast<device_context_impl *>(_graphics_queue)->_has_open_render_pass = false;
-	}
-
 	if (!is_initialized())
 		return;
 

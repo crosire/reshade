@@ -82,18 +82,31 @@ void reshade::d3d12::command_list_impl::begin_render_pass(api::render_pass, api:
 	// It is not allowed to call "ClearRenderTargetView", "ClearDepthStencilView" etc. inside a render pass, which would break the "command_impl::clear_attachments" implementation, so use plain old "OMSetRenderTargets" instead of render pass API
 	_orig->OMSetRenderTargets(fbo_impl->count, fbo_impl->rtv, fbo_impl->rtv_is_single_handle_to_range, fbo_impl->dsv.ptr != 0 ? &fbo_impl->dsv : nullptr);
 
-	_current_fbo[0] = *fbo_impl;
-
-	assert(!_has_open_render_pass);
-	_has_open_render_pass = true;
+	std::memcpy(_current_fbo, fbo_impl, sizeof(framebuffer_impl));
 }
 void reshade::d3d12::command_list_impl::finish_render_pass()
 {
 	_current_fbo->count = 0;
 	_current_fbo->dsv.ptr = 0;
+}
+void reshade::d3d12::command_list_impl::bind_render_targets_and_depth_stencil(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv)
+{
+	if (count > D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT)
+	{
+		assert(false);
+		count = D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT;
+	}
 
-	assert( _has_open_render_pass);
-	_has_open_render_pass = false;
+#ifndef WIN64
+	D3D12_CPU_DESCRIPTOR_HANDLE rtv_handles[D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT];
+	for (UINT i = 0; i < count; ++i)
+		rtv_handles[i] = { static_cast<SIZE_T>(rtvs[i].handle) };
+#else
+	const auto rtv_handles = reinterpret_cast<const D3D12_CPU_DESCRIPTOR_HANDLE *>(rtvs);
+#endif
+	const D3D12_CPU_DESCRIPTOR_HANDLE dsv_handle = { static_cast<SIZE_T>(dsv.handle) };
+
+	_orig->OMSetRenderTargets(count, rtv_handles, FALSE, dsv.handle != 0 ? &dsv_handle : nullptr);
 }
 
 void reshade::d3d12::command_list_impl::bind_pipeline(api::pipeline_stage, api::pipeline pipeline)
@@ -334,15 +347,11 @@ void reshade::d3d12::command_list_impl::draw(uint32_t vertices, uint32_t instanc
 {
 	_has_commands = true;
 
-	assert(_has_open_render_pass);
-
 	_orig->DrawInstanced(vertices, instances, first_vertex, first_instance);
 }
 void reshade::d3d12::command_list_impl::draw_indexed(uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)
 {
 	_has_commands = true;
-
-	assert(_has_open_render_pass);
 
 	_orig->DrawIndexedInstanced(indices, instances, first_index, vertex_offset, first_instance);
 }

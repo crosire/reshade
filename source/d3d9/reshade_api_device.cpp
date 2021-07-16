@@ -38,8 +38,6 @@ reshade::d3d9::device_impl::device_impl(IDirect3DDevice9 *device) :
 	// Maximum simultaneous number of render targets is typically 4 in D3D9
 	assert(_caps.NumSimultaneousRTs <= ARRAYSIZE(framebuffer_impl::rtv));
 
-	_current_fbo = new framebuffer_impl();
-
 #if RESHADE_ADDON
 	load_addons();
 #endif
@@ -59,8 +57,6 @@ reshade::d3d9::device_impl::~device_impl()
 #if RESHADE_ADDON
 	unload_addons();
 #endif
-
-	delete _current_fbo;
 }
 
 void reshade::d3d9::device_impl::on_reset()
@@ -194,11 +190,9 @@ void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 			invoke_addon_event_on_destruction_d3d9<addon_event::destroy_resource, api::resource>(this, auto_depth_stencil.get());
 		}
 
-		_current_fbo->dsv = auto_depth_stencil.get();
+		// Communicate default state to add-ons
+		invoke_addon_event<addon_event::bind_render_targets_and_depth_stencil>(this, 0, nullptr, reshade::api::resource_view { reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) });
 	}
-
-	// Communicate default state to add-ons
-	invoke_addon_event<addon_event::begin_render_pass>(this, reshade::api::render_pass { 0 }, reshade::api::framebuffer { reinterpret_cast<uintptr_t>(_current_fbo) });
 #else
 	UNREFERENCED_PARAMETER(pp);
 #endif
@@ -248,6 +242,9 @@ bool reshade::d3d9::device_impl::check_capability(api::device_caps capability) c
 	case api::device_caps::resolve_region:
 		return true;
 	case api::device_caps::copy_query_pool_results:
+		return false;
+	case api::device_caps::bind_render_targets_and_depth_stencil:
+		return true;
 	default:
 		return false;
 	}

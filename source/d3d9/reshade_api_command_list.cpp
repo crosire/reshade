@@ -19,11 +19,20 @@ void reshade::d3d9::device_impl::begin_render_pass(api::render_pass, api::frameb
 	_orig->SetRenderState(D3DRS_SRGBWRITEENABLE, fbo_impl->srgb_write_enable);
 
 	_orig->SetDepthStencilSurface(fbo_impl->dsv);
-
-	_current_fbo[0] = *fbo_impl;
 }
 void reshade::d3d9::device_impl::finish_render_pass()
 {
+}
+void reshade::d3d9::device_impl::bind_render_targets_and_depth_stencil(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv)
+{
+	assert(count <= _caps.NumSimultaneousRTs);
+
+	for (UINT i = 0; i < count; ++i)
+		_orig->SetRenderTarget(i, reinterpret_cast<IDirect3DSurface9 *>(rtvs[i].handle));
+	for (UINT i = count; i < _caps.NumSimultaneousRTs; ++i)
+		_orig->SetRenderTarget(i, nullptr);
+
+	_orig->SetDepthStencilSurface(reinterpret_cast<IDirect3DSurface9 *>(dsv.handle));
 }
 
 void reshade::d3d9::device_impl::bind_pipeline(api::pipeline_stage type, api::pipeline pipeline)

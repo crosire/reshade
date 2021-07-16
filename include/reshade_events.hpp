@@ -207,15 +207,20 @@ namespace reshade
 		barrier,
 
 		/// <summary>
-		/// Called after 'ID3D12GraphicsCommandList::BeginRenderPass', 'vkCmdBeginRenderPass' or after render targets were set via 'IDirect3DDevice9::SetRenderTarget', 'IDirect3DDevice9::SetDepthStencilSurface', 'ID3D10Device::OMSetRenderTargets', 'ID3D11DeviceContext::OMSetRenderTargets(AndUnorderedAccessViews)', 'ID3D12GraphicsCommandList::OMSetRenderTargets' or 'glBindFramebuffer'.
+		/// Called after 'ID3D12GraphicsCommandList::BeginRenderPass', 'vkCmdBeginRenderPass' or 'glBindFramebuffer'.
 		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::render_pass pass, api::render_pass fbo)</c></para>
 		/// </summary>
 		begin_render_pass,
 		/// <summary>
-		/// Called after 'ID3D12GraphicsCommandList::EndRenderPass', 'vkCmdEndRenderPass' or after previous render targets were unset via 'IDirect3DDevice9::SetRenderTarget', 'IDirect3DDevice9::SetDepthStencilSurface', 'ID3D10Device::OMSetRenderTargets', 'ID3D11DeviceContext::OMSetRenderTargets(AndUnorderedAccessViews)', 'ID3D12GraphicsCommandList::OMSetRenderTargets' or 'glBindFramebuffer'.
+		/// Called after 'ID3D12GraphicsCommandList::EndRenderPass', 'vkCmdEndRenderPass' or before 'glBindFramebuffer'.
 		/// <para>Callback function signature: <c>void (api::command_list *cmd_list)</c></para>
 		/// </summary>
 		finish_render_pass,
+		/// <summary>
+		/// Called after 'IDirect3DDevice9::SetRenderTarget', 'IDirect3DDevice9::SetDepthStencilSurface', 'ID3D10Device::OMSetRenderTargets', 'ID3D11DeviceContext::OMSetRenderTargets(AndUnorderedAccessViews)' or 'ID3D12GraphicsCommandList::OMSetRenderTargets'.
+		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, uint32_t count, const api::resource_view *rtvs, api::resource_view dsv)</c></para>
+		/// </summary>
+		bind_render_targets_and_depth_stencil,
 
 		/// <summary>
 		/// Called after 'IDirect3DDevice9::Set(...)Shader', 'ID3D10Device::(...)SetShader', 'ID3D11DeviceContext::(...)SetShader', 'ID3D12GraphicsCommandList::SetPipelineState', 'glUseProgram' or 'vkCmdBindPipeline'.
@@ -492,6 +497,7 @@ namespace reshade
 
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::begin_render_pass, api::command_list *cmd_list, api::render_pass pass, api::framebuffer fbo);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::finish_render_pass, api::command_list *cmd_list);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_render_targets_and_depth_stencil, api::command_list *cmd_list, uint32_t count, const api::resource_view *rtvs, api::resource_view dsv);
 
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_pipeline, api::command_list *cmd_list, api::pipeline_stage type, api::pipeline pipeline);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::bind_pipeline_states, api::command_list *cmd_list, uint32_t count, const api::dynamic_state *states, const uint32_t *values);

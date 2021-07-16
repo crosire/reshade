@@ -184,14 +184,18 @@ HOOK_EXPORT void WINAPI glBegin(GLenum mode)
 			void WINAPI glBindFramebuffer(GLenum target, GLuint framebuffer)
 {
 	static const auto trampoline = reshade::hooks::call(glBindFramebuffer);
-	trampoline(target, framebuffer);
 
 #if RESHADE_ADDON
 	if (g_current_context && (target == GL_FRAMEBUFFER || target == GL_DRAW_FRAMEBUFFER) &&
 		glCheckFramebufferStatus(target) == GL_FRAMEBUFFER_COMPLETE) // Skip incomplete frame buffer bindings (e.g. during set up)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(g_current_context);
+		trampoline(target, framebuffer);
 		reshade::invoke_addon_event< reshade::addon_event::begin_render_pass>(g_current_context, reshade::api::render_pass { 0 }, reshade::opengl::make_framebuffer_handle(framebuffer));
+	}
+	else
+	{
+		trampoline(target, framebuffer);
 	}
 #endif
 }

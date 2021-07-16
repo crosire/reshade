@@ -45,6 +45,7 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(barrier);
 		CASE(begin_render_pass);
 		CASE(finish_render_pass);
+		CASE(bind_render_targets_and_depth_stencil);
 		CASE(bind_pipeline);
 		CASE(bind_pipeline_states);
 		CASE(bind_viewports);

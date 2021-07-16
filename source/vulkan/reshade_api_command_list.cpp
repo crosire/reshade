@@ -121,6 +121,10 @@ void reshade::vulkan::command_list_impl::finish_render_pass()
 	_current_fbo = VK_NULL_HANDLE;
 #endif
 }
+void reshade::vulkan::command_list_impl::bind_render_targets_and_depth_stencil(uint32_t, const api::resource_view *, api::resource_view)
+{
+	assert(false);
+}
 
 void reshade::vulkan::command_list_impl::bind_pipeline(api::pipeline_stage type, api::pipeline pipeline)
 {

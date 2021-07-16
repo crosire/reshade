@@ -231,7 +231,6 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::Present(const RECT *pSourceRect, const RECT *pDestRect, HWND hDestWindowOverride, const RGNDATA *pDirtyRegion)
 {
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(this);
 	reshade::invoke_addon_event<reshade::addon_event::present>(this, _implicit_swapchain);
 #endif
 
@@ -239,13 +238,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Present(const RECT *pSourceRect, cons
 	if (Direct3DSwapChain9::is_presenting_entire_surface(pSourceRect, hDestWindowOverride))
 		_implicit_swapchain->on_present();
 
-	const HRESULT hr = _orig->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
-
-#if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::render_pass { 0 }, reshade::api::framebuffer { reinterpret_cast<uintptr_t>(_current_fbo) });
-#endif
-
-	return hr;
+	return _orig->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetBackBuffer(UINT iSwapChain, UINT iBackBuffer, D3DBACKBUFFER_TYPE Type, IDirect3DSurface9 **ppBackBuffer)
 {
@@ -745,19 +738,28 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetRenderTarget(DWORD RenderTargetInd
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
-		if (_current_fbo->rtv[RenderTargetIndex] != nullptr)
+		DWORD count = 0;
+		com_ptr<IDirect3DSurface9> surface;
+		reshade::api::resource_view rtvs[8], dsv = { 0 };
+		for (DWORD i = 0; i < _caps.NumSimultaneousRTs; ++i, surface.reset())
 		{
-			if (RenderTargetIndex == 0)
-				reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(this);
+			if (FAILED(_orig->GetRenderTarget(i, &surface)))
+				continue;
+
+			// All surfaces that can be used as render target should be registered at this point
+			rtvs[i] = { reinterpret_cast<uintptr_t>(surface.get()) };
+			count = i + 1;
+		}
+		if (SUCCEEDED(_orig->GetDepthStencilSurface(&surface)))
+		{
+			// All surfaces that can be used as depth-stencil should be registered at this point
+			dsv = { reinterpret_cast<uintptr_t>(surface.get()) };
 		}
 
-		_current_fbo->rtv[RenderTargetIndex] = pRenderTarget;
+		reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(this, count, rtvs, dsv);
 
-		if (_current_fbo->rtv[RenderTargetIndex] != nullptr)
+		if (pRenderTarget != nullptr)
 		{
-			if (RenderTargetIndex == 0)
-				reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::render_pass { 0 }, reshade::api::framebuffer { reinterpret_cast<uintptr_t>(_current_fbo) });
-
 			// Setting a new render target will cause the viewport to be set to the full size of the new render target
 			// See https://docs.microsoft.com/windows/win32/api/d3d9helper/nf-d3d9helper-idirect3ddevice9-setrendertarget
 			D3DSURFACE_DESC desc;
@@ -786,13 +788,21 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetDepthStencilSurface(IDirect3DSurfa
 {
 	const HRESULT hr = _orig->SetDepthStencilSurface(pNewZStencil);
 #if RESHADE_ADDON
-	if (SUCCEEDED(hr) && pNewZStencil != _current_fbo->dsv)
+	if (SUCCEEDED(hr))
 	{
-		reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(this);
+		DWORD count = 0;
+		com_ptr<IDirect3DSurface9> surface;
+		reshade::api::resource_view rtvs[8];
+		for (DWORD i = 0; i < _caps.NumSimultaneousRTs; ++i, surface.reset())
+		{
+			if (FAILED(_orig->GetRenderTarget(i, &surface)))
+				continue;
 
-		_current_fbo->dsv = pNewZStencil;
+			rtvs[i] = { reinterpret_cast<uintptr_t>(surface.get()) };
+			count = i + 1;
+		}
 
-		reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::render_pass { 0 }, reshade::api::framebuffer { reinterpret_cast<uintptr_t>(_current_fbo) });
+		reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(this, count, rtvs, reshade::api::resource_view { reinterpret_cast<uintptr_t>(pNewZStencil) });
 	}
 #endif
 	return hr;
@@ -1482,7 +1492,6 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ComposeRects(IDirect3DSurface9 *pSrc,
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::PresentEx(const RECT *pSourceRect, const RECT *pDestRect, HWND hDestWindowOverride, const RGNDATA *pDirtyRegion, DWORD dwFlags)
 {
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(this);
 	reshade::invoke_addon_event<reshade::addon_event::present>(this, _implicit_swapchain);
 #endif
 
@@ -1490,13 +1499,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::PresentEx(const RECT *pSourceRect, co
 		_implicit_swapchain->on_present();
 
 	assert(_extended_interface);
-	const HRESULT hr = static_cast<IDirect3DDevice9Ex *>(_orig)->PresentEx(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
-
-#if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::render_pass { 0 }, reshade::api::framebuffer { reinterpret_cast<uintptr_t>(_current_fbo) });
-#endif
-
-	return hr;
+	return static_cast<IDirect3DDevice9Ex *>(_orig)->PresentEx(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetGPUThreadPriority(INT *pPriority)
 {

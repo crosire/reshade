@@ -155,6 +155,11 @@ namespace reshade { namespace api
 		/// If this feature is not present, <see cref="command_list::copy_query_pool_results"/> must not be used.
 		/// </summary>
 		copy_query_pool_results,
+		/// <summary>
+		/// Specifies whether binding individual render target and depth-stencil resource views is supported.
+		/// If this feature is not present, <see cref="command_list::bind_render_targets_and_depth_stencil"/> must not be used (only render passes).
+		/// </summary>
+		bind_render_targets_and_depth_stencil,
 	};
 
 	/// <summary>
@@ -489,6 +494,11 @@ namespace reshade { namespace api
 		/// This must be preceeded by a call to <see cref="begin_render_pass"/>). Render passes cannot be nested.
 		/// </summary>
 		virtual void finish_render_pass() = 0;
+		/// <summary>
+		/// Binds individual render target and depth-stencil resource views.
+		/// This must not be called between <see cref="begin_render_pass"/> and <see cref="finish_render_pass"/>.
+		/// </summary>
+		virtual void bind_render_targets_and_depth_stencil(uint32_t count, const resource_view *rtvs, resource_view dsv) = 0;
 
 		/// <summary>
 		/// Binds a pipeline state object.

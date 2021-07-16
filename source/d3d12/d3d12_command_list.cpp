@@ -123,14 +123,6 @@ D3D12_COMMAND_LIST_TYPE STDMETHODCALLTYPE D3D12GraphicsCommandList::GetType()
 
 HRESULT STDMETHODCALLTYPE D3D12GraphicsCommandList::Close()
 {
-#if RESHADE_ADDON
-	if (_has_open_render_pass)
-	{
-		_has_open_render_pass = false;
-		reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(this);
-	}
-#endif
-
 	return _orig->Close();
 }
 HRESULT STDMETHODCALLTYPE D3D12GraphicsCommandList::Reset(ID3D12CommandAllocator *pAllocator, ID3D12PipelineState *pInitialState)
@@ -634,22 +626,14 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::OMSetRenderTargets(UINT NumRend
 #if RESHADE_ADDON
 	assert(NumRenderTargetDescriptors <= D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT);
 
-	if (_has_open_render_pass)
-	{
-		_has_open_render_pass = false;
-		reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(this);
-	}
+	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_render_targets_and_depth_stencil)].empty())
+		return;
 
-	_current_fbo->count = NumRenderTargetDescriptors;
-	std::memcpy(_current_fbo->rtv, pRenderTargetDescriptors, (RTsSingleHandleToDescriptorRange ? 1 : NumRenderTargetDescriptors) * sizeof(D3D12_CPU_DESCRIPTOR_HANDLE));
-	_current_fbo->dsv = pDepthStencilDescriptor != nullptr ? *pDepthStencilDescriptor : D3D12_CPU_DESCRIPTOR_HANDLE { 0 };
-	_current_fbo->rtv_is_single_handle_to_range = RTsSingleHandleToDescriptorRange;
+	reshade::api::resource_view rtvs[D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT];
+	for (UINT i = 0; i < NumRenderTargetDescriptors; ++i)
+		rtvs[i] = { RTsSingleHandleToDescriptorRange ? pRenderTargetDescriptors->ptr + i * _device->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_RTV] : pRenderTargetDescriptors[i].ptr };
 
-	if ((NumRenderTargetDescriptors != 0 && pRenderTargetDescriptors->ptr != 0) || pDepthStencilDescriptor != nullptr)
-	{
-		_has_open_render_pass = true;
-		reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::render_pass { 0 }, reshade::api::framebuffer { reinterpret_cast<uintptr_t>(_current_fbo) });
-	}
+	reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(this, NumRenderTargetDescriptors, rtvs, reshade::api::resource_view { pDepthStencilDescriptor != nullptr ? pDepthStencilDescriptor->ptr : 0 });
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearDepthStencilView(D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilView, D3D12_CLEAR_FLAGS ClearFlags, FLOAT Depth, UINT8 Stencil, UINT NumRects, const D3D12_RECT *pRects)
@@ -795,12 +779,6 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetProtectedResourceSession(ID3
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::BeginRenderPass(UINT NumRenderTargets, const D3D12_RENDER_PASS_RENDER_TARGET_DESC *pRenderTargets, const D3D12_RENDER_PASS_DEPTH_STENCIL_DESC *pDepthStencil, D3D12_RENDER_PASS_FLAGS Flags)
 {
 #if RESHADE_ADDON
-	if (_has_open_render_pass)
-	{
-		_has_open_render_pass = false;
-		reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(this);
-	}
-
 	// Use clear events with explicit resource view references here, since this is invoked before render pass begin
 	if (!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::clear_depth_stencil_view)].empty() ||
 		!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::clear_render_target_view)].empty())
@@ -852,7 +830,6 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::BeginRenderPass(UINT NumRenderT
 	_current_fbo->dsv = (pDepthStencil != nullptr) ? pDepthStencil->cpuDescriptor : D3D12_CPU_DESCRIPTOR_HANDLE { 0 };
 	_current_fbo->rtv_is_single_handle_to_range = FALSE;
 
-	_has_open_render_pass = true;
 	reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, reshade::api::render_pass { 0 }, reshade::api::framebuffer { reinterpret_cast<uintptr_t>(_current_fbo) });
 #endif
 }
@@ -862,7 +839,9 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::EndRenderPass(void)
 	static_cast<ID3D12GraphicsCommandList4 *>(_orig)->EndRenderPass();
 
 #if RESHADE_ADDON
-	_has_open_render_pass = false;
+	_current_fbo->count = 0;
+	_current_fbo->dsv.ptr = 0;
+
 	reshade::invoke_addon_event<reshade::addon_event::finish_render_pass>(this);
 #endif
 }

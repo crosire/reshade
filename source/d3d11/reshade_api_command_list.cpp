@@ -84,22 +84,29 @@ void reshade::d3d11::device_context_impl::begin_render_pass(api::render_pass, ap
 	assert(fbo.handle != 0);
 	const auto fbo_impl = reinterpret_cast<const framebuffer_impl *>(fbo.handle);
 	_orig->OMSetRenderTargets(fbo_impl->count, fbo_impl->rtv, fbo_impl->dsv);
-
-	_current_fbo[0] = *fbo_impl;
-
-	assert(!_has_open_render_pass);
-	_has_open_render_pass = true;
 }
 void reshade::d3d11::device_context_impl::finish_render_pass()
 {
 	// Reset render targets
 	_orig->OMSetRenderTargets(0, nullptr, nullptr);
+}
+void reshade::d3d11::device_context_impl::bind_render_targets_and_depth_stencil(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv)
+{
+	if (count > D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT)
+	{
+		assert(false);
+		count = D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT;
+	}
 
-	_current_fbo->count = 0;
-	_current_fbo->dsv = nullptr;
+#ifndef WIN64
+	ID3D11RenderTargetView *rtv_ptrs[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
+	for (UINT i = 0; i < count; ++i)
+		rtv_ptrs[i] = reinterpret_cast<ID3D11RenderTargetView *>(rtvs[i].handle);
+#else
+	const auto rtv_ptrs = reinterpret_cast<ID3D11RenderTargetView *const *>(rtvs);
+#endif
 
-	assert( _has_open_render_pass);
-	_has_open_render_pass = false;
+	_orig->OMSetRenderTargets(count, rtv_ptrs, reinterpret_cast<ID3D11DepthStencilView *>(dsv.handle));
 }
 
 void reshade::d3d11::device_context_impl::bind_pipeline(api::pipeline_stage type, api::pipeline pipeline)
@@ -406,14 +413,10 @@ void reshade::d3d11::device_context_impl::bind_vertex_buffers(uint32_t first, ui
 
 void reshade::d3d11::device_context_impl::draw(uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance)
 {
-	assert(_has_open_render_pass);
-
 	_orig->DrawInstanced(vertices, instances, first_vertex, first_instance);
 }
 void reshade::d3d11::device_context_impl::draw_indexed(uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)
 {
-	assert(_has_open_render_pass);
-
 	_orig->DrawIndexedInstanced(indices, instances, first_index, vertex_offset, first_instance);
 }
 void reshade::d3d11::device_context_impl::dispatch(uint32_t num_groups_x, uint32_t num_groups_y, uint32_t num_groups_z)
@@ -499,13 +502,16 @@ void reshade::d3d11::device_context_impl::resolve_texture_region(api::resource s
 void reshade::d3d11::device_context_impl::clear_attachments(api::attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t num_rects, const int32_t *)
 {
 	assert(num_rects == 0);
-	assert(_has_open_render_pass);
+
+	com_ptr<ID3D11DepthStencilView> dsv;
+	com_ptr<ID3D11RenderTargetView> rtv[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
+	_orig->OMGetRenderTargets(ARRAYSIZE(rtv), reinterpret_cast<ID3D11RenderTargetView **>(rtv), &dsv);
 
 	if (static_cast<UINT>(clear_flags & (api::attachment_type::color)) != 0)
-		for (UINT i = 0; i < _current_fbo->count; ++i)
-			_orig->ClearRenderTargetView(_current_fbo->rtv[i], color);
-	if (static_cast<UINT>(clear_flags & (api::attachment_type::depth | api::attachment_type::stencil)) != 0)
-		_orig->ClearDepthStencilView(_current_fbo->dsv, static_cast<UINT>(clear_flags) >> 1, depth, stencil);
+		for (UINT i = 0; i < ARRAYSIZE(rtv) && rtv[i] != nullptr; ++i)
+			_orig->ClearRenderTargetView(rtv[i].get(), color);
+	if (static_cast<UINT>(clear_flags & (api::attachment_type::depth | api::attachment_type::stencil)) != 0 && dsv != nullptr)
+		_orig->ClearDepthStencilView(dsv.get(), static_cast<UINT>(clear_flags) >> 1, depth, stencil);
 }
 void reshade::d3d11::device_context_impl::clear_depth_stencil_view(api::resource_view dsv, api::attachment_type clear_flags, float depth, uint8_t stencil, uint32_t num_rects, const int32_t *)
 {

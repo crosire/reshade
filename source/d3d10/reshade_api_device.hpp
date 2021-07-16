@@ -89,6 +89,7 @@ namespace reshade::d3d10
 
 		void begin_render_pass(api::render_pass pass, api::framebuffer fbo) final;
 		void finish_render_pass() final;
+		void bind_render_targets_and_depth_stencil(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv) final;
 
 		void bind_pipeline(api::pipeline_stage type, api::pipeline pipeline) final;
 		void bind_pipeline_states(uint32_t count, const api::dynamic_state *states, const uint32_t *values) final;
@@ -141,9 +142,5 @@ namespace reshade::d3d10
 
 		UINT _push_constants_size = 0;
 		com_ptr<ID3D10Buffer> _push_constants;
-
-	protected:
-		bool _has_open_render_pass = false;
-		struct framebuffer_impl *_current_fbo;
 	};
 }

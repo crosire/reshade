@@ -21,6 +21,7 @@ namespace reshade::d3d11
 
 		void begin_render_pass(api::render_pass, api::framebuffer) final { assert(false); }
 		void finish_render_pass() final { assert(false); }
+		void bind_render_targets_and_depth_stencil(uint32_t, const api::resource_view *, api::resource_view) final { assert(false); }
 
 		void bind_pipeline(api::pipeline_stage, api::pipeline) final { assert(false); }
 		void bind_pipeline_states(uint32_t, const api::dynamic_state *, const uint32_t *) final { assert(false); }
@@ -86,6 +87,7 @@ namespace reshade::d3d11
 
 		void begin_render_pass(api::render_pass pass, api::framebuffer fbo) final;
 		void finish_render_pass() final;
+		void bind_render_targets_and_depth_stencil(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv) final;
 
 		void bind_pipeline(api::pipeline_stage type, api::pipeline pipeline) final;
 		void bind_pipeline_states(uint32_t count, const api::dynamic_state *states, const uint32_t *values) final;
@@ -137,9 +139,5 @@ namespace reshade::d3d11
 		com_ptr<ID3DUserDefinedAnnotation> _annotations;
 		UINT _push_constants_size = 0;
 		com_ptr<ID3D11Buffer> _push_constants;
-
-	protected:
-		bool _has_open_render_pass = false;
-		struct framebuffer_impl *_current_fbo;
 	};
 }
