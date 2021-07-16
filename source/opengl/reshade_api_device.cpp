@@ -248,29 +248,27 @@ bool reshade::opengl::device_impl::check_capability(api::device_caps capability)
 		return true; // OpenGL 3.2
 	case api::device_caps::hull_and_domain_shader:
 		return true; // OpenGL 4.0
+	case api::device_caps::logic_op:
+		return true; // OpenGL 1.1
 	case api::device_caps::dual_src_blend:
 		return true; // OpenGL 3.3
 	case api::device_caps::independent_blend:
 		// TODO
 		return false;
-	case api::device_caps::logic_op:
-		return true; // OpenGL 1.1
-	case api::device_caps::draw_instanced:
-		return true; // OpenGL 3.1
-	case api::device_caps::draw_or_dispatch_indirect:
-		return true; // OpenGL 4.0
 	case api::device_caps::fill_mode_non_solid:
+		return true;
+	case api::device_caps::bind_render_targets_and_depth_stencil:
+		return false;
 	case api::device_caps::multi_viewport:
 		return true;
 	case api::device_caps::partial_push_constant_updates:
 		return false;
 	case api::device_caps::partial_push_descriptor_updates:
-	case api::device_caps::sampler_compare:
 		return true;
-	case api::device_caps::sampler_anisotropic:
-		glGetIntegerv(GL_TEXTURE_MAX_ANISOTROPY, &value); // Core in OpenGL 4.6
-		return value > 1;
-	case api::device_caps::sampler_with_resource_view:
+	case api::device_caps::draw_instanced:
+		return true; // OpenGL 3.1
+	case api::device_caps::draw_or_dispatch_indirect:
+		return true; // OpenGL 4.0
 	case api::device_caps::copy_buffer_region:
 	case api::device_caps::copy_buffer_to_texture:
 	case api::device_caps::blit:
@@ -278,7 +276,13 @@ bool reshade::opengl::device_impl::check_capability(api::device_caps capability)
 		return true;
 	case api::device_caps::copy_query_pool_results:
 		return gl3wProcs.gl.GetQueryBufferObjectui64v != nullptr; // OpenGL 4.5
-	case api::device_caps::bind_render_targets_and_depth_stencil:
+	case api::device_caps::sampler_compare:
+		return true;
+	case api::device_caps::sampler_anisotropic:
+		glGetIntegerv(GL_TEXTURE_MAX_ANISOTROPY, &value); // Core in OpenGL 4.6
+		return value > 1;
+	case api::device_caps::sampler_with_resource_view:
+		return true;
 	default:
 		return false;
 	}

@@ -139,37 +139,38 @@ bool reshade::vulkan::device_impl::check_capability(api::device_caps capability)
 		return _enabled_features.geometryShader;
 	case api::device_caps::hull_and_domain_shader:
 		return _enabled_features.tessellationShader;
+	case api::device_caps::logic_op:
+		return _enabled_features.logicOp;
 	case api::device_caps::dual_src_blend:
 		return _enabled_features.dualSrcBlend;
 	case api::device_caps::independent_blend:
 		return _enabled_features.independentBlend;
-	case api::device_caps::logic_op:
-		return _enabled_features.logicOp;
-	case api::device_caps::draw_instanced:
-		return true;
-	case api::device_caps::draw_or_dispatch_indirect:
-		// Technically this only specifies whether multi-draw indirect is supported, not draw indirect as a whole
-		return _enabled_features.multiDrawIndirect;
 	case api::device_caps::fill_mode_non_solid:
 		return _enabled_features.fillModeNonSolid;
+	case api::device_caps::bind_render_targets_and_depth_stencil:
+		return false;
 	case api::device_caps::multi_viewport:
 		return _enabled_features.multiViewport;
 	case api::device_caps::partial_push_constant_updates:
 		return true;
 	case api::device_caps::partial_push_descriptor_updates:
 		return vk.CmdPushDescriptorSetKHR != nullptr;
-	case api::device_caps::sampler_compare:
+	case api::device_caps::draw_instanced:
 		return true;
-	case api::device_caps::sampler_anisotropic:
-		return _enabled_features.samplerAnisotropy;
-	case api::device_caps::sampler_with_resource_view:
+	case api::device_caps::draw_or_dispatch_indirect:
+		// Technically this only specifies whether multi-draw indirect is supported, not draw indirect as a whole
+		return _enabled_features.multiDrawIndirect;
 	case api::device_caps::copy_buffer_region:
 	case api::device_caps::copy_buffer_to_texture:
 	case api::device_caps::blit:
 	case api::device_caps::resolve_region:
 	case api::device_caps::copy_query_pool_results:
+	case api::device_caps::sampler_compare:
 		return true;
-	case api::device_caps::bind_render_targets_and_depth_stencil:
+	case api::device_caps::sampler_anisotropic:
+		return _enabled_features.samplerAnisotropy;
+	case api::device_caps::sampler_with_resource_view:
+		return true;
 	default:
 		return false;
 	}

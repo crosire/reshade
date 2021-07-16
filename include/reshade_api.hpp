@@ -66,10 +66,15 @@ namespace reshade { namespace api
 		/// </summary>
 		geometry_shader,
 		/// <summary>
-		/// Specifies whether hull and domain shaders are supported.
+		/// Specifies whether hull and domain (tessellation) shaders are supported.
 		/// If this feature is not present, the <see cref="pipeline_stage::hull_shader"/> and <see cref="pipeline_stage::domain_shader"/> stages must not be used.
 		/// </summary>
 		hull_and_domain_shader,
+		/// <summary>
+		/// Specifies whether logic operations are available in the blend state.
+		/// If this feature is not present, the "logic_op_enable" and "logic_op" fields of <see cref="blend_desc"/> are ignored.
+		/// </summary>
+		logic_op,
 		/// <summary>
 		/// Specifies whether blend operations which take two sources are supported.
 		/// If this feature is not present, <see cref="blend_factor::src1_color"/>, <see cref="blend_factor::inv_src1_color"/>, <see cref="blend_factor::src1_alpha"/> and <see cref="blend_factor::inv_src1_alpha"/> must not be used.
@@ -81,25 +86,15 @@ namespace reshade { namespace api
 		/// </summary>
 		independent_blend,
 		/// <summary>
-		/// Specifies whether logic operations are available in the blend state.
-		/// If this feature is not present, the "logic_op_enable" and "logic_op" fields of <see cref="blend_desc"/> are ignored.
-		/// </summary>
-		logic_op,
-		/// <summary>
-		/// Specifies whether instancing is supported.
-		/// If this feature is not present, the "instances" and "first_instance" parameters to <see cref="command_list::draw"/> and <see cref="command_list::draw_indexed"/> must be 1 and 0.
-		/// </summary>
-		draw_instanced,
-		/// <summary>
-		/// Specifies whether indirect draw or dispatch calls are supported.
-		/// If this feature is not present, <see cref="command_list::draw_or_dispatch_indirect"/> must not be used.
-		/// </summary>
-		draw_or_dispatch_indirect,
-		/// <summary>
 		/// Specifies whether point and wireframe fill modes are supported.
 		/// If this feature is not present, <see cref="fill_mode::point"/> and <see cref="fill_mode::wireframe"/> must not be used.
 		/// </summary>
 		fill_mode_non_solid,
+		/// <summary>
+		/// Specifies whether binding individual render target and depth-stencil resource views is supported.
+		/// If this feature is not present, <see cref="command_list::bind_render_targets_and_depth_stencil"/> must not be used (only render passes).
+		/// </summary>
+		bind_render_targets_and_depth_stencil,
 		/// <summary>
 		/// Specifies whther more than one viewport is supported.
 		/// If this feature is not present, the "first" and "count" parameters to <see cref="command_list::bind_viewports"/> must be 0 and 1.
@@ -116,20 +111,15 @@ namespace reshade { namespace api
 		/// </summary>
 		partial_push_descriptor_updates,
 		/// <summary>
-		/// Specifies whether comparison sampling is supported.
-		/// If this feature is not present, the "compare_op" field of <see cref="sampler_desc"/> is ignored and the compare filter types have no effect.
+		/// Specifies whether instancing is supported.
+		/// If this feature is not present, the "instances" and "first_instance" parameters to <see cref="command_list::draw"/> and <see cref="command_list::draw_indexed"/> must be 1 and 0.
 		/// </summary>
-		sampler_compare,
+		draw_instanced,
 		/// <summary>
-		/// Specifies whether anisotropic filtering is supported.
-		/// If this feature is not present, <see cref="filter_type::anisotropic"/> must not be used.
+		/// Specifies whether indirect draw or dispatch calls are supported.
+		/// If this feature is not present, <see cref="command_list::draw_or_dispatch_indirect"/> must not be used.
 		/// </summary>
-		sampler_anisotropic,
-		/// <summary>
-		/// Specifies whether combined sampler and resource view descriptors are supported.
-		/// If this feature is not present, <see cref="descriptor_type::sampler_with_resource_view"/> must not be used.
-		/// </summary>
-		sampler_with_resource_view,
+		draw_or_dispatch_indirect,
 		/// <summary>
 		/// Specifies whether copying between buffers is supported.
 		/// If this feature is not present, <see cref="command_list::copy_buffer_region"/> must not be used.
@@ -156,10 +146,20 @@ namespace reshade { namespace api
 		/// </summary>
 		copy_query_pool_results,
 		/// <summary>
-		/// Specifies whether binding individual render target and depth-stencil resource views is supported.
-		/// If this feature is not present, <see cref="command_list::bind_render_targets_and_depth_stencil"/> must not be used (only render passes).
+		/// Specifies whether comparison sampling is supported.
+		/// If this feature is not present, the "compare_op" field of <see cref="sampler_desc"/> is ignored and the compare filter types have no effect.
 		/// </summary>
-		bind_render_targets_and_depth_stencil,
+		sampler_compare,
+		/// <summary>
+		/// Specifies whether anisotropic filtering is supported.
+		/// If this feature is not present, <see cref="filter_type::anisotropic"/> must not be used.
+		/// </summary>
+		sampler_anisotropic,
+		/// <summary>
+		/// Specifies whether combined sampler and resource view descriptors are supported.
+		/// If this feature is not present, <see cref="descriptor_type::sampler_with_resource_view"/> must not be used.
+		/// </summary>
+		sampler_with_resource_view,
 	};
 
 	/// <summary>

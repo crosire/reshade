@@ -117,27 +117,22 @@ bool reshade::d3d12::device_impl::check_capability(api::device_caps capability) 
 	case api::device_caps::compute_shader:
 	case api::device_caps::geometry_shader:
 	case api::device_caps::hull_and_domain_shader:
-	case api::device_caps::dual_src_blend:
-	case api::device_caps::independent_blend:
-		return true;
 	case api::device_caps::logic_op:
 		_orig->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &options, sizeof(options));
 		return options.OutputMergerLogicOp;
-	case api::device_caps::draw_instanced:
-		return true;
-	case api::device_caps::draw_or_dispatch_indirect:
-		return false; // TODO: Not currently implemented
+	case api::device_caps::dual_src_blend:
+	case api::device_caps::independent_blend:
 	case api::device_caps::fill_mode_non_solid:
+	case api::device_caps::bind_render_targets_and_depth_stencil:
 	case api::device_caps::multi_viewport:
 	case api::device_caps::partial_push_constant_updates:
 		return true;
 	case api::device_caps::partial_push_descriptor_updates:
 		return false;
-	case api::device_caps::sampler_compare:
-	case api::device_caps::sampler_anisotropic:
+	case api::device_caps::draw_instanced:
 		return true;
-	case api::device_caps::sampler_with_resource_view:
-		return false;
+	case api::device_caps::draw_or_dispatch_indirect:
+		return false; // TODO: Not currently implemented
 	case api::device_caps::copy_buffer_region:
 	case api::device_caps::copy_buffer_to_texture:
 		return true;
@@ -145,8 +140,10 @@ bool reshade::d3d12::device_impl::check_capability(api::device_caps capability) 
 		return false;
 	case api::device_caps::resolve_region:
 	case api::device_caps::copy_query_pool_results:
-	case api::device_caps::bind_render_targets_and_depth_stencil:
+	case api::device_caps::sampler_compare:
+	case api::device_caps::sampler_anisotropic:
 		return true;
+	case api::device_caps::sampler_with_resource_view:
 	default:
 		return false;
 	}
