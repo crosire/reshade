@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "addon_impl.hpp"
+#include "addon.hpp"
 #include "reshade_events.hpp"
 
 #if RESHADE_ADDON

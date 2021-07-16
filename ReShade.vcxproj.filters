@@ -383,7 +383,7 @@
     <ClInclude Include="source\runtime_objects.hpp">
       <Filter>core\runtime</Filter>
     </ClInclude>
-    <ClInclude Include="source\addon_impl.hpp">
+    <ClInclude Include="source\addon.hpp">
       <Filter>core\runtime\addon</Filter>
     </ClInclude>
     <ClInclude Include="source\addon_manager.hpp">

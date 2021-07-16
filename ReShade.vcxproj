@@ -479,7 +479,7 @@
     <ClInclude Include="res\fonts\forkawesome.h" />
     <ClInclude Include="res\resource.h" />
     <ClInclude Include="res\version.h" />
-    <ClInclude Include="source\addon_impl.hpp" />
+    <ClInclude Include="source\addon.hpp" />
     <ClInclude Include="source\addon_manager.hpp" />
     <ClInclude Include="source\com_ptr.hpp" />
     <ClInclude Include="source\d3d10\d3d10_device.hpp" />
