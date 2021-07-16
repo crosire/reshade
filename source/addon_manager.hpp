@@ -97,7 +97,7 @@ namespace reshade
 			Handle const _handle;
 		};
 
-		static constexpr GUID private_guid = { 0xd6fe4f90, 0x71b7, 0x473c, { 0xbe, 0x83, 0xea, 0x21, 0x9, 0x7a, 0xa3, 0xeb } };
+		static constexpr GUID private_guid = { 0xd6fe4f90 + static_cast<uint32_t>(ev), 0x71b7, 0x473c, { 0xbe, 0x83, 0xea, 0x21, 0x9, 0x7a, 0xa3, 0xeb } };
 
 		IUnknown *const interface_object = new tracker_instance(device, Handle { reinterpret_cast<uintptr_t>(object) });
 		object->SetPrivateDataInterface(private_guid, interface_object);
@@ -146,7 +146,7 @@ namespace reshade
 			Handle const _handle;
 		};
 
-		static constexpr GUID private_guid = { 0xd6fe4f90, 0x71b7, 0x473c, { 0xbe, 0x83, 0xea, 0x21, 0x9, 0x7a, 0xa3, 0xeb } };
+		static constexpr GUID private_guid = { 0xd6fe4f90 + static_cast<uint32_t>(ev), 0x71b7, 0x473c, { 0xbe, 0x83, 0xea, 0x21, 0x9, 0x7a, 0xa3, 0xeb } };
 
 		IUnknown *const interface_object = new tracker_instance(device, Handle { reinterpret_cast<uintptr_t>(object) });
 		object->SetPrivateData(private_guid, interface_object, sizeof(interface_object), 0x1 /* D3DSPD_IUNKNOWN */);

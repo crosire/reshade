@@ -844,6 +844,7 @@ void unregister_builtin_addon_depth()
 
 	reshade::unregister_event<reshade::addon_event::create_resource>(on_create_resource);
 	reshade::unregister_event<reshade::addon_event::create_resource_view>(on_create_resource_view);
+	reshade::unregister_event<reshade::addon_event::destroy_resource>(on_destroy_resource);
 
 	reshade::unregister_event<reshade::addon_event::draw>(on_draw);
 	reshade::unregister_event<reshade::addon_event::draw_indexed>(on_draw_indexed);

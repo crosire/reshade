@@ -65,6 +65,10 @@ void reshade::d3d9::device_impl::on_reset()
 	if (_copy_state == nullptr)
 		return;
 
+	// Release backup state before invoking device destroy event, since it may still hold references to resources and releasing it may therefore invoke resource destroy events
+	// And all resource destroy events should have happened before the device destroy event
+	_backup_state.release_state_block();
+
 #if RESHADE_ADDON
 	// Force add-ons to release all resources associated with this device before performing reset
 	invoke_addon_event<addon_event::destroy_command_queue>(this);
@@ -74,7 +78,6 @@ void reshade::d3d9::device_impl::on_reset()
 	_copy_state.reset();
 	_default_input_stream.reset();
 	_default_input_layout.reset();
-	_backup_state.release_state_block();
 }
 void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 {
@@ -167,28 +170,30 @@ void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 		pp.EnableAutoDepthStencil &&
 		SUCCEEDED(_orig->GetDepthStencilSurface(&auto_depth_stencil)))
 	{
-		D3DSURFACE_DESC internal_desc;
-		auto_depth_stencil->GetDesc(&internal_desc);
-		const api::resource_desc desc =
-			convert_resource_desc(internal_desc, 1, _caps);
+		api::resource_desc desc = get_resource_desc(
+			{ reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) });
 
 		if (api::resource auto_depth_stencil_replacement_handle = { 0 };
 			invoke_addon_event<addon_event::create_resource>(
 				this, desc, nullptr, api::resource_usage::depth_stencil, &auto_depth_stencil_replacement_handle))
 		{
-			com_ptr<IDirect3DSurface9> auto_depth_stencil_replacement(reinterpret_cast<IDirect3DSurface9 *>(auto_depth_stencil_replacement_handle.handle), true);
+			desc = get_resource_desc(auto_depth_stencil_replacement_handle);
+
+			auto_depth_stencil = com_ptr<IDirect3DSurface9>(reinterpret_cast<IDirect3DSurface9 *>(auto_depth_stencil_replacement_handle.handle), true);
 
 			// The device will hold a reference to the surface after binding it, so can release this one afterwards
-			_orig->SetDepthStencilSurface(auto_depth_stencil_replacement.get());
-
-			auto_depth_stencil = std::move(auto_depth_stencil_replacement);
+			_orig->SetDepthStencilSurface(auto_depth_stencil.get());
 		}
-		else
-		{
-			invoke_addon_event<addon_event::init_resource>(this, desc, nullptr, api::resource_usage::depth_stencil, api::resource { reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) });
 
-			invoke_addon_event_on_destruction_d3d9<addon_event::destroy_resource, api::resource>(this, auto_depth_stencil.get());
-		}
+		// In case surface was replaced with a texture resource during 'create_resource' event above
+		reshade::api::resource resource = { 0 };
+		get_resource_from_view(reshade::api::resource_view { reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) }, &resource);
+
+		invoke_addon_event<addon_event::init_resource>(this, desc, nullptr, api::resource_usage::depth_stencil, resource);
+		invoke_addon_event<addon_event::init_resource_view>(this, resource, api::resource_usage::depth_stencil, api::resource_view_desc(desc.texture.format), api::resource_view { reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) });
+
+		invoke_addon_event_on_destruction_d3d9<addon_event::destroy_resource, api::resource>(this, reinterpret_cast<IDirect3DResource9 *>(resource.handle));
+		invoke_addon_event_on_destruction_d3d9<addon_event::destroy_resource_view, api::resource_view>(this, auto_depth_stencil.get());
 
 		// Communicate default state to add-ons
 		invoke_addon_event<addon_event::bind_render_targets_and_depth_stencil>(this, 0, nullptr, reshade::api::resource_view { reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) });
