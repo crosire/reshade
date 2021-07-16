@@ -203,7 +203,7 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC hglrc) :
 	}
 
 #if RESHADE_ADDON
-	addon::load_addons();
+	load_addons();
 
 	invoke_addon_event<addon_event::init_device>(this);
 	invoke_addon_event<addon_event::init_command_queue>(this);
@@ -218,7 +218,7 @@ reshade::opengl::device_impl::~device_impl()
 	invoke_addon_event<addon_event::destroy_command_queue>(this);
 	invoke_addon_event<addon_event::destroy_device>(this);
 
-	addon::unload_addons();
+	unload_addons();
 #endif
 
 	// Destroy mipmap generation program
@@ -314,52 +314,6 @@ bool reshade::opengl::device_impl::check_format_support(api::format format, api:
 	}
 
 	return supported && (supported_depth || supported_stencil) && (supported_color_render && supported_render_target) && (supported_unordered_access_load && supported_unordered_access_store);
-}
-
-bool reshade::opengl::device_impl::is_resource_handle_valid(api::resource handle) const
-{
-	const GLuint object = handle.handle & 0xFFFFFFFF;
-	switch (handle.handle >> 40)
-	{
-	case GL_BUFFER:
-	case GL_ARRAY_BUFFER:
-	case GL_ELEMENT_ARRAY_BUFFER:
-	case GL_PIXEL_PACK_BUFFER:
-	case GL_PIXEL_UNPACK_BUFFER:
-	case GL_UNIFORM_BUFFER:
-	case GL_TRANSFORM_FEEDBACK_BUFFER:
-	case GL_COPY_READ_BUFFER:
-	case GL_COPY_WRITE_BUFFER:
-	case GL_DRAW_INDIRECT_BUFFER:
-	case GL_SHADER_STORAGE_BUFFER:
-	case GL_DISPATCH_INDIRECT_BUFFER:
-	case GL_QUERY_BUFFER:
-	case GL_ATOMIC_COUNTER_BUFFER:
-		return glIsBuffer(object) != GL_FALSE;
-	case GL_TEXTURE:
-	case GL_TEXTURE_BUFFER:
-	case GL_TEXTURE_1D:
-	case GL_TEXTURE_1D_ARRAY:
-	case GL_TEXTURE_2D:
-	case GL_TEXTURE_2D_ARRAY:
-	case GL_TEXTURE_2D_MULTISAMPLE:
-	case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
-	case GL_TEXTURE_3D:
-	case GL_TEXTURE_CUBE_MAP:
-	case GL_TEXTURE_CUBE_MAP_ARRAY:
-	case GL_TEXTURE_RECTANGLE:
-		return glIsTexture(object) != GL_FALSE;
-	case GL_RENDERBUFFER:
-		return glIsRenderbuffer(object) != GL_FALSE;
-	case GL_FRAMEBUFFER_DEFAULT:
-		return (object != GL_DEPTH_STENCIL_ATTACHMENT && object != GL_DEPTH_ATTACHMENT && object != GL_STENCIL_ATTACHMENT) || _default_depth_format != GL_NONE;
-	default:
-		return false;
-	}
-}
-bool reshade::opengl::device_impl::is_resource_view_handle_valid(api::resource_view handle) const
-{
-	return is_resource_handle_valid({ handle.handle });
 }
 
 bool reshade::opengl::device_impl::create_sampler(const api::sampler_desc &desc, api::sampler *out)

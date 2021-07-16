@@ -87,7 +87,7 @@ namespace reshade
 		/// </summary>
 		create_sampler,
 		/// <summary>
-		/// Called on sampler destruction, before last 'ID3D10SamplerState::Release', 'ID3D11SamplerState::Release' or 'vkDestroySampler'.
+		/// Called on sampler destruction, before last 'ID3D10SamplerState::Release', 'ID3D11SamplerState::Release', 'glDeleteSamplers' or 'vkDestroySampler'.
 		/// <para>Callback function signature: <c>void (api::device *device, api::sampler sampler)</c></para>
 		/// </summary>
 		destroy_sampler,

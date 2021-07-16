@@ -6,14 +6,15 @@
 #pragma once
 
 #include "addon_manager.hpp"
+#include <mutex>
+#include <cassert>
+#include <unordered_map>
+
 #pragma warning(push)
 #pragma warning(disable: 4100 4127 4324 4703) // Disable a bunch of warnings thrown by VMA code
 #include <vk_mem_alloc.h>
 #pragma warning(pop)
 #include <vk_layer_dispatch_table.h>
-#include <mutex>
-#include <cassert>
-#include <unordered_map>
 
 namespace reshade::vulkan
 {
@@ -88,9 +89,6 @@ namespace reshade::vulkan
 
 		bool check_capability(api::device_caps capability) const final;
 		bool check_format_support(api::format format, api::resource_usage usage) const final;
-
-		bool is_resource_handle_valid(api::resource handle) const final;
-		bool is_resource_view_handle_valid(api::resource_view handle) const final;
 
 		bool create_sampler(const api::sampler_desc &desc, api::sampler *out) final;
 		bool create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage initial_state, api::resource *out) final;

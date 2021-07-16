@@ -495,7 +495,7 @@ void reshade::runtime::on_present()
 	}
 	else
 	{
-		addon::enable_or_disable_addons(traffic < 10);
+		enable_or_disable_addons(traffic < 10);
 		traffic = 0;
 		cooldown = 60;
 	}

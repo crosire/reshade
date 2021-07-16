@@ -35,7 +35,7 @@ reshade::d3d11::device_impl::device_impl(ID3D11Device *device) :
 	}
 
 #if RESHADE_ADDON
-	addon::load_addons();
+	load_addons();
 
 	invoke_addon_event<reshade::addon_event::init_device>(this);
 #endif
@@ -45,7 +45,7 @@ reshade::d3d11::device_impl::~device_impl()
 #if RESHADE_ADDON
 	invoke_addon_event<reshade::addon_event::destroy_device>(this);
 
-	addon::unload_addons();
+	unload_addons();
 #endif
 }
 
@@ -119,15 +119,6 @@ bool reshade::d3d11::device_impl::check_format_support(api::format format, api::
 	return true;
 }
 
-bool reshade::d3d11::device_impl::is_resource_handle_valid(api::resource handle) const
-{
-	return handle.handle != 0 && _resources.has_object(reinterpret_cast<ID3D11Resource *>(handle.handle));
-}
-bool reshade::d3d11::device_impl::is_resource_view_handle_valid(api::resource_view handle) const
-{
-	return handle.handle != 0 && _views.has_object(reinterpret_cast<ID3D11View *>(handle.handle));
-}
-
 bool reshade::d3d11::device_impl::create_sampler(const api::sampler_desc &desc, api::sampler *out)
 {
 	D3D11_SAMPLER_DESC internal_desc = {};
@@ -159,7 +150,6 @@ bool reshade::d3d11::device_impl::create_resource(const api::resource_desc &desc
 			if (com_ptr<ID3D11Buffer> object;
 				SUCCEEDED(_orig->CreateBuffer(&internal_desc, reinterpret_cast<const D3D11_SUBRESOURCE_DATA *>(initial_data), &object)))
 			{
-				_resources.register_object(object.get());
 				*out = { reinterpret_cast<uintptr_t>(object.release()) };
 				return true;
 			}
@@ -173,7 +163,6 @@ bool reshade::d3d11::device_impl::create_resource(const api::resource_desc &desc
 			if (com_ptr<ID3D11Texture1D> object;
 				SUCCEEDED(_orig->CreateTexture1D(&internal_desc, reinterpret_cast<const D3D11_SUBRESOURCE_DATA *>(initial_data), &object)))
 			{
-				_resources.register_object(object.get());
 				*out = { reinterpret_cast<uintptr_t>(object.release()) };
 				return true;
 			}
@@ -190,7 +179,6 @@ bool reshade::d3d11::device_impl::create_resource(const api::resource_desc &desc
 				if (com_ptr<ID3D11Texture2D> object;
 					SUCCEEDED(_orig->CreateTexture2D(&internal_desc, reinterpret_cast<const D3D11_SUBRESOURCE_DATA *>(initial_data), &object)))
 				{
-					_resources.register_object(object.get());
 					*out = { reinterpret_cast<uintptr_t>(object.release()) };
 					return true;
 				}
@@ -203,7 +191,6 @@ bool reshade::d3d11::device_impl::create_resource(const api::resource_desc &desc
 				if (com_ptr<ID3D11Texture2D1> object;
 					SUCCEEDED(device3->CreateTexture2D1(&internal_desc, reinterpret_cast<const D3D11_SUBRESOURCE_DATA *>(initial_data), &object)))
 				{
-					_resources.register_object(object.get());
 					*out = { reinterpret_cast<uintptr_t>(object.release()) };
 					return true;
 				}
@@ -221,7 +208,6 @@ bool reshade::d3d11::device_impl::create_resource(const api::resource_desc &desc
 				if (com_ptr<ID3D11Texture3D> object;
 					SUCCEEDED(_orig->CreateTexture3D(&internal_desc, reinterpret_cast<const D3D11_SUBRESOURCE_DATA *>(initial_data), &object)))
 				{
-					_resources.register_object(object.get());
 					*out = { reinterpret_cast<uintptr_t>(object.release()) };
 					return true;
 				}
@@ -234,7 +220,6 @@ bool reshade::d3d11::device_impl::create_resource(const api::resource_desc &desc
 				if (com_ptr<ID3D11Texture3D1> object;
 					SUCCEEDED(device3->CreateTexture3D1(&internal_desc, reinterpret_cast<const D3D11_SUBRESOURCE_DATA *>(initial_data), &object)))
 				{
-					_resources.register_object(object.get());
 					*out = { reinterpret_cast<uintptr_t>(object.release()) };
 					return true;
 				}
@@ -260,7 +245,6 @@ bool reshade::d3d11::device_impl::create_resource_view(api::resource resource, a
 			if (com_ptr<ID3D11DepthStencilView> object;
 				SUCCEEDED(_orig->CreateDepthStencilView(reinterpret_cast<ID3D11Resource *>(resource.handle), &internal_desc, &object)))
 			{
-				_views.register_object(object.get());
 				*out = { reinterpret_cast<uintptr_t>(object.release()) };
 				return true;
 			}
@@ -277,7 +261,6 @@ bool reshade::d3d11::device_impl::create_resource_view(api::resource resource, a
 				if (com_ptr<ID3D11RenderTargetView> object;
 					SUCCEEDED(_orig->CreateRenderTargetView(reinterpret_cast<ID3D11Resource *>(resource.handle), &internal_desc, &object)))
 				{
-					_views.register_object(object.get());
 					*out = { reinterpret_cast<uintptr_t>(object.release()) };
 					return true;
 				}
@@ -290,7 +273,6 @@ bool reshade::d3d11::device_impl::create_resource_view(api::resource resource, a
 				if (com_ptr<ID3D11RenderTargetView1> object;
 					SUCCEEDED(device3->CreateRenderTargetView1(reinterpret_cast<ID3D11Resource *>(resource.handle), &internal_desc, &object)))
 				{
-					_views.register_object(object.get());
 					*out = { reinterpret_cast<uintptr_t>(object.release()) };
 					return true;
 				}
@@ -308,7 +290,6 @@ bool reshade::d3d11::device_impl::create_resource_view(api::resource resource, a
 				if (com_ptr<ID3D11ShaderResourceView> object;
 					SUCCEEDED(_orig->CreateShaderResourceView(reinterpret_cast<ID3D11Resource *>(resource.handle), &internal_desc, &object)))
 				{
-					_views.register_object(object.get());
 					*out = { reinterpret_cast<uintptr_t>(object.release()) };
 					return true;
 				}
@@ -321,7 +302,6 @@ bool reshade::d3d11::device_impl::create_resource_view(api::resource resource, a
 				if (com_ptr<ID3D11ShaderResourceView1> object;
 					SUCCEEDED(device3->CreateShaderResourceView1(reinterpret_cast<ID3D11Resource *>(resource.handle), &internal_desc, &object)))
 				{
-					_views.register_object(object.get());
 					*out = { reinterpret_cast<uintptr_t>(object.release()) };
 					return true;
 				}
@@ -339,7 +319,6 @@ bool reshade::d3d11::device_impl::create_resource_view(api::resource resource, a
 				if (com_ptr<ID3D11UnorderedAccessView> object;
 					SUCCEEDED(_orig->CreateUnorderedAccessView(reinterpret_cast<ID3D11Resource *>(resource.handle), &internal_desc, &object)))
 				{
-					_views.register_object(object.get());
 					*out = { reinterpret_cast<uintptr_t>(object.release()) };
 					return true;
 				}
@@ -352,7 +331,6 @@ bool reshade::d3d11::device_impl::create_resource_view(api::resource resource, a
 				if (com_ptr<ID3D11UnorderedAccessView1> object;
 					SUCCEEDED(device3->CreateUnorderedAccessView1(reinterpret_cast<ID3D11Resource *>(resource.handle), &internal_desc, &object)))
 				{
-					_views.register_object(object.get());
 					*out = { reinterpret_cast<uintptr_t>(object.release()) };
 					return true;
 				}

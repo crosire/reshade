@@ -119,6 +119,9 @@ struct state_tracking_context
 	// This can be created from either the original depth-stencil of the application (if it supports shader access), or from the backup resource, or from one of the replacement resources
 	resource_view selected_shader_resource = { 0 };
 
+	// List of resources that were deleted this frame
+	std::vector<resource> destroyed_resources;
+
 #if RESHADE_GUI
 	// List of all encountered depth-stencils of the last frame
 	std::vector<std::pair<resource, depth_stencil_info>> current_depth_stencil_list;
@@ -309,6 +312,12 @@ static bool on_create_resource_view(device *device, resource resource, resource_
 
 	return device->create_resource_view(resource, usage_type, new_desc, out);
 }
+static void on_destroy_resource(device *device, resource resource)
+{
+	state_tracking_context &device_state = device->get_user_data<state_tracking_context>(state_tracking_context::GUID);
+
+	device_state.destroyed_resources.push_back(resource);
+}
 
 static bool on_draw(command_list *cmd_list, uint32_t vertices, uint32_t instances, uint32_t, uint32_t)
 {
@@ -454,7 +463,8 @@ static void on_present(command_queue *, swapchain *swapchain)
 	for (const auto &[depth_stencil_handle, snapshot] : queue_state.counters_per_used_depth_stencil)
 	{
 		resource const resource = { depth_stencil_handle };
-		if (!device->is_resource_handle_valid(resource))
+
+		if (std::find(device_state.destroyed_resources.begin(), device_state.destroyed_resources.end(), resource) != device_state.destroyed_resources.end())
 			continue; // Skip resources that were destroyed by the application
 
 #if RESHADE_GUI
@@ -485,7 +495,7 @@ static void on_present(command_queue *, swapchain *swapchain)
 	}
 
 	if (device_state.override_depth_stencil != 0 &&
-		device->is_resource_handle_valid(device_state.override_depth_stencil))
+		std::find(device_state.destroyed_resources.begin(), device_state.destroyed_resources.end(), device_state.override_depth_stencil) == device_state.destroyed_resources.end())
 	{
 		best_desc = device->get_resource_desc(device_state.override_depth_stencil);
 		best_match = device_state.override_depth_stencil;
@@ -581,6 +591,7 @@ static void on_present(command_queue *, swapchain *swapchain)
 	}
 
 	queue_state.reset_on_present();
+	device_state.destroyed_resources.clear();
 }
 
 static void on_init_effect_runtime(effect_runtime *runtime)
@@ -672,9 +683,6 @@ static void draw_debug_menu(effect_runtime *runtime, void *)
 
 	for (const auto &[resource, snapshot] : device_state.current_depth_stencil_list)
 	{
-		if (!device->is_resource_handle_valid(resource))
-			continue;
-
 		if (auto it = device_state.display_count_per_depth_stencil.find(resource.handle);
 			it == device_state.display_count_per_depth_stencil.end())
 		{
@@ -783,6 +791,7 @@ void register_builtin_addon_depth(reshade::addon::info &info)
 
 	reshade::register_event<reshade::addon_event::create_resource>(on_create_resource);
 	reshade::register_event<reshade::addon_event::create_resource_view>(on_create_resource_view);
+	reshade::register_event<reshade::addon_event::destroy_resource>(on_destroy_resource);
 
 	reshade::register_event<reshade::addon_event::draw>(on_draw);
 	reshade::register_event<reshade::addon_event::draw_indexed>(on_draw_indexed);

@@ -482,7 +482,6 @@
     <ClInclude Include="source\addon_impl.hpp" />
     <ClInclude Include="source\addon_manager.hpp" />
     <ClInclude Include="source\com_ptr.hpp" />
-    <ClInclude Include="source\com_tracking.hpp" />
     <ClInclude Include="source\d3d10\d3d10_device.hpp" />
     <ClInclude Include="source\d3d10\reshade_api_device.hpp" />
     <ClInclude Include="source\d3d10\reshade_api_swapchain.hpp" />

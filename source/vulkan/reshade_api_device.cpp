@@ -98,7 +98,7 @@ reshade::vulkan::device_impl::device_impl(VkDevice device, VkPhysicalDevice phys
 	}
 
 #if RESHADE_ADDON
-	addon::load_addons();
+	load_addons();
 
 	invoke_addon_event<reshade::addon_event::init_device>(this);
 #endif
@@ -110,7 +110,7 @@ reshade::vulkan::device_impl::~device_impl()
 #if RESHADE_ADDON
 	invoke_addon_event<reshade::addon_event::destroy_device>(this);
 
-	addon::unload_addons();
+	unload_addons();
 #endif
 
 	vk.DestroyDescriptorPool(_orig, _descriptor_pool, nullptr);
@@ -204,23 +204,6 @@ bool reshade::vulkan::device_impl::check_format_support(api::format format, api:
 		return false;
 
 	return true;
-}
-
-bool reshade::vulkan::device_impl::is_resource_handle_valid(api::resource handle) const
-{
-	if (handle.handle == 0)
-		return false;
-
-	const std::lock_guard<std::mutex> lock(_mutex);
-	return _resources.find(handle.handle) != _resources.end();
-}
-bool reshade::vulkan::device_impl::is_resource_view_handle_valid(api::resource_view handle) const
-{
-	if (handle.handle == 0)
-		return false;
-
-	const std::lock_guard<std::mutex> lock(_mutex);
-	return _views.find(handle.handle) != _views.end();
 }
 
 bool reshade::vulkan::device_impl::create_sampler(const api::sampler_desc &desc, api::sampler *out)

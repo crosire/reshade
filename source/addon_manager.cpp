@@ -83,7 +83,7 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 }
 #endif
 
-void reshade::addon::load_addons()
+void reshade::load_addons()
 {
 	// Only load add-ons the first time a reference is added
 	if (s_reference_count++ != 0)
@@ -92,7 +92,7 @@ void reshade::addon::load_addons()
 #if RESHADE_VERBOSE_LOG
 	LOG(INFO) << "Loading built-in add-ons ...";
 #endif
-	register_builtin_addon_depth(loaded_info.emplace_back());
+	register_builtin_addon_depth(addon::loaded_info.emplace_back());
 
 #if RESHADE_ADDON_LOAD
 	// Get directory from where to load add-ons from
@@ -131,18 +131,18 @@ void reshade::addon::load_addons()
 
 		LOG(INFO) << "> Loaded as \"" << info.name << "\".";
 
-		loaded_info.push_back(std::move(info));
+		addon::loaded_info.push_back(std::move(info));
 	}
 #endif
 }
-void reshade::addon::unload_addons()
+void reshade::unload_addons()
 {
 	// Only unload add-ons after the last reference to the manager was released
 	if (--s_reference_count != 0)
 		return;
 
 #if RESHADE_ADDON_LOAD
-	for (const reshade::addon::info &info : loaded_info)
+	for (const reshade::addon::info &info : addon::loaded_info)
 	{
 		if (info.handle == nullptr)
 			continue; // Skip built-in add-ons
@@ -158,24 +158,24 @@ void reshade::addon::unload_addons()
 #endif
 	unregister_builtin_addon_depth();
 
-	loaded_info.clear();
+	addon::loaded_info.clear();
 }
 
-void reshade::addon::enable_or_disable_addons(bool enabled)
+void reshade::enable_or_disable_addons(bool enabled)
 {
 	if (enabled == g_addons_enabled)
 		return;
 
-	static std::vector<void *> disabled_event_list[std::size(event_list)];
+	static std::vector<void *> disabled_event_list[std::size(addon::event_list)];
 	if (enabled)
 	{
-		for (size_t event_index = 0; event_index < std::size(event_list); ++event_index)
-			event_list[event_index] = std::move(disabled_event_list[event_index]);
+		for (size_t event_index = 0; event_index < std::size(addon::event_list); ++event_index)
+			addon::event_list[event_index] = std::move(disabled_event_list[event_index]);
 	}
 	else
 	{
-		for (size_t event_index = 0; event_index < std::size(event_list); ++event_index)
-			disabled_event_list[event_index] = std::move(event_list[event_index]);
+		for (size_t event_index = 0; event_index < std::size(addon::event_list); ++event_index)
+			disabled_event_list[event_index] = std::move(addon::event_list[event_index]);
 	}
 
 	g_addons_enabled = enabled;

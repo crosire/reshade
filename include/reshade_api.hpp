@@ -228,15 +228,6 @@ namespace reshade { namespace api
 		virtual bool check_format_support(format format, resource_usage usage) const = 0;
 
 		/// <summary>
-		/// Checks whether the specified <paramref name="resource"/> handle points to a resource that is still alive and valid.
-		/// </summary>
-		virtual bool is_resource_handle_valid(resource handle) const = 0;
-		/// <summary>
-		/// Checks whether the specified resource <paramref name="view"/> handle points to a resource view that is still alive and valid.
-		/// </summary>
-		virtual bool is_resource_view_handle_valid(resource_view handle) const = 0;
-
-		/// <summary>
 		/// Creates a new sampler state object based on the specified <paramref name="desc"/>ription.
 		/// </summary>
 		/// <param name="desc">The description of the sampler to create.</param>

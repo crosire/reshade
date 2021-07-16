@@ -542,9 +542,6 @@
     <ClInclude Include="source\com_ptr.hpp">
       <Filter>hooks\windows</Filter>
     </ClInclude>
-    <ClInclude Include="source\com_tracking.hpp">
-      <Filter>hooks\windows</Filter>
-    </ClInclude>
     <ClInclude Include="res\fonts\forkawesome.h">
       <Filter>resources\fonts</Filter>
     </ClInclude>

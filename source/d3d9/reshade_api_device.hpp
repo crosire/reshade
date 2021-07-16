@@ -6,7 +6,6 @@
 #pragma once
 
 #include "com_ptr.hpp"
-#include "com_tracking.hpp"
 #include "state_block.hpp"
 #include "addon_manager.hpp"
 
@@ -24,9 +23,6 @@ namespace reshade::d3d9
 
 		bool check_capability(api::device_caps capability) const final;
 		bool check_format_support(api::format format, api::resource_usage usage) const final;
-
-		bool is_resource_handle_valid(api::resource handle) const final;
-		bool is_resource_view_handle_valid(api::resource_view handle) const final;
 
 		bool create_sampler(const api::sampler_desc &desc, api::sampler *out) final;
 		bool create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage initial_state, api::resource *out) final;
@@ -147,7 +143,6 @@ namespace reshade::d3d9
 
 		bool create_surface_replacement(const D3DSURFACE_DESC &new_desc, IDirect3DSurface9 **out_surface, HANDLE *out_shared_handle = nullptr);
 
-		com_object_list<IDirect3DResource9, true> _resources;
 		D3DPRIMITIVETYPE _current_prim_type = static_cast<D3DPRIMITIVETYPE>(0);
 		struct framebuffer_impl *_current_fbo;
 	};

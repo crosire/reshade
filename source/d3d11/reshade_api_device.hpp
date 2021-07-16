@@ -6,7 +6,6 @@
 #pragma once
 
 #include "com_ptr.hpp"
-#include "com_tracking.hpp"
 #include "addon_manager.hpp"
 #include <d3d11_4.h>
 
@@ -24,9 +23,6 @@ namespace reshade::d3d11
 
 		bool check_capability(api::device_caps capability) const final;
 		bool check_format_support(api::format format, api::resource_usage usage) const final;
-
-		bool is_resource_handle_valid(api::resource handle) const final;
-		bool is_resource_view_handle_valid(api::resource_view handle) const final;
 
 		bool create_sampler(const api::sampler_desc &desc, api::sampler *out) final;
 		bool create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage initial_state, api::resource *out) final;
@@ -91,9 +87,5 @@ namespace reshade::d3d11
 		com_ptr<ID3D11VertexShader> _copy_vert_shader;
 		com_ptr<ID3D11PixelShader>  _copy_pixel_shader;
 		com_ptr<ID3D11SamplerState> _copy_sampler_state;
-
-	protected:
-		com_object_list<ID3D11View> _views;
-		com_object_list<ID3D11Resource> _resources;
 	};
 }

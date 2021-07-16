@@ -40,9 +40,6 @@ namespace reshade::opengl
 		bool check_capability(api::device_caps capability) const final;
 		bool check_format_support(api::format format, api::resource_usage usage) const final;
 
-		bool is_resource_handle_valid(api::resource handle) const final;
-		bool is_resource_view_handle_valid(api::resource_view handle) const final;
-
 		bool create_sampler(const api::sampler_desc &desc, api::sampler *out) final;
 		bool create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage initial_state, api::resource *out) final;
 		bool create_resource_view(api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view *out) final;

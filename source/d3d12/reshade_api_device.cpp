@@ -88,7 +88,7 @@ reshade::d3d12::device_impl::device_impl(ID3D12Device *device) :
 	}
 
 #if RESHADE_ADDON
-	addon::load_addons();
+	load_addons();
 
 	invoke_addon_event<addon_event::init_device>(this);
 #endif
@@ -104,7 +104,7 @@ reshade::d3d12::device_impl::~device_impl()
 #if RESHADE_ADDON
 	invoke_addon_event<addon_event::destroy_device>(this);
 
-	addon::unload_addons();
+	unload_addons();
 #endif
 }
 
@@ -176,16 +176,6 @@ bool reshade::d3d12::device_impl::check_format_support(api::format format, api::
 	return true;
 }
 
-bool reshade::d3d12::device_impl::is_resource_handle_valid(api::resource handle) const
-{
-	return handle.handle != 0 && _resources.has_object(reinterpret_cast<ID3D12Resource *>(handle.handle));
-}
-bool reshade::d3d12::device_impl::is_resource_view_handle_valid(api::resource_view handle) const
-{
-	const std::lock_guard<std::mutex> lock(_mutex);
-	return _views.find(handle.handle) != _views.end();
-}
-
 bool reshade::d3d12::device_impl::create_sampler(const api::sampler_desc &desc, api::sampler *out)
 {
 	D3D12_CPU_DESCRIPTOR_HANDLE descriptor_handle;
@@ -233,7 +223,6 @@ bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc
 		_orig->CreateReservedResource(&internal_desc, convert_resource_usage_to_states(initial_state), use_default_clear_value ? &default_clear_value : nullptr, IID_PPV_ARGS(&object)) :
 		_orig->CreateCommittedResource(&heap_props, heap_flags, &internal_desc, convert_resource_usage_to_states(initial_state), use_default_clear_value ? &default_clear_value : nullptr, IID_PPV_ARGS(&object))))
 	{
-		_resources.register_object(object.get());
 		*out = { reinterpret_cast<uintptr_t>(object.release()) };
 
 		if (initial_data != nullptr)

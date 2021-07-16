@@ -33,7 +33,7 @@ reshade::d3d10::device_impl::device_impl(ID3D10Device1 *device) :
 	_current_fbo = new framebuffer_impl();
 
 #if RESHADE_ADDON
-	addon::load_addons();
+	load_addons();
 
 	invoke_addon_event<addon_event::init_device>(this);
 	invoke_addon_event<addon_event::init_command_queue>(this);
@@ -45,7 +45,7 @@ reshade::d3d10::device_impl::~device_impl()
 	invoke_addon_event<addon_event::destroy_command_queue>(this);
 	invoke_addon_event<addon_event::destroy_device>(this);
 
-	addon::unload_addons();
+	unload_addons();
 #endif
 
 	delete _current_fbo;
@@ -118,15 +118,6 @@ bool reshade::d3d10::device_impl::check_format_support(api::format format, api::
 	return true;
 }
 
-bool reshade::d3d10::device_impl::is_resource_handle_valid(api::resource handle) const
-{
-	return handle.handle != 0 && _resources.has_object(reinterpret_cast<ID3D10Resource *>(handle.handle));
-}
-bool reshade::d3d10::device_impl::is_resource_view_handle_valid(api::resource_view handle) const
-{
-	return handle.handle != 0 && _views.has_object(reinterpret_cast<ID3D10View *>(handle.handle));
-}
-
 bool reshade::d3d10::device_impl::create_sampler(const api::sampler_desc &desc, api::sampler *out)
 {
 	D3D10_SAMPLER_DESC internal_desc = {};
@@ -158,7 +149,6 @@ bool reshade::d3d10::device_impl::create_resource(const api::resource_desc &desc
 			if (com_ptr<ID3D10Buffer> object;
 				SUCCEEDED(_orig->CreateBuffer(&internal_desc, reinterpret_cast<const D3D10_SUBRESOURCE_DATA *>(initial_data), &object)))
 			{
-				_resources.register_object(object.get());
 				*out = { reinterpret_cast<uintptr_t>(object.release()) };
 				return true;
 			}
@@ -172,7 +162,6 @@ bool reshade::d3d10::device_impl::create_resource(const api::resource_desc &desc
 			if (com_ptr<ID3D10Texture1D> object;
 				SUCCEEDED(_orig->CreateTexture1D(&internal_desc, reinterpret_cast<const D3D10_SUBRESOURCE_DATA *>(initial_data), &object)))
 			{
-				_resources.register_object(object.get());
 				*out = { reinterpret_cast<uintptr_t>(object.release()) };
 				return true;
 			}
@@ -186,7 +175,6 @@ bool reshade::d3d10::device_impl::create_resource(const api::resource_desc &desc
 			if (com_ptr<ID3D10Texture2D> object;
 				SUCCEEDED(_orig->CreateTexture2D(&internal_desc, reinterpret_cast<const D3D10_SUBRESOURCE_DATA *>(initial_data), &object)))
 			{
-				_resources.register_object(object.get());
 				*out = { reinterpret_cast<uintptr_t>(object.release()) };
 				return true;
 			}
@@ -200,7 +188,6 @@ bool reshade::d3d10::device_impl::create_resource(const api::resource_desc &desc
 			if (com_ptr<ID3D10Texture3D> object;
 				SUCCEEDED(_orig->CreateTexture3D(&internal_desc, reinterpret_cast<const D3D10_SUBRESOURCE_DATA *>(initial_data), &object)))
 			{
-				_resources.register_object(object.get());
 				*out = { reinterpret_cast<uintptr_t>(object.release()) };
 				return true;
 			}
@@ -225,7 +212,6 @@ bool reshade::d3d10::device_impl::create_resource_view(api::resource resource, a
 			if (com_ptr<ID3D10DepthStencilView> object;
 				SUCCEEDED(_orig->CreateDepthStencilView(reinterpret_cast<ID3D10Resource *>(resource.handle), &internal_desc, &object)))
 			{
-				_views.register_object(object.get());
 				*out = { reinterpret_cast<uintptr_t>(object.release()) };
 				return true;
 			}
@@ -239,7 +225,6 @@ bool reshade::d3d10::device_impl::create_resource_view(api::resource resource, a
 			if (com_ptr<ID3D10RenderTargetView> object;
 				SUCCEEDED(_orig->CreateRenderTargetView(reinterpret_cast<ID3D10Resource *>(resource.handle), &internal_desc, &object)))
 			{
-				_views.register_object(object.get());
 				*out = { reinterpret_cast<uintptr_t>(object.release()) };
 				return true;
 			}
@@ -253,7 +238,6 @@ bool reshade::d3d10::device_impl::create_resource_view(api::resource resource, a
 			if (com_ptr<ID3D10ShaderResourceView1> object;
 				SUCCEEDED(_orig->CreateShaderResourceView1(reinterpret_cast<ID3D10Resource *>(resource.handle), &internal_desc, &object)))
 			{
-				_views.register_object(object.get());
 				*out = { reinterpret_cast<uintptr_t>(object.release()) };
 				return true;
 			}
