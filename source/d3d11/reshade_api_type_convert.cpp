@@ -999,12 +999,18 @@ reshade::api::pipeline_desc reshade::d3d11::convert_pipeline_desc(const D3D11_BL
 			const D3D11_RENDER_TARGET_BLEND_DESC &target = internal_desc->RenderTarget[internal_desc->IndependentBlendEnable ? i : 0];
 
 			desc.graphics.blend_state.blend_enable[i] = target.BlendEnable;
-			desc.graphics.blend_state.src_color_blend_factor[i] = convert_blend_factor(target.SrcBlend);
-			desc.graphics.blend_state.dst_color_blend_factor[i] = convert_blend_factor(target.DestBlend);
-			desc.graphics.blend_state.color_blend_op[i] = convert_blend_op(target.BlendOp);
-			desc.graphics.blend_state.src_alpha_blend_factor[i] = convert_blend_factor(target.SrcBlendAlpha);
-			desc.graphics.blend_state.dst_alpha_blend_factor[i] = convert_blend_factor(target.DestBlendAlpha);
-			desc.graphics.blend_state.alpha_blend_op[i] = convert_blend_op(target.BlendOpAlpha);
+
+			// Only convert blend state if blending is enabled (since some applications leave these uninitialized in this case)
+			if (target.BlendEnable)
+			{
+				desc.graphics.blend_state.src_color_blend_factor[i] = convert_blend_factor(target.SrcBlend);
+				desc.graphics.blend_state.dst_color_blend_factor[i] = convert_blend_factor(target.DestBlend);
+				desc.graphics.blend_state.color_blend_op[i] = convert_blend_op(target.BlendOp);
+				desc.graphics.blend_state.src_alpha_blend_factor[i] = convert_blend_factor(target.SrcBlendAlpha);
+				desc.graphics.blend_state.dst_alpha_blend_factor[i] = convert_blend_factor(target.DestBlendAlpha);
+				desc.graphics.blend_state.alpha_blend_op[i] = convert_blend_op(target.BlendOpAlpha);
+			}
+
 			desc.graphics.blend_state.render_target_write_mask[i] = target.RenderTargetWriteMask;
 		}
 	}
@@ -1039,13 +1045,22 @@ reshade::api::pipeline_desc reshade::d3d11::convert_pipeline_desc(const D3D11_BL
 
 			desc.graphics.blend_state.blend_enable[i] = target.BlendEnable;
 			desc.graphics.blend_state.logic_op_enable[i] = target.LogicOpEnable;
-			desc.graphics.blend_state.src_color_blend_factor[i] = convert_blend_factor(target.SrcBlend);
-			desc.graphics.blend_state.dst_color_blend_factor[i] = convert_blend_factor(target.DestBlend);
-			desc.graphics.blend_state.color_blend_op[i] = convert_blend_op(target.BlendOp);
-			desc.graphics.blend_state.src_alpha_blend_factor[i] = convert_blend_factor(target.SrcBlendAlpha);
-			desc.graphics.blend_state.dst_alpha_blend_factor[i] = convert_blend_factor(target.DestBlendAlpha);
-			desc.graphics.blend_state.alpha_blend_op[i] = convert_blend_op(target.BlendOpAlpha);
-			desc.graphics.blend_state.logic_op[i] = convert_logic_op(target.LogicOp);
+
+			// Only convert blend state if blending is enabled (since some applications leave these uninitialized in this case)
+			if (target.BlendEnable)
+			{
+				desc.graphics.blend_state.src_color_blend_factor[i] = convert_blend_factor(target.SrcBlend);
+				desc.graphics.blend_state.dst_color_blend_factor[i] = convert_blend_factor(target.DestBlend);
+				desc.graphics.blend_state.color_blend_op[i] = convert_blend_op(target.BlendOp);
+				desc.graphics.blend_state.src_alpha_blend_factor[i] = convert_blend_factor(target.SrcBlendAlpha);
+				desc.graphics.blend_state.dst_alpha_blend_factor[i] = convert_blend_factor(target.DestBlendAlpha);
+				desc.graphics.blend_state.alpha_blend_op[i] = convert_blend_op(target.BlendOpAlpha);
+			}
+			if (target.LogicOpEnable)
+			{
+				desc.graphics.blend_state.logic_op[i] = convert_logic_op(target.LogicOp);
+			}
+
 			desc.graphics.blend_state.render_target_write_mask[i] = target.RenderTargetWriteMask;
 		}
 	}
