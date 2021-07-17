@@ -649,8 +649,7 @@ reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DVERTEX
 
 void reshade::d3d9::convert_pipeline_desc(const api::pipeline_desc &desc, std::vector<D3DVERTEXELEMENT9> &elements)
 {
-	assert(desc.type == api::pipeline_stage::input_assembler);
-
+	assert(desc.type == api::pipeline_stage::all_graphics || desc.type == api::pipeline_stage::input_assembler);
 	elements.reserve(16 + 1);
 
 	for (UINT i = 0; i < 16 && desc.graphics.input_layout[i].format != api::format::unknown; ++i)

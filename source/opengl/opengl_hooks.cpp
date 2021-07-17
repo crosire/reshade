@@ -194,10 +194,8 @@ HOOK_EXPORT void WINAPI glBegin(GLenum mode)
 		reshade::invoke_addon_event< reshade::addon_event::begin_render_pass>(g_current_context, reshade::api::render_pass { 0 }, reshade::opengl::make_framebuffer_handle(framebuffer));
 	}
 	else
-	{
-		trampoline(target, framebuffer);
-	}
 #endif
+		trampoline(target, framebuffer);
 }
 
 			void WINAPI glBindImageTexture(GLuint unit, GLuint texture, GLint level, GLboolean layered, GLint layer, GLenum access, GLenum format)
