@@ -691,6 +691,7 @@ namespace reshade { namespace api
 		uint32_t offset;
 		/// <summary>
 		/// Stride of the entire vertex (this has to be consistent for all elements per vertex buffer binding).
+		/// Set to zero in case this is unknown.
 		/// </summary>
 		uint32_t stride;
 		/// <summary>

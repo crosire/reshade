@@ -647,6 +647,240 @@ reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DVERTEX
 	return desc;
 }
 
+void reshade::d3d9::convert_pipeline_desc(const api::pipeline_desc &desc, std::vector<D3DVERTEXELEMENT9> &elements)
+{
+	assert(desc.type == api::pipeline_stage::input_assembler);
+
+	elements.reserve(16 + 1);
+
+	for (UINT i = 0; i < 16 && desc.graphics.input_layout[i].format != api::format::unknown; ++i)
+	{
+		auto &internal_element = elements.emplace_back();
+		const api::input_layout_element &element = desc.graphics.input_layout[i];
+
+		assert(element.buffer_binding <= std::numeric_limits<WORD>::max());
+		internal_element.Stream = static_cast<WORD>(element.buffer_binding);
+		assert(element.offset <= std::numeric_limits<WORD>::max());
+		internal_element.Offset = static_cast<WORD>(element.offset);
+
+		switch (element.format)
+		{
+		default:
+			assert(false);
+			[[fallthrough]];
+		case api::format::unknown:
+			internal_element.Type = D3DDECLTYPE_UNUSED;
+			break;
+		case api::format::r8g8b8a8_uint:
+			internal_element.Type = D3DDECLTYPE_UBYTE4;
+			break;
+		case api::format::r8g8b8a8_unorm:
+			internal_element.Type = D3DDECLTYPE_UBYTE4N;
+			break;
+		case api::format::b8g8r8a8_unorm:
+			internal_element.Type = D3DDECLTYPE_D3DCOLOR;
+			break;
+		case api::format::r10g10b10a2_uint:
+			internal_element.Type = D3DDECLTYPE_UDEC3;
+			break;
+		case api::format::r10g10b10a2_unorm:
+			internal_element.Type = D3DDECLTYPE_DEC3N;
+			break;
+		case api::format::r16g16_sint:
+			internal_element.Type = D3DDECLTYPE_SHORT2;
+			break;
+		case api::format::r16g16_float:
+			internal_element.Type = D3DDECLTYPE_FLOAT16_2;
+			break;
+		case api::format::r16g16_unorm:
+			internal_element.Type = D3DDECLTYPE_USHORT2N;
+			break;
+		case api::format::r16g16_snorm:
+			internal_element.Type = D3DDECLTYPE_SHORT2N;
+			break;
+		case api::format::r16g16b16a16_sint:
+			internal_element.Type = D3DDECLTYPE_SHORT4;
+			break;
+		case api::format::r16g16b16a16_float:
+			internal_element.Type = D3DDECLTYPE_FLOAT16_4;
+			break;
+		case api::format::r16g16b16a16_unorm:
+			internal_element.Type = D3DDECLTYPE_USHORT4N;
+			break;
+		case api::format::r16g16b16a16_snorm:
+			internal_element.Type = D3DDECLTYPE_SHORT4N;
+			break;
+		case api::format::r32_float:
+			internal_element.Type = D3DDECLTYPE_FLOAT1;
+			break;
+		case api::format::r32g32_float:
+			internal_element.Type = D3DDECLTYPE_FLOAT2;
+			break;
+		case api::format::r32g32b32_float:
+			internal_element.Type = D3DDECLTYPE_FLOAT3;
+			break;
+		case api::format::r32g32b32a32_float:
+			internal_element.Type = D3DDECLTYPE_FLOAT4;
+			break;
+		}
+
+		if (strcmp(element.semantic, "POSITION") == 0)
+			internal_element.Usage = D3DDECLUSAGE_POSITION;
+		else if (strcmp(element.semantic, "BLENDWEIGHT") == 0)
+			internal_element.Usage = D3DDECLUSAGE_BLENDWEIGHT;
+		else if (strcmp(element.semantic, "BLENDINDICES") == 0)
+			internal_element.Usage = D3DDECLUSAGE_BLENDINDICES;
+		else if (strcmp(element.semantic, "NORMAL") == 0)
+			internal_element.Usage = D3DDECLUSAGE_NORMAL;
+		else if (strcmp(element.semantic, "PSIZE") == 0)
+			internal_element.Usage = D3DDECLUSAGE_PSIZE;
+		else if (strcmp(element.semantic, "TANGENT") == 0)
+			internal_element.Usage = D3DDECLUSAGE_TANGENT;
+		else if (strcmp(element.semantic, "BINORMAL") == 0)
+			internal_element.Usage = D3DDECLUSAGE_BINORMAL;
+		else if (strcmp(element.semantic, "TESSFACTOR") == 0)
+			internal_element.Usage = D3DDECLUSAGE_TESSFACTOR;
+		else if (strcmp(element.semantic, "POSITIONT") == 0)
+			internal_element.Usage = D3DDECLUSAGE_POSITIONT;
+		else if (strcmp(element.semantic, "COLOR") == 0)
+			internal_element.Usage = D3DDECLUSAGE_COLOR;
+		else if (strcmp(element.semantic, "FOG") == 0)
+			internal_element.Usage = D3DDECLUSAGE_FOG;
+		else if (strcmp(element.semantic, "DEPTH") == 0)
+			internal_element.Usage = D3DDECLUSAGE_DEPTH;
+		else if (strcmp(element.semantic, "SAMPLE") == 0)
+			internal_element.Usage = D3DDECLUSAGE_SAMPLE;
+		else
+			internal_element.Usage = D3DDECLUSAGE_TEXCOORD;
+
+		assert(element.semantic_index <= 256);
+		internal_element.UsageIndex = static_cast<BYTE>(element.semantic_index);
+	}
+
+	elements.push_back(D3DDECL_END());
+}
+reshade::api::pipeline_desc reshade::d3d9::convert_pipeline_desc(const D3DVERTEXELEMENT9 *elements)
+{
+	api::pipeline_desc desc = { api::pipeline_stage::input_assembler };
+
+	for (UINT i = 0; i < 16 && elements != nullptr && elements->Stream != 0xFF; ++i, ++elements)
+	{
+		const auto &internal_element = *elements;
+		api::input_layout_element &element = desc.graphics.input_layout[i];
+
+		element.buffer_binding = internal_element.Stream;
+		element.offset = internal_element.Offset;
+
+		switch (internal_element.Type)
+		{
+		default:
+			assert(false);
+			[[fallthrough]];
+		case D3DDECLTYPE_UNUSED:
+			element.format = api::format::unknown;
+			break;
+		case D3DDECLTYPE_UBYTE4:
+			element.format = api::format::r8g8b8a8_uint;
+			break;
+		case D3DDECLTYPE_UBYTE4N:
+			element.format = api::format::r8g8b8a8_unorm;
+			break;
+		case D3DDECLTYPE_D3DCOLOR:
+			element.format = api::format::b8g8r8a8_unorm;
+			break;
+		case D3DDECLTYPE_UDEC3:
+			element.format = api::format::r10g10b10a2_uint;
+			break;
+		case D3DDECLTYPE_DEC3N:
+			element.format = api::format::r10g10b10a2_unorm;
+			break;
+		case D3DDECLTYPE_SHORT2:
+			element.format = api::format::r16g16_sint;
+			break;
+		case D3DDECLTYPE_FLOAT16_2:
+			element.format = api::format::r16g16_float;
+			break;
+		case D3DDECLTYPE_USHORT2N:
+			element.format = api::format::r16g16_unorm;
+			break;
+		case D3DDECLTYPE_SHORT2N:
+			element.format = api::format::r16g16_snorm;
+			break;
+		case D3DDECLTYPE_SHORT4:
+			element.format = api::format::r16g16b16a16_sint;
+			break;
+		case D3DDECLTYPE_FLOAT16_4:
+			element.format = api::format::r16g16b16a16_float;
+			break;
+		case D3DDECLTYPE_USHORT4N:
+			element.format = api::format::r16g16b16a16_unorm;
+			break;
+		case D3DDECLTYPE_SHORT4N:
+			element.format = api::format::r16g16b16a16_snorm;
+			break;
+		case D3DDECLTYPE_FLOAT1:
+			element.format = api::format::r32_float;
+			break;
+		case D3DDECLTYPE_FLOAT2:
+			element.format = api::format::r32g32_float;
+			break;
+		case D3DDECLTYPE_FLOAT3:
+			element.format = api::format::r32g32b32_float;
+			break;
+		case D3DDECLTYPE_FLOAT4:
+			element.format = api::format::r32g32b32a32_float;
+			break;
+		}
+
+		switch (internal_element.Usage)
+		{
+		case D3DDECLUSAGE_POSITION:
+			element.semantic = "POSITION";
+			break;
+		case D3DDECLUSAGE_BLENDWEIGHT:
+			element.semantic = "BLENDWEIGHT";
+			break;
+		case D3DDECLUSAGE_BLENDINDICES:
+			element.semantic = "BLENDINDICES";
+			break;
+		case D3DDECLUSAGE_NORMAL:
+			element.semantic = "NORMAL";
+			break;
+		case D3DDECLUSAGE_PSIZE:
+			element.semantic = "PSIZE";
+			break;
+		case D3DDECLUSAGE_TANGENT:
+			element.semantic = "TANGENT";
+			break;
+		case D3DDECLUSAGE_BINORMAL:
+			element.semantic = "BINORMAL";
+			break;
+		case D3DDECLUSAGE_TESSFACTOR:
+			element.semantic = "TESSFACTOR";
+			break;
+		case D3DDECLUSAGE_COLOR:
+			element.semantic = "COLOR";
+			break;
+		case D3DDECLUSAGE_FOG:
+			element.semantic = "FOG";
+			break;
+		case D3DDECLUSAGE_DEPTH:
+			element.semantic = "DEPTH";
+			break;
+		case D3DDECLUSAGE_SAMPLE:
+			element.semantic = "SAMPLE";
+			break;
+		case D3DDECLUSAGE_TEXCOORD:
+			element.semantic = "TEXCOORD";
+			break;
+		}
+
+		element.semantic_index = internal_element.UsageIndex;
+	}
+
+	return desc;
+}
+
 auto reshade::d3d9::convert_blend_op(D3DBLENDOP value) -> api::blend_op
 {
 	return static_cast<api::blend_op>(static_cast<uint32_t>(value) - 1);

@@ -1266,6 +1266,19 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ProcessVertices(UINT SrcStartIndex, U
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexDeclaration(const D3DVERTEXELEMENT9 *pVertexElements, IDirect3DVertexDeclaration9 **ppDecl)
 {
+#if RESHADE_ADDON
+	reshade::api::pipeline_desc desc = reshade::d3d9::convert_pipeline_desc(pVertexElements);
+
+	if (reshade::api::pipeline replacement = { 0 };
+		ppDecl != nullptr &&
+		reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, desc, &replacement))
+	{
+		output_interface_object(ppDecl, replacement);
+		return S_OK;
+	}
+#endif
+
+	// Cannot track when 'IDirect3DVertexDeclaration9' is destroyed, so since there cannot be a 'destroy_pipeline' event, also do not invoke the 'init_pipeline' event
 	return _orig->CreateVertexDeclaration(pVertexElements, ppDecl);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetVertexDeclaration(IDirect3DVertexDeclaration9 *pDecl)

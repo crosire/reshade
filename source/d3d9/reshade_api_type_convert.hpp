@@ -60,6 +60,9 @@ namespace reshade::d3d9
 	api::resource_desc convert_resource_desc(const D3DINDEXBUFFER_DESC &internal_desc);
 	api::resource_desc convert_resource_desc(const D3DVERTEXBUFFER_DESC &internal_desc);
 
+	void convert_pipeline_desc(const api::pipeline_desc &desc, std::vector<D3DVERTEXELEMENT9> &elements);
+	api::pipeline_desc convert_pipeline_desc(const D3DVERTEXELEMENT9 *elements);
+
 	auto convert_blend_op(D3DBLENDOP value) -> api::blend_op;
 	auto convert_blend_op(api::blend_op value) -> D3DBLENDOP;
 	auto convert_blend_factor(D3DBLEND value) -> api::blend_factor;
