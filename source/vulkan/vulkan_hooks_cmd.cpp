@@ -7,9 +7,9 @@
 #include "hook_manager.hpp"
 #include "lockfree_table.hpp"
 #include "vulkan_hooks.hpp"
-#include "reshade_api_device.hpp"
-#include "reshade_api_command_list.hpp"
-#include "reshade_api_type_convert.hpp"
+#include "vulkan_impl_device.hpp"
+#include "vulkan_impl_command_list.hpp"
+#include "vulkan_impl_type_convert.hpp"
 
 extern lockfree_table<void *, reshade::vulkan::device_impl *, 16> g_vulkan_devices;
 lockfree_table<VkCommandBuffer, reshade::vulkan::command_list_impl *, 4096> g_vulkan_command_buffers;

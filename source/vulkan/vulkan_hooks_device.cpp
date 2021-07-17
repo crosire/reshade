@@ -7,10 +7,10 @@
 #include "hook_manager.hpp"
 #include "lockfree_table.hpp"
 #include "vulkan_hooks.hpp"
-#include "reshade_api_device.hpp"
-#include "reshade_api_command_queue.hpp"
-#include "reshade_api_swapchain.hpp"
-#include "reshade_api_type_convert.hpp"
+#include "vulkan_impl_device.hpp"
+#include "vulkan_impl_command_queue.hpp"
+#include "vulkan_impl_swapchain.hpp"
+#include "vulkan_impl_type_convert.hpp"
 
 lockfree_table<void *, reshade::vulkan::device_impl *, 16> g_vulkan_devices;
 static lockfree_table<VkQueue, reshade::vulkan::command_queue_impl *, 16> s_vulkan_queues;

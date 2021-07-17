@@ -8,16 +8,16 @@
 #include "lockfree_table.hpp"
 #include "d3d11/d3d11_device.hpp"
 #include "d3d11/d3d11_device_context.hpp"
-#include "d3d11/reshade_api_swapchain.hpp"
+#include "d3d11/d3d11_impl_swapchain.hpp"
 #include "d3d12/d3d12_device.hpp"
 #include "d3d12/d3d12_command_queue.hpp"
-#include "d3d12/reshade_api_swapchain.hpp"
+#include "d3d12/d3d12_impl_swapchain.hpp"
 #include "opengl/opengl_hooks.hpp"
-#include "opengl/reshade_api_swapchain.hpp"
+#include "opengl/opengl_impl_swapchain.hpp"
 #include "vulkan/vulkan_hooks.hpp"
-#include "vulkan/reshade_api_device.hpp"
-#include "vulkan/reshade_api_command_queue.hpp"
-#include "vulkan/reshade_api_swapchain.hpp"
+#include "vulkan/vulkan_impl_device.hpp"
+#include "vulkan/vulkan_impl_command_queue.hpp"
+#include "vulkan/vulkan_impl_swapchain.hpp"
 #include <openvr.h>
 #include <ivrclientcore.h>
 

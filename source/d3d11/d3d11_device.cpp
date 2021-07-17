@@ -7,7 +7,7 @@
 #include "d3d11_device.hpp"
 #include "d3d11_device_context.hpp"
 #include "dxgi/dxgi_device.hpp"
-#include "reshade_api_type_convert.hpp"
+#include "d3d11_impl_type_convert.hpp"
 
 #define output_interface_object(out, h) \
 	assert(h.handle != 0 && SUCCEEDED(reinterpret_cast<IUnknown *>(h.handle)->QueryInterface(out)) && (*out)->Release() == 1), *out = reinterpret_cast<decltype(*out)>(h.handle)

@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "reshade_api_device_context.hpp"
+#include "d3d11_impl_device_context.hpp"
 
 struct D3D11Device;
 

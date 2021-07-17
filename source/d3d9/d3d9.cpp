@@ -8,7 +8,7 @@
 #include "hook_manager.hpp"
 #include "d3d9_device.hpp"
 #include "d3d9_swapchain.hpp"
-#include "reshade_api_type_convert.hpp"
+#include "d3d9_impl_type_convert.hpp"
 
 // These are defined in d3d9.h, but we want to use them as function names below
 #undef IDirect3D9_CreateDevice

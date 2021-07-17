@@ -10,7 +10,7 @@
 #include "runtime.hpp"
 #include "hook_manager.hpp"
 #include "dll_resources.hpp"
-#include "vulkan/reshade_api_device.hpp"
+#include "vulkan/vulkan_impl_device.hpp"
 #include <cassert>
 #include <openvr.h>
 #include <ivrclientcore.h>

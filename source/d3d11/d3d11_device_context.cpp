@@ -7,7 +7,7 @@
 #include "d3d11_device.hpp"
 #include "d3d11_device_context.hpp"
 #include "d3d11_command_list.hpp"
-#include "reshade_api_type_convert.hpp"
+#include "d3d11_impl_type_convert.hpp"
 
 D3D11DeviceContext::D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext  *original) :
 	device_context_impl(device, original),

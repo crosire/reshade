@@ -8,7 +8,7 @@
 #include "d3d12_device_downlevel.hpp"
 #include "d3d12_command_list.hpp"
 #include "d3d12_command_queue.hpp"
-#include "reshade_api_type_convert.hpp"
+#include "d3d12_impl_type_convert.hpp"
 
 #define output_interface_object(riid, out, h) \
 	assert(h.handle != 0 && SUCCEEDED(reinterpret_cast<IUnknown *>(h.handle)->QueryInterface(riid, out)) && static_cast<IUnknown *>(*out)->Release() == 1), *out = reinterpret_cast<IUnknown *>(h.handle)

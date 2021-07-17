@@ -6,13 +6,13 @@
 #include "dll_log.hpp"
 #include "dxgi_swapchain.hpp"
 #include "d3d10/d3d10_device.hpp"
-#include "d3d10/reshade_api_swapchain.hpp"
+#include "d3d10/d3d10_impl_swapchain.hpp"
 #include "d3d11/d3d11_device.hpp"
 #include "d3d11/d3d11_device_context.hpp"
-#include "d3d11/reshade_api_swapchain.hpp"
+#include "d3d11/d3d11_impl_swapchain.hpp"
 #include "d3d12/d3d12_device.hpp"
 #include "d3d12/d3d12_command_queue.hpp"
-#include "d3d12/reshade_api_swapchain.hpp"
+#include "d3d12/d3d12_impl_swapchain.hpp"
 
 extern UINT query_device(IUnknown *&device, com_ptr<IUnknown> &device_proxy);
 

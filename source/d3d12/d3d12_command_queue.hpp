@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "reshade_api_command_queue.hpp"
+#include "d3d12_impl_command_queue.hpp"
 
 struct D3D12Device;
 struct D3D12CommandQueueDownlevel;

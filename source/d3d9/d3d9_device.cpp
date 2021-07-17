@@ -6,7 +6,7 @@
 #include "dll_log.hpp"
 #include "d3d9_device.hpp"
 #include "d3d9_swapchain.hpp"
-#include "reshade_api_type_convert.hpp"
+#include "d3d9_impl_type_convert.hpp"
 
 #define output_interface_object(out, h) \
 	assert(h.handle != 0 && SUCCEEDED(reinterpret_cast<IUnknown *>(h.handle)->QueryInterface(out)) && (*out)->Release() == 1), *out = reinterpret_cast<decltype(*out)>(h.handle)
