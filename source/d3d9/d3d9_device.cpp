@@ -317,23 +317,29 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateTexture(UINT Width, UINT Height
 		reshade::invoke_addon_event_on_destruction_d3d9<reshade::addon_event::destroy_resource, reshade::api::resource>(this, texture);
 
 		// Register all surfaces of this texture too
-		reshade::api::resource_usage view_usage = reshade::api::resource_usage::shader_resource;
-		if (Usage & D3DUSAGE_DEPTHSTENCIL)
-			view_usage = reshade::api::resource_usage::depth_stencil;
-		else if (Usage & D3DUSAGE_RENDERTARGET)
-			view_usage = reshade::api::resource_usage::render_target;
-
-		Levels = texture->GetLevelCount();
-		for (UINT level = 0; level < Levels; ++level)
+		if ((desc.usage & (reshade::api::resource_usage::render_target | reshade::api::resource_usage::depth_stencil)) != reshade::api::resource_usage::undefined)
 		{
-			com_ptr<IDirect3DSurface9> surface;
-			if (SUCCEEDED(texture->GetSurfaceLevel(level, &surface)))
-			{
-				reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
-					this, reshade::api::resource { reinterpret_cast<uintptr_t>(texture) }, view_usage, reshade::api::resource_view_desc(desc.texture.format, level, 1, 0, 1), reshade::api::resource_view { reinterpret_cast<uintptr_t>(surface.get()) });
+			const reshade::api::resource_usage view_usage = desc.usage & (reshade::api::resource_usage::render_target | reshade::api::resource_usage::depth_stencil);
 
-				reshade::invoke_addon_event_on_destruction_d3d9<reshade::addon_event::destroy_resource_view, reshade::api::resource_view>(this, surface.get());
+			Levels = texture->GetLevelCount();
+			for (UINT level = 0; level < Levels; ++level)
+			{
+				com_ptr<IDirect3DSurface9> surface;
+				if (SUCCEEDED(texture->GetSurfaceLevel(level, &surface)))
+				{
+					reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
+						this, reshade::api::resource { reinterpret_cast<uintptr_t>(texture) }, view_usage, reshade::api::resource_view_desc(desc.texture.format, level, 1, 0, 1), reshade::api::resource_view { reinterpret_cast<uintptr_t>(surface.get()) });
+
+					reshade::invoke_addon_event_on_destruction_d3d9<reshade::addon_event::destroy_resource_view, reshade::api::resource_view>(this, surface.get());
+				}
 			}
+		}
+		if ((desc.usage & (reshade::api::resource_usage::shader_resource)) != reshade::api::resource_usage::undefined)
+		{
+			reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
+				this, reshade::api::resource { reinterpret_cast<uintptr_t>(texture) }, reshade::api::resource_usage::shader_resource, reshade::api::resource_view_desc(desc.texture.format, 0, 0xFFFFFFFF, 0, 0xFFFFFFFF), reshade::api::resource_view { reinterpret_cast<uintptr_t>(texture) });
+
+			reshade::invoke_addon_event_on_destruction_d3d9<reshade::addon_event::destroy_resource_view, reshade::api::resource_view>(this, texture);
 		}
 #endif
 	}
@@ -371,10 +377,20 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVolumeTexture(UINT Width, UINT 
 		assert(ppVolumeTexture != nullptr);
 
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
-			this, desc, nullptr, reshade::api::resource_usage::general, reshade::api::resource { reinterpret_cast<uintptr_t>(*ppVolumeTexture) });
+		IDirect3DVolumeTexture9 *const texture = *ppVolumeTexture;
 
-		reshade::invoke_addon_event_on_destruction_d3d9<reshade::addon_event::destroy_resource, reshade::api::resource>(this, *ppVolumeTexture);
+		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
+			this, desc, nullptr, reshade::api::resource_usage::general, reshade::api::resource { reinterpret_cast<uintptr_t>(texture) });
+
+		reshade::invoke_addon_event_on_destruction_d3d9<reshade::addon_event::destroy_resource, reshade::api::resource>(this, texture);
+
+		if ((desc.usage & (reshade::api::resource_usage::shader_resource)) != reshade::api::resource_usage::undefined)
+		{
+			reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
+				this, reshade::api::resource { reinterpret_cast<uintptr_t>(texture) }, reshade::api::resource_usage::shader_resource, reshade::api::resource_view_desc(desc.texture.format, 0, 0xFFFFFFFF, 0, 0xFFFFFFFF), reshade::api::resource_view { reinterpret_cast<uintptr_t>(texture) });
+
+			reshade::invoke_addon_event_on_destruction_d3d9<reshade::addon_event::destroy_resource_view, reshade::api::resource_view>(this, texture);
+		}
 #endif
 	}
 	else
@@ -419,26 +435,32 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateCubeTexture(UINT EdgeLength, UI
 		reshade::invoke_addon_event_on_destruction_d3d9<reshade::addon_event::destroy_resource, reshade::api::resource>(this, texture);
 
 		// Register all surfaces of this texture too
-		reshade::api::resource_usage view_usage = reshade::api::resource_usage::shader_resource;
-		if (Usage & D3DUSAGE_DEPTHSTENCIL)
-			view_usage = reshade::api::resource_usage::depth_stencil;
-		else if (Usage & D3DUSAGE_RENDERTARGET)
-			view_usage = reshade::api::resource_usage::render_target;
-
-		Levels = texture->GetLevelCount();
-		for (UINT level = 0; level < Levels; ++level)
+		if ((desc.usage & (reshade::api::resource_usage::render_target | reshade::api::resource_usage::depth_stencil)) != reshade::api::resource_usage::undefined)
 		{
-			for (D3DCUBEMAP_FACES face = D3DCUBEMAP_FACE_POSITIVE_X; face <= D3DCUBEMAP_FACE_NEGATIVE_Z; face = static_cast<D3DCUBEMAP_FACES>(face + 1))
-			{
-				com_ptr<IDirect3DSurface9> surface;
-				if (SUCCEEDED(texture->GetCubeMapSurface(face, level, &surface)))
-				{
-					reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
-						this, reshade::api::resource { reinterpret_cast<uintptr_t>(texture) }, view_usage, reshade::api::resource_view_desc(desc.texture.format, level, 1, face, 1), reshade::api::resource_view { reinterpret_cast<uintptr_t>(surface.get()) });
+			const reshade::api::resource_usage view_usage = desc.usage & (reshade::api::resource_usage::render_target | reshade::api::resource_usage::depth_stencil);
 
-					reshade::invoke_addon_event_on_destruction_d3d9<reshade::addon_event::destroy_resource_view, reshade::api::resource_view>(this, surface.get());
+			Levels = texture->GetLevelCount();
+			for (UINT level = 0; level < Levels; ++level)
+			{
+				for (D3DCUBEMAP_FACES face = D3DCUBEMAP_FACE_POSITIVE_X; face <= D3DCUBEMAP_FACE_NEGATIVE_Z; face = static_cast<D3DCUBEMAP_FACES>(face + 1))
+				{
+					com_ptr<IDirect3DSurface9> surface;
+					if (SUCCEEDED(texture->GetCubeMapSurface(face, level, &surface)))
+					{
+						reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
+							this, reshade::api::resource { reinterpret_cast<uintptr_t>(texture) }, view_usage, reshade::api::resource_view_desc(desc.texture.format, level, 1, face, 1), reshade::api::resource_view { reinterpret_cast<uintptr_t>(surface.get()) });
+
+						reshade::invoke_addon_event_on_destruction_d3d9<reshade::addon_event::destroy_resource_view, reshade::api::resource_view>(this, surface.get());
+					}
 				}
 			}
+		}
+		if ((desc.usage & (reshade::api::resource_usage::shader_resource)) != reshade::api::resource_usage::undefined)
+		{
+			reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
+				this, reshade::api::resource { reinterpret_cast<uintptr_t>(texture) }, reshade::api::resource_usage::shader_resource, reshade::api::resource_view_desc(desc.texture.format, 0, 0xFFFFFFFF, 0, 0xFFFFFFFF), reshade::api::resource_view { reinterpret_cast<uintptr_t>(texture) });
+
+			reshade::invoke_addon_event_on_destruction_d3d9<reshade::addon_event::destroy_resource_view, reshade::api::resource_view>(this, texture);
 		}
 #endif
 	}
