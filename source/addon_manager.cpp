@@ -85,7 +85,7 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(reset_command_list);
 		CASE(execute_command_list);
 		CASE(execute_secondary_command_list);
-		CASE(resize);
+		CASE(resize_swapchain);
 		CASE(present);
 		CASE(reshade_begin_effects);
 		CASE(reshade_finish_effects);

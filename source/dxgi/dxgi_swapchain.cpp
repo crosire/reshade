@@ -78,16 +78,9 @@ DXGISwapChain::DXGISwapChain(D3D12CommandQueue *command_queue, IDXGISwapChain3 *
 	_direct3d_command_queue->AddRef();
 }
 
-void DXGISwapChain::runtime_reset(UINT width, UINT height)
+void DXGISwapChain::runtime_reset()
 {
 	const std::lock_guard<std::mutex> lock(_impl_mutex);
-
-#if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::resize>(_impl, width, height);
-#else
-	UNREFERENCED_PARAMETER(width);
-	UNREFERENCED_PARAMETER(height);
-#endif
 
 	switch (_direct3d_version)
 	{
@@ -187,7 +180,7 @@ void DXGISwapChain::handle_device_loss(HRESULT hr)
 			LOG(ERROR) << "> Device removal reason is " << reason << '.';
 		}
 
-		runtime_reset(0, 0);
+		runtime_reset();
 	}
 }
 
@@ -371,7 +364,11 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 	if (_force_10_bit_format)
 		NewFormat = DXGI_FORMAT_R10G10B10A2_UNORM;
 
-	runtime_reset(Width, Height);
+#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::resize_swapchain>(_impl, Width, Height, static_cast<reshade::api::format>(NewFormat));
+#endif
+
+	runtime_reset();
 
 	g_in_dxgi_runtime = true;
 	const HRESULT hr = _orig->ResizeBuffers(BufferCount, Width, Height, NewFormat, SwapChainFlags);
@@ -549,7 +546,11 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 	if (_force_10_bit_format)
 		Format = DXGI_FORMAT_R10G10B10A2_UNORM;
 
-	runtime_reset(Width, Height);
+#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::resize_swapchain>(_impl, Width, Height, static_cast<reshade::api::format>(Format));
+#endif
+
+	runtime_reset();
 
 	// Need to extract the original command queue object from the proxies passed in
 	assert(ppPresentQueue != nullptr);

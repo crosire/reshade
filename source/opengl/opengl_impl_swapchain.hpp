@@ -27,6 +27,8 @@ namespace reshade::opengl
 		uint32_t get_back_buffer_count() const final { return 1; }
 		uint32_t get_current_back_buffer_index() const final { return 0; }
 
+		api::format get_back_buffer_format() const;
+
 		bool on_init(HWND hwnd, unsigned int width, unsigned int height);
 		void on_reset();
 		void on_present(bool default_fbo = true);

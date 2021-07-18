@@ -881,7 +881,7 @@ HOOK_EXPORT BOOL  WINAPI wglSwapBuffers(HDC hdc)
 			LOG(INFO) << "Resizing runtime " << runtime << " on device context " << hdc << " to " << width << "x" << height << " ...";
 
 #if RESHADE_ADDON
-			reshade::invoke_addon_event<reshade::addon_event::resize>(runtime, width, height);
+			reshade::invoke_addon_event<reshade::addon_event::resize_swapchain>(runtime, width, height, runtime->get_back_buffer_format());
 #endif
 
 			runtime->on_reset();
