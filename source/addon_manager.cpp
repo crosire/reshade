@@ -50,6 +50,18 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(init_pipeline);
 		CASE(create_pipeline);
 		CASE(destroy_pipeline);
+		CASE(init_pipeline_layout);
+		CASE(create_pipeline_layout);
+		CASE(destroy_pipeline_layout);
+		CASE(init_descriptor_set_layout);
+		CASE(create_descriptor_set_layout);
+		CASE(destroy_descriptor_set_layout);
+		CASE(init_render_pass);
+		CASE(create_render_pass);
+		CASE(destroy_render_pass);
+		CASE(init_framebuffer);
+		CASE(create_framebuffer);
+		CASE(destroy_framebuffer);
 		CASE(upload_buffer_region);
 		CASE(upload_texture_region);
 		CASE(update_descriptor_sets);

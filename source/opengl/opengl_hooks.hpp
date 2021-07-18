@@ -89,6 +89,8 @@ extern "C" void WINAPI glCopyTextureSubImage3D(GLuint texture, GLint level, GLin
 extern "C" void WINAPI glCullFace(GLenum mode);
 #undef glDeleteBuffers
 extern "C" void WINAPI glDeleteBuffers(GLsizei n, const GLuint *buffers);
+#undef glDeleteFramebuffers
+extern "C" void WINAPI glDeleteFramebuffers(GLsizei n, const GLuint *framebuffers);
 #undef glDeleteSamplers
 extern "C" void WINAPI glDeleteSamplers(GLsizei n, const GLuint *samplers);
 #undef glDeleteShader

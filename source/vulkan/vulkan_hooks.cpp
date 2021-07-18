@@ -38,8 +38,12 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	HOOK_PROC(CreateGraphicsPipelines);
 	HOOK_PROC(CreateComputePipelines);
 	HOOK_PROC(DestroyPipeline);
+	HOOK_PROC(CreatePipelineLayout);
+	HOOK_PROC(DestroyPipelineLayout);
 	HOOK_PROC(CreateSampler);
 	HOOK_PROC(DestroySampler);
+	HOOK_PROC(CreateDescriptorSetLayout);
+	HOOK_PROC(DestroyDescriptorSetLayout);
 	HOOK_PROC(UpdateDescriptorSets);
 	HOOK_PROC(CreateFramebuffer);
 	HOOK_PROC(DestroyFramebuffer);

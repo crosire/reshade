@@ -172,6 +172,38 @@ namespace reshade
 		destroy_descriptor_set_layout,
 
 		/// <summary>
+		/// Called after successfull render pass creation from 'vkCreateRenderPass'.
+		/// <para>Callback function signature: <c>void (api::device *device, const api::render_pass_desc &amp;desc, api::render_pass pass)</c></para>
+		/// </summary>
+		init_render_pass,
+		/// <summary>
+		/// Called before 'vkCreateRenderPass'.
+		/// <para>Callback function signature: <c>bool (api::device *device, api::render_pass_desc &amp;desc)</c></para>
+		/// </summary>
+		create_render_pass,
+		/// <summary>
+		/// Called on render pass destruction, before 'vkDestroyRenderPass'.
+		/// <para>Callback function signature: <c>void (api::device *device, api::render_pass pass)</c></para>
+		/// </summary>
+		destroy_render_pass,
+
+		/// <summary>
+		/// Called after successfull framebuffer object creation from 'vkCreateFramebuffer'.
+		/// <para>Callback function signature: <c>void (api::device *device, const api::framebuffer_desc &amp;desc, api::framebuffer fbo)</c></para>
+		/// </summary>
+		init_framebuffer,
+		/// <summary>
+		/// Called before 'vkCreateFramebuffer'.
+		/// <para>Callback function signature: <c>bool (api::device *device, api::framebuffer_desc &amp;desc)</c></para>
+		/// </summary>
+		create_framebuffer,
+		/// <summary>
+		/// Called on framebuffer object destruction, before 'glDeleteFramebuffers' or 'vkDestroyFramebuffer'.
+		/// <para>Callback function signature: <c>void (api::device *device, api::framebuffer fbo)</c></para>
+		/// </summary>
+		destroy_framebuffer,
+
+		/// <summary>
 		/// Called before 'ID3D10Device::UpdateSubresource' or 'ID3D11DeviceContext::UpdateSubresource'.
 		/// <para>Callback function signature: <c>bool (api::device *device, const void *data, api::resource dst, uint64_t dst_offset, uint64_t size)</c></para>
 		/// </summary>
@@ -481,6 +513,14 @@ namespace reshade
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::init_descriptor_set_layout, api::device *device, const api::descriptor_set_layout_desc &desc, api::descriptor_set_layout layout);
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::create_descriptor_set_layout, api::device *device, api::descriptor_set_layout_desc &desc);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::destroy_descriptor_set_layout, api::device *device, api::descriptor_set_layout layout);
+
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::init_render_pass, api::device *device, const api::render_pass_desc &desc, api::render_pass pass);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::create_render_pass, api::device *device, api::render_pass_desc &desc);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::destroy_render_pass, api::device *device, api::render_pass pass);
+
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::init_framebuffer, api::device *device, const api::framebuffer_desc &desc, api::framebuffer fbo);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::create_framebuffer, api::device *device, api::framebuffer_desc &desc);
+	DEFINE_ADDON_EVENT_TYPE_1(addon_event::destroy_framebuffer, api::device *device, api::framebuffer fbo);
 
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::upload_buffer_region, api::device *device, const void *data, api::resource dst, uint64_t dst_offset, uint64_t size);
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::upload_texture_region, api::device *device, const api::subresource_data &data, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6]);

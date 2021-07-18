@@ -1216,12 +1216,28 @@ HOOK_EXPORT void WINAPI glCullFace(GLenum mode)
 	if (g_current_context)
 	{
 		for (int i = 0; i < n; ++i)
-			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(g_current_context, reshade::opengl::make_resource_handle(GL_BUFFER, buffers[i]));
+			if (buffers[i] != 0)
+				reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(g_current_context, reshade::opengl::make_resource_handle(GL_BUFFER, buffers[i]));
 	}
 #endif
 
 	static const auto trampoline = reshade::hooks::call(glDeleteBuffers);
 	trampoline(n, buffers);
+}
+
+			void WINAPI glDeleteFramebuffers(GLsizei n, const GLuint *framebuffers)
+{
+#if RESHADE_ADDON
+	if (g_current_context)
+	{
+		for (int i = 0; i < n; ++i)
+			if (framebuffers[i] != 0)
+				reshade::invoke_addon_event<reshade::addon_event::destroy_framebuffer>(g_current_context, reshade::opengl::make_framebuffer_handle(framebuffers[i]));
+	}
+#endif
+
+	static const auto trampoline = reshade::hooks::call(glDeleteFramebuffers);
+	trampoline(n, framebuffers);
 }
 
 HOOK_EXPORT void WINAPI glDeleteLists(GLuint list, GLsizei range)
@@ -1236,7 +1252,8 @@ HOOK_EXPORT void WINAPI glDeleteLists(GLuint list, GLsizei range)
 	if (g_current_context)
 	{
 		for (int i = 0; i < n; ++i)
-			reshade::invoke_addon_event<reshade::addon_event::destroy_sampler>(g_current_context, reshade::api::sampler { samplers[i] });
+			if (samplers[i] != 0)
+				reshade::invoke_addon_event<reshade::addon_event::destroy_sampler>(g_current_context, reshade::api::sampler { samplers[i] });
 	}
 #endif
 
@@ -1249,7 +1266,8 @@ HOOK_EXPORT void WINAPI glDeleteLists(GLuint list, GLsizei range)
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
-		reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(g_current_context, reshade::api::pipeline { shader });
+		if (shader != 0)
+			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(g_current_context, reshade::api::pipeline { shader });
 	}
 #endif
 
@@ -1263,7 +1281,8 @@ HOOK_EXPORT void WINAPI glDeleteTextures(GLsizei n, const GLuint *textures)
 	if (g_current_context)
 	{
 		for (int i = 0; i < n; ++i)
-			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(g_current_context, reshade::opengl::make_resource_handle(GL_TEXTURE, textures[i]));
+			if (textures[i] != 0)
+				reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(g_current_context, reshade::opengl::make_resource_handle(GL_TEXTURE, textures[i]));
 	}
 #endif
 

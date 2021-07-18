@@ -993,6 +993,67 @@ void     VKAPI_CALL vkDestroyPipeline(VkDevice device, VkPipeline pipeline, cons
 	trampoline(device, pipeline, pAllocator);
 }
 
+VkResult VKAPI_CALL vkCreatePipelineLayout(VkDevice device, const VkPipelineLayoutCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkPipelineLayout *pPipelineLayout)
+{
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
+	GET_DISPATCH_PTR_FROM(CreatePipelineLayout, device_impl);
+
+	assert(pCreateInfo != nullptr && pPipelineLayout != nullptr);
+
+#if RESHADE_ADDON
+	static_assert(sizeof(*pCreateInfo->pSetLayouts) == sizeof(reshade::api::descriptor_set_layout));
+
+	std::vector<reshade::api::constant_range> constant_ranges;
+	constant_ranges.reserve(pCreateInfo->pushConstantRangeCount);
+	for (uint32_t i = 0; i < pCreateInfo->pushConstantRangeCount; ++i)
+	{
+		reshade::api::constant_range &range = constant_ranges.emplace_back();
+		range.offset = pCreateInfo->pPushConstantRanges[i].offset;
+		range.count = pCreateInfo->pPushConstantRanges[i].size;
+		range.visibility = static_cast<reshade::api::shader_stage>(pCreateInfo->pPushConstantRanges[i].stageFlags);
+	}
+
+	reshade::api::pipeline_layout_desc desc = {};
+	desc.num_set_layouts = pCreateInfo->setLayoutCount;
+	desc.set_layouts = reinterpret_cast<const reshade::api::descriptor_set_layout *>(pCreateInfo->pSetLayouts);
+	desc.num_constant_ranges = pCreateInfo->pushConstantRangeCount;
+	desc.constant_ranges = constant_ranges.data();
+
+	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline_layout>(device_impl, desc))
+	{
+		// TODO
+	}
+#endif
+
+	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pPipelineLayout);
+	if (result >= VK_SUCCESS)
+	{
+#if RESHADE_ADDON
+		reshade::invoke_addon_event<reshade::addon_event::init_pipeline_layout>(
+			device_impl, desc, reshade::api::pipeline_layout { (uint64_t)*pPipelineLayout });
+#endif
+	}
+	else
+	{
+#if RESHADE_VERBOSE_LOG
+		LOG(WARN) << "vkCreatePipelineLayout" << " failed with error code " << result << '.';
+#endif
+	}
+
+	return result;
+}
+void     VKAPI_CALL vkDestroyPipelineLayout(VkDevice device, VkPipelineLayout pipelineLayout, const VkAllocationCallbacks *pAllocator)
+{
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
+	GET_DISPATCH_PTR_FROM(DestroyPipelineLayout, device_impl);
+
+#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline_layout>(device_impl, reshade::api::pipeline_layout { (uint64_t)pipelineLayout });
+#endif
+
+	trampoline(device, pipelineLayout, pAllocator);
+}
+
 VkResult VKAPI_CALL vkCreateSampler(VkDevice device, const VkSamplerCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkSampler *pSampler)
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
@@ -1038,6 +1099,65 @@ void     VKAPI_CALL vkDestroySampler(VkDevice device, VkSampler sampler, const V
 #endif
 
 	trampoline(device, sampler, pAllocator);
+}
+
+VkResult VKAPI_CALL vkCreateDescriptorSetLayout(VkDevice device, const VkDescriptorSetLayoutCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkDescriptorSetLayout *pSetLayout)
+{
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
+	GET_DISPATCH_PTR_FROM(CreateDescriptorSetLayout, device_impl);
+
+	assert(pCreateInfo != nullptr && pSetLayout != nullptr);
+
+#if RESHADE_ADDON
+	std::vector<reshade::api::descriptor_range> ranges;
+	ranges.reserve(pCreateInfo->bindingCount);
+	for (uint32_t i = 0; i < pCreateInfo->bindingCount; ++i)
+	{
+		reshade::api::descriptor_range &range = ranges.emplace_back();
+		range.binding = pCreateInfo->pBindings[i].binding;
+		range.type = static_cast<reshade::api::descriptor_type>(pCreateInfo->pBindings[i].descriptorType);
+		range.count = pCreateInfo->pBindings[i].descriptorCount;
+		range.visibility = static_cast<reshade::api::shader_stage>(pCreateInfo->pBindings[i].stageFlags);
+	}
+
+	reshade::api::descriptor_set_layout_desc desc = {};
+	desc.num_ranges = pCreateInfo->bindingCount;
+	desc.ranges = ranges.data();
+	desc.push_descriptors = (pCreateInfo->flags & VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR) != 0;
+
+	if (reshade::invoke_addon_event<reshade::addon_event::create_descriptor_set_layout>(device_impl, desc))
+	{
+		// TODO
+	}
+#endif
+
+	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pSetLayout);
+	if (result >= VK_SUCCESS)
+	{
+#if RESHADE_ADDON
+		reshade::invoke_addon_event<reshade::addon_event::init_descriptor_set_layout>(
+			device_impl, desc, reshade::api::descriptor_set_layout { (uint64_t)*pSetLayout });
+#endif
+	}
+	else
+	{
+#if RESHADE_VERBOSE_LOG
+		LOG(WARN) << "vkCreateDescriptorSetLayout" << " failed with error code " << result << '.';
+#endif
+	}
+
+	return result;
+}
+void     VKAPI_CALL vkDestroyDescriptorSetLayout(VkDevice device, VkDescriptorSetLayout descriptorSetLayout, const VkAllocationCallbacks *pAllocator)
+{
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
+	GET_DISPATCH_PTR_FROM(DestroyDescriptorSetLayout, device_impl);
+
+#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::destroy_descriptor_set_layout>(device_impl, reshade::api::descriptor_set_layout { (uint64_t)descriptorSetLayout });
+#endif
+
+	trampoline(device, descriptorSetLayout, pAllocator);
 }
 
 void     VKAPI_CALL vkUpdateDescriptorSets(VkDevice device, uint32_t descriptorWriteCount, const VkWriteDescriptorSet *pDescriptorWrites, uint32_t descriptorCopyCount, const VkCopyDescriptorSet *pDescriptorCopies)
@@ -1105,6 +1225,21 @@ VkResult VKAPI_CALL vkCreateFramebuffer(VkDevice device, const VkFramebufferCrea
 
 	assert(pCreateInfo != nullptr && pFramebuffer != nullptr);
 
+#if RESHADE_ADDON
+	reshade::api::framebuffer_desc desc = {};
+	desc.render_pass_template = { (uint64_t)pCreateInfo->renderPass };
+
+	for (uint32_t i = 0; i < pCreateInfo->attachmentCount && i < 8; ++i)
+	{
+		desc.render_targets[i] = { (uint64_t)pCreateInfo->pAttachments[i] };
+	}
+
+	if (reshade::invoke_addon_event<reshade::addon_event::create_framebuffer>(device_impl, desc))
+	{
+		// TODO
+	}
+#endif
+
 	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pFramebuffer);
 	if (result >= VK_SUCCESS)
 	{
@@ -1124,6 +1259,9 @@ VkResult VKAPI_CALL vkCreateFramebuffer(VkDevice device, const VkFramebufferCrea
 		}
 
 		device_impl->register_framebuffer(*pFramebuffer, std::move(data));
+
+		reshade::invoke_addon_event<reshade::addon_event::init_framebuffer>(
+			device_impl, desc, reshade::api::framebuffer { (uint64_t)*pFramebuffer });
 #endif
 	}
 	else
@@ -1141,6 +1279,8 @@ void     VKAPI_CALL vkDestroyFramebuffer(VkDevice device, VkFramebuffer framebuf
 	GET_DISPATCH_PTR_FROM(DestroyFramebuffer, device_impl);
 
 #if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::destroy_framebuffer>(device_impl, reshade::api::framebuffer { (uint64_t)framebuffer });
+
 	device_impl->unregister_framebuffer(framebuffer);
 #endif
 
@@ -1153,6 +1293,21 @@ VkResult VKAPI_CALL vkCreateRenderPass(VkDevice device, const VkRenderPassCreate
 	GET_DISPATCH_PTR_FROM(CreateRenderPass, device_impl);
 
 	assert(pCreateInfo != nullptr && pRenderPass != nullptr);
+
+#if RESHADE_ADDON
+	reshade::api::render_pass_desc desc = {};
+
+	for (uint32_t i = 0; i < pCreateInfo->attachmentCount && i < 8; ++i)
+	{
+		desc.samples = static_cast<uint16_t>(pCreateInfo->pAttachments[i].samples);
+		desc.render_targets_format[i] = reshade::vulkan::convert_format(pCreateInfo->pAttachments[i].format);
+	}
+
+	if (reshade::invoke_addon_event<reshade::addon_event::create_render_pass>(device_impl, desc))
+	{
+		// TODO
+	}
+#endif
 
 	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pRenderPass);
 	if (result >= VK_SUCCESS)
@@ -1176,6 +1331,9 @@ VkResult VKAPI_CALL vkCreateRenderPass(VkDevice device, const VkRenderPassCreate
 		}
 
 		device_impl->register_render_pass(*pRenderPass, std::move(renderpass_data));
+
+		reshade::invoke_addon_event<reshade::addon_event::init_render_pass>(
+			device_impl, desc, reshade::api::render_pass { (uint64_t)*pRenderPass });
 #endif
 	}
 	else
@@ -1194,6 +1352,21 @@ VkResult VKAPI_CALL vkCreateRenderPass2(VkDevice device, const VkRenderPassCreat
 
 	assert(pCreateInfo != nullptr && pRenderPass != nullptr);
 
+#if RESHADE_ADDON
+	reshade::api::render_pass_desc desc = {};
+
+	for (uint32_t i = 0; i < pCreateInfo->attachmentCount && i < 8; ++i)
+	{
+		desc.samples = static_cast<uint16_t>(pCreateInfo->pAttachments[i].samples);
+		desc.render_targets_format[i] = reshade::vulkan::convert_format(pCreateInfo->pAttachments[i].format);
+	}
+
+	if (reshade::invoke_addon_event<reshade::addon_event::create_render_pass>(device_impl, desc))
+	{
+		// TODO
+	}
+#endif
+
 	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pRenderPass);
 	if (result >= VK_SUCCESS)
 	{
@@ -1216,6 +1389,9 @@ VkResult VKAPI_CALL vkCreateRenderPass2(VkDevice device, const VkRenderPassCreat
 		}
 
 		device_impl->register_render_pass(*pRenderPass, std::move(renderpass_data));
+
+		reshade::invoke_addon_event<reshade::addon_event::init_render_pass>(
+			device_impl, desc, reshade::api::render_pass { (uint64_t)*pRenderPass });
 #endif
 	}
 	else
@@ -1233,6 +1409,8 @@ void     VKAPI_CALL vkDestroyRenderPass(VkDevice device, VkRenderPass renderPass
 	GET_DISPATCH_PTR_FROM(DestroyRenderPass, device_impl);
 
 #if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::destroy_render_pass>(device_impl, reshade::api::render_pass { (uint64_t)renderPass });
+
 	device_impl->unregister_render_pass(renderPass);
 #endif
 
