@@ -500,6 +500,9 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	LOG(INFO) << "  | oldSwapchain                            | " << std::setw(39) << create_info.oldSwapchain << " |";
 	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 
+	// Look up window handle from surface
+	const HWND hwnd = g_surface_windows.at(create_info.surface);
+
 #if RESHADE_ADDON
 	reshade::api::resource_desc buffer_desc = {};
 	buffer_desc.type = reshade::api::resource_type::texture_2d;
@@ -513,7 +516,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	buffer_desc.heap = reshade::api::memory_heap::gpu_only;
 	reshade::vulkan::convert_image_usage_flags_to_usage(create_info.imageUsage, buffer_desc.usage);
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(&buffer_desc))
+	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(buffer_desc, hwnd))
 	{
 		create_info.imageFormat = reshade::vulkan::convert_format(buffer_desc.texture.format);
 		create_info.imageExtent.width = buffer_desc.texture.width;
@@ -563,9 +566,6 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		{
 			swapchain_impl = new reshade::vulkan::swapchain_impl(device_impl, queue_impl);
 		}
-
-		// Look up window handle from surface
-		const HWND hwnd = g_surface_windows.at(create_info.surface);
 
 		if (!swapchain_impl->on_init(*pSwapchain, create_info, hwnd))
 			LOG(ERROR) << "Failed to initialize Vulkan runtime environment on runtime " << swapchain_impl << '.';
@@ -667,23 +667,19 @@ VkResult VKAPI_CALL vkCreateBuffer(VkDevice device, const VkBufferCreateInfo *pC
 
 	assert(pCreateInfo != nullptr && pBuffer != nullptr);
 
-	VkResult result = VK_SUCCESS;
-
 #if RESHADE_ADDON
-	reshade::api::resource_desc desc = reshade::vulkan::convert_resource_desc(*pCreateInfo);
+	VkBufferCreateInfo create_info = *pCreateInfo;
+	auto desc = reshade::vulkan::convert_resource_desc(create_info);
 	assert(desc.heap == reshade::api::memory_heap::unknown);
 
-	if (reshade::api::resource replacement = { 0 };
-		reshade::invoke_addon_event<reshade::addon_event::create_resource>(
-			device_impl, desc, nullptr, reshade::api::resource_usage::undefined, &replacement))
+	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(device_impl, desc, nullptr, reshade::api::resource_usage::undefined))
 	{
-		desc = device_impl->get_resource_desc(replacement);
-		*pBuffer = (VkBuffer)replacement.handle;
+		reshade::vulkan::convert_resource_desc(desc, create_info);
+		pCreateInfo = &create_info;
 	}
-	else
 #endif
 
-	result = trampoline(device, pCreateInfo, pAllocator, pBuffer);
+	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pBuffer);
 	if (result >= VK_SUCCESS)
 	{
 #if RESHADE_ADDON
@@ -708,15 +704,7 @@ void     VKAPI_CALL vkDestroyBuffer(VkDevice device, VkBuffer buffer, const VkAl
 	GET_DISPATCH_PTR_FROM(DestroyBuffer, device_impl);
 
 #if RESHADE_ADDON
-	const reshade::api::resource resource = { (uint64_t)buffer };
-	reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(device_impl, resource);
-
-	// Destroy resource via device implementation in case it was overwritten
-	if (device_impl->lookup_resource(resource).owned)
-	{
-		device_impl->destroy_resource(resource);
-		return;
-	}
+	reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(device_impl, reshade::api::resource { (uint64_t)buffer });
 
 	device_impl->unregister_buffer(buffer);
 #endif
@@ -731,21 +719,18 @@ VkResult VKAPI_CALL vkCreateBufferView(VkDevice device, const VkBufferViewCreate
 
 	assert(pCreateInfo != nullptr && pView != nullptr);
 
-	VkResult result = VK_SUCCESS;
-
 #if RESHADE_ADDON
-	reshade::api::resource_view_desc desc = reshade::vulkan::convert_resource_view_desc(*pCreateInfo);
+	VkBufferViewCreateInfo create_info = *pCreateInfo;
+	auto desc = reshade::vulkan::convert_resource_view_desc(create_info);
 
-	if (reshade::api::resource_view replacement = { 0 };
-		reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(
-			device_impl, reshade::api::resource { (uint64_t)pCreateInfo->buffer }, reshade::api::resource_usage::undefined, desc, &replacement))
+	if (reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(device_impl, reshade::api::resource { (uint64_t)pCreateInfo->buffer }, reshade::api::resource_usage::undefined, desc))
 	{
-		*pView = (VkBufferView)replacement.handle;
+		reshade::vulkan::convert_resource_view_desc(desc, create_info);
+		pCreateInfo = &create_info;
 	}
-	else
 #endif
 
-	result = trampoline(device, pCreateInfo, pAllocator, pView);;
+	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pView);
 	if (result >= VK_SUCCESS)
 	{
 #if RESHADE_ADDON
@@ -770,15 +755,7 @@ void     VKAPI_CALL vkDestroyBufferView(VkDevice device, VkBufferView bufferView
 	GET_DISPATCH_PTR_FROM(DestroyBufferView, device_impl);
 
 #if RESHADE_ADDON
-	const reshade::api::resource_view view = { (uint64_t)bufferView };
-	reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(device_impl, view);
-
-	// Destroy resource view via device implementation in case it was overwritten
-	if (device_impl->lookup_resource_view(view).owned)
-	{
-		device_impl->destroy_resource_view(view);
-		return;
-	}
+	reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(device_impl, reshade::api::resource_view { (uint64_t)bufferView });
 
 	device_impl->unregister_buffer_view(bufferView);
 #endif
@@ -793,23 +770,19 @@ VkResult VKAPI_CALL vkCreateImage(VkDevice device, const VkImageCreateInfo *pCre
 
 	assert(pCreateInfo != nullptr && pImage != nullptr);
 
-	VkResult result = VK_SUCCESS;
-
 #if RESHADE_ADDON
-	reshade::api::resource_desc desc = reshade::vulkan::convert_resource_desc(*pCreateInfo);
+	VkImageCreateInfo create_info = *pCreateInfo;
+	auto desc = reshade::vulkan::convert_resource_desc(create_info);
 	assert(desc.heap == reshade::api::memory_heap::unknown);
 
-	if (reshade::api::resource replacement = { 0 };
-		reshade::invoke_addon_event<reshade::addon_event::create_resource>(
-			device_impl, desc, nullptr, pCreateInfo->initialLayout == VK_IMAGE_LAYOUT_PREINITIALIZED ? reshade::api::resource_usage::cpu_access : reshade::api::resource_usage::undefined, &replacement))
+	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(device_impl, desc, nullptr, pCreateInfo->initialLayout == VK_IMAGE_LAYOUT_PREINITIALIZED ? reshade::api::resource_usage::cpu_access : reshade::api::resource_usage::undefined))
 	{
-		desc = device_impl->get_resource_desc(replacement);
-		*pImage = (VkImage)replacement.handle;
+		reshade::vulkan::convert_resource_desc(desc, create_info);
+		pCreateInfo = &create_info;
 	}
-	else
 #endif
 
-	result = trampoline(device, pCreateInfo, pAllocator, pImage);
+	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pImage);
 	if (result >= VK_SUCCESS)
 	{
 #if RESHADE_ADDON
@@ -834,15 +807,7 @@ void     VKAPI_CALL vkDestroyImage(VkDevice device, VkImage image, const VkAlloc
 	GET_DISPATCH_PTR_FROM(DestroyImage, device_impl);
 
 #if RESHADE_ADDON
-	const reshade::api::resource resource = { (uint64_t)image };
-	reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(device_impl, resource);
-
-	// Destroy resource via device implementation in case it was overwritten
-	if (device_impl->lookup_resource(resource).owned)
-	{
-		device_impl->destroy_resource(resource);
-		return;
-	}
+	reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(device_impl, reshade::api::resource { (uint64_t)image });
 
 	device_impl->unregister_image(image);
 #endif
@@ -857,21 +822,18 @@ VkResult VKAPI_CALL vkCreateImageView(VkDevice device, const VkImageViewCreateIn
 
 	assert(pCreateInfo != nullptr && pView != nullptr);
 
-	VkResult result = VK_SUCCESS;
-
 #if RESHADE_ADDON
-	reshade::api::resource_view_desc desc = reshade::vulkan::convert_resource_view_desc(*pCreateInfo);
+	VkImageViewCreateInfo create_info = *pCreateInfo;
+	auto desc = reshade::vulkan::convert_resource_view_desc(create_info);
 
-	if (reshade::api::resource_view replacement = { 0 };
-		reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(
-			device_impl, reshade::api::resource { (uint64_t)pCreateInfo->image }, reshade::api::resource_usage::undefined, desc, &replacement))
+	if (reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(device_impl, reshade::api::resource { (uint64_t)pCreateInfo->image }, reshade::api::resource_usage::undefined, desc))
 	{
-		*pView = (VkImageView)replacement.handle;
+		reshade::vulkan::convert_resource_view_desc(desc, create_info);
+		pCreateInfo = &create_info;
 	}
-	else
 #endif
 
-	result = trampoline(device, pCreateInfo, pAllocator, pView);
+	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pView);
 	if (result >= VK_SUCCESS)
 	{
 #if RESHADE_ADDON
@@ -896,15 +858,7 @@ void     VKAPI_CALL vkDestroyImageView(VkDevice device, VkImageView imageView, c
 	GET_DISPATCH_PTR_FROM(DestroyImageView, device_impl);
 
 #if RESHADE_ADDON
-	const reshade::api::resource_view view = { (uint64_t)imageView };
-	reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(device_impl, view);
-
-	// Destroy resource view via device implementation in case it was overwritten
-	if (device_impl->lookup_resource_view(view).owned)
-	{
-		device_impl->destroy_resource_view(view);
-		return;
-	}
+	reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(device_impl, reshade::api::resource_view { (uint64_t)imageView });
 
 	device_impl->unregister_image_view(imageView);
 #endif
@@ -954,16 +908,15 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 	VkResult result = VK_SUCCESS;
 	for (uint32_t i = 0; i < createInfoCount; ++i)
 	{
-		const reshade::api::pipeline_desc desc = reshade::vulkan::convert_pipeline_desc(pCreateInfos[i]);
+		VkGraphicsPipelineCreateInfo create_info = pCreateInfos[i];
+		auto desc = reshade::vulkan::convert_pipeline_desc(create_info);
 
-		if (reshade::api::pipeline replacement = { 0 };
-			reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(device_impl, desc, &replacement))
+		if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(device_impl, desc))
 		{
-			pPipelines[i] = (VkPipeline)replacement.handle;
-			continue;
+			// TODO
 		}
 
-		result = trampoline(device, pipelineCache, 1, &pCreateInfos[i], pAllocator, &pPipelines[i]);
+		result = trampoline(device, pipelineCache, 1, &create_info, pAllocator, &pPipelines[i]);
 		if (result >= VK_SUCCESS)
 		{
 			reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(device_impl, desc, reshade::api::pipeline { (uint64_t)pPipelines[i] });
@@ -996,16 +949,15 @@ VkResult VKAPI_CALL vkCreateComputePipelines(VkDevice device, VkPipelineCache pi
 	VkResult result = VK_SUCCESS;
 	for (uint32_t i = 0; i < createInfoCount; ++i)
 	{
-		const reshade::api::pipeline_desc desc = reshade::vulkan::convert_pipeline_desc(pCreateInfos[i]);
+		VkComputePipelineCreateInfo create_info = pCreateInfos[i];
+		auto desc = reshade::vulkan::convert_pipeline_desc(pCreateInfos[i]);
 
-		if (reshade::api::pipeline replacement = { 0 };
-			reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(device_impl, desc, &replacement))
+		if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(device_impl, desc))
 		{
-			pPipelines[i] = (VkPipeline)replacement.handle;
-			continue;
+			// TODO
 		}
 
-		result = trampoline(device, pipelineCache, 1, &pCreateInfos[i], pAllocator, &pPipelines[i]);
+		result = trampoline(device, pipelineCache, 1, &create_info, pAllocator, &pPipelines[i]);
 		if (result >= VK_SUCCESS)
 		{
 			reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(device_impl, desc, reshade::api::pipeline { (uint64_t)pPipelines[i] });
@@ -1049,13 +1001,13 @@ VkResult VKAPI_CALL vkCreateSampler(VkDevice device, const VkSamplerCreateInfo *
 	assert(pCreateInfo != nullptr && pSampler != nullptr);
 
 #if RESHADE_ADDON
-	const reshade::api::sampler_desc desc = reshade::vulkan::convert_sampler_desc(*pCreateInfo);
+	VkSamplerCreateInfo create_info = *pCreateInfo;
+	auto desc = reshade::vulkan::convert_sampler_desc(create_info);
 
-	if (reshade::api::sampler replacement = { 0 };
-		reshade::invoke_addon_event<reshade::addon_event::create_sampler>(device_impl, desc, &replacement))
+	if (reshade::invoke_addon_event<reshade::addon_event::create_sampler>(device_impl, desc))
 	{
-		*pSampler = (VkSampler)replacement.handle;
-		return VK_SUCCESS;
+		reshade::vulkan::convert_sampler_desc(desc, create_info);
+		pCreateInfo = &create_info;
 	}
 #endif
 
@@ -1150,6 +1102,8 @@ VkResult VKAPI_CALL vkCreateFramebuffer(VkDevice device, const VkFramebufferCrea
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
 	GET_DISPATCH_PTR_FROM(CreateFramebuffer, device_impl);
+
+	assert(pCreateInfo != nullptr && pFramebuffer != nullptr);
 
 	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pFramebuffer);
 	if (result >= VK_SUCCESS)

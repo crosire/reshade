@@ -262,7 +262,7 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 				 vk.CreateBuffer(_orig, &create_info, nullptr, &object) :
 				 vmaCreateBuffer(_alloc, &create_info, &alloc_info, &object, &allocation, nullptr)) == VK_SUCCESS)
 			{
-				register_buffer(object, create_info, allocation, true);
+				register_buffer(object, create_info, allocation);
 				*out = { (uint64_t)object };
 				return true;
 			}
@@ -284,7 +284,7 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 				 vk.CreateImage(_orig, &create_info, nullptr, &object) :
 				 vmaCreateImage(_alloc, &create_info, &alloc_info, &object, &allocation, nullptr)) == VK_SUCCESS)
 			{
-				register_image(object, create_info, allocation, true);
+				register_image(object, create_info, allocation);
 				*out = { (uint64_t)object };
 
 				if (initial_data != nullptr)
@@ -361,7 +361,7 @@ bool reshade::vulkan::device_impl::create_resource_view(api::resource resource, 
 		VkImageView image_view = VK_NULL_HANDLE;
 		if (vk.CreateImageView(_orig, &create_info, nullptr, &image_view) == VK_SUCCESS)
 		{
-			register_image_view(image_view, create_info, true);
+			register_image_view(image_view, create_info);
 			*out = { (uint64_t)image_view };
 			return true;
 		}
@@ -375,7 +375,7 @@ bool reshade::vulkan::device_impl::create_resource_view(api::resource resource, 
 		VkBufferView buffer_view = VK_NULL_HANDLE;
 		if (vk.CreateBufferView(_orig, &create_info, nullptr, &buffer_view) == VK_SUCCESS)
 		{
-			register_buffer_view(buffer_view, create_info, true);
+			register_buffer_view(buffer_view, create_info);
 			*out = { (uint64_t)buffer_view };
 			return true;
 		}
@@ -1014,7 +1014,6 @@ void reshade::vulkan::device_impl::destroy_resource(api::resource handle)
 	if (handle.handle == 0)
 		return;
 	const resource_data data = lookup_resource(handle);
-	assert(data.owned);
 
 	if (data.allocation == VK_NULL_HANDLE)
 	{
@@ -1039,7 +1038,6 @@ void reshade::vulkan::device_impl::destroy_resource_view(api::resource_view hand
 	if (handle.handle == 0)
 		return;
 	const resource_view_data data = lookup_resource_view(handle);
-	assert(data.owned);
 
 	if (data.is_image_view())
 		vk.DestroyImageView(_orig, data.image_view, nullptr);

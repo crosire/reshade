@@ -78,6 +78,7 @@ namespace reshade::d3d10
 	api::resource_view_desc convert_resource_view_desc(const D3D10_SHADER_RESOURCE_VIEW_DESC &internal_desc);
 	api::resource_view_desc convert_resource_view_desc(const D3D10_SHADER_RESOURCE_VIEW_DESC1 &internal_desc);
 
+	void convert_pipeline_desc(const api::pipeline_desc &desc, std::vector<D3D10_INPUT_ELEMENT_DESC> &element_desc);
 	void convert_pipeline_desc(const api::pipeline_desc &desc, D3D10_BLEND_DESC &internal_desc);
 	void convert_pipeline_desc(const api::pipeline_desc &desc, D3D10_BLEND_DESC1 &internal_desc);
 	void convert_pipeline_desc(const api::pipeline_desc &desc, D3D10_RASTERIZER_DESC &internal_desc);

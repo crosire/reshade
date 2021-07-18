@@ -327,21 +327,7 @@ bool reshade::d3d10::device_impl::create_graphics_pipeline(const api::pipeline_d
 bool reshade::d3d10::device_impl::create_input_layout(const api::pipeline_desc &desc, api::pipeline *out)
 {
 	std::vector<D3D10_INPUT_ELEMENT_DESC> internal_elements;
-	internal_elements.reserve(16);
-
-	for (UINT i = 0; i < 16 && desc.graphics.input_layout[i].format != api::format::unknown; ++i)
-	{
-		const api::input_layout_element &element = desc.graphics.input_layout[i];
-
-		D3D10_INPUT_ELEMENT_DESC &internal_element = internal_elements.emplace_back();
-		internal_element.SemanticName = element.semantic;
-		internal_element.SemanticIndex = element.semantic_index;
-		internal_element.Format = convert_format(element.format);
-		internal_element.InputSlot = element.buffer_binding;
-		internal_element.AlignedByteOffset = element.offset;
-		internal_element.InputSlotClass = element.instance_step_rate > 0 ? D3D10_INPUT_PER_INSTANCE_DATA : D3D10_INPUT_PER_VERTEX_DATA;
-		internal_element.InstanceDataStepRate = element.instance_step_rate;
-	}
+	convert_pipeline_desc(desc, internal_elements);
 
 	if (com_ptr<ID3D10InputLayout> object;
 		internal_elements.empty() || SUCCEEDED(_orig->CreateInputLayout(internal_elements.data(), static_cast<UINT>(internal_elements.size()), desc.graphics.vertex_shader.code, desc.graphics.vertex_shader.code_size, &object)))

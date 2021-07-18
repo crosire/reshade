@@ -31,7 +31,7 @@ reshade::vulkan::swapchain_impl::swapchain_impl(device_impl *device, command_que
 	LOG(INFO) << "Running on " << device_props.deviceName << " Driver " << VK_VERSION_MAJOR(device_props.driverVersion) << '.' << driver_minor_version;
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::init_swapchain>(this);
+	invoke_addon_event<reshade::addon_event::init_swapchain>(this);
 #endif
 }
 reshade::vulkan::swapchain_impl::~swapchain_impl()
@@ -39,7 +39,7 @@ reshade::vulkan::swapchain_impl::~swapchain_impl()
 	on_reset();
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(this);
+	invoke_addon_event<reshade::addon_event::destroy_swapchain>(this);
 #endif
 }
 

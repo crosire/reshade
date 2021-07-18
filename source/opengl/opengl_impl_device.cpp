@@ -465,16 +465,7 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 
 	if (desc.type == api::resource_type::buffer)
 	{
-		if (out != _current_event_handle)
-		{
-			glGenBuffers(1, &object);
-		}
-		else
-		{
-			assert((out->handle >> 40) == target);
-			object = out->handle & 0xFFFFFFFF;
-		}
-
+		glGenBuffers(1, &object);
 		glBindBuffer(target, object);
 
 		GLbitfield usage_flags = GL_NONE;
@@ -499,16 +490,7 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 			return false;
 		}
 
-		if (out != _current_event_handle)
-		{
-			glGenTextures(1, &object);
-		}
-		else
-		{
-			assert((out->handle >> 40) == target);
-			object = out->handle & 0xFFFFFFFF;
-		}
-
+		glGenTextures(1, &object);
 		glBindTexture(target, object);
 
 		GLuint depth_or_layers = desc.texture.depth_or_layers;
@@ -619,16 +601,7 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource resource, 
 	{
 		GLuint object = 0;
 		GLuint prev_object = 0;
-
-		if (out != _current_event_handle)
-		{
-			glGenTextures(1, &object);
-		}
-		else
-		{
-			assert((out->handle >> 40) == target);
-			object = out->handle & 0xFFFFFFFF;
-		}
+		glGenTextures(1, &object);
 
 		if (target != GL_TEXTURE_BUFFER)
 		{
@@ -660,16 +633,14 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource resource, 
 	}
 }
 
-static bool create_shader_module(GLenum type, const reshade::api::shader_desc &desc, GLuint &shader_object, bool existing_shader_object = false)
+static bool create_shader_module(GLenum type, const reshade::api::shader_desc &desc, GLuint &shader_object)
 {
-	if (!existing_shader_object)
-		shader_object = 0;
+	shader_object = 0;
 
 	if (desc.code_size == 0)
 		return false;
 
-	if (!existing_shader_object)
-		shader_object = glCreateShader(type);
+	shader_object = glCreateShader(type);
 
 	if (desc.format == reshade::api::shader_format::glsl)
 	{
@@ -713,29 +684,25 @@ static bool create_shader_module(GLenum type, const reshade::api::shader_desc &d
 
 bool reshade::opengl::device_impl::create_pipeline(const api::pipeline_desc &desc, api::pipeline *out)
 {
-	if (out != _current_event_handle)
-		*out = { 0 };
+	*out = { 0 };
 
 	switch (desc.type)
 	{
 	default:
-		*out = { 0 };
 		return false;
 	case api::pipeline_stage::all_graphics:
 		return create_graphics_pipeline(desc, out);
 	case api::pipeline_stage::vertex_shader:
-		return create_shader_module(GL_VERTEX_SHADER, desc.graphics.vertex_shader, *reinterpret_cast<GLuint *>(out), out == _current_event_handle);
+		return create_shader_module(GL_VERTEX_SHADER, desc.graphics.vertex_shader, *reinterpret_cast<GLuint *>(out));
 	case api::pipeline_stage::hull_shader:
-		return create_shader_module(GL_TESS_CONTROL_SHADER, desc.graphics.hull_shader, *reinterpret_cast<GLuint *>(out), out == _current_event_handle);
+		return create_shader_module(GL_TESS_CONTROL_SHADER, desc.graphics.hull_shader, *reinterpret_cast<GLuint *>(out));
 	case api::pipeline_stage::domain_shader:
-		return create_shader_module(GL_TESS_EVALUATION_SHADER, desc.graphics.domain_shader, *reinterpret_cast<GLuint *>(out), out == _current_event_handle);
+		return create_shader_module(GL_TESS_EVALUATION_SHADER, desc.graphics.domain_shader, *reinterpret_cast<GLuint *>(out));
 	case api::pipeline_stage::geometry_shader:
-		return create_shader_module(GL_GEOMETRY_SHADER, desc.graphics.geometry_shader, *reinterpret_cast<GLuint *>(out), out == _current_event_handle);
+		return create_shader_module(GL_GEOMETRY_SHADER, desc.graphics.geometry_shader, *reinterpret_cast<GLuint *>(out));
 	case api::pipeline_stage::pixel_shader:
-		return create_shader_module(GL_FRAGMENT_SHADER, desc.graphics.pixel_shader, *reinterpret_cast<GLuint *>(out), out == _current_event_handle);
+		return create_shader_module(GL_FRAGMENT_SHADER, desc.graphics.pixel_shader, *reinterpret_cast<GLuint *>(out));
 	case api::pipeline_stage::compute_shader:
-		if (out == _current_event_handle)
-			return create_shader_module(GL_COMPUTE_SHADER, desc.compute.shader, *reinterpret_cast<GLuint *>(out), true);
 		return create_compute_pipeline(desc, out);
 	}
 }

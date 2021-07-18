@@ -36,7 +36,7 @@ reshade::d3d12::swapchain_impl::swapchain_impl(device_impl *device, command_queu
 	}
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::init_swapchain>(this);
+	invoke_addon_event<reshade::addon_event::init_swapchain>(this);
 #endif
 
 	// Default to three back buffers for d3d12on7
@@ -50,7 +50,7 @@ reshade::d3d12::swapchain_impl::~swapchain_impl()
 	on_reset();
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(this);
+	invoke_addon_event<reshade::addon_event::destroy_swapchain>(this);
 #endif
 }
 

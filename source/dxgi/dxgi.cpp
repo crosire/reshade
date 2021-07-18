@@ -104,7 +104,7 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &desc)
 	if (desc.BufferUsage & DXGI_USAGE_UNORDERED_ACCESS)
 		buffer_desc.usage |= reshade::api::resource_usage::unordered_access;
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(&buffer_desc))
+	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(buffer_desc, desc.OutputWindow))
 	{
 		desc.BufferDesc.Width = buffer_desc.texture.width;
 		desc.BufferDesc.Height = buffer_desc.texture.height;
@@ -144,7 +144,7 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &desc)
 		desc.BufferDesc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
 	}
 }
-static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, DXGI_SWAP_CHAIN_FULLSCREEN_DESC &fullscreen_desc)
+static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, DXGI_SWAP_CHAIN_FULLSCREEN_DESC &fullscreen_desc, HWND hwnd = nullptr)
 {
 	LOG(INFO) << "> Dumping swap chain description:";
 	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
@@ -186,7 +186,7 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, DXGI_SWA
 	if (desc.BufferUsage & DXGI_USAGE_UNORDERED_ACCESS)
 		buffer_desc.usage |= reshade::api::resource_usage::unordered_access;
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(&buffer_desc))
+	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(buffer_desc, hwnd))
 	{
 		desc.Width = buffer_desc.texture.width;
 		desc.Height = buffer_desc.texture.height;
@@ -358,7 +358,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 		fullscreen_desc = *pFullscreenDesc;
 	else
 		fullscreen_desc.Windowed = TRUE;
-	dump_and_modify_swapchain_desc(desc, fullscreen_desc);
+	dump_and_modify_swapchain_desc(desc, fullscreen_desc, hWnd);
 
 	com_ptr<IUnknown> device_proxy;
 	const UINT direct3d_version = query_device(pDevice, device_proxy);

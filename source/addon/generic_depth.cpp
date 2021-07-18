@@ -253,7 +253,7 @@ static void on_destroy_queue_or_command_list(api_object *queue_or_cmd_list)
 	queue_or_cmd_list->destroy_user_data<state_tracking>(state_tracking::GUID);
 }
 
-static bool on_create_resource(device *device, const resource_desc &desc, const reshade::api::subresource_data *initial_data, resource_usage initial_state, resource *out)
+static bool on_create_resource(device *device, resource_desc &desc, subresource_data *, resource_usage)
 {
 	if (device->get_api() == device_api::d3d12)
 		return false; // No need to modify resources in D3D12, since backup texture is used always
@@ -267,17 +267,16 @@ static bool on_create_resource(device *device, const resource_desc &desc, const 
 		(desc.usage & resource_usage::shader_resource) != resource_usage::undefined)
 		return false;
 
-	resource_desc new_desc = desc;
 	if (device->get_api() == device_api::d3d9 && !s_disable_intz)
-		new_desc.texture.format = format::intz;
+		desc.texture.format = format::intz;
 	if (device->get_api() >= device_api::d3d10 && device->get_api() <= device_api::d3d12)
-		new_desc.texture.format = format_to_typeless(desc.texture.format);
+		desc.texture.format = format_to_typeless(desc.texture.format);
 
-	new_desc.usage |= resource_usage::shader_resource;
+	desc.usage |= resource_usage::shader_resource;
 
-	return device->create_resource(new_desc, initial_data, initial_state, out);
+	return true;
 }
-static bool on_create_resource_view(device *device, resource resource, resource_usage usage_type, const resource_view_desc &desc, resource_view *out)
+static bool on_create_resource_view(device *device, resource resource, resource_usage usage_type, resource_view_desc &desc)
 {
 	// A view cannot be created with a typeless format (which was set in 'on_create_resource' above), so fix it in case defaults are used
 	if ((device->get_api() != device_api::d3d10 && device->get_api() != device_api::d3d11) || desc.format != format::unknown)
@@ -288,29 +287,27 @@ static bool on_create_resource_view(device *device, resource resource, resource_
 	if (texture_desc.texture.samples != 1 || (texture_desc.usage & resource_usage::depth_stencil) == resource_usage::undefined)
 		return false;
 
-	resource_view_desc new_desc = desc;
-
 	switch (usage_type)
 	{
 	case resource_usage::depth_stencil:
-		new_desc.format = format_to_depth_stencil_typed(texture_desc.texture.format);
+		desc.format = format_to_depth_stencil_typed(texture_desc.texture.format);
 		break;
 	case resource_usage::shader_resource:
-		new_desc.format = format_to_default_typed(texture_desc.texture.format);
+		desc.format = format_to_default_typed(texture_desc.texture.format);
 		break;
 	}
 
 	// Only need to set the rest of the fields if the application did not pass in a valid description already
 	if (desc.type == resource_view_type::unknown)
 	{
-		new_desc.type = texture_desc.texture.depth_or_layers > 1 ? resource_view_type::texture_2d_array : resource_view_type::texture_2d;
-		new_desc.texture.first_level = 0;
-		new_desc.texture.levels = (usage_type == resource_usage::shader_resource) ? 0xFFFFFFFF : 1;
-		new_desc.texture.first_layer = 0;
-		new_desc.texture.layers = (usage_type == resource_usage::shader_resource) ? 0xFFFFFFFF : 1;
+		desc.type = texture_desc.texture.depth_or_layers > 1 ? resource_view_type::texture_2d_array : resource_view_type::texture_2d;
+		desc.texture.first_level = 0;
+		desc.texture.levels = (usage_type == resource_usage::shader_resource) ? 0xFFFFFFFF : 1;
+		desc.texture.first_layer = 0;
+		desc.texture.layers = (usage_type == resource_usage::shader_resource) ? 0xFFFFFFFF : 1;
 	}
 
-	return device->create_resource_view(resource, usage_type, new_desc, out);
+	return true;
 }
 static void on_destroy_resource(device *device, resource resource)
 {

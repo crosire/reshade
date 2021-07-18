@@ -79,7 +79,7 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d
 	else
 		buffer_desc.texture.samples = 1;
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(&buffer_desc))
+	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(buffer_desc, pp.hDeviceWindow))
 	{
 		pp.BackBufferWidth = buffer_desc.texture.width;
 		pp.BackBufferHeight = buffer_desc.texture.height;

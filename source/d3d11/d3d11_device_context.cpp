@@ -356,14 +356,14 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::IASetPrimitiveTopology(D3D11_PRIMI
 
 #if RESHADE_ADDON
 	static_assert(
-		(DWORD)reshade::api::primitive_topology::point_list == D3D11_PRIMITIVE_TOPOLOGY_POINTLIST &&
-		(DWORD)reshade::api::primitive_topology::line_list == D3D11_PRIMITIVE_TOPOLOGY_LINELIST &&
-		(DWORD)reshade::api::primitive_topology::line_strip == D3D11_PRIMITIVE_TOPOLOGY_LINESTRIP &&
-		(DWORD)reshade::api::primitive_topology::triangle_list == D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST &&
-		(DWORD)reshade::api::primitive_topology::triangle_strip == D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP &&
-		(DWORD)reshade::api::primitive_topology::line_list_adj == D3D11_PRIMITIVE_TOPOLOGY_LINELIST_ADJ &&
-		(DWORD)reshade::api::primitive_topology::line_strip_adj == D3D11_PRIMITIVE_TOPOLOGY_LINESTRIP_ADJ &&
-		(DWORD)reshade::api::primitive_topology::triangle_list_adj == D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST_ADJ &&
+		(DWORD)reshade::api::primitive_topology::point_list         == D3D11_PRIMITIVE_TOPOLOGY_POINTLIST &&
+		(DWORD)reshade::api::primitive_topology::line_list          == D3D11_PRIMITIVE_TOPOLOGY_LINELIST &&
+		(DWORD)reshade::api::primitive_topology::line_strip         == D3D11_PRIMITIVE_TOPOLOGY_LINESTRIP &&
+		(DWORD)reshade::api::primitive_topology::triangle_list      == D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST &&
+		(DWORD)reshade::api::primitive_topology::triangle_strip     == D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP &&
+		(DWORD)reshade::api::primitive_topology::line_list_adj      == D3D11_PRIMITIVE_TOPOLOGY_LINELIST_ADJ &&
+		(DWORD)reshade::api::primitive_topology::line_strip_adj     == D3D11_PRIMITIVE_TOPOLOGY_LINESTRIP_ADJ &&
+		(DWORD)reshade::api::primitive_topology::triangle_list_adj  == D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST_ADJ &&
 		(DWORD)reshade::api::primitive_topology::triangle_strip_adj == D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP_ADJ);
 
 	const reshade::api::dynamic_state state = reshade::api::dynamic_state::primitive_topology;
@@ -685,7 +685,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::ClearDepthStencilView(ID3D11DepthS
 {
 #if RESHADE_ADDON
 	static_assert(
-		(UINT)reshade::api::attachment_type::depth == (D3D11_CLEAR_DEPTH << 1) &&
+		(UINT)reshade::api::attachment_type::depth   == (D3D11_CLEAR_DEPTH << 1) &&
 		(UINT)reshade::api::attachment_type::stencil == (D3D11_CLEAR_STENCIL << 1));
 
 	if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(this, reshade::api::resource_view { reinterpret_cast<uintptr_t>(pDepthStencilView) }, static_cast<reshade::api::attachment_type>(ClearFlags << 1), Depth, Stencil, 0, nullptr))

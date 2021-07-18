@@ -90,9 +90,12 @@ namespace reshade::d3d11
 	api::resource_view_desc convert_resource_view_desc(const D3D11_UNORDERED_ACCESS_VIEW_DESC &internal_desc);
 	api::resource_view_desc convert_resource_view_desc(const D3D11_UNORDERED_ACCESS_VIEW_DESC1 &internal_desc);
 
+	void convert_pipeline_desc(const api::pipeline_desc &desc, std::vector<D3D11_INPUT_ELEMENT_DESC> &element_desc);
 	void convert_pipeline_desc(const api::pipeline_desc &desc, D3D11_BLEND_DESC &internal_desc);
 	void convert_pipeline_desc(const api::pipeline_desc &desc, D3D11_BLEND_DESC1 &internal_desc);
 	void convert_pipeline_desc(const api::pipeline_desc &desc, D3D11_RASTERIZER_DESC &internal_desc);
+	void convert_pipeline_desc(const api::pipeline_desc &desc, D3D11_RASTERIZER_DESC1 &internal_desc);
+	void convert_pipeline_desc(const api::pipeline_desc &desc, D3D11_RASTERIZER_DESC2 &internal_desc);
 	void convert_pipeline_desc(const api::pipeline_desc &desc, D3D11_DEPTH_STENCIL_DESC &internal_desc);
 	api::pipeline_desc convert_pipeline_desc(const D3D11_INPUT_ELEMENT_DESC *element_desc, UINT num_elements);
 	api::pipeline_desc convert_pipeline_desc(const D3D11_BLEND_DESC *internal_desc);

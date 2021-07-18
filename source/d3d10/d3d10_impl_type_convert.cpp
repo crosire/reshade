@@ -629,6 +629,25 @@ reshade::api::resource_view_desc reshade::d3d10::convert_resource_view_desc(cons
 	}
 }
 
+void reshade::d3d10::convert_pipeline_desc(const api::pipeline_desc &desc, std::vector<D3D10_INPUT_ELEMENT_DESC> &internal_elements)
+{
+	assert(desc.type == api::pipeline_stage::all_graphics || desc.type == api::pipeline_stage::input_assembler);
+	internal_elements.reserve(16);
+
+	for (UINT i = 0; i < 16 && desc.graphics.input_layout[i].format != api::format::unknown; ++i)
+	{
+		const api::input_layout_element &element = desc.graphics.input_layout[i];
+
+		D3D10_INPUT_ELEMENT_DESC &internal_element = internal_elements.emplace_back();
+		internal_element.SemanticName = element.semantic;
+		internal_element.SemanticIndex = element.semantic_index;
+		internal_element.Format = convert_format(element.format);
+		internal_element.InputSlot = element.buffer_binding;
+		internal_element.AlignedByteOffset = element.offset;
+		internal_element.InputSlotClass = element.instance_step_rate > 0 ? D3D10_INPUT_PER_INSTANCE_DATA : D3D10_INPUT_PER_VERTEX_DATA;
+		internal_element.InstanceDataStepRate = element.instance_step_rate;
+	}
+}
 void reshade::d3d10::convert_pipeline_desc(const api::pipeline_desc &desc, D3D10_BLEND_DESC &internal_desc)
 {
 	assert(desc.type == api::pipeline_stage::all_graphics || desc.type == api::pipeline_stage::output_merger);

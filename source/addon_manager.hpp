@@ -31,21 +31,21 @@ namespace reshade
 	/// Invokes all registered callbacks for the specified <typeparamref name="ev"/>ent.
 	/// </summary>
 	template <addon_event ev, typename... Args>
-	inline std::enable_if_t<addon_event_traits<ev>::type == 1, void> invoke_addon_event(const Args &... args)
+	inline std::enable_if_t<addon_event_traits<ev>::type == 1, void> invoke_addon_event(Args &&... args)
 	{
 		std::vector<void *> &event_list = addon::event_list[static_cast<size_t>(ev)];
 		for (size_t cb = 0, count = event_list.size(); cb < count; ++cb) // Generates better code than ranged-based for loop
-			reinterpret_cast<typename reshade::addon_event_traits<ev>::decl>(event_list[cb])(args...);
+			reinterpret_cast<typename reshade::addon_event_traits<ev>::decl>(event_list[cb])(std::forward<Args>(args)...);
 	}
 	/// <summary>
 	/// Invokes registered callbacks for the specified <typeparamref name="ev"/>ent until a callback reports back as having handled this event by returning <c>true</c>.
 	/// </summary>
 	template <addon_event ev, typename... Args>
-	inline std::enable_if_t<addon_event_traits<ev>::type == 2, bool> invoke_addon_event(const Args &... args)
+	inline std::enable_if_t<addon_event_traits<ev>::type == 2, bool> invoke_addon_event(Args &&... args)
 	{
 		std::vector<void *> &event_list = addon::event_list[static_cast<size_t>(ev)];
 		for (size_t cb = 0, count = event_list.size(); cb < count; ++cb)
-			if (reinterpret_cast<typename reshade::addon_event_traits<ev>::decl>(event_list[cb])(args...))
+			if (reinterpret_cast<typename reshade::addon_event_traits<ev>::decl>(event_list[cb])(std::forward<Args>(args)...))
 				return true;
 		return false;
 	}

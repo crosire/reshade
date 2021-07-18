@@ -170,23 +170,26 @@ void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 		pp.EnableAutoDepthStencil &&
 		SUCCEEDED(_orig->GetDepthStencilSurface(&auto_depth_stencil)))
 	{
-		api::resource_desc desc = get_resource_desc(
-			{ reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) });
+		auto desc = get_resource_desc(api::resource { reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) });
 
-		if (api::resource auto_depth_stencil_replacement_handle = { 0 };
-			invoke_addon_event<addon_event::create_resource>(
-				this, desc, nullptr, api::resource_usage::depth_stencil, &auto_depth_stencil_replacement_handle))
+		if (invoke_addon_event<addon_event::create_resource>(this, desc, nullptr, api::resource_usage::depth_stencil))
 		{
-			desc = get_resource_desc(auto_depth_stencil_replacement_handle);
+			D3DSURFACE_DESC internal_desc = {};
+			convert_resource_desc(desc, internal_desc, nullptr, _caps);
 
-			auto_depth_stencil = com_ptr<IDirect3DSurface9>(reinterpret_cast<IDirect3DSurface9 *>(auto_depth_stencil_replacement_handle.handle), true);
+			// Need to replace auto depth stencil if an add-on modified the description
+			if (com_ptr<IDirect3DSurface9> auto_depth_stencil_replacement;
+				create_surface_replacement(internal_desc, &auto_depth_stencil_replacement))
+			{
+				// The device will hold a reference to the surface after binding it, so can release this one afterwards
+				_orig->SetDepthStencilSurface(auto_depth_stencil_replacement.get());
 
-			// The device will hold a reference to the surface after binding it, so can release this one afterwards
-			_orig->SetDepthStencilSurface(auto_depth_stencil.get());
+				auto_depth_stencil = std::move(auto_depth_stencil_replacement);
+			}
 		}
 
-		// In case surface was replaced with a texture resource during 'create_resource' event above
-		reshade::api::resource resource = { 0 };
+		// In case surface was replaced with a texture resource
+		api::resource resource = { 0 };
 		get_resource_from_view(reshade::api::resource_view { reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) }, &resource);
 
 		invoke_addon_event<addon_event::init_resource>(this, desc, nullptr, api::resource_usage::depth_stencil, resource);

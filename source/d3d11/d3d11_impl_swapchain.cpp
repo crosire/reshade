@@ -32,7 +32,7 @@ reshade::d3d11::swapchain_impl::swapchain_impl(device_impl *device, device_conte
 	}
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::init_swapchain>(this);
+	invoke_addon_event<reshade::addon_event::init_swapchain>(this);
 #endif
 
 	if (_orig != nullptr && !on_init())
@@ -43,7 +43,7 @@ reshade::d3d11::swapchain_impl::~swapchain_impl()
 	on_reset();
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(this);
+	invoke_addon_event<reshade::addon_event::destroy_swapchain>(this);
 #endif
 }
 
