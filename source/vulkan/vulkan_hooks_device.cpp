@@ -1000,35 +1000,28 @@ VkResult VKAPI_CALL vkCreatePipelineLayout(VkDevice device, const VkPipelineLayo
 
 	assert(pCreateInfo != nullptr && pPipelineLayout != nullptr);
 
-#if RESHADE_ADDON
-	static_assert(sizeof(*pCreateInfo->pSetLayouts) == sizeof(reshade::api::descriptor_set_layout));
-
-	std::vector<reshade::api::constant_range> constant_ranges;
-	constant_ranges.reserve(pCreateInfo->pushConstantRangeCount);
-	for (uint32_t i = 0; i < pCreateInfo->pushConstantRangeCount; ++i)
-	{
-		reshade::api::constant_range &range = constant_ranges.emplace_back();
-		range.offset = pCreateInfo->pPushConstantRanges[i].offset;
-		range.count = pCreateInfo->pPushConstantRanges[i].size;
-		range.visibility = static_cast<reshade::api::shader_stage>(pCreateInfo->pPushConstantRanges[i].stageFlags);
-	}
-
-	reshade::api::pipeline_layout_desc desc = {};
-	desc.num_set_layouts = pCreateInfo->setLayoutCount;
-	desc.set_layouts = reinterpret_cast<const reshade::api::descriptor_set_layout *>(pCreateInfo->pSetLayouts);
-	desc.num_constant_ranges = pCreateInfo->pushConstantRangeCount;
-	desc.constant_ranges = constant_ranges.data();
-
-	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline_layout>(device_impl, desc))
-	{
-		// TODO
-	}
-#endif
-
 	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pPipelineLayout);
 	if (result >= VK_SUCCESS)
 	{
 #if RESHADE_ADDON
+		static_assert(sizeof(*pCreateInfo->pSetLayouts) == sizeof(reshade::api::descriptor_set_layout));
+
+		std::vector<reshade::api::constant_range> constant_ranges;
+		constant_ranges.reserve(pCreateInfo->pushConstantRangeCount);
+		for (uint32_t i = 0; i < pCreateInfo->pushConstantRangeCount; ++i)
+		{
+			reshade::api::constant_range &range = constant_ranges.emplace_back();
+			range.offset = pCreateInfo->pPushConstantRanges[i].offset;
+			range.count = pCreateInfo->pPushConstantRanges[i].size;
+			range.visibility = static_cast<reshade::api::shader_stage>(pCreateInfo->pPushConstantRanges[i].stageFlags);
+		}
+
+		reshade::api::pipeline_layout_desc desc = {};
+		desc.num_set_layouts = pCreateInfo->setLayoutCount;
+		desc.set_layouts = reinterpret_cast<const reshade::api::descriptor_set_layout *>(pCreateInfo->pSetLayouts);
+		desc.num_constant_ranges = pCreateInfo->pushConstantRangeCount;
+		desc.constant_ranges = constant_ranges.data();
+
 		reshade::invoke_addon_event<reshade::addon_event::init_pipeline_layout>(
 			device_impl, desc, reshade::api::pipeline_layout { (uint64_t)*pPipelineLayout });
 #endif
@@ -1108,33 +1101,26 @@ VkResult VKAPI_CALL vkCreateDescriptorSetLayout(VkDevice device, const VkDescrip
 
 	assert(pCreateInfo != nullptr && pSetLayout != nullptr);
 
-#if RESHADE_ADDON
-	std::vector<reshade::api::descriptor_range> ranges;
-	ranges.reserve(pCreateInfo->bindingCount);
-	for (uint32_t i = 0; i < pCreateInfo->bindingCount; ++i)
-	{
-		reshade::api::descriptor_range &range = ranges.emplace_back();
-		range.binding = pCreateInfo->pBindings[i].binding;
-		range.type = static_cast<reshade::api::descriptor_type>(pCreateInfo->pBindings[i].descriptorType);
-		range.count = pCreateInfo->pBindings[i].descriptorCount;
-		range.visibility = static_cast<reshade::api::shader_stage>(pCreateInfo->pBindings[i].stageFlags);
-	}
-
-	reshade::api::descriptor_set_layout_desc desc = {};
-	desc.num_ranges = pCreateInfo->bindingCount;
-	desc.ranges = ranges.data();
-	desc.push_descriptors = (pCreateInfo->flags & VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR) != 0;
-
-	if (reshade::invoke_addon_event<reshade::addon_event::create_descriptor_set_layout>(device_impl, desc))
-	{
-		// TODO
-	}
-#endif
-
 	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pSetLayout);
 	if (result >= VK_SUCCESS)
 	{
 #if RESHADE_ADDON
+		std::vector<reshade::api::descriptor_range> ranges;
+		ranges.reserve(pCreateInfo->bindingCount);
+		for (uint32_t i = 0; i < pCreateInfo->bindingCount; ++i)
+		{
+			reshade::api::descriptor_range &range = ranges.emplace_back();
+			range.binding = pCreateInfo->pBindings[i].binding;
+			range.type = static_cast<reshade::api::descriptor_type>(pCreateInfo->pBindings[i].descriptorType);
+			range.count = pCreateInfo->pBindings[i].descriptorCount;
+			range.visibility = static_cast<reshade::api::shader_stage>(pCreateInfo->pBindings[i].stageFlags);
+		}
+
+		reshade::api::descriptor_set_layout_desc desc = {};
+		desc.num_ranges = pCreateInfo->bindingCount;
+		desc.ranges = ranges.data();
+		desc.push_descriptors = (pCreateInfo->flags & VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR) != 0;
+
 		reshade::invoke_addon_event<reshade::addon_event::init_descriptor_set_layout>(
 			device_impl, desc, reshade::api::descriptor_set_layout { (uint64_t)*pSetLayout });
 #endif
@@ -1166,8 +1152,8 @@ void     VKAPI_CALL vkUpdateDescriptorSets(VkDevice device, uint32_t descriptorW
 	GET_DISPATCH_PTR_FROM(UpdateDescriptorSets, device_impl);
 
 #if RESHADE_ADDON
-	std::vector<reshade::api::descriptor_set_copy> copies(descriptorCopyCount);
-	std::vector<reshade::api::descriptor_set_write> writes(descriptorWriteCount);
+	std::vector<reshade::api::copy_descriptor_set> copies(descriptorCopyCount);
+	std::vector<reshade::api::write_descriptor_set> writes(descriptorWriteCount);
 
 	for (uint32_t i = 0; i < descriptorWriteCount; ++i)
 	{

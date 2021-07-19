@@ -416,7 +416,7 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <param name="num_writes">The number of writes to process.</param>
 		/// <param name="writes">A pointer to an array of descriptor set write information to process.</param>
-		inline  void update_descriptor_sets(uint32_t num_writes, const descriptor_set_write *writes) { update_descriptor_sets(num_writes, writes, 0, nullptr); }
+		inline  void update_descriptor_sets(uint32_t num_writes, const write_descriptor_set *writes) { update_descriptor_sets(num_writes, writes, 0, nullptr); }
 		/// <summary>
 		/// Updates the contents of descriptor sets with the specified descriptors and/or copies them from different descriptor sets.
 		/// </summary>
@@ -424,7 +424,7 @@ namespace reshade { namespace api
 		/// <param name="writes">A pointer to an array of descriptor set write information to process.</param>
 		/// <param name="num_copies">The number of copies to process.</param>
 		/// <param name="copies">A pointer to an array of descriptor set copy information to process.</param>
-		virtual void update_descriptor_sets(uint32_t num_writes, const descriptor_set_write *writes, uint32_t num_copies, const descriptor_set_copy *copies) = 0;
+		virtual void update_descriptor_sets(uint32_t num_writes, const write_descriptor_set *writes, uint32_t num_copies, const copy_descriptor_set *copies) = 0;
 
 		/// <summary>
 		/// Gets the results of queries in a query pool.

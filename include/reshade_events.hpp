@@ -82,6 +82,7 @@ namespace reshade
 		init_sampler,
 		/// <summary>
 		/// Called before 'ID3D10Device::CreateSamplerState', 'ID3D11Device::CreateSamplerState', 'ID3D12Device::CreateSampler' or 'vkCreateSampler'.
+		/// To overwrite the sampler description, modify <c>desc</c> in the callback and return <c>true</c>.
 		/// <para>Callback function signature: <c>bool (api::device *device, api::sampler_desc &amp;desc)</c></para>
 		/// </summary>
 		create_sampler,
@@ -98,6 +99,7 @@ namespace reshade
 		init_resource,
 		/// <summary>
 		/// Called before 'IDirect3Device9::Create(...)Buffer/Texture/Surface(Ex)', 'ID3D10Device::CreateBuffer/Texture(...)', 'ID3D11Device::CreateBuffer/Texture(...)', 'ID3D12Device::Create(...)Resource(...)', 'gl(Named)Buffer/Tex(ture)/RenderbufferStorage(...)(Multisample)' or 'vkCreateBuffer/Image'.
+		/// To overwrite the resource description, modify <c>desc</c> in the callback and return <c>true</c>.
 		/// <para>Callback function signature: <c>bool (api::device *device, api::resource_desc &amp;desc, api::subresource_data *initial_data, api::resource_usage initial_state)</c></para>
 		/// </summary>
 		create_resource,
@@ -114,6 +116,7 @@ namespace reshade
 		init_resource_view,
 		/// <summary>
 		/// Called before 'IDirect3DDevice9::Create(...)Surface(Ex)', 'ID3D10Device::Create(...)View(1)', 'ID3D11Device::Create(...)View(1)', 'ID3D12Device::Create(...)View', 'glTex(ture)Buffer', 'glTextureView(...)' or 'vkCreateBuffer/ImageView'.
+		/// To overwrite the resource view description, modify <c>desc</c> in the callback and return <c>true</c>.
 		/// <para>Callback function signature: <c>bool (api::device *device, api::resource resource, api::resource_usage usage_type, api::resource_view_desc &amp;desc)</c></para>
 		/// </summary>
 		create_resource_view,
@@ -130,6 +133,7 @@ namespace reshade
 		init_pipeline,
 		/// <summary>
 		/// Called before 'IDirect3DDevice9::CreateVertexDeclaration', 'IDirect3DDevice9::Create(...)Shader', 'ID3D10Device::Create(...)(Shader/State)', 'ID3D11Device::Create(...)(Shader/State)', 'ID3D12Device::Create(...)PipelineState' or 'vkCreate(...)Pipelines'.
+		/// To overwrite the pipeline description, modify <c>desc</c> in the callback and return <c>true</c>.
 		/// <para>Callback function signature: <c>bool (api::device *device, api::pipeline_desc &amp;desc)</c></para>
 		/// </summary>
 		create_pipeline,
@@ -145,11 +149,6 @@ namespace reshade
 		/// </summary>
 		init_pipeline_layout,
 		/// <summary>
-		/// Called before 'ID3D12Device::CreateRootSignature' or 'vkCreatePipelineLayout'.
-		/// <para>Callback function signature: <c>bool (api::device *device, api::pipeline_layout_desc &amp;desc)</c></para>
-		/// </summary>
-		create_pipeline_layout,
-		/// <summary>
 		/// Called on pipeline layout destruction, before last 'ID3D12RootSignature::Release' or 'vkDestroyPipelineLayout'.
 		/// <para>Callback function signature: <c>void (api::device *device, api::pipeline_layout layout)</c></para>
 		/// </summary>
@@ -160,11 +159,6 @@ namespace reshade
 		/// <para>Callback function signature: <c>void (api::device *device, const api::descriptor_set_layout_desc &amp;desc, api::descriptor_set_layout layout)</c></para>
 		/// </summary>
 		init_descriptor_set_layout,
-		/// <summary>
-		/// Called before 'vkCreateDescriptorSetLayout'.
-		/// <para>Callback function signature: <c>bool (api::device *device, api::descriptor_set_layout_desc &amp;desc)</c></para>
-		/// </summary>
-		create_descriptor_set_layout,
 		/// <summary>
 		/// Called on descriptor set layout destruction, before 'vkDestroyDescriptorSetLayout'.
 		/// <para>Callback function signature: <c>void (api::device *device, api::descriptor_set_layout layout)</c></para>
@@ -178,6 +172,7 @@ namespace reshade
 		init_render_pass,
 		/// <summary>
 		/// Called before 'vkCreateRenderPass'.
+		/// To overwrite the render pass description, modify <c>desc</c> in the callback and return <c>true</c>.
 		/// <para>Callback function signature: <c>bool (api::device *device, api::render_pass_desc &amp;desc)</c></para>
 		/// </summary>
 		create_render_pass,
@@ -194,6 +189,7 @@ namespace reshade
 		init_framebuffer,
 		/// <summary>
 		/// Called before 'vkCreateFramebuffer'.
+		/// To overwrite the framebuffer description, modify <c>desc</c> in the callback and return <c>true</c>.
 		/// <para>Callback function signature: <c>bool (api::device *device, api::framebuffer_desc &amp;desc)</c></para>
 		/// </summary>
 		create_framebuffer,
@@ -222,7 +218,7 @@ namespace reshade
 
 		/// <summary>
 		/// Called before 'ID3D12Device::Create(...)View', 'ID3D12Device::CopyDescriptors(Simple)' or 'vkUpdateDescriptorSets'.
-		/// <para>Callback function signature: <c>bool (api::device *device, uint32_t num_writes, const api::descriptor_set_write *writes, uint32_t num_copies, const api::descriptor_set_copy *copies)</c></para>
+		/// <para>Callback function signature: <c>bool (api::device *device, uint32_t num_writes, const api::write_descriptor_set *writes, uint32_t num_copies, const api::copy_descriptor_set *copies)</c></para>
 		/// </summary>
 		update_descriptor_sets,
 
@@ -507,11 +503,9 @@ namespace reshade
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::destroy_pipeline, api::device *device, api::pipeline pipeline);
 
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::init_pipeline_layout, api::device *device, const api::pipeline_layout_desc &desc, api::pipeline_layout layout);
-	DEFINE_ADDON_EVENT_TYPE_2(addon_event::create_pipeline_layout, api::device *device, api::pipeline_layout_desc &desc);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::destroy_pipeline_layout, api::device *device, api::pipeline_layout layout);
 
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::init_descriptor_set_layout, api::device *device, const api::descriptor_set_layout_desc &desc, api::descriptor_set_layout layout);
-	DEFINE_ADDON_EVENT_TYPE_2(addon_event::create_descriptor_set_layout, api::device *device, api::descriptor_set_layout_desc &desc);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::destroy_descriptor_set_layout, api::device *device, api::descriptor_set_layout layout);
 
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::init_render_pass, api::device *device, const api::render_pass_desc &desc, api::render_pass pass);
@@ -525,7 +519,7 @@ namespace reshade
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::upload_buffer_region, api::device *device, const void *data, api::resource dst, uint64_t dst_offset, uint64_t size);
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::upload_texture_region, api::device *device, const api::subresource_data &data, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6]);
 
-	DEFINE_ADDON_EVENT_TYPE_2(addon_event::update_descriptor_sets, api::device *device, uint32_t num_writes, const api::descriptor_set_write *writes, uint32_t num_copies, const api::descriptor_set_copy *copies);
+	DEFINE_ADDON_EVENT_TYPE_2(addon_event::update_descriptor_sets, api::device *device, uint32_t num_writes, const api::write_descriptor_set *writes, uint32_t num_copies, const api::copy_descriptor_set *copies);
 
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::barrier, api::command_list *cmd_list, uint32_t num_resources, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states);
 

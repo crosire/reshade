@@ -3186,14 +3186,15 @@ bool reshade::runtime::init_imgui_resources()
 	if (_imgui_pipeline_layout.handle == 0)
 	{
 		api::descriptor_range range;
+		range.binding = 0;
+		range.dx_register_space = 0;
 		range.count = 1;
 		range.visibility = api::shader_stage::pixel;
 
 		if (has_combined_sampler_and_view)
 		{
 			range.type = api::descriptor_type::sampler_with_resource_view;
-			range.binding = 0;
-			range.dx_shader_register = 0; // s0
+			range.dx_register_index = 0; // s0
 			if (!_device->create_descriptor_set_layout({ 1, &range, true }, &_imgui_set_layouts[0]))
 			{
 				LOG(ERROR) << "Failed to create ImGui descriptor set layout!";
@@ -3203,8 +3204,7 @@ bool reshade::runtime::init_imgui_resources()
 		else
 		{
 			range.type = api::descriptor_type::sampler;
-			range.binding = 0;
-			range.dx_shader_register = 0; // s0
+			range.dx_register_index = 0; // s0
 			if (!_device->create_descriptor_set_layout({ 1, &range, true }, &_imgui_set_layouts[0]))
 			{
 				LOG(ERROR) << "Failed to create ImGui descriptor set layout!";
@@ -3212,8 +3212,7 @@ bool reshade::runtime::init_imgui_resources()
 			}
 
 			range.type = api::descriptor_type::shader_resource_view;
-			range.binding = 0;
-			range.dx_shader_register = 0; // t0
+			range.dx_register_index = 0; // t0
 			if (!_device->create_descriptor_set_layout({ 1, &range, true }, &_imgui_set_layouts[1]))
 			{
 				LOG(ERROR) << "Failed to create ImGui descriptor set layout!";
@@ -3223,7 +3222,8 @@ bool reshade::runtime::init_imgui_resources()
 
 		api::constant_range constant_range;
 		constant_range.offset = 0;
-		constant_range.dx_shader_register = 0; // b0
+		constant_range.dx_register_index = 0; // b0
+		constant_range.dx_register_space = 0;
 		constant_range.count = 16;
 		constant_range.visibility = api::shader_stage::vertex;
 

@@ -621,7 +621,8 @@ bool reshade::d3d11::device_impl::create_depth_stencil_state(const api::pipeline
 
 bool reshade::d3d11::device_impl::create_pipeline_layout(const api::pipeline_layout_desc &desc, api::pipeline_layout *out)
 {
-	if (desc.num_constant_ranges > 1)
+	if (desc.num_constant_ranges > 1 || (desc.num_constant_ranges == 1 &&
+		(desc.constant_ranges[0].offset != 0 || desc.constant_ranges[0].dx_register_space != 0)))
 	{
 		*out = { 0 };
 		return false;
@@ -635,13 +636,12 @@ bool reshade::d3d11::device_impl::create_pipeline_layout(const api::pipeline_lay
 		if (desc.set_layouts[i].handle == 0)
 			continue;
 
-		layout_impl->shader_registers[i] = reinterpret_cast<descriptor_set_layout_impl *>(desc.set_layouts[i].handle)->range.dx_shader_register;
+		layout_impl->shader_registers[i] = reinterpret_cast<descriptor_set_layout_impl *>(desc.set_layouts[i].handle)->range.dx_register_index;
 	}
 
 	if (desc.num_constant_ranges == 1)
 	{
-		assert(desc.constant_ranges[0].offset == 0);
-		layout_impl->shader_registers[desc.num_set_layouts] = desc.constant_ranges[0].dx_shader_register;
+		layout_impl->shader_registers[desc.num_set_layouts] = desc.constant_ranges[0].dx_register_index;
 	}
 
 	*out = { reinterpret_cast<uintptr_t>(layout_impl) };
@@ -650,7 +650,8 @@ bool reshade::d3d11::device_impl::create_pipeline_layout(const api::pipeline_lay
 bool reshade::d3d11::device_impl::create_descriptor_set_layout(const api::descriptor_set_layout_desc &desc, api::descriptor_set_layout *out)
 {
 	// Can only have descriptors of a single type in a descriptor set
-	if (desc.num_ranges != 1)
+	if (desc.num_ranges != 1 ||
+		desc.ranges[0].dx_register_space != 0)
 	{
 		*out = { 0 };
 		return false;
@@ -766,13 +767,13 @@ void reshade::d3d11::device_impl::destroy_descriptor_sets(api::descriptor_set_la
 		delete reinterpret_cast<descriptor_set_impl *>(sets[i].handle);
 }
 
-void reshade::d3d11::device_impl::update_descriptor_sets(uint32_t num_writes, const api::descriptor_set_write *writes, uint32_t num_copies, const api::descriptor_set_copy *copies)
+void reshade::d3d11::device_impl::update_descriptor_sets(uint32_t num_writes, const api::write_descriptor_set *writes, uint32_t num_copies, const api::copy_descriptor_set *copies)
 {
 	for (uint32_t i = 0; i < num_writes; ++i)
 	{
 		const auto set_impl = reinterpret_cast<descriptor_set_impl *>(writes[i].set.handle);
 
-		const api::descriptor_set_write &info = writes[i];
+		const api::write_descriptor_set &info = writes[i];
 
 		switch (info.type)
 		{
@@ -801,7 +802,7 @@ void reshade::d3d11::device_impl::update_descriptor_sets(uint32_t num_writes, co
 		const auto src_set_impl = reinterpret_cast<descriptor_set_impl *>(copies[i].src_set.handle);
 		const auto dst_set_impl = reinterpret_cast<descriptor_set_impl *>(copies[i].dst_set.handle);
 
-		const api::descriptor_set_copy &info = copies[i];
+		const api::copy_descriptor_set &info = copies[i];
 
 		switch (info.type)
 		{

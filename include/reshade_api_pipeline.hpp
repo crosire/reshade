@@ -61,8 +61,7 @@ namespace reshade { namespace api
 
 	/// <summary>
 	/// A list of all possible render pipeline states that can be set dynamically independent of pipeline state objects.
-	/// This is mostly compatible with 'D3DRENDERSTATETYPE'.
-	/// <para>Support for these varies between render APIs (e.g. modern APIs like D3D12 and Vulkan support much less than D3D9).</para>
+	/// <para>Support for these varies between render APIs (e.g. modern APIs like D3D12 and Vulkan support much less dynamic states than D3D9).</para>
 	/// </summary>
 	enum class dynamic_state : uint32_t
 	{
@@ -214,7 +213,7 @@ namespace reshade { namespace api
 		none = 0,
 		front = 1,
 		back = 2,
-		front_and_back = 3
+		front_and_back = front | back
 	};
 	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(cull_mode);
 
@@ -408,9 +407,13 @@ namespace reshade { namespace api
 		/// </summary>
 		uint32_t offset;
 		/// <summary>
-		/// D3D10/D3D11/D3D12 constant buffer register index.
+		/// The D3D10/D3D11/D3D12 constant buffer register index.
 		/// </summary>
-		uint32_t dx_shader_register;
+		uint32_t dx_register_index;
+		/// <summary>
+		/// The D3D12 register space.
+		/// </summary>
+		uint32_t dx_register_space;
 		/// <summary>
 		/// The numer of constants in this range (in 32-bit values).
 		/// </summary>
@@ -433,7 +436,11 @@ namespace reshade { namespace api
 		/// <summary>
 		/// The D3D9/D3D10/D3D11/D3D12 shader register index (<c>register(xX)</c> in HLSL).
 		/// </summary>
-		uint32_t dx_shader_register;
+		uint32_t dx_register_index;
+		/// <summary>
+		/// The D3D12 register space (<c>register(..., spaceX)</c> in HLSL).
+		/// </summary>
+		uint32_t dx_register_space;
 		/// <summary>
 		/// The type of the descriptors in this range.
 		/// </summary>
@@ -480,7 +487,7 @@ namespace reshade { namespace api
 
 	/// <summary>
 	/// An opaque handle to a framebuffer object.
-	/// <para>In OpenGL this is FBO handle, in Vulkan a 'VkFramebuffer' handle.</para>
+	/// <para>In OpenGL this is FBO ID, in Vulkan a 'VkFramebuffer' handle.</para>
 	/// </summary>
 	RESHADE_DEFINE_HANDLE(framebuffer);
 
@@ -922,7 +929,7 @@ namespace reshade { namespace api
 	/// <summary>
 	/// All information needed to copy descriptors between descriptor sets.
 	/// </summary>
-	struct descriptor_set_copy
+	struct copy_descriptor_set
 	{
 		descriptor_set src_set;
 		uint32_t src_binding;
@@ -937,7 +944,7 @@ namespace reshade { namespace api
 	/// <summary>
 	/// All information needed to update descriptors in a single descriptor set.
 	/// </summary>
-	struct descriptor_set_write
+	struct write_descriptor_set
 	{
 		descriptor_set set;
 		uint32_t binding;

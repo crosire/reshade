@@ -1086,7 +1086,7 @@ void reshade::vulkan::device_impl::destroy_descriptor_sets(api::descriptor_set_l
 	vk.FreeDescriptorSets(_orig, _descriptor_pool, count, reinterpret_cast<const VkDescriptorSet *>(sets));
 }
 
-void reshade::vulkan::device_impl::update_descriptor_sets(uint32_t num_writes, const api::descriptor_set_write *writes, uint32_t num_copies, const api::descriptor_set_copy *copies)
+void reshade::vulkan::device_impl::update_descriptor_sets(uint32_t num_writes, const api::write_descriptor_set *writes, uint32_t num_copies, const api::copy_descriptor_set *copies)
 {
 	std::vector<VkWriteDescriptorSet> writes_internal(num_writes);
 
@@ -1095,7 +1095,7 @@ void reshade::vulkan::device_impl::update_descriptor_sets(uint32_t num_writes, c
 
 	for (uint32_t i = 0; i < num_writes; ++i)
 	{
-		const api::descriptor_set_write &info = writes[i];
+		const api::write_descriptor_set &info = writes[i];
 
 		writes_internal[i] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
 		writes_internal[i].dstSet = (VkDescriptorSet)info.set.handle;

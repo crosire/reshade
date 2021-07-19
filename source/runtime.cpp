@@ -1347,7 +1347,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 	}
 
 	size_t total_passes = 0;
-	std::vector<api::descriptor_set_write> descriptor_writes;
+	std::vector<api::write_descriptor_set> descriptor_writes;
 	for (const reshadefx::technique_info &info : effect.module.techniques)
 		total_passes += info.passes.size();
 
@@ -1366,7 +1366,8 @@ bool reshade::runtime::init_effect(size_t effect_index)
 
 		api::descriptor_range range;
 		range.binding = 0;
-		range.dx_shader_register = 0; // b0 (global constant buffer)
+		range.dx_register_index = 0; // b0 (global constant buffer)
+		range.dx_register_space = 0;
 		range.type = api::descriptor_type::constant_buffer;
 		range.count = 1;
 		range.visibility = api::shader_stage::all;
@@ -1382,7 +1383,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 			return false;
 		}
 
-		api::descriptor_set_write &write = descriptor_writes.emplace_back();
+		api::write_descriptor_set &write = descriptor_writes.emplace_back();
 		write.set = effect.cb_set;
 		write.binding = 0;
 		write.type = api::descriptor_type::constant_buffer;
@@ -1400,7 +1401,8 @@ bool reshade::runtime::init_effect(size_t effect_index)
 	{
 		api::descriptor_range range;
 		range.binding = 0;
-		range.dx_shader_register = 0; // s0
+		range.dx_register_index = 0; // s0
+		range.dx_register_space = 0;
 		range.type = sampler_with_resource_view ? api::descriptor_type::sampler_with_resource_view : api::descriptor_type::sampler;
 		range.count = effect.module.num_sampler_bindings;
 		range.visibility = api::shader_stage::all;
@@ -1451,7 +1453,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 				for (int i = 0; i < sizeof(desc); ++i)
 					desc_hash = (desc_hash * 16777619) ^ reinterpret_cast<const uint8_t *>(&desc)[i];
 
-				api::descriptor_set_write &write = descriptor_writes.emplace_back();
+				api::write_descriptor_set &write = descriptor_writes.emplace_back();
 				write.set = effect.sampler_set;
 				write.binding = info.binding;
 				write.type = api::descriptor_type::sampler;
@@ -1481,7 +1483,8 @@ bool reshade::runtime::init_effect(size_t effect_index)
 
 		api::descriptor_range range;
 		range.binding = 0;
-		range.dx_shader_register = 0; // t0
+		range.dx_register_index = 0; // t0
+		range.dx_register_space = 0;
 		range.type = api::descriptor_type::shader_resource_view;
 		range.count = effect.module.num_texture_bindings;
 		range.visibility = api::shader_stage::all;
@@ -1503,7 +1506,8 @@ bool reshade::runtime::init_effect(size_t effect_index)
 	{
 		api::descriptor_range range;
 		range.binding = 0;
-		range.dx_shader_register = 0; // u0
+		range.dx_register_index = 0; // u0
+		range.dx_register_space = 0;
 		range.type = api::descriptor_type::unordered_access_view;
 		range.count = effect.module.num_storage_bindings;
 		range.visibility = api::shader_stage::all;
@@ -1776,7 +1780,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 
 				for (const reshadefx::sampler_info &info : pass_info.samplers)
 				{
-					api::descriptor_set_write &write = descriptor_writes.emplace_back();
+					api::write_descriptor_set &write = descriptor_writes.emplace_back();
 					write.set = pass_data.texture_set;
 
 					if (sampler_with_resource_view)
@@ -1854,7 +1858,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 
 				for (const reshadefx::storage_info &info : pass_info.storages)
 				{
-					api::descriptor_set_write &write = descriptor_writes.emplace_back();
+					api::write_descriptor_set &write = descriptor_writes.emplace_back();
 					write.set = pass_data.storage_set;
 					write.binding = info.binding;
 					write.type = api::descriptor_type::unordered_access_view;
@@ -3750,7 +3754,7 @@ void reshade::runtime::update_texture_bindings(const char *semantic, api::resour
 	_device->wait_idle();
 
 	// Update texture bindings
-	std::vector<api::descriptor_set_write> descriptor_writes;
+	std::vector<api::write_descriptor_set> descriptor_writes;
 
 	for (effect &effect_data : _effects)
 	{
@@ -3759,7 +3763,7 @@ void reshade::runtime::update_texture_bindings(const char *semantic, api::resour
 			if (binding.semantic != semantic)
 				continue;
 
-			api::descriptor_set_write &write = descriptor_writes.emplace_back();
+			api::write_descriptor_set &write = descriptor_writes.emplace_back();
 			write.set = binding.set;
 			write.binding = binding.index;
 			write.type = binding.sampler.handle != 0 ? api::descriptor_type::sampler_with_resource_view : api::descriptor_type::shader_resource_view;

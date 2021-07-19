@@ -458,8 +458,8 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(const api::pipeline_lay
 	{
 		D3D12_ROOT_PARAMETER &param = params[desc.num_set_layouts + i];
 		param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
-		param.Constants.ShaderRegister = desc.constant_ranges[i].dx_shader_register;
-		param.Constants.RegisterSpace = 0;
+		param.Constants.ShaderRegister = desc.constant_ranges[i].dx_register_index;
+		param.Constants.RegisterSpace = desc.constant_ranges[i].dx_register_space;
 		param.Constants.Num32BitValues = desc.constant_ranges[i].count;
 
 		switch (desc.constant_ranges[i].visibility)
@@ -518,8 +518,8 @@ bool reshade::d3d12::device_impl::create_descriptor_set_layout(const api::descri
 		D3D12_DESCRIPTOR_RANGE &range = result->ranges[i];
 		range.RangeType = convert_descriptor_type(desc.ranges[i].type);
 		range.NumDescriptors = desc.ranges[i].count;
-		range.BaseShaderRegister = desc.ranges[i].dx_shader_register;
-		range.RegisterSpace = 0;
+		range.BaseShaderRegister = desc.ranges[i].dx_register_index;
+		range.RegisterSpace = desc.ranges[i].dx_register_space;
 		range.OffsetInDescriptorsFromTableStart = desc.ranges[i].binding;
 
 		visibility_mask |= static_cast<uint32_t>(desc.ranges[i].visibility);
@@ -724,11 +724,11 @@ void reshade::d3d12::device_impl::destroy_descriptor_sets(api::descriptor_set_la
 	}
 }
 
-void reshade::d3d12::device_impl::update_descriptor_sets(uint32_t num_writes, const api::descriptor_set_write *writes, uint32_t num_copies, const api::descriptor_set_copy *copies)
+void reshade::d3d12::device_impl::update_descriptor_sets(uint32_t num_writes, const api::write_descriptor_set *writes, uint32_t num_copies, const api::copy_descriptor_set *copies)
 {
 	for (UINT i = 0; i < num_writes; ++i)
 	{
-		const api::descriptor_set_write &info = writes[i];
+		const api::write_descriptor_set &info = writes[i];
 
 		const auto heap_type = convert_descriptor_type_to_heap_type(info.type);
 
@@ -769,7 +769,7 @@ void reshade::d3d12::device_impl::update_descriptor_sets(uint32_t num_writes, co
 
 	for (UINT i = 0; i < num_copies; ++i)
 	{
-		const api::descriptor_set_copy &info = copies[i];
+		const api::copy_descriptor_set &info = copies[i];
 
 		const auto heap_type = convert_descriptor_type_to_heap_type(info.type);
 

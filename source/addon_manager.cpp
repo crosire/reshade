@@ -51,10 +51,8 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(create_pipeline);
 		CASE(destroy_pipeline);
 		CASE(init_pipeline_layout);
-		CASE(create_pipeline_layout);
 		CASE(destroy_pipeline_layout);
 		CASE(init_descriptor_set_layout);
-		CASE(create_descriptor_set_layout);
 		CASE(destroy_descriptor_set_layout);
 		CASE(init_render_pass);
 		CASE(create_render_pass);

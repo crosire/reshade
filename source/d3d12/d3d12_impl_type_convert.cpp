@@ -1191,6 +1191,23 @@ auto reshade::d3d12::convert_descriptor_type(api::descriptor_type type) -> D3D12
 		return D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER;
 	}
 }
+auto reshade::d3d12::convert_descriptor_type(D3D12_DESCRIPTOR_RANGE_TYPE type) -> api::descriptor_type
+{
+	switch (type)
+	{
+	default:
+		assert(false);
+		[[fallthrough]];
+	case D3D12_DESCRIPTOR_RANGE_TYPE_SRV:
+		return api::descriptor_type::shader_resource_view;
+	case D3D12_DESCRIPTOR_RANGE_TYPE_UAV:
+		return api::descriptor_type::unordered_access_view;
+	case D3D12_DESCRIPTOR_RANGE_TYPE_CBV:
+		return reshade::api::descriptor_type::constant_buffer;
+	case D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER:
+		return reshade::api::descriptor_type::sampler;
+	}
+}
 auto reshade::d3d12::convert_descriptor_type_to_heap_type(api::descriptor_type type) -> D3D12_DESCRIPTOR_HEAP_TYPE
 {
 	switch (type)
@@ -1204,5 +1221,24 @@ auto reshade::d3d12::convert_descriptor_type_to_heap_type(api::descriptor_type t
 		return D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	case api::descriptor_type::sampler:
 		return D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
+	}
+}
+
+auto reshade::d3d12::convert_shader_visibility(D3D12_SHADER_VISIBILITY visibility) -> api::shader_stage
+{
+	switch (visibility)
+	{
+	case D3D12_SHADER_VISIBILITY_ALL:
+		return api::shader_stage::all;
+	case D3D12_SHADER_VISIBILITY_VERTEX:
+		return api::shader_stage::vertex;
+	case D3D12_SHADER_VISIBILITY_HULL:
+		return api::shader_stage::hull;
+	case D3D12_SHADER_VISIBILITY_DOMAIN:
+		return api::shader_stage::domain;
+	case D3D12_SHADER_VISIBILITY_GEOMETRY:
+		return api::shader_stage::geometry;
+	case D3D12_SHADER_VISIBILITY_PIXEL:
+		return api::shader_stage::pixel;
 	}
 }
