@@ -73,6 +73,11 @@ namespace reshade::vulkan
 		std::vector<VkImageAspectFlags> attachment_types;
 	};
 
+	struct shader_module_data
+	{
+		std::vector<uint32_t> spirv;
+	};
+
 	class device_impl : public api::api_object_impl<VkDevice, api::device>
 	{
 		friend class command_list_impl;
@@ -224,6 +229,11 @@ namespace reshade::vulkan
 			const std::lock_guard<std::mutex> lock(_mutex);
 			_framebuffer_list.emplace(fbo, std::move(data));
 		}
+		void register_shader_module(VkShaderModule module, shader_module_data &&data)
+		{
+			const std::lock_guard<std::mutex> lock(_mutex);
+			_shader_module_list.emplace(module, std::move(data));
+		}
 
 		void unregister_image(VkImage image)
 		{
@@ -255,6 +265,14 @@ namespace reshade::vulkan
 			const std::lock_guard<std::mutex> lock(_mutex);
 			_framebuffer_list.erase(fbo);
 		}
+		void unregister_shader_module(VkShaderModule module)
+		{
+			const std::lock_guard<std::mutex> lock(_mutex);
+			_shader_module_list.erase(module);
+		}
+
+		api::pipeline_desc convert_pipeline_desc(const VkComputePipelineCreateInfo &create_info) const;
+		api::pipeline_desc convert_pipeline_desc(const VkGraphicsPipelineCreateInfo &create_info) const;
 
 		const VkPhysicalDevice _physical_device;
 		const VkLayerDispatchTable _dispatch_table;
@@ -279,6 +297,7 @@ namespace reshade::vulkan
 
 		std::unordered_map<VkRenderPass, render_pass_data> _render_pass_list;
 		std::unordered_map<VkFramebuffer, framebuffer_data> _framebuffer_list;
+		std::unordered_map<VkShaderModule, shader_module_data> _shader_module_list;
 		std::unordered_map<VkPipelineLayout, std::vector<VkDescriptorSetLayout>> _pipeline_layout_list;
 
 		VkDescriptorPool _descriptor_pool = VK_NULL_HANDLE;

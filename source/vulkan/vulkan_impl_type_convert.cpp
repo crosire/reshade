@@ -1054,7 +1054,7 @@ reshade::api::resource_view_desc reshade::vulkan::convert_resource_view_desc(con
 	return desc;
 }
 
-reshade::api::pipeline_desc reshade::vulkan::convert_pipeline_desc(const VkComputePipelineCreateInfo &create_info)
+reshade::api::pipeline_desc reshade::vulkan::device_impl::convert_pipeline_desc(const VkComputePipelineCreateInfo &create_info) const
 {
 	api::pipeline_desc desc = { api::pipeline_stage::all_compute };
 	desc.layout = { (uint64_t)create_info.layout };
@@ -1063,9 +1063,16 @@ reshade::api::pipeline_desc reshade::vulkan::convert_pipeline_desc(const VkCompu
 	desc.compute.shader.format = api::shader_format::spirv;
 	desc.compute.shader.entry_point = create_info.stage.pName;
 
+	std::lock_guard<std::mutex> lock(_mutex);
+
+	const std::vector<uint32_t> &spirv = _shader_module_list.at(create_info.stage.module).spirv;
+
+	desc.compute.shader.code = spirv.data();
+	desc.compute.shader.code_size = spirv.size() * sizeof(uint32_t);
+
 	return desc;
 }
-reshade::api::pipeline_desc reshade::vulkan::convert_pipeline_desc(const VkGraphicsPipelineCreateInfo &create_info)
+reshade::api::pipeline_desc reshade::vulkan::device_impl::convert_pipeline_desc(const VkGraphicsPipelineCreateInfo &create_info) const
 {
 	api::pipeline_desc desc = { api::pipeline_stage::all_graphics };
 	desc.layout = { (uint64_t)create_info.layout };
@@ -1074,25 +1081,39 @@ reshade::api::pipeline_desc reshade::vulkan::convert_pipeline_desc(const VkGraph
 	{
 		const VkPipelineShaderStageCreateInfo &stage = create_info.pStages[i];
 
+		std::lock_guard<std::mutex> lock(_mutex);
+
+		const std::vector<uint32_t> &spirv = _shader_module_list.at(stage.module).spirv;
+
 		switch (stage.stage)
 		{
 		case VK_SHADER_STAGE_VERTEX_BIT:
+			desc.graphics.vertex_shader.code = spirv.data();
+			desc.graphics.vertex_shader.code_size = spirv.size() * sizeof(uint32_t);
 			desc.graphics.vertex_shader.format = api::shader_format::spirv;
 			desc.graphics.vertex_shader.entry_point = stage.pName;
 			break;
 		case VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT:
+			desc.graphics.hull_shader.code = spirv.data();
+			desc.graphics.hull_shader.code_size = spirv.size() * sizeof(uint32_t);
 			desc.graphics.hull_shader.format = api::shader_format::spirv;
 			desc.graphics.hull_shader.entry_point = stage.pName;
 			break;
 		case VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT:
+			desc.graphics.domain_shader.code = spirv.data();
+			desc.graphics.domain_shader.code_size = spirv.size() * sizeof(uint32_t);
 			desc.graphics.domain_shader.format = api::shader_format::spirv;
 			desc.graphics.domain_shader.entry_point = stage.pName;
 			break;
 		case VK_SHADER_STAGE_GEOMETRY_BIT:
+			desc.graphics.geometry_shader.code = spirv.data();
+			desc.graphics.geometry_shader.code_size = spirv.size() * sizeof(uint32_t);
 			desc.graphics.geometry_shader.format = api::shader_format::spirv;
 			desc.graphics.geometry_shader.entry_point = stage.pName;
 			break;
 		case VK_SHADER_STAGE_FRAGMENT_BIT:
+			desc.graphics.pixel_shader.code = spirv.data();
+			desc.graphics.pixel_shader.code_size = spirv.size() * sizeof(uint32_t);
 			desc.graphics.pixel_shader.format = api::shader_format::spirv;
 			desc.graphics.pixel_shader.entry_point = stage.pName;
 			break;
