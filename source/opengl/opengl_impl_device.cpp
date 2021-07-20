@@ -209,12 +209,66 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC hglrc) :
 	invoke_addon_event<addon_event::init_command_queue>(this);
 
 	// Communicate default state to add-ons
-	invoke_addon_event<addon_event::begin_render_pass>(this, reshade::api::render_pass { 0 }, make_framebuffer_handle(0));
+	invoke_addon_event<addon_event::begin_render_pass>(this, api::render_pass { 0 }, make_framebuffer_handle(0));
+
+
+	// Communicate global pipeline layout that is used for all bindings to add-ons
+	if (!reshade::addon::event_list[static_cast<uint32_t>(addon_event::init_descriptor_set_layout)].empty() ||
+		!reshade::addon::event_list[static_cast<uint32_t>(addon_event::destroy_descriptor_set_layout)].empty() ||
+		!reshade::addon::event_list[static_cast<uint32_t>(addon_event::init_pipeline_layout)].empty())
+	{
+		api::descriptor_range sampler_range = {};
+		sampler_range.type = api::descriptor_type::sampler;
+		glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, reinterpret_cast<GLint *>(&sampler_range.count));
+		sampler_range.visibility = api::shader_stage::all;
+		api::descriptor_range shader_resource_range = {};
+		shader_resource_range.type = api::descriptor_type::shader_resource_view;
+		glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, reinterpret_cast<GLint *>(&shader_resource_range.count));
+		shader_resource_range.visibility = api::shader_stage::all;
+		api::descriptor_range constant_buffer_range = {};
+		constant_buffer_range.type = api::descriptor_type::constant_buffer;
+		glGetIntegerv(GL_MAX_UNIFORM_BUFFER_BINDINGS, reinterpret_cast<GLint *>(&constant_buffer_range.count));
+		constant_buffer_range.visibility = api::shader_stage::all;
+		api::descriptor_range unordered_access_range = {};
+		unordered_access_range.type = api::descriptor_type::unordered_access_view;
+		glGetIntegerv(GL_MAX_IMAGE_UNITS, reinterpret_cast<GLint *>(&unordered_access_range.count));
+		unordered_access_range.visibility = api::shader_stage::all;
+
+		api::descriptor_set_layout_desc set_layout_desc = {};
+		set_layout_desc.num_ranges = 1;
+		set_layout_desc.push_descriptors = true;
+
+		constexpr api::descriptor_set_layout set_layouts[4] = {
+			{ 0x1 }, { 0x2 }, { 0x3 }, { 0x4 }
+		};
+
+		set_layout_desc.ranges = &sampler_range;
+		invoke_addon_event<addon_event::init_descriptor_set_layout>(this, set_layout_desc, set_layouts[0]);
+		set_layout_desc.ranges = &shader_resource_range;
+		invoke_addon_event<addon_event::init_descriptor_set_layout>(this, set_layout_desc, set_layouts[1]);
+		set_layout_desc.ranges = &constant_buffer_range;
+		invoke_addon_event<addon_event::init_descriptor_set_layout>(this, set_layout_desc, set_layouts[2]);
+		set_layout_desc.ranges = &unordered_access_range;
+		invoke_addon_event<addon_event::init_descriptor_set_layout>(this, set_layout_desc, set_layouts[3]);
+
+		api::pipeline_layout_desc pipeline_layout_desc = {};
+		pipeline_layout_desc.num_set_layouts = 4;
+		pipeline_layout_desc.set_layouts = set_layouts;
+
+		invoke_addon_event<addon_event::init_pipeline_layout>(this, pipeline_layout_desc, api::pipeline_layout { 0x1 }); // Use a handle other than zero
+
+		invoke_addon_event<addon_event::destroy_descriptor_set_layout>(this, set_layouts[0]);
+		invoke_addon_event<addon_event::destroy_descriptor_set_layout>(this, set_layouts[1]);
+		invoke_addon_event<addon_event::destroy_descriptor_set_layout>(this, set_layouts[2]);
+		invoke_addon_event<addon_event::destroy_descriptor_set_layout>(this, set_layouts[3]);
+	}
 #endif
 }
 reshade::opengl::device_impl::~device_impl()
 {
 #if RESHADE_ADDON
+	invoke_addon_event<addon_event::destroy_pipeline_layout>(this, api::pipeline_layout { 0x1 });
+
 	invoke_addon_event<addon_event::finish_render_pass>(this);
 
 	invoke_addon_event<addon_event::destroy_command_queue>(this);
@@ -253,8 +307,7 @@ bool reshade::opengl::device_impl::check_capability(api::device_caps capability)
 	case api::device_caps::dual_src_blend:
 		return true; // OpenGL 3.3
 	case api::device_caps::independent_blend:
-		// TODO
-		return false;
+		return false; // TODO: Not currently implemented (could do so with 'glBlendFuncSeparatei' and 'glBlendEquationSeparatei')
 	case api::device_caps::fill_mode_non_solid:
 		return true;
 	case api::device_caps::bind_render_targets_and_depth_stencil:

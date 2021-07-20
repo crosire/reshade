@@ -70,6 +70,8 @@ void reshade::d3d9::device_impl::on_reset()
 	_backup_state.release_state_block();
 
 #if RESHADE_ADDON
+	invoke_addon_event<addon_event::destroy_pipeline_layout>(this, api::pipeline_layout { 0x1 });
+
 	// Force add-ons to release all resources associated with this device before performing reset
 	invoke_addon_event<addon_event::destroy_command_queue>(this);
 	invoke_addon_event<addon_event::destroy_device>(this);
@@ -200,6 +202,85 @@ void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 
 		// Communicate default state to add-ons
 		invoke_addon_event<addon_event::bind_render_targets_and_depth_stencil>(this, 0, nullptr, reshade::api::resource_view { reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) });
+	}
+
+	// Communicate global pipeline layout that is used for all bindings to add-ons
+	if (!reshade::addon::event_list[static_cast<uint32_t>(addon_event::init_descriptor_set_layout)].empty() ||
+		!reshade::addon::event_list[static_cast<uint32_t>(addon_event::destroy_descriptor_set_layout)].empty() ||
+		!reshade::addon::event_list[static_cast<uint32_t>(addon_event::init_pipeline_layout)].empty())
+	{
+		// See https://docs.microsoft.com/windows/win32/direct3dhlsl/dx9-graphics-reference-asm-vs-registers-vs-3-0
+		api::constant_range constants_f_vs = {};
+		constants_f_vs.count = _caps.MaxVertexShaderConst * 4;
+		constants_f_vs.visibility = api::shader_stage::vertex;
+		api::constant_range constants_i_vs = {};
+		constants_i_vs.count = 16 * 4;
+		constants_i_vs.visibility = api::shader_stage::vertex;
+		api::constant_range constants_b_vs = {};
+		constants_b_vs.count = 16;
+		constants_b_vs.visibility = api::shader_stage::vertex;
+		api::descriptor_range sampler_range_vs = {};
+		sampler_range_vs.type = api::descriptor_type::sampler;
+		sampler_range_vs.count = 4; // Vertex shaders only support 4 sampler slots (D3DVERTEXTEXTURESAMPLER0 - D3DVERTEXTEXTURESAMPLER3)
+		sampler_range_vs.visibility = api::shader_stage::vertex;
+		api::descriptor_range texture_range_vs = {};
+		texture_range_vs.type = api::descriptor_type::shader_resource_view;
+		texture_range_vs.count = 4;
+		texture_range_vs.visibility = api::shader_stage::vertex;
+
+		// See https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/dx9-graphics-reference-asm-ps-registers-ps-3-0
+		api::constant_range constants_f_ps = {};
+		constants_f_ps.count = 224 * 4;
+		constants_f_ps.visibility = api::shader_stage::pixel;
+		api::constant_range constants_i_ps = {};
+		constants_i_ps.count = 16 * 4;
+		constants_i_ps.visibility = api::shader_stage::pixel;
+		api::constant_range constants_b_ps = {};
+		constants_b_ps.count = 16;
+		constants_b_ps.visibility = api::shader_stage::pixel;
+		api::descriptor_range sampler_range_ps = {};
+		sampler_range_ps.type = api::descriptor_type::sampler;
+		sampler_range_ps.count = 16;
+		sampler_range_ps.visibility = api::shader_stage::pixel;
+		api::descriptor_range texture_range_ps = {};
+		texture_range_ps.type = api::descriptor_type::shader_resource_view;
+		texture_range_ps.count = _caps.MaxSimultaneousTextures;
+		texture_range_ps.visibility = api::shader_stage::pixel;
+
+		const api::constant_range constant_ranges[6] = {
+			constants_f_vs, constants_i_vs, constants_b_vs,
+			constants_f_ps, constants_i_ps, constants_b_ps
+		};
+
+		api::descriptor_set_layout_desc set_layout_desc = {};
+		set_layout_desc.num_ranges = 1;
+		set_layout_desc.push_descriptors = true;
+
+		constexpr api::descriptor_set_layout set_layouts[4] = {
+			{ 0x1 }, { 0x2 }, { 0x3 }, { 0x4 }
+		};
+
+		set_layout_desc.ranges = &sampler_range_ps;
+		invoke_addon_event<addon_event::init_descriptor_set_layout>(this, set_layout_desc, set_layouts[0]);
+		set_layout_desc.ranges = &texture_range_ps;
+		invoke_addon_event<addon_event::init_descriptor_set_layout>(this, set_layout_desc, set_layouts[1]);
+		set_layout_desc.ranges = &sampler_range_vs;
+		invoke_addon_event<addon_event::init_descriptor_set_layout>(this, set_layout_desc, set_layouts[2]);
+		set_layout_desc.ranges = &texture_range_vs;
+		invoke_addon_event<addon_event::init_descriptor_set_layout>(this, set_layout_desc, set_layouts[3]);
+
+		api::pipeline_layout_desc pipeline_layout_desc = {};
+		pipeline_layout_desc.num_set_layouts = 4;
+		pipeline_layout_desc.set_layouts = set_layouts;
+		pipeline_layout_desc.num_constant_ranges = 6;
+		pipeline_layout_desc.constant_ranges = constant_ranges;
+
+		invoke_addon_event<addon_event::init_pipeline_layout>(this, pipeline_layout_desc, api::pipeline_layout { 0x1 }); // Use a handle other than zero
+
+		invoke_addon_event<addon_event::destroy_descriptor_set_layout>(this, set_layouts[0]);
+		invoke_addon_event<addon_event::destroy_descriptor_set_layout>(this, set_layouts[1]);
+		invoke_addon_event<addon_event::destroy_descriptor_set_layout>(this, set_layouts[2]);
+		invoke_addon_event<addon_event::destroy_descriptor_set_layout>(this, set_layouts[3]);
 	}
 #else
 	UNREFERENCED_PARAMETER(pp);

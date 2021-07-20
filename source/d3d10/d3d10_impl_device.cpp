@@ -35,11 +35,57 @@ reshade::d3d10::device_impl::device_impl(ID3D10Device1 *device) :
 
 	invoke_addon_event<addon_event::init_device>(this);
 	invoke_addon_event<addon_event::init_command_queue>(this);
+
+	// Communicate global pipeline layout that is used for all bindings to add-ons
+	if (!reshade::addon::event_list[static_cast<uint32_t>(addon_event::init_descriptor_set_layout)].empty() ||
+		!reshade::addon::event_list[static_cast<uint32_t>(addon_event::destroy_descriptor_set_layout)].empty() ||
+		!reshade::addon::event_list[static_cast<uint32_t>(addon_event::init_pipeline_layout)].empty())
+	{
+		api::descriptor_range sampler_range = {};
+		sampler_range.type = api::descriptor_type::sampler;
+		sampler_range.count = D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT;
+		sampler_range.visibility = api::shader_stage::all;
+		api::descriptor_range shader_resource_range = {};
+		shader_resource_range.type = api::descriptor_type::shader_resource_view;
+		shader_resource_range.count = D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT;
+		shader_resource_range.visibility = api::shader_stage::all;
+		api::descriptor_range constant_buffer_range = {};
+		constant_buffer_range.type = api::descriptor_type::constant_buffer;
+		constant_buffer_range.count = D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT;
+		constant_buffer_range.visibility = api::shader_stage::all;
+
+		api::descriptor_set_layout_desc set_layout_desc = {};
+		set_layout_desc.num_ranges = 1;
+		set_layout_desc.push_descriptors = true;
+
+		constexpr api::descriptor_set_layout set_layouts[3] = {
+			{ 0x1 }, { 0x2 }, { 0x3 }
+		};
+
+		set_layout_desc.ranges = &sampler_range;
+		invoke_addon_event<addon_event::init_descriptor_set_layout>(this, set_layout_desc, set_layouts[0]);
+		set_layout_desc.ranges = &shader_resource_range;
+		invoke_addon_event<addon_event::init_descriptor_set_layout>(this, set_layout_desc, set_layouts[1]);
+		set_layout_desc.ranges = &constant_buffer_range;
+		invoke_addon_event<addon_event::init_descriptor_set_layout>(this, set_layout_desc, set_layouts[2]);
+
+		api::pipeline_layout_desc pipeline_layout_desc = {};
+		pipeline_layout_desc.num_set_layouts = 3;
+		pipeline_layout_desc.set_layouts = set_layouts;
+
+		invoke_addon_event<addon_event::init_pipeline_layout>(this, pipeline_layout_desc, api::pipeline_layout { 0x1 }); // Use a handle other than zero
+
+		invoke_addon_event<addon_event::destroy_descriptor_set_layout>(this, set_layouts[0]);
+		invoke_addon_event<addon_event::destroy_descriptor_set_layout>(this, set_layouts[1]);
+		invoke_addon_event<addon_event::destroy_descriptor_set_layout>(this, set_layouts[2]);
+	}
 #endif
 }
 reshade::d3d10::device_impl::~device_impl()
 {
 #if RESHADE_ADDON
+	invoke_addon_event<addon_event::destroy_pipeline_layout>(this, api::pipeline_layout { 0x1 });
+
 	invoke_addon_event<addon_event::destroy_command_queue>(this);
 	invoke_addon_event<addon_event::destroy_device>(this);
 

@@ -78,7 +78,7 @@ namespace reshade { namespace api
 	/// </summary>
 	enum class memory_heap : uint32_t
 	{
-		unknown, // Used to indicate a resource that is reserved, but not yet bound to any memory.
+		unknown, // Usually indicates a resource that is reserved, but not yet bound to any memory.
 		gpu_only,
 		cpu_to_gpu,
 		gpu_to_cpu,

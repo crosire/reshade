@@ -132,7 +132,7 @@ bool reshade::d3d12::device_impl::check_capability(api::device_caps capability) 
 	case api::device_caps::draw_instanced:
 		return true;
 	case api::device_caps::draw_or_dispatch_indirect:
-		return false; // TODO: Not currently implemented
+		return false; // TODO: Not currently implemented (could do so with 'ID3D12GraphicsCommandList::ExecuteIndirect')
 	case api::device_caps::copy_buffer_region:
 	case api::device_caps::copy_buffer_to_texture:
 		return true;
