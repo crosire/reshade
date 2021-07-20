@@ -54,7 +54,7 @@ namespace reshade
 		init_swapchain,
 		/// <summary>
 		/// Called before 'IDirect3D9::CreateDevice(Ex)' (for the implicit swap chain), 'IDirect3D9Device::CreateAdditionalSwapChain', 'IDXGIFactory(2)::CreateSwapChain(...)' or 'vkCreateSwapchainKHR'.
-		/// To overwrite the swap chain description, modify <c>buffer_desc</c> in the callback and return <c>true</c>.
+		/// To overwrite the swap chain description, modify <c>buffer_desc</c> in the callback and return <c>true</c>, otherwise return <c>false</c>.
 		/// <para>Callback function signature: <c>bool (api::resource_desc &amp;buffer_desc, void *hwnd)</c></para>
 		/// </summary>
 		create_swapchain,
@@ -82,7 +82,7 @@ namespace reshade
 		init_sampler,
 		/// <summary>
 		/// Called before 'ID3D10Device::CreateSamplerState', 'ID3D11Device::CreateSamplerState', 'ID3D12Device::CreateSampler' or 'vkCreateSampler'.
-		/// To overwrite the sampler description, modify <c>desc</c> in the callback and return <c>true</c>.
+		/// To overwrite the sampler description, modify <c>desc</c> in the callback and return <c>true</c>, otherwise return <c>false</c>.
 		/// <para>Callback function signature: <c>bool (api::device *device, api::sampler_desc &amp;desc)</c></para>
 		/// </summary>
 		create_sampler,
@@ -99,7 +99,7 @@ namespace reshade
 		init_resource,
 		/// <summary>
 		/// Called before 'IDirect3Device9::Create(...)Buffer/Texture/Surface(Ex)', 'ID3D10Device::CreateBuffer/Texture(...)', 'ID3D11Device::CreateBuffer/Texture(...)', 'ID3D12Device::Create(...)Resource(...)', 'gl(Named)Buffer/Tex(ture)/RenderbufferStorage(...)(Multisample)' or 'vkCreateBuffer/Image'.
-		/// To overwrite the resource description, modify <c>desc</c> in the callback and return <c>true</c>.
+		/// To overwrite the resource description, modify <c>desc</c> in the callback and return <c>true</c>, otherwise return <c>false</c>.
 		/// <para>Callback function signature: <c>bool (api::device *device, api::resource_desc &amp;desc, api::subresource_data *initial_data, api::resource_usage initial_state)</c></para>
 		/// </summary>
 		create_resource,
@@ -116,7 +116,7 @@ namespace reshade
 		init_resource_view,
 		/// <summary>
 		/// Called before 'IDirect3DDevice9::Create(...)Surface(Ex)', 'ID3D10Device::Create(...)View(1)', 'ID3D11Device::Create(...)View(1)', 'ID3D12Device::Create(...)View', 'glTex(ture)Buffer', 'glTextureView(...)' or 'vkCreateBuffer/ImageView'.
-		/// To overwrite the resource view description, modify <c>desc</c> in the callback and return <c>true</c>.
+		/// To overwrite the resource view description, modify <c>desc</c> in the callback and return <c>true</c>, otherwise return <c>false</c>.
 		/// <para>Callback function signature: <c>bool (api::device *device, api::resource resource, api::resource_usage usage_type, api::resource_view_desc &amp;desc)</c></para>
 		/// </summary>
 		create_resource_view,
@@ -133,7 +133,7 @@ namespace reshade
 		init_pipeline,
 		/// <summary>
 		/// Called before 'IDirect3DDevice9::CreateVertexDeclaration', 'IDirect3DDevice9::Create(...)Shader', 'ID3D10Device::Create(...)(Shader/State)', 'ID3D11Device::Create(...)(Shader/State)', 'ID3D12Device::Create(...)PipelineState' or 'vkCreate(...)Pipelines'.
-		/// To overwrite the pipeline description, modify <c>desc</c> in the callback and return <c>true</c>.
+		/// To overwrite the pipeline description, modify <c>desc</c> in the callback and return <c>true</c>, otherwise return <c>false</c>.
 		/// <para>Callback function signature: <c>bool (api::device *device, api::pipeline_desc &amp;desc)</c></para>
 		/// </summary>
 		create_pipeline,
@@ -172,7 +172,7 @@ namespace reshade
 		init_render_pass,
 		/// <summary>
 		/// Called before 'vkCreateRenderPass'.
-		/// To overwrite the render pass description, modify <c>desc</c> in the callback and return <c>true</c>.
+		/// To overwrite the render pass description, modify <c>desc</c> in the callback and return <c>true</c>, otherwise return <c>false</c>.
 		/// <para>Callback function signature: <c>bool (api::device *device, api::render_pass_desc &amp;desc)</c></para>
 		/// </summary>
 		create_render_pass,
@@ -189,7 +189,7 @@ namespace reshade
 		init_framebuffer,
 		/// <summary>
 		/// Called before 'vkCreateFramebuffer'.
-		/// To overwrite the framebuffer description, modify <c>desc</c> in the callback and return <c>true</c>.
+		/// To overwrite the framebuffer description, modify <c>desc</c> in the callback and return <c>true</c>, otherwise return <c>false</c>.
 		/// <para>Callback function signature: <c>bool (api::device *device, api::framebuffer_desc &amp;desc)</c></para>
 		/// </summary>
 		create_framebuffer,
@@ -201,6 +201,7 @@ namespace reshade
 
 		/// <summary>
 		/// Called before 'ID3D10Device::UpdateSubresource' or 'ID3D11DeviceContext::UpdateSubresource'.
+		/// To prevent this command from being executed, return <c>true</c>, otherwise return <c>false</c>.
 		/// <para>Callback function signature: <c>bool (api::device *device, const void *data, api::resource dst, uint64_t dst_offset, uint64_t size)</c></para>
 		/// </summary>
 		/// <remarks>
@@ -209,6 +210,7 @@ namespace reshade
 		upload_buffer_region,
 		/// <summary>
 		/// Called before 'ID3D10Device::UpdateSubresource' or 'ID3D11DeviceContext::UpdateSubresource'.
+		/// To prevent this command from being executed, return <c>true</c>, otherwise return <c>false</c>.
 		/// <para>Callback function signature: <c>bool (api::device *device, const api::subresource_data &data, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6])</c></para>
 		/// </summary>
 		/// <remarks>
@@ -218,6 +220,7 @@ namespace reshade
 
 		/// <summary>
 		/// Called before 'ID3D12Device::Create(...)View', 'ID3D12Device::CopyDescriptors(Simple)' or 'vkUpdateDescriptorSets'.
+		/// To prevent this command from being executed, return <c>true</c>, otherwise return <c>false</c>.
 		/// <para>Callback function signature: <c>bool (api::device *device, uint32_t num_writes, const api::write_descriptor_set *writes, uint32_t num_copies, const api::copy_descriptor_set *copies)</c></para>
 		/// </summary>
 		update_descriptor_sets,
@@ -296,27 +299,32 @@ namespace reshade
 
 		/// <summary>
 		/// Called before 'IDirect3DDevice9::DrawPrimitive(UP)', 'ID3D10Device::Draw(Instanced)', 'ID3D11DeviceContext::Draw(Instanced)', 'ID3D12GraphicsCommandList::DrawInstanced', 'gl(Multi)DrawArrays(...)' or 'vkCmdDraw'.
+		/// To prevent this command from being executed, return <c>true</c>, otherwise return <c>false</c>.
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance)</c></para>
 		/// </summary>
 		draw,
 		/// <summary>
 		/// Called before 'IDirect3DDevice9::DrawIndexedPrimitive(UP)', 'ID3D10Device::DrawIndexed(Instanced)', 'ID3D11DeviceContext::DrawIndexed(Instanced)', 'ID3D12GraphicsCommandList::DrawIndexedInstanced', 'gl(Multi)DrawElements(...)' or 'vkCmdDrawIndexed'.
+		/// To prevent this command from being executed, return <c>true</c>, otherwise return <c>false</c>.
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)</c></para>
 		/// </summary>
 		draw_indexed,
 		/// <summary>
 		/// Called before 'ID3D11DeviceContext::Dispatch', 'ID3D12GraphicsCommandList::Dispatch', 'glDispatchCompute' or 'vkCmdDispatch'.
+		/// To prevent this command from being executed, return <c>true</c>, otherwise return <c>false</c>.
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, uint32_t num_groups_x, uint32_t num_groups_y, uint32_t num_groups_z)</c></para>
 		/// </summary>
 		dispatch,
 		/// <summary>
 		/// Called before 'ID3D11DeviceContext::Draw(Indexed)InstancedIndirect', 'ID3D11DeviceContext::DispatchIndirect', 'ID3D12GraphicsCommandList::ExecuteIndirect', 'gl(Multi)Draw(...)Indirect', 'glDispatchComputeIndirect', 'vkCmdDraw(Indexed)Indirect' or 'vkCmdDispatchIndirect'.
+		/// To prevent this command from being executed, return <c>true</c>, otherwise return <c>false</c>.
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::indirect_command type, api::resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride)</c></para>
 		/// </summary>
 		draw_or_dispatch_indirect,
 
 		/// <summary>
 		/// Called before 'IDirect3DDevice9::UpdateTexture', 'IDirect3DDevice9::GetRenderTargetData', 'ID3D10Device::CopyResource', 'ID3D11DeviceContext::CopyResource' or 'ID3D12GraphicsCommandList::CopyResource'.
+		/// To prevent this command from being executed, return <c>true</c>, otherwise return <c>false</c>.
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource src, api::resource dst)</c></para>
 		/// </summary>
 		/// <remarks>
@@ -325,6 +333,7 @@ namespace reshade
 		copy_resource,
 		/// <summary>
 		/// Called before 'ID3D12GraphicsCommandList::CopyBufferRegion', 'glCopy(Named)BufferSubData' or 'vkCmdCopyBuffer'.
+		/// To prevent this command from being executed, return <c>true</c>, otherwise return <c>false</c>.
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource src, uint64_t src_offset, api::resource dst, uint64_t dst_offset, uint64_t size)</c></para>
 		/// </summary>
 		/// <remarks>
@@ -333,6 +342,7 @@ namespace reshade
 		copy_buffer_region,
 		/// <summary>
 		/// Called before 'ID3D12GraphicsCommandList::CopyTextureRegion' or 'vkCmdCopyBufferToImage'.
+		/// To prevent this command from being executed, return <c>true</c>, otherwise return <c>false</c>.
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource src, uint64_t src_offset, uint32_t row_length, uint32_t slice_height, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6])</c></para>
 		/// </summary>
 		/// <remarks>
@@ -341,6 +351,7 @@ namespace reshade
 		copy_buffer_to_texture,
 		/// <summary>
 		/// Called before 'IDirect3DDevice9::UpdateSurface', 'IDirect3DDevice9::StretchRect', 'ID3D10Device::CopySubresourceRegion', 'ID3D11DeviceContext::CopySubresourceRegion', 'ID3D12GraphicsCommandList::CopyTextureRegion', 'glBlit(Named)Framebuffer', 'glCopyImageSubData', 'glCopyTex(ture)(Sub)Image(...)', 'vkCmdBlitImage' or 'vkCmdCopyImage'.
+		/// To prevent this command from being executed, return <c>true</c>, otherwise return <c>false</c>.
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], api::filter_type filter)</c></para>
 		/// </summary>
 		/// <remarks>
@@ -349,6 +360,7 @@ namespace reshade
 		copy_texture_region,
 		/// <summary>
 		/// Called before 'ID3D12GraphicsCommandList::CopyTextureRegion' or 'vkCmdCopyImageToBuffer'.
+		/// To prevent this command from being executed, return <c>true</c>, otherwise return <c>false</c>.
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint64_t dst_offset, uint32_t row_length, uint32_t slice_height)</c></para>
 		/// </summary>
 		/// <remarks>
@@ -357,6 +369,7 @@ namespace reshade
 		copy_texture_to_buffer,
 		/// <summary>
 		/// Called before 'IDirect3DDevice9::StretchRect', 'ID3D10Device::ResolveSubresource', 'ID3D11DeviceContext::ResolveSubresource', 'ID3D12GraphicsCommandList::ResolveSubresource', 'ID3D12GraphicsCommandList1::ResolveSubresourceRegion', 'glBlit(Named)Framebuffer' or 'vkCmdResolveImage'.
+		/// To prevent this command from being executed, return <c>true</c>, otherwise return <c>false</c>.
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], api::format format)</c></para>
 		/// </summary>
 		/// <remarks>
@@ -366,11 +379,13 @@ namespace reshade
 
 		/// <summary>
 		/// Called before 'IDirect3DDevice9::Clear', 'glClear' or 'vkCmdClearAttachments'.
+		/// To prevent this command from being executed, return <c>true</c>, otherwise return <c>false</c>.
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t num_rects, const int32_t *rects)</c></para>
 		/// </summary>
 		clear_attachments,
 		/// <summary>
 		/// Called before 'ID3D10Device::ClearDepthStencilView', 'ID3D11DeviceContext::ClearDepthStencilView', 'ID3D11DeviceContext1::ClearView', 'ID3D12GraphicsCommandList::ClearDepthStencilView', 'ID3D12GraphicsCommandList::BeginRenderPass', 'glClear(NamedFrame)Bufferfi', 'vkCmdClearDepthStencilImage' or 'vkCmdBeginRenderPass'.
+		/// To prevent this command from being executed, return <c>true</c>, otherwise return <c>false</c>.
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view dsv, api::attachment_type clear_flags, float depth, uint8_t stencil, uint32_t num_rects, const int32_t *rects)</c></para>
 		/// </summary>
 		/// <remarks>
@@ -379,6 +394,7 @@ namespace reshade
 		clear_depth_stencil_view,
 		/// <summary>
 		/// Called before 'IDirect3DDevice9::ColorFill', 'ID3D10Device::ClearRenderTargetView', 'ID3D11DeviceContext::ClearRenderTargetView', 'ID3D11DeviceContext1::ClearView', 'ID3D12GraphicsCommandList::ClearRenderTargetView', 'ID3D12GraphicsCommandList::BeginRenderPass', 'glClear(NamedFrame)Bufferfv', 'vkCmdClearColorImage' or 'vkCmdBeginRenderPass'.
+		/// To prevent this command from being executed, return <c>true</c>, otherwise return <c>false</c>.
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view rtv, const float color[4], uint32_t num_rects, const int32_t *rects)</c></para>
 		/// </summary>
 		/// <remarks>
@@ -387,6 +403,7 @@ namespace reshade
 		clear_render_target_view,
 		/// <summary>
 		/// Called before 'ID3D11DeviceContext::ClearUnorderedAccessViewUint' or 'ID3D12GraphicsCommandList::ClearUnorderedAccessViewUint'.
+		/// To prevent this command from being executed, return <c>true</c>, otherwise return <c>false</c>.
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view uav, const uint32_t values[4], uint32_t num_rects, const int32_t *rects)</c></para>
 		/// </summary>
 		/// <remarks>
@@ -395,6 +412,7 @@ namespace reshade
 		clear_unordered_access_view_uint,
 		/// <summary>
 		/// Called before 'ID3D11DeviceContext::ClearUnorderedAccessViewFloat', 'ID3D11DeviceContext1::ClearView' or 'ID3D12GraphicsCommandList::ClearUnorderedAccessViewFloat'.
+		/// To prevent this command from being executed, return <c>true</c>, otherwise return <c>false</c>.
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view uav, const float values[4], uint32_t num_rects, const int32_t *rects)</c></para>
 		/// </summary>
 		/// <remarks>
@@ -404,6 +422,7 @@ namespace reshade
 
 		/// <summary>
 		/// Called before 'ID3D10Device::GenerateMips', 'ID3D11DeviceContext::GenerateMips' or 'glGenerate(Texture)Mipmap'.
+		/// To prevent this command from being executed, return <c>true</c>, otherwise return <c>false</c>.
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view srv)</c></para>
 		/// </summary>
 		generate_mipmaps,
