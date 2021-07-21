@@ -346,27 +346,9 @@ namespace reshade { namespace api
 		virtual void destroy_framebuffer(framebuffer handle) = 0;
 
 		/// <summary>
-		/// Allocates one or more descriptor sets.
-		/// </summary>
-		/// <param name="layout">The layout of the descriptor sets.</param>
-		/// <param name="count">The number of descriptor sets to allocate.</param>
-		/// <param name="out">Pointer to an array of handles with at least <paramref name="count"/> elements that is filles with the handles of the created descriptor sets.</param>
-		/// <returns><c>true</c> if the descriptor sets were successfully created, <c>false</c> otherwise (in this case <paramref name="out"/> is filles with zeroes).</returns>
-		virtual bool create_descriptor_sets(descriptor_set_layout layout, uint32_t count, descriptor_set *out) = 0;
-		/// <summary>
-		/// Frees one or more descriptor sets that were previously created via <see cref="create_descriptor_sets"/>.
-		/// </summary>
-		virtual void destroy_descriptor_sets(descriptor_set_layout layout, uint32_t count, const descriptor_set *sets) = 0;
-
-		/// <summary>
 		/// Gets the handle to the resource view of the specfied <paramref name="type"/> in the framebuffer object.
 		/// </summary>
 		virtual bool get_attachment(framebuffer fbo, attachment_type type, uint32_t index, resource_view *attachment) const = 0;
-		/// <summary>
-		/// Gets the number of attachments of the specified <paramref name="type"/> in the framebuffer object.
-		/// </summary>
-		virtual uint32_t get_attachment_count(framebuffer fbo, attachment_type type) const = 0;
-
 		/// <summary>
 		/// Gets the handle to the underlying resource the specified resource <paramref name="view"/> was created for.
 		/// </summary>
@@ -412,6 +394,30 @@ namespace reshade { namespace api
 		virtual void upload_texture_region(const subresource_data &data, resource destination, uint32_t dst_subresource, const int32_t dst_box[6] = nullptr) = 0;
 
 		/// <summary>
+		/// Gets the results of queries in a query pool.
+		/// </summary>
+		/// <param name="pool">The query pool that manages the results of the queries.</param>
+		/// <param name="first">The index of the first query in the pool to copy the result from.</param>
+		/// <param name="count">The number of query results to copy.</param>
+		/// <param name="results">Pointer to an array that is filled with the results.</param>
+		/// <param name="stride">The size (in bytes) of each result element.</param>
+		/// <returns><c>true</c> if the query results were successfully downloaded from the GPU, <c>false</c> otherwise.</returns>
+		virtual bool get_query_pool_results(query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride) = 0;
+
+		/// <summary>
+		/// Allocates one or more descriptor sets.
+		/// </summary>
+		/// <param name="layout">The layout of the descriptor sets.</param>
+		/// <param name="count">The number of descriptor sets to allocate.</param>
+		/// <param name="out">Pointer to an array of handles with at least <paramref name="count"/> elements that is filles with the handles of the created descriptor sets.</param>
+		/// <returns><c>true</c> if the descriptor sets were successfully created, <c>false</c> otherwise (in this case <paramref name="out"/> is filles with zeroes).</returns>
+		virtual bool allocate_descriptor_sets(descriptor_set_layout layout, uint32_t count, descriptor_set *out) = 0;
+		/// <summary>
+		/// Frees one or more descriptor sets that were previously allocated via <see cref="allocate_descriptor_sets"/>.
+		/// </summary>
+		virtual void free_descriptor_sets(descriptor_set_layout layout, uint32_t count, const descriptor_set *sets) = 0;
+
+		/// <summary>
 		/// Updates the contents of descriptor sets with the specified descriptors.
 		/// </summary>
 		/// <param name="num_writes">The number of writes to process.</param>
@@ -425,17 +431,6 @@ namespace reshade { namespace api
 		/// <param name="num_copies">The number of copies to process.</param>
 		/// <param name="copies">A pointer to an array of descriptor set copy information to process.</param>
 		virtual void update_descriptor_sets(uint32_t num_writes, const write_descriptor_set *writes, uint32_t num_copies, const copy_descriptor_set *copies) = 0;
-
-		/// <summary>
-		/// Gets the results of queries in a query pool.
-		/// </summary>
-		/// <param name="pool">The query pool that manages the results of the queries.</param>
-		/// <param name="first">The index of the first query in the pool to copy the result from.</param>
-		/// <param name="count">The number of query results to copy.</param>
-		/// <param name="results">Pointer to an array that is filled with the results.</param>
-		/// <param name="stride">The size (in bytes) of each result element.</param>
-		/// <returns><c>true</c> if the query results were successfully downloaded from the GPU, <c>false</c> otherwise.</returns>
-		virtual bool get_query_pool_results(query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride) = 0;
 
 		/// <summary>
 		/// Waits for all issued GPU operations to finish before returning.

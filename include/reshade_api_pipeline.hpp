@@ -487,7 +487,7 @@ namespace reshade { namespace api
 
 	/// <summary>
 	/// An opaque handle to a framebuffer object.
-	/// <para>In OpenGL this is FBO ID, in Vulkan a 'VkFramebuffer' handle.</para>
+	/// <para>In OpenGL this is a FBO handle, in Vulkan a 'VkFramebuffer' handle.</para>
 	/// </summary>
 	RESHADE_DEFINE_HANDLE(framebuffer);
 

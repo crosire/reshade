@@ -39,6 +39,8 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID)
 }
 ```
 
+For more complex examples, see also the built-in add-ons in [source/addon](../source/addon).
+
 ## Overlays
 
 It is also supported to add an overlay, which can e.g. be used to display debug information or interact with the user in-application.

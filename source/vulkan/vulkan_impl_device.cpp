@@ -225,6 +225,11 @@ bool reshade::vulkan::device_impl::create_sampler(const api::sampler_desc &desc,
 		return false;
 	}
 }
+void reshade::vulkan::device_impl::destroy_sampler(api::sampler handle)
+{
+	vk.DestroySampler(_orig, (VkSampler)handle.handle, nullptr);
+}
+
 bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage initial_state, api::resource *out)
 {
 	assert((desc.usage & initial_state) == initial_state || initial_state == api::resource_usage::cpu_access);
@@ -332,6 +337,31 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 	*out = { 0 };
 	return false;
 }
+void reshade::vulkan::device_impl::destroy_resource(api::resource handle)
+{
+	if (handle.handle == 0)
+		return;
+	const resource_data data = lookup_resource(handle);
+
+	if (data.allocation == VK_NULL_HANDLE)
+	{
+		if (data.is_image())
+			vk.DestroyImage(_orig, data.image, nullptr);
+		else
+			vk.DestroyBuffer(_orig, data.buffer, nullptr);
+	}
+	else
+	{
+		if (data.is_image())
+			vmaDestroyImage(_alloc, data.image, data.allocation);
+		else
+			vmaDestroyBuffer(_alloc, data.buffer, data.allocation);
+	}
+
+	const std::lock_guard<std::mutex> lock(_mutex);
+	_resources.erase(handle.handle);
+}
+
 bool reshade::vulkan::device_impl::create_resource_view(api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view *out)
 {
 	const resource_data data = lookup_resource(resource);
@@ -383,6 +413,20 @@ bool reshade::vulkan::device_impl::create_resource_view(api::resource resource, 
 
 	*out = { 0 };
 	return false;
+}
+void reshade::vulkan::device_impl::destroy_resource_view(api::resource_view handle)
+{
+	if (handle.handle == 0)
+		return;
+	const resource_view_data data = lookup_resource_view(handle);
+
+	if (data.is_image_view())
+		vk.DestroyImageView(_orig, data.image_view, nullptr);
+	else
+		vk.DestroyBufferView(_orig, data.buffer_view, nullptr);
+
+	const std::lock_guard<std::mutex> lock(_mutex);
+	_views.erase(handle.handle);
 }
 
 bool reshade::vulkan::device_impl::create_shader_module(VkShaderStageFlagBits stage, const api::shader_desc &desc, VkPipelineShaderStageCreateInfo &stage_info, VkSpecializationInfo &spec_info, std::vector<VkSpecializationMapEntry> &spec_map)
@@ -690,6 +734,10 @@ exit_failure:
 	*out = { 0 };
 	return false;
 }
+void reshade::vulkan::device_impl::destroy_pipeline(api::pipeline_stage, api::pipeline handle)
+{
+	vk.DestroyPipeline(_orig, (VkPipeline)handle.handle, nullptr);
+}
 
 bool reshade::vulkan::device_impl::create_pipeline_layout(const api::pipeline_layout_desc &desc, api::pipeline_layout *out)
 {
@@ -841,6 +889,11 @@ bool reshade::vulkan::device_impl::create_query_pool(api::query_type type, uint3
 		return false;
 	}
 }
+void reshade::vulkan::device_impl::destroy_query_pool(api::query_pool handle)
+{
+	vk.DestroyQueryPool(_orig, (VkQueryPool)handle.handle, nullptr);
+}
+
 bool reshade::vulkan::device_impl::create_render_pass(const api::render_pass_desc &desc, api::render_pass *out)
 {
 	uint32_t num_color_attachments = 0;
@@ -924,6 +977,14 @@ bool reshade::vulkan::device_impl::create_render_pass(const api::render_pass_des
 		return false;
 	}
 }
+void reshade::vulkan::device_impl::destroy_render_pass(api::render_pass handle)
+{
+	vk.DestroyRenderPass(_orig, (VkRenderPass)handle.handle, nullptr);
+
+	const std::lock_guard<std::mutex> lock(_mutex);
+	_render_pass_list.erase((VkRenderPass)handle.handle);
+}
+
 bool reshade::vulkan::device_impl::create_framebuffer(const api::framebuffer_desc &desc, api::framebuffer *out)
 {
 	uint32_t width = std::numeric_limits<uint32_t>::max();
@@ -991,67 +1052,14 @@ bool reshade::vulkan::device_impl::create_framebuffer(const api::framebuffer_des
 		return false;
 	}
 }
-bool reshade::vulkan::device_impl::create_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, api::descriptor_set *out)
+void reshade::vulkan::device_impl::destroy_framebuffer(api::framebuffer handle)
 {
-	static_assert(sizeof(*out) == sizeof(VkDescriptorSet));
-
-	std::vector<VkDescriptorSetLayout> set_layouts(count, (VkDescriptorSetLayout)layout.handle);
-
-	VkDescriptorSetAllocateInfo alloc_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
-	alloc_info.descriptorPool = _descriptor_pool;
-	alloc_info.descriptorSetCount = count;
-	alloc_info.pSetLayouts = set_layouts.data();
-
-	return vk.AllocateDescriptorSets(_orig, &alloc_info, reinterpret_cast<VkDescriptorSet *>(out)) == VK_SUCCESS;
-}
-
-void reshade::vulkan::device_impl::destroy_sampler(api::sampler handle)
-{
-	vk.DestroySampler(_orig, (VkSampler)handle.handle, nullptr);
-}
-void reshade::vulkan::device_impl::destroy_resource(api::resource handle)
-{
-	if (handle.handle == 0)
-		return;
-	const resource_data data = lookup_resource(handle);
-
-	if (data.allocation == VK_NULL_HANDLE)
-	{
-		if (data.is_image())
-			vk.DestroyImage(_orig, data.image, nullptr);
-		else
-			vk.DestroyBuffer(_orig, data.buffer, nullptr);
-	}
-	else
-	{
-		if (data.is_image())
-			vmaDestroyImage(_alloc, data.image, data.allocation);
-		else
-			vmaDestroyBuffer(_alloc, data.buffer, data.allocation);
-	}
+	vk.DestroyFramebuffer(_orig, (VkFramebuffer)handle.handle, nullptr);
 
 	const std::lock_guard<std::mutex> lock(_mutex);
-	_resources.erase(handle.handle);
-}
-void reshade::vulkan::device_impl::destroy_resource_view(api::resource_view handle)
-{
-	if (handle.handle == 0)
-		return;
-	const resource_view_data data = lookup_resource_view(handle);
-
-	if (data.is_image_view())
-		vk.DestroyImageView(_orig, data.image_view, nullptr);
-	else
-		vk.DestroyBufferView(_orig, data.buffer_view, nullptr);
-
-	const std::lock_guard<std::mutex> lock(_mutex);
-	_views.erase(handle.handle);
+	_framebuffer_list.erase((VkFramebuffer)handle.handle);
 }
 
-void reshade::vulkan::device_impl::destroy_pipeline(api::pipeline_stage, api::pipeline handle)
-{
-	vk.DestroyPipeline(_orig, (VkPipeline)handle.handle, nullptr);
-}
 void reshade::vulkan::device_impl::destroy_pipeline_layout(api::pipeline_layout handle)
 {
 	_pipeline_layout_list.erase((VkPipelineLayout)handle.handle);
@@ -1061,85 +1069,6 @@ void reshade::vulkan::device_impl::destroy_pipeline_layout(api::pipeline_layout 
 void reshade::vulkan::device_impl::destroy_descriptor_set_layout(api::descriptor_set_layout handle)
 {
 	vk.DestroyDescriptorSetLayout(_orig, (VkDescriptorSetLayout)handle.handle, nullptr);
-}
-
-void reshade::vulkan::device_impl::destroy_query_pool(api::query_pool handle)
-{
-	vk.DestroyQueryPool(_orig, (VkQueryPool)handle.handle, nullptr);
-}
-void reshade::vulkan::device_impl::destroy_render_pass(api::render_pass handle)
-{
-	vk.DestroyRenderPass(_orig, (VkRenderPass)handle.handle, nullptr);
-
-	const std::lock_guard<std::mutex> lock(_mutex);
-	_render_pass_list.erase((VkRenderPass)handle.handle);
-}
-void reshade::vulkan::device_impl::destroy_framebuffer(api::framebuffer handle)
-{
-	vk.DestroyFramebuffer(_orig, (VkFramebuffer)handle.handle, nullptr);
-
-	const std::lock_guard<std::mutex> lock(_mutex);
-	_framebuffer_list.erase((VkFramebuffer)handle.handle);
-}
-void reshade::vulkan::device_impl::destroy_descriptor_sets(api::descriptor_set_layout, uint32_t count, const api::descriptor_set *sets)
-{
-	vk.FreeDescriptorSets(_orig, _descriptor_pool, count, reinterpret_cast<const VkDescriptorSet *>(sets));
-}
-
-void reshade::vulkan::device_impl::update_descriptor_sets(uint32_t num_writes, const api::write_descriptor_set *writes, uint32_t num_copies, const api::copy_descriptor_set *copies)
-{
-	std::vector<VkWriteDescriptorSet> writes_internal(num_writes);
-
-	std::vector<VkDescriptorImageInfo> image_info(num_writes);
-	std::vector<VkDescriptorBufferInfo> buffer_info(num_writes);
-
-	for (uint32_t i = 0; i < num_writes; ++i)
-	{
-		const api::write_descriptor_set &info = writes[i];
-
-		writes_internal[i] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-		writes_internal[i].dstSet = (VkDescriptorSet)info.set.handle;
-		writes_internal[i].dstBinding = info.binding;
-		writes_internal[i].dstArrayElement = info.array_offset;
-		writes_internal[i].descriptorCount = 1;
-		writes_internal[i].descriptorType = static_cast<VkDescriptorType>(info.type);
-
-		if (info.type == api::descriptor_type::constant_buffer)
-		{
-			writes_internal[i].pBufferInfo = &buffer_info[i];
-
-			assert(info.descriptor.resource.handle != 0);
-			buffer_info[i].buffer = (VkBuffer)info.descriptor.resource.handle;
-			buffer_info[i].offset = info.descriptor.offset;
-			buffer_info[i].range = info.descriptor.size;
-		}
-		else
-		{
-			writes_internal[i].pImageInfo = &image_info[i];
-
-			assert(info.descriptor.view.handle != 0 || (info.type == api::descriptor_type::sampler));
-			assert(info.descriptor.sampler.handle != 0 || (info.type != api::descriptor_type::sampler && info.type != api::descriptor_type::sampler_with_resource_view));
-			image_info[i].sampler = (VkSampler)info.descriptor.sampler.handle;
-			image_info[i].imageView = (VkImageView)info.descriptor.view.handle;
-			image_info[i].imageLayout = info.type == api::descriptor_type::unordered_access_view ? VK_IMAGE_LAYOUT_GENERAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		}
-	}
-
-	std::vector<VkCopyDescriptorSet> copies_internal(num_copies);
-
-	for (uint32_t i = 0; i < num_copies; ++i)
-	{
-		copies_internal[i] = { VK_STRUCTURE_TYPE_COPY_DESCRIPTOR_SET };
-		copies_internal[i].srcSet = (VkDescriptorSet)copies[i].src_set.handle;
-		copies_internal[i].srcBinding = copies[i].src_binding;
-		copies_internal[i].srcArrayElement = copies[i].src_array_offset;
-		copies_internal[i].dstSet = (VkDescriptorSet)copies[i].dst_set.handle;
-		copies_internal[i].dstBinding = copies[i].dst_binding;
-		copies_internal[i].dstArrayElement = copies[i].dst_array_offset;
-		copies_internal[i].descriptorCount = copies[i].count;
-	}
-
-	vk.UpdateDescriptorSets(_orig, num_writes, writes_internal.data(), num_copies, copies_internal.data());
 }
 
 bool reshade::vulkan::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access, void **data, uint32_t *row_pitch, uint32_t *slice_pitch)
@@ -1293,21 +1222,6 @@ bool reshade::vulkan::device_impl::get_attachment(api::framebuffer fbo, api::att
 	*out = { 0 };
 	return false;
 }
-uint32_t reshade::vulkan::device_impl::get_attachment_count(api::framebuffer fbo, api::attachment_type type) const
-{
-	assert(fbo.handle != 0);
-
-	std::lock_guard<std::mutex> lock(_mutex);
-	const auto &info = _framebuffer_list.at((VkFramebuffer)fbo.handle);
-
-	uint32_t count = 0;
-	for (uint32_t i = 0; i < info.attachments.size(); ++i)
-		if (info.attachment_types[i] & static_cast<VkImageAspectFlags>(type))
-			count++;
-
-	return count;
-}
-
 void reshade::vulkan::device_impl::get_resource_from_view(api::resource_view view, api::resource *out) const
 {
 	const resource_view_data data = lookup_resource_view(view);
@@ -1317,7 +1231,6 @@ void reshade::vulkan::device_impl::get_resource_from_view(api::resource_view vie
 	else
 		*out = { (uint64_t)data.buffer_create_info.buffer };
 }
-
 reshade::api::resource_desc reshade::vulkan::device_impl::get_resource_desc(api::resource resource) const
 {
 	const resource_data data = lookup_resource(resource);
@@ -1334,6 +1247,80 @@ bool reshade::vulkan::device_impl::get_query_pool_results(api::query_pool pool, 
 	assert(stride >= sizeof(uint64_t));
 
 	return vk.GetQueryPoolResults(_orig, (VkQueryPool)pool.handle, first, count, count * stride, results, stride, VK_QUERY_RESULT_64_BIT) == VK_SUCCESS;
+}
+
+bool reshade::vulkan::device_impl::allocate_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, api::descriptor_set *out)
+{
+	static_assert(sizeof(*out) == sizeof(VkDescriptorSet));
+
+	std::vector<VkDescriptorSetLayout> set_layouts(count, (VkDescriptorSetLayout)layout.handle);
+
+	VkDescriptorSetAllocateInfo alloc_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
+	alloc_info.descriptorPool = _descriptor_pool;
+	alloc_info.descriptorSetCount = count;
+	alloc_info.pSetLayouts = set_layouts.data();
+
+	return vk.AllocateDescriptorSets(_orig, &alloc_info, reinterpret_cast<VkDescriptorSet *>(out)) == VK_SUCCESS;
+}
+void reshade::vulkan::device_impl::free_descriptor_sets(api::descriptor_set_layout, uint32_t count, const api::descriptor_set *sets)
+{
+	vk.FreeDescriptorSets(_orig, _descriptor_pool, count, reinterpret_cast<const VkDescriptorSet *>(sets));
+}
+
+void reshade::vulkan::device_impl::update_descriptor_sets(uint32_t num_writes, const api::write_descriptor_set *writes, uint32_t num_copies, const api::copy_descriptor_set *copies)
+{
+	std::vector<VkWriteDescriptorSet> writes_internal(num_writes);
+
+	std::vector<VkDescriptorImageInfo> image_info(num_writes);
+	std::vector<VkDescriptorBufferInfo> buffer_info(num_writes);
+
+	for (uint32_t i = 0; i < num_writes; ++i)
+	{
+		const api::write_descriptor_set &info = writes[i];
+
+		writes_internal[i] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+		writes_internal[i].dstSet = (VkDescriptorSet)info.set.handle;
+		writes_internal[i].dstBinding = info.binding;
+		writes_internal[i].dstArrayElement = info.array_offset;
+		writes_internal[i].descriptorCount = 1;
+		writes_internal[i].descriptorType = static_cast<VkDescriptorType>(info.type);
+
+		if (info.type == api::descriptor_type::constant_buffer)
+		{
+			writes_internal[i].pBufferInfo = &buffer_info[i];
+
+			assert(info.descriptor.resource.handle != 0);
+			buffer_info[i].buffer = (VkBuffer)info.descriptor.resource.handle;
+			buffer_info[i].offset = info.descriptor.offset;
+			buffer_info[i].range = info.descriptor.size;
+		}
+		else
+		{
+			writes_internal[i].pImageInfo = &image_info[i];
+
+			assert(info.descriptor.view.handle != 0 || (info.type == api::descriptor_type::sampler));
+			assert(info.descriptor.sampler.handle != 0 || (info.type != api::descriptor_type::sampler && info.type != api::descriptor_type::sampler_with_resource_view));
+			image_info[i].sampler = (VkSampler)info.descriptor.sampler.handle;
+			image_info[i].imageView = (VkImageView)info.descriptor.view.handle;
+			image_info[i].imageLayout = info.type == api::descriptor_type::unordered_access_view ? VK_IMAGE_LAYOUT_GENERAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		}
+	}
+
+	std::vector<VkCopyDescriptorSet> copies_internal(num_copies);
+
+	for (uint32_t i = 0; i < num_copies; ++i)
+	{
+		copies_internal[i] = { VK_STRUCTURE_TYPE_COPY_DESCRIPTOR_SET };
+		copies_internal[i].srcSet = (VkDescriptorSet)copies[i].src_set.handle;
+		copies_internal[i].srcBinding = copies[i].src_binding;
+		copies_internal[i].srcArrayElement = copies[i].src_array_offset;
+		copies_internal[i].dstSet = (VkDescriptorSet)copies[i].dst_set.handle;
+		copies_internal[i].dstBinding = copies[i].dst_binding;
+		copies_internal[i].dstArrayElement = copies[i].dst_array_offset;
+		copies_internal[i].descriptorCount = copies[i].count;
+	}
+
+	vk.UpdateDescriptorSets(_orig, num_writes, writes_internal.data(), num_copies, copies_internal.data());
 }
 
 void reshade::vulkan::device_impl::wait_idle() const

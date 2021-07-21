@@ -1377,7 +1377,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 			return false;
 		}
 
-		if (!_device->create_descriptor_sets(effect.set_layouts[0], 1, &effect.cb_set))
+		if (!_device->allocate_descriptor_sets(effect.set_layouts[0], 1, &effect.cb_set))
 		{
 			LOG(ERROR) << "Failed to create constant buffer descriptor set for effect file '" << effect.source_file << "'!";
 			return false;
@@ -1415,7 +1415,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 		if (sampler_with_resource_view)
 		{
 			texture_tables.resize(total_passes);
-			if (!_device->create_descriptor_sets(effect.set_layouts[1], static_cast<uint32_t>(total_passes), texture_tables.data()))
+			if (!_device->allocate_descriptor_sets(effect.set_layouts[1], static_cast<uint32_t>(total_passes), texture_tables.data()))
 			{
 				LOG(ERROR) << "Failed to create sampler descriptor set for effect file '" << effect.source_file << "'!";
 				return false;
@@ -1423,7 +1423,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 		}
 		else
 		{
-			if (!_device->create_descriptor_sets(effect.set_layouts[1], 1, &effect.sampler_set))
+			if (!_device->allocate_descriptor_sets(effect.set_layouts[1], 1, &effect.sampler_set))
 			{
 				LOG(ERROR) << "Failed to create sampler descriptor set for effect file '" << effect.source_file << "'!";
 				return false;
@@ -1495,7 +1495,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 		}
 
 		texture_tables.resize(total_passes);
-		if (!_device->create_descriptor_sets(effect.set_layouts[2], static_cast<uint32_t>(total_passes), texture_tables.data()))
+		if (!_device->allocate_descriptor_sets(effect.set_layouts[2], static_cast<uint32_t>(total_passes), texture_tables.data()))
 		{
 			LOG(ERROR) << "Failed to create texture descriptor set for effect file '" << effect.source_file << "'!";
 			return false;
@@ -1518,7 +1518,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 		}
 
 		storage_tables.resize(total_passes);
-		if (!_device->create_descriptor_sets(effect.set_layouts[sampler_with_resource_view ? 2 : 3], static_cast<uint32_t>(total_passes), storage_tables.data()))
+		if (!_device->allocate_descriptor_sets(effect.set_layouts[sampler_with_resource_view ? 2 : 3], static_cast<uint32_t>(total_passes), storage_tables.data()))
 		{
 			LOG(ERROR) << "Failed to create storage descriptor set for effect file '" << effect.source_file << "'!";
 			return false;
@@ -2045,8 +2045,8 @@ void reshade::runtime::unload_effect(size_t effect_index)
 			const bool is_compute_pass = !tech.passes[i].cs_entry_point.empty();
 			_device->destroy_pipeline(is_compute_pass ? api::pipeline_stage::all_compute : api::pipeline_stage::all_graphics, tech.passes_data[i].pipeline);
 
-			_device->destroy_descriptor_sets(_effects[effect_index].set_layouts[2], 1, &tech.passes_data[i].texture_set);
-			_device->destroy_descriptor_sets(_effects[effect_index].set_layouts[3], 1, &tech.passes_data[i].storage_set);
+			_device->free_descriptor_sets(_effects[effect_index].set_layouts[2], 1, &tech.passes_data[i].texture_set);
+			_device->free_descriptor_sets(_effects[effect_index].set_layouts[3], 1, &tech.passes_data[i].storage_set);
 		}
 
 		tech.passes_data.clear();
@@ -2060,9 +2060,9 @@ void reshade::runtime::unload_effect(size_t effect_index)
 		_device->destroy_pipeline_layout(effect.layout);
 		effect.layout = {};
 
-		_device->destroy_descriptor_sets(effect.set_layouts[0], 1, &effect.cb_set);
+		_device->free_descriptor_sets(effect.set_layouts[0], 1, &effect.cb_set);
 		effect.cb_set = {};
-		_device->destroy_descriptor_sets(effect.set_layouts[1], 1, &effect.sampler_set);
+		_device->free_descriptor_sets(effect.set_layouts[1], 1, &effect.sampler_set);
 		effect.sampler_set = {};
 
 		for (size_t i = 0; i < std::size(effect.set_layouts); ++i)
@@ -2118,8 +2118,8 @@ void reshade::runtime::unload_effects()
 			const bool is_compute_pass = !tech.passes[i].cs_entry_point.empty();
 			_device->destroy_pipeline(is_compute_pass ? api::pipeline_stage::all_compute : api::pipeline_stage::all_graphics, tech.passes_data[i].pipeline);
 
-			_device->destroy_descriptor_sets(_effects[tech.effect_index].set_layouts[2], 1, &tech.passes_data[i].texture_set);
-			_device->destroy_descriptor_sets(_effects[tech.effect_index].set_layouts[3], 1, &tech.passes_data[i].storage_set);
+			_device->free_descriptor_sets(_effects[tech.effect_index].set_layouts[2], 1, &tech.passes_data[i].texture_set);
+			_device->free_descriptor_sets(_effects[tech.effect_index].set_layouts[3], 1, &tech.passes_data[i].storage_set);
 		}
 
 		tech.passes_data.clear();
@@ -2131,8 +2131,8 @@ void reshade::runtime::unload_effects()
 
 		_device->destroy_pipeline_layout(effect.layout);
 
-		_device->destroy_descriptor_sets(effect.set_layouts[0], 1, &effect.cb_set);
-		_device->destroy_descriptor_sets(effect.set_layouts[1], 1, &effect.sampler_set);
+		_device->free_descriptor_sets(effect.set_layouts[0], 1, &effect.cb_set);
+		_device->free_descriptor_sets(effect.set_layouts[1], 1, &effect.sampler_set);
 
 		for (size_t i = 0; i < std::size(effect.set_layouts); ++i)
 		{

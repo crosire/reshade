@@ -1228,6 +1228,9 @@ auto reshade::d3d12::convert_shader_visibility(D3D12_SHADER_VISIBILITY visibilit
 {
 	switch (visibility)
 	{
+	default:
+		assert(false);
+		[[fallthrough]];
 	case D3D12_SHADER_VISIBILITY_ALL:
 		return api::shader_stage::all;
 	case D3D12_SHADER_VISIBILITY_VERTEX:

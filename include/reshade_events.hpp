@@ -233,7 +233,7 @@ namespace reshade
 
 		/// <summary>
 		/// Called after 'ID3D12GraphicsCommandList::BeginRenderPass', 'vkCmdBeginRenderPass' or 'glBindFramebuffer'.
-		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::render_pass pass, api::render_pass fbo)</c></para>
+		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::render_pass pass, api::framebuffer fbo)</c></para>
 		/// </summary>
 		begin_render_pass,
 		/// <summary>
