@@ -749,7 +749,8 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 			const VkClearValue &clear_value = pRenderPassBegin->pClearValues[i];
 
 			reshade::api::resource image = { 0 };
-			device_impl->get_resource_from_view(framebuffer_data.attachments[i], &image);
+			const reshade::api::resource_view attachment = { (uint64_t)framebuffer_data.attachments[i] };
+			device_impl->get_resource_from_view(attachment, &image);
 
 			VkImageMemoryBarrier transition { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
 			transition.oldLayout = renderpass_data.attachments[i].initial_layout;
@@ -767,7 +768,7 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 
 				// Cannot be skipped
 				reshade::invoke_addon_event<reshade::addon_event::clear_render_target_view>(
-					cmd_impl, framebuffer_data.attachments[i], clear_value.color.float32, 1, rect_data);
+					cmd_impl, attachment, clear_value.color.float32, 1, rect_data);
 			}
 			else
 			{
@@ -779,7 +780,7 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 
 				// Cannot be skipped
 				reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(
-					cmd_impl, framebuffer_data.attachments[i], static_cast<reshade::api::attachment_type>(renderpass_data.attachments[i].clear_flags), clear_value.depthStencil.depth, static_cast<uint8_t>(clear_value.depthStencil.stencil), 1, rect_data);
+					cmd_impl, attachment, static_cast<reshade::api::attachment_type>(renderpass_data.attachments[i].clear_flags), clear_value.depthStencil.depth, static_cast<uint8_t>(clear_value.depthStencil.stencil), 1, rect_data);
 			}
 
 			if (transition.oldLayout != VK_IMAGE_LAYOUT_UNDEFINED)

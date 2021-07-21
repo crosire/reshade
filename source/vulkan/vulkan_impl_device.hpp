@@ -69,7 +69,7 @@ namespace reshade::vulkan
 	struct framebuffer_data
 	{
 		VkExtent2D area;
-		std::vector<api::resource_view> attachments;
+		std::vector<VkImageView> attachments;
 		std::vector<VkImageAspectFlags> attachment_types;
 	};
 

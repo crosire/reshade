@@ -1167,49 +1167,55 @@ void     VKAPI_CALL vkUpdateDescriptorSets(VkDevice device, uint32_t descriptorW
 	GET_DISPATCH_PTR_FROM(UpdateDescriptorSets, device_impl);
 
 #if RESHADE_ADDON
-	std::vector<reshade::api::copy_descriptor_set> copies(descriptorCopyCount);
-	std::vector<reshade::api::write_descriptor_set> writes(descriptorWriteCount);
+	std::vector<reshade::api::copy_descriptor_set> copies;
+	copies.reserve(descriptorCopyCount);
+	std::vector<reshade::api::write_descriptor_set> writes;
+	writes.reserve(descriptorWriteCount);
 
 	for (uint32_t i = 0; i < descriptorWriteCount; ++i)
 	{
 		const VkWriteDescriptorSet &write = pDescriptorWrites[i];
 
-		writes[i].set = { (uint64_t)write.dstSet };
-		writes[i].binding = write.dstBinding;
-		writes[i].array_offset = write.dstArrayElement;
-		// TODO: writes[i].count = write.descriptorCount;
-		writes[i].type = static_cast<reshade::api::descriptor_type>(write.descriptorType);
-
-		switch (write.descriptorType)
+		for (uint32_t k = 0; k < write.descriptorCount; ++k)
 		{
-		case VK_DESCRIPTOR_TYPE_SAMPLER:
-			writes[i].descriptor.sampler = { (uint64_t)write.pImageInfo[0].sampler };
-			break;
-		case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
-			writes[i].descriptor.view = { (uint64_t)write.pImageInfo[0].imageView };
-			writes[i].descriptor.sampler = { (uint64_t)write.pImageInfo[0].sampler };
-			break;
-		case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
-		case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
-			writes[i].descriptor.view = { (uint64_t)write.pImageInfo[0].imageView };
-			break;
-		case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
-			writes[i].descriptor.resource = { (uint64_t)write.pBufferInfo[0].buffer };
-			break;
+			reshade::api::write_descriptor_set &new_write = writes.emplace_back();
+			new_write.set = { (uint64_t)write.dstSet };
+			new_write.binding = write.dstBinding + k;
+			new_write.array_offset = write.dstArrayElement;
+			new_write.type = static_cast<reshade::api::descriptor_type>(write.descriptorType);
+
+			switch (write.descriptorType)
+			{
+			case VK_DESCRIPTOR_TYPE_SAMPLER:
+				new_write.descriptor.sampler = { (uint64_t)write.pImageInfo[k].sampler };
+				break;
+			case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+				new_write.descriptor.view = { (uint64_t)write.pImageInfo[k].imageView };
+				new_write.descriptor.sampler = { (uint64_t)write.pImageInfo[k].sampler };
+				break;
+			case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+			case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
+				new_write.descriptor.view = { (uint64_t)write.pImageInfo[k].imageView };
+				break;
+			case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+				new_write.descriptor.resource = { (uint64_t)write.pBufferInfo[k].buffer };
+				break;
+			}
 		}
 	}
 	for (uint32_t i = 0; i < descriptorCopyCount; ++i)
 	{
 		const VkCopyDescriptorSet &copy = pDescriptorCopies[i];
 
-		copies[i].src_set = { (uint64_t)copy.srcSet };
-		copies[i].src_binding = copy.srcBinding;
-		copies[i].src_array_offset = copy.srcArrayElement;
-		copies[i].dst_set = { (uint64_t)copy.dstSet };
-		copies[i].dst_binding = copy.dstBinding;
-		copies[i].dst_array_offset = copy.dstArrayElement;
-		copies[i].count = copy.descriptorCount;
-		// TODO: copies[i].type = reshade::api::descriptor_type::constant_buffer;
+		reshade::api::copy_descriptor_set &new_copy = copies.emplace_back();
+		new_copy.src_set = { (uint64_t)copy.srcSet };
+		new_copy.src_binding = copy.srcBinding;
+		new_copy.src_array_offset = copy.srcArrayElement;
+		new_copy.dst_set = { (uint64_t)copy.dstSet };
+		new_copy.dst_binding = copy.dstBinding;
+		new_copy.dst_array_offset = copy.dstArrayElement;
+		new_copy.count = copy.descriptorCount;
+		// TODO: new_copy.type = reshade::api::descriptor_type::constant_buffer;
 	}
 
 	if (reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(device_impl, descriptorWriteCount, writes.data(), descriptorCopyCount, copies.data()))
@@ -1227,17 +1233,45 @@ VkResult VKAPI_CALL vkCreateFramebuffer(VkDevice device, const VkFramebufferCrea
 	assert(pCreateInfo != nullptr && pFramebuffer != nullptr);
 
 #if RESHADE_ADDON
+	const auto render_pass_info = device_impl->lookup_render_pass(pCreateInfo->renderPass);
+
+	// Keep track of the frame buffer attachments
+	reshade::vulkan::framebuffer_data data;
+	data.area.width = pCreateInfo->width;
+	data.area.height = pCreateInfo->height;
+	data.attachments.resize(pCreateInfo->attachmentCount);
+	data.attachment_types.resize(pCreateInfo->attachmentCount);
+	for (uint32_t i = 0; i < pCreateInfo->attachmentCount; ++i)
+	{
+		data.attachments[i] = pCreateInfo->pAttachments[i];
+		data.attachment_types[i] = render_pass_info.attachments[i].format_flags;
+	}
+
 	reshade::api::framebuffer_desc desc = {};
 	desc.render_pass_template = { (uint64_t)pCreateInfo->renderPass };
-
-	for (uint32_t i = 0; i < pCreateInfo->attachmentCount && i < 8; ++i)
+	for (uint32_t i = 0, k = 0; i < data.attachments.size(); ++i)
 	{
-		desc.render_targets[i] = { (uint64_t)pCreateInfo->pAttachments[i] };
+		if (data.attachment_types[i] & (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT))
+			desc.depth_stencil = { (uint64_t)data.attachments[i] };
+		else if (data.attachment_types[i] & (VK_IMAGE_ASPECT_COLOR_BIT) && k < 8)
+			desc.render_targets[k++] = { (uint64_t)data.attachments[i] };
 	}
+
+	VkFramebufferCreateInfo create_info;
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_framebuffer>(device_impl, desc))
 	{
-		// TODO
+		for (uint32_t i = 0, k = 0; i < data.attachments.size(); ++i)
+		{
+			if (data.attachment_types[i] & (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT))
+				data.attachments[i] = (VkImageView)desc.depth_stencil.handle;
+			else if (data.attachment_types[i] & (VK_IMAGE_ASPECT_COLOR_BIT) && k < 8)
+				data.attachments[i] = (VkImageView)desc.render_targets[k++].handle;
+		}
+
+		create_info = *pCreateInfo;
+		create_info.pAttachments = data.attachments.data();
+		pCreateInfo = &create_info;
 	}
 #endif
 
@@ -1245,20 +1279,6 @@ VkResult VKAPI_CALL vkCreateFramebuffer(VkDevice device, const VkFramebufferCrea
 	if (result >= VK_SUCCESS)
 	{
 #if RESHADE_ADDON
-		const auto render_pass_info = device_impl->lookup_render_pass(pCreateInfo->renderPass);
-
-		// Keep track of the frame buffer attachments
-		reshade::vulkan::framebuffer_data data;
-		data.area.width = pCreateInfo->width;
-		data.area.height = pCreateInfo->height;
-		data.attachments.resize(pCreateInfo->attachmentCount);
-		data.attachment_types.resize(pCreateInfo->attachmentCount);
-		for (uint32_t i = 0; i < pCreateInfo->attachmentCount; ++i)
-		{
-			data.attachments[i] = { (uint64_t)pCreateInfo->pAttachments[i] };
-			data.attachment_types[i] = render_pass_info.attachments[i].format_flags;
-		}
-
 		device_impl->register_framebuffer(*pFramebuffer, std::move(data));
 
 		reshade::invoke_addon_event<reshade::addon_event::init_framebuffer>(
@@ -1296,17 +1316,30 @@ VkResult VKAPI_CALL vkCreateRenderPass(VkDevice device, const VkRenderPassCreate
 	assert(pCreateInfo != nullptr && pRenderPass != nullptr);
 
 #if RESHADE_ADDON
-	reshade::api::render_pass_desc desc = {};
+	std::vector<VkAttachmentDescription> attachments;
 
+	reshade::api::render_pass_desc desc = {};
 	for (uint32_t i = 0; i < pCreateInfo->attachmentCount && i < 8; ++i)
 	{
 		desc.samples = static_cast<uint16_t>(pCreateInfo->pAttachments[i].samples);
 		desc.render_targets_format[i] = reshade::vulkan::convert_format(pCreateInfo->pAttachments[i].format);
 	}
 
+	VkRenderPassCreateInfo create_info;
+
 	if (reshade::invoke_addon_event<reshade::addon_event::create_render_pass>(device_impl, desc))
 	{
-		// TODO
+		attachments.resize(pCreateInfo->attachmentCount);
+		for (uint32_t i = 0; i < pCreateInfo->attachmentCount; ++i)
+		{
+			attachments[i] = pCreateInfo->pAttachments[i];
+			attachments[i].samples = static_cast<VkSampleCountFlagBits>(desc.samples);
+			attachments[i].format = reshade::vulkan::convert_format(desc.render_targets_format[i]);
+		}
+
+		create_info = *pCreateInfo;
+		create_info.pAttachments = attachments.data();
+		pCreateInfo = &create_info;
 	}
 #endif
 
@@ -1354,17 +1387,30 @@ VkResult VKAPI_CALL vkCreateRenderPass2(VkDevice device, const VkRenderPassCreat
 	assert(pCreateInfo != nullptr && pRenderPass != nullptr);
 
 #if RESHADE_ADDON
-	reshade::api::render_pass_desc desc = {};
+	std::vector<VkAttachmentDescription2> attachments;
 
+	reshade::api::render_pass_desc desc = {};
 	for (uint32_t i = 0; i < pCreateInfo->attachmentCount && i < 8; ++i)
 	{
 		desc.samples = static_cast<uint16_t>(pCreateInfo->pAttachments[i].samples);
 		desc.render_targets_format[i] = reshade::vulkan::convert_format(pCreateInfo->pAttachments[i].format);
 	}
 
+	VkRenderPassCreateInfo2 create_info;
+
 	if (reshade::invoke_addon_event<reshade::addon_event::create_render_pass>(device_impl, desc))
 	{
-		// TODO
+		attachments.resize(pCreateInfo->attachmentCount);
+		for (uint32_t i = 0; i < pCreateInfo->attachmentCount; ++i)
+		{
+			attachments[i] = pCreateInfo->pAttachments[i];
+			attachments[i].samples = static_cast<VkSampleCountFlagBits>(desc.samples);
+			attachments[i].format = reshade::vulkan::convert_format(desc.render_targets_format[i]);
+		}
+
+		create_info = *pCreateInfo;
+		create_info.pAttachments = attachments.data();
+		pCreateInfo = &create_info;
 	}
 #endif
 

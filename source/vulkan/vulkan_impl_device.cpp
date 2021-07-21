@@ -1001,7 +1001,7 @@ bool reshade::vulkan::device_impl::create_framebuffer(const api::framebuffer_des
 		height = std::min(rt_resource_info.image_create_info.extent.height, height);
 		num_layers = std::min(rt_resource_info.image_create_info.arrayLayers, num_layers);
 
-		fbo_data.attachments.push_back(desc.render_targets[i]);
+		fbo_data.attachments.push_back(rtv_info.image_view);
 		fbo_data.attachment_types.push_back(VK_IMAGE_ASPECT_COLOR_BIT);
 	}
 
@@ -1014,7 +1014,7 @@ bool reshade::vulkan::device_impl::create_framebuffer(const api::framebuffer_des
 		height = std::min(ds_resource_info.image_create_info.extent.height, height);
 		num_layers = std::min(ds_resource_info.image_create_info.arrayLayers, num_layers);
 
-		fbo_data.attachments.push_back(desc.depth_stencil);
+		fbo_data.attachments.push_back(dsv_info.image_view);
 		fbo_data.attachment_types.push_back(aspect_flags_from_format(ds_resource_info.image_create_info.format));
 	}
 
@@ -1209,7 +1209,7 @@ bool reshade::vulkan::device_impl::get_attachment(api::framebuffer fbo, api::att
 		{
 			if (index == 0)
 			{
-				*out = info.attachments[i];
+				*out = { (uint64_t)info.attachments[i] };
 				return true;
 			}
 			else
