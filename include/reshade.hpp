@@ -9,6 +9,8 @@
 #include "reshade_overlay.hpp"
 #include <Windows.h>
 
+#define RESHADE_API_VERSION 1
+
 extern HMODULE g_reshade_module_handle;
 
 // Use the kernel32 variant of module enumeration functions so it can be safely called from DllMain
@@ -31,13 +33,16 @@ namespace reshade
 
 			for (DWORD i = 0; i < num / sizeof(HMODULE); ++i)
 			{
-				if (GetProcAddress(modules[i], "ReShadeVersion") != nullptr)
+				const auto api_version = reinterpret_cast<const uint32_t *>(GetProcAddress(modules[i], "ReShadeAPI"));
+				if (api_version != nullptr)
 				{
 #ifdef IMGUI_VERSION
 					g_imgui_function_table = *reinterpret_cast<const imgui_function_table *(*)()>(GetProcAddress(modules[i], "ReShadeGetImGuiFunctionTable"))();
 #endif
 					g_reshade_module_handle = modules[i];
-					return true;
+
+					// Check that the ReShade module supports the requested API version
+					return *api_version <= RESHADE_API_VERSION;
 				}
 			}
 		}

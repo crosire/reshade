@@ -5,10 +5,14 @@
 
 #if RESHADE_ADDON
 
+#include "reshade.hpp"
 #include "dll_log.hpp"
 #include "ini_file.hpp"
 #include "addon_manager.hpp"
 #include <Windows.h>
+
+ // Export special symbol to identify modules as ReShade instances
+extern "C" __declspec(dllexport) const uint32_t ReShadeAPI = RESHADE_API_VERSION;
 
 bool g_addons_enabled = true;
 std::vector<void *> reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::max)];
@@ -60,12 +64,12 @@ void reshade::load_addons()
 		info.name = path.stem().u8string();
 		info.handle = handle;
 
-		if (const char *name = reinterpret_cast<const char *>(GetProcAddress(handle, "NAME"));
+		if (const char *const *name = reinterpret_cast<const char *const *>(GetProcAddress(handle, "NAME"));
 			name != nullptr)
-			info.name = name;
-		if (const char *description = reinterpret_cast<const char *>(GetProcAddress(handle, "DESCRIPTION"));
+			info.name = *name;
+		if (const char *const *description = reinterpret_cast<const char *const *>(GetProcAddress(handle, "DESCRIPTION"));
 			description != nullptr)
-			info.description = description;
+			info.description = *description;
 
 		LOG(INFO) << "> Loaded as \"" << info.name << "\".";
 
