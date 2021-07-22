@@ -1036,37 +1036,37 @@ auto   reshade::opengl::convert_logic_op(GLenum value) -> api::logic_op
 		assert(false);
 		[[fallthrough]];
 	case GL_CLEAR:
-		return reshade::api::logic_op::clear;
+		return api::logic_op::clear;
 	case GL_AND:
-		return reshade::api::logic_op::and;
+		return api::logic_op::bitwise_and;
 	case GL_AND_REVERSE:
-		return reshade::api::logic_op::and_reverse;
+		return api::logic_op::bitwise_and_reverse;
 	case GL_COPY:
-		return reshade::api::logic_op::copy;
+		return api::logic_op::copy;
 	case GL_AND_INVERTED:
-		return reshade::api::logic_op::and_inverted;
+		return api::logic_op::bitwise_and_inverted;
 	case GL_NOOP:
-		return reshade::api::logic_op::noop;
+		return api::logic_op::noop;
 	case GL_XOR:
-		return reshade::api::logic_op::xor;
+		return api::logic_op::bitwise_xor;
 	case GL_OR:
-		return reshade::api::logic_op::or;
+		return api::logic_op::bitwise_or;
 	case GL_NOR:
-		return reshade::api::logic_op::nor;
+		return api::logic_op::bitwise_nor;
 	case GL_EQUIV:
-		return reshade::api::logic_op::equivalent;
+		return api::logic_op::equivalent;
 	case GL_INVERT:
-		return reshade::api::logic_op::invert;
+		return api::logic_op::invert;
 	case GL_OR_REVERSE:
-		return reshade::api::logic_op::or_reverse;
+		return api::logic_op::bitwise_or_reverse;
 	case GL_COPY_INVERTED:
-		return reshade::api::logic_op::copy_inverted;
+		return api::logic_op::copy_inverted;
 	case GL_OR_INVERTED:
-		return reshade::api::logic_op::or_inverted;
+		return api::logic_op::bitwise_or_inverted;
 	case GL_NAND:
-		return reshade::api::logic_op::nand;
+		return api::logic_op::bitwise_nand;
 	case GL_SET:
-		return reshade::api::logic_op::set;
+		return api::logic_op::set;
 	}
 }
 GLenum reshade::opengl::convert_logic_op(api::logic_op value)
@@ -1076,37 +1076,37 @@ GLenum reshade::opengl::convert_logic_op(api::logic_op value)
 	default:
 		assert(false);
 		[[fallthrough]];
-	case reshade::api::logic_op::clear:
+	case api::logic_op::clear:
 		return GL_CLEAR;
-	case reshade::api::logic_op::and:
+	case api::logic_op::bitwise_and:
 		return GL_AND;
-	case reshade::api::logic_op::and_reverse:
+	case api::logic_op::bitwise_and_reverse:
 		return GL_AND_REVERSE;
-	case reshade::api::logic_op::copy:
+	case api::logic_op::copy:
 		return GL_COPY;
-	case reshade::api::logic_op::and_inverted:
+	case api::logic_op::bitwise_and_inverted:
 		return GL_AND_INVERTED;
-	case reshade::api::logic_op::noop:
+	case api::logic_op::noop:
 		return GL_NOOP;
-	case reshade::api::logic_op::xor:
+	case api::logic_op::bitwise_xor:
 		return GL_XOR;
-	case reshade::api::logic_op::or:
+	case api::logic_op::bitwise_or:
 		return GL_OR;
-	case reshade::api::logic_op::nor:
+	case api::logic_op::bitwise_nor:
 		return GL_NOR;
-	case reshade::api::logic_op::equivalent:
+	case api::logic_op::equivalent:
 		return GL_EQUIV;
-	case reshade::api::logic_op::invert:
+	case api::logic_op::invert:
 		return GL_INVERT;
-	case reshade::api::logic_op::or_reverse:
+	case api::logic_op::bitwise_or_reverse:
 		return GL_OR_REVERSE;
-	case reshade::api::logic_op::copy_inverted:
+	case api::logic_op::copy_inverted:
 		return GL_COPY_INVERTED;
-	case reshade::api::logic_op::or_inverted:
+	case api::logic_op::bitwise_or_inverted:
 		return GL_OR_INVERTED;
-	case reshade::api::logic_op::nand:
+	case api::logic_op::bitwise_nand:
 		return GL_NAND;
-	case reshade::api::logic_op::set:
+	case api::logic_op::set:
 		return GL_SET;
 	}
 }

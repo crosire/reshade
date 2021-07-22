@@ -224,21 +224,21 @@ namespace reshade { namespace api
 	enum class logic_op : uint32_t
 	{
 		clear = 0,
-		set = 15,
+		bitwise_and = 1,
+		bitwise_and_reverse = 2,
+		bitwise_and_inverted = 4,
 		copy = 3,
 		copy_inverted = 12,
 		noop = 5,
-		invert = 10,
-		and = 1,
-		nand = 14,
-		or = 7,
-		nor = 8,
-		xor = 6,
+		bitwise_or = 7,
+		bitwise_or_reverse = 11,
+		bitwise_or_inverted = 13,
+		bitwise_xor = 6,
+		bitwise_nor = 8,
 		equivalent = 9,
-		and_reverse = 2,
-		and_inverted = 4,
-		or_reverse = 11,
-		or_inverted = 13
+		invert = 10,
+		bitwise_nand = 14,
+		set = 15
 	};
 
 	/// <summary>

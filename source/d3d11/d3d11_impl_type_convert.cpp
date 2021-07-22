@@ -1203,33 +1203,33 @@ auto reshade::d3d11::convert_logic_op(api::logic_op value) -> D3D11_LOGIC_OP
 		[[fallthrough]];
 	case api::logic_op::clear:
 		return D3D11_LOGIC_OP_CLEAR;
-	case api::logic_op::and:
+	case api::logic_op::bitwise_and:
 		return D3D11_LOGIC_OP_AND;
-	case api::logic_op::and_reverse:
+	case api::logic_op::bitwise_and_reverse:
 		return D3D11_LOGIC_OP_AND_REVERSE;
 	case api::logic_op::copy:
 		return D3D11_LOGIC_OP_COPY;
-	case api::logic_op::and_inverted:
+	case api::logic_op::bitwise_and_inverted:
 		return D3D11_LOGIC_OP_AND_INVERTED;
 	case api::logic_op::noop:
 		return D3D11_LOGIC_OP_NOOP;
-	case api::logic_op::xor:
+	case api::logic_op::bitwise_xor:
 		return D3D11_LOGIC_OP_XOR;
-	case api::logic_op::or:
+	case api::logic_op::bitwise_or:
 		return D3D11_LOGIC_OP_OR;
-	case api::logic_op::nor:
+	case api::logic_op::bitwise_nor:
 		return D3D11_LOGIC_OP_NOR;
 	case api::logic_op::equivalent:
 		return D3D11_LOGIC_OP_EQUIV;
 	case api::logic_op::invert:
 		return D3D11_LOGIC_OP_INVERT;
-	case api::logic_op::or_reverse:
+	case api::logic_op::bitwise_or_reverse:
 		return D3D11_LOGIC_OP_OR_REVERSE;
 	case api::logic_op::copy_inverted:
 		return D3D11_LOGIC_OP_COPY_INVERTED;
-	case api::logic_op::or_inverted:
+	case api::logic_op::bitwise_or_inverted:
 		return D3D11_LOGIC_OP_OR_INVERTED;
-	case api::logic_op::nand:
+	case api::logic_op::bitwise_nand:
 		return D3D11_LOGIC_OP_NAND;
 	case api::logic_op::set:
 		return D3D11_LOGIC_OP_SET;
@@ -1245,33 +1245,33 @@ auto reshade::d3d11::convert_logic_op(D3D11_LOGIC_OP value) -> api::logic_op
 	case D3D11_LOGIC_OP_CLEAR:
 		return api::logic_op::clear;
 	case D3D11_LOGIC_OP_AND:
-		return api::logic_op::and;
+		return api::logic_op::bitwise_and;
 	case D3D11_LOGIC_OP_AND_REVERSE:
-		return api::logic_op::and_reverse;
+		return api::logic_op::bitwise_and_reverse;
 	case D3D11_LOGIC_OP_COPY:
 		return api::logic_op::copy;
 	case D3D11_LOGIC_OP_AND_INVERTED:
-		return api::logic_op::and_inverted;
+		return api::logic_op::bitwise_and_inverted;
 	case D3D11_LOGIC_OP_NOOP:
 		return api::logic_op::noop;
 	case D3D11_LOGIC_OP_XOR:
-		return api::logic_op::xor;
+		return api::logic_op::bitwise_xor;
 	case D3D11_LOGIC_OP_OR:
-		return api::logic_op::or;
+		return api::logic_op::bitwise_or;
 	case D3D11_LOGIC_OP_NOR:
-		return api::logic_op::nor;
+		return api::logic_op::bitwise_nor;
 	case D3D11_LOGIC_OP_EQUIV:
 		return api::logic_op::equivalent;
 	case D3D11_LOGIC_OP_INVERT:
 		return api::logic_op::invert;
 	case D3D11_LOGIC_OP_OR_REVERSE:
-		return api::logic_op::or_reverse;
+		return api::logic_op::bitwise_or_reverse;
 	case D3D11_LOGIC_OP_COPY_INVERTED:
 		return api::logic_op::copy_inverted;
 	case D3D11_LOGIC_OP_OR_INVERTED:
-		return api::logic_op::or_inverted;
+		return api::logic_op::bitwise_or_inverted;
 	case D3D11_LOGIC_OP_NAND:
-		return api::logic_op::nand;
+		return api::logic_op::bitwise_nand;
 	case D3D11_LOGIC_OP_SET:
 		return api::logic_op::set;
 	}
