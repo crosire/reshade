@@ -88,17 +88,18 @@ namespace reshade
 		create_sampler,
 		/// <summary>
 		/// Called on sampler destruction, before last 'ID3D10SamplerState::Release', 'ID3D11SamplerState::Release', 'glDeleteSamplers' or 'vkDestroySampler'.
+		/// Is not called in D3D12 (since samplers are descriptor handles there).
 		/// <para>Callback function signature: <c>void (api::device *device, api::sampler sampler)</c></para>
 		/// </summary>
 		destroy_sampler,
 
 		/// <summary>
-		/// Called after successfull resource creation from 'IDirect3Device9::Create(...)Buffer/Texture/Surface(Ex)', 'ID3D10Device::CreateBuffer/Texture(...)', 'ID3D11Device::CreateBuffer/Texture(...)', 'ID3D12Device::Create(...)Resource(...)', 'gl(Named)Buffer/Tex(ture)/RenderbufferStorage(...)(Multisample)' or 'vkCreateBuffer/Image'.
+		/// Called after successfull resource creation from 'IDirect3Device9::Create(...)Buffer/Texture/Surface(Ex)', 'ID3D10Device::CreateBuffer/Texture(...)', 'ID3D11Device::CreateBuffer/Texture(...)', 'ID3D12Device::Create(...)Resource(...)', 'gl(Named)Buffer/Renderbuffer/Tex(ture)Storage(...)(Multisample)' or 'vkCreateBuffer/Image'.
 		/// <para>Callback function signature: <c>void (api::device *device, const api::resource_desc &amp;desc, const api::subresource_data *initial_data, api::resource_usage initial_state, api::resource resource)</c></para>
 		/// </summary>
 		init_resource,
 		/// <summary>
-		/// Called before 'IDirect3Device9::Create(...)Buffer/Texture/Surface(Ex)', 'ID3D10Device::CreateBuffer/Texture(...)', 'ID3D11Device::CreateBuffer/Texture(...)', 'ID3D12Device::Create(...)Resource(...)', 'gl(Named)Buffer/Tex(ture)/RenderbufferStorage(...)(Multisample)' or 'vkCreateBuffer/Image'.
+		/// Called before 'IDirect3Device9::Create(...)Buffer/Texture/Surface(Ex)', 'ID3D10Device::CreateBuffer/Texture(...)', 'ID3D11Device::CreateBuffer/Texture(...)', 'ID3D12Device::Create(...)Resource(...)', 'gl(Named)Buffer/Renderbuffer/Tex(ture)Storage(...)(Multisample)' or 'vkCreateBuffer/Image'.
 		/// To overwrite the resource description, modify <c>desc</c> in the callback and return <c>true</c>, otherwise return <c>false</c>.
 		/// <para>Callback function signature: <c>bool (api::device *device, api::resource_desc &amp;desc, api::subresource_data *initial_data, api::resource_usage initial_state)</c></para>
 		/// </summary>
@@ -121,24 +122,25 @@ namespace reshade
 		/// </summary>
 		create_resource_view,
 		/// <summary>
-		/// Called on resource view destruction, before last 'IDirect3DSurface9::Release', 'ID3D10View::Release', 'ID3D11View::Release', 'glDeleteBuffers/Textures' or 'vkDestroyBuffer/ImageView'.
+		/// Called on resource view destruction, before last 'IDirect3DSurface9::Release', 'ID3D10View::Release', 'ID3D11View::Release' or 'vkDestroyBuffer/ImageView'.
+		/// Is not called in D3D12 (since resource views are descriptor handles there).
 		/// </summary>
 		/// <para>Callback function signature: <c>void (api::device *device, api::resource_view view)</c></para>
 		destroy_resource_view,
 
 		/// <summary>
-		/// Called after successfull pipeline creation from 'IDirect3DDevice9::Create(...)Shader', 'ID3D10Device::Create(...)(Shader/State)', 'ID3D11Device::Create(...)(Shader/State)', 'ID3D12Device::Create(...)PipelineState' or 'vkCreate(...)Pipelines'.
+		/// Called after successfull pipeline creation from 'IDirect3DDevice9::Create(...)Shader', 'ID3D10Device::Create(...)(Shader/State)', 'ID3D11Device::Create(...)(Shader/State)', 'ID3D12Device::Create(...)PipelineState', 'glLinkProgram' or 'vkCreate(...)Pipelines'.
 		/// <para>Callback function signature: <c>void (api::device *device, const api::pipeline_desc &amp;desc, api::pipeline pipeline)</c></para>
 		/// </summary>
 		init_pipeline,
 		/// <summary>
-		/// Called before 'IDirect3DDevice9::CreateVertexDeclaration', 'IDirect3DDevice9::Create(...)Shader', 'ID3D10Device::Create(...)(Shader/State)', 'ID3D11Device::Create(...)(Shader/State)', 'ID3D12Device::Create(...)PipelineState' or 'vkCreate(...)Pipelines'.
+		/// Called before 'IDirect3DDevice9::CreateVertexDeclaration', 'IDirect3DDevice9::Create(...)Shader', 'ID3D10Device::Create(...)(Shader/State)', 'ID3D11Device::Create(...)(Shader/State)', 'ID3D12Device::Create(...)PipelineState', 'glShaderSource' or 'vkCreate(...)Pipelines'.
 		/// To overwrite the pipeline description, modify <c>desc</c> in the callback and return <c>true</c>, otherwise return <c>false</c>.
 		/// <para>Callback function signature: <c>bool (api::device *device, api::pipeline_desc &amp;desc)</c></para>
 		/// </summary>
 		create_pipeline,
 		/// <summary>
-		/// Called on pipeline destruction, before last 'IUnknown::Release' or 'vkDestroyPipeline'.
+		/// Called on pipeline destruction, before last 'IUnknown::Release', 'glDeleteProgram' or 'vkDestroyPipeline'.
 		/// <para>Callback function signature: <c>bool (api::device *device, api::pipeline pipeline)</c></para>
 		/// </summary>
 		destroy_pipeline,
@@ -183,12 +185,12 @@ namespace reshade
 		destroy_render_pass,
 
 		/// <summary>
-		/// Called after successfull framebuffer object creation from 'vkCreateFramebuffer'.
+		/// Called after successfull framebuffer object creation from 'gl(Named)FramebufferRenderbuffer/Texture(...)' or 'vkCreateFramebuffer'.
 		/// <para>Callback function signature: <c>void (api::device *device, const api::framebuffer_desc &amp;desc, api::framebuffer fbo)</c></para>
 		/// </summary>
 		init_framebuffer,
 		/// <summary>
-		/// Called before 'vkCreateFramebuffer'.
+		/// Called before 'gl(Named)FramebufferRenderbuffer/Texture(...)' or 'vkCreateFramebuffer'.
 		/// To overwrite the framebuffer description, modify <c>desc</c> in the callback and return <c>true</c>, otherwise return <c>false</c>.
 		/// <para>Callback function signature: <c>bool (api::device *device, api::framebuffer_desc &amp;desc)</c></para>
 		/// </summary>
@@ -232,12 +234,12 @@ namespace reshade
 		barrier,
 
 		/// <summary>
-		/// Called after 'ID3D12GraphicsCommandList::BeginRenderPass', 'vkCmdBeginRenderPass' or 'glBindFramebuffer'.
+		/// Called after 'ID3D12GraphicsCommandList::BeginRenderPass', 'vkCmdBeginRenderPass' or when OpenGL FBO changed.
 		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::render_pass pass, api::framebuffer fbo)</c></para>
 		/// </summary>
 		begin_render_pass,
 		/// <summary>
-		/// Called after 'ID3D12GraphicsCommandList::EndRenderPass', 'vkCmdEndRenderPass' or before 'glBindFramebuffer'.
+		/// Called after 'ID3D12GraphicsCommandList::EndRenderPass', 'vkCmdEndRenderPass' or when OpenGL FBO changed.
 		/// <para>Callback function signature: <c>void (api::command_list *cmd_list)</c></para>
 		/// </summary>
 		finish_render_pass,
@@ -264,7 +266,7 @@ namespace reshade
 		/// </summary>
 		bind_viewports,
 		/// <summary>
-		/// Called after 'IDirect3DDevice9::SetScissorRect', 'ID3D10Device::RSSetScissorRects', 'ID3D11DeviceContext::RSSetScissorRects', 'ID3D12GraphicsCommandList::RSSetScissorRects', 'glScissor' or 'vkCmdSetScissor'.
+		/// Called after 'IDirect3DDevice9::SetScissorRect', 'ID3D10Device::RSSetScissorRects', 'ID3D11DeviceContext::RSSetScissorRects', 'ID3D12GraphicsCommandList::RSSetScissorRects', 'glScissor(...)' or 'vkCmdSetScissor'.
 		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, uint32_t first, uint32_t count, const int32_t *rects)</c></para>
 		/// <para>Rectangle data format is { rect[0].left, rect[0].top, rect[0].right, rect[0].bottom, rect[1].left, rect[1].right, ... }.</para>
 		/// </summary>

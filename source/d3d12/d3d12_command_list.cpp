@@ -344,7 +344,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetPipelineState(ID3D12Pipeline
 			type = reshade::api::pipeline_stage::all_graphics;
 	}
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(this, reshade::api::pipeline_stage::all_graphics, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pPipelineState) });
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(this, type, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pPipelineState) });
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ResourceBarrier(UINT NumBarriers, const D3D12_RESOURCE_BARRIER *pBarriers)

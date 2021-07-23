@@ -1022,6 +1022,12 @@ GLenum reshade::opengl::get_binding_for_target(GLenum target)
 		return GL_TEXTURE_BINDING_RECTANGLE;
 	case GL_RENDERBUFFER:
 		return GL_RENDERBUFFER_BINDING;
+	case GL_FRAMEBUFFER:
+		return GL_FRAMEBUFFER_BINDING;
+	case GL_READ_FRAMEBUFFER:
+		return GL_READ_FRAMEBUFFER_BINDING;
+	case GL_DRAW_FRAMEBUFFER:
+		return GL_DRAW_FRAMEBUFFER_BINDING;
 	default:
 		assert(false);
 		return GL_NONE;

@@ -145,6 +145,7 @@ namespace reshade::opengl
 	public:
 		bool _compatibility_context = false;
 		std::unordered_set<HDC> _hdcs;
+		GLuint _current_fbo = 0;
 		GLenum _current_prim_mode = GL_NONE;
 		GLenum _current_index_type = GL_UNSIGNED_INT;
 		GLuint _current_vertex_count = 0; // Used to calculate vertex count inside glBegin/glEnd pairs

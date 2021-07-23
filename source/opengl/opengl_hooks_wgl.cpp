@@ -984,14 +984,14 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		lpszProc = "glDeleteFramebuffers";
 	else if (0 == strcmp(lpszProc, "glCheckFramebufferStatusEXT"))
 		lpszProc = "glCheckFramebufferStatus";
+	else if (0 == strcmp(lpszProc, "glFramebufferRenderbufferEXT"))
+		lpszProc = "glFramebufferRenderbuffer";
 	else if (0 == strcmp(lpszProc, "glFramebufferTexture1DEXT"))
 		lpszProc = "glFramebufferTexture1D";
 	else if (0 == strcmp(lpszProc, "glFramebufferTexture2DEXT"))
 		lpszProc = "glFramebufferTexture2D";
 	else if (0 == strcmp(lpszProc, "glFramebufferTexture3DEXT"))
 		lpszProc = "glFramebufferTexture3D";
-	else if (0 == strcmp(lpszProc, "glFramebufferRenderbufferEXT"))
-		lpszProc = "glFramebufferRenderbuffer";
 	else if (0 == strcmp(lpszProc, "glGetFramebufferAttachmentParameterivEXT"))
 		lpszProc = "glGetFramebufferAttachmentParameteriv";
 	else if (0 == strcmp(lpszProc, "glGenerateMipmapEXT"))
@@ -1141,7 +1141,6 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glBindBufferRange);
 		HOOK_PROC(glBindBuffersBase);
 		HOOK_PROC(glBindBuffersRange);
-		HOOK_PROC(glBindFramebuffer);
 		HOOK_PROC(glBindImageTexture);
 		HOOK_PROC(glBindImageTextures);
 		HOOK_PROC(glBindSampler);
@@ -1167,8 +1166,8 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glCopyTextureSubImage3D);
 		HOOK_PROC(glDeleteBuffers);
 		HOOK_PROC(glDeleteFramebuffers);
+		HOOK_PROC(glDeleteProgram);
 		HOOK_PROC(glDeleteSamplers);
-		HOOK_PROC(glDeleteShader);
 		HOOK_PROC(glDispatchCompute);
 		HOOK_PROC(glDispatchComputeIndirect);
 		HOOK_PROC(glDrawArraysIndirect);
@@ -1182,8 +1181,14 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glDrawElementsInstancedBaseVertexBaseInstance);
 		HOOK_PROC(glDrawRangeElements);
 		HOOK_PROC(glDrawRangeElementsBaseVertex);
+		HOOK_PROC(glFramebufferRenderbuffer);
+		HOOK_PROC(glFramebufferTexture);
+		HOOK_PROC(glFramebufferTexture1D);
+		HOOK_PROC(glFramebufferTexture2D);
+		HOOK_PROC(glFramebufferTexture3D);
 		HOOK_PROC(glGenerateMipmap);
 		HOOK_PROC(glGenerateTextureMipmap);
+		HOOK_PROC(glLinkProgram);
 		HOOK_PROC(glMultiDrawArrays);
 		HOOK_PROC(glMultiDrawArraysIndirect);
 		HOOK_PROC(glMultiDrawElements);
@@ -1191,6 +1196,8 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glMultiDrawElementsIndirect);
 		HOOK_PROC(glNamedBufferData);
 		HOOK_PROC(glNamedBufferStorage);
+		HOOK_PROC(glNamedFramebufferRenderbuffer);
+		HOOK_PROC(glNamedFramebufferTexture);
 		HOOK_PROC(glNamedRenderbufferStorage);
 		HOOK_PROC(glNamedRenderbufferStorageMultisample);
 		HOOK_PROC(glRenderbufferStorage);

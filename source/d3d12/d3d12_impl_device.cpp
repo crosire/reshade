@@ -110,16 +110,17 @@ reshade::d3d12::device_impl::~device_impl()
 
 bool reshade::d3d12::device_impl::check_capability(api::device_caps capability) const
 {
-	D3D12_FEATURE_DATA_D3D12_OPTIONS options;
-
 	switch (capability)
 	{
 	case api::device_caps::compute_shader:
 	case api::device_caps::geometry_shader:
 	case api::device_caps::hull_and_domain_shader:
+		return true;
 	case api::device_caps::logic_op:
-		_orig->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &options, sizeof(options));
-		return options.OutputMergerLogicOp;
+		if (D3D12_FEATURE_DATA_D3D12_OPTIONS options;
+			SUCCEEDED(_orig->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &options, sizeof(options))))
+			return options.OutputMergerLogicOp;
+		return false;
 	case api::device_caps::dual_src_blend:
 	case api::device_caps::independent_blend:
 	case api::device_caps::fill_mode_non_solid:

@@ -23,7 +23,7 @@ namespace reshade { namespace api
 
 		all = 0x7FFFFFFF,
 		all_compute = compute,
-		all_graphics = 0x1F
+		all_graphics = vertex | hull | domain | geometry | pixel,
 	};
 	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(shader_stage);
 
@@ -191,6 +191,10 @@ namespace reshade { namespace api
 		/// Full graphics pipeline state.
 		/// </summary>
 		all_graphics = 0x00008000,
+		/// <summary>
+		/// Program pipeline state.
+		/// </summary>
+		all_shader_stages = vertex_shader | hull_shader | domain_shader | geometry_shader | pixel_shader | compute_shader,
 	};
 	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(pipeline_stage);
 
