@@ -145,7 +145,7 @@ void reshade::d3d9::device_impl::push_descriptors(api::shader_stage stages, api:
 
 				if (descriptor.handle != 0)
 					for (D3DSAMPLERSTATETYPE state = D3DSAMP_ADDRESSU; state <= D3DSAMP_MAXANISOTROPY; state = static_cast<D3DSAMPLERSTATETYPE>(state + 1))
-						_orig->SetSamplerState(i + first, state, reinterpret_cast<const DWORD *>(descriptor.handle)[state - 1]);
+						_orig->SetSamplerState(i + first, state, reinterpret_cast<const DWORD *>(descriptor.handle)[state]);
 			}
 			break;
 		case api::descriptor_type::sampler_with_resource_view:
@@ -157,7 +157,7 @@ void reshade::d3d9::device_impl::push_descriptors(api::shader_stage stages, api:
 
 				if (descriptor.sampler.handle != 0)
 					for (D3DSAMPLERSTATETYPE state = D3DSAMP_ADDRESSU; state <= D3DSAMP_MAXANISOTROPY; state = static_cast<D3DSAMPLERSTATETYPE>(state + 1))
-						_orig->SetSamplerState(i + first, state, reinterpret_cast<const DWORD *>(descriptor.sampler.handle)[state - 1]);
+						_orig->SetSamplerState(i + first, state, reinterpret_cast<const DWORD *>(descriptor.sampler.handle)[state]);
 			}
 			break;
 		case api::descriptor_type::shader_resource_view:

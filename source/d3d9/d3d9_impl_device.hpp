@@ -56,6 +56,7 @@ namespace reshade::d3d9
 
 		bool get_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index, api::resource_view *out) const final;
 		void get_resource_from_view(api::resource_view view, api::resource *out) const final;
+		void get_resource_from_view(api::resource_view view, api::resource *out, uint32_t *subresource) const;
 		api::resource_desc get_resource_desc(api::resource resource) const final;
 
 		bool map_resource(api::resource resource, uint32_t subresource, api::map_access access, void **data, uint32_t *row_pitch, uint32_t *slice_pitch) final;
@@ -137,12 +138,15 @@ namespace reshade::d3d9
 		com_ptr<IDirect3DStateBlock9> _copy_state;
 		com_ptr<IDirect3DVertexBuffer9> _default_input_stream;
 		com_ptr<IDirect3DVertexDeclaration9> _default_input_layout;
+		std::unordered_map<size_t, api::sampler> _cached_sampler_states;
 
 	protected:
 		void on_reset();
 		void on_after_reset(const D3DPRESENT_PARAMETERS &pp);
 
 		bool create_surface_replacement(const D3DSURFACE_DESC &new_desc, IDirect3DSurface9 **out_surface, HANDLE *out_shared_handle = nullptr);
+
+		api::sampler get_current_sampler_state(DWORD slot);
 
 		D3DPRIMITIVETYPE _current_prim_type = static_cast<D3DPRIMITIVETYPE>(0);
 	};

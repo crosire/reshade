@@ -70,6 +70,12 @@ void reshade::d3d9::device_impl::on_reset()
 	_backup_state.release_state_block();
 
 #if RESHADE_ADDON
+	for (const auto [hash, handle] : _cached_sampler_states)
+	{
+		invoke_addon_event<addon_event::destroy_sampler>(this, handle);
+		destroy_sampler(handle);
+	}
+
 	invoke_addon_event<addon_event::destroy_pipeline_layout>(this, api::pipeline_layout { 0x1 });
 
 	// Force add-ons to release all resources associated with this device before performing reset
@@ -299,6 +305,45 @@ bool reshade::d3d9::device_impl::create_surface_replacement(const D3DSURFACE_DES
 	return false;
 }
 
+reshade::api::sampler reshade::d3d9::device_impl::get_current_sampler_state(DWORD slot)
+{
+	// Get current sampler state
+	DWORD state_data[12];
+	for (D3DSAMPLERSTATETYPE state = D3DSAMP_ADDRESSU; state <= D3DSAMP_SRGBTEXTURE; state = static_cast<D3DSAMPLERSTATETYPE>(state + 1))
+		_orig->GetSamplerState(slot, state, &state_data[state]);
+
+	// Generate hash for sampler state description
+	size_t state_hash = 2166136261;
+	for (int i = 0; i < 12; ++i)
+		state_hash = (state_hash * 16777619) ^ state_data[i];
+
+	// Find or create a sampler handle for this sampler state
+	if (const auto it = _cached_sampler_states.find(state_hash); it != _cached_sampler_states.end())
+		return it->second;
+
+	api::sampler_desc desc = {};
+	desc.filter = state_data[D3DSAMP_MINFILTER] == D3DTEXF_ANISOTROPIC || state_data[D3DSAMP_MAGFILTER] == D3DTEXF_ANISOTROPIC ?
+		api::filter_type::anisotropic : static_cast<api::filter_type>(
+			((state_data[D3DSAMP_MINFILTER] >= D3DTEXF_LINEAR ? 1 : 0) << 4) |
+			((state_data[D3DSAMP_MAGFILTER] >= D3DTEXF_LINEAR ? 1 : 0) << 2) |
+			((state_data[D3DSAMP_MIPFILTER] >= D3DTEXF_LINEAR ? 1 : 0)));
+	desc.address_u = static_cast<api::texture_address_mode>(state_data[D3DSAMP_ADDRESSU]);
+	desc.address_v = static_cast<api::texture_address_mode>(state_data[D3DSAMP_ADDRESSV]);
+	desc.address_w = static_cast<api::texture_address_mode>(state_data[D3DSAMP_ADDRESSW]);
+	desc.mip_lod_bias = *reinterpret_cast<const float *>(&state_data[D3DSAMP_MIPMAPLODBIAS]);
+	desc.min_lod = static_cast<float>(state_data[D3DSAMP_MAXMIPLEVEL]);
+	desc.max_lod = std::numeric_limits<float>::max();
+	desc.max_anisotropy = static_cast<float>(state_data[D3DSAMP_MAXANISOTROPY]);
+
+	api::sampler handle = { 0 };
+	create_sampler(desc, &handle);
+	_cached_sampler_states.emplace(state_hash, handle);
+
+	invoke_addon_event<addon_event::init_sampler>(this, desc, handle);
+
+	return handle;
+}
+
 bool reshade::d3d9::device_impl::check_capability(api::device_caps capability) const
 {
 	switch (capability)
@@ -357,19 +402,25 @@ bool reshade::d3d9::device_impl::create_sampler(const api::sampler_desc &desc, a
 		return false;
 	}
 
-	const auto data = new DWORD[10];
-	data[D3DSAMP_ADDRESSU - 1] = static_cast<DWORD>(desc.address_u);
-	data[D3DSAMP_ADDRESSV - 1] = static_cast<DWORD>(desc.address_v);
-	data[D3DSAMP_ADDRESSW - 1] = static_cast<DWORD>(desc.address_w);
-	data[D3DSAMP_BORDERCOLOR - 1] = 0;
-	data[D3DSAMP_MAGFILTER - 1] = 1 + ((static_cast<DWORD>(desc.filter) & 0x0C) >> 2);
-	data[D3DSAMP_MINFILTER - 1] = 1 + ((static_cast<DWORD>(desc.filter) & 0x30) >> 4);
-	data[D3DSAMP_MIPFILTER - 1] = 1 + ((static_cast<DWORD>(desc.filter) & 0x03));
-	data[D3DSAMP_MIPMAPLODBIAS - 1] = *reinterpret_cast<const DWORD *>(&desc.mip_lod_bias);
-	data[D3DSAMP_MAXMIPLEVEL - 1] = desc.min_lod > 0 ? static_cast<DWORD>(desc.min_lod) : 0;
-	data[D3DSAMP_MAXANISOTROPY - 1] = static_cast<DWORD>(desc.max_anisotropy);
+	const auto state_data = new DWORD[12];
+	state_data[D3DSAMP_ADDRESSU] = static_cast<DWORD>(desc.address_u);
+	state_data[D3DSAMP_ADDRESSV] = static_cast<DWORD>(desc.address_v);
+	state_data[D3DSAMP_ADDRESSW] = static_cast<DWORD>(desc.address_w);
+	state_data[D3DSAMP_BORDERCOLOR] = 0;
+	state_data[D3DSAMP_MAGFILTER] = ((static_cast<DWORD>(desc.filter) & 0x0C) >> 2) + 1;
+	state_data[D3DSAMP_MINFILTER] = ((static_cast<DWORD>(desc.filter) & 0x30) >> 4) + 1;
+	state_data[D3DSAMP_MIPFILTER] = ((static_cast<DWORD>(desc.filter) & 0x03)     ) + 1;
+	state_data[D3DSAMP_MIPMAPLODBIAS] = *reinterpret_cast<const DWORD *>(&desc.mip_lod_bias);
+	state_data[D3DSAMP_MAXMIPLEVEL] = desc.min_lod > 0 ? static_cast<DWORD>(desc.min_lod) : 0;
+	state_data[D3DSAMP_MAXANISOTROPY] = static_cast<DWORD>(desc.max_anisotropy);
 
-	*out = { reinterpret_cast<uintptr_t>(data) };
+	if (desc.filter == api::filter_type::anisotropic)
+	{
+		state_data[D3DSAMP_MINFILTER] = D3DTEXF_ANISOTROPIC;
+		state_data[D3DSAMP_MAGFILTER] = D3DTEXF_ANISOTROPIC;
+	}
+
+	*out = { reinterpret_cast<uintptr_t>(state_data) };
 	return true;
 }
 void reshade::d3d9::device_impl::destroy_sampler(api::sampler handle)
@@ -1059,87 +1110,86 @@ bool reshade::d3d9::device_impl::map_resource(api::resource resource, uint32_t s
 		break;
 	}
 
+	assert(data != nullptr);
+	*data = nullptr;
+	if (row_pitch != nullptr)
+		*row_pitch = 0;
+	if (slice_pitch != nullptr)
+		*slice_pitch = 0;
+
 	assert(resource.handle != 0);
 	auto object = reinterpret_cast<IDirect3DResource9 *>(resource.handle);
 
 	switch (object->GetType())
 	{
-	case D3DRTYPE_SURFACE:
-		assert(subresource == 0);
-		if (D3DLOCKED_RECT locked_rect;
-			SUCCEEDED(static_cast<IDirect3DSurface9 *>(object)->LockRect(&locked_rect, nullptr, flags)))
+		case D3DRTYPE_SURFACE:
 		{
-			*data = locked_rect.pBits;
-			if (row_pitch != nullptr)
-				*row_pitch = locked_rect.Pitch;
-			if (slice_pitch != nullptr)
-				*slice_pitch = 0;
-			return true;
+			assert(subresource == 0);
+
+			if (D3DLOCKED_RECT locked_rect;
+				SUCCEEDED(static_cast<IDirect3DSurface9 *>(object)->LockRect(&locked_rect, nullptr, flags)))
+			{
+				*data = locked_rect.pBits;
+				if (row_pitch != nullptr)
+					*row_pitch = locked_rect.Pitch;
+				return true;
+			}
+			break;
 		}
-		break;
-	case D3DRTYPE_TEXTURE:
-		if (D3DLOCKED_RECT locked_rect;
-			SUCCEEDED(static_cast<IDirect3DTexture9 *>(object)->LockRect(subresource, &locked_rect, nullptr, flags)))
+		case D3DRTYPE_TEXTURE:
 		{
-			*data = locked_rect.pBits;
-			if (row_pitch != nullptr)
-				*row_pitch = locked_rect.Pitch;
-			if (slice_pitch != nullptr)
-				*slice_pitch = 0;
-			return true;
+			if (D3DLOCKED_RECT locked_rect;
+				SUCCEEDED(static_cast<IDirect3DTexture9 *>(object)->LockRect(subresource, &locked_rect, nullptr, flags)))
+			{
+				*data = locked_rect.pBits;
+				if (row_pitch != nullptr)
+					*row_pitch = locked_rect.Pitch;
+				return true;
+			}
+			break;
 		}
-		break;
-	case D3DRTYPE_VOLUMETEXTURE:
-		if (D3DLOCKED_BOX locked_box;
-			SUCCEEDED(static_cast<IDirect3DVolumeTexture9 *>(object)->LockBox(subresource, &locked_box, nullptr, flags)))
+		case D3DRTYPE_VOLUMETEXTURE:
 		{
-			*data = locked_box.pBits;
-			if (row_pitch != nullptr)
-				*row_pitch = locked_box.RowPitch;
-			if (slice_pitch != nullptr)
-				*slice_pitch = locked_box.SlicePitch;
-			return true;
+			if (D3DLOCKED_BOX locked_box;
+				SUCCEEDED(static_cast<IDirect3DVolumeTexture9 *>(object)->LockBox(subresource, &locked_box, nullptr, flags)))
+			{
+				*data = locked_box.pBits;
+				if (row_pitch != nullptr)
+					*row_pitch = locked_box.RowPitch;
+				if (slice_pitch != nullptr)
+					*slice_pitch = locked_box.SlicePitch;
+				return true;
+			}
+			break;
 		}
-		break;
-	case D3DRTYPE_CUBETEXTURE: {
-		const UINT levels = static_cast<IDirect3DCubeTexture9 *>(object)->GetLevelCount();
-		if (D3DLOCKED_RECT locked_rect;
-			SUCCEEDED(static_cast<IDirect3DCubeTexture9 *>(object)->LockRect(static_cast<D3DCUBEMAP_FACES>(subresource / levels), subresource % levels, &locked_rect, nullptr, flags)))
+		case D3DRTYPE_CUBETEXTURE:
 		{
-			*data = locked_rect.pBits;
-			if (row_pitch != nullptr)
-				*row_pitch = locked_rect.Pitch;
-			if (slice_pitch != nullptr)
-				*slice_pitch = 0;
-			return true;
+			const UINT levels = static_cast<IDirect3DCubeTexture9 *>(object)->GetLevelCount();
+
+			if (D3DLOCKED_RECT locked_rect;
+				SUCCEEDED(static_cast<IDirect3DCubeTexture9 *>(object)->LockRect(static_cast<D3DCUBEMAP_FACES>(subresource / levels), subresource % levels, &locked_rect, nullptr, flags)))
+			{
+				*data = locked_rect.pBits;
+				if (row_pitch != nullptr)
+					*row_pitch = locked_rect.Pitch;
+				return true;
+			}
+			break;
 		}
-		break;
-	}
-	case D3DRTYPE_VERTEXBUFFER:
-		assert(subresource == 0);
-		if (SUCCEEDED(static_cast<IDirect3DVertexBuffer9 *>(object)->Lock(0, 0, data, flags)))
+		case D3DRTYPE_VERTEXBUFFER:
 		{
-			if (row_pitch != nullptr)
-				*row_pitch = 0;
-			if (slice_pitch != nullptr)
-				*slice_pitch = 0;
-			return true;
+			assert(subresource == 0);
+
+			return SUCCEEDED(static_cast<IDirect3DVertexBuffer9 *>(object)->Lock(0, 0, data, flags));
 		}
-		break;
-	case D3DRTYPE_INDEXBUFFER:
-		assert(subresource == 0);
-		if (SUCCEEDED(static_cast<IDirect3DIndexBuffer9 *>(object)->Lock(0, 0, data, flags)))
+		case D3DRTYPE_INDEXBUFFER:
 		{
-			if (row_pitch != nullptr)
-				*row_pitch = 0;
-			if (slice_pitch != nullptr)
-				*slice_pitch = 0;
-			return true;
+			assert(subresource == 0);
+
+			return SUCCEEDED(static_cast<IDirect3DIndexBuffer9 *>(object)->Lock(0, 0, data, flags));
 		}
-		break;
 	}
 
-	*data = nullptr;
 	return false;
 }
 void reshade::d3d9::device_impl::unmap_resource(api::resource resource, uint32_t subresource)
@@ -1149,30 +1199,44 @@ void reshade::d3d9::device_impl::unmap_resource(api::resource resource, uint32_t
 
 	switch (object->GetType())
 	{
-	case D3DRTYPE_SURFACE:
-		assert(subresource == 0);
-		static_cast<IDirect3DSurface9 *>(object)->UnlockRect();
-		return;
-	case D3DRTYPE_TEXTURE:
-		static_cast<IDirect3DTexture9 *>(object)->UnlockRect(subresource);
-		return;
-	case D3DRTYPE_VOLUMETEXTURE:
-		static_cast<IDirect3DVolumeTexture9 *>(object)->UnlockBox(subresource);
-		return;
-	case D3DRTYPE_CUBETEXTURE: {
-		const UINT levels = static_cast<IDirect3DCubeTexture9 *>(object)->GetLevelCount();
+		case D3DRTYPE_SURFACE:
+		{
+			assert(subresource == 0);
 
-		static_cast<IDirect3DCubeTexture9 *>(object)->UnlockRect(static_cast<D3DCUBEMAP_FACES>(subresource / levels), subresource % levels);
-		return;
-	}
-	case D3DRTYPE_VERTEXBUFFER:
-		assert(subresource == 0);
-		static_cast<IDirect3DVertexBuffer9 *>(object)->Unlock();
-		return;
-	case D3DRTYPE_INDEXBUFFER:
-		assert(subresource == 0);
-		static_cast<IDirect3DIndexBuffer9 *>(object)->Unlock();
-		return;
+			static_cast<IDirect3DSurface9 *>(object)->UnlockRect();
+			break;
+		}
+		case D3DRTYPE_TEXTURE:
+		{
+			static_cast<IDirect3DTexture9 *>(object)->UnlockRect(subresource);
+			break;
+		}
+		case D3DRTYPE_VOLUMETEXTURE:
+		{
+			static_cast<IDirect3DVolumeTexture9 *>(object)->UnlockBox(subresource);
+			break;
+		}
+		case D3DRTYPE_CUBETEXTURE:
+		{
+			const UINT levels = static_cast<IDirect3DCubeTexture9 *>(object)->GetLevelCount();
+
+			static_cast<IDirect3DCubeTexture9 *>(object)->UnlockRect(static_cast<D3DCUBEMAP_FACES>(subresource / levels), subresource % levels);
+			break;
+		}
+		case D3DRTYPE_VERTEXBUFFER:
+		{
+			assert(subresource == 0);
+
+			static_cast<IDirect3DVertexBuffer9 *>(object)->Unlock();
+			break;
+		}
+		case D3DRTYPE_INDEXBUFFER:
+		{
+			assert(subresource == 0);
+
+			static_cast<IDirect3DIndexBuffer9 *>(object)->Unlock();
+			break;
+		}
 	}
 }
 
@@ -1180,27 +1244,30 @@ void reshade::d3d9::device_impl::upload_buffer_region(const void *data, api::res
 {
 	assert(dst.handle != 0);
 	assert(dst_offset <= std::numeric_limits<UINT>::max() && size <= std::numeric_limits<UINT>::max());
-
 	auto object = reinterpret_cast<IDirect3DResource9 *>(dst.handle);
 
 	switch (object->GetType())
 	{
-	case D3DRTYPE_VERTEXBUFFER:
-		if (void *mapped_ptr = nullptr;
-			SUCCEEDED(static_cast<IDirect3DVertexBuffer9 *>(object)->Lock(static_cast<UINT>(dst_offset), static_cast<UINT>(size), &mapped_ptr, 0)))
+		case D3DRTYPE_VERTEXBUFFER:
 		{
-			std::memcpy(mapped_ptr, data, static_cast<size_t>(size));
-			static_cast<IDirect3DVertexBuffer9 *>(object)->Unlock();
+			if (void *mapped_ptr = nullptr;
+				SUCCEEDED(static_cast<IDirect3DVertexBuffer9 *>(object)->Lock(static_cast<UINT>(dst_offset), static_cast<UINT>(size), &mapped_ptr, 0)))
+			{
+				std::memcpy(mapped_ptr, data, static_cast<size_t>(size));
+				static_cast<IDirect3DVertexBuffer9 *>(object)->Unlock();
+			}
+			return;
 		}
-		return;
-	case D3DRTYPE_INDEXBUFFER:
-		if (void *mapped_ptr = nullptr;
-			SUCCEEDED(static_cast<IDirect3DIndexBuffer9 *>(object)->Lock(static_cast<UINT>(dst_offset), static_cast<UINT>(size), &mapped_ptr, 0)))
+		case D3DRTYPE_INDEXBUFFER:
 		{
-			std::memcpy(mapped_ptr, data, static_cast<size_t>(size));
-			static_cast<IDirect3DIndexBuffer9 *>(object)->Unlock();
+			if (void *mapped_ptr = nullptr;
+				SUCCEEDED(static_cast<IDirect3DIndexBuffer9 *>(object)->Lock(static_cast<UINT>(dst_offset), static_cast<UINT>(size), &mapped_ptr, 0)))
+			{
+				std::memcpy(mapped_ptr, data, static_cast<size_t>(size));
+				static_cast<IDirect3DIndexBuffer9 *>(object)->Unlock();
+			}
+			return;
 		}
-		return;
 	}
 
 	assert(false); // Not implemented
@@ -1208,7 +1275,6 @@ void reshade::d3d9::device_impl::upload_buffer_region(const void *data, api::res
 void reshade::d3d9::device_impl::upload_texture_region(const api::subresource_data &data, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6])
 {
 	assert(dst.handle != 0);
-
 	auto object = reinterpret_cast<IDirect3DResource9 *>(dst.handle);
 
 	switch (object->GetType())
@@ -1315,23 +1381,23 @@ void reshade::d3d9::device_impl::upload_texture_region(const api::subresource_da
 bool reshade::d3d9::device_impl::get_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index, api::resource_view *out) const
 {
 	assert(fbo.handle != 0);
-	const auto pass_impl = reinterpret_cast<const framebuffer_impl *>(fbo.handle);
+	const auto fbo_impl = reinterpret_cast<const framebuffer_impl *>(fbo.handle);
 
 	if (type == api::attachment_type::color)
 	{
-		if (index < _caps.NumSimultaneousRTs && pass_impl->rtv[index] != nullptr)
+		if (index < _caps.NumSimultaneousRTs && fbo_impl->rtv[index] != nullptr)
 		{
-			const uint64_t set_srgb_bit = pass_impl->srgb_write_enable;
+			const uint64_t set_srgb_bit = fbo_impl->srgb_write_enable;
 
-			*out = { reinterpret_cast<uintptr_t>(pass_impl->rtv[index]) | set_srgb_bit };
+			*out = { reinterpret_cast<uintptr_t>(fbo_impl->rtv[index]) | set_srgb_bit };
 			return true;
 		}
 	}
 	else
 	{
-		if (pass_impl->dsv != nullptr)
+		if (fbo_impl->dsv != nullptr)
 		{
-			*out = { reinterpret_cast<uintptr_t>(pass_impl->dsv) };
+			*out = { reinterpret_cast<uintptr_t>(fbo_impl->dsv) };
 			return true;
 		}
 	}
@@ -1357,6 +1423,54 @@ void reshade::d3d9::device_impl::get_resource_from_view(api::resource_view view,
 
 	// If unable to get container, just return the resource directly
 	*out = { reinterpret_cast<uintptr_t>(object) };
+}
+void reshade::d3d9::device_impl::get_resource_from_view(api::resource_view view, api::resource *out, uint32_t *subresource) const
+{
+	get_resource_from_view(view, out);
+
+	auto object = reinterpret_cast<IDirect3DResource9 *>(out->handle);
+	auto view_object = reinterpret_cast<IDirect3DSurface9 *>(view.handle & ~1ull);
+
+	switch (object->GetType())
+	{
+		case D3DRTYPE_TEXTURE:
+		{
+			const auto texture = static_cast<IDirect3DTexture9 *>(object);
+
+			for (UINT level = 0, levels = texture->GetLevelCount(); level < levels; ++level)
+			{
+				com_ptr<IDirect3DSurface9> surface;
+				if (SUCCEEDED(texture->GetSurfaceLevel(level, &surface)) &&
+					surface == view_object)
+				{
+					*subresource = level;
+					return;
+				}
+			}
+			break;
+		}
+		case D3DRTYPE_CUBETEXTURE:
+		{
+			const auto texture = static_cast<IDirect3DCubeTexture9 *>(object);
+
+			for (UINT level = 0, levels = texture->GetLevelCount(); level < levels; ++level)
+			{
+				for (D3DCUBEMAP_FACES face = D3DCUBEMAP_FACE_POSITIVE_X; face <= D3DCUBEMAP_FACE_NEGATIVE_Z; face = static_cast<D3DCUBEMAP_FACES>(face + 1))
+				{
+					com_ptr<IDirect3DSurface9> surface;
+					if (SUCCEEDED(texture->GetCubeMapSurface(face, level, &surface)) &&
+						surface == view_object)
+					{
+						*subresource = level;
+						return;
+					}
+				}
+			}
+			break;
+		}
+	}
+
+	*subresource = 0;
 }
 reshade::api::resource_desc reshade::d3d9::device_impl::get_resource_desc(api::resource resource) const
 {
@@ -1433,6 +1547,7 @@ bool reshade::d3d9::device_impl::get_query_pool_results(api::query_pool pool, ui
 
 bool reshade::d3d9::device_impl::allocate_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, api::descriptor_set *out)
 {
+	assert(layout.handle != 0);
 	const auto layout_impl = reinterpret_cast<descriptor_set_layout_impl *>(layout.handle);
 
 	for (UINT i = 0; i < count; ++i)

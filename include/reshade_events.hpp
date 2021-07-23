@@ -87,8 +87,7 @@ namespace reshade
 		/// </summary>
 		create_sampler,
 		/// <summary>
-		/// Called on sampler destruction, before last 'ID3D10SamplerState::Release', 'ID3D11SamplerState::Release', 'glDeleteSamplers' or 'vkDestroySampler'.
-		/// Is not called in D3D12 (since samplers are descriptor handles there).
+		/// Called on sampler destruction, before last 'ID3D10SamplerState::Release', 'ID3D11SamplerState::Release', 'glDeleteSamplers' or 'vkDestroySampler'. Is not called in D3D12.
 		/// <para>Callback function signature: <c>void (api::device *device, api::sampler sampler)</c></para>
 		/// </summary>
 		destroy_sampler,
@@ -116,14 +115,13 @@ namespace reshade
 		/// </summary>
 		init_resource_view,
 		/// <summary>
-		/// Called before 'IDirect3DDevice9::Create(...)Surface(Ex)', 'ID3D10Device::Create(...)View(1)', 'ID3D11Device::Create(...)View(1)', 'ID3D12Device::Create(...)View', 'glTex(ture)Buffer', 'glTextureView(...)' or 'vkCreateBuffer/ImageView'.
+		/// Called before 'IDirect3DDevice9::Create(...)Surface(Ex)', 'ID3D10Device::Create(...)View(1)', 'ID3D11Device::Create(...)View(1)', 'ID3D12Device::Create(...)View', 'glTex(ture)Buffer', 'glTextureView(...)' or 'vkCreateBuffer/ImageView'. Is not called in D3D9 for shader resource views.
 		/// To overwrite the resource view description, modify <c>desc</c> in the callback and return <c>true</c>, otherwise return <c>false</c>.
 		/// <para>Callback function signature: <c>bool (api::device *device, api::resource resource, api::resource_usage usage_type, api::resource_view_desc &amp;desc)</c></para>
 		/// </summary>
 		create_resource_view,
 		/// <summary>
-		/// Called on resource view destruction, before last 'IDirect3DSurface9::Release', 'ID3D10View::Release', 'ID3D11View::Release' or 'vkDestroyBuffer/ImageView'.
-		/// Is not called in D3D12 (since resource views are descriptor handles there).
+		/// Called on resource view destruction, before last 'IDirect3DSurface9::Release', 'ID3D10View::Release', 'ID3D11View::Release' or 'vkDestroyBuffer/ImageView'. Is not called in D3D12.
 		/// </summary>
 		/// <para>Callback function signature: <c>void (api::device *device, api::resource_view view)</c></para>
 		destroy_resource_view,
@@ -140,7 +138,7 @@ namespace reshade
 		/// </summary>
 		create_pipeline,
 		/// <summary>
-		/// Called on pipeline destruction, before last 'IUnknown::Release', 'glDeleteProgram' or 'vkDestroyPipeline'.
+		/// Called on pipeline destruction, before last 'IUnknown::Release', 'glDeleteProgram' or 'vkDestroyPipeline'. Is not called in D3D9.
 		/// <para>Callback function signature: <c>bool (api::device *device, api::pipeline pipeline)</c></para>
 		/// </summary>
 		destroy_pipeline,
