@@ -172,7 +172,7 @@ namespace reshade { namespace api
 		/// Gets a custom data pointer from the object that was previously set via <see cref="set_user_data"/>.
 		/// This function is not thread-safe!
 		/// </summary>
-		/// <returns><c>true</c> if a pointer was previously set with this <paramref name="guid"/>, <c>false</c> otherwise.</returns>
+		/// <returns><see langword="true"/> if a pointer was previously set with this <paramref name="guid"/>, <see langword="false"/> otherwise.</returns>
 		virtual bool get_user_data(const uint8_t guid[16], void **ptr) const = 0;
 		/// <summary>
 		/// Sets a custom data pointer associated with the specified <paramref name="guid"/> to the object.
@@ -237,7 +237,7 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <param name="desc">The description of the sampler to create.</param>
 		/// <param name="out">Pointer to a variable that is set to the handle of the created sampler.</param>
-		/// <returns><c>true</c> if the sampler was successfully created, <c>false</c> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
+		/// <returns><see langword="true"/> if the sampler was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
 		virtual bool create_sampler(const sampler_desc &desc, sampler *out) = 0;
 		/// <summary>
 		/// Instantly destroys a sampler that was previously created via <see cref="create_sampler"/>.
@@ -251,7 +251,7 @@ namespace reshade { namespace api
 		/// <param name="initial_data">Optional data to upload to the resource after creation. This should point to an array of <see cref="mapped_subresource"/>, one for each subresource (mipmap levels and array layers). Can be <c>nullptr</c> to indicate no initial data to upload.</param>
 		/// <param name="initial_state">Initial state of the resource after creation. This can later be changed via <see cref="command_list::barrier"/>.</param>
 		/// <param name="out">Pointer to a variable that is set to the handle of the created resource.</param>
-		/// <returns><c>true</c> if the resource was successfully created, <c>false</c> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
+		/// <returns><see langword="true"/> if the resource was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
 		virtual bool create_resource(const resource_desc &desc, const subresource_data *initial_data, resource_usage initial_state, resource *out) = 0;
 		/// <summary>
 		/// Instantly destroys a resource that was previously created via <see cref="create_resource"/> and frees its memory.
@@ -266,7 +266,7 @@ namespace reshade { namespace api
 		/// <param name="usage_type">The usage type of the resource view to create. Set to <see cref="resource_usage::shader_resource"/> to create a shader resource view, <see cref="resource_usage::depth_stencil"/> for a depth-stencil view, <see cref="resource_usage::render_target"/> for a render target etc.</param>
 		/// <param name="desc">The description of the resource to create.</param>
 		/// <param name="out">Pointer to a variable that is set to the handle of the created resource view.</param>
-		/// <returns><c>true</c> if the resource view was successfully created, <c>false</c> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
+		/// <returns><see langword="true"/> if the resource view was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
 		virtual bool create_resource_view(resource resource, resource_usage usage_type, const resource_view_desc &desc, resource_view *out) = 0;
 		/// <summary>
 		/// Instantly destroys a resource view that was previously created via <see cref="create_resource_view"/>.
@@ -278,7 +278,7 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <param name="desc">The description of the pipeline state object to create.</param>
 		/// <param name="out">Pointer to a variable that is set to the handle of the created pipeline state object.</param>
-		/// <returns><c>true</c> if the pipeline state object was successfully created, <c>false</c> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
+		/// <returns><see langword="true"/> if the pipeline state object was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
 		virtual bool create_pipeline(const pipeline_desc &desc, pipeline *out) = 0;
 		/// <summary>
 		/// Instantly destroys a pipeline state object that was previously created via <see cref="create_pipeline"/>.
@@ -291,7 +291,7 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <param name="desc">The description of the pipeline layout to create.</param>
 		/// <param name="out">Pointer to a variable that is set to the handle of the created pipeline layout.</param>
-		/// <returns><c>true</c> if the pipeline layout was successfully created, <c>false</c> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
+		/// <returns><see langword="true"/> if the pipeline layout was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
 		virtual bool create_pipeline_layout(const pipeline_layout_desc &desc, pipeline_layout *out) = 0;
 		/// <summary>
 		/// Instantly destroys a pipeline layout that was previously created via <see cref="create_pipeline_layout"/>.
@@ -303,7 +303,7 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <param name="desc">The description of the descriptor set layout to create.</param>
 		/// <param name="out">Pointer to a variable that is set to the handle of the created descriptor set layout.</param>
-		/// <returns><c>true</c> if the descriptor set layout was successfully created, <c>false</c> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
+		/// <returns><see langword="true"/> if the descriptor set layout was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
 		virtual bool create_descriptor_set_layout(const descriptor_set_layout_desc &desc, descriptor_set_layout *out) = 0;
 		/// <summary>
 		/// Instantly destroys a descriptor set layout that was previously created via <see cref="create_descriptor_set_layout"/>.
@@ -316,7 +316,7 @@ namespace reshade { namespace api
 		/// <param name="type">The type of queries that will be used with this pool.</param>
 		/// <param name="size">The number of queries to allocate in the pool.</param>
 		/// <param name="out">Pointer to a variable that is set to the handle of the created query pool.</param>
-		/// <returns><c>true</c> if the query pool was successfully created, <c>false</c> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
+		/// <returns><see langword="true"/> if the query pool was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
 		virtual bool create_query_pool(query_type type, uint32_t size, query_pool *out) = 0;
 		/// <summary>
 		/// Instantly destroys a query pool that was previously created via <see cref="create_query_pool"/>.
@@ -328,7 +328,7 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <param name="desc">The description of the render pass to create.</param>
 		/// <param name="out">Pointer to a variable that is set to the handle of the created render pass.</param>
-		/// <returns><c>true</c> if the render pass was successfully created, <c>false</c> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
+		/// <returns><see langword="true"/> if the render pass was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
 		virtual bool create_render_pass(const render_pass_desc &desc, render_pass *out) = 0;
 		/// <summary>
 		/// Instantly destroys a render pass that was previously created via <see cref="create_render_pass"/>.
@@ -338,7 +338,7 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Creates a new framebuffer object based on the specified <paramref name="desc"/>ription.
 		/// </summary>
-		/// <returns><c>true</c> if the framebuffer object was successfully created, <c>false</c> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
+		/// <returns><see langword="true"/> if the framebuffer object was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
 		virtual bool create_framebuffer(const framebuffer_desc &desc, framebuffer *out) = 0;
 		/// <summary>
 		/// Instantly destroys a framebuffer object that was previously created via <see cref="create_framebuffer"/>.
@@ -367,7 +367,7 @@ namespace reshade { namespace api
 		/// <param name="data">Pointer to a variable that is set to a pointer to the memory of the resource.</param>
 		/// <param name="row_pitch">Optional pointer to a variable that is set to the row pitch of the <paramref name="data"/> (only set for textures).</param>
 		/// <param name="slice_pitch">Optional pointer to a variable that is set to the slice pitch of the <paramref name="data"/> (only set for textures).</param>
-		/// <returns><c>true</c> if the memory of the resource was successfully mapped, <c>false</c> otherwise (in this case <paramref name="data"/> is set to <c>nullptr</c>).</returns>
+		/// <returns><see langword="true"/> if the memory of the resource was successfully mapped, <see langword="false"/> otherwise (in this case <paramref name="data"/> is set to <c>nullptr</c>).</returns>
 		virtual bool map_resource(resource resource, uint32_t subresource, map_access access, void **data, uint32_t *row_pitch = nullptr, uint32_t *slice_pitch = nullptr) = 0;
 		/// <summary>
 		/// Unmaps a previously mapped resource.
@@ -401,7 +401,7 @@ namespace reshade { namespace api
 		/// <param name="count">The number of query results to copy.</param>
 		/// <param name="results">Pointer to an array that is filled with the results.</param>
 		/// <param name="stride">The size (in bytes) of each result element.</param>
-		/// <returns><c>true</c> if the query results were successfully downloaded from the GPU, <c>false</c> otherwise.</returns>
+		/// <returns><see langword="true"/> if the query results were successfully downloaded from the GPU, <see langword="false"/> otherwise.</returns>
 		virtual bool get_query_pool_results(query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride) = 0;
 
 		/// <summary>
@@ -410,7 +410,7 @@ namespace reshade { namespace api
 		/// <param name="layout">The layout of the descriptor sets.</param>
 		/// <param name="count">The number of descriptor sets to allocate.</param>
 		/// <param name="out">Pointer to an array of handles with at least <paramref name="count"/> elements that is filles with the handles of the created descriptor sets.</param>
-		/// <returns><c>true</c> if the descriptor sets were successfully created, <c>false</c> otherwise (in this case <paramref name="out"/> is filles with zeroes).</returns>
+		/// <returns><see langword="true"/> if the descriptor sets were successfully created, <see langword="false"/> otherwise (in this case <paramref name="out"/> is filles with zeroes).</returns>
 		virtual bool allocate_descriptor_sets(descriptor_set_layout layout, uint32_t count, descriptor_set *out) = 0;
 		/// <summary>
 		/// Frees one or more descriptor sets that were previously allocated via <see cref="allocate_descriptor_sets"/>.

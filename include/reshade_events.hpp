@@ -57,7 +57,7 @@ namespace reshade
 		/// <para>Callback function signature: <c>bool (api::resource_desc &amp;buffer_desc, void *hwnd)</c></para>
 		/// </summary>
 		/// <remarks>
-		/// To overwrite the swap chain description, modify <c>buffer_desc</c> in the callback and return <c>true</c>, otherwise return <c>false</c>.
+		/// To overwrite the swap chain description, modify <c>buffer_desc</c> in the callback and return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// </remarks>
 		create_swapchain,
 		/// <summary>
@@ -87,7 +87,7 @@ namespace reshade
 		/// <para>Callback function signature: <c>bool (api::device *device, api::sampler_desc &amp;desc)</c></para>
 		/// </summary>
 		/// <remarks>
-		/// To overwrite the sampler description, modify <c>desc</c> in the callback and return <c>true</c>, otherwise return <c>false</c>.
+		/// To overwrite the sampler description, modify <c>desc</c> in the callback and return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// </remarks>
 		create_sampler,
 		/// <summary>
@@ -106,7 +106,7 @@ namespace reshade
 		/// <para>Callback function signature: <c>bool (api::device *device, api::resource_desc &amp;desc, api::subresource_data *initial_data, api::resource_usage initial_state)</c></para>
 		/// </summary>
 		/// <remarks>
-		/// To overwrite the resource description, modify <c>desc</c> in the callback and return <c>true</c>, otherwise return <c>false</c>.
+		/// To overwrite the resource description, modify <c>desc</c> in the callback and return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// </remarks>
 		create_resource,
 		/// <summary>
@@ -125,7 +125,7 @@ namespace reshade
 		/// <para>Callback function signature: <c>bool (api::device *device, api::resource resource, api::resource_usage usage_type, api::resource_view_desc &amp;desc)</c></para>
 		/// </summary>
 		/// <remarks>
-		/// To overwrite the resource view description, modify <c>desc</c> in the callback and return <c>true</c>, otherwise return <c>false</c>.
+		/// To overwrite the resource view description, modify <c>desc</c> in the callback and return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// </remarks>
 		create_resource_view,
 		/// <summary>
@@ -147,14 +147,16 @@ namespace reshade
 		/// <para>Callback function signature: <c>bool (api::device *device, api::pipeline_desc &amp;desc)</c></para>
 		/// </summary>
 		/// <remarks>
-		/// To overwrite the pipeline description, modify <c>desc</c> in the callback and return <c>true</c>, otherwise return <c>false</c>.
+		/// To overwrite the pipeline description, modify <c>desc</c> in the callback and return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// </remarks>
 		create_pipeline,
 		/// <summary>
 		/// Called on pipeline destruction, before last 'IUnknown::Release', 'glDeleteProgram' or 'vkDestroyPipeline'.
 		/// <para>Callback function signature: <c>bool (api::device *device, api::pipeline pipeline)</c></para>
 		/// </summary>
-		/// <remarks>Is not called in D3D9.</remarks>
+		/// <remarks>
+		/// Is not called in D3D9.
+		/// </remarks>
 		destroy_pipeline,
 
 		/// <summary>
@@ -189,7 +191,7 @@ namespace reshade
 		/// <para>Callback function signature: <c>bool (api::device *device, api::render_pass_desc &amp;desc)</c></para>
 		/// </summary>
 		/// <remarks>
-		/// To overwrite the render pass description, modify <c>desc</c> in the callback and return <c>true</c>, otherwise return <c>false</c>.
+		/// To overwrite the render pass description, modify <c>desc</c> in the callback and return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// </remarks>
 		create_render_pass,
 		/// <summary>
@@ -208,7 +210,7 @@ namespace reshade
 		/// <para>Callback function signature: <c>bool (api::device *device, api::framebuffer_desc &amp;desc)</c></para>
 		/// </summary>
 		/// <remarks>
-		/// To overwrite the framebuffer description, modify <c>desc</c> in the callback and return <c>true</c>, otherwise return <c>false</c>.
+		/// To overwrite the framebuffer description, modify <c>desc</c> in the callback and return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// </remarks>
 		create_framebuffer,
 		/// <summary>
@@ -222,7 +224,7 @@ namespace reshade
 		/// <para>Callback function signature: <c>bool (api::device *device, const void *data, api::resource dst, uint64_t dst_offset, uint64_t size)</c></para>
 		/// </summary>
 		/// <remarks>
-		/// To prevent this command from being executed, return <c>true</c>, otherwise return <c>false</c>.
+		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// Destination resource will be in the <see cref="resource_usage::copy_dest"/> state.
 		/// </remarks>
 		upload_buffer_region,
@@ -231,7 +233,7 @@ namespace reshade
 		/// <para>Callback function signature: <c>bool (api::device *device, const api::subresource_data &data, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6])</c></para>
 		/// </summary>
 		/// <remarks>
-		/// To prevent this command from being executed, return <c>true</c>, otherwise return <c>false</c>.
+		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// Destination resource will be in the <see cref="resource_usage::copy_dest"/> state.
 		/// </remarks>
 		upload_texture_region,
@@ -241,7 +243,7 @@ namespace reshade
 		/// <para>Callback function signature: <c>bool (api::device *device, uint32_t num_writes, const api::write_descriptor_set *writes, uint32_t num_copies, const api::copy_descriptor_set *copies)</c></para>
 		/// </summary>
 		/// <remarks>
-		/// To prevent this command from being executed, return <c>true</c>, otherwise return <c>false</c>.
+		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// </remarks>
 		update_descriptor_sets,
 
@@ -326,7 +328,7 @@ namespace reshade
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance)</c></para>
 		/// </summary>
 		/// <remarks>
-		/// To prevent this command from being executed, return <c>true</c>, otherwise return <c>false</c>.
+		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// </remarks>
 		draw,
 		/// <summary>
@@ -334,7 +336,7 @@ namespace reshade
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)</c></para>
 		/// </summary>
 		/// <remarks>
-		/// To prevent this command from being executed, return <c>true</c>, otherwise return <c>false</c>.
+		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// </remarks>
 		draw_indexed,
 		/// <summary>
@@ -342,7 +344,7 @@ namespace reshade
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, uint32_t num_groups_x, uint32_t num_groups_y, uint32_t num_groups_z)</c></para>
 		/// </summary>
 		/// <remarks>
-		/// To prevent this command from being executed, return <c>true</c>, otherwise return <c>false</c>.
+		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// </remarks>
 		dispatch,
 		/// <summary>
@@ -350,7 +352,7 @@ namespace reshade
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::indirect_command type, api::resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride)</c></para>
 		/// </summary>
 		/// <remarks>
-		/// To prevent this command from being executed, return <c>true</c>, otherwise return <c>false</c>.
+		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// </remarks>
 		draw_or_dispatch_indirect,
 
@@ -359,7 +361,7 @@ namespace reshade
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource src, api::resource dst)</c></para>
 		/// </summary>
 		/// <remarks>
-		/// To prevent this command from being executed, return <c>true</c>, otherwise return <c>false</c>.
+		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// Source resource will be in the <see cref="resource_usage::copy_source"/> state. Destination resource will be in the <see cref="resource_usage::copy_dest"/> state.
 		/// </remarks>
 		copy_resource,
@@ -368,7 +370,7 @@ namespace reshade
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource src, uint64_t src_offset, api::resource dst, uint64_t dst_offset, uint64_t size)</c></para>
 		/// </summary>
 		/// <remarks>
-		/// To prevent this command from being executed, return <c>true</c>, otherwise return <c>false</c>.
+		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// Source resource will be in the <see cref="resource_usage::copy_source"/> state. Destination resource will be in the <see cref="resource_usage::copy_dest"/> state.
 		/// </remarks>
 		copy_buffer_region,
@@ -377,7 +379,7 @@ namespace reshade
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource src, uint64_t src_offset, uint32_t row_length, uint32_t slice_height, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6])</c></para>
 		/// </summary>
 		/// <remarks>
-		/// To prevent this command from being executed, return <c>true</c>, otherwise return <c>false</c>.
+		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// Source resource will be in the <see cref="resource_usage::copy_source"/> state. Destination resource will be in the <see cref="resource_usage::copy_dest"/> state.
 		/// </remarks>
 		copy_buffer_to_texture,
@@ -386,7 +388,7 @@ namespace reshade
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], api::filter_type filter)</c></para>
 		/// </summary>
 		/// <remarks>
-		/// To prevent this command from being executed, return <c>true</c>, otherwise return <c>false</c>.
+		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// Source resource will be in the <see cref="resource_usage::copy_source"/> state. Destination resource will be in the <see cref="resource_usage::copy_dest"/> state.
 		/// </remarks>
 		copy_texture_region,
@@ -395,7 +397,7 @@ namespace reshade
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint64_t dst_offset, uint32_t row_length, uint32_t slice_height)</c></para>
 		/// </summary>
 		/// <remarks>
-		/// To prevent this command from being executed, return <c>true</c>, otherwise return <c>false</c>.
+		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// Source resource will be in the <see cref="resource_usage::copy_source"/> state. Destination resource will be in the <see cref="resource_usage::copy_dest"/> state.
 		/// </remarks>
 		copy_texture_to_buffer,
@@ -404,7 +406,7 @@ namespace reshade
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], api::format format)</c></para>
 		/// </summary>
 		/// <remarks>
-		/// To prevent this command from being executed, return <c>true</c>, otherwise return <c>false</c>.
+		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// Source resource will be in the <see cref="resource_usage::resolve_source"/> state. Destination resource will be in the <see cref="resource_usage::resolve_dest"/> state.
 		/// </remarks>
 		resolve_texture_region,
@@ -414,7 +416,7 @@ namespace reshade
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t num_rects, const int32_t *rects)</c></para>
 		/// </summary>
 		/// <remarks>
-		/// To prevent this command from being executed, return <c>true</c>, otherwise return <c>false</c>.
+		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// </remarks>
 		clear_attachments,
 		/// <summary>
@@ -422,7 +424,7 @@ namespace reshade
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view dsv, api::attachment_type clear_flags, float depth, uint8_t stencil, uint32_t num_rects, const int32_t *rects)</c></para>
 		/// </summary>
 		/// <remarks>
-		/// To prevent this command from being executed, return <c>true</c>, otherwise return <c>false</c>.
+		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// Resource will be in the <see cref="resource_usage::depth_stencil_write"/> state.
 		/// </remarks>
 		clear_depth_stencil_view,
@@ -431,7 +433,7 @@ namespace reshade
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view rtv, const float color[4], uint32_t num_rects, const int32_t *rects)</c></para>
 		/// </summary>
 		/// <remarks>
-		/// To prevent this command from being executed, return <c>true</c>, otherwise return <c>false</c>.
+		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// Resources will be in the <see cref="resource_usage::render_target"/> state.
 		/// </remarks>
 		clear_render_target_view,
@@ -440,7 +442,7 @@ namespace reshade
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view uav, const uint32_t values[4], uint32_t num_rects, const int32_t *rects)</c></para>
 		/// </summary>
 		/// <remarks>
-		/// To prevent this command from being executed, return <c>true</c>, otherwise return <c>false</c>.
+		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// Resource will be in the <see cref="resource_usage::unordered_access"/> state.
 		/// </remarks>
 		clear_unordered_access_view_uint,
@@ -449,7 +451,7 @@ namespace reshade
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view uav, const float values[4], uint32_t num_rects, const int32_t *rects)</c></para>
 		/// </summary>
 		/// <remarks>
-		/// To prevent this command from being executed, return <c>true</c>, otherwise return <c>false</c>.
+		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// Resource will be in the <see cref="resource_usage::unordered_access"/> state.
 		/// </remarks>
 		clear_unordered_access_view_float,
@@ -459,7 +461,7 @@ namespace reshade
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view srv)</c></para>
 		/// </summary>
 		/// <remarks>
-		/// To prevent this command from being executed, return <c>true</c>, otherwise return <c>false</c>.
+		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// </remarks>
 		generate_mipmaps,
 

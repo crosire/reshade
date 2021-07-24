@@ -157,8 +157,8 @@ namespace reshade
 		static constexpr GUID private_guid = { 0xd6fe4f90 + static_cast<uint32_t>(ev), 0x71b7, 0x473c, { 0xbe, 0x83, 0xea, 0x21, 0x9, 0x7a, 0xa3, 0xeb } };
 
 		// Check if a tracker instance was already registered with this object, in which case nothing needs to be done
-		if (UINT size = 0;
-			SUCCEEDED(object->GetPrivateData(private_guid, &size, nullptr)))
+		if (DWORD size = 0;
+			object->GetPrivateData(private_guid, nullptr, &size) != 0x88760866 /* D3DERR_NOTFOUND */)
 		{
 			assert(size == sizeof(IUnknown *));
 			return;
