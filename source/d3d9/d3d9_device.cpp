@@ -633,25 +633,28 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurface(UINT Width,
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::UpdateSurface(IDirect3DSurface9 *pSourceSurface, const RECT *pSourceRect, IDirect3DSurface9 *pDestinationSurface, const POINT *pDestinationPoint)
 {
 #if RESHADE_ADDON
-	assert(pSourceSurface != nullptr && pDestinationSurface != nullptr);
+	if (!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::copy_texture_region)].empty())
+	{
+		assert(pSourceSurface != nullptr && pDestinationSurface != nullptr);
 
-	D3DSURFACE_DESC desc;
-	pSourceSurface->GetDesc(&desc);
+		D3DSURFACE_DESC desc;
+		pSourceSurface->GetDesc(&desc);
 
-	int32_t src_box[6];
-	convert_rect_to_box(pSourceRect, src_box);
-	int32_t dst_box[6];
-	convert_rect_to_box(pDestinationPoint, pSourceRect != nullptr ? pSourceRect->right - pSourceRect->left : desc.Width, pSourceRect != nullptr ? pSourceRect->bottom - pSourceRect->top : desc.Height, dst_box);
+		int32_t src_box[6];
+		convert_rect_to_box(pSourceRect, src_box);
+		int32_t dst_box[6];
+		convert_rect_to_box(pDestinationPoint, pSourceRect != nullptr ? pSourceRect->right - pSourceRect->left : desc.Width, pSourceRect != nullptr ? pSourceRect->bottom - pSourceRect->top : desc.Height, dst_box);
 
-	reshade::api::resource src_resource = { 0 };
-	uint32_t src_subresource = 0;
-	get_resource_from_view(reshade::api::resource_view { reinterpret_cast<uintptr_t>(pSourceSurface) }, &src_resource, &src_subresource);
-	reshade::api::resource dst_resource = { 0 };
-	uint32_t dst_subresource = 0;
-	get_resource_from_view(reshade::api::resource_view { reinterpret_cast<uintptr_t>(pDestinationSurface) }, &dst_resource, &dst_subresource);
+		reshade::api::resource src_resource = { 0 };
+		uint32_t src_subresource = 0;
+		get_resource_from_view(reshade::api::resource_view { reinterpret_cast<uintptr_t>(pSourceSurface) }, &src_resource, &src_subresource);
+		reshade::api::resource dst_resource = { 0 };
+		uint32_t dst_subresource = 0;
+		get_resource_from_view(reshade::api::resource_view { reinterpret_cast<uintptr_t>(pDestinationSurface) }, &dst_resource, &dst_subresource);
 
-	if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(this, src_resource, src_subresource, (pSourceRect != nullptr) ? src_box : nullptr, dst_resource, dst_subresource, (pDestinationPoint != nullptr) ? dst_box : nullptr, reshade::api::filter_type::min_mag_mip_point))
-		return D3D_OK;
+		if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(this, src_resource, src_subresource, (pSourceRect != nullptr) ? src_box : nullptr, dst_resource, dst_subresource, (pDestinationPoint != nullptr) ? dst_box : nullptr, reshade::api::filter_type::min_mag_mip_point))
+			return D3D_OK;
+	}
 #endif
 
 	return _orig->UpdateSurface(pSourceSurface, pSourceRect, pDestinationSurface, pDestinationPoint);
@@ -668,15 +671,18 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::UpdateTexture(IDirect3DBaseTexture9 *
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetRenderTargetData(IDirect3DSurface9 *pRenderTarget, IDirect3DSurface9 *pDestSurface)
 {
 #if RESHADE_ADDON
-	reshade::api::resource src_resource = { 0 };
-	uint32_t src_subresource = 0;
-	get_resource_from_view(reshade::api::resource_view { reinterpret_cast<uintptr_t>(pRenderTarget) }, &src_resource, &src_subresource);
-	reshade::api::resource dst_resource = { 0 };
-	uint32_t dst_subresource = 0;
-	get_resource_from_view(reshade::api::resource_view { reinterpret_cast<uintptr_t>( pDestSurface) }, &dst_resource, &dst_subresource);
+	if (!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::copy_texture_region)].empty())
+	{
+		reshade::api::resource src_resource = { 0 };
+		uint32_t src_subresource = 0;
+		get_resource_from_view(reshade::api::resource_view { reinterpret_cast<uintptr_t>(pRenderTarget) }, &src_resource, &src_subresource);
+		reshade::api::resource dst_resource = { 0 };
+		uint32_t dst_subresource = 0;
+		get_resource_from_view(reshade::api::resource_view { reinterpret_cast<uintptr_t>( pDestSurface) }, &dst_resource, &dst_subresource);
 
-	if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(this, src_resource, src_subresource, nullptr, dst_resource, dst_subresource, nullptr, reshade::api::filter_type::min_mag_mip_point))
-		return D3D_OK;
+		if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(this, src_resource, src_subresource, nullptr, dst_resource, dst_subresource, nullptr, reshade::api::filter_type::min_mag_mip_point))
+			return D3D_OK;
+	}
 #endif
 
 	return _orig->GetRenderTargetData(pRenderTarget, pDestSurface);
@@ -694,34 +700,38 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetFrontBufferData(UINT iSwapChain, I
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::StretchRect(IDirect3DSurface9 *pSourceSurface, const RECT *pSourceRect, IDirect3DSurface9 *pDestinationSurface, const RECT *pDestinationRect, D3DTEXTUREFILTERTYPE Filter)
 {
 #if RESHADE_ADDON
-	assert(pSourceSurface != nullptr && pDestinationSurface != nullptr);
-
-	D3DSURFACE_DESC desc;
-	pSourceSurface->GetDesc(&desc);
-
-	int32_t src_box[6];
-	convert_rect_to_box(pSourceRect, src_box);
-	int32_t dst_box[6];
-	convert_rect_to_box(pDestinationRect, dst_box);
-
-	reshade::api::resource src_resource = { 0 };
-	uint32_t src_subresource = 0;
-	get_resource_from_view(reshade::api::resource_view { reinterpret_cast<uintptr_t>(pSourceSurface) }, &src_resource, &src_subresource);
-	reshade::api::resource dst_resource = { 0 };
-	uint32_t dst_subresource = 0;
-	get_resource_from_view(reshade::api::resource_view { reinterpret_cast<uintptr_t>(pDestinationSurface) }, &dst_resource, &dst_subresource);
-
-	if (desc.MultiSampleType == D3DMULTISAMPLE_NONE)
+	if (!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::copy_texture_region)].empty() ||
+		!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::resolve_texture_region)].empty())
 	{
-		const reshade::api::filter_type filter = (Filter == D3DTEXF_NONE || Filter == D3DTEXF_POINT) ? reshade::api::filter_type::min_mag_mip_point : reshade::api::filter_type::min_mag_mip_linear;
+		assert(pSourceSurface != nullptr && pDestinationSurface != nullptr);
 
-		if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(this, src_resource, src_subresource, (pSourceRect != nullptr) ? src_box : nullptr, dst_resource, dst_subresource, (pDestinationRect != nullptr) ? dst_box : nullptr, filter))
-			return D3D_OK;
-	}
-	else
-	{
-		if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(this, src_resource, src_subresource, (pSourceRect != nullptr) ? src_box : nullptr, dst_resource, dst_subresource, (pDestinationRect != nullptr) ? dst_box : nullptr, reshade::d3d9::convert_format(desc.Format)))
-			return D3D_OK;
+		D3DSURFACE_DESC desc;
+		pSourceSurface->GetDesc(&desc);
+
+		int32_t src_box[6];
+		convert_rect_to_box(pSourceRect, src_box);
+		int32_t dst_box[6];
+		convert_rect_to_box(pDestinationRect, dst_box);
+
+		reshade::api::resource src_resource = { 0 };
+		uint32_t src_subresource = 0;
+		get_resource_from_view(reshade::api::resource_view { reinterpret_cast<uintptr_t>(pSourceSurface) }, &src_resource, &src_subresource);
+		reshade::api::resource dst_resource = { 0 };
+		uint32_t dst_subresource = 0;
+		get_resource_from_view(reshade::api::resource_view { reinterpret_cast<uintptr_t>(pDestinationSurface) }, &dst_resource, &dst_subresource);
+
+		if (desc.MultiSampleType == D3DMULTISAMPLE_NONE)
+		{
+			const reshade::api::filter_type filter_type = (Filter == D3DTEXF_NONE || Filter == D3DTEXF_POINT) ? reshade::api::filter_type::min_mag_mip_point : reshade::api::filter_type::min_mag_mip_linear;
+
+			if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(this, src_resource, src_subresource, (pSourceRect != nullptr) ? src_box : nullptr, dst_resource, dst_subresource, (pDestinationRect != nullptr) ? dst_box : nullptr, filter_type))
+				return D3D_OK;
+		}
+		else
+		{
+			if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(this, src_resource, src_subresource, (pSourceRect != nullptr) ? src_box : nullptr, dst_resource, dst_subresource, (pDestinationRect != nullptr) ? dst_box : nullptr, reshade::d3d9::convert_format(desc.Format)))
+				return D3D_OK;
+		}
 	}
 #endif
 
@@ -1081,10 +1091,6 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetTexture(DWORD Stage, IDirect3DBase
 			shader_stage = reshade::api::shader_stage::vertex;
 			Stage -= D3DVERTEXTEXTURESAMPLER0;
 		}
-		else if (Stage == D3DDMAPSAMPLER)
-		{
-			shader_stage = reshade::api::shader_stage::hull;
-		}
 
 		const reshade::api::resource_view view = { reinterpret_cast<uintptr_t>(pTexture) };
 		// See 'device_impl::on_after_reset' for pipeline layout initialization for corresponding layout indices
@@ -1118,10 +1124,6 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetSamplerState(DWORD Sampler, D3DSAM
 		{
 			shader_stage = reshade::api::shader_stage::vertex;
 			Sampler -= D3DVERTEXTEXTURESAMPLER0;
-		}
-		else if (Sampler == D3DDMAPSAMPLER)
-		{
-			shader_stage = reshade::api::shader_stage::hull;
 		}
 
 		const reshade::api::sampler sampler_handle = get_current_sampler_state(Sampler);

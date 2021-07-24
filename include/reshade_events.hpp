@@ -91,9 +91,12 @@ namespace reshade
 		/// </remarks>
 		create_sampler,
 		/// <summary>
-		/// Called on sampler destruction, before last 'ID3D10SamplerState::Release', 'ID3D11SamplerState::Release', 'glDeleteSamplers' or 'vkDestroySampler'. Is not called in D3D12.
+		/// Called on sampler destruction, before last 'ID3D10SamplerState::Release', 'ID3D11SamplerState::Release', 'glDeleteSamplers' or 'vkDestroySampler'.
 		/// <para>Callback function signature: <c>void (api::device *device, api::sampler sampler)</c></para>
 		/// </summary>
+		/// <remarks>
+		/// Is not called in D3D12 (sampler handles are descriptor handles rather than objects).
+		/// </remarks>
 		destroy_sampler,
 
 		/// <summary>
@@ -111,8 +114,8 @@ namespace reshade
 		create_resource,
 		/// <summary>
 		/// Called on resource destruction, before last 'IDirect3DResource9::Release', 'ID3D10Resource::Release', 'ID3D11Resource::Release', 'ID3D12Resource::Release', 'glDeleteBuffers/Textures' or 'vkDestroyBuffer/Image'.
-		/// </summary>
 		/// <para>Callback function signature: <c>void (api::device *device, api::resource resource)</c></para>
+		/// </summary>
 		destroy_resource,
 
 		/// <summary>
@@ -129,9 +132,12 @@ namespace reshade
 		/// </remarks>
 		create_resource_view,
 		/// <summary>
-		/// Called on resource view destruction, before last 'IDirect3DSurface9::Release', 'ID3D10View::Release', 'ID3D11View::Release' or 'vkDestroyBuffer/ImageView'. Is not called in D3D12.
-		/// </summary>
+		/// Called on resource view destruction, before last 'IDirect3DSurface9::Release', 'ID3D10View::Release', 'ID3D11View::Release' or 'vkDestroyBuffer/ImageView'.
 		/// <para>Callback function signature: <c>void (api::device *device, api::resource_view view)</c></para>
+		/// </summary>
+		/// <remarks>
+		/// Is not called in D3D12 (resource view handles are descriptor handles rather than objects).
+		/// </remarks>
 		destroy_resource_view,
 
 		/// <summary>

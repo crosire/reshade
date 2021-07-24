@@ -232,8 +232,7 @@ HOOK_EXPORT int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPT
 	}
 
 	assert(nNumFormats != nullptr);
-
-	if (*nNumFormats < nMaxFormats)
+	if (nMaxFormats > *nNumFormats)
 		nMaxFormats = *nNumFormats;
 
 	std::string formats;
@@ -405,7 +404,7 @@ HOOK_EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 	flags |= attribute::WGL_CONTEXT_DEBUG_BIT_ARB;
 #endif
 
-	// This works because the specs specifically note that "If an attribute is specified more than once, then the last value specified is used."
+	// This works because the specs specifically notes that "If an attribute is specified more than once, then the last value specified is used."
 	attribs[i].name = attribute::WGL_CONTEXT_FLAGS_ARB;
 	attribs[i++].value = flags;
 	attribs[i].name = attribute::WGL_CONTEXT_PROFILE_MASK_ARB;
@@ -446,7 +445,7 @@ HOOK_EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 
 		if (hShareContext != nullptr)
 		{
-			// Find root share context
+			// Find the root share context
 			auto it = s_shared_contexts.find(hShareContext);
 
 			while (it != s_shared_contexts.end() && it->second != nullptr)
@@ -955,10 +954,10 @@ HOOK_EXPORT BOOL  WINAPI wglUseFontOutlinesW(HDC hdc, DWORD dw1, DWORD dw2, DWOR
 
 HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 {
-	// Redirect some old extension functions to their modern variants in core OpenGL
 	if (lpszProc == nullptr)
 		return nullptr;
 #if RESHADE_ADDON
+	// Redirect some old extension functions to their modern variants in core OpenGL
 	else if (0 == strcmp(lpszProc, "glIsRenderbufferEXT")) // GL_EXT_framebuffer_object
 		lpszProc = "glIsRenderbuffer";
 	else if (0 == strcmp(lpszProc, "glBindRenderbufferEXT"))
@@ -1257,10 +1256,12 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(wglGetPbufferDCARB);
 		HOOK_PROC(wglGetPixelFormatAttribivARB);
 		HOOK_PROC(wglGetPixelFormatAttribfvARB);
-		HOOK_PROC(wglQueryPbufferARB);
 		HOOK_PROC(wglReleasePbufferDCARB);
+#if 0
+		HOOK_PROC(wglQueryPbufferARB);
 		HOOK_PROC(wglGetSwapIntervalEXT);
 		HOOK_PROC(wglSwapIntervalEXT);
+#endif
 
 		reshade::hook::apply_queued_actions();
 

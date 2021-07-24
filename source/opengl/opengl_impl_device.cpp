@@ -208,9 +208,12 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC hglrc) :
 	invoke_addon_event<addon_event::init_device>(this);
 	invoke_addon_event<addon_event::init_command_queue>(this);
 
-	// Communicate default state to add-ons
-	invoke_addon_event<addon_event::begin_render_pass>(this, api::render_pass { 0 }, make_framebuffer_handle(0));
-
+	GLuint max_image_units = 0;
+	glGetIntegerv(GL_MAX_IMAGE_UNITS, reinterpret_cast<GLint *>(&max_image_units));
+	GLuint max_uniform_buffer_bindings = 0;
+	glGetIntegerv(GL_MAX_UNIFORM_BUFFER_BINDINGS, reinterpret_cast<GLint *>(&max_uniform_buffer_bindings));
+	GLuint max_texture_units = 0;
+	glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, reinterpret_cast<GLint *>(&max_texture_units));
 
 	// Communicate global pipeline layout that is used for all bindings to add-ons
 	if (!reshade::addon::event_list[static_cast<uint32_t>(addon_event::init_descriptor_set_layout)].empty() ||
@@ -219,19 +222,19 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC hglrc) :
 	{
 		api::descriptor_range sampler_range = {};
 		sampler_range.type = api::descriptor_type::sampler;
-		glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, reinterpret_cast<GLint *>(&sampler_range.count));
+		sampler_range.count = max_texture_units;
 		sampler_range.visibility = api::shader_stage::all;
 		api::descriptor_range shader_resource_range = {};
 		shader_resource_range.type = api::descriptor_type::shader_resource_view;
-		glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, reinterpret_cast<GLint *>(&shader_resource_range.count));
+		shader_resource_range.count = max_texture_units;
 		shader_resource_range.visibility = api::shader_stage::all;
 		api::descriptor_range constant_buffer_range = {};
 		constant_buffer_range.type = api::descriptor_type::constant_buffer;
-		glGetIntegerv(GL_MAX_UNIFORM_BUFFER_BINDINGS, reinterpret_cast<GLint *>(&constant_buffer_range.count));
+		constant_buffer_range.count = max_uniform_buffer_bindings;
 		constant_buffer_range.visibility = api::shader_stage::all;
 		api::descriptor_range unordered_access_range = {};
 		unordered_access_range.type = api::descriptor_type::unordered_access_view;
-		glGetIntegerv(GL_MAX_IMAGE_UNITS, reinterpret_cast<GLint *>(&unordered_access_range.count));
+		unordered_access_range.count = max_image_units;
 		unordered_access_range.visibility = api::shader_stage::all;
 
 		api::descriptor_set_layout_desc set_layout_desc = {};
@@ -262,14 +265,17 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC hglrc) :
 		invoke_addon_event<addon_event::destroy_descriptor_set_layout>(this, set_layouts[2]);
 		invoke_addon_event<addon_event::destroy_descriptor_set_layout>(this, set_layouts[3]);
 	}
+
+	// Communicate default state to add-ons
+	invoke_addon_event<addon_event::begin_render_pass>(this, api::render_pass { 0 }, make_framebuffer_handle(0));
 #endif
 }
 reshade::opengl::device_impl::~device_impl()
 {
 #if RESHADE_ADDON
-	invoke_addon_event<addon_event::destroy_pipeline_layout>(this, api::pipeline_layout { 0x1 });
-
 	invoke_addon_event<addon_event::finish_render_pass>(this);
+
+	invoke_addon_event<addon_event::destroy_pipeline_layout>(this, api::pipeline_layout { 0x1 });
 
 	invoke_addon_event<addon_event::destroy_command_queue>(this);
 	invoke_addon_event<addon_event::destroy_device>(this);
