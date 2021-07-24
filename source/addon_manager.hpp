@@ -99,6 +99,14 @@ namespace reshade
 
 		static constexpr GUID private_guid = { 0xd6fe4f90 + static_cast<uint32_t>(ev), 0x71b7, 0x473c, { 0xbe, 0x83, 0xea, 0x21, 0x9, 0x7a, 0xa3, 0xeb } };
 
+		// Check if a tracker instance was already registered with this object, in which case nothing needs to be done
+		if (UINT size = 0;
+			SUCCEEDED(object->GetPrivateData(private_guid, &size, nullptr)))
+		{
+			assert(size == sizeof(IUnknown *));
+			return;
+		}
+
 		IUnknown *const interface_object = new tracker_instance(device, Handle { reinterpret_cast<uintptr_t>(object) });
 		object->SetPrivateDataInterface(private_guid, interface_object);
 	}
@@ -147,6 +155,14 @@ namespace reshade
 		};
 
 		static constexpr GUID private_guid = { 0xd6fe4f90 + static_cast<uint32_t>(ev), 0x71b7, 0x473c, { 0xbe, 0x83, 0xea, 0x21, 0x9, 0x7a, 0xa3, 0xeb } };
+
+		// Check if a tracker instance was already registered with this object, in which case nothing needs to be done
+		if (UINT size = 0;
+			SUCCEEDED(object->GetPrivateData(private_guid, &size, nullptr)))
+		{
+			assert(size == sizeof(IUnknown *));
+			return;
+		}
 
 		IUnknown *const interface_object = new tracker_instance(device, Handle { reinterpret_cast<uintptr_t>(object) });
 		object->SetPrivateData(private_guid, interface_object, sizeof(interface_object), 0x1 /* D3DSPD_IUNKNOWN */);

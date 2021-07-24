@@ -1155,12 +1155,112 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeviceContextState(UINT Flags, cons
 HRESULT STDMETHODCALLTYPE D3D11Device::OpenSharedResource1(HANDLE hResource, REFIID returnedInterface, void **ppResource)
 {
 	assert(_interface_version >= 1);
-	return static_cast<ID3D11Device1 *>(_orig)->OpenSharedResource1(hResource, returnedInterface, ppResource);
+	const HRESULT hr = static_cast<ID3D11Device1 *>(_orig)->OpenSharedResource1(hResource, returnedInterface, ppResource);
+	if (SUCCEEDED(hr))
+	{
+#if RESHADE_ADDON
+		const auto resource = static_cast<ID3D11Resource *>(*ppResource);
+		reshade::api::resource_desc desc;
+
+		if (com_ptr<ID3D11Buffer> resource_impl;
+			SUCCEEDED(resource->QueryInterface(&resource_impl)))
+		{
+			D3D11_BUFFER_DESC internal_desc;
+			resource_impl->GetDesc(&internal_desc);
+			desc = reshade::d3d11::convert_resource_desc(internal_desc);
+		}
+		if (com_ptr<ID3D11Texture1D> resource_impl;
+			SUCCEEDED(resource->QueryInterface(&resource_impl)))
+		{
+			D3D11_TEXTURE1D_DESC internal_desc;
+			resource_impl->GetDesc(&internal_desc);
+			desc = reshade::d3d11::convert_resource_desc(internal_desc);
+		}
+		if (com_ptr<ID3D11Texture2D> resource_impl;
+			SUCCEEDED(resource->QueryInterface(&resource_impl)))
+		{
+			D3D11_TEXTURE2D_DESC internal_desc;
+			resource_impl->GetDesc(&internal_desc);
+			desc = reshade::d3d11::convert_resource_desc(internal_desc);
+		}
+		if (com_ptr<ID3D11Texture3D> resource_impl;
+			SUCCEEDED(resource->QueryInterface(&resource_impl)))
+		{
+			D3D11_TEXTURE3D_DESC internal_desc;
+			resource_impl->GetDesc(&internal_desc);
+			desc = reshade::d3d11::convert_resource_desc(internal_desc);
+		}
+
+		assert((desc.flags & reshade::api::resource_flags::shared) == reshade::api::resource_flags::shared);
+
+		reshade::invoke_addon_event<reshade::addon_event::init_resource>(this, desc, nullptr, reshade::api::resource_usage::general, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
+
+		reshade::invoke_addon_event_on_destruction<reshade::addon_event::destroy_resource, reshade::api::resource>(this, resource);
+#endif
+	}
+	else
+	{
+#if RESHADE_VERBOSE_LOG
+		LOG(WARN) << "ID3D11Device1::OpenSharedResource1" << " failed with error code " << hr << '.';
+#endif
+	}
+
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::OpenSharedResourceByName(LPCWSTR lpName, DWORD dwDesiredAccess, REFIID returnedInterface, void **ppResource)
 {
 	assert(_interface_version >= 1);
-	return static_cast<ID3D11Device1 *>(_orig)->OpenSharedResourceByName(lpName, dwDesiredAccess, returnedInterface, ppResource);
+	const HRESULT hr = static_cast<ID3D11Device1 *>(_orig)->OpenSharedResourceByName(lpName, dwDesiredAccess, returnedInterface, ppResource);
+	if (SUCCEEDED(hr))
+	{
+#if RESHADE_ADDON
+		const auto resource = static_cast<ID3D11Resource *>(*ppResource);
+		reshade::api::resource_desc desc;
+
+		if (com_ptr<ID3D11Buffer> resource_impl;
+			SUCCEEDED(resource->QueryInterface(&resource_impl)))
+		{
+			D3D11_BUFFER_DESC internal_desc;
+			resource_impl->GetDesc(&internal_desc);
+			desc = reshade::d3d11::convert_resource_desc(internal_desc);
+		}
+		if (com_ptr<ID3D11Texture1D> resource_impl;
+			SUCCEEDED(resource->QueryInterface(&resource_impl)))
+		{
+			D3D11_TEXTURE1D_DESC internal_desc;
+			resource_impl->GetDesc(&internal_desc);
+			desc = reshade::d3d11::convert_resource_desc(internal_desc);
+		}
+		if (com_ptr<ID3D11Texture2D> resource_impl;
+			SUCCEEDED(resource->QueryInterface(&resource_impl)))
+		{
+			D3D11_TEXTURE2D_DESC internal_desc;
+			resource_impl->GetDesc(&internal_desc);
+			desc = reshade::d3d11::convert_resource_desc(internal_desc);
+		}
+		if (com_ptr<ID3D11Texture3D> resource_impl;
+			SUCCEEDED(resource->QueryInterface(&resource_impl)))
+		{
+			D3D11_TEXTURE3D_DESC internal_desc;
+			resource_impl->GetDesc(&internal_desc);
+			desc = reshade::d3d11::convert_resource_desc(internal_desc);
+		}
+
+		assert((desc.flags & reshade::api::resource_flags::shared) == reshade::api::resource_flags::shared);
+
+		reshade::invoke_addon_event<reshade::addon_event::init_resource>(this, desc, nullptr, reshade::api::resource_usage::general, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
+
+		reshade::invoke_addon_event_on_destruction<reshade::addon_event::destroy_resource, reshade::api::resource>(this, resource);
+#endif
+	}
+	else
+	{
+#if RESHADE_VERBOSE_LOG
+		LOG(WARN) << "ID3D11Device1::OpenSharedResourceByName" << " failed with error code " << hr << '.';
+#endif
+	}
+
+	return hr;
 }
 
 void    STDMETHODCALLTYPE D3D11Device::GetImmediateContext2(ID3D11DeviceContext2 **ppImmediateContext)
