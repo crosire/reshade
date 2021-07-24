@@ -5,8 +5,6 @@
 
 #if RESHADE_ADDON
 
-#define g_reshade_module_handle g_module_handle
-
 #include "dll_log.hpp"
 #include "ini_file.hpp"
 #include "reshade.hpp"

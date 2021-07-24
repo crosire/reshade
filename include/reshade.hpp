@@ -11,7 +11,7 @@
 
 #define RESHADE_API_VERSION 1
 
-extern HMODULE g_reshade_module_handle;
+extern HMODULE g_module_handle;
 
 // Use the kernel32 variant of module enumeration functions so it can be safely called from DllMain
 extern "C" BOOL WINAPI K32EnumProcessModules(HANDLE hProcess, HMODULE *lphModule, DWORD cb, LPDWORD lpcbNeeded);
@@ -39,7 +39,7 @@ namespace reshade
 #ifdef IMGUI_VERSION
 					g_imgui_function_table = *reinterpret_cast<const imgui_function_table *(*)()>(GetProcAddress(modules[i], "ReShadeGetImGuiFunctionTable"))();
 #endif
-					g_reshade_module_handle = modules[i];
+					g_module_handle = modules[i];
 
 					// Check that the ReShade module supports the requested API version
 					return *api_version <= RESHADE_API_VERSION;
@@ -58,7 +58,7 @@ namespace reshade
 	inline void register_event(typename reshade::addon_event_traits<ev>::decl callback)
 	{
 		static const auto func = reinterpret_cast<void(*)(reshade::addon_event, void *)>(
-			GetProcAddress(g_reshade_module_handle, "ReShadeRegisterEvent"));
+			GetProcAddress(g_module_handle, "ReShadeRegisterEvent"));
 		func(ev, static_cast<void *>(callback));
 	}
 	/// <summary>
@@ -68,7 +68,7 @@ namespace reshade
 	inline void unregister_event(typename reshade::addon_event_traits<ev>::decl callback)
 	{
 		static const auto func = reinterpret_cast<void(*)(reshade::addon_event, void *)>(
-			GetProcAddress(g_reshade_module_handle, "ReShadeUnregisterEvent"));
+			GetProcAddress(g_module_handle, "ReShadeUnregisterEvent"));
 		func(ev, static_cast<void *>(callback));
 	}
 
@@ -78,7 +78,7 @@ namespace reshade
 	inline void register_overlay(const char *title, void(*callback)(reshade::api::effect_runtime *runtime, void *imgui_context))
 	{
 		static const auto func = reinterpret_cast<decltype(&register_overlay)>(
-			GetProcAddress(g_reshade_module_handle, "ReShadeRegisterOverlay"));
+			GetProcAddress(g_module_handle, "ReShadeRegisterOverlay"));
 		func(title, callback);
 	}
 	/// <summary>
@@ -87,14 +87,14 @@ namespace reshade
 	inline void unregister_overlay(const char *title)
 	{
 		static const auto func = reinterpret_cast<decltype(&unregister_overlay)>(
-			GetProcAddress(g_reshade_module_handle, "ReShadeUnregisterOverlay"));
+			GetProcAddress(g_module_handle, "ReShadeUnregisterOverlay"));
 		func(title);
 	}
 }
 
 // Define 'RESHADE_ADDON_IMPL' before including this header in exactly one source file to create the implementation
 #ifdef RESHADE_ADDON_IMPL
-HMODULE g_reshade_module_handle = nullptr;
+HMODULE g_module_handle = nullptr;
 #ifdef IMGUI_VERSION
 imgui_function_table g_imgui_function_table = {};
 #endif

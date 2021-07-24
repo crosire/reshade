@@ -30,13 +30,7 @@ A quick overview of what some of the source code files contain:
 |[hook_manager.cpp](source/hook_manager.cpp)                           |Automatic hook installation based on DLL exports                       |
 |[input.cpp](source/input.cpp)                                         |Keyboard and mouse input management and window message queue hooks     |
 |[runtime.cpp](source/runtime.cpp)                                     |Core ReShade runtime including effect and preset management            |
-|[runtime_gui.cpp](source/runtime_gui.cpp)                             |Overlay GUI and everything related to that                             |
-|[d3d9/reshade_api_device.cpp](source/d3d9/reshade_api_device.cpp)     |Rendering API abstraction for Direct3D 9                               |
-|[d3d10/reshade_api_device.cpp](source/d3d10/reshade_api_device.cpp)   |Rendering API abstraction for Direct3D 10                              |
-|[d3d11/reshade_api_device.cpp](source/d3d11/reshade_api_device.cpp)   |Rendering API abstraction for Direct3D 11                              |
-|[d3d12/reshade_api_device.cpp](source/d3d12/reshade_api_device.cpp)   |Rendering API abstraction for Direct3D 12                              |
-|[opengl/reshade_api_device.cpp](source/opengl/reshade_api_device.cpp) |Rendering API abstraction for OpenGL                                   |
-|[vulkan/reshade_api_device.cpp](source/vulkan/reshade_api_device.cpp) |Rendering API abstraction for Vulkan                                   |
+|[runtime_gui.cpp](source/runtime_gui.cpp)                             |Overlay rendering and everything user interface related                |
 
 ## Contributing
 

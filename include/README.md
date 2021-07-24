@@ -3,7 +3,7 @@ ReShade API
 
 The ReShade API is a toolset that lets you interact with the resources and rendering commands of the application ReShade is loaded into via events. It [abstracts](#abstraction) away differences between the various underlying graphics API ReShade supports (Direct3D 9/10/11/12, OpenGL and Vulkan) to make it possible to write add-ons that work across a wide range of applications, regardless of the graphics API they use.
 
-A ReShade add-on is then simply a DLL that uses the header-only ReShade API to register events and do work in the callbacks. There are no further requirements, no functions need to be exported and no libraries need to be linked against. Simply add this include directory to your DLL project and include the [`reshade.hpp`](reshade.hpp) header to get started.
+A ReShade add-on is simply a DLL that uses the header-only ReShade API to register events and do work in the callbacks. There are no further requirements, no functions need to be exported and no libraries need to be linked against. Simply add this include directory to your DLL project and include the [`reshade.hpp`](reshade.hpp) header to get started.
 
 Here is a very basic code example of an add-on that registers a callback that gets executed every time a new frame is presented to the screen:
 
