@@ -108,16 +108,58 @@ void reshade::enable_or_disable_addons(bool enabled)
 	if (enabled == g_addons_enabled)
 		return;
 
+	// Allow a subset of events to ensure add-ons work correctly
+	static const addon_event event_allow_list[] = {
+		addon_event::init_device,
+		addon_event::destroy_device,
+		addon_event::init_command_list,
+		addon_event::destroy_command_list,
+		addon_event::init_command_queue,
+		addon_event::destroy_command_queue,
+		addon_event::init_swapchain,
+		addon_event::destroy_swapchain,
+		addon_event::init_effect_runtime,
+		addon_event::destroy_effect_runtime,
+		addon_event::init_sampler,
+		addon_event::destroy_sampler,
+		addon_event::init_resource,
+		addon_event::destroy_resource,
+		addon_event::init_resource_view,
+		addon_event::destroy_resource_view,
+		addon_event::init_pipeline,
+		addon_event::destroy_pipeline,
+		addon_event::init_pipeline_layout,
+		addon_event::destroy_pipeline_layout,
+		addon_event::init_descriptor_set_layout,
+		addon_event::destroy_descriptor_set_layout,
+		addon_event::init_render_pass,
+		addon_event::destroy_render_pass,
+		addon_event::init_framebuffer,
+		addon_event::destroy_framebuffer,
+		addon_event::reset_swapchain,
+		addon_event::resize_swapchain,
+	};
+
 	static std::vector<void *> disabled_event_list[std::size(addon::event_list)];
 	if (enabled)
 	{
 		for (size_t event_index = 0; event_index < std::size(addon::event_list); ++event_index)
+		{
+			if (std::find(std::begin(event_allow_list), std::end(event_allow_list), static_cast<addon_event>(event_index)) != std::end(event_allow_list))
+				continue;
+
 			addon::event_list[event_index] = std::move(disabled_event_list[event_index]);
+		}
 	}
 	else
 	{
 		for (size_t event_index = 0; event_index < std::size(addon::event_list); ++event_index)
+		{
+			if (std::find(std::begin(event_allow_list), std::end(event_allow_list), static_cast<addon_event>(event_index)) != std::end(event_allow_list))
+				continue;
+
 			disabled_event_list[event_index] = std::move(addon::event_list[event_index]);
+		}
 	}
 
 	g_addons_enabled = enabled;
