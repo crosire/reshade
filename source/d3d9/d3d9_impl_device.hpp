@@ -141,8 +141,8 @@ namespace reshade::d3d9
 		std::unordered_map<size_t, api::sampler> _cached_sampler_states;
 
 	protected:
+		bool on_init(const D3DPRESENT_PARAMETERS &pp);
 		void on_reset();
-		void on_after_reset(const D3DPRESENT_PARAMETERS &pp);
 
 		bool create_surface_replacement(const D3DSURFACE_DESC &new_desc, IDirect3DSurface9 **out_surface, HANDLE *out_shared_handle = nullptr);
 

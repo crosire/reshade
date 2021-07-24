@@ -562,8 +562,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 			swapchain_impl = new reshade::vulkan::swapchain_impl(device_impl, queue_impl);
 		}
 
-		if (!swapchain_impl->on_init(*pSwapchain, create_info, hwnd))
-			LOG(ERROR) << "Failed to initialize Vulkan runtime environment on runtime " << swapchain_impl << '.';
+		swapchain_impl->on_init(*pSwapchain, create_info, hwnd);
 
 		if (!s_vulkan_swapchains.emplace(*pSwapchain, swapchain_impl))
 			delete swapchain_impl;

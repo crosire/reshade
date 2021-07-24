@@ -32,9 +32,15 @@ reshade::d3d11::swapchain_impl::swapchain_impl(device_impl *device, device_conte
 	}
 
 	_swapchain_reset_status = 1;
-	if (_orig != nullptr && !on_init())
-		LOG(ERROR) << "Failed to initialize Direct3D 11 runtime environment on runtime " << this << '!';
-	_swapchain_reset_status = _orig != nullptr ? 0 : 2;
+	if (_orig != nullptr)
+	{
+		on_init();
+		_swapchain_reset_status = 0;
+	}
+	else
+	{
+		_swapchain_reset_status = 2;
+	}
 }
 reshade::d3d11::swapchain_impl::~swapchain_impl()
 {
@@ -75,11 +81,20 @@ bool reshade::d3d11::swapchain_impl::on_init()
 		tex_desc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
 
 		if (FAILED(static_cast<device_impl *>(_device)->_orig->CreateTexture2D(&tex_desc, nullptr, &_backbuffer_resolved)))
+		{
+			LOG(ERROR) << "Failed to create back buffer resolve texture!";
 			return false;
+		}
 		if (FAILED(static_cast<device_impl *>(_device)->_orig->CreateRenderTargetView(_backbuffer.get(), nullptr, &_backbuffer_rtv)))
+		{
+			LOG(ERROR) << "Failed to create original back buffer render target!";
 			return false;
+		}
 		if (FAILED(static_cast<device_impl *>(_device)->_orig->CreateShaderResourceView(_backbuffer_resolved.get(), nullptr, &_backbuffer_resolved_srv)))
+		{
+			LOG(ERROR) << "Failed to create back buffer resolve shader resource view!";
 			return false;
+		}
 	}
 	else
 	{
@@ -239,10 +254,7 @@ bool reshade::d3d11::swapchain_impl::on_layer_submit(UINT eye, ID3D11Texture2D *
 #endif
 
 		if (!runtime::on_init(nullptr))
-		{
-			LOG(ERROR) << "Failed to initialize Direct3D 11 runtime environment on runtime " << this << '!';
 			return false;
-		}
 	}
 
 	// Copy region of the source texture (in case of an array texture, copy from the layer corresponding to the current eye)

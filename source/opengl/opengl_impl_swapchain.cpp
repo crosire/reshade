@@ -186,10 +186,7 @@ bool reshade::opengl::swapchain_impl::on_layer_submit(uint32_t eye, GLuint sourc
 		_is_vr = true;
 
 		if (!on_init(nullptr, object_desc.texture.width, object_desc.texture.height))
-		{
-			LOG(ERROR) << "Failed to initialize OpenGL runtime environment on runtime " << this << '!';
 			return false;
-		}
 	}
 
 	// Copy source region to RBO

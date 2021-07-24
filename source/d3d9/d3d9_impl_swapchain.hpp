@@ -23,7 +23,7 @@ namespace reshade::d3d9
 		uint32_t get_back_buffer_count() const final { return 1; }
 		uint32_t get_current_back_buffer_index() const final { return 0; }
 
-		bool on_init();
+		bool on_init(const D3DPRESENT_PARAMETERS &pp);
 		void on_reset();
 		void on_present();
 

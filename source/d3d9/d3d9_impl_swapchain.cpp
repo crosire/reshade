@@ -26,9 +26,11 @@ reshade::d3d9::swapchain_impl::swapchain_impl(device_impl *device, IDirect3DSwap
 		LOG(INFO) << "Running on " << adapter_desc.Description << " Driver " << (driver_version / 100) << '.' << (driver_version % 100);
 	}
 
+	D3DPRESENT_PARAMETERS pp = {};
+	_orig->GetPresentParameters(&pp);
+
 	_swapchain_reset_status = 1;
-	if (!on_init())
-		LOG(ERROR) << "Failed to initialize Direct3D 9 runtime environment on runtime " << this << '!';
+	on_init(pp);
 	_swapchain_reset_status = 0;
 }
 reshade::d3d9::swapchain_impl::~swapchain_impl()
@@ -44,14 +46,8 @@ void reshade::d3d9::swapchain_impl::get_back_buffer(uint32_t index, api::resourc
 	*out = { reinterpret_cast<uintptr_t>(_backbuffer_resolved.get()) };
 }
 
-bool reshade::d3d9::swapchain_impl::on_init()
+bool reshade::d3d9::swapchain_impl::on_init(const D3DPRESENT_PARAMETERS &pp)
 {
-	// Retrieve present parameters here, instead using the ones passed in during creation, to get correct values for 'BackBufferWidth' and 'BackBufferHeight'
-	// They may otherwise still be set to zero (which is valid for creation)
-	D3DPRESENT_PARAMETERS pp;
-	if (FAILED(_orig->GetPresentParameters(&pp)))
-		return false;
-
 	RECT window_rect = {};
 	GetClientRect(pp.hDeviceWindow, &window_rect);
 
@@ -60,8 +56,9 @@ bool reshade::d3d9::swapchain_impl::on_init()
 	_backbuffer_format = convert_format(pp.BackBufferFormat);
 
 	// Get back buffer surface
-	HRESULT hr = _orig->GetBackBuffer(0, D3DBACKBUFFER_TYPE_MONO, &_backbuffer);
-	assert(SUCCEEDED(hr));
+	if (FAILED(_orig->GetBackBuffer(0, D3DBACKBUFFER_TYPE_MONO, &_backbuffer)))
+		return false;
+	assert(_backbuffer != nullptr);
 
 	if (pp.MultiSampleType != D3DMULTISAMPLE_NONE || (pp.BackBufferFormat == D3DFMT_X8R8G8B8 || pp.BackBufferFormat == D3DFMT_X8B8G8R8))
 	{
@@ -77,7 +74,10 @@ bool reshade::d3d9::swapchain_impl::on_init()
 		}
 
 		if (FAILED(static_cast<device_impl *>(_device)->_orig->CreateRenderTarget(_width, _height, convert_format(_backbuffer_format), D3DMULTISAMPLE_NONE, 0, FALSE, &_backbuffer_resolved, nullptr)))
+		{
+			LOG(ERROR) << "Failed to create back buffer resolve render target!";
 			return false;
+		}
 	}
 	else
 	{
@@ -86,7 +86,10 @@ bool reshade::d3d9::swapchain_impl::on_init()
 
 	// Create state block object
 	if (!_app_state.init_state_block())
+	{
+		LOG(ERROR) << "Failed to create application state block!";
 		return false;
+	}
 
 #if RESHADE_ADDON
 	if (_swapchain_reset_status != 0)

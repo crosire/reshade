@@ -31,8 +31,7 @@ reshade::d3d10::swapchain_impl::swapchain_impl(device_impl *device, IDXGISwapCha
 	}
 
 	_swapchain_reset_status = 1;
-	if (!on_init())
-		LOG(ERROR) << "Failed to initialize Direct3D 10 runtime environment on runtime " << this << '!';
+	on_init();
 	_swapchain_reset_status = 0;
 }
 reshade::d3d10::swapchain_impl::~swapchain_impl()
@@ -74,11 +73,20 @@ bool reshade::d3d10::swapchain_impl::on_init()
 		tex_desc.BindFlags = D3D10_BIND_SHADER_RESOURCE | D3D10_BIND_RENDER_TARGET;
 
 		if (FAILED(static_cast<device_impl *>(_device)->_orig->CreateTexture2D(&tex_desc, nullptr, &_backbuffer_resolved)))
+		{
+			LOG(ERROR) << "Failed to create back buffer resolve texture!";
 			return false;
+		}
 		if (FAILED(static_cast<device_impl *>(_device)->_orig->CreateRenderTargetView(_backbuffer.get(), nullptr, &_backbuffer_rtv)))
+		{
+			LOG(ERROR) << "Failed to create original back buffer render target!";
 			return false;
+		}
 		if (FAILED(static_cast<device_impl *>(_device)->_orig->CreateShaderResourceView(_backbuffer_resolved.get(), nullptr, &_backbuffer_resolved_srv)))
+		{
+			LOG(ERROR) << "Failed to create back buffer resolve shader resource view!";
 			return false;
+		}
 	}
 	else
 	{

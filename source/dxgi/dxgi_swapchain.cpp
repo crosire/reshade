@@ -99,22 +99,18 @@ void DXGISwapChain::runtime_resize()
 {
 	const std::lock_guard<std::mutex> lock(_impl_mutex);
 
-	bool initialized = false;
 	switch (_direct3d_version)
 	{
 	case 10:
-		initialized = static_cast<reshade::d3d10::swapchain_impl *>(_impl)->on_init();
+		static_cast<reshade::d3d10::swapchain_impl *>(_impl)->on_init();
 		break;
 	case 11:
-		initialized = static_cast<reshade::d3d11::swapchain_impl *>(_impl)->on_init();
+		static_cast<reshade::d3d11::swapchain_impl *>(_impl)->on_init();
 		break;
 	case 12:
-		initialized = static_cast<reshade::d3d12::swapchain_impl *>(_impl)->on_init();
+		static_cast<reshade::d3d12::swapchain_impl *>(_impl)->on_init();
 		break;
 	}
-
-	if (!initialized)
-		LOG(ERROR) << "Failed to recreate Direct3D " << _direct3d_version << " runtime environment on runtime " << _impl << '!';
 }
 void DXGISwapChain::runtime_present(UINT flags)
 {

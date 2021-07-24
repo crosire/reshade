@@ -99,7 +99,10 @@ bool reshade::vulkan::swapchain_impl::on_init(VkSwapchainKHR swapchain, const Vk
 		VkSemaphoreCreateInfo sem_create_info { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
 
 		if (vk.CreateSemaphore(static_cast<device_impl *>(_device)->_orig, &sem_create_info, nullptr, &_queue_sync_semaphores[i]) != VK_SUCCESS)
+		{
+			LOG(ERROR) << "Failed to create queue synchronization semaphore!";
 			return false;
+		}
 	}
 
 #if RESHADE_ADDON
@@ -225,10 +228,7 @@ bool reshade::vulkan::swapchain_impl::on_layer_submit(uint32_t eye, VkImage sour
 		desc.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
 		if (!on_init(VK_NULL_HANDLE, desc, nullptr))
-		{
-			LOG(ERROR) << "Failed to initialize Vulkan runtime environment on runtime " << this << '!';
 			return false;
-		}
 
 		cmd_list = static_cast<command_list_immediate_impl *>(static_cast<command_queue_impl *>(_graphics_queue)->get_immediate_command_list())->begin_commands();
 

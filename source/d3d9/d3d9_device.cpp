@@ -244,9 +244,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 		return hr;
 	}
 
-	device_impl::on_after_reset(pp);
-	if (!_implicit_swapchain->on_init())
-		LOG(ERROR) << "Failed to recreate Direct3D 9 runtime environment on runtime " << static_cast<reshade::d3d9::swapchain_impl *>(_implicit_swapchain) << '!';
+	device_impl::on_init(pp);
+	_implicit_swapchain->on_init(pp);
 
 	return hr;
 }
@@ -1823,9 +1822,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 		return hr;
 	}
 
-	device_impl::on_after_reset(pp);
-	if (!_implicit_swapchain->on_init())
-		LOG(ERROR) << "Failed to recreate Direct3D 9 runtime environment on runtime " << static_cast<reshade::d3d9::swapchain_impl *>(_implicit_swapchain) << '!';
+	device_impl::on_init(pp);
+	_implicit_swapchain->on_init(pp);
 
 	return hr;
 }

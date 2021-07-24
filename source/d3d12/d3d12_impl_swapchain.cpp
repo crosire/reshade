@@ -39,9 +39,15 @@ reshade::d3d12::swapchain_impl::swapchain_impl(device_impl *device, command_queu
 	_backbuffers.resize(3);
 
 	_swapchain_reset_status = 1;
-	if (_orig != nullptr && !on_init())
-		LOG(ERROR) << "Failed to initialize Direct3D 12 runtime environment on runtime " << this << '!';
-	_swapchain_reset_status = _orig != nullptr ? 0 : 2;
+	if (_orig != nullptr)
+	{
+		on_init();
+		_swapchain_reset_status = 0;
+	}
+	else
+	{
+		_swapchain_reset_status = 2;
+	}
 }
 reshade::d3d12::swapchain_impl::~swapchain_impl()
 {
@@ -91,6 +97,7 @@ bool reshade::d3d12::swapchain_impl::on_init()
 	{
 		if (FAILED(_orig->GetBuffer(i, IID_PPV_ARGS(&_backbuffers[i]))))
 			return false;
+		assert(_backbuffers[i] != nullptr);
 	}
 
 	assert(swap_desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT);
@@ -173,10 +180,7 @@ bool reshade::d3d12::swapchain_impl::on_present(ID3D12Resource *source, HWND hwn
 #endif
 
 			if (!runtime::on_init(hwnd))
-			{
-				LOG(ERROR) << "Failed to initialize Direct3D 12 runtime environment on runtime " << this << '!';
 				return false;
-			}
 		}
 	}
 
@@ -244,10 +248,7 @@ bool reshade::d3d12::swapchain_impl::on_layer_submit(UINT eye, ID3D12Resource *s
 #endif
 
 		if (!runtime::on_init(nullptr))
-		{
-			LOG(ERROR) << "Failed to initialize Direct3D 12 runtime environment on runtime " << this << '!';
 			return false;
-		}
 	}
 
 	ID3D12GraphicsCommandList *const cmd_list = static_cast<command_list_immediate_impl *>(static_cast<command_queue_impl *>(_graphics_queue)->get_immediate_command_list())->begin_commands();

@@ -48,7 +48,8 @@ reshade::d3d9::device_impl::device_impl(IDirect3DDevice9 *device) :
 
 	D3DPRESENT_PARAMETERS pp = {};
 	swapchain->GetPresentParameters(&pp);
-	on_after_reset(pp);
+
+	on_init(pp);
 }
 reshade::d3d9::device_impl::~device_impl()
 {
@@ -59,35 +60,7 @@ reshade::d3d9::device_impl::~device_impl()
 #endif
 }
 
-void reshade::d3d9::device_impl::on_reset()
-{
-	// Do not call add-on events if initialization failed or this device was already reset
-	if (_copy_state == nullptr)
-		return;
-
-	// Release backup state before invoking device destroy event, since it may still hold references to resources and releasing it may therefore invoke resource destroy events
-	// And all resource destroy events should have happened before the device destroy event
-	_backup_state.release_state_block();
-
-#if RESHADE_ADDON
-	for (const auto [hash, handle] : _cached_sampler_states)
-	{
-		invoke_addon_event<addon_event::destroy_sampler>(this, handle);
-		destroy_sampler(handle);
-	}
-
-	invoke_addon_event<addon_event::destroy_pipeline_layout>(this, api::pipeline_layout { 0x1 });
-
-	// Force add-ons to release all resources associated with this device before performing reset
-	invoke_addon_event<addon_event::destroy_command_queue>(this);
-	invoke_addon_event<addon_event::destroy_device>(this);
-#endif
-
-	_copy_state.reset();
-	_default_input_stream.reset();
-	_default_input_layout.reset();
-}
-void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
+bool reshade::d3d9::device_impl::on_init(const D3DPRESENT_PARAMETERS &pp)
 {
 	// Create state blocks used for resource copying
 	HRESULT hr = _orig->BeginStateBlock();
@@ -131,13 +104,13 @@ void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 	if (FAILED(hr))
 	{
 		LOG(ERROR) << "Failed to create copy pipeline!";
-		return;
+		return false;
 	}
 
 	if (!_backup_state.init_state_block())
 	{
 		LOG(ERROR) << "Failed to create backup state block!";
-		return;
+		return false;
 	}
 
 	// Create input layout for vertex buffer which holds vertex indices
@@ -147,7 +120,7 @@ void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 		if (FAILED(_orig->CreateVertexBuffer(max_vertices * sizeof(float), D3DUSAGE_WRITEONLY, 0, D3DPOOL_DEFAULT, &_default_input_stream, nullptr)))
 		{
 			LOG(ERROR) << "Failed to create default input stream!";
-			return;
+			return false;
 		}
 
 		if (float *data;
@@ -166,7 +139,7 @@ void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 		if (FAILED(_orig->CreateVertexDeclaration(declaration, &_default_input_layout)))
 		{
 			LOG(ERROR) << "Failed to create default vertex declaration!";
-			return;
+			return false;
 		}
 	}
 
@@ -291,6 +264,36 @@ void reshade::d3d9::device_impl::on_after_reset(const D3DPRESENT_PARAMETERS &pp)
 #else
 	UNREFERENCED_PARAMETER(pp);
 #endif
+
+	return true;
+}
+void reshade::d3d9::device_impl::on_reset()
+{
+	// Do not call add-on events if initialization failed or this device was already reset
+	if (_copy_state == nullptr)
+		return;
+
+	// Release backup state before invoking device destroy event, since it may still hold references to resources and releasing it may therefore invoke resource destroy events
+	// And all resource destroy events should have happened before the device destroy event
+	_backup_state.release_state_block();
+
+#if RESHADE_ADDON
+	for (const auto [hash, handle] : _cached_sampler_states)
+	{
+		invoke_addon_event<addon_event::destroy_sampler>(this, handle);
+		destroy_sampler(handle);
+	}
+
+	invoke_addon_event<addon_event::destroy_pipeline_layout>(this, api::pipeline_layout { 0x1 });
+
+	// Force add-ons to release all resources associated with this device before performing reset
+	invoke_addon_event<addon_event::destroy_command_queue>(this);
+	invoke_addon_event<addon_event::destroy_device>(this);
+#endif
+
+	_copy_state.reset();
+	_default_input_stream.reset();
+	_default_input_layout.reset();
 }
 
 bool reshade::d3d9::device_impl::create_surface_replacement(const D3DSURFACE_DESC &new_desc, IDirect3DSurface9 **out_surface, HANDLE *out_shared_handle)

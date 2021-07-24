@@ -883,8 +883,8 @@ HOOK_EXPORT BOOL  WINAPI wglSwapBuffers(HDC hdc)
 			if (runtime_width != 0 || runtime_height != 0)
 				runtime->on_reset();
 
-			if (!(width == 0 && height == 0) && !runtime->on_init(hwnd, width, height))
-				LOG(ERROR) << "Failed to recreate OpenGL runtime environment on runtime " << runtime << '!';
+			if (width != 0 || height != 0)
+				runtime->on_init(hwnd, width, height);
 		}
 
 #if RESHADE_ADDON
