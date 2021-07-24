@@ -35,23 +35,18 @@ reshade::d3d12::swapchain_impl::swapchain_impl(device_impl *device, command_queu
 		}
 	}
 
-#if RESHADE_ADDON
-	invoke_addon_event<reshade::addon_event::init_swapchain>(this);
-#endif
-
 	// Default to three back buffers for d3d12on7
 	_backbuffers.resize(3);
 
+	_swapchain_reset_status = 1;
 	if (_orig != nullptr && !on_init())
 		LOG(ERROR) << "Failed to initialize Direct3D 12 runtime environment on runtime " << this << '!';
+	_swapchain_reset_status = _orig != nullptr ? 0 : 2;
 }
 reshade::d3d12::swapchain_impl::~swapchain_impl()
 {
+	_swapchain_reset_status = 1;
 	on_reset();
-
-#if RESHADE_ADDON
-	invoke_addon_event<reshade::addon_event::destroy_swapchain>(this);
-#endif
 }
 
 void reshade::d3d12::swapchain_impl::get_back_buffer(uint32_t index, api::resource *out)
@@ -104,11 +99,25 @@ bool reshade::d3d12::swapchain_impl::on_init()
 	_height = swap_desc.BufferDesc.Height;
 	_backbuffer_format = convert_format(swap_desc.BufferDesc.Format);
 
+#if RESHADE_ADDON
+	if (_swapchain_reset_status != 0)
+		invoke_addon_event<addon_event::init_swapchain>(this);
+	else
+		invoke_addon_event<addon_event::resize_swapchain>(this, _width, _height, _backbuffer_format);
+#endif
+
 	return runtime::on_init(swap_desc.OutputWindow);
 }
 void reshade::d3d12::swapchain_impl::on_reset()
 {
 	runtime::on_reset();
+
+#if RESHADE_ADDON
+	if (_swapchain_reset_status == 0)
+		invoke_addon_event<addon_event::reset_swapchain>(this);
+	if (_swapchain_reset_status == 1)
+		invoke_addon_event<addon_event::destroy_swapchain>(this);
+#endif
 
 	// Make sure none of the resources below are currently in use (provided the runtime was initialized previously)
 	_device->wait_idle();
@@ -138,6 +147,11 @@ bool reshade::d3d12::swapchain_impl::on_present(ID3D12Resource *source, HWND hwn
 	{
 		runtime::on_reset();
 
+#if RESHADE_ADDON
+		if (_swapchain_reset_status == 0)
+			invoke_addon_event<addon_event::reset_swapchain>(this);
+#endif
+
 		_backbuffers[_swap_index]  = source;
 
 		// Do not initialize before all back buffers have been set
@@ -149,6 +163,14 @@ bool reshade::d3d12::swapchain_impl::on_present(ID3D12Resource *source, HWND hwn
 			_width = static_cast<UINT>(source_desc.Width);
 			_height = source_desc.Height;
 			_backbuffer_format = convert_format(source_desc.Format);
+
+#if RESHADE_ADDON
+			if (_swapchain_reset_status != 0)
+				invoke_addon_event<addon_event::init_swapchain>(this);
+			else
+				invoke_addon_event<addon_event::resize_swapchain>(this, _width, _height, _backbuffer_format);
+			_swapchain_reset_status = 0;
+#endif
 
 			if (!runtime::on_init(hwnd))
 			{
@@ -212,6 +234,14 @@ bool reshade::d3d12::swapchain_impl::on_layer_submit(UINT eye, ID3D12Resource *s
 		_width = target_width;
 		_height = region_height;
 		_backbuffer_format = convert_format(source_desc.Format);
+
+#if RESHADE_ADDON
+		if (_swapchain_reset_status != 0)
+			invoke_addon_event<addon_event::init_swapchain>(this);
+		else
+			invoke_addon_event<addon_event::resize_swapchain>(this, _width, _height, _backbuffer_format);
+		_swapchain_reset_status = 0;
+#endif
 
 		if (!runtime::on_init(nullptr))
 		{

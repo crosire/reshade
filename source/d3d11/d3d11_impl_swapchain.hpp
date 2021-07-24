@@ -31,10 +31,10 @@ namespace reshade::d3d11
 
 	private:
 		state_block _app_state;
-
 		com_ptr<ID3D11Texture2D> _backbuffer;
 		com_ptr<ID3D11Texture2D> _backbuffer_resolved;
 		com_ptr<ID3D11RenderTargetView> _backbuffer_rtv;
 		com_ptr<ID3D11ShaderResourceView> _backbuffer_resolved_srv;
+		UINT _swapchain_reset_status = 0;
 	};
 }

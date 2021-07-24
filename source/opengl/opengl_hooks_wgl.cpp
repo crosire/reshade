@@ -880,11 +880,8 @@ HOOK_EXPORT BOOL  WINAPI wglSwapBuffers(HDC hdc)
 		{
 			LOG(INFO) << "Resizing runtime " << runtime << " on device context " << hdc << " to " << width << "x" << height << " ...";
 
-#if RESHADE_ADDON
-			reshade::invoke_addon_event<reshade::addon_event::resize_swapchain>(runtime, width, height, runtime->get_back_buffer_format());
-#endif
-
-			runtime->on_reset();
+			if (runtime_width != 0 || runtime_height != 0)
+				runtime->on_reset();
 
 			if (!(width == 0 && height == 0) && !runtime->on_init(hwnd, width, height))
 				LOG(ERROR) << "Failed to recreate OpenGL runtime environment on runtime " << runtime << '!';

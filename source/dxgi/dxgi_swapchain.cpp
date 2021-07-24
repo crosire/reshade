@@ -364,10 +364,6 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 	if (_force_10_bit_format)
 		NewFormat = DXGI_FORMAT_R10G10B10A2_UNORM;
 
-#if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::resize_swapchain>(_impl, Width, Height, static_cast<reshade::api::format>(NewFormat));
-#endif
-
 	runtime_reset();
 
 	g_in_dxgi_runtime = true;
@@ -545,10 +541,6 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 		Height = _force_resolution[1];
 	if (_force_10_bit_format)
 		Format = DXGI_FORMAT_R10G10B10A2_UNORM;
-
-#if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::resize_swapchain>(_impl, Width, Height, static_cast<reshade::api::format>(Format));
-#endif
 
 	runtime_reset();
 

@@ -554,11 +554,6 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		{
 			assert(create_info.oldSwapchain != VK_NULL_HANDLE);
 
-#if RESHADE_ADDON
-			reshade::invoke_addon_event<reshade::addon_event::resize_swapchain>(
-				swapchain_impl, create_info.imageExtent.width, create_info.imageExtent.height, reshade::vulkan::convert_format(create_info.imageFormat));
-#endif
-
 			// Re-use the existing effect runtime if this swap chain was not created from scratch, but reset it before initializing again below
 			swapchain_impl->on_reset();
 		}

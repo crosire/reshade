@@ -38,5 +38,6 @@ namespace reshade::opengl
 		state_block _app_state;
 		GLuint _rbo = 0;
 		GLuint _fbo[2] = {};
+		GLuint _swapchain_reset_status = 0;
 	};
 }

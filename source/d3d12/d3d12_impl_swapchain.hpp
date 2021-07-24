@@ -32,5 +32,6 @@ namespace reshade::d3d12
 	private:
 		UINT _swap_index = 0;
 		std::vector<com_ptr<ID3D12Resource>> _backbuffers;
+		UINT _swapchain_reset_status = 0;
 	};
 }

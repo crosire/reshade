@@ -26,20 +26,15 @@ reshade::d3d9::swapchain_impl::swapchain_impl(device_impl *device, IDirect3DSwap
 		LOG(INFO) << "Running on " << adapter_desc.Description << " Driver " << (driver_version / 100) << '.' << (driver_version % 100);
 	}
 
-#if RESHADE_ADDON
-	invoke_addon_event<reshade::addon_event::init_swapchain>(this);
-#endif
-
+	_swapchain_reset_status = 1;
 	if (!on_init())
 		LOG(ERROR) << "Failed to initialize Direct3D 9 runtime environment on runtime " << this << '!';
+	_swapchain_reset_status = 0;
 }
 reshade::d3d9::swapchain_impl::~swapchain_impl()
 {
+	_swapchain_reset_status = 1;
 	on_reset();
-
-#if RESHADE_ADDON
-	invoke_addon_event<reshade::addon_event::destroy_swapchain>(this);
-#endif
 }
 
 void reshade::d3d9::swapchain_impl::get_back_buffer(uint32_t index, api::resource *out)
@@ -93,11 +88,25 @@ bool reshade::d3d9::swapchain_impl::on_init()
 	if (!_app_state.init_state_block())
 		return false;
 
+#if RESHADE_ADDON
+	if (_swapchain_reset_status != 0)
+		invoke_addon_event<addon_event::init_swapchain>(this);
+	else
+		invoke_addon_event<addon_event::resize_swapchain>(this, _width, _height, _backbuffer_format);
+#endif
+
 	return runtime::on_init(pp.hDeviceWindow);
 }
 void reshade::d3d9::swapchain_impl::on_reset()
 {
 	runtime::on_reset();
+
+#if RESHADE_ADDON
+	if (_swapchain_reset_status == 0)
+		invoke_addon_event<addon_event::reset_swapchain>(this);
+	else
+		invoke_addon_event<addon_event::destroy_swapchain>(this);
+#endif
 
 	_app_state.release_state_block();
 
