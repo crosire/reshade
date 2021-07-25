@@ -144,7 +144,7 @@ namespace reshade::d3d9
 		bool on_init(const D3DPRESENT_PARAMETERS &pp);
 		void on_reset();
 
-		bool create_surface_replacement(const D3DSURFACE_DESC &new_desc, IDirect3DSurface9 **out_surface, HANDLE *out_shared_handle = nullptr);
+		HRESULT create_surface_replacement(const D3DSURFACE_DESC &new_desc, IDirect3DSurface9 **out_surface, HANDLE *out_shared_handle = nullptr);
 
 		api::sampler get_current_sampler_state(DWORD slot);
 

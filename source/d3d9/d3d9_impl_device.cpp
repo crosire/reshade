@@ -160,7 +160,7 @@ bool reshade::d3d9::device_impl::on_init(const D3DPRESENT_PARAMETERS &pp)
 
 			// Need to replace auto depth stencil if an add-on modified the description
 			if (com_ptr<IDirect3DSurface9> auto_depth_stencil_replacement;
-				create_surface_replacement(internal_desc, &auto_depth_stencil_replacement))
+				SUCCEEDED(create_surface_replacement(internal_desc, &auto_depth_stencil_replacement)))
 			{
 				// The device will hold a reference to the surface after binding it, so can release this one afterwards
 				_orig->SetDepthStencilSurface(auto_depth_stencil_replacement.get());
@@ -296,16 +296,18 @@ void reshade::d3d9::device_impl::on_reset()
 	_default_input_layout.reset();
 }
 
-bool reshade::d3d9::device_impl::create_surface_replacement(const D3DSURFACE_DESC &new_desc, IDirect3DSurface9 **out_surface, HANDLE *out_shared_handle)
+HRESULT reshade::d3d9::device_impl::create_surface_replacement(const D3DSURFACE_DESC &new_desc, IDirect3DSurface9 **out_surface, HANDLE *out_shared_handle)
 {
-	com_ptr<IDirect3DTexture9> texture; // Surface will hold a reference to the created texture and keep it alive
-	if (new_desc.MultiSampleType == D3DMULTISAMPLE_NONE &&
-		SUCCEEDED(_orig->CreateTexture(new_desc.Width, new_desc.Height, 1, new_desc.Usage, new_desc.Format, new_desc.Pool, &texture, out_shared_handle)) &&
-		SUCCEEDED(texture->GetSurfaceLevel(0, out_surface)))
-	{
-		return true; // Successfully created replacement texture and got surface to it
-	}
-	return false;
+	if (new_desc.MultiSampleType != D3DMULTISAMPLE_NONE)
+		return D3DERR_INVALIDCALL;
+
+	// Surface will hold a reference to the created texture and keep it alive
+	com_ptr<IDirect3DTexture9> texture;
+
+	HRESULT hr = _orig->CreateTexture(new_desc.Width, new_desc.Height, 1, new_desc.Usage, new_desc.Format, new_desc.Pool, &texture, out_shared_handle);
+	if (SUCCEEDED(hr))
+		hr = texture->GetSurfaceLevel(0, out_surface);
+	return hr;
 }
 
 reshade::api::sampler reshade::d3d9::device_impl::get_current_sampler_state(DWORD slot)
@@ -583,7 +585,7 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 
 					if (com_ptr<IDirect3DSurface9> object;
 						((desc.usage & reshade::api::resource_usage::shader_resource) != reshade::api::resource_usage::undefined) ?
-						create_surface_replacement(internal_desc, &object, nullptr) :
+						SUCCEEDED(create_surface_replacement(internal_desc, &object, nullptr)) :
 						SUCCEEDED(_orig->CreateDepthStencilSurface(internal_desc.Width, internal_desc.Height, internal_desc.Format, internal_desc.MultiSampleType, internal_desc.MultiSampleQuality, FALSE, &object, nullptr)))
 					{
 						*out = { reinterpret_cast<uintptr_t>(object.release()) };
@@ -599,7 +601,7 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 
 					if (com_ptr<IDirect3DSurface9> object;
 						((desc.usage & reshade::api::resource_usage::shader_resource) != reshade::api::resource_usage::undefined) ?
-						create_surface_replacement(internal_desc, &object, nullptr) :
+						SUCCEEDED(create_surface_replacement(internal_desc, &object, nullptr)) :
 						SUCCEEDED(_orig->CreateRenderTarget(internal_desc.Width, internal_desc.Height, internal_desc.Format, internal_desc.MultiSampleType, internal_desc.MultiSampleQuality, FALSE, &object, nullptr)))
 					{
 						*out = { reinterpret_cast<uintptr_t>(object.release()) };
