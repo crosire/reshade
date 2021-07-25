@@ -265,10 +265,16 @@ static bool on_create_resource(device *device, resource_desc &desc, subresource_
 		(desc.usage & resource_usage::shader_resource) != resource_usage::undefined)
 		return false;
 
-	if (device->get_api() == device_api::d3d9 && !s_disable_intz)
+	if (device->get_api() == device_api::d3d9)
+	{
+		if (s_disable_intz)
+			return false;
 		desc.texture.format = format::intz;
+	}
 	if (device->get_api() >= device_api::d3d10 && device->get_api() <= device_api::d3d12)
+	{
 		desc.texture.format = format_to_typeless(desc.texture.format);
+	}
 
 	desc.usage |= resource_usage::shader_resource;
 
@@ -785,6 +791,8 @@ static void draw_debug_menu(effect_runtime *runtime, void *)
 		config.set("DEPTH", "DepthCopyBeforeClears", device_state.preserve_depth_buffers);
 		config.set("DEPTH", "DepthCopyAtClearIndex", device_state.force_clear_index);
 		config.set("DEPTH", "UseAspectRatioHeuristics", device_state.use_aspect_ratio_heuristics);
+
+		config.save();
 	}
 }
 #endif

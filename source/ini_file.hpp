@@ -194,9 +194,17 @@ public:
 	}
 
 	/// <summary>
+	/// Loads all values from disk.
+	/// </summary>
+	void load();
+	/// <summary>
+	/// Saves all changes to this INI file to disk.
+	/// </summary>
+	bool save();
+
+	/// <summary>
 	/// Saves all changes to INI files that were loaded through <see cref="load_cache"/> to disk.
 	/// </summary>
-	/// <returns></returns>
 	static bool flush_cache();
 	static bool flush_cache(const std::filesystem::path &path);
 
@@ -209,9 +217,6 @@ public:
 	static ini_file &load_cache(const std::filesystem::path &path);
 
 private:
-	void load();
-	bool save();
-
 	template <typename T>
 	static const T convert(const std::vector<std::string> &values, size_t i) = delete;
 	template <>
