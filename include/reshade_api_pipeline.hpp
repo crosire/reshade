@@ -127,11 +127,6 @@ namespace reshade { namespace api
 	enum class pipeline_stage : uint32_t
 	{
 		/// <summary>
-		/// The pipeline stage where vertex and index buffers are consumed.
-		/// Corresponds to <see cref="pipeline_desc::graphics::input_layout"/>.
-		/// </summary>
-		input_assembler = 0x00000004,
-		/// <summary>
 		/// The vertex shader stage.
 		/// Corresponds to <see cref="pipeline_desc::graphics::vertex_shader"/>.
 		/// </summary>
@@ -162,6 +157,18 @@ namespace reshade { namespace api
 		/// <seealso cref="shader_stage::pixel"/>
 		pixel_shader = 0x00000080,
 		/// <summary>
+		/// The compute shader stage.
+		/// Corresponds to <see cref="pipeline_desc::compute::shader"/>.
+		/// </summary>
+		/// <seealso cref="shader_stage::compute"/>
+		compute_shader = 0x00000800,
+
+		/// <summary>
+		/// The pipeline stage where vertex and index buffers are consumed.
+		/// Corresponds to <see cref="pipeline_desc::graphics::input_layout"/>.
+		/// </summary>
+		input_assembler = 0x00000004,
+		/// <summary>
 		/// The pipeline stage where rasterization happens and early depth and stencil tests are performed.
 		/// Corresponds to <see cref="pipeline_desc::graphics::rasterizer_state"/>.
 		/// </summary>
@@ -176,23 +183,21 @@ namespace reshade { namespace api
 		/// Corresponds to <see cref="pipeline_desc::graphics::blend_state"/>.
 		/// </summary>
 		output_merger = 0x00000400,
-		/// <summary>
-		/// The compute shader stage.
-		/// Corresponds to <see cref="pipeline_desc::compute::shader"/>.
-		/// </summary>
-		/// <seealso cref="shader_stage::compute"/>
-		compute_shader = 0x00000800,
 
 		/// <summary>
-		/// Full compute pipeline state.
+		/// All operations performed by all supported commands (compute, graphics, ...).
 		/// </summary>
-		all_compute = compute_shader,
+		all = 0x00010000,
 		/// <summary>
-		/// Full graphics pipeline state.
+		/// Combination of all pipeline stages for compute.
+		/// </summary>
+		all_compute = 0x00000800,
+		/// <summary>
+		/// Combination of all pipeline stages for graphics.
 		/// </summary>
 		all_graphics = 0x00008000,
 		/// <summary>
-		/// Program pipeline state.
+		/// Combination of all supported shader stages by all supported commands (compute, graphics, ...).
 		/// </summary>
 		all_shader_stages = vertex_shader | hull_shader | domain_shader | geometry_shader | pixel_shader | compute_shader,
 	};

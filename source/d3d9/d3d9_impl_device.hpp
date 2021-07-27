@@ -141,6 +141,9 @@ namespace reshade::d3d9
 		std::unordered_map<size_t, api::sampler> _cached_sampler_states;
 
 	protected:
+		// Global pipeline layout handle which is registered during device creation
+		static constexpr api::pipeline_layout _global_pipeline_layout = { 0x1 };
+
 		bool on_init(const D3DPRESENT_PARAMETERS &pp);
 		void on_reset();
 

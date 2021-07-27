@@ -324,7 +324,7 @@ void reshade::d3d11::device_context_impl::push_constants(api::shader_stage stage
 		_orig->Unmap(push_constants, 0);
 	}
 
-	const UINT push_constants_slot = layout.handle != 0 ?
+	const UINT push_constants_slot = layout.handle != 0 && layout != _device_impl->_global_pipeline_layout ?
 		reinterpret_cast<pipeline_layout_impl *>(layout.handle)->shader_registers[layout_index] : 0;
 
 	if ((stages & api::shader_stage::vertex) == api::shader_stage::vertex)
@@ -342,7 +342,7 @@ void reshade::d3d11::device_context_impl::push_constants(api::shader_stage stage
 }
 void reshade::d3d11::device_context_impl::push_descriptors(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_index, api::descriptor_type type, uint32_t first, uint32_t count, const void *descriptors)
 {
-	if (layout.handle != 0)
+	if (layout.handle != 0 && layout != _device_impl->_global_pipeline_layout)
 		first += reinterpret_cast<pipeline_layout_impl *>(layout.handle)->shader_registers[layout_index];
 
 	switch (type)

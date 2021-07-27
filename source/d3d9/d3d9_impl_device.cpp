@@ -199,13 +199,9 @@ bool reshade::d3d9::device_impl::on_init(const D3DPRESENT_PARAMETERS &pp)
 		constants_b_vs.count = 16;
 		constants_b_vs.visibility = api::shader_stage::vertex;
 		api::descriptor_range sampler_range_vs = {};
-		sampler_range_vs.type = api::descriptor_type::sampler;
+		sampler_range_vs.type = api::descriptor_type::sampler_with_resource_view;
 		sampler_range_vs.count = 4; // Vertex shaders only support 4 sampler slots (D3DVERTEXTEXTURESAMPLER0 - D3DVERTEXTEXTURESAMPLER3)
 		sampler_range_vs.visibility = api::shader_stage::vertex;
-		api::descriptor_range texture_range_vs = {};
-		texture_range_vs.type = api::descriptor_type::shader_resource_view;
-		texture_range_vs.count = 4;
-		texture_range_vs.visibility = api::shader_stage::vertex;
 
 		// See https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/dx9-graphics-reference-asm-ps-registers-ps-3-0
 		api::constant_range constants_f_ps = {};
@@ -218,13 +214,9 @@ bool reshade::d3d9::device_impl::on_init(const D3DPRESENT_PARAMETERS &pp)
 		constants_b_ps.count = 16;
 		constants_b_ps.visibility = api::shader_stage::pixel;
 		api::descriptor_range sampler_range_ps = {};
-		sampler_range_ps.type = api::descriptor_type::sampler;
-		sampler_range_ps.count = 16;
+		sampler_range_ps.type = api::descriptor_type::sampler_with_resource_view;
+		sampler_range_ps.count = _caps.MaxSimultaneousTextures;
 		sampler_range_ps.visibility = api::shader_stage::pixel;
-		api::descriptor_range texture_range_ps = {};
-		texture_range_ps.type = api::descriptor_type::shader_resource_view;
-		texture_range_ps.count = _caps.MaxSimultaneousTextures;
-		texture_range_ps.visibility = api::shader_stage::pixel;
 
 		const api::constant_range constant_ranges[6] = {
 			constants_f_vs, constants_i_vs, constants_b_vs,
@@ -235,31 +227,25 @@ bool reshade::d3d9::device_impl::on_init(const D3DPRESENT_PARAMETERS &pp)
 		set_layout_desc.num_ranges = 1;
 		set_layout_desc.push_descriptors = true;
 
-		constexpr api::descriptor_set_layout set_layouts[4] = {
-			{ 0x1 }, { 0x2 }, { 0x3 }, { 0x4 }
+		constexpr api::descriptor_set_layout set_layouts[2] = {
+			{ 0x1 }, { 0x2 }
 		};
 
-		set_layout_desc.ranges = &sampler_range_ps;
-		invoke_addon_event<addon_event::init_descriptor_set_layout>(this, set_layout_desc, set_layouts[0]);
-		set_layout_desc.ranges = &texture_range_ps;
-		invoke_addon_event<addon_event::init_descriptor_set_layout>(this, set_layout_desc, set_layouts[1]);
 		set_layout_desc.ranges = &sampler_range_vs;
-		invoke_addon_event<addon_event::init_descriptor_set_layout>(this, set_layout_desc, set_layouts[2]);
-		set_layout_desc.ranges = &texture_range_vs;
-		invoke_addon_event<addon_event::init_descriptor_set_layout>(this, set_layout_desc, set_layouts[3]);
+		invoke_addon_event<addon_event::init_descriptor_set_layout>(this, set_layout_desc, set_layouts[0]);
+		set_layout_desc.ranges = &sampler_range_ps;
+		invoke_addon_event<addon_event::init_descriptor_set_layout>(this, set_layout_desc, set_layouts[1]);
 
 		api::pipeline_layout_desc pipeline_layout_desc = {};
-		pipeline_layout_desc.num_set_layouts = 4;
+		pipeline_layout_desc.num_set_layouts = 2;
 		pipeline_layout_desc.set_layouts = set_layouts;
 		pipeline_layout_desc.num_constant_ranges = 6;
 		pipeline_layout_desc.constant_ranges = constant_ranges;
 
-		invoke_addon_event<addon_event::init_pipeline_layout>(this, pipeline_layout_desc, api::pipeline_layout { 0x1 }); // Use a handle other than zero
+		invoke_addon_event<addon_event::init_pipeline_layout>(this, pipeline_layout_desc, _global_pipeline_layout);
 
 		invoke_addon_event<addon_event::destroy_descriptor_set_layout>(this, set_layouts[0]);
 		invoke_addon_event<addon_event::destroy_descriptor_set_layout>(this, set_layouts[1]);
-		invoke_addon_event<addon_event::destroy_descriptor_set_layout>(this, set_layouts[2]);
-		invoke_addon_event<addon_event::destroy_descriptor_set_layout>(this, set_layouts[3]);
 	}
 #else
 	UNREFERENCED_PARAMETER(pp);
@@ -284,7 +270,7 @@ void reshade::d3d9::device_impl::on_reset()
 		destroy_sampler(handle);
 	}
 
-	invoke_addon_event<addon_event::destroy_pipeline_layout>(this, api::pipeline_layout { 0x1 });
+	invoke_addon_event<addon_event::destroy_pipeline_layout>(this, _global_pipeline_layout);
 
 	// Force add-ons to release all resources associated with this device before performing reset
 	invoke_addon_event<addon_event::destroy_command_queue>(this);

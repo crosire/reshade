@@ -827,7 +827,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePlacedResource(ID3D12Heap *pHeap, U
 			register_buffer_gpu_address(resource, desc.buffer.size);
 
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
-			this, desc, nullptr, initial_state, reshade::api::resource { reinterpret_cast<uintptr_t>(*ppvResource) });
+			this, desc, nullptr, initial_state, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
 
 		reshade::invoke_addon_event_on_destruction<reshade::addon_event::destroy_resource, reshade::api::resource>(this, resource);
 #endif
@@ -865,10 +865,12 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource(const D3D12_RESOUR
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
-			this, desc, nullptr, initial_state, reshade::api::resource { reinterpret_cast<uintptr_t>(*ppvResource) });
+		const auto resource = static_cast<ID3D12Resource *>(*ppvResource);
 
-		reshade::invoke_addon_event_on_destruction<reshade::addon_event::destroy_resource, reshade::api::resource>(this, static_cast<ID3D12Resource *>(*ppvResource));
+		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
+			this, desc, nullptr, initial_state, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
+
+		reshade::invoke_addon_event_on_destruction<reshade::addon_event::destroy_resource, reshade::api::resource>(this, resource);
 #endif
 	}
 	else
@@ -1065,7 +1067,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource1(const D3D12_HEAP
 			register_buffer_gpu_address(resource, desc.buffer.size);
 
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
-			this, desc, nullptr, InitialResourceState == D3D12_RESOURCE_STATE_COMMON ? reshade::api::resource_usage::general : static_cast<reshade::api::resource_usage>(InitialResourceState), reshade::api::resource { reinterpret_cast<uintptr_t>(*ppvResource) });
+			this, desc, nullptr, initial_state, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
 
 		reshade::invoke_addon_event_on_destruction<reshade::addon_event::destroy_resource, reshade::api::resource>(this, resource);
 #endif
@@ -1109,10 +1111,12 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource1(const D3D12_RESOU
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
-			this, desc, nullptr, initial_state, reshade::api::resource { reinterpret_cast<uintptr_t>(*ppvResource) });
+		const auto resource = static_cast<ID3D12Resource *>(*ppvResource);
 
-		reshade::invoke_addon_event_on_destruction<reshade::addon_event::destroy_resource, reshade::api::resource>(this, static_cast<ID3D12Resource *>(*ppvResource));
+		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
+			this, desc, nullptr, initial_state, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
+
+		reshade::invoke_addon_event_on_destruction<reshade::addon_event::destroy_resource, reshade::api::resource>(this, resource);
 #endif
 	}
 	else

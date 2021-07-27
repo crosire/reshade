@@ -83,6 +83,9 @@ namespace reshade::d3d11
 
 		void set_resource_name(api::resource resource, const char *name) final;
 
+		// Global pipeline layout handle which is registered during device creation
+		static constexpr api::pipeline_layout _global_pipeline_layout = { 0x1 };
+
 	private:
 		ID3D11DeviceContext *_immediate_context_orig = nullptr;
 		com_ptr<ID3D11VertexShader> _copy_vert_shader;

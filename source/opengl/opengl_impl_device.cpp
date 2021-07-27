@@ -258,7 +258,7 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC hglrc) :
 		pipeline_layout_desc.num_set_layouts = 4;
 		pipeline_layout_desc.set_layouts = set_layouts;
 
-		invoke_addon_event<addon_event::init_pipeline_layout>(this, pipeline_layout_desc, api::pipeline_layout { 0x1 }); // Use a handle other than zero
+		invoke_addon_event<addon_event::init_pipeline_layout>(this, pipeline_layout_desc, _global_pipeline_layout);
 
 		invoke_addon_event<addon_event::destroy_descriptor_set_layout>(this, set_layouts[0]);
 		invoke_addon_event<addon_event::destroy_descriptor_set_layout>(this, set_layouts[1]);
@@ -275,7 +275,7 @@ reshade::opengl::device_impl::~device_impl()
 #if RESHADE_ADDON
 	invoke_addon_event<addon_event::finish_render_pass>(this);
 
-	invoke_addon_event<addon_event::destroy_pipeline_layout>(this, api::pipeline_layout { 0x1 });
+	invoke_addon_event<addon_event::destroy_pipeline_layout>(this, _global_pipeline_layout);
 
 	invoke_addon_event<addon_event::destroy_command_queue>(this);
 	invoke_addon_event<addon_event::destroy_device>(this);

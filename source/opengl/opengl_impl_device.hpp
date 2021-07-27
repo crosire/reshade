@@ -142,7 +142,9 @@ namespace reshade::opengl
 		void finish_debug_event() final;
 		void insert_debug_marker(const char *label, const float color[4]) final;
 
-	public:
+		// Global pipeline layout handle which is registered during device creation
+		static constexpr api::pipeline_layout _global_pipeline_layout = { 0x1 };
+
 		bool _compatibility_context = false;
 		std::unordered_set<HDC> _hdcs;
 		GLuint _current_fbo = 0;

@@ -140,20 +140,21 @@ HRESULT STDMETHODCALLTYPE D3D12GraphicsCommandList::Reset(ID3D12CommandAllocator
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
-		reshade::api::pipeline_stage type = static_cast<reshade::api::pipeline_stage>(0);
+		reshade::api::pipeline_stage type = reshade::api::pipeline_stage::all;
 		if (pInitialState != nullptr)
 		{
-			type = reshade::api::pipeline_stage::all_compute;
-
-			reshade::d3d12::pipeline_graphics_impl extra_data;
-			UINT extra_data_size = sizeof(extra_data);
-			if (SUCCEEDED(pInitialState->GetPrivateData(reshade::d3d12::pipeline_extra_data_guid, &extra_data_size, &extra_data)))
+			if (UINT extra_data_size = 0;
+				FAILED(pInitialState->GetPrivateData(reshade::d3d12::pipeline_extra_data_guid, &extra_data_size, nullptr)))
+				type = reshade::api::pipeline_stage::all_compute;
+			else
 				type = reshade::api::pipeline_stage::all_graphics;
-		}
 
-		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(this, type, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pInitialState) });
+			// Only invoke event if there actually is an initial state to bind, otherwise expect things were already handled by the 'reset_command_list' event above
+			reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(this, type, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pInitialState) });
+		}
 	}
 #endif
+
 	return hr;
 }
 
@@ -252,6 +253,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::CopyTextureRegion(const D3D12_T
 			return;
 	}
 #endif
+
 	_orig->CopyTextureRegion(pDst, DstX, DstY, DstZ, pSrc, pSrcBox);
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::CopyResource(ID3D12Resource *pDstResource, ID3D12Resource *pSrcResource)
@@ -333,14 +335,14 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetPipelineState(ID3D12Pipeline
 	_orig->SetPipelineState(pPipelineState);
 
 #if RESHADE_ADDON
-	reshade::api::pipeline_stage type = static_cast<reshade::api::pipeline_stage>(0);
+	reshade::api::pipeline_stage type = reshade::api::pipeline_stage::all;
 	if (pPipelineState != nullptr)
 	{
-		type = reshade::api::pipeline_stage::all_compute;
-
-		reshade::d3d12::pipeline_graphics_impl extra_data;
-		UINT extra_data_size = sizeof(extra_data);
-		if (SUCCEEDED(pPipelineState->GetPrivateData(reshade::d3d12::pipeline_extra_data_guid, &extra_data_size, &extra_data)))
+		// Check if the extra data exists in the pipeline, which is only added for graphics pipelines
+		if (UINT extra_data_size = 0;
+			FAILED(pPipelineState->GetPrivateData(reshade::d3d12::pipeline_extra_data_guid, &extra_data_size, nullptr)))
+			type = reshade::api::pipeline_stage::all_compute;
+		else
 			type = reshade::api::pipeline_stage::all_graphics;
 	}
 

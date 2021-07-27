@@ -1092,9 +1092,15 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetTexture(DWORD Stage, IDirect3DBase
 			Stage -= D3DVERTEXTEXTURESAMPLER0;
 		}
 
-		const reshade::api::resource_view view = { reinterpret_cast<uintptr_t>(pTexture) };
-		// See 'device_impl::on_after_reset' for pipeline layout initialization for corresponding layout indices
-		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(this, shader_stage, reshade::api::pipeline_layout { 0x1 }, shader_stage == reshade::api::shader_stage::vertex ? 3 : 1, reshade::api::descriptor_type::shader_resource_view, Stage, 1, &view);
+		// This assumes that the sampler state is set by the application before textures, which is not necessarily the case, but oh well ...
+		const reshade::api::sampler_with_resource_view descriptor_data = {
+			get_current_sampler_state(Stage),
+			reshade::api::resource_view { reinterpret_cast<uintptr_t>(pTexture) }
+		};
+
+		// See global pipeline layout initialization in 'device_impl::on_after_reset' for corresponding layout indices
+		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
+			this, shader_stage, _global_pipeline_layout, shader_stage == reshade::api::shader_stage::vertex ? 0 : 1, reshade::api::descriptor_type::sampler_with_resource_view, Stage, 1, &descriptor_data);
 	}
 #endif
 
@@ -1114,25 +1120,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetSamplerState(DWORD Sampler, D3DSAM
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetSamplerState(DWORD Sampler, D3DSAMPLERSTATETYPE Type, DWORD Value)
 {
-	const HRESULT hr = _orig->SetSamplerState(Sampler, Type, Value);
-#if RESHADE_ADDON
-	if (SUCCEEDED(hr) &&
-		!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::push_descriptors)].empty())
-	{
-		reshade::api::shader_stage shader_stage = reshade::api::shader_stage::pixel;
-		if (Sampler >= D3DVERTEXTEXTURESAMPLER0)
-		{
-			shader_stage = reshade::api::shader_stage::vertex;
-			Sampler -= D3DVERTEXTEXTURESAMPLER0;
-		}
-
-		const reshade::api::sampler sampler_handle = get_current_sampler_state(Sampler);
-		// See 'device_impl::on_after_reset' for pipeline layout initialization for corresponding layout indices
-		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(this, shader_stage, reshade::api::pipeline_layout { 0x1 }, shader_stage == reshade::api::shader_stage::vertex ? 2 : 0, reshade::api::descriptor_type::sampler, Sampler, 1, &sampler_handle);
-	}
-#endif
-
-	return hr;
+	return _orig->SetSamplerState(Sampler, Type, Value);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::ValidateDevice(DWORD *pNumPasses)
 {
@@ -1385,9 +1373,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetVertexShaderConstantF(UINT StartRe
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
-		// See 'device_impl::on_after_reset' for pipeline layout initialization for corresponding layout indices
+		// See global pipeline layout initialization in 'device_impl::on_after_reset' for corresponding layout indices
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(this,
-			reshade::api::shader_stage::vertex, reshade::api::pipeline_layout { 0x1 }, 4, StartRegister, Vector4fCount, reinterpret_cast<const uint32_t *>(pConstantData));
+			reshade::api::shader_stage::vertex, _global_pipeline_layout, 2, StartRegister, Vector4fCount, reinterpret_cast<const uint32_t *>(pConstantData));
 	}
 #endif
 
@@ -1404,7 +1392,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetVertexShaderConstantI(UINT StartRe
 	if (SUCCEEDED(hr))
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(this,
-			reshade::api::shader_stage::vertex, reshade::api::pipeline_layout { 0x1 }, 5, StartRegister, Vector4iCount, reinterpret_cast<const uint32_t *>(pConstantData));
+			reshade::api::shader_stage::vertex, _global_pipeline_layout, 3, StartRegister, Vector4iCount, reinterpret_cast<const uint32_t *>(pConstantData));
 	}
 #endif
 
@@ -1421,7 +1409,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetVertexShaderConstantB(UINT StartRe
 	if (SUCCEEDED(hr))
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(this,
-			reshade::api::shader_stage::vertex, reshade::api::pipeline_layout { 0x1 }, 6, StartRegister, BoolCount, reinterpret_cast<const uint32_t *>(pConstantData));
+			reshade::api::shader_stage::vertex, _global_pipeline_layout, 4, StartRegister, BoolCount, reinterpret_cast<const uint32_t *>(pConstantData));
 	}
 #endif
 
@@ -1543,7 +1531,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetPixelShaderConstantF(UINT StartReg
 	if (SUCCEEDED(hr))
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(this,
-			reshade::api::shader_stage::pixel, reshade::api::pipeline_layout { 0x1 }, 7, StartRegister, Vector4fCount, reinterpret_cast<const uint32_t *>(pConstantData));
+			reshade::api::shader_stage::pixel, _global_pipeline_layout, 5, StartRegister, Vector4fCount, reinterpret_cast<const uint32_t *>(pConstantData));
 	}
 #endif
 
@@ -1560,7 +1548,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetPixelShaderConstantI(UINT StartReg
 	if (SUCCEEDED(hr))
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(this,
-			reshade::api::shader_stage::pixel, reshade::api::pipeline_layout { 0x1 }, 8, StartRegister, Vector4iCount, reinterpret_cast<const uint32_t *>(pConstantData));
+			reshade::api::shader_stage::pixel, _global_pipeline_layout, 6, StartRegister, Vector4iCount, reinterpret_cast<const uint32_t *>(pConstantData));
 	}
 #endif
 
@@ -1577,7 +1565,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetPixelShaderConstantB(UINT StartReg
 	if (SUCCEEDED(hr))
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(this,
-			reshade::api::shader_stage::pixel, reshade::api::pipeline_layout { 0x1 }, 9, StartRegister, BoolCount, reinterpret_cast<const uint32_t *>(pConstantData));
+			reshade::api::shader_stage::pixel, _global_pipeline_layout, 7, StartRegister, BoolCount, reinterpret_cast<const uint32_t *>(pConstantData));
 	}
 #endif
 

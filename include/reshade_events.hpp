@@ -88,6 +88,7 @@ namespace reshade
 		/// </summary>
 		/// <remarks>
 		/// To overwrite the sampler description, modify <c>desc</c> in the callback and return <see langword="true"/>, otherwise return <see langword="false"/>.
+		/// Is not called in D3D9 (since samplers are loose state there).
 		/// </remarks>
 		create_sampler,
 		/// <summary>
@@ -95,17 +96,17 @@ namespace reshade
 		/// <para>Callback function signature: <c>void (api::device *device, api::sampler sampler)</c></para>
 		/// </summary>
 		/// <remarks>
-		/// Is not called in D3D12 (sampler handles are descriptor handles rather than objects).
+		/// Is not called in D3D12 (since samplers are descriptor handles instead of objects there).
 		/// </remarks>
 		destroy_sampler,
 
 		/// <summary>
-		/// Called after successfull resource creation from 'IDirect3Device9::Create(...)Buffer/Texture/Surface(Ex)', 'ID3D10Device::CreateBuffer/Texture(...)', 'ID3D11Device::CreateBuffer/Texture(...)', 'ID3D12Device::Create(...)Resource(...)', 'gl(Named)Buffer/Renderbuffer/Tex(ture)Storage(...)(Multisample)' or 'vkCreateBuffer/Image'.
+		/// Called after successfull resource creation from 'IDirect3Device9::Create(...)(Buffer/Texture/Surface(Ex))', 'ID3D10Device::Create(Buffer/Texture(...))', 'ID3D11Device::Create(Buffer/Texture(...))', 'ID3D12Device::Create(...)Resource(...)', 'gl(Named)(Buffer/Renderbuffer/Tex(ture))Storage(...)(Multisample)' or 'vkCreate(Buffer/Image)'.
 		/// <para>Callback function signature: <c>void (api::device *device, const api::resource_desc &amp;desc, const api::subresource_data *initial_data, api::resource_usage initial_state, api::resource resource)</c></para>
 		/// </summary>
 		init_resource,
 		/// <summary>
-		/// Called before 'IDirect3Device9::Create(...)Buffer/Texture/Surface(Ex)', 'ID3D10Device::CreateBuffer/Texture(...)', 'ID3D11Device::CreateBuffer/Texture(...)', 'ID3D12Device::Create(...)Resource(...)', 'gl(Named)Buffer/Renderbuffer/Tex(ture)Storage(...)(Multisample)' or 'vkCreateBuffer/Image'.
+		/// Called before 'IDirect3Device9::Create(...)(Buffer/Texture/Surface(Ex))', 'ID3D10Device::Create(Buffer/Texture(...))', 'ID3D11Device::Create(Buffer/Texture(...))', 'ID3D12Device::Create(...)Resource(...)', 'gl(Named)(Buffer/Renderbuffer/Tex(ture))Storage(...)(Multisample)' or 'vkCreate(Buffer/Image)'.
 		/// <para>Callback function signature: <c>bool (api::device *device, api::resource_desc &amp;desc, api::subresource_data *initial_data, api::resource_usage initial_state)</c></para>
 		/// </summary>
 		/// <remarks>
@@ -113,22 +114,23 @@ namespace reshade
 		/// </remarks>
 		create_resource,
 		/// <summary>
-		/// Called on resource destruction, before last 'IDirect3DResource9::Release', 'ID3D10Resource::Release', 'ID3D11Resource::Release', 'ID3D12Resource::Release', 'glDeleteBuffers/Textures' or 'vkDestroyBuffer/Image'.
+		/// Called on resource destruction, before last 'IDirect3DResource9::Release', 'ID3D10Resource::Release', 'ID3D11Resource::Release', 'ID3D12Resource::Release', 'glDelete(Buffers/Textures)' or 'vkDestroy(Buffer/Image)'.
 		/// <para>Callback function signature: <c>void (api::device *device, api::resource resource)</c></para>
 		/// </summary>
 		destroy_resource,
 
 		/// <summary>
-		/// Called after successfull resource view creation from 'IDirect3DDevice9::Create(...)Surface(Ex)', 'ID3D10Device::Create(...)View(1)', 'ID3D11Device::Create(...)View(1)', 'ID3D12Device::Create(...)View', 'glTex(ture)Buffer', 'glTextureView(...)' or 'vkCreateBuffer/ImageView'.
+		/// Called after successfull resource view creation from 'IDirect3DDevice9::Create(...)(Texture/Surface(Ex))', 'ID3D10Device::Create(...)View(1)', 'ID3D11Device::Create(...)View(1)', 'ID3D12Device::Create(...)View', 'glTex(ture)Buffer', 'glTextureView(...)' or 'vkCreate(Buffer/Image)View'.
 		/// <para>Callback function signature: <c>void (api::device *device, api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &amp;desc, api::resource_view view)</c></para>
 		/// </summary>
 		init_resource_view,
 		/// <summary>
-		/// Called before 'IDirect3DDevice9::Create(...)Surface(Ex)', 'ID3D10Device::Create(...)View(1)', 'ID3D11Device::Create(...)View(1)', 'ID3D12Device::Create(...)View', 'glTex(ture)Buffer', 'glTextureView(...)' or 'vkCreateBuffer/ImageView'. Is not called in D3D9 for shader resource views.
+		/// Called before 'ID3D10Device::Create(...)View(1)', 'ID3D11Device::Create(...)View(1)', 'ID3D12Device::Create(...)View', 'glTex(ture)Buffer', 'glTextureView(...)' or 'vkCreate(Buffer/Image)View'.
 		/// <para>Callback function signature: <c>bool (api::device *device, api::resource resource, api::resource_usage usage_type, api::resource_view_desc &amp;desc)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// To overwrite the resource view description, modify <c>desc</c> in the callback and return <see langword="true"/>, otherwise return <see langword="false"/>.
+		/// Is not called in D3D9 (since resource views are tied to resources there).
 		/// </remarks>
 		create_resource_view,
 		/// <summary>
@@ -136,20 +138,20 @@ namespace reshade
 		/// <para>Callback function signature: <c>void (api::device *device, api::resource_view view)</c></para>
 		/// </summary>
 		/// <remarks>
-		/// Is not called in D3D12 (resource view handles are descriptor handles rather than objects).
+		/// Is not called in D3D12 (since resource views are descriptor handles instead of objects there).
 		/// </remarks>
 		destroy_resource_view,
 
 		/// <summary>
-		/// Called after successfull pipeline creation from 'IDirect3DDevice9::Create(...)Shader', 'ID3D10Device::Create(...)(Shader/State)', 'ID3D11Device::Create(...)(Shader/State)', 'ID3D12Device::Create(...)PipelineState', 'glLinkProgram' or 'vkCreate(...)Pipelines'.
+		/// Called after successfull pipeline creation from 'IDirect3DDevice9::Create(...)(Shader/VertexDeclaration)', 'ID3D10Device::Create(...)(Shader/State)', 'ID3D11Device::Create(...)(Shader/State)', 'ID3D12Device::Create(...)PipelineState', 'glLinkProgram' or 'vkCreate(...)Pipelines'.
 		/// <para>Callback function signature: <c>void (api::device *device, const api::pipeline_desc &amp;desc, api::pipeline pipeline)</c></para>
 		/// </summary>
 		/// <remarks>
-		/// May be called multiple times with the same pipeline handle.
+		/// May be called multiple times with the same pipeline handle (whenever the pipeline is updated or its reference count is incremented).
 		/// </remarks>
 		init_pipeline,
 		/// <summary>
-		/// Called before 'IDirect3DDevice9::CreateVertexDeclaration', 'IDirect3DDevice9::Create(...)Shader', 'ID3D10Device::Create(...)(Shader/State)', 'ID3D11Device::Create(...)(Shader/State)', 'ID3D12Device::Create(...)PipelineState', 'glShaderSource' or 'vkCreate(...)Pipelines'.
+		/// Called before 'IDirect3DDevice9::Create(...)(Shader/VertexDeclaration)', 'ID3D10Device::Create(...)(Shader/State)', 'ID3D11Device::Create(...)(Shader/State)', 'ID3D12Device::Create(...)PipelineState', 'glShaderSource' or 'vkCreate(...)Pipelines'.
 		/// <para>Callback function signature: <c>bool (api::device *device, api::pipeline_desc &amp;desc)</c></para>
 		/// </summary>
 		/// <remarks>
@@ -207,12 +209,15 @@ namespace reshade
 		destroy_render_pass,
 
 		/// <summary>
-		/// Called after successfull framebuffer object creation from 'gl(Named)FramebufferRenderbuffer/Texture(...)' or 'vkCreateFramebuffer'.
+		/// Called after successfull framebuffer object creation from 'gl(Named)Framebuffer(Renderbuffer/Texture)(...)' or 'vkCreateFramebuffer'.
 		/// <para>Callback function signature: <c>void (api::device *device, const api::framebuffer_desc &amp;desc, api::framebuffer fbo)</c></para>
 		/// </summary>
+		/// <remarks>
+		/// May be called multiple times with the same framebuffer handle (whenever the framebuffer object is updated).
+		/// </remarks>
 		init_framebuffer,
 		/// <summary>
-		/// Called before 'gl(Named)FramebufferRenderbuffer/Texture(...)' or 'vkCreateFramebuffer'.
+		/// Called before 'gl(Named)Framebuffer(Renderbuffer/Texture)(...)' or 'vkCreateFramebuffer'.
 		/// <para>Callback function signature: <c>bool (api::device *device, api::framebuffer_desc &amp;desc)</c></para>
 		/// </summary>
 		/// <remarks>

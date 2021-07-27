@@ -80,11 +80,19 @@ namespace reshade::d3d12
 #if RESHADE_ADDON
 		bool resolve_gpu_address(D3D12_GPU_VIRTUAL_ADDRESS address, api::resource *out_resource, uint64_t *out_offset)
 		{
+			*out_offset = 0;
+			*out_resource = { 0 };
+
+			if (!address)
+				return true;
+
 			const std::lock_guard<std::mutex> lock(_mutex);
+
 			for (const auto &buffer_info : _buffer_gpu_addresses)
 			{
 				if (address < buffer_info.second.StartAddress)
 					continue;
+
 				const UINT64 address_offset = address - buffer_info.second.StartAddress;
 				if (address_offset < buffer_info.second.SizeInBytes)
 				{
@@ -93,6 +101,7 @@ namespace reshade::d3d12
 					return true;
 				}
 			}
+
 			return false;
 		}
 #endif
@@ -103,6 +112,7 @@ namespace reshade::d3d12
 	private:
 		mutable std::mutex _mutex;
 		std::vector<command_queue_impl *> _queues;
+		std::unordered_map<uint64_t, ID3D12Resource *> _views;
 		std::vector<std::pair<ID3D12Resource *, D3D12_GPU_VIRTUAL_ADDRESS_RANGE>> _buffer_gpu_addresses;
 
 		std::unordered_map<UINT64, D3D12_CPU_DESCRIPTOR_HANDLE> _descriptor_set_map;
@@ -113,7 +123,6 @@ namespace reshade::d3d12
 		descriptor_heap_cpu _view_heaps[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
 		descriptor_heap_gpu<D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, 128, 128> _gpu_sampler_heap;
 		descriptor_heap_gpu<D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1024, 2048> _gpu_view_heap;
-
 
 	protected:
 		inline void register_resource_view(ID3D12Resource *resource, D3D12_CPU_DESCRIPTOR_HANDLE handle)
@@ -130,7 +139,5 @@ namespace reshade::d3d12
 			_buffer_gpu_addresses.emplace_back(resource, D3D12_GPU_VIRTUAL_ADDRESS_RANGE { resource->GetGPUVirtualAddress(), size });
 		}
 #endif
-
-		std::unordered_map<uint64_t, ID3D12Resource *> _views;
 	};
 }
