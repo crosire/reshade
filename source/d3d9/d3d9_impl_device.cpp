@@ -184,9 +184,9 @@ bool reshade::d3d9::device_impl::on_init(const D3DPRESENT_PARAMETERS &pp)
 	}
 
 	// Communicate global pipeline layout that is used for all bindings to add-ons
-	if (!reshade::addon::event_list[static_cast<uint32_t>(addon_event::init_descriptor_set_layout)].empty() ||
-		!reshade::addon::event_list[static_cast<uint32_t>(addon_event::destroy_descriptor_set_layout)].empty() ||
-		!reshade::addon::event_list[static_cast<uint32_t>(addon_event::init_pipeline_layout)].empty())
+	if (has_event_callbacks(addon_event::init_descriptor_set_layout) ||
+		has_event_callbacks(addon_event::destroy_descriptor_set_layout) ||
+		has_event_callbacks(addon_event::init_pipeline_layout))
 	{
 		// See https://docs.microsoft.com/windows/win32/direct3dhlsl/dx9-graphics-reference-asm-vs-registers-vs-3-0
 		api::constant_range constants_f_vs = {};

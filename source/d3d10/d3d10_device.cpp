@@ -35,7 +35,7 @@ void D3D10Device::invoke_bind_vertex_buffers_event(UINT first, UINT count, ID3D1
 {
 	assert(count <= D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT);
 
-	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_vertex_buffers)].empty())
+	if (!reshade::has_event_callbacks(reshade::addon_event::bind_vertex_buffers))
 		return;
 
 #ifndef WIN64
@@ -57,7 +57,7 @@ void D3D10Device::invoke_bind_samplers_event(reshade::api::shader_stage stage, U
 {
 	assert(count <= D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT);
 
-	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::push_descriptors)].empty())
+	if (!reshade::has_event_callbacks(reshade::addon_event::push_descriptors))
 		return;
 
 #ifndef WIN64
@@ -75,7 +75,7 @@ void D3D10Device::invoke_bind_shader_resource_views_event(reshade::api::shader_s
 {
 	assert(count <= D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT);
 
-	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::push_descriptors)].empty())
+	if (!reshade::has_event_callbacks(reshade::addon_event::push_descriptors))
 		return;
 
 #ifndef WIN64
@@ -93,7 +93,7 @@ void D3D10Device::invoke_bind_constant_buffers_event(reshade::api::shader_stage 
 {
 	assert(count <= D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT);
 
-	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::push_descriptors)].empty())
+	if (!reshade::has_event_callbacks(reshade::addon_event::push_descriptors))
 		return;
 
 #ifndef WIN64
@@ -330,7 +330,7 @@ void    STDMETHODCALLTYPE D3D10Device::OMSetRenderTargets(UINT NumViews, ID3D10R
 #if RESHADE_ADDON
 	assert(NumViews <= D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT);
 
-	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_render_targets_and_depth_stencil)].empty())
+	if (!reshade::has_event_callbacks(reshade::addon_event::bind_render_targets_and_depth_stencil))
 		return;
 
 #ifndef WIN64
@@ -403,7 +403,7 @@ void    STDMETHODCALLTYPE D3D10Device::RSSetViewports(UINT NumViewports, const D
 #if RESHADE_ADDON
 	assert(NumViewports <= D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE);
 
-	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_viewports)].empty())
+	if (!reshade::has_event_callbacks(reshade::addon_event::bind_viewports))
 		return;
 
 	float viewport_data[6 * D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];
@@ -433,8 +433,8 @@ void    STDMETHODCALLTYPE D3D10Device::RSSetScissorRects(UINT NumRects, const D3
 void    STDMETHODCALLTYPE D3D10Device::CopySubresourceRegion(ID3D10Resource *pDstResource, UINT DstSubresource, UINT DstX, UINT DstY, UINT DstZ, ID3D10Resource *pSrcResource, UINT SrcSubresource, const D3D10_BOX *pSrcBox)
 {
 #if RESHADE_ADDON
-	if (!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::copy_buffer_region)].empty() ||
-		!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::copy_texture_region)].empty())
+	if (reshade::has_event_callbacks(reshade::addon_event::copy_buffer_region) ||
+		reshade::has_event_callbacks(reshade::addon_event::copy_texture_region))
 	{
 		assert(pDstResource != nullptr && pSrcResource != nullptr);
 
@@ -487,8 +487,8 @@ void    STDMETHODCALLTYPE D3D10Device::CopyResource(ID3D10Resource *pDstResource
 void    STDMETHODCALLTYPE D3D10Device::UpdateSubresource(ID3D10Resource *pDstResource, UINT DstSubresource, const D3D10_BOX *pDstBox, const void *pSrcData, UINT SrcRowPitch, UINT SrcDepthPitch)
 {
 #if RESHADE_ADDON
-	if (!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::upload_buffer_region)].empty() ||
-		!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::upload_texture_region)].empty())
+	if (reshade::has_event_callbacks(reshade::addon_event::upload_buffer_region) ||
+		reshade::has_event_callbacks(reshade::addon_event::upload_texture_region))
 	{
 		assert(pDstResource != nullptr);
 

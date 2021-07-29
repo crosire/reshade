@@ -9,12 +9,14 @@
 #include "ini_file.hpp"
 #include "reshade.hpp"
 #include "addon_manager.hpp"
+#include <mutex>
 #include <vector>
 #include <unordered_map>
 #include <imgui.h>
 #include <imgui_internal.h>
 
 static bool s_disable_intz = false;
+static std::mutex s_mutex;
 
 using namespace reshade::api;
 
@@ -317,6 +319,7 @@ static void on_destroy_resource(device *device, resource resource)
 {
 	state_tracking_context &device_state = device->get_user_data<state_tracking_context>(state_tracking_context::GUID);
 
+	std::lock_guard<std::mutex> lock(s_mutex);
 	device_state.destroyed_resources.push_back(resource);
 }
 
@@ -484,7 +487,8 @@ static void on_present(command_queue *, swapchain *swapchain)
 	{
 		resource const resource = { depth_stencil_handle };
 
-		if (std::find(device_state.destroyed_resources.begin(), device_state.destroyed_resources.end(), resource) != device_state.destroyed_resources.end())
+		if (std::lock_guard<std::mutex> lock(s_mutex);
+			std::find(device_state.destroyed_resources.begin(), device_state.destroyed_resources.end(), resource) != device_state.destroyed_resources.end())
 			continue; // Skip resources that were destroyed by the application
 
 #if RESHADE_GUI
@@ -514,7 +518,8 @@ static void on_present(command_queue *, swapchain *swapchain)
 		}
 	}
 
-	if (device_state.override_depth_stencil != 0 &&
+	if (std::lock_guard<std::mutex> lock(s_mutex);
+		device_state.override_depth_stencil != 0 &&
 		std::find(device_state.destroyed_resources.begin(), device_state.destroyed_resources.end(), device_state.override_depth_stencil) == device_state.destroyed_resources.end())
 	{
 		best_desc = device->get_resource_desc(device_state.override_depth_stencil);
@@ -611,6 +616,8 @@ static void on_present(command_queue *, swapchain *swapchain)
 	}
 
 	queue_state.reset_on_present();
+
+	std::lock_guard<std::mutex> lock(s_mutex);
 	device_state.destroyed_resources.clear();
 }
 

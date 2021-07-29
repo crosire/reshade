@@ -354,7 +354,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::ResourceBarrier(UINT NumBarrier
 	_orig->ResourceBarrier(NumBarriers, pBarriers);
 
 #if RESHADE_ADDON
-	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::barrier)].empty())
+	if (!reshade::has_event_callbacks(reshade::addon_event::barrier))
 		return;
 
 	const auto resources = static_cast<reshade::api::resource *>(alloca(NumBarriers * (sizeof(reshade::api::resource) + 2 * sizeof(reshade::api::resource_usage))));
@@ -517,7 +517,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootConstantBufferVie
 	_orig->SetComputeRootConstantBufferView(RootParameterIndex, BufferLocation);
 
 #if RESHADE_ADDON
-	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::push_descriptors)].empty())
+	if (!reshade::has_event_callbacks(reshade::addon_event::push_descriptors))
 		return;
 
 	reshade::api::resource buffer = { 0 };
@@ -541,7 +541,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRootConstantBufferVi
 	_orig->SetGraphicsRootConstantBufferView(RootParameterIndex, BufferLocation);
 
 #if RESHADE_ADDON
-	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::push_descriptors)].empty())
+	if (!reshade::has_event_callbacks(reshade::addon_event::push_descriptors))
 		return;
 
 	reshade::api::resource buffer = { 0 };
@@ -580,7 +580,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::IASetIndexBuffer(const D3D12_IN
 	_orig->IASetIndexBuffer(pView);
 
 #if RESHADE_ADDON
-	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_index_buffer)].empty())
+	if (!reshade::has_event_callbacks(reshade::addon_event::bind_index_buffer))
 		return;
 
 	reshade::api::resource buffer = { 0 };
@@ -602,7 +602,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::IASetVertexBuffers(UINT StartSl
 #if RESHADE_ADDON
 	assert(NumViews <= D3D12_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT);
 
-	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_vertex_buffers)].empty())
+	if (!reshade::has_event_callbacks(reshade::addon_event::bind_vertex_buffers))
 		return;
 
 	reshade::api::resource buffers[D3D12_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
@@ -628,7 +628,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::OMSetRenderTargets(UINT NumRend
 #if RESHADE_ADDON
 	assert(NumRenderTargetDescriptors <= D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT);
 
-	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_render_targets_and_depth_stencil)].empty())
+	if (!reshade::has_event_callbacks(reshade::addon_event::bind_render_targets_and_depth_stencil))
 		return;
 
 	reshade::api::resource_view rtvs[D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT];
@@ -782,8 +782,8 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::BeginRenderPass(UINT NumRenderT
 {
 #if RESHADE_ADDON
 	// Use clear events with explicit resource view references here, since this is invoked before render pass begin
-	if (!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::clear_depth_stencil_view)].empty() ||
-		!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::clear_render_target_view)].empty())
+	if (reshade::has_event_callbacks(reshade::addon_event::clear_depth_stencil_view) ||
+		reshade::has_event_callbacks(reshade::addon_event::clear_render_target_view))
 	{
 		for (UINT i = 0; i < NumRenderTargets; ++i)
 		{

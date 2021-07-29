@@ -10,6 +10,33 @@
 
 #if RESHADE_ADDON
 
+namespace reshade::addon
+{
+	struct info
+	{
+		void *handle;
+		std::string name;
+		std::string description;
+	};
+
+	/// <summary>
+	/// List of currently loaded add-ons.
+	/// </summary>
+	extern std::vector<info> loaded_info;
+
+	/// <summary>
+	/// List of installed add-on event callbacks.
+	/// </summary>
+	extern std::pair<bool, std::vector<void *>> event_list[];
+
+#if RESHADE_GUI
+	/// <summary>
+	/// List of overlays registered by loaded add-ons.
+	/// </summary>
+	extern std::vector<std::pair<std::string, void(*)(api::effect_runtime *, void *)>> overlay_list;
+#endif
+}
+
 namespace reshade
 {
 	/// <summary>
@@ -28,12 +55,24 @@ namespace reshade
 	void enable_or_disable_addons(bool enabled);
 
 	/// <summary>
+	/// Checks whether any callbacks were registered for the specified <paramref name="ev"/>ent.
+	/// </summary>
+	/// <param name="ev"></param>
+	/// <returns></returns>
+	inline bool has_event_callbacks(addon_event ev)
+	{
+		return !addon::event_list[static_cast<size_t>(ev)].second.empty();
+	}
+
+	/// <summary>
 	/// Invokes all registered callbacks for the specified <typeparamref name="ev"/>ent.
 	/// </summary>
 	template <addon_event ev, typename... Args>
 	inline std::enable_if_t<addon_event_traits<ev>::type == 1, void> invoke_addon_event(Args &&... args)
 	{
-		std::vector<void *> &event_list = addon::event_list[static_cast<size_t>(ev)];
+		if (addon::event_list[static_cast<size_t>(ev)].first)
+			return;
+		std::vector<void *> &event_list = addon::event_list[static_cast<size_t>(ev)].second;
 		for (size_t cb = 0, count = event_list.size(); cb < count; ++cb) // Generates better code than ranged-based for loop
 			reinterpret_cast<typename reshade::addon_event_traits<ev>::decl>(event_list[cb])(std::forward<Args>(args)...);
 	}
@@ -43,7 +82,9 @@ namespace reshade
 	template <addon_event ev, typename... Args>
 	inline std::enable_if_t<addon_event_traits<ev>::type == 2, bool> invoke_addon_event(Args &&... args)
 	{
-		std::vector<void *> &event_list = addon::event_list[static_cast<size_t>(ev)];
+		if (addon::event_list[static_cast<size_t>(ev)].first)
+			return false;
+		std::vector<void *> &event_list = addon::event_list[static_cast<size_t>(ev)].second;
 		for (size_t cb = 0, count = event_list.size(); cb < count; ++cb)
 			if (reinterpret_cast<typename reshade::addon_event_traits<ev>::decl>(event_list[cb])(std::forward<Args>(args)...))
 				return true;
@@ -167,33 +208,6 @@ namespace reshade
 		IUnknown *const interface_object = new tracker_instance(device, Handle { reinterpret_cast<uintptr_t>(object) });
 		object->SetPrivateData(private_guid, interface_object, sizeof(interface_object), 0x1 /* D3DSPD_IUNKNOWN */);
 	}
-}
-
-namespace reshade::addon
-{
-	struct info
-	{
-		void *handle;
-		std::string name;
-		std::string description;
-	};
-
-	/// <summary>
-	/// List of currently loaded add-ons.
-	/// </summary>
-	extern std::vector<info> loaded_info;
-
-	/// <summary>
-	/// List of installed add-on event callbacks.
-	/// </summary>
-	extern std::vector<void *> event_list[];
-
-#if RESHADE_GUI
-	/// <summary>
-	/// List of overlays registered by loaded add-ons.
-	/// </summary>
-	extern std::vector<std::pair<std::string, void(*)(api::effect_runtime *, void *)>> overlay_list;
-#endif
 }
 
 #endif

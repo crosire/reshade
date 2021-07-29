@@ -37,9 +37,9 @@ reshade::d3d10::device_impl::device_impl(ID3D10Device1 *device) :
 	invoke_addon_event<addon_event::init_command_queue>(this);
 
 	// Communicate global pipeline layout that is used for all bindings to add-ons
-	if (!reshade::addon::event_list[static_cast<uint32_t>(addon_event::init_descriptor_set_layout)].empty() ||
-		!reshade::addon::event_list[static_cast<uint32_t>(addon_event::destroy_descriptor_set_layout)].empty() ||
-		!reshade::addon::event_list[static_cast<uint32_t>(addon_event::init_pipeline_layout)].empty())
+	if (has_event_callbacks(addon_event::init_descriptor_set_layout) ||
+		has_event_callbacks(addon_event::destroy_descriptor_set_layout) ||
+		has_event_callbacks(addon_event::init_pipeline_layout))
 	{
 		api::descriptor_range sampler_range = {};
 		sampler_range.type = api::descriptor_type::sampler;

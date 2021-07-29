@@ -633,7 +633,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurface(UINT Width,
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::UpdateSurface(IDirect3DSurface9 *pSourceSurface, const RECT *pSourceRect, IDirect3DSurface9 *pDestinationSurface, const POINT *pDestinationPoint)
 {
 #if RESHADE_ADDON
-	if (!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::copy_texture_region)].empty())
+	if (reshade::has_event_callbacks(reshade::addon_event::copy_texture_region))
 	{
 		assert(pSourceSurface != nullptr && pDestinationSurface != nullptr);
 
@@ -671,7 +671,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::UpdateTexture(IDirect3DBaseTexture9 *
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetRenderTargetData(IDirect3DSurface9 *pRenderTarget, IDirect3DSurface9 *pDestSurface)
 {
 #if RESHADE_ADDON
-	if (!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::copy_texture_region)].empty())
+	if (reshade::has_event_callbacks(reshade::addon_event::copy_texture_region))
 	{
 		reshade::api::resource src_resource = { 0 };
 		uint32_t src_subresource = 0;
@@ -700,8 +700,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetFrontBufferData(UINT iSwapChain, I
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::StretchRect(IDirect3DSurface9 *pSourceSurface, const RECT *pSourceRect, IDirect3DSurface9 *pDestinationSurface, const RECT *pDestinationRect, D3DTEXTUREFILTERTYPE Filter)
 {
 #if RESHADE_ADDON
-	if (!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::copy_texture_region)].empty() ||
-		!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::resolve_texture_region)].empty())
+	if (reshade::has_event_callbacks(reshade::addon_event::copy_texture_region) ||
+		reshade::has_event_callbacks(reshade::addon_event::resolve_texture_region))
 	{
 		assert(pSourceSurface != nullptr && pDestinationSurface != nullptr);
 
@@ -791,8 +791,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetRenderTarget(DWORD RenderTargetInd
 	const HRESULT hr = _orig->SetRenderTarget(RenderTargetIndex, pRenderTarget);
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr) && (
-		!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_render_targets_and_depth_stencil)].empty() ||
-		!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_viewports)].empty()))
+		reshade::has_event_callbacks(reshade::addon_event::bind_render_targets_and_depth_stencil) ||
+		reshade::has_event_callbacks(reshade::addon_event::bind_viewports)))
 	{
 		DWORD count = 0;
 		com_ptr<IDirect3DSurface9> surface;
@@ -846,7 +846,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetDepthStencilSurface(IDirect3DSurfa
 	const HRESULT hr = _orig->SetDepthStencilSurface(pNewZStencil);
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr) &&
-		!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_render_targets_and_depth_stencil)].empty())
+		reshade::has_event_callbacks(reshade::addon_event::bind_render_targets_and_depth_stencil))
 	{
 		DWORD count = 0;
 		com_ptr<IDirect3DSurface9> surface;
@@ -911,7 +911,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetViewport(const D3DVIEWPORT9 *pView
 	const HRESULT hr = _orig->SetViewport(pViewport);
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr) &&
-		!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_viewports)].empty())
+		reshade::has_event_callbacks(reshade::addon_event::bind_viewports))
 	{
 		const float viewport_data[6] = {
 			static_cast<float>(pViewport->X),
@@ -1083,7 +1083,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetTexture(DWORD Stage, IDirect3DBase
 	const HRESULT hr = _orig->SetTexture(Stage, pTexture);
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr) &&
-		!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::push_descriptors)].empty())
+		reshade::has_event_callbacks(reshade::addon_event::push_descriptors))
 	{
 		reshade::api::shader_stage shader_stage = reshade::api::shader_stage::pixel;
 		if (Stage >= D3DVERTEXTEXTURESAMPLER0)

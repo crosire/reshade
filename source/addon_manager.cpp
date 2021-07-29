@@ -15,7 +15,7 @@
 extern "C" __declspec(dllexport) const uint32_t ReShadeAPI = RESHADE_API_VERSION;
 
 bool g_addons_enabled = true;
-std::vector<void *> reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::max)];
+std::pair<bool, std::vector<void *>> reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::max)];
 std::vector<reshade::addon::info> reshade::addon::loaded_info;
 #if RESHADE_GUI
 std::vector<std::pair<std::string, void(*)(reshade::api::effect_runtime *, void *)>> reshade::addon::overlay_list;
@@ -140,26 +140,12 @@ void reshade::enable_or_disable_addons(bool enabled)
 		addon_event::resize_swapchain,
 	};
 
-	static std::vector<void *> disabled_event_list[std::size(addon::event_list)];
-	if (enabled)
+	for (size_t event_index = 0; event_index < std::size(addon::event_list); ++event_index)
 	{
-		for (size_t event_index = 0; event_index < std::size(addon::event_list); ++event_index)
-		{
-			if (std::find(std::begin(event_allow_list), std::end(event_allow_list), static_cast<addon_event>(event_index)) != std::end(event_allow_list))
-				continue;
+		if (std::find(std::begin(event_allow_list), std::end(event_allow_list), static_cast<addon_event>(event_index)) != std::end(event_allow_list))
+			continue;
 
-			addon::event_list[event_index] = std::move(disabled_event_list[event_index]);
-		}
-	}
-	else
-	{
-		for (size_t event_index = 0; event_index < std::size(addon::event_list); ++event_index)
-		{
-			if (std::find(std::begin(event_allow_list), std::end(event_allow_list), static_cast<addon_event>(event_index)) != std::end(event_allow_list))
-				continue;
-
-			disabled_event_list[event_index] = std::move(addon::event_list[event_index]);
-		}
+		addon::event_list[event_index].first = !enabled;
 	}
 
 	g_addons_enabled = enabled;
@@ -256,7 +242,7 @@ extern "C" __declspec(dllexport) void ReShadeRegisterEvent(reshade::addon_event 
 
 	assert(callback != nullptr);
 
-	auto &event_list = reshade::addon::event_list[static_cast<size_t>(ev)];
+	auto &event_list = reshade::addon::event_list[static_cast<size_t>(ev)].second;
 	event_list.push_back(callback);
 
 #if RESHADE_VERBOSE_LOG
@@ -270,7 +256,7 @@ extern "C" __declspec(dllexport) void ReShadeUnregisterEvent(reshade::addon_even
 
 	assert(callback != nullptr);
 
-	auto &event_list = reshade::addon::event_list[static_cast<size_t>(ev)];
+	auto &event_list = reshade::addon::event_list[static_cast<size_t>(ev)].second;
 	event_list.erase(std::remove(event_list.begin(), event_list.end(), callback), event_list.end());
 
 #if RESHADE_VERBOSE_LOG

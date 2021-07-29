@@ -665,7 +665,7 @@ void     VKAPI_CALL vkCmdPipelineBarrier(VkCommandBuffer commandBuffer, VkPipeli
 #if RESHADE_ADDON
 	const uint32_t num_barriers = bufferMemoryBarrierCount + imageMemoryBarrierCount;
 
-	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::barrier)].empty() || num_barriers == 0)
+	if (!reshade::has_event_callbacks(reshade::addon_event::barrier) || num_barriers == 0)
 		return;
 
 	if (reshade::vulkan::command_list_impl *const cmd_impl = g_vulkan_command_buffers.at(commandBuffer); cmd_impl != nullptr)
@@ -725,7 +725,7 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 	// Use clear events with explicit resource view references here, since this is invoked before render pass begin
 	if (cmd_impl != nullptr &&
 		pRenderPassBegin->clearValueCount != 0 && (
-			!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::clear_depth_stencil_view)].empty() || !reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::clear_render_target_view)].empty()))
+			reshade::has_event_callbacks(reshade::addon_event::clear_depth_stencil_view) || reshade::has_event_callbacks(reshade::addon_event::clear_render_target_view)))
 	{
 		const auto device_impl = static_cast<reshade::vulkan::device_impl *>(cmd_impl->get_device());
 

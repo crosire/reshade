@@ -40,9 +40,9 @@ reshade::d3d11::device_impl::device_impl(ID3D11Device *device) :
 	invoke_addon_event<reshade::addon_event::init_device>(this);
 
 	// Communicate global pipeline layout that is used for all bindings to add-ons
-	if (!reshade::addon::event_list[static_cast<uint32_t>(addon_event::init_descriptor_set_layout)].empty() ||
-		!reshade::addon::event_list[static_cast<uint32_t>(addon_event::destroy_descriptor_set_layout)].empty() ||
-		!reshade::addon::event_list[static_cast<uint32_t>(addon_event::init_pipeline_layout)].empty())
+	if (has_event_callbacks(addon_event::init_descriptor_set_layout) ||
+		has_event_callbacks(addon_event::destroy_descriptor_set_layout) ||
+		has_event_callbacks(addon_event::init_pipeline_layout))
 	{
 		const D3D_FEATURE_LEVEL feature_level = device->GetFeatureLevel();
 

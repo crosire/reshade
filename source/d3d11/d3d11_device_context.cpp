@@ -82,7 +82,7 @@ void D3D11DeviceContext::invoke_bind_vertex_buffers_event(UINT first, UINT count
 {
 	assert(count <= D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT);
 
-	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_vertex_buffers)].empty())
+	if (!reshade::has_event_callbacks(reshade::addon_event::bind_vertex_buffers))
 		return;
 
 #ifndef WIN64
@@ -104,7 +104,7 @@ void D3D11DeviceContext::invoke_bind_samplers_event(reshade::api::shader_stage s
 {
 	assert(count <= D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT);
 
-	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::push_descriptors)].empty())
+	if (!reshade::has_event_callbacks(reshade::addon_event::push_descriptors))
 		return;
 
 #ifndef WIN64
@@ -122,7 +122,7 @@ void D3D11DeviceContext::invoke_bind_shader_resource_views_event(reshade::api::s
 {
 	assert(count <= D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT);
 
-	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::push_descriptors)].empty())
+	if (!reshade::has_event_callbacks(reshade::addon_event::push_descriptors))
 		return;
 
 #ifndef WIN64
@@ -140,7 +140,7 @@ void D3D11DeviceContext::invoke_bind_unordered_access_views_event(reshade::api::
 {
 	assert(count <= D3D11_1_UAV_SLOT_COUNT);
 
-	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::push_descriptors)].empty())
+	if (!reshade::has_event_callbacks(reshade::addon_event::push_descriptors))
 		return;
 
 #ifndef WIN64
@@ -158,7 +158,7 @@ void D3D11DeviceContext::invoke_bind_constant_buffers_event(reshade::api::shader
 {
 	assert(count <= D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT);
 
-	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::push_descriptors)].empty())
+	if (!reshade::has_event_callbacks(reshade::addon_event::push_descriptors))
 		return;
 
 #ifndef WIN64
@@ -421,7 +421,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargets(UINT NumViews, 
 #if RESHADE_ADDON
 	assert(NumViews <= D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT);
 
-	if (reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::bind_render_targets_and_depth_stencil)].empty())
+	if (!reshade::has_event_callbacks(reshade::addon_event::bind_render_targets_and_depth_stencil))
 		return;
 
 #ifndef WIN64
@@ -563,8 +563,8 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::RSSetScissorRects(UINT NumRects, c
 void    STDMETHODCALLTYPE D3D11DeviceContext::CopySubresourceRegion(ID3D11Resource *pDstResource, UINT DstSubresource, UINT DstX, UINT DstY, UINT DstZ, ID3D11Resource *pSrcResource, UINT SrcSubresource, const D3D11_BOX *pSrcBox)
 {
 #if RESHADE_ADDON
-	if (!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::copy_buffer_region)].empty() ||
-		!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::copy_texture_region)].empty())
+	if (reshade::has_event_callbacks(reshade::addon_event::copy_buffer_region) ||
+		reshade::has_event_callbacks(reshade::addon_event::copy_texture_region))
 	{
 		assert(pDstResource != nullptr && pSrcResource != nullptr);
 
@@ -617,8 +617,8 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::CopyResource(ID3D11Resource *pDstR
 void    STDMETHODCALLTYPE D3D11DeviceContext::UpdateSubresource(ID3D11Resource *pDstResource, UINT DstSubresource, const D3D11_BOX *pDstBox, const void *pSrcData, UINT SrcRowPitch, UINT SrcDepthPitch)
 {
 #if RESHADE_ADDON
-	if (!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::upload_buffer_region)].empty() ||
-		!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::upload_texture_region)].empty())
+	if (reshade::has_event_callbacks(reshade::addon_event::upload_buffer_region) ||
+		reshade::has_event_callbacks(reshade::addon_event::upload_texture_region))
 	{
 		assert(pDstResource != nullptr);
 
@@ -652,7 +652,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::UpdateSubresource(ID3D11Resource *
 void    STDMETHODCALLTYPE D3D11DeviceContext::CopyStructureCount(ID3D11Buffer *pDstBuffer, UINT DstAlignedByteOffset, ID3D11UnorderedAccessView *pSrcView)
 {
 #if RESHADE_ADDON
-	if (!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::copy_buffer_region)].empty())
+	if (reshade::has_event_callbacks(reshade::addon_event::copy_buffer_region))
 	{
 		assert(pSrcView != nullptr);
 

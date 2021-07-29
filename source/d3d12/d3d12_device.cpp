@@ -448,10 +448,10 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateRootSignature(UINT nodeMask, const 
 #if RESHADE_ADDON
 		const auto root_signature = static_cast<ID3D12RootSignature *>(*ppvRootSignature);
 
-		if (!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::init_descriptor_set_layout)].empty() ||
-			!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::destroy_descriptor_set_layout)].empty() ||
-			!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::init_pipeline_layout)].empty() ||
-			!reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::destroy_pipeline_layout)].empty())
+		if (reshade::has_event_callbacks(reshade::addon_event::init_descriptor_set_layout) ||
+			reshade::has_event_callbacks(reshade::addon_event::destroy_descriptor_set_layout) ||
+			reshade::has_event_callbacks(reshade::addon_event::init_pipeline_layout) ||
+			reshade::has_event_callbacks(reshade::addon_event::destroy_pipeline_layout))
 		{
 			std::vector<std::vector<reshade::api::descriptor_range>> descriptor_ranges;
 			std::vector<reshade::api::descriptor_set_layout> set_layouts;
