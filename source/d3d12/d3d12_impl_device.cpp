@@ -468,58 +468,95 @@ void reshade::d3d12::device_impl::destroy_pipeline(api::pipeline_stage, api::pip
 
 bool reshade::d3d12::device_impl::create_pipeline_layout(const api::pipeline_layout_desc &desc, api::pipeline_layout *out)
 {
-	std::vector<D3D12_ROOT_PARAMETER> params(desc.num_set_layouts + desc.num_constant_ranges);
-	std::vector<std::vector<D3D12_DESCRIPTOR_RANGE>> ranges(desc.num_set_layouts);
+	std::vector<D3D12_ROOT_PARAMETER> params(desc.num_params);
+	std::vector<std::vector<D3D12_DESCRIPTOR_RANGE>> ranges(desc.num_params);
 
-	for (UINT i = 0; i < desc.num_set_layouts; ++i)
+	for (UINT i = 0; i < desc.num_params; ++i)
 	{
-		if (desc.set_layouts[i].handle == 0)
+		uint32_t visibility_mask = 0;
+
+		if (desc.params[i].type != api::pipeline_layout_param_type::push_constants)
 		{
-			// Dummy parameter (to prevent root signature creation from failing)
+			if (desc.params[i].num_ranges == 0 || (desc.params[i].num_ranges == 1 && desc.params[i].descriptor_ranges[0].count == 0))
+			{
+				// Dummy parameter (to prevent root signature creation from failing)
+				params[i].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+				params[i].Constants.ShaderRegister = i;
+				params[i].Constants.RegisterSpace = 255;
+				params[i].Constants.Num32BitValues = 1;
+				continue;
+			}
+
+			ranges[i].resize(desc.params[i].num_ranges);
+
+			D3D12_DESCRIPTOR_HEAP_TYPE prev_heap_type = D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES;
+
+			for (UINT k = 0; k < desc.params[i].num_ranges; ++k)
+			{
+				const auto &descriptor_range = desc.params[i].descriptor_ranges[k];
+
+				D3D12_DESCRIPTOR_RANGE &range = ranges[i][k];
+				range.RangeType = convert_descriptor_type(descriptor_range.type);
+				range.NumDescriptors = descriptor_range.count;
+				range.BaseShaderRegister = descriptor_range.dx_register_index;
+				range.RegisterSpace = descriptor_range.dx_register_space;
+				range.OffsetInDescriptorsFromTableStart = descriptor_range.binding;
+
+				visibility_mask |= static_cast<uint32_t>(descriptor_range.visibility);
+
+				// Cannot mix different descriptor heap types in a single descriptor table
+				const D3D12_DESCRIPTOR_HEAP_TYPE heap_type = convert_descriptor_type_to_heap_type(descriptor_range.type);
+				if (prev_heap_type != D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES && prev_heap_type != heap_type)
+				{
+					*out = { 0 };
+					return false;
+				}
+				else
+				{
+					prev_heap_type  = heap_type;
+				}
+			}
+
+			params[i].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+			params[i].DescriptorTable.NumDescriptorRanges = desc.params[i].num_ranges;
+			params[i].DescriptorTable.pDescriptorRanges = ranges[i].data();
+		}
+		else
+		{
 			params[i].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
-			params[i].Constants.ShaderRegister = i;
-			params[i].Constants.RegisterSpace = 255;
-			params[i].Constants.Num32BitValues = 1;
-			continue;
+			params[i].Constants.ShaderRegister = desc.params[i].constant_range.dx_register_index;
+			params[i].Constants.RegisterSpace = desc.params[i].constant_range.dx_register_space;
+			params[i].Constants.Num32BitValues = desc.params[i].constant_range.count;
+
+			visibility_mask = static_cast<uint32_t>(desc.params[i].constant_range.visibility);
 		}
 
-		params[i] = reinterpret_cast<descriptor_set_layout_impl *>(desc.set_layouts[i].handle)->param;
-	}
-
-	for (UINT i = 0; i < desc.num_constant_ranges; ++i)
-	{
-		D3D12_ROOT_PARAMETER &param = params[desc.num_set_layouts + i];
-		param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
-		param.Constants.ShaderRegister = desc.constant_ranges[i].dx_register_index;
-		param.Constants.RegisterSpace = desc.constant_ranges[i].dx_register_space;
-		param.Constants.Num32BitValues = desc.constant_ranges[i].count;
-
-		switch (desc.constant_ranges[i].visibility)
+		switch (static_cast<api::shader_stage>(visibility_mask))
 		{
 		default:
-			param.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+			params[i].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 			break;
 		case api::shader_stage::vertex:
-			param.ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+			params[i].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
 			break;
 		case api::shader_stage::hull:
-			param.ShaderVisibility = D3D12_SHADER_VISIBILITY_HULL;
+			params[i].ShaderVisibility = D3D12_SHADER_VISIBILITY_HULL;
 			break;
 		case api::shader_stage::domain:
-			param.ShaderVisibility = D3D12_SHADER_VISIBILITY_DOMAIN;
+			params[i].ShaderVisibility = D3D12_SHADER_VISIBILITY_DOMAIN;
 			break;
 		case api::shader_stage::geometry:
-			param.ShaderVisibility = D3D12_SHADER_VISIBILITY_GEOMETRY;
+			params[i].ShaderVisibility = D3D12_SHADER_VISIBILITY_GEOMETRY;
 			break;
 		case api::shader_stage::pixel:
-			param.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+			params[i].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 			break;
 		}
 	}
 
 	D3D12_ROOT_SIGNATURE_DESC internal_desc = {};
 	internal_desc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-	internal_desc.NumParameters = desc.num_set_layouts + desc.num_constant_ranges;
+	internal_desc.NumParameters = desc.num_params;
 	internal_desc.pParameters = params.data();
 
 	com_ptr<ID3DBlob> blob;
@@ -527,6 +564,29 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(const api::pipeline_lay
 	if (SUCCEEDED(D3D12SerializeRootSignature(&internal_desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, nullptr)) &&
 		SUCCEEDED(_orig->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&signature))))
 	{
+		api::pipeline_layout_desc desc_copy;
+		desc_copy.num_params = desc.num_params;
+		desc_copy.params = new api::pipeline_layout_param[desc.num_params];
+		for (UINT i = 0; i < desc.num_params; ++i)
+		{
+			auto out_params = const_cast<api::pipeline_layout_param *>(desc_copy.params);
+			out_params[i] = desc.params[i];
+			if (desc.params[i].type != api::pipeline_layout_param_type::push_constants)
+			{
+				out_params[i].descriptor_ranges = new reshade::api::descriptor_range[desc.params[i].num_ranges];
+				for (UINT k = 0; k < desc.params[i].num_ranges; ++k)
+				{
+					const_cast<api::descriptor_range *>(out_params[i].descriptor_ranges)[k] = desc.params[i].descriptor_ranges[k];
+				}
+			}
+			else
+			{
+				out_params[i].descriptor_ranges = nullptr;
+			}
+		}
+
+		signature->SetPrivateData(pipeline_extra_data_guid, sizeof(desc), &desc_copy);
+
 		*out = { reinterpret_cast<uintptr_t>(signature.release()) };
 		return true;
 	}
@@ -538,76 +598,18 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(const api::pipeline_lay
 }
 void reshade::d3d12::device_impl::destroy_pipeline_layout(api::pipeline_layout handle)
 {
-	if (handle.handle != 0)
-		reinterpret_cast<IUnknown *>(handle.handle)->Release();
-}
+	if (handle.handle == 0)
+		return;
 
-bool reshade::d3d12::device_impl::create_descriptor_set_layout(const api::descriptor_set_layout_desc &desc, api::descriptor_set_layout *out)
-{
-	uint32_t visibility_mask = 0;
+	api::pipeline_layout_desc layout_desc = {};
+	UINT size = sizeof(layout_desc);
+	reinterpret_cast<ID3D12RootSignature *>(handle.handle)->GetPrivateData(pipeline_extra_data_guid, &size, &layout_desc);
 
-	const auto result = new descriptor_set_layout_impl();
-	result->heap_type = D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES;
-	result->total_size = 0;
-	result->ranges.resize(desc.num_ranges);
+	for (UINT i = 0; i < layout_desc.num_params; ++i)
+		delete[] layout_desc.params[i].descriptor_ranges;
+	delete[] layout_desc.params;
 
-	for (UINT i = 0; i < desc.num_ranges; ++i)
-	{
-		D3D12_DESCRIPTOR_RANGE &range = result->ranges[i];
-		range.RangeType = convert_descriptor_type(desc.ranges[i].type);
-		range.NumDescriptors = desc.ranges[i].count;
-		range.BaseShaderRegister = desc.ranges[i].dx_register_index;
-		range.RegisterSpace = desc.ranges[i].dx_register_space;
-		range.OffsetInDescriptorsFromTableStart = desc.ranges[i].binding;
-
-		visibility_mask |= static_cast<uint32_t>(desc.ranges[i].visibility);
-
-		// Cannot mix different descriptor heap types in a single descriptor table
-		const D3D12_DESCRIPTOR_HEAP_TYPE heap_type = convert_descriptor_type_to_heap_type(desc.ranges[i].type);
-		if (result->heap_type != D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES && result->heap_type != heap_type)
-		{
-			delete result;
-
-			*out = { 0 };
-			return false;
-		}
-
-		result->heap_type = heap_type;
-		result->total_size = std::max(result->total_size, range.OffsetInDescriptorsFromTableStart + range.NumDescriptors);
-	}
-
-	result->param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	result->param.DescriptorTable.NumDescriptorRanges = desc.num_ranges;
-	result->param.DescriptorTable.pDescriptorRanges = result->ranges.data();
-
-	switch (static_cast<api::shader_stage>(visibility_mask))
-	{
-	default:
-		result->param.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-		break;
-	case api::shader_stage::vertex:
-		result->param.ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
-		break;
-	case api::shader_stage::hull:
-		result->param.ShaderVisibility = D3D12_SHADER_VISIBILITY_HULL;
-		break;
-	case api::shader_stage::domain:
-		result->param.ShaderVisibility = D3D12_SHADER_VISIBILITY_DOMAIN;
-		break;
-	case api::shader_stage::geometry:
-		result->param.ShaderVisibility = D3D12_SHADER_VISIBILITY_GEOMETRY;
-		break;
-	case api::shader_stage::pixel:
-		result->param.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-		break;
-	}
-
-	*out = { reinterpret_cast<uintptr_t>(result) };
-	return true;
-}
-void reshade::d3d12::device_impl::destroy_descriptor_set_layout(api::descriptor_set_layout handle)
-{
-	delete reinterpret_cast<descriptor_set_layout_impl *>(handle.handle);
+	reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }
 
 bool reshade::d3d12::device_impl::create_query_pool(api::query_type type, uint32_t size, api::query_pool *out)
@@ -839,56 +841,6 @@ void reshade::d3d12::device_impl::upload_texture_region(const api::subresource_d
 	}
 }
 
-bool reshade::d3d12::device_impl::get_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index, api::resource_view *out) const
-{
-	assert(fbo.handle != 0);
-	const auto fbo_impl = reinterpret_cast<const framebuffer_impl *>(fbo.handle);
-
-	if (type == api::attachment_type::color)
-	{
-		if (index < fbo_impl->count)
-		{
-			if (fbo_impl->rtv_is_single_handle_to_range)
-				*out = { fbo_impl->rtv->ptr + index * _descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_RTV] };
-			else
-				*out = { fbo_impl->rtv[index].ptr };
-			return true;
-		}
-	}
-	else
-	{
-		if (fbo_impl->dsv.ptr != 0)
-		{
-			*out = { fbo_impl->dsv.ptr };
-			return true;
-		}
-	}
-
-	*out = { 0 };
-	return false;
-}
-void reshade::d3d12::device_impl::get_resource_from_view(api::resource_view view, api::resource *out) const
-{
-	assert(view.handle != 0);
-
-	const std::lock_guard<std::mutex> lock(_mutex);
-	if (const auto it = _views.find(view.handle); it != _views.end())
-		*out = { reinterpret_cast<uintptr_t>(it->second) };
-	else
-		*out = { 0 };
-}
-reshade::api::resource_desc reshade::d3d12::device_impl::get_resource_desc(api::resource resource) const
-{
-	assert(resource.handle != 0);
-
-	// This will retrieve the heap properties for placed and comitted resources, not for reserved resources (which will then be translated to 'memory_heap::unknown')
-	D3D12_HEAP_FLAGS heap_flags = D3D12_HEAP_FLAG_NONE;
-	D3D12_HEAP_PROPERTIES heap_props = {};
-	reinterpret_cast<ID3D12Resource *>(resource.handle)->GetHeapProperties(&heap_props, &heap_flags);
-
-	return convert_resource_desc(reinterpret_cast<ID3D12Resource *>(resource.handle)->GetDesc(), heap_props, heap_flags);
-}
-
 bool reshade::d3d12::device_impl::get_query_pool_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride)
 {
 	assert(pool.handle != 0);
@@ -920,19 +872,29 @@ bool reshade::d3d12::device_impl::get_query_pool_results(api::query_pool pool, u
 	return false;
 }
 
-bool reshade::d3d12::device_impl::allocate_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, api::descriptor_set *out)
+bool reshade::d3d12::device_impl::allocate_descriptor_sets(api::pipeline_layout layout, uint32_t param_index, uint32_t count, api::descriptor_set *out)
 {
-	const auto layout_impl = reinterpret_cast<const descriptor_set_layout_impl *>(layout.handle);
+	assert(layout.handle != 0);
+	api::pipeline_layout_desc desc = {};
+	UINT size = sizeof(desc);
+	reinterpret_cast<ID3D12RootSignature *>(layout.handle)->GetPrivateData(pipeline_extra_data_guid, &size, &desc);
+
+	UINT total_size = 0;
+	D3D12_DESCRIPTOR_HEAP_TYPE heap_type = convert_descriptor_type_to_heap_type(desc.params[param_index].descriptor_ranges[0].type);
+	for (UINT i = 0; i < desc.params[param_index].num_ranges; ++i)
+	{
+		total_size = std::max(total_size, desc.params[param_index].descriptor_ranges[i].binding + desc.params[param_index].descriptor_ranges[i].count);
+	}
 
 	for (UINT i = 0; i < count; ++i)
 	{
 		D3D12_CPU_DESCRIPTOR_HANDLE base_handle;
 		D3D12_GPU_DESCRIPTOR_HANDLE base_handle_gpu;
 
-		if (layout_impl->heap_type != D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER)
-			_gpu_view_heap.allocate_static(layout_impl->total_size, base_handle, base_handle_gpu);
+		if (heap_type != D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER)
+			_gpu_view_heap.allocate_static(total_size, base_handle, base_handle_gpu);
 		else
-			_gpu_sampler_heap.allocate_static(layout_impl->total_size, base_handle, base_handle_gpu);
+			_gpu_sampler_heap.allocate_static(total_size, base_handle, base_handle_gpu);
 
 		_descriptor_set_map[base_handle_gpu.ptr] = base_handle;
 		out[i] = { base_handle_gpu.ptr };
@@ -940,17 +902,26 @@ bool reshade::d3d12::device_impl::allocate_descriptor_sets(api::descriptor_set_l
 
 	return true;
 }
-void reshade::d3d12::device_impl::free_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, const api::descriptor_set *sets)
+void reshade::d3d12::device_impl::free_descriptor_sets(api::pipeline_layout layout, uint32_t param_index, uint32_t count, const api::descriptor_set *sets)
 {
-	const auto layout_impl = reinterpret_cast<descriptor_set_layout_impl *>(layout.handle);
+	assert(layout.handle != 0);
+	api::pipeline_layout_desc desc = {};
+	UINT size = sizeof(desc);
+	reinterpret_cast<ID3D12RootSignature *>(layout.handle)->GetPrivateData(pipeline_extra_data_guid, &size, &desc);
+
+	UINT total_size = 0;
+	for (UINT i = 0; i < desc.params[param_index].num_ranges; ++i)
+	{
+		total_size = std::max(total_size, desc.params[param_index].descriptor_ranges[i].binding + desc.params[param_index].descriptor_ranges[i].count);
+	}
 
 	for (UINT i = 0; i < count; ++i)
 	{
 		if (sets[i].handle == 0)
 			continue;
 
-		_gpu_view_heap.deallocate({ static_cast<SIZE_T>(sets[i].handle) }, layout_impl->total_size);
-		_gpu_sampler_heap.deallocate({ static_cast<SIZE_T>(sets[i].handle) }, layout_impl->total_size);
+		_gpu_view_heap.deallocate({ static_cast<SIZE_T>(sets[i].handle) }, total_size);
+		_gpu_sampler_heap.deallocate({ static_cast<SIZE_T>(sets[i].handle) }, total_size);
 	}
 }
 
@@ -1026,4 +997,66 @@ void reshade::d3d12::device_impl::set_resource_name(api::resource resource, cons
 	utf8::unchecked::utf8to16(name, name + debug_name_len, std::back_inserter(debug_name_wide));
 
 	reinterpret_cast<ID3D12Resource *>(resource.handle)->SetName(debug_name_wide.c_str());
+}
+
+reshade::api::resource_desc reshade::d3d12::device_impl::get_resource_desc(api::resource resource) const
+{
+	assert(resource.handle != 0);
+
+	// This will retrieve the heap properties for placed and comitted resources, not for reserved resources (which will then be translated to 'memory_heap::unknown')
+	D3D12_HEAP_FLAGS heap_flags = D3D12_HEAP_FLAG_NONE;
+	D3D12_HEAP_PROPERTIES heap_props = {};
+	reinterpret_cast<ID3D12Resource *>(resource.handle)->GetHeapProperties(&heap_props, &heap_flags);
+
+	return convert_resource_desc(reinterpret_cast<ID3D12Resource *>(resource.handle)->GetDesc(), heap_props, heap_flags);
+}
+
+reshade::api::pipeline_layout_desc reshade::d3d12::device_impl::get_pipeline_layout_desc(api::pipeline_layout layout) const
+{
+	assert(layout.handle != 0);
+
+	api::pipeline_layout_desc desc = {};
+	UINT size = sizeof(desc);
+	reinterpret_cast<ID3D12RootSignature *>(layout.handle)->GetPrivateData(pipeline_extra_data_guid, &size, &desc);
+	return desc; // TODO: Not implemented for layouts created via 'create_pipeline_layout'
+}
+
+void reshade::d3d12::device_impl::get_resource_from_view(api::resource_view view, api::resource *out) const
+{
+	assert(view.handle != 0);
+
+	const std::lock_guard<std::mutex> lock(_mutex);
+	if (const auto it = _views.find(view.handle); it != _views.end())
+		*out = { reinterpret_cast<uintptr_t>(it->second) };
+	else
+		*out = { 0 };
+}
+
+bool reshade::d3d12::device_impl::get_framebuffer_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index, api::resource_view *out) const
+{
+	assert(fbo.handle != 0);
+	const auto fbo_impl = reinterpret_cast<const framebuffer_impl *>(fbo.handle);
+
+	if (type == api::attachment_type::color)
+	{
+		if (index < fbo_impl->count)
+		{
+			if (fbo_impl->rtv_is_single_handle_to_range)
+				*out = { fbo_impl->rtv->ptr + index * _descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_RTV] };
+			else
+				*out = { fbo_impl->rtv[index].ptr };
+			return true;
+		}
+	}
+	else
+	{
+		if (fbo_impl->dsv.ptr != 0)
+		{
+			*out = { fbo_impl->dsv.ptr };
+			return true;
+		}
+	}
+
+	*out = { 0 };
+	return false;
 }

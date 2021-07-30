@@ -29,11 +29,7 @@ namespace reshade::d3d10
 	struct pipeline_layout_impl
 	{
 		std::vector<UINT> shader_registers;
-	};
-
-	struct descriptor_set_layout_impl
-	{
-		api::descriptor_range range;
+		std::vector<api::descriptor_range> ranges;
 	};
 
 	struct query_pool_impl

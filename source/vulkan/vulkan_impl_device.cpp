@@ -120,15 +120,6 @@ reshade::vulkan::device_impl::~device_impl()
 	vmaDestroyAllocator(_alloc);
 }
 
-void reshade::vulkan::device_impl::advance_transient_descriptor_pool()
-{
-	if (vk.CmdPushDescriptorSetKHR != nullptr)
-		return;
-
-	const VkDescriptorPool next_pool = _transient_descriptor_pool[++_transient_index % 4];
-	vk.ResetDescriptorPool(_orig, next_pool, 0);
-}
-
 bool reshade::vulkan::device_impl::check_capability(api::device_caps capability) const
 {
 	switch (capability)
@@ -741,100 +732,91 @@ void reshade::vulkan::device_impl::destroy_pipeline(api::pipeline_stage, api::pi
 
 bool reshade::vulkan::device_impl::create_pipeline_layout(const api::pipeline_layout_desc &desc, api::pipeline_layout *out)
 {
-	VkDescriptorSetLayout dummy_layout = VK_NULL_HANDLE;
+	std::vector<VkPushConstantRange> push_constant_ranges;
+	push_constant_ranges.reserve(desc.num_params);
+	std::vector<VkDescriptorSetLayout> internal_set_layouts;
+	internal_set_layouts.reserve(desc.num_params);
 
-	std::vector<VkDescriptorSetLayout> internal_set_layouts(desc.num_set_layouts);
-	for (uint32_t i = 0; i < desc.num_set_layouts; ++i)
+	uint32_t i = 0;
+	for (; i < desc.num_params; ++i)
 	{
-		if (desc.set_layouts[i].handle == 0)
+		// Push constant ranges have to be at the end of the layout description
+		if (desc.params[i].type == api::pipeline_layout_param_type::push_constants)
+			break;
+
+		std::vector<VkDescriptorSetLayoutBinding> internal_bindings;
+		for (uint32_t k = 0; k < desc.params[i].num_ranges; ++k)
 		{
-			if (dummy_layout == VK_NULL_HANDLE)
+			const api::descriptor_range &range = desc.params[i].descriptor_ranges[k];
+
+			for (uint32_t j = 0; j < range.count; ++j)
 			{
-				VkDescriptorSetLayoutCreateInfo create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
-				create_info.bindingCount = 0;
-
-				if (vk.CreateDescriptorSetLayout(_orig, &create_info, nullptr, &dummy_layout) != VK_SUCCESS)
-				{
-					*out = { 0 };
-					return false;
-				}
+				VkDescriptorSetLayoutBinding &internal_binding = internal_bindings.emplace_back();
+				internal_binding.binding = range.binding + j;
+				internal_binding.descriptorType = static_cast<VkDescriptorType>(range.type);
+				internal_binding.descriptorCount = 1;
+				internal_binding.stageFlags = static_cast<VkShaderStageFlags>(range.visibility);
+				internal_binding.pImmutableSamplers = nullptr;
 			}
-
-			internal_set_layouts[i] = dummy_layout;
 		}
-		else
+
+		VkDescriptorSetLayoutCreateInfo set_create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
+		set_create_info.bindingCount = static_cast<uint32_t>(internal_bindings.size());
+		set_create_info.pBindings = internal_bindings.data();
+
+		if (desc.params[i].type == api::pipeline_layout_param_type::push_descriptors && vk.CmdPushDescriptorSetKHR != nullptr)
+			set_create_info.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
+
+		if (vk.CreateDescriptorSetLayout(_orig, &set_create_info, nullptr, &internal_set_layouts.emplace_back()) != VK_SUCCESS)
 		{
-			internal_set_layouts[i] = (VkDescriptorSetLayout)desc.set_layouts[i].handle;
+			for (VkDescriptorSetLayout set_layout : internal_set_layouts)
+				vk.DestroyDescriptorSetLayout(_orig, set_layout, nullptr);
+
+			*out = { 0 };
+			return false;
 		}
 	}
 
-	std::vector<VkPushConstantRange> push_constant_ranges(desc.num_constant_ranges);
-	for (uint32_t i = 0; i < desc.num_constant_ranges; ++i)
+	for (; i < desc.num_params && desc.params[i].type == api::pipeline_layout_param_type::push_constants; ++i)
 	{
-		push_constant_ranges[i].stageFlags = static_cast<VkShaderStageFlagBits>(desc.constant_ranges[i].visibility);
-		push_constant_ranges[i].offset = desc.constant_ranges[i].offset * 4;
-		push_constant_ranges[i].size = desc.constant_ranges[i].count * 4;
+		VkPushConstantRange &push_constant_range = push_constant_ranges.emplace_back();
+		push_constant_range.stageFlags = static_cast<VkShaderStageFlagBits>(desc.params[i].constant_range.visibility);
+		push_constant_range.offset = desc.params[i].constant_range.offset * 4;
+		push_constant_range.size = desc.params[i].constant_range.count * 4;
 	}
 
 	VkPipelineLayoutCreateInfo create_info { VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
-	create_info.setLayoutCount = desc.num_set_layouts;
+	create_info.setLayoutCount = static_cast<uint32_t>(internal_set_layouts.size());
 	create_info.pSetLayouts = internal_set_layouts.data();
-	create_info.pushConstantRangeCount = desc.num_constant_ranges;
+	create_info.pushConstantRangeCount = static_cast<uint32_t>(push_constant_ranges.size());
 	create_info.pPushConstantRanges = push_constant_ranges.data();
 
 	if (VkPipelineLayout object = VK_NULL_HANDLE;
 		vk.CreatePipelineLayout(_orig, &create_info, nullptr, &object) == VK_SUCCESS)
 	{
-		_pipeline_layout_list[object].assign(create_info.pSetLayouts, create_info.pSetLayouts + create_info.setLayoutCount);
-
-		vk.DestroyDescriptorSetLayout(_orig, dummy_layout, nullptr);
+		_pipeline_layout_list[object].set_layouts.assign(create_info.pSetLayouts, create_info.pSetLayouts + create_info.setLayoutCount);
 
 		*out = { (uint64_t)object };
 		return true;
 	}
 	else
 	{
-		vk.DestroyDescriptorSetLayout(_orig, dummy_layout, nullptr);
+		for (VkDescriptorSetLayout set_layout : internal_set_layouts)
+			vk.DestroyDescriptorSetLayout(_orig, set_layout, nullptr);
 
 		*out = { 0 };
 		return false;
 	}
 }
-bool reshade::vulkan::device_impl::create_descriptor_set_layout(const api::descriptor_set_layout_desc &desc, api::descriptor_set_layout *out)
+void reshade::vulkan::device_impl::destroy_pipeline_layout(api::pipeline_layout handle)
 {
-	std::vector<VkDescriptorSetLayoutBinding> internal_bindings;
-	internal_bindings.reserve(desc.num_ranges);
-	for (uint32_t i = 0; i < desc.num_ranges; ++i)
-	{
-		for (uint32_t k = 0; k < desc.ranges[i].count; ++k)
-		{
-			VkDescriptorSetLayoutBinding &internal_binding = internal_bindings.emplace_back();
-			internal_binding.binding = desc.ranges[i].binding + k;
-			internal_binding.descriptorType = static_cast<VkDescriptorType>(desc.ranges[i].type);
-			internal_binding.descriptorCount = 1;
-			internal_binding.stageFlags = static_cast<VkShaderStageFlags>(desc.ranges[i].visibility);
-			internal_binding.pImmutableSamplers = nullptr;
-		}
-	}
+	auto &list = _pipeline_layout_list[(VkPipelineLayout)handle.handle];
+	for (VkDescriptorSetLayout set_layout : list.set_layouts)
+		vk.DestroyDescriptorSetLayout(_orig, set_layout, nullptr);
 
-	VkDescriptorSetLayoutCreateInfo set_create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
-	set_create_info.bindingCount = static_cast<uint32_t>(internal_bindings.size());
-	set_create_info.pBindings = internal_bindings.data();
+	_pipeline_layout_list.erase((VkPipelineLayout)handle.handle);
 
-	if (desc.push_descriptors && vk.CmdPushDescriptorSetKHR != nullptr)
-		set_create_info.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
-
-	if (VkDescriptorSetLayout object = VK_NULL_HANDLE;
-		vk.CreateDescriptorSetLayout(_orig, &set_create_info, nullptr, &object) == VK_SUCCESS)
-	{
-		*out = { (uint64_t)object };
-		return true;
-	}
-	else
-	{
-		*out = { 0 };
-		return false;
-	}
+	vk.DestroyPipelineLayout(_orig, (VkPipelineLayout)handle.handle, nullptr);
 }
 
 bool reshade::vulkan::device_impl::create_query_pool(api::query_type type, uint32_t count, api::query_pool *out)
@@ -1060,17 +1042,6 @@ void reshade::vulkan::device_impl::destroy_framebuffer(api::framebuffer handle)
 	_framebuffer_list.erase((VkFramebuffer)handle.handle);
 }
 
-void reshade::vulkan::device_impl::destroy_pipeline_layout(api::pipeline_layout handle)
-{
-	_pipeline_layout_list.erase((VkPipelineLayout)handle.handle);
-
-	vk.DestroyPipelineLayout(_orig, (VkPipelineLayout)handle.handle, nullptr);
-}
-void reshade::vulkan::device_impl::destroy_descriptor_set_layout(api::descriptor_set_layout handle)
-{
-	vk.DestroyDescriptorSetLayout(_orig, (VkDescriptorSetLayout)handle.handle, nullptr);
-}
-
 bool reshade::vulkan::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access, void **data, uint32_t *row_pitch, uint32_t *slice_pitch)
 {
 	if (row_pitch != nullptr)
@@ -1194,53 +1165,6 @@ void reshade::vulkan::device_impl::upload_texture_region(const api::subresource_
 	vmaDestroyBuffer(_alloc, intermediate, intermediate_mem);
 }
 
-bool reshade::vulkan::device_impl::get_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index, api::resource_view *out) const
-{
-	assert(fbo.handle != 0);
-
-	std::lock_guard<std::mutex> lock(_mutex);
-	const auto &info = _framebuffer_list.at((VkFramebuffer)fbo.handle);
-
-	assert(index <= info.attachments.size());
-
-	for (uint32_t i = 0; i < info.attachments.size(); ++i)
-	{
-		if (info.attachment_types[i] & static_cast<VkImageAspectFlags>(type))
-		{
-			if (index == 0)
-			{
-				*out = { (uint64_t)info.attachments[i] };
-				return true;
-			}
-			else
-			{
-				index -= 1;
-			}
-		}
-	}
-
-	*out = { 0 };
-	return false;
-}
-void reshade::vulkan::device_impl::get_resource_from_view(api::resource_view view, api::resource *out) const
-{
-	const resource_view_data data = lookup_resource_view(view);
-
-	if (data.is_image_view())
-		*out = { (uint64_t)data.image_create_info.image };
-	else
-		*out = { (uint64_t)data.buffer_create_info.buffer };
-}
-reshade::api::resource_desc reshade::vulkan::device_impl::get_resource_desc(api::resource resource) const
-{
-	const resource_data data = lookup_resource(resource);
-
-	if (data.is_image())
-		return convert_resource_desc(data.image_create_info);
-	else
-		return convert_resource_desc(data.buffer_create_info);
-}
-
 bool reshade::vulkan::device_impl::get_query_pool_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride)
 {
 	assert(pool.handle != 0);
@@ -1249,11 +1173,16 @@ bool reshade::vulkan::device_impl::get_query_pool_results(api::query_pool pool, 
 	return vk.GetQueryPoolResults(_orig, (VkQueryPool)pool.handle, first, count, count * stride, results, stride, VK_QUERY_RESULT_64_BIT) == VK_SUCCESS;
 }
 
-bool reshade::vulkan::device_impl::allocate_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, api::descriptor_set *out)
+bool reshade::vulkan::device_impl::allocate_descriptor_sets(api::pipeline_layout layout, uint32_t param_index, uint32_t count, api::descriptor_set *out)
 {
 	static_assert(sizeof(*out) == sizeof(VkDescriptorSet));
 
-	std::vector<VkDescriptorSetLayout> set_layouts(count, (VkDescriptorSetLayout)layout.handle);
+	VkDescriptorSetLayout set_layout;
+	{	const std::lock_guard<std::mutex> lock(_mutex);
+		set_layout = _pipeline_layout_list[(VkPipelineLayout)layout.handle].set_layouts[param_index];
+	}
+
+	std::vector<VkDescriptorSetLayout> set_layouts(count, set_layout);
 
 	VkDescriptorSetAllocateInfo alloc_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
 	alloc_info.descriptorPool = _descriptor_pool;
@@ -1262,7 +1191,7 @@ bool reshade::vulkan::device_impl::allocate_descriptor_sets(api::descriptor_set_
 
 	return vk.AllocateDescriptorSets(_orig, &alloc_info, reinterpret_cast<VkDescriptorSet *>(out)) == VK_SUCCESS;
 }
-void reshade::vulkan::device_impl::free_descriptor_sets(api::descriptor_set_layout, uint32_t count, const api::descriptor_set *sets)
+void reshade::vulkan::device_impl::free_descriptor_sets(api::pipeline_layout, uint32_t, uint32_t count, const api::descriptor_set *sets)
 {
 	vk.FreeDescriptorSets(_orig, _descriptor_pool, count, reinterpret_cast<const VkDescriptorSet *>(sets));
 }
@@ -1354,4 +1283,72 @@ void reshade::vulkan::device_impl::set_resource_name(api::resource resource, con
 	name_info.pObjectName = name;
 
 	vk.SetDebugUtilsObjectNameEXT(_orig, &name_info);
+}
+
+reshade::api::resource_desc reshade::vulkan::device_impl::get_resource_desc(api::resource resource) const
+{
+	const resource_data data = lookup_resource(resource);
+
+	if (data.is_image())
+		return convert_resource_desc(data.image_create_info);
+	else
+		return convert_resource_desc(data.buffer_create_info);
+}
+
+reshade::api::pipeline_layout_desc reshade::vulkan::device_impl::get_pipeline_layout_desc(api::pipeline_layout layout) const
+{
+	const pipeline_layout_data data = lookup_pipeline_layout((VkPipelineLayout)layout.handle);
+
+	if (data.desc != nullptr)
+		return *data.desc;
+	else
+		return api::pipeline_layout_desc {}; // TODO: Not implemented for layouts created via 'create_pipeline_layout'
+}
+
+void reshade::vulkan::device_impl::get_resource_from_view(api::resource_view view, api::resource *out) const
+{
+	const resource_view_data data = lookup_resource_view(view);
+
+	if (data.is_image_view())
+		*out = { (uint64_t)data.image_create_info.image };
+	else
+		*out = { (uint64_t)data.buffer_create_info.buffer };
+}
+
+bool reshade::vulkan::device_impl::get_framebuffer_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index, api::resource_view *out) const
+{
+	assert(fbo.handle != 0);
+
+	std::lock_guard<std::mutex> lock(_mutex);
+	const auto &info = _framebuffer_list.at((VkFramebuffer)fbo.handle);
+
+	assert(index <= info.attachments.size());
+
+	for (uint32_t i = 0; i < info.attachments.size(); ++i)
+	{
+		if (info.attachment_types[i] & static_cast<VkImageAspectFlags>(type))
+		{
+			if (index == 0)
+			{
+				*out = { (uint64_t)info.attachments[i] };
+				return true;
+			}
+			else
+			{
+				index -= 1;
+			}
+		}
+	}
+
+	*out = { 0 };
+	return false;
+}
+
+void reshade::vulkan::device_impl::advance_transient_descriptor_pool()
+{
+	if (vk.CmdPushDescriptorSetKHR != nullptr)
+		return;
+
+	const VkDescriptorPool next_pool = _transient_descriptor_pool[++_transient_index % 4];
+	vk.ResetDescriptorPool(_orig, next_pool, 0);
 }

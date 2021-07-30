@@ -396,6 +396,16 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
+	/// The available pipeline layout parameter types.
+	/// </summary>
+	enum class pipeline_layout_param_type
+	{
+		descriptor_set = 0,
+		push_constants = 1,
+		push_descriptors = 2,
+	};
+
+	/// <summary>
 	/// The available indirect command types.
 	/// </summary>
 	enum class indirect_command
@@ -475,12 +485,6 @@ namespace reshade { namespace api
 	/// <para>In D3D12 this is a pointer to a 'ID3D12RootSignature' object, in Vulkan a 'VkPipelineLayout' handle.</para>
 	/// </summary>
 	RESHADE_DEFINE_HANDLE(pipeline_layout);
-
-	/// <summary>
-	/// An opaque handle to a descriptor set layout object.
-	/// <para>In Vulkan this is a 'VkDescriptorSetLayout' handle.</para>
-	/// </summary>
-	RESHADE_DEFINE_HANDLE(descriptor_set_layout);
 
 	/// <summary>
 	/// An opaque handle to a query pool.
@@ -899,20 +903,19 @@ namespace reshade { namespace api
 	/// </summary>
 	struct pipeline_layout_desc
 	{
-		uint32_t num_set_layouts;
-		const descriptor_set_layout *set_layouts;
-		uint32_t num_constant_ranges;
-		const constant_range *constant_ranges;
+		uint32_t num_params;
+		const struct pipeline_layout_param *params;
 	};
 
 	/// <summary>
 	/// Describes a descriptor set layout.
 	/// </summary>
-	struct descriptor_set_layout_desc
+	struct pipeline_layout_param
 	{
+		pipeline_layout_param_type type;
 		uint32_t num_ranges;
-		const descriptor_range *ranges;
-		bool push_descriptors;
+		const descriptor_range *descriptor_ranges;
+		constant_range constant_range;
 	};
 
 	/// <summary>

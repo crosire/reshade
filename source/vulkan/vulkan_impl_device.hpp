@@ -78,6 +78,17 @@ namespace reshade::vulkan
 		std::vector<uint32_t> spirv;
 	};
 
+	struct pipeline_layout_data
+	{
+		api::pipeline_layout_desc *desc;
+		std::vector<VkDescriptorSetLayout> set_layouts;
+	};
+
+	struct descriptor_set_layout_data
+	{
+		api::pipeline_layout_param *desc;
+	};
+
 	class device_impl : public api::api_object_impl<VkDevice, api::device>
 	{
 		friend class command_list_impl;
@@ -109,9 +120,6 @@ namespace reshade::vulkan
 		bool create_pipeline_layout(const api::pipeline_layout_desc &desc, api::pipeline_layout *out) final;
 		void destroy_pipeline_layout(api::pipeline_layout handle) final;
 
-		bool create_descriptor_set_layout(const api::descriptor_set_layout_desc &desc, api::descriptor_set_layout *out) final;
-		void destroy_descriptor_set_layout(api::descriptor_set_layout handle) final;
-
 		bool create_query_pool(api::query_type type, uint32_t size, api::query_pool *out) final;
 		void destroy_query_pool(api::query_pool handle) final;
 
@@ -121,10 +129,6 @@ namespace reshade::vulkan
 		bool create_framebuffer(const api::framebuffer_desc &desc, api::framebuffer *out) final;
 		void destroy_framebuffer(api::framebuffer handle) final;
 
-		bool get_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index, api::resource_view *out) const final;
-		void get_resource_from_view(api::resource_view view, api::resource *out) const final;
-		api::resource_desc get_resource_desc(api::resource resource) const final;
-
 		bool map_resource(api::resource resource, uint32_t subresource, api::map_access access, void **data, uint32_t *row_pitch, uint32_t *slice_pitch) final;
 		void unmap_resource(api::resource resource, uint32_t subresource) final;
 
@@ -133,14 +137,19 @@ namespace reshade::vulkan
 
 		bool get_query_pool_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride) final;
 
-		bool allocate_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, api::descriptor_set *out) final;
-		void free_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, const api::descriptor_set *sets) final;
+		bool allocate_descriptor_sets(api::pipeline_layout layout, uint32_t param_index, uint32_t count, api::descriptor_set *out) final;
+		void free_descriptor_sets(api::pipeline_layout layout, uint32_t param_index, uint32_t count, const api::descriptor_set *sets) final;
 
 		void update_descriptor_sets(uint32_t num_writes, const api::write_descriptor_set *writes, uint32_t num_copies, const api::copy_descriptor_set *copies) final;
 
 		void wait_idle() const final;
 
 		void set_resource_name(api::resource resource, const char *name) final;
+
+		api::resource_desc get_resource_desc(api::resource resource) const final;
+		api::pipeline_layout_desc get_pipeline_layout_desc(api::pipeline_layout layout) const final;
+		void get_resource_from_view(api::resource_view view, api::resource *out) const final;
+		bool get_framebuffer_attachment(api::framebuffer framebuffer, api::attachment_type type, uint32_t index, api::resource_view *out) const final;
 
 		void advance_transient_descriptor_pool();
 
@@ -180,6 +189,16 @@ namespace reshade::vulkan
 		{
 			const std::lock_guard<std::mutex> lock(_mutex);
 			return _framebuffer_list.at(fbo);
+		}
+		pipeline_layout_data lookup_pipeline_layout(VkPipelineLayout layout) const
+		{
+			const std::lock_guard<std::mutex> lock(_mutex);
+			return _pipeline_layout_list.at(layout);
+		}
+		descriptor_set_layout_data lookup_descriptor_set_layout(VkDescriptorSetLayout layout) const
+		{
+			const std::lock_guard<std::mutex> lock(_mutex);
+			return _descriptor_set_layout_list.at(layout);
 		}
 
 		void register_image(VkImage image, const VkImageCreateInfo &create_info, VmaAllocation allocation = VK_NULL_HANDLE)
@@ -235,6 +254,16 @@ namespace reshade::vulkan
 			const std::lock_guard<std::mutex> lock(_mutex);
 			_shader_module_list.emplace(module, std::move(data));
 		}
+		void register_pipeline_layout(VkPipelineLayout layout, pipeline_layout_data &&data)
+		{
+			const std::lock_guard<std::mutex> lock(_mutex);
+			_pipeline_layout_list.emplace(layout, std::move(data));
+		}
+		void register_descriptor_set_layout(VkDescriptorSetLayout layout, descriptor_set_layout_data &&data)
+		{
+			const std::lock_guard<std::mutex> lock(_mutex);
+			_descriptor_set_layout_list.emplace(layout, std::move(data));
+		}
 
 		void unregister_image(VkImage image)
 		{
@@ -271,6 +300,18 @@ namespace reshade::vulkan
 			const std::lock_guard<std::mutex> lock(_mutex);
 			_shader_module_list.erase(module);
 		}
+		void unregister_pipeline_layout(VkPipelineLayout layout)
+		{
+			const std::lock_guard<std::mutex> lock(_mutex);
+			operator delete(_pipeline_layout_list.at(layout).desc);
+			_pipeline_layout_list.erase(layout);
+		}
+		void unregister_descriptor_set_layout(VkDescriptorSetLayout layout)
+		{
+			const std::lock_guard<std::mutex> lock(_mutex);
+			operator delete(_descriptor_set_layout_list.at(layout).desc);
+			_descriptor_set_layout_list.erase(layout);
+		}
 
 		api::pipeline_desc convert_pipeline_desc(const VkComputePipelineCreateInfo &create_info) const;
 		api::pipeline_desc convert_pipeline_desc(const VkGraphicsPipelineCreateInfo &create_info) const;
@@ -299,7 +340,8 @@ namespace reshade::vulkan
 		std::unordered_map<VkRenderPass, render_pass_data> _render_pass_list;
 		std::unordered_map<VkFramebuffer, framebuffer_data> _framebuffer_list;
 		std::unordered_map<VkShaderModule, shader_module_data> _shader_module_list;
-		std::unordered_map<VkPipelineLayout, std::vector<VkDescriptorSetLayout>> _pipeline_layout_list;
+		std::unordered_map<VkPipelineLayout, pipeline_layout_data> _pipeline_layout_list;
+		std::unordered_map<VkDescriptorSetLayout, descriptor_set_layout_data> _descriptor_set_layout_list;
 
 		VkDescriptorPool _descriptor_pool = VK_NULL_HANDLE;
 		VkDescriptorPool _transient_descriptor_pool[4] = {};

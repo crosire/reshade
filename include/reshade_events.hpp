@@ -168,28 +168,6 @@ namespace reshade
 		destroy_pipeline,
 
 		/// <summary>
-		/// Called after successfull pipeline layout creation from 'ID3D12Device::CreateRootSignature' or 'vkCreatePipelineLayout'.
-		/// <para>Callback function signature: <c>void (api::device *device, const api::pipeline_layout_desc &amp;desc, api::pipeline_layout layout)</c></para>
-		/// </summary>
-		init_pipeline_layout,
-		/// <summary>
-		/// Called on pipeline layout destruction, before last 'ID3D12RootSignature::Release' or 'vkDestroyPipelineLayout'.
-		/// <para>Callback function signature: <c>void (api::device *device, api::pipeline_layout layout)</c></para>
-		/// </summary>
-		destroy_pipeline_layout,
-
-		/// <summary>
-		/// Called after successfull descriptor set layout creation from 'vkCreateDescriptorSetLayout'.
-		/// <para>Callback function signature: <c>void (api::device *device, const api::descriptor_set_layout_desc &amp;desc, api::descriptor_set_layout layout)</c></para>
-		/// </summary>
-		init_descriptor_set_layout,
-		/// <summary>
-		/// Called on descriptor set layout destruction, before 'vkDestroyDescriptorSetLayout'.
-		/// <para>Callback function signature: <c>void (api::device *device, api::descriptor_set_layout layout)</c></para>
-		/// </summary>
-		destroy_descriptor_set_layout,
-
-		/// <summary>
 		/// Called after successfull render pass creation from 'vkCreateRenderPass'.
 		/// <para>Callback function signature: <c>void (api::device *device, const api::render_pass_desc &amp;desc, api::render_pass pass)</c></para>
 		/// </summary>
@@ -309,12 +287,12 @@ namespace reshade
 
 		/// <summary>
 		/// Called after 'IDirect3DDevice9::Set(...)ShaderConstant(...)', 'ID3D12GraphicsCommandList::Set(...)Root32BitConstant(s)', 'glUniform(...)' or 'vkCmdPushConstants'.
-		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_index, uint32_t first, uint32_t count, const uint32_t *values)</c></para>
+		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, uint32_t first, uint32_t count, const uint32_t *values)</c></para>
 		/// </summary>
 		push_constants,
 		/// <summary>
 		/// Called after 'IDirect3DDevice9::Set(SamplerState/Texture)', 'ID3D10Device::(...)Set(Samplers/ShaderResources/ConstantBuffers)', 'ID3D11DeviceContext::(...)Set(Samplers/ShaderResources/UnorderedAccessViews/ConstantBuffers)', 'ID3D12GraphicsCommandList::Set(...)RootConstantBufferView' or 'glBind(Sampler/Texture/TextureUnit/ImageTexture/Buffer)(s)(...)'.
-		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_index, api::descriptor_type type, uint32_t first, uint32_t count, const void *descriptors)</c></para>
+		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_type type, uint32_t first, uint32_t count, const void *descriptors)</c></para>
 		/// </summary>
 		push_descriptors,
 		/// <summary>
@@ -575,11 +553,7 @@ namespace reshade
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::create_pipeline, api::device *device, api::pipeline_desc &desc);
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::destroy_pipeline, api::device *device, api::pipeline pipeline);
 
-	DEFINE_ADDON_EVENT_TYPE_1(addon_event::init_pipeline_layout, api::device *device, const api::pipeline_layout_desc &desc, api::pipeline_layout layout);
-	DEFINE_ADDON_EVENT_TYPE_1(addon_event::destroy_pipeline_layout, api::device *device, api::pipeline_layout layout);
 
-	DEFINE_ADDON_EVENT_TYPE_1(addon_event::init_descriptor_set_layout, api::device *device, const api::descriptor_set_layout_desc &desc, api::descriptor_set_layout layout);
-	DEFINE_ADDON_EVENT_TYPE_1(addon_event::destroy_descriptor_set_layout, api::device *device, api::descriptor_set_layout layout);
 
 	DEFINE_ADDON_EVENT_TYPE_1(addon_event::init_render_pass, api::device *device, const api::render_pass_desc &desc, api::render_pass pass);
 	DEFINE_ADDON_EVENT_TYPE_2(addon_event::create_render_pass, api::device *device, api::render_pass_desc &desc);

@@ -10,7 +10,7 @@
 #include "d3d12_command_queue.hpp"
 #include "d3d12_impl_type_convert.hpp"
 
-static bool parse_and_convert_root_signature(const uint32_t *data, size_t size, std::vector<std::vector<reshade::api::descriptor_range>> &descriptor_ranges, std::vector<reshade::api::constant_range> &constant_ranges)
+static bool parse_and_convert_root_signature(const uint32_t *data, size_t size, reshade::api::pipeline_layout_desc &out_desc)
 {
 	constexpr uint32_t DXBC = uint32_t('D') | (uint32_t('X') << 8) | (uint32_t('B') << 16) | (uint32_t('C') << 24);
 	constexpr uint32_t RTS0 = uint32_t('R') | (uint32_t('T') << 8) | (uint32_t('S') << 16) | (uint32_t('0') << 24);
@@ -39,6 +39,10 @@ static bool parse_and_convert_root_signature(const uint32_t *data, size_t size, 
 		const uint32_t param_offset = chunk[2];
 		auto param_list = chunk + (param_offset / sizeof(uint32_t));
 
+		auto out_params = new reshade::api::pipeline_layout_param[param_count];
+		out_desc.num_params = param_count;
+		out_desc.params = out_params;
+
 		for (uint32_t k = 0; k < param_count; ++k, param_list += 3)
 		{
 			const auto param_type = static_cast<D3D12_ROOT_PARAMETER_TYPE>(param_list[0]);
@@ -52,8 +56,11 @@ static bool parse_and_convert_root_signature(const uint32_t *data, size_t size, 
 					const uint32_t range_count = param_data[0];
 					uint32_t descriptor_offset = 0;
 
-					std::vector<reshade::api::descriptor_range> &current_descriptor_ranges = descriptor_ranges.emplace_back();
-					current_descriptor_ranges.reserve(range_count);
+					auto descriptor_ranges = new reshade::api::descriptor_range[range_count];
+
+					out_params[k].type = reshade::api::pipeline_layout_param_type::descriptor_set;
+					out_params[k].num_ranges = range_count;
+					out_params[k].descriptor_ranges = descriptor_ranges;
 
 					// Convert descriptor ranges
 					if (version == D3D_ROOT_SIGNATURE_VERSION_1_0)
@@ -62,7 +69,7 @@ static bool parse_and_convert_root_signature(const uint32_t *data, size_t size, 
 
 						for (uint32_t j = 0; j < range_count; ++j, ++range_data)
 						{
-							reshade::api::descriptor_range &range = current_descriptor_ranges.emplace_back();
+							reshade::api::descriptor_range &range = descriptor_ranges[j];
 							range.dx_register_index = range_data->BaseShaderRegister;
 							range.dx_register_space = range_data->RegisterSpace;
 							range.type = reshade::d3d12::convert_descriptor_type(range_data->RangeType);
@@ -83,7 +90,7 @@ static bool parse_and_convert_root_signature(const uint32_t *data, size_t size, 
 
 						for (uint32_t j = 0; j < range_count; ++j, ++range_data)
 						{
-							reshade::api::descriptor_range &range = current_descriptor_ranges.emplace_back();
+							reshade::api::descriptor_range &range = descriptor_ranges[j];
 							range.dx_register_index = range_data->BaseShaderRegister;
 							range.dx_register_space = range_data->RegisterSpace;
 							range.type = reshade::d3d12::convert_descriptor_type(range_data->RangeType);
@@ -104,8 +111,10 @@ static bool parse_and_convert_root_signature(const uint32_t *data, size_t size, 
 				{
 					auto constant_data = reinterpret_cast<const D3D12_ROOT_CONSTANTS *>(param_data);
 
+					out_params[k].type = reshade::api::pipeline_layout_param_type::push_constants;
+
 					// Convert root constant description
-					reshade::api::constant_range &root_constant = constant_ranges.emplace_back();
+					reshade::api::constant_range &root_constant = out_params[k].constant_range;
 					root_constant.dx_register_index = constant_data->ShaderRegister;
 					root_constant.dx_register_space = constant_data->RegisterSpace;
 					root_constant.count = constant_data->Num32BitValues;
@@ -118,7 +127,13 @@ static bool parse_and_convert_root_signature(const uint32_t *data, size_t size, 
 				{
 					auto descriptor_data = reinterpret_cast<const D3D12_ROOT_DESCRIPTOR *>(param_data);
 
-					reshade::api::descriptor_range &range = descriptor_ranges.emplace_back().emplace_back();
+					auto descriptor_range = new reshade::api::descriptor_range();
+
+					out_params[k].type = reshade::api::pipeline_layout_param_type::push_descriptors;
+					out_params[k].num_ranges = 1;
+					out_params[k].descriptor_ranges = descriptor_range;
+
+					reshade::api::descriptor_range &range = *descriptor_range;
 					range.dx_register_index = descriptor_data->ShaderRegister;
 					range.dx_register_space = descriptor_data->RegisterSpace;
 					range.count = 1;
@@ -448,50 +463,13 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateRootSignature(UINT nodeMask, const 
 #if RESHADE_ADDON
 		const auto root_signature = static_cast<ID3D12RootSignature *>(*ppvRootSignature);
 
-		if (reshade::has_event_callbacks(reshade::addon_event::init_descriptor_set_layout) ||
-			reshade::has_event_callbacks(reshade::addon_event::destroy_descriptor_set_layout) ||
-			reshade::has_event_callbacks(reshade::addon_event::init_pipeline_layout) ||
-			reshade::has_event_callbacks(reshade::addon_event::destroy_pipeline_layout))
+		reshade::api::pipeline_layout_desc layout_desc = {};
+
+		// Parse DXBC root signature, convert it and call descriptor set and pipeline layout events
+		if (parse_and_convert_root_signature(static_cast<const uint32_t *>(pBlobWithRootSignature), blobLengthInBytes, layout_desc))
 		{
-			std::vector<std::vector<reshade::api::descriptor_range>> descriptor_ranges;
-			std::vector<reshade::api::descriptor_set_layout> set_layouts;
-			std::vector<reshade::api::constant_range> constant_ranges;
-
-			// Parse DXBC root signature, convert it and call descriptor set and pipeline layout events
-			if (parse_and_convert_root_signature(static_cast<const uint32_t *>(pBlobWithRootSignature), blobLengthInBytes, descriptor_ranges, constant_ranges))
-			{
-				set_layouts.resize(descriptor_ranges.size());
-
-				for (size_t i = 0; i < descriptor_ranges.size(); ++i)
-				{
-					reshade::api::descriptor_set_layout_desc set_layout_desc = {};
-					set_layout_desc.num_ranges = static_cast<uint32_t>(descriptor_ranges[i].size());
-					set_layout_desc.ranges = descriptor_ranges[i].data();
-					set_layout_desc.push_descriptors = false;
-
-					// Generate a unique handle for the descriptor set layout
-					set_layouts[i].handle = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(root_signature)) + 1 + i;
-
-					reshade::invoke_addon_event<reshade::addon_event::init_descriptor_set_layout>(this, set_layout_desc, set_layouts[i]);
-				}
-
-				reshade::api::pipeline_layout_desc pipeline_layout_desc = {};
-				pipeline_layout_desc.num_set_layouts = static_cast<uint32_t>(set_layouts.size());
-				pipeline_layout_desc.set_layouts = set_layouts.data();
-				pipeline_layout_desc.num_constant_ranges = static_cast<uint32_t>(constant_ranges.size());
-				pipeline_layout_desc.constant_ranges = constant_ranges.data();
-
-				reshade::invoke_addon_event<reshade::addon_event::init_pipeline_layout>(
-					this, pipeline_layout_desc, reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(root_signature) });
-
-				// Descriptor set layout only needs to be alive during pipeline layout creation, so can simply call the destruction event right afterwards
-				for (size_t i = 0; i < descriptor_ranges.size(); ++i)
-				{
-					reshade::invoke_addon_event<reshade::addon_event::destroy_descriptor_set_layout>(this, set_layouts[i]);
-				}
-
-				reshade::invoke_addon_event_on_destruction<reshade::addon_event::destroy_pipeline_layout, reshade::api::pipeline_layout>(this, root_signature);
-			}
+			// TODO: Free memory allocated in 'parse_and_convert_root_signature'
+			root_signature->SetPrivateData(reshade::d3d12::pipeline_extra_data_guid, sizeof(layout_desc), &layout_desc);
 		}
 #endif
 	}

@@ -289,7 +289,7 @@ void reshade::vulkan::command_list_impl::push_descriptors(api::shader_stage stag
 		VkDescriptorSetAllocateInfo alloc_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
 		alloc_info.descriptorPool = _device_impl->_transient_descriptor_pool[_device_impl->_transient_index % 4];
 		alloc_info.descriptorSetCount = 1;
-		alloc_info.pSetLayouts = &_device_impl->_pipeline_layout_list[(VkPipelineLayout)layout.handle][layout_index];
+		alloc_info.pSetLayouts = &_device_impl->_pipeline_layout_list[(VkPipelineLayout)layout.handle].set_layouts[layout_index];
 
 		if (vk.AllocateDescriptorSets(_device_impl->_orig, &alloc_info, &write.dstSet) != VK_SUCCESS)
 			return;

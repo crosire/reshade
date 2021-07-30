@@ -57,9 +57,6 @@ namespace reshade::opengl
 		bool create_pipeline_layout(const api::pipeline_layout_desc &desc, api::pipeline_layout *out) final;
 		void destroy_pipeline_layout(api::pipeline_layout handle) final;
 
-		bool create_descriptor_set_layout(const api::descriptor_set_layout_desc &desc, api::descriptor_set_layout *out) final;
-		void destroy_descriptor_set_layout(api::descriptor_set_layout handle) final;
-
 		bool create_query_pool(api::query_type type, uint32_t size, api::query_pool *out) final;
 		void destroy_query_pool(api::query_pool handle) final;
 
@@ -69,10 +66,6 @@ namespace reshade::opengl
 		bool create_framebuffer(const api::framebuffer_desc &desc, api::framebuffer *out) final;
 		void destroy_framebuffer(api::framebuffer handle) final;
 
-		bool get_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index, api::resource_view *out) const final;
-		void get_resource_from_view(api::resource_view view, api::resource *out) const final;
-		api::resource_desc get_resource_desc(api::resource resource) const final;
-
 		bool map_resource(api::resource resource, uint32_t subresource, api::map_access access, void **data, uint32_t *row_pitch, uint32_t *slice_pitch) final;
 		void unmap_resource(api::resource resource, uint32_t subresource) final;
 
@@ -81,14 +74,19 @@ namespace reshade::opengl
 
 		bool get_query_pool_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride) final;
 
-		bool allocate_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, api::descriptor_set *out) final;
-		void free_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, const api::descriptor_set *sets) final;
+		bool allocate_descriptor_sets(api::pipeline_layout layout, uint32_t param_index, uint32_t count, api::descriptor_set *out) final;
+		void free_descriptor_sets(api::pipeline_layout layout, uint32_t param_index, uint32_t count, const api::descriptor_set *sets) final;
 
 		void update_descriptor_sets(uint32_t num_writes, const api::write_descriptor_set *writes, uint32_t num_copies, const api::copy_descriptor_set *copies) final;
 
 		void wait_idle() const final;
 
 		void set_resource_name(api::resource resource, const char *name) final;
+
+		api::resource_desc get_resource_desc(api::resource resource) const final;
+		api::pipeline_layout_desc get_pipeline_layout_desc(api::pipeline_layout layout) const final;
+		void get_resource_from_view(api::resource_view view, api::resource *out) const final;
+		bool get_framebuffer_attachment(api::framebuffer framebuffer, api::attachment_type type, uint32_t index, api::resource_view *out) const final;
 
 		api::device *get_device() override { return this; }
 
@@ -98,7 +96,7 @@ namespace reshade::opengl
 
 		void barrier(uint32_t, const api::resource *, const api::resource_usage *, const api::resource_usage *) final { /* no-op */ }
 
-		void begin_render_pass(api::render_pass pass, api::framebuffer fbo) final;
+		void begin_render_pass(api::render_pass pass, api::framebuffer framebuffer) final;
 		void finish_render_pass() final;
 		void bind_render_targets_and_depth_stencil(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv) final;
 
@@ -142,11 +140,9 @@ namespace reshade::opengl
 		void finish_debug_event() final;
 		void insert_debug_marker(const char *label, const float color[4]) final;
 
-		// Global pipeline layout handle which is registered during device creation
-		static constexpr api::pipeline_layout _global_pipeline_layout = { 0x1 };
-
 		bool _compatibility_context = false;
 		std::unordered_set<HDC> _hdcs;
+		api::pipeline_layout _global_pipeline_layout = { 0 };
 		GLuint _current_fbo = 0;
 		GLuint _current_ibo = 0;
 		GLenum _current_prim_mode = GL_NONE;

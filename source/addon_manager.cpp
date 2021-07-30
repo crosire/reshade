@@ -128,10 +128,6 @@ void reshade::enable_or_disable_addons(bool enabled)
 		addon_event::destroy_resource_view,
 		addon_event::init_pipeline,
 		addon_event::destroy_pipeline,
-		addon_event::init_pipeline_layout,
-		addon_event::destroy_pipeline_layout,
-		addon_event::init_descriptor_set_layout,
-		addon_event::destroy_descriptor_set_layout,
 		addon_event::init_render_pass,
 		addon_event::destroy_render_pass,
 		addon_event::init_framebuffer,
@@ -180,10 +176,6 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(init_pipeline);
 		CASE(create_pipeline);
 		CASE(destroy_pipeline);
-		CASE(init_pipeline_layout);
-		CASE(destroy_pipeline_layout);
-		CASE(init_descriptor_set_layout);
-		CASE(destroy_descriptor_set_layout);
 		CASE(init_render_pass);
 		CASE(create_render_pass);
 		CASE(destroy_render_pass);

@@ -1013,26 +1013,36 @@ VkResult VKAPI_CALL vkCreatePipelineLayout(VkDevice device, const VkPipelineLayo
 	if (result >= VK_SUCCESS)
 	{
 #if RESHADE_ADDON
-		static_assert(sizeof(*pCreateInfo->pSetLayouts) == sizeof(reshade::api::descriptor_set_layout));
+		const uint32_t num_params = pCreateInfo->setLayoutCount + pCreateInfo->pushConstantRangeCount;
 
-		std::vector<reshade::api::constant_range> constant_ranges;
-		constant_ranges.reserve(pCreateInfo->pushConstantRangeCount);
-		for (uint32_t i = 0; i < pCreateInfo->pushConstantRangeCount; ++i)
+		const auto layout_size = sizeof(reshade::api::pipeline_layout_desc) + (num_params * sizeof(reshade::api::pipeline_layout_param));
+		const auto layout_desc = static_cast<reshade::api::pipeline_layout_desc *>(operator new(layout_size));
+		std::memset(layout_desc, 0, layout_size);
+		auto layout_params = reinterpret_cast<reshade::api::pipeline_layout_param *>(layout_desc + 1);
+		layout_desc->params = layout_params;
+		layout_desc->num_params = num_params;
+
+		for (uint32_t i = 0; i < pCreateInfo->setLayoutCount; ++i)
 		{
-			reshade::api::constant_range &range = constant_ranges.emplace_back();
-			range.offset = pCreateInfo->pPushConstantRanges[i].offset;
-			range.count = pCreateInfo->pPushConstantRanges[i].size;
-			range.visibility = static_cast<reshade::api::shader_stage>(pCreateInfo->pPushConstantRanges[i].stageFlags);
+			const auto set_layout_data = device_impl->lookup_descriptor_set_layout(pCreateInfo->pSetLayouts[i]);
+
+			layout_params[i] = *set_layout_data.desc;
 		}
 
-		reshade::api::pipeline_layout_desc desc = {};
-		desc.num_set_layouts = pCreateInfo->setLayoutCount;
-		desc.set_layouts = reinterpret_cast<const reshade::api::descriptor_set_layout *>(pCreateInfo->pSetLayouts);
-		desc.num_constant_ranges = pCreateInfo->pushConstantRangeCount;
-		desc.constant_ranges = constant_ranges.data();
+		layout_params += pCreateInfo->setLayoutCount;
+		for (uint32_t i = 0; i < pCreateInfo->pushConstantRangeCount; ++i)
+		{
+			layout_params[i].type = reshade::api::pipeline_layout_param_type::push_constants;
+			layout_params[i].constant_range.offset = pCreateInfo->pPushConstantRanges[i].offset;
+			layout_params[i].constant_range.count = pCreateInfo->pPushConstantRanges[i].size;
+			layout_params[i].constant_range.visibility = static_cast<reshade::api::shader_stage>(pCreateInfo->pPushConstantRanges[i].stageFlags);
+		}
 
-		reshade::invoke_addon_event<reshade::addon_event::init_pipeline_layout>(
-			device_impl, desc, reshade::api::pipeline_layout { (uint64_t)*pPipelineLayout });
+		reshade::vulkan::pipeline_layout_data data;
+		data.desc = layout_desc;
+		data.set_layouts.assign(pCreateInfo->pSetLayouts, pCreateInfo->pSetLayouts + pCreateInfo->setLayoutCount);
+
+		device_impl->register_pipeline_layout(*pPipelineLayout, std::move(data));
 #endif
 	}
 	else
@@ -1050,7 +1060,7 @@ void     VKAPI_CALL vkDestroyPipelineLayout(VkDevice device, VkPipelineLayout pi
 	GET_DISPATCH_PTR_FROM(DestroyPipelineLayout, device_impl);
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline_layout>(device_impl, reshade::api::pipeline_layout { (uint64_t)pipelineLayout });
+	device_impl->unregister_pipeline_layout(pipelineLayout);
 #endif
 
 	trampoline(device, pipelineLayout, pAllocator);
@@ -1114,24 +1124,27 @@ VkResult VKAPI_CALL vkCreateDescriptorSetLayout(VkDevice device, const VkDescrip
 	if (result >= VK_SUCCESS)
 	{
 #if RESHADE_ADDON
-		std::vector<reshade::api::descriptor_range> ranges;
-		ranges.reserve(pCreateInfo->bindingCount);
+		const auto layout_size = sizeof(reshade::api::pipeline_layout_param) + (pCreateInfo->bindingCount * sizeof(reshade::api::descriptor_range));
+		const auto layout_params = static_cast<reshade::api::pipeline_layout_param *>(operator new(layout_size));
+		std::memset(layout_params, 0, layout_size);
+		const auto descriptor_ranges = reinterpret_cast<reshade::api::descriptor_range *>(layout_params + 1);
+
 		for (uint32_t i = 0; i < pCreateInfo->bindingCount; ++i)
 		{
-			reshade::api::descriptor_range &range = ranges.emplace_back();
-			range.binding = pCreateInfo->pBindings[i].binding;
-			range.type = static_cast<reshade::api::descriptor_type>(pCreateInfo->pBindings[i].descriptorType);
-			range.count = pCreateInfo->pBindings[i].descriptorCount;
-			range.visibility = static_cast<reshade::api::shader_stage>(pCreateInfo->pBindings[i].stageFlags);
+			descriptor_ranges[i].binding = pCreateInfo->pBindings[i].binding;
+			descriptor_ranges[i].type = static_cast<reshade::api::descriptor_type>(pCreateInfo->pBindings[i].descriptorType);
+			descriptor_ranges[i].count = pCreateInfo->pBindings[i].descriptorCount;
+			descriptor_ranges[i].visibility = static_cast<reshade::api::shader_stage>(pCreateInfo->pBindings[i].stageFlags);
 		}
 
-		reshade::api::descriptor_set_layout_desc desc = {};
-		desc.num_ranges = pCreateInfo->bindingCount;
-		desc.ranges = ranges.data();
-		desc.push_descriptors = (pCreateInfo->flags & VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR) != 0;
+		layout_params->type = (pCreateInfo->flags & VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR) != 0 ? reshade::api::pipeline_layout_param_type::push_descriptors : reshade::api::pipeline_layout_param_type::descriptor_set;
+		layout_params->num_ranges = pCreateInfo->bindingCount;
+		layout_params->descriptor_ranges = descriptor_ranges;
 
-		reshade::invoke_addon_event<reshade::addon_event::init_descriptor_set_layout>(
-			device_impl, desc, reshade::api::descriptor_set_layout { (uint64_t)*pSetLayout });
+		reshade::vulkan::descriptor_set_layout_data data;
+		data.desc = layout_params;
+
+		device_impl->register_descriptor_set_layout(*pSetLayout, std::move(data));
 #endif
 	}
 	else
@@ -1149,7 +1162,7 @@ void     VKAPI_CALL vkDestroyDescriptorSetLayout(VkDevice device, VkDescriptorSe
 	GET_DISPATCH_PTR_FROM(DestroyDescriptorSetLayout, device_impl);
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::destroy_descriptor_set_layout>(device_impl, reshade::api::descriptor_set_layout { (uint64_t)descriptorSetLayout });
+	device_impl->unregister_descriptor_set_layout(descriptorSetLayout);
 #endif
 
 	trampoline(device, descriptorSetLayout, pAllocator);

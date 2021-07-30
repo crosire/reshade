@@ -384,7 +384,7 @@ static void on_begin_render_pass(command_list *cmd_list, render_pass, framebuffe
 
 	resource depth_stencil = { 0 };
 	resource_view depth_stencil_view = { 0 };
-	if (device->get_attachment(fbo, attachment_type::depth, 0, &depth_stencil_view))
+	if (device->get_framebuffer_attachment(fbo, attachment_type::depth, 0, &depth_stencil_view))
 	{
 		device->get_resource_from_view(depth_stencil_view, &depth_stencil);
 	}

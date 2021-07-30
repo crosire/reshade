@@ -36,60 +36,46 @@ reshade::d3d10::device_impl::device_impl(ID3D10Device1 *device) :
 	invoke_addon_event<addon_event::init_device>(this);
 	invoke_addon_event<addon_event::init_command_queue>(this);
 
-	// Communicate global pipeline layout that is used for all bindings to add-ons
-	if (has_event_callbacks(addon_event::init_descriptor_set_layout) ||
-		has_event_callbacks(addon_event::destroy_descriptor_set_layout) ||
-		has_event_callbacks(addon_event::init_pipeline_layout))
-	{
-		api::descriptor_range sampler_range = {};
-		sampler_range.type = api::descriptor_type::sampler;
-		sampler_range.count = D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT;
-		sampler_range.visibility = api::shader_stage::all;
-		api::descriptor_range shader_resource_range = {};
-		shader_resource_range.type = api::descriptor_type::shader_resource_view;
-		shader_resource_range.count = D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT;
-		shader_resource_range.visibility = api::shader_stage::all;
-		api::descriptor_range constant_buffer_range = {};
-		constant_buffer_range.type = api::descriptor_type::constant_buffer;
-		constant_buffer_range.count = D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT;
-		constant_buffer_range.visibility = api::shader_stage::all;
+	// Create global pipeline layout that is used for all application descriptor events
+	const auto layout_size = sizeof(api::pipeline_layout_desc) + (3 * sizeof(api::pipeline_layout_param)) + (3 * sizeof(api::descriptor_range));
+	const auto layout_desc = static_cast<api::pipeline_layout_desc *>(operator new(layout_size));
+	std::memset(layout_desc, 0, layout_size);
+	const auto layout_params = reinterpret_cast<api::pipeline_layout_param *>(layout_desc + 1);
+	layout_desc->params = layout_params;
+	layout_desc->num_params = 3;
+	const auto descriptor_ranges =  reinterpret_cast<api::descriptor_range *>(layout_params + 3);
 
-		api::descriptor_set_layout_desc set_layout_desc = {};
-		set_layout_desc.num_ranges = 1;
-		set_layout_desc.push_descriptors = true;
+	layout_params[0].type = api::pipeline_layout_param_type::push_descriptors;
+	layout_params[0].num_ranges = 1;
+	layout_params[0].descriptor_ranges = &descriptor_ranges[0];
+	descriptor_ranges[0].type = api::descriptor_type::sampler;
+	descriptor_ranges[0].count = D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT;
+	descriptor_ranges[0].visibility = api::shader_stage::all;
+	layout_params[1].type = api::pipeline_layout_param_type::push_descriptors;
+	layout_params[1].num_ranges = 1;
+	layout_params[1].descriptor_ranges = &descriptor_ranges[1];
+	descriptor_ranges[1].type = api::descriptor_type::shader_resource_view;
+	descriptor_ranges[1].count = D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT;
+	descriptor_ranges[1].visibility = api::shader_stage::all;
+	layout_params[2].type = api::pipeline_layout_param_type::push_descriptors;
+	layout_params[2].num_ranges = 1;
+	layout_params[2].descriptor_ranges = &descriptor_ranges[2];
+	descriptor_ranges[2].type = api::descriptor_type::constant_buffer;
+	descriptor_ranges[2].count = D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT;
+	descriptor_ranges[2].visibility = api::shader_stage::all;
 
-		constexpr api::descriptor_set_layout set_layouts[3] = {
-			{ 0x1 }, { 0x2 }, { 0x3 }
-		};
-
-		set_layout_desc.ranges = &sampler_range;
-		invoke_addon_event<addon_event::init_descriptor_set_layout>(this, set_layout_desc, set_layouts[0]);
-		set_layout_desc.ranges = &shader_resource_range;
-		invoke_addon_event<addon_event::init_descriptor_set_layout>(this, set_layout_desc, set_layouts[1]);
-		set_layout_desc.ranges = &constant_buffer_range;
-		invoke_addon_event<addon_event::init_descriptor_set_layout>(this, set_layout_desc, set_layouts[2]);
-
-		api::pipeline_layout_desc pipeline_layout_desc = {};
-		pipeline_layout_desc.num_set_layouts = 3;
-		pipeline_layout_desc.set_layouts = set_layouts;
-
-		invoke_addon_event<addon_event::init_pipeline_layout>(this, pipeline_layout_desc, _global_pipeline_layout);
-
-		invoke_addon_event<addon_event::destroy_descriptor_set_layout>(this, set_layouts[0]);
-		invoke_addon_event<addon_event::destroy_descriptor_set_layout>(this, set_layouts[1]);
-		invoke_addon_event<addon_event::destroy_descriptor_set_layout>(this, set_layouts[2]);
-	}
+	_global_pipeline_layout = { reinterpret_cast<uintptr_t>(layout_desc) };
 #endif
 }
 reshade::d3d10::device_impl::~device_impl()
 {
 #if RESHADE_ADDON
-	invoke_addon_event<addon_event::destroy_pipeline_layout>(this, _global_pipeline_layout);
-
 	invoke_addon_event<addon_event::destroy_command_queue>(this);
 	invoke_addon_event<addon_event::destroy_device>(this);
 
 	unload_addons();
+
+	operator delete(reinterpret_cast<void *>(_global_pipeline_layout.handle));
 #endif
 }
 
@@ -517,28 +503,37 @@ void reshade::d3d10::device_impl::destroy_pipeline(api::pipeline_stage type, api
 
 bool reshade::d3d10::device_impl::create_pipeline_layout(const api::pipeline_layout_desc &desc, api::pipeline_layout *out)
 {
-	if (desc.num_constant_ranges > 1 || (desc.num_constant_ranges == 1 &&
-		(desc.constant_ranges[0].offset != 0 || desc.constant_ranges[0].dx_register_space != 0)))
-	{
-		*out = { 0 };
-		return false;
-	}
-
 	const auto layout_impl = new pipeline_layout_impl();
-	layout_impl->shader_registers.resize(desc.num_set_layouts + desc.num_constant_ranges);
+	layout_impl->ranges.resize(desc.num_params);
+	layout_impl->shader_registers.resize(desc.num_params);
 
-	for (UINT i = 0; i < desc.num_set_layouts; ++i)
+	for (UINT i = 0; i < desc.num_params; ++i)
 	{
-		if (desc.set_layouts[i].handle == 0)
-			continue;
+		if (desc.params[i].type != api::pipeline_layout_param_type::push_constants)
+		{
+			if (desc.params[i].num_ranges != 1 || desc.params[i].descriptor_ranges[0].dx_register_space != 0)
+			{
+				delete layout_impl;
 
-		layout_impl->shader_registers[i] = reinterpret_cast<descriptor_set_layout_impl *>(desc.set_layouts[i].handle)->range.dx_register_index;
-	}
+				*out = { 0 };
+				return false;
+			}
 
-	if (desc.num_constant_ranges == 1)
-	{
-		assert(desc.constant_ranges[0].offset == 0);
-		layout_impl->shader_registers[desc.num_set_layouts] = desc.constant_ranges[0].dx_register_index;
+			layout_impl->ranges[i] = desc.params[i].descriptor_ranges[0];
+			layout_impl->shader_registers[i] = desc.params[i].descriptor_ranges[0].dx_register_index;
+		}
+		else
+		{
+			if (desc.params[i].constant_range.offset != 0 || desc.params[i].constant_range.dx_register_space != 0)
+			{
+				delete layout_impl;
+
+				*out = { 0 };
+				return false;
+			}
+
+			layout_impl->shader_registers[i] = desc.params[i].constant_range.dx_register_index;
+		}
 	}
 
 	*out = { reinterpret_cast<uintptr_t>(layout_impl) };
@@ -547,27 +542,6 @@ bool reshade::d3d10::device_impl::create_pipeline_layout(const api::pipeline_lay
 void reshade::d3d10::device_impl::destroy_pipeline_layout(api::pipeline_layout handle)
 {
 	delete reinterpret_cast<pipeline_layout_impl *>(handle.handle);
-}
-
-bool reshade::d3d10::device_impl::create_descriptor_set_layout(const api::descriptor_set_layout_desc &desc, api::descriptor_set_layout *out)
-{
-	// Can only have descriptors of a single type in a descriptor set
-	if (desc.num_ranges != 1 ||
-		desc.ranges[0].dx_register_space != 0)
-	{
-		*out = { 0 };
-		return false;
-	}
-
-	const auto layout_impl = new descriptor_set_layout_impl();
-	layout_impl->range = desc.ranges[0];
-
-	*out = { reinterpret_cast<uintptr_t>(layout_impl) };
-	return true;
-}
-void reshade::d3d10::device_impl::destroy_descriptor_set_layout(api::descriptor_set_layout handle)
-{
-	delete reinterpret_cast<descriptor_set_layout_impl *>(handle.handle);
 }
 
 bool reshade::d3d10::device_impl::create_query_pool(api::query_type type, uint32_t size, api::query_pool *out)
@@ -739,78 +713,6 @@ void reshade::d3d10::device_impl::upload_texture_region(const api::subresource_d
 	_orig->UpdateSubresource(reinterpret_cast<ID3D10Resource *>(dst.handle), dst_subresource, reinterpret_cast<const D3D10_BOX *>(dst_box), data.data, data.row_pitch, data.slice_pitch);
 }
 
-bool reshade::d3d10::device_impl::get_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index, api::resource_view *out) const
-{
-	assert(fbo.handle != 0);
-	const auto fbo_impl = reinterpret_cast<const framebuffer_impl *>(fbo.handle);
-
-	if (type == api::attachment_type::color)
-	{
-		if (index < fbo_impl->count)
-		{
-			*out = { reinterpret_cast<uintptr_t>(fbo_impl->rtv[index]) };
-			return true;
-		}
-	}
-	else
-	{
-		if (fbo_impl->dsv != nullptr)
-		{
-			*out = { reinterpret_cast<uintptr_t>(fbo_impl->dsv) };
-			return true;
-		}
-	}
-
-	*out = { 0 };
-	return false;
-}
-void reshade::d3d10::device_impl::get_resource_from_view(api::resource_view view, api::resource *out) const
-{
-	assert(view.handle != 0);
-	com_ptr<ID3D10Resource> resource;
-	reinterpret_cast<ID3D10View *>(view.handle)->GetResource(&resource);
-
-	*out = { reinterpret_cast<uintptr_t>(resource.get()) };
-}
-reshade::api::resource_desc reshade::d3d10::device_impl::get_resource_desc(api::resource resource) const
-{
-	assert(resource.handle != 0);
-	const auto object = reinterpret_cast<ID3D10Resource *>(resource.handle);
-
-	D3D10_RESOURCE_DIMENSION dimension;
-	object->GetType(&dimension);
-	switch (dimension)
-	{
-		case D3D10_RESOURCE_DIMENSION_BUFFER:
-		{
-			D3D10_BUFFER_DESC internal_desc;
-			static_cast<ID3D10Buffer *>(object)->GetDesc(&internal_desc);
-			return convert_resource_desc(internal_desc);
-		}
-		case D3D10_RESOURCE_DIMENSION_TEXTURE1D:
-		{
-			D3D10_TEXTURE1D_DESC internal_desc;
-			static_cast<ID3D10Texture1D *>(object)->GetDesc(&internal_desc);
-			return convert_resource_desc(internal_desc);
-		}
-		case D3D10_RESOURCE_DIMENSION_TEXTURE2D:
-		{
-			D3D10_TEXTURE2D_DESC internal_desc;
-			static_cast<ID3D10Texture2D *>(object)->GetDesc(&internal_desc);
-			return convert_resource_desc(internal_desc);
-		}
-		case D3D10_RESOURCE_DIMENSION_TEXTURE3D:
-		{
-			D3D10_TEXTURE3D_DESC internal_desc;
-			static_cast<ID3D10Texture3D *>(object)->GetDesc(&internal_desc);
-			return convert_resource_desc(internal_desc);
-		}
-	}
-
-	assert(false); // Not implemented
-	return api::resource_desc {};
-}
-
 bool reshade::d3d10::device_impl::get_query_pool_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride)
 {
 	assert(pool.handle != 0);
@@ -825,22 +727,22 @@ bool reshade::d3d10::device_impl::get_query_pool_results(api::query_pool pool, u
 	return true;
 }
 
-bool reshade::d3d10::device_impl::allocate_descriptor_sets(api::descriptor_set_layout layout, uint32_t count, api::descriptor_set *out)
+bool reshade::d3d10::device_impl::allocate_descriptor_sets(api::pipeline_layout layout, uint32_t param_index, uint32_t count, api::descriptor_set *out)
 {
-	const auto layout_impl = reinterpret_cast<descriptor_set_layout_impl *>(layout.handle);
+	const auto layout_impl = reinterpret_cast<pipeline_layout_impl *>(layout.handle);
 
 	for (UINT i = 0; i < count; ++i)
 	{
 		const auto set = new descriptor_set_impl();
-		set->type = layout_impl->range.type;
-		set->descriptors.resize(layout_impl->range.count);
+		set->type = layout_impl->ranges[param_index].type;
+		set->descriptors.resize(layout_impl->ranges[param_index].count);
 
 		out[i] = { reinterpret_cast<uintptr_t>(set) };
 	}
 
 	return true;
 }
-void reshade::d3d10::device_impl::free_descriptor_sets(api::descriptor_set_layout, uint32_t count, const api::descriptor_set *sets)
+void reshade::d3d10::device_impl::free_descriptor_sets(api::pipeline_layout, uint32_t, uint32_t count, const api::descriptor_set *sets)
 {
 	for (UINT i = 0; i < count; ++i)
 		delete reinterpret_cast<descriptor_set_impl *>(sets[i].handle);
@@ -909,4 +811,88 @@ void reshade::d3d10::device_impl::set_resource_name(api::resource resource, cons
 
 	constexpr GUID debug_object_name_guid = { 0x429b8c22, 0x9188, 0x4b0c, { 0x87, 0x42, 0xac, 0xb0, 0xbf, 0x85, 0xc2, 0x00} }; // WKPDID_D3DDebugObjectName
 	reinterpret_cast<ID3D10Resource *>(resource.handle)->SetPrivateData(debug_object_name_guid, static_cast<UINT>(strlen(name)), name);
+}
+
+reshade::api::resource_desc reshade::d3d10::device_impl::get_resource_desc(api::resource resource) const
+{
+	assert(resource.handle != 0);
+	const auto object = reinterpret_cast<ID3D10Resource *>(resource.handle);
+
+	D3D10_RESOURCE_DIMENSION dimension;
+	object->GetType(&dimension);
+	switch (dimension)
+	{
+		case D3D10_RESOURCE_DIMENSION_BUFFER:
+		{
+			D3D10_BUFFER_DESC internal_desc;
+			static_cast<ID3D10Buffer *>(object)->GetDesc(&internal_desc);
+			return convert_resource_desc(internal_desc);
+		}
+		case D3D10_RESOURCE_DIMENSION_TEXTURE1D:
+		{
+			D3D10_TEXTURE1D_DESC internal_desc;
+			static_cast<ID3D10Texture1D *>(object)->GetDesc(&internal_desc);
+			return convert_resource_desc(internal_desc);
+		}
+		case D3D10_RESOURCE_DIMENSION_TEXTURE2D:
+		{
+			D3D10_TEXTURE2D_DESC internal_desc;
+			static_cast<ID3D10Texture2D *>(object)->GetDesc(&internal_desc);
+			return convert_resource_desc(internal_desc);
+		}
+		case D3D10_RESOURCE_DIMENSION_TEXTURE3D:
+		{
+			D3D10_TEXTURE3D_DESC internal_desc;
+			static_cast<ID3D10Texture3D *>(object)->GetDesc(&internal_desc);
+			return convert_resource_desc(internal_desc);
+		}
+	}
+
+	assert(false); // Not implemented
+	return api::resource_desc {};
+}
+
+reshade::api::pipeline_layout_desc reshade::d3d10::device_impl::get_pipeline_layout_desc(api::pipeline_layout layout) const
+{
+	assert(layout.handle != 0);
+
+	if (layout == _global_pipeline_layout)
+		return *reinterpret_cast<api::pipeline_layout_desc *>(layout.handle);
+	else
+		return api::pipeline_layout_desc {}; // TODO: Not implemented for layouts created via 'create_pipeline_layout'
+}
+
+void reshade::d3d10::device_impl::get_resource_from_view(api::resource_view view, api::resource *out) const
+{
+	assert(view.handle != 0);
+	com_ptr<ID3D10Resource> resource;
+	reinterpret_cast<ID3D10View *>(view.handle)->GetResource(&resource);
+
+	*out = { reinterpret_cast<uintptr_t>(resource.get()) };
+}
+
+bool reshade::d3d10::device_impl::get_framebuffer_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index, api::resource_view *out) const
+{
+	assert(fbo.handle != 0);
+	const auto fbo_impl = reinterpret_cast<const framebuffer_impl *>(fbo.handle);
+
+	if (type == api::attachment_type::color)
+	{
+		if (index < fbo_impl->count)
+		{
+			*out = { reinterpret_cast<uintptr_t>(fbo_impl->rtv[index]) };
+			return true;
+		}
+	}
+	else
+	{
+		if (fbo_impl->dsv != nullptr)
+		{
+			*out = { reinterpret_cast<uintptr_t>(fbo_impl->dsv) };
+			return true;
+		}
+	}
+
+	*out = { 0 };
+	return false;
 }

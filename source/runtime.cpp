@@ -1351,6 +1351,73 @@ bool reshade::runtime::init_effect(size_t effect_index)
 	for (const reshadefx::technique_info &info : effect.module.techniques)
 		total_passes += info.passes.size();
 
+	const bool sampler_with_resource_view = _device->check_capability(api::device_caps::sampler_with_resource_view);
+
+	api::descriptor_range ranges[4];
+	ranges[0].binding = 0;
+	ranges[0].dx_register_index = 0; // b0 (global constant buffer)
+	ranges[0].dx_register_space = 0;
+	ranges[0].type = api::descriptor_type::constant_buffer;
+	ranges[0].count = 1;
+	ranges[0].visibility = api::shader_stage::all;
+
+	ranges[1].binding = 0;
+	ranges[1].dx_register_index = 0; // s0
+	ranges[1].dx_register_space = 0;
+	ranges[1].type = sampler_with_resource_view ? api::descriptor_type::sampler_with_resource_view : api::descriptor_type::sampler;
+	ranges[1].count = effect.module.num_sampler_bindings;
+	ranges[1].visibility = api::shader_stage::all;
+
+	ranges[2].binding = 0;
+	ranges[2].dx_register_index = 0; // t0
+	ranges[2].dx_register_space = 0;
+	ranges[2].type = api::descriptor_type::shader_resource_view;
+	ranges[2].count = effect.module.num_texture_bindings;
+	ranges[2].visibility = api::shader_stage::all;
+
+	ranges[3].binding = 0;
+	ranges[3].dx_register_index = 0; // u0
+	ranges[3].dx_register_space = 0;
+	ranges[3].type = api::descriptor_type::unordered_access_view;
+	ranges[3].count = effect.module.num_storage_bindings;
+	ranges[3].visibility = api::shader_stage::all;
+
+	api::pipeline_layout_desc layout_desc;
+	api::pipeline_layout_param layout_params[4];
+	layout_desc.params = layout_params;
+
+	layout_params[0].type = api::pipeline_layout_param_type::descriptor_set;
+	layout_params[0].num_ranges = 1;
+	layout_params[0].descriptor_ranges = &ranges[0];
+	layout_params[1].type = api::pipeline_layout_param_type::descriptor_set;
+	layout_params[1].num_ranges = 1;
+	layout_params[1].descriptor_ranges = &ranges[1];
+
+	if (sampler_with_resource_view)
+	{
+		layout_desc.num_params = 3;
+		layout_params[2].type = api::pipeline_layout_param_type::descriptor_set;
+		layout_params[2].num_ranges = 1;
+		layout_params[2].descriptor_ranges = &ranges[3];
+	}
+	else
+	{
+		layout_desc.num_params = 4;
+		layout_params[2].type = api::pipeline_layout_param_type::descriptor_set;
+		layout_params[2].num_ranges = 1;
+		layout_params[2].descriptor_ranges = &ranges[2];
+		layout_params[3].type = api::pipeline_layout_param_type::descriptor_set;
+		layout_params[3].num_ranges = 1;
+		layout_params[3].descriptor_ranges = &ranges[3];
+	}
+
+	// Initialize pipeline layout
+	if (!_device->create_pipeline_layout(layout_desc, &effect.layout))
+	{
+		LOG(ERROR) << "Failed to create pipeline layout for effect file '" << effect.source_file << "'!";
+		return false;
+	}
+
 	// Create global constant buffer (except in D3D9, which does not have constant buffers)
 	if (_renderer_id != 0x9000 && !effect.uniform_data_storage.empty())
 	{
@@ -1364,20 +1431,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 
 		_device->set_resource_name(effect.cb, "ReShade constant buffer");
 
-		api::descriptor_range range;
-		range.binding = 0;
-		range.dx_register_index = 0; // b0 (global constant buffer)
-		range.dx_register_space = 0;
-		range.type = api::descriptor_type::constant_buffer;
-		range.count = 1;
-		range.visibility = api::shader_stage::all;
-		if (!_device->create_descriptor_set_layout({ 1, &range, false }, &effect.set_layouts[0]))
-		{
-			LOG(ERROR) << "Failed to create constant buffer descriptor set layout for effect file '" << effect.source_file << "'!";
-			return false;
-		}
-
-		if (!_device->allocate_descriptor_sets(effect.set_layouts[0], 1, &effect.cb_set))
+		if (!_device->allocate_descriptor_sets(effect.layout, 0, 1, &effect.cb_set))
 		{
 			LOG(ERROR) << "Failed to create constant buffer descriptor set for effect file '" << effect.source_file << "'!";
 			return false;
@@ -1395,27 +1449,13 @@ bool reshade::runtime::init_effect(size_t effect_index)
 	// Initialize sampler and storage bindings
 	std::vector<api::descriptor_set> texture_tables;
 	std::vector<api::descriptor_set> storage_tables;
-	const bool sampler_with_resource_view = _device->check_capability(api::device_caps::sampler_with_resource_view);
 
 	if (effect.module.num_sampler_bindings != 0)
 	{
-		api::descriptor_range range;
-		range.binding = 0;
-		range.dx_register_index = 0; // s0
-		range.dx_register_space = 0;
-		range.type = sampler_with_resource_view ? api::descriptor_type::sampler_with_resource_view : api::descriptor_type::sampler;
-		range.count = effect.module.num_sampler_bindings;
-		range.visibility = api::shader_stage::all;
-		if (!_device->create_descriptor_set_layout({ 1, &range, false }, &effect.set_layouts[1]))
-		{
-			LOG(ERROR) << "Failed to create sampler descriptor set layout for effect file '" << effect.source_file << "'!";
-			return false;
-		}
-
 		if (sampler_with_resource_view)
 		{
 			texture_tables.resize(total_passes);
-			if (!_device->allocate_descriptor_sets(effect.set_layouts[1], static_cast<uint32_t>(total_passes), texture_tables.data()))
+			if (!_device->allocate_descriptor_sets(effect.layout, 1, static_cast<uint32_t>(total_passes), texture_tables.data()))
 			{
 				LOG(ERROR) << "Failed to create sampler descriptor set for effect file '" << effect.source_file << "'!";
 				return false;
@@ -1423,7 +1463,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 		}
 		else
 		{
-			if (!_device->allocate_descriptor_sets(effect.set_layouts[1], 1, &effect.sampler_set))
+			if (!_device->allocate_descriptor_sets(effect.layout, 1, 1, &effect.sampler_set))
 			{
 				LOG(ERROR) << "Failed to create sampler descriptor set for effect file '" << effect.source_file << "'!";
 				return false;
@@ -1481,21 +1521,8 @@ bool reshade::runtime::init_effect(size_t effect_index)
 	{
 		assert(!sampler_with_resource_view);
 
-		api::descriptor_range range;
-		range.binding = 0;
-		range.dx_register_index = 0; // t0
-		range.dx_register_space = 0;
-		range.type = api::descriptor_type::shader_resource_view;
-		range.count = effect.module.num_texture_bindings;
-		range.visibility = api::shader_stage::all;
-		if (!_device->create_descriptor_set_layout({ 1, &range, false }, &effect.set_layouts[2]))
-		{
-			LOG(ERROR) << "Failed to create texture descriptor set layout for effect file '" << effect.source_file << "'!";
-			return false;
-		}
-
 		texture_tables.resize(total_passes);
-		if (!_device->allocate_descriptor_sets(effect.set_layouts[2], static_cast<uint32_t>(total_passes), texture_tables.data()))
+		if (!_device->allocate_descriptor_sets(effect.layout, 2, static_cast<uint32_t>(total_passes), texture_tables.data()))
 		{
 			LOG(ERROR) << "Failed to create texture descriptor set for effect file '" << effect.source_file << "'!";
 			return false;
@@ -1504,32 +1531,12 @@ bool reshade::runtime::init_effect(size_t effect_index)
 
 	if (effect.module.num_storage_bindings != 0)
 	{
-		api::descriptor_range range;
-		range.binding = 0;
-		range.dx_register_index = 0; // u0
-		range.dx_register_space = 0;
-		range.type = api::descriptor_type::unordered_access_view;
-		range.count = effect.module.num_storage_bindings;
-		range.visibility = api::shader_stage::all;
-		if (!_device->create_descriptor_set_layout({ 1, &range, false }, &effect.set_layouts[sampler_with_resource_view ? 2 : 3]))
-		{
-			LOG(ERROR) << "Failed to create storage descriptor set layout for effect file '" << effect.source_file << "'!";
-			return false;
-		}
-
 		storage_tables.resize(total_passes);
-		if (!_device->allocate_descriptor_sets(effect.set_layouts[sampler_with_resource_view ? 2 : 3], static_cast<uint32_t>(total_passes), storage_tables.data()))
+		if (!_device->allocate_descriptor_sets(effect.layout, sampler_with_resource_view ? 2 : 3, static_cast<uint32_t>(total_passes), storage_tables.data()))
 		{
 			LOG(ERROR) << "Failed to create storage descriptor set for effect file '" << effect.source_file << "'!";
 			return false;
 		}
-	}
-
-	// Initialize pipeline layout
-	if (!_device->create_pipeline_layout({ 4, effect.set_layouts, 0, nullptr }, &effect.layout))
-	{
-		LOG(ERROR) << "Failed to create pipeline layout for effect file '" << effect.source_file << "'!";
-		return false;
 	}
 
 	uint32_t technique_index = 0;
@@ -2045,8 +2052,8 @@ void reshade::runtime::unload_effect(size_t effect_index)
 			const bool is_compute_pass = !tech.passes[i].cs_entry_point.empty();
 			_device->destroy_pipeline(is_compute_pass ? api::pipeline_stage::all_compute : api::pipeline_stage::all_graphics, tech.passes_data[i].pipeline);
 
-			_device->free_descriptor_sets(_effects[effect_index].set_layouts[2], 1, &tech.passes_data[i].texture_set);
-			_device->free_descriptor_sets(_effects[effect_index].set_layouts[3], 1, &tech.passes_data[i].storage_set);
+			_device->free_descriptor_sets(_effects[effect_index].layout, 2, 1, &tech.passes_data[i].texture_set);
+			_device->free_descriptor_sets(_effects[effect_index].layout, 3, 1, &tech.passes_data[i].storage_set);
 		}
 
 		tech.passes_data.clear();
@@ -2057,19 +2064,13 @@ void reshade::runtime::unload_effect(size_t effect_index)
 		_device->destroy_resource(effect.cb);
 		effect.cb = {};
 
-		_device->destroy_pipeline_layout(effect.layout);
-		effect.layout = {};
-
-		_device->free_descriptor_sets(effect.set_layouts[0], 1, &effect.cb_set);
+		_device->free_descriptor_sets(effect.layout, 0, 1, &effect.cb_set);
 		effect.cb_set = {};
-		_device->free_descriptor_sets(effect.set_layouts[1], 1, &effect.sampler_set);
+		_device->free_descriptor_sets(effect.layout, 1, 1, &effect.sampler_set);
 		effect.sampler_set = {};
 
-		for (size_t i = 0; i < std::size(effect.set_layouts); ++i)
-		{
-			_device->destroy_descriptor_set_layout(effect.set_layouts[i]);
-			effect.set_layouts[i] = {};
-		}
+		_device->destroy_pipeline_layout(effect.layout);
+		effect.layout = {};
 
 		_device->destroy_query_pool(effect.query_heap);
 		effect.query_heap = {};
@@ -2118,8 +2119,8 @@ void reshade::runtime::unload_effects()
 			const bool is_compute_pass = !tech.passes[i].cs_entry_point.empty();
 			_device->destroy_pipeline(is_compute_pass ? api::pipeline_stage::all_compute : api::pipeline_stage::all_graphics, tech.passes_data[i].pipeline);
 
-			_device->free_descriptor_sets(_effects[tech.effect_index].set_layouts[2], 1, &tech.passes_data[i].texture_set);
-			_device->free_descriptor_sets(_effects[tech.effect_index].set_layouts[3], 1, &tech.passes_data[i].storage_set);
+			_device->free_descriptor_sets(_effects[tech.effect_index].layout, 2, 1, &tech.passes_data[i].texture_set);
+			_device->free_descriptor_sets(_effects[tech.effect_index].layout, 3, 1, &tech.passes_data[i].storage_set);
 		}
 
 		tech.passes_data.clear();
@@ -2127,17 +2128,15 @@ void reshade::runtime::unload_effects()
 
 	for (const effect &effect : _effects)
 	{
+		if (effect.layout.handle == 0)
+			continue;
+
 		_device->destroy_resource(effect.cb);
 
+		_device->free_descriptor_sets(effect.layout, 0, 1, &effect.cb_set);
+		_device->free_descriptor_sets(effect.layout, 1, 1, &effect.sampler_set);
+
 		_device->destroy_pipeline_layout(effect.layout);
-
-		_device->free_descriptor_sets(effect.set_layouts[0], 1, &effect.cb_set);
-		_device->free_descriptor_sets(effect.set_layouts[1], 1, &effect.sampler_set);
-
-		for (size_t i = 0; i < std::size(effect.set_layouts); ++i)
-		{
-			_device->destroy_descriptor_set_layout(effect.set_layouts[i]);
-		}
 
 		_device->destroy_query_pool(effect.query_heap);
 	}

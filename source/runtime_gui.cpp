@@ -3185,49 +3185,60 @@ bool reshade::runtime::init_imgui_resources()
 
 	if (_imgui_pipeline_layout.handle == 0)
 	{
-		api::descriptor_range range;
-		range.binding = 0;
-		range.dx_register_space = 0;
-		range.count = 1;
-		range.visibility = api::shader_stage::pixel;
+		api::descriptor_range ranges[2];
+		ranges[0].binding = 0;
+		ranges[0].dx_register_space = 0;
+		ranges[0].count = 1;
+		ranges[0].visibility = api::shader_stage::pixel;
+		ranges[1].binding = 0;
+		ranges[1].dx_register_space = 0;
+		ranges[1].count = 1;
+		ranges[1].visibility = api::shader_stage::pixel;
+
+		api::pipeline_layout_desc layout_desc;
+		api::pipeline_layout_param layout_params[3];
+		layout_desc.params = layout_params;
 
 		if (has_combined_sampler_and_view)
 		{
-			range.type = api::descriptor_type::sampler_with_resource_view;
-			range.dx_register_index = 0; // s0
-			if (!_device->create_descriptor_set_layout({ 1, &range, true }, &_imgui_set_layouts[0]))
-			{
-				LOG(ERROR) << "Failed to create ImGui descriptor set layout!";
-				return false;
-			}
+			layout_desc.num_params = 1;
+
+			ranges[0].type = api::descriptor_type::sampler_with_resource_view;
+			ranges[0].dx_register_index = 0; // s0
+
+			layout_params[0].type = api::pipeline_layout_param_type::push_descriptors;
+			layout_params[0].num_ranges = 1;
+			layout_params[0].descriptor_ranges = &ranges[0];
 		}
 		else
 		{
-			range.type = api::descriptor_type::sampler;
-			range.dx_register_index = 0; // s0
-			if (!_device->create_descriptor_set_layout({ 1, &range, true }, &_imgui_set_layouts[0]))
-			{
-				LOG(ERROR) << "Failed to create ImGui descriptor set layout!";
-				return false;
-			}
+			layout_desc.num_params = 2;
 
-			range.type = api::descriptor_type::shader_resource_view;
-			range.dx_register_index = 0; // t0
-			if (!_device->create_descriptor_set_layout({ 1, &range, true }, &_imgui_set_layouts[1]))
-			{
-				LOG(ERROR) << "Failed to create ImGui descriptor set layout!";
-				return false;
-			}
+			ranges[0].type = api::descriptor_type::sampler;
+			ranges[0].dx_register_index = 0; // s0
+
+			layout_params[0].type = api::pipeline_layout_param_type::push_descriptors;
+			layout_params[0].num_ranges = 1;
+			layout_params[0].descriptor_ranges = &ranges[0];
+
+			ranges[1].type = api::descriptor_type::shader_resource_view;
+			ranges[1].dx_register_index = 0; // t0
+
+			layout_params[1].type = api::pipeline_layout_param_type::push_descriptors;
+			layout_params[1].num_ranges = 1;
+			layout_params[1].descriptor_ranges = &ranges[1];
 		}
 
-		api::constant_range constant_range;
-		constant_range.offset = 0;
-		constant_range.dx_register_index = 0; // b0
-		constant_range.dx_register_space = 0;
-		constant_range.count = 16;
-		constant_range.visibility = api::shader_stage::vertex;
+		api::pipeline_layout_param &constant_param = layout_params[layout_desc.num_params++];
+		constant_param.type = api::pipeline_layout_param_type::push_constants;
+		constant_param.num_ranges = 1;
+		constant_param.constant_range.offset = 0;
+		constant_param.constant_range.dx_register_index = 0; // b0
+		constant_param.constant_range.dx_register_space = 0;
+		constant_param.constant_range.count = 16;
+		constant_param.constant_range.visibility = api::shader_stage::vertex;
 
-		if (!_device->create_pipeline_layout({ has_combined_sampler_and_view ? 1u : 2u, _imgui_set_layouts, 1u, &constant_range }, &_imgui_pipeline_layout))
+		if (!_device->create_pipeline_layout(layout_desc, &_imgui_pipeline_layout))
 		{
 			LOG(ERROR) << "Failed to create ImGui pipeline layout!";
 			return false;
@@ -3508,10 +3519,6 @@ void reshade::runtime::destroy_imgui_resources()
 	_imgui_pipeline = {};
 	_device->destroy_pipeline_layout(_imgui_pipeline_layout);
 	_imgui_pipeline_layout = {};
-	_device->destroy_descriptor_set_layout(_imgui_set_layouts[0]);
-	_imgui_set_layouts[0] = {};
-	_device->destroy_descriptor_set_layout(_imgui_set_layouts[1]);
-	_imgui_set_layouts[1] = {};
 }
 
 #endif
