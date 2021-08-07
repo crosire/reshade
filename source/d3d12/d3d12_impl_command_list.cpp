@@ -165,10 +165,11 @@ void reshade::d3d12::command_list_impl::bind_scissor_rects(uint32_t first, uint3
 	_orig->RSSetScissorRects(count, reinterpret_cast<const D3D12_RECT *>(rects));
 }
 
-void reshade::d3d12::command_list_impl::push_constants(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_index, uint32_t first, uint32_t count, const void *values)
+void reshade::d3d12::command_list_impl::push_constants(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, uint32_t first, uint32_t count, const void *values)
 {
 	const auto root_signature = reinterpret_cast<ID3D12RootSignature *>(layout.handle);
-	if (stages == api::shader_stage::compute)
+
+	if ((stages & api::shader_stage::all_compute) == api::shader_stage::all_compute)
 	{
 		if (_current_root_signature[1] != root_signature)
 		{
@@ -176,9 +177,9 @@ void reshade::d3d12::command_list_impl::push_constants(api::shader_stage stages,
 			_orig->SetComputeRootSignature(root_signature);
 		}
 
-		_orig->SetComputeRoot32BitConstants(layout_index, count, values, first);
+		_orig->SetComputeRoot32BitConstants(layout_param, count, values, first);
 	}
-	else
+	if ((stages & api::shader_stage::all_graphics) == api::shader_stage::all_graphics)
 	{
 		if (_current_root_signature[0] != root_signature)
 		{
@@ -186,10 +187,10 @@ void reshade::d3d12::command_list_impl::push_constants(api::shader_stage stages,
 			_orig->SetGraphicsRootSignature(root_signature);
 		}
 
-		_orig->SetGraphicsRoot32BitConstants(layout_index, count, values, first);
+		_orig->SetGraphicsRoot32BitConstants(layout_param, count, values, first);
 	}
 }
-void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_index, api::descriptor_type type, uint32_t first, uint32_t count, const void *descriptors)
+void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_type type, uint32_t first, uint32_t count, const void *descriptors)
 {
 	assert(first == 0);
 
@@ -213,7 +214,8 @@ void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stage
 	}
 
 	const auto root_signature = reinterpret_cast<ID3D12RootSignature *>(layout.handle);
-	if (stages == api::shader_stage::compute)
+
+	if ((stages & api::shader_stage::all_compute) == api::shader_stage::all_compute)
 	{
 		if (_current_root_signature[1] != root_signature)
 		{
@@ -221,7 +223,7 @@ void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stage
 			_orig->SetComputeRootSignature(root_signature);
 		}
 	}
-	else
+	if ((stages & api::shader_stage::all_graphics) == api::shader_stage::all_graphics)
 	{
 		if (_current_root_signature[0] != root_signature)
 		{
@@ -262,15 +264,13 @@ void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stage
 	_device_impl->_orig->CopyDescriptors(1, &base_handle, &count, count, static_cast<const D3D12_CPU_DESCRIPTOR_HANDLE *>(descriptors), src_range_sizes.data(), convert_descriptor_type_to_heap_type(type));
 #endif
 
-	if (stages == api::shader_stage::compute)
-		_orig->SetComputeRootDescriptorTable(layout_index, base_handle_gpu);
-	else
-		_orig->SetGraphicsRootDescriptorTable(layout_index, base_handle_gpu);
+	if ((stages & api::shader_stage::all_compute) == api::shader_stage::all_compute)
+		_orig->SetComputeRootDescriptorTable(layout_param, base_handle_gpu);
+	if ((stages & api::shader_stage::all_graphics) == api::shader_stage::all_graphics)
+		_orig->SetGraphicsRootDescriptorTable(layout_param, base_handle_gpu);
 }
-void reshade::d3d12::command_list_impl::bind_descriptor_sets(api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_set *sets)
+void reshade::d3d12::command_list_impl::bind_descriptor_set(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_set set, uint32_t binding_offset)
 {
-	assert(stages == api::shader_stage::compute || stages == api::shader_stage::all_graphics);
-
 	if (_current_descriptor_heaps[0] != _device_impl->_gpu_sampler_heap.get() ||
 		_current_descriptor_heaps[1] != _device_impl->_gpu_view_heap.get())
 	{
@@ -282,29 +282,27 @@ void reshade::d3d12::command_list_impl::bind_descriptor_sets(api::shader_stage s
 	}
 
 	const auto root_signature = reinterpret_cast<ID3D12RootSignature *>(layout.handle);
-	if (stages == api::shader_stage::compute)
+
+	if ((stages & api::shader_stage::all_compute) == api::shader_stage::all_compute)
 	{
 		if (_current_root_signature[1] != root_signature)
 		{
 			_current_root_signature[1]  = root_signature;
 			_orig->SetComputeRootSignature(root_signature);
 		}
+
+		// TODO: Offset is incorrect for descriptor sets with samplers
+		_orig->SetComputeRootDescriptorTable(layout_param, D3D12_GPU_DESCRIPTOR_HANDLE { set.handle + binding_offset * _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV] });
 	}
-	else
+	if ((stages & api::shader_stage::all_graphics) == api::shader_stage::all_graphics)
 	{
 		if (_current_root_signature[0] != root_signature)
 		{
 			_current_root_signature[0]  = root_signature;
 			_orig->SetGraphicsRootSignature(root_signature);
 		}
-	}
 
-	for (uint32_t i = 0; i < count; ++i)
-	{
-		if (stages == api::shader_stage::compute)
-			_orig->SetComputeRootDescriptorTable(i + first, D3D12_GPU_DESCRIPTOR_HANDLE { sets[i].handle });
-		else
-			_orig->SetGraphicsRootDescriptorTable(i + first, D3D12_GPU_DESCRIPTOR_HANDLE { sets[i].handle });
+		_orig->SetGraphicsRootDescriptorTable(layout_param, D3D12_GPU_DESCRIPTOR_HANDLE { set.handle + binding_offset * _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV] });
 	}
 }
 

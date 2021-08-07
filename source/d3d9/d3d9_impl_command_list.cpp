@@ -109,10 +109,10 @@ void reshade::d3d9::device_impl::push_constants(api::shader_stage stages, api::p
 	if ((stages & api::shader_stage::pixel) == api::shader_stage::pixel)
 		_orig->SetPixelShaderConstantF(first / 4, static_cast<const float *>(values), count / 4);
 }
-void reshade::d3d9::device_impl::push_descriptors(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_index, api::descriptor_type type, uint32_t first, uint32_t count, const void *descriptors)
+void reshade::d3d9::device_impl::push_descriptors(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_type type, uint32_t first, uint32_t count, const void *descriptors)
 {
 	if (layout.handle != 0 && layout != _global_pipeline_layout)
-		first += reinterpret_cast<pipeline_layout_impl *>(layout.handle)->shader_registers[layout_index];
+		first += reinterpret_cast<pipeline_layout_impl *>(layout.handle)->shader_registers[layout_param];
 
 	// Set for each individual shader stage (pixel stage first, since vertex stage modifies the the binding offset)
 	constexpr api::shader_stage stages_to_iterate[] = { api::shader_stage::pixel, api::shader_stage::vertex };
@@ -175,21 +175,19 @@ void reshade::d3d9::device_impl::push_descriptors(api::shader_stage stages, api:
 		}
 	}
 }
-void reshade::d3d9::device_impl::bind_descriptor_sets(api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_set *sets)
+void reshade::d3d9::device_impl::bind_descriptor_set(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_set set, uint32_t binding_offset)
 {
-	for (UINT i = 0; i < count; ++i)
-	{
-		const auto set_impl = reinterpret_cast<descriptor_set_impl *>(sets[i].handle);
+	const auto set_impl = reinterpret_cast<descriptor_set_impl *>(set.handle);
+	const auto descriptor_size = (set_impl->type == api::descriptor_type::sampler_with_resource_view ? 2 : 1);
 
-		push_descriptors(
-			stages,
-			layout,
-			i + first,
-			set_impl->type,
-			0,
-			static_cast<uint32_t>(set_impl->descriptors.size()) / (set_impl->type == api::descriptor_type::sampler_with_resource_view ? 2 : 1),
-			set_impl->descriptors.data());
-	}
+	push_descriptors(
+		stages,
+		layout,
+		layout_param,
+		set_impl->type,
+		0,
+		(static_cast<uint32_t>(set_impl->descriptors.size()) / descriptor_size) - binding_offset,
+		set_impl->descriptors.data() + binding_offset * descriptor_size);
 }
 
 void reshade::d3d9::device_impl::bind_index_buffer(api::resource buffer, uint64_t offset, uint32_t index_size)

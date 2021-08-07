@@ -290,7 +290,7 @@ void reshade::d3d11::device_context_impl::bind_constant_buffers(api::shader_stag
 		_orig->CSSetConstantBuffers(first, count, buffer_ptrs);
 }
 
-void reshade::d3d11::device_context_impl::push_constants(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_index, uint32_t first, uint32_t count, const void *values)
+void reshade::d3d11::device_context_impl::push_constants(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, uint32_t first, uint32_t count, const void *values)
 {
 	assert(first == 0);
 
@@ -325,7 +325,7 @@ void reshade::d3d11::device_context_impl::push_constants(api::shader_stage stage
 	}
 
 	const UINT push_constants_slot = layout.handle != 0 && layout != _device_impl->_global_pipeline_layout ?
-		reinterpret_cast<pipeline_layout_impl *>(layout.handle)->shader_registers[layout_index] : 0;
+		reinterpret_cast<pipeline_layout_impl *>(layout.handle)->shader_registers[layout_param] : 0;
 
 	if ((stages & api::shader_stage::vertex) == api::shader_stage::vertex)
 		_orig->VSSetConstantBuffers(push_constants_slot, 1, &push_constants);
@@ -340,10 +340,10 @@ void reshade::d3d11::device_context_impl::push_constants(api::shader_stage stage
 	if ((stages & api::shader_stage::compute) == api::shader_stage::compute)
 		_orig->CSSetConstantBuffers(push_constants_slot, 1, &push_constants);
 }
-void reshade::d3d11::device_context_impl::push_descriptors(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_index, api::descriptor_type type, uint32_t first, uint32_t count, const void *descriptors)
+void reshade::d3d11::device_context_impl::push_descriptors(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_type type, uint32_t first, uint32_t count, const void *descriptors)
 {
 	if (layout.handle != 0 && layout != _device_impl->_global_pipeline_layout)
-		first += reinterpret_cast<pipeline_layout_impl *>(layout.handle)->shader_registers[layout_index];
+		first += reinterpret_cast<pipeline_layout_impl *>(layout.handle)->shader_registers[layout_param];
 
 	switch (type)
 	{
@@ -364,21 +364,18 @@ void reshade::d3d11::device_context_impl::push_descriptors(api::shader_stage sta
 		break;
 	}
 }
-void reshade::d3d11::device_context_impl::bind_descriptor_sets(api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_set *sets)
+void reshade::d3d11::device_context_impl::bind_descriptor_set(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_set set, uint32_t binding_offset)
 {
-	for (UINT i = 0; i < count; ++i)
-	{
-		const auto set_impl = reinterpret_cast<descriptor_set_impl *>(sets[i].handle);
+	const auto set_impl = reinterpret_cast<descriptor_set_impl *>(set.handle);
 
-		push_descriptors(
-			stages,
-			layout,
-			i + first,
-			set_impl->type,
-			0,
-			static_cast<uint32_t>(set_impl->descriptors.size()),
-			set_impl->descriptors.data());
-	}
+	push_descriptors(
+		stages,
+		layout,
+		layout_param,
+		set_impl->type,
+		0,
+		static_cast<uint32_t>(set_impl->descriptors.size() - binding_offset),
+		set_impl->descriptors.data() + binding_offset);
 }
 
 void reshade::d3d11::device_context_impl::bind_index_buffer(api::resource buffer, uint64_t offset, uint32_t index_size)

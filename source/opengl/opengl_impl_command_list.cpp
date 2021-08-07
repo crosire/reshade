@@ -240,10 +240,10 @@ void reshade::opengl::device_impl::bind_scissor_rects(uint32_t first, uint32_t c
 	}
 }
 
-void reshade::opengl::device_impl::push_constants(api::shader_stage, api::pipeline_layout layout, uint32_t layout_index, uint32_t first, uint32_t count, const void *values)
+void reshade::opengl::device_impl::push_constants(api::shader_stage, api::pipeline_layout layout, uint32_t layout_param, uint32_t first, uint32_t count, const void *values)
 {
 	const GLuint push_constants_binding = layout.handle != 0 ?
-		reinterpret_cast<pipeline_layout_impl *>(layout.handle)->bindings[layout_index] : 0;
+		reinterpret_cast<pipeline_layout_impl *>(layout.handle)->bindings[layout_param] : 0;
 
 	// Binds the push constant buffer to the requested indexed binding point as well as the generic binding point
 	glBindBufferBase(GL_UNIFORM_BUFFER, push_constants_binding, _push_constants);
@@ -267,10 +267,10 @@ void reshade::opengl::device_impl::push_constants(api::shader_stage, api::pipeli
 		glUnmapBuffer(GL_UNIFORM_BUFFER);
 	}
 }
-void reshade::opengl::device_impl::push_descriptors(api::shader_stage, api::pipeline_layout layout, uint32_t layout_index, api::descriptor_type type, uint32_t first, uint32_t count, const void *descriptors)
+void reshade::opengl::device_impl::push_descriptors(api::shader_stage, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_type type, uint32_t first, uint32_t count, const void *descriptors)
 {
 	if (layout.handle != 0)
-		first += reinterpret_cast<pipeline_layout_impl *>(layout.handle)->bindings[layout_index];
+		first += reinterpret_cast<pipeline_layout_impl *>(layout.handle)->bindings[layout_param];
 
 	switch (type)
 	{
@@ -338,21 +338,19 @@ void reshade::opengl::device_impl::push_descriptors(api::shader_stage, api::pipe
 		break;
 	}
 }
-void reshade::opengl::device_impl::bind_descriptor_sets(api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_set *sets)
+void reshade::opengl::device_impl::bind_descriptor_set(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_set set, uint32_t binding_offset)
 {
-	for (uint32_t i = 0; i < count; ++i)
-	{
-		const auto set_impl = reinterpret_cast<descriptor_set_impl *>(sets[i].handle);
+	const auto set_impl = reinterpret_cast<descriptor_set_impl *>(set.handle);
+	const auto descriptor_size = (set_impl->type == api::descriptor_type::sampler_with_resource_view ? 2 : 1);
 
-		push_descriptors(
-			stages,
-			layout,
-			i + first,
-			set_impl->type,
-			0,
-			static_cast<uint32_t>(set_impl->descriptors.size()) / (set_impl->type == api::descriptor_type::sampler_with_resource_view ? 2 : 1),
-			set_impl->descriptors.data());
-	}
+	push_descriptors(
+		stages,
+		layout,
+		layout_param,
+		set_impl->type,
+		0,
+		(static_cast<uint32_t>(set_impl->descriptors.size()) / descriptor_size) - binding_offset,
+		set_impl->descriptors.data() + binding_offset * descriptor_size);
 }
 
 void reshade::opengl::device_impl::bind_index_buffer(api::resource buffer, uint64_t offset, uint32_t index_size)

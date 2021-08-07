@@ -213,7 +213,7 @@ void reshade::vulkan::command_list_impl::push_constants(api::shader_stage stages
 		static_cast<VkShaderStageFlags>(stages),
 		offset * 4, count * 4, values);
 }
-void reshade::vulkan::command_list_impl::push_descriptors(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_index, api::descriptor_type type, uint32_t first, uint32_t count, const void *descriptors)
+void reshade::vulkan::command_list_impl::push_descriptors(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_type type, uint32_t first, uint32_t count, const void *descriptors)
 {
 	assert(count != 0);
 
@@ -279,7 +279,7 @@ void reshade::vulkan::command_list_impl::push_descriptors(api::shader_stage stag
 	{
 		vk.CmdPushDescriptorSetKHR(_orig,
 			stages == api::shader_stage::compute ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS,
-			(VkPipelineLayout)layout.handle, layout_index,
+			(VkPipelineLayout)layout.handle, layout_param,
 			1, &write);
 	}
 	else
@@ -289,7 +289,7 @@ void reshade::vulkan::command_list_impl::push_descriptors(api::shader_stage stag
 		VkDescriptorSetAllocateInfo alloc_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
 		alloc_info.descriptorPool = _device_impl->_transient_descriptor_pool[_device_impl->_transient_index % 4];
 		alloc_info.descriptorSetCount = 1;
-		alloc_info.pSetLayouts = &_device_impl->_pipeline_layout_list[(VkPipelineLayout)layout.handle].set_layouts[layout_index];
+		alloc_info.pSetLayouts = &_device_impl->_pipeline_layout_list[(VkPipelineLayout)layout.handle].set_layouts[layout_param];
 
 		if (vk.AllocateDescriptorSets(_device_impl->_orig, &alloc_info, &write.dstSet) != VK_SUCCESS)
 			return;
@@ -299,17 +299,30 @@ void reshade::vulkan::command_list_impl::push_descriptors(api::shader_stage stag
 		vk.CmdBindDescriptorSets(_orig,
 			stages == api::shader_stage::compute ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS,
 			(VkPipelineLayout)layout.handle,
-			layout_index, 1, &write.dstSet,
+			layout_param, 1, &write.dstSet,
 			0, nullptr);
 	}
 }
-void reshade::vulkan::command_list_impl::bind_descriptor_sets(api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_set *sets)
+void reshade::vulkan::command_list_impl::bind_descriptor_set(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_set set, uint32_t binding_offset)
 {
-	vk.CmdBindDescriptorSets(_orig,
-		stages == api::shader_stage::compute ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS,
-		(VkPipelineLayout)layout.handle,
-		first, count, reinterpret_cast<const VkDescriptorSet *>(sets),
-		0, nullptr);
+	assert(binding_offset == 0);
+
+	static_assert(sizeof(set) == sizeof(VkDescriptorSet));
+
+	if ((stages & api::shader_stage::all_compute) == api::shader_stage::all_compute)
+	{
+		vk.CmdBindDescriptorSets(_orig,
+			VK_PIPELINE_BIND_POINT_COMPUTE,
+			(VkPipelineLayout)layout.handle,
+			layout_param, 1, reinterpret_cast<const VkDescriptorSet *>(&set), 0, nullptr);
+	}
+	if ((stages & api::shader_stage::all_graphics) == api::shader_stage::all_graphics)
+	{
+		vk.CmdBindDescriptorSets(_orig,
+			VK_PIPELINE_BIND_POINT_GRAPHICS,
+			(VkPipelineLayout)layout.handle,
+			layout_param, 1, reinterpret_cast<const VkDescriptorSet *>(&set), 0, nullptr);
+	}
 }
 
 void reshade::vulkan::command_list_impl::bind_index_buffer(api::resource buffer, uint64_t offset, uint32_t index_size)

@@ -544,10 +544,10 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <param name="stages">The shader stages that will use the descriptors.</param>
 		/// <param name="layout">The pipeline layout that describes the descriptors.</param>
-		/// <param name="first">The index of the first descriptor set in the pipeline <paramref name="layout"/> to bind (root parameter index in D3D12, descriptor set index in Vulkan).</param>
-		/// <param name="count">The number of descriptor sets to bind.</param>
-		/// <param name="sets">A pointer to an array of descriptor sets to bind.</param>
-		virtual void bind_descriptor_sets(shader_stage stages, pipeline_layout layout, uint32_t first, uint32_t count, const descriptor_set *sets) = 0;
+		/// <param name="layout_param">The index of the descriptor set in the pipeline <paramref name="layout"/> (root parameter index in D3D12, descriptor set index in Vulkan).</param>
+		/// <param name="set">The descriptor set to bind.</param>
+		/// <param name="binding_offset">The binding in the descriptor set to start with (not supported in Vulkan).</param>
+		virtual void bind_descriptor_set(shader_stage stages, pipeline_layout layout, uint32_t layout_param, descriptor_set set, uint32_t binding_offset = 0) = 0;
 
 		/// <summary>
 		/// Binds an index buffer to the input-assembler stage.
@@ -727,7 +727,7 @@ namespace reshade { namespace api
 		/// Uses the largest mipmap level of the view to recursively generate the lower levels of the mip and stops with the smallest level that is specified by the view.
 		/// <para>The resource the <paramref name="srv"/> view points to has to be in the <see cref="resource_usage::shader_resource"/> state and has to have been created with the <see cref="resource_flags::generate_mipmaps"/> flag.</para>
 		/// </summary>
-		/// <remarks>This will invalidate all previous descriptor bindings, which will need to be reset by calls to <see cref="bind_descriptor_sets"/> or <see cref="push_descriptors"/>.</remarks>
+		/// <remarks>This will invalidate all previous descriptor bindings, which will need to be reset by calls to <see cref="bind_descriptor_set"/> or <see cref="push_descriptors"/>.</remarks>
 		/// <param name="srv">The shader resource view to update.</param>
 		virtual void generate_mipmaps(resource_view srv) = 0;
 

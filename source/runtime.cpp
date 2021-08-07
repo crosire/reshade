@@ -2820,14 +2820,14 @@ void reshade::runtime::render_technique(technique &tech)
 
 			// Reset bindings on every pass (since they get invalidated by the call to 'generate_mipmaps' below)
 			if (effect.cb.handle != 0)
-				cmd_list->bind_descriptor_sets(api::shader_stage::all_compute, effect.layout, 0, 1, &effect.cb_set);
+				cmd_list->bind_descriptor_set(api::shader_stage::all_compute, effect.layout, 0, effect.cb_set);
 			if (effect.sampler_set.handle != 0)
 				assert(!sampler_with_resource_view),
-				cmd_list->bind_descriptor_sets(api::shader_stage::all_compute, effect.layout, 1, 1, &effect.sampler_set);
+				cmd_list->bind_descriptor_set(api::shader_stage::all_compute, effect.layout, 1, effect.sampler_set);
 			if (pass_data.texture_set.handle != 0)
-				cmd_list->bind_descriptor_sets(api::shader_stage::all_compute, effect.layout, sampler_with_resource_view ? 1 : 2, 1, &pass_data.texture_set);
+				cmd_list->bind_descriptor_set(api::shader_stage::all_compute, effect.layout, sampler_with_resource_view ? 1 : 2, pass_data.texture_set);
 			if (pass_data.storage_set.handle != 0)
-				cmd_list->bind_descriptor_sets(api::shader_stage::all_compute, effect.layout, sampler_with_resource_view ? 2 : 3, 1, &pass_data.storage_set);
+				cmd_list->bind_descriptor_set(api::shader_stage::all_compute, effect.layout, sampler_with_resource_view ? 2 : 3, pass_data.storage_set);
 
 			cmd_list->dispatch(pass_info.viewport_width, pass_info.viewport_height, pass_info.viewport_dispatch_z);
 
@@ -2874,13 +2874,13 @@ void reshade::runtime::render_technique(technique &tech)
 
 			// Reset bindings on every pass (since they get invalidated by the call to 'generate_mipmaps' below)
 			if (effect.cb.handle != 0)
-				cmd_list->bind_descriptor_sets(api::shader_stage::all_graphics, effect.layout, 0, 1, &effect.cb_set);
+				cmd_list->bind_descriptor_set(api::shader_stage::all_graphics, effect.layout, 0, effect.cb_set);
 			if (effect.sampler_set.handle != 0)
 				assert(!sampler_with_resource_view),
-				cmd_list->bind_descriptor_sets(api::shader_stage::all_graphics, effect.layout, 1, 1, &effect.sampler_set);
+				cmd_list->bind_descriptor_set(api::shader_stage::all_graphics, effect.layout, 1, effect.sampler_set);
 			// Setup shader resources after binding render targets, to ensure any OM bindings by the application are unset at this point (e.g. a depth buffer that was bound to the OM and is now bound as shader resource)
 			if (pass_data.texture_set.handle != 0)
-				cmd_list->bind_descriptor_sets(api::shader_stage::all_graphics, effect.layout, sampler_with_resource_view ? 1 : 2, 1, &pass_data.texture_set);
+				cmd_list->bind_descriptor_set(api::shader_stage::all_graphics, effect.layout, sampler_with_resource_view ? 1 : 2, pass_data.texture_set);
 
 			const float viewport[6] = {
 				0.0f, 0.0f,

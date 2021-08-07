@@ -444,7 +444,21 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CheckFeatureSupport(D3D12_FEATURE Feature
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateDescriptorHeap(const D3D12_DESCRIPTOR_HEAP_DESC *pDescriptorHeapDesc, REFIID riid, void **ppvHeap)
 {
-	return _orig->CreateDescriptorHeap(pDescriptorHeapDesc, riid, ppvHeap);
+#if RESHADE_ADDON
+	if (ppvHeap == nullptr) // This can happen when application only wants to validate input parameters
+		return _orig->CreateDescriptorHeap(pDescriptorHeapDesc, riid, nullptr);
+#endif
+
+	const HRESULT hr = _orig->CreateDescriptorHeap(pDescriptorHeapDesc, riid, ppvHeap);
+#if RESHADE_ADDON
+	if (SUCCEEDED(hr))
+	{
+		const auto heap = static_cast<ID3D12DescriptorHeap *>(*ppvHeap);
+
+		register_descriptor_heap(heap);
+	}
+#endif
+	return hr;
 }
 UINT    STDMETHODCALLTYPE D3D12Device::GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapType)
 {

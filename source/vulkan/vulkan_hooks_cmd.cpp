@@ -186,15 +186,14 @@ void     VKAPI_CALL vkCmdBindDescriptorSets(VkCommandBuffer commandBuffer, VkPip
 #if RESHADE_ADDON
 	if (reshade::vulkan::command_list_impl *const cmd_impl = g_vulkan_command_buffers.at(commandBuffer); cmd_impl != nullptr)
 	{
-		static_assert(sizeof(*pDescriptorSets) == sizeof(reshade::api::descriptor_set));
-
-		reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_sets>(
-			cmd_impl,
-			pipelineBindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS ? reshade::api::shader_stage::all_graphics : pipelineBindPoint == VK_PIPELINE_BIND_POINT_COMPUTE ? reshade::api::shader_stage::all_compute : static_cast<reshade::api::shader_stage>(0),
-			reshade::api::pipeline_layout { (uint64_t)layout },
-			firstSet,
-			descriptorSetCount,
-			reinterpret_cast<const reshade::api::descriptor_set *>(pDescriptorSets));
+		for (uint32_t i = 0; i < descriptorSetCount; ++i)
+		{
+			reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_set>(
+				cmd_impl,
+				pipelineBindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS ? reshade::api::shader_stage::all_graphics : pipelineBindPoint == VK_PIPELINE_BIND_POINT_COMPUTE ? reshade::api::shader_stage::all_compute : static_cast<reshade::api::shader_stage>(0),
+				reshade::api::pipeline_layout { (uint64_t)layout },
+				firstSet + i, reshade::api::descriptor_set { (uint64_t)pDescriptorSets[i] }, 0u);
+		}
 	}
 #endif
 }

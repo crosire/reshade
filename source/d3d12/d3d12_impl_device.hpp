@@ -102,6 +102,33 @@ namespace reshade::d3d12
 
 			return false;
 		}
+		bool resolve_descriptor_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle, D3D12_DESCRIPTOR_HEAP_TYPE type, api::descriptor_set *out_set, uint32_t *out_binding, bool *shader_visible = nullptr)
+		{
+			*out_set = { 0 };
+			*out_binding = 0;
+
+			for (const auto &heap_info : _descriptor_heaps)
+			{
+				if (handle.ptr < heap_info.second.StartAddress)
+					continue;
+
+				const UINT64 address_offset = handle.ptr - heap_info.second.StartAddress;
+				if (address_offset < heap_info.second.SizeInBytes)
+				{
+					const D3D12_DESCRIPTOR_HEAP_DESC desc = heap_info.first->GetDesc();
+					if (desc.Type != type)
+						continue;
+
+					*out_set = { heap_info.first->GetGPUDescriptorHandleForHeapStart().ptr };
+					*out_binding = static_cast<uint32_t>(address_offset / _descriptor_handle_size[desc.Type]);
+					if (shader_visible != nullptr)
+						*shader_visible = (desc.Flags & D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE) != 0;
+					return true;
+				}
+			}
+
+			return false;
+		}
 #endif
 
 		// Cached device capabilities for quick access
@@ -112,6 +139,7 @@ namespace reshade::d3d12
 		std::vector<command_queue_impl *> _queues;
 		std::unordered_map<uint64_t, ID3D12Resource *> _views;
 		std::vector<std::pair<ID3D12Resource *, D3D12_GPU_VIRTUAL_ADDRESS_RANGE>> _buffer_gpu_addresses;
+		std::vector< std::pair<ID3D12DescriptorHeap *, D3D12_GPU_VIRTUAL_ADDRESS_RANGE>> _descriptor_heaps;
 
 		std::unordered_map<UINT64, D3D12_CPU_DESCRIPTOR_HANDLE> _descriptor_set_map;
 
@@ -130,6 +158,29 @@ namespace reshade::d3d12
 			_views.emplace(handle.ptr, resource);
 		}
 #if RESHADE_ADDON
+		inline void register_descriptor_heap(ID3D12DescriptorHeap *heap)
+		{
+			const D3D12_DESCRIPTOR_HEAP_DESC desc = heap->GetDesc();
+
+			assert(heap != nullptr);
+			const std::lock_guard<std::mutex> lock(_mutex);
+			_descriptor_heaps.emplace_back(heap, D3D12_GPU_VIRTUAL_ADDRESS_RANGE { heap->GetCPUDescriptorHandleForHeapStart().ptr, desc.NumDescriptors * _descriptor_handle_size[desc.Type] });
+			_descriptor_set_map.emplace(heap->GetGPUDescriptorHandleForHeapStart().ptr, heap->GetCPUDescriptorHandleForHeapStart());
+		}
+		void unregister_descriptor_heap(ID3D12DescriptorHeap *heap)
+		{
+			const std::lock_guard<std::mutex> lock(_mutex);
+			for (auto it = _descriptor_heaps.begin(); it != _descriptor_heaps.end(); ++it)
+			{
+				if (it->first == heap)
+				{
+					it = _descriptor_heaps.erase(it);
+					break;
+				}
+				++it;
+			}
+			_descriptor_set_map.erase(heap->GetGPUDescriptorHandleForHeapStart().ptr);
+		}
 		inline void register_buffer_gpu_address(ID3D12Resource *resource, UINT64 size)
 		{
 			assert(resource != nullptr);
