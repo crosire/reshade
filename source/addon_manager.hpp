@@ -68,7 +68,7 @@ namespace reshade
 	/// Invokes all registered callbacks for the specified <typeparamref name="ev"/>ent.
 	/// </summary>
 	template <addon_event ev, typename... Args>
-	inline std::enable_if_t<addon_event_traits<ev>::type == 1, void> invoke_addon_event(Args &&... args)
+	inline std::enable_if_t<std::is_same_v<typename addon_event_traits<ev>::type, void>, void> invoke_addon_event(Args &&... args)
 	{
 		if (addon::event_list[static_cast<size_t>(ev)].first)
 			return;
@@ -80,7 +80,7 @@ namespace reshade
 	/// Invokes registered callbacks for the specified <typeparamref name="ev"/>ent until a callback reports back as having handled this event by returning <c>true</c>.
 	/// </summary>
 	template <addon_event ev, typename... Args>
-	inline std::enable_if_t<addon_event_traits<ev>::type == 2, bool> invoke_addon_event(Args &&... args)
+	inline std::enable_if_t<std::is_same_v<typename addon_event_traits<ev>::type, bool>, bool> invoke_addon_event(Args &&... args)
 	{
 		if (addon::event_list[static_cast<size_t>(ev)].first)
 			return false;
@@ -109,7 +109,6 @@ namespace reshade
 			{
 				return InterlockedIncrement(&_ref);
 			}
-
 			ULONG STDMETHODCALLTYPE Release() override
 			{
 				const ULONG ref = InterlockedDecrement(&_ref);
@@ -121,14 +120,8 @@ namespace reshade
 				return ref;
 			}
 
-			HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override
+			HRESULT STDMETHODCALLTYPE QueryInterface(REFIID, void **) override
 			{
-				if (riid == __uuidof(IUnknown))
-				{
-					AddRef();
-					*ppvObj = this;
-					return S_OK;
-				}
 				return E_NOINTERFACE;
 			}
 
@@ -166,7 +159,6 @@ namespace reshade
 			{
 				return InterlockedIncrement(&_ref);
 			}
-
 			ULONG STDMETHODCALLTYPE Release() override
 			{
 				const ULONG ref = InterlockedDecrement(&_ref);
@@ -178,14 +170,8 @@ namespace reshade
 				return ref;
 			}
 
-			HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override
+			HRESULT STDMETHODCALLTYPE QueryInterface(REFIID, void **) override
 			{
-				if (riid == __uuidof(IUnknown))
-				{
-					AddRef();
-					*ppvObj = this;
-					return S_OK;
-				}
 				return E_NOINTERFACE;
 			}
 

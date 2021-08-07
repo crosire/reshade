@@ -126,62 +126,50 @@ namespace reshade { namespace api
 	/// </summary>
 	enum class pipeline_stage : uint32_t
 	{
-		/// <summary>
-		/// The vertex shader stage.
-		/// Corresponds to <see cref="pipeline_desc::graphics::vertex_shader"/>.
-		/// </summary>
+		/// <summary>The vertex shader stage.</summary>
 		/// <seealso cref="shader_stage::vertex"/>
+		/// <seealso cref="pipeline_desc::graphics::vertex_shader"/>
 		vertex_shader = 0x00000008,
-		/// <summary>
-		/// The hull shader stage.
-		/// Corresponds to <see cref="pipeline_desc::graphics::hull_shader"/>.
-		/// </summary>
+		/// <summary>The hull shader stage.</summary>
 		/// <seealso cref="shader_stage::hull"/>
+		/// <seealso cref="pipeline_desc::graphics::hull_shader"/>
 		hull_shader = 0x00000010,
-		/// <summary>
-		/// The domain shader stage.
-		/// Corresponds to <see cref="pipeline_desc::graphics::domain_shader"/>.
-		/// </summary>
+		/// <summary>The domain shader stage.</summary>
 		/// <seealso cref="shader_stage::domain"/>
+		/// <seealso cref="pipeline_desc::graphics::domain_shader"/>
 		domain_shader = 0x00000020,
-		/// <summary>
-		/// The geometry shader stage.
-		/// Corresponds to <see cref="pipeline_desc::graphics::geometry_shader"/>.
-		/// </summary>
+		/// <summary>The geometry shader stage.</summary>
 		/// <seealso cref="shader_stage::geometry"/>
+		/// <seealso cref="pipeline_desc::graphics::geometry_shader"/>
 		geometry_shader = 0x00000040,
-		/// <summary>
-		/// The pixel shader stage.
-		/// Corresponds to <see cref="pipeline_desc::graphics::pixel_shader"/>.
-		/// </summary>
+		/// <summary>The pixel shader stage.</summary>
 		/// <seealso cref="shader_stage::pixel"/>
+		/// <seealso cref="pipeline_desc::graphics::pixel_shader"/>
 		pixel_shader = 0x00000080,
-		/// <summary>
-		/// The compute shader stage.
-		/// Corresponds to <see cref="pipeline_desc::compute::shader"/>.
-		/// </summary>
+		/// <summary>The compute shader stage.</summary>
 		/// <seealso cref="shader_stage::compute"/>
+		/// <seealso cref="pipeline_desc::compute::shader"/>
 		compute_shader = 0x00000800,
 
 		/// <summary>
 		/// The pipeline stage where vertex and index buffers are consumed.
-		/// Corresponds to <see cref="pipeline_desc::graphics::input_layout"/>.
 		/// </summary>
+		/// <seealso cref="pipeline_desc::graphics::input_layout"/>
 		input_assembler = 0x00000004,
 		/// <summary>
 		/// The pipeline stage where rasterization happens and early depth and stencil tests are performed.
-		/// Corresponds to <see cref="pipeline_desc::graphics::rasterizer_state"/>.
 		/// </summary>
+		/// <seealso cref="pipeline_desc::graphics::rasterizer_state"/>
 		rasterizer = 0x00000100,
 		/// <summary>
 		/// The pipeline stage where late depth and stencil tests are performed.
-		/// Corresponds to <see cref="pipeline_desc::graphics::depth_stencil_state"/>.
 		/// </summary>
+		/// <seealso cref="pipeline_desc::graphics::depth_stencil_state"/>
 		depth_stencil = 0x00000200,
 		/// <summary>
 		/// The pipeline stage where the final color values are output from the pipeline and written to the render targets.
-		/// Corresponds to <see cref="pipeline_desc::graphics::blend_state"/>.
 		/// </summary>
+		/// <seealso cref="pipeline_desc::graphics::blend_state"/>
 		output_merger = 0x00000400,
 
 		/// <summary>
@@ -417,64 +405,6 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
-	/// Specifies a range of constants in a pipeline layout.
-	/// </summary>
-	struct constant_range
-	{
-		/// <summary>
-		/// The push constant offset (in 32-bit values, only used by Vulkan).
-		/// </summary>
-		uint32_t offset;
-		/// <summary>
-		/// The D3D10/D3D11/D3D12 constant buffer register index.
-		/// </summary>
-		uint32_t dx_register_index;
-		/// <summary>
-		/// The D3D12 register space.
-		/// </summary>
-		uint32_t dx_register_space;
-		/// <summary>
-		/// The numer of constants in this range (in 32-bit values).
-		/// </summary>
-		uint32_t count;
-		/// <summary>
-		/// The shader pipeline stages that make use of the constants in this range.
-		/// </summary>
-		shader_stage visibility;
-	};
-
-	/// <summary>
-	/// Specifies a range of descriptors in a descriptor set layout.
-	/// </summary>
-	struct descriptor_range
-	{
-		/// <summary>
-		/// The index in the descriptor set (<c>layout(binding=X)</c> in GLSL).
-		/// </summary>
-		uint32_t binding;
-		/// <summary>
-		/// The D3D9/D3D10/D3D11/D3D12 shader register index (<c>register(xX)</c> in HLSL).
-		/// </summary>
-		uint32_t dx_register_index;
-		/// <summary>
-		/// The D3D12 register space (<c>register(..., spaceX)</c> in HLSL).
-		/// </summary>
-		uint32_t dx_register_space;
-		/// <summary>
-		/// The type of the descriptors in this range.
-		/// </summary>
-		descriptor_type type;
-		/// <summary>
-		/// The number of descriptors in the set starting from the binding index.
-		/// </summary>
-		uint32_t count;
-		/// <summary>
-		/// The shader pipeline stages that make use of the descriptors in this range.
-		/// </summary>
-		shader_stage visibility;
-	};
-
-	/// <summary>
 	/// An opaque handle to a pipeline state object.
 	/// <para>In D3D9, D3D10, D3D11 or D3D12 this is a pointer to a 'IDirect3D(...)Shader', 'ID3D10(...)(Shader/State)', 'ID3D11(...)(Shader/State)' or 'ID3D12PipelineState' object, in Vulkan a 'VkPipeline' handle.</para>
 	/// </summary>
@@ -506,7 +436,7 @@ namespace reshade { namespace api
 
 	/// <summary>
 	/// An opaque handle to a descriptor set.
-	/// <para>In D3D12 this is a 'D3D12_GPU_DESCRIPTOR_HANDLE', in Vulkan a 'VkDescriptorSet' handle.</para>
+	/// <para>In D3D12 this is a 'D3D12_GPU_DESCRIPTOR_HANDLE' to a descriptor table, in Vulkan a 'VkDescriptorSet' handle.</para>
 	/// </summary>
 	RESHADE_DEFINE_HANDLE(descriptor_set);
 
@@ -515,54 +445,29 @@ namespace reshade { namespace api
 	/// </summary>
 	struct blend_desc
 	{
-		/// <summary>
-		/// Specifies whether to use alpha-to-coverage as a multisampling technique when setting a pixel to a render target.
-		/// </summary>
+		/// <summary>Specifies whether to use alpha-to-coverage as a multisampling technique when setting a pixel to a render target.</summary>
 		bool alpha_to_coverage_enable;
-		/// <summary>
-		/// Specifies whether to enable (or disable) blending for each render target.
-		/// </summary>
+		/// <summary>Specifies whether to enable (or disable) blending for each render target.</summary>
 		bool blend_enable[8];
-		/// <summary>
-		/// Specifies whether to enable (or disable) a logical operation for each render target.
-		/// </summary>
+		/// <summary>Specifies whether to enable (or disable) a logical operation for each render target.</summary>
 		bool logic_op_enable[8];
-		/// <summary>
-		/// Defines how to combine the <see cref="src_color_blend_factor"/> and <see cref="dst_color_blend_factor"/> operations.
-		/// </summary>
+		/// <summary>Defines how to combine the <see cref="src_color_blend_factor"/> and <see cref="dst_color_blend_factor"/> operations.</summary>
 		blend_op color_blend_op[8];
-		/// <summary>
-		/// Specifies the operation to perform on the RGB value that the pixel shader outputs.
-		/// </summary>
+		/// <summary>Specifies the operation to perform on the RGB value that the pixel shader outputs.</summary>
 		blend_factor src_color_blend_factor[8];
-		/// <summary>
-		/// Specifies the operation to perform on the current RGB value in the render target.
-		/// </summary>
+		/// <summary>Specifies the operation to perform on the current RGB value in the render target.</summary>
 		blend_factor dst_color_blend_factor[8];
-		/// <summary>
-		/// Defines how to combine the <see cref="src_alpha_blend_factor"/> and <see cref="dst_alpha_blend_factor"/> operations.
-		/// </summary>
+		/// <summary>Defines how to combine the <see cref="src_alpha_blend_factor"/> and <see cref="dst_alpha_blend_factor"/> operations.</summary>
 		blend_op alpha_blend_op[8];
-		/// <summary>
-		/// Specifies the operation to perform on the alpha value that the pixel shader outputs.
-		/// </summary>
+		/// <summary>Specifies the operation to perform on the alpha value that the pixel shader outputs.</summary>
 		blend_factor src_alpha_blend_factor[8];
-		/// <summary>
-		/// Specifies the operation to perform on the current alpha value in the render target.
-		/// </summary>
+		/// <summary>Specifies the operation to perform on the current alpha value in the render target.</summary>
 		blend_factor dst_alpha_blend_factor[8];
-		/// <summary>
-		/// Specifies the logical operation to configure for each render target. Ignored if <see cref="logic_op_enable"/> is <c>false</c>.
-		/// </summary>
+		/// <summary>Specifies the logical operation to configure for each render target. Ignored if <see cref="logic_op_enable"/> is <c>false</c>.</summary>
 		logic_op logic_op[8];
-		/// <summary>
-		/// The constant RGBA value used when <see cref="src_color_blend_factor"/> or <see cref="dst_color_blend_factor"/> is <see cref="blend_factor::constant_color"/>.
-		/// </summary>
+		/// <summary>The constant RGBA value used when <see cref="src_color_blend_factor"/> or <see cref="dst_color_blend_factor"/> is <see cref="blend_factor::constant_color"/>.</summary>
 		uint32_t blend_constant;
-		/// <summary>
-		/// A write mask specifying which color components are written to each render target.
-		/// Combination of <c>0x1</c> for red, <c>0x2</c> for green, <c>0x4</c> for blue and <c>0x8</c> for alpha.
-		/// </summary>
+		/// <summary>A write mask specifying which color components are written to each render target. Combination of <c>0x1</c> for red, <c>0x2</c> for green, <c>0x4</c> for blue and <c>0x8</c> for alpha.</summary>
 		uint8_t render_target_write_mask[8];
 	};
 
@@ -571,45 +476,25 @@ namespace reshade { namespace api
 	/// </summary>
 	struct rasterizer_desc
 	{
-		/// <summary>
-		/// Specifies the fill mode to use when rendering.
-		/// </summary>
+		/// <summary>Specifies the fill mode to use when rendering.</summary>
 		fill_mode fill_mode;
-		/// <summary>
-		/// Specifies that triangles facing the specified direction are not drawn.
-		/// </summary>
+		/// <summary>Specifies that triangles facing the specified direction are not drawn.</summary>
 		cull_mode cull_mode;
-		/// <summary>
-		/// Determines if a triangle is front or back-facing.
-		/// </summary>
+		/// <summary>Determines if a triangle is front or back-facing.</summary>
 		bool front_counter_clockwise;
-		/// <summary>
-		/// Depth value added to a given pixel.
-		/// </summary>
+		/// <summary>Depth value added to a given pixel.</summary>
 		float depth_bias;
-		/// <summary>
-		/// Maximum depth bias of a pixel.
-		/// </summary>
+		/// <summary>Maximum depth bias of a pixel.</summary>
 		float depth_bias_clamp;
-		/// <summary>
-		/// Scalar on the slope of a given pixel.
-		/// </summary>
+		/// <summary>Scalar on the slope of a given pixel.</summary>
 		float slope_scaled_depth_bias;
-		/// <summary>
-		/// Specifies whether to enable clipping based on distance.
-		/// </summary>
+		/// <summary>Specifies whether to enable clipping based on distance.</summary>
 		bool depth_clip_enable;
-		/// <summary>
-		/// Specifies whether to enable scissor rectangle culling.
-		/// </summary>
+		/// <summary>Specifies whether to enable scissor rectangle culling.</summary>
 		bool scissor_enable;
-		/// <summary>
-		/// Specifies whether to use the quadrilateral or alpha line anti-aliasing algorithm on multisample_enable antialiasing render targets.
-		/// </summary>
+		/// <summary>Specifies whether to use the quadrilateral or alpha line anti-aliasing algorithm on multisample_enable antialiasing render targets.</summary>
 		bool multisample_enable;
-		/// <summary>
-		/// Specifies whether to enable line antialiasing. Only applies if doing line drawing and <see cref="multisample_enable"/> is <c>false</c>.
-		/// </summary>
+		/// <summary>Specifies whether to enable line antialiasing. Only applies if doing line drawing and <see cref="multisample_enable"/> is <c>false</c>.</summary>
 		bool antialiased_line_enable;
 	};
 
@@ -618,65 +503,35 @@ namespace reshade { namespace api
 	/// </summary>
 	struct depth_stencil_desc
 	{
-		/// <summary>
-		/// Specifies whether to enable depth testing.
-		/// </summary>
+		/// <summary>Specifies whether to enable depth testing.</summary>
 		bool depth_enable;
-		/// <summary>
-		/// Specifies whether writes to the depth-stencil buffer are enabled.
-		/// </summary>
+		/// <summary>Specifies whether writes to the depth-stencil buffer are enabled.</summary>
 		bool depth_write_mask;
-		/// <summary>
-		/// Specifies the function that compares depth data against existing depth data.
-		/// </summary>
+		/// <summary>Specifies the function that compares depth data against existing depth data.</summary>
 		compare_op depth_func;
-		/// <summary>
-		/// Specifies whether to enable stencil testing.
-		/// </summary>
+		/// <summary>Specifies whether to enable stencil testing.</summary>
 		bool stencil_enable;
-		/// <summary>
-		/// A mask applied when reading stencil data from the depth-stencil buffer.
-		/// </summary>
+		/// <summary>A mask applied when reading stencil data from the depth-stencil buffer.</summary>
 		uint8_t stencil_read_mask;
-		/// <summary>
-		/// A mask applied when writing stencil data to the depth-stencil buffer.
-		/// </summary>
+		/// <summary>A mask applied when writing stencil data to the depth-stencil buffer.</summary>
 		uint8_t stencil_write_mask;
-		/// <summary>
-		/// Reference value to perform against when doing stencil testing.
-		/// </summary>
+		/// <summary>Reference value to perform against when doing stencil testing.</summary>
 		uint8_t stencil_reference_value;
-		/// <summary>
-		/// Specifies the function that compares stencil data against existing stencil data for pixels whose surface normal is facing towards the camera.
-		/// </summary>
+		/// <summary>Specifies the function that compares stencil data against existing stencil data for pixels whose surface normal is facing towards the camera.</summary>
 		compare_op front_stencil_func;
-		/// <summary>
-		/// Specifies the stencil operation to perform when stencil testing and depth testing both pass for pixels whose surface normal is facing towards the camera.
-		/// </summary>
+		/// <summary>Specifies the stencil operation to perform when stencil testing and depth testing both pass for pixels whose surface normal is facing towards the camera.</summary>
 		stencil_op front_stencil_pass_op;
-		/// <summary>
-		/// Specifies the stencil operation to perform when stencil testing fails for pixels whose surface normal is towards the camera.
-		/// </summary>
+		/// <summary>Specifies the stencil operation to perform when stencil testing fails for pixels whose surface normal is towards the camera.</summary>
 		stencil_op front_stencil_fail_op;
-		/// <summary>
-		/// Specifies the stencil operation to perform when stencil testing passes and depth testing fails for pixels whose surface normal is facing towards the camera.
-		/// </summary>
+		/// <summary>Specifies the stencil operation to perform when stencil testing passes and depth testing fails for pixels whose surface normal is facing towards the camera.</summary>
 		stencil_op front_stencil_depth_fail_op;
-		/// <summary>
-		/// Specifies the function that compares stencil data against existing stencil data for pixels whose surface normal is facing away from the camera.
-		/// </summary>
+		/// <summary>Specifies the function that compares stencil data against existing stencil data for pixels whose surface normal is facing away from the camera.</summary>
 		compare_op back_stencil_func;
-		/// <summary>
-		/// Specifies the stencil operation to perform when stencil testing and depth testing both pass for pixels whose surface normal is facing away from the camera.
-		/// </summary>
+		/// <summary>Specifies the stencil operation to perform when stencil testing and depth testing both pass for pixels whose surface normal is facing away from the camera.</summary>
 		stencil_op back_stencil_pass_op;
-		/// <summary>
-		/// Specifies the stencil operation to perform when stencil testing fails for pixels whose surface normal is facing away from the camera.
-		/// </summary>
+		/// <summary>Specifies the stencil operation to perform when stencil testing fails for pixels whose surface normal is facing away from the camera.</summary>
 		stencil_op back_stencil_fail_op;
-		/// <summary>
-		/// Specifies the stencil operation to perform when stencil testing passes and depth testing fails for pixels whose surface normal is facing away from the camera.
-		/// </summary>
+		/// <summary>Specifies the stencil operation to perform when stencil testing passes and depth testing fails for pixels whose surface normal is facing away from the camera.</summary>
 		stencil_op back_stencil_depth_fail_op;
 	};
 
@@ -685,39 +540,23 @@ namespace reshade { namespace api
 	/// </summary>
 	struct input_layout_element
 	{
-		/// <summary>
-		/// The GLSL attribute location associated with this element (<c>layout(location = X)</c>).
-		/// </summary>
+		/// <summary>The GLSL attribute location associated with this element (<c>layout(location = X)</c>).</summary>
 		uint32_t location;
-		/// <summary>
-		/// The HLSL semantic associated with this element.
-		/// </summary>
+		/// <summary>The HLSL semantic associated with this element.</summary>
 		const char *semantic;
-		/// <summary>
-		/// Optional index for the HLSL semantic (for "TEXCOORD1" set <see cref="semantic"/> to "TEXCOORD" and <see cref="semantic_index"/> to 1).
-		/// </summary>
+		/// <summary>Optional index for the HLSL semantic (for "TEXCOORD1" set <see cref="semantic"/> to "TEXCOORD" and <see cref="semantic_index"/> to 1).</summary>
 		uint32_t semantic_index;
-		/// <summary>
-		/// The format of the element data.
-		/// </summary>
+		/// <summary>The format of the element data.</summary>
 		format format;
-		/// <summary>
-		/// The input slot (index of the vertex buffer binding).
-		/// </summary>
+		/// <summary> The input slot (index of the vertex buffer binding).</summary>
 		uint32_t buffer_binding;
-		/// <summary>
-		/// Offset (in bytes) from the start of the vertex to this element.
-		/// </summary>
+		/// <summary>Offset (in bytes) from the start of the vertex to this element.</summary>
 		uint32_t offset;
-		/// <summary>
-		/// Stride of the entire vertex (this has to be consistent for all elements per vertex buffer binding).
-		/// Set to zero in case this is unknown.
-		/// </summary>
+		/// <summary>Stride of the entire vertex (this has to be consistent for all elements per vertex buffer binding).
+		/// Set to zero in case this is unknown.</summary>
 		uint32_t stride;
-		/// <summary>
-		/// The number of instances to draw using the same per-instance data before advancing by one element (this has to be consistent for all elements per vertex buffer binding).
-		/// Set to zero to indicate that this element is per-vertex rather than per-instance.
-		/// </summary>
+		/// <summary>The number of instances to draw using the same per-instance data before advancing by one element (this has to be consistent for all elements per vertex buffer binding).
+		/// Set to zero to indicate that this element is per-vertex rather than per-instance.</summary>
 		uint32_t instance_step_rate;
 	};
 
@@ -726,34 +565,20 @@ namespace reshade { namespace api
 	/// </summary>
 	struct shader_desc
 	{
-		/// <summary>
-		/// The shader source code.
-		/// </summary>
+		/// <summary>The shader source code.</summary>
 		const void *code;
-		/// <summary>
-		/// The size (in bytes) of the shader source code.
-		/// </summary>
+		/// <summary>The size (in bytes) of the shader source code.</summary>
 		size_t code_size;
-		/// <summary>
-		/// The format of the shader source <see cref="code"/>.
-		/// </summary>
+		/// <summary>The format of the shader source <see cref="code"/>.</summary>
 		shader_format format;
-		/// <summary>
-		/// Optional entry point name if the shader source code contains multiple entry points. Can be <c>nullptr</c> if it does not.
-		/// </summary>
+		/// <summary>Optional entry point name if the shader source code contains multiple entry points. Can be <c>nullptr</c> if it does not.</summary>
 		const char *entry_point;
-		/// <summary>
-		/// The number of entries in the <see cref="spec_constant_ids"/> and <see cref="spec_constant_values"/> arrays.
-		/// This is meaningful only when <see cref="format"/> is <see cref="shader_format::spirv"/> and is ignored otherwise.
-		/// </summary>
+		/// <summary>The number of entries in the <see cref="spec_constant_ids"/> and <see cref="spec_constant_values"/> arrays.
+		/// This is meaningful only when <see cref="format"/> is <see cref="shader_format::spirv"/> and is ignored otherwise.</summary>
 		uint32_t num_spec_constants;
-		/// <summary>
-		/// Pointer to an array of specialization constant indices.
-		/// </summary>
+		/// <summary>Pointer to an array of specialization constant indices.</summary>
 		const uint32_t *spec_constant_ids;
-		/// <summary>
-		/// Pointer to an array of constant values, one for each specialization constant index in <see cref="spec_constant_ids"/>.
-		/// </summary>
+		/// <summary>Pointer to an array of constant values, one for each specialization constant index in <see cref="spec_constant_ids"/>.</summary>
 		const uint32_t *spec_constant_values;
 	};
 
@@ -762,13 +587,9 @@ namespace reshade { namespace api
 	/// </summary>
 	struct pipeline_desc
 	{
-		/// <summary>
-		/// The type of the pipeline state object.
-		/// </summary>
+		/// <summary>The type of the pipeline state object.</summary>
 		pipeline_stage type;
-		/// <summary>
-		/// The descriptor and constant layout of the pipeline.
-		/// </summary>
+		/// <summary>The descriptor and constant layout of the pipeline.</summary>
 		pipeline_layout layout;
 
 		union
@@ -778,9 +599,7 @@ namespace reshade { namespace api
 			/// </summary>
 			struct
 			{
-				/// <summary>
-				/// The compute shader module to use.
-				/// </summary>
+				/// <summary>The compute shader module to use.</summary>
 				/// <seealso cref="shader_stage::compute"/>
 				/// <seealso cref="pipeline_stage::compute_shader"/>
 				shader_desc shader;
@@ -791,90 +610,58 @@ namespace reshade { namespace api
 			/// </summary>
 			struct
 			{
-				/// <summary>
-				/// The vertex shader module to use.
-				/// </summary>
+				/// <summary>The vertex shader module to use.</summary>
 				/// <seealso cref="shader_stage::vertex"/>
 				/// <seealso cref="pipeline_stage::vertex_shader"/>
 				shader_desc vertex_shader;
-				/// <summary>
-				/// The optional hull shader module to use.
-				/// </summary>
+				/// <summary>The optional hull shader module to use.</summary>
 				/// <seealso cref="shader_stage::hull"/>
 				/// <seealso cref="pipeline_stage::hull_shader"/>
 				shader_desc hull_shader;
-				/// <summary>
-				/// The optional domain shader module to use.
-				/// </summary>
+				/// <summary>The optional domain shader module to use.</summary>
 				/// <seealso cref="shader_stage::domain"/>
 				/// <seealso cref="pipeline_stage::domain_shader"/>
 				shader_desc domain_shader;
-				/// <summary>
-				/// The optional geometry shader module to use.
-				/// </summary>
+				/// <summary>The optional geometry shader module to use.</summary>
 				/// <seealso cref="shader_stage::geometry"/>
 				/// <seealso cref="pipeline_stage::geometry_shader"/>
 				shader_desc geometry_shader;
-				/// <summary>
-				/// The pixel shader module to use.
-				/// </summary>
+				/// <summary>The pixel shader module to use.</summary>
 				/// <seealso cref="shader_stage::pixel"/>
 				/// <seealso cref="pipeline_stage::pixel_shader"/>
 				shader_desc pixel_shader;
 
-				/// <summary>
-				/// Describes the layout of the vertex buffer data for the vertex input stage. 
-				/// Elements following one with the format set to <see cref="format::unknown"/> will be ignored (which is used to terminate this list).
-				/// </summary>
+				/// <summary>Describes the layout of the vertex buffer data for the vertex input stage. 
+				/// Elements following one with the format set to <see cref="format::unknown"/> will be ignored (which is used to terminate this list).</summary>
 				/// <seealso cref="pipeline_stage::input_assembler"/>
 				input_layout_element input_layout[16];
 
-				/// <summary>
-				/// Describes the blend state of the output stage.
-				/// </summary>
+				/// <summary>Describes the blend state of the output stage.</summary>
 				/// <seealso cref="pipeline_stage::output_merger"/>
 				blend_desc blend_state;
-
-				/// <summary>
-				/// Describes the state of the rasterizer stage.
-				/// </summary>
+				/// <summary>Describes the state of the rasterizer stage.</summary>
 				/// <seealso cref="pipeline_stage::rasterizer"/>
 				rasterizer_desc rasterizer_state;
-
-				/// <summary>
-				/// Describes thel state of the depth-stencil stage.
-				/// </summary>
+				/// <summary>Describes thel state of the depth-stencil stage.</summary>
 				/// <seealso cref="pipeline_stage::depth_stencil"/>
 				depth_stencil_desc depth_stencil_state;
 
-				/// <summary>
-				/// The sample mask for the blend state.
-				/// </summary>
+				/// <summary>The sample mask for the blend state.</summary>
 				uint32_t sample_mask;
-				/// <summary>
-				/// The number of samples per pixel.
-				/// </summary>
+				/// <summary>The number of samples per pixel.</summary>
 				uint32_t sample_count;
 
-				/// <summary>
-				/// The primitive topology to use when rendering.
-				/// </summary>
+				/// <summary>The primitive topology to use when rendering.</summary>
 				primitive_topology topology;
 
-				/// <summary>
-				/// The maximum number of viewports that may be bound via <see cref="command_list::bind_viewports"/> with this pipeline.
-				/// </summary>
+				/// <summary>The maximum number of viewports that may be bound via <see cref="command_list::bind_viewports"/> with this pipeline.</summary>
 				uint32_t viewport_count;
 
-				/// <summary>
-				/// A render pass that describes the format of the render target and depth-stencil views that may be used with this pipeline.
-				/// </summary>
+				/// <summary>A render pass that describes the format of the render target and depth-stencil views that may be used with this pipeline.</summary>
 				render_pass render_pass_template;
 
-				/// <summary>
-				/// A list of all pipeline states that may be dynamically updated via <see cref="command_list::bind_pipeline_states"/>.
-				/// Elements following one set to <see cref="dynamic_state::unknown"/> will be ignored (which is used to terminate this list).
-				/// </summary>
+				/// <summary>A list of all pipeline states that may be dynamically updated via <see cref="command_list::bind_pipeline_states"/>.
+				/// Elements following one set to <see cref="dynamic_state::unknown"/> will be ignored (which is used to terminate this list).</summary>
 				dynamic_state dynamic_states[32];
 			} graphics;
 		};
@@ -896,6 +683,42 @@ namespace reshade { namespace api
 		uint64_t hull_shader_invocations;
 		uint64_t domain_shader_invocations;
 		uint64_t compute_shader_invocations;
+	};
+
+	/// <summary>
+	/// Specifies a range of constants in a pipeline layout.
+	/// </summary>
+	struct constant_range
+	{
+		/// <summary>The push constant offset (in 32-bit values, only used by Vulkan).</summary>
+		uint32_t offset;
+		/// <summary>The D3D10/D3D11/D3D12 constant buffer register index.</summary>
+		uint32_t dx_register_index;
+		/// <summary>The D3D12 register space.</summary>
+		uint32_t dx_register_space;
+		/// <summary>The numer of constants in this range (in 32-bit values).</summary>
+		uint32_t count;
+		/// <summary>The shader pipeline stages that make use of the constants in this range.</summary>
+		shader_stage visibility;
+	};
+
+	/// <summary>
+	/// Specifies a range of descriptors in a descriptor set layout.
+	/// </summary>
+	struct descriptor_range
+	{
+		/// <summary>The index in the descriptor set (<c>layout(binding=X)</c> in GLSL).</summary>
+		uint32_t binding;
+		/// <summary>The D3D9/D3D10/D3D11/D3D12 shader register index (<c>register(xX)</c> in HLSL).</summary>
+		uint32_t dx_register_index;
+		/// <summary>The D3D12 register space (<c>register(..., spaceX)</c> in HLSL).</summary>
+		uint32_t dx_register_space;
+		/// <summary>The type of the descriptors in this range.</summary>
+		descriptor_type type;
+		/// <summary>The number of descriptors in the set starting from the binding index.</summary>
+		uint32_t count;
+		/// <summary>The shader pipeline stages that make use of the descriptors in this range.</summary>
+		shader_stage visibility;
 	};
 
 	/// <summary>
