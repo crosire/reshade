@@ -29,6 +29,11 @@ namespace reshade::d3d12
 		D3D12_PRIMITIVE_TOPOLOGY topology;
 	};
 
+	struct descriptor_set_layout_impl
+	{
+		std::vector<api::descriptor_range> ranges;
+	};
+
 	auto convert_format(api::format format) -> DXGI_FORMAT;
 	auto convert_format(DXGI_FORMAT format) -> api::format;
 

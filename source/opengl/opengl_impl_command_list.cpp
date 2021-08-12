@@ -157,7 +157,7 @@ void reshade::opengl::device_impl::bind_pipeline(api::pipeline_stage type, api::
 }
 void reshade::opengl::device_impl::bind_pipeline_states(uint32_t count, const api::dynamic_state *states, const uint32_t *values)
 {
-	for (GLuint i = 0; i < count; ++i)
+	for (uint32_t i = 0; i < count; ++i)
 	{
 		switch (states[i])
 		{
@@ -223,14 +223,14 @@ void reshade::opengl::device_impl::bind_pipeline_states(uint32_t count, const ap
 }
 void reshade::opengl::device_impl::bind_viewports(uint32_t first, uint32_t count, const float *viewports)
 {
-	for (GLuint i = 0, k = 0; i < count; ++i, k += 6)
+	for (uint32_t i = 0, k = 0; i < count; ++i, k += 6)
 	{
 		glViewportIndexedf(i + first, viewports[k], viewports[k + 1], viewports[k + 2], viewports[k + 3]);
 	}
 }
 void reshade::opengl::device_impl::bind_scissor_rects(uint32_t first, uint32_t count, const int32_t *rects)
 {
-	for (GLuint i = 0, k = 0; i < count; ++i, k += 4)
+	for (uint32_t i = 0, k = 0; i < count; ++i, k += 4)
 	{
 		glScissorIndexed(i + first,
 			rects[k + 0],
@@ -275,14 +275,14 @@ void reshade::opengl::device_impl::push_descriptors(api::shader_stage, api::pipe
 	switch (type)
 	{
 	case api::descriptor_type::sampler:
-		for (GLuint i = 0; i < count; ++i)
+		for (uint32_t i = 0; i < count; ++i)
 		{
 			const auto &descriptor = static_cast<const api::sampler *>(descriptors)[i];
 			glBindSampler(i + first, descriptor.handle & 0xFFFFFFFF);
 		}
 		break;
 	case api::descriptor_type::sampler_with_resource_view:
-		for (GLuint i = 0; i < count; ++i)
+		for (uint32_t i = 0; i < count; ++i)
 		{
 			const auto &descriptor = static_cast<const api::sampler_with_resource_view *>(descriptors)[i];
 			if (descriptor.view.handle == 0)
@@ -293,7 +293,7 @@ void reshade::opengl::device_impl::push_descriptors(api::shader_stage, api::pipe
 		}
 		break;
 	case api::descriptor_type::shader_resource_view:
-		for (GLuint i = 0; i < count; ++i)
+		for (uint32_t i = 0; i < count; ++i)
 		{
 			const auto &descriptor = static_cast<const api::resource_view *>(descriptors)[i];
 			if (descriptor.handle == 0)
@@ -303,7 +303,7 @@ void reshade::opengl::device_impl::push_descriptors(api::shader_stage, api::pipe
 		}
 		break;
 	case api::descriptor_type::unordered_access_view:
-		for (GLuint i = 0; i < count; ++i)
+		for (uint32_t i = 0; i < count; ++i)
 		{
 			const auto &descriptor = static_cast<const api::resource_view *>(descriptors)[i];
 			if (descriptor.handle == 0)
@@ -330,27 +330,41 @@ void reshade::opengl::device_impl::push_descriptors(api::shader_stage, api::pipe
 		}
 		break;
 	case api::descriptor_type::constant_buffer:
-		for (GLuint i = 0; i < count; ++i)
+		for (uint32_t i = 0; i < count; ++i)
 		{
-			const auto &descriptor = static_cast<const api::resource *>(descriptors)[i];
-			glBindBufferBase(GL_UNIFORM_BUFFER, i + first, descriptor.handle & 0xFFFFFFFF);
+			const auto &descriptor = static_cast<const api::buffer_range *>(descriptors)[i];
+			if (descriptor.size == std::numeric_limits<uint64_t>::max())
+			{
+				assert(descriptor.offset == 0);
+				glBindBufferBase(GL_UNIFORM_BUFFER, i + first, descriptor.buffer.handle & 0xFFFFFFFF);
+			}
+			else
+			{
+				assert(descriptor.offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()) && descriptor.size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
+				glBindBufferRange(GL_UNIFORM_BUFFER, i + first, descriptor.buffer.handle & 0xFFFFFFFF, static_cast<GLintptr>(descriptor.offset), static_cast<GLsizeiptr>(descriptor.size));
+			}
 		}
 		break;
 	}
 }
-void reshade::opengl::device_impl::bind_descriptor_set(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_set set, uint32_t binding_offset)
+void reshade::opengl::device_impl::bind_descriptor_sets(api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_set *sets, const uint32_t *offsets)
 {
-	const auto set_impl = reinterpret_cast<descriptor_set_impl *>(set.handle);
-	const auto descriptor_size = (set_impl->type == api::descriptor_type::sampler_with_resource_view ? 2 : 1);
+	assert(sets != nullptr);
 
-	push_descriptors(
-		stages,
-		layout,
-		layout_param,
-		set_impl->type,
-		0,
-		(static_cast<uint32_t>(set_impl->descriptors.size()) / descriptor_size) - binding_offset,
-		set_impl->descriptors.data() + binding_offset * descriptor_size);
+	for (uint32_t i = 0; i < count; ++i)
+	{
+		const auto set_impl = reinterpret_cast<descriptor_set_impl *>(sets[i].handle);
+		const auto set_offset = (offsets != nullptr) ? offsets[i] : 0;
+
+		push_descriptors(
+			stages,
+			layout,
+			first + i,
+			set_impl->type,
+			0,
+			set_impl->count - set_offset,
+			set_impl->descriptors.data() + set_offset * (set_impl->descriptors.size() / set_impl->count));
+	}
 }
 
 void reshade::opengl::device_impl::bind_index_buffer(api::resource buffer, uint64_t offset, uint32_t index_size)
@@ -393,9 +407,9 @@ void reshade::opengl::device_impl::draw_indexed(uint32_t indices, uint32_t insta
 {
 	glDrawElementsInstancedBaseVertexBaseInstance(_current_prim_mode, indices, _current_index_type, reinterpret_cast<void *>(static_cast<uintptr_t>(first_index * get_index_type_size(_current_index_type))), instances, vertex_offset, first_instance);
 }
-void reshade::opengl::device_impl::dispatch(uint32_t num_groups_x, uint32_t num_groups_y, uint32_t num_groups_z)
+void reshade::opengl::device_impl::dispatch(uint32_t group_count_x, uint32_t group_count_y, uint32_t group_count_z)
 {
-	glDispatchCompute(num_groups_x, num_groups_y, num_groups_z);
+	glDispatchCompute(group_count_x, group_count_y, group_count_z);
 }
 void reshade::opengl::device_impl::draw_or_dispatch_indirect(api::indirect_command type, api::resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride)
 {

@@ -96,14 +96,14 @@ void D3D10Device::invoke_bind_constant_buffers_event(reshade::api::shader_stage 
 	if (!reshade::has_event_callbacks(reshade::addon_event::push_descriptors))
 		return;
 
-#ifndef WIN64
-	reshade::api::resource descriptors[D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
+	reshade::api::buffer_range descriptors[D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
 	for (UINT i = 0; i < count; ++i)
-		descriptors[i] = { reinterpret_cast<uintptr_t>(objects[i]) };
-#else
-	static_assert(sizeof(*objects) == sizeof(reshade::api::resource));
-	const auto descriptors = reinterpret_cast<const reshade::api::resource *>(objects);
-#endif
+	{
+		descriptors[i] = {
+			reshade::api::resource { reinterpret_cast<uintptr_t>(objects[i]) },
+			0,
+			std::numeric_limits<uint64_t>::max() };
+	}
 
 	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(this, stage, _global_pipeline_layout, 2, reshade::api::descriptor_type::constant_buffer, first, count, descriptors);
 }

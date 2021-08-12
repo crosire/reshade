@@ -66,7 +66,12 @@ namespace reshade::opengl
 	struct pipeline_layout_impl
 	{
 		std::vector<GLuint> bindings;
-		std::vector<api::descriptor_range> ranges;
+		std::vector<api::pipeline_layout_param> params;
+	};
+
+	struct descriptor_set_layout_impl
+	{
+		api::descriptor_range range;
 	};
 
 	struct query_pool_impl
@@ -82,6 +87,7 @@ namespace reshade::opengl
 	struct descriptor_set_impl
 	{
 		api::descriptor_type type;
+		GLuint count;
 		std::vector<uint64_t> descriptors;
 	};
 

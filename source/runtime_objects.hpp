@@ -218,6 +218,7 @@ namespace reshade
 
 		api::resource cb = {};
 		api::pipeline_layout layout = {};
+		api::descriptor_set_layout set_layouts[4] = {};
 		api::descriptor_set cb_set = {};
 		api::descriptor_set sampler_set = {};
 		api::query_pool query_heap = {};

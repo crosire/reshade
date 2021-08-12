@@ -417,6 +417,12 @@ namespace reshade { namespace api
 	RESHADE_DEFINE_HANDLE(pipeline_layout);
 
 	/// <summary>
+	/// An opaque handle to a descriptor set layout.
+	/// <para>In Vulkan this is a 'VkDescriptorSetLayout' handle.</para>
+	/// </summary>
+	RESHADE_DEFINE_HANDLE(descriptor_set_layout);
+
+	/// <summary>
 	/// An opaque handle to a query pool.
 	/// <para>In D3D12 this is a pointer to a 'ID3D12QueryHeap' object, in Vulkan a 'VkQueryPool' handle.</para>
 	/// </summary>
@@ -694,11 +700,11 @@ namespace reshade { namespace api
 		uint32_t offset;
 		/// <summary>The D3D10/D3D11/D3D12 constant buffer register index.</summary>
 		uint32_t dx_register_index;
-		/// <summary>The D3D12 register space.</summary>
+		/// <summary>The D3D12 constant buffer register space.</summary>
 		uint32_t dx_register_space;
-		/// <summary>The numer of constants in this range (in 32-bit values).</summary>
+		/// <summary>The number of constants in this range (in 32-bit values).</summary>
 		uint32_t count;
-		/// <summary>The shader pipeline stages that make use of the constants in this range.</summary>
+		/// <summary>The shader pipeline stages that can make use of the constants in this range.</summary>
 		shader_stage visibility;
 	};
 
@@ -707,7 +713,9 @@ namespace reshade { namespace api
 	/// </summary>
 	struct descriptor_range
 	{
-		/// <summary>The index in the descriptor set (<c>layout(binding=X)</c> in GLSL).</summary>
+		/// <summary>The offset of this range in the descriptor set (in descriptors).</summary>
+		uint32_t offset;
+		/// <summary>The OpenGL/Vulkan binding index (<c>layout(binding=X)</c> in GLSL).</summary>
 		uint32_t binding;
 		/// <summary>The D3D9/D3D10/D3D11/D3D12 shader register index (<c>register(xX)</c> in HLSL).</summary>
 		uint32_t dx_register_index;
@@ -715,30 +723,23 @@ namespace reshade { namespace api
 		uint32_t dx_register_space;
 		/// <summary>The type of the descriptors in this range.</summary>
 		descriptor_type type;
-		/// <summary>The number of descriptors in the set starting from the binding index.</summary>
-		uint32_t count;
-		/// <summary>The shader pipeline stages that make use of the descriptors in this range.</summary>
+		/// <summary>The number of descriptors in the range (size of the array in GLSL).</summary>
+		uint32_t array_size;
+		/// <summary>The shader pipeline stages that can make use of the descriptors in this range.</summary>
 		shader_stage visibility;
 	};
 
 	/// <summary>
-	/// Describes a pipeline layout.
-	/// </summary>
-	struct pipeline_layout_desc
-	{
-		uint32_t num_params;
-		const struct pipeline_layout_param *params;
-	};
-
-	/// <summary>
-	/// Describes a descriptor set layout.
+	/// Describes a single parameter in a pipeline layout.
 	/// </summary>
 	struct pipeline_layout_param
 	{
 		pipeline_layout_param_type type;
-		uint32_t num_ranges;
-		const descriptor_range *descriptor_ranges;
-		constant_range constant_range;
+		union
+		{
+			descriptor_set_layout  descriptor_layout;
+			constant_range push_constants;
+		};
 	};
 
 	/// <summary>
@@ -766,14 +767,18 @@ namespace reshade { namespace api
 	/// </summary>
 	struct copy_descriptor_set
 	{
+		/// <summary>The descriptor set to copy from.</summary>
 		descriptor_set src_set;
-		uint32_t src_binding;
-		uint32_t src_array_offset;
+		/// <summary>The offset in the source set to start copying from.</summary>
+		/// <seealso cref="descriptor_range::offset"/>
+		uint32_t src_offset;
+		/// <summary>The descriptor set to copy to.</summary>
 		descriptor_set dst_set;
-		uint32_t dst_binding;
-		uint32_t dst_array_offset;
+		/// <summary>The offset in the destination set to start copying to.</summary>
+		/// <seealso cref="descriptor_range::offset"/>
+		uint32_t dst_offset;
+		/// <summary>The number of descriptors to copy, starting at the specified source offset to the destination offset.</summary>
 		uint32_t count;
-		descriptor_type type;
 	};
 
 	/// <summary>
@@ -781,19 +786,28 @@ namespace reshade { namespace api
 	/// </summary>
 	struct write_descriptor_set
 	{
+		/// <summary>The descriptor set to update.</summary>
 		descriptor_set set;
-		uint32_t binding;
-		uint32_t array_offset;
+		/// <summary>The offset in the <see cref="set"/> to start updating at.</summary>
+		/// <seealso cref="descriptor_range::offset"/>
+		uint32_t offset;
+		/// <summary>The number of descriptors to update, starting at the specified <see cref="offset"/>.</summary>
+		uint32_t count;
+		/// <summary>The type of the specified <see cref="descriptors"/>.</summary>
 		descriptor_type type;
+		/// <summary>A pointer to an array of descriptors to update in the set.
+		/// Depending on the descriptor <see cref="type"/> this should be pointer to an array of <see cref="buffer_range"/>, <see cref="resource_view"/>, <see cref="sampler"/> or <see cref="sampler_with_resource_view"/>.</summary>
+		const void *descriptors;
+	};
 
-		struct
-		{
-			sampler sampler;
-			resource_view view;
-			resource resource;
-			uint64_t offset;
-			uint64_t size;
-		} descriptor;
+	/// <summary>
+	/// A constant buffer resource descriptor.
+	/// </summary>
+	struct buffer_range
+	{
+		resource buffer;
+		uint64_t offset;
+		uint64_t size;
 	};
 
 	/// <summary>

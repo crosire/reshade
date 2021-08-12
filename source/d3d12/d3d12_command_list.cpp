@@ -426,7 +426,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootDescriptorTable(U
 
 #if RESHADE_ADDON
 	reshade::api::descriptor_set set = { 0 };
-	UINT binding_offset = 0;
+	UINT offset = 0;
 	for (UINT i = 0; i < 2; ++i)
 	{
 		if (_current_descriptor_heaps[i] != nullptr)
@@ -437,19 +437,20 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootDescriptorTable(U
 			if (BaseDescriptor.ptr >= base.ptr && BaseDescriptor.ptr < (base.ptr + desc.NumDescriptors * _device_impl->_descriptor_handle_size[desc.Type]))
 			{
 				set = { base.ptr };
-				binding_offset = static_cast<UINT>((BaseDescriptor.ptr - base.ptr) / _device_impl->_descriptor_handle_size[desc.Type]);
+				offset = static_cast<UINT>((BaseDescriptor.ptr - base.ptr) / _device_impl->_descriptor_handle_size[desc.Type]);
 				break;
 			}
 		}
 	}
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_set>(
+	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_sets>(
 		this,
 		reshade::api::shader_stage::all_compute,
 		reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(_current_root_signature[1]) },
 		RootParameterIndex,
-		set,
-		binding_offset);
+		1,
+		&set,
+		&offset);
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRootDescriptorTable(UINT RootParameterIndex, D3D12_GPU_DESCRIPTOR_HANDLE BaseDescriptor)
@@ -458,7 +459,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRootDescriptorTable(
 
 #if RESHADE_ADDON
 	reshade::api::descriptor_set set = { 0 };
-	UINT binding_offset = 0;
+	UINT offset = 0;
 	for (UINT i = 0; i < 2; ++i)
 	{
 		if (_current_descriptor_heaps[i] != nullptr)
@@ -469,19 +470,20 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRootDescriptorTable(
 			if (BaseDescriptor.ptr >= base.ptr && BaseDescriptor.ptr < (base.ptr + desc.NumDescriptors * _device_impl->_descriptor_handle_size[desc.Type]))
 			{
 				set = { base.ptr };
-				binding_offset = static_cast<UINT>((BaseDescriptor.ptr - base.ptr) / _device_impl->_descriptor_handle_size[desc.Type]);
+				offset = static_cast<UINT>((BaseDescriptor.ptr - base.ptr) / _device_impl->_descriptor_handle_size[desc.Type]);
 				break;
 			}
 		}
 	}
 
-	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_set>(
+	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_sets>(
 		this,
 		reshade::api::shader_stage::all_graphics,
 		reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(_current_root_signature[0]) },
 		RootParameterIndex,
-		set,
-		binding_offset);
+		1,
+		&set,
+		&offset);
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRoot32BitConstant(UINT RootParameterIndex, UINT SrcData, UINT DestOffsetIn32BitValues)
@@ -552,11 +554,11 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootConstantBufferVie
 	if (!reshade::has_event_callbacks(reshade::addon_event::push_descriptors))
 		return;
 
-	reshade::api::resource buffer = { 0 };
-	uint64_t offset = 0;
-	_device_impl->resolve_gpu_address(BufferLocation, &buffer, &offset);
+	reshade::api::buffer_range buffer_range;
+	if (!_device_impl->resolve_gpu_address(BufferLocation, &buffer_range.buffer, &buffer_range.offset))
+		return;
+	buffer_range.size = std::numeric_limits<uint64_t>::max();
 
-	// TODO: Constant buffer offset
 	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
 		this,
 		reshade::api::shader_stage::all_compute,
@@ -565,7 +567,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootConstantBufferVie
 		reshade::api::descriptor_type::constant_buffer,
 		0,
 		1,
-		&buffer);
+		&buffer_range);
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRootConstantBufferView(UINT RootParameterIndex, D3D12_GPU_VIRTUAL_ADDRESS BufferLocation)
@@ -576,9 +578,10 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRootConstantBufferVi
 	if (!reshade::has_event_callbacks(reshade::addon_event::push_descriptors))
 		return;
 
-	reshade::api::resource buffer = { 0 };
-	uint64_t offset = 0;
-	_device_impl->resolve_gpu_address(BufferLocation, &buffer, &offset);
+	reshade::api::buffer_range buffer_range;
+	if (!_device_impl->resolve_gpu_address(BufferLocation, &buffer_range.buffer, &buffer_range.offset))
+		return;
+	buffer_range.size = std::numeric_limits<uint64_t>::max();
 
 	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
 		this,
@@ -588,7 +591,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRootConstantBufferVi
 		reshade::api::descriptor_type::constant_buffer,
 		0,
 		1,
-		&buffer);
+		&buffer_range);
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootShaderResourceView(UINT RootParameterIndex, D3D12_GPU_VIRTUAL_ADDRESS BufferLocation)
@@ -620,7 +623,8 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::IASetIndexBuffer(const D3D12_IN
 	uint32_t index_size = 0;
 	if (pView != nullptr)
 	{
-		_device_impl->resolve_gpu_address(pView->BufferLocation, &buffer, &offset);
+		if (!_device_impl->resolve_gpu_address(pView->BufferLocation, &buffer, &offset))
+			return;
 		index_size = pView->Format == DXGI_FORMAT_R16_UINT ? 2 : 4;
 	}
 
@@ -642,7 +646,8 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::IASetVertexBuffers(UINT StartSl
 	uint32_t strides[D3D12_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
 	for (UINT i = 0; i < NumViews; ++i)
 	{
-		_device_impl->resolve_gpu_address(pViews[i].BufferLocation, &buffers[i], &offsets[i]);
+		if (!_device_impl->resolve_gpu_address(pViews[i].BufferLocation, &buffers[i], &offsets[i]))
+			return;
 		strides[i] = pViews[i].StrideInBytes;
 	}
 

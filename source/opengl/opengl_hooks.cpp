@@ -181,10 +181,10 @@ HOOK_EXPORT void WINAPI glBegin(GLenum mode)
 #if RESHADE_ADDON
 	if (g_current_context && target == GL_UNIFORM_BUFFER)
 	{
-		const reshade::api::resource buffer_handle = reshade::opengl::make_resource_handle(target, buffer);
+		const reshade::api::buffer_range buffer_range = { reshade::opengl::make_resource_handle(target, buffer), 0, std::numeric_limits<uint64_t>::max() };
 
 		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 2, reshade::api::descriptor_type::constant_buffer, index, 1, &buffer_handle);
+			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 2, reshade::api::descriptor_type::constant_buffer, index, 1, &buffer_range);
 	}
 #endif
 }
@@ -196,11 +196,10 @@ HOOK_EXPORT void WINAPI glBegin(GLenum mode)
 #if RESHADE_ADDON
 	if (g_current_context && target == GL_UNIFORM_BUFFER)
 	{
-		// TODO: Offset
-		const reshade::api::resource buffer_handle = reshade::opengl::make_resource_handle(target, buffer);
+		const reshade::api::buffer_range buffer_range = { reshade::opengl::make_resource_handle(target, buffer), static_cast<uint64_t>(offset), static_cast<uint64_t>(size) };
 
 		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 2, reshade::api::descriptor_type::constant_buffer, index, 1, &buffer_handle);
+			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 2, reshade::api::descriptor_type::constant_buffer, index, 1, &buffer_range);
 	}
 #endif
 }
@@ -212,14 +211,14 @@ HOOK_EXPORT void WINAPI glBegin(GLenum mode)
 #if RESHADE_ADDON
 	if (g_current_context && target == GL_UNIFORM_BUFFER)
 	{
-		const auto buffer_handles = static_cast<reshade::api::resource *>(alloca(count * sizeof(reshade::api::resource)));
+		const auto buffer_ranges = static_cast<reshade::api::buffer_range *>(alloca(count * sizeof(reshade::api::buffer_range)));
 		for (GLsizei i = 0; i < count; ++i)
 		{
-			buffer_handles[i] = (buffers != nullptr) ? reshade::opengl::make_resource_handle(target, buffers[i]) : reshade::api::resource { 0 };
+			buffer_ranges[i] = { (buffers != nullptr) ? reshade::opengl::make_resource_handle(target, buffers[i]) : reshade::api::resource { 0 }, 0, std::numeric_limits<uint64_t>::max() };
 		}
 
 		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 2, reshade::api::descriptor_type::constant_buffer, first, count, buffer_handles);
+			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 2, reshade::api::descriptor_type::constant_buffer, first, count, buffer_ranges);
 	}
 #endif
 }
@@ -231,15 +230,14 @@ HOOK_EXPORT void WINAPI glBegin(GLenum mode)
 #if RESHADE_ADDON
 	if (g_current_context && target == GL_UNIFORM_BUFFER)
 	{
-		// TODO: Offsets
-		const auto buffer_handles = static_cast<reshade::api::resource *>(alloca(count * sizeof(reshade::api::resource)));
+		const auto buffer_ranges = static_cast<reshade::api::buffer_range *>(alloca(count * sizeof(reshade::api::buffer_range)));
 		for (GLsizei i = 0; i < count; ++i)
 		{
-			buffer_handles[i] = (buffers != nullptr) ? reshade::opengl::make_resource_handle(target, buffers[i]) : reshade::api::resource { 0 };
+			buffer_ranges[i] = { (buffers != nullptr) ? reshade::opengl::make_resource_handle(target, buffers[i]) : reshade::api::resource { 0 }, static_cast<uint64_t>(offsets[i]), static_cast<uint64_t>(sizes[i]) };
 		}
 
 		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 2, reshade::api::descriptor_type::constant_buffer, first, count, buffer_handles);
+			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 2, reshade::api::descriptor_type::constant_buffer, first, count, buffer_ranges);
 	}
 #endif
 }

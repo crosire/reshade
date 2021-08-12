@@ -1013,34 +1013,29 @@ VkResult VKAPI_CALL vkCreatePipelineLayout(VkDevice device, const VkPipelineLayo
 	if (result >= VK_SUCCESS)
 	{
 #if RESHADE_ADDON
-		const uint32_t num_params = pCreateInfo->setLayoutCount + pCreateInfo->pushConstantRangeCount;
-
-		const auto layout_size = sizeof(reshade::api::pipeline_layout_desc) + (num_params * sizeof(reshade::api::pipeline_layout_param));
-		const auto layout_desc = static_cast<reshade::api::pipeline_layout_desc *>(operator new(layout_size));
-		std::memset(layout_desc, 0, layout_size);
-		auto layout_params = reinterpret_cast<reshade::api::pipeline_layout_param *>(layout_desc + 1);
-		layout_desc->params = layout_params;
-		layout_desc->num_params = num_params;
+		std::vector<reshade::api::pipeline_layout_param> layout_desc(
+			pCreateInfo->setLayoutCount + pCreateInfo->pushConstantRangeCount);
 
 		for (uint32_t i = 0; i < pCreateInfo->setLayoutCount; ++i)
 		{
-			const auto set_layout_data = device_impl->lookup_descriptor_set_layout(pCreateInfo->pSetLayouts[i]);
+			const auto layout_data = device_impl->lookup_descriptor_set_layout(pCreateInfo->pSetLayouts[i]);
 
-			layout_params[i] = *set_layout_data.desc;
+			layout_desc[i].type = layout_data.push_descriptors ? reshade::api::pipeline_layout_param_type::push_descriptors : reshade::api::pipeline_layout_param_type::descriptor_set;
+			layout_desc[i].descriptor_layout = { (uint64_t)pCreateInfo->pSetLayouts[i] };
 		}
 
-		layout_params += pCreateInfo->setLayoutCount;
-		for (uint32_t i = 0; i < pCreateInfo->pushConstantRangeCount; ++i)
+		for (uint32_t i = pCreateInfo->setLayoutCount; i < pCreateInfo->setLayoutCount + pCreateInfo->pushConstantRangeCount; ++i)
 		{
-			layout_params[i].type = reshade::api::pipeline_layout_param_type::push_constants;
-			layout_params[i].constant_range.offset = pCreateInfo->pPushConstantRanges[i].offset;
-			layout_params[i].constant_range.count = pCreateInfo->pPushConstantRanges[i].size;
-			layout_params[i].constant_range.visibility = static_cast<reshade::api::shader_stage>(pCreateInfo->pPushConstantRanges[i].stageFlags);
+			const VkPushConstantRange &push_constant_range = pCreateInfo->pPushConstantRanges[i];
+
+			layout_desc[i].type = reshade::api::pipeline_layout_param_type::push_constants;
+			layout_desc[i].push_constants.offset = push_constant_range.offset;
+			layout_desc[i].push_constants.count = push_constant_range.size;
+			layout_desc[i].push_constants.visibility = static_cast<reshade::api::shader_stage>(push_constant_range.stageFlags);
 		}
 
 		reshade::vulkan::pipeline_layout_data data;
-		data.desc = layout_desc;
-		data.set_layouts.assign(pCreateInfo->pSetLayouts, pCreateInfo->pSetLayouts + pCreateInfo->setLayoutCount);
+		data.desc = std::move(layout_desc);
 
 		device_impl->register_pipeline_layout(*pPipelineLayout, std::move(data));
 #endif
@@ -1124,25 +1119,48 @@ VkResult VKAPI_CALL vkCreateDescriptorSetLayout(VkDevice device, const VkDescrip
 	if (result >= VK_SUCCESS)
 	{
 #if RESHADE_ADDON
-		const auto layout_size = sizeof(reshade::api::pipeline_layout_param) + (pCreateInfo->bindingCount * sizeof(reshade::api::descriptor_range));
-		const auto layout_params = static_cast<reshade::api::pipeline_layout_param *>(operator new(layout_size));
-		std::memset(layout_params, 0, layout_size);
-		const auto descriptor_ranges = reinterpret_cast<reshade::api::descriptor_range *>(layout_params + 1);
+		std::vector<uint32_t> descriptor_counts_per_binding;
+		descriptor_counts_per_binding.reserve(pCreateInfo->bindingCount);
+		std::vector<reshade::api::descriptor_range> layout_desc(pCreateInfo->bindingCount);
 
 		for (uint32_t i = 0; i < pCreateInfo->bindingCount; ++i)
 		{
-			descriptor_ranges[i].binding = pCreateInfo->pBindings[i].binding;
-			descriptor_ranges[i].type = static_cast<reshade::api::descriptor_type>(pCreateInfo->pBindings[i].descriptorType);
-			descriptor_ranges[i].count = pCreateInfo->pBindings[i].descriptorCount;
-			descriptor_ranges[i].visibility = static_cast<reshade::api::shader_stage>(pCreateInfo->pBindings[i].stageFlags);
+			const VkDescriptorSetLayoutBinding &binding = pCreateInfo->pBindings[i];
+
+			if (binding.binding >= descriptor_counts_per_binding.size())
+				descriptor_counts_per_binding.reserve(binding.binding + 1);
+			descriptor_counts_per_binding[binding.binding] = binding.descriptorCount;
+
+			layout_desc[i].binding = binding.binding;
+			layout_desc[i].dx_register_index = 0;
+			layout_desc[i].dx_register_space = 0;
+			layout_desc[i].type = static_cast<reshade::api::descriptor_type>(binding.descriptorType);
+			layout_desc[i].array_size = binding.descriptorCount;
+			layout_desc[i].visibility = static_cast<reshade::api::shader_stage>(binding.stageFlags);
 		}
 
-		layout_params->type = (pCreateInfo->flags & VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR) != 0 ? reshade::api::pipeline_layout_param_type::push_descriptors : reshade::api::pipeline_layout_param_type::descriptor_set;
-		layout_params->num_ranges = pCreateInfo->bindingCount;
-		layout_params->descriptor_ranges = descriptor_ranges;
+		for (size_t i = 1; i < descriptor_counts_per_binding.size(); ++i)
+			descriptor_counts_per_binding[i] += descriptor_counts_per_binding[i - 1];
+
+		std::unordered_map<uint32_t, uint32_t> binding_to_offset;
+		binding_to_offset.reserve(descriptor_counts_per_binding.back());
+
+		for (uint32_t i = 0, offset = 0; i < pCreateInfo->bindingCount; ++i)
+		{
+			const uint32_t binding = layout_desc[i].binding;
+			if (binding != 0)
+			{
+				offset = descriptor_counts_per_binding[binding - 1];
+				layout_desc[i].offset = offset;
+			}
+
+			binding_to_offset[binding] = offset;
+		}
 
 		reshade::vulkan::descriptor_set_layout_data data;
-		data.desc = layout_params;
+		data.desc = std::move(layout_desc);
+		data.binding_to_offset = std::move(binding_to_offset);
+		data.push_descriptors = (pCreateInfo->flags & VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR) != 0;
 
 		device_impl->register_descriptor_set_layout(*pSetLayout, std::move(data));
 #endif
@@ -1179,35 +1197,46 @@ void     VKAPI_CALL vkUpdateDescriptorSets(VkDevice device, uint32_t descriptorW
 	std::vector<reshade::api::write_descriptor_set> writes;
 	writes.reserve(descriptorWriteCount);
 
+	uint32_t max_descriptors = 0;
 	for (uint32_t i = 0; i < descriptorWriteCount; ++i)
+		max_descriptors += pDescriptorWrites[i].descriptorCount;
+	std::vector<uint64_t> descriptors(max_descriptors * 2);
+
+	for (uint32_t i = 0, j = 0; i < descriptorWriteCount; ++i)
 	{
 		const VkWriteDescriptorSet &write = pDescriptorWrites[i];
 
-		for (uint32_t k = 0; k < write.descriptorCount; ++k)
-		{
-			reshade::api::write_descriptor_set &new_write = writes.emplace_back();
-			new_write.set = { (uint64_t)write.dstSet };
-			new_write.binding = write.dstBinding + k;
-			new_write.array_offset = write.dstArrayElement;
-			new_write.type = static_cast<reshade::api::descriptor_type>(write.descriptorType);
+		reshade::api::write_descriptor_set &new_write = writes.emplace_back();
+		new_write.set = { (uint64_t)write.dstSet };
+		new_write.offset = device_impl->lookup_descriptor_set(write.dstSet).calc_offset_from_binding(write.dstBinding, write.dstArrayElement);
+		new_write.count = write.descriptorCount;
+		new_write.type = static_cast<reshade::api::descriptor_type>(write.descriptorType);
 
-			switch (write.descriptorType)
+		switch (write.descriptorType)
+		{
+		case VK_DESCRIPTOR_TYPE_SAMPLER:
+			new_write.descriptors = descriptors.data() + j;
+			for (uint32_t k = 0; k < write.descriptorCount; ++k, ++j)
+				descriptors[j] = (uint64_t)write.pImageInfo[k].sampler;
+			break;
+		case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+			new_write.descriptors = descriptors.data() + j;
+			for (uint32_t k = 0; k < write.descriptorCount; ++k, j += 2)
 			{
-			case VK_DESCRIPTOR_TYPE_SAMPLER:
-				new_write.descriptor.sampler = { (uint64_t)write.pImageInfo[k].sampler };
-				break;
-			case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
-				new_write.descriptor.view = { (uint64_t)write.pImageInfo[k].imageView };
-				new_write.descriptor.sampler = { (uint64_t)write.pImageInfo[k].sampler };
-				break;
-			case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
-			case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
-				new_write.descriptor.view = { (uint64_t)write.pImageInfo[k].imageView };
-				break;
-			case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
-				new_write.descriptor.resource = { (uint64_t)write.pBufferInfo[k].buffer };
-				break;
+				descriptors[j + 0] = (uint64_t)write.pImageInfo[k].sampler;
+				descriptors[j + 1] = (uint64_t)write.pImageInfo[k].imageView;
 			}
+			break;
+		case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+		case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
+			new_write.descriptors = descriptors.data() + j;
+			for (uint32_t k = 0; k < write.descriptorCount; ++k, ++j)
+				descriptors[j] = (uint64_t)write.pImageInfo[k].imageView;
+			break;
+		case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+			static_assert(sizeof(reshade::api::buffer_range) == sizeof(VkDescriptorBufferInfo));
+			new_write.descriptors = write.pBufferInfo;
+			break;
 		}
 	}
 	for (uint32_t i = 0; i < descriptorCopyCount; ++i)
@@ -1216,13 +1245,10 @@ void     VKAPI_CALL vkUpdateDescriptorSets(VkDevice device, uint32_t descriptorW
 
 		reshade::api::copy_descriptor_set &new_copy = copies.emplace_back();
 		new_copy.src_set = { (uint64_t)copy.srcSet };
-		new_copy.src_binding = copy.srcBinding;
-		new_copy.src_array_offset = copy.srcArrayElement;
+		new_copy.src_offset = device_impl->lookup_descriptor_set(copy.srcSet).calc_offset_from_binding(copy.srcBinding, copy.srcArrayElement);
 		new_copy.dst_set = { (uint64_t)copy.dstSet };
-		new_copy.dst_binding = copy.dstBinding;
-		new_copy.dst_array_offset = copy.dstArrayElement;
+		new_copy.dst_offset = device_impl->lookup_descriptor_set(copy.dstSet).calc_offset_from_binding(copy.dstBinding, copy.dstArrayElement);
 		new_copy.count = copy.descriptorCount;
-		// TODO: new_copy.type = reshade::api::descriptor_type::constant_buffer;
 	}
 
 	if (reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(device_impl, descriptorWriteCount, writes.data(), descriptorCopyCount, copies.data()))

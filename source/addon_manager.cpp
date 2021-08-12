@@ -195,7 +195,7 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(bind_scissor_rects);
 		CASE(push_constants);
 		CASE(push_descriptors);
-		CASE(bind_descriptor_set);
+		CASE(bind_descriptor_sets);
 		CASE(bind_index_buffer);
 		CASE(bind_vertex_buffers);
 		CASE(draw);

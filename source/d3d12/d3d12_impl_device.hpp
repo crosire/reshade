@@ -41,8 +41,11 @@ namespace reshade::d3d12
 		bool create_graphics_pipeline(const api::pipeline_desc &desc, api::pipeline *out);
 		void destroy_pipeline(api::pipeline_stage type, api::pipeline handle) final;
 
-		bool create_pipeline_layout(const api::pipeline_layout_desc &desc, api::pipeline_layout *out) final;
+		bool create_pipeline_layout(uint32_t count, const api::pipeline_layout_param *params, api::pipeline_layout *out) final;
 		void destroy_pipeline_layout(api::pipeline_layout handle) final;
+
+		bool create_descriptor_set_layout(uint32_t count, const api::descriptor_range *bindings, bool push_descriptors, api::descriptor_set_layout *out) final;
+		void destroy_descriptor_set_layout(api::descriptor_set_layout handle) final;
 
 		bool create_query_pool(api::query_type type, uint32_t size, api::query_pool *out) final;
 		void destroy_query_pool(api::query_pool handle) final;
@@ -61,17 +64,18 @@ namespace reshade::d3d12
 
 		bool get_query_pool_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride) final;
 
-		bool allocate_descriptor_sets(api::pipeline_layout layout, uint32_t param_index, uint32_t count, api::descriptor_set *out) final;
-		void free_descriptor_sets(api::pipeline_layout layout, uint32_t param_index, uint32_t count, const api::descriptor_set *sets) final;
-
-		void update_descriptor_sets(uint32_t num_writes, const api::write_descriptor_set *writes, uint32_t num_copies, const api::copy_descriptor_set *copies) final;
+		bool allocate_descriptor_sets(uint32_t count, const api::descriptor_set_layout *layouts, api::descriptor_set *out) final;
+		void free_descriptor_sets(uint32_t count, const api::descriptor_set *sets) final;
+		void update_descriptor_sets(uint32_t count, const api::write_descriptor_set *writes) final;
 
 		void wait_idle() const final;
 
 		void set_resource_name(api::resource resource, const char *name) final;
 
+		void get_pipeline_layout_desc(api::pipeline_layout layout, uint32_t *count, api::pipeline_layout_param *params) const final;
+		void get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *count, api::descriptor_range *bindings) const final;
+
 		api::resource_desc get_resource_desc(api::resource resource) const final;
-		api::pipeline_layout_desc get_pipeline_layout_desc(api::pipeline_layout layout) const final;
 		void get_resource_from_view(api::resource_view view, api::resource *out) const final;
 		bool get_framebuffer_attachment(api::framebuffer framebuffer, api::attachment_type type, uint32_t index, api::resource_view *out) const final;
 
@@ -102,29 +106,28 @@ namespace reshade::d3d12
 
 			return false;
 		}
-		bool resolve_descriptor_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle, D3D12_DESCRIPTOR_HEAP_TYPE type, api::descriptor_set *out_set, uint32_t *out_binding, bool *shader_visible = nullptr)
+		bool resolve_descriptor_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle, D3D12_DESCRIPTOR_HEAP_TYPE type, api::descriptor_set *out_set, uint32_t *out_offset, bool *shader_visible = nullptr)
 		{
 			*out_set = { 0 };
-			*out_binding = 0;
+			*out_offset = 0;
 
 			for (const auto &heap_info : _descriptor_heaps)
 			{
-				if (handle.ptr < heap_info.second.StartAddress)
+				const D3D12_DESCRIPTOR_HEAP_DESC desc = heap_info.first->GetDesc();
+
+				// 'GetCPUDescriptorHandleForHeapStart' returns a descriptor heap index and all CPU descriptor handles use that as alignment
+				if (desc.Type != type || (handle.ptr % _descriptor_handle_size[type]) != heap_info.second.StartAddress)
 					continue;
 
 				const UINT64 address_offset = handle.ptr - heap_info.second.StartAddress;
-				if (address_offset < heap_info.second.SizeInBytes)
-				{
-					const D3D12_DESCRIPTOR_HEAP_DESC desc = heap_info.first->GetDesc();
-					if (desc.Type != type)
-						continue;
+				assert(address_offset < heap_info.second.SizeInBytes);
 
-					*out_set = { heap_info.first->GetGPUDescriptorHandleForHeapStart().ptr };
-					*out_binding = static_cast<uint32_t>(address_offset / _descriptor_handle_size[desc.Type]);
-					if (shader_visible != nullptr)
-						*shader_visible = (desc.Flags & D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE) != 0;
-					return true;
-				}
+				*out_set = { heap_info.first->GetGPUDescriptorHandleForHeapStart().ptr };
+				*out_offset = static_cast<uint32_t>(address_offset / _descriptor_handle_size[desc.Type]);
+
+				if (shader_visible != nullptr)
+					*shader_visible = (desc.Flags & D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE) != 0;
+				return true;
 			}
 
 			return false;
@@ -139,9 +142,9 @@ namespace reshade::d3d12
 		std::vector<command_queue_impl *> _queues;
 		std::unordered_map<uint64_t, ID3D12Resource *> _views;
 		std::vector<std::pair<ID3D12Resource *, D3D12_GPU_VIRTUAL_ADDRESS_RANGE>> _buffer_gpu_addresses;
-		std::vector< std::pair<ID3D12DescriptorHeap *, D3D12_GPU_VIRTUAL_ADDRESS_RANGE>> _descriptor_heaps;
+		std::vector<std::pair<ID3D12DescriptorHeap *, D3D12_GPU_VIRTUAL_ADDRESS_RANGE>> _descriptor_heaps;
 
-		std::unordered_map<UINT64, D3D12_CPU_DESCRIPTOR_HANDLE> _descriptor_set_map;
+		std::unordered_map<UINT64, std::pair<D3D12_CPU_DESCRIPTOR_HANDLE, UINT>> _descriptor_set_map;
 
 		com_ptr<ID3D12PipelineState> _mipmap_pipeline;
 		com_ptr<ID3D12RootSignature> _mipmap_signature;
@@ -165,7 +168,7 @@ namespace reshade::d3d12
 			assert(heap != nullptr);
 			const std::lock_guard<std::mutex> lock(_mutex);
 			_descriptor_heaps.emplace_back(heap, D3D12_GPU_VIRTUAL_ADDRESS_RANGE { heap->GetCPUDescriptorHandleForHeapStart().ptr, desc.NumDescriptors * _descriptor_handle_size[desc.Type] });
-			_descriptor_set_map.emplace(heap->GetGPUDescriptorHandleForHeapStart().ptr, heap->GetCPUDescriptorHandleForHeapStart());
+			_descriptor_set_map.emplace(heap->GetGPUDescriptorHandleForHeapStart().ptr, std::make_pair(heap->GetCPUDescriptorHandleForHeapStart(), desc.NumDescriptors));
 		}
 		void unregister_descriptor_heap(ID3D12DescriptorHeap *heap)
 		{

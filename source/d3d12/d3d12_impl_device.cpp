@@ -466,126 +466,103 @@ void reshade::d3d12::device_impl::destroy_pipeline(api::pipeline_stage, api::pip
 		reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }
 
-bool reshade::d3d12::device_impl::create_pipeline_layout(const api::pipeline_layout_desc &desc, api::pipeline_layout *out)
+bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t count, const api::pipeline_layout_param *params, api::pipeline_layout *out)
 {
-	std::vector<D3D12_ROOT_PARAMETER> params(desc.num_params);
-	std::vector<std::vector<D3D12_DESCRIPTOR_RANGE>> ranges(desc.num_params);
+	std::vector<D3D12_ROOT_PARAMETER> internal_params(count);
+	std::vector<std::vector<D3D12_DESCRIPTOR_RANGE>> ranges(count);
 
-	for (UINT i = 0; i < desc.num_params; ++i)
+	for (UINT i = 0; i < count; ++i)
 	{
 		uint32_t visibility_mask = 0;
 
-		if (desc.params[i].type != api::pipeline_layout_param_type::push_constants)
+		if (params[i].type != api::pipeline_layout_param_type::push_constants)
 		{
-			if (desc.params[i].num_ranges == 0 || (desc.params[i].num_ranges == 1 && desc.params[i].descriptor_ranges[0].count == 0))
+			const auto set_layout_impl = reinterpret_cast<const descriptor_set_layout_impl *>(params[i].descriptor_layout.handle);
+
+			if (set_layout_impl->ranges.empty())
 			{
 				// Dummy parameter (to prevent root signature creation from failing)
-				params[i].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
-				params[i].Constants.ShaderRegister = i;
-				params[i].Constants.RegisterSpace = 255;
-				params[i].Constants.Num32BitValues = 1;
+				internal_params[i].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+				internal_params[i].Constants.ShaderRegister = i;
+				internal_params[i].Constants.RegisterSpace = 255;
+				internal_params[i].Constants.Num32BitValues = 1;
 				continue;
 			}
 
-			ranges[i].resize(desc.params[i].num_ranges);
+			ranges[i].reserve(set_layout_impl->ranges.size());
 
 			D3D12_DESCRIPTOR_HEAP_TYPE prev_heap_type = D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES;
 
-			for (UINT k = 0; k < desc.params[i].num_ranges; ++k)
+			for (const api::descriptor_range &range : set_layout_impl->ranges)
 			{
-				const auto &descriptor_range = desc.params[i].descriptor_ranges[k];
+				D3D12_DESCRIPTOR_RANGE &internal_range = ranges[i].emplace_back();
+				internal_range.RangeType = convert_descriptor_type(range.type);
+				internal_range.NumDescriptors = range.array_size;
+				internal_range.BaseShaderRegister = range.dx_register_index;
+				internal_range.RegisterSpace = range.dx_register_space;
+				internal_range.OffsetInDescriptorsFromTableStart = range.offset;
 
-				D3D12_DESCRIPTOR_RANGE &range = ranges[i][k];
-				range.RangeType = convert_descriptor_type(descriptor_range.type);
-				range.NumDescriptors = descriptor_range.count;
-				range.BaseShaderRegister = descriptor_range.dx_register_index;
-				range.RegisterSpace = descriptor_range.dx_register_space;
-				range.OffsetInDescriptorsFromTableStart = descriptor_range.binding;
-
-				visibility_mask |= static_cast<uint32_t>(descriptor_range.visibility);
+				visibility_mask |= static_cast<uint32_t>(range.visibility);
 
 				// Cannot mix different descriptor heap types in a single descriptor table
-				const D3D12_DESCRIPTOR_HEAP_TYPE heap_type = convert_descriptor_type_to_heap_type(descriptor_range.type);
+				const D3D12_DESCRIPTOR_HEAP_TYPE heap_type = convert_descriptor_type_to_heap_type(range.type);
 				if (prev_heap_type != D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES && prev_heap_type != heap_type)
 				{
 					*out = { 0 };
 					return false;
 				}
-				else
-				{
-					prev_heap_type  = heap_type;
-				}
+
+				prev_heap_type = heap_type;
 			}
 
-			params[i].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-			params[i].DescriptorTable.NumDescriptorRanges = desc.params[i].num_ranges;
-			params[i].DescriptorTable.pDescriptorRanges = ranges[i].data();
+			internal_params[i].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+			internal_params[i].DescriptorTable.NumDescriptorRanges = static_cast<uint32_t>(ranges[i].size());
+			internal_params[i].DescriptorTable.pDescriptorRanges = ranges[i].data();
 		}
 		else
 		{
-			params[i].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
-			params[i].Constants.ShaderRegister = desc.params[i].constant_range.dx_register_index;
-			params[i].Constants.RegisterSpace = desc.params[i].constant_range.dx_register_space;
-			params[i].Constants.Num32BitValues = desc.params[i].constant_range.count;
+			internal_params[i].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+			internal_params[i].Constants.ShaderRegister = params[i].push_constants.dx_register_index;
+			internal_params[i].Constants.RegisterSpace = params[i].push_constants.dx_register_space;
+			internal_params[i].Constants.Num32BitValues = params[i].push_constants.count;
 
-			visibility_mask = static_cast<uint32_t>(desc.params[i].constant_range.visibility);
+			visibility_mask = static_cast<uint32_t>(params[i].push_constants.visibility);
 		}
 
 		switch (static_cast<api::shader_stage>(visibility_mask))
 		{
 		default:
-			params[i].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+			internal_params[i].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 			break;
 		case api::shader_stage::vertex:
-			params[i].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+			internal_params[i].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
 			break;
 		case api::shader_stage::hull:
-			params[i].ShaderVisibility = D3D12_SHADER_VISIBILITY_HULL;
+			internal_params[i].ShaderVisibility = D3D12_SHADER_VISIBILITY_HULL;
 			break;
 		case api::shader_stage::domain:
-			params[i].ShaderVisibility = D3D12_SHADER_VISIBILITY_DOMAIN;
+			internal_params[i].ShaderVisibility = D3D12_SHADER_VISIBILITY_DOMAIN;
 			break;
 		case api::shader_stage::geometry:
-			params[i].ShaderVisibility = D3D12_SHADER_VISIBILITY_GEOMETRY;
+			internal_params[i].ShaderVisibility = D3D12_SHADER_VISIBILITY_GEOMETRY;
 			break;
 		case api::shader_stage::pixel:
-			params[i].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+			internal_params[i].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 			break;
 		}
 	}
 
 	D3D12_ROOT_SIGNATURE_DESC internal_desc = {};
 	internal_desc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-	internal_desc.NumParameters = desc.num_params;
-	internal_desc.pParameters = params.data();
+	internal_desc.NumParameters = count;
+	internal_desc.pParameters = internal_params.data();
 
 	com_ptr<ID3DBlob> blob;
 	com_ptr<ID3D12RootSignature> signature;
 	if (SUCCEEDED(D3D12SerializeRootSignature(&internal_desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, nullptr)) &&
 		SUCCEEDED(_orig->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&signature))))
 	{
-		api::pipeline_layout_desc desc_copy;
-		desc_copy.num_params = desc.num_params;
-		desc_copy.params = new api::pipeline_layout_param[desc.num_params];
-		for (UINT i = 0; i < desc.num_params; ++i)
-		{
-			auto out_params = const_cast<api::pipeline_layout_param *>(desc_copy.params);
-			out_params[i] = desc.params[i];
-			if (desc.params[i].type != api::pipeline_layout_param_type::push_constants)
-			{
-				out_params[i].descriptor_ranges = new reshade::api::descriptor_range[desc.params[i].num_ranges];
-				for (UINT k = 0; k < desc.params[i].num_ranges; ++k)
-				{
-					const_cast<api::descriptor_range *>(out_params[i].descriptor_ranges)[k] = desc.params[i].descriptor_ranges[k];
-				}
-			}
-			else
-			{
-				out_params[i].descriptor_ranges = nullptr;
-			}
-		}
-
-		signature->SetPrivateData(pipeline_extra_data_guid, sizeof(desc), &desc_copy);
+		signature->SetPrivateData(pipeline_extra_data_guid, count * sizeof(api::pipeline_layout_param), params);
 
 		*out = { reinterpret_cast<uintptr_t>(signature.release()) };
 		return true;
@@ -598,18 +575,21 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(const api::pipeline_lay
 }
 void reshade::d3d12::device_impl::destroy_pipeline_layout(api::pipeline_layout handle)
 {
-	if (handle.handle == 0)
-		return;
+	if (handle.handle != 0)
+		reinterpret_cast<IUnknown *>(handle.handle)->Release();
+}
 
-	api::pipeline_layout_desc layout_desc = {};
-	UINT size = sizeof(layout_desc);
-	reinterpret_cast<ID3D12RootSignature *>(handle.handle)->GetPrivateData(pipeline_extra_data_guid, &size, &layout_desc);
+bool reshade::d3d12::device_impl::create_descriptor_set_layout(uint32_t count, const api::descriptor_range *bindings, bool, api::descriptor_set_layout *out)
+{
+	const auto set_layout_impl = new descriptor_set_layout_impl();
+	set_layout_impl->ranges.assign(bindings, bindings + count);
 
-	for (UINT i = 0; i < layout_desc.num_params; ++i)
-		delete[] layout_desc.params[i].descriptor_ranges;
-	delete[] layout_desc.params;
-
-	reinterpret_cast<IUnknown *>(handle.handle)->Release();
+	*out = { reinterpret_cast<uintptr_t>(set_layout_impl) };
+	return true;
+}
+void reshade::d3d12::device_impl::destroy_descriptor_set_layout(api::descriptor_set_layout handle)
+{
+	delete reinterpret_cast<descriptor_set_layout_impl *>(handle.handle);
 }
 
 bool reshade::d3d12::device_impl::create_query_pool(api::query_type type, uint32_t size, api::query_pool *out)
@@ -872,114 +852,91 @@ bool reshade::d3d12::device_impl::get_query_pool_results(api::query_pool pool, u
 	return false;
 }
 
-bool reshade::d3d12::device_impl::allocate_descriptor_sets(api::pipeline_layout layout, uint32_t param_index, uint32_t count, api::descriptor_set *out)
+bool reshade::d3d12::device_impl::allocate_descriptor_sets(uint32_t count, const api::descriptor_set_layout *layouts, api::descriptor_set *out)
 {
-	assert(layout.handle != 0);
-	api::pipeline_layout_desc desc = {};
-	UINT size = sizeof(desc);
-	reinterpret_cast<ID3D12RootSignature *>(layout.handle)->GetPrivateData(pipeline_extra_data_guid, &size, &desc);
-
-	UINT total_size = 0;
-	D3D12_DESCRIPTOR_HEAP_TYPE heap_type = convert_descriptor_type_to_heap_type(desc.params[param_index].descriptor_ranges[0].type);
-	for (UINT i = 0; i < desc.params[param_index].num_ranges; ++i)
-	{
-		total_size = std::max(total_size, desc.params[param_index].descriptor_ranges[i].binding + desc.params[param_index].descriptor_ranges[i].count);
-	}
-
 	for (UINT i = 0; i < count; ++i)
 	{
+		const auto set_layout_impl = reinterpret_cast<const descriptor_set_layout_impl *>(layouts[i].handle);
+
+		if (set_layout_impl->ranges.empty())
+		{
+			out[i] = { 0 };
+			continue;
+		}
+
+		UINT total_count = 0;
+		for (const api::descriptor_range &range : set_layout_impl->ranges)
+			total_count = std::max(total_count, range.offset + range.array_size);
+
+		const auto heap_type = convert_descriptor_type_to_heap_type(set_layout_impl->ranges[0].type);
+
 		D3D12_CPU_DESCRIPTOR_HANDLE base_handle;
 		D3D12_GPU_DESCRIPTOR_HANDLE base_handle_gpu;
 
 		if (heap_type != D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER)
-			_gpu_view_heap.allocate_static(total_size, base_handle, base_handle_gpu);
+			_gpu_view_heap.allocate_static(total_count, base_handle, base_handle_gpu);
 		else
-			_gpu_sampler_heap.allocate_static(total_size, base_handle, base_handle_gpu);
+			_gpu_sampler_heap.allocate_static(total_count, base_handle, base_handle_gpu);
 
-		_descriptor_set_map[base_handle_gpu.ptr] = base_handle;
+		_descriptor_set_map.emplace(base_handle_gpu.ptr, std::make_pair(base_handle, total_count));
 		out[i] = { base_handle_gpu.ptr };
 	}
 
 	return true;
 }
-void reshade::d3d12::device_impl::free_descriptor_sets(api::pipeline_layout layout, uint32_t param_index, uint32_t count, const api::descriptor_set *sets)
+void reshade::d3d12::device_impl::free_descriptor_sets(uint32_t count, const api::descriptor_set *sets)
 {
-	assert(layout.handle != 0);
-	api::pipeline_layout_desc desc = {};
-	UINT size = sizeof(desc);
-	reinterpret_cast<ID3D12RootSignature *>(layout.handle)->GetPrivateData(pipeline_extra_data_guid, &size, &desc);
-
-	UINT total_size = 0;
-	for (UINT i = 0; i < desc.params[param_index].num_ranges; ++i)
-	{
-		total_size = std::max(total_size, desc.params[param_index].descriptor_ranges[i].binding + desc.params[param_index].descriptor_ranges[i].count);
-	}
-
 	for (UINT i = 0; i < count; ++i)
 	{
 		if (sets[i].handle == 0)
 			continue;
 
-		_gpu_view_heap.deallocate({ static_cast<SIZE_T>(sets[i].handle) }, total_size);
-		_gpu_sampler_heap.deallocate({ static_cast<SIZE_T>(sets[i].handle) }, total_size);
+		const UINT descriptor_count = _descriptor_set_map.at(sets[i].handle).second;
+		_descriptor_set_map.erase(sets[i].handle);
+
+		_gpu_view_heap.deallocate({ static_cast<SIZE_T>(sets[i].handle) }, descriptor_count);
+		_gpu_sampler_heap.deallocate({ static_cast<SIZE_T>(sets[i].handle) }, descriptor_count);
 	}
 }
-
-void reshade::d3d12::device_impl::update_descriptor_sets(uint32_t num_writes, const api::write_descriptor_set *writes, uint32_t num_copies, const api::copy_descriptor_set *copies)
+void reshade::d3d12::device_impl::update_descriptor_sets(uint32_t count, const api::write_descriptor_set *writes)
 {
-	for (UINT i = 0; i < num_writes; ++i)
+	for (UINT i = 0; i < count; ++i)
 	{
 		const api::write_descriptor_set &info = writes[i];
 
 		const auto heap_type = convert_descriptor_type_to_heap_type(info.type);
 
-		D3D12_CPU_DESCRIPTOR_HANDLE dst_range_start = _descriptor_set_map.at(info.set.handle);
-		dst_range_start.ptr += info.binding * _descriptor_handle_size[heap_type];
+		D3D12_CPU_DESCRIPTOR_HANDLE dst_range_start = _descriptor_set_map.at(info.set.handle).first;
+		dst_range_start.ptr += info.offset * _descriptor_handle_size[heap_type];
 
 		if (info.type == api::descriptor_type::constant_buffer)
 		{
-			assert(info.descriptor.resource.handle != 0);
-			const auto buffer = reinterpret_cast<ID3D12Resource *>(info.descriptor.resource.handle);
+			for (UINT k = 0; k < info.count; ++k, dst_range_start.ptr += _descriptor_handle_size[heap_type])
+			{
+				const auto descriptor = static_cast<const api::buffer_range *>(info.descriptors)[k];
+				const auto buffer_object = reinterpret_cast<ID3D12Resource *>(descriptor.buffer.handle);
 
-			D3D12_CONSTANT_BUFFER_VIEW_DESC view_desc;
-			view_desc.BufferLocation = buffer->GetGPUVirtualAddress() + info.descriptor.offset;
-			view_desc.SizeInBytes = static_cast<UINT>(info.descriptor.size == std::numeric_limits<uint64_t>::max() ? buffer->GetDesc().Width : info.descriptor.size);
+				D3D12_CONSTANT_BUFFER_VIEW_DESC view_desc;
+				view_desc.BufferLocation = buffer_object->GetGPUVirtualAddress() + descriptor.offset;
+				view_desc.SizeInBytes = static_cast<UINT>(descriptor.size == std::numeric_limits<uint64_t>::max() ? buffer_object->GetDesc().Width : descriptor.size);
 
-			_orig->CreateConstantBufferView(&view_desc, dst_range_start);
+				_orig->CreateConstantBufferView(&view_desc, dst_range_start);
+			}
 		}
 		else
 		{
-			D3D12_CPU_DESCRIPTOR_HANDLE src_range_start = {};
+#ifndef WIN64
+			const UINT src_range_size = 1;
+			std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> src_handles(info.count);
+			for (UINT k = 0; k < info.count; ++k)
+				src_handles[k] = { static_cast<SIZE_T>(static_cast<const uint64_t *>(info.descriptors)[k]) };
 
-			switch (info.type)
-			{
-			case api::descriptor_type::shader_resource_view:
-			case api::descriptor_type::unordered_access_view:
-				assert(info.descriptor.view.handle != 0);
-				src_range_start.ptr = static_cast<SIZE_T>(info.descriptor.view.handle);
-				break;
-			case api::descriptor_type::sampler:
-				assert(info.descriptor.sampler.handle != 0);
-				src_range_start.ptr = static_cast<SIZE_T>(info.descriptor.sampler.handle);
-				break;
-			}
-
-			_orig->CopyDescriptorsSimple(1, dst_range_start, src_range_start, heap_type);
+			_orig->CopyDescriptors(1, &dst_range_start, &info.count, info.count, src_handles.data(), &src_range_size, heap_type);
+#else
+			std::vector<UINT> src_range_sizes(info.count, 1);
+			_orig->CopyDescriptors(1, &dst_range_start, &info.count, info.count, static_cast<const D3D12_CPU_DESCRIPTOR_HANDLE *>(info.descriptors), src_range_sizes.data(), heap_type);
+#endif
 		}
-	}
-
-	for (UINT i = 0; i < num_copies; ++i)
-	{
-		const api::copy_descriptor_set &info = copies[i];
-
-		const auto heap_type = convert_descriptor_type_to_heap_type(info.type);
-
-		D3D12_CPU_DESCRIPTOR_HANDLE src_range_start = _descriptor_set_map.at(info.src_set.handle);
-		src_range_start.ptr += info.src_binding * _descriptor_handle_size[heap_type];
-		D3D12_CPU_DESCRIPTOR_HANDLE dst_range_start = _descriptor_set_map.at(info.dst_set.handle);
-		dst_range_start.ptr += info.dst_binding * _descriptor_handle_size[heap_type];
-
-		_orig->CopyDescriptorsSimple(info.count, dst_range_start, src_range_start, heap_type);
 	}
 }
 
@@ -999,6 +956,31 @@ void reshade::d3d12::device_impl::set_resource_name(api::resource resource, cons
 	reinterpret_cast<ID3D12Resource *>(resource.handle)->SetName(debug_name_wide.c_str());
 }
 
+void reshade::d3d12::device_impl::get_pipeline_layout_desc(api::pipeline_layout layout, uint32_t *count, api::pipeline_layout_param *params) const
+{
+	assert(layout.handle != 0 && count != nullptr);
+
+	*count *= sizeof(api::pipeline_layout_param);
+	const HRESULT hr = reinterpret_cast<ID3D12RootSignature *>(layout.handle)->GetPrivateData(pipeline_extra_data_guid, count, params);
+	*count /= sizeof(api::pipeline_layout_param);
+	assert(SUCCEEDED(hr));
+}
+void reshade::d3d12::device_impl::get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *count, api::descriptor_range *bindings) const
+{
+	assert(layout.handle != 0 && count != nullptr);
+	const auto layout_impl = reinterpret_cast<const descriptor_set_layout_impl *>(layout.handle);
+
+	if (bindings != nullptr)
+	{
+		*count = std::min(*count, static_cast<uint32_t>(layout_impl->ranges.size()));
+		std::memcpy(bindings, layout_impl->ranges.data(), *count * sizeof(api::descriptor_range));
+	}
+	else
+	{
+		*count = static_cast<uint32_t>(layout_impl->ranges.size());
+	}
+}
+
 reshade::api::resource_desc reshade::d3d12::device_impl::get_resource_desc(api::resource resource) const
 {
 	assert(resource.handle != 0);
@@ -1009,16 +991,6 @@ reshade::api::resource_desc reshade::d3d12::device_impl::get_resource_desc(api::
 	reinterpret_cast<ID3D12Resource *>(resource.handle)->GetHeapProperties(&heap_props, &heap_flags);
 
 	return convert_resource_desc(reinterpret_cast<ID3D12Resource *>(resource.handle)->GetDesc(), heap_props, heap_flags);
-}
-
-reshade::api::pipeline_layout_desc reshade::d3d12::device_impl::get_pipeline_layout_desc(api::pipeline_layout layout) const
-{
-	assert(layout.handle != 0);
-
-	api::pipeline_layout_desc desc = {};
-	UINT size = sizeof(desc);
-	reinterpret_cast<ID3D12RootSignature *>(layout.handle)->GetPrivateData(pipeline_extra_data_guid, &size, &desc);
-	return desc; // TODO: Not implemented for layouts created via 'create_pipeline_layout'
 }
 
 void reshade::d3d12::device_impl::get_resource_from_view(api::resource_view view, api::resource *out) const

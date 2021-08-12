@@ -40,53 +40,6 @@ reshade::d3d9::device_impl::device_impl(IDirect3DDevice9 *device) :
 
 #if RESHADE_ADDON
 	load_addons();
-
-	// Create global pipeline layout that is used for all application descriptor events
-	const auto layout_size = sizeof(api::pipeline_layout_desc) + (8 * sizeof(api::pipeline_layout_param)) + (2 * sizeof(api::descriptor_range));
-	const auto layout_desc = static_cast<api::pipeline_layout_desc *>(operator new(layout_size));
-	std::memset(layout_desc, 0, layout_size);
-	const auto layout_params = reinterpret_cast<api::pipeline_layout_param *>(layout_desc + 1);
-	layout_desc->params = layout_params;
-	layout_desc->num_params = 8;
-	const auto descriptor_ranges = reinterpret_cast<api::descriptor_range *>(layout_params + 8);
-
-	// See https://docs.microsoft.com/windows/win32/direct3dhlsl/dx9-graphics-reference-asm-vs-registers-vs-3-0
-	layout_params[2].type = api::pipeline_layout_param_type::push_constants;
-	layout_params[2].constant_range.count = _caps.MaxVertexShaderConst * 4; // c#
-	layout_params[2].constant_range.visibility = api::shader_stage::vertex;
-	layout_params[3].type = api::pipeline_layout_param_type::push_constants;
-	layout_params[3].constant_range.count = 16 * 4; // i#
-	layout_params[3].constant_range.visibility = api::shader_stage::vertex;
-	layout_params[4].type = api::pipeline_layout_param_type::push_constants;
-	layout_params[4].constant_range.count = 16; // b#
-	layout_params[4].constant_range.visibility = api::shader_stage::vertex;
-
-	layout_params[0].type = api::pipeline_layout_param_type::push_descriptors;
-	layout_params[0].num_ranges = 1;
-	layout_params[0].descriptor_ranges = &descriptor_ranges[0];
-	descriptor_ranges[0].type = api::descriptor_type::sampler_with_resource_view;
-	descriptor_ranges[0].count = 4; // s#, Vertex shaders only support 4 sampler slots (D3DVERTEXTEXTURESAMPLER0 - D3DVERTEXTEXTURESAMPLER3)
-	descriptor_ranges[0].visibility = api::shader_stage::vertex;
-
-	// See https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/dx9-graphics-reference-asm-ps-registers-ps-3-0
-	layout_params[5].type = api::pipeline_layout_param_type::push_constants;
-	layout_params[5].constant_range.count = 224 * 4; // c#
-	layout_params[5].constant_range.visibility = api::shader_stage::pixel;
-	layout_params[6].type = api::pipeline_layout_param_type::push_constants;
-	layout_params[6].constant_range.count = 16 * 4; // i#
-	layout_params[6].constant_range.visibility = api::shader_stage::pixel;
-	layout_params[7].type = api::pipeline_layout_param_type::push_constants;
-	layout_params[7].constant_range.count = 16; // b#
-	layout_params[7].constant_range.visibility = api::shader_stage::pixel;
-
-	layout_params[1].type = api::pipeline_layout_param_type::push_descriptors;
-	layout_params[1].num_ranges = 1;
-	layout_params[1].descriptor_ranges = &descriptor_ranges[1];
-	descriptor_ranges[1].type = api::descriptor_type::sampler_with_resource_view;
-	descriptor_ranges[1].count = _caps.MaxSimultaneousTextures; // s#
-	descriptor_ranges[1].visibility = api::shader_stage::pixel;
-
-	_global_pipeline_layout = { reinterpret_cast<uintptr_t>(layout_desc) };
 #endif
 
 	com_ptr<IDirect3DSwapChain9> swapchain;
@@ -97,6 +50,48 @@ reshade::d3d9::device_impl::device_impl(IDirect3DDevice9 *device) :
 	swapchain->GetPresentParameters(&pp);
 
 	on_init(pp);
+
+#if RESHADE_ADDON
+	// Create global pipeline layout that is used for all application descriptor events
+	api::descriptor_range push_descriptors = {};
+	api::pipeline_layout_param layout_params[8] = {};
+
+	// See https://docs.microsoft.com/windows/win32/direct3dhlsl/dx9-graphics-reference-asm-vs-registers-vs-3-0
+	layout_params[2].type = api::pipeline_layout_param_type::push_constants;
+	layout_params[2].push_constants.count = _caps.MaxVertexShaderConst * 4; // c#
+	layout_params[2].push_constants.visibility = api::shader_stage::vertex;
+	layout_params[3].type = api::pipeline_layout_param_type::push_constants;
+	layout_params[3].push_constants.count = 16 * 4; // i#
+	layout_params[3].push_constants.visibility = api::shader_stage::vertex;
+	layout_params[4].type = api::pipeline_layout_param_type::push_constants;
+	layout_params[4].push_constants.count = 16; // b#
+	layout_params[4].push_constants.visibility = api::shader_stage::vertex;
+
+	push_descriptors.type = api::descriptor_type::sampler_with_resource_view;
+	push_descriptors.array_size = 4; // s#, Vertex shaders only support 4 sampler slots (D3DVERTEXTEXTURESAMPLER0 - D3DVERTEXTEXTURESAMPLER3)
+	push_descriptors.visibility = api::shader_stage::vertex;
+	layout_params[0].type = api::pipeline_layout_param_type::push_descriptors;
+	create_descriptor_set_layout(1, &push_descriptors, true, &layout_params[0].descriptor_layout);
+
+	// See https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/dx9-graphics-reference-asm-ps-registers-ps-3-0
+	layout_params[5].type = api::pipeline_layout_param_type::push_constants;
+	layout_params[5].push_constants.count = 224 * 4; // c#
+	layout_params[5].push_constants.visibility = api::shader_stage::pixel;
+	layout_params[6].type = api::pipeline_layout_param_type::push_constants;
+	layout_params[6].push_constants.count = 16 * 4; // i#
+	layout_params[6].push_constants.visibility = api::shader_stage::pixel;
+	layout_params[7].type = api::pipeline_layout_param_type::push_constants;
+	layout_params[7].push_constants.count = 16; // b#
+	layout_params[7].push_constants.visibility = api::shader_stage::pixel;
+
+	push_descriptors.type = api::descriptor_type::sampler_with_resource_view;
+	push_descriptors.array_size = _caps.MaxSimultaneousTextures; // s#
+	push_descriptors.visibility = api::shader_stage::pixel;
+	layout_params[1].type = api::pipeline_layout_param_type::push_descriptors;
+	create_descriptor_set_layout(1, &push_descriptors, true, &layout_params[1].descriptor_layout);
+
+	create_pipeline_layout(8, layout_params, &_global_pipeline_layout);
+#endif
 }
 reshade::d3d9::device_impl::~device_impl()
 {
@@ -105,7 +100,10 @@ reshade::d3d9::device_impl::~device_impl()
 #if RESHADE_ADDON
 	unload_addons();
 
-	operator delete(reinterpret_cast<void *>(_global_pipeline_layout.handle));
+	const std::vector<api::pipeline_layout_param> layout_params = std::move(reinterpret_cast<pipeline_layout_impl *>(_global_pipeline_layout.handle)->params);
+	destroy_pipeline_layout(_global_pipeline_layout);
+	destroy_descriptor_set_layout(layout_params[0].descriptor_layout);
+	destroy_descriptor_set_layout(layout_params[1].descriptor_layout);
 #endif
 }
 
@@ -899,47 +897,100 @@ void reshade::d3d9::device_impl::destroy_pipeline(api::pipeline_stage type, api:
 		reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }
 
-bool reshade::d3d9::device_impl::create_pipeline_layout(const api::pipeline_layout_desc &desc, api::pipeline_layout *out)
+bool reshade::d3d9::device_impl::create_pipeline_layout(uint32_t count, const api::pipeline_layout_param *params, api::pipeline_layout *out)
 {
+	bool success = true;
+
 	const auto layout_impl = new pipeline_layout_impl();
-	layout_impl->ranges.resize(desc.num_params);
-	layout_impl->shader_registers.resize(desc.num_params);
+	layout_impl->params.assign(params, params + count);
+	layout_impl->shader_registers.resize(count);
 
-	for (UINT i = 0; i < desc.num_params; ++i)
+	for (uint32_t i = 0; i < count && success; ++i)
 	{
-		if (desc.params[i].type != api::pipeline_layout_param_type::push_constants)
+		if (params[i].type != api::pipeline_layout_param_type::push_constants)
 		{
-			if (desc.params[i].num_ranges != 1 || desc.params[i].descriptor_ranges[0].dx_register_space != 0)
-			{
-				delete layout_impl;
+			const auto set_layout_impl = reinterpret_cast<const descriptor_set_layout_impl *>(params[i].descriptor_layout.handle);
 
-				*out = { 0 };
-				return false;
-			}
-
-			layout_impl->ranges[i] = desc.params[i].descriptor_ranges[0];
-			layout_impl->shader_registers[i] = desc.params[i].descriptor_ranges[0].dx_register_index;
+			layout_impl->shader_registers[i] = set_layout_impl->range.dx_register_index;
 		}
 		else
 		{
-			if (desc.params[i].constant_range.dx_register_space != 0)
-			{
-				delete layout_impl;
-
-				*out = { 0 };
-				return false;
-			}
-
-			layout_impl->shader_registers[i] = desc.params[i].constant_range.offset / 4;
+			if (params[i].push_constants.dx_register_space != 0)
+				success = false;
+			layout_impl->shader_registers[i] = params[i].push_constants.offset / 4;
 		}
 	}
 
-	*out = { reinterpret_cast<uintptr_t>(layout_impl) };
-	return true;
+	if (success)
+	{
+		*out = { reinterpret_cast<uintptr_t>(layout_impl) };
+		return true;
+	}
+	else
+	{
+		delete layout_impl;
+
+		*out = { 0 };
+		return false;
+	}
 }
 void reshade::d3d9::device_impl::destroy_pipeline_layout(api::pipeline_layout handle)
 {
 	delete reinterpret_cast<pipeline_layout_impl *>(handle.handle);
+}
+
+bool reshade::d3d9::device_impl::create_descriptor_set_layout(uint32_t count, const api::descriptor_range *bindings, bool, api::descriptor_set_layout *out)
+{
+	bool success = true;
+	api::descriptor_range merged_range = count ? bindings[0] : api::descriptor_range {};
+
+	for (uint32_t i = 1; i < count && success; ++i)
+	{
+		if (bindings[i].type != merged_range.type || bindings[i].dx_register_space != 0)
+			success = false;
+
+		if (bindings[i].offset >= merged_range.offset)
+		{
+			const uint32_t distance = bindings[i].offset - merged_range.offset;
+
+			if ((bindings[i].dx_register_index - merged_range.dx_register_index) != distance)
+				success = false;
+
+			merged_range.array_size += distance;
+			merged_range.visibility |= bindings[i].visibility;
+		}
+		else
+		{
+			const uint32_t distance = merged_range.offset - bindings[i].offset;
+
+			if ((merged_range.dx_register_index - bindings[i].dx_register_index) != distance)
+				success = false;
+
+			merged_range.offset = bindings[i].offset;
+			merged_range.binding = bindings[i].binding;
+			merged_range.dx_register_index = bindings[i].dx_register_index;
+			merged_range.array_size += distance;
+			merged_range.visibility |= bindings[i].visibility;
+		}
+	}
+
+	if (success)
+	{
+		const auto set_layout_impl = new descriptor_set_layout_impl();
+		set_layout_impl->range = merged_range;
+
+		*out = { reinterpret_cast<uintptr_t>(set_layout_impl) };
+		return true;
+	}
+	else
+	{
+		*out = { 0 };
+		return false;
+	}
+}
+void reshade::d3d9::device_impl::destroy_descriptor_set_layout(api::descriptor_set_layout handle)
+{
+	delete reinterpret_cast<descriptor_set_layout_impl *>(handle.handle);
 }
 
 bool reshade::d3d9::device_impl::create_query_pool(api::query_type type, uint32_t size, api::query_pool *out)
@@ -1307,31 +1358,45 @@ bool reshade::d3d9::device_impl::get_query_pool_results(api::query_pool pool, ui
 	return true;
 }
 
-bool reshade::d3d9::device_impl::allocate_descriptor_sets(api::pipeline_layout layout, uint32_t param_index, uint32_t count, api::descriptor_set *out)
+bool reshade::d3d9::device_impl::allocate_descriptor_sets(uint32_t count, const api::descriptor_set_layout *layouts, api::descriptor_set *out)
 {
-	assert(layout.handle != 0);
-	const auto layout_impl = reinterpret_cast<pipeline_layout_impl *>(layout.handle);
-
 	for (UINT i = 0; i < count; ++i)
 	{
+		const auto set_layout = reinterpret_cast<const descriptor_set_layout_impl *>(layouts[i].handle);
+		assert(set_layout != nullptr);
+
 		const auto set = new descriptor_set_impl();
-		set->type = layout_impl->ranges[param_index].type;
-		set->descriptors.resize(layout_impl->ranges[param_index].count * (set->type == api::descriptor_type::sampler_with_resource_view ? 2 : 1));
+		set->type = set_layout->range.type;
+		set->count = set_layout->range.array_size;
+
+		switch (set->type)
+		{
+		case api::descriptor_type::sampler:
+		case api::descriptor_type::shader_resource_view:
+			set->descriptors.resize(set->count * 1);
+			break;
+		case api::descriptor_type::sampler_with_resource_view:
+			set->descriptors.resize(set->count * 2);
+			break;
+		case api::descriptor_type::unordered_access_view:
+		case api::descriptor_type::constant_buffer:
+			assert(false);
+			break;
+		}
 
 		out[i] = { reinterpret_cast<uintptr_t>(set) };
 	}
 
 	return true;
 }
-void reshade::d3d9::device_impl::free_descriptor_sets(api::pipeline_layout, uint32_t, uint32_t count, const api::descriptor_set *sets)
+void reshade::d3d9::device_impl::free_descriptor_sets(uint32_t count, const api::descriptor_set *sets)
 {
 	for (UINT i = 0; i < count; ++i)
 		delete reinterpret_cast<descriptor_set_impl *>(sets[i].handle);
 }
-
-void reshade::d3d9::device_impl::update_descriptor_sets(uint32_t num_writes, const api::write_descriptor_set *writes, uint32_t num_copies, const api::copy_descriptor_set *copies)
+void reshade::d3d9::device_impl::update_descriptor_sets(uint32_t count, const api::write_descriptor_set *writes)
 {
-	for (uint32_t i = 0; i < num_writes; ++i)
+	for (uint32_t i = 0; i < count; ++i)
 	{
 		const auto set_impl = reinterpret_cast<descriptor_set_impl *>(writes[i].set.handle);
 
@@ -1340,18 +1405,11 @@ void reshade::d3d9::device_impl::update_descriptor_sets(uint32_t num_writes, con
 		switch (info.type)
 		{
 		case api::descriptor_type::sampler:
-			assert(info.descriptor.sampler.handle != 0);
-			set_impl->descriptors[info.binding] = info.descriptor.sampler.handle;
+		case api::descriptor_type::shader_resource_view:
+			std::memcpy(&set_impl->descriptors[info.offset * 1], info.descriptors, info.count * sizeof(uint64_t) * 1);
 			break;
 		case api::descriptor_type::sampler_with_resource_view:
-			assert(info.descriptor.sampler.handle != 0);
-			set_impl->descriptors[info.binding * 2 + 0] = info.descriptor.sampler.handle;
-			assert(info.descriptor.view.handle != 0);
-			set_impl->descriptors[info.binding * 2 + 1] = info.descriptor.view.handle;
-			break;
-		case api::descriptor_type::shader_resource_view:
-			assert(info.descriptor.view.handle != 0);
-			set_impl->descriptors[info.binding] = info.descriptor.view.handle;
+			std::memcpy(&set_impl->descriptors[info.offset * 2], info.descriptors, info.count * sizeof(uint64_t) * 2);
 			break;
 		case api::descriptor_type::unordered_access_view:
 		case api::descriptor_type::constant_buffer:
@@ -1359,37 +1417,39 @@ void reshade::d3d9::device_impl::update_descriptor_sets(uint32_t num_writes, con
 			break;
 		}
 	}
+}
 
-	for (uint32_t i = 0; i < num_copies; ++i)
+void reshade::d3d9::device_impl::get_pipeline_layout_desc(api::pipeline_layout layout, uint32_t *count, api::pipeline_layout_param *params) const
+{
+	assert(layout.handle != 0 && count != nullptr);
+	const auto layout_impl = reinterpret_cast<const pipeline_layout_impl *>(layout.handle);
+
+	if (params != nullptr)
 	{
-		const auto src_set_impl = reinterpret_cast<descriptor_set_impl *>(copies[i].src_set.handle);
-		const auto dst_set_impl = reinterpret_cast<descriptor_set_impl *>(copies[i].dst_set.handle);
+		*count = std::min(*count, static_cast<uint32_t>(layout_impl->params.size()));
+		std::memcpy(params, layout_impl->params.data(), *count * sizeof(api::pipeline_layout_param));
+	}
+	else
+	{
+		*count = static_cast<uint32_t>(layout_impl->params.size());
+	}
+}
+void reshade::d3d9::device_impl::get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *count, api::descriptor_range *bindings) const
+{
+	assert(layout.handle != 0 && count != nullptr);
+	const auto layout_impl = reinterpret_cast<descriptor_set_layout_impl *>(layout.handle);
 
-		const api::copy_descriptor_set &info = copies[i];
-
-		switch (info.type)
+	if (bindings != nullptr)
+	{
+		if (*count != 0)
 		{
-		case api::descriptor_type::sampler:
-		case api::descriptor_type::shader_resource_view:
-		case api::descriptor_type::constant_buffer:
-			for (uint32_t k = 0; k < info.count; ++k)
-			{
-				dst_set_impl->descriptors[info.dst_binding + k] = src_set_impl->descriptors[info.src_binding + k];
-			}
-			break;
-		case api::descriptor_type::sampler_with_resource_view:
-			for (uint32_t k = 0; k < info.count; ++k)
-			{
-				const uint32_t src_binding = (info.src_binding + k * 2);
-				const uint32_t dst_binding = (info.dst_binding + k * 2);
-				dst_set_impl->descriptors[dst_binding + 0] = src_set_impl->descriptors[src_binding + 0];
-				dst_set_impl->descriptors[dst_binding + 1] = src_set_impl->descriptors[src_binding + 1];
-			}
-			break;
-		case api::descriptor_type::unordered_access_view:
-			assert(false);
-			break;
+			*count = 1;
+			*bindings = layout_impl->range;
 		}
+	}
+	else
+	{
+		*count = 1;
 	}
 }
 
@@ -1443,16 +1503,6 @@ reshade::api::resource_desc reshade::d3d9::device_impl::get_resource_desc(api::r
 
 	assert(false); // Not implemented
 	return api::resource_desc {};
-}
-
-reshade::api::pipeline_layout_desc reshade::d3d9::device_impl::get_pipeline_layout_desc(api::pipeline_layout layout) const
-{
-	assert(layout.handle != 0);
-
-	if (layout == _global_pipeline_layout)
-		return *reinterpret_cast<api::pipeline_layout_desc *>(layout.handle);
-	else
-		return api::pipeline_layout_desc {}; // TODO: Not implemented for layouts created via 'create_pipeline_layout'
 }
 
 void reshade::d3d9::device_impl::get_resource_from_view(api::resource_view view, api::resource *out) const

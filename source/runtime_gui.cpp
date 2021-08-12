@@ -3186,59 +3186,61 @@ bool reshade::runtime::init_imgui_resources()
 	if (_imgui_pipeline_layout.handle == 0)
 	{
 		api::descriptor_range ranges[2];
+		ranges[0].offset = 0;
 		ranges[0].binding = 0;
 		ranges[0].dx_register_space = 0;
-		ranges[0].count = 1;
+		ranges[0].array_size = 1;
 		ranges[0].visibility = api::shader_stage::pixel;
+		ranges[1].offset = 0;
 		ranges[1].binding = 0;
 		ranges[1].dx_register_space = 0;
-		ranges[1].count = 1;
+		ranges[1].array_size = 1;
 		ranges[1].visibility = api::shader_stage::pixel;
 
-		api::pipeline_layout_desc layout_desc;
+		uint32_t num_layout_params = 0;
 		api::pipeline_layout_param layout_params[3];
-		layout_desc.params = layout_params;
 
 		if (has_combined_sampler_and_view)
 		{
-			layout_desc.num_params = 1;
-
 			ranges[0].type = api::descriptor_type::sampler_with_resource_view;
 			ranges[0].dx_register_index = 0; // s0
 
-			layout_params[0].type = api::pipeline_layout_param_type::push_descriptors;
-			layout_params[0].num_ranges = 1;
-			layout_params[0].descriptor_ranges = &ranges[0];
+			_device->create_descriptor_set_layout(1, &ranges[0], true, &_imgui_set_layouts[0]);
+
+			layout_params[num_layout_params].type = api::pipeline_layout_param_type::push_descriptors;
+			layout_params[num_layout_params].descriptor_layout = _imgui_set_layouts[0];
+			num_layout_params++;
 		}
 		else
 		{
-			layout_desc.num_params = 2;
-
 			ranges[0].type = api::descriptor_type::sampler;
 			ranges[0].dx_register_index = 0; // s0
 
-			layout_params[0].type = api::pipeline_layout_param_type::push_descriptors;
-			layout_params[0].num_ranges = 1;
-			layout_params[0].descriptor_ranges = &ranges[0];
+			_device->create_descriptor_set_layout(1, &ranges[0], true, &_imgui_set_layouts[0]);
+
+			layout_params[num_layout_params].type = api::pipeline_layout_param_type::push_descriptors;
+			layout_params[num_layout_params].descriptor_layout = _imgui_set_layouts[0];
+			num_layout_params++;
 
 			ranges[1].type = api::descriptor_type::shader_resource_view;
 			ranges[1].dx_register_index = 0; // t0
 
-			layout_params[1].type = api::pipeline_layout_param_type::push_descriptors;
-			layout_params[1].num_ranges = 1;
-			layout_params[1].descriptor_ranges = &ranges[1];
+			_device->create_descriptor_set_layout(1, &ranges[1], true, &_imgui_set_layouts[1]);
+
+			layout_params[num_layout_params].type = api::pipeline_layout_param_type::push_descriptors;
+			layout_params[num_layout_params].descriptor_layout = _imgui_set_layouts[1];
+			num_layout_params++;
 		}
 
-		api::pipeline_layout_param &constant_param = layout_params[layout_desc.num_params++];
-		constant_param.type = api::pipeline_layout_param_type::push_constants;
-		constant_param.num_ranges = 1;
-		constant_param.constant_range.offset = 0;
-		constant_param.constant_range.dx_register_index = 0; // b0
-		constant_param.constant_range.dx_register_space = 0;
-		constant_param.constant_range.count = 16;
-		constant_param.constant_range.visibility = api::shader_stage::vertex;
+		layout_params[num_layout_params].type = api::pipeline_layout_param_type::push_constants;
+		layout_params[num_layout_params].push_constants.offset = 0;
+		layout_params[num_layout_params].push_constants.dx_register_index = 0; // b0
+		layout_params[num_layout_params].push_constants.dx_register_space = 0;
+		layout_params[num_layout_params].push_constants.count = 16;
+		layout_params[num_layout_params].push_constants.visibility = api::shader_stage::vertex;
+		num_layout_params++;
 
-		if (!_device->create_pipeline_layout(layout_desc, &_imgui_pipeline_layout))
+		if (!_device->create_pipeline_layout(num_layout_params, layout_params, &_imgui_pipeline_layout))
 		{
 			LOG(ERROR) << "Failed to create ImGui pipeline layout!";
 			return false;
@@ -3519,6 +3521,10 @@ void reshade::runtime::destroy_imgui_resources()
 	_imgui_pipeline = {};
 	_device->destroy_pipeline_layout(_imgui_pipeline_layout);
 	_imgui_pipeline_layout = {};
+	_device->destroy_descriptor_set_layout(_imgui_set_layouts[0]);
+	_imgui_set_layouts[0] = {};
+	_device->destroy_descriptor_set_layout(_imgui_set_layouts[1]);
+	_imgui_set_layouts[1] = {};
 }
 
 #endif

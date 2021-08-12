@@ -18,34 +18,22 @@ namespace reshade { namespace api
 	/// </summary>
 	enum class device_api
 	{
-		/// <summary>
-		/// Direct3D 9
-		/// </summary>
+		/// <summary>Direct3D 9</summary>
 		/// <remarks>https://docs.microsoft.com/windows/win32/direct3d9</remarks>
 		d3d9 = 0x9000,
-		/// <summary>
-		/// Direct3D 10
-		/// </summary>
+		/// <summary>Direct3D 10</summary>
 		/// <remarks>https://docs.microsoft.com/windows/win32/direct3d10</remarks>
 		d3d10 = 0xa000,
-		/// <summary>
-		/// Direct3D 11
-		/// </summary>
+		/// <summary>Direct3D 11</summary>
 		/// <remarks>https://docs.microsoft.com/windows/win32/direct3d11</remarks>
 		d3d11 = 0xb000,
-		/// <summary>
-		/// Direct3D 12
-		/// </summary>
+		/// <summary>Direct3D 12</summary>
 		/// <remarks>https://docs.microsoft.com/windows/win32/direct3d12</remarks>
 		d3d12 = 0xc000,
-		/// <summary>
-		/// OpenGL
-		/// </summary>
+		/// <summary>OpenGL</summary>
 		/// <remarks>https://www.khronos.org/opengl/</remarks>
 		opengl = 0x10000,
-		/// <summary>
-		/// Vulkan
-		/// </summary>
+		/// <summary>Vulkan</summary>
 		/// <remarks>https://www.khronos.org/vulkan/</remarks>
 		vulkan = 0x20000
 	};
@@ -233,7 +221,7 @@ namespace reshade { namespace api
 		virtual bool check_format_support(format format, resource_usage usage) const = 0;
 
 		/// <summary>
-		/// Creates a new sampler state object based on the specified <paramref name="desc"/>ription.
+		/// Creates a new sampler state object.
 		/// </summary>
 		/// <param name="desc">The description of the sampler to create.</param>
 		/// <param name="out">Pointer to a variable that is set to the handle of the created sampler.</param>
@@ -245,7 +233,7 @@ namespace reshade { namespace api
 		virtual void destroy_sampler(sampler handle) = 0;
 
 		/// <summary>
-		/// Allocates and creates a new resource based on the specified <paramref name="desc"/>ription.
+		/// Allocates and creates a new resource.
 		/// </summary>
 		/// <param name="desc">The description of the resource to create.</param>
 		/// <param name="initial_data">Optional data to upload to the resource after creation. This should point to an array of <see cref="mapped_subresource"/>, one for each subresource (mipmap levels and array layers). Can be <c>nullptr</c> to indicate no initial data to upload.</param>
@@ -260,7 +248,7 @@ namespace reshade { namespace api
 		virtual void destroy_resource(resource handle) = 0;
 
 		/// <summary>
-		/// Creates a new resource view for the specified <paramref name="resource"/> based on the specified <paramref name="desc"/>ription.
+		/// Creates a new resource view for the specified <paramref name="resource"/>.
 		/// </summary>
 		/// <param name="resource">The resource the view is created for.</param>
 		/// <param name="usage_type">The usage type of the resource view to create. Set to <see cref="resource_usage::shader_resource"/> to create a shader resource view, <see cref="resource_usage::depth_stencil"/> for a depth-stencil view, <see cref="resource_usage::render_target"/> for a render target etc.</param>
@@ -274,7 +262,7 @@ namespace reshade { namespace api
 		virtual void destroy_resource_view(resource_view handle) = 0;
 
 		/// <summary>
-		/// Creates a new pipeline state object based on the specified <paramref name="desc"/>ription.
+		/// Creates a new pipeline state object.
 		/// </summary>
 		/// <param name="desc">The description of the pipeline state object to create.</param>
 		/// <param name="out">Pointer to a variable that is set to the handle of the created pipeline state object.</param>
@@ -287,16 +275,31 @@ namespace reshade { namespace api
 		virtual void destroy_pipeline(pipeline_stage type, pipeline handle) = 0;
 
 		/// <summary>
-		/// Creates a new pipeline layout based on the specified <paramref name="desc"/>ription.
+		/// Creates a new pipeline layout.
 		/// </summary>
-		/// <param name="desc">The description of the pipeline layout to create.</param>
+		/// <param name="count">The number layout parameters</param>
+		/// <param name="params">Pointer to any array of layout parameters that describe this pipeline layout.</param>
 		/// <param name="out">Pointer to a variable that is set to the handle of the created pipeline layout.</param>
 		/// <returns><see langword="true"/> if the pipeline layout was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
-		virtual bool create_pipeline_layout(const pipeline_layout_desc &desc, pipeline_layout *out) = 0;
+		virtual bool create_pipeline_layout(uint32_t count, const pipeline_layout_param *params, pipeline_layout *out) = 0;
 		/// <summary>
 		/// Instantly destroys a pipeline layout that was previously created via <see cref="create_pipeline_layout"/>.
 		/// </summary>
 		virtual void destroy_pipeline_layout(pipeline_layout handle) = 0;
+
+		/// <summary>
+		/// Creates a new descriptor set layout.
+		/// </summary>
+		/// <param name="count">The number of bindings.</param>
+		/// <param name="bindings">Pointer to an array of descriptor set bindings that describe this descriptor set layout.</param>
+		/// <param name="push_descriptors"><see langword="true"/> if this layout is later used with <see cref="command_list::push_descriptors"/>, <see langword="false"/> if not.</param>
+		/// <param name="out">Pointer to a variable that is set to the handle of the created descriptor set layout.</param>
+		/// <returns><see langword="true"/> if the descriptor set layout was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
+		virtual bool create_descriptor_set_layout(uint32_t count, const descriptor_range *bindings, bool push_descriptors, descriptor_set_layout *out) = 0;
+		/// <summary>
+		/// Instantly destroys a descriptor set layout that was previously created via <see cref="create_descriptor_set_layout"/>.
+		/// </summary>
+		virtual void destroy_descriptor_set_layout(descriptor_set_layout handle) = 0;
 
 		/// <summary>
 		/// Creates a new query pool.
@@ -312,7 +315,7 @@ namespace reshade { namespace api
 		virtual void destroy_query_pool(query_pool handle) = 0;
 
 		/// <summary>
-		/// Creates a new render pass based on the specified <paramref name="desc"/>ription.
+		/// Creates a new render pass.
 		/// </summary>
 		/// <param name="desc">The description of the render pass to create.</param>
 		/// <param name="out">Pointer to a variable that is set to the handle of the created render pass.</param>
@@ -324,12 +327,14 @@ namespace reshade { namespace api
 		virtual void destroy_render_pass(render_pass handle) = 0;
 
 		/// <summary>
-		/// Creates a new framebuffer object based on the specified <paramref name="desc"/>ription.
+		/// Creates a new framebuffer object.
 		/// </summary>
-		/// <returns><see langword="true"/> if the framebuffer object was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
+		/// <param name="desc">The description of the framebuffer to create.</param>
+		/// <param name="out">Pointer to a variable that is set to the handle of the created framebuffer.</param>
+		/// <returns><see langword="true"/> if the framebuffer was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out"/> is set to zero).</returns>
 		virtual bool create_framebuffer(const framebuffer_desc &desc, framebuffer *out) = 0;
 		/// <summary>
-		/// Instantly destroys a framebuffer object that was previously created via <see cref="create_framebuffer"/>.
+		/// Instantly destroys a framebuffer that was previously created via <see cref="create_framebuffer"/>.
 		/// </summary>
 		virtual void destroy_framebuffer(framebuffer handle) = 0;
 
@@ -337,7 +342,7 @@ namespace reshade { namespace api
 		/// Maps the memory of a resource into application address space.
 		/// </summary>
 		/// <param name="resource">The resource to map.</param>
-		/// <param name="subresource">The index of the subresource.</param>
+		/// <param name="subresource">The index of the subresource to map (<c>level + (layer * levels)</c>).</param>
 		/// <param name="access">A hint on how the returned data pointer will be accessed.</param>
 		/// <param name="data">Pointer to a variable that is set to a pointer to the memory of the resource.</param>
 		/// <param name="row_pitch">Optional pointer to a variable that is set to the row pitch of the <paramref name="data"/> (only set for textures).</param>
@@ -348,7 +353,7 @@ namespace reshade { namespace api
 		/// Unmaps a previously mapped resource.
 		/// </summary>
 		/// <param name="resource">The resource to unmap.</param>
-		/// <param name="subresource">The index of the subresource.</param>
+		/// <param name="subresource">The index of the subresource to unmap.</param>
 		virtual void unmap_resource(resource resource, uint32_t subresource) = 0;
 
 		/// <summary>
@@ -364,52 +369,52 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <param name="data">Pointer to the data to upload.</param>
 		/// <param name="destination">The texture resource to upload to.</param>
-		/// <param name="dst_subresource">The subresource of the <paramref name="resource"/> to upload to.</param>
+		/// <param name="dst_subresource">The index of the subresource to upload to.</param>
 		/// <param name="dst_box">A 3D box (or <c>nullptr</c> to reference the entire subresource) that defines the region in the <paramref name="resource"/> to upload to, in the format { left, top, front, right, bottom, back }.</param>
 		virtual void upload_texture_region(const subresource_data &data, resource destination, uint32_t dst_subresource, const int32_t dst_box[6] = nullptr) = 0;
 
 		/// <summary>
 		/// Gets the results of queries in a query pool.
 		/// </summary>
-		/// <param name="pool">The query pool that manages the results of the queries.</param>
-		/// <param name="first">The index of the first query in the pool to copy the result from.</param>
+		/// <param name="pool">The query pool that contains the queries.</param>
+		/// <param name="first">The index of the first query in the pool to copy the results from.</param>
 		/// <param name="count">The number of query results to copy.</param>
 		/// <param name="results">Pointer to an array that is filled with the results.</param>
-		/// <param name="stride">The size (in bytes) of each result element.</param>
+		/// <param name="stride">The size (in bytes) of each element in the <paramref name="results"/> array.</param>
 		/// <returns><see langword="true"/> if the query results were successfully downloaded from the GPU, <see langword="false"/> otherwise.</returns>
 		virtual bool get_query_pool_results(query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride) = 0;
 
 		/// <summary>
 		/// Allocates one or more descriptor sets.
 		/// </summary>
-		/// <param name="layout">The layout of the descriptor sets.</param>
 		/// <param name="count">The number of descriptor sets to allocate.</param>
+		/// <param name="layouts">The layouts of the descriptor sets to allocate.</param>
 		/// <param name="out">Pointer to an array of handles with at least <paramref name="count"/> elements that is filles with the handles of the created descriptor sets.</param>
 		/// <returns><see langword="true"/> if the descriptor sets were successfully created, <see langword="false"/> otherwise (in this case <paramref name="out"/> is filles with zeroes).</returns>
-		virtual bool allocate_descriptor_sets(pipeline_layout layout, uint32_t param_index, uint32_t count, descriptor_set *out) = 0;
+		virtual bool allocate_descriptor_sets(uint32_t count, const descriptor_set_layout *layouts, descriptor_set *out) = 0;
+		inline  bool allocate_descriptor_sets(descriptor_set_layout layout, uint32_t count, descriptor_set *out)
+		{
+			descriptor_set_layout *layouts = new descriptor_set_layout[count];
+			for (uint32_t i = 0; i < count; ++i)
+				layouts[i] = layout;
+			const bool result = allocate_descriptor_sets(count, layouts, out);
+			delete[] layouts;
+			return result;
+		}
 		/// <summary>
 		/// Frees one or more descriptor sets that were previously allocated via <see cref="allocate_descriptor_sets"/>.
 		/// </summary>
-		virtual void free_descriptor_sets(pipeline_layout layout, uint32_t param_index, uint32_t count, const descriptor_set *sets) = 0;
-
+		virtual void free_descriptor_sets(uint32_t count, const descriptor_set *sets) = 0;
 		/// <summary>
 		/// Updates the contents of descriptor sets with the specified descriptors.
 		/// </summary>
-		/// <param name="num_writes">The number of writes to process.</param>
+		/// <param name="count">The number of writes to process.</param>
 		/// <param name="writes">A pointer to an array of descriptor set write information to process.</param>
-		inline  void update_descriptor_sets(uint32_t num_writes, const write_descriptor_set *writes) { update_descriptor_sets(num_writes, writes, 0, nullptr); }
-		/// <summary>
-		/// Updates the contents of descriptor sets with the specified descriptors and/or copies them from different descriptor sets.
-		/// </summary>
-		/// <param name="num_writes">The number of writes to process.</param>
-		/// <param name="writes">A pointer to an array of descriptor set write information to process.</param>
-		/// <param name="num_copies">The number of copies to process.</param>
-		/// <param name="copies">A pointer to an array of descriptor set copy information to process.</param>
-		virtual void update_descriptor_sets(uint32_t num_writes, const write_descriptor_set *writes, uint32_t num_copies, const copy_descriptor_set *copies) = 0;
+		virtual void update_descriptor_sets(uint32_t count, const write_descriptor_set *writes) = 0;
 
 		/// <summary>
 		/// Waits for all issued GPU operations to finish before returning.
-		/// This can be used to ensure that e.g. resources are no longer in use on the GPU before destroying them.
+		/// This can be used to e.g. ensure that resources are no longer in use on the GPU before destroying them.
 		/// </summary>
 		virtual void wait_idle() const = 0;
 
@@ -421,13 +426,26 @@ namespace reshade { namespace api
 		virtual void set_resource_name(resource resource, const char *name) = 0;
 
 		/// <summary>
+		/// Gets the description of the specified pipeline <paramref name="layout"/>.
+		/// <para>Call this first with <paramref name="params"/> set to <c>nullptr</c> to get the size of the array, then allocate the array and call this again with <paramref name="params"/> set to it.</para>
+		/// </summary>
+		/// <param name="layout">The pipeline layout to get the description for.</param>
+		/// <param name="count">A pointer to a variable that is set to the number of layout parameters in the pipeline <paramref name="layout"/>.</param>
+		/// <param name="params">An optional pointer to an array that is filled with the layout parameters in the pipeline <paramref name="layout"/>.</param>
+		virtual void get_pipeline_layout_desc(pipeline_layout layout, uint32_t *count, pipeline_layout_param *params) const = 0;
+		/// <summary>
+		/// Gets the descriptor of the specified descriptor set <paramref name="layout"/>.
+		/// <para>Call this first with <paramref name="bindings"/> set to <c>nullptr</c> to get the size of the array, then allocate the array and call this again with <paramref name="bindings"/> set to it.</para>
+		/// </summary>
+		/// <param name="layout">The pipeline layout to get the description for.</param>
+		/// <param name="count">A pointer to a variable that is set to the number of bindings in the descriptor set <paramref name="layout"/>.</param>
+		/// <param name="bindings">An optional pointer to an array that is filled with the bindings in the descriptor set <paramref name="layout"/>.</param>
+		virtual void get_descriptor_set_layout_desc(descriptor_set_layout layout, uint32_t *count, descriptor_range *bindings) const = 0;
+
+		/// <summary>
 		/// Gets the description of the specified <paramref name="resource"/>.
 		/// </summary>
 		virtual resource_desc get_resource_desc(resource resource) const = 0;
-		/// <summary>
-		/// Gets the description of the specified pipeline <paramref name="layout"/>.
-		/// </summary>
-		virtual pipeline_layout_desc get_pipeline_layout_desc(pipeline_layout layout) const = 0;
 		/// <summary>
 		/// Gets the handle to the underlying resource the specified resource <paramref name="view"/> was created for.
 		/// </summary>
@@ -435,6 +453,11 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Gets the handle to the resource view of the specfied <paramref name="type"/> in the <paramref name="framebuffer"/> object.
 		/// </summary>
+		/// <param name="framebuffer">The framebuffer to get the attachment resource view from.</param>
+		/// <param name="type">The attachment type to get.</param>
+		/// <param name="index">The index of the attachment of the specified <paramref name="type"/> to get.</param>
+		/// <param name="attachment">A pointer to a variable that is set to the handle of the resource view attached to the framebuffer.</param>
+		/// <returns><see langword="true"/> if the attachment of the specified <paramref name="type"/> and <paramref name="index"/> exists in the framebuffer, <see langword="false"/> otherwise (in this case <paramref name="attachment"/> is set to zero).</returns>
 		virtual bool get_framebuffer_attachment(framebuffer framebuffer, attachment_type type, uint32_t index, resource_view *attachment) const = 0;
 	};
 
@@ -466,11 +489,11 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Adds a barrier for the specified <paramref name="resources"/> to the command stream.
 		/// </summary>
-		/// <param name="num_resources">The number of resources to transition.</param>
+		/// <param name="count">The number of resources to transition.</param>
 		/// <param name="resources">A pointer to an array of resources to transition.</param>
 		/// <param name="old_states">A pointer to an array of usage flags describing how the <paramref name="resources"/> were used before this barrier.</param>
 		/// <param name="new_states">A pointer to an array of usage flags describing how the <paramref name="resources"/> will be used after this barrier.</param>
-		virtual void barrier(uint32_t num_resources, const resource *resources, const resource_usage *old_states, const resource_usage *new_states) = 0;
+		virtual void barrier(uint32_t count, const resource *resources, const resource_usage *old_states, const resource_usage *new_states) = 0;
 
 		/// <summary>
 		/// Begins a render pass by binding its render targets and depth-stencil buffer.
@@ -478,23 +501,24 @@ namespace reshade { namespace api
 		virtual void begin_render_pass(render_pass pass, framebuffer framebuffer) = 0;
 		/// <summary>
 		/// Ends a render pass.
-		/// This must be preceeded by a call to <see cref="begin_render_pass"/>). Render passes cannot be nested.
+		/// This must be preceeded by a call to <see cref="begin_render_pass"/>).
+		/// Render passes cannot be nested.
 		/// </summary>
 		virtual void finish_render_pass() = 0;
 		/// <summary>
 		/// Binds individual render target and depth-stencil resource views.
 		/// This must not be called between <see cref="begin_render_pass"/> and <see cref="finish_render_pass"/>.
 		/// </summary>
-		virtual void bind_render_targets_and_depth_stencil(uint32_t count, const resource_view *rtvs, resource_view dsv) = 0;
+		virtual void bind_render_targets_and_depth_stencil(uint32_t count, const resource_view *rtvs, resource_view dsv = { 0 }) = 0;
 
 		/// <summary>
 		/// Binds a pipeline state object.
 		/// </summary>
-		/// <param name="type">The pipeline state object type to bind.</param>
+		/// <param name="type">The pipeline stage to bind the pipeline state object to.</param>
 		/// <param name="pipeline">The pipeline state object to bind.</param>
 		virtual void bind_pipeline(pipeline_stage type, pipeline pipeline) = 0;
 		/// <summary>
-		/// Updates the specfified pipeline <paramref name="states"/> to the specified values.
+		/// Updates the specfified pipeline <paramref name="states"/> to the specified <paramref name="values"/>.
 		/// This is only valid for states that have been listed in <see cref="pipeline_desc::graphics::dynamic_states"/> of the currently bound pipeline state object.
 		/// </summary>
 		/// <param name="count">The number of pipeline states to update.</param>
@@ -517,7 +541,7 @@ namespace reshade { namespace api
 		virtual void bind_scissor_rects(uint32_t first, uint32_t count, const int32_t *rects) = 0;
 
 		/// <summary>
-		/// Directly updates constant values in the specified shader pipeline stage.
+		/// Directly updates constant values in the specified shader pipeline stages.
 		/// <para>In D3D9 this updates the values of uniform registers, in D3D10/11 and OpenGL the constant buffer specified in the pipeline layout, in D3D12 it sets root constants and in Vulkan push constants.</para>
 		/// </summary>
 		/// <param name="stages">The shader stages that will use the updated constants.</param>
@@ -528,7 +552,7 @@ namespace reshade { namespace api
 		/// <param name="values">A pointer to an array of 32-bit values to set the constants to. These can be floating-point, integer or boolean depending on what the shader is expecting.</param>
 		virtual void push_constants(shader_stage stages, pipeline_layout layout, uint32_t layout_param, uint32_t first, uint32_t count, const void *values) = 0;
 		/// <summary>
-		/// Directly updates a descriptor set for the specfified shader pipeline stage with an array of descriptors.
+		/// Directly binds a temporary descriptor set for the specfified shader pipeline stage and updates with an array of descriptors.
 		/// </summary>
 		/// <param name="stages">The shader stages that will use the updated descriptors.</param>
 		/// <param name="layout">The pipeline layout that describes the descriptors.</param>
@@ -536,18 +560,27 @@ namespace reshade { namespace api
 		/// <param name="type">The type of descriptors to bind.</param>
 		/// <param name="first">The first binding in the descriptor set to update.</param>
 		/// <param name="count">The number of descriptors to update.</param>
-		/// <param name="descriptors">A pointer to an array of descriptors to update in the set. Depending on the descriptor <paramref name="type"/> this should pointer to an array of <see cref="resource"/>, <see cref="resource_view"/>, <see cref="sampler"/> or <see cref="sampler_with_resource_view"/>.</param>
+		/// <param name="descriptors">A pointer to an array of descriptors to update in the set. Depending on the descriptor <paramref name="type"/> this should be a pointer to an array of <see cref="buffer_range"/>, <see cref="resource_view"/>, <see cref="sampler"/> or <see cref="sampler_with_resource_view"/>.</param>
 		virtual void push_descriptors(shader_stage stages, pipeline_layout layout, uint32_t layout_param, descriptor_type type, uint32_t first, uint32_t count, const void *descriptors) = 0;
 		/// <summary>
-		/// Binds an array of descriptor sets.
-		/// <para>This is not supported (and will do nothing) in D3D9, D3D10, D3D11 and OpenGL.</para>
+		/// Binds a single descriptor set.
 		/// </summary>
 		/// <param name="stages">The shader stages that will use the descriptors.</param>
 		/// <param name="layout">The pipeline layout that describes the descriptors.</param>
 		/// <param name="layout_param">The index of the descriptor set in the pipeline <paramref name="layout"/> (root parameter index in D3D12, descriptor set index in Vulkan).</param>
 		/// <param name="set">The descriptor set to bind.</param>
-		/// <param name="binding_offset">The binding in the descriptor set to start with (not supported in Vulkan).</param>
-		virtual void bind_descriptor_set(shader_stage stages, pipeline_layout layout, uint32_t layout_param, descriptor_set set, uint32_t binding_offset = 0) = 0;
+		/// <param name="offset">The offset (in descriptors) into the descriptor set to start binding at (not supported in Vulkan).</param>
+		inline  void bind_descriptor_set(shader_stage stages, pipeline_layout layout, uint32_t layout_param, descriptor_set set, uint32_t offset = 0) { bind_descriptor_sets(stages, layout, layout_param, 1, &set, &offset); }
+		/// <summary>
+		/// Binds an array of descriptor sets.
+		/// </summary>
+		/// <param name="stages">The shader stages that will use the descriptors.</param>
+		/// <param name="layout">The pipeline layout that describes the descriptors.</param>
+		/// <param name="first">The index of the first descriptor set to bind.</param>
+		/// <param name="count">The number of descriptor sets to bind.</param>
+		/// <param name="sets">The descriptor sets to bind.</param>
+		/// <param name="offsets">Optional pointer to an array of offsets (in descriptors) into the descriptor sets to start binding at (not supported in Vulkan).</param>
+		virtual void bind_descriptor_sets(shader_stage stages, pipeline_layout layout, uint32_t first, uint32_t count, const descriptor_set *sets, const uint32_t *offsets) = 0;
 
 		/// <summary>
 		/// Binds an index buffer to the input-assembler stage.
@@ -595,10 +628,10 @@ namespace reshade { namespace api
 		/// Performs a compute shader dispatch.
 		/// This is not supported (and will do nothing) in D3D9 and D3D10.
 		/// </summary>
-		/// <param name="num_groups_x">The number of thread groups dispatched in the x direction.</param>
-		/// <param name="num_groups_y">The number of thread groups dispatched in the y direction.</param>
-		/// <param name="num_groups_z">The number of thread groups dispatched in the z direction.</param>
-		virtual void dispatch(uint32_t num_groups_x, uint32_t num_groups_y, uint32_t num_groups_z) = 0;
+		/// <param name="group_count_x">The number of thread groups dispatched in the x direction.</param>
+		/// <param name="group_count_y">The number of thread groups dispatched in the y direction.</param>
+		/// <param name="group_count_z">The number of thread groups dispatched in the z direction.</param>
+		virtual void dispatch(uint32_t group_count_x, uint32_t group_count_y, uint32_t group_count_z) = 0;
 		/// <summary>
 		/// Executes indirect draw or dispatch commands.
 		/// This is not supported (and will do nothing) in D3D9 and D3D10.

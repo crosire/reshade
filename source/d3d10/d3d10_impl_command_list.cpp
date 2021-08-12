@@ -23,7 +23,7 @@ void reshade::d3d10::pipeline_impl::apply(ID3D10Device *ctx) const
 void reshade::d3d10::device_impl::barrier(uint32_t count, const api::resource *, const api::resource_usage *old_states, const api::resource_usage *new_states)
 {
 	bool transitions_away_from_shader_resource_usage = false;
-	for (UINT i = 0; i < count; ++i)
+	for (uint32_t i = 0; i < count; ++i)
 	{
 		if ((old_states[i] & api::resource_usage::shader_resource) != api::resource_usage::undefined &&
 			(new_states[i] & api::resource_usage::shader_resource) == api::resource_usage::undefined)
@@ -61,7 +61,7 @@ void reshade::d3d10::device_impl::bind_render_targets_and_depth_stencil(uint32_t
 
 #ifndef WIN64
 	ID3D10RenderTargetView *rtv_ptrs[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
-	for (UINT i = 0; i < count; ++i)
+	for (uint32_t i = 0; i < count; ++i)
 		rtv_ptrs[i] = reinterpret_cast<ID3D10RenderTargetView *>(rtvs[i].handle);
 #else
 	const auto rtv_ptrs = reinterpret_cast<ID3D10RenderTargetView *const *>(rtvs);
@@ -107,7 +107,7 @@ void reshade::d3d10::device_impl::bind_pipeline(api::pipeline_stage type, api::p
 }
 void reshade::d3d10::device_impl::bind_pipeline_states(uint32_t count, const api::dynamic_state *states, const uint32_t *values)
 {
-	for (UINT i = 0; i < count; ++i)
+	for (uint32_t i = 0; i < count; ++i)
 	{
 		switch (states[i])
 		{
@@ -131,7 +131,7 @@ void reshade::d3d10::device_impl::bind_viewports(uint32_t first, uint32_t count,
 	}
 
 	D3D10_VIEWPORT viewport_data[D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];
-	for (UINT i = 0, k = 0; i < count; ++i, k += 6)
+	for (uint32_t i = 0, k = 0; i < count; ++i, k += 6)
 	{
 		viewport_data[i].TopLeftX = static_cast<INT>(viewports[k + 0]);
 		viewport_data[i].TopLeftY = static_cast<INT>(viewports[k + 1]);
@@ -160,7 +160,7 @@ void reshade::d3d10::device_impl::bind_samplers(api::shader_stage stages, uint32
 
 #ifndef WIN64
 	ID3D10SamplerState *sampler_ptrs[D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT];
-	for (UINT i = 0; i < count; ++i)
+	for (uint32_t i = 0; i < count; ++i)
 		sampler_ptrs[i] = reinterpret_cast<ID3D10SamplerState *>(samplers[i].handle);
 #else
 	const auto sampler_ptrs = reinterpret_cast<ID3D10SamplerState *const *>(samplers);
@@ -183,7 +183,7 @@ void reshade::d3d10::device_impl::bind_shader_resource_views(api::shader_stage s
 
 #ifndef WIN64
 	ID3D10ShaderResourceView *view_ptrs[D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT];
-	for (UINT i = 0; i < count; ++i)
+	for (uint32_t i = 0; i < count; ++i)
 		view_ptrs[i] = reinterpret_cast<ID3D10ShaderResourceView *>(views[i].handle);
 #else
 	const auto view_ptrs = reinterpret_cast<ID3D10ShaderResourceView *const *>(views);
@@ -196,7 +196,7 @@ void reshade::d3d10::device_impl::bind_shader_resource_views(api::shader_stage s
 	if ((stages & api::shader_stage::pixel) == api::shader_stage::pixel)
 		_orig->PSSetShaderResources(first, count, view_ptrs);
 }
-void reshade::d3d10::device_impl::bind_constant_buffers(api::shader_stage stages, uint32_t first, uint32_t count, const api::resource *buffers)
+void reshade::d3d10::device_impl::bind_constant_buffers(api::shader_stage stages, uint32_t first, uint32_t count, const api::buffer_range *buffer_ranges)
 {
 	if (count > D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT)
 	{
@@ -204,13 +204,12 @@ void reshade::d3d10::device_impl::bind_constant_buffers(api::shader_stage stages
 		count = D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT;
 	}
 
-#ifndef WIN64
 	ID3D10Buffer *buffer_ptrs[D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
-	for (UINT i = 0; i < count; ++i)
-		buffer_ptrs[i] = reinterpret_cast<ID3D10Buffer *>(buffers[i].handle);
-#else
-	const auto buffer_ptrs = reinterpret_cast<ID3D10Buffer *const *>(buffers);
-#endif
+	for (uint32_t i = 0; i < count; ++i)
+	{
+		buffer_ptrs[i] = reinterpret_cast<ID3D10Buffer *>(buffer_ranges[i].buffer.handle);
+		assert(buffer_ranges[i].offset == 0 && buffer_ranges[i].size == std::numeric_limits<uint64_t>::max());
+	}
 
 	if ((stages & api::shader_stage::vertex) == api::shader_stage::vertex)
 		_orig->VSSetConstantBuffers(first, count, buffer_ptrs);
@@ -284,22 +283,28 @@ void reshade::d3d10::device_impl::push_descriptors(api::shader_stage stages, api
 		assert(false);
 		break;
 	case api::descriptor_type::constant_buffer:
-		bind_constant_buffers(stages, first, count, static_cast<const api::resource *>(descriptors));
+		bind_constant_buffers(stages, first, count, static_cast<const api::buffer_range *>(descriptors));
 		break;
 	}
 }
-void reshade::d3d10::device_impl::bind_descriptor_set(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_set set, uint32_t binding_offset)
+void reshade::d3d10::device_impl::bind_descriptor_sets(api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_set *sets, const uint32_t *offsets)
 {
-	const auto set_impl = reinterpret_cast<descriptor_set_impl *>(set.handle);
+	assert(sets != nullptr);
 
-	push_descriptors(
-		stages,
-		layout,
-		layout_param,
-		set_impl->type,
-		0,
-		static_cast<uint32_t>(set_impl->descriptors.size() - binding_offset),
-		set_impl->descriptors.data() + binding_offset);
+	for (uint32_t i = 0; i < count; ++i)
+	{
+		const auto set_impl = reinterpret_cast<descriptor_set_impl *>(sets[i].handle);
+		const auto set_offset = (offsets != nullptr) ? offsets[i] : 0;
+
+		push_descriptors(
+			stages,
+			layout,
+			first + i,
+			set_impl->type,
+			0,
+			set_impl->count - set_offset,
+			set_impl->descriptors.data() + set_offset * (set_impl->descriptors.size() / set_impl->count));
+	}
 }
 
 void reshade::d3d10::device_impl::bind_index_buffer(api::resource buffer, uint64_t offset, uint32_t index_size)
@@ -319,14 +324,14 @@ void reshade::d3d10::device_impl::bind_vertex_buffers(uint32_t first, uint32_t c
 
 #ifndef WIN64
 	ID3D10Buffer *buffer_ptrs[D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
-	for (UINT i = 0; i < count; ++i)
+	for (uint32_t i = 0; i < count; ++i)
 		buffer_ptrs[i] = reinterpret_cast<ID3D10Buffer *>(buffers[i].handle);
 #else
 	const auto buffer_ptrs = reinterpret_cast<ID3D10Buffer *const *>(buffers);
 #endif
 
 	UINT offsets_32[D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
-	for (UINT i = 0; i < count; ++i)
+	for (uint32_t i = 0; i < count; ++i)
 		offsets_32[i] = static_cast<UINT>(offsets[i]);
 
 	_orig->IASetVertexBuffers(first, count, buffer_ptrs, strides, offsets_32);

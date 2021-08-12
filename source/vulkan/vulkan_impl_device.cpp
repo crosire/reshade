@@ -730,93 +730,111 @@ void reshade::vulkan::device_impl::destroy_pipeline(api::pipeline_stage, api::pi
 	vk.DestroyPipeline(_orig, (VkPipeline)handle.handle, nullptr);
 }
 
-bool reshade::vulkan::device_impl::create_pipeline_layout(const api::pipeline_layout_desc &desc, api::pipeline_layout *out)
+bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t count, const api::pipeline_layout_param *params, api::pipeline_layout *out)
 {
+	pipeline_layout_data data;
+	data.desc.assign(params, params + count);
+
 	std::vector<VkPushConstantRange> push_constant_ranges;
-	push_constant_ranges.reserve(desc.num_params);
-	std::vector<VkDescriptorSetLayout> internal_set_layouts;
-	internal_set_layouts.reserve(desc.num_params);
+	std::vector<VkDescriptorSetLayout> set_layouts;
+	set_layouts.reserve(count);
+	push_constant_ranges.reserve(count);
 
 	uint32_t i = 0;
-	for (; i < desc.num_params; ++i)
+
+	// Push constant ranges have to be at the end of the layout description
+	for (; i < count && params[i].type != api::pipeline_layout_param_type::push_constants; ++i)
 	{
-		// Push constant ranges have to be at the end of the layout description
-		if (desc.params[i].type == api::pipeline_layout_param_type::push_constants)
-			break;
-
-		std::vector<VkDescriptorSetLayoutBinding> internal_bindings;
-		for (uint32_t k = 0; k < desc.params[i].num_ranges; ++k)
-		{
-			const api::descriptor_range &range = desc.params[i].descriptor_ranges[k];
-
-			for (uint32_t j = 0; j < range.count; ++j)
-			{
-				VkDescriptorSetLayoutBinding &internal_binding = internal_bindings.emplace_back();
-				internal_binding.binding = range.binding + j;
-				internal_binding.descriptorType = static_cast<VkDescriptorType>(range.type);
-				internal_binding.descriptorCount = 1;
-				internal_binding.stageFlags = static_cast<VkShaderStageFlags>(range.visibility);
-				internal_binding.pImmutableSamplers = nullptr;
-			}
-		}
-
-		VkDescriptorSetLayoutCreateInfo set_create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
-		set_create_info.bindingCount = static_cast<uint32_t>(internal_bindings.size());
-		set_create_info.pBindings = internal_bindings.data();
-
-		if (desc.params[i].type == api::pipeline_layout_param_type::push_descriptors && vk.CmdPushDescriptorSetKHR != nullptr)
-			set_create_info.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
-
-		if (vk.CreateDescriptorSetLayout(_orig, &set_create_info, nullptr, &internal_set_layouts.emplace_back()) != VK_SUCCESS)
-		{
-			for (VkDescriptorSetLayout set_layout : internal_set_layouts)
-				vk.DestroyDescriptorSetLayout(_orig, set_layout, nullptr);
-
-			*out = { 0 };
-			return false;
-		}
+		set_layouts.push_back((VkDescriptorSetLayout)params[i].descriptor_layout.handle);
 	}
 
-	for (; i < desc.num_params && desc.params[i].type == api::pipeline_layout_param_type::push_constants; ++i)
+	for (; i < count && params[i].type == api::pipeline_layout_param_type::push_constants; ++i)
 	{
 		VkPushConstantRange &push_constant_range = push_constant_ranges.emplace_back();
-		push_constant_range.stageFlags = static_cast<VkShaderStageFlagBits>(desc.params[i].constant_range.visibility);
-		push_constant_range.offset = desc.params[i].constant_range.offset * 4;
-		push_constant_range.size = desc.params[i].constant_range.count * 4;
+		push_constant_range.stageFlags = static_cast<VkShaderStageFlagBits>(params[i].push_constants.visibility);
+		push_constant_range.offset = params[i].push_constants.offset * 4;
+		push_constant_range.size = params[i].push_constants.count * 4;
+	}
+
+	if (i < count)
+	{
+		*out = { 0 };
+		return false;
 	}
 
 	VkPipelineLayoutCreateInfo create_info { VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
-	create_info.setLayoutCount = static_cast<uint32_t>(internal_set_layouts.size());
-	create_info.pSetLayouts = internal_set_layouts.data();
+	create_info.setLayoutCount = static_cast<uint32_t>(set_layouts.size());
+	create_info.pSetLayouts =  set_layouts.data();
 	create_info.pushConstantRangeCount = static_cast<uint32_t>(push_constant_ranges.size());
 	create_info.pPushConstantRanges = push_constant_ranges.data();
 
 	if (VkPipelineLayout object = VK_NULL_HANDLE;
 		vk.CreatePipelineLayout(_orig, &create_info, nullptr, &object) == VK_SUCCESS)
 	{
-		_pipeline_layout_list[object].set_layouts.assign(create_info.pSetLayouts, create_info.pSetLayouts + create_info.setLayoutCount);
+		register_pipeline_layout(object, std::move(data));
 
 		*out = { (uint64_t)object };
 		return true;
 	}
 	else
 	{
-		for (VkDescriptorSetLayout set_layout : internal_set_layouts)
-			vk.DestroyDescriptorSetLayout(_orig, set_layout, nullptr);
-
 		*out = { 0 };
 		return false;
 	}
 }
 void reshade::vulkan::device_impl::destroy_pipeline_layout(api::pipeline_layout handle)
 {
-	auto &list = _pipeline_layout_list[(VkPipelineLayout)handle.handle];
-	for (VkDescriptorSetLayout set_layout : list.set_layouts)
-		vk.DestroyDescriptorSetLayout(_orig, set_layout, nullptr);
-
-	_pipeline_layout_list.erase((VkPipelineLayout)handle.handle);
+	unregister_pipeline_layout((VkPipelineLayout)handle.handle);
 
 	vk.DestroyPipelineLayout(_orig, (VkPipelineLayout)handle.handle, nullptr);
+}
+
+bool reshade::vulkan::device_impl::create_descriptor_set_layout(uint32_t count, const api::descriptor_range *bindings, bool push_descriptors, api::descriptor_set_layout *out)
+{
+	descriptor_set_layout_data data;
+	data.desc.assign(bindings, bindings + count);
+	data.binding_to_offset.reserve(count);
+
+	std::vector<VkDescriptorSetLayoutBinding> internal_bindings(count);
+
+	for (uint32_t i = 0; i < count; ++i)
+	{
+		const api::descriptor_range &range = bindings[i];
+
+		data.binding_to_offset[range.binding] = range.offset;
+
+		internal_bindings[i].binding = range.binding;
+		internal_bindings[i].descriptorType = static_cast<VkDescriptorType>(range.type);
+		internal_bindings[i].descriptorCount = range.array_size;
+		internal_bindings[i].stageFlags = static_cast<VkShaderStageFlags>(range.visibility);
+	}
+
+	VkDescriptorSetLayoutCreateInfo create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
+	create_info.bindingCount = count;
+	create_info.pBindings = internal_bindings.data();
+
+	if (push_descriptors && vk.CmdPushDescriptorSetKHR != nullptr)
+		create_info.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
+
+	if (VkDescriptorSetLayout object = VK_NULL_HANDLE;
+		vk.CreateDescriptorSetLayout(_orig, &create_info, nullptr, &object) == VK_SUCCESS)
+	{
+		register_descriptor_set_layout(object, std::move(data));
+
+		*out = { (uint64_t)object };
+		return true;
+	}
+	else
+	{
+		*out = { 0 };
+		return false;
+	}
+}
+void reshade::vulkan::device_impl::destroy_descriptor_set_layout(api::descriptor_set_layout handle)
+{
+	unregister_descriptor_set_layout((VkDescriptorSetLayout)handle.handle);
+
+	vk.DestroyDescriptorSetLayout(_orig, (VkDescriptorSetLayout)handle.handle, nullptr);
 }
 
 bool reshade::vulkan::device_impl::create_query_pool(api::query_type type, uint32_t count, api::query_pool *out)
@@ -1173,83 +1191,87 @@ bool reshade::vulkan::device_impl::get_query_pool_results(api::query_pool pool, 
 	return vk.GetQueryPoolResults(_orig, (VkQueryPool)pool.handle, first, count, count * stride, results, stride, VK_QUERY_RESULT_64_BIT) == VK_SUCCESS;
 }
 
-bool reshade::vulkan::device_impl::allocate_descriptor_sets(api::pipeline_layout layout, uint32_t param_index, uint32_t count, api::descriptor_set *out)
+bool reshade::vulkan::device_impl::allocate_descriptor_sets(uint32_t count, const api::descriptor_set_layout *layouts, api::descriptor_set *out)
 {
-	static_assert(sizeof(*out) == sizeof(VkDescriptorSet));
-
-	VkDescriptorSetLayout set_layout;
-	{	const std::lock_guard<std::mutex> lock(_mutex);
-		set_layout = _pipeline_layout_list[(VkPipelineLayout)layout.handle].set_layouts[param_index];
-	}
-
-	std::vector<VkDescriptorSetLayout> set_layouts(count, set_layout);
+	static_assert(sizeof(*layouts) == sizeof(VkDescriptorSetLayout) && sizeof(*out) == sizeof(VkDescriptorSet));
 
 	VkDescriptorSetAllocateInfo alloc_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
 	alloc_info.descriptorPool = _descriptor_pool;
 	alloc_info.descriptorSetCount = count;
-	alloc_info.pSetLayouts = set_layouts.data();
+	alloc_info.pSetLayouts = reinterpret_cast<const VkDescriptorSetLayout *>(layouts);
 
-	return vk.AllocateDescriptorSets(_orig, &alloc_info, reinterpret_cast<VkDescriptorSet *>(out)) == VK_SUCCESS;
+	if (vk.AllocateDescriptorSets(_orig, &alloc_info, reinterpret_cast<VkDescriptorSet *>(out)) == VK_SUCCESS)
+	{
+		for (uint32_t i = 0; i < count; ++i)
+			register_descriptor_set((VkDescriptorSet)out[i].handle, (VkDescriptorSetLayout)layouts[i].handle);
+
+		return true;
+	}
+	else
+	{
+		return false;
+	}
 }
-void reshade::vulkan::device_impl::free_descriptor_sets(api::pipeline_layout, uint32_t, uint32_t count, const api::descriptor_set *sets)
+void reshade::vulkan::device_impl::free_descriptor_sets(uint32_t count, const api::descriptor_set *sets)
 {
+	for (uint32_t i = 0; i < count; ++i)
+		unregister_descriptor_set((VkDescriptorSet)sets[i].handle);
+
 	vk.FreeDescriptorSets(_orig, _descriptor_pool, count, reinterpret_cast<const VkDescriptorSet *>(sets));
 }
-
-void reshade::vulkan::device_impl::update_descriptor_sets(uint32_t num_writes, const api::write_descriptor_set *writes, uint32_t num_copies, const api::copy_descriptor_set *copies)
+void reshade::vulkan::device_impl::update_descriptor_sets(uint32_t count, const api::write_descriptor_set *writes)
 {
-	std::vector<VkWriteDescriptorSet> writes_internal(num_writes);
+	std::vector<VkWriteDescriptorSet> writes_internal(count);
 
-	std::vector<VkDescriptorImageInfo> image_info(num_writes);
-	std::vector<VkDescriptorBufferInfo> buffer_info(num_writes);
+	uint32_t max_descriptors = 0;
+	for (uint32_t i = 0; i < count; ++i)
+		max_descriptors += writes[i].count;
+	std::vector<VkDescriptorImageInfo> image_info(max_descriptors);
 
-	for (uint32_t i = 0; i < num_writes; ++i)
+	for (uint32_t i = 0, j = 0; i < count; ++i)
 	{
 		const api::write_descriptor_set &info = writes[i];
 
 		writes_internal[i] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
 		writes_internal[i].dstSet = (VkDescriptorSet)info.set.handle;
-		writes_internal[i].dstBinding = info.binding;
-		writes_internal[i].dstArrayElement = info.array_offset;
-		writes_internal[i].descriptorCount = 1;
+		lookup_descriptor_set((VkDescriptorSet)info.set.handle).calc_binding_from_offset(info.offset, writes_internal[i].dstBinding, writes_internal[i].dstArrayElement);
+		writes_internal[i].descriptorCount = info.count;
 		writes_internal[i].descriptorType = static_cast<VkDescriptorType>(info.type);
 
-		if (info.type == api::descriptor_type::constant_buffer)
+		switch (info.type)
 		{
-			writes_internal[i].pBufferInfo = &buffer_info[i];
-
-			assert(info.descriptor.resource.handle != 0);
-			buffer_info[i].buffer = (VkBuffer)info.descriptor.resource.handle;
-			buffer_info[i].offset = info.descriptor.offset;
-			buffer_info[i].range = info.descriptor.size;
-		}
-		else
-		{
-			writes_internal[i].pImageInfo = &image_info[i];
-
-			assert(info.descriptor.view.handle != 0 || (info.type == api::descriptor_type::sampler));
-			assert(info.descriptor.sampler.handle != 0 || (info.type != api::descriptor_type::sampler && info.type != api::descriptor_type::sampler_with_resource_view));
-			image_info[i].sampler = (VkSampler)info.descriptor.sampler.handle;
-			image_info[i].imageView = (VkImageView)info.descriptor.view.handle;
-			image_info[i].imageLayout = info.type == api::descriptor_type::unordered_access_view ? VK_IMAGE_LAYOUT_GENERAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		case api::descriptor_type::sampler:
+			writes_internal[i].pImageInfo = image_info.data() + j;
+			for (uint32_t k = 0; k < info.count; ++k, ++j)
+			{
+				image_info[j].sampler = (VkSampler)static_cast<const api::sampler *>(info.descriptors)[k].handle;
+			}
+			break;
+		case api::descriptor_type::sampler_with_resource_view:
+			writes_internal[i].pImageInfo = image_info.data() + j;
+			for (uint32_t k = 0; k < info.count; ++k, ++j)
+			{
+				image_info[j].sampler = (VkSampler)static_cast<const api::sampler_with_resource_view *>(info.descriptors)[k].sampler.handle;
+				image_info[j].imageView = (VkImageView)static_cast<const api::sampler_with_resource_view *>(info.descriptors)[k].view.handle;
+				image_info[j].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			}
+			break;
+		case api::descriptor_type::shader_resource_view:
+		case api::descriptor_type::unordered_access_view:
+			writes_internal[i].pImageInfo = image_info.data() + j;
+			for (uint32_t k = 0; k < info.count; ++k, ++j)
+			{
+				image_info[j].imageView = (VkImageView)static_cast<const api::resource_view *>(info.descriptors)[k].handle;
+				image_info[j].imageLayout = info.type == api::descriptor_type::unordered_access_view ? VK_IMAGE_LAYOUT_GENERAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			}
+			break;
+		case api::descriptor_type::constant_buffer:
+			writes_internal[i].pBufferInfo = static_cast<const VkDescriptorBufferInfo *>(info.descriptors);
+			break;
 		}
 	}
 
-	std::vector<VkCopyDescriptorSet> copies_internal(num_copies);
-
-	for (uint32_t i = 0; i < num_copies; ++i)
-	{
-		copies_internal[i] = { VK_STRUCTURE_TYPE_COPY_DESCRIPTOR_SET };
-		copies_internal[i].srcSet = (VkDescriptorSet)copies[i].src_set.handle;
-		copies_internal[i].srcBinding = copies[i].src_binding;
-		copies_internal[i].srcArrayElement = copies[i].src_array_offset;
-		copies_internal[i].dstSet = (VkDescriptorSet)copies[i].dst_set.handle;
-		copies_internal[i].dstBinding = copies[i].dst_binding;
-		copies_internal[i].dstArrayElement = copies[i].dst_array_offset;
-		copies_internal[i].descriptorCount = copies[i].count;
-	}
-
-	vk.UpdateDescriptorSets(_orig, num_writes, writes_internal.data(), num_copies, copies_internal.data());
+	vk.UpdateDescriptorSets(_orig, count, writes_internal.data(), 0, nullptr);
 }
 
 void reshade::vulkan::device_impl::wait_idle() const
@@ -1285,6 +1307,39 @@ void reshade::vulkan::device_impl::set_resource_name(api::resource resource, con
 	vk.SetDebugUtilsObjectNameEXT(_orig, &name_info);
 }
 
+void reshade::vulkan::device_impl::get_pipeline_layout_desc(api::pipeline_layout layout, uint32_t *count, api::pipeline_layout_param *params) const
+{
+	assert(count != nullptr);
+
+	const pipeline_layout_data data = lookup_pipeline_layout((VkPipelineLayout)layout.handle);
+
+	if (params != nullptr)
+	{
+		*count = std::min(*count, static_cast<uint32_t>(data.desc.size()));
+		std::memcpy(params, data.desc.data(), *count * sizeof(api::pipeline_layout_param));
+	}
+	else
+	{
+		*count = static_cast<uint32_t>(data.desc.size());
+	}
+}
+void reshade::vulkan::device_impl::get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *count, api::descriptor_range *bindings) const
+{
+	assert(count != nullptr);
+
+	const descriptor_set_layout_data data = lookup_descriptor_set_layout((VkDescriptorSetLayout)layout.handle);
+
+	if (bindings != nullptr)
+	{
+		*count = std::min(*count, static_cast<uint32_t>(data.desc.size()));
+		std::memcpy(bindings, data.desc.data(), *count * sizeof(api::descriptor_range));
+	}
+	else
+	{
+		*count = static_cast<uint32_t>(data.desc.size());
+	}
+}
+
 reshade::api::resource_desc reshade::vulkan::device_impl::get_resource_desc(api::resource resource) const
 {
 	const resource_data data = lookup_resource(resource);
@@ -1293,16 +1348,6 @@ reshade::api::resource_desc reshade::vulkan::device_impl::get_resource_desc(api:
 		return convert_resource_desc(data.image_create_info);
 	else
 		return convert_resource_desc(data.buffer_create_info);
-}
-
-reshade::api::pipeline_layout_desc reshade::vulkan::device_impl::get_pipeline_layout_desc(api::pipeline_layout layout) const
-{
-	const pipeline_layout_data data = lookup_pipeline_layout((VkPipelineLayout)layout.handle);
-
-	if (data.desc != nullptr)
-		return *data.desc;
-	else
-		return api::pipeline_layout_desc {}; // TODO: Not implemented for layouts created via 'create_pipeline_layout'
 }
 
 void reshade::vulkan::device_impl::get_resource_from_view(api::resource_view view, api::resource *out) const
