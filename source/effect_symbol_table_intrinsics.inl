@@ -1733,7 +1733,6 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2Dfetch, 1, {
 // ret tex2DgatherR(s, coords)
 // ret tex2DgatherR(s, coords, offset)
 // ret tex2DgatherR(s, coords, offset0, offset1, offset2, offset3)
-
 DEFINE_INTRINSIC(tex2DgatherR, 0, float4, sampler, float2)
 DEFINE_INTRINSIC(tex2DgatherR, 1, float4, sampler, float2, int2)
 DEFINE_INTRINSIC(tex2DgatherR, 2, float4, sampler, float2, int2, int2, int2, int2)
@@ -1830,15 +1829,18 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherR, 2, {
 	add_capability(spv::CapabilityImageGatherExtended);
 
 	const spv::Id component = emit_constant(0u);
+	const spv::Id offsets = add_instruction(spv::OpConstantComposite, convert_type({ reshadefx::type::t_int, 2, 1, 0, 4 }), _types_and_constants)
+		.add(args[2].base)
+		.add(args[3].base)
+		.add(args[4].base)
+		.add(args[5].base)
+		.result;
 	return add_instruction(spv::OpImageGather, convert_type(res_type))
 		.add(args[0].base)
 		.add(args[1].base)
 		.add(component)
 		.add(spv::ImageOperandsConstOffsetsMask)
-		.add(args[2].base)
-		.add(args[3].base)
-		.add(args[4].base)
-		.add(args[5].base)
+		.add(offsets)
 		.result;
 	})
 // ret tex2DgatherG(s, coords)
@@ -1940,15 +1942,18 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherG, 2, {
 	add_capability(spv::CapabilityImageGatherExtended);
 
 	const spv::Id component = emit_constant(1u);
+	const spv::Id offsets = add_instruction(spv::OpConstantComposite, convert_type({ reshadefx::type::t_int, 2, 1, 0, 4 }), _types_and_constants)
+		.add(args[2].base)
+		.add(args[3].base)
+		.add(args[4].base)
+		.add(args[5].base)
+		.result;
 	return add_instruction(spv::OpImageGather, convert_type(res_type))
 		.add(args[0].base)
 		.add(args[1].base)
 		.add(component)
 		.add(spv::ImageOperandsConstOffsetsMask)
-		.add(args[2].base)
-		.add(args[3].base)
-		.add(args[4].base)
-		.add(args[5].base)
+		.add(offsets)
 		.result;
 	})
 // ret tex2DgatherB(s, coords)
@@ -2050,15 +2055,18 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherB, 2, {
 	add_capability(spv::CapabilityImageGatherExtended);
 
 	const spv::Id component = emit_constant(2u);
+	const spv::Id offsets = add_instruction(spv::OpConstantComposite, convert_type({ reshadefx::type::t_int, 2, 1, 0, 4 }), _types_and_constants)
+		.add(args[2].base)
+		.add(args[3].base)
+		.add(args[4].base)
+		.add(args[5].base)
+		.result;
 	return add_instruction(spv::OpImageGather, convert_type(res_type))
 		.add(args[0].base)
 		.add(args[1].base)
 		.add(component)
 		.add(spv::ImageOperandsConstOffsetsMask)
-		.add(args[2].base)
-		.add(args[3].base)
-		.add(args[4].base)
-		.add(args[5].base)
+		.add(offsets)
 		.result;
 	})
 // ret tex2DgatherA(s, coords)
@@ -2160,15 +2168,18 @@ IMPLEMENT_INTRINSIC_SPIRV(tex2DgatherA, 2, {
 	add_capability(spv::CapabilityImageGatherExtended);
 
 	const spv::Id component = emit_constant(3u);
+	const spv::Id offsets = add_instruction(spv::OpConstantComposite, convert_type({ reshadefx::type::t_int, 2, 1, 0, 4 }), _types_and_constants)
+		.add(args[2].base)
+		.add(args[3].base)
+		.add(args[4].base)
+		.add(args[5].base)
+		.result;
 	return add_instruction(spv::OpImageGather, convert_type(res_type))
 		.add(args[0].base)
 		.add(args[1].base)
 		.add(component)
 		.add(spv::ImageOperandsConstOffsetsMask)
-		.add(args[2].base)
-		.add(args[3].base)
-		.add(args[4].base)
-		.add(args[5].base)
+		.add(offsets)
 		.result;
 	})
 // tex2Dstore(s, coords, value)
