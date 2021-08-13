@@ -11,6 +11,8 @@
 #include <dxgi1_5.h>
 #include <unordered_map>
 
+struct D3D12GraphicsCommandList;
+
 namespace reshade::d3d12
 {
 	class device_impl : public api::api_object_impl<ID3D12Device *, api::device>
@@ -65,8 +67,8 @@ namespace reshade::d3d12
 		bool get_query_pool_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride) final;
 
 		bool allocate_descriptor_sets(uint32_t count, const api::descriptor_set_layout *layouts, api::descriptor_set *out) final;
-		void free_descriptor_sets(uint32_t count, const api::descriptor_set *sets) final;
-		void update_descriptor_sets(uint32_t count, const api::write_descriptor_set *writes) final;
+		void free_descriptor_sets(uint32_t count, const api::descriptor_set_layout *layouts, const api::descriptor_set *sets) final;
+		void update_descriptor_sets(uint32_t count, const api::write_descriptor_set *updates) final;
 
 		void wait_idle() const final;
 
@@ -79,117 +81,45 @@ namespace reshade::d3d12
 		void get_resource_from_view(api::resource_view view, api::resource *out) const final;
 		bool get_framebuffer_attachment(api::framebuffer framebuffer, api::attachment_type type, uint32_t index, api::resource_view *out) const final;
 
+	protected:
+		friend struct D3D12GraphicsCommandList;
+
+		bool resolve_gpu_address(D3D12_GPU_VIRTUAL_ADDRESS address, api::resource *out_resource, uint64_t *out_offset) const;
+		bool resolve_descriptor_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle, D3D12_DESCRIPTOR_HEAP_TYPE type, api::descriptor_set *out_set, uint32_t *out_offset, bool *shader_visible = nullptr) const;
+		bool resolve_descriptor_handle(D3D12_GPU_DESCRIPTOR_HANDLE handle_gpu, D3D12_CPU_DESCRIPTOR_HANDLE *out_handle_cpu) const;
+		bool resolve_descriptor_handle(D3D12_GPU_DESCRIPTOR_HANDLE handle_gpu, D3D12_CPU_DESCRIPTOR_HANDLE *out_handle_cpu, api::descriptor_set *out_set, uint32_t *out_offset, ID3D12DescriptorHeap *const *heaps, size_t num_heaps) const;
+
 #if RESHADE_ADDON
-		bool resolve_gpu_address(D3D12_GPU_VIRTUAL_ADDRESS address, api::resource *out_resource, uint64_t *out_offset)
-		{
-			*out_offset = 0;
-			*out_resource = { 0 };
+		void register_descriptor_heap(ID3D12DescriptorHeap *heap);
+		void unregister_descriptor_heap(ID3D12DescriptorHeap *heap);
 
-			if (!address)
-				return true;
-
-			const std::lock_guard<std::mutex> lock(_mutex);
-
-			for (const auto &buffer_info : _buffer_gpu_addresses)
-			{
-				if (address < buffer_info.second.StartAddress)
-					continue;
-
-				const UINT64 address_offset = address - buffer_info.second.StartAddress;
-				if (address_offset < buffer_info.second.SizeInBytes)
-				{
-					*out_offset = address_offset;
-					*out_resource = { reinterpret_cast<uintptr_t>(buffer_info.first) };
-					return true;
-				}
-			}
-
-			return false;
-		}
-		bool resolve_descriptor_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle, D3D12_DESCRIPTOR_HEAP_TYPE type, api::descriptor_set *out_set, uint32_t *out_offset, bool *shader_visible = nullptr)
-		{
-			*out_set = { 0 };
-			*out_offset = 0;
-
-			for (const auto &heap_info : _descriptor_heaps)
-			{
-				const D3D12_DESCRIPTOR_HEAP_DESC desc = heap_info.first->GetDesc();
-
-				// 'GetCPUDescriptorHandleForHeapStart' returns a descriptor heap index and all CPU descriptor handles use that as alignment
-				if (desc.Type != type || (handle.ptr % _descriptor_handle_size[type]) != heap_info.second.StartAddress)
-					continue;
-
-				const UINT64 address_offset = handle.ptr - heap_info.second.StartAddress;
-				assert(address_offset < heap_info.second.SizeInBytes);
-
-				*out_set = { heap_info.first->GetGPUDescriptorHandleForHeapStart().ptr };
-				*out_offset = static_cast<uint32_t>(address_offset / _descriptor_handle_size[desc.Type]);
-
-				if (shader_visible != nullptr)
-					*shader_visible = (desc.Flags & D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE) != 0;
-				return true;
-			}
-
-			return false;
-		}
+		void register_buffer_gpu_address(ID3D12Resource *resource, UINT64 size);
+		void unregister_buffer_gpu_address(ID3D12Resource *resource);
 #endif
 
-		// Cached device capabilities for quick access
-		UINT _descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
-
-	private:
-		mutable std::mutex _mutex;
-		std::vector<command_queue_impl *> _queues;
-		std::unordered_map<uint64_t, ID3D12Resource *> _views;
-		std::vector<std::pair<ID3D12Resource *, D3D12_GPU_VIRTUAL_ADDRESS_RANGE>> _buffer_gpu_addresses;
-		std::vector<std::pair<ID3D12DescriptorHeap *, D3D12_GPU_VIRTUAL_ADDRESS_RANGE>> _descriptor_heaps;
-
-		std::unordered_map<UINT64, std::pair<D3D12_CPU_DESCRIPTOR_HANDLE, UINT>> _descriptor_set_map;
-
-		com_ptr<ID3D12PipelineState> _mipmap_pipeline;
-		com_ptr<ID3D12RootSignature> _mipmap_signature;
-
-		descriptor_heap_cpu _view_heaps[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
-		descriptor_heap_gpu<D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, 128, 128> _gpu_sampler_heap;
-		descriptor_heap_gpu<D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1024, 2048> _gpu_view_heap;
-
-	protected:
 		inline void register_resource_view(ID3D12Resource *resource, D3D12_CPU_DESCRIPTOR_HANDLE handle)
 		{
 			assert(resource != nullptr);
 			const std::lock_guard<std::mutex> lock(_mutex);
 			_views.emplace(handle.ptr, resource);
 		}
-#if RESHADE_ADDON
-		inline void register_descriptor_heap(ID3D12DescriptorHeap *heap)
-		{
-			const D3D12_DESCRIPTOR_HEAP_DESC desc = heap->GetDesc();
 
-			assert(heap != nullptr);
-			const std::lock_guard<std::mutex> lock(_mutex);
-			_descriptor_heaps.emplace_back(heap, D3D12_GPU_VIRTUAL_ADDRESS_RANGE { heap->GetCPUDescriptorHandleForHeapStart().ptr, desc.NumDescriptors * _descriptor_handle_size[desc.Type] });
-			_descriptor_set_map.emplace(heap->GetGPUDescriptorHandleForHeapStart().ptr, std::make_pair(heap->GetCPUDescriptorHandleForHeapStart(), desc.NumDescriptors));
-		}
-		void unregister_descriptor_heap(ID3D12DescriptorHeap *heap)
-		{
-			const std::lock_guard<std::mutex> lock(_mutex);
-			for (auto it = _descriptor_heaps.begin(); it != _descriptor_heaps.end(); ++it)
-			{
-				if (it->first == heap)
-				{
-					it = _descriptor_heaps.erase(it);
-					break;
-				}
-				++it;
-			}
-			_descriptor_set_map.erase(heap->GetGPUDescriptorHandleForHeapStart().ptr);
-		}
-		inline void register_buffer_gpu_address(ID3D12Resource *resource, UINT64 size)
-		{
-			assert(resource != nullptr);
-			const std::lock_guard<std::mutex> lock(_mutex);
-			_buffer_gpu_addresses.emplace_back(resource, D3D12_GPU_VIRTUAL_ADDRESS_RANGE { resource->GetGPUVirtualAddress(), size });
-		}
+		UINT _descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
+
+	private:
+		descriptor_heap_cpu _view_heaps[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
+		descriptor_heap_gpu<D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, 128, 128> _gpu_sampler_heap;
+		descriptor_heap_gpu<D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1024, 2048> _gpu_view_heap;
+
+		com_ptr<ID3D12PipelineState> _mipmap_pipeline;
+		com_ptr<ID3D12RootSignature> _mipmap_signature;
+
+		mutable std::mutex _mutex;
+		std::vector<command_queue_impl *> _queues;
+#if RESHADE_ADDON
+		std::vector<ID3D12DescriptorHeap *> _descriptor_heaps;
+		std::unordered_map<uint64_t, ID3D12Resource *> _views;
+		std::vector<std::pair<ID3D12Resource *, D3D12_GPU_VIRTUAL_ADDRESS_RANGE>> _buffer_gpu_addresses;
 #endif
 	};
 }

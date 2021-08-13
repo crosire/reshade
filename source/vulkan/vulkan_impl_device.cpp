@@ -355,6 +355,12 @@ void reshade::vulkan::device_impl::destroy_resource(api::resource handle)
 
 bool reshade::vulkan::device_impl::create_resource_view(api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view *out)
 {
+	if (resource.handle == 0)
+	{
+		*out = { 0 };
+		return false;
+	}
+
 	const resource_data data = lookup_resource(resource);
 
 	if (data.is_image())
@@ -1124,7 +1130,7 @@ void reshade::vulkan::device_impl::upload_texture_region(const api::subresource_
 		extent.depth  = dst_box[5] - dst_box[2];
 	}
 
-	const auto row_size_packed = extent.width * api::format_bpp(convert_format(dst_data.image_create_info.format));
+	const auto row_size_packed = extent.width * api::format_bytes_per_pixel(convert_format(dst_data.image_create_info.format));
 	const auto slice_size_packed = extent.height * row_size_packed;
 	const auto total_size = extent.depth * slice_size_packed;
 
@@ -1212,61 +1218,61 @@ bool reshade::vulkan::device_impl::allocate_descriptor_sets(uint32_t count, cons
 		return false;
 	}
 }
-void reshade::vulkan::device_impl::free_descriptor_sets(uint32_t count, const api::descriptor_set *sets)
+void reshade::vulkan::device_impl::free_descriptor_sets(uint32_t count, const api::descriptor_set_layout *, const api::descriptor_set *sets)
 {
 	for (uint32_t i = 0; i < count; ++i)
 		unregister_descriptor_set((VkDescriptorSet)sets[i].handle);
 
 	vk.FreeDescriptorSets(_orig, _descriptor_pool, count, reinterpret_cast<const VkDescriptorSet *>(sets));
 }
-void reshade::vulkan::device_impl::update_descriptor_sets(uint32_t count, const api::write_descriptor_set *writes)
+void reshade::vulkan::device_impl::update_descriptor_sets(uint32_t count, const api::write_descriptor_set *updates)
 {
 	std::vector<VkWriteDescriptorSet> writes_internal(count);
 
 	uint32_t max_descriptors = 0;
 	for (uint32_t i = 0; i < count; ++i)
-		max_descriptors += writes[i].count;
+		max_descriptors += updates[i].count;
 	std::vector<VkDescriptorImageInfo> image_info(max_descriptors);
 
 	for (uint32_t i = 0, j = 0; i < count; ++i)
 	{
-		const api::write_descriptor_set &info = writes[i];
+		const api::write_descriptor_set &update = updates[i];
 
 		writes_internal[i] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-		writes_internal[i].dstSet = (VkDescriptorSet)info.set.handle;
-		lookup_descriptor_set((VkDescriptorSet)info.set.handle).calc_binding_from_offset(info.offset, writes_internal[i].dstBinding, writes_internal[i].dstArrayElement);
-		writes_internal[i].descriptorCount = info.count;
-		writes_internal[i].descriptorType = static_cast<VkDescriptorType>(info.type);
+		writes_internal[i].dstSet = (VkDescriptorSet)update.set.handle;
+		lookup_descriptor_set((VkDescriptorSet)update.set.handle).calc_binding_from_offset(update.offset, writes_internal[i].dstBinding, writes_internal[i].dstArrayElement);
+		writes_internal[i].descriptorCount = update.count;
+		writes_internal[i].descriptorType = static_cast<VkDescriptorType>(update.type);
 
-		switch (info.type)
+		switch (update.type)
 		{
 		case api::descriptor_type::sampler:
 			writes_internal[i].pImageInfo = image_info.data() + j;
-			for (uint32_t k = 0; k < info.count; ++k, ++j)
+			for (uint32_t k = 0; k < update.count; ++k, ++j)
 			{
-				image_info[j].sampler = (VkSampler)static_cast<const api::sampler *>(info.descriptors)[k].handle;
+				image_info[j].sampler = (VkSampler)static_cast<const api::sampler *>(update.descriptors)[k].handle;
 			}
 			break;
 		case api::descriptor_type::sampler_with_resource_view:
 			writes_internal[i].pImageInfo = image_info.data() + j;
-			for (uint32_t k = 0; k < info.count; ++k, ++j)
+			for (uint32_t k = 0; k < update.count; ++k, ++j)
 			{
-				image_info[j].sampler = (VkSampler)static_cast<const api::sampler_with_resource_view *>(info.descriptors)[k].sampler.handle;
-				image_info[j].imageView = (VkImageView)static_cast<const api::sampler_with_resource_view *>(info.descriptors)[k].view.handle;
+				image_info[j].sampler = (VkSampler)static_cast<const api::sampler_with_resource_view *>(update.descriptors)[k].sampler.handle;
+				image_info[j].imageView = (VkImageView)static_cast<const api::sampler_with_resource_view *>(update.descriptors)[k].view.handle;
 				image_info[j].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 			}
 			break;
 		case api::descriptor_type::shader_resource_view:
 		case api::descriptor_type::unordered_access_view:
 			writes_internal[i].pImageInfo = image_info.data() + j;
-			for (uint32_t k = 0; k < info.count; ++k, ++j)
+			for (uint32_t k = 0; k < update.count; ++k, ++j)
 			{
-				image_info[j].imageView = (VkImageView)static_cast<const api::resource_view *>(info.descriptors)[k].handle;
-				image_info[j].imageLayout = info.type == api::descriptor_type::unordered_access_view ? VK_IMAGE_LAYOUT_GENERAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+				image_info[j].imageView = (VkImageView)static_cast<const api::resource_view *>(update.descriptors)[k].handle;
+				image_info[j].imageLayout = update.type == api::descriptor_type::unordered_access_view ? VK_IMAGE_LAYOUT_GENERAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 			}
 			break;
 		case api::descriptor_type::constant_buffer:
-			writes_internal[i].pBufferInfo = static_cast<const VkDescriptorBufferInfo *>(info.descriptors);
+			writes_internal[i].pBufferInfo = static_cast<const VkDescriptorBufferInfo *>(update.descriptors);
 			break;
 		}
 	}

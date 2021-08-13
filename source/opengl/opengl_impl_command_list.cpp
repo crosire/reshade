@@ -5,7 +5,6 @@
 
 #include "opengl_impl_device.hpp"
 #include "opengl_impl_type_convert.hpp"
-#include <cassert>
 #include <algorithm>
 
 #define glEnableOrDisable(cap, enable) \
@@ -353,7 +352,7 @@ void reshade::opengl::device_impl::bind_descriptor_sets(api::shader_stage stages
 
 	for (uint32_t i = 0; i < count; ++i)
 	{
-		const auto set_impl = reinterpret_cast<descriptor_set_impl *>(sets[i].handle);
+		const auto set_impl = reinterpret_cast<const descriptor_set_impl *>(sets[i].handle);
 		const auto set_offset = (offsets != nullptr) ? offsets[i] : 0;
 
 		push_descriptors(
@@ -391,7 +390,7 @@ void reshade::opengl::device_impl::bind_index_buffer(api::resource buffer, uint6
 }
 void reshade::opengl::device_impl::bind_vertex_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *strides)
 {
-	for (GLuint i = 0; i < count; ++i)
+	for (uint32_t i = 0; i < count; ++i)
 	{
 		assert(offsets[i] <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()));
 
@@ -579,7 +578,7 @@ void reshade::opengl::device_impl::copy_buffer_to_texture(api::resource src, uin
 			glGetTexLevelParameteriv(dst_target, level, GL_TEXTURE_DEPTH,  &d);
 		}
 
-		const auto row_size_packed = (row_length != 0 ? row_length : w) * api::format_bpp(convert_format(format));
+		const auto row_size_packed = (row_length != 0 ? row_length : w) * api::format_bytes_per_pixel(convert_format(format));
 		const auto slice_size_packed = (slice_height != 0 ? slice_height : h) * row_size_packed;
 		const auto total_size = d * slice_size_packed;
 
@@ -930,7 +929,7 @@ void reshade::opengl::device_impl::copy_texture_to_buffer(api::resource src, uin
 		GLenum format = GL_NONE, type;
 		glGetTexLevelParameteriv(src_target, 0, GL_TEXTURE_INTERNAL_FORMAT, reinterpret_cast<GLint *>(&format));
 
-		const auto row_size_packed = (row_length != 0 ? row_length : w) * api::format_bpp(convert_format(format));
+		const auto row_size_packed = (row_length != 0 ? row_length : w) * api::format_bytes_per_pixel(convert_format(format));
 		const auto slice_size_packed = (slice_height != 0 ? slice_height : h) * row_size_packed;
 		const auto total_size = d * slice_size_packed;
 

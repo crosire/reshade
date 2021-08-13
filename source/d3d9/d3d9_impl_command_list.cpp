@@ -83,6 +83,9 @@ void reshade::d3d9::device_impl::bind_pipeline_states(uint32_t count, const api:
 }
 void reshade::d3d9::device_impl::bind_viewports(uint32_t first, uint32_t count, const float *viewports)
 {
+	if (count == 0)
+		return;
+
 	assert(first == 0 && count == 1 && viewports != nullptr);
 
 	D3DVIEWPORT9 d3d_viewport;
@@ -97,6 +100,9 @@ void reshade::d3d9::device_impl::bind_viewports(uint32_t first, uint32_t count, 
 }
 void reshade::d3d9::device_impl::bind_scissor_rects(uint32_t first, uint32_t count, const int32_t *rects)
 {
+	if (count == 0)
+		return;
+
 	assert(first == 0 && count == 1 && rects != nullptr);
 
 	_orig->SetScissorRect(reinterpret_cast<const RECT *>(rects));
@@ -111,7 +117,7 @@ void reshade::d3d9::device_impl::push_constants(api::shader_stage stages, api::p
 }
 void reshade::d3d9::device_impl::push_descriptors(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_type type, uint32_t first, uint32_t count, const void *descriptors)
 {
-	if (layout.handle != 0 && layout != _global_pipeline_layout)
+	if (layout.handle != 0)
 		first += reinterpret_cast<pipeline_layout_impl *>(layout.handle)->shader_registers[layout_param];
 
 	// Set for each individual shader stage (pixel stage first, since vertex stage modifies the the binding offset)
@@ -121,19 +127,12 @@ void reshade::d3d9::device_impl::push_descriptors(api::shader_stage stages, api:
 		if ((stages & stage) != stage)
 			continue;
 
-		switch (stage)
+		if (stage == api::shader_stage::vertex)
 		{
-		default:
-			assert(false);
-			return;
-		case api::shader_stage::vertex:
 			// See https://docs.microsoft.com/windows/win32/direct3d9/vertex-textures-in-vs-3-0
 			first += D3DVERTEXTEXTURESAMPLER0;
 			if ((first + count) > D3DVERTEXTEXTURESAMPLER3) // The vertex engine only contains four texture sampler stages
 				count = D3DVERTEXTEXTURESAMPLER3 - first;
-			break;
-		case api::shader_stage::pixel:
-			break;
 		}
 
 		switch (type)
@@ -144,8 +143,12 @@ void reshade::d3d9::device_impl::push_descriptors(api::shader_stage stages, api:
 				const auto &descriptor = static_cast<const api::sampler *>(descriptors)[i];
 
 				if (descriptor.handle != 0)
+				{
+					const auto sampler_impl = reinterpret_cast<const struct sampler_impl *>(descriptor.handle);
+
 					for (D3DSAMPLERSTATETYPE state = D3DSAMP_ADDRESSU; state <= D3DSAMP_MAXANISOTROPY; state = static_cast<D3DSAMPLERSTATETYPE>(state + 1))
-						_orig->SetSamplerState(i + first, state, reinterpret_cast<const DWORD *>(descriptor.handle)[state]);
+						_orig->SetSamplerState(i + first, state, sampler_impl->state[state]);
+				}
 			}
 			break;
 		case api::descriptor_type::sampler_with_resource_view:
@@ -156,8 +159,12 @@ void reshade::d3d9::device_impl::push_descriptors(api::shader_stage stages, api:
 				_orig->SetSamplerState(i + first, D3DSAMP_SRGBTEXTURE, descriptor.view.handle & 1);
 
 				if (descriptor.sampler.handle != 0)
+				{
+					const auto sampler_impl = reinterpret_cast<const struct sampler_impl *>(descriptor.sampler.handle);
+
 					for (D3DSAMPLERSTATETYPE state = D3DSAMP_ADDRESSU; state <= D3DSAMP_MAXANISOTROPY; state = static_cast<D3DSAMPLERSTATETYPE>(state + 1))
-						_orig->SetSamplerState(i + first, state, reinterpret_cast<const DWORD *>(descriptor.sampler.handle)[state]);
+						_orig->SetSamplerState(i + first, state, sampler_impl->state[state]);
+				}
 			}
 			break;
 		case api::descriptor_type::shader_resource_view:
@@ -181,7 +188,7 @@ void reshade::d3d9::device_impl::bind_descriptor_sets(api::shader_stage stages, 
 
 	for (uint32_t i = 0; i < count; ++i)
 	{
-		const auto set_impl = reinterpret_cast<descriptor_set_impl *>(sets[i].handle);
+		const auto set_impl = reinterpret_cast<const descriptor_set_impl *>(sets[i].handle);
 		const auto set_offset = (offsets != nullptr) ? offsets[i] : 0;
 
 		push_descriptors(
@@ -303,18 +310,18 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 		assert(dst_box[5] == 1);
 	}
 
-	D3DTEXTUREFILTERTYPE stretch_filter = D3DTEXF_NONE;
+	D3DTEXTUREFILTERTYPE stretch_filter_type = D3DTEXF_NONE;
 	switch (filter)
 	{
 	case api::filter_type::min_mag_mip_point:
 	case api::filter_type::min_mag_point_mip_linear:
 		// Default to no filtering if no stretching needs to be performed (prevents artifacts when copying depth data)
 		if (src_box != nullptr || dst_box != nullptr)
-			stretch_filter = D3DTEXF_POINT;
+			stretch_filter_type = D3DTEXF_POINT;
 		break;
 	case api::filter_type::min_mag_mip_linear:
 	case api::filter_type::min_mag_linear_mip_point:
-		stretch_filter = D3DTEXF_LINEAR;
+			stretch_filter_type = D3DTEXF_LINEAR;
 		break;
 	}
 
@@ -340,7 +347,7 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 
 			_orig->StretchRect(
 				static_cast<IDirect3DSurface9 *>(src_object), src_box != nullptr ? &src_rect : nullptr,
-				static_cast<IDirect3DSurface9 *>(dst_object), dst_box != nullptr ? &dst_rect : nullptr, stretch_filter);
+				static_cast<IDirect3DSurface9 *>(dst_object), dst_box != nullptr ? &dst_rect : nullptr, stretch_filter_type);
 			return;
 		}
 		case D3DRTYPE_SURFACE | (D3DRTYPE_TEXTURE << 4):
@@ -366,7 +373,7 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 
 			_orig->StretchRect(
 				static_cast<IDirect3DSurface9 *>(src_object), src_box != nullptr ? &src_rect : nullptr,
-				dst_surface.get(), dst_box != nullptr ? &dst_rect : nullptr, stretch_filter);
+				dst_surface.get(), dst_box != nullptr ? &dst_rect : nullptr, stretch_filter_type);
 			return;
 		}
 		case D3DRTYPE_TEXTURE | (D3DRTYPE_TEXTURE << 4):
@@ -383,8 +390,8 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 			_copy_state->Apply();
 
 			_orig->SetTexture(0, static_cast<IDirect3DTexture9 *>(src_object));
-			_orig->SetSamplerState(0, D3DSAMP_MINFILTER, stretch_filter);
-			_orig->SetSamplerState(0, D3DSAMP_MAGFILTER, stretch_filter);
+			_orig->SetSamplerState(0, D3DSAMP_MINFILTER, stretch_filter_type);
+			_orig->SetSamplerState(0, D3DSAMP_MAGFILTER, stretch_filter_type);
 
 			com_ptr<IDirect3DSurface9> dst_surface;
 			static_cast<IDirect3DTexture9 *>(dst_object)->GetSurfaceLevel(dst_subresource, &dst_surface);
@@ -454,7 +461,7 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 
 			_orig->StretchRect(
 				src_surface.get(), src_box != nullptr ? &src_rect : nullptr,
-				static_cast<IDirect3DSurface9 *>(dst_object), dst_box != nullptr ? &dst_rect : nullptr, stretch_filter);
+				static_cast<IDirect3DSurface9 *>(dst_object), dst_box != nullptr ? &dst_rect : nullptr, stretch_filter_type);
 			return;
 		}
 	}

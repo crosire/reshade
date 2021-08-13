@@ -33,9 +33,29 @@ reshade::d3d10::device_impl::device_impl(ID3D10Device1 *device) :
 #if RESHADE_ADDON
 	load_addons();
 
-	invoke_addon_event<addon_event::init_device>(this);
-	invoke_addon_event<addon_event::init_command_queue>(this);
+	create_global_pipeline_layout();
 
+	invoke_addon_event<addon_event::init_device>(this);
+	invoke_addon_event<addon_event::init_command_list>(this);
+	invoke_addon_event<addon_event::init_command_queue>(this);
+#endif
+}
+reshade::d3d10::device_impl::~device_impl()
+{
+#if RESHADE_ADDON
+	invoke_addon_event<addon_event::destroy_command_queue>(this);
+	invoke_addon_event<addon_event::destroy_command_list>(this);
+	invoke_addon_event<addon_event::destroy_device>(this);
+
+	destroy_global_pipeline_layout();
+
+	unload_addons();
+#endif
+}
+
+#if RESHADE_ADDON
+void reshade::d3d10::device_impl::create_global_pipeline_layout()
+{
 	// Create global pipeline layout that is used for all application descriptor events
 	api::descriptor_range push_descriptors = {};
 	api::pipeline_layout_param layout_params[3] = {};
@@ -57,23 +77,18 @@ reshade::d3d10::device_impl::device_impl(ID3D10Device1 *device) :
 	create_descriptor_set_layout(1, &push_descriptors, true, &layout_params[2].descriptor_layout);
 
 	create_pipeline_layout(3, layout_params, &_global_pipeline_layout);
-#endif
 }
-reshade::d3d10::device_impl::~device_impl()
+void reshade::d3d10::device_impl::destroy_global_pipeline_layout()
 {
-#if RESHADE_ADDON
-	invoke_addon_event<addon_event::destroy_command_queue>(this);
-	invoke_addon_event<addon_event::destroy_device>(this);
+	const std::vector<api::pipeline_layout_param> &layout_params = reinterpret_cast<pipeline_layout_impl *>(_global_pipeline_layout.handle)->params;
 
-	unload_addons();
-
-	const std::vector<api::pipeline_layout_param> layout_params = std::move(reinterpret_cast<pipeline_layout_impl *>(_global_pipeline_layout.handle)->params);
-	destroy_pipeline_layout(_global_pipeline_layout);
 	destroy_descriptor_set_layout(layout_params[0].descriptor_layout);
 	destroy_descriptor_set_layout(layout_params[1].descriptor_layout);
 	destroy_descriptor_set_layout(layout_params[2].descriptor_layout);
-#endif
+
+	destroy_pipeline_layout(_global_pipeline_layout);
 }
+#endif
 
 bool reshade::d3d10::device_impl::check_capability(api::device_caps capability) const
 {
@@ -236,7 +251,11 @@ void reshade::d3d10::device_impl::destroy_resource(api::resource handle)
 
 bool reshade::d3d10::device_impl::create_resource_view(api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view *out)
 {
-	assert(resource.handle != 0);
+	if (resource.handle == 0)
+	{
+		*out = { 0 };
+		return false;
+	}
 
 	switch (usage_type)
 	{
@@ -294,9 +313,6 @@ bool reshade::d3d10::device_impl::create_pipeline(const api::pipeline_desc &desc
 {
 	switch (desc.type)
 	{
-	default:
-		*out = { 0 };
-		return false;
 	case api::pipeline_stage::all_graphics:
 		return create_graphics_pipeline(desc, out);
 	case api::pipeline_stage::input_assembler:
@@ -313,6 +329,9 @@ bool reshade::d3d10::device_impl::create_pipeline(const api::pipeline_desc &desc
 		return create_depth_stencil_state(desc, out);
 	case api::pipeline_stage::output_merger:
 		return create_blend_state(desc, out);
+	default:
+		*out = { 0 };
+		return false;
 	}
 }
 bool reshade::d3d10::device_impl::create_graphics_pipeline(const api::pipeline_desc &desc, api::pipeline *out)
@@ -342,29 +361,30 @@ bool reshade::d3d10::device_impl::create_graphics_pipeline(const api::pipeline_d
 	create_state_object(blend_state, ID3D10BlendState, true);
 	create_state_object(rasterizer_state, ID3D10RasterizerState, true);
 	create_state_object(depth_stencil_state, ID3D10DepthStencilState, true);
+#undef create_state_object
 
-	const auto state = new pipeline_impl();
+	const auto impl = new pipeline_impl();
 
-	state->vs = std::move(vertex_shader);
-	state->gs = std::move(geometry_shader);
-	state->ps = std::move(pixel_shader);
+	impl->vs = std::move(vertex_shader);
+	impl->gs = std::move(geometry_shader);
+	impl->ps = std::move(pixel_shader);
 
-	state->input_layout = std::move(input_layout);
+	impl->input_layout = std::move(input_layout);
 
-	state->blend_state = std::move(blend_state);
-	state->rasterizer_state = std::move(rasterizer_state);
-	state->depth_stencil_state = std::move(depth_stencil_state);
+	impl->blend_state = std::move(blend_state);
+	impl->rasterizer_state = std::move(rasterizer_state);
+	impl->depth_stencil_state = std::move(depth_stencil_state);
 
-	state->topology = static_cast<D3D10_PRIMITIVE_TOPOLOGY>(desc.graphics.topology);
-	state->sample_mask = desc.graphics.sample_mask;
-	state->stencil_reference_value = desc.graphics.depth_stencil_state.stencil_reference_value;
+	impl->topology = static_cast<D3D10_PRIMITIVE_TOPOLOGY>(desc.graphics.topology);
+	impl->sample_mask = desc.graphics.sample_mask;
+	impl->stencil_reference_value = desc.graphics.depth_stencil_state.stencil_reference_value;
 
-	state->blend_constant[0] = ((desc.graphics.blend_state.blend_constant      ) & 0xFF) / 255.0f;
-	state->blend_constant[1] = ((desc.graphics.blend_state.blend_constant >>  4) & 0xFF) / 255.0f;
-	state->blend_constant[2] = ((desc.graphics.blend_state.blend_constant >>  8) & 0xFF) / 255.0f;
-	state->blend_constant[3] = ((desc.graphics.blend_state.blend_constant >> 12) & 0xFF) / 255.0f;
+	impl->blend_constant[0] = ((desc.graphics.blend_state.blend_constant      ) & 0xFF) / 255.0f;
+	impl->blend_constant[1] = ((desc.graphics.blend_state.blend_constant >>  4) & 0xFF) / 255.0f;
+	impl->blend_constant[2] = ((desc.graphics.blend_state.blend_constant >>  8) & 0xFF) / 255.0f;
+	impl->blend_constant[3] = ((desc.graphics.blend_state.blend_constant >> 12) & 0xFF) / 255.0f;
 
-	*out = { reinterpret_cast<uintptr_t>(state) };
+	*out = { reinterpret_cast<uintptr_t>(impl) };
 	return true;
 }
 bool reshade::d3d10::device_impl::create_input_layout(const api::pipeline_desc &desc, api::pipeline *out)
@@ -373,7 +393,8 @@ bool reshade::d3d10::device_impl::create_input_layout(const api::pipeline_desc &
 	convert_pipeline_desc(desc, internal_elements);
 
 	if (com_ptr<ID3D10InputLayout> object;
-		internal_elements.empty() || SUCCEEDED(_orig->CreateInputLayout(internal_elements.data(), static_cast<UINT>(internal_elements.size()), desc.graphics.vertex_shader.code, desc.graphics.vertex_shader.code_size, &object)))
+		internal_elements.empty() || // Empty input layout is valid, but generates a warning, so just return success and a zero handle
+		SUCCEEDED(_orig->CreateInputLayout(internal_elements.data(), static_cast<UINT>(internal_elements.size()), desc.graphics.vertex_shader.code, desc.graphics.vertex_shader.code_size, &object)))
 	{
 		*out = { reinterpret_cast<uintptr_t>(object.release()) };
 		return true;
@@ -501,9 +522,9 @@ bool reshade::d3d10::device_impl::create_pipeline_layout(uint32_t count, const a
 {
 	bool success = true;
 
-	const auto layout_impl = new pipeline_layout_impl();
-	layout_impl->params.assign(params, params + count);
-	layout_impl->shader_registers.resize(count);
+	const auto impl = new pipeline_layout_impl();
+	impl->params.assign(params, params + count);
+	impl->shader_registers.resize(count);
 
 	for (uint32_t i = 0; i < count && success; ++i)
 	{
@@ -511,25 +532,25 @@ bool reshade::d3d10::device_impl::create_pipeline_layout(uint32_t count, const a
 		{
 			const auto set_layout_impl = reinterpret_cast<const descriptor_set_layout_impl *>(params[i].descriptor_layout.handle);
 
-			layout_impl->shader_registers[i] = set_layout_impl->range.dx_register_index;
+			impl->shader_registers[i] = set_layout_impl->range.dx_register_index;
 		}
 		else
 		{
 			if (params[i].push_constants.dx_register_space != 0)
 				success = false;
 
-			layout_impl->shader_registers[i] = params[i].push_constants.dx_register_index;
+			impl->shader_registers[i] = params[i].push_constants.dx_register_index;
 		}
 	}
 
 	if (success)
 	{
-		*out = { reinterpret_cast<uintptr_t>(layout_impl) };
+		*out = { reinterpret_cast<uintptr_t>(impl) };
 		return true;
 	}
 	else
 	{
-		delete layout_impl;
+		delete impl;
 
 		*out = { 0 };
 		return false;
@@ -577,10 +598,10 @@ bool reshade::d3d10::device_impl::create_descriptor_set_layout(uint32_t count, c
 
 	if (success)
 	{
-		const auto set_layout_impl = new descriptor_set_layout_impl();
-		set_layout_impl->range = merged_range;
+		const auto impl = new descriptor_set_layout_impl();
+		impl->range = merged_range;
 
-		*out = { reinterpret_cast<uintptr_t>(set_layout_impl) };
+		*out = { reinterpret_cast<uintptr_t>(impl) };
 		return true;
 	}
 	else
@@ -596,24 +617,24 @@ void reshade::d3d10::device_impl::destroy_descriptor_set_layout(api::descriptor_
 
 bool reshade::d3d10::device_impl::create_query_pool(api::query_type type, uint32_t size, api::query_pool *out)
 {
-	const auto result = new query_pool_impl();
-	result->queries.resize(size);
+	const auto impl = new query_pool_impl();
+	impl->queries.resize(size);
+
+	D3D10_QUERY_DESC internal_desc = {};
+	internal_desc.Query = convert_query_type(type);
 
 	for (UINT i = 0; i < size; ++i)
 	{
-		D3D10_QUERY_DESC internal_desc = {};
-		internal_desc.Query = convert_query_type(type);
-
-		if (FAILED(_orig->CreateQuery(&internal_desc, &result->queries[i])))
+		if (FAILED(_orig->CreateQuery(&internal_desc, &impl->queries[i])))
 		{
-			delete result;
+			delete impl;
 
 			*out = { 0 };
 			return false;
 		}
 	}
 
-	*out = { reinterpret_cast<uintptr_t>(result) };
+	*out = { reinterpret_cast<uintptr_t>(impl) };
 	return true;
 }
 void reshade::d3d10::device_impl::destroy_query_pool(api::query_pool handle)
@@ -633,12 +654,12 @@ void reshade::d3d10::device_impl::destroy_render_pass(api::render_pass handle)
 
 bool reshade::d3d10::device_impl::create_framebuffer(const api::framebuffer_desc &desc, api::framebuffer *out)
 {
-	const auto result = new framebuffer_impl();
-	result->dsv = reinterpret_cast<ID3D10DepthStencilView *>(desc.depth_stencil.handle);
-	for (UINT i = 0; i < D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT && desc.render_targets[i].handle != 0; ++i, ++result->count)
-		result->rtv[i] = reinterpret_cast<ID3D10RenderTargetView *>(desc.render_targets[i].handle);
+	const auto impl = new framebuffer_impl();
+	impl->dsv = reinterpret_cast<ID3D10DepthStencilView *>(desc.depth_stencil.handle);
+	for (UINT i = 0; i < D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT && desc.render_targets[i].handle != 0; ++i, ++impl->count)
+		impl->rtv[i] = reinterpret_cast<ID3D10RenderTargetView *>(desc.render_targets[i].handle);
 
-	*out = { reinterpret_cast<uintptr_t>(result) };
+	*out = { reinterpret_cast<uintptr_t>(impl) };
 	return true;
 }
 void reshade::d3d10::device_impl::destroy_framebuffer(api::framebuffer handle)
@@ -768,9 +789,9 @@ bool reshade::d3d10::device_impl::get_query_pool_results(api::query_pool pool, u
 	assert(pool.handle != 0);
 	const auto impl = reinterpret_cast<query_pool_impl *>(pool.handle);
 
-	for (UINT i = 0; i < count; ++i)
+	for (uint32_t i = 0; i < count; ++i)
 	{
-		if (FAILED(impl->queries[i + first]->GetData(static_cast<uint8_t *>(results) + i * stride, stride, D3D10_ASYNC_GETDATA_DONOTFLUSH)))
+		if (FAILED(impl->queries[first + i]->GetData(static_cast<uint8_t *>(results) + i * stride, stride, D3D10_ASYNC_GETDATA_DONOTFLUSH)))
 			return false;
 	}
 
@@ -779,60 +800,60 @@ bool reshade::d3d10::device_impl::get_query_pool_results(api::query_pool pool, u
 
 bool reshade::d3d10::device_impl::allocate_descriptor_sets(uint32_t count, const api::descriptor_set_layout *layouts, api::descriptor_set *out)
 {
-	for (UINT i = 0; i < count; ++i)
+	for (uint32_t i = 0; i < count; ++i)
 	{
-		const auto set_layout = reinterpret_cast<const descriptor_set_layout_impl *>(layouts[i].handle);
-		assert(set_layout != nullptr);
+		const auto set_layout_impl = reinterpret_cast<const descriptor_set_layout_impl *>(layouts[i].handle);
+		assert(set_layout_impl != nullptr);
 
-		const auto set = new descriptor_set_impl();
-		set->type = set_layout->range.type;
-		set->count = set_layout->range.array_size;
+		const auto impl = new descriptor_set_impl();
+		impl->type = set_layout_impl->range.type;
+		impl->count = set_layout_impl->range.array_size;
 
-		switch (set->type)
+		switch (impl->type)
 		{
 		case api::descriptor_type::sampler:
 		case api::descriptor_type::shader_resource_view:
-			set->descriptors.resize(set->count * 1);
+			impl->descriptors.resize(impl->count * 1);
 			break;
 		case api::descriptor_type::unordered_access_view:
 		case api::descriptor_type::sampler_with_resource_view:
 			assert(false);
 			break;
 		case api::descriptor_type::constant_buffer:
-			set->descriptors.resize(set->count * 3);
+			impl->descriptors.resize(impl->count * 3);
 			break;
 		}
 
-		out[i] = { reinterpret_cast<uintptr_t>(set) };
+		out[i] = { reinterpret_cast<uintptr_t>(impl) };
 	}
 
 	return true;
 }
-void reshade::d3d10::device_impl::free_descriptor_sets(uint32_t count, const api::descriptor_set *sets)
+void reshade::d3d10::device_impl::free_descriptor_sets(uint32_t count, const api::descriptor_set_layout *, const api::descriptor_set *sets)
 {
-	for (UINT i = 0; i < count; ++i)
+	for (uint32_t i = 0; i < count; ++i)
 		delete reinterpret_cast<descriptor_set_impl *>(sets[i].handle);
 }
-void reshade::d3d10::device_impl::update_descriptor_sets(uint32_t count, const api::write_descriptor_set *writes)
+void reshade::d3d10::device_impl::update_descriptor_sets(uint32_t count, const api::write_descriptor_set *updates)
 {
 	for (uint32_t i = 0; i < count; ++i)
 	{
-		const auto set_impl = reinterpret_cast<descriptor_set_impl *>(writes[i].set.handle);
+		const auto impl = reinterpret_cast<descriptor_set_impl *>(updates[i].set.handle);
 
-		const api::write_descriptor_set &info = writes[i];
+		const api::write_descriptor_set &update = updates[i];
 
-		switch (info.type)
+		switch (update.type)
 		{
 		case api::descriptor_type::sampler:
 		case api::descriptor_type::shader_resource_view:
-			std::memcpy(&set_impl->descriptors[info.offset * 1], info.descriptors, info.count * sizeof(uint64_t) * 1);
+			std::memcpy(&impl->descriptors[update.offset * 1], update.descriptors, update.count * sizeof(uint64_t) * 1);
 			break;
 		case api::descriptor_type::sampler_with_resource_view:
 		case api::descriptor_type::unordered_access_view:
 			assert(false);
 			break;
 		case api::descriptor_type::constant_buffer:
-			std::memcpy(&set_impl->descriptors[info.offset * 3], info.descriptors, info.count * sizeof(uint64_t) * 3);
+			std::memcpy(&impl->descriptors[update.offset * 3], update.descriptors, update.count * sizeof(uint64_t) * 3);
 			break;
 		}
 	}

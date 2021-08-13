@@ -425,23 +425,10 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootDescriptorTable(U
 	_orig->SetComputeRootDescriptorTable(RootParameterIndex, BaseDescriptor);
 
 #if RESHADE_ADDON
-	reshade::api::descriptor_set set = { 0 };
-	UINT offset = 0;
-	for (UINT i = 0; i < 2; ++i)
-	{
-		if (_current_descriptor_heaps[i] != nullptr)
-		{
-			const D3D12_DESCRIPTOR_HEAP_DESC desc = _current_descriptor_heaps[i]->GetDesc();
-
-			D3D12_GPU_DESCRIPTOR_HANDLE base = _current_descriptor_heaps[i]->GetGPUDescriptorHandleForHeapStart();
-			if (BaseDescriptor.ptr >= base.ptr && BaseDescriptor.ptr < (base.ptr + desc.NumDescriptors * _device_impl->_descriptor_handle_size[desc.Type]))
-			{
-				set = { base.ptr };
-				offset = static_cast<UINT>((BaseDescriptor.ptr - base.ptr) / _device_impl->_descriptor_handle_size[desc.Type]);
-				break;
-			}
-		}
-	}
+	reshade::api::descriptor_set set;
+	UINT offset;
+	if (!_device_impl->resolve_descriptor_handle(BaseDescriptor, nullptr, &set, &offset, _current_descriptor_heaps, 2))
+		return;
 
 	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_sets>(
 		this,
@@ -458,23 +445,10 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRootDescriptorTable(
 	_orig->SetGraphicsRootDescriptorTable(RootParameterIndex, BaseDescriptor);
 
 #if RESHADE_ADDON
-	reshade::api::descriptor_set set = { 0 };
-	UINT offset = 0;
-	for (UINT i = 0; i < 2; ++i)
-	{
-		if (_current_descriptor_heaps[i] != nullptr)
-		{
-			const D3D12_DESCRIPTOR_HEAP_DESC desc = _current_descriptor_heaps[i]->GetDesc();
-
-			D3D12_GPU_DESCRIPTOR_HANDLE base = _current_descriptor_heaps[i]->GetGPUDescriptorHandleForHeapStart();
-			if (BaseDescriptor.ptr >= base.ptr && BaseDescriptor.ptr < (base.ptr + desc.NumDescriptors * _device_impl->_descriptor_handle_size[desc.Type]))
-			{
-				set = { base.ptr };
-				offset = static_cast<UINT>((BaseDescriptor.ptr - base.ptr) / _device_impl->_descriptor_handle_size[desc.Type]);
-				break;
-			}
-		}
-	}
+	reshade::api::descriptor_set set;
+	UINT offset;
+	if (!_device_impl->resolve_descriptor_handle(BaseDescriptor, nullptr, &set, &offset, _current_descriptor_heaps, 2))
+		return;
 
 	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_sets>(
 		this,

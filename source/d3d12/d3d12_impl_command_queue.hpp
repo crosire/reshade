@@ -30,6 +30,7 @@ namespace reshade::d3d12
 	private:
 		device_impl *const _device_impl;
 		command_list_immediate_impl *_immediate_cmd_list = nullptr;
+
 		HANDLE _wait_idle_fence_event = nullptr;
 		mutable UINT64 _wait_idle_fence_value = 0;
 		com_ptr<ID3D12Fence> _wait_idle_fence;

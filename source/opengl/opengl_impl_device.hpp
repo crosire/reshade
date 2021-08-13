@@ -78,8 +78,8 @@ namespace reshade::opengl
 		bool get_query_pool_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride) final;
 
 		bool allocate_descriptor_sets(uint32_t count, const api::descriptor_set_layout *layouts, api::descriptor_set *out) final;
-		void free_descriptor_sets(uint32_t count, const api::descriptor_set *sets) final;
-		void update_descriptor_sets(uint32_t count, const api::write_descriptor_set *writes) final;
+		void free_descriptor_sets(uint32_t count, const api::descriptor_set_layout *layouts, const api::descriptor_set *sets) final;
+		void update_descriptor_sets(uint32_t count, const api::write_descriptor_set *updates) final;
 
 		void wait_idle() const final;
 
@@ -146,14 +146,21 @@ namespace reshade::opengl
 
 		bool _compatibility_context = false;
 		std::unordered_set<HDC> _hdcs;
-		api::pipeline_layout _global_pipeline_layout = { 0 };
 		GLuint _current_fbo = 0;
 		GLuint _current_ibo = 0;
 		GLenum _current_prim_mode = GL_NONE;
 		GLenum _current_index_type = GL_UNSIGNED_INT;
 		GLuint _current_vertex_count = 0; // Used to calculate vertex count inside glBegin/glEnd pairs
+#if RESHADE_ADDON
+		api::pipeline_layout _global_pipeline_layout;
+#endif
 
 	private:
+#if RESHADE_ADDON
+		void create_global_pipeline_layout();
+		void destroy_global_pipeline_layout();
+#endif
+
 		std::vector<GLuint> _reserved_texture_names;
 		GLuint _copy_fbo[2] = {};
 		GLuint _mipmap_program = 0;

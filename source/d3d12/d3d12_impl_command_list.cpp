@@ -237,12 +237,12 @@ void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stage
 	{
 		for (uint32_t k = 0; k < count; ++k, base_handle.ptr += _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV])
 		{
-			const auto descriptor = static_cast<const api::buffer_range *>(descriptors)[k];
-			const auto buffer_object = reinterpret_cast<ID3D12Resource *>(descriptor.buffer.handle);
+			const auto buffer_range = static_cast<const api::buffer_range *>(descriptors)[k];
+			const auto buffer_resource = reinterpret_cast<ID3D12Resource *>(buffer_range.buffer.handle);
 
 			D3D12_CONSTANT_BUFFER_VIEW_DESC view_desc;
-			view_desc.BufferLocation = buffer_object->GetGPUVirtualAddress() + descriptor.offset;
-			view_desc.SizeInBytes = static_cast<UINT>(descriptor.size == std::numeric_limits<uint64_t>::max() ? buffer_object->GetDesc().Width : descriptor.size);
+			view_desc.BufferLocation = buffer_resource->GetGPUVirtualAddress() + buffer_range.offset;
+			view_desc.SizeInBytes = static_cast<UINT>(buffer_range.size == std::numeric_limits<uint64_t>::max() ? buffer_resource->GetDesc().Width : buffer_range.size);
 
 			_device_impl->_orig->CreateConstantBufferView(&view_desc, base_handle);
 		}
@@ -326,12 +326,12 @@ void reshade::d3d12::command_list_impl::bind_index_buffer(api::resource buffer, 
 	{
 		assert(index_size == 2 || index_size == 4);
 
-		const auto buffer_ptr = reinterpret_cast<ID3D12Resource *>(buffer.handle);
+		const auto buffer_resource = reinterpret_cast<ID3D12Resource *>(buffer.handle);
 
 		D3D12_INDEX_BUFFER_VIEW view;
-		view.BufferLocation = buffer_ptr->GetGPUVirtualAddress() + offset;
+		view.BufferLocation = buffer_resource->GetGPUVirtualAddress() + offset;
 		view.Format = index_size == 2 ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT;
-		view.SizeInBytes = static_cast<UINT>(buffer_ptr->GetDesc().Width - offset);
+		view.SizeInBytes = static_cast<UINT>(buffer_resource->GetDesc().Width - offset);
 
 		_orig->IASetIndexBuffer(&view);
 	}
@@ -342,14 +342,20 @@ void reshade::d3d12::command_list_impl::bind_index_buffer(api::resource buffer, 
 }
 void reshade::d3d12::command_list_impl::bind_vertex_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *strides)
 {
-	const auto views = static_cast<D3D12_VERTEX_BUFFER_VIEW *>(alloca(sizeof(D3D12_VERTEX_BUFFER_VIEW) * count));
+	if (count > D3D12_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT)
+	{
+		assert(false);
+		count = D3D12_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT;
+	}
+
+	D3D12_VERTEX_BUFFER_VIEW views[D3D12_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
 
 	for (uint32_t i = 0; i < count; ++i)
 	{
-		const auto buffer_ptr = reinterpret_cast<ID3D12Resource *>(buffers[i].handle);
+		const auto buffer_resource = reinterpret_cast<ID3D12Resource *>(buffers[i].handle);
 
-		views[i].BufferLocation = buffer_ptr->GetGPUVirtualAddress() + offsets[i];
-		views[i].SizeInBytes = static_cast<UINT>(buffer_ptr->GetDesc().Width - offsets[i]);
+		views[i].BufferLocation = buffer_resource->GetGPUVirtualAddress() + offsets[i];
+		views[i].SizeInBytes = static_cast<UINT>(buffer_resource->GetDesc().Width - offsets[i]);
 		views[i].StrideInBytes = strides[i];
 	}
 
@@ -428,7 +434,7 @@ void reshade::d3d12::command_list_impl::copy_buffer_to_texture(api::resource src
 	src_copy_location.PlacedFootprint.Footprint.Width = row_length != 0 ? row_length : src_box.right - src_box.left;
 	src_copy_location.PlacedFootprint.Footprint.Height = slice_height != 0 ? slice_height : src_box.bottom - src_box.top;
 	src_copy_location.PlacedFootprint.Footprint.Depth = src_box.back - src_box.front;
-	src_copy_location.PlacedFootprint.Footprint.RowPitch = src_copy_location.PlacedFootprint.Footprint.Width * api::format_bpp(convert_format(res_desc.Format));
+	src_copy_location.PlacedFootprint.Footprint.RowPitch = src_copy_location.PlacedFootprint.Footprint.Width * api::format_bytes_per_pixel(convert_format(res_desc.Format));
 	src_copy_location.PlacedFootprint.Footprint.RowPitch = (src_copy_location.PlacedFootprint.Footprint.RowPitch + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u);
 
 	D3D12_TEXTURE_COPY_LOCATION dst_copy_location;
@@ -485,7 +491,7 @@ void reshade::d3d12::command_list_impl::copy_texture_to_buffer(api::resource src
 	dst_copy_location.PlacedFootprint.Footprint.Width = row_length != 0 ? row_length : std::max(1u, static_cast<UINT>(res_desc.Width) >> (src_subresource % res_desc.MipLevels));
 	dst_copy_location.PlacedFootprint.Footprint.Height = slice_height != 0 ? slice_height : std::max(1u, res_desc.Height >> (src_subresource % res_desc.MipLevels));
 	dst_copy_location.PlacedFootprint.Footprint.Depth = 1;
-	dst_copy_location.PlacedFootprint.Footprint.RowPitch = dst_copy_location.PlacedFootprint.Footprint.Width * api::format_bpp(convert_format(res_desc.Format));
+	dst_copy_location.PlacedFootprint.Footprint.RowPitch = dst_copy_location.PlacedFootprint.Footprint.Width * api::format_bytes_per_pixel(convert_format(res_desc.Format));
 	dst_copy_location.PlacedFootprint.Footprint.RowPitch = (dst_copy_location.PlacedFootprint.Footprint.RowPitch + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u);
 
 	_orig->CopyTextureRegion(

@@ -45,9 +45,6 @@ void reshade::d3d9::swapchain_impl::get_back_buffer(uint32_t index, api::resourc
 
 bool reshade::d3d9::swapchain_impl::on_init(const D3DPRESENT_PARAMETERS &pp)
 {
-	RECT window_rect = {};
-	GetClientRect(pp.hDeviceWindow, &window_rect);
-
 	_width = pp.BackBufferWidth;
 	_height = pp.BackBufferHeight;
 	_backbuffer_format = convert_format(pp.BackBufferFormat);
@@ -110,7 +107,7 @@ void reshade::d3d9::swapchain_impl::on_reset()
 
 void reshade::d3d9::swapchain_impl::on_present()
 {
-	const auto device_impl = static_cast<reshade::d3d9::device_impl *>(_device);
+	const auto device_impl = static_cast<class device_impl *>(_device);
 
 	if (!is_initialized() || FAILED(device_impl->_orig->BeginScene()))
 		return;

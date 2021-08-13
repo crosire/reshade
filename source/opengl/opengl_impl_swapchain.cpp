@@ -89,6 +89,10 @@ void reshade::opengl::swapchain_impl::on_reset()
 {
 	runtime::on_reset();
 
+	// Do not call add-on events if this swap chain was never initialized
+	if (_rbo == 0)
+		return;
+
 #if RESHADE_ADDON
 	invoke_addon_event<addon_event::destroy_swapchain>(this);
 #endif

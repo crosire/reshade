@@ -185,7 +185,7 @@ bool reshade::d3d11::swapchain_impl::on_layer_submit(UINT eye, ID3D11Texture2D *
 {
 	assert(eye < 2 && source != nullptr);
 
-	D3D11_TEXTURE2D_DESC source_desc;
+	D3D11_TEXTURE2D_DESC source_desc = {};
 	source->GetDesc(&source_desc);
 
 	if (source_desc.SampleDesc.Count > 1)
@@ -239,7 +239,8 @@ bool reshade::d3d11::swapchain_impl::on_layer_submit(UINT eye, ID3D11Texture2D *
 	}
 
 	// Copy region of the source texture (in case of an array texture, copy from the layer corresponding to the current eye)
-	static_cast<device_context_impl *>(_graphics_queue)->_orig->CopySubresourceRegion(_backbuffer.get(), 0, eye * region_width, 0, 0, source, source_desc.ArraySize == 2 ? eye : 0, &source_region);
+	ID3D11DeviceContext *const immediate_context = static_cast<device_context_impl *>(_graphics_queue)->_orig;
+	immediate_context->CopySubresourceRegion(_backbuffer.get(), 0, eye * region_width, 0, 0, source, source_desc.ArraySize == 2 ? eye : 0, &source_region);
 
 	*target = _backbuffer.get();
 

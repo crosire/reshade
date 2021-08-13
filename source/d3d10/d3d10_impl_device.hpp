@@ -68,8 +68,8 @@ namespace reshade::d3d10
 		bool get_query_pool_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride) final;
 
 		bool allocate_descriptor_sets(uint32_t count, const api::descriptor_set_layout *layouts, api::descriptor_set *out) final;
-		void free_descriptor_sets(uint32_t count, const api::descriptor_set *sets) final;
-		void update_descriptor_sets(uint32_t count, const api::write_descriptor_set *writes) final;
+		void free_descriptor_sets(uint32_t count, const api::descriptor_set_layout *layouts, const api::descriptor_set *sets) final;
+		void update_descriptor_sets(uint32_t count, const api::write_descriptor_set *updates) final;
 
 		void wait_idle() const final { /* no-op */ }
 
@@ -138,13 +138,21 @@ namespace reshade::d3d10
 		void finish_debug_event() final {}
 		void insert_debug_marker(const char *, const float[4]) final {}
 
-		// Global pipeline layout handle which is registered during device creation
-		api::pipeline_layout _global_pipeline_layout = { 0 };
+	protected:
+#if RESHADE_ADDON
+		api::pipeline_layout _global_pipeline_layout;
+#endif
 
 	private:
+#if RESHADE_ADDON
+		void create_global_pipeline_layout();
+		void destroy_global_pipeline_layout();
+#endif
+
 		com_ptr<ID3D10VertexShader> _copy_vert_shader;
 		com_ptr<ID3D10PixelShader>  _copy_pixel_shader;
 		com_ptr<ID3D10SamplerState> _copy_sampler_state;
+
 		UINT _push_constants_size = 0;
 		com_ptr<ID3D10Buffer> _push_constants;
 	};

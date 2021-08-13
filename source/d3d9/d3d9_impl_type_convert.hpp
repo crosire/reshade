@@ -7,6 +7,11 @@
 
 namespace reshade::d3d9
 {
+	struct sampler_impl
+	{
+		DWORD state[12];
+	};
+
 	struct pipeline_impl
 	{
 		com_ptr<IDirect3DStateBlock9> state_block;

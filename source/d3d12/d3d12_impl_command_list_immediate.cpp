@@ -11,7 +11,7 @@ reshade::d3d12::command_list_immediate_impl::command_list_immediate_impl(device_
 	command_list_impl(device, nullptr)
 {
 	// Create multiple command allocators to buffer for multiple frames
-	for (UINT i = 0; i < NUM_COMMAND_FRAMES; ++i)
+	for (uint32_t i = 0; i < NUM_COMMAND_FRAMES; ++i)
 	{
 		if (FAILED(_device_impl->_orig->CreateFence(_fence_value[i], D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&_fence[i]))))
 			return;

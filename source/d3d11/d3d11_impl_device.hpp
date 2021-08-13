@@ -9,11 +9,14 @@
 #include "com_ptr.hpp"
 #include "addon_manager.hpp"
 
+struct D3D11DeviceContext;
+
 namespace reshade::d3d11
 {
 	class device_impl : public api::api_object_impl<ID3D11Device *, api::device>
 	{
 		friend class swapchain_impl;
+		friend class device_context_impl;
 
 	public:
 		explicit device_impl(ID3D11Device *device);
@@ -71,8 +74,8 @@ namespace reshade::d3d11
 		bool get_query_pool_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride) final;
 
 		bool allocate_descriptor_sets(uint32_t count, const api::descriptor_set_layout *layouts, api::descriptor_set *out) final;
-		void free_descriptor_sets(uint32_t count, const api::descriptor_set *sets) final;
-		void update_descriptor_sets(uint32_t count, const api::write_descriptor_set *writes) final;
+		void free_descriptor_sets(uint32_t count, const api::descriptor_set_layout *layouts, const api::descriptor_set *sets) final;
+		void update_descriptor_sets(uint32_t count, const api::write_descriptor_set *updates) final;
 
 		void wait_idle() const final { /* no-op */ }
 
@@ -85,11 +88,19 @@ namespace reshade::d3d11
 		void get_resource_from_view(api::resource_view view, api::resource *out) const final;
 		bool get_framebuffer_attachment(api::framebuffer framebuffer, api::attachment_type type, uint32_t index, api::resource_view *out) const final;
 
-		// Global pipeline layout handle which is registered during device creation
-		api::pipeline_layout _global_pipeline_layout = { 0 };
+	protected:
+		friend struct D3D11DeviceContext;
+
+#if RESHADE_ADDON
+		api::pipeline_layout _global_pipeline_layout;
+#endif
 
 	private:
-		ID3D11DeviceContext *_immediate_context_orig = nullptr;
+#if RESHADE_ADDON
+		void create_global_pipeline_layout();
+		void destroy_global_pipeline_layout();
+#endif
+
 		com_ptr<ID3D11VertexShader> _copy_vert_shader;
 		com_ptr<ID3D11PixelShader>  _copy_pixel_shader;
 		com_ptr<ID3D11SamplerState> _copy_sampler_state;

@@ -7,6 +7,7 @@
 
 #include <string>
 #include <vector>
+#include <cassert>
 
 namespace reshade::api
 {
@@ -16,6 +17,11 @@ namespace reshade::api
 	public:
 		template <typename... Args>
 		explicit api_object_impl(T orig, Args... args) : api_object_base(std::forward<Args>(args)...)..., _orig(orig) {}
+		~api_object_impl()
+		{
+			// All user data should ideally have been removed before destruction, to avoid leaks
+			assert(_data_entries.empty());
+		}
 
 		api_object_impl(const api_object_impl &) = delete;
 		api_object_impl &operator=(const api_object_impl &) = delete;

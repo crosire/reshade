@@ -643,7 +643,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::UpdateSurface(IDirect3DSurface9 *pSou
 		int32_t src_box[6];
 		convert_rect_to_box(pSourceRect, src_box);
 		int32_t dst_box[6];
-		convert_rect_to_box(pDestinationPoint, pSourceRect != nullptr ? pSourceRect->right - pSourceRect->left : desc.Width, pSourceRect != nullptr ? pSourceRect->bottom - pSourceRect->top : desc.Height, dst_box);
+		convert_rect_to_box(pDestinationPoint, (pSourceRect != nullptr) ? pSourceRect->right - pSourceRect->left : desc.Width, (pSourceRect != nullptr) ? pSourceRect->bottom - pSourceRect->top : desc.Height, dst_box);
 
 		reshade::api::resource src_resource = { 0 };
 		uint32_t src_subresource = 0;
@@ -1085,18 +1085,18 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetTexture(DWORD Stage, IDirect3DBase
 	if (SUCCEEDED(hr) &&
 		reshade::has_event_callbacks(reshade::addon_event::push_descriptors))
 	{
+		// This assumes that the sampler state is set by the application before textures, which is not necessarily the case, but oh well ...
+		const reshade::api::sampler_with_resource_view descriptor_data = {
+			get_current_sampler_state(Stage),
+			reshade::api::resource_view { reinterpret_cast<uintptr_t>(pTexture) }
+		};
+
 		reshade::api::shader_stage shader_stage = reshade::api::shader_stage::pixel;
 		if (Stage >= D3DVERTEXTEXTURESAMPLER0)
 		{
 			shader_stage = reshade::api::shader_stage::vertex;
 			Stage -= D3DVERTEXTEXTURESAMPLER0;
 		}
-
-		// This assumes that the sampler state is set by the application before textures, which is not necessarily the case, but oh well ...
-		const reshade::api::sampler_with_resource_view descriptor_data = {
-			get_current_sampler_state(Stage),
-			reshade::api::resource_view { reinterpret_cast<uintptr_t>(pTexture) }
-		};
 
 		// See global pipeline layout initialization in 'device_impl::on_after_reset' for corresponding layout indices
 		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(

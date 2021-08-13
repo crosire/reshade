@@ -7,6 +7,7 @@
 
 #include "addon_manager.hpp"
 #include "d3d9_impl_state_block.hpp"
+#include <unordered_map>
 
 namespace reshade::d3d9
 {
@@ -63,8 +64,8 @@ namespace reshade::d3d9
 		bool get_query_pool_results(api::query_pool heap, uint32_t first, uint32_t count, void *results, uint32_t stride) final;
 
 		bool allocate_descriptor_sets(uint32_t count, const api::descriptor_set_layout *layouts, api::descriptor_set *out) final;
-		void free_descriptor_sets(uint32_t count, const api::descriptor_set *sets) final;
-		void update_descriptor_sets(uint32_t count, const api::write_descriptor_set *writes) final;
+		void free_descriptor_sets(uint32_t count, const api::descriptor_set_layout *layouts, const api::descriptor_set *sets) final;
+		void update_descriptor_sets(uint32_t count, const api::write_descriptor_set *updates) final;
 
 		void wait_idle() const final { /* no-op */ }
 
@@ -130,27 +131,33 @@ namespace reshade::d3d9
 		void finish_debug_event() final;
 		void insert_debug_marker(const char *label, const float color[4]) final;
 
-		// Cached device capabilities for quick access
-		D3DCAPS9 _caps;
-		D3DDEVICE_CREATION_PARAMETERS _cp;
+	protected:
+		bool on_init(const D3DPRESENT_PARAMETERS &pp);
+		void on_reset();
+
+		HRESULT create_surface_replacement(const D3DSURFACE_DESC &new_desc, IDirect3DSurface9 **out_surface, HANDLE *out_shared_handle = nullptr) const;
+
+#if RESHADE_ADDON
+		api::sampler get_current_sampler_state(DWORD slot);
+
+		D3DPRIMITIVETYPE _current_prim_type = static_cast<D3DPRIMITIVETYPE>(0);
+		api::pipeline_layout _global_pipeline_layout;
+#endif
+
+		D3DCAPS9 _caps = {};
+		D3DDEVICE_CREATION_PARAMETERS _cp = {};
 		com_ptr<IDirect3D9> _d3d;
 
 	private:
+#if RESHADE_ADDON
+		void create_global_pipeline_layout();
+		void destroy_global_pipeline_layout();
+#endif
+
 		state_block _backup_state;
 		com_ptr<IDirect3DStateBlock9> _copy_state;
 		com_ptr<IDirect3DVertexBuffer9> _default_input_stream;
 		com_ptr<IDirect3DVertexDeclaration9> _default_input_layout;
 		std::unordered_map<size_t, api::sampler> _cached_sampler_states;
-
-	protected:
-		bool on_init(const D3DPRESENT_PARAMETERS &pp);
-		void on_reset();
-
-		HRESULT create_surface_replacement(const D3DSURFACE_DESC &new_desc, IDirect3DSurface9 **out_surface, HANDLE *out_shared_handle = nullptr);
-
-		api::sampler get_current_sampler_state(DWORD slot);
-
-		D3DPRIMITIVETYPE _current_prim_type = static_cast<D3DPRIMITIVETYPE>(0);
-		api::pipeline_layout _global_pipeline_layout = { 0 };
 	};
 }

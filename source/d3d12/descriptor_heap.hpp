@@ -49,7 +49,7 @@ namespace reshade::d3d12
 			return allocate_heap() && allocate(handle);
 		}
 
-		void deallocate(D3D12_CPU_DESCRIPTOR_HANDLE handle)
+		void free(D3D12_CPU_DESCRIPTOR_HANDLE handle)
 		{
 			for (heap_info &heap_info : _heap_infos)
 			{
@@ -174,7 +174,7 @@ namespace reshade::d3d12
 			return true;
 		}
 
-		void deallocate(D3D12_GPU_DESCRIPTOR_HANDLE handle, UINT count = 1)
+		void free(D3D12_GPU_DESCRIPTOR_HANDLE handle, UINT count = 1)
 		{
 			// Ensure this handle falls into the static range of this heap
 			if (handle.ptr < _static_heap_base_gpu || handle.ptr >= _transient_heap_base_gpu)
@@ -219,6 +219,15 @@ namespace reshade::d3d12
 
 			// Otherwise add a new block to the free list
 			_free_list.emplace_back(handle.ptr, handle.ptr + count * _increment_size);
+		}
+
+		bool convert_handle(D3D12_GPU_DESCRIPTOR_HANDLE handle_gpu, D3D12_CPU_DESCRIPTOR_HANDLE &out_handle_cpu) const
+		{
+			if (handle_gpu.ptr < _static_heap_base_gpu || handle_gpu.ptr >= _transient_heap_base_gpu)
+				return false;
+
+			out_handle_cpu.ptr = _static_heap_base + static_cast<SIZE_T>(handle_gpu.ptr - _static_heap_base_gpu);
+			return true;
 		}
 
 		ID3D12DescriptorHeap *get() const { assert(_heap != nullptr); return _heap.get(); }

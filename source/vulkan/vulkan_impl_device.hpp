@@ -7,7 +7,6 @@
 
 #include "addon_manager.hpp"
 #include <mutex>
-#include <cassert>
 #include <unordered_map>
 
 #pragma warning(push)
@@ -161,8 +160,8 @@ namespace reshade::vulkan
 		bool get_query_pool_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride) final;
 
 		bool allocate_descriptor_sets(uint32_t count, const api::descriptor_set_layout *layouts, api::descriptor_set *out) final;
-		void free_descriptor_sets(uint32_t count, const api::descriptor_set *sets) final;
-		void update_descriptor_sets(uint32_t count, const api::write_descriptor_set *writes) final;
+		void free_descriptor_sets(uint32_t count, const api::descriptor_set_layout *layouts, const api::descriptor_set *sets) final;
+		void update_descriptor_sets(uint32_t count, const api::write_descriptor_set *updates) final;
 
 		void wait_idle() const final;
 
@@ -180,8 +179,7 @@ namespace reshade::vulkan
 #if RESHADE_ADDON
 		uint32_t get_subresource_index(VkImage image, const VkImageSubresourceLayers &layers, uint32_t layer = 0) const
 		{
-			const std::lock_guard<std::mutex> lock(_mutex);
-			return layers.mipLevel + (layers.baseArrayLayer + layer) * _resources.at((uint64_t)image).image_create_info.mipLevels;
+			return layers.mipLevel + (layers.baseArrayLayer + layer) * lookup_resource({ (uint64_t)image }).image_create_info.mipLevels;
 		}
 
 		api::resource_view get_default_view(VkImage image)

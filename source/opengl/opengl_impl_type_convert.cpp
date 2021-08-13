@@ -5,7 +5,6 @@
 
 #include "opengl_impl_device.hpp"
 #include "opengl_impl_type_convert.hpp"
-#include <cassert>
 
 auto reshade::opengl::convert_format(api::format format) -> GLenum
 {

@@ -7,7 +7,6 @@
 #include "ini_file.hpp"
 #include "opengl_impl_device.hpp"
 #include "opengl_impl_type_convert.hpp"
-#include <cassert>
 
 static GLint get_rbo_param(GLuint id, GLenum param)
 {
@@ -206,8 +205,45 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC hglrc) :
 	load_addons();
 
 	invoke_addon_event<addon_event::init_device>(this);
+	invoke_addon_event<addon_event::init_command_list>(this);
 	invoke_addon_event<addon_event::init_command_queue>(this);
 
+	create_global_pipeline_layout();
+
+	// Communicate default state to add-ons
+	invoke_addon_event<addon_event::begin_render_pass>(this, api::render_pass { 0 }, make_framebuffer_handle(0));
+#endif
+}
+reshade::opengl::device_impl::~device_impl()
+{
+#if RESHADE_ADDON
+	invoke_addon_event<addon_event::finish_render_pass>(this);
+
+	invoke_addon_event<addon_event::destroy_command_queue>(this);
+	invoke_addon_event<addon_event::destroy_command_list>(this);
+	invoke_addon_event<addon_event::destroy_device>(this);
+
+	destroy_global_pipeline_layout();
+
+	unload_addons();
+#endif
+
+	// Destroy mipmap generation program
+	glDeleteProgram(_mipmap_program);
+
+	// Destroy framebuffers used in 'copy_resource' implementation
+	glDeleteFramebuffers(2, _copy_fbo);
+
+	// Destroy push constants buffer
+	glDeleteBuffers(1, &_push_constants);
+
+	// Free range of reserved texture names
+	glDeleteTextures(static_cast<GLsizei>(_reserved_texture_names.size()), _reserved_texture_names.data());
+}
+
+#if RESHADE_ADDON
+void reshade::opengl::device_impl::create_global_pipeline_layout()
+{
 	GLuint max_image_units = 0;
 	glGetIntegerv(GL_MAX_IMAGE_UNITS, reinterpret_cast<GLint *>(&max_image_units));
 	GLuint max_uniform_buffer_bindings = 0;
@@ -248,41 +284,19 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC hglrc) :
 	create_descriptor_set_layout(1, &push_descriptors, true, &layout_params[3].descriptor_layout);
 
 	create_pipeline_layout(6, layout_params, &_global_pipeline_layout);
-
-	// Communicate default state to add-ons
-	invoke_addon_event<addon_event::begin_render_pass>(this, api::render_pass { 0 }, make_framebuffer_handle(0));
-#endif
 }
-reshade::opengl::device_impl::~device_impl()
+void reshade::opengl::device_impl::destroy_global_pipeline_layout()
 {
-#if RESHADE_ADDON
-	invoke_addon_event<addon_event::finish_render_pass>(this);
+	const std::vector<api::pipeline_layout_param> &layout_params = reinterpret_cast<pipeline_layout_impl *>(_global_pipeline_layout.handle)->params;
 
-	invoke_addon_event<addon_event::destroy_command_queue>(this);
-	invoke_addon_event<addon_event::destroy_device>(this);
-
-	unload_addons();
-
-	const std::vector<api::pipeline_layout_param> layout_params = std::move(reinterpret_cast<pipeline_layout_impl *>(_global_pipeline_layout.handle)->params);
-	destroy_pipeline_layout(_global_pipeline_layout);
 	destroy_descriptor_set_layout(layout_params[0].descriptor_layout);
 	destroy_descriptor_set_layout(layout_params[1].descriptor_layout);
 	destroy_descriptor_set_layout(layout_params[2].descriptor_layout);
 	destroy_descriptor_set_layout(layout_params[3].descriptor_layout);
-#endif
 
-	// Destroy mipmap generation program
-	glDeleteProgram(_mipmap_program);
-
-	// Destroy framebuffers used in 'copy_resource' implementation
-	glDeleteFramebuffers(2, _copy_fbo);
-
-	// Destroy push constants buffer
-	glDeleteBuffers(1, &_push_constants);
-
-	// Free range of reserved texture names
-	glDeleteTextures(static_cast<GLsizei>(_reserved_texture_names.size()), _reserved_texture_names.data());
+	destroy_pipeline_layout(_global_pipeline_layout);
 }
+#endif
 
 bool reshade::opengl::device_impl::check_capability(api::device_caps capability) const
 {
@@ -634,7 +648,11 @@ void reshade::opengl::device_impl::destroy_resource(api::resource handle)
 
 bool reshade::opengl::device_impl::create_resource_view(api::resource resource, api::resource_usage, const api::resource_view_desc &desc, api::resource_view *out)
 {
-	assert(resource.handle != 0);
+	if (resource.handle == 0)
+	{
+		*out = { 0 };
+		return false;
+	}
 
 	const bool is_srgb_format =
 		desc.format != api::format_to_default_typed(desc.format, 0) &&
@@ -795,8 +813,6 @@ bool reshade::opengl::device_impl::create_pipeline(const api::pipeline_desc &des
 
 	switch (desc.type)
 	{
-	default:
-		return false;
 	case api::pipeline_stage::all_graphics:
 		return create_graphics_pipeline(desc, out);
 	case api::pipeline_stage::vertex_shader:
@@ -811,6 +827,8 @@ bool reshade::opengl::device_impl::create_pipeline(const api::pipeline_desc &des
 		return create_shader_module(GL_FRAGMENT_SHADER, desc.graphics.pixel_shader, *reinterpret_cast<GLuint *>(out));
 	case api::pipeline_stage::compute_shader:
 		return create_compute_pipeline(desc, out);
+	default:
+		return false;
 	}
 }
 bool reshade::opengl::device_impl::create_compute_pipeline(const api::pipeline_desc &desc, api::pipeline *out)
@@ -910,15 +928,15 @@ bool reshade::opengl::device_impl::create_graphics_pipeline(const api::pipeline_
 		return false;
 	}
 
-	const auto state = new pipeline_impl();
-	state->program = program;
+	const auto impl = new pipeline_impl();
+	impl->program = program;
 
 	{
 		GLuint prev_vao = 0;
-		glGenVertexArrays(1, &state->vao);
+		glGenVertexArrays(1, &impl->vao);
 		glGetIntegerv(GL_VERTEX_ARRAY_BINDING, reinterpret_cast<GLint *>(&prev_vao));
 
-		glBindVertexArray(state->vao);
+		glBindVertexArray(impl->vao);
 
 		for (uint32_t i = 0; i < 16 && desc.graphics.input_layout[i].format != api::format::unknown; ++i)
 		{
@@ -941,57 +959,57 @@ bool reshade::opengl::device_impl::create_graphics_pipeline(const api::pipeline_
 		glBindVertexArray(prev_vao);
 	}
 
-	state->sample_alpha_to_coverage = desc.graphics.blend_state.alpha_to_coverage_enable;
-	state->blend_enable = desc.graphics.blend_state.blend_enable[0];
-	state->logic_op_enable = desc.graphics.blend_state.logic_op_enable[0];
-	state->blend_src = convert_blend_factor(desc.graphics.blend_state.src_color_blend_factor[0]);
-	state->blend_dst = convert_blend_factor(desc.graphics.blend_state.dst_color_blend_factor[0]);
-	state->blend_src_alpha = convert_blend_factor(desc.graphics.blend_state.src_alpha_blend_factor[0]);
-	state->blend_dst_alpha = convert_blend_factor(desc.graphics.blend_state.dst_alpha_blend_factor[0]);
-	state->blend_eq = convert_blend_op(desc.graphics.blend_state.color_blend_op[0]);
-	state->blend_eq_alpha = convert_blend_op(desc.graphics.blend_state.alpha_blend_op[0]);
-	state->logic_op = convert_logic_op(desc.graphics.blend_state.logic_op[0]);
-	state->blend_constant[0] = ((desc.graphics.blend_state.blend_constant      ) & 0xFF) / 255.0f;
-	state->blend_constant[1] = ((desc.graphics.blend_state.blend_constant >>  4) & 0xFF) / 255.0f;
-	state->blend_constant[2] = ((desc.graphics.blend_state.blend_constant >>  8) & 0xFF) / 255.0f;
-	state->blend_constant[3] = ((desc.graphics.blend_state.blend_constant >> 12) & 0xFF) / 255.0f;
-	state->color_write_mask[0] = (desc.graphics.blend_state.render_target_write_mask[0] & (1 << 0)) != 0;
-	state->color_write_mask[1] = (desc.graphics.blend_state.render_target_write_mask[0] & (1 << 1)) != 0;
-	state->color_write_mask[2] = (desc.graphics.blend_state.render_target_write_mask[0] & (1 << 2)) != 0;
-	state->color_write_mask[3] = (desc.graphics.blend_state.render_target_write_mask[0] & (1 << 3)) != 0;
+	impl->sample_alpha_to_coverage = desc.graphics.blend_state.alpha_to_coverage_enable;
+	impl->blend_enable = desc.graphics.blend_state.blend_enable[0];
+	impl->logic_op_enable = desc.graphics.blend_state.logic_op_enable[0];
+	impl->blend_src = convert_blend_factor(desc.graphics.blend_state.src_color_blend_factor[0]);
+	impl->blend_dst = convert_blend_factor(desc.graphics.blend_state.dst_color_blend_factor[0]);
+	impl->blend_src_alpha = convert_blend_factor(desc.graphics.blend_state.src_alpha_blend_factor[0]);
+	impl->blend_dst_alpha = convert_blend_factor(desc.graphics.blend_state.dst_alpha_blend_factor[0]);
+	impl->blend_eq = convert_blend_op(desc.graphics.blend_state.color_blend_op[0]);
+	impl->blend_eq_alpha = convert_blend_op(desc.graphics.blend_state.alpha_blend_op[0]);
+	impl->logic_op = convert_logic_op(desc.graphics.blend_state.logic_op[0]);
+	impl->blend_constant[0] = ((desc.graphics.blend_state.blend_constant      ) & 0xFF) / 255.0f;
+	impl->blend_constant[1] = ((desc.graphics.blend_state.blend_constant >>  4) & 0xFF) / 255.0f;
+	impl->blend_constant[2] = ((desc.graphics.blend_state.blend_constant >>  8) & 0xFF) / 255.0f;
+	impl->blend_constant[3] = ((desc.graphics.blend_state.blend_constant >> 12) & 0xFF) / 255.0f;
+	impl->color_write_mask[0] = (desc.graphics.blend_state.render_target_write_mask[0] & (1 << 0)) != 0;
+	impl->color_write_mask[1] = (desc.graphics.blend_state.render_target_write_mask[0] & (1 << 1)) != 0;
+	impl->color_write_mask[2] = (desc.graphics.blend_state.render_target_write_mask[0] & (1 << 2)) != 0;
+	impl->color_write_mask[3] = (desc.graphics.blend_state.render_target_write_mask[0] & (1 << 3)) != 0;
 
-	state->polygon_mode = convert_fill_mode(desc.graphics.rasterizer_state.fill_mode);
-	state->cull_mode = convert_cull_mode(desc.graphics.rasterizer_state.cull_mode);
-	state->front_face = desc.graphics.rasterizer_state.front_counter_clockwise ? GL_CCW : GL_CW;
-	state->depth_clamp = !desc.graphics.rasterizer_state.depth_clip_enable;
-	state->scissor_test = desc.graphics.rasterizer_state.scissor_enable;
-	state->multisample_enable = desc.graphics.rasterizer_state.multisample_enable;
-	state->line_smooth_enable = desc.graphics.rasterizer_state.antialiased_line_enable;
+	impl->polygon_mode = convert_fill_mode(desc.graphics.rasterizer_state.fill_mode);
+	impl->cull_mode = convert_cull_mode(desc.graphics.rasterizer_state.cull_mode);
+	impl->front_face = desc.graphics.rasterizer_state.front_counter_clockwise ? GL_CCW : GL_CW;
+	impl->depth_clamp = !desc.graphics.rasterizer_state.depth_clip_enable;
+	impl->scissor_test = desc.graphics.rasterizer_state.scissor_enable;
+	impl->multisample_enable = desc.graphics.rasterizer_state.multisample_enable;
+	impl->line_smooth_enable = desc.graphics.rasterizer_state.antialiased_line_enable;
 
 	// Polygon offset is not currently implemented
 	assert(desc.graphics.rasterizer_state.depth_bias == 0 && desc.graphics.rasterizer_state.depth_bias_clamp == 0 && desc.graphics.rasterizer_state.slope_scaled_depth_bias == 0);
 
-	state->depth_test = desc.graphics.depth_stencil_state.depth_enable;
-	state->depth_mask = desc.graphics.depth_stencil_state.depth_write_mask;
-	state->depth_func = convert_compare_op(desc.graphics.depth_stencil_state.depth_func);
-	state->stencil_test = desc.graphics.depth_stencil_state.stencil_enable;
-	state->stencil_read_mask = desc.graphics.depth_stencil_state.stencil_read_mask;
-	state->stencil_write_mask = desc.graphics.depth_stencil_state.stencil_write_mask;
-	state->stencil_reference_value = static_cast<GLint>(desc.graphics.depth_stencil_state.stencil_reference_value);
-	state->front_stencil_op_fail = convert_stencil_op(desc.graphics.depth_stencil_state.front_stencil_fail_op);
-	state->front_stencil_op_depth_fail = convert_stencil_op(desc.graphics.depth_stencil_state.front_stencil_depth_fail_op);
-	state->front_stencil_op_pass = convert_stencil_op(desc.graphics.depth_stencil_state.front_stencil_pass_op);
-	state->front_stencil_func = convert_compare_op(desc.graphics.depth_stencil_state.front_stencil_func);
-	state->back_stencil_op_fail = convert_stencil_op(desc.graphics.depth_stencil_state.back_stencil_fail_op);
-	state->back_stencil_op_depth_fail = convert_stencil_op(desc.graphics.depth_stencil_state.back_stencil_depth_fail_op);
-	state->back_stencil_op_pass = convert_stencil_op(desc.graphics.depth_stencil_state.back_stencil_pass_op);
-	state->back_stencil_func = convert_compare_op(desc.graphics.depth_stencil_state.back_stencil_func);
+	impl->depth_test = desc.graphics.depth_stencil_state.depth_enable;
+	impl->depth_mask = desc.graphics.depth_stencil_state.depth_write_mask;
+	impl->depth_func = convert_compare_op(desc.graphics.depth_stencil_state.depth_func);
+	impl->stencil_test = desc.graphics.depth_stencil_state.stencil_enable;
+	impl->stencil_read_mask = desc.graphics.depth_stencil_state.stencil_read_mask;
+	impl->stencil_write_mask = desc.graphics.depth_stencil_state.stencil_write_mask;
+	impl->stencil_reference_value = static_cast<GLint>(desc.graphics.depth_stencil_state.stencil_reference_value);
+	impl->front_stencil_op_fail = convert_stencil_op(desc.graphics.depth_stencil_state.front_stencil_fail_op);
+	impl->front_stencil_op_depth_fail = convert_stencil_op(desc.graphics.depth_stencil_state.front_stencil_depth_fail_op);
+	impl->front_stencil_op_pass = convert_stencil_op(desc.graphics.depth_stencil_state.front_stencil_pass_op);
+	impl->front_stencil_func = convert_compare_op(desc.graphics.depth_stencil_state.front_stencil_func);
+	impl->back_stencil_op_fail = convert_stencil_op(desc.graphics.depth_stencil_state.back_stencil_fail_op);
+	impl->back_stencil_op_depth_fail = convert_stencil_op(desc.graphics.depth_stencil_state.back_stencil_depth_fail_op);
+	impl->back_stencil_op_pass = convert_stencil_op(desc.graphics.depth_stencil_state.back_stencil_pass_op);
+	impl->back_stencil_func = convert_compare_op(desc.graphics.depth_stencil_state.back_stencil_func);
 
-	state->sample_mask = desc.graphics.sample_mask;
-	state->prim_mode = convert_primitive_topology(desc.graphics.topology);
-	state->patch_vertices = state->prim_mode == GL_PATCHES ? static_cast<uint32_t>(desc.graphics.topology) - static_cast<uint32_t>(api::primitive_topology::patch_list_01_cp) : 0;
+	impl->sample_mask = desc.graphics.sample_mask;
+	impl->prim_mode = convert_primitive_topology(desc.graphics.topology);
+	impl->patch_vertices = impl->prim_mode == GL_PATCHES ? static_cast<uint32_t>(desc.graphics.topology) - static_cast<uint32_t>(api::primitive_topology::patch_list_01_cp) : 0;
 
-	*out = { reinterpret_cast<uintptr_t>(state) };
+	*out = { reinterpret_cast<uintptr_t>(impl) };
 	return true;
 }
 void reshade::opengl::device_impl::destroy_pipeline(api::pipeline_stage, api::pipeline handle)
@@ -1003,9 +1021,9 @@ bool reshade::opengl::device_impl::create_pipeline_layout(uint32_t count, const 
 {
 	bool success = true;
 
-	const auto layout_impl = new pipeline_layout_impl();
-	layout_impl->params.assign(params, params + count);
-	layout_impl->bindings.resize(count);
+	const auto impl = new pipeline_layout_impl();
+	impl->params.assign(params, params + count);
+	impl->bindings.resize(count);
 
 	for (uint32_t i = 0; i < count && success; ++i)
 	{
@@ -1013,25 +1031,25 @@ bool reshade::opengl::device_impl::create_pipeline_layout(uint32_t count, const 
 		{
 			const auto set_layout_impl = reinterpret_cast<const descriptor_set_layout_impl *>(params[i].descriptor_layout.handle);
 
-			layout_impl->bindings[i] = set_layout_impl->range.binding;
+			impl->bindings[i] = set_layout_impl->range.binding;
 		}
 		else
 		{
 			if (params[i].push_constants.offset != 0)
 				success = false;
 
-			layout_impl->bindings[i] = params[i].push_constants.dx_register_index; // TODO: Add binding field?
+			impl->bindings[i] = params[i].push_constants.dx_register_index; // TODO: Add binding field?
 		}
 	}
 
 	if (success)
 	{
-		*out = { reinterpret_cast<uintptr_t>(layout_impl) };
+		*out = { reinterpret_cast<uintptr_t>(impl) };
 		return true;
 	}
 	else
 	{
-		delete layout_impl;
+		delete impl;
 
 		*out = { 0 };
 		return false;
@@ -1079,10 +1097,10 @@ bool reshade::opengl::device_impl::create_descriptor_set_layout(uint32_t count, 
 
 	if (success)
 	{
-		const auto set_layout_impl = new descriptor_set_layout_impl();
-		set_layout_impl->range = merged_range;
+		const auto impl = new descriptor_set_layout_impl();
+		impl->range = merged_range;
 
-		*out = { reinterpret_cast<uintptr_t>(set_layout_impl) };
+		*out = { reinterpret_cast<uintptr_t>(impl) };
 		return true;
 	}
 	else
@@ -1104,27 +1122,28 @@ bool reshade::opengl::device_impl::create_query_pool(api::query_type type, uint3
 		return false;
 	}
 
-	const auto result = new query_pool_impl();
-	result->queries.resize(size);
+	const auto impl = new query_pool_impl();
+	impl->queries.resize(size);
 
-	glGenQueries(static_cast<GLsizei>(size), result->queries.data());
+	glGenQueries(static_cast<GLsizei>(size), impl->queries.data());
+
+	const GLenum target = convert_query_type(type);
 
 	// Actually create and associate query objects with the names generated by 'glGenQueries' above
-	for (GLuint i = 0; i < size; ++i)
+	for (uint32_t i = 0; i < size; ++i)
 	{
 		if (type == api::query_type::timestamp)
 		{
-			glQueryCounter(result->queries[i], GL_TIMESTAMP);
+			glQueryCounter(impl->queries[i], GL_TIMESTAMP);
 		}
 		else
 		{
-			const GLenum target = convert_query_type(type);
-			glBeginQuery(target, result->queries[i]);
+			glBeginQuery(target, impl->queries[i]);
 			glEndQuery(target);
 		}
 	}
 
-	*out = { reinterpret_cast<uintptr_t>(result) };
+	*out = { reinterpret_cast<uintptr_t>(impl) };
 	return true;
 }
 void reshade::opengl::device_impl::destroy_query_pool(api::query_pool handle)
@@ -1446,7 +1465,7 @@ void reshade::opengl::device_impl::upload_texture_region(const api::subresource_
 		glGetTexLevelParameteriv(target, level, GL_TEXTURE_DEPTH,  &depth);
 	}
 
-	const auto row_size_packed = width * api::format_bpp(convert_format(format));
+	const auto row_size_packed = width * api::format_bytes_per_pixel(convert_format(format));
 	const auto slice_size_packed = height * row_size_packed;
 	const auto total_size = depth * slice_size_packed;
 
@@ -1536,12 +1555,14 @@ bool reshade::opengl::device_impl::get_query_pool_results(api::query_pool pool, 
 
 	for (uint32_t i = 0; i < count; ++i)
 	{
+		const GLuint query_object = impl->queries[first + i];
+
 		GLuint available = GL_FALSE;
-		glGetQueryObjectuiv(impl->queries[i + first], GL_QUERY_RESULT_AVAILABLE, &available);
+		glGetQueryObjectuiv(query_object, GL_QUERY_RESULT_AVAILABLE, &available);
 		if (!available)
 			return false;
 
-		glGetQueryObjectui64v(impl->queries[i + first], GL_QUERY_RESULT, reinterpret_cast<GLuint64 *>(static_cast<uint8_t *>(results) + i * stride));
+		glGetQueryObjectui64v(query_object, GL_QUERY_RESULT, reinterpret_cast<GLuint64 *>(static_cast<uint8_t *>(results) + i * stride));
 	}
 
 	return true;
@@ -1551,58 +1572,58 @@ bool reshade::opengl::device_impl::allocate_descriptor_sets(uint32_t count, cons
 {
 	for (uint32_t i = 0; i < count; ++i)
 	{
-		const auto set_layout = reinterpret_cast<const descriptor_set_layout_impl *>(layouts[i].handle);
-		assert(set_layout != nullptr);
+		const auto set_layout_impl = reinterpret_cast<const descriptor_set_layout_impl *>(layouts[i].handle);
+		assert(set_layout_impl != nullptr);
 
-		const auto set = new descriptor_set_impl();
-		set->type = set_layout->range.type;
-		set->count = set_layout->range.array_size;
+		const auto impl = new descriptor_set_impl();
+		impl->type = set_layout_impl->range.type;
+		impl->count = set_layout_impl->range.array_size;
 
-		switch (set->type)
+		switch (impl->type)
 		{
 		case api::descriptor_type::sampler:
 		case api::descriptor_type::shader_resource_view:
 		case api::descriptor_type::unordered_access_view:
-			set->descriptors.resize(set->count * 1);
+			impl->descriptors.resize(impl->count * 1);
 			break;
 		case api::descriptor_type::sampler_with_resource_view:
-			set->descriptors.resize(set->count * 2);
+			impl->descriptors.resize(impl->count * 2);
 			break;
 		case api::descriptor_type::constant_buffer:
-			set->descriptors.resize(set->count * 3);
+			impl->descriptors.resize(impl->count * 3);
 			break;
 		}
 
-		out[i] = { reinterpret_cast<uintptr_t>(set) };
+		out[i] = { reinterpret_cast<uintptr_t>(impl) };
 	}
 
 	return true;
 }
-void reshade::opengl::device_impl::free_descriptor_sets(uint32_t count, const api::descriptor_set *sets)
+void reshade::opengl::device_impl::free_descriptor_sets(uint32_t count, const api::descriptor_set_layout *, const api::descriptor_set *sets)
 {
 	for (uint32_t i = 0; i < count; ++i)
 		delete reinterpret_cast<descriptor_set_impl *>(sets[i].handle);
 }
-void reshade::opengl::device_impl::update_descriptor_sets(uint32_t count, const api::write_descriptor_set *writes)
+void reshade::opengl::device_impl::update_descriptor_sets(uint32_t count, const api::write_descriptor_set *updates)
 {
 	for (uint32_t i = 0; i < count; ++i)
 	{
-		const auto set_impl = reinterpret_cast<descriptor_set_impl *>(writes[i].set.handle);
+		const auto impl = reinterpret_cast<descriptor_set_impl *>(updates[i].set.handle);
 
-		const api::write_descriptor_set &info = writes[i];
+		const api::write_descriptor_set &update = updates[i];
 
-		switch (info.type)
+		switch (update.type)
 		{
 		case api::descriptor_type::sampler:
 		case api::descriptor_type::shader_resource_view:
 		case api::descriptor_type::unordered_access_view:
-			std::memcpy(&set_impl->descriptors[info.offset * 1], info.descriptors, info.count * sizeof(uint64_t) * 1);
+			std::memcpy(&impl->descriptors[update.offset * 1], update.descriptors, update.count * sizeof(uint64_t) * 1);
 			break;
 		case api::descriptor_type::sampler_with_resource_view:
-			std::memcpy(&set_impl->descriptors[info.offset * 2], info.descriptors, info.count * sizeof(uint64_t) * 2);
+			std::memcpy(&impl->descriptors[update.offset * 2], update.descriptors, update.count * sizeof(uint64_t) * 2);
 			break;
 		case api::descriptor_type::constant_buffer:
-			std::memcpy(&set_impl->descriptors[info.offset * 3], info.descriptors, info.count * sizeof(uint64_t) * 3);
+			std::memcpy(&impl->descriptors[update.offset * 3], update.descriptors, update.count * sizeof(uint64_t) * 3);
 			break;
 		}
 	}

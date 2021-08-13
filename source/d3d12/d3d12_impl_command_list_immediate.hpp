@@ -11,7 +11,7 @@ namespace reshade::d3d12
 {
 	class command_list_immediate_impl : public command_list_impl
 	{
-		static const UINT NUM_COMMAND_FRAMES = 4;
+		static constexpr uint32_t NUM_COMMAND_FRAMES = 4; // Use power of two so that modulo can be replaced with bitwise operation
 
 	public:
 		command_list_immediate_impl(device_impl *device);
@@ -23,7 +23,7 @@ namespace reshade::d3d12
 		ID3D12GraphicsCommandList *const begin_commands() { _has_commands = true; return _orig; }
 
 	private:
-		UINT _cmd_index = 0;
+		UINT32 _cmd_index = 0;
 		HANDLE _fence_event = nullptr;
 		UINT64 _fence_value[NUM_COMMAND_FRAMES] = {};
 		com_ptr<ID3D12Fence> _fence[NUM_COMMAND_FRAMES];

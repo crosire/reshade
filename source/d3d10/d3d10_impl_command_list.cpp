@@ -253,7 +253,7 @@ void reshade::d3d10::device_impl::push_constants(api::shader_stage stages, api::
 		push_constants->Unmap();
 	}
 
-	const UINT push_constants_slot = layout.handle != 0 && layout != _global_pipeline_layout ?
+	const UINT push_constants_slot = layout.handle != 0 ?
 		reinterpret_cast<pipeline_layout_impl *>(layout.handle)->shader_registers[layout_param] : 0;
 
 	if ((stages & api::shader_stage::vertex) == api::shader_stage::vertex)
@@ -265,7 +265,7 @@ void reshade::d3d10::device_impl::push_constants(api::shader_stage stages, api::
 }
 void reshade::d3d10::device_impl::push_descriptors(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_type type, uint32_t first, uint32_t count, const void *descriptors)
 {
-	if (layout.handle != 0 && layout != _global_pipeline_layout)
+	if (layout.handle != 0)
 		first += reinterpret_cast<pipeline_layout_impl *>(layout.handle)->shader_registers[layout_param];
 
 	switch (type)
@@ -293,7 +293,7 @@ void reshade::d3d10::device_impl::bind_descriptor_sets(api::shader_stage stages,
 
 	for (uint32_t i = 0; i < count; ++i)
 	{
-		const auto set_impl = reinterpret_cast<descriptor_set_impl *>(sets[i].handle);
+		const auto set_impl = reinterpret_cast<const descriptor_set_impl *>(sets[i].handle);
 		const auto set_offset = (offsets != nullptr) ? offsets[i] : 0;
 
 		push_descriptors(

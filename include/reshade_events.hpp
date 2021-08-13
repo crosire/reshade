@@ -24,6 +24,7 @@ namespace reshade
 
 		/// <summary>
 		/// Called after 'ID3D11DeviceContext::CreateDeferredContext(1/2/3)', 'ID3D12Device::CreateCommandList(1)' or 'vkAllocateCommandBuffers'.
+		/// In case of D3D9, D3D10, D3D11 and OpenGL this is called during device initialization as well and behaves as if an implicit immediate command list was created.
 		/// <para>Callback function signature: <c>void (api::command_list *cmd_list)</c></para>
 		/// </summary>
 		init_command_list,
@@ -35,7 +36,7 @@ namespace reshade
 
 		/// <summary>
 		/// Called after 'ID3D12Device::CreateCommandQueue' or 'vkCreateDevice'.
-		/// In case of D3D9, D3D10, D3D11 and OpenGL this is called during device initialization as well and behaves as if an implicit command queue and list was created.
+		/// In case of D3D9, D3D10, D3D11 and OpenGL this is called during device initialization as well and behaves as if an implicit command queue was created.
 		/// <para>Callback function signature: <c>void (api::command_queue *queue)</c></para>
 		/// </summary>
 		init_command_queue,
