@@ -32,14 +32,9 @@ reshade::opengl::swapchain_impl::swapchain_impl(HDC hdc, HGLRC hglrc) :
 	}
 
 	_backbuffer_format = convert_format(_default_color_format);
-
-#if RESHADE_ADDON
-	invoke_addon_event<addon_event::init_swapchain>(this);
-#endif
 }
 reshade::opengl::swapchain_impl::~swapchain_impl()
 {
-	_swapchain_reset_status = 1;
 	on_reset();
 }
 
@@ -85,7 +80,7 @@ bool reshade::opengl::swapchain_impl::on_init(HWND hwnd, unsigned int width, uns
 	_app_state.apply(_compatibility_context);
 
 #if RESHADE_ADDON
-	invoke_addon_event<addon_event::resize_swapchain>(this, width, height, get_back_buffer_format());
+	invoke_addon_event<addon_event::init_swapchain>(this);
 #endif
 
 	return runtime::on_init(hwnd);
@@ -95,10 +90,7 @@ void reshade::opengl::swapchain_impl::on_reset()
 	runtime::on_reset();
 
 #if RESHADE_ADDON
-	if (_swapchain_reset_status == 0)
-		invoke_addon_event<addon_event::reset_swapchain>(this);
-	else
-		invoke_addon_event<addon_event::destroy_swapchain>(this);
+	invoke_addon_event<addon_event::destroy_swapchain>(this);
 #endif
 
 	glDeleteFramebuffers(2, _fbo);

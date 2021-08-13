@@ -132,8 +132,6 @@ void reshade::enable_or_disable_addons(bool enabled)
 		addon_event::destroy_render_pass,
 		addon_event::init_framebuffer,
 		addon_event::destroy_framebuffer,
-		addon_event::reset_swapchain,
-		addon_event::resize_swapchain,
 	};
 
 	for (size_t event_index = 0; event_index < std::size(addon::event_list); ++event_index)
@@ -217,7 +215,6 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(reset_command_list);
 		CASE(execute_command_list);
 		CASE(execute_secondary_command_list);
-		CASE(resize_swapchain);
 		CASE(present);
 		CASE(reshade_begin_effects);
 		CASE(reshade_finish_effects);

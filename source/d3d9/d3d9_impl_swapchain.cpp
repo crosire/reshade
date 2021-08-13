@@ -29,13 +29,10 @@ reshade::d3d9::swapchain_impl::swapchain_impl(device_impl *device, IDirect3DSwap
 	D3DPRESENT_PARAMETERS pp = {};
 	_orig->GetPresentParameters(&pp);
 
-	_swapchain_reset_status = 1;
 	on_init(pp);
-	_swapchain_reset_status = 0;
 }
 reshade::d3d9::swapchain_impl::~swapchain_impl()
 {
-	_swapchain_reset_status = 1;
 	on_reset();
 }
 
@@ -92,10 +89,7 @@ bool reshade::d3d9::swapchain_impl::on_init(const D3DPRESENT_PARAMETERS &pp)
 	}
 
 #if RESHADE_ADDON
-	if (_swapchain_reset_status != 0)
-		invoke_addon_event<addon_event::init_swapchain>(this);
-	else
-		invoke_addon_event<addon_event::resize_swapchain>(this, _width, _height, _backbuffer_format);
+	invoke_addon_event<addon_event::init_swapchain>(this);
 #endif
 
 	return runtime::on_init(pp.hDeviceWindow);
@@ -105,10 +99,7 @@ void reshade::d3d9::swapchain_impl::on_reset()
 	runtime::on_reset();
 
 #if RESHADE_ADDON
-	if (_swapchain_reset_status == 0)
-		invoke_addon_event<addon_event::reset_swapchain>(this);
-	else
-		invoke_addon_event<addon_event::destroy_swapchain>(this);
+	invoke_addon_event<addon_event::destroy_swapchain>(this);
 #endif
 
 	_app_state.release_state_block();

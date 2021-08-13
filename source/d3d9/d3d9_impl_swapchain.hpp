@@ -31,6 +31,5 @@ namespace reshade::d3d9
 		state_block _app_state;
 		com_ptr<IDirect3DSurface9> _backbuffer;
 		com_ptr<IDirect3DSurface9> _backbuffer_resolved;
-		UINT _swapchain_reset_status = 0;
 	};
 }

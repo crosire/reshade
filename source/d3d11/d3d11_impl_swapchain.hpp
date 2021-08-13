@@ -35,6 +35,5 @@ namespace reshade::d3d11
 		com_ptr<ID3D11Texture2D> _backbuffer_resolved;
 		com_ptr<ID3D11RenderTargetView> _backbuffer_rtv;
 		com_ptr<ID3D11ShaderResourceView> _backbuffer_resolved_srv;
-		UINT _swapchain_reset_status = 0;
 	};
 }

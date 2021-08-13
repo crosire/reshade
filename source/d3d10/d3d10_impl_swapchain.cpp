@@ -30,13 +30,10 @@ reshade::d3d10::swapchain_impl::swapchain_impl(device_impl *device, IDXGISwapCha
 		}
 	}
 
-	_swapchain_reset_status = 1;
 	on_init();
-	_swapchain_reset_status = 0;
 }
 reshade::d3d10::swapchain_impl::~swapchain_impl()
 {
-	_swapchain_reset_status = 1;
 	on_reset();
 }
 
@@ -100,10 +97,7 @@ bool reshade::d3d10::swapchain_impl::on_init()
 	_backbuffer_format = convert_format(swap_desc.BufferDesc.Format);
 
 #if RESHADE_ADDON
-	if (_swapchain_reset_status != 0)
-		invoke_addon_event<addon_event::init_swapchain>(this);
-	else
-		invoke_addon_event<addon_event::resize_swapchain>(this, _width, _height, _backbuffer_format);
+	invoke_addon_event<addon_event::init_swapchain>(this);
 #endif
 
 	return runtime::on_init(swap_desc.OutputWindow);
@@ -113,10 +107,7 @@ void reshade::d3d10::swapchain_impl::on_reset()
 	runtime::on_reset();
 
 #if RESHADE_ADDON
-	if (_swapchain_reset_status == 0)
-		invoke_addon_event<addon_event::reset_swapchain>(this);
-	else
-		invoke_addon_event<addon_event::destroy_swapchain>(this);
+	invoke_addon_event<addon_event::destroy_swapchain>(this);
 #endif
 
 	_backbuffer.reset();

@@ -36,6 +36,5 @@ namespace reshade::vulkan
 		VkSemaphore _queue_sync_semaphores[NUM_SYNC_SEMAPHORES] = {};
 		uint32_t _swap_index = 0;
 		std::vector<VkImage> _swapchain_images;
-		uint32_t _swapchain_reset_status = 0;
 	};
 }

@@ -32,7 +32,6 @@ reshade::vulkan::swapchain_impl::swapchain_impl(device_impl *device, command_que
 }
 reshade::vulkan::swapchain_impl::~swapchain_impl()
 {
-	_swapchain_reset_status = 1;
 	on_reset();
 }
 
@@ -106,10 +105,7 @@ bool reshade::vulkan::swapchain_impl::on_init(VkSwapchainKHR swapchain, const Vk
 	}
 
 #if RESHADE_ADDON
-	if (desc.oldSwapchain == VK_NULL_HANDLE)
-		invoke_addon_event<addon_event::init_swapchain>(this);
-	else
-		invoke_addon_event<addon_event::resize_swapchain>(this, desc.imageExtent.width, desc.imageExtent.height, convert_format(desc.imageFormat));
+	invoke_addon_event<addon_event::init_swapchain>(this);
 #endif
 
 	return runtime::on_init(hwnd);
@@ -119,10 +115,7 @@ void reshade::vulkan::swapchain_impl::on_reset()
 	runtime::on_reset();
 
 #if RESHADE_ADDON
-	if (_swapchain_reset_status == 0)
-		invoke_addon_event<addon_event::reset_swapchain>(this);
-	else
-		invoke_addon_event<addon_event::destroy_swapchain>(this);
+	invoke_addon_event<addon_event::destroy_swapchain>(this);
 #endif
 
 	if (_orig == VK_NULL_HANDLE)

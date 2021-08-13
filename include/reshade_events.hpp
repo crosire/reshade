@@ -12,12 +12,12 @@ namespace reshade
 	enum class addon_event
 	{
 		/// <summary>
-		/// Called after 'IDirect3D9::CreateDevice(Ex)', 'D3D10CreateDevice(AndSwapChain)', 'D3D11CreateDevice(AndSwapChain)', 'D3D12CreateDevice', 'glMakeCurrent' or 'vkCreateDevice'.
+		/// Called after 'IDirect3D9::CreateDevice(Ex)', 'IDirect3DDevice9::Reset(Ex)', 'D3D10CreateDevice(AndSwapChain)', 'D3D11CreateDevice(AndSwapChain)', 'D3D12CreateDevice', 'glMakeCurrent' or 'vkCreateDevice'.
 		/// <para>Callback function signature: <c>void (api::device *device)</c></para>
 		/// </summary>
 		init_device,
 		/// <summary>
-		/// Called on device destruction, before last 'IDirect3DDevice9::Release', 'ID3D10Device::Release', 'ID3D11Device::Release', 'ID3D12Device::Release', 'wglDeleteContext' or 'vkDestroyDevice'.
+		/// Called before 'IDirect3DDevice9::Reset(Ex)' and on device destruction, before last 'IDirect3DDevice9::Release', 'ID3D10Device::Release', 'ID3D11Device::Release', 'ID3D12Device::Release', 'wglDeleteContext' or 'vkDestroyDevice'.
 		/// <para>Callback function signature: <c>void (api::device *device)</c></para>
 		/// </summary>
 		destroy_device,
@@ -35,11 +35,9 @@ namespace reshade
 
 		/// <summary>
 		/// Called after 'ID3D12Device::CreateCommandQueue' or 'vkCreateDevice'.
+		/// In case of D3D9, D3D10, D3D11 and OpenGL this is called during device initialization as well and behaves as if an implicit command queue and list was created.
 		/// <para>Callback function signature: <c>void (api::command_queue *queue)</c></para>
 		/// </summary>
-		/// <remarks>
-		/// In case of D3D9, D3D10, D3D11 and OpenGL this is called during device initialization as well and behaves as if an implicit command queue and list was created.
-		/// </remarks>
 		init_command_queue,
 		/// <summary>
 		/// Called on command queue destruction, before last 'ID3D12CommandQueue::Release' or 'vkDestroyDevice'.
@@ -48,12 +46,12 @@ namespace reshade
 		destroy_command_queue,
 
 		/// <summary>
-		/// Called after 'IDirect3D9::CreateDevice(Ex)' (for the implicit swap chain), 'IDirect3D9Device::CreateAdditionalSwapChain', 'IDXGIFactory(2)::CreateSwapChain(...)', 'glMakeCurrent' or 'vkCreateSwapchainKHR'.
+		/// Called after 'IDirect3D9::CreateDevice(Ex)' (for the implicit swap chain), 'IDirect3D9Device::CreateAdditionalSwapChain', 'IDirect3DDevice9::Reset(Ex)', 'IDXGIFactory(2)::CreateSwapChain(...)', 'IDXGISwapChain::ResizeBuffers(1)', 'glMakeCurrent' or 'vkCreateSwapchainKHR'.
 		/// <para>Callback function signature: <c>void (api::swapchain *swapchain)</c></para>
 		/// </summary>
 		init_swapchain,
 		/// <summary>
-		/// Called before 'IDirect3D9::CreateDevice(Ex)' (for the implicit swap chain), 'IDirect3D9Device::CreateAdditionalSwapChain', 'IDXGIFactory(2)::CreateSwapChain(...)' or 'vkCreateSwapchainKHR'.
+		/// Called before 'IDirect3D9::CreateDevice(Ex)' (for the implicit swap chain), 'IDirect3D9Device::CreateAdditionalSwapChain', 'IDirect3DDevice9::Reset(Ex)', 'IDXGIFactory(2)::CreateSwapChain(...)' or 'vkCreateSwapchainKHR'.
 		/// <para>Callback function signature: <c>bool (api::resource_desc &amp;buffer_desc, void *hwnd)</c></para>
 		/// </summary>
 		/// <remarks>
@@ -61,7 +59,7 @@ namespace reshade
 		/// </remarks>
 		create_swapchain,
 		/// <summary>
-		/// Called on swapchain destruction, before last 'IDirect3DSwapChain9::Release', 'IDXGISwapChain::Release' or 'vkDestroySwapchainKHR'.
+		/// Called before 'IDirect3DDevice9::Reset(Ex)', 'IDXGISwapChain::ResizeBuffers(1)' and on swapchain destruction, before last 'IDirect3DSwapChain9::Release', 'IDXGISwapChain::Release' or 'vkDestroySwapchainKHR'.
 		/// <para>Callback function signature: <c>void (api::swapchain *swapchain)</c></para>
 		/// </summary>
 		destroy_swapchain,
@@ -475,16 +473,6 @@ namespace reshade
 		/// <para>Callback function signature: <c>void (api::command_queue *queue, api::swapchain *swapchain)</c></para>
 		/// </summary>
 		present,
-		/// <summary>
-		/// Called before 'IDirect3DDevice9::Reset(Ex)' or 'IDXGISwapChain::ResizeBuffers(1)'.
-		/// <para>Callback function signature: <c>void (api::swapchain *swapchain)</c></para>
-		/// </summary>
-		reset_swapchain,
-		/// <summary>
-		/// Called after 'IDirect3DDevice9::Reset(Ex)', 'IDXGISwapChain::ResizeBuffers(1)' or after existing swap chain was updated via 'vkCreateSwapchainKHR'.
-		/// <para>Callback function signature: <c>void (api::swapchain *swapchain, uint32_t width, uint32_t height, api::format format)</c></para>
-		/// </summary>
-		resize_swapchain,
 
 		/// <summary>
 		/// Called right before ReShade effects are rendered.
@@ -598,8 +586,6 @@ namespace reshade
 	DEFINE_ADDON_EVENT_TYPE(addon_event::execute_secondary_command_list, void, api::command_list *cmd_list, api::command_list *secondary_cmd_list);
 
 	DEFINE_ADDON_EVENT_TYPE(addon_event::present, void, api::command_queue *queue, api::swapchain *swapchain);
-	DEFINE_ADDON_EVENT_TYPE(addon_event::reset_swapchain, void, api::swapchain *swapchain);
-	DEFINE_ADDON_EVENT_TYPE(addon_event::resize_swapchain, void, api::swapchain *swapchain, uint32_t width, uint32_t height, api::format format);
 
 	DEFINE_ADDON_EVENT_TYPE(addon_event::reshade_begin_effects, void, api::effect_runtime *runtime, api::command_list *cmd_list);
 	DEFINE_ADDON_EVENT_TYPE(addon_event::reshade_finish_effects, void, api::effect_runtime *runtime, api::command_list *cmd_list);
