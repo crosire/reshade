@@ -51,7 +51,7 @@ void reshade::d3d12::command_list_impl::barrier(uint32_t count, const api::resou
 
 	_has_commands = true;
 
-	const auto barriers = static_cast<D3D12_RESOURCE_BARRIER *>(alloca(sizeof(D3D12_RESOURCE_BARRIER) * count));
+	std::vector<D3D12_RESOURCE_BARRIER> barriers(count);
 
 	for (uint32_t i = 0; i < count; ++i)
 	{
@@ -72,7 +72,7 @@ void reshade::d3d12::command_list_impl::barrier(uint32_t count, const api::resou
 		}
 	}
 
-	_orig->ResourceBarrier(count, barriers);
+	_orig->ResourceBarrier(count, barriers.data());
 }
 
 void reshade::d3d12::command_list_impl::begin_render_pass(api::render_pass, api::framebuffer fbo)

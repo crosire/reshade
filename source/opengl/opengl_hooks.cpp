@@ -211,14 +211,14 @@ HOOK_EXPORT void WINAPI glBegin(GLenum mode)
 #if RESHADE_ADDON
 	if (g_current_context && target == GL_UNIFORM_BUFFER)
 	{
-		const auto buffer_ranges = static_cast<reshade::api::buffer_range *>(alloca(count * sizeof(reshade::api::buffer_range)));
+		std::vector<reshade::api::buffer_range> buffer_ranges(count);
 		for (GLsizei i = 0; i < count; ++i)
 		{
 			buffer_ranges[i] = { (buffers != nullptr) ? reshade::opengl::make_resource_handle(target, buffers[i]) : reshade::api::resource { 0 }, 0, std::numeric_limits<uint64_t>::max() };
 		}
 
 		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 2, reshade::api::descriptor_type::constant_buffer, first, count, buffer_ranges);
+			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 2, reshade::api::descriptor_type::constant_buffer, first, count, buffer_ranges.data());
 	}
 #endif
 }
@@ -230,14 +230,14 @@ HOOK_EXPORT void WINAPI glBegin(GLenum mode)
 #if RESHADE_ADDON
 	if (g_current_context && target == GL_UNIFORM_BUFFER)
 	{
-		const auto buffer_ranges = static_cast<reshade::api::buffer_range *>(alloca(count * sizeof(reshade::api::buffer_range)));
+		std::vector<reshade::api::buffer_range> buffer_ranges(count);
 		for (GLsizei i = 0; i < count; ++i)
 		{
 			buffer_ranges[i] = { (buffers != nullptr) ? reshade::opengl::make_resource_handle(target, buffers[i]) : reshade::api::resource { 0 }, static_cast<uint64_t>(offsets[i]), static_cast<uint64_t>(sizes[i]) };
 		}
 
 		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 2, reshade::api::descriptor_type::constant_buffer, first, count, buffer_ranges);
+			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 2, reshade::api::descriptor_type::constant_buffer, first, count, buffer_ranges.data());
 	}
 #endif
 }
@@ -265,14 +265,14 @@ HOOK_EXPORT void WINAPI glBegin(GLenum mode)
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
-		const auto texture_handles = static_cast<reshade::api::resource_view *>(alloca(count * sizeof(reshade::api::resource_view)));
+		std::vector<reshade::api::resource_view> texture_handles(count);
 		for (GLsizei i = 0; i < count; ++i)
 		{
 			texture_handles[i] = (textures != nullptr) ? reshade::opengl::make_resource_view_handle(GL_TEXTURE, textures[i]) : reshade::api::resource_view { 0 };
 		}
 
 		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 3, reshade::api::descriptor_type::unordered_access_view, first, count, texture_handles);
+			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 3, reshade::api::descriptor_type::unordered_access_view, first, count, texture_handles.data());
 	}
 #endif
 }
@@ -300,12 +300,12 @@ HOOK_EXPORT void WINAPI glBegin(GLenum mode)
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
-		const auto sampler_handles = static_cast<reshade::api::sampler *>(alloca(count * sizeof(reshade::api::sampler)));
+		std::vector<reshade::api::sampler> sampler_handles(count);
 		for (GLsizei i = 0; i < count; ++i)
 			sampler_handles[i] = { samplers != nullptr ? samplers[i] : 0 };
 
 		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 0, reshade::api::descriptor_type::sampler, first, count, sampler_handles);
+			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 0, reshade::api::descriptor_type::sampler, first, count, sampler_handles.data());
 	}
 #endif
 }
@@ -352,14 +352,14 @@ HOOK_EXPORT void WINAPI glBindTexture(GLenum target, GLuint texture)
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
-		const auto texture_handles = static_cast<reshade::api::resource_view *>(alloca(count * sizeof(reshade::api::resource_view)));
+		std::vector<reshade::api::resource_view> texture_handles(count);
 		for (GLsizei i = 0; i < count; ++i)
 		{
 			texture_handles[i] = (textures != nullptr) ? reshade::opengl::make_resource_view_handle(GL_TEXTURE, textures[i]) : reshade::api::resource_view { 0 };
 		}
 
 		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 1, reshade::api::descriptor_type::shader_resource_view, first, count, texture_handles);
+			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 1, reshade::api::descriptor_type::shader_resource_view, first, count, texture_handles.data());
 	}
 #endif
 }
@@ -390,15 +390,15 @@ HOOK_EXPORT void WINAPI glBindTexture(GLenum target, GLuint texture)
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
-		const auto buffer_handles = static_cast<reshade::api::resource *>(alloca(count * sizeof(reshade::api::resource)));
-		const auto offsets_64 = static_cast<uint64_t *>(alloca(count * sizeof(uint64_t)));
+		std::vector<reshade::api::resource> buffer_handles(count);
+		std::vector<uint64_t> offsets_64(count);
 		for (GLsizei i = 0; i < count; ++i)
 		{
 			buffer_handles[i] = buffers != nullptr ? reshade::opengl::make_resource_handle(GL_ARRAY_BUFFER, buffers[i]) : reshade::api::resource { 0 };
 			offsets_64[i] = offsets[i];
 		}
 
-		reshade::invoke_addon_event<reshade::addon_event::bind_vertex_buffers>(g_current_context, first, count, buffer_handles, offsets_64, reinterpret_cast<const uint32_t *>(strides));
+		reshade::invoke_addon_event<reshade::addon_event::bind_vertex_buffers>(g_current_context, first, count, buffer_handles.data(), offsets_64.data(), reinterpret_cast<const uint32_t *>(strides));
 	}
 
 	// TODO: glVertexArrayVertexBuffers
@@ -3253,7 +3253,7 @@ HOOK_EXPORT void WINAPI glScissor(GLint x, GLint y, GLsizei width, GLsizei heigh
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
-		const auto rect_data = static_cast<int32_t *>(alloca(count * sizeof(int32_t) * 4));
+		std::vector<int32_t> rect_data(count * 4);
 		for (GLsizei i = 0, k = 0; i < count; ++i, k += 4)
 		{
 			rect_data[k + 0] = v[k + 0];
@@ -3262,7 +3262,7 @@ HOOK_EXPORT void WINAPI glScissor(GLint x, GLint y, GLsizei width, GLsizei heigh
 			rect_data[k + 3] = v[k + 2] + v[k + 4];
 		}
 
-		reshade::invoke_addon_event<reshade::addon_event::bind_scissor_rects>(g_current_context, first, count, rect_data);
+		reshade::invoke_addon_event<reshade::addon_event::bind_scissor_rects>(g_current_context, first, count, rect_data.data());
 	}
 #endif
 }
@@ -4893,7 +4893,7 @@ HOOK_EXPORT void WINAPI glViewport(GLint x, GLint y, GLsizei width, GLsizei heig
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
-		auto viewport_data = static_cast<float *>(alloca(count * sizeof(float) * 6));
+		std::vector<float> viewport_data(count * 6);
 		for (GLsizei i = 0, k = 0; i < count; ++i, k += 6, v += 4)
 		{
 			viewport_data[k + 0] = v[0];
@@ -4904,7 +4904,7 @@ HOOK_EXPORT void WINAPI glViewport(GLint x, GLint y, GLsizei width, GLsizei heig
 			viewport_data[k + 5] = 1.0f;
 		}
 
-		reshade::invoke_addon_event<reshade::addon_event::bind_viewports>(g_current_context, first, count, viewport_data);
+		reshade::invoke_addon_event<reshade::addon_event::bind_viewports>(g_current_context, first, count, viewport_data.data());
 	}
 #endif
 }

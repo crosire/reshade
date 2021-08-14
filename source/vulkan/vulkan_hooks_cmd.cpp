@@ -74,7 +74,7 @@ void     VKAPI_CALL vkCmdSetScissor(VkCommandBuffer commandBuffer, uint32_t firs
 #if RESHADE_ADDON
 	if (reshade::vulkan::command_list_impl *const cmd_impl = g_vulkan_command_buffers.at(commandBuffer); cmd_impl != nullptr)
 	{
-		const auto rect_data = static_cast<int32_t *>(alloca(sizeof(int32_t) * 4 * scissorCount));
+		std::vector<int32_t> rect_data(scissorCount * 4);
 		for (uint32_t i = 0, k = 0; i < scissorCount; ++i, k += 4)
 		{
 			rect_data[k + 0] = pScissors[i].offset.x;
@@ -84,7 +84,7 @@ void     VKAPI_CALL vkCmdSetScissor(VkCommandBuffer commandBuffer, uint32_t firs
 		}
 
 		reshade::invoke_addon_event<reshade::addon_event::bind_scissor_rects>(
-			cmd_impl, firstScissor, scissorCount, rect_data);
+			cmd_impl, firstScissor, scissorCount, rect_data.data());
 	}
 #endif
 }
@@ -586,7 +586,7 @@ void     VKAPI_CALL vkCmdClearAttachments(VkCommandBuffer commandBuffer, uint32_
 				clear_depth_stencil = pAttachments[i].clearValue.depthStencil;
 		}
 
-		const auto rect_data = static_cast<int32_t *>(alloca(sizeof(int32_t) * 4 * rectCount));
+		std::vector<int32_t> rect_data(rectCount * 4);
 		for (uint32_t i = 0, k = 0; i < rectCount; ++i, k += 4)
 		{
 			rect_data[k + 0] = pRects[i].rect.offset.x;
@@ -601,7 +601,7 @@ void     VKAPI_CALL vkCmdClearAttachments(VkCommandBuffer commandBuffer, uint32_
 			clear_color.float32,
 			clear_depth_stencil.depth,
 			static_cast<uint8_t>(clear_depth_stencil.stencil),
-			rectCount, rect_data))
+			rectCount, rect_data.data()))
 			return;
 	}
 #endif
@@ -667,9 +667,9 @@ void     VKAPI_CALL vkCmdPipelineBarrier(VkCommandBuffer commandBuffer, VkPipeli
 
 	if (reshade::vulkan::command_list_impl *const cmd_impl = g_vulkan_command_buffers.at(commandBuffer); cmd_impl != nullptr)
 	{
-		const auto resources = static_cast<reshade::api::resource *>(alloca(num_barriers * (sizeof(reshade::api::resource) + sizeof(reshade::api::resource_usage) * 2)));
-		const auto old_states = reinterpret_cast<reshade::api::resource_usage *>(resources + num_barriers);
-		const auto new_states = old_states + num_barriers;
+		std::vector<reshade::api::resource> resources(num_barriers);
+		std::vector<reshade::api::resource_usage> old_states(num_barriers);
+		std::vector<reshade::api::resource_usage> new_states(num_barriers);
 
 		for (uint32_t i = 0; i < bufferMemoryBarrierCount; ++i)
 		{
@@ -690,7 +690,7 @@ void     VKAPI_CALL vkCmdPipelineBarrier(VkCommandBuffer commandBuffer, VkPipeli
 
 		reshade::invoke_addon_event<reshade::addon_event::barrier>(
 			cmd_impl,
-			num_barriers, resources, old_states, new_states);
+			num_barriers, resources.data(), old_states.data(), new_states.data());
 	}
 #endif
 }

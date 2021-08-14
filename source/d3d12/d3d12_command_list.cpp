@@ -357,9 +357,9 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::ResourceBarrier(UINT NumBarrier
 	if (!reshade::has_event_callbacks(reshade::addon_event::barrier))
 		return;
 
-	const auto resources = static_cast<reshade::api::resource *>(alloca(NumBarriers * (sizeof(reshade::api::resource) + 2 * sizeof(reshade::api::resource_usage))));
-	const auto old_states = reinterpret_cast<reshade::api::resource_usage *>(resources + NumBarriers);
-	const auto new_states = old_states + NumBarriers;
+	std::vector<reshade::api::resource> resources(NumBarriers);
+	std::vector<reshade::api::resource_usage> old_states(NumBarriers);
+	std::vector<reshade::api::resource_usage> new_states(NumBarriers);
 
 	for (UINT i = 0; i < NumBarriers; ++i)
 	{
@@ -383,7 +383,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::ResourceBarrier(UINT NumBarrier
 		}
 	}
 
-	reshade::invoke_addon_event<reshade::addon_event::barrier>(this, NumBarriers, resources, old_states, new_states);
+	reshade::invoke_addon_event<reshade::addon_event::barrier>(this, NumBarriers, resources.data(), old_states.data(), new_states.data());
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ExecuteBundle(ID3D12GraphicsCommandList *pCommandList)

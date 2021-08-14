@@ -22,6 +22,7 @@
 #include <stb_image_dds.h>
 #include <stb_image_write.h>
 #include <stb_image_resize.h>
+#include <malloc.h>
 #include <d3dcompiler.h>
 
 extern volatile long g_network_traffic;

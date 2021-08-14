@@ -192,7 +192,7 @@ void reshade::vulkan::command_list_impl::bind_viewports(uint32_t first, uint32_t
 }
 void reshade::vulkan::command_list_impl::bind_scissor_rects(uint32_t first, uint32_t count, const int32_t *rects)
 {
-	const auto rect_data = static_cast<VkRect2D *>(alloca(sizeof(VkRect2D) * count));
+	std::vector<VkRect2D> rect_data(count);
 	for (uint32_t i = 0, k = 0; i < count; ++i, k += 4)
 	{
 		rect_data[i].offset.x = rects[k + 0];
@@ -201,7 +201,7 @@ void reshade::vulkan::command_list_impl::bind_scissor_rects(uint32_t first, uint
 		rect_data[i].extent.height = rects[k + 3] - rects[k + 1];
 	}
 
-	vk.CmdSetScissor(_orig, first, count, rect_data);
+	vk.CmdSetScissor(_orig, first, count, rect_data.data());
 }
 
 void reshade::vulkan::command_list_impl::push_constants(api::shader_stage stages, api::pipeline_layout layout, uint32_t, uint32_t offset, uint32_t count, const void *values)
@@ -646,8 +646,7 @@ void reshade::vulkan::command_list_impl::clear_attachments(api::attachment_type 
 	}
 	else
 	{
-		const auto clear_rects = static_cast<VkClearRect *>(alloca(sizeof(VkClearRect) * num_rects));
-
+		std::vector<VkClearRect> clear_rects(num_rects);
 		for (uint32_t i = 0, k = 0; i < num_rects; ++i, k += 4)
 		{
 			clear_rects[i].rect.offset.x = rects[k + 0];
@@ -658,7 +657,7 @@ void reshade::vulkan::command_list_impl::clear_attachments(api::attachment_type 
 			clear_rects[i].layerCount = 1;
 		}
 
-		vk.CmdClearAttachments(_orig, num_clear_attachments, clear_attachments, num_rects, clear_rects);
+		vk.CmdClearAttachments(_orig, num_clear_attachments, clear_attachments, num_rects, clear_rects.data());
 	}
 }
 void reshade::vulkan::command_list_impl::clear_depth_stencil_view(api::resource_view dsv, api::attachment_type clear_flags, float depth, uint8_t stencil, uint32_t num_rects, const int32_t *)
