@@ -30,12 +30,22 @@ struct clear_stats : public draw_stats
 {
 	bool rect = false;
 };
+
 struct depth_stencil_info
 {
 	draw_stats total_stats;
 	draw_stats current_stats; // Stats since last clear operation
 	std::vector<clear_stats> clears;
 	bool copied_during_frame = false;
+};
+
+struct depth_stencil_hash
+{
+	inline size_t operator()(resource value) const
+	{
+		// Simply use the handle (which is usually a pointer) as hash value (with some bits shaved off due to pointer alignment)
+		return static_cast<size_t>(value.handle >> 4);
+	}
 };
 
 struct state_tracking
@@ -47,7 +57,7 @@ struct state_tracking
 	bool has_indirect_drawcalls = false;
 	resource current_depth_stencil = { 0 };
 	float current_viewport[6] = {};
-	std::unordered_map<uint64_t, depth_stencil_info> counters_per_used_depth_stencil;
+	std::unordered_map<resource, depth_stencil_info, depth_stencil_hash> counters_per_used_depth_stencil;
 
 	void reset()
 	{
@@ -177,7 +187,7 @@ static void clear_depth_impl(command_list *cmd_list, state_tracking &state, cons
 	if (depth_stencil == 0 || device_state.backup_texture == 0 || depth_stencil != device_state.selected_depth_stencil)
 		return;
 
-	depth_stencil_info &counters = state.counters_per_used_depth_stencil[depth_stencil.handle];
+	depth_stencil_info &counters = state.counters_per_used_depth_stencil[depth_stencil];
 
 	// Update stats with data from previous frame
 	if (!fullscreen_draw_call && counters.current_stats.drawcalls == 0 && state.first_empty_stats)
@@ -340,7 +350,7 @@ static bool on_draw(command_list *cmd_list, uint32_t vertices, uint32_t instance
 	}
 #endif
 
-	depth_stencil_info &counters = state.counters_per_used_depth_stencil[state.current_depth_stencil.handle];
+	depth_stencil_info &counters = state.counters_per_used_depth_stencil[state.current_depth_stencil];
 	counters.total_stats.vertices += vertices * instances;
 	counters.total_stats.drawcalls += 1;
 	counters.current_stats.vertices += vertices * instances;
@@ -357,14 +367,14 @@ static bool on_draw_indexed(command_list *cmd_list, uint32_t indices, uint32_t i
 }
 static bool on_draw_indirect(command_list *cmd_list, indirect_command type, resource, uint64_t, uint32_t draw_count, uint32_t)
 {
-	if (type != indirect_command::dispatch)
-	{
-		for (uint32_t i = 0; i < draw_count; ++i)
-			on_draw(cmd_list, 0, 0, 0, 0);
+	if (type == indirect_command::dispatch)
+		return false;
 
-		auto &state = cmd_list->get_user_data<state_tracking>(state_tracking::GUID);
-		state.has_indirect_drawcalls = true;
-	}
+	for (uint32_t i = 0; i < draw_count; ++i)
+		on_draw(cmd_list, 0, 0, 0, 0);
+
+	auto &state = cmd_list->get_user_data<state_tracking>(state_tracking::GUID);
+	state.has_indirect_drawcalls = true;
 
 	return false;
 }
@@ -483,10 +493,8 @@ static void on_present(command_queue *, swapchain *swapchain)
 	resource best_match = { 0 };
 	depth_stencil_info best_snapshot;
 
-	for (const auto &[depth_stencil_handle, snapshot] : queue_state.counters_per_used_depth_stencil)
+	for (const auto &[resource, snapshot] : queue_state.counters_per_used_depth_stencil)
 	{
-		resource const resource = { depth_stencil_handle };
-
 		if (std::lock_guard<std::mutex> lock(s_mutex);
 			std::find(device_state.destroyed_resources.begin(), device_state.destroyed_resources.end(), resource) != device_state.destroyed_resources.end())
 			continue; // Skip resources that were destroyed by the application
@@ -524,7 +532,7 @@ static void on_present(command_queue *, swapchain *swapchain)
 	{
 		best_desc = device->get_resource_desc(device_state.override_depth_stencil);
 		best_match = device_state.override_depth_stencil;
-		best_snapshot = queue_state.counters_per_used_depth_stencil[best_match.handle];
+		best_snapshot = queue_state.counters_per_used_depth_stencil[best_match];
 	}
 
 	if (best_match != 0)

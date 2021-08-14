@@ -502,6 +502,9 @@ void    STDMETHODCALLTYPE D3D12Device::CreateConstantBufferView(const D3D12_CONS
 	_orig->CreateConstantBufferView(pDesc, DestDescriptor);
 
 #if RESHADE_ADDON
+	if (!reshade::has_addon_event<reshade::addon_event::update_descriptor_sets>())
+		return;
+
 	bool shader_visible = false;
 	reshade::api::write_descriptor_set write;
 	if (!resolve_descriptor_handle(DestDescriptor, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, &write.set, &write.offset, &shader_visible))
@@ -714,7 +717,8 @@ void    STDMETHODCALLTYPE D3D12Device::CreateSampler(const D3D12_SAMPLER_DESC *p
 void    STDMETHODCALLTYPE D3D12Device::CopyDescriptors(UINT NumDestDescriptorRanges, const D3D12_CPU_DESCRIPTOR_HANDLE *pDestDescriptorRangeStarts, const UINT *pDestDescriptorRangeSizes, UINT NumSrcDescriptorRanges, const D3D12_CPU_DESCRIPTOR_HANDLE *pSrcDescriptorRangeStarts, const UINT *pSrcDescriptorRangeSizes, D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapsType)
 {
 #if RESHADE_ADDON
-	if (DescriptorHeapsType <= D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER)
+	if (DescriptorHeapsType <= D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER &&
+		reshade::has_addon_event<reshade::addon_event::update_descriptor_sets>())
 	{
 		UINT num_descriptors = 0;
 		for (UINT i = 0; i < NumDestDescriptorRanges; ++i)
@@ -758,7 +762,8 @@ void    STDMETHODCALLTYPE D3D12Device::CopyDescriptors(UINT NumDestDescriptorRan
 void    STDMETHODCALLTYPE D3D12Device::CopyDescriptorsSimple(UINT NumDescriptors, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptorRangeStart, D3D12_CPU_DESCRIPTOR_HANDLE SrcDescriptorRangeStart, D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapsType)
 {
 #if RESHADE_ADDON
-	if (DescriptorHeapsType <= D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER)
+	if (DescriptorHeapsType <= D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER &&
+		reshade::has_addon_event<reshade::addon_event::update_descriptor_sets>())
 	{
 		reshade::api::write_descriptor_set write = {};
 		write.type = (DescriptorHeapsType == D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER) ? reshade::api::descriptor_type::sampler : reshade::api::descriptor_type::shader_resource_view;

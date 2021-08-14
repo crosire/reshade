@@ -57,9 +57,8 @@ namespace reshade
 	/// <summary>
 	/// Checks whether any callbacks were registered for the specified <paramref name="ev"/>ent.
 	/// </summary>
-	/// <param name="ev"></param>
-	/// <returns></returns>
-	inline bool has_event_callbacks(addon_event ev)
+	template <addon_event ev>
+	__forceinline bool has_addon_event()
 	{
 		return !addon::event_list[static_cast<size_t>(ev)].second.empty();
 	}
@@ -68,7 +67,7 @@ namespace reshade
 	/// Invokes all registered callbacks for the specified <typeparamref name="ev"/>ent.
 	/// </summary>
 	template <addon_event ev, typename... Args>
-	inline std::enable_if_t<std::is_same_v<typename addon_event_traits<ev>::type, void>, void> invoke_addon_event(Args &&... args)
+	__forceinline std::enable_if_t<std::is_same_v<typename addon_event_traits<ev>::type, void>, void> invoke_addon_event(Args &&... args)
 	{
 		if (addon::event_list[static_cast<size_t>(ev)].first)
 			return;
@@ -80,7 +79,7 @@ namespace reshade
 	/// Invokes registered callbacks for the specified <typeparamref name="ev"/>ent until a callback reports back as having handled this event by returning <c>true</c>.
 	/// </summary>
 	template <addon_event ev, typename... Args>
-	inline std::enable_if_t<std::is_same_v<typename addon_event_traits<ev>::type, bool>, bool> invoke_addon_event(Args &&... args)
+	__forceinline std::enable_if_t<std::is_same_v<typename addon_event_traits<ev>::type, bool>, bool> invoke_addon_event(Args &&... args)
 	{
 		if (addon::event_list[static_cast<size_t>(ev)].first)
 			return false;

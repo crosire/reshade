@@ -66,7 +66,7 @@ void reshade::d3d9::device_impl::bind_pipeline_states(uint32_t count, const api:
 		switch (states[i])
 		{
 		case api::dynamic_state::primitive_topology:
-			_current_prim_type = convert_primitive_topology(static_cast<api::primitive_topology>(values[i]));
+			_current_prim_type = static_cast<D3DPRIMITIVETYPE>(values[i]);
 			break;
 		case api::dynamic_state::front_counter_clockwise:
 		case api::dynamic_state::depth_bias_clamp:

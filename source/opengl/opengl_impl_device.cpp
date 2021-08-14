@@ -1770,7 +1770,7 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 	}
 
 	if (buffer_size != 0)
-		return convert_resource_desc(target, buffer_size); // TODO: Memory heap
+		return convert_resource_desc(target, buffer_size);
 	else
 		return convert_resource_desc(target, levels, samples, internal_format, width, height, depth);
 }

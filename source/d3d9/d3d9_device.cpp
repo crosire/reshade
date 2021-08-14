@@ -633,7 +633,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurface(UINT Width,
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::UpdateSurface(IDirect3DSurface9 *pSourceSurface, const RECT *pSourceRect, IDirect3DSurface9 *pDestinationSurface, const POINT *pDestinationPoint)
 {
 #if RESHADE_ADDON
-	if (reshade::has_event_callbacks(reshade::addon_event::copy_texture_region))
+	if (reshade::has_addon_event<reshade::addon_event::copy_texture_region>())
 	{
 		assert(pSourceSurface != nullptr && pDestinationSurface != nullptr);
 
@@ -671,7 +671,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::UpdateTexture(IDirect3DBaseTexture9 *
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetRenderTargetData(IDirect3DSurface9 *pRenderTarget, IDirect3DSurface9 *pDestSurface)
 {
 #if RESHADE_ADDON
-	if (reshade::has_event_callbacks(reshade::addon_event::copy_texture_region))
+	if (reshade::has_addon_event<reshade::addon_event::copy_texture_region>())
 	{
 		reshade::api::resource src_resource = { 0 };
 		uint32_t src_subresource = 0;
@@ -700,8 +700,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetFrontBufferData(UINT iSwapChain, I
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::StretchRect(IDirect3DSurface9 *pSourceSurface, const RECT *pSourceRect, IDirect3DSurface9 *pDestinationSurface, const RECT *pDestinationRect, D3DTEXTUREFILTERTYPE Filter)
 {
 #if RESHADE_ADDON
-	if (reshade::has_event_callbacks(reshade::addon_event::copy_texture_region) ||
-		reshade::has_event_callbacks(reshade::addon_event::resolve_texture_region))
+	if (reshade::has_addon_event<reshade::addon_event::copy_texture_region>() ||
+		reshade::has_addon_event<reshade::addon_event::resolve_texture_region>())
 	{
 		assert(pSourceSurface != nullptr && pDestinationSurface != nullptr);
 
@@ -791,8 +791,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetRenderTarget(DWORD RenderTargetInd
 	const HRESULT hr = _orig->SetRenderTarget(RenderTargetIndex, pRenderTarget);
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr) && (
-		reshade::has_event_callbacks(reshade::addon_event::bind_render_targets_and_depth_stencil) ||
-		reshade::has_event_callbacks(reshade::addon_event::bind_viewports)))
+		reshade::has_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>() ||
+		reshade::has_addon_event<reshade::addon_event::bind_viewports>()))
 	{
 		DWORD count = 0;
 		com_ptr<IDirect3DSurface9> surface;
@@ -846,7 +846,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetDepthStencilSurface(IDirect3DSurfa
 	const HRESULT hr = _orig->SetDepthStencilSurface(pNewZStencil);
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr) &&
-		reshade::has_event_callbacks(reshade::addon_event::bind_render_targets_and_depth_stencil))
+		reshade::has_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>())
 	{
 		DWORD count = 0;
 		com_ptr<IDirect3DSurface9> surface;
@@ -911,7 +911,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetViewport(const D3DVIEWPORT9 *pView
 	const HRESULT hr = _orig->SetViewport(pViewport);
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr) &&
-		reshade::has_event_callbacks(reshade::addon_event::bind_viewports))
+		reshade::has_addon_event<reshade::addon_event::bind_viewports>())
 	{
 		const float viewport_data[6] = {
 			static_cast<float>(pViewport->X),
@@ -968,8 +968,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetRenderState(D3DRENDERSTATETYPE Sta
 {
 	const HRESULT hr = _orig->SetRenderState(State, Value);
 #if RESHADE_ADDON
-	if (SUCCEEDED(hr))
+	if (SUCCEEDED(hr) &&
+		reshade::has_addon_event<reshade::addon_event::bind_pipeline_states>())
 	{
+		static_assert(sizeof(State) == sizeof(reshade::api::dynamic_state));
 		static_assert(
 			(DWORD)reshade::api::dynamic_state::depth_enable                == D3DRS_ZENABLE &&
 			(DWORD)reshade::api::dynamic_state::fill_mode                   == D3DRS_FILLMODE &&
@@ -1008,18 +1010,21 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetRenderState(D3DRENDERSTATETYPE Sta
 			(DWORD)reshade::api::dynamic_state::src_alpha_blend_factor      == D3DRS_SRCBLENDALPHA &&
 			(DWORD)reshade::api::dynamic_state::dst_alpha_blend_factor      == D3DRS_DESTBLENDALPHA &&
 			(DWORD)reshade::api::dynamic_state::alpha_blend_op              == D3DRS_BLENDOPALPHA);
-		static_assert(sizeof(State) == sizeof(reshade::api::dynamic_state) && sizeof(Value) == sizeof(uint32_t));
 
 		switch (State)
 		{
-		case D3DRS_FILLMODE:
-			Value = static_cast<uint32_t>(reshade::d3d9::convert_fill_mode(static_cast<D3DFILLMODE>(Value)));
+		case D3DRS_BLENDOP:
+		case D3DRS_BLENDOPALPHA:
+			Value = static_cast<uint32_t>(reshade::d3d9::convert_blend_op(static_cast<D3DBLENDOP>(Value)));
 			break;
 		case D3DRS_SRCBLEND:
 		case D3DRS_DESTBLEND:
 		case D3DRS_SRCBLENDALPHA:
 		case D3DRS_DESTBLENDALPHA:
 			Value = static_cast<uint32_t>(reshade::d3d9::convert_blend_factor(static_cast<D3DBLEND>(Value)));
+			break;
+		case D3DRS_FILLMODE:
+			Value = static_cast<uint32_t>(reshade::d3d9::convert_fill_mode(static_cast<D3DFILLMODE>(Value)));
 			break;
 		case D3DRS_CULLMODE:
 			Value = static_cast<uint32_t>(reshade::d3d9::convert_cull_mode(static_cast<D3DCULL>(Value), false));
@@ -1037,10 +1042,6 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetRenderState(D3DRENDERSTATETYPE Sta
 		case D3DRS_CCW_STENCILZFAIL:
 		case D3DRS_CCW_STENCILPASS:
 			Value = static_cast<uint32_t>(reshade::d3d9::convert_stencil_op(static_cast<D3DSTENCILOP>(Value)));
-			break;
-		case D3DRS_BLENDOP:
-		case D3DRS_BLENDOPALPHA:
-			Value = static_cast<uint32_t>(reshade::d3d9::convert_blend_op(static_cast<D3DBLENDOP>(Value)));
 			break;
 		}
 
@@ -1083,7 +1084,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetTexture(DWORD Stage, IDirect3DBase
 	const HRESULT hr = _orig->SetTexture(Stage, pTexture);
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr) &&
-		reshade::has_event_callbacks(reshade::addon_event::push_descriptors))
+		reshade::has_addon_event<reshade::addon_event::push_descriptors>())
 	{
 		// This assumes that the sampler state is set by the application before textures, which is not necessarily the case, but oh well ...
 		const reshade::api::sampler_with_resource_view descriptor_data = {
@@ -1423,7 +1424,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetStreamSource(UINT StreamNumber, ID
 {
 	const HRESULT hr = _orig->SetStreamSource(StreamNumber, pStreamData, OffsetInBytes, Stride);
 #if RESHADE_ADDON
-	if (SUCCEEDED(hr))
+	if (SUCCEEDED(hr) &&
+		reshade::has_addon_event<reshade::addon_event::bind_vertex_buffers>())
 	{
 		const reshade::api::resource buffer = { reinterpret_cast<uintptr_t>(pStreamData) };
 		const uint64_t offset = OffsetInBytes;
@@ -1450,7 +1452,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetIndices(IDirect3DIndexBuffer9 *pIn
 {
 	const HRESULT hr = _orig->SetIndices(pIndexData);
 #if RESHADE_ADDON
-	if (SUCCEEDED(hr))
+	if (SUCCEEDED(hr) &&
+		reshade::has_addon_event<reshade::addon_event::bind_index_buffer>())
 	{
 		uint32_t index_size = 0;
 		if (pIndexData != nullptr)

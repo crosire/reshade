@@ -980,33 +980,11 @@ auto reshade::d3d9::convert_blend_factor(api::blend_factor value) -> D3DBLEND
 }
 auto reshade::d3d9::convert_fill_mode(D3DFILLMODE value) -> api::fill_mode
 {
-	switch (value)
-	{
-	case D3DFILL_POINT:
-		return api::fill_mode::point;
-	case D3DFILL_WIREFRAME:
-		return api::fill_mode::wireframe;
-	default:
-		assert(false);
-		[[fallthrough]];
-	case D3DFILL_SOLID:
-		return api::fill_mode::solid;
-	}
+	return static_cast<api::fill_mode>(D3DFILL_SOLID - value);
 }
 auto reshade::d3d9::convert_fill_mode(api::fill_mode value) -> D3DFILLMODE
 {
-	switch (value)
-	{
-	case api::fill_mode::point:
-		return D3DFILL_POINT;
-	case api::fill_mode::wireframe:
-		return D3DFILL_WIREFRAME;
-	default:
-		assert(false);
-		[[fallthrough]];
-	case api::fill_mode::solid:
-		return D3DFILL_SOLID;
-	}
+	return static_cast<D3DFILLMODE>(D3DFILL_SOLID - static_cast<uint32_t>(value));
 }
 auto reshade::d3d9::convert_cull_mode(D3DCULL value, bool front_counter_clockwise) -> api::cull_mode
 {
@@ -1035,11 +1013,6 @@ auto reshade::d3d9::convert_stencil_op(D3DSTENCILOP value) -> api::stencil_op
 auto reshade::d3d9::convert_stencil_op(api::stencil_op value) -> D3DSTENCILOP
 {
 	return static_cast<D3DSTENCILOP>(static_cast<uint32_t>(value) + 1);
-}
-auto reshade::d3d9::convert_primitive_topology(api::primitive_topology value) -> D3DPRIMITIVETYPE
-{
-	assert(value <= api::primitive_topology::triangle_fan);
-	return static_cast<D3DPRIMITIVETYPE>(value);
 }
 auto reshade::d3d9::convert_query_type(api::query_type value) -> D3DQUERYTYPE
 {

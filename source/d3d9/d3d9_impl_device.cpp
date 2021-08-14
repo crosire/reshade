@@ -718,6 +718,7 @@ bool reshade::d3d9::device_impl::create_graphics_pipeline(const api::pipeline_de
 		desc.graphics.geometry_shader.code_size != 0 ||
 		desc.graphics.blend_state.alpha_to_coverage_enable ||
 		desc.graphics.blend_state.logic_op_enable[0] ||
+		desc.graphics.topology > api::primitive_topology::triangle_fan ||
 		desc.graphics.viewport_count > 1)
 	{
 		*out = { 0 };
@@ -850,7 +851,7 @@ bool reshade::d3d9::device_impl::create_graphics_pipeline(const api::pipeline_de
 		SUCCEEDED(_orig->EndStateBlock(&state_block)))
 	{
 		const auto impl = new pipeline_impl();
-		impl->prim_type = convert_primitive_topology(desc.graphics.topology);
+		impl->prim_type = static_cast<D3DPRIMITIVETYPE>(desc.graphics.topology);
 		impl->state_block = std::move(state_block);
 
 		*out = { reinterpret_cast<uintptr_t>(impl) };

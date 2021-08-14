@@ -30,8 +30,7 @@ namespace reshade::api
 		{
 			for (auto it = _data_entries.begin(); it != _data_entries.end(); ++it)
 			{
-				if (it->guid[0] == reinterpret_cast<const uint64_t *>(guid)[0] &&
-					it->guid[1] == reinterpret_cast<const uint64_t *>(guid)[1])
+				if (std::memcmp(it->guid, guid, 16) == 0)
 				{
 					*ptr = it->data;
 					return true;
@@ -43,8 +42,7 @@ namespace reshade::api
 		{
 			for (auto it = _data_entries.begin(); it != _data_entries.end(); ++it)
 			{
-				if (it->guid[0] == reinterpret_cast<const uint64_t *>(guid)[0] &&
-					it->guid[1] == reinterpret_cast<const uint64_t *>(guid)[1])
+				if (std::memcmp(it->guid, guid, 16) == 0)
 				{
 					if (ptr == nullptr)
 						_data_entries.erase(it);

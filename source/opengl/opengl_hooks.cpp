@@ -905,7 +905,7 @@ HOOK_EXPORT void WINAPI glColorPointer(GLint size, GLenum type, GLsizei stride, 
 			void WINAPI glCopyBufferSubData(GLenum readTarget, GLenum writeTarget, GLintptr readOffset, GLintptr writeOffset, GLsizeiptr size)
 {
 #if RESHADE_ADDON
-	if (g_current_context && reshade::has_event_callbacks(reshade::addon_event::copy_buffer_region))
+	if (g_current_context && reshade::has_addon_event<reshade::addon_event::copy_buffer_region>())
 	{
 		GLint src_object = 0;
 		glGetIntegerv(reshade::opengl::get_binding_for_target(readTarget), &src_object);
@@ -926,7 +926,7 @@ HOOK_EXPORT void WINAPI glColorPointer(GLint size, GLenum type, GLsizei stride, 
 			void WINAPI glCopyImageSubData(GLuint srcName, GLenum srcTarget, GLint srcLevel, GLint srcX, GLint srcY, GLint srcZ, GLuint dstName, GLenum dstTarget, GLint dstLevel, GLint dstX, GLint dstY, GLint dstZ, GLsizei srcWidth, GLsizei srcHeight, GLsizei srcDepth)
 {
 #if RESHADE_ADDON
-	if (g_current_context && reshade::has_event_callbacks(reshade::addon_event::copy_texture_region))
+	if (g_current_context && reshade::has_addon_event<reshade::addon_event::copy_texture_region>())
 	{
 		const int32_t src_box[6] = { srcX, srcY, srcZ, srcX + srcWidth, srcY + srcHeight, srcZ + srcDepth };
 		const int32_t dst_box[6] = { dstX, dstY, dstZ, dstX + srcWidth, dstY + srcHeight, dstZ + srcDepth };
@@ -946,7 +946,7 @@ HOOK_EXPORT void WINAPI glColorPointer(GLint size, GLenum type, GLsizei stride, 
 			void WINAPI glCopyNamedBufferSubData(GLuint readBuffer, GLuint writeBuffer, GLintptr readOffset, GLintptr writeOffset, GLsizeiptr size)
 {
 #if RESHADE_ADDON
-	if (g_current_context && reshade::has_event_callbacks(reshade::addon_event::copy_buffer_region))
+	if (g_current_context && reshade::has_addon_event<reshade::addon_event::copy_buffer_region>())
 	{
 		if (reshade::invoke_addon_event<reshade::addon_event::copy_buffer_region>(g_current_context,
 			reshade::opengl::make_resource_handle(GL_COPY_READ_BUFFER, readBuffer), readOffset,
@@ -969,7 +969,7 @@ HOOK_EXPORT void WINAPI glCopyTexImage1D(GLenum target, GLint level, GLenum inte
 {
 #if RESHADE_ADDON
 	// TODO: Call "create_resource" event here too
-	if (g_current_context && reshade::has_event_callbacks(reshade::addon_event::copy_texture_region))
+	if (g_current_context && reshade::has_addon_event<reshade::addon_event::copy_texture_region>())
 	{
 		GLint src_mode = GL_BACK;
 		glGetIntegerv(GL_READ_BUFFER, &src_mode);
@@ -1005,7 +1005,7 @@ HOOK_EXPORT void WINAPI glCopyTexImage2D(GLenum target, GLint level, GLenum inte
 {
 #if RESHADE_ADDON
 	// TODO: Call "create_resource" event here too
-	if (g_current_context && reshade::has_event_callbacks(reshade::addon_event::copy_texture_region))
+	if (g_current_context && reshade::has_addon_event<reshade::addon_event::copy_texture_region>())
 	{
 		GLint src_mode = GL_BACK;
 		glGetIntegerv(GL_READ_BUFFER, &src_mode);
@@ -1040,7 +1040,7 @@ HOOK_EXPORT void WINAPI glCopyTexImage2D(GLenum target, GLint level, GLenum inte
 HOOK_EXPORT void WINAPI glCopyTexSubImage1D(GLenum target, GLint level, GLint xoffset, GLint x, GLint y, GLsizei width)
 {
 #if RESHADE_ADDON
-	if (g_current_context && reshade::has_event_callbacks(reshade::addon_event::copy_texture_region))
+	if (g_current_context && reshade::has_addon_event<reshade::addon_event::copy_texture_region>())
 	{
 		GLint src_mode = GL_BACK;
 		glGetIntegerv(GL_READ_BUFFER, &src_mode);
@@ -1075,7 +1075,7 @@ HOOK_EXPORT void WINAPI glCopyTexSubImage1D(GLenum target, GLint level, GLint xo
 HOOK_EXPORT void WINAPI glCopyTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint x, GLint y, GLsizei width, GLsizei height)
 {
 #if RESHADE_ADDON
-	if (g_current_context && reshade::has_event_callbacks(reshade::addon_event::copy_texture_region))
+	if (g_current_context && reshade::has_addon_event<reshade::addon_event::copy_texture_region>())
 	{
 		GLint src_mode = GL_BACK;
 		glGetIntegerv(GL_READ_BUFFER, &src_mode);
@@ -1110,7 +1110,7 @@ HOOK_EXPORT void WINAPI glCopyTexSubImage2D(GLenum target, GLint level, GLint xo
 			void WINAPI glCopyTexSubImage3D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLint x, GLint y, GLsizei width, GLsizei height)
 {
 #if RESHADE_ADDON
-	if (g_current_context && reshade::has_event_callbacks(reshade::addon_event::copy_texture_region))
+	if (g_current_context && reshade::has_addon_event<reshade::addon_event::copy_texture_region>())
 	{
 		GLint src_mode = GL_BACK;
 		glGetIntegerv(GL_READ_BUFFER, &src_mode);
@@ -1145,7 +1145,7 @@ HOOK_EXPORT void WINAPI glCopyTexSubImage2D(GLenum target, GLint level, GLint xo
 			void WINAPI glCopyTextureSubImage1D(GLuint texture, GLint level, GLint xoffset, GLint x, GLint y, GLsizei width)
 {
 #if RESHADE_ADDON
-	if (g_current_context && reshade::has_event_callbacks(reshade::addon_event::copy_texture_region))
+	if (g_current_context && reshade::has_addon_event<reshade::addon_event::copy_texture_region>())
 	{
 		GLint src_mode = GL_BACK;
 		glGetIntegerv(GL_READ_BUFFER, &src_mode);
@@ -1178,7 +1178,7 @@ HOOK_EXPORT void WINAPI glCopyTexSubImage2D(GLenum target, GLint level, GLint xo
 			void WINAPI glCopyTextureSubImage2D(GLuint texture, GLint level, GLint xoffset, GLint yoffset, GLint x, GLint y, GLsizei width, GLsizei height)
 {
 #if RESHADE_ADDON
-	if (g_current_context && reshade::has_event_callbacks(reshade::addon_event::copy_texture_region))
+	if (g_current_context && reshade::has_addon_event<reshade::addon_event::copy_texture_region>())
 	{
 		GLint src_mode = GL_BACK;
 		glGetIntegerv(GL_READ_BUFFER, &src_mode);
@@ -1211,7 +1211,7 @@ HOOK_EXPORT void WINAPI glCopyTexSubImage2D(GLenum target, GLint level, GLint xo
 			void WINAPI glCopyTextureSubImage3D(GLuint texture, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLint x, GLint y, GLsizei width, GLsizei height)
 {
 #if RESHADE_ADDON
-	if (g_current_context && reshade::has_event_callbacks(reshade::addon_event::copy_texture_region))
+	if (g_current_context && reshade::has_addon_event<reshade::addon_event::copy_texture_region>())
 	{
 		GLint src_mode = GL_BACK;
 		glGetIntegerv(GL_READ_BUFFER, &src_mode);

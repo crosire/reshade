@@ -35,7 +35,7 @@ void D3D10Device::invoke_bind_vertex_buffers_event(UINT first, UINT count, ID3D1
 {
 	assert(count <= D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT);
 
-	if (!reshade::has_event_callbacks(reshade::addon_event::bind_vertex_buffers))
+	if (!reshade::has_addon_event<reshade::addon_event::bind_vertex_buffers>())
 		return;
 
 #ifndef WIN64
@@ -57,7 +57,7 @@ void D3D10Device::invoke_bind_samplers_event(reshade::api::shader_stage stage, U
 {
 	assert(count <= D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT);
 
-	if (!reshade::has_event_callbacks(reshade::addon_event::push_descriptors))
+	if (!reshade::has_addon_event<reshade::addon_event::push_descriptors>())
 		return;
 
 #ifndef WIN64
@@ -75,7 +75,7 @@ void D3D10Device::invoke_bind_shader_resource_views_event(reshade::api::shader_s
 {
 	assert(count <= D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT);
 
-	if (!reshade::has_event_callbacks(reshade::addon_event::push_descriptors))
+	if (!reshade::has_addon_event<reshade::addon_event::push_descriptors>())
 		return;
 
 #ifndef WIN64
@@ -93,7 +93,7 @@ void D3D10Device::invoke_bind_constant_buffers_event(reshade::api::shader_stage 
 {
 	assert(count <= D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT);
 
-	if (!reshade::has_event_callbacks(reshade::addon_event::push_descriptors))
+	if (!reshade::has_addon_event<reshade::addon_event::push_descriptors>())
 		return;
 
 	reshade::api::buffer_range descriptors[D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
@@ -330,13 +330,13 @@ void    STDMETHODCALLTYPE D3D10Device::OMSetRenderTargets(UINT NumViews, ID3D10R
 #if RESHADE_ADDON
 	assert(NumViews <= D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT);
 
-	if (!reshade::has_event_callbacks(reshade::addon_event::bind_render_targets_and_depth_stencil))
+	if (!reshade::has_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>())
 		return;
 
 #ifndef WIN64
 	reshade::api::resource_view rtvs[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
 	for (UINT i = 0; i < NumViews; ++i)
-		rtvs[i] = { reinterpret_cast<uintptr_t>(ppRenderTargetViews[i]) };
+		rtvs[i] = reshade::api::resource_view { reinterpret_cast<uintptr_t>(ppRenderTargetViews[i]) };
 #else
 	static_assert(sizeof(*ppRenderTargetViews) == sizeof(reshade::api::resource_view));
 	const auto rtvs = reinterpret_cast<const reshade::api::resource_view *>(ppRenderTargetViews);
@@ -403,7 +403,7 @@ void    STDMETHODCALLTYPE D3D10Device::RSSetViewports(UINT NumViewports, const D
 #if RESHADE_ADDON
 	assert(NumViewports <= D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE);
 
-	if (!reshade::has_event_callbacks(reshade::addon_event::bind_viewports))
+	if (!reshade::has_addon_event<reshade::addon_event::bind_viewports>())
 		return;
 
 	float viewport_data[6 * D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];
@@ -433,11 +433,11 @@ void    STDMETHODCALLTYPE D3D10Device::RSSetScissorRects(UINT NumRects, const D3
 void    STDMETHODCALLTYPE D3D10Device::CopySubresourceRegion(ID3D10Resource *pDstResource, UINT DstSubresource, UINT DstX, UINT DstY, UINT DstZ, ID3D10Resource *pSrcResource, UINT SrcSubresource, const D3D10_BOX *pSrcBox)
 {
 #if RESHADE_ADDON
-	if (reshade::has_event_callbacks(reshade::addon_event::copy_buffer_region) ||
-		reshade::has_event_callbacks(reshade::addon_event::copy_texture_region))
-	{
-		assert(pDstResource != nullptr && pSrcResource != nullptr);
+	assert(pDstResource != nullptr && pSrcResource != nullptr);
 
+	if (reshade::has_addon_event<reshade::addon_event::copy_buffer_region>() ||
+		reshade::has_addon_event<reshade::addon_event::copy_texture_region>())
+	{
 		D3D10_RESOURCE_DIMENSION type = D3D10_RESOURCE_DIMENSION_UNKNOWN;
 		pDstResource->GetType(&type);
 		if (type == D3D10_RESOURCE_DIMENSION_BUFFER)
@@ -487,11 +487,11 @@ void    STDMETHODCALLTYPE D3D10Device::CopyResource(ID3D10Resource *pDstResource
 void    STDMETHODCALLTYPE D3D10Device::UpdateSubresource(ID3D10Resource *pDstResource, UINT DstSubresource, const D3D10_BOX *pDstBox, const void *pSrcData, UINT SrcRowPitch, UINT SrcDepthPitch)
 {
 #if RESHADE_ADDON
-	if (reshade::has_event_callbacks(reshade::addon_event::upload_buffer_region) ||
-		reshade::has_event_callbacks(reshade::addon_event::upload_texture_region))
-	{
-		assert(pDstResource != nullptr);
+	assert(pDstResource != nullptr);
 
+	if (reshade::has_addon_event<reshade::addon_event::upload_buffer_region>() ||
+		reshade::has_addon_event<reshade::addon_event::upload_texture_region>())
+	{
 		D3D10_RESOURCE_DIMENSION type = D3D10_RESOURCE_DIMENSION_UNKNOWN;
 		pDstResource->GetType(&type);
 		if (type == D3D10_RESOURCE_DIMENSION_BUFFER)

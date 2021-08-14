@@ -496,7 +496,7 @@ auto reshade::vulkan::convert_usage_to_pipeline_stage(api::resource_usage state,
 	if ((state & (api::resource_usage::shader_resource_non_pixel | api::resource_usage::constant_buffer)) != api::resource_usage::undefined)
 		result |= VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | (enabled_features.tessellationShader ? VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT | VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT : 0) | (enabled_features.geometryShader ? VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT : 0) | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
 	if ((state & api::resource_usage::unordered_access) != api::resource_usage::undefined)
-		result |= VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT; // TODO: Might have to add fragment shader bit too
+		result |= VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
 	if ((state & (api::resource_usage::copy_dest | api::resource_usage::copy_source | api::resource_usage::resolve_dest | api::resource_usage::resolve_source)) != api::resource_usage::undefined)
 		result |= VK_PIPELINE_STAGE_TRANSFER_BIT;
 	if ((state & (api::resource_usage::index_buffer | api::resource_usage::vertex_buffer)) != api::resource_usage::undefined)
