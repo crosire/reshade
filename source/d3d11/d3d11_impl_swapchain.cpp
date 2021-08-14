@@ -43,6 +43,12 @@ void reshade::d3d11::swapchain_impl::get_back_buffer(uint32_t index, api::resour
 {
 	assert(index == 0);
 
+	*out = { reinterpret_cast<uintptr_t>(_backbuffer.get()) };
+}
+void reshade::d3d11::swapchain_impl::get_back_buffer_resolved(uint32_t index, api::resource *out)
+{
+	assert(index == 0);
+
 	*out = { reinterpret_cast<uintptr_t>(_backbuffer_resolved.get()) };
 }
 
@@ -58,6 +64,10 @@ bool reshade::d3d11::swapchain_impl::on_init()
 	if (FAILED(_orig->GetBuffer(0, IID_PPV_ARGS(&_backbuffer))))
 		return false;
 	assert(_backbuffer != nullptr);
+
+#if RESHADE_ADDON
+	invoke_addon_event<addon_event::init_swapchain>(this);
+#endif
 
 	if (swap_desc.SampleDesc.Count > 1)
 	{
@@ -101,10 +111,6 @@ bool reshade::d3d11::swapchain_impl::on_init()
 	_width = swap_desc.BufferDesc.Width;
 	_height = swap_desc.BufferDesc.Height;
 	_backbuffer_format = convert_format(swap_desc.BufferDesc.Format);
-
-#if RESHADE_ADDON
-	invoke_addon_event<addon_event::init_swapchain>(this);
-#endif
 
 	return runtime::on_init(swap_desc.OutputWindow);
 }

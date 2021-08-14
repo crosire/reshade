@@ -50,6 +50,10 @@ void reshade::d3d12::swapchain_impl::get_back_buffer(uint32_t index, api::resour
 {
 	*out = { reinterpret_cast<uintptr_t>(_backbuffers[index].get()) };
 }
+void reshade::d3d12::swapchain_impl::get_back_buffer_resolved(uint32_t index, api::resource *out)
+{
+	*out = { reinterpret_cast<uintptr_t>(_backbuffers[index].get()) };
+}
 
 uint32_t reshade::d3d12::swapchain_impl::get_back_buffer_count() const
 {
@@ -93,13 +97,13 @@ bool reshade::d3d12::swapchain_impl::on_init()
 
 	assert(swap_desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT);
 
-	_width = swap_desc.BufferDesc.Width;
-	_height = swap_desc.BufferDesc.Height;
-	_backbuffer_format = convert_format(swap_desc.BufferDesc.Format);
-
 #if RESHADE_ADDON
 	invoke_addon_event<addon_event::init_swapchain>(this);
 #endif
+
+	_width = swap_desc.BufferDesc.Width;
+	_height = swap_desc.BufferDesc.Height;
+	_backbuffer_format = convert_format(swap_desc.BufferDesc.Format);
 
 	return runtime::on_init(swap_desc.OutputWindow);
 }

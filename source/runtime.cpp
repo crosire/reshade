@@ -212,7 +212,7 @@ bool reshade::runtime::on_init(input::window_handle window)
 	for (uint32_t i = 0; i < get_back_buffer_count(); ++i)
 	{
 		api::resource backbuffer;
-		get_back_buffer(i, &backbuffer);
+		get_back_buffer_resolved(i, &backbuffer);
 
 		api::render_pass_desc pass_desc = {};
 		pass_desc.depth_stencil_format = _effect_stencil_format;

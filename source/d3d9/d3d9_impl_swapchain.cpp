@@ -40,19 +40,29 @@ void reshade::d3d9::swapchain_impl::get_back_buffer(uint32_t index, api::resourc
 {
 	assert(index == 0);
 
+	*out = { reinterpret_cast<uintptr_t>(_backbuffer.get()) };
+}
+void reshade::d3d9::swapchain_impl::get_back_buffer_resolved(uint32_t index, api::resource *out)
+{
+	assert(index == 0);
+
 	*out = { reinterpret_cast<uintptr_t>(_backbuffer_resolved.get()) };
 }
 
 bool reshade::d3d9::swapchain_impl::on_init(const D3DPRESENT_PARAMETERS &pp)
 {
-	_width = pp.BackBufferWidth;
-	_height = pp.BackBufferHeight;
-	_backbuffer_format = convert_format(pp.BackBufferFormat);
-
 	// Get back buffer surface
 	if (FAILED(_orig->GetBackBuffer(0, D3DBACKBUFFER_TYPE_MONO, &_backbuffer)))
 		return false;
 	assert(_backbuffer != nullptr);
+
+#if RESHADE_ADDON
+	invoke_addon_event<addon_event::init_swapchain>(this);
+#endif
+
+	_width = pp.BackBufferWidth;
+	_height = pp.BackBufferHeight;
+	_backbuffer_format = convert_format(pp.BackBufferFormat);
 
 	if (pp.MultiSampleType != D3DMULTISAMPLE_NONE || (pp.BackBufferFormat == D3DFMT_X8R8G8B8 || pp.BackBufferFormat == D3DFMT_X8B8G8R8))
 	{
@@ -84,10 +94,6 @@ bool reshade::d3d9::swapchain_impl::on_init(const D3DPRESENT_PARAMETERS &pp)
 		LOG(ERROR) << "Failed to create application state block!";
 		return false;
 	}
-
-#if RESHADE_ADDON
-	invoke_addon_event<addon_event::init_swapchain>(this);
-#endif
 
 	return runtime::on_init(pp.hDeviceWindow);
 }

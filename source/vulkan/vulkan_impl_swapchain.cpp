@@ -39,6 +39,10 @@ void reshade::vulkan::swapchain_impl::get_back_buffer(uint32_t index, api::resou
 {
 	*out = { (uint64_t)_swapchain_images[index] };
 }
+void reshade::vulkan::swapchain_impl::get_back_buffer_resolved(uint32_t index, api::resource *out)
+{
+	*out = { (uint64_t)_swapchain_images[index] };
+}
 
 uint32_t reshade::vulkan::swapchain_impl::get_back_buffer_count() const
 {
@@ -52,13 +56,6 @@ uint32_t reshade::vulkan::swapchain_impl::get_current_back_buffer_index() const
 bool reshade::vulkan::swapchain_impl::on_init(VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &desc, HWND hwnd)
 {
 	_orig = swapchain;
-
-	_width = desc.imageExtent.width;
-	_height = desc.imageExtent.height;
-	_backbuffer_format = convert_format(desc.imageFormat);
-
-	if (_queue == VK_NULL_HANDLE)
-		return false;
 
 	uint32_t num_images = 0;
 	if (swapchain != VK_NULL_HANDLE)
@@ -93,6 +90,17 @@ bool reshade::vulkan::swapchain_impl::on_init(VkSwapchainKHR swapchain, const Vk
 
 	assert(desc.imageUsage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
 
+#if RESHADE_ADDON
+	invoke_addon_event<addon_event::init_swapchain>(this);
+#endif
+
+	if (_queue == VK_NULL_HANDLE)
+		return false;
+
+	_width = desc.imageExtent.width;
+	_height = desc.imageExtent.height;
+	_backbuffer_format = convert_format(desc.imageFormat);
+
 	for (uint32_t i = 0; i < NUM_SYNC_SEMAPHORES; ++i)
 	{
 		VkSemaphoreCreateInfo sem_create_info { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
@@ -103,10 +111,6 @@ bool reshade::vulkan::swapchain_impl::on_init(VkSwapchainKHR swapchain, const Vk
 			return false;
 		}
 	}
-
-#if RESHADE_ADDON
-	invoke_addon_event<addon_event::init_swapchain>(this);
-#endif
 
 	return runtime::on_init(hwnd);
 }

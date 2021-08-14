@@ -114,6 +114,8 @@ namespace reshade
 		api::device *get_device() final { return _device; }
 		api::command_queue *get_command_queue() final { return _graphics_queue; }
 
+		virtual void get_back_buffer_resolved(uint32_t index, api::resource *out) = 0;
+
 		/// <summary>
 		/// Callback function called when the runtime is initialized.
 		/// </summary>

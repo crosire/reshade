@@ -879,8 +879,7 @@ HOOK_EXPORT BOOL  WINAPI wglSwapBuffers(HDC hdc)
 		{
 			LOG(INFO) << "Resizing runtime " << runtime << " on device context " << hdc << " to " << width << "x" << height << " ...";
 
-			if (runtime_width != 0 || runtime_height != 0)
-				runtime->on_reset();
+			runtime->on_reset();
 
 			if (width != 0 || height != 0)
 				runtime->on_init(hwnd, width, height);

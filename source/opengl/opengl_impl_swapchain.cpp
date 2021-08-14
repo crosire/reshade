@@ -32,6 +32,10 @@ reshade::opengl::swapchain_impl::swapchain_impl(HDC hdc, HGLRC hglrc) :
 	}
 
 	_backbuffer_format = convert_format(_default_color_format);
+
+#if RESHADE_ADDON
+	invoke_addon_event<addon_event::init_swapchain>(this);
+#endif
 }
 reshade::opengl::swapchain_impl::~swapchain_impl()
 {
@@ -41,23 +45,30 @@ reshade::opengl::swapchain_impl::~swapchain_impl()
 void reshade::opengl::swapchain_impl::get_back_buffer(uint32_t index, api::resource *out)
 {
 	assert(index == 0);
-#if 0
+
 	*out = make_resource_handle(GL_FRAMEBUFFER_DEFAULT, GL_BACK);
-#else
+}
+void reshade::opengl::swapchain_impl::get_back_buffer_resolved(uint32_t index, api::resource *out)
+{
+	assert(index == 0);
+
 	*out = make_resource_handle(GL_RENDERBUFFER, _rbo);
-#endif
 }
 
 bool reshade::opengl::swapchain_impl::on_init(HWND hwnd, unsigned int width, unsigned int height)
 {
-	_width = width;
-	_height = height;
-
 	if (hwnd != nullptr)
 	{
 		_default_fbo_width = width;
 		_default_fbo_height = height;
 	}
+
+#if RESHADE_ADDON
+	invoke_addon_event<addon_event::init_swapchain>(this);
+#endif
+
+	_width = width;
+	_height = height;
 
 	// Capture and later restore so that the resource creation code below does not affect the application state
 	_app_state.capture(_compatibility_context);
@@ -74,19 +85,11 @@ bool reshade::opengl::swapchain_impl::on_init(HWND hwnd, unsigned int width, uns
 
 	_app_state.apply(_compatibility_context);
 
-#if RESHADE_ADDON
-	invoke_addon_event<addon_event::init_swapchain>(this);
-#endif
-
 	return runtime::on_init(hwnd);
 }
 void reshade::opengl::swapchain_impl::on_reset()
 {
 	runtime::on_reset();
-
-	// Do not call add-on events if this swap chain was never initialized
-	if (_rbo == 0)
-		return;
 
 #if RESHADE_ADDON
 	invoke_addon_event<addon_event::destroy_swapchain>(this);
