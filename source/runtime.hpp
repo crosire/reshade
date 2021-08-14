@@ -335,6 +335,7 @@ namespace reshade
 		api::resource_view _empty_texture_view = {};
 		std::unordered_map<size_t, api::sampler> _effect_sampler_states;
 		std::unordered_map<std::string, api::resource_view> _texture_semantic_bindings;
+		std::unordered_map<std::string, api::resource_view> _backup_texture_semantic_bindings;
 
 		// === Screenshots ===
 
