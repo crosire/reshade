@@ -7,7 +7,6 @@
 
 #include "opengl.hpp"
 #include "addon_manager.hpp"
-#include <unordered_map>
 #include <unordered_set>
 
 namespace reshade::opengl
@@ -154,23 +153,24 @@ namespace reshade::opengl
 		GLenum _current_index_type = GL_UNSIGNED_INT;
 		GLuint _current_vertex_count = 0; // Used to calculate vertex count inside 'glBegin'/'glEnd' pairs
 
-	private:
-#if RESHADE_ADDON
-		void create_global_pipeline_layout();
-		void destroy_global_pipeline_layout();
-#endif
-
-		std::vector<GLuint> _reserved_texture_names;
-		GLuint _copy_fbo[2] = {};
-		GLuint _mipmap_program = 0;
-		GLuint _push_constants = 0;
-		GLuint _push_constants_size = 0;
-
 	protected:
 		// Cached context information for quick access
 		GLuint _default_fbo_width = 0;
 		GLuint _default_fbo_height = 0;
 		GLenum _default_color_format = GL_NONE;
 		GLenum _default_depth_format = GL_NONE;
+
+	private:
+#if RESHADE_ADDON
+		void create_global_pipeline_layout();
+		void destroy_global_pipeline_layout();
+#endif
+
+		GLuint _copy_fbo[2] = {};
+		GLuint _mipmap_program = 0;
+		std::vector<GLuint> _reserved_texture_names;
+
+		GLuint _push_constants = 0;
+		GLuint _push_constants_size = 0;
 	};
 }

@@ -1067,11 +1067,6 @@ auto reshade::d3d12::convert_stencil_op(D3D12_STENCIL_OP value) -> api::stencil_
 {
 	return static_cast<api::stencil_op>(static_cast<uint32_t>(value) - 1);
 }
-auto reshade::d3d12::convert_primitive_topology(api::primitive_topology value) -> D3D12_PRIMITIVE_TOPOLOGY
-{
-	assert(value != api::primitive_topology::triangle_fan);
-	return static_cast<D3D12_PRIMITIVE_TOPOLOGY>(value);
-}
 auto reshade::d3d12::convert_primitive_topology_type(api::primitive_topology value) -> D3D12_PRIMITIVE_TOPOLOGY_TYPE
 {
 	switch (value)
@@ -1203,9 +1198,9 @@ auto reshade::d3d12::convert_descriptor_type(D3D12_DESCRIPTOR_RANGE_TYPE type) -
 	case D3D12_DESCRIPTOR_RANGE_TYPE_UAV:
 		return api::descriptor_type::unordered_access_view;
 	case D3D12_DESCRIPTOR_RANGE_TYPE_CBV:
-		return reshade::api::descriptor_type::constant_buffer;
+		return api::descriptor_type::constant_buffer;
 	case D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER:
-		return reshade::api::descriptor_type::sampler;
+		return api::descriptor_type::sampler;
 	}
 }
 auto reshade::d3d12::convert_descriptor_type_to_heap_type(api::descriptor_type type) -> D3D12_DESCRIPTOR_HEAP_TYPE

@@ -48,11 +48,6 @@ void reshade::opengl::swapchain_impl::get_back_buffer(uint32_t index, api::resou
 #endif
 }
 
-reshade::api::format reshade::opengl::swapchain_impl::get_back_buffer_format() const
-{
-	return convert_format(_default_color_format);
-}
-
 bool reshade::opengl::swapchain_impl::on_init(HWND hwnd, unsigned int width, unsigned int height)
 {
 	_width = width;

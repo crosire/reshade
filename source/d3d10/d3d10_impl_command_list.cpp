@@ -112,7 +112,7 @@ void reshade::d3d10::device_impl::bind_pipeline_states(uint32_t count, const api
 		switch (states[i])
 		{
 		case api::dynamic_state::primitive_topology:
-			_orig->IASetPrimitiveTopology(convert_primitive_topology(static_cast<api::primitive_topology>(values[i])));
+			_orig->IASetPrimitiveTopology(static_cast<D3D10_PRIMITIVE_TOPOLOGY>(values[i]));
 			break;
 		default:
 			assert(false);

@@ -9,6 +9,8 @@ namespace reshade::d3d11
 {
 	struct pipeline_impl
 	{
+		void apply(ID3D11DeviceContext *ctx) const;
+
 		com_ptr<ID3D11VertexShader> vs;
 		com_ptr<ID3D11HullShader> hs;
 		com_ptr<ID3D11DomainShader> ds;
@@ -24,8 +26,6 @@ namespace reshade::d3d11
 		UINT sample_mask;
 		UINT stencil_reference_value;
 		FLOAT blend_constant[4];
-
-		void apply(ID3D11DeviceContext *ctx) const;
 	};
 
 	struct pipeline_layout_impl
@@ -118,9 +118,8 @@ namespace reshade::d3d11
 	auto convert_cull_mode(api::cull_mode value) -> D3D11_CULL_MODE;
 	auto convert_cull_mode(D3D11_CULL_MODE value) -> api::cull_mode;
 	auto convert_compare_op(api::compare_op value) -> D3D11_COMPARISON_FUNC;
-	auto convert_compare_op(D3D11_COMPARISON_FUNC value) ->api::compare_op;
+	auto convert_compare_op(D3D11_COMPARISON_FUNC value) -> api::compare_op;
 	auto convert_stencil_op(api::stencil_op value) -> D3D11_STENCIL_OP;
 	auto convert_stencil_op(D3D11_STENCIL_OP value) -> api::stencil_op;
-	auto convert_primitive_topology(api::primitive_topology value) -> D3D11_PRIMITIVE_TOPOLOGY;
 	auto convert_query_type(api::query_type value) -> D3D11_QUERY;
 }

@@ -11,8 +11,6 @@
 #include <dxgi1_5.h>
 #include <unordered_map>
 
-struct D3D12GraphicsCommandList;
-
 namespace reshade::d3d12
 {
 	class device_impl : public api::api_object_impl<ID3D12Device *, api::device>
@@ -81,14 +79,17 @@ namespace reshade::d3d12
 		void get_resource_from_view(api::resource_view view, api::resource *out) const final;
 		bool get_framebuffer_attachment(api::framebuffer framebuffer, api::attachment_type type, uint32_t index, api::resource_view *out) const final;
 
-	protected:
-		friend struct D3D12GraphicsCommandList;
-
 		bool resolve_gpu_address(D3D12_GPU_VIRTUAL_ADDRESS address, api::resource *out_resource, uint64_t *out_offset) const;
 		bool resolve_descriptor_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle, D3D12_DESCRIPTOR_HEAP_TYPE type, api::descriptor_set *out_set, uint32_t *out_offset, bool *shader_visible = nullptr) const;
 		bool resolve_descriptor_handle(D3D12_GPU_DESCRIPTOR_HANDLE handle_gpu, D3D12_CPU_DESCRIPTOR_HANDLE *out_handle_cpu) const;
 		bool resolve_descriptor_handle(D3D12_GPU_DESCRIPTOR_HANDLE handle_gpu, D3D12_CPU_DESCRIPTOR_HANDLE *out_handle_cpu, api::descriptor_set *out_set, uint32_t *out_offset, ID3D12DescriptorHeap *const *heaps, size_t num_heaps) const;
 
+		inline D3D12_CPU_DESCRIPTOR_HANDLE calc_descriptor_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle, UINT offset, D3D12_DESCRIPTOR_HEAP_TYPE type) const
+		{
+			return { handle.ptr + offset * _descriptor_handle_size[type] };
+		}
+
+	protected:
 #if RESHADE_ADDON
 		void register_descriptor_heap(ID3D12DescriptorHeap *heap);
 		void unregister_descriptor_heap(ID3D12DescriptorHeap *heap);
@@ -104,12 +105,12 @@ namespace reshade::d3d12
 			_views.emplace(handle.ptr, resource);
 		}
 
-		UINT _descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
-
 	private:
 		descriptor_heap_cpu _view_heaps[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
 		descriptor_heap_gpu<D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, 128, 128> _gpu_sampler_heap;
 		descriptor_heap_gpu<D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1024, 2048> _gpu_view_heap;
+
+		UINT _descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
 
 		com_ptr<ID3D12PipelineState> _mipmap_pipeline;
 		com_ptr<ID3D12RootSignature> _mipmap_signature;

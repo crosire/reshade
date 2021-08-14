@@ -388,37 +388,10 @@ namespace reshade { namespace api
 		/// Allocates one or more descriptor sets.
 		/// </summary>
 		/// <param name="count">The number of descriptor sets to allocate.</param>
-		/// <param name="layout">The layout of the descriptor sets to allocate.</param>
-		/// <param name="out">Pointer to an array of handles with at least <paramref name="count"/> elements that is filles with the handles of the created descriptor sets.</param>
-		/// <returns><see langword="true"/> if the descriptor sets were successfully created, <see langword="false"/> otherwise (in this case <paramref name="out"/> is filles with zeroes).</returns>
-		inline  bool allocate_descriptor_sets(uint32_t count, descriptor_set_layout layout, descriptor_set *out)
-		{
-			descriptor_set_layout *layouts = new descriptor_set_layout[count];
-			for (uint32_t i = 0; i < count; ++i)
-				layouts[i] = layout;
-			const bool result = allocate_descriptor_sets(count, layouts, out);
-			delete[] layouts;
-			return result;
-		}
-		/// <summary>
-		/// Allocates one or more descriptor sets.
-		/// </summary>
-		/// <param name="count">The number of descriptor sets to allocate.</param>
 		/// <param name="layouts">The layouts of the descriptor sets to allocate.</param>
 		/// <param name="out">Pointer to an array of handles with at least <paramref name="count"/> elements that is filles with the handles of the created descriptor sets.</param>
 		/// <returns><see langword="true"/> if the descriptor sets were successfully created, <see langword="false"/> otherwise (in this case <paramref name="out"/> is filles with zeroes).</returns>
 		virtual bool allocate_descriptor_sets(uint32_t count, const descriptor_set_layout *layouts, descriptor_set *out) = 0;
-		/// <summary>
-		/// Frees one or more descriptor sets that were previously allocated via <see cref="allocate_descriptor_sets"/>.
-		/// </summary>
-		inline  void free_descriptor_sets(uint32_t count, descriptor_set_layout layout, const descriptor_set *sets)
-		{
-			descriptor_set_layout *layouts = new descriptor_set_layout[count];
-			for (uint32_t i = 0; i < count; ++i)
-				layouts[i] = layout;
-			free_descriptor_sets(count, layouts, sets);
-			delete[] layouts;
-		}
 		/// <summary>
 		/// Frees one or more descriptor sets that were previously allocated via <see cref="allocate_descriptor_sets"/>.
 		/// </summary>

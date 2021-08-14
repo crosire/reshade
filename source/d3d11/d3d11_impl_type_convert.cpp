@@ -1426,11 +1426,6 @@ auto reshade::d3d11::convert_stencil_op(D3D11_STENCIL_OP value) -> api::stencil_
 {
 	return static_cast<api::stencil_op>(static_cast<uint32_t>(value) - 1);
 }
-auto reshade::d3d11::convert_primitive_topology(api::primitive_topology value) -> D3D11_PRIMITIVE_TOPOLOGY
-{
-	assert(value != api::primitive_topology::triangle_fan);
-	return static_cast<D3D11_PRIMITIVE_TOPOLOGY>(value);
-}
 auto reshade::d3d11::convert_query_type(api::query_type value) -> D3D11_QUERY
 {
 	switch (value)

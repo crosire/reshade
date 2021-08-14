@@ -417,7 +417,8 @@ bool reshade::d3d12::device_impl::create_compute_pipeline(const api::pipeline_de
 }
 bool reshade::d3d12::device_impl::create_graphics_pipeline(const api::pipeline_desc &desc, api::pipeline *out)
 {
-	if (desc.graphics.render_pass_template.handle == 0)
+	if (desc.graphics.topology == api::primitive_topology::triangle_fan ||
+		desc.graphics.render_pass_template.handle == 0)
 	{
 		*out = { 0 };
 		return false;
@@ -469,7 +470,7 @@ bool reshade::d3d12::device_impl::create_graphics_pipeline(const api::pipeline_d
 		SUCCEEDED(_orig->CreateGraphicsPipelineState(&internal_desc, IID_PPV_ARGS(&pipeline))))
 	{
 		pipeline_graphics_impl extra_data;
-		extra_data.topology = convert_primitive_topology(desc.graphics.topology);
+		extra_data.topology = static_cast<D3D12_PRIMITIVE_TOPOLOGY>(desc.graphics.topology);
 
 		pipeline->SetPrivateData(pipeline_extra_data_guid, sizeof(extra_data), &extra_data);
 
@@ -1054,7 +1055,7 @@ bool reshade::d3d12::device_impl::get_framebuffer_attachment(api::framebuffer fb
 		if (index < fbo_impl->count)
 		{
 			if (fbo_impl->rtv_is_single_handle_to_range)
-				*out = { fbo_impl->rtv->ptr + index * _descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_RTV] };
+				*out = { calc_descriptor_handle(*fbo_impl->rtv, index, D3D12_DESCRIPTOR_HEAP_TYPE_RTV).ptr };
 			else
 				*out = { fbo_impl->rtv[index].ptr };
 			return true;

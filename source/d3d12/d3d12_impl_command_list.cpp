@@ -145,7 +145,7 @@ void reshade::d3d12::command_list_impl::bind_pipeline_states(uint32_t count, con
 			break;
 		}
 		case api::dynamic_state::primitive_topology:
-			_orig->IASetPrimitiveTopology(convert_primitive_topology(static_cast<api::primitive_topology>(values[i])));
+			_orig->IASetPrimitiveTopology(static_cast<D3D12_PRIMITIVE_TOPOLOGY>(values[i]));
 			break;
 		default:
 			assert(false);

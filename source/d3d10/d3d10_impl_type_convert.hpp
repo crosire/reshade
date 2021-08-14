@@ -9,6 +9,8 @@ namespace reshade::d3d10
 {
 	struct pipeline_impl
 	{
+		void apply(ID3D10Device *ctx) const;
+
 		com_ptr<ID3D10VertexShader> vs;
 		com_ptr<ID3D10GeometryShader> gs;
 		com_ptr<ID3D10PixelShader> ps;
@@ -22,8 +24,6 @@ namespace reshade::d3d10
 		UINT sample_mask;
 		UINT stencil_reference_value;
 		FLOAT blend_constant[4];
-
-		void apply(ID3D10Device *ctx) const;
 	};
 
 	struct pipeline_layout_impl
@@ -94,7 +94,7 @@ namespace reshade::d3d10
 	auto convert_blend_op(api::blend_op value) -> D3D10_BLEND_OP;
 	auto convert_blend_op(D3D10_BLEND_OP value) -> api::blend_op;
 	auto convert_blend_factor(api::blend_factor value) -> D3D10_BLEND;
-	auto convert_blend_factor(D3D10_BLEND value) ->api::blend_factor;
+	auto convert_blend_factor(D3D10_BLEND value) -> api::blend_factor;
 	auto convert_fill_mode(api::fill_mode value) -> D3D10_FILL_MODE;
 	auto convert_fill_mode(D3D10_FILL_MODE value) -> api::fill_mode;
 	auto convert_cull_mode(api::cull_mode value) -> D3D10_CULL_MODE;
@@ -103,6 +103,5 @@ namespace reshade::d3d10
 	auto convert_compare_op(D3D10_COMPARISON_FUNC value) ->api::compare_op;
 	auto convert_stencil_op(api::stencil_op value) -> D3D10_STENCIL_OP;
 	auto convert_stencil_op(D3D10_STENCIL_OP value) -> api::stencil_op;
-	auto convert_primitive_topology(api::primitive_topology value) -> D3D10_PRIMITIVE_TOPOLOGY;
 	auto convert_query_type(api::query_type value) -> D3D10_QUERY;
 }

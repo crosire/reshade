@@ -9,8 +9,6 @@
 #include "com_ptr.hpp"
 #include "addon_manager.hpp"
 
-struct D3D11DeviceContext;
-
 namespace reshade::d3d11
 {
 	class device_impl : public api::api_object_impl<ID3D11Device *, api::device>
@@ -87,9 +85,6 @@ namespace reshade::d3d11
 		api::resource_desc get_resource_desc(api::resource resource) const final;
 		void get_resource_from_view(api::resource_view view, api::resource *out) const final;
 		bool get_framebuffer_attachment(api::framebuffer framebuffer, api::attachment_type type, uint32_t index, api::resource_view *out) const final;
-
-	protected:
-		friend struct D3D11DeviceContext;
 
 		api::pipeline_layout _global_pipeline_layout = { 0 };
 

@@ -9,14 +9,13 @@ namespace reshade::opengl
 {
 	struct pipeline_impl
 	{
-		~pipeline_impl()
-		{
-			glDeleteProgram(program);
-			glDeleteVertexArrays(1, &vao);
-		}
+		void apply_compute() const;
+		void apply_graphics() const;
 
 		GLuint program;
 		GLuint vao;
+
+		// Blend state
 
 		GLboolean sample_alpha_to_coverage;
 		GLboolean blend_enable;
@@ -31,6 +30,8 @@ namespace reshade::opengl
 		GLfloat blend_constant[4];
 		GLboolean color_write_mask[4];
 
+		// Rasterizer state
+
 		GLenum polygon_mode;
 		GLenum cull_mode;
 		GLenum front_face;
@@ -38,6 +39,8 @@ namespace reshade::opengl
 		GLboolean scissor_test;
 		GLboolean multisample_enable;
 		GLboolean line_smooth_enable;
+
+		// Depth-stencil state
 
 		GLboolean depth_test;
 		GLboolean depth_mask;
@@ -58,9 +61,6 @@ namespace reshade::opengl
 		GLbitfield sample_mask;
 		GLenum prim_mode;
 		GLuint patch_vertices;
-
-		void apply_compute() const;
-		void apply_graphics() const;
 	};
 
 	struct pipeline_layout_impl
@@ -76,11 +76,6 @@ namespace reshade::opengl
 
 	struct query_pool_impl
 	{
-		~query_pool_impl()
-		{
-			glDeleteQueries(static_cast<GLsizei>(queries.size()), queries.data());
-		}
-
 		std::vector<GLuint> queries;
 	};
 
@@ -113,7 +108,7 @@ namespace reshade::opengl
 	api::resource_view_desc convert_resource_view_desc(GLenum target, GLenum internal_format, GLintptr offset, GLsizeiptr size);
 	api::resource_view_desc convert_resource_view_desc(GLenum target, GLenum internal_format, GLuint minlevel, GLuint numlevels, GLuint minlayer, GLuint numlayers);
 
-	api::subresource_data convert_mapped_subresource(GLenum format, GLenum type, const GLvoid *pixels, GLsizei width, GLsizei height = 1, GLsizei depth = 1);
+	api::subresource_data   convert_mapped_subresource(GLenum format, GLenum type, const GLvoid *pixels, GLsizei width, GLsizei height = 1, GLsizei depth = 1);
 
 	GLuint get_index_type_size(GLenum index_type);
 

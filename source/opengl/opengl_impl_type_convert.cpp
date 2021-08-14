@@ -874,7 +874,7 @@ reshade::api::resource_view_desc reshade::opengl::convert_resource_view_desc(GLe
 	return api::resource_view_desc(convert_resource_view_type(target), convert_format(internal_format), minlevel, numlevels, minlayer, numlayers);
 }
 
-reshade::api::subresource_data reshade::opengl::convert_mapped_subresource(GLenum format, GLenum type, const GLvoid *pixels, GLsizei width, GLsizei height, GLsizei)
+reshade::api::subresource_data   reshade::opengl::convert_mapped_subresource(GLenum format, GLenum type, const GLvoid *pixels, GLsizei width, GLsizei height, GLsizei)
 {
 	api::subresource_data result;
 	result.data = pixels;

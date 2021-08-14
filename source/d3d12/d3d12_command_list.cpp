@@ -659,7 +659,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::OMSetRenderTargets(UINT NumRend
 
 	reshade::api::resource_view rtvs[D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT];
 	for (UINT i = 0; i < NumRenderTargetDescriptors; ++i)
-		rtvs[i] = reshade::api::resource_view { RTsSingleHandleToDescriptorRange ? pRenderTargetDescriptors->ptr + i * _device->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_RTV] : pRenderTargetDescriptors[i].ptr };
+		rtvs[i] = reshade::api::resource_view { RTsSingleHandleToDescriptorRange ? _device->calc_descriptor_handle(*pRenderTargetDescriptors, i, D3D12_DESCRIPTOR_HEAP_TYPE_RTV).ptr : pRenderTargetDescriptors[i].ptr };
 
 	reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(this, NumRenderTargetDescriptors, rtvs, reshade::api::resource_view { pDepthStencilDescriptor != nullptr ? pDepthStencilDescriptor->ptr : 0 });
 #endif

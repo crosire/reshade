@@ -795,10 +795,14 @@ static bool create_shader_module(GLenum type, const reshade::api::shader_desc &d
 	{
 		GLint log_size = 0;
 		glGetShaderiv(shader_object, GL_INFO_LOG_LENGTH, &log_size);
-		std::vector<char> log(log_size);
-		glGetShaderInfoLog(shader_object, log_size, nullptr, log.data());
 
-		LOG(ERROR) << "Failed to compile GLSL shader: " << log.data();
+		if (0 != log_size)
+		{
+			std::vector<char> log(log_size);
+			glGetShaderInfoLog(shader_object, log_size, nullptr, log.data());
+
+			LOG(ERROR) << "Failed to compile GLSL shader:\n" << log.data();
+		}
 
 		glDeleteShader(shader_object);
 
@@ -853,10 +857,14 @@ bool reshade::opengl::device_impl::create_compute_pipeline(const api::pipeline_d
 	{
 		GLint log_size = 0;
 		glGetProgramiv(program, GL_INFO_LOG_LENGTH, &log_size);
-		std::vector<char> log(log_size);
-		glGetProgramInfoLog(program, log_size, nullptr, log.data());
 
-		LOG(ERROR) << "Failed to link GLSL program:\n" << log.data();
+		if (0 != log_size)
+		{
+			std::vector<char> log(log_size);
+			glGetProgramInfoLog(program, log_size, nullptr, log.data());
+
+			LOG(ERROR) << "Failed to link GLSL program:\n" << log.data();
+		}
 
 		glDeleteProgram(program);
 
@@ -1014,7 +1022,15 @@ bool reshade::opengl::device_impl::create_graphics_pipeline(const api::pipeline_
 }
 void reshade::opengl::device_impl::destroy_pipeline(api::pipeline_stage, api::pipeline handle)
 {
-	delete reinterpret_cast<pipeline_impl *>(handle.handle);
+	if (handle.handle == 0)
+		return;
+
+	const auto impl = reinterpret_cast<pipeline_impl *>(handle.handle);
+
+	glDeleteProgram(impl->program);
+	glDeleteVertexArrays(1, &impl->vao);
+
+	delete impl;
 }
 
 bool reshade::opengl::device_impl::create_pipeline_layout(uint32_t count, const api::pipeline_layout_param *params, api::pipeline_layout *out)
@@ -1148,7 +1164,14 @@ bool reshade::opengl::device_impl::create_query_pool(api::query_type type, uint3
 }
 void reshade::opengl::device_impl::destroy_query_pool(api::query_pool handle)
 {
-	delete reinterpret_cast<query_pool_impl *>(handle.handle);
+	if (handle.handle == 0)
+		return;
+
+	const auto impl = reinterpret_cast<query_pool_impl *>(handle.handle);
+
+	glDeleteQueries(static_cast<GLsizei>(impl->queries.size()), impl->queries.data());
+
+	delete impl;
 }
 
 bool reshade::opengl::device_impl::create_render_pass(const api::render_pass_desc &, api::render_pass *out)

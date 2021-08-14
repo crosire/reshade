@@ -141,9 +141,9 @@ void reshade::runtime::build_font_atlas()
 	atlas->GetTexDataAsRGBA32(&pixels, &width, &height);
 
 	_device->destroy_resource(_font_atlas);
-	_font_atlas.handle = {};
+	_font_atlas = {};
 	_device->destroy_resource_view(_font_atlas_srv);
-	_font_atlas_srv.handle = {};
+	_font_atlas_srv = {};
 
 	const api::subresource_data initial_data = { pixels, static_cast<uint32_t>(width * 4), static_cast<uint32_t>(width * height * 4) };
 
@@ -563,7 +563,7 @@ void reshade::runtime::draw_gui()
 	_gather_gpu_statistics = false;
 	_effects_expanded_state &= 2;
 
-	if (!show_splash && !show_stats_window && !_show_overlay && _preview_texture.handle == 0)
+	if (!show_splash && !show_stats_window && !_show_overlay && _preview_texture == 0)
 	{
 		_input->block_mouse_input(false);
 		_input->block_keyboard_input(false);
@@ -572,7 +572,7 @@ void reshade::runtime::draw_gui()
 
 	if (_rebuild_font_atlas)
 		build_font_atlas();
-	if (_font_atlas_srv.handle == 0)
+	if (_font_atlas_srv == 0)
 		return; // Cannot render GUI without font atlas
 
 	ImGui::SetCurrentContext(_imgui_context);
@@ -877,7 +877,7 @@ void reshade::runtime::draw_gui()
 		}
 	}
 
-	if (_preview_texture.handle != 0 && _effects_enabled)
+	if (_preview_texture != 0 && _effects_enabled)
 	{
 		if (!_show_overlay)
 		{
@@ -1123,7 +1123,7 @@ void reshade::runtime::draw_gui_home()
 	{
 		std::string texture_list;
 		for (const texture &tex : _textures)
-			if (tex.resource.handle != 0 && !tex.loaded && !tex.annotation_as_string("source").empty())
+			if (tex.resource != 0 && !tex.loaded && !tex.annotation_as_string("source").empty())
 				texture_list += ' ' + tex.unique_name + ',';
 
 		if (texture_list.empty())
@@ -1739,7 +1739,7 @@ void reshade::runtime::draw_gui_statistics()
 
 		for (const texture &tex : _textures)
 		{
-			if (tex.resource.handle == 0 || !tex.semantic.empty() || (tex.shared.size() <= 1 && !_effects[tex.effect_index].rendering))
+			if (tex.resource == 0 || !tex.semantic.empty() || (tex.shared.size() <= 1 && !_effects[tex.effect_index].rendering))
 				continue;
 
 			ImGui::PushID(texture_index);
@@ -2712,93 +2712,93 @@ void reshade::runtime::draw_technique_editor()
 {
 	if (!_last_reload_successfull)
 	{
-		// Add fake items at the top for effects that failed to compile and not a single technique was parsed successfully
+		// Add fake items at the top for effects that failed to compile
 		for (size_t effect_index = 0; effect_index < _effects.size(); ++effect_index)
 		{
 			const effect &effect = _effects[effect_index];
 
-			if (!effect.compiled)
+			if (effect.compiled)
+				continue;
+
+			ImGui::PushID(static_cast<int>(_techniques.size() + effect_index));
+
+			ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+			ImGui::PushStyleColor(ImGuiCol_Text, COLOR_RED);
+
+			const std::string label = '[' + effect.source_file.filename().u8string() + ']' + " failed to compile";
+
+			bool value = false;
+			ImGui::Checkbox(label.c_str(), &value);
+
+			ImGui::PopStyleColor();
+			ImGui::PopItemFlag();
+
+			if (!effect.errors.empty() && ImGui::IsItemHovered())
 			{
-				ImGui::PushID(static_cast<int>(_techniques.size() + effect_index));
-
-				ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+				ImGui::BeginTooltip();
 				ImGui::PushStyleColor(ImGuiCol_Text, COLOR_RED);
-
-				const std::string label = '[' + effect.source_file.filename().u8string() + ']' + " failed to compile";
-
-				bool value = false;
-				ImGui::Checkbox(label.c_str(), &value);
-
+				ImGui::TextUnformatted(effect.errors.c_str());
 				ImGui::PopStyleColor();
-				ImGui::PopItemFlag();
+				ImGui::EndTooltip();
+			}
 
-				if (ImGui::IsItemHovered())
+			if (ImGui::BeginPopupContextItem("##context"))
+			{
+				if (ImGui::Button("Open folder in explorer", ImVec2(230.0f, 0)))
 				{
-					ImGui::BeginTooltip();
-					ImGui::PushStyleColor(ImGuiCol_Text, COLOR_RED);
-					ImGui::TextUnformatted(effect.errors.c_str());
-					ImGui::PopStyleColor();
-					ImGui::EndTooltip();
+					// Use absolute path to explorer to avoid potential security issues when executable is replaced
+					WCHAR explorer_path[260] = L"";
+					GetWindowsDirectoryW(explorer_path, ARRAYSIZE(explorer_path));
+					wcscat_s(explorer_path, L"\\explorer.exe");
+
+					ShellExecuteW(nullptr, L"open", explorer_path, (L"/select,\"" + effect.source_file.wstring() + L"\"").c_str(), nullptr, SW_SHOWDEFAULT);
 				}
 
-				if (ImGui::BeginPopupContextItem("##context"))
+				ImGui::Separator();
+
+				if (widgets::popup_button(ICON_FK_PENCIL " Edit source code", 230.0f))
 				{
-					if (ImGui::Button("Open folder in explorer", ImVec2(230.0f, 0)))
+					std::filesystem::path source_file;
+					if (ImGui::MenuItem(effect.source_file.filename().u8string().c_str()))
+						source_file = effect.source_file;
+
+					if (!effect.included_files.empty())
 					{
-						// Use absolute path to explorer to avoid potential security issues when executable is replaced
-						WCHAR explorer_path[260] = L"";
-						GetWindowsDirectoryW(explorer_path, ARRAYSIZE(explorer_path));
-						wcscat_s(explorer_path, L"\\explorer.exe");
+						ImGui::Separator();
 
-						ShellExecuteW(nullptr, L"open", explorer_path, (L"/select,\"" + effect.source_file.wstring() + L"\"").c_str(), nullptr, SW_SHOWDEFAULT);
-					}
-
-					ImGui::Separator();
-
-					if (widgets::popup_button(ICON_FK_PENCIL " Edit source code", 230.0f))
-					{
-						std::filesystem::path source_file;
-						if (ImGui::MenuItem(effect.source_file.filename().u8string().c_str()))
-							source_file = effect.source_file;
-
-						if (!effect.included_files.empty())
-						{
-							ImGui::Separator();
-
-							for (const std::filesystem::path &included_file : effect.included_files)
-								if (ImGui::MenuItem(included_file.filename().u8string().c_str()))
-									source_file = included_file;
-						}
-
-						ImGui::EndPopup();
-
-						if (!source_file.empty())
-						{
-							open_code_editor(effect_index, source_file);
-							ImGui::CloseCurrentPopup();
-						}
-					}
-
-					if (!effect.module.hlsl.empty() && // Hide if using SPIR-V, since that cannot easily be shown here
-						widgets::popup_button("Show compiled results", 230.0f))
-					{
-						std::string entry_point_name;
-						if (ImGui::MenuItem("Generated code"))
-							entry_point_name = "Generated code";
-						ImGui::EndPopup();
-
-						if (!entry_point_name.empty())
-						{
-							open_code_editor(effect_index, entry_point_name);
-							ImGui::CloseCurrentPopup();
-						}
+						for (const std::filesystem::path &included_file : effect.included_files)
+							if (ImGui::MenuItem(included_file.filename().u8string().c_str()))
+								source_file = included_file;
 					}
 
 					ImGui::EndPopup();
+
+					if (!source_file.empty())
+					{
+						open_code_editor(effect_index, source_file);
+						ImGui::CloseCurrentPopup();
+					}
 				}
 
-				ImGui::PopID();
+				if (!effect.module.hlsl.empty() && // Hide if using SPIR-V, since that cannot easily be shown here
+					widgets::popup_button("Show compiled results", 230.0f))
+				{
+					std::string entry_point_name;
+					if (ImGui::MenuItem("Generated code"))
+						entry_point_name = "Generated code";
+					ImGui::EndPopup();
+
+					if (!entry_point_name.empty())
+					{
+						open_code_editor(effect_index, entry_point_name);
+						ImGui::CloseCurrentPopup();
+					}
+				}
+
+				ImGui::EndPopup();
 			}
+
+			ImGui::PopID();
 		}
 	}
 
@@ -3163,7 +3163,7 @@ bool reshade::runtime::init_imgui_resources()
 {
 	const bool has_combined_sampler_and_view = _device->check_capability(api::device_caps::sampler_with_resource_view);
 
-	if (_imgui_sampler_state.handle == 0)
+	if (_imgui_sampler_state == 0)
 	{
 		api::sampler_desc desc = {};
 		desc.filter = api::filter_type::min_mag_mip_linear;
@@ -3181,7 +3181,7 @@ bool reshade::runtime::init_imgui_resources()
 		}
 	}
 
-	if (_imgui_pipeline_layout.handle == 0)
+	if (_imgui_pipeline_layout == 0)
 	{
 		api::descriptor_range ranges[2];
 		ranges[0].offset = 0;
@@ -3245,7 +3245,7 @@ bool reshade::runtime::init_imgui_resources()
 		}
 	}
 
-	if (_imgui_pipeline.handle != 0)
+	if (_imgui_pipeline != 0)
 		return true;
 
 	api::pipeline_desc pso_desc = { api::pipeline_stage::all_graphics };
@@ -3369,7 +3369,7 @@ void reshade::runtime::render_imgui_draw_data(ImDrawData *draw_data, api::render
 	{
 		_device->wait_idle(); // Be safe and ensure nothing still uses this buffer
 
-		if (_imgui_indices[buffer_index].handle != 0)
+		if (_imgui_indices[buffer_index] != 0)
 			_device->destroy_resource(_imgui_indices[buffer_index]);
 
 		const int new_size = draw_data->TotalIdxCount + 10000;
@@ -3386,7 +3386,7 @@ void reshade::runtime::render_imgui_draw_data(ImDrawData *draw_data, api::render
 	{
 		_device->wait_idle();
 
-		if (_imgui_vertices[buffer_index].handle != 0)
+		if (_imgui_vertices[buffer_index] != 0)
 			_device->destroy_resource(_imgui_vertices[buffer_index]);
 
 		const int new_size = draw_data->TotalVtxCount + 5000;

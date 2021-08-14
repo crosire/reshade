@@ -745,7 +745,7 @@ void    STDMETHODCALLTYPE D3D12Device::CopyDescriptors(UINT NumDestDescriptorRan
 					src_binding = 0;
 				}
 
-				descriptors[i] = pSrcDescriptorRangeStarts[src_range].ptr + src_binding * _descriptor_handle_size[DescriptorHeapsType];
+				descriptors[i] = calc_descriptor_handle(pSrcDescriptorRangeStarts[src_range], src_binding, DescriptorHeapsType).ptr;
 				write.descriptors = &descriptors[i];
 
 				writes.push_back(write);
@@ -780,7 +780,7 @@ void    STDMETHODCALLTYPE D3D12Device::CopyDescriptorsSimple(UINT NumDescriptors
 
 			for (UINT src_binding = 0; src_binding < NumDescriptors; ++src_binding, ++write.offset, ++i)
 			{
-				descriptors[i] = SrcDescriptorRangeStart.ptr + src_binding * _descriptor_handle_size[DescriptorHeapsType];
+				descriptors[i] = calc_descriptor_handle(SrcDescriptorRangeStart, src_binding, DescriptorHeapsType).ptr;
 				write.descriptors = &descriptors[i];
 
 				writes.push_back(write);

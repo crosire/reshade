@@ -339,6 +339,7 @@ bool reshade::d3d10::device_impl::create_graphics_pipeline(const api::pipeline_d
 	if (desc.graphics.hull_shader.code_size != 0 ||
 		desc.graphics.domain_shader.code_size != 0 ||
 		desc.graphics.blend_state.logic_op_enable[0] ||
+		desc.graphics.topology == api::primitive_topology::triangle_fan ||
 		desc.graphics.dynamic_states[0] != api::dynamic_state::unknown)
 	{
 		*out = { 0 };

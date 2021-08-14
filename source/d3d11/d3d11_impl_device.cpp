@@ -444,7 +444,8 @@ bool reshade::d3d11::device_impl::create_pipeline(const api::pipeline_desc &desc
 }
 bool reshade::d3d11::device_impl::create_graphics_pipeline(const api::pipeline_desc &desc, api::pipeline *out)
 {
-	if (desc.graphics.dynamic_states[0] != api::dynamic_state::unknown)
+	if (desc.graphics.topology == api::primitive_topology::triangle_fan ||
+		desc.graphics.dynamic_states[0] != api::dynamic_state::unknown)
 	{
 		*out = { 0 };
 		return false;

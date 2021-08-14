@@ -181,10 +181,10 @@ namespace reshade
 			api::framebuffer fbo = {};
 			api::render_pass pass = {};
 			api::pipeline pipeline = {};
-			std::vector<api::resource> modified_resources;
-			std::vector<api::resource_view> generate_mipmap_views;
 			api::descriptor_set texture_set = {};
 			api::descriptor_set storage_set = {};
+			std::vector<api::resource> modified_resources;
+			std::vector<api::resource_view> generate_mipmap_views;
 		};
 
 		std::vector<pass_data> passes_data;
