@@ -376,11 +376,13 @@ void reshade::d3d12::device_impl::destroy_resource_view(api::resource_view handl
 	if (handle.handle == 0)
 		return;
 
+	D3D12_CPU_DESCRIPTOR_HANDLE descriptor_handle = { static_cast<SIZE_T>(handle.handle) };
+
 	const std::lock_guard<std::mutex> lock(_mutex);
-	_views.erase(handle.handle);
+	_views.erase(descriptor_handle.ptr);
 
 	for (UINT i = 0; i < D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES; ++i)
-		_view_heaps[i].free({ static_cast<SIZE_T>(handle.handle) });
+		_view_heaps[i].free(descriptor_handle);
 }
 
 bool reshade::d3d12::device_impl::create_pipeline(const api::pipeline_desc &desc, api::pipeline *out)
@@ -1032,9 +1034,11 @@ void reshade::d3d12::device_impl::get_resource_from_view(api::resource_view view
 {
 	assert(view.handle != 0);
 
+	D3D12_CPU_DESCRIPTOR_HANDLE descriptor_handle = { static_cast<SIZE_T>(view.handle) };
+
 	const std::lock_guard<std::mutex> lock(_mutex);
 
-	if (const auto it = _views.find(view.handle); it != _views.end())
+	if (const auto it = _views.find(descriptor_handle.ptr); it != _views.end())
 		*out = { reinterpret_cast<uintptr_t>(it->second) };
 	else
 		*out = { 0 };

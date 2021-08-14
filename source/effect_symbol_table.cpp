@@ -10,9 +10,15 @@
 
 #pragma region Import intrinsic functions
 
+enum class intrinsic_id : uint32_t
+{
+#define IMPLEMENT_INTRINSIC_SPIRV(name, i, code) name##i,
+	#include "effect_symbol_table_intrinsics.inl"
+};
+
 struct intrinsic
 {
-	intrinsic(const char *name, unsigned int id, const reshadefx::type &ret_type, std::initializer_list<reshadefx::type> arg_types) : id(id)
+	intrinsic(const char *name, intrinsic_id id, const reshadefx::type &ret_type, std::initializer_list<reshadefx::type> arg_types) : id(id)
 	{
 		function.name = name;
 		function.return_type = ret_type;
@@ -21,15 +27,8 @@ struct intrinsic
 			function.parameter_list.push_back({ arg_type, {}, {}, {} });
 	}
 
-	unsigned int id;
+	intrinsic_id id;
 	reshadefx::function_info function;
-};
-
-// Import intrinsic callback functions
-enum
-{
-#define IMPLEMENT_INTRINSIC_SPIRV(name, i, code) name##i,
-	#include "effect_symbol_table_intrinsics.inl"
 };
 
 #define void { reshadefx::type::t_void }
@@ -83,7 +82,7 @@ enum
 // Import intrinsic function definitions
 static const intrinsic s_intrinsics[] =
 {
-#define DEFINE_INTRINSIC(name, i, ret_type, ...) intrinsic(#name, name##i, ret_type, { __VA_ARGS__ }),
+#define DEFINE_INTRINSIC(name, i, ret_type, ...) intrinsic(#name, intrinsic_id::name##i, ret_type, { __VA_ARGS__ }),
 	#include "effect_symbol_table_intrinsics.inl"
 };
 
@@ -412,7 +411,7 @@ bool reshadefx::symbol_table::resolve_function_call(const std::string &name, con
 			if (comparison < 0) // The new function is a better match
 			{
 				out_data.op = symbol_type::intrinsic;
-				out_data.id = intrinsic.id;
+				out_data.id = static_cast<uint32_t>(intrinsic.id);
 				out_data.type = intrinsic.function.return_type;
 				out_data.function = &intrinsic.function;
 				result = out_data.function;

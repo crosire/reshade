@@ -2663,10 +2663,16 @@ void reshade::runtime::update_and_render_effects()
 				}
 				case special_uniform::mouse_point:
 				{
-					const uint32_t posx = _input->mouse_position_x() > _window_width ? _window_width : std::max(_input->mouse_position_x(), 0U);
-					const uint32_t posy = _input->mouse_position_y() > _window_height ? _window_height : std::max(_input->mouse_position_y(), 0U);
+					uint32_t pos_x = _input->mouse_position_x();
+					uint32_t pos_y = _input->mouse_position_y();
+#if RESHADE_GUI
+					if (pos_x > _window_width)
+						pos_x = _window_width;
+					if (pos_y > _window_height)
+						pos_y = _window_height;
+#endif
 
-					set_uniform_value(variable, posx, posy);
+					set_uniform_value(variable, pos_x, pos_y);
 					break;
 				}
 				case special_uniform::mouse_delta:

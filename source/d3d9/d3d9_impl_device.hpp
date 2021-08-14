@@ -139,10 +139,10 @@ namespace reshade::d3d9
 
 #if RESHADE_ADDON
 		api::sampler get_current_sampler_state(DWORD slot);
+#endif
 
 		D3DPRIMITIVETYPE _current_prim_type = static_cast<D3DPRIMITIVETYPE>(0);
-		api::pipeline_layout _global_pipeline_layout;
-#endif
+		api::pipeline_layout _global_pipeline_layout = { 0 };
 
 		D3DCAPS9 _caps = {};
 		D3DDEVICE_CREATION_PARAMETERS _cp = {};

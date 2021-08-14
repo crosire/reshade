@@ -91,9 +91,7 @@ namespace reshade::d3d11
 	protected:
 		friend struct D3D11DeviceContext;
 
-#if RESHADE_ADDON
-		api::pipeline_layout _global_pipeline_layout;
-#endif
+		api::pipeline_layout _global_pipeline_layout = { 0 };
 
 	private:
 #if RESHADE_ADDON

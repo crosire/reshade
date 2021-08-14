@@ -116,9 +116,9 @@ namespace reshade::d3d12
 
 		mutable std::mutex _mutex;
 		std::vector<command_queue_impl *> _queues;
+		std::unordered_map<SIZE_T, ID3D12Resource *> _views;
 #if RESHADE_ADDON
 		std::vector<ID3D12DescriptorHeap *> _descriptor_heaps;
-		std::unordered_map<uint64_t, ID3D12Resource *> _views;
 		std::vector<std::pair<ID3D12Resource *, D3D12_GPU_VIRTUAL_ADDRESS_RANGE>> _buffer_gpu_addresses;
 #endif
 	};

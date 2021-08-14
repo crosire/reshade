@@ -146,14 +146,13 @@ namespace reshade::opengl
 
 		bool _compatibility_context = false;
 		std::unordered_set<HDC> _hdcs;
+		api::pipeline_layout _global_pipeline_layout = { 0 };
+
 		GLuint _current_fbo = 0;
 		GLuint _current_ibo = 0;
 		GLenum _current_prim_mode = GL_NONE;
 		GLenum _current_index_type = GL_UNSIGNED_INT;
-		GLuint _current_vertex_count = 0; // Used to calculate vertex count inside glBegin/glEnd pairs
-#if RESHADE_ADDON
-		api::pipeline_layout _global_pipeline_layout;
-#endif
+		GLuint _current_vertex_count = 0; // Used to calculate vertex count inside 'glBegin'/'glEnd' pairs
 
 	private:
 #if RESHADE_ADDON

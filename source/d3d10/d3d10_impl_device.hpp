@@ -139,9 +139,7 @@ namespace reshade::d3d10
 		void insert_debug_marker(const char *, const float[4]) final {}
 
 	protected:
-#if RESHADE_ADDON
-		api::pipeline_layout _global_pipeline_layout;
-#endif
+		api::pipeline_layout _global_pipeline_layout = { 0 };
 
 	private:
 #if RESHADE_ADDON
