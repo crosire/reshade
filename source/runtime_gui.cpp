@@ -21,8 +21,6 @@
 
 using namespace reshade::gui;
 
-extern bool g_addons_enabled;
-
 static std::string s_window_state_path;
 
 static const ImVec4 COLOR_RED = ImColor(240, 100, 100);
@@ -831,7 +829,7 @@ void reshade::runtime::draw_gui()
 		}
 
 #if RESHADE_ADDON
-		if (g_addons_enabled)
+		if (addon::enabled)
 		{
 			for (const auto &widget : addon::overlay_list)
 			{
@@ -2075,7 +2073,7 @@ This Font Software is licensed under the SIL Open Font License, Version 1.1. (ht
 #if RESHADE_ADDON
 void reshade::runtime::draw_gui_addons()
 {
-	if (!g_addons_enabled)
+	if (!addon::enabled)
 	{
 		ImGui::TextColored(ImColor(204, 204, 0), "High network activity discovered.\nAll add-ons are disabled to prevent exploitation.");
 		return;

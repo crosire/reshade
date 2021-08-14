@@ -20,6 +20,11 @@ namespace reshade::addon
 	};
 
 	/// <summary>
+	/// Global switch to enable or disable all loaded add-ons.
+	/// </summary>
+	extern bool enabled;
+
+	/// <summary>
 	/// List of currently loaded add-ons.
 	/// </summary>
 	extern std::vector<info> loaded_info;
@@ -27,7 +32,7 @@ namespace reshade::addon
 	/// <summary>
 	/// List of installed add-on event callbacks.
 	/// </summary>
-	extern std::pair<bool, std::vector<void *>> event_list[];
+	extern std::vector<void *> event_list[];
 
 #if RESHADE_GUI
 	/// <summary>
@@ -50,17 +55,12 @@ namespace reshade
 	void unload_addons();
 
 	/// <summary>
-	/// Enables or disables all loaded add-ons.
-	/// </summary>
-	void enable_or_disable_addons(bool enabled);
-
-	/// <summary>
 	/// Checks whether any callbacks were registered for the specified <paramref name="ev"/>ent.
 	/// </summary>
 	template <addon_event ev>
 	__forceinline bool has_addon_event()
 	{
-		return !addon::event_list[static_cast<size_t>(ev)].second.empty();
+		return !addon::event_list[static_cast<size_t>(ev)].empty();
 	}
 
 	/// <summary>
@@ -69,21 +69,45 @@ namespace reshade
 	template <addon_event ev, typename... Args>
 	__forceinline std::enable_if_t<std::is_same_v<typename addon_event_traits<ev>::type, void>, void> invoke_addon_event(Args &&... args)
 	{
-		if (addon::event_list[static_cast<size_t>(ev)].first)
+		// Allow a subset of events even when add-ons are disabled, to ensure they continue working correctly
+		if constexpr (
+			ev != addon_event::init_device &&
+			ev != addon_event::destroy_device &&
+			ev != addon_event::init_command_list &&
+			ev != addon_event::destroy_command_list &&
+			ev != addon_event::init_command_queue &&
+			ev != addon_event::destroy_command_queue &&
+			ev != addon_event::init_swapchain &&
+			ev != addon_event::destroy_swapchain &&
+			ev != addon_event::init_effect_runtime &&
+			ev != addon_event::destroy_effect_runtime &&
+			ev != addon_event::init_sampler &&
+			ev != addon_event::destroy_sampler &&
+			ev != addon_event::init_resource &&
+			ev != addon_event::destroy_resource &&
+			ev != addon_event::init_resource_view &&
+			ev != addon_event::destroy_resource_view &&
+			ev != addon_event::init_pipeline &&
+			ev != addon_event::destroy_pipeline &&
+			ev != addon_event::init_render_pass &&
+			ev != addon_event::destroy_render_pass &&
+			ev != addon_event::init_framebuffer &&
+			ev != addon_event::destroy_framebuffer)
+		if (!addon::enabled)
 			return;
-		std::vector<void *> &event_list = addon::event_list[static_cast<size_t>(ev)].second;
+		std::vector<void *> &event_list = addon::event_list[static_cast<size_t>(ev)];
 		for (size_t cb = 0, count = event_list.size(); cb < count; ++cb) // Generates better code than ranged-based for loop
 			reinterpret_cast<typename reshade::addon_event_traits<ev>::decl>(event_list[cb])(std::forward<Args>(args)...);
 	}
 	/// <summary>
-	/// Invokes registered callbacks for the specified <typeparamref name="ev"/>ent until a callback reports back as having handled this event by returning <c>true</c>.
+	/// Invokes registered callbacks for the specified <typeparamref name="ev"/>ent until a callback reports back as having handled this event by returning <see langword="true"/>.
 	/// </summary>
 	template <addon_event ev, typename... Args>
 	__forceinline std::enable_if_t<std::is_same_v<typename addon_event_traits<ev>::type, bool>, bool> invoke_addon_event(Args &&... args)
 	{
-		if (addon::event_list[static_cast<size_t>(ev)].first)
+		if (!addon::enabled)
 			return false;
-		std::vector<void *> &event_list = addon::event_list[static_cast<size_t>(ev)].second;
+		std::vector<void *> &event_list = addon::event_list[static_cast<size_t>(ev)];
 		for (size_t cb = 0, count = event_list.size(); cb < count; ++cb)
 			if (reinterpret_cast<typename reshade::addon_event_traits<ev>::decl>(event_list[cb])(std::forward<Args>(args)...))
 				return true;

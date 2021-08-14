@@ -17,8 +17,6 @@
 #include <imgui.h>
 #include <stb_image.h>
 
-extern bool g_addons_enabled;
-
 static vr::IVROverlay *s_overlay = nullptr;
 extern vr::IVRClientCore *g_client_core;
 static vr::VROverlayHandle_t s_main_handle = vr::k_ulOverlayHandleInvalid;
@@ -211,7 +209,7 @@ void reshade::runtime::draw_gui_vr()
 				_selected_menu = menu_index;
 
 #if RESHADE_ADDON
-		if (g_addons_enabled)
+		if (addon::enabled)
 		{
 			for (size_t menu_index = 0; menu_index < addon::overlay_list.size(); ++menu_index)
 				if (ImGui::MenuItem(addon::overlay_list[menu_index].first.c_str(), nullptr, (menu_index + _menu_callables.size()) == _selected_menu))

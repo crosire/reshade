@@ -14,8 +14,8 @@
  // Export special symbol to identify modules as ReShade instances
 extern "C" __declspec(dllexport) const uint32_t ReShadeAPI = RESHADE_API_VERSION;
 
-bool g_addons_enabled = true;
-std::pair<bool, std::vector<void *>> reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::max)];
+bool reshade::addon::enabled = true;
+std::vector<void *> reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::max)];
 std::vector<reshade::addon::info> reshade::addon::loaded_info;
 #if RESHADE_GUI
 std::vector<std::pair<std::string, void(*)(reshade::api::effect_runtime *, void *)>> reshade::addon::overlay_list;
@@ -101,48 +101,6 @@ void reshade::unload_addons()
 	unregister_builtin_addon_depth();
 
 	addon::loaded_info.clear();
-}
-
-void reshade::enable_or_disable_addons(bool enabled)
-{
-	if (enabled == g_addons_enabled)
-		return;
-
-	// Allow a subset of events to ensure add-ons work correctly
-	static const addon_event event_allow_list[] = {
-		addon_event::init_device,
-		addon_event::destroy_device,
-		addon_event::init_command_list,
-		addon_event::destroy_command_list,
-		addon_event::init_command_queue,
-		addon_event::destroy_command_queue,
-		addon_event::init_swapchain,
-		addon_event::destroy_swapchain,
-		addon_event::init_effect_runtime,
-		addon_event::destroy_effect_runtime,
-		addon_event::init_sampler,
-		addon_event::destroy_sampler,
-		addon_event::init_resource,
-		addon_event::destroy_resource,
-		addon_event::init_resource_view,
-		addon_event::destroy_resource_view,
-		addon_event::init_pipeline,
-		addon_event::destroy_pipeline,
-		addon_event::init_render_pass,
-		addon_event::destroy_render_pass,
-		addon_event::init_framebuffer,
-		addon_event::destroy_framebuffer,
-	};
-
-	for (size_t event_index = 0; event_index < std::size(addon::event_list); ++event_index)
-	{
-		if (std::find(std::begin(event_allow_list), std::end(event_allow_list), static_cast<addon_event>(event_index)) != std::end(event_allow_list))
-			continue;
-
-		addon::event_list[event_index].first = !enabled;
-	}
-
-	g_addons_enabled = enabled;
 }
 
 #if RESHADE_VERBOSE_LOG
@@ -231,7 +189,7 @@ extern "C" __declspec(dllexport) void ReShadeRegisterEvent(reshade::addon_event 
 
 	assert(callback != nullptr);
 
-	auto &event_list = reshade::addon::event_list[static_cast<size_t>(ev)].second;
+	auto &event_list = reshade::addon::event_list[static_cast<size_t>(ev)];
 	event_list.push_back(callback);
 
 #if RESHADE_VERBOSE_LOG
@@ -245,7 +203,7 @@ extern "C" __declspec(dllexport) void ReShadeUnregisterEvent(reshade::addon_even
 
 	assert(callback != nullptr);
 
-	auto &event_list = reshade::addon::event_list[static_cast<size_t>(ev)].second;
+	auto &event_list = reshade::addon::event_list[static_cast<size_t>(ev)];
 	event_list.erase(std::remove(event_list.begin(), event_list.end(), callback), event_list.end());
 
 #if RESHADE_VERBOSE_LOG
