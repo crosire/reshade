@@ -244,12 +244,14 @@ reshade::opengl::device_impl::~device_impl()
 #if RESHADE_ADDON
 void reshade::opengl::device_impl::create_global_pipeline_layout()
 {
-	GLuint max_image_units = 0;
-	glGetIntegerv(GL_MAX_IMAGE_UNITS, reinterpret_cast<GLint *>(&max_image_units));
-	GLuint max_uniform_buffer_bindings = 0;
-	glGetIntegerv(GL_MAX_UNIFORM_BUFFER_BINDINGS, reinterpret_cast<GLint *>(&max_uniform_buffer_bindings));
-	GLuint max_texture_units = 0;
-	glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, reinterpret_cast<GLint *>(&max_texture_units));
+	GLint max_image_units = 0;
+	glGetIntegerv(GL_MAX_IMAGE_UNITS, &max_image_units);
+	GLint max_texture_units = 0;
+	glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &max_texture_units);
+	GLint max_uniform_buffer_bindings = 0;
+	glGetIntegerv(GL_MAX_UNIFORM_BUFFER_BINDINGS, &max_uniform_buffer_bindings);
+	GLint max_shader_storage_buffer_bindings = 0;
+	glGetIntegerv(GL_MAX_SHADER_STORAGE_BUFFER_BINDINGS, &max_shader_storage_buffer_bindings);
 
 	// Create global pipeline layout that is used for all application descriptor events
 	api::descriptor_range push_descriptors = {};
@@ -262,13 +264,13 @@ void reshade::opengl::device_impl::create_global_pipeline_layout()
 	layout_params[5].push_constants.count = std::numeric_limits<uint32_t>::max();
 	layout_params[5].push_constants.visibility = api::shader_stage::all;
 
-	push_descriptors.type = api::descriptor_type::sampler;
+	push_descriptors.type = api::descriptor_type::sampler_with_resource_view;
 	push_descriptors.array_size = max_texture_units;
 	push_descriptors.visibility = api::shader_stage::all;
 	layout_params[0].type = api::pipeline_layout_param_type::push_descriptors;
 	create_descriptor_set_layout(1, &push_descriptors, true, &layout_params[0].descriptor_layout);
-	push_descriptors.type = api::descriptor_type::shader_resource_view;
-	push_descriptors.array_size = max_texture_units;
+	push_descriptors.type = api::descriptor_type::unordered_access_view;
+	push_descriptors.array_size = max_image_units;
 	push_descriptors.visibility = api::shader_stage::all;
 	layout_params[1].type = api::pipeline_layout_param_type::push_descriptors;
 	create_descriptor_set_layout(1, &push_descriptors, true, &layout_params[1].descriptor_layout);
@@ -277,8 +279,8 @@ void reshade::opengl::device_impl::create_global_pipeline_layout()
 	push_descriptors.visibility = api::shader_stage::all;
 	layout_params[2].type = api::pipeline_layout_param_type::push_descriptors;
 	create_descriptor_set_layout(1, &push_descriptors, true, &layout_params[2].descriptor_layout);
-	push_descriptors.type = api::descriptor_type::unordered_access_view;
-	push_descriptors.array_size = max_image_units;
+	push_descriptors.type = api::descriptor_type::shader_storage_buffer;
+	push_descriptors.array_size = max_shader_storage_buffer_bindings;
 	push_descriptors.visibility = api::shader_stage::all;
 	layout_params[3].type = api::pipeline_layout_param_type::push_descriptors;
 	create_descriptor_set_layout(1, &push_descriptors, true, &layout_params[3].descriptor_layout);
@@ -466,13 +468,11 @@ bool reshade::opengl::device_impl::create_sampler(const api::sampler_desc &desc,
 	glSamplerParameterf(object, GL_TEXTURE_MIN_LOD, desc.min_lod);
 	glSamplerParameterf(object, GL_TEXTURE_MAX_LOD, desc.max_lod);
 
-	*out = { (static_cast<uint64_t>(GL_SAMPLER) << 40) | object };
+	*out = { static_cast<uint64_t>(object) };
 	return true;
 }
 void reshade::opengl::device_impl::destroy_sampler(api::sampler handle)
 {
-	assert(handle.handle == 0 || (handle.handle >> 40) == GL_SAMPLER);
-
 	const GLuint object = handle.handle & 0xFFFFFFFF;
 	glDeleteSamplers(1, &object);
 }
@@ -1575,7 +1575,11 @@ bool reshade::opengl::device_impl::allocate_descriptor_sets(uint32_t count, cons
 			impl->descriptors.resize(impl->count * 2);
 			break;
 		case api::descriptor_type::constant_buffer:
+		case api::descriptor_type::shader_storage_buffer:
 			impl->descriptors.resize(impl->count * 3);
+			break;
+		default:
+			assert(false);
 			break;
 		}
 

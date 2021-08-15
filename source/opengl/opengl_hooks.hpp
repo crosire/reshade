@@ -21,10 +21,6 @@ extern "C" void WINAPI glBindFramebuffer(GLenum target, GLuint framebuffer);
 extern "C" void WINAPI glBindImageTexture(GLuint unit, GLuint texture, GLint level, GLboolean layered, GLint layer, GLenum access, GLenum format);
 #undef glBindImageTextures
 extern "C" void WINAPI glBindImageTextures(GLuint first, GLsizei count, const GLuint *textures);
-#undef glBindSampler
-extern "C" void WINAPI glBindSampler(GLuint unit, GLuint sampler);
-#undef glBindSamplers
-extern "C" void WINAPI glBindSamplers(GLuint first, GLsizei count, const GLuint *samplers);
 #undef glBindTexture
 extern "C" void WINAPI glBindTexture(GLenum target, GLuint texture);
 #undef glBindTextureUnit

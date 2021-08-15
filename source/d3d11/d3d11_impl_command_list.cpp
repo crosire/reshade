@@ -349,9 +349,6 @@ void reshade::d3d11::device_context_impl::push_descriptors(api::shader_stage sta
 	case api::descriptor_type::sampler:
 		bind_samplers(stages, first, count, static_cast<const api::sampler *>(descriptors));
 		break;
-	case api::descriptor_type::sampler_with_resource_view:
-		assert(false);
-		break;
 	case api::descriptor_type::shader_resource_view:
 		bind_shader_resource_views(stages, first, count, static_cast<const api::resource_view *>(descriptors));
 		break;
@@ -360,6 +357,9 @@ void reshade::d3d11::device_context_impl::push_descriptors(api::shader_stage sta
 		break;
 	case api::descriptor_type::constant_buffer:
 		bind_constant_buffers(stages, first, count, static_cast<const api::buffer_range *>(descriptors));
+		break;
+	default:
+		assert(false);
 		break;
 	}
 }

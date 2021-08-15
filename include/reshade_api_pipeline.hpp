@@ -380,7 +380,8 @@ namespace reshade { namespace api
 		sampler_with_resource_view = 1,
 		shader_resource_view = 2,
 		unordered_access_view = 3,
-		constant_buffer = 6
+		constant_buffer = 6,
+		shader_storage_buffer = 7
 	};
 
 	/// <summary>

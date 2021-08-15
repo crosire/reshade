@@ -1145,8 +1145,6 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glBindFramebuffer);
 		HOOK_PROC(glBindImageTexture);
 		HOOK_PROC(glBindImageTextures);
-		HOOK_PROC(glBindSampler);
-		HOOK_PROC(glBindSamplers);
 		HOOK_PROC(glBindTextureUnit);
 		HOOK_PROC(glBindTextures);
 		HOOK_PROC(glBindVertexArray);

@@ -945,11 +945,11 @@ bool reshade::d3d11::device_impl::allocate_descriptor_sets(uint32_t count, const
 		case api::descriptor_type::unordered_access_view:
 			impl->descriptors.resize(impl->count * 1);
 			break;
-		case api::descriptor_type::sampler_with_resource_view:
-			assert(false);
-			break;
 		case api::descriptor_type::constant_buffer:
 			impl->descriptors.resize(impl->count * 3);
+			break;
+		default:
+			assert(false);
 			break;
 		}
 

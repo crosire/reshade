@@ -968,7 +968,7 @@ void reshade::d3d12::device_impl::update_descriptor_sets(uint32_t count, const a
 				_orig->CreateConstantBufferView(&view_desc, dst_range_start);
 			}
 		}
-		else
+		else if (update.type == api::descriptor_type::shader_resource_view || update.type == api::descriptor_type::unordered_access_view)
 		{
 #ifndef WIN64
 			const UINT src_range_size = 1;
@@ -985,6 +985,10 @@ void reshade::d3d12::device_impl::update_descriptor_sets(uint32_t count, const a
 			std::vector<UINT> src_range_sizes(update.count, 1);
 			_orig->CopyDescriptors(1, &dst_range_start, &update.count, update.count, static_cast<const D3D12_CPU_DESCRIPTOR_HANDLE *>(update.descriptors), src_range_sizes.data(), heap_type);
 #endif
+		}
+		else
+		{
+			assert(false);
 		}
 	}
 }

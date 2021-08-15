@@ -263,7 +263,11 @@ void reshade::vulkan::command_list_impl::push_descriptors(api::shader_stage stag
 		write.pImageInfo = image_info.data();
 		break;
 	case api::descriptor_type::constant_buffer:
+	case api::descriptor_type::shader_storage_buffer:
 		write.pBufferInfo = static_cast<const VkDescriptorBufferInfo *>(descriptors);
+		break;
+	default:
+		assert(false);
 		break;
 	}
 

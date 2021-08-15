@@ -175,8 +175,7 @@ void reshade::d3d9::device_impl::push_descriptors(api::shader_stage stages, api:
 				_orig->SetSamplerState(i + first, D3DSAMP_SRGBTEXTURE, descriptor.handle & 1);
 			}
 			break;
-		case api::descriptor_type::unordered_access_view:
-		case api::descriptor_type::constant_buffer:
+		default:
 			assert(false);
 			break;
 		}

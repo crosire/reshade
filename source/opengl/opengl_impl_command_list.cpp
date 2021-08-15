@@ -344,6 +344,25 @@ void reshade::opengl::device_impl::push_descriptors(api::shader_stage, api::pipe
 			}
 		}
 		break;
+	case api::descriptor_type::shader_storage_buffer:
+		for (uint32_t i = 0; i < count; ++i)
+		{
+			const auto &descriptor = static_cast<const api::buffer_range *>(descriptors)[i];
+			if (descriptor.size == std::numeric_limits<uint64_t>::max())
+			{
+				assert(descriptor.offset == 0);
+				glBindBufferBase(GL_SHADER_STORAGE_BUFFER, i + first, descriptor.buffer.handle & 0xFFFFFFFF);
+			}
+			else
+			{
+				assert(descriptor.offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()) && descriptor.size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
+				glBindBufferRange(GL_SHADER_STORAGE_BUFFER, i + first, descriptor.buffer.handle & 0xFFFFFFFF, static_cast<GLintptr>(descriptor.offset), static_cast<GLsizeiptr>(descriptor.size));
+			}
+		}
+		break;
+	default:
+		assert(false);
+		break;
 	}
 }
 void reshade::opengl::device_impl::bind_descriptor_sets(api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_set *sets, const uint32_t *offsets)
