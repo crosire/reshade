@@ -322,7 +322,7 @@ namespace reshade { namespace api
 	struct subresource_data
 	{
 		/// <summary>Pointer to the data.</summary>
-		const void *data;
+		void *data;
 		/// <summary>The row pitch of the data (added to the data pointer to move between texture rows, unused for buffers and 1D textures).</summary>
 		uint32_t row_pitch;
 		/// <summary>The depth pitch of the data (added to the data pointer to move between texture depth/array slices, unused for buffers and 1D/2D textures).</summary>

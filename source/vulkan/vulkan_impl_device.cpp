@@ -1075,25 +1075,28 @@ void reshade::vulkan::device_impl::destroy_framebuffer(api::framebuffer handle)
 	_framebuffer_list.erase((VkFramebuffer)handle.handle);
 }
 
-bool reshade::vulkan::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access, void **data, uint32_t *row_pitch, uint32_t *slice_pitch)
+bool reshade::vulkan::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access, api::subresource_data *out_data)
 {
-	if (row_pitch != nullptr)
-		*row_pitch = 0;
-	if (slice_pitch != nullptr)
-		*slice_pitch = 0;
+	assert(out_data != nullptr);
 
 	const resource_data res_data = lookup_resource(resource);
 
 	if (res_data.allocation != nullptr)
 	{
 		assert(subresource == 0);
-		return vmaMapMemory(_alloc, res_data.allocation, data) == VK_SUCCESS;
+
+		if (vmaMapMemory(_alloc, res_data.allocation, &out_data->data) == VK_SUCCESS)
+		{
+			out_data->row_pitch = res_data.allocation->GetSize();
+			out_data->slice_pitch = out_data->row_pitch;
+			return true;
+		}
 	}
-	else
-	{
-		*data = nullptr;
-		return false;
-	}
+
+	out_data->data = nullptr;
+	out_data->row_pitch = 0;
+	out_data->slice_pitch = 0;
+	return false;
 }
 void reshade::vulkan::device_impl::unmap_resource(api::resource resource, uint32_t subresource)
 {

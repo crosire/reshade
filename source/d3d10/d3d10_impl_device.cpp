@@ -668,8 +668,10 @@ void reshade::d3d10::device_impl::destroy_framebuffer(api::framebuffer handle)
 	delete reinterpret_cast<framebuffer_impl *>(handle.handle);
 }
 
-bool reshade::d3d10::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access access, void **data, uint32_t *row_pitch, uint32_t *slice_pitch)
+bool reshade::d3d10::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access access, api::subresource_data *out_data)
 {
+	static_assert(sizeof(api::subresource_data) == sizeof(D3D10_MAPPED_TEXTURE3D));
+
 	D3D10_MAP map_type = static_cast<D3D10_MAP>(0);
 	switch (access)
 	{
@@ -688,6 +690,11 @@ bool reshade::d3d10::device_impl::map_resource(api::resource resource, uint32_t 
 		break;
 	}
 
+	assert(out_data != nullptr);
+	out_data->data = nullptr;
+	out_data->row_pitch = 0;
+	out_data->slice_pitch = 0;
+
 	assert(resource.handle != 0);
 	const auto object = reinterpret_cast<ID3D10Resource *>(resource.handle);
 
@@ -697,53 +704,16 @@ bool reshade::d3d10::device_impl::map_resource(api::resource resource, uint32_t 
 	{
 	case D3D10_RESOURCE_DIMENSION_BUFFER:
 		assert(subresource == 0);
-		if (SUCCEEDED(static_cast<ID3D10Buffer *>(object)->Map(map_type, 0, data)))
-		{
-			if (row_pitch != nullptr)
-				*row_pitch = 0;
-			if (slice_pitch != nullptr)
-				*slice_pitch = 0;
-			return true;
-		}
-		break;
+		return SUCCEEDED(static_cast<ID3D10Buffer *>(object)->Map(map_type, 0, &out_data->data));
 	case D3D10_RESOURCE_DIMENSION_TEXTURE1D:
-		if (SUCCEEDED(static_cast<ID3D10Texture1D *>(object)->Map(subresource, map_type, 0, data)))
-		{
-			if (row_pitch != nullptr)
-				*row_pitch = 0;
-			if (slice_pitch != nullptr)
-				*slice_pitch = 0;
-			return true;
-		}
-		break;
+		return SUCCEEDED(static_cast<ID3D10Texture1D *>(object)->Map(subresource, map_type, 0, &out_data->data));
 	case D3D10_RESOURCE_DIMENSION_TEXTURE2D:
-		if (D3D10_MAPPED_TEXTURE2D mapped;
-			SUCCEEDED(static_cast<ID3D10Texture2D *>(object)->Map(subresource, map_type, 0, &mapped)))
-		{
-			*data = mapped.pData;
-			if (row_pitch != nullptr)
-				*row_pitch = mapped.RowPitch;
-			if (slice_pitch != nullptr)
-				*slice_pitch = 0;
-			return true;
-		}
-		break;
+		return SUCCEEDED(static_cast<ID3D10Texture2D *>(object)->Map(subresource, map_type, 0, reinterpret_cast<D3D10_MAPPED_TEXTURE2D *>(out_data)));
 	case D3D10_RESOURCE_DIMENSION_TEXTURE3D:
-		if (D3D10_MAPPED_TEXTURE3D mapped;
-			SUCCEEDED(static_cast<ID3D10Texture3D *>(object)->Map(subresource, map_type, 0, &mapped)))
-		{
-			*data = mapped.pData;
-			if (row_pitch != nullptr)
-				*row_pitch = mapped.RowPitch;
-			if (slice_pitch != nullptr)
-				*slice_pitch = mapped.DepthPitch;
-			return true;
-		}
-		break;
+		return SUCCEEDED(static_cast<ID3D10Texture3D *>(object)->Map(subresource, map_type, 0, reinterpret_cast<D3D10_MAPPED_TEXTURE3D *>(out_data)));
+	default:
+		return false;
 	}
-
-	*data = 0;
-	return false;
 }
 void reshade::d3d10::device_impl::unmap_resource(api::resource resource, uint32_t subresource)
 {

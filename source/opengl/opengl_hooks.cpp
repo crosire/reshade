@@ -142,7 +142,7 @@ reshade::api::subresource_data convert_mapped_subresource(GLenum format, GLenum 
 		return {};
 
 	reshade::api::subresource_data result;
-	result.data = pixels;
+	result.data = const_cast<void *>(pixels);
 
 	uint32_t bpp = 1;
 	switch (type)
@@ -755,7 +755,7 @@ HOOK_EXPORT void WINAPI glBlendFunc(GLenum sfactor, GLenum dfactor)
 #if RESHADE_ADDON
 	auto desc = reshade::opengl::convert_resource_desc(target, size);
 	reshade::opengl::convert_memory_heap_from_usage(desc, usage);
-	auto initial_data = reshade::api::subresource_data { data }; // Row and depth pitch are unused for buffer data
+	auto initial_data = reshade::api::subresource_data { const_cast<void *>(data) }; // Row and depth pitch are unused for buffer data
 
 	if (g_current_context &&
 		reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, initial_data.data ? &initial_data : nullptr, reshade::api::resource_usage::general))
@@ -779,7 +779,7 @@ HOOK_EXPORT void WINAPI glBlendFunc(GLenum sfactor, GLenum dfactor)
 #if RESHADE_ADDON
 	auto desc = reshade::opengl::convert_resource_desc(target, size);
 	reshade::opengl::convert_memory_heap_from_flags(desc, flags);
-	auto initial_data = reshade::api::subresource_data { data };
+	auto initial_data = reshade::api::subresource_data { const_cast<void *>(data) };
 
 	if (g_current_context &&
 		reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, initial_data.data ? &initial_data : nullptr, reshade::api::resource_usage::general))
@@ -803,7 +803,7 @@ HOOK_EXPORT void WINAPI glBlendFunc(GLenum sfactor, GLenum dfactor)
 #if RESHADE_ADDON
 	auto desc = reshade::opengl::convert_resource_desc(GL_BUFFER, size);
 	reshade::opengl::convert_memory_heap_from_usage(desc, usage);
-	auto initial_data = reshade::api::subresource_data { data };
+	auto initial_data = reshade::api::subresource_data { const_cast<void *>(data) };
 
 	if (g_current_context &&
 		reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, initial_data.data ? &initial_data : nullptr, reshade::api::resource_usage::general))
@@ -827,7 +827,7 @@ HOOK_EXPORT void WINAPI glBlendFunc(GLenum sfactor, GLenum dfactor)
 #if RESHADE_ADDON
 	auto desc = reshade::opengl::convert_resource_desc(GL_BUFFER, size);
 	reshade::opengl::convert_memory_heap_from_flags(desc, flags);
-	auto initial_data = reshade::api::subresource_data { data };
+	auto initial_data = reshade::api::subresource_data { const_cast<void *>(data) };
 
 	if (g_current_context &&
 		reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, initial_data.data ? &initial_data : nullptr, reshade::api::resource_usage::general))

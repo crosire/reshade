@@ -344,11 +344,9 @@ namespace reshade { namespace api
 		/// <param name="resource">The resource to map.</param>
 		/// <param name="subresource">The index of the subresource to map (<c>level + (layer * levels)</c>).</param>
 		/// <param name="access">A hint on how the returned data pointer will be accessed.</param>
-		/// <param name="data">Pointer to a variable that is set to a pointer to the memory of the resource.</param>
-		/// <param name="row_pitch">Optional pointer to a variable that is set to the row pitch of the <paramref name="data"/> (only set for textures).</param>
-		/// <param name="slice_pitch">Optional pointer to a variable that is set to the slice pitch of the <paramref name="data"/> (only set for textures).</param>
-		/// <returns><see langword="true"/> if the memory of the resource was successfully mapped, <see langword="false"/> otherwise (in this case <paramref name="data"/> is set to <c>nullptr</c>).</returns>
-		virtual bool map_resource(resource resource, uint32_t subresource, map_access access, void **data, uint32_t *row_pitch = nullptr, uint32_t *slice_pitch = nullptr) = 0;
+		/// <param name="out_data">Pointer to a variable that is set to a pointer to the memory of the resource and optionally the row and slice pitch of that data (depending on the resource type).</param>
+		/// <returns><see langword="true"/> if the memory of the resource was successfully mapped, <see langword="false"/> otherwise (in this case <paramref name="out_data"/> is set to <c>nullptr</c>).</returns>
+		virtual bool map_resource(resource resource, uint32_t subresource, map_access access, subresource_data *out_data) = 0;
 		/// <summary>
 		/// Unmaps a previously mapped resource.
 		/// </summary>

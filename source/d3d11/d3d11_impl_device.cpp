@@ -845,8 +845,10 @@ void reshade::d3d11::device_impl::destroy_framebuffer(api::framebuffer handle)
 	delete reinterpret_cast<framebuffer_impl *>(handle.handle);
 }
 
-bool reshade::d3d11::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access access, void **data, uint32_t *row_pitch, uint32_t *slice_pitch)
+bool reshade::d3d11::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access access, api::subresource_data *out_data)
 {
+	static_assert(sizeof(api::subresource_data) == sizeof(D3D11_MAPPED_SUBRESOURCE));
+
 	D3D11_MAP map_type = static_cast<D3D11_MAP>(0);
 	switch (access)
 	{
@@ -865,33 +867,24 @@ bool reshade::d3d11::device_impl::map_resource(api::resource resource, uint32_t 
 		break;
 	}
 
+	assert(out_data != nullptr);
+	out_data->data = nullptr;
+	out_data->row_pitch = 0;
+	out_data->slice_pitch = 0;
+
 	assert(resource.handle != 0);
 
 	com_ptr<ID3D11DeviceContext> immediate_context;
 	_orig->GetImmediateContext(&immediate_context);
 
-	if (D3D11_MAPPED_SUBRESOURCE mapped;
-		SUCCEEDED(immediate_context->Map(reinterpret_cast<ID3D11Resource *>(resource.handle), subresource, map_type, 0, &mapped)))
-	{
-		*data = mapped.pData;
-		if (row_pitch != nullptr)
-			*row_pitch = mapped.RowPitch;
-		if (slice_pitch != nullptr)
-			*slice_pitch = mapped.DepthPitch;
-		return true;
-	}
-	else
-	{
-		*data = 0;
-		return false;
-	}
+	return SUCCEEDED(immediate_context->Map(reinterpret_cast<ID3D11Resource *>(resource.handle), subresource, map_type, 0, reinterpret_cast<D3D11_MAPPED_SUBRESOURCE *>(out_data)));
 }
 void reshade::d3d11::device_impl::unmap_resource(api::resource resource, uint32_t subresource)
 {
+	assert(resource.handle != 0);
+
 	com_ptr<ID3D11DeviceContext> immediate_context;
 	_orig->GetImmediateContext(&immediate_context);
-
-	assert(resource.handle != 0);
 
 	immediate_context->Unmap(reinterpret_cast<ID3D11Resource *>(resource.handle), subresource);
 }

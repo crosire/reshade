@@ -2772,10 +2772,10 @@ void reshade::runtime::render_technique(technique &tech)
 #endif
 
 	// Update shader constants
-	if (void *mapped_ptr; effect.cb != 0 &&
-		_device->map_resource(effect.cb, 0, api::map_access::write_discard, &mapped_ptr))
+	if (api::subresource_data mapped_uniform_data; effect.cb != 0 &&
+		_device->map_resource(effect.cb, 0, api::map_access::write_discard, &mapped_uniform_data))
 	{
-		std::memcpy(mapped_ptr, effect.uniform_data_storage.data(), effect.uniform_data_storage.size());
+		std::memcpy(mapped_uniform_data.data, effect.uniform_data_storage.data(), effect.uniform_data_storage.size());
 		_device->unmap_resource(effect.cb, 0);
 	}
 	else if (_renderer_id == 0x9000)
@@ -3359,7 +3359,7 @@ bool reshade::runtime::take_screenshot(uint8_t *buffer)
 	get_current_back_buffer(&backbuffer);
 
 	const uint32_t data_pitch = _width * 4;
-	uint32_t texture_pitch = data_pitch, mapped_pitch = 0;
+	uint32_t texture_pitch = data_pitch;
 	if (_device->get_api() == api::device_api::d3d12) // See D3D12_TEXTURE_DATA_PITCH_ALIGNMENT
 		texture_pitch = (texture_pitch + 255) & ~255;
 
@@ -3401,19 +3401,21 @@ bool reshade::runtime::take_screenshot(uint8_t *buffer)
 	_device->wait_idle();
 
 	// Copy data from intermediate image into output buffer
-	uint8_t *mapped_data = nullptr;
-	if (_device->map_resource(intermediate, 0, api::map_access::read_only, reinterpret_cast<void **>(&mapped_data), &mapped_pitch))
+	api::subresource_data mapped_data = {};
+	if (_device->map_resource(intermediate, 0, api::map_access::read_only, &mapped_data))
 	{
-		if (mapped_pitch != 0)
-			texture_pitch = mapped_pitch;
+		if (!_device->check_capability(api::device_caps::copy_buffer_to_texture))
+			texture_pitch = mapped_data.row_pitch;
 
-		for (uint32_t y = 0; y < _height; y++, buffer += data_pitch, mapped_data += texture_pitch)
+		auto pixels = static_cast<const uint8_t *>(mapped_data.data);
+
+		for (uint32_t y = 0; y < _height; y++, buffer += data_pitch, pixels += texture_pitch)
 		{
 			if (_color_bit_depth == 10)
 			{
 				for (uint32_t x = 0; x < data_pitch; x += 4)
 				{
-					const uint32_t rgba = *reinterpret_cast<const uint32_t *>(mapped_data + x);
+					const uint32_t rgba = *reinterpret_cast<const uint32_t *>(pixels + x);
 					// Divide by 4 to get 10-bit range (0-1023) into 8-bit range (0-255)
 					buffer[x + 0] = (( rgba & 0x000003FF)        /  4) & 0xFF;
 					buffer[x + 1] = (((rgba & 0x000FFC00) >> 10) /  4) & 0xFF;
@@ -3426,7 +3428,7 @@ bool reshade::runtime::take_screenshot(uint8_t *buffer)
 			}
 			else
 			{
-				std::memcpy(buffer, mapped_data, data_pitch);
+				std::memcpy(buffer, pixels, data_pitch);
 
 				if (_backbuffer_format >= api::format::b8g8r8a8_unorm &&
 					_backbuffer_format <= api::format::b8g8r8a8_unorm_srgb)
@@ -3443,7 +3445,7 @@ bool reshade::runtime::take_screenshot(uint8_t *buffer)
 
 	_device->destroy_resource(intermediate);
 
-	return mapped_data != nullptr;
+	return mapped_data.data != nullptr;
 }
 void reshade::runtime::save_screenshot(const std::wstring &postfix, const bool should_save_preset)
 {

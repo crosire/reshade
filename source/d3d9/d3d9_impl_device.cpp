@@ -1079,7 +1079,7 @@ void reshade::d3d9::device_impl::destroy_framebuffer(api::framebuffer handle)
 	delete reinterpret_cast<framebuffer_impl *>(handle.handle);
 }
 
-bool reshade::d3d9::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access access, void **data, uint32_t *row_pitch, uint32_t *slice_pitch)
+bool reshade::d3d9::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access access, api::subresource_data *out_data)
 {
 	DWORD flags = 0;
 	switch (access)
@@ -1092,12 +1092,10 @@ bool reshade::d3d9::device_impl::map_resource(api::resource resource, uint32_t s
 		break;
 	}
 
-	assert(data != nullptr);
-	*data = nullptr;
-	if (row_pitch != nullptr)
-		*row_pitch = 0;
-	if (slice_pitch != nullptr)
-		*slice_pitch = 0;
+	assert(out_data != nullptr);
+	out_data->data = nullptr;
+	out_data->row_pitch = 0;
+	out_data->slice_pitch = 0;
 
 	assert(resource.handle != 0);
 	auto object = reinterpret_cast<IDirect3DResource9 *>(resource.handle);
@@ -1111,9 +1109,8 @@ bool reshade::d3d9::device_impl::map_resource(api::resource resource, uint32_t s
 			if (D3DLOCKED_RECT locked_rect;
 				SUCCEEDED(static_cast<IDirect3DSurface9 *>(object)->LockRect(&locked_rect, nullptr, flags)))
 			{
-				*data = locked_rect.pBits;
-				if (row_pitch != nullptr)
-					*row_pitch = locked_rect.Pitch;
+				out_data->data = locked_rect.pBits;
+				out_data->row_pitch = locked_rect.Pitch;
 				return true;
 			}
 			break;
@@ -1123,9 +1120,8 @@ bool reshade::d3d9::device_impl::map_resource(api::resource resource, uint32_t s
 			if (D3DLOCKED_RECT locked_rect;
 				SUCCEEDED(static_cast<IDirect3DTexture9 *>(object)->LockRect(subresource, &locked_rect, nullptr, flags)))
 			{
-				*data = locked_rect.pBits;
-				if (row_pitch != nullptr)
-					*row_pitch = locked_rect.Pitch;
+				out_data->data = locked_rect.pBits;
+				out_data->row_pitch = locked_rect.Pitch;
 				return true;
 			}
 			break;
@@ -1135,11 +1131,9 @@ bool reshade::d3d9::device_impl::map_resource(api::resource resource, uint32_t s
 			if (D3DLOCKED_BOX locked_box;
 				SUCCEEDED(static_cast<IDirect3DVolumeTexture9 *>(object)->LockBox(subresource, &locked_box, nullptr, flags)))
 			{
-				*data = locked_box.pBits;
-				if (row_pitch != nullptr)
-					*row_pitch = locked_box.RowPitch;
-				if (slice_pitch != nullptr)
-					*slice_pitch = locked_box.SlicePitch;
+				out_data->data = locked_box.pBits;
+				out_data->row_pitch = locked_box.RowPitch;
+				out_data->slice_pitch = locked_box.SlicePitch;
 				return true;
 			}
 			break;
@@ -1151,9 +1145,8 @@ bool reshade::d3d9::device_impl::map_resource(api::resource resource, uint32_t s
 			if (D3DLOCKED_RECT locked_rect;
 				SUCCEEDED(static_cast<IDirect3DCubeTexture9 *>(object)->LockRect(static_cast<D3DCUBEMAP_FACES>(subresource / levels), subresource % levels, &locked_rect, nullptr, flags)))
 			{
-				*data = locked_rect.pBits;
-				if (row_pitch != nullptr)
-					*row_pitch = locked_rect.Pitch;
+				out_data->data = locked_rect.pBits;
+				out_data->row_pitch = locked_rect.Pitch;
 				return true;
 			}
 			break;
@@ -1162,13 +1155,13 @@ bool reshade::d3d9::device_impl::map_resource(api::resource resource, uint32_t s
 		{
 			assert(subresource == 0);
 
-			return SUCCEEDED(static_cast<IDirect3DVertexBuffer9 *>(object)->Lock(0, 0, data, flags));
+			return SUCCEEDED(static_cast<IDirect3DVertexBuffer9 *>(object)->Lock(0, 0, &out_data->data, flags));
 		}
 		case D3DRTYPE_INDEXBUFFER:
 		{
 			assert(subresource == 0);
 
-			return SUCCEEDED(static_cast<IDirect3DIndexBuffer9 *>(object)->Lock(0, 0, data, flags));
+			return SUCCEEDED(static_cast<IDirect3DIndexBuffer9 *>(object)->Lock(0, 0, &out_data->data, flags));
 		}
 	}
 

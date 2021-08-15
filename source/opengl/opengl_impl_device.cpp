@@ -1276,7 +1276,7 @@ void reshade::opengl::device_impl::destroy_framebuffer(api::framebuffer handle)
 	glDeleteFramebuffers(1, &object);
 }
 
-bool reshade::opengl::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access access, void **data, uint32_t *row_pitch, uint32_t *slice_pitch)
+bool reshade::opengl::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access access, api::subresource_data *out_data)
 {
 	GLenum map_access = 0;
 	switch (access)
@@ -1295,12 +1295,10 @@ bool reshade::opengl::device_impl::map_resource(api::resource resource, uint32_t
 		break;
 	}
 
-	assert(data != nullptr);
-	*data = nullptr;
-	if (row_pitch != nullptr)
-		*row_pitch = 0;
-	if (slice_pitch != nullptr)
-		*slice_pitch = 0;
+	assert(out_data != nullptr);
+	out_data->data = nullptr;
+	out_data->row_pitch = 0;
+	out_data->slice_pitch = 0;
 
 	assert(resource.handle != 0);
 	const GLenum target = resource.handle >> 40;
@@ -1316,7 +1314,7 @@ bool reshade::opengl::device_impl::map_resource(api::resource resource, uint32_t
 
 	if (gl3wProcs.gl.MapNamedBuffer != nullptr)
 	{
-		*data = glMapNamedBufferRange(object, 0, length, map_access);
+		out_data->data = glMapNamedBufferRange(object, 0, length, map_access);
 	}
 	else
 	{
@@ -1324,11 +1322,11 @@ bool reshade::opengl::device_impl::map_resource(api::resource resource, uint32_t
 		glGetIntegerv(GL_COPY_WRITE_BUFFER_BINDING, &prev_object);
 
 		glBindBuffer(GL_COPY_WRITE_BUFFER, object);
-		*data = glMapBufferRange(GL_COPY_WRITE_BUFFER, 0, length, map_access);
+		out_data->data = glMapBufferRange(GL_COPY_WRITE_BUFFER, 0, length, map_access);
 		glBindBuffer(GL_COPY_WRITE_BUFFER, prev_object);
 	}
 
-	return *data != nullptr;
+	return out_data->data != nullptr;
 }
 void reshade::opengl::device_impl::unmap_resource(api::resource resource, uint32_t subresource)
 {

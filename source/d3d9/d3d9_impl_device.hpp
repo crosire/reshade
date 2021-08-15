@@ -55,7 +55,7 @@ namespace reshade::d3d9
 		bool create_framebuffer(const api::framebuffer_desc &desc, api::framebuffer *out) final;
 		void destroy_framebuffer(api::framebuffer handle) final;
 
-		bool map_resource(api::resource resource, uint32_t subresource, api::map_access access, void **data, uint32_t *row_pitch, uint32_t *slice_pitch) final;
+		bool map_resource(api::resource resource, uint32_t subresource, api::map_access access, api::subresource_data *out_data) final;
 		void unmap_resource(api::resource resource, uint32_t subresource) final;
 
 		void upload_buffer_region(const void *data, api::resource dst, uint64_t dst_offset, uint64_t size) final;

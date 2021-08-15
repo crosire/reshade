@@ -210,12 +210,15 @@ bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc
 	D3D12_RESOURCE_DESC internal_desc = {};
 	D3D12_HEAP_PROPERTIES heap_props = {};
 	convert_resource_desc(desc, internal_desc, heap_props, heap_flags);
+
 	if (desc.type == api::resource_type::buffer)
+	{
 		internal_desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 
-	// Constant buffer views need to be aligned to 256 bytes, so make buffer large enough to ensure that is possible
-	if ((desc.usage & api::resource_usage::constant_buffer) != api::resource_usage::undefined)
-		internal_desc.Width = (internal_desc.Width + D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT - 1u) & ~(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT - 1u);
+		// Constant buffer views need to be aligned to 256 bytes, so make buffer large enough to ensure that is possible
+		if ((desc.usage & (api::resource_usage::constant_buffer)) != api::resource_usage::undefined)
+			internal_desc.Width = (internal_desc.Width + D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT - 1u) & ~(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT - 1u);
+	}
 
 	// Use a default clear value of transparent black (all zeroes)
 	bool use_default_clear_value = true;
@@ -699,28 +702,34 @@ void reshade::d3d12::device_impl::destroy_framebuffer(api::framebuffer handle)
 	delete reinterpret_cast<framebuffer_impl *>(handle.handle);
 }
 
-bool reshade::d3d12::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access access, void **data, uint32_t *row_pitch, uint32_t *slice_pitch)
+bool reshade::d3d12::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access access, api::subresource_data *out_data)
 {
-	if (row_pitch != nullptr)
-		*row_pitch = 0;
-	if (slice_pitch != nullptr)
-		*slice_pitch = 0;
-
-	const D3D12_RANGE no_read_range = { 0, 0 };
-
+	assert(out_data != nullptr);
 	assert(resource.handle != 0);
+
+	const D3D12_RANGE no_read = { 0, 0 };
+
+	const D3D12_RESOURCE_DESC desc = reinterpret_cast<ID3D12Resource *>(resource.handle)->GetDesc();
+	D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout;
+	_orig->GetCopyableFootprints(&desc, subresource, 1, 0, &layout, &out_data->slice_pitch, nullptr, nullptr);
+	out_data->row_pitch = layout.Footprint.RowPitch;
+	out_data->slice_pitch *= layout.Footprint.RowPitch;
+
 	return SUCCEEDED(reinterpret_cast<ID3D12Resource *>(resource.handle)->Map(
-		subresource, access == api::map_access::write_only || access == api::map_access::write_discard ? &no_read_range : nullptr, data));
+		subresource, access == api::map_access::write_only || access == api::map_access::write_discard ? &no_read : nullptr, &out_data->data));
 }
 void reshade::d3d12::device_impl::unmap_resource(api::resource resource, uint32_t subresource)
 {
 	assert(resource.handle != 0);
+
 	reinterpret_cast<ID3D12Resource *>(resource.handle)->Unmap(subresource, nullptr);
 }
 
 void reshade::d3d12::device_impl::upload_buffer_region(const void *data, api::resource dst, uint64_t dst_offset, uint64_t size)
 {
 	assert(dst.handle != 0);
+	assert(!_queues.empty());
+
 	const auto dst_resource = reinterpret_cast<ID3D12Resource *>(dst.handle);
 	const D3D12_RESOURCE_DESC dst_desc = dst_resource->GetDesc();
 
@@ -770,6 +779,8 @@ void reshade::d3d12::device_impl::upload_buffer_region(const void *data, api::re
 void reshade::d3d12::device_impl::upload_texture_region(const api::subresource_data &data, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6])
 {
 	assert(dst.handle != 0);
+	assert(!_queues.empty());
+
 	const auto dst_resource = reinterpret_cast<ID3D12Resource *>(dst.handle);
 	const D3D12_RESOURCE_DESC dst_desc = dst_resource->GetDesc();
 
