@@ -386,6 +386,9 @@
     <ClInclude Include="source\com_ptr.hpp">
       <Filter>hooks</Filter>
     </ClInclude>
+    <ClInclude Include="source\com_utils.hpp">
+      <Filter>hooks</Filter>
+    </ClInclude>
     <ClInclude Include="source\lockfree_table.hpp">
       <Filter>hooks</Filter>
     </ClInclude>

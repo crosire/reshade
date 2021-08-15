@@ -4,6 +4,7 @@
  */
 
 #include "dll_log.hpp"
+#include "com_utils.hpp"
 #include "d3d9_device.hpp"
 #include "d3d9_swapchain.hpp"
 #include "d3d9_impl_type_convert.hpp"
@@ -328,7 +329,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateTexture(UINT Width, UINT Height
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
 			this, desc, nullptr, reshade::api::resource_usage::general, reshade::api::resource { reinterpret_cast<uintptr_t>(texture) });
 
-		reshade::invoke_addon_event_on_destruction_d3d9<reshade::addon_event::destroy_resource, reshade::api::resource>(this, texture);
+		register_destruction_callback_d3d9(texture, [this, texture]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(texture) });
+		});
 
 		// Register all surfaces of this texture too
 		if ((desc.usage & (reshade::api::resource_usage::render_target | reshade::api::resource_usage::depth_stencil)) != reshade::api::resource_usage::undefined)
@@ -344,7 +347,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateTexture(UINT Width, UINT Height
 					reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
 						this, reshade::api::resource { reinterpret_cast<uintptr_t>(texture) }, view_usage, reshade::api::resource_view_desc(desc.texture.format, level, 1, 0, 1), reshade::api::resource_view { reinterpret_cast<uintptr_t>(surface.get()) });
 
-					reshade::invoke_addon_event_on_destruction_d3d9<reshade::addon_event::destroy_resource_view, reshade::api::resource_view>(this, surface.get());
+					register_destruction_callback_d3d9(surface.get(), [this, resource_view = surface.get()]() {
+						reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, reshade::api::resource_view { reinterpret_cast<uintptr_t>(resource_view) });
+					});
 				}
 			}
 		}
@@ -353,7 +358,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateTexture(UINT Width, UINT Height
 			reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
 				this, reshade::api::resource { reinterpret_cast<uintptr_t>(texture) }, reshade::api::resource_usage::shader_resource, reshade::api::resource_view_desc(desc.texture.format, 0, 0xFFFFFFFF, 0, 0xFFFFFFFF), reshade::api::resource_view { reinterpret_cast<uintptr_t>(texture) });
 
-			reshade::invoke_addon_event_on_destruction_d3d9<reshade::addon_event::destroy_resource_view, reshade::api::resource_view>(this, texture);
+			register_destruction_callback_d3d9(texture, [this, texture]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, reshade::api::resource_view { reinterpret_cast<uintptr_t>(texture) });
+			}, 1);
 		}
 #endif
 	}
@@ -389,14 +396,18 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVolumeTexture(UINT Width, UINT 
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
 			this, desc, nullptr, reshade::api::resource_usage::general, reshade::api::resource { reinterpret_cast<uintptr_t>(texture) });
 
-		reshade::invoke_addon_event_on_destruction_d3d9<reshade::addon_event::destroy_resource, reshade::api::resource>(this, texture);
+		register_destruction_callback_d3d9(texture, [this, texture]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(texture) });
+		});
 
 		if ((desc.usage & (reshade::api::resource_usage::shader_resource)) != reshade::api::resource_usage::undefined)
 		{
 			reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
 				this, reshade::api::resource { reinterpret_cast<uintptr_t>(texture) }, reshade::api::resource_usage::shader_resource, reshade::api::resource_view_desc(desc.texture.format, 0, 0xFFFFFFFF, 0, 0xFFFFFFFF), reshade::api::resource_view { reinterpret_cast<uintptr_t>(texture) });
 
-			reshade::invoke_addon_event_on_destruction_d3d9<reshade::addon_event::destroy_resource_view, reshade::api::resource_view>(this, texture);
+			register_destruction_callback_d3d9(texture, [this, texture]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, reshade::api::resource_view { reinterpret_cast<uintptr_t>(texture) });
+			}, 1);
 		}
 #endif
 	}
@@ -432,7 +443,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateCubeTexture(UINT EdgeLength, UI
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
 			this, desc, nullptr, reshade::api::resource_usage::general, reshade::api::resource { reinterpret_cast<uintptr_t>(texture) });
 
-		reshade::invoke_addon_event_on_destruction_d3d9<reshade::addon_event::destroy_resource, reshade::api::resource>(this, texture);
+		register_destruction_callback_d3d9(texture, [this, texture]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(texture) });
+		});
 
 		// Register all surfaces of this texture too
 		if ((desc.usage & (reshade::api::resource_usage::render_target | reshade::api::resource_usage::depth_stencil)) != reshade::api::resource_usage::undefined)
@@ -450,7 +463,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateCubeTexture(UINT EdgeLength, UI
 						reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
 							this, reshade::api::resource { reinterpret_cast<uintptr_t>(texture) }, view_usage, reshade::api::resource_view_desc(desc.texture.format, level, 1, face, 1), reshade::api::resource_view { reinterpret_cast<uintptr_t>(surface.get()) });
 
-						reshade::invoke_addon_event_on_destruction_d3d9<reshade::addon_event::destroy_resource_view, reshade::api::resource_view>(this, surface.get());
+						register_destruction_callback_d3d9(surface.get(), [this, resource_view = surface.get()]() {
+							reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, reshade::api::resource_view { reinterpret_cast<uintptr_t>(resource_view) });
+						});
 					}
 				}
 			}
@@ -460,7 +475,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateCubeTexture(UINT EdgeLength, UI
 			reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
 				this, reshade::api::resource { reinterpret_cast<uintptr_t>(texture) }, reshade::api::resource_usage::shader_resource, reshade::api::resource_view_desc(desc.texture.format, 0, 0xFFFFFFFF, 0, 0xFFFFFFFF), reshade::api::resource_view { reinterpret_cast<uintptr_t>(texture) });
 
-			reshade::invoke_addon_event_on_destruction_d3d9<reshade::addon_event::destroy_resource_view, reshade::api::resource_view>(this, texture);
+			register_destruction_callback_d3d9(texture, [this, texture]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, reshade::api::resource_view { reinterpret_cast<uintptr_t>(texture) });
+			}, 1);
 		}
 #endif
 	}
@@ -498,7 +515,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexBuffer(UINT Length, DWORD
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
 			this, desc, nullptr, reshade::api::resource_usage::general, reshade::api::resource { reinterpret_cast<uintptr_t>(*ppVertexBuffer) });
 
-		reshade::invoke_addon_event_on_destruction_d3d9<reshade::addon_event::destroy_resource, reshade::api::resource>(this, *ppVertexBuffer);
+		register_destruction_callback_d3d9(*ppVertexBuffer, [this, resource = *ppVertexBuffer]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
+		});
 #endif
 	}
 	else
@@ -534,7 +553,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateIndexBuffer(UINT Length, DWORD 
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
 			this, desc, nullptr, reshade::api::resource_usage::general, reshade::api::resource { reinterpret_cast<uintptr_t>(*ppIndexBuffer) });
 
-		reshade::invoke_addon_event_on_destruction_d3d9<reshade::addon_event::destroy_resource, reshade::api::resource>(this, *ppIndexBuffer);
+		register_destruction_callback_d3d9(*ppIndexBuffer, [this, resource = *ppIndexBuffer]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
+		});
 #endif
 	}
 	else
@@ -575,8 +596,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTarget(UINT Width, UINT H
 		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
 			this, resource, reshade::api::resource_usage::render_target, reshade::api::resource_view_desc(desc.texture.format), reshade::api::resource_view { reinterpret_cast<uintptr_t>(*ppSurface) });
 
-		reshade::invoke_addon_event_on_destruction_d3d9<reshade::addon_event::destroy_resource, reshade::api::resource>(this, reinterpret_cast<IDirect3DResource9 *>(resource.handle));
-		reshade::invoke_addon_event_on_destruction_d3d9<reshade::addon_event::destroy_resource_view, reshade::api::resource_view>(this, *ppSurface);
+		register_destruction_callback_d3d9(reinterpret_cast<IDirect3DResource9 *>(resource.handle), [this, resource]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, resource);
+		});
+		register_destruction_callback_d3d9(*ppSurface, [this, resource_view = *ppSurface]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, reshade::api::resource_view { reinterpret_cast<uintptr_t>(resource_view) });
+		}, reinterpret_cast<uintptr_t>(*ppSurface) == resource.handle ? 1 : 0);
 #endif
 	}
 	else
@@ -617,8 +642,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurface(UINT Width,
 		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
 			this, resource, reshade::api::resource_usage::depth_stencil, reshade::api::resource_view_desc(desc.texture.format), reshade::api::resource_view { reinterpret_cast<uintptr_t>(*ppSurface) });
 
-		reshade::invoke_addon_event_on_destruction_d3d9<reshade::addon_event::destroy_resource, reshade::api::resource>(this, reinterpret_cast<IDirect3DResource9 *>(resource.handle));
-		reshade::invoke_addon_event_on_destruction_d3d9<reshade::addon_event::destroy_resource_view, reshade::api::resource_view>(this, *ppSurface);
+		register_destruction_callback_d3d9(reinterpret_cast<IDirect3DResource9 *>(resource.handle), [this, resource]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, resource);
+		});
+		register_destruction_callback_d3d9(*ppSurface, [this, resource_view = *ppSurface]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, reshade::api::resource_view { reinterpret_cast<uintptr_t>(resource_view) });
+		}, reinterpret_cast<uintptr_t>(*ppSurface) == resource.handle ? 1 : 0);
 #endif
 	}
 	else
@@ -773,8 +802,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateOffscreenPlainSurface(UINT Widt
 		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
 			this, resource, reshade::api::resource_usage::render_target, reshade::api::resource_view_desc(desc.texture.format), reshade::api::resource_view { reinterpret_cast<uintptr_t>(*ppSurface) });
 
-		reshade::invoke_addon_event_on_destruction_d3d9<reshade::addon_event::destroy_resource, reshade::api::resource>(this, reinterpret_cast<IDirect3DResource9 *>(resource.handle));
-		reshade::invoke_addon_event_on_destruction_d3d9<reshade::addon_event::destroy_resource_view, reshade::api::resource_view>(this, *ppSurface);
+		register_destruction_callback_d3d9(reinterpret_cast<IDirect3DResource9 *>(resource.handle), [this, resource]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, resource);
+		});
+		register_destruction_callback_d3d9(*ppSurface, [this, resource_view = *ppSurface]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, reshade::api::resource_view { reinterpret_cast<uintptr_t>(resource_view) });
+		}, reinterpret_cast<uintptr_t>(*ppSurface) == resource.handle ? 1 : 0);
 #endif
 	}
 	else
@@ -1688,8 +1721,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTargetEx(UINT Width, UINT
 		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
 			this, resource, reshade::api::resource_usage::render_target, reshade::api::resource_view_desc(desc.texture.format), reshade::api::resource_view { reinterpret_cast<uintptr_t>(*ppSurface) });
 
-		reshade::invoke_addon_event_on_destruction_d3d9<reshade::addon_event::destroy_resource, reshade::api::resource>(this, reinterpret_cast<IDirect3DResource9 *>(resource.handle));
-		reshade::invoke_addon_event_on_destruction_d3d9<reshade::addon_event::destroy_resource_view, reshade::api::resource_view>(this, *ppSurface);
+		register_destruction_callback_d3d9(reinterpret_cast<IDirect3DResource9 *>(resource.handle), [this, resource]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, resource);
+		});
+		register_destruction_callback_d3d9(*ppSurface, [this, resource_view = *ppSurface]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, reshade::api::resource_view { reinterpret_cast<uintptr_t>(resource_view) });
+		}, reinterpret_cast<uintptr_t>(*ppSurface) == resource.handle ? 1 : 0);
 #endif
 	}
 	else
@@ -1729,8 +1766,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateOffscreenPlainSurfaceEx(UINT Wi
 		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
 			this, resource, reshade::api::resource_usage::render_target, reshade::api::resource_view_desc(desc.texture.format), reshade::api::resource_view { reinterpret_cast<uintptr_t>(*ppSurface) });
 
-		reshade::invoke_addon_event_on_destruction_d3d9<reshade::addon_event::destroy_resource, reshade::api::resource>(this, reinterpret_cast<IDirect3DResource9 *>(resource.handle));
-		reshade::invoke_addon_event_on_destruction_d3d9<reshade::addon_event::destroy_resource_view, reshade::api::resource_view>(this, *ppSurface);
+		register_destruction_callback_d3d9(reinterpret_cast<IDirect3DResource9 *>(resource.handle), [this, resource]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, resource);
+		});
+		register_destruction_callback_d3d9(*ppSurface, [this, resource_view = *ppSurface]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, reshade::api::resource_view { reinterpret_cast<uintptr_t>(resource_view) });
+		}, reinterpret_cast<uintptr_t>(*ppSurface) == resource.handle ? 1 : 0);
 #endif
 	}
 	else
@@ -1772,8 +1813,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurfaceEx(UINT Widt
 		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
 			this, resource, reshade::api::resource_usage::depth_stencil, reshade::api::resource_view_desc(desc.texture.format), reshade::api::resource_view { reinterpret_cast<uintptr_t>(*ppSurface) });
 
-		reshade::invoke_addon_event_on_destruction_d3d9<reshade::addon_event::destroy_resource, reshade::api::resource>(this, reinterpret_cast<IDirect3DResource9 *>(resource.handle));
-		reshade::invoke_addon_event_on_destruction_d3d9<reshade::addon_event::destroy_resource_view, reshade::api::resource_view>(this, *ppSurface);
+		register_destruction_callback_d3d9(reinterpret_cast<IDirect3DResource9 *>(resource.handle), [this, resource]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, resource);
+		});
+		register_destruction_callback_d3d9(*ppSurface, [this, resource_view = *ppSurface]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, reshade::api::resource_view { reinterpret_cast<uintptr_t>(resource_view) });
+		}, reinterpret_cast<uintptr_t>(*ppSurface) == resource.handle ? 1 : 0);
 #endif
 	}
 	else

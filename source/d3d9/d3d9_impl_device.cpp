@@ -4,6 +4,7 @@
  */
 
 #include "dll_log.hpp"
+#include "com_utils.hpp"
 #include "d3d9_impl_device.hpp"
 #include "d3d9_impl_type_convert.hpp"
 #include <algorithm>
@@ -184,8 +185,12 @@ bool reshade::d3d9::device_impl::on_init(const D3DPRESENT_PARAMETERS &pp)
 		invoke_addon_event<addon_event::init_resource>(this, desc, nullptr, api::resource_usage::depth_stencil, resource);
 		invoke_addon_event<addon_event::init_resource_view>(this, resource, api::resource_usage::depth_stencil, api::resource_view_desc(desc.texture.format), api::resource_view { reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) });
 
-		invoke_addon_event_on_destruction_d3d9<addon_event::destroy_resource, api::resource>(this, reinterpret_cast<IDirect3DResource9 *>(resource.handle));
-		invoke_addon_event_on_destruction_d3d9<addon_event::destroy_resource_view, api::resource_view>(this, auto_depth_stencil.get());
+		register_destruction_callback_d3d9(reinterpret_cast<IDirect3DResource9 *>(resource.handle), [this, resource]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, resource);
+		});
+		register_destruction_callback_d3d9(auto_depth_stencil.get(), [this, resource_view = auto_depth_stencil.get()]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, reshade::api::resource_view { reinterpret_cast<uintptr_t>(resource_view) });
+		}, reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) == resource.handle ? 1 : 0);
 
 		// Communicate default state to add-ons
 		invoke_addon_event<addon_event::bind_render_targets_and_depth_stencil>(this, 0, nullptr, reshade::api::resource_view { reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) });

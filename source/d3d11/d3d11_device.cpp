@@ -4,6 +4,7 @@
  */
 
 #include "dll_log.hpp"
+#include "com_utils.hpp"
 #include "d3d11_device.hpp"
 #include "d3d11_device_context.hpp"
 #include "dxgi/dxgi_device.hpp"
@@ -151,7 +152,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateBuffer(const D3D11_BUFFER_DESC *pDe
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
 			this, desc, reinterpret_cast<const reshade::api::subresource_data *>(pInitialData), reshade::api::resource_usage::general, reshade::api::resource { reinterpret_cast<uintptr_t>(*ppBuffer) });
 
-		reshade::invoke_addon_event_on_destruction<reshade::addon_event::destroy_resource, reshade::api::resource>(this, *ppBuffer);
+		register_destruction_callback(*ppBuffer, [this, resource = *ppBuffer]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
+		});
 #endif
 	}
 	else
@@ -198,7 +201,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture1D(const D3D11_TEXTURE1D_DES
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
 			this, desc, reinterpret_cast<const reshade::api::subresource_data *>(pInitialData), reshade::api::resource_usage::general, reshade::api::resource { reinterpret_cast<uintptr_t>(*ppTexture1D) });
 
-		reshade::invoke_addon_event_on_destruction<reshade::addon_event::destroy_resource, reshade::api::resource>(this, *ppTexture1D);
+		register_destruction_callback(*ppTexture1D, [this, resource = *ppTexture1D]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
+		});
 #endif
 	}
 	else
@@ -244,7 +249,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture2D(const D3D11_TEXTURE2D_DES
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
 			this, desc, reinterpret_cast<const reshade::api::subresource_data *>(pInitialData), reshade::api::resource_usage::general, reshade::api::resource { reinterpret_cast<uintptr_t>(*ppTexture2D) });
 
-		reshade::invoke_addon_event_on_destruction<reshade::addon_event::destroy_resource, reshade::api::resource>(this, *ppTexture2D);
+		register_destruction_callback(*ppTexture2D, [this, resource = *ppTexture2D]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
+		});
 #endif
 	}
 	else
@@ -290,7 +297,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture3D(const D3D11_TEXTURE3D_DES
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
 			this, desc, reinterpret_cast<const reshade::api::subresource_data *>(pInitialData), reshade::api::resource_usage::general, reshade::api::resource { reinterpret_cast<uintptr_t>(*ppTexture3D) });
 
-		reshade::invoke_addon_event_on_destruction<reshade::addon_event::destroy_resource, reshade::api::resource>(this, *ppTexture3D);
+		register_destruction_callback(*ppTexture3D, [this, resource = *ppTexture3D]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
+		});
 #endif
 	}
 	else
@@ -327,7 +336,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateShaderResourceView(ID3D11Resource *
 		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
 			this, reshade::api::resource { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_usage::shader_resource, desc, reshade::api::resource_view { reinterpret_cast<uintptr_t>(*ppShaderResourceView) });
 
-		reshade::invoke_addon_event_on_destruction<reshade::addon_event::destroy_resource_view, reshade::api::resource_view>(this, *ppShaderResourceView);
+		register_destruction_callback(*ppShaderResourceView, [this, resource_view = *ppShaderResourceView]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, reshade::api::resource_view { reinterpret_cast<uintptr_t>(resource_view) });
+		});
 #endif
 	}
 	else
@@ -364,7 +375,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateUnorderedAccessView(ID3D11Resource 
 		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
 			this, reshade::api::resource { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_usage::unordered_access, desc, reshade::api::resource_view { reinterpret_cast<uintptr_t>(*ppUnorderedAccessView) });
 
-		reshade::invoke_addon_event_on_destruction<reshade::addon_event::destroy_resource_view, reshade::api::resource_view>(this, *ppUnorderedAccessView);
+		register_destruction_callback(*ppUnorderedAccessView, [this, resource_view = *ppUnorderedAccessView]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, reshade::api::resource_view { reinterpret_cast<uintptr_t>(resource_view) });
+		});
 #endif
 	}
 	else
@@ -401,7 +414,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRenderTargetView(ID3D11Resource *pR
 		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
 			this, reshade::api::resource { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_usage::render_target, desc, reshade::api::resource_view { reinterpret_cast<uintptr_t>(*ppRenderTargetView) });
 
-		reshade::invoke_addon_event_on_destruction<reshade::addon_event::destroy_resource_view, reshade::api::resource_view>(this, *ppRenderTargetView);
+		register_destruction_callback(*ppRenderTargetView, [this, resource_view = *ppRenderTargetView]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, reshade::api::resource_view { reinterpret_cast<uintptr_t>(resource_view) });
+		});
 #endif
 	}
 	else
@@ -438,7 +453,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDepthStencilView(ID3D11Resource *pR
 		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
 			this, reshade::api::resource { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_usage::depth_stencil, desc, reshade::api::resource_view { reinterpret_cast<uintptr_t>(*ppDepthStencilView) });
 
-		reshade::invoke_addon_event_on_destruction<reshade::addon_event::destroy_resource_view, reshade::api::resource_view>(this, *ppDepthStencilView);
+		register_destruction_callback(*ppDepthStencilView, [this, resource_view = *ppDepthStencilView]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, reshade::api::resource_view { reinterpret_cast<uintptr_t>(resource_view) });
+		});
 #endif
 	}
 	else
@@ -478,7 +495,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateInputLayout(const D3D11_INPUT_ELEME
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, desc, reshade::api::pipeline { reinterpret_cast<uintptr_t>(*ppInputLayout) });
 
-		reshade::invoke_addon_event_on_destruction<reshade::addon_event::destroy_pipeline, reshade::api::pipeline>(this, *ppInputLayout);
+		register_destruction_callback(*ppInputLayout, [this, pipeline = *ppInputLayout]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pipeline) });
+		});
 #endif
 	}
 	else
@@ -515,7 +534,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateVertexShader(const void *pShaderByt
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, desc, reshade::api::pipeline { reinterpret_cast<uintptr_t>(*ppVertexShader) });
 
-		reshade::invoke_addon_event_on_destruction<reshade::addon_event::destroy_pipeline, reshade::api::pipeline>(this, *ppVertexShader);
+		register_destruction_callback(*ppVertexShader, [this, pipeline = *ppVertexShader]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pipeline) });
+		});
 #endif
 	}
 	else
@@ -552,7 +573,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateGeometryShader(const void *pShaderB
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, desc, reshade::api::pipeline { reinterpret_cast<uintptr_t>(*ppGeometryShader) });
 
-		reshade::invoke_addon_event_on_destruction<reshade::addon_event::destroy_pipeline, reshade::api::pipeline>(this, *ppGeometryShader);
+		register_destruction_callback(*ppGeometryShader, [this, pipeline = *ppGeometryShader]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pipeline) });
+		});
 #endif
 	}
 	else
@@ -589,7 +612,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateGeometryShaderWithStreamOutput(cons
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, desc, reshade::api::pipeline { reinterpret_cast<uintptr_t>(*ppGeometryShader) });
 
-		reshade::invoke_addon_event_on_destruction<reshade::addon_event::destroy_pipeline, reshade::api::pipeline>(this, *ppGeometryShader);
+		register_destruction_callback(*ppGeometryShader, [this, pipeline = *ppGeometryShader]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pipeline) });
+		});
 #endif
 	}
 	else
@@ -626,7 +651,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreatePixelShader(const void *pShaderByte
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, desc, reshade::api::pipeline { reinterpret_cast<uintptr_t>(*ppPixelShader) });
 
-		reshade::invoke_addon_event_on_destruction<reshade::addon_event::destroy_pipeline, reshade::api::pipeline>(this, *ppPixelShader);
+		register_destruction_callback(*ppPixelShader, [this, pipeline = *ppPixelShader]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pipeline) });
+		});
 #endif
 	}
 	else
@@ -663,7 +690,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateHullShader(const void *pShaderBytec
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, desc, reshade::api::pipeline { reinterpret_cast<uintptr_t>(*ppHullShader) });
 
-		reshade::invoke_addon_event_on_destruction<reshade::addon_event::destroy_pipeline, reshade::api::pipeline>(this, *ppHullShader);
+		register_destruction_callback(*ppHullShader, [this, pipeline = *ppHullShader]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pipeline) });
+		});
 #endif
 	}
 	else
@@ -700,7 +729,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDomainShader(const void *pShaderByt
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, desc, reshade::api::pipeline { reinterpret_cast<uintptr_t>(*ppDomainShader) });
 
-		reshade::invoke_addon_event_on_destruction<reshade::addon_event::destroy_pipeline, reshade::api::pipeline>(this, *ppDomainShader);
+		register_destruction_callback(*ppDomainShader, [this, pipeline = *ppDomainShader]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pipeline) });
+		});
 #endif
 	}
 	else
@@ -737,7 +768,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateComputeShader(const void *pShaderBy
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, desc, reshade::api::pipeline { reinterpret_cast<uintptr_t>(*ppComputeShader) });
 
-		reshade::invoke_addon_event_on_destruction<reshade::addon_event::destroy_pipeline, reshade::api::pipeline>(this, *ppComputeShader);
+		register_destruction_callback(*ppComputeShader, [this, pipeline = *ppComputeShader]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pipeline) });
+		});
 #endif
 	}
 	else
@@ -775,7 +808,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateBlendState(const D3D11_BLEND_DESC *
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, desc, reshade::api::pipeline { reinterpret_cast<uintptr_t>(*ppBlendState) });
 
-		reshade::invoke_addon_event_on_destruction<reshade::addon_event::destroy_pipeline, reshade::api::pipeline>(this, *ppBlendState);
+		register_destruction_callback(*ppBlendState, [this, pipeline = *ppBlendState]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pipeline) });
+		});
 #endif
 	}
 	else
@@ -809,7 +844,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDepthStencilState(const D3D11_DEPTH
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, desc, reshade::api::pipeline { reinterpret_cast<uintptr_t>(*ppDepthStencilState) });
 
-		reshade::invoke_addon_event_on_destruction<reshade::addon_event::destroy_pipeline, reshade::api::pipeline>(this, *ppDepthStencilState);
+		register_destruction_callback(*ppDepthStencilState, [this, pipeline = *ppDepthStencilState]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pipeline) });
+		});
 #endif
 	}
 	else
@@ -843,7 +880,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRasterizerState(const D3D11_RASTERI
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, desc, reshade::api::pipeline { reinterpret_cast<uintptr_t>(*ppRasterizerState) });
 
-		reshade::invoke_addon_event_on_destruction<reshade::addon_event::destroy_pipeline, reshade::api::pipeline>(this, *ppRasterizerState);
+		register_destruction_callback(*ppRasterizerState, [this, pipeline = *ppRasterizerState]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pipeline) });
+		});
 #endif
 	}
 	else
@@ -879,7 +918,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateSamplerState(const D3D11_SAMPLER_DE
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::init_sampler>(this, desc, reshade::api::sampler { reinterpret_cast<uintptr_t>(*ppSamplerState) });
 
-		reshade::invoke_addon_event_on_destruction<reshade::addon_event::destroy_sampler, reshade::api::sampler>(this, *ppSamplerState);
+		register_destruction_callback(*ppSamplerState, [this, sampler = *ppSamplerState]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_sampler>(this, reshade::api::sampler { reinterpret_cast<uintptr_t>(sampler) });
+		});
 #endif
 	}
 	else
@@ -969,7 +1010,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::OpenSharedResource(HANDLE hResource, REFI
 
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(this, desc, nullptr, reshade::api::resource_usage::general, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
 
-		reshade::invoke_addon_event_on_destruction<reshade::addon_event::destroy_resource, reshade::api::resource>(this, resource);
+		register_destruction_callback(resource, [this, resource]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
+		});
 #endif
 	}
 	else
@@ -1100,7 +1143,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateBlendState1(const D3D11_BLEND_DESC1
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, desc, reshade::api::pipeline { reinterpret_cast<uintptr_t>(*ppBlendState) });
 
-		reshade::invoke_addon_event_on_destruction<reshade::addon_event::destroy_pipeline, reshade::api::pipeline>(this, *ppBlendState);
+		register_destruction_callback(*ppBlendState, [this, pipeline = *ppBlendState]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pipeline) });
+		});
 #endif
 	}
 	else
@@ -1135,7 +1180,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRasterizerState1(const D3D11_RASTER
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, desc, reshade::api::pipeline { reinterpret_cast<uintptr_t>(*ppRasterizerState) });
 
-		reshade::invoke_addon_event_on_destruction<reshade::addon_event::destroy_pipeline, reshade::api::pipeline>(this, *ppRasterizerState);
+		register_destruction_callback(*ppRasterizerState, [this, pipeline = *ppRasterizerState]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pipeline) });
+		});
 #endif
 	}
 	else
@@ -1195,7 +1242,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::OpenSharedResource1(HANDLE hResource, REF
 
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(this, desc, nullptr, reshade::api::resource_usage::general, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
 
-		reshade::invoke_addon_event_on_destruction<reshade::addon_event::destroy_resource, reshade::api::resource>(this, resource);
+		register_destruction_callback(resource, [this, resource]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
+		});
 #endif
 	}
 	else
@@ -1250,7 +1299,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::OpenSharedResourceByName(LPCWSTR lpName, 
 
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(this, desc, nullptr, reshade::api::resource_usage::general, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
 
-		reshade::invoke_addon_event_on_destruction<reshade::addon_event::destroy_resource, reshade::api::resource>(this, resource);
+		register_destruction_callback(resource, [this, resource]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
+		});
 #endif
 	}
 	else
@@ -1345,7 +1396,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture2D1(const D3D11_TEXTURE2D_DE
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
 			this, desc, reinterpret_cast<const reshade::api::subresource_data *>(pInitialData), reshade::api::resource_usage::general, reshade::api::resource { reinterpret_cast<uintptr_t>(*ppTexture2D) });
 
-		reshade::invoke_addon_event_on_destruction<reshade::addon_event::destroy_resource, reshade::api::resource>(this, *ppTexture2D);
+		register_destruction_callback(*ppTexture2D, [this, resource = *ppTexture2D]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
+		});
 #endif
 	}
 	else
@@ -1392,7 +1445,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture3D1(const D3D11_TEXTURE3D_DE
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
 			this, desc, reinterpret_cast<const reshade::api::subresource_data *>(pInitialData), reshade::api::resource_usage::general, reshade::api::resource { reinterpret_cast<uintptr_t>(*ppTexture3D) });
 
-		reshade::invoke_addon_event_on_destruction<reshade::addon_event::destroy_resource, reshade::api::resource>(this, *ppTexture3D);
+		register_destruction_callback(*ppTexture3D, [this, resource = *ppTexture3D]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
+		});
 #endif
 	}
 	else
@@ -1427,7 +1482,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRasterizerState2(const D3D11_RASTER
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, desc, reshade::api::pipeline { reinterpret_cast<uintptr_t>(*ppRasterizerState) });
 
-		reshade::invoke_addon_event_on_destruction<reshade::addon_event::destroy_pipeline, reshade::api::pipeline>(this, *ppRasterizerState);
+		register_destruction_callback(*ppRasterizerState, [this, pipeline = *ppRasterizerState]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pipeline) });
+		});
 #endif
 	}
 	else
@@ -1465,7 +1522,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateShaderResourceView1(ID3D11Resource 
 		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
 			this, reshade::api::resource { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_usage::shader_resource, desc, reshade::api::resource_view { reinterpret_cast<uintptr_t>(*ppShaderResourceView1) });
 
-		reshade::invoke_addon_event_on_destruction<reshade::addon_event::destroy_resource_view, reshade::api::resource_view>(this, *ppShaderResourceView1);
+		register_destruction_callback(*ppShaderResourceView1, [this, resource_view = *ppShaderResourceView1]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, reshade::api::resource_view { reinterpret_cast<uintptr_t>(resource_view) });
+		});
 #endif
 	}
 	else
@@ -1503,7 +1562,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateUnorderedAccessView1(ID3D11Resource
 		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
 			this, reshade::api::resource { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_usage::unordered_access, desc, reshade::api::resource_view { reinterpret_cast<uintptr_t>(*ppUnorderedAccessView1) });
 
-		reshade::invoke_addon_event_on_destruction<reshade::addon_event::destroy_resource_view, reshade::api::resource_view>(this, *ppUnorderedAccessView1);
+		register_destruction_callback(*ppUnorderedAccessView1, [this, resource_view = *ppUnorderedAccessView1]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, reshade::api::resource_view { reinterpret_cast<uintptr_t>(resource_view) });
+		});
 #endif
 	}
 	else
@@ -1541,7 +1602,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRenderTargetView1(ID3D11Resource *p
 		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
 			this, reshade::api::resource { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_usage::render_target, desc, reshade::api::resource_view { reinterpret_cast<uintptr_t>(*ppRenderTargetView1) });
 
-		reshade::invoke_addon_event_on_destruction<reshade::addon_event::destroy_resource_view, reshade::api::resource_view>(this, *ppRenderTargetView1);
+		register_destruction_callback(*ppRenderTargetView1, [this, resource_view = *ppRenderTargetView1]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, reshade::api::resource_view { reinterpret_cast<uintptr_t>(resource_view) });
+		});
 #endif
 	}
 	else

@@ -487,6 +487,7 @@
     <ClInclude Include="source\addon.hpp" />
     <ClInclude Include="source\addon_manager.hpp" />
     <ClInclude Include="source\com_ptr.hpp" />
+    <ClInclude Include="source\com_utils.hpp" />
     <ClInclude Include="source\d3d10\d3d10_device.hpp" />
     <ClInclude Include="source\d3d10\d3d10_impl_device.hpp" />
     <ClInclude Include="source\d3d10\d3d10_impl_state_block.hpp" />
