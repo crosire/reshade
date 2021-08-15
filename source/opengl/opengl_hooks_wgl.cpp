@@ -1148,6 +1148,7 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glBlitNamedFramebuffer);
 		HOOK_PROC(glBufferData);
 		HOOK_PROC(glBufferStorage);
+		HOOK_PROC(glBufferSubData);
 		HOOK_PROC(glClearBufferfv);
 		HOOK_PROC(glClearBufferfi);
 		HOOK_PROC(glClearNamedFramebufferfv);
@@ -1155,6 +1156,12 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glCompressedTexImage1D);
 		HOOK_PROC(glCompressedTexImage2D);
 		HOOK_PROC(glCompressedTexImage3D);
+		HOOK_PROC(glCompressedTexSubImage1D);
+		HOOK_PROC(glCompressedTexSubImage2D);
+		HOOK_PROC(glCompressedTexSubImage3D);
+		HOOK_PROC(glCompressedTextureSubImage1D);
+		HOOK_PROC(glCompressedTextureSubImage2D);
+		HOOK_PROC(glCompressedTextureSubImage3D);
 		HOOK_PROC(glCopyBufferSubData);
 		HOOK_PROC(glCopyImageSubData);
 		HOOK_PROC(glCopyNamedBufferSubData);
@@ -1194,6 +1201,7 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glMultiDrawElementsIndirect);
 		HOOK_PROC(glNamedBufferData);
 		HOOK_PROC(glNamedBufferStorage);
+		HOOK_PROC(glNamedBufferSubData);
 		HOOK_PROC(glNamedFramebufferRenderbuffer);
 		HOOK_PROC(glNamedFramebufferTexture);
 		HOOK_PROC(glNamedRenderbufferStorage);
@@ -1216,11 +1224,17 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glTexStorage2DMultisample);
 		HOOK_PROC(glTexStorage3D);
 		HOOK_PROC(glTexStorage3DMultisample);
+		HOOK_PROC(glTexSubImage1D);
+		HOOK_PROC(glTexSubImage2D);
+		HOOK_PROC(glTexSubImage3D);
 		HOOK_PROC(glTextureStorage1D);
 		HOOK_PROC(glTextureStorage2D);
 		HOOK_PROC(glTextureStorage2DMultisample);
 		HOOK_PROC(glTextureStorage3D);
 		HOOK_PROC(glTextureStorage3DMultisample);
+		HOOK_PROC(glTextureSubImage1D);
+		HOOK_PROC(glTextureSubImage2D);
+		HOOK_PROC(glTextureSubImage3D);
 		HOOK_PROC(glTextureView);
 		HOOK_PROC(glUniform1f);
 		HOOK_PROC(glUniform2f);

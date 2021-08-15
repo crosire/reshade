@@ -43,6 +43,8 @@ extern "C" void WINAPI glBlitNamedFramebuffer(GLuint readFramebuffer, GLuint dra
 extern "C" void WINAPI glBufferData(GLenum target, GLsizeiptr size, const void *data, GLenum usage);
 #undef glBufferStorage
 extern "C" void WINAPI glBufferStorage(GLenum target, GLsizeiptr size, const void *data, GLbitfield flags);
+#undef glBufferSubData
+extern "C" void WINAPI glBufferSubData(GLenum target, GLintptr offset, GLsizeiptr size, const void* data);
 #undef glClear
 extern "C" void WINAPI glClear(GLbitfield mask);
 #undef glClearBufferfv
@@ -67,6 +69,18 @@ extern "C" void WINAPI glCompressedTexImage1D(GLenum target, GLint level, GLenum
 extern "C" void WINAPI glCompressedTexImage2D(GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLint border, GLsizei imageSize, const void *data);
 #undef glCompressedTexImage3D
 extern "C" void WINAPI glCompressedTexImage3D(GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLsizei imageSize, const void *data);
+#undef glCompressedTexSubImage1D
+extern "C" void WINAPI glCompressedTexSubImage1D(GLenum target, GLint level, GLint xoffset, GLsizei width, GLenum format, GLsizei imageSize, const void *data);
+#undef glCompressedTexSubImage2D
+extern "C" void WINAPI glCompressedTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLsizei imageSize, const void *data);
+#undef glCompressedTexSubImage3D
+extern "C" void WINAPI glCompressedTexSubImage3D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLsizei imageSize, const void *data);
+#undef glCompressedTextureSubImage1D
+extern "C" void WINAPI glCompressedTextureSubImage1D(GLuint texture, GLint level, GLint xoffset, GLsizei width, GLenum format, GLsizei imageSize, const void *data);
+#undef glCompressedTextureSubImage2D
+extern "C" void WINAPI glCompressedTextureSubImage2D(GLuint texture, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLsizei imageSize, const void *data);
+#undef glCompressedTextureSubImage3D
+extern "C" void WINAPI glCompressedTextureSubImage3D(GLuint texture, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLsizei imageSize, const void *data);
 #undef glCopyBufferSubData
 extern "C" void WINAPI glCopyBufferSubData(GLenum readTarget, GLenum writeTarget, GLintptr readOffset, GLintptr writeOffset, GLsizeiptr size);
 #undef glCopyImageSubData
@@ -74,9 +88,9 @@ extern "C" void WINAPI glCopyImageSubData(GLuint srcName, GLenum srcTarget, GLin
 #undef glCopyNamedBufferSubData
 extern "C" void WINAPI glCopyNamedBufferSubData(GLuint readBuffer, GLuint writeBuffer, GLintptr readOffset, GLintptr writeOffset, GLsizeiptr size);
 #undef glCopyTexImage1D
-extern "C" void WINAPI glCopyTexImage1D(GLenum target, GLint level, GLenum internalFormat, GLint x, GLint y, GLsizei width, GLint border);
+extern "C" void WINAPI glCopyTexImage1D(GLenum target, GLint level, GLenum internalformat, GLint x, GLint y, GLsizei width, GLint border);
 #undef glCopyTexImage2D
-extern "C" void WINAPI glCopyTexImage2D(GLenum target, GLint level, GLenum internalFormat, GLint x, GLint y, GLsizei width, GLsizei height, GLint border);
+extern "C" void WINAPI glCopyTexImage2D(GLenum target, GLint level, GLenum internalformat, GLint x, GLint y, GLsizei width, GLsizei height, GLint border);
 #undef glCopyTexSubImage1D
 extern "C" void WINAPI glCopyTexSubImage1D(GLenum target, GLint level, GLint xoffset, GLint x, GLint y, GLsizei width);
 #undef glCopyTexSubImage2D
@@ -215,6 +229,8 @@ extern "C" void WINAPI glMultiDrawElementsIndirect(GLenum mode, GLenum type, con
 extern "C" void WINAPI glNamedBufferData(GLuint buffer, GLsizeiptr size, const void *data, GLenum usage);
 #undef glNamedBufferStorage
 extern "C" void WINAPI glNamedBufferStorage(GLuint buffer, GLsizeiptr size, const void *data, GLbitfield flags);
+#undef glNamedBufferSubData
+extern "C" void WINAPI glNamedBufferSubData(GLuint buffer, GLintptr offset, GLsizeiptr size, const void* data);
 #undef glNamedFramebufferRenderbuffer
 extern "C" void WINAPI glNamedFramebufferRenderbuffer(GLuint framebuffer, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer);
 #undef glNamedFramebufferTexture
@@ -283,10 +299,6 @@ extern "C" void WINAPI glTexParameterfv(GLenum target, GLenum pname, const GLflo
 extern "C" void WINAPI glTexParameteri(GLenum target, GLenum pname, GLint param);
 #undef glTexParameteriv
 extern "C" void WINAPI glTexParameteriv(GLenum target, GLenum pname, const GLint *params);
-#undef glTexSubImage1D
-extern "C" void WINAPI glTexSubImage1D(GLenum target, GLint level, GLint xoffset, GLsizei width, GLenum format, GLenum type, const GLvoid *pixels);
-#undef glTexSubImage2D
-extern "C" void WINAPI glTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const GLvoid *pixels);
 #undef glTexStorage1D
 extern "C" void WINAPI glTexStorage1D(GLenum target, GLsizei levels, GLenum internalformat, GLsizei width);
 #undef glTexStorage2D
@@ -297,6 +309,12 @@ extern "C" void WINAPI glTexStorage2DMultisample(GLenum target, GLsizei samples,
 extern "C" void WINAPI glTexStorage3D(GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth);
 #undef glTexStorage3DMultisample
 extern "C" void WINAPI glTexStorage3DMultisample(GLenum target, GLsizei samples, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth, GLboolean fixedsamplelocations);
+#undef glTexSubImage1D
+extern "C" void WINAPI glTexSubImage1D(GLenum target, GLint level, GLint xoffset, GLsizei width, GLenum format, GLenum type, const GLvoid *pixels);
+#undef glTexSubImage2D
+extern "C" void WINAPI glTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const GLvoid *pixels);
+#undef glTexSubImage3D
+extern "C" void WINAPI glTexSubImage3D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLenum type, const void *pixels);
 #undef glTextureStorage1D
 extern "C" void WINAPI glTextureStorage1D(GLuint texture, GLsizei levels, GLenum internalformat, GLsizei width);
 #undef glTextureStorage2D
@@ -307,6 +325,12 @@ extern "C" void WINAPI glTextureStorage2DMultisample(GLuint texture, GLsizei sam
 extern "C" void WINAPI glTextureStorage3D(GLuint texture, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth);
 #undef glTextureStorage3DMultisample
 extern "C" void WINAPI glTextureStorage3DMultisample(GLuint texture, GLsizei samples, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth, GLboolean fixedsamplelocations);
+#undef glTextureSubImage1D
+extern "C" void WINAPI glTextureSubImage1D(GLuint texture, GLint level, GLint xoffset, GLsizei width, GLenum format, GLenum type, const GLvoid *pixels);
+#undef glTextureSubImage2D
+extern "C" void WINAPI glTextureSubImage2D(GLuint texture, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const GLvoid *pixels);
+#undef glTextureSubImage3D
+extern "C" void WINAPI glTextureSubImage3D(GLuint texture, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLenum type, const void *pixels);
 #undef glTextureView
 extern "C" void WINAPI glTextureView(GLuint texture, GLenum target, GLuint origtexture, GLenum internalformat, GLuint minlevel, GLuint numlevels, GLuint minlayer, GLuint numlayers);
 #undef glUniform1f

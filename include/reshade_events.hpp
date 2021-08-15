@@ -100,7 +100,7 @@ namespace reshade
 		destroy_sampler,
 
 		/// <summary>
-		/// Called after successfull resource creation from 'IDirect3Device9::Create(...)(Buffer/Texture/Surface(Ex))', 'ID3D10Device::Create(Buffer/Texture(...))', 'ID3D11Device::Create(Buffer/Texture(...))', 'ID3D12Device::Create(...)Resource(...)', 'gl(Named)(Buffer/Renderbuffer/Tex(ture))Storage(...)(Multisample)' or 'vkCreate(Buffer/Image)'.
+		/// Called after successfull resource creation from 'IDirect3Device9::Create(...)(Buffer/Texture/Surface(Ex))', 'ID3D10Device::Create(Buffer/Texture(...))', 'ID3D11Device::Create(Buffer/Texture(...))', 'ID3D12Device::Create(...)Resource(...)', 'gl(Named/Compressed)(Buffer/Renderbuffer/Tex(ture))(Data/Storage)(...)(Multisample)' or 'vkCreate(Buffer/Image)'.
 		/// <para>Callback function signature: <c>void (api::device *device, const api::resource_desc &amp;desc, const api::subresource_data *initial_data, api::resource_usage initial_state, api::resource resource)</c></para>
 		/// </summary>
 		init_resource,
@@ -208,7 +208,7 @@ namespace reshade
 		destroy_framebuffer,
 
 		/// <summary>
-		/// Called before 'ID3D10Device::UpdateSubresource' or 'ID3D11DeviceContext::UpdateSubresource'.
+		/// Called before 'ID3D10Device::UpdateSubresource', 'ID3D11DeviceContext::UpdateSubresource' or 'gl(Named)BufferSubData'.
 		/// <para>Callback function signature: <c>bool (api::device *device, const void *data, api::resource dst, uint64_t dst_offset, uint64_t size)</c></para>
 		/// </summary>
 		/// <remarks>
@@ -217,7 +217,7 @@ namespace reshade
 		/// </remarks>
 		upload_buffer_region,
 		/// <summary>
-		/// Called before 'ID3D10Device::UpdateSubresource' or 'ID3D11DeviceContext::UpdateSubresource'.
+		/// Called before 'ID3D10Device::UpdateSubresource', 'ID3D11DeviceContext::UpdateSubresource' or 'gl(Compressed)Tex(ture)SubData(...).
 		/// <para>Callback function signature: <c>bool (api::device *device, const api::subresource_data &data, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6])</c></para>
 		/// </summary>
 		/// <remarks>
@@ -372,7 +372,7 @@ namespace reshade
 		/// </remarks>
 		copy_buffer_to_texture,
 		/// <summary>
-		/// Called before 'IDirect3DDevice9::UpdateSurface', 'IDirect3DDevice9::StretchRect', 'ID3D10Device::CopySubresourceRegion', 'ID3D11DeviceContext::CopySubresourceRegion', 'ID3D12GraphicsCommandList::CopyTextureRegion', 'glBlit(Named)Framebuffer', 'glCopyImageSubData', 'glCopyTex(ture)(Sub)Image(...)', 'vkCmdBlitImage' or 'vkCmdCopyImage'.
+		/// Called before 'IDirect3DDevice9::UpdateSurface', 'IDirect3DDevice9::StretchRect', 'ID3D10Device::CopySubresourceRegion', 'ID3D11DeviceContext::CopySubresourceRegion', 'ID3D12GraphicsCommandList::CopyTextureRegion', 'glBlit(Named)Framebuffer', 'glCopyImageSubData', 'glCopyTex(ture)SubImage(...)', 'vkCmdBlitImage' or 'vkCmdCopyImage'.
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], api::filter_type filter)</c></para>
 		/// </summary>
 		/// <remarks>
