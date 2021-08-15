@@ -98,17 +98,13 @@ namespace reshade::opengl
 	void convert_memory_heap_from_usage(api::resource_desc &desc, GLenum usage);
 	void convert_memory_heap_from_flags(api::resource_desc &desc, GLbitfield flags);
 
-	bool check_resource_desc(GLenum target, const api::resource_desc &desc, GLenum &internal_format);
 	api::resource_type convert_resource_type(GLenum target);
 	api::resource_desc convert_resource_desc(GLenum target, GLsizeiptr buffer_size);
 	api::resource_desc convert_resource_desc(GLenum target, GLsizei levels, GLsizei samples, GLenum internal_format, GLsizei width, GLsizei height = 1, GLsizei depth = 1);
 
-	bool check_resource_view_desc(GLenum target, const api::resource_view_desc &desc, GLenum &internal_format);
 	api::resource_view_type convert_resource_view_type(GLenum target);
 	api::resource_view_desc convert_resource_view_desc(GLenum target, GLenum internal_format, GLintptr offset, GLsizeiptr size);
 	api::resource_view_desc convert_resource_view_desc(GLenum target, GLenum internal_format, GLuint minlevel, GLuint numlevels, GLuint minlayer, GLuint numlayers);
-
-	api::subresource_data   convert_mapped_subresource(GLenum format, GLenum type, const GLvoid *pixels, GLsizei width, GLsizei height = 1, GLsizei depth = 1);
 
 	GLuint get_index_type_size(GLenum index_type);
 

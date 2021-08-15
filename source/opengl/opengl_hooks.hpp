@@ -61,6 +61,12 @@ extern "C" void WINAPI glClearDepth(GLclampd depth);
 extern "C" void WINAPI glClearStencil(GLint s);
 #undef glColorMask
 extern "C" void WINAPI glColorMask(GLboolean red, GLboolean green, GLboolean blue, GLboolean alpha);
+#undef glCompressedTexImage1D
+extern "C" void WINAPI glCompressedTexImage1D(GLenum target, GLint level, GLenum internalformat, GLsizei width, GLint border, GLsizei imageSize, const void *data);
+#undef glCompressedTexImage2D
+extern "C" void WINAPI glCompressedTexImage2D(GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLint border, GLsizei imageSize, const void *data);
+#undef glCompressedTexImage3D
+extern "C" void WINAPI glCompressedTexImage3D(GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLsizei imageSize, const void *data);
 #undef glCopyBufferSubData
 extern "C" void WINAPI glCopyBufferSubData(GLenum readTarget, GLenum writeTarget, GLintptr readOffset, GLintptr writeOffset, GLsizeiptr size);
 #undef glCopyImageSubData

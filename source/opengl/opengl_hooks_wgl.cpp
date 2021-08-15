@@ -1152,6 +1152,9 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glClearBufferfi);
 		HOOK_PROC(glClearNamedFramebufferfv);
 		HOOK_PROC(glClearNamedFramebufferfi);
+		HOOK_PROC(glCompressedTexImage1D);
+		HOOK_PROC(glCompressedTexImage2D);
+		HOOK_PROC(glCompressedTexImage3D);
 		HOOK_PROC(glCopyBufferSubData);
 		HOOK_PROC(glCopyImageSubData);
 		HOOK_PROC(glCopyNamedBufferSubData);

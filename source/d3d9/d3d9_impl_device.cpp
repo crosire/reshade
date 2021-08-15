@@ -387,7 +387,6 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 						{
 							upload_buffer_region(initial_data->data, *out, 0, desc.buffer.size);
 						}
-
 						return true;
 					}
 					break;
@@ -406,7 +405,6 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 						{
 							upload_buffer_region(initial_data->data, *out, 0, desc.buffer.size);
 						}
-
 						return true;
 					}
 					break;
@@ -444,7 +442,6 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 						for (uint32_t subresource = 0; subresource < levels; ++subresource)
 							upload_texture_region(initial_data[subresource], *out, subresource, nullptr);
 					}
-
 					return true;
 				}
 			}
@@ -462,7 +459,6 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 						for (uint32_t subresource = 0; subresource < static_cast<uint32_t>(desc.texture.depth_or_layers) * desc.texture.levels; ++subresource)
 							upload_texture_region(initial_data[subresource], *out, subresource, nullptr);
 					}
-
 					return true;
 				}
 			}

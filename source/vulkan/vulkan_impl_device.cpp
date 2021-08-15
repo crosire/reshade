@@ -253,6 +253,10 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 			VkBufferCreateInfo create_info { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
 			convert_resource_desc(desc, create_info);
 
+			// Initial data upload requires the buffer to be transferable to
+			if (create_info.usage == 0 || initial_data != nullptr)
+				create_info.usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+
 			if (VkBuffer object = VK_NULL_HANDLE;
 				(desc.heap == api::memory_heap::unknown ?
 				 vk.CreateBuffer(_orig, &create_info, nullptr, &object) :
@@ -260,6 +264,11 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 			{
 				register_buffer(object, create_info, allocation);
 				*out = { (uint64_t)object };
+
+				if (initial_data != nullptr)
+				{
+					upload_buffer_region(initial_data->data, *out, 0, desc.buffer.size);
+				}
 				return true;
 			}
 			break;
@@ -272,7 +281,7 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 			convert_resource_desc(desc, create_info);
 
 			// Initial data upload requires the image to be transferable to
-			if (initial_data != nullptr)
+			if (create_info.usage == 0 || initial_data != nullptr)
 				create_info.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 
 			if (VkImage object = VK_NULL_HANDLE;
@@ -1100,6 +1109,7 @@ void reshade::vulkan::device_impl::unmap_resource(api::resource resource, uint32
 void reshade::vulkan::device_impl::upload_buffer_region(const void *data, api::resource dst, uint64_t dst_offset, uint64_t size)
 {
 	assert(dst.handle != 0);
+	assert(!_queues.empty());
 
 	for (command_queue_impl *const queue : _queues)
 	{
@@ -1117,6 +1127,8 @@ void reshade::vulkan::device_impl::upload_buffer_region(const void *data, api::r
 }
 void reshade::vulkan::device_impl::upload_texture_region(const api::subresource_data &data, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6])
 {
+	assert(!_queues.empty());
+
 	const resource_data dst_data = lookup_resource(dst);
 	assert(dst_data.is_image());
 

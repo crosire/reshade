@@ -47,7 +47,9 @@ auto reshade::opengl::convert_format(api::format format) -> GLenum
 		return GL_RGBA8_SNORM;
 	case api::format::r8g8b8x8_typeless:
 	case api::format::r8g8b8x8_unorm:
+		return GL_RGB8;
 	case api::format::r8g8b8x8_unorm_srgb:
+		return GL_SRGB8;
 	case api::format::b8g8r8a8_typeless:
 	case api::format::b8g8r8a8_unorm:
 	case api::format::b8g8r8a8_unorm_srgb:
@@ -135,7 +137,7 @@ auto reshade::opengl::convert_format(api::format format) -> GLenum
 	case api::format::b5g5r5a1_unorm:
 		return GL_RGB5_A1;
 	case api::format::b5g5r5x1_unorm:
-		break; // Unsupported
+		return GL_RGB5;
 	case api::format::b4g4r4a4_unorm:
 		return GL_RGBA4;
 	case api::format::s8_uint:
@@ -230,6 +232,10 @@ auto reshade::opengl::convert_format(GLenum internal_format) -> api::format
 		return api::format::r8g8b8a8_unorm_srgb;
 	case GL_RGBA8_SNORM:
 		return api::format::r8g8b8a8_snorm;
+	case GL_RGB8:
+		return api::format::r8g8b8x8_unorm;
+	case GL_SRGB8:
+		return api::format::r8g8b8x8_unorm_srgb;
 	case GL_RGB10_A2UI:
 		return api::format::r10g10b10a2_uint;
 	case GL_RGB10_A2:
@@ -296,6 +302,8 @@ auto reshade::opengl::convert_format(GLenum internal_format) -> api::format
 		return api::format::b5g6r5_unorm;
 	case GL_RGB5_A1:
 		return api::format::b5g5r5a1_unorm;
+	case GL_RGB5:
+		return api::format::b5g5r5x1_unorm;
 	case GL_RGBA4:
 		return api::format::b4g4r4a4_unorm;
 	case GL_STENCIL_INDEX:
@@ -315,8 +323,10 @@ auto reshade::opengl::convert_format(GLenum internal_format) -> api::format
 	case GL_DEPTH32F_STENCIL8:
 	case GL_DEPTH32F_STENCIL8_NV:
 		return api::format::d32_float_s8_uint;
+	case GL_COMPRESSED_RGB_S3TC_DXT1_EXT:
 	case GL_COMPRESSED_RGBA_S3TC_DXT1_EXT:
 		return api::format::bc1_unorm;
+	case 0x8C4C /* GL_COMPRESSED_SRGB_S3TC_DXT1_EXT */:
 	case 0x8C4D /* GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT */:
 		return api::format::bc1_unorm_srgb;
 	case GL_COMPRESSED_RGBA_S3TC_DXT3_EXT:
@@ -650,14 +660,14 @@ void reshade::opengl::convert_memory_heap_to_flags(const api::resource_desc &des
 {
 	switch (desc.heap)
 	{
-	case api::memory_heap::gpu_only:
-		flags |= GL_CLIENT_STORAGE_BIT;
-		break;
 	case api::memory_heap::cpu_to_gpu:
 		flags |= GL_MAP_WRITE_BIT;
 		break;
 	case api::memory_heap::gpu_to_cpu:
 		flags |= GL_MAP_READ_BIT;
+		break;
+	case api::memory_heap::cpu_only:
+		flags |= GL_CLIENT_STORAGE_BIT | GL_MAP_READ_BIT | GL_MAP_WRITE_BIT;
 		break;
 	}
 
@@ -695,30 +705,17 @@ void reshade::opengl::convert_memory_heap_from_flags(api::resource_desc &desc, G
 	else if ((flags & GL_MAP_READ_BIT) != 0)
 		desc.heap = api::memory_heap::gpu_to_cpu;
 	else if ((flags & GL_CLIENT_STORAGE_BIT) != 0)
-		desc.heap = api::memory_heap::gpu_only;
+		desc.heap = api::memory_heap::cpu_only;
 
 	if ((flags & GL_DYNAMIC_STORAGE_BIT) != 0)
 		desc.flags |= api::resource_flags::dynamic;
 }
 
-bool reshade::opengl::check_resource_desc(GLenum target, const api::resource_desc &desc, GLenum &internal_format)
-{
-	const api::resource_type type = convert_resource_type(target);
-	if (desc.type != type)
-		return false;
-
-	assert(type != api::resource_type::buffer);
-
-	if (const GLenum new_internal_format = convert_format(desc.texture.format);
-		new_internal_format != GL_NONE)
-		internal_format = new_internal_format;
-
-	return true;
-}
 reshade::api::resource_type reshade::opengl::convert_resource_type(GLenum target)
 {
 	switch (target)
 	{
+	case GL_BUFFER:
 	case GL_ARRAY_BUFFER:
 	case GL_ELEMENT_ARRAY_BUFFER:
 	case GL_PIXEL_PACK_BUFFER:
@@ -769,6 +766,7 @@ reshade::api::resource_type reshade::opengl::convert_resource_type(GLenum target
 	case GL_FRAMEBUFFER_DEFAULT:
 		return api::resource_type::surface;
 	default:
+		assert(false);
 		return api::resource_type::unknown;
 	}
 }
@@ -777,6 +775,7 @@ reshade::api::resource_desc reshade::opengl::convert_resource_desc(GLenum target
 	api::resource_desc desc = {};
 	desc.type = convert_resource_type(target);
 	desc.buffer.size = buffer_size;
+	desc.heap = api::memory_heap::gpu_only;
 	desc.usage = api::resource_usage::shader_resource | api::resource_usage::copy_dest | api::resource_usage::copy_source;
 	return desc;
 }
@@ -792,49 +791,35 @@ reshade::api::resource_desc reshade::opengl::convert_resource_desc(GLenum target
 	desc.texture.levels = static_cast<uint16_t>(levels);
 	desc.texture.format = convert_format(internal_format);
 	desc.texture.samples = static_cast<uint16_t>(samples);
-
 	desc.heap = api::memory_heap::gpu_only;
 
-	desc.usage = api::resource_usage::copy_dest | api::resource_usage::copy_source;
+	desc.usage = api::resource_usage::copy_dest | api::resource_usage::copy_source | api::resource_usage::resolve_dest;
+	if (desc.texture.samples >= 2)
+		desc.usage = api::resource_usage::resolve_source;
+
 	if (is_depth_stencil_format(internal_format))
 		desc.usage |= api::resource_usage::depth_stencil;
 	if (desc.type == api::resource_type::texture_1d || desc.type == api::resource_type::texture_2d || desc.type == api::resource_type::surface)
 		desc.usage |= api::resource_usage::render_target;
+
 	if (desc.type != api::resource_type::surface)
 		desc.usage |= api::resource_usage::shader_resource;
 
 	if (target == GL_TEXTURE_CUBE_MAP || target == GL_TEXTURE_CUBE_MAP_ARRAY ||
-		target == GL_PROXY_TEXTURE_CUBE_MAP || target == GL_PROXY_TEXTURE_CUBE_MAP_ARRAY)
+		target == GL_PROXY_TEXTURE_CUBE_MAP || target == GL_PROXY_TEXTURE_CUBE_MAP_ARRAY || (
+		target >= GL_TEXTURE_CUBE_MAP_POSITIVE_X && target <= GL_TEXTURE_CUBE_MAP_NEGATIVE_Z))
 	{
 		desc.texture.depth_or_layers *= 6;
 		desc.flags |= api::resource_flags::cube_compatible;
 	}
 
 	// Mipmap generation is supported for all textures
-	if (levels > 1 && desc.type == api::resource_type::texture_2d)
+	if (levels != 1 && desc.type == api::resource_type::texture_2d)
 		desc.flags |= api::resource_flags::generate_mipmaps;
 
 	return desc;
 }
 
-bool reshade::opengl::check_resource_view_desc(GLenum target, const api::resource_view_desc &desc, GLenum &internal_format)
-{
-	const api::resource_view_type type = convert_resource_view_type(target);
-	if (desc.type != type)
-		return false;
-
-	if (type == api::resource_view_type::buffer)
-	{
-		assert(desc.buffer.offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()));
-		assert(desc.buffer.size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
-	}
-
-	if (const GLenum new_internal_format = convert_format(desc.format);
-		new_internal_format != GL_NONE)
-		internal_format = new_internal_format;
-
-	return true;
-}
 reshade::api::resource_view_type reshade::opengl::convert_resource_view_type(GLenum target)
 {
 	switch (target)
@@ -842,25 +827,44 @@ reshade::api::resource_view_type reshade::opengl::convert_resource_view_type(GLe
 	case GL_TEXTURE_BUFFER:
 		return api::resource_view_type::buffer;
 	case GL_TEXTURE_1D:
+	case GL_PROXY_TEXTURE_1D:
 		return api::resource_view_type::texture_1d;
 	case GL_TEXTURE_1D_ARRAY:
+	case GL_PROXY_TEXTURE_1D_ARRAY:
 		return api::resource_view_type::texture_1d_array;
 	case GL_TEXTURE_2D:
 	case GL_TEXTURE_RECTANGLE:
+	case GL_PROXY_TEXTURE_2D:
+	case GL_PROXY_TEXTURE_RECTANGLE:
+	case GL_TEXTURE_CUBE_MAP_POSITIVE_X: // Single cube face is a 2D view
+	case GL_TEXTURE_CUBE_MAP_NEGATIVE_X:
+	case GL_TEXTURE_CUBE_MAP_POSITIVE_Y:
+	case GL_TEXTURE_CUBE_MAP_NEGATIVE_Y:
+	case GL_TEXTURE_CUBE_MAP_POSITIVE_Z:
+	case GL_TEXTURE_CUBE_MAP_NEGATIVE_Z:
 		return api::resource_view_type::texture_2d;
 	case GL_TEXTURE_2D_ARRAY:
+	case GL_PROXY_TEXTURE_2D_ARRAY:
 		return api::resource_view_type::texture_2d_array;
 	case GL_TEXTURE_2D_MULTISAMPLE:
+	case GL_PROXY_TEXTURE_2D_MULTISAMPLE:
 		return api::resource_view_type::texture_2d_multisample;
 	case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
+	case GL_PROXY_TEXTURE_2D_MULTISAMPLE_ARRAY:
 		return api::resource_view_type::texture_2d_multisample_array;
 	case GL_TEXTURE_3D:
+	case GL_PROXY_TEXTURE_3D:
 		return api::resource_view_type::texture_3d;
 	case GL_TEXTURE_CUBE_MAP:
+	case GL_PROXY_TEXTURE_CUBE_MAP:
 		return api::resource_view_type::texture_cube;
 	case GL_TEXTURE_CUBE_MAP_ARRAY:
+	case GL_PROXY_TEXTURE_CUBE_MAP_ARRAY:
 		return api::resource_view_type::texture_cube_array;
+	case GL_RENDERBUFFER:
+		return api::resource_view_type::texture_2d; // There is no explicit surface view type
 	default:
+		assert(false);
 		return api::resource_view_type::unknown;
 	}
 }
@@ -872,77 +876,6 @@ reshade::api::resource_view_desc reshade::opengl::convert_resource_view_desc(GLe
 reshade::api::resource_view_desc reshade::opengl::convert_resource_view_desc(GLenum target, GLenum internal_format, GLuint minlevel, GLuint numlevels, GLuint minlayer, GLuint numlayers)
 {
 	return api::resource_view_desc(convert_resource_view_type(target), convert_format(internal_format), minlevel, numlevels, minlayer, numlayers);
-}
-
-reshade::api::subresource_data   reshade::opengl::convert_mapped_subresource(GLenum format, GLenum type, const GLvoid *pixels, GLsizei width, GLsizei height, GLsizei)
-{
-	api::subresource_data result;
-	result.data = pixels;
-
-	uint32_t bpp = 1;
-	switch (type)
-	{
-	case GL_BYTE:
-	case GL_UNSIGNED_BYTE:
-	case GL_UNSIGNED_BYTE_3_3_2:
-	case GL_UNSIGNED_BYTE_2_3_3_REV:
-		bpp = 1;
-		break;
-	case GL_SHORT:
-	case GL_UNSIGNED_SHORT:
-	case GL_UNSIGNED_SHORT_5_6_5:
-	case GL_UNSIGNED_SHORT_5_6_5_REV:
-	case GL_UNSIGNED_SHORT_4_4_4_4:
-	case GL_UNSIGNED_SHORT_4_4_4_4_REV:
-	case GL_UNSIGNED_SHORT_5_5_5_1:
-	case GL_UNSIGNED_SHORT_1_5_5_5_REV:
-	case GL_HALF_FLOAT:
-		bpp = 2;
-		break;
-	case GL_INT:
-	case GL_UNSIGNED_INT:
-	case GL_UNSIGNED_INT_8_8_8_8:
-	case GL_UNSIGNED_INT_8_8_8_8_REV:
-	case GL_UNSIGNED_INT_10_10_10_2:
-	case GL_UNSIGNED_INT_2_10_10_10_REV:
-	case GL_FLOAT:
-		bpp = 4;
-		break;
-	}
-
-	result.row_pitch = bpp * width;
-	result.slice_pitch = bpp * width * height;
-
-	switch (format)
-	{
-	case GL_RED:
-	case GL_RED_INTEGER:
-	case GL_STENCIL_INDEX:
-	case GL_DEPTH_COMPONENT:
-		break;
-	case GL_RG:
-	case GL_RG_INTEGER:
-	case GL_DEPTH_STENCIL:
-		result.row_pitch *= 2;
-		result.slice_pitch *= 2;
-		break;
-	case GL_RGB:
-	case GL_RGB_INTEGER:
-	case GL_BGR:
-	case GL_BGR_INTEGER:
-		result.row_pitch *= 3;
-		result.slice_pitch *= 3;
-		break;
-	case GL_RGBA:
-	case GL_RGBA_INTEGER:
-	case GL_BGRA:
-	case GL_BGRA_INTEGER:
-		result.row_pitch *= 4;
-		result.slice_pitch *= 4;
-		break;
-	}
-
-	return result;
 }
 
 GLuint reshade::opengl::get_index_type_size(GLenum index_type)
