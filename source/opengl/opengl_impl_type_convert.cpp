@@ -880,6 +880,7 @@ reshade::api::resource_view_desc reshade::opengl::convert_resource_view_desc(GLe
 
 GLuint reshade::opengl::get_index_type_size(GLenum index_type)
 {
+#if 0
 	switch (index_type)
 	{
 	default:
@@ -892,6 +893,11 @@ GLuint reshade::opengl::get_index_type_size(GLenum index_type)
 	case GL_UNSIGNED_INT:
 		return 4;
 	}
+#else
+	assert(index_type == GL_UNSIGNED_BYTE || index_type == GL_UNSIGNED_SHORT || index_type == GL_UNSIGNED_INT);
+	static_assert(((GL_UNSIGNED_SHORT - GL_UNSIGNED_BYTE) == 2) && ((GL_UNSIGNED_INT - GL_UNSIGNED_BYTE) == 4));
+	return 1 << ((index_type - GL_UNSIGNED_BYTE) / 2);
+#endif
 }
 
 GLenum reshade::opengl::get_binding_for_target(GLenum target)

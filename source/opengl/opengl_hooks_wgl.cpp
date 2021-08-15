@@ -19,7 +19,7 @@ static std::unordered_set<HDC> s_pbuffer_device_contexts;
 static std::unordered_set<HGLRC> s_legacy_contexts;
 static std::unordered_map<HGLRC, HGLRC> s_shared_contexts;
 static std::unordered_map<HGLRC, reshade::opengl::swapchain_impl *> s_opengl_contexts;
-thread_local reshade::opengl::swapchain_impl *g_current_context = nullptr;
+extern thread_local reshade::opengl::swapchain_impl *g_current_context;
 
 HOOK_EXPORT int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPTOR *ppfd)
 {

@@ -25,7 +25,8 @@ struct DrawElementsIndirectCommand
 	GLuint baseinstance;
 };
 
-extern thread_local reshade::opengl::swapchain_impl *g_current_context;
+// Initialize thread local variable in this translation unit, to avoid the compiler generating calls to '__dyn_tls_on_demand_init' on every use in the frequently called functions below
+extern thread_local reshade::opengl::swapchain_impl *g_current_context = nullptr;
 
 #if RESHADE_ADDON
 static void init_resource(GLenum target, GLuint object, const reshade::api::resource_desc &desc, const reshade::api::subresource_data *initial_data = nullptr)
@@ -390,7 +391,7 @@ static void update_current_primitive_topology(GLenum mode, GLenum type)
 	}
 }
 
-static inline GLuint get_index_buffer_offset(const GLvoid *indices)
+static __forceinline GLuint get_index_buffer_offset(const GLvoid *indices)
 {
 	return g_current_context->_current_ibo != 0 ? static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices) / reshade::opengl::get_index_type_size(g_current_context->_current_index_type)) : 0;
 }
@@ -455,7 +456,7 @@ HOOK_EXPORT void WINAPI glBegin(GLenum mode)
 		switch (target)
 		{
 		case GL_ELEMENT_ARRAY_BUFFER:
-			g_current_context->_current_index_type = buffer;
+			g_current_context->_current_ibo = buffer;
 			// The index format is provided to 'glDrawElements' and is unknown at this point, so call with index size set to zero
 			reshade::invoke_addon_event<reshade::addon_event::bind_index_buffer>(g_current_context, resource, offset, 0);
 			return;
@@ -777,6 +778,7 @@ HOOK_EXPORT void WINAPI glBindTexture(GLenum target, GLuint texture)
 
 		gl3wProcs.gl.GetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &ibo);
 
+		g_current_context->_current_ibo = ibo;
 		reshade::invoke_addon_event<reshade::addon_event::bind_index_buffer>(g_current_context,
 			ibo != 0 ? reshade::opengl::make_resource_handle(GL_BUFFER, ibo) : reshade::api::resource { 0 }, 0, 0);
 
