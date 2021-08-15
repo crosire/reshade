@@ -115,6 +115,7 @@ namespace reshade
 		api::command_queue *get_command_queue() final { return _graphics_queue; }
 
 		virtual void get_back_buffer_resolved(uint32_t index, api::resource *out) = 0;
+		inline  void get_current_back_buffer_resolved(api::resource *out) { get_back_buffer_resolved(get_current_back_buffer_index(), out); }
 
 		/// <summary>
 		/// Callback function called when the runtime is initialized.

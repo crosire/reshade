@@ -938,7 +938,7 @@ void reshade::runtime::draw_gui()
 		api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
 
 		api::resource backbuffer;
-		get_current_back_buffer(&backbuffer);
+		get_current_back_buffer_resolved(&backbuffer);
 		cmd_list->barrier(backbuffer, api::resource_usage::present, api::resource_usage::render_target);
 
 		render_imgui_draw_data(draw_data, _backbuffer_passes[get_current_back_buffer_index() * 2], _backbuffer_fbos[get_current_back_buffer_index() * 2]);

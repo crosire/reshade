@@ -199,6 +199,7 @@ void reshade::d3d11::convert_resource_desc(const api::resource_desc &desc, D3D11
 	convert_memory_heap_to_d3d_usage(desc.heap, internal_desc.Usage, internal_desc.CPUAccessFlags);
 	convert_resource_usage_to_bind_flags(desc.usage, internal_desc.BindFlags);
 	convert_resource_flags_to_misc_flags(desc.flags, internal_desc.MiscFlags);
+	internal_desc.StructureByteStride = desc.buffer.struct_stride;
 }
 void reshade::d3d11::convert_resource_desc(const api::resource_desc &desc, D3D11_TEXTURE1D_DESC &internal_desc)
 {
@@ -262,6 +263,7 @@ reshade::api::resource_desc reshade::d3d11::convert_resource_desc(const D3D11_BU
 	api::resource_desc desc = {};
 	desc.type = api::resource_type::buffer;
 	desc.buffer.size = internal_desc.ByteWidth;
+	desc.buffer.struct_stride = internal_desc.StructureByteStride;
 	convert_d3d_usage_to_memory_heap(internal_desc.Usage, internal_desc.CPUAccessFlags, desc.heap);
 	convert_bind_flags_to_resource_usage(internal_desc.BindFlags, desc.usage);
 	convert_misc_flags_to_resource_flags(internal_desc.MiscFlags, desc.flags);

@@ -2698,7 +2698,7 @@ void reshade::runtime::update_and_render_effects()
 	}
 
 	api::resource backbuffer;
-	get_current_back_buffer(&backbuffer);
+	get_current_back_buffer_resolved(&backbuffer);
 
 	api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
 	cmd_list->barrier(backbuffer, api::resource_usage::present, api::resource_usage::render_target);
@@ -2752,7 +2752,7 @@ void reshade::runtime::render_technique(technique &tech)
 	api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
 
 	api::resource backbuffer;
-	get_current_back_buffer(&backbuffer);
+	get_current_back_buffer_resolved(&backbuffer);
 
 #if RESHADE_GUI
 	if (_gather_gpu_statistics)
@@ -3356,7 +3356,7 @@ bool reshade::runtime::take_screenshot(uint8_t *buffer)
 	}
 
 	api::resource backbuffer;
-	get_current_back_buffer(&backbuffer);
+	get_current_back_buffer_resolved(&backbuffer);
 
 	const uint32_t data_pitch = _width * 4;
 	uint32_t texture_pitch = data_pitch;

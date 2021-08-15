@@ -245,7 +245,8 @@ namespace reshade { namespace api
 				uint32_t height;
 				/// <summary>If this is a 3D texture, depth of the texture (in texels), otherwise number of array layers.</summary>
 				uint16_t depth_or_layers;
-				/// <summary>Maximum number of mipmap levels in the texture, including the base level, so at least 1.</summary>
+				/// <summary>Maximum number of mipmap levels in the texture, including the base level, so at least 1.
+				/// Can also be zero in case the exact number of mipmap levels is unknown.</summary>
 				uint16_t levels;
 				/// <summary>Data format of each texel in the texture.</summary>
 				format   format;
