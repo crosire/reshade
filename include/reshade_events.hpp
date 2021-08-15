@@ -242,12 +242,12 @@ namespace reshade
 		barrier,
 
 		/// <summary>
-		/// Called after 'ID3D12GraphicsCommandList::BeginRenderPass', 'vkCmdBeginRenderPass' or when OpenGL FBO changed.
+		/// Called after 'ID3D12GraphicsCommandList::BeginRenderPass', 'glBindFramebuffer' or 'vkCmdBeginRenderPass'.
 		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::render_pass pass, api::framebuffer fbo)</c></para>
 		/// </summary>
 		begin_render_pass,
 		/// <summary>
-		/// Called after 'ID3D12GraphicsCommandList::EndRenderPass', 'vkCmdEndRenderPass' or when OpenGL FBO changed.
+		/// Called after 'ID3D12GraphicsCommandList::EndRenderPass', 'vkCmdEndRenderPass'.
 		/// <para>Callback function signature: <c>void (api::command_list *cmd_list)</c></para>
 		/// </summary>
 		finish_render_pass,

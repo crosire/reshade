@@ -1087,7 +1087,7 @@ bool reshade::vulkan::device_impl::map_resource(api::resource resource, uint32_t
 
 		if (vmaMapMemory(_alloc, res_data.allocation, &out_data->data) == VK_SUCCESS)
 		{
-			out_data->row_pitch = res_data.allocation->GetSize();
+			out_data->row_pitch = static_cast<uint32_t>(res_data.allocation->GetSize());
 			out_data->slice_pitch = out_data->row_pitch;
 			return true;
 		}

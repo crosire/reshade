@@ -15,6 +15,8 @@ extern "C" void WINAPI glBindBufferRange(GLenum target, GLuint index, GLuint buf
 extern "C" void WINAPI glBindBuffersBase(GLenum target, GLuint first, GLsizei count, const GLuint *buffers);
 #undef glBindBuffersRange
 extern "C" void WINAPI glBindBuffersRange(GLenum target, GLuint first, GLsizei count, const GLuint *buffers, const GLintptr *offsets, const GLintptr *sizes);
+#undef glBindFramebuffer
+extern "C" void WINAPI glBindFramebuffer(GLenum target, GLuint framebuffer);
 #undef glBindImageTexture
 extern "C" void WINAPI glBindImageTexture(GLuint unit, GLuint texture, GLint level, GLboolean layered, GLint layer, GLenum access, GLenum format);
 #undef glBindImageTextures
@@ -29,6 +31,8 @@ extern "C" void WINAPI glBindTexture(GLenum target, GLuint texture);
 extern "C" void WINAPI glBindTextureUnit(GLuint unit, GLuint texture);
 #undef glBindTextures
 extern "C" void WINAPI glBindTextures(GLuint first, GLsizei count, const GLuint *textures);
+#undef glBindVertexArray
+extern "C" void WINAPI glBindVertexArray(GLuint array);
 #undef glBindVertexBuffer
 extern "C" void WINAPI glBindVertexBuffer(GLuint bindingindex, GLuint buffer, GLintptr offset, GLsizei stride);
 #undef glBindVertexBuffers

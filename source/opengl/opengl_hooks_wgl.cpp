@@ -1124,24 +1124,32 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		return reinterpret_cast<PROC>(glTexSubImage2D);
 	else if (0 == strcmp(lpszProc, "glViewport"))
 		return reinterpret_cast<PROC>(glViewport);
-	else if (!s_hooks_installed)
-	{
-#define HOOK_PROC(name) \
-	reshade::hooks::install(#name, reinterpret_cast<reshade::hook::address>(trampoline(#name)), reinterpret_cast<reshade::hook::address>(name), true)
 
-		// Install all OpenGL hooks in a single batch job
+	if (!s_hooks_installed)
+	{
+#if 1
+	#define HOOK_PROC(name) \
+		reshade::hooks::install(#name, reinterpret_cast<reshade::hook::address>(trampoline(#name)), reinterpret_cast<reshade::hook::address>(name), true)
+#else
+	#define HOOK_PROC(name) \ // This does not work because the hooks are not registered then and thus 'reshade::hooks::call' will fail
+		if (0 == strcmp(lpszProc, #name)) \
+			return reinterpret_cast<PROC>(name)
+#endif
+
 #if RESHADE_ADDON
 		HOOK_PROC(glBindBuffer);
 		HOOK_PROC(glBindBufferBase);
 		HOOK_PROC(glBindBufferRange);
 		HOOK_PROC(glBindBuffersBase);
 		HOOK_PROC(glBindBuffersRange);
+		HOOK_PROC(glBindFramebuffer);
 		HOOK_PROC(glBindImageTexture);
 		HOOK_PROC(glBindImageTextures);
 		HOOK_PROC(glBindSampler);
 		HOOK_PROC(glBindSamplers);
 		HOOK_PROC(glBindTextureUnit);
 		HOOK_PROC(glBindTextures);
+		HOOK_PROC(glBindVertexArray);
 		HOOK_PROC(glBindVertexBuffer);
 		HOOK_PROC(glBindVertexBuffers);
 		HOOK_PROC(glBlitFramebuffer);
@@ -1265,6 +1273,7 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glViewportIndexedf);
 		HOOK_PROC(glViewportIndexedfv);
 #endif
+
 		HOOK_PROC(wglChoosePixelFormatARB);
 		HOOK_PROC(wglCreateContextAttribsARB);
 		HOOK_PROC(wglCreatePbufferARB);
@@ -1279,6 +1288,7 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(wglSwapIntervalEXT);
 #endif
 
+		// Install all OpenGL hooks in a single batch job
 		reshade::hook::apply_queued_actions();
 
 		s_hooks_installed = true;
