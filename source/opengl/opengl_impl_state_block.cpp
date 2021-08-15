@@ -31,9 +31,8 @@ void reshade::opengl::state_block::capture(bool compatibility)
 	glGetIntegerv(GL_ACTIVE_TEXTURE, &_active_texture);
 	for (GLuint i = 0; i < 32; i++)
 	{
-		glActiveTexture(GL_TEXTURE0 + i);
-		glGetIntegerv(GL_SAMPLER_BINDING, &_samplers[i]);
-		glGetIntegerv(GL_TEXTURE_BINDING_2D, &_textures2d[i]);
+		glGetIntegeri_v(GL_SAMPLER_BINDING, i, &_samplers[i]);
+		glGetIntegeri_v(GL_TEXTURE_BINDING_2D, i, &_textures2d[i]);
 	}
 
 	glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &_read_fbo);

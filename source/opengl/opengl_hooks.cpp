@@ -853,32 +853,42 @@ HOOK_EXPORT void WINAPI glBlendFunc(GLenum sfactor, GLenum dfactor)
 		GLint dst_fbo = 0;
 		gl3wProcs.gl.GetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &dst_fbo);
 
-		const reshade::api::attachment_type type = reshade::opengl::convert_buffer_bits_to_aspect(mask);
-
-		reshade::api::resource src = { 0 };
-		reshade::api::resource_view srv_view = { 0 };
-		g_current_context->get_framebuffer_attachment(reshade::opengl::make_framebuffer_handle(src_fbo), type, 0, &srv_view);
-		g_current_context->get_resource_from_view(srv_view, &src);
-		reshade::api::resource dst = { 0 };
-		reshade::api::resource_view dst_view = { 0 };
-		g_current_context->get_framebuffer_attachment(reshade::opengl::make_framebuffer_handle(dst_fbo), type, 0, &dst_view);
-		g_current_context->get_resource_from_view(dst_view, &dst);
-
-		const int32_t src_box[6] = { srcX0, srcY0, 0, srcX1, srcY1, 1 };
-		const int32_t dst_box[6] = { dstX0, dstY0, 0, dstX1, dstY1, 1 };
-
-		if (g_current_context->get_resource_desc(src).texture.samples <= 1)
+		constexpr GLbitfield flags[3] = { GL_COLOR_BUFFER_BIT, GL_DEPTH_BUFFER_BIT, GL_STENCIL_BUFFER_BIT };
+		for (GLbitfield flag : flags)
 		{
-			const reshade::api::filter_type filter_type = (filter == GL_NONE || filter == GL_NEAREST) ? reshade::api::filter_type::min_mag_mip_point : reshade::api::filter_type::min_mag_mip_linear;
+			if ((mask & flag) != flag)
+				continue;
 
-			if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(g_current_context, src, 0, src_box, dst, 0, dst_box, filter_type))
-				return;
+			const reshade::api::attachment_type type = reshade::opengl::convert_buffer_bits_to_aspect(flag);
+
+			reshade::api::resource src = { 0 };
+			reshade::api::resource_view srv_view = { 0 };
+			g_current_context->get_framebuffer_attachment(reshade::opengl::make_framebuffer_handle(src_fbo), type, 0, &srv_view);
+			g_current_context->get_resource_from_view(srv_view, &src);
+			reshade::api::resource dst = { 0 };
+			reshade::api::resource_view dst_view = { 0 };
+			g_current_context->get_framebuffer_attachment(reshade::opengl::make_framebuffer_handle(dst_fbo), type, 0, &dst_view);
+			g_current_context->get_resource_from_view(dst_view, &dst);
+
+			const int32_t src_box[6] = { srcX0, srcY0, 0, srcX1, srcY1, 1 };
+			const int32_t dst_box[6] = { dstX0, dstY0, 0, dstX1, dstY1, 1 };
+
+			if (g_current_context->get_resource_desc(src).texture.samples <= 1)
+			{
+				const reshade::api::filter_type filter_type = (filter == GL_NONE || filter == GL_NEAREST) ? reshade::api::filter_type::min_mag_mip_point : reshade::api::filter_type::min_mag_mip_linear;
+
+				if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(g_current_context, src, 0, src_box, dst, 0, dst_box, filter_type))
+					mask ^= flag;
+			}
+			else if ((srcX1 - srcX0) == (dstX1 - dstX0) && (srcY1 - srcY0) == (dstY1 - dstY0))
+			{
+				if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(g_current_context, src, 0, src_box, dst, 0, dst_box, reshade::api::format::unknown))
+					mask ^= flag;
+			}
 		}
-		else if ((srcX1 - srcX0) == (dstX1 - dstX0) && (srcY1 - srcY0) == (dstY1 - dstY0))
-		{
-			if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(g_current_context, src, 0, src_box, dst, 0, dst_box, reshade::api::format::unknown))
-				return;
-		}
+
+		if (mask == 0)
+			return;
 	}
 #endif
 
@@ -890,32 +900,42 @@ HOOK_EXPORT void WINAPI glBlendFunc(GLenum sfactor, GLenum dfactor)
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
-		const reshade::api::attachment_type type = reshade::opengl::convert_buffer_bits_to_aspect(mask);
-
-		reshade::api::resource src = { 0 };
-		reshade::api::resource_view srv_view = { 0 };
-		g_current_context->get_framebuffer_attachment(reshade::opengl::make_framebuffer_handle(readFramebuffer), type, 0, &srv_view);
-		g_current_context->get_resource_from_view(srv_view, &src);
-		reshade::api::resource dst = { 0 };
-		reshade::api::resource_view dst_view = { 0 };
-		g_current_context->get_framebuffer_attachment(reshade::opengl::make_framebuffer_handle(drawFramebuffer), type, 0, &dst_view);
-		g_current_context->get_resource_from_view(dst_view, &dst);
-
-		const int32_t src_box[6] = { srcX0, srcY0, 0, srcX1, srcY1, 1 };
-		const int32_t dst_box[6] = { dstX0, dstY0, 0, dstX1, dstY1, 1 };
-
-		if (g_current_context->get_resource_desc(src).texture.samples <= 1)
+		constexpr GLbitfield flags[3] = { GL_COLOR_BUFFER_BIT, GL_DEPTH_BUFFER_BIT, GL_STENCIL_BUFFER_BIT };
+		for (GLbitfield flag : flags)
 		{
-			const reshade::api::filter_type filter_type = (filter == GL_NONE || filter == GL_NEAREST) ? reshade::api::filter_type::min_mag_mip_point : reshade::api::filter_type::min_mag_mip_linear;
+			if ((mask & flag) != flag)
+				continue;
 
-			if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(g_current_context, src, 0, src_box, dst, 0, dst_box, filter_type))
-				return;
+			const reshade::api::attachment_type type = reshade::opengl::convert_buffer_bits_to_aspect(flag);
+
+			reshade::api::resource src = { 0 };
+			reshade::api::resource_view srv_view = { 0 };
+			g_current_context->get_framebuffer_attachment(reshade::opengl::make_framebuffer_handle(readFramebuffer), type, 0, &srv_view);
+			g_current_context->get_resource_from_view(srv_view, &src);
+			reshade::api::resource dst = { 0 };
+			reshade::api::resource_view dst_view = { 0 };
+			g_current_context->get_framebuffer_attachment(reshade::opengl::make_framebuffer_handle(drawFramebuffer), type, 0, &dst_view);
+			g_current_context->get_resource_from_view(dst_view, &dst);
+
+			const int32_t src_box[6] = { srcX0, srcY0, 0, srcX1, srcY1, 1 };
+			const int32_t dst_box[6] = { dstX0, dstY0, 0, dstX1, dstY1, 1 };
+
+			if (g_current_context->get_resource_desc(src).texture.samples <= 1)
+			{
+				const reshade::api::filter_type filter_type = (filter == GL_NONE || filter == GL_NEAREST) ? reshade::api::filter_type::min_mag_mip_point : reshade::api::filter_type::min_mag_mip_linear;
+
+				if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(g_current_context, src, 0, src_box, dst, 0, dst_box, filter_type))
+					mask ^= flag;
+			}
+			else if ((srcX1 - srcX0) == (dstX1 - dstX0) && (srcY1 - srcY0) == (dstY1 - dstY0))
+			{
+				if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(g_current_context, src, 0, src_box, dst, 0, dst_box, reshade::api::format::unknown))
+					mask ^= flag;
+			}
 		}
-		else if ((srcX1 - srcX0) == (dstX1 - dstX0) && (srcY1 - srcY0) == (dstY1 - dstY0))
-		{
-			if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(g_current_context, src, 0, src_box, dst, 0, dst_box, reshade::api::format::unknown))
-				return;
-		}
+
+		if (mask == 0)
+			return;
 	}
 #endif
 

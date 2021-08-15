@@ -147,7 +147,7 @@ void reshade::d3d9::device_impl::push_descriptors(api::shader_stage stages, api:
 					const auto sampler_impl = reinterpret_cast<const struct sampler_impl *>(descriptor.handle);
 
 					for (D3DSAMPLERSTATETYPE state = D3DSAMP_ADDRESSU; state <= D3DSAMP_MAXANISOTROPY; state = static_cast<D3DSAMPLERSTATETYPE>(state + 1))
-						_orig->SetSamplerState(i + first, state, sampler_impl->state[state]);
+						_orig->SetSamplerState(first + i, state, sampler_impl->state[state]);
 				}
 			}
 			break;
@@ -163,7 +163,7 @@ void reshade::d3d9::device_impl::push_descriptors(api::shader_stage stages, api:
 					const auto sampler_impl = reinterpret_cast<const struct sampler_impl *>(descriptor.sampler.handle);
 
 					for (D3DSAMPLERSTATETYPE state = D3DSAMP_ADDRESSU; state <= D3DSAMP_MAXANISOTROPY; state = static_cast<D3DSAMPLERSTATETYPE>(state + 1))
-						_orig->SetSamplerState(i + first, state, sampler_impl->state[state]);
+						_orig->SetSamplerState(first + i, state, sampler_impl->state[state]);
 				}
 			}
 			break;
@@ -171,8 +171,8 @@ void reshade::d3d9::device_impl::push_descriptors(api::shader_stage stages, api:
 			for (uint32_t i = 0; i < count; ++i)
 			{
 				const auto &descriptor = static_cast<const api::resource_view *>(descriptors)[i];
-				_orig->SetTexture(i + first, reinterpret_cast<IDirect3DBaseTexture9 *>(descriptor.handle & ~1ull));
-				_orig->SetSamplerState(i + first, D3DSAMP_SRGBTEXTURE, descriptor.handle & 1);
+				_orig->SetTexture(first + i, reinterpret_cast<IDirect3DBaseTexture9 *>(descriptor.handle & ~1ull));
+				_orig->SetSamplerState(first + i, D3DSAMP_SRGBTEXTURE, descriptor.handle & 1);
 			}
 			break;
 		default:
@@ -227,7 +227,7 @@ void reshade::d3d9::device_impl::bind_vertex_buffers(uint32_t first, uint32_t co
 	{
 		assert(offsets == nullptr || offsets[i] <= std::numeric_limits<UINT>::max());
 
-		_orig->SetStreamSource(i + first, reinterpret_cast<IDirect3DVertexBuffer9 *>(buffers[i].handle), offsets != nullptr ? static_cast<UINT>(offsets[i]) : 0, strides[i]);
+		_orig->SetStreamSource(first + i, reinterpret_cast<IDirect3DVertexBuffer9 *>(buffers[i].handle), offsets != nullptr ? static_cast<UINT>(offsets[i]) : 0, strides[i]);
 	}
 }
 

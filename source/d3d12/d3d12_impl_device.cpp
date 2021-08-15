@@ -874,7 +874,7 @@ bool reshade::d3d12::device_impl::get_query_pool_results(api::query_pool pool, u
 		{
 			for (uint32_t i = 0; i < count; ++i)
 			{
-				*reinterpret_cast<uint64_t *>(reinterpret_cast<uint8_t *>(results) + i * stride) = static_cast<uint64_t *>(mapped_data)[i + first];
+				*reinterpret_cast<uint64_t *>(reinterpret_cast<uint8_t *>(results) + i * stride) = static_cast<uint64_t *>(mapped_data)[first + i];
 			}
 
 			readback_resource->Unmap(0, &write_range);

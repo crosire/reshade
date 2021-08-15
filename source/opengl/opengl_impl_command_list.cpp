@@ -224,14 +224,14 @@ void reshade::opengl::device_impl::bind_viewports(uint32_t first, uint32_t count
 {
 	for (uint32_t i = 0, k = 0; i < count; ++i, k += 6)
 	{
-		glViewportIndexedf(i + first, viewports[k], viewports[k + 1], viewports[k + 2], viewports[k + 3]);
+		glViewportIndexedf(first + i, viewports[k], viewports[k + 1], viewports[k + 2], viewports[k + 3]);
 	}
 }
 void reshade::opengl::device_impl::bind_scissor_rects(uint32_t first, uint32_t count, const int32_t *rects)
 {
 	for (uint32_t i = 0, k = 0; i < count; ++i, k += 4)
 	{
-		glScissorIndexed(i + first,
+		glScissorIndexed(first + i,
 			rects[k + 0],
 			rects[k + 1],
 			rects[k + 2] - rects[k + 0],
@@ -277,7 +277,7 @@ void reshade::opengl::device_impl::push_descriptors(api::shader_stage, api::pipe
 		for (uint32_t i = 0; i < count; ++i)
 		{
 			const auto &descriptor = static_cast<const api::sampler *>(descriptors)[i];
-			glBindSampler(i + first, descriptor.handle & 0xFFFFFFFF);
+			glBindSampler(first + i, descriptor.handle & 0xFFFFFFFF);
 		}
 		break;
 	case api::descriptor_type::sampler_with_resource_view:
@@ -286,9 +286,9 @@ void reshade::opengl::device_impl::push_descriptors(api::shader_stage, api::pipe
 			const auto &descriptor = static_cast<const api::sampler_with_resource_view *>(descriptors)[i];
 			if (descriptor.view.handle == 0)
 				continue;
-			glBindSampler(i + first, descriptor.sampler.handle & 0xFFFFFFFF);
-			glActiveTexture(GL_TEXTURE0 + i + first);
+			glActiveTexture(GL_TEXTURE0 + first + i);
 			glBindTexture(descriptor.view.handle >> 40, descriptor.view.handle & 0xFFFFFFFF);
+			glBindSampler(first + i, descriptor.sampler.handle & 0xFFFFFFFF);
 		}
 		break;
 	case api::descriptor_type::shader_resource_view:
@@ -297,7 +297,7 @@ void reshade::opengl::device_impl::push_descriptors(api::shader_stage, api::pipe
 			const auto &descriptor = static_cast<const api::resource_view *>(descriptors)[i];
 			if (descriptor.handle == 0)
 				continue;
-			glActiveTexture(GL_TEXTURE0 + i + first);
+			glActiveTexture(GL_TEXTURE0 + first + i);
 			glBindTexture(descriptor.handle >> 40, descriptor.handle & 0xFFFFFFFF);
 		}
 		break;
@@ -325,7 +325,7 @@ void reshade::opengl::device_impl::push_descriptors(api::shader_stage, api::pipe
 				glBindTexture(target, prev_binding);
 			}
 
-			glBindImageTexture(i + first, descriptor.handle & 0xFFFFFFFF, 0, GL_FALSE, 0, GL_READ_WRITE, internal_format);
+			glBindImageTexture(first + i, descriptor.handle & 0xFFFFFFFF, 0, GL_FALSE, 0, GL_READ_WRITE, internal_format);
 		}
 		break;
 	case api::descriptor_type::constant_buffer:
@@ -335,12 +335,12 @@ void reshade::opengl::device_impl::push_descriptors(api::shader_stage, api::pipe
 			if (descriptor.size == std::numeric_limits<uint64_t>::max())
 			{
 				assert(descriptor.offset == 0);
-				glBindBufferBase(GL_UNIFORM_BUFFER, i + first, descriptor.buffer.handle & 0xFFFFFFFF);
+				glBindBufferBase(GL_UNIFORM_BUFFER, first + i, descriptor.buffer.handle & 0xFFFFFFFF);
 			}
 			else
 			{
 				assert(descriptor.offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()) && descriptor.size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
-				glBindBufferRange(GL_UNIFORM_BUFFER, i + first, descriptor.buffer.handle & 0xFFFFFFFF, static_cast<GLintptr>(descriptor.offset), static_cast<GLsizeiptr>(descriptor.size));
+				glBindBufferRange(GL_UNIFORM_BUFFER, first + i, descriptor.buffer.handle & 0xFFFFFFFF, static_cast<GLintptr>(descriptor.offset), static_cast<GLsizeiptr>(descriptor.size));
 			}
 		}
 		break;
@@ -351,12 +351,12 @@ void reshade::opengl::device_impl::push_descriptors(api::shader_stage, api::pipe
 			if (descriptor.size == std::numeric_limits<uint64_t>::max())
 			{
 				assert(descriptor.offset == 0);
-				glBindBufferBase(GL_SHADER_STORAGE_BUFFER, i + first, descriptor.buffer.handle & 0xFFFFFFFF);
+				glBindBufferBase(GL_SHADER_STORAGE_BUFFER, first + i, descriptor.buffer.handle & 0xFFFFFFFF);
 			}
 			else
 			{
 				assert(descriptor.offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()) && descriptor.size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
-				glBindBufferRange(GL_SHADER_STORAGE_BUFFER, i + first, descriptor.buffer.handle & 0xFFFFFFFF, static_cast<GLintptr>(descriptor.offset), static_cast<GLsizeiptr>(descriptor.size));
+				glBindBufferRange(GL_SHADER_STORAGE_BUFFER, first + i, descriptor.buffer.handle & 0xFFFFFFFF, static_cast<GLintptr>(descriptor.offset), static_cast<GLsizeiptr>(descriptor.size));
 			}
 		}
 		break;
@@ -413,7 +413,7 @@ void reshade::opengl::device_impl::bind_vertex_buffers(uint32_t first, uint32_t 
 	{
 		assert(offsets[i] <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()));
 
-		glBindVertexBuffer(i + first, buffers[i].handle & 0xFFFFFFFF, static_cast<GLintptr>(offsets[i]), strides[i]);
+		glBindVertexBuffer(first + i, buffers[i].handle & 0xFFFFFFFF, static_cast<GLintptr>(offsets[i]), strides[i]);
 	}
 }
 
@@ -1119,7 +1119,7 @@ void reshade::opengl::device_impl::copy_query_pool_results(api::query_pool pool,
 	for (uint32_t i = 0; i < count; ++i)
 	{
 		assert(dst_offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()));
-		glGetQueryBufferObjectui64v(reinterpret_cast<query_pool_impl *>(pool.handle)->queries[i + first], dst.handle & 0xFFFFFFFF, GL_QUERY_RESULT_NO_WAIT, static_cast<GLintptr>(dst_offset + i * stride));
+		glGetQueryBufferObjectui64v(reinterpret_cast<query_pool_impl *>(pool.handle)->queries[first + i], dst.handle & 0xFFFFFFFF, GL_QUERY_RESULT_NO_WAIT, static_cast<GLintptr>(dst_offset + i * stride));
 	}
 }
 
