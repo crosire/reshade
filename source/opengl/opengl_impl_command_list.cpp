@@ -15,6 +15,8 @@
 		glDisable(cap); \
 	}
 
+extern GLint get_buf_param(GLuint id, GLenum param);
+
 void reshade::opengl::pipeline_impl::apply_compute() const
 {
 	glUseProgram(program);
@@ -477,20 +479,11 @@ void reshade::opengl::device_impl::copy_buffer_region(api::resource src, uint64_
 {
 	assert(src.handle != 0 && dst.handle != 0);
 
-	const GLuint src_target = src.handle >> 40;
 	const GLuint src_object = src.handle & 0xFFFFFFFF;
 	const GLuint dst_object = dst.handle & 0xFFFFFFFF;
 
 	if (size == std::numeric_limits<uint64_t>::max())
-	{
-		GLint buffer_size = 0;
-		GLint prev_binding = 0;
-		glGetIntegerv(reshade::opengl::get_binding_for_target(src_target), &prev_binding);
-		glBindBuffer(src_target, src_object);
-		glGetBufferParameteriv(src_target, GL_BUFFER_SIZE, &buffer_size);
-		glBindBuffer(src_target, prev_binding);
-		size  = buffer_size;
-	}
+		size  = get_buf_param(src_object, GL_BUFFER_SIZE);
 
 	assert(src_offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()) && dst_offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()) && size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
 
@@ -654,6 +647,7 @@ void reshade::opengl::device_impl::copy_buffer_to_texture(api::resource src, uin
 
 	// Restore previous state from application
 	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, previous_unpack_binding);
+
 	glPixelStorei(GL_UNPACK_LSB_FIRST, previous_unpack_lsb);
 	glPixelStorei(GL_UNPACK_SWAP_BYTES, previous_unpack_swap);
 	glPixelStorei(GL_UNPACK_ALIGNMENT, previous_unpack_alignment);
@@ -699,7 +693,6 @@ void reshade::opengl::device_impl::copy_texture_region(api::resource src, uint32
 			src_object, src_target, src_subresource % src_desc.texture.levels, src_box != nullptr ? src_box[0] : 0, src_box != nullptr ? src_box[1] : 0, (src_box != nullptr ? src_box[2] : 0) + (src_subresource / src_desc.texture.levels),
 			dst_object, dst_target, dst_subresource % dst_desc.texture.levels, dst_box != nullptr ? dst_box[0] : 0, dst_box != nullptr ? dst_box[1] : 0, (dst_box != nullptr ? dst_box[2] : 0) + (dst_subresource / src_desc.texture.levels),
 			size[0], size[1], size[2]);
-		return;
 	}
 	else
 	{
@@ -980,6 +973,7 @@ void reshade::opengl::device_impl::copy_texture_to_buffer(api::resource src, uin
 
 	// Restore previous state from application
 	glBindBuffer(GL_PIXEL_PACK_BUFFER, previous_pack_binding);
+
 	glPixelStorei(GL_PACK_LSB_FIRST, previous_pack_lsb);
 	glPixelStorei(GL_PACK_SWAP_BYTES, previous_pack_swap);
 	glPixelStorei(GL_PACK_ALIGNMENT, previous_pack_alignment);
@@ -1058,6 +1052,7 @@ void reshade::opengl::device_impl::clear_unordered_access_view_float(api::resour
 void reshade::opengl::device_impl::generate_mipmaps(api::resource_view srv)
 {
 	assert(srv.handle != 0);
+
 	const GLenum target = srv.handle >> 40;
 	const GLuint object = srv.handle & 0xFFFFFFFF;
 
@@ -1119,6 +1114,7 @@ void reshade::opengl::device_impl::copy_query_pool_results(api::query_pool pool,
 	for (uint32_t i = 0; i < count; ++i)
 	{
 		assert(dst_offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()));
+
 		glGetQueryBufferObjectui64v(reinterpret_cast<query_pool_impl *>(pool.handle)->queries[first + i], dst.handle & 0xFFFFFFFF, GL_QUERY_RESULT_NO_WAIT, static_cast<GLintptr>(dst_offset + i * stride));
 	}
 }

@@ -5,11 +5,13 @@
 
 #pragma once
 
-#include "reshade_api_pipeline.hpp"
-
 #ifndef DECLSPEC_NOVTABLE
 	#define DECLSPEC_NOVTABLE __declspec(novtable)
 #endif
+
+#define RESHADE_API_VERSION 1
+
+#include "reshade_api_pipeline.hpp"
 
 namespace reshade { namespace api
 {

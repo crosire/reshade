@@ -10,38 +10,6 @@
 
 #if RESHADE_ADDON
 
-namespace reshade::addon
-{
-	struct info
-	{
-		void *handle;
-		std::string name;
-		std::string description;
-	};
-
-	/// <summary>
-	/// Global switch to enable or disable all loaded add-ons.
-	/// </summary>
-	extern bool enabled;
-
-	/// <summary>
-	/// List of currently loaded add-ons.
-	/// </summary>
-	extern std::vector<info> loaded_info;
-
-	/// <summary>
-	/// List of installed add-on event callbacks.
-	/// </summary>
-	extern std::vector<void *> event_list[];
-
-#if RESHADE_GUI
-	/// <summary>
-	/// List of overlays registered by loaded add-ons.
-	/// </summary>
-	extern std::vector<std::pair<std::string, void(*)(api::effect_runtime *, void *)>> overlay_list;
-#endif
-}
-
 namespace reshade
 {
 	/// <summary>

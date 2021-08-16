@@ -494,102 +494,100 @@ namespace reshade
 	template <addon_event ev>
 	struct addon_event_traits;
 
-#define DEFINE_ADDON_EVENT_TYPE(ev, ret, ...) \
+#define RESHADE_DEFINE_ADDON_EVENT_TRAITS(ev, ret, ...) \
 	template <> \
 	struct addon_event_traits<ev> { \
 		using decl = ret(*)(__VA_ARGS__); \
 		using type = ret; \
 	}
 
-	DEFINE_ADDON_EVENT_TYPE(addon_event::init_device, void, api::device *device);
-	DEFINE_ADDON_EVENT_TYPE(addon_event::destroy_device, void, api::device *device);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::init_device, void, api::device *device);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::destroy_device, void, api::device *device);
 
-	DEFINE_ADDON_EVENT_TYPE(addon_event::init_command_list, void, api::command_list *cmd_list);
-	DEFINE_ADDON_EVENT_TYPE(addon_event::destroy_command_list, void, api::command_list *cmd_list);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::init_command_list, void, api::command_list *cmd_list);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::destroy_command_list, void, api::command_list *cmd_list);
 
-	DEFINE_ADDON_EVENT_TYPE(addon_event::init_command_queue, void, api::command_queue *queue);
-	DEFINE_ADDON_EVENT_TYPE(addon_event::destroy_command_queue, void, api::command_queue *queue);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::init_command_queue, void, api::command_queue *queue);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::destroy_command_queue, void, api::command_queue *queue);
 
-	DEFINE_ADDON_EVENT_TYPE(addon_event::init_swapchain, void, api::swapchain *swapchain);
-	DEFINE_ADDON_EVENT_TYPE(addon_event::create_swapchain, bool, api::resource_desc &buffer_desc, void *hwnd);
-	DEFINE_ADDON_EVENT_TYPE(addon_event::destroy_swapchain, void, api::swapchain *swapchain);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::init_swapchain, void, api::swapchain *swapchain);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::create_swapchain, bool, api::resource_desc &buffer_desc, void *hwnd);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::destroy_swapchain, void, api::swapchain *swapchain);
 
-	DEFINE_ADDON_EVENT_TYPE(addon_event::init_effect_runtime, void, api::effect_runtime *runtime);
-	DEFINE_ADDON_EVENT_TYPE(addon_event::destroy_effect_runtime, void, api::effect_runtime *runtime);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::init_effect_runtime, void, api::effect_runtime *runtime);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::destroy_effect_runtime, void, api::effect_runtime *runtime);
 
-	DEFINE_ADDON_EVENT_TYPE(addon_event::init_sampler, void, api::device *device, const api::sampler_desc &desc, api::sampler sampler);
-	DEFINE_ADDON_EVENT_TYPE(addon_event::create_sampler, bool, api::device *device, api::sampler_desc &desc);
-	DEFINE_ADDON_EVENT_TYPE(addon_event::destroy_sampler, void, api::device *device, api::sampler sampler);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::init_sampler, void, api::device *device, const api::sampler_desc &desc, api::sampler sampler);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::create_sampler, bool, api::device *device, api::sampler_desc &desc);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::destroy_sampler, void, api::device *device, api::sampler sampler);
 
-	DEFINE_ADDON_EVENT_TYPE(addon_event::init_resource, void, api::device *device, const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage initial_state, api::resource resource);
-	DEFINE_ADDON_EVENT_TYPE(addon_event::create_resource, bool, api::device *device, api::resource_desc &desc, api::subresource_data *initial_data, api::resource_usage initial_state);
-	DEFINE_ADDON_EVENT_TYPE(addon_event::destroy_resource, void, api::device *device, api::resource resource);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::init_resource, void, api::device *device, const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage initial_state, api::resource resource);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::create_resource, bool, api::device *device, api::resource_desc &desc, api::subresource_data *initial_data, api::resource_usage initial_state);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::destroy_resource, void, api::device *device, api::resource resource);
 
-	DEFINE_ADDON_EVENT_TYPE(addon_event::init_resource_view, void, api::device *device, api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view view);
-	DEFINE_ADDON_EVENT_TYPE(addon_event::create_resource_view, bool, api::device *device, api::resource resource, api::resource_usage usage_type, api::resource_view_desc &desc);
-	DEFINE_ADDON_EVENT_TYPE(addon_event::destroy_resource_view, void, api::device *device, api::resource_view view);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::init_resource_view, void, api::device *device, api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view view);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::create_resource_view, bool, api::device *device, api::resource resource, api::resource_usage usage_type, api::resource_view_desc &desc);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::destroy_resource_view, void, api::device *device, api::resource_view view);
 
-	DEFINE_ADDON_EVENT_TYPE(addon_event::init_pipeline, void, api::device *device, const api::pipeline_desc &desc, api::pipeline pipeline);
-	DEFINE_ADDON_EVENT_TYPE(addon_event::create_pipeline, bool, api::device *device, api::pipeline_desc &desc);
-	DEFINE_ADDON_EVENT_TYPE(addon_event::destroy_pipeline, void, api::device *device, api::pipeline pipeline);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::init_pipeline, void, api::device *device, const api::pipeline_desc &desc, api::pipeline pipeline);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::create_pipeline, bool, api::device *device, api::pipeline_desc &desc);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::destroy_pipeline, void, api::device *device, api::pipeline pipeline);
 
-	DEFINE_ADDON_EVENT_TYPE(addon_event::init_render_pass, void, api::device *device, const api::render_pass_desc &desc, api::render_pass pass);
-	DEFINE_ADDON_EVENT_TYPE(addon_event::create_render_pass, bool, api::device *device, api::render_pass_desc &desc);
-	DEFINE_ADDON_EVENT_TYPE(addon_event::destroy_render_pass, void, api::device *device, api::render_pass pass);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::init_render_pass, void, api::device *device, const api::render_pass_desc &desc, api::render_pass pass);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::create_render_pass, bool, api::device *device, api::render_pass_desc &desc);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::destroy_render_pass, void, api::device *device, api::render_pass pass);
 
-	DEFINE_ADDON_EVENT_TYPE(addon_event::init_framebuffer, void, api::device *device, const api::framebuffer_desc &desc, api::framebuffer fbo);
-	DEFINE_ADDON_EVENT_TYPE(addon_event::create_framebuffer, bool, api::device *device, api::framebuffer_desc &desc);
-	DEFINE_ADDON_EVENT_TYPE(addon_event::destroy_framebuffer, void, api::device *device, api::framebuffer fbo);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::init_framebuffer, void, api::device *device, const api::framebuffer_desc &desc, api::framebuffer fbo);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::create_framebuffer, bool, api::device *device, api::framebuffer_desc &desc);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::destroy_framebuffer, void, api::device *device, api::framebuffer fbo);
 
-	DEFINE_ADDON_EVENT_TYPE(addon_event::upload_buffer_region, bool, api::device *device, const void *data, api::resource dst, uint64_t dst_offset, uint64_t size);
-	DEFINE_ADDON_EVENT_TYPE(addon_event::upload_texture_region, bool, api::device *device, const api::subresource_data &data, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6]);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::upload_buffer_region, bool, api::device *device, const void *data, api::resource dst, uint64_t dst_offset, uint64_t size);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::upload_texture_region, bool, api::device *device, const api::subresource_data &data, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6]);
 
-	DEFINE_ADDON_EVENT_TYPE(addon_event::update_descriptor_sets, bool, api::device *device, uint32_t num_writes, const api::write_descriptor_set *writes, uint32_t num_copies, const api::copy_descriptor_set *copies);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::update_descriptor_sets, bool, api::device *device, uint32_t num_writes, const api::write_descriptor_set *writes, uint32_t num_copies, const api::copy_descriptor_set *copies);
 
-	DEFINE_ADDON_EVENT_TYPE(addon_event::barrier, void, api::command_list *cmd_list, uint32_t num_resources, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::barrier, void, api::command_list *cmd_list, uint32_t num_resources, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states);
 
-	DEFINE_ADDON_EVENT_TYPE(addon_event::begin_render_pass, void, api::command_list *cmd_list, api::render_pass pass, api::framebuffer fbo);
-	DEFINE_ADDON_EVENT_TYPE(addon_event::finish_render_pass, void, api::command_list *cmd_list);
-	DEFINE_ADDON_EVENT_TYPE(addon_event::bind_render_targets_and_depth_stencil, void, api::command_list *cmd_list, uint32_t count, const api::resource_view *rtvs, api::resource_view dsv);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::begin_render_pass, void, api::command_list *cmd_list, api::render_pass pass, api::framebuffer fbo);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::finish_render_pass, void, api::command_list *cmd_list);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::bind_render_targets_and_depth_stencil, void, api::command_list *cmd_list, uint32_t count, const api::resource_view *rtvs, api::resource_view dsv);
 
-	DEFINE_ADDON_EVENT_TYPE(addon_event::bind_pipeline, void, api::command_list *cmd_list, api::pipeline_stage type, api::pipeline pipeline);
-	DEFINE_ADDON_EVENT_TYPE(addon_event::bind_pipeline_states, void, api::command_list *cmd_list, uint32_t count, const api::dynamic_state *states, const uint32_t *values);
-	DEFINE_ADDON_EVENT_TYPE(addon_event::bind_viewports, void, api::command_list *cmd_list, uint32_t first, uint32_t count, const float *viewports);
-	DEFINE_ADDON_EVENT_TYPE(addon_event::bind_scissor_rects, void, api::command_list *cmd_list, uint32_t first, uint32_t count, const int32_t *rects);
-	DEFINE_ADDON_EVENT_TYPE(addon_event::push_constants, void, api::command_list *cmd_list, api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, uint32_t first, uint32_t count, const uint32_t *values);
-	DEFINE_ADDON_EVENT_TYPE(addon_event::push_descriptors, void, api::command_list *cmd_list, api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_type type, uint32_t first, uint32_t count, const void *descriptors);
-	DEFINE_ADDON_EVENT_TYPE(addon_event::bind_descriptor_sets, void, api::command_list *cmd_list, api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_set *sets, const uint32_t *offsets);
-	DEFINE_ADDON_EVENT_TYPE(addon_event::bind_index_buffer, void, api::command_list *cmd_list, api::resource buffer, uint64_t offset, uint32_t index_size);
-	DEFINE_ADDON_EVENT_TYPE(addon_event::bind_vertex_buffers, void, api::command_list *cmd_list, uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *strides);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::bind_pipeline, void, api::command_list *cmd_list, api::pipeline_stage type, api::pipeline pipeline);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::bind_pipeline_states, void, api::command_list *cmd_list, uint32_t count, const api::dynamic_state *states, const uint32_t *values);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::bind_viewports, void, api::command_list *cmd_list, uint32_t first, uint32_t count, const float *viewports);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::bind_scissor_rects, void, api::command_list *cmd_list, uint32_t first, uint32_t count, const int32_t *rects);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::push_constants, void, api::command_list *cmd_list, api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, uint32_t first, uint32_t count, const uint32_t *values);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::push_descriptors, void, api::command_list *cmd_list, api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_type type, uint32_t first, uint32_t count, const void *descriptors);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::bind_descriptor_sets, void, api::command_list *cmd_list, api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_set *sets, const uint32_t *offsets);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::bind_index_buffer, void, api::command_list *cmd_list, api::resource buffer, uint64_t offset, uint32_t index_size);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::bind_vertex_buffers, void, api::command_list *cmd_list, uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *strides);
 
-	DEFINE_ADDON_EVENT_TYPE(addon_event::draw, bool, api::command_list *cmd_list, uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance);
-	DEFINE_ADDON_EVENT_TYPE(addon_event::draw_indexed, bool, api::command_list *cmd_list, uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance);
-	DEFINE_ADDON_EVENT_TYPE(addon_event::dispatch, bool, api::command_list *cmd_list, uint32_t num_groups_x, uint32_t num_groups_y, uint32_t num_groups_z);
-	DEFINE_ADDON_EVENT_TYPE(addon_event::draw_or_dispatch_indirect, bool, api::command_list *cmd_list, api::indirect_command type, api::resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::draw, bool, api::command_list *cmd_list, uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::draw_indexed, bool, api::command_list *cmd_list, uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::dispatch, bool, api::command_list *cmd_list, uint32_t num_groups_x, uint32_t num_groups_y, uint32_t num_groups_z);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::draw_or_dispatch_indirect, bool, api::command_list *cmd_list, api::indirect_command type, api::resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride);
 
-	DEFINE_ADDON_EVENT_TYPE(addon_event::copy_resource, bool, api::command_list *cmd_list, api::resource src, api::resource dst);
-	DEFINE_ADDON_EVENT_TYPE(addon_event::copy_buffer_region, bool, api::command_list *cmd_list, api::resource src, uint64_t src_offset, api::resource dst, uint64_t dst_offset, uint64_t size);
-	DEFINE_ADDON_EVENT_TYPE(addon_event::copy_buffer_to_texture, bool, api::command_list *cmd_list, api::resource src, uint64_t src_offset, uint32_t row_length, uint32_t slice_height, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6]);
-	DEFINE_ADDON_EVENT_TYPE(addon_event::copy_texture_region, bool, api::command_list *cmd_list, api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], api::filter_type filter);
-	DEFINE_ADDON_EVENT_TYPE(addon_event::copy_texture_to_buffer, bool, api::command_list *cmd_list, api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint64_t dst_offset, uint32_t row_length, uint32_t slice_height);
-	DEFINE_ADDON_EVENT_TYPE(addon_event::resolve_texture_region, bool, api::command_list *cmd_list, api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], api::format format);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::copy_resource, bool, api::command_list *cmd_list, api::resource src, api::resource dst);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::copy_buffer_region, bool, api::command_list *cmd_list, api::resource src, uint64_t src_offset, api::resource dst, uint64_t dst_offset, uint64_t size);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::copy_buffer_to_texture, bool, api::command_list *cmd_list, api::resource src, uint64_t src_offset, uint32_t row_length, uint32_t slice_height, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6]);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::copy_texture_region, bool, api::command_list *cmd_list, api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], api::filter_type filter);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::copy_texture_to_buffer, bool, api::command_list *cmd_list, api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint64_t dst_offset, uint32_t row_length, uint32_t slice_height);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::resolve_texture_region, bool, api::command_list *cmd_list, api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], api::format format);
 
-	DEFINE_ADDON_EVENT_TYPE(addon_event::clear_attachments, bool, api::command_list *cmd_list, api::attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t num_rects, const int32_t *rects);
-	DEFINE_ADDON_EVENT_TYPE(addon_event::clear_depth_stencil_view, bool, api::command_list *cmd_list, api::resource_view dsv, api::attachment_type clear_flags, float depth, uint8_t stencil, uint32_t num_rects, const int32_t *rects);
-	DEFINE_ADDON_EVENT_TYPE(addon_event::clear_render_target_view, bool, api::command_list *cmd_list, api::resource_view rtv, const float color[4], uint32_t num_rects, const int32_t *rects);
-	DEFINE_ADDON_EVENT_TYPE(addon_event::clear_unordered_access_view_uint, bool, api::command_list *cmd_list, api::resource_view uav, const uint32_t values[4], uint32_t num_rects, const int32_t *rects);
-	DEFINE_ADDON_EVENT_TYPE(addon_event::clear_unordered_access_view_float, bool, api::command_list *cmd_list, api::resource_view uav, const float values[4], uint32_t num_rects, const int32_t *rects);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::clear_attachments, bool, api::command_list *cmd_list, api::attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t num_rects, const int32_t *rects);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::clear_depth_stencil_view, bool, api::command_list *cmd_list, api::resource_view dsv, api::attachment_type clear_flags, float depth, uint8_t stencil, uint32_t num_rects, const int32_t *rects);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::clear_render_target_view, bool, api::command_list *cmd_list, api::resource_view rtv, const float color[4], uint32_t num_rects, const int32_t *rects);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::clear_unordered_access_view_uint, bool, api::command_list *cmd_list, api::resource_view uav, const uint32_t values[4], uint32_t num_rects, const int32_t *rects);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::clear_unordered_access_view_float, bool, api::command_list *cmd_list, api::resource_view uav, const float values[4], uint32_t num_rects, const int32_t *rects);
 
-	DEFINE_ADDON_EVENT_TYPE(addon_event::generate_mipmaps, bool, api::command_list *cmd_list, api::resource_view srv);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::generate_mipmaps, bool, api::command_list *cmd_list, api::resource_view srv);
 
-	DEFINE_ADDON_EVENT_TYPE(addon_event::reset_command_list, void, api::command_list *cmd_list);
-	DEFINE_ADDON_EVENT_TYPE(addon_event::execute_command_list, void, api::command_queue *queue, api::command_list *cmd_list);
-	DEFINE_ADDON_EVENT_TYPE(addon_event::execute_secondary_command_list, void, api::command_list *cmd_list, api::command_list *secondary_cmd_list);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reset_command_list, void, api::command_list *cmd_list);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::execute_command_list, void, api::command_queue *queue, api::command_list *cmd_list);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::execute_secondary_command_list, void, api::command_list *cmd_list, api::command_list *secondary_cmd_list);
 
-	DEFINE_ADDON_EVENT_TYPE(addon_event::present, void, api::command_queue *queue, api::swapchain *swapchain);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::present, void, api::command_queue *queue, api::swapchain *swapchain);
 
-	DEFINE_ADDON_EVENT_TYPE(addon_event::reshade_begin_effects, void, api::effect_runtime *runtime, api::command_list *cmd_list);
-	DEFINE_ADDON_EVENT_TYPE(addon_event::reshade_finish_effects, void, api::effect_runtime *runtime, api::command_list *cmd_list);
-
-#undef DEFINE_ADDON_EVENT_TYPE
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_begin_effects, void, api::effect_runtime *runtime, api::command_list *cmd_list);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_finish_effects, void, api::effect_runtime *runtime, api::command_list *cmd_list);
 }

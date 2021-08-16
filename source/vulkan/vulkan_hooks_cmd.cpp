@@ -3,13 +3,12 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "dll_log.hpp"
-#include "hook_manager.hpp"
 #include "lockfree_table.hpp"
 #include "vulkan_hooks.hpp"
 #include "vulkan_impl_device.hpp"
 #include "vulkan_impl_command_list.hpp"
 #include "vulkan_impl_type_convert.hpp"
+#include <algorithm>
 
 extern lockfree_table<void *, reshade::vulkan::device_impl *, 16> g_vulkan_devices;
 lockfree_table<VkCommandBuffer, reshade::vulkan::command_list_impl *, 4096> g_vulkan_command_buffers;

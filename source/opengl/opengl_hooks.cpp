@@ -3,7 +3,6 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "dll_log.hpp"
 #include "hook_manager.hpp"
 #include "opengl_impl_swapchain.hpp"
 #include "opengl_impl_type_convert.hpp"

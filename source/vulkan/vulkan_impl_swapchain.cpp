@@ -12,8 +12,7 @@
 #define vk static_cast<device_impl *>(_device)->_dispatch_table
 
 reshade::vulkan::swapchain_impl::swapchain_impl(device_impl *device, command_queue_impl *graphics_queue) :
-	api_object_impl(VK_NULL_HANDLE, device, graphics_queue), // Swap chain object is later set in 'on_init' below
-	_queue(graphics_queue->_orig)
+	api_object_impl(VK_NULL_HANDLE, device, graphics_queue) // Swap chain object is later set in 'on_init' below
 {
 	VkPhysicalDeviceProperties device_props = {};
 	device->_instance_dispatch_table.GetPhysicalDeviceProperties(device->_physical_device, &device_props);
@@ -94,9 +93,6 @@ bool reshade::vulkan::swapchain_impl::on_init(VkSwapchainKHR swapchain, const Vk
 	invoke_addon_event<addon_event::init_swapchain>(this);
 #endif
 
-	if (_queue == VK_NULL_HANDLE)
-		return false;
-
 	_width = desc.imageExtent.width;
 	_height = desc.imageExtent.height;
 	_backbuffer_format = convert_format(desc.imageFormat);
@@ -164,7 +160,7 @@ void reshade::vulkan::swapchain_impl::on_present(VkQueue queue, const uint32_t s
 
 	// If the application is presenting with a different queue than rendering, synchronize these two queues first
 	// This ensures that it has finished rendering before ReShade applies its own rendering
-	if (queue != _queue)
+	if (queue != static_cast<command_queue_impl *>(_graphics_queue)->_orig)
 	{
 		// Signal a semaphore from the queue the application is presenting with
 		VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };

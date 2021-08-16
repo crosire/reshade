@@ -5,7 +5,6 @@
 
 #if RESHADE_ADDON
 
-#include "reshade.hpp"
 #include "dll_log.hpp"
 #include "ini_file.hpp"
 #include "addon_manager.hpp"
@@ -15,7 +14,7 @@
 extern "C" __declspec(dllexport) const uint32_t ReShadeAPI = RESHADE_API_VERSION;
 
 bool reshade::addon::enabled = true;
-std::vector<void *> reshade::addon::event_list[static_cast<uint32_t>(reshade::addon_event::max)];
+std::vector<void *> reshade::addon::event_list[static_cast<size_t>(reshade::addon_event::max)];
 std::vector<reshade::addon::info> reshade::addon::loaded_info;
 #if RESHADE_GUI
 std::vector<std::pair<std::string, void(*)(reshade::api::effect_runtime *, void *)>> reshade::addon::overlay_list;

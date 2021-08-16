@@ -9,7 +9,7 @@
 #include "dll_log.hpp"
 #include "dll_resources.hpp"
 #include "ini_file.hpp"
-#include "addon_manager.hpp"
+#include "addon.hpp"
 #include "runtime.hpp"
 #include "runtime_objects.hpp"
 #include "input.hpp"
@@ -1224,7 +1224,7 @@ void reshade::runtime::draw_gui_home()
 					[](const effect &effect) { return effect.skipped; }); skipped_effects > 0)
 				{
 					char buf[60];
-					ImFormatString(buf, ARRAYSIZE(buf), "Force load all effects (%zu remaining)", skipped_effects);
+					ImFormatString(buf, sizeof(buf), "Force load all effects (%zu remaining)", skipped_effects);
 					if (ImGui::ButtonEx(buf, ImVec2(ImGui::GetWindowContentRegionWidth(), 0)))
 					{
 						_load_option_disable_skipping = true;
@@ -3460,7 +3460,7 @@ void reshade::runtime::render_imgui_draw_data(ImDrawData *draw_data, api::render
 	if (!has_combined_sampler_and_view)
 		cmd_list->push_descriptors(api::shader_stage::pixel, _imgui_pipeline_layout, 0, api::descriptor_type::sampler, 0, 1, &_imgui_sampler_state);
 
-	UINT vtx_offset = 0, idx_offset = 0;
+	int vtx_offset = 0, idx_offset = 0;
 	for (int n = 0; n < draw_data->CmdListsCount; ++n)
 	{
 		const ImDrawList *const draw_list = draw_data->CmdLists[n];

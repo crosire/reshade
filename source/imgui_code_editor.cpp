@@ -25,9 +25,9 @@
 
 #include "effect_lexer.hpp"
 #include "imgui_code_editor.hpp"
-#include <algorithm>
 #include <imgui.h>
 #include <imgui_internal.h> // GetCurrentWindowRead
+#include <algorithm>
 
 const char *reshade::gui::code_editor::get_palette_color_name(unsigned int col)
 {

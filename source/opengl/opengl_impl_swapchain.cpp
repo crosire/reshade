@@ -158,7 +158,7 @@ bool reshade::opengl::swapchain_impl::on_layer_submit(uint32_t eye, GLuint sourc
 {
 	assert(eye < 2 && source_object != 0);
 
-	reshade::api::resource_desc object_desc = get_resource_desc(
+	api::resource_desc object_desc = get_resource_desc(
 		reshade::opengl::make_resource_handle(is_rbo ? GL_RENDERBUFFER : GL_TEXTURE, source_object));
 
 	GLint source_region[4] = { 0, 0, static_cast<GLint>(object_desc.texture.width), static_cast<GLint>(object_desc.texture.height) };

@@ -8,7 +8,7 @@
 #include "opengl_impl_device.hpp"
 #include "opengl_impl_type_convert.hpp"
 
-static GLint get_rbo_param(GLuint id, GLenum param)
+GLint get_rbo_param(GLuint id, GLenum param)
 {
 	GLint value = 0;
 	if (gl3wProcs.gl.GetNamedRenderbufferParameteriv != nullptr)
@@ -25,7 +25,7 @@ static GLint get_rbo_param(GLuint id, GLenum param)
 	}
 	return value;
 }
-static GLint get_buf_param(GLuint id, GLenum param)
+GLint get_buf_param(GLuint id, GLenum param)
 {
 	GLint value = 0;
 	if (gl3wProcs.gl.GetNamedBufferParameteriv != nullptr)
@@ -42,7 +42,7 @@ static GLint get_buf_param(GLuint id, GLenum param)
 	}
 	return value;
 }
-static GLint get_tex_param(GLenum target, GLuint id, GLenum param)
+GLint get_tex_param(GLenum target, GLuint id, GLenum param)
 {
 	GLint value = 0;
 	if (gl3wProcs.gl.GetTextureParameteriv != nullptr)
@@ -62,7 +62,7 @@ static GLint get_tex_param(GLenum target, GLuint id, GLenum param)
 	}
 	return value;
 }
-static GLint get_tex_level_param(GLenum target, GLuint id, GLuint level, GLenum param)
+GLint get_tex_level_param(GLenum target, GLuint id, GLuint level, GLenum param)
 {
 	GLint value = 0;
 	if (gl3wProcs.gl.GetTextureLevelParameteriv != nullptr)
@@ -82,7 +82,7 @@ static GLint get_tex_level_param(GLenum target, GLuint id, GLuint level, GLenum 
 	}
 	return value;
 }
-static GLint get_fbo_attachment_param(GLuint id, GLenum attachment, GLenum param)
+GLint get_fbo_attachment_param(GLuint id, GLenum attachment, GLenum param)
 {
 	GLint value = 0;
 	if (gl3wProcs.gl.GetNamedFramebufferAttachmentParameteriv != nullptr)

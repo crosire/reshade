@@ -272,7 +272,7 @@ void reshade::d3d11::device_context_impl::bind_constant_buffers(api::shader_stag
 	for (uint32_t i = 0; i < count; ++i)
 	{
 		buffer_ptrs[i] = reinterpret_cast<ID3D11Buffer *>(buffer_ranges[i].buffer.handle);
-		assert(buffer_ranges[i].offset == 0 && buffer_ranges[i].size == std::numeric_limits<uint64_t>::max()); // TODO: Use SetConstantBuffers1
+		assert(buffer_ranges[i].offset == 0 && buffer_ranges[i].size == std::numeric_limits<uint64_t>::max()); // TODO: Use 'ID3D11DeviceContext1::(...)SetConstantBuffers1'
 	}
 
 	if ((stages & api::shader_stage::vertex) == api::shader_stage::vertex)

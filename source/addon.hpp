@@ -11,9 +11,14 @@
 
 namespace reshade::api
 {
+	struct api_object;
+	struct effect_runtime;
+
 	template <typename T, typename... api_object_base>
-	class api_object_impl : public api_object_base...
+	class  api_object_impl : public api_object_base...
 	{
+		static_assert(sizeof(T) <= sizeof(uint64_t));
+
 	public:
 		template <typename... Args>
 		explicit api_object_impl(T orig, Args... args) : api_object_base(std::forward<Args>(args)...)..., _orig(orig) {}
@@ -74,3 +79,39 @@ namespace reshade::api
 		std::vector<entry> _data_entries;
 	};
 }
+
+#if RESHADE_ADDON
+
+namespace reshade::addon
+{
+	struct info
+	{
+		void *handle;
+		std::string name;
+		std::string description;
+	};
+
+	/// <summary>
+	/// Global switch to enable or disable all loaded add-ons.
+	/// </summary>
+	extern bool enabled;
+
+	/// <summary>
+	/// List of add-on event callbacks.
+	/// </summary>
+	extern std::vector<void *> event_list[];
+
+	/// <summary>
+	/// List of currently loaded add-ons.
+	/// </summary>
+	extern std::vector<addon::info> loaded_info;
+
+#if RESHADE_GUI
+	/// <summary>
+	/// List of overlays registered by loaded add-ons.
+	/// </summary>
+	extern std::vector<std::pair<std::string, void(*)(api::effect_runtime *, void *)>> overlay_list;
+#endif
+}
+
+#endif

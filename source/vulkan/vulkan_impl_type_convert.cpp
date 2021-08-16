@@ -1074,6 +1074,8 @@ reshade::api::pipeline_desc reshade::vulkan::device_impl::convert_pipeline_desc(
 }
 reshade::api::pipeline_desc reshade::vulkan::device_impl::convert_pipeline_desc(const VkGraphicsPipelineCreateInfo &create_info) const
 {
+	bool has_tessellation_shader_stage = false;
+
 	api::pipeline_desc desc = { api::pipeline_stage::all_graphics };
 	desc.layout = { (uint64_t)create_info.layout };
 
@@ -1094,12 +1096,14 @@ reshade::api::pipeline_desc reshade::vulkan::device_impl::convert_pipeline_desc(
 			desc.graphics.vertex_shader.entry_point = stage.pName;
 			break;
 		case VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT:
+			has_tessellation_shader_stage = true;
 			desc.graphics.hull_shader.code = spirv.data();
 			desc.graphics.hull_shader.code_size = spirv.size() * sizeof(uint32_t);
 			desc.graphics.hull_shader.format = api::shader_format::spirv;
 			desc.graphics.hull_shader.entry_point = stage.pName;
 			break;
 		case VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT:
+			has_tessellation_shader_stage = true;
 			desc.graphics.domain_shader.code = spirv.data();
 			desc.graphics.domain_shader.code_size = spirv.size() * sizeof(uint32_t);
 			desc.graphics.domain_shader.format = api::shader_format::spirv;
@@ -1154,7 +1158,7 @@ reshade::api::pipeline_desc reshade::vulkan::device_impl::convert_pipeline_desc(
 		desc.graphics.topology = convert_primitive_topology(input_assembly_state_info.topology);
 	}
 
-	if (create_info.pTessellationState != nullptr)
+	if (has_tessellation_shader_stage && create_info.pTessellationState != nullptr)
 	{
 		const VkPipelineTessellationStateCreateInfo &tessellation_state_info = *create_info.pTessellationState;
 
