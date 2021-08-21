@@ -29,10 +29,12 @@ static inline vr::VRTextureBounds_t calc_side_by_side_bounds(vr::EVREye eye, con
 	vr::VRTextureBounds_t bounds = (eye != vr::Eye_Right) ?
 		vr::VRTextureBounds_t { 0.0f, 0.0f, 0.5f, 1.0f } : // Left half of the texture
 		vr::VRTextureBounds_t { 0.5f, 0.0f, 1.0f, 1.0f };  // Right half of the texture
+
 	if (orig_bounds != nullptr && orig_bounds->uMin > orig_bounds->uMax)
 		std::swap(bounds.uMin, bounds.uMax);
 	if (orig_bounds != nullptr && orig_bounds->vMin > orig_bounds->vMax)
 		std::swap(bounds.vMin, bounds.vMax);
+
 	return bounds;
 }
 
@@ -65,8 +67,9 @@ static vr::EVRCompositorError on_submit_d3d11(vr::EVREye eye, ID3D11Texture2D *t
 		reinterpret_cast<const float *>(bounds),
 		&target_texture))
 	{
-	normal_submit:
+		normal_submit:
 		// Failed to initialize effect runtime or copy the eye texture, so submit normally without applying effects
+		LOG(DEBUG) << "Failed to initialize effect runtime or copy the eye texture for eye " << eye;
 		return submit(eye, texture, bounds, flags);
 	}
 

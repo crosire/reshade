@@ -200,10 +200,10 @@ bool reshade::d3d11::swapchain_impl::on_layer_submit(UINT eye, ID3D11Texture2D *
 	D3D11_BOX source_region = { 0, 0, 0, source_desc.Width, source_desc.Height, 1 };
 	if (bounds != nullptr)
 	{
-		source_region.left = static_cast<UINT>(source_desc.Width * std::min(bounds[0], bounds[2]));
-		source_region.top  = static_cast<UINT>(source_desc.Height * std::min(bounds[1], bounds[3]));
-		source_region.right = static_cast<UINT>(source_desc.Width * std::max(bounds[0], bounds[2]));
-		source_region.bottom = static_cast<UINT>(source_desc.Height * std::max(bounds[1], bounds[3]));
+		source_region.left = static_cast<UINT>(std::floor(source_desc.Width * std::min(bounds[0], bounds[2])));
+		source_region.top  = static_cast<UINT>(std::floor(source_desc.Height * std::min(bounds[1], bounds[3])));
+		source_region.right = static_cast<UINT>(std::ceil(source_desc.Width * std::max(bounds[0], bounds[2])));
+		source_region.bottom = static_cast<UINT>(std::ceil(source_desc.Height * std::max(bounds[1], bounds[3])));
 	}
 
 	const UINT region_width = source_region.right - source_region.left;
@@ -216,10 +216,15 @@ bool reshade::d3d11::swapchain_impl::on_layer_submit(UINT eye, ID3D11Texture2D *
 	//convert the source format to the typeless format
 	const api::format convertedSourceFormat = api::format_to_typeless(convert_format(source_desc.Format));
 
-	if (target_width != _width || region_height != _height || convertedSourceFormat != _backbuffer_format)
+	//due to rounding errors with float calculation of the bounds we have use a tolerance of 1 pixel per eye (2pixel in total)
+	const INT widthDiff = std::abs(static_cast<INT>(target_width) - static_cast<INT>(_width));
+
+	if (widthDiff > 2 || region_height != _height || convertedSourceFormat != _backbuffer_format)
 	{
 		LOG(DEBUG) << "Recreate texture: width " << _width << ", target_width " << target_width << ",_height " << _height << ", region_height " << region_height
-			<< ", backbuffer format " << convert_format(_backbuffer_format) << ", converted source format "<< convert_format(convertedSourceFormat) ;
+			<< ", backbuffer format " << convert_format(_backbuffer_format) << ", converted source format "<< convert_format(convertedSourceFormat);
+
+		LOG(DEBUG) << "Source width " << source_desc.Width << " , bound0 " << bounds[0] << ", bounds2 " << bounds[2] << ", region_width " << region_width;
 
 		on_reset();
 

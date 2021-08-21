@@ -189,10 +189,10 @@ bool reshade::vulkan::swapchain_impl::on_layer_submit(uint32_t eye, VkImage sour
 	VkExtent3D source_region_extent = { source_extent.width, source_extent.height, 1 };
 	if (bounds != nullptr)
 	{
-		source_region_offset.x = static_cast<int32_t>(source_extent.width * std::min(bounds[0], bounds[2]));
-		source_region_extent.width = static_cast<uint32_t>(source_extent.width* std::max(bounds[0], bounds[2]) - source_region_offset.x);
-		source_region_offset.y = static_cast<int32_t>(source_extent.height * std::min(bounds[1], bounds[3]));
-		source_region_extent.height = static_cast<uint32_t>(source_extent.height * std::max(bounds[1], bounds[3]) - source_region_offset.y);
+		source_region_offset.x = static_cast<int32_t>(std::floor(source_extent.width * std::min(bounds[0], bounds[2])));
+		source_region_offset.y = static_cast<int32_t>(std::floor(source_extent.height * std::min(bounds[1], bounds[3])));
+		source_region_extent.width = static_cast<uint32_t>(std::ceil(source_extent.width* std::max(bounds[0], bounds[2]) - source_region_offset.x));
+		source_region_extent.height = static_cast<uint32_t>(std::ceil(source_extent.height * std::max(bounds[1], bounds[3]) - source_region_offset.y));
 	}
 
 	VkExtent2D target_extent = { source_region_extent.width, source_region_extent.height };
@@ -200,7 +200,10 @@ bool reshade::vulkan::swapchain_impl::on_layer_submit(uint32_t eye, VkImage sour
 
 	VkCommandBuffer cmd_list = VK_NULL_HANDLE;
 
-	if (target_extent.width != _width || target_extent.height != _height || convert_format(source_format) != _backbuffer_format)
+	//due to rounding errors with float calculation of the bounds we have use a tolerance of 1 pixel per eye (2pixel in total)
+	const INT widthDiff = std::abs(static_cast<INT>(target_extent.width) - static_cast<INT>(_width));
+
+	if (widthDiff > 2 || target_extent.height != _height || convert_format(source_format) != _backbuffer_format)
 	{
 		on_reset();
 
@@ -215,6 +218,10 @@ bool reshade::vulkan::swapchain_impl::on_layer_submit(uint32_t eye, VkImage sour
 			LOG(DEBUG) << "> Details: Width = " << target_extent.width << ", Height = " << target_extent.height << ", Format = " << source_format;
 			return false;
 		}
+
+		_width = target_extent.width;
+		_height = target_extent.height;
+		_backbuffer_format = convert_format(source_format);
 
 		_swapchain_images.resize(1);
 		_swapchain_images[0] = (VkImage)image.handle;
