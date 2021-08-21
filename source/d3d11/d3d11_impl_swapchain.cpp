@@ -243,8 +243,10 @@ bool reshade::d3d11::swapchain_impl::on_layer_submit(UINT eye, ID3D11Texture2D *
 		_height = region_height;
 		_backbuffer_format = convertedSourceFormat;
 
-		//assign the backuffer to the resolved buffer
+		//assign the backuffer to the resolved buffer and release the original backbuffer
 		_backbuffer_resolved = _backbuffer;
+		_backbuffer->Release();
+		assert(_backbuffer.ref_count() == 1);
 
 #if RESHADE_ADDON
 		invoke_addon_event<addon_event::init_swapchain>(this);
