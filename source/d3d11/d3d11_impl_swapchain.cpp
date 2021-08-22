@@ -221,11 +221,6 @@ bool reshade::d3d11::swapchain_impl::on_layer_submit(UINT eye, ID3D11Texture2D *
 
 	if (widthDiff > 2 || region_height != _height || convertedSourceFormat != _backbuffer_format)
 	{
-		LOG(DEBUG) << "Recreate texture: width " << _width << ", target_width " << target_width << ",_height " << _height << ", region_height " << region_height
-			<< ", backbuffer format " << convert_format(_backbuffer_format) << ", converted source format "<< convert_format(convertedSourceFormat);
-
-		LOG(DEBUG) << "Source width " << source_desc.Width << " , bound0 " << bounds[0] << ", bounds2 " << bounds[2] << ", region_width " << region_width;
-
 		on_reset();
 
 		source_desc.Width = target_width;
