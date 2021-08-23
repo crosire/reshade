@@ -254,6 +254,7 @@ void reshade::runtime::draw_gui_vr()
 
 	switch (_device->get_api())
 	{
+	case api::device_api::d3d10:
 	case api::device_api::d3d11:
 		texture.handle = reinterpret_cast<void *>(_vr_overlay_texture.handle);
 		texture.eType = vr::TextureType_DirectX;
