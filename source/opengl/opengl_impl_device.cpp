@@ -1705,6 +1705,7 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 		internal_format = (object == GL_DEPTH_STENCIL_ATTACHMENT || object == GL_DEPTH_ATTACHMENT || object == GL_STENCIL_ATTACHMENT) ? _default_depth_format : _default_color_format;
 		break;
 	default:
+		LOG(DEBUG) << "Could not find supported resource type for target " << target;
 		assert(false);
 		break;
 	}

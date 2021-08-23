@@ -187,10 +187,10 @@ bool reshade::d3d12::swapchain_impl::on_layer_submit(UINT eye, ID3D12Resource *s
 	D3D12_BOX source_region = { 0, 0, 0, static_cast<UINT>(source_desc.Width), source_desc.Height, 1 };
 	if (bounds != nullptr)
 	{
-		source_region.left = static_cast<UINT>(source_desc.Width * std::min(bounds[0], bounds[2]));
-		source_region.top  = static_cast<UINT>(source_desc.Height * std::min(bounds[1], bounds[3]));
-		source_region.right = static_cast<UINT>(source_desc.Width * std::max(bounds[0], bounds[2]));
-		source_region.bottom = static_cast<UINT>(source_desc.Height * std::max(bounds[1], bounds[3]));
+		source_region.left = static_cast<UINT>(std::floor(source_desc.Width * std::min(bounds[0], bounds[2])));
+		source_region.top  = static_cast<UINT>(std::floor(source_desc.Height * std::min(bounds[1], bounds[3])));
+		source_region.right = static_cast<UINT>(std::ceil(source_desc.Width * std::max(bounds[0], bounds[2])));
+		source_region.bottom = static_cast<UINT>(std::ceil(source_desc.Height * std::max(bounds[1], bounds[3])));
 	}
 
 	const UINT region_width = source_region.right - source_region.left;
@@ -200,7 +200,13 @@ bool reshade::d3d12::swapchain_impl::on_layer_submit(UINT eye, ID3D12Resource *s
 	if (region_width == 0 || region_height == 0)
 		return false;
 
-	if (target_width != _width || region_height != _height || convert_format(source_desc.Format) != _backbuffer_format)
+	//convert the source format to the typeless format
+	const api::format convertedSourceFormat = api::format_to_typeless(convert_format(source_desc.Format));
+
+	//due to rounding errors with float calculation of the bounds we have use a tolerance of 1 pixel per eye (2pixel in total)
+	const INT widthDiff = std::abs(static_cast<INT>(target_width) - static_cast<INT>(_width));
+
+	if (widthDiff > 2 || region_height != _height || convertedSourceFormat != _backbuffer_format)
 	{
 		on_reset();
 
@@ -210,7 +216,7 @@ bool reshade::d3d12::swapchain_impl::on_layer_submit(UINT eye, ID3D12Resource *s
 		source_desc.Height = region_height;
 		source_desc.DepthOrArraySize = 1;
 		source_desc.MipLevels = 1;
-		source_desc.Format = convert_format(api::format_to_typeless(convert_format(source_desc.Format)));
+		source_desc.Format = convert_format(convertedSourceFormat);
 
 		const D3D12_HEAP_PROPERTIES heap_props = { D3D12_HEAP_TYPE_DEFAULT };
 
@@ -224,7 +230,7 @@ bool reshade::d3d12::swapchain_impl::on_layer_submit(UINT eye, ID3D12Resource *s
 		_is_vr = true;
 		_width = target_width;
 		_height = region_height;
-		_backbuffer_format = convert_format(source_desc.Format);
+		_backbuffer_format = convertedSourceFormat;
 
 #if RESHADE_ADDON
 		invoke_addon_event<addon_event::init_swapchain>(this);

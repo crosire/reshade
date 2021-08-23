@@ -158,22 +158,24 @@ bool reshade::opengl::swapchain_impl::on_layer_submit(uint32_t eye, GLuint sourc
 {
 	assert(eye < 2 && source_object != 0);
 
-	reshade::api::resource_desc object_desc = get_resource_desc(
-		reshade::opengl::make_resource_handle(is_rbo ? GL_RENDERBUFFER : GL_TEXTURE, source_object));
+	reshade::api::resource_desc object_desc = get_resource_desc( reshade::opengl::make_resource_handle(is_rbo ? GL_RENDERBUFFER : (is_array? GL_TEXTURE_2D_ARRAY: GL_TEXTURE_2D), source_object));
 
 	GLint source_region[4] = { 0, 0, static_cast<GLint>(object_desc.texture.width), static_cast<GLint>(object_desc.texture.height) };
 	if (bounds != nullptr)
 	{
-		source_region[0] = static_cast<GLint>(object_desc.texture.width * std::min(bounds[0], bounds[2]));
-		source_region[1] = static_cast<GLint>(object_desc.texture.height * std::min(bounds[1], bounds[3]));
-		source_region[2] = static_cast<GLint>(object_desc.texture.width * std::max(bounds[0], bounds[2]));
-		source_region[3] = static_cast<GLint>(object_desc.texture.height * std::max(bounds[1], bounds[3]));
+		source_region[0] = static_cast<GLint>(std::floor(object_desc.texture.width * std::min(bounds[0], bounds[2])));
+		source_region[1] = static_cast<GLint>(std::floor(object_desc.texture.height * std::min(bounds[1], bounds[3])));
+		source_region[2] = static_cast<GLint>(std::ceil(object_desc.texture.width * std::max(bounds[0], bounds[2])));
+		source_region[3] = static_cast<GLint>(std::ceil(object_desc.texture.height * std::max(bounds[1], bounds[3])));
 	}
 
 	const GLint region_width = source_region[2] - source_region[0];
 	object_desc.texture.width = region_width * 2;
 
-	if (object_desc.texture.width != _width || object_desc.texture.height != _height)
+	//due to rounding errors with float calculation of the bounds we have use a tolerance of 1 pixel per eye (2pixel in total)
+	const INT widthDiff = std::abs(static_cast<INT>(object_desc.texture.width) - static_cast<INT>(_width));
+
+	if (widthDiff  > 2 || object_desc.texture.height != _height)
 	{
 		on_reset();
 

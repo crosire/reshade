@@ -27,6 +27,7 @@ namespace reshade::d3d10
 		bool on_init();
 		void on_reset();
 		void on_present();
+		bool on_layer_submit(UINT eye, ID3D10Texture2D *source, const float bounds[4], ID3D10Texture2D **target);
 
 	private:
 		state_block _app_state;

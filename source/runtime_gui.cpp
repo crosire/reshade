@@ -2694,7 +2694,10 @@ void reshade::runtime::draw_variable_editor()
 			}
 
 			// Reloading an effect file invalidates all textures, but the statistics window may already have drawn references to those, so need to reset it
-			ImGui::FindWindowByName("Statistics")->DrawList->CmdBuffer.clear();
+			ImGuiWindow *statisticsWindow = ImGui::FindWindowByName("Statistics");
+			if(statisticsWindow != nullptr){
+				statisticsWindow->DrawList->CmdBuffer.clear();
+			}
 		}
 	}
 
