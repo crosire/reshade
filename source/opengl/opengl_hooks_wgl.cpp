@@ -342,7 +342,7 @@ HOOK_EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 	}
 
 	// Keep track of legacy contexts here instead of in 'wglCreateLayerContext' because some drivers call the latter from within their 'wglCreateContextAttribsARB' implementation
-	{ const std::lock_guard<std::mutex> lock(s_global_mutex);
+	{ const std::unique_lock<std::mutex> lock(s_global_mutex);
 		s_legacy_contexts.emplace(hglrc);
 	}
 
@@ -440,7 +440,7 @@ HOOK_EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 		return nullptr;
 	}
 
-	{ const std::lock_guard<std::mutex> lock(s_global_mutex);
+	{ const std::unique_lock<std::mutex> lock(s_global_mutex);
 		s_shared_contexts.emplace(hglrc, hShareContext);
 
 		if (hShareContext != nullptr)
@@ -478,7 +478,7 @@ HOOK_EXPORT HGLRC WINAPI wglCreateLayerContext(HDC hdc, int iLayerPlane)
 		return nullptr;
 	}
 
-	{ const std::lock_guard<std::mutex> lock(s_global_mutex);
+	{ const std::unique_lock<std::mutex> lock(s_global_mutex);
 		s_shared_contexts.emplace(hglrc, nullptr);
 	}
 
@@ -549,7 +549,7 @@ HOOK_EXPORT BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 		s_opengl_contexts.erase(it);
 	}
 
-	{ const std::lock_guard<std::mutex> lock(s_global_mutex);
+	{ const std::unique_lock<std::mutex> lock(s_global_mutex);
 		s_legacy_contexts.erase(hglrc);
 
 		for (auto it = s_shared_contexts.begin(); it != s_shared_contexts.end();)
@@ -587,7 +587,7 @@ HOOK_EXPORT BOOL  WINAPI wglShareLists(HGLRC hglrc1, HGLRC hglrc2)
 		return FALSE;
 	}
 
-	{ const std::lock_guard<std::mutex> lock(s_global_mutex);
+	{ const std::unique_lock<std::mutex> lock(s_global_mutex);
 		s_shared_contexts[hglrc2] = hglrc1;
 	}
 
@@ -623,7 +623,7 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		return TRUE;
 	}
 
-	const std::lock_guard<std::mutex> lock(s_global_mutex);
+	const std::unique_lock<std::mutex> lock(s_global_mutex);
 
 	if (const auto it = s_shared_contexts.find(hglrc);
 		it != s_shared_contexts.end() && it->second != nullptr)
@@ -808,7 +808,7 @@ HOOK_EXPORT HGLRC WINAPI wglGetCurrentContext()
 		return nullptr;
 	}
 
-	{ const std::lock_guard<std::mutex> lock(s_global_mutex);
+	{ const std::unique_lock<std::mutex> lock(s_global_mutex);
 		s_pbuffer_device_contexts.insert(hdc);
 	}
 
@@ -827,7 +827,7 @@ HOOK_EXPORT HGLRC WINAPI wglGetCurrentContext()
 		return FALSE;
 	}
 
-	{ const std::lock_guard<std::mutex> lock(s_global_mutex);
+	{ const std::unique_lock<std::mutex> lock(s_global_mutex);
 		s_pbuffer_device_contexts.erase(hdc);
 	}
 

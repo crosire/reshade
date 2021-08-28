@@ -77,7 +77,7 @@ namespace reshade
 		/// Locks access to the input data to the current thread.
 		/// </summary>
 		/// <returns>A RAII object holding the lock, which releases it after going out of scope.</returns>
-		auto lock() { return std::lock_guard<std::mutex>(_mutex); }
+		auto lock() { return std::unique_lock<std::mutex>(_mutex); }
 
 		/// <summary>
 		/// Notifies the input manager to advance a frame.

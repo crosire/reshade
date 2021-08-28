@@ -6,10 +6,9 @@
 #pragma once
 
 #include "addon_manager.hpp"
+#include "lockfree_table.hpp"
 #include "descriptor_heap.hpp"
-#include <mutex>
 #include <dxgi1_5.h>
-#include <unordered_map>
 
 namespace reshade::d3d12
 {
@@ -101,24 +100,25 @@ namespace reshade::d3d12
 		inline void register_resource_view(ID3D12Resource *resource, D3D12_CPU_DESCRIPTOR_HANDLE handle)
 		{
 			assert(resource != nullptr);
-			const std::lock_guard<std::mutex> lock(_mutex);
 			_views.emplace(handle.ptr, resource);
 		}
 
 	private:
+		std::vector<command_queue_impl *> _queues;
+
+		UINT _descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
+
 		descriptor_heap_cpu _view_heaps[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
 		descriptor_heap_gpu<D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, 128, 128> _gpu_sampler_heap;
 		descriptor_heap_gpu<D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1024, 2048> _gpu_view_heap;
 
-		UINT _descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
-
 		com_ptr<ID3D12PipelineState> _mipmap_pipeline;
 		com_ptr<ID3D12RootSignature> _mipmap_signature;
 
-		mutable std::mutex _mutex;
-		std::vector<command_queue_impl *> _queues;
-		std::unordered_map<SIZE_T, ID3D12Resource *> _views;
+		concurrent_hash_table<SIZE_T, ID3D12Resource *> _views;
+
 #if RESHADE_ADDON
+		mutable std::shared_mutex _mutex;
 		std::vector<ID3D12DescriptorHeap *> _descriptor_heaps;
 		std::vector<std::pair<ID3D12Resource *, D3D12_GPU_VIRTUAL_ADDRESS_RANGE>> _buffer_gpu_addresses;
 #endif

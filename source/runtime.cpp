@@ -810,7 +810,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 
 	if ( effect.compiled && (effect.preprocessed || source_cached))
 	{
-		const std::lock_guard<std::mutex> lock(_reload_mutex);
+		const std::unique_lock<std::mutex> lock(_reload_mutex);
 
 		for (texture new_texture : effect.module.textures)
 		{
@@ -2115,7 +2115,7 @@ void reshade::runtime::unload_effect(size_t effect_index)
 #endif
 
 	// Lock here to be safe in case another effect is still loading
-	const std::lock_guard<std::mutex> lock(_reload_mutex);
+	const std::unique_lock<std::mutex> lock(_reload_mutex);
 
 	// No techniques from this effect are rendering anymore
 	_effects[effect_index].rendering = 0;

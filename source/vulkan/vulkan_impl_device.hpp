@@ -6,8 +6,7 @@
 #pragma once
 
 #include "addon_manager.hpp"
-#include <mutex>
-#include <unordered_map>
+#include "lockfree_table.hpp"
 
 #pragma warning(push)
 #pragma warning(disable: 4100 4127 4324 4703) // Disable a bunch of warnings thrown by VMA code
@@ -17,97 +16,6 @@
 
 namespace reshade::vulkan
 {
-	struct resource_data
-	{
-		bool is_image() const { return type != VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO; }
-
-		union
-		{
-			VkImage image;
-			VkBuffer buffer;
-		};
-		union
-		{
-			VkStructureType type;
-			VkImageCreateInfo image_create_info;
-			VkBufferCreateInfo buffer_create_info;
-		};
-
-		VmaAllocation allocation;
-	};
-
-	struct resource_view_data
-	{
-		bool is_image_view() const { return type != VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO; }
-
-		union
-		{
-			VkImageView image_view;
-			VkBufferView buffer_view;
-		};
-		union
-		{
-			VkStructureType type;
-			VkImageViewCreateInfo image_create_info;
-			VkBufferViewCreateInfo buffer_create_info;
-		};
-	};
-
-	struct render_pass_data
-	{
-		struct attachment
-		{
-			VkImageLayout initial_layout;
-			VkImageAspectFlags clear_flags;
-			VkImageAspectFlags format_flags;
-		};
-
-		std::vector<attachment> attachments;
-	};
-
-	struct framebuffer_data
-	{
-		VkExtent2D area;
-		std::vector<VkImageView> attachments;
-		std::vector<VkImageAspectFlags> attachment_types;
-	};
-
-	struct shader_module_data
-	{
-		std::vector<uint32_t> spirv;
-	};
-
-	struct pipeline_layout_data
-	{
-		std::vector<api::pipeline_layout_param> desc;
-	};
-
-	struct descriptor_set_layout_data
-	{
-		void calc_binding_from_offset(uint32_t offset, uint32_t &last_binding, uint32_t &array_offset) const
-		{
-			last_binding = 0;
-			array_offset = 0;
-
-			for (const auto [binding_offset, binding] : binding_to_offset)
-			{
-				if (offset < binding_offset || offset > binding_offset + array_offset)
-					continue;
-
-				last_binding = binding;
-				array_offset = offset - binding_offset;
-			}
-		}
-		uint32_t calc_offset_from_binding(uint32_t binding, uint32_t array_offset) const
-		{
-			return binding_to_offset.at(binding) + array_offset;
-		}
-
-		std::vector<api::descriptor_range> desc;
-		std::unordered_map<uint32_t, uint32_t> binding_to_offset;
-		bool push_descriptors;
-	};
-
 	class device_impl : public api::api_object_impl<VkDevice, api::device>
 	{
 		friend class command_list_impl;
@@ -176,176 +84,22 @@ namespace reshade::vulkan
 
 		void advance_transient_descriptor_pool();
 
-#if RESHADE_ADDON
-		uint32_t get_subresource_index(VkImage image, const VkImageSubresourceLayers &layers, uint32_t layer = 0) const
+		template <typename T>
+		void register_object(uint64_t object, T &&data)
 		{
-			return layers.mipLevel + (layers.baseArrayLayer + layer) * lookup_resource({ (uint64_t)image }).image_create_info.mipLevels;
+			static_cast<concurrent_hash_table<uint64_t, T> &>(_objects).emplace(object, std::move(data));
 		}
 
-		api::resource_view get_default_view(VkImage image)
+		template <typename T>
+		void unregister_object(uint64_t object)
 		{
-			VkImageViewCreateInfo create_info{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
-			create_info.image = image;
-			register_image_view((VkImageView)image, create_info); // Register fake image view for this image
-			return { (uint64_t)image };
-		}
-#endif
-		resource_data lookup_resource(api::resource resource) const
-		{
-			assert(resource.handle != 0);
-			const std::lock_guard<std::mutex> lock(_mutex);
-			return _resources.at(resource.handle);
-		}
-		resource_view_data lookup_resource_view(api::resource_view view) const
-		{
-			assert(view.handle != 0);
-			const std::lock_guard<std::mutex> lock(_mutex);
-			return _views.at(view.handle);
-		}
-		render_pass_data lookup_render_pass(VkRenderPass pass) const
-		{
-			const std::lock_guard<std::mutex> lock(_mutex);
-			return _render_pass_list.at(pass);
-		}
-		framebuffer_data lookup_framebuffer(VkFramebuffer fbo) const
-		{
-			const std::lock_guard<std::mutex> lock(_mutex);
-			return _framebuffer_list.at(fbo);
-		}
-		pipeline_layout_data lookup_pipeline_layout(VkPipelineLayout layout) const
-		{
-			const std::lock_guard<std::mutex> lock(_mutex);
-			return _pipeline_layout_list.at(layout);
-		}
-		descriptor_set_layout_data lookup_descriptor_set(VkDescriptorSet set) const
-		{
-			const std::lock_guard<std::mutex> lock(_mutex);
-			return _descriptor_set_layout_list.at((VkDescriptorSetLayout)set);
-		}
-		descriptor_set_layout_data lookup_descriptor_set_layout(VkDescriptorSetLayout layout) const
-		{
-			const std::lock_guard<std::mutex> lock(_mutex);
-			return _descriptor_set_layout_list.at(layout);
+			static_cast<concurrent_hash_table<uint64_t, T> &>(_objects).erase(object);
 		}
 
-		void register_image(VkImage image, const VkImageCreateInfo &create_info, VmaAllocation allocation = VK_NULL_HANDLE)
+		template <typename T>
+		__forceinline T get_native_object_data(uint64_t object) const
 		{
-			resource_data data;
-			data.image = image;
-			data.image_create_info = create_info;
-			data.allocation = allocation;
-
-			const std::lock_guard<std::mutex> lock(_mutex);
-			_resources.emplace((uint64_t)image, std::move(data));
-		}
-		void register_image_view(VkImageView image_view, const VkImageViewCreateInfo &create_info)
-		{
-			resource_view_data data;
-			data.image_view = image_view;
-			data.image_create_info = create_info;
-
-			const std::lock_guard<std::mutex> lock(_mutex);
-			_views.emplace((uint64_t)image_view, std::move(data));
-		}
-		void register_buffer(VkBuffer buffer, const VkBufferCreateInfo &create_info, VmaAllocation allocation = VK_NULL_HANDLE)
-		{
-			resource_data data;
-			data.buffer = buffer;
-			data.buffer_create_info = create_info;
-			data.allocation = allocation;
-
-			const std::lock_guard<std::mutex> lock(_mutex);
-			_resources.emplace((uint64_t)buffer, std::move(data));
-		}
-		void register_buffer_view(VkBufferView buffer_view, const VkBufferViewCreateInfo &create_info)
-		{
-			resource_view_data data;
-			data.buffer_view = buffer_view;
-			data.buffer_create_info = create_info;
-
-			const std::lock_guard<std::mutex> lock(_mutex);
-			_views.emplace((uint64_t)buffer_view, std::move(data));
-		}
-		void register_render_pass(VkRenderPass pass, render_pass_data &&data)
-		{
-			const std::lock_guard<std::mutex> lock(_mutex);
-			_render_pass_list.emplace(pass, std::move(data));
-		}
-		void register_framebuffer(VkFramebuffer fbo, framebuffer_data &&data)
-		{
-			const std::lock_guard<std::mutex> lock(_mutex);
-			_framebuffer_list.emplace(fbo, std::move(data));
-		}
-		void register_shader_module(VkShaderModule module, shader_module_data &&data)
-		{
-			const std::lock_guard<std::mutex> lock(_mutex);
-			_shader_module_list.emplace(module, std::move(data));
-		}
-		void register_pipeline_layout(VkPipelineLayout layout, pipeline_layout_data &&data)
-		{
-			const std::lock_guard<std::mutex> lock(_mutex);
-			_pipeline_layout_list.emplace(layout, std::move(data));
-		}
-		void register_descriptor_set(VkDescriptorSet set, VkDescriptorSetLayout layout)
-		{
-			const std::lock_guard<std::mutex> lock(_mutex);
-			_descriptor_set_layout_list.emplace((VkDescriptorSetLayout)set, _descriptor_set_layout_list.at(layout));
-		}
-		void register_descriptor_set_layout(VkDescriptorSetLayout layout, descriptor_set_layout_data &&data)
-		{
-			const std::lock_guard<std::mutex> lock(_mutex);
-			_descriptor_set_layout_list.emplace(layout, std::move(data));
-		}
-
-		void unregister_image(VkImage image)
-		{
-			const std::lock_guard<std::mutex> lock(_mutex);
-			_resources.erase((uint64_t)image);
-		}
-		void unregister_image_view(VkImageView image_view)
-		{
-			const std::lock_guard<std::mutex> lock(_mutex);
-			_views.erase((uint64_t)image_view);
-		}
-		void unregister_buffer(VkBuffer buffer)
-		{
-			const std::lock_guard<std::mutex> lock(_mutex);
-			_resources.erase((uint64_t)buffer);
-		}
-		void unregister_buffer_view(VkBufferView buffer_view)
-		{
-			const std::lock_guard<std::mutex> lock(_mutex);
-			_views.erase((uint64_t)buffer_view);
-		}
-		void unregister_render_pass(VkRenderPass pass)
-		{
-			const std::lock_guard<std::mutex> lock(_mutex);
-			_render_pass_list.erase(pass);
-		}
-		void unregister_framebuffer(VkFramebuffer fbo)
-		{
-			const std::lock_guard<std::mutex> lock(_mutex);
-			_framebuffer_list.erase(fbo);
-		}
-		void unregister_shader_module(VkShaderModule module)
-		{
-			const std::lock_guard<std::mutex> lock(_mutex);
-			_shader_module_list.erase(module);
-		}
-		void unregister_pipeline_layout(VkPipelineLayout layout)
-		{
-			const std::lock_guard<std::mutex> lock(_mutex);
-			_pipeline_layout_list.erase(layout);
-		}
-		void unregister_descriptor_set(VkDescriptorSet set)
-		{
-			const std::lock_guard<std::mutex> lock(_mutex);
-			_descriptor_set_layout_list.erase((VkDescriptorSetLayout)set);
-		}
-		void unregister_descriptor_set_layout(VkDescriptorSetLayout layout)
-		{
-			const std::lock_guard<std::mutex> lock(_mutex);
-			_descriptor_set_layout_list.erase(layout);
+			return static_cast<const concurrent_hash_table<uint64_t, T> &>(_objects).at(object);
 		}
 
 		api::pipeline_desc convert_pipeline_desc(const VkComputePipelineCreateInfo &create_info) const;
@@ -366,20 +120,21 @@ namespace reshade::vulkan
 	private:
 		bool create_shader_module(VkShaderStageFlagBits stage, const api::shader_desc &desc, VkPipelineShaderStageCreateInfo &stage_info, VkSpecializationInfo &spec_info, std::vector<VkSpecializationMapEntry> &spec_map);
 
-		mutable std::mutex _mutex;
-
 		VmaAllocator _alloc = nullptr;
-		std::unordered_map<uint64_t, resource_data> _resources;
-		std::unordered_map<uint64_t, resource_view_data> _views;
-
-		std::unordered_map<VkRenderPass, render_pass_data> _render_pass_list;
-		std::unordered_map<VkFramebuffer, framebuffer_data> _framebuffer_list;
-		std::unordered_map<VkShaderModule, shader_module_data> _shader_module_list;
-		std::unordered_map<VkPipelineLayout, pipeline_layout_data> _pipeline_layout_list;
-		std::unordered_map<VkDescriptorSetLayout, descriptor_set_layout_data> _descriptor_set_layout_list;
 
 		VkDescriptorPool _descriptor_pool = VK_NULL_HANDLE;
 		VkDescriptorPool _transient_descriptor_pool[4] = {};
 		uint32_t _transient_index = 0;
+
+		class :
+			public concurrent_hash_table<uint64_t, struct resource_data>,
+			public concurrent_hash_table<uint64_t, struct resource_view_data>,
+			public concurrent_hash_table<uint64_t, struct render_pass_data>,
+			public concurrent_hash_table<uint64_t, struct framebuffer_data>,
+			public concurrent_hash_table<uint64_t, struct shader_module_data>,
+			public concurrent_hash_table<uint64_t, struct pipeline_layout_data>,
+			public concurrent_hash_table<uint64_t, struct descriptor_set_data>,
+			public concurrent_hash_table<uint64_t, struct descriptor_set_layout_data>
+		{} _objects;
 	};
 }

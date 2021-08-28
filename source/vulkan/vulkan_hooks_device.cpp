@@ -677,7 +677,11 @@ VkResult VKAPI_CALL vkCreateBuffer(VkDevice device, const VkBufferCreateInfo *pC
 	if (result >= VK_SUCCESS)
 	{
 #if RESHADE_ADDON
-		device_impl->register_buffer(*pBuffer, *pCreateInfo);
+		reshade::vulkan::resource_data data;
+		data.allocation = VK_NULL_HANDLE;
+		data.buffer_create_info = create_info;
+
+		device_impl->register_object<reshade::vulkan::resource_data>((uint64_t)*pBuffer, std::move(data));
 
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
 			device_impl, desc, nullptr, reshade::api::resource_usage::undefined, reshade::api::resource { (uint64_t)*pBuffer });
@@ -700,7 +704,7 @@ void     VKAPI_CALL vkDestroyBuffer(VkDevice device, VkBuffer buffer, const VkAl
 #if RESHADE_ADDON
 	reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(device_impl, reshade::api::resource { (uint64_t)buffer });
 
-	device_impl->unregister_buffer(buffer);
+	device_impl->unregister_object<reshade::vulkan::resource_data>((uint64_t)buffer);
 #endif
 
 	trampoline(device, buffer, pAllocator);
@@ -728,7 +732,10 @@ VkResult VKAPI_CALL vkCreateBufferView(VkDevice device, const VkBufferViewCreate
 	if (result >= VK_SUCCESS)
 	{
 #if RESHADE_ADDON
-		device_impl->register_buffer_view(*pView, *pCreateInfo);
+		reshade::vulkan::resource_view_data data;
+		data.buffer_create_info = create_info;
+
+		device_impl->register_object<reshade::vulkan::resource_view_data>((uint64_t)*pView, std::move(data));
 
 		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
 			device_impl, reshade::api::resource { (uint64_t)pCreateInfo->buffer }, reshade::api::resource_usage::undefined, desc, reshade::api::resource_view { (uint64_t)*pView });
@@ -751,7 +758,7 @@ void     VKAPI_CALL vkDestroyBufferView(VkDevice device, VkBufferView bufferView
 #if RESHADE_ADDON
 	reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(device_impl, reshade::api::resource_view { (uint64_t)bufferView });
 
-	device_impl->unregister_buffer_view(bufferView);
+	device_impl->unregister_object<reshade::vulkan::resource_view_data>((uint64_t)bufferView);
 #endif
 
 	trampoline(device, bufferView, pAllocator);
@@ -780,7 +787,11 @@ VkResult VKAPI_CALL vkCreateImage(VkDevice device, const VkImageCreateInfo *pCre
 	if (result >= VK_SUCCESS)
 	{
 #if RESHADE_ADDON
-		device_impl->register_image(*pImage, *pCreateInfo);
+		reshade::vulkan::resource_data data;
+		data.allocation = VK_NULL_HANDLE;
+		data.image_create_info = create_info;
+
+		device_impl->register_object<reshade::vulkan::resource_data>((uint64_t)*pImage, std::move(data));
 
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
 			device_impl, desc, nullptr, pCreateInfo->initialLayout == VK_IMAGE_LAYOUT_PREINITIALIZED ? reshade::api::resource_usage::cpu_access : reshade::api::resource_usage::undefined, reshade::api::resource { (uint64_t)*pImage });
@@ -803,7 +814,7 @@ void     VKAPI_CALL vkDestroyImage(VkDevice device, VkImage image, const VkAlloc
 #if RESHADE_ADDON
 	reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(device_impl, reshade::api::resource { (uint64_t)image });
 
-	device_impl->unregister_image(image);
+	device_impl->unregister_object<reshade::vulkan::resource_data>((uint64_t)image);
 #endif
 
 	trampoline(device, image, pAllocator);
@@ -831,7 +842,10 @@ VkResult VKAPI_CALL vkCreateImageView(VkDevice device, const VkImageViewCreateIn
 	if (result >= VK_SUCCESS)
 	{
 #if RESHADE_ADDON
-		device_impl->register_image_view(*pView, *pCreateInfo);
+		reshade::vulkan::resource_view_data data;
+		data.image_create_info = create_info;
+
+		device_impl->register_object<reshade::vulkan::resource_view_data>((uint64_t)*pView, std::move(data));
 
 		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
 			device_impl, reshade::api::resource { (uint64_t)pCreateInfo->image }, reshade::api::resource_usage::undefined, desc, reshade::api::resource_view { (uint64_t)*pView });
@@ -854,7 +868,7 @@ void     VKAPI_CALL vkDestroyImageView(VkDevice device, VkImageView imageView, c
 #if RESHADE_ADDON
 	reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(device_impl, reshade::api::resource_view { (uint64_t)imageView });
 
-	device_impl->unregister_image_view(imageView);
+	device_impl->unregister_object<reshade::vulkan::resource_view_data>((uint64_t)imageView);
 #endif
 
 	trampoline(device, imageView, pAllocator);
@@ -872,9 +886,11 @@ VkResult VKAPI_CALL vkCreateShaderModule(VkDevice device, const VkShaderModuleCr
 	{
 #if RESHADE_ADDON
 		reshade::vulkan::shader_module_data data;
-		data.spirv.assign(pCreateInfo->pCode, pCreateInfo->pCode + pCreateInfo->codeSize);
+		data.spirv = new uint8_t[pCreateInfo->codeSize];
+		std::memcpy(const_cast<uint8_t *>(data.spirv), pCreateInfo->pCode, pCreateInfo->codeSize);
+		data.spirv_size = pCreateInfo->codeSize;
 
-		device_impl->register_shader_module(*pShaderModule, std::move(data));
+		device_impl->register_object<reshade::vulkan::shader_module_data>((uint64_t)*pShaderModule, std::move(data));
 #endif
 	}
 	else
@@ -892,7 +908,9 @@ void     VKAPI_CALL vkDestroyShaderModule(VkDevice device, VkShaderModule shader
 	GET_DISPATCH_PTR_FROM(DestroyShaderModule, device_impl);
 
 #if RESHADE_ADDON
-	device_impl->unregister_shader_module(shaderModule);
+	delete[] device_impl->get_native_object_data<reshade::vulkan::shader_module_data>((uint64_t)shaderModule).spirv;
+
+	device_impl->unregister_object<reshade::vulkan::shader_module_data>((uint64_t)shaderModule);
 #endif
 
 	trampoline(device, shaderModule, pAllocator);
@@ -1018,9 +1036,9 @@ VkResult VKAPI_CALL vkCreatePipelineLayout(VkDevice device, const VkPipelineLayo
 
 		for (uint32_t i = 0; i < pCreateInfo->setLayoutCount; ++i)
 		{
-			const auto layout_data = device_impl->lookup_descriptor_set_layout(pCreateInfo->pSetLayouts[i]);
+			const bool push_descriptors = device_impl->get_native_object_data<reshade::vulkan::descriptor_set_layout_data>((uint64_t)pCreateInfo->pSetLayouts[i]).push_descriptors;
 
-			layout_desc[i].type = layout_data.push_descriptors ? reshade::api::pipeline_layout_param_type::push_descriptors : reshade::api::pipeline_layout_param_type::descriptor_set;
+			layout_desc[i].type = push_descriptors ? reshade::api::pipeline_layout_param_type::push_descriptors : reshade::api::pipeline_layout_param_type::descriptor_set;
 			layout_desc[i].descriptor_layout = { (uint64_t)pCreateInfo->pSetLayouts[i] };
 		}
 
@@ -1037,7 +1055,7 @@ VkResult VKAPI_CALL vkCreatePipelineLayout(VkDevice device, const VkPipelineLayo
 		reshade::vulkan::pipeline_layout_data data;
 		data.desc = std::move(layout_desc);
 
-		device_impl->register_pipeline_layout(*pPipelineLayout, std::move(data));
+		device_impl->register_object<reshade::vulkan::pipeline_layout_data>((uint64_t)*pPipelineLayout, std::move(data));
 #endif
 	}
 	else
@@ -1055,7 +1073,7 @@ void     VKAPI_CALL vkDestroyPipelineLayout(VkDevice device, VkPipelineLayout pi
 	GET_DISPATCH_PTR_FROM(DestroyPipelineLayout, device_impl);
 
 #if RESHADE_ADDON
-	device_impl->unregister_pipeline_layout(pipelineLayout);
+	device_impl->unregister_object<reshade::vulkan::pipeline_layout_data>((uint64_t)pipelineLayout);
 #endif
 
 	trampoline(device, pipelineLayout, pAllocator);
@@ -1128,7 +1146,7 @@ VkResult VKAPI_CALL vkCreateDescriptorSetLayout(VkDevice device, const VkDescrip
 			const VkDescriptorSetLayoutBinding &binding = pCreateInfo->pBindings[i];
 
 			if (binding.binding >= descriptor_counts_per_binding.size())
-				descriptor_counts_per_binding.reserve(binding.binding + 1);
+				descriptor_counts_per_binding.resize(binding.binding + 1);
 			descriptor_counts_per_binding[binding.binding] = binding.descriptorCount;
 
 			layout_desc[i].binding = binding.binding;
@@ -1162,7 +1180,7 @@ VkResult VKAPI_CALL vkCreateDescriptorSetLayout(VkDevice device, const VkDescrip
 		data.binding_to_offset = std::move(binding_to_offset);
 		data.push_descriptors = (pCreateInfo->flags & VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR) != 0;
 
-		device_impl->register_descriptor_set_layout(*pSetLayout, std::move(data));
+		device_impl->register_object<reshade::vulkan::descriptor_set_layout_data>((uint64_t)*pSetLayout, std::move(data));
 #endif
 	}
 	else
@@ -1180,7 +1198,7 @@ void     VKAPI_CALL vkDestroyDescriptorSetLayout(VkDevice device, VkDescriptorSe
 	GET_DISPATCH_PTR_FROM(DestroyDescriptorSetLayout, device_impl);
 
 #if RESHADE_ADDON
-	device_impl->unregister_descriptor_set_layout(descriptorSetLayout);
+	device_impl->unregister_object<reshade::vulkan::descriptor_set_layout_data>((uint64_t)descriptorSetLayout);
 #endif
 
 	trampoline(device, descriptorSetLayout, pAllocator);
@@ -1192,67 +1210,71 @@ void     VKAPI_CALL vkUpdateDescriptorSets(VkDevice device, uint32_t descriptorW
 	GET_DISPATCH_PTR_FROM(UpdateDescriptorSets, device_impl);
 
 #if RESHADE_ADDON
-	std::vector<reshade::api::copy_descriptor_set> copies;
-	copies.reserve(descriptorCopyCount);
-	std::vector<reshade::api::write_descriptor_set> writes;
-	writes.reserve(descriptorWriteCount);
-
-	uint32_t max_descriptors = 0;
-	for (uint32_t i = 0; i < descriptorWriteCount; ++i)
-		max_descriptors += pDescriptorWrites[i].descriptorCount;
-	std::vector<uint64_t> descriptors(max_descriptors * 2);
-
-	for (uint32_t i = 0, j = 0; i < descriptorWriteCount; ++i)
+	if (reshade::has_addon_event<reshade::addon_event::update_descriptor_sets>())
 	{
-		const VkWriteDescriptorSet &write = pDescriptorWrites[i];
+		std::vector<reshade::api::copy_descriptor_set> copies;
+		copies.reserve(descriptorCopyCount);
+		std::vector<reshade::api::write_descriptor_set> writes;
+		writes.reserve(descriptorWriteCount);
 
-		reshade::api::write_descriptor_set &new_write = writes.emplace_back();
-		new_write.set = { (uint64_t)write.dstSet };
-		new_write.offset = device_impl->lookup_descriptor_set(write.dstSet).calc_offset_from_binding(write.dstBinding, write.dstArrayElement);
-		new_write.count = write.descriptorCount;
-		new_write.type = static_cast<reshade::api::descriptor_type>(write.descriptorType);
+		uint32_t max_descriptors = 0;
+		for (uint32_t i = 0; i < descriptorWriteCount; ++i)
+			max_descriptors += pDescriptorWrites[i].descriptorCount;
+		std::vector<uint64_t> descriptors(max_descriptors * 2);
 
-		switch (write.descriptorType)
+		for (uint32_t i = 0, j = 0; i < descriptorWriteCount; ++i)
 		{
-		case VK_DESCRIPTOR_TYPE_SAMPLER:
-			new_write.descriptors = descriptors.data() + j;
-			for (uint32_t k = 0; k < write.descriptorCount; ++k, ++j)
-				descriptors[j] = (uint64_t)write.pImageInfo[k].sampler;
-			break;
-		case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
-			new_write.descriptors = descriptors.data() + j;
-			for (uint32_t k = 0; k < write.descriptorCount; ++k, j += 2)
+			const VkWriteDescriptorSet &write = pDescriptorWrites[i];
+
+			reshade::api::write_descriptor_set &new_write = writes.emplace_back();
+			new_write.set = { (uint64_t)write.dstSet };
+			new_write.offset = device_impl->get_native_object_data<reshade::vulkan::descriptor_set_layout_data>((uint64_t)device_impl->get_native_object_data<reshade::vulkan::descriptor_set_data>((uint64_t)write.dstSet).layout).calc_offset_from_binding(write.dstBinding, write.dstArrayElement);
+			new_write.count = write.descriptorCount;
+			new_write.type = static_cast<reshade::api::descriptor_type>(write.descriptorType);
+
+			switch (write.descriptorType)
 			{
-				descriptors[j + 0] = (uint64_t)write.pImageInfo[k].sampler;
-				descriptors[j + 1] = (uint64_t)write.pImageInfo[k].imageView;
+			case VK_DESCRIPTOR_TYPE_SAMPLER:
+				new_write.descriptors = descriptors.data() + j;
+				for (uint32_t k = 0; k < write.descriptorCount; ++k, ++j)
+					descriptors[j] = (uint64_t)write.pImageInfo[k].sampler;
+				break;
+			case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+				new_write.descriptors = descriptors.data() + j;
+				for (uint32_t k = 0; k < write.descriptorCount; ++k, j += 2)
+				{
+					descriptors[j + 0] = (uint64_t)write.pImageInfo[k].sampler;
+					descriptors[j + 1] = (uint64_t)write.pImageInfo[k].imageView;
+				}
+				break;
+			case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+			case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
+				new_write.descriptors = descriptors.data() + j;
+				for (uint32_t k = 0; k < write.descriptorCount; ++k, ++j)
+					descriptors[j] = (uint64_t)write.pImageInfo[k].imageView;
+				break;
+			case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+			case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+				static_assert(sizeof(reshade::api::buffer_range) == sizeof(VkDescriptorBufferInfo));
+				new_write.descriptors = write.pBufferInfo;
+				break;
 			}
-			break;
-		case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
-		case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
-			new_write.descriptors = descriptors.data() + j;
-			for (uint32_t k = 0; k < write.descriptorCount; ++k, ++j)
-				descriptors[j] = (uint64_t)write.pImageInfo[k].imageView;
-			break;
-		case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
-			static_assert(sizeof(reshade::api::buffer_range) == sizeof(VkDescriptorBufferInfo));
-			new_write.descriptors = write.pBufferInfo;
-			break;
 		}
-	}
-	for (uint32_t i = 0; i < descriptorCopyCount; ++i)
-	{
-		const VkCopyDescriptorSet &copy = pDescriptorCopies[i];
+		for (uint32_t i = 0; i < descriptorCopyCount; ++i)
+		{
+			const VkCopyDescriptorSet &copy = pDescriptorCopies[i];
 
-		reshade::api::copy_descriptor_set &new_copy = copies.emplace_back();
-		new_copy.src_set = { (uint64_t)copy.srcSet };
-		new_copy.src_offset = device_impl->lookup_descriptor_set(copy.srcSet).calc_offset_from_binding(copy.srcBinding, copy.srcArrayElement);
-		new_copy.dst_set = { (uint64_t)copy.dstSet };
-		new_copy.dst_offset = device_impl->lookup_descriptor_set(copy.dstSet).calc_offset_from_binding(copy.dstBinding, copy.dstArrayElement);
-		new_copy.count = copy.descriptorCount;
-	}
+			reshade::api::copy_descriptor_set &new_copy = copies.emplace_back();
+			new_copy.src_set = { (uint64_t)copy.srcSet };
+			new_copy.src_offset = device_impl->get_native_object_data<reshade::vulkan::descriptor_set_layout_data>((uint64_t)device_impl->get_native_object_data<reshade::vulkan::descriptor_set_data>((uint64_t)copy.srcSet).layout).calc_offset_from_binding(copy.srcBinding, copy.srcArrayElement);
+			new_copy.dst_set = { (uint64_t)copy.dstSet };
+			new_copy.dst_offset = device_impl->get_native_object_data<reshade::vulkan::descriptor_set_layout_data>((uint64_t)device_impl->get_native_object_data<reshade::vulkan::descriptor_set_data>((uint64_t)copy.dstSet).layout).calc_offset_from_binding(copy.dstBinding, copy.dstArrayElement);
+			new_copy.count = copy.descriptorCount;
+		}
 
-	if (reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(device_impl, descriptorWriteCount, writes.data(), descriptorCopyCount, copies.data()))
-		return;
+		if (reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(device_impl, descriptorWriteCount, writes.data(), descriptorCopyCount, copies.data()))
+			return;
+	}
 #endif
 
 	trampoline(device, descriptorWriteCount, pDescriptorWrites, descriptorCopyCount, pDescriptorCopies);
@@ -1266,7 +1288,7 @@ VkResult VKAPI_CALL vkCreateFramebuffer(VkDevice device, const VkFramebufferCrea
 	assert(pCreateInfo != nullptr && pFramebuffer != nullptr);
 
 #if RESHADE_ADDON
-	const auto render_pass_info = device_impl->lookup_render_pass(pCreateInfo->renderPass);
+	const auto pass_attachments = device_impl->get_native_object_data<reshade::vulkan::render_pass_data>((uint64_t)pCreateInfo->renderPass).attachments;
 
 	// Keep track of the frame buffer attachments
 	reshade::vulkan::framebuffer_data data;
@@ -1277,7 +1299,7 @@ VkResult VKAPI_CALL vkCreateFramebuffer(VkDevice device, const VkFramebufferCrea
 	for (uint32_t i = 0; i < pCreateInfo->attachmentCount; ++i)
 	{
 		data.attachments[i] = pCreateInfo->pAttachments[i];
-		data.attachment_types[i] = render_pass_info.attachments[i].format_flags;
+		data.attachment_types[i] = pass_attachments[i].format_flags;
 	}
 
 	reshade::api::framebuffer_desc desc = {};
@@ -1312,7 +1334,7 @@ VkResult VKAPI_CALL vkCreateFramebuffer(VkDevice device, const VkFramebufferCrea
 	if (result >= VK_SUCCESS)
 	{
 #if RESHADE_ADDON
-		device_impl->register_framebuffer(*pFramebuffer, std::move(data));
+		device_impl->register_object<reshade::vulkan::framebuffer_data>((uint64_t)*pFramebuffer, std::move(data));
 
 		reshade::invoke_addon_event<reshade::addon_event::init_framebuffer>(
 			device_impl, desc, reshade::api::framebuffer { (uint64_t)*pFramebuffer });
@@ -1335,7 +1357,7 @@ void     VKAPI_CALL vkDestroyFramebuffer(VkDevice device, VkFramebuffer framebuf
 #if RESHADE_ADDON
 	reshade::invoke_addon_event<reshade::addon_event::destroy_framebuffer>(device_impl, reshade::api::framebuffer { (uint64_t)framebuffer });
 
-	device_impl->unregister_framebuffer(framebuffer);
+	device_impl->unregister_object<reshade::vulkan::framebuffer_data>((uint64_t)framebuffer);
 #endif
 
 	trampoline(device, framebuffer, pAllocator);
@@ -1380,8 +1402,8 @@ VkResult VKAPI_CALL vkCreateRenderPass(VkDevice device, const VkRenderPassCreate
 	if (result >= VK_SUCCESS)
 	{
 #if RESHADE_ADDON
-		reshade::vulkan::render_pass_data renderpass_data;
-		renderpass_data.attachments.reserve(pCreateInfo->attachmentCount);
+		reshade::vulkan::render_pass_data data;
+		data.attachments.reserve(pCreateInfo->attachmentCount);
 
 		for (uint32_t attachment = 0; attachment < pCreateInfo->attachmentCount; ++attachment)
 		{
@@ -1394,10 +1416,10 @@ VkResult VKAPI_CALL vkCreateRenderPass(VkDevice device, const VkRenderPassCreate
 			if (pCreateInfo->pAttachments[attachment].stencilLoadOp != VK_ATTACHMENT_LOAD_OP_CLEAR)
 				clear_flags &= ~(VK_IMAGE_ASPECT_STENCIL_BIT);
 
-			renderpass_data.attachments.push_back({ pCreateInfo->pAttachments[attachment].initialLayout, clear_flags, format_flags });
+			data.attachments.push_back({ pCreateInfo->pAttachments[attachment].initialLayout, clear_flags, format_flags });
 		}
 
-		device_impl->register_render_pass(*pRenderPass, std::move(renderpass_data));
+		device_impl->register_object<reshade::vulkan::render_pass_data>((uint64_t)*pRenderPass, std::move(data));
 
 		reshade::invoke_addon_event<reshade::addon_event::init_render_pass>(
 			device_impl, desc, reshade::api::render_pass { (uint64_t)*pRenderPass });
@@ -1451,8 +1473,8 @@ VkResult VKAPI_CALL vkCreateRenderPass2(VkDevice device, const VkRenderPassCreat
 	if (result >= VK_SUCCESS)
 	{
 #if RESHADE_ADDON
-		reshade::vulkan::render_pass_data renderpass_data;
-		renderpass_data.attachments.reserve(pCreateInfo->attachmentCount);
+		reshade::vulkan::render_pass_data data;
+		data.attachments.reserve(pCreateInfo->attachmentCount);
 
 		for (uint32_t attachment = 0; attachment < pCreateInfo->attachmentCount; ++attachment)
 		{
@@ -1465,10 +1487,10 @@ VkResult VKAPI_CALL vkCreateRenderPass2(VkDevice device, const VkRenderPassCreat
 			if (pCreateInfo->pAttachments[attachment].stencilLoadOp != VK_ATTACHMENT_LOAD_OP_CLEAR)
 				clear_flags &= ~(VK_IMAGE_ASPECT_STENCIL_BIT);
 
-			renderpass_data.attachments.push_back({ pCreateInfo->pAttachments[attachment].initialLayout, clear_flags, format_flags });
+			data.attachments.push_back({ pCreateInfo->pAttachments[attachment].initialLayout, clear_flags, format_flags });
 		}
 
-		device_impl->register_render_pass(*pRenderPass, std::move(renderpass_data));
+		device_impl->register_object<reshade::vulkan::render_pass_data>((uint64_t)*pRenderPass, std::move(data));
 
 		reshade::invoke_addon_event<reshade::addon_event::init_render_pass>(
 			device_impl, desc, reshade::api::render_pass { (uint64_t)*pRenderPass });
@@ -1491,7 +1513,7 @@ void     VKAPI_CALL vkDestroyRenderPass(VkDevice device, VkRenderPass renderPass
 #if RESHADE_ADDON
 	reshade::invoke_addon_event<reshade::addon_event::destroy_render_pass>(device_impl, reshade::api::render_pass { (uint64_t)renderPass });
 
-	device_impl->unregister_render_pass(renderPass);
+	device_impl->unregister_object<reshade::vulkan::render_pass_data>((uint64_t)renderPass);
 #endif
 
 	trampoline(device, renderPass, pAllocator);

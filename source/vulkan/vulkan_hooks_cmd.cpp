@@ -20,6 +20,23 @@ lockfree_table<VkCommandBuffer, reshade::vulkan::command_list_impl *, 4096> g_vu
 	PFN_vk##name trampoline = (data)->_dispatch_table.name; \
 	assert(trampoline != nullptr)
 
+#if RESHADE_ADDON
+static inline uint32_t calc_subresource_index(reshade::vulkan::device_impl *device, VkImage image, const VkImageSubresourceLayers &layers, uint32_t layer = 0)
+{
+	const uint32_t levels = device->get_native_object_data<reshade::vulkan::resource_data>((uint64_t)image).image_create_info.mipLevels;
+	return layers.mipLevel + (layers.baseArrayLayer + layer) * levels;
+}
+
+static reshade::api::resource_view get_default_view(reshade::vulkan::device_impl *device, VkImage image)
+{
+	reshade::vulkan::resource_view_data data;
+	data.type = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+	data.image_create_info.image = image;
+	device->register_object<reshade::vulkan::resource_view_data>((uint64_t)image, std::move(data)); // Register fake image view for this image
+	return { (uint64_t)image };
+}
+#endif
+
 VkResult VKAPI_CALL vkBeginCommandBuffer(VkCommandBuffer commandBuffer, const VkCommandBufferBeginInfo *pBeginInfo)
 {
 #if RESHADE_ADDON
@@ -362,8 +379,8 @@ void     VKAPI_CALL vkCmdCopyImage(VkCommandBuffer commandBuffer, VkImage srcIma
 			{
 				if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(
 					cmd_impl,
-					reshade::api::resource { (uint64_t)srcImage }, device_impl->get_subresource_index(srcImage, region.srcSubresource, layer), src_box,
-					reshade::api::resource { (uint64_t)dstImage }, device_impl->get_subresource_index(dstImage, region.dstSubresource, layer), dst_box,
+					reshade::api::resource { (uint64_t)srcImage }, calc_subresource_index(device_impl, srcImage, region.srcSubresource, layer), src_box,
+					reshade::api::resource { (uint64_t)dstImage }, calc_subresource_index(device_impl, dstImage, region.dstSubresource, layer), dst_box,
 					reshade::api::filter_type::min_mag_mip_point))
 					return; // TODO: This skips copy of all regions, rather than just the one specified to this event call
 			}
@@ -389,8 +406,8 @@ void     VKAPI_CALL vkCmdBlitImage(VkCommandBuffer commandBuffer, VkImage srcIma
 			{
 				if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(
 					cmd_impl,
-					reshade::api::resource { (uint64_t)srcImage }, device_impl->get_subresource_index(srcImage, region.srcSubresource, layer), &region.srcOffsets[0].x,
-					reshade::api::resource { (uint64_t)dstImage }, device_impl->get_subresource_index(dstImage, region.dstSubresource, layer), &region.dstOffsets[0].x,
+					reshade::api::resource { (uint64_t)srcImage }, calc_subresource_index(device_impl, srcImage, region.srcSubresource, layer), &region.srcOffsets[0].x,
+					reshade::api::resource { (uint64_t)dstImage }, calc_subresource_index(device_impl, dstImage, region.dstSubresource, layer), &region.dstOffsets[0].x,
 					filter == VK_FILTER_NEAREST ? reshade::api::filter_type::min_mag_mip_point : reshade::api::filter_type::min_mag_mip_linear))
 					return; // TODO: This skips copy of all regions, rather than just the one specified to this event call
 			}
@@ -427,7 +444,7 @@ void     VKAPI_CALL vkCmdCopyBufferToImage(VkCommandBuffer commandBuffer, VkBuff
 				if (reshade::invoke_addon_event<reshade::addon_event::copy_buffer_to_texture>(
 					cmd_impl,
 					reshade::api::resource { (uint64_t)srcBuffer }, region.bufferOffset, region.bufferRowLength, region.bufferImageHeight,
-					reshade::api::resource { (uint64_t)dstImage }, device_impl->get_subresource_index(dstImage, region.imageSubresource, layer), dst_box))
+					reshade::api::resource { (uint64_t)dstImage  }, calc_subresource_index(device_impl, dstImage, region.imageSubresource, layer), dst_box))
 					return; // TODO: This skips copy of all regions, rather than just the one specified to this event call
 			}
 		}
@@ -462,7 +479,7 @@ void     VKAPI_CALL vkCmdCopyImageToBuffer(VkCommandBuffer commandBuffer, VkImag
 				// TODO: Calculate correct buffer offset for layers following the first
 				if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_to_buffer>(
 					cmd_impl,
-					reshade::api::resource { (uint64_t)srcImage }, device_impl->get_subresource_index(srcImage, region.imageSubresource, layer), src_box,
+					reshade::api::resource { (uint64_t)srcImage  }, calc_subresource_index(device_impl, srcImage, region.imageSubresource, layer), src_box,
 					reshade::api::resource { (uint64_t)dstBuffer }, region.bufferOffset, region.bufferRowLength, region.bufferImageHeight))
 					return; // TODO: This skips copy of all regions, rather than just the one specified to this event call
 			}
@@ -504,7 +521,7 @@ void     VKAPI_CALL vkCmdClearColorImage(VkCommandBuffer commandBuffer, VkImage 
 
 		const bool skip = reshade::invoke_addon_event<reshade::addon_event::clear_render_target_view>(
 			cmd_impl,
-			device_impl->get_default_view(image),
+			get_default_view(device_impl, image),
 			pColor->float32,
 			0, nullptr);
 
@@ -549,7 +566,7 @@ void     VKAPI_CALL vkCmdClearDepthStencilImage(VkCommandBuffer commandBuffer, V
 
 		const bool skip = reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(
 			cmd_impl,
-			device_impl->get_default_view(image),
+			get_default_view(device_impl, image),
 			static_cast<reshade::api::attachment_type>(transition.subresourceRange.aspectMask),
 			pDepthStencil->depth,
 			static_cast<uint8_t>(pDepthStencil->stencil),
@@ -641,8 +658,8 @@ void     VKAPI_CALL vkCmdResolveImage(VkCommandBuffer commandBuffer, VkImage src
 			{
 				if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(
 					cmd_impl,
-					reshade::api::resource { (uint64_t)srcImage }, device_impl->get_subresource_index(srcImage, region.srcSubresource, layer), src_box,
-					reshade::api::resource { (uint64_t)dstImage }, device_impl->get_subresource_index(dstImage, region.dstSubresource, layer), dst_box, reshade::api::format::unknown))
+					reshade::api::resource { (uint64_t)srcImage }, calc_subresource_index(device_impl, srcImage, region.srcSubresource, layer), src_box,
+					reshade::api::resource { (uint64_t)dstImage }, calc_subresource_index(device_impl, dstImage, region.dstSubresource, layer), dst_box, reshade::api::format::unknown))
 					return; // TODO: This skips resolve of all regions, rather than just the one specified to this event call
 			}
 		}
@@ -732,30 +749,30 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 			pRenderPassBegin->renderArea.offset.y + static_cast<int32_t>(pRenderPassBegin->renderArea.extent.height),
 		};
 
-		const auto renderpass_data = device_impl->lookup_render_pass(pRenderPassBegin->renderPass);
-		const auto framebuffer_data = device_impl->lookup_framebuffer(pRenderPassBegin->framebuffer);
+		const auto pass_attachments = device_impl->get_native_object_data<reshade::vulkan::render_pass_data>((uint64_t)pRenderPassBegin->renderPass).attachments;
+		const auto attachment_views = device_impl->get_native_object_data<reshade::vulkan::framebuffer_data>((uint64_t)pRenderPassBegin->framebuffer).attachments;
 
-		assert(pRenderPassBegin->clearValueCount <= renderpass_data.attachments.size());
+		assert(pRenderPassBegin->clearValueCount <= pass_attachments.size());
 
 		for (uint32_t i = 0; i < pRenderPassBegin->clearValueCount; ++i)
 		{
-			if (renderpass_data.attachments[i].clear_flags == 0)
+			if (pass_attachments[i].clear_flags == 0)
 				continue; // Only elements corresponding to cleared attachments are used. Other elements are ignored.
 
 			const VkClearValue &clear_value = pRenderPassBegin->pClearValues[i];
 
 			reshade::api::resource image = { 0 };
-			const reshade::api::resource_view attachment = { (uint64_t)framebuffer_data.attachments[i] };
+			const reshade::api::resource_view attachment = { (uint64_t)attachment_views[i] };
 			device_impl->get_resource_from_view(attachment, &image);
 
 			VkImageMemoryBarrier transition { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
-			transition.oldLayout = renderpass_data.attachments[i].initial_layout;
+			transition.oldLayout = pass_attachments[i].initial_layout;
 			transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 			transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 			transition.image = (VkImage)image.handle;
-			transition.subresourceRange = { renderpass_data.attachments[i].clear_flags, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
+			transition.subresourceRange = { pass_attachments[i].clear_flags, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
 
-			if (renderpass_data.attachments[i].clear_flags == VK_IMAGE_ASPECT_COLOR_BIT)
+			if (pass_attachments[i].clear_flags == VK_IMAGE_ASPECT_COLOR_BIT)
 			{
 				transition.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
@@ -776,7 +793,7 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 
 				// Cannot be skipped
 				reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(
-					cmd_impl, attachment, static_cast<reshade::api::attachment_type>(renderpass_data.attachments[i].clear_flags), clear_value.depthStencil.depth, static_cast<uint8_t>(clear_value.depthStencil.stencil), 1, rect_data);
+					cmd_impl, attachment, static_cast<reshade::api::attachment_type>(pass_attachments[i].clear_flags), clear_value.depthStencil.depth, static_cast<uint8_t>(clear_value.depthStencil.stencil), 1, rect_data);
 			}
 
 			if (transition.oldLayout != VK_IMAGE_LAYOUT_UNDEFINED)
