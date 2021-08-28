@@ -3469,12 +3469,22 @@ void reshade::runtime::save_screenshot(const std::wstring &postfix, const bool s
 
 	if (std::vector<uint8_t> data(_width * _height * 4); take_screenshot(data.data()))
 	{
-		// Clear alpha channel
-		// The alpha channel doesn't need to be cleared if we're saving a JPEG, stbi ignores it
-		if (_screenshot_clear_alpha && _screenshot_format != 2)
+		// Remove alpha channel
+		int comp = 4;
+		if (_screenshot_clear_alpha)
+		{
+			comp = 3;
 			for (uint32_t h = 0; h < _height; ++h)
+			{
 				for (uint32_t w = 0; w < _width; ++w)
-					data[(h * _width + w) * 4 + 3] = 0xFF;
+				{
+					const uint32_t index = h * _width + w;
+					data[index * 3 + 0] = data[index * 4 + 0];
+					data[index * 3 + 1] = data[index * 4 + 1];
+					data[index * 3 + 2] = data[index * 4 + 2];
+				}
+			}
+		}
 
 		if (FILE *file; _wfopen_s(&file, screenshot_path.c_str(), L"wb") == 0)
 		{
@@ -3485,13 +3495,13 @@ void reshade::runtime::save_screenshot(const std::wstring &postfix, const bool s
 			switch (_screenshot_format)
 			{
 			case 0:
-				_screenshot_save_success = stbi_write_bmp_to_func(write_callback, file, _width, _height, 4, data.data()) != 0;
+				_screenshot_save_success = stbi_write_bmp_to_func(write_callback, file, _width, _height, comp, data.data()) != 0;
 				break;
 			case 1:
-				_screenshot_save_success = stbi_write_png_to_func(write_callback, file, _width, _height, 4, data.data(), 0) != 0;
+				_screenshot_save_success = stbi_write_png_to_func(write_callback, file, _width, _height, comp, data.data(), 0) != 0;
 				break;
 			case 2:
-				_screenshot_save_success = stbi_write_jpg_to_func(write_callback, file, _width, _height, 4, data.data(), _screenshot_jpeg_quality) != 0;
+				_screenshot_save_success = stbi_write_jpg_to_func(write_callback, file, _width, _height, comp, data.data(), _screenshot_jpeg_quality) != 0;
 				break;
 			}
 
