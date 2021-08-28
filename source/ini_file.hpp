@@ -34,7 +34,6 @@ public:
 	/// </summary>
 	/// <param name="path">The path to the INI file to access.</param>
 	explicit ini_file(const std::filesystem::path &path);
-	~ini_file();
 
 	/// <summary>
 	/// Gets the path to this INI file.

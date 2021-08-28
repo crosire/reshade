@@ -14,23 +14,21 @@ ini_file::ini_file(const std::filesystem::path &path) : _path(path)
 {
 	load();
 }
-ini_file::~ini_file()
-{
-	save();
-}
 
 void ini_file::load()
 {
 	std::error_code ec;
 	const std::filesystem::file_time_type modified_at = std::filesystem::last_write_time(_path, ec);
-	if (ec || _modified_at >= modified_at)
-		return; // Skip loading if there was an error (e.g. file does not exist) or there was no modification to the file since it was last loaded
+	if (!ec && _modified_at >= modified_at)
+		return; // Skip loading if there was no modification to the file since it was last loaded
+
+	// Clear when file does not exist too
+	_sections.clear();
 
 	std::ifstream file;
 	if (file.open(_path); !file)
 		return;
 
-	_sections.clear();
 	_modified = false;
 	_modified_at = modified_at;
 
@@ -106,7 +104,7 @@ bool ini_file::save()
 	std::error_code ec;
 	const std::filesystem::file_time_type modified_at = std::filesystem::last_write_time(_path, ec);
 	if (!ec && modified_at >= _modified_at)
-		return true; // File exists and was modified on disk and therefore may have different data, so cannot save
+		return false; // File exists and was modified on disk and therefore may have different data, so cannot save
 
 	std::stringstream data;
 	std::vector<std::string> section_names, key_names;
@@ -210,10 +208,13 @@ bool ini_file::flush_cache(const std::filesystem::path &path)
 ini_file &ini_file::load_cache(const std::filesystem::path &path)
 {
 	const auto it = g_ini_cache.try_emplace(path, path);
-	if (it.second || (std::filesystem::file_time_type::clock::now() - it.first->second._modified_at) < std::chrono::seconds(1))
-		return it.first->second; // Don't need to reload file when it was just loaded or there are still modifications pending
-	else
-		return it.first->second.load(), it.first->second;
+	std::pair<const std::wstring, ini_file> &file = *it.first;
+
+	// Don't reload file when it was just loaded or there are still modifications pending
+	if (!it.second && !file.second._modified)
+		file.second.load();
+
+	return file.second;
 }
 
 ini_file & reshade::global_config()
