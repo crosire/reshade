@@ -247,7 +247,7 @@ void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stage
 			_device_impl->_orig->CreateConstantBufferView(&view_desc, base_handle);
 		}
 	}
-	else if (type == api::descriptor_type::shader_resource_view || type == api::descriptor_type::unordered_access_view)
+	else if (type == api::descriptor_type::sampler || type == api::descriptor_type::shader_resource_view || type == api::descriptor_type::unordered_access_view)
 	{
 #ifndef WIN64
 		const UINT src_range_size = 1;

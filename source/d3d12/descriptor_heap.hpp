@@ -18,7 +18,7 @@ namespace reshade::d3d12
 		{
 			com_ptr<ID3D12DescriptorHeap> heap;
 			std::vector<bool> state;
-			SIZE_T heap_base;
+			SIZE_T heap_base = 0;
 		};
 
 		const UINT pool_size = 1024;
@@ -34,22 +34,28 @@ namespace reshade::d3d12
 		{
 			const std::unique_lock<std::mutex> lock(_mutex);
 
-			for (heap_info &heap_info : _heap_infos)
+			for (int attempt = 0; attempt < 2; ++attempt)
 			{
-				// Find free empty in the heap
-				if (const auto it = std::find(heap_info.state.begin(), heap_info.state.end(), false);
-					it != heap_info.state.end())
+				for (heap_info &heap_info : _heap_infos)
 				{
-					const size_t index = it - heap_info.state.begin();
-					heap_info.state[index] = true; // Mark this entry as being in use
+					// Find free empty in the heap
+					if (const auto it = std::find(heap_info.state.begin(), heap_info.state.end(), false);
+						it != heap_info.state.end())
+					{
+						const size_t index = it - heap_info.state.begin();
+						heap_info.state[index] = true; // Mark this entry as being in use
 
-					handle.ptr = heap_info.heap_base + index * _increment_size;
-					return true;
+						handle.ptr = heap_info.heap_base + index * _increment_size;
+						return true;
+					}
 				}
+
+				// No more space available in the existing heaps, so create a new one and try again
+				if (!allocate_heap())
+					break;
 			}
 
-			// No more space available in the existing heaps, so create a new one and try again
-			return allocate_heap() && allocate(handle);
+			return false;
 		}
 
 		void free(D3D12_CPU_DESCRIPTOR_HANDLE handle)

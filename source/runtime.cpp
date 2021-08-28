@@ -1576,7 +1576,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 		}
 	}
 
-	for (size_t tech_index = 0; tech_index < _techniques.size(); ++tech_index)
+	for (size_t tech_index = 0, tech_index_in_effect = 0; tech_index < _techniques.size(); ++tech_index)
 	{
 		technique &tech = _techniques[tech_index];
 
@@ -1586,7 +1586,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 		tech.passes_data.resize(tech.passes.size());
 
 		// Offset index so that a query exists for each command frame and two subsequent ones are used for before/after stamps
-		tech.query_base_index = static_cast<uint32_t>(tech_index * 2 * 4);
+		tech.query_base_index = static_cast<uint32_t>(tech_index_in_effect++ * 2 * 4);
 
 		for (size_t pass_index = 0; pass_index < tech.passes.size(); ++pass_index, ++total_pass_index)
 		{
