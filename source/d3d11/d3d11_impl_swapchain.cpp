@@ -237,15 +237,15 @@ bool reshade::d3d11::swapchain_impl::on_layer_submit(UINT eye, ID3D11Texture2D *
 			return false;
 		}
 
+		_backbuffer_resolved = _backbuffer;
+		// Clear additional reference because of Unreal Engine 4 workaround (see 'on_init' and 'on_reset')
+		_backbuffer->Release();
+		assert(_backbuffer.ref_count() == 1);
+
 		_is_vr = true;
 		_width = target_width;
 		_height = region_height;
 		_backbuffer_format = source_format;
-
-		// Assign the backuffer to the resolved buffer and release the original backbuffer
-		_backbuffer_resolved = _backbuffer;
-		_backbuffer->Release();
-		assert(_backbuffer.ref_count() == 1);
 
 #if RESHADE_ADDON
 		invoke_addon_event<addon_event::init_swapchain>(this);

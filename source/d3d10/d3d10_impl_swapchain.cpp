@@ -217,15 +217,12 @@ bool reshade::d3d10::swapchain_impl::on_layer_submit(UINT eye, ID3D10Texture2D *
 			return false;
 		}
 
+		_backbuffer_resolved = _backbuffer;
+
 		_is_vr = true;
 		_width = target_width;
 		_height = region_height;
 		_backbuffer_format = source_format;
-
-		// Assign the backuffer to the resolved buffer and release the original backbuffer
-		_backbuffer_resolved = _backbuffer;
-		_backbuffer->Release();
-		assert(_backbuffer.ref_count() == 1);
 
 #if RESHADE_ADDON
 		invoke_addon_event<addon_event::init_swapchain>(this);
