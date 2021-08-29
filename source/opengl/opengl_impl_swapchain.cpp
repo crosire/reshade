@@ -154,26 +154,30 @@ void reshade::opengl::swapchain_impl::on_present(bool default_fbo)
 	// Apply previous state from application
 	_app_state.apply(_compatibility_context);
 }
+
 bool reshade::opengl::swapchain_impl::on_layer_submit(uint32_t eye, GLuint source_object, bool is_rbo, bool is_array, const float bounds[4], GLuint *target_rbo)
 {
 	assert(eye < 2 && source_object != 0);
 
 	api::resource_desc object_desc = get_resource_desc(
-		reshade::opengl::make_resource_handle(is_rbo ? GL_RENDERBUFFER : GL_TEXTURE, source_object));
+		reshade::opengl::make_resource_handle(is_rbo ? GL_RENDERBUFFER : (is_array ? GL_TEXTURE_2D_ARRAY : GL_TEXTURE_2D), source_object));
 
 	GLint source_region[4] = { 0, 0, static_cast<GLint>(object_desc.texture.width), static_cast<GLint>(object_desc.texture.height) };
 	if (bounds != nullptr)
 	{
-		source_region[0] = static_cast<GLint>(object_desc.texture.width * std::min(bounds[0], bounds[2]));
-		source_region[1] = static_cast<GLint>(object_desc.texture.height * std::min(bounds[1], bounds[3]));
-		source_region[2] = static_cast<GLint>(object_desc.texture.width * std::max(bounds[0], bounds[2]));
-		source_region[3] = static_cast<GLint>(object_desc.texture.height * std::max(bounds[1], bounds[3]));
+		source_region[0] = static_cast<GLint>(std::floor(object_desc.texture.width * std::min(bounds[0], bounds[2])));
+		source_region[1] = static_cast<GLint>(std::floor(object_desc.texture.height * std::min(bounds[1], bounds[3])));
+		source_region[2] = static_cast<GLint>(std::ceil(object_desc.texture.width * std::max(bounds[0], bounds[2])));
+		source_region[3] = static_cast<GLint>(std::ceil(object_desc.texture.height * std::max(bounds[1], bounds[3])));
 	}
 
 	const GLint region_width = source_region[2] - source_region[0];
 	object_desc.texture.width = region_width * 2;
 
-	if (object_desc.texture.width != _width || object_desc.texture.height != _height)
+	// Due to rounding errors with the bounds we have to use a tolerance of 1 pixel per eye (2 pixels in total)
+	const int32_t width_difference = std::abs(static_cast<int32_t>(object_desc.texture.width) - static_cast<int32_t>(_width));
+
+	if (width_difference> 2 || object_desc.texture.height != _height)
 	{
 		on_reset();
 

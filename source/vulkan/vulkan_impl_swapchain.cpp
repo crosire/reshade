@@ -179,6 +179,7 @@ void reshade::vulkan::swapchain_impl::on_present(VkQueue queue, const uint32_t s
 		static_cast<command_queue_impl *>(_graphics_queue)->flush_immediate_command_list(wait);
 	}
 }
+
 bool reshade::vulkan::swapchain_impl::on_layer_submit(uint32_t eye, VkImage source, const VkExtent2D &source_extent, VkFormat source_format, VkSampleCountFlags source_samples, uint32_t source_layer_index, const float bounds[4], VkImage *target_image)
 {
 	assert(eye < 2 && source != VK_NULL_HANDLE);
@@ -187,10 +188,10 @@ bool reshade::vulkan::swapchain_impl::on_layer_submit(uint32_t eye, VkImage sour
 	VkExtent3D source_region_extent = { source_extent.width, source_extent.height, 1 };
 	if (bounds != nullptr)
 	{
-		source_region_offset.x = static_cast<int32_t>(source_extent.width * std::min(bounds[0], bounds[2]));
-		source_region_extent.width = static_cast<uint32_t>(source_extent.width* std::max(bounds[0], bounds[2]) - source_region_offset.x);
-		source_region_offset.y = static_cast<int32_t>(source_extent.height * std::min(bounds[1], bounds[3]));
-		source_region_extent.height = static_cast<uint32_t>(source_extent.height * std::max(bounds[1], bounds[3]) - source_region_offset.y);
+		source_region_offset.x = static_cast<int32_t>(std::floor(source_extent.width * std::min(bounds[0], bounds[2])));
+		source_region_offset.y = static_cast<int32_t>(std::floor(source_extent.height * std::min(bounds[1], bounds[3])));
+		source_region_extent.width = static_cast<uint32_t>(std::ceil(source_extent.width* std::max(bounds[0], bounds[2]) - source_region_offset.x));
+		source_region_extent.height = static_cast<uint32_t>(std::ceil(source_extent.height * std::max(bounds[1], bounds[3]) - source_region_offset.y));
 	}
 
 	VkExtent2D target_extent = { source_region_extent.width, source_region_extent.height };
@@ -198,7 +199,10 @@ bool reshade::vulkan::swapchain_impl::on_layer_submit(uint32_t eye, VkImage sour
 
 	VkCommandBuffer cmd_list = VK_NULL_HANDLE;
 
-	if (target_extent.width != _width || target_extent.height != _height || convert_format(source_format) != _backbuffer_format)
+	// Due to rounding errors with the bounds we have to use a tolerance of 1 pixel per eye (2 pixels in total)
+	const int32_t width_difference = std::abs(static_cast<int32_t>(target_extent.width) - static_cast<int32_t>(_width));
+
+	if (width_difference > 2 || target_extent.height != _height || convert_format(source_format) != _backbuffer_format)
 	{
 		on_reset();
 

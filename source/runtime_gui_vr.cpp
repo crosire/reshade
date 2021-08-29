@@ -136,6 +136,7 @@ void reshade::runtime::draw_gui_vr()
 
 	imgui_io.KeysDown[0x08] = false;
 	imgui_io.KeysDown[0x09] = false;
+	imgui_io.KeysDown[0x0D] = false;
 
 	vr::VREvent_t ev;
 	while (s_overlay->PollNextOverlayEvent(s_main_handle, &ev, sizeof(ev)))
@@ -183,6 +184,8 @@ void reshade::runtime::draw_gui_vr()
 				imgui_io.KeysDown[0x08] = true;
 			if (ev.data.keyboard.cNewInput[0] == '\t')
 				imgui_io.KeysDown[0x09] = true;
+			if (ev.data.keyboard.cNewInput[0] == '\n')
+				imgui_io.KeysDown[0x0D] = true;
 			for (int i = 0; i < 8 && ev.data.keyboard.cNewInput[i] != 0; ++i)
 				imgui_io.AddInputCharacter(ev.data.keyboard.cNewInput[i]);
 			break;
@@ -254,6 +257,7 @@ void reshade::runtime::draw_gui_vr()
 
 	switch (_device->get_api())
 	{
+	case api::device_api::d3d10:
 	case api::device_api::d3d11:
 		texture.handle = reinterpret_cast<void *>(_vr_overlay_texture.handle);
 		texture.eType = vr::TextureType_DirectX;
