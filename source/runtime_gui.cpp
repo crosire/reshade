@@ -9,7 +9,7 @@
 #include "dll_log.hpp"
 #include "dll_resources.hpp"
 #include "ini_file.hpp"
-#include "addon_manager.hpp"
+#include "addon.hpp"
 #include "runtime.hpp"
 #include "runtime_objects.hpp"
 #include "input.hpp"
@@ -976,7 +976,7 @@ void reshade::runtime::draw_gui_home()
 
 		const float button_size = ImGui::GetFrameHeight();
 		const float button_spacing = _imgui_context->Style.ItemInnerSpacing.x;
-		const float browse_button_width = ImGui::GetWindowContentRegionWidth() - (button_spacing + button_size) * 3;
+		const float browse_button_width = ImGui::GetWindowContentRegionWidth() - (button_spacing + button_size) * 4;
 
 		bool reload_preset = false;
 
@@ -1007,11 +1007,24 @@ void reshade::runtime::draw_gui_home()
 		ImGui::PopStyleVar();
 
 		ImGui::SameLine(0, button_spacing);
+		if (ImGui::ButtonEx(ICON_FK_FLOPPY, ImVec2(button_size, 0), button_flags))
+		{
+			DeleteFileW(_current_preset_path.c_str());
+			save_current_preset();
+		}
+
+		if (ImGui::IsItemHovered())
+			ImGui::SetTooltip("Clean up and save the current preset (removes all settings for disabled techniques)");
+
+		ImGui::SameLine(0, button_spacing);
 		if (ImGui::ButtonEx(ICON_FK_PLUS, ImVec2(button_size, 0), button_flags | ImGuiButtonFlags_PressedOnClick))
 		{
 			_file_selection_path = _current_preset_path.parent_path();
 			ImGui::OpenPopup("##create");
 		}
+
+		if (ImGui::IsItemHovered())
+			ImGui::SetTooltip("Add a new preset");
 
 		if (is_loading())
 			ImGui::PopStyleColor();
@@ -1020,7 +1033,7 @@ void reshade::runtime::draw_gui_home()
 		if (widgets::file_dialog("##browse", _file_selection_path, browse_button_width, { L".ini", L".txt" }))
 		{
 			// Check that this is actually a valid preset file
-			if (ini_file::load_cache(_file_selection_path).has("", "Techniques"))
+			if (ini_file::load_cache(_file_selection_path).has({}, "Techniques"))
 			{
 				reload_preset = true;
 				_current_preset_path = _file_selection_path;
@@ -1044,7 +1057,7 @@ void reshade::runtime::draw_gui_home()
 				{
 					reload_preset =
 						file_type == std::filesystem::file_type::not_found ||
-						ini_file::load_cache(new_preset_path).has("", "Techniques");
+						ini_file::load_cache(new_preset_path).has({}, "Techniques");
 
 					if (_duplicate_current_preset && file_type == std::filesystem::file_type::not_found)
 						CopyFileW(_current_preset_path.c_str(), new_preset_path.c_str(), TRUE);
@@ -1224,7 +1237,7 @@ void reshade::runtime::draw_gui_home()
 					[](const effect &effect) { return effect.skipped; }); skipped_effects > 0)
 				{
 					char buf[60];
-					ImFormatString(buf, ARRAYSIZE(buf), "Force load all effects (%zu remaining)", skipped_effects);
+					ImFormatString(buf, sizeof(buf), "Force load all effects (%zu remaining)", skipped_effects);
 					if (ImGui::ButtonEx(buf, ImVec2(ImGui::GetWindowContentRegionWidth(), 0)))
 					{
 						_load_option_disable_skipping = true;
@@ -1287,6 +1300,8 @@ void reshade::runtime::draw_gui_home()
 
 		if (ImGui::Button(ICON_FK_REFRESH " Reload", ImVec2(-11.5f * _font_size, 0)))
 		{
+			load_config(); // Reload configuration too
+
 			if (!_no_effect_cache && (ImGui::GetIO().KeyCtrl || ImGui::GetIO().KeyShift))
 				clear_effect_cache();
 
@@ -3463,7 +3478,7 @@ void reshade::runtime::render_imgui_draw_data(ImDrawData *draw_data, api::render
 	if (!has_combined_sampler_and_view)
 		cmd_list->push_descriptors(api::shader_stage::pixel, _imgui_pipeline_layout, 0, api::descriptor_type::sampler, 0, 1, &_imgui_sampler_state);
 
-	UINT vtx_offset = 0, idx_offset = 0;
+	int vtx_offset = 0, idx_offset = 0;
 	for (int n = 0; n < draw_data->CmdListsCount; ++n)
 	{
 		const ImDrawList *const draw_list = draw_data->CmdLists[n];

@@ -1063,17 +1063,17 @@ reshade::api::pipeline_desc reshade::vulkan::device_impl::convert_pipeline_desc(
 	desc.compute.shader.format = api::shader_format::spirv;
 	desc.compute.shader.entry_point = create_info.stage.pName;
 
-	std::lock_guard<std::mutex> lock(_mutex);
+	shader_module_data module_data = get_native_object_data<shader_module_data>((uint64_t)create_info.stage.module);
 
-	const std::vector<uint32_t> &spirv = _shader_module_list.at(create_info.stage.module).spirv;
-
-	desc.compute.shader.code = spirv.data();
-	desc.compute.shader.code_size = spirv.size() * sizeof(uint32_t);
+	desc.compute.shader.code = module_data.spirv;
+	desc.compute.shader.code_size = module_data.spirv_size;
 
 	return desc;
 }
 reshade::api::pipeline_desc reshade::vulkan::device_impl::convert_pipeline_desc(const VkGraphicsPipelineCreateInfo &create_info) const
 {
+	bool has_tessellation_shader_stage = false;
+
 	api::pipeline_desc desc = { api::pipeline_stage::all_graphics };
 	desc.layout = { (uint64_t)create_info.layout };
 
@@ -1081,39 +1081,39 @@ reshade::api::pipeline_desc reshade::vulkan::device_impl::convert_pipeline_desc(
 	{
 		const VkPipelineShaderStageCreateInfo &stage = create_info.pStages[i];
 
-		std::lock_guard<std::mutex> lock(_mutex);
-
-		const std::vector<uint32_t> &spirv = _shader_module_list.at(stage.module).spirv;
+		shader_module_data module_data = get_native_object_data<shader_module_data>((uint64_t)stage.module);
 
 		switch (stage.stage)
 		{
 		case VK_SHADER_STAGE_VERTEX_BIT:
-			desc.graphics.vertex_shader.code = spirv.data();
-			desc.graphics.vertex_shader.code_size = spirv.size() * sizeof(uint32_t);
+			desc.graphics.vertex_shader.code = module_data.spirv;
+			desc.graphics.vertex_shader.code_size = module_data.spirv_size;
 			desc.graphics.vertex_shader.format = api::shader_format::spirv;
 			desc.graphics.vertex_shader.entry_point = stage.pName;
 			break;
 		case VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT:
-			desc.graphics.hull_shader.code = spirv.data();
-			desc.graphics.hull_shader.code_size = spirv.size() * sizeof(uint32_t);
+			has_tessellation_shader_stage = true;
+			desc.graphics.hull_shader.code = module_data.spirv;
+			desc.graphics.hull_shader.code_size = module_data.spirv_size;
 			desc.graphics.hull_shader.format = api::shader_format::spirv;
 			desc.graphics.hull_shader.entry_point = stage.pName;
 			break;
 		case VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT:
-			desc.graphics.domain_shader.code = spirv.data();
-			desc.graphics.domain_shader.code_size = spirv.size() * sizeof(uint32_t);
+			has_tessellation_shader_stage = true;
+			desc.graphics.domain_shader.code = module_data.spirv;
+			desc.graphics.domain_shader.code_size = module_data.spirv_size;
 			desc.graphics.domain_shader.format = api::shader_format::spirv;
 			desc.graphics.domain_shader.entry_point = stage.pName;
 			break;
 		case VK_SHADER_STAGE_GEOMETRY_BIT:
-			desc.graphics.geometry_shader.code = spirv.data();
-			desc.graphics.geometry_shader.code_size = spirv.size() * sizeof(uint32_t);
+			desc.graphics.geometry_shader.code = module_data.spirv;
+			desc.graphics.geometry_shader.code_size = module_data.spirv_size;
 			desc.graphics.geometry_shader.format = api::shader_format::spirv;
 			desc.graphics.geometry_shader.entry_point = stage.pName;
 			break;
 		case VK_SHADER_STAGE_FRAGMENT_BIT:
-			desc.graphics.pixel_shader.code = spirv.data();
-			desc.graphics.pixel_shader.code_size = spirv.size() * sizeof(uint32_t);
+			desc.graphics.pixel_shader.code = module_data.spirv;
+			desc.graphics.pixel_shader.code_size = module_data.spirv_size;
 			desc.graphics.pixel_shader.format = api::shader_format::spirv;
 			desc.graphics.pixel_shader.entry_point = stage.pName;
 			break;
@@ -1154,7 +1154,7 @@ reshade::api::pipeline_desc reshade::vulkan::device_impl::convert_pipeline_desc(
 		desc.graphics.topology = convert_primitive_topology(input_assembly_state_info.topology);
 	}
 
-	if (create_info.pTessellationState != nullptr)
+	if (has_tessellation_shader_stage && create_info.pTessellationState != nullptr)
 	{
 		const VkPipelineTessellationStateCreateInfo &tessellation_state_info = *create_info.pTessellationState;
 

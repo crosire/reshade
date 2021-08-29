@@ -6,6 +6,7 @@
 #pragma once
 
 #include "com_ptr.hpp"
+#include <mutex>
 #include <vector>
 #include <d3d12.h>
 
@@ -17,7 +18,7 @@ namespace reshade::d3d12
 		{
 			com_ptr<ID3D12DescriptorHeap> heap;
 			std::vector<bool> state;
-			SIZE_T heap_base;
+			SIZE_T heap_base = 0;
 		};
 
 		const UINT pool_size = 1024;
@@ -31,26 +32,36 @@ namespace reshade::d3d12
 
 		bool allocate(D3D12_CPU_DESCRIPTOR_HANDLE &handle)
 		{
-			for (heap_info &heap_info : _heap_infos)
-			{
-				// Find free empty in the heap
-				if (const auto it = std::find(heap_info.state.begin(), heap_info.state.end(), false);
-					it != heap_info.state.end())
-				{
-					const size_t index = it - heap_info.state.begin();
-					heap_info.state[index] = true; // Mark this entry as being in use
+			const std::unique_lock<std::mutex> lock(_mutex);
 
-					handle.ptr = heap_info.heap_base + index * _increment_size;
-					return true;
+			for (int attempt = 0; attempt < 2; ++attempt)
+			{
+				for (heap_info &heap_info : _heap_infos)
+				{
+					// Find free empty in the heap
+					if (const auto it = std::find(heap_info.state.begin(), heap_info.state.end(), false);
+						it != heap_info.state.end())
+					{
+						const size_t index = it - heap_info.state.begin();
+						heap_info.state[index] = true; // Mark this entry as being in use
+
+						handle.ptr = heap_info.heap_base + index * _increment_size;
+						return true;
+					}
 				}
+
+				// No more space available in the existing heaps, so create a new one and try again
+				if (!allocate_heap())
+					break;
 			}
 
-			// No more space available in the existing heaps, so create a new one and try again
-			return allocate_heap() && allocate(handle);
+			return false;
 		}
 
 		void free(D3D12_CPU_DESCRIPTOR_HANDLE handle)
 		{
+			const std::unique_lock<std::mutex> lock(_mutex);
+
 			for (heap_info &heap_info : _heap_infos)
 			{
 				const SIZE_T heap_beg = heap_info.heap_base;
@@ -94,6 +105,7 @@ namespace reshade::d3d12
 		std::vector<heap_info> _heap_infos;
 		SIZE_T _increment_size;
 		D3D12_DESCRIPTOR_HEAP_TYPE _type;
+		std::mutex _mutex;
 	};
 
 	template <D3D12_DESCRIPTOR_HEAP_TYPE type, UINT static_size, UINT transient_size>
@@ -124,6 +136,8 @@ namespace reshade::d3d12
 		{
 			if (_heap == nullptr)
 				return false;
+
+			const std::unique_lock<std::mutex> lock(_mutex);
 
 			// First try to allocate from the list of freed blocks
 			for (auto block = _free_list.begin(); block != _free_list.end(); ++block)
@@ -159,6 +173,8 @@ namespace reshade::d3d12
 			if (_heap == nullptr)
 				return false;
 
+			const std::unique_lock<std::mutex> lock(_mutex);
+
 			SIZE_T index = static_cast<SIZE_T>(_current_transient_tail % transient_size);
 
 			// Allocations need to be contiguous
@@ -179,6 +195,8 @@ namespace reshade::d3d12
 			// Ensure this handle falls into the static range of this heap
 			if (handle.ptr < _static_heap_base_gpu || handle.ptr >= _transient_heap_base_gpu)
 				return;
+
+			const std::unique_lock<std::mutex> lock(_mutex);
 
 			// First try to append to an existing freed block
 			for (auto block = _free_list.begin(); block != _free_list.end(); ++block)
@@ -242,5 +260,6 @@ namespace reshade::d3d12
 		SIZE_T _current_static_index = 0;
 		UINT64 _current_transient_tail = 0;
 		std::vector<std::pair<UINT64, UINT64>> _free_list;
+		std::mutex _mutex;
 	};
 }

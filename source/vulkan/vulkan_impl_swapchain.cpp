@@ -12,8 +12,7 @@
 #define vk static_cast<device_impl *>(_device)->_dispatch_table
 
 reshade::vulkan::swapchain_impl::swapchain_impl(device_impl *device, command_queue_impl *graphics_queue) :
-	api_object_impl(VK_NULL_HANDLE, device, graphics_queue), // Swap chain object is later set in 'on_init' below
-	_queue(graphics_queue->_orig)
+	api_object_impl(VK_NULL_HANDLE, device, graphics_queue) // Swap chain object is later set in 'on_init' below
 {
 	VkPhysicalDeviceProperties device_props = {};
 	device->_instance_dispatch_table.GetPhysicalDeviceProperties(device->_physical_device, &device_props);
@@ -68,19 +67,20 @@ bool reshade::vulkan::swapchain_impl::on_init(VkSwapchainKHR swapchain, const Vk
 			return false;
 
 		// Add swap chain images to the image list
-		VkImageCreateInfo image_create_info { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
-		image_create_info.imageType = VK_IMAGE_TYPE_2D;
-		image_create_info.format = desc.imageFormat;
-		image_create_info.extent = { desc.imageExtent.width, desc.imageExtent.height, 1 };
-		image_create_info.mipLevels = 1;
-		image_create_info.arrayLayers = desc.imageArrayLayers;
-		image_create_info.samples = VK_SAMPLE_COUNT_1_BIT;
-		image_create_info.usage = desc.imageUsage;
-		image_create_info.sharingMode = desc.imageSharingMode;
-		image_create_info.initialLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+		resource_data data;
+		data.image_create_info = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
+		data.image_create_info.imageType = VK_IMAGE_TYPE_2D;
+		data.image_create_info.format = desc.imageFormat;
+		data.image_create_info.extent = { desc.imageExtent.width, desc.imageExtent.height, 1 };
+		data.image_create_info.mipLevels = 1;
+		data.image_create_info.arrayLayers = desc.imageArrayLayers;
+		data.image_create_info.samples = VK_SAMPLE_COUNT_1_BIT;
+		data.image_create_info.usage = desc.imageUsage;
+		data.image_create_info.sharingMode = desc.imageSharingMode;
+		data.image_create_info.initialLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
 		for (uint32_t i = 0; i < num_images; ++i)
-			static_cast<device_impl *>(_device)->register_image(_swapchain_images[i], image_create_info);
+			static_cast<device_impl *>(_device)->register_object<resource_data>((uint64_t)_swapchain_images[i], std::move(data));
 	}
 	else
 	{
@@ -93,9 +93,6 @@ bool reshade::vulkan::swapchain_impl::on_init(VkSwapchainKHR swapchain, const Vk
 #if RESHADE_ADDON
 	invoke_addon_event<addon_event::init_swapchain>(this);
 #endif
-
-	if (_queue == VK_NULL_HANDLE)
-		return false;
 
 	_width = desc.imageExtent.width;
 	_height = desc.imageExtent.height;
@@ -124,11 +121,11 @@ void reshade::vulkan::swapchain_impl::on_reset()
 
 	if (_orig == VK_NULL_HANDLE)
 		for (VkImage image : _swapchain_images)
-			static_cast<device_impl *>(_device)->destroy_resource(reinterpret_cast<api::resource &>(image));
+			static_cast<device_impl *>(_device)->destroy_resource({ (uint64_t)image });
 	else
 		// Remove swap chain images from the image list
 		for (VkImage image : _swapchain_images)
-			static_cast<device_impl *>(_device)->unregister_image(image);
+			static_cast<device_impl *>(_device)->unregister_object<resource_data>((uint64_t)image);
 	_swapchain_images.clear();
 
 	for (VkSemaphore &semaphore : _queue_sync_semaphores)
@@ -164,7 +161,7 @@ void reshade::vulkan::swapchain_impl::on_present(VkQueue queue, const uint32_t s
 
 	// If the application is presenting with a different queue than rendering, synchronize these two queues first
 	// This ensures that it has finished rendering before ReShade applies its own rendering
-	if (queue != _queue)
+	if (queue != static_cast<command_queue_impl *>(_graphics_queue)->_orig)
 	{
 		// Signal a semaphore from the queue the application is presenting with
 		VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };

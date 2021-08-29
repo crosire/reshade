@@ -270,7 +270,7 @@ void reshade::runtime::draw_gui_vr()
 	case api::device_api::vulkan:
 		const auto device_impl = static_cast<vulkan::device_impl *>(_device);
 		vulkan_data.m_nImage = _vr_overlay_texture.handle;
-		vulkan_data.m_pDevice = reinterpret_cast<VkDevice_T *>(device_impl->_orig);
+		vulkan_data.m_pDevice = reinterpret_cast<VkDevice_T *>(_device->get_native_object());
 		vulkan_data.m_pPhysicalDevice = device_impl->_physical_device;
 		vulkan_data.m_pInstance = VK_NULL_HANDLE;
 		vulkan_data.m_pQueue = reinterpret_cast<VkQueue_T *>(_graphics_queue->get_native_object());

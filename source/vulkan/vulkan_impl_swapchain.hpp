@@ -32,10 +32,9 @@ namespace reshade::vulkan
 		bool on_layer_submit(uint32_t eye, VkImage source, const VkExtent2D &source_extent, VkFormat source_format, VkSampleCountFlags source_samples, uint32_t source_layer_index, const float bounds[4], VkImage *target_image);
 
 	private:
-		VkQueue  _queue = VK_NULL_HANDLE;
-		uint32_t _queue_sync_index = 0;
-		VkSemaphore _queue_sync_semaphores[NUM_SYNC_SEMAPHORES] = {};
 		uint32_t _swap_index = 0;
 		std::vector<VkImage> _swapchain_images;
+		uint32_t _queue_sync_index = 0;
+		VkSemaphore _queue_sync_semaphores[NUM_SYNC_SEMAPHORES] = {};
 	};
 }

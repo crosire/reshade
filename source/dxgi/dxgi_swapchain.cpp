@@ -80,7 +80,7 @@ DXGISwapChain::DXGISwapChain(D3D12CommandQueue *command_queue, IDXGISwapChain3 *
 
 void DXGISwapChain::runtime_reset()
 {
-	const std::lock_guard<std::mutex> lock(_impl_mutex);
+	const std::unique_lock<std::mutex> lock(_impl_mutex);
 
 	switch (_direct3d_version)
 	{
@@ -97,7 +97,7 @@ void DXGISwapChain::runtime_reset()
 }
 void DXGISwapChain::runtime_resize()
 {
-	const std::lock_guard<std::mutex> lock(_impl_mutex);
+	const std::unique_lock<std::mutex> lock(_impl_mutex);
 
 	switch (_direct3d_version)
 	{
@@ -121,7 +121,7 @@ void DXGISwapChain::runtime_present(UINT flags)
 
 	// Synchronize access to effect runtime to avoid race conditions between 'load_effects' and 'unload_effects' causing crashes
 	// This is necessary because Resident Evil 3 calls DXGI functions simultaneously from multiple threads (which is technically illegal)
-	const std::lock_guard<std::mutex> lock(_impl_mutex);
+	const std::unique_lock<std::mutex> lock(_impl_mutex);
 
 	switch (_direct3d_version)
 	{

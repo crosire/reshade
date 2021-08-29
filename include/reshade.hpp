@@ -9,8 +9,6 @@
 #include "reshade_overlay.hpp"
 #include <Windows.h>
 
-#define RESHADE_API_VERSION 1
-
 extern HMODULE g_module_handle;
 
 // Use the kernel32 variant of module enumeration functions so it can be safely called from DllMain

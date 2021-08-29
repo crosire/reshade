@@ -5,8 +5,6 @@
 
 #pragma once
 
-#include "reshade_api_format.hpp"
-
 #ifndef RESHADE_DEFINE_HANDLE
 	#define RESHADE_DEFINE_HANDLE(name) \
 		typedef struct { uint64_t handle; } name; \
@@ -27,6 +25,8 @@
 		inline type &operator^=(type &a, type b) { return reinterpret_cast<type &>(reinterpret_cast<uint32_t &>(a) ^= static_cast<uint32_t>(b)); } \
 		constexpr type operator^(type a, type b) { return static_cast<type>(static_cast<uint32_t>(a) ^ static_cast<uint32_t>(b)); }
 #endif
+
+#include "reshade_api_format.hpp"
 
 namespace reshade { namespace api
 {

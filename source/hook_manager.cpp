@@ -6,6 +6,7 @@
 #include "dll_log.hpp"
 #include "hook_manager.hpp"
 #include <mutex>
+#include <shared_mutex>
 #include <cstring>
 #include <algorithm>
 #include <vector>
@@ -35,7 +36,7 @@ extern HMODULE g_module_handle;
 HMODULE g_export_module_handle = nullptr;
 extern std::filesystem::path g_reshade_dll_path;
 static std::filesystem::path s_export_hook_path;
-static std::mutex s_hooks_mutex;
+static std::shared_mutex s_hooks_mutex;
 static std::vector<named_hook> s_hooks;
 static std::mutex s_delayed_hook_paths_mutex;
 static std::vector<std::filesystem::path> s_delayed_hook_paths;
@@ -120,7 +121,7 @@ static bool install_internal(const char *name, reshade::hook &hook, hook_method 
 	}
 
 	// Protect access to hook list with a mutex
-	{ const std::lock_guard<std::mutex> lock(s_hooks_mutex);
+	{ const std::unique_lock<std::shared_mutex> lock(s_hooks_mutex);
 		s_hooks.push_back({ hook, name, method });
 	}
 
@@ -298,7 +299,7 @@ static reshade::hook find_internal(reshade::hook::address target, reshade::hook:
 	assert(target != nullptr || replacement != nullptr);
 
 	// Protect access to hook list with a mutex
-	const std::lock_guard<std::mutex> lock(s_hooks_mutex);
+	const std::shared_lock<std::shared_mutex> lock(s_hooks_mutex);
 
 	// Enumerate list of installed hooks and find matching one
 	const auto it = std::find_if(s_hooks.cbegin(), s_hooks.cend(),

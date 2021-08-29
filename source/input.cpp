@@ -42,7 +42,7 @@ void reshade::input::register_window_with_raw_input(window_handle window, bool n
 
 	assert(window != nullptr);
 
-	const std::lock_guard<std::mutex> lock(s_windows_mutex);
+	const std::unique_lock<std::mutex> lock(s_windows_mutex);
 
 	const auto flags = (no_legacy_keyboard ? 0x1u : 0u) | (no_legacy_mouse ? 0x2u : 0u);
 	const auto insert = s_raw_input_windows.emplace(static_cast<HWND>(window), flags);
@@ -53,7 +53,7 @@ std::shared_ptr<reshade::input> reshade::input::register_window(window_handle wi
 {
 	assert(window != nullptr);
 
-	const std::lock_guard<std::mutex> lock(s_windows_mutex);
+	const std::unique_lock<std::mutex> lock(s_windows_mutex);
 
 	const auto insert = s_windows.emplace(static_cast<HWND>(window), std::weak_ptr<input>());
 
@@ -140,7 +140,7 @@ bool reshade::input::handle_window_message(const void *message_data)
 	ScreenToClient(static_cast<HWND>(input->_window), &details.pt);
 
 	// Prevent input threads from modifying input while it is accessed elsewhere
-	const std::lock_guard<std::mutex> input_lock = input->lock();
+	const auto input_lock = input->lock();
 
 	input->_mouse_position[0] = details.pt.x;
 	input->_mouse_position[1] = details.pt.y;

@@ -12,7 +12,7 @@
 reshade::vulkan::command_queue_impl::command_queue_impl(device_impl *device, uint32_t queue_family_index, const VkQueueFamilyProperties &queue_family, VkQueue queue) :
 	api_object_impl(queue), _device_impl(device)
 {
-	// Register queue to device
+	// Register queue to device (no need to lock, since all command queues are created single threaded in 'vkCreateDevice')
 	_device_impl->_queues.push_back(this);
 
 	// Only create an immediate command list for graphics queues (since the implemented commands do not work on other queue types)

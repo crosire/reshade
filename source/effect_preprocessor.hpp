@@ -8,8 +8,8 @@
 #include "effect_token.hpp"
 #include <memory> // std::unique_ptr
 #include <filesystem>
-#include <unordered_set>
 #include <unordered_map>
+#include <unordered_set>
 
 namespace reshadefx
 {

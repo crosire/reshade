@@ -7,6 +7,95 @@
 
 namespace reshade::vulkan
 {
+	struct resource_data
+	{
+		bool is_image() const { return type != VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO; }
+
+		VmaAllocation allocation;
+		union
+		{
+			VkStructureType type;
+			VkImageCreateInfo image_create_info;
+			VkBufferCreateInfo buffer_create_info;
+		};
+	};
+
+	struct resource_view_data
+	{
+		bool is_image_view() const { return type != VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO; }
+
+		union
+		{
+			VkStructureType type;
+			VkImageViewCreateInfo image_create_info;
+			VkBufferViewCreateInfo buffer_create_info;
+		};
+	};
+
+	struct render_pass_data
+	{
+		struct attachment
+		{
+			VkImageLayout initial_layout;
+			VkImageAspectFlags clear_flags;
+			VkImageAspectFlags format_flags;
+		};
+
+		std::vector<attachment> attachments;
+	};
+
+	struct framebuffer_data
+	{
+		VkExtent2D area;
+		std::vector<VkImageView> attachments;
+		std::vector<VkImageAspectFlags> attachment_types;
+	};
+
+	struct shader_module_data
+	{
+		const uint8_t *spirv;
+		size_t spirv_size;
+	};
+
+	struct pipeline_layout_data
+	{
+		std::vector<api::pipeline_layout_param> desc;
+	};
+
+	struct descriptor_set_data
+	{
+		VkDescriptorSetLayout layout;
+	};
+
+	struct descriptor_set_layout_data
+	{
+		void calc_binding_from_offset(uint32_t offset, uint32_t &last_binding, uint32_t &array_offset) const
+		{
+			last_binding = 0;
+			array_offset = 0;
+
+			for (const auto[binding_offset, binding] : binding_to_offset)
+			{
+				if (offset < binding_offset || offset > binding_offset + array_offset)
+					continue;
+
+				last_binding = binding;
+				array_offset = offset - binding_offset;
+			}
+		}
+		uint32_t calc_offset_from_binding(uint32_t binding, uint32_t array_offset) const
+		{
+			if (binding_to_offset.find(binding) == binding_to_offset.end())
+				return 0;
+
+			return binding_to_offset.at(binding) + array_offset;
+		}
+
+		std::vector<api::descriptor_range> desc;
+		std::unordered_map<uint32_t, uint32_t> binding_to_offset;
+		bool push_descriptors;
+	};
+
 	auto convert_format(api::format format) -> VkFormat;
 	auto convert_format(VkFormat vk_format) -> api::format;
 
