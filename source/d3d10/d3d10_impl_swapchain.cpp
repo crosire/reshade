@@ -101,8 +101,6 @@ bool reshade::d3d10::swapchain_impl::on_init()
 		assert(swap_desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT);
 
 		_backbuffer_resolved = _backbuffer;
-		_backbuffer->Release();
-		assert(_backbuffer.ref_count() == 1);																																							 
 	}
 
 	_width = swap_desc.BufferDesc.Width;
