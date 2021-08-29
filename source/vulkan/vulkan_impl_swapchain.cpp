@@ -216,10 +216,6 @@ bool reshade::vulkan::swapchain_impl::on_layer_submit(uint32_t eye, VkImage sour
 			return false;
 		}
 
-		_width = target_extent.width;
-		_height = target_extent.height;
-		_backbuffer_format = convert_format(source_format);
-
 		_swapchain_images.resize(1);
 		_swapchain_images[0] = (VkImage)image.handle;
 
