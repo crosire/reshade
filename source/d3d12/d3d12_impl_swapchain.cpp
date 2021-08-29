@@ -175,6 +175,7 @@ bool reshade::d3d12::swapchain_impl::on_present(ID3D12Resource *source, HWND hwn
 	on_present();
 	return true;
 }
+
 bool reshade::d3d12::swapchain_impl::on_layer_submit(UINT eye, ID3D12Resource *source, const float bounds[4], ID3D12Resource **target)
 {
 	assert(eye < 2 && source != nullptr);
@@ -200,13 +201,12 @@ bool reshade::d3d12::swapchain_impl::on_layer_submit(UINT eye, ID3D12Resource *s
 	if (region_width == 0 || region_height == 0)
 		return false;
 
-	//convert the source format to the typeless format
-	const api::format convertedSourceFormat = api::format_to_typeless(convert_format(source_desc.Format));
+	// Due to rounding errors with the bounds we have to use a tolerance of 1 pixel per eye (2 pixels in total)
+	const  INT width_difference = std::abs(static_cast<INT>(target_width) - static_cast<INT>(_width));
 
-	//due to rounding errors with float calculation of the bounds we have use a tolerance of 1 pixel per eye (2pixel in total)
-	const INT widthDiff = std::abs(static_cast<INT>(target_width) - static_cast<INT>(_width));
+	const api::format source_format = convert_format(source_desc.Format);
 
-	if (widthDiff > 2 || region_height != _height || convertedSourceFormat != _backbuffer_format)
+	if (width_difference > 2 || region_height != _height || source_format != _backbuffer_format)
 	{
 		on_reset();
 
@@ -216,7 +216,7 @@ bool reshade::d3d12::swapchain_impl::on_layer_submit(UINT eye, ID3D12Resource *s
 		source_desc.Height = region_height;
 		source_desc.DepthOrArraySize = 1;
 		source_desc.MipLevels = 1;
-		source_desc.Format = convert_format(convertedSourceFormat);
+		source_desc.Format = convert_format(api::format_to_typeless(source_format));
 
 		const D3D12_HEAP_PROPERTIES heap_props = { D3D12_HEAP_TYPE_DEFAULT };
 
@@ -230,7 +230,7 @@ bool reshade::d3d12::swapchain_impl::on_layer_submit(UINT eye, ID3D12Resource *s
 		_is_vr = true;
 		_width = target_width;
 		_height = region_height;
-		_backbuffer_format = convertedSourceFormat;
+		_backbuffer_format = source_format;
 
 #if RESHADE_ADDON
 		invoke_addon_event<addon_event::init_swapchain>(this);

@@ -2709,10 +2709,9 @@ void reshade::runtime::draw_variable_editor()
 			}
 
 			// Reloading an effect file invalidates all textures, but the statistics window may already have drawn references to those, so need to reset it
-			ImGuiWindow *statisticsWindow = ImGui::FindWindowByName("Statistics");
-			if(statisticsWindow != nullptr){
-				statisticsWindow->DrawList->CmdBuffer.clear();
-			}
+			if (ImGuiWindow *const statistics_window = ImGui::FindWindowByName("Statistics");
+				statistics_window != nullptr)
+				statistics_window->DrawList->CmdBuffer.clear();
 		}
 	}
 
@@ -3061,7 +3060,9 @@ void reshade::runtime::draw_technique_editor()
 		reload_effect(force_reload_effect, true);
 
 		// Reloading an effect file invalidates all textures, but the statistics window may already have drawn references to those, so need to reset it
-		ImGui::FindWindowByName("Statistics")->DrawList->CmdBuffer.clear();
+		if (ImGuiWindow *const statistics_window = ImGui::FindWindowByName("Statistics");
+			statistics_window != nullptr)
+			statistics_window->DrawList->CmdBuffer.clear();
 	}
 }
 
@@ -3160,7 +3161,9 @@ void reshade::runtime::draw_code_editor(editor_instance &instance)
 			reload_effect(instance.effect_index);
 
 			// Reloading an effect file invalidates all textures, but the statistics window may already have drawn references to those, so need to reset it
-			ImGui::FindWindowByName("Statistics")->DrawList->CmdBuffer.clear();
+			if (ImGuiWindow *const statistics_window = ImGui::FindWindowByName("Statistics");
+				statistics_window != nullptr)
+				statistics_window->DrawList->CmdBuffer.clear();
 		}
 	}
 

@@ -137,7 +137,7 @@ void reshade::runtime::draw_gui_vr()
 	imgui_io.KeysDown[0x08] = false;
 	imgui_io.KeysDown[0x09] = false;
 	imgui_io.KeysDown[0x0D] = false;
-	
+
 	vr::VREvent_t ev;
 	while (s_overlay->PollNextOverlayEvent(s_main_handle, &ev, sizeof(ev)))
 	{

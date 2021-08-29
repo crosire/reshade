@@ -178,6 +178,7 @@ void reshade::vulkan::swapchain_impl::on_present(VkQueue queue, const uint32_t s
 		static_cast<command_queue_impl *>(_graphics_queue)->flush_immediate_command_list(wait);
 	}
 }
+
 bool reshade::vulkan::swapchain_impl::on_layer_submit(uint32_t eye, VkImage source, const VkExtent2D &source_extent, VkFormat source_format, VkSampleCountFlags source_samples, uint32_t source_layer_index, const float bounds[4], VkImage *target_image)
 {
 	assert(eye < 2 && source != VK_NULL_HANDLE);
@@ -197,10 +198,10 @@ bool reshade::vulkan::swapchain_impl::on_layer_submit(uint32_t eye, VkImage sour
 
 	VkCommandBuffer cmd_list = VK_NULL_HANDLE;
 
-	//due to rounding errors with float calculation of the bounds we have use a tolerance of 1 pixel per eye (2pixel in total)
-	const INT widthDiff = std::abs(static_cast<INT>(target_extent.width) - static_cast<INT>(_width));
+	// Due to rounding errors with the bounds we have to use a tolerance of 1 pixel per eye (2 pixels in total)
+	const int32_t width_difference = std::abs(static_cast<int32_t>(target_extent.width) - static_cast<int32_t>(_width));
 
-	if (widthDiff > 2 || target_extent.height != _height || convert_format(source_format) != _backbuffer_format)
+	if (width_difference > 2 || target_extent.height != _height || convert_format(source_format) != _backbuffer_format)
 	{
 		on_reset();
 

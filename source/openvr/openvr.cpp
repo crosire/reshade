@@ -3,7 +3,6 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-
 #include "dll_log.hpp"
 #include "hook_manager.hpp"
 #include "lockfree_table.hpp"
@@ -45,12 +44,12 @@ static vr::EVRCompositorError on_submit_d3d10(vr::EVREye eye, ID3D10Texture2D *t
 	std::function<vr::EVRCompositorError(vr::EVREye eye, void *texture, const vr::VRTextureBounds_t *bounds, vr::EVRSubmitFlags flags)> submit)
 {
 	com_ptr<ID3D10Device> device;
-	D3D10Device *device_proxy = nullptr; // Was set via 'SetPrivateData', so do not use a 'com_ptr' here, since 'GetPrivateData' will not add a reference
 	texture->GetDevice(&device);
+
+	D3D10Device *device_proxy = nullptr; // Was set via 'SetPrivateData', so do not use a 'com_ptr' here, since 'GetPrivateData' will not add a reference
 	if (UINT data_size = sizeof(device_proxy);
-		FAILED(device->GetPrivateData(__uuidof(D3D10Device), &data_size, reinterpret_cast<void *>(&device_proxy)))){
+		FAILED(device->GetPrivateData(__uuidof(D3D10Device), &data_size, reinterpret_cast<void *>(&device_proxy))))
 		goto normal_submit; // No proxy device found, so just submit normally
-	}
 
 	if (s_vr_swapchain.first == nullptr)
 	{
@@ -71,9 +70,11 @@ static vr::EVRCompositorError on_submit_d3d10(vr::EVREye eye, ID3D10Texture2D *t
 		reinterpret_cast<const float *>(bounds),
 		&target_texture))
 	{
-		normal_submit:
+	normal_submit:
 		// Failed to initialize effect runtime or copy the eye texture, so submit normally without applying effects
-		LOG(DEBUG) << "Failed to initialize effect runtime or copy the eye texture for eye " << eye;
+#if RESHADE_VERBOSE_LOG
+		LOG(ERROR) << "Failed to initialize effect runtime or copy the eye texture for eye " << eye;
+#endif
 		return submit(eye, texture, bounds, flags);
 	}
 
@@ -97,26 +98,24 @@ static vr::EVRCompositorError on_submit_d3d10(vr::EVREye eye, ID3D10Texture2D *t
 		return submit(vr::Eye_Right, target_texture, &right_bounds, flags);
 	}
 }
-
 static vr::EVRCompositorError on_submit_d3d11(vr::EVREye eye, ID3D11Texture2D *texture, const vr::VRTextureBounds_t *bounds, vr::EVRSubmitFlags flags,
 	std::function<vr::EVRCompositorError(vr::EVREye eye, void *texture, const vr::VRTextureBounds_t *bounds, vr::EVRSubmitFlags flags)> submit)
 {
 	com_ptr<ID3D11Device> device;
-	D3D11Device *device_proxy = nullptr; // Was set via 'SetPrivateData', so do not use a 'com_ptr' here, since 'GetPrivateData' will not add a reference
-	texture->GetDevice(&device);
+	texture->GetDevice(&device); // 'GetDevice' is at the same virtual function table index for 'ID3D10Texture2D' and 'ID3D11Texture2D', so this happens to work for either case
 
-	// check if the passed texture is actually a D3D10 texture.
-	// This must be done on the device as the interface of the texture would succeed even when it is a D3D11 texture
+	// Check if the passed texture is actually a D3D10 texture
+	// Cannot just 'QueryInterface' with 'ID3D10Texture2D', since that is supported on D3D11 textures too for some reason, so instead check the device
 	if (com_ptr<ID3D10Device> device10;
-		device->QueryInterface(&device10) == S_OK){
+		device->QueryInterface(&device10) == S_OK)
 		// Whoops, this is actually a D3D10 texture, redirect ...
 		return on_submit_d3d10(eye, reinterpret_cast<ID3D10Texture2D *>(texture), bounds, flags, submit);
-	}
 
+	D3D11Device *device_proxy = nullptr; // Was set via 'SetPrivateData', so do not use a 'com_ptr' here, since 'GetPrivateData' will not add a reference
 	if (UINT data_size = sizeof(device_proxy);
 		FAILED(device->GetPrivateData(__uuidof(D3D11Device), &data_size, reinterpret_cast<void *>(&device_proxy))))
 		goto normal_submit; // No proxy device found, so just submit normally
-	
+
 	if (s_vr_swapchain.first == nullptr)
 	{
 		s_vr_swapchain = { new reshade::d3d11::swapchain_impl(device_proxy, device_proxy->_immediate_context, nullptr), vr::TextureType_DirectX };
@@ -136,9 +135,11 @@ static vr::EVRCompositorError on_submit_d3d11(vr::EVREye eye, ID3D11Texture2D *t
 		reinterpret_cast<const float *>(bounds),
 		&target_texture))
 	{
-		normal_submit:
+	normal_submit:
 		// Failed to initialize effect runtime or copy the eye texture, so submit normally without applying effects
-		LOG(DEBUG) << "Failed to initialize effect runtime or copy the eye texture for eye " << eye;
+#if RESHADE_VERBOSE_LOG
+		LOG(ERROR) << "Failed to initialize effect runtime or copy the eye texture for eye " << eye;
+#endif
 		return submit(eye, texture, bounds, flags);
 	}
 
@@ -162,8 +163,6 @@ static vr::EVRCompositorError on_submit_d3d11(vr::EVREye eye, ID3D11Texture2D *t
 		return submit(vr::Eye_Right, target_texture, &right_bounds, flags);
 	}
 }
-
-
 static vr::EVRCompositorError on_submit_d3d12(vr::EVREye eye, const vr::D3D12TextureData_t *texture, const vr::VRTextureBounds_t *bounds, vr::EVRSubmitFlags flags,
 	std::function<vr::EVRCompositorError(vr::EVREye eye, void *texture, const vr::VRTextureBounds_t *bounds, vr::EVRSubmitFlags flags)> submit)
 {
@@ -191,6 +190,9 @@ static vr::EVRCompositorError on_submit_d3d12(vr::EVREye eye, const vr::D3D12Tex
 	{
 	normal_submit:
 		// Failed to initialize effect runtime or copy the eye texture, so submit normally without applying effects
+#if RESHADE_VERBOSE_LOG
+		LOG(ERROR) << "Failed to initialize effect runtime or copy the eye texture for eye " << eye;
+#endif
 		return submit(eye, (void *)texture, bounds, flags);
 	}
 
@@ -242,6 +244,9 @@ static vr::EVRCompositorError on_submit_opengl(vr::EVREye eye, GLuint object, co
 		&target_rbo))
 	{
 		// Failed to initialize effect runtime or copy the eye texture, so submit normally without applying effects
+#if RESHADE_VERBOSE_LOG
+		LOG(ERROR) << "Failed to initialize effect runtime or copy the eye texture for eye " << eye;
+#endif
 		return submit(eye, reinterpret_cast<void *>(static_cast<uintptr_t>(object)), bounds, flags);
 	}
 
@@ -309,6 +314,9 @@ static vr::EVRCompositorError on_submit_vulkan(vr::EVREye eye, const vr::VRVulka
 	{
 	normal_submit:
 		// Failed to initialize effect runtime or copy the eye texture, so submit normally without applying effects
+#if RESHADE_VERBOSE_LOG
+		LOG(ERROR) << "Failed to initialize effect runtime or copy the eye texture for eye " << eye;
+#endif
 		return submit(eye, (void *)texture, bounds, flags);
 	}
 
@@ -373,9 +381,9 @@ VR_Interface_Impl(IVRCompositor, Submit, 6, 007, {
 
 	switch (eTextureType)
 	{
-	case vr::TextureType_DirectX:
+	case vr::TextureType_DirectX: // API_DirectX
 		return on_submit_d3d11(eEye, static_cast<ID3D11Texture2D *>(pTexture), pBounds, vr::Submit_Default, submit_lambda);
-	case vr::TextureType_OpenGL: 
+	case vr::TextureType_OpenGL:  // API_OpenGL
 		return submit_lambda(eEye, pTexture, pBounds, vr::Submit_Default); // Unsupported because overwritting would require the 'vr::Submit_GlRenderBuffer' flag, which did not yet exist in this OpenVR version
 	default:
 		return vr::VRCompositorError_InvalidTexture;
@@ -392,9 +400,9 @@ VR_Interface_Impl(IVRCompositor, Submit, 6, 008, {
 
 	switch (eTextureType)
 	{
-	case vr::TextureType_DirectX:
+	case vr::TextureType_DirectX: // API_DirectX
 		return on_submit_d3d11(eEye, static_cast<ID3D11Texture2D *>(pTexture), pBounds, nSubmitFlags, submit_lambda);
-	case vr::TextureType_OpenGL: 
+	case vr::TextureType_OpenGL:  // API_OpenGL
 		return on_submit_opengl(eEye, static_cast<GLuint>(reinterpret_cast<uintptr_t>(pTexture)), pBounds, nSubmitFlags, submit_lambda);
 	default:
 		return vr::VRCompositorError_InvalidTexture;
@@ -477,12 +485,11 @@ VR_Interface_Impl(IVRClientCore, Cleanup, 1, 001, {
 	switch (s_vr_swapchain.second)
 	{
 	case vr::TextureType_DirectX:
-		// switch between DX10 and DX11
-		if(s_vr_swapchain.first->get_device()->get_api() == reshade::api::device_api::d3d10){
+		assert(s_vr_swapchain.first != nullptr);
+		if (s_vr_swapchain.first->get_device()->get_api() == reshade::api::device_api::d3d10)
 			delete static_cast<reshade::d3d10::swapchain_impl *>(s_vr_swapchain.first);
-		} else {
+		else
 			delete static_cast<reshade::d3d11::swapchain_impl *>(s_vr_swapchain.first);
-		}
 		break;
 	case vr::TextureType_DirectX12:
 		delete static_cast<reshade::d3d12::swapchain_impl *>(s_vr_swapchain.first);
