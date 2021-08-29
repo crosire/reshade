@@ -194,21 +194,22 @@ bool reshade::d3d10::swapchain_impl::on_layer_submit(UINT eye, ID3D10Texture2D *
 	if (region_width == 0 || region_height == 0)
 		return false;
 
-	//convert the source format to the typeless format
-	const api::format convertedSourceFormat = api::format_to_typeless(convert_format(source_desc.Format));
+	const api::format source_format = convert_format(source_desc.Format);
 
 	//due to rounding errors with float calculation of the bounds we have use a tolerance of 1 pixel per eye (2pixel in total)
 	const INT widthDiff = std::abs(static_cast<INT>(target_width) - static_cast<INT>(_width));
 
-	if (widthDiff > 2 || region_height != _height || convertedSourceFormat != _backbuffer_format)
+	if (widthDiff > 2 || region_height != _height || source_format != _backbuffer_format)
 	{
 		on_reset();
 
-		source_desc.Width = target_width;
+		source_desc.Width = target_width;	
 		source_desc.Height = region_height;
 		source_desc.MipLevels = 1;
 		source_desc.ArraySize = 1;
-		source_desc.Format = convert_format(convertedSourceFormat);
+
+		// convert source format to typeless
+		source_desc.Format = convert_format(api::format_to_typeless(source_format));
 
 		source_desc.BindFlags = D3D10_BIND_RENDER_TARGET | D3D10_BIND_SHADER_RESOURCE;
 
@@ -222,7 +223,7 @@ bool reshade::d3d10::swapchain_impl::on_layer_submit(UINT eye, ID3D10Texture2D *
 		_is_vr = true;
 		_width = target_width;
 		_height = region_height;
-		_backbuffer_format = convertedSourceFormat;
+		_backbuffer_format = source_format;
 
 		//assign the backuffer to the resolved buffer and release the original backbuffer
 		_backbuffer_resolved = _backbuffer;
