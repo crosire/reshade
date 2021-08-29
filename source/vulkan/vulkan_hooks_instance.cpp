@@ -8,7 +8,7 @@
 #include "lockfree_linear_map.hpp"
 #include "vulkan_hooks.hpp"
 
-lockfree_linear_map<void *, VkLayerInstanceDispatchTable, 4> g_instance_dispatch;
+lockfree_linear_map<void *, instance_dispatch_table, 4> g_instance_dispatch;
 lockfree_linear_map<VkSurfaceKHR, HWND, 16> g_surface_windows;
 
 #define GET_DISPATCH_PTR(name, object) \
@@ -151,7 +151,7 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	// ---- VK_KHR_win32_surface extension commands
 	INIT_DISPATCH_PTR(CreateWin32SurfaceKHR);
 
-	g_instance_dispatch.emplace(dispatch_key_from_handle(instance), dispatch_table);
+	g_instance_dispatch.emplace(dispatch_key_from_handle(instance), instance_dispatch_table { dispatch_table, instance });
 
 #if RESHADE_VERBOSE_LOG
 	LOG(INFO) << "Returning Vulkan instance " << instance << '.';
@@ -165,6 +165,7 @@ void     VKAPI_CALL vkDestroyInstance(VkInstance instance, const VkAllocationCal
 
 	// Get function pointer before removing it next
 	GET_DISPATCH_PTR(DestroyInstance, instance);
+
 	// Remove instance dispatch table since this instance is being destroyed
 	g_instance_dispatch.erase(dispatch_key_from_handle(instance));
 

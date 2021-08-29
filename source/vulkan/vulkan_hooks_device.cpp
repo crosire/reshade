@@ -15,7 +15,7 @@
 lockfree_linear_map<void *, reshade::vulkan::device_impl *, 4> g_vulkan_devices;
 static lockfree_linear_map<VkQueue, reshade::vulkan::command_queue_impl *, 16> s_vulkan_queues;
 extern locked_ptr_hash_map<reshade::vulkan::command_list_impl *> g_vulkan_command_buffers;
-extern lockfree_linear_map<void *, VkLayerInstanceDispatchTable, 4> g_instance_dispatch;
+extern lockfree_linear_map<void *, instance_dispatch_table, 4> g_instance_dispatch;
 extern lockfree_linear_map<VkSurfaceKHR, HWND, 16> g_surface_windows;
 static lockfree_linear_map<VkSwapchainKHR, reshade::vulkan::swapchain_impl *, 16> s_vulkan_swapchains;
 
@@ -57,6 +57,8 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 
 	assert(pCreateInfo != nullptr && pDevice != nullptr);
 
+	const instance_dispatch_table &instance_dispatch = g_instance_dispatch.at(dispatch_key_from_handle(physicalDevice));
+
 	// Look for layer link info if installed as a layer (provided by the Vulkan loader)
 	VkLayerDeviceCreateInfo *const link_info = find_layer_info<VkLayerDeviceCreateInfo>(
 		pCreateInfo->pNext, VK_STRUCTURE_TYPE_LOADER_DEVICE_CREATE_INFO, VK_LAYER_LINK_INFO);
@@ -75,7 +77,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		// Look up functions in layer info
 		get_device_proc = link_info->u.pLayerInfo->pfnNextGetDeviceProcAddr;
 		get_instance_proc = link_info->u.pLayerInfo->pfnNextGetInstanceProcAddr;
-		trampoline = reinterpret_cast<PFN_vkCreateDevice>(get_instance_proc(nullptr, "vkCreateDevice"));
+		trampoline = reinterpret_cast<PFN_vkCreateDevice>(get_instance_proc(instance_dispatch.instance, "vkCreateDevice"));
 
 		// Advance the link info for the next element on the chain
 		link_info->u.pLayerInfo = link_info->u.pLayerInfo->pNext;
@@ -96,9 +98,9 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	for (uint32_t i = 0; i < pCreateInfo->enabledExtensionCount; ++i)
 		LOG(INFO) << "  " << pCreateInfo->ppEnabledExtensionNames[i];
 
-	auto enum_queue_families = g_instance_dispatch.at(dispatch_key_from_handle(physicalDevice)).GetPhysicalDeviceQueueFamilyProperties;
+	auto enum_queue_families = instance_dispatch.GetPhysicalDeviceQueueFamilyProperties;
 	assert(enum_queue_families != nullptr);
-	auto enum_device_extensions = g_instance_dispatch.at(dispatch_key_from_handle(physicalDevice)).EnumerateDeviceExtensionProperties;
+	auto enum_device_extensions = instance_dispatch.EnumerateDeviceExtensionProperties;
 	assert(enum_device_extensions != nullptr);
 
 	uint32_t num_queue_families = 0;
