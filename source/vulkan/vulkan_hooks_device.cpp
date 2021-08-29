@@ -5,19 +5,19 @@
 
 #include "dll_log.hpp"
 #include "hook_manager.hpp"
-#include "lockfree_table.hpp"
+#include "lockfree_linear_map.hpp"
 #include "vulkan_hooks.hpp"
 #include "vulkan_impl_device.hpp"
 #include "vulkan_impl_command_queue.hpp"
 #include "vulkan_impl_swapchain.hpp"
 #include "vulkan_impl_type_convert.hpp"
 
-lockfree_table<void *, reshade::vulkan::device_impl *, 16> g_vulkan_devices;
-static lockfree_table<VkQueue, reshade::vulkan::command_queue_impl *, 16> s_vulkan_queues;
-extern lockfree_table<VkCommandBuffer, reshade::vulkan::command_list_impl *, 4096> g_vulkan_command_buffers;
-extern lockfree_table<void *, VkLayerInstanceDispatchTable, 16> g_instance_dispatch;
-extern lockfree_table<VkSurfaceKHR, HWND, 16> g_surface_windows;
-static lockfree_table<VkSwapchainKHR, reshade::vulkan::swapchain_impl *, 16> s_vulkan_swapchains;
+lockfree_linear_map<void *, reshade::vulkan::device_impl *, 4> g_vulkan_devices;
+static lockfree_linear_map<VkQueue, reshade::vulkan::command_queue_impl *, 16> s_vulkan_queues;
+extern locked_ptr_hash_map<reshade::vulkan::command_list_impl *> g_vulkan_command_buffers;
+extern lockfree_linear_map<void *, VkLayerInstanceDispatchTable, 4> g_instance_dispatch;
+extern lockfree_linear_map<VkSurfaceKHR, HWND, 16> g_surface_windows;
+static lockfree_linear_map<VkSwapchainKHR, reshade::vulkan::swapchain_impl *, 16> s_vulkan_swapchains;
 
 #define GET_DISPATCH_PTR(name, object) \
 	GET_DISPATCH_PTR_FROM(name, g_vulkan_devices.at(dispatch_key_from_handle(object)))
@@ -384,11 +384,9 @@ void     VKAPI_CALL vkDestroyDevice(VkDevice device, const VkAllocationCallbacks
 {
 	LOG(INFO) << "Redirecting " << "vkDestroyDevice" << '(' << "device = " << device << ", pAllocator = " << pAllocator << ')' << " ...";
 
-	g_vulkan_command_buffers.clear(); // Reset all command buffer data
-
 	// Remove from device dispatch table since this device is being destroyed
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.erase(dispatch_key_from_handle(device));
-	assert(device_impl != nullptr);
+	GET_DISPATCH_PTR_FROM(DestroyDevice, device_impl);
 
 	// Destroy all queues associated with this device
 	const std::vector<reshade::vulkan::command_queue_impl *> queues = device_impl->_queues;
@@ -398,9 +396,6 @@ void     VKAPI_CALL vkDestroyDevice(VkDevice device, const VkAllocationCallbacks
 		delete queue_impl; // This will remove the queue from the queue list of the device too (see 'command_queue_impl' destructor)
 	}
 	assert(device_impl->_queues.empty());
-
-	// Get function pointer before data is destroyed next
-	GET_DISPATCH_PTR_FROM(DestroyDevice, device_impl);
 
 	// Finally destroy the device
 	delete device_impl;
@@ -412,10 +407,10 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 {
 	LOG(INFO) << "Redirecting " << "vkCreateSwapchainKHR" << '(' << "device = " << device << ", pCreateInfo = " << pCreateInfo << ", pAllocator = " << pAllocator << ", pSwapchain = " << pSwapchain << ')' << " ...";
 
-	assert(pCreateInfo != nullptr && pSwapchain != nullptr);
-
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
-	assert(device_impl != nullptr);
+	GET_DISPATCH_PTR_FROM(CreateSwapchainKHR, device_impl);
+
+	assert(pCreateInfo != nullptr && pSwapchain != nullptr);
 
 	VkSwapchainCreateInfoKHR create_info = *pCreateInfo;
 	VkImageFormatListCreateInfoKHR format_list_info { VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO_KHR };
@@ -526,7 +521,6 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	}
 #endif
 
-	GET_DISPATCH_PTR_FROM(CreateSwapchainKHR, device_impl);
 	const VkResult result = trampoline(device, &create_info, pAllocator, pSwapchain);
 	if (result < VK_SUCCESS)
 	{
@@ -582,12 +576,11 @@ void     VKAPI_CALL vkDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapch
 	LOG(INFO) << "Redirecting " << "vkDestroySwapchainKHR" << '(' << device << ", " << swapchain << ", " << pAllocator << ')' << " ...";
 
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
-	assert(device_impl != nullptr);
+	GET_DISPATCH_PTR_FROM(DestroySwapchainKHR, device_impl);
 
 	// Remove swap chain from global list
 	delete s_vulkan_swapchains.erase(swapchain);
 
-	GET_DISPATCH_PTR_FROM(DestroySwapchainKHR, device_impl);
 	trampoline(device, swapchain, pAllocator);
 }
 
@@ -604,10 +597,9 @@ VkResult VKAPI_CALL vkQueueSubmit(VkQueue queue, uint32_t submitCount, const VkS
 			{
 				assert(pSubmits[i].pCommandBuffers[k] != VK_NULL_HANDLE);
 
-				if (reshade::vulkan::command_list_impl *const cmd_impl = g_vulkan_command_buffers.at(pSubmits[i].pCommandBuffers[k]); cmd_impl != nullptr)
-				{
-					reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(queue_impl, cmd_impl);
-				}
+				reshade::vulkan::command_list_impl *const cmd_impl = g_vulkan_command_buffers.at((uint64_t)pSubmits[i].pCommandBuffers[k]);
+
+				reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(queue_impl, cmd_impl);
 			}
 		}
 
@@ -1531,8 +1523,7 @@ VkResult VKAPI_CALL vkAllocateCommandBuffers(VkDevice device, const VkCommandBuf
 		for (uint32_t i = 0; i < pAllocateInfo->commandBufferCount; ++i)
 		{
 			const auto cmd_impl = new reshade::vulkan::command_list_impl(device_impl, pCommandBuffers[i]);
-			if (!g_vulkan_command_buffers.emplace(pCommandBuffers[i], cmd_impl))
-				delete cmd_impl;
+			g_vulkan_command_buffers.emplace((uint64_t)pCommandBuffers[i], cmd_impl);
 		}
 #endif
 	}
@@ -1550,7 +1541,8 @@ void     VKAPI_CALL vkFreeCommandBuffers(VkDevice device, VkCommandPool commandP
 #if RESHADE_ADDON
 	for (uint32_t i = 0; i < commandBufferCount; ++i)
 	{
-		delete g_vulkan_command_buffers.erase(pCommandBuffers[i]);
+		delete g_vulkan_command_buffers.at((uint64_t)pCommandBuffers[i]);
+		g_vulkan_command_buffers.erase((uint64_t)pCommandBuffers[i]);
 	}
 #endif
 

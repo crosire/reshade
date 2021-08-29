@@ -4,12 +4,12 @@
  */
 
 #include "hook_manager.hpp"
-#include "lockfree_table.hpp"
+#include "lockfree_linear_map.hpp"
 #include "vulkan_hooks.hpp"
 #include "vulkan_impl_device.hpp"
 
-extern lockfree_table<void *, VkLayerInstanceDispatchTable, 16> g_instance_dispatch;
-extern lockfree_table<void *, reshade::vulkan::device_impl *, 16>  g_vulkan_devices;
+extern lockfree_linear_map<void *, VkLayerInstanceDispatchTable, 4> g_instance_dispatch;
+extern lockfree_linear_map<void *, reshade::vulkan::device_impl *, 4>  g_vulkan_devices;
 
 #define HOOK_PROC(name) \
 	if (0 == strcmp(pName, "vk" #name)) \

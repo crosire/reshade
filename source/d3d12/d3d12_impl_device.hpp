@@ -6,7 +6,7 @@
 #pragma once
 
 #include "addon_manager.hpp"
-#include "lockfree_table.hpp"
+#include "locked_hash_map.hpp"
 #include "descriptor_heap.hpp"
 #include <dxgi1_5.h>
 
@@ -115,7 +115,7 @@ namespace reshade::d3d12
 		com_ptr<ID3D12PipelineState> _mipmap_pipeline;
 		com_ptr<ID3D12RootSignature> _mipmap_signature;
 
-		concurrent_hash_table<SIZE_T, ID3D12Resource *> _views;
+		locked_hash_map<SIZE_T, ID3D12Resource *> _views;
 
 #if RESHADE_ADDON
 		mutable std::shared_mutex _mutex;
