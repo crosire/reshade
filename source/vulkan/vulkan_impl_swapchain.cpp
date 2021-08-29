@@ -68,6 +68,7 @@ bool reshade::vulkan::swapchain_impl::on_init(VkSwapchainKHR swapchain, const Vk
 
 		// Add swap chain images to the image list
 		resource_data data;
+		data.allocation = VK_NULL_HANDLE;
 		data.image_create_info = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
 		data.image_create_info.imageType = VK_IMAGE_TYPE_2D;
 		data.image_create_info.format = desc.imageFormat;

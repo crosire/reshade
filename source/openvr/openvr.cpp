@@ -5,7 +5,7 @@
 
 #include "dll_log.hpp"
 #include "hook_manager.hpp"
-#include "lockfree_table.hpp"
+#include "lockfree_linear_map.hpp"
 #include "d3d11/d3d11_device.hpp"
 #include "d3d11/d3d11_device_context.hpp"
 #include "d3d11/d3d11_impl_swapchain.hpp"
@@ -197,7 +197,7 @@ static vr::EVRCompositorError on_submit_opengl(vr::EVREye eye, GLuint object, co
 static vr::EVRCompositorError on_submit_vulkan(vr::EVREye eye, const vr::VRVulkanTextureData_t *texture, const vr::VRTextureBounds_t *bounds, vr::EVRSubmitFlags flags,
 	std::function<vr::EVRCompositorError(vr::EVREye eye, void *texture, const vr::VRTextureBounds_t *bounds, vr::EVRSubmitFlags flags)> submit)
 {
-	extern lockfree_table<void *, reshade::vulkan::device_impl *, 16> g_vulkan_devices;
+	extern lockfree_linear_map<void *, reshade::vulkan::device_impl *, 4> g_vulkan_devices;
 	reshade::vulkan::device_impl *const device = g_vulkan_devices.at(dispatch_key_from_handle(texture->m_pDevice));
 	reshade::vulkan::command_queue_impl *queue = nullptr;
 	if (device == nullptr)

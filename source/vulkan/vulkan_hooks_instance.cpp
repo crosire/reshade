@@ -5,11 +5,11 @@
 
 #include "dll_log.hpp"
 #include "hook_manager.hpp"
-#include "lockfree_table.hpp"
+#include "lockfree_linear_map.hpp"
 #include "vulkan_hooks.hpp"
 
-lockfree_table<void *, VkLayerInstanceDispatchTable, 16> g_instance_dispatch;
-lockfree_table<VkSurfaceKHR, HWND, 16> g_surface_windows;
+lockfree_linear_map<void *, VkLayerInstanceDispatchTable, 4> g_instance_dispatch;
+lockfree_linear_map<VkSurfaceKHR, HWND, 16> g_surface_windows;
 
 #define GET_DISPATCH_PTR(name, object) \
 	PFN_vk##name trampoline = g_instance_dispatch.at(dispatch_key_from_handle(object)).name; \

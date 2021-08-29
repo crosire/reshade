@@ -6,13 +6,13 @@
 #pragma once
 
 #include "addon_manager.hpp"
-#include "lockfree_table.hpp"
-
+#include "locked_hash_map.hpp"
 #pragma warning(push)
 #pragma warning(disable: 4100 4127 4324 4703) // Disable a bunch of warnings thrown by VMA code
 #include <vk_mem_alloc.h>
 #pragma warning(pop)
 #include <vk_layer_dispatch_table.h>
+#include "vulkan_impl_type_convert.hpp"
 
 namespace reshade::vulkan
 {
@@ -87,19 +87,19 @@ namespace reshade::vulkan
 		template <typename T>
 		void register_object(uint64_t object, T &&data)
 		{
-			static_cast<concurrent_hash_table<uint64_t, T> &>(_objects).emplace(object, std::move(data));
+			static_cast<locked_ptr_hash_map<T> &>(_objects).emplace(object, std::move(data));
 		}
 
 		template <typename T>
 		void unregister_object(uint64_t object)
 		{
-			static_cast<concurrent_hash_table<uint64_t, T> &>(_objects).erase(object);
+			static_cast<locked_ptr_hash_map<T> &>(_objects).erase(object);
 		}
 
 		template <typename T>
 		__forceinline T get_native_object_data(uint64_t object) const
 		{
-			return static_cast<const concurrent_hash_table<uint64_t, T> &>(_objects).at(object);
+			return static_cast<const locked_ptr_hash_map<T> &>(_objects).at(object);
 		}
 
 		api::pipeline_desc convert_pipeline_desc(const VkComputePipelineCreateInfo &create_info) const;
@@ -127,14 +127,14 @@ namespace reshade::vulkan
 		uint32_t _transient_index = 0;
 
 		class :
-			public concurrent_hash_table<uint64_t, struct resource_data>,
-			public concurrent_hash_table<uint64_t, struct resource_view_data>,
-			public concurrent_hash_table<uint64_t, struct render_pass_data>,
-			public concurrent_hash_table<uint64_t, struct framebuffer_data>,
-			public concurrent_hash_table<uint64_t, struct shader_module_data>,
-			public concurrent_hash_table<uint64_t, struct pipeline_layout_data>,
-			public concurrent_hash_table<uint64_t, struct descriptor_set_data>,
-			public concurrent_hash_table<uint64_t, struct descriptor_set_layout_data>
+			public locked_ptr_hash_map<resource_data>,
+			public locked_ptr_hash_map<resource_view_data>,
+			public locked_ptr_hash_map<render_pass_data>,
+			public locked_ptr_hash_map<framebuffer_data>,
+			public locked_ptr_hash_map<shader_module_data>,
+			public locked_ptr_hash_map<pipeline_layout_data>,
+			public locked_ptr_hash_map<descriptor_set_data>,
+			public locked_ptr_hash_map<descriptor_set_layout_data>
 		{} _objects;
 	};
 }

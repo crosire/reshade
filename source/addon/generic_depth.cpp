@@ -59,6 +59,12 @@ struct state_tracking
 	float current_viewport[6] = {};
 	std::unordered_map<resource, depth_stencil_info, depth_stencil_hash> counters_per_used_depth_stencil;
 
+	state_tracking()
+	{
+		// Reserve some space upfront to avoid rehashing during command recording
+		counters_per_used_depth_stencil.reserve(32);
+	}
+
 	void reset()
 	{
 		reset_on_present();
@@ -83,6 +89,9 @@ struct state_tracking
 
 		if (source.best_copy_stats.vertices > best_copy_stats.vertices)
 			best_copy_stats = source.best_copy_stats;
+
+		if (source.counters_per_used_depth_stencil.empty())
+			return;
 
 		counters_per_used_depth_stencil.reserve(source.counters_per_used_depth_stencil.size());
 		for (const auto &[depth_stencil_handle, snapshot] : source.counters_per_used_depth_stencil)
@@ -135,7 +144,7 @@ struct state_tracking_context
 #if RESHADE_GUI
 	// List of all encountered depth-stencils of the last frame
 	std::vector<std::pair<resource, depth_stencil_info>> current_depth_stencil_list;
-	std::unordered_map<uint64_t, unsigned int> display_count_per_depth_stencil;
+	std::unordered_map<resource, unsigned int, depth_stencil_hash> display_count_per_depth_stencil;
 #endif
 
 	// Checks whether the aspect ratio of the two sets of dimensions is similar or not
@@ -718,7 +727,7 @@ static void draw_debug_menu(effect_runtime *runtime, void *)
 
 	for (const auto &[resource, snapshot] : device_state.current_depth_stencil_list)
 	{
-		if (auto it = device_state.display_count_per_depth_stencil.find(resource.handle);
+		if (auto it = device_state.display_count_per_depth_stencil.find(resource);
 			it == device_state.display_count_per_depth_stencil.end())
 		{
 			sorted_item_list.push_back({ 1u, resource, snapshot, device->get_resource_desc(resource) });
@@ -738,7 +747,7 @@ static void draw_debug_menu(effect_runtime *runtime, void *)
 	device_state.display_count_per_depth_stencil.clear();
 	for (const depth_stencil_item &item : sorted_item_list)
 	{
-		device_state.display_count_per_depth_stencil[item.resource.handle] = item.display_count;
+		device_state.display_count_per_depth_stencil[item.resource] = item.display_count;
 
 		char label[512] = "";
 		sprintf_s(label, "%s0x%016llx", (item.resource == device_state.selected_depth_stencil ? "> " : "  "), item.resource.handle);
