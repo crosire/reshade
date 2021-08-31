@@ -103,8 +103,7 @@ bool reshade::d3d10::device_impl::check_capability(api::device_caps capability) 
 		return false;
 	case api::device_caps::dual_src_blend:
 		return true;
-	case api::device_caps::independent_blend: // Only supports independent 'BlendEnable' and 'RenderTargetWriteMask', so report as unsupported
-		return false;
+	case api::device_caps::independent_blend: // Supported in D3D10.1
 	case api::device_caps::fill_mode_non_solid:
 	case api::device_caps::bind_render_targets_and_depth_stencil:
 	case api::device_caps::multi_viewport:
