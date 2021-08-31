@@ -76,8 +76,8 @@ static bool read_file(const std::filesystem::path &path, std::string &data)
 #endif
 
 	// Read file contents into memory
-	std::string file_data(static_cast<size_t>(std::filesystem::file_size(path)), '\0');
-	const size_t eof = fread((char *)file_data.data(), 1, file_data.size(), file);
+	std::string file_data(static_cast<size_t>(std::filesystem::file_size(path)) + 1, '\0');
+	const size_t eof = fread((char *)file_data.data(), 1, file_data.size() - 1, file);
 
 	// Append a new line feed to the end of the input string to avoid issues with parsing
 	file_data[eof] = '\n';

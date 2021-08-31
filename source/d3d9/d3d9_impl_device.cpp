@@ -270,7 +270,7 @@ bool reshade::d3d9::device_impl::check_capability(api::device_caps capability) c
 	case api::device_caps::hull_and_domain_shader:
 	case api::device_caps::logic_op:
 	case api::device_caps::dual_source_blend:
-	case api::device_caps::independent_blend:
+	case api::device_caps::independent_blend: // There is 'D3DPMISCCAPS_INDEPENDENTWRITEMASKS', but it only applies to the render target write mask
 		return false;
 	case api::device_caps::fill_mode_non_solid:
 		return true;

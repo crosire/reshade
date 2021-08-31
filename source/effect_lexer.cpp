@@ -516,6 +516,8 @@ next_token:
 	tok.literal_as_double = 0;
 	tok.literal_as_string.clear();
 
+	assert(_cur <= _end);
+
 	// Do a character type lookup for the current character
 	switch (type_lookup[uint8_t(*_cur)])
 	{

@@ -1743,32 +1743,35 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 			expression.add_cast_operation({ type::t_uint, 1, 1 });
 			const unsigned int value = expression.constant.as_uint[0];
 
+#define SET_STATE_VALUE_INDEXED(name, info_name, value) \
+	else if (constexpr size_t name##_len = sizeof(#name) - 1; state.compare(0, name##_len, #name) == 0 && (state.size() == name##_len || (state[name##_len] >= '0' && state[name##_len] < ('0' + std::size(info.info_name))))) \
+	{ \
+		if (state.size() != name##_len) \
+			info.info_name[state[name##_len] - '0'] = (value); \
+		else \
+			for (int i = 0; i < static_cast<int>(std::size(info.info_name)); ++i) \
+				info.info_name[i] = (value); \
+	}
+
 			if (state == "SRGBWriteEnable")
-				info.srgb_write_enable = value != 0;
-			else if (state == "BlendEnable")
-				info.blend_enable = value != 0;
+				info.srgb_write_enable = (value != 0);
+			SET_STATE_VALUE_INDEXED(BlendEnable, blend_enable, value != 0)
 			else if (state == "StencilEnable")
-				info.stencil_enable = value != 0;
+				info.stencil_enable = (value != 0);
 			else if (state == "ClearRenderTargets")
-				info.clear_render_targets = value != 0;
-			else if (state == "RenderTargetWriteMask" || state == "ColorWriteMask")
-				info.color_write_mask = value & 0xFF;
+				info.clear_render_targets = (value != 0);
+			SET_STATE_VALUE_INDEXED(ColorWriteMask, color_write_mask, value & 0xFF)
+			SET_STATE_VALUE_INDEXED(RenderTargetWriteMask, color_write_mask, value & 0xFF)
 			else if (state == "StencilReadMask" || state == "StencilMask")
 				info.stencil_read_mask = value & 0xFF;
 			else if (state == "StencilWriteMask")
 				info.stencil_write_mask = value & 0xFF;
-			else if (state == "BlendOp")
-				info.blend_op = static_cast<pass_blend_op>(value);
-			else if (state == "BlendOpAlpha")
-				info.blend_op_alpha = static_cast<pass_blend_op>(value);
-			else if (state == "SrcBlend")
-				info.src_blend = static_cast<pass_blend_func>(value);
-			else if (state == "SrcBlendAlpha")
-				info.src_blend_alpha = static_cast<pass_blend_func>(value);
-			else if (state == "DestBlend")
-				info.dest_blend = static_cast<pass_blend_func>(value);
-			else if (state == "DestBlendAlpha")
-				info.dest_blend_alpha = static_cast<pass_blend_func>(value);
+			SET_STATE_VALUE_INDEXED(BlendOp, blend_op, static_cast<pass_blend_op>(value))
+			SET_STATE_VALUE_INDEXED(BlendOpAlpha, blend_op_alpha, static_cast<pass_blend_op>(value))
+			SET_STATE_VALUE_INDEXED(SrcBlend, src_blend, static_cast<pass_blend_func>(value))
+			SET_STATE_VALUE_INDEXED(SrcBlendAlpha, src_blend_alpha, static_cast<pass_blend_func>(value))
+			SET_STATE_VALUE_INDEXED(DestBlend, dest_blend, static_cast<pass_blend_func>(value))
+			SET_STATE_VALUE_INDEXED(DestBlendAlpha, dest_blend_alpha, static_cast<pass_blend_func>(value))
 			else if (state == "StencilFunc")
 				info.stencil_comparison_func = static_cast<pass_stencil_func>(value);
 			else if (state == "StencilRef")
@@ -1792,6 +1795,8 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 			else
 				parse_success = false,
 				error(location, 3004, "unrecognized pass state '" + state + '\'');
+
+#undef SET_STATE_VALUE_INDEXED
 		}
 
 		if (!expect(';'))

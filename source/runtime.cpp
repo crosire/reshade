@@ -1957,10 +1957,13 @@ bool reshade::runtime::create_effect(size_t effect_index)
 							[&unique_name = pass_info.render_target_names[k]](const auto &item) { return item.unique_name == unique_name && (item.resource != 0 || !item.semantic.empty()); });
 						assert(texture != _textures.end());
 
-						pass_data.modified_resources.push_back(texture->resource);
+						if (std::find(pass_data.modified_resources.begin(), pass_data.modified_resources.end(), texture->resource) == pass_data.modified_resources.end())
+						{
+							pass_data.modified_resources.push_back(texture->resource);
 
-						if (texture->levels > 1)
-							pass_data.generate_mipmap_views.push_back(texture->srv[pass_info.srgb_write_enable]);
+							if (texture->levels > 1)
+								pass_data.generate_mipmap_views.push_back(texture->srv[pass_info.srgb_write_enable]);
+						}
 
 						const api::resource_desc res_desc = _device->get_resource_desc(texture->resource);
 
@@ -1998,17 +2001,18 @@ bool reshade::runtime::create_effect(size_t effect_index)
 					}
 				};
 
+				// Technically should check for 'api::device_caps::independent_blend' support, but render target write masks are supported in D3D9, when rest is not, so just always set ...
 				auto &blend_state = desc.graphics.blend_state;
 				for (int i = 0; i < 8; ++i)
 				{
-					blend_state.blend_enable[i] = pass_info.blend_enable;
-					blend_state.source_color_blend_factor[i] = convert_blend_func(pass_info.src_blend);
-					blend_state.dest_color_blend_factor[i] = convert_blend_func(pass_info.dest_blend);
-					blend_state.color_blend_op[i] = convert_blend_op(pass_info.blend_op);
-					blend_state.source_alpha_blend_factor[i] = convert_blend_func(pass_info.src_blend_alpha);
-					blend_state.dest_alpha_blend_factor[i] = convert_blend_func(pass_info.dest_blend_alpha);
-					blend_state.alpha_blend_op[i] = convert_blend_op(pass_info.blend_op_alpha);
-					blend_state.render_target_write_mask[i] = pass_info.color_write_mask;
+					blend_state.blend_enable[i] = pass_info.blend_enable[i];
+					blend_state.source_color_blend_factor[i] = convert_blend_func(pass_info.src_blend[i]);
+					blend_state.dest_color_blend_factor[i] = convert_blend_func(pass_info.dest_blend[i]);
+					blend_state.color_blend_op[i] = convert_blend_op(pass_info.blend_op[i]);
+					blend_state.source_alpha_blend_factor[i] = convert_blend_func(pass_info.src_blend_alpha[i]);
+					blend_state.dest_alpha_blend_factor[i] = convert_blend_func(pass_info.dest_blend_alpha[i]);
+					blend_state.alpha_blend_op[i] = convert_blend_op(pass_info.blend_op_alpha[i]);
+					blend_state.render_target_write_mask[i] = pass_info.color_write_mask[i];
 				}
 
 				auto &rasterizer_state = desc.graphics.rasterizer_state;
@@ -2157,10 +2161,13 @@ bool reshade::runtime::create_effect(size_t effect_index)
 					assert(texture != _textures.end());
 					assert(texture->semantic.empty() && texture->uav != 0);
 
-					pass_data.modified_resources.push_back(texture->resource);
+					if (std::find(pass_data.modified_resources.begin(), pass_data.modified_resources.end(), texture->resource) == pass_data.modified_resources.end())
+					{
+						pass_data.modified_resources.push_back(texture->resource);
 
-					if (texture->levels > 1)
-						pass_data.generate_mipmap_views.push_back(texture->srv[0]);
+						if (texture->levels > 1)
+							pass_data.generate_mipmap_views.push_back(texture->srv[0]);
+					}
 
 					api::descriptor_set_update &write = descriptor_writes.emplace_back();
 					write.set = pass_data.storage_set;
