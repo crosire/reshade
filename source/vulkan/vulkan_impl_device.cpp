@@ -288,6 +288,9 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 			// Initial data upload requires the image to be transferable to
 			if (create_info.usage == 0 || initial_data != nullptr)
 				create_info.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+			// Mapping images is only really useful with linear tiling
+			if (desc.heap == api::memory_heap::gpu_to_cpu || desc.heap == api::memory_heap::cpu_only)
+				create_info.tiling = VK_IMAGE_TILING_LINEAR;
 
 			if (VkImage object = VK_NULL_HANDLE;
 				(desc.heap == api::memory_heap::unknown ?
@@ -1090,12 +1093,21 @@ bool reshade::vulkan::device_impl::map_resource(api::resource resource, uint32_t
 
 	if (res_data.allocation != nullptr)
 	{
-		assert(subresource == 0);
+		assert(subresource == 0); // TODO: Add support for subresources other than zero for images
 
 		if (vmaMapMemory(_alloc, res_data.allocation, &out_data->data) == VK_SUCCESS)
 		{
-			out_data->row_pitch = static_cast<uint32_t>(res_data.allocation->GetSize());
-			out_data->slice_pitch = out_data->row_pitch;
+			if (res_data.is_image())
+			{
+				out_data->row_pitch = res_data.image_create_info.extent.width * res_data.image_create_info.extent.depth * api::format_bytes_per_pixel(convert_format(res_data.image_create_info.format));
+				out_data->slice_pitch = out_data->row_pitch * res_data.image_create_info.extent.height;
+			}
+			else
+			{
+				out_data->row_pitch = static_cast<uint32_t>(res_data.allocation->GetSize());
+				out_data->slice_pitch = out_data->row_pitch;
+			}
+
 			return true;
 		}
 	}
