@@ -1134,7 +1134,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetTexture(DWORD Stage, IDirect3DBase
 
 		// See global pipeline layout initialization in 'device_impl::on_after_reset' for corresponding layout indices
 		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
-			this, shader_stage, _global_pipeline_layout, shader_stage == reshade::api::shader_stage::vertex ? 0 : 1, reshade::api::descriptor_type::sampler_with_resource_view, Stage, 1, &descriptor_data);
+			this, shader_stage, _global_pipeline_layout, shader_stage == reshade::api::shader_stage::vertex ? 0 : 1, reshade::api::descriptor_set_update {
+				{ 0 }, Stage, 0, 1,
+				reshade::api::descriptor_type::sampler_with_resource_view, &descriptor_data });
 	}
 #endif
 

@@ -434,22 +434,14 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootDescriptorTable(U
 	_orig->SetComputeRootDescriptorTable(RootParameterIndex, BaseDescriptor);
 
 #if RESHADE_ADDON
-	if (!reshade::has_addon_event<reshade::addon_event::bind_descriptor_sets>())
-		return;
-
-	reshade::api::descriptor_set set;
-	UINT offset;
-	if (!_device_impl->resolve_descriptor_handle(BaseDescriptor, nullptr, &set, &offset, _current_descriptor_heaps, 2))
-		return;
-
+	const reshade::api::descriptor_set set = { BaseDescriptor.ptr };
 	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_sets>(
 		this,
 		reshade::api::shader_stage::all_compute,
 		reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(_current_root_signature[1]) },
 		RootParameterIndex,
 		1,
-		&set,
-		&offset);
+		&set);
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRootDescriptorTable(UINT RootParameterIndex, D3D12_GPU_DESCRIPTOR_HANDLE BaseDescriptor)
@@ -457,22 +449,14 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRootDescriptorTable(
 	_orig->SetGraphicsRootDescriptorTable(RootParameterIndex, BaseDescriptor);
 
 #if RESHADE_ADDON
-	if (!reshade::has_addon_event<reshade::addon_event::bind_descriptor_sets>())
-		return;
-
-	reshade::api::descriptor_set set;
-	UINT offset;
-	if (!_device_impl->resolve_descriptor_handle(BaseDescriptor, nullptr, &set, &offset, _current_descriptor_heaps, 2))
-		return;
-
+	const reshade::api::descriptor_set set = { BaseDescriptor.ptr };
 	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_sets>(
 		this,
 		reshade::api::shader_stage::all_graphics,
 		reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(_current_root_signature[0]) },
 		RootParameterIndex,
 		1,
-		&set,
-		&offset);
+		&set);
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRoot32BitConstant(UINT RootParameterIndex, UINT SrcData, UINT DestOffsetIn32BitValues)
@@ -553,10 +537,10 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootConstantBufferVie
 		reshade::api::shader_stage::all_compute,
 		reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(_current_root_signature[1]) },
 		RootParameterIndex,
-		reshade::api::descriptor_type::constant_buffer,
-		0,
-		1,
-		&buffer_range);
+		reshade::api::descriptor_set_update {
+			{ 0 }, 0, 0, 1,
+			reshade::api::descriptor_type::constant_buffer,
+			&buffer_range });
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRootConstantBufferView(UINT RootParameterIndex, D3D12_GPU_VIRTUAL_ADDRESS BufferLocation)
@@ -577,10 +561,10 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRootConstantBufferVi
 		reshade::api::shader_stage::all_graphics,
 		reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(_current_root_signature[0]) },
 		RootParameterIndex,
-		reshade::api::descriptor_type::constant_buffer,
-		0,
-		1,
-		&buffer_range);
+		reshade::api::descriptor_set_update {
+			{ 0 }, 0, 0, 1,
+			reshade::api::descriptor_type::constant_buffer,
+			&buffer_range });
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootShaderResourceView(UINT RootParameterIndex, D3D12_GPU_VIRTUAL_ADDRESS BufferLocation)

@@ -44,13 +44,16 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	HOOK_PROC(DestroySampler);
 	HOOK_PROC(CreateDescriptorSetLayout);
 	HOOK_PROC(DestroyDescriptorSetLayout);
+	HOOK_PROC(CreateDescriptorPool);
+	HOOK_PROC(DestroyDescriptorPool);
+	HOOK_PROC(ResetDescriptorPool);
+	HOOK_PROC(AllocateDescriptorSets);
+	HOOK_PROC(FreeDescriptorSets);
 	HOOK_PROC(UpdateDescriptorSets);
 	HOOK_PROC(CreateFramebuffer);
 	HOOK_PROC(DestroyFramebuffer);
 	HOOK_PROC(CreateRenderPass);
 	HOOK_PROC(CreateRenderPass2);
-	if (0 == strcmp(pName, "vkCreateRenderPass2KHR"))
-		return reinterpret_cast<PFN_vkVoidFunction>(vkCreateRenderPass2);
 	HOOK_PROC(DestroyRenderPass);
 
 	HOOK_PROC(AllocateCommandBuffers);
@@ -88,6 +91,12 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	HOOK_PROC(CmdBeginRenderPass);
 	HOOK_PROC(CmdEndRenderPass);
 	HOOK_PROC(CmdExecuteCommands);
+
+	if (0 == strcmp(pName, "vkCreateRenderPass2KHR"))
+		return reinterpret_cast<PFN_vkVoidFunction>(vkCreateRenderPass2);
+	if (0 == strcmp(pName, "vkCmdPushDescriptorSetKHR") &&
+		g_vulkan_devices.at(dispatch_key_from_handle(device))->_dispatch_table.CmdPushDescriptorSetKHR != nullptr)
+		return reinterpret_cast<PFN_vkVoidFunction>(vkCmdPushDescriptorSetKHR);
 #endif
 
 	// Need to self-intercept as well, since some layers rely on this (e.g. Steam overlay)

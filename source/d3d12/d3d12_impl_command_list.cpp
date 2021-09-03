@@ -191,18 +191,18 @@ void reshade::d3d12::command_list_impl::push_constants(api::shader_stage stages,
 		_orig->SetGraphicsRoot32BitConstants(layout_param, count, values, first);
 	}
 }
-void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_type type, uint32_t first, uint32_t count, const void *descriptors)
+void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, const api::descriptor_set_update &update)
 {
-	assert(first == 0);
+	assert(update.binding == 0 && update.array_offset == 0);
 
 	D3D12_CPU_DESCRIPTOR_HANDLE base_handle;
 	D3D12_GPU_DESCRIPTOR_HANDLE base_handle_gpu;
-	if (type != api::descriptor_type::sampler ?
-		!_device_impl->_gpu_view_heap.allocate_transient(first + count, base_handle, base_handle_gpu) :
-		!_device_impl->_gpu_sampler_heap.allocate_transient(first + count, base_handle, base_handle_gpu))
+	if (update.type != api::descriptor_type::sampler ?
+		!_device_impl->_gpu_view_heap.allocate_transient(update.binding + update.count, base_handle, base_handle_gpu) :
+		!_device_impl->_gpu_sampler_heap.allocate_transient(update.binding + update.count, base_handle, base_handle_gpu))
 		return;
 
-	base_handle.ptr += static_cast<SIZE_T>(first) * _device_impl->_descriptor_handle_size[convert_descriptor_type_to_heap_type(type)];
+	base_handle.ptr += static_cast<SIZE_T>(update.binding) * _device_impl->_descriptor_handle_size[convert_descriptor_type_to_heap_type(update.type)];
 
 	if (_current_descriptor_heaps[0] != _device_impl->_gpu_sampler_heap.get() ||
 		_current_descriptor_heaps[1] != _device_impl->_gpu_view_heap.get())
@@ -233,11 +233,11 @@ void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stage
 		}
 	}
 
-	if (type == api::descriptor_type::constant_buffer)
+	if (update.type == api::descriptor_type::constant_buffer)
 	{
-		for (uint32_t k = 0; k < count; ++k, base_handle.ptr += _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV])
+		for (uint32_t k = 0; k < update.count; ++k, base_handle.ptr += _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV])
 		{
-			const auto buffer_range = static_cast<const api::buffer_range *>(descriptors)[k];
+			const auto buffer_range = static_cast<const api::buffer_range *>(update.descriptors)[k];
 			const auto buffer_resource = reinterpret_cast<ID3D12Resource *>(buffer_range.buffer.handle);
 
 			D3D12_CONSTANT_BUFFER_VIEW_DESC view_desc;
@@ -247,18 +247,18 @@ void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stage
 			_device_impl->_orig->CreateConstantBufferView(&view_desc, base_handle);
 		}
 	}
-	else if (type == api::descriptor_type::sampler || type == api::descriptor_type::shader_resource_view || type == api::descriptor_type::unordered_access_view)
+	else if (update.type == api::descriptor_type::sampler || update.type == api::descriptor_type::shader_resource_view || update.type == api::descriptor_type::unordered_access_view)
 	{
 #ifndef WIN64
 		const UINT src_range_size = 1;
-		std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> src_handles(count);
-		for (uint32_t k = 0; k < count; ++k)
-			src_handles[k] = { static_cast<SIZE_T>(static_cast<const uint64_t *>(descriptors)[k]) };
+		std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> src_handles(update.count);
+		for (uint32_t k = 0; k < update.count; ++k)
+			src_handles[k] = { static_cast<SIZE_T>(static_cast<const uint64_t *>(update.descriptors)[k]) };
 
-		_device_impl->_orig->CopyDescriptors(1, &base_handle, &count, count, src_handles.data(), &src_range_size, convert_descriptor_type_to_heap_type(type));
+		_device_impl->_orig->CopyDescriptors(1, &base_handle, &update.count, update.count, src_handles.data(), &src_range_size, convert_descriptor_type_to_heap_type(update.type));
 #else
-		std::vector<UINT> src_range_sizes(count, 1);
-		_device_impl->_orig->CopyDescriptors(1, &base_handle, &count, count, static_cast<const D3D12_CPU_DESCRIPTOR_HANDLE *>(descriptors), src_range_sizes.data(), convert_descriptor_type_to_heap_type(type));
+		std::vector<UINT> src_range_sizes(update.count, 1);
+		_device_impl->_orig->CopyDescriptors(1, &base_handle, &update.count, update.count, static_cast<const D3D12_CPU_DESCRIPTOR_HANDLE *>(update.descriptors), src_range_sizes.data(), convert_descriptor_type_to_heap_type(update.type));
 #endif
 	}
 	else
@@ -271,7 +271,7 @@ void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stage
 	if (static_cast<uint32_t>(stages & api::shader_stage::all_graphics) != 0)
 		_orig->SetGraphicsRootDescriptorTable(layout_param, base_handle_gpu);
 }
-void reshade::d3d12::command_list_impl::bind_descriptor_sets(api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_set *sets, const uint32_t *offsets)
+void reshade::d3d12::command_list_impl::bind_descriptor_sets(api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_set *sets)
 {
 	assert(sets != nullptr);
 
@@ -297,13 +297,7 @@ void reshade::d3d12::command_list_impl::bind_descriptor_sets(api::shader_stage s
 		}
 
 		for (uint32_t i = 0; i < count; ++i)
-		{
-			// TODO: Offset is incorrect for descriptor sets with samplers
-			UINT64 set_offset = (offsets != nullptr) ? offsets[i] : 0;
-			set_offset *= _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV];
-
-			_orig->SetComputeRootDescriptorTable(first + i, D3D12_GPU_DESCRIPTOR_HANDLE { sets[i].handle + set_offset });
-		}
+			_orig->SetComputeRootDescriptorTable(first + i, D3D12_GPU_DESCRIPTOR_HANDLE { sets[i].handle });
 	}
 	if (static_cast<uint32_t>(stages & api::shader_stage::all_graphics) != 0)
 	{
@@ -314,13 +308,7 @@ void reshade::d3d12::command_list_impl::bind_descriptor_sets(api::shader_stage s
 		}
 
 		for (uint32_t i = 0; i < count; ++i)
-		{
-			// TODO: Offset is incorrect for descriptor sets with samplers
-			UINT64 set_offset = (offsets != nullptr) ? offsets[i] : 0;
-			set_offset *= _device_impl->_descriptor_handle_size[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV];
-
-			_orig->SetGraphicsRootDescriptorTable(first + i, D3D12_GPU_DESCRIPTOR_HANDLE { sets[i].handle + set_offset });
-		}
+			_orig->SetGraphicsRootDescriptorTable(first + i, D3D12_GPU_DESCRIPTOR_HANDLE { sets[i].handle });
 	}
 }
 

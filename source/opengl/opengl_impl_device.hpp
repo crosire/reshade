@@ -68,28 +68,30 @@ namespace reshade::opengl
 		bool create_framebuffer(const api::framebuffer_desc &desc, api::framebuffer *out) final;
 		void destroy_framebuffer(api::framebuffer handle) final;
 
+		bool create_descriptor_sets(uint32_t count, const api::descriptor_set_layout *layouts, api::descriptor_set *out) final;
+		void destroy_descriptor_sets(uint32_t count, const api::descriptor_set *sets) final;
+
 		bool map_resource(api::resource resource, uint32_t subresource, api::map_access access, api::subresource_data *out_data) final;
 		void unmap_resource(api::resource resource, uint32_t subresource) final;
 
-		void upload_buffer_region(const void *data, api::resource dst, uint64_t dst_offset, uint64_t size) final;
-		void upload_texture_region(const api::subresource_data &data, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6]) final;
+		void update_buffer_region(const void *data, api::resource dst, uint64_t dst_offset, uint64_t size) final;
+		void update_texture_region(const api::subresource_data &data, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6]) final;
+		void update_descriptor_sets(uint32_t count, const api::descriptor_set_update *updates) final;
 
 		bool get_query_pool_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride) final;
-
-		bool allocate_descriptor_sets(uint32_t count, const api::descriptor_set_layout *layouts, api::descriptor_set *out) final;
-		void free_descriptor_sets(uint32_t count, const api::descriptor_set_layout *layouts, const api::descriptor_set *sets) final;
-		void update_descriptor_sets(uint32_t count, const api::write_descriptor_set *updates) final;
 
 		void wait_idle() const final;
 
 		void set_resource_name(api::resource resource, const char *name) final;
 
 		void get_pipeline_layout_desc(api::pipeline_layout layout, uint32_t *count, api::pipeline_layout_param *params) const final;
+		void get_descriptor_pool_offset(api::descriptor_set set, uint32_t binding, api::descriptor_pool *pool, uint32_t *offset) const final;
 		void get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *count, api::descriptor_range *bindings) const final;
 
 		api::resource_desc get_resource_desc(api::resource resource) const final;
 		void get_resource_from_view(api::resource_view view, api::resource *out) const final;
-		bool get_framebuffer_attachment(api::framebuffer framebuffer, api::attachment_type type, uint32_t index, api::resource_view *out) const final;
+
+		api::resource_view get_framebuffer_attachment(api::framebuffer framebuffer, api::attachment_type type, uint32_t index) const final;
 
 		api::device *get_device() override { return this; }
 
@@ -109,8 +111,8 @@ namespace reshade::opengl
 		void bind_scissor_rects(uint32_t first, uint32_t count, const int32_t *rects) final;
 
 		void push_constants(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, uint32_t first, uint32_t count, const void *values) final;
-		void push_descriptors(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_type type, uint32_t first, uint32_t count, const void *descriptors) final;
-		void bind_descriptor_sets(api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_set *sets, const uint32_t *offsets) final;
+		void push_descriptors(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, const api::descriptor_set_update &update) final;
+		void bind_descriptor_sets(api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_set *sets) final;
 
 		void bind_index_buffer(api::resource buffer, uint64_t offset, uint32_t index_size) final;
 		void bind_vertex_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *strides) final;

@@ -32,6 +32,24 @@ namespace reshade::vulkan
 		};
 	};
 
+	struct shader_module_data
+	{
+		const uint8_t *spirv;
+		size_t spirv_size;
+	};
+
+	struct pipeline_layout_data
+	{
+		std::vector<api::pipeline_layout_param> desc;
+	};
+
+	struct descriptor_set_layout_data
+	{
+		std::vector<api::descriptor_range> desc;
+		std::unordered_map<uint32_t, uint32_t> binding_to_offset;
+		bool push_descriptors;
+	};
+
 	struct render_pass_data
 	{
 		struct attachment
@@ -51,49 +69,17 @@ namespace reshade::vulkan
 		std::vector<VkImageAspectFlags> attachment_types;
 	};
 
-	struct shader_module_data
-	{
-		const uint8_t *spirv;
-		size_t spirv_size;
-	};
-
-	struct pipeline_layout_data
-	{
-		std::vector<api::pipeline_layout_param> desc;
-	};
-
 	struct descriptor_set_data
 	{
+		VkDescriptorPool pool;
+		size_t offset;
 		VkDescriptorSetLayout layout;
 	};
 
-	struct descriptor_set_layout_data
+	struct descriptor_pool_data
 	{
-		void calc_binding_from_offset(uint32_t offset, uint32_t &last_binding, uint32_t &array_offset) const
-		{
-			last_binding = 0;
-			array_offset = 0;
-
-			for (const auto[binding_offset, binding] : binding_to_offset)
-			{
-				if (offset < binding_offset || offset > binding_offset + array_offset)
-					continue;
-
-				last_binding = binding;
-				array_offset = offset - binding_offset;
-			}
-		}
-		uint32_t calc_offset_from_binding(uint32_t binding, uint32_t array_offset) const
-		{
-			if (binding_to_offset.find(binding) == binding_to_offset.end())
-				return 0;
-
-			return binding_to_offset.at(binding) + array_offset;
-		}
-
-		std::vector<api::descriptor_range> desc;
-		std::unordered_map<uint32_t, uint32_t> binding_to_offset;
-		bool push_descriptors;
+		uint32_t count;
+		std::vector<bool> *sets;
 	};
 
 	auto convert_format(api::format format) -> VkFormat;

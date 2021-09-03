@@ -402,17 +402,13 @@ static void on_begin_render_pass(command_list *cmd_list, render_pass, framebuffe
 	auto &state = cmd_list->get_user_data<state_tracking>(state_tracking::GUID);
 
 	resource depth_stencil = { 0 };
-	resource_view depth_stencil_view = { 0 };
-	if (device->get_framebuffer_attachment(fbo, attachment_type::depth, 0, &depth_stencil_view))
-	{
+	const resource_view depth_stencil_view = device->get_framebuffer_attachment(fbo, attachment_type::depth, 0);
+	if (depth_stencil_view.handle != 0)
 		device->get_resource_from_view(depth_stencil_view, &depth_stencil);
-	}
 
 	// Make a backup of the depth texture before it is used differently, since in D3D12 or Vulkan the underlying memory may be aliased to a different resource, so cannot just access it at the end of the frame
 	if (depth_stencil != state.current_depth_stencil && state.current_depth_stencil != 0 && (device->get_api() == device_api::d3d12 || device->get_api() == device_api::vulkan))
-	{
 		clear_depth_impl(cmd_list, state, device->get_user_data<state_tracking_context>(state_tracking_context::GUID), state.current_depth_stencil, true);
-	}
 
 	state.current_depth_stencil = depth_stencil;
 }
@@ -423,15 +419,11 @@ static void on_bind_depth_stencil(command_list *cmd_list, uint32_t, const resour
 
 	resource depth_stencil = { 0 };
 	if (depth_stencil_view.handle != 0)
-	{
 		device->get_resource_from_view(depth_stencil_view, &depth_stencil);
-	}
 
 	// Make a backup of the depth texture before it is used differently, since in D3D12 or Vulkan the underlying memory may be aliased to a different resource, so cannot just access it at the end of the frame
 	if (depth_stencil != state.current_depth_stencil && state.current_depth_stencil != 0 && (device->get_api() == device_api::d3d12 || device->get_api() == device_api::vulkan))
-	{
 		clear_depth_impl(cmd_list, state, device->get_user_data<state_tracking_context>(state_tracking_context::GUID), state.current_depth_stencil, true);
-	}
 
 	state.current_depth_stencil = depth_stencil;
 }

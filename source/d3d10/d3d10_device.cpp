@@ -70,7 +70,9 @@ void D3D10Device::invoke_bind_samplers_event(reshade::api::shader_stage stage, U
 	const auto descriptors = reinterpret_cast<const reshade::api::sampler *>(objects);
 #endif
 
-	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(this, stage, _global_pipeline_layout, 0, reshade::api::descriptor_type::sampler, first, count, descriptors);
+	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(this, stage, _global_pipeline_layout, 0, reshade::api::descriptor_set_update {
+		{ 0 }, first, 0, count,
+		reshade::api::descriptor_type::sampler, descriptors });
 }
 void D3D10Device::invoke_bind_shader_resource_views_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D10ShaderResourceView *const *objects)
 {
@@ -88,7 +90,9 @@ void D3D10Device::invoke_bind_shader_resource_views_event(reshade::api::shader_s
 	const auto descriptors = reinterpret_cast<const reshade::api::resource_view *>(objects);
 #endif
 
-	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(this, stage, _global_pipeline_layout, 1, reshade::api::descriptor_type::shader_resource_view, first, count, descriptors);
+	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(this, stage, _global_pipeline_layout, 1, reshade::api::descriptor_set_update {
+		{ 0 }, first, 0, count,
+		reshade::api::descriptor_type::shader_resource_view, descriptors });
 }
 void D3D10Device::invoke_bind_constant_buffers_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D10Buffer *const *objects)
 {
@@ -106,7 +110,9 @@ void D3D10Device::invoke_bind_constant_buffers_event(reshade::api::shader_stage 
 			std::numeric_limits<uint64_t>::max() };
 	}
 
-	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(this, stage, _global_pipeline_layout, 2, reshade::api::descriptor_type::constant_buffer, first, count, descriptors);
+	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(this, stage, _global_pipeline_layout, 2, reshade::api::descriptor_set_update {
+		{ 0 }, first, 0, count,
+		reshade::api::descriptor_type::constant_buffer, descriptors });
 }
 #endif
 
@@ -490,8 +496,8 @@ void    STDMETHODCALLTYPE D3D10Device::UpdateSubresource(ID3D10Resource *pDstRes
 #if RESHADE_ADDON
 	assert(pDstResource != nullptr);
 
-	if (reshade::has_addon_event<reshade::addon_event::upload_buffer_region>() ||
-		reshade::has_addon_event<reshade::addon_event::upload_texture_region>())
+	if (reshade::has_addon_event<reshade::addon_event::update_buffer_region>() ||
+		reshade::has_addon_event<reshade::addon_event::update_texture_region>())
 	{
 		D3D10_RESOURCE_DIMENSION type = D3D10_RESOURCE_DIMENSION_UNKNOWN;
 		pDstResource->GetType(&type);
@@ -499,7 +505,7 @@ void    STDMETHODCALLTYPE D3D10Device::UpdateSubresource(ID3D10Resource *pDstRes
 		{
 			assert(DstSubresource == 0);
 
-			if (reshade::invoke_addon_event<reshade::addon_event::upload_buffer_region>(this,
+			if (reshade::invoke_addon_event<reshade::addon_event::update_buffer_region>(this,
 				pSrcData,
 				reshade::api::resource { reinterpret_cast<uintptr_t>(pDstResource) },
 				pDstBox != nullptr ? pDstBox->left : 0,
@@ -510,7 +516,7 @@ void    STDMETHODCALLTYPE D3D10Device::UpdateSubresource(ID3D10Resource *pDstRes
 		{
 			static_assert(sizeof(D3D10_BOX) == (sizeof(int32_t) * 6));
 
-			if (reshade::invoke_addon_event<reshade::addon_event::upload_texture_region>(this,
+			if (reshade::invoke_addon_event<reshade::addon_event::update_texture_region>(this,
 				reshade::api::subresource_data { const_cast<void *>(pSrcData), SrcRowPitch, SrcDepthPitch },
 				reshade::api::resource { reinterpret_cast<uintptr_t>(pDstResource) }, DstSubresource, reinterpret_cast<const int32_t *>(pDstBox)))
 				return;

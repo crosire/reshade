@@ -55,33 +55,35 @@ namespace reshade::d3d12
 		bool create_framebuffer(const api::framebuffer_desc &desc, api::framebuffer *out) final;
 		void destroy_framebuffer(api::framebuffer handle) final;
 
+		bool create_descriptor_sets(uint32_t count, const api::descriptor_set_layout *layouts, api::descriptor_set *out) final;
+		void destroy_descriptor_sets(uint32_t count, const api::descriptor_set *sets) final;
+
 		bool map_resource(api::resource resource, uint32_t subresource, api::map_access access, api::subresource_data *out_data) final;
 		void unmap_resource(api::resource resource, uint32_t subresource) final;
 
-		void upload_buffer_region(const void *data, api::resource dst, uint64_t dst_offset, uint64_t size) final;
-		void upload_texture_region(const api::subresource_data &data, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6]) final;
+		void update_buffer_region(const void *data, api::resource dst, uint64_t dst_offset, uint64_t size) final;
+		void update_texture_region(const api::subresource_data &data, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6]) final;
+
+		void update_descriptor_sets(uint32_t count, const api::descriptor_set_update *updates) final;
 
 		bool get_query_pool_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride) final;
-
-		bool allocate_descriptor_sets(uint32_t count, const api::descriptor_set_layout *layouts, api::descriptor_set *out) final;
-		void free_descriptor_sets(uint32_t count, const api::descriptor_set_layout *layouts, const api::descriptor_set *sets) final;
-		void update_descriptor_sets(uint32_t count, const api::write_descriptor_set *updates) final;
 
 		void wait_idle() const final;
 
 		void set_resource_name(api::resource resource, const char *name) final;
 
 		void get_pipeline_layout_desc(api::pipeline_layout layout, uint32_t *count, api::pipeline_layout_param *params) const final;
+		void get_descriptor_pool_offset(api::descriptor_set set, uint32_t binding, api::descriptor_pool *pool, uint32_t *offset) const final;
 		void get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *count, api::descriptor_range *bindings) const final;
 
 		api::resource_desc get_resource_desc(api::resource resource) const final;
 		void get_resource_from_view(api::resource_view view, api::resource *out) const final;
-		bool get_framebuffer_attachment(api::framebuffer framebuffer, api::attachment_type type, uint32_t index, api::resource_view *out) const final;
+
+		api::resource_view get_framebuffer_attachment(api::framebuffer framebuffer, api::attachment_type type, uint32_t index) const final;
 
 		bool resolve_gpu_address(D3D12_GPU_VIRTUAL_ADDRESS address, api::resource *out_resource, uint64_t *out_offset) const;
-		bool resolve_descriptor_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle, D3D12_DESCRIPTOR_HEAP_TYPE type, api::descriptor_set *out_set, uint32_t *out_offset, bool *shader_visible = nullptr) const;
-		bool resolve_descriptor_handle(D3D12_GPU_DESCRIPTOR_HANDLE handle_gpu, D3D12_CPU_DESCRIPTOR_HANDLE *out_handle_cpu) const;
-		bool resolve_descriptor_handle(D3D12_GPU_DESCRIPTOR_HANDLE handle_gpu, D3D12_CPU_DESCRIPTOR_HANDLE *out_handle_cpu, api::descriptor_set *out_set, uint32_t *out_offset, ID3D12DescriptorHeap *const *heaps, size_t num_heaps) const;
+		bool resolve_descriptor_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle, D3D12_DESCRIPTOR_HEAP_TYPE type, api::descriptor_set *out_set, bool *shader_visible = nullptr) const;
+		bool resolve_descriptor_handle(api::descriptor_set set, D3D12_CPU_DESCRIPTOR_HANDLE *handle, api::descriptor_pool *out_pool = nullptr, uint32_t *out_offset = nullptr) const;
 
 		inline D3D12_CPU_DESCRIPTOR_HANDLE calc_descriptor_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle, UINT offset, D3D12_DESCRIPTOR_HEAP_TYPE type) const
 		{
@@ -116,6 +118,7 @@ namespace reshade::d3d12
 		com_ptr<ID3D12RootSignature> _mipmap_signature;
 
 		locked_hash_map<SIZE_T, ID3D12Resource *> _views;
+		locked_hash_map<UINT64, UINT> _sets;
 
 #if RESHADE_ADDON
 		mutable std::shared_mutex _mutex;

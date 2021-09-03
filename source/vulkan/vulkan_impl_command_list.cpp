@@ -210,31 +210,32 @@ void reshade::vulkan::command_list_impl::push_constants(api::shader_stage stages
 		static_cast<VkShaderStageFlags>(stages),
 		offset * 4, count * 4, values);
 }
-void reshade::vulkan::command_list_impl::push_descriptors(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_type type, uint32_t first, uint32_t count, const void *descriptors)
+void reshade::vulkan::command_list_impl::push_descriptors(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, const api::descriptor_set_update &update)
 {
-	assert(count != 0);
+	assert(update.count != 0);
 
 	VkWriteDescriptorSet write { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-	write.dstBinding = first;
-	write.descriptorCount = count;
-	write.descriptorType = static_cast<VkDescriptorType>(type);
+	write.dstBinding = update.binding;
+	write.dstArrayElement = update.array_offset;
+	write.descriptorCount = update.count;
+	write.descriptorType = static_cast<VkDescriptorType>(update.type);
 
-	std::vector<VkDescriptorImageInfo> image_info(count);
+	std::vector<VkDescriptorImageInfo> image_info(update.count);
 
-	switch (type)
+	switch (update.type)
 	{
 	case api::descriptor_type::sampler:
-		for (uint32_t i = 0; i < count; ++i)
+		for (uint32_t i = 0; i < update.count; ++i)
 		{
-			const auto &descriptor = static_cast<const api::sampler *>(descriptors)[i];
+			const auto &descriptor = static_cast<const api::sampler *>(update.descriptors)[i];
 			image_info[i].sampler = (VkSampler)descriptor.handle;
 		}
 		write.pImageInfo = image_info.data();
 		break;
 	case api::descriptor_type::sampler_with_resource_view:
-		for (uint32_t i = 0; i < count; ++i)
+		for (uint32_t i = 0; i < update.count; ++i)
 		{
-			const auto &descriptor = static_cast<const api::sampler_with_resource_view *>(descriptors)[i];
+			const auto &descriptor = static_cast<const api::sampler_with_resource_view *>(update.descriptors)[i];
 			image_info[i].sampler = (VkSampler)descriptor.sampler.handle;
 			image_info[i].imageView = (VkImageView)descriptor.view.handle;
 			image_info[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -242,18 +243,18 @@ void reshade::vulkan::command_list_impl::push_descriptors(api::shader_stage stag
 		write.pImageInfo = image_info.data();
 		break;
 	case api::descriptor_type::shader_resource_view:
-		for (uint32_t i = 0; i < count; ++i)
+		for (uint32_t i = 0; i < update.count; ++i)
 		{
-			const auto &descriptor = static_cast<const api::resource_view *>(descriptors)[i];
+			const auto &descriptor = static_cast<const api::resource_view *>(update.descriptors)[i];
 			image_info[i].imageView = (VkImageView)descriptor.handle;
 			image_info[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 		}
 		write.pImageInfo = image_info.data();
 		break;
 	case api::descriptor_type::unordered_access_view:
-		for (uint32_t i = 0; i < count; ++i)
+		for (uint32_t i = 0; i < update.count; ++i)
 		{
-			const auto &descriptor = static_cast<const api::resource_view *>(descriptors)[i];
+			const auto &descriptor = static_cast<const api::resource_view *>(update.descriptors)[i];
 			image_info[i].imageView = (VkImageView)descriptor.handle;
 			image_info[i].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
 		}
@@ -261,7 +262,7 @@ void reshade::vulkan::command_list_impl::push_descriptors(api::shader_stage stag
 		break;
 	case api::descriptor_type::constant_buffer:
 	case api::descriptor_type::shader_storage_buffer:
-		write.pBufferInfo = static_cast<const VkDescriptorBufferInfo *>(descriptors);
+		write.pBufferInfo = static_cast<const VkDescriptorBufferInfo *>(update.descriptors);
 		break;
 	default:
 		assert(false);
@@ -277,7 +278,7 @@ void reshade::vulkan::command_list_impl::push_descriptors(api::shader_stage stag
 	}
 	else
 	{
-		assert(first == 0);
+		assert(update.binding == 0 && update.array_offset == 0);
 
 		VkDescriptorSetLayout set_layout = (VkDescriptorSetLayout)_device_impl->get_native_object_data<pipeline_layout_data>(layout.handle).desc[layout_param].descriptor_layout.handle;
 
@@ -298,10 +299,9 @@ void reshade::vulkan::command_list_impl::push_descriptors(api::shader_stage stag
 			0, nullptr);
 	}
 }
-void reshade::vulkan::command_list_impl::bind_descriptor_sets(api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_set *sets, const uint32_t *offsets)
+void reshade::vulkan::command_list_impl::bind_descriptor_sets(api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_set *sets)
 {
 	assert(sets != nullptr);
-	assert(offsets == nullptr || offsets[0] == 0);
 
 	static_assert(sizeof(*sets) == sizeof(VkDescriptorSet));
 

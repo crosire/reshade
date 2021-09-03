@@ -263,44 +263,47 @@ void reshade::d3d10::device_impl::push_constants(api::shader_stage stages, api::
 	if ((stages & api::shader_stage::pixel) == api::shader_stage::pixel)
 		_orig->PSSetConstantBuffers(push_constants_slot, 1, &push_constants);
 }
-void reshade::d3d10::device_impl::push_descriptors(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_type type, uint32_t first, uint32_t count, const void *descriptors)
+void reshade::d3d10::device_impl::push_descriptors(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, const api::descriptor_set_update &update)
 {
+	assert(update.array_offset == 0);
+
+	uint32_t first = update.binding;
 	if (layout.handle != 0)
 		first += reinterpret_cast<pipeline_layout_impl *>(layout.handle)->shader_registers[layout_param];
 
-	switch (type)
+	switch (update.type)
 	{
 	case api::descriptor_type::sampler:
-		bind_samplers(stages, first, count, static_cast<const api::sampler *>(descriptors));
+		bind_samplers(stages, first, update.count, static_cast<const api::sampler *>(update.descriptors));
 		break;
 	case api::descriptor_type::shader_resource_view:
-		bind_shader_resource_views(stages, first, count, static_cast<const api::resource_view *>(descriptors));
+		bind_shader_resource_views(stages, first, update.count, static_cast<const api::resource_view *>(update.descriptors));
 		break;
 	case api::descriptor_type::constant_buffer:
-		bind_constant_buffers(stages, first, count, static_cast<const api::buffer_range *>(descriptors));
+		bind_constant_buffers(stages, first, update.count, static_cast<const api::buffer_range *>(update.descriptors));
 		break;
 	default:
 		assert(false);
 		break;
 	}
 }
-void reshade::d3d10::device_impl::bind_descriptor_sets(api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_set *sets, const uint32_t *offsets)
+void reshade::d3d10::device_impl::bind_descriptor_sets(api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_set *sets)
 {
 	assert(sets != nullptr);
 
 	for (uint32_t i = 0; i < count; ++i)
 	{
 		const auto set_impl = reinterpret_cast<const descriptor_set_impl *>(sets[i].handle);
-		const auto set_offset = (offsets != nullptr) ? offsets[i] : 0;
 
 		push_descriptors(
 			stages,
 			layout,
 			first + i,
-			set_impl->type,
-			0,
-			set_impl->count - set_offset,
-			set_impl->descriptors.data() + set_offset * (set_impl->descriptors.size() / set_impl->count));
+			api::descriptor_set_update {
+				{ 0 }, 0, 0,
+				set_impl->count,
+				set_impl->type,
+				set_impl->descriptors.data() });
 	}
 }
 

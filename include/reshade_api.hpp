@@ -341,6 +341,19 @@ namespace reshade { namespace api
 		virtual void destroy_framebuffer(framebuffer handle) = 0;
 
 		/// <summary>
+		/// Allocates one or more descriptor sets from an internal pool.
+		/// </summary>
+		/// <param name="count">The number of descriptor sets to allocate.</param>
+		/// <param name="layouts">The layouts of the descriptor sets to allocate.</param>
+		/// <param name="out">Pointer to an array of handles with at least <paramref name="count"/> elements that is filles with the handles of the created descriptor sets.</param>
+		/// <returns><see langword="true"/> if the descriptor sets were successfully created, <see langword="false"/> otherwise (in this case <paramref name="out"/> is filles with zeroes).</returns>
+		virtual bool create_descriptor_sets(uint32_t count, const descriptor_set_layout *layouts, descriptor_set *out) = 0;
+		/// <summary>
+		/// Frees one or more descriptor sets that were previously allocated via <see cref="create_descriptor_sets"/>.
+		/// </summary>
+		virtual void destroy_descriptor_sets(uint32_t count, const descriptor_set *sets) = 0;
+
+		/// <summary>
 		/// Maps the memory of a resource into application address space.
 		/// </summary>
 		/// <param name="resource">The resource to map.</param>
@@ -363,7 +376,7 @@ namespace reshade { namespace api
 		/// <param name="destination">The buffer resource to upload to.</param>
 		/// <param name="dst_offset">An offset (in bytes) into the buffer <paramref name="resource"/> to start uploading to.</param>
 		/// <param name="size">The number of bytes to upload.</param>
-		virtual void upload_buffer_region(const void *data, resource destination, uint64_t dst_offset, uint64_t size) = 0;
+		virtual void update_buffer_region(const void *data, resource destination, uint64_t dst_offset, uint64_t size) = 0;
 		/// <summary>
 		/// Uploads data to a texture resource.
 		/// </summary>
@@ -371,7 +384,14 @@ namespace reshade { namespace api
 		/// <param name="destination">The texture resource to upload to.</param>
 		/// <param name="dst_subresource">The index of the subresource to upload to.</param>
 		/// <param name="dst_box">A 3D box (or <c>nullptr</c> to reference the entire subresource) that defines the region in the <paramref name="resource"/> to upload to, in the format { left, top, front, right, bottom, back }.</param>
-		virtual void upload_texture_region(const subresource_data &data, resource destination, uint32_t dst_subresource, const int32_t dst_box[6] = nullptr) = 0;
+		virtual void update_texture_region(const subresource_data &data, resource destination, uint32_t dst_subresource, const int32_t dst_box[6] = nullptr) = 0;
+
+		/// <summary>
+		/// Updates the contents of descriptor sets with the specified descriptors.
+		/// </summary>
+		/// <param name="count">The number of writes to process.</param>
+		/// <param name="updates">A pointer to an array of descriptor set write information to process.</param>
+		virtual void update_descriptor_sets(uint32_t count, const descriptor_set_update *updates) = 0;
 
 		/// <summary>
 		/// Gets the results of queries in a query pool.
@@ -383,25 +403,6 @@ namespace reshade { namespace api
 		/// <param name="stride">The size (in bytes) of each element in the <paramref name="results"/> array.</param>
 		/// <returns><see langword="true"/> if the query results were successfully downloaded from the GPU, <see langword="false"/> otherwise.</returns>
 		virtual bool get_query_pool_results(query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride) = 0;
-
-		/// <summary>
-		/// Allocates one or more descriptor sets.
-		/// </summary>
-		/// <param name="count">The number of descriptor sets to allocate.</param>
-		/// <param name="layouts">The layouts of the descriptor sets to allocate.</param>
-		/// <param name="out">Pointer to an array of handles with at least <paramref name="count"/> elements that is filles with the handles of the created descriptor sets.</param>
-		/// <returns><see langword="true"/> if the descriptor sets were successfully created, <see langword="false"/> otherwise (in this case <paramref name="out"/> is filles with zeroes).</returns>
-		virtual bool allocate_descriptor_sets(uint32_t count, const descriptor_set_layout *layouts, descriptor_set *out) = 0;
-		/// <summary>
-		/// Frees one or more descriptor sets that were previously allocated via <see cref="allocate_descriptor_sets"/>.
-		/// </summary>
-		virtual void free_descriptor_sets(uint32_t count, const descriptor_set_layout *layouts, const descriptor_set *sets) = 0;
-		/// <summary>
-		/// Updates the contents of descriptor sets with the specified descriptors.
-		/// </summary>
-		/// <param name="count">The number of writes to process.</param>
-		/// <param name="updates">A pointer to an array of descriptor set write information to process.</param>
-		virtual void update_descriptor_sets(uint32_t count, const write_descriptor_set *updates) = 0;
 
 		/// <summary>
 		/// Waits for all issued GPU operations to finish before returning.
@@ -425,6 +426,14 @@ namespace reshade { namespace api
 		/// <param name="params">An optional pointer to an array that is filled with the layout parameters in the pipeline <paramref name="layout"/>.</param>
 		virtual void get_pipeline_layout_desc(pipeline_layout layout, uint32_t *count, pipeline_layout_param *params) const = 0;
 		/// <summary>
+		/// Gets the offset (in descriptors) in the underlying pool of the descriptor at the specified <paramref name="binding"/>.
+		/// </summary>
+		/// <param name="set">The set the descriptor is stored in.</param>
+		/// <param name="binding">The binding of the descriptor in the specified <paramref name="set"/>.</param>
+		/// <param name="pool">A pointer to a variable that is set to the handle of the underlying descriptor pool the <paramref name="set"/> was allocated from.</param>
+		/// <param name="offset">A pointer to a variable that is set to the offset of the descriptor in the underlying descriptor pool.</param>
+		virtual void get_descriptor_pool_offset(descriptor_set set, uint32_t binding, descriptor_pool *pool, uint32_t *offset) const = 0;
+		/// <summary>
 		/// Gets the descriptor of the specified descriptor set <paramref name="layout"/>.
 		/// <para>Call this first with <paramref name="bindings"/> set to <c>nullptr</c> to get the size of the array, then allocate the array and call this again with <paramref name="bindings"/> set to it.</para>
 		/// </summary>
@@ -441,6 +450,7 @@ namespace reshade { namespace api
 		/// Gets the handle to the underlying resource the specified resource <paramref name="view"/> was created for.
 		/// </summary>
 		virtual void get_resource_from_view(resource_view view, resource *resource) const = 0;
+
 		/// <summary>
 		/// Gets the handle to the resource view of the specfied <paramref name="type"/> in the <paramref name="framebuffer"/> object.
 		/// </summary>
@@ -448,8 +458,8 @@ namespace reshade { namespace api
 		/// <param name="type">The attachment type to get.</param>
 		/// <param name="index">The index of the attachment of the specified <paramref name="type"/> to get.</param>
 		/// <param name="attachment">A pointer to a variable that is set to the handle of the resource view attached to the framebuffer.</param>
-		/// <returns><see langword="true"/> if the attachment of the specified <paramref name="type"/> and <paramref name="index"/> exists in the framebuffer, <see langword="false"/> otherwise (in this case <paramref name="attachment"/> is set to zero).</returns>
-		virtual bool get_framebuffer_attachment(framebuffer framebuffer, attachment_type type, uint32_t index, resource_view *attachment) const = 0;
+		/// <returns>A handle of the attached resource view if the attachment of the specified <paramref name="type"/> and <paramref name="index"/> exists in the framebuffer, zero otherwise.</returns>
+		virtual resource_view get_framebuffer_attachment(framebuffer framebuffer, attachment_type type, uint32_t index) const = 0;
 	};
 
 	/// <summary>
@@ -548,11 +558,8 @@ namespace reshade { namespace api
 		/// <param name="stages">The shader stages that will use the updated descriptors.</param>
 		/// <param name="layout">The pipeline layout that describes the descriptors.</param>
 		/// <param name="layout_param">The index of the descriptor set in the pipeline <paramref name="layout"/> (root parameter index in D3D12, descriptor set index in Vulkan).</param>
-		/// <param name="type">The type of descriptors to bind.</param>
-		/// <param name="first">The first binding in the descriptor set to update.</param>
-		/// <param name="count">The number of descriptors to update.</param>
-		/// <param name="descriptors">A pointer to an array of descriptors to update in the set. Depending on the descriptor <paramref name="type"/> this should be a pointer to an array of <see cref="buffer_range"/>, <see cref="resource_view"/>, <see cref="sampler"/> or <see cref="sampler_with_resource_view"/>.</param>
-		virtual void push_descriptors(shader_stage stages, pipeline_layout layout, uint32_t layout_param, descriptor_type type, uint32_t first, uint32_t count, const void *descriptors) = 0;
+		/// <param name="update">The range of descriptors to update in the temporary set (<see cref="descriptor_set_update::set"/> is ignored).</param>
+		virtual void push_descriptors(shader_stage stages, pipeline_layout layout, uint32_t layout_param, const descriptor_set_update &update) = 0;
 		/// <summary>
 		/// Binds a single descriptor set.
 		/// </summary>
@@ -560,8 +567,7 @@ namespace reshade { namespace api
 		/// <param name="layout">The pipeline layout that describes the descriptors.</param>
 		/// <param name="layout_param">The index of the descriptor set in the pipeline <paramref name="layout"/> (root parameter index in D3D12, descriptor set index in Vulkan).</param>
 		/// <param name="set">The descriptor set to bind.</param>
-		/// <param name="offset">The offset (in descriptors) into the descriptor set to start binding at (not supported in Vulkan).</param>
-		inline  void bind_descriptor_set(shader_stage stages, pipeline_layout layout, uint32_t layout_param, descriptor_set set, uint32_t offset = 0) { bind_descriptor_sets(stages, layout, layout_param, 1, &set, &offset); }
+		inline  void bind_descriptor_set(shader_stage stages, pipeline_layout layout, uint32_t layout_param, descriptor_set set) { bind_descriptor_sets(stages, layout, layout_param, 1, &set); }
 		/// <summary>
 		/// Binds an array of descriptor sets.
 		/// </summary>
@@ -570,8 +576,7 @@ namespace reshade { namespace api
 		/// <param name="first">The index of the first descriptor set to bind.</param>
 		/// <param name="count">The number of descriptor sets to bind.</param>
 		/// <param name="sets">The descriptor sets to bind.</param>
-		/// <param name="offsets">Optional pointer to an array of offsets (in descriptors) into the descriptor sets to start binding at (not supported in Vulkan).</param>
-		virtual void bind_descriptor_sets(shader_stage stages, pipeline_layout layout, uint32_t first, uint32_t count, const descriptor_set *sets, const uint32_t *offsets) = 0;
+		virtual void bind_descriptor_sets(shader_stage stages, pipeline_layout layout, uint32_t first, uint32_t count, const descriptor_set *sets) = 0;
 
 		/// <summary>
 		/// Binds an index buffer to the input-assembler stage.

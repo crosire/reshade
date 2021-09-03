@@ -66,9 +66,14 @@ void     VKAPI_CALL vkCmdBindPipeline(VkCommandBuffer commandBuffer, VkPipelineB
 	trampoline(commandBuffer, pipelineBindPoint, pipeline);
 
 #if RESHADE_ADDON
+	const auto type =
+		pipelineBindPoint == VK_PIPELINE_BIND_POINT_COMPUTE ? reshade::api::pipeline_stage::all_compute :
+		pipelineBindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS ? reshade::api::pipeline_stage::all_graphics :
+		static_cast<reshade::api::pipeline_stage>(0);
+
 	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(
 		cmd_impl,
-		pipelineBindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS ? reshade::api::pipeline_stage::all_graphics : pipelineBindPoint == VK_PIPELINE_BIND_POINT_COMPUTE ? reshade::api::pipeline_stage::all_compute : static_cast<reshade::api::pipeline_stage>(0),
+		type,
 		reshade::api::pipeline { (uint64_t)pipeline });
 #endif
 }
@@ -241,12 +246,17 @@ void     VKAPI_CALL vkCmdBindDescriptorSets(VkCommandBuffer commandBuffer, VkPip
 	trampoline(commandBuffer, pipelineBindPoint, layout, firstSet, descriptorSetCount, pDescriptorSets, dynamicOffsetCount, pDynamicOffsets);
 
 #if RESHADE_ADDON
+	const auto shader_stages =
+		pipelineBindPoint == VK_PIPELINE_BIND_POINT_COMPUTE ? reshade::api::shader_stage::all_compute :
+		pipelineBindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS ? reshade::api::shader_stage::all_graphics :
+		static_cast<reshade::api::shader_stage>(0);
+
 	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_sets>(
 		cmd_impl,
-		pipelineBindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS ? reshade::api::shader_stage::all_graphics : pipelineBindPoint == VK_PIPELINE_BIND_POINT_COMPUTE ? reshade::api::shader_stage::all_compute : static_cast<reshade::api::shader_stage>(0),
+		shader_stages,
 		reshade::api::pipeline_layout { (uint64_t)layout },
 		firstSet, descriptorSetCount,
-		reinterpret_cast<const reshade::api::descriptor_set *>(pDescriptorSets), nullptr);
+		reinterpret_cast<const reshade::api::descriptor_set *>(pDescriptorSets));
 #endif
 }
 
@@ -794,10 +804,78 @@ void     VKAPI_CALL vkCmdPushConstants(VkCommandBuffer commandBuffer, VkPipeline
 		cmd_impl,
 		static_cast<reshade::api::shader_stage>(stageFlags),
 		reshade::api::pipeline_layout { (uint64_t)layout },
-		0,
+		std::numeric_limits<uint32_t>::max(), // TODO
 		offset / 4,
 		size / 4,
 		static_cast<const uint32_t *>(pValues));
+#endif
+}
+
+void     VKAPI_CALL vkCmdPushDescriptorSetKHR(VkCommandBuffer commandBuffer, VkPipelineBindPoint pipelineBindPoint, VkPipelineLayout layout, uint32_t set, uint32_t descriptorWriteCount, const VkWriteDescriptorSet *pDescriptorWrites)
+{
+#if RESHADE_ADDON
+	reshade::vulkan::command_list_impl *const cmd_impl = g_vulkan_command_buffers.at((uint64_t)commandBuffer);
+	const auto device_impl = static_cast<reshade::vulkan::device_impl *>(cmd_impl->get_device());
+
+	GET_DISPATCH_PTR_FROM(CmdPushDescriptorSetKHR, device_impl);
+#else
+	GET_DISPATCH_PTR(CmdPushDescriptorSetKHR, commandBuffer);
+#endif
+	trampoline(commandBuffer, pipelineBindPoint, layout, set, descriptorWriteCount, pDescriptorWrites);
+
+#if RESHADE_ADDON
+	const auto shader_stages =
+		pipelineBindPoint == VK_PIPELINE_BIND_POINT_COMPUTE ? reshade::api::shader_stage::all_compute :
+		pipelineBindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS ? reshade::api::shader_stage::all_graphics :
+		static_cast<reshade::api::shader_stage>(0);
+
+	for (uint32_t i = 0, j = 0; i < descriptorWriteCount; ++i)
+	{
+		const VkWriteDescriptorSet &write = pDescriptorWrites[i];
+
+		reshade::api::descriptor_set_update update = {};
+		update.binding = write.dstBinding;
+		update.array_offset = write.dstArrayElement;
+		update.count = write.descriptorCount;
+		update.type = static_cast<reshade::api::descriptor_type>(write.descriptorType);
+
+		std::vector<uint64_t> descriptors(update.count * 2);
+
+		switch (write.descriptorType)
+		{
+		case VK_DESCRIPTOR_TYPE_SAMPLER:
+			update.descriptors = descriptors.data() + j;
+			for (uint32_t k = 0; k < write.descriptorCount; ++k, ++j)
+				descriptors[j] = (uint64_t)write.pImageInfo[k].sampler;
+			break;
+		case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+			update.descriptors = descriptors.data() + j;
+			for (uint32_t k = 0; k < write.descriptorCount; ++k, j += 2)
+			{
+				descriptors[j + 0] = (uint64_t)write.pImageInfo[k].sampler;
+				descriptors[j + 1] = (uint64_t)write.pImageInfo[k].imageView;
+			}
+			break;
+		case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+		case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
+			update.descriptors = descriptors.data() + j;
+			for (uint32_t k = 0; k < write.descriptorCount; ++k, ++j)
+				descriptors[j] = (uint64_t)write.pImageInfo[k].imageView;
+			break;
+		case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+		case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+			static_assert(sizeof(reshade::api::buffer_range) == sizeof(VkDescriptorBufferInfo));
+			update.descriptors = write.pBufferInfo;
+			break;
+		}
+
+		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
+			cmd_impl,
+			shader_stages,
+			reshade::api::pipeline_layout { (uint64_t)layout },
+			set,
+			update);
+	}
 #endif
 }
 

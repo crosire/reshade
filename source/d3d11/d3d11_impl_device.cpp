@@ -845,6 +845,43 @@ void reshade::d3d11::device_impl::destroy_framebuffer(api::framebuffer handle)
 	delete reinterpret_cast<framebuffer_impl *>(handle.handle);
 }
 
+bool reshade::d3d11::device_impl::create_descriptor_sets(uint32_t count, const api::descriptor_set_layout *layouts, api::descriptor_set *out)
+{
+	for (uint32_t i = 0; i < count; ++i)
+	{
+		const auto set_layout_impl = reinterpret_cast<const descriptor_set_layout_impl *>(layouts[i].handle);
+		assert(set_layout_impl != nullptr);
+
+		const auto impl = new descriptor_set_impl();
+		impl->type = set_layout_impl->range.type;
+		impl->count = set_layout_impl->range.array_size;
+
+		switch (impl->type)
+		{
+		case api::descriptor_type::sampler:
+		case api::descriptor_type::shader_resource_view:
+		case api::descriptor_type::unordered_access_view:
+			impl->descriptors.resize(impl->count * 1);
+			break;
+		case api::descriptor_type::constant_buffer:
+			impl->descriptors.resize(impl->count * 3);
+			break;
+		default:
+			assert(false);
+			break;
+		}
+
+		out[i] = { reinterpret_cast<uintptr_t>(impl) };
+	}
+
+	return true;
+}
+void reshade::d3d11::device_impl::destroy_descriptor_sets(uint32_t count, const api::descriptor_set *sets)
+{
+	for (uint32_t i = 0; i < count; ++i)
+		delete reinterpret_cast<descriptor_set_impl *>(sets[i].handle);
+}
+
 bool reshade::d3d11::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access access, api::subresource_data *out_data)
 {
 	static_assert(sizeof(api::subresource_data) == sizeof(D3D11_MAPPED_SUBRESOURCE));
@@ -889,7 +926,7 @@ void reshade::d3d11::device_impl::unmap_resource(api::resource resource, uint32_
 	immediate_context->Unmap(reinterpret_cast<ID3D11Resource *>(resource.handle), subresource);
 }
 
-void reshade::d3d11::device_impl::upload_buffer_region(const void *data, api::resource dst, uint64_t dst_offset, uint64_t size)
+void reshade::d3d11::device_impl::update_buffer_region(const void *data, api::resource dst, uint64_t dst_offset, uint64_t size)
 {
 	assert(dst.handle != 0);
 	assert(dst_offset <= std::numeric_limits<UINT>::max() && size <= std::numeric_limits<UINT>::max());
@@ -900,7 +937,7 @@ void reshade::d3d11::device_impl::upload_buffer_region(const void *data, api::re
 	const D3D11_BOX dst_box = { static_cast<UINT>(dst_offset), 0, 0, static_cast<UINT>(dst_offset + size), 1, 1 };
 	immediate_context->UpdateSubresource(reinterpret_cast<ID3D11Resource *>(dst.handle), 0, dst_offset != 0 ? &dst_box : nullptr, data, static_cast<UINT>(size), 0);
 }
-void reshade::d3d11::device_impl::upload_texture_region(const api::subresource_data &data, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6])
+void reshade::d3d11::device_impl::update_texture_region(const api::subresource_data &data, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6])
 {
 	assert(dst.handle != 0);
 
@@ -908,6 +945,31 @@ void reshade::d3d11::device_impl::upload_texture_region(const api::subresource_d
 	_orig->GetImmediateContext(&immediate_context);
 
 	immediate_context->UpdateSubresource(reinterpret_cast<ID3D11Resource *>(dst.handle), dst_subresource, reinterpret_cast<const D3D11_BOX *>(dst_box), data.data, data.row_pitch, data.slice_pitch);
+}
+
+void reshade::d3d11::device_impl::update_descriptor_sets(uint32_t count, const api::descriptor_set_update *updates)
+{
+	for (uint32_t i = 0; i < count; ++i)
+	{
+		const auto impl = reinterpret_cast<descriptor_set_impl *>(updates[i].set.handle);
+
+		const api::descriptor_set_update &update = updates[i];
+
+		switch (update.type)
+		{
+		case api::descriptor_type::sampler:
+		case api::descriptor_type::shader_resource_view:
+		case api::descriptor_type::unordered_access_view:
+			std::memcpy(&impl->descriptors[update.binding * 1], update.descriptors, update.count * sizeof(uint64_t) * 1);
+			break;
+		case api::descriptor_type::sampler_with_resource_view:
+			assert(false);
+			break;
+		case api::descriptor_type::constant_buffer:
+			std::memcpy(&impl->descriptors[update.binding * 3], update.descriptors, update.count * sizeof(uint64_t) * 3);
+			break;
+		}
+	}
 }
 
 bool reshade::d3d11::device_impl::get_query_pool_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride)
@@ -925,67 +987,6 @@ bool reshade::d3d11::device_impl::get_query_pool_results(api::query_pool pool, u
 	}
 
 	return true;
-}
-
-bool reshade::d3d11::device_impl::allocate_descriptor_sets(uint32_t count, const api::descriptor_set_layout *layouts, api::descriptor_set *out)
-{
-	for (uint32_t i = 0; i < count; ++i)
-	{
-		const auto set_layout_impl = reinterpret_cast<const descriptor_set_layout_impl *>(layouts[i].handle);
-		assert(set_layout_impl != nullptr);
-
-		const auto impl = new descriptor_set_impl();
-		impl->type = set_layout_impl->range.type;
-		impl->count = set_layout_impl->range.array_size;
-
-		switch (impl->type)
-		{
-		case api::descriptor_type::sampler:
-		case api::descriptor_type::shader_resource_view:
-		case api::descriptor_type::unordered_access_view:
-			impl->descriptors.resize(impl->count * 1);
-			break;
-		case api::descriptor_type::constant_buffer:
-			impl->descriptors.resize(impl->count * 3);
-			break;
-		default:
-			assert(false);
-			break;
-		}
-
-		out[i] = { reinterpret_cast<uintptr_t>(impl) };
-	}
-
-	return true;
-}
-void reshade::d3d11::device_impl::free_descriptor_sets(uint32_t count, const api::descriptor_set_layout *, const api::descriptor_set *sets)
-{
-	for (uint32_t i = 0; i < count; ++i)
-		delete reinterpret_cast<descriptor_set_impl *>(sets[i].handle);
-}
-void reshade::d3d11::device_impl::update_descriptor_sets(uint32_t count, const api::write_descriptor_set *updates)
-{
-	for (uint32_t i = 0; i < count; ++i)
-	{
-		const auto impl = reinterpret_cast<descriptor_set_impl *>(updates[i].set.handle);
-
-		const api::write_descriptor_set &update = updates[i];
-
-		switch (update.type)
-		{
-		case api::descriptor_type::sampler:
-		case api::descriptor_type::shader_resource_view:
-		case api::descriptor_type::unordered_access_view:
-			std::memcpy(&impl->descriptors[update.offset * 1], update.descriptors, update.count * sizeof(uint64_t) * 1);
-			break;
-		case api::descriptor_type::sampler_with_resource_view:
-			assert(false);
-			break;
-		case api::descriptor_type::constant_buffer:
-			std::memcpy(&impl->descriptors[update.offset * 3], update.descriptors, update.count * sizeof(uint64_t) * 3);
-			break;
-		}
-	}
 }
 
 void reshade::d3d11::device_impl::set_resource_name(api::resource resource, const char *name)
@@ -1010,6 +1011,11 @@ void reshade::d3d11::device_impl::get_pipeline_layout_desc(api::pipeline_layout 
 	{
 		*count = static_cast<uint32_t>(layout_impl->params.size());
 	}
+}
+void reshade::d3d11::device_impl::get_descriptor_pool_offset(api::descriptor_set, uint32_t binding, api::descriptor_pool *pool, uint32_t *offset) const
+{
+	*pool = { 0 };
+	*offset = binding; // Unsupported
 }
 void reshade::d3d11::device_impl::get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *count, api::descriptor_range *bindings) const
 {
@@ -1068,7 +1074,6 @@ reshade::api::resource_desc reshade::d3d11::device_impl::get_resource_desc(api::
 	assert(false); // Not implemented
 	return api::resource_desc {};
 }
-
 void reshade::d3d11::device_impl::get_resource_from_view(api::resource_view view, api::resource *out) const
 {
 	assert(view.handle != 0);
@@ -1078,7 +1083,7 @@ void reshade::d3d11::device_impl::get_resource_from_view(api::resource_view view
 	*out = { reinterpret_cast<uintptr_t>(resource.get()) };
 }
 
-bool reshade::d3d11::device_impl::get_framebuffer_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index, api::resource_view *out) const
+reshade::api::resource_view reshade::d3d11::device_impl::get_framebuffer_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index) const
 {
 	assert(fbo.handle != 0);
 	const auto fbo_impl = reinterpret_cast<const framebuffer_impl *>(fbo.handle);
@@ -1087,19 +1092,16 @@ bool reshade::d3d11::device_impl::get_framebuffer_attachment(api::framebuffer fb
 	{
 		if (index < fbo_impl->count)
 		{
-			*out = { reinterpret_cast<uintptr_t>(fbo_impl->rtv[index]) };
-			return true;
+			return { reinterpret_cast<uintptr_t>(fbo_impl->rtv[index]) };
 		}
 	}
 	else
 	{
 		if (fbo_impl->dsv != nullptr)
 		{
-			*out = { reinterpret_cast<uintptr_t>(fbo_impl->dsv) };
-			return true;
+			return { reinterpret_cast<uintptr_t>(fbo_impl->dsv) };
 		}
 	}
 
-	*out = { 0 };
-	return false;
+	return { 0 };
 }

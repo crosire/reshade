@@ -448,6 +448,12 @@ namespace reshade { namespace api
 	RESHADE_DEFINE_HANDLE(descriptor_set);
 
 	/// <summary>
+	/// An opaque handle to a descriptor pool.
+	/// <para>In D3D12 this is a pointer to a 'ID3D12DescriptorHeap' object, in Vulkan a 'VkDescriptorPool' handle.</para>
+	/// </summary>
+	RESHADE_DEFINE_HANDLE(descriptor_pool);
+
+	/// <summary>
 	/// Describes the color blend state of the output stage.
 	/// </summary>
 	struct blend_desc
@@ -764,35 +770,17 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
-	/// All information needed to copy descriptors between descriptor sets.
-	/// </summary>
-	struct copy_descriptor_set
-	{
-		/// <summary>The descriptor set to copy from.</summary>
-		descriptor_set src_set;
-		/// <summary>The offset in the source set to start copying from.</summary>
-		/// <seealso cref="descriptor_range::offset"/>
-		uint32_t src_offset;
-		/// <summary>The descriptor set to copy to.</summary>
-		descriptor_set dst_set;
-		/// <summary>The offset in the destination set to start copying to.</summary>
-		/// <seealso cref="descriptor_range::offset"/>
-		uint32_t dst_offset;
-		/// <summary>The number of descriptors to copy, starting at the specified source offset to the destination offset.</summary>
-		uint32_t count;
-	};
-
-	/// <summary>
 	/// All information needed to update descriptors in a single descriptor set.
 	/// </summary>
-	struct write_descriptor_set
+	struct descriptor_set_update
 	{
 		/// <summary>The descriptor set to update.</summary>
 		descriptor_set set;
-		/// <summary>The offset in the <see cref="set"/> to start updating at.</summary>
-		/// <seealso cref="descriptor_range::offset"/>
-		uint32_t offset;
-		/// <summary>The number of descriptors to update, starting at the specified <see cref="offset"/>.</summary>
+		/// <summary>The OpenGL/Vulkan binding index to start updating at.</summary>
+		uint32_t binding;
+		/// <summary>The array index in the specified <see cref="binding"/> to start updating at.</summary>
+		uint32_t array_offset;
+		/// <summary>The number of descriptors to update, starting at the specified <see cref="binding"/> and <see cref="array_offset"/>.</summary>
 		uint32_t count;
 		/// <summary>The type of the specified <see cref="descriptors"/>.</summary>
 		descriptor_type type;

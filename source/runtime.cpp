@@ -1073,7 +1073,7 @@ void reshade::runtime::load_textures()
 
 		api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
 		cmd_list->barrier(texture.resource, api::resource_usage::shader_resource, api::resource_usage::copy_dest);
-		_device->upload_texture_region({ resized.data(), row_pitch, row_pitch * texture.height }, texture.resource, 0);
+		_device->update_texture_region({ resized.data(), row_pitch, row_pitch * texture.height }, texture.resource, 0);
 		cmd_list->barrier(texture.resource, api::resource_usage::copy_dest, api::resource_usage::shader_resource);
 
 		if (texture.levels > 1)
@@ -1447,7 +1447,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 	}
 
 	api::buffer_range cb_range = { { 0 }, 0, std::numeric_limits<uint64_t>::max() };
-	std::vector<api::write_descriptor_set> descriptor_writes;
+	std::vector<api::descriptor_set_update> descriptor_writes;
 	descriptor_writes.reserve(effect.module.num_sampler_bindings + effect.module.num_texture_bindings + effect.module.num_storage_bindings + 1);
 	std::vector<api::sampler_with_resource_view> sampler_descriptors;
 	sampler_descriptors.resize(effect.module.num_sampler_bindings + effect.module.num_texture_bindings);
@@ -1465,7 +1465,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 
 		_device->set_resource_name(effect.cb, "ReShade constant buffer");
 
-		if (!_device->allocate_descriptor_sets(1, &effect.set_layouts[0], &effect.cb_set))
+		if (!_device->create_descriptor_sets(1, &effect.set_layouts[0], &effect.cb_set))
 		{
 			LOG(ERROR) << "Failed to create constant buffer descriptor set for effect file '" << effect.source_file << "'!";
 			return false;
@@ -1473,9 +1473,9 @@ bool reshade::runtime::init_effect(size_t effect_index)
 
 		cb_range.buffer = effect.cb;
 
-		api::write_descriptor_set &write = descriptor_writes.emplace_back();
+		api::descriptor_set_update &write = descriptor_writes.emplace_back();
 		write.set = effect.cb_set;
-		write.offset = 0;
+		write.binding = 0;
 		write.type = api::descriptor_type::constant_buffer;
 		write.count = 1;
 		write.descriptors = &cb_range;
@@ -1492,7 +1492,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 	{
 		const std::vector<api::descriptor_set_layout> layouts(sampler_with_resource_view ? total_passes : 1, effect.set_layouts[1]);
 
-		if (!_device->allocate_descriptor_sets(static_cast<uint32_t>(layouts.size()), layouts.data(), sampler_with_resource_view ? texture_tables.data() : &effect.sampler_set))
+		if (!_device->create_descriptor_sets(static_cast<uint32_t>(layouts.size()), layouts.data(), sampler_with_resource_view ? texture_tables.data() : &effect.sampler_set))
 		{
 			LOG(ERROR) << "Failed to create sampler descriptor set for effect file '" << effect.source_file << "'!";
 			return false;
@@ -1542,9 +1542,9 @@ bool reshade::runtime::init_effect(size_t effect_index)
 					_effect_sampler_states.emplace(desc_hash, sampler_handle);
 				}
 
-				api::write_descriptor_set &write = descriptor_writes.emplace_back();
+				api::descriptor_set_update &write = descriptor_writes.emplace_back();
 				write.set = effect.sampler_set;
-				write.offset = info.binding;
+				write.binding = info.binding;
 				write.type = api::descriptor_type::sampler;
 				write.count = 1;
 				write.descriptors = &sampler_handle;
@@ -1558,7 +1558,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 
 		const std::vector<api::descriptor_set_layout> layouts(total_passes, effect.set_layouts[2]);
 
-		if (!_device->allocate_descriptor_sets(static_cast<uint32_t>(layouts.size()), layouts.data(), texture_tables.data()))
+		if (!_device->create_descriptor_sets(static_cast<uint32_t>(layouts.size()), layouts.data(), texture_tables.data()))
 		{
 			LOG(ERROR) << "Failed to create texture descriptor set for effect file '" << effect.source_file << "'!";
 			return false;
@@ -1569,7 +1569,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 	{
 		const std::vector<api::descriptor_set_layout> layouts(total_passes, effect.set_layouts[3]);
 
-		if (!_device->allocate_descriptor_sets(static_cast<uint32_t>(layouts.size()), layouts.data(), storage_tables.data()))
+		if (!_device->create_descriptor_sets(static_cast<uint32_t>(layouts.size()), layouts.data(), storage_tables.data()))
 		{
 			LOG(ERROR) << "Failed to create storage descriptor set for effect file '" << effect.source_file << "'!";
 			return false;
@@ -1810,13 +1810,13 @@ bool reshade::runtime::init_effect(size_t effect_index)
 
 					api::resource_view &srv = sampler_descriptors[sampler_with_resource_view ? info.binding : effect.module.num_sampler_bindings + info.texture_binding].view;
 
-					api::write_descriptor_set &write = descriptor_writes.emplace_back();
+					api::descriptor_set_update &write = descriptor_writes.emplace_back();
 					write.set = pass_data.texture_set;
 					write.count = 1;
 
 					if (sampler_with_resource_view)
 					{
-						write.offset = info.binding;
+						write.binding = info.binding;
 						write.type = api::descriptor_type::sampler_with_resource_view;
 						write.descriptors = &sampler_descriptors[info.binding];
 
@@ -1856,7 +1856,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 					}
 					else
 					{
-						write.offset = info.texture_binding;
+						write.binding = info.texture_binding;
 						write.type = api::descriptor_type::shader_resource_view;
 						write.descriptors = &srv;
 					}
@@ -1874,7 +1874,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 							srv = _empty_texture_view;
 
 						// Keep track of the texture descriptor to simplify updating it
-						effect.texture_semantic_to_binding.push_back({ texture.semantic, write.set, write.offset, sampler_with_resource_view ? sampler_descriptors[info.binding].sampler : api::sampler { 0 } });
+						effect.texture_semantic_to_binding.push_back({ texture.semantic, write.set, write.binding, sampler_with_resource_view ? sampler_descriptors[info.binding].sampler : api::sampler { 0 } });
 					}
 					else
 					{
@@ -1900,9 +1900,9 @@ bool reshade::runtime::init_effect(size_t effect_index)
 					if (texture.levels > 1)
 						pass_data.generate_mipmap_views.push_back(texture.srv[0]);
 
-					api::write_descriptor_set &write = descriptor_writes.emplace_back();
+					api::descriptor_set_update &write = descriptor_writes.emplace_back();
 					write.set = pass_data.storage_set;
-					write.offset = info.binding;
+					write.binding = info.binding;
 					write.type = api::descriptor_type::unordered_access_view;
 					write.count = 1;
 					write.descriptors = &texture.uav;
@@ -2077,8 +2077,8 @@ void reshade::runtime::unload_effect(size_t effect_index)
 			const bool is_compute_pass = !tech.passes[pass_index++].cs_entry_point.empty();
 			_device->destroy_pipeline(is_compute_pass ? api::pipeline_stage::all_compute : api::pipeline_stage::all_graphics, pass.pipeline);
 
-			_device->free_descriptor_sets(1, &_effects[effect_index].set_layouts[2], &pass.texture_set);
-			_device->free_descriptor_sets(1, &_effects[effect_index].set_layouts[3], &pass.storage_set);
+			_device->destroy_descriptor_sets(1, &pass.texture_set);
+			_device->destroy_descriptor_sets(1, &pass.storage_set);
 		}
 
 		tech.passes_data.clear();
@@ -2089,9 +2089,9 @@ void reshade::runtime::unload_effect(size_t effect_index)
 		_device->destroy_resource(effect.cb);
 		effect.cb = {};
 
-		_device->free_descriptor_sets(1, &effect.set_layouts[0], &effect.cb_set);
+		_device->destroy_descriptor_sets(1, &effect.cb_set);
 		effect.cb_set = {};
-		_device->free_descriptor_sets(1, &effect.set_layouts[1], &effect.sampler_set);
+		_device->destroy_descriptor_sets(1, &effect.sampler_set);
 		effect.sampler_set = {};
 
 		_device->destroy_pipeline_layout(effect.layout);
@@ -3773,7 +3773,7 @@ void reshade::runtime::update_texture_bindings(const char *semantic, api::resour
 	for (effect &effect_data : _effects)
 		num_bindings += effect_data.texture_semantic_to_binding.size();
 
-	std::vector<api::write_descriptor_set> descriptor_writes;
+	std::vector<api::descriptor_set_update> descriptor_writes;
 	std::vector<api::sampler_with_resource_view> sampler_descriptors(num_bindings);
 
 	for (effect &effect_data : _effects)
@@ -3783,9 +3783,9 @@ void reshade::runtime::update_texture_bindings(const char *semantic, api::resour
 			if (binding.semantic != semantic)
 				continue;
 
-			api::write_descriptor_set &write = descriptor_writes.emplace_back();
+			api::descriptor_set_update &write = descriptor_writes.emplace_back();
 			write.set = binding.set;
-			write.offset = binding.index;
+			write.binding = binding.index;
 			write.count = 1;
 
 			if (binding.sampler != 0)

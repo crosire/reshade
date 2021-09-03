@@ -59,28 +59,31 @@ namespace reshade::vulkan
 		bool create_framebuffer(const api::framebuffer_desc &desc, api::framebuffer *out) final;
 		void destroy_framebuffer(api::framebuffer handle) final;
 
+		bool create_descriptor_sets(uint32_t count, const api::descriptor_set_layout *layouts, api::descriptor_set *out) final;
+		void destroy_descriptor_sets(uint32_t count, const api::descriptor_set *sets) final;
+
 		bool map_resource(api::resource resource, uint32_t subresource, api::map_access access, api::subresource_data *out_data) final;
 		void unmap_resource(api::resource resource, uint32_t subresource) final;
 
-		void upload_buffer_region(const void *data, api::resource dst, uint64_t dst_offset, uint64_t size) final;
-		void upload_texture_region(const api::subresource_data &data, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6]) final;
+		void update_buffer_region(const void *data, api::resource dst, uint64_t dst_offset, uint64_t size) final;
+		void update_texture_region(const api::subresource_data &data, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6]) final;
+
+		void update_descriptor_sets(uint32_t count, const api::descriptor_set_update *updates) final;
 
 		bool get_query_pool_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride) final;
-
-		bool allocate_descriptor_sets(uint32_t count, const api::descriptor_set_layout *layouts, api::descriptor_set *out) final;
-		void free_descriptor_sets(uint32_t count, const api::descriptor_set_layout *layouts, const api::descriptor_set *sets) final;
-		void update_descriptor_sets(uint32_t count, const api::write_descriptor_set *updates) final;
 
 		void wait_idle() const final;
 
 		void set_resource_name(api::resource resource, const char *name) final;
 
 		void get_pipeline_layout_desc(api::pipeline_layout layout, uint32_t *count, api::pipeline_layout_param *params) const final;
+		void get_descriptor_pool_offset(api::descriptor_set set, uint32_t binding, api::descriptor_pool *pool, uint32_t *offset) const final;
 		void get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *count, api::descriptor_range *bindings) const final;
 
 		api::resource_desc get_resource_desc(api::resource resource) const final;
 		void get_resource_from_view(api::resource_view view, api::resource *out) const final;
-		bool get_framebuffer_attachment(api::framebuffer framebuffer, api::attachment_type type, uint32_t index, api::resource_view *out) const final;
+
+		api::resource_view get_framebuffer_attachment(api::framebuffer framebuffer, api::attachment_type type, uint32_t index) const final;
 
 		void advance_transient_descriptor_pool();
 
@@ -134,7 +137,8 @@ namespace reshade::vulkan
 			public locked_ptr_hash_map<shader_module_data>,
 			public locked_ptr_hash_map<pipeline_layout_data>,
 			public locked_ptr_hash_map<descriptor_set_data>,
-			public locked_ptr_hash_map<descriptor_set_layout_data>
+			public locked_ptr_hash_map<descriptor_set_layout_data>,
+			public locked_ptr_hash_map<descriptor_pool_data>
 		{} _objects;
 	};
 }

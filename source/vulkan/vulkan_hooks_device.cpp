@@ -1198,18 +1198,132 @@ void     VKAPI_CALL vkDestroyDescriptorSetLayout(VkDevice device, VkDescriptorSe
 	trampoline(device, descriptorSetLayout, pAllocator);
 }
 
+VkResult VKAPI_CALL vkCreateDescriptorPool(VkDevice device, const VkDescriptorPoolCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkDescriptorPool *pDescriptorPool)
+{
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
+	GET_DISPATCH_PTR_FROM(CreateDescriptorPool, device_impl);
+
+	assert(pCreateInfo != nullptr && pDescriptorPool != nullptr);
+
+	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pDescriptorPool);
+	if (result >= VK_SUCCESS)
+	{
+#if RESHADE_ADDON
+		uint32_t num_descriptors = 0;
+		for (uint32_t i = 0; i < pCreateInfo->poolSizeCount; ++i)
+			num_descriptors += pCreateInfo->pPoolSizes[i].descriptorCount;
+
+		device_impl->register_object<reshade::vulkan::descriptor_pool_data>((uint64_t)*pDescriptorPool, { num_descriptors, new std::vector<bool>(pCreateInfo->maxSets) });
+
+		num_descriptors *= pCreateInfo->maxSets;
+
+		reshade::invoke_addon_event<reshade::addon_event::init_descriptor_pool>(device_impl, num_descriptors, reshade::api::descriptor_pool { (uint64_t)*pDescriptorPool });
+#endif
+	}
+	else
+	{
+#if RESHADE_VERBOSE_LOG
+		LOG(WARN) << "vkCreateDescriptorPool" << " failed with error code " << result << '.';
+#endif
+	}
+
+	return result;
+}
+void     VKAPI_CALL vkDestroyDescriptorPool(VkDevice device, VkDescriptorPool descriptorPool, const VkAllocationCallbacks *pAllocator)
+{
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
+	GET_DISPATCH_PTR_FROM(DestroyDescriptorPool, device_impl);
+
+#if RESHADE_ADDON
+	const auto pool_data = device_impl->get_native_object_data<reshade::vulkan::descriptor_pool_data>((uint64_t)descriptorPool);
+	delete pool_data.sets;
+
+	reshade::invoke_addon_event<reshade::addon_event::destroy_descriptor_pool>(device_impl, reshade::api::descriptor_pool { (uint64_t)descriptorPool });
+
+	device_impl->unregister_object<reshade::vulkan::descriptor_pool_data>((uint64_t)descriptorPool);
+#endif
+
+	trampoline(device, descriptorPool, pAllocator);
+}
+
+VkResult VKAPI_CALL vkResetDescriptorPool(VkDevice device, VkDescriptorPool descriptorPool, VkDescriptorPoolResetFlags flags)
+{
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
+	GET_DISPATCH_PTR_FROM(ResetDescriptorPool, device_impl);
+
+#if RESHADE_ADDON
+	const auto pool_data = device_impl->get_native_object_data<reshade::vulkan::descriptor_pool_data>((uint64_t)descriptorPool);
+	std::fill(pool_data.sets->begin(), pool_data.sets->end(), false);
+#endif
+
+	return trampoline(device, descriptorPool, flags);
+}
+VkResult VKAPI_CALL vkAllocateDescriptorSets(VkDevice device, const VkDescriptorSetAllocateInfo *pAllocateInfo, VkDescriptorSet *pDescriptorSets)
+{
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
+	GET_DISPATCH_PTR_FROM(AllocateDescriptorSets, device_impl);
+
+	assert(pAllocateInfo != nullptr && pDescriptorSets != nullptr);
+
+	const VkResult result = trampoline(device, pAllocateInfo, pDescriptorSets);
+	if (result >= VK_SUCCESS)
+	{
+#if RESHADE_ADDON
+		const auto pool_data = device_impl->get_native_object_data<reshade::vulkan::descriptor_pool_data>((uint64_t)pAllocateInfo->descriptorPool);
+
+		for (uint32_t i = 0; i < pAllocateInfo->descriptorSetCount; ++i)
+		{
+			const size_t idx = std::distance(std::find(pool_data.sets->begin(), pool_data.sets->end(), false), pool_data.sets->begin());
+			(*pool_data.sets)[idx] = true;
+
+			const size_t offset = idx * pool_data.count;
+
+			device_impl->register_object<reshade::vulkan::descriptor_set_data>((uint64_t)pDescriptorSets[i], { pAllocateInfo->descriptorPool, offset, pAllocateInfo->pSetLayouts[i] });
+		}
+#endif
+	}
+	else
+	{
+#if RESHADE_VERBOSE_LOG
+		LOG(WARN) << "vkAllocateDescriptorSets" << " failed with error code " << result << '.';
+#endif
+	}
+
+	return result;
+}
+VkResult VKAPI_CALL vkFreeDescriptorSets(VkDevice device, VkDescriptorPool descriptorPool, uint32_t descriptorSetCount, const VkDescriptorSet *pDescriptorSets)
+{
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
+	GET_DISPATCH_PTR_FROM(FreeDescriptorSets, device_impl);
+
+#if RESHADE_ADDON
+	const auto pool_data = device_impl->get_native_object_data<reshade::vulkan::descriptor_pool_data>((uint64_t)descriptorPool);
+
+	for (uint32_t i = 0; i < descriptorSetCount; ++i)
+	{
+		const auto data = device_impl->get_native_object_data<reshade::vulkan::descriptor_set_data>((uint64_t)pDescriptorSets[i]);
+
+		const size_t idx = data.offset / pool_data.count;
+		(*pool_data.sets)[idx] = false;
+
+		device_impl->unregister_object<reshade::vulkan::descriptor_set_data>((uint64_t)pDescriptorSets[i]);
+	}
+#endif
+
+	return trampoline(device, descriptorPool, descriptorSetCount, pDescriptorSets);
+}
+
 void     VKAPI_CALL vkUpdateDescriptorSets(VkDevice device, uint32_t descriptorWriteCount, const VkWriteDescriptorSet *pDescriptorWrites, uint32_t descriptorCopyCount, const VkCopyDescriptorSet *pDescriptorCopies)
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
 	GET_DISPATCH_PTR_FROM(UpdateDescriptorSets, device_impl);
 
 #if RESHADE_ADDON
-	if (reshade::has_addon_event<reshade::addon_event::update_descriptor_sets>())
+	if (descriptorWriteCount != 0 &&
+		reshade::has_addon_event<reshade::addon_event::update_descriptor_sets>())
 	{
-		std::vector<reshade::api::copy_descriptor_set> copies;
-		copies.reserve(descriptorCopyCount);
-		std::vector<reshade::api::write_descriptor_set> writes;
-		writes.reserve(descriptorWriteCount);
+		std::vector<reshade::api::descriptor_set_update> updates;
+		updates.reserve(descriptorWriteCount);
 
 		uint32_t max_descriptors = 0;
 		for (uint32_t i = 0; i < descriptorWriteCount; ++i)
@@ -1220,21 +1334,22 @@ void     VKAPI_CALL vkUpdateDescriptorSets(VkDevice device, uint32_t descriptorW
 		{
 			const VkWriteDescriptorSet &write = pDescriptorWrites[i];
 
-			reshade::api::write_descriptor_set &new_write = writes.emplace_back();
-			new_write.set = { (uint64_t)write.dstSet };
-			new_write.offset = device_impl->get_native_object_data<reshade::vulkan::descriptor_set_layout_data>((uint64_t)device_impl->get_native_object_data<reshade::vulkan::descriptor_set_data>((uint64_t)write.dstSet).layout).calc_offset_from_binding(write.dstBinding, write.dstArrayElement);
-			new_write.count = write.descriptorCount;
-			new_write.type = static_cast<reshade::api::descriptor_type>(write.descriptorType);
+			reshade::api::descriptor_set_update &update = updates.emplace_back();
+			update.set = { (uint64_t)write.dstSet };
+			update.binding = write.dstBinding;
+			update.array_offset = write.dstArrayElement;
+			update.count = write.descriptorCount;
+			update.type = static_cast<reshade::api::descriptor_type>(write.descriptorType);
 
 			switch (write.descriptorType)
 			{
 			case VK_DESCRIPTOR_TYPE_SAMPLER:
-				new_write.descriptors = descriptors.data() + j;
+				update.descriptors = descriptors.data() + j;
 				for (uint32_t k = 0; k < write.descriptorCount; ++k, ++j)
 					descriptors[j] = (uint64_t)write.pImageInfo[k].sampler;
 				break;
 			case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
-				new_write.descriptors = descriptors.data() + j;
+				update.descriptors = descriptors.data() + j;
 				for (uint32_t k = 0; k < write.descriptorCount; ++k, j += 2)
 				{
 					descriptors[j + 0] = (uint64_t)write.pImageInfo[k].sampler;
@@ -1243,30 +1358,19 @@ void     VKAPI_CALL vkUpdateDescriptorSets(VkDevice device, uint32_t descriptorW
 				break;
 			case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
 			case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
-				new_write.descriptors = descriptors.data() + j;
+				update.descriptors = descriptors.data() + j;
 				for (uint32_t k = 0; k < write.descriptorCount; ++k, ++j)
 					descriptors[j] = (uint64_t)write.pImageInfo[k].imageView;
 				break;
 			case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
 			case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
 				static_assert(sizeof(reshade::api::buffer_range) == sizeof(VkDescriptorBufferInfo));
-				new_write.descriptors = write.pBufferInfo;
+				update.descriptors = write.pBufferInfo;
 				break;
 			}
 		}
-		for (uint32_t i = 0; i < descriptorCopyCount; ++i)
-		{
-			const VkCopyDescriptorSet &copy = pDescriptorCopies[i];
 
-			reshade::api::copy_descriptor_set &new_copy = copies.emplace_back();
-			new_copy.src_set = { (uint64_t)copy.srcSet };
-			new_copy.src_offset = device_impl->get_native_object_data<reshade::vulkan::descriptor_set_layout_data>((uint64_t)device_impl->get_native_object_data<reshade::vulkan::descriptor_set_data>((uint64_t)copy.srcSet).layout).calc_offset_from_binding(copy.srcBinding, copy.srcArrayElement);
-			new_copy.dst_set = { (uint64_t)copy.dstSet };
-			new_copy.dst_offset = device_impl->get_native_object_data<reshade::vulkan::descriptor_set_layout_data>((uint64_t)device_impl->get_native_object_data<reshade::vulkan::descriptor_set_data>((uint64_t)copy.dstSet).layout).calc_offset_from_binding(copy.dstBinding, copy.dstArrayElement);
-			new_copy.count = copy.descriptorCount;
-		}
-
-		if (reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(device_impl, descriptorWriteCount, writes.data(), descriptorCopyCount, copies.data()))
+		if (reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(device_impl, descriptorWriteCount, updates.data()))
 			return;
 	}
 #endif
