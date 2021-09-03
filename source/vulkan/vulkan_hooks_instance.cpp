@@ -134,7 +134,7 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	// Initialize the instance dispatch table
 	VkLayerInstanceDispatchTable dispatch_table = { get_physical_device_proc };
 
-	// ---- Core 1_0 commands
+	#pragma region Core 1_0
 	INIT_DISPATCH_PTR(DestroyInstance);
 	INIT_DISPATCH_PTR(EnumeratePhysicalDevices);
 	INIT_DISPATCH_PTR(GetPhysicalDeviceFeatures);
@@ -144,12 +144,16 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	INIT_DISPATCH_PTR(GetPhysicalDeviceQueueFamilyProperties);
 	dispatch_table.GetInstanceProcAddr = get_instance_proc;
 	INIT_DISPATCH_PTR(EnumerateDeviceExtensionProperties);
-	// ---- Core 1_1 commands
+	#pragma endregion
+	#pragma region Core 1_1
 	INIT_DISPATCH_PTR(GetPhysicalDeviceMemoryProperties2);
-	// ---- VK_KHR_surface extension commands
+	#pragma endregion
+	#pragma region VK_KHR_surface
 	INIT_DISPATCH_PTR(DestroySurfaceKHR);
-	// ---- VK_KHR_win32_surface extension commands
+	#pragma endregion
+	#pragma region VK_KHR_win32_surface
 	INIT_DISPATCH_PTR(CreateWin32SurfaceKHR);
+	#pragma endregion
 
 	g_instance_dispatch.emplace(dispatch_key_from_handle(instance), instance_dispatch_table { dispatch_table, instance });
 

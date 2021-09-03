@@ -67,21 +67,21 @@ bool reshade::vulkan::swapchain_impl::on_init(VkSwapchainKHR swapchain, const Vk
 			return false;
 
 		// Add swap chain images to the image list
-		resource_data data;
+		object_data<VK_OBJECT_TYPE_IMAGE> data;
 		data.allocation = VK_NULL_HANDLE;
-		data.image_create_info = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
-		data.image_create_info.imageType = VK_IMAGE_TYPE_2D;
-		data.image_create_info.format = desc.imageFormat;
-		data.image_create_info.extent = { desc.imageExtent.width, desc.imageExtent.height, 1 };
-		data.image_create_info.mipLevels = 1;
-		data.image_create_info.arrayLayers = desc.imageArrayLayers;
-		data.image_create_info.samples = VK_SAMPLE_COUNT_1_BIT;
-		data.image_create_info.usage = desc.imageUsage;
-		data.image_create_info.sharingMode = desc.imageSharingMode;
-		data.image_create_info.initialLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+		data.create_info = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
+		data.create_info.imageType = VK_IMAGE_TYPE_2D;
+		data.create_info.format = desc.imageFormat;
+		data.create_info.extent = { desc.imageExtent.width, desc.imageExtent.height, 1 };
+		data.create_info.mipLevels = 1;
+		data.create_info.arrayLayers = desc.imageArrayLayers;
+		data.create_info.samples = VK_SAMPLE_COUNT_1_BIT;
+		data.create_info.usage = desc.imageUsage;
+		data.create_info.sharingMode = desc.imageSharingMode;
+		data.create_info.initialLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
 		for (uint32_t i = 0; i < num_images; ++i)
-			static_cast<device_impl *>(_device)->register_object<resource_data>((uint64_t)_swapchain_images[i], std::move(data));
+			static_cast<device_impl *>(_device)->register_object<VK_OBJECT_TYPE_IMAGE>(_swapchain_images[i], std::move(data));
 	}
 	else
 	{
@@ -126,7 +126,7 @@ void reshade::vulkan::swapchain_impl::on_reset()
 	else
 		// Remove swap chain images from the image list
 		for (VkImage image : _swapchain_images)
-			static_cast<device_impl *>(_device)->unregister_object<resource_data>((uint64_t)image);
+			static_cast<device_impl *>(_device)->unregister_object<VK_OBJECT_TYPE_IMAGE>(image);
 	_swapchain_images.clear();
 
 	for (VkSemaphore &semaphore : _queue_sync_semaphores)

@@ -97,6 +97,14 @@ reshade::vulkan::device_impl::device_impl(VkDevice device, VkPhysicalDevice phys
 		}
 	}
 
+	{	VkPrivateDataSlotCreateInfoEXT create_info { VK_STRUCTURE_TYPE_PRIVATE_DATA_SLOT_CREATE_INFO_EXT };
+
+		if (vk.CreatePrivateDataSlotEXT(_orig, &create_info, nullptr, &_private_data_slot) != VK_SUCCESS)
+		{
+			LOG(ERROR) << "Failed to create private data slot!";
+		}
+	}
+
 #if RESHADE_ADDON
 	load_addons();
 
@@ -112,6 +120,8 @@ reshade::vulkan::device_impl::~device_impl()
 
 	unload_addons();
 #endif
+
+	vk.DestroyPrivateDataSlotEXT(_orig, _private_data_slot, nullptr);
 
 	vk.DestroyDescriptorPool(_orig, _descriptor_pool, nullptr);
 	for (uint32_t i = 0; i < 4; ++i)
@@ -262,11 +272,11 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 				 vk.CreateBuffer(_orig, &create_info, nullptr, &object) :
 				 vmaCreateBuffer(_alloc, &create_info, &alloc_info, &object, &allocation, nullptr)) == VK_SUCCESS)
 			{
-				resource_data data;
+				object_data<VK_OBJECT_TYPE_BUFFER> data;
 				data.allocation = allocation;
-				data.buffer_create_info = create_info;
+				data.create_info = create_info;
 
-				register_object<resource_data>((uint64_t)object, std::move(data));
+				register_object<VK_OBJECT_TYPE_BUFFER>(object, std::move(data));
 
 				*out = { (uint64_t)object };
 
@@ -297,11 +307,11 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 				 vk.CreateImage(_orig, &create_info, nullptr, &object) :
 				 vmaCreateImage(_alloc, &create_info, &alloc_info, &object, &allocation, nullptr)) == VK_SUCCESS)
 			{
-				resource_data data;
+				object_data<VK_OBJECT_TYPE_IMAGE> data;
 				data.allocation = allocation;
-				data.image_create_info = create_info;
+				data.create_info = create_info;
 
-				register_object<resource_data>((uint64_t)object, std::move(data));
+				register_object<VK_OBJECT_TYPE_IMAGE>(object, std::move(data));
 
 				*out = { (uint64_t)object };
 
@@ -355,23 +365,32 @@ void reshade::vulkan::device_impl::destroy_resource(api::resource handle)
 	if (handle.handle == 0)
 		return;
 
-	const resource_data data = get_native_object_data<resource_data>(handle.handle);
+	static_assert(
+		offsetof(object_data<VK_OBJECT_TYPE_IMAGE>, allocation ) == offsetof(object_data<VK_OBJECT_TYPE_BUFFER>, allocation ) &&
+		offsetof(object_data<VK_OBJECT_TYPE_IMAGE>, create_info) == offsetof(object_data<VK_OBJECT_TYPE_BUFFER>, create_info));
 
-	unregister_object<resource_data>(handle.handle);
-
-	if (data.allocation == VK_NULL_HANDLE)
+	const auto data = get_user_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)handle.handle);
+	if (data->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO) // Structure type is at the same offset in both image and buffer object data structures
 	{
-		if (data.is_image())
+		const VmaAllocation allocation = data->allocation;
+
+		unregister_object<VK_OBJECT_TYPE_IMAGE>((VkImage)handle.handle);
+
+		if (allocation == VK_NULL_HANDLE)
 			vk.DestroyImage(_orig, (VkImage)handle.handle, nullptr);
 		else
-			vk.DestroyBuffer(_orig, (VkBuffer)handle.handle, nullptr);
+			vmaDestroyImage(_alloc, (VkImage)handle.handle, allocation);
 	}
 	else
 	{
-		if (data.is_image())
-			vmaDestroyImage(_alloc, (VkImage)handle.handle, data.allocation);
+		const VmaAllocation allocation = data->allocation;
+
+		unregister_object<VK_OBJECT_TYPE_BUFFER>((VkBuffer)handle.handle);
+
+		if (allocation == VK_NULL_HANDLE)
+			vk.DestroyBuffer(_orig, (VkBuffer)handle.handle, nullptr);
 		else
-			vmaDestroyBuffer(_alloc, (VkBuffer)handle.handle, data.allocation);
+			vmaDestroyBuffer(_alloc, (VkBuffer)handle.handle, allocation);
 	}
 }
 
@@ -383,9 +402,8 @@ bool reshade::vulkan::device_impl::create_resource_view(api::resource resource, 
 		return false;
 	}
 
-	const resource_data data = get_native_object_data<resource_data>(resource.handle);
-
-	if (data.is_image())
+	const auto resource_data = get_user_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)resource.handle);
+	if (resource_data->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO)
 	{
 		VkImageViewCreateInfo create_info { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
 		convert_resource_view_desc(desc, create_info);
@@ -410,10 +428,10 @@ bool reshade::vulkan::device_impl::create_resource_view(api::resource resource, 
 		VkImageView image_view = VK_NULL_HANDLE;
 		if (vk.CreateImageView(_orig, &create_info, nullptr, &image_view) == VK_SUCCESS)
 		{
-			resource_view_data view_data;
-			view_data.image_create_info = create_info;
+			object_data<VK_OBJECT_TYPE_IMAGE_VIEW> data;
+			data.create_info = create_info;
 
-			register_object<resource_view_data>((uint64_t)image_view, std::move(view_data));
+			register_object<VK_OBJECT_TYPE_IMAGE_VIEW>(image_view, std::move(data));
 
 			*out = { (uint64_t)image_view };
 			return true;
@@ -428,10 +446,10 @@ bool reshade::vulkan::device_impl::create_resource_view(api::resource resource, 
 		VkBufferView buffer_view = VK_NULL_HANDLE;
 		if (vk.CreateBufferView(_orig, &create_info, nullptr, &buffer_view) == VK_SUCCESS)
 		{
-			resource_view_data view_data;
-			view_data.buffer_create_info = create_info;
+			object_data<VK_OBJECT_TYPE_BUFFER_VIEW> data;
+			data.create_info = create_info;
 
-			register_object<resource_view_data>((uint64_t)buffer_view, std::move(view_data));
+			register_object<VK_OBJECT_TYPE_BUFFER_VIEW>(buffer_view, std::move(data));
 
 			*out = { (uint64_t)buffer_view };
 			return true;
@@ -446,14 +464,22 @@ void reshade::vulkan::device_impl::destroy_resource_view(api::resource_view hand
 	if (handle.handle == 0)
 		return;
 
-	const resource_view_data data = get_native_object_data<resource_view_data>(handle.handle);
+	static_assert(
+		offsetof(object_data<VK_OBJECT_TYPE_IMAGE_VIEW>, create_info) == offsetof(object_data<VK_OBJECT_TYPE_BUFFER_VIEW>, create_info));
 
-	unregister_object<resource_view_data>(handle.handle);
+	const auto data = get_user_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)handle.handle);
+	if (data->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO) // Structure type is at the same offset in both image view and buffer view object data structures
+	{
+		unregister_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)handle.handle);
 
-	if (data.is_image_view())
 		vk.DestroyImageView(_orig, (VkImageView)handle.handle, nullptr);
+	}
 	else
+	{
+		unregister_object<VK_OBJECT_TYPE_BUFFER_VIEW>((VkBufferView)handle.handle);
+
 		vk.DestroyBufferView(_orig, (VkBufferView)handle.handle, nullptr);
+	}
 }
 
 bool reshade::vulkan::device_impl::create_shader_module(VkShaderStageFlagBits stage, const api::shader_desc &desc, VkPipelineShaderStageCreateInfo &stage_info, VkSpecializationInfo &spec_info, std::vector<VkSpecializationMapEntry> &spec_map)
@@ -721,8 +747,10 @@ bool reshade::vulkan::device_impl::create_graphics_pipeline(const api::pipeline_
 			attachment_info[i].colorWriteMask = desc.graphics.blend_state.render_target_write_mask[i];
 		}
 
+		create_info.renderPass = (VkRenderPass)desc.graphics.render_pass_template.handle;
+
 		uint32_t num_color_attachments = 0;
-		for (const auto &attachment : get_native_object_data<render_pass_data>(desc.graphics.render_pass_template.handle).attachments)
+		for (const auto &attachment : get_user_data_for_object<VK_OBJECT_TYPE_RENDER_PASS>(create_info.renderPass)->attachments)
 			if (attachment.format_flags == VK_IMAGE_ASPECT_COLOR_BIT)
 				num_color_attachments++;
 
@@ -736,8 +764,6 @@ bool reshade::vulkan::device_impl::create_graphics_pipeline(const api::pipeline_
 		color_blend_state_info.blendConstants[1] = ((desc.graphics.blend_state.blend_constant >> 4) & 0xFF) / 255.0f;
 		color_blend_state_info.blendConstants[2] = ((desc.graphics.blend_state.blend_constant >> 8) & 0xFF) / 255.0f;
 		color_blend_state_info.blendConstants[3] = ((desc.graphics.blend_state.blend_constant >> 12) & 0xFF) / 255.0f;
-
-		create_info.renderPass = (VkRenderPass)desc.graphics.render_pass_template.handle;
 
 		if (VkPipeline object = VK_NULL_HANDLE;
 			vk.CreateGraphicsPipelines(_orig, VK_NULL_HANDLE, 1, &create_info, nullptr, &object) == VK_SUCCESS)
@@ -764,9 +790,6 @@ void reshade::vulkan::device_impl::destroy_pipeline(api::pipeline_stage, api::pi
 
 bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t count, const api::pipeline_layout_param *params, api::pipeline_layout *out)
 {
-	pipeline_layout_data data;
-	data.desc.assign(params, params + count);
-
 	std::vector<VkPushConstantRange> push_constant_ranges;
 	std::vector<VkDescriptorSetLayout> set_layouts;
 	set_layouts.reserve(count);
@@ -803,7 +826,10 @@ bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t count, const 
 	if (VkPipelineLayout object = VK_NULL_HANDLE;
 		vk.CreatePipelineLayout(_orig, &create_info, nullptr, &object) == VK_SUCCESS)
 	{
-		register_object<pipeline_layout_data>((uint64_t)object, std::move(data));
+		object_data<VK_OBJECT_TYPE_PIPELINE_LAYOUT> data;
+		data.desc.assign(params, params + count);
+
+		register_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>(object, std::move(data));
 
 		*out = { (uint64_t)object };
 		return true;
@@ -816,14 +842,14 @@ bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t count, const 
 }
 void reshade::vulkan::device_impl::destroy_pipeline_layout(api::pipeline_layout handle)
 {
-	unregister_object<pipeline_layout_data>(handle.handle);
+	unregister_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>((VkPipelineLayout)handle.handle);
 
 	vk.DestroyPipelineLayout(_orig, (VkPipelineLayout)handle.handle, nullptr);
 }
 
 bool reshade::vulkan::device_impl::create_descriptor_set_layout(uint32_t count, const api::descriptor_range *bindings, bool push_descriptors, api::descriptor_set_layout *out)
 {
-	descriptor_set_layout_data data;
+	object_data<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT> data;
 	data.desc.assign(bindings, bindings + count);
 	data.binding_to_offset.reserve(count);
 
@@ -851,7 +877,7 @@ bool reshade::vulkan::device_impl::create_descriptor_set_layout(uint32_t count, 
 	if (VkDescriptorSetLayout object = VK_NULL_HANDLE;
 		vk.CreateDescriptorSetLayout(_orig, &create_info, nullptr, &object) == VK_SUCCESS)
 	{
-		register_object<descriptor_set_layout_data>((uint64_t)object, std::move(data));
+		register_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>(object, std::move(data));
 
 		*out = { (uint64_t)object };
 		return true;
@@ -864,7 +890,7 @@ bool reshade::vulkan::device_impl::create_descriptor_set_layout(uint32_t count, 
 }
 void reshade::vulkan::device_impl::destroy_descriptor_set_layout(api::descriptor_set_layout handle)
 {
-	unregister_object<descriptor_set_layout_data>(handle.handle);
+	unregister_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>((VkDescriptorSetLayout)handle.handle);
 
 	vk.DestroyDescriptorSetLayout(_orig, (VkDescriptorSetLayout)handle.handle, nullptr);
 }
@@ -928,7 +954,7 @@ void reshade::vulkan::device_impl::destroy_query_pool(api::query_pool handle)
 
 bool reshade::vulkan::device_impl::create_render_pass(const api::render_pass_desc &desc, api::render_pass *out)
 {
-	render_pass_data data;
+	object_data<VK_OBJECT_TYPE_RENDER_PASS> data;
 	data.attachments.reserve(8 + 1);
 
 	uint32_t num_color_attachments = 0;
@@ -999,7 +1025,7 @@ bool reshade::vulkan::device_impl::create_render_pass(const api::render_pass_des
 	if (VkRenderPass object = VK_NULL_HANDLE;
 		vk.CreateRenderPass(_orig, &create_info, nullptr, &object) == VK_SUCCESS)
 	{
-		register_object<render_pass_data>((uint64_t)object, std::move(data));
+		register_object<VK_OBJECT_TYPE_RENDER_PASS>(object, std::move(data));
 
 		*out = { (uint64_t)object };
 		return true;
@@ -1012,14 +1038,14 @@ bool reshade::vulkan::device_impl::create_render_pass(const api::render_pass_des
 }
 void reshade::vulkan::device_impl::destroy_render_pass(api::render_pass handle)
 {
-	unregister_object<render_pass_data>(handle.handle);
+	unregister_object<VK_OBJECT_TYPE_RENDER_PASS>((VkRenderPass)handle.handle);
 
 	vk.DestroyRenderPass(_orig, (VkRenderPass)handle.handle, nullptr);
 }
 
 bool reshade::vulkan::device_impl::create_framebuffer(const api::framebuffer_desc &desc, api::framebuffer *out)
 {
-	framebuffer_data data;
+	object_data<VK_OBJECT_TYPE_FRAMEBUFFER> data;
 	data.attachments.reserve(8 + 1);
 	data.attachment_types.reserve(8 + 1);
 
@@ -1029,12 +1055,12 @@ bool reshade::vulkan::device_impl::create_framebuffer(const api::framebuffer_des
 
 	for (uint32_t i = 0; i < 8 && desc.render_targets[i].handle != 0; ++i)
 	{
-		const auto rtv_data = get_native_object_data<resource_view_data>(desc.render_targets[i].handle);
-		const auto rt_resource_data = get_native_object_data<resource_data>((uint64_t)rtv_data.image_create_info.image);
+		const auto rtv_data = get_user_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)desc.render_targets[i].handle);
+		const auto rt_resource_data = get_user_data_for_object<VK_OBJECT_TYPE_IMAGE>(rtv_data->create_info.image);
 
-		width = std::min(rt_resource_data.image_create_info.extent.width, width);
-		height = std::min(rt_resource_data.image_create_info.extent.height, height);
-		num_layers = std::min(rt_resource_data.image_create_info.arrayLayers, num_layers);
+		width = std::min(rt_resource_data->create_info.extent.width, width);
+		height = std::min(rt_resource_data->create_info.extent.height, height);
+		num_layers = std::min(rt_resource_data->create_info.arrayLayers, num_layers);
 
 		data.attachments.push_back((VkImageView)desc.render_targets[i].handle);
 		data.attachment_types.push_back(VK_IMAGE_ASPECT_COLOR_BIT);
@@ -1042,15 +1068,15 @@ bool reshade::vulkan::device_impl::create_framebuffer(const api::framebuffer_des
 
 	if (desc.depth_stencil.handle != 0)
 	{
-		const auto dsv_data = get_native_object_data<resource_view_data>(desc.depth_stencil.handle);
-		const auto ds_resource_data = get_native_object_data<resource_data>((uint64_t)dsv_data.image_create_info.image);
+		const auto dsv_data = get_user_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)desc.depth_stencil.handle);
+		const auto ds_resource_data = get_user_data_for_object<VK_OBJECT_TYPE_IMAGE>(dsv_data->create_info.image);
 
-		width = std::min(ds_resource_data.image_create_info.extent.width, width);
-		height = std::min(ds_resource_data.image_create_info.extent.height, height);
-		num_layers = std::min(ds_resource_data.image_create_info.arrayLayers, num_layers);
+		width = std::min(ds_resource_data->create_info.extent.width, width);
+		height = std::min(ds_resource_data->create_info.extent.height, height);
+		num_layers = std::min(ds_resource_data->create_info.arrayLayers, num_layers);
 
 		data.attachments.push_back((VkImageView)desc.depth_stencil.handle);
-		data.attachment_types.push_back(aspect_flags_from_format(ds_resource_data.image_create_info.format));
+		data.attachment_types.push_back(aspect_flags_from_format(ds_resource_data->create_info.format));
 	}
 
 	VkFramebufferCreateInfo create_info { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
@@ -1067,7 +1093,7 @@ bool reshade::vulkan::device_impl::create_framebuffer(const api::framebuffer_des
 	if (VkFramebuffer object = VK_NULL_HANDLE;
 		vk.CreateFramebuffer(_orig, &create_info, nullptr, &object) == VK_SUCCESS)
 	{
-		register_object<framebuffer_data>((uint64_t)object, std::move(data));
+		register_object<VK_OBJECT_TYPE_FRAMEBUFFER>(object, std::move(data));
 
 		*out = { (uint64_t)object };
 		return true;
@@ -1080,7 +1106,7 @@ bool reshade::vulkan::device_impl::create_framebuffer(const api::framebuffer_des
 }
 void reshade::vulkan::device_impl::destroy_framebuffer(api::framebuffer handle)
 {
-	unregister_object<framebuffer_data>(handle.handle);
+	unregister_object<VK_OBJECT_TYPE_FRAMEBUFFER>((VkFramebuffer)handle.handle);
 
 	vk.DestroyFramebuffer(_orig, (VkFramebuffer)handle.handle, nullptr);
 }
@@ -1097,7 +1123,14 @@ bool reshade::vulkan::device_impl::create_descriptor_sets(uint32_t count, const 
 	if (vk.AllocateDescriptorSets(_orig, &alloc_info, reinterpret_cast<VkDescriptorSet *>(out)) == VK_SUCCESS)
 	{
 		for (uint32_t i = 0; i < count; ++i)
-			register_object<descriptor_set_data>(out[i].handle, { _descriptor_pool, 0, (VkDescriptorSetLayout)layouts[i].handle }); // TODO
+		{
+			object_data<VK_OBJECT_TYPE_DESCRIPTOR_SET> data;
+			data.pool = _descriptor_pool;
+			data.offset = 0; // TODO
+			data.layout = (VkDescriptorSetLayout)layouts[i].handle;
+
+			register_object<VK_OBJECT_TYPE_DESCRIPTOR_SET>((VkDescriptorSet)out[i].handle, std::move(data));
+		}
 
 		return true;
 	}
@@ -1109,7 +1142,7 @@ bool reshade::vulkan::device_impl::create_descriptor_sets(uint32_t count, const 
 void reshade::vulkan::device_impl::destroy_descriptor_sets(uint32_t count, const api::descriptor_set *sets)
 {
 	for (uint32_t i = 0; i < count; ++i)
-		unregister_object<descriptor_set_data>(sets[i].handle);
+		unregister_object<VK_OBJECT_TYPE_DESCRIPTOR_SET>((VkDescriptorSet)sets[i].handle);
 
 	vk.FreeDescriptorSets(_orig, _descriptor_pool, count, reinterpret_cast<const VkDescriptorSet *>(sets));
 }
@@ -1118,22 +1151,21 @@ bool reshade::vulkan::device_impl::map_resource(api::resource resource, uint32_t
 {
 	assert(out_data != nullptr);
 
-	const resource_data res_data = get_native_object_data<resource_data>(resource.handle);
-
-	if (res_data.allocation != nullptr)
+	const auto data = get_user_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)resource.handle);
+	if (data->allocation != nullptr)
 	{
 		assert(subresource == 0); // TODO: Add support for subresources other than zero for images
 
-		if (vmaMapMemory(_alloc, res_data.allocation, &out_data->data) == VK_SUCCESS)
+		if (vmaMapMemory(_alloc, data->allocation, &out_data->data) == VK_SUCCESS)
 		{
-			if (res_data.is_image())
+			if (data->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO)
 			{
-				out_data->row_pitch = res_data.image_create_info.extent.width * res_data.image_create_info.extent.depth * api::format_bytes_per_pixel(convert_format(res_data.image_create_info.format));
-				out_data->slice_pitch = out_data->row_pitch * res_data.image_create_info.extent.height;
+				out_data->row_pitch = data->create_info.extent.width * data->create_info.extent.depth * api::format_bytes_per_pixel(convert_format(data->create_info.format));
+				out_data->slice_pitch = out_data->row_pitch * data->create_info.extent.height;
 			}
 			else
 			{
-				out_data->row_pitch = static_cast<uint32_t>(res_data.allocation->GetSize());
+				out_data->row_pitch = static_cast<uint32_t>(data->allocation->GetSize());
 				out_data->slice_pitch = out_data->row_pitch;
 			}
 
@@ -1148,12 +1180,12 @@ bool reshade::vulkan::device_impl::map_resource(api::resource resource, uint32_t
 }
 void reshade::vulkan::device_impl::unmap_resource(api::resource resource, uint32_t subresource)
 {
-	const resource_data res_data = get_native_object_data<resource_data>(resource.handle);
+	const auto data = get_user_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)resource.handle);
 
-	if (res_data.allocation != nullptr)
+	if (data->allocation != nullptr)
 	{
 		assert(subresource == 0);
-		vmaUnmapMemory(_alloc, res_data.allocation);
+		vmaUnmapMemory(_alloc, data->allocation);
 	}
 }
 
@@ -1180,11 +1212,10 @@ void reshade::vulkan::device_impl::update_texture_region(const api::subresource_
 {
 	assert(!_queues.empty());
 
-	const resource_data dst_data = get_native_object_data<resource_data>(dst.handle);
-	assert(dst_data.is_image());
+	const auto dst_data = get_user_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)dst.handle);
 
-	VkExtent3D extent = dst_data.image_create_info.extent;
-	extent.depth *= dst_data.image_create_info.arrayLayers;
+	VkExtent3D extent = dst_data->create_info.extent;
+	extent.depth *= dst_data->create_info.arrayLayers;
 
 	if (dst_box != nullptr)
 	{
@@ -1193,7 +1224,7 @@ void reshade::vulkan::device_impl::update_texture_region(const api::subresource_
 		extent.depth  = dst_box[5] - dst_box[2];
 	}
 
-	const auto row_size_packed = extent.width * api::format_bytes_per_pixel(convert_format(dst_data.image_create_info.format));
+	const auto row_size_packed = extent.width * api::format_bytes_per_pixel(convert_format(dst_data->create_info.format));
 	const auto slice_size_packed = extent.height * row_size_packed;
 	const auto total_size = extent.depth * slice_size_packed;
 
@@ -1339,10 +1370,10 @@ void reshade::vulkan::device_impl::set_resource_name(api::resource resource, con
 	if (vk.SetDebugUtilsObjectNameEXT == nullptr)
 		return;
 
-	const resource_data data = get_native_object_data<resource_data>(resource.handle);
+	const auto data = get_user_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)resource.handle);
 
 	VkDebugUtilsObjectNameInfoEXT name_info { VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT };
-	name_info.objectType = data.is_image() ? VK_OBJECT_TYPE_IMAGE : VK_OBJECT_TYPE_BUFFER;
+	name_info.objectType = data->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO ? VK_OBJECT_TYPE_IMAGE : VK_OBJECT_TYPE_BUFFER;
 	name_info.objectHandle = resource.handle;
 	name_info.pObjectName = name;
 
@@ -1353,78 +1384,76 @@ void reshade::vulkan::device_impl::get_pipeline_layout_desc(api::pipeline_layout
 {
 	assert(count != nullptr);
 
-	const pipeline_layout_data data = get_native_object_data<pipeline_layout_data>(layout.handle);
+	const auto data = get_user_data_for_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>((VkPipelineLayout)layout.handle);
 
 	if (params != nullptr)
 	{
-		*count = std::min(*count, static_cast<uint32_t>(data.desc.size()));
-		std::memcpy(params, data.desc.data(), *count * sizeof(api::pipeline_layout_param));
+		*count = std::min(*count, static_cast<uint32_t>(data->desc.size()));
+		std::memcpy(params, data->desc.data(), *count * sizeof(api::pipeline_layout_param));
 	}
 	else
 	{
-		*count = static_cast<uint32_t>(data.desc.size());
+		*count = static_cast<uint32_t>(data->desc.size());
 	}
 }
 void reshade::vulkan::device_impl::get_descriptor_pool_offset(api::descriptor_set set, uint32_t binding, api::descriptor_pool *pool, uint32_t *offset) const
 {
-	const auto data = get_native_object_data<descriptor_set_data>(set.handle);
-	const auto layout = get_native_object_data<descriptor_set_layout_data>((uint64_t)data.layout);
+	const auto set_data = get_user_data_for_object<VK_OBJECT_TYPE_DESCRIPTOR_SET>((VkDescriptorSet)set.handle);
+	const auto layout_data = get_user_data_for_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>(set_data->layout);
 
-	assert(binding < layout.binding_to_offset.size());
+	assert(binding < layout_data->binding_to_offset.size());
 
-	*pool = { (uint64_t)data.pool };
-	*offset = data.offset + layout.binding_to_offset.at(binding);
+	*pool = { (uint64_t)set_data->pool };
+	*offset = static_cast<uint32_t>(set_data->offset + layout_data->binding_to_offset.at(binding));
 }
 void reshade::vulkan::device_impl::get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *count, api::descriptor_range *bindings) const
 {
 	assert(count != nullptr);
 
-	const descriptor_set_layout_data data = get_native_object_data<descriptor_set_layout_data>(layout.handle);
+	const auto data = get_user_data_for_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>((VkDescriptorSetLayout)layout.handle);
 
 	if (bindings != nullptr)
 	{
-		*count = std::min(*count, static_cast<uint32_t>(data.desc.size()));
-		std::memcpy(bindings, data.desc.data(), *count * sizeof(api::descriptor_range));
+		*count = std::min(*count, static_cast<uint32_t>(data->desc.size()));
+		std::memcpy(bindings, data->desc.data(), *count * sizeof(api::descriptor_range));
 	}
 	else
 	{
-		*count = static_cast<uint32_t>(data.desc.size());
+		*count = static_cast<uint32_t>(data->desc.size());
 	}
 }
 
 reshade::api::resource_desc reshade::vulkan::device_impl::get_resource_desc(api::resource resource) const
 {
-	const resource_data data = get_native_object_data<resource_data>(resource.handle);
-
-	if (data.is_image())
-		return convert_resource_desc(data.image_create_info);
+	const auto data = get_user_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)resource.handle);
+	if (data->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO)
+		return convert_resource_desc(data->create_info);
 	else
-		return convert_resource_desc(data.buffer_create_info);
+		return convert_resource_desc(reinterpret_cast<const object_data<VK_OBJECT_TYPE_BUFFER> *>(data)->create_info);
 }
 void reshade::vulkan::device_impl::get_resource_from_view(api::resource_view view, api::resource *out) const
 {
-	const resource_view_data data = get_native_object_data<resource_view_data>(view.handle);
-
-	if (data.is_image_view())
-		*out = { (uint64_t)data.image_create_info.image };
+	const auto data = get_user_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)view.handle);
+	if (data->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO)
+		*out = { (uint64_t)data->create_info.image };
 	else
-		*out = { (uint64_t)data.buffer_create_info.buffer };
+		*out = { (uint64_t)reinterpret_cast<const object_data<VK_OBJECT_TYPE_BUFFER_VIEW> *>(data)->create_info.buffer };
 }
 
 reshade::api::resource_view reshade::vulkan::device_impl::get_framebuffer_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index) const
 {
 	assert(fbo.handle != 0);
 
-	const framebuffer_data data = get_native_object_data<framebuffer_data>(fbo.handle);
-	assert(index <= data.attachments.size());
+	const auto data = get_user_data_for_object<VK_OBJECT_TYPE_FRAMEBUFFER>((VkFramebuffer)fbo.handle);
+	assert(index <= data->attachments.size());
 
-	for (uint32_t i = 0; i < data.attachments.size(); ++i)
+	for (uint32_t i = 0; i < data->attachments.size(); ++i)
 	{
-		if (data.attachment_types[i] & static_cast<VkImageAspectFlags>(type))
+		if (data->attachment_types[i] & static_cast<VkImageAspectFlags>(type))
 		{
 			if (index == 0)
 			{
-				return { (uint64_t)data.attachments[i] };
+				return { (uint64_t)data->attachments[i] };
 			}
 			else
 			{

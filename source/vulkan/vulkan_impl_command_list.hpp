@@ -71,4 +71,12 @@ namespace reshade::vulkan
 		device_impl *const _device_impl;
 		bool _has_commands = false;
 	};
+
+	template <>
+	struct object_data<VK_OBJECT_TYPE_COMMAND_BUFFER> : public command_list_impl
+	{
+		using Handle = VkCommandBuffer;
+
+		object_data(device_impl *device, VkCommandBuffer cmd_list) : command_list_impl(device, cmd_list) {}
+	};
 }

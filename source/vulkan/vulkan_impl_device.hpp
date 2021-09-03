@@ -6,16 +6,16 @@
 #pragma once
 
 #include "addon_manager.hpp"
-#include "locked_hash_map.hpp"
 #pragma warning(push)
 #pragma warning(disable: 4100 4127 4324 4703) // Disable a bunch of warnings thrown by VMA code
 #include <vk_mem_alloc.h>
 #pragma warning(pop)
 #include <vk_layer_dispatch_table.h>
-#include "vulkan_impl_type_convert.hpp"
 
 namespace reshade::vulkan
 {
+	template <VkObjectType type> struct object_data;
+
 	class device_impl : public api::api_object_impl<VkDevice, api::device>
 	{
 		friend class command_list_impl;
@@ -87,22 +87,38 @@ namespace reshade::vulkan
 
 		void advance_transient_descriptor_pool();
 
-		template <typename T>
-		void register_object(uint64_t object, T &&data)
+		template <VkObjectType type, typename... Args>
+		void register_object(typename object_data<type>::Handle object, Args... args)
 		{
-			static_cast<locked_ptr_hash_map<T> &>(_objects).emplace(object, std::move(data));
+			assert(object != VK_NULL_HANDLE);
+			uint64_t private_data = reinterpret_cast<uint64_t>(new object_data<type>(std::forward<Args>(args)...));
+			_dispatch_table.SetPrivateDataEXT(_orig, type, (uint64_t)object, _private_data_slot, private_data);
+		}
+		void register_object(VkObjectType type, uint64_t object, void *private_data)
+		{
+			_dispatch_table.SetPrivateDataEXT(_orig, type, object, _private_data_slot, reinterpret_cast<uint64_t>(private_data));
 		}
 
-		template <typename T>
-		void unregister_object(uint64_t object)
+		template <VkObjectType type>
+		void unregister_object(typename object_data<type>::Handle object)
 		{
-			static_cast<locked_ptr_hash_map<T> &>(_objects).erase(object);
+			if (object == VK_NULL_HANDLE)
+				return;
+
+			uint64_t private_data = 0;
+			_dispatch_table.GetPrivateDataEXT(_orig, type, (uint64_t)object, _private_data_slot, &private_data);
+			delete reinterpret_cast<object_data<type> *>(private_data);
+			_dispatch_table.SetPrivateDataEXT(_orig, type, (uint64_t)object, _private_data_slot, 0);
 		}
 
-		template <typename T>
-		__forceinline T get_native_object_data(uint64_t object) const
+		template <VkObjectType type>
+		__forceinline object_data<type> *get_user_data_for_object(typename object_data<type>::Handle object) const
 		{
-			return static_cast<const locked_ptr_hash_map<T> &>(_objects).at(object);
+			assert(object != VK_NULL_HANDLE);
+			uint64_t private_data = 0;
+			_dispatch_table.GetPrivateDataEXT(_orig, type, (uint64_t)object, _private_data_slot, &private_data);
+			assert(private_data  != 0);
+			return reinterpret_cast<object_data<type> *>(private_data);
 		}
 
 		api::pipeline_desc convert_pipeline_desc(const VkComputePipelineCreateInfo &create_info) const;
@@ -128,17 +144,6 @@ namespace reshade::vulkan
 		VkDescriptorPool _descriptor_pool = VK_NULL_HANDLE;
 		VkDescriptorPool _transient_descriptor_pool[4] = {};
 		uint32_t _transient_index = 0;
-
-		class :
-			public locked_ptr_hash_map<resource_data>,
-			public locked_ptr_hash_map<resource_view_data>,
-			public locked_ptr_hash_map<render_pass_data>,
-			public locked_ptr_hash_map<framebuffer_data>,
-			public locked_ptr_hash_map<shader_module_data>,
-			public locked_ptr_hash_map<pipeline_layout_data>,
-			public locked_ptr_hash_map<descriptor_set_data>,
-			public locked_ptr_hash_map<descriptor_set_layout_data>,
-			public locked_ptr_hash_map<descriptor_pool_data>
-		{} _objects;
+		VkPrivateDataSlotEXT _private_data_slot = VK_NULL_HANDLE;
 	};
 }

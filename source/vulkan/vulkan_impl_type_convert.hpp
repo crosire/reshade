@@ -5,53 +5,86 @@
 
 #pragma once
 
+#include <vector>
+#include <unordered_map>
+
 namespace reshade::vulkan
 {
-	struct resource_data
+	template <VkObjectType type>
+	struct object_data;
+
+	template <>
+	struct object_data<VK_OBJECT_TYPE_IMAGE>
 	{
-		bool is_image() const { return type != VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO; }
+		using Handle = VkImage;
 
 		VmaAllocation allocation;
-		union
-		{
-			VkStructureType type;
-			VkImageCreateInfo image_create_info;
-			VkBufferCreateInfo buffer_create_info;
-		};
+#ifndef WIN64
+		uint32_t padding;
+#endif
+		VkImageCreateInfo create_info;
+		VkImageView default_view = VK_NULL_HANDLE;
 	};
 
-	struct resource_view_data
+	template <>
+	struct object_data<VK_OBJECT_TYPE_IMAGE_VIEW>
 	{
-		bool is_image_view() const { return type != VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO; }
+		using Handle = VkImageView;
 
-		union
-		{
-			VkStructureType type;
-			VkImageViewCreateInfo image_create_info;
-			VkBufferViewCreateInfo buffer_create_info;
-		};
+		VkImageViewCreateInfo create_info;
 	};
 
-	struct shader_module_data
+	template <>
+	struct object_data<VK_OBJECT_TYPE_BUFFER>
 	{
-		const uint8_t *spirv;
-		size_t spirv_size;
+		using Handle = VkBuffer;
+
+		VmaAllocation allocation;
+#ifndef WIN64
+		uint32_t padding;
+#endif
+		VkBufferCreateInfo create_info;
 	};
 
-	struct pipeline_layout_data
+	template <>
+	struct object_data<VK_OBJECT_TYPE_BUFFER_VIEW>
 	{
+		using Handle = VkBufferView;
+
+		VkBufferViewCreateInfo create_info;
+	};
+
+	template <>
+	struct object_data<VK_OBJECT_TYPE_SHADER_MODULE>
+	{
+		using Handle = VkShaderModule;
+
+		std::vector<uint8_t> spirv;
+	};
+
+	template <>
+	struct object_data<VK_OBJECT_TYPE_PIPELINE_LAYOUT>
+	{
+		using Handle = VkPipelineLayout;
+
 		std::vector<api::pipeline_layout_param> desc;
 	};
 
-	struct descriptor_set_layout_data
+	template <>
+	struct object_data<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>
 	{
+		using Handle = VkDescriptorSetLayout;
+
 		std::vector<api::descriptor_range> desc;
 		std::unordered_map<uint32_t, uint32_t> binding_to_offset;
 		bool push_descriptors;
 	};
 
-	struct render_pass_data
+	template <>
+	struct object_data<VK_OBJECT_TYPE_RENDER_PASS>
 	{
+		using Handle = VkRenderPass;
+
 		struct attachment
 		{
 			VkImageLayout initial_layout;
@@ -62,24 +95,35 @@ namespace reshade::vulkan
 		std::vector<attachment> attachments;
 	};
 
-	struct framebuffer_data
+	template <>
+	struct object_data<VK_OBJECT_TYPE_FRAMEBUFFER>
 	{
+		using Handle = VkFramebuffer;
+
 		VkExtent2D area;
 		std::vector<VkImageView> attachments;
 		std::vector<VkImageAspectFlags> attachment_types;
 	};
 
-	struct descriptor_set_data
+	template <>
+	struct object_data<VK_OBJECT_TYPE_DESCRIPTOR_SET>
 	{
+		using Handle = VkDescriptorSet;
+
 		VkDescriptorPool pool;
-		size_t offset;
+		uint32_t offset;
 		VkDescriptorSetLayout layout;
 	};
 
-	struct descriptor_pool_data
+	template <>
+	struct object_data<VK_OBJECT_TYPE_DESCRIPTOR_POOL>
 	{
-		uint32_t count;
-		std::vector<bool> *sets;
+		using Handle = VkDescriptorPool;
+
+		uint32_t descriptors_per_set;
+		uint32_t last_allocated_set_index;
+		std::vector<bool> sets;
+		std::vector<object_data<VK_OBJECT_TYPE_DESCRIPTOR_SET>> data;
 	};
 
 	auto convert_format(api::format format) -> VkFormat;
