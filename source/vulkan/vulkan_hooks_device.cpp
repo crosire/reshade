@@ -1255,6 +1255,7 @@ VkResult VKAPI_CALL vkCreateDescriptorSetLayout(VkDevice device, const VkDescrip
 #if RESHADE_ADDON
 	reshade::vulkan::object_data<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT> data;
 	data.desc.resize(pCreateInfo->bindingCount);
+	data.num_descriptors = 0;
 	data.push_descriptors = (pCreateInfo->flags & VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR) != 0;
 
 	std::vector<uint32_t> descriptor_counts_per_binding;
@@ -1274,6 +1275,8 @@ VkResult VKAPI_CALL vkCreateDescriptorSetLayout(VkDevice device, const VkDescrip
 		data.desc[i].type = static_cast<reshade::api::descriptor_type>(binding.descriptorType);
 		data.desc[i].array_size = binding.descriptorCount;
 		data.desc[i].visibility = static_cast<reshade::api::shader_stage>(binding.stageFlags);
+
+		data.num_descriptors += binding.descriptorCount;
 	}
 
 	for (size_t i = 1; i < descriptor_counts_per_binding.size(); ++i)
@@ -1327,21 +1330,19 @@ VkResult VKAPI_CALL vkCreateDescriptorPool(VkDevice device, const VkDescriptorPo
 	}
 
 #if RESHADE_ADDON
-	uint32_t num_descriptors = 0;
-	for (uint32_t i = 0; i < pCreateInfo->poolSizeCount; ++i)
-		num_descriptors += pCreateInfo->pPoolSizes[i].descriptorCount;
-
 	reshade::vulkan::object_data<VK_OBJECT_TYPE_DESCRIPTOR_POOL> data;
-	data.descriptors_per_set = num_descriptors;
-	data.last_allocated_set_index = static_cast<uint32_t>(-1);
-	data.sets.resize(pCreateInfo->maxSets);
-	data.data.resize(pCreateInfo->maxSets);
+	data.max_sets = pCreateInfo->maxSets;
+	data.max_descriptors = 0;
+	data.next_set = 0;
+	data.next_offset = 0;
+	data.sets.resize(data.max_sets);
+
+	for (uint32_t i = 0; i < pCreateInfo->poolSizeCount; ++i)
+		data.max_descriptors += pCreateInfo->pPoolSizes[i].descriptorCount;
 
 	device_impl->register_object<VK_OBJECT_TYPE_DESCRIPTOR_POOL>(*pDescriptorPool, std::move(data));
 
-	num_descriptors *= pCreateInfo->maxSets;
-
-	reshade::invoke_addon_event<reshade::addon_event::init_descriptor_pool>(device_impl, num_descriptors, reshade::api::descriptor_pool { (uint64_t)*pDescriptorPool });
+	reshade::invoke_addon_event<reshade::addon_event::init_descriptor_pool>(device_impl, data.max_descriptors, reshade::api::descriptor_pool { (uint64_t)*pDescriptorPool });
 #endif
 
 	return result;
@@ -1367,7 +1368,9 @@ VkResult VKAPI_CALL vkResetDescriptorPool(VkDevice device, VkDescriptorPool desc
 
 #if RESHADE_ADDON
 	const auto pool_data = device_impl->get_user_data_for_object<VK_OBJECT_TYPE_DESCRIPTOR_POOL>(descriptorPool);
-	std::fill(pool_data->sets.begin(), pool_data->sets.end(), false);
+
+	pool_data->next_set = 0;
+	pool_data->next_offset = 0;
 #endif
 
 	return trampoline(device, descriptorPool, flags);
@@ -1393,43 +1396,31 @@ VkResult VKAPI_CALL vkAllocateDescriptorSets(VkDevice device, const VkDescriptor
 
 	for (uint32_t i = 0; i < pAllocateInfo->descriptorSetCount; ++i)
 	{
-		uint32_t set_index = pool_data->last_allocated_set_index + 1;
-		if (pool_data->sets.size() == set_index)
-			set_index = 0;
-		while (set_index < pool_data->sets.size() && pool_data->sets[set_index])
-			++set_index;
-		pool_data->last_allocated_set_index = set_index;
-		pool_data->sets[set_index] = true;
+		const auto layout_data = device_impl->get_user_data_for_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>(pAllocateInfo->pSetLayouts[i]);
 
-		reshade::vulkan::object_data<VK_OBJECT_TYPE_DESCRIPTOR_SET> *data = &pool_data->data[set_index];
+		reshade::vulkan::object_data<VK_OBJECT_TYPE_DESCRIPTOR_SET> *data = &pool_data->sets[pool_data->next_set++];
 		data->pool = pAllocateInfo->descriptorPool;
-		data->offset = set_index * pool_data->descriptors_per_set;
 		data->layout = pAllocateInfo->pSetLayouts[i];
+
+		data->offset = pool_data->next_offset;
+		pool_data->next_offset += layout_data->num_descriptors;
+
+		if (pool_data->next_set > pool_data->max_sets)
+		{
+			pool_data->next_set = 0;
+		}
+		if (pool_data->next_offset > pool_data->max_descriptors)
+		{
+			// Out of pool memory, simply wrap around
+			data->offset = 0;
+			pool_data->next_offset = layout_data->num_descriptors;
+		}
 
 		device_impl->register_object(VK_OBJECT_TYPE_DESCRIPTOR_SET, (uint64_t)pDescriptorSets[i], data);
 	}
 #endif
 
 	return result;
-}
-VkResult VKAPI_CALL vkFreeDescriptorSets(VkDevice device, VkDescriptorPool descriptorPool, uint32_t descriptorSetCount, const VkDescriptorSet *pDescriptorSets)
-{
-	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
-	GET_DISPATCH_PTR_FROM(FreeDescriptorSets, device_impl);
-
-#if RESHADE_ADDON
-	const auto pool_data = device_impl->get_user_data_for_object<VK_OBJECT_TYPE_DESCRIPTOR_POOL>(descriptorPool);
-
-	for (uint32_t i = 0; i < descriptorSetCount; ++i)
-	{
-		const uint32_t offset = device_impl->get_user_data_for_object<VK_OBJECT_TYPE_DESCRIPTOR_SET>(pDescriptorSets[i])->offset;
-
-		const uint32_t set_index = offset / pool_data->descriptors_per_set;
-		pool_data->sets[set_index] = false;
-	}
-#endif
-
-	return trampoline(device, descriptorPool, descriptorSetCount, pDescriptorSets);
 }
 
 void     VKAPI_CALL vkUpdateDescriptorSets(VkDevice device, uint32_t descriptorWriteCount, const VkWriteDescriptorSet *pDescriptorWrites, uint32_t descriptorCopyCount, const VkCopyDescriptorSet *pDescriptorCopies)

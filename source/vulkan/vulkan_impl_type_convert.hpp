@@ -75,6 +75,7 @@ namespace reshade::vulkan
 	{
 		using Handle = VkDescriptorSetLayout;
 
+		uint32_t num_descriptors;
 		std::vector<api::descriptor_range> desc;
 		std::unordered_map<uint32_t, uint32_t> binding_to_offset;
 		bool push_descriptors;
@@ -120,10 +121,11 @@ namespace reshade::vulkan
 	{
 		using Handle = VkDescriptorPool;
 
-		uint32_t descriptors_per_set;
-		uint32_t last_allocated_set_index;
-		std::vector<bool> sets;
-		std::vector<object_data<VK_OBJECT_TYPE_DESCRIPTOR_SET>> data;
+		uint32_t max_sets;
+		uint32_t max_descriptors;
+		uint32_t next_set;
+		uint32_t next_offset;
+		std::vector<object_data<VK_OBJECT_TYPE_DESCRIPTOR_SET>> sets;
 	};
 
 	auto convert_format(api::format format) -> VkFormat;
