@@ -205,6 +205,7 @@ namespace reshade { namespace api
 	/// <summary>
 	/// A logical render device, used for resource creation and global operations.
 	/// <para>Functionally equivalent to a 'IDirect3DDevice9', 'ID3D10Device', 'ID3D11Device', 'ID3D12Device', 'HGLRC' or 'VkDevice'.</para>
+	/// <para>This class is safe to use concurrently from multiple threads (with the exception of <see cref="device::wait_idle"/>).</para>
 	/// </summary>
 	struct DECLSPEC_NOVTABLE device : public api_object
 	{
@@ -407,6 +408,7 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Waits for all issued GPU operations to finish before returning.
 		/// This can be used to e.g. ensure that resources are no longer in use on the GPU before destroying them.
+		/// Must not be called while another thread is recording to the immediate command list!
 		/// </summary>
 		virtual void wait_idle() const = 0;
 
@@ -475,6 +477,7 @@ namespace reshade { namespace api
 	/// <summary>
 	/// A command list, used to enqueue render commands on the CPU, before later executing them in a command queue.
 	/// <para>Functionally equivalent to a 'ID3D11CommandList', 'ID3D12CommandList' or 'VkCommandBuffer'.</para>
+	/// <para>This class may NOT be used concurrently from multiple threads!</para>
 	/// </summary>
 	struct DECLSPEC_NOVTABLE command_list : public device_object
 	{
@@ -807,6 +810,7 @@ namespace reshade { namespace api
 	/// <summary>
 	/// A command queue, used to execute command lists on the GPU.
 	/// <para>Functionally equivalent to the immediate 'ID3D11DeviceContext' or a 'ID3D12CommandQueue' or 'VkQueue'.</para>
+	/// <para>This class may NOT be used concurrently from multiple threads!</para>
 	/// </summary>
 	struct DECLSPEC_NOVTABLE command_queue : public device_object
 	{
@@ -824,6 +828,7 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Waits for all issued GPU operations on this queue to finish before returning.
 		/// This can be used to ensure that e.g. resources are no longer in use on the GPU before destroying them.
+		/// Must not be called while another thread is recording to the immediate command list!
 		/// </summary>
 		virtual void wait_idle() const = 0;
 

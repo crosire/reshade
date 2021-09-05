@@ -255,7 +255,7 @@ namespace reshade { namespace api
 			} texture;
 		};
 
-		/// <summary>The heap the resource allocation is placed in.</summary>
+		/// <summary>Memory heap the resource allocation is placed in.</summary>
 		memory_heap heap;
 		/// <summary>Flags that specify how this resource may be used.</summary>
 		resource_usage usage;
@@ -279,7 +279,8 @@ namespace reshade { namespace api
 		explicit resource_view_desc(format format) :
 			type(resource_view_type::texture_2d), format(format), texture({ 0, 1, 0, 1 }) {}
 
-		/// <summary>Type of the view. Identifies how the view should interpret the resource data.</summary>
+		/// <summary>Type of the view.
+		/// Identifies how the view should interpret the resource data.</summary>
 		resource_view_type type;
 		/// <summary>Viewing format of this view. 
 		/// The data of the resource is reinterpreted to this format (can be different than the format of the underlying resource as long as the formats are compatible).</summary>
@@ -324,9 +325,9 @@ namespace reshade { namespace api
 	{
 		/// <summary>Pointer to the data.</summary>
 		void *data;
-		/// <summary>The row pitch of the data (added to the data pointer to move between texture rows, unused for buffers and 1D textures).</summary>
+		/// <summary>Row pitch of the data (added to the data pointer to move between texture rows, unused for buffers and 1D textures).</summary>
 		uint32_t row_pitch;
-		/// <summary>The depth pitch of the data (added to the data pointer to move between texture depth/array slices, unused for buffers and 1D/2D textures).</summary>
+		/// <summary>Depth pitch of the data (added to the data pointer to move between texture depth/array slices, unused for buffers and 1D/2D textures).</summary>
 		uint32_t slice_pitch;
 	};
 
@@ -339,7 +340,6 @@ namespace reshade { namespace api
 	/// <summary>
 	/// An opaque handle to a resource object (buffer, texture, ...).
 	/// <para>Resources created by the application are only guaranteed to be valid during event callbacks.
-	/// If you want to use one outside that scope, first ensure the resource is still valid via <see cref="device::check_resource_handle_valid"/>.</para>
 	/// <para>Depending on the render API this can be a pointer to a 'IDirect3DResource9', 'ID3D10Resource', 'ID3D11Resource' or 'ID3D12Resource' object or a 'VkImage' handle.</para>
 	/// </summary>
 	RESHADE_DEFINE_HANDLE(resource);
@@ -347,7 +347,6 @@ namespace reshade { namespace api
 	/// <summary>
 	/// An opaque handle to a resource view object (depth-stencil, render target, shader resource view, ...).
 	/// <para>Resource views created by the application are only guaranteed to be valid during event callbacks.
-	/// If you want to use one outside that scope, first ensure the resource view is still valid via <see cref="device::is_resource_view_handle_valid"/>.</para>
 	/// <para>Depending on the render API this can be a pointer to a 'IDirect3DResource9', 'ID3D10View' or 'ID3D11View' object, or a 'D3D12_CPU_DESCRIPTOR_HANDLE' (to a view descriptor) or 'VkImageView' handle.</para>
 	/// </summary>
 	RESHADE_DEFINE_HANDLE(resource_view);
