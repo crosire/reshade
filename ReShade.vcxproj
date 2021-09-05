@@ -549,7 +549,6 @@
     <ClInclude Include="source\ini_file.hpp" />
     <ClInclude Include="source\input.hpp" />
     <ClInclude Include="source\input_freepie.hpp" />
-    <ClInclude Include="source\locked_hash_map.hpp" />
     <ClInclude Include="source\lockfree_linear_map.hpp" />
     <ClInclude Include="source\opengl\opengl.hpp" />
     <ClInclude Include="source\opengl\opengl_hooks.hpp" />
