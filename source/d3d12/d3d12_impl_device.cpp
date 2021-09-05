@@ -719,7 +719,9 @@ bool reshade::d3d12::device_impl::create_descriptor_sets(uint32_t count, const a
 		else
 			_gpu_sampler_heap.allocate_static(total_count, base_handle, base_handle_gpu);
 
-		_sets.emplace(base_handle_gpu.ptr, total_count);
+		{	const std::unique_lock<std::shared_mutex> lock(_heap_mutex);
+			_sets.emplace(base_handle_gpu.ptr, total_count);
+		}
 
 		out[i] = { base_handle_gpu.ptr };
 	}
@@ -733,8 +735,12 @@ void reshade::d3d12::device_impl::destroy_descriptor_sets(uint32_t count, const 
 		if (sets[i].handle == 0)
 			continue;
 
-		const uint32_t total_count = _sets.at(sets[i].handle);
-		_sets.erase(sets[i].handle);
+		uint32_t total_count = 0;
+
+		{	const std::unique_lock<std::shared_mutex> lock(_heap_mutex);
+			total_count = _sets.at(sets[i].handle);
+			_sets.erase(sets[i].handle);
+		}
 
 		_gpu_view_heap.free({ static_cast<SIZE_T>(sets[i].handle) }, total_count);
 		_gpu_sampler_heap.free({ static_cast<SIZE_T>(sets[i].handle) }, total_count);
@@ -1078,16 +1084,15 @@ void reshade::d3d12::device_impl::register_resource(ID3D12Resource *resource)
 {
 	assert(resource != nullptr);
 
+	const std::unique_lock<std::shared_mutex> lock(_resource_mutex);
+
 #if RESHADE_ADDON
 	if (const D3D12_RESOURCE_DESC desc = resource->GetDesc();
 		desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
 	{
 		const D3D12_GPU_VIRTUAL_ADDRESS address = resource->GetGPUVirtualAddress();
 		if (address != 0)
-		{
-			const std::unique_lock<std::shared_mutex> lock(_resource_mutex);
 			_buffer_gpu_addresses.emplace_back(resource, D3D12_GPU_VIRTUAL_ADDRESS_RANGE { address, desc.Width });
-		}
 	}
 #endif
 }
@@ -1101,10 +1106,13 @@ void reshade::d3d12::device_impl::unregister_resource(ID3D12Resource *resource)
 	if (const D3D12_RESOURCE_DESC desc = resource->GetDesc();
 		desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
 	{
-		_buffer_gpu_addresses.erase(std::find_if(_buffer_gpu_addresses.begin(), _buffer_gpu_addresses.end(), [resource](const auto &buffer_info) { return buffer_info.first == resource; }));
+		const auto it = std::find_if(_buffer_gpu_addresses.begin(), _buffer_gpu_addresses.end(), [resource](const auto &buffer_info) { return buffer_info.first == resource; });
+		if (it != _buffer_gpu_addresses.end())
+			_buffer_gpu_addresses.erase(it);
 	}
 #endif
 
+#if 0
 	// Remove all views that referenced this resource
 	for (auto it = _views.begin(); it != _views.end();)
 	{
@@ -1113,6 +1121,7 @@ void reshade::d3d12::device_impl::unregister_resource(ID3D12Resource *resource)
 		else
 			++it;
 	}
+#endif
 }
 
 #if RESHADE_ADDON

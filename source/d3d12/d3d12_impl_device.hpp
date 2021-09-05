@@ -108,7 +108,7 @@ namespace reshade::d3d12
 		inline void register_resource_view(D3D12_CPU_DESCRIPTOR_HANDLE handle, ID3D12Resource *resource)
 		{
 			const std::unique_lock<std::shared_mutex> lock(_resource_mutex);
-			_views[handle.ptr] = resource;
+			_views.insert_or_assign(handle.ptr, resource);
 		}
 
 	private:
