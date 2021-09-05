@@ -1055,11 +1055,9 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateVertexShader(const void *pShaderByt
 	reshade::api::pipeline_desc desc = { reshade::api::pipeline_stage::vertex_shader };
 	desc.graphics.vertex_shader.code = pShaderBytecode;
 	desc.graphics.vertex_shader.code_size = BytecodeLength;
-	desc.graphics.vertex_shader.format = reshade::api::shader_format::dxbc;
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, desc))
 	{
-		assert(desc.graphics.vertex_shader.format == reshade::api::shader_format::dxbc);
 		pShaderBytecode = desc.graphics.vertex_shader.code;
 		BytecodeLength  = desc.graphics.vertex_shader.code_size;
 	}
@@ -1094,11 +1092,9 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateGeometryShader(const void *pShaderB
 	reshade::api::pipeline_desc desc = { reshade::api::pipeline_stage::geometry_shader };
 	desc.graphics.geometry_shader.code = pShaderBytecode;
 	desc.graphics.geometry_shader.code_size = BytecodeLength;
-	desc.graphics.geometry_shader.format = reshade::api::shader_format::dxbc;
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, desc))
 	{
-		assert(desc.graphics.geometry_shader.format == reshade::api::shader_format::dxbc);
 		pShaderBytecode = desc.graphics.geometry_shader.code;
 		BytecodeLength  = desc.graphics.geometry_shader.code_size;
 	}
@@ -1133,11 +1129,9 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateGeometryShaderWithStreamOutput(cons
 	reshade::api::pipeline_desc desc = { reshade::api::pipeline_stage::geometry_shader };
 	desc.graphics.geometry_shader.code = pShaderBytecode;
 	desc.graphics.geometry_shader.code_size = BytecodeLength;
-	desc.graphics.geometry_shader.format = reshade::api::shader_format::dxbc;
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, desc))
 	{
-		assert(desc.graphics.geometry_shader.format == reshade::api::shader_format::dxbc);
 		pShaderBytecode = desc.graphics.geometry_shader.code;
 		BytecodeLength  = desc.graphics.geometry_shader.code_size;
 	}
@@ -1172,11 +1166,9 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreatePixelShader(const void *pShaderByte
 	reshade::api::pipeline_desc desc = { reshade::api::pipeline_stage::pixel_shader };
 	desc.graphics.pixel_shader.code = pShaderBytecode;
 	desc.graphics.pixel_shader.code_size = BytecodeLength;
-	desc.graphics.pixel_shader.format = reshade::api::shader_format::dxbc;
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, desc))
 	{
-		assert(desc.graphics.pixel_shader.format == reshade::api::shader_format::dxbc);
 		pShaderBytecode = desc.graphics.pixel_shader.code;
 		BytecodeLength  = desc.graphics.pixel_shader.code_size;
 	}

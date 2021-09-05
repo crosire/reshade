@@ -1090,7 +1090,6 @@ bool reshade::runtime::init_effect(size_t effect_index)
 	effect &effect = _effects[effect_index];
 
 	// Compile shader modules
-	api::shader_format shader_format = _renderer_id & 0x10000 ? api::shader_format::glsl : _renderer_id & 0x20000 ? api::shader_format::spirv : api::shader_format::dxbc;
 	std::unordered_map<std::string, std::vector<char>> entry_points;
 
 	for (const reshadefx::entry_point &entry_point : effect.module.entry_points)
@@ -1601,8 +1600,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 				const auto &cs = entry_points.at(pass_info.cs_entry_point);
 				desc.compute.shader.code = cs.data();
 				desc.compute.shader.code_size = cs.size();
-				desc.compute.shader.format = shader_format;
-				if (shader_format == api::shader_format::spirv)
+				if (_renderer_id & 0x20000)
 				{
 					desc.compute.shader.entry_point = pass_info.cs_entry_point.c_str();
 					desc.compute.shader.num_spec_constants = static_cast<uint32_t>(effect.module.spec_constants.size());
@@ -1624,8 +1622,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 				const auto &vs = entry_points.at(pass_info.vs_entry_point);
 				desc.graphics.vertex_shader.code = vs.data();
 				desc.graphics.vertex_shader.code_size = vs.size();
-				desc.graphics.vertex_shader.format = shader_format;
-				if (shader_format == api::shader_format::spirv)
+				if (_renderer_id & 0x20000)
 				{
 					desc.graphics.vertex_shader.entry_point = pass_info.vs_entry_point.c_str();
 					desc.graphics.vertex_shader.num_spec_constants = static_cast<uint32_t>(effect.module.spec_constants.size());
@@ -1636,8 +1633,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 				const auto &ps = entry_points.at(pass_info.ps_entry_point);
 				desc.graphics.pixel_shader.code = ps.data();
 				desc.graphics.pixel_shader.code_size = ps.size();
-				desc.graphics.pixel_shader.format = shader_format;
-				if (shader_format == api::shader_format::spirv)
+				if (_renderer_id & 0x20000)
 				{
 					desc.graphics.pixel_shader.entry_point = pass_info.ps_entry_point.c_str();
 					desc.graphics.pixel_shader.num_spec_constants = static_cast<uint32_t>(effect.module.spec_constants.size());

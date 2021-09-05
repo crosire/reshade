@@ -518,7 +518,6 @@ bool reshade::d3d11::device_impl::create_input_layout(const api::pipeline_desc &
 bool reshade::d3d11::device_impl::create_vertex_shader(const api::pipeline_desc &desc, api::pipeline *out)
 {
 	if (com_ptr<ID3D11VertexShader> object;
-		desc.graphics.vertex_shader.format == api::shader_format::dxbc &&
 		SUCCEEDED(_orig->CreateVertexShader(desc.graphics.vertex_shader.code, desc.graphics.vertex_shader.code_size, nullptr, &object)))
 	{
 		assert(desc.graphics.vertex_shader.entry_point == nullptr);
@@ -536,7 +535,6 @@ bool reshade::d3d11::device_impl::create_vertex_shader(const api::pipeline_desc 
 bool reshade::d3d11::device_impl::create_hull_shader(const api::pipeline_desc &desc, api::pipeline *out)
 {
 	if (com_ptr<ID3D11HullShader> object;
-		desc.graphics.hull_shader.format == api::shader_format::dxbc &&
 		SUCCEEDED(_orig->CreateHullShader(desc.graphics.hull_shader.code, desc.graphics.hull_shader.code_size, nullptr, &object)))
 	{
 		assert(desc.graphics.hull_shader.entry_point == nullptr);
@@ -554,7 +552,6 @@ bool reshade::d3d11::device_impl::create_hull_shader(const api::pipeline_desc &d
 bool reshade::d3d11::device_impl::create_domain_shader(const api::pipeline_desc &desc, api::pipeline *out)
 {
 	if (com_ptr<ID3D11DomainShader> object;
-		desc.graphics.domain_shader.format == api::shader_format::dxbc &&
 		SUCCEEDED(_orig->CreateDomainShader(desc.graphics.domain_shader.code, desc.graphics.domain_shader.code_size, nullptr, &object)))
 	{
 		assert(desc.graphics.domain_shader.entry_point == nullptr);
@@ -572,7 +569,6 @@ bool reshade::d3d11::device_impl::create_domain_shader(const api::pipeline_desc 
 bool reshade::d3d11::device_impl::create_geometry_shader(const api::pipeline_desc &desc, api::pipeline *out)
 {
 	if (com_ptr<ID3D11GeometryShader> object;
-		desc.graphics.geometry_shader.format == api::shader_format::dxbc &&
 		SUCCEEDED(_orig->CreateGeometryShader(desc.graphics.geometry_shader.code, desc.graphics.geometry_shader.code_size, nullptr, &object)))
 	{
 		assert(desc.graphics.geometry_shader.entry_point == nullptr);
@@ -590,7 +586,6 @@ bool reshade::d3d11::device_impl::create_geometry_shader(const api::pipeline_des
 bool reshade::d3d11::device_impl::create_pixel_shader(const api::pipeline_desc &desc, api::pipeline *out)
 {
 	if (com_ptr<ID3D11PixelShader> object;
-		desc.graphics.pixel_shader.format == api::shader_format::dxbc &&
 		SUCCEEDED(_orig->CreatePixelShader(desc.graphics.pixel_shader.code, desc.graphics.pixel_shader.code_size, nullptr, &object)))
 	{
 		assert(desc.graphics.pixel_shader.entry_point == nullptr);
@@ -608,7 +603,6 @@ bool reshade::d3d11::device_impl::create_pixel_shader(const api::pipeline_desc &
 bool reshade::d3d11::device_impl::create_compute_shader(const api::pipeline_desc &desc, api::pipeline *out)
 {
 	if (com_ptr<ID3D11ComputeShader> object;
-		desc.compute.shader.format == api::shader_format::dxbc &&
 		SUCCEEDED(_orig->CreateComputeShader(desc.compute.shader.code, desc.compute.shader.code_size, nullptr, &object)))
 	{
 		assert(desc.compute.shader.entry_point == nullptr);

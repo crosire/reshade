@@ -3619,7 +3619,6 @@ HOOK_EXPORT void WINAPI glShadeModel(GLenum mode)
 		{
 			shader_desc->code = combined_source.data();
 			shader_desc->code_size = combined_source.size();
-			shader_desc->format = reshade::api::shader_format::glsl;
 			shader_desc->entry_point = "main";
 
 			if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(g_current_context, desc))

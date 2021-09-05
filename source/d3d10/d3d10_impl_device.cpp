@@ -408,7 +408,6 @@ bool reshade::d3d10::device_impl::create_input_layout(const api::pipeline_desc &
 bool reshade::d3d10::device_impl::create_vertex_shader(const api::pipeline_desc &desc, api::pipeline *out)
 {
 	if (com_ptr<ID3D10VertexShader> object;
-		desc.graphics.vertex_shader.format == api::shader_format::dxbc &&
 		SUCCEEDED(_orig->CreateVertexShader(desc.graphics.vertex_shader.code, desc.graphics.vertex_shader.code_size, &object)))
 	{
 		assert(desc.graphics.vertex_shader.entry_point == nullptr);
@@ -426,7 +425,6 @@ bool reshade::d3d10::device_impl::create_vertex_shader(const api::pipeline_desc 
 bool reshade::d3d10::device_impl::create_geometry_shader(const api::pipeline_desc &desc, api::pipeline *out)
 {
 	if (com_ptr<ID3D10GeometryShader> object;
-		desc.graphics.geometry_shader.format == api::shader_format::dxbc &&
 		SUCCEEDED(_orig->CreateGeometryShader(desc.graphics.geometry_shader.code, desc.graphics.geometry_shader.code_size, &object)))
 	{
 		assert(desc.graphics.geometry_shader.entry_point == nullptr);
@@ -444,7 +442,6 @@ bool reshade::d3d10::device_impl::create_geometry_shader(const api::pipeline_des
 bool reshade::d3d10::device_impl::create_pixel_shader(const api::pipeline_desc &desc, api::pipeline *out)
 {
 	if (com_ptr<ID3D10PixelShader> object;
-		desc.graphics.pixel_shader.format == api::shader_format::dxbc &&
 		SUCCEEDED(_orig->CreatePixelShader(desc.graphics.pixel_shader.code, desc.graphics.pixel_shader.code_size, &object)))
 	{
 		assert(desc.graphics.pixel_shader.entry_point == nullptr);

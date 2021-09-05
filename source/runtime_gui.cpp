@@ -3277,12 +3277,10 @@ bool reshade::runtime::init_imgui_resources()
 		const resources::data_resource vs_res = resources::load_data_resource(_renderer_id < 0xa000 ? IDR_IMGUI_VS_3_0 : IDR_IMGUI_VS_4_0);
 		pso_desc.graphics.vertex_shader.code = vs_res.data;
 		pso_desc.graphics.vertex_shader.code_size = vs_res.data_size;
-		pso_desc.graphics.vertex_shader.format = api::shader_format::dxbc;
 
 		const resources::data_resource ps_res = resources::load_data_resource(_renderer_id < 0xa000 ? IDR_IMGUI_PS_3_0 : IDR_IMGUI_PS_4_0);
 		pso_desc.graphics.pixel_shader.code = ps_res.data;
 		pso_desc.graphics.pixel_shader.code_size = ps_res.data_size;
-		pso_desc.graphics.pixel_shader.format = api::shader_format::dxbc;
 	}
 	else if ((_renderer_id & 0x10000) != 0)
 	{
@@ -3314,12 +3312,10 @@ bool reshade::runtime::init_imgui_resources()
 
 		pso_desc.graphics.vertex_shader.code = vertex_shader;
 		pso_desc.graphics.vertex_shader.code_size = sizeof(vertex_shader);
-		pso_desc.graphics.vertex_shader.format = api::shader_format::glsl;
 		pso_desc.graphics.vertex_shader.entry_point = "main";
 
 		pso_desc.graphics.pixel_shader.code = fragment_shader;
 		pso_desc.graphics.pixel_shader.code_size = sizeof(fragment_shader);
-		pso_desc.graphics.pixel_shader.format = api::shader_format::glsl;
 		pso_desc.graphics.pixel_shader.entry_point = "main";
 	}
 	else
@@ -3327,13 +3323,11 @@ bool reshade::runtime::init_imgui_resources()
 		const resources::data_resource vs_res = resources::load_data_resource(IDR_IMGUI_VS_SPIRV);
 		pso_desc.graphics.vertex_shader.code = vs_res.data;
 		pso_desc.graphics.vertex_shader.code_size = vs_res.data_size;
-		pso_desc.graphics.vertex_shader.format = api::shader_format::spirv;
 		pso_desc.graphics.vertex_shader.entry_point = "main";
 
 		const resources::data_resource ps_res = resources::load_data_resource(IDR_IMGUI_PS_SPIRV);
 		pso_desc.graphics.pixel_shader.code = ps_res.data;
 		pso_desc.graphics.pixel_shader.code_size = ps_res.data_size;
-		pso_desc.graphics.pixel_shader.format = api::shader_format::spirv;
 		pso_desc.graphics.pixel_shader.entry_point = "main";
 	}
 

@@ -1350,11 +1350,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexShader(const DWORD *pFunc
 	desc.graphics.vertex_shader.code = pFunction;
 	// Total size is at byte offset 24 (see http://timjones.io/blog/archive/2015/09/02/parsing-direct3d-shader-bytecode)
 	desc.graphics.vertex_shader.code_size = pFunction[6];
-	desc.graphics.vertex_shader.format = reshade::api::shader_format::dxbc;
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, desc))
 	{
-		assert(desc.graphics.vertex_shader.format == reshade::api::shader_format::dxbc);
 		pFunction = static_cast<const DWORD *>(desc.graphics.vertex_shader.code);
 	}
 #endif
@@ -1509,11 +1507,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreatePixelShader(const DWORD *pFunct
 	desc.graphics.pixel_shader.code = pFunction;
 	// Total size is at byte offset 24 (see http://timjones.io/blog/archive/2015/09/02/parsing-direct3d-shader-bytecode)
 	desc.graphics.pixel_shader.code_size = pFunction[6];
-	desc.graphics.pixel_shader.format = reshade::api::shader_format::dxbc;
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, desc))
 	{
-		assert(desc.graphics.pixel_shader.format == reshade::api::shader_format::dxbc);
 		pFunction = static_cast<const DWORD *>(desc.graphics.pixel_shader.code);
 	}
 #endif

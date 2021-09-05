@@ -28,38 +28,6 @@ namespace reshade { namespace api
 	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(shader_stage);
 
 	/// <summary>
-	/// The available shader source formats.
-	/// <para>Support for these varies between render APIs (e.g. D3D accepts DXBC, but no GLSL, the reverse of which is true for OpenGL).</para>
-	/// </summary>
-	enum class shader_format : uint32_t
-	{
-		/// <summary>
-		/// DirectX Bytecode
-		/// </summary>
-		dxbc,
-		/// <summary>
-		/// DirectX Intermediate Language
-		/// </summary>
-		/// <remarks>https://github.com/Microsoft/DirectXShaderCompiler/blob/master/docs/DXIL.rst</remarks>
-		dxil,
-		/// <summary>
-		/// SPIR-V
-		/// </summary>
-		/// <remarks>https://www.khronos.org/spir/</remarks>
-		spirv,
-		/// <summary>
-		/// High-level shader language
-		/// </summary>
-		/// <remarks>https://docs.microsoft.com/windows/win32/direct3dhlsl</remarks>
-		hlsl,
-		/// <summary>
-		/// OpenGL Shading Language
-		/// </summary>
-		/// <remarks>https://www.khronos.org/opengl/wiki/OpenGL_Shading_Language</remarks>
-		glsl
-	};
-
-	/// <summary>
 	/// A list of all possible render pipeline states that can be set dynamically independent of pipeline state objects.
 	/// <para>Support for these varies between render APIs (e.g. modern APIs like D3D12 and Vulkan support much less dynamic states than D3D9).</para>
 	/// </summary>
@@ -582,8 +550,6 @@ namespace reshade { namespace api
 		const void *code;
 		/// <summary>The size (in bytes) of the shader source code.</summary>
 		size_t code_size;
-		/// <summary>The format of the shader source <see cref="code"/>.</summary>
-		shader_format format;
 		/// <summary>Optional entry point name if the shader source code contains multiple entry points. Can be <c>nullptr</c> if it does not.</summary>
 		const char *entry_point;
 		/// <summary>The number of entries in the <see cref="spec_constant_ids"/> and <see cref="spec_constant_values"/> arrays.

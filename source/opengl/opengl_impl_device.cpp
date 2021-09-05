@@ -761,7 +761,7 @@ static bool create_shader_module(GLenum type, const reshade::api::shader_desc &d
 
 	shader_object = glCreateShader(type);
 
-	if (desc.format == reshade::api::shader_format::glsl)
+	if (!(desc.code_size > 4 && *static_cast<const uint32_t *>(desc.code) == 0x07230203)) // Check for SPIR-V magic number
 	{
 		assert(desc.entry_point == nullptr || strcmp(desc.entry_point, "main") == 0);
 		assert(desc.num_spec_constants == 0);
@@ -771,7 +771,7 @@ static bool create_shader_module(GLenum type, const reshade::api::shader_desc &d
 		glShaderSource(shader_object, 1, &source, &source_len);
 		glCompileShader(shader_object);
 	}
-	else if (desc.format == reshade::api::shader_format::spirv)
+	else
 	{
 		assert(desc.code_size <= static_cast<size_t>(std::numeric_limits<GLsizei>::max()));
 

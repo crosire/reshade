@@ -1059,14 +1059,13 @@ reshade::api::pipeline_desc reshade::vulkan::device_impl::convert_pipeline_desc(
 	api::pipeline_desc desc = { api::pipeline_stage::all_compute };
 	desc.layout = { (uint64_t)create_info.layout };
 
-	assert(create_info.stage.stage == VK_SHADER_STAGE_COMPUTE_BIT);
-	desc.compute.shader.format = api::shader_format::spirv;
-	desc.compute.shader.entry_point = create_info.stage.pName;
-
 	const auto module_data = get_user_data_for_object<VK_OBJECT_TYPE_SHADER_MODULE>(create_info.stage.module);
+
+	assert(create_info.stage.stage == VK_SHADER_STAGE_COMPUTE_BIT);
 
 	desc.compute.shader.code = module_data->spirv.data();
 	desc.compute.shader.code_size = module_data->spirv.size();
+	desc.compute.shader.entry_point = create_info.stage.pName;
 
 	return desc;
 }
@@ -1088,33 +1087,28 @@ reshade::api::pipeline_desc reshade::vulkan::device_impl::convert_pipeline_desc(
 		case VK_SHADER_STAGE_VERTEX_BIT:
 			desc.graphics.vertex_shader.code = module_data->spirv.data();
 			desc.graphics.vertex_shader.code_size = module_data->spirv.size();
-			desc.graphics.vertex_shader.format = api::shader_format::spirv;
 			desc.graphics.vertex_shader.entry_point = stage.pName;
 			break;
 		case VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT:
 			has_tessellation_shader_stage = true;
 			desc.graphics.hull_shader.code = module_data->spirv.data();
 			desc.graphics.hull_shader.code_size = module_data->spirv.size();
-			desc.graphics.hull_shader.format = api::shader_format::spirv;
 			desc.graphics.hull_shader.entry_point = stage.pName;
 			break;
 		case VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT:
 			has_tessellation_shader_stage = true;
 			desc.graphics.domain_shader.code = module_data->spirv.data();
 			desc.graphics.domain_shader.code_size = module_data->spirv.size();
-			desc.graphics.domain_shader.format = api::shader_format::spirv;
 			desc.graphics.domain_shader.entry_point = stage.pName;
 			break;
 		case VK_SHADER_STAGE_GEOMETRY_BIT:
 			desc.graphics.geometry_shader.code = module_data->spirv.data();
 			desc.graphics.geometry_shader.code_size = module_data->spirv.size();
-			desc.graphics.geometry_shader.format = api::shader_format::spirv;
 			desc.graphics.geometry_shader.entry_point = stage.pName;
 			break;
 		case VK_SHADER_STAGE_FRAGMENT_BIT:
 			desc.graphics.pixel_shader.code = module_data->spirv.data();
 			desc.graphics.pixel_shader.code_size = module_data->spirv.size();
-			desc.graphics.pixel_shader.format = api::shader_format::spirv;
 			desc.graphics.pixel_shader.entry_point = stage.pName;
 			break;
 		}

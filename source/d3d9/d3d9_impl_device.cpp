@@ -883,7 +883,6 @@ bool reshade::d3d9::device_impl::create_input_layout(const api::pipeline_desc &d
 bool reshade::d3d9::device_impl::create_vertex_shader(const api::pipeline_desc &desc, api::pipeline *out)
 {
 	if (com_ptr<IDirect3DVertexShader9> object;
-		desc.graphics.vertex_shader.format == api::shader_format::dxbc &&
 		SUCCEEDED(_orig->CreateVertexShader(static_cast<const DWORD *>(desc.graphics.vertex_shader.code), &object)))
 	{
 		assert(desc.graphics.vertex_shader.num_spec_constants == 0);
@@ -900,7 +899,6 @@ bool reshade::d3d9::device_impl::create_vertex_shader(const api::pipeline_desc &
 bool reshade::d3d9::device_impl::create_pixel_shader(const api::pipeline_desc &desc, api::pipeline *out)
 {
 	if (com_ptr<IDirect3DPixelShader9> object;
-		desc.graphics.pixel_shader.format == api::shader_format::dxbc &&
 		SUCCEEDED(_orig->CreatePixelShader(static_cast<const DWORD *>(desc.graphics.pixel_shader.code), &object)))
 	{
 		assert(desc.graphics.pixel_shader.num_spec_constants == 0);

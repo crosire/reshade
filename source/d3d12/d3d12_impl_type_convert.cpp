@@ -652,7 +652,6 @@ void reshade::d3d12::convert_pipeline_desc(const api::pipeline_desc &desc, D3D12
 	assert(desc.type == api::pipeline_stage::all_compute);
 	internal_desc.pRootSignature = reinterpret_cast<ID3D12RootSignature *>(desc.layout.handle);
 
-	assert(desc.compute.shader.code_size == 0 || (desc.compute.shader.format == api::shader_format::dxbc || desc.compute.shader.format == api::shader_format::dxil));
 	assert(desc.compute.shader.entry_point == nullptr && desc.compute.shader.num_spec_constants == 0);
 	internal_desc.CS.pShaderBytecode = desc.compute.shader.code;
 	internal_desc.CS.BytecodeLength = desc.compute.shader.code_size;
@@ -662,27 +661,22 @@ void reshade::d3d12::convert_pipeline_desc(const api::pipeline_desc &desc, D3D12
 	assert(desc.type == api::pipeline_stage::all_graphics);
 	internal_desc.pRootSignature = reinterpret_cast<ID3D12RootSignature *>(desc.layout.handle);
 
-	assert(desc.graphics.vertex_shader.code_size == 0 || (desc.graphics.vertex_shader.format == api::shader_format::dxbc || desc.graphics.vertex_shader.format == api::shader_format::dxil));
 	assert(desc.graphics.vertex_shader.entry_point == nullptr && desc.graphics.vertex_shader.num_spec_constants == 0);
 	internal_desc.VS.pShaderBytecode = desc.graphics.vertex_shader.code;
 	internal_desc.VS.BytecodeLength = desc.graphics.vertex_shader.code_size;
 
-	assert(desc.graphics.hull_shader.code_size == 0 || (desc.graphics.hull_shader.format == api::shader_format::dxbc || desc.graphics.hull_shader.format == api::shader_format::dxil));
 	assert(desc.graphics.hull_shader.entry_point == nullptr && desc.graphics.hull_shader.num_spec_constants == 0);
 	internal_desc.HS.pShaderBytecode = desc.graphics.hull_shader.code;
 	internal_desc.HS.BytecodeLength = desc.graphics.hull_shader.code_size;
 
-	assert(desc.graphics.domain_shader.code_size == 0 || (desc.graphics.domain_shader.format == api::shader_format::dxbc || desc.graphics.domain_shader.format == api::shader_format::dxil));
 	assert(desc.graphics.domain_shader.entry_point == nullptr && desc.graphics.domain_shader.num_spec_constants == 0);
 	internal_desc.DS.pShaderBytecode = desc.graphics.domain_shader.code;
 	internal_desc.DS.BytecodeLength = desc.graphics.domain_shader.code_size;
 
-	assert(desc.graphics.geometry_shader.code_size == 0 || (desc.graphics.geometry_shader.format == api::shader_format::dxbc || desc.graphics.geometry_shader.format == api::shader_format::dxil));
 	assert(desc.graphics.geometry_shader.entry_point == nullptr && desc.graphics.geometry_shader.num_spec_constants == 0);
 	internal_desc.GS.pShaderBytecode = desc.graphics.geometry_shader.code;
 	internal_desc.GS.BytecodeLength = desc.graphics.geometry_shader.code_size;
 
-	assert(desc.graphics.pixel_shader.code_size == 0 || (desc.graphics.pixel_shader.format == api::shader_format::dxbc || desc.graphics.pixel_shader.format == api::shader_format::dxil));
 	assert(desc.graphics.pixel_shader.entry_point == nullptr && desc.graphics.pixel_shader.num_spec_constants == 0);
 	internal_desc.PS.pShaderBytecode = desc.graphics.pixel_shader.code;
 	internal_desc.PS.BytecodeLength = desc.graphics.pixel_shader.code_size;
