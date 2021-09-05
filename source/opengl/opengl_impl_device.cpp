@@ -255,6 +255,7 @@ void reshade::opengl::device_impl::create_global_pipeline_layout()
 
 	// Create global pipeline layout that is used for all application descriptor events
 	api::descriptor_range push_descriptors = {};
+	push_descriptors.array_size = 1;
 	api::pipeline_layout_param layout_params[6] = {};
 
 	layout_params[4].type = api::pipeline_layout_param_type::push_constants;
@@ -265,22 +266,22 @@ void reshade::opengl::device_impl::create_global_pipeline_layout()
 	layout_params[5].push_constants.visibility = api::shader_stage::all;
 
 	push_descriptors.type = api::descriptor_type::sampler_with_resource_view;
-	push_descriptors.array_size = max_texture_units;
+	push_descriptors.count = max_texture_units;
 	push_descriptors.visibility = api::shader_stage::all;
 	layout_params[0].type = api::pipeline_layout_param_type::push_descriptors;
 	create_descriptor_set_layout(1, &push_descriptors, true, &layout_params[0].descriptor_layout);
 	push_descriptors.type = api::descriptor_type::unordered_access_view;
-	push_descriptors.array_size = max_image_units;
+	push_descriptors.count = max_image_units;
 	push_descriptors.visibility = api::shader_stage::all;
 	layout_params[1].type = api::pipeline_layout_param_type::push_descriptors;
 	create_descriptor_set_layout(1, &push_descriptors, true, &layout_params[1].descriptor_layout);
 	push_descriptors.type = api::descriptor_type::constant_buffer;
-	push_descriptors.array_size = max_uniform_buffer_bindings;
+	push_descriptors.count = max_uniform_buffer_bindings;
 	push_descriptors.visibility = api::shader_stage::all;
 	layout_params[2].type = api::pipeline_layout_param_type::push_descriptors;
 	create_descriptor_set_layout(1, &push_descriptors, true, &layout_params[2].descriptor_layout);
 	push_descriptors.type = api::descriptor_type::shader_storage_buffer;
-	push_descriptors.array_size = max_shader_storage_buffer_bindings;
+	push_descriptors.count = max_shader_storage_buffer_bindings;
 	push_descriptors.visibility = api::shader_stage::all;
 	layout_params[3].type = api::pipeline_layout_param_type::push_descriptors;
 	create_descriptor_set_layout(1, &push_descriptors, true, &layout_params[3].descriptor_layout);
@@ -1070,38 +1071,38 @@ void reshade::opengl::device_impl::destroy_pipeline_layout(api::pipeline_layout 
 	delete reinterpret_cast<pipeline_layout_impl *>(handle.handle);
 }
 
-bool reshade::opengl::device_impl::create_descriptor_set_layout(uint32_t count, const api::descriptor_range *bindings, bool, api::descriptor_set_layout *out)
+bool reshade::opengl::device_impl::create_descriptor_set_layout(uint32_t count, const api::descriptor_range *ranges, bool, api::descriptor_set_layout *out)
 {
 	bool success = true;
-	api::descriptor_range merged_range = count ? bindings[0] : api::descriptor_range {};
+	api::descriptor_range merged_range = count ? ranges[0] : api::descriptor_range {};
 
 	for (uint32_t i = 1; i < count && success; ++i)
 	{
-		if (bindings[i].type != merged_range.type || bindings[i].dx_register_space != 0)
+		if (ranges[i].type != merged_range.type || ranges[i].dx_register_space != 0 || ranges[i].array_size > 1)
 			success = false;
 
-		if (bindings[i].offset >= merged_range.offset)
+		if (ranges[i].offset >= merged_range.offset)
 		{
-			const uint32_t distance = bindings[i].offset - merged_range.offset;
+			const uint32_t distance = ranges[i].offset - merged_range.offset;
 
-			if ((bindings[i].binding - merged_range.binding) != distance)
+			if ((ranges[i].binding - merged_range.binding) != distance)
 				success = false;
 
-			merged_range.array_size += distance;
-			merged_range.visibility |= bindings[i].visibility;
+			merged_range.count += distance;
+			merged_range.visibility |= ranges[i].visibility;
 		}
 		else
 		{
-			const uint32_t distance = merged_range.offset - bindings[i].offset;
+			const uint32_t distance = merged_range.offset - ranges[i].offset;
 
-			if ((merged_range.binding - bindings[i].binding) != distance)
+			if ((merged_range.binding - ranges[i].binding) != distance)
 				success = false;
 
-			merged_range.offset = bindings[i].offset;
-			merged_range.binding = bindings[i].binding;
-			merged_range.dx_register_index = bindings[i].dx_register_index;
-			merged_range.array_size += distance;
-			merged_range.visibility |= bindings[i].visibility;
+			merged_range.offset = ranges[i].offset;
+			merged_range.binding = ranges[i].binding;
+			merged_range.dx_register_index = ranges[i].dx_register_index;
+			merged_range.count += distance;
+			merged_range.visibility |= ranges[i].visibility;
 		}
 	}
 
@@ -1285,7 +1286,7 @@ bool reshade::opengl::device_impl::create_descriptor_sets(uint32_t count, const 
 
 		const auto impl = new descriptor_set_impl();
 		impl->type = set_layout_impl->range.type;
-		impl->count = set_layout_impl->range.array_size;
+		impl->count = set_layout_impl->range.count;
 
 		switch (impl->type)
 		{
@@ -1654,17 +1655,17 @@ void reshade::opengl::device_impl::get_descriptor_pool_offset(api::descriptor_se
 	*pool = { 0 };
 	*offset = 0; // Unsupported
 }
-void reshade::opengl::device_impl::get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *count, api::descriptor_range *bindings) const
+void reshade::opengl::device_impl::get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *count, api::descriptor_range *ranges) const
 {
 	assert(layout.handle != 0 && count != nullptr);
 	const auto layout_impl = reinterpret_cast<descriptor_set_layout_impl *>(layout.handle);
 
-	if (bindings != nullptr)
+	if (ranges != nullptr)
 	{
 		if (*count != 0)
 		{
 			*count = 1;
-			*bindings = layout_impl->range;
+			*ranges = layout_impl->range;
 		}
 	}
 	else

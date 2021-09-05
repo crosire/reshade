@@ -695,11 +695,14 @@ namespace reshade { namespace api
 		uint32_t dx_register_index;
 		/// <summary>D3D12 register space (<c>register(..., spaceX)</c> in HLSL).</summary>
 		uint32_t dx_register_space;
+		/// <summary>Number of descriptors in this range.</summary>
+		uint32_t count;
+		/// <summary>Size of the array in case this is an array binding.
+		/// Only meaningful in Vulkan, in OpenGL and other APIs this has to be 1 (since each GLSL array element gets a separate binding index there).
+		/// If this is less than the total number of descriptors specified in <see cref="count"/>, then the remaining descriptors are assigned a separate binding index (with an array size of 1), incrementing with each additional descriptor.</summary>
+		uint32_t array_size;
 		/// <summary>Type of the descriptors in this range.</summary>
 		descriptor_type type;
-		/// <summary>Number of descriptors in this range (size of the array in GLSL).
-		/// In OpenGL this has to be 1 (since each GLSL array element gets a separate binding index).</summary>
-		uint32_t array_size;
 		/// <summary>Shader pipeline stages that can make use of the descriptors in this range.</summary>
 		shader_stage visibility;
 	};
@@ -774,9 +777,10 @@ namespace reshade { namespace api
 		/// <summary>OpenGL/Vulkan binding index of the descriptor located at the specified <see cref="offset"/>.</summary>
 		uint32_t binding;
 		/// <summary>Array index in the specified <see cref="binding"/> at the specified <see cref="offset"/>.
-		/// In OpenGL this has to be 0 (since each GLSL array element gets a separate binding index).</summary>
+		/// Only meaningful in Vulkan, in OpenGL and other APIs this has to be 0 (since each GLSL array element gets a separate binding index).</summary>
 		uint32_t array_offset;
-		/// <summary>Number of descriptors to update, starting at the specified <see cref="offset"/>.</summary>
+		/// <summary>Number of descriptors to update, starting at the specified <see cref="offset"/>.
+		/// If the specified <see cref="binding"/> has fewer than <see cref="count"/> array elements starting from <see cref="array_offset"/>, then the remainder will be used to update the subsequent binding starting at array element zero, recursively.</summary>
 		uint32_t count;
 		/// <summary>Type of the specified <see cref="descriptors"/>.</summary>
 		descriptor_type type;

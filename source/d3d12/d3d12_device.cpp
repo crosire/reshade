@@ -68,8 +68,9 @@ static bool parse_and_convert_root_signature(const uint32_t *data, size_t size, 
 							range.binding = j;
 							range.dx_register_index = range_data->BaseShaderRegister;
 							range.dx_register_space = range_data->RegisterSpace;
+							range.count = range_data->NumDescriptors;
+							range.array_size = 1;
 							range.type = reshade::d3d12::convert_descriptor_type(range_data->RangeType);
-							range.array_size = range_data->NumDescriptors;
 							range.visibility = reshade::d3d12::convert_shader_visibility(shader_visibility);
 
 							if (range_data->OffsetInDescriptorsFromTableStart == D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND)
@@ -77,7 +78,7 @@ static bool parse_and_convert_root_signature(const uint32_t *data, size_t size, 
 							else
 								range.offset = range_data->OffsetInDescriptorsFromTableStart;
 
-							descriptor_offset = range.offset + range.array_size;
+							descriptor_offset = range.offset + range.count;
 						}
 					}
 					if (version == D3D_ROOT_SIGNATURE_VERSION_1_1)
@@ -90,8 +91,9 @@ static bool parse_and_convert_root_signature(const uint32_t *data, size_t size, 
 							range.binding = j;
 							range.dx_register_index = range_data->BaseShaderRegister;
 							range.dx_register_space = range_data->RegisterSpace;
+							range.count = range_data->NumDescriptors;
+							range.array_size = 1;
 							range.type = reshade::d3d12::convert_descriptor_type(range_data->RangeType);
-							range.array_size = range_data->NumDescriptors;
 							range.visibility = reshade::d3d12::convert_shader_visibility(shader_visibility);
 
 							if (range_data->OffsetInDescriptorsFromTableStart == D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND)
@@ -99,7 +101,7 @@ static bool parse_and_convert_root_signature(const uint32_t *data, size_t size, 
 							else
 								range.offset = range_data->OffsetInDescriptorsFromTableStart;
 
-							descriptor_offset = range.offset + range.array_size;
+							descriptor_offset = range.offset + range.count;
 						}
 					}
 
@@ -133,6 +135,7 @@ static bool parse_and_convert_root_signature(const uint32_t *data, size_t size, 
 					range.binding = 0;
 					range.dx_register_index = descriptor_data->ShaderRegister;
 					range.dx_register_space = descriptor_data->RegisterSpace;
+					range.count = 1;
 					range.array_size = 1;
 					range.visibility = reshade::d3d12::convert_shader_visibility(shader_visibility);
 

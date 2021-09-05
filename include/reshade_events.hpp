@@ -209,7 +209,7 @@ namespace reshade
 
 		/// <summary>
 		/// Called after successfull descriptor pool creation from 'ID3D12Device::CreateDescriptorHeap' or 'vkCreateDescriptorPool'.
-		/// <para>Callback function signature: <c>void (api::device *device, uint32_t max_descriptors, api::descriptor_pool pool)</c></para>
+		/// <para>Callback function signature: <c>void (api::device *device, uint32_t size, api::descriptor_pool pool)</c></para>
 		/// </summary>
 		init_descriptor_pool,
 		/// <summary>
@@ -552,7 +552,7 @@ namespace reshade
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::create_framebuffer, bool, api::device *device, api::framebuffer_desc &desc);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::destroy_framebuffer, void, api::device *device, api::framebuffer fbo);
 
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::init_descriptor_pool, void, api::device *device, uint32_t max_descriptors, api::descriptor_pool pool);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::init_descriptor_pool, void, api::device *device, uint32_t size, api::descriptor_pool pool);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::destroy_descriptor_pool, void, api::device *device, api::descriptor_pool pool);
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::update_buffer_region, bool, api::device *device, const void *data, api::resource dst, uint64_t dst_offset, uint64_t size);

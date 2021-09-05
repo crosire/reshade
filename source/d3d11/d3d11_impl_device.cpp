@@ -56,25 +56,26 @@ void reshade::d3d11::device_impl::create_global_pipeline_layout()
 
 	// Create global pipeline layout that is used for all application descriptor events
 	api::descriptor_range push_descriptors = {};
+	push_descriptors.array_size = 1;
 	api::pipeline_layout_param layout_params[4] = {};
 
 	push_descriptors.type = api::descriptor_type::sampler;
-	push_descriptors.array_size = D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT;
+	push_descriptors.count = D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT;
 	push_descriptors.visibility = api::shader_stage::all;
 	layout_params[0].type = api::pipeline_layout_param_type::push_descriptors;
 	create_descriptor_set_layout(1, &push_descriptors, true, &layout_params[0].descriptor_layout);
 	push_descriptors.type = api::descriptor_type::shader_resource_view;
-	push_descriptors.array_size = D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT;
+	push_descriptors.count = D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT;
 	push_descriptors.visibility = api::shader_stage::all;
 	layout_params[1].type = api::pipeline_layout_param_type::push_descriptors;
 	create_descriptor_set_layout(1, &push_descriptors, true, &layout_params[1].descriptor_layout);
 	push_descriptors.type = api::descriptor_type::constant_buffer;
-	push_descriptors.array_size = D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT;
+	push_descriptors.count = D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT;
 	push_descriptors.visibility = api::shader_stage::all;
 	layout_params[2].type = api::pipeline_layout_param_type::push_descriptors;
 	create_descriptor_set_layout(1, &push_descriptors, true, &layout_params[2].descriptor_layout);
 	push_descriptors.type = api::descriptor_type::unordered_access_view;
-	push_descriptors.array_size =
+	push_descriptors.count =
 		feature_level >= D3D_FEATURE_LEVEL_11_1 ? D3D11_1_UAV_SLOT_COUNT :
 		feature_level == D3D_FEATURE_LEVEL_11_0 ? D3D11_PS_CS_UAV_REGISTER_COUNT :
 		feature_level >= D3D_FEATURE_LEVEL_10_0 ? D3D11_CS_4_X_UAV_REGISTER_COUNT : 0;
@@ -733,38 +734,38 @@ void reshade::d3d11::device_impl::destroy_pipeline_layout(api::pipeline_layout h
 	delete reinterpret_cast<pipeline_layout_impl *>(handle.handle);
 }
 
-bool reshade::d3d11::device_impl::create_descriptor_set_layout(uint32_t count, const api::descriptor_range *bindings, bool, api::descriptor_set_layout *out)
+bool reshade::d3d11::device_impl::create_descriptor_set_layout(uint32_t count, const api::descriptor_range *ranges, bool, api::descriptor_set_layout *out)
 {
 	bool success = true;
-	api::descriptor_range merged_range = count ? bindings[0] : api::descriptor_range {};
+	api::descriptor_range merged_range = count ? ranges[0] : api::descriptor_range {};
 
 	for (uint32_t i = 1; i < count && success; ++i)
 	{
-		if (bindings[i].type != merged_range.type || bindings[i].dx_register_space != 0)
+		if (ranges[i].type != merged_range.type || ranges[i].dx_register_space != 0 || ranges[i].array_size > 1)
 			success = false;
 
-		if (bindings[i].offset >= merged_range.offset)
+		if (ranges[i].offset >= merged_range.offset)
 		{
-			const uint32_t distance = bindings[i].offset - merged_range.offset;
+			const uint32_t distance = ranges[i].offset - merged_range.offset;
 
-			if ((bindings[i].dx_register_index - merged_range.dx_register_index) != distance)
+			if ((ranges[i].dx_register_index - merged_range.dx_register_index) != distance)
 				success = false;
 
-			merged_range.array_size += distance;
-			merged_range.visibility |= bindings[i].visibility;
+			merged_range.count += distance;
+			merged_range.visibility |= ranges[i].visibility;
 		}
 		else
 		{
-			const uint32_t distance = merged_range.offset - bindings[i].offset;
+			const uint32_t distance = merged_range.offset - ranges[i].offset;
 
-			if ((merged_range.dx_register_index - bindings[i].dx_register_index) != distance)
+			if ((merged_range.dx_register_index - ranges[i].dx_register_index) != distance)
 				success = false;
 
-			merged_range.offset = bindings[i].offset;
-			merged_range.binding = bindings[i].binding;
-			merged_range.dx_register_index = bindings[i].dx_register_index;
-			merged_range.array_size += distance;
-			merged_range.visibility |= bindings[i].visibility;
+			merged_range.offset = ranges[i].offset;
+			merged_range.binding = ranges[i].binding;
+			merged_range.dx_register_index = ranges[i].dx_register_index;
+			merged_range.count += distance;
+			merged_range.visibility |= ranges[i].visibility;
 		}
 	}
 
@@ -848,7 +849,7 @@ bool reshade::d3d11::device_impl::create_descriptor_sets(uint32_t count, const a
 
 		const auto impl = new descriptor_set_impl();
 		impl->type = set_layout_impl->range.type;
-		impl->count = set_layout_impl->range.array_size;
+		impl->count = set_layout_impl->range.count;
 
 		switch (impl->type)
 		{
@@ -949,6 +950,8 @@ void reshade::d3d11::device_impl::update_descriptor_sets(uint32_t count, const a
 
 		const api::descriptor_set_update &update = updates[i];
 
+		assert(update.offset >= update.binding);
+
 		switch (update.type)
 		{
 		case api::descriptor_type::sampler:
@@ -1011,17 +1014,17 @@ void reshade::d3d11::device_impl::get_descriptor_pool_offset(api::descriptor_set
 	*pool = { 0 };
 	*offset = 0; // Unsupported
 }
-void reshade::d3d11::device_impl::get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *count, api::descriptor_range *bindings) const
+void reshade::d3d11::device_impl::get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *count, api::descriptor_range *ranges) const
 {
 	assert(layout.handle != 0 && count != nullptr);
 	const auto layout_impl = reinterpret_cast<descriptor_set_layout_impl *>(layout.handle);
 
-	if (bindings != nullptr)
+	if (ranges != nullptr)
 	{
 		if (*count != 0)
 		{
 			*count = 1;
-			*bindings = layout_impl->range;
+			*ranges = layout_impl->range;
 		}
 	}
 	else

@@ -1365,75 +1365,65 @@ bool reshade::runtime::init_effect(size_t effect_index)
 
 	const bool sampler_with_resource_view = _device->check_capability(api::device_caps::sampler_with_resource_view);
 
+	api::descriptor_range layout_ranges[4];
 	api::pipeline_layout_param layout_params[4];
-	std::vector<api::descriptor_range> layout_bindings[4];
 
-	{	api::descriptor_range &binding = layout_bindings[0].emplace_back();
-		binding.offset = 0;
-		binding.binding = 0;
-		binding.dx_register_index = 0; // b0 (global constant buffer)
-		binding.dx_register_space = 0;
-		binding.type = api::descriptor_type::constant_buffer;
-		binding.array_size = 1;
-		binding.visibility = api::shader_stage::all;
-	}
+	layout_ranges[0].offset = 0;
+	layout_ranges[0].binding = 0;
+	layout_ranges[0].dx_register_index = 0; // b0 (global constant buffer)
+	layout_ranges[0].dx_register_space = 0;
+	layout_ranges[0].count = 1;
+	layout_ranges[0].array_size = 1;
+	layout_ranges[0].type = api::descriptor_type::constant_buffer;
+	layout_ranges[0].visibility = api::shader_stage::all;
 
-	for (uint32_t i = 0; i < effect.module.num_sampler_bindings; ++i)
-	{
-		api::descriptor_range &binding = layout_bindings[1].emplace_back();
-		binding.offset = i;
-		binding.binding = i;
-		binding.dx_register_index = i; // s#
-		binding.dx_register_space = 0;
-		binding.type = sampler_with_resource_view ? api::descriptor_type::sampler_with_resource_view : api::descriptor_type::sampler;
-		binding.array_size = 1;
-		binding.visibility = api::shader_stage::all;
-	}
+	layout_ranges[1].offset = 0;
+	layout_ranges[1].binding = 0;
+	layout_ranges[1].dx_register_index = 0; // s#
+	layout_ranges[1].dx_register_space = 0;
+	layout_ranges[1].count = effect.module.num_sampler_bindings;
+	layout_ranges[1].array_size = 1;
+	layout_ranges[1].type = sampler_with_resource_view ? api::descriptor_type::sampler_with_resource_view : api::descriptor_type::sampler;
+	layout_ranges[1].visibility = api::shader_stage::all;
 
-	for (uint32_t i = 0; i < effect.module.num_texture_bindings; ++i)
-	{
-		api::descriptor_range &binding = layout_bindings[2].emplace_back();
-		binding.offset = i;
-		binding.binding = i;
-		binding.dx_register_index = i; // t#
-		binding.dx_register_space = 0;
-		binding.type = api::descriptor_type::shader_resource_view;
-		binding.array_size = 1;
-		binding.visibility = api::shader_stage::all;
-	}
+	layout_ranges[2].offset = 0;
+	layout_ranges[2].binding = 0;
+	layout_ranges[2].dx_register_index = 0; // t#
+	layout_ranges[2].dx_register_space = 0;
+	layout_ranges[2].count = effect.module.num_texture_bindings;
+	layout_ranges[2].array_size = 1;
+	layout_ranges[2].type = api::descriptor_type::shader_resource_view;
+	layout_ranges[2].visibility = api::shader_stage::all;
 
-	for (uint32_t i = 0; i < effect.module.num_storage_bindings; ++i)
-	{
-		api::descriptor_range &binding = layout_bindings[3].emplace_back();
-		binding.offset = i;
-		binding.binding = i;
-		binding.dx_register_index = i; // u#
-		binding.dx_register_space = 0;
-		binding.type = api::descriptor_type::unordered_access_view;
-		binding.array_size = 1;
-		binding.visibility = api::shader_stage::all;
-	}
+	layout_ranges[3].offset = 0;
+	layout_ranges[3].binding = 0;
+	layout_ranges[3].dx_register_index = 0; // u#
+	layout_ranges[3].dx_register_space = 0;
+	layout_ranges[3].count = effect.module.num_storage_bindings;
+	layout_ranges[3].array_size = 1;
+	layout_ranges[3].type = api::descriptor_type::unordered_access_view;
+	layout_ranges[3].visibility = api::shader_stage::all;
 
-	_device->create_descriptor_set_layout(1, layout_bindings[0].data(), false, &effect.set_layouts[0]);
+	_device->create_descriptor_set_layout(1, &layout_ranges[0], false, &effect.set_layouts[0]);
 	layout_params[0].type = api::pipeline_layout_param_type::descriptor_set;
 	layout_params[0].descriptor_layout = effect.set_layouts[0];
 
-	_device->create_descriptor_set_layout(effect.module.num_sampler_bindings, layout_bindings[1].data(), false, &effect.set_layouts[1]);
+	_device->create_descriptor_set_layout(1, &layout_ranges[1], false, &effect.set_layouts[1]);
 	layout_params[1].type = api::pipeline_layout_param_type::descriptor_set;
 	layout_params[1].descriptor_layout = effect.set_layouts[1];
 
 	if (sampler_with_resource_view)
 	{
-		_device->create_descriptor_set_layout(effect.module.num_storage_bindings, layout_bindings[3].data(), false, &effect.set_layouts[3]);
+		_device->create_descriptor_set_layout(1, &layout_ranges[3], false, &effect.set_layouts[3]);
 		layout_params[2].type = api::pipeline_layout_param_type::descriptor_set;
 		layout_params[2].descriptor_layout = effect.set_layouts[3];
 	}
 	else
 	{
-		_device->create_descriptor_set_layout(effect.module.num_texture_bindings, layout_bindings[2].data(), false, &effect.set_layouts[2]);
+		_device->create_descriptor_set_layout(1, &layout_ranges[2], false, &effect.set_layouts[2]);
 		layout_params[2].type = api::pipeline_layout_param_type::descriptor_set;
 		layout_params[2].descriptor_layout = effect.set_layouts[2];
-		_device->create_descriptor_set_layout(effect.module.num_storage_bindings, layout_bindings[3].data(), false, &effect.set_layouts[3]);
+		_device->create_descriptor_set_layout(1, &layout_ranges[3], false, &effect.set_layouts[3]);
 		layout_params[3].type = api::pipeline_layout_param_type::descriptor_set;
 		layout_params[3].descriptor_layout = effect.set_layouts[3];
 	}
@@ -1852,7 +1842,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 					}
 					else
 					{
-						write.binding = info.texture_binding;
+						write.offset = write.binding = info.texture_binding;
 						write.type = api::descriptor_type::shader_resource_view;
 						write.descriptors = &srv;
 					}

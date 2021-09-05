@@ -495,7 +495,7 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t count, const a
 		{
 			const auto set_layout_impl = reinterpret_cast<const descriptor_set_layout_impl *>(params[i].descriptor_layout.handle);
 
-			if (set_layout_impl->ranges.empty())
+			if (set_layout_impl->ranges.empty() || set_layout_impl->ranges[0].count == 0)
 			{
 				// Dummy parameter (to prevent root signature creation from failing)
 				internal_params[i].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
@@ -511,9 +511,11 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t count, const a
 
 			for (const api::descriptor_range &range : set_layout_impl->ranges)
 			{
+				assert(range.array_size <= 1);
+
 				D3D12_DESCRIPTOR_RANGE &internal_range = ranges[i].emplace_back();
 				internal_range.RangeType = convert_descriptor_type(range.type);
-				internal_range.NumDescriptors = range.array_size;
+				internal_range.NumDescriptors = range.count;
 				internal_range.BaseShaderRegister = range.dx_register_index;
 				internal_range.RegisterSpace = range.dx_register_space;
 				internal_range.OffsetInDescriptorsFromTableStart = range.offset;
@@ -595,10 +597,19 @@ void reshade::d3d12::device_impl::destroy_pipeline_layout(api::pipeline_layout h
 		reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }
 
-bool reshade::d3d12::device_impl::create_descriptor_set_layout(uint32_t count, const api::descriptor_range *bindings, bool, api::descriptor_set_layout *out)
+bool reshade::d3d12::device_impl::create_descriptor_set_layout(uint32_t count, const api::descriptor_range *ranges, bool, api::descriptor_set_layout *out)
 {
+	for (uint32_t i = 0; i < count; ++i)
+	{
+		if (ranges[i].array_size > 1)
+		{
+			*out = { 0 };
+			return false;
+		}
+	}
+
 	const auto impl = new descriptor_set_layout_impl();
-	impl->ranges.assign(bindings, bindings + count);
+	impl->ranges.assign(ranges, ranges + count);
 
 	*out = { reinterpret_cast<uintptr_t>(impl) };
 	return true;
@@ -707,7 +718,7 @@ bool reshade::d3d12::device_impl::create_descriptor_sets(uint32_t count, const a
 
 		uint32_t total_count = 0;
 		for (const api::descriptor_range &range : set_layout_impl->ranges)
-			total_count = std::max(total_count, range.offset + range.array_size);
+			total_count = std::max(total_count, range.offset + range.count);
 
 		const auto heap_type = convert_descriptor_type_to_heap_type(set_layout_impl->ranges[0].type);
 
@@ -906,6 +917,8 @@ void reshade::d3d12::device_impl::update_descriptor_sets(uint32_t count, const a
 	{
 		const auto &update = updates[i];
 
+		assert(update.offset >= update.binding);
+
 		D3D12_CPU_DESCRIPTOR_HANDLE dst_range_start;
 		if (!resolve_descriptor_handle(update.set, &dst_range_start))
 			continue;
@@ -1013,15 +1026,15 @@ void reshade::d3d12::device_impl::get_descriptor_pool_offset(api::descriptor_set
 {
 	resolve_descriptor_handle(set, nullptr, pool, offset);
 }
-void reshade::d3d12::device_impl::get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *count, api::descriptor_range *bindings) const
+void reshade::d3d12::device_impl::get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *count, api::descriptor_range *ranges) const
 {
 	assert(layout.handle != 0 && count != nullptr);
 	const auto layout_impl = reinterpret_cast<const descriptor_set_layout_impl *>(layout.handle);
 
-	if (bindings != nullptr)
+	if (ranges != nullptr)
 	{
 		*count = std::min(*count, static_cast<uint32_t>(layout_impl->ranges.size()));
-		std::memcpy(bindings, layout_impl->ranges.data(), *count * sizeof(api::descriptor_range));
+		std::memcpy(ranges, layout_impl->ranges.data(), *count * sizeof(api::descriptor_range));
 	}
 	else
 	{

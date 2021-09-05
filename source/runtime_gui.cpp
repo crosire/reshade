@@ -3208,11 +3208,13 @@ bool reshade::runtime::init_imgui_resources()
 		ranges[0].offset = 0;
 		ranges[0].binding = 0;
 		ranges[0].dx_register_space = 0;
+		ranges[0].count = 1;
 		ranges[0].array_size = 1;
 		ranges[0].visibility = api::shader_stage::pixel;
 		ranges[1].offset = 0;
 		ranges[1].binding = 0;
 		ranges[1].dx_register_space = 0;
+		ranges[1].count = 1;
 		ranges[1].array_size = 1;
 		ranges[1].visibility = api::shader_stage::pixel;
 

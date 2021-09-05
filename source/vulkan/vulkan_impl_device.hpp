@@ -47,7 +47,7 @@ namespace reshade::vulkan
 		bool create_pipeline_layout(uint32_t count, const api::pipeline_layout_param *params, api::pipeline_layout *out) final;
 		void destroy_pipeline_layout(api::pipeline_layout handle) final;
 
-		bool create_descriptor_set_layout(uint32_t count, const api::descriptor_range *bindings, bool push_descriptors, api::descriptor_set_layout *out) final;
+		bool create_descriptor_set_layout(uint32_t count, const api::descriptor_range *ranges, bool push_descriptors, api::descriptor_set_layout *out) final;
 		void destroy_descriptor_set_layout(api::descriptor_set_layout handle) final;
 
 		bool create_query_pool(api::query_type type, uint32_t size, api::query_pool *out) final;
@@ -78,7 +78,7 @@ namespace reshade::vulkan
 
 		void get_pipeline_layout_desc(api::pipeline_layout layout, uint32_t *count, api::pipeline_layout_param *params) const final;
 		void get_descriptor_pool_offset(api::descriptor_set set, api::descriptor_pool *pool, uint32_t *offset) const final;
-		void get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *count, api::descriptor_range *bindings) const final;
+		void get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *count, api::descriptor_range *ranges) const final;
 
 		api::resource_desc get_resource_desc(api::resource resource) const final;
 		api::resource      get_resource_from_view(api::resource_view view) const final;
