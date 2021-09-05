@@ -1403,10 +1403,10 @@ void reshade::d3d9::device_impl::update_descriptor_sets(uint32_t count, const ap
 		{
 		case api::descriptor_type::sampler:
 		case api::descriptor_type::shader_resource_view:
-			std::memcpy(&impl->descriptors[update.binding * 1], update.descriptors, update.count * sizeof(uint64_t) * 1);
+			std::memcpy(&impl->descriptors[update.offset * 1], update.descriptors, update.count * sizeof(uint64_t) * 1);
 			break;
 		case api::descriptor_type::sampler_with_resource_view:
-			std::memcpy(&impl->descriptors[update.binding * 2], update.descriptors, update.count * sizeof(uint64_t) * 2);
+			std::memcpy(&impl->descriptors[update.offset * 2], update.descriptors, update.count * sizeof(uint64_t) * 2);
 			break;
 		case api::descriptor_type::unordered_access_view:
 		case api::descriptor_type::constant_buffer:
@@ -1452,10 +1452,10 @@ void reshade::d3d9::device_impl::get_pipeline_layout_desc(api::pipeline_layout l
 		*count = static_cast<uint32_t>(layout_impl->params.size());
 	}
 }
-void reshade::d3d9::device_impl::get_descriptor_pool_offset(api::descriptor_set, uint32_t binding, api::descriptor_pool *pool, uint32_t *offset) const
+void reshade::d3d9::device_impl::get_descriptor_pool_offset(api::descriptor_set, api::descriptor_pool *pool, uint32_t *offset) const
 {
 	*pool = { 0 };
-	*offset = binding; // Unsupported
+	*offset = 0; // Unsupported
 }
 void reshade::d3d9::device_impl::get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *count, api::descriptor_range *bindings) const
 {

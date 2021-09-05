@@ -1443,8 +1443,12 @@ void     VKAPI_CALL vkUpdateDescriptorSets(VkDevice device, uint32_t descriptorW
 		{
 			const VkWriteDescriptorSet &write = pDescriptorWrites[i];
 
+			const auto set_data = device_impl->get_user_data_for_object<VK_OBJECT_TYPE_DESCRIPTOR_SET>(write.dstSet);
+			const auto layout_data = device_impl->get_user_data_for_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>(set_data->layout);
+
 			reshade::api::descriptor_set_update &update = updates.emplace_back();
 			update.set = { (uint64_t)write.dstSet };
+			update.offset = layout_data->binding_to_offset.at(write.dstBinding) + write.dstArrayElement;
 			update.binding = write.dstBinding;
 			update.array_offset = write.dstArrayElement;
 			update.count = write.descriptorCount;

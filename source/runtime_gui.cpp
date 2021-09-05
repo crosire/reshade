@@ -3473,7 +3473,7 @@ void reshade::runtime::render_imgui_draw_data(ImDrawData *draw_data, api::render
 	const bool has_combined_sampler_and_view = _device->check_capability(api::device_caps::sampler_with_resource_view);
 	cmd_list->push_constants(api::shader_stage::vertex, _imgui_pipeline_layout, has_combined_sampler_and_view ? 1 : 2, 0, sizeof(ortho_projection) / 4, ortho_projection);
 	if (!has_combined_sampler_and_view)
-		cmd_list->push_descriptors(api::shader_stage::pixel, _imgui_pipeline_layout, 0, api::descriptor_set_update { { 0 }, 0, 0, 1, api::descriptor_type::sampler, &_imgui_sampler_state });
+		cmd_list->push_descriptors(api::shader_stage::pixel, _imgui_pipeline_layout, 0, api::descriptor_set_update(0, 1, api::descriptor_type::sampler, &_imgui_sampler_state));
 
 	int vtx_offset = 0, idx_offset = 0;
 	for (int n = 0; n < draw_data->CmdListsCount; ++n)
@@ -3498,11 +3498,11 @@ void reshade::runtime::render_imgui_draw_data(ImDrawData *draw_data, api::render
 			if (has_combined_sampler_and_view)
 			{
 				api::sampler_with_resource_view sampler_and_view = { _imgui_sampler_state, srv };
-				cmd_list->push_descriptors(api::shader_stage::pixel, _imgui_pipeline_layout, 0, api::descriptor_set_update { { 0 }, 0, 0, 1, api::descriptor_type::sampler_with_resource_view, &sampler_and_view });
+				cmd_list->push_descriptors(api::shader_stage::pixel, _imgui_pipeline_layout, 0, api::descriptor_set_update(0, 1, api::descriptor_type::sampler_with_resource_view, &sampler_and_view));
 			}
 			else
 			{
-				cmd_list->push_descriptors(api::shader_stage::pixel, _imgui_pipeline_layout, 1, api::descriptor_set_update { { 0 }, 0, 0, 1, api::descriptor_type::shader_resource_view, &srv });
+				cmd_list->push_descriptors(api::shader_stage::pixel, _imgui_pipeline_layout, 1, api::descriptor_set_update(0, 1, api::descriptor_type::shader_resource_view, &srv));
 			}
 
 			cmd_list->draw_indexed(cmd.ElemCount, 1, cmd.IdxOffset + idx_offset, cmd.VtxOffset + vtx_offset, 0);

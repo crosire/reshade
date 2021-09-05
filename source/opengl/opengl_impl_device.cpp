@@ -1580,6 +1580,11 @@ void reshade::opengl::device_impl::update_descriptor_sets(uint32_t count, const 
 
 		const api::descriptor_set_update &update = updates[i];
 
+		// In GLSL targeting OpenGL, if the binding qualifier is used with an array, the first element of the array takes the specified block binding and each subsequent element takes the next consecutive binding point
+		// See https://www.khronos.org/registry/OpenGL/specs/gl/GLSLangSpec.4.60.html#layout-qualifiers (chapter 4.4.6)
+		// Therefore it is not valid to specify an array offset for a binding
+		assert(update.array_offset == 0);
+
 		switch (update.type)
 		{
 		case api::descriptor_type::sampler:
@@ -1644,10 +1649,10 @@ void reshade::opengl::device_impl::get_pipeline_layout_desc(api::pipeline_layout
 		*count = static_cast<uint32_t>(layout_impl->params.size());
 	}
 }
-void reshade::opengl::device_impl::get_descriptor_pool_offset(api::descriptor_set, uint32_t binding, api::descriptor_pool *pool, uint32_t *offset) const
+void reshade::opengl::device_impl::get_descriptor_pool_offset(api::descriptor_set, api::descriptor_pool *pool, uint32_t *offset) const
 {
 	*pool = { 0 };
-	*offset = binding; // Unsupported
+	*offset = 0; // Unsupported
 }
 void reshade::opengl::device_impl::get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *count, api::descriptor_range *bindings) const
 {

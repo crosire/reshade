@@ -211,7 +211,7 @@ void reshade::vulkan::command_list_impl::push_constants(api::shader_stage stages
 }
 void reshade::vulkan::command_list_impl::push_descriptors(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, const api::descriptor_set_update &update)
 {
-	assert(update.count != 0);
+	assert(update.set.handle == 0 && update.count != 0);
 
 	VkWriteDescriptorSet write { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
 	write.dstBinding = update.binding;

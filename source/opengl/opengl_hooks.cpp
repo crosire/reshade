@@ -486,8 +486,8 @@ HOOK_EXPORT void WINAPI glBegin(GLenum mode)
 		const auto layout_param = (target == GL_UNIFORM_BUFFER) ? 2 : 3;
 
 		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, layout_param, reshade::api::descriptor_set_update {
-				{ 0 }, index, 0, 1, type, &descriptor_data });
+			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, layout_param,
+			reshade::api::descriptor_set_update(index, 1, type, &descriptor_data));
 	}
 #endif
 }
@@ -511,8 +511,8 @@ HOOK_EXPORT void WINAPI glBegin(GLenum mode)
 		const auto layout_param = (target == GL_UNIFORM_BUFFER) ? 2 : 3;
 
 		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, layout_param, reshade::api::descriptor_set_update {
-				{ 0 }, index, 0, 1, type, &descriptor_data });
+			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, layout_param,
+			reshade::api::descriptor_set_update(index, 1, type, &descriptor_data));
 	}
 #endif
 }
@@ -542,8 +542,8 @@ HOOK_EXPORT void WINAPI glBegin(GLenum mode)
 		const auto layout_param = (target == GL_UNIFORM_BUFFER) ? 2 : 3;
 
 		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, layout_param, reshade::api::descriptor_set_update {
-				{ 0 }, first, 0, static_cast<uint32_t>(count), type, descriptor_data.data() });
+			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, layout_param,
+			reshade::api::descriptor_set_update(first, static_cast<uint32_t>(count), type, descriptor_data.data()));
 	}
 #endif
 }
@@ -575,8 +575,8 @@ HOOK_EXPORT void WINAPI glBegin(GLenum mode)
 		const auto layout_param = (target == GL_UNIFORM_BUFFER) ? 2 : 3;
 
 		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, layout_param, reshade::api::descriptor_set_update {
-				{ 0 }, first, 0, static_cast<uint32_t>(count), type, descriptor_data.data() });
+			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, layout_param,
+			reshade::api::descriptor_set_update(first, static_cast<uint32_t>(count), type, descriptor_data.data()));
 	}
 #endif
 }
@@ -621,8 +621,8 @@ HOOK_EXPORT void WINAPI glBegin(GLenum mode)
 		const reshade::api::resource_view descriptor_data = reshade::opengl::make_resource_view_handle(target, texture);
 
 		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 1, reshade::api::descriptor_set_update {
-				{ 0 }, unit, 0, 1, reshade::api::descriptor_type::unordered_access_view, &descriptor_data });
+			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 1,
+			reshade::api::descriptor_set_update(unit, 1, reshade::api::descriptor_type::unordered_access_view, &descriptor_data));
 	}
 #endif
 }
@@ -651,8 +651,8 @@ HOOK_EXPORT void WINAPI glBegin(GLenum mode)
 		}
 
 		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 1, reshade::api::descriptor_set_update {
-				{ 0 }, first, 0, static_cast<uint32_t>(count), reshade::api::descriptor_type::unordered_access_view, descriptor_data.data() });
+			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 1,
+			reshade::api::descriptor_set_update(first, static_cast<uint32_t>(count), reshade::api::descriptor_type::unordered_access_view, descriptor_data.data()));
 	}
 #endif
 }
@@ -679,8 +679,8 @@ HOOK_EXPORT void WINAPI glBindTexture(GLenum target, GLuint texture)
 		};
 
 		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 0, reshade::api::descriptor_set_update {
-				{ 0 }, static_cast<GLuint>(unit), 0, 1, reshade::api::descriptor_type::sampler_with_resource_view, &descriptor_data });
+			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 0,
+			reshade::api::descriptor_set_update(static_cast<GLuint>(unit), 1, reshade::api::descriptor_type::sampler_with_resource_view, &descriptor_data));
 	}
 #endif
 }
@@ -705,8 +705,8 @@ HOOK_EXPORT void WINAPI glBindTexture(GLenum target, GLuint texture)
 		};
 
 		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 0, reshade::api::descriptor_set_update {
-				{ 0 }, unit, 0, 1, reshade::api::descriptor_type::sampler_with_resource_view, &descriptor_data });
+			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 0,
+			reshade::api::descriptor_set_update(unit, 1, reshade::api::descriptor_type::sampler_with_resource_view, &descriptor_data));
 	}
 #endif
 }
@@ -738,8 +738,8 @@ HOOK_EXPORT void WINAPI glBindTexture(GLenum target, GLuint texture)
 		}
 
 		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
-			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 0, reshade::api::descriptor_set_update {
-				{ 0 }, first, 0, static_cast<uint32_t>(count), reshade::api::descriptor_type::sampler_with_resource_view, descriptor_data.data() });
+			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 0,
+			reshade::api::descriptor_set_update(first, static_cast<uint32_t>(count), reshade::api::descriptor_type::sampler_with_resource_view, descriptor_data.data()));
 	}
 #endif
 }

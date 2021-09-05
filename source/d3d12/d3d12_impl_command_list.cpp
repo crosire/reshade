@@ -193,16 +193,18 @@ void reshade::d3d12::command_list_impl::push_constants(api::shader_stage stages,
 }
 void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, const api::descriptor_set_update &update)
 {
-	assert(update.binding == 0 && update.array_offset == 0);
+	assert(update.set.handle == 0 && update.offset == 0);
 
 	D3D12_CPU_DESCRIPTOR_HANDLE base_handle;
 	D3D12_GPU_DESCRIPTOR_HANDLE base_handle_gpu;
 	if (update.type != api::descriptor_type::sampler ?
-		!_device_impl->_gpu_view_heap.allocate_transient(update.binding + update.count, base_handle, base_handle_gpu) :
-		!_device_impl->_gpu_sampler_heap.allocate_transient(update.binding + update.count, base_handle, base_handle_gpu))
+		!_device_impl->_gpu_view_heap.allocate_transient(update.offset + update.count, base_handle, base_handle_gpu) :
+		!_device_impl->_gpu_sampler_heap.allocate_transient(update.offset + update.count, base_handle, base_handle_gpu))
 		return;
 
-	base_handle.ptr += static_cast<SIZE_T>(update.binding) * _device_impl->_descriptor_handle_size[convert_descriptor_type_to_heap_type(update.type)];
+	const D3D12_DESCRIPTOR_HEAP_TYPE heap_type = convert_descriptor_type_to_heap_type(update.type);
+
+	base_handle = _device_impl->offset_descriptor_handle(base_handle, update.offset, heap_type);
 
 	if (_current_descriptor_heaps[0] != _device_impl->_gpu_sampler_heap.get() ||
 		_current_descriptor_heaps[1] != _device_impl->_gpu_view_heap.get())

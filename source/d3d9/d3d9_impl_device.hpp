@@ -73,7 +73,7 @@ namespace reshade::d3d9
 		void set_resource_name(api::resource, const char *) final {}
 
 		void get_pipeline_layout_desc(api::pipeline_layout layout, uint32_t *count, api::pipeline_layout_param *params) const final;
-		void get_descriptor_pool_offset(api::descriptor_set set, uint32_t binding, api::descriptor_pool *pool, uint32_t *offset) const final;
+		void get_descriptor_pool_offset(api::descriptor_set set, api::descriptor_pool *pool, uint32_t *offset) const final;
 		void get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *count, api::descriptor_range *bindings) const final;
 
 		api::resource_desc get_resource_desc(api::resource resource) const final;

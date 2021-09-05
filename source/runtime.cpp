@@ -1474,7 +1474,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 
 		api::descriptor_set_update &write = descriptor_writes.emplace_back();
 		write.set = effect.cb_set;
-		write.binding = 0;
+		write.offset = write.binding = 0;
 		write.type = api::descriptor_type::constant_buffer;
 		write.count = 1;
 		write.descriptors = &cb_range;
@@ -1543,7 +1543,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 
 				api::descriptor_set_update &write = descriptor_writes.emplace_back();
 				write.set = effect.sampler_set;
-				write.binding = info.binding;
+				write.offset = write.binding = info.binding;
 				write.type = api::descriptor_type::sampler;
 				write.count = 1;
 				write.descriptors = &sampler_handle;
@@ -1812,7 +1812,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 
 					if (sampler_with_resource_view)
 					{
-						write.binding = info.binding;
+						write.offset = write.binding = info.binding;
 						write.type = api::descriptor_type::sampler_with_resource_view;
 						write.descriptors = &sampler_descriptors[info.binding];
 
@@ -1898,7 +1898,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 
 					api::descriptor_set_update &write = descriptor_writes.emplace_back();
 					write.set = pass_data.storage_set;
-					write.binding = info.binding;
+					write.offset = write.binding = info.binding;
 					write.type = api::descriptor_type::unordered_access_view;
 					write.count = 1;
 					write.descriptors = &texture.uav;
@@ -3781,7 +3781,7 @@ void reshade::runtime::update_texture_bindings(const char *semantic, api::resour
 
 			api::descriptor_set_update &write = descriptor_writes.emplace_back();
 			write.set = binding.set;
-			write.binding = binding.index;
+			write.offset = write.binding = binding.index;
 			write.count = 1;
 
 			if (binding.sampler != 0)

@@ -1396,15 +1396,12 @@ void reshade::vulkan::device_impl::get_pipeline_layout_desc(api::pipeline_layout
 		*count = static_cast<uint32_t>(data->desc.size());
 	}
 }
-void reshade::vulkan::device_impl::get_descriptor_pool_offset(api::descriptor_set set, uint32_t binding, api::descriptor_pool *pool, uint32_t *offset) const
+void reshade::vulkan::device_impl::get_descriptor_pool_offset(api::descriptor_set set, api::descriptor_pool *pool, uint32_t *offset) const
 {
 	const auto set_data = get_user_data_for_object<VK_OBJECT_TYPE_DESCRIPTOR_SET>((VkDescriptorSet)set.handle);
-	const auto layout_data = get_user_data_for_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>(set_data->layout);
-
-	assert(binding < layout_data->binding_to_offset.size());
 
 	*pool = { (uint64_t)set_data->pool };
-	*offset = static_cast<uint32_t>(set_data->offset + layout_data->binding_to_offset.at(binding));
+	*offset = static_cast<uint32_t>(set_data->offset);
 }
 void reshade::vulkan::device_impl::get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *count, api::descriptor_range *bindings) const
 {

@@ -341,9 +341,9 @@ void reshade::d3d11::device_context_impl::push_constants(api::shader_stage stage
 }
 void reshade::d3d11::device_context_impl::push_descriptors(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, const api::descriptor_set_update &update)
 {
-	assert(update.array_offset == 0);
+	assert(update.set.handle == 0);
 
-	uint32_t first = update.binding;
+	uint32_t first = update.offset;
 	if (layout.handle != 0)
 		first += reinterpret_cast<pipeline_layout_impl *>(layout.handle)->shader_registers[layout_param];
 
@@ -378,11 +378,7 @@ void reshade::d3d11::device_context_impl::bind_descriptor_sets(api::shader_stage
 			stages,
 			layout,
 			first + i,
-			api::descriptor_set_update {
-				{ 0 }, 0, 0,
-				set_impl->count,
-				set_impl->type,
-				set_impl->descriptors.data() });
+			api::descriptor_set_update(0, set_impl->count, set_impl->type, set_impl->descriptors.data()));
 	}
 }
 

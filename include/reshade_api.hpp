@@ -426,13 +426,12 @@ namespace reshade { namespace api
 		/// <param name="params">An optional pointer to an array that is filled with the layout parameters in the pipeline <paramref name="layout"/>.</param>
 		virtual void get_pipeline_layout_desc(pipeline_layout layout, uint32_t *count, pipeline_layout_param *params) const = 0;
 		/// <summary>
-		/// Gets the offset (in descriptors) in the underlying pool of the descriptor at the specified <paramref name="binding"/>.
+		/// Gets the offset (in descriptors) of the specified descriptor <paramref name="set"/> in the underlying pool.
 		/// </summary>
-		/// <param name="set">The set the descriptor is stored in.</param>
-		/// <param name="binding">The binding of the descriptor in the specified <paramref name="set"/>.</param>
+		/// <param name="set">The descriptor set to get the offset from.</param>
 		/// <param name="pool">A pointer to a variable that is set to the handle of the underlying descriptor pool the <paramref name="set"/> was allocated from.</param>
-		/// <param name="offset">A pointer to a variable that is set to the offset of the descriptor in the underlying descriptor pool.</param>
-		virtual void get_descriptor_pool_offset(descriptor_set set, uint32_t binding, descriptor_pool *pool, uint32_t *offset) const = 0;
+		/// <param name="offset">A pointer to a variable that is set to the offset of the descriptor set in the underlying pool.</param>
+		virtual void get_descriptor_pool_offset(descriptor_set set, descriptor_pool *pool, uint32_t *offset) const = 0;
 		/// <summary>
 		/// Gets the descriptor of the specified descriptor set <paramref name="layout"/>.
 		/// <para>Call this first with <paramref name="bindings"/> set to <c>nullptr</c> to get the size of the array, then allocate the array and call this again with <paramref name="bindings"/> set to it.</para>

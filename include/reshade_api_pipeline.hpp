@@ -736,21 +736,35 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
-	/// All information needed to update descriptors in a single descriptor set.
+	/// All information needed to update descriptors in a descriptor set.
 	/// </summary>
 	struct descriptor_set_update
 	{
-		/// <summary>The descriptor set to update.</summary>
+		descriptor_set_update() :
+			set(), offset(0), binding(0), array_offset(0), count(0), type(descriptor_type::sampler), descriptors(nullptr) {}
+		descriptor_set_update(uint32_t offset, uint32_t count, descriptor_type type, const void *descriptors) :
+			set(), offset(offset), binding(offset), array_offset(0), count(count), type(type), descriptors(descriptors) {}
+		descriptor_set_update(uint32_t offset, uint32_t binding, uint32_t array_offset, uint32_t count, descriptor_type type, const void *descriptors) :
+			set(), offset(offset), binding(binding), array_offset(array_offset), count(count), type(type), descriptors(descriptors) {}
+		descriptor_set_update(descriptor_set set, uint32_t offset, uint32_t count, descriptor_type type, const void *descriptors) :
+			set(set), offset(offset), binding(offset), array_offset(0), count(count), type(type), descriptors(descriptors) {}
+		descriptor_set_update(descriptor_set set, uint32_t offset, uint32_t binding, uint32_t array_offset, uint32_t count, descriptor_type type, const void *descriptors) :
+			set(set), offset(offset), binding(binding), array_offset(array_offset), count(count), type(type), descriptors(descriptors) {}
+
+		/// <summary>Descriptor set to update.</summary>
 		descriptor_set set;
-		/// <summary>The OpenGL/Vulkan binding index to start updating at.</summary>
+		/// <summary>Offset (in descriptors) from the start of the set to begin updating at.</summary>
+		uint32_t offset;
+		/// <summary>OpenGL/Vulkan binding index of the descriptor located at the specified <see cref="offset"/>.</summary>
 		uint32_t binding;
-		/// <summary>The array index in the specified <see cref="binding"/> to start updating at.</summary>
+		/// <summary>Array index in the specified <see cref="binding"/> at the specified <see cref="offset"/>.
+		/// In OpenGL this has to be 0 (since each GLSL array element gets a separate binding index).</summary>
 		uint32_t array_offset;
-		/// <summary>The number of descriptors to update, starting at the specified <see cref="binding"/> and <see cref="array_offset"/>.</summary>
+		/// <summary>Number of descriptors to update, starting at the specified <see cref="offset"/>.</summary>
 		uint32_t count;
-		/// <summary>The type of the specified <see cref="descriptors"/>.</summary>
+		/// <summary>Type of the specified <see cref="descriptors"/>.</summary>
 		descriptor_type type;
-		/// <summary>A pointer to an array of descriptors to update in the set.
+		/// <summary>Pointer to an array of descriptors to update in the set (which should be as large as the specified <see cref="count"/>).
 		/// Depending on the descriptor <see cref="type"/> this should be pointer to an array of <see cref="buffer_range"/>, <see cref="resource_view"/>, <see cref="sampler"/> or <see cref="sampler_with_resource_view"/>.</summary>
 		const void *descriptors;
 	};
