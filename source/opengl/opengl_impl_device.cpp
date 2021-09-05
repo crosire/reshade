@@ -1720,12 +1720,12 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 	else
 		return convert_resource_desc(target, levels, samples, internal_format, width, height, depth);
 }
-void reshade::opengl::device_impl::get_resource_from_view(api::resource_view view, api::resource *out) const
+reshade::api::resource      reshade::opengl::device_impl::get_resource_from_view(api::resource_view view) const
 {
 	assert(view.handle != 0);
 
 	// Remove extra bits from view
-	*out = { view.handle & 0xFFFFFF00FFFFFFFF };
+	return { view.handle & 0xFFFFFF00FFFFFFFF };
 }
 
 reshade::api::resource_view reshade::opengl::device_impl::get_framebuffer_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index) const

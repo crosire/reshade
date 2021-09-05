@@ -404,7 +404,7 @@ static void on_begin_render_pass(command_list *cmd_list, render_pass, framebuffe
 	resource depth_stencil = { 0 };
 	const resource_view depth_stencil_view = device->get_framebuffer_attachment(fbo, attachment_type::depth, 0);
 	if (depth_stencil_view.handle != 0)
-		device->get_resource_from_view(depth_stencil_view, &depth_stencil);
+		depth_stencil = device->get_resource_from_view(depth_stencil_view);
 
 	// Make a backup of the depth texture before it is used differently, since in D3D12 or Vulkan the underlying memory may be aliased to a different resource, so cannot just access it at the end of the frame
 	if (depth_stencil != state.current_depth_stencil && state.current_depth_stencil != 0 && (device->get_api() == device_api::d3d12 || device->get_api() == device_api::vulkan))
@@ -419,7 +419,7 @@ static void on_bind_depth_stencil(command_list *cmd_list, uint32_t, const resour
 
 	resource depth_stencil = { 0 };
 	if (depth_stencil_view.handle != 0)
-		device->get_resource_from_view(depth_stencil_view, &depth_stencil);
+		depth_stencil = device->get_resource_from_view(depth_stencil_view);
 
 	// Make a backup of the depth texture before it is used differently, since in D3D12 or Vulkan the underlying memory may be aliased to a different resource, so cannot just access it at the end of the frame
 	if (depth_stencil != state.current_depth_stencil && state.current_depth_stencil != 0 && (device->get_api() == device_api::d3d12 || device->get_api() == device_api::vulkan))
@@ -453,8 +453,7 @@ static bool on_clear_depth_stencil(command_list *cmd_list, resource_view dsv, at
 	{
 		auto &state = cmd_list->get_user_data<state_tracking>(state_tracking::GUID);
 
-		resource depth_stencil = { 0 };
-		device->get_resource_from_view(dsv, &depth_stencil);
+		const resource depth_stencil = device->get_resource_from_view(dsv);
 
 		clear_depth_impl(cmd_list, state, device_state, depth_stencil, false);
 	}
@@ -648,8 +647,7 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 
 	if (device_state.selected_shader_resource != 0)
 	{
-		resource resource = { 0 };
-		device->get_resource_from_view(device_state.selected_shader_resource, &resource);
+		const resource resource = device->get_resource_from_view(device_state.selected_shader_resource);
 
 		if (resource == device_state.backup_texture)
 		{
@@ -668,8 +666,7 @@ static void on_finish_render_effects(effect_runtime *runtime, command_list *cmd_
 
 	if (device_state.selected_shader_resource != 0)
 	{
-		resource resource = { 0 };
-		device->get_resource_from_view(device_state.selected_shader_resource, &resource);
+		const resource resource = device->get_resource_from_view(device_state.selected_shader_resource);
 
 		if (resource == device_state.backup_texture)
 		{

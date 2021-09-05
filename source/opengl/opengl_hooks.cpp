@@ -271,8 +271,8 @@ static bool copy_texture_region(GLenum src_target, GLuint src_object, GLint src_
 		GLint src_fbo = 0;
 		gl3wProcs.gl.GetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &src_fbo);
 
-		g_current_context->get_resource_from_view(
-			g_current_context->get_framebuffer_attachment(reshade::opengl::make_framebuffer_handle(src_fbo), reshade::api::attachment_type::color, src_object - GL_COLOR_ATTACHMENT0), &src);
+		src = g_current_context->get_resource_from_view(g_current_context->get_framebuffer_attachment(
+			reshade::opengl::make_framebuffer_handle(src_fbo), reshade::api::attachment_type::color, src_object - GL_COLOR_ATTACHMENT0));
 	}
 
 	reshade::api::resource dst = reshade::opengl::make_resource_handle(dst_target, dst_object);
@@ -281,8 +281,8 @@ static bool copy_texture_region(GLenum src_target, GLuint src_object, GLint src_
 		GLint dst_fbo = 0;
 		gl3wProcs.gl.GetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &dst_fbo);
 
-		g_current_context->get_resource_from_view(
-			g_current_context->get_framebuffer_attachment(reshade::opengl::make_framebuffer_handle(dst_fbo), reshade::api::attachment_type::color, dst_object - GL_COLOR_ATTACHMENT0), &dst);
+		dst = g_current_context->get_resource_from_view(g_current_context->get_framebuffer_attachment(
+			reshade::opengl::make_framebuffer_handle(dst_fbo), reshade::api::attachment_type::color, dst_object - GL_COLOR_ATTACHMENT0));
 	}
 
 	const int32_t src_box[6] = { x, y, z, x + width, y + height, z + depth };
@@ -868,12 +868,10 @@ HOOK_EXPORT void WINAPI glBlendFunc(GLenum sfactor, GLenum dfactor)
 
 			const reshade::api::attachment_type type = reshade::opengl::convert_buffer_bits_to_aspect(flag);
 
-			reshade::api::resource src = { 0 };
-			g_current_context->get_resource_from_view(
-				g_current_context->get_framebuffer_attachment(reshade::opengl::make_framebuffer_handle(src_fbo), type, 0), &src);
-			reshade::api::resource dst = { 0 };
-			g_current_context->get_resource_from_view(
-				g_current_context->get_framebuffer_attachment(reshade::opengl::make_framebuffer_handle(dst_fbo), type, 0), &dst);
+			reshade::api::resource src = g_current_context->get_resource_from_view(
+				g_current_context->get_framebuffer_attachment(reshade::opengl::make_framebuffer_handle(src_fbo), type, 0));
+			reshade::api::resource dst = g_current_context->get_resource_from_view(
+				g_current_context->get_framebuffer_attachment(reshade::opengl::make_framebuffer_handle(dst_fbo), type, 0));
 
 			const int32_t src_box[6] = { srcX0, srcY0, 0, srcX1, srcY1, 1 };
 			const int32_t dst_box[6] = { dstX0, dstY0, 0, dstX1, dstY1, 1 };
@@ -913,12 +911,10 @@ HOOK_EXPORT void WINAPI glBlendFunc(GLenum sfactor, GLenum dfactor)
 
 			const reshade::api::attachment_type type = reshade::opengl::convert_buffer_bits_to_aspect(flag);
 
-			reshade::api::resource src = { 0 };
-			g_current_context->get_resource_from_view(
-				g_current_context->get_framebuffer_attachment(reshade::opengl::make_framebuffer_handle(readFramebuffer), type, 0), &src);
-			reshade::api::resource dst = { 0 };
-			g_current_context->get_resource_from_view(
-				g_current_context->get_framebuffer_attachment(reshade::opengl::make_framebuffer_handle(drawFramebuffer), type, 0), &dst);
+			reshade::api::resource src = g_current_context->get_resource_from_view(
+				g_current_context->get_framebuffer_attachment(reshade::opengl::make_framebuffer_handle(readFramebuffer), type, 0));
+			reshade::api::resource dst = g_current_context->get_resource_from_view(
+				g_current_context->get_framebuffer_attachment(reshade::opengl::make_framebuffer_handle(drawFramebuffer), type, 0));
 
 			const int32_t src_box[6] = { srcX0, srcY0, 0, srcX1, srcY1, 1 };
 			const int32_t dst_box[6] = { dstX0, dstY0, 0, dstX1, dstY1, 1 };

@@ -1074,13 +1074,13 @@ reshade::api::resource_desc reshade::d3d11::device_impl::get_resource_desc(api::
 	assert(false); // Not implemented
 	return api::resource_desc {};
 }
-void reshade::d3d11::device_impl::get_resource_from_view(api::resource_view view, api::resource *out) const
+reshade::api::resource      reshade::d3d11::device_impl::get_resource_from_view(api::resource_view view) const
 {
 	assert(view.handle != 0);
 	com_ptr<ID3D11Resource> resource;
 	reinterpret_cast<ID3D11View *>(view.handle)->GetResource(&resource);
 
-	*out = { reinterpret_cast<uintptr_t>(resource.get()) };
+	return { reinterpret_cast<uintptr_t>(resource.get()) };
 }
 
 reshade::api::resource_view reshade::d3d11::device_impl::get_framebuffer_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index) const

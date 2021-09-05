@@ -89,7 +89,7 @@ namespace reshade::opengl
 		void get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *count, api::descriptor_range *bindings) const final;
 
 		api::resource_desc get_resource_desc(api::resource resource) const final;
-		void get_resource_from_view(api::resource_view view, api::resource *out) const final;
+		api::resource      get_resource_from_view(api::resource_view view) const final;
 
 		api::resource_view get_framebuffer_attachment(api::framebuffer framebuffer, api::attachment_type type, uint32_t index) const final;
 

@@ -551,11 +551,9 @@ void reshade::d3d12::command_list_impl::clear_unordered_access_view_uint(api::re
 	_has_commands = true;
 
 	assert(uav.handle != 0);
-	api::resource resource_handle;
-	_device_impl->get_resource_from_view(uav, &resource_handle);
-	assert(resource_handle.handle != 0);
 
-	const auto resource = reinterpret_cast<ID3D12Resource *>(resource_handle.handle);
+	const auto resource = reinterpret_cast<ID3D12Resource *>(_device_impl->get_resource_from_view(uav).handle);
+	assert(resource != nullptr);
 
 	D3D12_CPU_DESCRIPTOR_HANDLE table_base;
 	D3D12_GPU_DESCRIPTOR_HANDLE table_base_gpu;
@@ -577,11 +575,9 @@ void reshade::d3d12::command_list_impl::clear_unordered_access_view_float(api::r
 	_has_commands = true;
 
 	assert(uav.handle != 0);
-	api::resource resource_handle;
-	_device_impl->get_resource_from_view(uav, &resource_handle);
-	assert(resource_handle.handle != 0);
 
-	const auto resource = reinterpret_cast<ID3D12Resource *>(resource_handle.handle);
+	const auto resource = reinterpret_cast<ID3D12Resource *>(_device_impl->get_resource_from_view(uav).handle);
+	assert(resource != nullptr);
 
 	D3D12_CPU_DESCRIPTOR_HANDLE table_base;
 	D3D12_GPU_DESCRIPTOR_HANDLE table_base_gpu;
@@ -602,11 +598,9 @@ void reshade::d3d12::command_list_impl::clear_unordered_access_view_float(api::r
 void reshade::d3d12::command_list_impl::generate_mipmaps(api::resource_view srv)
 {
 	assert(srv.handle != 0);
-	api::resource resource_handle;
-	_device_impl->get_resource_from_view(srv, &resource_handle);
-	assert(resource_handle.handle != 0);
 
-	const auto resource = reinterpret_cast<ID3D12Resource *>(resource_handle.handle);
+	const auto resource = reinterpret_cast<ID3D12Resource *>(_device_impl->get_resource_from_view(srv).handle);
+	assert(resource != nullptr);
 
 	const D3D12_RESOURCE_DESC desc = resource->GetDesc();
 

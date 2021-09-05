@@ -1035,13 +1035,13 @@ reshade::api::resource_desc reshade::d3d12::device_impl::get_resource_desc(api::
 
 	return convert_resource_desc(reinterpret_cast<ID3D12Resource *>(resource.handle)->GetDesc(), heap_props, heap_flags);
 }
-void reshade::d3d12::device_impl::get_resource_from_view(api::resource_view view, api::resource *out) const
+reshade::api::resource      reshade::d3d12::device_impl::get_resource_from_view(api::resource_view view) const
 {
 	assert(view.handle != 0);
 
 	D3D12_CPU_DESCRIPTOR_HANDLE descriptor_handle = { static_cast<SIZE_T>(view.handle) };
 
-	*out = { reinterpret_cast<uintptr_t>(_views.at(descriptor_handle.ptr)) };
+	return { reinterpret_cast<uintptr_t>(_views.at(descriptor_handle.ptr)) };
 }
 
 reshade::api::resource_view reshade::d3d12::device_impl::get_framebuffer_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index) const

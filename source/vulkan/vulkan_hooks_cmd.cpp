@@ -895,15 +895,13 @@ void     VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const Vk
 
 			const VkClearValue &clear_value = pRenderPassBegin->pClearValues[i];
 
-			reshade::api::resource image = { 0 };
 			const reshade::api::resource_view attachment = { (uint64_t)attachment_views[i] };
-			device_impl->get_resource_from_view(attachment, &image);
 
 			VkImageMemoryBarrier transition { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
 			transition.oldLayout = pass_attachments[i].initial_layout;
 			transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 			transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-			transition.image = (VkImage)image.handle;
+			transition.image = (VkImage)device_impl->get_resource_from_view(attachment).handle;
 			transition.subresourceRange = { pass_attachments[i].clear_flags, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
 
 			if (pass_attachments[i].clear_flags == VK_IMAGE_ASPECT_COLOR_BIT)

@@ -1431,13 +1431,13 @@ reshade::api::resource_desc reshade::vulkan::device_impl::get_resource_desc(api:
 	else
 		return convert_resource_desc(reinterpret_cast<const object_data<VK_OBJECT_TYPE_BUFFER> *>(data)->create_info);
 }
-void reshade::vulkan::device_impl::get_resource_from_view(api::resource_view view, api::resource *out) const
+reshade::api::resource      reshade::vulkan::device_impl::get_resource_from_view(api::resource_view view) const
 {
 	const auto data = get_user_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)view.handle);
 	if (data->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO)
-		*out = { (uint64_t)data->create_info.image };
+		return { (uint64_t)data->create_info.image };
 	else
-		*out = { (uint64_t)reinterpret_cast<const object_data<VK_OBJECT_TYPE_BUFFER_VIEW> *>(data)->create_info.buffer };
+		return { (uint64_t)reinterpret_cast<const object_data<VK_OBJECT_TYPE_BUFFER_VIEW> *>(data)->create_info.buffer };
 }
 
 reshade::api::resource_view reshade::vulkan::device_impl::get_framebuffer_attachment(api::framebuffer fbo, api::attachment_type type, uint32_t index) const

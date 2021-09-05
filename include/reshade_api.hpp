@@ -421,7 +421,7 @@ namespace reshade { namespace api
 		/// Gets the description of the specified pipeline <paramref name="layout"/>.
 		/// <para>Call this first with <paramref name="params"/> set to <c>nullptr</c> to get the size of the array, then allocate the array and call this again with <paramref name="params"/> set to it.</para>
 		/// </summary>
-		/// <param name="layout">The pipeline layout to get the description for.</param>
+		/// <param name="layout">The pipeline layout to get the description from.</param>
 		/// <param name="count">A pointer to a variable that is set to the number of layout parameters in the pipeline <paramref name="layout"/>.</param>
 		/// <param name="params">An optional pointer to an array that is filled with the layout parameters in the pipeline <paramref name="layout"/>.</param>
 		virtual void get_pipeline_layout_desc(pipeline_layout layout, uint32_t *count, pipeline_layout_param *params) const = 0;
@@ -437,7 +437,7 @@ namespace reshade { namespace api
 		/// Gets the descriptor of the specified descriptor set <paramref name="layout"/>.
 		/// <para>Call this first with <paramref name="bindings"/> set to <c>nullptr</c> to get the size of the array, then allocate the array and call this again with <paramref name="bindings"/> set to it.</para>
 		/// </summary>
-		/// <param name="layout">The pipeline layout to get the description for.</param>
+		/// <param name="layout">The pipeline layout to get the description from.</param>
 		/// <param name="count">A pointer to a variable that is set to the number of bindings in the descriptor set <paramref name="layout"/>.</param>
 		/// <param name="bindings">An optional pointer to an array that is filled with the bindings in the descriptor set <paramref name="layout"/>.</param>
 		virtual void get_descriptor_set_layout_desc(descriptor_set_layout layout, uint32_t *count, descriptor_range *bindings) const = 0;
@@ -449,7 +449,7 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Gets the handle to the underlying resource the specified resource <paramref name="view"/> was created for.
 		/// </summary>
-		virtual void get_resource_from_view(resource_view view, resource *resource) const = 0;
+		virtual resource      get_resource_from_view(resource_view view) const = 0;
 
 		/// <summary>
 		/// Gets the handle to the resource view of the specfied <paramref name="type"/> in the <paramref name="framebuffer"/> object.
