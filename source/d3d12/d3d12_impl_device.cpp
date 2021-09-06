@@ -1195,8 +1195,7 @@ bool reshade::d3d12::device_impl::resolve_descriptor_handle(D3D12_CPU_DESCRIPTOR
 	assert(out_set != nullptr);
 
 #if RESHADE_ADDON
-	std::shared_lock<std::shared_mutex> lock(_heap_mutex);
-
+	// It is unlikely an application creates or destroys descriptor heaps while this can be called, so avoid locking
 	for (ID3D12DescriptorHeap *const heap : _descriptor_heaps)
 	{
 		const auto desc = heap->GetDesc();
@@ -1215,8 +1214,6 @@ bool reshade::d3d12::device_impl::resolve_descriptor_handle(D3D12_CPU_DESCRIPTOR
 			if ((handle.ptr < heap_start_cpu.ptr) || (handle.ptr >= (heap_start_cpu.ptr + static_cast<SIZE_T>(desc.NumDescriptors) * _descriptor_handle_size[desc.Type])))
 				continue;
 		}
-
-		lock.unlock();
 
 		SIZE_T address_offset = handle.ptr - heap_start_cpu.ptr;
 		assert(address_offset < (static_cast<SIZE_T>(desc.NumDescriptors) * _descriptor_handle_size[desc.Type]) && (address_offset % _descriptor_handle_size[desc.Type]) == 0);
@@ -1247,8 +1244,7 @@ bool reshade::d3d12::device_impl::resolve_descriptor_handle(api::descriptor_set 
 	}
 
 #if RESHADE_ADDON
-	std::shared_lock<std::shared_mutex> lock(_heap_mutex);
-
+	// It is unlikely an application creates or destroys descriptor heaps while this can be called, so avoid locking
 	for (ID3D12DescriptorHeap *const heap : _descriptor_heaps)
 	{
 		if (heap == nullptr)
@@ -1262,8 +1258,6 @@ bool reshade::d3d12::device_impl::resolve_descriptor_handle(api::descriptor_set 
 		const auto address_offset = handle_gpu.ptr - base_handle.ptr;
 		if (address_offset >= (static_cast<UINT64>(desc.NumDescriptors) * _descriptor_handle_size[desc.Type]))
 			continue;
-
-		lock.unlock();
 
 		assert((address_offset % _descriptor_handle_size[desc.Type]) == 0);
 
