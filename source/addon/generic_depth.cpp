@@ -245,7 +245,7 @@ static void clear_depth_impl(command_list *cmd_list, state_tracking &state, cons
 
 static void on_init_device(device *device)
 {
-	state_tracking_context &device_state = device->get_user_data<state_tracking_context>(state_tracking_context::GUID);
+	state_tracking_context &device_state = device->create_user_data<state_tracking_context>(state_tracking_context::GUID);
 
 	const ini_file &config = reshade::global_config();
 	config.get("DEPTH", "DisableINTZ", s_disable_intz);
@@ -255,6 +255,10 @@ static void on_init_device(device *device)
 
 	if (device_state.force_clear_index == std::numeric_limits<uint32_t>::max())
 		device_state.force_clear_index  = 0;
+}
+static void on_init_queue_or_command_list(api_object *queue_or_cmd_list)
+{
+	queue_or_cmd_list->create_user_data<state_tracking>(state_tracking::GUID);
 }
 static void on_destroy_device(device *device)
 {
@@ -327,9 +331,9 @@ static bool on_create_resource_view(device *device, resource resource, resource_
 	{
 		desc.type = texture_desc.texture.depth_or_layers > 1 ? resource_view_type::texture_2d_array : resource_view_type::texture_2d;
 		desc.texture.first_level = 0;
-		desc.texture.levels = (usage_type == resource_usage::shader_resource) ? 0xFFFFFFFF : 1;
+		desc.texture.level_count = (usage_type == resource_usage::shader_resource) ? 0xFFFFFFFF : 1;
 		desc.texture.first_layer = 0;
-		desc.texture.layers = (usage_type == resource_usage::shader_resource) ? 0xFFFFFFFF : 1;
+		desc.texture.layer_count = (usage_type == resource_usage::shader_resource) ? 0xFFFFFFFF : 1;
 	}
 
 	return true;
@@ -819,6 +823,8 @@ void register_builtin_addon_depth(reshade::addon::info &info)
 #endif
 
 	reshade::register_event<reshade::addon_event::init_device>(on_init_device);
+	reshade::register_event<reshade::addon_event::init_command_list>(reinterpret_cast<void(*)(command_list *)>(on_init_queue_or_command_list));
+	reshade::register_event<reshade::addon_event::init_command_queue>(reinterpret_cast<void(*)(command_queue *)>(on_init_queue_or_command_list));
 	reshade::register_event<reshade::addon_event::destroy_device>(on_destroy_device);
 	reshade::register_event<reshade::addon_event::destroy_command_list>(reinterpret_cast<void(*)(command_list *)>(on_destroy_queue_or_command_list));
 	reshade::register_event<reshade::addon_event::destroy_command_queue>(reinterpret_cast<void(*)(command_queue *)>(on_destroy_queue_or_command_list));
@@ -853,6 +859,8 @@ void unregister_builtin_addon_depth()
 #endif
 
 	reshade::unregister_event<reshade::addon_event::init_device>(on_init_device);
+	reshade::unregister_event<reshade::addon_event::init_command_list>(reinterpret_cast<void(*)(command_list *)>(on_init_queue_or_command_list));
+	reshade::unregister_event<reshade::addon_event::init_command_queue>(reinterpret_cast<void(*)(command_queue *)>(on_init_queue_or_command_list));
 	reshade::unregister_event<reshade::addon_event::destroy_device>(on_destroy_device);
 	reshade::unregister_event<reshade::addon_event::destroy_command_list>(reinterpret_cast<void(*)(command_list *)>(on_destroy_queue_or_command_list));
 	reshade::unregister_event<reshade::addon_event::destroy_command_queue>(reinterpret_cast<void(*)(command_queue *)>(on_destroy_queue_or_command_list));

@@ -94,6 +94,7 @@ namespace reshade::vulkan
 		};
 
 		std::vector<attachment> attachments;
+		VkSampleCountFlagBits samples;
 	};
 
 	template <>

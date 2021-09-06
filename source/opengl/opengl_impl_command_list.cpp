@@ -418,13 +418,13 @@ void reshade::opengl::device_impl::bind_vertex_buffers(uint32_t first, uint32_t 
 	}
 }
 
-void reshade::opengl::device_impl::draw(uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance)
+void reshade::opengl::device_impl::draw(uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance)
 {
-	glDrawArraysInstancedBaseInstance(_current_prim_mode, first_vertex, vertices, instances, first_instance);
+	glDrawArraysInstancedBaseInstance(_current_prim_mode, first_vertex, vertex_count, instance_count, first_instance);
 }
-void reshade::opengl::device_impl::draw_indexed(uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)
+void reshade::opengl::device_impl::draw_indexed(uint32_t index_count, uint32_t instance_count, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)
 {
-	glDrawElementsInstancedBaseVertexBaseInstance(_current_prim_mode, indices, _current_index_type, reinterpret_cast<void *>(static_cast<uintptr_t>(first_index * get_index_type_size(_current_index_type))), instances, vertex_offset, first_instance);
+	glDrawElementsInstancedBaseVertexBaseInstance(_current_prim_mode, index_count, _current_index_type, reinterpret_cast<void *>(static_cast<uintptr_t>(first_index) * get_index_type_size(_current_index_type)), instance_count, vertex_offset, first_instance);
 }
 void reshade::opengl::device_impl::dispatch(uint32_t group_count_x, uint32_t group_count_y, uint32_t group_count_z)
 {
@@ -447,7 +447,7 @@ void reshade::opengl::device_impl::draw_or_dispatch_indirect(api::indirect_comma
 		for (GLuint i = 0; i < draw_count; ++i)
 		{
 			assert(offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()));
-			glDispatchComputeIndirect(static_cast<GLintptr>(offset + i * stride));
+			glDispatchComputeIndirect(static_cast<GLintptr>(offset + static_cast<uint64_t>(i) * stride));
 		}
 		break;
 	}
@@ -1005,9 +1005,9 @@ void reshade::opengl::device_impl::resolve_texture_region(api::resource src, uin
 	copy_texture_region(src, src_subresource, src_box, dst, dst_subresource, dst_box, api::filter_type::min_mag_mip_point);
 }
 
-void reshade::opengl::device_impl::clear_attachments(api::attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t num_rects, const int32_t *)
+void reshade::opengl::device_impl::clear_attachments(api::attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t rect_count, const int32_t *)
 {
-	assert(num_rects == 0);
+	assert(rect_count == 0);
 
 	// Get current state
 	GLfloat prev_col[4];
@@ -1114,7 +1114,7 @@ void reshade::opengl::device_impl::copy_query_pool_results(api::query_pool pool,
 	{
 		assert(dst_offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()));
 
-		glGetQueryBufferObjectui64v(reinterpret_cast<query_pool_impl *>(pool.handle)->queries[first + i], dst.handle & 0xFFFFFFFF, GL_QUERY_RESULT_NO_WAIT, static_cast<GLintptr>(dst_offset + i * stride));
+		glGetQueryBufferObjectui64v(reinterpret_cast<query_pool_impl *>(pool.handle)->queries[first + i], dst.handle & 0xFFFFFFFF, GL_QUERY_RESULT_NO_WAIT, static_cast<GLintptr>(dst_offset + static_cast<uint64_t>(i) * stride));
 	}
 }
 

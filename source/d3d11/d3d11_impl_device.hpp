@@ -25,52 +25,52 @@ namespace reshade::d3d11
 		bool check_capability(api::device_caps capability) const final;
 		bool check_format_support(api::format format, api::resource_usage usage) const final;
 
-		bool create_sampler(const api::sampler_desc &desc, api::sampler *out) final;
+		bool create_sampler(const api::sampler_desc &desc, api::sampler *out_handle) final;
 		void destroy_sampler(api::sampler handle) final;
 
-		bool create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage initial_state, api::resource *out) final;
+		bool create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage initial_state, api::resource *out_handle) final;
 		void destroy_resource(api::resource handle) final;
 
-		bool create_resource_view(api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view *out) final;
+		bool create_resource_view(api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view *out_handle) final;
 		void destroy_resource_view(api::resource_view handle) final;
 
-		bool create_pipeline(const api::pipeline_desc &desc, api::pipeline *out) final;
-		bool create_graphics_pipeline(const api::pipeline_desc &desc, api::pipeline *out);
-		bool create_input_layout(const api::pipeline_desc &desc, api::pipeline *out);
-		bool create_vertex_shader(const api::pipeline_desc &desc, api::pipeline *out);
-		bool create_hull_shader(const api::pipeline_desc &desc, api::pipeline *out);
-		bool create_domain_shader(const api::pipeline_desc &desc, api::pipeline *out);
-		bool create_geometry_shader(const api::pipeline_desc &desc, api::pipeline *out);
-		bool create_pixel_shader(const api::pipeline_desc &desc, api::pipeline *out);
-		bool create_compute_shader(const api::pipeline_desc &desc, api::pipeline *out);
-		bool create_blend_state(const api::pipeline_desc &desc, api::pipeline *out);
-		bool create_rasterizer_state(const api::pipeline_desc &desc, api::pipeline *out);
-		bool create_depth_stencil_state(const api::pipeline_desc &desc, api::pipeline *out);
+		bool create_pipeline(const api::pipeline_desc &desc, api::pipeline *out_handle) final;
+		bool create_graphics_pipeline(const api::pipeline_desc &desc, api::pipeline *out_handle);
+		bool create_input_layout(const api::pipeline_desc &desc, api::pipeline *out_handle);
+		bool create_vertex_shader(const api::pipeline_desc &desc, api::pipeline *out_handle);
+		bool create_hull_shader(const api::pipeline_desc &desc, api::pipeline *out_handle);
+		bool create_domain_shader(const api::pipeline_desc &desc, api::pipeline *out_handle);
+		bool create_geometry_shader(const api::pipeline_desc &desc, api::pipeline *out_handle);
+		bool create_pixel_shader(const api::pipeline_desc &desc, api::pipeline *out_handle);
+		bool create_compute_shader(const api::pipeline_desc &desc, api::pipeline *out_handle);
+		bool create_rasterizer_state(const api::pipeline_desc &desc, api::pipeline *out_handle);
+		bool create_blend_state(const api::pipeline_desc &desc, api::pipeline *out_handle);
+		bool create_depth_stencil_state(const api::pipeline_desc &desc, api::pipeline *out_handle);
 		void destroy_pipeline(api::pipeline_stage type, api::pipeline handle) final;
 
-		bool create_pipeline_layout(uint32_t count, const api::pipeline_layout_param *params, api::pipeline_layout *out) final;
+		bool create_render_pass(const api::render_pass_desc &desc, api::render_pass *out_handle) final;
+		void destroy_render_pass(api::render_pass handle) final;
+
+		bool create_framebuffer(const api::framebuffer_desc &desc, api::framebuffer *out_handle) final;
+		void destroy_framebuffer(api::framebuffer handle) final;
+
+		bool create_pipeline_layout(uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout *out_handle) final;
 		void destroy_pipeline_layout(api::pipeline_layout handle) final;
 
-		bool create_descriptor_set_layout(uint32_t count, const api::descriptor_range *ranges, bool push_descriptors, api::descriptor_set_layout *out) final;
+		bool create_descriptor_set_layout(uint32_t range_count, const api::descriptor_range *ranges, bool push_descriptors, api::descriptor_set_layout *out_handle) final;
 		void destroy_descriptor_set_layout(api::descriptor_set_layout handle) final;
 
 		bool create_query_pool(api::query_type type, uint32_t size, api::query_pool *out) final;
 		void destroy_query_pool(api::query_pool handle) final;
 
-		bool create_render_pass(const api::render_pass_desc &desc, api::render_pass *out) final;
-		void destroy_render_pass(api::render_pass handle) final;
-
-		bool create_framebuffer(const api::framebuffer_desc &desc, api::framebuffer *out) final;
-		void destroy_framebuffer(api::framebuffer handle) final;
-
-		bool create_descriptor_sets(uint32_t count, const api::descriptor_set_layout *layouts, api::descriptor_set *out) final;
+		bool create_descriptor_sets(uint32_t count, const api::descriptor_set_layout *layouts, api::descriptor_set *out_sets) final;
 		void destroy_descriptor_sets(uint32_t count, const api::descriptor_set *sets) final;
 
 		bool map_resource(api::resource resource, uint32_t subresource, api::map_access access, api::subresource_data *out_data) final;
 		void unmap_resource(api::resource resource, uint32_t subresource) final;
 
-		void update_buffer_region(const void *data, api::resource dst, uint64_t dst_offset, uint64_t size) final;
-		void update_texture_region(const api::subresource_data &data, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6]) final;
+		void update_buffer_region(const void *data, api::resource dest, uint64_t dest_offset, uint64_t size) final;
+		void update_texture_region(const api::subresource_data &data, api::resource dest, uint32_t dest_subresource, const int32_t dest_box[6]) final;
 
 		void update_descriptor_sets(uint32_t count, const api::descriptor_set_update *updates) final;
 
@@ -80,15 +80,15 @@ namespace reshade::d3d11
 
 		void set_resource_name(api::resource resource, const char *name) final;
 
-		void get_pipeline_layout_desc(api::pipeline_layout layout, uint32_t *count, api::pipeline_layout_param *params) const final;
-		void get_descriptor_pool_offset(api::descriptor_set set, api::descriptor_pool *pool, uint32_t *offset) const final;
-		void get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *count, api::descriptor_range *ranges) const final;
+		void get_pipeline_layout_desc(api::pipeline_layout layout, uint32_t *out_count, api::pipeline_layout_param *out_params) const final;
+		void get_descriptor_pool_offset(api::descriptor_set set, api::descriptor_pool *out_pool, uint32_t *out_offset) const final;
+		void get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *out_count, api::descriptor_range *out_ranges) const final;
 
 		api::resource_desc get_resource_desc(api::resource resource) const final;
-		api::resource      get_resource_from_view(api::resource_view view) const final;
-
+		     api::resource get_resource_from_view(api::resource_view view) const final;
 		api::resource_view get_framebuffer_attachment(api::framebuffer framebuffer, api::attachment_type type, uint32_t index) const final;
 
+	public:
 		api::pipeline_layout _global_pipeline_layout = { 0 };
 
 	private:

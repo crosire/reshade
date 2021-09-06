@@ -5,10 +5,6 @@
 
 #pragma once
 
-#ifndef DECLSPEC_NOVTABLE
-	#define DECLSPEC_NOVTABLE __declspec(novtable)
-#endif
-
 #define RESHADE_API_VERSION 1
 
 #include "reshade_api_pipeline.hpp"
@@ -102,7 +98,7 @@ namespace reshade { namespace api
 		partial_push_descriptor_updates,
 		/// <summary>
 		/// Specifies whether instancing is supported.
-		/// If this feature is not present, the "instances" and "first_instance" parameters to <see cref="command_list::draw"/> and <see cref="command_list::draw_indexed"/> must be 1 and 0.
+		/// If this feature is not present, the "instance_count" and "first_instance" parameters to <see cref="command_list::draw"/> and <see cref="command_list::draw_indexed"/> must be 1 and 0.
 		/// </summary>
 		draw_instanced,
 		/// <summary>
@@ -122,12 +118,12 @@ namespace reshade { namespace api
 		copy_buffer_to_texture,
 		/// <summary>
 		/// Specifies whether blitting between resources is supported.
-		/// If this feature is not present, the "src_box" and "dst_box" parameters to <see cref="command_list::copy_texture_region"/> must have the same dimensions.
+		/// If this feature is not present, the "source_box" and "dest_box" parameters to <see cref="command_list::copy_texture_region"/> must have the same dimensions.
 		/// </summary>
 		blit,
 		/// <summary>
 		/// Specifies whether resolving a region of a resource rather than its entirety is supported.
-		/// If this feature is not present, the "src_offset", "dst_offset" and "size" parameters to <see cref="command_list::resolve"/> must be <c>nullptr</c>.
+		/// If this feature is not present, the "source_offset", "dest_offset" and "size" parameters to <see cref="command_list::resolve_texture_region"/> must be <c>nullptr</c>.
 		/// </summary>
 		resolve_region,
 		/// <summary>
@@ -156,19 +152,20 @@ namespace reshade { namespace api
 	/// The base class for objects provided by the ReShade API.
 	/// <para>This lets you store and retrieve custom data with objects, e.g. to be able to communicate persistent information between event callbacks.</para>
 	/// </summary>
-	struct DECLSPEC_NOVTABLE api_object
+	struct __declspec(novtable) api_object
 	{
 		/// <summary>
 		/// Gets a custom data pointer from the object that was previously set via <see cref="set_user_data"/>.
-		/// This function is not thread-safe!
 		/// </summary>
 		/// <returns><see langword="true"/> if a pointer was previously set with this <paramref name="guid"/>, <see langword="false"/> otherwise.</returns>
 		virtual bool get_user_data(const uint8_t guid[16], void **ptr) const = 0;
 		/// <summary>
 		/// Sets a custom data pointer associated with the specified <paramref name="guid"/> to the object.
 		/// You can call this with <paramref name="ptr"/> set to <c>nullptr</c> to remove the pointer associated with the provided <paramref name="guid"/> from this object.
-		/// This function is not thread-safe!
 		/// </summary>
+		/// <remarks>
+		/// This function may NOT be called concurrently from multiple threads!
+		/// </remarks>
 		virtual void set_user_data(const uint8_t guid[16], void * const ptr) = 0;
 
 		/// <summary>
@@ -182,16 +179,19 @@ namespace reshade { namespace api
 		/// </summary>
 		virtual uint64_t get_native_object() const = 0;
 
-		template <typename T> inline T &get_user_data(const uint8_t guid[16]) // Need to call 'destroy_user_data' for this custom data before object is destroyed
+		// Need to call 'create_user_data' for this custom data before this
+		template <typename T> inline T &get_user_data(const uint8_t guid[16])
 		{
 			T *res = nullptr;
-			if (!get_user_data(guid, reinterpret_cast<void **>(&res)))
-				 set_user_data(guid, res = new T());
+			get_user_data(guid, reinterpret_cast<void **>(&res));
 			return *res;
 		}
+		// Need to call 'destroy_user_data' for this custom data before object is destroyed
 		template <typename T> inline T &create_user_data(const uint8_t guid[16])
 		{
-			return get_user_data<T>(guid);
+			T *res = new T();
+			set_user_data(guid, res);
+			return *res;
 		}
 		template <typename T> inline void destroy_user_data(const uint8_t guid[16])
 		{
@@ -209,7 +209,7 @@ namespace reshade { namespace api
 	/// <remarks>
 	/// This class is safe to use concurrently from multiple threads (with the exception of <see cref="device::wait_idle"/>).
 	/// </remarks>
-	struct DECLSPEC_NOVTABLE device : public api_object
+	struct __declspec(novtable) device : public api_object
 	{
 		/// <summary>
 		/// Gets the underlying render API used by this device.
@@ -280,46 +280,6 @@ namespace reshade { namespace api
 		virtual void destroy_pipeline(pipeline_stage type, pipeline handle) = 0;
 
 		/// <summary>
-		/// Creates a new pipeline layout.
-		/// </summary>
-		/// <param name="count">Number of layout parameters.</param>
-		/// <param name="params">Pointer to an array of layout parameters that describe this pipeline layout.</param>
-		/// <param name="out_handle">Pointer to a variable that is set to the handle of the created pipeline layout.</param>
-		/// <returns><see langword="true"/> if the pipeline layout was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zero).</returns>
-		virtual bool create_pipeline_layout(uint32_t count, const pipeline_layout_param *params, pipeline_layout *out_handle) = 0;
-		/// <summary>
-		/// Instantly destroys a pipeline layout that was previously created via <see cref="create_pipeline_layout"/>.
-		/// </summary>
-		virtual void destroy_pipeline_layout(pipeline_layout handle) = 0;
-
-		/// <summary>
-		/// Creates a new descriptor set layout.
-		/// </summary>
-		/// <param name="count">Number of descriptor ranges.</param>
-		/// <param name="ranges">Pointer to an array of descriptor ranges that describe this descriptor set layout.</param>
-		/// <param name="push_descriptors"><see langword="true"/> if this layout is later used with <see cref="command_list::push_descriptors"/>, <see langword="false"/> if not.</param>
-		/// <param name="out_handle">Pointer to a variable that is set to the handle of the created descriptor set layout.</param>
-		/// <returns><see langword="true"/> if the descriptor set layout was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zero).</returns>
-		virtual bool create_descriptor_set_layout(uint32_t count, const descriptor_range *ranges, bool push_descriptors, descriptor_set_layout *out_handle) = 0;
-		/// <summary>
-		/// Instantly destroys a descriptor set layout that was previously created via <see cref="create_descriptor_set_layout"/>.
-		/// </summary>
-		virtual void destroy_descriptor_set_layout(descriptor_set_layout handle) = 0;
-
-		/// <summary>
-		/// Creates a new query pool.
-		/// </summary>
-		/// <param name="type">Type of queries that will be used with this pool.</param>
-		/// <param name="size">Number of queries to allocate in the pool.</param>
-		/// <param name="out_handle">Pointer to a variable that is set to the handle of the created query pool.</param>
-		/// <returns><see langword="true"/> if the query pool was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zero).</returns>
-		virtual bool create_query_pool(query_type type, uint32_t size, query_pool *out_handle) = 0;
-		/// <summary>
-		/// Instantly destroys a query pool that was previously created via <see cref="create_query_pool"/>.
-		/// </summary>
-		virtual void destroy_query_pool(query_pool handle) = 0;
-
-		/// <summary>
 		/// Creates a new render pass.
 		/// </summary>
 		/// <param name="desc">Description of the render pass to create.</param>
@@ -344,13 +304,53 @@ namespace reshade { namespace api
 		virtual void destroy_framebuffer(framebuffer handle) = 0;
 
 		/// <summary>
+		/// Creates a new pipeline layout.
+		/// </summary>
+		/// <param name="param_count">Number of layout parameters.</param>
+		/// <param name="params">Pointer to an array of layout parameters that describe this pipeline layout.</param>
+		/// <param name="out_handle">Pointer to a variable that is set to the handle of the created pipeline layout.</param>
+		/// <returns><see langword="true"/> if the pipeline layout was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zero).</returns>
+		virtual bool create_pipeline_layout(uint32_t param_count, const pipeline_layout_param *params, pipeline_layout *out_handle) = 0;
+		/// <summary>
+		/// Instantly destroys a pipeline layout that was previously created via <see cref="create_pipeline_layout"/>.
+		/// </summary>
+		virtual void destroy_pipeline_layout(pipeline_layout handle) = 0;
+
+		/// <summary>
+		/// Creates a new descriptor set layout.
+		/// </summary>
+		/// <param name="range_count">Number of descriptor ranges.</param>
+		/// <param name="ranges">Pointer to an array of descriptor ranges that describe this descriptor set layout.</param>
+		/// <param name="push_descriptors"><see langword="true"/> if this layout is later used with <see cref="command_list::push_descriptors"/>, <see langword="false"/> if not.</param>
+		/// <param name="out_handle">Pointer to a variable that is set to the handle of the created descriptor set layout.</param>
+		/// <returns><see langword="true"/> if the descriptor set layout was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zero).</returns>
+		virtual bool create_descriptor_set_layout(uint32_t range_count, const descriptor_range *ranges, bool push_descriptors, descriptor_set_layout *out_handle) = 0;
+		/// <summary>
+		/// Instantly destroys a descriptor set layout that was previously created via <see cref="create_descriptor_set_layout"/>.
+		/// </summary>
+		virtual void destroy_descriptor_set_layout(descriptor_set_layout handle) = 0;
+
+		/// <summary>
+		/// Creates a new query pool.
+		/// </summary>
+		/// <param name="type">Type of queries that will be used with this pool.</param>
+		/// <param name="size">Number of queries to allocate in the pool.</param>
+		/// <param name="out_handle">Pointer to a variable that is set to the handle of the created query pool.</param>
+		/// <returns><see langword="true"/> if the query pool was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zero).</returns>
+		virtual bool create_query_pool(query_type type, uint32_t size, query_pool *out_handle) = 0;
+		/// <summary>
+		/// Instantly destroys a query pool that was previously created via <see cref="create_query_pool"/>.
+		/// </summary>
+		virtual void destroy_query_pool(query_pool handle) = 0;
+
+		/// <summary>
 		/// Allocates one or more descriptor sets from an internal pool.
 		/// </summary>
 		/// <param name="count">Number of descriptor sets to allocate.</param>
 		/// <param name="layouts">Pointer to an array of layouts to allocate the descriptor sets with.</param>
-		/// <param name="out">Pointer to an array of handles with at least <paramref name="count"/> elements that is filled with the handles of the created descriptor sets.</param>
+		/// <param name="out_sets">Pointer to an array of handles with at least <paramref name="count"/> elements that is filled with the handles of the created descriptor sets.</param>
 		/// <returns><see langword="true"/> if the descriptor sets were successfully created, <see langword="false"/> otherwise (in this case <paramref name="out"/> is filles with zeroes).</returns>
-		virtual bool create_descriptor_sets(uint32_t count, const descriptor_set_layout *layouts, descriptor_set *out) = 0;
+		virtual bool create_descriptor_sets(uint32_t count, const descriptor_set_layout *layouts, descriptor_set *out_sets) = 0;
 		/// <summary>
 		/// Frees one or more descriptor sets that were previously allocated via <see cref="create_descriptor_sets"/>.
 		/// </summary>
@@ -376,18 +376,18 @@ namespace reshade { namespace api
 		/// Uploads data to a buffer resource.
 		/// </summary>
 		/// <param name="data">Pointer to the data to upload.</param>
-		/// <param name="destination">Buffer resource to upload to.</param>
-		/// <param name="dst_offset">Offset (in bytes) into the buffer resource to start uploading to.</param>
+		/// <param name="dest">Buffer resource to upload to.</param>
+		/// <param name="dest_offset">Offset (in bytes) into the buffer resource to start uploading to.</param>
 		/// <param name="size">Number of bytes to upload.</param>
-		virtual void update_buffer_region(const void *data, resource destination, uint64_t dst_offset, uint64_t size) = 0;
+		virtual void update_buffer_region(const void *data, resource dest, uint64_t dest_offset, uint64_t size) = 0;
 		/// <summary>
 		/// Uploads data to a texture resource.
 		/// </summary>
 		/// <param name="data">Pointer to the data to upload.</param>
-		/// <param name="destination">Texture resource to upload to.</param>
-		/// <param name="dst_subresource">Index of the subresource to upload to (<c>level + (layer * levels)</c>).</param>
-		/// <param name="dst_box">A 3D box (or <c>nullptr</c> to reference the entire subresource) that defines the region in the <paramref name="resource"/> to upload to, in the format { left, top, front, right, bottom, back }.</param>
-		virtual void update_texture_region(const subresource_data &data, resource destination, uint32_t dst_subresource, const int32_t dst_box[6] = nullptr) = 0;
+		/// <param name="dest">Texture resource to upload to.</param>
+		/// <param name="dest_subresource">Index of the subresource to upload to (<c>level + (layer * levels)</c>).</param>
+		/// <param name="dest_box">A 3D box (or <c>nullptr</c> to reference the entire subresource) that defines the region in the <paramref name="resource"/> to upload to, in the format { left, top, front, right, bottom, back }.</param>
+		virtual void update_texture_region(const subresource_data &data, resource dest, uint32_t dest_subresource, const int32_t dest_box[6] = nullptr) = 0;
 
 		/// <summary>
 		/// Updates the contents of descriptor sets with the specified descriptors.
@@ -425,27 +425,27 @@ namespace reshade { namespace api
 
 		/// <summary>
 		/// Gets the description of the specified pipeline <paramref name="layout"/>.
-		/// <para>Call this first with <paramref name="params"/> set to <c>nullptr</c> to get the size of the array, then allocate the array and call this again with <paramref name="params"/> set to it.</para>
+		/// <para>Call this first with <paramref name="out_params"/> set to <c>nullptr</c> to get the size of the array in <paramref name="out_count"/>, then allocate the array and call this again with <paramref name="out_params"/> set to it.</para>
 		/// </summary>
 		/// <param name="layout">Pipeline layout to get the description from.</param>
-		/// <param name="count">Pointer to a variable that is set to the number of layout parameters in the <paramref name="layout"/>.</param>
-		/// <param name="params">Optional pointer to an array that is filled with the layout parameters in the <paramref name="layout"/>.</param>
-		virtual void get_pipeline_layout_desc(pipeline_layout layout, uint32_t *count, pipeline_layout_param *params) const = 0;
+		/// <param name="out_count">Pointer to a variable that is set to the number of layout parameters in the <paramref name="layout"/>.</param>
+		/// <param name="out_params">Optional pointer to an array that is filled with the layout parameters in the <paramref name="layout"/>.</param>
+		virtual void get_pipeline_layout_desc(pipeline_layout layout, uint32_t *out_count, pipeline_layout_param *out_params) const = 0;
 		/// <summary>
 		/// Gets the offset (in descriptors) of the specified descriptor <paramref name="set"/> in the underlying pool.
 		/// </summary>
 		/// <param name="set">Descriptor set to get the offset from.</param>
-		/// <param name="pool">Pointer to a variable that is set to the handle of the underlying descriptor pool the <paramref name="set"/> was allocated from.</param>
-		/// <param name="offset">Pointer to a variable that is set to the offset of the descriptor set in the underlying pool.</param>
-		virtual void get_descriptor_pool_offset(descriptor_set set, descriptor_pool *pool, uint32_t *offset) const = 0;
+		/// <param name="out_pool">Pointer to a variable that is set to the handle of the underlying descriptor pool the <paramref name="set"/> was allocated from.</param>
+		/// <param name="out_offset">Pointer to a variable that is set to the offset of the descriptor set in the underlying pool.</param>
+		virtual void get_descriptor_pool_offset(descriptor_set set, descriptor_pool *out_pool, uint32_t *out_offset) const = 0;
 		/// <summary>
 		/// Gets the descriptor of the specified descriptor set <paramref name="layout"/>.
-		/// <para>Call this first with <paramref name="ranges"/> set to <c>nullptr</c> to get the size of the array, then allocate the array and call this again with <paramref name="ranges"/> set to it.</para>
+		/// <para>Call this first with <paramref name="out_ranges"/> set to <c>nullptr</c> to get the size of the array in <paramref name="out_count"/>, then allocate the array and call this again with <paramref name="out_ranges"/> set to it.</para>
 		/// </summary>
 		/// <param name="layout">Pipeline layout to get the description from.</param>
-		/// <param name="count">Pointer to a variable that is set to the number of descriptor ranges in the <paramref name="layout"/>.</param>
-		/// <param name="ranges">Optional pointer to an array that is filled with the descriptor ranges in the <paramref name="layout"/>.</param>
-		virtual void get_descriptor_set_layout_desc(descriptor_set_layout layout, uint32_t *count, descriptor_range *ranges) const = 0;
+		/// <param name="out_count">Pointer to a variable that is set to the number of descriptor ranges in the <paramref name="layout"/>.</param>
+		/// <param name="out_ranges">Optional pointer to an array that is filled with the descriptor ranges in the <paramref name="layout"/>.</param>
+		virtual void get_descriptor_set_layout_desc(descriptor_set_layout layout, uint32_t *out_count, descriptor_range *out_ranges) const = 0;
 
 		/// <summary>
 		/// Gets the description of the specified <paramref name="resource"/>.
@@ -454,13 +454,12 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Gets the handle to the underlying resource the specified resource <paramref name="view"/> was created for.
 		/// </summary>
-		virtual resource      get_resource_from_view(resource_view view) const = 0;
-
+		virtual      resource get_resource_from_view(resource_view view) const = 0;
 		/// <summary>
 		/// Gets the handle to the resource view of the specfied <paramref name="type"/> in the <paramref name="framebuffer"/> object.
 		/// </summary>
 		/// <param name="framebuffer">Framebuffer object to get the attachment resource view from.</param>
-		/// <param name="type">Attachment type to get.</param>
+		/// <param name="type">Type of the attachment to get.</param>
 		/// <param name="index">Index of the attachment of the specified <paramref name="type"/> to get.</param>
 		/// <param name="attachment">Pointer to a variable that is set to the handle of the resource view attached to the framebuffer.</param>
 		/// <returns>Handle of the attached resource view if the attachment of the specified <paramref name="type"/> and <paramref name="index"/> exists in the framebuffer, zero otherwise.</returns>
@@ -470,7 +469,7 @@ namespace reshade { namespace api
 	/// <summary>
 	/// The base class for objects that are children to a logical render <see cref="device"/>.
 	/// </summary>
-	struct DECLSPEC_NOVTABLE device_object : public api_object
+	struct __declspec(novtable) device_object : public api_object
 	{
 		/// <summary>
 		/// Gets the parent device for this object.
@@ -485,7 +484,7 @@ namespace reshade { namespace api
 	/// <remarks>
 	/// This class may NOT be used concurrently from multiple threads!
 	/// </remarks>
-	struct DECLSPEC_NOVTABLE command_list : public device_object
+	struct __declspec(novtable) command_list : public device_object
 	{
 		/// <summary>
 		/// Adds a barrier for the specified <paramref name="resource"/> to the command stream.
@@ -518,6 +517,9 @@ namespace reshade { namespace api
 		/// Binds individual render target and depth-stencil resource views.
 		/// This must not be called between <see cref="begin_render_pass"/> and <see cref="finish_render_pass"/>.
 		/// </summary>
+		/// <remarks>
+		/// This is not supported (and will do nothing) in Vulkan.
+		/// </remarks>
 		virtual void bind_render_targets_and_depth_stencil(uint32_t count, const resource_view *rtvs, resource_view dsv = { 0 }) = 0;
 
 		/// <summary>
@@ -555,33 +557,33 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <param name="stages">Shader stages that will use the updated constants.</param>
 		/// <param name="layout">Pipeline layout that describes where the constants are located.</param>
-		/// <param name="layout_param">Index of the constant range in the pipeline <paramref name="layout"/> (root parameter index in D3D12).</param>
+		/// <param name="param">Layout parameter index of the constant range in the pipeline <paramref name="layout"/> (root parameter index in D3D12).</param>
 		/// <param name="first">Start offset (in 32-bit values) to the first constant in the constant range to begin updating.</param>
 		/// <param name="count">Number of 32-bit values to update.</param>
 		/// <param name="values">Pointer to an array of 32-bit values to set the constants to. These can be floating-point, integer or boolean depending on what the shader is expecting.</param>
-		virtual void push_constants(shader_stage stages, pipeline_layout layout, uint32_t layout_param, uint32_t first, uint32_t count, const void *values) = 0;
+		virtual void push_constants(shader_stage stages, pipeline_layout layout, uint32_t param, uint32_t first, uint32_t count, const void *values) = 0;
 		/// <summary>
 		/// Directly binds a temporary descriptor set for the specfified shader pipeline stage and updates with an array of descriptors.
 		/// </summary>
 		/// <param name="stages">Shader stages that will use the updated descriptors.</param>
 		/// <param name="layout">Pipeline layout that describes the descriptors.</param>
-		/// <param name="layout_param">Index of the descriptor set in the pipeline <paramref name="layout"/> (root parameter index in D3D12, descriptor set index in Vulkan).</param>
+		/// <param name="param">Layout parameter index of the descriptor set in the pipeline <paramref name="layout"/> (root parameter index in D3D12, descriptor set index in Vulkan).</param>
 		/// <param name="update">Range of descriptors to update in the temporary set (<see cref="descriptor_set_update::set"/> is ignored).</param>
-		virtual void push_descriptors(shader_stage stages, pipeline_layout layout, uint32_t layout_param, const descriptor_set_update &update) = 0;
+		virtual void push_descriptors(shader_stage stages, pipeline_layout layout, uint32_t param, const descriptor_set_update &update) = 0;
 		/// <summary>
 		/// Binds a single descriptor set.
 		/// </summary>
 		/// <param name="stages">Shader stages that will use the descriptors.</param>
 		/// <param name="layout">Pipeline layout that describes the descriptors.</param>
-		/// <param name="layout_param">Index of the descriptor set in the pipeline <paramref name="layout"/> (root parameter index in D3D12, descriptor set index in Vulkan).</param>
+		/// <param name="param">Layout parameter index of the descriptor set in the pipeline <paramref name="layout"/> (root parameter index in D3D12, descriptor set index in Vulkan).</param>
 		/// <param name="set">Descriptor set to bind.</param>
-		inline  void bind_descriptor_set(shader_stage stages, pipeline_layout layout, uint32_t layout_param, descriptor_set set) { bind_descriptor_sets(stages, layout, layout_param, 1, &set); }
+		inline  void bind_descriptor_set(shader_stage stages, pipeline_layout layout, uint32_t param, descriptor_set set) { bind_descriptor_sets(stages, layout, param, 1, &set); }
 		/// <summary>
 		/// Binds an array of descriptor sets.
 		/// </summary>
 		/// <param name="stages">Shader stages that will use the descriptors.</param>
 		/// <param name="layout">Pipeline layout that describes the descriptors.</param>
-		/// <param name="first">Index of the first descriptor set to bind.</param>
+		/// <param name="first">Layout parameter index of the first descriptor set to bind.</param>
 		/// <param name="count">Number of descriptor sets to bind.</param>
 		/// <param name="sets">Pointer to an array of descriptor sets to bind.</param>
 		virtual void bind_descriptor_sets(shader_stage stages, pipeline_layout layout, uint32_t first, uint32_t count, const descriptor_set *sets) = 0;
@@ -614,20 +616,20 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Draws non-indexed primitives.
 		/// </summary>
-		/// <param name="vertices">Number of vertices to draw.</param>
-		/// <param name="instances">Number of instances to draw. In D3D9 this has to be 1.</param>
+		/// <param name="vertex_count">Number of vertices to draw.</param>
+		/// <param name="instance_count">Number of instances to draw. In D3D9 this has to be 1.</param>
 		/// <param name="first_vertex">Index of the first vertex.</param>
 		/// <param name="first_instance">A value added to each index before reading per-instance data from a vertex buffer. In D3D9 this has to be 0.</param>
-		virtual void draw(uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance) = 0;
+		virtual void draw(uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance) = 0;
 		/// <summary>
 		/// Draws indexed primitives.
 		/// </summary>
-		/// <param name="indices">Number of indices read from the index buffer for each instance.</param>
-		/// <param name="instances">Number of instances to draw. In D3D9 this has to be 1.</param>
+		/// <param name="index_count">Number of indices read from the index buffer for each instance.</param>
+		/// <param name="instance_count">Number of instances to draw. In D3D9 this has to be 1.</param>
 		/// <param name="first_index">The location of the first index read from the index buffer.</param>
 		/// <param name="vertex_offset">A value added to each index before reading per-vertex data from a vertex buffer.</param>
 		/// <param name="first_instance">A value added to each index before reading per-instance data from a vertex buffer. In D3D9 this has to be 0.</param>
-		virtual void draw_indexed(uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance) = 0;
+		virtual void draw_indexed(uint32_t index_count, uint32_t instance_count, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance) = 0;
 		/// <summary>
 		/// Performs a compute shader dispatch.
 		/// </summary>
@@ -652,79 +654,79 @@ namespace reshade { namespace api
 		virtual void draw_or_dispatch_indirect(indirect_command type, resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride) = 0;
 
 		/// <summary>
-		/// Copies the entire contents of the <paramref name="source"/> resource to the <paramref name="destination"/> resource. Dimensions of the two resources need to match.
+		/// Copies the entire contents of the <paramref name="source"/> resource to the <paramref name="dest"/> resource. Dimensions of the two resources need to match.
 		/// <para>The <paramref name="source"/> resource has to be in the <see cref="resource_usage::copy_source"/> state.</para>
-		/// <para>The <paramref name="destination"/> resource has to be in the <see cref="resource_usage::copy_dest"/> state.</para>
+		/// <para>The <paramref name="dest"/> resource has to be in the <see cref="resource_usage::copy_dest"/> state.</para>
 		/// </summary>
 		/// <param name="source">Resource to copy from.</param>
-		/// <param name="destination">Resource to copy to.</param>
-		virtual void copy_resource(resource source, resource destination) = 0;
+		/// <param name="dest">Resource to copy to.</param>
+		virtual void copy_resource(resource source, resource dest) = 0;
 		/// <summary>
-		/// Copies a linear memory region from the <paramref name="source"/> buffer to the <paramref name="destination"/> buffer.
+		/// Copies a linear memory region from the <paramref name="source"/> buffer to the <paramref name="dest"/> buffer.
 		/// <para>The <paramref name="source"/> resource has to be in the <see cref="resource_usage::copy_source"/> state.</para>
-		/// <para>The <paramref name="destination"/> resource has to be in the <see cref="resource_usage::copy_dest"/> state.</para>
+		/// <para>The <paramref name="dest"/> resource has to be in the <see cref="resource_usage::copy_dest"/> state.</para>
 		/// </summary>
 		/// <remarks>
 		/// This is not supported (and will do nothing) in D3D9.
 		/// </remarks>
 		/// <param name="source">Buffer resource to copy from.</param>
-		/// <param name="src_offset">Offset (in bytes) into the <paramref name="source"/> buffer to start copying at.</param>
-		/// <param name="destination">Buffer resource to copy to.</param>
-		/// <param name="dst_offset">Offset (in bytes) into the <paramref name="destination"/> buffer to start copying to.</param>
+		/// <param name="source_offset">Offset (in bytes) into the <paramref name="source"/> buffer to start copying at.</param>
+		/// <param name="dest">Buffer resource to copy to.</param>
+		/// <param name="dest_offset">Offset (in bytes) into the <paramref name="dest"/> buffer to start copying to.</param>
 		/// <param name="size">Number of bytes to copy.</param>
-		virtual void copy_buffer_region(resource source, uint64_t src_offset, resource destination, uint64_t dst_offset, uint64_t size) = 0;
+		virtual void copy_buffer_region(resource src, uint64_t source_offset, resource dest, uint64_t dest_offset, uint64_t size) = 0;
 		/// <summary>
-		/// Copies a texture region from the <paramref name="source"/> buffer to the <paramref name="destination"/> texture.
+		/// Copies a texture region from the <paramref name="source"/> buffer to the <paramref name="dest"/> texture.
 		/// <para>The <paramref name="source"/> resource has to be in the <see cref="resource_usage::copy_source"/> state.</para>
-		/// <para>The <paramref name="destination"/> resource has to be in the <see cref="resource_usage::copy_dest"/> state.</para>
+		/// <para>The <paramref name="dest"/> resource has to be in the <see cref="resource_usage::copy_dest"/> state.</para>
 		/// </summary>
 		/// <param name="source">Buffer resource to copy from.</param>
-		/// <param name="src_offset">Offset (in bytes) into the <paramref name="source"/> buffer to start copying at.</param>
+		/// <param name="source_offset">Offset (in bytes) into the <paramref name="source"/> buffer to start copying at.</param>
 		/// <param name="row_length">Number of pixels from one row to the next (in the buffer), or zero if data is tightly packed.</param>
 		/// <param name="slice_height">Number of rows from one slice to the next (in the buffer) or zero if data is tightly packed.</param>
-		/// <param name="destination">Texture resource to copy to.</param>
-		/// <param name="dst_subresource">Index of the subresource of the <paramref name="destination"/> texture to copy to.</param>
-		/// <param name="dst_box">A 3D box (or <c>nullptr</c> to reference the entire subresource) that defines the region in the <paramref name="destination"/> texture to copy to, in the format { left, top, front, right, bottom, back }.</param>
-		virtual void copy_buffer_to_texture(resource source, uint64_t src_offset, uint32_t row_length, uint32_t slice_height, resource destination, uint32_t dst_subresource, const int32_t dst_box[6] = nullptr) = 0;
+		/// <param name="dest">Texture resource to copy to.</param>
+		/// <param name="dest_subresource">Index of the subresource of the <paramref name="dest"/> texture to copy to.</param>
+		/// <param name="dest_box">A 3D box (or <c>nullptr</c> to reference the entire subresource) that defines the region in the <paramref name="dest"/> texture to copy to, in the format { left, top, front, right, bottom, back }.</param>
+		virtual void copy_buffer_to_texture(resource source, uint64_t source_offset, uint32_t row_length, uint32_t slice_height, resource dest, uint32_t dest_subresource, const int32_t dest_box[6] = nullptr) = 0;
 		/// <summary>
-		/// Copies or blits a texture region from the <paramref name="source"/> texture to the <paramref name="destination"/> texture.
+		/// Copies or blits a texture region from the <paramref name="source"/> texture to the <paramref name="dest"/> texture.
 		/// <para>The <paramref name="source"/> resource has to be in the <see cref="resource_usage::copy_source"/> state.</para>
-		/// <para>The <paramref name="destination"/> resource has to be in the <see cref="resource_usage::copy_dest"/> state.</para>
+		/// <para>The <paramref name="dest"/> resource has to be in the <see cref="resource_usage::copy_dest"/> state.</para>
 		/// </summary>
 		/// <param name="source">Texture resource to copy from.</param>
-		/// <param name="src_subresource">Index of the subresource of the <paramref name="source"/> texture to copy from.</param>
-		/// <param name="src_box">A 3D box (or <c>nullptr</c> to reference the entire subresource) that defines the region in the <paramref name="source"/> resource to blit from, in the format { left, top, front, right, bottom, back }.</param>
-		/// <param name="destination">Texture resource to copy to.</param>
-		/// <param name="dst_subresource">Index of the subresource of the <paramref name="destination"/> texture to copy to.</param>
-		/// <param name="dst_box">A 3D box (or <c>nullptr</c> to reference the entire subresource) that defines the region in the <paramref name="destination"/> resource to blit to, in the format { left, top, front, right, bottom, back }.</param>
+		/// <param name="source_subresource">Index of the subresource of the <paramref name="source"/> texture to copy from.</param>
+		/// <param name="source_box">A 3D box (or <c>nullptr</c> to reference the entire subresource) that defines the region in the <paramref name="source"/> resource to blit from, in the format { left, top, front, right, bottom, back }.</param>
+		/// <param name="dest">Texture resource to copy to.</param>
+		/// <param name="dest_subresource">Index of the subresource of the <paramref name="dest"/> texture to copy to.</param>
+		/// <param name="dest_box">A 3D box (or <c>nullptr</c> to reference the entire subresource) that defines the region in the <paramref name="dest"/> resource to blit to, in the format { left, top, front, right, bottom, back }.</param>
 		/// <param name="filter">Filter to apply when copy requires scaling.</param>
-		virtual void copy_texture_region(resource source, uint32_t src_subresource, const int32_t src_box[6], resource destination, uint32_t dst_subresource, const int32_t dst_box[6], filter_type filter = filter_type::min_mag_mip_point) = 0;
+		virtual void copy_texture_region(resource source, uint32_t source_subresource, const int32_t source_box[6], resource dest, uint32_t dest_subresource, const int32_t dest_box[6], filter_type filter = filter_type::min_mag_mip_point) = 0;
 		/// <summary>
-		/// Copies a texture region from the <paramref name="source"/> texture to the <paramref name="destination"/> buffer.
+		/// Copies a texture region from the <paramref name="source"/> texture to the <paramref name="dest"/> buffer.
 		/// <para>The <paramref name="source"/> resource has to be in the <see cref="resource_usage::copy_source"/> state.</para>
-		/// <para>The <paramref name="destination"/> resource has to be in the <see cref="resource_usage::copy_dest"/> state.</para>
+		/// <para>The <paramref name="dest"/> resource has to be in the <see cref="resource_usage::copy_dest"/> state.</para>
 		/// </summary>
 		/// <param name="source">Texture resource to copy from.</param>
-		/// <param name="src_subresource">Index of the subresource of the <paramref name="source"/> texture to copy from.</param>
-		/// <param name="src_box">A 3D box (or <c>nullptr</c> to reference the entire subresource) that defines the region in the <paramref name="source"/> texture to copy from, in the format { left, top, front, right, bottom, back }.</param>
-		/// <param name="destination">Buffer resource to copy to.</param>
-		/// <param name="dst_offset">Offset (in bytes) into the <paramref name="destination"/> buffer to start copying to.</param>
+		/// <param name="source_subresource">Index of the subresource of the <paramref name="source"/> texture to copy from.</param>
+		/// <param name="source_box">A 3D box (or <c>nullptr</c> to reference the entire subresource) that defines the region in the <paramref name="source"/> texture to copy from, in the format { left, top, front, right, bottom, back }.</param>
+		/// <param name="dest">Buffer resource to copy to.</param>
+		/// <param name="dest_offset">Offset (in bytes) into the <paramref name="dest"/> buffer to start copying to.</param>
 		/// <param name="row_length">Number of pixels from one row to the next (in the buffer), or zero if data is tightly packed.</param>
 		/// <param name="slice_height">Number of rows from one slice to the next (in the buffer), or zero if data is tightly packed.</param>
-		virtual void copy_texture_to_buffer(resource source, uint32_t src_subresource, const int32_t src_box[6], resource destination, uint64_t dst_offset, uint32_t row_length = 0, uint32_t slice_height = 0) = 0;
+		virtual void copy_texture_to_buffer(resource source, uint32_t source_subresource, const int32_t source_box[6], resource dest, uint64_t dest_offset, uint32_t row_length = 0, uint32_t slice_height = 0) = 0;
 		/// <summary>
-		/// Copies a region from the multisampled <paramref name="source"/> texture to the non-multisampled <paramref name="destination"/> texture.
+		/// Copies a region from the multisampled <paramref name="source"/> texture to the non-multisampled <paramref name="dest"/> texture.
 		/// <para>The <paramref name="source"/> resource has to be in the <see cref="resource_usage::resolve_source"/> state.</para>
-		/// <para>The <paramref name="destination"/> resource has to be in the <see cref="resource_usage::resolve_dest"/> state.</para>
+		/// <para>The <paramref name="dest"/> resource has to be in the <see cref="resource_usage::resolve_dest"/> state.</para>
 		/// </summary>
 		/// <param name="source">Texture resource to resolve from.</param>
-		/// <param name="src_subresource">Index of the subresource of the <paramref name="source"/> texture to resolve from.</param>
-		/// <param name="src_box">A 2D rectangle (or <c>nullptr</c> to reference the entire subresource) that defines the region in the <paramref name="source"/> texture to resolve, in the format { left, top, front, right, bottom, back }. In D3D10 and D3D11 this has to be <c>nullptr</c>.</param>
-		/// <param name="destination">Texture resource to resolve to.</param>
-		/// <param name="dst_subresource">Index of the subresource of the <paramref name="destination"/> texture to resolve to.</param>
-		/// <param name="dst_offset">Offset (in texels) that defines the region in the <paramref name="destination"/> texture to resolve to, in the format { left, top, front }. In D3D10 and D3D11 this has to be <c>nullptr</c>.</param>
+		/// <param name="source_subresource">Index of the subresource of the <paramref name="source"/> texture to resolve from.</param>
+		/// <param name="source_box">A 2D rectangle (or <c>nullptr</c> to reference the entire subresource) that defines the region in the <paramref name="source"/> texture to resolve, in the format { left, top, front, right, bottom, back }. In D3D10 and D3D11 this has to be <c>nullptr</c>.</param>
+		/// <param name="dest">Texture resource to resolve to.</param>
+		/// <param name="dest_subresource">Index of the subresource of the <paramref name="dest"/> texture to resolve to.</param>
+		/// <param name="dest_offset">Offset (in texels) that defines the region in the <paramref name="dest"/> texture to resolve to, in the format { left, top, front }. In D3D10 and D3D11 this has to be <c>nullptr</c>.</param>
 		/// <param name="format">Format of the resource data.</param>
-		virtual void resolve_texture_region(resource source, uint32_t src_subresource, const int32_t src_box[6], resource destination, uint32_t dst_subresource, const int32_t dst_offset[3], format format) = 0;
+		virtual void resolve_texture_region(resource source, uint32_t source_subresource, const int32_t source_box[6], resource dest, uint32_t dest_subresource, const int32_t dest_offset[3], format format) = 0;
 
 		/// <summary>
 		/// Clears all attachments of the current render pass. Can only be called between <see cref="begin_render_pass"/> and <see cref="finish_render_pass"/>.
@@ -733,7 +735,7 @@ namespace reshade { namespace api
 		/// <param name="color">Value to clear render targets with.</param>
 		/// <param name="depth">Value to clear the depth buffer with.</param>
 		/// <param name="stencil">Value to clear the stencil buffer with.</param>
-		virtual void clear_attachments(attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t num_rects = 0, const int32_t *rects = nullptr) = 0;
+		virtual void clear_attachments(attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t rect_count = 0, const int32_t *rects = nullptr) = 0;
 		/// <summary>
 		/// Clears the resource referenced by the depth-stencil view.
 		/// <para>The resource the <paramref name="dsv"/> view points to has to be in the <see cref="resource_usage::depth_stencil_write"/> state.</para>
@@ -742,28 +744,28 @@ namespace reshade { namespace api
 		/// <param name="clear_flags">Can be <see cref="attachment_type::depth"/> or <see cref="attachment_type::stencil"/> or both.</param>
 		/// <param name="depth">Value to clear the depth buffer with. Only used if <paramref name="clear_flags"/> contains <see cref="attachment_type::depth"/>.</param>
 		/// <param name="stencil">Value to clear the stencil buffer with. Only used if <paramref name="clear_flags"/> contains <see cref="attachment_type::stencil"/>.</param>
-		virtual void clear_depth_stencil_view(resource_view dsv, attachment_type clear_flags, float depth, uint8_t stencil, uint32_t num_rects = 0, const int32_t *rects = nullptr) = 0;
+		virtual void clear_depth_stencil_view(resource_view dsv, attachment_type clear_flags, float depth, uint8_t stencil, uint32_t rect_count = 0, const int32_t *rects = nullptr) = 0;
 		/// <summary>
 		/// Clears the resource referenced by the render target view.
 		/// <para>The resource the <paramref name="rtv"/> view points to has to be in the <see cref="resource_usage::render_target"/> state.</para>
 		/// </summary>
 		/// <param name="rtv">Resource view handle of the render target.</param>
 		/// <param name="color">Value to clear the resource with.</param>
-		virtual void clear_render_target_view(resource_view rtv, const float color[4], uint32_t num_rects = 0, const int32_t *rects = nullptr) = 0;
+		virtual void clear_render_target_view(resource_view rtv, const float color[4], uint32_t rect_count = 0, const int32_t *rects = nullptr) = 0;
 		/// <summary>
 		/// Clears the resource referenced by the unordered access view.
 		/// <para>The resource the <paramref name="uav"/> view points to has to be in the <see cref="resource_usage::unordered_access"/> state.</para>
 		/// </summary>
 		/// <param name="uav">Resource view handle of the unordered access view.</param>
 		/// <param name="values">Value to clear the resource with.</param>
-		virtual void clear_unordered_access_view_uint(resource_view uav, const uint32_t values[4], uint32_t num_rects = 0, const int32_t *rects = nullptr) = 0;
+		virtual void clear_unordered_access_view_uint(resource_view uav, const uint32_t values[4], uint32_t rect_count = 0, const int32_t *rects = nullptr) = 0;
 		/// <summary>
 		/// Clears the resource referenced by the unordered access view.
 		/// <para>The resource the <paramref name="uav"/> view points to has to be in the <see cref="resource_usage::unordered_access"/> state.</para>
 		/// </summary>
 		/// <param name="uav">Resource view handle of the unordered access view.</param>
 		/// <param name="values">Value to clear the resource with.</param>
-		virtual void clear_unordered_access_view_float(resource_view uav, const float values[4], uint32_t num_rects = 0, const int32_t *rects = nullptr) = 0;
+		virtual void clear_unordered_access_view_float(resource_view uav, const   float values[4], uint32_t rect_count = 0, const int32_t *rects = nullptr) = 0;
 
 		/// <summary>
 		/// Generates the lower mipmap levels for the specified shader resource view.
@@ -792,16 +794,16 @@ namespace reshade { namespace api
 		virtual void finish_query(query_pool pool, query_type type, uint32_t index) = 0;
 		/// <summary>
 		/// Copy the results of queries in a query pool to a buffer resource.
-		/// <para>The <paramref name="destination"/> resource has to be in the <see cref="resource_usage::copy_dest"/> state.</para>
+		/// <para>The <paramref name="dest"/> resource has to be in the <see cref="resource_usage::copy_dest"/> state.</para>
 		/// </summary>
 		/// <param name="pool">Query pool that manages the results of the queries.</param>
 		/// <param name="type">Type of the queries to copy.</param>
 		/// <param name="first">Index of the first query in the pool to copy the result from.</param>
 		/// <param name="count">Number of query results to copy.</param>
-		/// <param name="destination">Buffer resource to copy to.</param>
-		/// <param name="dst_offset">Offset (in bytes) into the <paramref name="destination"/> buffer to start copying to.</param>
+		/// <param name="dest">Buffer resource to copy to.</param>
+		/// <param name="dest_offset">Offset (in bytes) into the <paramref name="dest"/> buffer to start copying to.</param>
 		/// <param name="stride">Size (in bytes) of each result element.</param>
-		virtual void copy_query_pool_results(query_pool pool, query_type type, uint32_t first, uint32_t count, resource destination, uint64_t dst_offset, uint32_t stride) = 0;
+		virtual void copy_query_pool_results(query_pool pool, query_type type, uint32_t first, uint32_t count, resource dest, uint64_t dest_offset, uint32_t stride) = 0;
 
 		/// <summary>
 		/// Opens a debug event region in the command list.
@@ -828,7 +830,7 @@ namespace reshade { namespace api
 	/// <remarks>
 	/// This class may NOT be used concurrently from multiple threads!
 	/// </remarks>
-	struct DECLSPEC_NOVTABLE command_queue : public device_object
+	struct __declspec(novtable) command_queue : public device_object
 	{
 		/// <summary>
 		/// Gets a special command list, on which all issued commands are executed as soon as possible (or right before the application executes its next command list on this queue).
@@ -872,7 +874,7 @@ namespace reshade { namespace api
 	/// A swap chain, used to present images to the screen.
 	/// <para>Functionally equivalent to a 'IDirect3DSwapChain9', 'IDXGISwapChain', 'HDC' or 'VkSwapchainKHR'.</para>
 	/// </summary>
-	struct DECLSPEC_NOVTABLE swapchain : public device_object
+	struct __declspec(novtable) swapchain : public device_object
 	{
 		/// <summary>
 		/// Gets the back buffer resource at the specified <paramref name="index"/> in this swap chain.
@@ -884,7 +886,7 @@ namespace reshade { namespace api
 		/// Gets the current back buffer resource.
 		/// </summary>
 		/// <param name="out_handle">Pointer to a variable that is set to the handle of the back buffer resource.</param>
-		inline  void get_current_back_buffer(resource * out_handle) { get_back_buffer(get_current_back_buffer_index(), out_handle); }
+		inline  void get_current_back_buffer(resource *out_handle) { get_back_buffer(get_current_back_buffer_index(), out_handle); }
 
 		/// <summary>
 		/// Gets the number of back buffer resources in this swap chain.
@@ -906,7 +908,7 @@ namespace reshade { namespace api
 	/// A ReShade effect runtime, used to control effects.
 	/// <para>A separate runtime is instantiated for every swap chain.</para>
 	/// </summary>
-	struct DECLSPEC_NOVTABLE effect_runtime : public swapchain
+	struct __declspec(novtable) effect_runtime : public swapchain
 	{
 		/// <summary>
 		/// Gets the main graphics command queue associated with this effect runtime.
@@ -917,7 +919,7 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Gets the current buffer dimensions of the swap chain.
 		/// </summary>
-		virtual void get_frame_width_and_height(uint32_t *width, uint32_t *height) const = 0;
+		virtual void get_frame_width_and_height(uint32_t *out_width, uint32_t *out_height) const = 0;
 
 		/// <summary>
 		/// Updates all textures that use the specified <paramref name="semantic"/> in all active effects to new resource view.

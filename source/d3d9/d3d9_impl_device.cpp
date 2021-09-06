@@ -334,12 +334,12 @@ bool reshade::d3d9::device_impl::check_format_support(api::format format, api::r
 	return d3d_format != D3DFMT_UNKNOWN && SUCCEEDED(_d3d->CheckDeviceFormat(_cp.AdapterOrdinal, _cp.DeviceType, D3DFMT_X8R8G8B8, d3d_usage, D3DRTYPE_TEXTURE, d3d_format));
 }
 
-bool reshade::d3d9::device_impl::create_sampler(const api::sampler_desc &desc, api::sampler *out)
+bool reshade::d3d9::device_impl::create_sampler(const api::sampler_desc &desc, api::sampler *out_handle)
 {
 	// Comparison sampling is not supported in D3D9
 	if ((static_cast<uint32_t>(desc.filter) & 0x80) != 0)
 	{
-		*out = { 0 };
+		*out_handle = { 0 };
 		return false;
 	}
 
@@ -361,7 +361,7 @@ bool reshade::d3d9::device_impl::create_sampler(const api::sampler_desc &desc, a
 		impl->state[D3DSAMP_MAGFILTER] = D3DTEXF_ANISOTROPIC;
 	}
 
-	*out = { reinterpret_cast<uintptr_t>(impl) };
+	*out_handle = { reinterpret_cast<uintptr_t>(impl) };
 	return true;
 }
 void reshade::d3d9::device_impl::destroy_sampler(api::sampler handle)
@@ -369,7 +369,7 @@ void reshade::d3d9::device_impl::destroy_sampler(api::sampler handle)
 	delete reinterpret_cast<sampler_impl *>(handle.handle);
 }
 
-bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage, api::resource *out)
+bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage, api::resource *out_handle)
 {
 	switch (desc.type)
 	{
@@ -386,11 +386,11 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 					if (com_ptr<IDirect3DIndexBuffer9> object;
 						SUCCEEDED(_orig->CreateIndexBuffer(internal_desc.Size, internal_desc.Usage, internal_desc.Format, internal_desc.Pool, &object, nullptr)))
 					{
-						*out = { reinterpret_cast<uintptr_t>(object.release()) };
+						*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
 
 						if (initial_data != nullptr)
 						{
-							update_buffer_region(initial_data->data, *out, 0, desc.buffer.size);
+							update_buffer_region(initial_data->data, *out_handle, 0, desc.buffer.size);
 						}
 						return true;
 					}
@@ -404,11 +404,11 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 					if (com_ptr<IDirect3DVertexBuffer9> object;
 						SUCCEEDED(_orig->CreateVertexBuffer(internal_desc.Size, internal_desc.Usage, internal_desc.FVF, internal_desc.Pool, &object, nullptr)))
 					{
-						*out = { reinterpret_cast<uintptr_t>(object.release()) };
+						*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
 
 						if (initial_data != nullptr)
 						{
-							update_buffer_region(initial_data->data, *out, 0, desc.buffer.size);
+							update_buffer_region(initial_data->data, *out_handle, 0, desc.buffer.size);
 						}
 						return true;
 					}
@@ -436,7 +436,7 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 				if (com_ptr<IDirect3DTexture9> object;
 					SUCCEEDED(_orig->CreateTexture(internal_desc.Width, internal_desc.Height, levels, internal_desc.Usage, internal_desc.Format, internal_desc.Pool, &object, nullptr)))
 				{
-					*out = { reinterpret_cast<uintptr_t>(object.release()) };
+					*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
 
 					if (initial_data != nullptr)
 					{
@@ -445,7 +445,7 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 							levels  = 1;
 
 						for (uint32_t subresource = 0; subresource < levels; ++subresource)
-							update_texture_region(initial_data[subresource], *out, subresource, nullptr);
+							update_texture_region(initial_data[subresource], *out_handle, subresource, nullptr);
 					}
 					return true;
 				}
@@ -457,12 +457,12 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 				if (com_ptr<IDirect3DCubeTexture9> object;
 					SUCCEEDED(_orig->CreateCubeTexture(internal_desc.Width, levels, internal_desc.Usage, internal_desc.Format, internal_desc.Pool, &object, nullptr)))
 				{
-					*out = { reinterpret_cast<uintptr_t>(object.release()) };
+					*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
 
 					if (initial_data != nullptr)
 					{
 						for (uint32_t subresource = 0; subresource < static_cast<uint32_t>(desc.texture.depth_or_layers) * desc.texture.levels; ++subresource)
-							update_texture_region(initial_data[subresource], *out, subresource, nullptr);
+							update_texture_region(initial_data[subresource], *out_handle, subresource, nullptr);
 					}
 					return true;
 				}
@@ -485,12 +485,12 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 			if (com_ptr<IDirect3DVolumeTexture9> object;
 				SUCCEEDED(_orig->CreateVolumeTexture(internal_desc.Width, internal_desc.Height, internal_desc.Depth, levels, internal_desc.Usage, internal_desc.Format, internal_desc.Pool, &object, nullptr)))
 			{
-				*out = { reinterpret_cast<uintptr_t>(object.release()) };
+				*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
 
 				if (initial_data != nullptr)
 				{
 					for (uint32_t subresource = 0; subresource < static_cast<uint32_t>(desc.texture.depth_or_layers) * desc.texture.levels; ++subresource)
-						update_texture_region(initial_data[subresource], *out, subresource, nullptr);
+						update_texture_region(initial_data[subresource], *out_handle, subresource, nullptr);
 				}
 
 				return true;
@@ -520,7 +520,7 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 						SUCCEEDED(create_surface_replacement(internal_desc, &object, nullptr)) :
 						SUCCEEDED(_orig->CreateDepthStencilSurface(internal_desc.Width, internal_desc.Height, internal_desc.Format, internal_desc.MultiSampleType, internal_desc.MultiSampleQuality, FALSE, &object, nullptr)))
 					{
-						*out = { reinterpret_cast<uintptr_t>(object.release()) };
+						*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
 						return true;
 					}
 					break;
@@ -536,7 +536,7 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 						SUCCEEDED(create_surface_replacement(internal_desc, &object, nullptr)) :
 						SUCCEEDED(_orig->CreateRenderTarget(internal_desc.Width, internal_desc.Height, internal_desc.Format, internal_desc.MultiSampleType, internal_desc.MultiSampleQuality, FALSE, &object, nullptr)))
 					{
-						*out = { reinterpret_cast<uintptr_t>(object.release()) };
+						*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
 						return true;
 					}
 					break;
@@ -546,7 +546,7 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 		}
 	}
 
-	*out = { 0 };
+	*out_handle = { 0 };
 	return false;
 }
 void reshade::d3d9::device_impl::destroy_resource(api::resource handle)
@@ -555,11 +555,11 @@ void reshade::d3d9::device_impl::destroy_resource(api::resource handle)
 		reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }
 
-bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view *out)
+bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view *out_handle)
 {
 	if (resource.handle == 0)
 	{
-		*out = { 0 };
+		*out_handle = { 0 };
 		return false;
 	}
 
@@ -578,11 +578,11 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 		case D3DRTYPE_SURFACE:
 		{
 			assert(desc.type == api::resource_view_type::texture_2d || desc.type == api::resource_view_type::texture_2d_multisample);
-			assert(desc.texture.first_layer == 0 && (desc.texture.layers == 1 || desc.texture.layers == std::numeric_limits<uint32_t>::max()));
+			assert(desc.texture.first_layer == 0 && (desc.texture.layer_count == 1 || desc.texture.layer_count == std::numeric_limits<uint32_t>::max()));
 
 			if (usage_type == api::resource_usage::depth_stencil || usage_type == api::resource_usage::render_target)
 			{
-				if (desc.texture.first_level != 0 || desc.texture.levels != 1)
+				if (desc.texture.first_level != 0 || desc.texture.level_count != 1)
 					break;
 
 				D3DSURFACE_DESC internal_desc;
@@ -594,7 +594,7 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 
 				object->AddRef();
 				{
-					*out = { reinterpret_cast<uintptr_t>(object) | set_srgb_bit };
+					*out_handle = { reinterpret_cast<uintptr_t>(object) | set_srgb_bit };
 					return true;
 				}
 			}
@@ -603,11 +603,11 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 		case D3DRTYPE_TEXTURE:
 		{
 			assert(desc.type == api::resource_view_type::texture_2d || desc.type == api::resource_view_type::texture_2d_multisample);
-			assert(desc.texture.first_layer == 0 && (desc.texture.layers == 1 || desc.texture.layers == std::numeric_limits<uint32_t>::max()));
+			assert(desc.texture.first_layer == 0 && (desc.texture.layer_count == 1 || desc.texture.layer_count == std::numeric_limits<uint32_t>::max()));
 
 			if (usage_type == api::resource_usage::depth_stencil || usage_type == api::resource_usage::render_target)
 			{
-				if (desc.texture.levels != 1)
+				if (desc.texture.level_count != 1)
 					break;
 
 				D3DSURFACE_DESC internal_desc;
@@ -620,7 +620,7 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 				if (com_ptr<IDirect3DSurface9> surface;
 					SUCCEEDED(static_cast<IDirect3DTexture9 *>(object)->GetSurfaceLevel(desc.texture.first_level, &surface)))
 				{
-					*out = { reinterpret_cast<uintptr_t>(surface.release()) | set_srgb_bit };
+					*out_handle = { reinterpret_cast<uintptr_t>(surface.release()) | set_srgb_bit };
 					return true;
 				}
 			}
@@ -635,7 +635,7 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 
 				object->AddRef();
 				{
-					*out = { reinterpret_cast<uintptr_t>(object) | set_srgb_bit };
+					*out_handle = { reinterpret_cast<uintptr_t>(object) | set_srgb_bit };
 					return true;
 				}
 			}
@@ -647,7 +647,7 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 			{
 				assert(desc.type == api::resource_view_type::texture_2d || desc.type == api::resource_view_type::texture_2d_multisample);
 
-				if (desc.texture.levels != 1 || desc.texture.layers != 1)
+				if (desc.texture.level_count != 1 || desc.texture.layer_count != 1)
 					break;
 
 				D3DSURFACE_DESC internal_desc;
@@ -660,7 +660,7 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 				if (com_ptr<IDirect3DSurface9> surface;
 					SUCCEEDED(static_cast<IDirect3DCubeTexture9 *>(object)->GetCubeMapSurface(static_cast<D3DCUBEMAP_FACES>(desc.texture.first_layer), desc.texture.first_level, &surface)))
 				{
-					*out = { reinterpret_cast<uintptr_t>(surface.release()) | set_srgb_bit };
+					*out_handle = { reinterpret_cast<uintptr_t>(surface.release()) | set_srgb_bit };
 					return true;
 				}
 			}
@@ -677,7 +677,7 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 
 				object->AddRef();
 				{
-					*out = { reinterpret_cast<uintptr_t>(object) | set_srgb_bit };
+					*out_handle = { reinterpret_cast<uintptr_t>(object) | set_srgb_bit };
 					return true;
 				}
 			}
@@ -685,7 +685,7 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 		}
 	}
 
-	*out = { 0 };
+	*out_handle = { 0 };
 	return false;
 }
 void reshade::d3d9::device_impl::destroy_resource_view(api::resource_view handle)
@@ -694,24 +694,24 @@ void reshade::d3d9::device_impl::destroy_resource_view(api::resource_view handle
 		reinterpret_cast<IUnknown *>(handle.handle & ~1ull)->Release();
 }
 
-bool reshade::d3d9::device_impl::create_pipeline(const api::pipeline_desc &desc, api::pipeline *out)
+bool reshade::d3d9::device_impl::create_pipeline(const api::pipeline_desc &desc, api::pipeline *out_handle)
 {
 	switch (desc.type)
 	{
 	case api::pipeline_stage::all_graphics:
-		return create_graphics_pipeline(desc, out);
+		return create_graphics_pipeline(desc, out_handle);
 	case api::pipeline_stage::input_assembler:
-		return create_input_layout(desc, out);
+		return create_input_layout(desc, out_handle);
 	case api::pipeline_stage::vertex_shader:
-		return create_vertex_shader(desc, out);
+		return create_vertex_shader(desc, out_handle);
 	case api::pipeline_stage::pixel_shader:
-		return create_pixel_shader(desc, out);
+		return create_pixel_shader(desc, out_handle);
 	default:
-		*out = { 0 };
+		*out_handle = { 0 };
 		return false;
 	}
 }
-bool reshade::d3d9::device_impl::create_graphics_pipeline(const api::pipeline_desc &desc, api::pipeline *out)
+bool reshade::d3d9::device_impl::create_graphics_pipeline(const api::pipeline_desc &desc, api::pipeline *out_handle)
 {
 	// Check for unsupported states
 	if (desc.graphics.hull_shader.code_size != 0 ||
@@ -722,14 +722,14 @@ bool reshade::d3d9::device_impl::create_graphics_pipeline(const api::pipeline_de
 		desc.graphics.topology > api::primitive_topology::triangle_fan ||
 		desc.graphics.viewport_count > 1)
 	{
-		*out = { 0 };
+		*out_handle = { 0 };
 		return false;
 	}
 
 #define create_state_object(name, type, extra_check) \
 	api::pipeline name##_handle = { 0 }; \
 	if (extra_check && !create_##name(desc, &name##_handle)) { \
-		*out = { 0 }; \
+		*out_handle = { 0 }; \
 		return false; \
 	} \
 	com_ptr<type> name(reinterpret_cast<type *>(name##_handle.handle), true)
@@ -742,7 +742,7 @@ bool reshade::d3d9::device_impl::create_graphics_pipeline(const api::pipeline_de
 
 	if (FAILED(_orig->BeginStateBlock()))
 	{
-		*out = { 0 };
+		*out_handle = { 0 };
 		return false;
 	}
 
@@ -855,16 +855,16 @@ bool reshade::d3d9::device_impl::create_graphics_pipeline(const api::pipeline_de
 		impl->prim_type = static_cast<D3DPRIMITIVETYPE>(desc.graphics.topology);
 		impl->state_block = std::move(state_block);
 
-		*out = { reinterpret_cast<uintptr_t>(impl) };
+		*out_handle = { reinterpret_cast<uintptr_t>(impl) };
 		return true;
 	}
 	else
 	{
-		*out = { 0 };
+		*out_handle = { 0 };
 		return false;
 	}
 }
-bool reshade::d3d9::device_impl::create_input_layout(const api::pipeline_desc &desc, api::pipeline *out)
+bool reshade::d3d9::device_impl::create_input_layout(const api::pipeline_desc &desc, api::pipeline *out_handle)
 {
 	std::vector<D3DVERTEXELEMENT9> internal_elements;
 	convert_pipeline_desc(desc, internal_elements);
@@ -872,44 +872,44 @@ bool reshade::d3d9::device_impl::create_input_layout(const api::pipeline_desc &d
 	if (com_ptr<IDirect3DVertexDeclaration9> object;
 		internal_elements.size() == 1 || SUCCEEDED(_orig->CreateVertexDeclaration(internal_elements.data(), &object)))
 	{
-		*out = { reinterpret_cast<uintptr_t>(object.release()) };
+		*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
 		return true;
 	}
 	else
 	{
-		*out = { 0 };
+		*out_handle = { 0 };
 		return false;
 	}
 }
-bool reshade::d3d9::device_impl::create_vertex_shader(const api::pipeline_desc &desc, api::pipeline *out)
+bool reshade::d3d9::device_impl::create_vertex_shader(const api::pipeline_desc &desc, api::pipeline *out_handle)
 {
 	if (com_ptr<IDirect3DVertexShader9> object;
 		SUCCEEDED(_orig->CreateVertexShader(static_cast<const DWORD *>(desc.graphics.vertex_shader.code), &object)))
 	{
-		assert(desc.graphics.vertex_shader.num_spec_constants == 0);
+		assert(desc.graphics.vertex_shader.spec_constants == 0);
 
-		*out = { reinterpret_cast<uintptr_t>(object.release()) };
+		*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
 		return true;
 	}
 	else
 	{
-		*out = { 0 };
+		*out_handle = { 0 };
 		return false;
 	}
 }
-bool reshade::d3d9::device_impl::create_pixel_shader(const api::pipeline_desc &desc, api::pipeline *out)
+bool reshade::d3d9::device_impl::create_pixel_shader(const api::pipeline_desc &desc, api::pipeline *out_handle)
 {
 	if (com_ptr<IDirect3DPixelShader9> object;
 		SUCCEEDED(_orig->CreatePixelShader(static_cast<const DWORD *>(desc.graphics.pixel_shader.code), &object)))
 	{
-		assert(desc.graphics.pixel_shader.num_spec_constants == 0);
+		assert(desc.graphics.pixel_shader.spec_constants == 0);
 
-		*out = { reinterpret_cast<uintptr_t>(object.release()) };
+		*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
 		return true;
 	}
 	else
 	{
-		*out = { 0 };
+		*out_handle = { 0 };
 		return false;
 	}
 }
@@ -921,15 +921,53 @@ void reshade::d3d9::device_impl::destroy_pipeline(api::pipeline_stage type, api:
 		reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }
 
-bool reshade::d3d9::device_impl::create_pipeline_layout(uint32_t count, const api::pipeline_layout_param *params, api::pipeline_layout *out)
+bool reshade::d3d9::device_impl::create_render_pass(const api::render_pass_desc &, api::render_pass *out_handle)
+{
+	*out_handle = { 0 };
+	return true;
+}
+void reshade::d3d9::device_impl::destroy_render_pass(api::render_pass handle)
+{
+	assert(handle.handle == 0);
+}
+
+bool reshade::d3d9::device_impl::create_framebuffer(const api::framebuffer_desc &desc, api::framebuffer *out_handle)
+{
+	const auto impl = new framebuffer_impl();
+
+	for (DWORD i = 0; i < 8 && desc.render_targets[i].handle != 0; ++i)
+	{
+		if (i >= _caps.NumSimultaneousRTs)
+		{
+			delete impl;
+
+			*out_handle = { 0 };
+			return false;
+		}
+
+		impl->rtv[i] = reinterpret_cast<IDirect3DSurface9 *>(desc.render_targets[i].handle & ~1ull);
+		impl->srgb_write_enable |= (desc.render_targets[i].handle & 1);
+	}
+
+	impl->dsv = reinterpret_cast<IDirect3DSurface9 *>(desc.depth_stencil.handle);
+
+	*out_handle = { reinterpret_cast<uintptr_t>(impl) };
+	return true;
+}
+void reshade::d3d9::device_impl::destroy_framebuffer(api::framebuffer handle)
+{
+	delete reinterpret_cast<framebuffer_impl *>(handle.handle);
+}
+
+bool reshade::d3d9::device_impl::create_pipeline_layout(uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout *out_handle)
 {
 	bool success = true;
 
 	const auto impl = new pipeline_layout_impl();
-	impl->params.assign(params, params + count);
-	impl->shader_registers.resize(count);
+	impl->params.assign(params, params + param_count);
+	impl->shader_registers.resize(param_count);
 
-	for (uint32_t i = 0; i < count && success; ++i)
+	for (uint32_t i = 0; i < param_count && success; ++i)
 	{
 		if (params[i].type != api::pipeline_layout_param_type::push_constants)
 		{
@@ -947,14 +985,14 @@ bool reshade::d3d9::device_impl::create_pipeline_layout(uint32_t count, const ap
 
 	if (success)
 	{
-		*out = { reinterpret_cast<uintptr_t>(impl) };
+		*out_handle = { reinterpret_cast<uintptr_t>(impl) };
 		return true;
 	}
 	else
 	{
 		delete impl;
 
-		*out = { 0 };
+		*out_handle = { 0 };
 		return false;
 	}
 }
@@ -963,12 +1001,12 @@ void reshade::d3d9::device_impl::destroy_pipeline_layout(api::pipeline_layout ha
 	delete reinterpret_cast<pipeline_layout_impl *>(handle.handle);
 }
 
-bool reshade::d3d9::device_impl::create_descriptor_set_layout(uint32_t count, const api::descriptor_range *ranges, bool, api::descriptor_set_layout *out)
+bool reshade::d3d9::device_impl::create_descriptor_set_layout(uint32_t range_count, const api::descriptor_range *ranges, bool, api::descriptor_set_layout *out_handle)
 {
 	bool success = true;
-	api::descriptor_range merged_range = count ? ranges[0] : api::descriptor_range {};
+	api::descriptor_range merged_range = range_count ? ranges[0] : api::descriptor_range {};
 
-	for (uint32_t i = 1; i < count && success; ++i)
+	for (uint32_t i = 1; i < range_count && success; ++i)
 	{
 		if (ranges[i].type != merged_range.type || ranges[i].dx_register_space != 0 || ranges[i].array_size > 1)
 			success = false;
@@ -1003,12 +1041,12 @@ bool reshade::d3d9::device_impl::create_descriptor_set_layout(uint32_t count, co
 		const auto impl = new descriptor_set_layout_impl();
 		impl->range = merged_range;
 
-		*out = { reinterpret_cast<uintptr_t>(impl) };
+		*out_handle = { reinterpret_cast<uintptr_t>(impl) };
 		return true;
 	}
 	else
 	{
-		*out = { 0 };
+		*out_handle = { 0 };
 		return false;
 	}
 }
@@ -1017,7 +1055,7 @@ void reshade::d3d9::device_impl::destroy_descriptor_set_layout(api::descriptor_s
 	delete reinterpret_cast<descriptor_set_layout_impl *>(handle.handle);
 }
 
-bool reshade::d3d9::device_impl::create_query_pool(api::query_type type, uint32_t size, api::query_pool *out)
+bool reshade::d3d9::device_impl::create_query_pool(api::query_type type, uint32_t size, api::query_pool *out_handle)
 {
 	const auto impl = new query_pool_impl();
 	impl->type = type;
@@ -1031,12 +1069,12 @@ bool reshade::d3d9::device_impl::create_query_pool(api::query_type type, uint32_
 		{
 			delete impl;
 
-			*out = { 0 };
+			*out_handle = { 0 };
 			return false;
 		}
 	}
 
-	*out = { reinterpret_cast<uintptr_t>(impl) };
+	*out_handle = { reinterpret_cast<uintptr_t>(impl) };
 	return true;
 }
 void reshade::d3d9::device_impl::destroy_query_pool(api::query_pool handle)
@@ -1044,45 +1082,7 @@ void reshade::d3d9::device_impl::destroy_query_pool(api::query_pool handle)
 	delete reinterpret_cast<query_pool_impl *>(handle.handle);
 }
 
-bool reshade::d3d9::device_impl::create_render_pass(const api::render_pass_desc &, api::render_pass *out)
-{
-	*out = { 0 };
-	return true;
-}
-void reshade::d3d9::device_impl::destroy_render_pass(api::render_pass handle)
-{
-	assert(handle.handle == 0);
-}
-
-bool reshade::d3d9::device_impl::create_framebuffer(const api::framebuffer_desc &desc, api::framebuffer *out)
-{
-	const auto impl = new framebuffer_impl();
-
-	for (DWORD i = 0; i < 8 && desc.render_targets[i].handle != 0; ++i)
-	{
-		if (i >= _caps.NumSimultaneousRTs)
-		{
-			delete impl;
-
-			*out = { 0 };
-			return false;
-		}
-
-		impl->rtv[i] = reinterpret_cast<IDirect3DSurface9 *>(desc.render_targets[i].handle & ~1ull);
-		impl->srgb_write_enable |= (desc.render_targets[i].handle & 1);
-	}
-
-	impl->dsv = reinterpret_cast<IDirect3DSurface9 *>(desc.depth_stencil.handle);
-
-	*out = { reinterpret_cast<uintptr_t>(impl) };
-	return true;
-}
-void reshade::d3d9::device_impl::destroy_framebuffer(api::framebuffer handle)
-{
-	delete reinterpret_cast<framebuffer_impl *>(handle.handle);
-}
-
-bool reshade::d3d9::device_impl::create_descriptor_sets(uint32_t count, const api::descriptor_set_layout *layouts, api::descriptor_set *out)
+bool reshade::d3d9::device_impl::create_descriptor_sets(uint32_t count, const api::descriptor_set_layout *layouts, api::descriptor_set *out_sets)
 {
 	for (uint32_t i = 0; i < count; ++i)
 	{
@@ -1107,7 +1107,7 @@ bool reshade::d3d9::device_impl::create_descriptor_sets(uint32_t count, const ap
 			break;
 		}
 
-		out[i] = { reinterpret_cast<uintptr_t>(impl) };
+		out_sets[i] = { reinterpret_cast<uintptr_t>(impl) };
 	}
 
 	return true;
@@ -1455,11 +1455,13 @@ void reshade::d3d9::device_impl::get_pipeline_layout_desc(api::pipeline_layout l
 		*count = static_cast<uint32_t>(layout_impl->params.size());
 	}
 }
+
 void reshade::d3d9::device_impl::get_descriptor_pool_offset(api::descriptor_set, api::descriptor_pool *pool, uint32_t *offset) const
 {
 	*pool = { 0 };
 	*offset = 0; // Unsupported
 }
+
 void reshade::d3d9::device_impl::get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *count, api::descriptor_range *ranges) const
 {
 	assert(layout.handle != 0 && count != nullptr);
@@ -1530,6 +1532,7 @@ reshade::api::resource_desc reshade::d3d9::device_impl::get_resource_desc(api::r
 	assert(false); // Not implemented
 	return api::resource_desc {};
 }
+
 reshade::api::resource      reshade::d3d9::device_impl::get_resource_from_view(api::resource_view view) const
 {
 	assert(view.handle != 0);

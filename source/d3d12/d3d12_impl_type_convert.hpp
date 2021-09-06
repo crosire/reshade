@@ -14,6 +14,7 @@ namespace reshade::d3d12
 		UINT count;
 		DXGI_FORMAT rtv_format[D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT];
 		DXGI_FORMAT dsv_format;
+		DXGI_SAMPLE_DESC sample_desc;
 	};
 
 	struct framebuffer_impl

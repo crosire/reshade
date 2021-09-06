@@ -120,25 +120,25 @@ namespace reshade { namespace api
 		compute_shader = 0x00000800,
 
 		/// <summary>
-		/// The pipeline stage where vertex and index buffers are consumed.
-		/// </summary>
-		/// <seealso cref="pipeline_desc::graphics::input_layout"/>
-		input_assembler = 0x00000004,
-		/// <summary>
 		/// The pipeline stage where rasterization happens and early depth and stencil tests are performed.
 		/// </summary>
 		/// <seealso cref="pipeline_desc::graphics::rasterizer_state"/>
 		rasterizer = 0x00000100,
+		/// <summary>
+		/// The pipeline stage where the final color values are output from the pipeline and written to the render targets.
+		/// </summary>
+		/// <seealso cref="pipeline_desc::graphics::blend_state"/>
+		output_merger = 0x00000400,
 		/// <summary>
 		/// The pipeline stage where late depth and stencil tests are performed.
 		/// </summary>
 		/// <seealso cref="pipeline_desc::graphics::depth_stencil_state"/>
 		depth_stencil = 0x00000200,
 		/// <summary>
-		/// The pipeline stage where the final color values are output from the pipeline and written to the render targets.
+		/// The pipeline stage where vertex and index buffers are consumed.
 		/// </summary>
-		/// <seealso cref="pipeline_desc::graphics::blend_state"/>
-		output_merger = 0x00000400,
+		/// <seealso cref="pipeline_desc::graphics::input_layout"/>
+		input_assembler = 0x00000004,
 
 		/// <summary>
 		/// All operations performed by all supported commands (compute, graphics, ...).
@@ -380,6 +380,18 @@ namespace reshade { namespace api
 	RESHADE_DEFINE_HANDLE(pipeline);
 
 	/// <summary>
+	/// An opaque handle to a render pass.
+	/// <para>In Vulkan this is a 'VkRenderPass' handle.</para>
+	/// </summary>
+	RESHADE_DEFINE_HANDLE(render_pass);
+
+	/// <summary>
+	/// An opaque handle to a framebuffer object.
+	/// <para>In OpenGL this is a FBO handle, in Vulkan a 'VkFramebuffer' handle.</para>
+	/// </summary>
+	RESHADE_DEFINE_HANDLE(framebuffer);
+
+	/// <summary>
 	/// An opaque handle to a pipeline layout object.
 	/// <para>In D3D12 this is a pointer to a 'ID3D12RootSignature' object, in Vulkan a 'VkPipelineLayout' handle.</para>
 	/// </summary>
@@ -398,18 +410,6 @@ namespace reshade { namespace api
 	RESHADE_DEFINE_HANDLE(query_pool);
 
 	/// <summary>
-	/// An opaque handle to a render pass.
-	/// <para>In Vulkan this is a 'VkRenderPass' handle.</para>
-	/// </summary>
-	RESHADE_DEFINE_HANDLE(render_pass);
-
-	/// <summary>
-	/// An opaque handle to a framebuffer object.
-	/// <para>In OpenGL this is a FBO handle, in Vulkan a 'VkFramebuffer' handle.</para>
-	/// </summary>
-	RESHADE_DEFINE_HANDLE(framebuffer);
-
-	/// <summary>
 	/// An opaque handle to a descriptor set.
 	/// <para>In D3D12 this is a 'D3D12_GPU_DESCRIPTOR_HANDLE' to a descriptor table, in Vulkan a 'VkDescriptorSet' handle.</para>
 	/// </summary>
@@ -422,7 +422,7 @@ namespace reshade { namespace api
 	RESHADE_DEFINE_HANDLE(descriptor_pool);
 
 	/// <summary>
-	/// Describes the state of the output merger stage.
+	/// Describes the state of the output-merger stage.
 	/// </summary>
 	struct blend_desc
 	{
@@ -517,7 +517,7 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
-	/// Describes a single element in the vertex layout for the input assembler stage.
+	/// Describes a single element in the vertex layout for the input-assembler stage.
 	/// </summary>
 	struct input_layout_element
 	{
@@ -547,15 +547,15 @@ namespace reshade { namespace api
 	/// </summary>
 	struct shader_desc
 	{
-		/// <summary>The shader source code or binary.</summary>
+		/// <summary>Shader source code or binary.</summary>
 		const void *code;
-		/// <summary>The size (in bytes) of the shader source <see cref="code"/> or binary.</summary>
+		/// <summary>Size (in bytes) of the shader source <see cref="code"/> or binary.</summary>
 		size_t code_size;
 		/// <summary>Optional entry point name if the shader source <see cref="code"/> or binary contains multiple entry points. Can be <c>nullptr</c> if it does not.</summary>
 		const char *entry_point;
-		/// <summary>The number of entries in the <see cref="spec_constant_ids"/> and <see cref="spec_constant_values"/> arrays.
+		/// <summary>Number of entries in the <see cref="spec_constant_ids"/> and <see cref="spec_constant_values"/> arrays.
 		/// This is meaningful only when the shader binary is a SPIR-V module and is ignored otherwise.</summary>
-		uint32_t num_spec_constants;
+		uint32_t spec_constants;
 		/// <summary>Pointer to an array of specialization constant indices.</summary>
 		const uint32_t *spec_constant_ids;
 		/// <summary>Pointer to an array of constant values, one for each specialization constant index in <see cref="spec_constant_ids"/>.</summary>
@@ -569,7 +569,7 @@ namespace reshade { namespace api
 	{
 		/// <summary>Type of the pipeline state object.</summary>
 		pipeline_stage type;
-		/// <summary>Descriptor and constant layout of the pipeline.</summary>
+		/// <summary>Descriptor set and constant layout of the pipeline.</summary>
 		pipeline_layout layout;
 
 		union
@@ -611,32 +611,28 @@ namespace reshade { namespace api
 				/// <seealso cref="pipeline_stage::pixel_shader"/>
 				shader_desc pixel_shader;
 
-				/// <summary>Vertex layout for the input assembler stage. 
+				/// <summary>Vertex layout for the input-assembler stage. 
 				/// Elements following one with the format set to <see cref="format::unknown"/> will be ignored (which is used to terminate this list).</summary>
 				/// <seealso cref="pipeline_stage::input_assembler"/>
 				input_layout_element input_layout[16];
 
-				/// <summary>State of the output merger stage.</summary>
-				/// <seealso cref="pipeline_stage::output_merger"/>
-				blend_desc blend_state;
 				/// <summary>State of the rasterizer stage.</summary>
 				/// <seealso cref="pipeline_stage::rasterizer"/>
 				rasterizer_desc rasterizer_state;
+
+				/// <summary>State of the output-merger stage.</summary>
+				/// <seealso cref="pipeline_stage::output_merger"/>
+				blend_desc blend_state;
 				/// <summary>State of the depth-stencil stage.</summary>
 				/// <seealso cref="pipeline_stage::depth_stencil"/>
 				depth_stencil_desc depth_stencil_state;
 
 				/// <summary>Mask applied to the coverage mask for a fragment during rasterization.</summary>
 				uint32_t sample_mask;
-				/// <summary>Number of samples per pixel to use during rasterization with multisample antialiasing.</summary>
-				uint32_t sample_count;
-
-				/// <summary>Primitive topology to use when rendering.</summary>
-				primitive_topology topology;
-
 				/// <summary>Maximum number of viewports that may be bound via <see cref="command_list::bind_viewports"/> with this pipeline.</summary>
 				uint32_t viewport_count;
-
+				/// <summary>Primitive topology to use when rendering.</summary>
+				primitive_topology topology;
 				/// <summary>A render pass that describes the format of the render target and depth-stencil views that may be used with this pipeline.</summary>
 				render_pass render_pass_template;
 

@@ -4489,9 +4489,9 @@ HOOK_EXPORT void WINAPI glTexSubImage2D(GLenum target, GLint level, GLint xoffse
 	{
 		internalformat = reshade::opengl::convert_format(desc.format);
 		minlevel = desc.texture.first_level;
-		numlevels = desc.texture.levels; // TODO: Handle 0xFFFFFFFF
+		numlevels = desc.texture.level_count; // TODO: Handle 0xFFFFFFFF
 		minlayer = desc.texture.first_layer;
-		numlayers = desc.texture.layers;
+		numlayers = desc.texture.layer_count;
 	}
 #endif
 

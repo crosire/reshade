@@ -33,7 +33,7 @@ namespace reshade
 	/// <summary>
 	/// Platform independent base class for the main ReShade effect runtime.
 	/// </summary>
-	class DECLSPEC_NOVTABLE runtime : public api::effect_runtime
+	class __declspec(novtable) runtime : public api::effect_runtime
 	{
 	public:
 		/// <summary>

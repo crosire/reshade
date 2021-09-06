@@ -330,21 +330,21 @@ void reshade::vulkan::command_list_impl::bind_vertex_buffers(uint32_t first, uin
 	vk.CmdBindVertexBuffers(_orig, first, count, reinterpret_cast<const VkBuffer *>(buffers), offsets);
 }
 
-void reshade::vulkan::command_list_impl::draw(uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance)
+void reshade::vulkan::command_list_impl::draw(uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance)
 {
 	_has_commands = true;
 
 	assert(_current_fbo != VK_NULL_HANDLE);
 
-	vk.CmdDraw(_orig, vertices, instances, first_vertex, first_instance);
+	vk.CmdDraw(_orig, vertex_count, instance_count, first_vertex, first_instance);
 }
-void reshade::vulkan::command_list_impl::draw_indexed(uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)
+void reshade::vulkan::command_list_impl::draw_indexed(uint32_t index_count, uint32_t instance_count, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)
 {
 	_has_commands = true;
 
 	assert(_current_fbo != VK_NULL_HANDLE);
 
-	vk.CmdDrawIndexed(_orig, indices, instances, first_index, vertex_offset, first_instance);
+	vk.CmdDrawIndexed(_orig, index_count, instance_count, first_index, vertex_offset, first_instance);
 }
 void reshade::vulkan::command_list_impl::dispatch(uint32_t group_count_x, uint32_t group_count_y, uint32_t group_count_z)
 {
@@ -366,7 +366,7 @@ void reshade::vulkan::command_list_impl::draw_or_dispatch_indirect(api::indirect
 		break;
 	case api::indirect_command::dispatch:
 		for (uint32_t i = 0; i < draw_count; ++i)
-			vk.CmdDispatchIndirect(_orig, (VkBuffer)buffer.handle, offset + i * stride);
+			vk.CmdDispatchIndirect(_orig, (VkBuffer)buffer.handle, offset + static_cast<uint64_t>(i) * stride);
 		break;
 	}
 }
@@ -587,7 +587,7 @@ void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource sr
 		1, &region);
 }
 
-void reshade::vulkan::command_list_impl::clear_attachments(api::attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t num_rects, const int32_t *rects)
+void reshade::vulkan::command_list_impl::clear_attachments(api::attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t rect_count, const int32_t *rects)
 {
 	_has_commands = true;
 
@@ -622,7 +622,7 @@ void reshade::vulkan::command_list_impl::clear_attachments(api::attachment_type 
 
 	assert(num_clear_attachments != 0);
 
-	if (num_rects == 0)
+	if (rect_count == 0)
 	{
 		VkClearRect clear_rect;
 		clear_rect.rect.offset = { 0, 0 };
@@ -634,8 +634,8 @@ void reshade::vulkan::command_list_impl::clear_attachments(api::attachment_type 
 	}
 	else
 	{
-		std::vector<VkClearRect> clear_rects(num_rects);
-		for (uint32_t i = 0, k = 0; i < num_rects; ++i, k += 4)
+		std::vector<VkClearRect> clear_rects(rect_count);
+		for (uint32_t i = 0, k = 0; i < rect_count; ++i, k += 4)
 		{
 			clear_rects[i].rect.offset.x = rects[k + 0];
 			clear_rects[i].rect.offset.y = rects[k + 1];
@@ -645,14 +645,14 @@ void reshade::vulkan::command_list_impl::clear_attachments(api::attachment_type 
 			clear_rects[i].layerCount = 1;
 		}
 
-		vk.CmdClearAttachments(_orig, num_clear_attachments, clear_attachments, num_rects, clear_rects.data());
+		vk.CmdClearAttachments(_orig, num_clear_attachments, clear_attachments, rect_count, clear_rects.data());
 	}
 }
-void reshade::vulkan::command_list_impl::clear_depth_stencil_view(api::resource_view dsv, api::attachment_type clear_flags, float depth, uint8_t stencil, uint32_t num_rects, const int32_t *)
+void reshade::vulkan::command_list_impl::clear_depth_stencil_view(api::resource_view dsv, api::attachment_type clear_flags, float depth, uint8_t stencil, uint32_t rect_count, const int32_t *)
 {
 	_has_commands = true;
 
-	assert(num_rects == 0);
+	assert(rect_count == 0);
 
 	const auto dsv_data = _device_impl->get_user_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)dsv.handle);
 
@@ -673,11 +673,11 @@ void reshade::vulkan::command_list_impl::clear_depth_stencil_view(api::resource_
 	std::swap(transition.oldLayout, transition.newLayout);
 	vk.CmdPipelineBarrier(_orig, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
 }
-void reshade::vulkan::command_list_impl::clear_render_target_view(api::resource_view rtv, const float color[4], uint32_t num_rects, const int32_t *)
+void reshade::vulkan::command_list_impl::clear_render_target_view(api::resource_view rtv, const float color[4], uint32_t rect_count, const int32_t *)
 {
 	_has_commands = true;
 
-	assert(num_rects == 0);
+	assert(rect_count == 0);
 
 	const auto rtv_data = _device_impl->get_user_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)rtv.handle);
 
@@ -699,11 +699,11 @@ void reshade::vulkan::command_list_impl::clear_render_target_view(api::resource_
 	std::swap(transition.oldLayout, transition.newLayout);
 	vk.CmdPipelineBarrier(_orig, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
 }
-void reshade::vulkan::command_list_impl::clear_unordered_access_view_uint(api::resource_view uav, const uint32_t values[4], uint32_t num_rects, const int32_t *)
+void reshade::vulkan::command_list_impl::clear_unordered_access_view_uint(api::resource_view uav, const uint32_t values[4], uint32_t rect_count, const int32_t *)
 {
 	_has_commands = true;
 
-	assert(num_rects == 0);
+	assert(rect_count == 0);
 
 	const auto uav_data = _device_impl->get_user_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)uav.handle);
 
@@ -712,11 +712,11 @@ void reshade::vulkan::command_list_impl::clear_unordered_access_view_uint(api::r
 
 	vk.CmdClearColorImage(_orig, uav_data->create_info.image, VK_IMAGE_LAYOUT_GENERAL, &clear_value, 1, &uav_data->create_info.subresourceRange);
 }
-void reshade::vulkan::command_list_impl::clear_unordered_access_view_float(api::resource_view uav, const float values[4], uint32_t num_rects, const int32_t *)
+void reshade::vulkan::command_list_impl::clear_unordered_access_view_float(api::resource_view uav, const float values[4], uint32_t rect_count, const int32_t *)
 {
 	_has_commands = true;
 
-	assert(num_rects == 0);
+	assert(rect_count == 0);
 
 	const auto uav_data = _device_impl->get_user_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)uav.handle);
 

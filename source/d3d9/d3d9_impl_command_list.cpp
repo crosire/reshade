@@ -230,17 +230,17 @@ void reshade::d3d9::device_impl::bind_vertex_buffers(uint32_t first, uint32_t co
 	}
 }
 
-void reshade::d3d9::device_impl::draw(uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance)
+void reshade::d3d9::device_impl::draw(uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance)
 {
-	assert(instances == 1 && first_instance == 0);
+	assert(instance_count == 1 && first_instance == 0);
 
-	_orig->DrawPrimitive(_current_prim_type, first_vertex, calc_prim_from_vertex_count(_current_prim_type, vertices));
+	_orig->DrawPrimitive(_current_prim_type, first_vertex, calc_prim_from_vertex_count(_current_prim_type, vertex_count));
 }
-void reshade::d3d9::device_impl::draw_indexed(uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)
+void reshade::d3d9::device_impl::draw_indexed(uint32_t index_count, uint32_t instance_count, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)
 {
-	assert(instances == 1 && first_instance == 0);
+	assert(instance_count == 1 && first_instance == 0);
 
-	_orig->DrawIndexedPrimitive(_current_prim_type, vertex_offset, 0, 0xFFFF, first_index, calc_prim_from_vertex_count(_current_prim_type, indices));
+	_orig->DrawIndexedPrimitive(_current_prim_type, vertex_offset, 0, 0xFFFF, first_index, calc_prim_from_vertex_count(_current_prim_type, index_count));
 }
 void reshade::d3d9::device_impl::dispatch(uint32_t, uint32_t, uint32_t)
 {
@@ -493,13 +493,13 @@ void reshade::d3d9::device_impl::resolve_texture_region(api::resource src, uint3
 	copy_texture_region(src, src_subresource, src_box, dst, dst_subresource, dst_box, api::filter_type::min_mag_mip_point);
 }
 
-void reshade::d3d9::device_impl::clear_attachments(api::attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t num_rects, const int32_t *rects)
+void reshade::d3d9::device_impl::clear_attachments(api::attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t rect_count, const int32_t *rects)
 {
-	_orig->Clear(num_rects, reinterpret_cast<const D3DRECT *>(rects), static_cast<DWORD>(clear_flags), color != nullptr ? D3DCOLOR_COLORVALUE(color[0], color[1], color[2], color[3]) : 0, depth, stencil);
+	_orig->Clear(rect_count, reinterpret_cast<const D3DRECT *>(rects), static_cast<DWORD>(clear_flags), color != nullptr ? D3DCOLOR_COLORVALUE(color[0], color[1], color[2], color[3]) : 0, depth, stencil);
 }
-void reshade::d3d9::device_impl::clear_depth_stencil_view(api::resource_view dsv, api::attachment_type clear_flags, float depth, uint8_t stencil, uint32_t num_rects, const int32_t *)
+void reshade::d3d9::device_impl::clear_depth_stencil_view(api::resource_view dsv, api::attachment_type clear_flags, float depth, uint8_t stencil, uint32_t rect_count, const int32_t *)
 {
-	assert(dsv.handle != 0 && num_rects == 0);
+	assert(dsv.handle != 0 && rect_count == 0);
 
 	_backup_state.capture();
 
@@ -509,11 +509,11 @@ void reshade::d3d9::device_impl::clear_depth_stencil_view(api::resource_view dsv
 
 	_backup_state.apply_and_release();
 }
-void reshade::d3d9::device_impl::clear_render_target_view(api::resource_view rtv, const float color[4], uint32_t num_rects, const int32_t *rects)
+void reshade::d3d9::device_impl::clear_render_target_view(api::resource_view rtv, const float color[4], uint32_t rect_count, const int32_t *rects)
 {
 	assert(rtv.handle != 0 && color != nullptr);
 
-	for (uint32_t i = 0; i < std::max(num_rects, 1u); ++i)
+	for (uint32_t i = 0; i < std::max(rect_count, 1u); ++i)
 		_orig->ColorFill(reinterpret_cast<IDirect3DSurface9 *>(rtv.handle & ~1ull), reinterpret_cast<const RECT *>(rects + i * 4), D3DCOLOR_COLORVALUE(color[0], color[1], color[2], color[3]));
 }
 void reshade::d3d9::device_impl::clear_unordered_access_view_uint(api::resource_view, const uint32_t[4], uint32_t, const int32_t *)

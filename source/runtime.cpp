@@ -1593,7 +1593,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 				if (_renderer_id & 0x20000)
 				{
 					desc.compute.shader.entry_point = pass_info.cs_entry_point.c_str();
-					desc.compute.shader.num_spec_constants = static_cast<uint32_t>(effect.module.spec_constants.size());
+					desc.compute.shader.spec_constants = static_cast<uint32_t>(effect.module.spec_constants.size());
 					desc.compute.shader.spec_constant_ids = spec_constants.data();
 					desc.compute.shader.spec_constant_values = spec_data.data();
 				}
@@ -1615,7 +1615,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 				if (_renderer_id & 0x20000)
 				{
 					desc.graphics.vertex_shader.entry_point = pass_info.vs_entry_point.c_str();
-					desc.graphics.vertex_shader.num_spec_constants = static_cast<uint32_t>(effect.module.spec_constants.size());
+					desc.graphics.vertex_shader.spec_constants = static_cast<uint32_t>(effect.module.spec_constants.size());
 					desc.graphics.vertex_shader.spec_constant_ids = spec_constants.data();
 					desc.graphics.vertex_shader.spec_constant_values = spec_data.data();
 				}
@@ -1626,7 +1626,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 				if (_renderer_id & 0x20000)
 				{
 					desc.graphics.pixel_shader.entry_point = pass_info.ps_entry_point.c_str();
-					desc.graphics.pixel_shader.num_spec_constants = static_cast<uint32_t>(effect.module.spec_constants.size());
+					desc.graphics.pixel_shader.spec_constants = static_cast<uint32_t>(effect.module.spec_constants.size());
 					desc.graphics.pixel_shader.spec_constant_ids = spec_constants.data();
 					desc.graphics.pixel_shader.spec_constant_values = spec_data.data();
 				}
@@ -1685,9 +1685,8 @@ bool reshade::runtime::init_effect(size_t effect_index)
 				}
 
 				desc.graphics.sample_mask = std::numeric_limits<uint32_t>::max();
-				desc.graphics.sample_count = 1;
-				desc.graphics.topology = static_cast<api::primitive_topology>(pass_info.topology);
 				desc.graphics.viewport_count = 1;
+				desc.graphics.topology = static_cast<api::primitive_topology>(pass_info.topology);
 
 				const auto convert_blend_op = [](reshadefx::pass_blend_op value) {
 					switch (value)

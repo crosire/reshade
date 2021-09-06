@@ -209,7 +209,7 @@ namespace reshade
 
 		/// <summary>
 		/// Called before 'ID3D10Device::UpdateSubresource', 'ID3D11DeviceContext::UpdateSubresource' or 'gl(Named)BufferSubData'.
-		/// <para>Callback function signature: <c>bool (api::device *device, const void *data, api::resource dst, uint64_t dst_offset, uint64_t size)</c></para>
+		/// <para>Callback function signature: <c>bool (api::device *device, const void *data, api::resource dest, uint64_t dest_offset, uint64_t size)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
@@ -218,7 +218,7 @@ namespace reshade
 		update_buffer_region,
 		/// <summary>
 		/// Called before 'ID3D10Device::UpdateSubresource', 'ID3D11DeviceContext::UpdateSubresource' or 'gl(Compressed)Tex(ture)SubData(...).
-		/// <para>Callback function signature: <c>bool (api::device *device, const api::subresource_data &data, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6])</c></para>
+		/// <para>Callback function signature: <c>bool (api::device *device, const api::subresource_data &data, api::resource dest, uint32_t dest_subresource, const int32_t dest_box[6])</c></para>
 		/// </summary>
 		/// <remarks>
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
@@ -313,7 +313,7 @@ namespace reshade
 
 		/// <summary>
 		/// Called before 'IDirect3DDevice9::DrawPrimitive(UP)', 'ID3D10Device::Draw(Instanced)', 'ID3D11DeviceContext::Draw(Instanced)', 'ID3D12GraphicsCommandList::DrawInstanced', 'gl(Multi)DrawArrays(...)' or 'vkCmdDraw'.
-		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance)</c></para>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
@@ -321,7 +321,7 @@ namespace reshade
 		draw,
 		/// <summary>
 		/// Called before 'IDirect3DDevice9::DrawIndexedPrimitive(UP)', 'ID3D10Device::DrawIndexed(Instanced)', 'ID3D11DeviceContext::DrawIndexed(Instanced)', 'ID3D12GraphicsCommandList::DrawIndexedInstanced', 'gl(Multi)DrawElements(...)' or 'vkCmdDrawIndexed'.
-		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)</c></para>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, uint32_t index_count, uint32_t instance_count, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
@@ -346,7 +346,7 @@ namespace reshade
 
 		/// <summary>
 		/// Called before 'IDirect3DDevice9::UpdateTexture', 'IDirect3DDevice9::GetRenderTargetData', 'ID3D10Device::CopyResource', 'ID3D11DeviceContext::CopyResource' or 'ID3D12GraphicsCommandList::CopyResource'.
-		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource src, api::resource dst)</c></para>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource source, api::resource dest)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
@@ -355,7 +355,7 @@ namespace reshade
 		copy_resource,
 		/// <summary>
 		/// Called before 'ID3D12GraphicsCommandList::CopyBufferRegion', 'glCopy(Named)BufferSubData' or 'vkCmdCopyBuffer'.
-		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource src, uint64_t src_offset, api::resource dst, uint64_t dst_offset, uint64_t size)</c></para>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource source, uint64_t source_offset, api::resource dest, uint64_t dest_offset, uint64_t size)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
@@ -364,7 +364,7 @@ namespace reshade
 		copy_buffer_region,
 		/// <summary>
 		/// Called before 'ID3D12GraphicsCommandList::CopyTextureRegion' or 'vkCmdCopyBufferToImage'.
-		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource src, uint64_t src_offset, uint32_t row_length, uint32_t slice_height, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6])</c></para>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource source, uint64_t source_offset, uint32_t row_length, uint32_t slice_height, api::resource dest, uint32_t dest_subresource, const int32_t dest_box[6])</c></para>
 		/// </summary>
 		/// <remarks>
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
@@ -373,7 +373,7 @@ namespace reshade
 		copy_buffer_to_texture,
 		/// <summary>
 		/// Called before 'IDirect3DDevice9::UpdateSurface', 'IDirect3DDevice9::StretchRect', 'ID3D10Device::CopySubresourceRegion', 'ID3D11DeviceContext::CopySubresourceRegion', 'ID3D12GraphicsCommandList::CopyTextureRegion', 'glBlit(Named)Framebuffer', 'glCopyImageSubData', 'glCopyTex(ture)SubImage(...)', 'vkCmdBlitImage' or 'vkCmdCopyImage'.
-		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], api::filter_type filter)</c></para>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource source, uint32_t source_subresource, const int32_t source_box[6], api::resource dest, uint32_t dest_subresource, const int32_t dest_box[6], api::filter_type filter)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
@@ -382,7 +382,7 @@ namespace reshade
 		copy_texture_region,
 		/// <summary>
 		/// Called before 'ID3D12GraphicsCommandList::CopyTextureRegion' or 'vkCmdCopyImageToBuffer'.
-		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint64_t dst_offset, uint32_t row_length, uint32_t slice_height)</c></para>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource source, uint32_t source_subresource, const int32_t source_box[6], api::resource dest, uint64_t dest_offset, uint32_t row_length, uint32_t slice_height)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
@@ -391,7 +391,7 @@ namespace reshade
 		copy_texture_to_buffer,
 		/// <summary>
 		/// Called before 'IDirect3DDevice9::StretchRect', 'ID3D10Device::ResolveSubresource', 'ID3D11DeviceContext::ResolveSubresource', 'ID3D12GraphicsCommandList::ResolveSubresource', 'ID3D12GraphicsCommandList1::ResolveSubresourceRegion', 'glBlit(Named)Framebuffer' or 'vkCmdResolveImage'.
-		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], api::format format)</c></para>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource source, uint32_t source_subresource, const int32_t source_box[6], api::resource dest, uint32_t dest_subresource, const int32_t dest_offset[3], api::format format)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
@@ -401,7 +401,7 @@ namespace reshade
 
 		/// <summary>
 		/// Called before 'IDirect3DDevice9::Clear', 'glClear' or 'vkCmdClearAttachments'.
-		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t num_rects, const int32_t *rects)</c></para>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t rect_count, const int32_t *rects)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
@@ -409,7 +409,7 @@ namespace reshade
 		clear_attachments,
 		/// <summary>
 		/// Called before 'ID3D10Device::ClearDepthStencilView', 'ID3D11DeviceContext::ClearDepthStencilView', 'ID3D11DeviceContext1::ClearView', 'ID3D12GraphicsCommandList::ClearDepthStencilView', 'ID3D12GraphicsCommandList::BeginRenderPass', 'glClear(NamedFrame)Bufferfi', 'vkCmdClearDepthStencilImage' or 'vkCmdBeginRenderPass'.
-		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view dsv, api::attachment_type clear_flags, float depth, uint8_t stencil, uint32_t num_rects, const int32_t *rects)</c></para>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view dsv, api::attachment_type clear_flags, float depth, uint8_t stencil, uint32_t rect_count, const int32_t *rects)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
@@ -418,7 +418,7 @@ namespace reshade
 		clear_depth_stencil_view,
 		/// <summary>
 		/// Called before 'IDirect3DDevice9::ColorFill', 'ID3D10Device::ClearRenderTargetView', 'ID3D11DeviceContext::ClearRenderTargetView', 'ID3D11DeviceContext1::ClearView', 'ID3D12GraphicsCommandList::ClearRenderTargetView', 'ID3D12GraphicsCommandList::BeginRenderPass', 'glClear(NamedFrame)Bufferfv', 'vkCmdClearColorImage' or 'vkCmdBeginRenderPass'.
-		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view rtv, const float color[4], uint32_t num_rects, const int32_t *rects)</c></para>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view rtv, const float color[4], uint32_t rect_count, const int32_t *rects)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
@@ -427,7 +427,7 @@ namespace reshade
 		clear_render_target_view,
 		/// <summary>
 		/// Called before 'ID3D11DeviceContext::ClearUnorderedAccessViewUint' or 'ID3D12GraphicsCommandList::ClearUnorderedAccessViewUint'.
-		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view uav, const uint32_t values[4], uint32_t num_rects, const int32_t *rects)</c></para>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view uav, const uint32_t values[4], uint32_t rect_count, const int32_t *rects)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
@@ -436,7 +436,7 @@ namespace reshade
 		clear_unordered_access_view_uint,
 		/// <summary>
 		/// Called before 'ID3D11DeviceContext::ClearUnorderedAccessViewFloat', 'ID3D11DeviceContext1::ClearView' or 'ID3D12GraphicsCommandList::ClearUnorderedAccessViewFloat'.
-		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view uav, const float values[4], uint32_t num_rects, const int32_t *rects)</c></para>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view uav, const float values[4], uint32_t rect_count, const int32_t *rects)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
@@ -541,8 +541,8 @@ namespace reshade
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::create_framebuffer, bool, api::device *device, api::framebuffer_desc &desc);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::destroy_framebuffer, void, api::device *device, api::framebuffer fbo);
 
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::update_buffer_region, bool, api::device *device, const void *data, api::resource dst, uint64_t dst_offset, uint64_t size);
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::update_texture_region, bool, api::device *device, const api::subresource_data &data, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6]);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::update_buffer_region, bool, api::device *device, const void *data, api::resource dest, uint64_t dest_offset, uint64_t size);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::update_texture_region, bool, api::device *device, const api::subresource_data &data, api::resource dest, uint32_t dest_subresource, const int32_t dest_box[6]);
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::update_descriptor_sets, bool, api::device *device, uint32_t count, const api::descriptor_set_update *updates);
 
@@ -562,23 +562,23 @@ namespace reshade
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::bind_index_buffer, void, api::command_list *cmd_list, api::resource buffer, uint64_t offset, uint32_t index_size);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::bind_vertex_buffers, void, api::command_list *cmd_list, uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *strides);
 
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::draw, bool, api::command_list *cmd_list, uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance);
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::draw_indexed, bool, api::command_list *cmd_list, uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::draw, bool, api::command_list *cmd_list, uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::draw_indexed, bool, api::command_list *cmd_list, uint32_t index_count, uint32_t instance_count, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::dispatch, bool, api::command_list *cmd_list, uint32_t group_count_x, uint32_t group_count_y, uint32_t group_count_z);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::draw_or_dispatch_indirect, bool, api::command_list *cmd_list, api::indirect_command type, api::resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride);
 
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::copy_resource, bool, api::command_list *cmd_list, api::resource src, api::resource dst);
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::copy_buffer_region, bool, api::command_list *cmd_list, api::resource src, uint64_t src_offset, api::resource dst, uint64_t dst_offset, uint64_t size);
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::copy_buffer_to_texture, bool, api::command_list *cmd_list, api::resource src, uint64_t src_offset, uint32_t row_length, uint32_t slice_height, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6]);
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::copy_texture_region, bool, api::command_list *cmd_list, api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], api::filter_type filter);
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::copy_texture_to_buffer, bool, api::command_list *cmd_list, api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint64_t dst_offset, uint32_t row_length, uint32_t slice_height);
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::resolve_texture_region, bool, api::command_list *cmd_list, api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], api::format format);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::copy_resource, bool, api::command_list *cmd_list, api::resource source, api::resource dest);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::copy_buffer_region, bool, api::command_list *cmd_list, api::resource source, uint64_t source_offset, api::resource dest, uint64_t dest_offset, uint64_t size);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::copy_buffer_to_texture, bool, api::command_list *cmd_list, api::resource source, uint64_t source_offset, uint32_t row_length, uint32_t slice_height, api::resource dest, uint32_t dest_subresource, const int32_t dest_box[6]);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::copy_texture_region, bool, api::command_list *cmd_list, api::resource source, uint32_t source_subresource, const int32_t source_box[6], api::resource dest, uint32_t dest_subresource, const int32_t dest_box[6], api::filter_type filter);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::copy_texture_to_buffer, bool, api::command_list *cmd_list, api::resource source, uint32_t source_subresource, const int32_t source_box[6], api::resource dest, uint64_t dest_offset, uint32_t row_length, uint32_t slice_height);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::resolve_texture_region, bool, api::command_list *cmd_list, api::resource source, uint32_t source_subresource, const int32_t source_box[6], api::resource dest, uint32_t dest_subresource, const int32_t dest_offset[3], api::format format);
 
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::clear_attachments, bool, api::command_list *cmd_list, api::attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t num_rects, const int32_t *rects);
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::clear_depth_stencil_view, bool, api::command_list *cmd_list, api::resource_view dsv, api::attachment_type clear_flags, float depth, uint8_t stencil, uint32_t num_rects, const int32_t *rects);
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::clear_render_target_view, bool, api::command_list *cmd_list, api::resource_view rtv, const float color[4], uint32_t num_rects, const int32_t *rects);
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::clear_unordered_access_view_uint, bool, api::command_list *cmd_list, api::resource_view uav, const uint32_t values[4], uint32_t num_rects, const int32_t *rects);
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::clear_unordered_access_view_float, bool, api::command_list *cmd_list, api::resource_view uav, const float values[4], uint32_t num_rects, const int32_t *rects);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::clear_attachments, bool, api::command_list *cmd_list, api::attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t rect_count, const int32_t *rects);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::clear_depth_stencil_view, bool, api::command_list *cmd_list, api::resource_view dsv, api::attachment_type clear_flags, float depth, uint8_t stencil, uint32_t rect_count, const int32_t *rects);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::clear_render_target_view, bool, api::command_list *cmd_list, api::resource_view rtv, const float color[4], uint32_t rect_count, const int32_t *rects);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::clear_unordered_access_view_uint, bool, api::command_list *cmd_list, api::resource_view uav, const uint32_t values[4], uint32_t rect_count, const int32_t *rects);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::clear_unordered_access_view_float, bool, api::command_list *cmd_list, api::resource_view uav, const float values[4], uint32_t rect_count, const int32_t *rects);
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::generate_mipmaps, bool, api::command_list *cmd_list, api::resource_view srv);
 

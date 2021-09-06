@@ -989,9 +989,9 @@ void reshade::vulkan::convert_resource_view_desc(const api::resource_view_desc &
 		create_info.format = format;
 
 	create_info.subresourceRange.baseMipLevel = desc.texture.first_level;
-	create_info.subresourceRange.levelCount = desc.texture.levels;
+	create_info.subresourceRange.levelCount = desc.texture.level_count;
 	create_info.subresourceRange.baseArrayLayer = desc.texture.first_layer;
-	create_info.subresourceRange.layerCount = desc.texture.layers;
+	create_info.subresourceRange.layerCount = desc.texture.layer_count;
 }
 void reshade::vulkan::convert_resource_view_desc(const api::resource_view_desc &desc, VkBufferViewCreateInfo &create_info)
 {
@@ -1038,9 +1038,9 @@ reshade::api::resource_view_desc reshade::vulkan::convert_resource_view_desc(con
 
 	desc.format = convert_format(create_info.format);
 	desc.texture.first_level = create_info.subresourceRange.baseMipLevel;
-	desc.texture.levels = create_info.subresourceRange.levelCount;
+	desc.texture.level_count = create_info.subresourceRange.levelCount;
 	desc.texture.first_layer = create_info.subresourceRange.baseArrayLayer;
-	desc.texture.layers = create_info.subresourceRange.layerCount;
+	desc.texture.layer_count = create_info.subresourceRange.layerCount;
 
 	return desc;
 }
@@ -1181,7 +1181,6 @@ reshade::api::pipeline_desc reshade::vulkan::device_impl::convert_pipeline_desc(
 	{
 		const VkPipelineMultisampleStateCreateInfo &multisample_state_info = *create_info.pMultisampleState;
 
-		desc.graphics.sample_count = static_cast<uint32_t>(multisample_state_info.rasterizationSamples);
 		desc.graphics.blend_state.alpha_to_coverage_enable = multisample_state_info.alphaToCoverageEnable;
 		desc.graphics.rasterizer_state.multisample_enable = multisample_state_info.rasterizationSamples != VK_SAMPLE_COUNT_1_BIT;
 

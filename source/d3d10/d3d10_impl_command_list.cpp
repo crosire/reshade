@@ -333,13 +333,13 @@ void reshade::d3d10::device_impl::bind_vertex_buffers(uint32_t first, uint32_t c
 	_orig->IASetVertexBuffers(first, count, buffer_ptrs, strides, offsets_32);
 }
 
-void reshade::d3d10::device_impl::draw(uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance)
+void reshade::d3d10::device_impl::draw(uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance)
 {
-	_orig->DrawInstanced(vertices, instances, first_vertex, first_instance);
+	_orig->DrawInstanced(vertex_count, instance_count, first_vertex, first_instance);
 }
-void reshade::d3d10::device_impl::draw_indexed(uint32_t indices, uint32_t instances, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)
+void reshade::d3d10::device_impl::draw_indexed(uint32_t index_count, uint32_t instance_count, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)
 {
-	_orig->DrawIndexedInstanced(indices, instances, first_index, vertex_offset, first_instance);
+	_orig->DrawIndexedInstanced(index_count, instance_count, first_index, vertex_offset, first_instance);
 }
 void reshade::d3d10::device_impl::dispatch(uint32_t, uint32_t, uint32_t)
 {
@@ -405,9 +405,9 @@ void reshade::d3d10::device_impl::resolve_texture_region(api::resource src, uint
 		reinterpret_cast<ID3D10Resource *>(src.handle), src_subresource, convert_format(format));
 }
 
-void reshade::d3d10::device_impl::clear_attachments(api::attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t num_rects, const int32_t *)
+void reshade::d3d10::device_impl::clear_attachments(api::attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t rect_count, const int32_t *)
 {
-	assert(num_rects == 0);
+	assert(rect_count == 0);
 
 	com_ptr<ID3D10DepthStencilView> dsv;
 	com_ptr<ID3D10RenderTargetView> rtv[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
@@ -419,15 +419,15 @@ void reshade::d3d10::device_impl::clear_attachments(api::attachment_type clear_f
 	if (static_cast<UINT>(clear_flags & (api::attachment_type::depth | api::attachment_type::stencil)) != 0 && dsv != nullptr)
 		_orig->ClearDepthStencilView(dsv.get(), static_cast<UINT>(clear_flags) >> 1, depth, stencil);
 }
-void reshade::d3d10::device_impl::clear_depth_stencil_view(api::resource_view dsv, api::attachment_type clear_flags, float depth, uint8_t stencil, uint32_t num_rects, const int32_t *)
+void reshade::d3d10::device_impl::clear_depth_stencil_view(api::resource_view dsv, api::attachment_type clear_flags, float depth, uint8_t stencil, uint32_t rect_count, const int32_t *)
 {
-	assert(dsv.handle != 0 && num_rects == 0);
+	assert(dsv.handle != 0 && rect_count == 0);
 
 	_orig->ClearDepthStencilView(reinterpret_cast<ID3D10DepthStencilView *>(dsv.handle), static_cast<UINT>(clear_flags) >> 1, depth, stencil);
 }
-void reshade::d3d10::device_impl::clear_render_target_view(api::resource_view rtv, const float color[4], uint32_t num_rects, const int32_t *)
+void reshade::d3d10::device_impl::clear_render_target_view(api::resource_view rtv, const float color[4], uint32_t rect_count, const int32_t *)
 {
-	assert(rtv.handle != 0 && num_rects == 0);
+	assert(rtv.handle != 0 && rect_count == 0);
 
 	_orig->ClearRenderTargetView(reinterpret_cast<ID3D10RenderTargetView *>(rtv.handle), color);
 }
