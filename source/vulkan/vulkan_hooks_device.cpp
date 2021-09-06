@@ -11,6 +11,7 @@
 #include "vulkan_impl_command_queue.hpp"
 #include "vulkan_impl_swapchain.hpp"
 #include "vulkan_impl_type_convert.hpp"
+#include <malloc.h>
 
 lockfree_linear_map<void *, reshade::vulkan::device_impl *, 8> g_vulkan_devices;
 static lockfree_linear_map<VkQueue, reshade::vulkan::command_queue_impl *, 16> s_vulkan_queues;
@@ -1428,49 +1429,44 @@ void     VKAPI_CALL vkUpdateDescriptorSets(VkDevice device, uint32_t descriptorW
 #if RESHADE_ADDON
 	if (descriptorWriteCount != 0 && reshade::has_addon_event<reshade::addon_event::update_descriptor_sets>())
 	{
-		std::vector<reshade::api::descriptor_set_update> updates;
-		updates.reserve(descriptorWriteCount);
-
 		uint32_t max_descriptors = 0;
 		for (uint32_t i = 0; i < descriptorWriteCount; ++i)
 			max_descriptors += pDescriptorWrites[i].descriptorCount;
-		std::vector<uint64_t> descriptors(max_descriptors * 2);
+
+		const auto updates = static_cast<reshade::api::descriptor_set_update *>(_malloca(descriptorWriteCount * sizeof(reshade::api::descriptor_set_update)));
+		const auto descriptors = static_cast<uint64_t *>(_malloca(max_descriptors * 2 * sizeof(uint64_t)));
 
 		for (uint32_t i = 0, j = 0; i < descriptorWriteCount; ++i)
 		{
 			const VkWriteDescriptorSet &write = pDescriptorWrites[i];
 
 			const auto set_data = device_impl->get_user_data_for_object<VK_OBJECT_TYPE_DESCRIPTOR_SET>(write.dstSet);
-			const auto layout_data = device_impl->get_user_data_for_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>(set_data->layout);
+			const auto set_layout_data = device_impl->get_user_data_for_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>(set_data->layout);
 
-			reshade::api::descriptor_set_update &update = updates.emplace_back();
+			reshade::api::descriptor_set_update &update = updates[i];
 			update.set = { (uint64_t)write.dstSet };
-			update.offset = layout_data->binding_to_offset.at(write.dstBinding) + write.dstArrayElement;
+			update.offset = set_layout_data->binding_to_offset.at(write.dstBinding) + write.dstArrayElement;
 			update.binding = write.dstBinding;
 			update.array_offset = write.dstArrayElement;
 			update.count = write.descriptorCount;
 			update.type = static_cast<reshade::api::descriptor_type>(write.descriptorType);
+			update.descriptors = descriptors + j;
 
 			switch (write.descriptorType)
 			{
 			case VK_DESCRIPTOR_TYPE_SAMPLER:
-				update.descriptors = descriptors.data() + j;
 				for (uint32_t k = 0; k < write.descriptorCount; ++k, ++j)
-					descriptors[j] = (uint64_t)write.pImageInfo[k].sampler;
+					descriptors[j + 0] = (uint64_t)write.pImageInfo[k].sampler;
 				break;
 			case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
-				update.descriptors = descriptors.data() + j;
 				for (uint32_t k = 0; k < write.descriptorCount; ++k, j += 2)
-				{
-					descriptors[j + 0] = (uint64_t)write.pImageInfo[k].sampler;
+					descriptors[j + 0] = (uint64_t)write.pImageInfo[k].sampler,
 					descriptors[j + 1] = (uint64_t)write.pImageInfo[k].imageView;
-				}
 				break;
 			case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
 			case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
-				update.descriptors = descriptors.data() + j;
 				for (uint32_t k = 0; k < write.descriptorCount; ++k, ++j)
-					descriptors[j] = (uint64_t)write.pImageInfo[k].imageView;
+					descriptors[j + 0] = (uint64_t)write.pImageInfo[k].imageView;
 				break;
 			case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
 			case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
@@ -1480,7 +1476,12 @@ void     VKAPI_CALL vkUpdateDescriptorSets(VkDevice device, uint32_t descriptorW
 			}
 		}
 
-		if (reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(device_impl, descriptorWriteCount, updates.data()))
+		const bool skip = reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(device_impl, descriptorWriteCount, updates);
+
+		_freea(descriptors);
+		_freea(updates);
+
+		if (skip)
 			return;
 	}
 #endif

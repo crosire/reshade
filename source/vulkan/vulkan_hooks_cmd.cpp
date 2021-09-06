@@ -8,6 +8,7 @@
 #include "vulkan_impl_device.hpp"
 #include "vulkan_impl_command_list.hpp"
 #include "vulkan_impl_type_convert.hpp"
+#include <malloc.h>
 #include <algorithm>
 
 extern lockfree_linear_map<void *, reshade::vulkan::device_impl *, 8> g_vulkan_devices;
@@ -98,7 +99,7 @@ void     VKAPI_CALL vkCmdSetScissor(VkCommandBuffer commandBuffer, uint32_t firs
 
 	reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_user_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
 
-	std::vector<int32_t> rect_data(scissorCount * 4);
+	const auto rect_data = static_cast<int32_t *>(_malloca(scissorCount * 4 * sizeof(int32_t)));
 	for (uint32_t i = 0, k = 0; i < scissorCount; ++i, k += 4)
 	{
 		rect_data[k + 0] = pScissors[i].offset.x;
@@ -108,7 +109,9 @@ void     VKAPI_CALL vkCmdSetScissor(VkCommandBuffer commandBuffer, uint32_t firs
 	}
 
 	reshade::invoke_addon_event<reshade::addon_event::bind_scissor_rects>(
-		cmd_impl, firstScissor, scissorCount, rect_data.data());
+		cmd_impl, firstScissor, scissorCount, rect_data);
+
+	_freea(rect_data);
 #endif
 }
 
@@ -663,7 +666,7 @@ void     VKAPI_CALL vkCmdClearAttachments(VkCommandBuffer commandBuffer, uint32_
 				clear_depth_stencil = pAttachments[i].clearValue.depthStencil;
 		}
 
-		std::vector<int32_t> rect_data(rectCount * 4);
+		const auto rect_data = static_cast<int32_t *>(_malloca(rectCount * 4 * sizeof(int32_t)));
 		for (uint32_t i = 0, k = 0; i < rectCount; ++i, k += 4)
 		{
 			rect_data[k + 0] = pRects[i].rect.offset.x;
@@ -672,13 +675,17 @@ void     VKAPI_CALL vkCmdClearAttachments(VkCommandBuffer commandBuffer, uint32_
 			rect_data[k + 3] = pRects[i].rect.offset.y + pRects[i].rect.extent.height;
 		}
 
-		if (reshade::invoke_addon_event<reshade::addon_event::clear_attachments>(
+		const bool skip = reshade::invoke_addon_event<reshade::addon_event::clear_attachments>(
 			cmd_impl,
 			static_cast<reshade::api::attachment_type>(combined_aspect_mask),
 			clear_color.float32,
 			clear_depth_stencil.depth,
 			static_cast<uint8_t>(clear_depth_stencil.stencil),
-			rectCount, rect_data.data()))
+			rectCount, rect_data);
+
+		_freea(rect_data);
+
+		if (skip)
 			return;
 	}
 #endif
@@ -748,9 +755,9 @@ void     VKAPI_CALL vkCmdPipelineBarrier(VkCommandBuffer commandBuffer, VkPipeli
 
 	reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_user_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
 
-	std::vector<reshade::api::resource> resources(num_barriers);
-	std::vector<reshade::api::resource_usage> old_states(num_barriers);
-	std::vector<reshade::api::resource_usage> new_states(num_barriers);
+	const auto resources = static_cast<reshade::api::resource *>(_malloca(num_barriers * sizeof(reshade::api::resource)));
+	const auto old_states = static_cast<reshade::api::resource_usage *>(_malloca(num_barriers * sizeof(reshade::api::resource_usage)));
+	const auto new_states = static_cast<reshade::api::resource_usage *>(_malloca(num_barriers * sizeof(reshade::api::resource_usage)));
 
 	for (uint32_t i = 0; i < bufferMemoryBarrierCount; ++i)
 	{
@@ -771,7 +778,11 @@ void     VKAPI_CALL vkCmdPipelineBarrier(VkCommandBuffer commandBuffer, VkPipeli
 
 	reshade::invoke_addon_event<reshade::addon_event::barrier>(
 		cmd_impl,
-		num_barriers, resources.data(), old_states.data(), new_states.data());
+		num_barriers, resources, old_states, new_states);
+
+	_freea(new_states);
+	_freea(old_states);
+	_freea(resources);
 #endif
 }
 
@@ -812,6 +823,12 @@ void     VKAPI_CALL vkCmdPushDescriptorSetKHR(VkCommandBuffer commandBuffer, VkP
 
 	reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_user_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
 
+	uint32_t max_descriptors = 0;
+	for (uint32_t i = 0; i < descriptorWriteCount; ++i)
+		max_descriptors += pDescriptorWrites[i].descriptorCount;
+
+	const auto descriptors = static_cast<uint64_t *>(_malloca(max_descriptors * 2 * sizeof(uint64_t)));
+
 	const auto shader_stages =
 		pipelineBindPoint == VK_PIPELINE_BIND_POINT_COMPUTE ? reshade::api::shader_stage::all_compute :
 		pipelineBindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS ? reshade::api::shader_stage::all_graphics :
@@ -830,29 +847,24 @@ void     VKAPI_CALL vkCmdPushDescriptorSetKHR(VkCommandBuffer commandBuffer, VkP
 		update.array_offset = write.dstArrayElement;
 		update.count = write.descriptorCount;
 		update.type = static_cast<reshade::api::descriptor_type>(write.descriptorType);
-
-		std::vector<uint64_t> descriptors(update.count * 2);
+		update.descriptors = descriptors + j;
 
 		switch (write.descriptorType)
 		{
 		case VK_DESCRIPTOR_TYPE_SAMPLER:
-			update.descriptors = descriptors.data() + j;
 			for (uint32_t k = 0; k < write.descriptorCount; ++k, ++j)
-				descriptors[j] = (uint64_t)write.pImageInfo[k].sampler;
+				descriptors[j + 0] = (uint64_t)write.pImageInfo[k].sampler;
 			break;
 		case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
-			update.descriptors = descriptors.data() + j;
 			for (uint32_t k = 0; k < write.descriptorCount; ++k, j += 2)
-			{
-				descriptors[j + 0] = (uint64_t)write.pImageInfo[k].sampler;
+				descriptors[j + 0] = (uint64_t)write.pImageInfo[k].sampler,
 				descriptors[j + 1] = (uint64_t)write.pImageInfo[k].imageView;
-			}
 			break;
 		case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
 		case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
-			update.descriptors = descriptors.data() + j;
+			update.descriptors = descriptors + j;
 			for (uint32_t k = 0; k < write.descriptorCount; ++k, ++j)
-				descriptors[j] = (uint64_t)write.pImageInfo[k].imageView;
+				descriptors[j + 0] = (uint64_t)write.pImageInfo[k].imageView;
 			break;
 		case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
 		case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
@@ -868,6 +880,8 @@ void     VKAPI_CALL vkCmdPushDescriptorSetKHR(VkCommandBuffer commandBuffer, VkP
 			set,
 			update);
 	}
+
+	_freea(descriptors);
 #endif
 }
 

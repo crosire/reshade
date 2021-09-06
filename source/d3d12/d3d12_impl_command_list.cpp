@@ -6,6 +6,7 @@
 #include "d3d12_impl_device.hpp"
 #include "d3d12_impl_command_list.hpp"
 #include "d3d12_impl_type_convert.hpp"
+#include <malloc.h>
 #include <algorithm>
 
 void encode_pix3blob(UINT64(&pix3blob)[64], const char *label, const float color[4])
@@ -51,7 +52,7 @@ void reshade::d3d12::command_list_impl::barrier(uint32_t count, const api::resou
 
 	_has_commands = true;
 
-	std::vector<D3D12_RESOURCE_BARRIER> barriers(count);
+	const auto barriers = static_cast<D3D12_RESOURCE_BARRIER *>(_malloca(count * sizeof(D3D12_RESOURCE_BARRIER)));
 
 	for (uint32_t i = 0; i < count; ++i)
 	{
@@ -72,7 +73,9 @@ void reshade::d3d12::command_list_impl::barrier(uint32_t count, const api::resou
 		}
 	}
 
-	_orig->ResourceBarrier(count, barriers.data());
+	_orig->ResourceBarrier(count, barriers);
+
+	_freea(barriers);
 }
 
 void reshade::d3d12::command_list_impl::begin_render_pass(api::render_pass, api::framebuffer fbo)
@@ -252,15 +255,21 @@ void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stage
 	else if (update.type == api::descriptor_type::sampler || update.type == api::descriptor_type::shader_resource_view || update.type == api::descriptor_type::unordered_access_view)
 	{
 #ifndef WIN64
-		const UINT src_range_size = 1;
-		std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> src_handles(update.count);
+		auto src_handles = static_cast<D3D12_CPU_DESCRIPTOR_HANDLE *>(_malloca(update.count * sizeof(D3D12_CPU_DESCRIPTOR_HANDLE)));
 		for (uint32_t k = 0; k < update.count; ++k)
 			src_handles[k] = { static_cast<SIZE_T>(static_cast<const uint64_t *>(update.descriptors)[k]) };
+		const UINT src_range_size = 1;
 
-		_device_impl->_orig->CopyDescriptors(1, &base_handle, &update.count, update.count, src_handles.data(), &src_range_size, convert_descriptor_type_to_heap_type(update.type));
+		_device_impl->_orig->CopyDescriptors(1, &base_handle, &update.count, update.count, src_handles, &src_range_size, convert_descriptor_type_to_heap_type(update.type));
+
+		_freea(src_handles);
 #else
-		std::vector<UINT> src_range_sizes(update.count, 1);
-		_device_impl->_orig->CopyDescriptors(1, &base_handle, &update.count, update.count, static_cast<const D3D12_CPU_DESCRIPTOR_HANDLE *>(update.descriptors), src_range_sizes.data(), convert_descriptor_type_to_heap_type(update.type));
+		auto src_range_sizes = static_cast<UINT *>(_malloca(update.count * sizeof(UINT)));
+		std::fill(src_range_sizes, src_range_sizes + update.count, 1);
+
+		_device_impl->_orig->CopyDescriptors(1, &base_handle, &update.count, update.count, static_cast<const D3D12_CPU_DESCRIPTOR_HANDLE *>(update.descriptors), src_range_sizes, convert_descriptor_type_to_heap_type(update.type));
+
+		_freea(src_range_sizes);
 #endif
 	}
 	else

@@ -10,6 +10,7 @@
 #include "d3d12_command_list.hpp"
 #include "d3d12_command_queue.hpp"
 #include "d3d12_impl_type_convert.hpp"
+#include <malloc.h>
 
 static bool parse_and_convert_root_signature(const uint32_t *data, size_t size, reshade::d3d12::device_impl *device, std::vector<reshade::api::pipeline_layout_param> &out_params)
 {
@@ -712,18 +713,17 @@ void    STDMETHODCALLTYPE D3D12Device::CopyDescriptors(UINT NumDestDescriptorRan
 	if (DescriptorHeapsType <= D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER &&
 		reshade::has_addon_event<reshade::addon_event::update_descriptor_sets>())
 	{
-		UINT num_descriptors = 0;
+		uint32_t num_updates = 0;
+		uint32_t max_descriptors = 0;
 		for (UINT i = 0; i < NumDestDescriptorRanges; ++i)
-			num_descriptors += pDestDescriptorRangeSizes[i];
+			max_descriptors += pDestDescriptorRangeSizes[i];
 
 		reshade::api::descriptor_set_update update = {};
 		// This assumes that all descriptors in the copied range are of the same type and that there are no constant buffer view descriptors
 		update.type = (DescriptorHeapsType == D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER) ? reshade::api::descriptor_type::sampler : reshade::api::descriptor_type::shader_resource_view;
 
-		std::vector<reshade::api::descriptor_set_update> updates;
-		updates.reserve(NumDestDescriptorRanges);
-
-		std::vector<uint64_t> descriptors(num_descriptors);
+		const auto updates = static_cast<reshade::api::descriptor_set_update *>(_malloca(NumDestDescriptorRanges * sizeof(reshade::api::descriptor_set_update)));
+		const auto descriptors = static_cast<uint64_t *>(_malloca(max_descriptors * sizeof(uint64_t)));
 
 		for (UINT dst_range = 0, src_range = 0, src_offset = 0, dst_base = 0; dst_range < NumDestDescriptorRanges; ++dst_range, dst_base += update.offset)
 		{
@@ -743,12 +743,17 @@ void    STDMETHODCALLTYPE D3D12Device::CopyDescriptors(UINT NumDestDescriptorRan
 				descriptors[dst_offset] = offset_descriptor_handle(pSrcDescriptorRangeStarts[src_range], src_offset, DescriptorHeapsType).ptr;
 			}
 
-			update.descriptors = descriptors.data() + dst_base;
+			update.descriptors = descriptors + dst_base;
 
-			updates.push_back(update);
+			updates[num_updates++] = update;
 		}
 
-		if (reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(this, static_cast<uint32_t>(updates.size()), updates.data()))
+		const bool skip = reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(this, num_updates, updates);
+
+		_freea(descriptors);
+		_freea(updates);
+
+		if (skip)
 			return;
 	}
 #endif
@@ -768,18 +773,22 @@ void    STDMETHODCALLTYPE D3D12Device::CopyDescriptorsSimple(UINT NumDescriptors
 
 		if (resolve_descriptor_handle(DestDescriptorRangeStart, DescriptorHeapsType, &update.set))
 		{
-			update.count = NumDescriptors;
+			const auto descriptors = static_cast<uint64_t *>(_malloca(NumDescriptors * sizeof(uint64_t)));
 
-			std::vector<uint64_t> descriptors(update.count);
+			update.count = NumDescriptors;
 
 			for (UINT dst_offset = 0; dst_offset < update.count; ++dst_offset)
 			{
 				descriptors[dst_offset] = offset_descriptor_handle(SrcDescriptorRangeStart, dst_offset, DescriptorHeapsType).ptr;
 			}
 
-			update.descriptors = descriptors.data();
+			update.descriptors = descriptors;
 
-			if (reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(this, 1, &update))
+			const bool skip = reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(this, 1, &update);
+
+			_freea(descriptors);
+
+			if (skip)
 				return;
 		}
 	}
