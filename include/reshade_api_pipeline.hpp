@@ -733,6 +733,7 @@ namespace reshade { namespace api
 		format depth_stencil_format;
 		/// <summary>Format of the render targets, or <see cref="format::unknown"/> if one is unused.</summary>
 		format render_targets_format[8];
+
 		/// <summary>Number of samples per pixel of the render targets.</summary>
 		uint16_t samples;
 	};
@@ -744,10 +745,18 @@ namespace reshade { namespace api
 	{
 		/// <summary>A render pass that describes the format of the render target and depth-stencil views.</summary>
 		render_pass render_pass_template;
+
 		/// <summary>Depth-stencil view to attach to this framebuffer object.</summary>
 		resource_view depth_stencil;
 		/// <summary>Render target views to attach to this framebuffer object.</summary>
 		resource_view render_targets[8];
+
+		/// <summary>Width of the framebuffer.</summary>
+		uint32_t width;
+		/// <summary>Height of the framebuffer.</summary>
+		uint32_t height;
+		/// <summary>Number of array layers of the framebuffer.</summary>
+		uint16_t layers;
 	};
 
 	/// <summary>

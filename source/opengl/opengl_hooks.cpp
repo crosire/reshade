@@ -339,9 +339,30 @@ static void update_framebuffer_object(GLenum target, GLuint fbo)
 	reshade::invoke_addon_event<reshade::addon_event::destroy_framebuffer>(g_current_context, fbo_handle);
 
 	reshade::api::framebuffer_desc old_desc = {};
+	old_desc.width  = std::numeric_limits<uint32_t>::max();
+	old_desc.height = std::numeric_limits<uint32_t>::max();
+	old_desc.layers = std::numeric_limits<uint16_t>::max();
+
 	for (uint32_t i = 0; i < 8; ++i)
+	{
 		old_desc.render_targets[i] = g_current_context->get_framebuffer_attachment(fbo_handle, reshade::api::attachment_type::color, i);
+		if (old_desc.render_targets[i].handle == 0)
+			continue;
+		const reshade::api::resource_desc res_desc = g_current_context->get_resource_desc(g_current_context->get_resource_from_view(old_desc.render_targets[i]));
+		old_desc.width  = std::min(old_desc.width,  res_desc.texture.width);
+		old_desc.height = std::min(old_desc.height, res_desc.texture.width);
+		old_desc.layers = std::min(old_desc.layers, res_desc.texture.depth_or_layers);
+	}
+
 	old_desc.depth_stencil = g_current_context->get_framebuffer_attachment(fbo_handle, reshade::api::attachment_type::depth, 0);
+	if (old_desc.depth_stencil.handle != 0)
+	{
+		const reshade::api::resource_desc res_desc = g_current_context->get_resource_desc(g_current_context->get_resource_from_view(old_desc.depth_stencil));
+		old_desc.width  = std::min(old_desc.width,  res_desc.texture.width);
+		old_desc.height = std::min(old_desc.height, res_desc.texture.width);
+		old_desc.layers = std::min(old_desc.layers, res_desc.texture.depth_or_layers);
+	}
+
 	reshade::api::framebuffer_desc new_desc = old_desc;
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_framebuffer>(g_current_context, new_desc))

@@ -1520,6 +1520,10 @@ VkResult VKAPI_CALL vkCreateFramebuffer(VkDevice device, const VkFramebufferCrea
 			desc.render_targets[k++] = { (uint64_t)data.attachments[i] };
 	}
 
+	desc.width = pCreateInfo->width;
+	desc.height = pCreateInfo->height;
+	desc.layers = static_cast<uint16_t>(pCreateInfo->layers);
+
 	VkFramebufferCreateInfo create_info;
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_framebuffer>(device_impl, desc))
@@ -1533,7 +1537,11 @@ VkResult VKAPI_CALL vkCreateFramebuffer(VkDevice device, const VkFramebufferCrea
 		}
 
 		create_info = *pCreateInfo;
+		create_info.renderPass = (VkRenderPass)desc.render_pass_template.handle;
 		create_info.pAttachments = data.attachments.data();
+		create_info.width = desc.width;
+		create_info.height = desc.height;
+		create_info.layers = desc.layers;
 		pCreateInfo = &create_info;
 	}
 #endif

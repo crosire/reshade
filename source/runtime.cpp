@@ -241,10 +241,16 @@ bool reshade::runtime::on_init(input::window_handle window)
 		fbo_desc.depth_stencil = _effect_stencil_target;
 		fbo_desc.render_pass_template = _backbuffer_passes[i * 2];
 		fbo_desc.render_targets[0] = _backbuffer_targets[i * 2];
+		fbo_desc.width = _width;
+		fbo_desc.height = _height;
+		fbo_desc.layers = 1;
 		api::framebuffer_desc fbo_desc_srgb = {};
 		fbo_desc_srgb.depth_stencil = _effect_stencil_target;
 		fbo_desc_srgb.render_pass_template = _backbuffer_passes[i * 2 + 1];
 		fbo_desc_srgb.render_targets[0] = _backbuffer_targets[i * 2 + 1];
+		fbo_desc_srgb.width = _width;
+		fbo_desc_srgb.height = _height;
+		fbo_desc_srgb.layers = 1;
 
 		if (!_device->create_framebuffer(fbo_desc, &_backbuffer_fbos.emplace_back()) ||
 			!_device->create_framebuffer(fbo_desc_srgb, &_backbuffer_fbos.emplace_back()))
@@ -1641,6 +1647,8 @@ bool reshade::runtime::init_effect(size_t effect_index)
 				else
 				{
 					api::framebuffer_desc fbo_desc = {};
+					fbo_desc.width = pass_info.viewport_width;
+					fbo_desc.height = pass_info.viewport_height;
 					api::render_pass_desc pass_desc = {};
 					pass_desc.samples = 1;
 

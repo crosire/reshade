@@ -89,6 +89,9 @@ void reshade::runtime::init_gui_vr()
 	fbo_desc.render_pass_template = _vr_overlay_pass;
 	fbo_desc.depth_stencil = _effect_stencil_target;
 	fbo_desc.render_targets[0] = _vr_overlay_target;
+	fbo_desc.width = OVERLAY_WIDTH;
+	fbo_desc.height = OVERLAY_HEIGHT;
+	fbo_desc.layers = 1;
 
 	if (!_device->create_framebuffer(fbo_desc, &_vr_overlay_fbo))
 	{

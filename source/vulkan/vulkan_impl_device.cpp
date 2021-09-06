@@ -882,50 +882,45 @@ void reshade::vulkan::device_impl::destroy_render_pass(api::render_pass handle)
 
 bool reshade::vulkan::device_impl::create_framebuffer(const api::framebuffer_desc &desc, api::framebuffer *out_handle)
 {
+	if (desc.render_pass_template.handle == 0)
+	{
+		*out_handle = { 0 };
+		return false;
+	}
+
 	object_data<VK_OBJECT_TYPE_FRAMEBUFFER> data;
 	data.attachments.reserve(8 + 1);
 	data.attachment_types.reserve(8 + 1);
 
-	uint32_t width = std::numeric_limits<uint32_t>::max();
-	uint32_t height = std::numeric_limits<uint32_t>::max();
-	uint32_t num_layers = std::numeric_limits<uint32_t>::max();
-
 	for (uint32_t i = 0; i < 8 && desc.render_targets[i].handle != 0; ++i)
 	{
-		const auto rtv_data = get_user_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)desc.render_targets[i].handle);
-		const auto rt_resource_data = get_user_data_for_object<VK_OBJECT_TYPE_IMAGE>(rtv_data->create_info.image);
-
-		width = std::min(rt_resource_data->create_info.extent.width, width);
-		height = std::min(rt_resource_data->create_info.extent.height, height);
-		num_layers = std::min(rt_resource_data->create_info.arrayLayers, num_layers);
-
 		data.attachments.push_back((VkImageView)desc.render_targets[i].handle);
 		data.attachment_types.push_back(VK_IMAGE_ASPECT_COLOR_BIT);
 	}
 
 	if (desc.depth_stencil.handle != 0)
 	{
-		const auto dsv_data = get_user_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)desc.depth_stencil.handle);
-		const auto ds_resource_data = get_user_data_for_object<VK_OBJECT_TYPE_IMAGE>(dsv_data->create_info.image);
-
-		width = std::min(ds_resource_data->create_info.extent.width, width);
-		height = std::min(ds_resource_data->create_info.extent.height, height);
-		num_layers = std::min(ds_resource_data->create_info.arrayLayers, num_layers);
+		const auto &attachments = get_user_data_for_object<VK_OBJECT_TYPE_RENDER_PASS>((VkRenderPass)desc.render_pass_template.handle)->attachments;
+		if (attachments.empty())
+		{
+			*out_handle = { 0 };
+			return false;
+		}
 
 		data.attachments.push_back((VkImageView)desc.depth_stencil.handle);
-		data.attachment_types.push_back(aspect_flags_from_format(ds_resource_data->create_info.format));
+		data.attachment_types.push_back(attachments.back().format_flags);
 	}
+
+	data.area.width = desc.width;
+	data.area.height = desc.height;
 
 	VkFramebufferCreateInfo create_info { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
 	create_info.renderPass = (VkRenderPass)desc.render_pass_template.handle;
 	create_info.attachmentCount = static_cast<uint32_t>(data.attachments.size());
 	create_info.pAttachments = data.attachments.data();
-	create_info.width = width;
-	create_info.height = height;
-	create_info.layers = num_layers;
-
-	data.area.width = width;
-	data.area.height = height;
+	create_info.width = desc.width;
+	create_info.height = desc.height;
+	create_info.layers = desc.layers;
 
 	if (VkFramebuffer object = VK_NULL_HANDLE;
 		vk.CreateFramebuffer(_orig, &create_info, nullptr, &object) == VK_SUCCESS)

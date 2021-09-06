@@ -704,9 +704,11 @@ void reshade::d3d11::device_impl::destroy_render_pass(api::render_pass handle)
 bool reshade::d3d11::device_impl::create_framebuffer(const api::framebuffer_desc &desc, api::framebuffer *out_handle)
 {
 	const auto impl = new framebuffer_impl();
-	impl->dsv = reinterpret_cast<ID3D11DepthStencilView *>(desc.depth_stencil.handle);
+
 	for (UINT i = 0; i < D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT && desc.render_targets[i].handle != 0; ++i, ++impl->count)
 		impl->rtv[i] = reinterpret_cast<ID3D11RenderTargetView *>(desc.render_targets[i].handle);
+
+	impl->dsv = reinterpret_cast<ID3D11DepthStencilView *>(desc.depth_stencil.handle);
 
 	*out_handle = { reinterpret_cast<uintptr_t>(impl) };
 	return true;

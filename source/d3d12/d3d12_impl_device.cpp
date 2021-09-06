@@ -511,9 +511,7 @@ bool reshade::d3d12::device_impl::create_framebuffer(const api::framebuffer_desc
 	const auto impl = new framebuffer_impl();
 
 	for (UINT i = 0; i < 8 && desc.render_targets[i].handle != 0; ++i, ++impl->count)
-	{
 		impl->rtv[i] = { static_cast<SIZE_T>(desc.render_targets[i].handle) };
-	}
 
 	impl->dsv = { static_cast<SIZE_T>(desc.depth_stencil.handle) };
 	impl->rtv_is_single_handle_to_range = FALSE;
