@@ -1342,8 +1342,6 @@ VkResult VKAPI_CALL vkCreateDescriptorPool(VkDevice device, const VkDescriptorPo
 		data.max_descriptors += pCreateInfo->pPoolSizes[i].descriptorCount;
 
 	device_impl->register_object<VK_OBJECT_TYPE_DESCRIPTOR_POOL>(*pDescriptorPool, std::move(data));
-
-	reshade::invoke_addon_event<reshade::addon_event::init_descriptor_pool>(device_impl, data.max_descriptors, reshade::api::descriptor_pool { (uint64_t)*pDescriptorPool });
 #endif
 
 	return result;
@@ -1354,8 +1352,6 @@ void     VKAPI_CALL vkDestroyDescriptorPool(VkDevice device, VkDescriptorPool de
 	GET_DISPATCH_PTR_FROM(DestroyDescriptorPool, device_impl);
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::destroy_descriptor_pool>(device_impl, reshade::api::descriptor_pool { (uint64_t)descriptorPool });
-
 	device_impl->unregister_object<VK_OBJECT_TYPE_DESCRIPTOR_POOL>(descriptorPool);
 #endif
 

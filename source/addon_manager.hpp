@@ -60,9 +60,7 @@ namespace reshade
 			ev != addon_event::init_render_pass &&
 			ev != addon_event::destroy_render_pass &&
 			ev != addon_event::init_framebuffer &&
-			ev != addon_event::destroy_framebuffer &&
-			ev != addon_event::init_descriptor_pool &&
-			ev != addon_event::destroy_descriptor_pool)
+			ev != addon_event::destroy_framebuffer)
 		if (!addon::enabled)
 			return;
 		std::vector<void *> &event_list = addon::event_list[static_cast<size_t>(ev)];

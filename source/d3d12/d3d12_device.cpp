@@ -460,18 +460,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateDescriptorHeap(const D3D12_DESCRIPT
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr))
 	{
-		const auto heap = static_cast<ID3D12DescriptorHeap *>(*ppvHeap);
-
-		register_descriptor_heap(heap);
-
-		if (pDescriptorHeapDesc->Flags & D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE)
-		{
-			reshade::invoke_addon_event<reshade::addon_event::init_descriptor_pool>(this, pDescriptorHeapDesc->NumDescriptors, reshade::api::descriptor_pool { reinterpret_cast<uintptr_t>(heap) });
-
-			register_destruction_callback(heap, [this, heap]() {
-				reshade::invoke_addon_event<reshade::addon_event::destroy_descriptor_pool>(this, reshade::api::descriptor_pool { reinterpret_cast<uintptr_t>(heap) });
-			});
-		}
+		register_descriptor_heap(static_cast<ID3D12DescriptorHeap *>(*ppvHeap));
 	}
 #endif
 	return hr;

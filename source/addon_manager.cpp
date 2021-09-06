@@ -137,8 +137,6 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(init_framebuffer);
 		CASE(create_framebuffer);
 		CASE(destroy_framebuffer);
-		CASE(init_descriptor_pool);
-		CASE(destroy_descriptor_pool);
 		CASE(update_buffer_region);
 		CASE(update_texture_region);
 		CASE(update_descriptor_sets);
