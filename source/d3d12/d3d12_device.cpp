@@ -719,19 +719,20 @@ void    STDMETHODCALLTYPE D3D12Device::CopyDescriptors(UINT NumDestDescriptorRan
 		reshade::api::descriptor_set_update update = {};
 		// This assumes that all descriptors in the copied range are of the same type and that there are no constant buffer view descriptors
 		update.type = (DescriptorHeapsType == D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER) ? reshade::api::descriptor_type::sampler : reshade::api::descriptor_type::shader_resource_view;
-		update.count = 1;
 
 		std::vector<reshade::api::descriptor_set_update> updates;
-		updates.reserve(std::max(NumDestDescriptorRanges, NumSrcDescriptorRanges));
+		updates.reserve(NumDestDescriptorRanges);
 
 		std::vector<uint64_t> descriptors(num_descriptors);
 
-		for (UINT dst_range = 0, src_range = 0, src_offset = 0, i = 0; dst_range < NumDestDescriptorRanges; ++dst_range)
+		for (UINT dst_range = 0, src_range = 0, src_offset = 0, dst_base = 0; dst_range < NumDestDescriptorRanges; ++dst_range, dst_base += update.offset)
 		{
 			if (!resolve_descriptor_handle(pDestDescriptorRangeStarts[dst_range], DescriptorHeapsType, &update.set))
 				continue;
 
-			for (UINT dst_offset = 0; dst_offset < pDestDescriptorRangeSizes[dst_range]; ++dst_offset, ++src_offset, ++i)
+			update.count = pDestDescriptorRangeSizes[dst_range];
+
+			for (UINT dst_offset = dst_base; dst_offset < dst_base + update.count; ++dst_offset, ++src_offset)
 			{
 				if (pSrcDescriptorRangeSizes[src_range] <= src_offset)
 				{
@@ -739,14 +740,12 @@ void    STDMETHODCALLTYPE D3D12Device::CopyDescriptors(UINT NumDestDescriptorRan
 					src_offset = 0;
 				}
 
-				descriptors[i] = offset_descriptor_handle(pSrcDescriptorRangeStarts[src_range], src_offset, DescriptorHeapsType).ptr;
-
-				update.offset = update.array_offset = dst_offset;
-
-				update.descriptors = &descriptors[i];
-
-				updates.push_back(update);
+				descriptors[dst_offset] = offset_descriptor_handle(pSrcDescriptorRangeStarts[src_range], src_offset, DescriptorHeapsType).ptr;
 			}
+
+			update.descriptors = descriptors.data() + dst_base;
+
+			updates.push_back(update);
 		}
 
 		if (reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(this, static_cast<uint32_t>(updates.size()), updates.data()))
@@ -771,11 +770,11 @@ void    STDMETHODCALLTYPE D3D12Device::CopyDescriptorsSimple(UINT NumDescriptors
 		{
 			update.count = NumDescriptors;
 
-			std::vector<uint64_t> descriptors(NumDescriptors);
+			std::vector<uint64_t> descriptors(update.count);
 
-			for (UINT i = 0; i < NumDescriptors; ++i)
+			for (UINT dst_offset = 0; dst_offset < update.count; ++dst_offset)
 			{
-				descriptors[i] = offset_descriptor_handle(SrcDescriptorRangeStart, i, DescriptorHeapsType).ptr;
+				descriptors[dst_offset] = offset_descriptor_handle(SrcDescriptorRangeStart, dst_offset, DescriptorHeapsType).ptr;
 			}
 
 			update.descriptors = descriptors.data();
