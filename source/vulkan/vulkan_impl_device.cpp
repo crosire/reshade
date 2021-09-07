@@ -22,8 +22,8 @@ inline VkImageAspectFlags aspect_flags_from_format(VkFormat format)
 	return VK_IMAGE_ASPECT_COLOR_BIT;
 }
 
-reshade::vulkan::device_impl::device_impl(VkDevice device, VkPhysicalDevice physical_device, const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table, const VkPhysicalDeviceFeatures &enabled_features) :
-	api_object_impl(device), _physical_device(physical_device), _dispatch_table(device_table), _instance_dispatch_table(instance_table), _enabled_features(enabled_features)
+reshade::vulkan::device_impl::device_impl(VkDevice device, VkPhysicalDevice physical_device, const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table, const VkPhysicalDeviceFeatures &enabled_features, bool custom_border_color_ext) :
+	api_object_impl(device), _physical_device(physical_device), _dispatch_table(device_table), _instance_dispatch_table(instance_table), _enabled_features(enabled_features), _custom_border_color_ext(custom_border_color_ext)
 {
 	{	VmaVulkanFunctions functions;
 		functions.vkGetPhysicalDeviceProperties = instance_table.GetPhysicalDeviceProperties;
@@ -212,6 +212,16 @@ bool reshade::vulkan::device_impl::check_format_support(api::format format, api:
 bool reshade::vulkan::device_impl::create_sampler(const api::sampler_desc &desc, api::sampler *out_handle)
 {
 	VkSamplerCreateInfo create_info { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
+	create_info.borderColor = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
+
+	VkSamplerCustomBorderColorCreateInfoEXT border_color_info { VK_STRUCTURE_TYPE_SAMPLER_CUSTOM_BORDER_COLOR_CREATE_INFO_EXT };
+	if (_custom_border_color_ext && (
+		desc.border_color[0] != 0.0f || desc.border_color[1] != 0.0f || desc.border_color[2] != 0.0f || desc.border_color[3] != 0.0f))
+	{
+		create_info.pNext = &border_color_info;
+		create_info.borderColor = VK_BORDER_COLOR_FLOAT_CUSTOM_EXT;
+	}
+
 	convert_sampler_desc(desc, create_info);
 
 	if (VkSampler object = VK_NULL_HANDLE;
@@ -792,6 +802,7 @@ void reshade::vulkan::device_impl::destroy_pipeline(api::pipeline_stage, api::pi
 bool reshade::vulkan::device_impl::create_render_pass(const api::render_pass_desc &desc, api::render_pass *out_handle)
 {
 	object_data<VK_OBJECT_TYPE_RENDER_PASS> data;
+	data.samples = VK_SAMPLE_COUNT_1_BIT;
 	data.attachments.reserve(8 + 1);
 
 	uint32_t num_color_attachments = 0;
@@ -814,6 +825,7 @@ bool reshade::vulkan::device_impl::create_render_pass(const api::render_pass_des
 		attach.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 		attach.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
+		data.samples = attach.samples;
 		data.attachments.push_back({ attach.initialLayout, 0, aspect_flags_from_format(attach.format) });
 	}
 
@@ -833,6 +845,7 @@ bool reshade::vulkan::device_impl::create_render_pass(const api::render_pass_des
 		attach.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 		attach.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
+		data.samples = attach.samples;
 		data.attachments.push_back({ attach.initialLayout, 0, aspect_flags_from_format(attach.format) });
 	}
 

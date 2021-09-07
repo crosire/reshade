@@ -1505,7 +1505,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 				sampler_list |= (1 << info.binding); // Maximum sampler slot count is 16, so a 16-bit integer is enough to hold all bindings
 
 				api::sampler_desc desc;
-				desc.filter = static_cast<api::filter_type>(info.filter);
+				desc.filter = static_cast<api::filter_mode>(info.filter);
 				desc.address_u = static_cast<api::texture_address_mode>(info.address_u);
 				desc.address_v = static_cast<api::texture_address_mode>(info.address_v);
 				desc.address_w = static_cast<api::texture_address_mode>(info.address_w);
@@ -1649,6 +1649,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 					api::framebuffer_desc fbo_desc = {};
 					fbo_desc.width = pass_info.viewport_width;
 					fbo_desc.height = pass_info.viewport_height;
+					fbo_desc.layers = 1;
 					api::render_pass_desc pass_desc = {};
 					pass_desc.samples = 1;
 
@@ -1814,7 +1815,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 						write.descriptors = &sampler_descriptors[info.binding];
 
 						api::sampler_desc desc;
-						desc.filter = static_cast<api::filter_type>(info.filter);
+						desc.filter = static_cast<api::filter_mode>(info.filter);
 						desc.address_u = static_cast<api::texture_address_mode>(info.address_u);
 						desc.address_v = static_cast<api::texture_address_mode>(info.address_v);
 						desc.address_w = static_cast<api::texture_address_mode>(info.address_w);

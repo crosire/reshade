@@ -488,7 +488,7 @@ namespace reshade { namespace api
 		bool depth_enable;
 		/// <summary>Enable or disable writes to the depth-stencil buffer.</summary>
 		bool depth_write_mask;
-		/// <summary>Operation to use to compare new depth value from a fragment against current depth value in the depth-stencil buffer.</summary>
+		/// <summary>Comparison function to use to compare new depth value from a fragment against current depth value in the depth-stencil buffer.</summary>
 		compare_op depth_func;
 		/// <summary>Enable or disable stencil testing.</summary>
 		bool stencil_enable;
@@ -498,7 +498,7 @@ namespace reshade { namespace api
 		uint8_t stencil_write_mask;
 		/// <summary>Reference value to perform against when doing stencil testing.</summary>
 		uint8_t stencil_reference_value;
-		/// <summary>Operation to use to compare new stencil value from a fragment against current stencil value for pixels whose surface normal is facing towards the camera.</summary>
+		/// <summary>Comparison function to use to compare new stencil value from a fragment against current stencil value for pixels whose surface normal is facing towards the camera.</summary>
 		compare_op front_stencil_func;
 		/// <summary>Stencil operation to perform when stencil testing and depth testing both pass for pixels whose surface normal is facing towards the camera.</summary>
 		stencil_op front_stencil_pass_op;
@@ -506,7 +506,7 @@ namespace reshade { namespace api
 		stencil_op front_stencil_fail_op;
 		/// <summary>Stencil operation to perform when stencil testing passes and depth testing fails for pixels whose surface normal is facing towards the camera.</summary>
 		stencil_op front_stencil_depth_fail_op;
-		/// <summary>Operation to use to compare new stencil value from a fragment against current stencil value for pixels whose surface normal is facing away from the camera.</summary>
+		/// <summary>Comparison function to use to compare new stencil value from a fragment against current stencil value for pixels whose surface normal is facing away from the camera.</summary>
 		compare_op back_stencil_func;
 		/// <summary>Stencil operation to perform when stencil testing and depth testing both pass for pixels whose surface normal is facing away from the camera.</summary>
 		stencil_op back_stencil_pass_op;

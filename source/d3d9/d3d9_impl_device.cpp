@@ -347,7 +347,7 @@ bool reshade::d3d9::device_impl::create_sampler(const api::sampler_desc &desc, a
 	impl->state[D3DSAMP_ADDRESSU] = static_cast<DWORD>(desc.address_u);
 	impl->state[D3DSAMP_ADDRESSV] = static_cast<DWORD>(desc.address_v);
 	impl->state[D3DSAMP_ADDRESSW] = static_cast<DWORD>(desc.address_w);
-	impl->state[D3DSAMP_BORDERCOLOR] = 0;
+	impl->state[D3DSAMP_BORDERCOLOR] = D3DCOLOR_COLORVALUE(desc.border_color[0], desc.border_color[1], desc.border_color[2], desc.border_color[3]);
 	impl->state[D3DSAMP_MAGFILTER] = ((static_cast<DWORD>(desc.filter) & 0x0C) >> 2) + 1;
 	impl->state[D3DSAMP_MINFILTER] = ((static_cast<DWORD>(desc.filter) & 0x30) >> 4) + 1;
 	impl->state[D3DSAMP_MIPFILTER] = ((static_cast<DWORD>(desc.filter) & 0x03)     ) + 1;
@@ -355,7 +355,7 @@ bool reshade::d3d9::device_impl::create_sampler(const api::sampler_desc &desc, a
 	impl->state[D3DSAMP_MAXMIPLEVEL] = desc.min_lod > 0 ? static_cast<DWORD>(desc.min_lod) : 0;
 	impl->state[D3DSAMP_MAXANISOTROPY] = static_cast<DWORD>(desc.max_anisotropy);
 
-	if (desc.filter == api::filter_type::anisotropic)
+	if (desc.filter == api::filter_mode::anisotropic)
 	{
 		impl->state[D3DSAMP_MINFILTER] = D3DTEXF_ANISOTROPIC;
 		impl->state[D3DSAMP_MAGFILTER] = D3DTEXF_ANISOTROPIC;
@@ -1655,8 +1655,7 @@ reshade::api::sampler reshade::d3d9::device_impl::get_current_sampler_state(DWOR
 		return it->second;
 
 	api::sampler_desc desc = {};
-	desc.filter = state_data[D3DSAMP_MINFILTER] == D3DTEXF_ANISOTROPIC || state_data[D3DSAMP_MAGFILTER] == D3DTEXF_ANISOTROPIC ?
-		api::filter_type::anisotropic : static_cast<api::filter_type>(
+	desc.filter = (state_data[D3DSAMP_MINFILTER] == D3DTEXF_ANISOTROPIC || state_data[D3DSAMP_MAGFILTER] == D3DTEXF_ANISOTROPIC) ? api::filter_mode::anisotropic : static_cast<api::filter_mode>(
 			((state_data[D3DSAMP_MINFILTER] >= D3DTEXF_LINEAR ? 1 : 0) << 4) |
 			((state_data[D3DSAMP_MAGFILTER] >= D3DTEXF_LINEAR ? 1 : 0) << 2) |
 			((state_data[D3DSAMP_MIPFILTER] >= D3DTEXF_LINEAR ? 1 : 0)));
@@ -1664,9 +1663,13 @@ reshade::api::sampler reshade::d3d9::device_impl::get_current_sampler_state(DWOR
 	desc.address_v = static_cast<api::texture_address_mode>(state_data[D3DSAMP_ADDRESSV]);
 	desc.address_w = static_cast<api::texture_address_mode>(state_data[D3DSAMP_ADDRESSW]);
 	desc.mip_lod_bias = *reinterpret_cast<const float *>(  &state_data[D3DSAMP_MIPMAPLODBIAS]);
+	desc.max_anisotropy = static_cast<float>(state_data[D3DSAMP_MAXANISOTROPY]);
+	desc.border_color[0] = ((state_data[D3DSAMP_BORDERCOLOR] >> 16) & 0xFF) / 255.0f;
+	desc.border_color[1] = ((state_data[D3DSAMP_BORDERCOLOR] >>  8) & 0xFF) / 255.0f;
+	desc.border_color[2] = ((state_data[D3DSAMP_BORDERCOLOR]      ) & 0xFF) / 255.0f;
+	desc.border_color[3] = ((state_data[D3DSAMP_BORDERCOLOR] >> 24) & 0xFF) / 255.0f;
 	desc.min_lod = static_cast<float>(state_data[D3DSAMP_MAXMIPLEVEL]);
 	desc.max_lod = std::numeric_limits<float>::max();
-	desc.max_anisotropy = static_cast<float>(state_data[D3DSAMP_MAXANISOTROPY]);
 
 	api::sampler handle;
 	create_sampler(desc, &handle);

@@ -57,19 +57,21 @@ void reshade::d3d12::convert_sampler_desc(const api::sampler_desc &desc, D3D12_S
 	internal_desc.MipLODBias = desc.mip_lod_bias;
 	internal_desc.MaxAnisotropy = static_cast<UINT>(desc.max_anisotropy);
 	internal_desc.ComparisonFunc = convert_compare_op(desc.compare_op);
+	std::copy_n(desc.border_color, 4, internal_desc.BorderColor);
 	internal_desc.MinLOD = desc.min_lod;
 	internal_desc.MaxLOD = desc.max_lod;
 }
 reshade::api::sampler_desc reshade::d3d12::convert_sampler_desc(const D3D12_SAMPLER_DESC &internal_desc)
 {
 	api::sampler_desc desc = {};
-	desc.filter = static_cast<api::filter_type>(internal_desc.Filter);
+	desc.filter = static_cast<api::filter_mode>(internal_desc.Filter);
 	desc.address_u = static_cast<api::texture_address_mode>(internal_desc.AddressU);
 	desc.address_v = static_cast<api::texture_address_mode>(internal_desc.AddressV);
 	desc.address_w = static_cast<api::texture_address_mode>(internal_desc.AddressW);
 	desc.mip_lod_bias = internal_desc.MipLODBias;
 	desc.max_anisotropy = static_cast<float>(internal_desc.MaxAnisotropy);
 	desc.compare_op = convert_compare_op(internal_desc.ComparisonFunc);
+	std::copy_n(internal_desc.BorderColor, 4, desc.border_color);
 	desc.min_lod = internal_desc.MinLOD;
 	desc.max_lod = internal_desc.MaxLOD;
 	return desc;

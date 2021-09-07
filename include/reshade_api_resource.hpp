@@ -152,9 +152,9 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
-	/// The available filtering types used for texture sampling operations.
+	/// The available filtering modes used for texture sampling operations.
 	/// </summary>
-	enum class filter_type : uint32_t
+	enum class filter_mode : uint32_t
 	{
 		min_mag_mip_point = 0,
 		min_mag_point_mip_linear = 0x1,
@@ -193,14 +193,25 @@ namespace reshade { namespace api
 	/// </summary>
 	struct sampler_desc
 	{
-		filter_type filter;
+		/// <summary>Filtering mode to use when sampling a texture.</summary>
+		filter_mode filter;
+		/// <summary>Method to use for resolving U texture coordinates outside 0 to 1 range.</summary>
 		texture_address_mode address_u;
+		/// <summary>Method to use for resolving V texture coordinates outside 0 to 1 range.</summary>
 		texture_address_mode address_v;
+		/// <summary>Method to use for resolving W texture coordinates outside 0 to 1 range.</summary>
 		texture_address_mode address_w;
+		/// <summary>Offset applied to the calculated mipmap level when sampling a texture.</summary>
 		float mip_lod_bias;
+		/// <summary>Clamping value to use when filtering mode is <see cref="filter_mode::anisotropic"/>.</summary>
 		float max_anisotropy;
+		/// <summary>Comparison function to use to compare sampled data against existing sampled data.</summary>
 		compare_op compare_op;
+		/// <summary>Color to return for texture coordinates outside 0 to 1 range when addressing mode is <see cref="texture_address_mode::border"/>.</summary>
+		float border_color[4];
+		/// <summary>Lower end of the mipmap range to clamp access to.</summary>
 		float min_lod;
+		/// <summary>Upper end of the mipmap range to clamp access to.</summary>
 		float max_lod;
 	};
 

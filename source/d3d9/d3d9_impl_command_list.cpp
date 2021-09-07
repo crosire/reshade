@@ -267,7 +267,7 @@ void reshade::d3d9::device_impl::copy_resource(api::resource src, api::resource 
 			{
 				const uint32_t subresource = level + layer * desc.texture.levels;
 
-				copy_texture_region(src, subresource, nullptr, dst, subresource, nullptr, api::filter_type::min_mag_mip_point);
+				copy_texture_region(src, subresource, nullptr, dst, subresource, nullptr, api::filter_mode::min_mag_mip_point);
 			}
 		}
 	}
@@ -280,7 +280,7 @@ void reshade::d3d9::device_impl::copy_buffer_to_texture(api::resource, uint64_t,
 {
 	assert(false);
 }
-void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_box[3], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[3], api::filter_type filter)
+void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_box[3], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[3], api::filter_mode filter)
 {
 	assert(src.handle != 0 && dst.handle != 0);
 	const auto src_object = reinterpret_cast<IDirect3DResource9 *>(src.handle);
@@ -311,14 +311,14 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 	D3DTEXTUREFILTERTYPE stretch_filter_type = D3DTEXF_NONE;
 	switch (filter)
 	{
-	case api::filter_type::min_mag_mip_point:
-	case api::filter_type::min_mag_point_mip_linear:
+	case api::filter_mode::min_mag_mip_point:
+	case api::filter_mode::min_mag_point_mip_linear:
 		// Default to no filtering if no stretching needs to be performed (prevents artifacts when copying depth data)
 		if (src_box != nullptr || dst_box != nullptr)
 			stretch_filter_type = D3DTEXF_POINT;
 		break;
-	case api::filter_type::min_mag_mip_linear:
-	case api::filter_type::min_mag_linear_mip_point:
+	case api::filter_mode::min_mag_mip_linear:
+	case api::filter_mode::min_mag_linear_mip_point:
 			stretch_filter_type = D3DTEXF_LINEAR;
 		break;
 	}
@@ -490,7 +490,7 @@ void reshade::d3d9::device_impl::resolve_texture_region(api::resource src, uint3
 		dst_box[5] = dst_box[2] + (desc.type == api::resource_type::texture_3d ? std::max(1u, static_cast<uint32_t>(desc.texture.depth_or_layers) >> dst_subresource) : 1u);
 	}
 
-	copy_texture_region(src, src_subresource, src_box, dst, dst_subresource, dst_box, api::filter_type::min_mag_mip_point);
+	copy_texture_region(src, src_subresource, src_box, dst, dst_subresource, dst_box, api::filter_mode::min_mag_mip_point);
 }
 
 void reshade::d3d9::device_impl::clear_attachments(api::attachment_type clear_flags, const float color[4], float depth, uint8_t stencil, uint32_t rect_count, const int32_t *rects)

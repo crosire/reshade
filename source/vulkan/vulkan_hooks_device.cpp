@@ -128,7 +128,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	}
 
 	VkPhysicalDeviceFeatures enabled_features = {};
-	const VkPhysicalDeviceFeatures2 *features2 = find_in_structure_chain<VkPhysicalDeviceFeatures2>(
+	const VkPhysicalDeviceFeatures2 *const features2 = find_in_structure_chain<VkPhysicalDeviceFeatures2>(
 		pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2);
 	if (features2 != nullptr) // The features from the structure chain take precedence
 		enabled_features = features2->features;
@@ -139,6 +139,9 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	enabled_extensions.reserve(pCreateInfo->enabledExtensionCount);
 	for (uint32_t i = 0; i < pCreateInfo->enabledExtensionCount; ++i)
 		enabled_extensions.push_back(pCreateInfo->ppEnabledExtensionNames[i]);
+
+	bool push_descriptor_ext = false;
+	bool custom_border_color_ext = false;
 
 	// Check if the device is used for presenting
 	if (std::find_if(enabled_extensions.begin(), enabled_extensions.end(),
@@ -191,13 +194,13 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 
 		// Enable extensions that ReShade requires
 		if (!add_extension(VK_EXT_PRIVATE_DATA_EXTENSION_NAME, true))
-		{
 			return VK_ERROR_EXTENSION_NOT_PRESENT;
-		}
 
-		add_extension(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME, false);
 		add_extension(VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME, true);
 		add_extension(VK_KHR_SWAPCHAIN_MUTABLE_FORMAT_EXTENSION_NAME, true);
+
+		push_descriptor_ext = add_extension(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME, false);
+		custom_border_color_ext = add_extension(VK_EXT_CUSTOM_BORDER_COLOR_EXTENSION_NAME, false);
 	}
 
 	VkDeviceCreateInfo create_info = *pCreateInfo;
@@ -213,14 +216,25 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 
 	// Enable private data feature
 	VkDevicePrivateDataCreateInfoEXT private_data_info { VK_STRUCTURE_TYPE_DEVICE_PRIVATE_DATA_CREATE_INFO_EXT };
-	private_data_info.privateDataSlotRequestCount = 1;
 	private_data_info.pNext = create_info.pNext;
+	private_data_info.privateDataSlotRequestCount = 1;
 
 	VkPhysicalDevicePrivateDataFeaturesEXT private_data_feature { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRIVATE_DATA_FEATURES_EXT };
 	private_data_feature.pNext = &private_data_info;
 	private_data_feature.privateData = VK_TRUE;
 
 	create_info.pNext = &private_data_feature;
+
+	// Optionally enable custom border color feature
+	VkPhysicalDeviceCustomBorderColorFeaturesEXT custom_border_feature { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CUSTOM_BORDER_COLOR_FEATURES_EXT };
+	if (custom_border_color_ext)
+	{
+		custom_border_feature.pNext = &private_data_feature;
+		custom_border_feature.customBorderColors = VK_TRUE;
+		custom_border_feature.customBorderColorWithoutFormat = VK_TRUE;
+
+		create_info.pNext = &custom_border_feature;
+	}
 
 	// Continue calling down the chain
 	const VkResult result = trampoline(physicalDevice, &create_info, pAllocator, pDevice);
@@ -356,7 +370,8 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DISPATCH_PTR(QueuePresentKHR);
 	#pragma endregion
 	#pragma region VK_KHR_push_descriptor
-	INIT_DISPATCH_PTR(CmdPushDescriptorSetKHR);
+	if (push_descriptor_ext)
+		INIT_DISPATCH_PTR(CmdPushDescriptorSetKHR);
 	#pragma endregion
 	#pragma region VK_EXT_debug_utils
 	INIT_DISPATCH_PTR(SetDebugUtilsObjectNameEXT);
@@ -380,7 +395,8 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		physicalDevice,
 		g_instance_dispatch.at(dispatch_key_from_handle(physicalDevice)),
 		dispatch_table,
-		enabled_features);
+		enabled_features,
+		custom_border_color_ext);
 
 	device_impl->_graphics_queue_family_index = graphics_queue_family_index;
 

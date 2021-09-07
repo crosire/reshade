@@ -3,6 +3,7 @@
  * License: https://github.com/crosire/reshade#license
  */
 
+#include "vulkan_hooks.hpp"
 #include "vulkan_impl_device.hpp"
 #include "vulkan_impl_type_convert.hpp"
 
@@ -611,82 +612,82 @@ void reshade::vulkan::convert_sampler_desc(const api::sampler_desc &desc, VkSamp
 
 	switch (desc.filter)
 	{
-	case api::filter_type::compare_min_mag_mip_point:
+	case api::filter_mode::compare_min_mag_mip_point:
 		create_info.compareEnable = VK_TRUE;
 		[[fallthrough]];
-	case api::filter_type::min_mag_mip_point:
+	case api::filter_mode::min_mag_mip_point:
 		create_info.minFilter = VK_FILTER_NEAREST;
 		create_info.magFilter = VK_FILTER_NEAREST;
 		create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
 		create_info.anisotropyEnable = VK_FALSE;
 		break;
-	case api::filter_type::compare_min_mag_point_mip_linear:
+	case api::filter_mode::compare_min_mag_point_mip_linear:
 		create_info.compareEnable = VK_TRUE;
 		[[fallthrough]];
-	case api::filter_type::min_mag_point_mip_linear:
+	case api::filter_mode::min_mag_point_mip_linear:
 		create_info.magFilter = VK_FILTER_NEAREST;
 		create_info.minFilter = VK_FILTER_NEAREST;
 		create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
 		create_info.anisotropyEnable = VK_FALSE;
 		break;
-	case api::filter_type::compare_min_point_mag_linear_mip_point:
+	case api::filter_mode::compare_min_point_mag_linear_mip_point:
 		create_info.compareEnable = VK_TRUE;
 		[[fallthrough]];
-	case api::filter_type::min_point_mag_linear_mip_point:
+	case api::filter_mode::min_point_mag_linear_mip_point:
 		create_info.magFilter = VK_FILTER_LINEAR;
 		create_info.minFilter = VK_FILTER_NEAREST;
 		create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
 		create_info.anisotropyEnable = VK_FALSE;
 		break;
-	case api::filter_type::compare_min_point_mag_mip_linear:
+	case api::filter_mode::compare_min_point_mag_mip_linear:
 		create_info.compareEnable = VK_TRUE;
 		[[fallthrough]];
-	case api::filter_type::min_point_mag_mip_linear:
+	case api::filter_mode::min_point_mag_mip_linear:
 		create_info.magFilter = VK_FILTER_LINEAR;
 		create_info.minFilter = VK_FILTER_NEAREST;
 		create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
 		create_info.anisotropyEnable = VK_FALSE;
 		break;
-	case api::filter_type::compare_min_linear_mag_mip_point:
+	case api::filter_mode::compare_min_linear_mag_mip_point:
 		create_info.compareEnable = VK_TRUE;
 		[[fallthrough]];
-	case api::filter_type::min_linear_mag_mip_point:
+	case api::filter_mode::min_linear_mag_mip_point:
 		create_info.magFilter = VK_FILTER_NEAREST;
 		create_info.minFilter = VK_FILTER_LINEAR;
 		create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
 		create_info.anisotropyEnable = VK_FALSE;
 		break;
-	case api::filter_type::compare_min_linear_mag_point_mip_linear:
+	case api::filter_mode::compare_min_linear_mag_point_mip_linear:
 		create_info.compareEnable = VK_TRUE;
 		[[fallthrough]];
-	case api::filter_type::min_linear_mag_point_mip_linear:
+	case api::filter_mode::min_linear_mag_point_mip_linear:
 		create_info.magFilter = VK_FILTER_NEAREST;
 		create_info.minFilter = VK_FILTER_LINEAR;
 		create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
 		create_info.anisotropyEnable = VK_FALSE;
 		break;
-	case api::filter_type::compare_min_mag_linear_mip_point:
+	case api::filter_mode::compare_min_mag_linear_mip_point:
 		create_info.compareEnable = VK_TRUE;
 		[[fallthrough]];
-	case api::filter_type::min_mag_linear_mip_point:
+	case api::filter_mode::min_mag_linear_mip_point:
 		create_info.magFilter = VK_FILTER_LINEAR;
 		create_info.minFilter = VK_FILTER_LINEAR;
 		create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
 		create_info.anisotropyEnable = VK_FALSE;
 		break;
-	case api::filter_type::compare_min_mag_mip_linear:
+	case api::filter_mode::compare_min_mag_mip_linear:
 		create_info.compareEnable = VK_TRUE;
 		[[fallthrough]];
-	case api::filter_type::min_mag_mip_linear:
+	case api::filter_mode::min_mag_mip_linear:
 		create_info.magFilter = VK_FILTER_LINEAR;
 		create_info.minFilter = VK_FILTER_LINEAR;
 		create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
 		create_info.anisotropyEnable = VK_FALSE;
 		break;
-	case api::filter_type::compare_anisotropic:
+	case api::filter_mode::compare_anisotropic:
 		create_info.compareEnable = VK_TRUE;
 		[[fallthrough]];
-	case api::filter_type::anisotropic:
+	case api::filter_mode::anisotropic:
 		create_info.magFilter = VK_FILTER_LINEAR;
 		create_info.minFilter = VK_FILTER_LINEAR;
 		create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
@@ -721,13 +722,21 @@ void reshade::vulkan::convert_sampler_desc(const api::sampler_desc &desc, VkSamp
 	create_info.compareOp = convert_compare_op(desc.compare_op);
 	create_info.minLod = desc.min_lod;
 	create_info.maxLod = desc.max_lod;
+
+	const auto border_color_info = const_cast<VkSamplerCustomBorderColorCreateInfoEXT *>(find_in_structure_chain<VkSamplerCustomBorderColorCreateInfoEXT>(
+		create_info.pNext, VK_STRUCTURE_TYPE_SAMPLER_CUSTOM_BORDER_COLOR_CREATE_INFO_EXT));
+
+	if (border_color_info != nullptr && create_info.borderColor == VK_BORDER_COLOR_FLOAT_CUSTOM_EXT)
+	{
+		std::copy_n(desc.border_color, 4, border_color_info->customBorderColor.float32);
+	}
 }
 reshade::api::sampler_desc reshade::vulkan::convert_sampler_desc(const VkSamplerCreateInfo &create_info)
 {
 	api::sampler_desc desc = {};
 	if (create_info.anisotropyEnable)
 	{
-		desc.filter = api::filter_type::anisotropic;
+		desc.filter = api::filter_mode::anisotropic;
 	}
 	else
 	{
@@ -740,10 +749,10 @@ reshade::api::sampler_desc reshade::vulkan::convert_sampler_desc(const VkSampler
 				switch (create_info.mipmapMode)
 				{
 				case VK_SAMPLER_MIPMAP_MODE_NEAREST:
-					desc.filter = create_info.compareEnable ? api::filter_type::compare_min_mag_mip_point : api::filter_type::min_mag_mip_point;
+					desc.filter = create_info.compareEnable ? api::filter_mode::compare_min_mag_mip_point : api::filter_mode::min_mag_mip_point;
 					break;
 				case VK_SAMPLER_MIPMAP_MODE_LINEAR:
-					desc.filter = create_info.compareEnable ? api::filter_type::compare_min_mag_point_mip_linear : api::filter_type::min_mag_point_mip_linear;
+					desc.filter = create_info.compareEnable ? api::filter_mode::compare_min_mag_point_mip_linear : api::filter_mode::min_mag_point_mip_linear;
 					break;
 				}
 				break;
@@ -751,10 +760,10 @@ reshade::api::sampler_desc reshade::vulkan::convert_sampler_desc(const VkSampler
 				switch (create_info.mipmapMode)
 				{
 				case VK_SAMPLER_MIPMAP_MODE_NEAREST:
-					desc.filter = create_info.compareEnable ? api::filter_type::compare_min_point_mag_linear_mip_point : api::filter_type::min_point_mag_linear_mip_point;
+					desc.filter = create_info.compareEnable ? api::filter_mode::compare_min_point_mag_linear_mip_point : api::filter_mode::min_point_mag_linear_mip_point;
 					break;
 				case VK_SAMPLER_MIPMAP_MODE_LINEAR:
-					desc.filter = create_info.compareEnable ? api::filter_type::compare_min_point_mag_mip_linear : api::filter_type::min_point_mag_mip_linear;
+					desc.filter = create_info.compareEnable ? api::filter_mode::compare_min_point_mag_mip_linear : api::filter_mode::min_point_mag_mip_linear;
 					break;
 				}
 				break;
@@ -767,10 +776,10 @@ reshade::api::sampler_desc reshade::vulkan::convert_sampler_desc(const VkSampler
 				switch (create_info.mipmapMode)
 				{
 				case VK_SAMPLER_MIPMAP_MODE_NEAREST:
-					desc.filter = create_info.compareEnable ? api::filter_type::compare_min_linear_mag_mip_point : api::filter_type::min_linear_mag_mip_point;
+					desc.filter = create_info.compareEnable ? api::filter_mode::compare_min_linear_mag_mip_point : api::filter_mode::min_linear_mag_mip_point;
 					break;
 				case VK_SAMPLER_MIPMAP_MODE_LINEAR:
-					desc.filter = create_info.compareEnable ? api::filter_type::compare_min_linear_mag_point_mip_linear : api::filter_type::min_linear_mag_point_mip_linear;
+					desc.filter = create_info.compareEnable ? api::filter_mode::compare_min_linear_mag_point_mip_linear : api::filter_mode::min_linear_mag_point_mip_linear;
 					break;
 				}
 				break;
@@ -778,10 +787,10 @@ reshade::api::sampler_desc reshade::vulkan::convert_sampler_desc(const VkSampler
 				switch (create_info.mipmapMode)
 				{
 				case VK_SAMPLER_MIPMAP_MODE_NEAREST:
-					desc.filter = create_info.compareEnable ? api::filter_type::compare_min_mag_linear_mip_point : api::filter_type::min_mag_linear_mip_point;
+					desc.filter = create_info.compareEnable ? api::filter_mode::compare_min_mag_linear_mip_point : api::filter_mode::min_mag_linear_mip_point;
 					break;
 				case VK_SAMPLER_MIPMAP_MODE_LINEAR:
-					desc.filter = create_info.compareEnable ? api::filter_type::compare_min_mag_mip_linear : api::filter_type::min_mag_mip_linear;
+					desc.filter = create_info.compareEnable ? api::filter_mode::compare_min_mag_mip_linear : api::filter_mode::min_mag_mip_linear;
 					break;
 				}
 				break;
@@ -817,6 +826,33 @@ reshade::api::sampler_desc reshade::vulkan::convert_sampler_desc(const VkSampler
 	desc.compare_op = convert_compare_op(create_info.compareOp);
 	desc.min_lod = create_info.minLod;
 	desc.max_lod = create_info.maxLod;
+
+	const auto border_color_info = find_in_structure_chain<VkSamplerCustomBorderColorCreateInfoEXT>(
+		create_info.pNext, VK_STRUCTURE_TYPE_SAMPLER_CUSTOM_BORDER_COLOR_CREATE_INFO_EXT);
+
+	switch (create_info.borderColor)
+	{
+	case VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK:
+	case VK_BORDER_COLOR_INT_TRANSPARENT_BLACK:
+		break;
+	case VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK:
+	case VK_BORDER_COLOR_INT_OPAQUE_BLACK:
+		desc.border_color[3] = 1.0f;
+		break;
+	case VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE:
+	case VK_BORDER_COLOR_INT_OPAQUE_WHITE:
+		std::fill_n(desc.border_color, 4, 1.0f);
+		break;
+	case VK_BORDER_COLOR_FLOAT_CUSTOM_EXT:
+		assert(border_color_info != nullptr);
+		std::copy_n(border_color_info->customBorderColor.float32, 4, desc.border_color);
+		break;
+	case VK_BORDER_COLOR_INT_CUSTOM_EXT:
+		assert(border_color_info != nullptr);
+		for (int i = 0; i < 4; ++i)
+			desc.border_color[i] = border_color_info->customBorderColor.int32[i] / 255.0f;
+		break;
+	}
 
 	return desc;
 }

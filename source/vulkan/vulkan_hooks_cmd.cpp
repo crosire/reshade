@@ -425,7 +425,7 @@ void     VKAPI_CALL vkCmdCopyImage(VkCommandBuffer commandBuffer, VkImage srcIma
 					cmd_impl,
 					reshade::api::resource { (uint64_t)srcImage }, calc_subresource_index(device_impl, srcImage, region.srcSubresource, layer), src_box,
 					reshade::api::resource { (uint64_t)dstImage }, calc_subresource_index(device_impl, dstImage, region.dstSubresource, layer), dst_box,
-					reshade::api::filter_type::min_mag_mip_point))
+					reshade::api::filter_mode::min_mag_mip_point))
 					return; // TODO: This skips copy of all regions, rather than just the one specified to this event call
 			}
 		}
@@ -454,7 +454,7 @@ void     VKAPI_CALL vkCmdBlitImage(VkCommandBuffer commandBuffer, VkImage srcIma
 					cmd_impl,
 					reshade::api::resource { (uint64_t)srcImage }, calc_subresource_index(device_impl, srcImage, region.srcSubresource, layer), &region.srcOffsets[0].x,
 					reshade::api::resource { (uint64_t)dstImage }, calc_subresource_index(device_impl, dstImage, region.dstSubresource, layer), &region.dstOffsets[0].x,
-					filter == VK_FILTER_NEAREST ? reshade::api::filter_type::min_mag_mip_point : reshade::api::filter_type::min_mag_mip_linear))
+					filter == VK_FILTER_NEAREST ? reshade::api::filter_mode::min_mag_mip_point : reshade::api::filter_mode::min_mag_mip_linear))
 					return; // TODO: This skips copy of all regions, rather than just the one specified to this event call
 			}
 		}

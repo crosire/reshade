@@ -138,7 +138,7 @@ namespace reshade { namespace api
 		sampler_compare,
 		/// <summary>
 		/// Specifies whether anisotropic filtering is supported.
-		/// If this feature is not present, <see cref="filter_type::anisotropic"/> must not be used.
+		/// If this feature is not present, <see cref="filter_mode::anisotropic"/> must not be used.
 		/// </summary>
 		sampler_anisotropic,
 		/// <summary>
@@ -700,7 +700,7 @@ namespace reshade { namespace api
 		/// <param name="dest_subresource">Index of the subresource of the <paramref name="dest"/> texture to copy to.</param>
 		/// <param name="dest_box">A 3D box (or <c>nullptr</c> to reference the entire subresource) that defines the region in the <paramref name="dest"/> resource to blit to, in the format { left, top, front, right, bottom, back }.</param>
 		/// <param name="filter">Filter to apply when copy requires scaling.</param>
-		virtual void copy_texture_region(resource source, uint32_t source_subresource, const int32_t source_box[6], resource dest, uint32_t dest_subresource, const int32_t dest_box[6], filter_type filter = filter_type::min_mag_mip_point) = 0;
+		virtual void copy_texture_region(resource source, uint32_t source_subresource, const int32_t source_box[6], resource dest, uint32_t dest_subresource, const int32_t dest_box[6], filter_mode filter = filter_mode::min_mag_mip_point) = 0;
 		/// <summary>
 		/// Copies a texture region from the <paramref name="source"/> texture to the <paramref name="dest"/> buffer.
 		/// <para>The <paramref name="source"/> resource has to be in the <see cref="resource_usage::copy_source"/> state.</para>

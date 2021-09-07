@@ -3187,7 +3187,7 @@ bool reshade::runtime::init_imgui_resources()
 	if (_imgui_sampler_state == 0)
 	{
 		api::sampler_desc desc = {};
-		desc.filter = api::filter_type::min_mag_mip_linear;
+		desc.filter = api::filter_mode::min_mag_mip_linear;
 		desc.address_u = api::texture_address_mode::wrap;
 		desc.address_v = api::texture_address_mode::wrap;
 		desc.address_w = api::texture_address_mode::wrap;
