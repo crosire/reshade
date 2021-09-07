@@ -7,6 +7,13 @@
 		"api_version": "1.2.131",
 		"implementation_version": "1",
 		"description": "crosire's ReShade post-processing injector for 32-bit",
+		"device_extensions": [
+			{
+				"name": "VK_EXT_tooling_info",
+				"spec_version": "1",
+				"entrypoints": [ "vkGetPhysicalDeviceToolPropertiesEXT" ]
+			}
+		],
 		"disable_environment": {
 			"DISABLE_VK_LAYER_reshade_1": "1"
 		}

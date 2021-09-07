@@ -435,6 +435,7 @@ EXPORTS
 	vkCreateInstance PRIVATE
 	vkGetDeviceProcAddr PRIVATE
 	vkGetInstanceProcAddr PRIVATE
+	vkGetPhysicalDeviceToolPropertiesEXT PRIVATE
 
 	; user32.dll
 	RegisterClassA = HookRegisterClassA PRIVATE
