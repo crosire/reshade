@@ -239,13 +239,23 @@ namespace reshade::d3d12
 			_free_list.emplace_back(handle.ptr, handle.ptr + count * _increment_size);
 		}
 
+		bool contains(D3D12_GPU_DESCRIPTOR_HANDLE handle_gpu) const
+		{
+			return handle_gpu.ptr >= _static_heap_base_gpu && handle_gpu.ptr < _transient_heap_base_gpu;
+		}
+
 		bool convert_handle(D3D12_GPU_DESCRIPTOR_HANDLE handle_gpu, D3D12_CPU_DESCRIPTOR_HANDLE &out_handle_cpu) const
 		{
-			if (handle_gpu.ptr < _static_heap_base_gpu || handle_gpu.ptr >= _transient_heap_base_gpu)
+			if (contains(handle_gpu))
+			{
+				out_handle_cpu.ptr = _static_heap_base + static_cast<SIZE_T>(handle_gpu.ptr - _static_heap_base_gpu);
+				return true;
+			}
+			else
+			{
+				out_handle_cpu.ptr = 0;
 				return false;
-
-			out_handle_cpu.ptr = _static_heap_base + static_cast<SIZE_T>(handle_gpu.ptr - _static_heap_base_gpu);
-			return true;
+			}
 		}
 
 		ID3D12DescriptorHeap *get() const { assert(_heap != nullptr); return _heap.get(); }

@@ -668,6 +668,8 @@ namespace reshade { namespace api
 	{
 		/// <summary>Vulkan push constant offset (in 32-bit values).</summary>
 		uint32_t offset;
+		/// <summary>OpenGL uniform buffer binding index.</summary>
+		uint32_t binding;
 		/// <summary>D3D10/D3D11/D3D12 constant buffer register index.</summary>
 		uint32_t dx_register_index;
 		/// <summary>D3D12 constant buffer register space.</summary>
@@ -799,8 +801,20 @@ namespace reshade { namespace api
 	/// </summary>
 	struct buffer_range
 	{
+		buffer_range() :
+			buffer(), offset(0), size(0xFFFFFFFFFFFFFFFFllu) {}
+		buffer_range(resource buffer) :
+			buffer(buffer), offset(0), size(0xFFFFFFFFFFFFFFFFllu) {}
+		buffer_range(resource buffer, uint64_t offset, uint64_t size) :
+			buffer(buffer), offset(offset), size(size) {}
+
+		/// <summary>Constant buffer resource.</summary>
 		resource buffer;
-		uint64_t offset, size;
+		/// <summary>Offset from the start of the buffer resource (in bytes).</summary>
+		uint64_t offset;
+		/// <summary>Number of elements this range covers in the buffer resource (in bytes).
+		/// Set to -1 (0xFFFFFFFFFFFFFFFF) to indicate that the whole buffer should be used.</summary>
+		uint64_t size;
 	};
 
 	/// <summary>

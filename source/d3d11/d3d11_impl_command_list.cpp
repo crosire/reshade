@@ -268,25 +268,63 @@ void reshade::d3d11::device_context_impl::bind_constant_buffers(api::shader_stag
 		count = D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT;
 	}
 
+	bool whole_range = true;
 	ID3D11Buffer *buffer_ptrs[D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
+	UINT first_constant[D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
+	UINT constant_count[D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
 	for (uint32_t i = 0; i < count; ++i)
 	{
 		buffer_ptrs[i] = reinterpret_cast<ID3D11Buffer *>(buffer_ranges[i].buffer.handle);
-		assert(buffer_ranges[i].offset == 0 && buffer_ranges[i].size == std::numeric_limits<uint64_t>::max()); // TODO: Use 'ID3D11DeviceContext1::(...)SetConstantBuffers1'
+
+		assert(buffer_ranges[i].offset <= std::numeric_limits<UINT>::max() && (buffer_ranges[i].offset % (16 * 16)) == 0);
+		first_constant[i] = static_cast<UINT>(buffer_ranges[i].offset / 16);
+
+		if (buffer_ranges[i].size != std::numeric_limits<uint64_t>::max())
+		{
+			whole_range = false;
+			assert(buffer_ranges[i].size <= std::numeric_limits<UINT>::max() && (buffer_ranges[i].size % (16 * 16)) == 0);
+			constant_count[i] = static_cast<UINT>(buffer_ranges[i].size / 16);
+		}
+		else
+		{
+			D3D11_BUFFER_DESC desc;
+			buffer_ptrs[i]->GetDesc(&desc);
+			constant_count[i] = desc.ByteWidth / 16;
+		}
 	}
 
-	if ((stages & api::shader_stage::vertex) == api::shader_stage::vertex)
-		_orig->VSSetConstantBuffers(first, count, buffer_ptrs);
-	if ((stages & api::shader_stage::hull) == api::shader_stage::hull)
-		_orig->HSSetConstantBuffers(first, count, buffer_ptrs);
-	if ((stages & api::shader_stage::domain) == api::shader_stage::domain)
-		_orig->DSSetConstantBuffers(first, count, buffer_ptrs);
-	if ((stages & api::shader_stage::geometry) == api::shader_stage::geometry)
-		_orig->GSSetConstantBuffers(first, count, buffer_ptrs);
-	if ((stages & api::shader_stage::pixel) == api::shader_stage::pixel)
-		_orig->PSSetConstantBuffers(first, count, buffer_ptrs);
-	if ((stages & api::shader_stage::compute) == api::shader_stage::compute)
-		_orig->CSSetConstantBuffers(first, count, buffer_ptrs);
+	com_ptr<ID3D11DeviceContext1> context1;
+	if (whole_range ||
+		FAILED(_orig->QueryInterface(&context1)))
+	{
+		if ((stages & api::shader_stage::vertex) == api::shader_stage::vertex)
+			_orig->VSSetConstantBuffers(first, count, buffer_ptrs);
+		if ((stages & api::shader_stage::hull) == api::shader_stage::hull)
+			_orig->HSSetConstantBuffers(first, count, buffer_ptrs);
+		if ((stages & api::shader_stage::domain) == api::shader_stage::domain)
+			_orig->DSSetConstantBuffers(first, count, buffer_ptrs);
+		if ((stages & api::shader_stage::geometry) == api::shader_stage::geometry)
+			_orig->GSSetConstantBuffers(first, count, buffer_ptrs);
+		if ((stages & api::shader_stage::pixel) == api::shader_stage::pixel)
+			_orig->PSSetConstantBuffers(first, count, buffer_ptrs);
+		if ((stages & api::shader_stage::compute) == api::shader_stage::compute)
+			_orig->CSSetConstantBuffers(first, count, buffer_ptrs);
+	}
+	else
+	{
+		if ((stages & api::shader_stage::vertex) == api::shader_stage::vertex)
+			context1->VSSetConstantBuffers1(first, count, buffer_ptrs, first_constant, constant_count);
+		if ((stages & api::shader_stage::hull) == api::shader_stage::hull)
+			context1->HSSetConstantBuffers1(first, count, buffer_ptrs, first_constant, constant_count);
+		if ((stages & api::shader_stage::domain) == api::shader_stage::domain)
+			context1->DSSetConstantBuffers1(first, count, buffer_ptrs, first_constant, constant_count);
+		if ((stages & api::shader_stage::geometry) == api::shader_stage::geometry)
+			context1->GSSetConstantBuffers1(first, count, buffer_ptrs, first_constant, constant_count);
+		if ((stages & api::shader_stage::pixel) == api::shader_stage::pixel)
+			context1->PSSetConstantBuffers1(first, count, buffer_ptrs, first_constant, constant_count);
+		if ((stages & api::shader_stage::compute) == api::shader_stage::compute)
+			context1->CSSetConstantBuffers1(first, count, buffer_ptrs, first_constant, constant_count);
+	}
 }
 
 void reshade::d3d11::device_context_impl::push_constants(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, uint32_t first, uint32_t count, const void *values)

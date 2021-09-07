@@ -996,6 +996,7 @@ bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t param_count, 
 	{
 		object_data<VK_OBJECT_TYPE_PIPELINE_LAYOUT> data;
 		data.desc.assign(params, params + param_count);
+		data.num_sets = create_info.setLayoutCount;
 
 		register_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>(object, std::move(data));
 
@@ -1151,8 +1152,8 @@ bool reshade::vulkan::device_impl::create_descriptor_sets(uint32_t count, const 
 		for (uint32_t i = 0; i < count; ++i)
 		{
 			object_data<VK_OBJECT_TYPE_DESCRIPTOR_SET> data;
-			data.pool = _descriptor_pool;
-			data.offset = 0; // TODO
+			data.pool = VK_NULL_HANDLE; // "get_descriptor_pool_offset" is not supported for the internal pool
+			data.offset = 0;
 			data.layout = (VkDescriptorSetLayout)layouts[i].handle;
 
 			register_object<VK_OBJECT_TYPE_DESCRIPTOR_SET>((VkDescriptorSet)out_sets[i].handle, std::move(data));

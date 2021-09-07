@@ -7,7 +7,7 @@
 
 namespace reshade::d3d12
 {
-	extern const GUID pipeline_extra_data_guid;
+	extern const GUID extra_data_guid;
 
 	struct render_pass_impl
 	{

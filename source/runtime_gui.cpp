@@ -3255,6 +3255,7 @@ bool reshade::runtime::init_imgui_resources()
 
 		layout_params[num_layout_params].type = api::pipeline_layout_param_type::push_constants;
 		layout_params[num_layout_params].push_constants.offset = 0;
+		layout_params[num_layout_params].push_constants.binding = 0;
 		layout_params[num_layout_params].push_constants.dx_register_index = 0; // b0
 		layout_params[num_layout_params].push_constants.dx_register_space = 0;
 		layout_params[num_layout_params].push_constants.count = 16;

@@ -1441,7 +1441,7 @@ bool reshade::runtime::init_effect(size_t effect_index)
 		return false;
 	}
 
-	api::buffer_range cb_range = { { 0 }, 0, std::numeric_limits<uint64_t>::max() };
+	api::buffer_range cb_range = {};
 	std::vector<api::descriptor_set_update> descriptor_writes;
 	descriptor_writes.reserve(effect.module.num_sampler_bindings + effect.module.num_texture_bindings + effect.module.num_storage_bindings + 1);
 	std::vector<api::sampler_with_resource_view> sampler_descriptors;

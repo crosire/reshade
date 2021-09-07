@@ -146,7 +146,7 @@ HRESULT STDMETHODCALLTYPE D3D12GraphicsCommandList::Reset(ID3D12CommandAllocator
 		if (pInitialState != nullptr)
 		{
 			if (UINT extra_data_size = 0;
-				FAILED(pInitialState->GetPrivateData(reshade::d3d12::pipeline_extra_data_guid, &extra_data_size, nullptr)))
+				FAILED(pInitialState->GetPrivateData(reshade::d3d12::extra_data_guid, &extra_data_size, nullptr)))
 				type = reshade::api::pipeline_stage::all_compute;
 			else
 				type = reshade::api::pipeline_stage::all_graphics;
@@ -350,7 +350,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetPipelineState(ID3D12Pipeline
 	{
 		// Check if the extra data exists in the pipeline, which is only added for graphics pipelines
 		if (UINT extra_data_size = 0;
-			FAILED(pPipelineState->GetPrivateData(reshade::d3d12::pipeline_extra_data_guid, &extra_data_size, nullptr)))
+			FAILED(pPipelineState->GetPrivateData(reshade::d3d12::extra_data_guid, &extra_data_size, nullptr)))
 			type = reshade::api::pipeline_stage::all_compute;
 		else
 			type = reshade::api::pipeline_stage::all_graphics;

@@ -85,11 +85,15 @@ namespace reshade::opengl
 		void set_resource_name(api::resource resource, const char *name) final;
 
 		void get_pipeline_layout_desc(api::pipeline_layout layout, uint32_t *out_count, api::pipeline_layout_param *out_params) const final;
+
 		void get_descriptor_pool_offset(api::descriptor_set set, api::descriptor_pool *out_pool, uint32_t *out_offset) const final;
+
 		void get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *out_count, api::descriptor_range *out_ranges) const final;
 
 		api::resource_desc get_resource_desc(api::resource resource) const final;
+
 		     api::resource get_resource_from_view(api::resource_view view) const final;
+
 		api::resource_view get_framebuffer_attachment(api::framebuffer framebuffer, api::attachment_type type, uint32_t index) const final;
 
 		api::device *get_device() override { return this; }

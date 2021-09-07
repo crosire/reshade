@@ -122,7 +122,7 @@ void reshade::d3d12::command_list_impl::bind_pipeline(api::pipeline_stage, api::
 
 	pipeline_graphics_impl extra_data;
 	UINT extra_data_size = sizeof(extra_data);
-	if (SUCCEEDED(pipeline_object->GetPrivateData(pipeline_extra_data_guid, &extra_data_size, &extra_data)))
+	if (SUCCEEDED(pipeline_object->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
 	{
 		_orig->IASetPrimitiveTopology(extra_data.topology);
 	}
@@ -284,11 +284,14 @@ void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stage
 }
 void reshade::d3d12::command_list_impl::bind_descriptor_sets(api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_set *sets)
 {
+	if (count == 0)
+		return;
+
 	assert(sets != nullptr);
 
-	// TODO: Only change descriptor heaps if descriptor sets were allocated from them
-	if (_current_descriptor_heaps[0] != _device_impl->_gpu_sampler_heap.get() ||
-		_current_descriptor_heaps[1] != _device_impl->_gpu_view_heap.get())
+	// Change descriptor heaps to internal ones if descriptor sets were allocated from them
+	if ((_current_descriptor_heaps[0] != _device_impl->_gpu_sampler_heap.get() || _current_descriptor_heaps[1] != _device_impl->_gpu_view_heap.get()) &&
+		(_device_impl->_gpu_sampler_heap.contains(D3D12_GPU_DESCRIPTOR_HANDLE { sets[0].handle }) || _device_impl->_gpu_view_heap.contains(D3D12_GPU_DESCRIPTOR_HANDLE { sets[0].handle })))
 	{
 		ID3D12DescriptorHeap *const heaps[2] = { _device_impl->_gpu_sampler_heap.get(), _device_impl->_gpu_view_heap.get() };
 		_orig->SetDescriptorHeaps(2, heaps);
@@ -707,7 +710,7 @@ void reshade::d3d12::command_list_impl::finish_query(api::query_pool pool, api::
 
 	com_ptr<ID3D12Resource> readback_resource;
 	UINT private_size = sizeof(ID3D12Resource *);
-	if (SUCCEEDED(heap_object->GetPrivateData(pipeline_extra_data_guid, &private_size, &readback_resource)))
+	if (SUCCEEDED(heap_object->GetPrivateData(extra_data_guid, &private_size, &readback_resource)))
 	{
 		_orig->ResolveQueryData(reinterpret_cast<ID3D12QueryHeap *>(pool.handle), convert_query_type(type), index, 1, readback_resource.get(), index * sizeof(uint64_t));
 	}

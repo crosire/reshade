@@ -148,6 +148,22 @@ reshade::api::subresource_data convert_mapped_subresource(GLenum format, GLenum 
 	if (0 != unpack)
 		return {};
 
+	GLint row_length = 0;
+	gl3wProcs.gl.GetIntegerv(GL_UNPACK_ROW_LENGTH, &row_length);
+	GLint skip_rows = 0;
+	gl3wProcs.gl.GetIntegerv(GL_UNPACK_SKIP_ROWS, &skip_rows);
+	GLint skip_pixels = 0;
+	gl3wProcs.gl.GetIntegerv(GL_UNPACK_SKIP_PIXELS, &skip_pixels);
+	GLint skip_slices = 0;
+	gl3wProcs.gl.GetIntegerv(GL_UNPACK_SKIP_IMAGES, &skip_slices);
+	GLint slice_height = 0;
+	gl3wProcs.gl.GetIntegerv(GL_UNPACK_IMAGE_HEIGHT, &slice_height);
+
+	if (0 != row_length)
+		width = row_length;
+	if (0 != slice_height)
+		height = slice_height;
+
 	reshade::api::subresource_data result;
 	result.data = const_cast<void *>(pixels);
 
@@ -214,6 +230,10 @@ reshade::api::subresource_data convert_mapped_subresource(GLenum format, GLenum 
 		break;
 	// TODO: Compressed formats
 	}
+
+	result.data = static_cast<uint8_t *>(result.data) + skip_pixels * bpp;
+	result.data = static_cast<uint8_t *>(result.data) + skip_rows * result.row_pitch;
+	result.data = static_cast<uint8_t *>(result.data) + skip_slices * result.slice_pitch;
 
 	return result;
 }
@@ -2766,7 +2786,10 @@ HOOK_EXPORT void WINAPI glLineWidth(GLfloat width)
 	trampoline(program);
 
 #if RESHADE_ADDON
-	if (g_current_context)
+	GLint status = GL_FALSE;
+	glGetProgramiv(GL_LINK_STATUS, program, &status);
+
+	if (g_current_context && status != GL_FALSE)
 	{
 		reshade::api::pipeline_desc desc = { reshade::api::pipeline_stage::all_shader_stages };
 		// TODO: Add shader descriptions
@@ -4510,9 +4533,14 @@ HOOK_EXPORT void WINAPI glTexSubImage2D(GLenum target, GLint level, GLint xoffse
 	{
 		internalformat = reshade::opengl::convert_format(desc.format);
 		minlevel = desc.texture.first_level;
-		numlevels = desc.texture.level_count; // TODO: Handle 0xFFFFFFFF
+		numlevels = desc.texture.level_count;
 		minlayer = desc.texture.first_layer;
 		numlayers = desc.texture.layer_count;
+
+		if (desc.texture.level_count == 0xFFFFFFFF)
+			numlevels = g_current_context->get_resource_desc(reshade::opengl::make_resource_handle(orig_target, origtexture)).texture.levels;
+		if (desc.texture.level_count == 0xFFFFFFFF)
+			numlayers = g_current_context->get_resource_desc(reshade::opengl::make_resource_handle(orig_target, origtexture)).texture.depth_or_layers;
 	}
 #endif
 

@@ -77,14 +77,21 @@ namespace reshade::vulkan
 		void set_resource_name(api::resource resource, const char *name) final;
 
 		void get_pipeline_layout_desc(api::pipeline_layout layout, uint32_t *out_count, api::pipeline_layout_param *out_params) const final;
+
 		void get_descriptor_pool_offset(api::descriptor_set set, api::descriptor_pool *out_pool, uint32_t *out_offset) const final;
+
 		void get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *out_count, api::descriptor_range *out_ranges) const final;
 
 		api::resource_desc get_resource_desc(api::resource resource) const final;
+
 		     api::resource get_resource_from_view(api::resource_view view) const final;
+
 		api::resource_view get_framebuffer_attachment(api::framebuffer framebuffer, api::attachment_type type, uint32_t index) const final;
 
 		void advance_transient_descriptor_pool();
+
+		api::pipeline_desc convert_pipeline_desc(const VkComputePipelineCreateInfo &create_info) const;
+		api::pipeline_desc convert_pipeline_desc(const VkGraphicsPipelineCreateInfo &create_info) const;
 
 		template <VkObjectType type, typename... Args>
 		void register_object(typename object_data<type>::Handle object, Args... args)
@@ -120,9 +127,6 @@ namespace reshade::vulkan
 			return reinterpret_cast<object_data<type> *>(private_data);
 		}
 
-		api::pipeline_desc convert_pipeline_desc(const VkComputePipelineCreateInfo &create_info) const;
-		api::pipeline_desc convert_pipeline_desc(const VkGraphicsPipelineCreateInfo &create_info) const;
-
 		const VkPhysicalDevice _physical_device;
 		const VkLayerDispatchTable _dispatch_table;
 		const VkLayerInstanceDispatchTable _instance_dispatch_table;
@@ -130,7 +134,6 @@ namespace reshade::vulkan
 		uint32_t _graphics_queue_family_index = std::numeric_limits<uint32_t>::max();
 		std::vector<command_queue_impl *> _queues;
 		VkPhysicalDeviceFeatures _enabled_features = {};
-		bool _custom_border_color_ext = false;
 
 #ifndef NDEBUG
 		mutable bool _wait_for_idle_happened = false;
@@ -139,8 +142,8 @@ namespace reshade::vulkan
 	private:
 		bool create_shader_module(VkShaderStageFlagBits stage, const api::shader_desc &desc, VkPipelineShaderStageCreateInfo &stage_info, VkSpecializationInfo &spec_info, std::vector<VkSpecializationMapEntry> &spec_map);
 
+		VkBool32 _custom_border_color_ext = VK_FALSE;
 		VmaAllocator _alloc = nullptr;
-
 		VkDescriptorPool _descriptor_pool = VK_NULL_HANDLE;
 		VkDescriptorPool _transient_descriptor_pool[4] = {};
 		uint32_t _transient_index = 0;

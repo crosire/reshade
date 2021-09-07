@@ -9,7 +9,7 @@
 #include "d3d12_impl_command_queue.hpp"
 #include "d3d12_impl_type_convert.hpp"
 
-const GUID reshade::d3d12::pipeline_extra_data_guid = { 0xB2257A30, 0x4014, 0x46EA, { 0xBD, 0x88, 0xDE, 0xC2, 0x1D, 0xB6, 0xA0, 0x2B } };
+const GUID reshade::d3d12::extra_data_guid = { 0xB2257A30, 0x4014, 0x46EA, { 0xBD, 0x88, 0xDE, 0xC2, 0x1D, 0xB6, 0xA0, 0x2B } };
 
 reshade::d3d12::device_impl::device_impl(ID3D12Device *device) :
 	api_object_impl(device),
@@ -467,7 +467,7 @@ bool reshade::d3d12::device_impl::create_graphics_pipeline(const api::pipeline_d
 		pipeline_graphics_impl extra_data;
 		extra_data.topology = static_cast<D3D12_PRIMITIVE_TOPOLOGY>(desc.graphics.topology);
 
-		pipeline->SetPrivateData(pipeline_extra_data_guid, sizeof(extra_data), &extra_data);
+		pipeline->SetPrivateData(extra_data_guid, sizeof(extra_data), &extra_data);
 
 		*out_handle = { reinterpret_cast<uintptr_t>(pipeline.release()) };
 		return true;
@@ -622,7 +622,7 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 	if (SUCCEEDED(D3D12SerializeRootSignature(&internal_desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, nullptr)) &&
 		SUCCEEDED(_orig->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&signature))))
 	{
-		signature->SetPrivateData(pipeline_extra_data_guid, param_count * sizeof(api::pipeline_layout_param), params);
+		signature->SetPrivateData(extra_data_guid, param_count * sizeof(api::pipeline_layout_param), params);
 
 		*out_handle = { reinterpret_cast<uintptr_t>(signature.release()) };
 		return true;
@@ -689,7 +689,7 @@ bool reshade::d3d12::device_impl::create_query_pool(api::query_type type, uint32
 	if (com_ptr<ID3D12QueryHeap> object;
 		SUCCEEDED(_orig->CreateQueryHeap(&internal_desc, IID_PPV_ARGS(&object))))
 	{
-		object->SetPrivateDataInterface(pipeline_extra_data_guid, readback_resource.get());
+		object->SetPrivateDataInterface(extra_data_guid, readback_resource.get());
 
 		*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
 		return true;
@@ -978,7 +978,7 @@ bool reshade::d3d12::device_impl::get_query_pool_results(api::query_pool pool, u
 
 	com_ptr<ID3D12Resource> readback_resource;
 	UINT private_size = sizeof(ID3D12Resource *);
-	if (SUCCEEDED(heap_object->GetPrivateData(pipeline_extra_data_guid, &private_size, &readback_resource)))
+	if (SUCCEEDED(heap_object->GetPrivateData(extra_data_guid, &private_size, &readback_resource)))
 	{
 		const D3D12_RANGE read_range = { static_cast<SIZE_T>(first) * sizeof(uint64_t), (static_cast<SIZE_T>(first) + static_cast<SIZE_T>(count)) * sizeof(uint64_t) };
 		const D3D12_RANGE write_range = { 0, 0 };
@@ -1021,7 +1021,7 @@ void reshade::d3d12::device_impl::get_pipeline_layout_desc(api::pipeline_layout 
 	assert(layout.handle != 0 && count != nullptr);
 
 	*count *= sizeof(api::pipeline_layout_param);
-	const HRESULT hr = reinterpret_cast<ID3D12RootSignature *>(layout.handle)->GetPrivateData(pipeline_extra_data_guid, count, params);
+	const HRESULT hr = reinterpret_cast<ID3D12RootSignature *>(layout.handle)->GetPrivateData(extra_data_guid, count, params);
 	*count /= sizeof(api::pipeline_layout_param);
 	assert(SUCCEEDED(hr));
 }

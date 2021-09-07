@@ -68,6 +68,7 @@ namespace reshade::vulkan
 		using Handle = VkPipelineLayout;
 
 		std::vector<api::pipeline_layout_param> desc;
+		uint32_t num_sets;
 	};
 
 	template <>

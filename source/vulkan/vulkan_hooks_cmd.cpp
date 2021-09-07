@@ -798,12 +798,13 @@ void     VKAPI_CALL vkCmdPushConstants(VkCommandBuffer commandBuffer, VkPipeline
 		return;
 
 	reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_user_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
+	const auto layout_data = device_impl->get_user_data_for_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>(layout);
 
 	reshade::invoke_addon_event<reshade::addon_event::push_constants>(
 		cmd_impl,
 		static_cast<reshade::api::shader_stage>(stageFlags),
 		reshade::api::pipeline_layout { (uint64_t)layout },
-		std::numeric_limits<uint32_t>::max(), // TODO
+		layout_data->num_sets,
 		offset / 4,
 		size / 4,
 		static_cast<const uint32_t *>(pValues));

@@ -18,17 +18,17 @@ namespace reshade::opengl
 		// Blend state
 
 		GLboolean sample_alpha_to_coverage;
-		GLboolean blend_enable;
+		GLboolean blend_enable[8];
 		GLboolean logic_op_enable;
-		GLenum blend_src;
-		GLenum blend_dst;
-		GLenum blend_src_alpha;
-		GLenum blend_dst_alpha;
-		GLenum blend_eq;
-		GLenum blend_eq_alpha;
+		GLenum blend_src[8];
+		GLenum blend_dst[8];
+		GLenum blend_src_alpha[8];
+		GLenum blend_dst_alpha[8];
+		GLenum blend_eq[8];
+		GLenum blend_eq_alpha[8];
 		GLenum logic_op;
 		GLfloat blend_constant[4];
-		GLboolean color_write_mask[4];
+		GLboolean color_write_mask[8][4];
 
 		// Rasterizer state
 

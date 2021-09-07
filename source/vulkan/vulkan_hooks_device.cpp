@@ -1172,6 +1172,7 @@ VkResult VKAPI_CALL vkCreatePipelineLayout(VkDevice device, const VkPipelineLayo
 #if RESHADE_ADDON
 	reshade::vulkan::object_data<VK_OBJECT_TYPE_PIPELINE_LAYOUT> data;
 	data.desc.resize(pCreateInfo->setLayoutCount + pCreateInfo->pushConstantRangeCount);
+	data.num_sets = pCreateInfo->setLayoutCount;
 
 	for (uint32_t i = 0; i < pCreateInfo->setLayoutCount; ++i)
 	{

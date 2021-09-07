@@ -318,7 +318,7 @@ bool reshade::opengl::device_impl::check_capability(api::device_caps capability)
 	case api::device_caps::dual_src_blend:
 		return true; // OpenGL 3.3
 	case api::device_caps::independent_blend:
-		return false; // TODO: Not currently implemented (could do so with 'glBlendFuncSeparatei' and 'glBlendEquationSeparatei')
+		return true; // OpenGL 4.0
 	case api::device_caps::fill_mode_non_solid:
 		return true;
 	case api::device_caps::bind_render_targets_and_depth_stencil:
@@ -849,6 +849,7 @@ bool reshade::opengl::device_impl::create_compute_pipeline(const api::pipeline_d
 
 	GLint status = GL_FALSE;
 	glGetProgramiv(program, GL_LINK_STATUS, &status);
+
 	if (GL_FALSE == status ||
 		(desc.compute.shader.code_size != 0 && cs == 0))
 	{
@@ -965,23 +966,26 @@ bool reshade::opengl::device_impl::create_graphics_pipeline(const api::pipeline_
 	}
 
 	impl->sample_alpha_to_coverage = desc.graphics.blend_state.alpha_to_coverage_enable;
-	impl->blend_enable = desc.graphics.blend_state.blend_enable[0];
-	impl->logic_op_enable = desc.graphics.blend_state.logic_op_enable[0];
-	impl->blend_src = convert_blend_factor(desc.graphics.blend_state.src_color_blend_factor[0]);
-	impl->blend_dst = convert_blend_factor(desc.graphics.blend_state.dst_color_blend_factor[0]);
-	impl->blend_src_alpha = convert_blend_factor(desc.graphics.blend_state.src_alpha_blend_factor[0]);
-	impl->blend_dst_alpha = convert_blend_factor(desc.graphics.blend_state.dst_alpha_blend_factor[0]);
-	impl->blend_eq = convert_blend_op(desc.graphics.blend_state.color_blend_op[0]);
-	impl->blend_eq_alpha = convert_blend_op(desc.graphics.blend_state.alpha_blend_op[0]);
+	impl->logic_op_enable = desc.graphics.blend_state.logic_op_enable[0]; // Logic operation applies to all attachments
 	impl->logic_op = convert_logic_op(desc.graphics.blend_state.logic_op[0]);
 	impl->blend_constant[0] = ((desc.graphics.blend_state.blend_constant      ) & 0xFF) / 255.0f;
 	impl->blend_constant[1] = ((desc.graphics.blend_state.blend_constant >>  4) & 0xFF) / 255.0f;
 	impl->blend_constant[2] = ((desc.graphics.blend_state.blend_constant >>  8) & 0xFF) / 255.0f;
 	impl->blend_constant[3] = ((desc.graphics.blend_state.blend_constant >> 12) & 0xFF) / 255.0f;
-	impl->color_write_mask[0] = (desc.graphics.blend_state.render_target_write_mask[0] & (1 << 0)) != 0;
-	impl->color_write_mask[1] = (desc.graphics.blend_state.render_target_write_mask[0] & (1 << 1)) != 0;
-	impl->color_write_mask[2] = (desc.graphics.blend_state.render_target_write_mask[0] & (1 << 2)) != 0;
-	impl->color_write_mask[3] = (desc.graphics.blend_state.render_target_write_mask[0] & (1 << 3)) != 0;
+	for (int i = 0; i < 8; ++i)
+	{
+		impl->blend_enable[i] = desc.graphics.blend_state.blend_enable[i];
+		impl->blend_src[i] = convert_blend_factor(desc.graphics.blend_state.src_color_blend_factor[i]);
+		impl->blend_dst[i] = convert_blend_factor(desc.graphics.blend_state.dst_color_blend_factor[i]);
+		impl->blend_src_alpha[i] = convert_blend_factor(desc.graphics.blend_state.src_alpha_blend_factor[i]);
+		impl->blend_dst_alpha[i] = convert_blend_factor(desc.graphics.blend_state.dst_alpha_blend_factor[i]);
+		impl->blend_eq[i] = convert_blend_op(desc.graphics.blend_state.color_blend_op[i]);
+		impl->blend_eq_alpha[i] = convert_blend_op(desc.graphics.blend_state.alpha_blend_op[i]);
+		impl->color_write_mask[i][0] = (desc.graphics.blend_state.render_target_write_mask[i] & (1 << 0)) != 0;
+		impl->color_write_mask[i][1] = (desc.graphics.blend_state.render_target_write_mask[i] & (1 << 1)) != 0;
+		impl->color_write_mask[i][2] = (desc.graphics.blend_state.render_target_write_mask[i] & (1 << 2)) != 0;
+		impl->color_write_mask[i][3] = (desc.graphics.blend_state.render_target_write_mask[i] & (1 << 3)) != 0;
+	}
 
 	impl->polygon_mode = convert_fill_mode(desc.graphics.rasterizer_state.fill_mode);
 	impl->cull_mode = convert_cull_mode(desc.graphics.rasterizer_state.cull_mode);
@@ -1159,7 +1163,7 @@ bool reshade::opengl::device_impl::create_pipeline_layout(uint32_t param_count, 
 			if (params[i].push_constants.offset != 0)
 				success = false;
 
-			impl->bindings[i] = params[i].push_constants.dx_register_index; // TODO: Add binding field?
+			impl->bindings[i] = params[i].push_constants.binding;
 		}
 	}
 

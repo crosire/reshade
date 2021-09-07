@@ -119,6 +119,7 @@ static bool parse_and_convert_root_signature(const uint32_t *data, size_t size, 
 					// Convert root constant description
 					reshade::api::constant_range &root_constant = out_params[k].push_constants;
 					root_constant.offset = 0;
+					root_constant.binding = 0;
 					root_constant.dx_register_index = constant_data->ShaderRegister;
 					root_constant.dx_register_space = constant_data->RegisterSpace;
 					root_constant.count = constant_data->Num32BitValues;
@@ -362,7 +363,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateGraphicsPipelineState(const D3D12_G
 		reshade::d3d12::pipeline_graphics_impl extra_data;
 		extra_data.topology = D3D_PRIMITIVE_TOPOLOGY_UNDEFINED;
 
-		pipeline->SetPrivateData(reshade::d3d12::pipeline_extra_data_guid, sizeof(extra_data), &extra_data);
+		pipeline->SetPrivateData(reshade::d3d12::extra_data_guid, sizeof(extra_data), &extra_data);
 
 		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, desc, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pipeline) });
 
@@ -488,7 +489,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateRootSignature(UINT nodeMask, const 
 		// Parse DXBC root signature, convert it and call descriptor set and pipeline layout events
 		if (parse_and_convert_root_signature(static_cast<const uint32_t *>(pBlobWithRootSignature), blobLengthInBytes, this, layout_desc))
 		{
-			root_signature->SetPrivateData(reshade::d3d12::pipeline_extra_data_guid, static_cast<UINT>(layout_desc.size() * sizeof(reshade::api::pipeline_layout_param)), layout_desc.data());
+			root_signature->SetPrivateData(reshade::d3d12::extra_data_guid, static_cast<UINT>(layout_desc.size() * sizeof(reshade::api::pipeline_layout_param)), layout_desc.data());
 
 			register_destruction_callback(root_signature, [this, layout_desc]() {
 				// Free all memory that was allocated in 'parse_and_convert_root_signature'
@@ -515,10 +516,10 @@ void    STDMETHODCALLTYPE D3D12Device::CreateConstantBufferView(const D3D12_CONS
 	_orig->CreateConstantBufferView(pDesc, DestDescriptor);
 
 #if RESHADE_ADDON
-	reshade::api::descriptor_set_update update = {};
-	if (resolve_descriptor_handle(DestDescriptor, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, &update.set))
+	if (reshade::api::descriptor_set_update update = {};
+		reshade::has_addon_event<reshade::addon_event::update_descriptor_sets>() &&
+		resolve_descriptor_handle(DestDescriptor, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, &update.set))
 	{
-#if 0
 		reshade::api::buffer_range buffer_range;
 		if (!resolve_gpu_address(pDesc->BufferLocation, &buffer_range.buffer, &buffer_range.offset))
 			return;
@@ -529,7 +530,6 @@ void    STDMETHODCALLTYPE D3D12Device::CreateConstantBufferView(const D3D12_CONS
 		update.descriptors = &buffer_range;
 
 		reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(this, 1, &update);
-#endif
 		return;
 	}
 #endif
@@ -554,12 +554,12 @@ void    STDMETHODCALLTYPE D3D12Device::CreateShaderResourceView(ID3D12Resource *
 #if RESHADE_ADDON
 	const reshade::api::resource resource = { reinterpret_cast<uintptr_t>(pResource) };
 
-	reshade::api::descriptor_set_update update = {};
-	if (resolve_descriptor_handle(DestDescriptor, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, &update.set))
+	if (reshade::api::descriptor_set_update update = {};
+		resolve_descriptor_handle(DestDescriptor, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, &update.set))
 	{
 #if 0
 		reshade::api::resource_view temp_view = { 0 };
-		create_resource_view(resource, reshade::api::resource_usage::shader_resource, desc, &temp_view); // TODO: This leaks
+		create_resource_view(resource, reshade::api::resource_usage::shader_resource, desc, &temp_view); // This leaks
 
 		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(this, resource, reshade::api::resource_usage::shader_resource, desc, temp_view);
 
@@ -597,12 +597,12 @@ void    STDMETHODCALLTYPE D3D12Device::CreateUnorderedAccessView(ID3D12Resource 
 #if RESHADE_ADDON
 	const reshade::api::resource resource = { reinterpret_cast<uintptr_t>(pResource) };
 
-	reshade::api::descriptor_set_update update = {};
-	if (resolve_descriptor_handle(DestDescriptor, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, &update.set))
+	if (reshade::api::descriptor_set_update update = {};
+		resolve_descriptor_handle(DestDescriptor, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, &update.set))
 	{
 #if 0
 		reshade::api::resource_view temp_view = { 0 };
-		create_resource_view(resource, reshade::api::resource_usage::unordered_access, desc, &temp_view); // TODO: This leaks
+		create_resource_view(resource, reshade::api::resource_usage::unordered_access, desc, &temp_view); // This leaks
 
 		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(this, resource, reshade::api::resource_usage::unordered_access, desc, temp_view);
 
@@ -685,12 +685,12 @@ void    STDMETHODCALLTYPE D3D12Device::CreateSampler(const D3D12_SAMPLER_DESC *p
 	_orig->CreateSampler(pDesc, DestDescriptor);
 
 #if RESHADE_ADDON
-	reshade::api::descriptor_set_update update = {};
-	if (resolve_descriptor_handle(DestDescriptor, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, &update.set))
+	if (reshade::api::descriptor_set_update update = {};
+		resolve_descriptor_handle(DestDescriptor, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, &update.set))
 	{
 #if 0
 		reshade::api::sampler temp_sampler = { 0 };
-		create_sampler(desc, &temp_sampler); // TODO: This leaks
+		create_sampler(desc, &temp_sampler); // This leaks
 
 		reshade::invoke_addon_event<reshade::addon_event::init_sampler>(this, desc, temp_sampler);
 

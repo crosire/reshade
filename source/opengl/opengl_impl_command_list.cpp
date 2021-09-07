@@ -28,17 +28,22 @@ void reshade::opengl::pipeline_impl::apply_graphics() const
 
 	glEnableOrDisable(GL_SAMPLE_ALPHA_TO_COVERAGE, sample_alpha_to_coverage);
 
-	if (blend_enable)
+	for (GLuint i = 0; i < 8; ++i)
 	{
-		glEnable(GL_BLEND);
-		glBlendFuncSeparate(blend_src, blend_dst, blend_src_alpha, blend_dst_alpha);
-		glBlendEquationSeparate(blend_eq, blend_eq_alpha);
-		glBlendColor(blend_constant[0], blend_constant[1], blend_constant[2], blend_constant[3]);
+		if (blend_enable[i])
+		{
+			glEnablei(GL_BLEND, i);
+		}
+		else
+		{
+			glDisablei(GL_BLEND, i);
+		}
+
+		glBlendFuncSeparatei(i, blend_src[i], blend_dst[i], blend_src_alpha[i], blend_dst_alpha[i]);
+		glBlendEquationSeparatei(i, blend_eq[i], blend_eq_alpha[i]);
 	}
-	else
-	{
-		glDisable(GL_BLEND);
-	}
+
+	glBlendColor(blend_constant[0], blend_constant[1], blend_constant[2], blend_constant[3]);
 
 	if (logic_op_enable)
 	{
@@ -50,7 +55,10 @@ void reshade::opengl::pipeline_impl::apply_graphics() const
 		glDisable(GL_COLOR_LOGIC_OP);
 	}
 
-	glColorMask(color_write_mask[0], color_write_mask[1], color_write_mask[2], color_write_mask[3]);
+	for (GLuint i = 0; i < 8; ++i)
+	{
+		glColorMaski(i, color_write_mask[i][0], color_write_mask[i][1], color_write_mask[i][2], color_write_mask[i][3]);
+	}
 
 	glPolygonMode(GL_FRONT_AND_BACK, polygon_mode);
 
@@ -512,36 +520,37 @@ void reshade::opengl::device_impl::copy_buffer_to_texture(api::resource src, uin
 
 	// Get current state
 	GLint previous_unpack_binding = 0;
-	GLint previous_unpack_lsb = GL_FALSE;
+	glGetIntegerv(GL_PIXEL_UNPACK_BUFFER_BINDING, &previous_unpack_binding);
+
 	GLint previous_unpack_swap = GL_FALSE;
-	GLint previous_unpack_alignment = 0;
+	GLint previous_unpack_lsb_first = GL_FALSE;
 	GLint previous_unpack_row_length = 0;
-	GLint previous_unpack_image_height = 0;
 	GLint previous_unpack_skip_rows = 0;
 	GLint previous_unpack_skip_pixels = 0;
-	GLint previous_unpack_skip_images = 0;
-	glGetIntegerv(GL_PIXEL_UNPACK_BUFFER_BINDING, &previous_unpack_binding);
-	glGetIntegerv(GL_UNPACK_LSB_FIRST, &previous_unpack_lsb);
+	GLint previous_unpack_alignment = 0;
+	GLint previous_unpack_skip_slices = 0;
+	GLint previous_unpack_slice_height = 0;
 	glGetIntegerv(GL_UNPACK_SWAP_BYTES, &previous_unpack_swap);
-	glGetIntegerv(GL_UNPACK_ALIGNMENT, &previous_unpack_alignment);
+	glGetIntegerv(GL_UNPACK_LSB_FIRST, &previous_unpack_lsb_first);
 	glGetIntegerv(GL_UNPACK_ROW_LENGTH, &previous_unpack_row_length);
-	glGetIntegerv(GL_UNPACK_IMAGE_HEIGHT, &previous_unpack_image_height);
 	glGetIntegerv(GL_UNPACK_SKIP_ROWS, &previous_unpack_skip_rows);
 	glGetIntegerv(GL_UNPACK_SKIP_PIXELS, &previous_unpack_skip_pixels);
-	glGetIntegerv(GL_UNPACK_SKIP_IMAGES, &previous_unpack_skip_images);
+	glGetIntegerv(GL_UNPACK_ALIGNMENT, &previous_unpack_alignment);
+	glGetIntegerv(GL_UNPACK_SKIP_IMAGES, &previous_unpack_skip_slices);
+	glGetIntegerv(GL_UNPACK_IMAGE_HEIGHT, &previous_unpack_slice_height);
 
 	// Bind source buffer
 	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, src.handle & 0xFFFFFFFF);
 
 	// Set up pixel storage configuration
-	glPixelStorei(GL_UNPACK_LSB_FIRST, GL_FALSE);
 	glPixelStorei(GL_UNPACK_SWAP_BYTES, GL_FALSE);
-	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+	glPixelStorei(GL_UNPACK_LSB_FIRST, GL_FALSE);
 	glPixelStorei(GL_UNPACK_ROW_LENGTH, row_length);
-	glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, slice_height);
 	glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
 	glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 	glPixelStorei(GL_UNPACK_SKIP_IMAGES, 0);
+	glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, slice_height);
 
 	GLint x = 0;
 	GLint y = 0;
@@ -647,14 +656,14 @@ void reshade::opengl::device_impl::copy_buffer_to_texture(api::resource src, uin
 	// Restore previous state from application
 	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, previous_unpack_binding);
 
-	glPixelStorei(GL_UNPACK_LSB_FIRST, previous_unpack_lsb);
 	glPixelStorei(GL_UNPACK_SWAP_BYTES, previous_unpack_swap);
-	glPixelStorei(GL_UNPACK_ALIGNMENT, previous_unpack_alignment);
+	glPixelStorei(GL_UNPACK_LSB_FIRST, previous_unpack_lsb_first);
 	glPixelStorei(GL_UNPACK_ROW_LENGTH, previous_unpack_row_length);
-	glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, previous_unpack_image_height);
 	glPixelStorei(GL_UNPACK_SKIP_ROWS, previous_unpack_skip_rows);
 	glPixelStorei(GL_UNPACK_SKIP_PIXELS, previous_unpack_skip_pixels);
-	glPixelStorei(GL_UNPACK_SKIP_IMAGES, previous_unpack_skip_images);
+	glPixelStorei(GL_UNPACK_ALIGNMENT, previous_unpack_alignment);
+	glPixelStorei(GL_UNPACK_SKIP_IMAGES, previous_unpack_skip_slices);
+	glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, previous_unpack_slice_height);
 }
 void reshade::opengl::device_impl::copy_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6], api::filter_mode filter)
 {
@@ -822,36 +831,37 @@ void reshade::opengl::device_impl::copy_texture_to_buffer(api::resource src, uin
 
 	// Get current state
 	GLint previous_pack_binding = 0;
-	GLint previous_pack_lsb = GL_FALSE;
+	glGetIntegerv(GL_PIXEL_PACK_BUFFER_BINDING, &previous_pack_binding);
+
 	GLint previous_pack_swap = GL_FALSE;
+	GLint previous_pack_lsb_first = GL_FALSE;
 	GLint previous_pack_alignment = 0;
 	GLint previous_pack_row_length = 0;
-	GLint previous_pack_image_height = 0;
+	GLint previous_pack_slice_height = 0;
 	GLint previous_pack_skip_rows = 0;
 	GLint previous_pack_skip_pixels = 0;
-	GLint previous_pack_skip_images = 0;
-	glGetIntegerv(GL_PIXEL_PACK_BUFFER_BINDING, &previous_pack_binding);
-	glGetIntegerv(GL_PACK_LSB_FIRST, &previous_pack_lsb);
+	GLint previous_pack_skip_slices = 0;
 	glGetIntegerv(GL_PACK_SWAP_BYTES, &previous_pack_swap);
-	glGetIntegerv(GL_PACK_ALIGNMENT, &previous_pack_alignment);
+	glGetIntegerv(GL_PACK_LSB_FIRST, &previous_pack_lsb_first);
 	glGetIntegerv(GL_PACK_ROW_LENGTH, &previous_pack_row_length);
-	glGetIntegerv(GL_PACK_IMAGE_HEIGHT, &previous_pack_image_height);
 	glGetIntegerv(GL_PACK_SKIP_ROWS, &previous_pack_skip_rows);
 	glGetIntegerv(GL_PACK_SKIP_PIXELS, &previous_pack_skip_pixels);
-	glGetIntegerv(GL_PACK_SKIP_IMAGES, &previous_pack_skip_images);
+	glGetIntegerv(GL_PACK_ALIGNMENT, &previous_pack_alignment);
+	glGetIntegerv(GL_PACK_SKIP_IMAGES, &previous_pack_skip_slices);
+	glGetIntegerv(GL_PACK_IMAGE_HEIGHT, &previous_pack_slice_height);
 
 	// Bind destination buffer
 	glBindBuffer(GL_PIXEL_PACK_BUFFER, dst.handle & 0xFFFFFFFF);
 
 	// Set up pixel storage configuration
-	glPixelStorei(GL_PACK_LSB_FIRST, GL_FALSE);
 	glPixelStorei(GL_PACK_SWAP_BYTES, GL_FALSE);
-	glPixelStorei(GL_PACK_ALIGNMENT, 1);
+	glPixelStorei(GL_PACK_LSB_FIRST, GL_FALSE);
 	glPixelStorei(GL_PACK_ROW_LENGTH, row_length);
-	glPixelStorei(GL_PACK_IMAGE_HEIGHT, slice_height);
 	glPixelStorei(GL_PACK_SKIP_ROWS, 0);
 	glPixelStorei(GL_PACK_SKIP_PIXELS, 0);
+	glPixelStorei(GL_PACK_ALIGNMENT, 1);
 	glPixelStorei(GL_PACK_SKIP_IMAGES, 0);
+	glPixelStorei(GL_PACK_IMAGE_HEIGHT, slice_height);
 
 	GLint x = 0;
 	GLint y = 0;
@@ -973,14 +983,14 @@ void reshade::opengl::device_impl::copy_texture_to_buffer(api::resource src, uin
 	// Restore previous state from application
 	glBindBuffer(GL_PIXEL_PACK_BUFFER, previous_pack_binding);
 
-	glPixelStorei(GL_PACK_LSB_FIRST, previous_pack_lsb);
 	glPixelStorei(GL_PACK_SWAP_BYTES, previous_pack_swap);
-	glPixelStorei(GL_PACK_ALIGNMENT, previous_pack_alignment);
+	glPixelStorei(GL_PACK_LSB_FIRST, previous_pack_lsb_first);
 	glPixelStorei(GL_PACK_ROW_LENGTH, previous_pack_row_length);
-	glPixelStorei(GL_PACK_IMAGE_HEIGHT, previous_pack_image_height);
 	glPixelStorei(GL_PACK_SKIP_ROWS, previous_pack_skip_rows);
 	glPixelStorei(GL_PACK_SKIP_PIXELS, previous_pack_skip_pixels);
-	glPixelStorei(GL_PACK_SKIP_IMAGES, previous_pack_skip_images);
+	glPixelStorei(GL_PACK_ALIGNMENT, previous_pack_alignment);
+	glPixelStorei(GL_PACK_SKIP_IMAGES, previous_pack_skip_slices);
+	glPixelStorei(GL_PACK_IMAGE_HEIGHT, previous_pack_slice_height);
 }
 void reshade::opengl::device_impl::resolve_texture_region(api::resource src, uint32_t src_subresource, const int32_t src_box[6], api::resource dst, uint32_t dst_subresource, const int32_t dst_offset[3], api::format)
 {
