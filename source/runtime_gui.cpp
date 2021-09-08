@@ -1744,7 +1744,7 @@ void reshade::runtime::draw_gui_statistics()
 
 		const float total_width = ImGui::GetWindowContentRegionWidth();
 		int texture_index = 0;
-		const unsigned int num_columns = static_cast<unsigned int>(std::ceilf(total_width / (50.0f * _font_size)));
+		const unsigned int num_columns = static_cast<unsigned int>(std::ceilf(total_width / (55.0f * _font_size)));
 		const float single_image_width = (total_width / num_columns) - 5.0f;
 
 		// Variables used to calculate memory size of textures
@@ -1837,13 +1837,25 @@ void reshade::runtime::draw_gui_statistics()
 				}
 			}
 
+			const auto button_size = ImGui::GetFrameHeight();
+			const bool supports_saving = (
+				tex.format == reshadefx::texture_format::r8 ||
+				tex.format == reshadefx::texture_format::rg8 ||
+				tex.format == reshadefx::texture_format::rgba8 ||
+				tex.format == reshadefx::texture_format::rgb10a2);
+
 			ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
 			if (const std::string label = "Referenced by " + std::to_string(num_referenced_passes) + " pass(es) in " + std::to_string(tex.shared.size()) + " effect(s) ...";
-				ImGui::ButtonEx(label.c_str(), ImVec2(single_image_width - (ImGui::GetStyle().ItemSpacing.x + 40), 0)))
+				ImGui::ButtonEx(label.c_str(), ImVec2(single_image_width - (supports_saving ? ImGui::GetStyle().ItemSpacing.x + button_size : 0), 0)))
 				ImGui::OpenPopup("##references");
-			ImGui::SameLine();
-			if (ImGui::Button("Save", ImVec2(40, 0)))
-				save_texture_image(tex);
+			if (supports_saving)
+			{
+				ImGui::SameLine();
+				if (ImGui::Button(ICON_FK_FLOPPY, ImVec2(button_size, 0)))
+					save_texture_image(tex);
+				if (ImGui::IsItemHovered())
+					ImGui::SetTooltip("Save %s", tex.unique_name.c_str());
+			}
 			ImGui::PopStyleVar();
 
 			if (!references.empty() && ImGui::BeginPopup("##references"))
