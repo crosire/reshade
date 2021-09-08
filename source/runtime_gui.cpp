@@ -1839,8 +1839,11 @@ void reshade::runtime::draw_gui_statistics()
 
 			ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
 			if (const std::string label = "Referenced by " + std::to_string(num_referenced_passes) + " pass(es) in " + std::to_string(tex.shared.size()) + " effect(s) ...";
-				ImGui::ButtonEx(label.c_str(), ImVec2(single_image_width, 0)))
+				ImGui::ButtonEx(label.c_str(), ImVec2(single_image_width - (ImGui::GetStyle().ItemSpacing.x + 40), 0)))
 				ImGui::OpenPopup("##references");
+			ImGui::SameLine();
+			if (ImGui::Button("Save", ImVec2(40, 0)))
+				save_texture_image(tex);
 			ImGui::PopStyleVar();
 
 			if (!references.empty() && ImGui::BeginPopup("##references"))

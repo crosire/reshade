@@ -1966,6 +1966,7 @@ bool reshade::runtime::init_texture(texture &tex)
 		view_format_srgb = view_format = format;
 
 	api::resource_usage usage = api::resource_usage::shader_resource;
+	usage |= api::resource_usage::copy_source; // For texture data download
 	if (tex.semantic.empty())
 		usage |= api::resource_usage::copy_dest; // For texture data upload
 	if (tex.render_target)
@@ -3341,19 +3342,39 @@ bool reshade::runtime::switch_to_next_preset(std::filesystem::path filter_path, 
 	return true;
 }
 
-bool reshade::runtime::take_screenshot(uint8_t *buffer)
+bool reshade::runtime::take_screenshot(api::resource resource, api::resource_usage state, uint8_t *pixels)
 {
-	if (_color_bit_depth != 8 && _color_bit_depth != 10)
+	const api::resource_desc desc = _device->get_resource_desc(resource);
+	const api::format view_format = api::format_to_default_typed(desc.texture.format, 0);
+
+	if (view_format != api::format::r8_unorm &&
+		view_format != api::format::r8g8_unorm &&
+		view_format != api::format::r8g8b8a8_unorm &&
+		view_format != api::format::b8g8r8a8_unorm &&
+		view_format != api::format::r8g8b8x8_unorm &&
+		view_format != api::format::b8g8r8x8_unorm &&
+		view_format != api::format::r10g10b10a2_unorm &&
+		view_format != api::format::b10g10r10a2_unorm)
 	{
-		LOG(ERROR) << "Screenshots are not supported for back buffer format " << static_cast<uint32_t>(_backbuffer_format) << '!';
+		LOG(ERROR) << "Screenshots are not supported for format " << static_cast<uint32_t>(desc.texture.format) << '!';
 		return false;
 	}
 
-	api::resource backbuffer;
-	get_current_back_buffer_resolved(&backbuffer);
+	uint32_t texture_pitch = desc.texture.width;
+	const uint32_t pixels_pitch = desc.texture.width * 4;
 
-	const uint32_t data_pitch = _width * 4;
-	uint32_t texture_pitch = data_pitch;
+	switch (view_format)
+	{
+	case api::format::r8_unorm:
+		break;
+	case api::format::r8g8_unorm:
+		texture_pitch *= 2;
+		break;
+	default:
+		texture_pitch *= 4;
+		break;
+	}
+
 	if (_device->get_api() == api::device_api::d3d12) // See D3D12_TEXTURE_DATA_PITCH_ALIGNMENT
 		texture_pitch = (texture_pitch + 255) & ~255;
 
@@ -3361,7 +3382,7 @@ bool reshade::runtime::take_screenshot(uint8_t *buffer)
 	api::resource intermediate;
 	if (_device->check_capability(api::device_caps::copy_buffer_to_texture))
 	{
-		if (!_device->create_resource(api::resource_desc(texture_pitch * _height, api::memory_heap::gpu_to_cpu, api::resource_usage::copy_dest), nullptr, api::resource_usage::copy_dest, &intermediate))
+		if (!_device->create_resource(api::resource_desc(texture_pitch * desc.texture.height, api::memory_heap::gpu_to_cpu, api::resource_usage::copy_dest), nullptr, api::resource_usage::copy_dest, &intermediate))
 		{
 			LOG(ERROR) << "Failed to create system memory buffer for screenshot capture!";
 			return false;
@@ -3370,13 +3391,13 @@ bool reshade::runtime::take_screenshot(uint8_t *buffer)
 		_device->set_resource_name(intermediate, "ReShade screenshot buffer");
 
 		api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
-		cmd_list->barrier(backbuffer, api::resource_usage::present, api::resource_usage::copy_source);
-		cmd_list->copy_texture_to_buffer(backbuffer, 0, nullptr, intermediate, 0, _width, _height);
-		cmd_list->barrier(backbuffer, api::resource_usage::copy_source, api::resource_usage::present);
+		cmd_list->barrier(resource, state, api::resource_usage::copy_source);
+		cmd_list->copy_texture_to_buffer(resource, 0, nullptr, intermediate, 0, desc.texture.width, desc.texture.height);
+		cmd_list->barrier(resource, api::resource_usage::copy_source, state);
 	}
 	else
 	{
-		if (!_device->create_resource(api::resource_desc(_width, _height, 1, 1, _backbuffer_format, 1, api::memory_heap::gpu_to_cpu, api::resource_usage::copy_dest), nullptr, api::resource_usage::copy_dest, &intermediate))
+		if (!_device->create_resource(api::resource_desc(desc.texture.width, desc.texture.height, 1, 1, view_format, 1, api::memory_heap::gpu_to_cpu, api::resource_usage::copy_dest), nullptr, api::resource_usage::copy_dest, &intermediate))
 		{
 			LOG(ERROR) << "Failed to create system memory texture for screenshot capture!";
 			return false;
@@ -3385,14 +3406,14 @@ bool reshade::runtime::take_screenshot(uint8_t *buffer)
 		_device->set_resource_name(intermediate, "ReShade screenshot texture");
 
 		api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
-		cmd_list->barrier(backbuffer, api::resource_usage::present, api::resource_usage::copy_source);
-		cmd_list->copy_resource(backbuffer, intermediate);
-		cmd_list->barrier(backbuffer, api::resource_usage::copy_source, api::resource_usage::present);
+		cmd_list->barrier(resource, state, api::resource_usage::copy_source);
+		cmd_list->copy_texture_region(resource, 0, nullptr, intermediate, 0, nullptr);
+		cmd_list->barrier(resource, api::resource_usage::copy_source, state);
 	}
 
 	// Wait for any rendering by the application finish before submitting
 	// It may have submitted that to a different queue, so simply wait for all to idle here
-	_device->wait_idle();
+	_graphics_queue->wait_idle();
 
 	// Copy data from intermediate image into output buffer
 	api::subresource_data mapped_data = {};
@@ -3401,36 +3422,61 @@ bool reshade::runtime::take_screenshot(uint8_t *buffer)
 		if (!_device->check_capability(api::device_caps::copy_buffer_to_texture))
 			texture_pitch = mapped_data.row_pitch;
 
-		auto pixels = static_cast<const uint8_t *>(mapped_data.data);
+		auto mapped_pixels = static_cast<const uint8_t *>(mapped_data.data);
 
-		for (uint32_t y = 0; y < _height; y++, buffer += data_pitch, pixels += texture_pitch)
+		for (uint32_t y = 0; y < desc.texture.height; ++y, pixels += pixels_pitch, mapped_pixels += texture_pitch)
 		{
-			if (_color_bit_depth == 10)
+			switch (view_format)
 			{
-				for (uint32_t x = 0; x < data_pitch; x += 4)
+			case api::format::r8_unorm:
+				for (uint32_t x = 0; x < desc.texture.width; ++x)
 				{
-					const uint32_t rgba = *reinterpret_cast<const uint32_t *>(pixels + x);
+					pixels[x * 4 + 0] = mapped_pixels[x];
+					pixels[x * 4 + 1] = 0;
+					pixels[x * 4 + 2] = 0;
+					pixels[x * 4 + 3] = 0xFF;
+				}
+				break;
+			case api::format::r8g8_unorm:
+				for (uint32_t x = 0; x < desc.texture.width; ++x)
+				{
+					pixels[x * 4 + 0] = mapped_pixels[x * 2 + 0];
+					pixels[x * 4 + 1] = mapped_pixels[x * 2 + 1];
+					pixels[x * 4 + 2] = 0;
+					pixels[x * 4 + 3] = 0xFF;
+				}
+				break;
+			case api::format::r8g8b8a8_unorm:
+			case api::format::r8g8b8x8_unorm:
+				std::memcpy(pixels, mapped_pixels, pixels_pitch);
+				if (view_format == api::format::r8g8b8x8_unorm)
+					for (uint32_t x = 0; x < pixels_pitch; x += 4)
+						pixels[x + 3] = 0xFF;
+				break;
+			case api::format::b8g8r8a8_unorm:
+			case api::format::b8g8r8x8_unorm:
+				std::memcpy(pixels, mapped_pixels, pixels_pitch);
+				// Format is BGRA, but output should be RGBA, so flip channels
+				for (uint32_t x = 0; x < pixels_pitch; x += 4)
+					std::swap(pixels[x + 0], pixels[x + 2]);
+				if (view_format == api::format::b8g8r8x8_unorm)
+					for (uint32_t x = 0; x < pixels_pitch; x += 4)
+						pixels[x + 3] = 0xFF;
+				break;
+			case api::format::r10g10b10a2_unorm:
+			case api::format::b10g10r10a2_unorm:
+				for (uint32_t x = 0; x < pixels_pitch; x += 4)
+				{
+					const uint32_t rgba = *reinterpret_cast<const uint32_t *>(mapped_pixels + x);
 					// Divide by 4 to get 10-bit range (0-1023) into 8-bit range (0-255)
-					buffer[x + 0] = (( rgba & 0x000003FF)        /  4) & 0xFF;
-					buffer[x + 1] = (((rgba & 0x000FFC00) >> 10) /  4) & 0xFF;
-					buffer[x + 2] = (((rgba & 0x3FF00000) >> 20) /  4) & 0xFF;
-					buffer[x + 3] = (((rgba & 0xC0000000) >> 30) * 85) & 0xFF;
-					if (_backbuffer_format >= api::format::b10g10r10a2_typeless &&
-						_backbuffer_format <= api::format::b10g10r10a2_uint)
-						std::swap(buffer[x + 0], buffer[x + 2]);
+					pixels[x + 0] = (( rgba & 0x000003FF)        /  4) & 0xFF;
+					pixels[x + 1] = (((rgba & 0x000FFC00) >> 10) /  4) & 0xFF;
+					pixels[x + 2] = (((rgba & 0x3FF00000) >> 20) /  4) & 0xFF;
+					pixels[x + 3] = (((rgba & 0xC0000000) >> 30) * 85) & 0xFF;
+					if (view_format == api::format::b10g10r10a2_unorm)
+						std::swap(pixels[x + 0], pixels[x + 2]);
 				}
-			}
-			else
-			{
-				std::memcpy(buffer, pixels, data_pitch);
-
-				if (_backbuffer_format >= api::format::b8g8r8a8_unorm &&
-					_backbuffer_format <= api::format::b8g8r8a8_unorm_srgb)
-				{
-					// Format is BGRA, but output should be RGBA, so flip channels
-					for (uint32_t x = 0; x < data_pitch; x += 4)
-						std::swap(buffer[x + 0], buffer[x + 2]);
-				}
+				break;
 			}
 		}
 
@@ -3461,7 +3507,10 @@ void reshade::runtime::save_screenshot(const std::wstring &postfix, const bool s
 
 	_screenshot_save_success = false; // Default to a save failure unless it is reported to succeed below
 
-	if (std::vector<uint8_t> data(_width * _height * 4); take_screenshot(data.data()))
+	api::resource backbuffer;
+	get_current_back_buffer_resolved(&backbuffer);
+
+	if (std::vector<uint8_t> data(_width * _height * 4); take_screenshot(backbuffer, api::resource_usage::present, data.data()))
 	{
 		// Remove alpha channel
 		int comp = 4;
@@ -3515,6 +3564,48 @@ void reshade::runtime::save_screenshot(const std::wstring &postfix, const bool s
 		// Preset was flushed to disk, so can just copy it over to the new location
 		std::error_code ec; std::filesystem::copy_file(_current_preset_path, screenshot_path.replace_extension(L".ini"), std::filesystem::copy_options::overwrite_existing, ec);
 	}
+}
+void reshade::runtime::save_texture_image(const texture &tex)
+{
+	char timestamp[21];
+	const std::time_t t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+	tm tm; localtime_s(&tm, &t);
+	sprintf_s(timestamp, " %.4d-%.2d-%.2d %.2d-%.2d-%.2d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+
+	std::wstring filename = std::filesystem::path(tex.unique_name).concat(timestamp);
+	filename += _screenshot_format == 0 ? L".bmp" : _screenshot_format == 1 ? L".png" : L".jpg";
+
+	std::filesystem::path screenshot_path = g_reshade_base_path / _screenshot_path / filename;
+
+	_screenshot_save_success = false; // Default to a save failure unless it is reported to succeed below
+
+	if (std::vector<uint8_t> data(tex.width * tex.height * 4); take_screenshot(tex.resource, api::resource_usage::shader_resource, data.data()))
+	{
+		if (FILE *file; _wfopen_s(&file, screenshot_path.c_str(), L"wb") == 0)
+		{
+			const auto write_callback = [](void *context, void *data, int size) {
+				fwrite(data, 1, size, static_cast<FILE *>(context));
+			};
+
+			switch (_screenshot_format)
+			{
+			case 0:
+				_screenshot_save_success = stbi_write_bmp_to_func(write_callback, file, tex.width, tex.height, 4, data.data()) != 0;
+				break;
+			case 1:
+				_screenshot_save_success = stbi_write_png_to_func(write_callback, file, tex.width, tex.height, 4, data.data(), 0) != 0;
+				break;
+			case 2:
+				_screenshot_save_success = stbi_write_jpg_to_func(write_callback, file, tex.width, tex.height, 4, data.data(), _screenshot_jpeg_quality) != 0;
+				break;
+			}
+
+			fclose(file);
+		}
+	}
+
+	_last_screenshot_file = screenshot_path;
+	_last_screenshot_time = std::chrono::high_resolution_clock::now();
 }
 
 static inline bool force_floating_point_value(const reshadefx::type &type, uint32_t renderer_id)

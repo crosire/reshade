@@ -376,6 +376,26 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 		}
 		case D3DRTYPE_TEXTURE | (D3DRTYPE_TEXTURE << 4):
 		{
+			com_ptr<IDirect3DSurface9> dst_surface;
+			static_cast<IDirect3DTexture9 *>(dst_object)->GetSurfaceLevel(dst_subresource, &dst_surface);
+
+			if (src_box == nullptr && dst_box == nullptr)
+			{
+				D3DSURFACE_DESC src_desc;
+				static_cast<IDirect3DTexture9 *>(src_object)->GetLevelDesc(src_subresource, &src_desc);
+				D3DSURFACE_DESC dst_desc;
+				dst_surface->GetDesc(&dst_desc);
+
+				if (src_desc.Pool == D3DPOOL_DEFAULT && dst_desc.Pool == D3DPOOL_SYSTEMMEM)
+				{
+					com_ptr<IDirect3DSurface9> src_surface;
+					static_cast<IDirect3DTexture9 *>(src_object)->GetSurfaceLevel(src_subresource, &src_surface);
+
+					_orig->GetRenderTargetData(src_surface.get(), dst_surface.get());
+					return;
+				}
+			}
+
 			// Capture and restore state, render targets, depth stencil surface and viewport (which all may change next)
 			_backup_state.capture();
 
@@ -391,8 +411,6 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 			_orig->SetSamplerState(0, D3DSAMP_MINFILTER, stretch_filter_type);
 			_orig->SetSamplerState(0, D3DSAMP_MAGFILTER, stretch_filter_type);
 
-			com_ptr<IDirect3DSurface9> dst_surface;
-			static_cast<IDirect3DTexture9 *>(dst_object)->GetSurfaceLevel(dst_subresource, &dst_surface);
 			_orig->SetRenderTarget(0, dst_surface.get());
 			for (DWORD target = 1; target < _caps.NumSimultaneousRTs; ++target)
 				_orig->SetRenderTarget(target, nullptr);

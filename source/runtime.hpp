@@ -49,12 +49,16 @@ namespace reshade
 		/// <summary>
 		/// Creates a copy of the current frame image in system memory.
 		/// </summary>
-		/// <param name="buffer">The 32bpp RGBA buffer to save the screenshot to.</param>
-		bool take_screenshot(uint8_t *buffer);
+		/// <param name="pixels">The 32bpp RGBA buffer to save the screenshot to.</param>
+		bool take_screenshot(api::resource resource, api::resource_usage state, uint8_t *pixels);
 		/// <summary>
 		/// Creates a copy of the current frame and write it to an image file on disk.
 		/// </summary>
 		void save_screenshot(const std::wstring &postfix = std::wstring(), bool should_save_preset = false);
+		/// <summary>
+		/// Downloads the image data from a texture and writes it to an image file ib disk.
+		/// </summary>
+		void save_texture_image(const texture &texture);
 
 		/// <summary>
 		/// Gets the value of a uniform variable.
