@@ -22,8 +22,19 @@ inline VkImageAspectFlags aspect_flags_from_format(VkFormat format)
 	return VK_IMAGE_ASPECT_COLOR_BIT;
 }
 
-reshade::vulkan::device_impl::device_impl(VkDevice device, VkPhysicalDevice physical_device, const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table, const VkPhysicalDeviceFeatures &enabled_features, bool custom_border_color_ext) :
-	api_object_impl(device), _physical_device(physical_device), _dispatch_table(device_table), _instance_dispatch_table(instance_table), _enabled_features(enabled_features), _custom_border_color_ext(custom_border_color_ext)
+reshade::vulkan::device_impl::device_impl(
+	VkDevice device,
+	VkPhysicalDevice physical_device,
+	const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table, const VkPhysicalDeviceFeatures &enabled_features,
+	bool custom_border_color_ext,
+	bool extended_dynamic_state_ext) :
+	api_object_impl(device),
+	_physical_device(physical_device),
+	_dispatch_table(device_table),
+	_instance_dispatch_table(instance_table),
+	_custom_border_color_ext(custom_border_color_ext),
+	_extended_dynamic_state_ext(extended_dynamic_state_ext),
+	_enabled_features(enabled_features)
 {
 	{	VmaVulkanFunctions functions;
 		functions.vkGetPhysicalDeviceProperties = instance_table.GetPhysicalDeviceProperties;
@@ -623,16 +634,44 @@ bool reshade::vulkan::device_impl::create_graphics_pipeline(const api::pipeline_
 			{
 			case api::dynamic_state::blend_constant:
 				dyn_states.push_back(VK_DYNAMIC_STATE_BLEND_CONSTANTS);
-				break;
+				continue;
 			case api::dynamic_state::stencil_read_mask:
 				dyn_states.push_back(VK_DYNAMIC_STATE_STENCIL_COMPARE_MASK);
-				break;
+				continue;
 			case api::dynamic_state::stencil_write_mask:
 				dyn_states.push_back(VK_DYNAMIC_STATE_STENCIL_WRITE_MASK);
-				break;
+				continue;
 			case api::dynamic_state::stencil_reference_value:
 				dyn_states.push_back(VK_DYNAMIC_STATE_STENCIL_REFERENCE);
-				break;
+				continue;
+			}
+
+			if (!_extended_dynamic_state_ext)
+				goto exit_failure;
+
+			switch (desc.graphics.dynamic_states[i])
+			{
+			case api::dynamic_state::cull_mode:
+				dyn_states.push_back(VK_DYNAMIC_STATE_CULL_MODE_EXT);
+				continue;
+			case api::dynamic_state::front_counter_clockwise:
+				dyn_states.push_back(VK_DYNAMIC_STATE_FRONT_FACE_EXT);
+				continue;
+			case api::dynamic_state::primitive_topology:
+				dyn_states.push_back(VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY_EXT);
+				continue;
+			case api::dynamic_state::depth_enable:
+				dyn_states.push_back(VK_DYNAMIC_STATE_DEPTH_TEST_ENABLE_EXT);
+				continue;
+			case api::dynamic_state::depth_write_mask:
+				dyn_states.push_back(VK_DYNAMIC_STATE_DEPTH_WRITE_ENABLE_EXT);
+				continue;
+			case api::dynamic_state::depth_func:
+				dyn_states.push_back(VK_DYNAMIC_STATE_DEPTH_COMPARE_OP_EXT);
+				continue;
+			case api::dynamic_state::stencil_enable:
+				dyn_states.push_back(VK_DYNAMIC_STATE_STENCIL_TEST_ENABLE_EXT);
+				continue;
 			default:
 				goto exit_failure;
 			}

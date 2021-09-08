@@ -142,6 +142,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 
 	bool push_descriptor_ext = false;
 	bool custom_border_color_ext = false;
+	bool extended_dynamic_state_ext = false;
 
 	// Check if the device is used for presenting
 	if (std::find_if(enabled_extensions.begin(), enabled_extensions.end(),
@@ -201,6 +202,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 
 		push_descriptor_ext = add_extension(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME, false);
 		custom_border_color_ext = add_extension(VK_EXT_CUSTOM_BORDER_COLOR_EXTENSION_NAME, false);
+		extended_dynamic_state_ext = add_extension(VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME, false);
 	}
 
 	VkDeviceCreateInfo create_info = *pCreateInfo;
@@ -229,11 +231,21 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	VkPhysicalDeviceCustomBorderColorFeaturesEXT custom_border_feature { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CUSTOM_BORDER_COLOR_FEATURES_EXT };
 	if (custom_border_color_ext)
 	{
-		custom_border_feature.pNext = &private_data_feature;
+		custom_border_feature.pNext = const_cast<void *>(create_info.pNext);
 		custom_border_feature.customBorderColors = VK_TRUE;
 		custom_border_feature.customBorderColorWithoutFormat = VK_TRUE;
 
 		create_info.pNext = &custom_border_feature;
+	}
+
+	// Optionally enable extended dynamic state feature
+	VkPhysicalDeviceExtendedDynamicStateFeaturesEXT extended_dynamic_state_feature { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT };
+	if (extended_dynamic_state_ext)
+	{
+		extended_dynamic_state_feature.pNext = const_cast<void *>(create_info.pNext);
+		extended_dynamic_state_feature.extendedDynamicState = VK_TRUE;
+
+		create_info.pNext = &extended_dynamic_state_feature;
 	}
 
 	// Continue calling down the chain
@@ -371,7 +383,9 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	#pragma endregion
 	#pragma region VK_KHR_push_descriptor
 	if (push_descriptor_ext)
+	{
 		INIT_DISPATCH_PTR(CmdPushDescriptorSetKHR);
+	}
 	#pragma endregion
 	#pragma region VK_EXT_debug_utils
 	INIT_DISPATCH_PTR(SetDebugUtilsObjectNameEXT);
@@ -388,6 +402,23 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DISPATCH_PTR(GetPrivateDataEXT);
 	INIT_DISPATCH_PTR(SetPrivateDataEXT);
 	#pragma endregion
+	#pragma region VK_EXT_extended_dynamic_state
+	if (extended_dynamic_state_ext)
+	{
+		INIT_DISPATCH_PTR(CmdSetCullModeEXT);
+		INIT_DISPATCH_PTR(CmdSetFrontFaceEXT);
+		INIT_DISPATCH_PTR(CmdSetPrimitiveTopologyEXT);
+		INIT_DISPATCH_PTR(CmdSetViewportWithCountEXT);
+		INIT_DISPATCH_PTR(CmdSetScissorWithCountEXT);
+		INIT_DISPATCH_PTR(CmdBindVertexBuffers2EXT);
+		INIT_DISPATCH_PTR(CmdSetDepthTestEnableEXT);
+		INIT_DISPATCH_PTR(CmdSetDepthWriteEnableEXT);
+		INIT_DISPATCH_PTR(CmdSetDepthCompareOpEXT);
+		INIT_DISPATCH_PTR(CmdSetDepthBoundsTestEnableEXT);
+		INIT_DISPATCH_PTR(CmdSetStencilTestEnableEXT);
+		INIT_DISPATCH_PTR(CmdSetStencilOpEXT);
+	}
+	#pragma endregion
 
 	// Initialize per-device data
 	const auto device_impl = new reshade::vulkan::device_impl(
@@ -396,7 +427,8 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		g_instance_dispatch.at(dispatch_key_from_handle(physicalDevice)),
 		dispatch_table,
 		enabled_features,
-		custom_border_color_ext);
+		custom_border_color_ext,
+		extended_dynamic_state_ext);
 
 	device_impl->_graphics_queue_family_index = graphics_queue_family_index;
 

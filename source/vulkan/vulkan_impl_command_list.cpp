@@ -149,20 +149,51 @@ void reshade::vulkan::command_list_impl::bind_pipeline_states(uint32_t count, co
 			blend_constant[3] = ((values[i] >> 12) & 0xFF) / 255.0f;
 
 			vk.CmdSetBlendConstants(_orig, blend_constant);
-			break;
+			continue;
 		}
 		case api::dynamic_state::stencil_read_mask:
 			vk.CmdSetStencilCompareMask(_orig, VK_STENCIL_FACE_FRONT_AND_BACK, values[i]);
-			break;
+			continue;
 		case api::dynamic_state::stencil_write_mask:
 			vk.CmdSetStencilWriteMask(_orig, VK_STENCIL_FACE_FRONT_AND_BACK, values[i]);
-			break;
+			continue;
 		case api::dynamic_state::stencil_reference_value:
 			vk.CmdSetStencilReference(_orig, VK_STENCIL_FACE_FRONT_AND_BACK, values[i]);
-			break;
+			continue;
+		}
+
+		if (!_device_impl->_extended_dynamic_state_ext)
+		{
+			assert(false);
+			continue;
+		}
+
+		switch (states[i])
+		{
+		case api::dynamic_state::cull_mode:
+			vk.CmdSetCullModeEXT(_orig, convert_cull_mode(static_cast<api::cull_mode>(values[i])));
+			continue;
+		case api::dynamic_state::front_counter_clockwise:
+			vk.CmdSetFrontFaceEXT(_orig, values[i] != 0 ? VK_FRONT_FACE_COUNTER_CLOCKWISE : VK_FRONT_FACE_CLOCKWISE);
+			continue;
+		case api::dynamic_state::primitive_topology:
+			vk.CmdSetPrimitiveTopologyEXT(_orig, convert_primitive_topology(static_cast<api::primitive_topology>(values[i])));
+			continue;
+		case api::dynamic_state::depth_enable:
+			vk.CmdSetDepthTestEnableEXT(_orig, values[i]);
+			continue;
+		case api::dynamic_state::depth_write_mask:
+			vk.CmdSetDepthWriteEnableEXT(_orig, values[i]);
+			continue;
+		case api::dynamic_state::depth_func:
+			vk.CmdSetDepthCompareOpEXT(_orig, convert_compare_op(static_cast<api::compare_op>(values[i])));
+			continue;
+		case api::dynamic_state::stencil_enable:
+			vk.CmdSetStencilTestEnableEXT(_orig, values[i]);
+			continue;
 		default:
 			assert(false);
-			break;
+			continue;
 		}
 	}
 }

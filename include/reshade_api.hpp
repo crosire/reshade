@@ -529,12 +529,19 @@ namespace reshade { namespace api
 		/// <param name="pipeline">Pipeline state object to bind.</param>
 		virtual void bind_pipeline(pipeline_stage type, pipeline pipeline) = 0;
 		/// <summary>
+		/// Updates the specfified pipeline <paramref name="state"/> to the specified <paramref name="value"/>.
+		/// This is only valid for states that have been listed in <see cref="pipeline_desc::graphics::dynamic_states"/> of the currently bound pipeline state object.
+		/// </summary>
+		/// <param name="states">Pipeline state to update.</param>
+		/// <param name="values">Value to update the pipeline state to.</param>
+		inline  void bind_pipeline_state(dynamic_state state, uint32_t value) { bind_pipeline_states(1, &state, &value); }
+		/// <summary>
 		/// Updates the specfified pipeline <paramref name="states"/> to the specified <paramref name="values"/>.
 		/// This is only valid for states that have been listed in <see cref="pipeline_desc::graphics::dynamic_states"/> of the currently bound pipeline state object.
 		/// </summary>
 		/// <param name="count">Number of pipeline states to update.</param>
 		/// <param name="states">Pointer to an array of pipeline states to update.</param>
-		/// <param name="values">Pointer to an array of pipeline state values, with one for each state in <paramref name="states"/>.</param>
+		/// <param name="values">Pointer to an array of values to update the pipeline states to, with one for each state in <paramref name="states"/>.</param>
 		virtual void bind_pipeline_states(uint32_t count, const dynamic_state *states, const uint32_t *values) = 0;
 		/// <summary>
 		/// Binds an array of viewports to the rasterizer stage.
