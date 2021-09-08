@@ -573,10 +573,15 @@ void reshade::vulkan::convert_usage_to_buffer_usage_flags(api::resource_usage us
 	else
 		buffer_flags &= ~VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
 
-	if ((usage & api::resource_usage::unordered_access) != api::resource_usage::undefined)
-		buffer_flags |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+	if ((usage & api::resource_usage::shader_resource) != api::resource_usage::undefined)
+		buffer_flags |= VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT;
 	else
-		buffer_flags &= ~VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+		buffer_flags &= ~VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT;
+
+	if ((usage & api::resource_usage::unordered_access) != api::resource_usage::undefined)
+		buffer_flags |= VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+	else
+		buffer_flags &= ~(VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 
 	if ((usage & api::resource_usage::copy_dest) != api::resource_usage::undefined)
 		buffer_flags |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
@@ -598,6 +603,10 @@ void reshade::vulkan::convert_buffer_usage_flags_to_usage(const VkBufferUsageFla
 		usage |= api::resource_usage::vertex_buffer;
 	if ((buffer_flags & VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT) != 0)
 		usage |= api::resource_usage::constant_buffer;
+	if ((buffer_flags & VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT) != 0)
+		usage |= api::resource_usage::shader_resource;
+	if ((buffer_flags & VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT) != 0)
+		usage |= api::resource_usage::unordered_access;
 	if ((buffer_flags & VK_BUFFER_USAGE_STORAGE_BUFFER_BIT) != 0)
 		usage |= api::resource_usage::unordered_access;
 	if ((buffer_flags & VK_BUFFER_USAGE_TRANSFER_DST_BIT) != 0)
@@ -1527,5 +1536,52 @@ auto reshade::vulkan::convert_query_type(api::query_type type) -> VkQueryType
 	default:
 		assert(false);
 		return VK_QUERY_TYPE_MAX_ENUM;
+	}
+}
+auto reshade::vulkan::convert_descriptor_type(api::descriptor_type value, bool is_image) -> VkDescriptorType
+{
+	switch (value)
+	{
+	case api::descriptor_type::sampler:
+		return VK_DESCRIPTOR_TYPE_SAMPLER;
+	case api::descriptor_type::sampler_with_resource_view:
+		assert(is_image);
+		return VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	case reshade::api::descriptor_type::shader_resource_view:
+		return is_image ? VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE : VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER;
+	case reshade::api::descriptor_type::unordered_access_view:
+		return is_image ? VK_DESCRIPTOR_TYPE_STORAGE_IMAGE : VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER;
+	case reshade::api::descriptor_type::constant_buffer:
+		return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	case reshade::api::descriptor_type::shader_storage_buffer:
+		return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	default:
+		assert(false);
+		return static_cast<VkDescriptorType>(value);
+	}
+}
+auto reshade::vulkan::convert_descriptor_type(VkDescriptorType value) -> api::descriptor_type
+{
+	switch (value)
+	{
+	case VK_DESCRIPTOR_TYPE_SAMPLER:
+		return api::descriptor_type::sampler;
+	case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+		return api::descriptor_type::sampler_with_resource_view;
+	case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+	case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
+		return api::descriptor_type::shader_resource_view;
+	case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
+	case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
+		return api::descriptor_type::unordered_access_view;
+	case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+	case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC:
+		return api::descriptor_type::constant_buffer;
+	case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+	case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
+		return api::descriptor_type::shader_storage_buffer;
+	default:
+		assert(false);
+		return static_cast<api::descriptor_type>(value);
 	}
 }

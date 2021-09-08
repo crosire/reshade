@@ -217,55 +217,63 @@ void reshade::vulkan::command_list_impl::push_constants(api::shader_stage stages
 }
 void reshade::vulkan::command_list_impl::push_descriptors(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, const api::descriptor_set_update &update)
 {
-	assert(update.set.handle == 0 && update.count != 0);
+	if (update.count == 0)
+		return;
+
+	assert(update.set.handle == 0);
 
 	VkWriteDescriptorSet write { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
 	write.dstBinding = update.binding;
 	write.dstArrayElement = update.array_offset;
 	write.descriptorCount = update.count;
-	write.descriptorType = static_cast<VkDescriptorType>(update.type);
+	write.descriptorType = convert_descriptor_type(update.type, true);
 
 	const auto image_info = static_cast<VkDescriptorImageInfo *>(_malloca(update.count * sizeof(VkDescriptorImageInfo)));
+
 	switch (update.type)
 	{
 	case api::descriptor_type::sampler:
-		for (uint32_t i = 0; i < update.count; ++i)
-		{
-			const auto &descriptor = static_cast<const api::sampler *>(update.descriptors)[i];
-			image_info[i].sampler = (VkSampler)descriptor.handle;
-		}
 		write.pImageInfo = image_info;
+		for (uint32_t k = 0; k < update.count; ++k)
+		{
+			const auto &descriptor = static_cast<const api::sampler *>(update.descriptors)[k];
+			image_info[k].sampler = (VkSampler)descriptor.handle;
+		}
 		break;
 	case api::descriptor_type::sampler_with_resource_view:
-		for (uint32_t i = 0; i < update.count; ++i)
-		{
-			const auto &descriptor = static_cast<const api::sampler_with_resource_view *>(update.descriptors)[i];
-			image_info[i].sampler = (VkSampler)descriptor.sampler.handle;
-			image_info[i].imageView = (VkImageView)descriptor.view.handle;
-			image_info[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		}
 		write.pImageInfo = image_info;
+		for (uint32_t k = 0; k < update.count; ++k)
+		{
+			const auto &descriptor = static_cast<const api::sampler_with_resource_view *>(update.descriptors)[k];
+			image_info[k].sampler = (VkSampler)descriptor.sampler.handle;
+			image_info[k].imageView = (VkImageView)descriptor.view.handle;
+			image_info[k].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		}
 		break;
 	case api::descriptor_type::shader_resource_view:
-		for (uint32_t i = 0; i < update.count; ++i)
-		{
-			const auto &descriptor = static_cast<const api::resource_view *>(update.descriptors)[i];
-			image_info[i].imageView = (VkImageView)descriptor.handle;
-			image_info[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		}
-		write.pImageInfo = image_info;
-		break;
 	case api::descriptor_type::unordered_access_view:
-		for (uint32_t i = 0; i < update.count; ++i)
+		if (const auto descriptors = static_cast<const api::resource_view *>(update.descriptors);
+			_device_impl->get_user_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)descriptors[0].handle)->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO)
 		{
-			const auto &descriptor = static_cast<const api::resource_view *>(update.descriptors)[i];
-			image_info[i].imageView = (VkImageView)descriptor.handle;
-			image_info[i].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+			write.pImageInfo = image_info;
+			for (uint32_t k = 0; k < update.count; ++k)
+			{
+				const auto &descriptor = descriptors[k];
+				image_info[k].imageView = (VkImageView)descriptor.handle;
+				image_info[k].imageLayout = (update.type == api::descriptor_type::unordered_access_view) ? VK_IMAGE_LAYOUT_GENERAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			}
 		}
-		write.pImageInfo = image_info;
+		else
+		{
+			write.descriptorType = convert_descriptor_type(update.type, false);
+
+			static_assert(sizeof(*descriptors) == sizeof(VkBufferView));
+			write.pTexelBufferView = reinterpret_cast<const VkBufferView *>(descriptors);
+		}
 		break;
 	case api::descriptor_type::constant_buffer:
 	case api::descriptor_type::shader_storage_buffer:
+		static_assert(sizeof(api::buffer_range) == sizeof(VkDescriptorBufferInfo));
 		write.pBufferInfo = static_cast<const VkDescriptorBufferInfo *>(update.descriptors);
 		break;
 	default:

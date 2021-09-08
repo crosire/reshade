@@ -113,16 +113,18 @@ void reshade::d3d12::command_list_impl::bind_render_targets_and_depth_stencil(ui
 	_orig->OMSetRenderTargets(count, rtv_handles, FALSE, dsv.handle != 0 ? &dsv_handle : nullptr);
 }
 
-void reshade::d3d12::command_list_impl::bind_pipeline(api::pipeline_stage, api::pipeline pipeline)
+void reshade::d3d12::command_list_impl::bind_pipeline(api::pipeline_stage type, api::pipeline pipeline)
 {
 	assert(pipeline.handle != 0);
-	const auto pipeline_object = reinterpret_cast<ID3D12PipelineState *>(pipeline.handle);
+	assert(type == api::pipeline_stage::all_compute || type == api::pipeline_stage::all_graphics);
 
+	const auto pipeline_object = reinterpret_cast<ID3D12PipelineState *>(pipeline.handle);
 	_orig->SetPipelineState(pipeline_object);
 
 	pipeline_graphics_impl extra_data;
 	UINT extra_data_size = sizeof(extra_data);
-	if (SUCCEEDED(pipeline_object->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
+	if (type == api::pipeline_stage::all_graphics &&
+		SUCCEEDED(pipeline_object->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
 	{
 		_orig->IASetPrimitiveTopology(extra_data.topology);
 	}

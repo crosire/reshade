@@ -1292,7 +1292,7 @@ VkResult VKAPI_CALL vkCreateDescriptorSetLayout(VkDevice device, const VkDescrip
 		data.desc[i].dx_register_space = 0;
 		data.desc[i].count = binding.descriptorCount;
 		data.desc[i].array_size = binding.descriptorCount;
-		data.desc[i].type = static_cast<reshade::api::descriptor_type>(binding.descriptorType);
+		data.desc[i].type = reshade::vulkan::convert_descriptor_type(binding.descriptorType);
 		data.desc[i].visibility = static_cast<reshade::api::shader_stage>(binding.stageFlags);
 
 		data.num_descriptors += binding.descriptorCount;
@@ -1466,7 +1466,7 @@ void     VKAPI_CALL vkUpdateDescriptorSets(VkDevice device, uint32_t descriptorW
 			update.binding = write.dstBinding;
 			update.array_offset = write.dstArrayElement;
 			update.count = write.descriptorCount;
-			update.type = static_cast<reshade::api::descriptor_type>(write.descriptorType);
+			update.type = reshade::vulkan::convert_descriptor_type(write.descriptorType);
 			update.descriptors = descriptors + j;
 
 			switch (write.descriptorType)

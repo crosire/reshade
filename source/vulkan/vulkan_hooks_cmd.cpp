@@ -847,7 +847,7 @@ void     VKAPI_CALL vkCmdPushDescriptorSetKHR(VkCommandBuffer commandBuffer, VkP
 		update.binding = write.dstBinding;
 		update.array_offset = write.dstArrayElement;
 		update.count = write.descriptorCount;
-		update.type = static_cast<reshade::api::descriptor_type>(write.descriptorType);
+		update.type = reshade::vulkan::convert_descriptor_type(write.descriptorType);
 		update.descriptors = descriptors + j;
 
 		switch (write.descriptorType)
