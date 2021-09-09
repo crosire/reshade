@@ -28,11 +28,15 @@ std::ostringstream reshade::log::line_stream;
 
 reshade::log::message::message(level level)
 {
+	static constexpr char level_names[][6] = { "ERROR", "WARN ", "INFO ", "DEBUG" };
+
+	if (static_cast<size_t>(level) == 0)
+		level = level::error;
+	if (static_cast<size_t>(level) > ARRAYSIZE(level_names))
+		level = level::debug;
+
 	SYSTEMTIME time;
 	GetLocalTime(&time);
-
-	const char level_names[][6] = { "ERROR", "WARN ", "INFO ", "DEBUG" };
-	assert((static_cast<size_t>(level) - 1) < ARRAYSIZE(level_names));
 
 	// Lock the stream until the message is complete
 	s_message_mutex.lock();
@@ -52,7 +56,7 @@ reshade::log::message::message(level level)
 		<< std::setw(2) << time.wSecond << ':'
 		<< std::setw(3) << time.wMilliseconds << ' '
 		<< '[' << std::setw(5) << GetCurrentThreadId() << ']' << std::setfill(' ') << " | "
-		<< level_names[static_cast<unsigned int>(level) - 1] << " | " << std::left;
+		<< level_names[static_cast<size_t>(level) - 1] << " | " << std::left;
 }
 reshade::log::message::~message()
 {

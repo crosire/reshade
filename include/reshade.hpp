@@ -49,6 +49,18 @@ namespace reshade
 	}
 
 	/// <summary>
+	/// Writes a message to the ReShade log.
+	/// </summary>
+	/// <param name="level">Severity level (1 = error, 2 = warning, 3 = info, 4 = debug).</param>
+	/// <param name="message">A null-terminated message string.</param>
+	inline void log_message(int level, const char *message)
+	{
+		static const auto func = reinterpret_cast<void(*)(int, const char *)>(
+			GetProcAddress(g_module_handle, "ReShadeLogMessage"));
+		func(level, message);
+	}
+
+	/// <summary>
 	/// Registers a callback for the specified event (via template) with ReShade.
 	/// This callback is then called whenever the application performs a task associated with this event (see also the <see cref="addon_event"/> enumeration).
 	/// </summary>

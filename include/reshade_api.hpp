@@ -207,7 +207,7 @@ namespace reshade { namespace api
 	/// <para>Functionally equivalent to a 'IDirect3DDevice9', 'ID3D10Device', 'ID3D11Device', 'ID3D12Device', 'HGLRC' or 'VkDevice'.</para>
 	/// </summary>
 	/// <remarks>
-	/// This class is safe to use concurrently from multiple threads (with the exception of <see cref="device::wait_idle"/>).
+	/// This class is safe to use concurrently from multiple threads in D3D10+ and Vulkan (with the exception of <see cref="device::wait_idle"/>).
 	/// </remarks>
 	struct __declspec(novtable) device : public api_object
 	{

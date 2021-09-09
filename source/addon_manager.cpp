@@ -241,13 +241,6 @@ extern "C" __declspec(dllexport) void ReShadeUnregisterOverlay(const char *title
 
 	overlay_list.erase(callback_it);
 }
-
-extern struct imgui_function_table g_imgui_function_table;
-
-extern "C" __declspec(dllexport) const imgui_function_table *ReShadeGetImGuiFunctionTable()
-{
-	return &g_imgui_function_table;
-}
 #endif
 
 #endif
