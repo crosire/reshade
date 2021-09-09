@@ -31,11 +31,15 @@ namespace reshade
 	struct technique;
 
 	/// <summary>
-	/// Platform independent base class for the main ReShade effect runtime.
+	/// The main ReShade post-processing effect runtime.
 	/// </summary>
 	class __declspec(novtable) runtime : public api::effect_runtime
 	{
 	public:
+		/// <summary>
+		/// Gets a boolean indicating whether effects are being loaded.
+		/// </summary>
+		bool is_loading() const { return _reload_remaining_effects != std::numeric_limits<size_t>::max(); }
 		/// <summary>
 		/// Gets a boolean indicating whether the runtime is initialized.
 		/// </summary>
@@ -47,18 +51,31 @@ namespace reshade
 		void get_frame_width_and_height(uint32_t *width, uint32_t *height) const final { *width = _width; *height = _height; }
 
 		/// <summary>
-		/// Creates a copy of the current frame image in system memory.
+		/// Gets the contents of the specified texture and writes them to an image file on disk.
 		/// </summary>
-		/// <param name="pixels">The 32bpp RGBA buffer to save the screenshot to.</param>
-		bool take_screenshot(api::resource resource, api::resource_usage state, uint8_t *pixels);
+		void save_texture(const texture &texture);
 		/// <summary>
-		/// Creates a copy of the current frame and write it to an image file on disk.
+		/// Captures a screenshot of the current back buffer resource and writes it to an image file on disk.
 		/// </summary>
 		void save_screenshot(const std::wstring &postfix = std::wstring(), bool should_save_preset = false);
+
 		/// <summary>
-		/// Downloads the image data from a texture and writes it to an image file ib disk.
+		/// Gets the contents of the specified <paramref name="resource"/> in 32 bits-per-pixel RGBA format.
 		/// </summary>
-		void save_texture_image(const texture &texture);
+		/// <param name="resource">Texture resource to get the contents from.</param>
+		/// <param name="state">Current state the <paramref name="resource"/> is in.</param>
+		/// <param name="pixels">Pointer to an array of <c>width * height * 4</c> bytes the image data is written to.</param>
+		bool get_texture_data(api::resource resource, api::resource_usage state, uint8_t *pixels);
+		/// <summary>
+		/// Captures a screenshot of the current back buffer resource and returns its image data in 32 bits-per-pixel RGBA format.
+		/// </summary>
+		/// <param name="pixels">Pointer to an array of <c>width * height * 4</c> bytes the image data is written to.</param>
+		bool capture_screenshot(uint8_t *pixels) final
+		{
+			api::resource resource;
+			get_current_back_buffer_resolved(&resource);
+			return get_texture_data(resource, api::resource_usage::present, pixels);
+		}
 
 		/// <summary>
 		/// Gets the value of a uniform variable.
@@ -99,7 +116,7 @@ namespace reshade
 		void reset_uniform_value(uniform &variable);
 
 		/// <summary>
-		/// Updates all effect textures with the specified <paramref name="semantic"/> to the specified shader resource view.
+		/// Updates all textures that use the specified <paramref name="semantic"/> in all active effects to a new shader resource view.
 		/// </summary>
 		void update_texture_bindings(const char *semantic, api::resource_view srv) final;
 
@@ -111,6 +128,12 @@ namespace reshade
 		void update_uniform_variables(const char *source, const int32_t *values, size_t count, size_t array_index) final;
 		void update_uniform_variables(const char *source, const uint32_t *values, size_t count, size_t array_index) final;
 
+		/// <summary>
+		/// Gets the texture with the specified name.
+		/// </summary>
+		/// <param name="unique_name">The name of the texture to find.</param>
+		texture &look_up_texture_by_name(const std::string &unique_name);
+
 	protected:
 		runtime(api::device *device, api::command_queue *graphics_queue);
 		~runtime();
@@ -121,18 +144,8 @@ namespace reshade
 		virtual void get_back_buffer_resolved(uint32_t index, api::resource *out) = 0;
 		inline  void get_current_back_buffer_resolved(api::resource *out) { get_back_buffer_resolved(get_current_back_buffer_index(), out); }
 
-		/// <summary>
-		/// Callback function called when the runtime is initialized.
-		/// </summary>
-		/// <returns>Returns if the initialization succeeded.</returns>
 		bool on_init(void *window);
-		/// <summary>
-		/// Callback function called when the runtime is uninitialized.
-		/// </summary>
 		void on_reset();
-		/// <summary>
-		/// Callback function called every frame.
-		/// </summary>
 		void on_present();
 
 		api::device *const _device;
@@ -146,135 +159,40 @@ namespace reshade
 		bool _is_vr = false;
 
 	private:
-		/// <summary>
-		/// Compare current version against the latest published one.
-		/// </summary>
-		/// <param name="latest_version">Contains the latest version after this function returned.</param>
-		/// <returns><c>true</c> if an update is available, <c>false</c> otherwise</returns>
 		static bool check_for_update(unsigned long latest_version[3]);
 
-		/// <summary>
-		/// Load user configuration from disk.
-		/// </summary>
 		void load_config();
-		/// <summary>
-		/// Save user configuration to disk.
-		/// </summary>
 		void save_config() const;
 
-		/// <summary>
-		/// Load the selected preset and apply it.
-		/// </summary>
 		void load_current_preset();
-		/// <summary>
-		/// Save the current value configuration to the currently selected preset.
-		/// </summary>
 		void save_current_preset() const;
 
-		/// <summary>
-		/// Find next preset is the directory and switch to it.
-		/// </summary>
-		/// <param name="filter_path">Directory base to search in and/or an optional filter to skip preset files.</param>
-		/// <param name="reversed">Set to <c>true</c> to switch to previous instead of next preset.</param>
-		/// <returns><c>true</c> if there was another preset to switch to, <c>false</c> if not and therefore no changes were made.</returns>
 		bool switch_to_next_preset(std::filesystem::path filter_path, bool reversed = false);
 
-		/// <summary>
-		/// Enable a technique so it is rendered.
-		/// </summary>
-		/// <param name="technique"></param>
 		void enable_technique(technique &technique);
-		/// <summary>
-		/// Disable a technique so that it is no longer rendered.
-		/// </summary>
-		/// <param name="technique"></param>
 		void disable_technique(technique &technique);
 
-		/// <summary>
-		/// Checks whether runtime is currently loading effects.
-		/// </summary>
-		bool is_loading() const { return _reload_remaining_effects != std::numeric_limits<size_t>::max(); }
-
-		/// <summary>
-		/// Compile effect from the specified source file and initialize textures, uniforms and techniques.
-		/// </summary>
-		/// <param name="source_file">The path to an effect source code file.</param>
-		/// <param name="preset">The preset to be used to fill specialization constants or check whether loading can be skipped.</param>
-		/// <param name="effect_index">The ID of the effect.</param>
 		bool load_effect(const std::filesystem::path &source_file, const ini_file &preset, size_t effect_index, bool preprocess_required = false);
-		/// <summary>
-		/// Load all effects found in the effect search paths.
-		/// </summary>
-		void load_effects();
-		/// <summary>
-		/// Load image files and update textures with image data.
-		/// </summary>
-		void load_textures();
-		/// <summary>
-		/// Unload the specified effect.
-		/// </summary>
-		/// <param name="effect_index">The ID of the effect.</param>
-		void unload_effect(size_t effect_index);
-		/// <summary>
-		/// Unload all effects currently loaded.
-		/// </summary>
-		void unload_effects();
-		/// <summary>
-		/// Reload only the specified effect.
-		/// </summary>
-		/// <param name="effect_index">The ID of the effect.</param>
-		bool reload_effect(size_t effect_index, bool preprocess_required = false);
-		/// <summary>
-		/// Unload all effects and then load them again.
-		/// </summary>
-		void reload_effects();
+		bool create_effect(size_t effect_index);
+		void destroy_effect(size_t effect_index);
 
-		/// <summary>
-		/// Initialize resources for the effect and load the effect module.
-		/// </summary>
-		/// <param name="effect_index">The ID of the effect.</param>
-		bool init_effect(size_t effect_index);
-		/// <summary>
-		/// Create a new texture with the specified dimensions.
-		/// </summary>
-		/// <param name="texture">The texture description.</param>
-		bool init_texture(texture &texture);
-		/// <summary>
-		/// Destroy an existing texture.
-		/// </summary>
-		/// <param name="texture">The texture to destroy.</param>
+		bool create_texture(texture &texture);
 		void destroy_texture(texture &texture);
 
-		/// <summary>
-		/// Load compiled effect data from the disk cache.
-		/// </summary>
+		void load_effects();
+		void load_textures();
+		bool reload_effect(size_t effect_index, bool preprocess_required = false);
+		void reload_effects();
+		void destroy_effects();
+
 		bool load_effect_cache(const std::filesystem::path &source_file, const size_t hash, std::string &source) const;
 		bool load_effect_cache(const std::filesystem::path &source_file, const std::string &entry_point, const size_t hash, std::vector<char> &cso, std::string &dasm) const;
-		/// <summary>
-		/// Save compiled effect data to the disk cache.
-		/// </summary>
 		bool save_effect_cache(const std::filesystem::path &source_file, const size_t hash, const std::string &source) const;
 		bool save_effect_cache(const std::filesystem::path &source_file, const std::string &entry_point, const size_t hash, const std::vector<char> &cso, const std::string &dasm) const;
-		/// <summary>
-		/// Remove all compiled effect data from disk.
-		/// </summary>
 		void clear_effect_cache();
 
-		/// <summary>
-		/// Apply post-processing effects to the frame.
-		/// </summary>
 		void update_and_render_effects();
-		/// <summary>
-		/// Render all passes in a technique.
-		/// </summary>
-		/// <param name="technique">The technique to render.</param>
 		void render_technique(technique &technique);
-
-		/// <summary>
-		/// Returns the texture object corresponding to the passed <paramref name="unique_name"/>.
-		/// </summary>
-		/// <param name="unique_name">The name of the texture to find.</param>
-		texture &look_up_texture_by_name(const std::string &unique_name);
 
 		// === Status ===
 

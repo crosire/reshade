@@ -119,7 +119,7 @@ void DXGISwapChain::runtime_present(UINT flags)
 	if (flags & DXGI_PRESENT_TEST)
 		return;
 
-	// Synchronize access to effect runtime to avoid race conditions between 'load_effects' and 'unload_effects' causing crashes
+	// Synchronize access to effect runtime to avoid race conditions between 'load_effects' and 'destroy_effects' causing crashes
 	// This is necessary because Resident Evil 3 calls DXGI functions simultaneously from multiple threads (which is technically illegal)
 	const std::unique_lock<std::mutex> lock(_impl_mutex);
 

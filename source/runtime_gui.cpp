@@ -1852,7 +1852,7 @@ void reshade::runtime::draw_gui_statistics()
 			{
 				ImGui::SameLine();
 				if (ImGui::Button(ICON_FK_FLOPPY, ImVec2(button_size, 0)))
-					save_texture_image(tex);
+					save_texture(tex);
 				if (ImGui::IsItemHovered())
 					ImGui::SetTooltip("Save %s", tex.unique_name.c_str());
 			}

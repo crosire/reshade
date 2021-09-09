@@ -929,9 +929,15 @@ namespace reshade { namespace api
 		virtual void get_frame_width_and_height(uint32_t *out_width, uint32_t *out_height) const = 0;
 
 		/// <summary>
-		/// Updates all textures that use the specified <paramref name="semantic"/> in all active effects to new resource view.
+		/// Captures a screenshot of the current back buffer resource and returns its image data in 32 bits-per-pixel RGBA format.
 		/// </summary>
-		virtual void update_texture_bindings(const char *semantic, resource_view shader_resource_view) = 0;
+		/// <param name="pixels">Pointer to an array of <c>width * height * 4</c> bytes the image data is written to.</param>
+		virtual bool capture_screenshot(uint8_t *pixels) = 0;
+
+		/// <summary>
+		/// Updates all textures that use the specified <paramref name="semantic"/> in all active effects to a new shader resource view.
+		/// </summary>
+		virtual void update_texture_bindings(const char *semantic, resource_view srv) = 0;
 
 		/// <summary>
 		/// Updates the values of all uniform variables with a "source" annotation set to <paramref name="source"/> to the specified <paramref name="values"/>.
