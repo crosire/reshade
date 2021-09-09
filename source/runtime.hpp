@@ -183,10 +183,8 @@ namespace reshade
 		void reload_effects();
 		void destroy_effects();
 
-		bool load_effect_cache(const std::filesystem::path &source_file, const size_t hash, std::string &source) const;
-		bool load_effect_cache(const std::filesystem::path &source_file, const std::string &entry_point, const size_t hash, std::vector<char> &cso, std::string &dasm) const;
-		bool save_effect_cache(const std::filesystem::path &source_file, const size_t hash, const std::string &source) const;
-		bool save_effect_cache(const std::filesystem::path &source_file, const std::string &entry_point, const size_t hash, const std::vector<char> &cso, const std::string &dasm) const;
+		bool load_effect_cache(const std::string &id, const std::string &type, std::string &data) const;
+		bool save_effect_cache(const std::string &id, const std::string &type, const std::string &source) const;
 		void clear_effect_cache();
 
 		void update_and_render_effects();

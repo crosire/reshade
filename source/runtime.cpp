@@ -1011,7 +1011,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	}
 
 	bool source_cached = false; std::string source;
-	if (!effect.preprocessed && (preprocess_required || (source_cached = load_effect_cache(source_file, source_hash, source)) == false))
+	if (!effect.preprocessed && (preprocess_required || (source_cached = load_effect_cache(source_file.stem().u8string() + '-' + std::to_string(_renderer_id) + '-' + std::to_string(source_hash), "i", source)) == false))
 	{
 		reshadefx::preprocessor pp;
 		pp.add_macro_definition("__RESHADE__", std::to_string(VERSION_MAJOR * 10000 + VERSION_MINOR * 100 + VERSION_REVISION));
@@ -1064,7 +1064,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		if (effect.preprocessed)
 		{
 			source = std::move(pp.output());
-			source_cached = save_effect_cache(source_file, source_hash, source);
+			source_cached = save_effect_cache(source_file.stem().u8string() + '-' + std::to_string(_renderer_id) + '-' + std::to_string(source_hash), "i", source);
 
 			// Keep track of used preprocessor definitions (so they can be displayed in the overlay)
 			effect.definitions.clear();
@@ -1387,7 +1387,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 	}
 
 	// Compile shader modules
-	std::unordered_map<std::string, std::vector<char>> entry_points;
+	std::unordered_map<std::string, std::string> entry_points;
 
 	for (const reshadefx::entry_point &entry_point : effect.module.entry_points)
 	{
@@ -1496,42 +1496,38 @@ bool reshade::runtime::create_effect(size_t effect_index)
 		}
 		else if (_renderer_id & 0x10000)
 		{
-			std::string source = "#version 430\n";
-			source += "#define ENTRY_POINT_" + entry_point.name + " 1\n";
+			cso = "#version 430\n#define ENTRY_POINT_" + entry_point.name + " 1\n";
 
 			if (type == api::shader_stage::vertex)
 			{
 				// OpenGL does not allow using 'discard' in the vertex shader profile
-				source += "#define discard\n";
+				cso += "#define discard\n";
 				// 'dFdx', 'dFdx' and 'fwidth' too are only available in fragment shaders
-				source += "#define dFdx(x) x\n";
-				source += "#define dFdy(y) y\n";
-				source += "#define fwidth(p) p\n";
+				cso += "#define dFdx(x) x\n";
+				cso += "#define dFdy(y) y\n";
+				cso += "#define fwidth(p) p\n";
 			}
 			if (type != api::shader_stage::compute)
 			{
 				// OpenGL does not allow using 'shared' in vertex/fragment shader profile
-				source += "#define shared\n";
-				source += "#define atomicAdd(a, b) a\n";
-				source += "#define atomicAnd(a, b) a\n";
-				source += "#define atomicOr(a, b) a\n";
-				source += "#define atomicXor(a, b) a\n";
-				source += "#define atomicMin(a, b) a\n";
-				source += "#define atomicMax(a, b) a\n";
-				source += "#define atomicExchange(a, b) a\n";
-				source += "#define atomicCompSwap(a, b, c) a\n";
+				cso += "#define shared\n";
+				cso += "#define atomicAdd(a, b) a\n";
+				cso += "#define atomicAnd(a, b) a\n";
+				cso += "#define atomicOr(a, b) a\n";
+				cso += "#define atomicXor(a, b) a\n";
+				cso += "#define atomicMin(a, b) a\n";
+				cso += "#define atomicMax(a, b) a\n";
+				cso += "#define atomicExchange(a, b) a\n";
+				cso += "#define atomicCompSwap(a, b, c) a\n";
 				// Barrier intrinsics are only available in compute shaders
-				source += "#define barrier()\n";
-				source += "#define memoryBarrier()\n";
-				source += "#define groupMemoryBarrier()\n";
+				cso += "#define barrier()\n";
+				cso += "#define memoryBarrier()\n";
+				cso += "#define groupMemoryBarrier()\n";
 			}
 
-			source += "#line 1 0\n"; // Reset line number, so it matches what is shown when viewing the generated code
-			source += effect.preamble;
-			source += effect.module.hlsl;
-
-			cso.resize(source.size());
-			std::memcpy(cso.data(), source.data(), cso.size());
+			cso += "#line 1 0\n"; // Reset line number, so it matches what is shown when viewing the generated code
+			cso += effect.preamble;
+			cso += effect.module.hlsl;
 		}
 		else
 		{
@@ -1617,8 +1613,11 @@ bool reshade::runtime::create_effect(size_t effect_index)
 			attributes += "profile=" + profile + ';';
 			attributes += "flags=" + std::to_string(compile_flags) + ';';
 
-			const size_t hash = std::hash<std::string_view>()(attributes) ^ std::hash<std::string_view>()(hlsl);
-			if (!load_effect_cache(effect.source_file, entry_point.name, hash, cso, effect.assembly[entry_point.name]))
+			const std::string cache_id =
+				effect.source_file.stem().u8string() + '-' + entry_point.name + '-' + std::to_string(_renderer_id) + '-' +
+				std::to_string(std::hash<std::string_view>()(attributes) ^ std::hash<std::string_view>()(hlsl));
+
+			if (load_effect_cache(cache_id, "cso", cso) == false)
 			{
 				com_ptr<ID3DBlob> d3d_compiled, d3d_errors;
 				const HRESULT hr = D3DCompile(
@@ -1676,10 +1675,16 @@ bool reshade::runtime::create_effect(size_t effect_index)
 				cso.resize(d3d_compiled->GetBufferSize());
 				std::memcpy(cso.data(), d3d_compiled->GetBufferPointer(), cso.size());
 
-				if (com_ptr<ID3DBlob> d3d_disassembled; SUCCEEDED(D3DDisassemble(cso.data(), cso.size(), 0, nullptr, &d3d_disassembled)))
-					effect.assembly[entry_point.name].assign(static_cast<const char *>(d3d_disassembled->GetBufferPointer()), d3d_disassembled->GetBufferSize() - 1);
+				save_effect_cache(cache_id, "cso", cso);
+			}
 
-				save_effect_cache(effect.source_file, entry_point.name, hash, cso, effect.assembly[entry_point.name]);
+			std::string &assembly = effect.assembly[entry_point.name];
+			if (load_effect_cache(cache_id, "asm", assembly) == false)
+			{
+				if (com_ptr<ID3DBlob> d3d_disassembled; SUCCEEDED(D3DDisassemble(cso.data(), cso.size(), 0, nullptr, &d3d_disassembled)))
+					assembly.assign(static_cast<const char *>(d3d_disassembled->GetBufferPointer()), d3d_disassembled->GetBufferSize() - 1);
+
+				save_effect_cache(cache_id, "asm", assembly);
 			}
 		}
 	}
@@ -2707,13 +2712,13 @@ void reshade::runtime::destroy_effects()
 	_textures_loaded = false;
 }
 
-bool reshade::runtime::load_effect_cache(const std::filesystem::path &source_file, const size_t hash, std::string &source) const
+bool reshade::runtime::load_effect_cache(const std::string &id, const std::string &type, std::string &source) const
 {
 	if (_no_effect_cache)
 		return false;
 
 	std::filesystem::path path = g_reshade_base_path / _intermediate_cache_path;
-	path /= std::filesystem::u8path("reshade-" + source_file.stem().u8string() + '-' + std::to_string(_renderer_id) + '-' + std::to_string(hash) + ".i");
+	path /= std::filesystem::u8path("reshade-" + id + '.' + type);
 
 	{	const HANDLE file = CreateFileW(path.c_str(), FILE_GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
 		if (file == INVALID_HANDLE_VALUE)
@@ -2725,47 +2730,13 @@ bool reshade::runtime::load_effect_cache(const std::filesystem::path &source_fil
 		return result != FALSE;
 	}
 }
-bool reshade::runtime::load_effect_cache(const std::filesystem::path &source_file, const std::string &entry_point, const size_t hash, std::vector<char> &cso, std::string &dasm) const
+bool reshade::runtime::save_effect_cache(const std::string &id, const std::string &type, const std::string &source) const
 {
 	if (_no_effect_cache)
 		return false;
 
 	std::filesystem::path path = g_reshade_base_path / _intermediate_cache_path;
-	path /= std::filesystem::u8path("reshade-" + source_file.stem().u8string() + '-' + entry_point + '-' + std::to_string(_renderer_id) + '-' + std::to_string(hash) + ".cso");
-
-	{	const HANDLE file = CreateFileW(path.c_str(), FILE_GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
-		if (file == INVALID_HANDLE_VALUE)
-			return false;
-		DWORD size = GetFileSize(file, nullptr);
-		cso.resize(size);
-		const BOOL result = ReadFile(file, cso.data(), size, &size, nullptr);
-		CloseHandle(file);
-		if (result == FALSE)
-			return false;
-	}
-
-	path.replace_extension(L".asm");
-
-	{	const HANDLE file = CreateFileW(path.c_str(), FILE_GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
-		if (file == INVALID_HANDLE_VALUE)
-			return false;
-		DWORD size = GetFileSize(file, nullptr);
-		dasm.resize(size);
-		const BOOL result = ReadFile(file, dasm.data(), size, &size, nullptr);
-		CloseHandle(file);
-		if (result == FALSE)
-			return false;
-	}
-
-	return true;
-}
-bool reshade::runtime::save_effect_cache(const std::filesystem::path &source_file, const size_t hash, const std::string &source) const
-{
-	if (_no_effect_cache)
-		return false;
-
-	std::filesystem::path path = g_reshade_base_path / _intermediate_cache_path;
-	path /= std::filesystem::u8path("reshade-" + source_file.stem().u8string() + '-' + std::to_string(_renderer_id) + '-' + std::to_string(hash) + ".i");
+	path /= std::filesystem::u8path("reshade-" + id + '.' + type);
 
 	{	const HANDLE file = CreateFileW(path.c_str(), FILE_GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_NEW, FILE_ATTRIBUTE_ARCHIVE | FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
 		if (file == INVALID_HANDLE_VALUE)
@@ -2776,39 +2747,6 @@ bool reshade::runtime::save_effect_cache(const std::filesystem::path &source_fil
 		return result != FALSE;
 	}
 }
-bool reshade::runtime::save_effect_cache(const std::filesystem::path &source_file, const std::string &entry_point, const size_t hash, const std::vector<char> &cso, const std::string &dasm) const
-{
-	if (_no_effect_cache)
-		return false;
-
-	std::filesystem::path path = g_reshade_base_path / _intermediate_cache_path;
-	path /= std::filesystem::u8path("reshade-" + source_file.stem().u8string() + '-' + entry_point + '-' + std::to_string(_renderer_id) + '-' + std::to_string(hash) + ".cso");
-
-	{	const HANDLE file = CreateFileW(path.c_str(), FILE_GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_NEW, FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
-		if (file == INVALID_HANDLE_VALUE)
-			return false;
-		DWORD size = static_cast<DWORD>(cso.size());
-		const BOOL result = WriteFile(file, cso.data(), size, &size, nullptr);
-		CloseHandle(file);
-		if (result == FALSE)
-			return false;
-	}
-
-	path.replace_extension(L".asm");
-
-	{	const HANDLE file = CreateFileW(path.c_str(), FILE_GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_NEW, FILE_ATTRIBUTE_ARCHIVE | FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
-		if (file == INVALID_HANDLE_VALUE)
-			return false;
-		DWORD size = static_cast<DWORD>(dasm.size());
-		const BOOL result = WriteFile(file, dasm.c_str(), size, &size, NULL);
-		CloseHandle(file);
-		if (result == FALSE)
-			return false;
-	}
-
-	return true;
-}
-
 void reshade::runtime::clear_effect_cache()
 {
 	// Find all cached effect files and delete them
