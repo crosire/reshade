@@ -38,17 +38,17 @@ reshade::d3d10::swapchain_impl::~swapchain_impl()
 	on_reset();
 }
 
-void reshade::d3d10::swapchain_impl::get_back_buffer(uint32_t index, api::resource *out)
+reshade::api::resource reshade::d3d10::swapchain_impl::get_back_buffer(uint32_t index)
 {
 	assert(index == 0);
 
-	*out = { reinterpret_cast<uintptr_t>(_backbuffer.get()) };
+	return { reinterpret_cast<uintptr_t>(_backbuffer.get()) };
 }
-void reshade::d3d10::swapchain_impl::get_back_buffer_resolved(uint32_t index, api::resource *out)
+reshade::api::resource reshade::d3d10::swapchain_impl::get_back_buffer_resolved(uint32_t index)
 {
 	assert(index == 0);
 
-	*out = { reinterpret_cast<uintptr_t>(_backbuffer_resolved.get()) };
+	return { reinterpret_cast<uintptr_t>(_backbuffer_resolved.get()) };
 }
 
 bool reshade::d3d10::swapchain_impl::on_init()
@@ -201,7 +201,7 @@ bool reshade::d3d10::swapchain_impl::on_layer_submit(UINT eye, ID3D10Texture2D *
 	{
 		on_reset();
 
-		source_desc.Width = target_width;	
+		source_desc.Width = target_width;
 		source_desc.Height = region_height;
 		source_desc.MipLevels = 1;
 		source_desc.ArraySize = 1;

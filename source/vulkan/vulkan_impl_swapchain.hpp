@@ -20,14 +20,15 @@ namespace reshade::vulkan
 		swapchain_impl(device_impl *device, command_queue_impl *graphics_queue);
 		~swapchain_impl();
 
-		void get_back_buffer(uint32_t index, api::resource *out) final;
-		void get_back_buffer_resolved(uint32_t index, api::resource *out) final;
+		api::resource get_back_buffer(uint32_t index) final;
+		api::resource get_back_buffer_resolved(uint32_t index) final;
 
 		uint32_t get_back_buffer_count() const final;
 		uint32_t get_current_back_buffer_index() const final;
 
 		bool on_init(VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &desc, HWND hwnd);
 		void on_reset();
+
 		void on_present(VkQueue queue, const uint32_t swapchain_image_index, std::vector<VkSemaphore> &wait);
 		bool on_layer_submit(uint32_t eye, VkImage source, const VkExtent2D &source_extent, VkFormat source_format, VkSampleCountFlags source_samples, uint32_t source_layer_index, const float bounds[4], VkImage *target_image);
 

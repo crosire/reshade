@@ -72,9 +72,7 @@ namespace reshade
 		/// <param name="pixels">Pointer to an array of <c>width * height * 4</c> bytes the image data is written to.</param>
 		bool capture_screenshot(uint8_t *pixels) final
 		{
-			api::resource resource;
-			get_current_back_buffer_resolved(&resource);
-			return get_texture_data(resource, api::resource_usage::present, pixels);
+			return get_texture_data(get_current_back_buffer_resolved(), api::resource_usage::present, pixels);
 		}
 
 		/// <summary>
@@ -141,8 +139,8 @@ namespace reshade
 		api::device *get_device() final { return _device; }
 		api::command_queue *get_command_queue() final { return _graphics_queue; }
 
-		virtual void get_back_buffer_resolved(uint32_t index, api::resource *out) = 0;
-		inline  void get_current_back_buffer_resolved(api::resource *out) { get_back_buffer_resolved(get_current_back_buffer_index(), out); }
+		virtual api::resource get_back_buffer_resolved(uint32_t index) = 0;
+		api::resource get_current_back_buffer_resolved() { return get_back_buffer_resolved(get_current_back_buffer_index()); }
 
 		bool on_init(void *window);
 		void on_reset();

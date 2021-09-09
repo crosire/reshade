@@ -18,14 +18,15 @@ namespace reshade::d3d9
 		swapchain_impl(device_impl *device, IDirect3DSwapChain9 *swapchain);
 		~swapchain_impl();
 
-		void get_back_buffer(uint32_t index, api::resource *out) final;
-		void get_back_buffer_resolved(uint32_t index, api::resource *out) final;
+		api::resource get_back_buffer(uint32_t index) final;
+		api::resource get_back_buffer_resolved(uint32_t index) final;
 
 		uint32_t get_back_buffer_count() const final { return 1; }
 		uint32_t get_current_back_buffer_index() const final { return 0; }
 
 		bool on_init(const D3DPRESENT_PARAMETERS &pp);
 		void on_reset();
+
 		void on_present();
 
 	private:

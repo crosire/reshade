@@ -935,10 +935,9 @@ void reshade::runtime::draw_gui()
 	if (ImDrawData *const draw_data = ImGui::GetDrawData();
 		draw_data != nullptr && draw_data->CmdListsCount != 0 && draw_data->TotalVtxCount != 0)
 	{
-		api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
+		const api::resource backbuffer = get_current_back_buffer_resolved();
 
-		api::resource backbuffer;
-		get_current_back_buffer_resolved(&backbuffer);
+		api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
 		cmd_list->barrier(backbuffer, api::resource_usage::present, api::resource_usage::render_target);
 
 		render_imgui_draw_data(draw_data, _backbuffer_passes[get_current_back_buffer_index() * 2], _backbuffer_fbos[get_current_back_buffer_index() * 2]);

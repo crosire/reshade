@@ -887,19 +887,16 @@ namespace reshade { namespace api
 		/// Gets the back buffer resource at the specified <paramref name="index"/> in this swap chain.
 		/// </summary>
 		/// <param name="index">Index of the back buffer. This has to be between zero and the value returned by <see cref="get_back_buffer_count"/>.</param>
-		/// <param name="out_handle">Pointer to a variable that is set to the handle of the back buffer resource.</param>
-		virtual void get_back_buffer(uint32_t index, resource *out_handle) = 0;
-		/// <summary>
-		/// Gets the current back buffer resource.
-		/// </summary>
-		/// <param name="out_handle">Pointer to a variable that is set to the handle of the back buffer resource.</param>
-		inline  void get_current_back_buffer(resource *out_handle) { get_back_buffer(get_current_back_buffer_index(), out_handle); }
-
+		virtual resource get_back_buffer(uint32_t index) = 0;
 		/// <summary>
 		/// Gets the number of back buffer resources in this swap chain.
 		/// </summary>
 		virtual uint32_t get_back_buffer_count() const = 0;
 
+		/// <summary>
+		/// Gets the current back buffer resource.
+		/// </summary>
+		inline  resource get_current_back_buffer() { return get_back_buffer(get_current_back_buffer_index()); }
 		/// <summary>
 		/// Gets the index of the back buffer resource that can currently be rendered into.
 		/// </summary>

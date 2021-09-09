@@ -42,17 +42,20 @@ reshade::opengl::swapchain_impl::~swapchain_impl()
 	on_reset();
 }
 
-void reshade::opengl::swapchain_impl::get_back_buffer(uint32_t index, api::resource *out)
+reshade::api::resource reshade::opengl::swapchain_impl::get_back_buffer(uint32_t index)
 {
 	assert(index == 0);
 
-	*out = make_resource_handle(GL_FRAMEBUFFER_DEFAULT, GL_BACK);
+	if (_is_vr)
+		return make_resource_handle(GL_RENDERBUFFER, _rbo);
+	else
+		return make_resource_handle(GL_FRAMEBUFFER_DEFAULT, GL_BACK);
 }
-void reshade::opengl::swapchain_impl::get_back_buffer_resolved(uint32_t index, api::resource *out)
+reshade::api::resource reshade::opengl::swapchain_impl::get_back_buffer_resolved(uint32_t index)
 {
 	assert(index == 0);
 
-	*out = make_resource_handle(GL_RENDERBUFFER, _rbo);
+	return make_resource_handle(GL_RENDERBUFFER, _rbo);
 }
 
 bool reshade::opengl::swapchain_impl::on_init(HWND hwnd, unsigned int width, unsigned int height)

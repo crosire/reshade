@@ -18,8 +18,8 @@ namespace reshade::d3d12
 		swapchain_impl(device_impl *device, command_queue_impl *queue, IDXGISwapChain3 *swapchain);
 		~swapchain_impl();
 
-		void get_back_buffer(uint32_t index, api::resource *out) final;
-		void get_back_buffer_resolved(uint32_t index, api::resource *out) final;
+		api::resource get_back_buffer(uint32_t index) final;
+		api::resource get_back_buffer_resolved(uint32_t index) final;
 
 		uint32_t get_back_buffer_count() const final;
 		uint32_t get_current_back_buffer_index() const final;

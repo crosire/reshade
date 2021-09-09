@@ -211,9 +211,6 @@ bool reshade::runtime::on_init(input::window_handle window)
 	// Create render passes for the back buffer
 	for (uint32_t i = 0; i < get_back_buffer_count(); ++i)
 	{
-		api::resource backbuffer;
-		get_back_buffer_resolved(i, &backbuffer);
-
 		api::render_pass_desc pass_desc = {};
 		pass_desc.depth_stencil_format = _effect_stencil_format;
 		pass_desc.render_targets_format[0] = api::format_to_default_typed(_backbuffer_format, 0);
@@ -229,6 +226,8 @@ bool reshade::runtime::on_init(input::window_handle window)
 			LOG(ERROR) << "Failed to create back buffer render passes!";
 			goto exit_failure;
 		}
+
+		const api::resource backbuffer = get_back_buffer_resolved(i);
 
 		if (!_device->create_resource_view(backbuffer, api::resource_usage::render_target, api::resource_view_desc(pass_desc.render_targets_format[0]), &_backbuffer_targets.emplace_back()) ||
 			!_device->create_resource_view(backbuffer, api::resource_usage::render_target, api::resource_view_desc(pass_desc_srgb.render_targets_format[0]), &_backbuffer_targets.emplace_back()))
@@ -3148,8 +3147,7 @@ void reshade::runtime::update_and_render_effects()
 		}
 	}
 
-	api::resource backbuffer;
-	get_current_back_buffer_resolved(&backbuffer);
+	const api::resource backbuffer = get_current_back_buffer_resolved();
 
 	api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
 	cmd_list->barrier(backbuffer, api::resource_usage::present, api::resource_usage::render_target);
@@ -3199,10 +3197,9 @@ void reshade::runtime::render_technique(technique &tech)
 {
 	const effect &effect = _effects[tech.effect_index];
 
-	api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
+	const api::resource backbuffer = get_current_back_buffer_resolved();
 
-	api::resource backbuffer;
-	get_current_back_buffer_resolved(&backbuffer);
+	api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
 
 #if RESHADE_GUI
 	if (_gather_gpu_statistics)

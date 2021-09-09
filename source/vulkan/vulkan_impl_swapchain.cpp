@@ -34,13 +34,13 @@ reshade::vulkan::swapchain_impl::~swapchain_impl()
 	on_reset();
 }
 
-void reshade::vulkan::swapchain_impl::get_back_buffer(uint32_t index, api::resource *out)
+reshade::api::resource reshade::vulkan::swapchain_impl::get_back_buffer(uint32_t index)
 {
-	*out = { (uint64_t)_swapchain_images[index] };
+	return { (uint64_t)_swapchain_images[index] };
 }
-void reshade::vulkan::swapchain_impl::get_back_buffer_resolved(uint32_t index, api::resource *out)
+reshade::api::resource reshade::vulkan::swapchain_impl::get_back_buffer_resolved(uint32_t index)
 {
-	*out = { (uint64_t)_swapchain_images[index] };
+	return { (uint64_t)_swapchain_images[index] };
 }
 
 uint32_t reshade::vulkan::swapchain_impl::get_back_buffer_count() const
