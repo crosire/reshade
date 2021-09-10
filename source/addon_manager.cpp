@@ -10,8 +10,6 @@
 #include "addon_manager.hpp"
 #include <Windows.h>
 
-extern std::filesystem::path get_module_path(HMODULE module);
-
 bool reshade::addon::enabled = true;
 std::vector<void *> reshade::addon::event_list[static_cast<size_t>(reshade::addon_event::max)];
 std::vector<reshade::addon::info> reshade::addon::loaded_info;
@@ -22,6 +20,8 @@ static unsigned long s_reference_count = 0;
 
 extern void register_builtin_addon_depth(reshade::addon::info &info);
 extern void unregister_builtin_addon_depth();
+
+extern std::filesystem::path get_module_path(HMODULE module);
 
 void reshade::load_addons()
 {
