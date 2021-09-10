@@ -539,7 +539,7 @@ void reshade::vulkan::convert_usage_to_image_usage_flags(api::resource_usage usa
 	else
 		image_flags &= ~VK_IMAGE_USAGE_STORAGE_BIT;
 }
-void reshade::vulkan::convert_image_usage_flags_to_usage(const VkImageUsageFlags image_flags, reshade::api::resource_usage &usage)
+void reshade::vulkan::convert_image_usage_flags_to_usage(const VkImageUsageFlags image_flags, api::resource_usage &usage)
 {
 	using namespace reshade;
 
@@ -593,7 +593,7 @@ void reshade::vulkan::convert_usage_to_buffer_usage_flags(api::resource_usage us
 	else
 		buffer_flags &= ~VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 }
-void reshade::vulkan::convert_buffer_usage_flags_to_usage(const VkBufferUsageFlags buffer_flags, reshade::api::resource_usage &usage)
+void reshade::vulkan::convert_buffer_usage_flags_to_usage(const VkBufferUsageFlags buffer_flags, api::resource_usage &usage)
 {
 	using namespace reshade;
 
@@ -1526,12 +1526,12 @@ auto reshade::vulkan::convert_query_type(api::query_type type) -> VkQueryType
 {
 	switch (type)
 	{
-	case reshade::api::query_type::occlusion:
-	case reshade::api::query_type::binary_occlusion:
+	case api::query_type::occlusion:
+	case api::query_type::binary_occlusion:
 		return VK_QUERY_TYPE_OCCLUSION;
-	case reshade::api::query_type::timestamp:
+	case api::query_type::timestamp:
 		return VK_QUERY_TYPE_TIMESTAMP;
-	case reshade::api::query_type::pipeline_statistics:
+	case api::query_type::pipeline_statistics:
 		return VK_QUERY_TYPE_PIPELINE_STATISTICS;
 	default:
 		assert(false);
@@ -1547,13 +1547,13 @@ auto reshade::vulkan::convert_descriptor_type(api::descriptor_type value, bool i
 	case api::descriptor_type::sampler_with_resource_view:
 		assert(is_image);
 		return VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	case reshade::api::descriptor_type::shader_resource_view:
+	case api::descriptor_type::shader_resource_view:
 		return is_image ? VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE : VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER;
-	case reshade::api::descriptor_type::unordered_access_view:
+	case api::descriptor_type::unordered_access_view:
 		return is_image ? VK_DESCRIPTOR_TYPE_STORAGE_IMAGE : VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER;
-	case reshade::api::descriptor_type::constant_buffer:
+	case api::descriptor_type::constant_buffer:
 		return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	case reshade::api::descriptor_type::shader_storage_buffer:
+	case api::descriptor_type::shader_storage_buffer:
 		return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 	default:
 		assert(false);

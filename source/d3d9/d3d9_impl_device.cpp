@@ -179,20 +179,20 @@ bool reshade::d3d9::device_impl::on_init(const D3DPRESENT_PARAMETERS &pp)
 		}
 
 		// In case surface was replaced with a texture resource
-		const api::resource resource = get_resource_from_view(reshade::api::resource_view { reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) });
+		const api::resource resource = get_resource_from_view(api::resource_view { reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) });
 
 		invoke_addon_event<addon_event::init_resource>(this, desc, nullptr, api::resource_usage::depth_stencil, resource);
 		invoke_addon_event<addon_event::init_resource_view>(this, resource, api::resource_usage::depth_stencil, api::resource_view_desc(desc.texture.format), api::resource_view { reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) });
 
 		register_destruction_callback_d3d9(reinterpret_cast<IDirect3DResource9 *>(resource.handle), [this, resource]() {
-			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, resource);
+			invoke_addon_event<addon_event::destroy_resource>(this, resource);
 		});
 		register_destruction_callback_d3d9(auto_depth_stencil.get(), [this, resource_view = auto_depth_stencil.get()]() {
-			reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, reshade::api::resource_view { reinterpret_cast<uintptr_t>(resource_view) });
+			invoke_addon_event<addon_event::destroy_resource_view>(this, api::resource_view { reinterpret_cast<uintptr_t>(resource_view) });
 		}, reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) == resource.handle ? 1 : 0);
 
 		// Communicate default state to add-ons
-		invoke_addon_event<addon_event::bind_render_targets_and_depth_stencil>(this, 0, nullptr, reshade::api::resource_view { reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) });
+		invoke_addon_event<addon_event::bind_render_targets_and_depth_stencil>(this, 0, nullptr, api::resource_view { reinterpret_cast<uintptr_t>(auto_depth_stencil.get()) });
 	}
 #else
 	UNREFERENCED_PARAMETER(pp);
@@ -516,7 +516,7 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 					assert(internal_desc.Usage == D3DUSAGE_DEPTHSTENCIL);
 
 					if (com_ptr<IDirect3DSurface9> object;
-						((desc.usage & reshade::api::resource_usage::shader_resource) != reshade::api::resource_usage::undefined) ?
+						((desc.usage & api::resource_usage::shader_resource) != api::resource_usage::undefined) ?
 						SUCCEEDED(create_surface_replacement(internal_desc, &object, nullptr)) :
 						SUCCEEDED(_orig->CreateDepthStencilSurface(internal_desc.Width, internal_desc.Height, internal_desc.Format, internal_desc.MultiSampleType, internal_desc.MultiSampleQuality, FALSE, &object, nullptr)))
 					{
@@ -532,7 +532,7 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 					assert(internal_desc.Usage == D3DUSAGE_RENDERTARGET);
 
 					if (com_ptr<IDirect3DSurface9> object;
-						((desc.usage & reshade::api::resource_usage::shader_resource) != reshade::api::resource_usage::undefined) ?
+						((desc.usage & api::resource_usage::shader_resource) != api::resource_usage::undefined) ?
 						SUCCEEDED(create_surface_replacement(internal_desc, &object, nullptr)) :
 						SUCCEEDED(_orig->CreateRenderTarget(internal_desc.Width, internal_desc.Height, internal_desc.Format, internal_desc.MultiSampleType, internal_desc.MultiSampleQuality, FALSE, &object, nullptr)))
 					{

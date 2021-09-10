@@ -1174,9 +1174,9 @@ auto reshade::d3d12::convert_descriptor_type(api::descriptor_type type) -> D3D12
 		return D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 	case api::descriptor_type::unordered_access_view:
 		return D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
-	case reshade::api::descriptor_type::constant_buffer:
+	case api::descriptor_type::constant_buffer:
 		return D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-	case reshade::api::descriptor_type::sampler:
+	case api::descriptor_type::sampler:
 		return D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER;
 	}
 }

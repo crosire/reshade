@@ -1018,10 +1018,10 @@ auto reshade::d3d9::convert_query_type(api::query_type value) -> D3DQUERYTYPE
 {
 	switch (value)
 	{
-	case reshade::api::query_type::occlusion:
-	case reshade::api::query_type::binary_occlusion:
+	case api::query_type::occlusion:
+	case api::query_type::binary_occlusion:
 		return D3DQUERYTYPE_OCCLUSION;
-	case reshade::api::query_type::timestamp:
+	case api::query_type::timestamp:
 		return D3DQUERYTYPE_TIMESTAMP;
 	default:
 		assert(false);
