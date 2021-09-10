@@ -17,9 +17,21 @@ extern "C" BOOL WINAPI K32EnumProcessModules(HANDLE hProcess, HMODULE *lphModule
 namespace reshade
 {
 	/// <summary>
-	/// Finds the ReShade module in the current process and remembers it to resolve subsequent calls to 'register_event' or 'register_overlay'.
+	/// Writes a message to the ReShade log.
 	/// </summary>
-	inline bool init_addon()
+	/// <param name="level">Severity level (1 = error, 2 = warning, 3 = info, 4 = debug).</param>
+	/// <param name="message">A null-terminated message string.</param>
+	inline void log_message(int level, const char *message)
+	{
+		static const auto func = reinterpret_cast<void(*)(int, const char *)>(
+			GetProcAddress(g_module_handle, "ReShadeLogMessage"));
+		func(level, message);
+	}
+
+	/// <summary>
+	/// Registers this module as an add-on with ReShade. Call this in 'DllMain' during process attach, before any of the other API functions!
+	/// </summary>
+	inline bool register_addon(HMODULE module)
 	{
 		DWORD num = 0;
 		HMODULE modules[1024];
@@ -31,8 +43,8 @@ namespace reshade
 
 			for (DWORD i = 0; i < num / sizeof(HMODULE); ++i)
 			{
-				const auto api_version = reinterpret_cast<const uint32_t *>(GetProcAddress(modules[i], "ReShadeAPI"));
-				if (api_version != nullptr)
+				const auto register_func = reinterpret_cast<bool(*)(HMODULE, uint32_t)>(GetProcAddress(modules[i], "ReShadeRegister"));
+				if (register_func != nullptr)
 				{
 					g_module_handle = modules[i];
 
@@ -44,25 +56,26 @@ namespace reshade
 					g_imgui_function_table = *table;
 #endif
 
-					// Check that the ReShade module supports the requested API version
-					return *api_version <= RESHADE_API_VERSION;
+					return register_func(module, RESHADE_API_VERSION);
 				}
 			}
 		}
 
 		return false;
 	}
-
 	/// <summary>
-	/// Writes a message to the ReShade log.
+	/// Unregisters this module. Call this in 'DllMain' during process detach, after any of the other API functions.
 	/// </summary>
-	/// <param name="level">Severity level (1 = error, 2 = warning, 3 = info, 4 = debug).</param>
-	/// <param name="message">A null-terminated message string.</param>
-	inline void log_message(int level, const char *message)
+	inline void unregister_addon(HMODULE module)
 	{
-		static const auto func = reinterpret_cast<void(*)(int, const char *)>(
-			GetProcAddress(g_module_handle, "ReShadeLogMessage"));
-		func(level, message);
+		if (g_module_handle == nullptr)
+			return;
+
+		const auto unregister_func = reinterpret_cast<bool(*)(HMODULE)>(GetProcAddress(g_module_handle, "ReShadeUnregister"));
+		if (unregister_func == nullptr)
+			return;
+
+		unregister_func(module);
 	}
 
 	/// <summary>

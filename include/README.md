@@ -21,9 +21,9 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID)
     switch (fdwReason)
     {
     case DLL_PROCESS_ATTACH:
-        // Call 'reshade::init_addon' before you call any other function of the ReShade API
+        // Call 'reshade::register_addon' before you call any other function of the ReShade API
         // This will look for the ReShade instance in the current process and initialize the API when found
-        if (!reshade::init_addon())
+        if (!reshade::register_addon(hinstDLL))
             return FALSE;
         // This registers a callback for the 'present' event, which occurs every time a new frame is presented to the screen
         // The function signature has to match the type defined by 'reshade::addon_event_traits<reshade::addon_event::present>::decl'
@@ -33,6 +33,8 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID)
     case DLL_PROCESS_DETACH:
         // Before the add-on is unloaded, be sure to unregister any event callbacks that where previously registered
         reshade::unregister_event<reshade::addon_event::present>(on_present);
+        // And finally unregister the add-on from ReShade
+        reshade::unregister_addon(hinstDLL);
         break;
     }
     return TRUE;

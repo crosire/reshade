@@ -10,8 +10,7 @@
 #include "addon_manager.hpp"
 #include <Windows.h>
 
- // Export special symbol to identify modules as ReShade instances
-extern "C" __declspec(dllexport) const uint32_t ReShadeAPI = RESHADE_API_VERSION;
+extern std::filesystem::path get_module_path(HMODULE module);
 
 bool reshade::addon::enabled = true;
 std::vector<void *> reshade::addon::event_list[static_cast<size_t>(reshade::addon_event::max)];
@@ -58,21 +57,6 @@ void reshade::load_addons()
 			LOG(WARN) << "Failed to load add-on from " << path << " with error code " << GetLastError() << '.';
 			continue;
 		}
-
-		reshade::addon::info info;
-		info.name = path.stem().u8string();
-		info.handle = handle;
-
-		if (const char *const *name = reinterpret_cast<const char *const *>(GetProcAddress(handle, "NAME"));
-			name != nullptr)
-			info.name = *name;
-		if (const char *const *description = reinterpret_cast<const char *const *>(GetProcAddress(handle, "DESCRIPTION"));
-			description != nullptr)
-			info.description = *description;
-
-		LOG(INFO) << "> Loaded as \"" << info.name << "\".";
-
-		addon::loaded_info.push_back(std::move(info));
 	}
 #endif
 }
@@ -180,6 +164,51 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 	return "unknown";
 }
 #endif
+
+extern "C" __declspec(dllexport) bool ReShadeRegister(HMODULE module, uint32_t api_version)
+{
+	if (module == nullptr)
+		return false;
+
+	// Check that the requested API version is supported
+	if (api_version > RESHADE_API_VERSION)
+		return false;
+
+	reshade::addon::info info;
+	info.name = get_module_path(module).stem().u8string();
+	info.handle = module;
+
+	if (const char *const *name = reinterpret_cast<const char *const *>(GetProcAddress(module, "NAME"));
+		name != nullptr)
+		info.name = *name;
+	if (const char *const *description = reinterpret_cast<const char *const *>(GetProcAddress(module, "DESCRIPTION"));
+		description != nullptr)
+		info.description = *description;
+
+	LOG(INFO) << "Registered add-on \"" << info.name << "\".";
+
+	reshade::addon::loaded_info.push_back(std::move(info));
+
+	return true;
+}
+extern "C" __declspec(dllexport) void ReShadeUnregister(HMODULE module)
+{
+	for (auto it = reshade::addon::loaded_info.begin(); it != reshade::addon::loaded_info.end();)
+	{
+		const reshade::addon::info &info = *it;
+
+		if (info.handle == module)
+		{
+			LOG(INFO) << "Unregistered add-on \"" << info.name << "\".";
+
+			it = reshade::addon::loaded_info.erase(it);
+		}
+		else
+		{
+			++it;
+		}
+	}
+}
 
 extern "C" __declspec(dllexport) void ReShadeRegisterEvent(reshade::addon_event ev, void *callback)
 {

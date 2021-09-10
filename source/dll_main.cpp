@@ -106,7 +106,7 @@ std::filesystem::path get_system_path()
 /// <summary>
 /// Returns the path to the module file identified by the specified <paramref name="module"/> handle.
 /// </summary>
-static inline std::filesystem::path get_module_path(HMODULE module)
+std::filesystem::path get_module_path(HMODULE module)
 {
 	WCHAR buf[4096];
 	return GetModuleFileNameW(module, buf, ARRAYSIZE(buf)) ? buf : std::filesystem::path();
