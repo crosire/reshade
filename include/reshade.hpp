@@ -34,10 +34,15 @@ namespace reshade
 				const auto api_version = reinterpret_cast<const uint32_t *>(GetProcAddress(modules[i], "ReShadeAPI"));
 				if (api_version != nullptr)
 				{
-#ifdef IMGUI_VERSION
-					g_imgui_function_table = *reinterpret_cast<const imgui_function_table *(*)()>(GetProcAddress(modules[i], "ReShadeGetImGuiFunctionTable"))();
-#endif
 					g_module_handle = modules[i];
+
+#ifdef IMGUI_VERSION
+					// Check that the ReShade module supports the used imgui version
+					const imgui_function_table *const table = reinterpret_cast<const imgui_function_table *(*)(unsigned int)>(GetProcAddress(modules[i], "ReShadeGetImGuiFunctionTable"))(IMGUI_VERSION_NUM);
+					if (table == nullptr)
+						return false;
+					g_imgui_function_table = *table;
+#endif
 
 					// Check that the ReShade module supports the requested API version
 					return *api_version <= RESHADE_API_VERSION;

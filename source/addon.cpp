@@ -5,6 +5,7 @@
 
 #if RESHADE_ADDON
 
+#include <imgui.h>
 #include "addon.hpp"
 #include "dll_log.hpp"
 
@@ -17,9 +18,11 @@ extern "C" __declspec(dllexport) void ReShadeLogMessage(int level, const char *m
 struct imgui_function_table;
 extern imgui_function_table g_imgui_function_table;
 
-extern "C" __declspec(dllexport) const imgui_function_table *ReShadeGetImGuiFunctionTable()
+extern "C" __declspec(dllexport) const imgui_function_table *ReShadeGetImGuiFunctionTable(unsigned int version)
 {
-	return &g_imgui_function_table;
+	if (version == IMGUI_VERSION_NUM)
+		return &g_imgui_function_table;
+	return nullptr;
 }
 #endif
 
