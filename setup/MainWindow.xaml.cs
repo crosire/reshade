@@ -702,6 +702,12 @@ In that event here are some steps you can try to resolve this:
 				}
 			}
 
+			// Always add input section
+			if (!config.HasValue("INPUT"))
+			{
+				config.SetValue("INPUT", "KeyOverlay", "36,0,0,0");
+			}
+
 			config.SaveFile();
 
 			// Only show the selection dialog if there are actually packages to choose
