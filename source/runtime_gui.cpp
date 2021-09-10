@@ -970,18 +970,17 @@ void reshade::runtime::draw_gui_home()
 
 		bool reload_preset = false;
 
-		ImGuiButtonFlags button_flags = ImGuiButtonFlags_NoNavFocus;
 		if (is_loading())
 		{
-			button_flags |= ImGuiButtonFlags_Disabled;
+			ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
 			ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
 		}
 
-		if (ImGui::ArrowButtonEx("<", ImGuiDir_Left, ImVec2(button_size, button_size), button_flags))
+		if (ImGui::ArrowButtonEx("<", ImGuiDir_Left, ImVec2(button_size, button_size), ImGuiButtonFlags_NoNavFocus))
 			if (switch_to_next_preset(_current_preset_path.parent_path(), true))
 				reload_preset = true;
 		ImGui::SameLine(0, button_spacing);
-		if (ImGui::ArrowButtonEx(">", ImGuiDir_Right, ImVec2(button_size, button_size), button_flags))
+		if (ImGui::ArrowButtonEx(">", ImGuiDir_Right, ImVec2(button_size, button_size), ImGuiButtonFlags_NoNavFocus))
 			if (switch_to_next_preset(_current_preset_path.parent_path(), false))
 				reload_preset = true;
 
@@ -989,7 +988,7 @@ void reshade::runtime::draw_gui_home()
 		const ImVec2 popup_pos = ImGui::GetCursorScreenPos() + ImVec2(-_imgui_context->Style.WindowPadding.x, ImGui::GetFrameHeightWithSpacing());
 
 		ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
-		if (ImGui::ButtonEx(_current_preset_path.stem().u8string().c_str(), ImVec2(browse_button_width, 0), button_flags))
+		if (ImGui::ButtonEx(_current_preset_path.stem().u8string().c_str(), ImVec2(browse_button_width, 0), ImGuiButtonFlags_NoNavFocus))
 		{
 			_file_selection_path = _current_preset_path;
 			ImGui::OpenPopup("##browse");
@@ -997,7 +996,7 @@ void reshade::runtime::draw_gui_home()
 		ImGui::PopStyleVar();
 
 		ImGui::SameLine(0, button_spacing);
-		if (ImGui::ButtonEx(ICON_FK_FLOPPY, ImVec2(button_size, 0), button_flags))
+		if (ImGui::ButtonEx(ICON_FK_FLOPPY, ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus))
 		{
 			DeleteFileW(_current_preset_path.c_str());
 			save_current_preset();
@@ -1007,7 +1006,7 @@ void reshade::runtime::draw_gui_home()
 			ImGui::SetTooltip("Clean up and save the current preset (removes all settings for disabled techniques)");
 
 		ImGui::SameLine(0, button_spacing);
-		if (ImGui::ButtonEx(ICON_FK_PLUS, ImVec2(button_size, 0), button_flags | ImGuiButtonFlags_PressedOnClick))
+		if (ImGui::ButtonEx(ICON_FK_PLUS, ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus | ImGuiButtonFlags_PressedOnClick))
 		{
 			_file_selection_path = _current_preset_path.parent_path();
 			ImGui::OpenPopup("##create");
@@ -1017,7 +1016,10 @@ void reshade::runtime::draw_gui_home()
 			ImGui::SetTooltip("Add a new preset");
 
 		if (is_loading())
+		{
 			ImGui::PopStyleColor();
+			ImGui::PopItemFlag();
+		}
 
 		ImGui::SetNextWindowPos(popup_pos);
 		if (widgets::file_dialog("##browse", _file_selection_path, browse_button_width, { L".ini", L".txt" }))

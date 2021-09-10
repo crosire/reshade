@@ -13,6 +13,7 @@
 [submodule "utfcpp"]
 	path = deps/utfcpp
 	url = https://github.com/nemtrif/utfcpp.git
+	fetchRecurseSubmodules = false
 [submodule "spirv"]
 	path = deps/spirv
 	url = https://github.com/KhronosGroup/SPIRV-Headers.git
@@ -22,6 +23,3 @@
 [submodule "vulkan"]
 	path = deps/vulkan
 	url = https://github.com/KhronosGroup/Vulkan-Headers.git
-[submodule "openvr"]
-	path = deps/openvr
-	url = https://github.com/ValveSoftware/openvr.git

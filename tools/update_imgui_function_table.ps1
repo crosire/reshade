@@ -84,7 +84,7 @@ Get-Content ..\deps\imgui\imgui.h | ForEach-Object {
 		$args_call = ""
 		$last_arg_name = ""
 
-		$args | Select-String -Pattern '((?:const\s)?(?:unsigned\s)?\w+\*?&?(?:\sconst)?)(?:(?:\s?\(\*(\w+)\)\(([^()]*)\))|\s(\w+)(\[\d*\])?)(?:\s=\s((?:[^,]+\([\+\-0-9\.,\s]*\))|(?:[\+\-0-9\._a-zA-Z]+)|(?:".*")))?' -AllMatches | ForEach-Object { $_.Matches } | ForEach-Object {
+		$args | Select-String -Pattern '((?:const\s)?(?:unsigned\s)?\w+\*{0,2}&?(?:\sconst)?)(?:(?:\s?\(\*(\w+)\)\(([^()]*)\))|\s(\w+)(\[\d*\])?)(?:\s=\s((?:[^,]+\([\+\-0-9\.,\s]*\))|(?:[\+\-0-9\._a-zA-Z]+)|(?:".*")))?' -AllMatches | ForEach-Object { $_.Matches } | ForEach-Object {
 			if ($args_decl) {
 				$args_decl += ", "
 				$args_decl_with_defaults += ", "

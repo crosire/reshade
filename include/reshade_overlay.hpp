@@ -44,17 +44,17 @@ namespace ImGui
 	inline void SetWindowSize(const char* name, const ImVec2& size, ImGuiCond cond) { g_imgui_function_table.SetWindowSize2(name, size, cond); }
 	inline void SetWindowCollapsed(const char* name, bool collapsed, ImGuiCond cond) { g_imgui_function_table.SetWindowCollapsed2(name, collapsed, cond); }
 	inline void SetWindowFocus(const char* name) { g_imgui_function_table.SetWindowFocus2(name); }
-	inline ImVec2 GetContentRegionMax() { return g_imgui_function_table.GetContentRegionMax(); }
 	inline ImVec2 GetContentRegionAvail() { return g_imgui_function_table.GetContentRegionAvail(); }
+	inline ImVec2 GetContentRegionMax() { return g_imgui_function_table.GetContentRegionMax(); }
 	inline ImVec2 GetWindowContentRegionMin() { return g_imgui_function_table.GetWindowContentRegionMin(); }
 	inline ImVec2 GetWindowContentRegionMax() { return g_imgui_function_table.GetWindowContentRegionMax(); }
 	inline float GetWindowContentRegionWidth() { return g_imgui_function_table.GetWindowContentRegionWidth(); }
 	inline float GetScrollX() { return g_imgui_function_table.GetScrollX(); }
 	inline float GetScrollY() { return g_imgui_function_table.GetScrollY(); }
-	inline float GetScrollMaxX() { return g_imgui_function_table.GetScrollMaxX(); }
-	inline float GetScrollMaxY() { return g_imgui_function_table.GetScrollMaxY(); }
 	inline void SetScrollX(float scroll_x) { g_imgui_function_table.SetScrollX(scroll_x); }
 	inline void SetScrollY(float scroll_y) { g_imgui_function_table.SetScrollY(scroll_y); }
+	inline float GetScrollMaxX() { return g_imgui_function_table.GetScrollMaxX(); }
+	inline float GetScrollMaxY() { return g_imgui_function_table.GetScrollMaxY(); }
 	inline void SetScrollHereX(float center_x_ratio) { g_imgui_function_table.SetScrollHereX(center_x_ratio); }
 	inline void SetScrollHereY(float center_y_ratio) { g_imgui_function_table.SetScrollHereY(center_y_ratio); }
 	inline void SetScrollFromPosX(float local_x, float center_x_ratio) { g_imgui_function_table.SetScrollFromPosX(local_x, center_x_ratio); }
@@ -67,21 +67,21 @@ namespace ImGui
 	inline void PushStyleVar(ImGuiStyleVar idx, float val) { g_imgui_function_table.PushStyleVar(idx, val); }
 	inline void PushStyleVar(ImGuiStyleVar idx, const ImVec2& val) { g_imgui_function_table.PushStyleVar2(idx, val); }
 	inline void PopStyleVar(int count) { g_imgui_function_table.PopStyleVar(count); }
-	inline float GetFontSize() { return g_imgui_function_table.GetFontSize(); }
-	inline ImVec2 GetFontTexUvWhitePixel() { return g_imgui_function_table.GetFontTexUvWhitePixel(); }
-	inline ImU32 GetColorU32(ImGuiCol idx, float alpha_mul) { return g_imgui_function_table.GetColorU32(idx, alpha_mul); }
-	inline ImU32 GetColorU32(const ImVec4& col) { return g_imgui_function_table.GetColorU322(col); }
-	inline ImU32 GetColorU32(ImU32 col) { return g_imgui_function_table.GetColorU323(col); }
+	inline void PushAllowKeyboardFocus(bool allow_keyboard_focus) { g_imgui_function_table.PushAllowKeyboardFocus(allow_keyboard_focus); }
+	inline void PopAllowKeyboardFocus() { g_imgui_function_table.PopAllowKeyboardFocus(); }
+	inline void PushButtonRepeat(bool repeat) { g_imgui_function_table.PushButtonRepeat(repeat); }
+	inline void PopButtonRepeat() { g_imgui_function_table.PopButtonRepeat(); }
 	inline void PushItemWidth(float item_width) { g_imgui_function_table.PushItemWidth(item_width); }
 	inline void PopItemWidth() { g_imgui_function_table.PopItemWidth(); }
 	inline void SetNextItemWidth(float item_width) { g_imgui_function_table.SetNextItemWidth(item_width); }
 	inline float CalcItemWidth() { return g_imgui_function_table.CalcItemWidth(); }
 	inline void PushTextWrapPos(float wrap_local_pos_x) { g_imgui_function_table.PushTextWrapPos(wrap_local_pos_x); }
 	inline void PopTextWrapPos() { g_imgui_function_table.PopTextWrapPos(); }
-	inline void PushAllowKeyboardFocus(bool allow_keyboard_focus) { g_imgui_function_table.PushAllowKeyboardFocus(allow_keyboard_focus); }
-	inline void PopAllowKeyboardFocus() { g_imgui_function_table.PopAllowKeyboardFocus(); }
-	inline void PushButtonRepeat(bool repeat) { g_imgui_function_table.PushButtonRepeat(repeat); }
-	inline void PopButtonRepeat() { g_imgui_function_table.PopButtonRepeat(); }
+	inline float GetFontSize() { return g_imgui_function_table.GetFontSize(); }
+	inline ImVec2 GetFontTexUvWhitePixel() { return g_imgui_function_table.GetFontTexUvWhitePixel(); }
+	inline ImU32 GetColorU32(ImGuiCol idx, float alpha_mul) { return g_imgui_function_table.GetColorU32(idx, alpha_mul); }
+	inline ImU32 GetColorU32(const ImVec4& col) { return g_imgui_function_table.GetColorU322(col); }
+	inline ImU32 GetColorU32(ImU32 col) { return g_imgui_function_table.GetColorU323(col); }
 	inline void Separator() { g_imgui_function_table.Separator(); }
 	inline void SameLine(float offset_from_start_x, float spacing) { g_imgui_function_table.SameLine(offset_from_start_x, spacing); }
 	inline void NewLine() { g_imgui_function_table.NewLine(); }
@@ -133,7 +133,8 @@ namespace ImGui
 	inline void Image(ImTextureID user_texture_id, const ImVec2& size, const ImVec2& uv0, const ImVec2& uv1, const ImVec4& tint_col, const ImVec4& border_col) { g_imgui_function_table.Image(user_texture_id, size, uv0, uv1, tint_col, border_col); }
 	inline bool ImageButton(ImTextureID user_texture_id, const ImVec2& size, const ImVec2& uv0, const ImVec2& uv1, int frame_padding, const ImVec4& bg_col, const ImVec4& tint_col) { return g_imgui_function_table.ImageButton(user_texture_id, size, uv0, uv1, frame_padding, bg_col, tint_col); }
 	inline bool Checkbox(const char* label, bool* v) { return g_imgui_function_table.Checkbox(label, v); }
-	inline bool CheckboxFlags(const char* label, unsigned int* flags, unsigned int flags_value) { return g_imgui_function_table.CheckboxFlags(label, flags, flags_value); }
+	inline bool CheckboxFlags(const char* label, int* flags, int flags_value) { return g_imgui_function_table.CheckboxFlags(label, flags, flags_value); }
+	inline bool CheckboxFlags(const char* label, unsigned int* flags, unsigned int flags_value) { return g_imgui_function_table.CheckboxFlags2(label, flags, flags_value); }
 	inline bool RadioButton(const char* label, bool active) { return g_imgui_function_table.RadioButton(label, active); }
 	inline bool RadioButton(const char* label, int* v, int v_button) { return g_imgui_function_table.RadioButton2(label, v, v_button); }
 	inline void ProgressBar(float fraction, const ImVec2& size_arg, const char* overlay) { g_imgui_function_table.ProgressBar(fraction, size_arg, overlay); }
@@ -204,15 +205,14 @@ namespace ImGui
 	inline void TreePop() { g_imgui_function_table.TreePop(); }
 	inline float GetTreeNodeToLabelSpacing() { return g_imgui_function_table.GetTreeNodeToLabelSpacing(); }
 	inline bool CollapsingHeader(const char* label, ImGuiTreeNodeFlags flags) { return g_imgui_function_table.CollapsingHeader(label, flags); }
-	inline bool CollapsingHeader(const char* label, bool* p_open, ImGuiTreeNodeFlags flags) { return g_imgui_function_table.CollapsingHeader2(label, p_open, flags); }
+	inline bool CollapsingHeader(const char* label, bool* p_visible, ImGuiTreeNodeFlags flags) { return g_imgui_function_table.CollapsingHeader2(label, p_visible, flags); }
 	inline void SetNextItemOpen(bool is_open, ImGuiCond cond) { g_imgui_function_table.SetNextItemOpen(is_open, cond); }
 	inline bool Selectable(const char* label, bool selected, ImGuiSelectableFlags flags, const ImVec2& size) { return g_imgui_function_table.Selectable(label, selected, flags, size); }
 	inline bool Selectable(const char* label, bool* p_selected, ImGuiSelectableFlags flags, const ImVec2& size) { return g_imgui_function_table.Selectable2(label, p_selected, flags, size); }
+	inline bool BeginListBox(const char* label, const ImVec2& size) { return g_imgui_function_table.BeginListBox(label, size); }
+	inline void EndListBox() { g_imgui_function_table.EndListBox(); }
 	inline bool ListBox(const char* label, int* current_item, const char* const items[], int items_count, int height_in_items) { return g_imgui_function_table.ListBox(label, current_item, items, items_count, height_in_items); }
 	inline bool ListBox(const char* label, int* current_item, bool(*items_getter)(void* data, int idx, const char** out_text), void* data, int items_count, int height_in_items) { return g_imgui_function_table.ListBox2(label, current_item, items_getter, data, items_count, height_in_items); }
-	inline bool ListBoxHeader(const char* label, const ImVec2& size) { return g_imgui_function_table.ListBoxHeader(label, size); }
-	inline bool ListBoxHeader(const char* label, int items_count, int height_in_items) { return g_imgui_function_table.ListBoxHeader2(label, items_count, height_in_items); }
-	inline void ListBoxFooter() { g_imgui_function_table.ListBoxFooter(); }
 	inline void PlotLines(const char* label, const float* values, int values_count, int values_offset, const char* overlay_text, float scale_min, float scale_max, ImVec2 graph_size, int stride) { g_imgui_function_table.PlotLines(label, values, values_count, values_offset, overlay_text, scale_min, scale_max, graph_size, stride); }
 	inline void PlotLines(const char* label, float(*values_getter)(void* data, int idx), void* data, int values_count, int values_offset, const char* overlay_text, float scale_min, float scale_max, ImVec2 graph_size) { g_imgui_function_table.PlotLines2(label, values_getter, data, values_count, values_offset, overlay_text, scale_min, scale_max, graph_size); }
 	inline void PlotHistogram(const char* label, const float* values, int values_count, int values_offset, const char* overlay_text, float scale_min, float scale_max, ImVec2 graph_size, int stride) { g_imgui_function_table.PlotHistogram(label, values, values_count, values_offset, overlay_text, scale_min, scale_max, graph_size, stride); }
@@ -237,11 +237,26 @@ namespace ImGui
 	inline bool BeginPopupModal(const char* name, bool* p_open, ImGuiWindowFlags flags) { return g_imgui_function_table.BeginPopupModal(name, p_open, flags); }
 	inline void EndPopup() { g_imgui_function_table.EndPopup(); }
 	inline void OpenPopup(const char* str_id, ImGuiPopupFlags popup_flags) { g_imgui_function_table.OpenPopup(str_id, popup_flags); }
+	inline void OpenPopup(ImGuiID id, ImGuiPopupFlags popup_flags) { g_imgui_function_table.OpenPopup2(id, popup_flags); }
 	inline void OpenPopupOnItemClick(const char* str_id, ImGuiPopupFlags popup_flags) { g_imgui_function_table.OpenPopupOnItemClick(str_id, popup_flags); }
 	inline void CloseCurrentPopup() { g_imgui_function_table.CloseCurrentPopup(); }
 	inline bool BeginPopupContextItem(const char* str_id, ImGuiPopupFlags popup_flags) { return g_imgui_function_table.BeginPopupContextItem(str_id, popup_flags); }
 	inline bool BeginPopupContextVoid(const char* str_id, ImGuiPopupFlags popup_flags) { return g_imgui_function_table.BeginPopupContextVoid(str_id, popup_flags); }
 	inline bool IsPopupOpen(const char* str_id, ImGuiPopupFlags flags) { return g_imgui_function_table.IsPopupOpen(str_id, flags); }
+	inline bool BeginTable(const char* str_id, int column, ImGuiTableFlags flags, const ImVec2& outer_size, float inner_width) { return g_imgui_function_table.BeginTable(str_id, column, flags, outer_size, inner_width); }
+	inline void EndTable() { g_imgui_function_table.EndTable(); }
+	inline void TableNextRow(ImGuiTableRowFlags row_flags, float min_row_height) { g_imgui_function_table.TableNextRow(row_flags, min_row_height); }
+	inline bool TableNextColumn() { return g_imgui_function_table.TableNextColumn(); }
+	inline bool TableSetColumnIndex(int column_n) { return g_imgui_function_table.TableSetColumnIndex(column_n); }
+	inline void TableSetupColumn(const char* label, ImGuiTableColumnFlags flags, float init_width_or_weight, ImGuiID user_id) { g_imgui_function_table.TableSetupColumn(label, flags, init_width_or_weight, user_id); }
+	inline void TableSetupScrollFreeze(int cols, int rows) { g_imgui_function_table.TableSetupScrollFreeze(cols, rows); }
+	inline void TableHeadersRow() { g_imgui_function_table.TableHeadersRow(); }
+	inline void TableHeader(const char* label) { g_imgui_function_table.TableHeader(label); }
+	inline int TableGetColumnCount() { return g_imgui_function_table.TableGetColumnCount(); }
+	inline int TableGetColumnIndex() { return g_imgui_function_table.TableGetColumnIndex(); }
+	inline int TableGetRowIndex() { return g_imgui_function_table.TableGetRowIndex(); }
+	inline ImGuiTableColumnFlags TableGetColumnFlags(int column_n) { return g_imgui_function_table.TableGetColumnFlags(column_n); }
+	inline void TableSetBgColor(ImGuiTableBgTarget target, ImU32 color, int column_n) { g_imgui_function_table.TableSetBgColor(target, color, column_n); }
 	inline void Columns(int count, const char* id, bool border) { g_imgui_function_table.Columns(count, id, border); }
 	inline void NextColumn() { g_imgui_function_table.NextColumn(); }
 	inline int GetColumnIndex() { return g_imgui_function_table.GetColumnIndex(); }
@@ -256,8 +271,8 @@ namespace ImGui
 	inline void EndTabItem() { g_imgui_function_table.EndTabItem(); }
 	inline bool TabItemButton(const char* label, ImGuiTabItemFlags flags) { return g_imgui_function_table.TabItemButton(label, flags); }
 	inline void SetTabItemClosed(const char* tab_or_docked_window_label) { g_imgui_function_table.SetTabItemClosed(tab_or_docked_window_label); }
-	inline void DockSpace(ImGuiID id, const ImVec2& size, ImGuiDockNodeFlags flags, const ImGuiWindowClass* window_class) { g_imgui_function_table.DockSpace(id, size, flags, window_class); }
-	inline ImGuiID DockSpaceOverViewport(ImGuiViewport* viewport, ImGuiDockNodeFlags flags, const ImGuiWindowClass* window_class) { return g_imgui_function_table.DockSpaceOverViewport(viewport, flags, window_class); }
+	inline ImGuiID DockSpace(ImGuiID id, const ImVec2& size, ImGuiDockNodeFlags flags, const ImGuiWindowClass* window_class) { return g_imgui_function_table.DockSpace(id, size, flags, window_class); }
+	inline ImGuiID DockSpaceOverViewport(const ImGuiViewport* viewport, ImGuiDockNodeFlags flags, const ImGuiWindowClass* window_class) { return g_imgui_function_table.DockSpaceOverViewport(viewport, flags, window_class); }
 	inline void SetNextWindowDockID(ImGuiID dock_id, ImGuiCond cond) { g_imgui_function_table.SetNextWindowDockID(dock_id, cond); }
 	inline void SetNextWindowClass(const ImGuiWindowClass* window_class) { g_imgui_function_table.SetNextWindowClass(window_class); }
 	inline ImGuiID GetWindowDockID() { return g_imgui_function_table.GetWindowDockID(); }
@@ -267,6 +282,8 @@ namespace ImGui
 	inline void EndDragDropSource() { g_imgui_function_table.EndDragDropSource(); }
 	inline bool BeginDragDropTarget() { return g_imgui_function_table.BeginDragDropTarget(); }
 	inline void EndDragDropTarget() { g_imgui_function_table.EndDragDropTarget(); }
+	inline void BeginDisabled(bool disabled) { g_imgui_function_table.BeginDisabled(disabled); }
+	inline void EndDisabled() { g_imgui_function_table.EndDisabled(); }
 	inline void PushClipRect(const ImVec2& clip_rect_min, const ImVec2& clip_rect_max, bool intersect_with_current_clip_rect) { g_imgui_function_table.PushClipRect(clip_rect_min, clip_rect_max, intersect_with_current_clip_rect); }
 	inline void PopClipRect() { g_imgui_function_table.PopClipRect(); }
 	inline void SetItemDefaultFocus() { g_imgui_function_table.SetItemDefaultFocus(); }
@@ -323,7 +340,8 @@ namespace ImGui
 	inline void CaptureMouseFromApp(bool want_capture_mouse_value) { g_imgui_function_table.CaptureMouseFromApp(want_capture_mouse_value); }
 	inline void SetClipboardText(const char* text) { g_imgui_function_table.SetClipboardText(text); }
 	inline bool DebugCheckVersionAndDataLayout(const char* version_str, size_t sz_io, size_t sz_style, size_t sz_vec2, size_t sz_vec4, size_t sz_drawvert, size_t sz_drawidx) { return g_imgui_function_table.DebugCheckVersionAndDataLayout(version_str, sz_io, sz_style, sz_vec2, sz_vec4, sz_drawvert, sz_drawidx); }
-	inline void SetAllocatorFunctions(void*(*alloc_func)(size_t sz, void* user_data), void(*free_func)(void* ptr, void* user_data), void* user_data) { g_imgui_function_table.SetAllocatorFunctions(alloc_func, free_func, user_data); }
+	inline void SetAllocatorFunctions(ImGuiMemAllocFunc alloc_func, ImGuiMemFreeFunc free_func, void* user_data) { g_imgui_function_table.SetAllocatorFunctions(alloc_func, free_func, user_data); }
+	inline void GetAllocatorFunctions(ImGuiMemAllocFunc* p_alloc_func, ImGuiMemFreeFunc* p_free_func, void** p_user_data) { g_imgui_function_table.GetAllocatorFunctions(p_alloc_func, p_free_func, p_user_data); }
 	inline void MemFree(void* ptr) { g_imgui_function_table.MemFree(ptr); }
 	inline void UpdatePlatformWindows() { g_imgui_function_table.UpdatePlatformWindows(); }
 	inline void RenderPlatformWindowsDefault(void* platform_render_arg, void* renderer_render_arg) { g_imgui_function_table.RenderPlatformWindowsDefault(platform_render_arg, renderer_render_arg); }
