@@ -224,7 +224,7 @@ namespace reshade
 		bool _textures_loaded = false;
 		unsigned int _reload_key_data[4];
 		unsigned int _performance_mode_key_data[4];
-		std::vector<size_t> _reload_compile_queue;
+		std::vector<size_t> _reload_create_queue;
 		std::atomic<size_t> _reload_remaining_effects = 0;
 		std::mutex _reload_mutex;
 		std::vector<std::thread> _worker_threads;

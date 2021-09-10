@@ -546,7 +546,7 @@ void reshade::runtime::draw_gui()
 {
 	assert(_is_initialized);
 
-	bool show_splash = _show_splash && (is_loading() || !_reload_compile_queue.empty() || (_reload_count <= 1 && (_last_present_time - _last_reload_time) < std::chrono::seconds(5)));
+	bool show_splash = _show_splash && (is_loading() || (_reload_count <= 1 && (_last_present_time - _last_reload_time) < std::chrono::seconds(5)));
 	// Do not show this message in the same frame the screenshot is taken (so that it won't show up on the GUI screenshot)
 	const bool show_screenshot_message = (_show_screenshot_message || !_screenshot_save_success) && !_should_save_screenshot && (_last_present_time - _last_screenshot_time) < std::chrono::seconds(_screenshot_save_success ? 3 : 5);
 
@@ -663,18 +663,9 @@ void reshade::runtime::draw_gui()
 				ImGui::ProgressBar((_effects.size() - _reload_remaining_effects) / float(_effects.size()), ImVec2(-1, 0), "");
 				ImGui::SameLine(15);
 				ImGui::Text(
-					"Loading (%zu effects remaining) ... "
-					"This might take a while. The application could become unresponsive for some time.",
-					_reload_remaining_effects.load());
-			}
-			else if (!_reload_compile_queue.empty())
-			{
-				ImGui::ProgressBar((_effects.size() - _reload_compile_queue.size()) / float(_effects.size()), ImVec2(-1, 0), "");
-				ImGui::SameLine(15);
-				ImGui::Text(
 					"Compiling (%zu effects remaining) ... "
 					"This might take a while. The application could become unresponsive for some time.",
-					_reload_compile_queue.size());
+					_reload_remaining_effects.load());
 			}
 			else if (_tutorial_index == 0)
 			{
@@ -895,8 +886,8 @@ void reshade::runtime::draw_gui()
 			ImGui::End();
 		}
 
-		// The preview texture is unset in 'unload_effects', so should not be able to reach this while loading
-		assert(!is_loading() && _reload_compile_queue.empty());
+		// The preview texture is unset in 'destroy_effect', so should not be able to reach this while loading
+		assert(!is_loading() && _reload_create_queue.empty());
 
 		// Scale image to fill the entire viewport by default
 		ImVec2 preview_min = ImVec2(0, 0);
@@ -3120,7 +3111,7 @@ void reshade::runtime::open_code_editor(editor_instance &instance)
 	if (!instance.entry_point_name.empty())
 	{
 		instance.editor.set_text(instance.entry_point_name == "Generated code" ?
-			effect.preamble + effect.module.hlsl : effect.assembly.at(instance.entry_point_name));
+			effect.module.hlsl : effect.assembly.at(instance.entry_point_name).second);
 		instance.editor.set_readonly(true);
 	}
 	else if (!instance.editor.is_modified())

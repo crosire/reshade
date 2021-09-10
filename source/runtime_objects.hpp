@@ -198,13 +198,12 @@ namespace reshade
 		bool compiled = false;
 		bool preprocessed = false;
 		std::string errors;
-		std::string preamble;
 		reshadefx::module module;
 		size_t source_hash = 0;
 		std::filesystem::path source_file;
 		std::vector<std::filesystem::path> included_files;
 		std::vector<std::pair<std::string, std::string>> definitions;
-		std::unordered_map<std::string, std::string> assembly;
+		std::unordered_map<std::string, std::pair<std::string, std::string>> assembly;
 		std::vector<uniform> uniforms;
 		std::vector<unsigned char> uniform_data_storage;
 
