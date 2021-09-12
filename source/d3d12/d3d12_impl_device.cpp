@@ -1059,7 +1059,7 @@ reshade::api::resource_desc reshade::d3d12::device_impl::get_resource_desc(api::
 	return convert_resource_desc(reinterpret_cast<ID3D12Resource *>(resource.handle)->GetDesc(), heap_props, heap_flags);
 }
 
-reshade::api::resource      reshade::d3d12::device_impl::get_resource_from_view(api::resource_view view) const
+reshade::api::resource reshade::d3d12::device_impl::get_resource_from_view(api::resource_view view) const
 {
 	assert(view.handle != 0);
 

@@ -331,6 +331,9 @@ void reshade::d3d11::device_context_impl::push_constants(api::shader_stage stage
 {
 	assert(first == 0);
 
+	if (count == 0)
+		return;
+
 	if (count > _push_constants_size)
 	{
 		// Enlarge push constant buffer to fit new requirement

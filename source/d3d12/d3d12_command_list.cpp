@@ -251,7 +251,8 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::CopyTextureRegion(const D3D12_T
 		{
 			static_assert(sizeof(D3D12_BOX) == (sizeof(int32_t) * 6));
 
-			assert(DstX == 0 && DstY == 0 && DstZ == 0); // TODO
+			// TODO: Destination box size is not implemented (would have to get it from the resource)
+			assert(DstX == 0 && DstY == 0 && DstZ == 0);
 
 			if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_to_buffer>(this,
 				reshade::api::resource { reinterpret_cast<uintptr_t>(pSrc->pResource) }, pSrc->SubresourceIndex, reinterpret_cast<const int32_t *>(pSrcBox),

@@ -7,7 +7,6 @@
 
 #include "addon_manager.hpp"
 #include "d3d9_impl_state_block.hpp"
-#include <unordered_map>
 
 namespace reshade::d3d9
 {
@@ -80,8 +79,8 @@ namespace reshade::d3d9
 
 		api::resource_desc get_resource_desc(api::resource resource) const final;
 
-		     api::resource get_resource_from_view(api::resource_view view) const final;
-		     api::resource get_resource_from_view(api::resource_view view, uint32_t *subresource) const;
+		api::resource get_resource_from_view(api::resource_view view) const final;
+		api::resource get_resource_from_view(api::resource_view view, uint32_t *subresource) const;
 
 		api::resource_view get_framebuffer_attachment(api::framebuffer framebuffer, api::attachment_type type, uint32_t index) const final;
 
@@ -155,15 +154,10 @@ namespace reshade::d3d9
 		com_ptr<IDirect3D9> _d3d;
 
 	private:
-#if RESHADE_ADDON
-		void create_global_pipeline_layout();
-		void destroy_global_pipeline_layout();
-#endif
-
 		state_block _backup_state;
 		com_ptr<IDirect3DStateBlock9> _copy_state;
 		com_ptr<IDirect3DVertexBuffer9> _default_input_stream;
 		com_ptr<IDirect3DVertexDeclaration9> _default_input_layout;
-		std::unordered_map<size_t, api::sampler> _cached_sampler_states;
+		std::vector<std::pair<DWORD[12], api::sampler>> _cached_sampler_states;
 	};
 }

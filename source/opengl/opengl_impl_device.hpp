@@ -31,7 +31,7 @@ namespace reshade::opengl
 	class device_impl : public api::api_object_impl<HGLRC, api::device, api::command_queue, api::command_list>
 	{
 	public:
-		device_impl(HDC initial_hdc, HGLRC hglrc);
+		device_impl(HDC initial_hdc, HGLRC hglrc, bool compatibility_context = false);
 		~device_impl();
 
 		api::device_api get_api() const final { return api::device_api::opengl; }
@@ -92,7 +92,7 @@ namespace reshade::opengl
 
 		api::resource_desc get_resource_desc(api::resource resource) const final;
 
-		     api::resource get_resource_from_view(api::resource_view view) const final;
+		api::resource get_resource_from_view(api::resource_view view) const final;
 
 		api::resource_view get_framebuffer_attachment(api::framebuffer framebuffer, api::attachment_type type, uint32_t index) const final;
 
@@ -148,10 +148,7 @@ namespace reshade::opengl
 		void finish_debug_event() final;
 		void insert_debug_marker(const char *label, const float color[4]) final;
 
-	public:
-		bool _compatibility_context = false;
 		std::unordered_set<HDC> _hdcs;
-		api::pipeline_layout _global_pipeline_layout = { 0 };
 
 		GLuint _current_fbo = 0;
 		GLuint _current_ibo = 0;
@@ -159,19 +156,17 @@ namespace reshade::opengl
 		GLenum _current_index_type = GL_UNSIGNED_INT;
 		GLuint _current_vertex_count = 0; // Used to calculate vertex count inside 'glBegin'/'glEnd' pairs
 
+		api::pipeline_layout _global_pipeline_layout = { 0 };
+
 	protected:
 		// Cached context information for quick access
 		GLuint _default_fbo_width = 0;
 		GLuint _default_fbo_height = 0;
 		GLenum _default_color_format = GL_NONE;
 		GLenum _default_depth_format = GL_NONE;
+		bool   _compatibility_context = false;
 
 	private:
-#if RESHADE_ADDON
-		void create_global_pipeline_layout();
-		void destroy_global_pipeline_layout();
-#endif
-
 		GLuint _copy_fbo[2] = {};
 		GLuint _mipmap_program = 0;
 		std::vector<GLuint> _reserved_texture_names;

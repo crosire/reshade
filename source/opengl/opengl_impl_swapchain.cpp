@@ -7,8 +7,8 @@
 #include "opengl_impl_swapchain.hpp"
 #include "opengl_impl_type_convert.hpp"
 
-reshade::opengl::swapchain_impl::swapchain_impl(HDC hdc, HGLRC hglrc) :
-	device_impl(hdc, hglrc), runtime(this, this)
+reshade::opengl::swapchain_impl::swapchain_impl(HDC hdc, HGLRC hglrc, bool compatibility_context) :
+	device_impl(hdc, hglrc, compatibility_context), runtime(this, this)
 {
 	GLint major = 0, minor = 0;
 	glGetIntegerv(GL_MAJOR_VERSION, &major);

@@ -84,7 +84,7 @@ namespace reshade::d3d10
 
 		api::resource_desc get_resource_desc(api::resource resource) const final;
 
-		     api::resource get_resource_from_view(api::resource_view view) const final;
+		api::resource get_resource_from_view(api::resource_view view) const final;
 
 		api::resource_view get_framebuffer_attachment(api::framebuffer framebuffer, api::attachment_type type, uint32_t index) const final;
 
@@ -148,11 +148,6 @@ namespace reshade::d3d10
 		api::pipeline_layout _global_pipeline_layout = { 0 };
 
 	private:
-#if RESHADE_ADDON
-		void create_global_pipeline_layout();
-		void destroy_global_pipeline_layout();
-#endif
-
 		com_ptr<ID3D10VertexShader> _copy_vert_shader;
 		com_ptr<ID3D10PixelShader>  _copy_pixel_shader;
 		com_ptr<ID3D10SamplerState> _copy_sampler_state;

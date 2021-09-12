@@ -100,9 +100,11 @@ GLint get_fbo_attachment_param(GLuint id, GLenum attachment, GLenum param)
 	return value;
 }
 
-reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC hglrc) :
-	api_object_impl(hglrc)
+reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC hglrc, bool compatibility_context) :
+	api_object_impl(hglrc), _compatibility_context(compatibility_context)
 {
+	_hdcs.insert(initial_hdc);
+
 	RECT window_rect = {};
 	GetClientRect(WindowFromDC(initial_hdc), &window_rect);
 
@@ -208,42 +210,6 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC hglrc) :
 	invoke_addon_event<addon_event::init_command_list>(this);
 	invoke_addon_event<addon_event::init_command_queue>(this);
 
-	create_global_pipeline_layout();
-
-	// Communicate default state to add-ons
-	invoke_addon_event<addon_event::begin_render_pass>(this, api::render_pass { 0 }, make_framebuffer_handle(0));
-#endif
-}
-reshade::opengl::device_impl::~device_impl()
-{
-#if RESHADE_ADDON
-	invoke_addon_event<addon_event::finish_render_pass>(this);
-
-	invoke_addon_event<addon_event::destroy_command_queue>(this);
-	invoke_addon_event<addon_event::destroy_command_list>(this);
-	invoke_addon_event<addon_event::destroy_device>(this);
-
-	destroy_global_pipeline_layout();
-
-	unload_addons();
-#endif
-
-	// Destroy mipmap generation program
-	glDeleteProgram(_mipmap_program);
-
-	// Destroy framebuffers used in 'copy_resource' implementation
-	glDeleteFramebuffers(2, _copy_fbo);
-
-	// Destroy push constants buffer
-	glDeleteBuffers(1, &_push_constants);
-
-	// Free range of reserved texture names
-	glDeleteTextures(static_cast<GLsizei>(_reserved_texture_names.size()), _reserved_texture_names.data());
-}
-
-#if RESHADE_ADDON
-void reshade::opengl::device_impl::create_global_pipeline_layout()
-{
 	GLint max_image_units = 0;
 	glGetIntegerv(GL_MAX_IMAGE_UNITS, &max_image_units);
 	GLint max_texture_units = 0;
@@ -287,9 +253,16 @@ void reshade::opengl::device_impl::create_global_pipeline_layout()
 	create_descriptor_set_layout(1, &push_descriptors, true, &layout_params[3].descriptor_layout);
 
 	create_pipeline_layout(6, layout_params, &_global_pipeline_layout);
+
+	// Communicate default state to add-ons
+	invoke_addon_event<addon_event::begin_render_pass>(this, api::render_pass { 0 }, make_framebuffer_handle(0));
+#endif
 }
-void reshade::opengl::device_impl::destroy_global_pipeline_layout()
+reshade::opengl::device_impl::~device_impl()
 {
+#if RESHADE_ADDON
+	invoke_addon_event<addon_event::finish_render_pass>(this);
+
 	const std::vector<api::pipeline_layout_param> &layout_params = reinterpret_cast<pipeline_layout_impl *>(_global_pipeline_layout.handle)->params;
 
 	destroy_descriptor_set_layout(layout_params[0].descriptor_layout);
@@ -298,8 +271,26 @@ void reshade::opengl::device_impl::destroy_global_pipeline_layout()
 	destroy_descriptor_set_layout(layout_params[3].descriptor_layout);
 
 	destroy_pipeline_layout(_global_pipeline_layout);
-}
+
+	invoke_addon_event<addon_event::destroy_command_queue>(this);
+	invoke_addon_event<addon_event::destroy_command_list>(this);
+	invoke_addon_event<addon_event::destroy_device>(this);
+
+	unload_addons();
 #endif
+
+	// Destroy mipmap generation program
+	glDeleteProgram(_mipmap_program);
+
+	// Destroy framebuffers used in 'copy_resource' implementation
+	glDeleteFramebuffers(2, _copy_fbo);
+
+	// Destroy push constants buffer
+	glDeleteBuffers(1, &_push_constants);
+
+	// Free range of reserved texture names
+	glDeleteTextures(static_cast<GLsizei>(_reserved_texture_names.size()), _reserved_texture_names.data());
+}
 
 bool reshade::opengl::device_impl::check_capability(api::device_caps capability) const
 {
@@ -1605,6 +1596,9 @@ void reshade::opengl::device_impl::update_descriptor_sets(uint32_t count, const 
 		case api::descriptor_type::constant_buffer:
 			std::memcpy(&impl->descriptors[update.binding * 3], update.descriptors, update.count * sizeof(uint64_t) * 3);
 			break;
+		default:
+			assert(false);
+			break;
 		}
 	}
 }
@@ -1660,7 +1654,7 @@ void reshade::opengl::device_impl::get_pipeline_layout_desc(api::pipeline_layout
 void reshade::opengl::device_impl::get_descriptor_pool_offset(api::descriptor_set, api::descriptor_pool *pool, uint32_t *offset) const
 {
 	*pool = { 0 };
-	*offset = 0; // Unsupported
+	*offset = 0; // Not implemented
 }
 
 void reshade::opengl::device_impl::get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *count, api::descriptor_range *ranges) const
@@ -1735,7 +1729,7 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 		return convert_resource_desc(target, levels, samples, internal_format, width, height, depth);
 }
 
-reshade::api::resource      reshade::opengl::device_impl::get_resource_from_view(api::resource_view view) const
+reshade::api::resource reshade::opengl::device_impl::get_resource_from_view(api::resource_view view) const
 {
 	assert(view.handle != 0);
 

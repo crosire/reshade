@@ -150,7 +150,7 @@ static void init_device_proxy(T *&device, D3DDEVTYPE device_type, const D3DPRESE
 		device->SetSoftwareVertexProcessing(TRUE);
 
 #if 0
-	// TODO: Make this configurable, since it prevents ReShade from being applied to video players.
+	// TODO: Make this configurable, since it prevents ReShade from being applied to video players
 	if (pp.Flags & D3DPRESENTFLAG_VIDEO)
 	{
 		LOG(WARN) << "Skipping device because it uses a video swap chain.";

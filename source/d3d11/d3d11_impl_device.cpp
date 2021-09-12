@@ -33,25 +33,8 @@ reshade::d3d11::device_impl::device_impl(ID3D11Device *device) :
 #if RESHADE_ADDON
 	load_addons();
 
-	create_global_pipeline_layout();
-
 	invoke_addon_event<reshade::addon_event::init_device>(this);
-#endif
-}
-reshade::d3d11::device_impl::~device_impl()
-{
-#if RESHADE_ADDON
-	invoke_addon_event<addon_event::destroy_device>(this);
 
-	destroy_global_pipeline_layout();
-
-	unload_addons();
-#endif
-}
-
-#if RESHADE_ADDON
-void reshade::d3d11::device_impl::create_global_pipeline_layout()
-{
 	const D3D_FEATURE_LEVEL feature_level = _orig->GetFeatureLevel();
 
 	// Create global pipeline layout that is used for all application descriptor events
@@ -84,9 +67,11 @@ void reshade::d3d11::device_impl::create_global_pipeline_layout()
 	create_descriptor_set_layout(1, &push_descriptors, true, &layout_params[3].descriptor_layout);
 
 	create_pipeline_layout(4, layout_params, &_global_pipeline_layout);
+#endif
 }
-void reshade::d3d11::device_impl::destroy_global_pipeline_layout()
+reshade::d3d11::device_impl::~device_impl()
 {
+#if RESHADE_ADDON
 	const std::vector<api::pipeline_layout_param> &layout_params = reinterpret_cast<pipeline_layout_impl *>(_global_pipeline_layout.handle)->params;
 
 	destroy_descriptor_set_layout(layout_params[0].descriptor_layout);
@@ -95,8 +80,12 @@ void reshade::d3d11::device_impl::destroy_global_pipeline_layout()
 	destroy_descriptor_set_layout(layout_params[3].descriptor_layout);
 
 	destroy_pipeline_layout(_global_pipeline_layout);
-}
+
+	invoke_addon_event<addon_event::destroy_device>(this);
+
+	unload_addons();
 #endif
+}
 
 bool reshade::d3d11::device_impl::check_capability(api::device_caps capability) const
 {
@@ -961,11 +950,11 @@ void reshade::d3d11::device_impl::update_descriptor_sets(uint32_t count, const a
 		case api::descriptor_type::unordered_access_view:
 			std::memcpy(&impl->descriptors[update.offset * 1], update.descriptors, update.count * sizeof(uint64_t) * 1);
 			break;
-		case api::descriptor_type::sampler_with_resource_view:
-			assert(false);
-			break;
 		case api::descriptor_type::constant_buffer:
 			std::memcpy(&impl->descriptors[update.offset * 3], update.descriptors, update.count * sizeof(uint64_t) * 3);
+			break;
+		default:
+			assert(false);
 			break;
 		}
 	}
@@ -1015,7 +1004,7 @@ void reshade::d3d11::device_impl::get_pipeline_layout_desc(api::pipeline_layout 
 void reshade::d3d11::device_impl::get_descriptor_pool_offset(api::descriptor_set, api::descriptor_pool *pool, uint32_t *offset) const
 {
 	*pool = { 0 };
-	*offset = 0; // Unsupported
+	*offset = 0; // Not implemented
 }
 
 void reshade::d3d11::device_impl::get_descriptor_set_layout_desc(api::descriptor_set_layout layout, uint32_t *count, api::descriptor_range *ranges) const
@@ -1076,7 +1065,7 @@ reshade::api::resource_desc reshade::d3d11::device_impl::get_resource_desc(api::
 	return api::resource_desc {};
 }
 
-reshade::api::resource      reshade::d3d11::device_impl::get_resource_from_view(api::resource_view view) const
+reshade::api::resource reshade::d3d11::device_impl::get_resource_from_view(api::resource_view view) const
 {
 	assert(view.handle != 0);
 	com_ptr<ID3D11Resource> resource;

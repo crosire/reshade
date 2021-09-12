@@ -1227,6 +1227,7 @@ bool reshade::vulkan::device_impl::map_resource(api::resource resource, uint32_t
 		{
 			if (data->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO)
 			{
+				// Assume that the image was created with 'VK_IMAGE_TILING_LINEAR' here
 				out_data->row_pitch = data->create_info.extent.width * data->create_info.extent.depth * api::format_bytes_per_pixel(convert_format(data->create_info.format));
 				out_data->slice_pitch = out_data->row_pitch * data->create_info.extent.height;
 			}
@@ -1522,7 +1523,7 @@ reshade::api::resource_desc reshade::vulkan::device_impl::get_resource_desc(api:
 		return convert_resource_desc(reinterpret_cast<const object_data<VK_OBJECT_TYPE_BUFFER> *>(data)->create_info);
 }
 
-reshade::api::resource      reshade::vulkan::device_impl::get_resource_from_view(api::resource_view view) const
+reshade::api::resource reshade::vulkan::device_impl::get_resource_from_view(api::resource_view view) const
 {
 	const auto data = get_user_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)view.handle);
 	if (data->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO)

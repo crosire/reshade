@@ -14,7 +14,7 @@ namespace reshade::opengl
 	class swapchain_impl : public device_impl, public runtime
 	{
 	public:
-		swapchain_impl(HDC hdc, HGLRC hglrc);
+		swapchain_impl(HDC hdc, HGLRC hglrc, bool compatibility_context = false);
 		~swapchain_impl();
 
 		bool get_user_data(const uint8_t guid[16], void **ptr) const final { return device_impl::get_user_data(guid, ptr); }
