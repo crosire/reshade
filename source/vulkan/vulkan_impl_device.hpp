@@ -128,7 +128,7 @@ namespace reshade::vulkan
 			assert(object != VK_NULL_HANDLE);
 			uint64_t private_data = 0;
 			_dispatch_table.GetPrivateDataEXT(_orig, type, (uint64_t)object, _private_data_slot, &private_data);
-			assert(private_data  != 0);
+			assert(private_data != 0);
 			return reinterpret_cast<object_data<type> *>(private_data);
 		}
 

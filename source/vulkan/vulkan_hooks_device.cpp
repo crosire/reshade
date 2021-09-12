@@ -53,6 +53,41 @@ static inline const char *vk_format_to_string(VkFormat format)
 
 extern VkImageAspectFlags aspect_flags_from_format(VkFormat format);
 
+static void create_default_view(reshade::vulkan::device_impl *device_impl, VkImage image)
+{
+	if (image == VK_NULL_HANDLE)
+		return;
+
+	const auto data = device_impl->get_user_data_for_object<VK_OBJECT_TYPE_IMAGE>(image);
+	assert(data->default_view == VK_NULL_HANDLE);
+
+	// Need to create a default view that is used in 'vkCmdClearColorImage' and 'vkCmdClearDepthStencilImage'
+	if ((data->create_info.usage & (VK_IMAGE_USAGE_TRANSFER_DST_BIT)) == VK_IMAGE_USAGE_TRANSFER_DST_BIT &&
+		(data->create_info.usage & (VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)) != 0)
+	{
+		VkImageViewCreateInfo default_view_info { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
+		default_view_info.image = image;
+		default_view_info.viewType = static_cast<VkImageViewType>(data->create_info.imageType); // Map 'VK_IMAGE_TYPE_1D' to VK_IMAGE_VIEW_TYPE_1D' and so on
+		default_view_info.format = data->create_info.format;
+		default_view_info.subresourceRange.aspectMask = aspect_flags_from_format(data->create_info.format);
+		default_view_info.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
+		default_view_info.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
+
+		vkCreateImageView(device_impl->_orig, &default_view_info, nullptr, &data->default_view);
+	}
+}
+static void destroy_default_view(reshade::vulkan::device_impl *device_impl, VkImage image)
+{
+	if (image == VK_NULL_HANDLE)
+		return;
+
+	const VkImageView default_view = device_impl->get_user_data_for_object<VK_OBJECT_TYPE_IMAGE>(image)->default_view;
+	if (default_view != VK_NULL_HANDLE)
+	{
+		vkDestroyImageView(device_impl->_orig, default_view, nullptr);
+	}
+}
+
 VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDeviceCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkDevice *pDevice)
 {
 	LOG(INFO) << "Redirecting " << "vkCreateDevice" << '(' << "physicalDevice = " << physicalDevice << ", pCreateInfo = " << pCreateInfo << ", pAllocator = " << pAllocator << ", pDevice = " << pDevice << ')' << " ...";
@@ -475,6 +510,7 @@ void     VKAPI_CALL vkDestroyDevice(VkDevice device, const VkAllocationCallbacks
 		s_vulkan_queues.erase(queue_impl->_orig);
 		delete queue_impl; // This will remove the queue from the queue list of the device too (see 'command_queue_impl' destructor)
 	}
+
 	assert(device_impl->_queues.empty());
 
 	// Finally destroy the device
@@ -601,6 +637,21 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	}
 #endif
 
+	// Remove old swap chain from the list so that a call to 'vkDestroySwapchainKHR' won't reset the effect runtime again
+	reshade::vulkan::swapchain_impl *swapchain_impl = s_vulkan_swapchains.erase(create_info.oldSwapchain);
+	if (swapchain_impl != nullptr)
+	{
+		assert(create_info.oldSwapchain != VK_NULL_HANDLE);
+
+#if RESHADE_ADDON
+		for (uint32_t i = 0; i < swapchain_impl->get_back_buffer_count(); ++i)
+			destroy_default_view(device_impl, (VkImage)swapchain_impl->get_back_buffer(i).handle);
+#endif
+
+		// Re-use the existing effect runtime if this swap chain was not created from scratch, but reset it before initializing again below
+		swapchain_impl->on_reset();
+	}
+
 	const VkResult result = trampoline(device, &create_info, pAllocator, pSwapchain);
 	if (result < VK_SUCCESS)
 	{
@@ -622,27 +673,24 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 
 	if (queue_impl != nullptr)
 	{
-		// Remove old swap chain from the list so that a call to 'vkDestroySwapchainKHR' won't reset the effect runtime again
-		reshade::vulkan::swapchain_impl *swapchain_impl = s_vulkan_swapchains.erase(create_info.oldSwapchain);
-		if (swapchain_impl != nullptr)
-		{
-			assert(create_info.oldSwapchain != VK_NULL_HANDLE);
-
-			// Re-use the existing effect runtime if this swap chain was not created from scratch, but reset it before initializing again below
-			swapchain_impl->on_reset();
-		}
-		else
-		{
-			swapchain_impl = new reshade::vulkan::swapchain_impl(device_impl, queue_impl);
-		}
+		if (swapchain_impl == nullptr)
+			swapchain_impl  = new reshade::vulkan::swapchain_impl(device_impl, queue_impl);
 
 		swapchain_impl->on_init(*pSwapchain, create_info, hwnd);
+
+#if RESHADE_ADDON
+		// Create default views for swap chain images
+		for (uint32_t i = 0; i < swapchain_impl->get_back_buffer_count(); ++i)
+			create_default_view(device_impl, (VkImage)swapchain_impl->get_back_buffer(i).handle);
+#endif
 
 		if (!s_vulkan_swapchains.emplace(*pSwapchain, swapchain_impl))
 			delete swapchain_impl;
 	}
 	else
 	{
+		delete swapchain_impl;
+
 		s_vulkan_swapchains.emplace(*pSwapchain, nullptr);
 	}
 
@@ -659,7 +707,17 @@ void     VKAPI_CALL vkDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapch
 	GET_DISPATCH_PTR_FROM(DestroySwapchainKHR, device_impl);
 
 	// Remove swap chain from global list
-	delete s_vulkan_swapchains.erase(swapchain);
+	reshade::vulkan::swapchain_impl *const swapchain_impl = s_vulkan_swapchains.erase(swapchain);
+
+#if RESHADE_ADDON
+	if (swapchain_impl != nullptr)
+	{
+		for (uint32_t i = 0; i < swapchain_impl->get_back_buffer_count(); ++i)
+			destroy_default_view(device_impl, (VkImage)swapchain_impl->get_back_buffer(i).handle);
+	}
+#endif
+
+	delete swapchain_impl;
 
 	trampoline(device, swapchain, pAllocator);
 }
@@ -759,27 +817,6 @@ VkResult VKAPI_CALL vkBindBufferMemory2(VkDevice device, uint32_t bindInfoCount,
 	}
 
 	return result;
-}
-
-static void create_default_view(reshade::vulkan::device_impl *device_impl, VkImage image)
-{
-	const auto data = device_impl->get_user_data_for_object<VK_OBJECT_TYPE_IMAGE>(image);
-	assert(data->default_view == VK_NULL_HANDLE);
-
-	// Need to create a default view that is used in 'vkCmdClearColorImage' and 'vkCmdClearDepthStencilImage'
-	if ((data->create_info.usage & (VK_IMAGE_USAGE_TRANSFER_DST_BIT)) == VK_IMAGE_USAGE_TRANSFER_DST_BIT &&
-		(data->create_info.usage & (VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)) != 0)
-	{
-		VkImageViewCreateInfo default_view_info { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
-		default_view_info.image = image;
-		default_view_info.viewType = static_cast<VkImageViewType>(data->create_info.imageType); // Map 'VK_IMAGE_TYPE_1D' to VK_IMAGE_VIEW_TYPE_1D' and so on
-		default_view_info.format = data->create_info.format;
-		default_view_info.subresourceRange.aspectMask = aspect_flags_from_format(data->create_info.format);
-		default_view_info.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
-		default_view_info.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
-
-		vkCreateImageView((VkDevice)device_impl->get_native_object(), &default_view_info, nullptr, &data->default_view);
-	}
 }
 
 VkResult VKAPI_CALL vkBindImageMemory(VkDevice device, VkImage image, VkDeviceMemory memory, VkDeviceSize memoryOffset)
@@ -981,9 +1018,7 @@ void     VKAPI_CALL vkDestroyImage(VkDevice device, VkImage image, const VkAlloc
 #if RESHADE_ADDON
 	reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(device_impl, reshade::api::resource { (uint64_t)image });
 
-	const VkImageView default_view = device_impl->get_user_data_for_object<VK_OBJECT_TYPE_IMAGE>(image)->default_view;
-	if (default_view != VK_NULL_HANDLE)
-		vkDestroyImageView(device, default_view, pAllocator);
+	destroy_default_view(device_impl, image);
 
 	device_impl->unregister_object<VK_OBJECT_TYPE_IMAGE>(image);
 #endif
