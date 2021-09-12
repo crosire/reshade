@@ -1620,7 +1620,7 @@ void reshade::runtime::draw_gui_statistics()
 	{
 		_gather_gpu_statistics = true;
 
-		ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x);
+		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
 		ImGui::PlotLines("##framerate",
 			_imgui_context->FramerateSecPerFrame, 120,
 			_imgui_context->FramerateSecPerFrameIdx,
@@ -1628,7 +1628,6 @@ void reshade::runtime::draw_gui_statistics()
 			_imgui_context->FramerateSecPerFrameAccum / 120 * 0.5f,
 			_imgui_context->FramerateSecPerFrameAccum / 120 * 1.5f,
 			ImVec2(0, 50));
-		ImGui::PopItemWidth();
 
 		const std::time_t t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 		tm tm; localtime_s(&tm, &t);
@@ -2188,16 +2187,14 @@ void reshade::runtime::draw_variable_editor()
 
 					ImGui::PushID(static_cast<int>(i));
 
-					ImGui::PushItemWidth(ImGui::GetWindowContentRegionWidth() * 0.66666666f - (button_spacing));
+					ImGui::SetNextItemWidth(ImGui::GetWindowContentRegionWidth() * 0.66666666f - (button_spacing));
 					modified |= ImGui::InputText("##name", name, sizeof(name), ImGuiInputTextFlags_CharsNoBlank | ImGuiInputTextFlags_CallbackCharFilter,
 						[](ImGuiInputTextCallbackData *data) -> int { return data->EventChar == '=' || (data->EventChar != '_' && !isalnum(data->EventChar)); }); // Filter out invalid characters
-					ImGui::PopItemWidth();
 
 					ImGui::SameLine(0, button_spacing);
 
-					ImGui::PushItemWidth(ImGui::GetWindowContentRegionWidth() * 0.33333333f - (button_spacing + button_size) + 1);
+					ImGui::SetNextItemWidth(ImGui::GetWindowContentRegionWidth() * 0.33333333f - (button_spacing + button_size) + 1);
 					modified |= ImGui::InputText("##value", value, sizeof(value));
-					ImGui::PopItemWidth();
 
 					ImGui::SameLine(0, button_spacing);
 
@@ -2236,16 +2233,14 @@ void reshade::runtime::draw_variable_editor()
 
 					ImGui::PushID(static_cast<int>(i));
 
-					ImGui::PushItemWidth(ImGui::GetWindowContentRegionWidth() * 0.66666666f - (button_spacing));
+					ImGui::SetNextItemWidth(ImGui::GetWindowContentRegionWidth() * 0.66666666f - (button_spacing));
 					modified |= ImGui::InputText("##name", name, sizeof(name), ImGuiInputTextFlags_CharsNoBlank | ImGuiInputTextFlags_CallbackCharFilter,
 						[](ImGuiInputTextCallbackData *data) -> int { return data->EventChar == '=' || (data->EventChar != '_' && !isalnum(data->EventChar)); }); // Filter out invalid characters
-					ImGui::PopItemWidth();
 
 					ImGui::SameLine(0, button_spacing);
 
-					ImGui::PushItemWidth(ImGui::GetWindowContentRegionWidth() * 0.33333333f - (button_spacing + button_size) + 1);
+					ImGui::SetNextItemWidth(ImGui::GetWindowContentRegionWidth() * 0.33333333f - (button_spacing + button_size) + 1);
 					modified |= ImGui::InputText("##value", value, sizeof(value), ImGuiInputTextFlags_AutoSelectAll);
-					ImGui::PopItemWidth();
 
 					ImGui::SameLine(0, button_spacing);
 
@@ -2908,15 +2903,12 @@ void reshade::runtime::draw_technique_editor()
 			ImGui::TextUnformatted(technique.name.c_str());
 			ImGui::Separator();
 
-			ImGui::PushItemWidth(230.0f);
-
+			ImGui::SetNextItemWidth(230.0f);
 			if (widgets::key_input_box("##toggle_key", technique.toggle_key_data, *_input))
 				save_current_preset();
 
 			const bool is_not_top = index > 0;
 			const bool is_not_bottom = index < _techniques.size() - 1;
-
-			ImGui::PopItemWidth();
 
 			if (is_not_top && ImGui::Button("Move to top", ImVec2(230.0f, 0)))
 			{

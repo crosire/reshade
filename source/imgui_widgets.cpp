@@ -29,13 +29,12 @@ bool reshade::gui::widgets::path_list(const char *label, std::vector<std::filesy
 			const size_t buf_len = paths[i].u8string().copy(buf, sizeof(buf) - 1);
 			buf[buf_len] = '\0';
 
-			ImGui::PushItemWidth(ImGui::GetWindowContentRegionWidth() - (button_spacing + button_size));
+			ImGui::SetNextItemWidth(ImGui::GetWindowContentRegionWidth() - (button_spacing + button_size));
 			if (ImGui::InputText("##path", buf, sizeof(buf)))
 			{
 				res = true;
 				paths[i] = std::filesystem::u8path(buf);
 			}
-			ImGui::PopItemWidth();
 
 			ImGui::SameLine(0, button_spacing);
 			if (ImGui::Button(ICON_FK_MINUS, ImVec2(button_size, 0)))
@@ -102,14 +101,13 @@ bool reshade::gui::widgets::file_dialog(const char *name, std::filesystem::path 
 		const size_t buf_len = parent_path.u8string().copy(buf, sizeof(buf) - 1);
 		buf[buf_len] = '\0';
 
-		ImGui::PushItemWidth(width);
+		ImGui::SetNextItemWidth(width);
 		if (ImGui::InputText("##path", buf, sizeof(buf)))
 		{
 			path = std::filesystem::u8path(buf);
 			if (path.has_stem() && std::filesystem::is_directory(path, ec))
 				path += std::filesystem::path::preferred_separator;
 		}
-		ImGui::PopItemWidth();
 
 		if (ImGui::IsItemActivated())
 			ImGui::GetCurrentContext()->InputTextState.ClearSelection();
@@ -189,10 +187,9 @@ bool reshade::gui::widgets::file_dialog(const char *name, std::filesystem::path 
 		const size_t buf_len = path_name.u8string().copy(buf, sizeof(buf) - 1);
 		buf[buf_len] = '\0';
 
-		ImGui::PushItemWidth(width - (2 * (80 + ImGui::GetStyle().ItemSpacing.x)));
+		ImGui::SetNextItemWidth(width - (2 * (80 + ImGui::GetStyle().ItemSpacing.x)));
 		if (ImGui::InputText("##name", buf, sizeof(buf)))
 			path = path.parent_path() / buf;
-		ImGui::PopItemWidth();
 	}
 
 	ImGui::SameLine();
@@ -260,20 +257,18 @@ bool reshade::gui::widgets::font_input_box(const char *name, std::filesystem::pa
 	ImGui::BeginGroup();
 	ImGui::PushID(name);
 
-	ImGui::PushItemWidth(ImGui::CalcItemWidth() - spacing - 80);
+	ImGui::SetNextItemWidth(ImGui::CalcItemWidth() - spacing - 80);
 	if (file_input_box("##font", path, dialog_path, { L".ttf" }))
 		res = true;
-	ImGui::PopItemWidth();
 
 	// Reset to the default font name if path is empty
 	if (path.empty())
 		path = L"ProggyClean.ttf";
 
 	ImGui::SameLine(0, spacing);
-	ImGui::PushItemWidth(80);
+	ImGui::SetNextItemWidth(80);
 	if (ImGui::SliderInt("##size", &size, 8, 32))
 		res = true;
-	ImGui::PopItemWidth();
 
 	ImGui::PopID();
 
@@ -318,7 +313,7 @@ bool reshade::gui::widgets::file_input_box(const char *name, std::filesystem::pa
 	const size_t buf_len = path.u8string().copy(buf, sizeof(buf) - 1);
 	buf[buf_len] = '\0'; // Null-terminate string
 
-	ImGui::PushItemWidth(ImGui::CalcItemWidth() - (button_spacing + button_size));
+	ImGui::SetNextItemWidth(ImGui::CalcItemWidth() - (button_spacing + button_size));
 	if (ImGui::InputText("##path", buf, sizeof(buf), ImGuiInputTextFlags_EnterReturnsTrue))
 	{
 		dialog_path = std::filesystem::u8path(buf);
@@ -326,7 +321,6 @@ bool reshade::gui::widgets::file_input_box(const char *name, std::filesystem::pa
 		if (std::find(exts.begin(), exts.end(), dialog_path.extension()) != exts.end() || dialog_path.empty())
 			path = dialog_path, res = true;
 	}
-	ImGui::PopItemWidth();
 
 	ImGui::SameLine(0, button_spacing);
 	if (ImGui::Button(ICON_FK_FOLDER_OPEN, ImVec2(button_size, 0)))
@@ -364,10 +358,9 @@ bool reshade::gui::widgets::directory_input_box(const char *name, std::filesyste
 	const size_t buf_len = path.u8string().copy(buf, sizeof(buf) - 1);
 	buf[buf_len] = '\0'; // Null-terminate string
 
-	ImGui::PushItemWidth(ImGui::CalcItemWidth() - (button_spacing + button_size));
+	ImGui::SetNextItemWidth(ImGui::CalcItemWidth() - (button_spacing + button_size));
 	if (ImGui::InputText("##path", buf, sizeof(buf)))
 		path = std::filesystem::u8path(buf), res = true;
-	ImGui::PopItemWidth();
 
 	ImGui::SameLine(0, button_spacing);
 	if (ImGui::Button(ICON_FK_FOLDER_OPEN, ImVec2(button_size, 0)))
@@ -452,8 +445,7 @@ bool reshade::gui::widgets::list_with_buttons(const char *label, const std::stri
 	const float button_spacing = ImGui::GetStyle().ItemInnerSpacing.x;
 	const ImVec2 hover_pos = ImGui::GetCursorScreenPos() + ImVec2(0, button_size);
 
-	ImGui::PushItemWidth(ImGui::CalcItemWidth() - (button_spacing * 2 + button_size * 2));
-
+	ImGui::SetNextItemWidth(ImGui::CalcItemWidth() - (button_spacing * 2 + button_size * 2));
 	if (ImGui::BeginCombo("##v", items.size() > static_cast<size_t>(v) && v >= 0 ? items[v].data() : nullptr, ImGuiComboFlags_NoArrowButton))
 	{
 		auto it = items.begin();
@@ -468,8 +460,6 @@ bool reshade::gui::widgets::list_with_buttons(const char *label, const std::stri
 
 		ImGui::EndCombo();
 	}
-
-	ImGui::PopItemWidth();
 
 	ImGui::PushItemFlag(ImGuiItemFlags_Disabled, items.empty());
 
@@ -543,11 +533,8 @@ bool reshade::gui::widgets::combo_with_buttons(const char *label, const std::str
 	const float button_size = ImGui::GetFrameHeight();
 	const float button_spacing = ImGui::GetStyle().ItemInnerSpacing.x;
 
-	ImGui::PushItemWidth(ImGui::CalcItemWidth() - (button_spacing * 2 + button_size * 2));
-
+	ImGui::SetNextItemWidth(ImGui::CalcItemWidth() - (button_spacing * 2 + button_size * 2));
 	bool modified = ImGui::Combo("##v", &v, items.c_str());
-
-	ImGui::PopItemWidth();
 
 	ImGui::PushItemFlag(ImGuiItemFlags_Disabled, num_items == 0);
 
@@ -584,9 +571,10 @@ static bool drag_with_buttons(const char *label, T *v, int components, T v_speed
 	ImGui::BeginGroup();
 	ImGui::PushID(label);
 
-	ImGui::PushItemWidth(ImGui::CalcItemWidth() - (button_spacing * 2 + button_size * 2));
-	bool value_changed = ImGui::DragScalarN("##v", data_type, v, components, static_cast<float>(v_speed), &v_min, &v_max, format);
-	ImGui::PopItemWidth();
+	ImGui::SetNextItemWidth(ImGui::CalcItemWidth() - (button_spacing * 2 + button_size * 2));
+	bool value_changed = (components < 2) ?
+		ImGui::DragScalar("##v", data_type, v, static_cast<float>(v_speed), &v_min, &v_max, format) :
+		ImGui::DragScalarN("##v", data_type, v, components, static_cast<float>(v_speed), &v_min, &v_max, format);
 
 	ImGui::SameLine(0, button_spacing);
 	if (ImGui::ButtonEx("<", ImVec2(button_size, 0), ImGuiButtonFlags_PressedOnClick | ImGuiButtonFlags_Repeat) && v[0] > v_min)
@@ -646,9 +634,10 @@ static bool slider_with_buttons(const char *label, T *v, int components, T v_spe
 	ImGui::BeginGroup();
 	ImGui::PushID(label);
 
-	ImGui::PushItemWidth(ImGui::CalcItemWidth() - (button_spacing * 2 + button_size * 2));
-	bool value_changed = ImGui::SliderScalarN("##v", data_type, v, components, &v_min, &v_max, format);
-	ImGui::PopItemWidth();
+	ImGui::SetNextItemWidth(ImGui::CalcItemWidth() - (button_spacing * 2 + button_size * 2));
+	bool value_changed = (components < 2) ?
+		ImGui::SliderScalar("##v", data_type, v, &v_min, &v_max, format) :
+		ImGui::SliderScalarN("##v", data_type, v, components, &v_min, &v_max, format);
 
 	ImGui::SameLine(0, button_spacing);
 	if (ImGui::ButtonEx("<", ImVec2(button_size, 0), ImGuiButtonFlags_PressedOnClick | ImGuiButtonFlags_Repeat) && v[0] > v_min)
@@ -707,9 +696,8 @@ bool reshade::gui::widgets::slider_for_alpha_value(const char *label, float *v)
 	ImGui::BeginGroup();
 	ImGui::PushID(label);
 
-	ImGui::PushItemWidth(ImGui::CalcItemWidth() - button_spacing - button_size);
+	ImGui::SetNextItemWidth(ImGui::CalcItemWidth() - button_spacing - button_size);
 	const bool modified = ImGui::SliderFloat("##v", v, 0.0f, 1.0f);
-	ImGui::PopItemWidth();
 
 	ImGui::SameLine(0, button_spacing);
 	ImGui::ColorButton("##preview", ImVec4(1.0f, 1.0f, 1.0f, *v), ImGuiColorEditFlags_NoOptions | ImGuiColorEditFlags_AlphaPreview | ImGuiColorEditFlags_NoPicker);
