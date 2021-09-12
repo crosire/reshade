@@ -13,7 +13,7 @@ Here is a very basic code example of an add-on that registers a callback that ge
 
 static void on_present(reshade::api::command_queue *queue, reshade::api::swapchain *swapchain)
 {
-	// ...
+    // ...
 }
 
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID)

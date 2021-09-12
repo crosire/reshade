@@ -165,7 +165,7 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 }
 #endif
 
-extern "C" __declspec(dllexport) bool ReShadeRegister(HMODULE module, uint32_t api_version)
+extern "C" __declspec(dllexport) bool ReShadeRegisterAddon(HMODULE module, uint32_t api_version)
 {
 	if (module == nullptr)
 		return false;
@@ -191,7 +191,7 @@ extern "C" __declspec(dllexport) bool ReShadeRegister(HMODULE module, uint32_t a
 
 	return true;
 }
-extern "C" __declspec(dllexport) void ReShadeUnregister(HMODULE module)
+extern "C" __declspec(dllexport) void ReShadeUnregisterAddon(HMODULE module)
 {
 	for (auto it = reshade::addon::loaded_info.begin(); it != reshade::addon::loaded_info.end();)
 	{
