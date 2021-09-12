@@ -3,7 +3,6 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "dll_log.hpp"
 #include "dxgi_swapchain.hpp"
 #include "d3d10/d3d10_device.hpp"
 #include "d3d10/d3d10_impl_swapchain.hpp"
@@ -13,6 +12,7 @@
 #include "d3d12/d3d12_device.hpp"
 #include "d3d12/d3d12_command_queue.hpp"
 #include "d3d12/d3d12_impl_swapchain.hpp"
+#include "dll_log.hpp" // Include late to get HRESULT log overloads
 
 extern UINT query_device(IUnknown *&device, com_ptr<IUnknown> &device_proxy);
 

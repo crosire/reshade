@@ -3,12 +3,12 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "dll_log.hpp"
-#include "com_utils.hpp"
 #include "d3d11_device.hpp"
 #include "d3d11_device_context.hpp"
 #include "dxgi/dxgi_device.hpp"
 #include "d3d11_impl_type_convert.hpp"
+#include "dll_log.hpp" // Include late to get HRESULT log overloads
+#include "com_utils.hpp"
 
 D3D11Device::D3D11Device(IDXGIDevice1 *dxgi_device, ID3D11Device *original) :
 	device_impl(original),

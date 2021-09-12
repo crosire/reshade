@@ -3,9 +3,9 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "dll_log.hpp"
 #include "d3d12_impl_device.hpp"
 #include "d3d12_impl_command_list_immediate.hpp"
+#include "dll_log.hpp" // Include late to get HRESULT log overloads
 
 reshade::d3d12::command_list_immediate_impl::command_list_immediate_impl(device_impl *device) :
 	command_list_impl(device, nullptr)

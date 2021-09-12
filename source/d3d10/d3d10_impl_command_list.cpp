@@ -3,10 +3,9 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "dll_log.hpp"
 #include "d3d10_impl_device.hpp"
 #include "d3d10_impl_type_convert.hpp"
-#include <algorithm>
+#include "dll_log.hpp"
 
 void reshade::d3d10::pipeline_impl::apply(ID3D10Device *ctx) const
 {

@@ -17,7 +17,8 @@
 #include "fonts/forkawesome.inl"
 #include <fstream>
 #include <algorithm>
-#include <shellapi.h>
+#include <Windows.h>
+#include <Shellapi.h>
 
 using namespace reshade::gui;
 

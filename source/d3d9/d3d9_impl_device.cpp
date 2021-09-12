@@ -3,10 +3,10 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "dll_log.hpp"
-#include "com_utils.hpp"
 #include "d3d9_impl_device.hpp"
 #include "d3d9_impl_type_convert.hpp"
+#include "dll_log.hpp" // Include late to get HRESULT log overloads
+#include "com_utils.hpp"
 #include <algorithm>
 
 static inline bool convert_format_internal(reshade::api::format format, D3DFORMAT &internal_format)

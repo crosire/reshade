@@ -3,9 +3,9 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "dll_log.hpp"
-#include "hook_manager.hpp"
 #include "dxgi/dxgi_device.hpp"
+#include "dll_log.hpp" // Include late to get HRESULT log overloads
+#include "hook_manager.hpp"
 #include "com_ptr.hpp"
 #include <d2d1_3.h>
 

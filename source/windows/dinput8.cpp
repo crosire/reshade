@@ -6,9 +6,9 @@
 // Set version to DirectInput 8 to avoid warning
 #define DIRECTINPUT_VERSION 0x0800
 
-#include "dll_log.hpp"
-#include "hook_manager.hpp"
 #include <dinput.h>
+#include "dll_log.hpp" // Include late to get HRESULT log overloads
+#include "hook_manager.hpp"
 
 HOOK_EXPORT HRESULT WINAPI DirectInput8Create(HINSTANCE hinst, DWORD dwVersion, REFIID riidltf, LPVOID *ppvOut, LPUNKNOWN punkOuter)
 {

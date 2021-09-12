@@ -3,10 +3,10 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "dll_log.hpp"
-#include "dll_resources.hpp"
 #include "d3d11_impl_device.hpp"
 #include "d3d11_impl_type_convert.hpp"
+#include "dll_log.hpp"
+#include "dll_resources.hpp"
 #include <algorithm>
 
 reshade::d3d11::device_impl::device_impl(ID3D11Device *device) :

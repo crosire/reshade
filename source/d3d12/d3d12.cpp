@@ -3,9 +3,9 @@
  * License: https://github.com/crosire/reshade#license
  */
 
+#include "d3d12_device.hpp"
 #include "dll_log.hpp"
 #include "hook_manager.hpp"
-#include "d3d12_device.hpp"
 
 HOOK_EXPORT HRESULT WINAPI D3D12CreateDevice(
 	IUnknown *pAdapter,

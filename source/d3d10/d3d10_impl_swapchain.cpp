@@ -3,10 +3,10 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "dll_log.hpp"
 #include "d3d10_impl_device.hpp"
 #include "d3d10_impl_swapchain.hpp"
 #include "d3d10_impl_type_convert.hpp"
+#include "dll_log.hpp" // Include late to get HRESULT log overloads
 
 reshade::d3d10::swapchain_impl::swapchain_impl(device_impl *device, IDXGISwapChain *swapchain) :
 	api_object_impl(swapchain, device, device),

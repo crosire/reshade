@@ -3,10 +3,10 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "dll_log.hpp"
 #include "d3d9_impl_device.hpp"
 #include "d3d9_impl_type_convert.hpp"
 #include <algorithm>
+#include <utf8/unchecked.h>
 
 void reshade::d3d9::device_impl::begin_render_pass(api::render_pass, api::framebuffer fbo)
 {

@@ -3,9 +3,9 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "dll_log.hpp"
 #include "d3d12_impl_device.hpp"
 #include "d3d12_impl_command_queue.hpp"
+#include "dll_log.hpp"
 
 extern void encode_pix3blob(UINT64(&pix3blob)[64], const char *label, const float color[4]);
 

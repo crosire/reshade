@@ -3,12 +3,12 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "dll_log.hpp"
-#include "dll_resources.hpp"
 #include "d3d12_impl_device.hpp"
 #include "d3d12_impl_command_queue.hpp"
 #include "d3d12_impl_swapchain.hpp"
 #include "d3d12_impl_type_convert.hpp"
+#include "dll_log.hpp" // Include late to get HRESULT log overloads
+#include "dll_resources.hpp"
 #include <CoreWindow.h>
 
 reshade::d3d12::swapchain_impl::swapchain_impl(device_impl *device, command_queue_impl *queue, IDXGISwapChain3 *swapchain) :

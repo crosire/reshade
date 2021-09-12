@@ -7,8 +7,8 @@
 #include "dll_log.hpp"
 #include "ini_file.hpp"
 #include "hook_manager.hpp"
-#include <Psapi.h>
 #include <Windows.h>
+#include <Psapi.h>
 
 // Export special symbol to identify modules as ReShade instances
 extern "C" __declspec(dllexport) const char *ReShadeVersion = VERSION_STRING_PRODUCT;

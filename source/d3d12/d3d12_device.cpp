@@ -3,13 +3,13 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "dll_log.hpp"
-#include "com_utils.hpp"
 #include "d3d12_device.hpp"
 #include "d3d12_device_downlevel.hpp"
 #include "d3d12_command_list.hpp"
 #include "d3d12_command_queue.hpp"
 #include "d3d12_impl_type_convert.hpp"
+#include "dll_log.hpp" // Include late to get HRESULT log overloads
+#include "com_utils.hpp"
 #include <malloc.h>
 
 static bool parse_and_convert_root_signature(const uint32_t *data, size_t size, reshade::d3d12::device_impl *device, std::vector<reshade::api::pipeline_layout_param> &out_params)
