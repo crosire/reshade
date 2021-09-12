@@ -2758,7 +2758,7 @@ void reshade::runtime::draw_technique_editor()
 			ImGui::PopStyleColor();
 			ImGui::PopItemFlag();
 
-			if (!effect.errors.empty() && ImGui::IsItemHovered())
+			if (!effect.errors.empty() && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
 			{
 				ImGui::BeginTooltip();
 				ImGui::PushStyleColor(ImGuiCol_Text, COLOR_RED);
@@ -2767,7 +2767,10 @@ void reshade::runtime::draw_technique_editor()
 				ImGui::EndTooltip();
 			}
 
-			if (ImGui::BeginPopupContextItem("##context"))
+			if (ImGui::IsMouseReleased(ImGuiMouseButton_Right) && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByPopup | ImGuiHoveredFlags_AllowWhenDisabled))
+				ImGui::OpenPopup("##context");
+
+			if (ImGui::BeginPopup("##context"))
 			{
 				if (ImGui::Button("Open folder in explorer", ImVec2(230.0f, 0)))
 				{
@@ -2877,12 +2880,12 @@ void reshade::runtime::draw_technique_editor()
 			_selected_technique = index;
 		if (ImGui::IsItemClicked())
 			_focused_effect = technique.effect_index;
-		if (ImGui::IsItemHovered(ImGuiHoveredFlags_RectOnly))
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_RectOnly | ImGuiHoveredFlags_AllowWhenDisabled))
 			hovered_technique_index = index;
 
 		// Display tooltip
 		if (const std::string_view tooltip = technique.annotation_as_string("ui_tooltip");
-			ImGui::IsItemHovered() && (!tooltip.empty() || !effect.errors.empty()))
+			ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) && (!tooltip.empty() || !effect.errors.empty()))
 		{
 			ImGui::BeginTooltip();
 			if (!tooltip.empty())
