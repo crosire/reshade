@@ -1830,6 +1830,7 @@ void reshade::runtime::draw_gui_statistics()
 			}
 
 			const auto button_size = ImGui::GetFrameHeight();
+			const auto button_spacing = ImGui::GetStyle().ItemInnerSpacing.x;
 			const bool supports_saving = (
 				tex.format == reshadefx::texture_format::r8 ||
 				tex.format == reshadefx::texture_format::rg8 ||
@@ -1838,11 +1839,11 @@ void reshade::runtime::draw_gui_statistics()
 
 			ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
 			if (const std::string label = "Referenced by " + std::to_string(num_referenced_passes) + " pass(es) in " + std::to_string(tex.shared.size()) + " effect(s) ...";
-				ImGui::ButtonEx(label.c_str(), ImVec2(single_image_width - (supports_saving ? ImGui::GetStyle().ItemSpacing.x + button_size : 0), 0)))
+				ImGui::ButtonEx(label.c_str(), ImVec2(single_image_width - (supports_saving ? button_spacing + button_size : 0), 0)))
 				ImGui::OpenPopup("##references");
 			if (supports_saving)
 			{
-				ImGui::SameLine();
+				ImGui::SameLine(0, button_spacing);
 				if (ImGui::Button(ICON_FK_FLOPPY, ImVec2(button_size, 0)))
 					save_texture(tex);
 				if (ImGui::IsItemHovered())
