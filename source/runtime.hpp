@@ -369,7 +369,7 @@ namespace reshade
 		// === User Interface - Add-ons ===
 
 		char _addons_filter[64] = {};
-		size_t _open_addon_index = std::numeric_limits<size_t>::max();
+		std::string _open_addon_name;
 
 		// === User Interface - Settings ===
 

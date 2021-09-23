@@ -5,13 +5,24 @@
 
 #if RESHADE_ADDON
 
-#include <imgui.h>
 #include "addon.hpp"
 #include "dll_log.hpp"
+#include <imgui.h>
+#include <Windows.h>
 
-extern "C" __declspec(dllexport) void ReShadeLogMessage(int level, const char *message)
+extern reshade::addon::info *find_addon(HMODULE module);
+
+extern "C" __declspec(dllexport) void ReShadeLogMessage(HMODULE module, int level, const char *message)
 {
-	reshade::log::message(static_cast<reshade::log::level>(level)) << "Add-on | " << message;
+	std::string prefix;
+	if (module != nullptr)
+	{
+		reshade::addon::info *const info = find_addon(module);
+		if (info != nullptr)
+			prefix = "[" + info->name + "] ";
+	}
+
+	reshade::log::message(static_cast<reshade::log::level>(level)) << prefix << message;
 }
 
 #if RESHADE_GUI

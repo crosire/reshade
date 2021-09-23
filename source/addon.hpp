@@ -86,9 +86,20 @@ namespace reshade::addon
 {
 	struct info
 	{
-		void *handle;
+		void *handle = nullptr;
+
 		std::string name;
 		std::string description;
+		std::string file;
+		std::string author;
+		std::string version;
+
+		std::vector<std::pair<uint32_t, void *>> event_callbacks;
+#if RESHADE_GUI
+		float settings_height = 0.0f;
+		void(*settings_overlay_callback)(api::effect_runtime *, void *) = nullptr;
+		std::vector<std::string> overlay_titles;
+#endif
 	};
 
 	/// <summary>

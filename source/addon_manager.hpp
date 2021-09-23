@@ -28,7 +28,7 @@ namespace reshade
 	template <addon_event ev>
 	__forceinline bool has_addon_event()
 	{
-		return !addon::event_list[static_cast<size_t>(ev)].empty();
+		return !addon::event_list[static_cast<uint32_t>(ev)].empty();
 	}
 
 	/// <summary>
@@ -63,7 +63,7 @@ namespace reshade
 			ev != addon_event::destroy_framebuffer)
 		if (!addon::enabled)
 			return;
-		std::vector<void *> &event_list = addon::event_list[static_cast<size_t>(ev)];
+		std::vector<void *> &event_list = addon::event_list[static_cast<uint32_t>(ev)];
 		for (size_t cb = 0, count = event_list.size(); cb < count; ++cb) // Generates better code than ranged-based for loop
 			reinterpret_cast<typename reshade::addon_event_traits<ev>::decl>(event_list[cb])(std::forward<Args>(args)...);
 	}
@@ -75,7 +75,7 @@ namespace reshade
 	{
 		if (!addon::enabled)
 			return false;
-		std::vector<void *> &event_list = addon::event_list[static_cast<size_t>(ev)];
+		std::vector<void *> &event_list = addon::event_list[static_cast<uint32_t>(ev)];
 		for (size_t cb = 0, count = event_list.size(); cb < count; ++cb)
 			if (reinterpret_cast<typename reshade::addon_event_traits<ev>::decl>(event_list[cb])(std::forward<Args>(args)...))
 				return true;

@@ -8,7 +8,6 @@ A ReShade add-on is simply a DLL that uses the header-only ReShade API to regist
 Here is a very basic code example of an add-on that registers a callback that gets executed every time a new frame is presented to the screen:
 
 ```cpp
-#define RESHADE_ADDON_IMPL // Define this before including the ReShade header in exactly one source file
 #include <reshade.hpp>
 
 static void on_present(reshade::api::command_queue *queue, reshade::api::swapchain *swapchain)
@@ -21,19 +20,19 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID)
     switch (fdwReason)
     {
     case DLL_PROCESS_ATTACH:
-        // Call 'reshade::register_addon' before you call any other function of the ReShade API
-        // This will look for the ReShade instance in the current process and initialize the API when found
+        // Call 'reshade::register_addon' before you call any other function of the ReShade API.
+        // This will look for the ReShade instance in the current process and initialize the API when found.
         if (!reshade::register_addon(hinstDLL))
             return FALSE;
-        // This registers a callback for the 'present' event, which occurs every time a new frame is presented to the screen
-        // The function signature has to match the type defined by 'reshade::addon_event_traits<reshade::addon_event::present>::decl'
-        // For more details check the inline documentation for each event in 'reshade_events.hpp'
+        // This registers a callback for the 'present' event, which occurs every time a new frame is presented to the screen.
+        // The function signature has to match the type defined by 'reshade::addon_event_traits<reshade::addon_event::present>::decl'.
+        // For more details check the inline documentation for each event in 'reshade_events.hpp'.
         reshade::register_event<reshade::addon_event::present>(on_present);
         break;
     case DLL_PROCESS_DETACH:
-        // Before the add-on is unloaded, be sure to unregister any event callbacks that where previously registered
+        // This unregisters the event callback that was previously registered during process attachment.
         reshade::unregister_event<reshade::addon_event::present>(on_present);
-        // And finally unregister the add-on from ReShade
+        // And finally unregister the add-on from ReShade (this will automatically clean up any events and overlays registered by this add-on as well).
         reshade::unregister_addon(hinstDLL);
         break;
     }
@@ -46,11 +45,15 @@ For more complex examples, see also the built-in add-ons in [source/addon](../so
 ## Overlays
 
 It is also supported to add an overlay, which can e.g. be used to display debug information or interact with the user in-application.
-Overlays are created with the use of [Dear ImGui](https://github.com/ocornut/imgui/). Including the [`reshade.hpp`](reshade.hpp) header after `imgui.h` will automatically overwrite all Dear ImGui functions to use the instance created and managed by ReShade. This means all you have to do is include these two headers and use Dear ImGui as usual (without actually having to build its source code files, only the header files are needed):
+Overlays are created with the use of [Dear ImGui](https://github.com/ocornut/imgui/). Including the [`reshade.hpp`](reshade.hpp) header after `imgui.h` will automatically overwrite all Dear ImGui functions to use the instance created and managed by ReShade. This means all you have to do is include these two headers, define the function table variable in one of your source code file and use Dear ImGui as usual (without actually having to build its source code files, only the header files are needed):
 
 ```cpp
 #include <imgui.h>
 #include <reshade.hpp>
+
+// Define this variable in exactly one of your source code files.
+// The function table is automatically populated in the call to 'reshade::register_addon' and overwrites all Dear ImGui functions.
+imgui_function_table g_imgui_function_table = {};
 
 bool g_popup_window_visible = false;
 
@@ -69,20 +72,29 @@ static void draw_debug_overlay(reshade::api::effect_runtime *runtime, void *imgu
     }
 }
 
+static void draw_settings_overlay(reshade::api::effect_runtime *runtime, void *imgui_context)
+{
+    ImGui::Checkbox("Popup window is visible", &g_popup_window_visible);
+}
+
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID)
 {
     switch (fdwReason)
     {
     case DLL_PROCESS_ATTACH:
-        if (!reshade::init_addon())
+        // This will also populate the Dear ImGui function table.
+        if (!reshade::register_addon(hinstDLL))
             return FALSE;
         // This registers a new overlay with the specified name with ReShade.
         // It will be displayed as an additional window when the ReShade overlay is opened.
         // Its contents are defined by Dear ImGui commands issued in the specified callback function.
         reshade::register_overlay("Test", draw_debug_overlay);
+        // It is also possible to register a special settings overlay by passing "nullptr" instead of a title.
+        // This is shown beneath the add-on information in the add-on list of the ReShade overlay and can be used to present settings to users.
+        reshade::register_overlay(nullptr, draw_settings_overlay);
         break;
     case DLL_PROCESS_DETACH:
-        reshade::unregister_overlay("Test");
+        reshade::unregister_addon(hinstDLL);
         break;
     }
     return TRUE;

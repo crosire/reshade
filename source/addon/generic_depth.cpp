@@ -5,15 +5,10 @@
 
 #if RESHADE_ADDON
 
-#include "dll_log.hpp"
-#include "ini_file.hpp"
 #include "reshade.hpp"
-#include "addon_manager.hpp"
+#include "ini_file.hpp"
 #include <mutex>
-#include <vector>
-#include <unordered_map>
 #include <imgui.h>
-#include <imgui_internal.h>
 
 static bool s_disable_intz = false;
 static std::mutex s_mutex;
@@ -187,7 +182,7 @@ struct state_tracking_context
 			desc.texture.format = format_to_typeless(desc.texture.format);
 
 		if (!device->create_resource(desc, nullptr, resource_usage::copy_dest, &backup_texture))
-			LOG(ERROR) << "Failed to create backup depth-stencil texture!";
+			reshade::log_message(1, "Failed to create backup depth-stencil texture!");
 	}
 };
 
@@ -747,7 +742,7 @@ static void draw_debug_menu(effect_runtime *runtime, void *)
 
 		if (item.desc.texture.samples > 1) // Disable widget for MSAA textures
 		{
-			ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+			ImGui::BeginDisabled();
 			ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
 		}
 
@@ -785,7 +780,7 @@ static void draw_debug_menu(effect_runtime *runtime, void *)
 		if (item.desc.texture.samples > 1)
 		{
 			ImGui::PopStyleColor();
-			ImGui::PopItemFlag();
+			ImGui::EndDisabled();
 		}
 	}
 
@@ -814,12 +809,19 @@ static void draw_debug_menu(effect_runtime *runtime, void *)
 }
 #endif
 
+#include "addon.hpp"
+#include "version.h"
+
 void register_builtin_addon_depth(reshade::addon::info &info)
 {
 	info.name = "Generic Depth";
+	info.description = "Automatic depth buffer detection that works in the majority of games.";
+	info.file = g_reshade_dll_path.u8string();
+	info.author = "crosire";
+	info.version = VERSION_STRING_FILE;
 
 #if RESHADE_GUI
-	reshade::register_overlay("Depth", draw_debug_menu);
+	reshade::register_overlay(nullptr, draw_debug_menu);
 #endif
 
 	reshade::register_event<reshade::addon_event::init_device>(on_init_device);
@@ -854,10 +856,6 @@ void register_builtin_addon_depth(reshade::addon::info &info)
 }
 void unregister_builtin_addon_depth()
 {
-#if RESHADE_GUI
-	reshade::unregister_overlay("Depth");
-#endif
-
 	reshade::unregister_event<reshade::addon_event::init_device>(on_init_device);
 	reshade::unregister_event<reshade::addon_event::init_command_list>(reinterpret_cast<void(*)(command_list *)>(on_init_queue_or_command_list));
 	reshade::unregister_event<reshade::addon_event::init_command_queue>(reinterpret_cast<void(*)(command_queue *)>(on_init_queue_or_command_list));

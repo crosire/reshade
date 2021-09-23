@@ -2107,50 +2107,54 @@ void reshade::runtime::draw_gui_addons()
 
 	ImGui::Spacing();
 
-	for (size_t i = 0; i < addon::loaded_info.size(); ++i)
-	{
-		const addon::info &info = addon::loaded_info[i];
+	const float child_window_width = ImGui::GetContentRegionAvail().x;
 
+	for (addon::info &info : addon::loaded_info)
+	{
 		if (!filter_view.empty() &&
 			std::search(info.name.begin(), info.name.end(), filter_view.begin(), filter_view.end(), // Search case insensitive
 				[](const char c1, const char c2) { return (('a' <= c1 && c1 <= 'z') ? static_cast<char>(c1 - ' ') : c1) == (('a' <= c2 && c2 <= 'z') ? static_cast<char>(c2 - ' ') : c2); }) == info.name.end())
 			continue;
 
-		ImGui::PushID(static_cast<int>(i));
+		ImGui::BeginChild(info.name.c_str(), ImVec2(child_window_width, info.settings_height + ImGui::GetStyle().FramePadding.y * 2), true, ImGuiWindowFlags_NoScrollbar);
 
-		const ImVec2 spacing = ImGui::GetStyle().ItemSpacing;
-		ImGui::BeginGroup();
-		ImGui::Dummy(ImVec2(spacing.x, 0.0f));
-		ImGui::SameLine(0.0f, 0.0f);
-		ImGui::BeginGroup();
-		ImGui::Dummy(ImVec2(ImGui::GetContentRegionAvail().x, spacing.y));
-		ImGui::GetCurrentWindow()->Size.x -= spacing.x * 2;
-		ImGui::GetCurrentWindow()->WorkRect.Max.x -= spacing.x;
-		ImGui::GetCurrentWindow()->InnerRect.Max.x -= spacing.x;
-		ImGui::GetCurrentWindow()->ContentRegionRect.Max.x -= spacing.x;
-
-		const bool open = _open_addon_index == i;
+		const bool open = _open_addon_name == info.name;
 		if (ImGui::ArrowButton("addon_open", open ? ImGuiDir_Down : ImGuiDir_Right))
-			_open_addon_index = open ? std::numeric_limits<size_t>::max() : i;
+			_open_addon_name = open ? std::string() : info.name;
 		ImGui::SameLine();
 		ImGui::TextUnformatted(info.name.c_str());
 
-		if (open && !info.description.empty())
+		if (open)
+		{
+			ImGui::BeginGroup();
+			ImGui::Text("Author:");
+			ImGui::Text("Version:");
+			ImGui::Text("File:");
+			ImGui::Text("Description:");
+			ImGui::EndGroup();
+			ImGui::SameLine(ImGui::GetWindowWidth() * 0.25f);
+			ImGui::BeginGroup();
+			ImGui::TextUnformatted(info.author.c_str());
+			ImGui::TextUnformatted(info.version.c_str());
+			ImGui::TextUnformatted(info.file.c_str());
+			ImGui::PushTextWrapPos();
 			ImGui::TextUnformatted(info.description.c_str());
+			ImGui::PopTextWrapPos();
+			ImGui::EndGroup();
 
-		ImGui::GetCurrentWindow()->Size.x += spacing.x;
-		ImGui::GetCurrentWindow()->WorkRect.Max.x += spacing.x;
-		ImGui::GetCurrentWindow()->InnerRect.Max.x += spacing.x;
-		ImGui::GetCurrentWindow()->ContentRegionRect.Max.x += spacing.x;
-		ImGui::EndGroup();
-		ImGui::Dummy(ImVec2(0.0f, spacing.y));
-		ImGui::EndGroup();
+			if (info.settings_overlay_callback != nullptr)
+			{
+				ImGui::Spacing();
+				ImGui::Separator();
+				ImGui::Spacing();
 
-		ImGui::GetWindowDrawList()->AddRect(
-			ImGui::GetItemRectMin(), ImGui::GetItemRectMax(),
-			ImColor(ImGui::GetStyleColorVec4(ImGuiCol_Border)), ImGui::GetStyle().ChildBorderSize);
+				info.settings_overlay_callback(this, _imgui_context);
+			}
+		}
 
-		ImGui::PopID();
+		info.settings_height = ImGui::GetCursorPosY();
+
+		ImGui::EndChild();
 	}
 }
 #endif
