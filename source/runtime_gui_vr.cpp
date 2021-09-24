@@ -250,7 +250,7 @@ void reshade::runtime::draw_gui_vr()
 		api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
 
 		cmd_list->barrier(_vr_overlay_texture, api::resource_usage::shader_resource_pixel, api::resource_usage::render_target);
-		render_imgui_draw_data(draw_data, _vr_overlay_pass, _vr_overlay_fbo);
+		render_imgui_draw_data(cmd_list, draw_data, _vr_overlay_pass, _vr_overlay_fbo);
 		cmd_list->barrier(_vr_overlay_texture, api::resource_usage::render_target, api::resource_usage::shader_resource_pixel);
 	}
 

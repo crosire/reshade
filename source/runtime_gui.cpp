@@ -932,14 +932,14 @@ void reshade::runtime::draw_gui()
 	if (ImDrawData *const draw_data = ImGui::GetDrawData();
 		draw_data != nullptr && draw_data->CmdListsCount != 0 && draw_data->TotalVtxCount != 0)
 	{
-		const api::resource backbuffer = get_current_back_buffer_resolved();
+		uint32_t back_buffer_index = get_current_back_buffer_index();
+		const api::resource back_buffer_resource = get_back_buffer_resolved(back_buffer_index);
 
 		api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
-		cmd_list->barrier(backbuffer, api::resource_usage::present, api::resource_usage::render_target);
 
-		render_imgui_draw_data(draw_data, _backbuffer_passes[get_current_back_buffer_index() * 2], _backbuffer_fbos[get_current_back_buffer_index() * 2]);
-
-		cmd_list->barrier(backbuffer, api::resource_usage::render_target, api::resource_usage::present);
+		cmd_list->barrier(back_buffer_resource, api::resource_usage::present, api::resource_usage::render_target);
+		render_imgui_draw_data(cmd_list, draw_data, _backbuffer_passes[back_buffer_index * 2], _backbuffer_fbos[back_buffer_index]);
+		cmd_list->barrier(back_buffer_resource, api::resource_usage::render_target, api::resource_usage::present);
 	}
 }
 
@@ -3383,7 +3383,7 @@ bool reshade::runtime::init_imgui_resources()
 		return false;
 	}
 }
-void reshade::runtime::render_imgui_draw_data(ImDrawData *draw_data, api::render_pass pass, api::framebuffer fbo)
+void reshade::runtime::render_imgui_draw_data(api::command_list *cmd_list, ImDrawData *draw_data, api::render_pass pass, api::framebuffer fbo)
 {
 	// Need to multi-buffer vertex data so not to modify data below when the previous frame is still in flight
 	const size_t buffer_index = _framecount % std::size(_imgui_vertices);
@@ -3452,8 +3452,6 @@ void reshade::runtime::render_imgui_draw_data(ImDrawData *draw_data, api::render
 
 		_device->unmap_resource(_imgui_vertices[buffer_index], 0);
 	}
-
-	api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
 
 	cmd_list->begin_render_pass(pass, fbo);
 

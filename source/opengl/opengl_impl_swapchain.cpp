@@ -158,7 +158,7 @@ void reshade::opengl::swapchain_impl::on_present(bool default_fbo)
 	_app_state.apply(_compatibility_context);
 }
 
-bool reshade::opengl::swapchain_impl::on_layer_submit(uint32_t eye, GLuint source_object, bool is_rbo, bool is_array, const float bounds[4], GLuint *target_rbo)
+bool reshade::opengl::swapchain_impl::on_vr_submit(uint32_t eye, GLuint source_object, bool is_rbo, bool is_array, const float bounds[4], GLuint *target_rbo)
 {
 	assert(eye < 2 && source_object != 0);
 
@@ -214,4 +214,17 @@ bool reshade::opengl::swapchain_impl::on_layer_submit(uint32_t eye, GLuint sourc
 	*target_rbo = _rbo;
 
 	return true;
+}
+
+void reshade::opengl::swapchain_impl::render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb)
+{
+	_app_state.capture(_compatibility_context);
+
+	// Set clip space to something consistent
+	if (gl3wProcs.gl.ClipControl != nullptr)
+		glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
+
+	runtime::render_effects(cmd_list, rtv, rtv_srgb);
+
+	_app_state.apply(_compatibility_context);
 }

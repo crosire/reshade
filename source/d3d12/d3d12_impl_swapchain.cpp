@@ -123,12 +123,12 @@ void reshade::d3d12::swapchain_impl::on_reset()
 
 void reshade::d3d12::swapchain_impl::on_present()
 {
-	if (!is_initialized())
-		return;
-
 	// There is no swap chain in d3d12on7
 	if (_orig != nullptr)
 		_swap_index = _orig->GetCurrentBackBufferIndex();
+
+	if (!is_initialized())
+		return;
 
 	runtime::on_present();
 }
@@ -176,7 +176,7 @@ bool reshade::d3d12::swapchain_impl::on_present(ID3D12Resource *source, HWND hwn
 	return true;
 }
 
-bool reshade::d3d12::swapchain_impl::on_layer_submit(UINT eye, ID3D12Resource *source, const float bounds[4], ID3D12Resource **target)
+bool reshade::d3d12::swapchain_impl::on_vr_submit(UINT eye, ID3D12Resource *source, const float bounds[4], ID3D12Resource **target)
 {
 	assert(eye < 2 && source != nullptr);
 

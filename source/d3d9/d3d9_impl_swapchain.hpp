@@ -29,6 +29,8 @@ namespace reshade::d3d9
 
 		void on_present();
 
+		void render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb) final;
+
 	private:
 		state_block _app_state;
 		com_ptr<IDirect3DSurface9> _backbuffer;

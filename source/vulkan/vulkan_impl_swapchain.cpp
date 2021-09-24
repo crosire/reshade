@@ -136,10 +136,10 @@ void reshade::vulkan::swapchain_impl::on_reset()
 
 void reshade::vulkan::swapchain_impl::on_present(VkQueue queue, const uint32_t swapchain_image_index, std::vector<VkSemaphore> &wait)
 {
+	_swap_index = swapchain_image_index;
+
 	if (!is_initialized())
 		return;
-
-	_swap_index = swapchain_image_index;
 
 	runtime::on_present();
 
@@ -180,7 +180,7 @@ void reshade::vulkan::swapchain_impl::on_present(VkQueue queue, const uint32_t s
 	}
 }
 
-bool reshade::vulkan::swapchain_impl::on_layer_submit(uint32_t eye, VkImage source, const VkExtent2D &source_extent, VkFormat source_format, VkSampleCountFlags source_samples, uint32_t source_layer_index, const float bounds[4], VkImage *target_image)
+bool reshade::vulkan::swapchain_impl::on_vr_submit(uint32_t eye, VkImage source, const VkExtent2D &source_extent, VkFormat source_format, VkSampleCountFlags source_samples, uint32_t source_layer_index, const float bounds[4], VkImage *target_image)
 {
 	assert(eye < 2 && source != VK_NULL_HANDLE);
 

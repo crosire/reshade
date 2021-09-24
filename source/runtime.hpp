@@ -36,6 +36,10 @@ namespace reshade
 	class __declspec(novtable) runtime : public api::effect_runtime
 	{
 	public:
+		api::device *get_device() final { return _device; }
+
+		api::command_queue *get_command_queue() final { return _graphics_queue; }
+
 		/// <summary>
 		/// Gets a boolean indicating whether effects are being loaded.
 		/// </summary>
@@ -45,11 +49,15 @@ namespace reshade
 		/// </summary>
 		bool is_initialized() const { return _is_initialized; }
 
+		virtual api::resource get_back_buffer_resolved(uint32_t index) = 0;
+
+		virtual void render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb) override;
+
 		/// <summary>
 		/// Captures a screenshot of the current back buffer resource and writes it to an image file on disk.
 		/// </summary>
 		void save_screenshot(const std::wstring &postfix = std::wstring(), bool should_save_preset = false);
-		bool capture_screenshot(uint8_t *pixels) final { return get_texture_data(get_current_back_buffer_resolved(), api::resource_usage::present, pixels); }
+		bool capture_screenshot(uint8_t *pixels) final { return get_texture_data(get_back_buffer_resolved(get_current_back_buffer_index()), api::resource_usage::present, pixels); }
 
 		void get_screenshot_width_and_height(uint32_t *width, uint32_t *height) const final { *width = _width; *height = _height; }
 
@@ -126,21 +134,9 @@ namespace reshade
 
 		void update_texture_bindings(const char *semantic, api::resource_view srv, api::resource_view srv_srgb) final;
 
-		/// <summary>
-		/// Gets the texture with the specified name.
-		/// </summary>
-		/// <param name="unique_name">The name of the texture to find.</param>
-		texture &look_up_texture_by_name(const std::string &unique_name);
-
 	protected:
 		runtime(api::device *device, api::command_queue *graphics_queue);
 		~runtime();
-
-		api::device *get_device() final { return _device; }
-		api::command_queue *get_command_queue() final { return _graphics_queue; }
-
-		virtual api::resource get_back_buffer_resolved(uint32_t index) = 0;
-		api::resource get_current_back_buffer_resolved() { return get_back_buffer_resolved(get_current_back_buffer_index()); }
 
 		bool on_init(void *window);
 		void on_reset();
@@ -187,24 +183,20 @@ namespace reshade
 		bool save_effect_cache(const std::string &id, const std::string &type, const std::string &source) const;
 		void clear_effect_cache();
 
-		void update_and_render_effects();
-		void render_technique(technique &technique);
+		void update_effects();
+		void render_technique(api::command_list *cmd_list, technique &technique, api::resource backbuffer);
 
-		/// <summary>
-		/// Gets the contents of the specified texture and writes them to an image file on disk.
-		/// </summary>
 		void save_texture(const texture &texture);
 
-		/// <summary>
-		/// Resets a uniform variable to its initial value.
-		/// </summary>
-		/// <param name="variable">The variable to update.</param>
 		void reset_uniform_value(uniform &variable);
+
+		texture &get_texture_internal(const std::string &unique_name);
 
 		// === Status ===
 
 		bool _is_initialized = false;
 		bool _effects_enabled = true;
+		bool _effects_rendered_this_frame = false;
 		bool _ignore_shortcuts = false;
 		bool _force_shortcut_modifiers = true;
 		unsigned int _effects_key_data[4];
@@ -253,7 +245,7 @@ namespace reshade
 
 		// === Effect Rendering ===
 
-		std::vector<api::framebuffer> _backbuffer_fbos;
+		std::vector<api::framebuffer> _backbuffer_fbos, _effect_backbuffer_fbos;
 		std::vector<api::render_pass> _backbuffer_passes;
 		std::vector<api::resource_view> _backbuffer_targets;
 		api::resource _backbuffer_texture = {};
@@ -312,7 +304,7 @@ namespace reshade
 		void draw_gui_vr();
 
 		bool init_imgui_resources();
-		void render_imgui_draw_data(ImDrawData *draw_data, api::render_pass pass, api::framebuffer fbo);
+		void render_imgui_draw_data(api::command_list *cmd_list, ImDrawData *draw_data, api::render_pass pass, api::framebuffer fbo);
 		void destroy_imgui_resources();
 
 		ImGuiContext *_imgui_context = nullptr;

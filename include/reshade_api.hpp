@@ -928,6 +928,19 @@ namespace reshade { namespace api
 		virtual command_queue *get_command_queue() = 0;
 
 		/// <summary>
+		/// Applies post-processing effects to the specified render target and prevents the usual rendering of effects before swap chain presentation of the current frame.
+		/// This can be used to force ReShade to render effects at a certain point during the frame to e.g. avoid effects being applied to user interface elements of the application.
+		/// <para>The resource the <paramref name="rtv"/> view points to has to be in the <see cref="resource_usage::render_target"/> state.</para>
+		/// </summary>
+		/// <remarks>
+		/// The width and height of the specified render target have to match those reported by <see cref="effect_runtime::get_screenshot_width_and_height"/>!
+		/// </remarks>
+		/// <param name="cmd_list">Command list to add effect rendering commands to.</param>
+		/// <param name="rtv">Render target view to use for passes that write to the back buffer with <c>SRGBWriteEnabled</c> state set to <c>false</c>.</param>
+		/// <param name="rtv_srgb">Render target view to use for passes that write to the back buffer with <c>SRGBWriteEnabled</c> state set to <c>true</c>, or zero in which case the view from <paramref name="rtv"/> is used.</param>
+		virtual void render_effects(command_list *cmd_list, resource_view rtv, resource_view rtv_srgb = { 0 }) = 0;
+
+		/// <summary>
 		/// Captures a screenshot of the current back buffer resource and returns its image data in 32 bits-per-pixel RGBA format.
 		/// </summary>
 		/// <param name="pixels">Pointer to an array of <c>width * height * 4</c> bytes the image data is written to.</param>
@@ -1077,10 +1090,11 @@ namespace reshade { namespace api
 
 		/// <summary>
 		/// Binds a new shader resource view to all texture variables that use the specified <paramref name="semantic"/>.
+		/// <para>The resource the <paramref name="srv"/> view points to has to be in the <see cref="resource_usage::shader_resource"/> state.</para>
 		/// </summary>
 		/// <param name="semantic">ReShade FX semantic to filter textures to update by (<c>texture name : SEMANTIC</c>).</param>
 		/// <param name="srv">Shader resource view to use for samplers with <c>SRGBTexture</c> state set to <c>false</c>.</param>
-		/// <param name="srv_srgb">Shader resource view to use for samplers with <c>SRGBTexture</c> state set to <c>true</c>, or zero in which case the handle from <paramref name="srv"/> is used.</param>
+		/// <param name="srv_srgb">Shader resource view to use for samplers with <c>SRGBTexture</c> state set to <c>true</c>, or zero in which case the view from <paramref name="srv"/> is used.</param>
 		virtual void update_texture_bindings(const char *semantic, resource_view srv, resource_view srv_srgb = { 0 }) = 0;
 	};
 } }
