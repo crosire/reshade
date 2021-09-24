@@ -46,85 +46,85 @@ namespace reshade
 		bool is_initialized() const { return _is_initialized; }
 
 		/// <summary>
-		/// Gets the frame width and height in pixels.
-		/// </summary>
-		void get_frame_width_and_height(uint32_t *width, uint32_t *height) const final { *width = _width; *height = _height; }
-
-		/// <summary>
-		/// Gets the contents of the specified texture and writes them to an image file on disk.
-		/// </summary>
-		void save_texture(const texture &texture);
-		/// <summary>
 		/// Captures a screenshot of the current back buffer resource and writes it to an image file on disk.
 		/// </summary>
 		void save_screenshot(const std::wstring &postfix = std::wstring(), bool should_save_preset = false);
+		bool capture_screenshot(uint8_t *pixels) final { return get_texture_data(get_current_back_buffer_resolved(), api::resource_usage::present, pixels); }
 
-		/// <summary>
-		/// Gets the contents of the specified <paramref name="resource"/> in 32 bits-per-pixel RGBA format.
-		/// </summary>
-		/// <param name="resource">Texture resource to get the contents from.</param>
-		/// <param name="state">Current state the <paramref name="resource"/> is in.</param>
-		/// <param name="pixels">Pointer to an array of <c>width * height * 4</c> bytes the image data is written to.</param>
-		bool get_texture_data(api::resource resource, api::resource_usage state, uint8_t *pixels);
-		/// <summary>
-		/// Captures a screenshot of the current back buffer resource and returns its image data in 32 bits-per-pixel RGBA format.
-		/// </summary>
-		/// <param name="pixels">Pointer to an array of <c>width * height * 4</c> bytes the image data is written to.</param>
-		bool capture_screenshot(uint8_t *pixels) final
+		void get_screenshot_width_and_height(uint32_t *width, uint32_t *height) const final { *width = _width; *height = _height; }
+
+		void enumerate_uniform_variables(const char *effect_name, void(*callback)(effect_runtime *runtime, api::effect_uniform_variable variable, void *user_data), void *user_data) final;
+
+		api::effect_uniform_variable get_uniform_variable(const char *effect_name, const char *variable_name) const final;
+
+		void get_uniform_binding(api::effect_uniform_variable variable, api::resource *out_buffer, uint64_t *out_offset) const final;
+
+		void get_uniform_annotation(api::effect_uniform_variable variable, const char *name, bool *values, size_t count, size_t array_index = 0) const final;
+		void get_uniform_annotation(api::effect_uniform_variable variable, const char *name, float *values, size_t count, size_t array_index = 0) const final;
+		void get_uniform_annotation(api::effect_uniform_variable variable, const char *name, int32_t *values, size_t count, size_t array_index = 0) const final;
+		void get_uniform_annotation(api::effect_uniform_variable variable, const char *name, uint32_t *values, size_t count, size_t array_index = 0) const final;
+
+		const char *get_uniform_name(api::effect_uniform_variable variable) const final;
+
+		const char *get_uniform_annotation(api::effect_uniform_variable variable, const char *name) const final;
+
+		void get_uniform_data(const uniform &variable, uint8_t *data, size_t size, size_t base_index) const;
+		void get_uniform_data(api::effect_uniform_variable variable, bool *values, size_t count, size_t array_index) const final;
+		void get_uniform_data(api::effect_uniform_variable variable, float *values, size_t count, size_t array_index) const final;
+		void get_uniform_data(api::effect_uniform_variable variable, int32_t *values, size_t count, size_t array_index) const final;
+		void get_uniform_data(api::effect_uniform_variable variable, uint32_t *values, size_t count, size_t array_index) const final;
+		template <typename T>
+		std::enable_if_t<std::is_same_v<T, bool> || std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t> || std::is_same_v<T, float>>
+		get_uniform_value(const uniform &variable, T *values, size_t count = 1, size_t array_index = 0) const
 		{
-			return get_texture_data(get_current_back_buffer_resolved(), api::resource_usage::present, pixels);
+			get_uniform_data({ reinterpret_cast<uintptr_t>(&variable) }, values, count, array_index);
 		}
 
-		/// <summary>
-		/// Gets the value of a uniform variable.
-		/// </summary>
-		/// <param name="variable">The variable to retrieve the value from.</param>
-		/// <param name="data">The buffer to store the value data in.</param>
-		/// <param name="size">The size of the <paramref name="data"/> buffer.</param>
-		/// <param name="base_index">Array index to start reading from.</param>
-		void get_uniform_value(const uniform &variable, uint8_t *data, size_t size, size_t base_index) const;
-		void get_uniform_value(const uniform &variable, bool *values, size_t count, size_t array_index = 0) const;
-		void get_uniform_value(const uniform &variable, int32_t *values, size_t count, size_t array_index = 0) const;
-		void get_uniform_value(const uniform &variable, uint32_t *values, size_t count, size_t array_index = 0) const;
-		void get_uniform_value(const uniform &variable, float *values, size_t count, size_t array_index = 0) const;
-		/// <summary>
-		/// Updates the value of a uniform variable.
-		/// </summary>
-		/// <param name="variable">The variable to update.</param>
-		/// <param name="data">The value data to update the variable to.</param>
-		/// <param name="size">The size of the <paramref name="data"/> buffer.</param>
-		/// <param name="base_index">Array index to start writing to.</param>
-		void set_uniform_value(uniform &variable, const uint8_t *data, size_t size, size_t base_index);
-		void set_uniform_value(uniform &variable, const bool *values, size_t count, size_t array_index = 0);
-		void set_uniform_value(uniform &variable, const int32_t *values, size_t count, size_t array_index = 0);
-		void set_uniform_value(uniform &variable, const uint32_t *values, size_t count, size_t array_index = 0);
-		void set_uniform_value(uniform &variable, const float *values, size_t count, size_t array_index = 0);
+		void set_uniform_data(uniform &variable, const uint8_t *data, size_t size, size_t base_index);
+		void set_uniform_data(api::effect_uniform_variable variable, const bool *values, size_t count, size_t array_index) final;
+		void set_uniform_data(api::effect_uniform_variable variable, const float *values, size_t count, size_t array_index) final;
+		void set_uniform_data(api::effect_uniform_variable variable, const int32_t *values, size_t count, size_t array_index) final;
+		void set_uniform_data(api::effect_uniform_variable variable, const uint32_t *values, size_t count, size_t array_index) final;
 		template <typename T>
 		std::enable_if_t<std::is_same_v<T, bool> || std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t> || std::is_same_v<T, float>>
 		set_uniform_value(uniform &variable, T x, T y = T(0), T z = T(0), T w = T(0))
 		{
-			const T data[4] = { x, y, z, w };
-			set_uniform_value(variable, data, 4);
+			const T values[4] = { x, y, z, w };
+			set_uniform_data({ reinterpret_cast<uintptr_t>(&variable) }, values, 4, 0);
+		}
+		template <typename T>
+		std::enable_if_t<std::is_same_v<T, bool> || std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t> || std::is_same_v<T, float>>
+		set_uniform_value(uniform &variable, const T *values, size_t count = 1, size_t array_index = 0)
+		{
+			set_uniform_data({ reinterpret_cast<uintptr_t>(&variable) }, values, count, array_index);
 		}
 
-		/// <summary>
-		/// Resets a uniform variable to its initial value.
-		/// </summary>
-		/// <param name="variable">The variable to update.</param>
-		void reset_uniform_value(uniform &variable);
+		void enumerate_texture_variables(const char *effect_name, void(*callback)(effect_runtime *runtime, api::effect_texture_variable variable, void *user_data), void *user_data) final;
+
+		api::effect_texture_variable get_texture_variable(const char *effect_name, const char *variable_name) const final;
+
+		void get_texture_binding(api::effect_texture_variable variable, api::resource_view *out_srv, api::resource_view *out_srv_srgb) const final;
+
+		void get_texture_annotation(api::effect_texture_variable variable, const char *name, bool *values, size_t count, size_t array_index = 0) const final;
+		void get_texture_annotation(api::effect_texture_variable variable, const char *name, float *values, size_t count, size_t array_index = 0) const final;
+		void get_texture_annotation(api::effect_texture_variable variable, const char *name, int32_t *values, size_t count, size_t array_index = 0) const final;
+		void get_texture_annotation(api::effect_texture_variable variable, const char *name, uint32_t *values, size_t count, size_t array_index = 0) const final;
+
+		const char *get_texture_name(api::effect_texture_variable variable) const final;
+
+		const char *get_texture_annotation(api::effect_texture_variable variable, const char *name) const final;
 
 		/// <summary>
-		/// Updates all textures that use the specified <paramref name="semantic"/> in all active effects to a new shader resource view.
+		/// Gets the image data of the specified <paramref name="resource"/> in 32 bits-per-pixel RGBA format.
 		/// </summary>
-		void update_texture_bindings(const char *semantic, api::resource_view srv) final;
+		/// <param name="resource">Texture resource to get the image data from.</param>
+		/// <param name="state">Current state the <paramref name="resource"/> is in.</param>
+		/// <param name="pixels">Pointer to an array of <c>width * height * 4</c> bytes the image data is written to.</param>
+		bool get_texture_data(api::resource resource, api::resource_usage state, uint8_t *pixels);
+		void get_texture_data(api::effect_texture_variable variable, uint32_t *out_width, uint32_t *out_height, uint8_t *pixels) final;
+		void set_texture_data(api::effect_texture_variable variable, const uint32_t width, const uint32_t height, const uint8_t *pixels) final;
 
-		/// <summary>
-		/// Updates the values of all uniform variables with a "source" annotation set to <paramref name="source"/> to the specified <paramref name="values"/>.
-		/// </summary>
-		void update_uniform_variables(const char *source, const bool *values, size_t count, size_t array_index) final;
-		void update_uniform_variables(const char *source, const float *values, size_t count, size_t array_index) final;
-		void update_uniform_variables(const char *source, const int32_t *values, size_t count, size_t array_index) final;
-		void update_uniform_variables(const char *source, const uint32_t *values, size_t count, size_t array_index) final;
+		void update_texture_bindings(const char *semantic, api::resource_view srv, api::resource_view srv_srgb) final;
 
 		/// <summary>
 		/// Gets the texture with the specified name.
@@ -190,6 +190,17 @@ namespace reshade
 		void update_and_render_effects();
 		void render_technique(technique &technique);
 
+		/// <summary>
+		/// Gets the contents of the specified texture and writes them to an image file on disk.
+		/// </summary>
+		void save_texture(const texture &texture);
+
+		/// <summary>
+		/// Resets a uniform variable to its initial value.
+		/// </summary>
+		/// <param name="variable">The variable to update.</param>
+		void reset_uniform_value(uniform &variable);
+
 		// === Status ===
 
 		bool _is_initialized = false;
@@ -253,8 +264,8 @@ namespace reshade
 		api::resource _empty_texture = {};
 		api::resource_view _empty_texture_view = {};
 		std::unordered_map<size_t, api::sampler> _effect_sampler_states;
-		std::unordered_map<std::string, api::resource_view> _texture_semantic_bindings;
-		std::unordered_map<std::string, api::resource_view> _backup_texture_semantic_bindings;
+		std::unordered_map<std::string, std::pair<api::resource_view, api::resource_view>> _texture_semantic_bindings;
+		std::unordered_map<std::string, std::pair<api::resource_view, api::resource_view>> _backup_texture_semantic_bindings;
 
 		// === Screenshots ===
 

@@ -486,7 +486,7 @@ static void on_present(command_queue *, swapchain *swapchain)
 #endif
 
 	uint32_t frame_width, frame_height;
-	runtime->get_frame_width_and_height(&frame_width, &frame_height);
+	runtime->get_screenshot_width_and_height(&frame_width, &frame_height);
 
 	resource_desc best_desc = {};
 	resource best_match = { 0 };
@@ -578,8 +578,14 @@ static void on_present(command_queue *, swapchain *swapchain)
 
 			runtime->update_texture_bindings("DEPTH", device_state.selected_shader_resource);
 
-			const bool bufready_depth_value = true;
-			runtime->update_uniform_variables("bufready_depth", &bufready_depth_value, 1);
+			runtime->enumerate_uniform_variables(nullptr, [](effect_runtime *runtime, auto variable) {
+				const char *const source = runtime->get_uniform_annotation(variable, "source");
+				if (source != nullptr && strcmp(source, "bufready_depth") == 0)
+				{
+					const bool bufready_depth_value = true;
+					runtime->set_uniform_data(variable, &bufready_depth_value, 1);
+				}
+			});
 		}
 
 		if (device_state.preserve_depth_buffers)
@@ -617,8 +623,14 @@ static void on_present(command_queue *, swapchain *swapchain)
 
 			runtime->update_texture_bindings("DEPTH", device_state.selected_shader_resource);
 
-			const bool bufready_depth_value = false;
-			runtime->update_uniform_variables("bufready_depth", &bufready_depth_value, 1);
+			runtime->enumerate_uniform_variables(nullptr, [](effect_runtime *runtime, auto variable) {
+				const char *const source = runtime->get_uniform_annotation(variable, "source");
+				if (source != nullptr && strcmp(source, "bufready_depth") == 0)
+				{
+					const bool bufready_depth_value = false;
+					runtime->set_uniform_data(variable, &bufready_depth_value, 1);
+				}
+			});
 		}
 	}
 
@@ -636,8 +648,14 @@ static void on_init_effect_runtime(effect_runtime *runtime)
 	// Need to set texture binding again after a runtime was reset
 	runtime->update_texture_bindings("DEPTH", device_state.selected_shader_resource);
 
-	const bool bufready_depth_value = device_state.selected_shader_resource != 0;
-	runtime->update_uniform_variables("bufready_depth", &bufready_depth_value, 1);
+	runtime->enumerate_uniform_variables(nullptr, [&device_state](effect_runtime *runtime, auto variable) {
+		const char *const source = runtime->get_uniform_annotation(variable, "source");
+		if (source != nullptr && strcmp(source, "bufready_depth") == 0)
+		{
+			const bool bufready_depth_value = (device_state.selected_shader_resource != 0);
+			runtime->set_uniform_data(variable, &bufready_depth_value, 1);
+		}
+	});
 }
 static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_list)
 {

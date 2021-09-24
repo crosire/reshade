@@ -340,7 +340,7 @@ static vr::EVRCompositorError on_submit_vulkan(vr::EVREye eye, const vr::VRVulka
 		target_texture.m_nImage = (uint64_t)target_image;
 		// Multisampled source textures were already resolved in 'on_layer_submit', so sample count is always one at this point
 		target_texture.m_nSampleCount = 1;
-		runtime->get_frame_width_and_height(&target_texture.m_nWidth, &target_texture.m_nHeight);
+		runtime->get_screenshot_width_and_height(&target_texture.m_nWidth, &target_texture.m_nHeight);
 		// Target texture created in 'on_layer_submit' is not an array texture
 		flags = static_cast<vr::EVRSubmitFlags>(flags & ~vr::Submit_VulkanTextureWithArrayData);
 

@@ -71,6 +71,13 @@ namespace reshade
 			if (it == annotations.end()) return 0;
 			return it->type.is_integral() ? it->value.as_int[i] : static_cast<int>(it->value.as_float[i]);
 		}
+		auto annotation_as_uint(const char *ann_name, size_t i = 0) const
+		{
+			const auto it = std::find_if(annotations.begin(), annotations.end(),
+				[ann_name](const auto &annotation) { return annotation.name == ann_name; });
+			if (it == annotations.end()) return 0u;
+			return it->type.is_integral() ? it->value.as_uint[i] : static_cast<unsigned int>(it->value.as_float[i]);
+		}
 		auto annotation_as_float(const char *ann_name, size_t i = 0) const
 		{
 			const auto it = std::find_if(annotations.begin(), annotations.end(),
@@ -111,6 +118,13 @@ namespace reshade
 				[ann_name](const auto &annotation) { return annotation.name == ann_name; });
 			if (it == annotations.end()) return default_value;
 			return it->type.is_integral() ? it->value.as_int[i] : static_cast<int>(it->value.as_float[i]);
+		}
+		auto annotation_as_uint(const char *ann_name, size_t i = 0, unsigned int default_value = 0) const
+		{
+			const auto it = std::find_if(annotations.begin(), annotations.end(),
+				[ann_name](const auto &annotation) { return annotation.name == ann_name; });
+			if (it == annotations.end()) return default_value;
+			return it->type.is_integral() ? it->value.as_uint[i] : static_cast<unsigned int>(it->value.as_float[i]);
 		}
 		auto annotation_as_float(const char *ann_name, size_t i = 0, float default_value = 0.0f) const
 		{
@@ -213,6 +227,7 @@ namespace reshade
 			api::descriptor_set set;
 			uint32_t index;
 			api::sampler sampler;
+			bool srgb;
 		};
 
 		api::resource cb = {};

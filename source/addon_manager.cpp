@@ -5,10 +5,10 @@
 
 #if RESHADE_ADDON
 
+#include "reshade.hpp"
 #include "addon_manager.hpp"
 #include "dll_log.hpp"
 #include "ini_file.hpp"
-#include <Windows.h>
 
 extern HMODULE g_module_handle;
 

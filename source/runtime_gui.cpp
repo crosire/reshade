@@ -84,6 +84,11 @@ void reshade::runtime::init_gui()
 	_menu_callables.emplace_back("Statistics", [this]() { draw_gui_statistics(); });
 	_menu_callables.emplace_back("Log", [this]() { draw_gui_log(); });
 	_menu_callables.emplace_back("About", [this]() { draw_gui_about(); });
+
+#if RESHADE_ADDON
+	if (!addon::loaded_info.empty())
+		_open_addon_name = addon::loaded_info.front().name;
+#endif
 }
 void reshade::runtime::deinit_gui()
 {

@@ -58,7 +58,7 @@ namespace reshade::log
 			return *this;
 		}
 
-#ifdef _REFIID_DEFINED
+#if defined(_REFIID_DEFINED) && defined(_COMBASEAPI_H_)
 		template <>
 		message &operator<<(REFIID riid)
 		{
@@ -68,7 +68,7 @@ namespace reshade::log
 		}
 #endif
 
-#ifdef _HRESULT_DEFINED
+#if defined(_HRESULT_DEFINED)
 		template <>
 		message &operator<<(const HRESULT &hresult) // Note: HRESULT is just an alias for long, so this falsely catches all long values too
 		{

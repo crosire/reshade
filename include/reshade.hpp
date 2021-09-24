@@ -10,6 +10,8 @@
 #include <Windows.h>
 #include <Psapi.h>
 
+#define RESHADE_API_VERSION 1
+
 namespace reshade
 {
 	/// <summary>

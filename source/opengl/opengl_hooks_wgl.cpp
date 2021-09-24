@@ -868,7 +868,7 @@ HOOK_EXPORT BOOL  WINAPI wglSwapBuffers(HDC hdc)
 #endif
 
 		uint32_t runtime_width = 0, runtime_height = 0;
-		runtime->get_frame_width_and_height(&runtime_width, &runtime_height);
+		runtime->get_screenshot_width_and_height(&runtime_width, &runtime_height);
 
 		const auto width = static_cast<unsigned int>(rect.right);
 		const auto height = static_cast<unsigned int>(rect.bottom);
