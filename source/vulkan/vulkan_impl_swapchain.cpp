@@ -114,6 +114,9 @@ bool reshade::vulkan::swapchain_impl::on_init(VkSwapchainKHR swapchain, const Vk
 }
 void reshade::vulkan::swapchain_impl::on_reset()
 {
+	if (_swapchain_images.empty())
+		return;
+
 	runtime::on_reset();
 
 #if RESHADE_ADDON
@@ -206,8 +209,6 @@ bool reshade::vulkan::swapchain_impl::on_vr_submit(uint32_t eye, VkImage source,
 	{
 		on_reset();
 
-		_is_vr = true;
-
 		api::resource image = {};
 		if (!static_cast<device_impl *>(_device)->create_resource(
 			api::resource_desc(target_extent.width, target_extent.height, 1, 1, convert_format(source_format), 1, api::memory_heap::gpu_only, api::resource_usage::render_target | api::resource_usage::copy_source | api::resource_usage::copy_dest),
@@ -217,6 +218,8 @@ bool reshade::vulkan::swapchain_impl::on_vr_submit(uint32_t eye, VkImage source,
 			LOG(DEBUG) << "> Details: Width = " << target_extent.width << ", Height = " << target_extent.height << ", Format = " << source_format;
 			return false;
 		}
+
+		_is_vr = true;
 
 		_swapchain_images.resize(1);
 		_swapchain_images[0] = (VkImage)image.handle;

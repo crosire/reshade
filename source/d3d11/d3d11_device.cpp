@@ -87,28 +87,36 @@ ULONG   STDMETHODCALLTYPE D3D11Device::AddRef()
 {
 	_orig->AddRef();
 
-	// Add references to other objects that are coupled with the device
+	// Add references to DXGI device object that is coupled with this D3D11 device object
 	_dxgi_device->AddRef();
-	_immediate_context->AddRef();
 
 	return InterlockedIncrement(&_ref);
 }
 ULONG   STDMETHODCALLTYPE D3D11Device::Release()
 {
-	// Release references to other objects that are coupled with the device
-	_immediate_context->Release(); // Release context before device since it may hold a reference to it
-	_dxgi_device->Release();
-
 	const ULONG ref = InterlockedDecrement(&_ref);
 	if (ref != 0)
+	{
+		// Release references to DXGI device object that is coupled with this D3D11 device object
+		_dxgi_device->Release();
+
 		return _orig->Release(), ref;
+	}
+
+	// Release the reference that was added by 'GetImmediateContext' in 'D3D11CreateDeviceAndSwapChain'
+	assert(_immediate_context != nullptr && _immediate_context->_ref == 1);
+	_immediate_context->_orig->Release();
+	delete _immediate_context;
 
 	const auto orig = _orig;
+	const auto dxgi_device = _dxgi_device;
 	const auto interface_version = _interface_version;
 #if RESHADE_VERBOSE_LOG
 	LOG(DEBUG) << "Destroying " << "ID3D11Device" << interface_version << " object " << this << " (" << orig << ").";
 #endif
 	delete this;
+
+	dxgi_device->Release();
 
 	// Note: At this point the immediate context should have been deleted by the release above (so do not access it)
 	const ULONG ref_orig = orig->Release();
@@ -1053,6 +1061,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::GetDeviceRemovedReason()
 void    STDMETHODCALLTYPE D3D11Device::GetImmediateContext(ID3D11DeviceContext **ppImmediateContext)
 {
 	assert(ppImmediateContext != nullptr);
+	assert(_immediate_context != nullptr);
 
 	_immediate_context->AddRef();
 	*ppImmediateContext = _immediate_context;
@@ -1074,6 +1083,7 @@ void    STDMETHODCALLTYPE D3D11Device::GetImmediateContext1(ID3D11DeviceContext1
 {
 	assert(ppImmediateContext != nullptr);
 	assert(_interface_version >= 1);
+	assert(_immediate_context != nullptr);
 
 	// Upgrade immediate context to interface version 1
 	_immediate_context->check_and_upgrade_interface(__uuidof(**ppImmediateContext));
@@ -1304,6 +1314,7 @@ void    STDMETHODCALLTYPE D3D11Device::GetImmediateContext2(ID3D11DeviceContext2
 {
 	assert(ppImmediateContext != nullptr);
 	assert(_interface_version >= 2);
+	assert(_immediate_context != nullptr);
 
 	// Upgrade immediate context to interface version 2
 	_immediate_context->check_and_upgrade_interface(__uuidof(**ppImmediateContext));

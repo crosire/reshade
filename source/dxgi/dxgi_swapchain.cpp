@@ -245,6 +245,14 @@ ULONG   STDMETHODCALLTYPE DXGISwapChain::Release()
 	if (ref != 0)
 		return _orig->Release(), ref;
 
+	const auto orig = _orig;
+	const auto device = _direct3d_device;
+	const auto command_queue = _direct3d_command_queue;
+	const auto interface_version = _interface_version;
+#if RESHADE_VERBOSE_LOG
+	LOG(DEBUG) << "Destroying " << "IDXGISwapChain" << interface_version << " object " << this << " (" << orig << ").";
+#endif
+
 	// Destroy effect runtime first to release all internal references to device objects
 	switch (_direct3d_version)
 	{
@@ -259,13 +267,6 @@ ULONG   STDMETHODCALLTYPE DXGISwapChain::Release()
 		break;
 	}
 
-	const auto orig = _orig;
-	const auto device = _direct3d_device;
-	const auto command_queue = _direct3d_command_queue;
-	const auto interface_version = _interface_version;
-#if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Destroying " << "IDXGISwapChain" << interface_version << " object " << this << " (" << orig << ").";
-#endif
 	delete this;
 
 	// Only release internal reference after the effect runtime has been destroyed, so any references it held are cleaned up at this point
@@ -274,9 +275,10 @@ ULONG   STDMETHODCALLTYPE DXGISwapChain::Release()
 		LOG(WARN) << "Reference count for " << "IDXGISwapChain" << interface_version << " object " << this << " (" << orig << ") is inconsistent (" << ref_orig << ").";
 
 	// Release the explicit reference to the device that was added in the 'DXGISwapChain' constructor above now that the effect runtime was destroyed and is longer referencing it
-	device->Release();
 	if (command_queue != nullptr)
 		command_queue->Release();
+	device->Release();
+
 	return 0;
 }
 

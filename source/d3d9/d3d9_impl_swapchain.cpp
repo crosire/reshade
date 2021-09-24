@@ -99,6 +99,9 @@ bool reshade::d3d9::swapchain_impl::on_init(const D3DPRESENT_PARAMETERS &pp)
 }
 void reshade::d3d9::swapchain_impl::on_reset()
 {
+	if (_backbuffer == nullptr)
+		return;
+
 	runtime::on_reset();
 
 #if RESHADE_ADDON

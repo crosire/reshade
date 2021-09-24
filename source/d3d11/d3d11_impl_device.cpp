@@ -81,6 +81,13 @@ reshade::d3d11::device_impl::~device_impl()
 
 	destroy_pipeline_layout(_global_pipeline_layout);
 
+	com_ptr<ID3D11DeviceContext> immediate_context;
+	_orig->GetImmediateContext(&immediate_context);
+
+	// Ensure all objects referenced by the device are destroyed before the 'destroy_device' event is called
+	immediate_context->ClearState();
+	immediate_context->Flush();
+
 	invoke_addon_event<addon_event::destroy_device>(this);
 
 	unload_addons();

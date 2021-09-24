@@ -116,20 +116,20 @@ bool reshade::d3d11::swapchain_impl::on_init()
 }
 void reshade::d3d11::swapchain_impl::on_reset()
 {
-	if (_backbuffer != nullptr)
-	{
-		unsigned int add_references = 0;
-		// Resident Evil 3 releases all references to the back buffer before calling 'IDXGISwapChain::ResizeBuffers', even ones it does not own
-		// Releasing the references ReShade owns would then make the count negative, which consequently breaks DXGI validation, so reset those references here
-		if (_backbuffer.ref_count() == 0)
-			add_references = _backbuffer == _backbuffer_resolved ? 2 : 1;
-		// Add the reference back that was released because of Unreal Engine 4
-		else if (_backbuffer == _backbuffer_resolved)
-			add_references = 1;
+	if (_backbuffer == nullptr)
+		return;
 
-		for (unsigned int i = 0; i < add_references; ++i)
-			_backbuffer->AddRef();
-	}
+	unsigned int add_references = 0;
+	// Resident Evil 3 releases all references to the back buffer before calling 'IDXGISwapChain::ResizeBuffers', even ones it does not own
+	// Releasing the references ReShade owns would then make the count negative, which consequently breaks DXGI validation, so reset those references here
+	if (_backbuffer.ref_count() == 0)
+		add_references = _backbuffer == _backbuffer_resolved ? 2 : 1;
+	// Add the reference back that was released because of Unreal Engine 4
+	else if (_backbuffer == _backbuffer_resolved)
+		add_references = 1;
+
+	for (unsigned int i = 0; i < add_references; ++i)
+		_backbuffer->AddRef();
 
 	runtime::on_reset();
 

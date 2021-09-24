@@ -111,6 +111,9 @@ bool reshade::d3d10::swapchain_impl::on_init()
 }
 void reshade::d3d10::swapchain_impl::on_reset()
 {
+	if (_backbuffer == nullptr)
+		return;
+
 	runtime::on_reset();
 
 #if RESHADE_ADDON

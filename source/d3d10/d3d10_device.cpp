@@ -140,25 +140,30 @@ ULONG   STDMETHODCALLTYPE D3D10Device::AddRef()
 {
 	_orig->AddRef();
 
-	// Add references to other objects that are coupled with the device
+	// Add references to DXGI device object that is coupled with this D3D10 device object
 	_dxgi_device->AddRef();
 
 	return InterlockedIncrement(&_ref);
 }
 ULONG   STDMETHODCALLTYPE D3D10Device::Release()
 {
-	// Release references to other objects that are coupled with the device
-	_dxgi_device->Release();
-
 	const ULONG ref = InterlockedDecrement(&_ref);
 	if (ref != 0)
+	{
+		// Release references to DXGI device object that is coupled with this D3D10 device object
+		_dxgi_device->Release();
+
 		return _orig->Release(), ref;
+	}
 
 	const auto orig = _orig;
+	const auto dxgi_device = _dxgi_device;
 #if RESHADE_VERBOSE_LOG
 	LOG(DEBUG) << "Destroying " << "ID3D10Device1" << " object " << this << " (" << orig << ").";
 #endif
 	delete this;
+
+	dxgi_device->Release();
 
 	const ULONG ref_orig = orig->Release();
 	if (ref_orig != 0) // Verify internal reference count

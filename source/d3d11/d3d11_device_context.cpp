@@ -194,11 +194,17 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::QueryInterface(REFIID riid, void *
 }
 ULONG   STDMETHODCALLTYPE D3D11DeviceContext::AddRef()
 {
+	if (_orig->GetType() == D3D11_DEVICE_CONTEXT_IMMEDIATE)
+		return _device->AddRef();
+
 	_orig->AddRef();
 	return InterlockedIncrement(&_ref);
 }
 ULONG   STDMETHODCALLTYPE D3D11DeviceContext::Release()
 {
+	if (_orig->GetType() == D3D11_DEVICE_CONTEXT_IMMEDIATE)
+		return _device->Release();
+
 	const ULONG ref = InterlockedDecrement(&_ref);
 	if (ref != 0)
 		return _orig->Release(), ref;

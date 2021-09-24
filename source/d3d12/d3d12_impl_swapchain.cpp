@@ -109,6 +109,9 @@ bool reshade::d3d12::swapchain_impl::on_init()
 }
 void reshade::d3d12::swapchain_impl::on_reset()
 {
+	if (_backbuffers.empty())
+		return;
+
 	runtime::on_reset();
 
 #if RESHADE_ADDON
