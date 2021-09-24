@@ -1372,14 +1372,8 @@ void reshade::runtime::draw_gui_settings()
 
 		modified |= widgets::key_input_box("Performance mode toggle key", _performance_mode_key_data, *_input);
 
-		const float inner_spacing = ImGui::GetStyle().ItemInnerSpacing.x;
-		ImGui::PushItemWidth((ImGui::CalcItemWidth() - inner_spacing) / 2);
-		modified |= widgets::key_input_box("##prev_preset_key", _prev_preset_key_data, *_input);
-		ImGui::SameLine(0, inner_spacing);
-		modified |= widgets::key_input_box("##next_preset_key", _next_preset_key_data, *_input);
-		ImGui::PopItemWidth();
-		ImGui::SameLine(0, inner_spacing);
-		ImGui::TextUnformatted("Preset switching keys");
+		modified |= widgets::key_input_box("Previous preset key", _prev_preset_key_data, *_input);
+		modified |= widgets::key_input_box("Next preset key", _next_preset_key_data, *_input);
 
 		modified |= ImGui::SliderInt("Preset transition delay", reinterpret_cast<int *>(&_preset_transition_delay), 0, 10 * 1000);
 		if (ImGui::IsItemHovered())
@@ -1406,6 +1400,8 @@ void reshade::runtime::draw_gui_settings()
 
 		if (ImGui::Button("Clear effect cache", ImVec2(ImGui::CalcItemWidth(), 0)))
 			clear_effect_cache();
+		if (ImGui::IsItemHovered())
+			ImGui::SetTooltip("Clear effect cache located in \"%s\".", _intermediate_cache_path.u8string().c_str());
 	}
 
 	if (ImGui::CollapsingHeader("Screenshots", ImGuiTreeNodeFlags_DefaultOpen))
