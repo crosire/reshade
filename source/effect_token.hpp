@@ -11,16 +11,16 @@
 namespace reshadefx
 {
 	/// <summary>
-	/// Structure which keeps track of a code location
+	/// Structure which keeps track of a code location.
 	/// </summary>
 	struct location
 	{
 		location() : line(1), column(1) {}
-		explicit location(unsigned int line, unsigned int column = 1) : line(line), column(column) {}
-		explicit location(std::string source, unsigned int line, unsigned int column = 1) : source(std::move(source)), line(line), column(column) {}
+		explicit location(uint32_t line, uint32_t column = 1) : line(line), column(column) {}
+		explicit location(std::string source, uint32_t line, uint32_t column = 1) : source(std::move(source)), line(line), column(column) {}
 
 		std::string source;
-		unsigned int line, column;
+		uint32_t line, column;
 	};
 
 	/// <summary>

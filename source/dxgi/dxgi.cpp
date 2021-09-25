@@ -3,13 +3,13 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "dll_log.hpp"
-#include "ini_file.hpp"
-#include "hook_manager.hpp"
 #include "dxgi_swapchain.hpp"
 #include "d3d10/d3d10_device.hpp"
 #include "d3d11/d3d11_device.hpp"
 #include "d3d12/d3d12_command_queue.hpp"
+#include "dll_log.hpp" // Include late to get HRESULT log overloads
+#include "ini_file.hpp"
+#include "hook_manager.hpp"
 
 extern bool is_windows7();
 
@@ -84,6 +84,44 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &desc)
 	LOG(INFO) << "  | Flags                                   | " << std::setw(39) << std::hex << desc.Flags << std::dec << " |";
 	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 
+#if RESHADE_ADDON
+	reshade::api::resource_desc buffer_desc = {};
+	buffer_desc.type = reshade::api::resource_type::texture_2d;
+	buffer_desc.texture.width = desc.BufferDesc.Width;
+	buffer_desc.texture.height = desc.BufferDesc.Height;
+	buffer_desc.texture.depth_or_layers = 1;
+	buffer_desc.texture.levels = 1;
+	buffer_desc.texture.format = static_cast<reshade::api::format>(desc.BufferDesc.Format);
+	buffer_desc.texture.samples = static_cast<uint16_t>(desc.SampleDesc.Count);
+	buffer_desc.heap = reshade::api::memory_heap::gpu_only;
+
+	if (desc.BufferUsage & DXGI_USAGE_SHADER_INPUT)
+		buffer_desc.usage |= reshade::api::resource_usage::shader_resource;
+	if (desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT)
+		buffer_desc.usage |= reshade::api::resource_usage::render_target;
+	if (desc.BufferUsage & DXGI_USAGE_SHARED)
+		buffer_desc.flags |= reshade::api::resource_flags::shared;
+	if (desc.BufferUsage & DXGI_USAGE_UNORDERED_ACCESS)
+		buffer_desc.usage |= reshade::api::resource_usage::unordered_access;
+
+	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(buffer_desc, desc.OutputWindow))
+	{
+		desc.BufferDesc.Width = buffer_desc.texture.width;
+		desc.BufferDesc.Height = buffer_desc.texture.height;
+		desc.BufferDesc.Format = static_cast<DXGI_FORMAT>(buffer_desc.texture.format);
+		desc.SampleDesc.Count = buffer_desc.texture.samples;
+
+		if ((buffer_desc.usage & reshade::api::resource_usage::shader_resource) != reshade::api::resource_usage::undefined)
+			desc.BufferUsage |= DXGI_USAGE_SHADER_INPUT;
+		if ((buffer_desc.usage & reshade::api::resource_usage::render_target) != reshade::api::resource_usage::undefined)
+			desc.BufferUsage |= DXGI_USAGE_RENDER_TARGET_OUTPUT;
+		if ((buffer_desc.flags & reshade::api::resource_flags::shared) == reshade::api::resource_flags::shared)
+			desc.BufferUsage |= DXGI_USAGE_SHARED;
+		if ((buffer_desc.usage & reshade::api::resource_usage::unordered_access) != reshade::api::resource_usage::undefined)
+			desc.BufferUsage |= DXGI_USAGE_UNORDERED_ACCESS;
+	}
+#endif
+
 	if (reshade::global_config().get("APP", "ForceWindowed"))
 	{
 		desc.Windowed = TRUE;
@@ -106,7 +144,7 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &desc)
 		desc.BufferDesc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
 	}
 }
-static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, DXGI_SWAP_CHAIN_FULLSCREEN_DESC &fullscreen_desc)
+static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, DXGI_SWAP_CHAIN_FULLSCREEN_DESC &fullscreen_desc, HWND hwnd = nullptr)
 {
 	LOG(INFO) << "> Dumping swap chain description:";
 	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
@@ -127,6 +165,45 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, DXGI_SWA
 	LOG(INFO) << "  | AlphaMode                               | " << std::setw(39) << desc.AlphaMode   << " |";
 	LOG(INFO) << "  | Flags                                   | " << std::setw(39) << std::hex << desc.Flags << std::dec << " |";
 	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+
+#if RESHADE_ADDON
+	reshade::api::resource_desc buffer_desc = {};
+	buffer_desc.type = reshade::api::resource_type::texture_2d;
+	buffer_desc.texture.width = desc.Width;
+	buffer_desc.texture.height = desc.Height;
+	buffer_desc.texture.depth_or_layers = desc.Stereo ? 2 : 1;
+	buffer_desc.texture.levels = 1;
+	buffer_desc.texture.format = static_cast<reshade::api::format>(desc.Format);
+	buffer_desc.texture.samples = static_cast<uint16_t>(desc.SampleDesc.Count);
+	buffer_desc.heap = reshade::api::memory_heap::gpu_only;
+
+	if (desc.BufferUsage & DXGI_USAGE_SHADER_INPUT)
+		buffer_desc.usage |= reshade::api::resource_usage::shader_resource;
+	if (desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT)
+		buffer_desc.usage |= reshade::api::resource_usage::render_target;
+	if (desc.BufferUsage & DXGI_USAGE_SHARED)
+		buffer_desc.flags |= reshade::api::resource_flags::shared;
+	if (desc.BufferUsage & DXGI_USAGE_UNORDERED_ACCESS)
+		buffer_desc.usage |= reshade::api::resource_usage::unordered_access;
+
+	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(buffer_desc, hwnd))
+	{
+		desc.Width = buffer_desc.texture.width;
+		desc.Height = buffer_desc.texture.height;
+		desc.Format = static_cast<DXGI_FORMAT>(buffer_desc.texture.format);
+		desc.Stereo = buffer_desc.texture.depth_or_layers > 1;
+		desc.SampleDesc.Count = buffer_desc.texture.samples;
+
+		if ((buffer_desc.usage & reshade::api::resource_usage::shader_resource) != reshade::api::resource_usage::undefined)
+			desc.BufferUsage |= DXGI_USAGE_SHADER_INPUT;
+		if ((buffer_desc.usage & reshade::api::resource_usage::render_target) != reshade::api::resource_usage::undefined)
+			desc.BufferUsage |= DXGI_USAGE_RENDER_TARGET_OUTPUT;
+		if ((buffer_desc.flags & reshade::api::resource_flags::shared) == reshade::api::resource_flags::shared)
+			desc.BufferUsage |= DXGI_USAGE_SHARED;
+		if ((buffer_desc.usage & reshade::api::resource_usage::unordered_access) != reshade::api::resource_usage::undefined)
+			desc.BufferUsage |= DXGI_USAGE_UNORDERED_ACCESS;
+	}
+#endif
 
 	if (reshade::global_config().get("APP", "ForceWindowed"))
 	{
@@ -281,7 +358,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 		fullscreen_desc = *pFullscreenDesc;
 	else
 		fullscreen_desc.Windowed = TRUE;
-	dump_and_modify_swapchain_desc(desc, fullscreen_desc);
+	dump_and_modify_swapchain_desc(desc, fullscreen_desc, hWnd);
 
 	com_ptr<IUnknown> device_proxy;
 	const UINT direct3d_version = query_device(pDevice, device_proxy);

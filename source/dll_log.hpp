@@ -10,7 +10,6 @@
 #include <sstream>
 #include <filesystem>
 #include <utf8/unchecked.h>
-#include <combaseapi.h> // REFIID, HRESULT
 
 #undef INFO
 #undef ERROR // This is defined in the Windows SDK headers
@@ -59,6 +58,7 @@ namespace reshade::log
 			return *this;
 		}
 
+#if defined(_REFIID_DEFINED) && defined(_COMBASEAPI_H_)
 		template <>
 		message &operator<<(REFIID riid)
 		{
@@ -66,7 +66,9 @@ namespace reshade::log
 			StringFromGUID2(riid, riid_string, ARRAYSIZE(riid_string));
 			return *this << riid_string;
 		}
+#endif
 
+#if defined(_HRESULT_DEFINED)
 		template <>
 		message &operator<<(const HRESULT &hresult) // Note: HRESULT is just an alias for long, so this falsely catches all long values too
 		{
@@ -106,6 +108,7 @@ namespace reshade::log
 				return *this << std::hex << static_cast<unsigned long>(hresult) << std::dec;
 			}
 		}
+#endif
 
 		template <>
 		message &operator<<(const std::wstring &message)

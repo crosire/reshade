@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "reshade_api_device.hpp"
+#include "d3d12_impl_device.hpp"
 
 struct D3D12DeviceDownlevel;
 
@@ -101,6 +101,6 @@ struct DECLSPEC_UUID("2523AFF4-978B-4939-BA16-8EE876A4CB2A") D3D12Device final :
 	bool check_and_upgrade_interface(REFIID riid);
 
 	LONG _ref = 1;
-	unsigned int _interface_version;
+	unsigned int _interface_version = 0;
 	D3D12DeviceDownlevel *_downlevel = nullptr;
 };

@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "reshade_api_device.hpp"
+#include "d3d9_impl_device.hpp"
 
 struct Direct3DSwapChain9;
 

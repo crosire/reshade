@@ -5,8 +5,6 @@
 
 #pragma once
 
-#include "reshade_api_format.hpp"
-
 #ifndef RESHADE_DEFINE_HANDLE
 	#define RESHADE_DEFINE_HANDLE(name) \
 		typedef struct { uint64_t handle; } name; \
@@ -27,6 +25,8 @@
 		inline type &operator^=(type &a, type b) { return reinterpret_cast<type &>(reinterpret_cast<uint32_t &>(a) ^= static_cast<uint32_t>(b)); } \
 		constexpr type operator^(type a, type b) { return static_cast<type>(static_cast<uint32_t>(a) ^ static_cast<uint32_t>(b)); }
 #endif
+
+#include "reshade_api_format.hpp"
 
 namespace reshade { namespace api
 {
@@ -78,9 +78,11 @@ namespace reshade { namespace api
 	/// </summary>
 	enum class memory_heap : uint32_t
 	{
-		unknown, // Used to indicate a resource that is reserved, but not yet bound to any memory.
+		unknown, // Usually indicates a resource that is reserved, but not yet bound to any memory.
 		gpu_only,
+		// Upload heap
 		cpu_to_gpu,
+		// Readback heap
 		gpu_to_cpu,
 		cpu_only,
 		custom
@@ -107,6 +109,12 @@ namespace reshade { namespace api
 	enum class resource_usage : uint32_t
 	{
 		undefined = 0,
+
+		index_buffer = 0x2,
+		vertex_buffer = 0x1,
+		constant_buffer = 0x8000,
+		indirect_argument = 0x200,
+
 		depth_stencil = 0x30,
 		depth_stencil_read = 0x20,
 		depth_stencil_write = 0x10,
@@ -115,17 +123,15 @@ namespace reshade { namespace api
 		shader_resource_pixel = 0x80,
 		shader_resource_non_pixel = 0x40,
 		unordered_access = 0x8,
+
 		copy_dest = 0x400,
 		copy_source = 0x800,
 		resolve_dest = 0x1000,
 		resolve_source = 0x2000,
-		index_buffer = 0x2,
-		vertex_buffer = 0x1,
-		constant_buffer = 0x8000,
 
 		general = 0x80000000,
 		present = 0x80000000 | render_target | copy_source,
-		cpu_access = vertex_buffer | index_buffer | shader_resource | 0x200 | copy_source
+		cpu_access = vertex_buffer | index_buffer | shader_resource | indirect_argument | copy_source
 	};
 	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(resource_usage);
 
@@ -146,9 +152,9 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
-	/// The available filtering types used for texture sampling operations.
+	/// The available filtering modes used for texture sampling operations.
 	/// </summary>
-	enum class filter_type : uint32_t
+	enum class filter_mode : uint32_t
 	{
 		min_mag_mip_point = 0,
 		min_mag_point_mip_linear = 0x1,
@@ -187,14 +193,25 @@ namespace reshade { namespace api
 	/// </summary>
 	struct sampler_desc
 	{
-		filter_type filter;
+		/// <summary>Filtering mode to use when sampling a texture.</summary>
+		filter_mode filter;
+		/// <summary>Method to use for resolving U texture coordinates outside 0 to 1 range.</summary>
 		texture_address_mode address_u;
+		/// <summary>Method to use for resolving V texture coordinates outside 0 to 1 range.</summary>
 		texture_address_mode address_v;
+		/// <summary>Method to use for resolving W texture coordinates outside 0 to 1 range.</summary>
 		texture_address_mode address_w;
+		/// <summary>Offset applied to the calculated mipmap level when sampling a texture.</summary>
 		float mip_lod_bias;
+		/// <summary>Clamping value to use when filtering mode is <see cref="filter_mode::anisotropic"/>.</summary>
 		float max_anisotropy;
+		/// <summary>Comparison function to use to compare sampled data against existing sampled data.</summary>
 		compare_op compare_op;
+		/// <summary>Color to return for texture coordinates outside 0 to 1 range when addressing mode is <see cref="texture_address_mode::border"/>.</summary>
+		float border_color[4];
+		/// <summary>Lower end of the mipmap range to clamp access to.</summary>
 		float min_lod;
+		/// <summary>Upper end of the mipmap range to clamp access to.</summary>
 		float max_lod;
 	};
 
@@ -212,9 +229,7 @@ namespace reshade { namespace api
 		resource_desc(resource_type type, uint32_t width, uint32_t height, uint16_t depth_or_layers, uint16_t levels, format format, uint16_t samples, memory_heap heap, resource_usage usage, resource_flags flags = resource_flags::none) :
 			type(type), texture({ width, height, depth_or_layers, levels, format, samples }), heap(heap), usage(usage), flags(flags) {}
 
-		/// <summary>
-		/// Type of the resource.
-		/// </summary>
+		/// <summary>Type of the resource.</summary>
 		resource_type type;
 
 		union
@@ -224,10 +239,10 @@ namespace reshade { namespace api
 			/// </summary>
 			struct
 			{
-				/// <summary>
-				/// Size of the buffer (in bytes).
-				/// </summary>
+				/// <summary>Size of the buffer (in bytes).</summary>
 				uint64_t size;
+				/// <summary>Structure stride for structured buffers (in bytes), otherwise zero.</summary>
+				uint32_t struct_stride;
 			} buffer;
 
 			/// <summary>
@@ -235,44 +250,27 @@ namespace reshade { namespace api
 			/// </summary>
 			struct
 			{
-				/// <summary>
-				/// Width of the texture (in texels).
-				/// </summary>
+				/// <summary>Width of the texture (in texels).</summary>
 				uint32_t width;
-				/// <summary>
-				/// If this is a 2D or 3D texture, height of the texture (in texels), otherwise 1.
-				/// </summary>
+				/// <summary>If this is a 2D or 3D texture, height of the texture (in texels), otherwise 1.</summary>
 				uint32_t height;
-				/// <summary>
-				/// If this is a 3D texture, depth of the texture (in texels), otherwise number of array layers.
-				/// </summary>
+				/// <summary>If this is a 3D texture, depth of the texture (in texels), otherwise number of array layers.</summary>
 				uint16_t depth_or_layers;
-				/// <summary>
-				/// Maximum number of mipmap levels in the texture, including the base level, so at least 1.
-				/// </summary>
+				/// <summary>Maximum number of mipmap levels in the texture, including the base level, so at least 1.
+				/// Can also be zero in case the exact number of mipmap levels is unknown.</summary>
 				uint16_t levels;
-				/// <summary>
-				/// Data format of each texel in the texture.
-				/// </summary>
+				/// <summary>Data format of each texel in the texture.</summary>
 				format   format;
-				/// <summary>
-				/// The number of samples per texel. Set to a value higher than 1 for multisampling.
-				/// </summary>
+				/// <summary>The number of samples per texel. Set to a value higher than 1 for multisampling.</summary>
 				uint16_t samples;
 			} texture;
 		};
 
-		/// <summary>
-		/// The heap the resource allocation is placed in.
-		/// </summary>
+		/// <summary>Memory heap the resource allocation is placed in.</summary>
 		memory_heap heap;
-		/// <summary>
-		/// Flags that specify how this resource may be used.
-		/// </summary>
+		/// <summary>Flags that specify how this resource may be used.</summary>
 		resource_usage usage;
-		/// <summary>
-		/// Flags that describe additional parameters.
-		/// </summary>
+		/// <summary>Flags that describe additional parameters.</summary>
 		resource_flags flags;
 	};
 
@@ -292,14 +290,11 @@ namespace reshade { namespace api
 		explicit resource_view_desc(format format) :
 			type(resource_view_type::texture_2d), format(format), texture({ 0, 1, 0, 1 }) {}
 
-		/// <summary>
-		/// Type of the view. Identifies how the view should interpret the resource data.
-		/// </summary>
+		/// <summary>Type of the view.
+		/// Identifies how the view should interpret the resource data.</summary>
 		resource_view_type type;
-		/// <summary>
-		/// Viewing format of this view. 
-		/// The data of the resource is reinterpreted to this format (can be different than the format of the underlying resource as long as the formats are compatible).
-		/// </summary>
+		/// <summary>Viewing format of this view. 
+		/// The data of the resource is reinterpreted to this format (can be different than the format of the underlying resource as long as the formats are compatible).</summary>
 		format format;
 
 		union
@@ -309,13 +304,9 @@ namespace reshade { namespace api
 			/// </summary>
 			struct
 			{
-				/// <summary>
-				/// Offset from the start of the buffer resource (in bytes).
-				/// </summary>
+				/// <summary>Offset from the start of the buffer resource (in bytes).</summary>
 				uint64_t offset;
-				/// <summary>
-				/// Number of elements this view covers in the buffer resource (in bytes).
-				/// </summary>
+				/// <summary>Number of elements this view covers in the buffer resource (in bytes).</summary>
 				uint64_t size;
 			} buffer;
 
@@ -324,24 +315,16 @@ namespace reshade { namespace api
 			/// </summary>
 			struct
 			{
-				/// <summary>
-				/// Index of the most detailed mipmap level to use. This number has to be between zero and the maximum number of mipmap levels in the texture minus 1.
-				/// </summary>
+				/// <summary>Index of the most detailed mipmap level to use. This number has to be between zero and the maximum number of mipmap levels in the texture minus 1.</summary>
 				uint32_t first_level;
-				/// <summary>
-				/// Maximum number of mipmap levels for the view of the texture.
-				/// Set to -1 (0xFFFFFFFF) to indicate that all mipmap levels down to the least detailed should be used.
-				/// </summary>
-				uint32_t levels;
-				/// <summary>
-				/// Index of the first array layer of the texture array to use. This value is ignored if the texture is not layered.
-				/// </summary>
+				/// <summary>Maximum number of mipmap levels for the view of the texture.
+				/// Set to -1 (0xFFFFFFFF) to indicate that all mipmap levels down to the least detailed should be used.</summary>
+				uint32_t level_count;
+				/// <summary>Index of the first array layer of the texture array to use. This value is ignored if the texture is not layered.</summary>
 				uint32_t first_layer;
-				/// <summary>
-				/// Maximum number of array layers for the view of the texture array. This value is ignored if the texture is not layered.
-				/// Set to -1 (0xFFFFFFFF) to indicate that all array layers should be used.
-				/// </summary>
-				uint32_t layers;
+				/// <summary>Maximum number of array layers for the view of the texture array. This value is ignored if the texture is not layered.
+				/// Set to -1 (0xFFFFFFFF) to indicate that all array layers should be used.</summary>
+				uint32_t layer_count;
 			} texture;
 		};
 	};
@@ -351,17 +334,11 @@ namespace reshade { namespace api
 	/// </summary>
 	struct subresource_data
 	{
-		/// <summary>
-		/// Pointer to the data.
-		/// </summary>
-		const void *data;
-		/// <summary>
-		/// The row pitch of the data (added to the data pointer to move between texture rows, unused for buffers and 1D textures).
-		/// </summary>
+		/// <summary>Pointer to the data.</summary>
+		void *data;
+		/// <summary>Row pitch of the data (added to the data pointer to move between texture rows, unused for buffers and 1D textures).</summary>
 		uint32_t row_pitch;
-		/// <summary>
-		/// The depth pitch of the data (added to the data pointer to move between texture depth/array slices, unused for buffers and 1D/2D textures).
-		/// </summary>
+		/// <summary>Depth pitch of the data (added to the data pointer to move between texture depth/array slices, unused for buffers and 1D/2D textures).</summary>
 		uint32_t slice_pitch;
 	};
 
@@ -374,7 +351,6 @@ namespace reshade { namespace api
 	/// <summary>
 	/// An opaque handle to a resource object (buffer, texture, ...).
 	/// <para>Resources created by the application are only guaranteed to be valid during event callbacks.
-	/// If you want to use one outside that scope, first ensure the resource is still valid via <see cref="device::check_resource_handle_valid"/>.</para>
 	/// <para>Depending on the render API this can be a pointer to a 'IDirect3DResource9', 'ID3D10Resource', 'ID3D11Resource' or 'ID3D12Resource' object or a 'VkImage' handle.</para>
 	/// </summary>
 	RESHADE_DEFINE_HANDLE(resource);
@@ -382,7 +358,6 @@ namespace reshade { namespace api
 	/// <summary>
 	/// An opaque handle to a resource view object (depth-stencil, render target, shader resource view, ...).
 	/// <para>Resource views created by the application are only guaranteed to be valid during event callbacks.
-	/// If you want to use one outside that scope, first ensure the resource view is still valid via <see cref="device::is_resource_view_handle_valid"/>.</para>
 	/// <para>Depending on the render API this can be a pointer to a 'IDirect3DResource9', 'ID3D10View' or 'ID3D11View' object, or a 'D3D12_CPU_DESCRIPTOR_HANDLE' (to a view descriptor) or 'VkImageView' handle.</para>
 	/// </summary>
 	RESHADE_DEFINE_HANDLE(resource_view);

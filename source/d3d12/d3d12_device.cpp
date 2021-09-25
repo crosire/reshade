@@ -3,16 +3,166 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "dll_log.hpp"
 #include "d3d12_device.hpp"
 #include "d3d12_device_downlevel.hpp"
 #include "d3d12_command_list.hpp"
 #include "d3d12_command_queue.hpp"
-#include "reshade_api_type_convert.hpp"
+#include "d3d12_impl_type_convert.hpp"
+#include "dll_log.hpp" // Include late to get HRESULT log overloads
+#include "com_utils.hpp"
+#include <malloc.h>
+
+static bool parse_and_convert_root_signature(const uint32_t *data, size_t size, reshade::d3d12::device_impl *device, std::vector<reshade::api::pipeline_layout_param> &out_params)
+{
+	constexpr uint32_t DXBC = uint32_t('D') | (uint32_t('X') << 8) | (uint32_t('B') << 16) | (uint32_t('C') << 24);
+	constexpr uint32_t RTS0 = uint32_t('R') | (uint32_t('T') << 8) | (uint32_t('S') << 16) | (uint32_t('0') << 24);
+
+	if (size < (sizeof(uint32_t) * 8) ||
+		data[0] != DXBC ||
+		data[5] != 0x00000001 /* DXBC version */)
+		return false;
+
+	assert((size % sizeof(uint32_t)) == 0 && size == data[6]);
+
+	for (uint32_t i = 0; i < data[7]; ++i)
+	{
+		const uint32_t chunk_offset = data[8 + i], *chunk = data + (chunk_offset / sizeof(uint32_t));
+
+		if (chunk[0] != RTS0)
+			continue;
+		else
+			chunk += 2;
+
+		const uint32_t version = chunk[0];
+		if (version != D3D_ROOT_SIGNATURE_VERSION_1_0 && version != D3D_ROOT_SIGNATURE_VERSION_1_1)
+			continue;
+
+		const uint32_t param_count = chunk[1];
+		const uint32_t param_offset = chunk[2];
+		auto param_list = chunk + (param_offset / sizeof(uint32_t));
+
+		out_params.resize(param_count);
+
+		for (uint32_t k = 0; k < param_count; ++k, param_list += 3)
+		{
+			const auto param_type = static_cast<D3D12_ROOT_PARAMETER_TYPE>(param_list[0]);
+			const auto shader_visibility = static_cast<D3D12_SHADER_VISIBILITY>(param_list[1]);
+			auto param_data = chunk + (param_list[2] / sizeof(uint32_t));
+
+			switch (param_type)
+			{
+				case D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE:
+				{
+					const uint32_t range_count = param_data[0];
+					uint32_t descriptor_offset = 0;
+
+					std::vector<reshade::api::descriptor_range> ranges(range_count);
+
+					// Convert descriptor ranges
+					if (version == D3D_ROOT_SIGNATURE_VERSION_1_0)
+					{
+						auto range_data = reinterpret_cast<const D3D12_DESCRIPTOR_RANGE *>(chunk + (param_data[1] / sizeof(uint32_t)));
+
+						for (uint32_t j = 0; j < range_count; ++j, ++range_data)
+						{
+							reshade::api::descriptor_range &range = ranges[j];
+							range.binding = j;
+							range.dx_register_index = range_data->BaseShaderRegister;
+							range.dx_register_space = range_data->RegisterSpace;
+							range.count = range_data->NumDescriptors;
+							range.array_size = 1;
+							range.type = reshade::d3d12::convert_descriptor_type(range_data->RangeType);
+							range.visibility = reshade::d3d12::convert_shader_visibility(shader_visibility);
+
+							if (range_data->OffsetInDescriptorsFromTableStart == D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND)
+								range.offset = descriptor_offset;
+							else
+								range.offset = range_data->OffsetInDescriptorsFromTableStart;
+
+							descriptor_offset = range.offset + range.count;
+						}
+					}
+					if (version == D3D_ROOT_SIGNATURE_VERSION_1_1)
+					{
+						auto range_data = reinterpret_cast<const D3D12_DESCRIPTOR_RANGE1 *>(chunk + (param_data[1] / sizeof(uint32_t)));
+
+						for (uint32_t j = 0; j < range_count; ++j, ++range_data)
+						{
+							reshade::api::descriptor_range &range = ranges[j];
+							range.binding = j;
+							range.dx_register_index = range_data->BaseShaderRegister;
+							range.dx_register_space = range_data->RegisterSpace;
+							range.count = range_data->NumDescriptors;
+							range.array_size = 1;
+							range.type = reshade::d3d12::convert_descriptor_type(range_data->RangeType);
+							range.visibility = reshade::d3d12::convert_shader_visibility(shader_visibility);
+
+							if (range_data->OffsetInDescriptorsFromTableStart == D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND)
+								range.offset = descriptor_offset;
+							else
+								range.offset = range_data->OffsetInDescriptorsFromTableStart;
+
+							descriptor_offset = range.offset + range.count;
+						}
+					}
+
+					out_params[k].type = reshade::api::pipeline_layout_param_type::descriptor_set;
+					device->create_descriptor_set_layout(range_count, ranges.data(), false, &out_params[k].descriptor_layout);
+					break;
+				}
+				case D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS:
+				{
+					auto constant_data = reinterpret_cast<const D3D12_ROOT_CONSTANTS *>(param_data);
+
+					out_params[k].type = reshade::api::pipeline_layout_param_type::push_constants;
+
+					// Convert root constant description
+					reshade::api::constant_range &root_constant = out_params[k].push_constants;
+					root_constant.offset = 0;
+					root_constant.binding = 0;
+					root_constant.dx_register_index = constant_data->ShaderRegister;
+					root_constant.dx_register_space = constant_data->RegisterSpace;
+					root_constant.count = constant_data->Num32BitValues;
+					root_constant.visibility = reshade::d3d12::convert_shader_visibility(shader_visibility);
+					break;
+				}
+				case D3D12_ROOT_PARAMETER_TYPE_CBV:
+				case D3D12_ROOT_PARAMETER_TYPE_SRV:
+				case D3D12_ROOT_PARAMETER_TYPE_UAV:
+				{
+					auto descriptor_data = reinterpret_cast<const D3D12_ROOT_DESCRIPTOR *>(param_data);
+
+					reshade::api::descriptor_range range;
+					range.offset = 0;
+					range.binding = 0;
+					range.dx_register_index = descriptor_data->ShaderRegister;
+					range.dx_register_space = descriptor_data->RegisterSpace;
+					range.count = 1;
+					range.array_size = 1;
+					range.visibility = reshade::d3d12::convert_shader_visibility(shader_visibility);
+
+					if (param_type == D3D12_ROOT_PARAMETER_TYPE_CBV)
+						range.type = reshade::api::descriptor_type::constant_buffer;
+					else if (param_type == D3D12_ROOT_PARAMETER_TYPE_SRV)
+						range.type = reshade::api::descriptor_type::shader_resource_view;
+					else
+						range.type = reshade::api::descriptor_type::unordered_access_view;
+
+					out_params[k].type = reshade::api::pipeline_layout_param_type::push_descriptors;
+					device->create_descriptor_set_layout(1, &range, true, &out_params[k].descriptor_layout);
+					break;
+				}
+			}
+		}
+
+		return true;
+	}
+
+	return false;
+}
 
 D3D12Device::D3D12Device(ID3D12Device *original) :
-	device_impl(original),
-	_interface_version(0)
+	device_impl(original)
 {
 	assert(_orig != nullptr);
 
@@ -188,23 +338,19 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandAllocator(D3D12_COMMAND_LIST
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateGraphicsPipelineState(const D3D12_GRAPHICS_PIPELINE_STATE_DESC *pDesc, REFIID riid, void **ppPipelineState)
 {
+#if RESHADE_ADDON
 	if (pDesc == nullptr)
 		return E_INVALIDARG;
+	if (ppPipelineState == nullptr) // This can happen when application only wants to validate input parameters
+		return _orig->CreateGraphicsPipelineState(pDesc, riid, nullptr);
 
-#if RESHADE_ADDON
-	reshade::api::pipeline_desc desc = { reshade::api::pipeline_stage::all_graphics };
-	if (ppPipelineState != nullptr)
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC internal_desc = *pDesc;
+	auto desc = reshade::d3d12::convert_pipeline_desc(internal_desc);
+
+	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, desc))
 	{
-		desc = reshade::d3d12::convert_pipeline_desc(*pDesc);
-
-		if (reshade::api::pipeline overwrite = { 0 };
-			reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, desc, &overwrite))
-		{
-			assert(overwrite.handle != 0 && SUCCEEDED(reinterpret_cast<IUnknown *>(overwrite.handle)->QueryInterface(riid, ppPipelineState)) && static_cast<IUnknown *>(*ppPipelineState)->Release() == 1);
-
-			*ppPipelineState = reinterpret_cast<IUnknown *>(overwrite.handle);
-			return S_OK;
-		}
+		reshade::d3d12::convert_pipeline_desc(desc, internal_desc);
+		pDesc = &internal_desc;
 	}
 #endif
 
@@ -212,38 +358,44 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateGraphicsPipelineState(const D3D12_G
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		if (ppPipelineState != nullptr)
-		{
-			reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, desc, reshade::api::pipeline { reinterpret_cast<uintptr_t>(*ppPipelineState) });
-		}
+		const auto pipeline = static_cast<ID3D12PipelineState *>(*ppPipelineState);
+
+		reshade::d3d12::pipeline_graphics_impl extra_data;
+		extra_data.topology = D3D_PRIMITIVE_TOPOLOGY_UNDEFINED;
+
+		pipeline->SetPrivateData(reshade::d3d12::extra_data_guid, sizeof(extra_data), &extra_data);
+
+		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, desc, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pipeline) });
+
+		register_destruction_callback(pipeline, [this, pipeline]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pipeline) });
+		});
 #endif
 	}
 	else
 	{
+#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "ID3D12Device::CreateGraphicsPipelineState" << " failed with error code " << hr << '.';
+#endif
 	}
 
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateComputePipelineState(const D3D12_COMPUTE_PIPELINE_STATE_DESC *pDesc, REFIID riid, void **ppPipelineState)
 {
+#if RESHADE_ADDON
 	if (pDesc == nullptr)
 		return E_INVALIDARG;
+	if (ppPipelineState == nullptr) // This can happen when application only wants to validate input parameters
+		return _orig->CreateComputePipelineState(pDesc, riid, nullptr);
 
-#if RESHADE_ADDON
-	reshade::api::pipeline_desc desc = { reshade::api::pipeline_stage::all_compute };
-	if (ppPipelineState != nullptr)
+	D3D12_COMPUTE_PIPELINE_STATE_DESC internal_desc = *pDesc;
+	auto desc = reshade::d3d12::convert_pipeline_desc(internal_desc);
+
+	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, desc))
 	{
-		desc = reshade::d3d12::convert_pipeline_desc(*pDesc);
-
-		if (reshade::api::pipeline overwrite = { 0 };
-			reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, desc, &overwrite))
-		{
-			assert(overwrite.handle != 0 && SUCCEEDED(reinterpret_cast<IUnknown *>(overwrite.handle)->QueryInterface(riid, ppPipelineState)) && static_cast<IUnknown *>(*ppPipelineState)->Release() == 1);
-
-			*ppPipelineState = reinterpret_cast<IUnknown *>(overwrite.handle);
-			return S_OK;
-		}
+		reshade::d3d12::convert_pipeline_desc(desc, internal_desc);
+		pDesc = &internal_desc;
 	}
 #endif
 
@@ -251,15 +403,20 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateComputePipelineState(const D3D12_CO
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		if (ppPipelineState != nullptr)
-		{
-			reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, desc, reshade::api::pipeline { reinterpret_cast<uintptr_t>(*ppPipelineState) });
-		}
+		const auto pipeline = static_cast<ID3D12PipelineState *>(*ppPipelineState);
+
+		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, desc, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pipeline) });
+
+		register_destruction_callback(pipeline, [this, pipeline]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, reshade::api::pipeline { reinterpret_cast<uintptr_t>(pipeline) });
+		});
 #endif
 	}
 	else
 	{
+#if RESHADE_VERBOSE_LOG
 		LOG(WARN) << "ID3D12Device::CreateComputePipelineState" << " failed with error code " << hr << '.';
+#endif
 	}
 
 	return hr;
@@ -296,7 +453,19 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CheckFeatureSupport(D3D12_FEATURE Feature
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateDescriptorHeap(const D3D12_DESCRIPTOR_HEAP_DESC *pDescriptorHeapDesc, REFIID riid, void **ppvHeap)
 {
-	return _orig->CreateDescriptorHeap(pDescriptorHeapDesc, riid, ppvHeap);
+#if RESHADE_ADDON
+	if (ppvHeap == nullptr) // This can happen when application only wants to validate input parameters
+		return _orig->CreateDescriptorHeap(pDescriptorHeapDesc, riid, nullptr);
+#endif
+
+	const HRESULT hr = _orig->CreateDescriptorHeap(pDescriptorHeapDesc, riid, ppvHeap);
+#if RESHADE_ADDON
+	if (SUCCEEDED(hr))
+	{
+		register_descriptor_heap(static_cast<ID3D12DescriptorHeap *>(*ppvHeap));
+	}
+#endif
+	return hr;
 }
 UINT    STDMETHODCALLTYPE D3D12Device::GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapType)
 {
@@ -304,235 +473,287 @@ UINT    STDMETHODCALLTYPE D3D12Device::GetDescriptorHandleIncrementSize(D3D12_DE
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateRootSignature(UINT nodeMask, const void *pBlobWithRootSignature, SIZE_T blobLengthInBytes, REFIID riid, void **ppvRootSignature)
 {
-	return _orig->CreateRootSignature(nodeMask, pBlobWithRootSignature, blobLengthInBytes, riid, ppvRootSignature);
+#if RESHADE_ADDON
+	if (ppvRootSignature == nullptr) // This can happen when application only wants to validate input parameters
+		return _orig->CreateRootSignature(nodeMask, pBlobWithRootSignature, blobLengthInBytes, riid, nullptr);
+#endif
+
+	const HRESULT hr = _orig->CreateRootSignature(nodeMask, pBlobWithRootSignature, blobLengthInBytes, riid, ppvRootSignature);
+	if (SUCCEEDED(hr))
+	{
+#if RESHADE_ADDON
+		const auto root_signature = static_cast<ID3D12RootSignature *>(*ppvRootSignature);
+
+		std::vector<reshade::api::pipeline_layout_param> layout_desc;
+
+		// Parse DXBC root signature, convert it and call descriptor set and pipeline layout events
+		if (parse_and_convert_root_signature(static_cast<const uint32_t *>(pBlobWithRootSignature), blobLengthInBytes, this, layout_desc))
+		{
+			root_signature->SetPrivateData(reshade::d3d12::extra_data_guid, static_cast<UINT>(layout_desc.size() * sizeof(reshade::api::pipeline_layout_param)), layout_desc.data());
+
+			register_destruction_callback(root_signature, [this, layout_desc]() {
+				// Free all memory that was allocated in 'parse_and_convert_root_signature'
+				for (const reshade::api::pipeline_layout_param &param : layout_desc)
+					if (param.type != reshade::api::pipeline_layout_param_type::push_descriptors)
+						destroy_descriptor_set_layout(param.descriptor_layout);
+			});
+		}
+#endif
+	}
+	else
+	{
+#if RESHADE_VERBOSE_LOG
+		LOG(WARN) << "ID3D12Device::CreateRootSignature" << " failed with error code " << hr << '.';
+#endif
+	}
+
+	return hr;
 }
 void    STDMETHODCALLTYPE D3D12Device::CreateConstantBufferView(const D3D12_CONSTANT_BUFFER_VIEW_DESC *pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
 {
-#if RESHADE_ADDON
 	assert(pDesc != nullptr);
 
-	reshade::api::descriptor_set_write write;
-	write.set = { DestDescriptor.ptr };
-	write.binding = 0;
-	write.array_offset = 0;
-	write.type = reshade::api::descriptor_type::constant_buffer;
-	write.descriptor.size = pDesc->SizeInBytes;
-
-	resolve_gpu_address(pDesc->BufferLocation, &write.descriptor.resource, &write.descriptor.offset);
-
-	reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(this, 1, &write, 0, nullptr);
-#endif
-
 	_orig->CreateConstantBufferView(pDesc, DestDescriptor);
+
+#if RESHADE_ADDON
+	if (reshade::api::descriptor_set_update update = {};
+		reshade::has_addon_event<reshade::addon_event::update_descriptor_sets>() &&
+		resolve_descriptor_handle(DestDescriptor, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, &update.set))
+	{
+		reshade::api::buffer_range buffer_range;
+		if (!resolve_gpu_address(pDesc->BufferLocation, &buffer_range.buffer, &buffer_range.offset))
+			return;
+		buffer_range.size = pDesc->SizeInBytes;
+
+		update.type = reshade::api::descriptor_type::constant_buffer;
+		update.count = 1;
+		update.descriptors = &buffer_range;
+
+		reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(this, 1, &update);
+		return;
+	}
+#endif
 }
 void    STDMETHODCALLTYPE D3D12Device::CreateShaderResourceView(ID3D12Resource *pResource, const D3D12_SHADER_RESOURCE_VIEW_DESC *pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
 {
 #if RESHADE_ADDON
-	const reshade::api::resource_view_desc desc = reshade::d3d12::convert_resource_view_desc(
-		pDesc != nullptr ? *pDesc : D3D12_SHADER_RESOURCE_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D12_SRV_DIMENSION_UNKNOWN });
+	D3D12_SHADER_RESOURCE_VIEW_DESC internal_desc = pDesc != nullptr ? *pDesc : D3D12_SHADER_RESOURCE_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D12_SRV_DIMENSION_UNKNOWN };
+	auto desc = reshade::d3d12::convert_resource_view_desc(internal_desc);
 
 	// Calling with no resource is valid and used to initialize a null descriptor (see https://docs.microsoft.com/windows/win32/api/d3d12/nf-d3d12-id3d12device-createshaderresourceview)
-	if (pResource != nullptr)
+	if (pResource != nullptr &&
+		reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_usage::shader_resource, desc))
 	{
-		if (reshade::api::resource_view overwrite = { 0 };
-			reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(
-				this, reshade::api::resource { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_usage::shader_resource, desc, &overwrite))
-		{
-			_orig->CopyDescriptorsSimple(1, DestDescriptor, D3D12_CPU_DESCRIPTOR_HANDLE { static_cast<SIZE_T>(overwrite.handle) }, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-			destroy_resource_view(overwrite);
-			return;
-		}
-
-		reshade::api::descriptor_set_write write;
-		write.set = { DestDescriptor.ptr };
-		write.binding = 0;
-		write.array_offset = 0;
-		write.type = reshade::api::descriptor_type::shader_resource_view;
-		write.descriptor.view.handle = DestDescriptor.ptr;
-
-		reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(this, 1, &write, 0, nullptr);
+		reshade::d3d12::convert_resource_view_desc(desc, internal_desc);
+		pDesc = &internal_desc;
 	}
 #endif
 
 	_orig->CreateShaderResourceView(pResource, pDesc, DestDescriptor);
 
 #if RESHADE_ADDON
-	if (pResource != nullptr)
+	const reshade::api::resource resource = { reinterpret_cast<uintptr_t>(pResource) };
+
+	if (reshade::api::descriptor_set_update update = {};
+		resolve_descriptor_handle(DestDescriptor, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, &update.set))
 	{
-		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
-			this, reshade::api::resource { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_usage::shader_resource, desc, reshade::api::resource_view { DestDescriptor.ptr });
+#if 0
+		reshade::api::resource_view temp_view = { 0 };
+		create_resource_view(resource, reshade::api::resource_usage::shader_resource, desc, &temp_view); // This leaks
+
+		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(this, resource, reshade::api::resource_usage::shader_resource, desc, temp_view);
+
+		update.type = reshade::api::descriptor_type::shader_resource_view;
+		update.count = 1;
+		update.descriptors = &temp_view;
+
+		reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(this, 1, &update);
+#endif
+		return;
 	}
+
+	register_resource_view(DestDescriptor, pResource);
+	reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
+		this, resource, reshade::api::resource_usage::shader_resource, desc, reshade::api::resource_view { DestDescriptor.ptr });
 #endif
 }
 void    STDMETHODCALLTYPE D3D12Device::CreateUnorderedAccessView(ID3D12Resource *pResource, ID3D12Resource *pCounterResource, const D3D12_UNORDERED_ACCESS_VIEW_DESC *pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
 {
 #if RESHADE_ADDON
-	const reshade::api::resource_view_desc desc = reshade::d3d12::convert_resource_view_desc(
-		pDesc != nullptr ? *pDesc : D3D12_UNORDERED_ACCESS_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D12_UAV_DIMENSION_UNKNOWN });
+	D3D12_UNORDERED_ACCESS_VIEW_DESC internal_desc = pDesc != nullptr ? *pDesc : D3D12_UNORDERED_ACCESS_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D12_UAV_DIMENSION_UNKNOWN };
+	auto desc = reshade::d3d12::convert_resource_view_desc(internal_desc);
 
 	// Calling with no resource is valid and used to initialize a null descriptor (see https://docs.microsoft.com/windows/win32/api/d3d12/nf-d3d12-id3d12device-createunorderedaccessview)
-	if (pResource != nullptr)
+	if (pResource != nullptr &&
+		reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_usage::unordered_access, desc))
 	{
-		if (reshade::api::resource_view overwrite = { 0 };
-			reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(
-				this, reshade::api::resource { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_usage::unordered_access, desc, &overwrite))
-		{
-			_orig->CopyDescriptorsSimple(1, DestDescriptor, D3D12_CPU_DESCRIPTOR_HANDLE { static_cast<SIZE_T>(overwrite.handle) }, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-			destroy_resource_view(overwrite);
-			return;
-		}
-
-		reshade::api::descriptor_set_write write;
-		write.set = { DestDescriptor.ptr };
-		write.binding = 0;
-		write.array_offset = 0;
-		write.type = reshade::api::descriptor_type::unordered_access_view;
-		write.descriptor.view.handle = DestDescriptor.ptr;
-
-		reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(this, 1, &write, 0, nullptr);
+		reshade::d3d12::convert_resource_view_desc(desc, internal_desc);
+		pDesc = &internal_desc;
 	}
 #endif
 
 	_orig->CreateUnorderedAccessView(pResource, pCounterResource, pDesc, DestDescriptor);
 
 #if RESHADE_ADDON
-	if (pResource != nullptr)
+	const reshade::api::resource resource = { reinterpret_cast<uintptr_t>(pResource) };
+
+	if (reshade::api::descriptor_set_update update = {};
+		resolve_descriptor_handle(DestDescriptor, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, &update.set))
 	{
-		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
-			this, reshade::api::resource { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_usage::unordered_access, desc, reshade::api::resource_view { DestDescriptor.ptr });
+#if 0
+		reshade::api::resource_view temp_view = { 0 };
+		create_resource_view(resource, reshade::api::resource_usage::unordered_access, desc, &temp_view); // This leaks
+
+		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(this, resource, reshade::api::resource_usage::unordered_access, desc, temp_view);
+
+		update.type = reshade::api::descriptor_type::unordered_access_view;
+		update.count = 1;
+		update.descriptors = &temp_view;
+
+		reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(this, 1, &update);
+#endif
+		return;
 	}
+
+	register_resource_view(DestDescriptor, pResource);
+	reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
+		this, resource, reshade::api::resource_usage::unordered_access, desc, reshade::api::resource_view { DestDescriptor.ptr });
 #endif
 }
 void    STDMETHODCALLTYPE D3D12Device::CreateRenderTargetView(ID3D12Resource *pResource, const D3D12_RENDER_TARGET_VIEW_DESC *pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
 {
 #if RESHADE_ADDON
-	const reshade::api::resource_view_desc desc = reshade::d3d12::convert_resource_view_desc(
-		pDesc != nullptr ? *pDesc : D3D12_RENDER_TARGET_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D12_RTV_DIMENSION_UNKNOWN });
+	D3D12_RENDER_TARGET_VIEW_DESC internal_desc = pDesc != nullptr ? *pDesc : D3D12_RENDER_TARGET_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D12_RTV_DIMENSION_UNKNOWN };
+	auto desc = reshade::d3d12::convert_resource_view_desc(internal_desc);
 
 	// Calling with no resource is valid and used to initialize a null descriptor (see https://docs.microsoft.com/windows/win32/api/d3d12/nf-d3d12-id3d12device-createrendertargetview)
-	if (pResource != nullptr)
+	if (pResource != nullptr &&
+		reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_usage::render_target, desc))
 	{
-		if (reshade::api::resource_view overwrite = { 0 };
-			reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(
-				this, reshade::api::resource { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_usage::render_target, desc, &overwrite))
-		{
-			_orig->CopyDescriptorsSimple(1, DestDescriptor, D3D12_CPU_DESCRIPTOR_HANDLE { static_cast<SIZE_T>(overwrite.handle) }, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-			destroy_resource_view(overwrite);
-			return;
-		}
+		reshade::d3d12::convert_resource_view_desc(desc, internal_desc);
+		pDesc = &internal_desc;
 	}
 #endif
 
 	_orig->CreateRenderTargetView(pResource, pDesc, DestDescriptor);
 
 #if RESHADE_ADDON
-	if (pResource != nullptr)
-	{
-		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
-			this, reshade::api::resource { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_usage::render_target, desc, reshade::api::resource_view { DestDescriptor.ptr });
-	}
+	register_resource_view(DestDescriptor, pResource);
+	reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
+		this, reshade::api::resource { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_usage::render_target, desc, reshade::api::resource_view { DestDescriptor.ptr });
 #endif
 }
 void    STDMETHODCALLTYPE D3D12Device::CreateDepthStencilView(ID3D12Resource *pResource, const D3D12_DEPTH_STENCIL_VIEW_DESC *pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
 {
 #if RESHADE_ADDON
-	const reshade::api::resource_view_desc desc = reshade::d3d12::convert_resource_view_desc(
-		pDesc != nullptr ? *pDesc : D3D12_DEPTH_STENCIL_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D12_DSV_DIMENSION_UNKNOWN });
+	D3D12_DEPTH_STENCIL_VIEW_DESC internal_desc = pDesc != nullptr ? *pDesc : D3D12_DEPTH_STENCIL_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D12_DSV_DIMENSION_UNKNOWN };
+	auto desc = reshade::d3d12::convert_resource_view_desc(internal_desc);
 
 	// Calling with no resource is valid and used to initialize a null descriptor (see https://docs.microsoft.com/windows/win32/api/d3d12/nf-d3d12-id3d12device-createdepthstencilview)
-	if (pResource != nullptr)
+	if (pResource != nullptr &&
+		reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_usage::depth_stencil, desc))
 	{
-		if (reshade::api::resource_view overwrite = { 0 };
-			reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(
-				this, reshade::api::resource { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_usage::depth_stencil, desc, &overwrite))
-		{
-			_orig->CopyDescriptorsSimple(1, DestDescriptor, D3D12_CPU_DESCRIPTOR_HANDLE { static_cast<SIZE_T>(overwrite.handle) }, D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
-			destroy_resource_view(overwrite);
-			return;
-		}
+		reshade::d3d12::convert_resource_view_desc(desc, internal_desc);
+		pDesc = &internal_desc;
 	}
 #endif
 
 	_orig->CreateDepthStencilView(pResource, pDesc, DestDescriptor);
 
 #if RESHADE_ADDON
-	if (pResource != nullptr)
-	{
-		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
-			this, reshade::api::resource { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_usage::depth_stencil, desc, reshade::api::resource_view { DestDescriptor.ptr });
-	}
+	register_resource_view(DestDescriptor, pResource);
+	reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
+		this, reshade::api::resource { reinterpret_cast<uintptr_t>(pResource) }, reshade::api::resource_usage::depth_stencil, desc, reshade::api::resource_view { DestDescriptor.ptr });
 #endif
 }
 void    STDMETHODCALLTYPE D3D12Device::CreateSampler(const D3D12_SAMPLER_DESC *pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
 {
-	assert(pDesc != nullptr);
-
 #if RESHADE_ADDON
-	const reshade::api::sampler_desc desc = reshade::d3d12::convert_sampler_desc(*pDesc);
+	if (pDesc == nullptr)
+		return;
 
+	D3D12_SAMPLER_DESC internal_desc = *pDesc;
+	auto desc = reshade::d3d12::convert_sampler_desc(internal_desc);
+
+	if (reshade::invoke_addon_event<reshade::addon_event::create_sampler>(this, desc))
 	{
-		if (reshade::api::sampler overwrite = { 0 };
-			reshade::invoke_addon_event<reshade::addon_event::create_sampler>(this, desc, &overwrite))
-		{
-			_orig->CopyDescriptorsSimple(1, DestDescriptor, D3D12_CPU_DESCRIPTOR_HANDLE { static_cast<SIZE_T>(overwrite.handle) }, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
-			destroy_sampler(overwrite);
-			return;
-		}
-
-		reshade::api::descriptor_set_write write;
-		write.set = { DestDescriptor.ptr };
-		write.binding = 0;
-		write.array_offset = 0;
-		write.type = reshade::api::descriptor_type::sampler;
-		write.descriptor.sampler.handle = DestDescriptor.ptr;
-
-		reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(this, 1, &write, 0, nullptr);
+		reshade::d3d12::convert_sampler_desc(desc, internal_desc);
+		pDesc = &internal_desc;
 	}
 #endif
 
 	_orig->CreateSampler(pDesc, DestDescriptor);
 
 #if RESHADE_ADDON
+	if (reshade::api::descriptor_set_update update = {};
+		resolve_descriptor_handle(DestDescriptor, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, &update.set))
 	{
-		reshade::invoke_addon_event<reshade::addon_event::init_sampler>(this, desc, reshade::api::sampler { DestDescriptor.ptr });
+#if 0
+		reshade::api::sampler temp_sampler = { 0 };
+		create_sampler(desc, &temp_sampler); // This leaks
+
+		reshade::invoke_addon_event<reshade::addon_event::init_sampler>(this, desc, temp_sampler);
+
+		update.type = reshade::api::descriptor_type::sampler;
+		update.count = 1;
+		update.descriptors = &temp_sampler;
+
+		reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(this, 1, &update);
+#endif
+		return;
 	}
+
+	reshade::invoke_addon_event<reshade::addon_event::init_sampler>(this, desc, reshade::api::sampler { DestDescriptor.ptr });
 #endif
 }
 void    STDMETHODCALLTYPE D3D12Device::CopyDescriptors(UINT NumDestDescriptorRanges, const D3D12_CPU_DESCRIPTOR_HANDLE *pDestDescriptorRangeStarts, const UINT *pDestDescriptorRangeSizes, UINT NumSrcDescriptorRanges, const D3D12_CPU_DESCRIPTOR_HANDLE *pSrcDescriptorRangeStarts, const UINT *pSrcDescriptorRangeSizes, D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapsType)
 {
 #if RESHADE_ADDON
-	if (DescriptorHeapsType <= D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER)
+	// All elements in the source ranges must be in a non shader-visible descriptor heap, so can treat this like an update
+	if (DescriptorHeapsType <= D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER &&
+		reshade::has_addon_event<reshade::addon_event::update_descriptor_sets>())
 	{
-		reshade::api::descriptor_set_copy copy;
-		copy.dst_set.handle = pDestDescriptorRangeStarts[0].ptr;
-		copy.dst_binding = 0;
-		copy.dst_array_offset = 0;
-		copy.type = DescriptorHeapsType == D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER ? reshade::api::descriptor_type::sampler : reshade::api::descriptor_type::shader_resource_view;
-		copy.count = 1;
+		uint32_t num_updates = 0;
+		uint32_t max_descriptors = 0;
+		for (UINT i = 0; i < NumDestDescriptorRanges; ++i)
+			max_descriptors += pDestDescriptorRangeSizes[i];
 
-		std::vector<reshade::api::descriptor_set_copy> copies;
-		copies.reserve(std::max(NumDestDescriptorRanges, NumSrcDescriptorRanges));
+		reshade::api::descriptor_set_update update = {};
+		// This assumes that all descriptors in the copied range are of the same type and that there are no constant buffer view descriptors
+		update.type = (DescriptorHeapsType == D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER) ? reshade::api::descriptor_type::sampler : reshade::api::descriptor_type::shader_resource_view;
 
-		for (UINT i = 0, j = 0; i < NumSrcDescriptorRanges; ++i)
+		const auto updates = static_cast<reshade::api::descriptor_set_update *>(_malloca(NumDestDescriptorRanges * sizeof(reshade::api::descriptor_set_update)));
+		const auto descriptors = static_cast<uint64_t *>(_malloca(max_descriptors * sizeof(uint64_t)));
+
+		for (UINT dst_range = 0, src_range = 0, src_offset = 0, dst_base = 0; dst_range < NumDestDescriptorRanges; ++dst_range, dst_base += update.offset)
 		{
-			copy.src_set.handle = pSrcDescriptorRangeStarts[i].ptr;
-			copy.src_binding = 0;
-			copy.src_array_offset = 0;
+			if (!resolve_descriptor_handle(pDestDescriptorRangeStarts[dst_range], DescriptorHeapsType, &update.set))
+				continue;
 
-			for (UINT k = 0; k < pSrcDescriptorRangeSizes[i]; ++k, ++copy.src_binding, ++copy.dst_binding)
+			update.count = pDestDescriptorRangeSizes[dst_range];
+
+			for (UINT dst_offset = dst_base; dst_offset < dst_base + update.count; ++dst_offset, ++src_offset)
 			{
-				if (copy.dst_binding >= pDestDescriptorRangeSizes[j])
+				if (pSrcDescriptorRangeSizes[src_range] <= src_offset)
 				{
-					copy.dst_set.handle = pDestDescriptorRangeStarts[++j].ptr;
-					copy.dst_binding = 0;
-					copy.dst_array_offset = 0;
+					src_range += 1;
+					src_offset = 0;
 				}
 
-				copies.push_back(copy);
+				descriptors[dst_offset] = offset_descriptor_handle(pSrcDescriptorRangeStarts[src_range], src_offset, DescriptorHeapsType).ptr;
 			}
+
+			update.descriptors = descriptors + dst_base;
+
+			updates[num_updates++] = update;
 		}
 
-		if (reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(this, 0, nullptr, static_cast<uint32_t>(copies.size()), copies.data()))
+		const bool skip = reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(this, num_updates, updates);
+
+		_freea(descriptors);
+		_freea(updates);
+
+		if (skip)
 			return;
 	}
 #endif
@@ -542,19 +763,34 @@ void    STDMETHODCALLTYPE D3D12Device::CopyDescriptors(UINT NumDestDescriptorRan
 void    STDMETHODCALLTYPE D3D12Device::CopyDescriptorsSimple(UINT NumDescriptors, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptorRangeStart, D3D12_CPU_DESCRIPTOR_HANDLE SrcDescriptorRangeStart, D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapsType)
 {
 #if RESHADE_ADDON
-	if (DescriptorHeapsType <= D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER)
+	// All elements in the source ranges must be in a non shader-visible descriptor heap, so can treat this like an update
+	if (DescriptorHeapsType <= D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER &&
+		reshade::has_addon_event<reshade::addon_event::update_descriptor_sets>())
 	{
-		reshade::api::descriptor_set_copy copy;
-		copy.src_set = { SrcDescriptorRangeStart.ptr };
-		copy.src_binding = 0;
-		copy.src_array_offset = 0;
-		copy.dst_set = { DestDescriptorRangeStart.ptr };
-		copy.dst_binding = 0;
-		copy.dst_array_offset = 0;
-		copy.count = NumDescriptors;
+		reshade::api::descriptor_set_update update = {};
+		// This assumes that all descriptors in the copied range are of the same type and that there are no constant buffer view descriptors
+		update.type = (DescriptorHeapsType == D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER) ? reshade::api::descriptor_type::sampler : reshade::api::descriptor_type::shader_resource_view;
 
-		if (reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(this, 0, nullptr, 1, &copy))
-			return;
+		if (resolve_descriptor_handle(DestDescriptorRangeStart, DescriptorHeapsType, &update.set))
+		{
+			const auto descriptors = static_cast<uint64_t *>(_malloca(NumDescriptors * sizeof(uint64_t)));
+
+			update.count = NumDescriptors;
+
+			for (UINT dst_offset = 0; dst_offset < update.count; ++dst_offset)
+			{
+				descriptors[dst_offset] = offset_descriptor_handle(SrcDescriptorRangeStart, dst_offset, DescriptorHeapsType).ptr;
+			}
+
+			update.descriptors = descriptors;
+
+			const bool skip = reshade::invoke_addon_event<reshade::addon_event::update_descriptor_sets>(this, 1, &update);
+
+			_freea(descriptors);
+
+			if (skip)
+				return;
+		}
 	}
 #endif
 
@@ -570,25 +806,24 @@ D3D12_HEAP_PROPERTIES STDMETHODCALLTYPE D3D12Device::GetCustomHeapProperties(UIN
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource(const D3D12_HEAP_PROPERTIES *pHeapProperties, D3D12_HEAP_FLAGS HeapFlags, const D3D12_RESOURCE_DESC *pDesc, D3D12_RESOURCE_STATES InitialResourceState, const D3D12_CLEAR_VALUE *pOptimizedClearValue, REFIID riidResource, void **ppvResource)
 {
+#if RESHADE_ADDON
 	if (pHeapProperties == nullptr || pDesc == nullptr)
 		return E_INVALIDARG;
+	if (ppvResource == nullptr) // This can happen when application only wants to validate input parameters
+		return _orig->CreateCommittedResource(pHeapProperties, HeapFlags, pDesc, InitialResourceState, pOptimizedClearValue, riidResource, nullptr);
 
-#if RESHADE_ADDON
-	reshade::api::resource_desc desc;
-	if (ppvResource != nullptr)
+	auto heap_props = *pHeapProperties;
+
+	D3D12_RESOURCE_DESC internal_desc = *pDesc;
+	auto desc = reshade::d3d12::convert_resource_desc(internal_desc, heap_props, HeapFlags);
+	assert(desc.heap != reshade::api::memory_heap::unknown);
+	const reshade::api::resource_usage initial_state = (InitialResourceState == D3D12_RESOURCE_STATE_COMMON) ? reshade::api::resource_usage::general : static_cast<reshade::api::resource_usage>(InitialResourceState);
+
+	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, initial_state))
 	{
-		desc = reshade::d3d12::convert_resource_desc(*pDesc, *pHeapProperties, HeapFlags);
-		assert(desc.heap != reshade::api::memory_heap::unknown);
-
-		if (reshade::api::resource overwrite = { 0 };
-			reshade::invoke_addon_event<reshade::addon_event::create_resource>(
-				this, desc, nullptr, InitialResourceState == D3D12_RESOURCE_STATE_COMMON ? reshade::api::resource_usage::general : static_cast<reshade::api::resource_usage>(InitialResourceState), &overwrite))
-		{
-			assert(overwrite.handle != 0 && SUCCEEDED(reinterpret_cast<IUnknown *>(overwrite.handle)->QueryInterface(riidResource, ppvResource)) && static_cast<IUnknown *>(*ppvResource)->Release() == 1);
-
-			*ppvResource = reinterpret_cast<ID3D12Resource *>(overwrite.handle);
-			return S_OK;
-		}
+		reshade::d3d12::convert_resource_desc(desc, internal_desc, heap_props, HeapFlags);
+		pHeapProperties = &heap_props;
+		pDesc = &internal_desc;
 	}
 #endif
 
@@ -596,37 +831,22 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource(const D3D12_HEAP_
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		if (ppvResource != nullptr) // This can happen when application only wants to validate input parameters
-		{
-			const auto resource = static_cast<ID3D12Resource *>(*ppvResource);
-			_resources.register_object(resource);
+		const auto resource = static_cast<ID3D12Resource *>(*ppvResource);
 
-			if (pDesc->Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
-				register_buffer_gpu_address(resource, pDesc->Width);
+		register_resource(resource);
+		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
+			this, desc, nullptr, initial_state, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
 
-			reshade::invoke_addon_event<reshade::addon_event::init_resource>(
-				this, desc, nullptr, InitialResourceState == D3D12_RESOURCE_STATE_COMMON ? reshade::api::resource_usage::general : static_cast<reshade::api::resource_usage>(InitialResourceState), reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
-		}
+		register_destruction_callback(resource, [this, resource]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
+			unregister_resource(resource);
+		});
 #endif
 	}
 	else
 	{
-		LOG(WARN) << "ID3D12Device::CreateCommittedResource" << " failed with error code " << hr << '.';
 #if RESHADE_VERBOSE_LOG
-		LOG(DEBUG) << "> Dumping description:";
-		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
-		LOG(DEBUG) << "  | Dimension                               | " << std::setw(39) << pDesc->Dimension << " |";
-		LOG(DEBUG) << "  | Alignment                               | " << std::setw(39) << pDesc->Alignment << " |";
-		LOG(DEBUG) << "  | Width                                   | " << std::setw(39) << pDesc->Width << " |";
-		LOG(DEBUG) << "  | Height                                  | " << std::setw(39) << pDesc->Height << " |";
-		LOG(DEBUG) << "  | DepthOrArraySize                        | " << std::setw(39) << pDesc->DepthOrArraySize << " |";
-		LOG(DEBUG) << "  | MipLevels                               | " << std::setw(39) << pDesc->MipLevels << " |";
-		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << pDesc->Format << " |";
-		LOG(DEBUG) << "  | SampleCount                             | " << std::setw(39) << pDesc->SampleDesc.Count << " |";
-		LOG(DEBUG) << "  | SampleQuality                           | " << std::setw(39) << pDesc->SampleDesc.Quality << " |";
-		LOG(DEBUG) << "  | Layout                                  | " << std::setw(39) << pDesc->Layout << " |";
-		LOG(DEBUG) << "  | Flags                                   | " << std::setw(39) << std::hex << pDesc->Flags << std::dec << " |";
-		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(WARN) << "ID3D12Device::CreateCommittedResource" << " failed with error code " << hr << '.';
 #endif
 	}
 
@@ -638,27 +858,23 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateHeap(const D3D12_HEAP_DESC *pDesc, 
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreatePlacedResource(ID3D12Heap *pHeap, UINT64 HeapOffset, const D3D12_RESOURCE_DESC *pDesc, D3D12_RESOURCE_STATES InitialState, const D3D12_CLEAR_VALUE *pOptimizedClearValue, REFIID riid, void **ppvResource)
 {
+#if RESHADE_ADDON
 	if (pHeap == nullptr || pDesc == nullptr)
 		return E_INVALIDARG;
+	if (ppvResource == nullptr) // This can happen when application only wants to validate input parameters
+		return _orig->CreatePlacedResource(pHeap, HeapOffset, pDesc, InitialState, pOptimizedClearValue, riid, nullptr);
 
-#if RESHADE_ADDON
-	reshade::api::resource_desc desc;
-	if (ppvResource != nullptr)
+	const auto heap_desc = pHeap->GetDesc();
+
+	D3D12_RESOURCE_DESC internal_desc = *pDesc;
+	auto desc = reshade::d3d12::convert_resource_desc(internal_desc, heap_desc.Properties, heap_desc.Flags);
+	assert(desc.heap != reshade::api::memory_heap::unknown);
+	const reshade::api::resource_usage initial_state = (InitialState == D3D12_RESOURCE_STATE_COMMON) ? reshade::api::resource_usage::general : static_cast<reshade::api::resource_usage>(InitialState);
+
+	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, initial_state))
 	{
-		const D3D12_HEAP_DESC heap_desc = pHeap->GetDesc();
-
-		desc = reshade::d3d12::convert_resource_desc(*pDesc, heap_desc.Properties, heap_desc.Flags);
-		assert(desc.heap != reshade::api::memory_heap::unknown);
-
-		if (reshade::api::resource overwrite = { 0 };
-			reshade::invoke_addon_event<reshade::addon_event::create_resource>(
-				this, desc, nullptr, InitialState == D3D12_RESOURCE_STATE_COMMON ? reshade::api::resource_usage::general : static_cast<reshade::api::resource_usage>(InitialState), &overwrite))
-		{
-			assert(overwrite.handle != 0 && SUCCEEDED(reinterpret_cast<IUnknown *>(overwrite.handle)->QueryInterface(riid, ppvResource)) && static_cast<IUnknown *>(*ppvResource)->Release() == 1);
-
-			*ppvResource = reinterpret_cast<ID3D12Resource *>(overwrite.handle);
-			return S_OK;
-		}
+		reshade::d3d12::convert_resource_desc(desc, internal_desc);
+		pDesc = &internal_desc;
 	}
 #endif
 
@@ -666,37 +882,22 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePlacedResource(ID3D12Heap *pHeap, U
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		if (ppvResource != nullptr) // This can happen when application only wants to validate input parameters
-		{
-			const auto resource = static_cast<ID3D12Resource *>(*ppvResource);
-			_resources.register_object(resource);
+		const auto resource = static_cast<ID3D12Resource *>(*ppvResource);
 
-			if (pDesc->Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
-				register_buffer_gpu_address(resource, pDesc->Width);
+		register_resource(resource);
+		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
+			this, desc, nullptr, initial_state, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
 
-			reshade::invoke_addon_event<reshade::addon_event::init_resource>(
-				this, desc, nullptr, InitialState == D3D12_RESOURCE_STATE_COMMON ? reshade::api::resource_usage::general : static_cast<reshade::api::resource_usage>(InitialState), reshade::api::resource { reinterpret_cast<uintptr_t>(*ppvResource) });
-		}
+		register_destruction_callback(resource, [this, resource]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
+			unregister_resource(resource);
+		});
 #endif
 	}
 	else
 	{
-		LOG(WARN) << "ID3D12Device::CreatePlacedResource" << " failed with error code " << hr << '.';
 #if RESHADE_VERBOSE_LOG
-		LOG(DEBUG) << "> Dumping description:";
-		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
-		LOG(DEBUG) << "  | Dimension                               | " << std::setw(39) << pDesc->Dimension << " |";
-		LOG(DEBUG) << "  | Alignment                               | " << std::setw(39) << pDesc->Alignment << " |";
-		LOG(DEBUG) << "  | Width                                   | " << std::setw(39) << pDesc->Width << " |";
-		LOG(DEBUG) << "  | Height                                  | " << std::setw(39) << pDesc->Height << " |";
-		LOG(DEBUG) << "  | DepthOrArraySize                        | " << std::setw(39) << pDesc->DepthOrArraySize << " |";
-		LOG(DEBUG) << "  | MipLevels                               | " << std::setw(39) << pDesc->MipLevels << " |";
-		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << pDesc->Format << " |";
-		LOG(DEBUG) << "  | SampleCount                             | " << std::setw(39) << pDesc->SampleDesc.Count << " |";
-		LOG(DEBUG) << "  | SampleQuality                           | " << std::setw(39) << pDesc->SampleDesc.Quality << " |";
-		LOG(DEBUG) << "  | Layout                                  | " << std::setw(39) << pDesc->Layout << " |";
-		LOG(DEBUG) << "  | Flags                                   | " << std::setw(39) << std::hex << pDesc->Flags << std::dec << " |";
-		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(WARN) << "ID3D12Device::CreatePlacedResource" << " failed with error code " << hr << '.';
 #endif
 	}
 
@@ -704,25 +905,21 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePlacedResource(ID3D12Heap *pHeap, U
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource(const D3D12_RESOURCE_DESC *pDesc, D3D12_RESOURCE_STATES InitialState, const D3D12_CLEAR_VALUE *pOptimizedClearValue, REFIID riid, void **ppvResource)
 {
+#if RESHADE_ADDON
 	if (pDesc == nullptr)
 		return E_INVALIDARG;
+	if (ppvResource == nullptr) // This can happen when application only wants to validate input parameters
+		return _orig->CreateReservedResource(pDesc, InitialState, pOptimizedClearValue, riid, nullptr);
 
-#if RESHADE_ADDON
-	reshade::api::resource_desc desc;
-	if (ppvResource != nullptr)
+	D3D12_RESOURCE_DESC internal_desc = *pDesc;
+	auto desc = reshade::d3d12::convert_resource_desc(internal_desc);
+	assert(desc.heap == reshade::api::memory_heap::unknown);
+	const reshade::api::resource_usage initial_state = (InitialState == D3D12_RESOURCE_STATE_COMMON) ? reshade::api::resource_usage::general : static_cast<reshade::api::resource_usage>(InitialState);
+
+	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, initial_state))
 	{
-		desc = reshade::d3d12::convert_resource_desc(*pDesc);
-		assert(desc.heap == reshade::api::memory_heap::unknown);
-
-		if (reshade::api::resource overwrite = { 0 };
-			reshade::invoke_addon_event<reshade::addon_event::create_resource>(
-				this, desc, nullptr, InitialState == D3D12_RESOURCE_STATE_COMMON ? reshade::api::resource_usage::general : static_cast<reshade::api::resource_usage>(InitialState), &overwrite))
-		{
-			assert(overwrite.handle != 0 && SUCCEEDED(reinterpret_cast<IUnknown *>(overwrite.handle)->QueryInterface(riid, ppvResource)) && static_cast<IUnknown *>(*ppvResource)->Release() == 1);
-
-			*ppvResource = reinterpret_cast<ID3D12Resource *>(overwrite.handle);
-			return S_OK;
-		}
+		reshade::d3d12::convert_resource_desc(desc, internal_desc);
+		pDesc = &internal_desc;
 	}
 #endif
 
@@ -730,33 +927,22 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource(const D3D12_RESOUR
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		if (ppvResource != nullptr) // This can happen when application only wants to validate input parameters
-		{
-			_resources.register_object(static_cast<ID3D12Resource *>(*ppvResource));
+		const auto resource = static_cast<ID3D12Resource *>(*ppvResource);
 
-			reshade::invoke_addon_event<reshade::addon_event::init_resource>(
-				this, desc, nullptr, InitialState == D3D12_RESOURCE_STATE_COMMON ? reshade::api::resource_usage::general : static_cast<reshade::api::resource_usage>(InitialState), reshade::api::resource { reinterpret_cast<uintptr_t>(*ppvResource) });
-		}
+		register_resource(resource);
+		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
+			this, desc, nullptr, initial_state, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
+
+		register_destruction_callback(resource, [this, resource]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
+			unregister_resource(resource);
+		});
 #endif
 	}
 	else
 	{
-		LOG(WARN) << "ID3D12Device::CreateReservedResource" << " failed with error code " << hr << '.';
 #if RESHADE_VERBOSE_LOG
-		LOG(DEBUG) << "> Dumping description:";
-		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
-		LOG(DEBUG) << "  | Dimension                               | " << std::setw(39) << pDesc->Dimension << " |";
-		LOG(DEBUG) << "  | Alignment                               | " << std::setw(39) << pDesc->Alignment << " |";
-		LOG(DEBUG) << "  | Width                                   | " << std::setw(39) << pDesc->Width << " |";
-		LOG(DEBUG) << "  | Height                                  | " << std::setw(39) << pDesc->Height << " |";
-		LOG(DEBUG) << "  | DepthOrArraySize                        | " << std::setw(39) << pDesc->DepthOrArraySize << " |";
-		LOG(DEBUG) << "  | MipLevels                               | " << std::setw(39) << pDesc->MipLevels << " |";
-		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << pDesc->Format << " |";
-		LOG(DEBUG) << "  | SampleCount                             | " << std::setw(39) << pDesc->SampleDesc.Count << " |";
-		LOG(DEBUG) << "  | SampleQuality                           | " << std::setw(39) << pDesc->SampleDesc.Quality << " |";
-		LOG(DEBUG) << "  | Layout                                  | " << std::setw(39) << pDesc->Layout << " |";
-		LOG(DEBUG) << "  | Flags                                   | " << std::setw(39) << std::hex << pDesc->Flags << std::dec << " |";
-		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(WARN) << "ID3D12Device::CreateReservedResource" << " failed with error code " << hr << '.';
 #endif
 	}
 
@@ -768,7 +954,40 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateSharedHandle(ID3D12DeviceChild *pOb
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::OpenSharedHandle(HANDLE NTHandle, REFIID riid, void **ppvObj)
 {
-	return _orig->OpenSharedHandle(NTHandle, riid, ppvObj);
+	const HRESULT hr = _orig->OpenSharedHandle(NTHandle, riid, ppvObj);
+	if (SUCCEEDED(hr))
+	{
+#if RESHADE_ADDON
+		if (riid == __uuidof(ID3D12Resource) ||
+			riid == __uuidof(ID3D12Resource1))
+		{
+			const auto resource = static_cast<ID3D12Resource *>(*ppvObj);
+
+			D3D12_HEAP_FLAGS heap_flags = D3D12_HEAP_FLAG_NONE;
+			D3D12_HEAP_PROPERTIES heap_props = {};
+			resource->GetHeapProperties(&heap_props, &heap_flags);
+			assert((heap_flags & D3D12_HEAP_FLAG_SHARED) != 0);
+
+			const reshade::api::resource_desc desc = reshade::d3d12::convert_resource_desc(resource->GetDesc(), heap_props, heap_flags);
+
+			register_resource(resource);
+			reshade::invoke_addon_event<reshade::addon_event::init_resource>(this, desc, nullptr, reshade::api::resource_usage::general, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
+
+			register_destruction_callback(resource, [this, resource]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
+				unregister_resource(resource);
+			});
+		}
+#endif
+	}
+	else
+	{
+#if RESHADE_VERBOSE_LOG
+		LOG(WARN) << "ID3D12Device::OpenSharedHandle" << " failed with error code " << hr << '.';
+#endif
+	}
+
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::OpenSharedHandleByName(LPCWSTR Name, DWORD Access, HANDLE *pNTHandle)
 {
@@ -886,25 +1105,24 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateProtectedResourceSession(const D3D1
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource1(const D3D12_HEAP_PROPERTIES *pHeapProperties, D3D12_HEAP_FLAGS HeapFlags, const D3D12_RESOURCE_DESC *pDesc, D3D12_RESOURCE_STATES InitialResourceState, const D3D12_CLEAR_VALUE *pOptimizedClearValue, ID3D12ProtectedResourceSession *pProtectedSession, REFIID riidResource, void **ppvResource)
 {
+#if RESHADE_ADDON
 	if (pHeapProperties == nullptr || pDesc == nullptr)
 		return E_INVALIDARG;
+	if (ppvResource == nullptr) // This can happen when application only wants to validate input parameters
+		return static_cast<ID3D12Device4 *>(_orig)->CreateCommittedResource1(pHeapProperties, HeapFlags, pDesc, InitialResourceState, pOptimizedClearValue, pProtectedSession, riidResource, nullptr);
 
-#if RESHADE_ADDON
-	reshade::api::resource_desc desc;
-	if (ppvResource != nullptr)
+	auto heap_props = *pHeapProperties;
+
+	D3D12_RESOURCE_DESC internal_desc = *pDesc;
+	auto desc = reshade::d3d12::convert_resource_desc(internal_desc, heap_props, HeapFlags);
+	assert(desc.heap != reshade::api::memory_heap::unknown);
+	const reshade::api::resource_usage initial_state = (InitialResourceState == D3D12_RESOURCE_STATE_COMMON) ? reshade::api::resource_usage::general : static_cast<reshade::api::resource_usage>(InitialResourceState);
+
+	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, initial_state))
 	{
-		desc = reshade::d3d12::convert_resource_desc(*pDesc, *pHeapProperties, HeapFlags);
-		assert(desc.heap != reshade::api::memory_heap::unknown);
-
-		if (reshade::api::resource overwrite = { 0 };
-			reshade::invoke_addon_event<reshade::addon_event::create_resource>(
-				this, desc, nullptr, InitialResourceState == D3D12_RESOURCE_STATE_COMMON ? reshade::api::resource_usage::general : static_cast<reshade::api::resource_usage>(InitialResourceState), &overwrite))
-		{
-			assert(overwrite.handle != 0 && SUCCEEDED(reinterpret_cast<IUnknown *>(overwrite.handle)->QueryInterface(riidResource, ppvResource)) && static_cast<IUnknown *>(*ppvResource)->Release() == 1);
-
-			*ppvResource = reinterpret_cast<ID3D12Resource *>(overwrite.handle);
-			return S_OK;
-		}
+		reshade::d3d12::convert_resource_desc(desc, internal_desc, heap_props, HeapFlags);
+		pHeapProperties = &heap_props;
+		pDesc = &internal_desc;
 	}
 #endif
 
@@ -913,37 +1131,22 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource1(const D3D12_HEAP
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		if (ppvResource != nullptr) // This can happen when application only wants to validate input parameters
-		{
-			const auto resource = static_cast<ID3D12Resource *>(*ppvResource);
-			_resources.register_object(resource);
+		const auto resource = static_cast<ID3D12Resource *>(*ppvResource);
 
-			if (pDesc->Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
-				register_buffer_gpu_address(resource, pDesc->Width);
+		register_resource(resource);
+		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
+			this, desc, nullptr, initial_state, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
 
-			reshade::invoke_addon_event<reshade::addon_event::init_resource>(
-				this, desc, nullptr, InitialResourceState == D3D12_RESOURCE_STATE_COMMON ? reshade::api::resource_usage::general : static_cast<reshade::api::resource_usage>(InitialResourceState), reshade::api::resource { reinterpret_cast<uintptr_t>(*ppvResource) });
-		}
+		register_destruction_callback(resource, [this, resource]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
+			unregister_resource(resource);
+		});
 #endif
 	}
 	else
 	{
-		LOG(WARN) << "ID3D12Device::CreateCommittedResource1" << " failed with error code " << hr << '.';
 #if RESHADE_VERBOSE_LOG
-		LOG(DEBUG) << "> Dumping description:";
-		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
-		LOG(DEBUG) << "  | Dimension                               | " << std::setw(39) << pDesc->Dimension << " |";
-		LOG(DEBUG) << "  | Alignment                               | " << std::setw(39) << pDesc->Alignment << " |";
-		LOG(DEBUG) << "  | Width                                   | " << std::setw(39) << pDesc->Width << " |";
-		LOG(DEBUG) << "  | Height                                  | " << std::setw(39) << pDesc->Height << " |";
-		LOG(DEBUG) << "  | DepthOrArraySize                        | " << std::setw(39) << pDesc->DepthOrArraySize << " |";
-		LOG(DEBUG) << "  | MipLevels                               | " << std::setw(39) << pDesc->MipLevels << " |";
-		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << pDesc->Format << " |";
-		LOG(DEBUG) << "  | SampleCount                             | " << std::setw(39) << pDesc->SampleDesc.Count << " |";
-		LOG(DEBUG) << "  | SampleQuality                           | " << std::setw(39) << pDesc->SampleDesc.Quality << " |";
-		LOG(DEBUG) << "  | Layout                                  | " << std::setw(39) << pDesc->Layout << " |";
-		LOG(DEBUG) << "  | Flags                                   | " << std::setw(39) << std::hex << pDesc->Flags << std::dec << " |";
-		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(WARN) << "ID3D12Device4::CreateCommittedResource1" << " failed with error code " << hr << '.';
 #endif
 	}
 
@@ -956,25 +1159,21 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateHeap1(const D3D12_HEAP_DESC *pDesc,
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource1(const D3D12_RESOURCE_DESC *pDesc, D3D12_RESOURCE_STATES InitialState, const D3D12_CLEAR_VALUE *pOptimizedClearValue, ID3D12ProtectedResourceSession *pProtectedSession, REFIID riid, void **ppvResource)
 {
+#if RESHADE_ADDON
 	if (pDesc == nullptr)
 		return E_INVALIDARG;
+	if (ppvResource == nullptr) // This can happen when application only wants to validate input parameters
+		return static_cast<ID3D12Device4 *>(_orig)->CreateReservedResource1(pDesc, InitialState, pOptimizedClearValue, pProtectedSession, riid, nullptr);
 
-#if RESHADE_ADDON
-	reshade::api::resource_desc desc;
-	if (ppvResource != nullptr)
+	D3D12_RESOURCE_DESC internal_desc = *pDesc;
+	auto desc = reshade::d3d12::convert_resource_desc(internal_desc);
+	assert(desc.heap == reshade::api::memory_heap::unknown);
+	const reshade::api::resource_usage initial_state = (InitialState == D3D12_RESOURCE_STATE_COMMON) ? reshade::api::resource_usage::general : static_cast<reshade::api::resource_usage>(InitialState);
+
+	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, initial_state))
 	{
-		desc = reshade::d3d12::convert_resource_desc(*pDesc);
-		assert(desc.heap == reshade::api::memory_heap::unknown);
-
-		if (reshade::api::resource overwrite = { 0 };
-			reshade::invoke_addon_event<reshade::addon_event::create_resource>(
-				this, desc, nullptr, InitialState == D3D12_RESOURCE_STATE_COMMON ? reshade::api::resource_usage::general : static_cast<reshade::api::resource_usage>(InitialState), &overwrite))
-		{
-			assert(overwrite.handle != 0 && SUCCEEDED(reinterpret_cast<IUnknown *>(overwrite.handle)->QueryInterface(riid, ppvResource)) && static_cast<IUnknown *>(*ppvResource)->Release() == 1);
-
-			*ppvResource = reinterpret_cast<ID3D12Resource *>(overwrite.handle);
-			return S_OK;
-		}
+		reshade::d3d12::convert_resource_desc(desc, internal_desc);
+		pDesc = &internal_desc;
 	}
 #endif
 
@@ -983,33 +1182,22 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource1(const D3D12_RESOU
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		if (ppvResource != nullptr) // This can happen when application only wants to validate input parameters
-		{
-			_resources.register_object(static_cast<ID3D12Resource *>(*ppvResource));
+		const auto resource = static_cast<ID3D12Resource *>(*ppvResource);
 
-			reshade::invoke_addon_event<reshade::addon_event::init_resource>(
-				this, desc, nullptr, InitialState == D3D12_RESOURCE_STATE_COMMON ? reshade::api::resource_usage::general : static_cast<reshade::api::resource_usage>(InitialState), reshade::api::resource { reinterpret_cast<uintptr_t>(*ppvResource) });
-		}
+		register_resource(resource);
+		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
+			this, desc, nullptr, initial_state, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
+
+		register_destruction_callback(resource, [this, resource]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
+			unregister_resource(resource);
+		});
 #endif
 	}
 	else
 	{
-		LOG(WARN) << "ID3D12Device::CreateReservedResource1" << " failed with error code " << hr << '.';
 #if RESHADE_VERBOSE_LOG
-		LOG(DEBUG) << "> Dumping description:";
-		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
-		LOG(DEBUG) << "  | Dimension                               | " << std::setw(39) << pDesc->Dimension << " |";
-		LOG(DEBUG) << "  | Alignment                               | " << std::setw(39) << pDesc->Alignment << " |";
-		LOG(DEBUG) << "  | Width                                   | " << std::setw(39) << pDesc->Width << " |";
-		LOG(DEBUG) << "  | Height                                  | " << std::setw(39) << pDesc->Height << " |";
-		LOG(DEBUG) << "  | DepthOrArraySize                        | " << std::setw(39) << pDesc->DepthOrArraySize << " |";
-		LOG(DEBUG) << "  | MipLevels                               | " << std::setw(39) << pDesc->MipLevels << " |";
-		LOG(DEBUG) << "  | Format                                  | " << std::setw(39) << pDesc->Format << " |";
-		LOG(DEBUG) << "  | SampleCount                             | " << std::setw(39) << pDesc->SampleDesc.Count << " |";
-		LOG(DEBUG) << "  | SampleQuality                           | " << std::setw(39) << pDesc->SampleDesc.Quality << " |";
-		LOG(DEBUG) << "  | Layout                                  | " << std::setw(39) << pDesc->Layout << " |";
-		LOG(DEBUG) << "  | Flags                                   | " << std::setw(39) << std::hex << pDesc->Flags << std::dec << " |";
-		LOG(DEBUG) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(WARN) << "ID3D12Device4::CreateReservedResource1" << " failed with error code " << hr << '.';
 #endif
 	}
 
@@ -1053,7 +1241,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateStateObject(const D3D12_STATE_OBJEC
 }
 void    STDMETHODCALLTYPE D3D12Device::GetRaytracingAccelerationStructurePrebuildInfo(const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS *pDesc, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO *pInfo)
 {
-	assert(_interface_version >= 5);
+	// assert(_interface_version >= 5); // Cyberpunk 2077 incorrectly calls this on a 'ID3D12Device3' object
 	static_cast<ID3D12Device5 *>(_orig)->GetRaytracingAccelerationStructurePrebuildInfo(pDesc, pInfo);
 }
 D3D12_DRIVER_MATCHING_IDENTIFIER_STATUS STDMETHODCALLTYPE D3D12Device::CheckDriverMatchingIdentifier(D3D12_SERIALIZED_DATA_TYPE SerializedDataType, const D3D12_SERIALIZED_DATA_DRIVER_MATCHING_IDENTIFIER *pIdentifierToCheck)

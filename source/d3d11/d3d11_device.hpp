@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "reshade_api_device.hpp"
+#include "d3d11_impl_device.hpp"
 
 struct DXGIDevice;
 struct D3D11DeviceContext;
@@ -101,7 +101,7 @@ struct DECLSPEC_UUID("72299288-2C68-4AD8-945D-2BFB5AA9C609") D3D11Device final :
 	bool check_and_upgrade_interface(REFIID riid);
 
 	LONG _ref = 1;
-	unsigned int _interface_version;
+	unsigned int _interface_version = 0;
 	DXGIDevice *const _dxgi_device;
 	D3D11DeviceContext *_immediate_context = nullptr;
 };

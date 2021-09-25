@@ -78,31 +78,38 @@
   <ImportGroup Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="Common.props" />
-    <Import Project="deps\Windows.props" />
-    <Import Project="deps\MinHook.props" />
-    <Import Project="deps\gl3w.props" />
-    <Import Project="deps\stb.props" />
-    <Import Project="deps\ImGui.props" />
-    <Import Project="deps\utfcpp.props" />
-    <Import Project="deps\SPIRV.props" />
-    <Import Project="deps\Vulkan.props" />
     <Import Project="deps\D3D12On7.props" />
+    <Import Project="deps\gl3w.props" />
+    <Import Project="deps\ImGui.props" />
+    <Import Project="deps\MinHook.props" />
     <Import Project="deps\OpenVR.props" />
+    <Import Project="deps\SPIRV.props" />
+    <Import Project="deps\stb.props" />
+    <Import Project="deps\utfcpp.props" />
+    <Import Project="deps\Vulkan.props" />
+    <Import Project="deps\Windows.props" />
   </ImportGroup>
   <PropertyGroup>
     <ExecutablePath>$(SolutionDir)tools;$(ExecutablePath)</ExecutablePath>
   </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <!-- Fix inconsistent DLL linkage warnings because of prototypes defined in "wingdi.h" and "Winsock2.h" using "__declspec(dllimport)" -->
+      <PreprocessorDefinitions>_GDI32_;WINSOCK_API_LINKAGE=;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level4</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>$(SolutionDir)res;$(SolutionDir)source;$(SolutionDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>RESHADE_GUI;RESHADE_ADDON;RESHADE_ADDON_LOAD;RESHADE_VERBOSE_LOG;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;_GDI32_;WINSOCK_API_LINKAGE=;WIN32;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <PreprocessorDefinitions>RESHADE_GUI;RESHADE_ADDON;RESHADE_ADDON_LOAD;RESHADE_VERBOSE_LOG;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;WIN32;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DisableSpecificWarnings>4351;26812;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <FloatingPointModel>Fast</FloatingPointModel>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -129,11 +136,12 @@
       <SDLCheck>true</SDLCheck>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>$(SolutionDir)res;$(SolutionDir)source;$(SolutionDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>RESHADE_GUI;RESHADE_ADDON;RESHADE_ADDON_LOAD;RESHADE_VERBOSE_LOG;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;_GDI32_;WINSOCK_API_LINKAGE=;WIN64;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <PreprocessorDefinitions>RESHADE_GUI;RESHADE_ADDON;RESHADE_ADDON_LOAD;RESHADE_VERBOSE_LOG;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;WIN64;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DisableSpecificWarnings>4351;26812;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <FloatingPointModel>Fast</FloatingPointModel>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -160,11 +168,12 @@
       <SDLCheck>true</SDLCheck>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>$(SolutionDir)res;$(SolutionDir)source;$(SolutionDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>RESHADE_GUI;RESHADE_ADDON;RESHADE_ADDON_LOAD;RESHADE_TEST_APPLICATION;RESHADE_VERBOSE_LOG;D3D_DEBUG_INFO;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;_GDI32_;WINSOCK_API_LINKAGE=;WIN32;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <PreprocessorDefinitions>RESHADE_GUI;RESHADE_ADDON;RESHADE_ADDON_LOAD;RESHADE_TEST_APPLICATION;RESHADE_VERBOSE_LOG;D3D_DEBUG_INFO;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;WIN32;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DisableSpecificWarnings>4351;26812;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <FloatingPointModel>Fast</FloatingPointModel>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -191,11 +200,12 @@
       <SDLCheck>true</SDLCheck>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>$(SolutionDir)res;$(SolutionDir)source;$(SolutionDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>RESHADE_GUI;RESHADE_ADDON;RESHADE_ADDON_LOAD;RESHADE_TEST_APPLICATION;RESHADE_VERBOSE_LOG;D3D_DEBUG_INFO;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;_GDI32_;WINSOCK_API_LINKAGE=;WIN64;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <PreprocessorDefinitions>RESHADE_GUI;RESHADE_ADDON;RESHADE_ADDON_LOAD;RESHADE_TEST_APPLICATION;RESHADE_VERBOSE_LOG;D3D_DEBUG_INFO;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;WIN64;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DisableSpecificWarnings>4351;26812;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <FloatingPointModel>Fast</FloatingPointModel>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -223,14 +233,17 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <AdditionalIncludeDirectories>$(SolutionDir)res;$(SolutionDir)source;$(SolutionDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>RESHADE_GUI;RESHADE_ADDON;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;_GDI32_;WINSOCK_API_LINKAGE=;WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="!Exists('res\sign.pfx')">RESHADE_ADDON_LOAD;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <PreprocessorDefinitions>RESHADE_GUI;RESHADE_ADDON;_HAS_EXCEPTIONS=0;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DisableSpecificWarnings>4351;26812;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <StringPooling>true</StringPooling>
       <BufferSecurityCheck>false</BufferSecurityCheck>
+      <ExceptionHandling>false</ExceptionHandling>
+      <FloatingPointModel>Fast</FloatingPointModel>
+      <RuntimeTypeInfo>false</RuntimeTypeInfo>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -264,14 +277,17 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <AdditionalIncludeDirectories>$(SolutionDir)res;$(SolutionDir)source;$(SolutionDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>RESHADE_GUI;RESHADE_ADDON;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;_GDI32_;WINSOCK_API_LINKAGE=;WIN64;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="!Exists('res\sign.pfx')">RESHADE_ADDON_LOAD;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <PreprocessorDefinitions>RESHADE_GUI;RESHADE_ADDON;_HAS_EXCEPTIONS=0;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;WIN64;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DisableSpecificWarnings>4351;26812;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <StringPooling>true</StringPooling>
       <BufferSecurityCheck>false</BufferSecurityCheck>
+      <ExceptionHandling>false</ExceptionHandling>
+      <FloatingPointModel>Fast</FloatingPointModel>
+      <RuntimeTypeInfo>false</RuntimeTypeInfo>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -305,12 +321,15 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <AdditionalIncludeDirectories>$(SolutionDir)res;$(SolutionDir)source;$(SolutionDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>RESHADE_TEST_APPLICATION;RESHADE_VERBOSE_LOG;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;_GDI32_;WINSOCK_API_LINKAGE=;WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <PreprocessorDefinitions>RESHADE_TEST_APPLICATION;RESHADE_VERBOSE_LOG;_HAS_EXCEPTIONS=0;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DisableSpecificWarnings>4351;26812;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <BufferSecurityCheck>false</BufferSecurityCheck>
+      <ExceptionHandling>false</ExceptionHandling>
+      <FloatingPointModel>Fast</FloatingPointModel>
+      <RuntimeTypeInfo>false</RuntimeTypeInfo>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -341,12 +360,15 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <AdditionalIncludeDirectories>$(SolutionDir)res;$(SolutionDir)source;$(SolutionDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>RESHADE_TEST_APPLICATION;RESHADE_VERBOSE_LOG;WIN32_LEAN_AND_MEAN;NOMINMAX;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;_GDI32_;WINSOCK_API_LINKAGE=;WIN64;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <PreprocessorDefinitions>RESHADE_TEST_APPLICATION;RESHADE_VERBOSE_LOG;_HAS_EXCEPTIONS=0;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;WIN64;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DisableSpecificWarnings>4351;26812;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <BufferSecurityCheck>false</BufferSecurityCheck>
+      <ExceptionHandling>false</ExceptionHandling>
+      <FloatingPointModel>Fast</FloatingPointModel>
+      <RuntimeTypeInfo>false</RuntimeTypeInfo>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -388,49 +410,51 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="source\addon.cpp" />
     <ClCompile Include="source\addon_manager.cpp" />
     <ClCompile Include="source\addon\generic_depth.cpp" />
     <ClCompile Include="source\d2d1\d2d1.cpp" />
     <ClCompile Include="source\d3d10\d3d10.cpp" />
     <ClCompile Include="source\d3d10\d3d10_device.cpp" />
-    <ClCompile Include="source\d3d10\reshade_api_command_list.cpp" />
-    <ClCompile Include="source\d3d10\reshade_api_command_queue.cpp" />
-    <ClCompile Include="source\d3d10\reshade_api_device.cpp" />
-    <ClCompile Include="source\d3d10\reshade_api_swapchain.cpp" />
-    <ClCompile Include="source\d3d10\reshade_api_type_convert.cpp" />
-    <ClCompile Include="source\d3d10\state_block.cpp" />
+    <ClCompile Include="source\d3d10\d3d10_impl_command_list.cpp" />
+    <ClCompile Include="source\d3d10\d3d10_impl_command_queue.cpp" />
+    <ClCompile Include="source\d3d10\d3d10_impl_device.cpp" />
+    <ClCompile Include="source\d3d10\d3d10_impl_state_block.cpp" />
+    <ClCompile Include="source\d3d10\d3d10_impl_swapchain.cpp" />
+    <ClCompile Include="source\d3d10\d3d10_impl_type_convert.cpp" />
     <ClCompile Include="source\d3d11\d3d11.cpp" />
     <ClCompile Include="source\d3d11\d3d11_command_list.cpp" />
     <ClCompile Include="source\d3d11\d3d11_device.cpp" />
     <ClCompile Include="source\d3d11\d3d11_device_context.cpp" />
-    <ClCompile Include="source\d3d11\reshade_api_command_list.cpp" />
-    <ClCompile Include="source\d3d11\reshade_api_command_queue.cpp" />
-    <ClCompile Include="source\d3d11\reshade_api_device.cpp" />
-    <ClCompile Include="source\d3d11\reshade_api_swapchain.cpp" />
-    <ClCompile Include="source\d3d11\reshade_api_type_convert.cpp" />
-    <ClCompile Include="source\d3d11\state_block.cpp" />
+    <ClCompile Include="source\d3d11\d3d11_impl_command_list.cpp" />
+    <ClCompile Include="source\d3d11\d3d11_impl_command_queue.cpp" />
+    <ClCompile Include="source\d3d11\d3d11_impl_device.cpp" />
+    <ClCompile Include="source\d3d11\d3d11_impl_state_block.cpp" />
+    <ClCompile Include="source\d3d11\d3d11_impl_swapchain.cpp" />
+    <ClCompile Include="source\d3d11\d3d11_impl_type_convert.cpp" />
     <ClCompile Include="source\d3d12\d3d12.cpp" />
     <ClCompile Include="source\d3d12\d3d12_command_list.cpp" />
     <ClCompile Include="source\d3d12\d3d12_command_queue.cpp" />
     <ClCompile Include="source\d3d12\d3d12_command_queue_downlevel.cpp" />
     <ClCompile Include="source\d3d12\d3d12_device.cpp" />
     <ClCompile Include="source\d3d12\d3d12_device_downlevel.cpp" />
-    <ClCompile Include="source\d3d12\reshade_api_command_list.cpp" />
-    <ClCompile Include="source\d3d12\reshade_api_command_list_immediate.cpp" />
-    <ClCompile Include="source\d3d12\reshade_api_command_queue.cpp" />
-    <ClCompile Include="source\d3d12\reshade_api_device.cpp" />
-    <ClCompile Include="source\d3d12\reshade_api_swapchain.cpp" />
-    <ClCompile Include="source\d3d12\reshade_api_type_convert.cpp" />
+    <ClCompile Include="source\d3d12\d3d12_impl_command_list.cpp" />
+    <ClCompile Include="source\d3d12\d3d12_impl_command_list_immediate.cpp" />
+    <ClCompile Include="source\d3d12\d3d12_impl_command_queue.cpp" />
+    <ClCompile Include="source\d3d12\d3d12_impl_device.cpp" />
+    <ClCompile Include="source\d3d12\d3d12_impl_swapchain.cpp" />
+    <ClCompile Include="source\d3d12\d3d12_impl_type_convert.cpp" />
     <ClCompile Include="source\d3d9\d3d9.cpp" />
     <ClCompile Include="source\d3d9\d3d9_device.cpp" />
+    <ClCompile Include="source\d3d9\d3d9_impl_command_list.cpp" />
+    <ClCompile Include="source\d3d9\d3d9_impl_command_queue.cpp" />
+    <ClCompile Include="source\d3d9\d3d9_impl_device.cpp" />
+    <ClCompile Include="source\d3d9\d3d9_impl_state_block.cpp" />
+    <ClCompile Include="source\d3d9\d3d9_impl_swapchain.cpp" />
+    <ClCompile Include="source\d3d9\d3d9_impl_type_convert.cpp" />
     <ClCompile Include="source\d3d9\d3d9_internal.cpp" />
     <ClCompile Include="source\d3d9\d3d9_profiling.cpp" />
     <ClCompile Include="source\d3d9\d3d9_swapchain.cpp" />
-    <ClCompile Include="source\d3d9\reshade_api_command_list.cpp" />
-    <ClCompile Include="source\d3d9\reshade_api_device.cpp" />
-    <ClCompile Include="source\d3d9\reshade_api_swapchain.cpp" />
-    <ClCompile Include="source\d3d9\reshade_api_type_convert.cpp" />
-    <ClCompile Include="source\d3d9\state_block.cpp" />
     <ClCompile Include="source\dll_log.cpp" />
     <ClCompile Include="source\dll_main.cpp" />
     <ClCompile Include="source\dll_resources.cpp" />
@@ -448,29 +472,29 @@
     <ClCompile Include="source\input_freepie.cpp" />
     <ClCompile Include="source\opengl\opengl_hooks.cpp" />
     <ClCompile Include="source\opengl\opengl_hooks_wgl.cpp" />
-    <ClCompile Include="source\opengl\reshade_api_command_list.cpp" />
-    <ClCompile Include="source\opengl\reshade_api_command_queue.cpp" />
-    <ClCompile Include="source\opengl\reshade_api_device.cpp" />
-    <ClCompile Include="source\opengl\reshade_api_swapchain.cpp" />
-    <ClCompile Include="source\opengl\reshade_api_type_convert.cpp" />
-    <ClCompile Include="source\opengl\state_block.cpp" />
+    <ClCompile Include="source\opengl\opengl_impl_command_list.cpp" />
+    <ClCompile Include="source\opengl\opengl_impl_command_queue.cpp" />
+    <ClCompile Include="source\opengl\opengl_impl_device.cpp" />
+    <ClCompile Include="source\opengl\opengl_impl_state_block.cpp" />
+    <ClCompile Include="source\opengl\opengl_impl_swapchain.cpp" />
+    <ClCompile Include="source\opengl\opengl_impl_type_convert.cpp" />
     <ClCompile Include="source\openvr\openvr.cpp" />
     <ClCompile Include="source\runtime.cpp" />
     <ClCompile Include="source\runtime_gui.cpp" />
     <ClCompile Include="source\runtime_gui_vr.cpp" />
     <ClCompile Include="source\runtime_update_check.cpp" />
-    <ClCompile Include="source\vulkan\reshade_api_command_list.cpp" />
-    <ClCompile Include="source\vulkan\reshade_api_command_list_immediate.cpp" />
-    <ClCompile Include="source\vulkan\reshade_api_command_queue.cpp" />
-    <ClCompile Include="source\vulkan\reshade_api_device.cpp">
-      <PreprocessorDefinitions>VMA_IMPLEMENTATION;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-    </ClCompile>
-    <ClCompile Include="source\vulkan\reshade_api_swapchain.cpp" />
-    <ClCompile Include="source\vulkan\reshade_api_type_convert.cpp" />
     <ClCompile Include="source\vulkan\vulkan_hooks.cpp" />
     <ClCompile Include="source\vulkan\vulkan_hooks_cmd.cpp" />
     <ClCompile Include="source\vulkan\vulkan_hooks_device.cpp" />
     <ClCompile Include="source\vulkan\vulkan_hooks_instance.cpp" />
+    <ClCompile Include="source\vulkan\vulkan_impl_command_list.cpp" />
+    <ClCompile Include="source\vulkan\vulkan_impl_command_list_immediate.cpp" />
+    <ClCompile Include="source\vulkan\vulkan_impl_command_queue.cpp" />
+    <ClCompile Include="source\vulkan\vulkan_impl_device.cpp">
+      <PreprocessorDefinitions>VMA_IMPLEMENTATION;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <ClCompile Include="source\vulkan\vulkan_impl_swapchain.cpp" />
+    <ClCompile Include="source\vulkan\vulkan_impl_type_convert.cpp" />
     <ClCompile Include="source\windows\dinput8.cpp" />
     <ClCompile Include="source\windows\user32.cpp" />
     <ClCompile Include="source\windows\ws2_32.cpp" />
@@ -488,41 +512,41 @@
     <ClInclude Include="res\fonts\forkawesome.h" />
     <ClInclude Include="res\resource.h" />
     <ClInclude Include="res\version.h" />
-    <ClInclude Include="source\addon_impl.hpp" />
+    <ClInclude Include="source\addon.hpp" />
     <ClInclude Include="source\addon_manager.hpp" />
     <ClInclude Include="source\com_ptr.hpp" />
-    <ClInclude Include="source\com_tracking.hpp" />
+    <ClInclude Include="source\com_utils.hpp" />
     <ClInclude Include="source\d3d10\d3d10_device.hpp" />
-    <ClInclude Include="source\d3d10\reshade_api_device.hpp" />
-    <ClInclude Include="source\d3d10\reshade_api_swapchain.hpp" />
-    <ClInclude Include="source\d3d10\reshade_api_type_convert.hpp" />
-    <ClInclude Include="source\d3d10\state_block.hpp" />
+    <ClInclude Include="source\d3d10\d3d10_impl_device.hpp" />
+    <ClInclude Include="source\d3d10\d3d10_impl_state_block.hpp" />
+    <ClInclude Include="source\d3d10\d3d10_impl_swapchain.hpp" />
+    <ClInclude Include="source\d3d10\d3d10_impl_type_convert.hpp" />
     <ClInclude Include="source\d3d11\d3d11_command_list.hpp" />
     <ClInclude Include="source\d3d11\d3d11_device.hpp" />
     <ClInclude Include="source\d3d11\d3d11_device_context.hpp" />
-    <ClInclude Include="source\d3d11\reshade_api_device.hpp" />
-    <ClInclude Include="source\d3d11\reshade_api_device_context.hpp" />
-    <ClInclude Include="source\d3d11\reshade_api_swapchain.hpp" />
-    <ClInclude Include="source\d3d11\reshade_api_type_convert.hpp" />
-    <ClInclude Include="source\d3d11\state_block.hpp" />
+    <ClInclude Include="source\d3d11\d3d11_impl_device.hpp" />
+    <ClInclude Include="source\d3d11\d3d11_impl_device_context.hpp" />
+    <ClInclude Include="source\d3d11\d3d11_impl_state_block.hpp" />
+    <ClInclude Include="source\d3d11\d3d11_impl_swapchain.hpp" />
+    <ClInclude Include="source\d3d11\d3d11_impl_type_convert.hpp" />
     <ClInclude Include="source\d3d12\d3d12_command_list.hpp" />
     <ClInclude Include="source\d3d12\d3d12_command_queue.hpp" />
     <ClInclude Include="source\d3d12\d3d12_command_queue_downlevel.hpp" />
     <ClInclude Include="source\d3d12\d3d12_device.hpp" />
     <ClInclude Include="source\d3d12\d3d12_device_downlevel.hpp" />
+    <ClInclude Include="source\d3d12\d3d12_impl_command_list.hpp" />
+    <ClInclude Include="source\d3d12\d3d12_impl_command_list_immediate.hpp" />
+    <ClInclude Include="source\d3d12\d3d12_impl_command_queue.hpp" />
+    <ClInclude Include="source\d3d12\d3d12_impl_device.hpp" />
+    <ClInclude Include="source\d3d12\d3d12_impl_swapchain.hpp" />
+    <ClInclude Include="source\d3d12\d3d12_impl_type_convert.hpp" />
     <ClInclude Include="source\d3d12\descriptor_heap.hpp" />
-    <ClInclude Include="source\d3d12\reshade_api_command_list.hpp" />
-    <ClInclude Include="source\d3d12\reshade_api_command_list_immediate.hpp" />
-    <ClInclude Include="source\d3d12\reshade_api_command_queue.hpp" />
-    <ClInclude Include="source\d3d12\reshade_api_device.hpp" />
-    <ClInclude Include="source\d3d12\reshade_api_swapchain.hpp" />
-    <ClInclude Include="source\d3d12\reshade_api_type_convert.hpp" />
     <ClInclude Include="source\d3d9\d3d9_device.hpp" />
+    <ClInclude Include="source\d3d9\d3d9_impl_device.hpp" />
+    <ClInclude Include="source\d3d9\d3d9_impl_state_block.hpp" />
+    <ClInclude Include="source\d3d9\d3d9_impl_swapchain.hpp" />
+    <ClInclude Include="source\d3d9\d3d9_impl_type_convert.hpp" />
     <ClInclude Include="source\d3d9\d3d9_swapchain.hpp" />
-    <ClInclude Include="source\d3d9\reshade_api_device.hpp" />
-    <ClInclude Include="source\d3d9\reshade_api_swapchain.hpp" />
-    <ClInclude Include="source\d3d9\reshade_api_type_convert.hpp" />
-    <ClInclude Include="source\d3d9\state_block.hpp" />
     <ClInclude Include="source\dll_log.hpp" />
     <ClInclude Include="source\dll_resources.hpp" />
     <ClInclude Include="source\dxgi\dxgi_device.hpp" />
@@ -534,22 +558,22 @@
     <ClInclude Include="source\ini_file.hpp" />
     <ClInclude Include="source\input.hpp" />
     <ClInclude Include="source\input_freepie.hpp" />
-    <ClInclude Include="source\lockfree_table.hpp" />
+    <ClInclude Include="source\lockfree_linear_map.hpp" />
     <ClInclude Include="source\opengl\opengl.hpp" />
     <ClInclude Include="source\opengl\opengl_hooks.hpp" />
-    <ClInclude Include="source\opengl\reshade_api_device.hpp" />
-    <ClInclude Include="source\opengl\reshade_api_swapchain.hpp" />
-    <ClInclude Include="source\opengl\reshade_api_type_convert.hpp" />
-    <ClInclude Include="source\opengl\state_block.hpp" />
+    <ClInclude Include="source\opengl\opengl_impl_device.hpp" />
+    <ClInclude Include="source\opengl\opengl_impl_state_block.hpp" />
+    <ClInclude Include="source\opengl\opengl_impl_swapchain.hpp" />
+    <ClInclude Include="source\opengl\opengl_impl_type_convert.hpp" />
     <ClInclude Include="source\runtime.hpp" />
     <ClInclude Include="source\runtime_objects.hpp" />
-    <ClInclude Include="source\vulkan\reshade_api_command_list.hpp" />
-    <ClInclude Include="source\vulkan\reshade_api_command_list_immediate.hpp" />
-    <ClInclude Include="source\vulkan\reshade_api_command_queue.hpp" />
-    <ClInclude Include="source\vulkan\reshade_api_device.hpp" />
-    <ClInclude Include="source\vulkan\reshade_api_swapchain.hpp" />
-    <ClInclude Include="source\vulkan\reshade_api_type_convert.hpp" />
     <ClInclude Include="source\vulkan\vulkan_hooks.hpp" />
+    <ClInclude Include="source\vulkan\vulkan_impl_command_list.hpp" />
+    <ClInclude Include="source\vulkan\vulkan_impl_command_list_immediate.hpp" />
+    <ClInclude Include="source\vulkan\vulkan_impl_command_queue.hpp" />
+    <ClInclude Include="source\vulkan\vulkan_impl_device.hpp" />
+    <ClInclude Include="source\vulkan\vulkan_impl_swapchain.hpp" />
+    <ClInclude Include="source\vulkan\vulkan_impl_type_convert.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="res\resource.rc" />

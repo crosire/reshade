@@ -3,13 +3,14 @@
  * License: https://github.com/crosire/reshade#license
  */
 
+#include "version.h"
 #include "dll_log.hpp"
 #include "hook_manager.hpp"
-#include "lockfree_table.hpp"
+#include "lockfree_linear_map.hpp"
 #include "vulkan_hooks.hpp"
 
-lockfree_table<void *, VkLayerInstanceDispatchTable, 16> g_instance_dispatch;
-lockfree_table<VkSurfaceKHR, HWND, 16> g_surface_windows;
+lockfree_linear_map<void *, instance_dispatch_table, 4> g_instance_dispatch;
+lockfree_linear_map<VkSurfaceKHR, HWND, 16> g_surface_windows;
 
 #define GET_DISPATCH_PTR(name, object) \
 	PFN_vk##name trampoline = g_instance_dispatch.at(dispatch_key_from_handle(object)).name; \
@@ -60,10 +61,8 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	for (uint32_t i = 0; i < pCreateInfo->enabledExtensionCount; ++i)
 		LOG(INFO) << "  " << pCreateInfo->ppEnabledExtensionNames[i];
 
-	// 'vkEnumerateInstanceExtensionProperties' is not included in the next 'vkGetInstanceProcAddr' from the call chain, so use global one instead (this may only be called without an instance though)
-	auto get_instance_proc_global = reinterpret_cast<PFN_vkGetInstanceProcAddr>(GetProcAddress(GetModuleHandleW(L"vulkan-1.dll"), "vkGetInstanceProcAddr"));
-	assert(get_instance_proc_global != nullptr);
-	auto enum_instance_extensions = reinterpret_cast<PFN_vkEnumerateInstanceExtensionProperties>(get_instance_proc_global(nullptr, "vkEnumerateInstanceExtensionProperties"));
+	// 'vkEnumerateInstanceExtensionProperties' is not included in the next 'vkGetInstanceProcAddr' from the call chain, so use global one instead
+	auto enum_instance_extensions = reinterpret_cast<PFN_vkEnumerateInstanceExtensionProperties>(GetProcAddress(GetModuleHandleW(L"vulkan-1.dll"), "vkEnumerateInstanceExtensionProperties"));
 	assert(enum_instance_extensions != nullptr);
 
 	std::vector<const char *> enabled_extensions;
@@ -71,6 +70,7 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	for (uint32_t i = 0; i < pCreateInfo->enabledExtensionCount; ++i)
 		enabled_extensions.push_back(pCreateInfo->ppEnabledExtensionNames[i]);
 
+	if (enum_instance_extensions != nullptr)
 	{
 		uint32_t num_extensions = 0;
 		enum_instance_extensions(nullptr, &num_extensions, nullptr);
@@ -134,7 +134,7 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	// Initialize the instance dispatch table
 	VkLayerInstanceDispatchTable dispatch_table = { get_physical_device_proc };
 
-	// ---- Core 1_0 commands
+	#pragma region Core 1_0
 	INIT_DISPATCH_PTR(DestroyInstance);
 	INIT_DISPATCH_PTR(EnumeratePhysicalDevices);
 	INIT_DISPATCH_PTR(GetPhysicalDeviceFeatures);
@@ -144,14 +144,21 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	INIT_DISPATCH_PTR(GetPhysicalDeviceQueueFamilyProperties);
 	dispatch_table.GetInstanceProcAddr = get_instance_proc;
 	INIT_DISPATCH_PTR(EnumerateDeviceExtensionProperties);
-	// ---- Core 1_1 commands
+	#pragma endregion
+	#pragma region Core 1_1
 	INIT_DISPATCH_PTR(GetPhysicalDeviceMemoryProperties2);
-	// ---- VK_KHR_surface extension commands
+	#pragma endregion
+	#pragma region VK_KHR_surface
 	INIT_DISPATCH_PTR(DestroySurfaceKHR);
-	// ---- VK_KHR_win32_surface extension commands
+	#pragma endregion
+	#pragma region VK_KHR_win32_surface
 	INIT_DISPATCH_PTR(CreateWin32SurfaceKHR);
+	#pragma endregion
+	#pragma region VK_EXT_tooling_info
+	INIT_DISPATCH_PTR(GetPhysicalDeviceToolPropertiesEXT);
+	#pragma endregion
 
-	g_instance_dispatch.emplace(dispatch_key_from_handle(instance), dispatch_table);
+	g_instance_dispatch.emplace(dispatch_key_from_handle(instance), instance_dispatch_table { dispatch_table, instance });
 
 #if RESHADE_VERBOSE_LOG
 	LOG(INFO) << "Returning Vulkan instance " << instance << '.';
@@ -165,6 +172,7 @@ void     VKAPI_CALL vkDestroyInstance(VkInstance instance, const VkAllocationCal
 
 	// Get function pointer before removing it next
 	GET_DISPATCH_PTR(DestroyInstance, instance);
+
 	// Remove instance dispatch table since this instance is being destroyed
 	g_instance_dispatch.erase(dispatch_key_from_handle(instance));
 
@@ -196,4 +204,42 @@ void     VKAPI_CALL vkDestroySurfaceKHR(VkInstance instance, VkSurfaceKHR surfac
 
 	GET_DISPATCH_PTR(DestroySurfaceKHR, instance);
 	trampoline(instance, surface, pAllocator);
+}
+
+VkResult VKAPI_CALL vkGetPhysicalDeviceToolPropertiesEXT(VkPhysicalDevice physicalDevice, uint32_t *pToolCount, VkPhysicalDeviceToolPropertiesEXT *pToolProperties)
+{
+	GET_DISPATCH_PTR(GetPhysicalDeviceToolPropertiesEXT, physicalDevice);
+
+	assert(pToolCount != nullptr);
+
+	const uint32_t available_tool_count = *pToolCount;
+
+	// First get any tools that are downstream (provided this extension is supported downstream as well)
+	if (trampoline != nullptr)
+		trampoline(physicalDevice, pToolCount, pToolProperties); // Sets the number written in "pToolCount"
+	else
+		*pToolCount = 0;
+
+	// Check if application is only enumerating and increase reported tool count in that case
+	if (pToolProperties == nullptr)
+	{
+		*pToolCount += 1;
+		return VK_SUCCESS;
+	}
+
+	// Workaround bug in validation layers that cause them to not update "pToolCount" after writing their properties
+	if (*pToolCount == available_tool_count && available_tool_count > 1)
+		*pToolCount -= 1;
+
+	if (available_tool_count < *pToolCount + 1)
+		return VK_INCOMPLETE;
+
+	VkPhysicalDeviceToolPropertiesEXT &tool_props = pToolProperties[(*pToolCount)++];
+	strcpy_s(tool_props.name, "ReShade");
+	strcpy_s(tool_props.version, VERSION_STRING_PRODUCT);
+	tool_props.purposes = VK_TOOL_PURPOSE_ADDITIONAL_FEATURES_BIT_EXT | VK_TOOL_PURPOSE_MODIFYING_FEATURES_BIT_EXT;
+	strcpy_s(tool_props.description, "crosire's ReShade post-processing injector");
+	strcpy_s(tool_props.layer, "VK_LAYER_reshade");
+
+	return VK_SUCCESS;
 }

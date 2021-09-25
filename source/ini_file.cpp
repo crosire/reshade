@@ -8,29 +8,27 @@
 #include <fstream>
 #include <sstream>
 
-static std::unordered_map<std::wstring, reshade::ini_file> g_ini_cache;
+static std::unordered_map<std::wstring, ini_file> g_ini_cache;
 
-reshade::ini_file::ini_file(const std::filesystem::path &path) : _path(path)
+ini_file::ini_file(const std::filesystem::path &path) : _path(path)
 {
 	load();
 }
-reshade::ini_file::~ini_file()
-{
-	save();
-}
 
-void reshade::ini_file::load()
+void ini_file::load()
 {
 	std::error_code ec;
 	const std::filesystem::file_time_type modified_at = std::filesystem::last_write_time(_path, ec);
-	if (ec || _modified_at >= modified_at)
-		return; // Skip loading if there was an error (e.g. file does not exist) or there was no modification to the file since it was last loaded
+	if (!ec && _modified_at >= modified_at)
+		return; // Skip loading if there was no modification to the file since it was last loaded
+
+	// Clear when file does not exist too
+	_sections.clear();
 
 	std::ifstream file;
 	if (file.open(_path); !file)
 		return;
 
-	_sections.clear();
 	_modified = false;
 	_modified_at = modified_at;
 
@@ -62,7 +60,7 @@ void reshade::ini_file::load()
 			const std::string value = trim(line.substr(assign_index + 1));
 
 			// Append to key if it already exists
-			reshade::ini_file::value &elements = _sections[section][key];
+			ini_file::value &elements = _sections[section][key];
 			for (size_t offset = 0, base = 0, len = value.size(); offset <= len;)
 			{
 				// Treat ",," as an escaped comma and only split on single ","
@@ -95,7 +93,7 @@ void reshade::ini_file::load()
 		}
 	}
 }
-bool reshade::ini_file::save()
+bool ini_file::save()
 {
 	if (!_modified)
 		return true;
@@ -106,7 +104,7 @@ bool reshade::ini_file::save()
 	std::error_code ec;
 	const std::filesystem::file_time_type modified_at = std::filesystem::last_write_time(_path, ec);
 	if (!ec && modified_at >= _modified_at)
-		return true; // File exists and was modified on disk and therefore may have different data, so cannot save
+		return false; // File exists and was modified on disk and therefore may have different data, so cannot save
 
 	std::stringstream data;
 	std::vector<std::string> section_names, key_names;
@@ -147,7 +145,7 @@ bool reshade::ini_file::save()
 		{
 			data << key_name << '=';
 
-			if (const reshade::ini_file::value &elements = keys.at(key_name); !elements.empty())
+			if (const ini_file::value &elements = keys.at(key_name); !elements.empty())
 			{
 				std::string value;
 				for (const std::string &element : elements)
@@ -187,16 +185,7 @@ bool reshade::ini_file::save()
 	return true;
 }
 
-reshade::ini_file &reshade::ini_file::load_cache(const std::filesystem::path &path)
-{
-	const auto it = g_ini_cache.try_emplace(path, path);
-	if (it.second || (std::filesystem::file_time_type::clock::now() - it.first->second._modified_at) < std::chrono::seconds(1))
-		return it.first->second; // Don't need to reload file when it was just loaded or there are still modifications pending
-	else
-		return it.first->second.load(), it.first->second;
-}
-
-bool reshade::ini_file::flush_cache()
+bool ini_file::flush_cache()
 {
 	bool success = true;
 
@@ -210,16 +199,28 @@ bool reshade::ini_file::flush_cache()
 
 	return success;
 }
-bool reshade::ini_file::flush_cache(const std::filesystem::path &path)
+bool ini_file::flush_cache(const std::filesystem::path &path)
 {
 	const auto it = g_ini_cache.find(path);
 	return it != g_ini_cache.end() && it->second.save();
 }
 
-reshade::ini_file &reshade::global_config()
+ini_file &ini_file::load_cache(const std::filesystem::path &path)
+{
+	const auto it = g_ini_cache.try_emplace(path, path);
+	std::pair<const std::wstring, ini_file> &file = *it.first;
+
+	// Don't reload file when it was just loaded or there are still modifications pending
+	if (!it.second && !file.second._modified)
+		file.second.load();
+
+	return file.second;
+}
+
+ini_file & reshade::global_config()
 {
 	std::filesystem::path config_path = g_reshade_dll_path;
 	config_path.replace_extension(L".ini");
-	static reshade::ini_file config(config_path); // Load once on first use
+	static ini_file config(config_path); // Load once on first use
 	return config;
 }

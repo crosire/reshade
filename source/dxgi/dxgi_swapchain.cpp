@@ -3,16 +3,16 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "dll_log.hpp"
 #include "dxgi_swapchain.hpp"
 #include "d3d10/d3d10_device.hpp"
-#include "d3d10/reshade_api_swapchain.hpp"
+#include "d3d10/d3d10_impl_swapchain.hpp"
 #include "d3d11/d3d11_device.hpp"
 #include "d3d11/d3d11_device_context.hpp"
-#include "d3d11/reshade_api_swapchain.hpp"
+#include "d3d11/d3d11_impl_swapchain.hpp"
 #include "d3d12/d3d12_device.hpp"
 #include "d3d12/d3d12_command_queue.hpp"
-#include "d3d12/reshade_api_swapchain.hpp"
+#include "d3d12/d3d12_impl_swapchain.hpp"
+#include "dll_log.hpp" // Include late to get HRESULT log overloads
 
 extern UINT query_device(IUnknown *&device, com_ptr<IUnknown> &device_proxy);
 
@@ -78,16 +78,9 @@ DXGISwapChain::DXGISwapChain(D3D12CommandQueue *command_queue, IDXGISwapChain3 *
 	_direct3d_command_queue->AddRef();
 }
 
-void DXGISwapChain::runtime_reset(UINT width, UINT height)
+void DXGISwapChain::runtime_reset()
 {
-	const std::lock_guard<std::mutex> lock(_impl_mutex);
-
-#if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::resize>(_impl, width, height);
-#else
-	UNREFERENCED_PARAMETER(width);
-	UNREFERENCED_PARAMETER(height);
-#endif
+	const std::unique_lock<std::mutex> lock(_impl_mutex);
 
 	switch (_direct3d_version)
 	{
@@ -104,24 +97,20 @@ void DXGISwapChain::runtime_reset(UINT width, UINT height)
 }
 void DXGISwapChain::runtime_resize()
 {
-	const std::lock_guard<std::mutex> lock(_impl_mutex);
+	const std::unique_lock<std::mutex> lock(_impl_mutex);
 
-	bool initialized = false;
 	switch (_direct3d_version)
 	{
 	case 10:
-		initialized = static_cast<reshade::d3d10::swapchain_impl *>(_impl)->on_init();
+		static_cast<reshade::d3d10::swapchain_impl *>(_impl)->on_init();
 		break;
 	case 11:
-		initialized = static_cast<reshade::d3d11::swapchain_impl *>(_impl)->on_init();
+		static_cast<reshade::d3d11::swapchain_impl *>(_impl)->on_init();
 		break;
 	case 12:
-		initialized = static_cast<reshade::d3d12::swapchain_impl *>(_impl)->on_init();
+		static_cast<reshade::d3d12::swapchain_impl *>(_impl)->on_init();
 		break;
 	}
-
-	if (!initialized)
-		LOG(ERROR) << "Failed to recreate Direct3D " << _direct3d_version << " runtime environment on runtime " << _impl << '!';
 }
 void DXGISwapChain::runtime_present(UINT flags)
 {
@@ -130,9 +119,9 @@ void DXGISwapChain::runtime_present(UINT flags)
 	if (flags & DXGI_PRESENT_TEST)
 		return;
 
-	// Synchronize access to effect runtime to avoid race conditions between 'load_effects' and 'unload_effects' causing crashes
+	// Synchronize access to effect runtime to avoid race conditions between 'load_effects' and 'destroy_effects' causing crashes
 	// This is necessary because Resident Evil 3 calls DXGI functions simultaneously from multiple threads (which is technically illegal)
-	const std::lock_guard<std::mutex> lock(_impl_mutex);
+	const std::unique_lock<std::mutex> lock(_impl_mutex);
 
 	switch (_direct3d_version)
 	{
@@ -187,7 +176,7 @@ void DXGISwapChain::handle_device_loss(HRESULT hr)
 			LOG(ERROR) << "> Device removal reason is " << reason << '.';
 		}
 
-		runtime_reset(0, 0);
+		runtime_reset();
 	}
 }
 
@@ -371,7 +360,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 	if (_force_10_bit_format)
 		NewFormat = DXGI_FORMAT_R10G10B10A2_UNORM;
 
-	runtime_reset(Width, Height);
+	runtime_reset();
 
 	g_in_dxgi_runtime = true;
 	const HRESULT hr = _orig->ResizeBuffers(BufferCount, Width, Height, NewFormat, SwapChainFlags);
@@ -549,7 +538,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 	if (_force_10_bit_format)
 		Format = DXGI_FORMAT_R10G10B10A2_UNORM;
 
-	runtime_reset(Width, Height);
+	runtime_reset();
 
 	// Need to extract the original command queue object from the proxies passed in
 	assert(ppPresentQueue != nullptr);

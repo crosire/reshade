@@ -9,6 +9,11 @@
 #include <imgui_internal.h>
 #include <filesystem>
 
+namespace reshade
+{
+	class input;
+}
+
 namespace reshade::gui::widgets
 {
 	/// <summary>

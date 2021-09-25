@@ -11,16 +11,16 @@
 namespace reshadefx
 {
 	/// <summary>
-	/// A scope encapsulating symbols
+	/// A scope encapsulating symbols.
 	/// </summary>
 	struct scope
 	{
 		std::string name;
-		unsigned int level, namespace_level;
+		uint32_t level, namespace_level;
 	};
 
 	/// <summary>
-	/// Enumeration of all possible symbol types
+	/// Enumeration of all possible symbol types.
 	/// </summary>
 	enum class symbol_type
 	{
@@ -33,7 +33,7 @@ namespace reshadefx
 	};
 
 	/// <summary>
-	/// A single symbol in the symbol table
+	/// A single symbol in the symbol table.
 	/// </summary>
 	struct symbol
 	{
@@ -45,11 +45,11 @@ namespace reshadefx
 	};
 	struct scoped_symbol : symbol
 	{
-		struct scope scope; // Store scope with symbol data
+		struct scope scope; // Store scope together with symbol data
 	};
 
 	/// <summary>
-	/// A symbol table managing a list of scopes and symbols
+	/// A symbol table managing a list of scopes and symbols.
 	/// </summary>
 	class symbol_table
 	{
@@ -97,7 +97,7 @@ namespace reshadefx
 
 	private:
 		scope _current_scope;
-		std::unordered_map<std::string, // Lookup table from name to matching symbols
-			std::vector<scoped_symbol>> _symbol_stack;
+		// Lookup table from name to matching symbols
+		std::unordered_map<std::string, std::vector<scoped_symbol>> _symbol_stack;
 	};
 }

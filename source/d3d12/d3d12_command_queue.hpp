@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "reshade_api_command_queue.hpp"
+#include "d3d12_impl_command_queue.hpp"
 
 struct D3D12Device;
 struct D3D12CommandQueueDownlevel;
@@ -45,7 +45,7 @@ struct DECLSPEC_UUID("2C576D2A-0C1C-4D1D-AD7C-BC4FAEC15ABC") D3D12CommandQueue f
 	bool check_and_upgrade_interface(REFIID riid);
 
 	ULONG _ref = 1;
-	unsigned int _interface_version;
+	unsigned int _interface_version = 0;
 	D3D12Device *const _device;
 	D3D12CommandQueueDownlevel *_downlevel = nullptr;
 };

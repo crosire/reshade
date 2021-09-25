@@ -13,6 +13,11 @@
 
 #include <vk_layer_dispatch_table.h>
 
+struct instance_dispatch_table : public VkLayerInstanceDispatchTable
+{
+	VkInstance instance;
+};
+
 template <typename T>
 static T *find_layer_info(const void *structure_chain, VkStructureType type, VkLayerFunction function)
 {

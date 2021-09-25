@@ -393,7 +393,7 @@ namespace reshade { namespace api
 	/// <summary>
 	/// Gets the number of bytes per pixel the specified format <paramref name="value"/> occupies.
 	/// </summary>
-	inline unsigned int format_bpp(format value)
+	inline const unsigned int format_bytes_per_pixel(format value)
 	{
 		if (value == format::unknown)
 			return 0;

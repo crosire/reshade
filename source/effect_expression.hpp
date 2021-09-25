@@ -93,12 +93,18 @@ namespace reshadefx
 			return !operator==(lhs, rhs);
 		}
 
-		datatype base = t_void; // Underlying base type ('int', 'float', ...)
-		unsigned int rows = 0; // Number of rows if this is a vector type
-		unsigned int cols = 0; // Number of columns if this is a matrix type
-		unsigned int qualifiers = 0; // Bit mask of all the qualifiers decorating the type
-		int array_length = 0; // Negative if an unsized array, otherwise the number of elements if this is an array type
-		uint32_t definition = 0; // ID of the matching struct if this is a struct type
+		// Underlying base type ('int', 'float', ...)
+		datatype base = t_void;
+		// Number of rows if this is a vector type
+		unsigned int rows = 0;
+		// Number of columns if this is a matrix type
+		unsigned int cols = 0;
+		// Bit mask of all the qualifiers decorating the type
+		unsigned int qualifiers = 0;
+		// Negative if an unsized array, otherwise the number of elements if this is an array type
+		int array_length = 0;
+		// ID of the matching struct if this is a struct type
+		uint32_t definition = 0;
 	};
 
 	/// <summary>

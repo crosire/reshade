@@ -20,90 +20,117 @@ struct ImGuiContext;
 #include <functional>
 #include <filesystem>
 
+class ini_file;
+
 namespace reshade
 {
-	class ini_file; // Forward declarations to avoid excessive #include
+	// Forward declarations to avoid excessive #include
 	struct effect;
 	struct uniform;
 	struct texture;
 	struct technique;
 
 	/// <summary>
-	/// Platform independent base class for the main ReShade effect runtime.
+	/// The main ReShade post-processing effect runtime.
 	/// </summary>
-	class DECLSPEC_NOVTABLE runtime : public api::effect_runtime
+	class __declspec(novtable) runtime : public api::effect_runtime
 	{
 	public:
+		/// <summary>
+		/// Gets a boolean indicating whether effects are being loaded.
+		/// </summary>
+		bool is_loading() const { return _reload_remaining_effects != std::numeric_limits<size_t>::max(); }
 		/// <summary>
 		/// Gets a boolean indicating whether the runtime is initialized.
 		/// </summary>
 		bool is_initialized() const { return _is_initialized; }
 
 		/// <summary>
-		/// Gets the frame width and height in pixels.
-		/// </summary>
-		void get_frame_width_and_height(uint32_t *width, uint32_t *height) const final { *width = _width; *height = _height; }
-
-		/// <summary>
-		/// Creates a copy of the current frame image in system memory.
-		/// </summary>
-		/// <param name="buffer">The 32bpp RGBA buffer to save the screenshot to.</param>
-		bool take_screenshot(uint8_t *buffer);
-		/// <summary>
-		/// Creates a copy of the current frame and write it to an image file on disk.
+		/// Captures a screenshot of the current back buffer resource and writes it to an image file on disk.
 		/// </summary>
 		void save_screenshot(const std::wstring &postfix = std::wstring(), bool should_save_preset = false);
+		bool capture_screenshot(uint8_t *pixels) final { return get_texture_data(get_current_back_buffer_resolved(), api::resource_usage::present, pixels); }
 
-		/// <summary>
-		/// Gets the value of a uniform variable.
-		/// </summary>
-		/// <param name="variable">The variable to retrieve the value from.</param>
-		/// <param name="data">The buffer to store the value data in.</param>
-		/// <param name="size">The size of the <paramref name="data"/> buffer.</param>
-		/// <param name="base_index">Array index to start reading from.</param>
-		void get_uniform_value(const uniform &variable, uint8_t *data, size_t size, size_t base_index) const;
-		void get_uniform_value(const uniform &variable, bool *values, size_t count, size_t array_index = 0) const;
-		void get_uniform_value(const uniform &variable, int32_t *values, size_t count, size_t array_index = 0) const;
-		void get_uniform_value(const uniform &variable, uint32_t *values, size_t count, size_t array_index = 0) const;
-		void get_uniform_value(const uniform &variable, float *values, size_t count, size_t array_index = 0) const;
-		/// <summary>
-		/// Updates the value of a uniform variable.
-		/// </summary>
-		/// <param name="variable">The variable to update.</param>
-		/// <param name="data">The value data to update the variable to.</param>
-		/// <param name="size">The size of the <paramref name="data"/> buffer.</param>
-		/// <param name="base_index">Array index to start writing to.</param>
-		void set_uniform_value(uniform &variable, const uint8_t *data, size_t size, size_t base_index);
-		void set_uniform_value(uniform &variable, const bool *values, size_t count, size_t array_index = 0);
-		void set_uniform_value(uniform &variable, const int32_t *values, size_t count, size_t array_index = 0);
-		void set_uniform_value(uniform &variable, const uint32_t *values, size_t count, size_t array_index = 0);
-		void set_uniform_value(uniform &variable, const float *values, size_t count, size_t array_index = 0);
+		void get_screenshot_width_and_height(uint32_t *width, uint32_t *height) const final { *width = _width; *height = _height; }
+
+		void enumerate_uniform_variables(const char *effect_name, void(*callback)(effect_runtime *runtime, api::effect_uniform_variable variable, void *user_data), void *user_data) final;
+
+		api::effect_uniform_variable get_uniform_variable(const char *effect_name, const char *variable_name) const final;
+
+		void get_uniform_binding(api::effect_uniform_variable variable, api::resource *out_buffer, uint64_t *out_offset) const final;
+
+		void get_uniform_annotation(api::effect_uniform_variable variable, const char *name, bool *values, size_t count, size_t array_index = 0) const final;
+		void get_uniform_annotation(api::effect_uniform_variable variable, const char *name, float *values, size_t count, size_t array_index = 0) const final;
+		void get_uniform_annotation(api::effect_uniform_variable variable, const char *name, int32_t *values, size_t count, size_t array_index = 0) const final;
+		void get_uniform_annotation(api::effect_uniform_variable variable, const char *name, uint32_t *values, size_t count, size_t array_index = 0) const final;
+
+		const char *get_uniform_name(api::effect_uniform_variable variable) const final;
+
+		const char *get_uniform_annotation(api::effect_uniform_variable variable, const char *name) const final;
+
+		void get_uniform_data(const uniform &variable, uint8_t *data, size_t size, size_t base_index) const;
+		void get_uniform_data(api::effect_uniform_variable variable, bool *values, size_t count, size_t array_index) const final;
+		void get_uniform_data(api::effect_uniform_variable variable, float *values, size_t count, size_t array_index) const final;
+		void get_uniform_data(api::effect_uniform_variable variable, int32_t *values, size_t count, size_t array_index) const final;
+		void get_uniform_data(api::effect_uniform_variable variable, uint32_t *values, size_t count, size_t array_index) const final;
+		template <typename T>
+		std::enable_if_t<std::is_same_v<T, bool> || std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t> || std::is_same_v<T, float>>
+		get_uniform_value(const uniform &variable, T *values, size_t count = 1, size_t array_index = 0) const
+		{
+			get_uniform_data({ reinterpret_cast<uintptr_t>(&variable) }, values, count, array_index);
+		}
+
+		void set_uniform_data(uniform &variable, const uint8_t *data, size_t size, size_t base_index);
+		void set_uniform_data(api::effect_uniform_variable variable, const bool *values, size_t count, size_t array_index) final;
+		void set_uniform_data(api::effect_uniform_variable variable, const float *values, size_t count, size_t array_index) final;
+		void set_uniform_data(api::effect_uniform_variable variable, const int32_t *values, size_t count, size_t array_index) final;
+		void set_uniform_data(api::effect_uniform_variable variable, const uint32_t *values, size_t count, size_t array_index) final;
 		template <typename T>
 		std::enable_if_t<std::is_same_v<T, bool> || std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t> || std::is_same_v<T, float>>
 		set_uniform_value(uniform &variable, T x, T y = T(0), T z = T(0), T w = T(0))
 		{
-			const T data[4] = { x, y, z, w };
-			set_uniform_value(variable, data, 4);
+			const T values[4] = { x, y, z, w };
+			set_uniform_data({ reinterpret_cast<uintptr_t>(&variable) }, values, 4, 0);
+		}
+		template <typename T>
+		std::enable_if_t<std::is_same_v<T, bool> || std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t> || std::is_same_v<T, float>>
+		set_uniform_value(uniform &variable, const T *values, size_t count = 1, size_t array_index = 0)
+		{
+			set_uniform_data({ reinterpret_cast<uintptr_t>(&variable) }, values, count, array_index);
 		}
 
-		/// <summary>
-		/// Resets a uniform variable to its initial value.
-		/// </summary>
-		/// <param name="variable">The variable to update.</param>
-		void reset_uniform_value(uniform &variable);
+		void enumerate_texture_variables(const char *effect_name, void(*callback)(effect_runtime *runtime, api::effect_texture_variable variable, void *user_data), void *user_data) final;
+
+		api::effect_texture_variable get_texture_variable(const char *effect_name, const char *variable_name) const final;
+
+		void get_texture_binding(api::effect_texture_variable variable, api::resource_view *out_srv, api::resource_view *out_srv_srgb) const final;
+
+		void get_texture_annotation(api::effect_texture_variable variable, const char *name, bool *values, size_t count, size_t array_index = 0) const final;
+		void get_texture_annotation(api::effect_texture_variable variable, const char *name, float *values, size_t count, size_t array_index = 0) const final;
+		void get_texture_annotation(api::effect_texture_variable variable, const char *name, int32_t *values, size_t count, size_t array_index = 0) const final;
+		void get_texture_annotation(api::effect_texture_variable variable, const char *name, uint32_t *values, size_t count, size_t array_index = 0) const final;
+
+		const char *get_texture_name(api::effect_texture_variable variable) const final;
+
+		const char *get_texture_annotation(api::effect_texture_variable variable, const char *name) const final;
 
 		/// <summary>
-		/// Updates all effect textures with the specified <paramref name="semantic"/> to the specified shader resource view.
+		/// Gets the image data of the specified <paramref name="resource"/> in 32 bits-per-pixel RGBA format.
 		/// </summary>
-		void update_texture_bindings(const char *semantic, api::resource_view srv) final;
+		/// <param name="resource">Texture resource to get the image data from.</param>
+		/// <param name="state">Current state the <paramref name="resource"/> is in.</param>
+		/// <param name="pixels">Pointer to an array of <c>width * height * 4</c> bytes the image data is written to.</param>
+		bool get_texture_data(api::resource resource, api::resource_usage state, uint8_t *pixels);
+		void get_texture_data(api::effect_texture_variable variable, uint32_t *out_width, uint32_t *out_height, uint8_t *pixels) final;
+		void set_texture_data(api::effect_texture_variable variable, const uint32_t width, const uint32_t height, const uint8_t *pixels) final;
+
+		void update_texture_bindings(const char *semantic, api::resource_view srv, api::resource_view srv_srgb) final;
 
 		/// <summary>
-		/// Updates the values of all uniform variables with a "source" annotation set to <paramref name="source"/> to the specified <paramref name="values"/>.
+		/// Gets the texture with the specified name.
 		/// </summary>
-		void update_uniform_variables(const char *source, const bool *values, size_t count, size_t array_index) final;
-		void update_uniform_variables(const char *source, const float *values, size_t count, size_t array_index) final;
-		void update_uniform_variables(const char *source, const int32_t *values, size_t count, size_t array_index) final;
-		void update_uniform_variables(const char *source, const uint32_t *values, size_t count, size_t array_index) final;
+		/// <param name="unique_name">The name of the texture to find.</param>
+		texture &look_up_texture_by_name(const std::string &unique_name);
 
 	protected:
 		runtime(api::device *device, api::command_queue *graphics_queue);
@@ -112,18 +139,11 @@ namespace reshade
 		api::device *get_device() final { return _device; }
 		api::command_queue *get_command_queue() final { return _graphics_queue; }
 
-		/// <summary>
-		/// Callback function called when the runtime is initialized.
-		/// </summary>
-		/// <returns>Returns if the initialization succeeded.</returns>
+		virtual api::resource get_back_buffer_resolved(uint32_t index) = 0;
+		api::resource get_current_back_buffer_resolved() { return get_back_buffer_resolved(get_current_back_buffer_index()); }
+
 		bool on_init(void *window);
-		/// <summary>
-		/// Callback function called when the runtime is uninitialized.
-		/// </summary>
 		void on_reset();
-		/// <summary>
-		/// Callback function called every frame.
-		/// </summary>
 		void on_present();
 
 		api::device *const _device;
@@ -137,135 +157,49 @@ namespace reshade
 		bool _is_vr = false;
 
 	private:
-		/// <summary>
-		/// Compare current version against the latest published one.
-		/// </summary>
-		/// <param name="latest_version">Contains the latest version after this function returned.</param>
-		/// <returns><c>true</c> if an update is available, <c>false</c> otherwise</returns>
 		static bool check_for_update(unsigned long latest_version[3]);
 
-		/// <summary>
-		/// Load user configuration from disk.
-		/// </summary>
 		void load_config();
-		/// <summary>
-		/// Save user configuration to disk.
-		/// </summary>
 		void save_config() const;
 
-		/// <summary>
-		/// Load the selected preset and apply it.
-		/// </summary>
 		void load_current_preset();
-		/// <summary>
-		/// Save the current value configuration to the currently selected preset.
-		/// </summary>
 		void save_current_preset() const;
 
-		/// <summary>
-		/// Find next preset is the directory and switch to it.
-		/// </summary>
-		/// <param name="filter_path">Directory base to search in and/or an optional filter to skip preset files.</param>
-		/// <param name="reversed">Set to <c>true</c> to switch to previous instead of next preset.</param>
-		/// <returns><c>true</c> if there was another preset to switch to, <c>false</c> if not and therefore no changes were made.</returns>
 		bool switch_to_next_preset(std::filesystem::path filter_path, bool reversed = false);
 
-		/// <summary>
-		/// Enable a technique so it is rendered.
-		/// </summary>
-		/// <param name="technique"></param>
 		void enable_technique(technique &technique);
-		/// <summary>
-		/// Disable a technique so that it is no longer rendered.
-		/// </summary>
-		/// <param name="technique"></param>
 		void disable_technique(technique &technique);
 
-		/// <summary>
-		/// Checks whether runtime is currently loading effects.
-		/// </summary>
-		bool is_loading() const { return _reload_remaining_effects != std::numeric_limits<size_t>::max(); }
+		bool load_effect(const std::filesystem::path &source_file, const ini_file &preset, size_t effect_index, bool preprocess_required = false);
+		bool create_effect(size_t effect_index);
+		void destroy_effect(size_t effect_index);
 
-		/// <summary>
-		/// Compile effect from the specified source file and initialize textures, uniforms and techniques.
-		/// </summary>
-		/// <param name="source_file">The path to an effect source code file.</param>
-		/// <param name="preset">The preset to be used to fill specialization constants or check whether loading can be skipped.</param>
-		/// <param name="effect_index">The ID of the effect.</param>
-		bool load_effect(const std::filesystem::path &source_file, const reshade::ini_file &preset, size_t effect_index, bool preprocess_required = false);
-		/// <summary>
-		/// Load all effects found in the effect search paths.
-		/// </summary>
-		void load_effects();
-		/// <summary>
-		/// Load image files and update textures with image data.
-		/// </summary>
-		void load_textures();
-		/// <summary>
-		/// Unload the specified effect.
-		/// </summary>
-		/// <param name="effect_index">The ID of the effect.</param>
-		void unload_effect(size_t effect_index);
-		/// <summary>
-		/// Unload all effects currently loaded.
-		/// </summary>
-		void unload_effects();
-		/// <summary>
-		/// Reload only the specified effect.
-		/// </summary>
-		/// <param name="effect_index">The ID of the effect.</param>
-		bool reload_effect(size_t effect_index, bool preprocess_required = false);
-		/// <summary>
-		/// Unload all effects and then load them again.
-		/// </summary>
-		void reload_effects();
-
-		/// <summary>
-		/// Initialize resources for the effect and load the effect module.
-		/// </summary>
-		/// <param name="effect_index">The ID of the effect.</param>
-		bool init_effect(size_t effect_index);
-		/// <summary>
-		/// Create a new texture with the specified dimensions.
-		/// </summary>
-		/// <param name="texture">The texture description.</param>
-		bool init_texture(texture &texture);
-		/// <summary>
-		/// Destroy an existing texture.
-		/// </summary>
-		/// <param name="texture">The texture to destroy.</param>
+		bool create_texture(texture &texture);
 		void destroy_texture(texture &texture);
 
-		/// <summary>
-		/// Load compiled effect data from the disk cache.
-		/// </summary>
-		bool load_effect_cache(const std::filesystem::path &source_file, const size_t hash, std::string &source) const;
-		bool load_effect_cache(const std::filesystem::path &source_file, const std::string &entry_point, const size_t hash, std::vector<char> &cso, std::string &dasm) const;
-		/// <summary>
-		/// Save compiled effect data to the disk cache.
-		/// </summary>
-		bool save_effect_cache(const std::filesystem::path &source_file, const size_t hash, const std::string &source) const;
-		bool save_effect_cache(const std::filesystem::path &source_file, const std::string &entry_point, const size_t hash, const std::vector<char> &cso, const std::string &dasm) const;
-		/// <summary>
-		/// Remove all compiled effect data from disk.
-		/// </summary>
+		void load_effects();
+		void load_textures();
+		bool reload_effect(size_t effect_index, bool preprocess_required = false);
+		void reload_effects();
+		void destroy_effects();
+
+		bool load_effect_cache(const std::string &id, const std::string &type, std::string &data) const;
+		bool save_effect_cache(const std::string &id, const std::string &type, const std::string &source) const;
 		void clear_effect_cache();
 
-		/// <summary>
-		/// Apply post-processing effects to the frame.
-		/// </summary>
 		void update_and_render_effects();
-		/// <summary>
-		/// Render all passes in a technique.
-		/// </summary>
-		/// <param name="technique">The technique to render.</param>
 		void render_technique(technique &technique);
 
 		/// <summary>
-		/// Returns the texture object corresponding to the passed <paramref name="unique_name"/>.
+		/// Gets the contents of the specified texture and writes them to an image file on disk.
 		/// </summary>
-		/// <param name="unique_name">The name of the texture to find.</param>
-		texture &look_up_texture_by_name(const std::string &unique_name);
+		void save_texture(const texture &texture);
+
+		/// <summary>
+		/// Resets a uniform variable to its initial value.
+		/// </summary>
+		/// <param name="variable">The variable to update.</param>
+		void reset_uniform_value(uniform &variable);
 
 		// === Status ===
 
@@ -301,7 +235,7 @@ namespace reshade
 		bool _textures_loaded = false;
 		unsigned int _reload_key_data[4];
 		unsigned int _performance_mode_key_data[4];
-		std::vector<size_t> _reload_compile_queue;
+		std::vector<size_t> _reload_create_queue;
 		std::atomic<size_t> _reload_remaining_effects = 0;
 		std::mutex _reload_mutex;
 		std::vector<std::thread> _worker_threads;
@@ -319,6 +253,7 @@ namespace reshade
 
 		// === Effect Rendering ===
 
+		std::vector<api::framebuffer> _backbuffer_fbos;
 		std::vector<api::render_pass> _backbuffer_passes;
 		std::vector<api::resource_view> _backbuffer_targets;
 		api::resource _backbuffer_texture = {};
@@ -329,7 +264,8 @@ namespace reshade
 		api::resource _empty_texture = {};
 		api::resource_view _empty_texture_view = {};
 		std::unordered_map<size_t, api::sampler> _effect_sampler_states;
-		std::unordered_map<std::string, api::resource_view> _texture_semantic_bindings;
+		std::unordered_map<std::string, std::pair<api::resource_view, api::resource_view>> _texture_semantic_bindings;
+		std::unordered_map<std::string, std::pair<api::resource_view, api::resource_view>> _backup_texture_semantic_bindings;
 
 		// === Screenshots ===
 
@@ -376,7 +312,7 @@ namespace reshade
 		void draw_gui_vr();
 
 		bool init_imgui_resources();
-		void render_imgui_draw_data(ImDrawData *draw_data, api::render_pass pass);
+		void render_imgui_draw_data(ImDrawData *draw_data, api::render_pass pass, api::framebuffer fbo);
 		void destroy_imgui_resources();
 
 		ImGuiContext *_imgui_context = nullptr;
@@ -393,6 +329,7 @@ namespace reshade
 		int _imgui_num_vertices[4] = {};
 
 		api::resource _vr_overlay_texture = {};
+		api::framebuffer _vr_overlay_fbo = {};
 		api::render_pass _vr_overlay_pass = {};
 		api::resource_view _vr_overlay_target = {};
 
@@ -443,7 +380,7 @@ namespace reshade
 		// === User Interface - Add-ons ===
 
 		char _addons_filter[64] = {};
-		size_t _open_addon_index = std::numeric_limits<size_t>::max();
+		std::string _open_addon_name;
 
 		// === User Interface - Settings ===
 

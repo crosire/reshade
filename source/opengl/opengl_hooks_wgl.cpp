@@ -5,8 +5,8 @@
 
 #include "dll_log.hpp"
 #include "hook_manager.hpp"
-#include "reshade_api_swapchain.hpp"
-#include "opengl_hooks.hpp"
+#include "opengl_impl_swapchain.hpp"
+#include "opengl_hooks.hpp" // Fix name clashes with gl3w
 #include <mutex>
 #include <unordered_map>
 #include <unordered_set>
@@ -19,7 +19,7 @@ static std::unordered_set<HDC> s_pbuffer_device_contexts;
 static std::unordered_set<HGLRC> s_legacy_contexts;
 static std::unordered_map<HGLRC, HGLRC> s_shared_contexts;
 static std::unordered_map<HGLRC, reshade::opengl::swapchain_impl *> s_opengl_contexts;
-thread_local reshade::opengl::swapchain_impl *g_current_context = nullptr;
+extern thread_local reshade::opengl::swapchain_impl *g_current_context;
 
 HOOK_EXPORT int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPTOR *ppfd)
 {
@@ -232,8 +232,7 @@ HOOK_EXPORT int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPT
 	}
 
 	assert(nNumFormats != nullptr);
-
-	if (*nNumFormats < nMaxFormats)
+	if (nMaxFormats > *nNumFormats)
 		nMaxFormats = *nNumFormats;
 
 	std::string formats;
@@ -343,7 +342,7 @@ HOOK_EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 	}
 
 	// Keep track of legacy contexts here instead of in 'wglCreateLayerContext' because some drivers call the latter from within their 'wglCreateContextAttribsARB' implementation
-	{ const std::lock_guard<std::mutex> lock(s_global_mutex);
+	{ const std::unique_lock<std::mutex> lock(s_global_mutex);
 		s_legacy_contexts.emplace(hglrc);
 	}
 
@@ -405,7 +404,7 @@ HOOK_EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 	flags |= attribute::WGL_CONTEXT_DEBUG_BIT_ARB;
 #endif
 
-	// This works because the specs specifically note that "If an attribute is specified more than once, then the last value specified is used."
+	// This works because the specs specifically notes that "If an attribute is specified more than once, then the last value specified is used."
 	attribs[i].name = attribute::WGL_CONTEXT_FLAGS_ARB;
 	attribs[i++].value = flags;
 	attribs[i].name = attribute::WGL_CONTEXT_PROFILE_MASK_ARB;
@@ -441,12 +440,12 @@ HOOK_EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 		return nullptr;
 	}
 
-	{ const std::lock_guard<std::mutex> lock(s_global_mutex);
+	{ const std::unique_lock<std::mutex> lock(s_global_mutex);
 		s_shared_contexts.emplace(hglrc, hShareContext);
 
 		if (hShareContext != nullptr)
 		{
-			// Find root share context
+			// Find the root share context
 			auto it = s_shared_contexts.find(hShareContext);
 
 			while (it != s_shared_contexts.end() && it->second != nullptr)
@@ -479,7 +478,7 @@ HOOK_EXPORT HGLRC WINAPI wglCreateLayerContext(HDC hdc, int iLayerPlane)
 		return nullptr;
 	}
 
-	{ const std::lock_guard<std::mutex> lock(s_global_mutex);
+	{ const std::unique_lock<std::mutex> lock(s_global_mutex);
 		s_shared_contexts.emplace(hglrc, nullptr);
 	}
 
@@ -550,7 +549,7 @@ HOOK_EXPORT BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 		s_opengl_contexts.erase(it);
 	}
 
-	{ const std::lock_guard<std::mutex> lock(s_global_mutex);
+	{ const std::unique_lock<std::mutex> lock(s_global_mutex);
 		s_legacy_contexts.erase(hglrc);
 
 		for (auto it = s_shared_contexts.begin(); it != s_shared_contexts.end();)
@@ -588,7 +587,7 @@ HOOK_EXPORT BOOL  WINAPI wglShareLists(HGLRC hglrc1, HGLRC hglrc2)
 		return FALSE;
 	}
 
-	{ const std::lock_guard<std::mutex> lock(s_global_mutex);
+	{ const std::unique_lock<std::mutex> lock(s_global_mutex);
 		s_shared_contexts[hglrc2] = hglrc1;
 	}
 
@@ -624,7 +623,7 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		return TRUE;
 	}
 
-	const std::lock_guard<std::mutex> lock(s_global_mutex);
+	const std::unique_lock<std::mutex> lock(s_global_mutex);
 
 	if (const auto it = s_shared_contexts.find(hglrc);
 		it != s_shared_contexts.end() && it->second != nullptr)
@@ -689,13 +688,11 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		{
 			assert(s_hooks_installed);
 
-			const auto runtime = new reshade::opengl::swapchain_impl(hdc, hglrc);
-			runtime->_hdcs.insert(hdc);
-
-			// Always set compatibility context flag on contexts that were created with 'wglCreateContext' instead of 'wglCreateContextAttribsARB'
-			// This is necessary because with some pixel formats the 'GL_ARB_compatibility' extension is not exposed even though the context was not created with the core profile
-			if (s_legacy_contexts.find(hglrc) != s_legacy_contexts.end())
-				runtime->_compatibility_context = true;
+			const auto runtime = new reshade::opengl::swapchain_impl(
+				hdc, hglrc,
+				// Always set compatibility context flag on contexts that were created with 'wglCreateContext' instead of 'wglCreateContextAttribsARB'
+				// This is necessary because with some pixel formats the 'GL_ARB_compatibility' extension is not exposed even though the context was not created with the core profile
+				s_legacy_contexts.find(hglrc) != s_legacy_contexts.end());
 
 			g_current_context = s_opengl_contexts[hglrc] = runtime;
 
@@ -809,7 +806,7 @@ HOOK_EXPORT HGLRC WINAPI wglGetCurrentContext()
 		return nullptr;
 	}
 
-	{ const std::lock_guard<std::mutex> lock(s_global_mutex);
+	{ const std::unique_lock<std::mutex> lock(s_global_mutex);
 		s_pbuffer_device_contexts.insert(hdc);
 	}
 
@@ -828,7 +825,7 @@ HOOK_EXPORT HGLRC WINAPI wglGetCurrentContext()
 		return FALSE;
 	}
 
-	{ const std::lock_guard<std::mutex> lock(s_global_mutex);
+	{ const std::unique_lock<std::mutex> lock(s_global_mutex);
 		s_pbuffer_device_contexts.erase(hdc);
 	}
 
@@ -871,7 +868,7 @@ HOOK_EXPORT BOOL  WINAPI wglSwapBuffers(HDC hdc)
 #endif
 
 		uint32_t runtime_width = 0, runtime_height = 0;
-		runtime->get_frame_width_and_height(&runtime_width, &runtime_height);
+		runtime->get_screenshot_width_and_height(&runtime_width, &runtime_height);
 
 		const auto width = static_cast<unsigned int>(rect.right);
 		const auto height = static_cast<unsigned int>(rect.bottom);
@@ -880,14 +877,10 @@ HOOK_EXPORT BOOL  WINAPI wglSwapBuffers(HDC hdc)
 		{
 			LOG(INFO) << "Resizing runtime " << runtime << " on device context " << hdc << " to " << width << "x" << height << " ...";
 
-#if RESHADE_ADDON
-			reshade::invoke_addon_event<reshade::addon_event::resize>(runtime, width, height);
-#endif
-
 			runtime->on_reset();
 
-			if (!(width == 0 && height == 0) && !runtime->on_init(hwnd, width, height))
-				LOG(ERROR) << "Failed to recreate OpenGL runtime environment on runtime " << runtime << '!';
+			if (width != 0 || height != 0)
+				runtime->on_init(hwnd, width, height);
 		}
 
 #if RESHADE_ADDON
@@ -900,7 +893,7 @@ HOOK_EXPORT BOOL  WINAPI wglSwapBuffers(HDC hdc)
 #if RESHADE_ADDON
 		GLint fbo = 0;
 		glGetIntegerv(GL_FRAMEBUFFER_BINDING, &fbo);
-		reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(runtime, reshade::opengl::make_render_pass_handle(fbo));
+		reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(runtime, reshade::api::render_pass { 0 }, reshade::opengl::make_framebuffer_handle(fbo));
 #endif
 	}
 
@@ -958,10 +951,10 @@ HOOK_EXPORT BOOL  WINAPI wglUseFontOutlinesW(HDC hdc, DWORD dw1, DWORD dw2, DWOR
 
 HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 {
-	// Redirect some old extension functions to their modern variants in core OpenGL
 	if (lpszProc == nullptr)
 		return nullptr;
 #if RESHADE_ADDON
+	// Redirect some old extension functions to their modern variants in core OpenGL
 	else if (0 == strcmp(lpszProc, "glIsRenderbufferEXT")) // GL_EXT_framebuffer_object
 		lpszProc = "glIsRenderbuffer";
 	else if (0 == strcmp(lpszProc, "glBindRenderbufferEXT"))
@@ -984,14 +977,14 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		lpszProc = "glDeleteFramebuffers";
 	else if (0 == strcmp(lpszProc, "glCheckFramebufferStatusEXT"))
 		lpszProc = "glCheckFramebufferStatus";
+	else if (0 == strcmp(lpszProc, "glFramebufferRenderbufferEXT"))
+		lpszProc = "glFramebufferRenderbuffer";
 	else if (0 == strcmp(lpszProc, "glFramebufferTexture1DEXT"))
 		lpszProc = "glFramebufferTexture1D";
 	else if (0 == strcmp(lpszProc, "glFramebufferTexture2DEXT"))
 		lpszProc = "glFramebufferTexture2D";
 	else if (0 == strcmp(lpszProc, "glFramebufferTexture3DEXT"))
 		lpszProc = "glFramebufferTexture3D";
-	else if (0 == strcmp(lpszProc, "glFramebufferRenderbufferEXT"))
-		lpszProc = "glFramebufferRenderbuffer";
 	else if (0 == strcmp(lpszProc, "glGetFramebufferAttachmentParameterivEXT"))
 		lpszProc = "glGetFramebufferAttachmentParameteriv";
 	else if (0 == strcmp(lpszProc, "glGenerateMipmapEXT"))
@@ -1129,12 +1122,18 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		return reinterpret_cast<PROC>(glTexSubImage2D);
 	else if (0 == strcmp(lpszProc, "glViewport"))
 		return reinterpret_cast<PROC>(glViewport);
-	else if (!s_hooks_installed)
-	{
-#define HOOK_PROC(name) \
-	reshade::hooks::install(#name, reinterpret_cast<reshade::hook::address>(trampoline(#name)), reinterpret_cast<reshade::hook::address>(name), true)
 
-		// Install all OpenGL hooks in a single batch job
+	if (!s_hooks_installed)
+	{
+#if 1
+	#define HOOK_PROC(name) \
+		reshade::hooks::install(#name, reinterpret_cast<reshade::hook::address>(trampoline(#name)), reinterpret_cast<reshade::hook::address>(name), true)
+#else
+	#define HOOK_PROC(name) \ // This does not work because the hooks are not registered then and thus 'reshade::hooks::call' will fail
+		if (0 == strcmp(lpszProc, #name)) \
+			return reinterpret_cast<PROC>(name)
+#endif
+
 #if RESHADE_ADDON
 		HOOK_PROC(glBindBuffer);
 		HOOK_PROC(glBindBufferBase);
@@ -1144,20 +1143,29 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glBindFramebuffer);
 		HOOK_PROC(glBindImageTexture);
 		HOOK_PROC(glBindImageTextures);
-		HOOK_PROC(glBindSampler);
-		HOOK_PROC(glBindSamplers);
 		HOOK_PROC(glBindTextureUnit);
 		HOOK_PROC(glBindTextures);
+		HOOK_PROC(glBindVertexArray);
 		HOOK_PROC(glBindVertexBuffer);
 		HOOK_PROC(glBindVertexBuffers);
 		HOOK_PROC(glBlitFramebuffer);
 		HOOK_PROC(glBlitNamedFramebuffer);
 		HOOK_PROC(glBufferData);
 		HOOK_PROC(glBufferStorage);
+		HOOK_PROC(glBufferSubData);
 		HOOK_PROC(glClearBufferfv);
 		HOOK_PROC(glClearBufferfi);
 		HOOK_PROC(glClearNamedFramebufferfv);
 		HOOK_PROC(glClearNamedFramebufferfi);
+		HOOK_PROC(glCompressedTexImage1D);
+		HOOK_PROC(glCompressedTexImage2D);
+		HOOK_PROC(glCompressedTexImage3D);
+		HOOK_PROC(glCompressedTexSubImage1D);
+		HOOK_PROC(glCompressedTexSubImage2D);
+		HOOK_PROC(glCompressedTexSubImage3D);
+		HOOK_PROC(glCompressedTextureSubImage1D);
+		HOOK_PROC(glCompressedTextureSubImage2D);
+		HOOK_PROC(glCompressedTextureSubImage3D);
 		HOOK_PROC(glCopyBufferSubData);
 		HOOK_PROC(glCopyImageSubData);
 		HOOK_PROC(glCopyNamedBufferSubData);
@@ -1165,6 +1173,10 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glCopyTextureSubImage1D);
 		HOOK_PROC(glCopyTextureSubImage2D);
 		HOOK_PROC(glCopyTextureSubImage3D);
+		HOOK_PROC(glDeleteBuffers);
+		HOOK_PROC(glDeleteFramebuffers);
+		HOOK_PROC(glDeleteProgram);
+		HOOK_PROC(glDeleteSamplers);
 		HOOK_PROC(glDispatchCompute);
 		HOOK_PROC(glDispatchComputeIndirect);
 		HOOK_PROC(glDrawArraysIndirect);
@@ -1178,8 +1190,14 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glDrawElementsInstancedBaseVertexBaseInstance);
 		HOOK_PROC(glDrawRangeElements);
 		HOOK_PROC(glDrawRangeElementsBaseVertex);
+		HOOK_PROC(glFramebufferRenderbuffer);
+		HOOK_PROC(glFramebufferTexture);
+		HOOK_PROC(glFramebufferTexture1D);
+		HOOK_PROC(glFramebufferTexture2D);
+		HOOK_PROC(glFramebufferTexture3D);
 		HOOK_PROC(glGenerateMipmap);
 		HOOK_PROC(glGenerateTextureMipmap);
+		HOOK_PROC(glLinkProgram);
 		HOOK_PROC(glMultiDrawArrays);
 		HOOK_PROC(glMultiDrawArraysIndirect);
 		HOOK_PROC(glMultiDrawElements);
@@ -1187,6 +1205,9 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glMultiDrawElementsIndirect);
 		HOOK_PROC(glNamedBufferData);
 		HOOK_PROC(glNamedBufferStorage);
+		HOOK_PROC(glNamedBufferSubData);
+		HOOK_PROC(glNamedFramebufferRenderbuffer);
+		HOOK_PROC(glNamedFramebufferTexture);
 		HOOK_PROC(glNamedRenderbufferStorage);
 		HOOK_PROC(glNamedRenderbufferStorageMultisample);
 		HOOK_PROC(glRenderbufferStorage);
@@ -1207,11 +1228,17 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glTexStorage2DMultisample);
 		HOOK_PROC(glTexStorage3D);
 		HOOK_PROC(glTexStorage3DMultisample);
+		HOOK_PROC(glTexSubImage1D);
+		HOOK_PROC(glTexSubImage2D);
+		HOOK_PROC(glTexSubImage3D);
 		HOOK_PROC(glTextureStorage1D);
 		HOOK_PROC(glTextureStorage2D);
 		HOOK_PROC(glTextureStorage2DMultisample);
 		HOOK_PROC(glTextureStorage3D);
 		HOOK_PROC(glTextureStorage3DMultisample);
+		HOOK_PROC(glTextureSubImage1D);
+		HOOK_PROC(glTextureSubImage2D);
+		HOOK_PROC(glTextureSubImage3D);
 		HOOK_PROC(glTextureView);
 		HOOK_PROC(glUniform1f);
 		HOOK_PROC(glUniform2f);
@@ -1242,6 +1269,7 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glViewportIndexedf);
 		HOOK_PROC(glViewportIndexedfv);
 #endif
+
 		HOOK_PROC(wglChoosePixelFormatARB);
 		HOOK_PROC(wglCreateContextAttribsARB);
 		HOOK_PROC(wglCreatePbufferARB);
@@ -1249,11 +1277,14 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(wglGetPbufferDCARB);
 		HOOK_PROC(wglGetPixelFormatAttribivARB);
 		HOOK_PROC(wglGetPixelFormatAttribfvARB);
-		HOOK_PROC(wglQueryPbufferARB);
 		HOOK_PROC(wglReleasePbufferDCARB);
+#if 0
+		HOOK_PROC(wglQueryPbufferARB);
 		HOOK_PROC(wglGetSwapIntervalEXT);
 		HOOK_PROC(wglSwapIntervalEXT);
+#endif
 
+		// Install all OpenGL hooks in a single batch job
 		reshade::hook::apply_queued_actions();
 
 		s_hooks_installed = true;

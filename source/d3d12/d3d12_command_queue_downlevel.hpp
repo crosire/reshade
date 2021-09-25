@@ -6,7 +6,7 @@
 #pragma once
 
 #include <D3D12Downlevel.h>
-#include "reshade_api_swapchain.hpp"
+#include "d3d12_impl_swapchain.hpp"
 
 struct D3D12CommandQueue;
 

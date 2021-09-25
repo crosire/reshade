@@ -4,12 +4,12 @@
  */
 
 #include "hook_manager.hpp"
-#include "lockfree_table.hpp"
+#include "lockfree_linear_map.hpp"
 #include "vulkan_hooks.hpp"
-#include "reshade_api_device.hpp"
+#include "vulkan_impl_device.hpp"
 
-extern lockfree_table<void *, VkLayerInstanceDispatchTable, 16> g_instance_dispatch;
-extern lockfree_table<void *, reshade::vulkan::device_impl *, 16>  g_vulkan_devices;
+extern lockfree_linear_map<void *, instance_dispatch_table, 4> g_instance_dispatch;
+extern lockfree_linear_map<void *, reshade::vulkan::device_impl *, 8> g_vulkan_devices;
 
 #define HOOK_PROC(name) \
 	if (0 == strcmp(pName, "vk" #name)) \
@@ -25,6 +25,10 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	HOOK_PROC(QueuePresentKHR);
 
 #if RESHADE_ADDON
+	HOOK_PROC(BindBufferMemory);
+	HOOK_PROC(BindBufferMemory2);
+	HOOK_PROC(BindImageMemory);
+	HOOK_PROC(BindImageMemory2);
 	HOOK_PROC(CreateBuffer);
 	HOOK_PROC(DestroyBuffer);
 	HOOK_PROC(CreateBufferView);
@@ -34,17 +38,26 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	HOOK_PROC(CreateImageView);
 	HOOK_PROC(DestroyImageView);
 	HOOK_PROC(CreateShaderModule);
+	HOOK_PROC(DestroyShaderModule);
 	HOOK_PROC(CreateGraphicsPipelines);
 	HOOK_PROC(CreateComputePipelines);
+	HOOK_PROC(DestroyPipeline);
+	HOOK_PROC(CreatePipelineLayout);
+	HOOK_PROC(DestroyPipelineLayout);
 	HOOK_PROC(CreateSampler);
 	HOOK_PROC(DestroySampler);
-	HOOK_PROC(CreateRenderPass);
-	HOOK_PROC(CreateRenderPass2);
-	if (0 == strcmp(pName, "vkCreateRenderPass2KHR"))
-		return reinterpret_cast<PFN_vkVoidFunction>(vkCreateRenderPass2);
-	HOOK_PROC(DestroyRenderPass);
+	HOOK_PROC(CreateDescriptorSetLayout);
+	HOOK_PROC(DestroyDescriptorSetLayout);
+	HOOK_PROC(CreateDescriptorPool);
+	HOOK_PROC(DestroyDescriptorPool);
+	HOOK_PROC(ResetDescriptorPool);
+	HOOK_PROC(AllocateDescriptorSets);
+	HOOK_PROC(UpdateDescriptorSets);
 	HOOK_PROC(CreateFramebuffer);
 	HOOK_PROC(DestroyFramebuffer);
+	HOOK_PROC(CreateRenderPass);
+	HOOK_PROC(CreateRenderPass2);
+	HOOK_PROC(DestroyRenderPass);
 
 	HOOK_PROC(AllocateCommandBuffers);
 	HOOK_PROC(FreeCommandBuffers);
@@ -81,6 +94,16 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	HOOK_PROC(CmdBeginRenderPass);
 	HOOK_PROC(CmdEndRenderPass);
 	HOOK_PROC(CmdExecuteCommands);
+
+	if (0 == strcmp(pName, "vkBindBufferMemory2KHR"))
+		return reinterpret_cast<PFN_vkVoidFunction>(vkBindBufferMemory2);
+	if (0 == strcmp(pName, "vkBindImageMemory2KHR"))
+		return reinterpret_cast<PFN_vkVoidFunction>(vkBindImageMemory2);
+	if (0 == strcmp(pName, "vkCreateRenderPass2KHR"))
+		return reinterpret_cast<PFN_vkVoidFunction>(vkCreateRenderPass2);
+	if (0 == strcmp(pName, "vkCmdPushDescriptorSetKHR") &&
+		g_vulkan_devices.at(dispatch_key_from_handle(device))->_dispatch_table.CmdPushDescriptorSetKHR != nullptr)
+		return reinterpret_cast<PFN_vkVoidFunction>(vkCmdPushDescriptorSetKHR);
 #endif
 
 	// Need to self-intercept as well, since some layers rely on this (e.g. Steam overlay)
@@ -106,6 +129,7 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr(VkInstance i
 	HOOK_PROC(DestroyDevice);
 	HOOK_PROC(CreateWin32SurfaceKHR);
 	HOOK_PROC(DestroySurfaceKHR);
+	HOOK_PROC(GetPhysicalDeviceToolPropertiesEXT);
 
 	// Self-intercept here as well to stay consistent with 'vkGetDeviceProcAddr' implementation
 	HOOK_PROC(GetInstanceProcAddr);

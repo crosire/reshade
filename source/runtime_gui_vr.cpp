@@ -10,14 +10,12 @@
 #include "runtime.hpp"
 #include "hook_manager.hpp"
 #include "dll_resources.hpp"
-#include "vulkan/reshade_api_device.hpp"
+#include "vulkan/vulkan_impl_device.hpp"
 #include <cassert>
 #include <openvr.h>
 #include <ivrclientcore.h>
 #include <imgui.h>
 #include <stb_image.h>
-
-extern bool g_addons_enabled;
 
 static vr::IVROverlay *s_overlay = nullptr;
 extern vr::IVRClientCore *g_client_core;
@@ -77,14 +75,27 @@ void reshade::runtime::init_gui_vr()
 	}
 
 	api::render_pass_desc pass_desc = {};
-	pass_desc.depth_stencil = _effect_stencil_target;
 	pass_desc.depth_stencil_format = _effect_stencil_format;
-	pass_desc.render_targets[0] = _vr_overlay_target;
 	pass_desc.render_targets_format[0] = api::format::r8g8b8a8_unorm;
+	pass_desc.samples = 1;
 
 	if (!_device->create_render_pass(pass_desc, &_vr_overlay_pass))
 	{
 		LOG(ERROR) << "Failed to create VR dashboard overlay render pass!";
+		return;
+	}
+
+	api::framebuffer_desc fbo_desc = {};
+	fbo_desc.render_pass_template = _vr_overlay_pass;
+	fbo_desc.depth_stencil = _effect_stencil_target;
+	fbo_desc.render_targets[0] = _vr_overlay_target;
+	fbo_desc.width = OVERLAY_WIDTH;
+	fbo_desc.height = OVERLAY_HEIGHT;
+	fbo_desc.layers = 1;
+
+	if (!_device->create_framebuffer(fbo_desc, &_vr_overlay_fbo))
+	{
+		LOG(ERROR) << "Failed to create VR dashboard overlay framebuffer!";
 		return;
 	}
 }
@@ -128,6 +139,7 @@ void reshade::runtime::draw_gui_vr()
 
 	imgui_io.KeysDown[0x08] = false;
 	imgui_io.KeysDown[0x09] = false;
+	imgui_io.KeysDown[0x0D] = false;
 
 	vr::VREvent_t ev;
 	while (s_overlay->PollNextOverlayEvent(s_main_handle, &ev, sizeof(ev)))
@@ -175,6 +187,8 @@ void reshade::runtime::draw_gui_vr()
 				imgui_io.KeysDown[0x08] = true;
 			if (ev.data.keyboard.cNewInput[0] == '\t')
 				imgui_io.KeysDown[0x09] = true;
+			if (ev.data.keyboard.cNewInput[0] == '\n')
+				imgui_io.KeysDown[0x0D] = true;
 			for (int i = 0; i < 8 && ev.data.keyboard.cNewInput[i] != 0; ++i)
 				imgui_io.AddInputCharacter(ev.data.keyboard.cNewInput[i]);
 			break;
@@ -201,7 +215,7 @@ void reshade::runtime::draw_gui_vr()
 				_selected_menu = menu_index;
 
 #if RESHADE_ADDON
-		if (g_addons_enabled)
+		if (addon::enabled)
 		{
 			for (size_t menu_index = 0; menu_index < addon::overlay_list.size(); ++menu_index)
 				if (ImGui::MenuItem(addon::overlay_list[menu_index].first.c_str(), nullptr, (menu_index + _menu_callables.size()) == _selected_menu))
@@ -236,7 +250,7 @@ void reshade::runtime::draw_gui_vr()
 		api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
 
 		cmd_list->barrier(_vr_overlay_texture, api::resource_usage::shader_resource_pixel, api::resource_usage::render_target);
-		render_imgui_draw_data(draw_data, _vr_overlay_pass);
+		render_imgui_draw_data(draw_data, _vr_overlay_pass, _vr_overlay_fbo);
 		cmd_list->barrier(_vr_overlay_texture, api::resource_usage::render_target, api::resource_usage::shader_resource_pixel);
 	}
 
@@ -246,6 +260,7 @@ void reshade::runtime::draw_gui_vr()
 
 	switch (_device->get_api())
 	{
+	case api::device_api::d3d10:
 	case api::device_api::d3d11:
 		texture.handle = reinterpret_cast<void *>(_vr_overlay_texture.handle);
 		texture.eType = vr::TextureType_DirectX;
@@ -261,7 +276,7 @@ void reshade::runtime::draw_gui_vr()
 	case api::device_api::vulkan:
 		const auto device_impl = static_cast<vulkan::device_impl *>(_device);
 		vulkan_data.m_nImage = _vr_overlay_texture.handle;
-		vulkan_data.m_pDevice = reinterpret_cast<VkDevice_T *>(device_impl->_orig);
+		vulkan_data.m_pDevice = reinterpret_cast<VkDevice_T *>(_device->get_native_object());
 		vulkan_data.m_pPhysicalDevice = device_impl->_physical_device;
 		vulkan_data.m_pInstance = VK_NULL_HANDLE;
 		vulkan_data.m_pQueue = reinterpret_cast<VkQueue_T *>(_graphics_queue->get_native_object());

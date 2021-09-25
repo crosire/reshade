@@ -7,8 +7,8 @@
 #include "dll_log.hpp"
 #include "ini_file.hpp"
 #include "hook_manager.hpp"
-#include <Psapi.h>
 #include <Windows.h>
+#include <Psapi.h>
 
 // Export special symbol to identify modules as ReShade instances
 extern "C" __declspec(dllexport) const char *ReShadeVersion = VERSION_STRING_PRODUCT;
@@ -106,7 +106,7 @@ std::filesystem::path get_system_path()
 /// <summary>
 /// Returns the path to the module file identified by the specified <paramref name="module"/> handle.
 /// </summary>
-static inline std::filesystem::path get_module_path(HMODULE module)
+std::filesystem::path get_module_path(HMODULE module)
 {
 	WCHAR buf[4096];
 	return GetModuleFileNameW(module, buf, ARRAYSIZE(buf)) ? buf : std::filesystem::path();
