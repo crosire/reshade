@@ -10,11 +10,11 @@
 #include "runtime.hpp"
 #include "hook_manager.hpp"
 #include "dll_resources.hpp"
+#include "imgui_widgets.hpp"
 #include "vulkan/vulkan_impl_device.hpp"
 #include <cassert>
 #include <openvr.h>
 #include <ivrclientcore.h>
-#include <imgui.h>
 #include <stb_image.h>
 
 static vr::IVROverlay *s_overlay = nullptr;
@@ -56,12 +56,13 @@ void reshade::runtime::init_gui_vr()
 		stbi_image_free(icon_data);
 	}
 
-	s_overlay->SetOverlayInputMethod(s_main_handle, vr::VROverlayInputMethod_Mouse);
 	const vr::HmdVector2_t window_size = { static_cast<float>(OVERLAY_WIDTH), static_cast<float>(OVERLAY_HEIGHT) };
 	s_overlay->SetOverlayMouseScale(s_main_handle, &window_size);
+	s_overlay->SetOverlayInputMethod(s_main_handle, vr::VROverlayInputMethod_Mouse);
+
+	s_overlay->SetOverlayFlag(s_main_handle, vr::VROverlayFlags_SendVRSmoothScrollEvents, true);
 
 	s_overlay->SetOverlayWidthInMeters(s_main_handle, 1.5f);
-	s_overlay->SetOverlayFlag(s_main_handle, vr::VROverlayFlags_SendVRSmoothScrollEvents, true);
 
 	if (!_device->create_resource(api::resource_desc(OVERLAY_WIDTH, OVERLAY_HEIGHT, 1, 1, api::format::r8g8b8a8_unorm, 1, api::memory_heap::gpu_only, api::resource_usage::render_target | api::resource_usage::shader_resource), nullptr, api::resource_usage::shader_resource_pixel, &_vr_overlay_texture))
 	{
@@ -141,6 +142,8 @@ void reshade::runtime::draw_gui_vr()
 	imgui_io.KeysDown[0x09] = false;
 	imgui_io.KeysDown[0x0D] = false;
 
+	bool keyboard_closed = false;
+
 	vr::VREvent_t ev;
 	while (s_overlay->PollNextOverlayEvent(s_main_handle, &ev, sizeof(ev)))
 	{
@@ -182,6 +185,10 @@ void reshade::runtime::draw_gui_vr()
 			imgui_io.MouseWheel += ev.data.scroll.ydelta;
 			imgui_io.MouseWheelH += ev.data.scroll.xdelta;
 			break;
+		case vr::VREvent_KeyboardClosed:
+			ImGui::ClearActiveID();
+			keyboard_closed = true;
+			break;
 		case vr::VREvent_KeyboardCharInput:
 			if (ev.data.keyboard.cNewInput[0] == '\b')
 				imgui_io.KeysDown[0x08] = true;
@@ -197,34 +204,45 @@ void reshade::runtime::draw_gui_vr()
 
 	ImGui::NewFrame();
 
+	if (imgui_io.WantTextInput && !keyboard_closed)
+	{
+		s_overlay->ShowKeyboardForOverlay(s_main_handle, vr::k_EGamepadTextInputModeNormal, vr::k_EGamepadTextInputLineModeSingleLine, vr::KeyboardFlag_Minimal, nullptr, 0, "", 0);
+		// Avoid keyboard showing up behind dashboard overlay
+		s_overlay->SetKeyboardPositionForOverlay(s_main_handle, vr::HmdRect2_t { { 0.0f, 1.0f }, { 1.0f, 0.0f } });
+	}
+
 	const ImGuiViewport *const viewport = ImGui::GetMainViewport();
 
 	ImGui::SetNextWindowPos(viewport->Pos);
 	ImGui::SetNextWindowSize(viewport->Size);
 	ImGui::SetNextWindowViewport(viewport->ID);
 	ImGui::Begin("VR Viewport", nullptr,
-		ImGuiWindowFlags_MenuBar |
 		ImGuiWindowFlags_NoDecoration |
 		ImGuiWindowFlags_NoMove |
 		ImGuiWindowFlags_NoDocking);
 
-	if (ImGui::BeginMenuBar())
+	if (ImGui::BeginChild("##menu", ImVec2(0, ImGui::GetFrameHeight()), false, ImGuiWindowFlags_NoScrollbar))
 	{
 		for (size_t menu_index = 0; menu_index < _menu_callables.size(); ++menu_index)
-			if (ImGui::MenuItem(_menu_callables[menu_index].first.c_str(), nullptr, menu_index == _selected_menu))
+		{
+			if (bool state = (menu_index == _selected_menu); gui::widgets::toggle_button(_menu_callables[menu_index].first.c_str(), state))
 				_selected_menu = menu_index;
+			ImGui::SameLine();
+		}
 
 #if RESHADE_ADDON
 		if (addon::enabled)
 		{
-			for (size_t menu_index = 0; menu_index < addon::overlay_list.size(); ++menu_index)
-				if (ImGui::MenuItem(addon::overlay_list[menu_index].first.c_str(), nullptr, (menu_index + _menu_callables.size()) == _selected_menu))
-					_selected_menu = menu_index + _menu_callables.size();
+			for (size_t menu_index = _menu_callables.size(); menu_index < addon::overlay_list.size() + _menu_callables.size(); ++menu_index)
+			{
+				if (bool state = (menu_index == _selected_menu); gui::widgets::toggle_button(addon::overlay_list[menu_index - _menu_callables.size()].first.c_str(), state))
+					_selected_menu = menu_index;
+				ImGui::SameLine();
+			}
 		}
 #endif
-
-		ImGui::EndMenuBar();
 	}
+	ImGui::EndChild();
 
 	if (_selected_menu < _menu_callables.size())
 		_menu_callables[_selected_menu].second();
@@ -236,11 +254,6 @@ void reshade::runtime::draw_gui_vr()
 		_selected_menu = 0;
 
 	ImGui::End();
-
-	if (imgui_io.WantTextInput)
-	{
-		s_overlay->ShowKeyboardForOverlay(s_main_handle, vr::k_EGamepadTextInputModeNormal, vr::k_EGamepadTextInputLineModeSingleLine, vr::KeyboardFlag_Minimal, nullptr, 0, "", 0);
-	}
 
 	ImGui::Render();
 
@@ -281,8 +294,8 @@ void reshade::runtime::draw_gui_vr()
 		vulkan_data.m_pInstance = VK_NULL_HANDLE;
 		vulkan_data.m_pQueue = reinterpret_cast<VkQueue_T *>(_graphics_queue->get_native_object());
 		vulkan_data.m_nQueueFamilyIndex = device_impl->_graphics_queue_family_index;
-		vulkan_data.m_nWidth = 800;
-		vulkan_data.m_nHeight = 600;
+		vulkan_data.m_nWidth = OVERLAY_WIDTH;
+		vulkan_data.m_nHeight = OVERLAY_HEIGHT;
 		vulkan_data.m_nFormat = VK_FORMAT_R8G8B8A8_UNORM;
 		vulkan_data.m_nSampleCount = 1;
 		texture.handle = &vulkan_data;
