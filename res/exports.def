@@ -64,12 +64,6 @@ EXPORTS
 	DXGIGetDebugInterface1 PRIVATE
 	DXGIReportAdapterConfiguration PRIVATE
 
-1 conflicting file
-exports.def
-res/exports.def
-res/exports.def
-1 conflict
-
 	; opengl32.dll
 	glAccum PRIVATE
 	glAlphaFunc PRIVATE
@@ -471,7 +465,7 @@ res/exports.def
 
 	; dinput8.dll
 	DirectInput8Create PRIVATE
-  GetdfDIJoystick PRIVATE
+	GetdfDIJoystick PRIVATE
 
 	; winmm.dll (winmm.lib)
 	CloseDriver = HookCloseDriver PRIVATE

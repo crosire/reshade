@@ -5,7 +5,8 @@
 
 #include "dll_log.hpp"
 #include "hook_manager.hpp"
-#include <mmsystem.h>
+#include <windows.h>
+#include <Mmsystem.h>
 
 /**
  * Multimedia API hook
