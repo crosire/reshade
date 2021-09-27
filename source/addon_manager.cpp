@@ -256,11 +256,13 @@ void ReShadeUnregisterAddon(HMODULE module)
 	if (info == nullptr)
 		return;
 
+#if RESHADE_GUI
 	// Unregister all overlays associated with this add-on
 	while (!info->overlay_titles.empty())
 	{
 		ReShadeUnregisterOverlay(info->overlay_titles.back().c_str());
 	}
+#endif
 
 	// Unregister all event callbacks registered by this add-on
 	while (!info->event_callbacks.empty())

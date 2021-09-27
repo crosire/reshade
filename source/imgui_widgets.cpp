@@ -461,7 +461,7 @@ bool reshade::gui::widgets::list_with_buttons(const char *label, const std::stri
 		ImGui::EndCombo();
 	}
 
-	ImGui::PushItemFlag(ImGuiItemFlags_Disabled, items.empty());
+	ImGui::BeginDisabled(items.empty());
 
 	ImGui::SameLine(0, button_spacing);
 	if (ImGui::Button("<", ImVec2(button_size, 0)))
@@ -477,7 +477,7 @@ bool reshade::gui::widgets::list_with_buttons(const char *label, const std::stri
 		v = (v == static_cast<int>(items.size() - 1)) ? 0 : v + 1;
 	}
 
-	ImGui::PopItemFlag();
+	ImGui::EndDisabled();
 
 	ImGui::EndGroup();
 	const bool is_hovered = ImGui::IsItemHovered();
@@ -536,7 +536,7 @@ bool reshade::gui::widgets::combo_with_buttons(const char *label, const std::str
 	ImGui::SetNextItemWidth(ImGui::CalcItemWidth() - (button_spacing * 2 + button_size * 2));
 	bool modified = ImGui::Combo("##v", &v, items.c_str());
 
-	ImGui::PushItemFlag(ImGuiItemFlags_Disabled, num_items == 0);
+	ImGui::BeginDisabled(num_items == 0);
 
 	ImGui::SameLine(0, button_spacing);
 	if (ImGui::Button("<", ImVec2(button_size, 0)))
@@ -552,7 +552,7 @@ bool reshade::gui::widgets::combo_with_buttons(const char *label, const std::str
 		v = (v == static_cast<int>(num_items - 1)) ? 0 : v + 1;
 	}
 
-	ImGui::PopItemFlag();
+	ImGui::EndDisabled();
 
 	ImGui::EndGroup();
 
