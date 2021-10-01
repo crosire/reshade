@@ -3,22 +3,21 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#ifdef RESHADE_ADDON // Built-In Add-On
-	#include "reshade.hpp"
-	#include <imgui.h>
-#else
-	#include <imgui.h>
-	#include "reshade.hpp"
-	imgui_function_table g_imgui_function_table;
-#endif
-
-#include "ini_file.hpp"
+#include <imgui.h>
+#include "reshade.hpp"
 #include <mutex>
 #include <vector>
 #include <unordered_map>
+#include <algorithm>
 
 static bool s_disable_intz = false;
 static std::mutex s_mutex;
+
+#ifdef RESHADE_ADDON // Is defined when building as built-in add-on
+#include "ini_file.hpp"
+#else
+imgui_function_table g_imgui_function_table;
+#endif
 
 using namespace reshade::api;
 
@@ -143,11 +142,9 @@ struct state_tracking_context
 	// List of resources that were deleted this frame
 	std::vector<resource> destroyed_resources;
 
-#ifdef RESHADE_GUI
 	// List of all encountered depth-stencils of the last frame
 	std::vector<std::pair<resource, depth_stencil_info>> current_depth_stencil_list;
 	std::unordered_map<resource, unsigned int, depth_stencil_hash> display_count_per_depth_stencil;
-#endif
 
 	// Checks whether the aspect ratio of the two sets of dimensions is similar or not
 	bool check_aspect_ratio(float width_to_check, float height_to_check, uint32_t width, uint32_t height) const
@@ -489,10 +486,8 @@ static void on_present(command_queue *, swapchain *swapchain)
 	state_tracking &queue_state = queue->get_user_data<state_tracking>(state_tracking::GUID);
 	state_tracking_context &device_state = device->get_user_data<state_tracking_context>(state_tracking_context::GUID);
 
-#ifdef RESHADE_GUI
 	device_state.current_depth_stencil_list.clear();
 	device_state.current_depth_stencil_list.reserve(queue_state.counters_per_used_depth_stencil.size());
-#endif
 
 	uint32_t frame_width, frame_height;
 	runtime->get_screenshot_width_and_height(&frame_width, &frame_height);
@@ -507,10 +502,8 @@ static void on_present(command_queue *, swapchain *swapchain)
 			std::find(device_state.destroyed_resources.begin(), device_state.destroyed_resources.end(), resource) != device_state.destroyed_resources.end())
 			continue; // Skip resources that were destroyed by the application
 
-#ifdef RESHADE_GUI
 		// Save to current list of depth-stencils on the device, so that it can be displayed in the GUI
 		device_state.current_depth_stencil_list.emplace_back(resource, snapshot);
-#endif
 
 		if (snapshot.total_stats.drawcalls == 0)
 			continue; // Skip unused
@@ -705,8 +698,7 @@ static void on_finish_render_effects(effect_runtime *runtime, command_list *cmd_
 	}
 }
 
-#ifdef RESHADE_GUI
-static void draw_debug_menu(effect_runtime *runtime, void *)
+static void draw_settings_overlay(effect_runtime *runtime, void *)
 {
 	device *const device = runtime->get_device();
 	state_tracking_context &device_state = device->get_user_data<state_tracking_context>(state_tracking_context::GUID);
@@ -836,13 +828,10 @@ static void draw_debug_menu(effect_runtime *runtime, void *)
 #endif
 	}
 }
-#endif
 
 void register_addon_depth()
 {
-#ifdef RESHADE_GUI
-	reshade::register_overlay(nullptr, draw_debug_menu);
-#endif
+	reshade::register_overlay(nullptr, draw_settings_overlay);
 
 	reshade::register_event<reshade::addon_event::init_device>(on_init_device);
 	reshade::register_event<reshade::addon_event::init_command_list>(reinterpret_cast<void(*)(command_list *)>(on_init_queue_or_command_list));
