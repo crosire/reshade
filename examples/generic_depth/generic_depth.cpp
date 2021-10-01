@@ -3,12 +3,19 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#if RESHADE_ADDON
+#ifdef RESHADE_ADDON // Built-In Add-On
+	#include "reshade.hpp"
+	#include <imgui.h>
+#else
+	#include <imgui.h>
+	#include "reshade.hpp"
+	imgui_function_table g_imgui_function_table;
+#endif
 
-#include "reshade.hpp"
 #include "ini_file.hpp"
 #include <mutex>
-#include <imgui.h>
+#include <vector>
+#include <unordered_map>
 
 static bool s_disable_intz = false;
 static std::mutex s_mutex;
@@ -136,7 +143,7 @@ struct state_tracking_context
 	// List of resources that were deleted this frame
 	std::vector<resource> destroyed_resources;
 
-#if RESHADE_GUI
+#ifdef RESHADE_GUI
 	// List of all encountered depth-stencils of the last frame
 	std::vector<std::pair<resource, depth_stencil_info>> current_depth_stencil_list;
 	std::unordered_map<resource, unsigned int, depth_stencil_hash> display_count_per_depth_stencil;
@@ -242,11 +249,13 @@ static void on_init_device(device *device)
 {
 	state_tracking_context &device_state = device->create_user_data<state_tracking_context>(state_tracking_context::GUID);
 
+#ifdef RESHADE_ADDON
 	const ini_file &config = reshade::global_config();
 	config.get("DEPTH", "DisableINTZ", s_disable_intz);
 	config.get("DEPTH", "DepthCopyBeforeClears", device_state.preserve_depth_buffers);
 	config.get("DEPTH", "DepthCopyAtClearIndex", device_state.force_clear_index);
 	config.get("DEPTH", "UseAspectRatioHeuristics", device_state.use_aspect_ratio_heuristics);
+#endif
 
 	if (device_state.force_clear_index == std::numeric_limits<uint32_t>::max())
 		device_state.force_clear_index  = 0;
@@ -480,7 +489,7 @@ static void on_present(command_queue *, swapchain *swapchain)
 	state_tracking &queue_state = queue->get_user_data<state_tracking>(state_tracking::GUID);
 	state_tracking_context &device_state = device->get_user_data<state_tracking_context>(state_tracking_context::GUID);
 
-#if RESHADE_GUI
+#ifdef RESHADE_GUI
 	device_state.current_depth_stencil_list.clear();
 	device_state.current_depth_stencil_list.reserve(queue_state.counters_per_used_depth_stencil.size());
 #endif
@@ -498,7 +507,7 @@ static void on_present(command_queue *, swapchain *swapchain)
 			std::find(device_state.destroyed_resources.begin(), device_state.destroyed_resources.end(), resource) != device_state.destroyed_resources.end())
 			continue; // Skip resources that were destroyed by the application
 
-#if RESHADE_GUI
+#ifdef RESHADE_GUI
 		// Save to current list of depth-stencils on the device, so that it can be displayed in the GUI
 		device_state.current_depth_stencil_list.emplace_back(resource, snapshot);
 #endif
@@ -696,7 +705,7 @@ static void on_finish_render_effects(effect_runtime *runtime, command_list *cmd_
 	}
 }
 
-#if RESHADE_GUI
+#ifdef RESHADE_GUI
 static void draw_debug_menu(effect_runtime *runtime, void *)
 {
 	device *const device = runtime->get_device();
@@ -816,6 +825,7 @@ static void draw_debug_menu(effect_runtime *runtime, void *)
 
 		on_init_effect_runtime(runtime);
 
+#ifdef RESHADE_ADDON
 		ini_file &config = reshade::global_config();
 		config.set("DEPTH", "DisableINTZ", s_disable_intz);
 		config.set("DEPTH", "DepthCopyBeforeClears", device_state.preserve_depth_buffers);
@@ -823,22 +833,14 @@ static void draw_debug_menu(effect_runtime *runtime, void *)
 		config.set("DEPTH", "UseAspectRatioHeuristics", device_state.use_aspect_ratio_heuristics);
 
 		config.save();
+#endif
 	}
 }
 #endif
 
-#include "addon.hpp"
-#include "version.h"
-
-void register_builtin_addon_depth(reshade::addon::info &info)
+void register_addon_depth()
 {
-	info.name = "Generic Depth";
-	info.description = "Automatic depth buffer detection that works in the majority of games.";
-	info.file = g_reshade_dll_path.u8string();
-	info.author = "crosire";
-	info.version = VERSION_STRING_FILE;
-
-#if RESHADE_GUI
+#ifdef RESHADE_GUI
 	reshade::register_overlay(nullptr, draw_debug_menu);
 #endif
 
@@ -872,7 +874,7 @@ void register_builtin_addon_depth(reshade::addon::info &info)
 	reshade::register_event<reshade::addon_event::reshade_begin_effects>(on_begin_render_effects);
 	reshade::register_event<reshade::addon_event::reshade_finish_effects>(on_finish_render_effects);
 }
-void unregister_builtin_addon_depth()
+void unregister_addon_depth()
 {
 	reshade::unregister_event<reshade::addon_event::init_device>(on_init_device);
 	reshade::unregister_event<reshade::addon_event::init_command_list>(reinterpret_cast<void(*)(command_list *)>(on_init_queue_or_command_list));
@@ -903,6 +905,26 @@ void unregister_builtin_addon_depth()
 
 	reshade::unregister_event<reshade::addon_event::reshade_begin_effects>(on_begin_render_effects);
 	reshade::unregister_event<reshade::addon_event::reshade_finish_effects>(on_finish_render_effects);
+}
+
+#ifdef _WINDLL
+
+BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
+{
+	switch (fdwReason)
+	{
+	case DLL_PROCESS_ATTACH:
+		if (!reshade::register_addon(hModule))
+			return FALSE;
+		register_addon_depth();
+		break;
+	case DLL_PROCESS_DETACH:
+		unregister_addon_depth();
+		reshade::unregister_addon(hModule);
+		break;
+	}
+
+	return TRUE;
 }
 
 #endif
