@@ -7,7 +7,6 @@
 
 #include "addon.hpp"
 #include "dll_log.hpp"
-#include <imgui.h>
 #include <Windows.h>
 
 extern reshade::addon::info *find_addon(HMODULE module);
@@ -26,12 +25,14 @@ extern "C" __declspec(dllexport) void ReShadeLogMessage(HMODULE module, int leve
 }
 
 #if RESHADE_GUI
-struct imgui_function_table;
+#include "reshade.hpp"
+#include "imgui_function_table.hpp"
+
 extern imgui_function_table g_imgui_function_table;
 
-extern "C" __declspec(dllexport) const imgui_function_table *ReShadeGetImGuiFunctionTable(unsigned int version)
+extern "C" __declspec(dllexport) const imgui_function_table *ReShadeGetImGuiFunctionTable(uint32_t version)
 {
-	if (version == IMGUI_VERSION_NUM)
+	if (version == RESHADE_API_VERSION_IMGUI)
 		return &g_imgui_function_table;
 	return nullptr;
 }

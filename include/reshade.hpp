@@ -11,6 +11,7 @@
 #include <Psapi.h>
 
 #define RESHADE_API_VERSION 1
+#define RESHADE_API_VERSION_IMGUI IMGUI_VERSION_NUM
 
 namespace reshade
 {
@@ -82,15 +83,15 @@ namespace reshade
 		if (!func(module, RESHADE_API_VERSION))
 			return false;
 
-#ifdef IMGUI_VERSION
+#if defined(IMGUI_VERSION)
 		// Check that the ReShade module was built with imgui support
-		const auto imgui_func = reinterpret_cast<const imgui_function_table *(*)(unsigned int)>(
+		const auto imgui_func = reinterpret_cast<const imgui_function_table *(*)(uint32_t)>(
 			GetProcAddress(reshade_module, "ReShadeGetImGuiFunctionTable"));
 		if (imgui_func == nullptr)
 			return false;
 
 		// Check that the ReShade module supports the used imgui version
-		const imgui_function_table *const imgui_table = imgui_func(IMGUI_VERSION_NUM);
+		const imgui_function_table *const imgui_table = imgui_func(RESHADE_API_VERSION_IMGUI);
 		if (imgui_table == nullptr)
 			return false;
 		g_imgui_function_table = *imgui_table;

@@ -33,6 +33,8 @@ $function_header = @"
 
 #pragma once
 
+#if defined(IMGUI_VERSION)
+
 #include "imgui_function_table.hpp"
 
 extern imgui_function_table g_imgui_function_table;
@@ -52,13 +54,13 @@ Get-Content ..\deps\imgui\imgui.h | ForEach-Object {
 		$is_inside_namespace = 2
 	}
 
-	if ($is_inside_namespace -eq 1 -and $_ -match 'IMGUI_API\s(\w+)\s+(\w+)\((.*)\);(?:(?:\s+//)|$)') {
+	if ($is_inside_namespace -eq 1 -and $_ -match 'IMGUI_API\s([\w\&\*]+)\s+(\w+)\((.*)\);(?:(?:\s+\/\/)|$)') {
 		$type = $matches[1]
 		$name = $matches[2]
 		$args = $matches[3]
 
 		# Filter out various functions
-		if ($name.StartsWith("Log") -or $name.StartsWith("Show") -or $name.StartsWith("StyleColors") -or $name.EndsWith("Context") -or $name.Contains("IniSettings") -or $name -eq "NewFrame" -or $name -eq "EndFrame" -or $name -eq "Render") {
+		if ($name.StartsWith("Log") -or $name.StartsWith("Show") -or $name.StartsWith("StyleColors") -or $name.EndsWith("Context") -or $name.Contains("IniSettings") -or $name -eq "NewFrame" -or $name -eq "EndFrame" -or $name -eq "Render" -or $name -eq "GetDrawData") {
 			return;
 		}
 
@@ -137,16 +139,15 @@ Get-Content ..\deps\imgui\imgui.h | ForEach-Object {
 
 $function_table += @"
 };
-
 "@
 
 $function_table_init += @"
 };
-
 "@
 $function_header += @"
 }
 
+#endif
 "@
 
 $function_table | Out-File -FilePath "..\include\imgui_function_table.hpp" -Encoding ASCII

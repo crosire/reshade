@@ -3,10 +3,11 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include <imgui.h>
 #include "imgui_function_table.hpp"
 
 imgui_function_table g_imgui_function_table = {
+	ImGui::GetIO,
+	ImGui::GetStyle,
 	ImGui::Begin,
 	ImGui::End,
 	ImGui::BeginChild,
@@ -16,6 +17,7 @@ imgui_function_table g_imgui_function_table = {
 	ImGui::IsWindowCollapsed,
 	ImGui::IsWindowFocused,
 	ImGui::IsWindowHovered,
+	ImGui::GetWindowDrawList,
 	ImGui::GetWindowDpiScale,
 	ImGui::GetWindowPos,
 	ImGui::GetWindowSize,
@@ -71,6 +73,7 @@ imgui_function_table g_imgui_function_table = {
 	ImGui::CalcItemWidth,
 	ImGui::PushTextWrapPos,
 	ImGui::PopTextWrapPos,
+	ImGui::GetFont,
 	ImGui::GetFontSize,
 	ImGui::GetFontTexUvWhitePixel,
 	ImGui::GetColorU32,
@@ -235,6 +238,7 @@ imgui_function_table g_imgui_function_table = {
 	ImGui::TableSetupScrollFreeze,
 	ImGui::TableHeadersRow,
 	ImGui::TableHeader,
+	ImGui::TableGetSortSpecs,
 	ImGui::TableGetColumnCount,
 	ImGui::TableGetColumnIndex,
 	ImGui::TableGetRowIndex,
@@ -288,11 +292,18 @@ imgui_function_table g_imgui_function_table = {
 	ImGui::GetItemRectMax,
 	ImGui::GetItemRectSize,
 	ImGui::SetItemAllowOverlap,
+	ImGui::GetMainViewport,
 	ImGui::IsRectVisible,
 	ImGui::IsRectVisible,
 	ImGui::GetTime,
 	ImGui::GetFrameCount,
+	ImGui::GetBackgroundDrawList,
+	ImGui::GetForegroundDrawList,
+	ImGui::GetBackgroundDrawList,
+	ImGui::GetForegroundDrawList,
+	ImGui::GetDrawListSharedData,
 	ImGui::SetStateStorage,
+	ImGui::GetStateStorage,
 	ImGui::CalcListClipping,
 	ImGui::BeginChildFrame,
 	ImGui::EndChildFrame,
@@ -325,9 +336,12 @@ imgui_function_table g_imgui_function_table = {
 	ImGui::DebugCheckVersionAndDataLayout,
 	ImGui::SetAllocatorFunctions,
 	ImGui::GetAllocatorFunctions,
+	ImGui::MemAlloc,
 	ImGui::MemFree,
+	ImGui::GetPlatformIO,
 	ImGui::UpdatePlatformWindows,
 	ImGui::RenderPlatformWindowsDefault,
 	ImGui::DestroyPlatformWindows,
+	ImGui::FindViewportByID,
+	ImGui::FindViewportByPlatformHandle,
 };
-

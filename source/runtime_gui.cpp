@@ -2026,7 +2026,7 @@ void reshade::runtime::draw_gui_about()
 		const auto resource = reshade::resources::load_data_resource(IDR_LICENSE_MINHOOK);
 		ImGui::TextUnformatted(static_cast<const char *>(resource.data), static_cast<const char *>(resource.data) + resource.data_size);
 	}
-	if (ImGui::CollapsingHeader("dear imgui"))
+	if (ImGui::CollapsingHeader("Dear ImGui"))
 	{
 		const auto resource = reshade::resources::load_data_resource(IDR_LICENSE_IMGUI);
 		ImGui::TextUnformatted(static_cast<const char *>(resource.data), static_cast<const char *>(resource.data) + resource.data_size);
@@ -3438,7 +3438,7 @@ void reshade::runtime::render_imgui_draw_data(api::command_list *cmd_list, ImDra
 
 		_device->unmap_resource(_imgui_indices[buffer_index], 0);
 	}
-	if (api::subresource_data mapped_data; 
+	if (api::subresource_data mapped_data;
 		_device->map_resource(_imgui_vertices[buffer_index], 0, api::map_access::write_only, &mapped_data))
 	{
 		auto vtx_dst = static_cast<ImDrawVert *>(mapped_data.data);
