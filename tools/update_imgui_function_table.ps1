@@ -54,7 +54,7 @@ Get-Content ..\deps\imgui\imgui.h | ForEach-Object {
 		$is_inside_namespace = 2
 	}
 
-	if ($is_inside_namespace -eq 1 -and $_ -match 'IMGUI_API\s([\w\&\*]+)\s+(\w+)\((.*)\);(?:(?:\s+\/\/)|$)') {
+	if ($is_inside_namespace -eq 1 -and $_ -match 'IMGUI_API\s([\w\&\*]+)\s+(\w+)\((.*)\);(?:(?:\s*\/\/)|$)') {
 		$type = $matches[1]
 		$name = $matches[2]
 		$args = $matches[3]

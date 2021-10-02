@@ -13,7 +13,7 @@
 static bool s_disable_intz = false;
 static std::mutex s_mutex;
 
-#ifdef RESHADE_ADDON // Is defined when building as built-in add-on
+#ifdef BUILTIN_ADDON
 #include "ini_file.hpp"
 #else
 imgui_function_table g_imgui_function_table;
@@ -246,7 +246,7 @@ static void on_init_device(device *device)
 {
 	state_tracking_context &device_state = device->create_user_data<state_tracking_context>(state_tracking_context::GUID);
 
-#ifdef RESHADE_ADDON
+#ifdef BUILTIN_ADDON
 	const ini_file &config = reshade::global_config();
 	config.get("DEPTH", "DisableINTZ", s_disable_intz);
 	config.get("DEPTH", "DepthCopyBeforeClears", device_state.preserve_depth_buffers);
@@ -817,7 +817,7 @@ static void draw_settings_overlay(effect_runtime *runtime, void *)
 
 		on_init_effect_runtime(runtime);
 
-#ifdef RESHADE_ADDON
+#ifdef BUILTIN_ADDON
 		ini_file &config = reshade::global_config();
 		config.set("DEPTH", "DisableINTZ", s_disable_intz);
 		config.set("DEPTH", "DepthCopyBeforeClears", device_state.preserve_depth_buffers);
@@ -897,6 +897,9 @@ void unregister_addon_depth()
 }
 
 #ifdef _WINDLL
+
+extern "C" __declspec(dllexport) const char *NAME = "Generic Depth";
+extern "C" __declspec(dllexport) const char *DESCRIPTION = "Automatic depth buffer detection that works in the majority of games.";
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 {

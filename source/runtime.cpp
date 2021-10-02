@@ -2590,7 +2590,7 @@ void reshade::runtime::load_textures()
 			continue;
 		}
 
-		unsigned char *filedata = nullptr;
+		stbi_uc *filedata = nullptr;
 		int width = 0, height = 0, channels = 0;
 
 		if (FILE *file; _wfopen_s(&file, source_path.c_str(), L"rb") == 0)

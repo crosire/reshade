@@ -245,6 +245,7 @@ namespace ImGui
 	inline void OpenPopupOnItemClick(const char* str_id, ImGuiPopupFlags popup_flags) { g_imgui_function_table.OpenPopupOnItemClick(str_id, popup_flags); }
 	inline void CloseCurrentPopup() { g_imgui_function_table.CloseCurrentPopup(); }
 	inline bool BeginPopupContextItem(const char* str_id, ImGuiPopupFlags popup_flags) { return g_imgui_function_table.BeginPopupContextItem(str_id, popup_flags); }
+	inline bool BeginPopupContextWindow(const char* str_id, ImGuiPopupFlags popup_flags) { return g_imgui_function_table.BeginPopupContextWindow(str_id, popup_flags); }
 	inline bool BeginPopupContextVoid(const char* str_id, ImGuiPopupFlags popup_flags) { return g_imgui_function_table.BeginPopupContextVoid(str_id, popup_flags); }
 	inline bool IsPopupOpen(const char* str_id, ImGuiPopupFlags flags) { return g_imgui_function_table.IsPopupOpen(str_id, flags); }
 	inline bool BeginTable(const char* str_id, int column, ImGuiTableFlags flags, const ImVec2& outer_size, float inner_width) { return g_imgui_function_table.BeginTable(str_id, column, flags, outer_size, inner_width); }
@@ -261,6 +262,7 @@ namespace ImGui
 	inline int TableGetColumnIndex() { return g_imgui_function_table.TableGetColumnIndex(); }
 	inline int TableGetRowIndex() { return g_imgui_function_table.TableGetRowIndex(); }
 	inline ImGuiTableColumnFlags TableGetColumnFlags(int column_n) { return g_imgui_function_table.TableGetColumnFlags(column_n); }
+	inline void TableSetColumnEnabled(int column_n, bool v) { g_imgui_function_table.TableSetColumnEnabled(column_n, v); }
 	inline void TableSetBgColor(ImGuiTableBgTarget target, ImU32 color, int column_n) { g_imgui_function_table.TableSetBgColor(target, color, column_n); }
 	inline void Columns(int count, const char* id, bool border) { g_imgui_function_table.Columns(count, id, border); }
 	inline void NextColumn() { g_imgui_function_table.NextColumn(); }
@@ -340,6 +342,7 @@ namespace ImGui
 	inline bool IsMouseClicked(ImGuiMouseButton button, bool repeat) { return g_imgui_function_table.IsMouseClicked(button, repeat); }
 	inline bool IsMouseReleased(ImGuiMouseButton button) { return g_imgui_function_table.IsMouseReleased(button); }
 	inline bool IsMouseDoubleClicked(ImGuiMouseButton button) { return g_imgui_function_table.IsMouseDoubleClicked(button); }
+	inline bool IsMouseHoveringRect(const ImVec2& r_min, const ImVec2& r_max, bool clip) { return g_imgui_function_table.IsMouseHoveringRect(r_min, r_max, clip); }
 	inline bool IsMousePosValid(const ImVec2* mouse_pos) { return g_imgui_function_table.IsMousePosValid(mouse_pos); }
 	inline bool IsAnyMouseDown() { return g_imgui_function_table.IsAnyMouseDown(); }
 	inline ImVec2 GetMousePos() { return g_imgui_function_table.GetMousePos(); }

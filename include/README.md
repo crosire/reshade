@@ -40,7 +40,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID)
 }
 ```
 
-For more complex examples, see also the built-in add-ons in [source/addon](../source/addon).
+For more complex examples, see the [examples directory in this repository](../examples).
 
 ## Overlays
 

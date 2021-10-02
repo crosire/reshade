@@ -228,6 +228,7 @@ struct imgui_function_table
 	void(*OpenPopupOnItemClick)(const char* str_id, ImGuiPopupFlags popup_flags);
 	void(*CloseCurrentPopup)();
 	bool(*BeginPopupContextItem)(const char* str_id, ImGuiPopupFlags popup_flags);
+	bool(*BeginPopupContextWindow)(const char* str_id, ImGuiPopupFlags popup_flags);
 	bool(*BeginPopupContextVoid)(const char* str_id, ImGuiPopupFlags popup_flags);
 	bool(*IsPopupOpen)(const char* str_id, ImGuiPopupFlags flags);
 	bool(*BeginTable)(const char* str_id, int column, ImGuiTableFlags flags, const ImVec2& outer_size, float inner_width);
@@ -244,6 +245,7 @@ struct imgui_function_table
 	int(*TableGetColumnIndex)();
 	int(*TableGetRowIndex)();
 	ImGuiTableColumnFlags(*TableGetColumnFlags)(int column_n);
+	void(*TableSetColumnEnabled)(int column_n, bool v);
 	void(*TableSetBgColor)(ImGuiTableBgTarget target, ImU32 color, int column_n);
 	void(*Columns)(int count, const char* id, bool border);
 	void(*NextColumn)();
@@ -323,6 +325,7 @@ struct imgui_function_table
 	bool(*IsMouseClicked)(ImGuiMouseButton button, bool repeat);
 	bool(*IsMouseReleased)(ImGuiMouseButton button);
 	bool(*IsMouseDoubleClicked)(ImGuiMouseButton button);
+	bool(*IsMouseHoveringRect)(const ImVec2& r_min, const ImVec2& r_max, bool clip);
 	bool(*IsMousePosValid)(const ImVec2* mouse_pos);
 	bool(*IsAnyMouseDown)();
 	ImVec2(*GetMousePos)();
