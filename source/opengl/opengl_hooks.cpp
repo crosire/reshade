@@ -3689,6 +3689,7 @@ HOOK_EXPORT void WINAPI glShadeModel(GLenum mode)
 #if RESHADE_ADDON
 	std::string combined_source;
 	reshade::api::pipeline_desc desc = {};
+	GLint combined_source_length = -1;
 
 	if (g_current_context)
 	{
@@ -3747,8 +3748,12 @@ HOOK_EXPORT void WINAPI glShadeModel(GLenum mode)
 
 			if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(g_current_context, desc))
 			{
+				assert(shader_desc->code_size <= static_cast<size_t>(std::numeric_limits<GLint>::max()));
+				combined_source_length = static_cast<GLint>(shader_desc->code_size);
+
 				count = 1;
 				string = reinterpret_cast<const GLchar *const *>(&shader_desc->code);
+				length = &combined_source_length;
 			}
 		}
 	}

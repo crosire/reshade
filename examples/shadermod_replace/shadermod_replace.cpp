@@ -89,21 +89,24 @@ static bool on_create_pipeline(device *device, pipeline_desc &desc)
 
 	return static_cast<shader_stage>(0) != replaced_stages;
 }
-static void on_after_create_pipeline(device *, const pipeline_desc &desc, pipeline)
+static void on_after_create_pipeline(device *device, const pipeline_desc &desc, pipeline)
 {
-	// Free the memory allocated in 'replace_shader_code' above
-	if ((replaced_stages & shader_stage::vertex) == shader_stage::vertex)
-		delete[] static_cast<uint8_t *>(const_cast<void *>(desc.graphics.vertex_shader.code));
-	if ((replaced_stages & shader_stage::hull) == shader_stage::hull)
-		delete[] static_cast<uint8_t *>(const_cast<void *>(desc.graphics.hull_shader.code));
-	if ((replaced_stages & shader_stage::domain) == shader_stage::domain)
-		delete[] static_cast<uint8_t *>(const_cast<void *>(desc.graphics.domain_shader.code));
-	if ((replaced_stages & shader_stage::geometry) == shader_stage::geometry)
-		delete[] static_cast<uint8_t *>(const_cast<void *>(desc.graphics.geometry_shader.code));
-	if ((replaced_stages & shader_stage::pixel) == shader_stage::pixel)
-		delete[] static_cast<uint8_t *>(const_cast<void *>(desc.graphics.pixel_shader.code));
-	if ((replaced_stages & shader_stage::compute) == shader_stage::compute)
-		delete[] static_cast<uint8_t *>(const_cast<void *>(desc.compute.shader.code));
+	if (device->get_api() != device_api::opengl) // TODO: Does not work in OpenGL because 'glLinkProgram' calls this with different pointers
+	{
+		// Free the memory allocated in 'replace_shader_code' above
+		if ((replaced_stages & shader_stage::vertex) == shader_stage::vertex)
+			delete[] static_cast<uint8_t *>(const_cast<void *>(desc.graphics.vertex_shader.code));
+		if ((replaced_stages & shader_stage::hull) == shader_stage::hull)
+			delete[] static_cast<uint8_t *>(const_cast<void *>(desc.graphics.hull_shader.code));
+		if ((replaced_stages & shader_stage::domain) == shader_stage::domain)
+			delete[] static_cast<uint8_t *>(const_cast<void *>(desc.graphics.domain_shader.code));
+		if ((replaced_stages & shader_stage::geometry) == shader_stage::geometry)
+			delete[] static_cast<uint8_t *>(const_cast<void *>(desc.graphics.geometry_shader.code));
+		if ((replaced_stages & shader_stage::pixel) == shader_stage::pixel)
+			delete[] static_cast<uint8_t *>(const_cast<void *>(desc.graphics.pixel_shader.code));
+		if ((replaced_stages & shader_stage::compute) == shader_stage::compute)
+			delete[] static_cast<uint8_t *>(const_cast<void *>(desc.compute.shader.code));
+	}
 
 	replaced_stages = static_cast<shader_stage>(0);
 }
