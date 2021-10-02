@@ -1345,10 +1345,16 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexShader(const DWORD *pFunc
 	if (pFunction == nullptr)
 		return D3DERR_INVALIDCALL;
 
+	// First token should be version token (https://docs.microsoft.com/windows-hardware/drivers/display/version-token), so verify its shader type
+	assert((pFunction[0] >> 16) == 0xFFFE);
+
 	reshade::api::pipeline_desc desc = { reshade::api::pipeline_stage::vertex_shader };
 	desc.graphics.vertex_shader.code = pFunction;
-	// Total size is at byte offset 24 (see http://timjones.io/blog/archive/2015/09/02/parsing-direct3d-shader-bytecode)
-	desc.graphics.vertex_shader.code_size = pFunction[6];
+
+	// Find the end token to calculate token stream size (https://docs.microsoft.com/windows-hardware/drivers/display/end-token)
+	desc.graphics.vertex_shader.code_size = sizeof(DWORD);
+	for (int i = 0; pFunction[i] != 0x0000FFFF; ++i)
+		desc.graphics.vertex_shader.code_size += sizeof(DWORD);
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, desc))
 	{
@@ -1502,10 +1508,16 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreatePixelShader(const DWORD *pFunct
 	if (pFunction == nullptr)
 		return D3DERR_INVALIDCALL;
 
+	// First token should be version token (https://docs.microsoft.com/windows-hardware/drivers/display/version-token), so verify its shader type
+	assert((pFunction[0] >> 16) == 0xFFFF);
+
 	reshade::api::pipeline_desc desc = { reshade::api::pipeline_stage::pixel_shader };
 	desc.graphics.pixel_shader.code = pFunction;
-	// Total size is at byte offset 24 (see http://timjones.io/blog/archive/2015/09/02/parsing-direct3d-shader-bytecode)
-	desc.graphics.pixel_shader.code_size = pFunction[6];
+
+	// Find the end token to calculate token stream size (https://docs.microsoft.com/windows-hardware/drivers/display/end-token)
+	desc.graphics.pixel_shader.code_size = sizeof(DWORD);
+	for (int i = 0; pFunction[i] != 0x0000FFFF; ++i)
+		desc.graphics.pixel_shader.code_size += sizeof(DWORD);
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, desc))
 	{
