@@ -31,9 +31,9 @@ struct DrawElementsIndirectCommand
 extern thread_local reshade::opengl::swapchain_impl *g_current_context = nullptr;
 
 #if RESHADE_ADDON
-static void init_resource(GLenum target, GLuint object, const reshade::api::resource_desc &desc, const reshade::api::subresource_data *initial_data = nullptr)
+static void init_resource(GLenum target, GLuint object, const reshade::api::resource_desc &desc, const reshade::api::subresource_data *initial_data = nullptr, bool update_texture = false)
 {
-	if (!g_current_context || (!reshade::has_addon_event<reshade::addon_event::init_resource>() && !reshade::has_addon_event<reshade::addon_event::init_resource_view>()))
+	if (!g_current_context || (!reshade::has_addon_event<reshade::addon_event::init_resource>() && !reshade::has_addon_event<reshade::addon_event::init_resource_view>() && !update_texture))
 		return;
 
 	// Get actual texture target from the texture object
@@ -73,6 +73,12 @@ static void init_resource(GLenum target, GLuint object, const reshade::api::reso
 	}
 
 	const reshade::api::resource resource = reshade::opengl::make_resource_handle(base_target, object);
+
+	if (update_texture && initial_data != nullptr)
+	{
+		assert(base_target != GL_BUFFER);
+		g_current_context->update_texture_region(*initial_data, resource, 0, nullptr);
+	}
 
 	reshade::invoke_addon_event<reshade::addon_event::init_resource>(
 		g_current_context, desc, initial_data, reshade::api::resource_usage::general, resource);
@@ -148,7 +154,7 @@ reshade::api::subresource_data convert_mapped_subresource(GLenum format, GLenum 
 	GLint unpack = 0;
 	gl3wGetIntegerv(GL_PIXEL_UNPACK_BUFFER_BINDING, &unpack);
 
-	if (0 != unpack)
+	if (0 != unpack || pixels == nullptr)
 		return {};
 
 	GLint row_length = 0;
@@ -1447,10 +1453,14 @@ HOOK_EXPORT void WINAPI glColorPointer(GLint size, GLenum type, GLsizei stride, 
 	auto initial_data = convert_mapped_subresource(internalformat, GL_UNSIGNED_BYTE, data, width);
 
 	if (g_current_context &&
+		level == 0 &&
 		reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, initial_data.data ? &initial_data : nullptr, reshade::api::resource_usage::general))
 	{
 		internalformat = reshade::opengl::convert_format(desc.texture.format);
 		width = desc.texture.width;
+
+		// Skip initial upload, data is uploaded after creation in 'init_resource' below
+		data = nullptr;
 	}
 #endif
 
@@ -1459,7 +1469,7 @@ HOOK_EXPORT void WINAPI glColorPointer(GLint size, GLenum type, GLsizei stride, 
 
 #if RESHADE_ADDON
 	if (level == 0)
-		init_resource(target, 0, desc, initial_data.data ? &initial_data : nullptr);
+		init_resource(target, 0, desc, initial_data.data ? &initial_data : nullptr, initial_data.data != data);
 #endif
 }
 			void WINAPI glCompressedTexImage2D(GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLint border, GLsizei imageSize, const void *data)
@@ -1469,11 +1479,15 @@ HOOK_EXPORT void WINAPI glColorPointer(GLint size, GLenum type, GLsizei stride, 
 	auto initial_data = convert_mapped_subresource(internalformat, GL_UNSIGNED_BYTE, data, width, height);
 
 	if (g_current_context &&
+		level == 0 && // TODO: Add support for other mipmap levels
 		reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, initial_data.data ? &initial_data : nullptr, reshade::api::resource_usage::general))
 	{
 		internalformat = reshade::opengl::convert_format(desc.texture.format);
 		width = desc.texture.width;
 		height = desc.texture.height;
+
+		// Skip initial upload, data is uploaded after creation in 'init_resource' below
+		data = nullptr;
 	}
 #endif
 
@@ -1482,7 +1496,7 @@ HOOK_EXPORT void WINAPI glColorPointer(GLint size, GLenum type, GLsizei stride, 
 
 #if RESHADE_ADDON
 	if (level == 0)
-		init_resource(target, 0, desc, initial_data.data ? &initial_data : nullptr);
+		init_resource(target, 0, desc, initial_data.data ? &initial_data : nullptr, initial_data.data != data);
 #endif
 }
 			void WINAPI glCompressedTexImage3D(GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLsizei imageSize, const void *data)
@@ -1492,12 +1506,16 @@ HOOK_EXPORT void WINAPI glColorPointer(GLint size, GLenum type, GLsizei stride, 
 	auto initial_data = convert_mapped_subresource(internalformat, GL_UNSIGNED_BYTE, data, width, height, depth);
 
 	if (g_current_context &&
+		level == 0 &&
 		reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, initial_data.data ? &initial_data : nullptr, reshade::api::resource_usage::general))
 	{
 		internalformat = reshade::opengl::convert_format(desc.texture.format);
 		width = desc.texture.width;
 		height = desc.texture.height;
 		depth = desc.texture.depth_or_layers;
+
+		// Skip initial upload, data is uploaded after creation in 'init_resource' below
+		data = nullptr;
 	}
 #endif
 
@@ -1506,7 +1524,7 @@ HOOK_EXPORT void WINAPI glColorPointer(GLint size, GLenum type, GLsizei stride, 
 
 #if RESHADE_ADDON
 	if (level == 0)
-		init_resource(target, 0, desc, initial_data.data ? &initial_data : nullptr);
+		init_resource(target, 0, desc, initial_data.data ? &initial_data : nullptr, initial_data.data != data);
 #endif
 }
 
@@ -4135,11 +4153,18 @@ HOOK_EXPORT void WINAPI glTexImage1D(GLenum target, GLint level, GLint internalf
 	auto desc = reshade::opengl::convert_resource_desc(target, 0, 1, static_cast<GLenum>(internalformat), width);
 	auto initial_data = convert_mapped_subresource(format, type, pixels, width);
 
+	// Ignore proxy texture objects
+	const bool proxy_object = (target == GL_PROXY_TEXTURE_1D);
+
 	if (g_current_context &&
+		level == 0 && !proxy_object &&
 		reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, initial_data.data ? &initial_data : nullptr, reshade::api::resource_usage::general))
 	{
 		internalformat = reshade::opengl::convert_format(desc.texture.format);
 		width = desc.texture.width;
+
+		// Skip initial upload, data is uploaded after creation in 'init_resource' below
+		pixels = nullptr;
 	}
 #endif
 
@@ -4147,8 +4172,8 @@ HOOK_EXPORT void WINAPI glTexImage1D(GLenum target, GLint level, GLint internalf
 	trampoline(target, level, internalformat, width, border, format, type, pixels);
 
 #if RESHADE_ADDON
-	if (level == 0)
-		init_resource(target, 0, desc, initial_data.data ? &initial_data : nullptr);
+	if (level == 0 && !proxy_object)
+		init_resource(target, 0, desc, initial_data.data ? &initial_data : nullptr, initial_data.data != pixels);
 #endif
 }
 HOOK_EXPORT void WINAPI glTexImage2D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const GLvoid *pixels)
@@ -4192,12 +4217,19 @@ HOOK_EXPORT void WINAPI glTexImage2D(GLenum target, GLint level, GLint internalf
 	auto desc = reshade::opengl::convert_resource_desc(target, 0, 1, static_cast<GLenum>(internalformat), width, height);
 	auto initial_data = convert_mapped_subresource(format, type, pixels, width, height);
 
+	// Ignore proxy texture objects
+	const bool proxy_object = (target == GL_PROXY_TEXTURE_2D || target == GL_PROXY_TEXTURE_1D_ARRAY || target == GL_PROXY_TEXTURE_RECTANGLE || target == GL_PROXY_TEXTURE_CUBE_MAP);
+
 	if (g_current_context &&
+		level == 0 && !proxy_object && // TODO: Add support for other mipmap levels
 		reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, initial_data.data ? &initial_data : nullptr, reshade::api::resource_usage::general))
 	{
 		internalformat = reshade::opengl::convert_format(desc.texture.format);
 		width = desc.texture.width;
 		height = desc.texture.height;
+
+		// Skip initial upload, data is uploaded after creation in 'init_resource' below
+		pixels = nullptr;
 	}
 #endif
 
@@ -4205,8 +4237,8 @@ HOOK_EXPORT void WINAPI glTexImage2D(GLenum target, GLint level, GLint internalf
 	trampoline(target, level, internalformat, width, height, border, format, type, pixels);
 
 #if RESHADE_ADDON
-	if (level == 0)
-		init_resource(target, 0, desc, initial_data.data ? &initial_data : nullptr);
+	if (level == 0 && !proxy_object)
+		init_resource(target, 0, desc, initial_data.data ? &initial_data : nullptr, initial_data.data != pixels);
 #endif
 }
 			void WINAPI glTexImage2DMultisample(GLenum target, GLsizei samples, GLenum internalformat, GLsizei width, GLsizei height, GLboolean fixedsamplelocations)
@@ -4272,13 +4304,20 @@ HOOK_EXPORT void WINAPI glTexImage2D(GLenum target, GLint level, GLint internalf
 	auto desc = reshade::opengl::convert_resource_desc(target, 0, 1, static_cast<GLenum>(internalformat), width, height, depth);
 	auto initial_data = convert_mapped_subresource(format, type, pixels, width, height, depth);
 
+	// Ignore proxy texture objects
+	const bool proxy_object = (target == GL_PROXY_TEXTURE_3D || target == GL_PROXY_TEXTURE_2D_ARRAY || target == GL_PROXY_TEXTURE_CUBE_MAP_ARRAY);
+
 	if (g_current_context &&
+		level == 0 && !proxy_object &&
 		reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, initial_data.data ? &initial_data : nullptr, reshade::api::resource_usage::general))
 	{
 		internalformat = reshade::opengl::convert_format(desc.texture.format);
 		width = desc.texture.width;
 		height = desc.texture.height;
 		depth = desc.texture.depth_or_layers;
+
+		// Skip initial upload, data is uploaded after creation in 'init_resource' below
+		pixels = nullptr;
 	}
 #endif
 
@@ -4286,8 +4325,8 @@ HOOK_EXPORT void WINAPI glTexImage2D(GLenum target, GLint level, GLint internalf
 	trampoline(target, level, internalformat, width, height, depth, border, format, type, pixels);
 
 #if RESHADE_ADDON
-	if (level == 0)
-		init_resource(target, 0, desc, initial_data.data ? &initial_data : nullptr);
+	if (level == 0 && !proxy_object)
+		init_resource(target, 0, desc, initial_data.data ? &initial_data : nullptr, initial_data.data != pixels);
 #endif
 }
 			void WINAPI glTexImage3DMultisample(GLenum target, GLsizei samples, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth, GLboolean fixedsamplelocations)

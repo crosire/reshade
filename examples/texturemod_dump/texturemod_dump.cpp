@@ -75,7 +75,7 @@ static void on_init_texture(device *device, const resource_desc &desc, const sub
 
 static bool on_copy_texture(command_list *cmd_list, resource src, uint32_t src_subresource, const int32_t /*src_box*/[6], resource dst, uint32_t dst_subresource, const int32_t dst_box[6], filter_mode)
 {
-	if (src_subresource != 0 || src_subresource != dst_subresource || dst_box != nullptr)
+	if (src_subresource != 0 || src_subresource != dst_subresource)
 		return false;
 
 	device *const device = cmd_list->get_device();
@@ -86,6 +86,12 @@ static bool on_copy_texture(command_list *cmd_list, resource src, uint32_t src_s
 
 	const resource_desc dst_desc = device->get_resource_desc(dst);
 	if ((dst_desc.usage & resource_usage::shader_resource) == resource_usage::undefined)
+		return false;
+
+	if (dst_box != nullptr && (
+		static_cast<uint32_t>(dst_box[3] - dst_box[0]) != dst_desc.texture.width ||
+		static_cast<uint32_t>(dst_box[4] - dst_box[1]) != dst_desc.texture.height ||
+		static_cast<uint32_t>(dst_box[5] - dst_box[2]) != dst_desc.texture.depth_or_layers))
 		return false;
 
 	if (subresource_data mapped_data;
@@ -100,11 +106,17 @@ static bool on_copy_texture(command_list *cmd_list, resource src, uint32_t src_s
 }
 static bool on_update_texture(device *device, const subresource_data &data, resource dst, uint32_t dst_subresource, const int32_t dst_box[6])
 {
-	if (dst_subresource != 0 || dst_box != nullptr)
+	if (dst_subresource != 0)
 		return false;
 
 	const resource_desc dst_desc = device->get_resource_desc(dst);
 	if ((dst_desc.usage & resource_usage::shader_resource) == resource_usage::undefined)
+		return false;
+
+	if (dst_box != nullptr && (
+		static_cast<uint32_t>(dst_box[3] - dst_box[0]) != dst_desc.texture.width ||
+		static_cast<uint32_t>(dst_box[4] - dst_box[1]) != dst_desc.texture.height ||
+		static_cast<uint32_t>(dst_box[5] - dst_box[2]) != dst_desc.texture.depth_or_layers))
 		return false;
 
 	dump_texture(dst_desc, data);
