@@ -4102,6 +4102,18 @@ HOOK_EXPORT void WINAPI glTexImage1D(GLenum target, GLint level, GLint internalf
 	case GL_RED:
 		internalformat = GL_R8;
 		break;
+	case GL_ALPHA:
+		internalformat = GL_ALPHA8;
+		break;
+	case GL_LUMINANCE:
+		internalformat = GL_LUMINANCE8;
+		break;
+	case GL_LUMINANCE_ALPHA:
+		internalformat = GL_LUMINANCE8_ALPHA8;
+		break;
+	case GL_INTENSITY:
+		internalformat = GL_INTENSITY8;
+		break;
 	case GL_RG:
 		internalformat = GL_RG8;
 		break;
@@ -4146,6 +4158,18 @@ HOOK_EXPORT void WINAPI glTexImage2D(GLenum target, GLint level, GLint internalf
 	{
 	case GL_RED:
 		internalformat = GL_R8;
+		break;
+	case GL_ALPHA:
+		internalformat = GL_ALPHA8;
+		break;
+	case GL_LUMINANCE:
+		internalformat = GL_LUMINANCE8;
+		break;
+	case GL_LUMINANCE_ALPHA:
+		internalformat = GL_LUMINANCE8_ALPHA8;
+		break;
+	case GL_INTENSITY:
+		internalformat = GL_INTENSITY8;
 		break;
 	case GL_RG:
 		internalformat = GL_RG8;
@@ -4214,6 +4238,18 @@ HOOK_EXPORT void WINAPI glTexImage2D(GLenum target, GLint level, GLint internalf
 	{
 	case GL_RED:
 		internalformat = GL_R8;
+		break;
+	case GL_ALPHA:
+		internalformat = GL_ALPHA8;
+		break;
+	case GL_LUMINANCE:
+		internalformat = GL_LUMINANCE8;
+		break;
+	case GL_LUMINANCE_ALPHA:
+		internalformat = GL_LUMINANCE8_ALPHA8;
+		break;
+	case GL_INTENSITY:
+		internalformat = GL_INTENSITY8;
 		break;
 	case GL_RG:
 		internalformat = GL_RG8;

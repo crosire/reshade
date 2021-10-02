@@ -583,8 +583,11 @@ void reshade::opengl::device_impl::copy_buffer_to_texture(api::resource src, uin
 
 		glBindTexture(dst_target, dst_object);
 
-		GLint levels = 1;
+		GLint levels = 0;
 		glGetTexParameteriv(dst_target, GL_TEXTURE_IMMUTABLE_LEVELS, &levels);
+		if (0 == levels)
+			levels = 1;
+
 		const GLuint level = dst_subresource % levels;
 		const GLuint layer = dst_subresource / levels;
 
@@ -635,6 +638,8 @@ void reshade::opengl::device_impl::copy_buffer_to_texture(api::resource src, uin
 				glCompressedTexSubImage2D(dst_target, level, x, y, w, h, format, total_size, reinterpret_cast<void *>(static_cast<uintptr_t>(src_offset)));
 			}
 			break;
+		case GL_TEXTURE_CUBE_MAP:
+		case GL_TEXTURE_CUBE_MAP_ARRAY:
 		case GL_TEXTURE_2D_ARRAY:
 			z += layer;
 			[[fallthrough]];
@@ -942,13 +947,16 @@ void reshade::opengl::device_impl::copy_texture_to_buffer(api::resource src, uin
 
 		glBindTexture(src_target, src_object);
 
-		GLint levels = 1;
+		GLint levels = 0;
 		glGetTexParameteriv(src_target, GL_TEXTURE_IMMUTABLE_LEVELS, &levels);
+		if (0 == levels)
+			levels = 1;
+
 		const GLuint level = src_subresource % levels;
 		const GLuint layer = src_subresource / levels;
 
 		GLenum format = GL_NONE, type;
-		glGetTexLevelParameteriv(src_target, 0, GL_TEXTURE_INTERNAL_FORMAT, reinterpret_cast<GLint *>(&format));
+		glGetTexLevelParameteriv(src_target == GL_TEXTURE_CUBE_MAP ? GL_TEXTURE_CUBE_MAP_POSITIVE_X : src_target, 0, GL_TEXTURE_INTERNAL_FORMAT, reinterpret_cast<GLint *>(&format));
 
 		const auto row_size_packed = (row_length != 0 ? row_length : w) * api::format_bytes_per_pixel(convert_format(format));
 		const auto slice_size_packed = (slice_height != 0 ? slice_height : h) * row_size_packed;
@@ -958,7 +966,19 @@ void reshade::opengl::device_impl::copy_texture_to_buffer(api::resource src, uin
 
 		if (src_box == nullptr)
 		{
-			glGetTexImage(src_target, level, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(dst_offset)));
+			if (src_target == GL_TEXTURE_CUBE_MAP)
+			{
+				for (GLuint face = 0; face < 6; ++face)
+				{
+					const GLenum face_target = GL_TEXTURE_CUBE_MAP_POSITIVE_X + face;
+
+					glGetTexImage(face_target, level, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(dst_offset + (face * slice_size_packed))));
+				}
+			}
+			else
+			{
+				glGetTexImage(src_target, level, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(dst_offset)));
+			}
 		}
 		else
 		{
@@ -967,6 +987,8 @@ void reshade::opengl::device_impl::copy_texture_to_buffer(api::resource src, uin
 			case GL_TEXTURE_1D_ARRAY:
 				y += layer;
 				break;
+			case GL_TEXTURE_CUBE_MAP:
+			case GL_TEXTURE_CUBE_MAP_ARRAY:
 			case GL_TEXTURE_2D_ARRAY:
 				z += layer;
 				break;

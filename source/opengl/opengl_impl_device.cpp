@@ -520,6 +520,12 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 
 	if (desc.type == api::resource_type::buffer)
 	{
+		if (desc.buffer.size == 0)
+		{
+			*out_handle = { 0 };
+			return false;
+		}
+
 		glGenBuffers(1, &object);
 		glBindBuffer(target, object);
 
@@ -546,7 +552,7 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 	else
 	{
 		const GLenum internal_format = convert_format(desc.texture.format);
-		if (internal_format == GL_NONE)
+		if (desc.texture.width == 0 || internal_format == GL_NONE)
 		{
 			*out_handle = { 0 };
 			return false;
@@ -1354,6 +1360,8 @@ bool reshade::opengl::device_impl::map_resource(api::resource resource, uint32_t
 	if (gl3wProcs.gl.MapNamedBuffer != nullptr)
 	{
 		out_data->data = glMapNamedBufferRange(object, 0, length, map_access);
+		out_data->row_pitch = length;
+		out_data->slice_pitch = length;
 	}
 	else
 	{
@@ -1363,6 +1371,8 @@ bool reshade::opengl::device_impl::map_resource(api::resource resource, uint32_t
 		glBindBuffer(GL_COPY_WRITE_BUFFER, object);
 		out_data->data = glMapBufferRange(GL_COPY_WRITE_BUFFER, 0, length, map_access);
 		glBindBuffer(GL_COPY_WRITE_BUFFER, prev_object);
+		out_data->row_pitch = length;
+		out_data->slice_pitch = length;
 	}
 
 	return out_data->data != nullptr;
@@ -1462,8 +1472,11 @@ void reshade::opengl::device_impl::update_texture_region(const api::subresource_
 	// Bind and upload texture data
 	glBindTexture(target, object);
 
-	GLint levels = 1;
+	GLint levels = 0;
 	glGetTexParameteriv(target, GL_TEXTURE_IMMUTABLE_LEVELS, &levels);
+	if (0 == levels)
+		levels = 1;
+
 	const GLuint level = dst_subresource % levels;
 	      GLuint layer = dst_subresource / levels;
 
@@ -1705,6 +1718,8 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 		internal_format = get_tex_level_param(target, object, 0, GL_TEXTURE_INTERNAL_FORMAT);
 		if (get_tex_param(target, object, GL_TEXTURE_IMMUTABLE_FORMAT))
 			levels = get_tex_param(target, object, GL_TEXTURE_IMMUTABLE_LEVELS);
+		if (0 == levels)
+			levels = 1;
 		samples = get_tex_level_param(target, object, 0, GL_TEXTURE_SAMPLES);
 		break;
 	case GL_RENDERBUFFER:

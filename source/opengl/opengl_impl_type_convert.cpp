@@ -11,20 +11,27 @@ auto reshade::opengl::convert_format(api::format format) -> GLenum
 	switch (format)
 	{
 	default:
+		assert(false);
+		[[fallthrough]];
 	case api::format::unknown:
 		break;
 	case api::format::r1_unorm:
 		break; // Unsupported
+	case api::format::l8_unorm:
+		return GL_LUMINANCE8;
+	case api::format::a8_unorm:
+		return GL_ALPHA8;
 	case api::format::r8_uint:
 		return GL_R8UI;
 	case api::format::r8_sint:
 		return GL_R8I;
 	case api::format::r8_typeless:
 	case api::format::r8_unorm:
-	case api::format::a8_unorm:
 		return GL_R8;
 	case api::format::r8_snorm:
 		return GL_R8_SNORM;
+	case api::format::l8a8_unorm:
+		return GL_LUMINANCE8_ALPHA8;
 	case api::format::r8g8_uint:
 		return GL_RG8UI;
 	case api::format::r8g8_sint:
@@ -67,6 +74,8 @@ auto reshade::opengl::convert_format(api::format format) -> GLenum
 	case api::format::b10g10r10a2_uint:
 	case api::format::b10g10r10a2_unorm:
 		break; // Unsupported
+	case api::format::l16_unorm:
+		return GL_LUMINANCE16;
 	case api::format::r16_uint:
 		return GL_R16UI;
 	case api::format::r16_sint:
@@ -78,6 +87,8 @@ auto reshade::opengl::convert_format(api::format format) -> GLenum
 		return GL_R16;
 	case api::format::r16_snorm:
 		return GL_R16_SNORM;
+	case api::format::l16a16_unorm:
+		return GL_LUMINANCE16_ALPHA16;
 	case api::format::r16g16_uint:
 		return GL_RG16UI;
 	case api::format::r16g16_sint:
@@ -206,19 +217,26 @@ auto reshade::opengl::convert_format(GLenum internal_format) -> api::format
 	{
 	default:
 		return api::format::unknown;
+	case GL_LUMINANCE8: // { R, R, R, 1 }
+	case GL_INTENSITY8: // { R, R, R, R }
+		return api::format::l8_unorm;
+	case GL_ALPHA8:
+		return api::format::a8_unorm;
 	case GL_R8UI:
 		return api::format::r8_uint;
 	case GL_R8I:
 		return api::format::r8_sint;
-	case GL_R8:
+	case GL_R8: // { R, 0, 0, 1 }
 		return api::format::r8_unorm;
 	case GL_R8_SNORM:
 		return api::format::r8_snorm;
+	case GL_LUMINANCE8_ALPHA8: // { R, R, R, G }
+		return api::format::l8a8_unorm;
 	case GL_RG8UI:
 		return api::format::r8g8_uint;
 	case GL_RG8I:
 		return api::format::r8g8_sint;
-	case GL_RG8:
+	case GL_RG8: // { R, G, 0, 1 }
 		return api::format::r8g8_unorm;
 	case GL_RG8_SNORM:
 		return api::format::r8g8_snorm;
@@ -240,23 +258,28 @@ auto reshade::opengl::convert_format(GLenum internal_format) -> api::format
 		return api::format::r10g10b10a2_uint;
 	case GL_RGB10_A2:
 		return api::format::r10g10b10a2_unorm;
+	case GL_LUMINANCE16: // { R, R, R, 1 }
+	case GL_INTENSITY16: // { R, R, R, R }
+		return api::format::l16_unorm;
 	case GL_R16UI:
 		return api::format::r16_uint;
 	case GL_R16I:
 		return api::format::r16_sint;
 	case GL_R16F:
 		return api::format::r16_float;
-	case GL_R16:
+	case GL_R16: // { R, 0, 0, 1 }
 		return api::format::r16_unorm;
 	case GL_R16_SNORM:
 		return api::format::r16_snorm;
+	case GL_LUMINANCE16_ALPHA16: // { R, R, R, G }
+		return api::format::l16a16_unorm;
 	case GL_RG16UI:
 		return api::format::r16g16_uint;
 	case GL_RG16I:
 		return api::format::r16g16_sint;
 	case GL_RG16F:
 		return api::format::r16g16_float;
-	case GL_RG16:
+	case GL_RG16: // { R, G, 0, 1 }
 		return api::format::r16g16_unorm;
 	case GL_RG16_SNORM:
 		return api::format::r16g16_snorm;
@@ -469,6 +492,8 @@ auto reshade::opengl::convert_upload_format(GLenum internal_format, GLenum &type
 	{
 	case GL_R8UI:
 	case GL_R8:
+	case GL_LUMINANCE8:
+	case GL_INTENSITY8:
 		type = GL_UNSIGNED_BYTE;
 		return GL_RED;
 	case GL_R8I:
@@ -477,17 +502,22 @@ auto reshade::opengl::convert_upload_format(GLenum internal_format, GLenum &type
 		return GL_RED;
 	case GL_RG8UI:
 	case GL_RG8:
+	case GL_LUMINANCE8_ALPHA8:
 		type = GL_UNSIGNED_BYTE;
 		return GL_RG;
 	case GL_RG8I:
 	case GL_RG8_SNORM:
 		type = GL_BYTE;
 		return GL_RG;
+	case GL_RGB8UI: // Handle RGB like RGBA (since 'convert_format' translates it to r8g8b8x8)
+	case GL_RGB8:
 	case GL_RGBA8UI:
 	case GL_RGBA8:
 	case GL_SRGB8_ALPHA8:
 		type = GL_UNSIGNED_BYTE;
 		return GL_RGBA;
+	case GL_RGB8I:
+	case GL_RGB8_SNORM:
 	case GL_RGBA8I:
 	case GL_RGBA8_SNORM:
 		type = GL_BYTE;
@@ -499,6 +529,8 @@ auto reshade::opengl::convert_upload_format(GLenum internal_format, GLenum &type
 	case GL_R16UI:
 	case GL_R16F:
 	case GL_R16:
+	case GL_LUMINANCE16:
+	case GL_INTENSITY16:
 		type = GL_UNSIGNED_SHORT;
 		return GL_RED;
 	case GL_R16I:
@@ -508,6 +540,7 @@ auto reshade::opengl::convert_upload_format(GLenum internal_format, GLenum &type
 	case GL_RG16UI:
 	case GL_RG16F:
 	case GL_RG16:
+	case GL_LUMINANCE16_ALPHA16:
 		type = GL_UNSIGNED_SHORT;
 		return GL_RG;
 	case GL_RG16I:
@@ -571,6 +604,9 @@ auto reshade::opengl::convert_upload_format(GLenum internal_format, GLenum &type
 	case GL_RGB5_A1:
 		type = GL_UNSIGNED_SHORT_5_5_5_1;
 		return GL_RGBA;
+	case GL_RGB5:
+		type = GL_UNSIGNED_SHORT_5_5_5_1;
+		return GL_RGB;
 	case GL_RGBA4:
 		type = GL_UNSIGNED_SHORT_4_4_4_4;
 		return GL_RGBA;
