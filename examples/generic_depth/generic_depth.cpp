@@ -343,6 +343,11 @@ static void on_destroy_resource(device *device, resource resource)
 {
 	state_tracking_context &device_state = device->get_user_data<state_tracking_context>(state_tracking_context::GUID);
 
+	// In some cases the 'destroy_device' event may be called before all resources have been destroyed
+	// The state tracking context would have been destroyed already in that case, so return early if it does not exist
+	if (&device_state == nullptr)
+		return;
+
 	std::lock_guard<std::mutex> lock(s_mutex);
 	device_state.destroyed_resources.push_back(resource);
 }

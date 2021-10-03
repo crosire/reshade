@@ -170,6 +170,10 @@ static void on_destroy_texture(device *device, resource res)
 {
 	auto &data = device->get_user_data<device_data>(device_data::GUID);
 
+	// In some cases the 'destroy_device' event may be called before all resources have been destroyed
+	if (&data == nullptr)
+		return;
+
 	std::lock_guard<std::mutex> lock(s_mutex);
 
 	if (const auto it = data.total_texture_list.find(res);
@@ -186,6 +190,10 @@ static void on_destroy_texture(device *device, resource res)
 static void on_destroy_texture_view(device *device, resource_view view)
 {
 	auto &data = device->get_user_data<device_data>(device_data::GUID);
+
+	// In some cases the 'destroy_device' event may be called before all resource views have been destroyed
+	if (&data == nullptr)
+		return;
 
 	std::lock_guard<std::mutex> lock(s_mutex);
 
