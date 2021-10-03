@@ -15,8 +15,6 @@
 		glDisable(cap); \
 	}
 
-extern GLint get_buf_param(GLuint id, GLenum param);
-
 void reshade::opengl::pipeline_impl::apply_compute() const
 {
 	glUseProgram(program);
@@ -325,7 +323,7 @@ void reshade::opengl::device_impl::push_descriptors(api::shader_stage, api::pipe
 			const GLuint object = descriptor.handle & 0xFFFFFFFF;
 
 			GLint internal_format = 0;
-			if (gl3wProcs.gl.GetTextureLevelParameteriv != nullptr)
+			if (_supports_dsa)
 			{
 				glGetTextureLevelParameteriv(object, 0, GL_TEXTURE_INTERNAL_FORMAT, &internal_format);
 			}
@@ -489,13 +487,18 @@ void reshade::opengl::device_impl::copy_buffer_region(api::resource src, uint64_
 	const GLuint src_object = src.handle & 0xFFFFFFFF;
 	const GLuint dst_object = dst.handle & 0xFFFFFFFF;
 
-	if (size == std::numeric_limits<uint64_t>::max())
-		size  = get_buf_param(src_object, GL_BUFFER_SIZE);
+	assert(src_offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()) &&
+		   dst_offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()) && (size == std::numeric_limits<uint64_t>::max() || size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max())));
 
-	assert(src_offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()) && dst_offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()) && size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
-
-	if (gl3wProcs.gl.CopyNamedBufferSubData != nullptr)
+	if (_supports_dsa)
 	{
+		if (size == std::numeric_limits<uint64_t>::max())
+		{
+			GLint max_size = 0;
+			glGetNamedBufferParameteriv(src_object, GL_BUFFER_SIZE, &max_size);
+			size  = max_size;
+		}
+
 		glCopyNamedBufferSubData(src_object, dst_object, static_cast<GLintptr>(src_offset), static_cast<GLintptr>(dst_offset), static_cast<GLsizeiptr>(size));
 	}
 	else
@@ -507,6 +510,14 @@ void reshade::opengl::device_impl::copy_buffer_region(api::resource src, uint64_
 
 		glBindBuffer(GL_COPY_READ_BUFFER, src_object);
 		glBindBuffer(GL_COPY_WRITE_BUFFER, dst_object);
+
+		if (size == std::numeric_limits<uint64_t>::max())
+		{
+			GLint max_size = 0;
+			glGetBufferParameteriv(GL_COPY_READ_BUFFER, GL_BUFFER_SIZE, &max_size);
+			size  = max_size;
+		}
+
 		glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, static_cast<GLintptr>(src_offset), static_cast<GLintptr>(dst_offset), static_cast<GLsizeiptr>(size));
 
 		glBindBuffer(GL_COPY_READ_BUFFER, prev_read_buf);
@@ -980,7 +991,7 @@ void reshade::opengl::device_impl::copy_texture_to_buffer(api::resource src, uin
 				glGetTexImage(src_target, level, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(dst_offset)));
 			}
 		}
-		else
+		else if (_supports_dsa)
 		{
 			switch (src_target)
 			{
@@ -993,8 +1004,6 @@ void reshade::opengl::device_impl::copy_texture_to_buffer(api::resource src, uin
 				z += layer;
 				break;
 			}
-
-			assert(gl3wProcs.gl.GetTextureSubImage != nullptr);
 
 			glGetTextureSubImage(src_object, level, x, y, z, w, h, d, format, type, total_size, reinterpret_cast<void *>(static_cast<uintptr_t>(dst_offset)));
 		}

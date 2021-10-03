@@ -10,6 +10,9 @@
 
 #define gl3wGetFloatv gl3wProcs.gl.GetFloatv
 #define gl3wGetIntegerv gl3wProcs.gl.GetIntegerv
+#define gl3wGetTextureParameteriv gl3wProcs.gl.GetTextureParameteriv
+#define gl3wNamedFramebufferTexture gl3wProcs.gl.NamedFramebufferTexture
+#define gl3wNamedFramebufferRenderbuffer gl3wProcs.gl.NamedFramebufferRenderbuffer
 
 struct DrawArraysIndirectCommand
 {
@@ -37,8 +40,8 @@ static void init_resource(GLenum target, GLuint object, const reshade::api::reso
 		return;
 
 	// Get actual texture target from the texture object
-	if (object != 0 && target == GL_TEXTURE && gl3wProcs.gl.GetTextureParameteriv != nullptr)
-		glGetTextureParameteriv(object, GL_TEXTURE_TARGET, reinterpret_cast<GLint *>(&target));
+	if (object != 0 && target == GL_TEXTURE && gl3wGetTextureParameteriv != nullptr)
+		gl3wGetTextureParameteriv(object, GL_TEXTURE_TARGET, reinterpret_cast<GLint *>(&target));
 
 	// Get object from current binding in case it was not specified
 	if (object == 0)
@@ -109,8 +112,8 @@ static void init_resource_view(GLenum target, GLuint object, const reshade::api:
 		return;
 
 	// Get actual texture target from the texture object
-	if (orig != 0 && orig_target == GL_TEXTURE && gl3wProcs.gl.GetTextureParameteriv != nullptr)
-		glGetTextureParameteriv(orig, GL_TEXTURE_TARGET, reinterpret_cast<GLint *>(&orig_target));
+	if (orig != 0 && orig_target == GL_TEXTURE && gl3wGetTextureParameteriv != nullptr)
+		gl3wGetTextureParameteriv(orig, GL_TEXTURE_TARGET, reinterpret_cast<GLint *>(&orig_target));
 
 	// Get object from current binding in case it was not specified
 	if (object == 0)
@@ -127,8 +130,8 @@ static void destroy_resource_or_view(GLenum target, GLuint object)
 	if (target != GL_BUFFER)
 	{
 		// Get actual texture target from the texture object
-		if (object != 0 && gl3wProcs.gl.GetTextureParameteriv != nullptr)
-			glGetTextureParameteriv(object, GL_TEXTURE_TARGET, reinterpret_cast<GLint *>(&target));
+		if (object != 0 && gl3wGetTextureParameteriv != nullptr)
+			gl3wGetTextureParameteriv(object, GL_TEXTURE_TARGET, reinterpret_cast<GLint *>(&target));
 
 		reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(g_current_context, reshade::opengl::make_resource_view_handle(target, object));
 
@@ -277,8 +280,8 @@ static bool copy_texture_region(GLenum src_target, GLuint src_object, GLint src_
 	}
 	else
 	{
-		if (src_target == GL_TEXTURE && gl3wProcs.gl.GetTextureParameteriv != nullptr)
-			glGetTextureParameteriv(src_object, GL_TEXTURE_TARGET, reinterpret_cast<GLint *>(&src_target));
+		if (src_target == GL_TEXTURE && gl3wGetTextureParameteriv != nullptr)
+			gl3wGetTextureParameteriv(src_object, GL_TEXTURE_TARGET, reinterpret_cast<GLint *>(&src_target));
 	}
 
 	if (dst_object == 0)
@@ -290,8 +293,8 @@ static bool copy_texture_region(GLenum src_target, GLuint src_object, GLint src_
 	}
 	else
 	{
-		if (dst_target == GL_TEXTURE && gl3wProcs.gl.GetTextureParameteriv != nullptr)
-			glGetTextureParameteriv(dst_object, GL_TEXTURE_TARGET, reinterpret_cast<GLint *>(&dst_target));
+		if (dst_target == GL_TEXTURE && gl3wGetTextureParameteriv != nullptr)
+			gl3wGetTextureParameteriv(dst_object, GL_TEXTURE_TARGET, reinterpret_cast<GLint *>(&dst_target));
 	}
 
 	reshade::api::resource src = reshade::opengl::make_resource_handle(src_target, src_object);
@@ -340,8 +343,8 @@ static bool update_texture_region(GLenum target, GLuint object, GLint level, GLi
 		return false;
 
 	// Get actual texture target from the texture object
-	if (object != 0 && target == GL_TEXTURE && gl3wProcs.gl.GetTextureParameteriv != nullptr)
-		glGetTextureParameteriv(object, GL_TEXTURE_TARGET, reinterpret_cast<GLint *>(&target));
+	if (object != 0 && target == GL_TEXTURE && gl3wGetTextureParameteriv != nullptr)
+		gl3wGetTextureParameteriv(object, GL_TEXTURE_TARGET, reinterpret_cast<GLint *>(&target));
 
 	// Get object from current binding in case it was not specified
 	if (object == 0)
@@ -401,9 +404,9 @@ static void update_framebuffer_object(GLenum target, GLuint fbo)
 			if (new_desc.depth_stencil != old_desc.depth_stencil)
 			{
 				if ((new_desc.depth_stencil.handle >> 40) == GL_RENDERBUFFER)
-					gl3wProcs.gl.NamedFramebufferRenderbuffer(fbo, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, new_desc.depth_stencil.handle & 0xFFFFFFFF);
+					gl3wNamedFramebufferRenderbuffer(fbo, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, new_desc.depth_stencil.handle & 0xFFFFFFFF);
 				else
-					gl3wProcs.gl.NamedFramebufferTexture(fbo, GL_DEPTH_STENCIL_ATTACHMENT, new_desc.depth_stencil.handle & 0xFFFFFFFF, 0);
+					gl3wNamedFramebufferTexture(fbo, GL_DEPTH_STENCIL_ATTACHMENT, new_desc.depth_stencil.handle & 0xFFFFFFFF, 0);
 			}
 		}
 
@@ -413,9 +416,9 @@ static void update_framebuffer_object(GLenum target, GLuint fbo)
 			if (new_desc.render_targets[i] != old_desc.render_targets[i])
 			{
 				if ((new_desc.render_targets[i].handle >> 40) == GL_RENDERBUFFER)
-					gl3wProcs.gl.NamedFramebufferRenderbuffer(fbo, GL_COLOR_ATTACHMENT0 + i, GL_RENDERBUFFER, new_desc.render_targets[i].handle & 0xFFFFFFFF);
+					gl3wNamedFramebufferRenderbuffer(fbo, GL_COLOR_ATTACHMENT0 + i, GL_RENDERBUFFER, new_desc.render_targets[i].handle & 0xFFFFFFFF);
 				else
-					gl3wProcs.gl.NamedFramebufferTexture(fbo, GL_COLOR_ATTACHMENT0 + i, new_desc.render_targets[i].handle & 0xFFFFFFFF, 0);
+					gl3wNamedFramebufferTexture(fbo, GL_COLOR_ATTACHMENT0 + i, new_desc.render_targets[i].handle & 0xFFFFFFFF, 0);
 			}
 		}
 	}
@@ -665,8 +668,8 @@ HOOK_EXPORT void WINAPI glBegin(GLenum mode)
 		reshade::has_addon_event<reshade::addon_event::push_descriptors>())
 	{
 		GLint target = GL_TEXTURE_2D;
-		if (gl3wProcs.gl.GetTextureParameteriv != nullptr)
-			glGetTextureParameteriv(texture, GL_TEXTURE_TARGET, &target);
+		if (gl3wGetTextureParameteriv != nullptr)
+			gl3wGetTextureParameteriv(texture, GL_TEXTURE_TARGET, &target);
 
 		const reshade::api::resource_view descriptor_data = reshade::opengl::make_resource_view_handle(target, texture);
 
@@ -693,8 +696,8 @@ HOOK_EXPORT void WINAPI glBegin(GLenum mode)
 
 			for (GLsizei i = 0; i < count; ++i)
 			{
-				if (gl3wProcs.gl.GetTextureParameteriv != nullptr)
-					glGetTextureParameteriv(textures[i], GL_TEXTURE_TARGET, &target);
+				if (gl3wGetTextureParameteriv != nullptr)
+					gl3wGetTextureParameteriv(textures[i], GL_TEXTURE_TARGET, &target);
 
 				descriptor_data[i] = reshade::opengl::make_resource_view_handle(target, textures[i]);
 			}
@@ -745,7 +748,8 @@ HOOK_EXPORT void WINAPI glBindTexture(GLenum target, GLuint texture)
 		reshade::has_addon_event<reshade::addon_event::push_descriptors>())
 	{
 		GLint target = GL_TEXTURE_2D;
-		glGetTextureParameteriv(texture, GL_TEXTURE_TARGET, &target);
+		gl3wGetTextureParameteriv(texture, GL_TEXTURE_TARGET, &target);
+
 		GLint sampler_object = 0;
 		glGetIntegeri_v(GL_SAMPLER_BINDING, unit, &sampler_object);
 
@@ -777,8 +781,9 @@ HOOK_EXPORT void WINAPI glBindTexture(GLenum target, GLuint texture)
 
 			for (GLsizei i = 0; i < count; ++i)
 			{
-				if (gl3wProcs.gl.GetTextureParameteriv != nullptr)
-					glGetTextureParameteriv(textures[i], GL_TEXTURE_TARGET, &target);
+				if (gl3wGetTextureParameteriv != nullptr)
+					gl3wGetTextureParameteriv(textures[i], GL_TEXTURE_TARGET, &target);
+
 				GLint sampler_object = 0;
 				glGetIntegeri_v(GL_SAMPLER_BINDING, first + i, &sampler_object);
 
@@ -2470,7 +2475,7 @@ HOOK_EXPORT void WINAPI glFrustum(GLdouble left, GLdouble right, GLdouble bottom
 	if (g_current_context)
 	{
 		GLint target = GL_TEXTURE_2D;
-		glGetTextureParameteriv(texture, GL_TEXTURE_TARGET, &target);
+		gl3wGetTextureParameteriv(texture, GL_TEXTURE_TARGET, &target);
 
 		if (reshade::invoke_addon_event<reshade::addon_event::generate_mipmaps>(g_current_context, reshade::opengl::make_resource_view_handle(target, texture)))
 			return;
@@ -4665,8 +4670,8 @@ HOOK_EXPORT void WINAPI glTexSubImage2D(GLenum target, GLint level, GLint xoffse
 #if RESHADE_ADDON
 	GLenum orig_target = GL_TEXTURE;
 	// 'glTextureView' is available since OpenGL 4.3, so no guarantee that 'glGetTextureParameteriv' exists, since it was introduced in OpenGL 4.5
-	if (gl3wProcs.gl.GetTextureParameteriv != nullptr)
-		glGetTextureParameteriv(origtexture, GL_TEXTURE_TARGET, reinterpret_cast<GLint *>(&orig_target));
+	if (gl3wGetTextureParameteriv != nullptr)
+		gl3wGetTextureParameteriv(origtexture, GL_TEXTURE_TARGET, reinterpret_cast<GLint *>(&orig_target));
 
 	auto desc =	reshade::opengl::convert_resource_view_desc(target, internalformat, minlevel, numlevels, minlayer, numlayers);
 

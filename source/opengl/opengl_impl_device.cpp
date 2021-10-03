@@ -8,98 +8,6 @@
 #include "opengl_impl_device.hpp"
 #include "opengl_impl_type_convert.hpp"
 
-GLint get_rbo_param(GLuint id, GLenum param)
-{
-	GLint value = 0;
-	if (gl3wProcs.gl.GetNamedRenderbufferParameteriv != nullptr)
-	{
-		glGetNamedRenderbufferParameteriv(id, param, &value);
-	}
-	else
-	{
-		GLint prev_binding = 0;
-		glGetIntegerv(GL_RENDERBUFFER_BINDING, &prev_binding);
-		glBindRenderbuffer(GL_RENDERBUFFER, id);
-		glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_WIDTH, &value);
-		glBindRenderbuffer(GL_RENDERBUFFER, prev_binding);
-	}
-	return value;
-}
-GLint get_buf_param(GLuint id, GLenum param)
-{
-	GLint value = 0;
-	if (gl3wProcs.gl.GetNamedBufferParameteriv != nullptr)
-	{
-		glGetNamedBufferParameteriv(id, param, &value);
-	}
-	else
-	{
-		GLint prev_binding = 0;
-		glGetIntegerv(GL_COPY_READ_BUFFER_BINDING, &prev_binding);
-		glBindBuffer(GL_COPY_READ_BUFFER, id);
-		glGetBufferParameteriv(GL_COPY_READ_BUFFER, param, &value);
-		glBindBuffer(GL_COPY_READ_BUFFER, prev_binding);
-	}
-	return value;
-}
-GLint get_tex_param(GLenum target, GLuint id, GLenum param)
-{
-	GLint value = 0;
-	if (gl3wProcs.gl.GetTextureParameteriv != nullptr)
-	{
-		glGetTextureParameteriv(id, param, &value);
-	}
-	else
-	{
-		if (GL_TEXTURE == target)
-			target = GL_TEXTURE_2D;
-
-		GLint prev_binding = 0;
-		glGetIntegerv(reshade::opengl::get_binding_for_target(target), &prev_binding);
-		glBindTexture(target, id);
-		glGetTexParameteriv(target, param, &value);
-		glBindTexture(target, prev_binding);
-	}
-	return value;
-}
-GLint get_tex_level_param(GLenum target, GLuint id, GLuint level, GLenum param)
-{
-	GLint value = 0;
-	if (gl3wProcs.gl.GetTextureLevelParameteriv != nullptr)
-	{
-		glGetTextureLevelParameteriv(id, level, param, &value);
-	}
-	else
-	{
-		if (GL_TEXTURE == target)
-			target = GL_TEXTURE_2D;
-
-		GLint prev_binding = 0;
-		glGetIntegerv(reshade::opengl::get_binding_for_target(target), &prev_binding);
-		glBindTexture(target, id);
-		glGetTexLevelParameteriv(target, level, param, &value);
-		glBindTexture(target, prev_binding);
-	}
-	return value;
-}
-GLint get_fbo_attachment_param(GLuint id, GLenum attachment, GLenum param)
-{
-	GLint value = 0;
-	if (gl3wProcs.gl.GetNamedFramebufferAttachmentParameteriv != nullptr)
-	{
-		glGetNamedFramebufferAttachmentParameteriv(id, attachment, param, &value);
-	}
-	else
-	{
-		GLint prev_binding = 0;
-		glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prev_binding);
-		glBindFramebuffer(GL_FRAMEBUFFER, id);
-		glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, attachment, param, &value);
-		glBindFramebuffer(GL_FRAMEBUFFER, prev_binding);
-	}
-	return value;
-}
-
 reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC hglrc, bool compatibility_context) :
 	api_object_impl(hglrc), _compatibility_context(compatibility_context)
 {
@@ -141,6 +49,9 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC hglrc, bool com
 	case 32: _default_depth_format = pfd.cStencilBits ? GL_DEPTH32F_STENCIL8 : GL_DEPTH_COMPONENT32;
 		break;
 	}
+
+	// Check whether this context supports Direct State Access
+	_supports_dsa = gl3wIsSupported(4, 5);
 
 	// Check for special extension to detect whether this is a compatibility context (https://www.khronos.org/opengl/wiki/OpenGL_Context#OpenGL_3.1_and_ARB_compatibility)
 	GLint num_extensions = 0;
@@ -688,6 +599,20 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource resource, 
 		return false;
 	}
 
+	GLenum resource_format = GL_NONE;
+	if (_supports_dsa)
+	{
+		glGetTextureLevelParameteriv(resource.handle & 0xFFFFFFFF, 0, GL_TEXTURE_INTERNAL_FORMAT, reinterpret_cast<GLint *>(&resource_format));
+	}
+	else
+	{
+		GLuint prev_object = 0;
+		glGetIntegerv(reshade::opengl::get_binding_for_target(resource_target), reinterpret_cast<GLint *>(&prev_object));
+		glBindTexture(resource_target, resource.handle & 0xFFFFFFFF);
+		glGetTexLevelParameteriv(resource_target, 0, GL_TEXTURE_INTERNAL_FORMAT, reinterpret_cast<GLint *>(&resource_format));
+		glBindTexture(resource_target, prev_object);
+	}
+
 	const GLenum internal_format = convert_format(desc.format);
 	if (internal_format == GL_NONE)
 	{
@@ -696,8 +621,7 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource resource, 
 	}
 
 	if (target == resource_target &&
-		desc.texture.first_level == 0 && desc.texture.first_layer == 0 &&
-		static_cast<GLenum>(get_tex_level_param(target, resource.handle & 0xFFFFFFFF, 0, GL_TEXTURE_INTERNAL_FORMAT)) == internal_format)
+		desc.texture.first_level == 0 && desc.texture.first_layer == 0 && internal_format == resource_format)
 	{
 		assert(target != GL_TEXTURE_BUFFER);
 
@@ -1355,24 +1279,29 @@ bool reshade::opengl::device_impl::map_resource(api::resource resource, uint32_t
 
 	assert(subresource == 0);
 
-	const GLuint length = get_buf_param(object, GL_BUFFER_SIZE);
-
-	if (gl3wProcs.gl.MapNamedBuffer != nullptr)
+	if (_supports_dsa)
 	{
-		out_data->data = glMapNamedBufferRange(object, 0, length, map_access);
-		out_data->row_pitch = length;
-		out_data->slice_pitch = length;
+		GLint max_size = 0;
+		glGetNamedBufferParameteriv(object, GL_BUFFER_SIZE, &max_size);
+
+		out_data->data = glMapNamedBufferRange(object, 0, max_size, map_access);
+		out_data->row_pitch = max_size;
+		out_data->slice_pitch = max_size;
 	}
 	else
 	{
+		GLint max_size = 0;
 		GLint prev_object = 0;
 		glGetIntegerv(GL_COPY_WRITE_BUFFER_BINDING, &prev_object);
 
 		glBindBuffer(GL_COPY_WRITE_BUFFER, object);
-		out_data->data = glMapBufferRange(GL_COPY_WRITE_BUFFER, 0, length, map_access);
+		glGetBufferParameteriv(GL_COPY_WRITE_BUFFER, GL_BUFFER_SIZE, &max_size);
+
+		out_data->data = glMapBufferRange(GL_COPY_WRITE_BUFFER, 0, max_size, map_access);
+		out_data->row_pitch = max_size;
+		out_data->slice_pitch = max_size;
+
 		glBindBuffer(GL_COPY_WRITE_BUFFER, prev_object);
-		out_data->row_pitch = length;
-		out_data->slice_pitch = length;
 	}
 
 	return out_data->data != nullptr;
@@ -1389,7 +1318,7 @@ void reshade::opengl::device_impl::unmap_resource(api::resource resource, uint32
 
 	assert(subresource == 0);
 
-	if (gl3wProcs.gl.UnmapNamedBuffer != nullptr)
+	if (_supports_dsa)
 	{
 		glUnmapNamedBuffer(object);
 	}
@@ -1412,7 +1341,7 @@ void reshade::opengl::device_impl::update_buffer_region(const void *data, api::r
 	const GLenum target = dst.handle >> 40;
 	const GLuint object = dst.handle & 0xFFFFFFFF;
 
-	if (gl3wProcs.gl.NamedBufferSubData != nullptr)
+	if (_supports_dsa)
 	{
 		glNamedBufferSubData(object, static_cast<GLintptr>(dst_offset), static_cast<GLsizeiptr>(size), data);
 	}
@@ -1691,57 +1620,135 @@ void reshade::opengl::device_impl::get_descriptor_set_layout_desc(api::descripto
 
 reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api::resource resource) const
 {
-	GLsizei width = 0, height = 1, depth = 1, levels = 1, samples = 1, buffer_size = 0; GLenum internal_format = GL_NONE;
+	GLint width = 0, height = 1, depth = 1, levels = 1, samples = 1, internal_format = GL_NONE, prev_object = 0;
 
 	const GLenum target = resource.handle >> 40;
 	const GLuint object = resource.handle & 0xFFFFFFFF;
 
 	switch (target)
 	{
-	case GL_BUFFER:
-		buffer_size = get_buf_param(object, GL_BUFFER_SIZE);
-		break;
-	case GL_TEXTURE_BUFFER:
-	case GL_TEXTURE_1D:
-	case GL_TEXTURE_1D_ARRAY:
-	case GL_TEXTURE_2D:
-	case GL_TEXTURE_2D_ARRAY:
-	case GL_TEXTURE_2D_MULTISAMPLE:
-	case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
-	case GL_TEXTURE_3D:
-	case GL_TEXTURE_CUBE_MAP:
-	case GL_TEXTURE_CUBE_MAP_ARRAY:
-	case GL_TEXTURE_RECTANGLE:
-		width = get_tex_level_param(target, object, 0, GL_TEXTURE_WIDTH);
-		height = get_tex_level_param(target, object, 0, GL_TEXTURE_HEIGHT);
-		depth = get_tex_level_param(target, object, 0, GL_TEXTURE_DEPTH);
-		internal_format = get_tex_level_param(target, object, 0, GL_TEXTURE_INTERNAL_FORMAT);
-		if (get_tex_param(target, object, GL_TEXTURE_IMMUTABLE_FORMAT))
-			levels = get_tex_param(target, object, GL_TEXTURE_IMMUTABLE_LEVELS);
-		if (0 == levels)
-			levels = 1;
-		samples = get_tex_level_param(target, object, 0, GL_TEXTURE_SAMPLES);
-		break;
-	case GL_RENDERBUFFER:
-		width = get_rbo_param(object, GL_RENDERBUFFER_WIDTH);
-		height = get_rbo_param(object, GL_RENDERBUFFER_HEIGHT);
-		internal_format = get_rbo_param(object, GL_RENDERBUFFER_INTERNAL_FORMAT);
-		samples = get_rbo_param(object, GL_RENDERBUFFER_SAMPLES);
-		break;
-	case GL_FRAMEBUFFER_DEFAULT:
-		width = _default_fbo_width;
-		height = _default_fbo_height;
-		internal_format = (object == GL_DEPTH_STENCIL_ATTACHMENT || object == GL_DEPTH_ATTACHMENT || object == GL_STENCIL_ATTACHMENT) ? _default_depth_format : _default_color_format;
-		break;
-	default:
-		assert(false);
-		break;
+		case GL_BUFFER:
+		{
+			if (_supports_dsa)
+			{
+				glGetNamedBufferParameteriv(object, GL_BUFFER_SIZE, &width);
+			}
+			else
+			{
+				glGetIntegerv(GL_COPY_READ_BUFFER_BINDING, &prev_object);
+				glBindBuffer(GL_COPY_READ_BUFFER, object);
+
+				glGetBufferParameteriv(GL_COPY_READ_BUFFER, GL_BUFFER_SIZE, &width);
+
+				glBindBuffer(GL_COPY_READ_BUFFER, prev_object);
+			}
+
+			return convert_resource_desc(target, width);
+		}
+		case GL_TEXTURE_BUFFER:
+		case GL_TEXTURE_1D:
+		case GL_TEXTURE_1D_ARRAY:
+		case GL_TEXTURE_2D:
+		case GL_TEXTURE_2D_ARRAY:
+		case GL_TEXTURE_2D_MULTISAMPLE:
+		case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
+		case GL_TEXTURE_3D:
+		case GL_TEXTURE_CUBE_MAP:
+		case GL_TEXTURE_CUBE_MAP_ARRAY:
+		case GL_TEXTURE_RECTANGLE:
+		{
+			if (_supports_dsa)
+			{
+				glGetTextureLevelParameteriv(object, 0, GL_TEXTURE_WIDTH, &width);
+				glGetTextureLevelParameteriv(object, 0, GL_TEXTURE_HEIGHT, &height);
+				glGetTextureLevelParameteriv(object, 0, GL_TEXTURE_DEPTH, &depth);
+				glGetTextureLevelParameteriv(object, 0, GL_TEXTURE_INTERNAL_FORMAT, &internal_format);
+				glGetTextureLevelParameteriv(object, 0, GL_TEXTURE_SAMPLES, &samples);
+
+				glGetTextureParameteriv(object, GL_TEXTURE_IMMUTABLE_LEVELS, &levels);
+				if (levels == 0)
+				{
+					// If number of mipmap levels is not immutable, need to walk through the mipmap chain and check how many actually exist
+					glGetTextureParameteriv(object, GL_TEXTURE_MAX_LEVEL, &levels);
+					for (GLsizei level = 1, level_w = 0; level < levels; ++level)
+					{
+						// Check if this mipmap level does exist
+						glGetTextureLevelParameteriv(object, level, GL_TEXTURE_WIDTH, &level_w);
+						if (0 == level_w)
+						{
+							levels = level;
+							break;
+						}
+					}
+				}
+			}
+			else
+			{
+				glGetIntegerv(reshade::opengl::get_binding_for_target(target), &prev_object);
+				glBindTexture(target, object);
+
+				glGetTexLevelParameteriv(target, 0, GL_TEXTURE_WIDTH, &width);
+				glGetTexLevelParameteriv(target, 0, GL_TEXTURE_HEIGHT, &height);
+				glGetTexLevelParameteriv(target, 0, GL_TEXTURE_DEPTH, &depth);
+				glGetTexLevelParameteriv(target, 0, GL_TEXTURE_INTERNAL_FORMAT, &internal_format);
+				glGetTexLevelParameteriv(target, 0, GL_TEXTURE_SAMPLES, &samples);
+
+				glGetTexParameteriv(target, GL_TEXTURE_IMMUTABLE_LEVELS, &levels);
+				if (levels == 0)
+				{
+					glGetTexParameteriv(target, GL_TEXTURE_MAX_LEVEL, &levels);
+					for (GLsizei level = 1, level_w = 0; level < levels; ++level)
+					{
+						glGetTexLevelParameteriv(target, level, GL_TEXTURE_WIDTH, &level_w);
+						if (0 == level_w)
+						{
+							levels = level;
+							break;
+						}
+					}
+				}
+
+				glBindTexture(target, prev_object);
+			}
+
+			return convert_resource_desc(target, levels, samples, internal_format, width, height, depth);
+		}
+		case GL_RENDERBUFFER:
+		{
+			if (_supports_dsa)
+			{
+				glGetNamedRenderbufferParameteriv(object, GL_RENDERBUFFER_WIDTH, &width);
+				glGetNamedRenderbufferParameteriv(object, GL_RENDERBUFFER_HEIGHT, &height);
+				glGetNamedRenderbufferParameteriv(object, GL_RENDERBUFFER_INTERNAL_FORMAT, &internal_format);
+				glGetNamedRenderbufferParameteriv(object, GL_RENDERBUFFER_SAMPLES, &samples);
+			}
+			else
+			{
+				glGetIntegerv(GL_RENDERBUFFER_BINDING, &prev_object);
+				glBindRenderbuffer(GL_RENDERBUFFER, object);
+
+				glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_WIDTH, &width);
+				glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_HEIGHT, &height);
+				glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_INTERNAL_FORMAT, &internal_format);
+				glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_SAMPLES, &samples);
+
+				glBindRenderbuffer(GL_RENDERBUFFER, prev_object);
+			}
+
+			return convert_resource_desc(target, 1, samples, internal_format, width, height);
+		}
+		case GL_FRAMEBUFFER_DEFAULT:
+		{
+			width = _default_fbo_width;
+			height = _default_fbo_height;
+			internal_format = (object == GL_DEPTH_STENCIL_ATTACHMENT || object == GL_DEPTH_ATTACHMENT || object == GL_STENCIL_ATTACHMENT) ? _default_depth_format : _default_color_format;
+
+			return convert_resource_desc(target, levels, samples, internal_format, width, height);
+		}
 	}
 
-	if (buffer_size != 0)
-		return convert_resource_desc(target, buffer_size);
-	else
-		return convert_resource_desc(target, levels, samples, internal_format, width, height, depth);
+	assert(false); // Not implemented
+	return api::resource_desc {};
 }
 
 reshade::api::resource reshade::opengl::device_impl::get_resource_from_view(api::resource_view view) const
@@ -1802,17 +1809,38 @@ reshade::api::resource_view reshade::opengl::device_impl::get_framebuffer_attach
 		}
 	}
 
-	GLenum target = get_fbo_attachment_param(fbo_object, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE);
-	if (target != GL_NONE)
+	GLenum target = GL_NONE, object = 0;
+	if (_supports_dsa)
 	{
-		const GLenum object = get_fbo_attachment_param(fbo_object, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME);
-		if (target == GL_TEXTURE)
-			target  = get_tex_param(target, object, GL_TEXTURE_TARGET);
+		glGetNamedFramebufferAttachmentParameteriv(fbo_object, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE, reinterpret_cast<GLint *>(&target));
 
-		return make_resource_view_handle(target, object);
+		// Check if FBO does have this attachment
+		if (target != GL_NONE)
+		{
+			glGetNamedFramebufferAttachmentParameteriv(fbo_object, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, reinterpret_cast<GLint *>(&object));
+
+			// Get actual texture target from the texture object
+			if (target == GL_TEXTURE)
+				glGetTextureParameteriv(object, GL_TEXTURE_TARGET, reinterpret_cast<GLint *>(&target));
+
+			return make_resource_view_handle(target, object);
+		}
 	}
 	else
 	{
-		return make_resource_view_handle(0, 0); // FBO does not have this attachment
+		GLint prev_object = 0;
+		glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prev_object);
+		glBindFramebuffer(GL_FRAMEBUFFER, fbo_object);
+
+		glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE, reinterpret_cast<GLint *>(&target));
+
+		if (target != GL_NONE)
+		{
+			glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, reinterpret_cast<GLint *>(&object));
+		}
+
+		glBindFramebuffer(GL_FRAMEBUFFER, prev_object);
 	}
+
+	return make_resource_view_handle(target, object);
 }

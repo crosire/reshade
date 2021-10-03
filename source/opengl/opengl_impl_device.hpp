@@ -164,6 +164,7 @@ namespace reshade::opengl
 		GLuint _default_fbo_height = 0;
 		GLenum _default_color_format = GL_NONE;
 		GLenum _default_depth_format = GL_NONE;
+		bool   _supports_dsa = false; // Direct State Access (core since OpenGL 4.5)
 		bool   _compatibility_context = false;
 
 	private:
