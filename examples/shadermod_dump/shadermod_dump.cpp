@@ -16,18 +16,18 @@ using namespace reshade::api;
 
 static void dump_shader_code(device_api device_type, pipeline_stage, const shader_desc &desc)
 {
-	bool dump = false;
+	bool dump_all = false;
 	std::filesystem::path dump_path;
 
 #ifdef BUILTIN_ADDON
 	ini_file &config = reshade::global_config();
-	config.get("SHADER", "DumpAll", dump);
+	config.get("SHADER", "DumpAll", dump_all);
 	config.get("SHADER", "DumpPath", dump_path);
 #else
-	dump = true;
+	dump_all = true;
 #endif
 
-	if (dump)
+	if (dump_all)
 	{
 		uint32_t shader_hash = compute_crc32(static_cast<const uint8_t *>(desc.code), desc.code_size);
 
@@ -54,6 +54,7 @@ static bool on_create_pipeline(device *device, pipeline_desc &desc)
 {
 	const device_api device_type = device->get_api();
 
+	// Go through all shader stages that are in this pipeline and dump the associated shader code
 	if ((desc.type & pipeline_stage::vertex_shader) == pipeline_stage::vertex_shader)
 		dump_shader_code(device_type, pipeline_stage::vertex_shader, desc.graphics.vertex_shader);
 	if ((desc.type & pipeline_stage::hull_shader) == pipeline_stage::hull_shader)

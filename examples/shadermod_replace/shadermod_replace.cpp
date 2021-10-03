@@ -45,6 +45,7 @@ static bool replace_shader_code(device_api device_type, pipeline_stage, shader_d
 		replace_path += hash_string;
 		replace_path += extension;
 
+		// Check if a replacement file for this shader hash exists and if so, overwrite the shader code with its contents
 		if (std::filesystem::exists(replace_path))
 		{
 			std::ifstream file(replace_path, std::ios::binary);
@@ -68,6 +69,7 @@ static bool on_create_pipeline(device *device, pipeline_desc &desc)
 {
 	const device_api device_type = device->get_api();
 
+	// Go through all shader stages that are in this pipeline and potentially replace the associated shader code
 	if ((desc.type & pipeline_stage::vertex_shader) == pipeline_stage::vertex_shader)
 		if (replace_shader_code(device_type, pipeline_stage::vertex_shader, desc.graphics.vertex_shader))
 			replaced_stages |= shader_stage::vertex; // Keep track of which shader stages were replaced, so that the memory allocated for that can be freed again
@@ -87,6 +89,7 @@ static bool on_create_pipeline(device *device, pipeline_desc &desc)
 		if (replace_shader_code(device_type, pipeline_stage::compute_shader, desc.compute.shader))
 			replaced_stages |= shader_stage::compute;
 
+	// Return whether any shader code was replaced
 	return static_cast<shader_stage>(0) != replaced_stages;
 }
 static void on_after_create_pipeline(device *device, const pipeline_desc &desc, pipeline)

@@ -75,7 +75,6 @@ static bool replace_texture(const resource_desc &desc, subresource_data &data)
 				data.data = filedata;
 				data.row_pitch = 4 * width;
 				data.slice_pitch = data.row_pitch * height;
-
 				return true;
 			}
 		}
@@ -86,10 +85,12 @@ static bool replace_texture(const resource_desc &desc, subresource_data &data)
 
 static thread_local bool replaced_last_texture = false;
 
-static bool on_create_texture(device *, resource_desc &desc, subresource_data *initial_data, resource_usage)
+static bool on_create_texture(device *device, resource_desc &desc, subresource_data *initial_data, resource_usage)
 {
 	if (desc.type != resource_type::texture_2d)
-		return false;
+		return false; // Ignore resources that are not 2D textures
+	if (device->get_api() != device_api::opengl && (desc.usage & (resource_usage::shader_resource | resource_usage::depth_stencil | resource_usage::render_target)) != resource_usage::shader_resource)
+		return false; // Ignore textures that can be used as render targets (since this should only replace textures used as shader input)
 
 	return replaced_last_texture = (initial_data != nullptr) && replace_texture(desc, *initial_data);
 }
@@ -105,23 +106,23 @@ static void on_after_create_texture(device *, const resource_desc &, const subre
 static bool on_copy_texture(command_list *cmd_list, resource src, uint32_t src_subresource, const int32_t /*src_box*/[6], resource dst, uint32_t dst_subresource, const int32_t dst_box[6], filter_mode)
 {
 	if (src_subresource != 0 || src_subresource != dst_subresource)
-		return false;
+		return false; // Ignore copies to mipmap levels other than the base level
 
 	device *const device = cmd_list->get_device();
 
 	const resource_desc src_desc = device->get_resource_desc(src);
 	if (src_desc.heap != memory_heap::cpu_to_gpu)
-		return false;
+		return false; // Ignore copies that are not from a buffer in host memory
 
 	const resource_desc dst_desc = device->get_resource_desc(dst);
-	if ((dst_desc.usage & resource_usage::shader_resource) == resource_usage::undefined)
-		return false;
+	if (dst_desc.type != resource_type::texture_2d || (dst_desc.usage & resource_usage::shader_resource) == resource_usage::undefined)
+		return false; // Ignore copies that do not target a 2D texture used as shader input
 
 	if (dst_box != nullptr && (
 		static_cast<uint32_t>(dst_box[3] - dst_box[0]) != dst_desc.texture.width ||
 		static_cast<uint32_t>(dst_box[4] - dst_box[1]) != dst_desc.texture.height ||
 		static_cast<uint32_t>(dst_box[5] - dst_box[2]) != dst_desc.texture.depth_or_layers))
-		return false;
+		return false; // Ignore copies that do not update the entire texture
 
 	subresource_data new_data;
 	if (!device->map_resource(src, src_subresource, map_access::read_only, &new_data))
@@ -133,10 +134,11 @@ static bool on_copy_texture(command_list *cmd_list, resource src, uint32_t src_s
 
 	if (replace)
 	{
+		// Update texture with the new data
 		device->update_texture_region(new_data, dst, dst_subresource, dst_box);
 
 		stbi_image_free(new_data.data);
-		return true;
+		return true; // Texture was already updated now, so skip the original copy command from the application
 	}
 
 	return false;
@@ -144,25 +146,26 @@ static bool on_copy_texture(command_list *cmd_list, resource src, uint32_t src_s
 static bool on_update_texture(device *device, const subresource_data &data, resource dst, uint32_t dst_subresource, const int32_t dst_box[6])
 {
 	if (dst_subresource != 0)
-		return false;
+		return false; // Ignore updates to mipmap levels other than the base level
 
 	const resource_desc dst_desc = device->get_resource_desc(dst);
-	if ((dst_desc.usage & resource_usage::shader_resource) == resource_usage::undefined)
-		return false;
+	if (dst_desc.type != resource_type::texture_2d || (dst_desc.usage & resource_usage::shader_resource) == resource_usage::undefined)
+		return false; // Ignore updates that do not target a 2D texture used as shader input
 
 	if (dst_box != nullptr && (
 		static_cast<uint32_t>(dst_box[3] - dst_box[0]) != dst_desc.texture.width ||
 		static_cast<uint32_t>(dst_box[4] - dst_box[1]) != dst_desc.texture.height ||
 		static_cast<uint32_t>(dst_box[5] - dst_box[2]) != dst_desc.texture.depth_or_layers))
-		return false;
+		return false; // Ignore updates that do not update the entire texture
 
 	subresource_data new_data = data;
 	if (replace_texture(dst_desc, new_data))
 	{
+		// Update texture with the new data
 		device->update_texture_region(new_data, dst, dst_subresource, dst_box);
 
 		stbi_image_free(new_data.data);
-		return true;
+		return true; // Texture was already updated now, so skip the original update command from the application
 	}
 
 	return false;

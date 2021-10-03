@@ -35,18 +35,18 @@ void dump_texture(const resource_desc &desc, const subresource_data &data, bool 
 	const size_t size = row_pitch * desc.texture.height;
 	const uint8_t *pixels = static_cast<const uint8_t *>(data.data);
 
-	bool dump = false;
+	bool dump_all = false;
 	std::filesystem::path dump_path;
 
 #ifdef BUILTIN_ADDON
 	ini_file &config = reshade::global_config();
-	config.get("TEXTURE", "DumpAll", dump);
+	config.get("TEXTURE", "DumpAll", dump_all);
 	config.get("TEXTURE", "DumpPath", dump_path);
 #else
-	dump = true;
+	dump_all = true;
 #endif
 
-	if (dump || force_dump)
+	if (dump_all || force_dump)
 	{
 		const uint32_t hash = compute_crc32(pixels, size);
 
@@ -62,38 +62,43 @@ void dump_texture(const resource_desc &desc, const subresource_data &data, bool 
 	}
 }
 
+// There are multiple different ways textures can be initialized, so try and intercept them all
+// - Via initial data provided during texture creation (e.g. for immutable textures, common in D3D11 and OpenGL): See 'on_init_texture' implementation below
+// - Via a copy operation from a buffer in host memory to the texture (common in D3D12 and Vulkan): See 'on_copy_texture' implementation below
+// - Via a direct update operation from host memory to the texture (common in D3D11): See 'on_update_texture' implementation below
+
 static void on_init_texture(device *device, const resource_desc &desc, const subresource_data *initial_data, resource_usage, resource)
 {
 	if (desc.type != resource_type::texture_2d)
-		return;
+		return; // Ignore resources that are not 2D textures
 	if (device->get_api() != device_api::opengl && (desc.usage & (resource_usage::shader_resource | resource_usage::depth_stencil | resource_usage::render_target)) != resource_usage::shader_resource)
-		return;
+		return; // Ignore textures that can be used as render targets (since this should only dump textures used as shader input)
 
 	if (initial_data != nullptr)
 		dump_texture(desc, *initial_data);
 }
-
 static bool on_copy_texture(command_list *cmd_list, resource src, uint32_t src_subresource, const int32_t /*src_box*/[6], resource dst, uint32_t dst_subresource, const int32_t dst_box[6], filter_mode)
 {
 	if (src_subresource != 0 || src_subresource != dst_subresource)
-		return false;
+		return false; // Ignore copies to mipmap levels other than the base level
 
 	device *const device = cmd_list->get_device();
 
 	const resource_desc src_desc = device->get_resource_desc(src);
 	if (src_desc.heap != memory_heap::cpu_to_gpu)
-		return false;
+		return false; // Ignore copies that are not from a buffer in host memory
 
 	const resource_desc dst_desc = device->get_resource_desc(dst);
-	if ((dst_desc.usage & resource_usage::shader_resource) == resource_usage::undefined)
-		return false;
+	if (dst_desc.type != resource_type::texture_2d || (dst_desc.usage & resource_usage::shader_resource) == resource_usage::undefined)
+		return false; // Ignore copies that do not target a 2D texture used as shader input
 
 	if (dst_box != nullptr && (
 		static_cast<uint32_t>(dst_box[3] - dst_box[0]) != dst_desc.texture.width ||
 		static_cast<uint32_t>(dst_box[4] - dst_box[1]) != dst_desc.texture.height ||
 		static_cast<uint32_t>(dst_box[5] - dst_box[2]) != dst_desc.texture.depth_or_layers))
-		return false;
+		return false; // Ignore copies that do not update the entire texture
 
+	// Map source buffer to get the contents that will be copied into the target texture (this should succeed, since it was already checked that the buffer is in host memory)
 	if (subresource_data mapped_data;
 		device->map_resource(src, src_subresource, map_access::read_only, &mapped_data))
 	{
@@ -107,17 +112,17 @@ static bool on_copy_texture(command_list *cmd_list, resource src, uint32_t src_s
 static bool on_update_texture(device *device, const subresource_data &data, resource dst, uint32_t dst_subresource, const int32_t dst_box[6])
 {
 	if (dst_subresource != 0)
-		return false;
+		return false; // Ignore updates to mipmap levels other than the base level
 
 	const resource_desc dst_desc = device->get_resource_desc(dst);
-	if ((dst_desc.usage & resource_usage::shader_resource) == resource_usage::undefined)
-		return false;
+	if (dst_desc.type != resource_type::texture_2d || (dst_desc.usage & resource_usage::shader_resource) == resource_usage::undefined)
+		return false; // Ignore updates that do not target a 2D texture used as shader input
 
 	if (dst_box != nullptr && (
 		static_cast<uint32_t>(dst_box[3] - dst_box[0]) != dst_desc.texture.width ||
 		static_cast<uint32_t>(dst_box[4] - dst_box[1]) != dst_desc.texture.height ||
 		static_cast<uint32_t>(dst_box[5] - dst_box[2]) != dst_desc.texture.depth_or_layers))
-		return false;
+		return false; // Ignore updates that do not update the entire texture
 
 	dump_texture(dst_desc, data);
 
@@ -127,14 +132,12 @@ static bool on_update_texture(device *device, const subresource_data &data, reso
 void register_addon_texmod_dump()
 {
 	reshade::register_event<reshade::addon_event::init_resource>(on_init_texture);
-
 	reshade::register_event<reshade::addon_event::copy_texture_region>(on_copy_texture);
 	reshade::register_event<reshade::addon_event::update_texture_region>(on_update_texture);
 }
 void unregister_addon_texmod_dump()
 {
 	reshade::unregister_event<reshade::addon_event::init_resource>(on_init_texture);
-
 	reshade::unregister_event<reshade::addon_event::copy_texture_region>(on_copy_texture);
 	reshade::unregister_event<reshade::addon_event::update_texture_region>(on_update_texture);
 }
