@@ -349,21 +349,9 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 	}
 
 	// Default to no filtering if no stretching needs to be performed (prevents artifacts when copying depth data)
-	D3DTEXTUREFILTERTYPE stretch_filter_type = D3DTEXF_NONE;
-	if (src_box != nullptr || dst_box != nullptr)
-	{
-		switch (filter)
-		{
-		case api::filter_mode::min_mag_mip_point:
-		case api::filter_mode::min_mag_point_mip_linear:
-			stretch_filter_type = D3DTEXF_POINT;
-			break;
-		case api::filter_mode::min_mag_mip_linear:
-		case api::filter_mode::min_mag_linear_mip_point:
-			stretch_filter_type = D3DTEXF_LINEAR;
-			break;
-		}
-	}
+	D3DTEXTUREFILTERTYPE stretch_filter_type = D3DTEXF_POINT;
+	if ((src_box != nullptr || dst_box != nullptr) && (filter == api::filter_mode::min_mag_mip_linear || filter == api::filter_mode::min_mag_linear_mip_point))
+		stretch_filter_type = D3DTEXF_LINEAR;
 
 	bool src_is_regular_texture = false;
 	bool dst_is_regular_texture = false;
@@ -456,46 +444,49 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 			const DWORD src_level_count = static_cast<IDirect3DBaseTexture9 *>(src_object)->GetLevelCount();
 			const DWORD src_level = src_subresource % src_level_count;
 
+			com_ptr<IDirect3DSurface9> src_surface;
+			if (FAILED(src_is_regular_texture ?
+				static_cast<IDirect3DTexture9 *>(src_object)->GetSurfaceLevel(src_level, &src_surface) :
+				static_cast<IDirect3DCubeTexture9 *>(src_object)->GetCubeMapSurface(static_cast<D3DCUBEMAP_FACES>(src_subresource / src_level_count), src_level, &src_surface)))
+				break;
+
 			com_ptr<IDirect3DSurface9> dst_surface;
 			if (FAILED(static_cast<IDirect3DTexture9 *>(dst_object)->GetSurfaceLevel(dst_subresource, &dst_surface)))
 				break;
 
 			D3DSURFACE_DESC src_desc;
-			if (src_is_regular_texture)
-				static_cast<IDirect3DTexture9 *>(src_object)->GetLevelDesc(src_level, &src_desc);
-			else
-				static_cast<IDirect3DCubeTexture9 *>(src_object)->GetLevelDesc(src_level, &src_desc);
+			src_surface->GetDesc(&src_desc);
 			D3DSURFACE_DESC dst_desc;
 			dst_surface->GetDesc(&dst_desc);
 
-			if (src_desc.Pool == D3DPOOL_DEFAULT && dst_desc.Pool == D3DPOOL_SYSTEMMEM)
-			{
-				com_ptr<IDirect3DSurface9> src_surface;
-				if (FAILED(src_is_regular_texture ?
-					static_cast<IDirect3DTexture9 *>(src_object)->GetSurfaceLevel(src_level, &src_surface) :
-					static_cast<IDirect3DCubeTexture9 *>(src_object)->GetCubeMapSurface(static_cast<D3DCUBEMAP_FACES>(src_subresource / src_level_count), src_level, &src_surface)))
-					break;
+			com_ptr<IDirect3DSurface9> target_surface = dst_surface;
 
-				assert(src_box == nullptr && dst_box == nullptr);
-				assert((src_desc.Usage & D3DUSAGE_RENDERTARGET) != 0);
-				_orig->GetRenderTargetData(src_surface.get(), dst_surface.get());
-				return;
+			if (dst_desc.Pool == D3DPOOL_SYSTEMMEM)
+			{
+				if (src_box == nullptr && dst_box == nullptr && src_desc.Pool == D3DPOOL_DEFAULT && (src_desc.Usage & D3DUSAGE_RENDERTARGET) != 0)
+				{
+					_orig->GetRenderTargetData(src_surface.get(), dst_surface.get());
+					return;
+				}
+				else
+				{
+					dst_desc.Pool = D3DPOOL_DEFAULT;
+					dst_desc.Usage = D3DUSAGE_RENDERTARGET;
+					target_surface.reset();
+
+					if (FAILED(create_surface_replacement(dst_desc, &target_surface)))
+						break;
+				}
 			}
-			if (src_desc.Pool == D3DPOOL_SYSTEMMEM && dst_desc.Pool == D3DPOOL_DEFAULT)
+			else if (src_desc.Pool == D3DPOOL_SYSTEMMEM && dst_desc.Pool == D3DPOOL_DEFAULT)
 			{
-				com_ptr<IDirect3DSurface9> src_surface;
-				if (FAILED(src_is_regular_texture ?
-					static_cast<IDirect3DTexture9 *>(src_object)->GetSurfaceLevel(src_level, &src_surface) :
-					static_cast<IDirect3DCubeTexture9 *>(src_object)->GetCubeMapSurface(static_cast<D3DCUBEMAP_FACES>(src_subresource / src_level_count), src_level, &src_surface)))
-					break;
-
 				_orig->UpdateSurface(
 					src_surface.get(), src_box != nullptr ? &src_rect : nullptr,
 					dst_surface.get(), dst_box != nullptr ? reinterpret_cast<const POINT *>(&dst_rect) : nullptr);
 				return;
 			}
 
-			assert(src_desc.Pool == D3DPOOL_DEFAULT && dst_desc.Pool == D3DPOOL_DEFAULT);
+			assert((src_desc.Pool == D3DPOOL_DEFAULT || src_desc.Pool == D3DPOOL_MANAGED) && dst_desc.Pool == D3DPOOL_DEFAULT);
 
 			// Capture and restore state, render targets, depth stencil surface and viewport (which all may change next)
 			_backup_state.capture();
@@ -508,9 +499,6 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 			// Perform copy using rasterization pipeline
 			_copy_state->Apply();
 
-			if (D3DTEXF_NONE == stretch_filter_type)
-				stretch_filter_type = D3DTEXF_POINT;
-
 			_orig->SetTexture(0, static_cast<IDirect3DBaseTexture9 *>(src_object));
 			_orig->SetSamplerState(0, D3DSAMP_MINFILTER, stretch_filter_type);
 			_orig->SetSamplerState(0, D3DSAMP_MAGFILTER, stretch_filter_type);
@@ -518,7 +506,7 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 
 			assert((dst_desc.Usage & D3DUSAGE_RENDERTARGET) != 0);
 
-			_orig->SetRenderTarget(0, dst_surface.get());
+			_orig->SetRenderTarget(0, target_surface.get());
 			for (DWORD target = 1; target < _caps.NumSimultaneousRTs; ++target)
 				_orig->SetRenderTarget(target, nullptr);
 			_orig->SetDepthStencilSurface(nullptr);
@@ -592,6 +580,12 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 			}
 
 			_backup_state.apply_and_release();
+
+			if (target_surface != dst_surface)
+			{
+				assert(dst_box == nullptr);
+				_orig->GetRenderTargetData(target_surface.get(), dst_surface.get());
+			}
 			return;
 		}
 		case D3DRTYPE_TEXTURE | (D3DRTYPE_SURFACE << 4):
@@ -617,14 +611,26 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 			D3DSURFACE_DESC dst_desc;
 			static_cast<IDirect3DSurface9 *>(dst_object)->GetDesc(&dst_desc);
 
-			if (src_desc.Pool == D3DPOOL_DEFAULT && dst_desc.Pool == D3DPOOL_SYSTEMMEM)
+			com_ptr<IDirect3DSurface9> target_surface = static_cast<IDirect3DSurface9 *>(dst_object);
+
+			if (dst_desc.Pool == D3DPOOL_SYSTEMMEM)
 			{
-				assert(src_box == nullptr && dst_box == nullptr);
-				assert((src_desc.Usage & D3DUSAGE_RENDERTARGET) != 0);
-				_orig->GetRenderTargetData(src_surface.get(), static_cast<IDirect3DSurface9 *>(dst_object));
-				return;
+				if (src_box == nullptr && dst_box == nullptr && src_desc.Pool == D3DPOOL_DEFAULT && (src_desc.Usage & D3DUSAGE_RENDERTARGET) != 0)
+				{
+					_orig->GetRenderTargetData(src_surface.get(), static_cast<IDirect3DSurface9 *>(dst_object));
+					return;
+				}
+				else
+				{
+					dst_desc.Pool = D3DPOOL_DEFAULT;
+					dst_desc.Usage = D3DUSAGE_RENDERTARGET;
+					target_surface.reset();
+
+					if (FAILED(create_surface_replacement(dst_desc, &target_surface)))
+						break;
+				}
 			}
-			if (src_desc.Pool == D3DPOOL_SYSTEMMEM && dst_desc.Pool == D3DPOOL_DEFAULT)
+			else if (src_desc.Pool == D3DPOOL_SYSTEMMEM && dst_desc.Pool == D3DPOOL_DEFAULT)
 			{
 				_orig->UpdateSurface(
 					src_surface.get(), src_box != nullptr ? &src_rect : nullptr,
@@ -636,7 +642,13 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 
 			_orig->StretchRect(
 				src_surface.get(), src_box != nullptr ? &src_rect : nullptr,
-				static_cast<IDirect3DSurface9 *>(dst_object), dst_box != nullptr ? &dst_rect : nullptr, stretch_filter_type);
+				target_surface.get(), dst_box != nullptr ? &dst_rect : nullptr, stretch_filter_type);
+
+			if (target_surface != static_cast<IDirect3DSurface9 *>(dst_object))
+			{
+				assert(dst_box == nullptr);
+				_orig->GetRenderTargetData(target_surface.get(), static_cast<IDirect3DSurface9 *>(dst_object));
+			}
 			return;
 		}
 	}
