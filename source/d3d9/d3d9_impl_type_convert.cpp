@@ -565,7 +565,7 @@ reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DSURFAC
 
 	// Copying is restricted by limitations of 'IDirect3DDevice9::StretchRect' (see https://docs.microsoft.com/windows/win32/api/d3d9helper/nf-d3d9helper-idirect3ddevice9-stretchrect)
 	// or performing copy between two textures using rasterization pipeline (see 'device_impl::copy_resource' implementation)
-	if (internal_desc.Pool == D3DPOOL_DEFAULT && (internal_desc.Type == D3DRTYPE_SURFACE || (internal_desc.Type == D3DRTYPE_TEXTURE && (caps.DevCaps2 & D3DDEVCAPS2_CAN_STRETCHRECT_FROM_TEXTURES) != 0)))
+	if (internal_desc.Pool == D3DPOOL_DEFAULT && (internal_desc.Type == D3DRTYPE_SURFACE || (caps.DevCaps2 & D3DDEVCAPS2_CAN_STRETCHRECT_FROM_TEXTURES) != 0))
 	{
 		switch (static_cast<DWORD>(internal_desc.Format))
 		{
@@ -604,6 +604,11 @@ reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DSURFAC
 			// Special render target format that has no memory attached, so cannot be copied
 			break;
 		}
+	}
+	else if (internal_desc.Pool == D3DPOOL_SYSTEMMEM)
+	{
+		// Implemented via 'IDirect3DDevice9::GetRenderTargetData' and 'IDirect3DDevice9::UpdateSurface'
+		desc.usage |= api::resource_usage::copy_source | api::resource_usage::copy_dest;
 	}
 
 	if (internal_desc.Type == D3DRTYPE_CUBETEXTURE)

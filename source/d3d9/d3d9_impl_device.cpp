@@ -119,7 +119,6 @@ bool reshade::d3d9::device_impl::on_init(const D3DPRESENT_PARAMETERS &pp)
 	HRESULT hr = _orig->BeginStateBlock();
 	if (SUCCEEDED(hr))
 	{
-		_orig->SetFVF(D3DFVF_XYZ | D3DFVF_TEX1);
 		_orig->SetPixelShader(nullptr);
 		_orig->SetVertexShader(nullptr);
 		_orig->SetRenderState(D3DRS_ZENABLE, FALSE);
