@@ -20,7 +20,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID)
     switch (fdwReason)
     {
     case DLL_PROCESS_ATTACH:
-        // Call 'reshade::register_addon' before you call any other function of the ReShade API.
+        // Call 'reshade::register_addon()' before you call any other function of the ReShade API.
         // This will look for the ReShade instance in the current process and initialize the API when found.
         if (!reshade::register_addon(hinstDLL))
             return FALSE;
@@ -52,7 +52,7 @@ Overlays are created with the use of [Dear ImGui](https://github.com/ocornut/img
 #include <reshade.hpp>
 
 // Define this variable in exactly one of your source code files.
-// The function table is automatically populated in the call to 'reshade::register_addon' and overwrites all Dear ImGui functions.
+// The function table is automatically populated in the call to 'reshade::register_addon()' and overwrites all Dear ImGui functions.
 imgui_function_table g_imgui_function_table = {};
 
 bool g_popup_window_visible = false;
@@ -103,11 +103,11 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID)
 
 ## Abstraction
 
-This graphics API abstraction is modeled after the Vulkan API, so much of the terminology used should be familiar to developers that have used Vulkan before.
+The graphics API abstraction is modeled after the Vulkan API, so much of the terminology used should be familiar to developers that have used Vulkan before.
 
-Detailed documentation for all the classes and methods can also be found inside the headers (see [`reshade_api.hpp`](reshade_api.hpp) for the abstraction object classes and [`reshade_events.hpp`](reshade_events.hpp) for the list of available events and callback function signatures they expect).
+Detailed inline documentation for all classes and methods can be found inside the headers (see [`reshade_api.hpp`](reshade_api.hpp) for the abstraction object classes and [`reshade_events.hpp`](reshade_events.hpp) for a list of available events).
 
-The base object everything else is created from is a `reshade::api::device`. This represents a logical rendering device that is typically mapped to a GPU (but may also be mapped to multiple GPUs). ReShade will call the `reshade::addon_event::init_device` event after the application created a device, which can e.g. be used to do some initialization work that only has to happen once. The `reshade::addon_event::destroy_device` event is called before this device is destroyed again, which can be used to perform clean up work.
+The base object everything else is created from is a `reshade::api::device`. This represents a logical rendering device that is typically mapped to a physical GPU (but may also be mapped to multiple GPUs). ReShade will call the `reshade::addon_event::init_device` event after the application created a device, which can e.g. be used to do some initialization work that only has to happen once. The `reshade::addon_event::destroy_device` event is called before this device is destroyed again, which can be used to perform clean up work.
 ```c++
 using namespace reshade::api;
 
@@ -123,7 +123,7 @@ static void on_init_device(device *device)
     }
 
     // But preferably things should be done through the graphics API abstraction.
-    // E.g. to create a new 800x600 texture in GPU memory, call 'reshade::api::device::create_resource' like this:
+    // E.g. to create a new 800x600 texture in GPU memory, call 'reshade::api::device::create_resource()' like this:
     resource texture = {};
     const resource_desc desc(800, 600, 1, 1, format::r8g8b8a8_unorm, 1, memory_heap::gpu_only, resource_usage::shader_resource | resource_usage::render_target);
     if (!device->create_resource(desc, nullptr, resource_usage::undefined, &texture))
@@ -135,15 +135,15 @@ static void on_init_device(device *device)
 }
 ```
 
-To submit rendering commands, an application has to record them into a `reshade::api::command_list` and then submit those to a `reshade::api::command_queue`. In some graphics APIs there is only a single implicit command list and queue, but modern ones like Direct3D 12 and Vulkan allow the creation of multiple ones for more efficient multi-threaded rendering. ReShade will call the `reshade::addon_event::init_command_list` and `reshade::addon_event::init_command_queue` after any such object was created by the application (including the implicit ones for older graphics APIs). Similarily, `reshade::addon_event::destroy_command_list` and `reshade::addon_event::destroy_command_queue` are called upon their destruction.\
-ReShade will also pass the current command list object to every command event, like `reshade::addon_event::draw`, `reshade::addon_event::dispatch` and so on, which can be used to add additional commands to that command list or replace those by the application.
+To execute rendering commands, an application has to record them into a `reshade::api::command_list` and then submit to a `reshade::api::command_queue`. In some graphics APIs there is only a single implicit command list and queue, but modern ones like Direct3D 12 and Vulkan allow the creation of multiple command lists and queues for more efficient multi-threaded rendering. ReShade will call the `reshade::addon_event::init_command_list` and `reshade::addon_event::init_command_queue` events after any such object was created by the application (including the implicit ones for older graphics APIs). Similarily, `reshade::addon_event::destroy_command_list` and `reshade::addon_event::destroy_command_queue` are called upon their destruction.\
+ReShade will also pass the current command list object to every command event, like `reshade::addon_event::draw`, `reshade::addon_event::dispatch` and so on, which can be used to add additional commands to that command list or replace those of the application.
 ```c++
 using namespace reshade::api;
 
 // Example callback function that can be registered via 'reshade::register_event<reshade::addon_event::draw>(on_draw)'.
 static bool on_draw(command_list *cmd_list, uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance)
 {
-    // Clear the current render targets to red every time a single triangle is drawn
+    // Clear the current render targets to red before every time a single triangle is drawn
     if (vertices == 3 && instances == 1)
     {
         const float clear_color[4] = { 1.0f, 0.0f, 0.0f, 1.0f };
@@ -156,7 +156,7 @@ static bool on_draw(command_list *cmd_list, uint32_t vertices, uint32_t instance
 }
 ```
 
-Showing results on the screen is done through a `reshade::api::swapchain` object. This is a collection of back buffers that the application can render into, which will eventually be presented to the screen. There may be multiple swap chains, if for example the application is rendering to multiple windows, or to the screen and to a VR headset. ReShade again will call the `reshade::addon_event::init_swapchain` event after such an object was created by the application (and `reshade::addon_event::destroy_swapchain` on destruction). In addition ReShade will call the `reshade::addon_event::create_swapchain` event before that happens, so an add-on may modify how the swap chain should be created. For example, to force the resolution to a specific value, one can do the following:
+Showing results on the screen is done through a `reshade::api::swapchain` object. This is a collection of back buffers that the application can render into, which will eventually be presented to the screen. There may be multiple swap chains, if for example the application is rendering to multiple windows, or to a screen and a VR headset. ReShade again will call the `reshade::addon_event::init_swapchain` event after such an object was created by the application (and `reshade::addon_event::destroy_swapchain` on destruction). In addition ReShade will call the `reshade::addon_event::create_swapchain` event before the swap chain is created, so an add-on may modify its description before that happens. For example, to force the resolution to a specific value, one can do the following:
 ```c++
 using namespace reshade::api;
 
@@ -179,5 +179,5 @@ static bool on_create_swapchain(resource_desc &buffer_desc, void *hwnd)
 
 ReShade associates an independent post-processing effect runtime with every swap chain (can be retrieved by calling `reshade::api::swapchain::get_effect_runtime()`). This is the runtime one usually controls via the ReShade overlay, but it can also be controlled programatically via the ReShade API using the methods of the `reshade::api::effect_runtime` object.
 
-In contrast to these basic API abstraction objects, any buffers, textures, pipelines, etc. are referenced via handles. These are either created by the application and passed to events (like `reshade::addon_event::init_...`) or can be created through the `reshade::api::device` object of the ReShade API (via `reshade::api::device::create_...(...)`).\
+In contrast to the described basic API abstraction objects, any buffers, textures, pipelines, etc. are referenced via handles. These are either created by the application and passed to events (like `reshade::addon_event::init_...`) or can be created through the `reshade::api::device` object of the ReShade API (via `reshade::api::device::create_...()`).\
 Buffers and textures are referenced via `reshade::api::resource` handles. Depth-stencil, render target, shader resource or unordered access views to such resources are referenced via `reshade::api::resource_view` handles. Sampler state objects are referenced via `reshade::api::sampler` handles, (partial) pipeline state objects via `pipeline` handles and so on.
