@@ -65,56 +65,6 @@ struct device_data
 static std::mutex s_mutex;
 static bool s_is_in_reshade_runtime = false;
 
-static void dump_texture(command_queue *queue, resource tex, const resource_desc &desc)
-{
-	device *const device = queue->get_device();
-
-	resource intermediate;
-	if (device->check_capability(device_caps::copy_buffer_to_texture))
-	{
-		uint32_t texture_pitch = desc.texture.width * format_bytes_per_pixel(desc.texture.format);
-		if (device->get_api() == device_api::d3d12) // See D3D12_TEXTURE_DATA_PITCH_ALIGNMENT
-			texture_pitch = (texture_pitch + 255) & ~255;
-
-		if (!device->create_resource(resource_desc(texture_pitch * desc.texture.height, memory_heap::gpu_to_cpu, resource_usage::copy_dest), nullptr, resource_usage::copy_dest, &intermediate))
-		{
-			reshade::log_message(1, "Failed to create system memory buffer for texture dumping!");
-			return;
-		}
-
-		command_list *const cmd_list = queue->get_immediate_command_list();
-		cmd_list->barrier(tex, resource_usage::shader_resource, resource_usage::copy_source);
-		cmd_list->copy_texture_to_buffer(tex, 0, nullptr, intermediate, 0, desc.texture.width, desc.texture.height);
-		cmd_list->barrier(tex, resource_usage::copy_source, resource_usage::shader_resource);
-	}
-	else
-	{
-		if (!device->create_resource(resource_desc(desc.texture.width, desc.texture.height, 1, 1, format_to_default_typed(desc.texture.format), 1, memory_heap::gpu_to_cpu, resource_usage::copy_dest), nullptr, resource_usage::copy_dest, &intermediate))
-		{
-			reshade::log_message(1, "Failed to create system memory texture for texture dumping!");
-			return;
-		}
-
-		command_list *const cmd_list = queue->get_immediate_command_list();
-		cmd_list->barrier(tex, resource_usage::shader_resource, resource_usage::copy_source);
-		cmd_list->copy_texture_region(tex, 0, nullptr, intermediate, 0, nullptr);
-		cmd_list->barrier(tex, resource_usage::copy_source, resource_usage::shader_resource);
-	}
-
-	queue->wait_idle();
-
-	if (subresource_data mapped_data;
-		device->map_resource(intermediate, 0, map_access::read_only, &mapped_data))
-	{
-		extern void dump_texture(const resource_desc &desc, const subresource_data &data, bool force_dump);
-		dump_texture(desc, mapped_data, true);
-
-		device->unmap_resource(intermediate, 0);
-	}
-
-	device->destroy_resource(intermediate);
-}
-
 static void on_init_device(device *device)
 {
 	auto &data = device->create_user_data<device_data>(device_data::GUID);
@@ -361,6 +311,9 @@ static void on_present(command_queue *queue, swapchain *runtime)
 
 	s_is_in_reshade_runtime = true;
 }
+
+// See implementation in 'texturemod_dump.cpp'
+extern bool dump_texture(command_queue *queue, resource tex, const resource_desc &desc);
 
 static void draw_overlay(effect_runtime *runtime, void *)
 {
