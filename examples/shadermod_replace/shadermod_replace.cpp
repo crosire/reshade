@@ -27,37 +27,37 @@ static bool replace_shader_code(device_api device_type, pipeline_stage, shader_d
 	replace = true;
 #endif
 
-	if (replace)
+	if (!replace)
+		return false;
+
+	uint32_t shader_hash = compute_crc32(static_cast<const uint8_t *>(desc.code), desc.code_size);
+
+	const wchar_t *extension = L".cso";
+	if (device_type == device_api::vulkan || (
+		device_type == device_api::opengl && desc.code_size > sizeof(uint32_t) && *static_cast<const uint32_t *>(desc.code) == 0x07230203 /* SPIR-V magic */))
+		extension = L".spv"; // Vulkan uses SPIR-V (and sometimes OpenGL does too)
+	else if (device_type == device_api::opengl)
+		extension = L".glsl"; // OpenGL otherwise uses plain text GLSL
+
+	char hash_string[11];
+	sprintf_s(hash_string, "0x%08x", shader_hash);
+
+	replace_path /= L"shader_";
+	replace_path += hash_string;
+	replace_path += extension;
+
+	// Check if a replacement file for this shader hash exists and if so, overwrite the shader code with its contents
+	if (std::filesystem::exists(replace_path))
 	{
-		uint32_t shader_hash = compute_crc32(static_cast<const uint8_t *>(desc.code), desc.code_size);
+		std::ifstream file(replace_path, std::ios::binary);
+		file.seekg(0, std::ios::end);
+		std::vector<uint8_t> shader_code(static_cast<size_t>(file.tellg()));
+		file.seekg(0, std::ios::beg).read(reinterpret_cast<char *>(shader_code.data()), shader_code.size());
 
-		const wchar_t *extension = L".cso";
-		if (device_type == device_api::vulkan || (
-			device_type == device_api::opengl && desc.code_size > sizeof(uint32_t) && *static_cast<const uint32_t *>(desc.code) == 0x07230203 /* SPIR-V magic */))
-			extension = L".spv"; // Vulkan uses SPIR-V (and sometimes OpenGL does too)
-		else if (device_type == device_api::opengl)
-			extension = L".glsl"; // OpenGL otherwise uses plain text GLSL
-
-		char hash_string[11];
-		sprintf_s(hash_string, "0x%08x", shader_hash);
-
-		replace_path /= L"shader_";
-		replace_path += hash_string;
-		replace_path += extension;
-
-		// Check if a replacement file for this shader hash exists and if so, overwrite the shader code with its contents
-		if (std::filesystem::exists(replace_path))
-		{
-			std::ifstream file(replace_path, std::ios::binary);
-			file.seekg(0, std::ios::end);
-			std::vector<uint8_t> shader_code(static_cast<size_t>(file.tellg()));
-			file.seekg(0, std::ios::beg).read(reinterpret_cast<char *>(shader_code.data()), shader_code.size());
-
-			desc.code = new uint8_t[shader_code.size()];
-			desc.code_size = shader_code.size();
-			std::memcpy(const_cast<void *>(desc.code), shader_code.data(), desc.code_size);
-			return true;
-		}
+		desc.code = new uint8_t[shader_code.size()];
+		desc.code_size = shader_code.size();
+		std::memcpy(const_cast<void *>(desc.code), shader_code.data(), desc.code_size);
+		return true;
 	}
 
 	return false;

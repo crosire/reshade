@@ -27,27 +27,27 @@ static void dump_shader_code(device_api device_type, pipeline_stage, const shade
 	dump_all = true;
 #endif
 
-	if (dump_all)
-	{
-		uint32_t shader_hash = compute_crc32(static_cast<const uint8_t *>(desc.code), desc.code_size);
+	if (!dump_all)
+		return;
 
-		const wchar_t *extension = L".cso";
-		if (device_type == device_api::vulkan || (
-			device_type == device_api::opengl && desc.code_size > sizeof(uint32_t) && *static_cast<const uint32_t *>(desc.code) == 0x07230203 /* SPIR-V magic */))
-			extension = L".spv"; // Vulkan uses SPIR-V (and sometimes OpenGL does too)
-		else if (device_type == device_api::opengl)
-			extension = L".glsl"; // OpenGL otherwise uses plain text GLSL
+	uint32_t shader_hash = compute_crc32(static_cast<const uint8_t *>(desc.code), desc.code_size);
 
-		char hash_string[11];
-		sprintf_s(hash_string, "0x%08x", shader_hash);
+	const wchar_t *extension = L".cso";
+	if (device_type == device_api::vulkan || (
+		device_type == device_api::opengl && desc.code_size > sizeof(uint32_t) && *static_cast<const uint32_t *>(desc.code) == 0x07230203 /* SPIR-V magic */))
+		extension = L".spv"; // Vulkan uses SPIR-V (and sometimes OpenGL does too)
+	else if (device_type == device_api::opengl)
+		extension = L".glsl"; // OpenGL otherwise uses plain text GLSL
 
-		dump_path /= L"shader_";
-		dump_path += hash_string;
-		dump_path += extension;
+	char hash_string[11];
+	sprintf_s(hash_string, "0x%08x", shader_hash);
 
-		std::ofstream file(dump_path, std::ios::binary);
-		file.write(static_cast<const char *>(desc.code), desc.code_size);
-	}
+	dump_path /= L"shader_";
+	dump_path += hash_string;
+	dump_path += extension;
+
+	std::ofstream file(dump_path, std::ios::binary);
+	file.write(static_cast<const char *>(desc.code), desc.code_size);
 }
 
 static bool on_create_pipeline(device *device, pipeline_desc &desc)
