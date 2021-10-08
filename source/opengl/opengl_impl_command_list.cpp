@@ -612,8 +612,8 @@ void reshade::opengl::device_impl::copy_buffer_to_texture(api::resource src, uin
 			glGetTexLevelParameteriv(dst_target, level, GL_TEXTURE_DEPTH,  &d);
 		}
 
-		const auto row_size_packed = (row_length != 0 ? row_length : w) * api::format_bytes_per_pixel(convert_format(format));
-		const auto slice_size_packed = (slice_height != 0 ? slice_height : h) * row_size_packed;
+		const auto row_size_packed = api::format_row_pitch(convert_format(format), row_length != 0 ? row_length : w);
+		const auto slice_size_packed = api::format_slice_pitch(convert_format(format), row_size_packed, slice_height != 0 ? slice_height : h);
 		const auto total_size = d * slice_size_packed;
 
 		format = convert_upload_format(format, type);
@@ -969,8 +969,8 @@ void reshade::opengl::device_impl::copy_texture_to_buffer(api::resource src, uin
 		GLenum format = GL_NONE, type;
 		glGetTexLevelParameteriv(src_target == GL_TEXTURE_CUBE_MAP ? GL_TEXTURE_CUBE_MAP_POSITIVE_X : src_target, 0, GL_TEXTURE_INTERNAL_FORMAT, reinterpret_cast<GLint *>(&format));
 
-		const auto row_size_packed = (row_length != 0 ? row_length : w) * api::format_bytes_per_pixel(convert_format(format));
-		const auto slice_size_packed = (slice_height != 0 ? slice_height : h) * row_size_packed;
+		const auto row_size_packed = api::format_row_pitch(convert_format(format), row_length != 0 ? row_length : w);
+		const auto slice_size_packed = api::format_slice_pitch(convert_format(format), row_size_packed, slice_height != 0 ? slice_height : h);
 		const auto total_size = d * slice_size_packed;
 
 		format = convert_upload_format(format, type);

@@ -3425,7 +3425,7 @@ void reshade::runtime::render_imgui_draw_data(api::command_list *cmd_list, ImDra
 	}
 
 	if (api::subresource_data mapped_data;
-		_device->map_resource(_imgui_indices[buffer_index], 0, api::map_access::write_only, &mapped_data))
+		_device->map_resource(_imgui_indices[buffer_index], 0, nullptr, api::map_access::write_only, &mapped_data))
 	{
 		auto idx_dst = static_cast<ImDrawIdx *>(mapped_data.data);
 
@@ -3439,7 +3439,7 @@ void reshade::runtime::render_imgui_draw_data(api::command_list *cmd_list, ImDra
 		_device->unmap_resource(_imgui_indices[buffer_index], 0);
 	}
 	if (api::subresource_data mapped_data;
-		_device->map_resource(_imgui_vertices[buffer_index], 0, api::map_access::write_only, &mapped_data))
+		_device->map_resource(_imgui_vertices[buffer_index], 0, nullptr, api::map_access::write_only, &mapped_data))
 	{
 		auto vtx_dst = static_cast<ImDrawVert *>(mapped_data.data);
 

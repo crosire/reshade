@@ -7,6 +7,26 @@
 
 #include <Unknwn.h>
 
+/// <summary>
+/// Gets a pointer from the private data of the specified <paramref name="object"/>.
+/// </summary>
+template <typename U, typename T>
+__forceinline U *get_private_pointer(T *object)
+{
+	U *result = nullptr;
+	UINT size = sizeof(result);
+	object->GetPrivateData(__uuidof(U), &size, reinterpret_cast<void **>(&result));
+	return result;
+}
+template <typename U, typename T>
+__forceinline U *get_private_pointer_d3d9(T *object)
+{
+	U *result = nullptr;
+	DWORD size = sizeof(result);
+	object->GetPrivateData(__uuidof(U), reinterpret_cast<void **>(&result), &size);
+	return result;
+}
+
  /// <summary>
  /// Registers a <paramref name="callback"/> with the specified <paramref name="object"/> that is called when the object is being destroyed.
  /// </summary>

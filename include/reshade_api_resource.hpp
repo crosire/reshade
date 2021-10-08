@@ -67,7 +67,7 @@ namespace reshade { namespace api
 	/// </summary>
 	enum class map_access
 	{
-		read_only,
+		read_only = 1,
 		write_only,
 		read_write,
 		write_discard

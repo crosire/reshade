@@ -298,6 +298,26 @@ void reshade::d3d9::convert_d3d_pool_to_memory_heap(D3DPOOL d3d_pool, api::memor
 	}
 }
 
+auto reshade::d3d9::convert_access_flags(api::map_access access) -> DWORD
+{
+	switch (access)
+	{
+	case api::map_access::read_only:
+		return D3DLOCK_READONLY;
+	case api::map_access::write_discard:
+		return D3DLOCK_DISCARD;
+	}
+	return 0;
+}
+reshade::api::map_access reshade::d3d9::convert_access_flags(DWORD lock_flags)
+{
+	if ((lock_flags & D3DLOCK_READONLY) != 0)
+		return reshade::api::map_access::read_only;
+	else if ((lock_flags & D3DLOCK_DISCARD) != 0)
+		return reshade::api::map_access::write_discard;
+	return reshade::api::map_access::read_write;
+}
+
 void reshade::d3d9::convert_resource_usage_to_d3d_usage(api::resource_usage usage, DWORD &d3d_usage)
 {
 	// Copying textures is implemented using the rasterization pipeline (see 'device_impl::copy_resource' implementation), so needs render target usage

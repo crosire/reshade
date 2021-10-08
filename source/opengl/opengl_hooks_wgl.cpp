@@ -1198,6 +1198,10 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glGenerateMipmap);
 		HOOK_PROC(glGenerateTextureMipmap);
 		HOOK_PROC(glLinkProgram);
+		HOOK_PROC(glMapBuffer);
+		HOOK_PROC(glMapBufferRange);
+		HOOK_PROC(glMapNamedBuffer);
+		HOOK_PROC(glMapNamedBufferRange);
 		HOOK_PROC(glMultiDrawArrays);
 		HOOK_PROC(glMultiDrawArraysIndirect);
 		HOOK_PROC(glMultiDrawElements);
@@ -1264,6 +1268,8 @@ HOOK_EXPORT PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glUniform2uiv);
 		HOOK_PROC(glUniform3uiv);
 		HOOK_PROC(glUniform4uiv);
+		HOOK_PROC(glUnmapBuffer);
+		HOOK_PROC(glUnmapNamedBuffer);
 		HOOK_PROC(glUseProgram);
 		HOOK_PROC(glViewportArrayv);
 		HOOK_PROC(glViewportIndexedf);

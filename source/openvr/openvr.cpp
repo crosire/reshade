@@ -4,6 +4,7 @@
  */
 
 #include "dll_log.hpp"
+#include "com_utils.hpp"
 #include "hook_manager.hpp"
 #include "lockfree_linear_map.hpp"
 #include "d3d10/d3d10_device.hpp"
@@ -46,9 +47,8 @@ static vr::EVRCompositorError on_vr_submit_d3d10(vr::EVREye eye, ID3D10Texture2D
 	com_ptr<ID3D10Device> device;
 	texture->GetDevice(&device);
 
-	D3D10Device *device_proxy = nullptr; // Was set via 'SetPrivateData', so do not use a 'com_ptr' here, since 'GetPrivateData' will not add a reference
-	if (UINT data_size = sizeof(device_proxy);
-		FAILED(device->GetPrivateData(__uuidof(D3D10Device), &data_size, reinterpret_cast<void *>(&device_proxy))))
+	const auto device_proxy = get_private_pointer<D3D10Device>(device.get());
+	if (device_proxy == nullptr)
 		goto normal_submit; // No proxy device found, so just submit normally
 
 	if (s_vr_swapchain.first == nullptr)
@@ -111,9 +111,8 @@ static vr::EVRCompositorError on_vr_submit_d3d11(vr::EVREye eye, ID3D11Texture2D
 		// Whoops, this is actually a D3D10 texture, redirect ...
 		return on_vr_submit_d3d10(eye, reinterpret_cast<ID3D10Texture2D *>(texture), bounds, flags, submit);
 
-	D3D11Device *device_proxy = nullptr; // Was set via 'SetPrivateData', so do not use a 'com_ptr' here, since 'GetPrivateData' will not add a reference
-	if (UINT data_size = sizeof(device_proxy);
-		FAILED(device->GetPrivateData(__uuidof(D3D11Device), &data_size, reinterpret_cast<void *>(&device_proxy))))
+	const auto device_proxy = get_private_pointer<D3D11Device>(device.get());
+	if (device_proxy == nullptr)
 		goto normal_submit; // No proxy device found, so just submit normally
 
 	if (s_vr_swapchain.first == nullptr)

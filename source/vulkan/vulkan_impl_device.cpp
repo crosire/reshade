@@ -1220,9 +1220,20 @@ void reshade::vulkan::device_impl::destroy_descriptor_sets(uint32_t count, const
 	vk.FreeDescriptorSets(_orig, _descriptor_pool, count, reinterpret_cast<const VkDescriptorSet *>(sets));
 }
 
-bool reshade::vulkan::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access, api::subresource_data *out_data)
+bool reshade::vulkan::device_impl::map_resource(api::resource resource, uint32_t subresource, const int32_t box[6], api::map_access, api::subresource_data *out_data)
 {
-	assert(out_data != nullptr);
+	if (out_data == nullptr)
+		return false;
+
+	out_data->data = nullptr;
+	out_data->row_pitch = 0;
+	out_data->slice_pitch = 0;
+
+	// Mapping a subset of a resource is not supported
+	if (box != nullptr)
+		return false;
+
+	assert(resource.handle != 0);
 
 	const auto data = get_user_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)resource.handle);
 	if (data->allocation != nullptr)
@@ -1234,15 +1245,14 @@ bool reshade::vulkan::device_impl::map_resource(api::resource resource, uint32_t
 			if (data->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO)
 			{
 				// Assume that the image was created with 'VK_IMAGE_TILING_LINEAR' here
-				out_data->row_pitch = data->create_info.extent.width * data->create_info.extent.depth * api::format_bytes_per_pixel(convert_format(data->create_info.format));
-				out_data->slice_pitch = out_data->row_pitch * data->create_info.extent.height;
+				out_data->row_pitch = api::format_row_pitch(convert_format(data->create_info.format), data->create_info.extent.width);
+				out_data->slice_pitch = api::format_slice_pitch(convert_format(data->create_info.format), out_data->row_pitch, data->create_info.extent.height);
 			}
 			else
 			{
 				out_data->row_pitch = static_cast<uint32_t>(data->allocation->GetSize());
 				out_data->slice_pitch = out_data->row_pitch;
 			}
-
 			return true;
 		}
 	}
@@ -1250,12 +1260,14 @@ bool reshade::vulkan::device_impl::map_resource(api::resource resource, uint32_t
 	out_data->data = nullptr;
 	out_data->row_pitch = 0;
 	out_data->slice_pitch = 0;
+
 	return false;
 }
 void reshade::vulkan::device_impl::unmap_resource(api::resource resource, uint32_t subresource)
 {
-	const auto data = get_user_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)resource.handle);
+	assert(resource.handle != 0);
 
+	const auto data = get_user_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)resource.handle);
 	if (data->allocation != nullptr)
 	{
 		assert(subresource == 0);
@@ -1298,8 +1310,8 @@ void reshade::vulkan::device_impl::update_texture_region(const api::subresource_
 		extent.depth  = dst_box[5] - dst_box[2];
 	}
 
-	const auto row_size_packed = extent.width * api::format_bytes_per_pixel(convert_format(dst_data->create_info.format));
-	const auto slice_size_packed = extent.height * row_size_packed;
+	const auto row_size_packed = api::format_row_pitch(convert_format(dst_data->create_info.format), extent.width);
+	const auto slice_size_packed = api::format_slice_pitch(convert_format(dst_data->create_info.format), row_size_packed, extent.height);
 	const auto total_size = extent.depth * slice_size_packed;
 
 	// Allocate host memory for upload

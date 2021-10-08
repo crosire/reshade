@@ -78,6 +78,33 @@ bool D3D11DeviceContext::check_and_upgrade_interface(REFIID riid)
 }
 
 #if RESHADE_ADDON
+void D3D11DeviceContext::invoke_map_resource_event(ID3D11Resource *resource, UINT subresource, D3D11_MAP map_type, reshade::api::subresource_data *data)
+{
+	reshade::api::map_access access = static_cast<reshade::api::map_access>(0);
+	switch (map_type)
+	{
+	case D3D11_MAP_READ:
+		access = reshade::api::map_access::read_only;
+		break;
+	case D3D11_MAP_WRITE:
+	case D3D11_MAP_WRITE_NO_OVERWRITE:
+		access = reshade::api::map_access::write_only;
+		break;
+	case D3D11_MAP_READ_WRITE:
+		access = reshade::api::map_access::read_write;
+		break;
+	case D3D11_MAP_WRITE_DISCARD:
+		access = reshade::api::map_access::write_discard;
+		break;
+	}
+
+	reshade::invoke_addon_event<reshade::addon_event::map_resource>(_device, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) }, subresource, nullptr, access, data);
+}
+void D3D11DeviceContext::invoke_unmap_resource_event(ID3D11Resource *resource, UINT subresource)
+{
+	reshade::invoke_addon_event<reshade::addon_event::unmap_resource>(_device, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) }, subresource);
+}
+
 void D3D11DeviceContext::invoke_bind_vertex_buffers_event(UINT first, UINT count, ID3D11Buffer *const *buffers, const UINT *strides, const UINT *offsets)
 {
 	assert(count <= D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT);
@@ -296,10 +323,20 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::Draw(UINT VertexCount, UINT StartV
 }
 HRESULT STDMETHODCALLTYPE D3D11DeviceContext::Map(ID3D11Resource *pResource, UINT Subresource, D3D11_MAP MapType, UINT MapFlags, D3D11_MAPPED_SUBRESOURCE *pMappedResource)
 {
-	return _orig->Map(pResource, Subresource, MapType, MapFlags, pMappedResource);
+	const HRESULT hr = _orig->Map(pResource, Subresource, MapType, MapFlags, pMappedResource);
+#if RESHADE_ADDON
+	if (SUCCEEDED(hr))
+	{
+		invoke_map_resource_event(pResource, Subresource, MapType, reinterpret_cast<reshade::api::subresource_data *>(pMappedResource));
+	}
+#endif
+	return hr;
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::Unmap(ID3D11Resource *pResource, UINT Subresource)
 {
+#if RESHADE_ADDON
+	invoke_unmap_resource_event(pResource, Subresource);
+#endif
 	_orig->Unmap(pResource, Subresource);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::PSSetConstantBuffers(UINT StartSlot, UINT NumBuffers, ID3D11Buffer *const *ppConstantBuffers)

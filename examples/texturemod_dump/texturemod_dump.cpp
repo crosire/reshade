@@ -366,7 +366,7 @@ bool dump_texture(command_queue *queue, resource tex, const resource_desc &desc)
 {
 	device *const device = queue->get_device();
 
-	uint32_t texture_pitch = desc.texture.width * format_bytes_per_pixel(desc.texture.format);
+	uint32_t texture_pitch = format_row_pitch(desc.texture.format, desc.texture.width);
 	if (device->get_api() == device_api::d3d12) // See D3D12_TEXTURE_DATA_PITCH_ALIGNMENT
 		texture_pitch = (texture_pitch + 255) & ~255;
 
@@ -412,7 +412,7 @@ bool dump_texture(command_queue *queue, resource tex, const resource_desc &desc)
 	queue->wait_idle();
 
 	if (subresource_data mapped_data;
-		device->map_resource(intermediate, 0, map_access::read_only, &mapped_data))
+		device->map_resource(intermediate, 0, nullptr, map_access::read_only, &mapped_data))
 	{
 		if (device->check_capability(device_caps::copy_buffer_to_texture))
 			mapped_data.row_pitch = texture_pitch;
@@ -466,7 +466,7 @@ static bool on_copy_texture(command_list *cmd_list, resource src, uint32_t src_s
 
 	// Map source buffer to get the contents that will be copied into the target texture (this should succeed, since it was already checked that the buffer is in host memory)
 	if (subresource_data mapped_data;
-		device->map_resource(src, src_subresource, map_access::read_only, &mapped_data))
+		device->map_resource(src, src_subresource, nullptr, map_access::read_only, &mapped_data))
 	{
 		dump_texture(dst_desc, mapped_data);
 

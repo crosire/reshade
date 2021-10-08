@@ -875,9 +875,18 @@ void reshade::d3d11::device_impl::destroy_descriptor_sets(uint32_t count, const 
 		delete reinterpret_cast<descriptor_set_impl *>(sets[i].handle);
 }
 
-bool reshade::d3d11::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access access, api::subresource_data *out_data)
+bool reshade::d3d11::device_impl::map_resource(api::resource resource, uint32_t subresource, const int32_t box[6], api::map_access access, api::subresource_data *out_data)
 {
-	static_assert(sizeof(api::subresource_data) == sizeof(D3D11_MAPPED_SUBRESOURCE));
+	if (out_data == nullptr)
+		return false;
+
+	out_data->data = nullptr;
+	out_data->row_pitch = 0;
+	out_data->slice_pitch = 0;
+
+	// Mapping a subset of a resource is not supported
+	if (box != nullptr)
+		return false;
 
 	D3D11_MAP map_type = static_cast<D3D11_MAP>(0);
 	switch (access)
@@ -897,12 +906,9 @@ bool reshade::d3d11::device_impl::map_resource(api::resource resource, uint32_t 
 		break;
 	}
 
-	assert(out_data != nullptr);
-	out_data->data = nullptr;
-	out_data->row_pitch = 0;
-	out_data->slice_pitch = 0;
-
 	assert(resource.handle != 0);
+
+	static_assert(sizeof(api::subresource_data) == sizeof(D3D11_MAPPED_SUBRESOURCE));
 
 	com_ptr<ID3D11DeviceContext> immediate_context;
 	_orig->GetImmediateContext(&immediate_context);

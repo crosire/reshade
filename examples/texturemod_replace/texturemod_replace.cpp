@@ -22,10 +22,7 @@ static bool replace_texture(const resource_desc &desc, subresource_data &data)
 	if (!rgba_format && !rgbx_format)
 		return false;
 
-	size_t bpp = format_bytes_per_pixel(desc.texture.format);
-	size_t row_pitch = bpp * desc.texture.width;
-	if (data.row_pitch < row_pitch && rgbx_format)
-		row_pitch = 3 * desc.texture.width;
+	size_t row_pitch = format_row_pitch(desc.texture.format, desc.texture.width);
 
 	// TODO: Handle row pitch properly
 	const size_t size = row_pitch * desc.texture.height;
@@ -125,7 +122,7 @@ static bool on_copy_texture(command_list *cmd_list, resource src, uint32_t src_s
 		return false; // Ignore copies that do not update the entire texture
 
 	subresource_data new_data;
-	if (!device->map_resource(src, src_subresource, map_access::read_only, &new_data))
+	if (!device->map_resource(src, src_subresource, nullptr, map_access::read_only, &new_data))
 		return false;
 
 	const bool replace = replace_texture(dst_desc, new_data);

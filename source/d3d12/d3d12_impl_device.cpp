@@ -761,9 +761,19 @@ void reshade::d3d12::device_impl::destroy_descriptor_sets(uint32_t count, const 
 	}
 }
 
-bool reshade::d3d12::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access access, api::subresource_data *out_data)
+bool reshade::d3d12::device_impl::map_resource(api::resource resource, uint32_t subresource, const int32_t box[6], api::map_access access, api::subresource_data *out_data)
 {
-	assert(out_data != nullptr);
+	if (out_data == nullptr)
+		return false;
+
+	out_data->data = nullptr;
+	out_data->row_pitch = 0;
+	out_data->slice_pitch = 0;
+
+	// Mapping a subset of a resource is not supported
+	if (box != nullptr)
+		return false;
+
 	assert(resource.handle != 0);
 
 	const D3D12_RANGE no_read = { 0, 0 };
@@ -853,9 +863,9 @@ void reshade::d3d12::device_impl::update_texture_region(const api::subresource_d
 		num_slices = dst_box[5] - dst_box[2];
 	}
 
-	auto row_pitch = width * api::format_bytes_per_pixel(convert_format(dst_desc.Format));
+	auto row_pitch = api::format_row_pitch(convert_format(dst_desc.Format), width);
 	row_pitch = (row_pitch + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u);
-	const auto slice_pitch = num_rows * row_pitch;
+	const auto slice_pitch = api::format_slice_pitch(convert_format(dst_desc.Format), row_pitch, num_rows);
 
 	// Allocate host memory for upload
 	D3D12_RESOURCE_DESC intermediate_desc = { D3D12_RESOURCE_DIMENSION_BUFFER };

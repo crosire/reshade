@@ -747,6 +747,38 @@ void reshade::opengl::convert_memory_heap_from_flags(api::resource_desc &desc, G
 		desc.flags |= api::resource_flags::dynamic;
 }
 
+GLbitfield reshade::opengl::convert_access_flags(reshade::api::map_access flags)
+{
+	switch (flags)
+	{
+	case api::map_access::read_only:
+		return GL_MAP_READ_BIT;
+	case api::map_access::write_only:
+		return GL_MAP_WRITE_BIT;
+	case api::map_access::read_write:
+		return GL_MAP_READ_BIT | GL_MAP_WRITE_BIT;
+	case api::map_access::write_discard:
+		return GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT;
+	default:
+		return 0;
+	}
+}
+reshade::api::map_access reshade::opengl::convert_access_flags(GLbitfield flags)
+{
+	if ((flags & (GL_MAP_INVALIDATE_RANGE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT)) != 0)
+		return reshade::api::map_access::write_discard;
+
+	switch (flags & (GL_MAP_READ_BIT | GL_MAP_WRITE_BIT))
+	{
+	case GL_MAP_READ_BIT:
+		return reshade::api::map_access::read_only;
+	case GL_MAP_WRITE_BIT:
+		return reshade::api::map_access::write_only;
+	default:
+		return reshade::api::map_access::read_write;
+	}
+}
+
 reshade::api::resource_type reshade::opengl::convert_resource_type(GLenum target)
 {
 	switch (target)

@@ -696,9 +696,18 @@ void reshade::d3d10::device_impl::destroy_descriptor_sets(uint32_t count, const 
 		delete reinterpret_cast<descriptor_set_impl *>(sets[i].handle);
 }
 
-bool reshade::d3d10::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access access, api::subresource_data *out_data)
+bool reshade::d3d10::device_impl::map_resource(api::resource resource, uint32_t subresource, const int32_t box[6], api::map_access access, api::subresource_data *out_data)
 {
-	static_assert(sizeof(api::subresource_data) == sizeof(D3D10_MAPPED_TEXTURE3D));
+	if (out_data == nullptr)
+		return false;
+
+	out_data->data = nullptr;
+	out_data->row_pitch = 0;
+	out_data->slice_pitch = 0;
+
+	// Mapping a subset of a resource is not supported
+	if (box != nullptr)
+		return false;
 
 	D3D10_MAP map_type = static_cast<D3D10_MAP>(0);
 	switch (access)
@@ -718,11 +727,6 @@ bool reshade::d3d10::device_impl::map_resource(api::resource resource, uint32_t 
 		break;
 	}
 
-	assert(out_data != nullptr);
-	out_data->data = nullptr;
-	out_data->row_pitch = 0;
-	out_data->slice_pitch = 0;
-
 	assert(resource.handle != 0);
 	const auto object = reinterpret_cast<ID3D10Resource *>(resource.handle);
 
@@ -732,16 +736,50 @@ bool reshade::d3d10::device_impl::map_resource(api::resource resource, uint32_t 
 	{
 	case D3D10_RESOURCE_DIMENSION_BUFFER:
 		assert(subresource == 0);
-		return SUCCEEDED(static_cast<ID3D10Buffer *>(object)->Map(map_type, 0, &out_data->data));
+		if (SUCCEEDED(static_cast<ID3D10Buffer *>(object)->Map(map_type, 0, &out_data->data)))
+		{
+			D3D10_BUFFER_DESC desc;
+			static_cast<ID3D10Buffer *>(object)->GetDesc(&desc);
+
+			out_data->row_pitch = desc.ByteWidth;
+			out_data->slice_pitch = desc.ByteWidth;
+			return true;
+		}
+		break;
 	case D3D10_RESOURCE_DIMENSION_TEXTURE1D:
-		return SUCCEEDED(static_cast<ID3D10Texture1D *>(object)->Map(subresource, map_type, 0, &out_data->data));
+		if (SUCCEEDED(static_cast<ID3D10Texture1D *>(object)->Map(subresource, map_type, 0, &out_data->data)))
+		{
+			D3D10_TEXTURE1D_DESC desc;
+			static_cast<ID3D10Texture1D *>(object)->GetDesc(&desc);
+
+			out_data->row_pitch = api::format_row_pitch(convert_format(desc.Format), desc.Width);
+			out_data->slice_pitch = api::format_slice_pitch(convert_format(desc.Format), out_data->row_pitch, 1);
+			return true;
+		}
+		break;
 	case D3D10_RESOURCE_DIMENSION_TEXTURE2D:
-		return SUCCEEDED(static_cast<ID3D10Texture2D *>(object)->Map(subresource, map_type, 0, reinterpret_cast<D3D10_MAPPED_TEXTURE2D *>(out_data)));
+		static_assert(sizeof(api::subresource_data) >= sizeof(D3D10_MAPPED_TEXTURE2D));
+
+		if (SUCCEEDED(static_cast<ID3D10Texture2D *>(object)->Map(subresource, map_type, 0, reinterpret_cast<D3D10_MAPPED_TEXTURE2D *>(out_data))))
+		{
+			D3D10_TEXTURE2D_DESC desc;
+			static_cast<ID3D10Texture2D *>(object)->GetDesc(&desc);
+
+			out_data->slice_pitch = api::format_slice_pitch(convert_format(desc.Format), out_data->row_pitch, desc.Height);
+			return true;
+		}
+		break;
 	case D3D10_RESOURCE_DIMENSION_TEXTURE3D:
-		return SUCCEEDED(static_cast<ID3D10Texture3D *>(object)->Map(subresource, map_type, 0, reinterpret_cast<D3D10_MAPPED_TEXTURE3D *>(out_data)));
-	default:
-		return false;
+		static_assert(sizeof(api::subresource_data) == sizeof(D3D10_MAPPED_TEXTURE3D));
+
+		if (SUCCEEDED(static_cast<ID3D10Texture3D *>(object)->Map(subresource, map_type, 0, reinterpret_cast<D3D10_MAPPED_TEXTURE3D *>(out_data))))
+		{
+			return true;
+		}
+		break;
 	}
+
+	return false;
 }
 void reshade::d3d10::device_impl::unmap_resource(api::resource resource, uint32_t subresource)
 {

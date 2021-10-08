@@ -62,7 +62,7 @@ namespace reshade::d3d10
 		bool create_descriptor_sets(uint32_t count, const api::descriptor_set_layout *layouts, api::descriptor_set *out_sets) final;
 		void destroy_descriptor_sets(uint32_t count, const api::descriptor_set *sets) final;
 
-		bool map_resource(api::resource resource, uint32_t subresource, api::map_access access, api::subresource_data *out_data) final;
+		bool map_resource(api::resource resource, uint32_t subresource, const int32_t box[6], api::map_access access, api::subresource_data *out_data) final;
 		void unmap_resource(api::resource resource, uint32_t subresource) final;
 
 		void update_buffer_region(const void *data, api::resource dest, uint64_t dest_offset, uint64_t size) final;

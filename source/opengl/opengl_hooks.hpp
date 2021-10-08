@@ -215,6 +215,14 @@ extern "C" void WINAPI glLineWidth(GLfloat width);
 extern "C" void WINAPI glLinkProgram(GLuint program);
 #undef glLogicOp
 extern "C" void WINAPI glLogicOp(GLenum opcode);
+#undef glMapBuffer
+extern "C" void *WINAPI glMapBuffer(GLenum target, GLenum access);
+#undef glMapBufferRange
+extern "C" void *WINAPI glMapBufferRange(GLenum target, GLintptr offset, GLsizeiptr length, GLenum access);
+#undef glMapNamedBuffer
+extern "C" void *WINAPI glMapNamedBuffer(GLuint buffer, GLenum access);
+#undef glMapNamedBufferRange
+extern "C" void *WINAPI glMapNamedBufferRange(GLuint buffer, GLintptr offset, GLsizeiptr length, GLenum access);
 #undef glMultiDrawArrays
 extern "C" void WINAPI glMultiDrawArrays(GLenum mode, const GLint *first, const GLsizei *count, GLsizei drawcount);
 #undef glMultiDrawArraysIndirect
@@ -381,6 +389,10 @@ extern "C" void WINAPI glUniform2uiv(GLint location, GLsizei count, const GLuint
 extern "C" void WINAPI glUniform3uiv(GLint location, GLsizei count, const GLuint *v);
 #undef glUniform4uiv
 extern "C" void WINAPI glUniform4uiv(GLint location, GLsizei count, const GLuint *v);
+#undef glUnmapBuffer
+extern "C" void WINAPI glUnmapBuffer(GLenum target);
+#undef glUnmapNamedBuffer
+extern "C" void WINAPI glUnmapNamedBuffer(GLuint buffer);
 #undef glUseProgram
 extern "C" void WINAPI glUseProgram(GLuint program);
 #undef glViewport

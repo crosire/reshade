@@ -3138,7 +3138,7 @@ void reshade::runtime::render_technique(api::command_list *cmd_list, technique &
 
 	// Update shader constants
 	if (api::subresource_data mapped_uniform_data; effect.cb != 0 &&
-		_device->map_resource(effect.cb, 0, api::map_access::write_discard, &mapped_uniform_data))
+		_device->map_resource(effect.cb, 0, nullptr, api::map_access::write_discard, &mapped_uniform_data))
 	{
 		std::memcpy(mapped_uniform_data.data, effect.uniform_data_storage.data(), effect.uniform_data_storage.size());
 		_device->unmap_resource(effect.cb, 0);
@@ -3945,7 +3945,7 @@ bool reshade::runtime::get_texture_data(api::resource resource, api::resource_us
 
 	// Copy data from intermediate image into output buffer
 	api::subresource_data mapped_data = {};
-	if (_device->map_resource(intermediate, 0, api::map_access::read_only, &mapped_data))
+	if (_device->map_resource(intermediate, 0, nullptr, api::map_access::read_only, &mapped_data))
 	{
 		if (!_device->check_capability(api::device_caps::copy_buffer_to_texture))
 			texture_pitch = mapped_data.row_pitch;

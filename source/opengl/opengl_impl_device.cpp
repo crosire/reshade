@@ -1245,26 +1245,11 @@ void reshade::opengl::device_impl::destroy_descriptor_sets(uint32_t count, const
 		delete reinterpret_cast<descriptor_set_impl *>(sets[i].handle);
 }
 
-bool reshade::opengl::device_impl::map_resource(api::resource resource, uint32_t subresource, api::map_access access, api::subresource_data *out_data)
+bool reshade::opengl::device_impl::map_resource(api::resource resource, uint32_t subresource, const int32_t box[6], api::map_access access, api::subresource_data *out_data)
 {
-	GLenum map_access = 0;
-	switch (access)
-	{
-	case api::map_access::read_only:
-		map_access = GL_MAP_READ_BIT;
-		break;
-	case api::map_access::write_only:
-		map_access = GL_MAP_WRITE_BIT;
-		break;
-	case api::map_access::read_write:
-		map_access = GL_MAP_READ_BIT | GL_MAP_WRITE_BIT;
-		break;
-	case api::map_access::write_discard:
-		map_access = GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT;
-		break;
-	}
+	if (out_data == nullptr)
+		return false;
 
-	assert(out_data != nullptr);
 	out_data->data = nullptr;
 	out_data->row_pitch = 0;
 	out_data->slice_pitch = 0;
@@ -1279,27 +1264,46 @@ bool reshade::opengl::device_impl::map_resource(api::resource resource, uint32_t
 
 	assert(subresource == 0);
 
+	const GLenum access_flags = convert_access_flags(access);
+
+	uint32_t offset = 0;
+	uint32_t length = 0;
+	if (box != nullptr)
+	{
+		offset = box[0];
+		length = box[3] - box[0];
+	}
+
 	if (_supports_dsa)
 	{
-		GLint max_size = 0;
-		glGetNamedBufferParameteriv(object, GL_BUFFER_SIZE, &max_size);
+		if (box == nullptr)
+		{
+			GLint max_length = 0;
+			glGetNamedBufferParameteriv(object, GL_BUFFER_SIZE, &max_length);
+			length = max_length;
+		}
 
-		out_data->data = glMapNamedBufferRange(object, 0, max_size, map_access);
-		out_data->row_pitch = max_size;
-		out_data->slice_pitch = max_size;
+		out_data->data = glMapNamedBufferRange(object, offset, length, access_flags);
+		out_data->row_pitch = length;
+		out_data->slice_pitch = length;
 	}
 	else
 	{
-		GLint max_size = 0;
 		GLint prev_object = 0;
 		glGetIntegerv(GL_COPY_WRITE_BUFFER_BINDING, &prev_object);
 
 		glBindBuffer(GL_COPY_WRITE_BUFFER, object);
-		glGetBufferParameteriv(GL_COPY_WRITE_BUFFER, GL_BUFFER_SIZE, &max_size);
 
-		out_data->data = glMapBufferRange(GL_COPY_WRITE_BUFFER, 0, max_size, map_access);
-		out_data->row_pitch = max_size;
-		out_data->slice_pitch = max_size;
+		if (box == nullptr)
+		{
+			GLint max_length = 0;
+			glGetBufferParameteriv(GL_COPY_WRITE_BUFFER, GL_BUFFER_SIZE, &max_length);
+			length = max_length;
+		}
+
+		out_data->data = glMapBufferRange(GL_COPY_WRITE_BUFFER, offset, length, access_flags);
+		out_data->row_pitch = length;
+		out_data->slice_pitch = length;
 
 		glBindBuffer(GL_COPY_WRITE_BUFFER, prev_object);
 	}
@@ -1432,8 +1436,8 @@ void reshade::opengl::device_impl::update_texture_region(const api::subresource_
 		glGetTexLevelParameteriv(target, level, GL_TEXTURE_DEPTH,  &depth);
 	}
 
-	const auto row_size_packed = width * api::format_bytes_per_pixel(convert_format(format));
-	const auto slice_size_packed = height * row_size_packed;
+	const auto row_size_packed = api::format_row_pitch(convert_format(format), width);
+	const auto slice_size_packed = api::format_slice_pitch(convert_format(format), row_size_packed, height);
 	const auto total_size = depth * slice_size_packed;
 
 	format = convert_upload_format(format, type);

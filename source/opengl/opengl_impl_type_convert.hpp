@@ -98,6 +98,9 @@ namespace reshade::opengl
 	void convert_memory_heap_from_usage(api::resource_desc &desc, GLenum usage);
 	void convert_memory_heap_from_flags(api::resource_desc &desc, GLbitfield flags);
 
+	GLbitfield convert_access_flags(api::map_access flags);
+	api::map_access convert_access_flags(GLbitfield flags);
+
 	api::resource_type convert_resource_type(GLenum target);
 	api::resource_desc convert_resource_desc(GLenum target, GLsizeiptr buffer_size);
 	api::resource_desc convert_resource_desc(GLenum target, GLsizei levels, GLsizei samples, GLenum internal_format, GLsizei width, GLsizei height = 1, GLsizei depth = 1);

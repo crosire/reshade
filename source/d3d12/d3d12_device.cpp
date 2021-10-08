@@ -12,6 +12,56 @@
 #include "com_utils.hpp"
 #include <malloc.h>
 
+#if RESHADE_ADDON
+#include "hook_manager.hpp"
+
+HRESULT STDMETHODCALLTYPE ID3D12Resource_Map(ID3D12Resource *pResource, UINT Subresource, const D3D12_RANGE *pReadRange, void **ppData)
+{
+	const HRESULT hr = reshade::hooks::call(ID3D12Resource_Map, vtable_from_instance(pResource) + 8)(pResource, Subresource, pReadRange, ppData);
+
+	com_ptr<ID3D12Device> device;
+	pResource->GetDevice(IID_PPV_ARGS(&device));
+
+	const auto device_proxy = get_private_pointer<D3D12Device>(device.get());
+	if (SUCCEEDED(hr) && device_proxy != nullptr)
+	{
+		const D3D12_RESOURCE_DESC desc = pResource->GetDesc();
+
+		if (ppData != nullptr)
+		{
+			reshade::api::subresource_data data;
+			data.data = *ppData;
+
+			D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout;
+			device_proxy->_orig->GetCopyableFootprints(&desc, Subresource, 1, 0, &layout, &data.slice_pitch, nullptr, nullptr);
+			data.row_pitch = layout.Footprint.RowPitch;
+			data.slice_pitch *= layout.Footprint.RowPitch;
+
+			reshade::invoke_addon_event<reshade::addon_event::map_resource>(device_proxy, reshade::api::resource { reinterpret_cast<uintptr_t>(pResource) }, Subresource, nullptr, reshade::api::map_access::read_write, &data);
+			*ppData = data.data;
+		}
+		else
+		{
+			reshade::invoke_addon_event<reshade::addon_event::map_resource>(device_proxy, reshade::api::resource { reinterpret_cast<uintptr_t>(pResource) }, Subresource, nullptr, reshade::api::map_access::read_write, nullptr);
+		}
+	}
+
+	return hr;
+}
+HRESULT STDMETHODCALLTYPE ID3D12Resource_Unmap(ID3D12Resource *pResource, UINT Subresource, const D3D12_RANGE *pWrittenRange)
+{
+	com_ptr<ID3D12Device> device;
+	pResource->GetDevice(IID_PPV_ARGS(&device));
+
+	const auto device_proxy = get_private_pointer<D3D12Device>(device.get());
+	if (device_proxy != nullptr)
+	{
+		reshade::invoke_addon_event<reshade::addon_event::unmap_resource>(device_proxy, reshade::api::resource { reinterpret_cast<uintptr_t>(pResource) }, Subresource);
+	}
+
+	return reshade::hooks::call(ID3D12Resource_Unmap, vtable_from_instance(pResource) + 9)(pResource, Subresource, pWrittenRange);
+}
+
 static bool parse_and_convert_root_signature(const uint32_t *data, size_t size, reshade::d3d12::device_impl *device, std::vector<reshade::api::pipeline_layout_param> &out_params)
 {
 	constexpr uint32_t DXBC = uint32_t('D') | (uint32_t('X') << 8) | (uint32_t('B') << 16) | (uint32_t('C') << 24);
@@ -160,6 +210,7 @@ static bool parse_and_convert_root_signature(const uint32_t *data, size_t size, 
 
 	return false;
 }
+#endif
 
 D3D12Device::D3D12Device(ID3D12Device *original) :
 	device_impl(original)
@@ -833,6 +884,9 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource(const D3D12_HEAP_
 #if RESHADE_ADDON
 		const auto resource = static_cast<ID3D12Resource *>(*ppvResource);
 
+		reshade::hooks::install("ID3D12Resource::Map", vtable_from_instance(resource), 8, reinterpret_cast<reshade::hook::address>(ID3D12Resource_Map));
+		reshade::hooks::install("ID3D12Resource::Unmap", vtable_from_instance(resource), 9, reinterpret_cast<reshade::hook::address>(ID3D12Resource_Unmap));
+
 		register_resource(resource);
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
 			this, desc, nullptr, initial_state, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
@@ -883,6 +937,9 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePlacedResource(ID3D12Heap *pHeap, U
 	{
 #if RESHADE_ADDON
 		const auto resource = static_cast<ID3D12Resource *>(*ppvResource);
+
+		reshade::hooks::install("ID3D12Resource::Map", vtable_from_instance(resource), 8, reinterpret_cast<reshade::hook::address>(ID3D12Resource_Map));
+		reshade::hooks::install("ID3D12Resource::Unmap", vtable_from_instance(resource), 9, reinterpret_cast<reshade::hook::address>(ID3D12Resource_Unmap));
 
 		register_resource(resource);
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
@@ -1132,6 +1189,9 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource1(const D3D12_HEAP
 	{
 #if RESHADE_ADDON
 		const auto resource = static_cast<ID3D12Resource *>(*ppvResource);
+
+		reshade::hooks::install("ID3D12Resource::Map", vtable_from_instance(resource), 8, reinterpret_cast<reshade::hook::address>(ID3D12Resource_Map));
+		reshade::hooks::install("ID3D12Resource::Unmap", vtable_from_instance(resource), 9, reinterpret_cast<reshade::hook::address>(ID3D12Resource_Unmap));
 
 		register_resource(resource);
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(

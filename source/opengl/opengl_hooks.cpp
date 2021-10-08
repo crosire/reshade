@@ -2929,6 +2929,110 @@ HOOK_EXPORT void WINAPI glLogicOp(GLenum opcode)
 #endif
 }
 
+			void *WINAPI glMapBuffer(GLenum target, GLenum access)
+{
+	static const auto trampoline = reshade::hooks::call(glMapBuffer);
+	void *result = trampoline(target, access);
+#if RESHADE_ADDON
+	if (g_current_context &&
+		reshade::has_addon_event<reshade::addon_event::map_resource>())
+	{
+		GLint object = 0;
+		gl3wGetIntegerv(reshade::opengl::get_binding_for_target(target), &object);
+		GLint max_size = 0;
+		glGetBufferParameteriv(target, GL_BUFFER_SIZE, &max_size);
+
+		reshade::api::subresource_data data;
+		data.data = result;
+		data.row_pitch = max_size;
+		data.slice_pitch = data.row_pitch;
+		reshade::invoke_addon_event<reshade::addon_event::map_resource>(g_current_context, reshade::opengl::make_resource_handle(GL_BUFFER, object), 0, nullptr, reshade::opengl::convert_access_flags(access), &data);
+		result = data.data;
+	}
+#endif
+	return result;
+}
+			void *WINAPI glMapBufferRange(GLenum target, GLintptr offset, GLsizeiptr length, GLenum access)
+{
+	static const auto trampoline = reshade::hooks::call(glMapBufferRange);
+	void *result = trampoline(target, offset, length, access);
+#if RESHADE_ADDON
+	if (g_current_context &&
+		reshade::has_addon_event<reshade::addon_event::map_resource>())
+	{
+		GLint object = 0;
+		gl3wGetIntegerv(reshade::opengl::get_binding_for_target(target), &object);
+
+		int32_t box[6];
+		assert(offset <= static_cast<GLintptr>(std::numeric_limits<int32_t>::max()));
+		box[0] = static_cast<int32_t>(offset);
+		box[1] = 0;
+		box[2] = 0;
+		assert(length <= static_cast<GLsizeiptr>(std::numeric_limits<int32_t>::max()));
+		box[3] = static_cast<int32_t>(length);
+		box[4] = 1;
+		box[5] = 1;
+
+		reshade::api::subresource_data data;
+		data.data = result;
+		data.row_pitch = static_cast<uint32_t>(length);
+		data.slice_pitch = data.row_pitch;
+		reshade::invoke_addon_event<reshade::addon_event::map_resource>(g_current_context, reshade::opengl::make_resource_handle(GL_BUFFER, object), 0, box, reshade::opengl::convert_access_flags(access), &data);
+		result = data.data;
+	}
+#endif
+	return result;
+}
+			void *WINAPI glMapNamedBuffer(GLuint buffer, GLenum access)
+{
+	static const auto trampoline = reshade::hooks::call(glMapNamedBuffer);
+	void *result = trampoline(buffer, access);
+#if RESHADE_ADDON
+	if (g_current_context &&
+		reshade::has_addon_event<reshade::addon_event::map_resource>())
+	{
+		GLint max_size = 0;
+		glGetNamedBufferParameteriv(buffer, GL_BUFFER_SIZE, &max_size);
+
+		reshade::api::subresource_data data;
+		data.data = result;
+		data.row_pitch = max_size;
+		data.slice_pitch = data.row_pitch;
+		reshade::invoke_addon_event<reshade::addon_event::map_resource>(g_current_context, reshade::opengl::make_resource_handle(GL_BUFFER, buffer), 0, nullptr, reshade::opengl::convert_access_flags(access), &data);
+		result = data.data;
+	}
+#endif
+	return result;
+}
+			void *WINAPI glMapNamedBufferRange(GLuint buffer, GLintptr offset, GLsizeiptr length, GLenum access)
+{
+	static const auto trampoline = reshade::hooks::call(glMapNamedBufferRange);
+	void *result = trampoline(buffer, offset, length, access);
+#if RESHADE_ADDON
+	if (g_current_context &&
+		reshade::has_addon_event<reshade::addon_event::map_resource>())
+	{
+		int32_t box[6];
+		assert(offset <= static_cast<GLintptr>(std::numeric_limits<int32_t>::max()));
+		box[0] = static_cast<int32_t>(offset);
+		box[1] = 0;
+		box[2] = 0;
+		assert(length <= static_cast<GLsizeiptr>(std::numeric_limits<int32_t>::max()));
+		box[3] = static_cast<int32_t>(length);
+		box[4] = 1;
+		box[5] = 1;
+
+		reshade::api::subresource_data data;
+		data.data = result;
+		data.row_pitch = static_cast<uint32_t>(length);
+		data.slice_pitch = data.row_pitch;
+		reshade::invoke_addon_event<reshade::addon_event::map_resource>(g_current_context, reshade::opengl::make_resource_handle(GL_BUFFER, buffer), 0, box, reshade::opengl::convert_access_flags(access), &data);
+		result = data.data;
+	}
+#endif
+	return result;
+}
+
 HOOK_EXPORT void WINAPI glMap1d(GLenum target, GLdouble u1, GLdouble u2, GLint stride, GLint order, const GLdouble *points)
 {
 	static const auto trampoline = reshade::hooks::call(glMap1d);
@@ -5033,6 +5137,36 @@ HOOK_EXPORT void WINAPI glTranslatef(GLfloat x, GLfloat y, GLfloat z)
 			g_current_context, reshade::api::shader_stage::all, g_current_context->_global_pipeline_layout, 5, location, 4 * count, v);
 	}
 #endif
+}
+
+			void WINAPI glUnmapBuffer(GLenum target)
+{
+#if RESHADE_ADDON
+	if (g_current_context &&
+		reshade::has_addon_event<reshade::addon_event::unmap_resource>())
+	{
+		GLint object = 0;
+		gl3wGetIntegerv(reshade::opengl::get_binding_for_target(target), &object);
+
+		reshade::invoke_addon_event<reshade::addon_event::unmap_resource>(g_current_context, reshade::opengl::make_resource_handle(GL_BUFFER, object), 0);
+	}
+#endif
+
+	static const auto trampoline = reshade::hooks::call(glUnmapBuffer);
+	trampoline(target);
+}
+			void WINAPI glUnmapNamedBuffer(GLuint buffer)
+{
+#if RESHADE_ADDON
+	if (g_current_context &&
+		reshade::has_addon_event<reshade::addon_event::unmap_resource>())
+	{
+		reshade::invoke_addon_event<reshade::addon_event::unmap_resource>(g_current_context, reshade::opengl::make_resource_handle(GL_BUFFER, buffer), 0);
+	}
+#endif
+
+	static const auto trampoline = reshade::hooks::call(glUnmapNamedBuffer);
+	trampoline(buffer);
 }
 
 			void WINAPI glUseProgram(GLuint program)

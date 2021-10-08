@@ -399,27 +399,41 @@ namespace reshade { namespace api
 	}
 
 	/// <summary>
-	/// Gets the number of bytes per pixel the specified format <paramref name="value"/> occupies.
+	/// Gets the number of bytes a texture row of the specified format <paramref name="value"/> would occupy.
 	/// </summary>
-	inline const unsigned int format_bytes_per_pixel(format value)
+	inline const unsigned int format_row_pitch(format value, uint32_t width)
 	{
 		if (value == format::unknown)
 			return 0;
+
 		if (value <= format::r32g32b32a32_sint)
-			return 16;
+			return 16 * width;
 		if (value <= format::r32g32b32_sint)
-			return 12;
+			return 12 * width;
 		if (value <= format::x32_float_g8_uint)
-			return 8;
+			return  8 * width;
 		if (value <= format::x24_unorm_g8_uint || value == format::l16a16_unorm)
-			return 4;
+			return  4 * width;
 		if (value <= format::r16_sint || value == format::b5g6r5_unorm || value == format::b5g5r5a1_unorm || value == format::b5g5r5x1_unorm || value == format::l8a8_unorm || value == format::l16_unorm)
-			return 2;
+			return  2 * width;
 		if (value <= format::a8_unorm || value == format::l8_unorm)
-			return 1;
+			return  1 * width;
 		if (value <= format::g8r8_g8b8_unorm || (value >= format::b8g8r8a8_unorm && value <= format::b8g8r8x8_unorm_srgb) || (value >= format::r8g8b8x8_typeless && value <= format::r8g8b8x8_unorm_srgb))
-			return 4;
-		// TODO: Block compressed formats
+			return  4 * width;
+
+		// Block compressed formats are bytes per block, rather than per pixel
+		if ((value >= format::bc1_typeless && value <= format::bc1_unorm_srgb) || (value >= format::bc4_typeless && value <= format::bc4_snorm))
+			return  8 * ((width + 3) / 4);
+		if ((value >= format::bc2_typeless && value <= format::bc2_unorm_srgb) || (value >= format::bc3_typeless && value <= format::bc3_unorm_srgb) || (value >= format::bc5_typeless && value <= format::bc7_unorm_srgb))
+			return 16 * ((width + 3) / 4);
+
 		return 0;
+	}
+	inline const unsigned int format_slice_pitch(format value, uint32_t row_pitch, uint32_t height)
+	{
+		if (value < format::bc1_typeless || value > format::bc7_unorm_srgb)
+			return row_pitch * height;
+		else
+			return row_pitch * ((height + 3) / 4);
 	}
 } }

@@ -359,10 +359,11 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <param name="resource">Resource to map to host memory.</param>
 		/// <param name="subresource">Index of the subresource to map (<c>level + (layer * levels)</c>).</param>
+		/// <param name="box">A 3D box (or <c>nullptr</c> to reference the entire subresource) that defines the region in the <paramref name="resource"/> to map, in the format { left, top, front, right, bottom, back }.</param>
 		/// <param name="access">A hint on how the returned data pointer will be accessed.</param>
 		/// <param name="out_data">Pointer to a variable that is set to a pointer to the memory of the resource and optionally the row and slice pitch of that data (depending on the resource type).</param>
 		/// <returns><see langword="true"/> if the memory of the resource was successfully mapped, <see langword="false"/> otherwise (in this case <paramref name="out_data"/> is set to <c>nullptr</c>).</returns>
-		virtual bool map_resource(resource resource, uint32_t subresource, map_access access, subresource_data *out_data) = 0;
+		virtual bool map_resource(resource resource, uint32_t subresource, const int32_t box[6], map_access access, subresource_data *out_data) = 0;
 		/// <summary>
 		/// Unmaps a previously mapped resource.
 		/// </summary>

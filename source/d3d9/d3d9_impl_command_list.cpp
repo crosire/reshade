@@ -8,6 +8,8 @@
 #include <algorithm>
 #include <utf8/unchecked.h>
 
+extern void convert_box_to_rect(const int32_t box[6], RECT *rect);
+
 static void convert_cube_uv_to_vec(D3DCUBEMAP_FACES face, float u, float v, float &x, float &y, float &z)
 {
 	u = 2.0f * u - 1.0f;
@@ -326,27 +328,10 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 	const auto src_object = reinterpret_cast<IDirect3DResource9 *>(src.handle);
 	const auto dst_object = reinterpret_cast<IDirect3DResource9 *>(dst.handle);
 
-	RECT src_rect = {};
-	if (src_box != nullptr)
-	{
-		src_rect.left   = src_box[0];
-		src_rect.top    = src_box[1];
-		assert(src_box[2] == 0);
-		src_rect.right  = src_box[3];
-		src_rect.bottom = src_box[4];
-		assert(src_box[5] == 1);
-	}
-
-	RECT dst_rect = {};
-	if (dst_box != nullptr)
-	{
-		dst_rect.left   = dst_box[0];
-		dst_rect.top    = dst_box[1];
-		assert(dst_box[2] == 0);
-		dst_rect.right  = dst_box[3];
-		dst_rect.bottom = dst_box[4];
-		assert(dst_box[5] == 1);
-	}
+	RECT src_rect;
+	convert_box_to_rect(src_box, &src_rect);
+	RECT dst_rect;
+	convert_box_to_rect(dst_box, &dst_rect);
 
 	// Default to no filtering if no stretching needs to be performed (prevents artifacts when copying depth data)
 	D3DTEXTUREFILTERTYPE stretch_filter_type = D3DTEXF_POINT;
