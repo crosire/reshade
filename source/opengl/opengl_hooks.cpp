@@ -324,12 +324,31 @@ static bool update_texture_region(GLenum target, GLuint object, GLint level, GLi
 	if (object == 0)
 		gl3wGetIntegerv(reshade::opengl::get_binding_for_target(target), reinterpret_cast<GLint *>(&object));
 
-	reshade::api::resource dst = reshade::opengl::make_resource_handle(target, object);
+	GLenum base_target = target;
+	switch (target)
+	{
+	case GL_TEXTURE_CUBE_MAP_POSITIVE_X:
+	case GL_TEXTURE_CUBE_MAP_NEGATIVE_X:
+	case GL_TEXTURE_CUBE_MAP_POSITIVE_Y:
+	case GL_TEXTURE_CUBE_MAP_NEGATIVE_Y:
+	case GL_TEXTURE_CUBE_MAP_POSITIVE_Z:
+	case GL_TEXTURE_CUBE_MAP_NEGATIVE_Z:
+		base_target = GL_TEXTURE_CUBE_MAP;
+		break;
+	}
+
+	reshade::api::resource dst = reshade::opengl::make_resource_handle(base_target, object);
+
+	GLuint subresource = level;
+	if (base_target == GL_TEXTURE_CUBE_MAP)
+	{
+		subresource += (target - GL_TEXTURE_CUBE_MAP_POSITIVE_X) * g_current_context->get_resource_desc(dst).texture.levels;
+	}
 
 	const int32_t dst_box[6] = { xoffset, yoffset, zoffset, xoffset + width, yoffset + height, zoffset + depth };
 
 	std::vector<uint8_t> temp_data;
-	return reshade::invoke_addon_event<reshade::addon_event::update_texture_region>(g_current_context, convert_mapped_subresource(format, type, pixels, &temp_data, width, height, depth), dst, level, dst_box);
+	return reshade::invoke_addon_event<reshade::addon_event::update_texture_region>(g_current_context, convert_mapped_subresource(format, type, pixels, &temp_data, width, height, depth), dst, subresource, dst_box);
 }
 
 static void update_framebuffer_object(GLenum target, GLuint fbo)
@@ -4263,10 +4282,12 @@ HOOK_EXPORT void WINAPI glTexImage2D(GLenum target, GLint level, GLint internalf
 
 	// Ignore proxy texture objects
 	const bool proxy_object = (target == GL_PROXY_TEXTURE_2D || target == GL_PROXY_TEXTURE_1D_ARRAY || target == GL_PROXY_TEXTURE_RECTANGLE || target == GL_PROXY_TEXTURE_CUBE_MAP);
+	// Ignore all cube map faces except for the first
+	const bool cube_map_face = (target > GL_TEXTURE_CUBE_MAP_POSITIVE_X && target <= GL_TEXTURE_CUBE_MAP_NEGATIVE_Z);
 
 	if (g_current_context &&
-		level == 0 && !proxy_object && // TODO: Add support for other mipmap levels
-		reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, initial_data.data ? &initial_data : nullptr, reshade::api::resource_usage::general))
+		level == 0 && !proxy_object && !cube_map_face && // TODO: Add support for other mipmap levels
+		reshade::invoke_addon_event<reshade::addon_event::create_resource>(g_current_context, desc, initial_data.data && target != GL_TEXTURE_CUBE_MAP_POSITIVE_X ? &initial_data : nullptr, reshade::api::resource_usage::general))
 	{
 		internalformat = reshade::opengl::convert_format(desc.texture.format, swizzle_mask);
 		width = desc.texture.width;
@@ -4283,8 +4304,8 @@ HOOK_EXPORT void WINAPI glTexImage2D(GLenum target, GLint level, GLint internalf
 	trampoline(target, level, internalformat, width, height, border, format, type, pixels);
 
 #if RESHADE_ADDON
-	if (level == 0 && !proxy_object)
-		init_resource(target, 0, desc, initial_data.data ? &initial_data : nullptr, initial_data.data != pixels);
+	if (level == 0 && !proxy_object && !cube_map_face)
+		init_resource(target, 0, desc, initial_data.data && target != GL_TEXTURE_CUBE_MAP_POSITIVE_X ? &initial_data : nullptr, initial_data.data != pixels);
 #endif
 }
 			void WINAPI glTexImage2DMultisample(GLenum target, GLsizei samples, GLenum internalformat, GLsizei width, GLsizei height, GLboolean fixedsamplelocations)
