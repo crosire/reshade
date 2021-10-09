@@ -188,11 +188,11 @@ extern "C" void WINAPI glGetFloatv(GLenum pname, GLfloat *params);
 #undef glGetIntegerv
 extern "C" void WINAPI glGetIntegerv(GLenum pname, GLint *params);
 #undef glGetError
-extern "C" GLenum WINAPI glGetError();
+extern "C" auto WINAPI glGetError() -> GLenum;
 #undef glGetPointerv
 extern "C" void WINAPI glGetPointerv(GLenum pname, GLvoid **params);
 #undef glGetString
-extern "C" const GLubyte *WINAPI glGetString(GLenum name);
+extern "C" auto WINAPI glGetString(GLenum name) -> const GLubyte *;
 #undef glGetTexImage
 extern "C" void WINAPI glGetTexImage(GLenum target, GLint level, GLenum format, GLenum type, GLvoid *pixels);
 #undef glGetTexLevelParameterfv
@@ -206,9 +206,9 @@ extern "C" void WINAPI glGetTexParameteriv(GLenum target, GLenum pname, GLint *p
 #undef glHint
 extern "C" void WINAPI glHint(GLenum target, GLenum mode);
 #undef glIsEnabled
-extern "C" GLboolean WINAPI glIsEnabled(GLenum cap);
+extern "C" auto WINAPI glIsEnabled(GLenum cap) -> GLboolean;
 #undef glIsTexture
-extern "C" GLboolean WINAPI glIsTexture(GLuint texture);
+extern "C" auto WINAPI glIsTexture(GLuint texture) -> GLboolean;
 #undef glLineWidth
 extern "C" void WINAPI glLineWidth(GLfloat width);
 #undef glLinkProgram
@@ -216,13 +216,13 @@ extern "C" void WINAPI glLinkProgram(GLuint program);
 #undef glLogicOp
 extern "C" void WINAPI glLogicOp(GLenum opcode);
 #undef glMapBuffer
-extern "C" void *WINAPI glMapBuffer(GLenum target, GLenum access);
+extern "C" auto WINAPI glMapBuffer(GLenum target, GLenum access) -> void *;
 #undef glMapBufferRange
-extern "C" void *WINAPI glMapBufferRange(GLenum target, GLintptr offset, GLsizeiptr length, GLenum access);
+extern "C" auto WINAPI glMapBufferRange(GLenum target, GLintptr offset, GLsizeiptr length, GLenum access) -> void *;
 #undef glMapNamedBuffer
-extern "C" void *WINAPI glMapNamedBuffer(GLuint buffer, GLenum access);
+extern "C" auto WINAPI glMapNamedBuffer(GLuint buffer, GLenum access) -> void *;
 #undef glMapNamedBufferRange
-extern "C" void *WINAPI glMapNamedBufferRange(GLuint buffer, GLintptr offset, GLsizeiptr length, GLenum access);
+extern "C" auto WINAPI glMapNamedBufferRange(GLuint buffer, GLintptr offset, GLsizeiptr length, GLenum access) -> void *;
 #undef glMultiDrawArrays
 extern "C" void WINAPI glMultiDrawArrays(GLenum mode, const GLint *first, const GLsizei *count, GLsizei drawcount);
 #undef glMultiDrawArraysIndirect

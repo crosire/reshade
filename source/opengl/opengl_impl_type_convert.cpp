@@ -446,6 +446,268 @@ auto reshade::opengl::convert_format(GLenum internal_format, const GLint swizzle
 		return api::format::bc7_unorm_srgb;
 	}
 }
+auto reshade::opengl::convert_format(GLenum format, GLenum type) -> api::format
+{
+	switch (format)
+	{
+	case GL_RED:
+		switch (type)
+		{
+		case GL_BYTE:
+			return api::format::r8_snorm;
+		case GL_UNSIGNED_BYTE:
+			return api::format::r8_unorm;
+		case GL_SHORT:
+			return api::format::r16_snorm;
+		case GL_UNSIGNED_SHORT:
+			return api::format::r16_unorm;
+		case GL_HALF_FLOAT:
+			return api::format::r16_float;
+		case GL_INT:
+			return api::format::r32_sint;
+		case GL_UNSIGNED_INT:
+			return api::format::r32_uint;
+		case GL_FLOAT:
+			return api::format::r32_float;
+		default:
+			assert(false);
+			return api::format::unknown;
+		}
+	case GL_RED_INTEGER:
+		switch (type)
+		{
+		case GL_BYTE:
+			return api::format::r8_sint;
+		case GL_UNSIGNED_BYTE:
+			return api::format::r8_uint;
+		case GL_SHORT:
+			return api::format::r16_sint;
+		case GL_UNSIGNED_SHORT:
+			return api::format::r16_uint;
+		case GL_INT:
+			return api::format::r32_sint;
+		case GL_UNSIGNED_INT:
+			return api::format::r32_uint;
+		default:
+			assert(false);
+			return api::format::unknown;
+		}
+	case GL_RG:
+		switch (type)
+		{
+		case GL_BYTE:
+			return api::format::r8g8_snorm;
+		case GL_UNSIGNED_BYTE:
+			return api::format::r8g8_unorm;
+		case GL_SHORT:
+			return api::format::r16g16_snorm;
+		case GL_UNSIGNED_SHORT:
+			return api::format::r16g16_unorm;
+		case GL_HALF_FLOAT:
+			return api::format::r16g16_float;
+		case GL_INT:
+			return api::format::r32g32_sint;
+		case GL_UNSIGNED_INT:
+			return api::format::r32g32_uint;
+		case GL_FLOAT:
+			return api::format::r32g32_float;
+		default:
+			assert(false);
+			return api::format::unknown;
+		}
+	case GL_RG_INTEGER:
+		switch (type)
+		{
+		case GL_BYTE:
+			return api::format::r8g8_sint;
+		case GL_UNSIGNED_BYTE:
+			return api::format::r8g8_uint;
+		case GL_SHORT:
+			return api::format::r16g16_sint;
+		case GL_UNSIGNED_SHORT:
+			return api::format::r16g16_uint;
+		case GL_INT:
+			return api::format::r32g32_sint;
+		case GL_UNSIGNED_INT:
+			return api::format::r32g32_uint;
+		default:
+			assert(false);
+			return api::format::unknown;
+		}
+	case GL_RGB:
+	case GL_RGB_INTEGER:
+		switch (type)
+		{
+		case GL_UNSIGNED_SHORT_5_6_5:
+			return api::format::b5g6r5_unorm;
+		case GL_UNSIGNED_SHORT_5_6_5_REV:
+			assert(false);
+			return api::format::unknown;
+		case GL_FLOAT:
+			return api::format::r32g32b32_float;
+		default:
+			assert(false);
+			return api::format::unknown;
+		}
+	case GL_BGR:
+	case GL_BGR_INTEGER:
+		switch (type)
+		{
+		case GL_UNSIGNED_SHORT_5_6_5:
+			assert(false);
+			return api::format::unknown;
+		case GL_UNSIGNED_SHORT_5_6_5_REV:
+			return api::format::b5g6r5_unorm;
+		case GL_FLOAT:
+		default:
+			assert(false);
+			return api::format::unknown;
+		}
+	case GL_RGBA:
+		switch (type)
+		{
+		case GL_BYTE:
+			return api::format::r8g8b8a8_snorm;
+		case GL_UNSIGNED_BYTE:
+			return api::format::r8g8b8a8_unorm;
+		case GL_SHORT:
+			return api::format::r16g16b16a16_snorm;
+		case GL_UNSIGNED_SHORT:
+			return api::format::r16g16b16a16_unorm;
+		case GL_UNSIGNED_SHORT_4_4_4_4:
+			return api::format::b4g4r4a4_unorm;
+		case GL_UNSIGNED_SHORT_4_4_4_4_REV:
+			assert(false);
+			return api::format::unknown;
+		case GL_UNSIGNED_SHORT_5_5_5_1:
+			return api::format::b5g5r5a1_unorm;
+		case GL_UNSIGNED_SHORT_1_5_5_5_REV:
+			assert(false);
+			return api::format::unknown;
+		case GL_HALF_FLOAT:
+			return api::format::r16g16b16a16_float;
+		case GL_INT:
+			return api::format::r32g32b32a32_sint;
+		case GL_UNSIGNED_INT:
+			return api::format::r32g32b32a32_uint;
+		case GL_UNSIGNED_INT_8_8_8_8:
+			return api::format::b8g8r8a8_unorm;
+		case GL_UNSIGNED_INT_8_8_8_8_REV:
+			return api::format::r8g8b8a8_unorm;
+		case GL_UNSIGNED_INT_10_10_10_2:
+			return api::format::b10g10r10a2_unorm;
+		case GL_UNSIGNED_INT_2_10_10_10_REV:
+			return api::format::r10g10b10a2_unorm;
+		case GL_FLOAT:
+			return api::format::r32g32b32a32_float;
+		default:
+			assert(false);
+			return api::format::unknown;
+		}
+	case GL_BGRA:
+		switch (type)
+		{
+		case GL_BYTE:
+			assert(false);
+			return api::format::unknown;
+		case GL_UNSIGNED_BYTE:
+			return api::format::b8g8r8a8_unorm;
+		case GL_SHORT:
+		case GL_UNSIGNED_SHORT:
+		case GL_UNSIGNED_SHORT_4_4_4_4:
+			assert(false);
+			return api::format::unknown;
+		case GL_UNSIGNED_SHORT_4_4_4_4_REV:
+			return api::format::b4g4r4a4_unorm;
+		case GL_UNSIGNED_SHORT_5_5_5_1:
+			assert(false);
+			return api::format::unknown;
+		case GL_UNSIGNED_SHORT_1_5_5_5_REV:
+			return api::format::b5g5r5a1_unorm;
+		case GL_INT:
+		case GL_UNSIGNED_INT:
+			assert(false);
+			return api::format::unknown;
+		case GL_UNSIGNED_INT_8_8_8_8:
+			return api::format::r8g8b8a8_unorm;
+		case GL_UNSIGNED_INT_8_8_8_8_REV:
+			return api::format::b8g8r8a8_unorm;
+		case GL_UNSIGNED_INT_10_10_10_2:
+			return api::format::r10g10b10a2_unorm;
+		case GL_UNSIGNED_INT_2_10_10_10_REV:
+			return api::format::b10g10r10a2_unorm;
+		case GL_FLOAT:
+		default:
+			assert(false);
+			return api::format::unknown;
+		}
+	case GL_RGBA_INTEGER:
+		switch (type)
+		{
+		case GL_BYTE:
+			return api::format::r8g8b8a8_sint;
+		case GL_UNSIGNED_BYTE:
+			return api::format::r8g8b8a8_uint;
+		case GL_SHORT:
+			return api::format::r16g16b16a16_sint;
+		case GL_UNSIGNED_SHORT:
+			return api::format::r16g16b16a16_uint;
+		case GL_INT:
+			return api::format::r32g32b32a32_sint;
+		case GL_UNSIGNED_INT:
+			return api::format::r32g32b32a32_uint;
+		default:
+			assert(false);
+			return api::format::unknown;
+		}
+	case GL_BGRA_INTEGER:
+		switch (type)
+		{
+		case GL_BYTE:
+		case GL_UNSIGNED_BYTE:
+		case GL_SHORT:
+		case GL_UNSIGNED_SHORT:
+		case GL_INT:
+		case GL_UNSIGNED_INT:
+		default:
+			assert(false);
+			return api::format::unknown;
+		}
+	case GL_STENCIL_INDEX:
+		switch (type)
+		{
+		case GL_UNSIGNED_BYTE:
+			return api::format::s8_uint;
+		default:
+			assert(false);
+			return api::format::unknown;
+		}
+	case GL_DEPTH_COMPONENT:
+		switch (type)
+		{
+		case GL_UNSIGNED_SHORT:
+			return api::format::d16_unorm;
+		case GL_FLOAT:
+			return api::format::d32_float;
+		default:
+			assert(false);
+			return api::format::unknown;
+		}
+	case GL_DEPTH_STENCIL:
+		switch (type)
+		{
+		case GL_UNSIGNED_INT_24_8:
+			return api::format::d24_unorm_s8_uint;
+		case GL_FLOAT_32_UNSIGNED_INT_24_8_REV:
+			return api::format::d32_float_s8_uint;
+		default:
+			assert(false);
+			return api::format::unknown;
+		}
+	default:
+		return convert_format(format);
+	}
+}
 auto reshade::opengl::convert_attrib_format(api::format format, GLint &size, GLboolean &normalized) -> GLenum
 {
 	size = 0;
@@ -592,7 +854,7 @@ auto reshade::opengl::convert_upload_format(GLenum internal_format, GLenum &type
 		return GL_RGBA;
 	case GL_RGB10_A2UI:
 	case GL_RGB10_A2:
-		type = GL_UNSIGNED_INT_10_10_10_2;
+		type = GL_UNSIGNED_INT_2_10_10_10_REV;
 		return GL_RGBA;
 	case GL_R16UI:
 	case GL_R16F:
@@ -1006,7 +1268,7 @@ reshade::api::resource_view_type reshade::opengl::convert_resource_view_type(GLe
 }
 reshade::api::resource_view_desc reshade::opengl::convert_resource_view_desc(GLenum target, GLenum internal_format, GLintptr offset, GLsizeiptr size)
 {
-	assert(convert_resource_view_type(target) == api::resource_view_type::buffer);
+	assert(convert_resource_view_type(target) == api::resource_view_type::buffer && size != 0);
 	return api::resource_view_desc(convert_format(internal_format), offset, size);
 }
 reshade::api::resource_view_desc reshade::opengl::convert_resource_view_desc(GLenum target, GLenum internal_format, GLuint minlevel, GLuint numlevels, GLuint minlayer, GLuint numlayers)
