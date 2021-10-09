@@ -85,7 +85,7 @@ static inline bool filter_texture(device *device, const resource_desc &desc, con
 		return false; // Ignore resources that are not static 2D textures that can be used as shader input
 
 	if (device->get_api() != device_api::opengl && (desc.usage & (resource_usage::shader_resource | resource_usage::depth_stencil | resource_usage::render_target)) != resource_usage::shader_resource)
-		return false; // Ignore resources that can be used as render targets
+		return false; // Ignore resources that can be used as render targets (except in OpenGL, since all textures have the render target usage flag there)
 
 	if (box != nullptr && (
 		static_cast<uint32_t>(box[3] - box[0]) != desc.texture.width ||
@@ -135,11 +135,11 @@ static bool on_copy_texture(command_list *cmd_list, resource src, uint32_t src_s
 	bool replace = false;
 
 	subresource_data new_data;
-	if (device->map_resource(src, src_subresource, nullptr, map_access::read_only, &new_data))
+	if (device->map_texture_region(src, src_subresource, nullptr, map_access::read_only, &new_data))
 	{
 		replace = replace_texture(dst_desc, new_data);
 
-		device->unmap_resource(src, src_subresource);
+		device->unmap_texture_region(src, src_subresource);
 	}
 
 	if (replace)
@@ -219,8 +219,8 @@ void register_addon_texmod_replace()
 
 	reshade::register_event<reshade::addon_event::copy_texture_region>(on_copy_texture);
 	reshade::register_event<reshade::addon_event::update_texture_region>(on_update_texture);
-	reshade::register_event<reshade::addon_event::map_resource>(on_map_texture);
-	reshade::register_event<reshade::addon_event::unmap_resource>(on_unmap_texture);
+	reshade::register_event<reshade::addon_event::map_texture_region>(on_map_texture);
+	reshade::register_event<reshade::addon_event::unmap_texture_region>(on_unmap_texture);
 }
 void unregister_addon_texmod_replace()
 {
@@ -229,8 +229,8 @@ void unregister_addon_texmod_replace()
 
 	reshade::unregister_event<reshade::addon_event::copy_texture_region>(on_copy_texture);
 	reshade::unregister_event<reshade::addon_event::update_texture_region>(on_update_texture);
-	reshade::unregister_event<reshade::addon_event::map_resource>(on_map_texture);
-	reshade::unregister_event<reshade::addon_event::unmap_resource>(on_unmap_texture);
+	reshade::unregister_event<reshade::addon_event::map_texture_region>(on_map_texture);
+	reshade::unregister_event<reshade::addon_event::unmap_texture_region>(on_unmap_texture);
 }
 
 #ifdef _WINDLL

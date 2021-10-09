@@ -2935,19 +2935,13 @@ HOOK_EXPORT void WINAPI glLogicOp(GLenum opcode)
 	void *result = trampoline(target, access);
 #if RESHADE_ADDON
 	if (g_current_context &&
-		reshade::has_addon_event<reshade::addon_event::map_resource>())
+		reshade::has_addon_event<reshade::addon_event::map_buffer_region>())
 	{
 		GLint object = 0;
 		gl3wGetIntegerv(reshade::opengl::get_binding_for_target(target), &object);
-		GLint max_size = 0;
-		glGetBufferParameteriv(target, GL_BUFFER_SIZE, &max_size);
 
-		reshade::api::subresource_data data;
-		data.data = result;
-		data.row_pitch = max_size;
-		data.slice_pitch = data.row_pitch;
-		reshade::invoke_addon_event<reshade::addon_event::map_resource>(g_current_context, reshade::opengl::make_resource_handle(GL_BUFFER, object), 0, nullptr, reshade::opengl::convert_access_flags(access), &data);
-		result = data.data;
+		reshade::invoke_addon_event<reshade::addon_event::map_buffer_region>(
+			g_current_context, reshade::opengl::make_resource_handle(GL_BUFFER, object), 0, std::numeric_limits<uint64_t>::max(), reshade::opengl::convert_access_flags(access), &result);
 	}
 #endif
 	return result;
@@ -2958,27 +2952,13 @@ HOOK_EXPORT void WINAPI glLogicOp(GLenum opcode)
 	void *result = trampoline(target, offset, length, access);
 #if RESHADE_ADDON
 	if (g_current_context &&
-		reshade::has_addon_event<reshade::addon_event::map_resource>())
+		reshade::has_addon_event<reshade::addon_event::map_buffer_region>())
 	{
 		GLint object = 0;
 		gl3wGetIntegerv(reshade::opengl::get_binding_for_target(target), &object);
 
-		int32_t box[6];
-		assert(offset <= static_cast<GLintptr>(std::numeric_limits<int32_t>::max()));
-		box[0] = static_cast<int32_t>(offset);
-		box[1] = 0;
-		box[2] = 0;
-		assert(length <= static_cast<GLsizeiptr>(std::numeric_limits<int32_t>::max()));
-		box[3] = static_cast<int32_t>(length);
-		box[4] = 1;
-		box[5] = 1;
-
-		reshade::api::subresource_data data;
-		data.data = result;
-		data.row_pitch = static_cast<uint32_t>(length);
-		data.slice_pitch = data.row_pitch;
-		reshade::invoke_addon_event<reshade::addon_event::map_resource>(g_current_context, reshade::opengl::make_resource_handle(GL_BUFFER, object), 0, box, reshade::opengl::convert_access_flags(access), &data);
-		result = data.data;
+		reshade::invoke_addon_event<reshade::addon_event::map_buffer_region>(
+			g_current_context, reshade::opengl::make_resource_handle(GL_BUFFER, object), offset, length, reshade::opengl::convert_access_flags(access), &result);
 	}
 #endif
 	return result;
@@ -2989,17 +2969,10 @@ HOOK_EXPORT void WINAPI glLogicOp(GLenum opcode)
 	void *result = trampoline(buffer, access);
 #if RESHADE_ADDON
 	if (g_current_context &&
-		reshade::has_addon_event<reshade::addon_event::map_resource>())
+		reshade::has_addon_event<reshade::addon_event::map_buffer_region>())
 	{
-		GLint max_size = 0;
-		glGetNamedBufferParameteriv(buffer, GL_BUFFER_SIZE, &max_size);
-
-		reshade::api::subresource_data data;
-		data.data = result;
-		data.row_pitch = max_size;
-		data.slice_pitch = data.row_pitch;
-		reshade::invoke_addon_event<reshade::addon_event::map_resource>(g_current_context, reshade::opengl::make_resource_handle(GL_BUFFER, buffer), 0, nullptr, reshade::opengl::convert_access_flags(access), &data);
-		result = data.data;
+		reshade::invoke_addon_event<reshade::addon_event::map_buffer_region>(
+			g_current_context, reshade::opengl::make_resource_handle(GL_BUFFER, buffer), 0, std::numeric_limits<uint64_t>::max(), reshade::opengl::convert_access_flags(access), &result);
 	}
 #endif
 	return result;
@@ -3010,24 +2983,10 @@ HOOK_EXPORT void WINAPI glLogicOp(GLenum opcode)
 	void *result = trampoline(buffer, offset, length, access);
 #if RESHADE_ADDON
 	if (g_current_context &&
-		reshade::has_addon_event<reshade::addon_event::map_resource>())
+		reshade::has_addon_event<reshade::addon_event::map_buffer_region>())
 	{
-		int32_t box[6];
-		assert(offset <= static_cast<GLintptr>(std::numeric_limits<int32_t>::max()));
-		box[0] = static_cast<int32_t>(offset);
-		box[1] = 0;
-		box[2] = 0;
-		assert(length <= static_cast<GLsizeiptr>(std::numeric_limits<int32_t>::max()));
-		box[3] = static_cast<int32_t>(length);
-		box[4] = 1;
-		box[5] = 1;
-
-		reshade::api::subresource_data data;
-		data.data = result;
-		data.row_pitch = static_cast<uint32_t>(length);
-		data.slice_pitch = data.row_pitch;
-		reshade::invoke_addon_event<reshade::addon_event::map_resource>(g_current_context, reshade::opengl::make_resource_handle(GL_BUFFER, buffer), 0, box, reshade::opengl::convert_access_flags(access), &data);
-		result = data.data;
+		reshade::invoke_addon_event<reshade::addon_event::map_buffer_region>(
+			g_current_context, reshade::opengl::make_resource_handle(GL_BUFFER, buffer), offset, length, reshade::opengl::convert_access_flags(access), &result);
 	}
 #endif
 	return result;
@@ -5143,12 +5102,12 @@ HOOK_EXPORT void WINAPI glTranslatef(GLfloat x, GLfloat y, GLfloat z)
 {
 #if RESHADE_ADDON
 	if (g_current_context &&
-		reshade::has_addon_event<reshade::addon_event::unmap_resource>())
+		reshade::has_addon_event<reshade::addon_event::unmap_buffer_region>())
 	{
 		GLint object = 0;
 		gl3wGetIntegerv(reshade::opengl::get_binding_for_target(target), &object);
 
-		reshade::invoke_addon_event<reshade::addon_event::unmap_resource>(g_current_context, reshade::opengl::make_resource_handle(GL_BUFFER, object), 0);
+		reshade::invoke_addon_event<reshade::addon_event::unmap_buffer_region>(g_current_context, reshade::opengl::make_resource_handle(GL_BUFFER, object));
 	}
 #endif
 
@@ -5159,9 +5118,9 @@ HOOK_EXPORT void WINAPI glTranslatef(GLfloat x, GLfloat y, GLfloat z)
 {
 #if RESHADE_ADDON
 	if (g_current_context &&
-		reshade::has_addon_event<reshade::addon_event::unmap_resource>())
+		reshade::has_addon_event<reshade::addon_event::unmap_buffer_region>())
 	{
-		reshade::invoke_addon_event<reshade::addon_event::unmap_resource>(g_current_context, reshade::opengl::make_resource_handle(GL_BUFFER, buffer), 0);
+		reshade::invoke_addon_event<reshade::addon_event::unmap_buffer_region>(g_current_context, reshade::opengl::make_resource_handle(GL_BUFFER, buffer));
 	}
 #endif
 

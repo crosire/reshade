@@ -87,9 +87,6 @@ static void unpack_bc4_value(uint8_t alpha_0, uint8_t alpha_1, uint32_t alpha_in
 
 bool dump_texture(const resource_desc &desc, const subresource_data &data, bool force_dump = false)
 {
-	if (desc.texture.height <= 8 || (desc.texture.width == 128 && desc.texture.height == 32))
-		return false; // Filter out small textures, which are commonly just lookup tables that are not interesting to save
-
 	bool dump_all = false;
 	std::filesystem::path dump_path;
 
@@ -362,9 +359,10 @@ bool dump_texture(command_queue *queue, resource tex, const resource_desc &desc)
 {
 	device *const device = queue->get_device();
 
-	uint32_t texture_pitch = format_row_pitch(desc.texture.format, desc.texture.width);
+	uint32_t row_pitch = format_row_pitch(desc.texture.format, desc.texture.width);
 	if (device->get_api() == device_api::d3d12) // See D3D12_TEXTURE_DATA_PITCH_ALIGNMENT
-		texture_pitch = (texture_pitch + 255) & ~255;
+		row_pitch = (row_pitch + 255) & ~255;
+	const uint32_t slice_pitch = format_slice_pitch(desc.texture.format, row_pitch, desc.texture.height);
 
 	resource intermediate;
 	if (desc.heap != memory_heap::gpu_only)
@@ -377,7 +375,7 @@ bool dump_texture(command_queue *queue, resource tex, const resource_desc &desc)
 		if ((desc.usage & resource_usage::copy_source) != resource_usage::copy_source)
 			return false;
 
-		if (!device->create_resource(resource_desc(texture_pitch * desc.texture.height, memory_heap::gpu_to_cpu, resource_usage::copy_dest), nullptr, resource_usage::copy_dest, &intermediate))
+		if (!device->create_resource(resource_desc(slice_pitch, memory_heap::gpu_to_cpu, resource_usage::copy_dest), nullptr, resource_usage::copy_dest, &intermediate))
 		{
 			reshade::log_message(1, "Failed to create system memory buffer for texture dumping!");
 			return false;
@@ -407,15 +405,29 @@ bool dump_texture(command_queue *queue, resource tex, const resource_desc &desc)
 
 	queue->wait_idle();
 
-	if (subresource_data mapped_data;
-		device->map_resource(intermediate, 0, nullptr, map_access::read_only, &mapped_data))
+	subresource_data mapped_data = {};
+	if (desc.heap == memory_heap::gpu_only &&
+		device->check_capability(device_caps::copy_buffer_to_texture))
 	{
-		if (device->check_capability(device_caps::copy_buffer_to_texture))
-			mapped_data.row_pitch = texture_pitch;
+		device->map_buffer_region(intermediate, 0, std::numeric_limits<uint64_t>::max(), map_access::read_only, &mapped_data.data);
 
+		mapped_data.row_pitch = row_pitch;
+		mapped_data.slice_pitch = slice_pitch;
+	}
+	else
+	{
+		device->map_texture_region(intermediate, 0, nullptr, map_access::read_only, &mapped_data);
+	}
+
+	if (mapped_data.data != nullptr)
+	{
 		dump_texture(desc, mapped_data, true);
 
-		device->unmap_resource(intermediate, 0);
+		if (desc.heap == memory_heap::gpu_only &&
+			device->check_capability(device_caps::copy_buffer_to_texture))
+			device->unmap_buffer_region(intermediate);
+		else
+			device->unmap_texture_region(intermediate, 0);
 	}
 
 	if (intermediate != tex)
@@ -436,7 +448,7 @@ static inline bool filter_texture(device *device, const resource_desc &desc, con
 		return false; // Ignore resources that are not static 2D textures that can be used as shader input
 
 	if (device->get_api() != device_api::opengl && (desc.usage & (resource_usage::shader_resource | resource_usage::depth_stencil | resource_usage::render_target)) != resource_usage::shader_resource)
-		return false; // Ignore resources that can be used as render targets
+		return false; // Ignore resources that can be used as render targets (except in OpenGL, since all textures have the render target usage flag there)
 
 	if (box != nullptr && (
 		static_cast<uint32_t>(box[3] - box[0]) != desc.texture.width ||
@@ -446,6 +458,9 @@ static inline bool filter_texture(device *device, const resource_desc &desc, con
 
 	if (desc.texture.samples != 1)
 		return false;
+
+	if (desc.texture.height <= 8 || (desc.texture.width == 128 && desc.texture.height == 32))
+		return false; // Filter out small textures, which are commonly just lookup tables that are not interesting to save
 
 	return true;
 }
@@ -475,11 +490,11 @@ static bool on_copy_texture(command_list *cmd_list, resource src, uint32_t src_s
 
 	// Map source buffer to get the contents that will be copied into the target texture (this should succeed, since it was already checked that the buffer is in host memory)
 	if (subresource_data mapped_data;
-		device->map_resource(src, src_subresource, nullptr, map_access::read_only, &mapped_data))
+		device->map_texture_region(src, src_subresource, nullptr, map_access::read_only, &mapped_data))
 	{
 		dump_texture(dst_desc, mapped_data);
 
-		device->unmap_resource(src, src_subresource);
+		device->unmap_texture_region(src, src_subresource);
 	}
 
 	return false;
@@ -498,7 +513,7 @@ static bool on_update_texture(device *device, const subresource_data &data, reso
 	return false;
 }
 
-// Keep track of current resource between 'map_resource' and 'unmap_resource' event invocations
+// Keep track of current resource between 'map_texture_region' and 'unmap_texture_region' event invocations
 static thread_local struct {
 	resource res = { 0 };
 	resource_desc desc;
@@ -533,16 +548,16 @@ void register_addon_texmod_dump()
 	reshade::register_event<reshade::addon_event::init_resource>(on_init_texture);
 	reshade::register_event<reshade::addon_event::copy_texture_region>(on_copy_texture);
 	reshade::register_event<reshade::addon_event::update_texture_region>(on_update_texture);
-	reshade::register_event<reshade::addon_event::map_resource>(on_map_texture);
-	reshade::register_event<reshade::addon_event::unmap_resource>(on_unmap_texture);
+	reshade::register_event<reshade::addon_event::map_texture_region>(on_map_texture);
+	reshade::register_event<reshade::addon_event::unmap_texture_region>(on_unmap_texture);
 }
 void unregister_addon_texmod_dump()
 {
 	reshade::unregister_event<reshade::addon_event::init_resource>(on_init_texture);
 	reshade::unregister_event<reshade::addon_event::copy_texture_region>(on_copy_texture);
 	reshade::unregister_event<reshade::addon_event::update_texture_region>(on_update_texture);
-	reshade::unregister_event<reshade::addon_event::map_resource>(on_map_texture);
-	reshade::unregister_event<reshade::addon_event::unmap_resource>(on_unmap_texture);
+	reshade::unregister_event<reshade::addon_event::map_texture_region>(on_map_texture);
+	reshade::unregister_event<reshade::addon_event::unmap_texture_region>(on_unmap_texture);
 }
 
 #ifdef _WINDLL

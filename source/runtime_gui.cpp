@@ -3424,11 +3424,9 @@ void reshade::runtime::render_imgui_draw_data(api::command_list *cmd_list, ImDra
 		_imgui_num_vertices[buffer_index] = new_size;
 	}
 
-	if (api::subresource_data mapped_data;
-		_device->map_resource(_imgui_indices[buffer_index], 0, nullptr, api::map_access::write_only, &mapped_data))
+	if (ImDrawIdx *idx_dst;
+		_device->map_buffer_region(_imgui_indices[buffer_index], 0, std::numeric_limits<uint64_t>::max(), api::map_access::write_only, reinterpret_cast<void **>(&idx_dst)))
 	{
-		auto idx_dst = static_cast<ImDrawIdx *>(mapped_data.data);
-
 		for (int n = 0; n < draw_data->CmdListsCount; ++n)
 		{
 			const ImDrawList *const draw_list = draw_data->CmdLists[n];
@@ -3436,13 +3434,11 @@ void reshade::runtime::render_imgui_draw_data(api::command_list *cmd_list, ImDra
 			idx_dst += draw_list->IdxBuffer.Size;
 		}
 
-		_device->unmap_resource(_imgui_indices[buffer_index], 0);
+		_device->unmap_buffer_region(_imgui_indices[buffer_index]);
 	}
-	if (api::subresource_data mapped_data;
-		_device->map_resource(_imgui_vertices[buffer_index], 0, nullptr, api::map_access::write_only, &mapped_data))
+	if (ImDrawVert *vtx_dst;
+		_device->map_buffer_region(_imgui_vertices[buffer_index], 0, std::numeric_limits<uint64_t>::max(), api::map_access::write_only, reinterpret_cast<void **>(&vtx_dst)))
 	{
-		auto vtx_dst = static_cast<ImDrawVert *>(mapped_data.data);
-
 		for (int n = 0; n < draw_data->CmdListsCount; ++n)
 		{
 			const ImDrawList *const draw_list = draw_data->CmdLists[n];
@@ -3450,7 +3446,7 @@ void reshade::runtime::render_imgui_draw_data(api::command_list *cmd_list, ImDra
 			vtx_dst += draw_list->VtxBuffer.Size;
 		}
 
-		_device->unmap_resource(_imgui_vertices[buffer_index], 0);
+		_device->unmap_buffer_region(_imgui_vertices[buffer_index]);
 	}
 
 	cmd_list->begin_render_pass(pass, fbo);

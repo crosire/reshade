@@ -164,6 +164,39 @@ static void convert_misc_flags_to_resource_flags(UINT misc_flags, reshade::api::
 		flags |= api::resource_flags::sparse_binding;
 }
 
+auto reshade::d3d11::convert_access_flags(api::map_access access) -> D3D11_MAP
+{
+	switch (access)
+	{
+	case api::map_access::read_only:
+		return D3D11_MAP_READ;
+	case api::map_access::write_only:
+		// Use no overwrite flag to simulate D3D12 behavior of there only being one allocation that backs a buffer (instead of the runtime managing multiple ones behind the scenes)
+		return D3D11_MAP_WRITE_NO_OVERWRITE;
+	case api::map_access::read_write:
+		return D3D11_MAP_READ_WRITE;
+	case api::map_access::write_discard:
+		return D3D11_MAP_WRITE_DISCARD;
+	}
+	return static_cast<D3D11_MAP>(0);
+}
+reshade::api::map_access reshade::d3d11::convert_access_flags(D3D11_MAP map_type)
+{
+	switch (map_type)
+	{
+	case D3D11_MAP_READ:
+		return api::map_access::read_only;
+	case D3D11_MAP_WRITE:
+	case D3D11_MAP_WRITE_NO_OVERWRITE:
+		return api::map_access::write_only;
+	case D3D11_MAP_READ_WRITE:
+		return api::map_access::read_write;
+	case D3D11_MAP_WRITE_DISCARD:
+		return api::map_access::write_discard;
+	}
+	return static_cast<api::map_access>(0);
+}
+
 void reshade::d3d11::convert_sampler_desc(const api::sampler_desc &desc, D3D11_SAMPLER_DESC &internal_desc)
 {
 	internal_desc.Filter = static_cast<D3D11_FILTER>(desc.filter);

@@ -208,15 +208,25 @@ namespace reshade
 		destroy_framebuffer,
 
 		/// <summary>
-		/// Called after 'IDirect3DResource9::Lock(Rect/Box)', 'ID3D10Resource::Map', 'ID3D11DeviceContext::Map', 'ID3D12Resource::Map' or 'glMap(Named)Buffer(Range)'.
+		/// Called after 'IDirect3DVertex/IndexBuffer9::Lock', 'ID3D10Resource::Map', 'ID3D11DeviceContext::Map', 'ID3D12Resource::Map' or 'glMap(Named)Buffer(Range)'.
+		/// <para>Callback function signature: <c>void (api::device *device, resource resource, uint64_t offset, uint64_t size, map_access access, void **data)</c></para>
+		/// </summary>
+		map_buffer_region,
+		/// <summary>
+		/// Called before 'IDirect3DVertex/IndexBuffer9::Unlock', 'ID3D10Resource::Unmap', 'ID3D11DeviceContext::Unmap', 'ID3D12Resource::Unmap' or 'glUnmap(Named)Buffer'.
+		/// <para>Callback function signature: <c>void (api::device *device, resource resource)</c></para>
+		/// </summary>
+		unmap_buffer_region,
+		/// <summary>
+		/// Called after 'IDirect3D(Cube/Volume)Texture/Surface9::LockRect/Box', 'ID3D10Resource::Map', 'ID3D11DeviceContext::Map' or 'ID3D12Resource::Map'.
 		/// <para>Callback function signature: <c>void (api::device *device, resource resource, uint32_t subresource, const int32_t box[6], map_access access, subresource_data *data)</c></para>
 		/// </summary>
-		map_resource,
+		map_texture_region,
 		/// <summary>
-		/// Called before 'IDirect3DResource9::Unlock(Rect/Box)', 'ID3D10Resource::Unmap', 'ID3D11DeviceContext::Unmap', 'ID3D12Resource::Unmap' or 'glUnmap(Named)Buffer'.
+		/// Called before 'IDirect3D(Cube/Volume)Texture/Surface9::UnlockRect/Box', 'ID3D10Resource::Unmap', 'ID3D11DeviceContext::Unmap' or 'ID3D12Resource::Unmap'.
 		/// <para>Callback function signature: <c>void (api::device *device, resource resource, uint32_t subresource)</c></para>
 		/// </summary>
-		unmap_resource,
+		unmap_texture_region,
 
 		/// <summary>
 		/// Called before 'ID3D10Device::UpdateSubresource', 'ID3D11DeviceContext::UpdateSubresource' or 'gl(Named)BufferSubData'.
@@ -552,11 +562,13 @@ namespace reshade
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::create_framebuffer, bool, api::device *device, api::framebuffer_desc &desc);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::destroy_framebuffer, void, api::device *device, api::framebuffer fbo);
 
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::map_resource, void, api::device *device, api::resource resource, uint32_t subresource, const int32_t box[6], api::map_access access, api::subresource_data *data);
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::unmap_resource, void, api::device *device, api::resource resource, uint32_t subresource);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::map_buffer_region, void, api::device *device, api::resource resource, uint64_t offset, uint64_t size, api::map_access access, void **data);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::unmap_buffer_region, void, api::device *device, api::resource resource);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::map_texture_region, void, api::device *device, api::resource resource, uint32_t subresource, const int32_t box[6], api::map_access access, api::subresource_data *data);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::unmap_texture_region, void, api::device *device, api::resource resource, uint32_t subresource);
 
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::update_buffer_region, bool, api::device *device, const void *data, api::resource dest, uint64_t dest_offset, uint64_t size);
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::update_texture_region, bool, api::device *device, const api::subresource_data &data, api::resource dest, uint32_t dest_subresource, const int32_t dest_box[6]);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::update_buffer_region, bool, api::device *device, const void *data, api::resource resource, uint64_t offset, uint64_t size);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::update_texture_region, bool, api::device *device, const api::subresource_data &data, api::resource resource, uint32_t subresource, const int32_t box[6]);
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::update_descriptor_sets, bool, api::device *device, uint32_t count, const api::descriptor_set_update *updates);
 

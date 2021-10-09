@@ -761,7 +761,33 @@ void reshade::d3d12::device_impl::destroy_descriptor_sets(uint32_t count, const 
 	}
 }
 
-bool reshade::d3d12::device_impl::map_resource(api::resource resource, uint32_t subresource, const int32_t box[6], api::map_access access, api::subresource_data *out_data)
+bool reshade::d3d12::device_impl::map_buffer_region(api::resource resource, uint64_t offset, uint64_t, api::map_access access, void **out_data)
+{
+	if (out_data == nullptr)
+		return false;
+
+	assert(resource.handle != 0);
+
+	const D3D12_RANGE no_read = { 0, 0 };
+
+	if (SUCCEEDED(reinterpret_cast<ID3D12Resource *>(resource.handle)->Map(
+		0, access == api::map_access::write_only || access == api::map_access::write_discard ? &no_read : nullptr, out_data)))
+	{
+		*out_data = static_cast<uint8_t *>(*out_data) + offset;
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+void reshade::d3d12::device_impl::unmap_buffer_region(api::resource resource)
+{
+	assert(resource.handle != 0);
+
+	reinterpret_cast<ID3D12Resource *>(resource.handle)->Unmap(0, nullptr);
+}
+bool reshade::d3d12::device_impl::map_texture_region(api::resource resource, uint32_t subresource, const int32_t box[6], api::map_access access, api::subresource_data *out_data)
 {
 	if (out_data == nullptr)
 		return false;
@@ -770,7 +796,7 @@ bool reshade::d3d12::device_impl::map_resource(api::resource resource, uint32_t 
 	out_data->row_pitch = 0;
 	out_data->slice_pitch = 0;
 
-	// Mapping a subset of a resource is not supported
+	// Mapping a subset of a texture is not supported
 	if (box != nullptr)
 		return false;
 
@@ -787,20 +813,17 @@ bool reshade::d3d12::device_impl::map_resource(api::resource resource, uint32_t 
 	return SUCCEEDED(reinterpret_cast<ID3D12Resource *>(resource.handle)->Map(
 		subresource, access == api::map_access::write_only || access == api::map_access::write_discard ? &no_read : nullptr, &out_data->data));
 }
-void reshade::d3d12::device_impl::unmap_resource(api::resource resource, uint32_t subresource)
+void reshade::d3d12::device_impl::unmap_texture_region(api::resource resource, uint32_t subresource)
 {
 	assert(resource.handle != 0);
 
 	reinterpret_cast<ID3D12Resource *>(resource.handle)->Unmap(subresource, nullptr);
 }
 
-void reshade::d3d12::device_impl::update_buffer_region(const void *data, api::resource dst, uint64_t dst_offset, uint64_t size)
+void reshade::d3d12::device_impl::update_buffer_region(const void *data, api::resource resource, uint64_t offset, uint64_t size)
 {
-	assert(dst.handle != 0);
+	assert(resource.handle != 0);
 	assert(!_queues.empty());
-
-	const auto dst_resource = reinterpret_cast<ID3D12Resource *>(dst.handle);
-	const D3D12_RESOURCE_DESC dst_desc = dst_resource->GetDesc();
 
 	// Allocate host memory for upload
 	D3D12_RESOURCE_DESC intermediate_desc = { D3D12_RESOURCE_DIMENSION_BUFFER };
@@ -837,7 +860,7 @@ void reshade::d3d12::device_impl::update_buffer_region(const void *data, api::re
 		const auto immediate_command_list = static_cast<command_list_immediate_impl *>(queue->get_immediate_command_list());
 		if (immediate_command_list != nullptr)
 		{
-			immediate_command_list->copy_buffer_region(api::resource { reinterpret_cast<uintptr_t>(intermediate.get()) }, 0, dst, dst_offset, size);
+			immediate_command_list->copy_buffer_region(api::resource { reinterpret_cast<uintptr_t>(intermediate.get()) }, 0, resource, offset, size);
 
 			// Wait for command to finish executing before destroying the upload buffer
 			immediate_command_list->flush_and_wait(queue->_orig);
@@ -845,27 +868,26 @@ void reshade::d3d12::device_impl::update_buffer_region(const void *data, api::re
 		}
 	}
 }
-void reshade::d3d12::device_impl::update_texture_region(const api::subresource_data &data, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6])
+void reshade::d3d12::device_impl::update_texture_region(const api::subresource_data &data, api::resource resource, uint32_t subresource, const int32_t box[6])
 {
-	assert(dst.handle != 0);
+	assert(resource.handle != 0);
 	assert(!_queues.empty());
 
-	const auto dst_resource = reinterpret_cast<ID3D12Resource *>(dst.handle);
-	const D3D12_RESOURCE_DESC dst_desc = dst_resource->GetDesc();
+	const D3D12_RESOURCE_DESC desc = reinterpret_cast<ID3D12Resource *>(resource.handle)->GetDesc();
 
-	UINT width = static_cast<UINT>(dst_desc.Width);
-	UINT num_rows = dst_desc.Height;
-	UINT num_slices = dst_desc.DepthOrArraySize;
-	if (dst_box != nullptr)
+	UINT width = static_cast<UINT>(desc.Width);
+	UINT num_rows = desc.Height;
+	UINT num_slices = desc.DepthOrArraySize;
+	if (box != nullptr)
 	{
-		width = dst_box[3] - dst_box[0];
-		num_rows = dst_box[4] - dst_box[1];
-		num_slices = dst_box[5] - dst_box[2];
+		width = box[3] - box[0];
+		num_rows = box[4] - box[1];
+		num_slices = box[5] - box[2];
 	}
 
-	auto row_pitch = api::format_row_pitch(convert_format(dst_desc.Format), width);
+	auto row_pitch = api::format_row_pitch(convert_format(desc.Format), width);
 	row_pitch = (row_pitch + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u);
-	const auto slice_pitch = api::format_slice_pitch(convert_format(dst_desc.Format), row_pitch, num_rows);
+	const auto slice_pitch = api::format_slice_pitch(convert_format(desc.Format), row_pitch, num_rows);
 
 	// Allocate host memory for upload
 	D3D12_RESOURCE_DESC intermediate_desc = { D3D12_RESOURCE_DIMENSION_BUFFER };
@@ -915,7 +937,7 @@ void reshade::d3d12::device_impl::update_texture_region(const api::subresource_d
 		const auto immediate_command_list = static_cast<command_list_immediate_impl *>(queue->get_immediate_command_list());
 		if (immediate_command_list != nullptr)
 		{
-			immediate_command_list->copy_buffer_to_texture(api::resource { reinterpret_cast<uintptr_t>(intermediate.get()) }, 0, 0, 0, dst, dst_subresource, dst_box);
+			immediate_command_list->copy_buffer_to_texture(api::resource { reinterpret_cast<uintptr_t>(intermediate.get()) }, 0, 0, 0, resource, subresource, box);
 
 			// Wait for command to finish executing before destroying the upload buffer
 			immediate_command_list->flush_and_wait(queue->_orig);

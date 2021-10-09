@@ -355,38 +355,53 @@ namespace reshade { namespace api
 		virtual void destroy_descriptor_sets(uint32_t count, const descriptor_set *sets) = 0;
 
 		/// <summary>
-		/// Maps the memory of a resource into application address space.
+		/// Maps the memory of a buffer resource into application address space.
 		/// </summary>
-		/// <param name="resource">Resource to map to host memory.</param>
-		/// <param name="subresource">Index of the subresource to map (<c>level + (layer * levels)</c>).</param>
-		/// <param name="box">A 3D box (or <c>nullptr</c> to reference the entire subresource) that defines the region in the <paramref name="resource"/> to map, in the format { left, top, front, right, bottom, back }.</param>
+		/// <param name="resource">Buffer resource to map to host memory.</param>
+		/// <param name="offset">Offset (in bytes) into the buffer resource to start mapping.</param>
+		/// <param name="size">Number of bytes to map. Set to -1 (0xFFFFFFFFFFFFFFFF) to indicate that the entire buffer should be mapped.</param>
 		/// <param name="access">A hint on how the returned data pointer will be accessed.</param>
-		/// <param name="out_data">Pointer to a variable that is set to a pointer to the memory of the resource and optionally the row and slice pitch of that data (depending on the resource type).</param>
-		/// <returns><see langword="true"/> if the memory of the resource was successfully mapped, <see langword="false"/> otherwise (in this case <paramref name="out_data"/> is set to <c>nullptr</c>).</returns>
-		virtual bool map_resource(resource resource, uint32_t subresource, const int32_t box[6], map_access access, subresource_data *out_data) = 0;
+		/// <param name="out_data">Pointer to a variable that is set to a pointer to the memory of the buffer resource.</param>
+		/// <returns><see langword="true"/> if the memory of the buffer resource was successfully mapped, <see langword="false"/> otherwise (in this case <paramref name="out_data"/> is set to <c>nullptr</c>).</returns>
+		virtual bool map_buffer_region(resource resource, uint64_t offset, uint64_t size, map_access access, void **out_data) = 0;
 		/// <summary>
-		/// Unmaps a previously mapped resource.
+		/// Unmaps a previously mapped buffer resource.
 		/// </summary>
-		/// <param name="resource">Resource to unmap from host memory.</param>
+		/// <param name="resource">Buffer resource to unmap from host memory.</param>
+		virtual void unmap_buffer_region(resource resource) = 0;
+		/// <summary>
+		/// Maps the memory of a texture resource into application address space.
+		/// </summary>
+		/// <param name="resource">Texture resource to map to host memory.</param>
+		/// <param name="subresource">Index of the subresource to map (<c>level + (layer * levels)</c>).</param>
+		/// <param name="box">An optional 3D box (or <c>nullptr</c> to reference the entire subresource) that defines the region in the <paramref name="resource"/> to map, in the format { left, top, front, right, bottom, back }.</param>
+		/// <param name="access">A hint on how the returned data pointer will be accessed.</param>
+		/// <param name="out_data">Pointer to a variable that is set to a pointer to the memory of the texture resource and optionally the row and slice pitch of that data (depending on the resource type).</param>
+		/// <returns><see langword="true"/> if the memory of the texture resource was successfully mapped, <see langword="false"/> otherwise (in this case <paramref name="out_data"/> is set to <c>nullptr</c>).</returns>
+		virtual bool map_texture_region(resource resource, uint32_t subresource, const int32_t box[6], map_access access, subresource_data *out_data) = 0;
+		/// <summary>
+		/// Unmaps a previously mapped texture resource.
+		/// </summary>
+		/// <param name="resource">Texture resource to unmap from host memory.</param>
 		/// <param name="subresource">Index of the subresource to unmap (<c>level + (layer * levels)</c>).</param>
-		virtual void unmap_resource(resource resource, uint32_t subresource) = 0;
+		virtual void unmap_texture_region(resource resource, uint32_t subresource) = 0;
 
 		/// <summary>
 		/// Uploads data to a buffer resource.
 		/// </summary>
 		/// <param name="data">Pointer to the data to upload.</param>
-		/// <param name="dest">Buffer resource to upload to.</param>
-		/// <param name="dest_offset">Offset (in bytes) into the buffer resource to start uploading to.</param>
+		/// <param name="resource">Buffer resource to upload to.</param>
+		/// <param name="offset">Offset (in bytes) into the buffer resource to start uploading to.</param>
 		/// <param name="size">Number of bytes to upload.</param>
-		virtual void update_buffer_region(const void *data, resource dest, uint64_t dest_offset, uint64_t size) = 0;
+		virtual void update_buffer_region(const void *data, resource resource, uint64_t offset, uint64_t size) = 0;
 		/// <summary>
 		/// Uploads data to a texture resource.
 		/// </summary>
 		/// <param name="data">Pointer to the data to upload.</param>
-		/// <param name="dest">Texture resource to upload to.</param>
-		/// <param name="dest_subresource">Index of the subresource to upload to (<c>level + (layer * levels)</c>).</param>
-		/// <param name="dest_box">A 3D box (or <c>nullptr</c> to reference the entire subresource) that defines the region in the <paramref name="resource"/> to upload to, in the format { left, top, front, right, bottom, back }.</param>
-		virtual void update_texture_region(const subresource_data &data, resource dest, uint32_t dest_subresource, const int32_t dest_box[6] = nullptr) = 0;
+		/// <param name="resource">Texture resource to upload to.</param>
+		/// <param name="subresource">Index of the subresource to upload to (<c>level + (layer * levels)</c>).</param>
+		/// <param name="box">An optional 3D box (or <c>nullptr</c> to reference the entire subresource) that defines the region in the <paramref name="resource"/> to upload to, in the format { left, top, front, right, bottom, back }.</param>
+		virtual void update_texture_region(const subresource_data &data, resource resource, uint32_t subresource, const int32_t box[6] = nullptr) = 0;
 
 		/// <summary>
 		/// Updates the contents of descriptor sets with the specified descriptors.
@@ -680,7 +695,7 @@ namespace reshade { namespace api
 		/// <param name="dest">Buffer resource to copy to.</param>
 		/// <param name="dest_offset">Offset (in bytes) into the <paramref name="dest"/> buffer to start copying to.</param>
 		/// <param name="size">Number of bytes to copy.</param>
-		virtual void copy_buffer_region(resource src, uint64_t source_offset, resource dest, uint64_t dest_offset, uint64_t size) = 0;
+		virtual void copy_buffer_region(resource source, uint64_t source_offset, resource dest, uint64_t dest_offset, uint64_t size) = 0;
 		/// <summary>
 		/// Copies a texture region from the <paramref name="source"/> buffer to the <paramref name="dest"/> texture.
 		/// <para>The <paramref name="source"/> resource has to be in the <see cref="resource_usage::copy_source"/> state.</para>

@@ -1220,7 +1220,36 @@ void reshade::vulkan::device_impl::destroy_descriptor_sets(uint32_t count, const
 	vk.FreeDescriptorSets(_orig, _descriptor_pool, count, reinterpret_cast<const VkDescriptorSet *>(sets));
 }
 
-bool reshade::vulkan::device_impl::map_resource(api::resource resource, uint32_t subresource, const int32_t box[6], api::map_access, api::subresource_data *out_data)
+bool reshade::vulkan::device_impl::map_buffer_region(api::resource resource, uint64_t offset, uint64_t, api::map_access, void **out_data)
+{
+	if (out_data == nullptr)
+		return false;
+
+	assert(resource.handle != 0);
+
+	const auto data = get_user_data_for_object<VK_OBJECT_TYPE_BUFFER>((VkBuffer)resource.handle);
+	if (data->allocation != nullptr)
+	{
+		if (vmaMapMemory(_alloc, data->allocation, out_data) == VK_SUCCESS)
+		{
+			*out_data = static_cast<uint8_t *>(*out_data) + offset;
+			return true;
+		}
+	}
+
+	return false;
+}
+void reshade::vulkan::device_impl::unmap_buffer_region(api::resource resource)
+{
+	assert(resource.handle != 0);
+
+	const auto data = get_user_data_for_object<VK_OBJECT_TYPE_BUFFER>((VkBuffer)resource.handle);
+	if (data->allocation != nullptr)
+	{
+		vmaUnmapMemory(_alloc, data->allocation);
+	}
+}
+bool reshade::vulkan::device_impl::map_texture_region(api::resource resource, uint32_t subresource, const int32_t box[6], api::map_access, api::subresource_data *out_data)
 {
 	if (out_data == nullptr)
 		return false;
@@ -1229,8 +1258,9 @@ bool reshade::vulkan::device_impl::map_resource(api::resource resource, uint32_t
 	out_data->row_pitch = 0;
 	out_data->slice_pitch = 0;
 
-	// Mapping a subset of a resource is not supported
-	if (box != nullptr)
+	// Mapping a subset of a texture is not supported
+	// TODO: Add support for subresources other than zero for images
+	if (subresource != 0 || box != nullptr)
 		return false;
 
 	assert(resource.handle != 0);
@@ -1238,46 +1268,34 @@ bool reshade::vulkan::device_impl::map_resource(api::resource resource, uint32_t
 	const auto data = get_user_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)resource.handle);
 	if (data->allocation != nullptr)
 	{
-		assert(subresource == 0); // TODO: Add support for subresources other than zero for images
-
 		if (vmaMapMemory(_alloc, data->allocation, &out_data->data) == VK_SUCCESS)
 		{
-			if (data->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO)
-			{
-				// Assume that the image was created with 'VK_IMAGE_TILING_LINEAR' here
-				out_data->row_pitch = api::format_row_pitch(convert_format(data->create_info.format), data->create_info.extent.width);
-				out_data->slice_pitch = api::format_slice_pitch(convert_format(data->create_info.format), out_data->row_pitch, data->create_info.extent.height);
-			}
-			else
-			{
-				out_data->row_pitch = static_cast<uint32_t>(data->allocation->GetSize());
-				out_data->slice_pitch = out_data->row_pitch;
-			}
+			// Assume that the image was created with 'VK_IMAGE_TILING_LINEAR' here
+			out_data->row_pitch = api::format_row_pitch(convert_format(data->create_info.format), data->create_info.extent.width);
+			out_data->slice_pitch = api::format_slice_pitch(convert_format(data->create_info.format), out_data->row_pitch, data->create_info.extent.height);
 			return true;
 		}
 	}
 
-	out_data->data = nullptr;
-	out_data->row_pitch = 0;
-	out_data->slice_pitch = 0;
-
 	return false;
 }
-void reshade::vulkan::device_impl::unmap_resource(api::resource resource, uint32_t subresource)
+void reshade::vulkan::device_impl::unmap_texture_region(api::resource resource, uint32_t subresource)
 {
+	if (subresource != 0)
+		return;
+
 	assert(resource.handle != 0);
 
 	const auto data = get_user_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)resource.handle);
 	if (data->allocation != nullptr)
 	{
-		assert(subresource == 0);
 		vmaUnmapMemory(_alloc, data->allocation);
 	}
 }
 
-void reshade::vulkan::device_impl::update_buffer_region(const void *data, api::resource dst, uint64_t dst_offset, uint64_t size)
+void reshade::vulkan::device_impl::update_buffer_region(const void *data, api::resource resource, uint64_t offset, uint64_t size)
 {
-	assert(dst.handle != 0);
+	assert(resource.handle != 0);
 	assert(!_queues.empty());
 
 	for (command_queue_impl *const queue : _queues)
@@ -1287,31 +1305,31 @@ void reshade::vulkan::device_impl::update_buffer_region(const void *data, api::r
 		{
 			immediate_command_list->_has_commands = true;
 
-			vk.CmdUpdateBuffer(immediate_command_list->_orig, (VkBuffer)dst.handle, dst_offset, size, data);
+			vk.CmdUpdateBuffer(immediate_command_list->_orig, (VkBuffer)resource.handle, offset, size, data);
 
 			immediate_command_list->flush_and_wait((VkQueue)queue->get_native_object());
 			break;
 		}
 	}
 }
-void reshade::vulkan::device_impl::update_texture_region(const api::subresource_data &data, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6])
+void reshade::vulkan::device_impl::update_texture_region(const api::subresource_data &data, api::resource resource, uint32_t subresource, const int32_t box[6])
 {
 	assert(!_queues.empty());
 
-	const auto dst_data = get_user_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)dst.handle);
+	const auto resource_data = get_user_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)resource.handle);
 
-	VkExtent3D extent = dst_data->create_info.extent;
-	extent.depth *= dst_data->create_info.arrayLayers;
+	VkExtent3D extent = resource_data->create_info.extent;
+	extent.depth *= resource_data->create_info.arrayLayers;
 
-	if (dst_box != nullptr)
+	if (box != nullptr)
 	{
-		extent.width  = dst_box[3] - dst_box[0];
-		extent.height = dst_box[4] - dst_box[1];
-		extent.depth  = dst_box[5] - dst_box[2];
+		extent.width  = box[3] - box[0];
+		extent.height = box[4] - box[1];
+		extent.depth  = box[5] - box[2];
 	}
 
-	const auto row_size_packed = api::format_row_pitch(convert_format(dst_data->create_info.format), extent.width);
-	const auto slice_size_packed = api::format_slice_pitch(convert_format(dst_data->create_info.format), row_size_packed, extent.height);
+	const auto row_size_packed = api::format_row_pitch(convert_format(resource_data->create_info.format), extent.width);
+	const auto slice_size_packed = api::format_slice_pitch(convert_format(resource_data->create_info.format), row_size_packed, extent.height);
 	const auto total_size = extent.depth * slice_size_packed;
 
 	// Allocate host memory for upload
@@ -1357,7 +1375,7 @@ void reshade::vulkan::device_impl::update_texture_region(const api::subresource_
 			const auto immediate_command_list = static_cast<command_list_immediate_impl *>(queue->get_immediate_command_list());
 			if (immediate_command_list != nullptr)
 			{
-				immediate_command_list->copy_buffer_to_texture({ (uint64_t)intermediate }, 0, 0, 0, dst, dst_subresource, dst_box);
+				immediate_command_list->copy_buffer_to_texture({ (uint64_t)intermediate }, 0, 0, 0, resource, subresource, box);
 
 				// Wait for command to finish executing before destroying the upload buffer
 				immediate_command_list->flush_and_wait((VkQueue)queue->get_native_object());

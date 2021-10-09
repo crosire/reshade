@@ -78,33 +78,6 @@ bool D3D11DeviceContext::check_and_upgrade_interface(REFIID riid)
 }
 
 #if RESHADE_ADDON
-void D3D11DeviceContext::invoke_map_resource_event(ID3D11Resource *resource, UINT subresource, D3D11_MAP map_type, reshade::api::subresource_data *data)
-{
-	reshade::api::map_access access = static_cast<reshade::api::map_access>(0);
-	switch (map_type)
-	{
-	case D3D11_MAP_READ:
-		access = reshade::api::map_access::read_only;
-		break;
-	case D3D11_MAP_WRITE:
-	case D3D11_MAP_WRITE_NO_OVERWRITE:
-		access = reshade::api::map_access::write_only;
-		break;
-	case D3D11_MAP_READ_WRITE:
-		access = reshade::api::map_access::read_write;
-		break;
-	case D3D11_MAP_WRITE_DISCARD:
-		access = reshade::api::map_access::write_discard;
-		break;
-	}
-
-	reshade::invoke_addon_event<reshade::addon_event::map_resource>(_device, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) }, subresource, nullptr, access, data);
-}
-void D3D11DeviceContext::invoke_unmap_resource_event(ID3D11Resource *resource, UINT subresource)
-{
-	reshade::invoke_addon_event<reshade::addon_event::unmap_resource>(_device, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) }, subresource);
-}
-
 void D3D11DeviceContext::invoke_bind_vertex_buffers_event(UINT first, UINT count, ID3D11Buffer *const *buffers, const UINT *strides, const UINT *offsets)
 {
 	assert(count <= D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT);
@@ -325,9 +298,36 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::Map(ID3D11Resource *pResource, UIN
 {
 	const HRESULT hr = _orig->Map(pResource, Subresource, MapType, MapFlags, pMappedResource);
 #if RESHADE_ADDON
-	if (SUCCEEDED(hr))
+	if (SUCCEEDED(hr) && (
+		reshade::has_addon_event<reshade::addon_event::map_buffer_region>() ||
+		reshade::has_addon_event<reshade::addon_event::map_texture_region>()))
 	{
-		invoke_map_resource_event(pResource, Subresource, MapType, reinterpret_cast<reshade::api::subresource_data *>(pMappedResource));
+		assert(pResource != nullptr);
+
+		D3D11_RESOURCE_DIMENSION type = D3D11_RESOURCE_DIMENSION_UNKNOWN;
+		pResource->GetType(&type);
+		if (type == D3D11_RESOURCE_DIMENSION_BUFFER)
+		{
+			assert(Subresource == 0);
+
+			reshade::invoke_addon_event<reshade::addon_event::map_buffer_region>(
+				_device,
+				reshade::api::resource { reinterpret_cast<uintptr_t>(pResource) },
+				0,
+				std::numeric_limits<uint64_t>::max(),
+				reshade::d3d11::convert_access_flags(MapType),
+				pMappedResource != nullptr ? &pMappedResource->pData : nullptr);
+		}
+		else
+		{
+			reshade::invoke_addon_event<reshade::addon_event::map_texture_region>(
+				_device,
+				reshade::api::resource { reinterpret_cast<uintptr_t>(pResource) },
+				Subresource,
+				nullptr,
+				reshade::d3d11::convert_access_flags(MapType),
+				reinterpret_cast<reshade::api::subresource_data *>(pMappedResource));
+		}
 	}
 #endif
 	return hr;
@@ -335,8 +335,26 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::Map(ID3D11Resource *pResource, UIN
 void    STDMETHODCALLTYPE D3D11DeviceContext::Unmap(ID3D11Resource *pResource, UINT Subresource)
 {
 #if RESHADE_ADDON
-	invoke_unmap_resource_event(pResource, Subresource);
+	assert(pResource != nullptr);
+
+	if (reshade::has_addon_event<reshade::addon_event::unmap_buffer_region>() ||
+		reshade::has_addon_event<reshade::addon_event::unmap_texture_region>())
+	{
+		D3D11_RESOURCE_DIMENSION type = D3D11_RESOURCE_DIMENSION_UNKNOWN;
+		pResource->GetType(&type);
+		if (type == D3D11_RESOURCE_DIMENSION_BUFFER)
+		{
+			assert(Subresource == 0);
+
+			reshade::invoke_addon_event<reshade::addon_event::unmap_buffer_region>(_device, reshade::api::resource { reinterpret_cast<uintptr_t>(pResource) });
+		}
+		else
+		{
+			reshade::invoke_addon_event<reshade::addon_event::unmap_texture_region>(_device, reshade::api::resource { reinterpret_cast<uintptr_t>(pResource) }, Subresource);
+		}
+	}
 #endif
+
 	_orig->Unmap(pResource, Subresource);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::PSSetConstantBuffers(UINT StartSlot, UINT NumBuffers, ID3D11Buffer *const *ppConstantBuffers)
@@ -621,7 +639,6 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::CopySubresourceRegion(ID3D11Resour
 	{
 		D3D11_RESOURCE_DIMENSION type = D3D11_RESOURCE_DIMENSION_UNKNOWN;
 		pDstResource->GetType(&type);
-
 		if (type == D3D11_RESOURCE_DIMENSION_BUFFER)
 		{
 			assert(SrcSubresource == 0 && DstSubresource == 0);
@@ -676,7 +693,6 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::UpdateSubresource(ID3D11Resource *
 	{
 		D3D11_RESOURCE_DIMENSION type = D3D11_RESOURCE_DIMENSION_UNKNOWN;
 		pDstResource->GetType(&type);
-
 		if (type == D3D11_RESOURCE_DIMENSION_BUFFER)
 		{
 			assert(DstSubresource == 0);
@@ -1089,7 +1105,6 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::CopySubresourceRegion1(ID3D11Resou
 	{
 		D3D11_RESOURCE_DIMENSION type;
 		pDstResource->GetType(&type);
-
 		if (type == D3D11_RESOURCE_DIMENSION_BUFFER)
 		{
 			assert(SrcSubresource == 0 && DstSubresource == 0);

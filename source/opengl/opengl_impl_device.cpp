@@ -1245,47 +1245,26 @@ void reshade::opengl::device_impl::destroy_descriptor_sets(uint32_t count, const
 		delete reinterpret_cast<descriptor_set_impl *>(sets[i].handle);
 }
 
-bool reshade::opengl::device_impl::map_resource(api::resource resource, uint32_t subresource, const int32_t box[6], api::map_access access, api::subresource_data *out_data)
+bool reshade::opengl::device_impl::map_buffer_region(api::resource resource, uint64_t offset, uint64_t size, api::map_access access, void **out_data)
 {
 	if (out_data == nullptr)
 		return false;
 
-	out_data->data = nullptr;
-	out_data->row_pitch = 0;
-	out_data->slice_pitch = 0;
+	assert(resource.handle != 0 && (resource.handle >> 40) == GL_BUFFER);
+	assert(offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()) && (size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()) || size == std::numeric_limits<uint64_t>::max()));
 
-	assert(resource.handle != 0);
-	const GLenum target = resource.handle >> 40;
 	const GLuint object = resource.handle & 0xFFFFFFFF;
-
-	// Can only map buffer resources
-	if (target != GL_BUFFER)
-		return false;
-
-	assert(subresource == 0);
-
-	const GLenum access_flags = convert_access_flags(access);
-
-	uint32_t offset = 0;
-	uint32_t length = 0;
-	if (box != nullptr)
-	{
-		offset = box[0];
-		length = box[3] - box[0];
-	}
 
 	if (_supports_dsa)
 	{
-		if (box == nullptr)
+		if (size == std::numeric_limits<uint64_t>::max())
 		{
-			GLint max_length = 0;
-			glGetNamedBufferParameteriv(object, GL_BUFFER_SIZE, &max_length);
-			length = max_length;
+			GLint max_size = 0;
+			glGetNamedBufferParameteriv(object, GL_BUFFER_SIZE, &max_size);
+			size = max_size;
 		}
 
-		out_data->data = glMapNamedBufferRange(object, offset, length, access_flags);
-		out_data->row_pitch = length;
-		out_data->slice_pitch = length;
+		*out_data = glMapNamedBufferRange(object, static_cast<GLintptr>(offset), static_cast<GLsizeiptr>(size), convert_access_flags(access));
 	}
 	else
 	{
@@ -1294,33 +1273,25 @@ bool reshade::opengl::device_impl::map_resource(api::resource resource, uint32_t
 
 		glBindBuffer(GL_COPY_WRITE_BUFFER, object);
 
-		if (box == nullptr)
+		if (size == std::numeric_limits<uint64_t>::max())
 		{
-			GLint max_length = 0;
-			glGetBufferParameteriv(GL_COPY_WRITE_BUFFER, GL_BUFFER_SIZE, &max_length);
-			length = max_length;
+			GLint max_size = 0;
+			glGetBufferParameteriv(GL_COPY_WRITE_BUFFER, GL_BUFFER_SIZE, &max_size);
+			size = max_size;
 		}
 
-		out_data->data = glMapBufferRange(GL_COPY_WRITE_BUFFER, offset, length, access_flags);
-		out_data->row_pitch = length;
-		out_data->slice_pitch = length;
+		*out_data = glMapBufferRange(GL_COPY_WRITE_BUFFER, static_cast<GLintptr>(offset), static_cast<GLsizeiptr>(size), convert_access_flags(access));
 
 		glBindBuffer(GL_COPY_WRITE_BUFFER, prev_object);
 	}
 
-	return out_data->data != nullptr;
+	return *out_data != nullptr;
 }
-void reshade::opengl::device_impl::unmap_resource(api::resource resource, uint32_t subresource)
+void reshade::opengl::device_impl::unmap_buffer_region(api::resource resource)
 {
-	assert(resource.handle != 0);
-	const GLenum target = resource.handle >> 40;
+	assert(resource.handle != 0 && (resource.handle >> 40) == GL_BUFFER);
+
 	const GLuint object = resource.handle & 0xFFFFFFFF;
-
-	// Can only map buffer resources
-	if (target != GL_BUFFER)
-		return;
-
-	assert(subresource == 0);
 
 	if (_supports_dsa)
 	{
@@ -1336,18 +1307,32 @@ void reshade::opengl::device_impl::unmap_resource(api::resource resource, uint32
 		glBindBuffer(GL_COPY_WRITE_BUFFER, prev_object);
 	}
 }
-
-void reshade::opengl::device_impl::update_buffer_region(const void *data, api::resource dst, uint64_t dst_offset, uint64_t size)
+bool reshade::opengl::device_impl::map_texture_region(api::resource, uint32_t, const int32_t[6], api::map_access, api::subresource_data *out_data)
 {
-	assert(dst.handle != 0);
-	assert(dst_offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()) && size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
+	if (out_data != nullptr)
+	{
+		out_data->data = nullptr;
+		out_data->row_pitch = 0;
+		out_data->slice_pitch = 0;
+	}
 
-	const GLenum target = dst.handle >> 40;
-	const GLuint object = dst.handle & 0xFFFFFFFF;
+	return false;
+}
+void reshade::opengl::device_impl::unmap_texture_region(api::resource, uint32_t)
+{
+}
+
+void reshade::opengl::device_impl::update_buffer_region(const void *data, api::resource resource, uint64_t offset, uint64_t size)
+{
+	assert(resource.handle != 0);
+	assert(offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()) && size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
+
+	const GLenum target = resource.handle >> 40;
+	const GLuint object = resource.handle & 0xFFFFFFFF;
 
 	if (_supports_dsa)
 	{
-		glNamedBufferSubData(object, static_cast<GLintptr>(dst_offset), static_cast<GLsizeiptr>(size), data);
+		glNamedBufferSubData(object, static_cast<GLintptr>(offset), static_cast<GLsizeiptr>(size), data);
 	}
 	else
 	{
@@ -1355,17 +1340,18 @@ void reshade::opengl::device_impl::update_buffer_region(const void *data, api::r
 		glGetIntegerv(GL_COPY_WRITE_BUFFER_BINDING, &previous_buf);
 
 		glBindBuffer(GL_COPY_WRITE_BUFFER, object);
-		glBufferSubData(GL_COPY_WRITE_BUFFER, static_cast<GLintptr>(dst_offset), static_cast<GLsizeiptr>(size), data);
+		glBufferSubData(GL_COPY_WRITE_BUFFER, static_cast<GLintptr>(offset), static_cast<GLsizeiptr>(size), data);
 
 		glBindBuffer(GL_COPY_WRITE_BUFFER, previous_buf);
 	}
 
 }
-void reshade::opengl::device_impl::update_texture_region(const api::subresource_data &data, api::resource dst, uint32_t dst_subresource, const int32_t dst_box[6])
+void reshade::opengl::device_impl::update_texture_region(const api::subresource_data &data, api::resource resource, uint32_t subresource, const int32_t box[6])
 {
-	assert(dst.handle != 0);
-	const GLenum target = dst.handle >> 40;
-	const GLuint object = dst.handle & 0xFFFFFFFF;
+	assert(resource.handle != 0);
+
+	const GLenum target = resource.handle >> 40;
+	const GLuint object = resource.handle & 0xFFFFFFFF;
 
 	// Get current state
 	GLint previous_tex = 0;
@@ -1410,21 +1396,21 @@ void reshade::opengl::device_impl::update_texture_region(const api::subresource_
 	if (0 == levels)
 		levels = 1;
 
-	const GLuint level = dst_subresource % levels;
-	      GLuint layer = dst_subresource / levels;
+	const GLuint level = subresource % levels;
+	      GLuint layer = subresource / levels;
 
 	GLint format = GL_NONE; GLenum type;
 	glGetTexLevelParameteriv(target, level, GL_TEXTURE_INTERNAL_FORMAT, &format);
 
 	GLint xoffset, yoffset, zoffset, width, height, depth;
-	if (dst_box != nullptr)
+	if (box != nullptr)
 	{
-		xoffset = dst_box[0];
-		yoffset = dst_box[1];
-		zoffset = dst_box[2];
-		width   = dst_box[3] - dst_box[0];
-		height  = dst_box[4] - dst_box[1];
-		depth   = dst_box[5] - dst_box[2];
+		xoffset = box[0];
+		yoffset = box[1];
+		zoffset = box[2];
+		width   = box[3] - box[0];
+		height  = box[4] - box[1];
+		depth   = box[5] - box[2];
 	}
 	else
 	{

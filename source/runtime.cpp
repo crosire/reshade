@@ -3137,11 +3137,11 @@ void reshade::runtime::render_technique(api::command_list *cmd_list, technique &
 #endif
 
 	// Update shader constants
-	if (api::subresource_data mapped_uniform_data; effect.cb != 0 &&
-		_device->map_resource(effect.cb, 0, nullptr, api::map_access::write_discard, &mapped_uniform_data))
+	if (void *mapped_uniform_data; effect.cb != 0 &&
+		_device->map_buffer_region(effect.cb, 0, std::numeric_limits<uint64_t>::max(), api::map_access::write_discard, &mapped_uniform_data))
 	{
-		std::memcpy(mapped_uniform_data.data, effect.uniform_data_storage.data(), effect.uniform_data_storage.size());
-		_device->unmap_resource(effect.cb, 0);
+		std::memcpy(mapped_uniform_data, effect.uniform_data_storage.data(), effect.uniform_data_storage.size());
+		_device->unmap_buffer_region(effect.cb);
 	}
 	else if (_renderer_id == 0x9000)
 	{
@@ -3888,29 +3888,17 @@ bool reshade::runtime::get_texture_data(api::resource resource, api::resource_us
 		return false;
 	}
 
-	uint32_t texture_pitch = desc.texture.width;
-	const uint32_t pixels_pitch = desc.texture.width * 4;
-
-	switch (view_format)
-	{
-	case api::format::r8_unorm:
-		break;
-	case api::format::r8g8_unorm:
-		texture_pitch *= 2;
-		break;
-	default:
-		texture_pitch *= 4;
-		break;
-	}
-
+	uint32_t row_pitch = api::format_row_pitch(view_format, desc.texture.width);
 	if (_device->get_api() == api::device_api::d3d12) // See D3D12_TEXTURE_DATA_PITCH_ALIGNMENT
-		texture_pitch = (texture_pitch + 255) & ~255;
+		row_pitch = (row_pitch + 255) & ~255;
+	const uint32_t slice_pitch = api::format_slice_pitch(view_format, row_pitch, desc.texture.height);
+	const uint32_t pixels_row_pitch = desc.texture.width * 4;
 
 	// Copy back buffer data into system memory buffer
 	api::resource intermediate;
 	if (_device->check_capability(api::device_caps::copy_buffer_to_texture))
 	{
-		if (!_device->create_resource(api::resource_desc(texture_pitch * desc.texture.height, api::memory_heap::gpu_to_cpu, api::resource_usage::copy_dest), nullptr, api::resource_usage::copy_dest, &intermediate))
+		if (!_device->create_resource(api::resource_desc(slice_pitch, api::memory_heap::gpu_to_cpu, api::resource_usage::copy_dest), nullptr, api::resource_usage::copy_dest, &intermediate))
 		{
 			LOG(ERROR) << "Failed to create system memory buffer for screenshot capture!";
 			return false;
@@ -3945,14 +3933,23 @@ bool reshade::runtime::get_texture_data(api::resource resource, api::resource_us
 
 	// Copy data from intermediate image into output buffer
 	api::subresource_data mapped_data = {};
-	if (_device->map_resource(intermediate, 0, nullptr, api::map_access::read_only, &mapped_data))
+	if (_device->check_capability(api::device_caps::copy_buffer_to_texture))
 	{
-		if (!_device->check_capability(api::device_caps::copy_buffer_to_texture))
-			texture_pitch = mapped_data.row_pitch;
+		_device->map_buffer_region(intermediate, 0, std::numeric_limits<uint64_t>::max(), api::map_access::read_only, &mapped_data.data);
 
+		mapped_data.row_pitch = row_pitch;
+		mapped_data.slice_pitch = slice_pitch;
+	}
+	else
+	{
+		_device->map_texture_region(intermediate, 0, nullptr, api::map_access::read_only, &mapped_data);
+	}
+
+	if (mapped_data.data != nullptr)
+	{
 		auto mapped_pixels = static_cast<const uint8_t *>(mapped_data.data);
 
-		for (uint32_t y = 0; y < desc.texture.height; ++y, pixels += pixels_pitch, mapped_pixels += texture_pitch)
+		for (uint32_t y = 0; y < desc.texture.height; ++y, pixels += pixels_row_pitch, mapped_pixels += mapped_data.row_pitch)
 		{
 			switch (view_format)
 			{
@@ -3976,24 +3973,24 @@ bool reshade::runtime::get_texture_data(api::resource resource, api::resource_us
 				break;
 			case api::format::r8g8b8a8_unorm:
 			case api::format::r8g8b8x8_unorm:
-				std::memcpy(pixels, mapped_pixels, pixels_pitch);
+				std::memcpy(pixels, mapped_pixels, pixels_row_pitch);
 				if (view_format == api::format::r8g8b8x8_unorm)
-					for (uint32_t x = 0; x < pixels_pitch; x += 4)
+					for (uint32_t x = 0; x < pixels_row_pitch; x += 4)
 						pixels[x + 3] = 0xFF;
 				break;
 			case api::format::b8g8r8a8_unorm:
 			case api::format::b8g8r8x8_unorm:
-				std::memcpy(pixels, mapped_pixels, pixels_pitch);
+				std::memcpy(pixels, mapped_pixels, pixels_row_pitch);
 				// Format is BGRA, but output should be RGBA, so flip channels
-				for (uint32_t x = 0; x < pixels_pitch; x += 4)
+				for (uint32_t x = 0; x < pixels_row_pitch; x += 4)
 					std::swap(pixels[x + 0], pixels[x + 2]);
 				if (view_format == api::format::b8g8r8x8_unorm)
-					for (uint32_t x = 0; x < pixels_pitch; x += 4)
+					for (uint32_t x = 0; x < pixels_row_pitch; x += 4)
 						pixels[x + 3] = 0xFF;
 				break;
 			case api::format::r10g10b10a2_unorm:
 			case api::format::b10g10r10a2_unorm:
-				for (uint32_t x = 0; x < pixels_pitch; x += 4)
+				for (uint32_t x = 0; x < pixels_row_pitch; x += 4)
 				{
 					const uint32_t rgba = *reinterpret_cast<const uint32_t *>(mapped_pixels + x);
 					// Divide by 4 to get 10-bit range (0-1023) into 8-bit range (0-255)
@@ -4008,7 +4005,10 @@ bool reshade::runtime::get_texture_data(api::resource resource, api::resource_us
 			}
 		}
 
-		_device->unmap_resource(intermediate, 0);
+		if (_device->check_capability(api::device_caps::copy_buffer_to_texture))
+			_device->unmap_buffer_region(intermediate);
+		else
+			_device->unmap_texture_region(intermediate, 0);
 	}
 
 	_device->destroy_resource(intermediate);

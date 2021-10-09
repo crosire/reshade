@@ -18,45 +18,72 @@
 HRESULT STDMETHODCALLTYPE ID3D12Resource_Map(ID3D12Resource *pResource, UINT Subresource, const D3D12_RANGE *pReadRange, void **ppData)
 {
 	const HRESULT hr = reshade::hooks::call(ID3D12Resource_Map, vtable_from_instance(pResource) + 8)(pResource, Subresource, pReadRange, ppData);
-
-	com_ptr<ID3D12Device> device;
-	pResource->GetDevice(IID_PPV_ARGS(&device));
-
-	const auto device_proxy = get_private_pointer<D3D12Device>(device.get());
-	if (SUCCEEDED(hr) && device_proxy != nullptr)
+	if (SUCCEEDED(hr) && (
+		reshade::has_addon_event<reshade::addon_event::map_buffer_region>() ||
+		reshade::has_addon_event<reshade::addon_event::map_texture_region>()))
 	{
-		const D3D12_RESOURCE_DESC desc = pResource->GetDesc();
+		com_ptr<ID3D12Device> device;
+		pResource->GetDevice(IID_PPV_ARGS(&device));
 
-		if (ppData != nullptr)
+		if (const auto device_proxy = get_private_pointer<D3D12Device>(device.get());
+			device_proxy != nullptr)
 		{
-			reshade::api::subresource_data data;
-			data.data = *ppData;
+			const D3D12_RESOURCE_DESC desc = pResource->GetDesc();
 
-			D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout;
-			device_proxy->_orig->GetCopyableFootprints(&desc, Subresource, 1, 0, &layout, &data.slice_pitch, nullptr, nullptr);
-			data.row_pitch = layout.Footprint.RowPitch;
-			data.slice_pitch *= layout.Footprint.RowPitch;
+			if (desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
+			{
+				assert(Subresource == 0);
 
-			reshade::invoke_addon_event<reshade::addon_event::map_resource>(device_proxy, reshade::api::resource { reinterpret_cast<uintptr_t>(pResource) }, Subresource, nullptr, reshade::api::map_access::read_write, &data);
-			*ppData = data.data;
-		}
-		else
-		{
-			reshade::invoke_addon_event<reshade::addon_event::map_resource>(device_proxy, reshade::api::resource { reinterpret_cast<uintptr_t>(pResource) }, Subresource, nullptr, reshade::api::map_access::read_write, nullptr);
+				reshade::invoke_addon_event<reshade::addon_event::map_buffer_region>(device_proxy, reshade::api::resource { reinterpret_cast<uintptr_t>(pResource) }, 0, std::numeric_limits<uint64_t>::max(), reshade::api::map_access::read_write, ppData);
+			}
+			else
+			{
+				reshade::api::subresource_data data;
+				if (ppData != nullptr)
+				{
+					data.data = *ppData;
+
+					D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout;
+					device_proxy->_orig->GetCopyableFootprints(&desc, Subresource, 1, 0, &layout, &data.slice_pitch, nullptr, nullptr);
+					data.row_pitch = layout.Footprint.RowPitch;
+					data.slice_pitch *= layout.Footprint.RowPitch;
+				}
+
+				reshade::invoke_addon_event<reshade::addon_event::map_texture_region>(device_proxy, reshade::api::resource { reinterpret_cast<uintptr_t>(pResource) }, Subresource, nullptr, reshade::api::map_access::read_write, &data);
+
+				if (ppData != nullptr)
+				{
+					*ppData = data.data;
+				}
+			}
 		}
 	}
-
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE ID3D12Resource_Unmap(ID3D12Resource *pResource, UINT Subresource, const D3D12_RANGE *pWrittenRange)
 {
-	com_ptr<ID3D12Device> device;
-	pResource->GetDevice(IID_PPV_ARGS(&device));
-
-	const auto device_proxy = get_private_pointer<D3D12Device>(device.get());
-	if (device_proxy != nullptr)
+	if (reshade::has_addon_event<reshade::addon_event::unmap_buffer_region>() ||
+		reshade::has_addon_event<reshade::addon_event::unmap_texture_region>())
 	{
-		reshade::invoke_addon_event<reshade::addon_event::unmap_resource>(device_proxy, reshade::api::resource { reinterpret_cast<uintptr_t>(pResource) }, Subresource);
+		com_ptr<ID3D12Device> device;
+		pResource->GetDevice(IID_PPV_ARGS(&device));
+
+		if (const auto device_proxy = get_private_pointer<D3D12Device>(device.get());
+			device_proxy != nullptr)
+		{
+			const D3D12_RESOURCE_DESC desc = pResource->GetDesc();
+
+			if (desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
+			{
+				assert(Subresource == 0);
+
+				reshade::invoke_addon_event<reshade::addon_event::unmap_buffer_region>(device_proxy, reshade::api::resource { reinterpret_cast<uintptr_t>(pResource) });
+			}
+			else
+			{
+				reshade::invoke_addon_event<reshade::addon_event::unmap_texture_region>(device_proxy, reshade::api::resource { reinterpret_cast<uintptr_t>(pResource) }, Subresource);
+			}
+		}
 	}
 
 	return reshade::hooks::call(ID3D12Resource_Unmap, vtable_from_instance(pResource) + 9)(pResource, Subresource, pWrittenRange);
