@@ -619,8 +619,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateTexture(UINT Width, UINT Height
 		const auto device_proxy = this;
 		texture->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
 
-		reshade::hooks::install("IDirect3DTexture9::LockRect", vtable_from_instance(texture), 19, reinterpret_cast<reshade::hook::address>(IDirect3DTexture9_LockRect));
-		reshade::hooks::install("IDirect3DTexture9::UnlockRect", vtable_from_instance(texture), 20, reinterpret_cast<reshade::hook::address>(IDirect3DTexture9_UnlockRect));
+		if (reshade::has_addon_event<reshade::addon_event::map_texture_region>())
+			reshade::hooks::install("IDirect3DTexture9::LockRect", vtable_from_instance(texture), 19, reinterpret_cast<reshade::hook::address>(IDirect3DTexture9_LockRect));
+		if (reshade::has_addon_event<reshade::addon_event::unmap_texture_region>())
+			reshade::hooks::install("IDirect3DTexture9::UnlockRect", vtable_from_instance(texture), 20, reinterpret_cast<reshade::hook::address>(IDirect3DTexture9_UnlockRect));
 
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
 			this, desc, nullptr, reshade::api::resource_usage::general, reshade::api::resource { reinterpret_cast<uintptr_t>(texture) });
@@ -692,8 +694,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVolumeTexture(UINT Width, UINT 
 		const auto device_proxy = this;
 		texture->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
 
-		reshade::hooks::install("IDirect3DVolumeTexture9::LockBox", vtable_from_instance(texture), 19, reinterpret_cast<reshade::hook::address>(IDirect3DVolumeTexture9_LockBox));
-		reshade::hooks::install("IDirect3DVolumeTexture9::UnlockBox", vtable_from_instance(texture), 20, reinterpret_cast<reshade::hook::address>(IDirect3DVolumeTexture9_UnlockBox));
+		if (reshade::has_addon_event<reshade::addon_event::map_texture_region>())
+			reshade::hooks::install("IDirect3DVolumeTexture9::LockBox", vtable_from_instance(texture), 19, reinterpret_cast<reshade::hook::address>(IDirect3DVolumeTexture9_LockBox));
+		if (reshade::has_addon_event<reshade::addon_event::unmap_texture_region>())
+			reshade::hooks::install("IDirect3DVolumeTexture9::UnlockBox", vtable_from_instance(texture), 20, reinterpret_cast<reshade::hook::address>(IDirect3DVolumeTexture9_UnlockBox));
 
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
 			this, desc, nullptr, reshade::api::resource_usage::general, reshade::api::resource { reinterpret_cast<uintptr_t>(texture) });
@@ -745,8 +749,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateCubeTexture(UINT EdgeLength, UI
 		const auto device_proxy = this;
 		texture->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
 
-		reshade::hooks::install("IDirect3DCubeTexture9::LockRect", vtable_from_instance(texture), 19, reinterpret_cast<reshade::hook::address>(IDirect3DCubeTexture9_LockRect));
-		reshade::hooks::install("IDirect3DCubeTexture9::UnlockRect", vtable_from_instance(texture), 20, reinterpret_cast<reshade::hook::address>(IDirect3DCubeTexture9_UnlockRect));
+		if (reshade::has_addon_event<reshade::addon_event::map_texture_region>())
+			reshade::hooks::install("IDirect3DCubeTexture9::LockRect", vtable_from_instance(texture), 19, reinterpret_cast<reshade::hook::address>(IDirect3DCubeTexture9_LockRect));
+		if (reshade::has_addon_event<reshade::addon_event::unmap_texture_region>())
+			reshade::hooks::install("IDirect3DCubeTexture9::UnlockRect", vtable_from_instance(texture), 20, reinterpret_cast<reshade::hook::address>(IDirect3DCubeTexture9_UnlockRect));
 
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
 			this, desc, nullptr, reshade::api::resource_usage::general, reshade::api::resource { reinterpret_cast<uintptr_t>(texture) });
@@ -825,8 +831,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexBuffer(UINT Length, DWORD
 		const auto device_proxy = this;
 		resource->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
 
-		reshade::hooks::install("IDirect3DVertexBuffer9::Lock", vtable_from_instance(resource), 11, reinterpret_cast<reshade::hook::address>(IDirect3DVertexBuffer9_Lock));
-		reshade::hooks::install("IDirect3DVertexBuffer9::Unlock", vtable_from_instance(resource), 12, reinterpret_cast<reshade::hook::address>(IDirect3DVertexBuffer9_Unlock));
+		if (reshade::has_addon_event<reshade::addon_event::map_buffer_region>())
+			reshade::hooks::install("IDirect3DVertexBuffer9::Lock", vtable_from_instance(resource), 11, reinterpret_cast<reshade::hook::address>(IDirect3DVertexBuffer9_Lock));
+		if (reshade::has_addon_event<reshade::addon_event::unmap_buffer_region>())
+			reshade::hooks::install("IDirect3DVertexBuffer9::Unlock", vtable_from_instance(resource), 12, reinterpret_cast<reshade::hook::address>(IDirect3DVertexBuffer9_Unlock));
 
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
 			this, desc, nullptr, reshade::api::resource_usage::general, reshade::api::resource { reinterpret_cast<uintptr_t>(*ppVertexBuffer) });
@@ -871,8 +879,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateIndexBuffer(UINT Length, DWORD 
 		const auto device_proxy = this;
 		resource->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
 
-		reshade::hooks::install("IDirect3DIndexBuffer9::Lock", vtable_from_instance(resource), 11, reinterpret_cast<reshade::hook::address>(IDirect3DIndexBuffer9_Lock));
-		reshade::hooks::install("IDirect3DIndexBuffer9::Unlock", vtable_from_instance(resource), 12, reinterpret_cast<reshade::hook::address>(IDirect3DIndexBuffer9_Unlock));
+		if (reshade::has_addon_event<reshade::addon_event::map_buffer_region>())
+			reshade::hooks::install("IDirect3DIndexBuffer9::Lock", vtable_from_instance(resource), 11, reinterpret_cast<reshade::hook::address>(IDirect3DIndexBuffer9_Lock));
+		if (reshade::has_addon_event<reshade::addon_event::unmap_buffer_region>())
+			reshade::hooks::install("IDirect3DIndexBuffer9::Unlock", vtable_from_instance(resource), 12, reinterpret_cast<reshade::hook::address>(IDirect3DIndexBuffer9_Unlock));
 
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
 			this, desc, nullptr, reshade::api::resource_usage::general, reshade::api::resource { reinterpret_cast<uintptr_t>(resource) });
@@ -1125,8 +1135,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateOffscreenPlainSurface(UINT Widt
 		const auto device_proxy = this;
 		surface->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
 
-		reshade::hooks::install("IDirect3DSurface9::LockRect", vtable_from_instance(surface), 13, reinterpret_cast<reshade::hook::address>(IDirect3DSurface9_LockRect));
-		reshade::hooks::install("IDirect3DSurface9::UnlockRect", vtable_from_instance(surface), 14, reinterpret_cast<reshade::hook::address>(IDirect3DSurface9_UnlockRect));
+		if (reshade::has_addon_event<reshade::addon_event::map_texture_region>())
+			reshade::hooks::install("IDirect3DSurface9::LockRect", vtable_from_instance(surface), 13, reinterpret_cast<reshade::hook::address>(IDirect3DSurface9_LockRect));
+		if (reshade::has_addon_event<reshade::addon_event::unmap_texture_region>())
+			reshade::hooks::install("IDirect3DSurface9::UnlockRect", vtable_from_instance(surface), 14, reinterpret_cast<reshade::hook::address>(IDirect3DSurface9_UnlockRect));
 
 		const reshade::api::resource resource = get_resource_from_view(reshade::api::resource_view { reinterpret_cast<uintptr_t>(surface) });
 
@@ -2109,8 +2121,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateOffscreenPlainSurfaceEx(UINT Wi
 		const auto device_proxy = this;
 		surface->SetPrivateData(__uuidof(Direct3DDevice9), &device_proxy, sizeof(device_proxy), 0);
 
-		reshade::hooks::install("IDirect3DSurface9::LockRect", vtable_from_instance(surface), 13, reinterpret_cast<reshade::hook::address>(IDirect3DSurface9_LockRect));
-		reshade::hooks::install("IDirect3DSurface9::UnlockRect", vtable_from_instance(surface), 14, reinterpret_cast<reshade::hook::address>(IDirect3DSurface9_UnlockRect));
+		if (reshade::has_addon_event<reshade::addon_event::map_texture_region>())
+			reshade::hooks::install("IDirect3DSurface9::LockRect", vtable_from_instance(surface), 13, reinterpret_cast<reshade::hook::address>(IDirect3DSurface9_LockRect));
+		if (reshade::has_addon_event<reshade::addon_event::unmap_texture_region>())
+			reshade::hooks::install("IDirect3DSurface9::UnlockRect", vtable_from_instance(surface), 14, reinterpret_cast<reshade::hook::address>(IDirect3DSurface9_UnlockRect));
 
 		const reshade::api::resource resource = get_resource_from_view(reshade::api::resource_view { reinterpret_cast<uintptr_t>(surface) });
 

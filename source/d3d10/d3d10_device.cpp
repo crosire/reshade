@@ -895,8 +895,10 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateBuffer(const D3D10_BUFFER_DESC *pDe
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		reshade::hooks::install("ID3D10Buffer::Map", vtable_from_instance(*ppBuffer), 10, reinterpret_cast<reshade::hook::address>(ID3D10Buffer_Map));
-		reshade::hooks::install("ID3D10Buffer::Unmap", vtable_from_instance(*ppBuffer), 11, reinterpret_cast<reshade::hook::address>(ID3D10Buffer_Unmap));
+		if (reshade::has_addon_event<reshade::addon_event::map_buffer_region>())
+			reshade::hooks::install("ID3D10Buffer::Map", vtable_from_instance(*ppBuffer), 10, reinterpret_cast<reshade::hook::address>(ID3D10Buffer_Map));
+		if (reshade::has_addon_event<reshade::addon_event::unmap_buffer_region>())
+			reshade::hooks::install("ID3D10Buffer::Unmap", vtable_from_instance(*ppBuffer), 11, reinterpret_cast<reshade::hook::address>(ID3D10Buffer_Unmap));
 
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
 			this, desc, reinterpret_cast<const reshade::api::subresource_data *>(pInitialData), reshade::api::resource_usage::general, reshade::api::resource { reinterpret_cast<uintptr_t>(*ppBuffer) });
@@ -947,8 +949,10 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture1D(const D3D10_TEXTURE1D_DES
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		reshade::hooks::install("ID3D10Texture1D::Map", vtable_from_instance(*ppTexture1D), 10, reinterpret_cast<reshade::hook::address>(ID3D10Texture1D_Map));
-		reshade::hooks::install("ID3D10Texture1D::Unmap", vtable_from_instance(*ppTexture1D), 11, reinterpret_cast<reshade::hook::address>(ID3D10Texture1D_Unmap));
+		if (reshade::has_addon_event<reshade::addon_event::map_texture_region>())
+			reshade::hooks::install("ID3D10Texture1D::Map", vtable_from_instance(*ppTexture1D), 10, reinterpret_cast<reshade::hook::address>(ID3D10Texture1D_Map));
+		if (reshade::has_addon_event<reshade::addon_event::unmap_texture_region>())
+			reshade::hooks::install("ID3D10Texture1D::Unmap", vtable_from_instance(*ppTexture1D), 11, reinterpret_cast<reshade::hook::address>(ID3D10Texture1D_Unmap));
 
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
 			this, desc, reinterpret_cast<const reshade::api::subresource_data *>(pInitialData), reshade::api::resource_usage::general, reshade::api::resource { reinterpret_cast<uintptr_t>(*ppTexture1D) });
@@ -998,8 +1002,10 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture2D(const D3D10_TEXTURE2D_DES
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		reshade::hooks::install("ID3D10Texture2D::Map", vtable_from_instance(*ppTexture2D), 10, reinterpret_cast<reshade::hook::address>(ID3D10Texture2D_Map));
-		reshade::hooks::install("ID3D10Texture2D::Unmap", vtable_from_instance(*ppTexture2D), 11, reinterpret_cast<reshade::hook::address>(ID3D10Texture2D_Unmap));
+		if (reshade::has_addon_event<reshade::addon_event::map_texture_region>())
+			reshade::hooks::install("ID3D10Texture2D::Map", vtable_from_instance(*ppTexture2D), 10, reinterpret_cast<reshade::hook::address>(ID3D10Texture2D_Map));
+		if (reshade::has_addon_event<reshade::addon_event::unmap_texture_region>())
+			reshade::hooks::install("ID3D10Texture2D::Unmap", vtable_from_instance(*ppTexture2D), 11, reinterpret_cast<reshade::hook::address>(ID3D10Texture2D_Unmap));
 
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
 			this, desc, reinterpret_cast<const reshade::api::subresource_data *>(pInitialData), reshade::api::resource_usage::general, reshade::api::resource { reinterpret_cast<uintptr_t>(*ppTexture2D) });
@@ -1049,8 +1055,10 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture3D(const D3D10_TEXTURE3D_DES
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		reshade::hooks::install("ID3D10Texture3D::Map", vtable_from_instance(*ppTexture3D), 10, reinterpret_cast<reshade::hook::address>(ID3D10Texture3D_Map));
-		reshade::hooks::install("ID3D10Texture3D::Unmap", vtable_from_instance(*ppTexture3D), 11, reinterpret_cast<reshade::hook::address>(ID3D10Texture3D_Unmap));
+		if (reshade::has_addon_event<reshade::addon_event::map_texture_region>())
+			reshade::hooks::install("ID3D10Texture3D::Map", vtable_from_instance(*ppTexture3D), 10, reinterpret_cast<reshade::hook::address>(ID3D10Texture3D_Map));
+		if (reshade::has_addon_event<reshade::addon_event::unmap_texture_region>())
+			reshade::hooks::install("ID3D10Texture3D::Unmap", vtable_from_instance(*ppTexture3D), 11, reinterpret_cast<reshade::hook::address>(ID3D10Texture3D_Unmap));
 
 		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
 			this, desc, reinterpret_cast<const reshade::api::subresource_data *>(pInitialData), reshade::api::resource_usage::general, reshade::api::resource { reinterpret_cast<uintptr_t>(*ppTexture3D) });
